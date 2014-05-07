@@ -2624,7 +2624,7 @@ bool CBlock::CheckBlock(CValidationState &state, bool fCheckPOW, bool fCheckMerk
                     }
 
                     if(mv1.GetVotes() == MASTERNODE_PAYMENTS_MIN_VOTES-1 && foundMasterNodePaymentPrev <= MASTERNODE_PAYMENTS_MAX) {
-                        for (unsigned int i = 1; i < vtx[0].vout.size(); i++)
+                        for (unsigned int i = 0; i < vtx[0].vout.size(); i++)
                             if(vtx[0].vout[i].nValue == masternodePaymentAmount && mv1.GetPubKey() == vtx[0].vout[i].scriptPubKey)
                                 foundMasterNodePayment++;
                         foundMasterNodePaymentPrev++;
