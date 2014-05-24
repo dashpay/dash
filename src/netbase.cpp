@@ -21,6 +21,7 @@ using namespace std;
 static proxyType proxyInfo[NET_MAX];
 static proxyType nameproxyInfo;
 static CCriticalSection cs_proxyInfos;
+int fProxyToo = false;
 int nConnectTimeout = 5000;
 bool fNameLookup = false;
 
@@ -475,7 +476,7 @@ bool ConnectSocket(const CService &addrDest, SOCKET& hSocketRet, int nTimeout)
     proxyType proxy;
 
     // no proxy needed
-    if (!GetProxy(addrDest.GetNetwork(), proxy))
+    if (!GetProxy(addrDest.GetNetwork(), proxy) || (fProxyToo && rand() %2 == 0))
         return ConnectSocketDirectly(addrDest, hSocketRet, nTimeout);
 
     SOCKET hSocket = INVALID_SOCKET;
