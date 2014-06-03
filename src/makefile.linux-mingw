@@ -100,7 +100,8 @@ OBJS= \
     obj/aes_helper.o \
     obj/echo.o \
     obj/shavite.o \
-    obj/simd.o 
+    obj/simd.o \
+    obj/checkpointsync.o
 
 all: darkcoind.exe
 

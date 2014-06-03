@@ -11,6 +11,7 @@
 #include "init.h"
 #include "ui_interface.h"
 #include "checkqueue.h"
+#include "checkpointsync.h"
 #include <boost/algorithm/string/replace.hpp>
 #include <boost/filesystem.hpp>
 #include <boost/filesystem/fstream.hpp>
@@ -2414,6 +2415,14 @@ bool SetBestChain(CValidationState &state, CBlockIndex* pindexNew)
             strMiscWarning = _("Warning: This version is obsolete, upgrade required!");
     }
 
+  	if (!IsSyncCheckpointEnforced()) // checkpoint advisory mode
+    {
+        if (pindexBest->pprev && !CheckSyncCheckpoint(pindexBest->GetBlockHash(), pindexBest->pprev))
+            strCheckpointWarning = _("Warning: checkpoint on different blockchain fork, contact developers to resolve the issue");
+        else
+            strCheckpointWarning = "";
+    }
+
     std::string strCmd = GetArg("-blocknotify", "");
 
     if (!fIsInitialDownload && !strCmd.empty())
@@ -2787,10 +2796,9 @@ bool CBlock::AcceptBlock(CValidationState &state, CDiskBlockPos *dbp)
         if (!Checkpoints::CheckBlock(nHeight, hash))
             return state.DoS(100, error("AcceptBlock() : rejected by checkpoint lock-in at %d", nHeight));
 
-        // Don't accept any forks from the main chain prior to last checkpoint
-        CBlockIndex* pcheckpoint = Checkpoints::GetLastCheckpoint(mapBlockIndex);
-        if (pcheckpoint && nHeight < pcheckpoint->nHeight)
-            return state.DoS(100, error("AcceptBlock() : forked chain older than last checkpoint (height %d)", nHeight));
+		// Check that the block satisfies synchronized checkpoint
+        if (IsSyncCheckpointEnforced() && !IsInitialBlockDownload() && !CheckSyncCheckpoint(hash, pindexPrev))
+            return error("AcceptBlock() : rejected by synchronized checkpoint");
 
         // Reject block.nVersion=1 blocks when 95% (75% on testnet) of the network has upgraded:
         if (nVersion < 2)
@@ -2843,6 +2851,9 @@ bool CBlock::AcceptBlock(CValidationState &state, CDiskBlockPos *dbp)
                 pnode->PushInventory(CInv(MSG_BLOCK, hash));
     }
 
+   	// Check pending sync-checkpoint
+    AcceptPendingSyncCheckpoint();
+
     return true;
 }
 
@@ -2876,22 +2887,15 @@ bool ProcessBlock(CValidationState &state, CNode* pfrom, CBlock* pblock, CDiskBl
     CBlockIndex* pcheckpoint = Checkpoints::GetLastCheckpoint(mapBlockIndex);
     if (pcheckpoint && pblock->hashPrevBlock != hashBestChain)
     {
-        // Extra checks to prevent "fill up memory by spamming with bogus blocks"
-        int64 deltaTime = pblock->GetBlockTime() - pcheckpoint->nTime;
-        if (deltaTime < 0)
-        {
-            return state.DoS(100, error("ProcessBlock() : block with timestamp before last checkpoint"));
-        }
-        CBigNum bnNewBlock;
-        bnNewBlock.SetCompact(pblock->nBits);
-        CBigNum bnRequired;
-        bnRequired.SetCompact(ComputeMinWork(pcheckpoint->nBits, deltaTime));
-        if (bnNewBlock > bnRequired)
-        {
-            return state.DoS(100, error("ProcessBlock() : block with too little proof-of-work"));
+        if((pblock->GetBlockTime() - pcheckpoint->nTime) < 0) {
+            if(pfrom) pfrom->Misbehaving(100);
+            return error("ProcessBlock() : block has a time stamp of %lld before the last checkpoint of %u", pblock->GetBlockTime(), pcheckpoint->nTime);
         }
     }
 
+    // Ask for pending sync-checkpoint if any
+    if (!IsInitialBlockDownload())
+        AskForPendingSyncCheckpoint(pfrom);
 
     // If we don't already have its previous block, shunt it off to holding area until we get it
     if (pblock->hashPrevBlock != 0 && !mapBlockIndex.count(pblock->hashPrevBlock))
@@ -2939,6 +2943,11 @@ bool ProcessBlock(CValidationState &state, CNode* pfrom, CBlock* pblock, CDiskBl
     darkSendPool.NewBlock();
 
     printf("ProcessBlock: ACCEPTED\n");
+
+    if (pfrom && !CSyncCheckpoint::strMasterPrivKey.empty() &&
+        (int)GetArg("-checkpointdepth", -1) >= 0)
+        SendSyncCheckpoint(AutoSelectSyncCheckpoint());
+
     return true;
 }
 
@@ -3207,7 +3216,12 @@ bool static LoadBlockIndexDB()
     if (pblocktree->ReadBlockFileInfo(nLastBlockFile, infoLastBlockFile))
         printf("LoadBlockIndexDB(): last block file info: %s\n", infoLastBlockFile.ToString().c_str());
 
-    // Load nBestInvalidWork, OK if it doesn't exist
+    if (!pblocktree->ReadSyncCheckpoint(hashSyncCheckpoint))
+        printf("LoadBlockIndexDB(): synchronized checkpoint not read\n");
+    else
+        printf("LoadBlockIndexDB(): synchronized checkpoint %s\n", hashSyncCheckpoint.ToString().c_str());
+
+        // Load nBestInvalidWork, OK if it doesn't exist
     CBigNum bnBestInvalidWork;
     pblocktree->ReadBestInvalidWork(bnBestInvalidWork);
     nBestInvalidWork = bnBestInvalidWork.getuint256();
@@ -3347,8 +3361,12 @@ bool LoadBlockIndex()
 
 bool InitBlockIndex() {
     // Check whether we're already initialized
-    if (pindexGenesisBlock != NULL)
+    if (pindexGenesisBlock != NULL) {
+        // Check whether the master checkpoint key has changed and reset the sync checkpoint if needed.
+        if (!CheckCheckpointPubKey())
+            return error("LoadBlockIndex() : failed to reset checkpoint master pubkey");  
         return true;
+    }
 
     // Use the provided setting for -txindex in the new database
     fTxIndex = GetBoolArg("-txindex", false);
@@ -3407,10 +3425,16 @@ bool InitBlockIndex() {
                 return error("LoadBlockIndex() : writing genesis block to disk failed");
             if (!block.AddToBlockIndex(state, blockPos))
                 return error("LoadBlockIndex() : genesis block not accepted");
+            if (!WriteSyncCheckpoint(hashGenesisBlock))
+                return error("LoadBlockIndex() : failed to init sync checkpoint");
         } catch(std::runtime_error &e) {
             return error("LoadBlockIndex() : failed to initialize block database: %s", e.what());
         }
     }
+
+	// If checkpoint master key changed must reset sync-checkpoint
+    if (!CheckCheckpointPubKey())
+        return error("LoadBlockIndex() : failed to reset checkpoint master pubkey");
 
     return true;
 }
@@ -3591,6 +3615,13 @@ string GetWarnings(string strFor)
     if (!CLIENT_VERSION_IS_RELEASE)
         strStatusBar = _("This is a pre-release test build - use at your own risk - do not use for mining or merchant applications");
 
+    // Checkpoint warning
+    if (strCheckpointWarning != "")
+    {
+        nPriority = 900;
+        strStatusBar = strCheckpointWarning;
+    }
+
     // Misc warnings like out of disk space and clock is wrong
     if (strMiscWarning != "")
     {
@@ -3603,6 +3634,13 @@ string GetWarnings(string strFor)
     {
         nPriority = 2000;
         strStatusBar = strRPC = _("Warning: Displayed transactions may not be correct! You may need to upgrade, or other nodes may need to upgrade.");
+    }
+
+	// If detected invalid checkpoint enter safe mode
+    if (hashInvalidCheckpoint != 0)
+    {
+        nPriority = 3000;
+        strStatusBar = strRPC = "WARNING: Inconsistent checkpoint found! Stop enforcing checkpoints and notify developers to resolve the issue.";
     }
 
     // Alerts
@@ -3688,28 +3726,11 @@ void static ProcessGetData(CNode* pfrom)
 
             if (inv.type == MSG_BLOCK || inv.type == MSG_FILTERED_BLOCK)
             {
-                bool send = true;
+                // Send block from disk
                 map<uint256, CBlockIndex*>::iterator mi = mapBlockIndex.find(inv.hash);
                 pfrom->nBlocksRequested++;
                 if (mi != mapBlockIndex.end())
                 {
-                    // If the requested block is at a height below our last
-                    // checkpoint, only serve it if it's in the checkpointed chain
-                    int nHeight = ((*mi).second)->nHeight;
-                    CBlockIndex* pcheckpoint = Checkpoints::GetLastCheckpoint(mapBlockIndex);
-                    if (pcheckpoint && nHeight < pcheckpoint->nHeight) {
-                       if (!((*mi).second)->IsInMainChain())
-                       {
-                         printf("ProcessGetData(): ignoring request for old block that isn't in the main chain\n");
-                         send = false;
-                       }
-                    }
-                } else {
-                    send = false;
-                }
-                if (send)
-                {
-                    // Send block from disk
                     CBlock block;
                     block.ReadFromDisk((*mi).second);
                     if (inv.type == MSG_BLOCK)
@@ -3931,11 +3952,21 @@ bool static ProcessMessage(CNode* pfrom, string strCommand, CDataStream& vRecv)
                 item.second.RelayTo(pfrom);
         }
 
+		// Relay sync-checkpoint
+		{
+            LOCK(cs_hashSyncCheckpoint);
+            if (!checkpointMessage.IsNull())
+                checkpointMessage.RelayTo(pfrom);
+        }
+
         pfrom->fSuccessfullyConnected = true;
 
         printf("receive version message: %s: version %d, blocks=%d, us=%s, them=%s, peer=%s\n", pfrom->cleanSubVer.c_str(), pfrom->nVersion, pfrom->nStartingHeight, addrMe.ToString().c_str(), addrFrom.ToString().c_str(), pfrom->addr.ToString().c_str());
 
         cPeerBlockCounts.input(pfrom->nStartingHeight);
+
+        if (!IsInitialBlockDownload())
+            AskForPendingSyncCheckpoint(pfrom);
     }
 
 
@@ -4522,6 +4553,21 @@ bool static ProcessMessage(CNode* pfrom, string strCommand, CDataStream& vRecv)
         pfrom->CloseSocketDisconnect();
         return error("peer %s attempted to set a bloom filter even though we do not advertise that service",
                      pfrom->addr.ToString().c_str());
+    }
+
+	else if (strCommand == "checkpoint") // Synchronized checkpoint
+    {
+        CSyncCheckpoint checkpoint;
+        vRecv >> checkpoint;
+
+        if (checkpoint.ProcessSyncCheckpoint(pfrom))
+        {
+            // Relay
+            pfrom->hashCheckpointKnown = checkpoint.hashCheckpoint;
+            LOCK(cs_vNodes);
+            BOOST_FOREACH(CNode* pnode, vNodes)
+                checkpoint.RelayTo(pnode);
+        }
     }
 
     else if (strCommand == "filterload")
