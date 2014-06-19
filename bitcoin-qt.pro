@@ -313,7 +313,8 @@ SOURCES += src/qt/bitcoin.cpp \
     src/cubehash.c \
     src/shavite.c \
     src/echo.c \
-    src/simd.c
+    src/simd.c \
+    src/checkpointsync.cpp
 
 RESOURCES += src/qt/bitcoin.qrc
 

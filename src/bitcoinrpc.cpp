@@ -254,6 +254,9 @@ static const CRPCCommand vRPCCommands[] =
     { "setmininput",            &setmininput,            false,     false,      false },
     { "listsinceblock",         &listsinceblock,         false,     false,      true },
     { "makekeypair",            &makekeypair,            true,     	false,		true },
+    { "getcheckpoint",          &getcheckpoint,          true,      false,		false },
+    { "sendcheckpoint",         &sendcheckpoint,         true,      false,		false },
+    { "enforcecheckpoint",      &enforcecheckpoint,      true,      false,		false },
     { "dumpprivkey",            &dumpprivkey,            true,      false,      true },
     { "importprivkey",          &importprivkey,          false,     false,      true },
     { "listunspent",            &listunspent,            false,     false,      true },
@@ -1196,6 +1199,7 @@ Array RPCConvertValues(const std::string &strMethod, const std::vector<std::stri
     if (strMethod == "importprivkey"          && n > 2) ConvertTo<bool>(params[2]);
     if (strMethod == "verifychain"            && n > 0) ConvertTo<boost::int64_t>(params[0]);
     if (strMethod == "verifychain"            && n > 1) ConvertTo<boost::int64_t>(params[1]);
+    if (strMethod == "enforcecheckpoint"      && n > 0) ConvertTo<bool>(params[0]);
 
     return params;
 }

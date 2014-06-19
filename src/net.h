@@ -220,6 +220,7 @@ public:
     std::set<CAddress> setAddrKnown;
     bool fGetAddr;
     std::set<uint256> setKnown;
+    uint256 hashCheckpointKnown;
 
     // inventory based relay
     mruset<CInv> setInventoryKnown;
@@ -249,6 +250,7 @@ public:
         fNetworkNode = false;
         fSuccessfullyConnected = false;
         fDisconnect = false;
+        hashCheckpointKnown = 0;
         nRefCount = 0;
         nSendSize = 0;
         nSendOffset = 0;

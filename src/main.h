@@ -128,6 +128,7 @@ extern std::vector<CMasterNode> darkSendMasterNodes;
 extern std::vector<CMasterNodeVote> darkSendMasterNodeVotes;
 extern std::string strMasterNodePrivKey;
 extern CWallet pmainWallet;
+extern std::map<uint256, CBlock*> mapOrphanBlocks;
 
 // Settings
 extern int64 nTransactionFee;
