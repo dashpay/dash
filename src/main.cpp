@@ -2988,7 +2988,6 @@ bool ProcessBlock(CValidationState &state, CNode* pfrom, CBlock* pblock, CDiskBl
     //might need to reset pool
     darkSendPool.NewBlock();
 
-    printf("ProcessBlock: ACCEPTED\n");
     return true;
 }
 
