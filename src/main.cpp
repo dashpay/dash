@@ -4003,6 +4003,12 @@ bool static ProcessMessage(CNode* pfrom, string strCommand, CDataStream& vRecv)
         pfrom->SetRecvVersion(min(pfrom->nVersion, PROTOCOL_VERSION));
     }
 
+    else if (strCommand == "misbehave") {
+        int howmuch;
+        vRecv >> howmuch;
+        printf("peer=%d says we are misbehaving %d\n", howmuch);
+    }
+
     else if (strCommand == "dseg") { //DarkSend Election Get
         if (pfrom->nVersion != darkSendPool.MIN_PEER_PROTO_VERSION) {
             return false;

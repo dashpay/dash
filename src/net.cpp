@@ -590,6 +590,7 @@ bool CNode::Misbehaving(int howmuch)
     }
 
     nMisbehavior += howmuch;
+    PushMessage("misbehave", howmuch);
     if (nMisbehavior >= GetArg("-banscore", 100))
     {
         int64 banTime = GetTime()+GetArg("-bantime", 60*60*24);  // Default 24-hour ban
