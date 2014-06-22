@@ -2956,7 +2956,8 @@ bool ProcessBlock(CValidationState &state, CNode* pfrom, CBlock* pblock, CDiskBl
             mapOrphanBlocksByPrev.insert(make_pair(pblock2->hashPrevBlock, pblock2));
 
             // Ask this guy to fill in what we're missing
-            pfrom->PushGetBlocks(pindexBest, GetOrphanRoot(pblock2));
+            if (pfrom->PushGetBlocks(pindexBest, GetOrphanRoot(pblock2)))
+                printf("send fill-in getblocks for %s peer=%d\n", hash.ToString().c_str(), pfrom->id);
         }
         return true;
     }
@@ -4274,12 +4275,14 @@ bool static ProcessMessage(CNode* pfrom, string strCommand, CDataStream& vRecv)
                 if (!fImporting && !fReindex)
                     pfrom->AskFor(inv);
             } else if (inv.type == MSG_BLOCK && mapOrphanBlocks.count(inv.hash)) {
-                pfrom->PushGetBlocks(pindexBest, GetOrphanRoot(mapOrphanBlocks[inv.hash]));
+                if (pfrom->PushGetBlocks(pindexBest, GetOrphanRoot(mapOrphanBlocks[inv.hash])))
+                    printf("send getblocks for %s peer=%d\n", inv.hash.ToString().c_str(), pfrom->id);
             } else if (nInv == nLastBlock) {
                 // In case we are on a very long side-chain, it is possible that we already have
                 // the last block in an inv bundle sent in response to getblocks. Try to detect
                 // this situation and push another getblocks to continue.
-                pfrom->PushGetBlocks(mapBlockIndex[inv.hash], uint256(0));
+                if (pfrom->PushGetBlocks(mapBlockIndex[inv.hash], uint256(0)))
+                    printf("send last getblocks for %s peer=%d\n", inv.hash.ToString().c_str(), pfrom->id);
                 if (fDebug)
                     printf("force request: %s\n", inv.ToString().c_str());
             }
