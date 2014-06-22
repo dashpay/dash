@@ -194,6 +194,7 @@ public:
     bool fNetworkNode;
     bool fSuccessfullyConnected;
     bool fDisconnect;
+    bool fAskedForBlocks;    // true when getblocks 0 sent
     // We use fRelayTxes for two purposes -
     // a) it allows us to not relay tx invs before receiving the peer's version message
     // b) the peer may tell us in their version message that we should not relay tx invs
@@ -253,6 +254,7 @@ public:
         fNetworkNode = false;
         fSuccessfullyConnected = false;
         fDisconnect = false;
+        fAskedForBlocks = false;
         nRefCount = 0;
         nSendSize = 0;
         nSendOffset = 0;

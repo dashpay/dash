@@ -46,6 +46,7 @@ uint256 hashBestChain = 0;
 CBlockIndex* pindexBest = NULL;
 set<CBlockIndex*, CBlockIndexWorkComparator> setBlockIndexValid; // may contain all CBlockIndex*'s that have validness >=BLOCK_VALID_TRANSACTIONS, and must contain those who aren't failed
 int64 nTimeBestReceived = 0;
+int nAskedForBlocks = 0;
 int nScriptCheckThreads = 0;
 bool fImporting = false;
 bool fReindex = false;
@@ -4783,9 +4784,14 @@ bool SendMessages(CNode* pto, bool fSendTrickle)
         }
 
         // Start block sync
-        if (pto->fStartSync && !fImporting && !fReindex) {
-            pto->fStartSync = false;
-            pto->PushGetBlocks(pindexBest, uint256(0));
+        if (!pto->fAskedForBlocks && !fImporting && !fReindex && !pto->fClient && !pto->fOneShot &&
+            !pto->fDisconnect && pto->fSuccessfullyConnected &&
+            (pto->nStartingHeight > (nBestHeight - 144)) &&
+            (pto->nVersion < NOBLKS_VERSION_START || pto->nVersion >= NOBLKS_VERSION_END)) {
+            nAskedForBlocks++;
+            pto->fAskedForBlocks = true;
+            if (pto->PushGetBlocks(pindexBest, uint256(0)))
+                printf("send initial getblocks peer=%d\n", pto->id);
         }
 
         // Resend wallet transactions that haven't gotten in a block yet
