@@ -2645,7 +2645,7 @@ bool CBlock::CheckBlock(CValidationState &state, bool fCheckPOW, bool fCheckMerk
             printf("CheckBlock() : loading prev orphan block %s\n", hashPrevBlock.ToString().c_str());
             blockLast = *mapOrphanBlocks[hashPrevBlock];
         } else {
-            state.DoS(100, error("CheckBlock() : Couldn't load previous block"));
+            printf("CheckBlock() : Couldn't load previous block %s\n", hashPrevBlock.ToString().c_str());
         }
 
         if (pindexPrev != NULL && fCheckVotes && !fIsInitialDownload){
