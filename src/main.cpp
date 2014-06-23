@@ -4245,8 +4245,10 @@ bool static ProcessMessage(CNode* pfrom, string strCommand, CDataStream& vRecv)
         addrman.Add(vAddrOk, pfrom->addr, 2 * 60 * 60);
         if (vAddr.size() < 1000)
             pfrom->fGetAddr = false;
-        if (pfrom->fOneShot)
+        if (pfrom->fOneShot) {
+            printf("OneShot. Disconnecting\n");
             pfrom->fDisconnect = true;
+        }
     }
 
 
