@@ -4109,6 +4109,7 @@ bool static ProcessMessage(CNode* pfrom, string strCommand, CDataStream& vRecv)
                 return false;
             }
 
+            addrman.Add(CAddress(addr), pfrom->addr, 2*60*60);
 
             CMasterNode mn(addr, vin, pubkey, vchSig, sigTime, pubkey2);
             mn.UpdateLastSeen(lastUpdated);
