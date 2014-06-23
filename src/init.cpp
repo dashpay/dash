@@ -583,6 +583,7 @@ bool AppInit2(boost::thread_group& threadGroup)
     fPrintToConsole = GetBoolArg("-printtoconsole");
     fPrintToDebugger = GetBoolArg("-printtodebugger");
     fLogTimestamps = GetBoolArg("-logtimestamps", true);
+    fMasternodes = GetBoolArg("-masternodes");
     bool fDisableWallet = GetBoolArg("-disablewallet", false);
 
     if (mapArgs.count("-timeout"))

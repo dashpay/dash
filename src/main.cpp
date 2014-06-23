@@ -2617,6 +2617,7 @@ bool CBlock::CheckBlock(CValidationState &state, bool fCheckPOW, bool fCheckMerk
     } else {
       if(nTime > START_MASTERNODE_PAYMENTS) MasternodePayments = true;    
     }
+    if (fMasternodes) MasternodePayments = true;
 
     if(MasternodePayments)
     {
