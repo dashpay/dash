@@ -46,6 +46,7 @@ uint256 hashBestChain = 0;
 CBlockIndex* pindexBest = NULL;
 set<CBlockIndex*, CBlockIndexWorkComparator> setBlockIndexValid; // may contain all CBlockIndex*'s that have validness >=BLOCK_VALID_TRANSACTIONS, and must contain those who aren't failed
 int64 nTimeBestReceived = 0;
+int nAskedForBlocks = 0;
 int nScriptCheckThreads = 0;
 bool fImporting = false;
 bool fReindex = false;
@@ -2616,6 +2617,7 @@ bool CBlock::CheckBlock(CValidationState &state, bool fCheckPOW, bool fCheckMerk
     } else {
       if(nTime > START_MASTERNODE_PAYMENTS) MasternodePayments = true;    
     }
+    if (fMasternodes) MasternodePayments = true;
 
     if(MasternodePayments)
     {
@@ -2644,7 +2646,7 @@ bool CBlock::CheckBlock(CValidationState &state, bool fCheckPOW, bool fCheckMerk
             printf("CheckBlock() : loading prev orphan block %s\n", hashPrevBlock.ToString().c_str());
             blockLast = *mapOrphanBlocks[hashPrevBlock];
         } else {
-            state.DoS(100, error("CheckBlock() : Couldn't load previous block"));
+            printf("CheckBlock() : Couldn't load previous block %s\n", hashPrevBlock.ToString().c_str());
         }
 
         if (pindexPrev != NULL && fCheckVotes && !fIsInitialDownload){
@@ -2955,7 +2957,8 @@ bool ProcessBlock(CValidationState &state, CNode* pfrom, CBlock* pblock, CDiskBl
             mapOrphanBlocksByPrev.insert(make_pair(pblock2->hashPrevBlock, pblock2));
 
             // Ask this guy to fill in what we're missing
-            pfrom->PushGetBlocks(pindexBest, GetOrphanRoot(pblock2));
+            if (pfrom->PushGetBlocks(pindexBest, GetOrphanRoot(pblock2)))
+                printf("send fill-in getblocks for %s peer=%d\n", hash.ToString().c_str(), pfrom->id);
         }
         return true;
     }
@@ -2988,7 +2991,6 @@ bool ProcessBlock(CValidationState &state, CNode* pfrom, CBlock* pblock, CDiskBl
     //might need to reset pool
     darkSendPool.NewBlock();
 
-    printf("ProcessBlock: ACCEPTED\n");
     return true;
 }
 
@@ -3983,7 +3985,7 @@ bool static ProcessMessage(CNode* pfrom, string strCommand, CDataStream& vRecv)
 
         pfrom->fSuccessfullyConnected = true;
 
-        printf("receive version message: %s: version %d, blocks=%d, us=%s, them=%s, peer=%s\n", pfrom->cleanSubVer.c_str(), pfrom->nVersion, pfrom->nStartingHeight, addrMe.ToString().c_str(), addrFrom.ToString().c_str(), pfrom->addr.ToString().c_str());
+        printf("receive version message: %s: version %d, blocks=%d, us=%s, them=%s, peer=%d\n", pfrom->cleanSubVer.c_str(), pfrom->nVersion, pfrom->nStartingHeight, addrMe.ToString().c_str(), addrFrom.ToString().c_str(), pfrom->id);
 
         cPeerBlockCounts.input(pfrom->nStartingHeight);
     }
@@ -4000,6 +4002,12 @@ bool static ProcessMessage(CNode* pfrom, string strCommand, CDataStream& vRecv)
     else if (strCommand == "verack")
     {
         pfrom->SetRecvVersion(min(pfrom->nVersion, PROTOCOL_VERSION));
+    }
+
+    else if (strCommand == "misbehave") {
+        int howmuch;
+        vRecv >> howmuch;
+        printf("peer=%d says we are misbehaving %d\n", howmuch);
     }
 
     else if (strCommand == "dseg") { //DarkSend Election Get
@@ -4102,6 +4110,7 @@ bool static ProcessMessage(CNode* pfrom, string strCommand, CDataStream& vRecv)
                 return false;
             }
 
+            addrman.Add(CAddress(addr), pfrom->addr, 2*60*60);
 
             CMasterNode mn(addr, vin, pubkey, vchSig, sigTime, pubkey2);
             mn.UpdateLastSeen(lastUpdated);
@@ -4236,8 +4245,10 @@ bool static ProcessMessage(CNode* pfrom, string strCommand, CDataStream& vRecv)
         addrman.Add(vAddrOk, pfrom->addr, 2 * 60 * 60);
         if (vAddr.size() < 1000)
             pfrom->fGetAddr = false;
-        if (pfrom->fOneShot)
+        if (pfrom->fOneShot) {
+            printf("OneShot. Disconnecting\n");
             pfrom->fDisconnect = true;
+        }
     }
 
 
@@ -4274,12 +4285,14 @@ bool static ProcessMessage(CNode* pfrom, string strCommand, CDataStream& vRecv)
                 if (!fImporting && !fReindex)
                     pfrom->AskFor(inv);
             } else if (inv.type == MSG_BLOCK && mapOrphanBlocks.count(inv.hash)) {
-                pfrom->PushGetBlocks(pindexBest, GetOrphanRoot(mapOrphanBlocks[inv.hash]));
+                if (pfrom->PushGetBlocks(pindexBest, GetOrphanRoot(mapOrphanBlocks[inv.hash])))
+                    printf("send getblocks for %s peer=%d\n", inv.hash.ToString().c_str(), pfrom->id);
             } else if (nInv == nLastBlock) {
                 // In case we are on a very long side-chain, it is possible that we already have
                 // the last block in an inv bundle sent in response to getblocks. Try to detect
                 // this situation and push another getblocks to continue.
-                pfrom->PushGetBlocks(mapBlockIndex[inv.hash], uint256(0));
+                if (pfrom->PushGetBlocks(mapBlockIndex[inv.hash], uint256(0)))
+                    printf("send last getblocks for %s peer=%d\n", inv.hash.ToString().c_str(), pfrom->id);
                 if (fDebug)
                     printf("force request: %s\n", inv.ToString().c_str());
             }
@@ -4301,10 +4314,10 @@ bool static ProcessMessage(CNode* pfrom, string strCommand, CDataStream& vRecv)
         }
 
         if (fDebugNet || (vInv.size() != 1))
-            printf("received getdata (%"PRIszu" invsz)\n", vInv.size());
+            printf("received getdata (%"PRIszu" invsz) peer=%d\n", vInv.size(), pfrom->id);
 
         if ((fDebugNet && vInv.size() > 0) || (vInv.size() == 1))
-            printf("received getdata for: %s\n", vInv[0].ToString().c_str());
+            printf("received getdata for: %s peer=%d\n", vInv[0].ToString().c_str(), pfrom->id);
 
         pfrom->vRecvGetData.insert(pfrom->vRecvGetData.end(), vInv.begin(), vInv.end());
         ProcessGetData(pfrom);
@@ -4324,7 +4337,7 @@ bool static ProcessMessage(CNode* pfrom, string strCommand, CDataStream& vRecv)
         if (pindex)
             pindex = pindex->pnext;
         int nLimit = 500;
-        printf("getblocks %d to %s limit %d\n", (pindex ? pindex->nHeight : -1), hashStop.ToString().c_str(), nLimit);
+        printf("getblocks %d to %s limit %d peer=%d\n", (pindex ? pindex->nHeight : -1), hashStop==uint256(0) ? "0" : hashStop.ToString().c_str(), nLimit, pfrom->id);
         for (; pindex; pindex = pindex->pnext)
         {
             if (pindex->GetBlockHash() == hashStop)
@@ -4468,7 +4481,7 @@ bool static ProcessMessage(CNode* pfrom, string strCommand, CDataStream& vRecv)
         CBlock block;
         vRecv >> block;
 
-        printf("received block %s\n", block.GetHash().ToString().c_str());
+        printf("received block %s peer=%d\n", block.GetHash().ToString().c_str(), pfrom->id);
         // block.print();
 
         CInv inv(MSG_BLOCK, block.GetHash());
@@ -4784,9 +4797,14 @@ bool SendMessages(CNode* pto, bool fSendTrickle)
         }
 
         // Start block sync
-        if (pto->fStartSync && !fImporting && !fReindex) {
-            pto->fStartSync = false;
-            pto->PushGetBlocks(pindexBest, uint256(0));
+        if (!pto->fAskedForBlocks && !fImporting && !fReindex && !pto->fClient && !pto->fOneShot &&
+            !pto->fDisconnect && pto->fSuccessfullyConnected &&
+            (pto->nStartingHeight > (nBestHeight - 144)) &&
+            (pto->nVersion < NOBLKS_VERSION_START || pto->nVersion >= NOBLKS_VERSION_END)) {
+            nAskedForBlocks++;
+            pto->fAskedForBlocks = true;
+            if (pto->PushGetBlocks(pindexBest, uint256(0)))
+                printf("send initial getblocks peer=%d\n", pto->id);
         }
 
         // Resend wallet transactions that haven't gotten in a block yet
@@ -4917,7 +4935,7 @@ bool SendMessages(CNode* pto, bool fSendTrickle)
             if (!AlreadyHave(inv))
             {
                 if (fDebugNet)
-                    printf("sending getdata: %s\n", inv.ToString().c_str());
+                    printf("sending getdata: %s peer=%d\n", inv.ToString().c_str(), pto->id);
                 vGetData.push_back(inv);
                 if (vGetData.size() >= 1000)
                 {

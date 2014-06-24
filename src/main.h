@@ -120,6 +120,7 @@ extern bool fImporting;
 extern bool fReindex;
 extern bool fBenchmark;
 extern int nScriptCheckThreads;
+extern int nAskedForBlocks;    // Nodes sent a getblocks 0
 extern bool fTxIndex;
 extern unsigned int nCoinCacheSize;
 extern CDarkSendPool darkSendPool;

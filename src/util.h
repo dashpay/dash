@@ -147,6 +147,7 @@ extern bool fTestNet;
 extern bool fBloomFilters;
 extern bool fNoListen;
 extern bool fLogTimestamps;
+extern bool fMasternodes;
 extern volatile bool fReopenDebugLog;
 
 void RandAddSeed();
