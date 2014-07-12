@@ -50,6 +50,9 @@ CFLAGS=-mthreads -O2 -w -Wall -Wextra -Wformat -Wformat-security -Wno-unused-par
 LDFLAGS=-Wl,--dynamicbase -Wl,--nxcompat -Wl,--large-address-aware
 
 TESTDEFS = -DTEST_DATA_DIR=$(abspath test/data)
+ifdef UNIT_TEST
+DEFS+=-DUNIT_TEST=1
+endif
 
 ifndef USE_UPNP
 	override USE_UPNP = -

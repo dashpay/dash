@@ -25,6 +25,9 @@ USE_IPV6:=1
 LIBS= -dead_strip
 
 TESTDEFS = -DTEST_DATA_DIR=$(abspath test/data)
+ifdef UNIT_TEST
+DEFS+=-DUNIT_TEST=1
+endif
 
 ifdef STATIC
 # Build STATIC if you are redistributing the bitcoinf

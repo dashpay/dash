@@ -7,7 +7,7 @@ use the Boost::Test unit-testing framework.
 To compile and run the tests:
 
 	cd src
-	make -f makefile.unix test_darkcoin  # Replace makefile.unix if you're not on unix
+	make -f makefile.unix test_darkcoin UNIT_TEST=1  # Replace makefile.unix if you're not on unix
 	./test_darkcoin   # Runs the unit tests
 
 If all tests succeed the last line of output will be:

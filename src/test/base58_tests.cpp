@@ -6,7 +6,7 @@
 #include "base58.h"
 #include "util.h"
 
-/*using namespace json_spirit;
+using namespace json_spirit;
 extern Array read_json(const std::string& filename);
 
 BOOST_AUTO_TEST_SUITE(base58_tests)
@@ -259,4 +259,3 @@ BOOST_AUTO_TEST_CASE(base58_keys_invalid)
 
 BOOST_AUTO_TEST_SUITE_END()
 
-*/

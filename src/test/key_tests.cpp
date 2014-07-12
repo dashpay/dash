@@ -10,14 +10,14 @@
 
 using namespace std;
 
-/*static const string strSecret1     ("6uu5bsZLA2Lm6yCxgwxDxHyZmhYeqBMLQT83Fyq738YhYucQPQf");
-static const string strSecret2     ("6vZDRwYgTNidWzmKs9x8QzQGeWCqbdUtNRpEKZMaP67ZSn8XMjb");
-static const string strSecret1C    ("T6UsJv9hYpvDfM5noKYkB3vfeHxhyegkeWJ4y7qKeQJuyXMK11XX");
-static const string strSecret2C    ("T9PBs5kq9QrkBPxeGNWKitMi4XuFVr25jaXTnuopLVZxCUAJbixA");
-static const CBitcoinAddress addr1 ("LWaFezDtucfCA4xcVEfs3R3xfgGWjSwcZr");
-static const CBitcoinAddress addr2 ("LXwHM6mRd432EzLJYwuKQMPhTzrgr7ur9K");
-static const CBitcoinAddress addr1C("LZWK8h7C166niP6GmpUmiGrvn4oxPqQgFV");
-static const CBitcoinAddress addr2C("Lgb6tdqmdW3n5E12johSuEAqRMt4kAr7yu");
+static const string strSecret1     ("7qjmhxk9D41VG4izTKS4MwNQ5cdYsHMCujtZmtnYcBZV5MyymW6");
+static const string strSecret2     ("7qtc7ho6k4y6gYxXYZZA9RMM8ecJxDrVXE4ecs5jPEvWz2Cd6ug");
+static const string strSecret1C    ("XJopfZ4NEgzmU8WFaq8gSkcB2oDYCvZa2Dbn88PpGHX3xWTvxbDw");
+static const string strSecret2C    ("XGwcaG95SeuQ9xUxyMPNk77UTd5U3EW4gYfXa9xU8oFzEfnKJQgr");
+static const CBitcoinAddress addr1 ("XtgBkqNm1KdNqwtPXgcrx3XtTETsPJ3imW");
+static const CBitcoinAddress addr2 ("XvSYzd8yGM4yBwcdWqF3wJtQ9543G2zUNh");
+static const CBitcoinAddress addr1C("Xv2y1Z6MH3oPWLQpowdJSAT56eSjpEaRBb");
+static const CBitcoinAddress addr2C("Xo5kbBBVQ52ZLfarQYFpG8Mt5XQ4phJBa6");
 
 
 static const string strAddressBad("LRjyUS2uuieEPkhZNdQz8hE5YycxVEqSXA");
@@ -97,21 +97,21 @@ BOOST_AUTO_TEST_CASE(key_test1)
 
         BOOST_CHECK( pubkey1.Verify(hashMsg, sign1));
         BOOST_CHECK(!pubkey1.Verify(hashMsg, sign2));
-        BOOST_CHECK( pubkey1.Verify(hashMsg, sign1C));
+        BOOST_CHECK(!pubkey1.Verify(hashMsg, sign1C));
         BOOST_CHECK(!pubkey1.Verify(hashMsg, sign2C));
 
         BOOST_CHECK(!pubkey2.Verify(hashMsg, sign1));
         BOOST_CHECK( pubkey2.Verify(hashMsg, sign2));
         BOOST_CHECK(!pubkey2.Verify(hashMsg, sign1C));
-        BOOST_CHECK( pubkey2.Verify(hashMsg, sign2C));
+        BOOST_CHECK(!pubkey2.Verify(hashMsg, sign2C));
 
-        BOOST_CHECK( pubkey1C.Verify(hashMsg, sign1));
+        BOOST_CHECK(!pubkey1C.Verify(hashMsg, sign1));
         BOOST_CHECK(!pubkey1C.Verify(hashMsg, sign2));
         BOOST_CHECK( pubkey1C.Verify(hashMsg, sign1C));
         BOOST_CHECK(!pubkey1C.Verify(hashMsg, sign2C));
 
         BOOST_CHECK(!pubkey2C.Verify(hashMsg, sign1));
-        BOOST_CHECK( pubkey2C.Verify(hashMsg, sign2));
+        BOOST_CHECK(!pubkey2C.Verify(hashMsg, sign2));
         BOOST_CHECK(!pubkey2C.Verify(hashMsg, sign1C));
         BOOST_CHECK( pubkey2C.Verify(hashMsg, sign2C));
 
@@ -139,4 +139,3 @@ BOOST_AUTO_TEST_CASE(key_test1)
 }
 
 BOOST_AUTO_TEST_SUITE_END()
-*/

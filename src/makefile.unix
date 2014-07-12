@@ -19,6 +19,9 @@ DEFS += $(addprefix -I,$(CURDIR) $(CURDIR)/obj $(BOOST_INCLUDE_PATH) $(BDB_INCLU
 LIBS = $(addprefix -L,$(BOOST_LIB_PATH) $(BDB_LIB_PATH) $(OPENSSL_LIB_PATH))
 
 TESTDEFS = -DTEST_DATA_DIR=$(abspath test/data)
+ifdef UNIT_TEST
+DEFS+=-DUNIT_TEST=1
+endif
 
 LMODE = dynamic
 LMODE2 = dynamic

@@ -37,6 +37,9 @@ xCXXFLAGS=-O2 -w -Wall -Wextra -Wformat -Wformat-security -Wno-unused-parameter 
 xLDFLAGS=-Wl,--dynamicbase -Wl,--nxcompat -Wl,--large-address-aware -static-libgcc -static-libstdc++ $(LDFLAGS)
 
 TESTDEFS = -DTEST_DATA_DIR=$(abspath test/data)
+ifdef UNIT_TEST
+DEFS+=-DUNIT_TEST=1
+endif
 
 ifndef USE_UPNP
 	override USE_UPNP = -
