@@ -377,7 +377,7 @@ unsigned int LimitOrphanTxSize(unsigned int nMaxOrphans)
 bool CTxOut::IsDust() const
 {
     // DarkCoin: IsDust() detection disabled, allows any valid dust to be relayed.
-    // The fees imposed on each dust txo is considered sufficient spam deterrant. 
+    // The fees imposed on each dust txo is considered sufficient spam deterrant.
     return false;
 }
 
@@ -958,7 +958,7 @@ bool CTxMemPool::acceptable(CValidationState &state, CTransaction &tx, bool fChe
         // only helps filling in pfMissingInputs (to determine missing vs spent).
         BOOST_FOREACH(const CTxIn txin, tx.vin) {
             if (!view.HaveCoins(txin.prevout.hash)) {
-                if (pfMissingInputs) 
+                if (pfMissingInputs)
                     *pfMissingInputs = true;
                 return false;
             }
@@ -1334,7 +1334,7 @@ int64 static GetBlockValue(int nBits, int nHeight, int64 nFees)
     /* fixed bug caused diff to not be correctly calculated */
     if(nHeight > 4500 || fTestNet) dDiff = ConvertBitsToDouble(nBits);
 
-    int64 nSubsidy = 0; 
+    int64 nSubsidy = 0;
     if(nHeight >= 5465) {
         if((nHeight >= 17000 && dDiff > 75) || nHeight >= 24000) { // GPU/ASIC difficulty calc
             // 2222222/(((x+2600)/9)^2)
@@ -1473,17 +1473,17 @@ unsigned int static KimotoGravityWell(const CBlockIndex* pindexLast, const CBloc
         double EventHorizonDeviation;
         double EventHorizonDeviationFast;
         double EventHorizonDeviationSlow;
-        
+
     if (BlockLastSolved == NULL || BlockLastSolved->nHeight == 0 || (uint64)BlockLastSolved->nHeight < PastBlocksMin) { return bnProofOfWorkLimit.GetCompact(); }
-        
+
         for (unsigned int i = 1; BlockReading && BlockReading->nHeight > 0; i++) {
                 if (PastBlocksMax > 0 && i > PastBlocksMax) { break; }
                 PastBlocksMass++;
-                
+
                 if (i == 1) { PastDifficultyAverage.SetCompact(BlockReading->nBits); }
                 else { PastDifficultyAverage = ((CBigNum().SetCompact(BlockReading->nBits) - PastDifficultyAveragePrev) / i) + PastDifficultyAveragePrev; }
                 PastDifficultyAveragePrev = PastDifficultyAverage;
-                
+
                 PastRateActualSeconds = BlockLastSolved->GetBlockTime() - BlockReading->GetBlockTime();
                 PastRateTargetSeconds = TargetBlocksSpacingSeconds * PastBlocksMass;
                 PastRateAdjustmentRatio = double(1);
@@ -1494,14 +1494,14 @@ unsigned int static KimotoGravityWell(const CBlockIndex* pindexLast, const CBloc
                 EventHorizonDeviation = 1 + (0.7084 * pow((double(PastBlocksMass)/double(28.2)), -1.228));
                 EventHorizonDeviationFast = EventHorizonDeviation;
                 EventHorizonDeviationSlow = 1 / EventHorizonDeviation;
-                
+
                 if (PastBlocksMass >= PastBlocksMin) {
                         if ((PastRateAdjustmentRatio <= EventHorizonDeviationSlow) || (PastRateAdjustmentRatio >= EventHorizonDeviationFast)) { assert(BlockReading); break; }
                 }
                 if (BlockReading->pprev == NULL) { assert(BlockReading); break; }
                 BlockReading = BlockReading->pprev;
         }
-        
+
         CBigNum bnNew(PastDifficultyAverage);
         if (PastRateActualSeconds != 0 && PastRateTargetSeconds != 0) {
                 bnNew *= PastRateActualSeconds;
@@ -1509,9 +1509,9 @@ unsigned int static KimotoGravityWell(const CBlockIndex* pindexLast, const CBloc
         }
 
     if (bnNew > bnProofOfWorkLimit) {
-        bnNew = bnProofOfWorkLimit; 
+        bnNew = bnProofOfWorkLimit;
     }
-        
+
     return bnNew.GetCompact();
 }
 
@@ -1529,10 +1529,10 @@ unsigned int static DarkGravityWave3(const CBlockIndex* pindexLast, const CBlock
     CBigNum PastDifficultyAverage;
     CBigNum PastDifficultyAveragePrev;
 
-    if (BlockLastSolved == NULL || BlockLastSolved->nHeight == 0 || BlockLastSolved->nHeight < PastBlocksMin) { 
-        return bnProofOfWorkLimit.GetCompact(); 
+    if (BlockLastSolved == NULL || BlockLastSolved->nHeight == 0 || BlockLastSolved->nHeight < PastBlocksMin) {
+        return bnProofOfWorkLimit.GetCompact();
     }
-        
+
     for (unsigned int i = 1; BlockReading && BlockReading->nHeight > 0; i++) {
         if (PastBlocksMax > 0 && i > PastBlocksMax) { break; }
         CountBlocks++;
@@ -1547,12 +1547,12 @@ unsigned int static DarkGravityWave3(const CBlockIndex* pindexLast, const CBlock
             int64 Diff = (LastBlockTime - BlockReading->GetBlockTime());
             nActualTimespan += Diff;
         }
-        LastBlockTime = BlockReading->GetBlockTime();      
+        LastBlockTime = BlockReading->GetBlockTime();
 
         if (BlockReading->pprev == NULL) { assert(BlockReading); break; }
         BlockReading = BlockReading->pprev;
     }
-    
+
     CBigNum bnNew(PastDifficultyAverage);
 
     int64 nTargetTimespan = CountBlocks*nTargetSpacing;
@@ -1569,7 +1569,7 @@ unsigned int static DarkGravityWave3(const CBlockIndex* pindexLast, const CBlock
     if (bnNew > bnProofOfWorkLimit){
         bnNew = bnProofOfWorkLimit;
     }
-     
+
     return bnNew.GetCompact();
 }
 
@@ -1581,14 +1581,14 @@ unsigned int static GetNextWorkRequired_V2(const CBlockIndex* pindexLast, const 
         int64 PastSecondsMax = TimeDaySeconds * 7;
         uint64 PastBlocksMin = PastSecondsMin / BlocksTargetSpacing;
         uint64 PastBlocksMax = PastSecondsMax / BlocksTargetSpacing;
-        
+
         return KimotoGravityWell(pindexLast, pblock, BlocksTargetSpacing, PastBlocksMin, PastBlocksMax);
 }
 
 unsigned int static GetNextWorkRequired(const CBlockIndex* pindexLast, const CBlockHeader *pblock)
 {
         int DiffMode = 1;
-        
+
         if (fTestNet) {
             if (pindexLast->nHeight+1 >= 256) DiffMode = 3;
         }
@@ -1733,7 +1733,7 @@ void CBlockHeader::UpdateTime(const CBlockIndex* pindexPrev)
 }
 
 uint256 CBlockHeader::GetHash() const
-{   
+{
     return Hash9(BEGIN(nVersion), END(nNonce));
 }
 
@@ -2543,16 +2543,16 @@ bool CBlock::CheckBlock(CValidationState &state, bool fCheckPOW, bool fCheckMerk
     {
         LOCK2(cs_main, mempool.cs);
 
-        int64 masternodePaymentAmount = vtx[0].GetValueOut()/5;        
+        int64 masternodePaymentAmount = vtx[0].GetValueOut()/5;
         bool fIsInitialDownload = IsInitialBlockDownload();
 
         if (!fIsInitialDownload && pindexBest != NULL)
         {
             bool foundPaymentAmount = false;
             bool foundPaymentPayee = false;
-            CScript payee; 
+            CScript payee;
             bool success = darkSendPool.GetCurrentMasterNodeConsessus(pindexBest->nHeight+1, payee);
-            
+
             if(success) {
                 for (unsigned int i = 0; i < vtx[0].vout.size(); i++) {
                     if(vtx[0].vout[i].nValue == masternodePaymentAmount )
@@ -2635,7 +2635,7 @@ bool CBlock::AcceptBlock(CValidationState &state, CDiskBlockPos *dbp)
                 double n1 = ConvertBitsToDouble(nBits);
                 double n2 = ConvertBitsToDouble(nBitsNext);
 
-                if (abs(n1-n2) > n1*0.2) 
+                if (abs(n1-n2) > n1*0.2)
                     return state.DoS(100, error("AcceptBlock() : incorrect proof of work (DGW pre-fork)"));
             } else {
                 if (nBits != GetNextWorkRequired(pindexPrev, this))
@@ -3237,7 +3237,7 @@ bool InitBlockIndex() {
     if (pindexGenesisBlock != NULL) {
         // Check whether the master checkpoint key has changed and reset the sync checkpoint if needed.
         if (!CheckCheckpointPubKey())
-            return error("LoadBlockIndex() : failed to reset checkpoint master pubkey");  
+            return error("LoadBlockIndex() : failed to reset checkpoint master pubkey");
         return true;
     }
 
@@ -3255,7 +3255,7 @@ bool InitBlockIndex() {
         //     CTxOut(nValue=50.00000000, scriptPubKey=040184710fa689ad5023690c80f3a4)
         //   vMerkleTree: 97ddfbbae6
 
-        // Genesis block        
+        // Genesis block
         const char* pszTimestamp = "Wired 09/Jan/2014 The Grand Experiment Goes Live: Overstock.com Is Now Accepting Bitcoins";
         CTransaction txNew;
         txNew.vin.resize(1);
@@ -3798,7 +3798,7 @@ bool static ProcessMessage(CNode* pfrom, string strCommand, CDataStream& vRecv)
         // Change version
         pfrom->PushMessage("verack");
         pfrom->ssSend.SetVersion(min(pfrom->nVersion, PROTOCOL_VERSION));
-        
+
         if (pfrom->nVersion >= darkSendPool.MIN_PEER_PROTO_VERSION) {
             if(RequestedMasterNodeList <= 2) {
                 bool fIsInitialDownload = IsInitialBlockDownload();
@@ -3902,7 +3902,7 @@ bool static ProcessMessage(CNode* pfrom, string strCommand, CDataStream& vRecv)
             }
         }
     }
-    else if (strCommand == "dmcv") { //DarkSend Masternode Consessus Vote   
+    else if (strCommand == "dmcv") { //DarkSend Masternode Consessus Vote
         if (pfrom->nVersion != darkSendPool.MIN_PEER_PROTO_VERSION) {
             return false;
         }
@@ -3959,7 +3959,7 @@ bool static ProcessMessage(CNode* pfrom, string strCommand, CDataStream& vRecv)
 
         std::string vchPubKey(darkSendMasterNodes[mn].pubkey.begin(), darkSendMasterNodes[mn].pubkey.end());
 
-        std::string strMessage = vinWinningMasternode.prevout.ToString() + vinMasterNodeFrom.prevout.ToString() + boost::lexical_cast<std::string>(nBlockHeight) + vchPubKey; 
+        std::string strMessage = vinWinningMasternode.prevout.ToString() + vinMasterNodeFrom.prevout.ToString() + boost::lexical_cast<std::string>(nBlockHeight) + vchPubKey;
         std::string errorMessage = "";
         if(!darkSendSigner.VerifyMessage(pubkey, vchSig, strMessage, errorMessage)){
             printf("dmcv - Got bad masternode address signature\n");
@@ -3985,7 +3985,7 @@ bool static ProcessMessage(CNode* pfrom, string strCommand, CDataStream& vRecv)
         }
         return true;
 
-    } else if (strCommand == "dsee") { //DarkSend Election Entry   
+    } else if (strCommand == "dsee") { //DarkSend Election Entry
         if (pfrom->nVersion != darkSendPool.MIN_PEER_PROTO_VERSION) {
             return false;
         }
@@ -4005,25 +4005,25 @@ bool static ProcessMessage(CNode* pfrom, string strCommand, CDataStream& vRecv)
 
         std::string vchPubKey(pubkey.begin(), pubkey.end());
         std::string vchPubKey2(pubkey2.begin(), pubkey2.end());
-        
+
         CScript pubkeyScript;
         pubkeyScript.SetDestination(pubkey.GetID());
 
         if(pubkeyScript.size() != 25) {
             printf("dsee - pubkey the wrong size\n");
             pfrom->Misbehaving(100);
-            return false;  
+            return false;
         }
 
-        std::string strMessage = addr.ToString() + boost::lexical_cast<std::string>(sigTime) + vchPubKey + vchPubKey2; 
+        std::string strMessage = addr.ToString() + boost::lexical_cast<std::string>(sigTime) + vchPubKey + vchPubKey2;
 
         CScript pubkeyScript2;
         pubkeyScript2.SetDestination(pubkey2.GetID());
-        
+
         if(pubkeyScript2.size() != 25) {
             printf("dsee - pubkey the wrong size\n");
             pfrom->Misbehaving(100);
-            return false;  
+            return false;
         }
 
         std::string errorMessage = "";
@@ -4036,7 +4036,7 @@ bool static ProcessMessage(CNode* pfrom, string strCommand, CDataStream& vRecv)
         if((fTestNet && addr.GetPort() != 19999) || (!fTestNet && addr.GetPort() != 9999)) return true;
 
         //printf("Searching existing masternodes : %s - %s\n", addr.ToString().c_str(),  vin.ToString().c_str());
-        
+
         BOOST_FOREACH(CMasterNode& mn, darkSendMasterNodes) {
             //printf(" -- %s\n", mn.vin.ToString().c_str());
 
@@ -4075,7 +4075,7 @@ bool static ProcessMessage(CNode* pfrom, string strCommand, CDataStream& vRecv)
             darkSendMasterNodes.push_back(mn);
 
             if(count == -1)
-                RelayDarkSendElectionEntry(vin, addr, vchSig, sigTime, pubkey, pubkey2, count, current, lastUpdated); 
+                RelayDarkSendElectionEntry(vin, addr, vchSig, sigTime, pubkey, pubkey2, count, current, lastUpdated);
 
         } else {
             printf("dsee - Rejected masternode entry\n");
@@ -4084,7 +4084,7 @@ bool static ProcessMessage(CNode* pfrom, string strCommand, CDataStream& vRecv)
         }
     }
 
-    else if (strCommand == "dseep") { //DarkSend Election Entry Ping 
+    else if (strCommand == "dseep") { //DarkSend Election Entry Ping
         if (pfrom->nVersion != darkSendPool.MIN_PEER_PROTO_VERSION) {
             return false;
         }
@@ -4116,7 +4116,7 @@ bool static ProcessMessage(CNode* pfrom, string strCommand, CDataStream& vRecv)
         BOOST_FOREACH(CMasterNode& mn, darkSendMasterNodes) {
 
             if(mn.vin == vin) {
-                std::string strMessage = mn.addr.ToString() + boost::lexical_cast<std::string>(sigTime) + boost::lexical_cast<std::string>(stop); 
+                std::string strMessage = mn.addr.ToString() + boost::lexical_cast<std::string>(sigTime) + boost::lexical_cast<std::string>(stop);
 
                 std::string errorMessage = "";
                 if(!darkSendSigner.VerifyMessage(mn.pubkey2, vchSig, strMessage, errorMessage)){
@@ -5055,7 +5055,7 @@ CBlockTemplate* CreateNewBlock(const CScript& scriptPubKeyIn)
     int payments = 1;
     // Create coinbase tx
     CTransaction txNew;
-    txNew.vin.resize(1); 
+    txNew.vin.resize(1);
     txNew.vin[0].prevout.SetNull();
     txNew.vout.resize(1);
     txNew.vout[0].scriptPubKey = scriptPubKeyIn;
@@ -5078,15 +5078,15 @@ CBlockTemplate* CreateNewBlock(const CScript& scriptPubKeyIn)
             bMasterNodePayment = true;
         }
     }
-    
+
     int64 nFees = 0;
     {
         LOCK2(cs_main, mempool.cs);
         CCoinsViewCache view(*pcoinsTip, true);
         CBlockIndex* pindexPrev = pindexBest;
-    
+
         if(bMasterNodePayment) {
-            int winningNode = -1; 
+            int winningNode = -1;
 
             //spork
             CScript payee;
@@ -5096,14 +5096,14 @@ CBlockTemplate* CreateNewBlock(const CScript& scriptPubKeyIn)
                 printf("CreateNewBlock - network could not reach consessus on payee for block %d\n", pindexPrev->nHeight+1);
                 winningNode = darkSendPool.GetCurrentMasterNode(1);
                 if(winningNode >= 0){
-                    payee.SetDestination(darkSendMasterNodes[winningNode].pubkey.GetID());   
+                    payee.SetDestination(darkSendMasterNodes[winningNode].pubkey.GetID());
                     success = true;
                 }
             }
 
             if(success) {
                 pblock->payee = payee;
-                
+
                 payments++;
                 txNew.vout.resize(payments);
 
@@ -5320,7 +5320,7 @@ CBlockTemplate* CreateNewBlock(const CScript& scriptPubKeyIn)
 
             int64 blockValue = GetBlockValue(pindexPrev->nBits, pindexPrev->nHeight, nFees);
             int64 blockValueFifth = blockValue/5;
-            
+
             for(int i = 1; i < payments; i++){
                 printf("%d\n", i);
                 pblock->vtx[0].vout[i].nValue = blockValueFifth;
@@ -5337,7 +5337,7 @@ CBlockTemplate* CreateNewBlock(const CScript& scriptPubKeyIn)
             pblock->nNonce         = 0;
             pblock->vtx[0].vin[0].scriptSig = CScript() << OP_0 << OP_0;
             pblocktemplate->vTxSigOps[0] = pblock->vtx[0].GetLegacySigOpCount();
-            
+
 
             CBlockIndex indexDummy(*pblock);
             indexDummy.pprev = pindexPrev;
@@ -5731,7 +5731,7 @@ bool CDarkSendPool::GetLastValidBlockHash(uint256& hash, int mod, int nBlockHeig
     int nBlocksAgo = 0;
     if(nBlockHeight > 0) nBlocksAgo = nBlockHeight - (pindexBest->nHeight+1);
     assert(nBlocksAgo >= 0);
-    
+
     int n = 0;
     for (unsigned int i = 1; BlockReading && BlockReading->nHeight > 0; i++) {
         if(BlockReading->nHeight % mod == 0) {
@@ -5746,14 +5746,14 @@ bool CDarkSendPool::GetLastValidBlockHash(uint256& hash, int mod, int nBlockHeig
         BlockReading = BlockReading->pprev;
     }
 
-    return false;    
+    return false;
 }
 
 void CDarkSendPool::NewBlock()
 {
     if(fDebug) printf("CDarkSendPool::NewBlock \n");
 
-    {    
+    {
         LOCK2(cs_main, mempool.cs);
         if(pindexBest != NULL) {
             int winningNode = darkSendPool.GetCurrentMasterNode(1);
@@ -5780,7 +5780,7 @@ uint256 CMasterNode::CalculateScore(int mod, int64 nBlockHeight)
 
     uint256 n2 = Hash9(BEGIN(n1), END(n1));
     uint256 n3 = vin.prevout.hash > n2 ? (vin.prevout.hash - n2) : (n2 - vin.prevout.hash);
-    
+
     /*
     printf(" -- MasterNode CalculateScore() n1 = %s \n", n1.ToString().c_str());
     printf(" -- MasterNode CalculateScore() n2 = %s \n", n2.ToString().c_str());
@@ -5833,7 +5833,7 @@ int CDarkSendPool::GetCurrentMasterNode(int mod, int64 nBlockHeight)
 
 int CDarkSendPool::GetMasternodeRank(CTxIn& vin, int mod)
 {
-    std::vector<pair<uint, CTxIn> > vecMasternodeScores;
+    std::vector<pair<unsigned int, CTxIn> > vecMasternodeScores;
 
     BOOST_FOREACH(CMasterNode mn, darkSendMasterNodes) {
         mn.Check();
@@ -5849,9 +5849,9 @@ int CDarkSendPool::GetMasternodeRank(CTxIn& vin, int mod)
     }
 
     sort(vecMasternodeScores.rbegin(), vecMasternodeScores.rend(), CompareValueOnly());
-    
+
     unsigned int rank = 0;
-    BOOST_FOREACH (PAIRTYPE(uint, CTxIn)& s, vecMasternodeScores){
+    BOOST_FOREACH (PAIRTYPE(unsigned int, CTxIn)& s, vecMasternodeScores){
         rank++;
         if(s.second == vin) return rank;
     }
@@ -5874,7 +5874,7 @@ bool CDarkSendPool::GetCurrentMasterNodeConsessus(int64 blockHeight, CScript& pa
     {
         if (blockHeight == s.first)
         {
-            if (s.second.second > winner_votes || 
+            if (s.second.second > winner_votes ||
                 (s.second.second == winner_votes && s.second.first.prevout.hash > winner_vin.prevout.hash)){
                 winner_vin = s.second.first;
                 winner_votes = s.second.second;
@@ -5944,7 +5944,7 @@ void CMasterNode::Check()
 
     if(!tx.AcceptableInputs(state, true)) {
         enabled = 3;
-        return; 
+        return;
     }
 
     enabled = 1; // OK
@@ -5957,7 +5957,7 @@ bool CDarkSendSigner::SetKey(std::string strSecret, std::string& errorMessage, C
     if (!fGood) {
         errorMessage = "Invalid private key";
         return false;
-    }     
+    }
 
     key = vchSecret.GetKey();
     pubkey = key.GetPubKey();
