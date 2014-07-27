@@ -261,7 +261,7 @@ void CAddrMan::MakeTried(CAddrInfo& info, int nId, int nOrigin)
 
 void CAddrMan::Good_(const CService &addr, int64 nTime)
 {
-//    printf("Good: addr=%s\n", addr.ToString().c_str());
+//    LogPrintf("Good: addr=%s\n", addr.ToString().c_str());
 
     int nId;
     CAddrInfo *pinfo = Find(addr, &nId);
@@ -304,7 +304,7 @@ void CAddrMan::Good_(const CService &addr, int64 nTime)
     // TODO: maybe re-add the node, but for now, just bail out
     if (nUBucket == -1) return;
 
-    printf("Moving %s to tried\n", addr.ToString().c_str());
+    LogPrintf("Moving %s to tried\n", addr.ToString().c_str());
 
     // move nId to the tried tables
     MakeTried(info, nId, nUBucket);
@@ -351,7 +351,7 @@ bool CAddrMan::Add_(const CAddress &addr, const CNetAddr& source, int64 nTimePen
     } else {
         pinfo = Create(addr, source, &nId);
         pinfo->nTime = max((int64)0, (int64)pinfo->nTime - nTimePenalty);
-//        printf("Added %s [nTime=%fhr]\n", pinfo->ToString().c_str(), (GetAdjustedTime() - pinfo->nTime) / 3600.0);
+//        LogPrintf("Added %s [nTime=%fhr]\n", pinfo->ToString().c_str(), (GetAdjustedTime() - pinfo->nTime) / 3600.0);
         nNew++;
         fNew = true;
     }

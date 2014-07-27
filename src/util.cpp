@@ -167,7 +167,7 @@ void RandAddSeedPerfmon()
     {
         RAND_add(pdata, nSize, nSize/100.0);
         OPENSSL_cleanse(pdata, nSize);
-        printf("RandAddSeed() %lu bytes\n", nSize);
+        LogPrintf("RandAddSeed() %lu bytes\n", nSize);
     }
 #endif
 }
@@ -206,8 +206,7 @@ uint256 GetRandHash()
 
 
 //
-// OutputDebugStringF (aka printf -- there is a #define that we really
-// should get rid of one day) has been broken a couple of times now
+// LogPrintf() has been broken a couple of times now
 // by well-meaning people adding mutexes in the most straightforward way.
 // It breaks because it may be called by global destructors during shutdown.
 // Since the order of destruction of static/global objects is undefined,
@@ -234,8 +233,14 @@ static void DebugPrintInit()
     mutexDebugLog = new boost::mutex();
 }
 
-int OutputDebugStringF(const char* pszFormat, ...)
+int LogPrint(const char* category, const char* pszFormat, ...)
 {
+    if (category != NULL) {
+        const vector<string>& categories = mapMultiArgs["-debug"];
+        if (find(categories.begin(), categories.end(), string(category)) == categories.end())
+            return 0;
+    }
+
     int ret = 0; // Returns total number of characters written
     if (fPrintToConsole)
     {
@@ -361,7 +366,7 @@ bool error(const char *format, ...)
     va_start(arg_ptr, format);
     std::string str = vstrprintf(format, arg_ptr);
     va_end(arg_ptr);
-    printf("ERROR: %s\n", str.c_str());
+    LogPrintf("ERROR: %s\n", str.c_str());
     return false;
 }
 
@@ -1008,13 +1013,13 @@ static std::string FormatException(std::exception* pex, const char* pszThread)
 void LogException(std::exception* pex, const char* pszThread)
 {
     std::string message = FormatException(pex, pszThread);
-    printf("\n%s", message.c_str());
+    LogPrintf("\n%s", message.c_str());
 }
 
 void PrintException(std::exception* pex, const char* pszThread)
 {
     std::string message = FormatException(pex, pszThread);
-    printf("\n\n************************\n%s\n", message.c_str());
+    LogPrintf("\n\n************************\n%s\n", message.c_str());
     fprintf(stderr, "\n\n************************\n%s\n", message.c_str());
     strMiscWarning = message;
     throw;
@@ -1023,7 +1028,7 @@ void PrintException(std::exception* pex, const char* pszThread)
 void PrintExceptionContinue(std::exception* pex, const char* pszThread)
 {
     std::string message = FormatException(pex, pszThread);
-    printf("\n\n************************\n%s\n", message.c_str());
+    LogPrintf("\n\n************************\n%s\n", message.c_str());
     fprintf(stderr, "\n\n************************\n%s\n", message.c_str());
     strMiscWarning = message;
 }
@@ -1066,7 +1071,7 @@ const boost::filesystem::path &GetDataDir(bool fNetSpecific)
 
     fs::path &path = pathCached[fNetSpecific];
 
-    // This can be called during exceptions by printf, so we cache the
+    // This can be called during exceptions by LogPrintf(), so we cache the
     // value so we don't have to do memory allocations after that.
     if (fCachedPath[fNetSpecific])
         return path;
@@ -1330,7 +1335,7 @@ void AddTimeData(const CNetAddr& ip, int64 nTime)
 
     // Add data
     vTimeOffsets.input(nOffsetSample);
-    printf("Added time data, samples %d, offset %+"PRI64d" (%+"PRI64d" minutes)\n", vTimeOffsets.size(), nOffsetSample, nOffsetSample/60);
+    LogPrintf("Added time data, samples %d, offset %+"PRI64d" (%+"PRI64d" minutes)\n", vTimeOffsets.size(), nOffsetSample, nOffsetSample/60);
     if (vTimeOffsets.size() >= 5 && vTimeOffsets.size() % 2 == 1)
     {
         int64 nMedian = vTimeOffsets.median();
@@ -1358,17 +1363,17 @@ void AddTimeData(const CNetAddr& ip, int64 nTime)
                     fDone = true;
                     string strMessage = _("Warning: Please check that your computer's date and time are correct! If your clock is wrong DarkCoin will not work properly.");
                     strMiscWarning = strMessage;
-                    printf("*** %s\n", strMessage.c_str());
+                    LogPrintf("*** %s\n", strMessage.c_str());
                     uiInterface.ThreadSafeMessageBox(strMessage, "", CClientUIInterface::MSG_WARNING);
                 }
             }
         }
         if (fDebug) {
             BOOST_FOREACH(int64 n, vSorted)
-                printf("%+"PRI64d"  ", n);
-            printf("|  ");
+                LogPrintf("%+"PRI64d"  ", n);
+            LogPrintf("|  ");
         }
-        printf("nTimeOffset = %+"PRI64d"  (%+"PRI64d" minutes)\n", nTimeOffset, nTimeOffset/60);
+        LogPrintf("nTimeOffset = %+"PRI64d"  (%+"PRI64d" minutes)\n", nTimeOffset, nTimeOffset/60);
     }
 }
 
@@ -1430,7 +1435,7 @@ boost::filesystem::path GetSpecialFolderPath(int nFolder, bool fCreate)
         return fs::path(pszPath);
     }
 
-    printf("SHGetSpecialFolderPathA() failed, could not obtain requested path.\n");
+    LogPrintf("SHGetSpecialFolderPathA() failed, could not obtain requested path.\n");
     return fs::path("");
 }
 #endif
@@ -1450,7 +1455,7 @@ boost::filesystem::path GetTempPath() {
     path = boost::filesystem::path("/tmp");
 #endif
     if (path.empty() || !boost::filesystem::is_directory(path)) {
-        printf("GetTempPath(): failed to find temp path\n");
+        LogPrintf("GetTempPath(): failed to find temp path\n");
         return boost::filesystem::path("");
     }
     return path;
@@ -1461,7 +1466,7 @@ void runCommand(std::string strCommand)
 {
     int nErr = ::system(strCommand.c_str());
     if (nErr)
-        printf("runCommand error: system(%s) returned %d\n", strCommand.c_str(), nErr);
+        LogPrintf("runCommand error: system(%s) returned %d\n", strCommand.c_str(), nErr);
 }
 
 void RenameThread(const char* name)
@@ -1494,7 +1499,7 @@ bool NewThread(void(*pfn)(void*), void* parg)
     {
         boost::thread(pfn, parg); // thread detaches when out of scope
     } catch(boost::thread_resource_error &e) {
-        printf("Error creating thread: %s\n", e.what());
+        LogPrintf("Error creating thread: %s\n", e.what());
         return false;
     }
     return true;

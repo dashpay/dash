@@ -251,7 +251,7 @@ Value getworkex(const Array& params, bool fHelp)
         Array merkle_arr;
 
         BOOST_FOREACH(uint256 merkleh, merkle) {
-            printf("%s\n", merkleh.ToString().c_str());
+            LogPrintf("%s\n", merkleh.ToString().c_str());
             merkle_arr.push_back(HexStr(BEGIN(merkleh), END(merkleh)));
         }
 
