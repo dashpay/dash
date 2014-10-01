@@ -23,7 +23,7 @@ ifdef UNIT_TEST
 DEFS+=-DUNIT_TEST=1
 endif
 
-STATIC = 1
+
 LMODE = dynamic
 LMODE2 = dynamic
 ifdef STATIC
