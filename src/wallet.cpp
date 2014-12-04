@@ -1039,6 +1039,33 @@ double CWallet::GetAverageAnonymizedRounds() const
     return fTotal/fCount;
 }
 
+int64 CWallet::GetNormalizedAnonymizedBalance() const
+{
+    int64 nTotal = 0;
+
+    {
+        LOCK(cs_wallet);
+        for (map<uint256, CWalletTx>::const_iterator it = mapWallet.begin(); it != mapWallet.end(); ++it)
+        {
+            const CWalletTx* pcoin = &(*it).second;
+            for (unsigned int i = 0; i < pcoin->vout.size(); i++) {
+
+                COutput out = COutput(pcoin, i, pcoin->GetDepthInMainChain());
+                CTxIn vin = CTxIn(out.tx->GetHash(), out.i);
+
+                if(pcoin->IsSpent(i) || !IsMine(pcoin->vout[i]) || !IsDenominated(vin)) continue;
+
+                int rounds = GetInputDarksendRounds(vin);
+                if(rounds < nDarksendRounds)
+                    nTotal += pcoin->vout[i].nValue * rounds / 2;
+                else
+                    nTotal += pcoin->vout[i].nValue * nDarksendRounds;
+            }
+        }
+    }
+
+    return nTotal / nDarksendRounds;
+}
 
 int64 CWallet::GetDenominatedBalance(bool onlyDenom, bool onlyUnconfirmed) const
 {

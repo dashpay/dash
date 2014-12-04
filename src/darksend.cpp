@@ -1467,15 +1467,7 @@ bool CDarkSendPool::DoAutomaticDenominating(bool fDryRun, bool ready)
                 return true;
             }
 
-            LogPrintf("DoAutomaticDenominating : No funds detected in need of denominating %"PRI64d" %"PRI64d" %d %"PRI64d" %"PRI64d" %"PRI64d" %"PRI64d"\n",
-                      balanceNeedsDenominated/COIN,
-                      balanceNeedsAnonymized/COIN,
-                      minRounds,
-                      nAnonymizeDarkcoinAmount,
-                      balance/COIN,
-                      pwalletMain->GetDenominatedBalance(true)/COIN,
-                      pwalletMain->GetAnonymizedBalance()/COIN
-                      );
+            LogPrintf("DoAutomaticDenominating : No funds detected in need of denominating \n");
             return false;
         }
     }

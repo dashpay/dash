@@ -246,21 +246,22 @@ void OverviewPage::updateDarksendProgress(){
     }
 
     std::ostringstream convert;
-    //Get average rounds of inputs
-    double a = ((double)pwalletMain->GetAverageAnonymizedRounds() / (double)nDarksendRounds)*100;
-    //Get the anon threshold
-    double max = nAnonymizeDarkcoinAmount;
-    //If it's more than the wallet amount, limit to that.
-    if(max > (double)(pwalletMain->GetBalance()/COIN)-1) max = (double)(pwalletMain->GetBalance()/COIN)-1;
-    //denominated balance / anon threshold -- the percentage that we've completed 
-    double b = ((double)(pwalletMain->GetDenominatedBalance()/COIN) / max);
 
-    double val = a*b; 
-    if(val < 0) val = 0;
-    if(val > 100) val = 100;
+    // Get the anon threshold
+    int64 max = nAnonymizeDarkcoinAmount*COIN;
 
-    ui->darksendProgress->setValue(val);//rounds avg * denom progress
-    convert << "Inputs have an average of " << pwalletMain->GetAverageAnonymizedRounds() << " of " << nDarksendRounds << " rounds (" << a << "/" << b << ")";
+    // If it's more than the wallet amount, limit to that.
+    if(max > balance) max = balance;
+
+    if(max == 0) return;
+
+    // calculate progress
+    double progress = pwalletMain->GetNormalizedAnonymizedBalance() / max * 100;
+
+    if(progress > 100) progress = 100;
+
+    ui->darksendProgress->setValue(progress);
+    convert << "Inputs have an average of " << pwalletMain->GetAverageAnonymizedRounds() << " of " << nDarksendRounds << " rounds";
     QString s(convert.str().c_str());
     ui->darksendProgress->setToolTip(s);
 }
