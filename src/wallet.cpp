@@ -1885,7 +1885,23 @@ bool CWallet::CreateCollateralTransaction(CTransaction& txCollateral, std::strin
     return true;
 }
 
-string CWallet::PrepareDarksendDenominate(int minRounds, int64 maxAmount)
+bool CWallet::ConvertList(std::vector<CTxIn> vCoins, std::vector<int64>& vecAmounts)
+{
+    BOOST_FOREACH(CTxIn i, vCoins){
+        if (mapWallet.count(i.prevout.hash))
+        {
+            CWalletTx& wtx = mapWallet[i.prevout.hash];
+            if(i.prevout.n < wtx.vout.size()){
+                vecAmounts.push_back(wtx.vout[i.prevout.n].nValue);
+            }
+        } else {
+            LogPrintf("ConvertList -- Couldn't find transaction\n");
+        }
+    }
+    return true;
+}
+
+string CWallet::PrepareDarksendDenominate(int minRounds, int maxRounds, int64 maxAmount)
 {
     if (IsLocked())
         return _("Error: Wallet locked, unable to create transaction!");
@@ -1905,7 +1921,7 @@ string CWallet::PrepareDarksendDenominate(int minRounds, int64 maxAmount)
     bool hasFeeInput = false;
 
     //select coins we'll use
-    if (!SelectCoinsDark(1*COIN, maxAmount, vCoins, nValueIn, minRounds, nDarksendRounds, hasFeeInput))
+    if (!SelectCoinsDark(1*COIN, maxAmount, vCoins, nValueIn, minRounds, maxRounds, hasFeeInput))
     {
         vCoins.clear();
 
@@ -1926,34 +1942,62 @@ string CWallet::PrepareDarksendDenominate(int minRounds, int64 maxAmount)
     int64 nValueLeft = nTotalValue;
     std::vector<CTxOut> vOut;
 
-    // Make outputs by looping through denominations, from small to large
-    BOOST_REVERSE_FOREACH(int64 v, darkSendDenominations){
-        int nOutputs = 0;
+    //if minRounds >= 0, we want to use our exact denominations. 
+    if(minRounds >= 0){
+        CWalletTx wtx;
+        BOOST_FOREACH(CTxIn i, vCoins){
+            if (mapWallet.count(i.prevout.hash))
+            {
+                CWalletTx& wtx = mapWallet[i.prevout.hash];
+                if(i.prevout.n < wtx.vout.size()){
+                    CScript scriptChange;
+                    CPubKey vchPubKey;
+                    //use a unique change address
+                    assert(reservekey.GetReservedKey(vchPubKey)); // should never fail, as we just unlocked
+                    scriptChange.SetDestination(vchPubKey.GetID());
+                    reservekey.KeepKey();
 
-        if(std::find(darkSendPool.vecDisabledDenominations.begin(), 
-            darkSendPool.vecDisabledDenominations.end(), v) != 
-            darkSendPool.vecDisabledDenominations.end()){
-            continue;
+                    CTxOut o(wtx.vout[i.prevout.n].nValue, scriptChange);
+                    vOut.push_back(o);
+                    
+                    //increment outputs and subtract denomination amount
+                    nValueLeft -= wtx.vout[i.prevout.n].nValue;
+                }
+            } else {
+                LogPrintf("GetTotalValue -- Couldn't find transaction\n");
+            }
         }
 
-        // add each output up to 10 times until it can't be added again
-        while(nValueLeft - v >= 0 && nOutputs <= 10) {
-            CScript scriptChange;
-            CPubKey vchPubKey;
-            //use a unique change address
-            assert(reservekey.GetReservedKey(vchPubKey)); // should never fail, as we just unlocked
-            scriptChange.SetDestination(vchPubKey.GetID());
-            reservekey.KeepKey();
+    } else {
+        // Make outputs by looping through denominations, from small to large
+        BOOST_REVERSE_FOREACH(int64 v, darkSendDenominations){
+            int nOutputs = 0;
 
-            CTxOut o(v, scriptChange);
-            vOut.push_back(o);
-            
-            //increment outputs and subtract denomination amount
-            nOutputs++;
-            nValueLeft -= v;
+            if(std::find(darkSendPool.vecDisabledDenominations.begin(), 
+                darkSendPool.vecDisabledDenominations.end(), v) != 
+                darkSendPool.vecDisabledDenominations.end()){
+                continue;
+            }
+
+            // add each output up to 10 times until it can't be added again
+            while(nValueLeft - v >= 0 && nOutputs <= 10) {
+                CScript scriptChange;
+                CPubKey vchPubKey;
+                //use a unique change address
+                assert(reservekey.GetReservedKey(vchPubKey)); // should never fail, as we just unlocked
+                scriptChange.SetDestination(vchPubKey.GetID());
+                reservekey.KeepKey();
+
+                CTxOut o(v, scriptChange);
+                vOut.push_back(o);
+                
+                //increment outputs and subtract denomination amount
+                nOutputs++;
+                nValueLeft -= v;
+            }
+
+            if(nValueLeft == 0) break;
         }
-
-        if(nValueLeft == 0) break;
     }
 
     // if we have anything left over, send it back as change

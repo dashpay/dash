@@ -425,6 +425,7 @@ public:
     int GetDenominations(const std::vector<CTxOut>& vout);
     // get the denominations for a specific amount of darkcoin. 
     int GetDenominationsByAmount(int64 nAmount);
+    int GetDenominationsByAmounts(std::vector<int64>& vecAmount);
 };
 
 
