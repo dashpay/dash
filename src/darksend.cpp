@@ -1444,29 +1444,35 @@ bool CDarkSendPool::DoAutomaticDenominating(bool fDryRun, bool ready)
         return false;
     }
 
+
     // select coins that should be given to the pool
     if (!pwalletMain->SelectCoinsDark(nValueMin, balanceNeedsAnonymized, vCoins, nValueIn, minRounds, nDarksendRounds, hasFeeInput))
     {
-        nValueIn = 0;
-        vCoins.clear();
-
-        // look for inputs larger than the max amount, if we find anything we need to split it up
-        if (pwalletMain->SelectCoinsDark(balanceNeedsAnonymized, 9999999*COIN, vCoins, nValueIn, minRounds, nDarksendRounds, hasFeeInput))
+        // fall back to non-denom
+        minRounds = -2;
+        if (!pwalletMain->SelectCoinsDark(nValueMin, balanceNeedsAnonymized, vCoins, nValueIn, minRounds, nDarksendRounds, hasFeeInput))
         {
-            if(!fDryRun) SplitUpMoney();
-            return true;
-        }
+            nValueIn = 0;
+            vCoins.clear();
 
-        LogPrintf("DoAutomaticDenominating : No funds detected in need of denominating %"PRI64d" %"PRI64d" %d %"PRI64d" %"PRI64d" %"PRI64d" %"PRI64d"\n",
-                  balanceNeedsDenominated,
-                  balanceNeedsAnonymized,
-                  minRounds,
-                  nAnonymizeDarkcoinAmount,
-                  balance,
-                  pwalletMain->GetDenominatedBalance(true),
-                  pwalletMain->GetAnonymizedBalance()
-                  );
-        return false;
+            // look for inputs larger than the max amount, if we find anything we need to split it up
+            if (pwalletMain->SelectCoinsDark(balanceNeedsAnonymized, 9999999*COIN, vCoins, nValueIn, minRounds, nDarksendRounds, hasFeeInput))
+            {
+                if(!fDryRun) SplitUpMoney();
+                return true;
+            }
+
+            LogPrintf("DoAutomaticDenominating : No funds detected in need of denominating %"PRI64d" %"PRI64d" %d %"PRI64d" %"PRI64d" %"PRI64d" %"PRI64d"\n",
+                      balanceNeedsDenominated,
+                      balanceNeedsAnonymized,
+                      minRounds,
+                      nAnonymizeDarkcoinAmount,
+                      balance,
+                      pwalletMain->GetDenominatedBalance(true),
+                      pwalletMain->GetAnonymizedBalance()
+                      );
+            return false;
+        }
     }
 
     if(vecDisabledDenominations.size() == 0){
@@ -1479,10 +1485,10 @@ bool CDarkSendPool::DoAutomaticDenominating(bool fDryRun, bool ready)
     }
 
     // but if we tried to split last time and didn't find anything
-    // then this time we'll fallback back to 1s and 0.1s to complete anonymization
+    // then this time we'll fall back to 1s and 0.1s to complete anonymization
     if(nValueIn < 10*COIN){
         vecDisabledDenominations.clear();
-        LogPrintf("DoAutomaticDenominating : Splitting the rest to 0.1s and 1s \n");
+        LogPrintf("DoAutomaticDenominating : falling back to 0.1s and 1s\n");
     }
 
     //check to see if we have the fee sized inputs, it requires these
