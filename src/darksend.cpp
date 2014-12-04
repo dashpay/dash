@@ -1415,60 +1415,74 @@ bool CDarkSendPool::DoAutomaticDenominating(bool fDryRun, bool ready)
 
     // ** find the coins we'll use
     std::vector<CTxIn> vCoins;
-    int64 nValueMin = 0.01*COIN;
-    int64 nValueMax = DARKSEND_POOL_MAX;
+    int64 nValueMin = 0.1*COIN + 1; // select at least one smallest denom
     int64 nValueIn = 0;
     int minRounds = -2; //non denominated funds are rounds of less than 0
-    int maxAmount = DARKSEND_POOL_MAX/COIN;
+    int64 balance = pwalletMain->GetBalance();
+    int64 balanceNeedsDenominated = nAnonymizeDarkcoinAmount*COIN; // set target value on init
+    int64 balanceNeedsAnonymized = nAnonymizeDarkcoinAmount*COIN; // set target value on init
     bool hasFeeInput = false;
 
-    // if we have more denominated funds (of any maturity) than the nAnonymizeDarkcoinAmount, we should use use those
-    if(pwalletMain->GetDenominatedBalance(true) >= nAnonymizeDarkcoinAmount*COIN) {
-        minRounds = 0;
-    }
-    //if we're set to less than a thousand, don't submit for than that to the pool
-    if(nAnonymizeDarkcoinAmount < DARKSEND_POOL_MAX/COIN) maxAmount = nAnonymizeDarkcoinAmount;
+    // do we have enough balance?
+    if(balanceNeedsDenominated > balance) balanceNeedsDenominated = balance;
+    if(balanceNeedsAnonymized > balance) balanceNeedsAnonymized = balance;
 
-    int64 balanceNeedsAnonymized = pwalletMain->GetBalance() - pwalletMain->GetAnonymizedBalance();
-    if(balanceNeedsAnonymized > maxAmount*COIN) balanceNeedsAnonymized= maxAmount*COIN;
-    if(balanceNeedsAnonymized < COIN*2.5){
-        LogPrintf("DoAutomaticDenominating : No funds detected in need of denominating \n");
+    // count in what is already done
+    balanceNeedsDenominated -= pwalletMain->GetDenominatedBalance(true);
+    balanceNeedsAnonymized -= pwalletMain->GetAnonymizedBalance();
+
+    // is there anything left to do?
+    // if no more denomination needed do not select non-denom inputs
+    if(balanceNeedsDenominated <= 0) minRounds = 0;
+
+    // is amount to anonymize still higher then pool allows?
+    if(balanceNeedsAnonymized > DARKSEND_POOL_MAX) balanceNeedsAnonymized = DARKSEND_POOL_MAX;
+
+    // if there is nothing more to anonymize
+    if(balanceNeedsAnonymized <= 1*COIN){
+        LogPrintf("DoAutomaticDenominating : No funds detected in need of anonymizing \n");
         return false;
     }
 
-    // if the balance is more the pool max, take the pool max
-    if(balanceNeedsAnonymized > nValueMax) {
-        balanceNeedsAnonymized = nValueMax;
-    }
-
     // select coins that should be given to the pool
-    if (!pwalletMain->SelectCoinsDark(nValueMin, maxAmount*COIN, vCoins, nValueIn, minRounds, nDarksendRounds, hasFeeInput))
+    if (!pwalletMain->SelectCoinsDark(nValueMin, balanceNeedsAnonymized, vCoins, nValueIn, minRounds, nDarksendRounds, hasFeeInput))
     {
         nValueIn = 0;
         vCoins.clear();
 
         // look for inputs larger than the max amount, if we find anything we need to split it up
-        if (pwalletMain->SelectCoinsDark(maxAmount*COIN, 9999999*COIN, vCoins, nValueIn, minRounds, nDarksendRounds, hasFeeInput))
+        if (pwalletMain->SelectCoinsDark(balanceNeedsAnonymized, 9999999*COIN, vCoins, nValueIn, minRounds, nDarksendRounds, hasFeeInput))
         {
             if(!fDryRun) SplitUpMoney();
             return true;
         }
 
-        LogPrintf("DoAutomaticDenominating : No funds detected in need of denominating (2)\n");
+        LogPrintf("DoAutomaticDenominating : No funds detected in need of denominating %"PRI64d" %"PRI64d" %d %"PRI64d" %"PRI64d" %"PRI64d" %"PRI64d"\n",
+                  balanceNeedsDenominated,
+                  balanceNeedsAnonymized,
+                  minRounds,
+                  nAnonymizeDarkcoinAmount,
+                  balance,
+                  pwalletMain->GetDenominatedBalance(true),
+                  pwalletMain->GetAnonymizedBalance()
+                  );
         return false;
     }
 
-    // the darksend pool can only take 1.1DRK minimum
-    if(nValueIn < COIN*1.1){
-        //simply look for non-denominated coins
-        if (pwalletMain->SelectCoinsDark(maxAmount*COIN, 9999999*COIN, vCoins, nValueIn, minRounds, nDarksendRounds, hasFeeInput))
-        {
-            if(!fDryRun) SplitUpMoney();
-            return true;
+    if(vecDisabledDenominations.size() == 0){
+        //if we have 20x 0.1DRk and 1DRK inputs, we can start just anonymizing 10DRK and 100DRK inputs only.
+        if(pwalletMain->CountInputsWithAmount((1     * COIN)+1) >= 20 &&
+            pwalletMain->CountInputsWithAmount((.1     * COIN)+1) >= 20){
+            vecDisabledDenominations.push_back((1     * COIN)+1);
+            vecDisabledDenominations.push_back((.1     * COIN)+1);
         }
+    }
 
-        LogPrintf("DoAutomaticDenominating : Too little to denominate (must have 1.1DRK) \n");
-        return false;
+    // but if we tried to split last time and didn't find anything
+    // then this time we'll fallback back to 1s and 0.1s to complete anonymization
+    if(nValueIn < 10*COIN){
+        vecDisabledDenominations.clear();
+        LogPrintf("DoAutomaticDenominating : Splitting the rest to 0.1s and 1s \n");
     }
 
     //check to see if we have the fee sized inputs, it requires these
@@ -1478,15 +1492,6 @@ bool CDarkSendPool::DoAutomaticDenominating(bool fDryRun, bool ready)
     }
 
     if(fDryRun) return true;
-
-    if(vecDisabledDenominations.size() == 0){
-        //if we have 20x 0.1DRk and 1DRK inputs, we can start just anonymizing 10DRK inputs.
-        if(pwalletMain->CountInputsWithAmount((1     * COIN)+1) >= 20 && 
-            pwalletMain->CountInputsWithAmount((.1     * COIN)+1) >= 20){
-            vecDisabledDenominations.push_back((1     * COIN)+1);
-            vecDisabledDenominations.push_back((.1     * COIN)+1);
-        }
-    }
 
     // initial phase, find a masternode
     if(!sessionFoundMasternode){
@@ -1499,7 +1504,7 @@ bool CDarkSendPool::DoAutomaticDenominating(bool fDryRun, bool ready)
         if(minRounds == 0 || 
             pwalletMain->GetDenominatedBalance(true) * 0.05 > pwalletMain->GetDenominatedBalance(false)) {
             for(int a = 0; a < 10; a++){ //try 10 amounts and see if we match a queue
-                int r = (rand()%(maxAmount-(nValueMin/COIN)))+(nValueMin/COIN);
+                int r = (rand()%((balanceNeedsAnonymized-nValueMin)/COIN))+(nValueMin/COIN);
 
                 vCoins.clear();
                 nValueIn = 0;
@@ -1524,7 +1529,7 @@ bool CDarkSendPool::DoAutomaticDenominating(bool fDryRun, bool ready)
                 }
             }
         }
-        if(sessionTotalValue > maxAmount*COIN) sessionTotalValue = maxAmount*COIN;
+        if(sessionTotalValue > balanceNeedsAnonymized) sessionTotalValue = balanceNeedsAnonymized;
 
         double fDarkcoinSubmitted = sessionTotalValue / COIN;
 

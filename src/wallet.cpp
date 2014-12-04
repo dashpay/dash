@@ -1049,21 +1049,25 @@ int64 CWallet::GetDenominatedBalance(bool onlyDenom, bool onlyUnconfirmed) const
         {
             const CWalletTx* pcoin = &(*it).second;
 
-            bool isDenom = false;
-            for (unsigned int i = 0; i < pcoin->vout.size(); i++)
+            for (unsigned int i = 0; i < pcoin->vout.size(); i++){
+
+                if(pcoin->IsSpent(i) || !IsMine(pcoin->vout[i])) continue;
+
+                bool isDenom = false;
                 BOOST_FOREACH(int64 d, darkSendDenominations)
                     if(pcoin->vout[i].nValue == d)
                         isDenom = true;
 
-            if(onlyUnconfirmed){
-                if (!pcoin->IsFinal() || !pcoin->IsConfirmed()){
-                    if(onlyDenom == isDenom){ 
-                        nTotal += pcoin->GetAvailableCredit();
+                if(onlyUnconfirmed){
+                    if (!pcoin->IsFinal() || !pcoin->IsConfirmed()){
+                        if(onlyDenom == isDenom){
+                            nTotal += pcoin->vout[i].nValue;
+                        }
                     }
-                }
-            } else if (pcoin->IsConfirmed()) {
-                if(onlyDenom == isDenom) {
-                    nTotal += pcoin->GetAvailableCredit();
+                } else if (pcoin->IsConfirmed()) {
+                    if(onlyDenom == isDenom) {
+                        nTotal += pcoin->vout[i].nValue;
+                    }
                 }
             }
         }
