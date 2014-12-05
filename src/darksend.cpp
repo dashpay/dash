@@ -1504,37 +1504,37 @@ bool CDarkSendPool::DoAutomaticDenominating(bool fDryRun, bool ready)
 
         //randomize the amounts we mix
         // if we have minRounds set, or if our non-demon is less than 5% of denom coins 
-//        if(minRounds == 0 ||
-//            pwalletMain->GetDenominatedBalance(true) * 0.05 > pwalletMain->GetDenominatedBalance(false)) {
-//            for(int a = 0; a < 10; a++){ //try 10 amounts and see if we match a queue
-//                int r = (rand()%((balanceNeedsAnonymized-nValueMin)/COIN))+(nValueMin/COIN);
+        if(minRounds == 0 ||
+            pwalletMain->GetDenominatedBalance(true) * 0.05 > pwalletMain->GetDenominatedBalance(false)) {
+            for(int a = 0; a < 10; a++){ //try 10 amounts and see if we match a queue
+                int r = (rand()%((balanceNeedsAnonymized-nValueMin)/COIN))+(nValueMin/COIN);
 
-//                vCoins.clear();
-//                nValueIn = 0;
-//                if (pwalletMain->SelectCoinsDark(nValueMin, r*COIN, vCoins, nValueIn, minRounds, maxRounds, hasFeeInput)){
-//                    sessionTotalValue = pwalletMain->GetTotalValue(vCoins);
+                vCoins.clear();
+                nValueIn = 0;
+                if (pwalletMain->SelectCoinsDark(nValueMin, r*COIN, vCoins, nValueIn, minRounds, maxRounds, hasFeeInput)){
+                    sessionTotalValue = pwalletMain->GetTotalValue(vCoins);
 
-//                    // if it's in the queue, take it
-//                    if(nUseQueue > 33 && vecDarksendQueue.size() > 0){
-//                        BOOST_FOREACH(CDarksendQueue& dsq, vecDarksendQueue){
-//                            CService addr;
-//                            if(dsq.time == 0) continue;
-//                            if(!dsq.GetAddress(addr)) continue;
+                    // if it's in the queue, take it
+                    if(nUseQueue > 33 && vecDarksendQueue.size() > 0){
+                        BOOST_FOREACH(CDarksendQueue& dsq, vecDarksendQueue){
+                            CService addr;
+                            if(dsq.time == 0) continue;
+                            if(!dsq.GetAddress(addr)) continue;
 
-//                            std::vector<int64> vecAmounts;
-//                            pwalletMain->ConvertList(vCoins, vecAmounts);
+                            std::vector<int64> vecAmounts;
+                            pwalletMain->ConvertList(vCoins, vecAmounts);
 
-//                            if(dsq.nDenom == GetDenominationsByAmounts(vecAmounts)) {
-//                                break;
-//                            }
-//                        }
-//                    } else {
-//                        break;
-//                    }
+                            if(dsq.nDenom == GetDenominationsByAmounts(vecAmounts)) {
+                                break;
+                            }
+                        }
+                    } else {
+                        break;
+                    }
 
-//                }
-//            }
-//        }
+                }
+            }
+        }
         if(sessionTotalValue > balanceNeedsAnonymized) sessionTotalValue = balanceNeedsAnonymized;
 
         double fDarkcoinSubmitted = sessionTotalValue / COIN;
