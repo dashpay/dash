@@ -2128,7 +2128,7 @@ void ThreadCheckDarkSendPool()
                 LOCK(cs_vNodes);
                 BOOST_FOREACH(CNode* pnode, vNodes)
                 {
-                    if (true){ //pnode->nVersion >= darkSendPool.MIN_PEER_PROTO_VERSION) {
+                    if (pnode->nVersion >= darkSendPool.MIN_PEER_PROTO_VERSION) {
 
                         //keep track of who we've asked for the list
                         if(pnode->HasFulfilledRequest("mnsync")) continue;
@@ -2155,9 +2155,6 @@ void ThreadCheckDarkSendPool()
                 vecMasternodesUsed.clear();
 
         }
-
-        //clear this every 3 hours
-        if(c % 60*60*3 == 0) vecMasternodeAskedFor.clear();
 
         //auto denom every 2.5 minutes (liquidity provides try less often)
         if(c % 60*(nLiquidityProvider+1) == 0){

@@ -10,14 +10,14 @@
 std::vector<CMasterNode> darkSendMasterNodes;
 /** Object for who's going to get paid on which blocks */
 CMasternodePayments masternodePayments;
-/** Which masternodes we're asked other clients for */
-std::vector<CTxIn> vecMasternodeAskedFor;
 // keep track of masternode votes I've seen
 map<uint256, int> mapSeenMasternodeVotes;
 // keep track of the scanning errors I've seen
 map<uint256, int> mapSeenMasternodeScanningErrors;
 // who's asked for the masternode list and the last time
 std::map<CNetAddr, int64> askedForMasternodeList;
+// which masternodes we've asked for
+std::map<COutPoint, int64> askedForMasternodeListEntry;
 
 // manage the masternode connections
 void ProcessMasternodeConnections(){
@@ -226,15 +226,21 @@ void ProcessMessageMasternode(CNode* pfrom, std::string& strCommand, CDataStream
 
         // ask for the dsee info once from the node that sent dseep
 
-        LogPrintf("dseep - Couldn't find masternode entry %s\n", vin.ToString().c_str());
+        if(fDebug) LogPrintf("dseep - Couldn't find masternode entry %s\n", vin.ToString().c_str());
 
-        BOOST_FOREACH(CTxIn vinAsked, vecMasternodeAskedFor)
-            if (vinAsked == vin) return;
+        std::map<COutPoint, int64>::iterator i = askedForMasternodeListEntry.find(vin.prevout);
+        if (i != askedForMasternodeListEntry.end()){
+            int64 t = (*i).second;
+            if (GetTime() < t) {
+                return;
+            }
+        }
+
 
         LogPrintf("dseep - Asking source node for missing entry %s\n", vin.ToString().c_str());
-
-        vecMasternodeAskedFor.push_back(vin);
         pfrom->PushMessage("dseg", vin);
+        int64 askAgain = GetTime()+(60*60*24);
+        askedForMasternodeListEntry[vin.prevout] = askAgain;
 
     } else if (strCommand == "dseg") { //Get masternode list or specific entry
         CTxIn vin;
@@ -276,12 +282,15 @@ void ProcessMessageMasternode(CNode* pfrom, std::string& strCommand, CDataStream
                     pfrom->PushMessage("dsee", mn.vin, mn.addr, mn.sig, mn.now, mn.pubkey, mn.pubkey2, count, i, mn.lastTimeSeen, mn.protocolVersion);
                 }
             } else if (vin == mn.vin) {
-                LogPrintf("dseg - Sending masternode entry - %s \n", mn.addr.ToString().c_str());
+                if(fDebug) LogPrintf("dseg - Sending masternode entry - %s \n", mn.addr.ToString().c_str());
                 pfrom->PushMessage("dsee", mn.vin, mn.addr, mn.sig, mn.now, mn.pubkey, mn.pubkey2, count, i, mn.lastTimeSeen, mn.protocolVersion);
+                LogPrintf("dseg - Sent 1 masternode entries to %s\n", pfrom->addr.ToString().c_str());
                 return;
             }
             i++;
         }
+
+        LogPrintf("dseg - Sent %d masternode entries to %s\n", count, pfrom->addr.ToString().c_str());
     }
 
     else if (strCommand == "mnget") { //Masternode Payments Request Sync
@@ -294,6 +303,7 @@ void ProcessMessageMasternode(CNode* pfrom, std::string& strCommand, CDataStream
 
         pfrom->FulfilledRequest("mnget");
         masternodePayments.Sync(pfrom);
+        LogPrintf("mnget - Sent masternode winners to %s\n", pfrom->addr.ToString().c_str());
     }
     else if (strCommand == "mnw") { //Masternode Payments Declare Winner
         CMasternodePaymentWinner winner;
