@@ -1057,14 +1057,14 @@ int64 CWallet::GetNormalizedAnonymizedBalance() const
 
                 int rounds = GetInputDarksendRounds(vin);
                 if(rounds < nDarksendRounds)
-                    nTotal += pcoin->vout[i].nValue * rounds / 2;
+                    nTotal += pcoin->vout[i].nValue * rounds / nDarksendRounds / 2;
                 else
-                    nTotal += pcoin->vout[i].nValue * nDarksendRounds;
+                    nTotal += pcoin->vout[i].nValue;
             }
         }
     }
 
-    return nTotal / nDarksendRounds;
+    return nTotal;
 }
 
 int64 CWallet::GetDenominatedBalance(bool onlyDenom, bool onlyUnconfirmed) const

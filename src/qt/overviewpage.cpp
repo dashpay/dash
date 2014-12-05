@@ -256,7 +256,7 @@ void OverviewPage::updateDarksendProgress(){
     if(max == 0) return;
 
     // calculate progress
-    double progress = pwalletMain->GetNormalizedAnonymizedBalance() / max * 100;
+    int progress = 100 * pwalletMain->GetNormalizedAnonymizedBalance() / max;
 
     if(progress > 100) progress = 100;
 
