@@ -495,11 +495,6 @@ bool CAddrDB::Write(const CAddrMan& addr)
 {
     unsigned char pchMessageStart[4] = { 0xfb, 0xc0, 0xb6, 0xdb };
 
-    // Generate random temporary filename
-    unsigned short randv = 0;
-    RAND_bytes((unsigned char *)&randv, sizeof(randv));
-    std::string tmpfn = strprintf("peers.dat.%04x", randv);
-
     // serialize addresses, checksum data up to that point, then append csum
     CDataStream ssPeers(SER_DISK, CLIENT_VERSION);
     ssPeers << FLATDATA(pchMessageStart);
@@ -507,9 +502,9 @@ bool CAddrDB::Write(const CAddrMan& addr)
     uint256 hash = Hash(ssPeers.begin(), ssPeers.end());
     ssPeers << hash;
 
-    // open temp output file, and associate with CAutoFile
-    boost::filesystem::path pathTmp = GetDataDir() / tmpfn;
-    FILE *file = fopen(pathTmp.string().c_str(), "wb");
+    // open output file, and associate with CAutoFile
+    boost::filesystem::path pathAddr = GetDataDir() / "peers.dat";
+    FILE *file = fopen(pathAddr.string().c_str(), "wb");
     CAutoFile fileout = CAutoFile(file, SER_DISK, CLIENT_VERSION);
     if (!fileout)
         return error("CAddrman::Write() : open failed");
@@ -523,10 +518,6 @@ bool CAddrDB::Write(const CAddrMan& addr)
     }
     FileCommit(fileout);
     fileout.fclose();
-
-    // replace existing peers.dat, if any, with new peers.dat.XXXX
-    if (!RenameOver(pathTmp, pathAddr))
-        return error("CAddrman::Write() : Rename-into-place failed");
 
     return true;
 }
