@@ -210,8 +210,6 @@ void ProcessMessageMasternode(CNode* pfrom, std::string& strCommand, CDataStream
             if(mn.vin.prevout == vin.prevout) {
                 // take this only if it's newer
                 if(mn.lastDseep < sigTime){ 
-                    mn.lastDseep = sigTime;
-
                     std::string strMessage = mn.addr.ToString() + boost::lexical_cast<std::string>(sigTime) + boost::lexical_cast<std::string>(stop);
 
                     std::string errorMessage = "";
@@ -220,6 +218,8 @@ void ProcessMessageMasternode(CNode* pfrom, std::string& strCommand, CDataStream
                         //pfrom->Misbehaving(20);
                         return;
                     }
+
+                    mn.lastDseep = sigTime;
 
                     if(!mn.UpdatedWithin(MASTERNODE_MIN_DSEEP_SECONDS)){
                         mn.UpdateLastSeen();
