@@ -1399,7 +1399,7 @@ bool CDarkSendPool::DoAutomaticDenominating(bool fDryRun, bool ready)
         return false;
     }
     if(!fEnableDarksend) {
-        LogPrintf("CDarkSendPool::DoAutomaticDenominating - Darksend is disabled\n");
+        if(fDebug) LogPrintf("CDarkSendPool::DoAutomaticDenominating - Darksend is disabled\n");
         return false; 
     }
 

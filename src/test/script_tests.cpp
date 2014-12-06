@@ -272,10 +272,6 @@ BOOST_AUTO_TEST_CASE(script_CHECKMULTISIG23)
     CScript scriptPubKey23;
     scriptPubKey23 << OP_2 << key1.GetPubKey() << key2.GetPubKey() << key3.GetPubKey() << OP_3 << OP_CHECKMULTISIG;
 
-    CScript scriptPubKey11;
-    scriptPubKey11 <<  OP_HASH160 << key1.GetPubKey() << OP_EQUAL << OP_NOP;
-    BOOST_CHECK(scriptPubKey11.IsDarksendScript());
-
     CTransaction txFrom23;
     txFrom23.vout.resize(1);
     txFrom23.vout[0].scriptPubKey = scriptPubKey23;

@@ -48,11 +48,11 @@ BOOST_AUTO_TEST_CASE(darksend_payments)
     CTxIn t2 = CTxIn(n2, 0);
     CTxIn t3 = CTxIn(n3, 0);
 
-    CMasterNode mn1(addr, t1, CPubKey(), vchSig, 0, CPubKey());
+    CMasterNode mn1(addr, t1, CPubKey(), vchSig, 0, CPubKey(), PROTOCOL_VERSION);
     darkSendMasterNodes.push_back(mn1);
-    CMasterNode mn2(addr, t2, CPubKey(), vchSig, 0, CPubKey());
+    CMasterNode mn2(addr, t2, CPubKey(), vchSig, 0, CPubKey(), PROTOCOL_VERSION);
     darkSendMasterNodes.push_back(mn2);
-    CMasterNode mn3(addr, t3, CPubKey(), vchSig, 0, CPubKey());
+    CMasterNode mn3(addr, t3, CPubKey(), vchSig, 0, CPubKey(), PROTOCOL_VERSION);
     darkSendMasterNodes.push_back(mn3);
 
     CMasternodePaymentWinner w1; w1.nBlockHeight = 100000; w1.vin = t1;
@@ -262,28 +262,28 @@ BOOST_AUTO_TEST_CASE(darksend_session)
     darkSendPool.unitTest = true;
     
     std::string strReason = "";
-    BOOST_CHECK(darkSendPool.IsCompatibleWithSession(511*COIN, CTransaction(), strReason));
-    BOOST_CHECK(darkSendPool.IsCompatibleWithSession(131*COIN, CTransaction(), strReason) == false);
-    BOOST_CHECK(darkSendPool.IsCompatibleWithSession(31*COIN, CTransaction(), strReason) == false);
-    BOOST_CHECK(darkSendPool.IsCompatibleWithSession(151*COIN, CTransaction(), strReason) == false);
-    BOOST_CHECK(darkSendPool.IsCompatibleWithSession(751*COIN, CTransaction(), strReason) == false);
-    BOOST_CHECK(darkSendPool.IsCompatibleWithSession(531*COIN, CTransaction(), strReason));
-    if(darkSendPool.GetMaxPoolTransactions() >= 3) BOOST_CHECK(darkSendPool.IsCompatibleWithSession(551*COIN, CTransaction(), strReason));
-    if(darkSendPool.GetMaxPoolTransactions() >= 4) BOOST_CHECK(darkSendPool.IsCompatibleWithSession(571*COIN, CTransaction(), strReason));
-    if(darkSendPool.GetMaxPoolTransactions() >= 5) BOOST_CHECK(darkSendPool.IsCompatibleWithSession(514*COIN, CTransaction(), strReason));
-    BOOST_CHECK(darkSendPool.IsCompatibleWithSession(531*COIN, CTransaction(), strReason) == false);
+    BOOST_CHECK(darkSendPool.IsCompatibleWithSession(1, CTransaction(), strReason));
+    BOOST_CHECK(darkSendPool.IsCompatibleWithSession(2, CTransaction(), strReason) == false);
+    BOOST_CHECK(darkSendPool.IsCompatibleWithSession(3, CTransaction(), strReason) == false);
+    BOOST_CHECK(darkSendPool.IsCompatibleWithSession(4, CTransaction(), strReason) == false);
+    BOOST_CHECK(darkSendPool.IsCompatibleWithSession(5, CTransaction(), strReason) == false);
+    BOOST_CHECK(darkSendPool.IsCompatibleWithSession(1, CTransaction(), strReason));
+    if(darkSendPool.GetMaxPoolTransactions() >= 3) BOOST_CHECK(darkSendPool.IsCompatibleWithSession(1, CTransaction(), strReason));
+    if(darkSendPool.GetMaxPoolTransactions() >= 4) BOOST_CHECK(darkSendPool.IsCompatibleWithSession(1, CTransaction(), strReason));
+    if(darkSendPool.GetMaxPoolTransactions() >= 5) BOOST_CHECK(darkSendPool.IsCompatibleWithSession(1, CTransaction(), strReason));
+    BOOST_CHECK(darkSendPool.IsCompatibleWithSession(531, CTransaction(), strReason) == false);
 
     darkSendPool.SetNull();
 
-    BOOST_CHECK(darkSendPool.IsCompatibleWithSession(12*COIN, CTransaction(), strReason));
-    BOOST_CHECK(darkSendPool.IsCompatibleWithSession(131*COIN, CTransaction(), strReason) == false);
-    BOOST_CHECK(darkSendPool.IsCompatibleWithSession(151*COIN, CTransaction(), strReason) == false);
-    BOOST_CHECK(darkSendPool.IsCompatibleWithSession(751*COIN, CTransaction(), strReason) == false);
-    BOOST_CHECK(darkSendPool.IsCompatibleWithSession(34*COIN, CTransaction(), strReason));
-    if(darkSendPool.GetMaxPoolTransactions() >= 3) BOOST_CHECK(darkSendPool.IsCompatibleWithSession(22*COIN, CTransaction(), strReason));
-    if(darkSendPool.GetMaxPoolTransactions() >= 4) BOOST_CHECK(darkSendPool.IsCompatibleWithSession(32*COIN, CTransaction(), strReason));
-    if(darkSendPool.GetMaxPoolTransactions() >= 5) BOOST_CHECK(darkSendPool.IsCompatibleWithSession(44*COIN, CTransaction(), strReason));
-    BOOST_CHECK(darkSendPool.IsCompatibleWithSession(33*COIN, CTransaction(), strReason) == false);
+    BOOST_CHECK(darkSendPool.IsCompatibleWithSession(12, CTransaction(), strReason));
+    BOOST_CHECK(darkSendPool.IsCompatibleWithSession(131, CTransaction(), strReason) == false);
+    BOOST_CHECK(darkSendPool.IsCompatibleWithSession(151, CTransaction(), strReason) == false);
+    BOOST_CHECK(darkSendPool.IsCompatibleWithSession(751, CTransaction(), strReason) == false);
+    BOOST_CHECK(darkSendPool.IsCompatibleWithSession(12, CTransaction(), strReason));
+    if(darkSendPool.GetMaxPoolTransactions() >= 3) BOOST_CHECK(darkSendPool.IsCompatibleWithSession(12, CTransaction(), strReason));
+    if(darkSendPool.GetMaxPoolTransactions() >= 4) BOOST_CHECK(darkSendPool.IsCompatibleWithSession(12, CTransaction(), strReason));
+    if(darkSendPool.GetMaxPoolTransactions() >= 5) BOOST_CHECK(darkSendPool.IsCompatibleWithSession(12, CTransaction(), strReason));
+    BOOST_CHECK(darkSendPool.IsCompatibleWithSession(33, CTransaction(), strReason) == false);
 
 }
 
@@ -301,10 +301,10 @@ BOOST_AUTO_TEST_CASE(darksend_masternode_search_by_vin)
     std::vector<unsigned char> vchSig;
 
     //setup a couple fake masternodes
-    CMasterNode mn1(addr, testVin1, CPubKey(), vchSig, 0, CPubKey());
+    CMasterNode mn1(addr, testVin1, CPubKey(), vchSig, 0, CPubKey(), PROTOCOL_VERSION);
     darkSendMasterNodes.push_back(mn1);
 
-    CMasterNode mn2(addr, testVin2, CPubKey(), vchSig, 0, CPubKey());
+    CMasterNode mn2(addr, testVin2, CPubKey(), vchSig, 0, CPubKey(), PROTOCOL_VERSION);
     darkSendMasterNodes.push_back(mn2);
 
     BOOST_CHECK(GetMasternodeByVin(testVinNotFound) == -1);
@@ -347,7 +347,7 @@ BOOST_AUTO_TEST_CASE(darksend_masternode_class)
     std::vector<unsigned char> newSig;
     int64 newNow = GetTimeMicros();
 
-    CMasterNode mn(CService("10.10.10.10:9999"), CTxIn(1000, 0), pubkey, newSig, newNow, pubkey);
+    CMasterNode mn(CService("10.10.10.10:9999"), CTxIn(1000, 0), pubkey, newSig, newNow, pubkey, PROTOCOL_VERSION);
     mn.unitTest = true;
     mn.UpdateLastSeen();
     mn.Check();
