@@ -86,7 +86,7 @@ void ProcessMessageMasternode(CNode* pfrom, std::string& strCommand, CDataStream
         pubkeyScript2.SetDestination(pubkey2.GetID());
 
         if(pubkeyScript2.size() != 25) {
-            LogPrintf("dsee - pubkey the wrong size\n");
+            LogPrintf("dsee - pubkey2 the wrong size\n");
             pfrom->Misbehaving(100);
             return;
         }
