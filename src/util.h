@@ -137,6 +137,8 @@ extern int nLiquidityProvider;
 extern bool fEnableDarksend;
 extern int64 enforceMasternodePaymentsTime;
 extern std::string strMasterNodeAddr;
+extern std::string strWalletFile;
+extern std::string strDebugFile;
 extern int nMasternodeMinProtocol;
 extern int keysLoaded;
 extern bool fSucessfullyLoaded;

@@ -683,7 +683,8 @@ bool AppInit2(boost::thread_group& threadGroup)
 
     //ignore masternodes below protocol version
     nMasternodeMinProtocol = GetArg("-masternodeminprotocol", 0);
-    std::string strWalletFile = GetArg("-wallet", "wallet.dat");
+    //define wallet
+    strWalletFile = GetArg("-wallet", "wallet.dat");
 
     // ********************************************************* Step 4: application initialization: dir lock, daemonize, pidfile, debug log
 
@@ -700,6 +701,10 @@ bool AppInit2(boost::thread_group& threadGroup)
     static boost::interprocess::file_lock lock(pathLockFile.string().c_str());
     if (!lock.try_lock())
         return InitError(strprintf(_("Cannot obtain a lock on data directory %s. DarkCoin is probably already running."), strDataDir.c_str()));
+
+    //use <wallet>_debug.log with -wallet option
+    if(strWalletFile != "wallet.dat")
+        strDebugFile = boost::filesystem::basename(strWalletFile) + "_debug.log";
 
     if (GetBoolArg("-shrinkdebugfile", !fDebug))
         ShrinkDebugFile();
