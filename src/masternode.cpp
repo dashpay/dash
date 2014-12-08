@@ -100,15 +100,15 @@ void ProcessMessageMasternode(CNode* pfrom, std::string& strCommand, CDataStream
 
         if((fTestNet && addr.GetPort() != 19999) || (!fTestNet && addr.GetPort() != 9999)) return;
 
-        //LogPrintf("Searching existing masternodes : %s - %s\n", addr.ToString().c_str(),  vin.ToString().c_str());
+        //search existing masternode list, this is where we update existing masternodes with new dsee broadcasts
 
         BOOST_FOREACH(CMasterNode& mn, darkSendMasterNodes) {
-            //LogPrintf(" -- %s\n", mn.vin.ToString().c_str());
-
             if(mn.vin.prevout == vin.prevout) {
-                //count == -1 when it's a new entry
-                // e.g. We don't want the entry relayed/time updated when we're syncing the list
-                if(count == -1 && !mn.UpdatedWithin(MASTERNODE_MIN_DSEE_SECONDS)){
+                // count == -1 when it's a new entry
+                //   e.g. We don't want the entry relayed/time updated when we're syncing the list
+                // mn.pubkey = pubkey, IsVinAssociatedWithPubkey is validated once below, 
+                //   after that they just need to match
+                if(count == -1 && mn.pubkey == pubkey && !mn.UpdatedWithin(MASTERNODE_MIN_DSEE_SECONDS)){
                     mn.UpdateLastSeen();
 
                     if(mn.now < sigTime){ //take the newest entry
@@ -117,6 +117,7 @@ void ProcessMessageMasternode(CNode* pfrom, std::string& strCommand, CDataStream
                         mn.now = sigTime;
                         mn.sig = vchSig;
                         mn.protocolVersion = protocolVersion;
+                        mn.addr = addr;
 
                         RelayDarkSendElectionEntry(vin, addr, vchSig, sigTime, pubkey, pubkey2, count, current, lastUpdated, protocolVersion);
                     }
@@ -126,6 +127,8 @@ void ProcessMessageMasternode(CNode* pfrom, std::string& strCommand, CDataStream
             }
         }
 
+        // make sure the vout that was signed is related to the transaction that spawned the masternode
+        //  - this is expensive, so it's only done once per masternode
         if(!darkSendSigner.IsVinAssociatedWithPubkey(vin, pubkey)) {
             LogPrintf("dsee - Got mismatched pubkey and vin\n");
             pfrom->Misbehaving(100);
@@ -133,6 +136,9 @@ void ProcessMessageMasternode(CNode* pfrom, std::string& strCommand, CDataStream
         }
 
         if(fDebug) LogPrintf("dsee - Got NEW masternode entry %s\n", addr.ToString().c_str());
+
+        // make sure it's still unspent
+        //  - this is checked later by .check() in many places and by ThreadCheckDarkSendPool()
 
         CValidationState state;
         CTransaction tx = CTransaction();
@@ -148,12 +154,15 @@ void ProcessMessageMasternode(CNode* pfrom, std::string& strCommand, CDataStream
                 return;
             }
 
+            // use this as a peer
             addrman.Add(CAddress(addr), pfrom->addr, 2*60*60);
 
+            // add our masternode
             CMasterNode mn(addr, vin, pubkey, vchSig, sigTime, pubkey2, protocolVersion);
             mn.UpdateLastSeen(lastUpdated);
             darkSendMasterNodes.push_back(mn);
 
+            // if it matches our masternodeprivkey, then we've been remotely activated
             if(pubkey2 == activeMasternode.pubkeyMasterNode2 && protocolVersion == PROTOCOL_VERSION){
                 activeMasternode.EnableHotColdMasterNode(vin, sigTime, addr);
             }
@@ -195,13 +204,12 @@ void ProcessMessageMasternode(CNode* pfrom, std::string& strCommand, CDataStream
             return;
         }
 
-        //LogPrintf("Searching existing masternodes : %s - %s\n", addr.ToString().c_str(),  vin.ToString().c_str());
+        // see if we have this masternode
 
         BOOST_FOREACH(CMasterNode& mn, darkSendMasterNodes) {
-            if(mn.vin == vin) {
-                if(mn.lastDseep < sigTime){ //take this only if it's newer
-                    mn.lastDseep = sigTime;
-
+            if(mn.vin.prevout == vin.prevout) {
+                // take this only if it's newer
+                if(mn.lastDseep < sigTime){ 
                     std::string strMessage = mn.addr.ToString() + boost::lexical_cast<std::string>(sigTime) + boost::lexical_cast<std::string>(stop);
 
                     std::string errorMessage = "";
@@ -210,6 +218,8 @@ void ProcessMessageMasternode(CNode* pfrom, std::string& strCommand, CDataStream
                         //pfrom->Misbehaving(20);
                         return;
                     }
+
+                    mn.lastDseep = sigTime;
 
                     if(!mn.UpdatedWithin(MASTERNODE_MIN_DSEEP_SECONDS)){
                         mn.UpdateLastSeen();
@@ -224,18 +234,18 @@ void ProcessMessageMasternode(CNode* pfrom, std::string& strCommand, CDataStream
             }
         }
 
-        // ask for the dsee info once from the node that sent dseep
-
         if(fDebug) LogPrintf("dseep - Couldn't find masternode entry %s\n", vin.ToString().c_str());
 
         std::map<COutPoint, int64>::iterator i = askedForMasternodeListEntry.find(vin.prevout);
         if (i != askedForMasternodeListEntry.end()){
             int64 t = (*i).second;
             if (GetTime() < t) {
+                // we've asked recently
                 return;
             }
         }
 
+        // ask for the dsee info once from the node that sent dseep
 
         LogPrintf("dseep - Asking source node for missing entry %s\n", vin.ToString().c_str());
         pfrom->PushMessage("dseg", vin);
@@ -268,8 +278,6 @@ void ProcessMessageMasternode(CNode* pfrom, std::string& strCommand, CDataStream
 
         int count = darkSendMasterNodes.size()-1;
         int i = 0;
-
-        if(vin == CTxIn()) LogPrintf("dseg - Sending %d masternode entries\n", count);
 
         BOOST_FOREACH(CMasterNode mn, darkSendMasterNodes) {
 
