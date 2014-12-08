@@ -1039,6 +1039,33 @@ double CWallet::GetAverageAnonymizedRounds() const
     return fTotal/fCount;
 }
 
+int64 CWallet::GetNormalizedAnonymizedBalance() const
+{
+    int64 nTotal = 0;
+
+    {
+        LOCK(cs_wallet);
+        for (map<uint256, CWalletTx>::const_iterator it = mapWallet.begin(); it != mapWallet.end(); ++it)
+        {
+            const CWalletTx* pcoin = &(*it).second;
+            for (unsigned int i = 0; i < pcoin->vout.size(); i++) {
+
+                COutput out = COutput(pcoin, i, pcoin->GetDepthInMainChain());
+                CTxIn vin = CTxIn(out.tx->GetHash(), out.i);
+
+                if(pcoin->IsSpent(i) || !IsMine(pcoin->vout[i]) || !IsDenominated(vin)) continue;
+
+                int rounds = GetInputDarksendRounds(vin);
+                if(rounds < nDarksendRounds)
+                    nTotal += pcoin->vout[i].nValue * rounds / nDarksendRounds / 2;
+                else
+                    nTotal += pcoin->vout[i].nValue;
+            }
+        }
+    }
+
+    return nTotal;
+}
 
 int64 CWallet::GetDenominatedBalance(bool onlyDenom, bool onlyUnconfirmed) const
 {
@@ -1049,21 +1076,25 @@ int64 CWallet::GetDenominatedBalance(bool onlyDenom, bool onlyUnconfirmed) const
         {
             const CWalletTx* pcoin = &(*it).second;
 
-            bool isDenom = false;
-            for (unsigned int i = 0; i < pcoin->vout.size(); i++)
+            for (unsigned int i = 0; i < pcoin->vout.size(); i++){
+
+                if(pcoin->IsSpent(i) || !IsMine(pcoin->vout[i])) continue;
+
+                bool isDenom = false;
                 BOOST_FOREACH(int64 d, darkSendDenominations)
                     if(pcoin->vout[i].nValue == d)
                         isDenom = true;
 
-            if(onlyUnconfirmed){
-                if (!pcoin->IsFinal() || !pcoin->IsConfirmed()){
-                    if(onlyDenom == isDenom){ 
-                        nTotal += pcoin->GetAvailableCredit();
+                if(onlyUnconfirmed){
+                    if (!pcoin->IsFinal() || !pcoin->IsConfirmed()){
+                        if(onlyDenom == isDenom){
+                            nTotal += pcoin->vout[i].nValue;
+                        }
                     }
-                }
-            } else if (pcoin->IsConfirmed()) {
-                if(onlyDenom == isDenom) {
-                    nTotal += pcoin->GetAvailableCredit();
+                } else if (pcoin->IsConfirmed()) {
+                    if(onlyDenom == isDenom) {
+                        nTotal += pcoin->vout[i].nValue;
+                    }
                 }
             }
         }
