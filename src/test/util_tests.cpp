@@ -1,10 +1,15 @@
-#include <vector>
-#include <boost/test/unit_test.hpp>
-#include <boost/foreach.hpp>
+// Copyright (c) 2011-2014 The Bitcoin Core developers
+// Distributed under the MIT/X11 software license, see the accompanying
+// file COPYING or http://www.opensource.org/licenses/mit-license.php.
 
-#include "main.h"
-#include "wallet.h"
 #include "util.h"
+
+#include "sync.h"
+
+#include <stdint.h>
+#include <vector>
+
+#include <boost/test/unit_test.hpp>
 
 using namespace std;
 
@@ -31,7 +36,7 @@ BOOST_AUTO_TEST_CASE(util_criticalsection)
 }
 
 BOOST_AUTO_TEST_CASE(util_MedianFilter)
-{    
+{
     CMedianFilter<int> filter(5, 15);
 
     BOOST_CHECK_EQUAL(filter.median(), 15);
@@ -56,10 +61,10 @@ BOOST_AUTO_TEST_CASE(util_MedianFilter)
 }
 
 static const unsigned char ParseHex_expected[65] = {
-    0x04, 0x67, 0x8a, 0xfd, 0xb0, 0xfe, 0x55, 0x48, 0x27, 0x19, 0x67, 0xf1, 0xa6, 0x71, 0x30, 0xb7, 
-    0x10, 0x5c, 0xd6, 0xa8, 0x28, 0xe0, 0x39, 0x09, 0xa6, 0x79, 0x62, 0xe0, 0xea, 0x1f, 0x61, 0xde, 
-    0xb6, 0x49, 0xf6, 0xbc, 0x3f, 0x4c, 0xef, 0x38, 0xc4, 0xf3, 0x55, 0x04, 0xe5, 0x1e, 0xc1, 0x12, 
-    0xde, 0x5c, 0x38, 0x4d, 0xf7, 0xba, 0x0b, 0x8d, 0x57, 0x8a, 0x4c, 0x70, 0x2b, 0x6b, 0xf1, 0x1d, 
+    0x04, 0x67, 0x8a, 0xfd, 0xb0, 0xfe, 0x55, 0x48, 0x27, 0x19, 0x67, 0xf1, 0xa6, 0x71, 0x30, 0xb7,
+    0x10, 0x5c, 0xd6, 0xa8, 0x28, 0xe0, 0x39, 0x09, 0xa6, 0x79, 0x62, 0xe0, 0xea, 0x1f, 0x61, 0xde,
+    0xb6, 0x49, 0xf6, 0xbc, 0x3f, 0x4c, 0xef, 0x38, 0xc4, 0xf3, 0x55, 0x04, 0xe5, 0x1e, 0xc1, 0x12,
+    0xde, 0x5c, 0x38, 0x4d, 0xf7, 0xba, 0x0b, 0x8d, 0x57, 0x8a, 0x4c, 0x70, 0x2b, 0x6b, 0xf1, 0x1d,
     0x5f
 };
 BOOST_AUTO_TEST_CASE(util_ParseHex)
@@ -103,13 +108,11 @@ BOOST_AUTO_TEST_CASE(util_HexStr)
 
 BOOST_AUTO_TEST_CASE(util_DateTimeStrFormat)
 {
-/*These are platform-dependant and thus removed to avoid useless test failures
     BOOST_CHECK_EQUAL(DateTimeStrFormat("%Y-%m-%d %H:%M:%S", 0), "1970-01-01 00:00:00");
     BOOST_CHECK_EQUAL(DateTimeStrFormat("%Y-%m-%d %H:%M:%S", 0x7FFFFFFF), "2038-01-19 03:14:07");
-    // Formats used within Bitcoin
     BOOST_CHECK_EQUAL(DateTimeStrFormat("%Y-%m-%d %H:%M:%S", 1317425777), "2011-09-30 23:36:17");
     BOOST_CHECK_EQUAL(DateTimeStrFormat("%Y-%m-%d %H:%M", 1317425777), "2011-09-30 23:36");
-*/
+    BOOST_CHECK_EQUAL(DateTimeStrFormat("%a, %d %b %Y %H:%M:%S +0000", 1317425777), "Fri, 30 Sep 2011 23:36:17 +0000");
 }
 
 BOOST_AUTO_TEST_CASE(util_ParseParameters)
@@ -123,13 +126,13 @@ BOOST_AUTO_TEST_CASE(util_ParseParameters)
     BOOST_CHECK(mapArgs.empty() && mapMultiArgs.empty());
 
     ParseParameters(5, (char**)argv_test);
-    // expectation: -ignored is ignored (program name argument), 
+    // expectation: -ignored is ignored (program name argument),
     // -a, -b and -ccc end up in map, -d ignored because it is after
     // a non-option argument (non-GNU option parsing)
     BOOST_CHECK(mapArgs.size() == 3 && mapMultiArgs.size() == 3);
-    BOOST_CHECK(mapArgs.count("-a") && mapArgs.count("-b") && mapArgs.count("-ccc") 
+    BOOST_CHECK(mapArgs.count("-a") && mapArgs.count("-b") && mapArgs.count("-ccc")
                 && !mapArgs.count("f") && !mapArgs.count("-d"));
-    BOOST_CHECK(mapMultiArgs.count("-a") && mapMultiArgs.count("-b") && mapMultiArgs.count("-ccc") 
+    BOOST_CHECK(mapMultiArgs.count("-a") && mapMultiArgs.count("-b") && mapMultiArgs.count("-ccc")
                 && !mapMultiArgs.count("f") && !mapMultiArgs.count("-d"));
 
     BOOST_CHECK(mapArgs["-a"] == "" && mapArgs["-ccc"] == "multiple");
@@ -154,10 +157,10 @@ BOOST_AUTO_TEST_CASE(util_GetArg)
     BOOST_CHECK_EQUAL(GetArg("inttest1", -1), 12345);
     BOOST_CHECK_EQUAL(GetArg("inttest2", -1), 81985529216486895LL);
     BOOST_CHECK_EQUAL(GetArg("inttest3", -1), -1);
-    BOOST_CHECK_EQUAL(GetBoolArg("booltest1"), true);
-    BOOST_CHECK_EQUAL(GetBoolArg("booltest2"), false);
-    BOOST_CHECK_EQUAL(GetBoolArg("booltest3"), false);
-    BOOST_CHECK_EQUAL(GetBoolArg("booltest4"), true);
+    BOOST_CHECK_EQUAL(GetBoolArg("booltest1", false), true);
+    BOOST_CHECK_EQUAL(GetBoolArg("booltest2", false), false);
+    BOOST_CHECK_EQUAL(GetBoolArg("booltest3", false), false);
+    BOOST_CHECK_EQUAL(GetBoolArg("booltest4", false), true);
 }
 
 BOOST_AUTO_TEST_CASE(util_WildcardMatch)
@@ -200,7 +203,7 @@ BOOST_AUTO_TEST_CASE(util_FormatMoney)
 
 BOOST_AUTO_TEST_CASE(util_ParseMoney)
 {
-    int64 ret = 0;
+    int64_t ret = 0;
     BOOST_CHECK(ParseMoney("0.0", ret));
     BOOST_CHECK_EQUAL(ret, 0);
 
@@ -300,6 +303,41 @@ BOOST_AUTO_TEST_CASE(util_TimingResistantEqual)
     BOOST_CHECK(!TimingResistantEqual(std::string("aa"), std::string("a")));
     BOOST_CHECK(TimingResistantEqual(std::string("abc"), std::string("abc")));
     BOOST_CHECK(!TimingResistantEqual(std::string("abc"), std::string("aba")));
+}
+
+/* Test strprintf formatting directives.
+ * Put a string before and after to ensure sanity of element sizes on stack. */
+#define B "check_prefix"
+#define E "check_postfix"
+BOOST_AUTO_TEST_CASE(strprintf_numbers)
+{
+    int64_t s64t = -9223372036854775807LL; /* signed 64 bit test value */
+    uint64_t u64t = 18446744073709551615ULL; /* unsigned 64 bit test value */
+    BOOST_CHECK(strprintf("%s %d %s", B, s64t, E) == B" -9223372036854775807 "E);
+    BOOST_CHECK(strprintf("%s %u %s", B, u64t, E) == B" 18446744073709551615 "E);
+    BOOST_CHECK(strprintf("%s %x %s", B, u64t, E) == B" ffffffffffffffff "E);
+
+    size_t st = 12345678; /* unsigned size_t test value */
+    ssize_t sst = -12345678; /* signed size_t test value */
+    BOOST_CHECK(strprintf("%s %d %s", B, sst, E) == B" -12345678 "E);
+    BOOST_CHECK(strprintf("%s %u %s", B, st, E) == B" 12345678 "E);
+    BOOST_CHECK(strprintf("%s %x %s", B, st, E) == B" bc614e "E);
+
+    ptrdiff_t pt = 87654321; /* positive ptrdiff_t test value */
+    ptrdiff_t spt = -87654321; /* negative ptrdiff_t test value */
+    BOOST_CHECK(strprintf("%s %d %s", B, spt, E) == B" -87654321 "E);
+    BOOST_CHECK(strprintf("%s %u %s", B, pt, E) == B" 87654321 "E);
+    BOOST_CHECK(strprintf("%s %x %s", B, pt, E) == B" 5397fb1 "E);
+}
+#undef B
+#undef E
+
+/* Check for mingw/wine issue #3494
+ * Remove this test before time.ctime(0xffffffff) == 'Sun Feb  7 07:28:15 2106'
+ */
+BOOST_AUTO_TEST_CASE(gettime)
+{
+    BOOST_CHECK((GetTime() & ~0xFFFFFFFFLL) == 0);
 }
 
 BOOST_AUTO_TEST_SUITE_END()

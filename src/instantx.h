@@ -13,7 +13,6 @@
 #include "core.h"
 #include "util.h"
 #include "script.h"
-#include "hashblock.h"
 #include "base58.h"
 #include "main.h"
 
@@ -32,7 +31,7 @@ extern map<uint256, CTransactionLock> mapTxLocks;
 void ProcessMessageInstantX(CNode* pfrom, std::string& strCommand, CDataStream& vRecv);
 
 //check if we need to vote on this transaction
-void DoConsensusVote(CTransaction& tx, bool approved, int64 nBlockHeight);
+void DoConsensusVote(CTransaction& tx, bool approved, int64_t nBlockHeight);
 
 //process consensus vote message
 void ProcessConsensusVote(CConsensusVote& ctx);

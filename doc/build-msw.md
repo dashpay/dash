@@ -1,15 +1,6 @@
-Copyright (c) 2009-2013 Bitcoin Developers
-Distributed under the MIT/X11 software license, see the accompanying
-file COPYING or http://www.opensource.org/licenses/mit-license.php.
-This product includes software developed by the OpenSSL Project for use in the [OpenSSL Toolkit](http://www.openssl.org/). This product includes
-cryptographic software written by Eric Young ([eay@cryptsoft.com](mailto:eay@cryptsoft.com)), and UPnP software written by Thomas Bernard.
-
-
-See readme-qt.rst for instructions on building DarkCoin-Qt, the
-graphical user interface.
-
 WINDOWS BUILD NOTES
 ===================
+
 
 Compilers Supported
 -------------------
@@ -21,11 +12,12 @@ Dependencies
 ------------
 Libraries you need to download separately and build:
 
-                default path               download
-OpenSSL         \openssl-1.0.1c-mgw        http://www.openssl.org/source/
-Berkeley DB     \db-4.8.30.NC-mgw          http://www.oracle.com/technology/software/products/berkeley-db/index.html
-Boost           \boost-1.50.0-mgw          http://www.boost.org/users/download/
-miniupnpc       \miniupnpc-1.6-mgw         http://miniupnp.tuxfamily.org/files/
+	name            default path               download
+	--------------------------------------------------------------------------------------------------------------------
+	OpenSSL         \openssl-1.0.1c-mgw        http://www.openssl.org/source/
+	Berkeley DB     \db-4.8.30.NC-mgw          http://www.oracle.com/technology/software/products/berkeley-db/index.html
+	Boost           \boost-1.50.0-mgw          http://www.boost.org/users/download/
+	miniupnpc       \miniupnpc-1.6-mgw         http://miniupnp.tuxfamily.org/files/
 
 Their licenses:
 
@@ -63,7 +55,7 @@ MSYS shell:
 
 Boost
 -----
-DOS prompt:
+MSYS shell:
 
 	downloaded boost jam 3.1.18
 	cd \boost-1.50.0-mgw
@@ -80,10 +72,12 @@ MSYS shell:
 	mkdir miniupnpc
 	cp *.h miniupnpc/
 
-DarkCoin
+Bitcoin
 -------
-DOS prompt:
+MSYS shell:
 
-	cd \darkcoin\src
-	mingw32-make -f makefile.mingw
-	strip darkcoind.exe
+	cd \bitcoin
+	sh autogen.sh
+	sh configure
+	mingw32-make
+	strip bitcoind.exe

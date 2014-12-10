@@ -13,7 +13,6 @@
 #include "core.h"
 #include "util.h"
 #include "script.h"
-#include "hashblock.h"
 #include "base58.h"
 #include "main.h"
 
@@ -50,11 +49,11 @@ void ProcessMasternodeConnections();
 int CountMasternodesAboveProtocol(int protocolVersion);
 
 // Get the current winner for this block
-int GetCurrentMasterNode(int mod=1, int64 nBlockHeight=0, int minProtocol=0);
+int GetCurrentMasterNode(int mod=1, int64_t nBlockHeight=0, int minProtocol=0);
 
 int GetMasternodeByVin(CTxIn& vin);
-int GetMasternodeRank(CTxIn& vin, int64 nBlockHeight=0, int minProtocol=0);
-int GetMasternodeByRank(int findRank, int64 nBlockHeight=0, int minProtocol=0);
+int GetMasternodeRank(CTxIn& vin, int64_t nBlockHeight=0, int minProtocol=0);
+int GetMasternodeByRank(int findRank, int64_t nBlockHeight=0, int minProtocol=0);
 
 void ProcessMessageMasternode(CNode* pfrom, std::string& strCommand, CDataStream& vRecv);
 
@@ -67,12 +66,12 @@ class CMasterNode
 public:
     CService addr;
     CTxIn vin;
-    int64 lastTimeSeen;
+    int64_t lastTimeSeen;
     CPubKey pubkey;
     CPubKey pubkey2;
     std::vector<unsigned char> sig;
-    int64 now; //dsee message times
-    int64 lastDseep;
+    int64_t now; //dsee message times
+    int64_t lastDseep;
     int cacheInputAge;
     int cacheInputAgeBlock;
     int enabled;
@@ -81,9 +80,9 @@ public:
     int protocolVersion;
 
     //the dsq count from the last dsq broadcast of this node
-    int64 nLastDsq;
+    int64_t nLastDsq;
 
-    CMasterNode(CService newAddr, CTxIn newVin, CPubKey newPubkey, std::vector<unsigned char> newSig, int64 newNow, CPubKey newPubkey2, int protocolVersionIn)
+    CMasterNode(CService newAddr, CTxIn newVin, CPubKey newPubkey, std::vector<unsigned char> newSig, int64_t newNow, CPubKey newPubkey2, int protocolVersionIn)
     {
         addr = newAddr;
         vin = newVin;
@@ -102,9 +101,9 @@ public:
         protocolVersion = protocolVersionIn;
     }
 
-    uint256 CalculateScore(int mod=1, int64 nBlockHeight=0);
+    uint256 CalculateScore(int mod=1, int64_t nBlockHeight=0);
 
-    void UpdateLastSeen(int64 override=0)
+    void UpdateLastSeen(int64_t override=0)
     {
         if(override == 0){
             lastTimeSeen = GetAdjustedTime();
@@ -113,9 +112,9 @@ public:
         }
     }
 
-    inline uint64 SliceHash(uint256& hash, int slice)
+    inline uint64_t SliceHash(uint256& hash, int slice)
     {
-        uint64 n = 0;
+        uint64_t n = 0;
         memcpy(&n, &hash+slice*64, 64);
         return n;
     }
@@ -124,8 +123,8 @@ public:
 
     bool UpdatedWithin(int seconds)
     {
-        //LogPrintf("UpdatedWithin %"PRI64u", %"PRI64u" --  %d \n", GetTimeMicros() , lastTimeSeen, (GetTimeMicros() - lastTimeSeen) < seconds);
-
+        // LogPrintf("UpdatedWithin %d, %d --  %d \n", GetAdjustedTime() , lastTimeSeen, (GetAdjustedTime() - lastTimeSeen) < seconds);
+        
         return (GetAdjustedTime() - lastTimeSeen) < seconds;
     }
 
@@ -141,14 +140,14 @@ public:
 
     int GetMasternodeInputAge()
     {
-        if(pindexBest == NULL) return 0;
+        if(chainActive.Tip() == NULL) return 0;
 
         if(cacheInputAge == 0){
             cacheInputAge = GetInputAge(vin);
-            cacheInputAgeBlock = pindexBest->nHeight;
+            cacheInputAgeBlock = chainActive.Tip()->nHeight;
         }
 
-        return cacheInputAge+(pindexBest->nHeight-cacheInputAgeBlock);
+        return cacheInputAge+(chainActive.Tip()->nHeight-cacheInputAgeBlock);
     }
 };
 
@@ -160,7 +159,7 @@ public:
     int nBlockHeight;
     CTxIn vin;
     std::vector<unsigned char> vchSig;
-    uint64 score;
+    uint64_t score;
 
     CMasternodePaymentWinner() {
         nBlockHeight = 0;
@@ -213,7 +212,7 @@ public:
     // and get paid this block
     // 
 
-    uint64 CalculateScore(uint256 blockHash, CTxIn& vin);
+    uint64_t CalculateScore(uint256 blockHash, CTxIn& vin);
     bool GetWinningMasternode(int nBlockHeight, CTxIn& vinOut);
     bool AddWinningMasternode(CMasternodePaymentWinner& winner);
     bool ProcessBlock(int nBlockHeight);
@@ -256,7 +255,7 @@ public:
     // and get paid this block
     // 
 
-    uint64 CalculateScore(uint256 blockHash, CTxIn& vin);
+    uint64_t CalculateScore(uint256 blockHash, CTxIn& vin);
     bool GetWinningMasternode(int nBlockHeight, CTxIn& vinOut);
     bool AddWinningMasternode(CMasternodePaymentWinner& winner);
     bool ProcessBlock(int nBlockHeight);

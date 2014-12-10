@@ -1,26 +1,32 @@
-#include <boost/test/unit_test.hpp>
+// Copyright (c) 2012-2013 The Bitcoin Core developers
+// Distributed under the MIT/X11 software license, see the accompanying
+// file COPYING or http://www.opensource.org/licenses/mit-license.php.
+
+#include "key.h"
+
+#include "base58.h"
+#include "script.h"
+#include "uint256.h"
+#include "util.h"
 
 #include <string>
 #include <vector>
 
-#include "key.h"
-#include "base58.h"
-#include "uint256.h"
-#include "util.h"
+#include <boost/test/unit_test.hpp>
 
 using namespace std;
 
-static const string strSecret1     ("7qjmhxk9D41VG4izTKS4MwNQ5cdYsHMCujtZmtnYcBZV5MyymW6");
-static const string strSecret2     ("7qtc7ho6k4y6gYxXYZZA9RMM8ecJxDrVXE4ecs5jPEvWz2Cd6ug");
-static const string strSecret1C    ("XJopfZ4NEgzmU8WFaq8gSkcB2oDYCvZa2Dbn88PpGHX3xWTvxbDw");
-static const string strSecret2C    ("XGwcaG95SeuQ9xUxyMPNk77UTd5U3EW4gYfXa9xU8oFzEfnKJQgr");
-static const CBitcoinAddress addr1 ("XtgBkqNm1KdNqwtPXgcrx3XtTETsPJ3imW");
-static const CBitcoinAddress addr2 ("XvSYzd8yGM4yBwcdWqF3wJtQ9543G2zUNh");
-static const CBitcoinAddress addr1C("Xv2y1Z6MH3oPWLQpowdJSAT56eSjpEaRBb");
-static const CBitcoinAddress addr2C("Xo5kbBBVQ52ZLfarQYFpG8Mt5XQ4phJBa6");
+static const string strSecret1     ("5HxWvvfubhXpYYpS3tJkw6fq9jE9j18THftkZjHHfmFiWtmAbrj");
+static const string strSecret2     ("5KC4ejrDjv152FGwP386VD1i2NYc5KkfSMyv1nGy1VGDxGHqVY3");
+static const string strSecret1C    ("Kwr371tjA9u2rFSMZjTNun2PXXP3WPZu2afRHTcta6KxEUdm1vEw");
+static const string strSecret2C    ("L3Hq7a8FEQwJkW1M2GNKDW28546Vp5miewcCzSqUD9kCAXrJdS3g");
+static const CBitcoinAddress addr1 ("1QFqqMUD55ZV3PJEJZtaKCsQmjLT6JkjvJ");
+static const CBitcoinAddress addr2 ("1F5y5E5FMc5YzdJtB9hLaUe43GDxEKXENJ");
+static const CBitcoinAddress addr1C("1NoJrossxPBKfCHuJXT4HadJrXRE9Fxiqs");
+static const CBitcoinAddress addr2C("1CRj2HyM1CXWzHAXLQtiGLyggNT9WQqsDs");
 
 
-static const string strAddressBad("LRjyUS2uuieEPkhZNdQz8hE5YycxVEqSXA");
+static const string strAddressBad("1HV9Lc3sNHZxwj4Zk6fB38tEmBryq2cBiF");
 
 
 #ifdef KEY_TESTS_DUMPINFO
@@ -97,21 +103,21 @@ BOOST_AUTO_TEST_CASE(key_test1)
 
         BOOST_CHECK( pubkey1.Verify(hashMsg, sign1));
         BOOST_CHECK(!pubkey1.Verify(hashMsg, sign2));
-        BOOST_CHECK(!pubkey1.Verify(hashMsg, sign1C));
+        BOOST_CHECK( pubkey1.Verify(hashMsg, sign1C));
         BOOST_CHECK(!pubkey1.Verify(hashMsg, sign2C));
 
         BOOST_CHECK(!pubkey2.Verify(hashMsg, sign1));
         BOOST_CHECK( pubkey2.Verify(hashMsg, sign2));
         BOOST_CHECK(!pubkey2.Verify(hashMsg, sign1C));
-        BOOST_CHECK(!pubkey2.Verify(hashMsg, sign2C));
+        BOOST_CHECK( pubkey2.Verify(hashMsg, sign2C));
 
-        BOOST_CHECK(!pubkey1C.Verify(hashMsg, sign1));
+        BOOST_CHECK( pubkey1C.Verify(hashMsg, sign1));
         BOOST_CHECK(!pubkey1C.Verify(hashMsg, sign2));
         BOOST_CHECK( pubkey1C.Verify(hashMsg, sign1C));
         BOOST_CHECK(!pubkey1C.Verify(hashMsg, sign2C));
 
         BOOST_CHECK(!pubkey2C.Verify(hashMsg, sign1));
-        BOOST_CHECK(!pubkey2C.Verify(hashMsg, sign2));
+        BOOST_CHECK( pubkey2C.Verify(hashMsg, sign2));
         BOOST_CHECK(!pubkey2C.Verify(hashMsg, sign1C));
         BOOST_CHECK( pubkey2C.Verify(hashMsg, sign2C));
 

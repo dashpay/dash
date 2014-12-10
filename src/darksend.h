@@ -9,6 +9,7 @@
 #include "core.h"
 #include "masternode.h"
 #include "main.h"
+#include "activemasternode.h"
 
 class CTxIn;
 class CDarkSendPool;
@@ -17,6 +18,7 @@ class CMasterNodeVote;
 class CBitcoinAddress;
 class CDarksendQueue;
 class CDarksendBroadcastTx;
+class CActiveMasternode;
 
 #define POOL_MAX_TRANSACTIONS                  3 // wait for X transactions to merge and publish
 #define POOL_STATUS_UNKNOWN                    0 // waiting for update
@@ -39,15 +41,10 @@ class CDarksendBroadcastTx;
 
 extern CDarkSendPool darkSendPool;
 extern CDarkSendSigner darkSendSigner;
-extern std::vector<int64> darkSendDenominations;
-extern std::vector<CDarksendQueue> vecDarksendQueue;
 extern std::vector<CDarksendQueue> vecDarksendQueue;
 extern std::string strMasterNodePrivKey;
 extern map<uint256, CDarksendBroadcastTx> mapDarksendBroadcastTxes;
-
-static const int64 DARKSEND_COLLATERAL = (0.1*COIN);
-static const int64 DARKSEND_FEE = (0.0125*COIN);
-static const int64 DARKSEND_POOL_MAX = (999.99*COIN);
+extern CActiveMasternode activeMasternode;
 
 //specific messages for the Darksend protocol
 void ProcessMessageDarksend(CNode* pfrom, std::string& strCommand, CDataStream& vRecv);
@@ -76,11 +73,11 @@ class CDarkSendEntry
 public:
     bool isSet;
     std::vector<CDarkSendEntryVin> sev;
-    int64 amount;
+    int64_t amount;
     CTransaction collateral;
     std::vector<CTxOut> vout;
     CTransaction txSupporting;
-    int64 addedTime;
+    int64_t addedTime;
 
     CDarkSendEntry()
     {
@@ -89,7 +86,7 @@ public:
         amount = 0;
     }
 
-    bool Add(const std::vector<CTxIn> vinIn, int64 amountIn, const CTransaction collateralIn, const std::vector<CTxOut> voutIn)
+    bool Add(const std::vector<CTxIn> vinIn, int64_t amountIn, const CTransaction collateralIn, const std::vector<CTxOut> voutIn)
     {
         if(isSet){return false;}
 
@@ -103,7 +100,7 @@ public:
         collateral = collateralIn;
         isSet = true;
         addedTime = GetTime();
-        
+
         return true;
     }
 
@@ -115,7 +112,7 @@ public:
                 s.vin.scriptSig = vin.scriptSig;
                 s.vin.prevPubKey = vin.prevPubKey;
                 s.isSigSet = true;
-                
+
                 return true;
             }
         }
@@ -129,14 +126,14 @@ public:
     }
 };
 
-// 
+//
 // A currently inprogress darksend merge and denomination information
 //
 class CDarksendQueue
 {
 public:
     CTxIn vin;
-    int64 time;
+    int64_t time;
     int nDenom;
     bool ready; //ready for submit
     std::vector<unsigned char> vchSig;
@@ -145,7 +142,7 @@ public:
     {
         nDenom = 0;
         vin = CTxIn();
-        time = 0;   
+        time = 0;
         vchSig.clear();
         ready = false;
     }
@@ -169,7 +166,7 @@ public:
         }
         return false;
     }
-    
+
     bool GetProtocolVersion(int &protocolVersion)
     {
         BOOST_FOREACH(CMasterNode mn, darkSendMasterNodes) {
@@ -200,7 +197,7 @@ public:
     CTransaction tx;
     CTxIn vin;
     vector<unsigned char> vchSig;
-    int64 sigTime;
+    int64_t sigTime;
 };
 
 //
@@ -235,10 +232,10 @@ public:
     // the finalized transaction ready for signing
     CTransaction finalTransaction;
 
-    int64 lastTimeChanged;
-    int64 lastAutoDenomination;
+    int64_t lastTimeChanged;
+    int64_t lastAutoDenomination;
 
-    unsigned int state; 
+    unsigned int state;
     unsigned int entriesCount;
     unsigned int lastEntryAccepted;
     unsigned int countEntriesAccepted;
@@ -247,9 +244,9 @@ public:
     CScript collateralPubKey;
 
     std::vector<CTxIn> lockedCoins;
-    
+
     uint256 masterNodeBlockHash;
-     
+
     std::string lastMessage;
     bool completedTransaction;
     bool unitTest;
@@ -260,7 +257,7 @@ public:
     int sessionUsers; //N Users have said they'll join
     bool sessionFoundMasternode; //If we've found a compatible masternode
     int sessionTries;
-    int64 sessionTotalValue; //used for autoDenom
+    int64_t sessionTotalValue; //used for autoDenom
     std::vector<CTransaction> vecSessionCollateral;
 
     int lastSplitUpBlock;
@@ -270,23 +267,23 @@ public:
     int minBlockSpacing; //required blocks between mixes
     CTransaction txCollateral;
 
-    std::vector<int64> vecDisabledDenominations;
+    std::vector<int64_t> vecDisabledDenominations;
 
     //incremented whenever a DSQ comes through
-    int64 nDsqCount;
+    int64_t nDsqCount;
 
     CDarkSendPool()
     {
         /* DarkSend uses collateral addresses to trust parties entering the pool
             to behave themselves. If they don't it takes their money. */
 
-        std::string strAddress = "";  
-        if(!fTestNet) {
+        std::string strAddress = "";
+        if(!(Params().NetworkID() == CChainParams::TESTNET)) {
             strAddress = "Xq19GqFvajRrEdDHYRKGYjTsQfpV5jyipF";
         } else {
             strAddress = "mxE2Rp3oYpSEFdsN5TdHWhZvEHm3PJQQVm";
         }
-        
+
         lastSplitUpBlock = 0;
         cachedLastSuccess = 0;
         cachedNumBlocks = 0;
@@ -311,7 +308,7 @@ public:
     void UnlockCoins();
 
     bool IsNull() const
-    {   
+    {
         return (state == POOL_STATUS_ACCEPTING_ENTRIES && entries.empty() && myEntries.empty());
     }
 
@@ -323,7 +320,7 @@ public:
     int GetEntriesCount() const
     {
         if(fMasterNode){
-            return entries.size(); 
+            return entries.size();
         } else {
             return entriesCount;
         }
@@ -364,13 +361,13 @@ public:
     int GetMaxPoolTransactions()
     {
         //if we're on testnet, just use two transactions per merge
-        if(fTestNet) return 2;
+        if(Params().NetworkID() == CChainParams::TESTNET) return 2;
 
         //use the production amount
         return POOL_MAX_TRANSACTIONS;
     }
 
-    //Do we have enough users to take entries? 
+    //Do we have enough users to take entries?
     bool IsSessionReady(){
         return sessionUsers >= GetMaxPoolTransactions();
     }
@@ -378,7 +375,7 @@ public:
     // Are these outputs compatible with other client in the pool?
     bool IsCompatibleWithEntries(std::vector<CTxOut> vout);
     // Is this amount compatible with other client in the pool?
-    bool IsCompatibleWithSession(int64 nAmount, CTransaction txCollateral, std::string& strReason);
+    bool IsCompatibleWithSession(int64_t nAmount, CTransaction txCollateral, std::string& strReason);
 
     // Passively run Darksend in the background according to the configuration in settings (only for QT)
     bool DoAutomaticDenominating(bool fDryRun=false, bool ready=false);
@@ -396,13 +393,13 @@ public:
     // if the collateral is valid given by a client
     bool IsCollateralValid(const CTransaction& txCollateral);
     // add a clients entry to the pool
-    bool AddEntry(const std::vector<CTxIn>& newInput, const int64& nAmount, const CTransaction& txCollateral, const std::vector<CTxOut>& newOutput, std::string& error);
+    bool AddEntry(const std::vector<CTxIn>& newInput, const int64_t& nAmount, const CTransaction& txCollateral, const std::vector<CTxOut>& newOutput, std::string& error);
     // add signature to a vin
     bool AddScriptSig(const CTxIn& newVin);
     // are all inputs signed?
     bool SignaturesComplete();
     // as a client, send a transaction to a masternode to start the denomination process
-    void SendDarksendDenominate(std::vector<CTxIn>& vin, std::vector<CTxOut>& vout, int64 amount);
+    void SendDarksendDenominate(std::vector<CTxIn>& vin, std::vector<CTxOut>& vout, int64_t amount);
     // get masternode updates about the progress of darksend
     bool StatusUpdate(int newState, int newEntriesCount, int newAccepted, std::string& error, int newSessionID=0);
 
@@ -423,9 +420,9 @@ public:
     bool SplitUpMoney(bool justCollateral=false);
     // get the denominations for a list of outputs (returns a bitshifted integer)
     int GetDenominations(const std::vector<CTxOut>& vout);
-    // get the denominations for a specific amount of darkcoin. 
-    int GetDenominationsByAmount(int64 nAmount);
-    int GetDenominationsByAmounts(std::vector<int64>& vecAmount);
+    // get the denominations for a specific amount of darkcoin.
+    int GetDenominationsByAmount(int64_t nAmount);
+    int GetDenominationsByAmounts(std::vector<int64_t>& vecAmount);
 };
 
 

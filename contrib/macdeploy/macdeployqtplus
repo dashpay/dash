@@ -19,6 +19,7 @@
 
 import subprocess, sys, re, os, shutil, stat, os.path
 from string import Template
+from time import sleep
 from argparse import ArgumentParser
 
 # This is ported from the original macdeployqt with modifications
@@ -37,7 +38,10 @@ class FrameworkInfo(object):
         self.sourceFilePath = ""
         self.destinationDirectory = ""
         self.sourceResourcesDirectory = ""
+        self.sourceVersionContentsDirectory = ""
+        self.sourceContentsDirectory = ""
         self.destinationResourcesDirectory = ""
+        self.destinationVersionContentsDirectory = ""
     
     def __eq__(self, other):
         if self.__class__ == other.__class__:
@@ -141,7 +145,11 @@ class FrameworkInfo(object):
             info.destinationDirectory = os.path.join(cls.bundleFrameworkDirectory, info.frameworkName, info.binaryDirectory)
             
             info.sourceResourcesDirectory = os.path.join(info.frameworkPath, "Resources")
+            info.sourceContentsDirectory = os.path.join(info.frameworkPath, "Contents")
+            info.sourceVersionContentsDirectory = os.path.join(info.frameworkPath, "Versions", info.version, "Contents")
             info.destinationResourcesDirectory = os.path.join(cls.bundleFrameworkDirectory, info.frameworkName, "Resources")
+            info.destinationContentsDirectory = os.path.join(cls.bundleFrameworkDirectory, info.frameworkName, "Contents")
+            info.destinationVersionContentsDirectory = os.path.join(cls.bundleFrameworkDirectory, info.frameworkName, "Versions", info.version, "Contents")
         
         return info
 
@@ -274,18 +282,35 @@ def copyFramework(framework, path, verbose):
       os.chmod(toPath, permissions.st_mode | stat.S_IWRITE)
 
     if not framework.isDylib(): # Copy resources for real frameworks
+
+        linkfrom = os.path.join(path, "Contents","Frameworks", framework.frameworkName, "Versions", "Current")
+        linkto = framework.version
+        if not os.path.exists(linkfrom):
+            os.symlink(linkto, linkfrom)
+            if verbose >= 2:
+                print "Linked:", linkfrom, "->", linkto
         fromResourcesDir = framework.sourceResourcesDirectory
         if os.path.exists(fromResourcesDir):
             toResourcesDir = os.path.join(path, framework.destinationResourcesDirectory)
-            shutil.copytree(fromResourcesDir, toResourcesDir)
+            shutil.copytree(fromResourcesDir, toResourcesDir, symlinks=True)
             if verbose >= 3:
                 print "Copied resources:", fromResourcesDir
                 print " to:", toResourcesDir
+        fromContentsDir = framework.sourceVersionContentsDirectory
+        if not os.path.exists(fromContentsDir):
+            fromContentsDir = framework.sourceContentsDirectory
+        if os.path.exists(fromContentsDir):
+            toContentsDir = os.path.join(path, framework.destinationVersionContentsDirectory)
+            shutil.copytree(fromContentsDir, toContentsDir, symlinks=True)
+            contentslinkfrom = os.path.join(path, framework.destinationContentsDirectory)
+            if verbose >= 3:
+                print "Copied Contents:", fromContentsDir
+                print " to:", toContentsDir
     elif framework.frameworkName.startswith("libQtGui"): # Copy qt_menu.nib (applies to non-framework layout)
         qtMenuNibSourcePath = os.path.join(framework.frameworkDirectory, "Resources", "qt_menu.nib")
         qtMenuNibDestinationPath = os.path.join(path, "Contents", "Resources", "qt_menu.nib")
         if os.path.exists(qtMenuNibSourcePath) and not os.path.exists(qtMenuNibDestinationPath):
-            shutil.copytree(qtMenuNibSourcePath, qtMenuNibDestinationPath)
+            shutil.copytree(qtMenuNibSourcePath, qtMenuNibDestinationPath, symlinks=True)
             if verbose >= 3:
                 print "Copied for libQtGui:", qtMenuNibSourcePath
                 print " to:", qtMenuNibDestinationPath
@@ -487,6 +512,16 @@ if len(config.fancy) == 1:
             sys.stderr.write("Error: Could not import plistlib which is required for fancy disk images.\n")
         sys.exit(1)
     
+    if verbose >= 3:
+        print "Fancy: Importing appscript..."
+    try:
+        import appscript
+    except ImportError:
+        if verbose >= 1:
+            sys.stderr.write("Error: Could not import appscript which is required for fancy disk images.\n")
+            sys.stderr.write("Please install it e.g. with \"sudo easy_install appscript\".\n")
+        sys.exit(1)
+    
     p = config.fancy[0]
     if verbose >= 3:
         print "Fancy: Loading \"%s\"..." % p
@@ -549,7 +584,7 @@ if verbose >= 3:
     print app_bundle, "->", target
 
 os.mkdir("dist")
-shutil.copytree(app_bundle, target)
+shutil.copytree(app_bundle, target, symlinks=True)
 
 applicationBundle = ApplicationBundleInfo(target)
 
@@ -569,7 +604,7 @@ try:
 except RuntimeError as e:
     if verbose >= 1:
         sys.stderr.write("Error: %s\n" % str(e))
-    sys.exit(1)
+    sys.exit(ret)
 
 # ------------------------------------------------
 
@@ -582,7 +617,7 @@ if config.plugins:
     except RuntimeError as e:
         if verbose >= 1:
             sys.stderr.write("Error: %s\n" % str(e))
-        sys.exit(1)
+        sys.exit(ret)
 
 # ------------------------------------------------
 
@@ -629,7 +664,7 @@ for p in config.add_resources:
     if verbose >= 3:
         print p, "->", t
     if os.path.isdir(p):
-        shutil.copytree(p, t)
+        shutil.copytree(p, t, symlinks=True)
     else:
         shutil.copy2(p, t)
 
@@ -774,7 +809,7 @@ if config.dmg is not None:
                 items_positions.append(itemscript.substitute(params))
 
         params = {
-            "disk" : "DarkCoin-Qt",
+            "disk" : "Bitcoin-Qt",
             "window_bounds" : "300,300,800,620",
             "icon_size" : "96",
             "background_commands" : "",

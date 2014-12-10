@@ -1,22 +1,58 @@
-src/*.exe
+*.tar.gz
+
+*.exe
 src/darkcoin
 src/darkcoind
-src/test_darkcoin
-.settings
+src/darkcoin-cli
+src/test/test_darkcoin
+src/qt/test/test_darkcoin-qt
+
+Makefile.in
+aclocal.m4
+autom4te.cache/
+config.log
+config.status
+configure
+src/bitcoin-config.h
+src/bitcoin-config.h.in
+src/build-aux/
+src/stamp-h1
+share/setup.nsi
+share/qt/Info.plist
+
+src/qt/*.moc
+src/qt/moc_*.cpp
+src/qt/forms/ui_*.h
+
+src/qt/test/moc*.cpp
+
+.deps
+.dirstamp
 .*.swp
 *.*~*
 *.bak
 *.rej
 *.orig
 *.o
+*.o-*
 *.patch
 .darkcoin
+*.a
+*.pb.cc
+*.pb.h
+
+*.log
+*.trs
+*.dmg
+
+*.json.h
+*.raw.h
 
 # Compilation and Qt preprocessor part
 *.qm
 Makefile
 darkcoin-qt
-DarkCoin-Qt.app
+Darkcoin-Qt.app
 
 # Unit-tests
 Makefile.test
@@ -32,7 +68,21 @@ qrc_*.cpp
 .DS_Store
 build
 
-!src/leveldb-*/Makefile
+#lcov
+*.gcno
+/*.info
+test_darkcoin.coverage/
+total.coverage/
+coverage_percent.txt
+
+#build tests
+linux-coverage-build
+linux-build
+win32-build
+qa/pull-tester/run-bitcoind-for-test.sh
+qa/pull-tester/build-tests.sh
+
+!src/leveldb*/Makefile
+
 .cproject
 .project
-

@@ -1,92 +1,101 @@
-0.8.6.2 changes
-=============
+Bitcoin Core version 0.9.3 is now available from:
 
-- Windows only: Fixes issue where network connectivity can fail.
+  https://bitcoin.org/bin/0.9.3/
 
-- Cleanup of SSE2 scrypt detection.
+This is a new minor version release, bringing only bug fixes and updated
+translations. Upgrading to this release is recommended.
 
-- Minor fixes:
-  - s/Bitcoin/DarkCoin/ in the Coin Control example
-  - Fix custom build on MacOS X 10.9
-  - Fix QT5 custom build
-  - Update Debian build instructions
-  - Update Homebrew build 
+Please report bugs using the issue tracker at github:
 
-0.8.6.1 changes
-=============
+  https://github.com/bitcoin/bitcoin/issues
 
-- Coin Control - experts only GUI selection of inputs before you send a transaction
+Upgrading and downgrading
+==========================
 
-- Disable Wallet - reduces memory requirements, helpful for miner or relay nodes
+How to Upgrade
+--------------
 
-- 20x reduction in default mintxfee.
+If you are running an older version, shut it down. Wait until it has completely
+shut down (which might take a few minutes for older versions), then run the
+installer (on Windows) or just copy over /Applications/Bitcoin-Qt (on Mac) or
+bitcoind/bitcoin-qt (on Linux).
 
-- Up to 50% faster PoW validation, faster sync and reindexing.
+If you are upgrading from version 0.7.2 or earlier, the first time you run
+0.9.3 your blockchain files will be re-indexed, which will take anywhere from 
+30 minutes to several hours, depending on the speed of your machine.
 
-- Peers older than protocol version 70002 are disconnected.  0.8.3.7 is the oldest compatible client.
+Downgrading warnings
+--------------------
 
-- Internal miner added back to DarkCoin.  setgenerate now works, although it is generally a bad idea as it is significantly slower than external CPU miners.
+The 'chainstate' for this release is not always compatible with previous
+releases, so if you run 0.9.x and then decide to switch back to a
+0.8.x release you might get a blockchain validation error when starting the
+old release (due to 'pruned outputs' being omitted from the index of
+unspent transaction outputs).
 
-- New RPC commands: getbestblockhash and verifychain
+Running the old release with the -reindex option will rebuild the chainstate
+data structures and correct the problem.
 
-- Improve fairness of the high priority transaction space per block
+Also, the first time you run a 0.8.x release on a 0.9 wallet it will rescan
+the blockchain for missing spent coins, which will take a long time (tens
+of minutes on a typical machine).
 
-- OSX block chain database corruption fixes
-  - Update leveldb to 1.13
-  - Use fcntl with `F_FULLSYNC` instead of fsync on OSX
-  - Use native Darwin memory barriers
-  - Replace use of mmap in leveldb for improved reliability (only on OSX)
+0.9.3 Release notes
+=======================
 
-- Fix nodes forwarding transactions with empty vins and getting banned
+RPC:
+- Avoid a segfault on getblock if it can't read a block from disk
+- Add paranoid return value checks in base58
 
-- Network code performance and robustness improvements
+Protocol and network code:
+- Don't poll showmyip.com, it doesn't exist anymore
+- Add a way to limit deserialized string lengths and use it
+- Add a new checkpoint at block 295,000
+- Increase IsStandard() scriptSig length
+- Avoid querying DNS seeds, if we have open connections
+- Remove a useless millisleep in socket handler
+- Stricter memory limits on CNode
+- Better orphan transaction handling
+- Add `-maxorphantx=<n>` and `-maxorphanblocks=<n>` options for control over the maximum orphan transactions and blocks
 
-- Additional debug.log logging for diagnosis of network problems, log timestamps by default
+Wallet:
+- Check redeemScript size does not exceed 520 byte limit
+- Ignore (and warn about) too-long redeemScripts while loading wallet
 
-- Fix rare GUI crash on send
+GUI:
+- fix 'opens in testnet mode when presented with a BIP-72 link with no fallback'
+- AvailableCoins: acquire cs_main mutex
+- Fix unicode character display on MacOSX
 
-0.8.5.1 changes
-===============
+Miscellaneous:
+- key.cpp: fail with a friendlier message on missing ssl EC support
+- Remove bignum dependency for scripts
+- Upgrade OpenSSL to 1.0.1i (see https://www.openssl.org/news/secadv_20140806.txt - just to be sure, no critical issues for Bitcoin Core)
+- Upgrade miniupnpc to 1.9.20140701
+- Fix boost detection in build system on some platforms
 
-Workaround negative version numbers serialization bug.
+Credits
+--------
 
-Fix out-of-bounds check (DarkCoin currently does not use this codepath, but we apply this
-patch just to match Bitcoin 0.8.5.)
+Thanks to everyone who contributed to this release:
 
-0.8.4.1 changes
-===============
+- Andrew Poelstra
+- Cory Fields
+- Gavin Andresen
+- Jeff Garzik
+- Johnathan Corgan
+- Julian Haight
+- Michael Ford
+- Pavel Vasin
+- Peter Todd
+- phantomcircuit
+- Pieter Wuille
+- Rose Toomey
+- Ruben Dario Ponticelli
+- shshshsh
+- Trevin Hofmann
+- Warren Togami
+- Wladimir J. van der Laan
+- Zak Wilcox
 
-CVE-2013-5700 Bloom: filter crash issue - DarkCoin 0.8.3.7 disabled bloom by default so was 
-unaffected by this issue, but we include their patches anyway just in case folks want to 
-enable bloomfilter=1.
-
-CVE-2013-4165: RPC password timing guess vulnerability
-
-CVE-2013-4627: Better fix for the fill-memory-with-orphaned-tx attack
-
-Fix multi-block reorg transaction resurrection.
-
-Fix non-standard disconnected transactions causing mempool orphans.  This bug could cause 
-nodes running with the -debug flag to crash, although it was lot less likely on DarkCoin 
-as we disabled IsDust() in 0.8.3.x.
-
-Mac OSX: use 'FD_FULLSYNC' with LevelDB, which will (hopefully!) prevent the database 
-corruption issues have experienced on OSX.
-
-Add height parameter to getnetworkhashps.
-
-Fix Norwegian and Swedish translations.
-
-Minor efficiency improvement in block peer request handling.
-
-
-0.8.3.7 changes
-===============
-
-Fix CVE-2013-4627 denial of service, a memory exhaustion attack that could crash low-memory nodes.
-
-Fix a regression that caused excessive writing of the peers.dat file.
-
-Add option for bloom filtering.
-
-Fix Hebrew translation.
+As well as everyone that helped translating on [Transifex](https://www.transifex.com/projects/p/bitcoin/).

@@ -13,9 +13,7 @@
 #include "core.h"
 #include "init.h"
 #include "wallet.h"
-
-class CActiveMasternode;
-extern CActiveMasternode activeMasternode;
+#include "darksend.h"
 
 // Responsible for activating the masternode and pinging the network
 class CActiveMasternode
@@ -32,11 +30,11 @@ public:
     CService masterNodeSignAddr;
 
     int isCapableMasterNode;
-    int64 masterNodeSignatureTime;
+    int64_t masterNodeSignatureTime;
     int masternodePortOpen;
 
     CActiveMasternode()
-    {        
+    {
         isCapableMasterNode = MASTERNODE_NOT_PROCESSED;
         masternodePortOpen = 0;
     }
@@ -50,7 +48,7 @@ public:
     bool RegisterAsMasterNodeRemoteOnly(std::string strMasterNodeAddr, std::string strMasterNodePrivKey);
 
     // enable hot wallet mode (run a masternode with no funds)
-    bool EnableHotColdMasterNode(CTxIn& vin, int64 sigTime, CService& addr);
+    bool EnableHotColdMasterNode(CTxIn& vin, int64_t sigTime, CService& addr);
 };
 
 #endif

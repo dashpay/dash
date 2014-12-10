@@ -1,11 +1,11 @@
 
 #include "core.h"
+#include "protocol.h"
 #include "activemasternode.h"
+#include <boost/lexical_cast.hpp>
 
 using namespace std;
 using namespace boost;
-
-CActiveMasternode activeMasternode;
 
 //
 // Bootup the masternode, look for a 1000DRK input and register on the network
@@ -48,7 +48,7 @@ void CActiveMasternode::RegisterAsMasterNode(bool stop)
             masterNodeSignAddr = CService(strMasterNodeAddr);
         }
 
-        if((fTestNet && masterNodeSignAddr.GetPort() != 19999) || (!fTestNet && masterNodeSignAddr.GetPort() != 9999)) {
+        if((Params().NetworkID() == CChainParams::TESTNET && masterNodeSignAddr.GetPort() != 19999) || (!(Params().NetworkID() == CChainParams::TESTNET) && masterNodeSignAddr.GetPort() != 9999)) {
             LogPrintf("CActiveMasternode::RegisterAsMasterNode() - Invalid port\n");
             isCapableMasterNode = MASTERNODE_NOT_CAPABLE;
             return;
@@ -84,7 +84,7 @@ void CActiveMasternode::RegisterAsMasterNode(bool stop)
             }
 
             int protocolVersion = PROTOCOL_VERSION;
-            
+
             masterNodeSignatureTime = GetAdjustedTime();
 
             std::string vchPubKey(pubkeyMasterNode.begin(), pubkeyMasterNode.end());
@@ -204,7 +204,7 @@ bool CActiveMasternode::RegisterAsMasterNodeRemoteOnly(std::string strMasterNode
         }
     }
 
-    if((fTestNet && masterNodeSignAddr.GetPort() != 19999) || (!fTestNet && masterNodeSignAddr.GetPort() != 9999)) {
+    if((Params().NetworkID() == CChainParams::TESTNET && masterNodeSignAddr.GetPort() != 19999) || (!(Params().NetworkID() == CChainParams::TESTNET) && masterNodeSignAddr.GetPort() != 9999)) {
         LogPrintf("CActiveMasternode::RegisterAsMasterNodeRemoteOnly() - Invalid port\n");
         return false;
     }
@@ -274,7 +274,7 @@ bool CActiveMasternode::RegisterAsMasterNodeRemoteOnly(std::string strMasterNode
 
 bool CActiveMasternode::GetMasterNodeVin(CTxIn& vin, CPubKey& pubkey, CKey& secretKey)
 {
-    int64 nValueIn = 0;
+    int64_t nValueIn = 0;
     CScript pubScript;
 
     // try once before we try to denominate
@@ -304,7 +304,7 @@ bool CActiveMasternode::GetMasterNodeVin(CTxIn& vin, CPubKey& pubkey, CKey& secr
 }
 
 // when starting a masternode, this can enable to run as a hot wallet with no funds
-bool CActiveMasternode::EnableHotColdMasterNode(CTxIn& vin, int64 sigTime, CService& addr)
+bool CActiveMasternode::EnableHotColdMasterNode(CTxIn& vin, int64_t sigTime, CService& addr)
 {
     if(!fMasterNode) return false;
 

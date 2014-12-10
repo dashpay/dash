@@ -9,7 +9,8 @@
 #include "init.h"
 #include "masternode.h"
 #include "activemasternode.h"
-#include "bitcoinrpc.h"
+#include "rpcserver.h"
+#include <boost/lexical_cast.hpp>
 
 #include <fstream>
 using namespace json_spirit;
@@ -25,10 +26,10 @@ Value darksend(const Array& params, bool fHelp)
             "darkcoinaddress, reset, or auto (AutoDenominate)"
             "<amount> is a real and is rounded to the nearest 0.00000001"
             + HelpRequiringPassphrase());
-    
+
     if(fMasterNode)
         return "DarkSend is not supported from masternodes";
-    
+
     if (pwalletMain->IsLocked())
         throw JSONRPCError(RPC_WALLET_UNLOCK_NEEDED, "Error: Please enter the wallet passphrase with walletpassphrase first.");
 
@@ -55,11 +56,11 @@ Value darksend(const Array& params, bool fHelp)
         throw JSONRPCError(RPC_INVALID_ADDRESS_OR_KEY, "Invalid DarkCoin address");
 
     // Amount
-    int64 nAmount = AmountFromValue(params[1]);
+    int64_t nAmount = AmountFromValue(params[1]);
 
     // Wallet comments
     CWalletTx wtx;
-    string strError = pwalletMain->SendMoneyToDestination(address.Get(), nAmount, wtx, false, ONLY_DENOMINATED);
+    string strError = pwalletMain->SendMoneyToDestination(address.Get(), nAmount, wtx, ONLY_DENOMINATED);
     if (strError != "")
         throw JSONRPCError(RPC_WALLET_ERROR, strError);
 
@@ -75,7 +76,6 @@ Value getpoolinfo(const Array& params, bool fHelp)
             "Returns an object containing anonymous pool-related information.");
 
     Object obj;
-    obj.push_back(Pair("connected_to_masternode",        activeMasternode.masterNodeAddr));
     obj.push_back(Pair("current_masternode",        GetCurrentMasterNode()));
     obj.push_back(Pair("state",        darkSendPool.GetState()));
     obj.push_back(Pair("entries",      darkSendPool.GetEntriesCount()));
@@ -109,7 +109,7 @@ Value masternode(const Array& params, bool fHelp)
                 throw runtime_error(
                     "Your wallet is locked, passphrase is required\n");
             }
-            
+
             if(!pwalletMain->Unlock(strWalletPass)){
                 return "incorrect passphrase";
             }
@@ -117,15 +117,15 @@ Value masternode(const Array& params, bool fHelp)
 
         activeMasternode.RegisterAsMasterNode(true);
         pwalletMain->Lock();
-        
+
         if(activeMasternode.isCapableMasterNode == MASTERNODE_STOPPED) return "successfully stopped masternode";
         if(activeMasternode.isCapableMasterNode == MASTERNODE_NOT_CAPABLE) return "not capable masternode";
-        
+
         return "unknown";
     }
 
     if (strCommand == "list")
-    {                
+    {
         std::string strCommand = "active";
 
         if (params.size() == 2){
@@ -139,7 +139,7 @@ Value masternode(const Array& params, bool fHelp)
 
         Object obj;
         BOOST_FOREACH(CMasterNode mn, darkSendMasterNodes) {
-            mn.Check();   
+            mn.Check();
 
             if(strCommand == "active"){
                 obj.push_back(Pair(mn.addr.ToString().c_str(),       (int)mn.IsEnabled()));
@@ -160,7 +160,7 @@ Value masternode(const Array& params, bool fHelp)
             } else if (strCommand == "activeseconds") {
                 obj.push_back(Pair(mn.addr.ToString().c_str(),       (int64_t)(mn.lastTimeSeen - mn.now)));
             } else if (strCommand == "rank") {
-                obj.push_back(Pair(mn.addr.ToString().c_str(),       (int)(GetMasternodeRank(mn.vin, pindexBest->nHeight))));
+                obj.push_back(Pair(mn.addr.ToString().c_str(),       (int)(GetMasternodeRank(mn.vin, chainActive.Tip()->nHeight))));
             }
         }
         return obj;
@@ -181,7 +181,7 @@ Value masternode(const Array& params, bool fHelp)
                 throw runtime_error(
                     "Your wallet is locked, passphrase is required\n");
             }
-            
+
             if(!pwalletMain->Unlock(strWalletPass)){
                 return "incorrect passphrase";
             }
@@ -189,7 +189,7 @@ Value masternode(const Array& params, bool fHelp)
 
         activeMasternode.RegisterAsMasterNode(false);
         pwalletMain->Lock();
-        
+
         if(activeMasternode.isCapableMasterNode == MASTERNODE_REMOTELY_ENABLED) return "masternode started remotely";
         if(activeMasternode.isCapableMasterNode == MASTERNODE_INPUT_TOO_NEW) return "masternode input must have at least 15 confirmations";
         if(activeMasternode.isCapableMasterNode == MASTERNODE_STOPPED) return "masternode is stopped";
@@ -200,9 +200,9 @@ Value masternode(const Array& params, bool fHelp)
 
         return "unknown";
     }
-    
+
     if (strCommand == "start-many")
-    {        
+    {
         boost::filesystem::path pathDebug = GetDataDir() / "masternode.conf";
         std::ifstream infile(pathDebug.string().c_str());
 
@@ -223,7 +223,7 @@ Value masternode(const Array& params, bool fHelp)
                 fail++;
             }
         }
-        
+
         printf(" Successfully started %d masternodes, failed to start %d, total %d\n", successful, fail, total);
         return "";
 
@@ -252,7 +252,7 @@ Value masternode(const Array& params, bool fHelp)
 
     if (strCommand == "create")
     {
-        
+
         return "Not implemented yet, please look at the documentation for instructions on masternode creation";
     }
 
@@ -267,7 +267,7 @@ Value masternode(const Array& params, bool fHelp)
     }
 
     if (strCommand == "genkey")
-    {    
+    {
         CKey secret;
         secret.MakeNewKey(false);
 
@@ -275,10 +275,10 @@ Value masternode(const Array& params, bool fHelp)
     }
 
     if (strCommand == "winners")
-    {                
+    {
         Object obj;
 
-        for(int nHeight = pindexBest->nHeight-10; nHeight < pindexBest->nHeight+20; nHeight++)
+        for(int nHeight = chainActive.Tip()->nHeight-10; nHeight < chainActive.Tip()->nHeight+20; nHeight++)
         {
             CScript payee;
             if(masternodePayments.GetBlockPayee(nHeight, payee)){
@@ -307,7 +307,7 @@ Value masternode(const Array& params, bool fHelp)
         } else {
             throw runtime_error(
                 "Masternode address required\n");
-        }        
+        }
 
         CService addr = CService(strAddress);
 

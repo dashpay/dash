@@ -7,12 +7,13 @@
 #include "key.h"
 #include "util.h"
 #include "script.h"
-#include "hashblock.h"
 #include "base58.h"
+#include "protocol.h"
 #include "instantx.h"
 #include "masternode.h"
 #include "activemasternode.h"
 #include "darksend.h"
+#include <boost/lexical_cast.hpp>
 
 using namespace std;
 using namespace boost;
@@ -54,7 +55,7 @@ void ProcessMessageInstantX(CNode* pfrom, std::string& strCommand, CDataStream& 
             LogPrintf("ProcessMessageInstantX::txlreq - Transaction not found / too new: %s\n", tx.GetHash().ToString().c_str());
             return;   
         }
-        int nBlockHeight = pindexBest->nHeight - nTxAge; //calculate the height
+        int nBlockHeight = chainActive.Tip()->nHeight - nTxAge; //calculate the height
 
         BOOST_FOREACH(const CTxOut o, tx.vout){
             if(!o.scriptPubKey.IsNormalPaymentScript()){
@@ -65,7 +66,8 @@ void ProcessMessageInstantX(CNode* pfrom, std::string& strCommand, CDataStream& 
 
         bool fMissingInputs = false;
         CValidationState state;
-        if (tx.AcceptToMemoryPool(state, true, true, &fMissingInputs))
+        
+        if (AcceptToMemoryPool(mempool, state, tx, true, &fMissingInputs))
         {
             RelayTransactionLockReq(tx, inv.hash);
             DoConsensusVote(tx, true, nBlockHeight); 
@@ -147,7 +149,8 @@ void ProcessMessageInstantX(CNode* pfrom, std::string& strCommand, CDataStream& 
                 //if we don't 
                 bool fMissingInputs = false;
                 CValidationState state;
-                if (ctxl.tx.AcceptToMemoryPool(state, true, true, &fMissingInputs))
+
+                if (AcceptToMemoryPool(mempool, state, ctxl.tx, true, &fMissingInputs))
                 {
                     mapTxLockReq.insert(make_pair(inv.hash, ctxl.tx));
 
@@ -161,7 +164,7 @@ void ProcessMessageInstantX(CNode* pfrom, std::string& strCommand, CDataStream& 
                     CValidationState state;
                     DisconnectBlockAndInputs(state, ctxl.tx);
 
-                    if (ctxl.tx.AcceptToMemoryPool(state, true, true, &fMissingInputs))
+                    if (AcceptToMemoryPool(mempool, state, ctxl.tx, true, &fMissingInputs))
                     {
                         mapTxLockReq.insert(make_pair(inv.hash, ctxl.tx));
 
@@ -199,7 +202,7 @@ void ProcessMessageInstantX(CNode* pfrom, std::string& strCommand, CDataStream& 
 }
 
 // check if we need to vote on this transaction
-void DoConsensusVote(CTransaction& tx, bool approved, int64 nBlockHeight)
+void DoConsensusVote(CTransaction& tx, bool approved, int64_t nBlockHeight)
 {
     if(!fMasterNode) {
         LogPrintf("InstantX::DoConsensusVote - Not masternode\n");
@@ -324,12 +327,12 @@ void ProcessConsensusVote(CConsensusVote& ctx)
 
 void CleanTransactionLocksList()
 {
-    if(pindexBest == NULL) return;
+    if(chainActive.Tip() == NULL) return;
 
     std::map<uint256, CTransactionLock>::iterator it = mapTxLocks.begin();
     
     while(it != mapTxLocks.end()) {
-        if(pindexBest->nHeight - it->second.nBlockHeight > 3){ //keep them for an hour
+        if(chainActive.Tip()->nHeight - it->second.nBlockHeight > 3){ //keep them for an hour
             LogPrintf("Removing old transaction lock %s\n", it->second.GetHash().ToString().c_str());
             mapTxLocks.erase(it++);
         } else {

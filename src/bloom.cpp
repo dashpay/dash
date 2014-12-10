@@ -1,20 +1,19 @@
 // Copyright (c) 2012 The Bitcoin developers
 // Distributed under the MIT/X11 software license, see the accompanying
 // file COPYING or http://www.opensource.org/licenses/mit-license.php.
-#include <math.h>
-#include <stdlib.h>
 
 #include "bloom.h"
-#include "main.h"
+
 #include "core.h"
 #include "script.h"
+
+#include <math.h>
+#include <stdlib.h>
 
 #define LN2SQUARED 0.4804530139182014246671025263266649717305529515945455
 #define LN2 0.6931471805599453094172321214581765680755001343602552
 
 using namespace std;
-
-static const unsigned char bit_mask[8] = {0x01, 0x02, 0x04, 0x08, 0x10, 0x20, 0x40, 0x80};
 
 CBloomFilter::CBloomFilter(unsigned int nElements, double nFPRate, unsigned int nTweakIn, unsigned char nFlagsIn) :
 // The ideal size for a bloom filter with a given number of elements and false positive rate is:
@@ -46,7 +45,7 @@ void CBloomFilter::insert(const vector<unsigned char>& vKey)
     {
         unsigned int nIndex = Hash(i, vKey);
         // Sets bit nIndex of vData
-        vData[nIndex >> 3] |= bit_mask[7 & nIndex];
+        vData[nIndex >> 3] |= (1 << (7 & nIndex));
     }
     isEmpty = false;
 }
@@ -75,7 +74,7 @@ bool CBloomFilter::contains(const vector<unsigned char>& vKey) const
     {
         unsigned int nIndex = Hash(i, vKey);
         // Checks bit nIndex of vData
-        if (!(vData[nIndex >> 3] & bit_mask[7 & nIndex]))
+        if (!(vData[nIndex >> 3] & (1 << (7 & nIndex))))
             return false;
     }
     return true;

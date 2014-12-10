@@ -1,13 +1,13 @@
-// Copyright (c) 2009-2012 The Bitcoin developers
+// Copyright (c) 2009-2013 The Bitcoin developers
 // Distributed under the MIT/X11 software license, see the accompanying
 // file COPYING or http://www.opensource.org/licenses/mit-license.php.
 
-#include <openssl/ecdsa.h>
-#include <openssl/rand.h>
-#include <openssl/obj_mac.h>
-
 #include "key.h"
 
+#include <openssl/bn.h>
+#include <openssl/ecdsa.h>
+#include <openssl/obj_mac.h>
+#include <openssl/rand.h>
 
 // anonymous namespace with local implementation code (OpenSSL interaction)
 namespace {
@@ -148,10 +148,13 @@ public:
     }
 
     void SetSecretBytes(const unsigned char vch[32]) {
+        bool ret;
         BIGNUM bn;
         BN_init(&bn);
-        assert(BN_bin2bn(vch, 32, &bn));
-        assert(EC_KEY_regenerate_key(pkey, &bn));
+        ret = BN_bin2bn(vch, 32, &bn);
+        assert(ret);
+        ret = EC_KEY_regenerate_key(pkey, &bn);
+        assert(ret);
         BN_clear_free(&bn);
     }
 
@@ -165,9 +168,12 @@ public:
         assert(nSize == nSize2);
     }
 
-    bool SetPrivKey(const CPrivKey &privkey) {
+    bool SetPrivKey(const CPrivKey &privkey, bool fSkipCheck=false) {
         const unsigned char* pbegin = &privkey[0];
         if (d2i_ECPrivateKey(&pkey, &pbegin, privkey.size())) {
+            if(fSkipCheck)
+                return true;
+            
             // d2i_ECPrivateKey returns true if parsing succeeds.
             // This doesn't necessarily mean the key is valid.
             if (EC_KEY_check_key(pkey))
@@ -194,9 +200,28 @@ public:
     }
 
     bool Sign(const uint256 &hash, std::vector<unsigned char>& vchSig) {
+        vchSig.clear();
+        ECDSA_SIG *sig = ECDSA_do_sign((unsigned char*)&hash, sizeof(hash), pkey);
+        if (sig == NULL)
+            return false;
+        BN_CTX *ctx = BN_CTX_new();
+        BN_CTX_start(ctx);
+        const EC_GROUP *group = EC_KEY_get0_group(pkey);
+        BIGNUM *order = BN_CTX_get(ctx);
+        BIGNUM *halforder = BN_CTX_get(ctx);
+        EC_GROUP_get_order(group, order, ctx);
+        BN_rshift1(halforder, order);
+        if (BN_cmp(sig->s, halforder) > 0) {
+            // enforce low S values, by negating the value (modulo the order) if above order/2.
+            BN_sub(sig->s, order, sig->s);
+        }
+        BN_CTX_end(ctx);
+        BN_CTX_free(ctx);
         unsigned int nSize = ECDSA_size(pkey);
         vchSig.resize(nSize); // Make sure it is big enough
-        assert(ECDSA_sign(0, (unsigned char*)&hash, sizeof(hash), &vchSig[0], &nSize, pkey));
+        unsigned char *pos = &vchSig[0];
+        nSize = i2d_ECDSA_SIG(sig, &pos);
+        ECDSA_SIG_free(sig);
         vchSig.resize(nSize); // Shrink to fit actual size
         return true;
     }
@@ -252,6 +277,57 @@ public:
         BN_bin2bn(&p64[32], 32, sig->s);
         bool ret = ECDSA_SIG_recover_key_GFp(pkey, sig, (unsigned char*)&hash, sizeof(hash), rec, 0) == 1;
         ECDSA_SIG_free(sig);
+        return ret;
+    }
+
+    static bool TweakSecret(unsigned char vchSecretOut[32], const unsigned char vchSecretIn[32], const unsigned char vchTweak[32])
+    {
+        bool ret = true;
+        BN_CTX *ctx = BN_CTX_new();
+        BN_CTX_start(ctx);
+        BIGNUM *bnSecret = BN_CTX_get(ctx);
+        BIGNUM *bnTweak = BN_CTX_get(ctx);
+        BIGNUM *bnOrder = BN_CTX_get(ctx);
+        EC_GROUP *group = EC_GROUP_new_by_curve_name(NID_secp256k1);
+        EC_GROUP_get_order(group, bnOrder, ctx); // what a grossly inefficient way to get the (constant) group order...
+        BN_bin2bn(vchTweak, 32, bnTweak);
+        if (BN_cmp(bnTweak, bnOrder) >= 0)
+            ret = false; // extremely unlikely
+        BN_bin2bn(vchSecretIn, 32, bnSecret);
+        BN_add(bnSecret, bnSecret, bnTweak);
+        BN_nnmod(bnSecret, bnSecret, bnOrder, ctx);
+        if (BN_is_zero(bnSecret))
+            ret = false; // ridiculously unlikely
+        int nBits = BN_num_bits(bnSecret);
+        memset(vchSecretOut, 0, 32);
+        BN_bn2bin(bnSecret, &vchSecretOut[32-(nBits+7)/8]);
+        EC_GROUP_free(group);
+        BN_CTX_end(ctx);
+        BN_CTX_free(ctx);
+        return ret;
+    }
+
+    bool TweakPublic(const unsigned char vchTweak[32]) {
+        bool ret = true;
+        BN_CTX *ctx = BN_CTX_new();
+        BN_CTX_start(ctx);
+        BIGNUM *bnTweak = BN_CTX_get(ctx);
+        BIGNUM *bnOrder = BN_CTX_get(ctx);
+        BIGNUM *bnOne = BN_CTX_get(ctx);
+        const EC_GROUP *group = EC_KEY_get0_group(pkey);
+        EC_GROUP_get_order(group, bnOrder, ctx); // what a grossly inefficient way to get the (constant) group order...
+        BN_bin2bn(vchTweak, 32, bnTweak);
+        if (BN_cmp(bnTweak, bnOrder) >= 0)
+            ret = false; // extremely unlikely
+        EC_POINT *point = EC_POINT_dup(EC_KEY_get0_public_key(pkey), group);
+        BN_one(bnOne);
+        EC_POINT_mul(group, point, bnTweak, point, bnOne, ctx);
+        if (EC_POINT_is_at_infinity(group, point))
+            ret = false; // ridiculously unlikely
+        EC_KEY_set_public_key(pkey, point);
+        EC_POINT_free(point);
+        BN_CTX_end(ctx);
+        BN_CTX_free(ctx);
         return ret;
     }
 };
@@ -340,6 +416,24 @@ bool CKey::SignCompact(const uint256 &hash, std::vector<unsigned char>& vchSig) 
     return true;
 }
 
+bool CKey::Load(CPrivKey &privkey, CPubKey &vchPubKey, bool fSkipCheck=false) {
+    CECKey key;
+    if (!key.SetPrivKey(privkey, fSkipCheck))
+        return false;
+    
+    key.GetSecretBytes(vch);
+    fCompressed = vchPubKey.IsCompressed();
+    fValid = true;
+    
+    if (fSkipCheck)
+        return true;
+    
+    if (GetPubKey() != vchPubKey)
+        return false;
+    
+    return true;
+}
+
 bool CPubKey::Verify(const uint256 &hash, const std::vector<unsigned char>& vchSig) const {
     if (!IsValid())
         return false;
@@ -394,3 +488,143 @@ bool CPubKey::Decompress() {
     key.GetPubKey(*this, false);
     return true;
 }
+
+void static BIP32Hash(const unsigned char chainCode[32], unsigned int nChild, unsigned char header, const unsigned char data[32], unsigned char output[64]) {
+    unsigned char num[4];
+    num[0] = (nChild >> 24) & 0xFF;
+    num[1] = (nChild >> 16) & 0xFF;
+    num[2] = (nChild >>  8) & 0xFF;
+    num[3] = (nChild >>  0) & 0xFF;
+    HMAC_SHA512_CTX ctx;
+    HMAC_SHA512_Init(&ctx, chainCode, 32);
+    HMAC_SHA512_Update(&ctx, &header, 1);
+    HMAC_SHA512_Update(&ctx, data, 32);
+    HMAC_SHA512_Update(&ctx, num, 4);
+    HMAC_SHA512_Final(output, &ctx);
+}
+
+bool CKey::Derive(CKey& keyChild, unsigned char ccChild[32], unsigned int nChild, const unsigned char cc[32]) const {
+    assert(IsValid());
+    assert(IsCompressed());
+    unsigned char out[64];
+    LockObject(out);
+    if ((nChild >> 31) == 0) {
+        CPubKey pubkey = GetPubKey();
+        assert(pubkey.begin() + 33 == pubkey.end());
+        BIP32Hash(cc, nChild, *pubkey.begin(), pubkey.begin()+1, out);
+    } else {
+        assert(begin() + 32 == end());
+        BIP32Hash(cc, nChild, 0, begin(), out);
+    }
+    memcpy(ccChild, out+32, 32);
+    bool ret = CECKey::TweakSecret((unsigned char*)keyChild.begin(), begin(), out);
+    UnlockObject(out);
+    keyChild.fCompressed = true;
+    keyChild.fValid = ret;
+    return ret;
+}
+
+bool CPubKey::Derive(CPubKey& pubkeyChild, unsigned char ccChild[32], unsigned int nChild, const unsigned char cc[32]) const {
+    assert(IsValid());
+    assert((nChild >> 31) == 0);
+    assert(begin() + 33 == end());
+    unsigned char out[64];
+    BIP32Hash(cc, nChild, *begin(), begin()+1, out);
+    memcpy(ccChild, out+32, 32);
+    CECKey key;
+    bool ret = key.SetPubKey(*this);
+    ret &= key.TweakPublic(out);
+    key.GetPubKey(pubkeyChild, true);
+    return ret;
+}
+
+bool CExtKey::Derive(CExtKey &out, unsigned int nChild) const {
+    out.nDepth = nDepth + 1;
+    CKeyID id = key.GetPubKey().GetID();
+    memcpy(&out.vchFingerprint[0], &id, 4);
+    out.nChild = nChild;
+    return key.Derive(out.key, out.vchChainCode, nChild, vchChainCode);
+}
+
+void CExtKey::SetMaster(const unsigned char *seed, unsigned int nSeedLen) {
+    static const char hashkey[] = {'B','i','t','c','o','i','n',' ','s','e','e','d'};
+    HMAC_SHA512_CTX ctx;
+    HMAC_SHA512_Init(&ctx, hashkey, sizeof(hashkey));
+    HMAC_SHA512_Update(&ctx, seed, nSeedLen);
+    unsigned char out[64];
+    LockObject(out);
+    HMAC_SHA512_Final(out, &ctx);
+    key.Set(&out[0], &out[32], true);
+    memcpy(vchChainCode, &out[32], 32);
+    UnlockObject(out);
+    nDepth = 0;
+    nChild = 0;
+    memset(vchFingerprint, 0, sizeof(vchFingerprint));
+}
+
+CExtPubKey CExtKey::Neuter() const {
+    CExtPubKey ret;
+    ret.nDepth = nDepth;
+    memcpy(&ret.vchFingerprint[0], &vchFingerprint[0], 4);
+    ret.nChild = nChild;
+    ret.pubkey = key.GetPubKey();
+    memcpy(&ret.vchChainCode[0], &vchChainCode[0], 32);
+    return ret;
+}
+
+void CExtKey::Encode(unsigned char code[74]) const {
+    code[0] = nDepth;
+    memcpy(code+1, vchFingerprint, 4);
+    code[5] = (nChild >> 24) & 0xFF; code[6] = (nChild >> 16) & 0xFF;
+    code[7] = (nChild >>  8) & 0xFF; code[8] = (nChild >>  0) & 0xFF;
+    memcpy(code+9, vchChainCode, 32);
+    code[41] = 0;
+    assert(key.size() == 32);
+    memcpy(code+42, key.begin(), 32);
+}
+
+void CExtKey::Decode(const unsigned char code[74]) {
+    nDepth = code[0];
+    memcpy(vchFingerprint, code+1, 4);
+    nChild = (code[5] << 24) | (code[6] << 16) | (code[7] << 8) | code[8];
+    memcpy(vchChainCode, code+9, 32);
+    key.Set(code+42, code+74, true);
+}
+
+void CExtPubKey::Encode(unsigned char code[74]) const {
+    code[0] = nDepth;
+    memcpy(code+1, vchFingerprint, 4);
+    code[5] = (nChild >> 24) & 0xFF; code[6] = (nChild >> 16) & 0xFF;
+    code[7] = (nChild >>  8) & 0xFF; code[8] = (nChild >>  0) & 0xFF;
+    memcpy(code+9, vchChainCode, 32);
+    assert(pubkey.size() == 33);
+    memcpy(code+41, pubkey.begin(), 33);
+}
+
+void CExtPubKey::Decode(const unsigned char code[74]) {
+    nDepth = code[0];
+    memcpy(vchFingerprint, code+1, 4);
+    nChild = (code[5] << 24) | (code[6] << 16) | (code[7] << 8) | code[8];
+    memcpy(vchChainCode, code+9, 32);
+    pubkey.Set(code+41, code+74);
+}
+
+bool CExtPubKey::Derive(CExtPubKey &out, unsigned int nChild) const {
+    out.nDepth = nDepth + 1;
+    CKeyID id = pubkey.GetID();
+    memcpy(&out.vchFingerprint[0], &id, 4);
+    out.nChild = nChild;
+    return pubkey.Derive(out.pubkey, out.vchChainCode, nChild, vchChainCode);
+}
+
+bool ECC_InitSanityCheck() {
+    EC_KEY *pkey = EC_KEY_new_by_curve_name(NID_secp256k1);
+    if(pkey == NULL)
+        return false;
+    EC_KEY_free(pkey);
+
+    // TODO Is there more EC functionality that could be missing?
+    return true;
+}
+
+

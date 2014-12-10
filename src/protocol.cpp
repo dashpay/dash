@@ -1,38 +1,15 @@
 // Copyright (c) 2009-2010 Satoshi Nakamoto
-// Copyright (c) 2009-2012 The Bitcoin developers
+// Copyright (c) 2009-2014 The Bitcoin developers
 // Distributed under the MIT/X11 software license, see the accompanying
 // file COPYING or http://www.opensource.org/licenses/mit-license.php.
 
 #include "protocol.h"
+
 #include "util.h"
-#include "netbase.h"
-#include "main.h"
 
 #ifndef WIN32
 # include <arpa/inet.h>
 #endif
-
-
-// The message start string is designed to be unlikely to occur in normal data.
-// The characters are rarely used upper ascii, not valid as UTF-8, and produce
-// a large 4-byte int at any alignment.
-// Public testnet message start
-static unsigned char pchMessageStartTestOld[4] = { 0xfc, 0xc1, 0xb7, 0xdc };
-static unsigned char pchMessageStartTestNew[4] = { 0xce, 0xe2, 0xca, 0xff };
-static unsigned int nMessageStartTestSwitchTime = 1398869551+(60*5);
-
-// Darkcoin message start (switch from Litecoin's)
-static unsigned char pchMessageStartLitecoin[4] = { 0xfb, 0xc0, 0xb6, 0xdb };
-static unsigned char pchMessageStartDarkcoin[4] = { 0xbf, 0x0c, 0x6b, 0xbd };
-static unsigned int nMessageStartSwitchTime = 1400094580; //Wed, 14 May 2014 19:09:40 GMT
-
-void GetMessageStart(unsigned char pchMessageStart[], bool fPersistent)
-{
-    if (fTestNet)
-        memcpy(pchMessageStart, (fPersistent || GetAdjustedTime() > nMessageStartTestSwitchTime)? pchMessageStartTestNew : pchMessageStartTestOld, sizeof(pchMessageStartTestNew));
-    else
-        memcpy(pchMessageStart, (fPersistent || GetAdjustedTime() > nMessageStartSwitchTime)? pchMessageStartDarkcoin : pchMessageStartLitecoin, sizeof(pchMessageStartDarkcoin));
-}
 
 static const char* ppszTypeName[] =
 {
@@ -44,7 +21,7 @@ static const char* ppszTypeName[] =
 
 CMessageHeader::CMessageHeader()
 {
-    GetMessageStart(pchMessageStart);
+    memcpy(pchMessageStart, Params().MessageStart(), MESSAGE_START_SIZE);
     memset(pchCommand, 0, sizeof(pchCommand));
     pchCommand[1] = 1;
     nMessageSize = -1;
@@ -53,7 +30,7 @@ CMessageHeader::CMessageHeader()
 
 CMessageHeader::CMessageHeader(const char* pszCommand, unsigned int nMessageSizeIn)
 {
-    GetMessageStart(pchMessageStart);
+    memcpy(pchMessageStart, Params().MessageStart(), MESSAGE_START_SIZE);
     strncpy(pchCommand, pszCommand, COMMAND_SIZE);
     nMessageSize = nMessageSizeIn;
     nChecksum = 0;
@@ -69,10 +46,8 @@ std::string CMessageHeader::GetCommand() const
 
 bool CMessageHeader::IsValid() const
 {
-    // Check start string  
-    unsigned char pchMessageStartProtocol[4];
-    GetMessageStart(pchMessageStartProtocol);
-    if (memcmp(pchMessageStart, pchMessageStartProtocol, sizeof(pchMessageStart)) != 0)
+    // Check start string
+    if (memcmp(pchMessageStart, Params().MessageStart(), MESSAGE_START_SIZE) != 0)
         return false;
 
     // Check the command string for errors
@@ -92,7 +67,7 @@ bool CMessageHeader::IsValid() const
     // Message size
     if (nMessageSize > MAX_SIZE)
     {
-        LogPrintf("CMessageHeader::IsValid() : (%s, %u bytes) nMessageSize > MAX_SIZE\n", GetCommand().c_str(), nMessageSize);
+        LogPrintf("CMessageHeader::IsValid() : (%s, %u bytes) nMessageSize > MAX_SIZE\n", GetCommand(), nMessageSize);
         return false;
     }
 
@@ -106,7 +81,7 @@ CAddress::CAddress() : CService()
     Init();
 }
 
-CAddress::CAddress(CService ipIn, uint64 nServicesIn) : CService(ipIn)
+CAddress::CAddress(CService ipIn, uint64_t nServicesIn) : CService(ipIn)
 {
     Init();
     nServices = nServicesIn;
@@ -143,7 +118,7 @@ CInv::CInv(const std::string& strType, const uint256& hashIn)
         }
     }
     if (i == ARRAYLEN(ppszTypeName))
-        throw std::out_of_range(strprintf("CInv::CInv(string, uint256) : unknown type '%s'", strType.c_str()));
+        throw std::out_of_range(strprintf("CInv::CInv(string, uint256) : unknown type '%s'", strType));
     hash = hashIn;
 }
 
@@ -166,11 +141,11 @@ const char* CInv::GetCommand() const
 
 std::string CInv::ToString() const
 {
-    return strprintf("%s %s", GetCommand(), hash.ToString().c_str());
+    return strprintf("%s %s", GetCommand(), hash.ToString());
 }
 
 void CInv::print() const
 {
-    LogPrintf("CInv(%s)\n", ToString().c_str());
+    LogPrintf("CInv(%s)\n", ToString());
 }
 
