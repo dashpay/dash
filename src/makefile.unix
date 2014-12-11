@@ -127,6 +127,7 @@ OBJS= \
     obj/init.o \
     obj/core.o \
     obj/masternode.o \
+    obj/masternodeconfig.o \
     obj/activemasternode.o \
     obj/instantx.o \
     obj/keystore.o \

@@ -12,6 +12,7 @@
 #include "ui_interface.h"
 #include "checkpointsync.h"
 #include "activemasternode.h"
+#include "masternodeconfig.h"
 
 #include <boost/filesystem.hpp>
 #include <boost/filesystem/fstream.hpp>
@@ -197,6 +198,10 @@ bool AppInit(int argc, char* argv[])
             fprintf(stdout, "%s", strUsage.c_str());
             return false;
         }
+
+        // Process masternode config
+        masternodeConfig.read(GetMasternodeConfigFile());
+
 
         // Command-line RPC
         for (int i = 1; i < argc; i++)
@@ -384,7 +389,8 @@ std::string HelpMessage()
 
         "\n" + _("Masternode options:") + "\n" +
         "  -masternode=<n>      "   + _("Enable the client to act as a masternode (0-1, default: 0)") + "\n" +
-        "  -masternodeprivkey=<n>      "   + _("Set the masternode private key") + "\n" +
+        "  -mnconf=<file>           " + _("Specify masternode configuration file (default: masternode.conf)") + "\n" +
+		"  -masternodeprivkey=<n>      "   + _("Set the masternode private key") + "\n" +
         "  -masternodeaddr=<n> "   + _("Set external address:port to get to this masternode (example: address:port)") + "\n" +
         "  -masternodeminprotocol=<n> " + _("Ignore masternodes less than version (example: 70050; default : 0)") + "\n" +
 
@@ -1237,7 +1243,7 @@ bool AppInit2(boost::thread_group& threadGroup)
                 return InitError(_("Invalid masternodeprivkey. Please see documenation."));
             }
 
-            activeMasternode.pubkeyMasterNode2 = pubkey;
+            activeMasternode.pubKeyMasternode = pubkey;
 
         } else {
             return InitError(_("You must specify a masternodeprivkey in the configuration. Please see documentation for help."));
