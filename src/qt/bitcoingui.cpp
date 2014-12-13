@@ -644,7 +644,7 @@ void BitcoinGUI::setNumBlocks(int count)
             break;
         case BLOCK_SOURCE_NONE:
             // Case: not Importing, not Reindexing and no network connection
-            progressBarLabel->setText(tr("No block source available..."));
+            progressBarLabel->setText(tr("No local block source available, synchronizing with network..."));
             break;
     }
 
