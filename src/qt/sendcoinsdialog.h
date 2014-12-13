@@ -50,6 +50,7 @@ private:
     bool fNewRecipientAllowed;
     bool boolCheckedBalance;
     int cachedNumBlocks;
+    void send(QList<SendCoinsRecipient> recipients);
 
 private slots:
     void on_sendButton_clicked();
