@@ -1354,7 +1354,7 @@ Value walletpassphrase(const Array& params, bool fHelp)
 {
     if (pwalletMain->IsCrypted() && (fHelp || params.size() < 2 || params.size() > 3))
         throw runtime_error(
-            "walletpassphrase <passphrase> <timeout> [anonymizenonly]\n"
+            "walletpassphrase <passphrase> <timeout> [anonymizenonly=false]\n"
             "Stores the wallet decryption key in memory for <timeout> seconds.\n"
             "if [anonymizeonly] is true sending functions are disabled.");
     if (fHelp)
@@ -1388,7 +1388,7 @@ Value walletpassphrase(const Array& params, bool fHelp)
     }
     else
         throw runtime_error(
-                "walletpassphrase <passphrase> <timeout> [anonymizeonly]\n"
+                "walletpassphrase <passphrase> <timeout> [anonymizeonly=false]\n"
                 "Stores the wallet decryption key in memory for <timeout> seconds.\n"
                 "if [anonymizeonly] is true sending functions are disabled.");
 
