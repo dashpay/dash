@@ -1200,6 +1200,23 @@ static void ApproximateBestSubset(vector<pair<int64, pair<const CWalletTx*,unsig
     }
 }
 
+// TODO: find appropriate place for this sort function
+// move denoms down
+bool less_then_denom (const COutput& out1, const COutput& out2)
+{
+    const CWalletTx *pcoin1 = out1.tx;
+    const CWalletTx *pcoin2 = out2.tx;
+
+    bool found1 = false;
+    bool found2 = false;
+    BOOST_FOREACH(int64 d, darkSendDenominations) // loop through predefined denoms
+    {
+        if(pcoin1->vout[out1.i].nValue == d) found1 = true;
+        if(pcoin2->vout[out2.i].nValue == d) found2 = true;
+    }
+    return (!found1 && found2);
+}
+
 bool CWallet::SelectCoinsMinConf(int64 nTargetValue, int nConfMine, int nConfTheirs, vector<COutput> vCoins,
                                  set<pair<const CWalletTx*,unsigned int> >& setCoinsRet, int64& nValueRet) const
 {
@@ -1215,6 +1232,9 @@ bool CWallet::SelectCoinsMinConf(int64 nTargetValue, int nConfMine, int nConfThe
 
     random_shuffle(vCoins.begin(), vCoins.end(), GetRandInt);
 
+    // move denoms down on the list
+    sort(vCoins.begin(), vCoins.end(), less_then_denom);
+
     // try to find nondenom first to prevent unneeded spending of mixed coins
     for (unsigned int tryDenom = 0; tryDenom < 2; tryDenom++)
     {
@@ -1227,21 +1247,21 @@ bool CWallet::SelectCoinsMinConf(int64 nTargetValue, int nConfMine, int nConfThe
         {
             const CWalletTx *pcoin = output.tx;
 
+//            if (fDebug) LogPrintf("value %s confirms %d\n", FormatMoney(pcoin->vout[output.i].nValue).c_str(), output.nDepth);
             if (output.nDepth < (pcoin->IsFromMe() ? nConfMine : nConfTheirs))
                 continue;
 
-            if (tryDenom == 0) {
-                CTxIn vin = CTxIn(output.tx->GetHash(), output.i);
-                int rounds = GetInputDarksendRounds(vin);
-                if(rounds >= 0) {
-                    if (fDebug) LogPrintf("REJECT tryDenom %d rounds %d value %s\n", tryDenom, rounds, FormatMoney(pcoin->vout[output.i].nValue).c_str());
-                    continue;
-                }
-                if (fDebug) LogPrintf("ACCEPT tryDenom %d rounds %d value %s\n", tryDenom, rounds, FormatMoney(pcoin->vout[output.i].nValue).c_str());
-            }
-
             int i = output.i;
             int64 n = pcoin->vout[i].nValue;
+
+            if (tryDenom == 0) // first run?
+            {
+                bool found = false;
+                BOOST_FOREACH(int64 d, darkSendDenominations) // loop through predefined denoms
+                    if(n == d)
+                        found = true;
+                if (found) continue; // we don't want denom values on first run
+            }
 
             pair<int64,pair<const CWalletTx*,unsigned int> > coin = make_pair(n,make_pair(pcoin, i));
 
