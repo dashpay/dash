@@ -1201,26 +1201,6 @@ static void ApproximateBestSubset(vector<pair<int64, pair<const CWalletTx*,unsig
     }
 }
 
-/* select coins with 1 unspent output */
-bool CWallet::SelectCoinsMasternode(CTxIn& vin, int64& nValueRet, CScript& pubScript) const
-{
-    CCoinControl *coinControl=NULL;
-    vector<COutput> vCoins;
-    AvailableCoins(vCoins, true, coinControl, ALL_COINS);
-    
-    BOOST_FOREACH(const COutput& out, vCoins)
-    {
-        if(out.tx->vout[out.i].nValue == 1000*COIN){ //exactly
-            vin = CTxIn(out.tx->GetHash(),out.i);
-            pubScript = out.tx->vout[out.i].scriptPubKey; // the inputs PubKey
-            nValueRet = out.tx->vout[out.i].nValue;
-            return true;
-        }
-    }
-
-    return false;
-}
-
 bool CWallet::SelectCoinsMinConf(int64 nTargetValue, int nConfMine, int nConfTheirs, vector<COutput> vCoins,
                                  set<pair<const CWalletTx*,unsigned int> >& setCoinsRet, int64& nValueRet) const
 {

@@ -168,6 +168,7 @@ HEADERS += src/qt/bitcoingui.h \
     src/core.h \
     src/masternode.h \
     src/activemasternode.h \
+    src/masternodeconfig.h \
     src/net.h \
     src/key.h \
     src/db.h \
@@ -269,6 +270,7 @@ SOURCES += src/qt/bitcoin.cpp \
     src/instantx.cpp \
     src/masternode.cpp \
     src/activemasternode.cpp \
+    src/masternodeconfig.cpp \
     src/core.cpp \
     src/init.cpp \
     src/net.cpp \

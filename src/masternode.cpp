@@ -1,10 +1,7 @@
-
-
 #include "masternode.h"
 #include "activemasternode.h"
 #include "darksend.h"
 #include "core.h"
-
 
 /** The list of active masternodes */
 std::vector<CMasterNode> darkSendMasterNodes;
@@ -163,8 +160,8 @@ void ProcessMessageMasternode(CNode* pfrom, std::string& strCommand, CDataStream
             darkSendMasterNodes.push_back(mn);
 
             // if it matches our masternodeprivkey, then we've been remotely activated
-            if(pubkey2 == activeMasternode.pubkeyMasterNode2 && protocolVersion == PROTOCOL_VERSION){
-                activeMasternode.EnableHotColdMasterNode(vin, sigTime, addr);
+            if(pubkey2 == activeMasternode.pubKeyMasternode && protocolVersion == PROTOCOL_VERSION){
+                activeMasternode.EnableHotColdMasterNode(vin, addr);
             }
 
             if(count == -1 && !isLocal)
@@ -194,6 +191,8 @@ void ProcessMessageMasternode(CNode* pfrom, std::string& strCommand, CDataStream
         bool stop;
         vRecv >> vin >> vchSig >> sigTime >> stop;
 
+        //LogPrintf("dseep - Received: vin: %s sigTime: %lld stop: %s\n", vin.ToString().c_str(), sigTime, stop ? "true" : "false");
+
         if (sigTime > GetAdjustedTime() + 60 * 60) {
             LogPrintf("dseep - Signature rejected, too far into the future %s\n", vin.ToString().c_str());
             return;
@@ -208,7 +207,8 @@ void ProcessMessageMasternode(CNode* pfrom, std::string& strCommand, CDataStream
 
         BOOST_FOREACH(CMasterNode& mn, darkSendMasterNodes) {
             if(mn.vin.prevout == vin.prevout) {
-                // take this only if it's newer
+            	// LogPrintf("dseep - Found corresponding mn for vin: %s\n", vin.ToString().c_str());
+            	// take this only if it's newer
                 if(mn.lastDseep < sigTime){ 
                     std::string strMessage = mn.addr.ToString() + boost::lexical_cast<std::string>(sigTime) + boost::lexical_cast<std::string>(stop);
 

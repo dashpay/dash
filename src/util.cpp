@@ -73,8 +73,6 @@ map<string, vector<string> > mapMultiArgs;
 bool fMasterNode = false;
 string strMasterNodePrivKey = "";
 string strMasterNodeAddr = "";
-string strWalletFile = "wallet.dat";
-string strDebugFile = "debug.log";
 int nInstantXDepth = 1;
 int nDarksendRounds = 2;
 int nAnonymizeDarkcoinAmount = 1000;
@@ -252,7 +250,7 @@ static void DebugPrintInit()
     assert(fileout == NULL);
     assert(mutexDebugLog == NULL);
 
-    boost::filesystem::path pathDebug = GetDataDir() / strDebugFile;
+    boost::filesystem::path pathDebug = GetDataDir() / "debug.log";
     fileout = fopen(pathDebug.string().c_str(), "a");
     if (fileout) setbuf(fileout, NULL); // unbuffered
 
@@ -289,7 +287,7 @@ int LogPrint(const char* category, const char* pszFormat, ...)
         // reopen the log file, if requested
         if (fReopenDebugLog) {
             fReopenDebugLog = false;
-            boost::filesystem::path pathDebug = GetDataDir() / strDebugFile;
+            boost::filesystem::path pathDebug = GetDataDir() / "debug.log";
             if (freopen(pathDebug.string().c_str(),"a",fileout) != NULL)
                 setbuf(fileout, NULL); // unbuffered
         }
@@ -1129,6 +1127,13 @@ boost::filesystem::path GetConfigFile()
     return pathConfigFile;
 }
 
+boost::filesystem::path GetMasternodeConfigFile()
+{
+    boost::filesystem::path pathConfigFile(GetArg("-mnconf", "masternode.conf"));
+    if (!pathConfigFile.is_complete()) pathConfigFile = GetDataDir(false) / pathConfigFile;
+    return pathConfigFile;
+}
+
 void ReadConfigFile(map<string, string>& mapSettingsRet,
                     map<string, vector<string> >& mapMultiSettingsRet)
 {
@@ -1289,7 +1294,7 @@ void AllocateFileRange(FILE *file, unsigned int offset, unsigned int length) {
 void ShrinkDebugFile()
 {
     // Scroll debug.log if it's getting too big
-    boost::filesystem::path pathLog = GetDataDir() / strDebugFile;
+    boost::filesystem::path pathLog = GetDataDir() / "debug.log";
     FILE* file = fopen(pathLog.string().c_str(), "r");
     if (file && GetFilesize(file) > 10 * 1000000)
     {

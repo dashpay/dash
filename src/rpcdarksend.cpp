@@ -9,12 +9,10 @@
 #include "init.h"
 #include "masternode.h"
 #include "activemasternode.h"
+#include "masternodeconfig.h"
 #include "bitcoinrpc.h"
 
-#include <fstream>
 using namespace json_spirit;
-using namespace std;
-
 
 
 Value darksend(const Array& params, bool fHelp)
@@ -25,10 +23,10 @@ Value darksend(const Array& params, bool fHelp)
             "darkcoinaddress, reset, or auto (AutoDenominate)"
             "<amount> is a real and is rounded to the nearest 0.00000001"
             + HelpRequiringPassphrase());
-    
+
     if(fMasterNode)
         return "DarkSend is not supported from masternodes";
-    
+
     if (pwalletMain->IsLocked())
         throw JSONRPCError(RPC_WALLET_UNLOCK_NEEDED, "Error: Please enter the wallet passphrase with walletpassphrase first.");
 
@@ -75,7 +73,7 @@ Value getpoolinfo(const Array& params, bool fHelp)
             "Returns an object containing anonymous pool-related information.");
 
     Object obj;
-    obj.push_back(Pair("connected_to_masternode",        activeMasternode.masterNodeAddr));
+    obj.push_back(Pair("connected_to_masternode",        activeMasternode.service.ToString()));
     obj.push_back(Pair("current_masternode",        GetCurrentMasterNode()));
     obj.push_back(Pair("state",        darkSendPool.GetState()));
     obj.push_back(Pair("entries",      darkSendPool.GetEntriesCount()));
@@ -90,10 +88,10 @@ Value masternode(const Array& params, bool fHelp)
         strCommand = params[0].get_str();
 
     if (fHelp  ||
-        (strCommand != "start" && strCommand != "start-many" && strCommand != "stop" && strCommand != "list" && strCommand != "count"  && strCommand != "enforce"
-            && strCommand != "debug" && strCommand != "current" && strCommand != "winners" && strCommand != "genkey" && strCommand != "connect"))
+        (strCommand != "start" && strCommand != "start-alias" && strCommand != "start-many" && strCommand != "stop" && strCommand != "stop-alias" && strCommand != "stop-many" && strCommand != "list" && strCommand != "list-conf" && strCommand != "count"  && strCommand != "enforce"
+            && strCommand != "debug" && strCommand != "current" && strCommand != "winners" && strCommand != "genkey" && strCommand != "connect" && strCommand != "outputs"))
         throw runtime_error(
-            "masternode <start|start-many|stop|list|count|debug|current|winners|genkey|enforce> passphrase\n");
+            "masternode <start|start-alias|start-many|stop|stop-alias|stop-many|list|list-conf|count|debug|current|winners|genkey|enforce|outputs> [passphrase]\n");
 
     if (strCommand == "stop")
     {
@@ -109,23 +107,134 @@ Value masternode(const Array& params, bool fHelp)
                 throw runtime_error(
                     "Your wallet is locked, passphrase is required\n");
             }
-            
+
             if(!pwalletMain->Unlock(strWalletPass)){
                 return "incorrect passphrase";
             }
         }
 
-        activeMasternode.RegisterAsMasterNode(true);
+        std::string errorMessage;
+        if(!activeMasternode.StopMasterNode(errorMessage)) {
+        	return "stop failed: " + errorMessage;
+        }
         pwalletMain->Lock();
-        
-        if(activeMasternode.isCapableMasterNode == MASTERNODE_STOPPED) return "successfully stopped masternode";
-        if(activeMasternode.isCapableMasterNode == MASTERNODE_NOT_CAPABLE) return "not capable masternode";
-        
+
+        if(activeMasternode.status == MASTERNODE_STOPPED) return "successfully stopped masternode";
+        if(activeMasternode.status == MASTERNODE_NOT_CAPABLE) return "not capable masternode";
+
         return "unknown";
     }
 
+    if (strCommand == "stop-alias")
+    {
+	    if (params.size() < 2){
+			throw runtime_error(
+			"command needs at least 2 parameters\n");
+	    }
+
+	    std::string alias = params[1].get_str().c_str();
+
+    	if(pwalletMain->IsLocked()) {
+    		SecureString strWalletPass;
+    	    strWalletPass.reserve(100);
+
+			if (params.size() == 3){
+				strWalletPass = params[2].get_str().c_str();
+			} else {
+				throw runtime_error(
+				"Your wallet is locked, passphrase is required\n");
+			}
+
+			if(!pwalletMain->Unlock(strWalletPass)){
+				return "incorrect passphrase";
+			}
+        }
+
+    	bool found = false;
+
+		Object statusObj;
+		statusObj.push_back(Pair("alias", alias));
+
+    	BOOST_FOREACH(CMasternodeConfig::CMasternodeEntry mne, masternodeConfig.getEntries()) {
+    		if(mne.getAlias() == alias) {
+    			found = true;
+    			std::string errorMessage;
+    			bool result = activeMasternode.StopMasterNode(mne.getIp(), mne.getPrivKey(), errorMessage);
+
+				statusObj.push_back(Pair("result", result ? "successful" : "failed"));
+    			if(!result) {
+   					statusObj.push_back(Pair("errorMessage", errorMessage));
+   				}
+    			break;
+    		}
+    	}
+
+    	if(!found) {
+    		statusObj.push_back(Pair("result", "failed"));
+    		statusObj.push_back(Pair("errorMessage", "could not find alias in config. Verify with list-conf."));
+    	}
+
+    	pwalletMain->Lock();
+    	return statusObj;
+    }
+
+    if (strCommand == "stop-many")
+    {
+    	if(pwalletMain->IsLocked()) {
+			SecureString strWalletPass;
+			strWalletPass.reserve(100);
+
+			if (params.size() == 2){
+				strWalletPass = params[1].get_str().c_str();
+			} else {
+				throw runtime_error(
+				"Your wallet is locked, passphrase is required\n");
+			}
+
+			if(!pwalletMain->Unlock(strWalletPass)){
+				return "incorrect passphrase";
+			}
+		}
+
+		int total = 0;
+		int successful = 0;
+		int fail = 0;
+
+
+		Object resultsObj;
+
+		BOOST_FOREACH(CMasternodeConfig::CMasternodeEntry mne, masternodeConfig.getEntries()) {
+			total++;
+
+			std::string errorMessage;
+			bool result = activeMasternode.StopMasterNode(mne.getIp(), mne.getPrivKey(), errorMessage);
+
+			Object statusObj;
+			statusObj.push_back(Pair("alias", mne.getAlias()));
+			statusObj.push_back(Pair("result", result ? "successful" : "failed"));
+
+			if(result) {
+				successful++;
+			} else {
+				fail++;
+				statusObj.push_back(Pair("errorMessage", errorMessage));
+			}
+
+			resultsObj.push_back(Pair("status", statusObj));
+		}
+		pwalletMain->Lock();
+
+		Object returnObj;
+		returnObj.push_back(Pair("overall", "Successfully stopped " + boost::lexical_cast<std::string>(successful) + " masternodes, failed to stop " +
+				boost::lexical_cast<std::string>(fail) + ", total " + boost::lexical_cast<std::string>(total)));
+		returnObj.push_back(Pair("detail", resultsObj));
+
+		return returnObj;
+
+    }
+
     if (strCommand == "list")
-    {                
+    {
         std::string strCommand = "active";
 
         if (params.size() == 2){
@@ -139,7 +248,7 @@ Value masternode(const Array& params, bool fHelp)
 
         Object obj;
         BOOST_FOREACH(CMasterNode mn, darkSendMasterNodes) {
-            mn.Check();   
+            mn.Check();
 
             if(strCommand == "active"){
                 obj.push_back(Pair(mn.addr.ToString().c_str(),       (int)mn.IsEnabled()));
@@ -181,63 +290,146 @@ Value masternode(const Array& params, bool fHelp)
                 throw runtime_error(
                     "Your wallet is locked, passphrase is required\n");
             }
-            
+
             if(!pwalletMain->Unlock(strWalletPass)){
                 return "incorrect passphrase";
             }
         }
 
-        activeMasternode.RegisterAsMasterNode(false);
+        activeMasternode.status = MASTERNODE_NOT_PROCESSED; // TODO: consider better way
+        std::string errorMessage;
+        activeMasternode.ManageStatus();
         pwalletMain->Lock();
-        
-        if(activeMasternode.isCapableMasterNode == MASTERNODE_REMOTELY_ENABLED) return "masternode started remotely";
-        if(activeMasternode.isCapableMasterNode == MASTERNODE_INPUT_TOO_NEW) return "masternode input must have at least 15 confirmations";
-        if(activeMasternode.isCapableMasterNode == MASTERNODE_STOPPED) return "masternode is stopped";
-        if(activeMasternode.isCapableMasterNode == MASTERNODE_IS_CAPABLE) return "successfully started masternode";
-        if(activeMasternode.masternodePortOpen == MASTERNODE_PORT_NOT_OPEN) return "inbound port is not open. Please open it and try again. (19999 for testnet and 9999 for mainnet)";
-        if(activeMasternode.isCapableMasterNode == MASTERNODE_NOT_CAPABLE) return "not capable masternode";
-        if(activeMasternode.isCapableMasterNode == MASTERNODE_SYNC_IN_PROCESS) return "sync in process. Must wait until client is synced to start.";
+
+        if(activeMasternode.status == MASTERNODE_REMOTELY_ENABLED) return "masternode started remotely";
+        if(activeMasternode.status == MASTERNODE_INPUT_TOO_NEW) return "masternode input must have at least 15 confirmations";
+        if(activeMasternode.status == MASTERNODE_STOPPED) return "masternode is stopped";
+        if(activeMasternode.status == MASTERNODE_IS_CAPABLE) return "successfully started masternode";
+        if(activeMasternode.status == MASTERNODE_NOT_CAPABLE) return "not capable masternode: " + activeMasternode.notCapableReason;
+        if(activeMasternode.status == MASTERNODE_SYNC_IN_PROCESS) return "sync in process. Must wait until client is synced to start.";
 
         return "unknown";
     }
-    
-    if (strCommand == "start-many")
-    {        
-        boost::filesystem::path pathDebug = GetDataDir() / "masternode.conf";
-        std::ifstream infile(pathDebug.string().c_str());
 
-        std::string line;
-        int total = 0;
-        int successful = 0;
-        int fail = 0;
-        while (std::getline(infile, line))
-        {
-            std::istringstream iss(line);
-            std::string a, b;
-            if (!(iss >> a >> b)) { break; } // error
+    if (strCommand == "start-alias")
+    {
+	    if (params.size() < 2){
+			throw runtime_error(
+			"command needs at least 2 parameters\n");
+	    }
 
-            total++;
-            if(activeMasternode.RegisterAsMasterNodeRemoteOnly(a, b)){
-                successful++;
-            } else {
-                fail++;
-            }
+	    std::string alias = params[1].get_str().c_str();
+
+    	if(pwalletMain->IsLocked()) {
+    		SecureString strWalletPass;
+    	    strWalletPass.reserve(100);
+
+			if (params.size() == 3){
+				strWalletPass = params[2].get_str().c_str();
+			} else {
+				throw runtime_error(
+				"Your wallet is locked, passphrase is required\n");
+			}
+
+			if(!pwalletMain->Unlock(strWalletPass)){
+				return "incorrect passphrase";
+			}
         }
-        
-        printf(" Successfully started %d masternodes, failed to start %d, total %d\n", successful, fail, total);
-        return "";
+
+    	bool found = false;
+
+		Object statusObj;
+		statusObj.push_back(Pair("alias", alias));
+
+    	BOOST_FOREACH(CMasternodeConfig::CMasternodeEntry mne, masternodeConfig.getEntries()) {
+    		if(mne.getAlias() == alias) {
+    			found = true;
+    			std::string errorMessage;
+    			bool result = activeMasternode.Register(mne.getIp(), mne.getPrivKey(), mne.getTxHash(), mne.getOutputIndex(), errorMessage);
+
+    			statusObj.push_back(Pair("result", result ? "successful" : "failed"));
+    			if(!result) {
+					statusObj.push_back(Pair("errorMessage", errorMessage));
+				}
+    			break;
+    		}
+    	}
+
+    	if(!found) {
+    		statusObj.push_back(Pair("result", "failed"));
+    		statusObj.push_back(Pair("errorMessage", "could not find alias in config. Verify with list-conf."));
+    	}
+
+    	pwalletMain->Lock();
+    	return statusObj;
+
+    }
+
+    if (strCommand == "start-many")
+    {
+    	if(pwalletMain->IsLocked()) {
+			SecureString strWalletPass;
+			strWalletPass.reserve(100);
+
+			if (params.size() == 2){
+				strWalletPass = params[1].get_str().c_str();
+			} else {
+				throw runtime_error(
+				"Your wallet is locked, passphrase is required\n");
+			}
+
+			if(!pwalletMain->Unlock(strWalletPass)){
+				return "incorrect passphrase";
+			}
+		}
+
+		std::vector<CMasternodeConfig::CMasternodeEntry> mnEntries;
+		mnEntries = masternodeConfig.getEntries();
+
+		int total = 0;
+		int successful = 0;
+		int fail = 0;
+
+		Object resultsObj;
+
+		BOOST_FOREACH(CMasternodeConfig::CMasternodeEntry mne, masternodeConfig.getEntries()) {
+			total++;
+
+			std::string errorMessage;
+			bool result = activeMasternode.Register(mne.getIp(), mne.getPrivKey(), mne.getTxHash(), mne.getOutputIndex(), errorMessage);
+
+			Object statusObj;
+			statusObj.push_back(Pair("alias", mne.getAlias()));
+			statusObj.push_back(Pair("result", result ? "succesful" : "failed"));
+
+			if(result) {
+				successful++;
+			} else {
+				fail++;
+				statusObj.push_back(Pair("errorMessage", errorMessage));
+			}
+
+			resultsObj.push_back(Pair("status", statusObj));
+		}
+		pwalletMain->Lock();
+
+		Object returnObj;
+		returnObj.push_back(Pair("overall", "Successfully started " + boost::lexical_cast<std::string>(successful) + " masternodes, failed to start " +
+				boost::lexical_cast<std::string>(fail) + ", total " + boost::lexical_cast<std::string>(total)));
+		returnObj.push_back(Pair("detail", resultsObj));
+
+		return returnObj;
 
     }
 
     if (strCommand == "debug")
     {
-        if(activeMasternode.isCapableMasterNode == MASTERNODE_REMOTELY_ENABLED) return "masternode started remotely";
-        if(activeMasternode.isCapableMasterNode == MASTERNODE_INPUT_TOO_NEW) return "masternode input must have at least 15 confirmations";
-        if(activeMasternode.isCapableMasterNode == MASTERNODE_IS_CAPABLE) return "successfully started masternode";
-        if(activeMasternode.isCapableMasterNode == MASTERNODE_STOPPED) return "masternode is stopped";
-        if(activeMasternode.masternodePortOpen == MASTERNODE_PORT_NOT_OPEN) return "inbound port is not open. Please open it and try again. (19999 for testnet and 9999 for mainnet)";
-        if(activeMasternode.isCapableMasterNode == MASTERNODE_NOT_CAPABLE) return "not capable masternode";
-        if(activeMasternode.isCapableMasterNode == MASTERNODE_SYNC_IN_PROCESS) return "sync in process. Must wait until client is synced to start.";
+        if(activeMasternode.status == MASTERNODE_REMOTELY_ENABLED) return "masternode started remotely";
+        if(activeMasternode.status == MASTERNODE_INPUT_TOO_NEW) return "masternode input must have at least 15 confirmations";
+        if(activeMasternode.status == MASTERNODE_IS_CAPABLE) return "successfully started masternode";
+        if(activeMasternode.status == MASTERNODE_STOPPED) return "masternode is stopped";
+        if(activeMasternode.status == MASTERNODE_NOT_CAPABLE) return "not capable masternode: " + activeMasternode.notCapableReason;
+        if(activeMasternode.status == MASTERNODE_SYNC_IN_PROCESS) return "sync in process. Must wait until client is synced to start.";
 
         CTxIn vin = CTxIn();
         CPubKey pubkey = CScript();
@@ -250,9 +442,22 @@ Value masternode(const Array& params, bool fHelp)
         }
     }
 
+    if (strCommand == "outputs"){
+        // Find possible candidates
+        vector<COutput> possibleCoins = activeMasternode.SelectCoinsMasternode();
+
+        Object obj;
+        BOOST_FOREACH(COutput& out, possibleCoins) {
+            obj.push_back(Pair(out.tx->GetHash().ToString().c_str(), boost::lexical_cast<std::string>(out.i)));
+        }
+
+        return obj;
+
+    }
+
     if (strCommand == "create")
     {
-        
+
         return "Not implemented yet, please look at the documentation for instructions on masternode creation";
     }
 
@@ -267,7 +472,7 @@ Value masternode(const Array& params, bool fHelp)
     }
 
     if (strCommand == "genkey")
-    {    
+    {
         CKey secret;
         secret.MakeNewKey(false);
 
@@ -275,7 +480,7 @@ Value masternode(const Array& params, bool fHelp)
     }
 
     if (strCommand == "winners")
-    {                
+    {
         Object obj;
 
         for(int nHeight = pindexBest->nHeight-10; nHeight < pindexBest->nHeight+20; nHeight++)
@@ -307,7 +512,7 @@ Value masternode(const Array& params, bool fHelp)
         } else {
             throw runtime_error(
                 "Masternode address required\n");
-        }        
+        }
 
         CService addr = CService(strAddress);
 
@@ -316,6 +521,26 @@ Value masternode(const Array& params, bool fHelp)
         } else {
             return "error connecting";
         }
+    }
+
+    if(strCommand == "list-conf")
+    {
+    	std::vector<CMasternodeConfig::CMasternodeEntry> mnEntries;
+    	mnEntries = masternodeConfig.getEntries();
+
+        Object resultObj;
+
+        BOOST_FOREACH(CMasternodeConfig::CMasternodeEntry mne, masternodeConfig.getEntries()) {
+    		Object mnObj;
+    		mnObj.push_back(Pair("alias", mne.getAlias()));
+    		mnObj.push_back(Pair("address", mne.getIp()));
+    		mnObj.push_back(Pair("privateKey", mne.getPrivKey()));
+    		mnObj.push_back(Pair("txHash", mne.getTxHash()));
+    		mnObj.push_back(Pair("outputIndex", mne.getOutputIndex()));
+    		resultObj.push_back(Pair("masternode", mnObj));
+    	}
+
+    	return resultObj;
     }
 
     return Value::null;

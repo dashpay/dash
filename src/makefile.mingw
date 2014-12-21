@@ -85,6 +85,7 @@ OBJS= \
     obj/core.o \
     obj/masternode.o \
     obj/activemasternode.o \
+    obj/masternodeconfig.o \
     obj/instantx.o \
     obj/keystore.o \
     obj/main.o \

@@ -15,6 +15,7 @@
 #include "ui_interface.h"
 #include "paymentserver.h"
 #include "splashscreen.h"
+#include "masternodeconfig.h"
 
 #include <QMessageBox>
 #if QT_VERSION < 0x050000
@@ -153,6 +154,9 @@ int main(int argc, char *argv[])
         return 1;
     }
     ReadConfigFile(mapArgs, mapMultiArgs);
+
+    // Process masternode config
+    masternodeConfig.read(GetMasternodeConfigFile());
 
     // Application identification (must be set before OptionsModel is initialized,
     // as it is used to locate QSettings)

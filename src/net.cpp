@@ -1970,6 +1970,15 @@ void RelayDarkSendElectionEntry(const CTxIn vin, const CService addr, const std:
     }
 }
 
+void SendDarkSendElectionEntry(const CTxIn vin, const CService addr, const std::vector<unsigned char> vchSig, const int64 nNow, const CPubKey pubkey, const CPubKey pubkey2, const int count, const int current, const int64 lastUpdated, const int protocolVersion)
+{
+    LOCK(cs_vNodes);
+    BOOST_FOREACH(CNode* pnode, vNodes)
+    {
+        pnode->PushMessage("dsee", vin, addr, vchSig, nNow, pubkey, pubkey2, count, current, lastUpdated, protocolVersion);
+    }
+}
+
 void RelayDarkSendElectionEntryPing(const CTxIn vin, const std::vector<unsigned char> vchSig, const int64 nNow, const bool stop)
 {
     LOCK(cs_vNodes);
@@ -1977,6 +1986,15 @@ void RelayDarkSendElectionEntryPing(const CTxIn vin, const std::vector<unsigned 
     {
         if(!pnode->fRelayTxes) continue;
         
+        pnode->PushMessage("dseep", vin, vchSig, nNow, stop);
+    }
+}
+
+void SendDarkSendElectionEntryPing(const CTxIn vin, const std::vector<unsigned char> vchSig, const int64 nNow, const bool stop)
+{
+    LOCK(cs_vNodes);
+    BOOST_FOREACH(CNode* pnode, vNodes)
+    {
         pnode->PushMessage("dseep", vin, vchSig, nNow, stop);
     }
 }
