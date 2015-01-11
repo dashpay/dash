@@ -89,9 +89,9 @@ Value masternode(const Array& params, bool fHelp)
 
     if (fHelp  ||
         (strCommand != "start" && strCommand != "start-alias" && strCommand != "start-many" && strCommand != "stop" && strCommand != "stop-alias" && strCommand != "stop-many" && strCommand != "list" && strCommand != "list-conf" && strCommand != "count"  && strCommand != "enforce"
-            && strCommand != "debug" && strCommand != "current" && strCommand != "winners" && strCommand != "genkey" && strCommand != "connect" && strCommand != "outputs"))
+            && strCommand != "debug" && strCommand != "current" && strCommand != "winners" && strCommand != "genkey" && strCommand != "connect" && strCommand != "outputs" && strCommand != "lock-outputs"))
         throw runtime_error(
-            "masternode <start|start-alias|start-many|stop|stop-alias|stop-many|list|list-conf|count|debug|current|winners|genkey|enforce|outputs> [passphrase]\n");
+            "masternode <start|start-alias|start-many|stop|stop-alias|stop-many|list|list-conf|count|debug|current|winners|genkey|enforce|outputs|lock-outputs> [passphrase]\n");
 
     if (strCommand == "stop")
     {
@@ -449,6 +449,21 @@ Value masternode(const Array& params, bool fHelp)
         Object obj;
         BOOST_FOREACH(COutput& out, possibleCoins) {
             obj.push_back(Pair(out.tx->GetHash().ToString().c_str(), boost::lexical_cast<std::string>(out.i)));
+        }
+
+        return obj;
+
+    }
+
+    if (strCommand == "lock-outputs"){
+        // Find possible candidates
+        vector<COutput> possibleCoins = activeMasternode.SelectCoinsMasternode();
+
+        Object obj;
+        BOOST_FOREACH(COutput& out, possibleCoins) {
+            COutPoint cout(out.tx->GetHash(), out.i);
+            pwalletMain->LockCoin(cout);
+            obj.push_back(Pair(out.tx->ToString().c_str(), "locked"));
         }
 
         return obj;
