@@ -59,7 +59,7 @@ void ProcessMessageMasternode(CNode* pfrom, std::string& strCommand, CDataStream
             return;
         }
 
-        bool isLocal = addr.IsRFC1918();
+        bool isLocal = addr.IsRFC1918() || addr.IsLocal();
         std::string vchPubKey(pubkey.begin(), pubkey.end());
         std::string vchPubKey2(pubkey2.begin(), pubkey2.end());
 
@@ -109,14 +109,16 @@ void ProcessMessageMasternode(CNode* pfrom, std::string& strCommand, CDataStream
                     mn.UpdateLastSeen();
 
                     if(mn.now < sigTime){ //take the newest entry
-                        LogPrintf("dsee - Got updated entry for %s\n", addr.ToString().c_str());
-                        mn.pubkey2 = pubkey2;
-                        mn.now = sigTime;
-                        mn.sig = vchSig;
-                        mn.protocolVersion = protocolVersion;
-                        mn.addr = addr;
+                        if(!isLocal){ // Never push dsee with local addresses
+                            LogPrintf("dsee - Got updated entry for %s\n", addr.ToString().c_str());
+                            mn.pubkey2 = pubkey2;
+                            mn.now = sigTime;
+                            mn.sig = vchSig;
+                            mn.protocolVersion = protocolVersion;
+                            mn.addr = addr;
 
-                        RelayDarkSendElectionEntry(vin, addr, vchSig, sigTime, pubkey, pubkey2, count, current, lastUpdated, protocolVersion);
+                            RelayDarkSendElectionEntry(vin, addr, vchSig, sigTime, pubkey, pubkey2, count, current, lastUpdated, protocolVersion);
+                        }
                     }
                 }
 
