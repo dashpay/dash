@@ -276,7 +276,7 @@
            <rect>
             <x>10</x>
             <y>40</y>
-            <width>293</width>
+            <width>341</width>
             <height>161</height>
            </rect>
           </property>
@@ -285,7 +285,7 @@
             <enum>QFormLayout::AllNonFixedFieldsGrow</enum>
            </property>
            <property name="horizontalSpacing">
-            <number>12</number>
+            <number>20</number>
            </property>
            <property name="verticalSpacing">
             <number>12</number>
