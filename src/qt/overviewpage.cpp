@@ -355,6 +355,8 @@ void OverviewPage::darkSendStatus()
 
     std::ostringstream convert;
 
+    convert << "Last Darksend message:\n";
+    
     if(state == POOL_STATUS_ACCEPTING_ENTRIES) {
         if(entries == 0) {
             if(darkSendPool.strAutoDenomResult.size() == 0){
