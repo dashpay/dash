@@ -1688,7 +1688,9 @@ bool CDarkSendPool::MakeCollateralAmounts()
     if(nSplitBalance > nTotalBalance) nSplitBalance = nTotalBalance;
     int64_t nTotalOut = 0;
 
-    LogPrintf("DoAutomaticDenominating: MakeCollateralAmounts: nSplitBalance %d nTotalBalance %d\n", nSplitBalance, pwalletMain->GetDenominatedBalance(false));
+    LogPrintf("DoAutomaticDenominating: MakeCollateralAmounts: "
+              "nSplitBalance %d nTotalBalance %d denominated %d non-denominated %d\n",
+              nSplitBalance, nTotalBalance, pwalletMain->GetDenominatedBalance(), pwalletMain->GetDenominatedBalance(false));
 
     // make our change address
     CReserveKey reservekey(pwalletMain);
