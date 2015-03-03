@@ -27,30 +27,30 @@ using namespace boost;
 
 CCriticalSection cs_darksend;
 
-/** The main object for accessing darksend */
+// The main object for accessing DarkSend
 CDarkSendPool darkSendPool;
-/** A helper object for signing messages from masternodes */
+// A helper object for signing messages from masternodes
 CDarkSendSigner darkSendSigner;
-/** The current darksends in progress on the network */
+// The current DarkSends in progress on the network 
 std::vector<CDarksendQueue> vecDarksendQueue;
-/** Keep track of the used masternodes */
+// Keep track of the used masternodes 
 std::vector<CTxIn> vecMasternodesUsed;
-// keep track of the scanning errors I've seen
+// Keep track of the scanning errors I've seen
 map<uint256, CDarksendBroadcastTx> mapDarksendBroadcastTxes;
-//
+// Keep track of the active masternode
 CActiveMasternode activeMasternode;
 
-// count peers we've requested the list from
+// Count peers we've requested the list from
 int RequestedMasterNodeList = 0;
 
 /* *** BEGIN DARKSEND MAGIC - DARKCOIN **********
-    Copyright 2014, Darkcoin Developers
+    Copyright 2014-2015 Darkcoin Developers
         eduffield - evan@darkcoin.io
 */
 
 void ProcessMessageDarksend(CNode* pfrom, std::string& strCommand, CDataStream& vRecv)
 {
-    if(fLiteMode) return; //disable all darksend/masternode related functionality
+    if(fLiteMode) return; //disable all DarkSend/masternode related functionality
     if(IsInitialBlockDownload()) return;
 
     if (strCommand == "dsf") { //DarkSend Final tx
@@ -394,7 +394,7 @@ void ProcessMessageDarksend(CNode* pfrom, std::string& strCommand, CDataStream& 
 
 int randomizeList (int i) { return std::rand()%i;}
 
-// Recursively determine the rounds of a given input (How deep is the darksend chain for a given input)
+// Recursively determine the rounds of a given input (How deep is the DarkSend chain for a given input)
 int GetInputDarksendRounds(CTxIn in, int rounds)
 {
     static std::map<uint256, CWalletTx> mDenomWtxes;
@@ -486,7 +486,7 @@ int GetInputDarksendRounds(CTxIn in, int rounds)
     return rounds-1;
 }
 
-// manage the masternode connections
+/// Manage the masternode connections
 void CDarkSendPool::ProcessMasternodeConnections()
 {
     LOCK(cs_vNodes);
@@ -503,6 +503,7 @@ void CDarkSendPool::ProcessMasternodeConnections()
     }
 }
 
+/// Reset the the DarkSend pool
 void CDarkSendPool::Reset(){
     cachedLastSuccess = 0;
     vecMasternodesUsed.clear();
@@ -559,7 +560,7 @@ bool CDarkSendPool::SetCollateralAddress(std::string strAddress){
 }
 
 //
-// Unlock coins after Darksend fails or succeeds
+// Unlock coins after DarkSend fails or succeeds
 //
 void CDarkSendPool::UnlockCoins(){
     BOOST_FOREACH(CTxIn v, lockedCoins)
@@ -569,7 +570,7 @@ void CDarkSendPool::UnlockCoins(){
 }
 
 //
-// Check the Darksend progress and send client updates if a masternode
+// Check the DarkSend progress and send client updates if a masternode
 //
 void CDarkSendPool::Check()
 {
@@ -708,8 +709,8 @@ void CDarkSendPool::Check()
 //
 // Charge clients a fee if they're abusive
 //
-// Why bother? Darksend uses collateral to ensure abuse to the process is kept to a minimum.
-// The submission and signing stages in darksend are completely separate. In the cases where
+// Why bother? DarkSend uses collateral to ensure abuse to the process is kept to a minimum.
+// The submission and signing stages in DarkSend are completely separate. In the cases where
 // a client submits a transaction then refused to sign, there must be a cost. Otherwise they
 // would be able to do this over and over again and bring the mixing to a hault.
 //
@@ -820,7 +821,7 @@ void CDarkSendPool::ChargeFees(){
 }
 
 // charge the collateral randomly
-//  - Darksend is completely free, to pay miners we randomly pay the collateral of users.
+//  - DarkSend is completely free, to pay miners we randomly pay the collateral of users.
 void CDarkSendPool::ChargeRandomFees(){
     if(fMasterNode) {
         int i = 0;
@@ -856,7 +857,7 @@ void CDarkSendPool::ChargeRandomFees(){
 }
 
 //
-// Check for various timeouts (queue objects, darksend, etc)
+// Check for various timeouts (queue objects, DarkSend, etc)
 //
 void CDarkSendPool::CheckTimeout(){
     if(!fEnableDarksend && !fMasterNode) return;
@@ -869,7 +870,7 @@ void CDarkSendPool::CheckTimeout(){
         }
     }
 
-    // check darksend queue objects for timeouts
+    // check DarkSend queue objects for timeouts
     int c = 0;
     vector<CDarksendQueue>::iterator it;
     for(it=vecDarksendQueue.begin();it<vecDarksendQueue.end();it++){
@@ -1146,7 +1147,8 @@ bool CDarkSendPool::AddScriptSig(const CTxIn& newVin){
     return false;
 }
 
-// check to make sure everything is signed
+/** Check that all inputs are signed. (Are all inputs signed?)
+ */
 bool CDarkSendPool::SignaturesComplete(){
     BOOST_FOREACH(const CDarkSendEntry v, entries) {
         BOOST_FOREACH(const CDarkSendEntryVin s, v.sev){
@@ -1157,7 +1159,7 @@ bool CDarkSendPool::SignaturesComplete(){
 }
 
 //
-// Execute a darksend denomination via a masternode.
+// Execute a DarkSend denomination via a masternode.
 // This is only ran from clients
 //
 void CDarkSendPool::SendDarksendDenominate(std::vector<CTxIn>& vin, std::vector<CTxOut>& vout, int64_t amount){
@@ -1233,7 +1235,7 @@ void CDarkSendPool::SendDarksendDenominate(std::vector<CTxIn>& vin, std::vector<
     Check();
 }
 
-// Incoming message from masternode updating the progress of darksend
+// Incoming message from masternode updating the progress of DarkSend
 //    newAccepted:  -1 mean's it'n not a "transaction accepted/not accepted" message, just a standard update
 //                  0 means transaction was not accepted
 //                  1 means transaction was accepted
@@ -1379,7 +1381,7 @@ void CDarkSendPool::NewBlock()
     }
 }
 
-// Darksend transaction was completed (failed or successed)
+// DarkSend transaction was completed (failed or successful)
 void CDarkSendPool::CompletedTransaction(bool error, std::string lastMessageNew)
 {
     if(fMasterNode) return;
@@ -1409,7 +1411,7 @@ void CDarkSendPool::ClearLastMessage()
 }
 
 //
-// Passively run Darksend in the background to anonymize funds based on the given configuration.
+// Passively run DarkSend in the background to anonymize funds based on the given configuration.
 //
 // This does NOT run by default for daemons, only for QT.
 //
@@ -2158,7 +2160,7 @@ bool CDarksendQueue::CheckSignature()
 //TODO: Rename/move to core
 void ThreadCheckDarkSendPool()
 {
-    if(fLiteMode) return; //disable all darksend/masternode related functionality
+    if(fLiteMode) return; //disable all DarkSend/masternode related functionality
 
     // Make this thread recognisable as the wallet flushing thread
     RenameThread("darkcoin-darksend");
