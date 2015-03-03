@@ -781,7 +781,7 @@ public:
         return strprintf("COutput(%s, %d, %d) [%s]", tx->GetHash().ToString().c_str(), i, nDepth, FormatMoney(tx->vout[i].nValue).c_str());
     }
 
-    //Used with Darksend. Will return largest nondenom, then denominations, then very small inputs
+    //Used with DarkSend. Will return largest nondenom, then denominations, then very small inputs
     int Priority() const
     {
         BOOST_FOREACH(int64_t d, darkSendDenominations)
