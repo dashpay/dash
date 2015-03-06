@@ -1928,6 +1928,27 @@ https://www.transifex.com/projects/p/darkcoin/</translation>
         <translation>Đã bật</translation>
     </message>
     <message>
+        <location filename="../overviewpage.cpp" line="394"/>
+        <location filename="../overviewpage.cpp" line="395"/>
+        <location filename="../overviewpage.cpp" line="396"/>
+        <source>Submitted to masternode, waiting for more entries</source>
+        <translation type="unfinished"/>
+    </message>
+    <message>
+        <location filename="../overviewpage.cpp" line="400"/>
+        <location filename="../overviewpage.cpp" line="401"/>
+        <location filename="../overviewpage.cpp" line="402"/>
+        <source>Found enough users, signing ( waiting</source>
+        <translation type="unfinished"/>
+    </message>
+    <message>
+        <location filename="../overviewpage.cpp" line="414"/>
+        <location filename="../overviewpage.cpp" line="415"/>
+        <location filename="../overviewpage.cpp" line="416"/>
+        <source>Submitted to masternode, waiting in queue</source>
+        <translation type="unfinished"/>
+    </message>
+    <message>
         <location filename="../overviewpage.cpp" line="424"/>
         <source>Last Darksend message:
 </source>
@@ -1943,7 +1964,7 @@ https://www.transifex.com/projects/p/darkcoin/</translation>
     <message>
         <location filename="../overviewpage.cpp" line="381"/>
         <source>Mixing in progress...</source>
-        <translation type="unfinished"/>
+        <translation>Đang trong quá trình trộn...</translation>
     </message>
     <message>
         <location filename="../overviewpage.cpp" line="387"/>
@@ -1956,11 +1977,8 @@ https://www.transifex.com/projects/p/darkcoin/</translation>
         <translation>Gửi những thành phần sau đến masternode:</translation>
     </message>
     <message>
-        <location filename="../overviewpage.cpp" line="394"/>
-        <location filename="../overviewpage.cpp" line="395"/>
-        <location filename="../overviewpage.cpp" line="396"/>
         <source>Submitted to masternode, Waiting for more entries</source>
-        <translation>Đã gửi cho masternode, Đợi các thành phần thêm</translation>
+        <translation type="unfinished"/>
     </message>
     <message>
         <location filename="../overviewpage.cpp" line="399"/>
@@ -1968,19 +1986,16 @@ https://www.transifex.com/projects/p/darkcoin/</translation>
         <translation>Đã kiếm đủ người dùng, đang ký ...</translation>
     </message>
     <message>
-        <location filename="../overviewpage.cpp" line="400"/>
         <source>Found enough users, signing ( waiting. )</source>
-        <translation>Đã kiếm đủ người dùng, đang ký (vui lòng đợi.)</translation>
+        <translation type="unfinished"/>
     </message>
     <message>
-        <location filename="../overviewpage.cpp" line="401"/>
         <source>Found enough users, signing ( waiting.. )</source>
-        <translation>Đã kiếm đủ người dùng, đang ký (vui lòng đợi..)</translation>
+        <translation type="unfinished"/>
     </message>
     <message>
-        <location filename="../overviewpage.cpp" line="402"/>
         <source>Found enough users, signing ( waiting... )</source>
-        <translation>Đã kiếm đủ người dùng, đang ký (vui lòng đợi...)</translation>
+        <translation type="unfinished"/>
     </message>
     <message>
         <location filename="../overviewpage.cpp" line="404"/>
@@ -2008,19 +2023,16 @@ https://www.transifex.com/projects/p/darkcoin/</translation>
         <translation>Yêu cầu Darksend hoàn thành:</translation>
     </message>
     <message>
-        <location filename="../overviewpage.cpp" line="414"/>
         <source>Submitted to masternode, waiting in queue .</source>
-        <translation>Đã gửi đến masternode, đang đợi trong hàng đợi .</translation>
+        <translation type="unfinished"/>
     </message>
     <message>
-        <location filename="../overviewpage.cpp" line="415"/>
         <source>Submitted to masternode, waiting in queue ..</source>
-        <translation>Đã gửi đến masternode, đang đợi trong hàng đợi ..</translation>
+        <translation type="unfinished"/>
     </message>
     <message>
-        <location filename="../overviewpage.cpp" line="416"/>
         <source>Submitted to masternode, waiting in queue ...</source>
-        <translation>Đã gửi đến masternode, đang đợi trong hàng đợi ...</translation>
+        <translation type="unfinished"/>
     </message>
     <message>
         <location filename="../overviewpage.cpp" line="418"/>
@@ -4387,7 +4399,7 @@ Nếu tệp không tồn tại, tạo nó với quyền tệp owner-readable-onl
     <message>
         <location filename="../darkcoinstrings.cpp" line="210"/>
         <source>Downgrading and trying again.</source>
-        <translation type="unfinished"/>
+        <translation>Hạ cấp và thử lại xem.</translation>
     </message>
     <message>
         <location filename="../darkcoinstrings.cpp" line="211"/>
@@ -4407,6 +4419,11 @@ Nếu tệp không tồn tại, tạo nó với quyền tệp owner-readable-onl
     <message>
         <location filename="../darkcoinstrings.cpp" line="273"/>
         <source>Last successful Darksend action was too recent.</source>
+        <translation type="unfinished"/>
+    </message>
+    <message>
+        <location filename="../darkcoinstrings.cpp" line="279"/>
+        <source>Loading masternode cache...</source>
         <translation type="unfinished"/>
     </message>
     <message>
@@ -4756,11 +4773,6 @@ Nếu tệp không tồn tại, tạo nó với quyền tệp owner-readable-onl
         <location filename="../darkcoinstrings.cpp" line="278"/>
         <source>Loading block index...</source>
         <translation>Đang nạp chỉ mục khối...</translation>
-    </message>
-    <message>
-        <location filename="../darkcoinstrings.cpp" line="279"/>
-        <source>Loading masternode list...</source>
-        <translation>Đang tải danh sách master node...</translation>
     </message>
     <message>
         <location filename="../darkcoinstrings.cpp" line="280"/>

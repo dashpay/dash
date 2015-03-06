@@ -1922,6 +1922,27 @@ https://www.transifex.com/projects/p/darkcoin/</source>
         <translation type="unfinished"/>
     </message>
     <message>
+        <location filename="../overviewpage.cpp" line="394"/>
+        <location filename="../overviewpage.cpp" line="395"/>
+        <location filename="../overviewpage.cpp" line="396"/>
+        <source>Submitted to masternode, waiting for more entries</source>
+        <translation type="unfinished"/>
+    </message>
+    <message>
+        <location filename="../overviewpage.cpp" line="400"/>
+        <location filename="../overviewpage.cpp" line="401"/>
+        <location filename="../overviewpage.cpp" line="402"/>
+        <source>Found enough users, signing ( waiting</source>
+        <translation type="unfinished"/>
+    </message>
+    <message>
+        <location filename="../overviewpage.cpp" line="414"/>
+        <location filename="../overviewpage.cpp" line="415"/>
+        <location filename="../overviewpage.cpp" line="416"/>
+        <source>Submitted to masternode, waiting in queue</source>
+        <translation type="unfinished"/>
+    </message>
+    <message>
         <location filename="../overviewpage.cpp" line="424"/>
         <source>Last Darksend message:
 </source>
@@ -1949,9 +1970,6 @@ https://www.transifex.com/projects/p/darkcoin/</source>
         <translation type="unfinished"/>
     </message>
     <message>
-        <location filename="../overviewpage.cpp" line="394"/>
-        <location filename="../overviewpage.cpp" line="395"/>
-        <location filename="../overviewpage.cpp" line="396"/>
         <source>Submitted to masternode, Waiting for more entries</source>
         <translation type="unfinished"/>
     </message>
@@ -1961,17 +1979,14 @@ https://www.transifex.com/projects/p/darkcoin/</source>
         <translation type="unfinished"/>
     </message>
     <message>
-        <location filename="../overviewpage.cpp" line="400"/>
         <source>Found enough users, signing ( waiting. )</source>
         <translation type="unfinished"/>
     </message>
     <message>
-        <location filename="../overviewpage.cpp" line="401"/>
         <source>Found enough users, signing ( waiting.. )</source>
         <translation type="unfinished"/>
     </message>
     <message>
-        <location filename="../overviewpage.cpp" line="402"/>
         <source>Found enough users, signing ( waiting... )</source>
         <translation type="unfinished"/>
     </message>
@@ -2001,17 +2016,14 @@ https://www.transifex.com/projects/p/darkcoin/</source>
         <translation type="unfinished"/>
     </message>
     <message>
-        <location filename="../overviewpage.cpp" line="414"/>
         <source>Submitted to masternode, waiting in queue .</source>
         <translation type="unfinished"/>
     </message>
     <message>
-        <location filename="../overviewpage.cpp" line="415"/>
         <source>Submitted to masternode, waiting in queue ..</source>
         <translation type="unfinished"/>
     </message>
     <message>
-        <location filename="../overviewpage.cpp" line="416"/>
         <source>Submitted to masternode, waiting in queue ...</source>
         <translation type="unfinished"/>
     </message>
@@ -4393,6 +4405,11 @@ Si el fitxer no existeix, creeu-lo amb els permís owner-readable-only.</transla
         <translation type="unfinished"/>
     </message>
     <message>
+        <location filename="../darkcoinstrings.cpp" line="279"/>
+        <source>Loading masternode cache...</source>
+        <translation type="unfinished"/>
+    </message>
+    <message>
         <location filename="../darkcoinstrings.cpp" line="291"/>
         <source>No Masternodes detected.</source>
         <translation type="unfinished"/>
@@ -4739,11 +4756,6 @@ Si el fitxer no existeix, creeu-lo amb els permís owner-readable-only.</transla
         <location filename="../darkcoinstrings.cpp" line="278"/>
         <source>Loading block index...</source>
         <translation>S&apos;està carregant l&apos;índex de blocs...</translation>
-    </message>
-    <message>
-        <location filename="../darkcoinstrings.cpp" line="279"/>
-        <source>Loading masternode list...</source>
-        <translation type="unfinished"/>
     </message>
     <message>
         <location filename="../darkcoinstrings.cpp" line="280"/>

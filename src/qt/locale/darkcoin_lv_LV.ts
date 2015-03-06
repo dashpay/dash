@@ -1933,6 +1933,27 @@ https://www.transifex.com/projects/p/darkcoin/</translation>
         <translation>Iespējots</translation>
     </message>
     <message>
+        <location filename="../overviewpage.cpp" line="394"/>
+        <location filename="../overviewpage.cpp" line="395"/>
+        <location filename="../overviewpage.cpp" line="396"/>
+        <source>Submitted to masternode, waiting for more entries</source>
+        <translation type="unfinished"/>
+    </message>
+    <message>
+        <location filename="../overviewpage.cpp" line="400"/>
+        <location filename="../overviewpage.cpp" line="401"/>
+        <location filename="../overviewpage.cpp" line="402"/>
+        <source>Found enough users, signing ( waiting</source>
+        <translation type="unfinished"/>
+    </message>
+    <message>
+        <location filename="../overviewpage.cpp" line="414"/>
+        <location filename="../overviewpage.cpp" line="415"/>
+        <location filename="../overviewpage.cpp" line="416"/>
+        <source>Submitted to masternode, waiting in queue</source>
+        <translation type="unfinished"/>
+    </message>
+    <message>
         <location filename="../overviewpage.cpp" line="424"/>
         <source>Last Darksend message:
 </source>
@@ -1961,11 +1982,8 @@ https://www.transifex.com/projects/p/darkcoin/</translation>
         <translation>Iesniegti sekojoši ieraksti iekš masternode:</translation>
     </message>
     <message>
-        <location filename="../overviewpage.cpp" line="394"/>
-        <location filename="../overviewpage.cpp" line="395"/>
-        <location filename="../overviewpage.cpp" line="396"/>
         <source>Submitted to masternode, Waiting for more entries</source>
-        <translation>Iesniegts uz masternode. Gaida vairāk ierakstus.</translation>
+        <translation type="unfinished"/>
     </message>
     <message>
         <location filename="../overviewpage.cpp" line="399"/>
@@ -1973,19 +1991,16 @@ https://www.transifex.com/projects/p/darkcoin/</translation>
         <translation>Atrasts pietiekošs lietotāju skaits, pierakstās ...</translation>
     </message>
     <message>
-        <location filename="../overviewpage.cpp" line="400"/>
         <source>Found enough users, signing ( waiting. )</source>
-        <translation>Atrasts pietiekošs lietotāju skaits, pierakstās (gaida.)</translation>
+        <translation type="unfinished"/>
     </message>
     <message>
-        <location filename="../overviewpage.cpp" line="401"/>
         <source>Found enough users, signing ( waiting.. )</source>
-        <translation>Atrasts pietiekošs lietotāju skaits, pierakstās (gaida...)</translation>
+        <translation type="unfinished"/>
     </message>
     <message>
-        <location filename="../overviewpage.cpp" line="402"/>
         <source>Found enough users, signing ( waiting... )</source>
-        <translation>Atrasts pietiekošs lietotāju skaits, pierakstās (gaida...)</translation>
+        <translation type="unfinished"/>
     </message>
     <message>
         <location filename="../overviewpage.cpp" line="404"/>
@@ -2013,19 +2028,16 @@ https://www.transifex.com/projects/p/darkcoin/</translation>
         <translation>Darksend pieprasījums pabeigts:</translation>
     </message>
     <message>
-        <location filename="../overviewpage.cpp" line="414"/>
         <source>Submitted to masternode, waiting in queue .</source>
-        <translation>Iesniegts masternodei, gaida rindā.</translation>
+        <translation type="unfinished"/>
     </message>
     <message>
-        <location filename="../overviewpage.cpp" line="415"/>
         <source>Submitted to masternode, waiting in queue ..</source>
-        <translation>Iesniegts masternodei, gaida rindā..</translation>
+        <translation type="unfinished"/>
     </message>
     <message>
-        <location filename="../overviewpage.cpp" line="416"/>
         <source>Submitted to masternode, waiting in queue ...</source>
-        <translation>Iesniegts masternodei, gaida rindā...</translation>
+        <translation type="unfinished"/>
     </message>
     <message>
         <location filename="../overviewpage.cpp" line="418"/>
@@ -4405,6 +4417,11 @@ Ja fails neeksistē, izveidojiet to ar atļauju lasīšanai tikai īpašniekam.<
         <translation type="unfinished"/>
     </message>
     <message>
+        <location filename="../darkcoinstrings.cpp" line="279"/>
+        <source>Loading masternode cache...</source>
+        <translation type="unfinished"/>
+    </message>
+    <message>
         <location filename="../darkcoinstrings.cpp" line="291"/>
         <source>No Masternodes detected.</source>
         <translation type="unfinished"/>
@@ -4751,11 +4768,6 @@ Ja fails neeksistē, izveidojiet to ar atļauju lasīšanai tikai īpašniekam.<
         <location filename="../darkcoinstrings.cpp" line="278"/>
         <source>Loading block index...</source>
         <translation>Ielādē bloku indeksu...</translation>
-    </message>
-    <message>
-        <location filename="../darkcoinstrings.cpp" line="279"/>
-        <source>Loading masternode list...</source>
-        <translation type="unfinished"/>
     </message>
     <message>
         <location filename="../darkcoinstrings.cpp" line="280"/>
