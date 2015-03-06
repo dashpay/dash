@@ -1943,6 +1943,27 @@ https://www.transifex.com/projects/p/darkcoin/</source>
         <translation>Enabled</translation>
     </message>
     <message>
+        <location filename="../overviewpage.cpp" line="394"/>
+        <location filename="../overviewpage.cpp" line="395"/>
+        <location filename="../overviewpage.cpp" line="396"/>
+        <source>Submitted to masternode, waiting for more entries</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location filename="../overviewpage.cpp" line="400"/>
+        <location filename="../overviewpage.cpp" line="401"/>
+        <location filename="../overviewpage.cpp" line="402"/>
+        <source>Found enough users, signing ( waiting</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location filename="../overviewpage.cpp" line="414"/>
+        <location filename="../overviewpage.cpp" line="415"/>
+        <location filename="../overviewpage.cpp" line="416"/>
+        <source>Submitted to masternode, waiting in queue</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
         <location filename="../overviewpage.cpp" line="424"/>
         <source>Last Darksend message:
 </source>
@@ -1971,11 +1992,8 @@ https://www.transifex.com/projects/p/darkcoin/</source>
         <translation>Submitted following entries to masternode:</translation>
     </message>
     <message>
-        <location filename="../overviewpage.cpp" line="394"/>
-        <location filename="../overviewpage.cpp" line="395"/>
-        <location filename="../overviewpage.cpp" line="396"/>
         <source>Submitted to masternode, Waiting for more entries</source>
-        <translation>Submitted to masternode, Waiting for more entries</translation>
+        <translation type="obsolete">Submitted to masternode, Waiting for more entries</translation>
     </message>
     <message>
         <location filename="../overviewpage.cpp" line="399"/>
@@ -1983,19 +2001,16 @@ https://www.transifex.com/projects/p/darkcoin/</source>
         <translation>Found enough users, signing ...</translation>
     </message>
     <message>
-        <location filename="../overviewpage.cpp" line="400"/>
         <source>Found enough users, signing ( waiting. )</source>
-        <translation>Found enough users, signing ( waiting. )</translation>
+        <translation type="obsolete">Found enough users, signing ( waiting. )</translation>
     </message>
     <message>
-        <location filename="../overviewpage.cpp" line="401"/>
         <source>Found enough users, signing ( waiting.. )</source>
-        <translation>Found enough users, signing ( waiting.. )</translation>
+        <translation type="obsolete">Found enough users, signing ( waiting.. )</translation>
     </message>
     <message>
-        <location filename="../overviewpage.cpp" line="402"/>
         <source>Found enough users, signing ( waiting... )</source>
-        <translation>Found enough users, signing ( waiting... )</translation>
+        <translation type="obsolete">Found enough users, signing ( waiting... )</translation>
     </message>
     <message>
         <location filename="../overviewpage.cpp" line="404"/>
@@ -2023,19 +2038,16 @@ https://www.transifex.com/projects/p/darkcoin/</source>
         <translation>Darksend request complete:</translation>
     </message>
     <message>
-        <location filename="../overviewpage.cpp" line="414"/>
         <source>Submitted to masternode, waiting in queue .</source>
-        <translation>Submitted to masternode, waiting in queue .</translation>
+        <translation type="obsolete">Submitted to masternode, waiting in queue .</translation>
     </message>
     <message>
-        <location filename="../overviewpage.cpp" line="415"/>
         <source>Submitted to masternode, waiting in queue ..</source>
-        <translation>Submitted to masternode, waiting in queue ..</translation>
+        <translation type="obsolete">Submitted to masternode, waiting in queue ..</translation>
     </message>
     <message>
-        <location filename="../overviewpage.cpp" line="416"/>
         <source>Submitted to masternode, waiting in queue ...</source>
-        <translation>Submitted to masternode, waiting in queue ...</translation>
+        <translation type="obsolete">Submitted to masternode, waiting in queue ...</translation>
     </message>
     <message>
         <location filename="../overviewpage.cpp" line="418"/>
@@ -4440,6 +4452,11 @@ If the file does not exist, create it with owner-readable-only file permissions.
         <translation type="unfinished"></translation>
     </message>
     <message>
+        <location filename="../darkcoinstrings.cpp" line="279"/>
+        <source>Loading masternode cache...</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
         <location filename="../darkcoinstrings.cpp" line="291"/>
         <source>No Masternodes detected.</source>
         <translation type="unfinished"></translation>
@@ -4786,11 +4803,6 @@ If the file does not exist, create it with owner-readable-only file permissions.
         <location filename="../darkcoinstrings.cpp" line="278"/>
         <source>Loading block index...</source>
         <translation>Loading block index...</translation>
-    </message>
-    <message>
-        <location filename="../darkcoinstrings.cpp" line="279"/>
-        <source>Loading masternode list...</source>
-        <translation type="unfinished"></translation>
     </message>
     <message>
         <location filename="../darkcoinstrings.cpp" line="280"/>
