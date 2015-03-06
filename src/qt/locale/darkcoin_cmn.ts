@@ -4391,6 +4391,35 @@ If the file does not exist, create it with owner-readable-only file permissions.
     </message>
     <message>
         <location filename="../darkcoinstrings.cpp" line="213"/>
+        <source>Error connecting to Masternode.</source>
+        <translation type="unfinished"/>
+    </message>
+    <message>
+        <location filename="../darkcoinstrings.cpp" line="273"/>
+        <source>Last successful Darksend action was too recent.</source>
+        <translation type="unfinished"/>
+    </message>
+    <message>
+        <location filename="../darkcoinstrings.cpp" line="291"/>
+        <source>No Masternodes detected.</source>
+        <translation type="unfinished"/>
+    </message>
+    <message>
+        <location filename="../darkcoinstrings.cpp" line="292"/>
+        <source>No compatible Masternode found.</source>
+        <translation type="unfinished"/>
+    </message>
+    <message>
+        <location filename="../darkcoinstrings.cpp" line="298"/>
+        <source>Not in the Masternode list.</source>
+        <translation type="unfinished"/>
+    </message>
+    <message>
+        <location filename="../darkcoinstrings.cpp" line="350"/>
+        <source>This is not a Masternode.</source>
+        <translation type="unfinished"/>
+    </message>
+    <message>
         <source>Error connecting to masternode.</source>
         <translation type="unfinished"/>
     </message>
@@ -4690,9 +4719,8 @@ If the file does not exist, create it with owner-readable-only file permissions.
         <translation>最后一次匿名发送刚刚完成。</translation>
     </message>
     <message>
-        <location filename="../darkcoinstrings.cpp" line="273"/>
         <source>Last successful darksend action was too recent.</source>
-        <translation>最后一次成功匿名发送刚刚完成。</translation>
+        <translation type="unfinished"/>
     </message>
     <message>
         <location filename="../darkcoinstrings.cpp" line="274"/>
@@ -4780,19 +4808,17 @@ If the file does not exist, create it with owner-readable-only file permissions.
         <translation>丢失输入交易信息。</translation>
     </message>
     <message>
-        <location filename="../darkcoinstrings.cpp" line="291"/>
         <source>No compatible masternode found.</source>
-        <translation>没有找到任何兼容的主节点。</translation>
+        <translation type="unfinished"/>
     </message>
     <message>
-        <location filename="../darkcoinstrings.cpp" line="292"/>
+        <location filename="../darkcoinstrings.cpp" line="293"/>
         <source>No funds detected in need of denominating.</source>
         <translation>在面额化过程中没有检测到所需的资金。</translation>
     </message>
     <message>
-        <location filename="../darkcoinstrings.cpp" line="293"/>
         <source>No masternodes detected.</source>
-        <translation>没有检测到任何主节点。</translation>
+        <translation type="unfinished"/>
     </message>
     <message>
         <location filename="../darkcoinstrings.cpp" line="294"/>
@@ -4815,9 +4841,8 @@ If the file does not exist, create it with owner-readable-only file permissions.
         <translation>文件说明符不可用</translation>
     </message>
     <message>
-        <location filename="../darkcoinstrings.cpp" line="298"/>
         <source>Not in the masternode list.</source>
-        <translation>在主节点列表中不存在。</translation>
+        <translation type="unfinished"/>
     </message>
     <message>
         <location filename="../darkcoinstrings.cpp" line="299"/>
@@ -5075,9 +5100,8 @@ If the file does not exist, create it with owner-readable-only file permissions.
         <translation>这被用来作为回归测试工具和app的开发。</translation>
     </message>
     <message>
-        <location filename="../darkcoinstrings.cpp" line="350"/>
         <source>This is not a masternode.</source>
-        <translation>这并不是主节点。</translation>
+        <translation type="unfinished"/>
     </message>
     <message>
         <location filename="../darkcoinstrings.cpp" line="351"/>

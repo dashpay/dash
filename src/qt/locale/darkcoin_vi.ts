@@ -4401,8 +4401,37 @@ Nếu tệp không tồn tại, tạo nó với quyền tệp owner-readable-onl
     </message>
     <message>
         <location filename="../darkcoinstrings.cpp" line="213"/>
+        <source>Error connecting to Masternode.</source>
+        <translation type="unfinished"/>
+    </message>
+    <message>
+        <location filename="../darkcoinstrings.cpp" line="273"/>
+        <source>Last successful Darksend action was too recent.</source>
+        <translation type="unfinished"/>
+    </message>
+    <message>
+        <location filename="../darkcoinstrings.cpp" line="291"/>
+        <source>No Masternodes detected.</source>
+        <translation type="unfinished"/>
+    </message>
+    <message>
+        <location filename="../darkcoinstrings.cpp" line="292"/>
+        <source>No compatible Masternode found.</source>
+        <translation type="unfinished"/>
+    </message>
+    <message>
+        <location filename="../darkcoinstrings.cpp" line="298"/>
+        <source>Not in the Masternode list.</source>
+        <translation type="unfinished"/>
+    </message>
+    <message>
+        <location filename="../darkcoinstrings.cpp" line="350"/>
+        <source>This is not a Masternode.</source>
+        <translation type="unfinished"/>
+    </message>
+    <message>
         <source>Error connecting to masternode.</source>
-        <translation>Lỗi kết nối đến masternode.</translation>
+        <translation type="unfinished"/>
     </message>
     <message>
         <location filename="../darkcoinstrings.cpp" line="214"/>
@@ -4700,9 +4729,8 @@ Nếu tệp không tồn tại, tạo nó với quyền tệp owner-readable-onl
         <translation>Darksend cuối cùng quá gần.</translation>
     </message>
     <message>
-        <location filename="../darkcoinstrings.cpp" line="273"/>
         <source>Last successful darksend action was too recent.</source>
-        <translation>Darksend thành công cuối cùng quá gần.</translation>
+        <translation type="unfinished"/>
     </message>
     <message>
         <location filename="../darkcoinstrings.cpp" line="274"/>
@@ -4790,19 +4818,17 @@ Nếu tệp không tồn tại, tạo nó với quyền tệp owner-readable-onl
         <translation>Thiếu thông tin giao dịch đầu vào.</translation>
     </message>
     <message>
-        <location filename="../darkcoinstrings.cpp" line="291"/>
         <source>No compatible masternode found.</source>
-        <translation>Không tìm thấy masternode tương thích.</translation>
+        <translation type="unfinished"/>
     </message>
     <message>
-        <location filename="../darkcoinstrings.cpp" line="292"/>
+        <location filename="../darkcoinstrings.cpp" line="293"/>
         <source>No funds detected in need of denominating.</source>
         <translation>Không thấy có nguồn tiền cần thiết để định giá.</translation>
     </message>
     <message>
-        <location filename="../darkcoinstrings.cpp" line="293"/>
         <source>No masternodes detected.</source>
-        <translation>Không phát hiện được masternode.</translation>
+        <translation type="unfinished"/>
     </message>
     <message>
         <location filename="../darkcoinstrings.cpp" line="294"/>
@@ -4825,9 +4851,8 @@ Nếu tệp không tồn tại, tạo nó với quyền tệp owner-readable-onl
         <translation>Chưa có đủ thông tin mô tả tệp.</translation>
     </message>
     <message>
-        <location filename="../darkcoinstrings.cpp" line="298"/>
         <source>Not in the masternode list.</source>
-        <translation>Không có trong danh sách masternode.</translation>
+        <translation type="unfinished"/>
     </message>
     <message>
         <location filename="../darkcoinstrings.cpp" line="299"/>
@@ -5085,9 +5110,8 @@ Nếu tệp không tồn tại, tạo nó với quyền tệp owner-readable-onl
         <translation>Điều này là để dành cho công cụ kiểm tra hồi quy và phát triển ứng dụng.</translation>
     </message>
     <message>
-        <location filename="../darkcoinstrings.cpp" line="350"/>
         <source>This is not a masternode.</source>
-        <translation>Đây không phải là một masternode.</translation>
+        <translation type="unfinished"/>
     </message>
     <message>
         <location filename="../darkcoinstrings.cpp" line="351"/>

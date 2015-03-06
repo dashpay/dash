@@ -4390,8 +4390,37 @@ If the file does not exist, create it with owner-readable-only file permissions.
     </message>
     <message>
         <location filename="../darkcoinstrings.cpp" line="213"/>
+        <source>Error connecting to Masternode.</source>
+        <translation type="unfinished"/>
+    </message>
+    <message>
+        <location filename="../darkcoinstrings.cpp" line="273"/>
+        <source>Last successful Darksend action was too recent.</source>
+        <translation type="unfinished"/>
+    </message>
+    <message>
+        <location filename="../darkcoinstrings.cpp" line="291"/>
+        <source>No Masternodes detected.</source>
+        <translation type="unfinished"/>
+    </message>
+    <message>
+        <location filename="../darkcoinstrings.cpp" line="292"/>
+        <source>No compatible Masternode found.</source>
+        <translation type="unfinished"/>
+    </message>
+    <message>
+        <location filename="../darkcoinstrings.cpp" line="298"/>
+        <source>Not in the Masternode list.</source>
+        <translation type="unfinished"/>
+    </message>
+    <message>
+        <location filename="../darkcoinstrings.cpp" line="350"/>
+        <source>This is not a Masternode.</source>
+        <translation type="unfinished"/>
+    </message>
+    <message>
         <source>Error connecting to masternode.</source>
-        <translation>Грешка при свързване с Мастернод.</translation>
+        <translation type="unfinished"/>
     </message>
     <message>
         <location filename="../darkcoinstrings.cpp" line="214"/>
@@ -4689,9 +4718,8 @@ If the file does not exist, create it with owner-readable-only file permissions.
         <translation>Последния Дарксенд беше твърде скоро.</translation>
     </message>
     <message>
-        <location filename="../darkcoinstrings.cpp" line="273"/>
         <source>Last successful darksend action was too recent.</source>
-        <translation>Последното успешно Дарксенд действие бе твърде скоро.</translation>
+        <translation type="unfinished"/>
     </message>
     <message>
         <location filename="../darkcoinstrings.cpp" line="274"/>
@@ -4779,19 +4807,17 @@ If the file does not exist, create it with owner-readable-only file permissions.
         <translation>Липсва входяща информация за транзакцията.</translation>
     </message>
     <message>
-        <location filename="../darkcoinstrings.cpp" line="291"/>
         <source>No compatible masternode found.</source>
-        <translation>Не са намерени съвместими Мастернод:</translation>
+        <translation type="unfinished"/>
     </message>
     <message>
-        <location filename="../darkcoinstrings.cpp" line="292"/>
+        <location filename="../darkcoinstrings.cpp" line="293"/>
         <source>No funds detected in need of denominating.</source>
         <translation>Не са открити суми нуждаещи се от деноминиране.</translation>
     </message>
     <message>
-        <location filename="../darkcoinstrings.cpp" line="293"/>
         <source>No masternodes detected.</source>
-        <translation>Не са открити Мастернодове.</translation>
+        <translation type="unfinished"/>
     </message>
     <message>
         <location filename="../darkcoinstrings.cpp" line="294"/>
@@ -4814,9 +4840,8 @@ If the file does not exist, create it with owner-readable-only file permissions.
         <translation type="unfinished"/>
     </message>
     <message>
-        <location filename="../darkcoinstrings.cpp" line="298"/>
         <source>Not in the masternode list.</source>
-        <translation>Не е в списъка на Мастернодове</translation>
+        <translation type="unfinished"/>
     </message>
     <message>
         <location filename="../darkcoinstrings.cpp" line="299"/>
@@ -5074,9 +5099,8 @@ If the file does not exist, create it with owner-readable-only file permissions.
         <translation type="unfinished"/>
     </message>
     <message>
-        <location filename="../darkcoinstrings.cpp" line="350"/>
         <source>This is not a masternode.</source>
-        <translation>Това не е Мастернод.</translation>
+        <translation type="unfinished"/>
     </message>
     <message>
         <location filename="../darkcoinstrings.cpp" line="351"/>
@@ -5196,7 +5220,7 @@ If the file does not exist, create it with owner-readable-only file permissions.
     <message>
         <location filename="../darkcoinstrings.cpp" line="374"/>
         <source>Value more than Darksend pool maximum allows.</source>
-        <translation type="unfinished"/>
+        <translation>Превишена е максимално допустимата стойност за Дарксенд пула</translation>
     </message>
     <message>
         <location filename="../darkcoinstrings.cpp" line="375"/>
@@ -5216,7 +5240,7 @@ If the file does not exist, create it with owner-readable-only file permissions.
     <message>
         <location filename="../darkcoinstrings.cpp" line="378"/>
         <source>Wallet %s resides outside data directory %s</source>
-        <translation type="unfinished"/>
+        <translation>Портфейла %s се разполага извън папката с данни %s</translation>
     </message>
     <message>
         <location filename="../darkcoinstrings.cpp" line="379"/>
@@ -5241,7 +5265,7 @@ If the file does not exist, create it with owner-readable-only file permissions.
     <message>
         <location filename="../darkcoinstrings.cpp" line="383"/>
         <source>Warning: Deprecated argument -debugnet ignored, use -debug=net</source>
-        <translation type="unfinished"/>
+        <translation>Внимание: опцията -debugnet е стара и е игнорирана, исползвайте -debug=net </translation>
     </message>
     <message>
         <location filename="../darkcoinstrings.cpp" line="384"/>
@@ -5260,7 +5284,7 @@ If the file does not exist, create it with owner-readable-only file permissions.
     <message>
         <location filename="../darkcoinstrings.cpp" line="386"/>
         <source>Zapping all transactions from wallet...</source>
-        <translation type="unfinished"/>
+        <translation>Премахване на всички транзакции от портфейла ...</translation>
     </message>
     <message>
         <location filename="../darkcoinstrings.cpp" line="387"/>

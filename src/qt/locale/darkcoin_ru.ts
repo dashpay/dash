@@ -1943,7 +1943,7 @@ https://www.transifex.com/projects/p/darkcoin/</translation>
     <message>
         <location filename="../overviewpage.cpp" line="381"/>
         <source>Mixing in progress...</source>
-        <translation type="unfinished"/>
+        <translation>Выполняется перемешивание...</translation>
     </message>
     <message>
         <location filename="../overviewpage.cpp" line="387"/>
@@ -4387,7 +4387,7 @@ If the file does not exist, create it with owner-readable-only file permissions.
     <message>
         <location filename="../darkcoinstrings.cpp" line="210"/>
         <source>Downgrading and trying again.</source>
-        <translation type="unfinished"/>
+        <translation>Откат к обычному перемешиванию и повторная попытка.</translation>
     </message>
     <message>
         <location filename="../darkcoinstrings.cpp" line="211"/>
@@ -4401,8 +4401,37 @@ If the file does not exist, create it with owner-readable-only file permissions.
     </message>
     <message>
         <location filename="../darkcoinstrings.cpp" line="213"/>
+        <source>Error connecting to Masternode.</source>
+        <translation type="unfinished"/>
+    </message>
+    <message>
+        <location filename="../darkcoinstrings.cpp" line="273"/>
+        <source>Last successful Darksend action was too recent.</source>
+        <translation type="unfinished"/>
+    </message>
+    <message>
+        <location filename="../darkcoinstrings.cpp" line="291"/>
+        <source>No Masternodes detected.</source>
+        <translation type="unfinished"/>
+    </message>
+    <message>
+        <location filename="../darkcoinstrings.cpp" line="292"/>
+        <source>No compatible Masternode found.</source>
+        <translation type="unfinished"/>
+    </message>
+    <message>
+        <location filename="../darkcoinstrings.cpp" line="298"/>
+        <source>Not in the Masternode list.</source>
+        <translation type="unfinished"/>
+    </message>
+    <message>
+        <location filename="../darkcoinstrings.cpp" line="350"/>
+        <source>This is not a Masternode.</source>
+        <translation type="unfinished"/>
+    </message>
+    <message>
         <source>Error connecting to masternode.</source>
-        <translation>Ошибка соединения с мастернодой.</translation>
+        <translation type="unfinished"/>
     </message>
     <message>
         <location filename="../darkcoinstrings.cpp" line="214"/>
@@ -4700,9 +4729,8 @@ If the file does not exist, create it with owner-readable-only file permissions.
         <translation>Последнее действие Darksend было слишком недавно.</translation>
     </message>
     <message>
-        <location filename="../darkcoinstrings.cpp" line="273"/>
         <source>Last successful darksend action was too recent.</source>
-        <translation>Последнее успешное действие Darksend было слишком недавно.</translation>
+        <translation type="unfinished"/>
     </message>
     <message>
         <location filename="../darkcoinstrings.cpp" line="274"/>
@@ -4790,19 +4818,17 @@ If the file does not exist, create it with owner-readable-only file permissions.
         <translation>Отсутствует информация о входной транзакции.</translation>
     </message>
     <message>
-        <location filename="../darkcoinstrings.cpp" line="291"/>
         <source>No compatible masternode found.</source>
-        <translation>Отсутствуют совместимые мастерноды.</translation>
+        <translation type="unfinished"/>
     </message>
     <message>
-        <location filename="../darkcoinstrings.cpp" line="292"/>
+        <location filename="../darkcoinstrings.cpp" line="293"/>
         <source>No funds detected in need of denominating.</source>
         <translation>Не обнаружено средств для дальнейшего разбиения на номиналы.</translation>
     </message>
     <message>
-        <location filename="../darkcoinstrings.cpp" line="293"/>
         <source>No masternodes detected.</source>
-        <translation>Ни одной мастерноды не найдено.</translation>
+        <translation type="unfinished"/>
     </message>
     <message>
         <location filename="../darkcoinstrings.cpp" line="294"/>
@@ -4825,9 +4851,8 @@ If the file does not exist, create it with owner-readable-only file permissions.
         <translation>Недостаточно файловых дескрипторов.</translation>
     </message>
     <message>
-        <location filename="../darkcoinstrings.cpp" line="298"/>
         <source>Not in the masternode list.</source>
-        <translation>Отсутствует в списке мастернод.</translation>
+        <translation type="unfinished"/>
     </message>
     <message>
         <location filename="../darkcoinstrings.cpp" line="299"/>
@@ -5085,9 +5110,8 @@ If the file does not exist, create it with owner-readable-only file permissions.
         <translation>Это рассчитано на инструменты регрессионного тестирования и разработку приложений.</translation>
     </message>
     <message>
-        <location filename="../darkcoinstrings.cpp" line="350"/>
         <source>This is not a masternode.</source>
-        <translation>Это не мастернода.</translation>
+        <translation type="unfinished"/>
     </message>
     <message>
         <location filename="../darkcoinstrings.cpp" line="351"/>
