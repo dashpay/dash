@@ -1947,7 +1947,7 @@ https://www.transifex.com/projects/p/darkcoin/</translation>
     <message>
         <location filename="../overviewpage.cpp" line="381"/>
         <source>Mixing in progress...</source>
-        <translation type="unfinished"/>
+        <translation>Mixning pågår...</translation>
     </message>
     <message>
         <location filename="../overviewpage.cpp" line="387"/>
@@ -1964,7 +1964,7 @@ https://www.transifex.com/projects/p/darkcoin/</translation>
         <location filename="../overviewpage.cpp" line="395"/>
         <location filename="../overviewpage.cpp" line="396"/>
         <source>Submitted to masternode, Waiting for more entries</source>
-        <translation>Matade in till masternode, väntar på fler inmatningar</translation>
+        <translation>Inlämnad till masternoden. Väntar på fler inmatningar</translation>
     </message>
     <message>
         <location filename="../overviewpage.cpp" line="399"/>
@@ -2014,17 +2014,17 @@ https://www.transifex.com/projects/p/darkcoin/</translation>
     <message>
         <location filename="../overviewpage.cpp" line="414"/>
         <source>Submitted to masternode, waiting in queue .</source>
-        <translation>Inlämnad till masternode, väntar i kön.</translation>
+        <translation>Inlämnad till masternoden, väntar i kön.</translation>
     </message>
     <message>
         <location filename="../overviewpage.cpp" line="415"/>
         <source>Submitted to masternode, waiting in queue ..</source>
-        <translation>Inlämnad till masternode, väntar i kön...</translation>
+        <translation>Inlämnad till masternoden, väntar i kön...</translation>
     </message>
     <message>
         <location filename="../overviewpage.cpp" line="416"/>
         <source>Submitted to masternode, waiting in queue ...</source>
-        <translation>Inlämnad till masternode, väntar i kön...</translation>
+        <translation>Inlämnad till masternoden, väntar i kön...</translation>
     </message>
     <message>
         <location filename="../overviewpage.cpp" line="418"/>
@@ -4391,7 +4391,7 @@ Om filen inte existerar, skapa den och ge inga andra än ägaren läsarrättighe
     <message>
         <location filename="../darkcoinstrings.cpp" line="210"/>
         <source>Downgrading and trying again.</source>
-        <translation type="unfinished"/>
+        <translation>Nedgraderar och försöker igen.</translation>
     </message>
     <message>
         <location filename="../darkcoinstrings.cpp" line="211"/>
@@ -4406,7 +4406,7 @@ Om filen inte existerar, skapa den och ge inga andra än ägaren läsarrättighe
     <message>
         <location filename="../darkcoinstrings.cpp" line="213"/>
         <source>Error connecting to masternode.</source>
-        <translation>Fel vid anslutning till masternode.</translation>
+        <translation>Fel vid anslutning till masternoden.</translation>
     </message>
     <message>
         <location filename="../darkcoinstrings.cpp" line="214"/>
@@ -4736,7 +4736,7 @@ Om filen inte existerar, skapa den och ge inga andra än ägaren läsarrättighe
     <message>
         <location filename="../darkcoinstrings.cpp" line="279"/>
         <source>Loading masternode list...</source>
-        <translation type="unfinished"/>
+        <translation>Laddar masternode-listan...</translation>
     </message>
     <message>
         <location filename="../darkcoinstrings.cpp" line="280"/>
@@ -4796,7 +4796,7 @@ Om filen inte existerar, skapa den och ge inga andra än ägaren läsarrättighe
     <message>
         <location filename="../darkcoinstrings.cpp" line="291"/>
         <source>No compatible masternode found.</source>
-        <translation>Inga kompatibla masternoder hittade.</translation>
+        <translation>Inga kompatibla masternoder hittades.</translation>
     </message>
     <message>
         <location filename="../darkcoinstrings.cpp" line="292"/>
@@ -4806,7 +4806,7 @@ Om filen inte existerar, skapa den och ge inga andra än ägaren läsarrättighe
     <message>
         <location filename="../darkcoinstrings.cpp" line="293"/>
         <source>No masternodes detected.</source>
-        <translation>Inga masternoder hittade.</translation>
+        <translation>Inga masternoder hittades.</translation>
     </message>
     <message>
         <location filename="../darkcoinstrings.cpp" line="294"/>

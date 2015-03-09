@@ -1859,7 +1859,7 @@ https://www.transifex.com/projects/p/darkcoin/</translation>
     <message>
         <location filename="../forms/overviewpage.ui" line="896"/>
         <source>Try to manually submit a Darksend request.</source>
-        <translation>Prøv å manuelt sende inn en Darksend-forespørsel.</translation>
+        <translation>Prøv å manuelt sende en Darksend-forespørsel.</translation>
     </message>
     <message>
         <location filename="../forms/overviewpage.ui" line="899"/>
@@ -1953,99 +1953,99 @@ https://www.transifex.com/projects/p/darkcoin/</translation>
     <message>
         <location filename="../overviewpage.cpp" line="393"/>
         <source>Submitted following entries to masternode:</source>
-        <translation type="unfinished"/>
+        <translation>Sendte følgende oppføringer til masternode:</translation>
     </message>
     <message>
         <location filename="../overviewpage.cpp" line="394"/>
         <location filename="../overviewpage.cpp" line="395"/>
         <location filename="../overviewpage.cpp" line="396"/>
         <source>Submitted to masternode, Waiting for more entries</source>
-        <translation type="unfinished"/>
+        <translation>Sendt til masternode, Venter på flere oppføringer</translation>
     </message>
     <message>
         <location filename="../overviewpage.cpp" line="399"/>
         <source>Found enough users, signing ...</source>
-        <translation type="unfinished"/>
+        <translation>Fant nok brukere, signerer ...</translation>
     </message>
     <message>
         <location filename="../overviewpage.cpp" line="400"/>
         <source>Found enough users, signing ( waiting. )</source>
-        <translation type="unfinished"/>
+        <translation>Fant nok brukere, signerer ( venter. )</translation>
     </message>
     <message>
         <location filename="../overviewpage.cpp" line="401"/>
         <source>Found enough users, signing ( waiting.. )</source>
-        <translation type="unfinished"/>
+        <translation>Fant nok brukere, signerer ( venter. )</translation>
     </message>
     <message>
         <location filename="../overviewpage.cpp" line="402"/>
         <source>Found enough users, signing ( waiting... )</source>
-        <translation type="unfinished"/>
+        <translation>Fant nok brukere, signerer ( venter. )</translation>
     </message>
     <message>
         <location filename="../overviewpage.cpp" line="404"/>
         <source>Transmitting final transaction.</source>
-        <translation type="unfinished"/>
+        <translation>Sender endelig transaksjon.</translation>
     </message>
     <message>
         <location filename="../overviewpage.cpp" line="408"/>
         <source>Finalizing transaction.</source>
-        <translation type="unfinished"/>
+        <translation>Fullfører transaksjon.</translation>
     </message>
     <message>
         <location filename="../overviewpage.cpp" line="410"/>
         <source>Darksend request incomplete:</source>
-        <translation type="unfinished"/>
+        <translation>Darksend-forespørsel ufullstendig:</translation>
     </message>
     <message>
         <location filename="../overviewpage.cpp" line="410"/>
         <source>Will retry...</source>
-        <translation type="unfinished"/>
+        <translation>Vil prøve igjen...</translation>
     </message>
     <message>
         <location filename="../overviewpage.cpp" line="412"/>
         <source>Darksend request complete:</source>
-        <translation type="unfinished"/>
+        <translation>Darksend-forespørsel fullført:</translation>
     </message>
     <message>
         <location filename="../overviewpage.cpp" line="414"/>
         <source>Submitted to masternode, waiting in queue .</source>
-        <translation type="unfinished"/>
+        <translation>Sendt inn til masternode, venter i kø .</translation>
     </message>
     <message>
         <location filename="../overviewpage.cpp" line="415"/>
         <source>Submitted to masternode, waiting in queue ..</source>
-        <translation type="unfinished"/>
+        <translation>Sendt inn til masternode, venter i kø ..</translation>
     </message>
     <message>
         <location filename="../overviewpage.cpp" line="416"/>
         <source>Submitted to masternode, waiting in queue ...</source>
-        <translation type="unfinished"/>
+        <translation>Sendt inn til masternode, venter i kø ...</translation>
     </message>
     <message>
         <location filename="../overviewpage.cpp" line="418"/>
         <source>Unknown state:</source>
-        <translation type="unfinished"/>
+        <translation>Ukjent tilstand:</translation>
     </message>
     <message>
         <location filename="../overviewpage.cpp" line="432"/>
         <source>N/A</source>
-        <translation>-</translation>
+        <translation>N/A</translation>
     </message>
     <message>
         <location filename="../overviewpage.cpp" line="454"/>
         <source>Darksend was successfully reset.</source>
-        <translation type="unfinished"/>
+        <translation>Darksend ble nullstilt.</translation>
     </message>
     <message>
         <location filename="../overviewpage.cpp" line="468"/>
         <source>Darksend requires at least %1 to use.</source>
-        <translation type="unfinished"/>
+        <translation>Darksend krever minst %1 å bruke.</translation>
     </message>
     <message>
         <location filename="../overviewpage.cpp" line="482"/>
         <source>Wallet is locked and user declined to unlock. Disabling Darksend.</source>
-        <translation type="unfinished"/>
+        <translation>Lommebok er låst og bruker avslo å låse den opp. Deaktiverer Darksend.</translation>
     </message>
 </context>
 <context>
@@ -2058,17 +2058,17 @@ https://www.transifex.com/projects/p/darkcoin/</translation>
         <location filename="../paymentserver.cpp" line="631"/>
         <location filename="../paymentserver.cpp" line="647"/>
         <source>Payment request error</source>
-        <translation>Betalingsforespørsel feil</translation>
+        <translation>Betalingsforespørsel-feil</translation>
     </message>
     <message>
         <location filename="../paymentserver.cpp" line="294"/>
         <source>Cannot start darkcoin: click-to-pay handler</source>
-        <translation type="unfinished"/>
+        <translation>Kan ikke starte darkcoin: Klikk-for-betaling syntaks</translation>
     </message>
     <message>
         <location filename="../paymentserver.cpp" line="352"/>
         <source>Net manager warning</source>
-        <translation>Nettleder advarsel</translation>
+        <translation>Nettleder-advarsel</translation>
     </message>
     <message>
         <location filename="../paymentserver.cpp" line="353"/>
@@ -2089,7 +2089,7 @@ https://www.transifex.com/projects/p/darkcoin/</translation>
     <message>
         <location filename="../paymentserver.cpp" line="418"/>
         <source>URI can not be parsed! This can be caused by an invalid Darkcoin address or malformed URI parameters.</source>
-        <translation type="unfinished"/>
+        <translation>URI kan ikke analyseres! Dette kan være forårsaket av en ugyldig Darkcoin-adresse eller ugyldige URI-parametere.</translation>
     </message>
     <message>
         <location filename="../paymentserver.cpp" line="432"/>
@@ -2134,7 +2134,7 @@ https://www.transifex.com/projects/p/darkcoin/</translation>
     <message>
         <location filename="../paymentserver.cpp" line="665"/>
         <source>Network request error</source>
-        <translation>Nettverksforespørsel feil</translation>
+        <translation>Nettverksforespørsel-feil</translation>
     </message>
     <message>
         <location filename="../paymentserver.cpp" line="676"/>
@@ -2165,7 +2165,7 @@ https://www.transifex.com/projects/p/darkcoin/</translation>
     <message>
         <location filename="../darkcoin.cpp" line="540"/>
         <source>Error reading masternode configuration file: %1</source>
-        <translation type="unfinished"/>
+        <translation>Feil i lesing av masternode-konfigurasjonsfilen: %1</translation>
     </message>
     <message>
         <location filename="../darkcoin.cpp" line="552"/>
@@ -2175,12 +2175,12 @@ https://www.transifex.com/projects/p/darkcoin/</translation>
     <message>
         <location filename="../darkcoin.cpp" line="612"/>
         <source>Darkcoin Core didn&apos;t yet exit safely...</source>
-        <translation type="unfinished"/>
+        <translation>Darkcoin Core har ikke lukket seg sikkert ennå...</translation>
     </message>
     <message>
         <location filename="../guiutil.cpp" line="101"/>
         <source>Enter a Darkcoin address (e.g. XwnLY9Tf7Zsef8gMGL2fhWA9ZmMjt4KPwg)</source>
-        <translation type="unfinished"/>
+        <translation>Skriv inn en Darkcoin-adresse (f.eks. XwnLY9Tf7Zsef8gMGL2fhWA9ZmMjt4KPwg)</translation>
     </message>
 </context>
 <context>
@@ -2193,7 +2193,7 @@ https://www.transifex.com/projects/p/darkcoin/</translation>
     <message>
         <location filename="../receiverequestdialog.cpp" line="39"/>
         <source>&amp;Copy Image</source>
-        <translation>&amp;Kopier Bilde</translation>
+        <translation>&amp;Kopiér Bilde</translation>
     </message>
     <message>
         <location filename="../receiverequestdialog.cpp" line="71"/>
@@ -2211,7 +2211,7 @@ https://www.transifex.com/projects/p/darkcoin/</translation>
     <message>
         <location filename="../forms/rpcconsole.ui" line="14"/>
         <source>Tools window</source>
-        <translation type="unfinished"/>
+        <translation>Verktøy-vindu</translation>
     </message>
     <message>
         <location filename="../forms/rpcconsole.ui" line="24"/>
@@ -2221,7 +2221,7 @@ https://www.transifex.com/projects/p/darkcoin/</translation>
     <message>
         <location filename="../forms/rpcconsole.ui" line="33"/>
         <source>Masternode Count</source>
-        <translation type="unfinished"/>
+        <translation>Masternode antall</translation>
     </message>
     <message>
         <location filename="../forms/rpcconsole.ui" line="46"/>
@@ -2250,7 +2250,7 @@ https://www.transifex.com/projects/p/darkcoin/</translation>
         <location filename="../forms/rpcconsole.ui" line="315"/>
         <location filename="../forms/rpcconsole.ui" line="341"/>
         <source>N/A</source>
-        <translation>-</translation>
+        <translation>N/A</translation>
     </message>
     <message>
         <location filename="../forms/rpcconsole.ui" line="83"/>
@@ -2260,7 +2260,7 @@ https://www.transifex.com/projects/p/darkcoin/</translation>
     <message>
         <location filename="../forms/rpcconsole.ui" line="90"/>
         <source>Open the Darkcoin debug log file from the current data directory. This can take a few seconds for large log files.</source>
-        <translation type="unfinished"/>
+        <translation>Åpne debug-loggfilen for Darkcoin fra nåværende datakatalog. Det kan ta noen sekunder for store loggfiler.</translation>
     </message>
     <message>
         <location filename="../forms/rpcconsole.ui" line="93"/>
@@ -2270,7 +2270,7 @@ https://www.transifex.com/projects/p/darkcoin/</translation>
     <message>
         <location filename="../forms/rpcconsole.ui" line="116"/>
         <source>Startup time</source>
-        <translation>Oppstartstidspunkt</translation>
+        <translation>Oppstarttidspunkt</translation>
     </message>
     <message>
         <location filename="../forms/rpcconsole.ui" line="129"/>
@@ -2352,7 +2352,7 @@ https://www.transifex.com/projects/p/darkcoin/</translation>
     <message>
         <location filename="../rpcconsole.cpp" line="333"/>
         <source>Welcome to the Darkcoin RPC console.</source>
-        <translation type="unfinished"/>
+        <translation>Velkommen til Darkcoin RPC-konsollen.</translation>
     </message>
     <message>
         <location filename="../rpcconsole.cpp" line="334"/>
@@ -2416,7 +2416,7 @@ https://www.transifex.com/projects/p/darkcoin/</translation>
         <location filename="../forms/receivecoinsdialog.ui" line="51"/>
         <location filename="../forms/receivecoinsdialog.ui" line="74"/>
         <source>An optional message to attach to the payment request, which will be displayed when the request is opened. Note: The message will not be sent with the payment over the Darkcoin network.</source>
-        <translation type="unfinished"/>
+        <translation>En valgfri melding å legge ved betalingsforespørselen, som vil vises når forespørselen åpnes. Merk: Beskjeden vil ikke bli sent med betalingen over Darkcoin-nettverket.</translation>
     </message>
     <message>
         <location filename="../forms/receivecoinsdialog.ui" line="54"/>
@@ -2493,17 +2493,17 @@ https://www.transifex.com/projects/p/darkcoin/</translation>
     <message>
         <location filename="../receivecoinsdialog.cpp" line="39"/>
         <source>Copy label</source>
-        <translation>Kopier merkelapp</translation>
+        <translation>Kopiér merkelapp</translation>
     </message>
     <message>
         <location filename="../receivecoinsdialog.cpp" line="40"/>
         <source>Copy message</source>
-        <translation>Kopier melding</translation>
+        <translation>Kopiér melding</translation>
     </message>
     <message>
         <location filename="../receivecoinsdialog.cpp" line="41"/>
         <source>Copy amount</source>
-        <translation>Kopier beløp</translation>
+        <translation>Kopiér beløp</translation>
     </message>
 </context>
 <context>
@@ -2516,12 +2516,12 @@ https://www.transifex.com/projects/p/darkcoin/</translation>
     <message>
         <location filename="../forms/receiverequestdialog.ui" line="75"/>
         <source>Copy &amp;URI</source>
-        <translation>Kopier &amp;URI</translation>
+        <translation>Kopiér &amp;URI</translation>
     </message>
     <message>
         <location filename="../forms/receiverequestdialog.ui" line="82"/>
         <source>Copy &amp;Address</source>
-        <translation>Kopier &amp;Adresse</translation>
+        <translation>Kopiér &amp;Adresse</translation>
     </message>
     <message>
         <location filename="../forms/receiverequestdialog.ui" line="89"/>
@@ -2566,12 +2566,12 @@ https://www.transifex.com/projects/p/darkcoin/</translation>
     <message>
         <location filename="../receiverequestdialog.cpp" line="161"/>
         <source>Resulting URI too long, try to reduce the text for label / message.</source>
-        <translation>Resultat URI for lang, prøv å redusere teksten for merkelapp / melding.</translation>
+        <translation>Resulterende URI for lang, prøv å redusere teksten for merkelapp / melding.</translation>
     </message>
     <message>
         <location filename="../receiverequestdialog.cpp" line="166"/>
         <source>Error encoding URI into QR Code.</source>
-        <translation>Feil ved koding av URI til QR-kode.</translation>
+        <translation>Feil ved kompilering av URI til QR-kode.</translation>
     </message>
 </context>
 <context>
@@ -2620,12 +2620,12 @@ https://www.transifex.com/projects/p/darkcoin/</translation>
         <location filename="../sendcoinsdialog.cpp" line="521"/>
         <location filename="../sendcoinsdialog.cpp" line="531"/>
         <source>Send Coins</source>
-        <translation>Send Bitcoins</translation>
+        <translation>Send darkcoins</translation>
     </message>
     <message>
         <location filename="../forms/sendcoinsdialog.ui" line="90"/>
         <source>Coin Control Features</source>
-        <translation>Myntkontroll Funksjoner</translation>
+        <translation>Myntkontroll-funksjoner</translation>
     </message>
     <message>
         <location filename="../forms/sendcoinsdialog.ui" line="110"/>
@@ -2725,7 +2725,7 @@ https://www.transifex.com/projects/p/darkcoin/</translation>
     <message>
         <location filename="../forms/sendcoinsdialog.ui" line="711"/>
         <source>Send to multiple recipients at once</source>
-        <translation>Send til flere enn en mottaker</translation>
+        <translation>Send til flere enn én mottaker</translation>
     </message>
     <message>
         <location filename="../forms/sendcoinsdialog.ui" line="714"/>
@@ -2740,7 +2740,7 @@ https://www.transifex.com/projects/p/darkcoin/</translation>
     <message>
         <location filename="../forms/sendcoinsdialog.ui" line="771"/>
         <source>InstantX</source>
-        <translation type="unfinished"/>
+        <translation>InstantX</translation>
     </message>
     <message>
         <location filename="../forms/sendcoinsdialog.ui" line="778"/>
@@ -2750,32 +2750,32 @@ https://www.transifex.com/projects/p/darkcoin/</translation>
     <message>
         <location filename="../sendcoinsdialog.cpp" line="53"/>
         <source>Copy quantity</source>
-        <translation>Kopier mengde</translation>
+        <translation>Kopiér mengde</translation>
     </message>
     <message>
         <location filename="../sendcoinsdialog.cpp" line="54"/>
         <source>Copy amount</source>
-        <translation>Kopier beløp</translation>
+        <translation>Kopiér beløp</translation>
     </message>
     <message>
         <location filename="../sendcoinsdialog.cpp" line="55"/>
         <source>Copy fee</source>
-        <translation>Kopier gebyr</translation>
+        <translation>Kopiér gebyr</translation>
     </message>
     <message>
         <location filename="../sendcoinsdialog.cpp" line="56"/>
         <source>Copy after fee</source>
-        <translation>Kopier fra gebyr</translation>
+        <translation>Kopiér fra gebyr</translation>
     </message>
     <message>
         <location filename="../sendcoinsdialog.cpp" line="57"/>
         <source>Copy bytes</source>
-        <translation>Kopier bytes</translation>
+        <translation>Kopiér bytes</translation>
     </message>
     <message>
         <location filename="../sendcoinsdialog.cpp" line="58"/>
         <source>Copy priority</source>
-        <translation>Kopier prioritet</translation>
+        <translation>Kopiér prioritet</translation>
     </message>
     <message>
         <location filename="../sendcoinsdialog.cpp" line="59"/>
@@ -2785,35 +2785,35 @@ https://www.transifex.com/projects/p/darkcoin/</translation>
     <message>
         <location filename="../sendcoinsdialog.cpp" line="60"/>
         <source>Copy change</source>
-        <translation>Kopier veksel</translation>
+        <translation>Kopiér veksel</translation>
     </message>
     <message>
         <location filename="../sendcoinsdialog.cpp" line="145"/>
         <location filename="../sendcoinsdialog.cpp" line="151"/>
         <location filename="../sendcoinsdialog.cpp" line="160"/>
         <source>using</source>
-        <translation type="unfinished"/>
+        <translation>bruker</translation>
     </message>
     <message>
         <location filename="../sendcoinsdialog.cpp" line="145"/>
         <location filename="../sendcoinsdialog.cpp" line="151"/>
         <source>anonymous funds</source>
-        <translation type="unfinished"/>
+        <translation>anonyme midler</translation>
     </message>
     <message>
         <location filename="../sendcoinsdialog.cpp" line="155"/>
         <source>(darksend requires this amount to be rounded up to the nearest %1).</source>
-        <translation type="unfinished"/>
+        <translation>(Darksend trenger at dette beløpet blir rundet opp til nærmeste %1).</translation>
     </message>
     <message>
         <location filename="../sendcoinsdialog.cpp" line="160"/>
         <source>any available funds (not recommended)</source>
-        <translation type="unfinished"/>
+        <translation>Alle tilgjengelige midler (ikke anbefalt)</translation>
     </message>
     <message>
         <location filename="../sendcoinsdialog.cpp" line="166"/>
         <source>and InstantX</source>
-        <translation type="unfinished"/>
+        <translation>og InstantX</translation>
     </message>
     <message>
         <location filename="../sendcoinsdialog.cpp" line="190"/>
@@ -2831,7 +2831,7 @@ https://www.transifex.com/projects/p/darkcoin/</translation>
     <message>
         <location filename="../sendcoinsdialog.cpp" line="262"/>
         <source>are added as transaction fee</source>
-        <translation type="unfinished"/>
+        <translation>blir lagt til som transaksjonsgebyr</translation>
     </message>
     <message>
         <location filename="../sendcoinsdialog.cpp" line="276"/>
@@ -2846,7 +2846,7 @@ https://www.transifex.com/projects/p/darkcoin/</translation>
     <message>
         <location filename="../sendcoinsdialog.cpp" line="280"/>
         <source>Confirm send coins</source>
-        <translation>Bekreft sending av bitcoins</translation>
+        <translation>Bekreft sending av darkcoins</translation>
     </message>
     <message>
         <location filename="../sendcoinsdialog.cpp" line="435"/>
@@ -2861,7 +2861,7 @@ https://www.transifex.com/projects/p/darkcoin/</translation>
     <message>
         <location filename="../sendcoinsdialog.cpp" line="498"/>
         <source>The recipient address is not valid, please recheck.</source>
-        <translation>Adresse for mottaker er ugyldig.</translation>
+        <translation>Mottakeradresse er ugyldig, vennligst gjensjekk.</translation>
     </message>
     <message>
         <location filename="../sendcoinsdialog.cpp" line="501"/>
@@ -2871,7 +2871,7 @@ https://www.transifex.com/projects/p/darkcoin/</translation>
     <message>
         <location filename="../sendcoinsdialog.cpp" line="504"/>
         <source>The amount exceeds your balance.</source>
-        <translation>Beløpet overstiger saldo.</translation>
+        <translation>Beløpet overstiger saldoen din.</translation>
     </message>
     <message>
         <location filename="../sendcoinsdialog.cpp" line="507"/>
@@ -2881,7 +2881,7 @@ https://www.transifex.com/projects/p/darkcoin/</translation>
     <message>
         <location filename="../sendcoinsdialog.cpp" line="510"/>
         <source>Duplicate address found, can only send to each address once per send operation.</source>
-        <translation>Doble antall adresser funnet. Kan bare sende en gang til hver adresse per operasjon.</translation>
+        <translation>Doble adresser funnet. Kan bare sende en gang til hver adresse per operasjon.</translation>
     </message>
     <message>
         <location filename="../sendcoinsdialog.cpp" line="513"/>
@@ -2896,12 +2896,12 @@ https://www.transifex.com/projects/p/darkcoin/</translation>
     <message>
         <location filename="../sendcoinsdialog.cpp" line="522"/>
         <source>Error: The wallet was unlocked only to anonymize coins.</source>
-        <translation type="unfinished"/>
+        <translation>Feil: Lommeboka ble kun låst opp for å anonymisere mynter.</translation>
     </message>
     <message>
         <location filename="../sendcoinsdialog.cpp" line="635"/>
         <source>Warning: Invalid Darkcoin address</source>
-        <translation type="unfinished"/>
+        <translation>Advarsel: Ugyldig Darkcoin-adresse</translation>
     </message>
     <message>
         <location filename="../sendcoinsdialog.cpp" line="644"/>
@@ -2929,7 +2929,7 @@ https://www.transifex.com/projects/p/darkcoin/</translation>
     <message>
         <location filename="../forms/sendcoinsentry.ui" line="54"/>
         <source>The address to send the payment to (e.g. XwnLY9Tf7Zsef8gMGL2fhWA9ZmMjt4KPwg)</source>
-        <translation type="unfinished"/>
+        <translation>Adresse for å sende betaling til (f.eks. XwnLY9Tf7Zsef8gMGL2fhWA9ZmMjt4KPwg)</translation>
     </message>
     <message>
         <location filename="../forms/sendcoinsentry.ui" line="61"/>
@@ -2983,12 +2983,12 @@ https://www.transifex.com/projects/p/darkcoin/</translation>
     <message>
         <location filename="../forms/sendcoinsentry.ui" line="157"/>
         <source>A message that was attached to the darkcoin: URI which will be stored with the transaction for your reference. Note: This message will not be sent over the Darkcoin network.</source>
-        <translation type="unfinished"/>
+        <translation>En melding som var lagt ved darkcoinsene: URI som vil bli lagret sammen med transaksjonen for din referanse. Merk: Denne meldingen vil ikke sendes over Darkcoin-nettverket.</translation>
     </message>
     <message>
         <location filename="../forms/sendcoinsentry.ui" line="583"/>
         <source>This is an unverified payment request.</source>
-        <translation>Dette er en uverifisert betalingsetterspørring</translation>
+        <translation>Dette er en uverifisert betalingsforespørsel.</translation>
     </message>
     <message>
         <location filename="../forms/sendcoinsentry.ui" line="601"/>
@@ -3005,7 +3005,7 @@ https://www.transifex.com/projects/p/darkcoin/</translation>
     <message>
         <location filename="../forms/sendcoinsentry.ui" line="1115"/>
         <source>This is a verified payment request.</source>
-        <translation>Dette er en verifisert betalingsetterspørring</translation>
+        <translation>Dette er en verifisert betalingsforespørsel.</translation>
     </message>
     <message>
         <location filename="../sendcoinsentry.cpp" line="31"/>
@@ -3018,7 +3018,7 @@ https://www.transifex.com/projects/p/darkcoin/</translation>
     <message>
         <location filename="../utilitydialog.cpp" line="129"/>
         <source>Darkcoin Core is shutting down...</source>
-        <translation type="unfinished"/>
+        <translation>Darkcoin Core lukker seg...</translation>
     </message>
     <message>
         <location filename="../utilitydialog.cpp" line="130"/>
@@ -3031,7 +3031,7 @@ https://www.transifex.com/projects/p/darkcoin/</translation>
     <message>
         <location filename="../forms/signverifymessagedialog.ui" line="14"/>
         <source>Signatures - Sign / Verify a Message</source>
-        <translation>Signaturer - Signer / Verifiser en Melding</translation>
+        <translation>Signaturer - Signér / Verifiser en Melding</translation>
     </message>
     <message>
         <location filename="../forms/signverifymessagedialog.ui" line="24"/>
@@ -3041,12 +3041,12 @@ https://www.transifex.com/projects/p/darkcoin/</translation>
     <message>
         <location filename="../forms/signverifymessagedialog.ui" line="30"/>
         <source>You can sign messages with your addresses to prove you own them. Be careful not to sign anything vague, as phishing attacks may try to trick you into signing your identity over to them. Only sign fully-detailed statements you agree to.</source>
-        <translation>Du kan signere meldinger med dine adresser for å bevise at du eier dem. Ikke signer vage meldinger da phishing-angrep kan prøve å lure deg til å signere din identitet over til andre. Signer kun fullt detaljerte utsagn som du er enig i.</translation>
+        <translation>Du kan signere meldinger med dine adresser for å bevise at du eier dem. Ikke signer vage meldinger da phishing-angrep kan prøve å lure deg til å signere din identitet over til andre. Signér kun fullt detaljerte utsagn som du er enig i.</translation>
     </message>
     <message>
         <location filename="../forms/signverifymessagedialog.ui" line="48"/>
         <source>The address to sign the message with (e.g. XwnLY9Tf7Zsef8gMGL2fhWA9ZmMjt4KPwg)</source>
-        <translation type="unfinished"/>
+        <translation>Adressen å signere meldingen med (f.eks. XwnLY9Tf7Zsef8gMGL2fhWA9ZmMjt4KPwg)</translation>
     </message>
     <message>
         <location filename="../forms/signverifymessagedialog.ui" line="55"/>
@@ -3083,17 +3083,17 @@ https://www.transifex.com/projects/p/darkcoin/</translation>
     <message>
         <location filename="../forms/signverifymessagedialog.ui" line="131"/>
         <source>Copy the current signature to the system clipboard</source>
-        <translation>Kopier valgt signatur til utklippstavle</translation>
+        <translation>Kopiér valgt signatur til utklippstavle</translation>
     </message>
     <message>
         <location filename="../forms/signverifymessagedialog.ui" line="152"/>
         <source>Sign the message to prove you own this Darkcoin address</source>
-        <translation type="unfinished"/>
+        <translation>Signér meldingen for å bevise at du eier denne Darkcoin-adressen</translation>
     </message>
     <message>
         <location filename="../forms/signverifymessagedialog.ui" line="155"/>
         <source>Sign &amp;Message</source>
-        <translation>Signer &amp;Melding</translation>
+        <translation>Signér &amp;Melding</translation>
     </message>
     <message>
         <location filename="../forms/signverifymessagedialog.ui" line="169"/>
@@ -3119,17 +3119,17 @@ https://www.transifex.com/projects/p/darkcoin/</translation>
     <message>
         <location filename="../forms/signverifymessagedialog.ui" line="258"/>
         <source>The address the message was signed with (e.g. XwnLY9Tf7Zsef8gMGL2fhWA9ZmMjt4KPwg)</source>
-        <translation type="unfinished"/>
+        <translation>Adressen meldingen ble signert med (f.eks. XwnLY9Tf7Zsef8gMGL2fhWA9ZmMjt4KPwg)</translation>
     </message>
     <message>
         <location filename="../forms/signverifymessagedialog.ui" line="295"/>
         <source>Verify the message to ensure it was signed with the specified Darkcoin address</source>
-        <translation type="unfinished"/>
+        <translation>Verifisér meldingen for å forsikre deg om at den var signert med den spesifiserte Darkcoin-adressen</translation>
     </message>
     <message>
         <location filename="../forms/signverifymessagedialog.ui" line="298"/>
         <source>Verify &amp;Message</source>
-        <translation>Verifiser &amp;Melding</translation>
+        <translation>Verifisér &amp;Melding</translation>
     </message>
     <message>
         <location filename="../forms/signverifymessagedialog.ui" line="312"/>
@@ -3139,12 +3139,12 @@ https://www.transifex.com/projects/p/darkcoin/</translation>
     <message>
         <location filename="../signverifymessagedialog.cpp" line="30"/>
         <source>Click &quot;Sign Message&quot; to generate signature</source>
-        <translation>Klikk &quot;Signer Melding&quot; for å generere signatur</translation>
+        <translation>Klikk &quot;Signér Melding&quot; for å generere signatur</translation>
     </message>
     <message>
         <location filename="../signverifymessagedialog.cpp" line="31"/>
         <source>Enter a Darkcoin address (e.g. XwnLY9Tf7Zsef8gMGL2fhWA9ZmMjt4KPwg)</source>
-        <translation type="unfinished"/>
+        <translation>Skriv inn en Darkcoin-adresse (f.eks. XwnLY9Tf7Zsef8gMGL2fhWA9ZmMjt4KPwg)</translation>
     </message>
     <message>
         <location filename="../signverifymessagedialog.cpp" line="114"/>
@@ -3223,7 +3223,7 @@ https://www.transifex.com/projects/p/darkcoin/</translation>
     <message>
         <location filename="../splashscreen.cpp" line="34"/>
         <source>Version %1</source>
-        <translation type="unfinished"/>
+        <translation>Versjon %1</translation>
     </message>
     <message>
         <location filename="../splashscreen.cpp" line="35"/>
@@ -3254,7 +3254,7 @@ https://www.transifex.com/projects/p/darkcoin/</translation>
     <message numerus="yes">
         <location filename="../transactiondesc.cpp" line="28"/>
         <source>Open for %n more block(s)</source>
-        <translation type="unfinished"><numerusform></numerusform><numerusform></numerusform></translation>
+        <translation><numerusform>Åpne for %n blokk(er) til</numerusform><numerusform>Åpne for %n blokk(er) til</numerusform></translation>
     </message>
     <message>
         <location filename="../transactiondesc.cpp" line="30"/>
@@ -3272,17 +3272,17 @@ https://www.transifex.com/projects/p/darkcoin/</translation>
     <message>
         <location filename="../transactiondesc.cpp" line="43"/>
         <source>%1/offline (verified via instantx)</source>
-        <translation type="unfinished"/>
+        <translation>%1/offline (verifisert via InstantX)</translation>
     </message>
     <message>
         <location filename="../transactiondesc.cpp" line="45"/>
         <source>%1/confirmed (verified via instantx)</source>
-        <translation type="unfinished"/>
+        <translation>%1/bekreftet (verifisert via InstantX)</translation>
     </message>
     <message>
         <location filename="../transactiondesc.cpp" line="47"/>
         <source>%1 confirmations (verified via instantx)</source>
-        <translation type="unfinished"/>
+        <translation>%1 bekreftelser (verifisert via InstantX)</translation>
     </message>
     <message>
         <location filename="../transactiondesc.cpp" line="76"/>
@@ -3303,27 +3303,27 @@ https://www.transifex.com/projects/p/darkcoin/</translation>
     <message>
         <location filename="../transactiondesc.cpp" line="54"/>
         <source>%1/offline (InstantX verification in progress - %2 of %3 signatures)</source>
-        <translation type="unfinished"/>
+        <translation>%1/offline (InstantX-verifikasjon pågår - %2 av %3 signaturer)</translation>
     </message>
     <message>
         <location filename="../transactiondesc.cpp" line="56"/>
         <source>%1/confirmed (InstantX verification in progress - %2 of %3 signatures )</source>
-        <translation type="unfinished"/>
+        <translation>%1/bekreftet (InstantX-verifikasjon pågår - %2 av %3 signaturer)</translation>
     </message>
     <message>
         <location filename="../transactiondesc.cpp" line="58"/>
         <source>%1 confirmations (InstantX verification in progress - %2 of %3 signatures)</source>
-        <translation type="unfinished"/>
+        <translation>%1 bekreftelser (InstantX-verifikasjon pågår - %2 av %3 signaturer)</translation>
     </message>
     <message>
         <location filename="../transactiondesc.cpp" line="64"/>
         <source>%1/offline (InstantX verification failed)</source>
-        <translation type="unfinished"/>
+        <translation>%1/offline (InstantX-verifikasjon feilet)</translation>
     </message>
     <message>
         <location filename="../transactiondesc.cpp" line="66"/>
         <source>%1/confirmed (InstantX verification failed)</source>
-        <translation type="unfinished"/>
+        <translation>%1/bekreftet (InstantX-verifikasjon feilet)</translation>
     </message>
     <message>
         <location filename="../transactiondesc.cpp" line="98"/>
@@ -3333,12 +3333,12 @@ https://www.transifex.com/projects/p/darkcoin/</translation>
     <message>
         <location filename="../transactiondesc.cpp" line="103"/>
         <source>, has not been successfully broadcast yet</source>
-        <translation>, har ikke blitt kringkastet med hell enda</translation>
+        <translation>, har ikke blitt kringkastet med hell ennå</translation>
     </message>
     <message numerus="yes">
         <location filename="../transactiondesc.cpp" line="105"/>
         <source>, broadcast through %n node(s)</source>
-        <translation type="unfinished"><numerusform></numerusform><numerusform></numerusform></translation>
+        <translation><numerusform>, kringkast gjennom %n node(r)</numerusform><numerusform>, kringkast gjennom %n node(r)</numerusform></translation>
     </message>
     <message>
         <location filename="../transactiondesc.cpp" line="109"/>
@@ -3391,12 +3391,12 @@ https://www.transifex.com/projects/p/darkcoin/</translation>
         <location filename="../transactiondesc.cpp" line="253"/>
         <location filename="../transactiondesc.cpp" line="306"/>
         <source>Credit</source>
-        <translation>Kredit</translation>
+        <translation>Kreditt</translation>
     </message>
     <message numerus="yes">
         <location filename="../transactiondesc.cpp" line="181"/>
         <source>matures in %n more block(s)</source>
-        <translation type="unfinished"><numerusform></numerusform><numerusform></numerusform></translation>
+        <translation><numerusform>gyldiggjort om %n blokk(er)</numerusform><numerusform>gyldiggjort om %n blokk(er)</numerusform></translation>
     </message>
     <message>
         <location filename="../transactiondesc.cpp" line="183"/>
@@ -3445,7 +3445,7 @@ https://www.transifex.com/projects/p/darkcoin/</translation>
     <message>
         <location filename="../transactiondesc.cpp" line="292"/>
         <source>Generated coins must mature %1 blocks before they can be spent. When you generated this block, it was broadcast to the network to be added to the block chain. If it fails to get into the chain, its state will change to &quot;not accepted&quot; and it won&apos;t be spendable. This may occasionally happen if another node generates a block within a few seconds of yours.</source>
-        <translation>Genererte bitcoins må modnes %1 blokker før de kan brukes. Da du genererte denne blokken ble den kringkastet på nettverket for å bli lagt til i kjeden av blokker. Hvis den ikke kommer med i kjeden vil den endre seg til &quot;ikke akseptert&quot; og pengene vil ikke kunne brukes. Dette vil noen ganger skje hvis en annen node genererer en blokk noen sekunder i tid fra din egen.</translation>
+        <translation>Genererte darkcoins må modnes %1 blokker før de kan brukes. Da du genererte denne blokken ble den kringkastet på nettverket for å bli lagt til i kjeden av blokker. Hvis den ikke kommer med i kjeden vil den endre seg til &quot;ikke akseptert&quot; og pengene vil ikke kunne brukes. Dette vil noen ganger skje hvis en annen node genererer en blokk noen sekunder i tid fra din egen.</translation>
     </message>
     <message>
         <location filename="../transactiondesc.cpp" line="300"/>
@@ -3516,7 +3516,7 @@ https://www.transifex.com/projects/p/darkcoin/</translation>
     <message numerus="yes">
         <location filename="../transactiontablemodel.cpp" line="285"/>
         <source>Open for %n more block(s)</source>
-        <translation type="unfinished"><numerusform></numerusform><numerusform></numerusform></translation>
+        <translation><numerusform>Åpne for %n blokk(er) til</numerusform><numerusform>Åpne for %n blokk(er) til</numerusform></translation>
     </message>
     <message>
         <location filename="../transactiontablemodel.cpp" line="288"/>
@@ -3576,7 +3576,7 @@ https://www.transifex.com/projects/p/darkcoin/</translation>
     <message>
         <location filename="../transactiontablemodel.cpp" line="358"/>
         <source>Received via Darksend</source>
-        <translation type="unfinished"/>
+        <translation>Mottatt via Darksend</translation>
     </message>
     <message>
         <location filename="../transactiontablemodel.cpp" line="361"/>
@@ -3596,12 +3596,12 @@ https://www.transifex.com/projects/p/darkcoin/</translation>
     <message>
         <location filename="../transactiontablemodel.cpp" line="368"/>
         <source>Darksend Denominate</source>
-        <translation type="unfinished"/>
+        <translation>Darksend denominér</translation>
     </message>
     <message>
         <location filename="../transactiontablemodel.cpp" line="370"/>
         <source>Darksend Collateral Payment</source>
-        <translation type="unfinished"/>
+        <translation>Darksend Sikkerhetsbetaling</translation>
     </message>
     <message>
         <location filename="../transactiontablemodel.cpp" line="372"/>
@@ -3611,17 +3611,17 @@ https://www.transifex.com/projects/p/darkcoin/</translation>
     <message>
         <location filename="../transactiontablemodel.cpp" line="374"/>
         <source>Darksend Create Denominations</source>
-        <translation type="unfinished"/>
+        <translation>Darksend Lag Valører</translation>
     </message>
     <message>
         <location filename="../transactiontablemodel.cpp" line="376"/>
         <source>Darksent</source>
-        <translation type="unfinished"/>
+        <translation>Darksendt</translation>
     </message>
     <message>
         <location filename="../transactiontablemodel.cpp" line="418"/>
         <source>(n/a)</source>
-        <translation>-</translation>
+        <translation>(n/a)</translation>
     </message>
     <message>
         <location filename="../transactiontablemodel.cpp" line="610"/>
@@ -3700,7 +3700,7 @@ https://www.transifex.com/projects/p/darkcoin/</translation>
     <message>
         <location filename="../transactionview.cpp" line="81"/>
         <source>Darksent</source>
-        <translation type="unfinished"/>
+        <translation>Darksendt</translation>
     </message>
     <message>
         <location filename="../transactionview.cpp" line="82"/>
@@ -3710,17 +3710,17 @@ https://www.transifex.com/projects/p/darkcoin/</translation>
     <message>
         <location filename="../transactionview.cpp" line="83"/>
         <source>Darksend Create Denominations</source>
-        <translation type="unfinished"/>
+        <translation>Darksend Lag Valører</translation>
     </message>
     <message>
         <location filename="../transactionview.cpp" line="84"/>
         <source>Darksend Denominate</source>
-        <translation type="unfinished"/>
+        <translation>Darksend Denominér</translation>
     </message>
     <message>
         <location filename="../transactionview.cpp" line="85"/>
         <source>Darksend Collateral Payment</source>
-        <translation type="unfinished"/>
+        <translation>Darksend Sikkerhetsbetaling</translation>
     </message>
     <message>
         <location filename="../transactionview.cpp" line="86"/>
@@ -3750,27 +3750,27 @@ https://www.transifex.com/projects/p/darkcoin/</translation>
     <message>
         <location filename="../transactionview.cpp" line="134"/>
         <source>Copy address</source>
-        <translation>Kopier adresse</translation>
+        <translation>Kopiér adresse</translation>
     </message>
     <message>
         <location filename="../transactionview.cpp" line="135"/>
         <source>Copy label</source>
-        <translation>Kopier merkelapp</translation>
+        <translation>Kopiér merkelapp</translation>
     </message>
     <message>
         <location filename="../transactionview.cpp" line="136"/>
         <source>Copy amount</source>
-        <translation>Kopier beløp</translation>
+        <translation>Kopiér beløp</translation>
     </message>
     <message>
         <location filename="../transactionview.cpp" line="137"/>
         <source>Copy transaction ID</source>
-        <translation>Kopier transaksjons-ID</translation>
+        <translation>Kopiér transaksjons-ID</translation>
     </message>
     <message>
         <location filename="../transactionview.cpp" line="138"/>
         <source>Edit label</source>
-        <translation>Rediger merkelapp</translation>
+        <translation>Redigér merkelapp</translation>
     </message>
     <message>
         <location filename="../transactionview.cpp" line="139"/>
@@ -3780,7 +3780,7 @@ https://www.transifex.com/projects/p/darkcoin/</translation>
     <message>
         <location filename="../transactionview.cpp" line="302"/>
         <source>Export Transaction History</source>
-        <translation>Eksporter Transaksjonshistorikk</translation>
+        <translation>Eksportér Transaksjonshistorikk</translation>
     </message>
     <message>
         <location filename="../transactionview.cpp" line="303"/>
@@ -3867,12 +3867,12 @@ https://www.transifex.com/projects/p/darkcoin/</translation>
         <location filename="../walletmodel.cpp" line="271"/>
         <location filename="../walletmodel.cpp" line="285"/>
         <source>Send Coins</source>
-        <translation>Send Bitcoins</translation>
+        <translation>Send Darkcoins</translation>
     </message>
     <message numerus="yes">
         <location filename="../walletmodel.cpp" line="271"/>
         <source>InstantX doesn&apos;t support sending values that high yet. Transactions are currently limited to %n DRK.</source>
-        <translation type="unfinished"><numerusform></numerusform><numerusform></numerusform></translation>
+        <translation><numerusform>InstantX støtter ikke å sende så høye beløp ennå. Transaksjoner er foreløpig begrenset til %n DRK.</numerusform><numerusform>InstantX støtter ikke å sende så høye beløp ennå. Transaksjoner er foreløpig begrenset til %n DRK.</numerusform></translation>
     </message>
 </context>
 <context>
@@ -3880,17 +3880,17 @@ https://www.transifex.com/projects/p/darkcoin/</translation>
     <message>
         <location filename="../walletview.cpp" line="44"/>
         <source>&amp;Export</source>
-        <translation>&amp;Eksporter</translation>
+        <translation>&amp;Eksportér</translation>
     </message>
     <message>
         <location filename="../walletview.cpp" line="45"/>
         <source>Export the data in the current tab to a file</source>
-        <translation>Eksporter data fra nåværende fane til fil</translation>
+        <translation>Eksportér data fra nåværende fane til fil</translation>
     </message>
     <message>
         <location filename="../walletview.cpp" line="231"/>
         <source>Backup Wallet</source>
-        <translation>Sikkerhetskopier Lommebok</translation>
+        <translation>Sikkerhetskopiér Lommebok</translation>
     </message>
     <message>
         <location filename="../walletview.cpp" line="232"/>
@@ -3933,12 +3933,22 @@ If the file does not exist, create it with owner-readable-only file permissions.
 It is also recommended to set alertnotify so you are notified of problems;
 for example: alertnotify=echo %%s | mail -s &quot;Darkcoin Alert&quot; admin@foo.com
 </source>
-        <translation type="unfinished"/>
+        <translation>%s, du må sette et rpcpassord i konfigurasjonsfilen:
+%s
+Det er anbefalt at du bruker følgende tilfeldige passord:
+rpcuser=darkcoinrpc
+rpcpassword=%s
+(du trenger ikke huske dette passordet)
+Brukernavnet og passordet KAN IKKE være identiske.
+Hvis filen ikke finnes, lag den med filattributter slik at den kun er leselig for eieren.
+Det er også anbefalt å sette alertnotify slik at du får beskjed om problemer;
+for eksempel: alertnotify=echo %%s | mail -s &quot;Darkcoin Alert&quot; admin@foo.com
+</translation>
     </message>
     <message>
         <location filename="../darkcoinstrings.cpp" line="29"/>
         <source>Acceptable ciphers (default: TLSv1.2+HIGH:TLSv1+HIGH:!SSLv2:!aNULL:!eNULL:!3DES:@STRENGTH)</source>
-        <translation type="unfinished"/>
+        <translation>Aksepterte chiffer (standard: TLSv1.2+HIGH:TLSv1+HIGH:!SSLv2:!aNULL:!eNULL:!3DES:@STRENGTH)</translation>
     </message>
     <message>
         <location filename="../darkcoinstrings.cpp" line="32"/>

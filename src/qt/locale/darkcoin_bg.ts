@@ -4981,7 +4981,7 @@ If the file does not exist, create it with owner-readable-only file permissions.
     <message>
         <location filename="../darkcoinstrings.cpp" line="331"/>
         <source>Sets the DB_PRIVATE flag in the wallet db environment (default: 1)</source>
-        <translation type="unfinished"/>
+        <translation>Определете флага DB_PRIVATE в средата база от данни на портфейла (по подразбиране: 1)</translation>
     </message>
     <message>
         <location filename="../darkcoinstrings.cpp" line="332"/>
@@ -4991,7 +4991,7 @@ If the file does not exist, create it with owner-readable-only file permissions.
     <message>
         <location filename="../darkcoinstrings.cpp" line="333"/>
         <source>Show benchmark information (default: 0)</source>
-        <translation type="unfinished"/>
+        <translation>Покажи бенчмарк информация (по подразбиране: 0)</translation>
     </message>
     <message>
         <location filename="../darkcoinstrings.cpp" line="334"/>
@@ -5036,7 +5036,7 @@ If the file does not exist, create it with owner-readable-only file permissions.
     <message>
         <location filename="../darkcoinstrings.cpp" line="342"/>
         <source>Specify pid file (default: darkcoind.pid)</source>
-        <translation type="unfinished"/>
+        <translation>Посочете pid-файла (по подразбиране: darkcoind.pid)</translation>
     </message>
     <message>
         <location filename="../darkcoinstrings.cpp" line="343"/>
@@ -5051,12 +5051,12 @@ If the file does not exist, create it with owner-readable-only file permissions.
     <message>
         <location filename="../darkcoinstrings.cpp" line="345"/>
         <source>Spend unconfirmed change when sending transactions (default: 1)</source>
-        <translation type="unfinished"/>
+        <translation>Изхарчете непотвърденото ресто при изпращане на транзакциите (по подразбиране: 1)</translation>
     </message>
     <message>
         <location filename="../darkcoinstrings.cpp" line="346"/>
         <source>Start Darkcoin Core Daemon</source>
-        <translation type="unfinished"/>
+        <translation>Стартиране на Darkcoin Core  демона</translation>
     </message>
     <message>
         <location filename="../darkcoinstrings.cpp" line="347"/>
@@ -5071,7 +5071,7 @@ If the file does not exist, create it with owner-readable-only file permissions.
     <message>
         <location filename="../darkcoinstrings.cpp" line="349"/>
         <source>This is intended for regression testing tools and app development.</source>
-        <translation type="unfinished"/>
+        <translation>Това е предназначено за инструменти за регресивно тестване и разработка на приложението.</translation>
     </message>
     <message>
         <location filename="../darkcoinstrings.cpp" line="350"/>
@@ -5086,7 +5086,7 @@ If the file does not exist, create it with owner-readable-only file permissions.
     <message>
         <location filename="../darkcoinstrings.cpp" line="352"/>
         <source>To use the %s option</source>
-        <translation type="unfinished"/>
+        <translation>За да използвате параметъра %s </translation>
     </message>
     <message>
         <location filename="../darkcoinstrings.cpp" line="353"/>
@@ -5121,22 +5121,22 @@ If the file does not exist, create it with owner-readable-only file permissions.
     <message>
         <location filename="../darkcoinstrings.cpp" line="359"/>
         <source>Unable to bind to %s on this computer (bind returned error %s)</source>
-        <translation type="unfinished"/>
+        <translation>Не може да се свърже с %s на този компютър (връща грешка %s)</translation>
     </message>
     <message>
         <location filename="../darkcoinstrings.cpp" line="360"/>
         <source>Unable to sign masternode payment winner, wrong key?</source>
-        <translation type="unfinished"/>
+        <translation>Неуспешно подписване на плащането към мастернод победителя. Грешен ключ?</translation>
     </message>
     <message>
         <location filename="../darkcoinstrings.cpp" line="361"/>
         <source>Unable to sign spork message, wrong key?</source>
-        <translation type="unfinished"/>
+        <translation>Неуспешно подписване на spork-съобщение. Грешен ключ?</translation>
     </message>
     <message>
         <location filename="../darkcoinstrings.cpp" line="362"/>
         <source>Unknown -socks proxy version requested: %i</source>
-        <translation type="unfinished"/>
+        <translation>Заявка за неизвестна версия на -socks прокси: %i</translation>
     </message>
     <message>
         <location filename="../darkcoinstrings.cpp" line="363"/>
@@ -5151,7 +5151,7 @@ If the file does not exist, create it with owner-readable-only file permissions.
     <message>
         <location filename="../darkcoinstrings.cpp" line="365"/>
         <source>Usage (deprecated, use darkcoin-cli):</source>
-        <translation type="unfinished"/>
+        <translation>Използване (остаряла, използвайте darkcoin-CLI):</translation>
     </message>
     <message>
         <location filename="../darkcoinstrings.cpp" line="366"/>
@@ -5161,7 +5161,7 @@ If the file does not exist, create it with owner-readable-only file permissions.
     <message>
         <location filename="../darkcoinstrings.cpp" line="367"/>
         <source>Use KeePass 2 integration using KeePassHttp plugin (default: 0)</source>
-        <translation type="unfinished"/>
+        <translation>Използвай KeePass 2 интеграция чрез плъгина KeePassHttp (по подразбиране: 0)</translation>
     </message>
     <message>
         <location filename="../darkcoinstrings.cpp" line="368"/>
@@ -5176,12 +5176,12 @@ If the file does not exist, create it with owner-readable-only file permissions.
     <message>
         <location filename="../darkcoinstrings.cpp" line="370"/>
         <source>Use UPnP to map the listening port (default: 0)</source>
-        <translation type="unfinished"/>
+        <translation>Използвай UPnP за определяне на порта (по подразбиране: 0)</translation>
     </message>
     <message>
         <location filename="../darkcoinstrings.cpp" line="371"/>
         <source>Use UPnP to map the listening port (default: 1 when listening)</source>
-        <translation type="unfinished"/>
+        <translation>Използвай UPnP за определяне на порта (по подразбиране: 1 когато очаква)</translation>
     </message>
     <message>
         <location filename="../darkcoinstrings.cpp" line="372"/>
@@ -5196,7 +5196,7 @@ If the file does not exist, create it with owner-readable-only file permissions.
     <message>
         <location filename="../darkcoinstrings.cpp" line="374"/>
         <source>Value more than Darksend pool maximum allows.</source>
-        <translation type="unfinished"/>
+        <translation>Превишена е максимално допустимата стойност за Дарксенд пула</translation>
     </message>
     <message>
         <location filename="../darkcoinstrings.cpp" line="375"/>
@@ -5216,7 +5216,7 @@ If the file does not exist, create it with owner-readable-only file permissions.
     <message>
         <location filename="../darkcoinstrings.cpp" line="378"/>
         <source>Wallet %s resides outside data directory %s</source>
-        <translation type="unfinished"/>
+        <translation>Портфейла %s се разполага извън папката с данни %s</translation>
     </message>
     <message>
         <location filename="../darkcoinstrings.cpp" line="379"/>
@@ -5241,7 +5241,7 @@ If the file does not exist, create it with owner-readable-only file permissions.
     <message>
         <location filename="../darkcoinstrings.cpp" line="383"/>
         <source>Warning: Deprecated argument -debugnet ignored, use -debug=net</source>
-        <translation type="unfinished"/>
+        <translation>Внимание: опцията -debugnet е стара и е игнорирана, исползвайте -debug=net </translation>
     </message>
     <message>
         <location filename="../darkcoinstrings.cpp" line="384"/>
@@ -5260,7 +5260,7 @@ If the file does not exist, create it with owner-readable-only file permissions.
     <message>
         <location filename="../darkcoinstrings.cpp" line="386"/>
         <source>Zapping all transactions from wallet...</source>
-        <translation type="unfinished"/>
+        <translation>Премахване на всички транзакции от портфейла ...</translation>
     </message>
     <message>
         <location filename="../darkcoinstrings.cpp" line="387"/>

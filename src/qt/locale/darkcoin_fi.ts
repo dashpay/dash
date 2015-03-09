@@ -1923,7 +1923,7 @@ https://www.transifex.com/projects/p/darkcoin/</translation>
     <message>
         <location filename="../overviewpage.cpp" line="335"/>
         <source>Rounds</source>
-        <translation>Kierrokset</translation>
+        <translation>Kierrosta</translation>
     </message>
     <message>
         <location filename="../overviewpage.cpp" line="366"/>
@@ -1946,7 +1946,7 @@ https://www.transifex.com/projects/p/darkcoin/</translation>
     <message>
         <location filename="../overviewpage.cpp" line="381"/>
         <source>Mixing in progress...</source>
-        <translation type="unfinished"/>
+        <translation>Sekoitus käynnissä...</translation>
     </message>
     <message>
         <location filename="../overviewpage.cpp" line="387"/>
@@ -4390,7 +4390,7 @@ Jos tiedostoa ei ole, niin luo se ainoastaan omistajan kirjoitusoikeuksin.</tran
     <message>
         <location filename="../darkcoinstrings.cpp" line="210"/>
         <source>Downgrading and trying again.</source>
-        <translation type="unfinished"/>
+        <translation>Alennetaan ja yritetään uudestaan.</translation>
     </message>
     <message>
         <location filename="../darkcoinstrings.cpp" line="211"/>
@@ -4705,7 +4705,7 @@ Jos tiedostoa ei ole, niin luo se ainoastaan omistajan kirjoitusoikeuksin.</tran
     <message>
         <location filename="../darkcoinstrings.cpp" line="273"/>
         <source>Last successful darksend action was too recent.</source>
-        <translation>Viimeisin onnistunut Darksend oli liian äskettäin.</translation>
+        <translation>Viimeisin onnistunut Darksend tapahtuma oli liian äskettäin.</translation>
     </message>
     <message>
         <location filename="../darkcoinstrings.cpp" line="274"/>
@@ -4960,7 +4960,7 @@ Jos tiedostoa ei ole, niin luo se ainoastaan omistajan kirjoitusoikeuksin.</tran
     <message>
         <location filename="../darkcoinstrings.cpp" line="324"/>
         <source>Session timed out (30 seconds), please resubmit.</source>
-        <translation>Istunnon aikaraja (30 sekuntia), esitä uudestaan.</translation>
+        <translation>Istunto vanheni (30 sekuntia), esitä uudestaan.</translation>
     </message>
     <message>
         <location filename="../darkcoinstrings.cpp" line="325"/>

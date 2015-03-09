@@ -15,7 +15,8 @@
         <location filename="../forms/aboutdialog.ui" line="94"/>
         <source>Copyright &amp;copy; 2009-2014 The Bitcoin Core developers.
 Copyright &amp;copy; 2014-YYYY The Darkcoin Core developers.</source>
-        <translation type="unfinished"/>
+        <translation>Copyright &amp;copy; 2009-2014 Os desenvolvedores da Bitcoin Core.
+Copyright &amp;copy; 2014-YYYY Os desenvolvedores da Darkcoin Core.</translation>
     </message>
     <message>
         <location filename="../forms/aboutdialog.ui" line="111"/>
@@ -987,7 +988,7 @@ Endereço: %4</translation>
     <message>
         <location filename="../coincontroldialog.cpp" line="759"/>
         <source>n/a</source>
-        <translation type="unfinished"/>
+        <translation>n/d</translation>
     </message>
     <message>
         <location filename="../forms/coincontroldialog.ui" line="164"/>
@@ -1540,7 +1541,7 @@ Endereço: %4</translation>
     <message>
         <location filename="../forms/optionsdialog.ui" line="307"/>
         <source>Automatically open the Darkcoin client port on the router. This only works when your router supports UPnP and it is enabled.</source>
-        <translation type="unfinished"/>
+        <translation>Abre automaticamente a porta para o cliente Darkcoin no roteador. Essa função apenas funciona se o seu roteador oferece suporte a UPnP e está habilitado.</translation>
     </message>
     <message>
         <location filename="../forms/optionsdialog.ui" line="310"/>
@@ -1550,7 +1551,7 @@ Endereço: %4</translation>
     <message>
         <location filename="../forms/optionsdialog.ui" line="317"/>
         <source>Connect to the Darkcoin network through a SOCKS proxy.</source>
-        <translation type="unfinished"/>
+        <translation>Conecta à rede Darkcoin através de um proxy SOCKS.</translation>
     </message>
     <message>
         <location filename="../forms/optionsdialog.ui" line="320"/>
@@ -1625,13 +1626,14 @@ Endereço: %4</translation>
     <message>
         <location filename="../forms/optionsdialog.ui" line="503"/>
         <source>The user interface language can be set here. This setting will take effect after restarting Darkcoin.</source>
-        <translation type="unfinished"/>
+        <translation>A língua para interface com o usuário pode ser escolhida aqui. Essa opçao somente terá efeito após o reinício da Darkcoin-qt.</translation>
     </message>
     <message>
         <location filename="../forms/optionsdialog.ui" line="524"/>
         <source>Language missing or translation incomplete? Help contributing translations here:
 https://www.transifex.com/projects/p/darkcoin/</source>
-        <translation type="unfinished"/>
+        <translation>Língua faltante ou tradução incompleta? Contribua com traduções aqui:
+https://www.transifex.com/projects/p/darkcoin/</translation>
     </message>
     <message>
         <location filename="../forms/optionsdialog.ui" line="550"/>
@@ -1646,7 +1648,7 @@ https://www.transifex.com/projects/p/darkcoin/</source>
     <message>
         <location filename="../forms/optionsdialog.ui" line="572"/>
         <source>Whether to show Darkcoin addresses in the transaction list or not.</source>
-        <translation type="unfinished"/>
+        <translation>Optar por exibir ou não exibir o endereço Darkcoin na listagem de transações.</translation>
     </message>
     <message>
         <location filename="../forms/optionsdialog.ui" line="575"/>
@@ -1743,7 +1745,7 @@ https://www.transifex.com/projects/p/darkcoin/</source>
         <location filename="../forms/overviewpage.ui" line="953"/>
         <location filename="../forms/overviewpage.ui" line="1021"/>
         <source>The displayed information may be out of date. Your wallet automatically synchronizes with the Darkcoin network after a connection is established, but this process has not completed yet.</source>
-        <translation type="unfinished"/>
+        <translation>A informação exibida pode estar desatualizada. Sua wallet é sincronizada automaticamente com a rede Darkcoin tão logo uma conexão se estabeleça, entrtanto esse processo ainda não está completo.</translation>
     </message>
     <message>
         <location filename="../forms/overviewpage.ui" line="114"/>
@@ -1798,7 +1800,7 @@ https://www.transifex.com/projects/p/darkcoin/</source>
     <message>
         <location filename="../forms/overviewpage.ui" line="316"/>
         <source>Completion:</source>
-        <translation type="unfinished"/>
+        <translation>Conclusão:</translation>
     </message>
     <message>
         <location filename="../forms/overviewpage.ui" line="336"/>
@@ -1813,12 +1815,12 @@ https://www.transifex.com/projects/p/darkcoin/</source>
     <message>
         <location filename="../forms/overviewpage.ui" line="356"/>
         <source>Amount and Rounds:</source>
-        <translation type="unfinished"/>
+        <translation>Quantia e Rodadas:</translation>
     </message>
     <message>
         <location filename="../forms/overviewpage.ui" line="363"/>
         <source>0 DRK / 0 Rounds</source>
-        <translation type="unfinished"/>
+        <translation>0 DRK / O Rodadas</translation>
     </message>
     <message>
         <location filename="../forms/overviewpage.ui" line="370"/>
@@ -1828,12 +1830,12 @@ https://www.transifex.com/projects/p/darkcoin/</source>
     <message>
         <location filename="../forms/overviewpage.ui" line="377"/>
         <source>The denominations you submitted to the Masternode. To mix, other users must submit the exact same denominations.</source>
-        <translation type="unfinished"/>
+        <translation>As denominações submetidas por você ao Masternode. Para a realização do mixing, outros usuários precisam submeter exatamente as mesmas denominações.</translation>
     </message>
     <message>
         <location filename="../forms/overviewpage.ui" line="380"/>
         <source>n/a</source>
-        <translation type="unfinished"/>
+        <translation>n/d</translation>
     </message>
     <message>
         <location filename="../forms/overviewpage.ui" line="946"/>
@@ -1841,12 +1843,12 @@ https://www.transifex.com/projects/p/darkcoin/</source>
         <location filename="../overviewpage.cpp" line="467"/>
         <location filename="../overviewpage.cpp" line="481"/>
         <source>Darksend</source>
-        <translation type="unfinished"/>
+        <translation>Darksend</translation>
     </message>
     <message>
         <location filename="../forms/overviewpage.ui" line="839"/>
         <source>Start/Stop Mixing</source>
-        <translation type="unfinished"/>
+        <translation>Iniciar/Interronper o Mixing</translation>
     </message>
     <message>
         <location filename="../forms/overviewpage.ui" line="871"/>
@@ -1856,17 +1858,17 @@ https://www.transifex.com/projects/p/darkcoin/</source>
     <message>
         <location filename="../forms/overviewpage.ui" line="896"/>
         <source>Try to manually submit a Darksend request.</source>
-        <translation type="unfinished"/>
+        <translation>Tentar enviar manualmente uma solicitação Darksend.</translation>
     </message>
     <message>
         <location filename="../forms/overviewpage.ui" line="899"/>
         <source>Try Mix</source>
-        <translation type="unfinished"/>
+        <translation>Tentar o Mixing.</translation>
     </message>
     <message>
         <location filename="../forms/overviewpage.ui" line="918"/>
         <source>Reset the current status of Darksend (can interrupt Darksend if it&apos;s in the process of Mixing, which can cost you money!)</source>
-        <translation type="unfinished"/>
+        <translation>Resetar o estado atual do Darksend (pode interromper o Darksend se o Mixing estiver em andamento, e isso pode lhe custar algum dinheiro!)</translation>
     </message>
     <message>
         <location filename="../forms/overviewpage.ui" line="924"/>
@@ -1896,28 +1898,28 @@ https://www.transifex.com/projects/p/darkcoin/</source>
         <location filename="../overviewpage.cpp" line="352"/>
         <location filename="../overviewpage.cpp" line="495"/>
         <source>Start Darksend Mixing</source>
-        <translation type="unfinished"/>
+        <translation>Iniciar o Mixing do Darksend</translation>
     </message>
     <message>
         <location filename="../overviewpage.cpp" line="148"/>
         <location filename="../overviewpage.cpp" line="497"/>
         <source>Stop Darksend Mixing</source>
-        <translation type="unfinished"/>
+        <translation>Interromper o Mixing do Darksend.</translation>
     </message>
     <message>
         <location filename="../overviewpage.cpp" line="270"/>
         <source>No inputs detected</source>
-        <translation type="unfinished"/>
+        <translation>Nenhum input foi detectado</translation>
     </message>
     <message>
         <location filename="../overviewpage.cpp" line="278"/>
         <source>Found unconfirmed denominated outputs, will wait till they confirm to recalculate.</source>
-        <translation type="unfinished"/>
+        <translation>Outputs denominados sem confirmação foram localizados. O recálculo aguardará até que sejam confirmados.</translation>
     </message>
     <message>
         <location filename="../overviewpage.cpp" line="335"/>
         <source>Rounds</source>
-        <translation type="unfinished"/>
+        <translation>Rodadas</translation>
     </message>
     <message>
         <location filename="../overviewpage.cpp" line="366"/>
@@ -1928,55 +1930,56 @@ https://www.transifex.com/projects/p/darkcoin/</source>
         <location filename="../overviewpage.cpp" line="424"/>
         <source>Last Darksend message:
 </source>
-        <translation type="unfinished"/>
+        <translation>Última mensagem do Darksend:
+</translation>
     </message>
     <message>
         <location filename="../overviewpage.cpp" line="377"/>
         <location filename="../overviewpage.cpp" line="406"/>
         <source>Darksend is idle.</source>
-        <translation type="unfinished"/>
+        <translation>O Darksend está ocioso.</translation>
     </message>
     <message>
         <location filename="../overviewpage.cpp" line="381"/>
         <source>Mixing in progress...</source>
-        <translation type="unfinished"/>
+        <translation>Mixing em andamento.</translation>
     </message>
     <message>
         <location filename="../overviewpage.cpp" line="387"/>
         <source>Darksend request complete: Your transaction was accepted into the pool!</source>
-        <translation type="unfinished"/>
+        <translation>Requisição de Darksend completada: Sua transação foi aceita pelo pool!</translation>
     </message>
     <message>
         <location filename="../overviewpage.cpp" line="393"/>
         <source>Submitted following entries to masternode:</source>
-        <translation type="unfinished"/>
+        <translation>Os seguintes lançamentos foram submetidos ao Masternode:</translation>
     </message>
     <message>
         <location filename="../overviewpage.cpp" line="394"/>
         <location filename="../overviewpage.cpp" line="395"/>
         <location filename="../overviewpage.cpp" line="396"/>
         <source>Submitted to masternode, Waiting for more entries</source>
-        <translation type="unfinished"/>
+        <translation>Submetido ao Masternode. Aguardando por mais lançamentos</translation>
     </message>
     <message>
         <location filename="../overviewpage.cpp" line="399"/>
         <source>Found enough users, signing ...</source>
-        <translation type="unfinished"/>
+        <translation>Encontrados usuários bastantes. Assinando ...</translation>
     </message>
     <message>
         <location filename="../overviewpage.cpp" line="400"/>
         <source>Found enough users, signing ( waiting. )</source>
-        <translation type="unfinished"/>
+        <translation>Encontrados usuários bastantes. Assinando ( aguardando )</translation>
     </message>
     <message>
         <location filename="../overviewpage.cpp" line="401"/>
         <source>Found enough users, signing ( waiting.. )</source>
-        <translation type="unfinished"/>
+        <translation>Encontrados usuários bastantes. Assinando ( aguardando.. )</translation>
     </message>
     <message>
         <location filename="../overviewpage.cpp" line="402"/>
         <source>Found enough users, signing ( waiting... )</source>
-        <translation type="unfinished"/>
+        <translation>Encontrados usuários bastantes. Assinando ( aguardando... )</translation>
     </message>
     <message>
         <location filename="../overviewpage.cpp" line="404"/>
@@ -1991,37 +1994,37 @@ https://www.transifex.com/projects/p/darkcoin/</source>
     <message>
         <location filename="../overviewpage.cpp" line="410"/>
         <source>Darksend request incomplete:</source>
-        <translation type="unfinished"/>
+        <translation>Requisição de Darksend incompleta:</translation>
     </message>
     <message>
         <location filename="../overviewpage.cpp" line="410"/>
         <source>Will retry...</source>
-        <translation type="unfinished"/>
+        <translation>Será feita nova tentativa...</translation>
     </message>
     <message>
         <location filename="../overviewpage.cpp" line="412"/>
         <source>Darksend request complete:</source>
-        <translation type="unfinished"/>
+        <translation>Requisição de Darksend completada:</translation>
     </message>
     <message>
         <location filename="../overviewpage.cpp" line="414"/>
         <source>Submitted to masternode, waiting in queue .</source>
-        <translation type="unfinished"/>
+        <translation>Submetida ao Masternode. Aguardando na fila .</translation>
     </message>
     <message>
         <location filename="../overviewpage.cpp" line="415"/>
         <source>Submitted to masternode, waiting in queue ..</source>
-        <translation type="unfinished"/>
+        <translation>Submetida ao Masternode. Aguardando na fila ..</translation>
     </message>
     <message>
         <location filename="../overviewpage.cpp" line="416"/>
         <source>Submitted to masternode, waiting in queue ...</source>
-        <translation type="unfinished"/>
+        <translation>Submetida ao Masternode. Aguardando na fila ..</translation>
     </message>
     <message>
         <location filename="../overviewpage.cpp" line="418"/>
         <source>Unknown state:</source>
-        <translation type="unfinished"/>
+        <translation>Situação desconhecida:</translation>
     </message>
     <message>
         <location filename="../overviewpage.cpp" line="432"/>
@@ -2041,7 +2044,7 @@ https://www.transifex.com/projects/p/darkcoin/</source>
     <message>
         <location filename="../overviewpage.cpp" line="482"/>
         <source>Wallet is locked and user declined to unlock. Disabling Darksend.</source>
-        <translation type="unfinished"/>
+        <translation>A wallet está trancada e o usuário se negou a destrancá-la. Dasabilitando o Darksend.</translation>
     </message>
 </context>
 <context>
@@ -2207,7 +2210,7 @@ https://www.transifex.com/projects/p/darkcoin/</source>
     <message>
         <location filename="../forms/rpcconsole.ui" line="14"/>
         <source>Tools window</source>
-        <translation type="unfinished"/>
+        <translation>Janela de ferramentas</translation>
     </message>
     <message>
         <location filename="../forms/rpcconsole.ui" line="24"/>
@@ -2217,7 +2220,7 @@ https://www.transifex.com/projects/p/darkcoin/</source>
     <message>
         <location filename="../forms/rpcconsole.ui" line="33"/>
         <source>Masternode Count</source>
-        <translation type="unfinished"/>
+        <translation>Contagem de Masternodes</translation>
     </message>
     <message>
         <location filename="../forms/rpcconsole.ui" line="46"/>
@@ -2731,12 +2734,12 @@ https://www.transifex.com/projects/p/darkcoin/</source>
     <message>
         <location filename="../forms/sendcoinsdialog.ui" line="752"/>
         <source>Darksend</source>
-        <translation type="unfinished"/>
+        <translation>Darksend</translation>
     </message>
     <message>
         <location filename="../forms/sendcoinsdialog.ui" line="771"/>
         <source>InstantX</source>
-        <translation type="unfinished"/>
+        <translation>InstantX</translation>
     </message>
     <message>
         <location filename="../forms/sendcoinsdialog.ui" line="778"/>
@@ -3014,7 +3017,7 @@ https://www.transifex.com/projects/p/darkcoin/</source>
     <message>
         <location filename="../utilitydialog.cpp" line="129"/>
         <source>Darkcoin Core is shutting down...</source>
-        <translation type="unfinished"/>
+        <translation>A Darkcoin Core está encerrando...</translation>
     </message>
     <message>
         <location filename="../utilitydialog.cpp" line="130"/>
@@ -3612,7 +3615,7 @@ https://www.transifex.com/projects/p/darkcoin/</source>
     <message>
         <location filename="../transactiontablemodel.cpp" line="376"/>
         <source>Darksent</source>
-        <translation type="unfinished"/>
+        <translation>Darksent</translation>
     </message>
     <message>
         <location filename="../transactiontablemodel.cpp" line="418"/>
@@ -3696,7 +3699,7 @@ https://www.transifex.com/projects/p/darkcoin/</source>
     <message>
         <location filename="../transactionview.cpp" line="81"/>
         <source>Darksent</source>
-        <translation type="unfinished"/>
+        <translation>Darksent</translation>
     </message>
     <message>
         <location filename="../transactionview.cpp" line="82"/>
@@ -4536,7 +4539,7 @@ If the file does not exist, create it with owner-readable-only file permissions.
     <message>
         <location filename="../darkcoinstrings.cpp" line="243"/>
         <source>Get help for a command</source>
-        <translation type="unfinished"/>
+        <translation>Obtenha ajuda para um comando</translation>
     </message>
     <message>
         <location filename="../darkcoinstrings.cpp" line="244"/>
@@ -4591,7 +4594,7 @@ If the file does not exist, create it with owner-readable-only file permissions.
     <message>
         <location filename="../darkcoinstrings.cpp" line="254"/>
         <source>Input is not valid.</source>
-        <translation type="unfinished"/>
+        <translation>O input não é válido.</translation>
     </message>
     <message>
         <location filename="../darkcoinstrings.cpp" line="255"/>
@@ -4716,7 +4719,7 @@ If the file does not exist, create it with owner-readable-only file permissions.
     <message>
         <location filename="../darkcoinstrings.cpp" line="279"/>
         <source>Loading masternode list...</source>
-        <translation type="unfinished"/>
+        <translation>Carregando a lista de Masternodes...</translation>
     </message>
     <message>
         <location filename="../darkcoinstrings.cpp" line="280"/>
@@ -4751,12 +4754,12 @@ If the file does not exist, create it with owner-readable-only file permissions.
     <message>
         <location filename="../darkcoinstrings.cpp" line="286"/>
         <source>Masternode queue is full.</source>
-        <translation type="unfinished"/>
+        <translation>A fila do Masternode está cheia.</translation>
     </message>
     <message>
         <location filename="../darkcoinstrings.cpp" line="287"/>
         <source>Masternode:</source>
-        <translation type="unfinished"/>
+        <translation>Masternode:</translation>
     </message>
     <message>
         <location filename="../darkcoinstrings.cpp" line="288"/>
@@ -4776,7 +4779,7 @@ If the file does not exist, create it with owner-readable-only file permissions.
     <message>
         <location filename="../darkcoinstrings.cpp" line="291"/>
         <source>No compatible masternode found.</source>
-        <translation type="unfinished"/>
+        <translation>Nenhum Masternode compatível encontrado.</translation>
     </message>
     <message>
         <location filename="../darkcoinstrings.cpp" line="292"/>
@@ -4786,7 +4789,7 @@ If the file does not exist, create it with owner-readable-only file permissions.
     <message>
         <location filename="../darkcoinstrings.cpp" line="293"/>
         <source>No masternodes detected.</source>
-        <translation type="unfinished"/>
+        <translation>Nenhum Masternode detectado.</translation>
     </message>
     <message>
         <location filename="../darkcoinstrings.cpp" line="294"/>
@@ -4811,7 +4814,7 @@ If the file does not exist, create it with owner-readable-only file permissions.
     <message>
         <location filename="../darkcoinstrings.cpp" line="298"/>
         <source>Not in the masternode list.</source>
-        <translation type="unfinished"/>
+        <translation>Não está na lista de Masternodes.</translation>
     </message>
     <message>
         <location filename="../darkcoinstrings.cpp" line="299"/>
@@ -4856,12 +4859,12 @@ If the file does not exist, create it with owner-readable-only file permissions.
     <message>
         <location filename="../darkcoinstrings.cpp" line="307"/>
         <source>RPC client options:</source>
-        <translation type="unfinished"/>
+        <translation>Opções do cliente RPC:</translation>
     </message>
     <message>
         <location filename="../darkcoinstrings.cpp" line="308"/>
         <source>RPC server options:</source>
-        <translation type="unfinished"/>
+        <translation>Opções do servidor RPC:</translation>
     </message>
     <message>
         <location filename="../darkcoinstrings.cpp" line="309"/>
@@ -4996,7 +4999,7 @@ If the file does not exist, create it with owner-readable-only file permissions.
     <message>
         <location filename="../darkcoinstrings.cpp" line="335"/>
         <source>Signing failed.</source>
-        <translation type="unfinished"/>
+        <translation>A assinatura falhou.</translation>
     </message>
     <message>
         <location filename="../darkcoinstrings.cpp" line="336"/>
@@ -5006,7 +5009,7 @@ If the file does not exist, create it with owner-readable-only file permissions.
     <message>
         <location filename="../darkcoinstrings.cpp" line="337"/>
         <source>Signing transaction failed</source>
-        <translation type="unfinished"/>
+        <translation>A assinatura da transação falhou</translation>
     </message>
     <message>
         <location filename="../darkcoinstrings.cpp" line="338"/>
@@ -5071,7 +5074,7 @@ If the file does not exist, create it with owner-readable-only file permissions.
     <message>
         <location filename="../darkcoinstrings.cpp" line="350"/>
         <source>This is not a masternode.</source>
-        <translation type="unfinished"/>
+        <translation>Este não é um Masternode.</translation>
     </message>
     <message>
         <location filename="../darkcoinstrings.cpp" line="351"/>
@@ -5141,7 +5144,7 @@ If the file does not exist, create it with owner-readable-only file permissions.
     <message>
         <location filename="../darkcoinstrings.cpp" line="364"/>
         <source>Upgrade wallet to latest format</source>
-        <translation type="unfinished"/>
+        <translation>Upgrade da wallet para o formato mais recente</translation>
     </message>
     <message>
         <location filename="../darkcoinstrings.cpp" line="365"/>
@@ -5191,7 +5194,7 @@ If the file does not exist, create it with owner-readable-only file permissions.
     <message>
         <location filename="../darkcoinstrings.cpp" line="374"/>
         <source>Value more than Darksend pool maximum allows.</source>
-        <translation type="unfinished"/>
+        <translation>Valor acima do máximo permitido pelo pool do Darksend.</translation>
     </message>
     <message>
         <location filename="../darkcoinstrings.cpp" line="375"/>
@@ -5221,7 +5224,7 @@ If the file does not exist, create it with owner-readable-only file permissions.
     <message>
         <location filename="../darkcoinstrings.cpp" line="380"/>
         <source>Wallet needed to be rewritten: restart Darkcoin to complete</source>
-        <translation type="unfinished"/>
+        <translation>A Wallet teve que ser reescrita: reinicie a Darkcoin para completar a operação</translation>
     </message>
     <message>
         <location filename="../darkcoinstrings.cpp" line="381"/>
