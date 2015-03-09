@@ -566,7 +566,7 @@ Dieses Produkt enthält zudem folgende Dritt-Software:
     <message>
         <location filename="../bitcoingui.cpp" line="313"/>
         <source>Open &amp;Configuration File</source>
-        <translation type="unfinished"/>
+        <translation>&amp;Konfigurationsdatei öffnen</translation>
     </message>
     <message>
         <location filename="../bitcoingui.cpp" line="314"/>
@@ -1931,27 +1931,6 @@ https://www.transifex.com/projects/p/darkcoin/</translation>
         <translation>Aktiviert</translation>
     </message>
     <message>
-        <location filename="../overviewpage.cpp" line="394"/>
-        <location filename="../overviewpage.cpp" line="395"/>
-        <location filename="../overviewpage.cpp" line="396"/>
-        <source>Submitted to masternode, waiting for more entries</source>
-        <translation type="unfinished"/>
-    </message>
-    <message>
-        <location filename="../overviewpage.cpp" line="400"/>
-        <location filename="../overviewpage.cpp" line="401"/>
-        <location filename="../overviewpage.cpp" line="402"/>
-        <source>Found enough users, signing ( waiting</source>
-        <translation type="unfinished"/>
-    </message>
-    <message>
-        <location filename="../overviewpage.cpp" line="414"/>
-        <location filename="../overviewpage.cpp" line="415"/>
-        <location filename="../overviewpage.cpp" line="416"/>
-        <source>Submitted to masternode, waiting in queue</source>
-        <translation type="unfinished"/>
-    </message>
-    <message>
         <location filename="../overviewpage.cpp" line="424"/>
         <source>Last Darksend message:
 </source>
@@ -1967,7 +1946,7 @@ https://www.transifex.com/projects/p/darkcoin/</translation>
     <message>
         <location filename="../overviewpage.cpp" line="381"/>
         <source>Mixing in progress...</source>
-        <translation type="unfinished"/>
+        <translation>Am Mixen...</translation>
     </message>
     <message>
         <location filename="../overviewpage.cpp" line="387"/>
@@ -1980,8 +1959,11 @@ https://www.transifex.com/projects/p/darkcoin/</translation>
         <translation>Folgende Einträge wurden an Masternode gesendet:</translation>
     </message>
     <message>
+        <location filename="../overviewpage.cpp" line="394"/>
+        <location filename="../overviewpage.cpp" line="395"/>
+        <location filename="../overviewpage.cpp" line="396"/>
         <source>Submitted to masternode, Waiting for more entries</source>
-        <translation type="unfinished"/>
+        <translation>An Masternode gesendet, warte auf weitere Einträge...</translation>
     </message>
     <message>
         <location filename="../overviewpage.cpp" line="399"/>
@@ -1989,16 +1971,19 @@ https://www.transifex.com/projects/p/darkcoin/</translation>
         <translation>Genug Partner gefunden, signiere ... </translation>
     </message>
     <message>
+        <location filename="../overviewpage.cpp" line="400"/>
         <source>Found enough users, signing ( waiting. )</source>
-        <translation type="unfinished"/>
+        <translation>Genug Partner gefunden, signiere ... ( warte . )</translation>
     </message>
     <message>
+        <location filename="../overviewpage.cpp" line="401"/>
         <source>Found enough users, signing ( waiting.. )</source>
-        <translation type="unfinished"/>
+        <translation>Genug Partner gefunden, signiere ... ( warte .. )</translation>
     </message>
     <message>
+        <location filename="../overviewpage.cpp" line="402"/>
         <source>Found enough users, signing ( waiting... )</source>
-        <translation type="unfinished"/>
+        <translation>Genug Partner gefunden, signiere ... ( warte ... )</translation>
     </message>
     <message>
         <location filename="../overviewpage.cpp" line="404"/>
@@ -2026,16 +2011,19 @@ https://www.transifex.com/projects/p/darkcoin/</translation>
         <translation>Darksend-Anfrage vollständig:</translation>
     </message>
     <message>
+        <location filename="../overviewpage.cpp" line="414"/>
         <source>Submitted to masternode, waiting in queue .</source>
-        <translation type="unfinished"/>
+        <translation>An Masternode übermittelt, wartet in Warteschange .</translation>
     </message>
     <message>
+        <location filename="../overviewpage.cpp" line="415"/>
         <source>Submitted to masternode, waiting in queue ..</source>
-        <translation type="unfinished"/>
+        <translation>An Masternode übermittelt, wartet in Warteschange ..</translation>
     </message>
     <message>
+        <location filename="../overviewpage.cpp" line="416"/>
         <source>Submitted to masternode, waiting in queue ...</source>
-        <translation type="unfinished"/>
+        <translation>An Masternode übermittelt, wartet in Warteschange ...</translation>
     </message>
     <message>
         <location filename="../overviewpage.cpp" line="418"/>
@@ -4404,7 +4392,7 @@ Falls die Konfigurationsdatei nicht existiert, erzeugen Sie diese bitte mit Lese
     <message>
         <location filename="../darkcoinstrings.cpp" line="210"/>
         <source>Downgrading and trying again.</source>
-        <translation type="unfinished"/>
+        <translation>Gehe auf ältere Version zurück und versuche es erneut.</translation>
     </message>
     <message>
         <location filename="../darkcoinstrings.cpp" line="211"/>
@@ -4418,42 +4406,8 @@ Falls die Konfigurationsdatei nicht existiert, erzeugen Sie diese bitte mit Lese
     </message>
     <message>
         <location filename="../darkcoinstrings.cpp" line="213"/>
-        <source>Error connecting to Masternode.</source>
-        <translation type="unfinished"/>
-    </message>
-    <message>
-        <location filename="../darkcoinstrings.cpp" line="273"/>
-        <source>Last successful Darksend action was too recent.</source>
-        <translation type="unfinished"/>
-    </message>
-    <message>
-        <location filename="../darkcoinstrings.cpp" line="279"/>
-        <source>Loading masternode cache...</source>
-        <translation type="unfinished"/>
-    </message>
-    <message>
-        <location filename="../darkcoinstrings.cpp" line="291"/>
-        <source>No Masternodes detected.</source>
-        <translation type="unfinished"/>
-    </message>
-    <message>
-        <location filename="../darkcoinstrings.cpp" line="292"/>
-        <source>No compatible Masternode found.</source>
-        <translation type="unfinished"/>
-    </message>
-    <message>
-        <location filename="../darkcoinstrings.cpp" line="298"/>
-        <source>Not in the Masternode list.</source>
-        <translation type="unfinished"/>
-    </message>
-    <message>
-        <location filename="../darkcoinstrings.cpp" line="350"/>
-        <source>This is not a Masternode.</source>
-        <translation type="unfinished"/>
-    </message>
-    <message>
         <source>Error connecting to masternode.</source>
-        <translation type="unfinished"/>
+        <translation>Fehler bei der Verbindung zur Masternode.</translation>
     </message>
     <message>
         <location filename="../darkcoinstrings.cpp" line="214"/>
@@ -4752,8 +4706,9 @@ Darkcoin Core wird heruntergefahren.</translation>
         <translation>Letzte Darksend-Transaktion ist noch zu neu.</translation>
     </message>
     <message>
+        <location filename="../darkcoinstrings.cpp" line="273"/>
         <source>Last successful darksend action was too recent.</source>
-        <translation type="unfinished"/>
+        <translation>Letzte erfolgreiche Darksend-Transaktion ist noch zu neu.</translation>
     </message>
     <message>
         <location filename="../darkcoinstrings.cpp" line="274"/>
@@ -4779,6 +4734,11 @@ Darkcoin Core wird heruntergefahren.</translation>
         <location filename="../darkcoinstrings.cpp" line="278"/>
         <source>Loading block index...</source>
         <translation>Lade Blockindex...</translation>
+    </message>
+    <message>
+        <location filename="../darkcoinstrings.cpp" line="279"/>
+        <source>Loading masternode list...</source>
+        <translation>Lade Liste der Masternodes...</translation>
     </message>
     <message>
         <location filename="../darkcoinstrings.cpp" line="280"/>
@@ -4836,17 +4796,19 @@ Darkcoin Core wird heruntergefahren.</translation>
         <translation>Fehlende Informationen zur Eingangs-Transaktion.</translation>
     </message>
     <message>
+        <location filename="../darkcoinstrings.cpp" line="291"/>
         <source>No compatible masternode found.</source>
-        <translation type="unfinished"/>
+        <translation>Keine kompatible Masternode gefunden.</translation>
     </message>
     <message>
-        <location filename="../darkcoinstrings.cpp" line="293"/>
+        <location filename="../darkcoinstrings.cpp" line="292"/>
         <source>No funds detected in need of denominating.</source>
         <translation>Kein Kapital gefunden, dass zerstückelt werden muss.</translation>
     </message>
     <message>
+        <location filename="../darkcoinstrings.cpp" line="293"/>
         <source>No masternodes detected.</source>
-        <translation type="unfinished"/>
+        <translation>Kein Masternodes gefunden.</translation>
     </message>
     <message>
         <location filename="../darkcoinstrings.cpp" line="294"/>
@@ -4869,8 +4831,9 @@ Darkcoin Core wird heruntergefahren.</translation>
         <translation>Nicht genügend Datei-Deskriptoren verfügbar.</translation>
     </message>
     <message>
+        <location filename="../darkcoinstrings.cpp" line="298"/>
         <source>Not in the masternode list.</source>
-        <translation type="unfinished"/>
+        <translation>Nicht in der Masternode-Liste.</translation>
     </message>
     <message>
         <location filename="../darkcoinstrings.cpp" line="299"/>
@@ -5128,8 +5091,9 @@ Darkcoin Core wird heruntergefahren.</translation>
         <translation>Dies ist für Regressionstest-Tools und Anwendungsentwicklung gedacht.</translation>
     </message>
     <message>
+        <location filename="../darkcoinstrings.cpp" line="350"/>
         <source>This is not a masternode.</source>
-        <translation type="unfinished"/>
+        <translation>Das ist keine Masternode.</translation>
     </message>
     <message>
         <location filename="../darkcoinstrings.cpp" line="351"/>

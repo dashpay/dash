@@ -1948,27 +1948,6 @@ Aba, wards ab, des wird. Brauchd bloss a Minudn bis der Darkcon Koa mid di andan
         <translation>Angmachd</translation>
     </message>
     <message>
-        <location filename="../overviewpage.cpp" line="394"/>
-        <location filename="../overviewpage.cpp" line="395"/>
-        <location filename="../overviewpage.cpp" line="396"/>
-        <source>Submitted to masternode, waiting for more entries</source>
-        <translation type="unfinished"/>
-    </message>
-    <message>
-        <location filename="../overviewpage.cpp" line="400"/>
-        <location filename="../overviewpage.cpp" line="401"/>
-        <location filename="../overviewpage.cpp" line="402"/>
-        <source>Found enough users, signing ( waiting</source>
-        <translation type="unfinished"/>
-    </message>
-    <message>
-        <location filename="../overviewpage.cpp" line="414"/>
-        <location filename="../overviewpage.cpp" line="415"/>
-        <location filename="../overviewpage.cpp" line="416"/>
-        <source>Submitted to masternode, waiting in queue</source>
-        <translation type="unfinished"/>
-    </message>
-    <message>
         <location filename="../overviewpage.cpp" line="424"/>
         <source>Last Darksend message:
 </source>
@@ -1997,8 +1976,11 @@ Aba, wards ab, des wird. Brauchd bloss a Minudn bis der Darkcon Koa mid di andan
         <translation>Dise Kappuzzal sin aufm Weg zur Mastanode:</translation>
     </message>
     <message>
+        <location filename="../overviewpage.cpp" line="394"/>
+        <location filename="../overviewpage.cpp" line="395"/>
+        <location filename="../overviewpage.cpp" line="396"/>
         <source>Submitted to masternode, Waiting for more entries</source>
-        <translation type="unfinished"/>
+        <translation>Kapuzzal sin bai da Masternode - &quot;wäiting for plaija tu&quot;!</translation>
     </message>
     <message>
         <location filename="../overviewpage.cpp" line="399"/>
@@ -2006,16 +1988,19 @@ Aba, wards ab, des wird. Brauchd bloss a Minudn bis der Darkcon Koa mid di andan
         <translation>Olle da, ezd kimd da Servus drunnta....</translation>
     </message>
     <message>
+        <location filename="../overviewpage.cpp" line="400"/>
         <source>Found enough users, signing ( waiting. )</source>
-        <translation type="unfinished"/>
+        <translation>Olle da, ezd kimd da Servus drunnta.... (dauad a bissal)</translation>
     </message>
     <message>
+        <location filename="../overviewpage.cpp" line="401"/>
         <source>Found enough users, signing ( waiting.. )</source>
-        <translation type="unfinished"/>
+        <translation>Olle da, ezd kimd da Servus drunnta.... (dauad a bissal)</translation>
     </message>
     <message>
+        <location filename="../overviewpage.cpp" line="402"/>
         <source>Found enough users, signing ( waiting... )</source>
-        <translation type="unfinished"/>
+        <translation>Olle da, ezd kimd da Servus drunnta.... (dauad a bissal)</translation>
     </message>
     <message>
         <location filename="../overviewpage.cpp" line="404"/>
@@ -2043,16 +2028,19 @@ Aba, wards ab, des wird. Brauchd bloss a Minudn bis der Darkcon Koa mid di andan
         <translation>Darksend gehd richdig los:</translation>
     </message>
     <message>
+        <location filename="../overviewpage.cpp" line="414"/>
         <source>Submitted to masternode, waiting in queue .</source>
-        <translation type="unfinished"/>
+        <translation>Kapuzzal is bai da Mastanode und wartäd bis´s drann is.</translation>
     </message>
     <message>
+        <location filename="../overviewpage.cpp" line="415"/>
         <source>Submitted to masternode, waiting in queue ..</source>
-        <translation type="unfinished"/>
+        <translation>Kapuzzal is bai da Mastanode und wartäd bis´s drann is.</translation>
     </message>
     <message>
+        <location filename="../overviewpage.cpp" line="416"/>
         <source>Submitted to masternode, waiting in queue ...</source>
-        <translation type="unfinished"/>
+        <translation>Kapuzzal is bai da Mastanode und wartäd bis´s drann is.</translation>
     </message>
     <message>
         <location filename="../overviewpage.cpp" line="418"/>
@@ -4422,42 +4410,8 @@ If the file does not exist, create it with owner-readable-only file permissions.
     </message>
     <message>
         <location filename="../darkcoinstrings.cpp" line="213"/>
-        <source>Error connecting to Masternode.</source>
-        <translation type="unfinished"/>
-    </message>
-    <message>
-        <location filename="../darkcoinstrings.cpp" line="273"/>
-        <source>Last successful Darksend action was too recent.</source>
-        <translation type="unfinished"/>
-    </message>
-    <message>
-        <location filename="../darkcoinstrings.cpp" line="279"/>
-        <source>Loading masternode cache...</source>
-        <translation type="unfinished"/>
-    </message>
-    <message>
-        <location filename="../darkcoinstrings.cpp" line="291"/>
-        <source>No Masternodes detected.</source>
-        <translation type="unfinished"/>
-    </message>
-    <message>
-        <location filename="../darkcoinstrings.cpp" line="292"/>
-        <source>No compatible Masternode found.</source>
-        <translation type="unfinished"/>
-    </message>
-    <message>
-        <location filename="../darkcoinstrings.cpp" line="298"/>
-        <source>Not in the Masternode list.</source>
-        <translation type="unfinished"/>
-    </message>
-    <message>
-        <location filename="../darkcoinstrings.cpp" line="350"/>
-        <source>This is not a Masternode.</source>
-        <translation type="unfinished"/>
-    </message>
-    <message>
         <source>Error connecting to masternode.</source>
-        <translation type="unfinished"/>
+        <translation>Kann di Masternode ned erraichn.</translation>
     </message>
     <message>
         <location filename="../darkcoinstrings.cpp" line="214"/>
@@ -4755,8 +4709,9 @@ If the file does not exist, create it with owner-readable-only file permissions.
         <translation>Au Kapuzzn-Kinda brauchn mal a Pausn. Machda a Bia auf...</translation>
     </message>
     <message>
+        <location filename="../darkcoinstrings.cpp" line="273"/>
         <source>Last successful darksend action was too recent.</source>
-        <translation type="unfinished"/>
+        <translation>Im Kapuzzngardn is grad Rauchapausn.</translation>
     </message>
     <message>
         <location filename="../darkcoinstrings.cpp" line="274"/>
@@ -4781,6 +4736,11 @@ If the file does not exist, create it with owner-readable-only file permissions.
     <message>
         <location filename="../darkcoinstrings.cpp" line="278"/>
         <source>Loading block index...</source>
+        <translation type="unfinished"/>
+    </message>
+    <message>
+        <location filename="../darkcoinstrings.cpp" line="279"/>
+        <source>Loading masternode list...</source>
         <translation type="unfinished"/>
     </message>
     <message>
@@ -4839,17 +4799,19 @@ If the file does not exist, create it with owner-readable-only file permissions.
         <translation type="unfinished"/>
     </message>
     <message>
+        <location filename="../darkcoinstrings.cpp" line="291"/>
         <source>No compatible masternode found.</source>
         <translation type="unfinished"/>
     </message>
     <message>
-        <location filename="../darkcoinstrings.cpp" line="293"/>
+        <location filename="../darkcoinstrings.cpp" line="292"/>
         <source>No funds detected in need of denominating.</source>
         <translation type="unfinished"/>
     </message>
     <message>
+        <location filename="../darkcoinstrings.cpp" line="293"/>
         <source>No masternodes detected.</source>
-        <translation type="unfinished"/>
+        <translation>i sigg grad koi Mastanode....</translation>
     </message>
     <message>
         <location filename="../darkcoinstrings.cpp" line="294"/>
@@ -4872,6 +4834,7 @@ If the file does not exist, create it with owner-readable-only file permissions.
         <translation type="unfinished"/>
     </message>
     <message>
+        <location filename="../darkcoinstrings.cpp" line="298"/>
         <source>Not in the masternode list.</source>
         <translation type="unfinished"/>
     </message>
@@ -5131,8 +5094,9 @@ If the file does not exist, create it with owner-readable-only file permissions.
         <translation type="unfinished"/>
     </message>
     <message>
+        <location filename="../darkcoinstrings.cpp" line="350"/>
         <source>This is not a masternode.</source>
-        <translation type="unfinished"/>
+        <translation>Däs is kai Masternode.</translation>
     </message>
     <message>
         <location filename="../darkcoinstrings.cpp" line="351"/>

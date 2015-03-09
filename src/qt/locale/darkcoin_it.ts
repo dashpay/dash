@@ -277,7 +277,7 @@ Questo prodotto include software sviluppato dal progetto OpenSSL per l&apos;uso 
     <message>
         <location filename="../askpassphrasedialog.cpp" line="113"/>
         <source>Warning: If you encrypt your wallet and lose your passphrase, you will &lt;b&gt;LOSE ALL OF YOUR DARKCOINS&lt;/b&gt;!</source>
-        <translation>Attenzione: se crittografi il tuo portafoglio e perdi la tua passphrase, PERDERAI TUTTI I TUOI DARKCOIN!</translation>
+        <translation>Attenzione: se si cifra il portamonete e si perde la passphrase &lt;b&gt;TUTTI I PROPRI DARKCOIN ANDRANNO PERSI&lt;/b&gt;!</translation>
     </message>
     <message>
         <location filename="../askpassphrasedialog.cpp" line="113"/>
@@ -293,7 +293,7 @@ Questo prodotto include software sviluppato dal progetto OpenSSL per l&apos;uso 
     <message>
         <location filename="../askpassphrasedialog.cpp" line="124"/>
         <source>Darkcoin will close now to finish the encryption process. Remember that encrypting your wallet cannot fully protect your darkcoins from being stolen by malware infecting your computer.</source>
-        <translation>Darkcoin adesso si chiuderá per finire il processo di crittografia. Ricorda che crittogafiare il tuo portafoglio non ti da una protezione totale se il tuo computer é infettato da malware</translation>
+        <translation>Darkcoin adesso si chiuderá per finire il processo di cifratura. Ricorda che cifrare il tuo portafoglio non ti da una protezione totale se il tuo computer é infettato da malware</translation>
     </message>
     <message>
         <location filename="../askpassphrasedialog.cpp" line="128"/>
@@ -1930,27 +1930,6 @@ Più URL vengono separati da una barra verticale |.</translation>
         <translation>Abilitato</translation>
     </message>
     <message>
-        <location filename="../overviewpage.cpp" line="394"/>
-        <location filename="../overviewpage.cpp" line="395"/>
-        <location filename="../overviewpage.cpp" line="396"/>
-        <source>Submitted to masternode, waiting for more entries</source>
-        <translation type="unfinished"/>
-    </message>
-    <message>
-        <location filename="../overviewpage.cpp" line="400"/>
-        <location filename="../overviewpage.cpp" line="401"/>
-        <location filename="../overviewpage.cpp" line="402"/>
-        <source>Found enough users, signing ( waiting</source>
-        <translation type="unfinished"/>
-    </message>
-    <message>
-        <location filename="../overviewpage.cpp" line="414"/>
-        <location filename="../overviewpage.cpp" line="415"/>
-        <location filename="../overviewpage.cpp" line="416"/>
-        <source>Submitted to masternode, waiting in queue</source>
-        <translation type="unfinished"/>
-    </message>
-    <message>
         <location filename="../overviewpage.cpp" line="424"/>
         <source>Last Darksend message:
 </source>
@@ -1979,8 +1958,11 @@ Più URL vengono separati da una barra verticale |.</translation>
         <translation type="unfinished"/>
     </message>
     <message>
+        <location filename="../overviewpage.cpp" line="394"/>
+        <location filename="../overviewpage.cpp" line="395"/>
+        <location filename="../overviewpage.cpp" line="396"/>
         <source>Submitted to masternode, Waiting for more entries</source>
-        <translation type="unfinished"/>
+        <translation>Inviato al masternode, in attesa di più voci</translation>
     </message>
     <message>
         <location filename="../overviewpage.cpp" line="399"/>
@@ -1988,16 +1970,19 @@ Più URL vengono separati da una barra verticale |.</translation>
         <translation>Trovati sufficienti fondi, sto firmando...</translation>
     </message>
     <message>
+        <location filename="../overviewpage.cpp" line="400"/>
         <source>Found enough users, signing ( waiting. )</source>
-        <translation type="unfinished"/>
+        <translation>Trovato abasanza utenti, sto firmando ( aspetta. )</translation>
     </message>
     <message>
+        <location filename="../overviewpage.cpp" line="401"/>
         <source>Found enough users, signing ( waiting.. )</source>
-        <translation type="unfinished"/>
+        <translation>Trovato abasanza utenti, sto firmando ( aspetta.. )</translation>
     </message>
     <message>
+        <location filename="../overviewpage.cpp" line="402"/>
         <source>Found enough users, signing ( waiting... )</source>
-        <translation type="unfinished"/>
+        <translation>Trovato abasanza utenti, sto firmando ( aspetta... )</translation>
     </message>
     <message>
         <location filename="../overviewpage.cpp" line="404"/>
@@ -2025,16 +2010,19 @@ Più URL vengono separati da una barra verticale |.</translation>
         <translation>Richiesta di Darksend completa:</translation>
     </message>
     <message>
+        <location filename="../overviewpage.cpp" line="414"/>
         <source>Submitted to masternode, waiting in queue .</source>
-        <translation type="unfinished"/>
+        <translation>Inserita nel nodo maestro, aspettando in coda.</translation>
     </message>
     <message>
+        <location filename="../overviewpage.cpp" line="415"/>
         <source>Submitted to masternode, waiting in queue ..</source>
-        <translation type="unfinished"/>
+        <translation>Inserita nel nodo maestro, aspettando in coda.</translation>
     </message>
     <message>
+        <location filename="../overviewpage.cpp" line="416"/>
         <source>Submitted to masternode, waiting in queue ...</source>
-        <translation type="unfinished"/>
+        <translation>Inserita nel nodo maestro, aspettando in coda.</translation>
     </message>
     <message>
         <location filename="../overviewpage.cpp" line="418"/>
@@ -4416,42 +4404,8 @@ Se il file non esiste, crealo assegnando i permessi di lettura solamente al prop
     </message>
     <message>
         <location filename="../darkcoinstrings.cpp" line="213"/>
-        <source>Error connecting to Masternode.</source>
-        <translation type="unfinished"/>
-    </message>
-    <message>
-        <location filename="../darkcoinstrings.cpp" line="273"/>
-        <source>Last successful Darksend action was too recent.</source>
-        <translation type="unfinished"/>
-    </message>
-    <message>
-        <location filename="../darkcoinstrings.cpp" line="279"/>
-        <source>Loading masternode cache...</source>
-        <translation type="unfinished"/>
-    </message>
-    <message>
-        <location filename="../darkcoinstrings.cpp" line="291"/>
-        <source>No Masternodes detected.</source>
-        <translation type="unfinished"/>
-    </message>
-    <message>
-        <location filename="../darkcoinstrings.cpp" line="292"/>
-        <source>No compatible Masternode found.</source>
-        <translation type="unfinished"/>
-    </message>
-    <message>
-        <location filename="../darkcoinstrings.cpp" line="298"/>
-        <source>Not in the Masternode list.</source>
-        <translation type="unfinished"/>
-    </message>
-    <message>
-        <location filename="../darkcoinstrings.cpp" line="350"/>
-        <source>This is not a Masternode.</source>
-        <translation type="unfinished"/>
-    </message>
-    <message>
         <source>Error connecting to masternode.</source>
-        <translation type="unfinished"/>
+        <translation>Connesione per masternode error.</translation>
     </message>
     <message>
         <location filename="../darkcoinstrings.cpp" line="214"/>
@@ -4749,6 +4703,7 @@ Se il file non esiste, crealo assegnando i permessi di lettura solamente al prop
         <translation>L&apos;ultima darksend è troppo recente</translation>
     </message>
     <message>
+        <location filename="../darkcoinstrings.cpp" line="273"/>
         <source>Last successful darksend action was too recent.</source>
         <translation type="unfinished"/>
     </message>
@@ -4776,6 +4731,11 @@ Se il file non esiste, crealo assegnando i permessi di lettura solamente al prop
         <location filename="../darkcoinstrings.cpp" line="278"/>
         <source>Loading block index...</source>
         <translation>Caricamento dell&apos;indice del blocco...</translation>
+    </message>
+    <message>
+        <location filename="../darkcoinstrings.cpp" line="279"/>
+        <source>Loading masternode list...</source>
+        <translation>Sto carricando la lista dei masternode...</translation>
     </message>
     <message>
         <location filename="../darkcoinstrings.cpp" line="280"/>
@@ -4833,17 +4793,19 @@ Se il file non esiste, crealo assegnando i permessi di lettura solamente al prop
         <translation>Mancano le informazioni di input della transazione</translation>
     </message>
     <message>
+        <location filename="../darkcoinstrings.cpp" line="291"/>
         <source>No compatible masternode found.</source>
-        <translation type="unfinished"/>
+        <translation>Nessun masternode compatibile trovato</translation>
     </message>
     <message>
-        <location filename="../darkcoinstrings.cpp" line="293"/>
+        <location filename="../darkcoinstrings.cpp" line="292"/>
         <source>No funds detected in need of denominating.</source>
         <translation type="unfinished"/>
     </message>
     <message>
+        <location filename="../darkcoinstrings.cpp" line="293"/>
         <source>No masternodes detected.</source>
-        <translation type="unfinished"/>
+        <translation>La rilevazione di masternode impossibile.</translation>
     </message>
     <message>
         <location filename="../darkcoinstrings.cpp" line="294"/>
@@ -4866,8 +4828,9 @@ Se il file non esiste, crealo assegnando i permessi di lettura solamente al prop
         <translation>Non ci sono abbastanza descrittori di file disponibili.</translation>
     </message>
     <message>
+        <location filename="../darkcoinstrings.cpp" line="298"/>
         <source>Not in the masternode list.</source>
-        <translation type="unfinished"/>
+        <translation>Non presente nella lista masternode</translation>
     </message>
     <message>
         <location filename="../darkcoinstrings.cpp" line="299"/>
@@ -5128,8 +5091,9 @@ Se il file non esiste, crealo assegnando i permessi di lettura solamente al prop
         <translation>Questo è previsto per l&apos;uso con test di regressione e per lo sviluppo di applicazioni.</translation>
     </message>
     <message>
+        <location filename="../darkcoinstrings.cpp" line="350"/>
         <source>This is not a masternode.</source>
-        <translation type="unfinished"/>
+        <translation>Questo non è un Masternode</translation>
     </message>
     <message>
         <location filename="../darkcoinstrings.cpp" line="351"/>

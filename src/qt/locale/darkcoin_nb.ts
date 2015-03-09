@@ -1928,27 +1928,6 @@ https://www.transifex.com/projects/p/darkcoin/</translation>
         <translation>Aktivert</translation>
     </message>
     <message>
-        <location filename="../overviewpage.cpp" line="394"/>
-        <location filename="../overviewpage.cpp" line="395"/>
-        <location filename="../overviewpage.cpp" line="396"/>
-        <source>Submitted to masternode, waiting for more entries</source>
-        <translation type="unfinished"/>
-    </message>
-    <message>
-        <location filename="../overviewpage.cpp" line="400"/>
-        <location filename="../overviewpage.cpp" line="401"/>
-        <location filename="../overviewpage.cpp" line="402"/>
-        <source>Found enough users, signing ( waiting</source>
-        <translation type="unfinished"/>
-    </message>
-    <message>
-        <location filename="../overviewpage.cpp" line="414"/>
-        <location filename="../overviewpage.cpp" line="415"/>
-        <location filename="../overviewpage.cpp" line="416"/>
-        <source>Submitted to masternode, waiting in queue</source>
-        <translation type="unfinished"/>
-    </message>
-    <message>
         <location filename="../overviewpage.cpp" line="424"/>
         <source>Last Darksend message:
 </source>
@@ -1977,8 +1956,11 @@ https://www.transifex.com/projects/p/darkcoin/</translation>
         <translation>Sendte følgende oppføringer til masternode:</translation>
     </message>
     <message>
+        <location filename="../overviewpage.cpp" line="394"/>
+        <location filename="../overviewpage.cpp" line="395"/>
+        <location filename="../overviewpage.cpp" line="396"/>
         <source>Submitted to masternode, Waiting for more entries</source>
-        <translation type="unfinished"/>
+        <translation>Sendt til masternode, Venter på flere oppføringer</translation>
     </message>
     <message>
         <location filename="../overviewpage.cpp" line="399"/>
@@ -1986,16 +1968,19 @@ https://www.transifex.com/projects/p/darkcoin/</translation>
         <translation>Fant nok brukere, signerer ...</translation>
     </message>
     <message>
+        <location filename="../overviewpage.cpp" line="400"/>
         <source>Found enough users, signing ( waiting. )</source>
-        <translation type="unfinished"/>
+        <translation>Fant nok brukere, signerer ( venter. )</translation>
     </message>
     <message>
+        <location filename="../overviewpage.cpp" line="401"/>
         <source>Found enough users, signing ( waiting.. )</source>
-        <translation type="unfinished"/>
+        <translation>Fant nok brukere, signerer ( venter. )</translation>
     </message>
     <message>
+        <location filename="../overviewpage.cpp" line="402"/>
         <source>Found enough users, signing ( waiting... )</source>
-        <translation type="unfinished"/>
+        <translation>Fant nok brukere, signerer ( venter. )</translation>
     </message>
     <message>
         <location filename="../overviewpage.cpp" line="404"/>
@@ -2023,16 +2008,19 @@ https://www.transifex.com/projects/p/darkcoin/</translation>
         <translation>Darksend-forespørsel fullført:</translation>
     </message>
     <message>
+        <location filename="../overviewpage.cpp" line="414"/>
         <source>Submitted to masternode, waiting in queue .</source>
-        <translation type="unfinished"/>
+        <translation>Sendt inn til masternode, venter i kø .</translation>
     </message>
     <message>
+        <location filename="../overviewpage.cpp" line="415"/>
         <source>Submitted to masternode, waiting in queue ..</source>
-        <translation type="unfinished"/>
+        <translation>Sendt inn til masternode, venter i kø ..</translation>
     </message>
     <message>
+        <location filename="../overviewpage.cpp" line="416"/>
         <source>Submitted to masternode, waiting in queue ...</source>
-        <translation type="unfinished"/>
+        <translation>Sendt inn til masternode, venter i kø ...</translation>
     </message>
     <message>
         <location filename="../overviewpage.cpp" line="418"/>
@@ -4411,40 +4399,6 @@ If the file does not exist, create it with owner-readable-only file permissions.
     </message>
     <message>
         <location filename="../darkcoinstrings.cpp" line="213"/>
-        <source>Error connecting to Masternode.</source>
-        <translation type="unfinished"/>
-    </message>
-    <message>
-        <location filename="../darkcoinstrings.cpp" line="273"/>
-        <source>Last successful Darksend action was too recent.</source>
-        <translation type="unfinished"/>
-    </message>
-    <message>
-        <location filename="../darkcoinstrings.cpp" line="279"/>
-        <source>Loading masternode cache...</source>
-        <translation type="unfinished"/>
-    </message>
-    <message>
-        <location filename="../darkcoinstrings.cpp" line="291"/>
-        <source>No Masternodes detected.</source>
-        <translation type="unfinished"/>
-    </message>
-    <message>
-        <location filename="../darkcoinstrings.cpp" line="292"/>
-        <source>No compatible Masternode found.</source>
-        <translation type="unfinished"/>
-    </message>
-    <message>
-        <location filename="../darkcoinstrings.cpp" line="298"/>
-        <source>Not in the Masternode list.</source>
-        <translation type="unfinished"/>
-    </message>
-    <message>
-        <location filename="../darkcoinstrings.cpp" line="350"/>
-        <source>This is not a Masternode.</source>
-        <translation type="unfinished"/>
-    </message>
-    <message>
         <source>Error connecting to masternode.</source>
         <translation type="unfinished"/>
     </message>
@@ -4744,6 +4698,7 @@ If the file does not exist, create it with owner-readable-only file permissions.
         <translation type="unfinished"/>
     </message>
     <message>
+        <location filename="../darkcoinstrings.cpp" line="273"/>
         <source>Last successful darksend action was too recent.</source>
         <translation type="unfinished"/>
     </message>
@@ -4770,6 +4725,11 @@ If the file does not exist, create it with owner-readable-only file permissions.
     <message>
         <location filename="../darkcoinstrings.cpp" line="278"/>
         <source>Loading block index...</source>
+        <translation type="unfinished"/>
+    </message>
+    <message>
+        <location filename="../darkcoinstrings.cpp" line="279"/>
+        <source>Loading masternode list...</source>
         <translation type="unfinished"/>
     </message>
     <message>
@@ -4828,15 +4788,17 @@ If the file does not exist, create it with owner-readable-only file permissions.
         <translation>Mangler transaksjoninformasjon for input.</translation>
     </message>
     <message>
+        <location filename="../darkcoinstrings.cpp" line="291"/>
         <source>No compatible masternode found.</source>
         <translation type="unfinished"/>
     </message>
     <message>
-        <location filename="../darkcoinstrings.cpp" line="293"/>
+        <location filename="../darkcoinstrings.cpp" line="292"/>
         <source>No funds detected in need of denominating.</source>
         <translation type="unfinished"/>
     </message>
     <message>
+        <location filename="../darkcoinstrings.cpp" line="293"/>
         <source>No masternodes detected.</source>
         <translation type="unfinished"/>
     </message>
@@ -4861,6 +4823,7 @@ If the file does not exist, create it with owner-readable-only file permissions.
         <translation type="unfinished"/>
     </message>
     <message>
+        <location filename="../darkcoinstrings.cpp" line="298"/>
         <source>Not in the masternode list.</source>
         <translation type="unfinished"/>
     </message>
@@ -5120,6 +5083,7 @@ If the file does not exist, create it with owner-readable-only file permissions.
         <translation type="unfinished"/>
     </message>
     <message>
+        <location filename="../darkcoinstrings.cpp" line="350"/>
         <source>This is not a masternode.</source>
         <translation type="unfinished"/>
     </message>

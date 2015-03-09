@@ -1928,27 +1928,6 @@ https://www.transifex.com/projects/p/darkcoin/</translation>
         <translation>Đã bật</translation>
     </message>
     <message>
-        <location filename="../overviewpage.cpp" line="394"/>
-        <location filename="../overviewpage.cpp" line="395"/>
-        <location filename="../overviewpage.cpp" line="396"/>
-        <source>Submitted to masternode, waiting for more entries</source>
-        <translation type="unfinished"/>
-    </message>
-    <message>
-        <location filename="../overviewpage.cpp" line="400"/>
-        <location filename="../overviewpage.cpp" line="401"/>
-        <location filename="../overviewpage.cpp" line="402"/>
-        <source>Found enough users, signing ( waiting</source>
-        <translation type="unfinished"/>
-    </message>
-    <message>
-        <location filename="../overviewpage.cpp" line="414"/>
-        <location filename="../overviewpage.cpp" line="415"/>
-        <location filename="../overviewpage.cpp" line="416"/>
-        <source>Submitted to masternode, waiting in queue</source>
-        <translation type="unfinished"/>
-    </message>
-    <message>
         <location filename="../overviewpage.cpp" line="424"/>
         <source>Last Darksend message:
 </source>
@@ -1977,8 +1956,11 @@ https://www.transifex.com/projects/p/darkcoin/</translation>
         <translation>Gửi những thành phần sau đến masternode:</translation>
     </message>
     <message>
+        <location filename="../overviewpage.cpp" line="394"/>
+        <location filename="../overviewpage.cpp" line="395"/>
+        <location filename="../overviewpage.cpp" line="396"/>
         <source>Submitted to masternode, Waiting for more entries</source>
-        <translation type="unfinished"/>
+        <translation>Đã gửi cho masternode, Đợi các thành phần thêm</translation>
     </message>
     <message>
         <location filename="../overviewpage.cpp" line="399"/>
@@ -1986,16 +1968,19 @@ https://www.transifex.com/projects/p/darkcoin/</translation>
         <translation>Đã kiếm đủ người dùng, đang ký ...</translation>
     </message>
     <message>
+        <location filename="../overviewpage.cpp" line="400"/>
         <source>Found enough users, signing ( waiting. )</source>
-        <translation type="unfinished"/>
+        <translation>Đã kiếm đủ người dùng, đang ký (vui lòng đợi.)</translation>
     </message>
     <message>
+        <location filename="../overviewpage.cpp" line="401"/>
         <source>Found enough users, signing ( waiting.. )</source>
-        <translation type="unfinished"/>
+        <translation>Đã kiếm đủ người dùng, đang ký (vui lòng đợi..)</translation>
     </message>
     <message>
+        <location filename="../overviewpage.cpp" line="402"/>
         <source>Found enough users, signing ( waiting... )</source>
-        <translation type="unfinished"/>
+        <translation>Đã kiếm đủ người dùng, đang ký (vui lòng đợi...)</translation>
     </message>
     <message>
         <location filename="../overviewpage.cpp" line="404"/>
@@ -2023,16 +2008,19 @@ https://www.transifex.com/projects/p/darkcoin/</translation>
         <translation>Yêu cầu Darksend hoàn thành:</translation>
     </message>
     <message>
+        <location filename="../overviewpage.cpp" line="414"/>
         <source>Submitted to masternode, waiting in queue .</source>
-        <translation type="unfinished"/>
+        <translation>Đã gửi đến masternode, đang đợi trong hàng đợi .</translation>
     </message>
     <message>
+        <location filename="../overviewpage.cpp" line="415"/>
         <source>Submitted to masternode, waiting in queue ..</source>
-        <translation type="unfinished"/>
+        <translation>Đã gửi đến masternode, đang đợi trong hàng đợi ..</translation>
     </message>
     <message>
+        <location filename="../overviewpage.cpp" line="416"/>
         <source>Submitted to masternode, waiting in queue ...</source>
-        <translation type="unfinished"/>
+        <translation>Đã gửi đến masternode, đang đợi trong hàng đợi ...</translation>
     </message>
     <message>
         <location filename="../overviewpage.cpp" line="418"/>
@@ -4413,42 +4401,8 @@ Nếu tệp không tồn tại, tạo nó với quyền tệp owner-readable-onl
     </message>
     <message>
         <location filename="../darkcoinstrings.cpp" line="213"/>
-        <source>Error connecting to Masternode.</source>
-        <translation type="unfinished"/>
-    </message>
-    <message>
-        <location filename="../darkcoinstrings.cpp" line="273"/>
-        <source>Last successful Darksend action was too recent.</source>
-        <translation type="unfinished"/>
-    </message>
-    <message>
-        <location filename="../darkcoinstrings.cpp" line="279"/>
-        <source>Loading masternode cache...</source>
-        <translation type="unfinished"/>
-    </message>
-    <message>
-        <location filename="../darkcoinstrings.cpp" line="291"/>
-        <source>No Masternodes detected.</source>
-        <translation type="unfinished"/>
-    </message>
-    <message>
-        <location filename="../darkcoinstrings.cpp" line="292"/>
-        <source>No compatible Masternode found.</source>
-        <translation type="unfinished"/>
-    </message>
-    <message>
-        <location filename="../darkcoinstrings.cpp" line="298"/>
-        <source>Not in the Masternode list.</source>
-        <translation type="unfinished"/>
-    </message>
-    <message>
-        <location filename="../darkcoinstrings.cpp" line="350"/>
-        <source>This is not a Masternode.</source>
-        <translation type="unfinished"/>
-    </message>
-    <message>
         <source>Error connecting to masternode.</source>
-        <translation type="unfinished"/>
+        <translation>Lỗi kết nối đến masternode.</translation>
     </message>
     <message>
         <location filename="../darkcoinstrings.cpp" line="214"/>
@@ -4746,8 +4700,9 @@ Nếu tệp không tồn tại, tạo nó với quyền tệp owner-readable-onl
         <translation>Darksend cuối cùng quá gần.</translation>
     </message>
     <message>
+        <location filename="../darkcoinstrings.cpp" line="273"/>
         <source>Last successful darksend action was too recent.</source>
-        <translation type="unfinished"/>
+        <translation>Darksend thành công cuối cùng quá gần.</translation>
     </message>
     <message>
         <location filename="../darkcoinstrings.cpp" line="274"/>
@@ -4773,6 +4728,11 @@ Nếu tệp không tồn tại, tạo nó với quyền tệp owner-readable-onl
         <location filename="../darkcoinstrings.cpp" line="278"/>
         <source>Loading block index...</source>
         <translation>Đang nạp chỉ mục khối...</translation>
+    </message>
+    <message>
+        <location filename="../darkcoinstrings.cpp" line="279"/>
+        <source>Loading masternode list...</source>
+        <translation>Đang tải danh sách master node...</translation>
     </message>
     <message>
         <location filename="../darkcoinstrings.cpp" line="280"/>
@@ -4830,17 +4790,19 @@ Nếu tệp không tồn tại, tạo nó với quyền tệp owner-readable-onl
         <translation>Thiếu thông tin giao dịch đầu vào.</translation>
     </message>
     <message>
+        <location filename="../darkcoinstrings.cpp" line="291"/>
         <source>No compatible masternode found.</source>
-        <translation type="unfinished"/>
+        <translation>Không tìm thấy masternode tương thích.</translation>
     </message>
     <message>
-        <location filename="../darkcoinstrings.cpp" line="293"/>
+        <location filename="../darkcoinstrings.cpp" line="292"/>
         <source>No funds detected in need of denominating.</source>
         <translation>Không thấy có nguồn tiền cần thiết để định giá.</translation>
     </message>
     <message>
+        <location filename="../darkcoinstrings.cpp" line="293"/>
         <source>No masternodes detected.</source>
-        <translation type="unfinished"/>
+        <translation>Không phát hiện được masternode.</translation>
     </message>
     <message>
         <location filename="../darkcoinstrings.cpp" line="294"/>
@@ -4863,8 +4825,9 @@ Nếu tệp không tồn tại, tạo nó với quyền tệp owner-readable-onl
         <translation>Chưa có đủ thông tin mô tả tệp.</translation>
     </message>
     <message>
+        <location filename="../darkcoinstrings.cpp" line="298"/>
         <source>Not in the masternode list.</source>
-        <translation type="unfinished"/>
+        <translation>Không có trong danh sách masternode.</translation>
     </message>
     <message>
         <location filename="../darkcoinstrings.cpp" line="299"/>
@@ -5122,8 +5085,9 @@ Nếu tệp không tồn tại, tạo nó với quyền tệp owner-readable-onl
         <translation>Điều này là để dành cho công cụ kiểm tra hồi quy và phát triển ứng dụng.</translation>
     </message>
     <message>
+        <location filename="../darkcoinstrings.cpp" line="350"/>
         <source>This is not a masternode.</source>
-        <translation type="unfinished"/>
+        <translation>Đây không phải là một masternode.</translation>
     </message>
     <message>
         <location filename="../darkcoinstrings.cpp" line="351"/>
