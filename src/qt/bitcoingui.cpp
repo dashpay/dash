@@ -421,26 +421,37 @@ void BitcoinGUI::createToolBars()
 {
     if(walletFrame)
     {
-        QToolBar *toolbar = new QToolBar(tr("Tabs toolbar"));
-        toolbar->setToolButtonStyle(Qt::ToolButtonTextBesideIcon);
-        toolbar->addAction(overviewAction);
-        toolbar->addAction(sendCoinsAction);
-        toolbar->addAction(receiveCoinsAction);
-        toolbar->addAction(historyAction);
-        toolbar->setMovable(false); // remove unused icon in upper left corner
-        overviewAction->setChecked(true);
-
         /** Create additional container for toolbar and walletFrame and make it the central widget.
             This is a workaround mostly for toolbar styling on Mac OS but should work fine for every other OSes too.
         */
-        QVBoxLayout *layout = new QVBoxLayout;
-        layout->addWidget(toolbar);
-        layout->addWidget(walletFrame);
-        layout->setSpacing(0);
-        layout->setContentsMargins(QMargins());
+        QToolBar *innerToolbar = new QToolBar();
+#ifdef Q_OS_MAC
         QWidget *containerWidget = new QWidget();
-        containerWidget->setLayout(layout);
+        QVBoxLayout *containerLayout = new QVBoxLayout(containerWidget);
+        QToolBar *dummyToolbar = new QToolBar(this);
+
+        dummyToolbar->setVisible(false);
+        addToolBar(dummyToolbar); // crazy hack
+#endif
+        innerToolbar->setToolButtonStyle(Qt::ToolButtonTextBesideIcon);
+        innerToolbar->addAction(overviewAction);
+        innerToolbar->addAction(sendCoinsAction);
+        innerToolbar->addAction(receiveCoinsAction);
+        innerToolbar->addAction(historyAction);
+        innerToolbar->setMovable(false); // remove unused icon in upper left corner
+        overviewAction->setChecked(true);
+
+#ifdef Q_OS_MAC
+        containerLayout->setContentsMargins(0,0,0,0);
+        containerLayout->setSpacing(0);
+        containerLayout->addWidget(innerToolbar);
+        containerLayout->addWidget(walletFrame);
+
         setCentralWidget(containerWidget);
+#else
+        addToolBar(innerToolbar);
+        setCentralWidget(walletFrame);
+#endif
     }
 }
 
