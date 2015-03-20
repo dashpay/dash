@@ -185,6 +185,16 @@ bool CMasternodeMan::Add(CMasternode &mn)
     {
         if(fDebug) LogPrintf("CMasternodeMan: Adding new Masternode %s - %i now\n", mn.addr.ToString().c_str(), size() + 1);
         vMasternodes.push_back(mn);
+        // Remove other MN which using same addr
+        vector<CMasternode>::iterator it = vMasternodes.begin();
+        while(it != vMasternodes.end()){
+          if((*it).addr == mn.addr && (*it).vin != mn.vin){
+            if(fDebug) LogPrintf("CMasternodeMan: Removing Duplicate Masternode %s - %i now\n", (*it).vin.ToString().c_str(), size() - 1);
+            it = vMasternodes.erase(it);
+          } else {
+            ++it;
+          }
+        }
         return true;
     }
 
