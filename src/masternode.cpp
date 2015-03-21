@@ -222,7 +222,7 @@ uint256 CMasternode::CalculateScore(int mod, int64_t nBlockHeight)
 
 void CMasternode::Check()
 {
-    LOCK(cs_main);
+    LOCK(cs);
 
     if(nScanningErrorCount >= MASTERNODE_SCANNING_ERROR_THESHOLD) 
     {
