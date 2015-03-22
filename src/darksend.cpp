@@ -102,7 +102,8 @@ void CDarksendPool::ProcessMessageDarksend(CNode* pfrom, std::string& strCommand
         }
 
     } else if (strCommand == "dsq") { //Darksend Queue
-        LOCK(cs_darksend);
+        TRY_LOCK(cs_darksend, lockRecv);
+        if(!lockRecv) return;
 
         if (pfrom->nVersion < MIN_POOL_PEER_PROTO_VERSION) {
             return;
@@ -2509,7 +2510,6 @@ void CDarksendPool::RelayInAnon(std::vector<CTxIn>& vin, std::vector<CTxOut>& vo
 
 void CDarksendPool::RelayIn(const std::vector<CTxDSIn>& vin, const int64_t& nAmount, const CTransaction& txCollateral, const std::vector<CTxDSOut>& vout)
 {
-    LOCK(cs_vNodes);
 
     std::vector<CTxIn> vin2;
     std::vector<CTxOut> vout2;
@@ -2520,6 +2520,7 @@ void CDarksendPool::RelayIn(const std::vector<CTxDSIn>& vin, const int64_t& nAmo
     BOOST_FOREACH(CTxDSOut out, vout)
         vout2.push_back(out);
 
+    LOCK(cs_vNodes);
     BOOST_FOREACH(CNode* pnode, vNodes)
     {
         if(!pSubmittedToMasternode) return;
