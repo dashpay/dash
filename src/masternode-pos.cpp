@@ -59,7 +59,6 @@ void ProcessMessageMasternodePOS(CNode* pfrom, std::string& strCommand, CDataStr
     if (strCommand == "mnse") //Masternode Scanning Error
     {
 
-        LogPrintf("ProcessMessageMasternodePOS::mnse\n");
         CDataStream vMsg(vRecv);
         CMasternodeScanningError mnse;
         vRecv >> mnse;
@@ -78,18 +77,28 @@ void ProcessMessageMasternodePOS(CNode* pfrom, std::string& strCommand, CDataStr
             return;
         }
 
+        CMasternode* pmnA = mnodeman.Find(mnse.vinMasternodeA);
+        if(pmnA == NULL) return;
+        if(pmnA->protocolVersion < MIN_MASTERNODE_POS_PROTO_VERSION) return;
+
+        int nBlockHeight = chainActive.Tip()->nHeight;
+        if(nBlockHeight - mnse.nBlockHeight > 10){
+            LogPrintf("MasternodePOS::mnse - Too old\n");
+            return;   
+        }
+
         // Lowest masternodes in rank check the highest each block
         int a = mnodeman.GetMasternodeRank(mnse.vinMasternodeA, mnse.nBlockHeight, MIN_MASTERNODE_POS_PROTO_VERSION);
-        if(a > GetCountScanningPerBlock())
+        if(a == -1 || a > GetCountScanningPerBlock())
         {
-            LogPrintf("MasternodePOS::mnse - MasternodeA ranking is too high\n");
+            if(a != -1) LogPrintf("MasternodePOS::mnse - MasternodeA ranking is too high\n");
             return;
         }
 
         int b = mnodeman.GetMasternodeRank(mnse.vinMasternodeB, mnse.nBlockHeight, MIN_MASTERNODE_POS_PROTO_VERSION, false);
-        if(b < mnodeman.CountMasternodesAboveProtocol(MIN_MASTERNODE_POS_PROTO_VERSION)-GetCountScanningPerBlock())
+        if(b == -1 || b < mnodeman.CountMasternodesAboveProtocol(MIN_MASTERNODE_POS_PROTO_VERSION)-GetCountScanningPerBlock())
         {
-            LogPrintf("MasternodePOS::mnse - MasternodeB ranking is too low\n");
+            if(b != -1) LogPrintf("MasternodePOS::mnse - MasternodeB ranking is too low\n");
             return;
         }
 
@@ -98,10 +107,12 @@ void ProcessMessageMasternodePOS(CNode* pfrom, std::string& strCommand, CDataStr
             return;
         }
 
-        CMasternode* pmn = mnodeman.Find(mnse.vinMasternodeB);
-        if(pmn == NULL) return;
+        CMasternode* pmnB = mnodeman.Find(mnse.vinMasternodeB);
+        if(pmnB == NULL) return;
 
-        pmn->ApplyScanningError(mnse);
+        if(fDebug) LogPrintf("ProcessMessageMasternodePOS::mnse - nHeight %d MasternodeA %s MasternodeB %s\n", mnse.nBlockHeight, pmnA->addr.ToString().c_str(), pmnB->addr.ToString().c_str());
+
+        pmnB->ApplyScanningError(mnse);
         mnse.Relay();
     }
 }
@@ -139,28 +150,30 @@ void CMasternodeScanning::DoMasternodePOSChecks()
     if(!IsSporkActive(SPORK_7_MASTERNODE_SCANNING)) return;
     if(IsInitialBlockDownload()) return;
 
-    int a = mnodeman.GetMasternodeRank(activeMasternode.vin, chainActive.Tip()->nHeight, MIN_MASTERNODE_POS_PROTO_VERSION);
-    if(a > GetCountScanningPerBlock()){
+    int nBlockHeight = chainActive.Tip()->nHeight-5;
+
+    int a = mnodeman.GetMasternodeRank(activeMasternode.vin, nBlockHeight, MIN_MASTERNODE_POS_PROTO_VERSION);
+    if(a == -1 || a > GetCountScanningPerBlock()){
         // we don't need to do anything this block
         return;
     }
 
     // The lowest ranking nodes (Masternode A) check the highest ranking nodes (Masternode B)
-    CMasternode* pmn = mnodeman.GetMasternodeByRank(mnodeman.CountMasternodesAboveProtocol(MIN_MASTERNODE_POS_PROTO_VERSION)-a, chainActive.Tip()->nHeight, MIN_MASTERNODE_POS_PROTO_VERSION, false);
+    CMasternode* pmn = mnodeman.GetMasternodeByRank(mnodeman.CountMasternodesAboveProtocol(MIN_MASTERNODE_POS_PROTO_VERSION)-a, nBlockHeight, MIN_MASTERNODE_POS_PROTO_VERSION, false);
     if(pmn == NULL) return;
 
     // -- first check : Port is open
 
     if(!ConnectNode((CAddress)pmn->addr, NULL, true)){
         // we couldn't connect to the node, let's send a scanning error
-        CMasternodeScanningError mnse(activeMasternode.vin, pmn->vin, SCANNING_ERROR_NO_RESPONSE, chainActive.Tip()->nHeight);
+        CMasternodeScanningError mnse(activeMasternode.vin, pmn->vin, SCANNING_ERROR_NO_RESPONSE, nBlockHeight);
         mnse.Sign();
         mapMasternodeScanningErrors.insert(make_pair(mnse.GetHash(), mnse));
         mnse.Relay();
     }
 
     // success
-    CMasternodeScanningError mnse(activeMasternode.vin, pmn->vin, SCANNING_SUCCESS, chainActive.Tip()->nHeight);
+    CMasternodeScanningError mnse(activeMasternode.vin, pmn->vin, SCANNING_SUCCESS, nBlockHeight);
     mnse.Sign();
     mapMasternodeScanningErrors.insert(make_pair(mnse.GetHash(), mnse));
     mnse.Relay();
