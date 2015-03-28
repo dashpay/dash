@@ -4,17 +4,17 @@
 There are many ways to setup a wallet to support start-many. This guide will walk through two of them.
 
 1. [Importing an existing wallet (recommended if you are consolidating wallets).](#option1)
-2. [Sending 1,000 DRK to new wallet addresses.](#option2)
+2. [Sending 1,000 DASH to new wallet addresses.](#option2)
 
 ## <a name="option1"></a>Option 1. Importing an existing wallet
 
 This is the way to go if you are consolidating multiple wallets into one that supports start-many. 
 
-### From your single-instance MasterNode Wallet
+### From your single-instance Masternode Wallet
 
 Open your QT Wallet and go to console (from the menu select Tools => Debug Console)
 
-Dump the private key from your MasterNode's pulic key.
+Dump the private key from your Masternode's pulic key.
 
 ```
 walletpassphrase [your_wallet_passphrase] 600
@@ -23,7 +23,7 @@ dumpprivkey [mn_public_key]
 
 Copy the resulting priviate key. You'll use it in the next step.
 
-### From your multi-instance MasterNode Wallet
+### From your multi-instance Masternode Wallet
 
 Open your QT Wallet and go to console (from the menu select Tools => Debug Console)
 
@@ -52,13 +52,13 @@ The wallet will re-scan and you will see your available balance increase by the 
     * Click *Request payment*
 5. Click the *Copy Address* button
 
-Create a new wallet address for each MasterNode.
+Create a new wallet address for each Masternode.
 
 Close your QT Wallet.
 
-### Send 1,000 DRK to New Addresses
+### Send 1,000 DASH to New Addresses
 
-Just like setting up a standard MN. Send exactly 1,000 DRK to each new address created above.
+Just like setting up a standard MN. Send exactly 1,000 DASH to each new address created above.
 
 ### Create New Masternode Private Keys
 
@@ -68,7 +68,7 @@ Issue the following:
 
 ```masternode genkey```
 
-*Note: A masternode private key will need to be created for each MasterNode you run. You should not use the same masternode private key for multiple MasterNodes.*
+*Note: A masternode private key will need to be created for each Masternode you run. You should not use the same masternode private key for multiple Masternodes.*
 
 Close your QT Wallet.
 
@@ -78,11 +78,11 @@ Remember... this is local. Make sure your QT is not running.
 
 Create the masternode.conf file in the same directory as your wallet.dat.
 
-Copy the masternode private key and correspondig collateral output transaction that holds the 1K DRK.
+Copy the masternode private key and correspondig collateral output transaction that holds the 1K DASH.
 
 The masternode private key may be an existing key from [Option 1](#option1), or a newly generated key from [Option 2](#option2). 
 
-*Please note, the masternode priviate key is not the same as a wallet private key. Never put your wallet private key in the masternode.conf file. That is equivalent to putting your 1,000 DRK on the remote server and defeats the purpose of a hot/cold setup.*
+*Please note, the masternode priviate key is not the same as a wallet private key. Never put your wallet private key in the masternode.conf file. That is equivalent to putting your 1,000 DASH on the remote server and defeats the purpose of a hot/cold setup.*
 
 ### Get the collateral output
 
@@ -94,10 +94,10 @@ Issue the following:
 
 Make note of the hash (which is your collaterla_output) and index.
 
-### Enter your MasterNode details into your masternode.conf file
-[From the dash github repo](https://github.com/dash/dash/blob/master/doc/masternode_conf.md)
+### Enter your Masternode details into your masternode.conf file
+[From the DASH github repo](https://github.com/darkcoin/darkcoin/blob/master/doc/masternode_conf.md)
 
-The new masternode.conf format consists of a space seperated text file. Each line consisting of an alias, IP address followed by port, masternode private key, collateral output transaction id and collateral output index.
+The new masternode.conf format consists of a space seperated text file. Each line consisting of an alias, IP address followed by port, Masternode private key, collateral output transaction id and collateral output index.
 
 ```
 alias ipaddress:port masternode_private_key collateral_output collateral_output_index
@@ -116,16 +116,16 @@ If you are using a masternode.conf file you no longer need the dash.conf file. T
 
 ## Update dash.conf on server
 
-If you generated a new masternode private key, you will need to update the remote dash.conf files.
+If you generated a new Masternode private key, you will need to update the remote dash.conf files.
 
 Shut down the daemon and then edit the file.
 
 ```sudo nano .dash/dash.conf```
 
 ### Edit the masternodeprivkey
-If you generated a new masternode private key, you will need to update the masternodeprivkey value in your remote dash.conf file.
+If you generated a new Masternode private key, you will need to update the Masternodeprivkey value in your remote dash.conf file.
 
-## Start your MasterNodes
+## Start your Masternodes
 
 ### Remote
 
@@ -145,7 +145,7 @@ Finally... time to start from local.
 
 From the menu select Tools => Debug Console
 
-If you want to review your masternode.conf setting before starting the MasterNodes, issue the following in the Debug Console:
+If you want to review your masternode.conf setting before starting the Masternodes, issue the following in the Debug Console:
 
 ```masternode list-conf```
 
