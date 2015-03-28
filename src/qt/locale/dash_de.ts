@@ -566,7 +566,7 @@ Dieses Produkt enthält zudem folgende Dritt-Software:
     <message>
         <location filename="../bitcoingui.cpp" line="313"/>
         <source>Open &amp;Configuration File</source>
-        <translation type="unfinished"/>
+        <translation>&amp;Konfigurationsdatei öffnen</translation>
     </message>
     <message>
         <location filename="../bitcoingui.cpp" line="314"/>
@@ -1946,7 +1946,7 @@ https://www.transifex.com/projects/p/dash/</translation>
     <message>
         <location filename="../overviewpage.cpp" line="381"/>
         <source>Mixing in progress...</source>
-        <translation type="unfinished"/>
+        <translation>Am Mixen...</translation>
     </message>
     <message>
         <location filename="../overviewpage.cpp" line="387"/>
@@ -2183,8 +2183,7 @@ https://www.transifex.com/projects/p/dash/</translation>
     <message>
         <location filename="../guiutil.cpp" line="101"/>
         <source>Enter a Dash address (e.g. XwnLY9Tf7Zsef8gMGL2fhWA9ZmMjt4KPwg)</source>
-        <translation>Dash-Adresse eingeben.
-(z.B. XwnLY9Tf7Zsef8gMGL2fhWA9ZmMjt4KPwg)</translation>
+        <translation>Dash-Adresse eingeben (z.B. XwnLY9Tf7Zsef8gMGL2fhWA9ZmMjt4KPwg)</translation>
     </message>
 </context>
 <context>
@@ -4392,7 +4391,7 @@ Falls die Konfigurationsdatei nicht existiert, erzeugen Sie diese bitte mit Lese
     <message>
         <location filename="../dashstrings.cpp" line="210"/>
         <source>Downgrading and trying again.</source>
-        <translation type="unfinished"/>
+        <translation>Gehe auf ältere Version zurück und versuche es erneut.</translation>
     </message>
     <message>
         <location filename="../dashstrings.cpp" line="211"/>
