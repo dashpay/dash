@@ -364,7 +364,7 @@ CMasternode* CMasternodeMan::FindOldestNotInVec(const std::vector<CTxIn> &vVins,
 
         bool found = false;
         BOOST_FOREACH(const CTxIn& vin, vVins)
-            if(mn.vin == vin)
+            if(mn.vin.prevout == vin.prevout)
             {
                 found = true;
                 break;
@@ -620,6 +620,11 @@ void CMasternodeMan::ProcessMessage(CNode* pfrom, std::string& strCommand, CData
         if(Params().NetworkID() == CChainParams::MAIN){
             if(addr.GetPort() != 9999) return;
         } else if(addr.GetPort() == 9999) return;
+
+        if(!vin.scriptSig.empty()) {
+            LogPrintf("dsee - Ignore Not Empty ScriptSig %s\n",vin.ToString().c_str());
+            return;
+        }
 
         //search existing Masternode list, this is where we update existing Masternodes with new dsee broadcasts
         CMasternode* pmn = this->Find(vin);
