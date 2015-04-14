@@ -446,7 +446,7 @@ Ce produit comprend des logiciels développés par le projet OpenSSL afin d&apos
     <message>
         <location filename="../bitcoingui.cpp" line="283"/>
         <source>&amp;Options...</source>
-        <translation>&amp;Options…</translation>
+        <translation>&amp;Options...</translation>
     </message>
     <message>
         <location filename="../bitcoingui.cpp" line="284"/>
@@ -648,7 +648,7 @@ Ce produit comprend des logiciels développés par le projet OpenSSL afin d&apos
     <message>
         <location filename="../bitcoingui.cpp" line="655"/>
         <source>Synchronizing with network...</source>
-        <translation>Synchronisation avec le réseau en cours…</translation>
+        <translation>Synchronisation avec le réseau en cours...</translation>
     </message>
     <message>
         <location filename="../bitcoingui.cpp" line="658"/>
@@ -709,7 +709,7 @@ Ce produit comprend des logiciels développés par le projet OpenSSL afin d&apos
     <message>
         <location filename="../bitcoingui.cpp" line="724"/>
         <source>Catching up...</source>
-        <translation>Rattrapage en cours…</translation>
+        <translation>Rattrapage en cours...</translation>
     </message>
     <message>
         <location filename="../bitcoingui.cpp" line="740"/>
@@ -3685,7 +3685,7 @@ https://www.transifex.com/projects/p/dash/</translation>
     <message>
         <location filename="../transactionview.cpp" line="66"/>
         <source>Range...</source>
-        <translation>Intervalle…</translation>
+        <translation>Intervalle...</translation>
     </message>
     <message>
         <location filename="../transactionview.cpp" line="77"/>
@@ -4722,12 +4722,12 @@ Si le fichier n&apos;existe pas, créez-le avec les droits de lecture seule acco
     <message>
         <location filename="../dashstrings.cpp" line="277"/>
         <source>Loading addresses...</source>
-        <translation>Chargement des adresses…</translation>
+        <translation>Chargement des adresses...</translation>
     </message>
     <message>
         <location filename="../dashstrings.cpp" line="278"/>
         <source>Loading block index...</source>
-        <translation>Chargement de l’index des blocs…</translation>
+        <translation>Chargement de l’index des blocs...</translation>
     </message>
     <message>
         <location filename="../dashstrings.cpp" line="279"/>
@@ -4742,7 +4742,7 @@ Si le fichier n&apos;existe pas, créez-le avec les droits de lecture seule acco
     <message>
         <location filename="../dashstrings.cpp" line="281"/>
         <source>Loading wallet...</source>
-        <translation>Chargement du portefeuille…</translation>
+        <translation>Chargement du portefeuille...</translation>
     </message>
     <message>
         <location filename="../dashstrings.cpp" line="282"/>
@@ -4902,7 +4902,7 @@ Si le fichier n&apos;existe pas, créez-le avec les droits de lecture seule acco
     <message>
         <location filename="../dashstrings.cpp" line="313"/>
         <source>Rescanning...</source>
-        <translation>Nouvelle analyse…</translation>
+        <translation>Nouvelle analyse...</translation>
     </message>
     <message>
         <location filename="../dashstrings.cpp" line="314"/>
