@@ -4732,7 +4732,7 @@ Si le fichier n&apos;existe pas, créez-le avec les droits de lecture seule acco
     <message>
         <location filename="../dashstrings.cpp" line="279"/>
         <source>Loading masternode list...</source>
-        <translation type="unfinished"/>
+        <translation>Chargement de la liste des masternodes...</translation>
     </message>
     <message>
         <location filename="../dashstrings.cpp" line="280"/>
