@@ -2,6 +2,12 @@ Building Dash
 
 Use the autogen script to prepare the build environment.
 
+1. To build GUI client
+    ./autogen.sh
+    ./configure --with-gui
+    make
+
+2. To build headless daemon only (dashd)
     ./autogen.sh
     ./configure
     make
