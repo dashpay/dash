@@ -1742,10 +1742,11 @@ bool CDarksendPool::MakeCollateralAmounts()
     if(!success){
         // if we failed (most likeky not enough funds), try to use denominated instead -
         // MN-like funds should not be touched in any case and we can't mix denominated without collaterals anyway
+        if(fDebug) LogPrintf("MakeCollateralAmounts: ONLY_NONDENOMINATED_NOTMN Error - %s\n", strFail);
         success = pwalletMain->CreateTransaction(vecSend, wtx, reservekey,
                 nFeeRet, strFail, coinControl, ONLY_DENOMINATED);
         if(!success){
-            LogPrintf("MakeCollateralAmounts: Error - %s\n", strFail.c_str());
+            LogPrintf("MakeCollateralAmounts: ONLY_DENOMINATED Error - %s\n", strFail);
             return false;
         }
     }
@@ -1753,8 +1754,10 @@ bool CDarksendPool::MakeCollateralAmounts()
     // use the same cachedLastSuccess as for DS mixinx to prevent race
     if(pwalletMain->CommitTransaction(wtx, reservekey))
         cachedLastSuccess = chainActive.Tip()->nHeight;
+    else
+        LogPrintf("MakeCollateralAmounts: CommitTransaction failed!\n");
 
-    LogPrintf("MakeCollateralAmounts Success: tx %s\n", wtx.GetHash().GetHex().c_str());
+    LogPrintf("MakeCollateralAmounts: tx %s\n", wtx.GetHash().GetHex());
 
     return true;
 }
