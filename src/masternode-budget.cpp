@@ -793,6 +793,9 @@ void CBudgetManager::ProcessMessage(CNode* pfrom, std::string& strCommand, CData
     // lite mode is not supported
     if(IsInitialBlockDownload()) return;
 
+    // Not support outdated peer version
+    if(pfrom->nVersion <= MIN_BUDGET_PEER_PROTO_VERSION) return;
+
     LOCK(cs_budget);
 
     if (strCommand == "mnvs") { //Masternode vote sync
@@ -1319,7 +1322,8 @@ void CBudgetProposalBroadcast::Relay()
     vInv.push_back(inv);
     LOCK(cs_vNodes);
     BOOST_FOREACH(CNode* pnode, vNodes){
-        pnode->PushMessage("inv", vInv);
+        if (pnode->nVersion >= MIN_BUDGET_PEER_PROTO_VERSION)
+            pnode->PushMessage("inv", vInv);
     }
 }
 
@@ -1369,7 +1373,8 @@ void CBudgetVote::Relay()
     vInv.push_back(inv);
     LOCK(cs_vNodes);
     BOOST_FOREACH(CNode* pnode, vNodes){
-        pnode->PushMessage("inv", vInv);
+        if (pnode->nVersion >= MIN_BUDGET_PEER_PROTO_VERSION)
+            pnode->PushMessage("inv", vInv);
     }
 }
 
@@ -1677,7 +1682,8 @@ void CFinalizedBudgetBroadcast::Relay()
     vInv.push_back(inv);
     LOCK(cs_vNodes);
     BOOST_FOREACH(CNode* pnode, vNodes){
-        pnode->PushMessage("inv", vInv);
+        if (pnode->nVersion >= MIN_BUDGET_PEER_PROTO_VERSION)
+            pnode->PushMessage("inv", vInv);
     }
 }
 
@@ -1746,7 +1752,8 @@ void CFinalizedBudgetVote::Relay()
     vInv.push_back(inv);
     LOCK(cs_vNodes);
     BOOST_FOREACH(CNode* pnode, vNodes){
-        pnode->PushMessage("inv", vInv);
+        if (pnode->nVersion >= MIN_BUDGET_PEER_PROTO_VERSION)
+            pnode->PushMessage("inv", vInv);
     }
 }
 
