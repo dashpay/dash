@@ -1143,12 +1143,6 @@ bool CBudgetProposal::IsValid(std::string& strError)
     //     }
     // }
 
-    //if proposal doesn't gain a vote within 5 seconds, remove it
-    //if (nTime>0 and nTime + 5 < GetAdjustedTime() and GetYeas()<1){
-    //    strError = "No Supported Vote";
-    //    return false;
-    //}
-
     //can only pay out 10% of the possible coins (min value of coins)
     if(nAmount > budget.GetTotalBudget(nBlockStart)) {
         strError = "Payment more than max";
