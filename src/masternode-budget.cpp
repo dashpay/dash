@@ -54,6 +54,17 @@ void CheckOrphanVotes()
     }
 }
 
+void RelayBudget(CInv inv)
+{
+    vector<CInv> vInv;
+    vInv.push_back(inv);
+    LOCK(cs_vNodes);
+    BOOST_FOREACH(CNode* pnode, vNodes){
+        if(pnode->nVersion>=MIN_BUDGET_PEER_PROTO_VERSION)
+            pnode->PushMessage("inv", vInv);
+    }
+}
+
 void CBudgetManager::ResignInvalidProposals()
 {
     if(!fMasterNode){
@@ -793,8 +804,8 @@ void CBudgetManager::ProcessMessage(CNode* pfrom, std::string& strCommand, CData
     // lite mode is not supported
     if(IsInitialBlockDownload()) return;
 
-    // Not support outdated peer version
-    if(pfrom->nVersion <= MIN_BUDGET_PEER_PROTO_VERSION) return;
+    // Ignore Budgets from outdated peers
+    if(pfrom->nVersion<MIN_BUDGET_PEER_PROTO_VERSION) return;
 
     LOCK(cs_budget);
 
@@ -1318,13 +1329,7 @@ bool CBudgetProposalBroadcast::Sign(CKey& keyMasternode, CPubKey& pubKeyMasterno
 void CBudgetProposalBroadcast::Relay()
 {
     CInv inv(MSG_BUDGET_PROPOSAL, GetHash());
-    vector<CInv> vInv;
-    vInv.push_back(inv);
-    LOCK(cs_vNodes);
-    BOOST_FOREACH(CNode* pnode, vNodes){
-        if (pnode->nVersion >= MIN_BUDGET_PEER_PROTO_VERSION)
-            pnode->PushMessage("inv", vInv);
-    }
+    RelayBudget(inv);
 }
 
 bool CBudgetProposalBroadcast::SignatureValid()
@@ -1369,13 +1374,7 @@ CBudgetVote::CBudgetVote(CTxIn vinIn, uint256 nProposalHashIn, int nVoteIn)
 void CBudgetVote::Relay()
 {
     CInv inv(MSG_BUDGET_VOTE, GetHash());
-    vector<CInv> vInv;
-    vInv.push_back(inv);
-    LOCK(cs_vNodes);
-    BOOST_FOREACH(CNode* pnode, vNodes){
-        if (pnode->nVersion >= MIN_BUDGET_PEER_PROTO_VERSION)
-            pnode->PushMessage("inv", vInv);
-    }
+    RelayBudget(inv);
 }
 
 bool CBudgetVote::Sign(CKey& keyMasternode, CPubKey& pubKeyMasternode)
@@ -1678,13 +1677,7 @@ CFinalizedBudgetBroadcast::CFinalizedBudgetBroadcast(CTxIn& vinIn, std::string s
 void CFinalizedBudgetBroadcast::Relay()
 {
     CInv inv(MSG_BUDGET_FINALIZED, GetHash());
-    vector<CInv> vInv;
-    vInv.push_back(inv);
-    LOCK(cs_vNodes);
-    BOOST_FOREACH(CNode* pnode, vNodes){
-        if (pnode->nVersion >= MIN_BUDGET_PEER_PROTO_VERSION)
-            pnode->PushMessage("inv", vInv);
-    }
+    RelayBudget(inv);
 }
 
 bool CFinalizedBudgetBroadcast::Sign(CKey& keyMasternode, CPubKey& pubKeyMasternode)
@@ -1748,13 +1741,7 @@ CFinalizedBudgetVote::CFinalizedBudgetVote(CTxIn vinIn, uint256 nBudgetHashIn)
 void CFinalizedBudgetVote::Relay()
 {
     CInv inv(MSG_BUDGET_FINALIZED_VOTE, GetHash());
-    vector<CInv> vInv;
-    vInv.push_back(inv);
-    LOCK(cs_vNodes);
-    BOOST_FOREACH(CNode* pnode, vNodes){
-        if (pnode->nVersion >= MIN_BUDGET_PEER_PROTO_VERSION)
-            pnode->PushMessage("inv", vInv);
-    }
+    RelayBudget(inv);
 }
 
 bool CFinalizedBudgetVote::Sign(CKey& keyMasternode, CPubKey& pubKeyMasternode)
