@@ -35,10 +35,13 @@ int GetBudgetPaymentCycleBlocks(){
 void CheckOrphanVotes()
 {
     std::map<uint256, CBudgetVote>::iterator it1 = mapOrphanMasternodeBudgetVotes.begin();
+    uint256 hash;
     while(it1 != mapOrphanMasternodeBudgetVotes.end()){
         if(budget.UpdateProposal(((*it1).second), NULL)){
             LogPrintf("CheckOrphanVotes: Proposal/Budget is known, activating and removing orphan vote\n");
-            mapOrphanMasternodeBudgetVotes.erase(it1++);
+            hash = (*it1).first;
+            it1++;
+            mapOrphanMasternodeBudgetVotes.erase(hash);
         } else {
             ++it1;
         }
@@ -47,7 +50,9 @@ void CheckOrphanVotes()
     while(it2 != mapOrphanFinalizedBudgetVotes.end()){
         if(budget.UpdateFinalizedBudget(((*it2).second),NULL)){
             LogPrintf("CheckOrphanVotes: Proposal/Budget is known, activating and removing orphan vote\n");
-            mapOrphanFinalizedBudgetVotes.erase(it2++);
+            hash = (*it2).first;
+            it2++;
+            mapOrphanFinalizedBudgetVotes.erase(hash);
         } else {
             ++it2;
         }
@@ -166,7 +171,7 @@ void CBudgetManager::ResignInvalidProposals()
                 return;
             }
 
-            if(!bprop.IsValid()){
+            if(bprop.IsValid()){
 
                 //delete if it exists and insert the new object
                 if(mapFinalizedBudgets.count(bprop.GetHash())) mapFinalizedBudgets.erase(bprop.GetHash());
@@ -466,11 +471,11 @@ void CBudgetManager::CheckAndRemove()
     while(it != mapFinalizedBudgets.end())
     {
         CFinalizedBudget* prop = &((*it).second);
+        it++;
         if(!prop->IsValid()){
-            mapFinalizedBudgets.erase(it++);
+            mapFinalizedBudgets.erase(prop->GetHash());
         } else {
             prop->AutoCheck();
-            ++it;
         }
     }
 
@@ -478,10 +483,9 @@ void CBudgetManager::CheckAndRemove()
     while(it2 != mapProposals.end())
     {
         CBudgetProposal* prop = &((*it2).second);
+        it2++;
         if(!prop->IsValid(strError)){
-            mapProposals.erase(it2++);
-        } else {
-            ++it2;
+            mapProposals.erase(prop->GetHash());
         }
     }
 }
@@ -1125,7 +1129,7 @@ CBudgetProposal::CBudgetProposal(const CBudgetProposal& other)
 
 bool CBudgetProposal::IsValid(std::string& strError)
 {
-    if(GetYeas()+GetNays() < -(mnodeman.CountEnabled()/10)){
+    if(GetYeas()+GetNays() < (mnodeman.CountEnabled()/10)){
          strError = "Active removal";
          return false;
     }
@@ -1138,6 +1142,12 @@ bool CBudgetProposal::IsValid(std::string& strError)
     //         return false;
     //     }
     // }
+
+    //if proposal doesn't gain a vote within 5 seconds, remove it
+    //if (nTime>0 and nTime + 5 < GetAdjustedTime() and GetYeas()<1){
+    //    strError = "No Supported Vote";
+    //    return false;
+    //}
 
     //can only pay out 10% of the possible coins (min value of coins)
     if(nAmount > budget.GetTotalBudget(nBlockStart)) {
@@ -1166,14 +1176,16 @@ void CBudgetProposal::AddOrUpdateVote(CBudgetVote& vote)
 void CBudgetProposal::CleanAndRemove()
 {
     std::map<uint256, CBudgetVote>::iterator it = mapVotes.begin();
-
+    uint256 hash;
     while(it != mapVotes.end()) {
-        if ((*it).second.SignatureValid())
+        if (!(*it).second.SignatureValid())
         {
             ++it;
         } else {
-            mapSeenMasternodeBudgetVotes.erase((*it).first);
-            mapVotes.erase(it++);
+            hash = (*it).first;
+            ++it;
+            mapSeenMasternodeBudgetVotes.erase(hash);
+            mapVotes.erase(hash);
         }
     }
 }
@@ -1498,14 +1510,16 @@ void CFinalizedBudget::AutoCheck()
 void CFinalizedBudget::CleanAndRemove()
 {
     std::map<uint256, CFinalizedBudgetVote>::iterator it = mapVotes.begin();
-
+    uint256 hash;
     while(it != mapVotes.end()) {
         if ((*it).second.SignatureValid())
         {
             ++it;
         } else {
-            mapSeenFinalizedBudgetVotes.erase((*it).first);
-            mapVotes.erase(it++);
+            hash = (*it).first;
+            ++it;
+            mapSeenFinalizedBudgetVotes.erase(hash);
+            mapVotes.erase(hash);
         }
     }
 }
