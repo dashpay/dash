@@ -35,10 +35,13 @@ int GetBudgetPaymentCycleBlocks(){
 void CheckOrphanVotes()
 {
     std::map<uint256, CBudgetVote>::iterator it1 = mapOrphanMasternodeBudgetVotes.begin();
+    uint256 hash;
     while(it1 != mapOrphanMasternodeBudgetVotes.end()){
         if(budget.UpdateProposal(((*it1).second), NULL)){
             LogPrintf("CheckOrphanVotes: Proposal/Budget is known, activating and removing orphan vote\n");
-            mapOrphanMasternodeBudgetVotes.erase(it1++);
+            hash = (*it1).first;
+            it1++;
+            mapOrphanMasternodeBudgetVotes.erase(hash);
         } else {
             ++it1;
         }
@@ -47,10 +50,23 @@ void CheckOrphanVotes()
     while(it2 != mapOrphanFinalizedBudgetVotes.end()){
         if(budget.UpdateFinalizedBudget(((*it2).second),NULL)){
             LogPrintf("CheckOrphanVotes: Proposal/Budget is known, activating and removing orphan vote\n");
-            mapOrphanFinalizedBudgetVotes.erase(it2++);
+            hash = (*it2).first;
+            it2++;
+            mapOrphanFinalizedBudgetVotes.erase(hash);
         } else {
             ++it2;
         }
+    }
+}
+
+void RelayBudget(CInv inv)
+{
+    vector<CInv> vInv;
+    vInv.push_back(inv);
+    LOCK(cs_vNodes);
+    BOOST_FOREACH(CNode* pnode, vNodes){
+        if(pnode->nVersion>=MIN_BUDGET_PEER_PROTO_VERSION)
+            pnode->PushMessage("inv", vInv);
     }
 }
 
@@ -155,7 +171,7 @@ void CBudgetManager::ResignInvalidProposals()
                 return;
             }
 
-            if(!bprop.IsValid()){
+            if(bprop.IsValid()){
 
                 //delete if it exists and insert the new object
                 if(mapFinalizedBudgets.count(bprop.GetHash())) mapFinalizedBudgets.erase(bprop.GetHash());
@@ -455,11 +471,11 @@ void CBudgetManager::CheckAndRemove()
     while(it != mapFinalizedBudgets.end())
     {
         CFinalizedBudget* prop = &((*it).second);
+        it++;
         if(!prop->IsValid()){
-            mapFinalizedBudgets.erase(it++);
+            mapFinalizedBudgets.erase(prop->GetHash());
         } else {
             prop->AutoCheck();
-            ++it;
         }
     }
 
@@ -467,10 +483,9 @@ void CBudgetManager::CheckAndRemove()
     while(it2 != mapProposals.end())
     {
         CBudgetProposal* prop = &((*it2).second);
+        it2++;
         if(!prop->IsValid(strError)){
-            mapProposals.erase(it2++);
-        } else {
-            ++it2;
+            mapProposals.erase(prop->GetHash());
         }
     }
 }
@@ -793,6 +808,9 @@ void CBudgetManager::ProcessMessage(CNode* pfrom, std::string& strCommand, CData
     // lite mode is not supported
     if(IsInitialBlockDownload()) return;
 
+    // Ignore Budgets from outdated peers
+    if(pfrom->nVersion<MIN_BUDGET_PEER_PROTO_VERSION) return;
+
     LOCK(cs_budget);
 
     if (strCommand == "mnvs") { //Masternode vote sync
@@ -1111,7 +1129,7 @@ CBudgetProposal::CBudgetProposal(const CBudgetProposal& other)
 
 bool CBudgetProposal::IsValid(std::string& strError)
 {
-    if(GetYeas()+GetNays() < -(mnodeman.CountEnabled()/10)){
+    if(GetYeas()+GetNays() < (mnodeman.CountEnabled()/10)){
          strError = "Active removal";
          return false;
     }
@@ -1152,14 +1170,16 @@ void CBudgetProposal::AddOrUpdateVote(CBudgetVote& vote)
 void CBudgetProposal::CleanAndRemove()
 {
     std::map<uint256, CBudgetVote>::iterator it = mapVotes.begin();
-
+    uint256 hash;
     while(it != mapVotes.end()) {
-        if ((*it).second.SignatureValid())
+        if (!(*it).second.SignatureValid())
         {
             ++it;
         } else {
-            mapSeenMasternodeBudgetVotes.erase((*it).first);
-            mapVotes.erase(it++);
+            hash = (*it).first;
+            ++it;
+            mapSeenMasternodeBudgetVotes.erase(hash);
+            mapVotes.erase(hash);
         }
     }
 }
@@ -1315,12 +1335,7 @@ bool CBudgetProposalBroadcast::Sign(CKey& keyMasternode, CPubKey& pubKeyMasterno
 void CBudgetProposalBroadcast::Relay()
 {
     CInv inv(MSG_BUDGET_PROPOSAL, GetHash());
-    vector<CInv> vInv;
-    vInv.push_back(inv);
-    LOCK(cs_vNodes);
-    BOOST_FOREACH(CNode* pnode, vNodes){
-        pnode->PushMessage("inv", vInv);
-    }
+    RelayBudget(inv);
 }
 
 bool CBudgetProposalBroadcast::SignatureValid()
@@ -1365,12 +1380,7 @@ CBudgetVote::CBudgetVote(CTxIn vinIn, uint256 nProposalHashIn, int nVoteIn)
 void CBudgetVote::Relay()
 {
     CInv inv(MSG_BUDGET_VOTE, GetHash());
-    vector<CInv> vInv;
-    vInv.push_back(inv);
-    LOCK(cs_vNodes);
-    BOOST_FOREACH(CNode* pnode, vNodes){
-        pnode->PushMessage("inv", vInv);
-    }
+    RelayBudget(inv);
 }
 
 bool CBudgetVote::Sign(CKey& keyMasternode, CPubKey& pubKeyMasternode)
@@ -1494,14 +1504,16 @@ void CFinalizedBudget::AutoCheck()
 void CFinalizedBudget::CleanAndRemove()
 {
     std::map<uint256, CFinalizedBudgetVote>::iterator it = mapVotes.begin();
-
+    uint256 hash;
     while(it != mapVotes.end()) {
         if ((*it).second.SignatureValid())
         {
             ++it;
         } else {
-            mapSeenFinalizedBudgetVotes.erase((*it).first);
-            mapVotes.erase(it++);
+            hash = (*it).first;
+            ++it;
+            mapSeenFinalizedBudgetVotes.erase(hash);
+            mapVotes.erase(hash);
         }
     }
 }
@@ -1673,12 +1685,7 @@ CFinalizedBudgetBroadcast::CFinalizedBudgetBroadcast(CTxIn& vinIn, std::string s
 void CFinalizedBudgetBroadcast::Relay()
 {
     CInv inv(MSG_BUDGET_FINALIZED, GetHash());
-    vector<CInv> vInv;
-    vInv.push_back(inv);
-    LOCK(cs_vNodes);
-    BOOST_FOREACH(CNode* pnode, vNodes){
-        pnode->PushMessage("inv", vInv);
-    }
+    RelayBudget(inv);
 }
 
 bool CFinalizedBudgetBroadcast::Sign(CKey& keyMasternode, CPubKey& pubKeyMasternode)
@@ -1742,12 +1749,7 @@ CFinalizedBudgetVote::CFinalizedBudgetVote(CTxIn vinIn, uint256 nBudgetHashIn)
 void CFinalizedBudgetVote::Relay()
 {
     CInv inv(MSG_BUDGET_FINALIZED_VOTE, GetHash());
-    vector<CInv> vInv;
-    vInv.push_back(inv);
-    LOCK(cs_vNodes);
-    BOOST_FOREACH(CNode* pnode, vNodes){
-        pnode->PushMessage("inv", vInv);
-    }
+    RelayBudget(inv);
 }
 
 bool CFinalizedBudgetVote::Sign(CKey& keyMasternode, CPubKey& pubKeyMasternode)
