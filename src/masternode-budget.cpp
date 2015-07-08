@@ -1119,7 +1119,7 @@ CBudgetProposal::CBudgetProposal(const CBudgetProposal& other)
 
 bool CBudgetProposal::IsValid(std::string& strError)
 {
-    if(GetYeas()+GetNays() < -(mnodeman.CountEnabled()/10)){
+    if(GetYeas()+GetNays() < (mnodeman.CountEnabled()/10)){
          strError = "Active removal";
          return false;
     }
