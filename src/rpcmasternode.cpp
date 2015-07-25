@@ -227,7 +227,7 @@ Value masternode(const Array& params, bool fHelp)
 
     if (strCommand == "debug")
     {
-        if(activeMasternode.status != ACTIVE_MASTERNODE_INITIAL || !masternodeSync.IsSynced())
+        if(activeMasternode.status != ACTIVE_MASTERNODE_INITIAL || !masternodeSync.IsListSyncStarted())
             return activeMasternode.GetStatus();
 
         CTxIn vin = CTxIn();
