@@ -25,12 +25,20 @@ void CActiveMasternode::ManageStatus()
 
     if(status == ACTIVE_MASTERNODE_SYNC_IN_PROCESS) status = ACTIVE_MASTERNODE_INITIAL;
 
-    if(status == ACTIVE_MASTERNODE_INITIAL) {
+    if(status == ACTIVE_MASTERNODE_INITIAL || status == ACTIVE_MASTERNODE_WRONG_PROTO) {
         CMasternode *pmn;
         pmn = mnodeman.Find(pubKeyMasternode);
         if(pmn != NULL) {
             pmn->Check();
-            if(pmn->IsEnabled() && pmn->protocolVersion == PROTOCOL_VERSION) EnableHotColdMasterNode(pmn->vin, pmn->addr);
+            if(pmn->IsEnabled()) {
+                if(pmn->protocolVersion == PROTOCOL_VERSION)
+                    EnableHotColdMasterNode(pmn->vin, pmn->addr);
+                else {
+                    status = ACTIVE_MASTERNODE_WRONG_PROTO;
+                    LogPrintf("CActiveMasternode::ManageStatus() - %s\n", GetStatus());
+                    return;
+                }
+            }
         }
     }
 
@@ -133,6 +141,7 @@ std::string CActiveMasternode::GetStatus() {
     case ACTIVE_MASTERNODE_INPUT_TOO_NEW: return strprintf("Masternode input must have at least %d confirmations", MASTERNODE_MIN_CONFIRMATIONS);
     case ACTIVE_MASTERNODE_NOT_CAPABLE: return "Not capable masternode: " + notCapableReason;
     case ACTIVE_MASTERNODE_STARTED: return "Masternode successfully started";
+    case ACTIVE_MASTERNODE_WRONG_PROTO: return "Masternode protocol doesn't match";
     default: return "unknown";
     }
 }
@@ -195,7 +204,8 @@ bool CActiveMasternode::Register(std::string strService, std::string strKeyMaste
     CKey keyMasternode;
 
     //need correct blocks to send ping
-    if(!masternodeSync.IsSynced()) {
+    if(!masternodeSync.IsListSyncStarted()) {
+        status = ACTIVE_MASTERNODE_SYNC_IN_PROCESS;
         errorMessage = GetStatus();
         LogPrintf("CActiveMasternode::Register() - %s\n", errorMessage);
         return false;

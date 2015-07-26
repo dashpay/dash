@@ -18,6 +18,7 @@
 #define ACTIVE_MASTERNODE_INPUT_TOO_NEW               2
 #define ACTIVE_MASTERNODE_NOT_CAPABLE                 3
 #define ACTIVE_MASTERNODE_STARTED                     4
+#define ACTIVE_MASTERNODE_WRONG_PROTO                 5
 
 // Responsible for activating the Masternode and pinging the network
 class CActiveMasternode
