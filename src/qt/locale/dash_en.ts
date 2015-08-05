@@ -763,7 +763,12 @@ Address: %4
 <context>
     <name>ClientModel</name>
     <message>
-        <location filename="../clientmodel.cpp" line="+173"/>
+        <location filename="../clientmodel.cpp" line="+72"/>
+        <source>Total %1 (DS compatible: %2 / Enabled: %3)</source>
+        <translation>Total %1 (DS compatible: %2 / Enabled: %3)</translation>
+    </message>
+    <message>
+        <location line="+101"/>
         <source>Network Alert</source>
         <translation>Network Alert</translation>
     </message>
@@ -2823,7 +2828,7 @@ https://www.transifex.com/projects/p/dash/</translation>
     <name>SendCoinsDialog</name>
     <message>
         <location filename="../forms/sendcoinsdialog.ui" line="+14"/>
-        <location filename="../sendcoinsdialog.cpp" line="+633"/>
+        <location filename="../sendcoinsdialog.cpp" line="+635"/>
         <location line="+12"/>
         <source>Send Coins</source>
         <translation>Send Coins</translation>
@@ -3045,7 +3050,7 @@ https://www.transifex.com/projects/p/dash/</translation>
         <translation>Balance:</translation>
     </message>
     <message>
-        <location filename="../sendcoinsdialog.cpp" line="-562"/>
+        <location filename="../sendcoinsdialog.cpp" line="-564"/>
         <source>Copy quantity</source>
         <translation>Copy quantity</translation>
     </message>
@@ -3131,7 +3136,7 @@ https://www.transifex.com/projects/p/dash/</translation>
         <translation>are added as transaction fee</translation>
     </message>
     <message>
-        <location line="+17"/>
+        <location line="+19"/>
         <source>Total Amount = &lt;b&gt;%1&lt;/b&gt;&lt;br /&gt;= %2</source>
         <translation>Total Amount = &lt;b&gt;%1&lt;/b&gt;&lt;br /&gt;= %2</translation>
     </message>
@@ -5078,6 +5083,11 @@ for example: alertnotify=echo %%s | mail -s &quot;Dash Alert&quot; admin@foo.com
     </message>
     <message>
         <location line="+8"/>
+        <source>Lock is already in place.</source>
+        <translation>Lock is already in place.</translation>
+    </message>
+    <message>
+        <location line="+1"/>
         <source>Lock masternodes from masternode configuration file (default: %u)</source>
         <translation>Lock masternodes from masternode configuration file (default: %u)</translation>
     </message>
@@ -5282,7 +5292,7 @@ for example: alertnotify=echo %%s | mail -s &quot;Dash Alert&quot; admin@foo.com
         <translation>Will retry...</translation>
     </message>
     <message>
-        <location line="-127"/>
+        <location line="-128"/>
         <source>Invalid masternodeprivkey. Please see documenation.</source>
         <translation>Invalid masternodeprivkey. Please see documenation.</translation>
     </message>
@@ -5392,7 +5402,7 @@ for example: alertnotify=echo %%s | mail -s &quot;Dash Alert&quot; admin@foo.com
         <translation>Loading wallet...</translation>
     </message>
     <message>
-        <location line="+3"/>
+        <location line="+4"/>
         <source>Masternode options:</source>
         <translation>Masternode options:</translation>
     </message>
