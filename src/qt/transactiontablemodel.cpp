@@ -77,6 +77,7 @@ public:
         qDebug() << "TransactionTablePriv::refreshWallet";
         cachedWallet.clear();
         {
+            WaitForLock2(cs_main, wallet->cs_wallet);
             LOCK2(cs_main, wallet->cs_wallet);
             for(std::map<uint256, CWalletTx>::iterator it = wallet->mapWallet.begin(); it != wallet->mapWallet.end(); ++it)
             {
@@ -126,6 +127,7 @@ public:
             }
             if(showTransaction)
             {
+                WaitForLock2(cs_main, wallet->cs_wallet);
                 LOCK2(cs_main, wallet->cs_wallet);
                 // Find transaction in wallet
                 std::map<uint256, CWalletTx>::iterator mi = wallet->mapWallet.find(hash);
@@ -208,6 +210,7 @@ public:
     QString describe(TransactionRecord *rec, int unit)
     {
         {
+            WaitForLock2(cs_main, wallet->cs_wallet);
             LOCK2(cs_main, wallet->cs_wallet);
             std::map<uint256, CWalletTx>::iterator mi = wallet->mapWallet.find(rec->hash);
             if(mi != wallet->mapWallet.end())

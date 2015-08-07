@@ -691,6 +691,7 @@ Value invalidateblock(const Array& params, bool fHelp)
     CValidationState state;
 
     {
+        WaitForLock(cs_main);
         LOCK(cs_main);
         if (mapBlockIndex.count(hash) == 0)
             throw JSONRPCError(RPC_INVALID_ADDRESS_OR_KEY, "Block not found");
@@ -730,6 +731,7 @@ Value reconsiderblock(const Array& params, bool fHelp)
     CValidationState state;
 
     {
+        WaitForLock(cs_main);
         LOCK(cs_main);
         if (mapBlockIndex.count(hash) == 0)
             throw JSONRPCError(RPC_INVALID_ADDRESS_OR_KEY, "Block not found");

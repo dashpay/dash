@@ -147,6 +147,7 @@ void ReprocessBlocks(int nBlocks)
         if((*it).second  > GetTime() - (nBlocks*60*5)) {   
             BlockMap::iterator mi = mapBlockIndex.find((*it).first);
             if (mi != mapBlockIndex.end() && (*mi).second) {
+                WaitForLock(cs_main);
                 LOCK(cs_main);
                 
                 CBlockIndex* pindex = (*mi).second;
@@ -161,6 +162,7 @@ void ReprocessBlocks(int nBlocks)
 
     CValidationState state;
     {
+        WaitForLock(cs_main);
         LOCK(cs_main);
         DisconnectBlocksAndReprocess(nBlocks);
     }

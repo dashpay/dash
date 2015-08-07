@@ -35,6 +35,7 @@ Value getconnectioncount(const Array& params, bool fHelp)
             + HelpExampleRpc("getconnectioncount", "")
         );
 
+    WaitForLock(cs_vNodes);
     LOCK(cs_vNodes);
     return (int)vNodes.size();
 }
@@ -53,6 +54,7 @@ Value ping(const Array& params, bool fHelp)
         );
 
     // Request that each node send a ping during next message processing pass
+    WaitForLock(cs_vNodes);
     LOCK(cs_vNodes);
     BOOST_FOREACH(CNode* pNode, vNodes) {
         pNode->fPingQueued = true;
@@ -65,6 +67,7 @@ static void CopyNodeStats(std::vector<CNodeStats>& vstats)
 {
     vstats.clear();
 
+    WaitForLock(cs_vNodes);
     LOCK(cs_vNodes);
     vstats.reserve(vNodes.size());
     BOOST_FOREACH(CNode* pnode, vNodes) {
@@ -294,6 +297,7 @@ Value getaddednodeinfo(const Array& params, bool fHelp)
         }
     }
 
+    WaitForLock(cs_vNodes);
     LOCK(cs_vNodes);
     for (list<pair<string, vector<CService> > >::iterator it = laddedAddreses.begin(); it != laddedAddreses.end(); it++)
     {

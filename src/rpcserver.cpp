@@ -1014,14 +1014,17 @@ json_spirit::Value CRPCTable::execute(const std::string &strMethod, const json_s
                 result = pcmd->actor(params, false);
 #ifdef ENABLE_WALLET
             else if (!pwalletMain) {
+                WaitForLock(cs_main);
                 LOCK(cs_main);
                 result = pcmd->actor(params, false);
             } else {
+                WaitForLock2(cs_main, pwalletMain->cs_wallet);
                 LOCK2(cs_main, pwalletMain->cs_wallet);
                 result = pcmd->actor(params, false);
             }
 #else // ENABLE_WALLET
             else {
+                WaitForLock(cs_main);
                 LOCK(cs_main);
                 result = pcmd->actor(params, false);
             }

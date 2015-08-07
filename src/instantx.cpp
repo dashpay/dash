@@ -72,6 +72,7 @@ void ProcessMessageInstantX(CNode* pfrom, std::string& strCommand, CDataStream& 
 
         bool fAccepted = false;
         {
+            WaitForLock(cs_main);
             LOCK(cs_main);
             fAccepted = AcceptToMemoryPool(mempool, state, tx, true, &fMissingInputs);
         }

@@ -355,6 +355,7 @@ CCriticalSection CNode::cs_totalBytesSent;
 
 CNode* FindNode(const CNetAddr& ip)
 {
+    WaitForLock(cs_vNodes);
     LOCK(cs_vNodes);
     BOOST_FOREACH(CNode* pnode, vNodes)
         if ((CNetAddr)pnode->addr == ip)
@@ -364,6 +365,7 @@ CNode* FindNode(const CNetAddr& ip)
 
 CNode* FindNode(const std::string& addrName)
 {
+    WaitForLock(cs_vNodes);
     LOCK(cs_vNodes);
     BOOST_FOREACH(CNode* pnode, vNodes)
         if (pnode->addrName == addrName)
@@ -373,6 +375,7 @@ CNode* FindNode(const std::string& addrName)
 
 CNode* FindNode(const CService& addr)
 {
+    WaitForLock(cs_vNodes);
     LOCK(cs_vNodes);
     BOOST_FOREACH(CNode* pnode, vNodes){
         if(Params().NetworkID() == CBaseChainParams::REGTEST){
@@ -423,6 +426,7 @@ CNode* ConnectNode(CAddress addrConnect, const char *pszDest, bool darkSendMaste
         pnode->AddRef();
 
         {
+            WaitForLock(cs_vNodes);
             LOCK(cs_vNodes);
             vNodes.push_back(pnode);
         }
@@ -713,6 +717,7 @@ void ThreadSocketHandler()
         // Disconnect nodes
         //
         {
+            WaitForLock(cs_vNodes);
             LOCK(cs_vNodes);
             // Disconnect unused nodes
             vector<CNode*> vNodesCopy = vNodes;
@@ -795,6 +800,7 @@ void ThreadSocketHandler()
         }
 
         {
+            WaitForLock(cs_vNodes);
             LOCK(cs_vNodes);
             BOOST_FOREACH(CNode* pnode, vNodes)
             {
@@ -873,6 +879,7 @@ void ThreadSocketHandler()
 
                 bool whitelisted = hListenSocket.whitelisted || CNode::IsWhitelistedRange(addr);
                 {
+                    WaitForLock(cs_vNodes);
                     LOCK(cs_vNodes);
                     BOOST_FOREACH(CNode* pnode, vNodes)
                         if (pnode->fInbound)
@@ -901,6 +908,7 @@ void ThreadSocketHandler()
                     pnode->fWhitelisted = whitelisted;
 
                     {
+                        WaitForLock(cs_vNodes);
                         LOCK(cs_vNodes);
                         vNodes.push_back(pnode);
                     }
@@ -913,6 +921,7 @@ void ThreadSocketHandler()
         //
         vector<CNode*> vNodesCopy;
         {
+            WaitForLock(cs_vNodes);
             LOCK(cs_vNodes);
             vNodesCopy = vNodes;
             BOOST_FOREACH(CNode* pnode, vNodesCopy)
@@ -1007,6 +1016,7 @@ void ThreadSocketHandler()
             }
         }
         {
+            WaitForLock(cs_vNodes);
             LOCK(cs_vNodes);
             BOOST_FOREACH(CNode* pnode, vNodesCopy)
                 pnode->Release();
@@ -1143,6 +1153,7 @@ void ThreadDNSAddressSeed()
         (!GetBoolArg("-forcednsseed", false))) {
         MilliSleep(11 * 1000);
 
+        WaitForLock(cs_vNodes);
         LOCK(cs_vNodes);
         if (vNodes.size() >= 2) {
             LogPrintf("P2P peers available. Skipped DNS seeding.\n");
@@ -1271,6 +1282,7 @@ void ThreadOpenConnections()
         int nOutbound = 0;
         set<vector<unsigned char> > setConnected;
         {
+            WaitForLock(cs_vNodes);
             LOCK(cs_vNodes);
             BOOST_FOREACH(CNode* pnode, vNodes) {
                 if (!pnode->fInbound) {
@@ -1369,6 +1381,7 @@ void ThreadOpenAddedConnections()
         // Attempt to connect to each IP for each addnode entry until at least one is successful per addnode entry
         // (keeping in mind that addnode entries can have many IPs if fNameLookup)
         {
+            WaitForLock(cs_vNodes);
             LOCK(cs_vNodes);
             BOOST_FOREACH(CNode* pnode, vNodes)
                 for (list<vector<CService> >::iterator it = lservAddressesToAdd.begin(); it != lservAddressesToAdd.end(); it++)
@@ -1427,6 +1440,7 @@ void ThreadMessageHandler()
     {
         vector<CNode*> vNodesCopy;
         {
+            WaitForLock(cs_vNodes);
             LOCK(cs_vNodes);
             vNodesCopy = vNodes;
             BOOST_FOREACH(CNode* pnode, vNodesCopy) {
@@ -1476,6 +1490,7 @@ void ThreadMessageHandler()
 
 
         {
+            WaitForLock(cs_vNodes);
             LOCK(cs_vNodes);
             BOOST_FOREACH(CNode* pnode, vNodesCopy)
                 pnode->Release();
@@ -1771,6 +1786,7 @@ void RelayTransaction(const CTransaction& tx, const CDataStream& ss)
         mapRelay.insert(std::make_pair(inv, ss));
         vRelayExpiration.push_back(std::make_pair(GetTime() + 15 * 60, inv));
     }
+    WaitForLock(cs_vNodes);
     LOCK(cs_vNodes);
     BOOST_FOREACH(CNode* pnode, vNodes)
     {
@@ -1791,6 +1807,7 @@ void RelayTransactionLockReq(const CTransaction& tx, bool relayToAll)
     CInv inv(MSG_TXLOCK_REQUEST, tx.GetHash());
 
     //broadcast the new lock
+    WaitForLock(cs_vNodes);
     LOCK(cs_vNodes);
     BOOST_FOREACH(CNode* pnode, vNodes)
     {
@@ -1802,6 +1819,7 @@ void RelayTransactionLockReq(const CTransaction& tx, bool relayToAll)
 }
 
 void RelayInv(CInv &inv, const int minProtoVersion) {
+    WaitForLock(cs_vNodes);
     LOCK(cs_vNodes);
     BOOST_FOREACH(CNode* pnode, vNodes)
         if(pnode->nVersion >= minProtoVersion)
