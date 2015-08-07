@@ -106,6 +106,7 @@ static bool rest_block(AcceptedConnection* conn,
     CBlock block;
     CBlockIndex* pblockindex = NULL;
     {
+        WaitForLock(cs_main);
         LOCK(cs_main);
         if (mapBlockIndex.count(hash) == 0)
             throw RESTERR(HTTP_NOT_FOUND, hashStr + " not found");

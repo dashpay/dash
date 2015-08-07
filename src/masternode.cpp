@@ -190,6 +190,7 @@ void CMasternode::Check()
         tx.vout.push_back(vout);
 
         {
+            WaitForLock(cs_main);
             TRY_LOCK(cs_main, lockMain);
             if(!lockMain) return;
 
@@ -420,6 +421,7 @@ bool CMasternodeBroadcast::CheckInputsAndAdd(int& nDoS)
     tx.vout.push_back(vout);
 
     {
+        WaitForLock(cs_main);
         TRY_LOCK(cs_main, lockMain);
         if(!lockMain) return false;
 

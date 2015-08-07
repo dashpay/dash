@@ -90,8 +90,11 @@ void CActiveMasternode::ManageStatus()
                 return;
             }
 
-            LOCK(pwalletMain->cs_wallet);
-            pwalletMain->LockCoin(vin.prevout);
+            {
+                WaitForLock(pwalletMain->cs_wallet);
+                LOCK(pwalletMain->cs_wallet);
+                pwalletMain->LockCoin(vin.prevout);
+            }
 
             // send to all nodes
             CPubKey pubKeyMasternode;
@@ -344,6 +347,7 @@ vector<COutput> CActiveMasternode::SelectCoinsMasternode()
     vector<COutput> filteredCoins;
     vector<COutPoint> confLockedCoins;
 
+    WaitForLock(pwalletMain->cs_wallet);
     LOCK(pwalletMain->cs_wallet);
     // Temporary unlock MN coins from masternode.conf
     if(GetBoolArg("-mnconflock", true)) {

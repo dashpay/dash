@@ -79,6 +79,7 @@ public:
     {
         cachedAddressTable.clear();
         {
+            WaitForLock(wallet->cs_wallet);
             LOCK(wallet->cs_wallet);
             BOOST_FOREACH(const PAIRTYPE(CTxDestination, CAddressBookData)& item, wallet->mapAddressBook)
             {
@@ -245,6 +246,7 @@ bool AddressTableModel::setData(const QModelIndex &index, const QVariant &value,
 
     if(role == Qt::EditRole)
     {
+        WaitForLock(wallet->cs_wallet); /* For SetAddressBook / DelAddressBook */
         LOCK(wallet->cs_wallet); /* For SetAddressBook / DelAddressBook */
         CTxDestination curAddress = CBitcoinAddress(rec->address.toStdString()).Get();
         if(index.column() == Label)
@@ -357,6 +359,7 @@ QString AddressTableModel::addRow(const QString &type, const QString &label, con
         }
         // Check for duplicate addresses
         {
+            WaitForLock(wallet->cs_wallet);
             LOCK(wallet->cs_wallet);
             if(wallet->mapAddressBook.count(CBitcoinAddress(strAddress).Get()))
             {
@@ -393,6 +396,7 @@ QString AddressTableModel::addRow(const QString &type, const QString &label, con
 
     // Add entry
     {
+        WaitForLock(wallet->cs_wallet);
         LOCK(wallet->cs_wallet);
         wallet->SetAddressBook(CBitcoinAddress(strAddress).Get(), strLabel,
                                (type == Send ? "send" : "receive"));
@@ -411,6 +415,7 @@ bool AddressTableModel::removeRows(int row, int count, const QModelIndex &parent
         return false;
     }
     {
+        WaitForLock(wallet->cs_wallet);
         LOCK(wallet->cs_wallet);
         wallet->DelAddressBook(CBitcoinAddress(rec->address.toStdString()).Get());
     }
@@ -422,6 +427,7 @@ bool AddressTableModel::removeRows(int row, int count, const QModelIndex &parent
 QString AddressTableModel::labelForAddress(const QString &address) const
 {
     {
+        WaitForLock(wallet->cs_wallet);
         LOCK(wallet->cs_wallet);
         CBitcoinAddress address_parsed(address.toStdString());
         std::map<CTxDestination, CAddressBookData>::iterator mi = wallet->mapAddressBook.find(address_parsed.Get());

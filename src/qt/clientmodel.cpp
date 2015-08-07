@@ -55,6 +55,7 @@ ClientModel::~ClientModel()
 
 int ClientModel::getNumConnections(unsigned int flags) const
 {
+    WaitForLock(cs_vNodes);
     LOCK(cs_vNodes);
     if (flags == CONNECTIONS_ALL) // Shortcut if we want total
         return vNodes.size();
@@ -76,6 +77,7 @@ QString ClientModel::getMasternodeCountString() const
 
 int ClientModel::getNumBlocks() const
 {
+    WaitForLock(cs_main);
     LOCK(cs_main);
     return chainActive.Height();
 }
@@ -98,6 +100,7 @@ quint64 ClientModel::getTotalBytesSent() const
 
 QDateTime ClientModel::getLastBlockDate() const
 {
+    WaitForLock(cs_main);
     LOCK(cs_main);
     if (chainActive.Tip())
         return QDateTime::fromTime_t(chainActive.Tip()->GetBlockTime());
@@ -139,12 +142,6 @@ void ClientModel::updateTimer()
 
 void ClientModel::updateMnTimer()
 {
-    // Get required lock upfront. This avoids the GUI from getting stuck on
-    // periodical polls if the core is holding the locks for a longer time -
-    // for example, during a wallet rescan.
-    TRY_LOCK(cs_main, lockMain);
-    if(!lockMain)
-        return;
     QString newMasternodeCountString = getMasternodeCountString();
 
     if (cachedMasternodeCountString != newMasternodeCountString)

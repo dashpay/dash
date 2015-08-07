@@ -27,6 +27,7 @@
 #include "txmempool.h"
 #include "uint256.h"
 #include "undo.h"
+#include "utiltime.h"
 
 #include <algorithm>
 #include <exception>
@@ -144,6 +145,29 @@ extern CBlockIndex *pindexBestHeader;
 
 /** Minimum disk space required - used in CheckDiskSpace() */
 static const uint64_t nMinDiskSpace = 52428800;
+
+/** Wait for locks - make sure we can get locks before actually locking smth */
+void WaitForLock(CCriticalSection &cs) {
+    while(true){
+        TRY_LOCK(cs, locked);
+        if(!locked) { MilliSleep(100); continue;}
+        break;
+    }
+}
+
+void WaitForLock2(CCriticalSection &cs1, CCriticalSection &cs2) {
+    while(true){
+        TRY_LOCK(cs1, locked1);
+        if(!locked1) { MilliSleep(100); continue;}
+        while(true){
+            TRY_LOCK(cs2, locked2);
+            if(!locked2) { MilliSleep(100); continue;}
+            break;
+        }
+        break;
+    }
+}
+
 
 /** Register a wallet to receive updates from core */
 void RegisterValidationInterface(CValidationInterface* pwalletIn);

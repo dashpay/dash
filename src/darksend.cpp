@@ -260,6 +260,7 @@ void CDarksendPool::ProcessMessageDarksend(CNode* pfrom, std::string& strCommand
             }
 
             {
+                WaitForLock(cs_main);
                 LOCK(cs_main);
                 if(!AcceptableInputs(mempool, state, CTransaction(tx), false, NULL, false, true)) {
                     LogPrintf("dsi -- transaction not valid! \n");
@@ -432,6 +433,7 @@ bool CDarksendPool::SetCollateralAddress(std::string strAddress){
 // Unlock coins after Darksend fails or succeeds
 //
 void CDarksendPool::UnlockCoins(){
+    WaitForLock(pwalletMain->cs_wallet);
     LOCK(pwalletMain->cs_wallet);
     BOOST_FOREACH(CTxIn v, lockedCoins)
         pwalletMain->UnlockCoin(v.prevout);
@@ -565,6 +567,7 @@ void CDarksendPool::CheckFinalTransaction()
 
     CWalletTx txNew = CWalletTx(pwalletMain, finalTransaction);
 
+    WaitForLock2(cs_main, pwalletMain->cs_wallet);
     LOCK2(cs_main, pwalletMain->cs_wallet);
     {
         LogPrint("darksend", "Transaction 2: %s\n", txNew.ToString());
@@ -973,6 +976,7 @@ bool CDarksendPool::IsCollateralValid(const CTransaction& txCollateral){
     LogPrint("darksend", "CDarksendPool::IsCollateralValid %s\n", txCollateral.ToString());
 
     {
+        WaitForLock(cs_main);
         LOCK(cs_main);
         CValidationState state;
         if(!AcceptableInputs(mempool, state, txCollateral, true, NULL)){
@@ -1156,6 +1160,7 @@ void CDarksendPool::SendDarksendDenominate(std::vector<CTxIn>& vin, std::vector<
         LogPrintf("Submitting tx %s\n", tx.ToString());
 
         {
+            WaitForLock(cs_main);
             LOCK(cs_main);
             if(!AcceptableInputs(mempool, state, CTransaction(tx), false, NULL, false, true)){
                 LogPrintf("dsi -- transaction not valid! %s \n", tx.ToString());
@@ -2118,7 +2123,7 @@ bool CDarksendQueue::Sign()
 
 bool CDarksendQueue::Relay()
 {
-
+    WaitForLock(cs_vNodes);
     LOCK(cs_vNodes);
     BOOST_FOREACH(CNode* pnode, vNodes){
         // always relay to everyone
@@ -2150,6 +2155,7 @@ bool CDarksendQueue::CheckSignature()
 
 void CDarksendPool::RelayFinalTransaction(const int sessionID, const CTransaction& txNew)
 {
+    WaitForLock(cs_vNodes);
     LOCK(cs_vNodes);
     BOOST_FOREACH(CNode* pnode, vNodes)
     {
@@ -2179,6 +2185,7 @@ void CDarksendPool::RelayIn(const std::vector<CTxDSIn>& vin, const int64_t& nAmo
 
 void CDarksendPool::RelayStatus(const int sessionID, const int newState, const int newEntriesCount, const int newAccepted, const int errorID)
 {
+    WaitForLock(cs_vNodes);
     LOCK(cs_vNodes);
     BOOST_FOREACH(CNode* pnode, vNodes)
         pnode->PushMessage("dssu", sessionID, newState, newEntriesCount, newAccepted, errorID);
@@ -2186,6 +2193,7 @@ void CDarksendPool::RelayStatus(const int sessionID, const int newState, const i
 
 void CDarksendPool::RelayCompletedTransaction(const int sessionID, const bool error, const int errorID)
 {
+    WaitForLock(cs_vNodes);
     LOCK(cs_vNodes);
     BOOST_FOREACH(CNode* pnode, vNodes)
         pnode->PushMessage("dsc", sessionID, error, errorID);

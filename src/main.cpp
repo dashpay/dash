@@ -302,6 +302,7 @@ CNodeState *State(NodeId pnode) {
 
 int GetHeight()
 {
+    WaitForLock(cs_main);
     LOCK(cs_main);
     return chainActive.Height();
 }
@@ -317,6 +318,7 @@ void UpdatePreferredDownload(CNode* node, CNodeState* state)
 }
 
 void InitializeNode(NodeId nodeid, const CNode *pnode) {
+    WaitForLock(cs_main);
     LOCK(cs_main);
     CNodeState &state = mapNodeState.insert(std::make_pair(nodeid, CNodeState())).first->second;
     state.name = pnode->addrName;
@@ -324,6 +326,7 @@ void InitializeNode(NodeId nodeid, const CNode *pnode) {
 }
 
 void FinalizeNode(NodeId nodeid) {
+    WaitForLock(cs_main);
     LOCK(cs_main);
     CNodeState *state = State(nodeid);
 
@@ -508,6 +511,7 @@ void FindNextBlocksToDownload(NodeId nodeid, unsigned int count, std::vector<CBl
 } // anon namespace
 
 bool GetNodeStateStats(NodeId nodeid, CNodeStateStats &stats) {
+    WaitForLock(cs_main);
     LOCK(cs_main);
     CNodeState *state = State(nodeid);
     if (state == NULL)
@@ -1381,6 +1385,7 @@ bool GetTransaction(const uint256 &hash, CTransaction &txOut, uint256 &hashBlock
 {
     CBlockIndex *pindexSlow = NULL;
     {
+        WaitForLock(cs_main);
         LOCK(cs_main);
         {
             if (mempool.lookup(hash, txOut))
@@ -1614,6 +1619,7 @@ int64_t GetMasternodePayment(int nHeight, int64_t blockValue)
 
 bool IsInitialBlockDownload()
 {
+    WaitForLock(cs_main);
     LOCK(cs_main);
     if (fImporting || fReindex || chainActive.Height() < Checkpoints::GetTotalBlocksEstimate())
         return true;
@@ -2195,6 +2201,7 @@ enum FlushStateMode {
  * fast is not set and it's been a while since the last write.
  */
 bool static FlushStateToDisk(CValidationState &state, FlushStateMode mode) {
+    WaitForLock(cs_main);
     LOCK(cs_main);
     static int64_t nLastWrite = 0;
     try {
@@ -2400,6 +2407,7 @@ bool static ConnectTip(CValidationState &state, CBlockIndex *pindexNew, CBlock *
 
 bool DisconnectBlocksAndReprocess(int blocks)
 {
+    WaitForLock(cs_main);
     LOCK(cs_main);
 
     CValidationState state;
@@ -2617,6 +2625,7 @@ bool ActivateBestChain(CValidationState &state, CBlock *pblock) {
 
         bool fInitialDownload;
         {
+            WaitForLock(cs_main);
             LOCK(cs_main);
             pindexMostWork = FindMostWorkChain();
 
@@ -2638,6 +2647,7 @@ bool ActivateBestChain(CValidationState &state, CBlock *pblock) {
             // Relay inventory, but don't relay old inventory during initial block download.
             int nBlockEstimate = Checkpoints::GetTotalBlocksEstimate();
             {
+                WaitForLock(cs_vNodes);
                 LOCK(cs_vNodes);
                 BOOST_FOREACH(CNode* pnode, vNodes)
                     if (chainActive.Height() > (pnode->nStartingHeight != -1 ? pnode->nStartingHeight - 2000 : nBlockEstimate))
@@ -3262,6 +3272,7 @@ bool ProcessNewBlock(CValidationState &state, CNode* pfrom, CBlock* pblock, CDis
     bool checked = CheckBlock(*pblock, state);
 
     {
+        WaitForLock(cs_main);
         LOCK(cs_main);
         MarkBlockAsReceived(pblock->GetHash());
         if (!checked) {
@@ -3516,6 +3527,7 @@ CVerifyDB::~CVerifyDB()
 
 bool CVerifyDB::VerifyDB(CCoinsView *coinsview, int nCheckLevel, int nCheckDepth)
 {
+    WaitForLock(cs_main);
     LOCK(cs_main);
     if (chainActive.Tip() == NULL || chainActive.Tip()->pprev == NULL)
         return true;
@@ -3610,6 +3622,7 @@ bool LoadBlockIndex()
 
 
 bool InitBlockIndex() {
+    WaitForLock(cs_main);
     LOCK(cs_main);
     // Check whether we're already initialized
     if (chainActive.Genesis() != NULL)
@@ -3757,6 +3770,7 @@ void static CheckBlockIndex()
         return;
     }
 
+    WaitForLock(cs_main);
     LOCK(cs_main);
 
     // During a reindex, we read the genesis block and call CheckBlockIndex before ActivateBestChain,
@@ -4036,6 +4050,7 @@ void static ProcessGetData(CNode* pfrom)
 
     vector<CInv> vNotFound;
 
+    WaitForLock(cs_main);
     LOCK(cs_main);
 
     while (it != pfrom->vRecvGetData.end()) {
@@ -4416,6 +4431,7 @@ bool static ProcessMessage(CNode* pfrom, string strCommand, CDataStream& vRecv, 
 
         // Mark this node as currently connected, so we update its timestamp later.
         if (pfrom->fNetworkNode) {
+            WaitForLock(cs_main);
             LOCK(cs_main);
             State(pfrom->GetId())->fCurrentlyConnected = true;
         }
@@ -4452,6 +4468,7 @@ bool static ProcessMessage(CNode* pfrom, string strCommand, CDataStream& vRecv, 
             {
                 // Relay to a limited number of other nodes
                 {
+                    WaitForLock(cs_vNodes);
                     LOCK(cs_vNodes);
                     // Use deterministic randomness to send to the same nodes for 24 hours
                     // at a time so the setAddrKnowns of the chosen nodes prevent repeats
@@ -4499,6 +4516,7 @@ bool static ProcessMessage(CNode* pfrom, string strCommand, CDataStream& vRecv, 
             return error("message inv size() = %u", vInv.size());
         }
 
+        WaitForLock(cs_main);
         LOCK(cs_main);
 
         std::vector<CInv> vToFetch;
@@ -4582,6 +4600,7 @@ bool static ProcessMessage(CNode* pfrom, string strCommand, CDataStream& vRecv, 
         uint256 hashStop;
         vRecv >> locator >> hashStop;
 
+        WaitForLock(cs_main);
         LOCK(cs_main);
 
         // Find the last block the caller has in the main chain
@@ -4618,6 +4637,7 @@ bool static ProcessMessage(CNode* pfrom, string strCommand, CDataStream& vRecv, 
         uint256 hashStop;
         vRecv >> locator >> hashStop;
 
+        WaitForLock(cs_main);
         LOCK(cs_main);
 
         if (IsInitialBlockDownload())
@@ -4710,6 +4730,7 @@ bool static ProcessMessage(CNode* pfrom, string strCommand, CDataStream& vRecv, 
         CInv inv(MSG_TX, tx.GetHash());
         pfrom->AddInventoryKnown(inv);
 
+        WaitForLock(cs_main);
         LOCK(cs_main);
 
         bool fMissingInputs = false;
@@ -4832,6 +4853,7 @@ bool static ProcessMessage(CNode* pfrom, string strCommand, CDataStream& vRecv, 
             ReadCompactSize(vRecv); // ignore tx count; assume it is 0.
         }
 
+        WaitForLock(cs_main);
         LOCK(cs_main);
 
         if (nCount == 0) {
@@ -4876,12 +4898,6 @@ bool static ProcessMessage(CNode* pfrom, string strCommand, CDataStream& vRecv, 
         CBlock block;
         vRecv >> block;
 
-        TRY_LOCK(cs_main, lockMainBlock);
-        if(!lockMainBlock && masternodeSync.IsBlockchainSynced()) {
-            LogPrintf("block -- failed to lock cs_main - %s\n", block.GetHash().ToString());
-            return false;
-        }
-
         CInv inv(MSG_BLOCK, block.GetHash());
         LogPrint("net", "received block %s peer=%d\n", inv.hash.ToString(), pfrom->id);
 
@@ -4894,6 +4910,8 @@ bool static ProcessMessage(CNode* pfrom, string strCommand, CDataStream& vRecv, 
             pfrom->PushMessage("reject", strCommand, state.GetRejectCode(),
                                state.GetRejectReason().substr(0, MAX_REJECT_MESSAGE_LENGTH), inv.hash);
             if (nDoS > 0) {
+                WaitForLock(cs_main);
+                LOCK(cs_main);
                 Misbehaving(pfrom->GetId(), nDoS);
             }
         }
@@ -4917,6 +4935,7 @@ bool static ProcessMessage(CNode* pfrom, string strCommand, CDataStream& vRecv, 
 
     else if (strCommand == "mempool")
     {
+        WaitForLock2(cs_main, pfrom->cs_filter);
         LOCK2(cs_main, pfrom->cs_filter);
 
         std::vector<uint256> vtxid;
@@ -5032,6 +5051,7 @@ bool static ProcessMessage(CNode* pfrom, string strCommand, CDataStream& vRecv, 
                 // Relay
                 pfrom->setKnown.insert(alertHash);
                 {
+                    WaitForLock(cs_vNodes);
                     LOCK(cs_vNodes);
                     BOOST_FOREACH(CNode* pnode, vNodes)
                         alert.RelayTo(pnode);
@@ -5296,6 +5316,7 @@ bool SendMessages(CNode* pto, bool fSendTrickle)
             }
         }
 
+        WaitForLock(cs_main);
         TRY_LOCK(cs_main, lockMain); // Acquire cs_main for IsInitialBlockDownload() and CNodeState()
         if (!lockMain)
             return true;
@@ -5304,6 +5325,7 @@ bool SendMessages(CNode* pto, bool fSendTrickle)
         static int64_t nLastRebroadcast;
         if (!IsInitialBlockDownload() && (GetTime() - nLastRebroadcast > 24 * 60 * 60))
         {
+            WaitForLock(cs_vNodes);
             LOCK(cs_vNodes);
             BOOST_FOREACH(CNode* pnode, vNodes)
             {

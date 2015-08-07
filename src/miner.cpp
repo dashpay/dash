@@ -129,6 +129,7 @@ CBlockTemplate* CreateNewBlock(const CScript& scriptPubKeyIn)
     CAmount nFees = 0;
 
     {
+        WaitForLock2(cs_main, mempool.cs);
         LOCK2(cs_main, mempool.cs);
 
         CBlockIndex* pindexPrev = chainActive.Tip();
@@ -430,6 +431,7 @@ bool ProcessBlockFound(CBlock* pblock, CWallet& wallet, CReserveKey& reservekey)
 
     // Found a solution
     {
+        WaitForLock(cs_main);
         LOCK(cs_main);
         if (pblock->hashPrevBlock != chainActive.Tip()->GetBlockHash())
             return error("DashMiner : generated block is stale");
@@ -440,6 +442,7 @@ bool ProcessBlockFound(CBlock* pblock, CWallet& wallet, CReserveKey& reservekey)
 
     // Track how many getdata requests this block gets
     {
+        WaitForLock(wallet.cs_wallet);
         LOCK(wallet.cs_wallet);
         wallet.mapRequestCount[pblock->GetHash()] = 0;
     }
@@ -471,6 +474,7 @@ void static BitcoinMiner(CWallet *pwallet)
                 do {
                     bool fvNodesEmpty;
                     {
+                        WaitForLock(cs_vNodes);
                         LOCK(cs_vNodes);
                         fvNodesEmpty = vNodes.empty();
                     }

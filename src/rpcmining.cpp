@@ -164,6 +164,7 @@ Value setgenerate(const Array& params, bool fHelp)
         CReserveKey reservekey(pwalletMain);
 
         {   // Don't keep cs_main locked
+            WaitForLock(cs_main);
             LOCK(cs_main);
             nHeightStart = chainActive.Height();
             nHeight = nHeightStart;
@@ -178,6 +179,7 @@ Value setgenerate(const Array& params, bool fHelp)
                 throw JSONRPCError(RPC_INTERNAL_ERROR, "Wallet keypool empty");
             CBlock *pblock = &pblocktemplate->block;
             {
+                WaitForLock(cs_main);
                 LOCK(cs_main);
                 IncrementExtraNonce(pblock, chainActive.Tip(), nExtraNonce);
             }
@@ -668,6 +670,7 @@ Value submitblock(const Array& params, bool fHelp)
     uint256 hash = block.GetHash();
     bool fBlockPresent = false;
     {
+        WaitForLock(cs_main);
         LOCK(cs_main);
         BlockMap::iterator mi = mapBlockIndex.find(hash);
         if (mi != mapBlockIndex.end()) {

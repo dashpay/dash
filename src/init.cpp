@@ -186,6 +186,7 @@ void PrepareShutdown()
     }
 
     {
+        WaitForLock(cs_main);
         LOCK(cs_main);
         if (pcoinsTip != NULL) {
             FlushStateToDisk();
@@ -1500,6 +1501,7 @@ bool AppInit2(boost::thread_group& threadGroup)
     strBudgetMode = GetArg("-budgetvotemode", "auto");
 
     if(GetBoolArg("-mnconflock", true) && pwalletMain) {
+        WaitForLock(pwalletMain->cs_wallet);
         LOCK(pwalletMain->cs_wallet);
         LogPrintf("Locking Masternodes:\n");
         uint256 mnTxHash;
