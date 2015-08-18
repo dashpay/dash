@@ -439,21 +439,6 @@ void CleanTransactionLocksList()
         if(GetTime() > it->second.nExpiration){ //keep them for an hour
             LogPrintf("Removing old transaction lock %s\n", it->second.txHash.ToString().c_str());
 
-            // loop through masternodes that responded
-            for(int nRank = 0; nRank <= INSTANTX_SIGNATURES_TOTAL; nRank++)
-            {
-                CMasternode* pmn = mnodeman.GetMasternodeByRank(nRank, it->second.nBlockHeight, MIN_INSTANTX_PROTO_VERSION);
-                if(!pmn) continue;
-
-                bool fFound = false;
-                BOOST_FOREACH(CConsensusVote& v, it->second.vecConsensusVotes)
-                {
-                    if(pmn->vin == v.vinMasternode){ //Masternode responded
-                        fFound = true;
-                    }
-                }
-            }
-
             if(mapTxLockReq.count(it->second.txHash)){
                 CTransaction& tx = mapTxLockReq[it->second.txHash];
 
