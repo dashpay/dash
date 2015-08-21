@@ -480,17 +480,6 @@ bool CConsensusVote::SignatureValid()
         return false;
     }
 
-    //LogPrintf("verify addr %s \n", vecMasternodes[0].addr.ToString().c_str());
-    //LogPrintf("verify addr %s \n", vecMasternodes[1].addr.ToString().c_str());
-    //LogPrintf("verify addr %d %s \n", n, vecMasternodes[n].addr.ToString().c_str());
-
-    CScript pubkey;
-    pubkey = GetScriptForDestination(pmn->pubkey2.GetID());
-    CTxDestination address1;
-    ExtractDestination(pubkey, address1);
-    CBitcoinAddress address2(address1);
-    //LogPrintf("verify pubkey2 %s \n", address2.ToString().c_str());
-
     if(!darkSendSigner.VerifyMessage(pmn->pubkey2, vchMasterNodeSignature, strMessage, errorMessage)) {
         LogPrintf("InstantX::CConsensusVote::SignatureValid() - Verify message failed\n");
         return false;
@@ -514,13 +503,6 @@ bool CConsensusVote::Sign()
         LogPrintf("CConsensusVote::Sign() - ERROR: Invalid masternodeprivkey: '%s'\n", errorMessage.c_str());
         return false;
     }
-
-    CScript pubkey;
-    pubkey = GetScriptForDestination(pubkey2.GetID());
-    CTxDestination address1;
-    ExtractDestination(pubkey, address1);
-    CBitcoinAddress address2(address1);
-    //LogPrintf("signing pubkey2 %s \n", address2.ToString().c_str());
 
     if(!darkSendSigner.SignMessage(strMessage, errorMessage, vchMasterNodeSignature, key2)) {
         LogPrintf("CConsensusVote::Sign() - Sign message failed");
