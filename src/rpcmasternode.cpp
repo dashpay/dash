@@ -208,16 +208,11 @@ Value masternode(const Array& params, bool fHelp)
         CMasternode* winner = mnodeman.GetCurrentMasterNode(1);
         if(winner) {
             Object obj;
-            CScript pubkey;
-            pubkey = GetScriptForDestination(winner->pubkey.GetID());
-            CTxDestination address1;
-            ExtractDestination(pubkey, address1);
-            CBitcoinAddress address2(address1);
 
             obj.push_back(Pair("IP:port",       winner->addr.ToString()));
             obj.push_back(Pair("protocol",      (int64_t)winner->protocolVersion));
             obj.push_back(Pair("vin",           winner->vin.prevout.hash.ToString()));
-            obj.push_back(Pair("pubkey",        address2.ToString()));
+            obj.push_back(Pair("pubkey",        CBitcoinAddress(winner->pubkey.GetID()).ToString()));
             obj.push_back(Pair("lastseen",      (winner->lastPing == CMasternodePing()) ? winner->sigTime :
                                                         (int64_t)winner->lastPing.sigTime));
             obj.push_back(Pair("activeseconds", (winner->lastPing == CMasternodePing()) ? 0 :
@@ -433,16 +428,10 @@ Value masternode(const Array& params, bool fHelp)
     {
         if(!fMasterNode) throw runtime_error("This is not a masternode\n");
 
-        CScript pubkey;
-        pubkey = GetScriptForDestination(activeMasternode.pubKeyMasternode.GetID());
-        CTxDestination address1;
-        ExtractDestination(pubkey, address1);
-        CBitcoinAddress address2(address1);
-
         Object mnObj;
         mnObj.push_back(Pair("vin", activeMasternode.vin.ToString()));
         mnObj.push_back(Pair("service", activeMasternode.service.ToString()));
-        mnObj.push_back(Pair("pubKeyMasternode", address2.ToString()));
+        mnObj.push_back(Pair("pubKeyMasternode", activeMasternode.pubKeyMasternode.GetID().ToString()));
         mnObj.push_back(Pair("status", activeMasternode.GetStatus()));
         return mnObj;
     }
@@ -555,12 +544,6 @@ Value masternodelist(const Array& params, bool fHelp)
                     strVin.find(strFilter) == string::npos) continue;
                 obj.push_back(Pair(strVin,       mn.addr.ToString()));
             } else if (strMode == "full") {
-                CScript pubkey;
-                pubkey = GetScriptForDestination(mn.pubkey.GetID());
-                CTxDestination address1;
-                ExtractDestination(pubkey, address1);
-                CBitcoinAddress address2(address1);
-
                 std::ostringstream addrStream;
                 addrStream << setw(21) << strVin;
 
@@ -568,7 +551,7 @@ Value masternodelist(const Array& params, bool fHelp)
                 stringStream << setw(9) <<
                                mn.Status() << " " <<
                                mn.protocolVersion << " " <<
-                               address2.ToString() << " " << setw(21) <<
+                               CBitcoinAddress(mn.pubkey.GetID()).ToString() << " " << setw(21) <<
                                mn.addr.ToString() << " " <<
                                (int64_t)mn.lastPing.sigTime << " " << setw(8) <<
                                (int64_t)(mn.lastPing.sigTime - mn.sigTime) << " " <<
@@ -590,15 +573,11 @@ Value masternodelist(const Array& params, bool fHelp)
                     strVin.find(strFilter) == string::npos) continue;
                 obj.push_back(Pair(strVin,       (int64_t)mn.protocolVersion));
             } else if (strMode == "pubkey") {
-                CScript pubkey;
-                pubkey = GetScriptForDestination(mn.pubkey.GetID());
-                CTxDestination address1;
-                ExtractDestination(pubkey, address1);
-                CBitcoinAddress address2(address1);
+                CBitcoinAddress address(mn.pubkey.GetID());
 
-                if(strFilter !="" && address2.ToString().find(strFilter) == string::npos &&
+                if(strFilter !="" && address.ToString().find(strFilter) == string::npos &&
                     strVin.find(strFilter) == string::npos) continue;
-                obj.push_back(Pair(strVin,       address2.ToString()));
+                obj.push_back(Pair(strVin,       address.ToString()));
             } else if(strMode == "status") {
                 std::string strStatus = mn.Status();
                 if(strFilter !="" && strVin.find(strFilter) == string::npos && strStatus.find(strFilter) == string::npos) continue;
