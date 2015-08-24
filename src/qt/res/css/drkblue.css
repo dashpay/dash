@@ -1498,15 +1498,6 @@ margin-bottom:1px;
 margin-right:1px;
 }
 
-QLabel#transactionSumLabel { /* Example of setObjectName for widgets without name*/
-    color:#333333;
-    font-weight:bold;
-}
- 
-QLabel#transactionSum { /* Example of setObjectName for widgets without name*/
-    color:#333333;
-}
-
 /* TRANSACTION DETAIL DIALOG */
 
 QDialog#TransactionDescDialog {
