@@ -303,6 +303,7 @@ Execute the following as user `debian`:
 
 ```bash
 cd gitian-builder
+bin/make-base-vm --lxc --arch i386 --suite precise
 bin/make-base-vm --lxc --arch amd64 --suite precise
 ```
 
