@@ -36,13 +36,13 @@
         <file alias="tx_input">res/icons/tx_input.png</file>
         <file alias="tx_output">res/icons/tx_output.png</file>
         <file alias="tx_inout">res/icons/tx_inout.png</file>
-        <file alias="unit_dash">res/icons/unit_dash.png</file>
-        <file alias="unit_mdash">res/icons/unit_mdash.png</file>
-        <file alias="unit_udash">res/icons/unit_udash.png</file>
+        <file alias="unit_btx">res/icons/unit_btx.png</file>
+        <file alias="unit_mbtx">res/icons/unit_mbtx.png</file>
+        <file alias="unit_ubtx">res/icons/unit_ubtx.png</file>
         <file alias="unit_duffs">res/icons/unit_duffs.png</file>
-        <file alias="unit_tdash">res/icons/unit_tdash.png</file>
-        <file alias="unit_tmdash">res/icons/unit_tmdash.png</file>
-        <file alias="unit_tudash">res/icons/unit_tudash.png</file>
+        <file alias="unit_tbtx">res/icons/unit_tbtx.png</file>
+        <file alias="unit_tmbtx">res/icons/unit_tmbtx.png</file>
+        <file alias="unit_tubtx">res/icons/unit_tubtx.png</file>
         <file alias="unit_tduffs">res/icons/unit_tduffs.png</file>
         <file alias="lock_closed">res/icons/lock_closed.png</file>
         <file alias="lock_open">res/icons/lock_open.png</file>
@@ -61,7 +61,7 @@
     </qresource>	    
     <qresource prefix="/images">
         <file alias="about">res/images/about.png</file>
-        <file alias="dash_logo_horizontal">res/images/dash_logo_horizontal.png</file>
+        <file alias="btx_logo_horizontal">res/images/btx_logo_horizontal.png</file>
         <file alias="drkblue_downArrow">res/images/drkblue_downArrow.png</file>
         <file alias="drkblue_downArrow_small">res/images/drkblue_downArrow_small.png</file>
         <file alias="drkblue_upArrow_small">res/images/drkblue_upArrow_small.png</file>

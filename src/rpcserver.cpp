@@ -1,6 +1,6 @@
 // Copyright (c) 2010 Satoshi Nakamoto
 // Copyright (c) 2009-2014 The Bitcoin developers
-// Copyright (c) 2014-2015 The Dash developers
+// Copyright (c) 2014-2015 The BTX developers
 // Distributed under the MIT software license, see the accompanying
 // file COPYING or http://www.opensource.org/licenses/mit-license.php.
 
@@ -229,10 +229,10 @@ Value stop(const Array& params, bool fHelp)
     if (fHelp || params.size() > 1)
         throw runtime_error(
             "stop\n"
-            "\nStop Dash server.");
+            "\nStop BTX server.");
     // Shutdown will take long enough that the response should get back
     StartShutdown();
-    return "Dash server stopping";
+    return "BTX server stopping";
 }
 
 
@@ -308,15 +308,15 @@ static const CRPCCommand vRPCCommands[] =
     { "hidden",             "reconsiderblock",        &reconsiderblock,        true,      true,       false },
     { "hidden",             "setmocktime",            &setmocktime,            true,      false,      false },
 
-    /* Dash features */
-    { "dash",               "mnsync",                 &mnsync,                 true,      false,      false },
-    { "dash",               "spork",                  &spork,                  true,      false,      false },
-    { "dash",               "masternode",             &masternode,             true,      false,      true  },
-    { "dash",               "mnbudget",               &mnbudget,               true,      false,      false },
-    { "dash",               "mnfinalbudget",          &mnfinalbudget,          true,      false,      false },
-    { "dash",               "masternodelist",         &masternodelist,         true,      false,      false },
+    /* BTX features */
+    { "btx",               "mnsync",                 &mnsync,                 true,      false,      false },
+    { "btx",               "spork",                  &spork,                  true,      false,      false },
+    { "btx",               "masternode",             &masternode,             true,      false,      true  },
+    { "btx",               "mnbudget",               &mnbudget,               true,      false,      false },
+    { "btx",               "mnfinalbudget",          &mnfinalbudget,          true,      false,      false },
+    { "btx",               "masternodelist",         &masternodelist,         true,      false,      false },
 #ifdef ENABLE_WALLET
-    { "dash",               "darksend",               &darksend,               false,     false,      true  },
+    { "btx",               "darksend",               &darksend,               false,     false,      true  },
 
     /* Wallet */
     { "wallet",             "addmultisigaddress",     &addmultisigaddress,     true,      false,      true },
@@ -585,16 +585,16 @@ void StartRPCThreads()
         unsigned char rand_pwd[32];
         GetRandBytes(rand_pwd, 32);
         uiInterface.ThreadSafeMessageBox(strprintf(
-            _("To use dashd, or the -server option to dash-qt, you must set an rpcpassword in the configuration file:\n"
+            _("To use btxd, or the -server option to btx-qt, you must set an rpcpassword in the configuration file:\n"
               "%s\n"
               "It is recommended you use the following random password:\n"
-              "rpcuser=dashrpc\n"
+              "rpcuser=btxrpc\n"
               "rpcpassword=%s\n"
               "(you do not need to remember this password)\n"
               "The username and password MUST NOT be the same.\n"
               "If the file does not exist, create it with owner-readable-only file permissions.\n"
               "It is also recommended to set alertnotify so you are notified of problems;\n"
-              "for example: alertnotify=echo %%s | mail -s \"Dash Alert\" admin@foo.com\n"),
+              "for example: alertnotify=echo %%s | mail -s \"BTX Alert\" admin@foo.com\n"),
                 GetConfigFile().string(),
                 EncodeBase58(&rand_pwd[0],&rand_pwd[0]+32)),
                 "", CClientUIInterface::MSG_ERROR | CClientUIInterface::SECURE);
@@ -1045,7 +1045,7 @@ json_spirit::Value CRPCTable::execute(const std::string &strMethod, const json_s
 }
 
 std::string HelpExampleCli(string methodname, string args){
-    return "> dash-cli " + methodname + " " + args + "\n";
+    return "> btx-cli " + methodname + " " + args + "\n";
 }
 
 std::string HelpExampleRpc(string methodname, string args){

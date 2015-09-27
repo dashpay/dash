@@ -93,7 +93,7 @@ public:
 };
 
 /**
- * Dash RPC command dispatcher.
+ * BTX RPC command dispatcher.
  */
 class CRPCTable
 {

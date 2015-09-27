@@ -1,7 +1,7 @@
 [main]
-host = https://www.transifex.com
+host = https://www.btxcoin.com
 
-[dash.qt-translation-010x]
-file_filter = src/qt/locale/dash_<lang>.ts
-source_file = src/qt/locale/dash_en.ts
+[btx.qt-translation-010x]
+file_filter = src/qt/locale/btx_<lang>.ts
+source_file = src/qt/locale/btx_en.ts
 source_lang = en
