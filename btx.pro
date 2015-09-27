@@ -260,7 +260,8 @@ SOURCES += \
     src/univalue/univalue_write.cpp \
     src/univalue/univalue.cpp \
     src/utiltime.cpp \
-    src/txdb.cpp
+    src/txdb.cpp \
+    src/crypto/scrypt.cpp
 !win32 {
     # we use QMAKE_CXXFLAGS_RELEASE even without RELEASE=1 because we use RELEASE to indicate linking preferences not -O preferences
     genleveldb.commands = cd $$PWD/src/leveldb && CC=$$QMAKE_CC CXX=$$QMAKE_CXX $(MAKE) OPT=\"$$QMAKE_CXXFLAGS $$QMAKE_CXXFLAGS_RELEASE\" libleveldb.a libmemenv.a
@@ -464,7 +465,8 @@ HEADERS += src/alert.h \
     src/txdb.h \
     src/compat/sanity.h \
     src/secp256k1/include/secp256k1.h \
-    src/bignum.h
+    src/bignum.h \
+    src/crypto/scrypt.h
 
 FORMS += \
     src/qt/forms/sendcoinsdialog.ui \

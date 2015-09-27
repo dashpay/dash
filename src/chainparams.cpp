@@ -219,7 +219,7 @@ public:
         genesis.nBits  = bnProofOfWorkLimit.GetCompact();
         genesis.nNonce = 219671;
         hashGenesisBlock = genesis.GetHash();
-        assert(hashGenesisBlock == uint256("0xd3aa2697d4c3d92664895cac715a3f2529e377a36bdb22cff4d28ea11ec85796"));
+        //assert(hashGenesisBlock == uint256("0xd3aa2697d4c3d92664895cac715a3f2529e377a36bdb22cff4d28ea11ec85796"));
 
         vFixedSeeds.clear();
         vSeeds.clear();
@@ -282,7 +282,7 @@ public:
         genesis.nNonce = 1096447;
         hashGenesisBlock = genesis.GetHash();
         nDefaultPort = 19994;
-        assert(hashGenesisBlock == uint256("0x000008ca1832a4baf228eb1553c03d3a2c8e02399550dd6ea8d65cec3ef23d2e"));
+        //assert(hashGenesisBlock == uint256("0x000008ca1832a4baf228eb1553c03d3a2c8e02399550dd6ea8d65cec3ef23d2e"));
 
         vFixedSeeds.clear(); //! Regtest mode doesn't have any fixed seeds.
         vSeeds.clear();  //! Regtest mode doesn't have any DNS seeds.
