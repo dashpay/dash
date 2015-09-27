@@ -1,12 +1,13 @@
-BTX Core staging tree 0.12
+BTX Core staging tree 3.0 (InstantX Upgrade)
 ===============================
 
-https://www.btxpay.io
+http://www.btxcoin.com
 
 Copyright (c) 2009-2015 Bitcoin Core Developers
 
-Copyright (c) 2014-2015 BTX Core Developers
+Copyright (c) 2014-2015 Dash Core Developers
 
+Copyright (c) 2015 BTX Core Developers
 
 What is BTX?
 ----------------
@@ -18,7 +19,7 @@ are carried out collectively by the network. BTX Core is the name of open
 source software which enables the use of this currency.
 
 For more information, as well as an immediately useable, binary version of
-the BTX Core software, see https://www.btxpay.io/downloads.
+the BTX Core software, see https://www.btxcoin.com/downloads.
 
 
 License
