@@ -20,7 +20,7 @@ packages:
 - "zip"
 reference_datetime: "2014-01-10 00:00:00"
 remotes:
-- "url": "https://github.com/btxpay/btx.git"
+- "url": "https://github.com/cryptodj/btx.git"
   "dir": "btx"
 files: []
 script: |
