@@ -77,10 +77,10 @@ QT_TRANSLATE_NOOP("btx-core", ""
 "Execute command when the best block changes (%s in cmd is replaced by block "
 "hash)"),
 QT_TRANSLATE_NOOP("btx-core", ""
-"Fees (in DASH/Kb) smaller than this are considered zero fee for relaying "
+"Fees (in BTX/Kb) smaller than this are considered zero fee for relaying "
 "(default: %s)"),
 QT_TRANSLATE_NOOP("btx-core", ""
-"Fees (in DASH/Kb) smaller than this are considered zero fee for transaction "
+"Fees (in BTX/Kb) smaller than this are considered zero fee for transaction "
 "creation (default: %s)"),
 QT_TRANSLATE_NOOP("btx-core", ""
 "Flush database activity from memory pool to disk log every <n> megabytes "
@@ -167,10 +167,10 @@ QT_TRANSLATE_NOOP("btx-core", ""
 "Unable to locate enough Darksend denominated funds for this transaction."),
 QT_TRANSLATE_NOOP("btx-core", ""
 "Unable to locate enough Darksend non-denominated funds for this transaction "
-"that are not equal 1000 DASH."),
+"that are not equal 1000 BTX."),
 QT_TRANSLATE_NOOP("btx-core", ""
 "Unable to locate enough funds for this transaction that are not equal 1000 "
-"DASH."),
+"BTX."),
 QT_TRANSLATE_NOOP("btx-core", ""
 "Use separate SOCKS5 proxy to reach peers via Tor hidden services (default: "
 "%s)"),
@@ -270,7 +270,7 @@ QT_TRANSLATE_NOOP("btx-core", "Error: Wallet locked, unable to create transactio
 QT_TRANSLATE_NOOP("btx-core", "Error: You already have pending entries in the Darksend pool"),
 QT_TRANSLATE_NOOP("btx-core", "Failed to listen on any port. Use -listen=0 if you want this."),
 QT_TRANSLATE_NOOP("btx-core", "Failed to read block"),
-QT_TRANSLATE_NOOP("btx-core", "Fee (in DASH/kB) to add to transactions you send (default: %s)"),
+QT_TRANSLATE_NOOP("btx-core", "Fee (in BTX/kB) to add to transactions you send (default: %s)"),
 QT_TRANSLATE_NOOP("btx-core", "Finalizing transaction."),
 QT_TRANSLATE_NOOP("btx-core", "Force safe mode (default: %u)"),
 QT_TRANSLATE_NOOP("btx-core", "Found enough users, signing ( waiting %s )"),
@@ -303,7 +303,7 @@ QT_TRANSLATE_NOOP("btx-core", "Invalid private key."),
 QT_TRANSLATE_NOOP("btx-core", "Invalid script detected."),
 QT_TRANSLATE_NOOP("btx-core", "KeePassHttp id for the established association"),
 QT_TRANSLATE_NOOP("btx-core", "KeePassHttp key for AES encrypted communication with KeePass"),
-QT_TRANSLATE_NOOP("btx-core", "Keep N DASH anonymized (default: %u)"),
+QT_TRANSLATE_NOOP("btx-core", "Keep N BTX anonymized (default: %u)"),
 QT_TRANSLATE_NOOP("btx-core", "Keep at most <n> unconnectable transactions in memory (default: %u)"),
 QT_TRANSLATE_NOOP("btx-core", "Last Darksend was too recent."),
 QT_TRANSLATE_NOOP("btx-core", "Last successful Darksend action was too recent."),

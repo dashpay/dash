@@ -1,4 +1,4 @@
-TOR SUPPORT IN DASH
+TOR SUPPORT IN BTX
 =======================
 
 It is possible to run BTX as a Tor hidden service, and connect to such services.
