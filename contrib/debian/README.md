@@ -1,21 +1,21 @@
 
 Debian
 ====================
-This directory contains files used to package dashd/dash-qt
-for Debian-based Linux systems. If you compile dashd/dash-qt yourself, there are some useful files here.
+This directory contains files used to package btxd/btx-qt
+for Debian-based Linux systems. If you compile btxd/btx-qt yourself, there are some useful files here.
 
-## dash: URI support ##
+## btx: URI support ##
 
 
-dash-qt.desktop  (Gnome / Open Desktop)
+btx-qt.desktop  (Gnome / Open Desktop)
 To install:
 
-	sudo desktop-file-install dash-qt.desktop
+	sudo desktop-file-install btx-qt.desktop
 	sudo update-desktop-database
 
 If you build yourself, you will either need to modify the paths in
-the .desktop file or copy or symlink your dash-qt binary to `/usr/bin`
-and the `../../share/pixmaps/dash128.png` to `/usr/share/pixmaps`
+the .desktop file or copy or symlink your btx-qt binary to `/usr/bin`
+and the `../../share/pixmaps/btx128.png` to `/usr/share/pixmaps`
 
-dash-qt.protocol (KDE)
+btx-qt.protocol (KDE)
 

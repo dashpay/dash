@@ -8,15 +8,35 @@
 #include "hash.h"
 #include "tinyformat.h"
 #include "utilstrencodings.h"
+#include "crypto/scrypt.h"
 
 uint256 CBlockHeader::GetHash() const
 {
-    return HashX11(BEGIN(nVersion), END(nNonce));
+    return Hash9(BEGIN(nVersion), END(nNonce));
 }
 
 uint256 CBlock::BuildMerkleTree(bool* fMutated) const
 {
-    /* WARNING! If you're reading this because you're learning about crypto
+    vMerkleTree.clear();
+    BOOST_FOREACH(const CTransaction& tx, vtx)
+        vMerkleTree.push_back(tx.GetHash());
+    int j = 0;
+    for (int nSize = vtx.size(); nSize > 1; nSize = (nSize + 1) / 2)
+    {
+        for (int i = 0; i < nSize; i += 2)
+        {
+            int i2 = std::min(i+1, nSize-1);
+            vMerkleTree.push_back(Hash(BEGIN(vMerkleTree[j+i]),  END(vMerkleTree[j+i]),
+                                       BEGIN(vMerkleTree[j+i2]), END(vMerkleTree[j+i2])));
+        }
+        j += nSize;
+    }
+    return (vMerkleTree.empty() ? 0 : vMerkleTree.back());
+}
+/*
+uint256 CBlock::BuildMerkleTree(bool* fMutated) const
+{
+    // WARNING! If you're reading this because you're learning about crypto
        and/or designing a new system that will use merkle trees, keep in mind
        that the following merkle tree algorithm has a serious flaw related to
        duplicate txids, resulting in a vulnerability (CVE-2012-2459).
@@ -50,7 +70,7 @@ uint256 CBlock::BuildMerkleTree(bool* fMutated) const
        merkle root. Assuming no double-SHA256 collisions, this will detect all
        known ways of changing the transactions without affecting the merkle
        root.
-    */
+    //
     vMerkleTree.clear();
     vMerkleTree.reserve(vtx.size() * 2 + 16); // Safe upper bound for the number of total nodes.
     for (std::vector<CTransaction>::const_iterator it(vtx.begin()); it != vtx.end(); ++it)
@@ -76,7 +96,7 @@ uint256 CBlock::BuildMerkleTree(bool* fMutated) const
     }
     return (vMerkleTree.empty() ? 0 : vMerkleTree.back());
 }
-
+*/
 std::vector<uint256> CBlock::GetMerkleBranch(int nIndex) const
 {
     if (vMerkleTree.empty())
