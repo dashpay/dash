@@ -12,6 +12,14 @@
 
 uint256 CBlockHeader::GetHash() const
 {
+    if (nVersion > 10)
+        return Hash(BEGIN(nVersion), END(nNonce));
+    else
+        return Hash9(BEGIN(nVersion), END(nNonce));
+}
+
+uint256 CBlockHeader::GetPOWHash() const
+{
     return Hash9(BEGIN(nVersion), END(nNonce));
 }
 
@@ -20,6 +28,7 @@ uint256 CBlock::BuildMerkleTree(bool* fMutated) const
     vMerkleTree.clear();
     BOOST_FOREACH(const CTransaction& tx, vtx)
         vMerkleTree.push_back(tx.GetHash());
+
     int j = 0;
     for (int nSize = vtx.size(); nSize > 1; nSize = (nSize + 1) / 2)
     {
@@ -31,8 +40,12 @@ uint256 CBlock::BuildMerkleTree(bool* fMutated) const
         }
         j += nSize;
     }
+    /*if (fMutated) {
+        *fMutated = mutated;
+    }*/
     return (vMerkleTree.empty() ? 0 : vMerkleTree.back());
 }
+
 /*
 uint256 CBlock::BuildMerkleTree(bool* fMutated) const
 {
@@ -97,6 +110,7 @@ uint256 CBlock::BuildMerkleTree(bool* fMutated) const
     return (vMerkleTree.empty() ? 0 : vMerkleTree.back());
 }
 */
+
 std::vector<uint256> CBlock::GetMerkleBranch(int nIndex) const
 {
     if (vMerkleTree.empty())

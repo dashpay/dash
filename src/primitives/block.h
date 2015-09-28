@@ -24,7 +24,7 @@ class CBlockHeader
 {
 public:
     // header
-    static const int32_t CURRENT_VERSION=3;
+    static const int32_t CURRENT_VERSION = 7;
     int32_t nVersion;
     uint256 hashPrevBlock;
     uint256 hashMerkleRoot;
@@ -66,7 +66,7 @@ public:
     }
 
     uint256 GetHash() const;
-
+    uint256 GetPOWHash() const;
     int64_t GetBlockTime() const
     {
         return (int64_t)nTime;
@@ -83,6 +83,7 @@ public:
     // memory only
     mutable CScript payee;
     mutable std::vector<uint256> vMerkleTree;
+
 
     CBlock()
     {

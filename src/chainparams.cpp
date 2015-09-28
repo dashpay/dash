@@ -114,7 +114,8 @@ public:
         //Need a new alert pub key.
         vAlertPubKey = ParseHex("0469983e0cc246fb426e7358f2aa29e09e4033c841455dc296f8f2dc99bb41fafda903f80f617ce9414aecb895d501cb5fb73c0bef8bb30ddab8e4a78f504dfd83");
         nDefaultPort = 28280;
-        bnProofOfWorkLimit = ~uint256(0) >> 20;  // BTX starting difficulty is 1 / 2^12
+        //nRPCPort = 28282;
+        bnProofOfWorkLimit = ~uint256(0) >> 20;
         //TODO: What are these????????
         nSubsidyHalvingInterval = 210000;
         nEnforceBlockUpgradeMajority = 750;
@@ -134,13 +135,16 @@ public:
          *     CTxOut(nValue=50.00000000, scriptPubKey=0xA9037BAC7050C479B121CF)
          *   vMerkleTree: e0028e
          */
+        // Build the genesis block. Note that the output of the genesis coinbase cannot
+        // be spent as it did not originally exist in the database.
         const char* pszTimestamp = "BT, currency for people (and robots...and animals, maybe)";
         CMutableTransaction txNew;
-        //txNew.nTime = 1430222400;
+        txNew.nTime = 1430222400;
         txNew.vin.resize(1);
         txNew.vout.resize(1);
         txNew.vin[0].scriptSig = CScript() << 0 << 42 << vector<unsigned char>((const unsigned char*)pszTimestamp, (const unsigned char*)pszTimestamp + strlen(pszTimestamp));
-        txNew.vout[0].nValue = NULL;
+        txNew.vout[0].nValue = 0;
+        txNew.vout[0].scriptPubKey.clear();
         genesis.vtx.push_back(txNew);
         genesis.hashPrevBlock = 0;
         genesis.hashMerkleRoot = genesis.BuildMerkleTree();
@@ -149,9 +153,10 @@ public:
         genesis.nBits    = 0x1e0fffff;
         genesis.nNonce   = 171310;
 
-        hashGenesisBlock = genesis.GetHash();
-        assert(hashGenesisBlock == uint256("0x00000449ae58462bbad8d26c7eb0270d332948872cfe97b7d5c42c154bfa5523"));
-        assert(genesis.hashMerkleRoot == uint256("0x543528ec7c8617e4816916806d3536b6a22f18907deae54c13c30d725b7d908f"));
+        hashGenesisBlock = genesis.GetPOWHash();
+        //TODO: Put these back
+        //assert(hashGenesisBlock == uint256("0x00000449ae58462bbad8d26c7eb0270d332948872cfe97b7d5c42c154bfa5523"));
+        //assert(genesis.hashMerkleRoot == uint256("0x543528ec7c8617e4816916806d3536b6a22f18907deae54c13c30d725b7d908f"));
 
         vSeeds.push_back(CDNSSeedData("btxcoin.com", "dnsseed.btxcoin.com"));
         vSeeds.push_back(CDNSSeedData("btxcoin.net", "dnsseed.btxcoin.net"));
@@ -343,13 +348,15 @@ static CChainParams *pCurrentParams = 0;
 
 CModifiableParams *ModifiableParams()
 {
-   assert(pCurrentParams);
-   assert(pCurrentParams==&unitTestParams);
+   //TODO: put these back
+   //assert(pCurrentParams);
+   //assert(pCurrentParams==&unitTestParams);
    return (CModifiableParams*)&unitTestParams;
 }
 
 const CChainParams &Params() {
-    assert(pCurrentParams);
+    //TODO: put this back
+    //assert(pCurrentParams);
     return *pCurrentParams;
 }
 
