@@ -40,14 +40,14 @@ color:#333;
 }
 
 QToolBar {
-background-color:#3398CC;
+background-color:#ff8c00;
 border:0px solid #000;
 padding:0;
 margin:0;
 }
 
 QToolBar > QToolButton {
-background-color:#3398CC;
+background-color:#ff8c00;
 border:0px solid #333;
 min-height:2.5em;
 padding: 0em 1em;
@@ -101,7 +101,7 @@ background-color:#f2f2f2;
 /*******************************************************/
 
 QPushButton { /* Global Button Style */
-background-color:qlineargradient(x1: 0, y1: 0, x2: 0, y2: 1, stop: .01 #64ACD2, stop: .1 #3398CC, stop: .95 #3398CC, stop: 1 #1D80B5);
+background-color:qlineargradient(x1: 0, y1: 0, x2: 0, y2: 1, stop: .01 #64ACD2, stop: .1 #ff8c00, stop: .95 #ff8c00, stop: 1 #1D80B5);
 border:0;
 border-radius:3px;
 color:#ffffff;
@@ -139,7 +139,7 @@ background:#f2f2f2;
 }
 
 QComboBox:editable {
-background: #3398CC;
+background: #ff8c00;
 color:#616161;
 border:0px solid transparent;
 }
@@ -656,7 +656,7 @@ min-width:180px;
 }
 
 QDialog#RPCConsole QWidget#tab_peers  QLabel#peerHeading { /* Peers Info Header */
-color:#3398CC;
+color:#ff8c00;
 }
 
 QDialog#RPCConsole QPushButton#openDebugLogfileButton {
@@ -700,16 +700,16 @@ QDialog#HelpMessageDialog QScrollBar:vertical, QDialog#HelpMessageDialog QScroll
 border:0;
 }
 
-/* About Dash Dialog */
+/* About BTX Dialog */
 QDialog#AboutDialog {
 background-color:#F8F6F6;
 }
 
-QDialog#AboutDialog QLabel#label, QDialog#AboutDialog QLabel#copyrightLabel, QDialog#AboutDialog QLabel#label_2 { /* About Dash Contents */
+QDialog#AboutDialog QLabel#label, QDialog#AboutDialog QLabel#copyrightLabel, QDialog#AboutDialog QLabel#label_2 { /* About BTX Contents */
 margin-left:10px;
 }
 
-QDialog#AboutDialog QLabel#label_2 { /* Margin for About Dash text */
+QDialog#AboutDialog QLabel#label_2 { /* Margin for About BTX text */
 margin-right:10px;
 }
 
@@ -920,7 +920,7 @@ color:#818181;
 }
 
 QWidget .QFrame#frameDarksend #formLayoutWidget .QProgressBar#darksendProgress::chunk {
-background-color: #3398CC;
+background-color: #ff8c00;
 width:1px;
 }
 
@@ -1042,13 +1042,13 @@ min-width:410px;
 margin-right:20px;
 margin-left:0;
 margin-top:0;
-background-image: url(':/images/dash_logo_horizontal');
+background-image: url(':/images/btx_logo_horizontal');
 background-repeat:none;
 }
 
 QWidget .QFrame#frame_2 .QLabel#label_4 { /* Recent Transactions Label */
 min-width:180px;
-color:#3398CC;
+color:#ff8c00;
 margin-left:67px;
 margin-top:83px;
 margin-right:5px;
@@ -1092,7 +1092,7 @@ min-height:25px;
 }
 
 QDialog#SendCoinsDialog .QFrame#frameCoinControl .QLabel#labelCoinControlFeatures { /* Coin Control Header */
-color:#3398CC;
+color:#ff8c00;
 font-weight:bold;
 font-size:14px;
 }
@@ -1475,7 +1475,7 @@ border:1px solid #9e9e9e;
 }
 
 QWidget#ReceiveCoinsDialog .QFrame#frame .QLabel#label_6 { /* Requested Payments History Label */
-color:#3398CC;
+color:#ff8c00;
 font-weight:bold;
 font-size:14px;
 }

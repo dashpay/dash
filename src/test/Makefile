@@ -1,6 +1,6 @@
 all:
-	$(MAKE) -C .. dash_test
+	$(MAKE) -C .. btx_test
 clean:
-	$(MAKE) -C .. dash_test_clean
+	$(MAKE) -C .. btx_test_clean
 check:
-	$(MAKE) -C .. dash_test_check
+	$(MAKE) -C .. btx_test_check

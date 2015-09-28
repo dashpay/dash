@@ -134,6 +134,12 @@ public:
         nRounds = -10; // an initial value, should be no way to get this by calculations
     }
 
+    void SetEmpty()
+    {
+        nValue =  0;
+        scriptPubKey.clear();
+    }
+
     bool IsNull() const
     {
         return (nValue == -1);
@@ -193,6 +199,7 @@ public:
     const std::vector<CTxIn> vin;
     const std::vector<CTxOut> vout;
     const uint32_t nLockTime;
+
 
     /** Construct a CTransaction that qualifies as IsNull() */
     CTransaction();
@@ -259,6 +266,7 @@ struct CMutableTransaction
     std::vector<CTxIn> vin;
     std::vector<CTxOut> vout;
     uint32_t nLockTime;
+    uint32_t nTime;
 
     CMutableTransaction();
     CMutableTransaction(const CTransaction& tx);
@@ -269,6 +277,7 @@ struct CMutableTransaction
     inline void SerializationOp(Stream& s, Operation ser_action, int nType, int nVersion) {
         READWRITE(this->nVersion);
         nVersion = this->nVersion;
+        READWRITE(nTime);
         READWRITE(vin);
         READWRITE(vout);
         READWRITE(nLockTime);
