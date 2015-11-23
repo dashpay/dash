@@ -343,7 +343,7 @@ std::string HelpMessage(HelpMessageMode mode)
     strUsage += "  -keepasskey=<key>        " + _("KeePassHttp key for AES encrypted communication with KeePass") + "\n";
     strUsage += "  -keepassid=<name>        " + _("KeePassHttp id for the established association") + "\n";
     strUsage += "  -keepassname=<name>      " + _("Name to construct url for KeePass entry that stores the wallet passphrase") + "\n";
-    strUsage += "  -keypool=<n>             " + strprintf(_("Set key pool size to <n> (default: %u)"), 100) + "\n";
+    strUsage += "  -keypool=<n>             " + strprintf(_("Set key pool size to <n> (default: %u). Run 'keypoolrefill' to apply this to already existing wallets"), DEFAULT_KEYPOOL_SIZE) + "\n";
     if (GetBoolArg("-help-debug", false))
         strUsage += "  -mintxfee=<amt>          " + strprintf(_("Fees (in DASH/Kb) smaller than this are considered zero fee for transaction creation (default: %s)"), FormatMoney(CWallet::minTxFee.GetFeePerK())) + "\n";
     strUsage += "  -paytxfee=<amt>          " + strprintf(_("Fee (in DASH/kB) to add to transactions you send (default: %s)"), FormatMoney(payTxFee.GetFeePerK())) + "\n";
@@ -419,6 +419,7 @@ std::string HelpMessage(HelpMessageMode mode)
 
     strUsage += "\n" + _("Darksend options:") + "\n";
     strUsage += "  -enabledarksend=<n>          " + strprintf(_("Enable use of automated darksend for funds stored in this wallet (0-1, default: %u)"), 0) + "\n";
+    strUsage += "  -darksendmultisession=<n>    " + strprintf(_("Enable multiple darksend mixing sessions per block, experimental (0-1, default: %u)"), 0) + "\n";
     strUsage += "  -darksendrounds=<n>          " + strprintf(_("Use N separate masternodes to anonymize funds  (2-8, default: %u)"), 2) + "\n";
     strUsage += "  -anonymizedashamount=<n>     " + strprintf(_("Keep N DASH anonymized (default: %u)"), 0) + "\n";
     strUsage += "  -liquidityprovider=<n>       " + strprintf(_("Provide liquidity to Darksend by infrequently mixing coins on a continual basis (0-100, default: %u, 1=very frequent, high fees, 100=very infrequent, low fees)"), 0) + "\n";
@@ -1521,6 +1522,7 @@ bool AppInit2(boost::thread_group& threadGroup)
     }
 
     fEnableDarksend = GetBoolArg("-enabledarksend", false);
+    fDarksendMultiSession = GetBoolArg("-darksendmultisession", false);
 
     nDarksendRounds = GetArg("-darksendrounds", 2);
     if(nDarksendRounds > 16) nDarksendRounds = 16;
@@ -1531,6 +1533,7 @@ bool AppInit2(boost::thread_group& threadGroup)
         darkSendPool.SetMinBlockSpacing(std::min(nLiquidityProvider,100)*15);
         fEnableDarksend = true;
         nDarksendRounds = 99999;
+        fDarksendMultiSession = false;
     }
 
     nAnonymizeDarkcoinAmount = GetArg("-anonymizedashamount", 0);

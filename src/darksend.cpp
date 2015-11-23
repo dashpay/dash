@@ -379,8 +379,6 @@ void CDarksendPool::ProcessMessageDarksend(CNode* pfrom, std::string& strCommand
 
 }
 
-int randomizeList (int i) { return std::rand()%i;}
-
 void CDarksendPool::Reset(){
     cachedLastSuccess = 0;
     lastNewBlock = 0;
@@ -533,9 +531,9 @@ void CDarksendPool::Check()
                     txNew.vin.push_back(s);
             }
 
-            // shuffle the outputs for improved anonymity
-            std::random_shuffle ( txNew.vin.begin(),  txNew.vin.end(),  randomizeList);
-            std::random_shuffle ( txNew.vout.begin(), txNew.vout.end(), randomizeList);
+            // BIP69 https://github.com/kristovatlas/bips/blob/master/bip-0069.mediawiki
+            sort(txNew.vin.begin(), txNew.vin.end());
+            sort(txNew.vout.begin(), txNew.vout.end());
 
 
             LogPrint("darksend", "Transaction 1: %s\n", txNew.ToString());
@@ -946,7 +944,7 @@ bool CDarksendPool::IsCollateralValid(const CTransaction& txCollateral){
         nValueOut += o.nValue;
 
         if(!o.scriptPubKey.IsNormalPaymentScript()){
-            LogPrintf ("CDarksendPool::IsCollateralValid - Invalid Script %s\n", txCollateral.ToString());
+            LogPrintf ("CDarksendPool::IsCollateralValid - Invalid Script %s", txCollateral.ToString());
             return false;
         }
     }
@@ -964,17 +962,17 @@ bool CDarksendPool::IsCollateralValid(const CTransaction& txCollateral){
     }
 
     if(missingTx){
-        LogPrint("darksend", "CDarksendPool::IsCollateralValid - Unknown inputs in collateral transaction - %s\n", txCollateral.ToString());
+        LogPrint("darksend", "CDarksendPool::IsCollateralValid - Unknown inputs in collateral transaction - %s", txCollateral.ToString());
         return false;
     }
 
     //collateral transactions are required to pay out DARKSEND_COLLATERAL as a fee to the miners
     if(nValueIn - nValueOut < DARKSEND_COLLATERAL) {
-        LogPrint("darksend", "CDarksendPool::IsCollateralValid - did not include enough fees in transaction %d\n%s\n", nValueOut-nValueIn, txCollateral.ToString());
+        LogPrint("darksend", "CDarksendPool::IsCollateralValid - did not include enough fees in transaction %d\n%s", nValueOut-nValueIn, txCollateral.ToString());
         return false;
     }
 
-    LogPrint("darksend", "CDarksendPool::IsCollateralValid %s\n", txCollateral.ToString());
+    LogPrint("darksend", "CDarksendPool::IsCollateralValid %s", txCollateral.ToString());
 
     {
         LOCK(cs_main);
@@ -1382,7 +1380,7 @@ bool CDarksendPool::DoAutomaticDenominating(bool fDryRun)
         return false;
     }
 
-    if(chainActive.Tip()->nHeight - cachedLastSuccess < minBlockSpacing) {
+    if(!fDarksendMultiSession && chainActive.Tip()->nHeight - cachedLastSuccess < minBlockSpacing) {
         LogPrintf("CDarksendPool::DoAutomaticDenominating - Last successful Darksend action was too recent\n");
         strAutoDenomResult = _("Last successful Darksend action was too recent.");
         return false;
@@ -1475,7 +1473,7 @@ bool CDarksendPool::DoAutomaticDenominating(bool fDryRun)
         int nUseQueue = rand()%100;
         UpdateState(POOL_STATUS_ACCEPTING_ENTRIES);
 
-        if(pwalletMain->GetDenominatedBalance(true) > 0){ //get denominated unconfirmed inputs
+        if(!fDarksendMultiSession && pwalletMain->GetDenominatedBalance(true) > 0) { //get denominated unconfirmed inputs
             LogPrintf("DoAutomaticDenominating -- Found unconfirmed denominated outputs, will wait till they confirm to continue.\n");
             strAutoDenomResult = _("Found unconfirmed denominated outputs, will wait till they confirm to continue.");
             return false;

@@ -397,6 +397,15 @@ void openConfigfile()
         QDesktopServices::openUrl(QUrl::fromLocalFile(boostPathToQString(pathConfig)));
 }
 
+void openMNConfigfile()
+{
+    boost::filesystem::path pathConfig = GetMasternodeConfigFile();
+
+    /* Open masternode.conf with the associated application */
+    if (boost::filesystem::exists(pathConfig))
+        QDesktopServices::openUrl(QUrl::fromLocalFile(boostPathToQString(pathConfig)));
+}
+
 void showBackups()
 {
     boost::filesystem::path pathBackups = GetDataDir() / "backups";
@@ -803,6 +812,18 @@ void restoreWindowGeometry(const QString& strSetting, const QSize& defaultSize, 
 
     parent->resize(size);
     parent->move(pos);
+}
+
+// Return name of current UI-theme or default theme if no theme was found
+QString getThemeName()
+{
+    QSettings settings;
+    QString theme = settings.value("theme", "").toString();
+
+    if(!theme.isEmpty()){
+        return theme;
+    }
+    return QString("drkblue");  
 }
 
 // Open CSS when configured
