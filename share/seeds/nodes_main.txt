@@ -1,4 +1,4 @@
 # List of fixed seed nodes for main network
 
 # IPv4 nodes (generated using contrib/seeds/makeseeds.py)
-188.239.9.14
+188.239.9.141
