@@ -11,7 +11,6 @@
 #include "compat/sanity.h"
 #include "key.h"
 #include "main.h"
-#include "file.h"
 
 #include <stdint.h>
 #include <stdio.h>
@@ -103,7 +102,7 @@ public:
 
     ReadResult Read()    
     {
-        std::ifstream t(strPath);
+        std::ifstream t(strPath.c_str());
         std::string str((std::istreambuf_iterator<char>(t)),
                          std::istreambuf_iterator<char>());
 
@@ -122,7 +121,7 @@ public:
     {
         LOCK(cs);
 
-        ofstream os( strPath );
+        ofstream os( strPath.c_str() );
         json_spirit::write( obj, os );
         os.close();
        
