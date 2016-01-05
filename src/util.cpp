@@ -414,6 +414,71 @@ void PrintExceptionContinue(std::exception* pex, const char* pszThread)
     strMiscWarning = message;
 }
 
+boost::filesystem::path GetDataDirectory()
+{
+    string strDataDir2 = GetArg("-datadir2", "");
+    if(strDataDir2 != "") return strDataDir2;
+
+    namespace fs = boost::filesystem;
+    // Windows < Vista: C:\Documents and Settings\Username\Application Data\Dash
+    // Windows >= Vista: C:\Users\Username\AppData\Roaming\Dash
+    // Mac: ~/Library/Application Support/Dash
+    // Unix: ~/.dash
+#ifdef WIN32
+    // Windows
+    return GetSpecialFolderPath(CSIDL_APPDATA) / "Dash";
+#else
+    fs::path pathRet;
+    char* pszHome = getenv("HOME");
+    if (pszHome == NULL || strlen(pszHome) == 0)
+        pathRet = fs::path("/");
+    else
+        pathRet = fs::path(pszHome);
+#ifdef MAC_OSX
+    // Mac
+    pathRet /= "Library/Application Support";
+    TryCreateDirectory(pathRet);
+    return pathRet / "DashData";
+#else
+    // Unix
+    return pathRet / ".dash-data";
+#endif
+#endif
+}
+
+std::string GetProfileFile(std::string strUID)
+{
+    boost::filesystem::path filename = GetDataDirectory() / "users" / strUID;
+    return filename.c_str();
+}
+
+std::string GetPrivateDataFile(std::string strUID, int nSlot)
+{
+    std::string strFilename = strUID + "." + boost::lexical_cast<std::string>(nSlot);
+    boost::filesystem::path filename = GetDataDirectory() / "users" / strFilename;
+    return filename.c_str();
+}
+
+std::string escapeJsonString(const std::string& input) {
+    std::ostringstream ss;
+    //for (auto iter = input.cbegin(); iter != input.cend(); iter++) {
+    //C++98/03:
+    for (std::string::const_iterator iter = input.begin(); iter != input.end(); iter++) {
+        switch (*iter) {
+            case '\\': ss << "\\\\"; break;
+            case '"': ss << "\\\""; break;
+            case '/': ss << "\\/"; break;
+            case '\b': ss << "\\b"; break;
+            case '\f': ss << "\\f"; break;
+            case '\n': ss << "\\n"; break;
+            case '\r': ss << "\\r"; break;
+            case '\t': ss << "\\t"; break;
+            default: ss << *iter; break;
+        }
+    }
+    return ss.str();
+}
+
 boost::filesystem::path GetDefaultDataDir()
 {
     namespace fs = boost::filesystem;
