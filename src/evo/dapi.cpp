@@ -5,16 +5,11 @@
 // Distributed under the MIT/X11 software license, see the accompanying
 // file COPYING or http://www.opensource.org/licenses/mit-license.php.
 
-
 #include "main.h"
 #include "core_io.h"
 #include "db.h"
 #include "init.h"
 #include "dapi.h"
-#include "file.h"
-#include "json/json_spirit.h"
-#include "json/json_spirit_value.h"
-
 
 int nError;
 std::string strErrorMessage;
@@ -555,6 +550,8 @@ bool CDAPI::InviteUser(Object& obj)
     printf("7 %s\n", strJson.c_str());
 
     EventNotify(strJson);
+    
+    return true;
 }
 
 bool CDAPI::ValidateAccount(Object& obj)
@@ -632,5 +629,7 @@ bool CDAPI::ValidateAccount(Object& obj)
     printf("7 %s\n", strJson.c_str());
 
     EventNotify(strJson);
+    
+    return true;
 }
 

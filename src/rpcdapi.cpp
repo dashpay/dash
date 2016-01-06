@@ -9,14 +9,9 @@
 #include "rpcserver.h"
 #include "utilmoneystr.h"
 #include "evo/dapi.h"
-#include "evo/file.h"
+// #include "evo/file.h"
 
 #include "util.h"
-
-#include <stdint.h>
-
-#include "json/json_spirit_value.h"
-#include "univalue/univalue.h"
 
 #include <fstream>
 using namespace json_spirit;
@@ -87,7 +82,7 @@ Value dapif(const Array& params, bool fHelp)
     */
 
     std::string strPath = params[0].get_str();
-    std::ifstream t(strPath);
+    std::ifstream t(strPath.c_str());
     std::string str((std::istreambuf_iterator<char>(t)),
                      std::istreambuf_iterator<char>());
 
