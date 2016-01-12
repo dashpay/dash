@@ -174,4 +174,113 @@ public:
     bool HaveCoins(const uint256 &txid) const;
 };
 
+/// Keep track of fee/priority for transactions confirmed within N blocks
+class CBlockAverage
+{
+private:
+    boost::circular_buffer<CFeeRate> feeSamples;
+    boost::circular_buffer<double> prioritySamples;
+
+    template<typename T> std::vector<T> buf2vec(boost::circular_buffer<T> buf) const
+    {
+        std::vector<T> vec(buf.begin(), buf.end());
+        return vec;
+    }
+
+public:
+    CBlockAverage() : feeSamples(100), prioritySamples(100) { }
+
+    void RecordFee(const CFeeRate& feeRate) {
+        feeSamples.push_back(feeRate);
+    }
+
+    void RecordPriority(double priority) {
+        prioritySamples.push_back(priority);
+    }
+
+    size_t FeeSamples() const { return feeSamples.size(); }
+    size_t GetFeeSamples(std::vector<CFeeRate>& insertInto) const
+    {
+        BOOST_FOREACH(const CFeeRate& f, feeSamples)
+            insertInto.push_back(f);
+        return feeSamples.size();
+    }
+    size_t PrioritySamples() const { return prioritySamples.size(); }
+    size_t GetPrioritySamples(std::vector<double>& insertInto) const
+    {
+        BOOST_FOREACH(double d, prioritySamples)
+            insertInto.push_back(d);
+        return prioritySamples.size();
+    }
+
+    /// Used as belt-and-suspenders check when reading to detect
+    /// file corruption
+    static bool AreSane(const CFeeRate fee, const CFeeRate& minRelayFee)
+    {
+        if (fee < CFeeRate(0))
+            return false;
+        if (fee.GetFeePerK() > minRelayFee.GetFeePerK() * 10000)
+            return false;
+        return true;
+    }
+
+    static bool AreSane(const std::vector<CFeeRate>& vecFee, const CFeeRate& minRelayFee)
+    {
+        BOOST_FOREACH(CFeeRate fee, vecFee)
+        {
+            if (!AreSane(fee, minRelayFee))
+                return false;
+        }
+        return true;
+    }
+
+    static bool AreSane(const double priority)
+    {
+        return priority >= 0;
+    }
+
+    static bool AreSane(const std::vector<double> vecPriority)
+    {
+        BOOST_FOREACH(double priority, vecPriority)
+        {
+            if (!AreSane(priority))
+                return false;
+        }
+        return true;
+    }
+
+    void Write(CAutoFile& fileout) const;
+    void Read(CAutoFile& filein, const CFeeRate& minRelayFee);
+};
+
+class CMinerPolicyEstimator
+{
+private:
+    /// Records observed averages transactions that confirmed within one block, two blocks,
+    /// three blocks etc.
+    std::vector<CBlockAverage> history;
+    std::vector<CFeeRate> sortedFeeSamples;
+    std::vector<double> sortedPrioritySamples;
+
+    int nBestSeenHeight;
+
+    /// nBlocksAgo is 0 based, i.e. transactions that confirmed in the highest seen block are
+    /// nBlocksAgo == 0, transactions in the block before that are nBlocksAgo == 1 etc.
+    void seenTxConfirm(const CFeeRate& feeRate, const CFeeRate& minRelayFee, double dPriority, int nBlocksAgo);
+
+public:
+    CMinerPolicyEstimator(int nEntries) : nBestSeenHeight(0)
+    {
+        history.resize(nEntries);
+    }
+
+    /// Can return CFeeRate(0) if we don't have any data for that many blocks back. nBlocksToConfirm is 1 based.
+    CFeeRate estimateFee(int nBlocksToConfirm);
+    double estimatePriority(int nBlocksToConfirm);
+
+    void seenBlock(const std::vector<CTxMemPoolEntry>& entries, int nBlockHeight, const CFeeRate minRelayFee);
+    void Write(CAutoFile& fileout) const;
+    void Read(CAutoFile& filein, const CFeeRate& minRelayFee);
+};
+
 #endif // BITCOIN_TXMEMPOOL_H
