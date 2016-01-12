@@ -7,14 +7,8 @@
 
 #include "clientversion.h"
 #include "main.h"
-#include "streams.h"
-#include "util.h"
 #include "utilmoneystr.h"
 #include "version.h"
-
-#include <boost/circular_buffer.hpp>
-
-using namespace std;
 
 CTxMemPoolEntry::CTxMemPoolEntry():
     nFee(0), nTxSize(0), nModSize(0), nTime(0), dPriority(0.0)
@@ -535,7 +529,6 @@ void CMinerPolicyEstimator::seenBlock(const std::vector<CTxMemPoolEntry>& entrie
     }
 }
 
-/// Can return CFeeRate(0) if we don't have any data for that many blocks back. nBlocksToConfirm is 1 based.
 CFeeRate CMinerPolicyEstimator::estimateFee(int nBlocksToConfirm)
 {
     nBlocksToConfirm--;

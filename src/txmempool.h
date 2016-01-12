@@ -7,11 +7,17 @@
 #define BITCOIN_TXMEMPOOL_H
 
 #include <list>
+#include <stdarg.h>
+#include <boost/circular_buffer.hpp>
 
 #include "amount.h"
 #include "coins.h"
 #include "primitives/transaction.h"
 #include "sync.h"
+#include "util.h"
+#include "streams.h"
+
+using namespace std;
 
 class CAutoFile;
 
@@ -223,7 +229,6 @@ public:
             return false;
         return true;
     }
-
     static bool AreSane(const std::vector<CFeeRate>& vecFee, const CFeeRate& minRelayFee)
     {
         BOOST_FOREACH(CFeeRate fee, vecFee)
@@ -233,12 +238,10 @@ public:
         }
         return true;
     }
-
     static bool AreSane(const double priority)
     {
         return priority >= 0;
     }
-
     static bool AreSane(const std::vector<double> vecPriority)
     {
         BOOST_FOREACH(double priority, vecPriority)
@@ -256,6 +259,7 @@ public:
 class CMinerPolicyEstimator
 {
 private:
+
     /// Records observed averages transactions that confirmed within one block, two blocks,
     /// three blocks etc.
     std::vector<CBlockAverage> history;
@@ -274,13 +278,16 @@ public:
         history.resize(nEntries);
     }
 
+    void seenBlock(const std::vector<CTxMemPoolEntry>& entries, int nBlockHeight, const CFeeRate minRelayFee);
+
     /// Can return CFeeRate(0) if we don't have any data for that many blocks back. nBlocksToConfirm is 1 based.
     CFeeRate estimateFee(int nBlocksToConfirm);
     double estimatePriority(int nBlocksToConfirm);
 
-    void seenBlock(const std::vector<CTxMemPoolEntry>& entries, int nBlockHeight, const CFeeRate minRelayFee);
     void Write(CAutoFile& fileout) const;
+
     void Read(CAutoFile& filein, const CFeeRate& minRelayFee);
+
 };
 
 #endif // BITCOIN_TXMEMPOOL_H
