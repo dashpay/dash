@@ -454,7 +454,7 @@ CMasternode* CMasternodeMan::GetNextMasternodeInQueueForPayment(int nBlockHeight
         mn.Check();
         if(!mn.IsEnabled()) continue;
 
-        // //check protocol version
+        //check protocol version
         if(mn.protocolVersion < masternodePayments.GetMinMasternodePaymentsProto()) continue;
 
         //it's in the list (up to 8 entries ahead of current block to allow propagation) -- so let's skip it
