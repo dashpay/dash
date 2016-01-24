@@ -9,8 +9,9 @@
 #include "protocol.h"
 #include "instantx.h"
 #include "activemasternode.h"
-#include "masternodeman.h"
 #include "darksend.h"
+#include "masternode-sync.h"
+#include "masternodeman.h"
 #include "spork.h"
 #include <boost/lexical_cast.hpp>
 

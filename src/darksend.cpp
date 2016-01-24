@@ -6,6 +6,8 @@
 #include "main.h"
 #include "init.h"
 #include "util.h"
+#include "masternode-payments.h"
+#include "masternode-sync.h"
 #include "masternodeman.h"
 #include "script/sign.h"
 #include "instantx.h"

@@ -19,6 +19,7 @@
 #ifdef ENABLE_WALLET
 #include "db.h"
 #include "wallet.h"
+#include "masternode-sync.h"
 #endif
 
 #include <stdint.h>
