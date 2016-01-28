@@ -81,6 +81,9 @@ private Q_SLOTS:
 
 public Q_SLOTS:
     void clear();
+    void fontBigger();
+    void fontSmaller();
+    void setFontSize(int newSize);
     
     /** Wallet repair options */
     void walletSalvage();
@@ -152,6 +155,7 @@ private:
     RPCTimerInterface *rpcTimerInterface;
     QMenu *peersTableContextMenu;
     QMenu *banTableContextMenu;
+    int consoleFontSize;
     QCompleter *autoCompleter;
 };
 
