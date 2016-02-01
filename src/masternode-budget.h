@@ -426,7 +426,7 @@ public:
         //Proposals must be at least a day old to make it into a budget
         if(Params().NetworkID() == CBaseChainParams::MAIN) return (nTime < GetTime() - (60*60*24));
 
-        //for testing purposes - 4 hours
+        //for testing purposes - 20 minutes
         return (nTime < GetTime() - (60*20));
     }
 
@@ -441,9 +441,10 @@ public:
     int GetBlockCurrentCycle();
     int GetBlockEndCycle();
     double GetRatio();
-    int GetYeas();
-    int GetNays();
-    int GetAbstains();
+    int GetAbsoluteYesCount();
+    int GetYesCount();
+    int GetNoCount();
+    int GetAbstainCount();
     CAmount GetAmount() {return nAmount;}
     void SetAllotted(CAmount nAllotedIn) {nAlloted = nAllotedIn;}
     CAmount GetAllotted() {return nAlloted;}
@@ -474,6 +475,7 @@ public:
         READWRITE(nBlockStart);
         READWRITE(nBlockEnd);
         READWRITE(nAmount);
+
         READWRITE(address);
         READWRITE(nTime);
         READWRITE(nFeeTXHash);
