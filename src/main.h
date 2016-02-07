@@ -215,10 +215,11 @@ bool DisconnectBlocksAndReprocess(int blocks);
 
 // ***TODO***
 double ConvertBitsToDouble(unsigned int nBits);
-int64_t GetMasternodePayment(int nHeight, int64_t blockValue);
+CAmount GetMasternodePayment(int nHeight, CAmount blockValue);
 unsigned int GetNextWorkRequired(const CBlockIndex* pindexLast, const CBlockHeader *pblock);
 
 bool ActivateBestChain(CValidationState &state, CBlock *pblock = NULL);
+int64_t GetTotalCoinEstimate(int nHeight);
 CAmount GetBlockValue(int nBits, int nHeight, const CAmount& nFees);
 
 /** Create a new block index entry for a given block hash */

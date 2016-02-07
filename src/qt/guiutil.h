@@ -108,7 +108,10 @@ namespace GUIUtil
 	
     // Open dash.conf
     void openConfigfile();	
-    
+
+    // Open masternode.conf
+    void openMNConfigfile();	
+
     // Browse backup folder
     void showBackups();
 
@@ -182,6 +185,9 @@ namespace GUIUtil
 
     /** Load global CSS theme */
     QString loadStyleSheet();
+
+    /** Return name of current CSS theme */
+    QString getThemeName();
     
     /* Convert QString to OS specific boost path through UTF-8 */
     boost::filesystem::path qstringToBoostPath(const QString &path);

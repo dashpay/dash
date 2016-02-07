@@ -14,9 +14,10 @@
 #include "init.h"
 #include "instantx.h"
 #include "darksend.h"
-#include "masternodeman.h"
-#include "masternode-payments.h"
 #include "masternode-budget.h"
+#include "masternode-payments.h"
+#include "masternode-sync.h"
+#include "masternodeman.h"
 #include "merkleblock.h"
 #include "net.h"
 #include "pow.h"
@@ -78,7 +79,6 @@ struct COrphanTx {
 map<uint256, COrphanTx> mapOrphanTransactions;
 map<uint256, set<uint256> > mapOrphanTransactionsByPrev;
 map<uint256, int64_t> mapRejectedBlocks;
-
 
 void EraseOrphansFor(NodeId peer);
 
@@ -1534,14 +1534,51 @@ double ConvertBitsToDouble(unsigned int nBits)
     return dDiff;
 }
 
-int64_t GetBlockValue(int nBits, int nHeight, const CAmount& nFees)
+int64_t GetTotalCoinEstimate(int nHeight)
+{
+    int64_t nTotalCoins = 0;
+
+    // TODO: This could be vastly improved, look at GetBlockValue for a better method
+    
+    //2 million coins in first two days
+    if(nHeight > 5076) {
+        nTotalCoins += 2021642;
+    }
+
+    /* these values are taken from the block explorer */
+    if(nHeight > 17000) {
+        nTotalCoins += 3267692-2021642;
+    } 
+
+    if(nHeight > 34000) {
+        nTotalCoins += 3688775-3267692; 
+    }
+
+    if(nHeight > 68000) {
+        nTotalCoins += 4277615-3688775;    
+    }
+
+    if(nHeight > 68000*2) {
+        nTotalCoins += 4649913.99999995-4277615;    
+    } else {
+        return nTotalCoins;
+    }
+
+    //5.383754730451325 per block average after this
+    nTotalCoins += ((nHeight-68000*2)*((5382104.64334133-4649913.99999995)/(68000*2)));    
+
+    // TODO: this should include the 7.1% decline too
+    return nTotalCoins;
+}
+
+CAmount GetBlockValue(int nBits, int nHeight, const CAmount& nFees)
 {
     double dDiff = (double)0x0000ffff / (double)(nBits & 0x00ffffff);
 
     /* fixed bug caused diff to not be correctly calculated */
     if(nHeight > 4500 || Params().NetworkID() == CBaseChainParams::TESTNET) dDiff = ConvertBitsToDouble(nBits);
 
-    int64_t nSubsidy = 0;
+    CAmount nSubsidy = 0;
     if(nHeight >= 5465) {
         if((nHeight >= 17000 && dDiff > 75) || nHeight >= 24000) { // GPU/ASIC difficulty calc
             // 2222222/(((x+2600)/9)^2)
@@ -1578,15 +1615,15 @@ int64_t GetBlockValue(int nBits, int nHeight, const CAmount& nFees)
     if(Params().NetworkID() == CBaseChainParams::TESTNET){
         if(nHeight > 77900+576) nSubsidy -= nSubsidy/10;
     } else {
-        if(nHeight > 309759+(553*33)) nSubsidy -= nSubsidy/10; // 328008 - 10.0% - September 6, 2015
+        if(nHeight > 309759+(553*33)) nSubsidy -= nSubsidy/10; // 328008 - 10.0% - 2015-08-30
     }
     
     return nSubsidy + nFees;
 }
 
-int64_t GetMasternodePayment(int nHeight, int64_t blockValue)
+CAmount GetMasternodePayment(int nHeight, CAmount blockValue)
 {
-    int64_t ret = blockValue/5; // start at 20%
+    CAmount ret = blockValue/5; // start at 20%
 
     if(Params().NetworkID() == CBaseChainParams::TESTNET) {
         if(nHeight > 46000)             ret += blockValue / 20; //25% - 2014-10-07
@@ -3314,7 +3351,7 @@ bool ProcessNewBlock(CValidationState &state, CNode* pfrom, CBlock* pblock, CDis
     if(!fLiteMode){
         if (masternodeSync.RequestedMasternodeAssets > MASTERNODE_SYNC_LIST) {
             darkSendPool.NewBlock();
-            masternodePayments.ProcessBlock(GetHeight()+10);
+            mnpayments.ProcessBlock(GetHeight()+10);
             budget.NewBlock();
         }
     }
@@ -3358,7 +3395,7 @@ bool AbortNode(const std::string &strMessage, const std::string &userMessage) {
     strMiscWarning = strMessage;
     LogPrintf("*** %s\n", strMessage);
     uiInterface.ThreadSafeMessageBox(
-        userMessage.empty() ? _("Error: A fatal internal error occured, see debug.log for details") : userMessage,
+        userMessage.empty() ? _("Error: A fatal internal error occurred, see debug.log for details") : userMessage,
         "", CClientUIInterface::MSG_ERROR);
     StartShutdown();
     return false;
@@ -4015,39 +4052,49 @@ bool static AlreadyHave(const CInv& inv)
         return mapTxLockVote.count(inv.hash);
     case MSG_SPORK:
         return mapSporks.count(inv.hash);
+
+    /* 
+        Dash Related Inventory Messages
+
+        --
+
+        We shouldn't update the sync times for each of the messages when we already have it. 
+        We're going to be asking many nodes upfront for the full inventory list, so we'll get duplicates of these.
+        We want to only update the time on new hits, so that we can time out appropriately if needed.
+    */
     case MSG_MASTERNODE_WINNER:
-        if(masternodePayments.mapMasternodePayeeVotes.count(inv.hash)) {
-            masternodeSync.AddedMasternodeWinner(inv.hash);
+        if(mnpayments.mapMasternodePayeeVotes.count(inv.hash)) {
+            //masternodeSync.AddedMasternodeWinner(inv.hash);
             return true;
         }
         return false;
     case MSG_BUDGET_VOTE:
         if(budget.mapSeenMasternodeBudgetVotes.count(inv.hash)) {
-            masternodeSync.AddedBudgetItem(inv.hash);
+            //masternodeSync.AddedBudgetItem(inv.hash);
             return true;
         }
         return false;
     case MSG_BUDGET_PROPOSAL:
         if(budget.mapSeenMasternodeBudgetProposals.count(inv.hash)) {
-            masternodeSync.AddedBudgetItem(inv.hash);
+            //masternodeSync.AddedBudgetItem(inv.hash);
             return true;
         }
         return false;
     case MSG_BUDGET_FINALIZED_VOTE:
         if(budget.mapSeenFinalizedBudgetVotes.count(inv.hash)) {
-            masternodeSync.AddedBudgetItem(inv.hash);
+            //masternodeSync.AddedBudgetItem(inv.hash);
             return true;
         }
         return false;
     case MSG_BUDGET_FINALIZED:
         if(budget.mapSeenFinalizedBudgets.count(inv.hash)) {
-            masternodeSync.AddedBudgetItem(inv.hash);
+            //masternodeSync.AddedBudgetItem(inv.hash);
             return true;
         }
         return false;
     case MSG_MASTERNODE_ANNOUNCE:
         if(mnodeman.mapSeenMasternodeBroadcast.count(inv.hash)) {
-            masternodeSync.AddedMasternodeList(inv.hash);
+            //masternodeSync.AddedMasternodeList(inv.hash);
             return true;
         }
         return false;
@@ -4191,10 +4238,10 @@ void static ProcessGetData(CNode* pfrom)
                     }
                 }
                 if (!pushed && inv.type == MSG_MASTERNODE_WINNER) {
-                    if(masternodePayments.mapMasternodePayeeVotes.count(inv.hash)){
+                    if(mnpayments.mapMasternodePayeeVotes.count(inv.hash)){
                         CDataStream ss(SER_NETWORK, PROTOCOL_VERSION);
                         ss.reserve(1000);
-                        ss << masternodePayments.mapMasternodePayeeVotes[inv.hash];
+                        ss << mnpayments.mapMasternodePayeeVotes[inv.hash];
                         pfrom->PushMessage("mnw", ss);
                         pushed = true;
                     }
@@ -5151,7 +5198,7 @@ bool static ProcessMessage(CNode* pfrom, string strCommand, CDataStream& vRecv, 
         darkSendPool.ProcessMessageDarksend(pfrom, strCommand, vRecv);
         mnodeman.ProcessMessage(pfrom, strCommand, vRecv);
         budget.ProcessMessage(pfrom, strCommand, vRecv);
-        masternodePayments.ProcessMessageMasternodePayments(pfrom, strCommand, vRecv);
+        mnpayments.ProcessMessageMasternodePayments(pfrom, strCommand, vRecv);
         ProcessMessageInstantX(pfrom, strCommand, vRecv);
         ProcessSpork(pfrom, strCommand, vRecv);
         masternodeSync.ProcessMessage(pfrom, strCommand, vRecv);

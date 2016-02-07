@@ -109,6 +109,16 @@ public:
         mapSeenFinalizedBudgetVotes.clear();
     }
 
+    int CountProposalInventoryItems()
+    {
+        return mapSeenMasternodeBudgetProposals.size() + mapSeenMasternodeBudgetVotes.size();
+    }
+
+    int CountFinalizedInventoryItems()
+    {
+        return mapSeenFinalizedBudgets.size() + mapSeenFinalizedBudgetVotes.size();
+    }
+
     int sizeFinalized() {return (int)mapFinalizedBudgets.size();}
     int sizeProposals() {return (int)mapProposals.size();}
 
@@ -116,7 +126,6 @@ public:
     void MarkSynced();
     void Sync(CNode* node, uint256 nProp, bool fPartial=false);
 
-    void Calculate();
     void ProcessMessage(CNode* pfrom, std::string& strCommand, CDataStream& vRecv);
     void NewBlock();
     CBudgetProposal *FindProposal(const std::string &strProposalName);
@@ -415,9 +424,8 @@ public:
 
     CBudgetProposal();
     CBudgetProposal(const CBudgetProposal& other);
-    CBudgetProposal(std::string strProposalNameIn, std::string strURLIn, int nBlockStartIn, int nBlockEndIn, CScript addressIn, CAmount nAmountIn, uint256 nFeeTXHashIn);
+    CBudgetProposal(std::string strProposalNameIn, std::string strURLIn, int nPaymentCount, CScript addressIn, CAmount nAmountIn, int nBlockStartIn, uint256 nFeeTXHashIn);
 
-    void Calculate();
     bool AddOrUpdateVote(CBudgetVote& vote, std::string& strError);
     bool HasMinimumRequiredSupport();
     std::pair<std::string, std::string> GetVotes();
@@ -428,7 +436,7 @@ public:
         //Proposals must be at least a day old to make it into a budget
         if(Params().NetworkID() == CBaseChainParams::MAIN) return (nTime < GetTime() - (60*60*24));
 
-        //for testing purposes - 4 hours
+        //for testing purposes - 20 minutes
         return (nTime < GetTime() - (60*20));
     }
 
@@ -443,9 +451,10 @@ public:
     int GetBlockCurrentCycle();
     int GetBlockEndCycle();
     double GetRatio();
-    int GetYeas();
-    int GetNays();
-    int GetAbstains();
+    int GetAbsoluteYesCount();
+    int GetYesCount();
+    int GetNoCount();
+    int GetAbstainCount();
     CAmount GetAmount() {return nAmount;}
     void SetAllotted(CAmount nAllotedIn) {nAlloted = nAllotedIn;}
     CAmount GetAllotted() {return nAlloted;}
@@ -476,6 +485,7 @@ public:
         READWRITE(nBlockStart);
         READWRITE(nBlockEnd);
         READWRITE(nAmount);
+
         READWRITE(address);
         READWRITE(nTime);
         READWRITE(nFeeTXHash);
@@ -492,7 +502,7 @@ public:
     CBudgetProposalBroadcast() : CBudgetProposal(){}
     CBudgetProposalBroadcast(const CBudgetProposal& other) : CBudgetProposal(other){}
     CBudgetProposalBroadcast(const CBudgetProposalBroadcast& other) : CBudgetProposal(other){}
-    CBudgetProposalBroadcast(std::string strProposalNameIn, std::string strURLIn, int nPaymentCount, CScript addressIn, CAmount nAmountIn, int nBlockStartIn, uint256 nFeeTXHashIn);
+    CBudgetProposalBroadcast(std::string strProposalNameIn, std::string strURLIn, int nPaymentCount, CScript addressIn, CAmount nAmountIn, int nBlockStartIn, uint256 nFeeTXHashIn) {}
 
     void swap(CBudgetProposalBroadcast& first, CBudgetProposalBroadcast& second) // nothrow
     {

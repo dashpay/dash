@@ -6,6 +6,8 @@
 #include "main.h"
 #include "init.h"
 #include "util.h"
+#include "masternode-payments.h"
+#include "masternode-sync.h"
 #include "masternodeman.h"
 #include "script/sign.h"
 #include "instantx.h"
@@ -37,8 +39,8 @@ CActiveMasternode activeMasternode;
 
 /* *** BEGIN DARKSEND MAGIC - DASH **********
     Copyright (c) 2014-2015, Dash Developers
-        eduffield - evan@dashpay.io
-        udjinm6   - udjinm6@dashpay.io
+        eduffield - evan@dash.org
+        udjinm6   - udjinm6@dash.org
 */
 
 void CDarksendPool::ProcessMessageDarksend(CNode* pfrom, std::string& strCommand, CDataStream& vRecv)
@@ -173,7 +175,7 @@ void CDarksendPool::ProcessMessageDarksend(CNode* pfrom, std::string& strCommand
         }
 
         std::vector<CTxIn> in;
-        int64_t nAmount;
+        CAmount nAmount;
         CTransaction txCollateral;
         std::vector<CTxOut> out;
         vRecv >> in >> nAmount >> txCollateral >> out;
@@ -197,8 +199,8 @@ void CDarksendPool::ProcessMessageDarksend(CNode* pfrom, std::string& strCommand
 
         //check it like a transaction
         {
-            int64_t nValueIn = 0;
-            int64_t nValueOut = 0;
+            CAmount nValueIn = 0;
+            CAmount nValueOut = 0;
             bool missingTx = false;
 
             CValidationState state;
@@ -379,8 +381,6 @@ void CDarksendPool::ProcessMessageDarksend(CNode* pfrom, std::string& strCommand
 
 }
 
-int randomizeList (int i) { return std::rand()%i;}
-
 void CDarksendPool::Reset(){
     cachedLastSuccess = 0;
     lastNewBlock = 0;
@@ -533,9 +533,9 @@ void CDarksendPool::Check()
                     txNew.vin.push_back(s);
             }
 
-            // shuffle the outputs for improved anonymity
-            std::random_shuffle ( txNew.vin.begin(),  txNew.vin.end(),  randomizeList);
-            std::random_shuffle ( txNew.vout.begin(), txNew.vout.end(), randomizeList);
+            // BIP69 https://github.com/kristovatlas/bips/blob/master/bip-0069.mediawiki
+            sort(txNew.vin.begin(), txNew.vin.end());
+            sort(txNew.vout.begin(), txNew.vout.end());
 
 
             LogPrint("darksend", "Transaction 1: %s\n", txNew.ToString());
@@ -938,15 +938,15 @@ bool CDarksendPool::IsCollateralValid(const CTransaction& txCollateral){
     if(txCollateral.vout.size() < 1) return false;
     if(txCollateral.nLockTime != 0) return false;
 
-    int64_t nValueIn = 0;
-    int64_t nValueOut = 0;
+    CAmount nValueIn = 0;
+    CAmount nValueOut = 0;
     bool missingTx = false;
 
     BOOST_FOREACH(const CTxOut o, txCollateral.vout){
         nValueOut += o.nValue;
 
         if(!o.scriptPubKey.IsNormalPaymentScript()){
-            LogPrintf ("CDarksendPool::IsCollateralValid - Invalid Script %s\n", txCollateral.ToString());
+            LogPrintf ("CDarksendPool::IsCollateralValid - Invalid Script %s", txCollateral.ToString());
             return false;
         }
     }
@@ -964,17 +964,17 @@ bool CDarksendPool::IsCollateralValid(const CTransaction& txCollateral){
     }
 
     if(missingTx){
-        LogPrint("darksend", "CDarksendPool::IsCollateralValid - Unknown inputs in collateral transaction - %s\n", txCollateral.ToString());
+        LogPrint("darksend", "CDarksendPool::IsCollateralValid - Unknown inputs in collateral transaction - %s", txCollateral.ToString());
         return false;
     }
 
     //collateral transactions are required to pay out DARKSEND_COLLATERAL as a fee to the miners
     if(nValueIn - nValueOut < DARKSEND_COLLATERAL) {
-        LogPrint("darksend", "CDarksendPool::IsCollateralValid - did not include enough fees in transaction %d\n%s\n", nValueOut-nValueIn, txCollateral.ToString());
+        LogPrint("darksend", "CDarksendPool::IsCollateralValid - did not include enough fees in transaction %d\n%s", nValueOut-nValueIn, txCollateral.ToString());
         return false;
     }
 
-    LogPrint("darksend", "CDarksendPool::IsCollateralValid %s\n", txCollateral.ToString());
+    LogPrint("darksend", "CDarksendPool::IsCollateralValid %s", txCollateral.ToString());
 
     {
         LOCK(cs_main);
@@ -992,7 +992,7 @@ bool CDarksendPool::IsCollateralValid(const CTransaction& txCollateral){
 //
 // Add a clients transaction to the pool
 //
-bool CDarksendPool::AddEntry(const std::vector<CTxIn>& newInput, const int64_t& nAmount, const CTransaction& txCollateral, const std::vector<CTxOut>& newOutput, int& errorID){
+bool CDarksendPool::AddEntry(const std::vector<CTxIn>& newInput, const CAmount& nAmount, const CTransaction& txCollateral, const std::vector<CTxOut>& newOutput, int& errorID){
     if (!fMasterNode) return false;
 
     BOOST_FOREACH(CTxIn in, newInput) {
@@ -1094,7 +1094,7 @@ bool CDarksendPool::SignaturesComplete(){
 // Execute a Darksend denomination via a Masternode.
 // This is only ran from clients
 //
-void CDarksendPool::SendDarksendDenominate(std::vector<CTxIn>& vin, std::vector<CTxOut>& vout, int64_t amount){
+void CDarksendPool::SendDarksendDenominate(std::vector<CTxIn>& vin, std::vector<CTxOut>& vout, CAmount amount){
 
     if(fMasterNode) {
         LogPrintf("CDarksendPool::SendDarksendDenominate() - Darksend from a Masternode is not supported currently.\n");
@@ -1141,7 +1141,7 @@ void CDarksendPool::SendDarksendDenominate(std::vector<CTxIn>& vin, std::vector<
 
     //check it against the memory pool to make sure it's valid
     {
-        int64_t nValueOut = 0;
+        CAmount nValueOut = 0;
 
         CValidationState state;
         CMutableTransaction tx;
@@ -1382,7 +1382,7 @@ bool CDarksendPool::DoAutomaticDenominating(bool fDryRun)
         return false;
     }
 
-    if(chainActive.Tip()->nHeight - cachedLastSuccess < minBlockSpacing) {
+    if(!fDarksendMultiSession && chainActive.Tip()->nHeight - cachedLastSuccess < minBlockSpacing) {
         LogPrintf("CDarksendPool::DoAutomaticDenominating - Last successful Darksend action was too recent\n");
         strAutoDenomResult = _("Last successful Darksend action was too recent.");
         return false;
@@ -1402,29 +1402,33 @@ bool CDarksendPool::DoAutomaticDenominating(bool fDryRun)
     CAmount nOnlyDenominatedBalance;
     CAmount nBalanceNeedsDenominated;
 
-    // should not be less than fees in DARKSEND_COLLATERAL + few (lets say 5) smallest denoms
-    CAmount nLowestDenom = DARKSEND_COLLATERAL + darkSendDenominations[darkSendDenominations.size() - 1]*5;
+    CAmount nLowestDenom = darkSendDenominations[darkSendDenominations.size() - 1];
 
-    // if there are no DS collateral inputs yet
+    // if there are no confirmed DS collateral inputs yet
     if(!pwalletMain->HasCollateralInputs())
         // should have some additional amount for them
         nLowestDenom += DARKSEND_COLLATERAL*4;
 
-    CAmount nBalanceNeedsAnonymized = nAnonymizeDarkcoinAmount*COIN - pwalletMain->GetAnonymizedBalance();
+    CAmount nBalanceNeedsAnonymized = nAnonymizeDashAmount*COIN - pwalletMain->GetAnonymizedBalance();
 
     // if balanceNeedsAnonymized is more than pool max, take the pool max
     if(nBalanceNeedsAnonymized > DARKSEND_POOL_MAX) nBalanceNeedsAnonymized = DARKSEND_POOL_MAX;
 
-    // if balanceNeedsAnonymized is more than non-anonymized, take non-anonymized
-    CAmount nAnonymizableBalance = pwalletMain->GetAnonymizableBalance();
-    if(nBalanceNeedsAnonymized > nAnonymizableBalance) nBalanceNeedsAnonymized = nAnonymizableBalance;
+    // try to overshoot target DS balance up to nLowestDenom
+    nBalanceNeedsAnonymized += nLowestDenom;
 
-    if(nBalanceNeedsAnonymized < nLowestDenom)
+    CAmount nAnonymizableBalance = pwalletMain->GetAnonymizableBalance();
+
+    // anonymizable balance is way too small
+    if(nAnonymizableBalance < nLowestDenom)
     {
         LogPrintf("DoAutomaticDenominating : No funds detected in need of denominating \n");
         strAutoDenomResult = _("No funds detected in need of denominating.");
         return false;
     }
+
+    // not enough funds to anonymze amount we want, try the max we can
+    if(nBalanceNeedsAnonymized > nAnonymizableBalance) nBalanceNeedsAnonymized = nAnonymizableBalance;
 
     LogPrint("darksend", "DoAutomaticDenominating : nLowestDenom=%d, nBalanceNeedsAnonymized=%d\n", nLowestDenom, nBalanceNeedsAnonymized);
 
@@ -1475,13 +1479,13 @@ bool CDarksendPool::DoAutomaticDenominating(bool fDryRun)
         int nUseQueue = rand()%100;
         UpdateState(POOL_STATUS_ACCEPTING_ENTRIES);
 
-        if(pwalletMain->GetDenominatedBalance(true) > 0){ //get denominated unconfirmed inputs
+        if(!fDarksendMultiSession && pwalletMain->GetDenominatedBalance(true) > 0) { //get denominated unconfirmed inputs
             LogPrintf("DoAutomaticDenominating -- Found unconfirmed denominated outputs, will wait till they confirm to continue.\n");
             strAutoDenomResult = _("Found unconfirmed denominated outputs, will wait till they confirm to continue.");
             return false;
         }
 
-        //check our collateral nad create new if needed
+        //check our collateral and create new if needed
         std::string strReason;
         CValidationState state;
         if(txCollateral == CMutableTransaction()){
@@ -1507,8 +1511,8 @@ bool CDarksendPool::DoAutomaticDenominating(bool fDryRun)
             LogPrint("darksend", "  vecMasternodesUsed size %d threshold %d\n", (int)vecMasternodesUsed.size(), nThreshold);
         }
 
-        //don't use the queues all of the time for mixing
-        if(nUseQueue > 33){
+        // don't use the queues all of the time for mixing unless we are a liquidity provider
+        if(nLiquidityProvider || nUseQueue > 33){
 
             // Look through the queues and see if anything matches
             BOOST_FOREACH(CDarksendQueue& dsq, vecDarksendQueue){
@@ -1648,50 +1652,13 @@ bool CDarksendPool::PrepareDarksendDenominate()
     return false;
 }
 
-bool CDarksendPool::SendRandomPaymentToSelf()
-{
-    int64_t nBalance = pwalletMain->GetBalance();
-    int64_t nPayment = (nBalance*0.35) + (rand() % nBalance);
-
-    if(nPayment > nBalance) nPayment = nBalance-(0.1*COIN);
-
-    // make our change address
-    CReserveKey reservekey(pwalletMain);
-
-    CScript scriptChange;
-    CPubKey vchPubKey;
-    assert(reservekey.GetReservedKey(vchPubKey)); // should never fail, as we just unlocked
-    scriptChange = GetScriptForDestination(vchPubKey.GetID());
-
-    CWalletTx wtx;
-    int64_t nFeeRet = 0;
-    std::string strFail = "";
-    vector< pair<CScript, int64_t> > vecSend;
-
-    // ****** Add fees ************ /
-    vecSend.push_back(make_pair(scriptChange, nPayment));
-
-    CCoinControl *coinControl=NULL;
-    bool success = pwalletMain->CreateTransaction(vecSend, wtx, reservekey, nFeeRet, strFail, coinControl, ONLY_DENOMINATED);
-    if(!success){
-        LogPrintf("SendRandomPaymentToSelf: Error - %s\n", strFail);
-        return false;
-    }
-
-    pwalletMain->CommitTransaction(wtx, reservekey);
-
-    LogPrintf("SendRandomPaymentToSelf Success: tx %s\n", wtx.GetHash().GetHex());
-
-    return true;
-}
-
 // Split up large inputs or create fee sized inputs
 bool CDarksendPool::MakeCollateralAmounts()
 {
     CWalletTx wtx;
-    int64_t nFeeRet = 0;
+    CAmount nFeeRet = 0;
     std::string strFail = "";
-    vector< pair<CScript, int64_t> > vecSend;
+    vector< pair<CScript, CAmount> > vecSend;
     CCoinControl *coinControl = NULL;
 
     // make our collateral address
@@ -1738,13 +1705,13 @@ bool CDarksendPool::MakeCollateralAmounts()
 }
 
 // Create denominations
-bool CDarksendPool::CreateDenominated(int64_t nTotalValue)
+bool CDarksendPool::CreateDenominated(CAmount nTotalValue)
 {
     CWalletTx wtx;
-    int64_t nFeeRet = 0;
+    CAmount nFeeRet = 0;
     std::string strFail = "";
-    vector< pair<CScript, int64_t> > vecSend;
-    int64_t nValueLeft = nTotalValue;
+    vector< pair<CScript, CAmount> > vecSend;
+    CAmount nValueLeft = nTotalValue;
 
     // make our collateral address
     CReserveKey reservekeyCollateral(pwalletMain);
@@ -1765,11 +1732,26 @@ bool CDarksendPool::CreateDenominated(int64_t nTotalValue)
     }
 
     // ****** Add denoms ************ /
-    BOOST_REVERSE_FOREACH(int64_t v, darkSendDenominations){
+
+    BOOST_REVERSE_FOREACH(CAmount v, darkSendDenominations){
+
+        // Note: denoms are skipped if there are already DENOMS_COUNT_MAX of them
+
+        // check skipped denoms
+        if(IsDenomSkipped(v)) continue;
+
+        // find new denoms to skip if any (ignore the largest one)
+        if (v != darkSendDenominations[0] && pwalletMain->CountInputsWithAmount(v) > DENOMS_COUNT_MAX){
+            strAutoDenomResult = strprintf(_("Too many %f denominations, removing."), (float)v/COIN);
+            LogPrintf("DoAutomaticDenominating : %s\n", strAutoDenomResult);
+            darkSendDenominationsSkipped.push_back(v);
+            continue;
+        }
+
         int nOutputs = 0;
 
         // add each output up to 10 times until it can't be added again
-        while(nValueLeft - v >= DARKSEND_COLLATERAL && nOutputs <= 10) {
+        while(nValueLeft - v >= 0 && nOutputs <= 10) {
             CScript scriptDenom;
             CPubKey vchPubKey;
             //use a unique change address
@@ -1822,20 +1804,13 @@ bool CDarksendPool::IsCompatibleWithEntries(std::vector<CTxOut>& vout)
 
     BOOST_FOREACH(const CDarkSendEntry v, entries) {
         LogPrintf(" IsCompatibleWithEntries %d %d\n", GetDenominations(vout), GetDenominations(v.vout));
-/*
-        BOOST_FOREACH(CTxOut o1, vout)
-            LogPrintf(" vout 1 - %s\n", o1.ToString());
-
-        BOOST_FOREACH(CTxOut o2, v.vout)
-            LogPrintf(" vout 2 - %s\n", o2.ToString());
-*/
         if(GetDenominations(vout) != GetDenominations(v.vout)) return false;
     }
 
     return true;
 }
 
-bool CDarksendPool::IsCompatibleWithSession(int64_t nDenom, CTransaction txCollateral, int& errorID)
+bool CDarksendPool::IsCompatibleWithSession(CAmount nDenom, CTransaction txCollateral, int& errorID)
 {
     if(nDenom == 0) return false;
 
@@ -1936,16 +1911,16 @@ int CDarksendPool::GetDenominations(const std::vector<CTxDSOut>& vout){
 
 // return a bitshifted integer representing the denominations in this list
 int CDarksendPool::GetDenominations(const std::vector<CTxOut>& vout, bool fSingleRandomDenom){
-    std::vector<pair<int64_t, int> > denomUsed;
+    std::vector<pair<CAmount, int> > denomUsed;
 
     // make a list of denominations, with zero uses
-    BOOST_FOREACH(int64_t d, darkSendDenominations)
+    BOOST_FOREACH(CAmount d, darkSendDenominations)
         denomUsed.push_back(make_pair(d, 0));
 
     // look for denominations and update uses to 1
     BOOST_FOREACH(CTxOut out, vout){
         bool found = false;
-        BOOST_FOREACH (PAIRTYPE(int64_t, int)& s, denomUsed){
+        BOOST_FOREACH (PAIRTYPE(CAmount, int)& s, denomUsed){
             if (out.nValue == s.first){
                 s.second = 1;
                 found = true;
@@ -1958,7 +1933,7 @@ int CDarksendPool::GetDenominations(const std::vector<CTxOut>& vout, bool fSingl
     int c = 0;
     // if the denomination is used, shift the bit on.
     // then move to the next
-    BOOST_FOREACH (PAIRTYPE(int64_t, int)& s, denomUsed) {
+    BOOST_FOREACH (PAIRTYPE(CAmount, int)& s, denomUsed) {
         int bit = (fSingleRandomDenom ? rand()%2 : 1) * s.second;
         denom |= bit << c++;
         if(fSingleRandomDenom && bit) break; // use just one random denomination
@@ -1975,12 +1950,12 @@ int CDarksendPool::GetDenominations(const std::vector<CTxOut>& vout, bool fSingl
 }
 
 
-int CDarksendPool::GetDenominationsByAmounts(std::vector<int64_t>& vecAmount){
+int CDarksendPool::GetDenominationsByAmounts(std::vector<CAmount>& vecAmount){
     CScript e = CScript();
     std::vector<CTxOut> vout1;
 
     // Make outputs by looping through denominations, from small to large
-    BOOST_REVERSE_FOREACH(int64_t v, vecAmount){
+    BOOST_REVERSE_FOREACH(CAmount v, vecAmount){
         CTxOut o(v, e);
         vout1.push_back(o);
     }
@@ -1988,14 +1963,14 @@ int CDarksendPool::GetDenominationsByAmounts(std::vector<int64_t>& vecAmount){
     return GetDenominations(vout1, true);
 }
 
-int CDarksendPool::GetDenominationsByAmount(int64_t nAmount, int nDenomTarget){
+int CDarksendPool::GetDenominationsByAmount(CAmount nAmount, int nDenomTarget){
     CScript e = CScript();
-    int64_t nValueLeft = nAmount;
+    CAmount nValueLeft = nAmount;
 
     std::vector<CTxOut> vout1;
 
     // Make outputs by looping through denominations, from small to large
-    BOOST_REVERSE_FOREACH(int64_t v, darkSendDenominations){
+    BOOST_REVERSE_FOREACH(CAmount v, darkSendDenominations){
         if(nDenomTarget != 0){
             bool fAccepted = false;
             if((nDenomTarget & (1 << 0)) &&      v == ((100*COIN)+100000)) {fAccepted = true;}
@@ -2183,7 +2158,7 @@ void CDarksendPool::RelayFinalTransaction(const int sessionID, const CTransactio
     }
 }
 
-void CDarksendPool::RelayIn(const std::vector<CTxDSIn>& vin, const int64_t& nAmount, const CTransaction& txCollateral, const std::vector<CTxDSOut>& vout)
+void CDarksendPool::RelayIn(const std::vector<CTxDSIn>& vin, const CAmount& nAmount, const CTransaction& txCollateral, const std::vector<CTxDSOut>& vout)
 {
     if(!pSubmittedToMasternode) return;
 
@@ -2247,7 +2222,7 @@ void ThreadCheckDarkSendPool()
             {
                 mnodeman.CheckAndRemove();
                 mnodeman.ProcessMasternodeConnections();
-                masternodePayments.CleanPaymentList();
+                mnpayments.CleanPaymentList();
                 CleanTransactionLocksList();
             }
 

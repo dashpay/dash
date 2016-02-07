@@ -2,9 +2,11 @@
 // Distributed under the MIT/X11 software license, see the accompanying
 // file COPYING or http://www.opensource.org/licenses/mit-license.php.
 
-#include "masternode.h"
-#include "masternodeman.h"
 #include "darksend.h"
+#include "masternode.h"
+#include "masternode-payments.h"
+#include "masternode-sync.h"
+#include "masternodeman.h"
 #include "util.h"
 #include "sync.h"
 #include "addrman.h"
@@ -73,8 +75,6 @@ CMasternode::CMasternode()
     nScanningErrorCount = 0;
     nLastScanningErrorBlockHeight = 0;
     lastTimeChecked = 0;
-    nLastDsee = 0;// temporary, do not save. Remove after migration to v12
-    nLastDseep = 0;// temporary, do not save. Remove after migration to v12
 }
 
 CMasternode::CMasternode(const CMasternode& other)
@@ -97,8 +97,6 @@ CMasternode::CMasternode(const CMasternode& other)
     nScanningErrorCount = other.nScanningErrorCount;
     nLastScanningErrorBlockHeight = other.nLastScanningErrorBlockHeight;
     lastTimeChecked = 0;
-    nLastDsee = other.nLastDsee;// temporary, do not save. Remove after migration to v12
-    nLastDseep = other.nLastDseep;// temporary, do not save. Remove after migration to v12
 }
 
 CMasternode::CMasternode(const CMasternodeBroadcast& mnb)
@@ -121,8 +119,6 @@ CMasternode::CMasternode(const CMasternodeBroadcast& mnb)
     nScanningErrorCount = 0;
     nLastScanningErrorBlockHeight = 0;
     lastTimeChecked = 0;
-    nLastDsee = 0;// temporary, do not save. Remove after migration to v12
-    nLastDseep = 0;// temporary, do not save. Remove after migration to v12
 }
 
 //
@@ -189,6 +185,10 @@ void CMasternode::Check(bool forceCheck)
     //once spent, stop doing the checks
     if(activeState == MASTERNODE_VIN_SPENT) return;
 
+    if(lastPing.sigTime - sigTime < MASTERNODE_MIN_MNP_SECONDS){
+        activeState = MASTERNODE_PRE_ENABLED;
+        return;
+    }
 
     if(!IsPingedWithin(MASTERNODE_REMOVAL_SECONDS)){
         activeState = MASTERNODE_REMOVE;
@@ -266,12 +266,12 @@ int64_t CMasternode::GetLastPaid() {
         }
         n++;
 
-        if(masternodePayments.mapMasternodeBlocks.count(BlockReading->nHeight)){
+        if(mnpayments.mapMasternodeBlocks.count(BlockReading->nHeight)){
             /*
                 Search for this payee, with at least 2 votes. This will aid in consensus allowing the network 
                 to converge on the same payees quickly, then keep the same schedule.
             */
-            if(masternodePayments.mapMasternodeBlocks[BlockReading->nHeight].HasPayeeWithVotes(mnpayee, 2)){
+            if(mnpayments.mapMasternodeBlocks[BlockReading->nHeight].HasPayeeWithVotes(mnpayee, 2)){
                 return BlockReading->nTime + nOffset;
             }
         }
@@ -356,7 +356,7 @@ bool CMasternodeBroadcast::CheckAndUpdate(int& nDos)
     std::string vchPubKey2(pubkey2.begin(), pubkey2.end());
     std::string strMessage = addr.ToString() + boost::lexical_cast<std::string>(sigTime) + vchPubKey + vchPubKey2 + boost::lexical_cast<std::string>(protocolVersion);
 
-    if(protocolVersion < masternodePayments.GetMinMasternodePaymentsProto()) {
+    if(protocolVersion < mnpayments.GetMinMasternodePaymentsProto()) {
         LogPrintf("mnb - ignoring outdated Masternode %s protocol version %d\n", vin.ToString(), protocolVersion);
         return false;
     }
@@ -398,7 +398,7 @@ bool CMasternodeBroadcast::CheckAndUpdate(int& nDos)
     //search existing Masternode list, this is where we update existing Masternodes with new mnb broadcasts
     CMasternode* pmn = mnodeman.Find(vin);
 
-    // no such masternode or it's not enabled already, nothing to update
+    // no such masternode or it's not enabled yet/already, nothing to update
     if(pmn == NULL || (pmn != NULL && !pmn->IsEnabled())) return true;
 
     // mn.pubkey = pubkey, IsVinAssociatedWithPubkey is validated once below,
@@ -427,8 +427,8 @@ bool CMasternodeBroadcast::CheckInputsAndAdd(int& nDoS)
     CMasternode* pmn = mnodeman.Find(vin);
 
     if(pmn != NULL) {
-        // nothing to do here if we already know about this masternode and it's enabled
-        if(pmn->IsEnabled()) return true;
+        // nothing to do here if we already know about this masternode and it's (pre)enabled
+        if(pmn->IsEnabled() || pmn->IsPreEnabled()) return true;
         // if it's not enabled, remove old MN first and continue
         else mnodeman.Remove(pmn->vin);
     }
@@ -586,9 +586,9 @@ bool CMasternodePing::CheckAndUpdate(int& nDos, bool fRequireEnabled)
 
     // see if we have this Masternode
     CMasternode* pmn = mnodeman.Find(vin);
-    if(pmn != NULL && pmn->protocolVersion >= masternodePayments.GetMinMasternodePaymentsProto())
+    if(pmn != NULL && pmn->protocolVersion >= mnpayments.GetMinMasternodePaymentsProto())
     {
-        if (fRequireEnabled && !pmn->IsEnabled()) return false;
+        if (fRequireEnabled && !pmn->IsEnabled() && !pmn->IsPreEnabled()) return false;
 
         // LogPrintf("mnping - Found corresponding mn for vin: %s\n", vin.ToString());
         // update only if there is no known ping for this masternode or
