@@ -219,6 +219,7 @@ CAmount GetMasternodePayment(int nHeight, CAmount blockValue);
 unsigned int GetNextWorkRequired(const CBlockIndex* pindexLast, const CBlockHeader *pblock);
 
 bool ActivateBestChain(CValidationState &state, CBlock *pblock = NULL);
+int64_t GetTotalCoinEstimate(int nHeight);
 CAmount GetBlockValue(int nBits, int nHeight, const CAmount& nFees);
 
 /** Create a new block index entry for a given block hash */
