@@ -1160,16 +1160,12 @@ void CDarksendPool::SendDarksendDenominate(std::vector<CTxIn>& vin, std::vector<
 
         LogPrintf("Submitting tx %s\n", tx.ToString());
 
-        while(true){
-            TRY_LOCK(cs_main, lockMain);
-            if(!lockMain) { MilliSleep(50); continue;}
-            if(!AcceptToMemoryPool(mempool, state, CTransaction(tx), false, NULL, false, true, true)){
-                LogPrintf("dsi -- transaction not valid! %s \n", tx.ToString());
-                UnlockCoins();
-                SetNull();
-                return;
-            }
-            break;
+        TRY_LOCK(cs_main, lockMain);
+        if(!lockMain || !AcceptToMemoryPool(mempool, state, CTransaction(tx), false, NULL, false, true, true)){
+            LogPrintf("dsi -- transaction failed! %s \n", tx.ToString());
+            UnlockCoins();
+            SetNull();
+            return;
         }
     }
 
