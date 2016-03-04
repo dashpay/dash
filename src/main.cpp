@@ -4343,7 +4343,7 @@ bool static ProcessMessage(CNode* pfrom, string strCommand, CDataStream& vRecv, 
             vRecv >> addrFrom >> nNonce;
         if (!vRecv.empty()) {
             vRecv >> LIMITED_STRING(pfrom->strSubVer, 256);
-            pfrom->cleanSubVer = SanitizeString(pfrom->strSubVer);
+            pfrom->cleanSubVer = SanitizeSubVersionString(pfrom->strSubVer);
         }
         if (!vRecv.empty())
             vRecv >> pfrom->nStartingHeight;

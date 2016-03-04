@@ -24,6 +24,7 @@
 #define PAIRTYPE(t1, t2)    std::pair<t1, t2>
 
 std::string SanitizeString(const std::string& str);
+std::string SanitizeSubVersionString(const std::string& str);
 std::vector<unsigned char> ParseHex(const char* psz);
 std::vector<unsigned char> ParseHex(const std::string& str);
 signed char HexDigit(char c);
