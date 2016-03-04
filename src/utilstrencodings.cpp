@@ -36,6 +36,17 @@ string SanitizeString(const string& str)
     return strResult;
 }
 
+/// Formats the network peer user agent text (or clean subversion)
+/// by removing the begining and ending charactors(/).
+/// example: /Dash Core:0.12.0.56/ --> Dash Core:0.12.0.56
+string SanitizeSubVersionString(const string& str)
+{
+    string strResult = SanitizeString(str);
+    if ((strResult.length() > 3) && (strResult.substr(0,1) == "/") && (strResult.substr((strResult.length()-1),1) == "/"))
+        strResult = strResult.substr(1, (strResult.length() - 2));
+    return strResult;
+}
+
 const signed char p_util_hexdigit[256] =
 { -1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,
   -1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,
