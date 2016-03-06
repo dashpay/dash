@@ -444,16 +444,26 @@ UniValue masternode(const UniValue& params, bool fHelp)
         }
 
         int nLast = 10;
+        std::string strFilter = "";
 
         if (params.size() >= 2){
             nLast = atoi(params[1].get_str());
         }
 
+        if (params.size() == 3){
+            strFilter = params[2].get_str();
+        }
+
+        if (params.size() > 3)
+            throw runtime_error("Correct usage is 'masternode winners ( \"count\" \"filter\" )'");
+
         UniValue obj(UniValue::VOBJ);
 
         for(int i = nHeight - nLast; i < nHeight + 20; i++)
         {
-            obj.push_back(Pair(strprintf("%d", i), GetRequiredPaymentsString(i)));
+            std::string strPayment = GetRequiredPaymentsString(i);
+            if(strFilter !="" && strPayment.find(strFilter) == string::npos) continue;
+            obj.push_back(Pair(strprintf("%d", i), strPayment));
         }
 
         return obj;
