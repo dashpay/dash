@@ -71,9 +71,11 @@ UniValue getpoolinfo(const UniValue& params, bool fHelp)
             "Returns an object containing anonymous pool-related information.");
 
     UniValue obj(UniValue::VOBJ);
-    obj.push_back(Pair("current_masternode",        mnodeman.GetCurrentMasterNode()->addr.ToString()));
-    obj.push_back(Pair("state",        darkSendPool.GetState()));
-    obj.push_back(Pair("entries",      darkSendPool.GetEntriesCount()));
+    if (darkSendPool.pSubmittedToMasternode)
+        obj.push_back(Pair("masternode",        darkSendPool.pSubmittedToMasternode->addr.ToString()));
+    obj.push_back(Pair("queue",                 (int64_t)vecDarksendQueue.size()));
+    obj.push_back(Pair("state",                 darkSendPool.GetState()));
+    obj.push_back(Pair("entries",               darkSendPool.GetEntriesCount()));
     obj.push_back(Pair("entries_accepted",      darkSendPool.GetCountEntriesAccepted()));
     return obj;
 }
