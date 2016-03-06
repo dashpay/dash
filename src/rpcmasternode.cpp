@@ -177,21 +177,22 @@ UniValue masternode(const UniValue& params, bool fHelp)
 
     if (strCommand == "current")
     {
+        int nCount = 0;
         LOCK(cs_main);
         CMasternode* winner = NULL;
         if(chainActive.Tip())
-            winner = mnodeman.GetCurrentMasterNode(1);
+            winner = mnodeman.GetNextMasternodeInQueueForPayment(chainActive.Height() - 100, true, nCount);
         if(winner) {
             UniValue obj(UniValue::VOBJ);
 
             obj.push_back(Pair("IP:port",       winner->addr.ToString()));
             obj.push_back(Pair("protocol",      (int64_t)winner->protocolVersion));
-            obj.push_back(Pair("vin",           winner->vin.prevout.hash.ToString()));
+            obj.push_back(Pair("vin",           winner->vin.prevout.ToStringShort()));
             obj.push_back(Pair("pubkey",        CBitcoinAddress(winner->pubkey.GetID()).ToString()));
             obj.push_back(Pair("lastseen",      (winner->lastPing == CMasternodePing()) ? winner->sigTime :
-                                                        (int64_t)winner->lastPing.sigTime));
+                                                        winner->lastPing.sigTime));
             obj.push_back(Pair("activeseconds", (winner->lastPing == CMasternodePing()) ? 0 :
-                                                        (int64_t)(winner->lastPing.sigTime - winner->sigTime)));
+                                                        (winner->lastPing.sigTime - winner->sigTime)));
             return obj;
         }
 
