@@ -5,7 +5,8 @@ suites:
 - "trusty"
 architectures:
 - "amd64"
-packages:
+packages: 
+- "curl"
 - "g++-multilib"
 - "git-core"
 - "pkg-config"
