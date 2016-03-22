@@ -15,7 +15,10 @@
 #include "masternode-sync.h"
 #include "masternodeman.h"
 #include "spork.h"
+
+#include <boost/algorithm/string/replace.hpp>
 #include <boost/lexical_cast.hpp>
+#include <boost/thread.hpp>
 
 using namespace std;
 using namespace boost;
@@ -362,7 +365,8 @@ bool ProcessConsensusVote(CNode* pnode, CConsensusVote& ctx)
 
         LogPrint("instantx", "InstantX::ProcessConsensusVote - Transaction Lock Votes %d - %s !\n", (*i).second.CountSignatures(), ctx.GetHash().ToString());
 
-        if((*i).second.CountSignatures() >= INSTANTX_SIGNATURES_REQUIRED){
+        int nSignatures = (*i).second.CountSignatures();
+        if(nSignatures >= INSTANTX_SIGNATURES_REQUIRED){
             LogPrint("instantx", "InstantX::ProcessConsensusVote - Transaction Lock Is Complete %s !\n", (*i).second.GetHash().ToString());
 
             CTransaction& tx = mapTxLockReq[ctx.txHash];
@@ -372,6 +376,15 @@ bool ProcessConsensusVote(CNode* pnode, CConsensusVote& ctx)
                 if(pwalletMain){
                     if(pwalletMain->UpdatedTransaction((*i).second.txHash)){
                         nCompleteTXLocks++;
+                        if(nSignatures == INSTANTX_SIGNATURES_REQUIRED) {
+                            // notify external script once threshold is reached
+                            std::string strCmd = GetArg("-ixnotify", "");
+                            if ( !strCmd.empty())
+                            {
+                                boost::replace_all(strCmd, "%s", ctx.txHash.GetHex());
+                                boost::thread t(runCommand, strCmd); // thread runs free
+                            }
+                        }
                     }
                 }
 #endif
