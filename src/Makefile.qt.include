@@ -375,7 +375,8 @@ RES_ICONS = \
   qt/res/icons/trad/about_qt.png \
   qt/res/icons/trad/verify.png \
   qt/res/icons/trad/fontbigger.png \
-  qt/res/icons/trad/fontsmaller.png
+  qt/res/icons/trad/fontsmaller.png \
+  qt/res/icons/transaction_abandoned.png
 
 BITCOIN_QT_CPP = \
   qt/bantablemodel.cpp \
