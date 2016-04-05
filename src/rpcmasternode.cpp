@@ -533,7 +533,7 @@ UniValue masternodelist(const UniValue& params, bool fHelp)
                 "  activeseconds  - Print number of seconds masternode recognized by the network as enabled\n"
                 "                   (since latest issued \"masternode start/start-many/start-alias\")\n"
                 "  addr           - Print ip address associated with a masternode (can be additionally filtered, partial match)\n"
-                "  full           - Print info in format 'status protocol pubkey IP lastseen activeseconds lastpaid'\n"
+                "  full           - Print info in format 'status protocol pubkey IP lastseen activeseconds lastpaid rank'\n"
                 "                   (can be additionally filtered, partial match)\n"
                 "  lastseen       - Print timestamp of when a masternode was last seen on the network\n"
                 "  lastpaid       - The last time a node was paid on the network\n"
@@ -555,8 +555,9 @@ UniValue masternodelist(const UniValue& params, bool fHelp)
             obj.push_back(Pair(strVin,       s.first));
         }
     } else {
-        std::vector<CMasternode> vMasternodes = mnodeman.GetFullMasternodeVector();
-        BOOST_FOREACH(CMasternode& mn, vMasternodes) {
+        std::vector<pair<int, CMasternode> > vMasternodeRanks = mnodeman.GetMasternodeRanks(chainActive.Tip()->nHeight);
+        BOOST_FOREACH(PAIRTYPE(int, CMasternode) &mn_pair, vMasternodeRanks) {
+            CMasternode mn = mn_pair.second;
             std::string strVin = mn.vin.prevout.ToStringShort();
             if (strMode == "activeseconds") {
                 if(strFilter !="" && strVin.find(strFilter) == string::npos) continue;
@@ -577,7 +578,8 @@ UniValue masternodelist(const UniValue& params, bool fHelp)
                                mn.addr.ToString() << " " <<
                                (int64_t)mn.lastPing.sigTime << " " << setw(8) <<
                                (int64_t)(mn.lastPing.sigTime - mn.sigTime) << " " <<
-                               (int64_t)mn.GetLastPaid();
+                               (int64_t)mn.GetLastPaid() << " " <<
+                               mn_pair.first;
                 std::string output = stringStream.str();
                 stringStream << " " << strVin;
                 if(strFilter !="" && stringStream.str().find(strFilter) == string::npos &&
