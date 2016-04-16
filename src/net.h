@@ -97,13 +97,6 @@ CNode* FindNode(const CService& ip);
 CNode* ConnectNode(CAddress addrConnect, const char *pszDest = NULL, bool fConnectToMasternode = false);
 bool OpenNetworkConnection(const CAddress& addrConnect, CSemaphoreGrant *grantOutbound = NULL, const char *strDest = NULL, bool fOneShot = false, bool fFeeler = false);
 
-struct ListenSocket {
-    SOCKET socket;
-    bool whitelisted;
-
-    ListenSocket(SOCKET socket_, bool whitelisted_) : socket(socket_), whitelisted(whitelisted_) {}
-};
-
 class CConnman
 {
 public:
@@ -111,7 +104,16 @@ public:
     ~CConnman();
     bool Start(boost::thread_group& threadGroup, std::string& strNodeError);
     void Stop();
+    bool BindListenPort(const CService &bindAddr, std::string& strError, bool fWhitelisted = false);
+
 private:
+    struct ListenSocket {
+        SOCKET socket;
+        bool whitelisted;
+
+        ListenSocket(SOCKET socket_, bool whitelisted_) : socket(socket_), whitelisted(whitelisted_) {}
+    };
+
     void ThreadOpenAddedConnections();
     void ProcessOneShot();
     void ThreadOpenConnections();
@@ -120,6 +122,8 @@ private:
     void ThreadSocketHandler();
     void ThreadDNSAddressSeed();
     void ThreadMnbRequestConnections();
+
+    std::vector<ListenSocket> vhListenSocket;
 };
 extern std::unique_ptr<CConnman> g_connman;
 void MapPort(bool fUseUPnP);
