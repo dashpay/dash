@@ -87,6 +87,8 @@ static const unsigned int DEFAULT_MISBEHAVING_BANTIME = 60 * 60 * 24;  // Defaul
 unsigned int ReceiveFloodSize();
 unsigned int SendBufferSize();
 
+typedef int NodeId;
+
 struct AddedNodeInfo
 {
     std::string strAddedNode;
@@ -100,9 +102,18 @@ CNode* FindNode(const CSubNet& subNet);
 CNode* FindNode(const std::string& addrName);
 CNode* FindNode(const CService& ip);
 
+class CNodeStats;
 class CConnman
 {
 public:
+
+    enum NumConnections {
+        CONNECTIONS_NONE = 0,
+        CONNECTIONS_IN = (1U << 0),
+        CONNECTIONS_OUT = (1U << 1),
+        CONNECTIONS_ALL = (CONNECTIONS_IN | CONNECTIONS_OUT),
+    };
+
     CConnman();
     ~CConnman();
     bool Start(boost::thread_group& threadGroup, CScheduler& scheduler, std::string& strNodeError);
@@ -155,6 +166,13 @@ public:
     bool RemoveAddedNode(const std::string& node);
     std::vector<AddedNodeInfo> GetAddedNodeInfo();
 
+    size_t GetNodeCount(NumConnections num);
+    void GetNodeStats(std::vector<CNodeStats>& vstats);
+    bool DisconnectAddress(const CNetAddr& addr);
+    bool DisconnectNode(const std::string& node);
+    bool DisconnectNode(NodeId id);
+    bool DisconnectSubnet(const CSubNet& subnet);
+
 private:
     struct ListenSocket {
         SOCKET socket;
@@ -201,8 +219,6 @@ bool BindListenPort(const CService &bindAddr, std::string& strError, bool fWhite
 bool StartNode(CConnman& connman, boost::thread_group& threadGroup, CScheduler& scheduler, std::string& strNodeError);
 bool StopNode(CConnman& connman);
 void SocketSendData(CNode *pnode);
-
-typedef int NodeId;
 
 struct CombinerAll
 {
