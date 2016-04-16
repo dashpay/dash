@@ -1763,8 +1763,10 @@ bool CWalletTx::RelayWalletTransaction(CConnman* connman, std::string strCommand
             if(strCommand == NetMsgType::TXLOCKREQUEST) {
                 instantsend.ProcessTxLockRequest(((CTxLockRequest)*this));
             }
-            RelayTransaction((CTransaction)*this);
-            return true;
+            if (connman) {
+                connman->RelayTransaction((CTransaction)*this);
+                return true;
+            }
         }
     }
     return false;

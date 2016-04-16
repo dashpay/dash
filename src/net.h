@@ -97,11 +97,7 @@ struct AddedNodeInfo
     bool fInbound;
 };
 
-CNode* FindNode(const CNetAddr& ip);
-CNode* FindNode(const CSubNet& subNet);
-CNode* FindNode(const std::string& addrName);
-CNode* FindNode(const CService& ip);
-
+class CTransaction;
 class CNodeStats;
 class CConnman
 {
@@ -126,6 +122,20 @@ public:
     // Unfortunately, can't make this method private like in Bitcoin,
     // because it's used in many Dash-specific places (masternode, privatesend).
     CNode* ConnectNode(CAddress addrConnect, const char *pszDest = NULL, bool fConnectToMasternode = false);
+
+    bool ForNode(NodeId id, std::function<bool(CNode* pnode)> func);
+    bool ForNode(const CService& addr, std::function<bool(CNode* pnode)> func);
+    bool ForEachNode(std::function<bool(CNode* pnode)> func);
+    bool ForEachNode(std::function<bool(const CNode* pnode)> func) const;
+    bool ForEachNodeThen(std::function<bool(CNode* pnode)> pre, std::function<void()> post);
+    bool ForEachNodeThen(std::function<bool(const CNode* pnode)> pre, std::function<void()> post) const;
+
+    std::vector<CNode*> CopyNodeVector();
+    void ReleaseNodeVector(const std::vector<CNode*>& vecNodes);
+
+    void RelayTransaction(const CTransaction& tx);
+    void RelayTransaction(const CTransaction& tx, const CDataStream& ss);
+    void RelayInv(CInv &inv, const int minProtoVersion = MIN_PEER_PROTO_VERSION);
 
     // Addrman functions
     size_t GetAddressCount() const;
@@ -190,6 +200,12 @@ private:
     void ThreadDNSAddressSeed();
     void ThreadMnbRequestConnections();
 
+    CNode* FindNode(const CNetAddr& ip);
+    CNode* FindNode(const CSubNet& subNet);
+    CNode* FindNode(const std::string& addrName);
+    CNode* FindNode(const CService& addr);
+
+    bool AttemptToEvictConnection();
     void DeleteNode(CNode* pnode);
     //!check is the banlist has unwritten changes
     bool BannedSetIsDirty();
@@ -211,6 +227,8 @@ private:
     CCriticalSection cs_vOneShots;
     std::vector<std::string> vAddedNodes;
     CCriticalSection cs_vAddedNodes;
+    std::vector<CNode*> vNodes;
+    mutable CCriticalSection cs_vNodes;
 };
 extern std::unique_ptr<CConnman> g_connman;
 void MapPort(bool fUseUPnP);
@@ -284,8 +302,6 @@ extern uint64_t nLocalHostNonce;
 /** Maximum number of connections to simultaneously allow (aka connection slots) */
 extern int nMaxConnections;
 
-extern std::vector<CNode*> vNodes;
-extern CCriticalSection cs_vNodes;
 extern std::map<CInv, CDataStream> mapRelay;
 extern std::deque<std::pair<int64_t, CInv> > vRelayExpiration;
 extern CCriticalSection cs_mapRelay;
@@ -869,17 +885,9 @@ public:
     static void callCleanup();
 };
 
-class CTransaction;
-void RelayTransaction(const CTransaction& tx);
-void RelayTransaction(const CTransaction& tx, const CDataStream& ss);
-void RelayInv(CInv &inv, const int minProtoVersion = MIN_PEER_PROTO_VERSION);
 
 
 /** Return a timestamp in the future (in microseconds) for exponentially distributed events. */
 int64_t PoissonNextSend(int64_t nNow, int average_interval_seconds);
-
-std::vector<CNode*> CopyNodeVector();
-
-void ReleaseNodeVector(const std::vector<CNode*>& vecNodes);
 
 #endif // BITCOIN_NET_H

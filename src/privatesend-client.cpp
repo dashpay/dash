@@ -849,17 +849,18 @@ bool CPrivateSendClient::JoinExistingQueue(CAmount nBalanceNeedsAnonymized)
         vecMasternodesUsed.push_back(dsq.vin);
 
         CNode* pnodeFound = NULL;
-        {
-            LOCK(cs_vNodes);
-            pnodeFound = FindNode(infoMn.addr);
-            if(pnodeFound) {
-                if(pnodeFound->fDisconnect) {
-                    continue;
-                } else {
-                    pnodeFound->AddRef();
-                }
+        bool fDisconnect = false;
+        g_connman->ForNode(infoMn.addr, [&pnodeFound, &fDisconnect](CNode* pnode) {
+            pnodeFound = pnode;
+            if(pnodeFound->fDisconnect) {
+                fDisconnect = true;
+            } else {
+                pnodeFound->AddRef();
             }
-        }
+            return true;
+        });
+        if (fDisconnect)
+            continue;
 
         LogPrintf("CPrivateSendClient::JoinExistingQueue -- attempt to connect to masternode from queue, addr=%s\n", infoMn.addr.ToString());
         // connect to Masternode and submit the queue request
@@ -923,17 +924,19 @@ bool CPrivateSendClient::StartNewQueue(CAmount nValueMin, CAmount nBalanceNeedsA
         }
 
         CNode* pnodeFound = NULL;
-        {
-            LOCK(cs_vNodes);
-            pnodeFound = FindNode(infoMn.addr);
-            if(pnodeFound) {
-                if(pnodeFound->fDisconnect) {
-                    nTries++;
-                    continue;
-                } else {
-                    pnodeFound->AddRef();
-                }
+        bool fDisconnect = false;
+        g_connman->ForNode(infoMn.addr, [&pnodeFound, &fDisconnect](CNode* pnode) {
+            pnodeFound = pnode;
+            if(pnodeFound->fDisconnect) {
+                fDisconnect = true;
+            } else {
+                pnodeFound->AddRef();
             }
+            return true;
+        });
+        if (fDisconnect) {
+            nTries++;
+            continue;
         }
 
         LogPrintf("CPrivateSendClient::StartNewQueue -- attempt %d connection to Masternode %s\n", nTries, infoMn.addr.ToString());
@@ -1369,12 +1372,11 @@ void CPrivateSendClient::RelayIn(const CDarkSendEntry& entry)
 {
     if(!infoMixingMasternode.fInfoValid) return;
 
-    LOCK(cs_vNodes);
-    CNode* pnode = FindNode(infoMixingMasternode.addr);
-    if(pnode != NULL) {
+    g_connman->ForNode(infoMixingMasternode.addr, [&entry](CNode* pnode) {
         LogPrintf("CPrivateSendClient::RelayIn -- found master, relaying message to %s\n", pnode->addr.ToString());
         pnode->PushMessage(NetMsgType::DSVIN, entry);
-    }
+        return true;
+    });
 }
 
 void CPrivateSendClient::SetState(PoolState nStateNew)

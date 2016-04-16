@@ -3377,15 +3377,15 @@ bool ActivateBestChain(CValidationState &state, const CChainParams& chainparams,
                 int nBlockEstimate = 0;
                 if (fCheckpointsEnabled)
                     nBlockEstimate = Checkpoints::GetTotalBlocksEstimate(chainparams.Checkpoints());
-                {
-                    LOCK(cs_vNodes);
-                    BOOST_FOREACH(CNode* pnode, vNodes) {
+                if(connman) {
+                    connman->ForEachNode([nNewHeight, nBlockEstimate, &vHashes](CNode* pnode) {
                         if (nNewHeight > (pnode->nStartingHeight != -1 ? pnode->nStartingHeight - 2000 : nBlockEstimate)) {
                             BOOST_REVERSE_FOREACH(const uint256& hash, vHashes) {
                                 pnode->PushBlockHash(hash);
                             }
                         }
-                    }
+                        return true;
+                    });
                 }
                 // Notify external listeners about the new tip.
                 if (!vHashes.empty()) {
@@ -4970,6 +4970,40 @@ bool static AlreadyHave(const CInv& inv) EXCLUSIVE_LOCKS_REQUIRED(cs_main)
     return true;
 }
 
+static void RelayAddress(const CAddress& addr, bool fReachable, CConnman& connman)
+{
+    int nRelayNodes = fReachable ? 2 : 1; // limited relaying of addresses outside our network(s)
+
+    // Relay to a limited number of other nodes
+    // Use deterministic randomness to send to the same nodes for 24 hours
+    // at a time so the addrKnowns of the chosen nodes prevent repeats
+    static uint256 hashSalt;
+    if (hashSalt.IsNull())
+        hashSalt = GetRandHash();
+    uint64_t hashAddr = addr.GetHash();
+    uint256 hashRand = ArithToUint256(UintToArith256(hashSalt) ^ (hashAddr<<32) ^ ((GetTime()+hashAddr)/(24*60*60)));
+    hashRand = Hash(BEGIN(hashRand), END(hashRand));
+    std::multimap<uint256, CNode*> mapMix;
+
+    auto sortfunc = [&mapMix, &hashRand](CNode* pnode) {
+        if (pnode->nVersion >= CADDR_TIME_VERSION) {
+            unsigned int nPointer;
+            memcpy(&nPointer, &pnode, sizeof(nPointer));
+            uint256 hashKey = ArithToUint256(UintToArith256(hashRand) ^ nPointer);
+            hashKey = Hash(BEGIN(hashKey), END(hashKey));
+            mapMix.emplace(hashKey, pnode);
+        }
+        return true;
+    };
+
+    auto pushfunc = [&addr, &mapMix, &nRelayNodes] {
+        for (auto mi = mapMix.begin(); mi != mapMix.end() && nRelayNodes-- > 0; ++mi)
+            mi->second->PushAddress(addr);
+    };
+
+    connman.ForEachNodeThen(std::move(sortfunc), std::move(pushfunc));
+}
+
 void static ProcessGetData(CNode* pfrom, const Consensus::Params& consensusParams)
 {
     std::deque<CInv>::iterator it = pfrom->vRecvGetData.begin();
@@ -5495,32 +5529,7 @@ bool static ProcessMessage(CNode* pfrom, string strCommand, CDataStream& vRecv, 
             bool fReachable = IsReachable(addr);
             if (addr.nTime > nSince && !pfrom->fGetAddr && vAddr.size() <= 10 && addr.IsRoutable())
             {
-                // Relay to a limited number of other nodes
-                {
-                    LOCK(cs_vNodes);
-                    // Use deterministic randomness to send to the same nodes for 24 hours
-                    // at a time so the addrKnowns of the chosen nodes prevent repeats
-                    static uint256 hashSalt;
-                    if (hashSalt.IsNull())
-                        hashSalt = GetRandHash();
-                    uint64_t hashAddr = addr.GetHash();
-                    uint256 hashRand = ArithToUint256(UintToArith256(hashSalt) ^ (hashAddr<<32) ^ ((GetTime()+hashAddr)/(24*60*60)));
-                    hashRand = Hash(BEGIN(hashRand), END(hashRand));
-                    multimap<uint256, CNode*> mapMix;
-                    BOOST_FOREACH(CNode* pnode, vNodes)
-                    {
-                        if (pnode->nVersion < CADDR_TIME_VERSION)
-                            continue;
-                        unsigned int nPointer;
-                        memcpy(&nPointer, &pnode, sizeof(nPointer));
-                        uint256 hashKey = ArithToUint256(UintToArith256(hashRand) ^ nPointer);
-                        hashKey = Hash(BEGIN(hashKey), END(hashKey));
-                        mapMix.insert(make_pair(hashKey, pnode));
-                    }
-                    int nRelayNodes = fReachable ? 2 : 1; // limited relaying of addresses outside our network(s)
-                    for (multimap<uint256, CNode*>::iterator mi = mapMix.begin(); mi != mapMix.end() && nRelayNodes-- > 0; ++mi)
-                        ((*mi).second)->PushAddress(addr);
-                }
+                RelayAddress(addr, fReachable, connman);
             }
             // Do not store addresses outside our network
             if (fReachable)
@@ -5828,7 +5837,7 @@ bool static ProcessMessage(CNode* pfrom, string strCommand, CDataStream& vRecv, 
             }
 
             mempool.check(pcoinsTip);
-            RelayTransaction(tx);
+            connman.RelayTransaction(tx);
             vWorkQueue.push_back(inv.hash);
 
             pfrom->nLastTXTime = GetTime();
@@ -5864,7 +5873,7 @@ bool static ProcessMessage(CNode* pfrom, string strCommand, CDataStream& vRecv, 
                     if (AcceptToMemoryPool(mempool, stateDummy, orphanTx, true, &fMissingInputs2))
                     {
                         LogPrint("mempool", "   accepted orphan tx %s\n", orphanHash.ToString());
-                        RelayTransaction(orphanTx);
+                        connman.RelayTransaction(orphanTx);
                         vWorkQueue.push_back(orphanHash);
                         vEraseQueue.push_back(orphanHash);
                     }
@@ -5915,7 +5924,7 @@ bool static ProcessMessage(CNode* pfrom, string strCommand, CDataStream& vRecv, 
                 instantsend.RejectLockRequest(txLockRequest);
                 // this lets other nodes to create lock request candidate i.e.
                 // this allows multiple conflicting lock requests to compete for votes
-                RelayTransaction(tx);
+                connman.RelayTransaction(tx);
             }
 
             if (pfrom->fWhitelisted && GetBoolArg("-whitelistforcerelay", DEFAULT_WHITELISTFORCERELAY)) {
@@ -5930,7 +5939,7 @@ bool static ProcessMessage(CNode* pfrom, string strCommand, CDataStream& vRecv, 
                 int nDoS = 0;
                 if (!state.IsInvalid(nDoS) || nDoS == 0) {
                     LogPrintf("Force relaying tx %s from whitelisted peer=%d\n", tx.GetHash().ToString(), pfrom->id);
-                    RelayTransaction(tx);
+                    connman.RelayTransaction(tx);
                 } else {
                     LogPrintf("Not relaying invalid transaction %s from whitelisted peer=%d (%s)\n", tx.GetHash().ToString(), pfrom->id, FormatStateMessage(state));
                 }
@@ -6234,9 +6243,10 @@ bool static ProcessMessage(CNode* pfrom, string strCommand, CDataStream& vRecv, 
                 // Relay
                 pfrom->setKnown.insert(alertHash);
                 {
-                    LOCK(cs_vNodes);
-                    BOOST_FOREACH(CNode* pnode, vNodes)
+                    connman.ForEachNode([&alert](CNode* pnode) {
                         alert.RelayTo(pnode);
+                        return true;
+                    });
                 }
             }
             else {

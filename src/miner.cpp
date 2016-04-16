@@ -418,11 +418,7 @@ void static BitcoinMiner(const CChainParams& chainparams, CConnman& connman)
                 // Busy-wait for the network to come online so we don't waste time mining
                 // on an obsolete chain. In regtest mode we expect to fly solo.
                 do {
-                    bool fvNodesEmpty;
-                    {
-                        LOCK(cs_vNodes);
-                        fvNodesEmpty = vNodes.empty();
-                    }
+                    bool fvNodesEmpty = connman.GetNodeCount(CConnman::CONNECTIONS_ALL) == 0;
                     if (!fvNodesEmpty && !IsInitialBlockDownload() && masternodeSync.IsSynced())
                         break;
                     MilliSleep(1000);
@@ -487,7 +483,7 @@ void static BitcoinMiner(const CChainParams& chainparams, CConnman& connman)
                 // Check for stop or if block needs to be rebuilt
                 boost::this_thread::interruption_point();
                 // Regtest mode doesn't require peers
-                if (vNodes.empty() && chainparams.MiningRequiresPeers())
+                if (connman.GetNodeCount(CConnman::CONNECTIONS_ALL) == 0 && chainparams.MiningRequiresPeers())
                     break;
                 if (pblock->nNonce >= 0xffff0000)
                     break;
