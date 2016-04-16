@@ -87,6 +87,14 @@ static const unsigned int DEFAULT_MISBEHAVING_BANTIME = 60 * 60 * 24;  // Defaul
 unsigned int ReceiveFloodSize();
 unsigned int SendBufferSize();
 
+struct AddedNodeInfo
+{
+    std::string strAddedNode;
+    CService resolvedAddress;
+    bool fConnected;
+    bool fInbound;
+};
+
 CNode* FindNode(const CNetAddr& ip);
 CNode* FindNode(const CSubNet& subNet);
 CNode* FindNode(const std::string& addrName);
@@ -142,6 +150,11 @@ public:
     void SetBanned(const banmap_t &banmap);
 
     void AddOneShot(const std::string& strDest);
+
+    bool AddNode(const std::string& node);
+    bool RemoveAddedNode(const std::string& node);
+    std::vector<AddedNodeInfo> GetAddedNodeInfo();
+
 private:
     struct ListenSocket {
         SOCKET socket;
@@ -178,6 +191,8 @@ private:
     CAddrMan addrman;
     std::deque<std::string> vOneShots;
     CCriticalSection cs_vOneShots;
+    std::vector<std::string> vAddedNodes;
+    CCriticalSection cs_vAddedNodes;
 };
 extern std::unique_ptr<CConnman> g_connman;
 void MapPort(bool fUseUPnP);
@@ -259,9 +274,6 @@ extern std::map<CInv, CDataStream> mapRelay;
 extern std::deque<std::pair<int64_t, CInv> > vRelayExpiration;
 extern CCriticalSection cs_mapRelay;
 extern limitedmap<uint256, int64_t> mapAlreadyAskedFor;
-
-extern std::vector<std::string> vAddedNodes;
-extern CCriticalSection cs_vAddedNodes;
 
 extern NodeId nLastNodeId;
 extern CCriticalSection cs_nLastNodeId;
@@ -853,15 +865,5 @@ int64_t PoissonNextSend(int64_t nNow, int average_interval_seconds);
 std::vector<CNode*> CopyNodeVector();
 
 void ReleaseNodeVector(const std::vector<CNode*>& vecNodes);
-
-struct AddedNodeInfo
-{
-    std::string strAddedNode;
-    CService resolvedAddress;
-    bool fConnected;
-    bool fInbound;
-};
-
-std::vector<AddedNodeInfo> GetAddedNodeInfo();
 
 #endif // BITCOIN_NET_H
