@@ -21,6 +21,7 @@
 #include <atomic>
 #include <deque>
 #include <stdint.h>
+#include <memory>
 
 #ifndef WIN32
 #include <arpa/inet.h>
@@ -95,11 +96,37 @@ CNode* FindNode(const CService& ip);
 // and/or you want it to be disconnected on CMasternodeMan::ProcessMasternodeConnections()
 CNode* ConnectNode(CAddress addrConnect, const char *pszDest = NULL, bool fConnectToMasternode = false);
 bool OpenNetworkConnection(const CAddress& addrConnect, CSemaphoreGrant *grantOutbound = NULL, const char *strDest = NULL, bool fOneShot = false, bool fFeeler = false);
+
+struct ListenSocket {
+    SOCKET socket;
+    bool whitelisted;
+
+    ListenSocket(SOCKET socket_, bool whitelisted_) : socket(socket_), whitelisted(whitelisted_) {}
+};
+
+class CConnman
+{
+public:
+    CConnman();
+    ~CConnman();
+    bool Start(boost::thread_group& threadGroup, std::string& strNodeError);
+    void Stop();
+private:
+    void ThreadOpenAddedConnections();
+    void ProcessOneShot();
+    void ThreadOpenConnections();
+    void ThreadMessageHandler();
+    void AcceptConnection(const ListenSocket& hListenSocket);
+    void ThreadSocketHandler();
+    void ThreadDNSAddressSeed();
+    void ThreadMnbRequestConnections();
+};
+extern std::unique_ptr<CConnman> g_connman;
 void MapPort(bool fUseUPnP);
 unsigned short GetListenPort();
 bool BindListenPort(const CService &bindAddr, std::string& strError, bool fWhitelisted = false);
-void StartNode(boost::thread_group& threadGroup, CScheduler& scheduler);
-bool StopNode();
+bool StartNode(CConnman& connman, boost::thread_group& threadGroup, CScheduler& scheduler, std::string& strNodeError);
+bool StopNode(CConnman& connman);
 void SocketSendData(CNode *pnode);
 
 typedef int NodeId;
