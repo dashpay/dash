@@ -819,7 +819,7 @@ void CMasternodeMan::ProcessMessage(CNode* pfrom, std::string& strCommand, CData
 
         if (CheckMnbAndUpdateMasternodeList(pfrom, mnb, nDos)) {
             // use announced Masternode as a peer
-            addrman.Add(CAddress(mnb.addr, NODE_NETWORK), pfrom->addr, 2*60*60);
+            g_connman->AddNewAddress(CAddress(mnb.addr, NODE_NETWORK), pfrom->addr, 2*60*60);
         } else if(nDos > 0) {
             Misbehaving(pfrom->GetId(), nDos);
         }
