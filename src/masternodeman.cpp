@@ -1098,7 +1098,8 @@ bool CMasternodeMan::SendVerifyRequest(const CAddress& addr, const std::vector<C
         return false;
     }
 
-    CNode* pnode = ConnectNode(addr, NULL, true);
+    // TODO: Pass CConnman instance somehow and don't use global variable.
+    CNode* pnode = g_connman->ConnectNode(addr, NULL, true);
     if(pnode == NULL) {
         LogPrintf("CMasternodeMan::SendVerifyRequest -- can't connect to node to verify it, addr=%s\n", addr.ToString());
         return false;

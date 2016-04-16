@@ -92,10 +92,6 @@ CNode* FindNode(const CNetAddr& ip);
 CNode* FindNode(const CSubNet& subNet);
 CNode* FindNode(const std::string& addrName);
 CNode* FindNode(const CService& ip);
-// fConnectToMasternode should be 'true' only if you want this node to allow to connect to itself
-// and/or you want it to be disconnected on CMasternodeMan::ProcessMasternodeConnections()
-CNode* ConnectNode(CAddress addrConnect, const char *pszDest = NULL, bool fConnectToMasternode = false);
-bool OpenNetworkConnection(const CAddress& addrConnect, CSemaphoreGrant *grantOutbound = NULL, const char *strDest = NULL, bool fOneShot = false, bool fFeeler = false);
 
 class CConnman
 {
@@ -105,6 +101,13 @@ public:
     bool Start(boost::thread_group& threadGroup, std::string& strNodeError);
     void Stop();
     bool BindListenPort(const CService &bindAddr, std::string& strError, bool fWhitelisted = false);
+    bool OpenNetworkConnection(const CAddress& addrConnect, CSemaphoreGrant *grantOutbound = NULL, const char *strDest = NULL, bool fOneShot = false, bool fFeeler = false);
+
+    // fConnectToMasternode should be 'true' only if you want this node to allow to connect to itself
+    // and/or you want it to be disconnected on CMasternodeMan::ProcessMasternodeConnections()
+    // Unfortunately, can't make this method private like in Bitcoin,
+    // because it's used in many Dash-specific places (masternode, privatesend).
+    CNode* ConnectNode(CAddress addrConnect, const char *pszDest = NULL, bool fConnectToMasternode = false);
 
 private:
     struct ListenSocket {
