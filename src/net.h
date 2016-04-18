@@ -116,6 +116,7 @@ public:
     void Stop();
     bool BindListenPort(const CService &bindAddr, std::string& strError, bool fWhitelisted = false);
     bool OpenNetworkConnection(const CAddress& addrConnect, CSemaphoreGrant *grantOutbound = NULL, const char *strDest = NULL, bool fOneShot = false, bool fFeeler = false);
+    bool CheckIncomingNonce(uint64_t nonce);
 
     // fConnectToMasternode should be 'true' only if you want this node to allow to connect to itself
     // and/or you want it to be disconnected on CMasternodeMan::ProcessMasternodeConnections()
@@ -309,7 +310,6 @@ CAddress GetLocalAddress(const CNetAddr *paddrPeer = NULL);
 extern bool fDiscover;
 extern bool fListen;
 extern ServiceFlags nLocalServices;
-extern uint64_t nLocalHostNonce;
 
 /** Maximum number of connections to simultaneously allow (aka connection slots) */
 extern int nMaxConnections;
@@ -529,10 +529,15 @@ private:
     CNode(const CNode&);
     void operator=(const CNode&);
 
+    uint64_t nLocalHostNonce;
 public:
 
     NodeId GetId() const {
       return id;
+    }
+
+    uint64_t GetLocalNonce() const {
+      return nLocalHostNonce;
     }
 
     int GetRefCount()
