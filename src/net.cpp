@@ -92,9 +92,6 @@ std::deque<pair<int64_t, CInv> > vRelayExpiration;
 CCriticalSection cs_mapRelay;
 limitedmap<uint256, int64_t> mapAlreadyAskedFor(MAX_INV_SZ);
 
-static CSemaphore *semOutbound = NULL;
-static CSemaphore *semMasternodeOutbound = NULL;
-
 // Signals for message handling
 static CNodeSignals g_signals;
 CNodeSignals& GetNodeSignals() { return g_signals; }
@@ -2090,6 +2087,8 @@ CConnman::CConnman()
     nLastNodeId = 0;
     nSendBufferMaxSize = 0;
     nReceiveFloodSize = 0;
+    semOutbound = NULL;
+    semMasternodeOutbound = NULL;
 }
 
 bool StartNode(CConnman& connman, boost::thread_group& threadGroup, CScheduler& scheduler, ServiceFlags nLocalServices, ServiceFlags nRelevantServices, std::string& strNodeError)
