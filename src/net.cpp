@@ -1239,7 +1239,7 @@ void CConnman::ThreadSocketHandler()
                     TRY_LOCK(pnode->cs_vRecvMsg, lockRecv);
                     if (lockRecv && (
                         pnode->vRecvMsg.empty() || !pnode->vRecvMsg.front().complete() ||
-                        pnode->GetTotalRecvSize() <= ReceiveFloodSize()))
+                        pnode->GetTotalRecvSize() <= GetReceiveFloodSize()))
                         FD_SET(pnode->hSocket, &fdsetRecv);
                 }
             }
@@ -1906,7 +1906,7 @@ void CConnman::ThreadMessageHandler()
                     if (!GetNodeSignals().ProcessMessages(pnode, *this))
                         pnode->fDisconnect = true;
 
-                    if (pnode->nSendSize < SendBufferSize())
+                    if (pnode->nSendSize < GetSendBufferSize())
                     {
                         if (!pnode->vRecvGetData.empty() || (!pnode->vRecvMsg.empty() && pnode->vRecvMsg[0].complete()))
                         {
@@ -2092,6 +2092,8 @@ CConnman::CConnman()
     setBannedIsDirty = false;
     fAddressesInitialized = false;
     nLastNodeId = 0;
+    nSendBufferMaxSize = 0;
+    nReceiveFloodSize = 0;
 }
 
 bool StartNode(CConnman& connman, boost::thread_group& threadGroup, CScheduler& scheduler, std::string& strNodeError)
@@ -2116,6 +2118,9 @@ bool CConnman::Start(boost::thread_group& threadGroup, CScheduler& scheduler, st
     nMaxOutboundTotalBytesSentInCycle = 0;
     nMaxOutboundTimeframe = 60*60*24; //1 day
     nMaxOutboundCycleStartTime = 0;
+
+    nSendBufferMaxSize = 1000*GetArg("-maxsendbuffer", DEFAULT_MAXSENDBUFFER);
+    nReceiveFloodSize = 1000*GetArg("-maxreceivebuffer", DEFAULT_MAXRECEIVEBUFFER);
 
     uiInterface.InitMessage(_("Loading addresses..."));
     // Load addresses from peers.dat
@@ -2614,8 +2619,8 @@ void CNode::Fuzz(int nChance)
     Fuzz(2);
 }
 
-unsigned int ReceiveFloodSize() { return 1000*GetArg("-maxreceivebuffer", DEFAULT_MAXRECEIVEBUFFER); }
-unsigned int SendBufferSize() { return 1000*GetArg("-maxsendbuffer", DEFAULT_MAXSENDBUFFER); }
+unsigned int CConnman::GetReceiveFloodSize() const { return nReceiveFloodSize; }
+unsigned int CConnman::GetSendBufferSize() const{ return nSendBufferMaxSize; }
 
 CNode::CNode(NodeId idIn, SOCKET hSocketIn, const CAddress& addrIn, const std::string& addrNameIn, bool fInboundIn, bool fNetworkNodeIn) :
     ssSend(SER_NETWORK, INIT_PROTO_VERSION),
