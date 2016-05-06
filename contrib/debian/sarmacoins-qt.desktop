@@ -1,0 +1,12 @@
+[Desktop Entry]
+Encoding=UTF-8
+Name=SarmaCoins
+Comment=SarmaCoins P2P Cryptocurrency
+Comment[fr]=SarmaCoins, monnaie virtuelle cryptographique pair à pair
+Comment[tr]=SarmaCoins, eşten eşe kriptografik sanal para birimi
+Exec=SarmaCoins-qt %u
+Terminal=false
+Type=Application
+Icon=SarmaCoins128
+MimeType=x-scheme-handler/SarmaCoins;
+Categories=Office;Finance;

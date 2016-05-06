@@ -93,7 +93,7 @@ public:
 };
 
 /**
- * Dash RPC command dispatcher.
+ * SarmaCoins RPC command dispatcher.
  */
 class CRPCTable
 {

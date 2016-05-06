@@ -1,4 +1,4 @@
-// Copyright (c) 2014-2015 The Dash developers
+// Copyright (c) 2014-2015 The SarmaCoins developers
 // Distributed under the MIT/X11 software license, see the accompanying
 // file COPYING or http://www.opensource.org/licenses/mit-license.php.
 
@@ -486,7 +486,7 @@ public:
 
     void GetDenominationsToString(int nDenom, std::string& strDenom);
 
-    /// Get the denominations for a specific amount of dash.
+    /// Get the denominations for a specific amount of SarmaCoins.
     int GetDenominationsByAmount(int64_t nAmount, int nDenomTarget=0); // is not used anymore?
     int GetDenominationsByAmounts(std::vector<int64_t>& vecAmount);
 

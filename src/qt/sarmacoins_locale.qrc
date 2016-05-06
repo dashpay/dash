@@ -1,0 +1,20 @@
+<!DOCTYPE RCC><RCC version="1.0">
+    <qresource prefix="/translations">
+        <file alias="bg">locale/SarmaCoins_bg.qm</file>
+        <file alias="de">locale/SarmaCoins_de.qm</file>
+        <file alias="en">locale/SarmaCoins_en.qm</file>
+        <file alias="es">locale/SarmaCoins_es.qm</file>
+        <file alias="fi">locale/SarmaCoins_fi.qm</file>
+        <file alias="fr">locale/SarmaCoins_fr.qm</file>
+        <file alias="it">locale/SarmaCoins_it.qm</file>
+        <file alias="ja">locale/SarmaCoins_ja.qm</file>
+        <file alias="pl">locale/SarmaCoins_pl.qm</file>
+        <file alias="pt">locale/SarmaCoins_pt.qm</file>
+        <file alias="ru">locale/SarmaCoins_ru.qm</file>
+        <file alias="sk">locale/SarmaCoins_sk.qm</file>
+        <file alias="sv">locale/SarmaCoins_sv.qm</file>
+        <file alias="vi">locale/SarmaCoins_vi.qm</file>
+        <file alias="zh_CN">locale/SarmaCoins_zh_CN.qm</file>
+        <file alias="zh_TW">locale/SarmaCoins_zh_TW.qm</file>
+    </qresource>
+</RCC>

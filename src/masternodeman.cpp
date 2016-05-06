@@ -1,4 +1,4 @@
-// Copyright (c) 2014-2015 The Dash developers
+// Copyright (c) 2014-2015 The SarmaCoins developers
 // Distributed under the MIT/X11 software license, see the accompanying
 // file COPYING or http://www.opensource.org/licenses/mit-license.php.
 
@@ -877,8 +877,8 @@ void CMasternodeMan::ProcessMessage(CNode* pfrom, std::string& strCommand, CData
         }
 
         if(Params().NetworkID() == CBaseChainParams::MAIN){
-            if(addr.GetPort() != 9999) return;
-        } else if(addr.GetPort() == 9999) return;
+            if(addr.GetPort() != 9887) return;
+        } else if(addr.GetPort() == 9887) return;
 
         //search existing Masternode list, this is where we update existing Masternodes with new dsee broadcasts
         CMasternode* pmn = this->Find(vin);
