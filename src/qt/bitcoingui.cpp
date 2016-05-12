@@ -624,6 +624,16 @@ void BitcoinGUI::setClientModel(ClientModel *clientModel)
         }
 #endif // ENABLE_WALLET
         unitDisplayControl->setOptionsModel(clientModel->getOptionsModel());
+        
+        OptionsModel* optionsModel = clientModel->getOptionsModel();
+        if(optionsModel)
+        {
+            // be aware of the tray icon disable state change reported by the OptionsModel object.
+            connect(optionsModel,SIGNAL(hideTrayIconChanged(bool)),this,SLOT(setTrayIconVisible(bool)));
+        
+            // initialize the disable state of the tray icon with the current value in the model.
+            setTrayIconVisible(optionsModel->getHideTrayIcon());
+        }
     } else {
         // Disable possibility to show main window via action
         toggleHideAction->setEnabled(false);
@@ -695,7 +705,7 @@ void BitcoinGUI::createTrayIcon(const NetworkStyle *networkStyle)
     QString toolTip = tr("Dash Core client") + " " + networkStyle->getTitleAddText();
     trayIcon->setToolTip(toolTip);
     trayIcon->setIcon(networkStyle->getTrayAndWindowIcon());
-    trayIcon->show();
+    trayIcon->hide();
     notificator = new Notificator(QApplication::applicationName(), trayIcon, this);
 }
 
@@ -1340,6 +1350,14 @@ void BitcoinGUI::showProgress(const QString &title, int nProgress)
     }
     else if (progressDialog)
         progressDialog->setValue(nProgress);
+}
+
+void BitcoinGUI::setTrayIconVisible(bool fHideTrayIcon)
+{
+    if (trayIcon)
+    {
+        trayIcon->setVisible(!fHideTrayIcon);
+    }
 }
 
 static bool ThreadSafeMessageBox(BitcoinGUI *gui, const std::string& message, const std::string& caption, unsigned int style)
