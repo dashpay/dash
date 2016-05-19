@@ -1,5 +1,5 @@
 
-// Copyright (c) 2009-2012 The Dash developers
+// Copyright (c) 2009-2012 The Dash Core developers
 // Distributed under the MIT/X11 software license, see the accompanying
 // file COPYING or http://www.opensource.org/licenses/mit-license.php.
 #ifndef INSTANTX_H
@@ -37,7 +37,6 @@ static const int MIN_INSTANTX_PROTO_VERSION = 70103;
 extern map<uint256, CTransaction> mapTxLockReq;
 extern map<uint256, CTransaction> mapTxLockReqRejected;
 extern map<uint256, CConsensusVote> mapTxLockVote;
-extern map<uint256, CTransactionLock> mapTxLocks;
 extern std::map<COutPoint, uint256> mapLockedInputs;
 extern int nCompleteTXLocks;
 
@@ -45,9 +44,6 @@ extern int nCompleteTXLocks;
 int64_t CreateNewLock(CTransaction tx);
 
 bool IsIXTXValid(const CTransaction& txCollateral);
-
-// if two conflicting locks are approved by the network, they will cancel out
-bool CheckForConflictingLocks(CTransaction& tx);
 
 void ProcessMessageInstantX(CNode* pfrom, std::string& strCommand, CDataStream& vRecv);
 
@@ -57,8 +53,28 @@ void DoConsensusVote(CTransaction& tx, int64_t nBlockHeight);
 //process consensus vote message
 bool ProcessConsensusVote(CNode *pnode, CConsensusVote& ctx);
 
+//update UI and notify external script if any
+void UpdateLockedTransaction(CTransaction& tx, bool fForceNotification = false);
+
+void LockTransactionInputs(CTransaction& tx);
+
+// if two conflicting locks are approved by the network, they will cancel out
+bool FindConflictingLocks(CTransaction& tx);
+
+//try to resolve conflicting locks
+void ResolveConflicts(CTransaction& tx);
+
 // keep transaction locks in memory for an hour
 void CleanTransactionLocksList();
+
+// verify if transaction is currently locked
+bool IsLockedIXTransaction(uint256 txHash);
+
+// get the actual uber og accepted lock signatures
+int GetTransactionLockSignatures(uint256 txHash);
+
+// verify if transaction lock timed out
+bool IsTransactionLockTimedOut(uint256 txHash);
 
 int64_t GetAverageVoteTime();
 

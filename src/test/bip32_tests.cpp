@@ -1,5 +1,5 @@
-// Copyright (c) 2013 The Bitcoin Core developers
-// Distributed under the MIT/X11 software license, see the accompanying
+// Copyright (c) 2013-2015 The Bitcoin Core developers
+// Distributed under the MIT software license, see the accompanying
 // file COPYING or http://www.opensource.org/licenses/mit-license.php.
 
 #include <boost/test/unit_test.hpp>
@@ -8,6 +8,8 @@
 #include "key.h"
 #include "uint256.h"
 #include "util.h"
+#include "utilstrencodings.h"
+#include "test/test_dash.h"
 
 #include <string>
 #include <vector>
@@ -36,44 +38,44 @@ struct TestVector {
 
 TestVector test1 =
   TestVector("000102030405060708090a0b0c0d0e0f")
-    ("xpub661MyMwAqRbcFtXgS5sYJABqqG9YLmC4Q1Rdap9gSE8NqtwybGhePY2gZ29ESFjqJoCu1Rupje8YtGqsefD265TMg7usUDFdp6W1EGMcet8",
-     "xprv9s21ZrQH143K3QTDL4LXw2F7HEK3wJUD2nW2nRk4stbPy6cq3jPPqjiChkVvvNKmPGJxWUtg6LnF5kejMRNNU3TGtRBeJgk33yuGBxrMPHi",
+    ("dpubZ9169KDAEUnyoBhjjmT2VaEodr6pUTDoqCEAeqgbfr2JfkB88BbK77jbTYbcYXb2FVz7DKBdW4P618yd51MwF8DjKVopSbS7Lkgi6Y7Ckb8",
+     "dprvLJcNFzfZn6ywEjid4Ver3tsK3puSZFZr3oxCtC1cPdxVsZzjQwGPHvpLxZ83zP37V35uVQNG7GYHjxtkEUWhUKrFTt1bEj49EvPzRfWNPQH",
      0x80000000)
-    ("xpub68Gmy5EdvgibQVfPdqkBBCHxA5htiqg55crXYuXoQRKfDBFA1WEjWgP6LHhwBZeNK1VTsfTFUHCdrfp1bgwQ9xv5ski8PX9rL2dZXvgGDnw",
-     "xprv9uHRZZhk6KAJC1avXpDAp4MDc3sQKNxDiPvvkX8Br5ngLNv1TxvUxt4cV1rGL5hj6KCesnDYUhd7oWgT11eZG7XnxHrnYeSvkzY7d2bhkJ7",
+    ("dpubZBGW92WdKjuxwnqSwXKfNcLuxffArXhpWof4cw4ie3Db32UJYR8QEG61EpAKHqVZFiGg5Yj4EhTAyXwm236KK1gTX8c5MuLKrgpGQGTaNAV",
+     "dprvLLsnFhy2sN6vPLrLGFXUvvyRNeTnwL3rjRP6rHPjMq9nErHuqAoUR5AkjpUPQ6R5C5ybrhh8VdPATivTt4ntGPvmXkgjUgm2ww2qroEB9Ts",
      1)
-    ("xpub6ASuArnXKPbfEwhqN6e3mwBcDTgzisQN1wXN9BJcM47sSikHjJf3UFHKkNAWbWMiGj7Wf5uMash7SyYq527Hqck2AxYysAA7xmALppuCkwQ",
-     "xprv9wTYmMFdV23N2TdNG573QoEsfRrWKQgWeibmLntzniatZvR9BmLnvSxqu53Kw1UmYPxLgboyZQaXwTCg8MSY3H2EU4pWcQDnRnrVA1xe8fs",
+    ("dpubZDSdLp4WiSo2nEstfnDXyMEa23eGrZS7T8KuDCqXag1oGZySGDYiBpzEetcthnCuDRtiryBAMHweZqgaVNGCzfWPpLSvqYLbVRM3h9fkKv6",
+     "dprvLP3uTVWvG4yzDntmzWRMXfs5S2StwMn9fk3wSZAYJTwzUPo3YyDnNe4z9sfT12C7eAjHfXHZaLLabfSh1Qas3ZRD3XeTYSXtcjMDPeReKGg",
      0x80000002)
-    ("xpub6D4BDPcP2GT577Vvch3R8wDkScZWzQzMMUm3PWbmWvVJrZwQY4VUNgqFJPMM3No2dFDFGTsxxpG5uJh7n7epu4trkrX7x7DogT5Uv6fcLW5",
-     "xprv9z4pot5VBttmtdRTWfWQmoH1taj2axGVzFqSb8C9xaxKymcFzXBDptWmT7FwuEzG3ryjH4ktypQSAewRiNMjANTtpgP4mLTj34bhnZX7UiM",
+    ("dpubZG3uPLtNRKeSeQfyvNcuLMGiFCWo8726nfZaTY8gkYPEgRAZ4yP96GYACuoj9eeDZwzTUM9mjEWd2ApsCTok47fEQER4vVQHD7GBnSUChBT",
+     "dprvLRfBW2LmxwqQ5xgsF6pitfuDfBKRCuN91HHcgtThULKRtEzAMj4DH5cuhut4yFhc9dkgFzEUzkAUpsBSbRW4AersQ9D1hNmqE16S2LQbbCi",
      2)
-    ("xpub6FHa3pjLCk84BayeJxFW2SP4XRrFd1JYnxeLeU8EqN3vDfZmbqBqaGJAyiLjTAwm6ZLRQUMv1ZACTj37sR62cfN7fe5JnJ7dh8zL4fiyLHV",
-     "xprvA2JDeKCSNNZky6uBCviVfJSKyQ1mDYahRjijr5idH2WwLsEd4Hsb2Tyh8RfQMuPh7f7RtyzTtdrbdqqsunu5Mm3wDvUAKRHSC34sJ7in334",
+    ("dpubZJHJDn1KboKRit9hcdpzDrS2L1oXkhLJE9SsiVfA4ywr3Wnv8k5WHr15tEo7ZSnx3G7dcMdimyQjabAsHmEwmi8VK1yFkgJ7DoB2vzheMZ7",
+     "dprvLTtaLTTj9RWPASAawN2onB4Xjzc9qVgLSmAuwqzAnmt3FLcXRVkaUf5qPEHXRv73DRtNsuU3uZceJ45tnr3QN3SuoPJ7FTbYNyZbXkHHL6B",
      1000000000)
-    ("xpub6H1LXWLaKsWFhvm6RVpEL9P4KfRZSW7abD2ttkWP3SSQvnyA8FSVqNTEcYFgJS2UaFcxupHiYkro49S8yGasTvXEYBVPamhGW6cFJodrTHy",
-     "xprvA41z7zogVVwxVSgdKUHDy1SKmdb533PjDz7J6N6mV6uS3ze1ai8FHa8kmHScGpWmj4WggLyQjgPie1rFSruoUihUZREPSL39UNdE3BBDu76",
+    ("dpubZL14hTcZivhdFDw9jBPiXZS28FNqaC9L2PqRxn3JH4LLkeCJfALAYxA9X4i4QhsfWxQB7hZXKB7LB1ZtPcjncyHcBZPLZ9sk2knxB9dPD6v",
+     "dprvLVcLp94yGYtagmx33ubY5t4XYEBTezVNF1ZUC8NJzrGXxU1uwv1EjmEu264jLqE7pqHdfGSzkc9mJE6GKv48V16T8t4LNNMFfK7xGuw1qYe",
      0);
 
 TestVector test2 =
   TestVector("fffcf9f6f3f0edeae7e4e1dedbd8d5d2cfccc9c6c3c0bdbab7b4b1aeaba8a5a29f9c999693908d8a8784817e7b7875726f6c696663605d5a5754514e4b484542")
-    ("xpub661MyMwAqRbcFW31YEwpkMuc5THy2PSt5bDMsktWQcFF8syAmRUapSCGu8ED9W6oDMSgv6Zz8idoc4a6mr8BDzTJY47LJhkJ8UB7WEGuduB",
-     "xprv9s21ZrQH143K31xYSDQpPDxsXRTUcvj2iNHm5NUtrGiGG5e2DtALGdso3pGz6ssrdK4PFmM8NSpSBHNqPqm55Qn3LqFtT2emdEXVYsCzC2U",
+    ("dpubZ9169KDAEUnynoD4qvXJwmxZt3FFA5UdWn1twnRReE9AxjCKJLNFY1uBoegbFmwzA4Du7yqnu8tLivhrCCH6P3DgBS1HH5vmf8MpNZPvMv6",
+     "dprvLJcNFzfZn6ywEMDxAej8W6b5J23sEspfjPjwB8kSN25NAZ1vb63KipywJcu7AtbCj5qLEgpiPNaUqVcrGtuQ5hB1vJ5qP4xspB2Dndk4mqU",
      0)
-    ("xpub69H7F5d8KSRgmmdJg2KhpAK8SR3DjMwAdkxj3ZuxV27CprR9LgpeyGmXUbC6wb7ERfvrnKZjXoUmmDznezpbZb7ap6r1D3tgFxHmwMkQTPH",
-     "xprv9vHkqa6EV4sPZHYqZznhT2NPtPCjKuDKGY38FBWLvgaDx45zo9WQRUT3dKYnjwih2yJD9mkrocEZXo1ex8G81dwSM1fwqWpWkeS3v86pgKt",
+    ("dpubZCGqR2u7iVd4K4oMyhuC1aN6EzzVs3xv4wmG7bSsie18eheHsbiKgrUSP7eV3rxRNNi4zCqYJDjJt68Y5LyWidsxTUjxBS59ncUUoiV7Hou",
+     "dprvLMt7XiMXG7p1kcpFJS71Ztzbeyo7wrJxHZVJLwmtSRwKrXTuAMPPsfZBt8AuoxS38k5A8hESpXzcC1FfqBQT1vLQvUVtmZ8cwavn9q2tk8V",
      0xFFFFFFFF)
-    ("xpub6ASAVgeehLbnwdqV6UKMHVzgqAG8Gr6riv3Fxxpj8ksbH9ebxaEyBLZ85ySDhKiLDBrQSARLq1uNRts8RuJiHjaDMBU4Zn9h8LZNnBC5y4a",
-     "xprv9wSp6B7kry3Vj9m1zSnLvN3xH8RdsPP1Mh7fAaR7aRLcQMKTR2vidYEeEg2mUCTAwCd6vnxVrcjfy2kRgVsFawNzmjuHc2YmYRmagcEPdU9",
+    ("dpubZDRtfdve6PoAUw1YQ9tqUv3edkDQQY8cA6qo2zMeNNmX6zskVV8dtvG2zVtbobZX9tdce3h9bS9uYkzsrFTdSnLazZN1YALAezk5eZACqNH",
+     "dprvLP3AnKP3e1z7vV2Rit6f3EgA3j22VLUeNiZqGLgf6AhiJphMnEoi5jLnVUetYDAX2yQ3uiS5sYVidEzSZZ1abDmyMCjEY4rsjNGJvJWqMTT",
      1)
-    ("xpub6DF8uhdarytz3FWdA8TvFSvvAh8dP3283MY7p2V4SeE2wyWmG5mg5EwVvmdMVCQcoNJxGoWaU9DCWh89LojfZ537wTfunKau47EL2dhHKon",
-     "xprv9zFnWC6h2cLgpmSA46vutJzBcfJ8yaJGg8cX1e5StJh45BBciYTRXSd25UEPVuesF9yog62tGAQtHjXajPPdbRCHuWS6T8XA2ECKADdw4Ef",
+    ("dpubZGEs5euaG36MaYggTp3QSrysyH5uWj3sUYLet41ygG7xmpjunzfLnpeQqJ5jbUFok56AUgnPEZTjdZFtm9tai7oVaqZrkhmNamR2u21VLF6",
+     "dprvLRr9CLMyofHK26hZnYFE1BcPPFtXbXPuhA4h7QLzQ449yeZX5kLQydjALGrWZvNDLvkkf1WUH6AvwwmbcSXxbhbGUyG3PAqGDAh3PuPivHi",
      0xFFFFFFFE)
-    ("xpub6ERApfZwUNrhLCkDtcHTcxd75RbzS1ed54G1LkBUHQVHQKqhMkhgbmJbZRkrgZw4koxb5JaHWkY4ALHY2grBGRjaDMzQLcgJvLJuZZvRcEL",
-     "xprvA1RpRA33e1JQ7ifknakTFpgNXPmW2YvmhqLQYMmrj4xJXXWYpDPS3xz7iAxn8L39njGVyuoseXzU6rcxFLJ8HFsTjSyQbLYnMpCqE2VbFWc",
+    ("dpubZHQtzcqvsS44sVvHCHrwpNg4t1ZGZhgNWF4YQmiPX2PDEB4qtfbMKM1WTxDEnqnFhWjoHBr6HAnbHCRHT316RUVwrjtMJzrnSzVcRwYawkr",
+     "dprvLT2B7JJLR4F2K3wAX24mNhJaHzMteW2Qirnae83QEpKQRztTBRGRWA6FxyauCLkVtW3SxqHTfTkWm4ry8PSTHYGSJuoMXNrtYkhZTfLdWhK",
      2)
-    ("xpub6FnCn6nSzZAw5Tw7cgR9bi15UV96gLZhjDstkXXxvCLsUXBGXPdSnLFbdpq8p9HmGsApME5hQTZ3emM2rnY5agb9rXpVGyy3bdW6EEgAtqt",
-     "xprvA2nrNbFZABcdryreWet9Ea4LvTJcGsqrMzxHx98MMrotbir7yrKCEXw7nadnHM8Dq38EGfSh6dqA9QWTyefMLEcBYJUuekgW4BYPJcr9E7j",
+    ("dpubZJmvx44SPcNJcm7AvMzdo843H56Np2bTAQgRpZ4t9pEoJNQR4JX7VuxWYMHWvR8xDZx2Z7MWAsoamdUnH8gzjjMXVuiSFN9X8Hgo6Zfpw3T",
+     "dprvLUPD4jWqwEZG4K84F6CTMSgYh3tztpwVP2QU3uPtscAzWCE2M4CBgj3G3PFuMMqZvouBFavH7ZbCockUrhogLX1A7mJranzcF837YG1usdU",
      0);
 
 void RunTest(const TestVector &test) {
@@ -86,12 +88,23 @@ void RunTest(const TestVector &test) {
         unsigned char data[74];
         key.Encode(data);
         pubkey.Encode(data);
+
         // Test private key
         CBitcoinExtKey b58key; b58key.SetKey(key);
         BOOST_CHECK(b58key.ToString() == derive.prv);
+
+        CBitcoinExtKey b58keyDecodeCheck(derive.prv);
+        CExtKey checkKey = b58keyDecodeCheck.GetKey();
+        assert(checkKey == key); //ensure a base58 decoded key also matches
+
         // Test public key
         CBitcoinExtPubKey b58pubkey; b58pubkey.SetKey(pubkey);
         BOOST_CHECK(b58pubkey.ToString() == derive.pub);
+
+        CBitcoinExtPubKey b58PubkeyDecodeCheck(derive.pub);
+        CExtPubKey checkPubKey = b58PubkeyDecodeCheck.GetKey();
+        assert(checkPubKey == pubkey); //ensure a base58 decoded pubkey also matches
+
         // Derive new keys
         CExtKey keyNew;
         BOOST_CHECK(key.Derive(keyNew, derive.nChild));
@@ -107,7 +120,7 @@ void RunTest(const TestVector &test) {
     }
 }
 
-BOOST_AUTO_TEST_SUITE(bip32_tests)
+BOOST_FIXTURE_TEST_SUITE(bip32_tests, BasicTestingSetup)
 
 BOOST_AUTO_TEST_CASE(bip32_test1) {
     RunTest(test1);

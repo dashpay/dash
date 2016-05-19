@@ -1,5 +1,5 @@
-// Copyright (c) 2012-2013 The Bitcoin Core developers
-// Distributed under the MIT/X11 software license, see the accompanying
+// Copyright (c) 2012-2015 The Bitcoin Core developers
+// Distributed under the MIT software license, see the accompanying
 // file COPYING or http://www.opensource.org/licenses/mit-license.php.
 
 #include "key.h"
@@ -9,6 +9,7 @@
 #include "uint256.h"
 #include "util.h"
 #include "utilstrencodings.h"
+#include "test/test_dash.h"
 
 #include <string>
 #include <vector>
@@ -17,14 +18,14 @@
 
 using namespace std;
 
-static const string strSecret1     ("7qqrxbWBT6v8LTABNae6j9Je9wGagQy6qjjRU3ApBqUQ78HULDy");
-static const string strSecret2     ("7r41KxLVNTZA3bYj5FjiAC58GkTENKM6XV9MAxnzSmywcsswtjv");
-static const string strSecret1C    ("XCafWPHo8D7VNrTWnFUkH1erzSXmexncn7cEzLaKGpwvyuTpyo6r");
-static const string strSecret2C    ("XDWGSfF2DiCvvTV2hn3WfZsD6Wnn15yhPZDr2yFzYmYL5EC78XhR");
-static const CBitcoinAddress addr1 ("Xjn3e3Xy1TXnthGp4iAUh8no3wLPVcxZyk");
-static const CBitcoinAddress addr2 ("XcSKA3pffkLSZN5HjKF2bcpq4UXRkqXmi1");
-static const CBitcoinAddress addr1C("Xmgi9Tn6PyZKwPHWhGmMwAEam61T4wMDWz");
-static const CBitcoinAddress addr2C("Xta1praZQjyELweyMByXyiREw1ZRsjXzVp");
+static const string strSecret1     ("7qh6LYnLN2w2ntz2wwUhRUEgkQ2j8XB16FGw77ZRDZmC29bn7cD");
+static const string strSecret2     ("7rve4MxeWFQHGbSYH6J2yaaZd3MBUqoDEwN6ZAZ6ZHmhTT4r3hW");
+static const string strSecret1C    ("XBuxZHH6TqXUuaSjbVTFR1DQSYecxCB9QA1Koyx5tTc3ddhqEnhm");
+static const string strSecret2C    ("XHMkZqWcY6Zkoq1j42NBijD8z5N5FtNy2Wx7WyAfXX2HZgxry8cr");
+static const CBitcoinAddress addr1 ("Xywgfc872nn5CKtpATCoAjZCc4v96pJczy");
+static const CBitcoinAddress addr2 ("XpmouUj9KKJ99ZuU331ZS1KqsboeFnLGgK");
+static const CBitcoinAddress addr1C("XxV9h4Xmv6Pup8tVAQmH97K6grzvDwMG9F");
+static const CBitcoinAddress addr2C("Xn7ZrYdExuk79Dm7CJCw7sfUWi2qWJSbRy");
 
 
 static const string strAddressBad("Xta1praZQjyELweyMByXyiREw1ZRsjXzVP");
@@ -58,7 +59,7 @@ void dumpKeyInfo(uint256 privkey)
 #endif
 
 
-BOOST_AUTO_TEST_SUITE(key_tests)
+BOOST_FIXTURE_TEST_SUITE(key_tests, BasicTestingSetup)
 
 BOOST_AUTO_TEST_CASE(key_test1)
 {

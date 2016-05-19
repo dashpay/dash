@@ -1,6 +1,6 @@
 # Notes
 The sources in this directory are unit test cases.  Boost includes a
-unit testing framework, and since bitcoin already uses boost, it makes
+unit testing framework, and since dash already uses boost, it makes
 sense to simply use this framework rather than require developers to
 configure some other framework (we want as few impediments to creating
 unit tests as possible).
@@ -16,6 +16,20 @@ their tests in a test suite called "<source_filename>_tests".  For an
 examples of this pattern, examine uint160_tests.cpp and
 uint256_tests.cpp.
 
+Add the source files to /src/Makefile.test.include to add them to the build.
+
 For further reading, I found the following website to be helpful in
 explaining how the boost unit test framework works:
 [http://www.alittlemadness.com/2009/03/31/c-unit-testing-with-boosttest/](http://www.alittlemadness.com/2009/03/31/c-unit-testing-with-boosttest/).
+
+test_dash has some built-in command-line arguments; for
+example, to run just the getarg_tests verbosely:
+
+    test_dash --log_level=all --run_test=getarg_tests
+
+... or to run just the doubledash test:
+
+    test_dash --run_test=getarg_tests/doubledash
+
+Run  test_dash --help   for the full list.
+

@@ -617,7 +617,7 @@
         <x>0</x>
         <y>0</y>
         <width>830</width>
-        <height>68</height>
+        <height>69</height>
        </rect>
       </property>
       <layout class="QVBoxLayout" name="verticalLayout_2" stretch="0,1">
@@ -771,16 +771,6 @@
                 </property>
                </widget>
               </item>
-              <item>
-               <widget class="QPushButton" name="buttonMinimizeFee">
-                <property name="toolTip">
-                 <string>collapse fee-settings</string>
-                </property>
-                <property name="text">
-                 <string>Minimize</string>
-                </property>
-               </widget>
-              </item>
              </layout>
             </item>
             <item>
@@ -810,6 +800,16 @@
              </size>
             </property>
            </spacer>
+          </item>
+          <item>
+           <widget class="QPushButton" name="buttonMinimizeFee">
+            <property name="toolTip">
+             <string>collapse fee-settings</string>
+            </property>
+            <property name="text">
+             <string>Hide</string>
+            </property>
+           </widget>
           </item>
          </layout>
         </item>
@@ -1257,10 +1257,6 @@
        <property name="text">
         <string>S&amp;end</string>
        </property>
-       <property name="icon">
-        <iconset resource="../dash.qrc">
-         <normaloff>:/icons/send</normaloff>:/icons/send</iconset>
-       </property>
        <property name="autoDefault">
         <bool>false</bool>
        </property>
@@ -1283,10 +1279,6 @@
        <property name="text">
         <string>Clear &amp;All</string>
        </property>
-       <property name="icon">
-        <iconset resource="../dash.qrc">
-         <normaloff>:/icons/remove</normaloff>:/icons/remove</iconset>
-       </property>
        <property name="autoDefault">
         <bool>false</bool>
        </property>
@@ -1299,10 +1291,6 @@
        </property>
        <property name="text">
         <string>Add &amp;Recipient</string>
-       </property>
-       <property name="icon">
-        <iconset resource="../dash.qrc">
-         <normaloff>:/icons/add</normaloff>:/icons/add</iconset>
        </property>
        <property name="autoDefault">
         <bool>false</bool>
@@ -1336,7 +1324,7 @@
           </size>
          </property>
          <property name="text">
-          <string>Darksend</string>
+          <string>PrivateSend</string>
          </property>
          <property name="checked">
           <bool>false</bool>
@@ -1355,7 +1343,7 @@
           </size>
          </property>
          <property name="text">
-          <string>InstantX</string>
+          <string>InstantSend</string>
          </property>
         </widget>
        </item>

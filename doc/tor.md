@@ -80,9 +80,14 @@ In a typical situation, where you're only reachable via Tor, this should suffice
 
 	./dashd -proxy=127.0.0.1:9050 -externalip=ssapp53tmftyjmjb.onion -listen
 
-(obviously, replace the Onion address with your own). If you don't care too much
-about hiding your node, and want to be reachable on IPv4 as well, additionally
-specify:
+(obviously, replace the Onion address with your own). It should be noted that you still
+listen on all devices and another node could establish a clearnet connection, when knowing
+your address. To mitigate this, additionally bind the address of your Tor proxy:
+
+	./dashd ... -bind=127.0.0.1
+
+If you don't care too much about hiding your node, and want to be reachable on IPv4
+as well, use `discover` instead:
 
 	./dashd ... -discover
 
@@ -97,10 +102,32 @@ for normal IPv4/IPv6 communication, use:
 3. List of known dash Tor relays
 ------------------------------------
 
-* [dashie7ghp67.onion](http://dashie7ghp67.onion/)
+* [darkcoinie7ghp67.onion](http://darkcoinie7ghp67.onion/)
 * [drktalkwaybgxnoq.onion](http://drktalkwaybgxnoq.onion/)
 * [drkcoinooditvool.onion](http://drkcoinooditvool.onion/)
 * [darkcoxbtzggpmcc.onion](http://darkcoxbtzggpmcc.onion/)
 * [ssapp53tmftyjmjb.onion](http://ssapp53tmftyjmjb.onion/)
 * [j2dfl3cwxyxpbc7s.onion](http://j2dfl3cwxyxpbc7s.onion/)
 * [vf6d2mxpuhh2cbxt.onion](http://vf6d2mxpuhh2cbxt.onion/)
+* [rj24sicr6i4vsnkv.onion](http://rj24sicr6i4vsnkv.onion/)
+* [wrwx2dy7jyh32o53.onion](http://wrwx2dy7jyh32o53.onion/)
+* [f5ekot4ajkbe23gt.onion](http://f5ekot4ajkbe23gt.onion/)
+* [dshtord4mqvgzqev.onion](http://dshtord4mqvgzqev.onion/)
+
+
+4. Automatically listen on Tor
+--------------------------------
+
+Starting with Tor version 0.2.7.1 it is possible, through Tor's control socket
+API, to create and destroy 'ephemeral' hidden services programmatically.
+Dash Core has been updated to make use of this.
+
+This means that if Tor is running (and proper authorization is available),
+Dash Core automatically creates a hidden service to listen on, without
+manual configuration. This will positively affect the number of available
+.onion nodes.
+
+This new feature is enabled by default if Dash Core is listening, and
+a connection to Tor can be made. It can be configured with the `-listenonion`,
+`-torcontrol` and `-torpassword` settings. To show verbose debugging
+information, pass `-debug=tor`.

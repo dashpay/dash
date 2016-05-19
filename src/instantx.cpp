@@ -1,6 +1,8 @@
+// Copyright (c) 2014-2016 The Dash Core developers
+// Distributed under the MIT/X11 software license, see the accompanying
+// file COPYING or http://www.opensource.org/licenses/mit-license.php.
 
-
-
+#include "consensus/validation.h"
 #include "sync.h"
 #include "net.h"
 #include "key.h"
@@ -9,10 +11,14 @@
 #include "protocol.h"
 #include "instantx.h"
 #include "activemasternode.h"
-#include "masternodeman.h"
 #include "darksend.h"
+#include "masternode-sync.h"
+#include "masternodeman.h"
 #include "spork.h"
+
+#include <boost/algorithm/string/replace.hpp>
 #include <boost/lexical_cast.hpp>
+#include <boost/thread.hpp>
 
 using namespace std;
 using namespace boost;
@@ -38,29 +44,29 @@ void ProcessMessageInstantX(CNode* pfrom, std::string& strCommand, CDataStream& 
     if(!IsSporkActive(SPORK_2_INSTANTX)) return;
     if(!masternodeSync.IsBlockchainSynced()) return;
 
-    if (strCommand == "ix")
+    if (strCommand == NetMsgType::IX)
     {
         //LogPrintf("ProcessMessageInstantX::ix\n");
         CDataStream vMsg(vRecv);
         CTransaction tx;
         vRecv >> tx;
 
+        // FIXME: this part of simulating inv is not good actually, leaving it only for 12.1 backwards compatibility
+        // and since we are using invs for relaying even initial ix request, this can (and should) be safely removed in 12.2
         CInv inv(MSG_TXLOCK_REQUEST, tx.GetHash());
         pfrom->AddInventoryKnown(inv);
+        GetMainSignals().Inventory(inv.hash);
 
-        if(mapTxLockReq.count(tx.GetHash()) || mapTxLockReqRejected.count(tx.GetHash())){
-            return;
-        }
-
-        if(!IsIXTXValid(tx)){
-            return;
-        }
+        // have we seen it already?
+        if(mapTxLockReq.count(inv.hash) || mapTxLockReqRejected.count(inv.hash)) return;
+        // is it a valid one?
+        if(!IsIXTXValid(tx)) return;
 
         BOOST_FOREACH(const CTxOut o, tx.vout){
             // IX supports normal scripts and unspendable scripts (used in DS collateral and Budget collateral).
             // TODO: Look into other script types that are normal and can be included
             if(!o.scriptPubKey.IsNormalPaymentScript() && !o.scriptPubKey.IsUnspendable()){
-                LogPrintf("ProcessMessageInstantX::ix - Invalid Script %s\n", tx.ToString().c_str());
+                LogPrintf("ProcessMessageInstantX::ix - Invalid Script %s\n", tx.ToString());
                 return;
             }
         }
@@ -84,9 +90,18 @@ void ProcessMessageInstantX(CNode* pfrom, std::string& strCommand, CDataStream& 
             mapTxLockReq.insert(make_pair(tx.GetHash(), tx));
 
             LogPrintf("ProcessMessageInstantX::ix - Transaction Lock Request: %s %s : accepted %s\n",
-                pfrom->addr.ToString().c_str(), pfrom->cleanSubVer.c_str(),
-                tx.GetHash().ToString().c_str()
+                pfrom->addr.ToString(), pfrom->cleanSubVer,
+                tx.GetHash().ToString()
             );
+
+            // Masternodes will sometimes propagate votes before the transaction is known to the client.
+            // If this just happened - update transaction status, try forcing external script notification,
+            // lock inputs and resolve conflicting locks
+            if(IsLockedIXTransaction(tx.GetHash())) {
+                UpdateLockedTransaction(tx, true);
+                LockTransactionInputs(tx);
+                ResolveConflicts(tx);
+            }
 
             return;
 
@@ -96,35 +111,17 @@ void ProcessMessageInstantX(CNode* pfrom, std::string& strCommand, CDataStream& 
             // can we get the conflicting transaction as proof?
 
             LogPrintf("ProcessMessageInstantX::ix - Transaction Lock Request: %s %s : rejected %s\n",
-                pfrom->addr.ToString().c_str(), pfrom->cleanSubVer.c_str(),
-                tx.GetHash().ToString().c_str()
+                pfrom->addr.ToString(), pfrom->cleanSubVer,
+                tx.GetHash().ToString()
             );
 
-            BOOST_FOREACH(const CTxIn& in, tx.vin){
-                if(!mapLockedInputs.count(in.prevout)){
-                    mapLockedInputs.insert(make_pair(in.prevout, tx.GetHash()));
-                }
-            }
-
-            // resolve conflicts
-            std::map<uint256, CTransactionLock>::iterator i = mapTxLocks.find(tx.GetHash());
-            if (i != mapTxLocks.end()){
-                //we only care if we have a complete tx lock
-                if((*i).second.CountSignatures() >= INSTANTX_SIGNATURES_REQUIRED){
-                    if(!CheckForConflictingLocks(tx)){
-                        LogPrintf("ProcessMessageInstantX::ix - Found Existing Complete IX Lock\n");
-
-                        //reprocess the last 15 blocks
-                        ReprocessBlocks(15);
-                        mapTxLockReq.insert(make_pair(tx.GetHash(), tx));
-                    }
-                }
-            }
+            LockTransactionInputs(tx);
+            ResolveConflicts(tx);
 
             return;
         }
     }
-    else if (strCommand == "txlvote") //InstantX Lock Consensus Votes
+    else if (strCommand == NetMsgType::IXLOCKVOTE) //InstantX Lock Consensus Votes
     {
         CConsensusVote ctx;
         vRecv >> ctx;
@@ -153,8 +150,8 @@ void ProcessMessageInstantX(CNode* pfrom, std::string& strCommand, CDataStream& 
                 if(mapUnknownVotes[ctx.vinMasternode.prevout.hash] > GetTime() &&
                     mapUnknownVotes[ctx.vinMasternode.prevout.hash] - GetAverageVoteTime() > 60*10){
                         LogPrintf("ProcessMessageInstantX::ix - masternode is spamming transaction votes: %s %s\n",
-                            ctx.vinMasternode.ToString().c_str(),
-                            ctx.txHash.ToString().c_str()
+                            ctx.vinMasternode.ToString(),
+                            ctx.txHash.ToString()
                         );
                         return;
                 } else {
@@ -170,7 +167,11 @@ void ProcessMessageInstantX(CNode* pfrom, std::string& strCommand, CDataStream& 
 
 bool IsIXTXValid(const CTransaction& txCollateral){
     if(txCollateral.vout.size() < 1) return false;
-    if(txCollateral.nLockTime != 0) return false;
+
+    if(!CheckFinalTx(txCollateral)) {
+        LogPrint("instantx", "IsIXTXValid - Transaction is not final - %s\n", txCollateral.ToString());
+        return false;
+    }
 
     int64_t nValueIn = 0;
     int64_t nValueOut = 0;
@@ -182,7 +183,7 @@ bool IsIXTXValid(const CTransaction& txCollateral){
     BOOST_FOREACH(const CTxIn i, txCollateral.vin){
         CTransaction tx2;
         uint256 hash;
-        if(GetTransaction(i.prevout.hash, tx2, hash, true)){
+        if(GetTransaction(i.prevout.hash, tx2, Params().GetConsensus(), hash, true)){
             if(tx2.vout.size() > i.prevout.n) {
                 nValueIn += tx2.vout[i.prevout.n].nValue;
             }
@@ -192,12 +193,12 @@ bool IsIXTXValid(const CTransaction& txCollateral){
     }
 
     if(nValueOut > GetSporkValue(SPORK_5_MAX_VALUE)*COIN){
-        LogPrint("instantx", "IsIXTXValid - Transaction value too high - %s\n", txCollateral.ToString().c_str());
+        LogPrint("instantx", "IsIXTXValid - Transaction value too high - %s\n", txCollateral.ToString());
         return false;
     }
 
     if(missingTx){
-        LogPrint("instantx", "IsIXTXValid - Unknown inputs in IX transaction - %s\n", txCollateral.ToString().c_str());
+        LogPrint("instantx", "IsIXTXValid - Unknown inputs in IX transaction - %s\n", txCollateral.ToString());
         /*
             This happens sometimes for an unknown reason, so we'll return that it's a valid transaction.
             If someone submits an invalid transaction it will be rejected by the network anyway and this isn't
@@ -206,8 +207,8 @@ bool IsIXTXValid(const CTransaction& txCollateral){
         return true;
     }
 
-    if(nValueIn-nValueOut < COIN*0.01) {
-        LogPrint("instantx", "IsIXTXValid - did not include enough fees in transaction %d\n%s\n", nValueOut-nValueIn, txCollateral.ToString().c_str());
+    if(nValueIn-nValueOut < CENT) {
+        LogPrint("instantx", "IsIXTXValid - did not include enough fees in transaction %d\n%s\n", nValueOut-nValueIn, txCollateral.ToString());
         return false;
     }
 
@@ -222,7 +223,7 @@ int64_t CreateNewLock(CTransaction tx)
         nTxAge = GetInputAge(i);
         if(nTxAge < 5) //1 less than the "send IX" gui requires, incase of a block propagating the network at the time
         {
-            LogPrintf("CreateNewLock - Transaction not found / too new: %d / %s\n", nTxAge, tx.GetHash().ToString().c_str());
+            LogPrintf("CreateNewLock - Transaction not found / too new: %d / %s\n", nTxAge, tx.GetHash().ToString());
             return 0;
         }
     }
@@ -232,10 +233,16 @@ int64_t CreateNewLock(CTransaction tx)
         This prevents attackers from using transaction mallibility to predict which masternodes
         they'll use.
     */
-    int nBlockHeight = (chainActive.Tip()->nHeight - nTxAge)+4;
+    int nBlockHeight = 0;
+    {
+        LOCK(cs_main);
+        CBlockIndex* tip = chainActive.Tip();
+        if(tip) nBlockHeight = tip->nHeight - nTxAge + 4;
+        else return 0;
+    }
 
     if (!mapTxLocks.count(tx.GetHash())){
-        LogPrintf("CreateNewLock - New Transaction Lock %s !\n", tx.GetHash().ToString().c_str());
+        LogPrintf("CreateNewLock - New Transaction Lock %s !\n", tx.GetHash().ToString());
 
         CTransactionLock newLock;
         newLock.nBlockHeight = nBlockHeight;
@@ -245,7 +252,7 @@ int64_t CreateNewLock(CTransaction tx)
         mapTxLocks.insert(make_pair(tx.GetHash(), newLock));
     } else {
         mapTxLocks[tx.GetHash()].nBlockHeight = nBlockHeight;
-        LogPrint("instantx", "CreateNewLock - Transaction Lock Exists %s !\n", tx.GetHash().ToString().c_str());
+        LogPrint("instantx", "CreateNewLock - Transaction Lock Exists %s !\n", tx.GetHash().ToString());
     }
 
 
@@ -262,7 +269,7 @@ void DoConsensusVote(CTransaction& tx, int64_t nBlockHeight)
 
     if(n == -1)
     {
-        LogPrint("instantx", "InstantX::DoConsensusVote - Unknown Masternode\n");
+        LogPrint("instantx", "InstantX::DoConsensusVote - Unknown Masternode %s\n", activeMasternode.vin.ToString());
         return;
     }
 
@@ -303,19 +310,19 @@ bool ProcessConsensusVote(CNode* pnode, CConsensusVote& ctx)
 
     CMasternode* pmn = mnodeman.Find(ctx.vinMasternode);
     if(pmn != NULL)
-        LogPrint("instantx", "InstantX::ProcessConsensusVote - Masternode ADDR %s %d\n", pmn->addr.ToString().c_str(), n);
+        LogPrint("instantx", "InstantX::ProcessConsensusVote - Masternode ADDR %s %d\n", pmn->addr.ToString(), n);
 
     if(n == -1)
     {
         //can be caused by past versions trying to vote with an invalid protocol
-        LogPrint("instantx", "InstantX::ProcessConsensusVote - Unknown Masternode\n");
+        LogPrint("instantx", "InstantX::ProcessConsensusVote - Unknown Masternode %s\n", ctx.vinMasternode.ToString());
         mnodeman.AskForMN(pnode, ctx.vinMasternode);
         return false;
     }
 
     if(n > INSTANTX_SIGNATURES_TOTAL)
     {
-        LogPrint("instantx", "InstantX::ProcessConsensusVote - Masternode not in the top %d (%d) - %s\n", INSTANTX_SIGNATURES_TOTAL, n, ctx.GetHash().ToString().c_str());
+        LogPrint("instantx", "InstantX::ProcessConsensusVote - Masternode not in the top %d (%d) - %s\n", INSTANTX_SIGNATURES_TOTAL, n, ctx.GetHash().ToString());
         return false;
     }
 
@@ -327,7 +334,7 @@ bool ProcessConsensusVote(CNode* pnode, CConsensusVote& ctx)
     }
 
     if (!mapTxLocks.count(ctx.txHash)){
-        LogPrintf("InstantX::ProcessConsensusVote - New Transaction Lock %s !\n", ctx.txHash.ToString().c_str());
+        LogPrintf("InstantX::ProcessConsensusVote - New Transaction Lock %s !\n", ctx.txHash.ToString());
 
         CTransactionLock newLock;
         newLock.nBlockHeight = 0;
@@ -336,51 +343,32 @@ bool ProcessConsensusVote(CNode* pnode, CConsensusVote& ctx)
         newLock.txHash = ctx.txHash;
         mapTxLocks.insert(make_pair(ctx.txHash, newLock));
     } else
-        LogPrint("instantx", "InstantX::ProcessConsensusVote - Transaction Lock Exists %s !\n", ctx.txHash.ToString().c_str());
+        LogPrint("instantx", "InstantX::ProcessConsensusVote - Transaction Lock Exists %s !\n", ctx.txHash.ToString());
 
     //compile consessus vote
     std::map<uint256, CTransactionLock>::iterator i = mapTxLocks.find(ctx.txHash);
     if (i != mapTxLocks.end()){
         (*i).second.AddSignature(ctx);
 
-#ifdef ENABLE_WALLET
-        if(pwalletMain){
-            //when we get back signatures, we'll count them as requests. Otherwise the client will think it didn't propagate.
-            if(pwalletMain->mapRequestCount.count(ctx.txHash))
-                pwalletMain->mapRequestCount[ctx.txHash]++;
-        }
-#endif
+        int nSignatures = (*i).second.CountSignatures();
+        LogPrint("instantx", "InstantX::ProcessConsensusVote - Transaction Lock Votes %d - %s !\n", nSignatures, ctx.GetHash().ToString());
 
-        LogPrint("instantx", "InstantX::ProcessConsensusVote - Transaction Lock Votes %d - %s !\n", (*i).second.CountSignatures(), ctx.GetHash().ToString().c_str());
+        if(nSignatures >= INSTANTX_SIGNATURES_REQUIRED){
+            LogPrint("instantx", "InstantX::ProcessConsensusVote - Transaction Lock Is Complete %s !\n", ctx.txHash.ToString());
 
-        if((*i).second.CountSignatures() >= INSTANTX_SIGNATURES_REQUIRED){
-            LogPrint("instantx", "InstantX::ProcessConsensusVote - Transaction Lock Is Complete %s !\n", (*i).second.GetHash().ToString().c_str());
+            // Masternodes will sometimes propagate votes before the transaction is known to the client,
+            // will check for conflicting locks and update transaction status on a new vote message
+            // only after the lock itself has arrived
+            if(!mapTxLockReq.count(ctx.txHash) && !mapTxLockReqRejected.count(ctx.txHash)) return true;
 
-            CTransaction& tx = mapTxLockReq[ctx.txHash];
-            if(!CheckForConflictingLocks(tx)){
-
-#ifdef ENABLE_WALLET
-                if(pwalletMain){
-                    if(pwalletMain->UpdatedTransaction((*i).second.txHash)){
-                        nCompleteTXLocks++;
-                    }
-                }
-#endif
-
-                if(mapTxLockReq.count(ctx.txHash)){
-                    BOOST_FOREACH(const CTxIn& in, tx.vin){
-                        if(!mapLockedInputs.count(in.prevout)){
-                            mapLockedInputs.insert(make_pair(in.prevout, ctx.txHash));
-                        }
-                    }
-                }
-
-                // resolve conflicts
-
-                //if this tx lock was rejected, we need to remove the conflicting blocks
-                if(mapTxLockReqRejected.count((*i).second.txHash)){
-                    //reprocess the last 15 blocks
-                    ReprocessBlocks(15);
+            if(!FindConflictingLocks(mapTxLockReq[ctx.txHash])) { //?????
+                if(mapTxLockReq.count(ctx.txHash)) {
+                    UpdateLockedTransaction(mapTxLockReq[ctx.txHash]);
+                    LockTransactionInputs(mapTxLockReq[ctx.txHash]);
+                } else if(mapTxLockReqRejected.count(ctx.txHash)) {
+                    ResolveConflicts(mapTxLockReqRejected[ctx.txHash]); ///?????
+                } else {
+                    LogPrint("instantx", "InstantX::ProcessConsensusVote - Transaction Lock Request is missing %s ! votes %d\n", ctx.GetHash().ToString(), nSignatures);
                 }
             }
         }
@@ -391,7 +379,43 @@ bool ProcessConsensusVote(CNode* pnode, CConsensusVote& ctx)
     return false;
 }
 
-bool CheckForConflictingLocks(CTransaction& tx)
+void UpdateLockedTransaction(CTransaction& tx, bool fForceNotification) {
+    // there should be no conflicting locks
+    if(FindConflictingLocks(tx)) return;
+    uint256 txHash = tx.GetHash();
+    // there must be a successfully verified lock request
+    if (!mapTxLockReq.count(txHash)) return;
+
+#ifdef ENABLE_WALLET
+    if(pwalletMain && pwalletMain->UpdatedTransaction(txHash)){
+        // bumping this to update UI
+        nCompleteTXLocks++;
+        int nSignatures = GetTransactionLockSignatures(txHash);
+        // a transaction lock must have enough signatures to trigger this notification
+        if(nSignatures == INSTANTX_SIGNATURES_REQUIRED || (fForceNotification && nSignatures > INSTANTX_SIGNATURES_REQUIRED)) {
+            // notify an external script once threshold is reached
+            std::string strCmd = GetArg("-ixnotify", "");
+            if ( !strCmd.empty())
+            {
+                boost::replace_all(strCmd, "%s", txHash.GetHex());
+                boost::thread t(runCommand, strCmd); // thread runs free
+            }
+        }
+    }
+#endif
+}
+
+void LockTransactionInputs(CTransaction& tx) {
+    if(mapTxLockReq.count(tx.GetHash())){
+        BOOST_FOREACH(const CTxIn& in, tx.vin){
+            if(!mapLockedInputs.count(in.prevout)){
+                mapLockedInputs.insert(make_pair(in.prevout, tx.GetHash()));
+            }
+        }
+    }
+}
+
+bool FindConflictingLocks(CTransaction& tx)
 {
     /*
         It's possible (very unlikely though) to get 2 conflicting transaction locks approved by the network.
@@ -403,7 +427,7 @@ bool CheckForConflictingLocks(CTransaction& tx)
     BOOST_FOREACH(const CTxIn& in, tx.vin){
         if(mapLockedInputs.count(in.prevout)){
             if(mapLockedInputs[in.prevout] != tx.GetHash()){
-                LogPrintf("InstantX::CheckForConflictingLocks - found two complete conflicting locks - removing both. %s %s", tx.GetHash().ToString().c_str(), mapLockedInputs[in.prevout].ToString().c_str());
+                LogPrintf("InstantX::FindConflictingLocks - found two complete conflicting locks - removing both. %s %s", tx.GetHash().ToString(), mapLockedInputs[in.prevout].ToString());
                 if(mapTxLocks.count(tx.GetHash())) mapTxLocks[tx.GetHash()].nExpiration = GetTime();
                 if(mapTxLocks.count(mapLockedInputs[in.prevout])) mapTxLocks[mapLockedInputs[in.prevout]].nExpiration = GetTime();
                 return true;
@@ -412,6 +436,17 @@ bool CheckForConflictingLocks(CTransaction& tx)
     }
 
     return false;
+}
+
+void ResolveConflicts(CTransaction& tx) {
+    // resolve conflicts
+    if (IsLockedIXTransaction(tx.GetHash()) && !FindConflictingLocks(tx)){ //?????
+        LogPrintf("ResolveConflicts - Found Existing Complete IX Lock, resolving...\n");
+
+        //reprocess the last 15 blocks
+        ReprocessBlocks(15);
+        if(!mapTxLockReq.count(tx.GetHash())) mapTxLockReq.insert(make_pair(tx.GetHash(), tx)); //?????
+    }
 }
 
 int64_t GetAverageVoteTime()
@@ -431,13 +466,11 @@ int64_t GetAverageVoteTime()
 
 void CleanTransactionLocksList()
 {
-    if(chainActive.Tip() == NULL) return;
-
     std::map<uint256, CTransactionLock>::iterator it = mapTxLocks.begin();
 
     while(it != mapTxLocks.end()) {
         if(GetTime() > it->second.nExpiration){ //keep them for an hour
-            LogPrintf("Removing old transaction lock %s\n", it->second.txHash.ToString().c_str());
+            LogPrintf("Removing old transaction lock %s\n", it->second.txHash.ToString());
 
             if(mapTxLockReq.count(it->second.txHash)){
                 CTransaction& tx = mapTxLockReq[it->second.txHash];
@@ -457,12 +490,45 @@ void CleanTransactionLocksList()
             it++;
         }
     }
+}
 
+bool IsLockedIXTransaction(uint256 txHash) {
+    // there must be a successfully verified lock request...
+    if (!mapTxLockReq.count(txHash)) return false;
+    // ...and corresponding lock must have enough signatures
+    std::map<uint256, CTransactionLock>::iterator i = mapTxLocks.find(txHash);
+    return i != mapTxLocks.end() && (*i).second.CountSignatures() >= INSTANTX_SIGNATURES_REQUIRED;
+}
+
+int GetTransactionLockSignatures(uint256 txHash)
+{
+    if(fLargeWorkForkFound || fLargeWorkInvalidChainFound) return -2;
+    if(!IsSporkActive(SPORK_2_INSTANTX)) return -3;
+    if(!fEnableInstantX) return -1;
+
+    std::map<uint256, CTransactionLock>::iterator i = mapTxLocks.find(txHash);
+    if (i != mapTxLocks.end()){
+        return (*i).second.CountSignatures();
+    }
+
+    return -1;
+}
+
+bool IsTransactionLockTimedOut(uint256 txHash)
+{
+    if(!fEnableInstantX) return 0;
+
+    std::map<uint256, CTransactionLock>::iterator i = mapTxLocks.find(txHash);
+    if (i != mapTxLocks.end()){
+        return GetTime() > (*i).second.nTimeout;
+    }
+
+    return false;
 }
 
 uint256 CConsensusVote::GetHash() const
 {
-    return vinMasternode.prevout.hash + vinMasternode.prevout.n + txHash;
+    return ArithToUint256(UintToArith256(vinMasternode.prevout.hash) + vinMasternode.prevout.n + UintToArith256(txHash));
 }
 
 
@@ -470,13 +536,13 @@ bool CConsensusVote::SignatureValid()
 {
     std::string errorMessage;
     std::string strMessage = txHash.ToString().c_str() + boost::lexical_cast<std::string>(nBlockHeight);
-    //LogPrintf("verify strMessage %s \n", strMessage.c_str());
+    //LogPrintf("verify strMessage %s \n", strMessage);
 
     CMasternode* pmn = mnodeman.Find(vinMasternode);
 
     if(pmn == NULL)
     {
-        LogPrintf("InstantX::CConsensusVote::SignatureValid() - Unknown Masternode\n");
+        LogPrintf("InstantX::CConsensusVote::SignatureValid() - Unknown Masternode %s\n", vinMasternode.ToString());
         return false;
     }
 
@@ -495,12 +561,12 @@ bool CConsensusVote::Sign()
     CKey key2;
     CPubKey pubkey2;
     std::string strMessage = txHash.ToString().c_str() + boost::lexical_cast<std::string>(nBlockHeight);
-    //LogPrintf("signing strMessage %s \n", strMessage.c_str());
-    //LogPrintf("signing privkey %s \n", strMasterNodePrivKey.c_str());
+    //LogPrintf("signing strMessage %s \n", strMessage);
+    //LogPrintf("signing privkey %s \n", strMasterNodePrivKey);
 
     if(!darkSendSigner.SetKey(strMasterNodePrivKey, errorMessage, key2, pubkey2))
     {
-        LogPrintf("CConsensusVote::Sign() - ERROR: Invalid masternodeprivkey: '%s'\n", errorMessage.c_str());
+        LogPrintf("CConsensusVote::Sign() - ERROR: Invalid masternodeprivkey: '%s'\n", errorMessage);
         return false;
     }
 
@@ -527,7 +593,7 @@ bool CTransactionLock::SignaturesValid()
 
         if(n == -1)
         {
-            LogPrintf("CTransactionLock::SignaturesValid() - Unknown Masternode\n");
+            LogPrintf("CTransactionLock::SignaturesValid() - Unknown Masternode %s\n", vote.vinMasternode.ToString());
             return false;
         }
 

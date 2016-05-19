@@ -1,4 +1,6 @@
-
+// Copyright (c) 2014-2016 The Dash Core developers
+// Distributed under the MIT software license, see the accompanying
+// file COPYING or http://www.opensource.org/licenses/mit-license.php.
 
 
 #include "sync.h"
@@ -6,10 +8,12 @@
 #include "key.h"
 #include "util.h"
 #include "base58.h"
+#include "darksend.h"
 #include "protocol.h"
 #include "spork.h"
 #include "main.h"
-#include "masternode-budget.h"
+#include "governance.h"
+#include "consensus/validation.h"
 #include <boost/lexical_cast.hpp>
 
 using namespace std;
@@ -28,13 +32,14 @@ void ProcessSpork(CNode* pfrom, std::string& strCommand, CDataStream& vRecv)
 {
     if(fLiteMode) return; //disable all darksend/masternode related functionality
 
-    if (strCommand == "spork")
+    if (strCommand == NetMsgType::SPORK)
     {
         //LogPrintf("ProcessSpork::spork\n");
         CDataStream vMsg(vRecv);
         CSporkMessage spork;
         vRecv >> spork;
 
+        LOCK(cs_main);
         if(chainActive.Tip() == NULL) return;
 
         uint256 hash = spork.GetHash();
@@ -62,12 +67,12 @@ void ProcessSpork(CNode* pfrom, std::string& strCommand, CDataStream& vRecv)
         //does a task if needed
         ExecuteSpork(spork.nSporkID, spork.nValue);
     }
-    if (strCommand == "getsporks")
+    if (strCommand == NetMsgType::GETSPORKS)
     {
         std::map<int, CSporkMessage>::iterator it = mapSporksActive.begin();
 
         while(it != mapSporksActive.end()) {
-            pfrom->PushMessage("spork", it->second);
+            pfrom->PushMessage(NetMsgType::SPORK, it->second);
             it++;
         }
     }
@@ -127,9 +132,9 @@ int64_t GetSporkValue(int nSporkID)
 
 void ExecuteSpork(int nSporkID, int nValue)
 {
-    if(nSporkID == SPORK_11_RESET_BUDGET && nValue == 1){
-        budget.Clear();
-    }
+    // if(nSporkID == SPORK_11_RESET_BUDGET && nValue == 1){
+    //     budget.Clear();
+    // }
 
     //correct fork via spork technology
     if(nSporkID == SPORK_12_RECONSIDER_BLOCKS && nValue > 0) {
@@ -166,7 +171,7 @@ void ReprocessBlocks(int nBlocks)
     }
 
     if (state.IsValid()) {
-        ActivateBestChain(state);
+        ActivateBestChain(state, Params());
     }
 }
 

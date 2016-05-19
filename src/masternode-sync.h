@@ -1,4 +1,4 @@
-// Copyright (c) 2014-2015 The Dash developers
+// Copyright (c) 2014-2016 The Dash Core developers
 
 // Distributed under the MIT/X11 software license, see the accompanying
 // file COPYING or http://www.opensource.org/licenses/mit-license.php.
@@ -15,8 +15,7 @@
 #define MASTERNODE_SYNC_FAILED            998
 #define MASTERNODE_SYNC_FINISHED          999
 
-#define MASTERNODE_SYNC_TIMEOUT           5
-#define MASTERNODE_SYNC_THRESHOLD         2
+#define MASTERNODE_SYNC_TIMEOUT           30 // our blocks are 2.5 minutes so 30 seconds should be fine
 
 class CMasternodeSync;
 extern CMasternodeSync masternodeSync;
@@ -56,6 +55,9 @@ public:
     // Time when current masternode asset sync started
     int64_t nAssetSyncStarted;
 
+    // Keep track of current block index
+    const CBlockIndex *pCurrentBlockIndex;
+
     CMasternodeSync();
 
     void AddedMasternodeList(uint256 hash);
@@ -72,6 +74,8 @@ public:
     bool IsSynced();
     bool IsBlockchainSynced();
     void ClearFulfilledRequest();
+
+    void UpdatedBlockTip(const CBlockIndex *pindex);
 };
 
 #endif

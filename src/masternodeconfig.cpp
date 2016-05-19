@@ -3,7 +3,10 @@
 #include "masternodeconfig.h"
 #include "util.h"
 #include "ui_interface.h"
-#include <base58.h>
+#include "chainparams.h"
+
+#include <boost/filesystem.hpp>
+#include <boost/filesystem/fstream.hpp>
 
 CMasternodeConfig masternodeConfig;
 
@@ -16,6 +19,8 @@ bool CMasternodeConfig::read(std::string& strErr) {
     int linenumber = 1;
     boost::filesystem::path pathMasternodeConfigFile = GetMasternodeConfigFile();
     boost::filesystem::ifstream streamConfig(pathMasternodeConfigFile);
+
+    LogPrintf("loading masternode file at %s\n", pathMasternodeConfigFile.c_str());
 
     if (!streamConfig.good()) {
         FILE* configFile = fopen(pathMasternodeConfigFile.string().c_str(), "a");
@@ -53,18 +58,19 @@ bool CMasternodeConfig::read(std::string& strErr) {
             }
         }
 
-        if(Params().NetworkID() == CBaseChainParams::MAIN) {
-            if(CService(ip).GetPort() != 9999) {
+        int mainnetDefaultPort = Params(CBaseChainParams::MAIN).GetDefaultPort();
+        if(Params().NetworkIDString() == CBaseChainParams::MAIN) {
+            if(CService(ip).GetPort() != mainnetDefaultPort) {
                 strErr = _("Invalid port detected in masternode.conf") + "\n" +
                         strprintf(_("Line: %d"), linenumber) + "\n\"" + line + "\"" + "\n" +
-                        _("(must be 9999 for mainnet)");
+                        strprintf(_("(must be %d for mainnet)"), mainnetDefaultPort);
                 streamConfig.close();
                 return false;
             }
-        } else if(CService(ip).GetPort() == 9999) {
+        } else if(CService(ip).GetPort() == mainnetDefaultPort) {
             strErr = _("Invalid port detected in masternode.conf") + "\n" +
                     strprintf(_("Line: %d"), linenumber) + "\n\"" + line + "\"" + "\n" +
-                    _("(9999 could be used only on mainnet)");
+                    strprintf(_("(%d could be used only on mainnet)"), mainnetDefaultPort);
             streamConfig.close();
             return false;
         }

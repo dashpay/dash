@@ -1,5 +1,5 @@
 
-// Copyright (c) 2014-2015 The Dash developers
+// Copyright (c) 2014-2016 The Dash Core developers
 // Distributed under the MIT/X11 software license, see the accompanying
 // file COPYING or http://www.opensource.org/licenses/mit-license.php.
 #ifndef MASTERNODE_H
@@ -13,7 +13,6 @@
 #include "main.h"
 #include "timedata.h"
 
-#define MASTERNODE_MIN_CONFIRMATIONS           15
 #define MASTERNODE_MIN_MNP_SECONDS             (10*60)
 #define MASTERNODE_MIN_MNB_SECONDS             (5*60)
 #define MASTERNODE_PING_SECONDS                (5*60)
@@ -29,7 +28,6 @@ class CMasternodePing;
 extern map<int64_t, uint256> mapCacheBlockHashes;
 
 bool GetBlockHash(uint256& hash, int nBlockHeight);
-
 
 //
 // The Masternode Ping Class : Contains a different serialize method for sending pings from masternodes throughout the network
@@ -58,8 +56,9 @@ public:
         READWRITE(vchSig);
     }
 
-    bool CheckAndUpdate(int& nDos, bool fRequireEnabled = true);
+    bool CheckAndUpdate(int& nDos, bool fRequireEnabled = true, bool fCheckSigTimeOnly = false);
     bool Sign(CKey& keyMasternode, CPubKey& pubKeyMasternode);
+    bool VerifySignature(CPubKey& pubKeyMasternode, int &nDos);
     void Relay();
 
     uint256 GetHash(){
@@ -111,18 +110,19 @@ private:
     int64_t lastTimeChecked;
 public:
     enum state {
-        MASTERNODE_ENABLED = 1,
-        MASTERNODE_EXPIRED = 2,
-        MASTERNODE_VIN_SPENT = 3,
-        MASTERNODE_REMOVE = 4,
-        MASTERNODE_POS_ERROR = 5
+        MASTERNODE_PRE_ENABLED,
+        MASTERNODE_ENABLED,
+        MASTERNODE_EXPIRED,
+        MASTERNODE_VIN_SPENT,
+        MASTERNODE_REMOVE,
+        MASTERNODE_POS_ERROR
     };
 
     CTxIn vin;
     CService addr;
     CPubKey pubkey;
     CPubKey pubkey2;
-    std::vector<unsigned char> sig;
+    std::vector<unsigned char> vchSig;
     int activeState;
     int64_t sigTime; //mnb message time
     int cacheInputAge;
@@ -134,9 +134,6 @@ public:
     int nScanningErrorCount;
     int nLastScanningErrorBlockHeight;
     CMasternodePing lastPing;
-
-    int64_t nLastDsee;// temporary, do not save. Remove after migration to v12
-    int64_t nLastDseep;// temporary, do not save. Remove after migration to v12
 
     CMasternode();
     CMasternode(const CMasternode& other);
@@ -154,7 +151,7 @@ public:
         swap(first.addr, second.addr);
         swap(first.pubkey, second.pubkey);
         swap(first.pubkey2, second.pubkey2);
-        swap(first.sig, second.sig);
+        swap(first.vchSig, second.vchSig);
         swap(first.activeState, second.activeState);
         swap(first.sigTime, second.sigTime);
         swap(first.lastPing, second.lastPing);
@@ -194,7 +191,7 @@ public:
             READWRITE(addr);
             READWRITE(pubkey);
             READWRITE(pubkey2);
-            READWRITE(sig);
+            READWRITE(vchSig);
             READWRITE(sigTime);
             READWRITE(protocolVersion);
             READWRITE(activeState);
@@ -246,8 +243,14 @@ public:
         return activeState == MASTERNODE_ENABLED;
     }
 
+    bool IsPreEnabled()
+    {
+        return activeState == MASTERNODE_PRE_ENABLED;
+    }
+
     int GetMasternodeInputAge()
     {
+        LOCK(cs_main);
         if(chainActive.Tip() == NULL) return 0;
 
         if(cacheInputAge == 0){
@@ -255,17 +258,18 @@ public:
             cacheInputAgeBlock = chainActive.Tip()->nHeight;
         }
 
-        return cacheInputAge+(chainActive.Tip()->nHeight-cacheInputAgeBlock);
+        return cacheInputAge + (chainActive.Tip()->nHeight - cacheInputAgeBlock);
     }
 
     std::string Status() {
-        std::string strStatus = "ACTIVE";
+        std::string strStatus = "unknown";
 
-        if(activeState == CMasternode::MASTERNODE_ENABLED) strStatus   = "ENABLED";
-        if(activeState == CMasternode::MASTERNODE_EXPIRED) strStatus   = "EXPIRED";
-        if(activeState == CMasternode::MASTERNODE_VIN_SPENT) strStatus = "VIN_SPENT";
-        if(activeState == CMasternode::MASTERNODE_REMOVE) strStatus    = "REMOVE";
-        if(activeState == CMasternode::MASTERNODE_POS_ERROR) strStatus = "POS_ERROR";
+        if(activeState == CMasternode::MASTERNODE_PRE_ENABLED) strStatus = "PRE_ENABLED";
+        if(activeState == CMasternode::MASTERNODE_ENABLED) strStatus     = "ENABLED";
+        if(activeState == CMasternode::MASTERNODE_EXPIRED) strStatus     = "EXPIRED";
+        if(activeState == CMasternode::MASTERNODE_VIN_SPENT) strStatus   = "VIN_SPENT";
+        if(activeState == CMasternode::MASTERNODE_REMOVE) strStatus      = "REMOVE";
+        if(activeState == CMasternode::MASTERNODE_POS_ERROR) strStatus   = "POS_ERROR";
 
         return strStatus;
     }
@@ -286,9 +290,10 @@ public:
     CMasternodeBroadcast(CService newAddr, CTxIn newVin, CPubKey newPubkey, CPubKey newPubkey2, int protocolVersionIn);
     CMasternodeBroadcast(const CMasternode& mn);
 
-    bool CheckAndUpdate(int& nDoS);
+    bool CheckAndUpdate(int& nDos);
     bool CheckInputsAndAdd(int& nDos);
     bool Sign(CKey& keyCollateralAddress);
+    bool VerifySignature();
     void Relay();
 
     ADD_SERIALIZE_METHODS;
@@ -299,7 +304,7 @@ public:
         READWRITE(addr);
         READWRITE(pubkey);
         READWRITE(pubkey2);
-        READWRITE(sig);
+        READWRITE(vchSig);
         READWRITE(sigTime);
         READWRITE(protocolVersion);
         READWRITE(lastPing);
@@ -308,8 +313,9 @@ public:
 
     uint256 GetHash(){
         CHashWriter ss(SER_GETHASH, PROTOCOL_VERSION);
-        ss << sigTime;
+        ss << vin;
         ss << pubkey;
+        ss << sigTime;
         return ss.GetHash();
     }
 

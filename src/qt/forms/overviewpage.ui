@@ -66,9 +66,6 @@
             </item>
             <item>
              <widget class="QLabel" name="labelWalletStatus">
-              <property name="cursor">
-               <cursorShape>WhatsThisCursor</cursorShape>
-              </property>
               <property name="toolTip">
                <string>The displayed information may be out of date. Your wallet automatically synchronizes with the Dash network after a connection is established, but this process has not completed yet.</string>
               </property>
@@ -461,7 +458,7 @@
            <item row="2" column="0">
             <widget class="QLabel" name="labelAnonymizedText">
              <property name="text">
-              <string>Darksend Balance:</string>
+              <string>PrivateSend Balance:</string>
              </property>
             </widget>
            </item>
@@ -1028,7 +1025,7 @@
            </sizepolicy>
           </property>
           <property name="toolTip">
-           <string>Try to manually submit a Darksend request.</string>
+           <string>Try to manually submit a PrivateSend request.</string>
           </property>
           <property name="text">
            <string>Try Mix</string>
@@ -1037,7 +1034,7 @@
          <widget class="QPushButton" name="darksendReset">
           <property name="geometry">
            <rect>
-            <x>230</x>
+            <x>220</x>
             <y>319</y>
             <width>221</width>
             <height>28</height>
@@ -1050,7 +1047,7 @@
            </sizepolicy>
           </property>
           <property name="toolTip">
-           <string>Reset the current status of Darksend (can interrupt Darksend if it's in the process of Mixing, which can cost you money!)</string>
+           <string>Reset the current status of PrivateSend (can interrupt PrivateSend if it's in the process of Mixing, which can cost you money!)</string>
           </property>
           <property name="autoFillBackground">
            <bool>false</bool>
@@ -1078,7 +1075,7 @@
               </font>
              </property>
              <property name="text">
-              <string>Darksend</string>
+              <string>PrivateSend</string>
              </property>
             </widget>
            </item>
@@ -1158,9 +1155,6 @@
             </item>
             <item>
              <widget class="QLabel" name="labelTransactionsStatus">
-              <property name="cursor">
-               <cursorShape>WhatsThisCursor</cursorShape>
-              </property>
               <property name="toolTip">
                <string>The displayed information may be out of date. Your wallet automatically synchronizes with the Dash network after a connection is established, but this process has not completed yet.</string>
               </property>
@@ -1171,7 +1165,7 @@
                <string notr="true">(out of sync)</string>
               </property>
               <property name="alignment">
-               <set>Qt::AlignRight|Qt::AlignTrailing|Qt::AlignVCenter</set>
+               <set>Qt::AlignLeading|Qt::AlignLeft|Qt::AlignVCenter</set>
               </property>
              </widget>
             </item>
