@@ -19,11 +19,11 @@
 #include <iomanip>
 #include <univalue.h>
 
-UniValue darksend(const UniValue& params, bool fHelp)
+UniValue privatesend(const UniValue& params, bool fHelp)
 {
     if (fHelp || params.size() != 1)
         throw runtime_error(
-            "darksend \"command\"\n"
+            "privatesend \"command\"\n"
             "\nArguments:\n"
             "1. \"command\"        (string or set of strings, required) The command to execute\n"
             "\nAvailable commands:\n"
@@ -60,7 +60,7 @@ UniValue darksend(const UniValue& params, bool fHelp)
         return "Mixing status: " + darkSendPool.GetStatus();
     }
 
-    return "Unknown command, please see \"help darksend\"";
+    return "Unknown command, please see \"help privatesend\"";
 }
 
 UniValue getpoolinfo(const UniValue& params, bool fHelp)

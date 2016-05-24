@@ -279,7 +279,7 @@ bool LogAcceptCategory(const char* category)
             // "dash" is a composite category enabling all Dash-related debug output
             if(ptrCategory->count(string("dash"))) {
                 ptrCategory->insert(string("privatesend"));
-                ptrCategory->insert(string("instantx"));
+                ptrCategory->insert(string("instantsend"));
                 ptrCategory->insert(string("masternode"));
                 ptrCategory->insert(string("keepass"));
                 ptrCategory->insert(string("mnpayments"));
