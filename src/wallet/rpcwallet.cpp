@@ -410,7 +410,7 @@ UniValue sendtoaddress(const UniValue& params, bool fHelp)
     
     if (fHelp || params.size() < 2 || params.size() > 7)
         throw runtime_error(
-            "sendtoaddress \"dashaddress\" amount ( \"comment\" \"comment-to\" subtractfeefromamount use_ix use_ds )\n"
+            "sendtoaddress \"dashaddress\" amount ( \"comment\" \"comment-to\" subtractfeefromamount use_is use_ps )\n"
             "\nSend an amount to a given address.\n"
             + HelpRequiringPassphrase() +
             "\nArguments:\n"
@@ -423,8 +423,8 @@ UniValue sendtoaddress(const UniValue& params, bool fHelp)
             "                             transaction, just kept in your wallet.\n"
             "5. subtractfeefromamount  (boolean, optional, default=false) The fee will be deducted from the amount being sent.\n"
             "                             The recipient will receive less bitcoins than you enter in the amount field.\n"
-            "6. \"use_ix\"      (bool, optional) Send this transaction as IX (default: false)\n"
-            "7. \"use_ds\"      (bool, optional) Use anonymized funds only (default: false)\n"
+            "6. \"use_is\"      (bool, optional) Send this transaction as InstantSend (default: false)\n"
+            "7. \"use_ps\"      (bool, optional) Use anonymized funds only (default: false)\n"
             "\nResult:\n"
             "\"transactionid\"  (string) The transaction id.\n"
             "\nExamples:\n"
@@ -1017,7 +1017,7 @@ UniValue sendmany(const UniValue& params, bool fHelp)
     
     if (fHelp || params.size() < 2 || params.size() > 7)
         throw runtime_error(
-            "sendmany \"fromaccount\" {\"address\":amount,...} ( minconf \"comment\" [\"address\",...] subtractfeefromamount use_ix use_ds )\n"
+            "sendmany \"fromaccount\" {\"address\":amount,...} ( minconf \"comment\" [\"address\",...] subtractfeefromamount use_is use_ps )\n"
             "\nSend multiple times. Amounts are double-precision floating point numbers."
             + HelpRequiringPassphrase() + "\n"
             "\nArguments:\n"
@@ -1037,8 +1037,8 @@ UniValue sendmany(const UniValue& params, bool fHelp)
             "      \"address\"            (string) Subtract fee from this address\n"
             "      ,...\n"
             "    ]\n"
-            "6. \"use_ix\"      (bool, optional) Send this transaction as IX (default: false)\n"
-            "7. \"use_ds\"      (bool, optional) Use anonymized funds only (default: false)\n"
+            "6. \"use_is\"      (bool, optional) Send this transaction as InstantSend (default: false)\n"
+            "7. \"use_ps\"      (bool, optional) Use anonymized funds only (default: false)\n"
             "\nResult:\n"
             "\"transactionid\"          (string) The transaction id for the send. Only 1 transaction is created regardless of \n"
             "                                    the number of addresses.\n"
