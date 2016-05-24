@@ -40,14 +40,14 @@ UniValue darksend(const UniValue& params, bool fHelp)
         if(fMasterNode)
             return "Mixing is not supported from masternodes";
 
-        fEnableDarksend = true;
+        fEnablePrivateSend = true;
         bool result = darkSendPool.DoAutomaticDenominating();
-//        fEnableDarksend = result;
+//        fEnablePrivateSend = result;
         return "Mixing " + (result ? "started successfully" : ("start failed: " + darkSendPool.GetStatus() + ", will retry"));
     }
 
     if(params[0].get_str() == "stop"){
-        fEnableDarksend = false;
+        fEnablePrivateSend = false;
         return "Mixing was stopped";
     }
 

@@ -394,7 +394,7 @@ void UpdateLockedTransaction(CTransaction& tx, bool fForceNotification) {
         // a transaction lock must have enough signatures to trigger this notification
         if(nSignatures == INSTANTX_SIGNATURES_REQUIRED || (fForceNotification && nSignatures > INSTANTX_SIGNATURES_REQUIRED)) {
             // notify an external script once threshold is reached
-            std::string strCmd = GetArg("-ixnotify", "");
+            std::string strCmd = GetArg("-instantsendnotify", "");
             if ( !strCmd.empty())
             {
                 boost::replace_all(strCmd, "%s", txHash.GetHex());
@@ -504,7 +504,7 @@ int GetTransactionLockSignatures(uint256 txHash)
 {
     if(fLargeWorkForkFound || fLargeWorkInvalidChainFound) return -2;
     if(!IsSporkActive(SPORK_2_INSTANTX)) return -3;
-    if(!fEnableInstantX) return -1;
+    if(!fEnableInstantSend) return -1;
 
     std::map<uint256, CTransactionLock>::iterator i = mapTxLocks.find(txHash);
     if (i != mapTxLocks.end()){
@@ -516,7 +516,7 @@ int GetTransactionLockSignatures(uint256 txHash)
 
 bool IsTransactionLockTimedOut(uint256 txHash)
 {
-    if(!fEnableInstantX) return 0;
+    if(!fEnableInstantSend) return 0;
 
     std::map<uint256, CTransactionLock>::iterator i = mapTxLocks.find(txHash);
     if (i != mapTxLocks.end()){
