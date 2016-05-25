@@ -1964,7 +1964,7 @@ bool AppInit2(boost::thread_group& threadGroup, CScheduler& scheduler)
     if (fMasterNode)
         threadGroup.create_thread(boost::bind(&ThreadCheckPrivateSendServer));
     else
-        threadGroup.create_thread(boost::bind(&ThreadCheckPrivateSendClient));
+        threadGroup.create_thread(boost::bind(&ThreadCheckPrivateSendClient, boost::ref(*g_connman)));
 
     // ********************************************************* Step 12: start node
 

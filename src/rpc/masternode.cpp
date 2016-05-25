@@ -44,7 +44,7 @@ UniValue privatesend(const UniValue& params, bool fHelp)
             return "Mixing is not supported from masternodes";
 
         privateSendClient.fEnablePrivateSend = true;
-        bool result = privateSendClient.DoAutomaticDenominating();
+        bool result = privateSendClient.DoAutomaticDenominating(*g_connman);
         return "Mixing " + (result ? "started successfully" : ("start failed: " + privateSendClient.GetStatus() + ", will retry"));
     }
 
