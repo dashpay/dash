@@ -121,6 +121,8 @@ public:
         int nMaxOutbound = 0;
         int nBestHeight = 0;
         CClientUIInterface* uiInterface = nullptr;
+        unsigned int nSendBufferMaxSize = 0;
+        unsigned int nReceiveFloodSize = 0;
     };
     CConnman();
     ~CConnman();
