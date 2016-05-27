@@ -227,7 +227,8 @@ void PrepareShutdown()
         pwalletMain->Flush(false);
 #endif
     GenerateBitcoins(false, 0, Params(), *g_connman);
-    StopNode(*g_connman);
+    MapPort(false);
+    g_connman->Stop();
     g_connman.reset();
 
     // STORE DATA CACHES INTO SERIALIZED DAT FILES
@@ -1997,9 +1998,14 @@ bool AppInit2(boost::thread_group& threadGroup, CScheduler& scheduler)
     if (GetBoolArg("-listenonion", DEFAULT_LISTEN_ONION))
         StartTorControl(threadGroup, scheduler);
 
+    Discover(threadGroup);
+
+    // Map ports with UPnP
+    MapPort(GetBoolArg("-upnp", DEFAULT_UPNP));
+
     std::string strNodeError;
     int nMaxOutbound = std::min(MAX_OUTBOUND_CONNECTIONS, nMaxConnections);
-    if(!StartNode(connman, threadGroup, scheduler, nLocalServices, nRelevantServices, nMaxConnections, nMaxOutbound, chainActive.Height(), &uiInterface, strNodeError))
+    if(!connman.Start(threadGroup, scheduler, nLocalServices, nRelevantServices, nMaxConnections, nMaxOutbound, chainActive.Height(), &uiInterface, strNodeError))
         return InitError(strNodeError);
 
     // Generate coins in the background
