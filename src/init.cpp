@@ -209,7 +209,6 @@ void PrepareShutdown()
     /// module was initialized.
     RenameThread("dash-shutoff");
     mempool.AddTransactionsUpdated(1);
-
     StopHTTPRPC();
     StopREST();
     StopRPC();
@@ -222,7 +221,6 @@ void PrepareShutdown()
     StopNode();
 
     // STORE DATA CACHES INTO SERIALIZED DAT FILES
-
     CFlatDB<CMasternodeMan> flatdb1("mncache.dat", "magicMasternodeCache");
     flatdb1.Dump(mnodeman);
     CFlatDB<CMasternodePayments> flatdb2("mnpayments.dat", "magicMasternodePaymentsCache");
@@ -230,7 +228,6 @@ void PrepareShutdown()
     CFlatDB<CGovernanceManager> flatdb3("governance.dat", "magicGovernanceCache");
     flatdb3.Dump(governance);
 
-    StopTorControl();
     UnregisterNodeSignals(GetNodeSignals());
 
     if (fFeeEstimatesInitialized)
@@ -302,8 +299,8 @@ void Shutdown()
     if(!fRestartRequested){
         PrepareShutdown();
     }
-
-   // Shutdown part 2: delete wallet instance
+   // Shutdown part 2: Stop TOR thread and delete wallet instance
+    StopTorControl();
 #ifdef ENABLE_WALLET
     delete pwalletMain;
     pwalletMain = NULL;
