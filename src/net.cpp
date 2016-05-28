@@ -420,6 +420,31 @@ CNode* ConnectNode(CAddress addrConnect, const char *pszDest, bool fConnectToMas
             return NULL;
         }
 
+        if (pszDest && addrConnect.IsValid()) {
+            // It is possible that we already have a connection to the IP/port pszDest resolved to.
+            // In that case, drop the connection that was just created, and return the existing CNode instead.
+            // Also store the name we used to connect in that CNode, so that future FindNode() calls to that
+            // name catch this early.
+            CNode* pnode = FindNode((CService)addrConnect);
+            if (pnode)
+            {
+                // we have existing connection to this node but it was not a connection to masternode,
+                // change flag and add reference so that we can correctly clear it later
+                if(fConnectToMasternode && !pnode->fMasternode) {
+                    pnode->AddRef();
+                    pnode->fMasternode = true;
+                }
+                {
+                    LOCK(cs_vNodes);
+                    if (pnode->addrName.empty()) {
+                        pnode->addrName = std::string(pszDest);
+                    }
+                }
+                CloseSocket(hSocket);
+                return pnode;
+            }
+        }
+
         addrman.Attempt(addrConnect);
 
         // Add node
