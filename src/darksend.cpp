@@ -385,7 +385,7 @@ void CDarksendPool::ProcessMessage(CNode* pfrom, std::string& strCommand, CDataS
             return;
         }
 
-        darkSendPool.CompletedTransaction(error, errorID);
+        CompletedTransaction(error, errorID);
     }
 
 }

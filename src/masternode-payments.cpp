@@ -369,7 +369,7 @@ void CMasternodePayments::ProcessMessage(CNode* pfrom, std::string& strCommand, 
         }
 
         pfrom->FulfilledRequest(NetMsgType::MNWINNERSSYNC);
-        mnpayments.Sync(pfrom, nCountNeeded);
+        Sync(pfrom, nCountNeeded);
         LogPrintf("mnget - Sent Masternode winners to %s\n", pfrom->addr.ToString());
     }
     else if (strCommand == NetMsgType::MNWINNER) { //Masternode Payments Declare Winner
@@ -381,7 +381,7 @@ void CMasternodePayments::ProcessMessage(CNode* pfrom, std::string& strCommand, 
 
         if(!pCurrentBlockIndex) return;
 
-        if(mnpayments.mapMasternodePayeeVotes.count(winner.GetHash())){
+        if(mapMasternodePayeeVotes.count(winner.GetHash())){
             LogPrint("mnpayments", "mnw - Already seen - %s bestHeight %d\n", winner.GetHash().ToString(), pCurrentBlockIndex->nHeight);
             masternodeSync.AddedMasternodeWinner(winner.GetHash());
             return;
@@ -399,7 +399,7 @@ void CMasternodePayments::ProcessMessage(CNode* pfrom, std::string& strCommand, 
             return;
         }
 
-        if(!mnpayments.CanVote(winner.vinMasternode.prevout, winner.nBlockHeight)){
+        if(!CanVote(winner.vinMasternode.prevout, winner.nBlockHeight)){
             LogPrintf("mnw - masternode already voted - %s\n", winner.vinMasternode.prevout.ToStringShort());
             return;
         }
@@ -418,7 +418,7 @@ void CMasternodePayments::ProcessMessage(CNode* pfrom, std::string& strCommand, 
 
         LogPrint("mnpayments", "mnw - winning vote - Addr %s Height %d bestHeight %d - %s\n", address2.ToString(), winner.nBlockHeight, pCurrentBlockIndex->nHeight, winner.vinMasternode.prevout.ToStringShort());
 
-        if(mnpayments.AddWinningMasternode(winner)){
+        if(AddWinningMasternode(winner)){
             winner.Relay();
             masternodeSync.AddedMasternodeWinner(winner.GetHash());
         }
