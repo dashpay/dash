@@ -128,7 +128,7 @@ CMasternode::CMasternode(const CMasternodeBroadcast& mnb)
 //
 bool CMasternode::UpdateFromNewBroadcast(CMasternodeBroadcast& mnb)
 {
-    if(mnb.sigTime > sigTime) {    
+    if(mnb.sigTime > sigTime) {
         pubkey2 = mnb.pubkey2;
         sigTime = mnb.sigTime;
         vchSig = mnb.vchSig;
