@@ -622,6 +622,7 @@ void CMasternodePayments::CheckAndRemove()
             ++it;
         }
     }
+    LogPrintf("CMasternodePayments::CleanPaymentList() - %s mapSeenSyncMNW %lld\n", ToString(), masternodeSync.mapSeenSyncMNW.size());
 }
 
 bool CMasternodePaymentWinner::IsValid(CNode* pnode, std::string& strError)

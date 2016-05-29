@@ -679,7 +679,7 @@ bool CMasternodePing::CheckAndUpdate(int& nDos, bool fRequireEnabled, bool fChec
         return true;
     }
 
-    LogPrint("masternode", "CMasternodePing::CheckAndUpdate - New Ping - %s - %s - %lli\n", GetHash().ToString(), blockHash.ToString(), sigTime);
+    LogPrint("masternode", "CMasternodePing::CheckAndUpdate - New Ping %s - %s %s %d\n", vin.ToString(), GetHash().ToString(), blockHash.ToString(), sigTime);
 
     // see if we have this Masternode
     CMasternode* pmn = mnodeman.Find(vin);

@@ -225,6 +225,8 @@ void CMasternodeMan::Check()
 
 void CMasternodeMan::CheckAndRemove(bool forceExpiredRemoval)
 {
+    LogPrintf("CMasternodeMan::CheckAndRemove\n");
+
     Check();
 
     LOCK(cs);
@@ -235,7 +237,7 @@ void CMasternodeMan::CheckAndRemove(bool forceExpiredRemoval)
         if((*it).activeState == CMasternode::MASTERNODE_REMOVE ||
                 (*it).activeState == CMasternode::MASTERNODE_VIN_SPENT ||
                 (forceExpiredRemoval && (*it).activeState == CMasternode::MASTERNODE_EXPIRED)) {
-            LogPrint("masternode", "CMasternodeMan::CheckAndRemove - Removing inactive Masternode %s - %i now\n", (*it).addr.ToString(), size() - 1);
+            LogPrint("masternode", "CMasternodeMan::CheckAndRemove - Removing %s Masternode %s - %i now\n", (*it).Status(), (*it).addr.ToString(), size() - 1);
 
             //erase all of the broadcasts we've seen from this vin
             // -- if we missed a few pings and the node was removed, this will allow is to get it back without them 
@@ -730,8 +732,8 @@ void CMasternodeMan::ProcessMessage(CNode* pfrom, std::string& strCommand, CData
             if(mn.addr.IsRFC1918() || mn.addr.IsLocal()) continue; //local network
 
             if(mn.IsEnabled()) {
-                LogPrint("masternode", "dseg - Sending Masternode entry - %s \n", mn.addr.ToString());
                 if(vin == CTxIn() || vin == mn.vin){
+                    LogPrint("masternode", "dseg - Sending Masternode entry - %s \n", mn.addr.ToString());
                     CMasternodeBroadcast mnb = CMasternodeBroadcast(mn);
                     uint256 hash = mnb.GetHash();
                     pfrom->PushInventory(CInv(MSG_MASTERNODE_ANNOUNCE, hash));
