@@ -139,6 +139,7 @@ BITCOIN_CORE_H = \
   net.h \
   net_processing.h \
   netbase.h \
+  netaddress.h \
   netfulfilledman.h \
   noui.h \
   policy/fees.h \
@@ -357,6 +358,7 @@ libbitcoin_common_a_SOURCES = \
   hdchain.cpp \
   key.cpp \
   keystore.cpp \
+  netaddress.cpp \
   netbase.cpp \
   primitives/block.cpp \
   primitives/transaction.cpp \
