@@ -22,6 +22,7 @@
 #include "key.h"
 #include "validation.h"
 #include "miner.h"
+#include "netbase.h"
 #include "net.h"
 #include "netfulfilledman.h"
 #include "net_processing.h"

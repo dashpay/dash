@@ -1,5 +1,6 @@
 #include "torcontrol.h"
 #include "utilstrencodings.h"
+#include "netbase.h"
 #include "net.h"
 #include "util.h"
 #include "crypto/hmac_sha256.h"

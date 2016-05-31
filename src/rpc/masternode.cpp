@@ -4,6 +4,7 @@
 
 #include "activemasternode.h"
 #include "init.h"
+#include "netbase.h"
 #include "validation.h"
 #include "masternode-payments.h"
 #include "masternode-sync.h"
