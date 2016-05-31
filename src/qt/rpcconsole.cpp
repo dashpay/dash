@@ -940,7 +940,11 @@ void RPCConsole::banSelectedNode(int bantime)
     int port = 0;
     SplitHostPort(nStr, port, addr);
 
-    g_connman->Ban(CNetAddr(addr), BanReasonManuallyAdded, bantime);
+    CNetAddr resolved;
+    if(!LookupHost(addr.c_str(), resolved, false))
+        return;
+    g_connman->Ban(resolved, BanReasonManuallyAdded, bantime);
+
     clearSelectedNode();
     clientModel->getBanTableModel()->refresh();
 }
