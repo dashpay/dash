@@ -557,10 +557,11 @@ bool CMasternodeBroadcast::CheckInputsAndAdd(int& nDos)
     CMasternode mn(*this);
     mnodeman.Add(mn);
 
-    bool isLocal = addr.IsRFC1918() || addr.IsLocal();
-    if(Params().NetworkIDString() == CBaseChainParams::REGTEST) isLocal = false;
+    bool isLocal = (addr.IsRFC1918() || addr.IsLocal());
+    // Not Relay for local address on Main network
+    if(isLocal && Params().NetworkIDString() == CBaseChainParams::MAIN) return true;
 
-    if(!isLocal) Relay();
+    Relay();
 
     return true;
 }
