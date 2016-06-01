@@ -352,9 +352,16 @@ bool CMasternodeBroadcast::CheckAndUpdate(int& nDos)
         return false;
     }
 
-    std::string vchPubKey(pubkey.begin(), pubkey.end());
-    std::string vchPubKey2(pubkey2.begin(), pubkey2.end());
-    std::string strMessage = addr.ToString() + boost::lexical_cast<std::string>(sigTime) + vchPubKey + vchPubKey2 + boost::lexical_cast<std::string>(protocolVersion);
+    std::string strMessage;
+    if(protocolVersion < 70201) {
+        std::string vchPubKey(pubkey.begin(), pubkey.end());
+        std::string vchPubKey2(pubkey2.begin(), pubkey2.end());
+        strMessage = addr.ToString() + boost::lexical_cast<std::string>(sigTime) + vchPubKey + vchPubKey2 + boost::lexical_cast<std::string>(protocolVersion);
+    } else {
+        strMessage = addr.ToString() + boost::lexical_cast<std::string>(sigTime) +
+                        pubkey.GetID().ToString() + pubkey2.GetID().ToString() +
+                        boost::lexical_cast<std::string>(protocolVersion);
+    }
 
     if(protocolVersion < masternodePayments.GetMinMasternodePaymentsProto()) {
         LogPrintf("mnb - ignoring outdated Masternode %s protocol version %d\n", vin.ToString(), protocolVersion);
@@ -387,8 +394,8 @@ bool CMasternodeBroadcast::CheckAndUpdate(int& nDos)
     std::string errorMessage = "";
     if(!darkSendSigner.VerifyMessage(pubkey, sig, strMessage, errorMessage)){
         LogPrintf("mnb - Got bad Masternode address signature\n");
-        // There is a bug in MN signatures, ignore such MN but do not ban the peer we got this from
-        // nDos = 100;
+        // There is a bug in old MN signatures, ignore such MN but do not ban the peer we got this from
+        nDos = protocolVersion < 70201 ? 0 : 100;
         return false;
     }
 
