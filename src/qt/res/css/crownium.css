@@ -244,35 +244,35 @@ height: 16px;
 }
 
 QCheckBox::indicator:unchecked {
-image:url(':/images/crownium/unchecked_grey');
+image:url(':/images/crownium/unchecked');
 }
 
 QCheckBox::indicator:unchecked:hover {
-image:url(':/images/crownium/unchecked_grey');
+image:url(':/images/crownium/unchecked');
 }
 
 QCheckBox::indicator:unchecked:pressed {
-image:url(':/images/crownium/checked_blue_white');
+image:url(':/images/crownium/checked');
 }
 
 QCheckBox::indicator:checked {
-image:url(':/images/crownium/checked_blue_white');
+image:url(':/images/crownium/checked');
 }
 
 QCheckBox::indicator:checked:hover {
-image:url(':/images/crownium/checked_blue_white');
+image:url(':/images/crownium/checked');
 }
 
 QCheckBox::indicator:checked:pressed {
-image:url(':/images/crownium/unchecked_grey');
+image:url(':/images/crownium/unchecked');
 }
 
 QCheckBox::indicator:indeterminate:hover {
-image:url(':/images/crownium/unchecked_grey');
+image:url(':/images/crownium/unchecked');
 }
 
 QCheckBox::indicator:indeterminate:pressed {
-image:url(':/images/crownium/checked_blue_white');
+image:url(':/images/crownium/checked');
 }
 
 /*******************************************************/

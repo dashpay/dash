@@ -236,35 +236,35 @@ height: 16px;
 }
 
 QCheckBox::indicator:unchecked {
-image:url(':/images/drkblue/unchecked_blue');
+image:url(':/images/drkblue/unchecked');
 }
 
 QCheckBox::indicator:unchecked:hover {
-image:url(':/images/drkblue/unchecked_blue');
+image:url(':/images/drkblue/unchecked');
 }
 
 QCheckBox::indicator:unchecked:pressed {
-image:url(':/images/drkblue/checked_blue');
+image:url(':/images/drkblue/checked');
 }
 
 QCheckBox::indicator:checked {
-image:url(':/images/drkblue/checked_blue');
+image:url(':/images/drkblue/checked');
 }
 
 QCheckBox::indicator:checked:hover {
-image:url(':/images/drkblue/checked_blue');
+image:url(':/images/drkblue/checked');
 }
 
 QCheckBox::indicator:checked:pressed {
-image:url(':/images/drkblue/unchecked_blue');
+image:url(':/images/drkblue/unchecked');
 }
 
 QCheckBox::indicator:indeterminate:hover {
-image:url(':/images/drkblue/unchecked_blue');
+image:url(':/images/drkblue/unchecked');
 }
 
 QCheckBox::indicator:indeterminate:pressed {
-image:url(':/images/drkblue/checked_blue');
+image:url(':/images/drkblue/checked');
 }
 
 /*******************************************************/
