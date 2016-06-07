@@ -27,7 +27,7 @@
 
 #define ICON_OFFSET 16
 #define DECORATION_SIZE 54
-#define NUM_ITEMS 5
+#define NUM_ITEMS 7
 
 class TxViewDelegate : public QAbstractItemDelegate
 {
@@ -93,7 +93,7 @@ public:
             foreground = option.palette.color(QPalette::Text);
         }
         painter->setPen(foreground);
-        QString amountText = BitcoinUnits::formatWithUnit(unit, amount, true, BitcoinUnits::separatorAlways);
+        QString amountText = BitcoinUnits::floorWithUnit(unit, amount, true, BitcoinUnits::separatorAlways);
         if(!confirmed)
         {
             amountText = QString("[") + amountText + QString("]");
