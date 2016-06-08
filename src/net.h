@@ -156,7 +156,7 @@ CAddress GetLocalAddress(const CNetAddr *paddrPeer = NULL);
 
 extern bool fDiscover;
 extern bool fListen;
-extern uint64_t nLocalServices;
+extern ServiceFlags nLocalServices;
 extern uint64_t nLocalHostNonce;
 extern CAddrMan addrman;
 
@@ -192,7 +192,7 @@ class CNodeStats
 {
 public:
     NodeId nodeid;
-    uint64_t nServices;
+    ServiceFlags nServices;
     bool fRelayTxes;
     int64_t nLastSend;
     int64_t nLastRecv;
@@ -322,8 +322,8 @@ class CNode
 {
 public:
     // socket
-    uint64_t nServices;
-    uint64_t nServicesExpected;
+    ServiceFlags nServices;
+    ServiceFlags nServicesExpected;
     SOCKET hSocket;
     CDataStream ssSend;
     size_t nSendSize; // total size of all vSendMsg entries
