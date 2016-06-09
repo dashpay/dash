@@ -64,6 +64,12 @@ bool IsBudgetCollateralValid(uint256 nTxCollateralHash, uint256 nExpectedHash, s
         return false;
     }
 
+    // RETRIEVE CONFIRMATIONS AND NTIME
+    /*
+        - nTime starts as zero and is passed-by-reference out of this function and stored in the external proposal
+        - nTime is never validated via the hashing mechanism and comes from a full-validated source (the blockchain)
+    */
+
     int conf = GetIXConfirmations(nTxCollateralHash);
     if (nBlockHash != uint256(0)) {
         BlockMap::iterator mi = mapBlockIndex.find(nBlockHash);
