@@ -1013,12 +1013,6 @@ static bool AttemptToEvictConnection() {
         return false;
     }
 
-    // Do not disconnect peers if there is only one unprotected connection from their network group.
-    if (vEvictionNodes.size() <= 1)
-        // unless we prefer the new connection (for whitelisted peers)
-        if (!fPreferNewConnection)
-            return false;
-
     // Disconnect from the network group with the most connections
     int nEvictionId = vEvictionNodes[0].id;
     {
