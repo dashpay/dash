@@ -248,7 +248,7 @@ CAmount GetBlockSubsidy(int nBits, int nHeight, const Consensus::Params& consens
 
 // ***TODO***
 double ConvertBitsToDouble(unsigned int nBits);
-CAmount GetMasternodePayment(int nHeight, CAmount blockValue);
+CAmount GetMasternodePayment(int nHeight, CAmount blockValue, const Consensus::Params& consensusParams);
 
 /**
  * Prune block and undo files (blk???.dat and undo???.dat) so that the disk space used is less than a user-defined target.
