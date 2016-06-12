@@ -672,6 +672,10 @@ DBErrors CWalletDB::LoadWallet(CWallet* pwallet)
                 LogPrintf("%s\n", strErr);
         }
         pcursor->close();
+
+        // Store initial pool size
+        pwallet->nKeysLeftSinceAutoBackup = pwallet->GetKeyPoolSize();
+        LogPrintf("nKeysLeftSinceAutoBackup: %d\n", pwallet->nKeysLeftSinceAutoBackup);
     }
     catch (const boost::thread_interrupted&) {
         throw;
@@ -943,6 +947,9 @@ bool AutoBackupWallet (CWallet* wallet, std::string strWalletFile, std::string& 
                 nWalletBackups = -1;
                 return false;
             }
+            // Update nKeysLeftSinceAutoBackup using current pool size
+            wallet->nKeysLeftSinceAutoBackup = wallet->GetKeyPoolSize();
+            LogPrintf("nKeysLeftSinceAutoBackup: %d\n", wallet->nKeysLeftSinceAutoBackup);
         } else {
             // ... strWalletFile file
             fs::path sourceFile = GetDataDir() / strWalletFile;
