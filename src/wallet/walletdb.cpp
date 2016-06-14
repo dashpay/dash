@@ -956,6 +956,12 @@ bool AutoBackupWallet (CWallet* wallet, std::string strWalletFile, std::string& 
             fs::path backupFile = backupsDir / (strWalletFile + dateTimeStr);
             sourceFile.make_preferred();
             backupFile.make_preferred();
+            if (fs::exists(backupFile))
+            {
+                strBackupWarning = _("Failed to create backup, file already exists! This could happen if you restarted wallet in less than 60 seconds. You can continue if you are ok with this.");
+                LogPrintf("%s\n", strBackupWarning);
+                return false;
+            }
             if(fs::exists(sourceFile)) {
                 try {
                     fs::copy_file(sourceFile, backupFile);
