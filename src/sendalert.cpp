@@ -106,7 +106,6 @@ void ThreadSendAlert(CConnman& connman)
                 printf("ThreadSendAlert() : Sent alert to %s\n", pnode->addr.ToString().c_str());
                 nSent++;
             }
-            return true;
         });
     }
     printf("ThreadSendAlert() : Alert sent to %d nodes\n", nSent);

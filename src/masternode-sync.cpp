@@ -198,7 +198,6 @@ void CMasternodeSync::SwitchToNextAsset()
 
             g_connman->ForEachNode([](CNode* pnode) {
                 netfulfilledman.AddFulfilledRequest(pnode->addr, "full-sync");
-                return true;
             });
             LogPrintf("CMasternodeSync::SwitchToNextAsset -- Sync has finished\n");
 
@@ -249,7 +248,6 @@ void CMasternodeSync::ClearFulfilledRequests()
         netfulfilledman.RemoveFulfilledRequest(pnode->addr, "masternode-payment-sync");
         netfulfilledman.RemoveFulfilledRequest(pnode->addr, "governance-sync");
         netfulfilledman.RemoveFulfilledRequest(pnode->addr, "full-sync");
-        return true;
     });
 }
 

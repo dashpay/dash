@@ -769,7 +769,6 @@ void CMasternodeMan::ProcessMasternodeConnections()
             LogPrintf("Closing Masternode connection: peer=%d, addr=%s\n", pnode->id, pnode->addr.ToString());
             pnode->fDisconnect = true;
         }
-        return true;
     });
 }
 

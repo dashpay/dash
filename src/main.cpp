@@ -3379,7 +3379,6 @@ bool ActivateBestChain(CValidationState &state, const CChainParams& chainparams,
                                 pnode->PushBlockHash(hash);
                             }
                         }
-                        return true;
                     });
                 }
                 // Notify external listeners about the new tip.
@@ -4988,7 +4987,6 @@ static void RelayAddress(const CAddress& addr, bool fReachable, CConnman& connma
             hashKey = Hash(BEGIN(hashKey), END(hashKey));
             mapMix.emplace(hashKey, pnode);
         }
-        return true;
     };
 
     auto pushfunc = [&addr, &mapMix, &nRelayNodes] {
@@ -6243,7 +6241,6 @@ bool static ProcessMessage(CNode* pfrom, string strCommand, CDataStream& vRecv, 
                 {
                     connman.ForEachNode([&alert](CNode* pnode) {
                         alert.RelayTo(pnode);
-                        return true;
                     });
                 }
             }

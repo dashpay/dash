@@ -798,7 +798,6 @@ void CPrivateSendServer::RelayFinalTransaction(const CTransaction& txFinal)
     g_connman->ForEachNode([&txFinal, this](CNode* pnode) {
         if(pnode->nVersion >= MIN_PRIVATESEND_PEER_PROTO_VERSION)
             pnode->PushMessage(NetMsgType::DSFINALTX, nSessionID, txFinal);
-        return true;
     });
 }
 
@@ -813,7 +812,6 @@ void CPrivateSendServer::RelayStatus(PoolStatusUpdate nStatusUpdate, PoolMessage
     g_connman->ForEachNode([nStatusUpdate, nMessageID, this](CNode* pnode) {
         if(pnode->nVersion >= MIN_PRIVATESEND_PEER_PROTO_VERSION)
             PushStatus(pnode, nStatusUpdate, nMessageID);
-        return true;
     });
 }
 
@@ -822,7 +820,6 @@ void CPrivateSendServer::RelayCompletedTransaction(PoolMessage nMessageID)
     g_connman->ForEachNode([nMessageID, this](CNode* pnode) {
         if(pnode->nVersion >= MIN_PRIVATESEND_PEER_PROTO_VERSION)
             pnode->PushMessage(NetMsgType::DSCOMPLETE, nSessionID, (int)nMessageID);
-        return true;
     });
 }
 
