@@ -279,6 +279,11 @@ bool CWallet::Unlock(const SecureString& strWalletPassphrase, bool anonymizeOnly
             if (CCryptoKeyStore::Unlock(vMasterKey))
             {
                 fWalletUnlockAnonymizeOnly = anonymizeOnly;
+                if(nWalletBackups == -2) {
+                    TopUpKeyPool();
+                    LogPrintf("Keypool replenished, re-initializing automatic backups.\n");
+                    nWalletBackups = GetArg("-createwalletbackups", 10);
+                }
                 return true;
             }
         }

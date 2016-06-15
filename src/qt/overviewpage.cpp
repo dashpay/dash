@@ -455,28 +455,18 @@ void OverviewPage::privateSendStatus()
     if(((nBestHeight - darkSendPool.cachedNumBlocks) / (GetTimeMillis() - nLastDSProgressBlockTime + 1) > 1)) return;
     nLastDSProgressBlockTime = GetTimeMillis();
 
-    QString strEnabled = fEnablePrivateSend ? tr("Enabled") : tr("Disabled");
     QString strKeysLeftText(tr("keys left: %1").arg(pwalletMain->nKeysLeftSinceAutoBackup));
-
-    if(nWalletBackups == -1) {
-        // Automatic backup failed, nothing else we can do until user fixes the issue manually
-        DisablePrivateSendCompletely();
-
-        QString strError = tr("ERROR! Failed to create automatic backup") + ", " +
-                            tr("see debug.log for details") + "<br>" +
-                            tr("Mixing is disabled! Please close your wallet and fix the issue!");
-        ui->labelPrivateSendEnabled->setToolTip(strError);
-
-        return;
+    if(pwalletMain->nKeysLeftSinceAutoBackup < PS_KEYS_THRESHOLD_WARNING) {
+        strKeysLeftText = "<span style='color:red;'>" + strKeysLeftText + "</span>";
     }
-
+    ui->labelPrivateSendEnabled->setToolTip(strKeysLeftText);
 
     // Warn user that wallet is running out of keys
     if (nWalletBackups > 0 && pwalletMain->nKeysLeftSinceAutoBackup < PS_KEYS_THRESHOLD_WARNING) {
-        strKeysLeftText = "<span style='color:red;'>" + strKeysLeftText + "</span>";
-        QString strWarn = tr("Very low number of keys left since last automatic backup! "
-                        "We are about to create a new automatic backup for you, however "
-                        "<span style='color:red;'> you should always make sure you have backups saved in some safe place</span>!");
+        QString strWarn =   tr("Very low number of keys left since last automatic backup!") + "<br><br>" +
+                            tr("We are about to create a new automatic backup for you, however "
+                               "<span style='color:red;'> you should always make sure you have backups "
+                               "saved in some safe place</span>!");
         ui->labelPrivateSendEnabled->setToolTip(strWarn);
         LogPrintf("OverviewPage::privateSendStatus - Very low number of keys left since last automatic backup, warning user and trying to create new backup...\n");
         QMessageBox::warning(this, tr("PrivateSend"), strWarn, QMessageBox::Ok, QMessageBox::Ok);
@@ -489,25 +479,41 @@ void OverviewPage::privateSendStatus()
                 LogPrintf("OverviewPage::privateSendStatus - WARNING! Something went wrong on automatic backup: %s\n", warningString);
 
                 QMessageBox::warning(this, tr("PrivateSend"),
-                    tr("WARNING! Something went wrong on automatic backup: %1").arg(warningString.c_str()),
+                    tr("WARNING! Something went wrong on automatic backup") + ":<br><br>" + warningString.c_str(),
                     QMessageBox::Ok, QMessageBox::Ok);
             }
             if (!errorString.empty()) {
                 // Things are really broken, warn user and stop mixing immediately
                 LogPrintf("OverviewPage::privateSendStatus - ERROR! Failed to create automatic backup: %s\n", errorString);
-                DisablePrivateSendCompletely();
 
                 QMessageBox::warning(this, tr("PrivateSend"),
-                    tr("ERROR! Failed to create automatic backup") + ": " + errorString.c_str() + "<br>" +
-                    tr("Mixing is disabled! Please close your wallet and fix the issue!"),
+                    tr("ERROR! Failed to create automatic backup") + ":<br><br>" + errorString.c_str() + "<br>" +
+                    tr("Mixing is disabled, please close your wallet and fix the issue!"),
                     QMessageBox::Ok, QMessageBox::Ok);
             }
         }
     }
 
+    QString strEnabled = fEnablePrivateSend ? tr("Enabled") : tr("Disabled");
     // Show how many keys left in advanced PS UI mode only
     if(fShowAdvancedPSUI) strEnabled += ", " + strKeysLeftText;
     ui->labelPrivateSendEnabled->setText(strEnabled);
+
+    if(nWalletBackups == -1) {
+        // Automatic backup failed, nothing else we can do until user fixes the issue manually
+        DisablePrivateSendCompletely();
+
+        QString strError =  tr("ERROR! Failed to create automatic backup") + ", " +
+                            tr("see debug.log for details.") + "<br><br>" +
+                            tr("Mixing is disabled, please close your wallet and fix the issue!");
+        ui->labelPrivateSendEnabled->setToolTip(strError);
+
+        return;
+    } else if(nWalletBackups == -2) {
+        // We were able to create automatic backup but keypool was not replenished because wallet is locked.
+        QString strWarning = tr("WARNING! Failed to replenish keypool, please unlock your wallet to do so.");
+        ui->labelPrivateSendEnabled->setToolTip(strWarning);
+    }
 
     if(!fEnablePrivateSend) {
         if(nBestHeight != darkSendPool.cachedNumBlocks) {
