@@ -24,7 +24,7 @@ Build-Depends: debhelper,
  libprotobuf-dev, protobuf-compiler,
  python
 Standards-Version: 3.9.2
-Homepage: https://dash.org/
+Homepage: https://www.dash.org/
 Vcs-Git: git://github.com/dashpay/dash.git
 Vcs-Browser: https://github.com/dashpay/dash
 
