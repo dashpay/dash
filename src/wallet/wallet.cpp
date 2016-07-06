@@ -2014,6 +2014,30 @@ CAmount CWallet::GetNormalizedAnonymizedBalance() const
     return nTotal;
 }
 
+CAmount CWallet::GetNeedsToBeAnonymizedBalance(CAmount nMinBalance) const
+{
+    if(fLiteMode) return 0;
+
+    CAmount nAnonymizedBalance = GetAnonymizedBalance();
+    CAmount nNeedsToAnonymizeBalance = nAnonymizeDashAmount*COIN - nAnonymizedBalance;
+
+    // if balanceNeedsAnonymized is more than pool max, take the pool max
+    if(nNeedsToAnonymizeBalance > DARKSEND_POOL_MAX) nNeedsToAnonymizeBalance = DARKSEND_POOL_MAX;
+
+    // try to overshoot target DS balance up to nMinBalance
+    nNeedsToAnonymizeBalance += nMinBalance;
+
+    CAmount nAnonymizableBalance = GetAnonymizableBalance();
+
+    // anonymizable balance is way too small
+    if(nAnonymizableBalance < nMinBalance) return 0;
+
+    // not enough funds to anonymze amount we want, try the max we can
+    if(nNeedsToAnonymizeBalance > nAnonymizableBalance) nNeedsToAnonymizeBalance = nAnonymizableBalance;
+
+    return nNeedsToAnonymizeBalance;
+}
+
 CAmount CWallet::GetDenominatedBalance(bool unconfirmed) const
 {
     if(fLiteMode) return 0;
@@ -2583,6 +2607,64 @@ bool CWallet::SelectCoinsByDenominations(int nDenom, CAmount nValueMin, CAmount 
     }
 
     return (nValueRet >= nValueMin && fFound100 && fFound10 && fFound1 && fFoundDot1);
+}
+
+struct CompareByAmount
+{
+    bool operator()(const CompactTallyItem& t1,
+                    const CompactTallyItem& t2) const
+    {
+        return t1.nAmount > t2.nAmount;
+    }
+};
+
+bool CWallet::SelectCoinsGrouppedByAddresses(std::vector<CompactTallyItem>& vecTally, bool fSkipDenominated)
+{
+    LOCK2(cs_main, cs_wallet);
+
+    int nMinDepth = 1;
+    isminefilter filter = ISMINE_SPENDABLE;
+
+    // Tally
+    map<CBitcoinAddress, CompactTallyItem> mapTally;
+    for (map<uint256, CWalletTx>::iterator it = mapWallet.begin(); it != mapWallet.end(); ++it) {
+        const CWalletTx& wtx = (*it).second;
+
+        if(!CheckFinalTx(wtx)) continue;
+        if(wtx.GetDepthInMainChain(false) < nMinDepth) continue;
+        if(wtx.IsCoinBase() && wtx.GetBlocksToMaturity() > 0) continue;
+
+        for (unsigned int i = 0; i < wtx.vout.size(); i++) {
+            CTxDestination address;
+            if (!ExtractDestination(wtx.vout[i].scriptPubKey, address)) continue;
+
+            isminefilter mine = ::IsMine(*this, address);
+            if(!(mine & filter)) continue;
+
+            if(IsSpent(wtx.GetHash(), i) || IsLockedCoin(wtx.GetHash(), i)) continue;
+            if(IsCollateralAmount(wtx.vout[i].nValue)) continue;
+            if(fMasterNode && wtx.vout[i].nValue == 1000*COIN) continue;
+            if(fSkipDenominated && IsDenominatedAmount(wtx.vout[i].nValue)) continue;
+
+            CompactTallyItem& item = mapTally[address];
+            item.address = address;
+            item.nAmount += wtx.vout[i].nValue;
+            item.vecTxIn.push_back(CTxIn(wtx.GetHash(), i));
+        }
+    }
+
+    // we found nothing
+    if(mapTally.size() == 0) return false;
+
+    // construct resulting vector
+    BOOST_FOREACH(const PAIRTYPE(CBitcoinAddress, CompactTallyItem)& item, mapTally) {
+        vecTally.push_back(item.second);
+    }
+
+    // order by amounts per address, from smallest to largest
+    sort(vecTally.rbegin(), vecTally.rend(), CompareByAmount());
+
+    return true;
 }
 
 bool CWallet::SelectCoinsDark(CAmount nValueMin, CAmount nValueMax, std::vector<CTxIn>& setCoinsRet, CAmount& nValueRet, int nPrivateSendRoundsMin, int nPrivateSendRoundsMax) const
