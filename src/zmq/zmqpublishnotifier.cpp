@@ -139,8 +139,9 @@ bool CZMQPublishHashTransactionNotifier::NotifyTransaction(const CTransaction &t
     return rc == 0;
 }
 
-bool CZMQPublishHashTransactionLockNotifier::NotifyTransactionLock(const uint256 &hash)
+bool CZMQPublishHashTransactionLockNotifier::NotifyTransactionLock(const CTransaction &transaction)
 {
+    uint256 hash = transaction.GetHash();
     LogPrint("zmq", "zmq: Publish hashtxlock %s\n", hash.GetHex());
     char data[32];
     for (unsigned int i = 0; i < 32; i++)
@@ -178,5 +179,15 @@ bool CZMQPublishRawTransactionNotifier::NotifyTransaction(const CTransaction &tr
     CDataStream ss(SER_NETWORK, PROTOCOL_VERSION);
     ss << transaction;
     int rc = zmq_send_multipart(psocket, "rawtx", 5, &(*ss.begin()), ss.size(), 0);
+    return rc == 0;
+}
+
+bool CZMQPublishRawTransactionLockNotifier::NotifyTransactionLock(const CTransaction &transaction)
+{
+    uint256 hash = transaction.GetHash();
+    LogPrint("zmq", "zmq: Publish rawtxlock %s\n", hash.GetHex());
+    CDataStream ss(SER_NETWORK, PROTOCOL_VERSION);
+    ss << transaction;
+    int rc = zmq_send_multipart(psocket, "rawtxlock", 9, &(*ss.begin()), ss.size(), 0);
     return rc == 0;
 }

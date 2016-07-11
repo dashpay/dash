@@ -31,7 +31,7 @@ public:
 class CZMQPublishHashTransactionLockNotifier : public CZMQAbstractPublishNotifier
 {
 public:
-    bool NotifyTransactionLock(const uint256 &hash);
+    bool NotifyTransactionLock(const CTransaction &transaction);
 };
 
 class CZMQPublishRawBlockNotifier : public CZMQAbstractPublishNotifier
@@ -44,6 +44,12 @@ class CZMQPublishRawTransactionNotifier : public CZMQAbstractPublishNotifier
 {
 public:
     bool NotifyTransaction(const CTransaction &transaction);
+};
+
+class CZMQPublishRawTransactionLockNotifier : public CZMQAbstractPublishNotifier
+{
+public:
+    bool NotifyTransactionLock(const CTransaction &transaction);
 };
 
 #endif // BITCOIN_ZMQ_ZMQPUBLISHNOTIFIER_H

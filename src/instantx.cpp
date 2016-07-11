@@ -406,7 +406,7 @@ void UpdateLockedTransaction(CTransaction& tx, bool fForceNotification) {
 #endif
 
     if(nSignatures == INSTANTX_SIGNATURES_REQUIRED || (fForceNotification && nSignatures > INSTANTX_SIGNATURES_REQUIRED)) {
-        GetMainSignals().NotifyTransactionLock(txHash);
+        GetMainSignals().NotifyTransactionLock(tx);
     }
 }
 
