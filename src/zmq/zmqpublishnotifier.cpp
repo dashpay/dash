@@ -145,7 +145,7 @@ bool CZMQPublishHashTransactionLockNotifier::NotifyTransactionLock(const uint256
     char data[32];
     for (unsigned int i = 0; i < 32; i++)
         data[31 - i] = hash.begin()[i];
-    int rc = zmq_send_multipart(psocket, "hashtxlock", 6, data, 32, 0);
+    int rc = zmq_send_multipart(psocket, "hashtxlock", 10, data, 32, 0);
     return rc == 0;
 }
 
