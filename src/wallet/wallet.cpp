@@ -2021,9 +2021,6 @@ CAmount CWallet::GetNeedsToBeAnonymizedBalance(CAmount nMinBalance) const
     CAmount nAnonymizedBalance = GetAnonymizedBalance();
     CAmount nNeedsToAnonymizeBalance = nAnonymizeDashAmount*COIN - nAnonymizedBalance;
 
-    // if balanceNeedsAnonymized is more than pool max, take the pool max
-    if(nNeedsToAnonymizeBalance > DARKSEND_POOL_MAX) nNeedsToAnonymizeBalance = DARKSEND_POOL_MAX;
-
     // try to overshoot target DS balance up to nMinBalance
     nNeedsToAnonymizeBalance += nMinBalance;
 
@@ -2034,6 +2031,9 @@ CAmount CWallet::GetNeedsToBeAnonymizedBalance(CAmount nMinBalance) const
 
     // not enough funds to anonymze amount we want, try the max we can
     if(nNeedsToAnonymizeBalance > nAnonymizableBalance) nNeedsToAnonymizeBalance = nAnonymizableBalance;
+
+    // we should never exceed the pool max
+    if(nNeedsToAnonymizeBalance > DARKSEND_POOL_MAX) nNeedsToAnonymizeBalance = DARKSEND_POOL_MAX;
 
     return nNeedsToAnonymizeBalance;
 }
@@ -2618,7 +2618,7 @@ struct CompareByAmount
     }
 };
 
-bool CWallet::SelectCoinsGrouppedByAddresses(std::vector<CompactTallyItem>& vecTally, bool fSkipDenominated)
+bool CWallet::SelectCoinsGrouppedByAddresses(std::vector<CompactTallyItem>& vecTallyRet, bool fSkipDenominated)
 {
     LOCK2(cs_main, cs_wallet);
 
@@ -2658,11 +2658,17 @@ bool CWallet::SelectCoinsGrouppedByAddresses(std::vector<CompactTallyItem>& vecT
 
     // construct resulting vector
     BOOST_FOREACH(const PAIRTYPE(CBitcoinAddress, CompactTallyItem)& item, mapTally) {
-        vecTally.push_back(item.second);
+        vecTallyRet.push_back(item.second);
     }
 
     // order by amounts per address, from smallest to largest
-    sort(vecTally.rbegin(), vecTally.rend(), CompareByAmount());
+    sort(vecTallyRet.rbegin(), vecTallyRet.rend(), CompareByAmount());
+
+    // debug
+    std::string strMessage = "SelectCoinsGrouppedByAddresses - vecTallyRet:\n";
+    BOOST_FOREACH(CompactTallyItem& item, vecTallyRet)
+        strMessage += strprintf("  %s %f\n", item.address.ToString().c_str(), float(item.nAmount)/COIN);
+    LogPrint("selectcoins", "%s", strMessage);
 
     return true;
 }

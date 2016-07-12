@@ -1716,12 +1716,17 @@ bool CDarksendPool::PrepareDarksendDenominate()
 bool CDarksendPool::MakeCollateralAmounts()
 {
     std::vector<CompactTallyItem> vecTally;
-    if(!pwalletMain->SelectCoinsGrouppedByAddresses(vecTally)) return false;
+    if(!pwalletMain->SelectCoinsGrouppedByAddresses(vecTally)) {
+        LogPrint("privatesend", "CWallet::MakeCollateralAmounts() - SelectCoinsGrouppedByAddresses can't find any inputs!\n");
+        return false;
+    }
 
     BOOST_FOREACH(CompactTallyItem& item, vecTally) {
         if(!MakeCollateralAmounts(item)) continue;
         return true;
     }
+
+    LogPrintf("CWallet::MakeCollateralAmounts() - failed!\n");
     return false;
 }
 
@@ -1732,7 +1737,7 @@ bool CDarksendPool::MakeCollateralAmounts(const CompactTallyItem& tallyItem)
     CAmount nFeeRet = 0;
     int nChangePosRet = -1;
     std::string strFail = "";
-    vector<CRecipient> vecSend;
+    std::vector<CRecipient> vecSend;
 
     // make our collateral address
     CReserveKey reservekeyCollateral(pwalletMain);
@@ -1750,19 +1755,21 @@ bool CDarksendPool::MakeCollateralAmounts(const CompactTallyItem& tallyItem)
     CCoinControl coinControl;
     coinControl.fAllowOtherInputs = false;
     coinControl.fAllowWatchOnly = false;
+    // send change to the same address so that we were able create more denoms out of it later
+    coinControl.destChange = tallyItem.address.Get();
     BOOST_FOREACH(const CTxIn& txin, tallyItem.vecTxIn)
         coinControl.Select(txin.prevout);
 
-    bool success = pwalletMain->CreateTransaction(vecSend, wtx, reservekeyChange,
+    bool fSuccess = pwalletMain->CreateTransaction(vecSend, wtx, reservekeyChange,
             nFeeRet, nChangePosRet, strFail, &coinControl, true, ONLY_NONDENOMINATED_NOT1000IFMN);
-    if(!success){
+    if(!fSuccess) {
         // if we failed (most likeky not enough funds), try to use all coins instead -
         // MN-like funds should not be touched in any case and we can't mix denominated without collaterals anyway
         LogPrintf("MakeCollateralAmounts: ONLY_NONDENOMINATED_NOT1000IFMN Error - %s\n", strFail);
         CCoinControl *coinControlNull = NULL;
-        success = pwalletMain->CreateTransaction(vecSend, wtx, reservekeyChange,
+        fSuccess = pwalletMain->CreateTransaction(vecSend, wtx, reservekeyChange,
                 nFeeRet, nChangePosRet, strFail, coinControlNull, true, ONLY_NOT1000IFMN);
-        if(!success){
+        if(!fSuccess) {
             LogPrintf("MakeCollateralAmounts: ONLY_NOT1000IFMN Error - %s\n", strFail);
             reservekeyCollateral.ReturnKey();
             return false;
@@ -1788,19 +1795,24 @@ bool CDarksendPool::MakeCollateralAmounts(const CompactTallyItem& tallyItem)
 bool CDarksendPool::CreateDenominated()
 {
     std::vector<CompactTallyItem> vecTally;
-    if(!pwalletMain->SelectCoinsGrouppedByAddresses(vecTally)) return false;
+    if(!pwalletMain->SelectCoinsGrouppedByAddresses(vecTally)) {
+        LogPrint("privatesend", "CWallet::CreateDenominated() - SelectCoinsGrouppedByAddresses can't find any inputs!\n");
+        return false;
+    }
 
     BOOST_FOREACH(CompactTallyItem& item, vecTally) {
         if(!CreateDenominated(item)) continue;
         return true;
     }
+
+    LogPrintf("CWallet::CreateDenominated() - failed!\n");
     return false;
 }
 
 // Create denominations
 bool CDarksendPool::CreateDenominated(const CompactTallyItem& tallyItem)
 {
-    vector<CRecipient> vecSend;
+    std::vector<CRecipient> vecSend;
     CAmount nValueLeft = tallyItem.nAmount;
     nValueLeft -= DARKSEND_COLLATERAL; // leave some room for fees
 
@@ -1882,6 +1894,8 @@ bool CDarksendPool::CreateDenominated(const CompactTallyItem& tallyItem)
     CCoinControl coinControl;
     coinControl.fAllowOtherInputs = false;
     coinControl.fAllowWatchOnly = false;
+    // send change to the same address so that we were able create more denoms out of it later
+    coinControl.destChange = tallyItem.address.Get();
     BOOST_FOREACH(const CTxIn& txin, tallyItem.vecTxIn)
         coinControl.Select(txin.prevout);
 
@@ -1892,9 +1906,9 @@ bool CDarksendPool::CreateDenominated(const CompactTallyItem& tallyItem)
     // make our change address
     CReserveKey reservekeyChange(pwalletMain);
 
-    bool success = pwalletMain->CreateTransaction(vecSend, wtx, reservekeyChange,
+    bool fSuccess = pwalletMain->CreateTransaction(vecSend, wtx, reservekeyChange,
             nFeeRet, nChangePosRet, strFail, &coinControl, true, ONLY_NONDENOMINATED_NOT1000IFMN);
-    if(!success){
+    if(!fSuccess) {
         LogPrintf("CreateDenominated: Error - %s\n", strFail);
         // TODO: return reservekeyDenom here
         reservekeyCollateral.ReturnKey();
@@ -1904,7 +1918,7 @@ bool CDarksendPool::CreateDenominated(const CompactTallyItem& tallyItem)
     // TODO: keep reservekeyDenom here
     reservekeyCollateral.KeepKey();
 
-    if(!pwalletMain->CommitTransaction(wtx, reservekeyChange)){
+    if(!pwalletMain->CommitTransaction(wtx, reservekeyChange)) {
         LogPrintf("CreateDenominated: CommitTransaction failed!\n");
         return false;
     }
