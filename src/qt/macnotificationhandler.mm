@@ -13,7 +13,7 @@
 - (NSString *)__bundleIdentifier
 {
     if (self == [NSBundle mainBundle]) {
-        return @"io.dashpay.Dash-Qt";
+        return @"io.gamblr.Gamblr-Qt";
     } else {
         return [self __bundleIdentifier];
     }

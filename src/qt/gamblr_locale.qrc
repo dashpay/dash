@@ -1,0 +1,20 @@
+<!DOCTYPE RCC><RCC version="1.0">
+    <qresource prefix="/translations">
+        <file alias="bg">locale/gamblr_bg.qm</file>
+        <file alias="de">locale/gamblr_de.qm</file>
+        <file alias="en">locale/gamblr_en.qm</file>
+        <file alias="es">locale/gamblr_es.qm</file>
+        <file alias="fi">locale/gamblr_fi.qm</file>
+        <file alias="fr">locale/gamblr_fr.qm</file>
+        <file alias="it">locale/gamblr_it.qm</file>
+        <file alias="ja">locale/gamblr_ja.qm</file>
+        <file alias="pl">locale/gamblr_pl.qm</file>
+        <file alias="pt">locale/gamblr_pt.qm</file>
+        <file alias="ru">locale/gamblr_ru.qm</file>
+        <file alias="sk">locale/gamblr_sk.qm</file>
+        <file alias="sv">locale/gamblr_sv.qm</file>
+        <file alias="vi">locale/gamblr_vi.qm</file>
+        <file alias="zh_CN">locale/gamblr_zh_CN.qm</file>
+        <file alias="zh_TW">locale/gamblr_zh_TW.qm</file>
+    </qresource>
+</RCC>

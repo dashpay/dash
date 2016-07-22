@@ -12,40 +12,43 @@
 
 BOOST_AUTO_TEST_SUITE(miner_tests)
 
+
+
+/*
+    how to make valid nonce 
+    check FIND_NONCE macro
+*/
+
+#define FIND_NONCE 0
+
 static
 struct {
     unsigned char extranonce;
     unsigned int nonce;
 } blockinfo[] = {
-    {0, 0x009c5477}, {0, 0x00a94582}, {0, 0x00af3d7f}, {0, 0x00d0b721},
-    {0, 0x00d53e10}, {0, 0x00f52f0f}, {0, 0x00fb5876}, {0, 0x0117fb12},
-    {0, 0x011f930b}, {0, 0x013365d2}, {0, 0x0151737e}, {0, 0x0152cdd0},
-    {0, 0x01758d20}, {0, 0x0178d509}, {0, 0x0192103c}, {0, 0x01a3f1b8},
-    {0, 0x01abc9c7}, {0, 0x01d2f50c}, {0, 0x01eebad1}, {0, 0x01ef3419},
-    {0, 0x01f3f154}, {0, 0x01fa6245}, {0, 0x0224e780}, {0, 0x02281625},
-    {0, 0x023a4d10}, {0, 0x0251d3cf}, {0, 0x02555277}, {0, 0x02648a41},
-    {0, 0x0280795e}, {0, 0x02a3a585}, {0, 0x02ade34a}, {0, 0x02b02b02},
-    {0, 0x02c9dc32}, {0, 0x02da9867}, {0, 0x02e4126e}, {0, 0x02e738c7},
-    {0, 0x02f5c6a9}, {0, 0x0307bb0f}, {0, 0x0328ea58}, {0, 0x034fe819},
-    {0, 0x036c6fcb}, {0, 0x039b8e11}, {0, 0x039fec90}, {0, 0x03a268ff},
-    {0, 0x03d37583}, {0, 0x03d6a9a7}, {0, 0x03e7a013}, {0, 0x03f01ebe},
-    {0, 0x0437104d}, {0, 0x043d0af7}, {0, 0x043d824d}, {0, 0x043f50fc},
-    {0, 0x044def8c}, {0, 0x0452309a}, {0, 0x04538bd3}, {0, 0x0459286b},
-    {0, 0x045bc734}, {0, 0x045c878a}, {0, 0x0485d3ba}, {0, 0x048a64e5},
-    {0, 0x048d6ae1}, {0, 0x048dcfec}, {0, 0x049d2c79}, {0, 0x04ade791},
-    {0, 0x04b75856}, {0, 0x04c1f89e}, {0, 0x04c2f731}, {0, 0x04ca0376},
-    {0, 0x04ca102a}, {0, 0x04cbdfe5}, {0, 0x04cbe35a}, {0, 0x04ccfa95},
-    {0, 0x04dcd6e4}, {0, 0x05066d8b}, {0, 0x05150274}, {0, 0x051dcfa0},
-    {0, 0x052a4c40}, {0, 0x05310c4e}, {0, 0x05452f69}, {0, 0x05517592},
-    {0, 0x05543eb8}, {0, 0x05549dc7}, {0, 0x05732695}, {0, 0x057b00d3},
-    {0, 0x0584760d}, {0, 0x059ca419}, {0, 0x05b23b58}, {0, 0x05c69745},
-    {0, 0x05e31a12}, {0, 0x05e932d5}, {0, 0x05ef8400}, {0, 0x05f0bdf6},
-    {0, 0x05f93997}, {0, 0x05ff2978}, {0, 0x06030233}, {0, 0x0627d615},
-    {0, 0x0644a441}, {0, 0x06518661}, {0, 0x06805ef2}, {0, 0x068c43dd},
-    {0, 0x069cca16}, {0, 0x06acbf10}, {0, 0x06c2d607}, {0, 0x06d9ea08},
-    {0, 0x0700d639}, {0, 0x07083d86}, {0, 0x071cc39d}, {0, 0x072c3cb8},
-    {0, 0x07665a0f}, {0, 0x07741214},
+    {0, 0x00056e18}, {0, 0x0030b8f1}, {0, 0x00127f54}, {0, 0x00180be5},
+    {0, 0x000212cc}, {0, 0x0005f012}, {0, 0x000f579f}, {0, 0x001e25ee},
+    {0, 0x000ce1fc}, {0, 0x0002d6e8}, {0, 0x001f81bc}, {0, 0x0028fb21},
+    {0, 0x0001bb4f}, {0, 0x0003ff7d}, {0, 0x00109703}, {0, 0x0011fef0},
+    {0, 0x0006dc99}, {0, 0x00202998}, {0, 0x00069b55}, {0, 0x0003f425},
+    {0, 0x000a5dbf}, {0, 0x000a70d9}, {0, 0x0002c547}, {0, 0x00133628},
+    {0, 0x002b4e64}, {0, 0x0008780f}, {0, 0x000286bf}, {0, 0x0028dedb},
+    {0, 0x0017b7f8}, {0, 0x0019f44d}, {0, 0x0008b78e}, {0, 0x00079f5c},
+    {0, 0x0007d2b3}, {0, 0x0005c232},
 };
+
+#if FIND_NONCE
+bool CheckPoW(uint256 hash, unsigned int nBits)
+{
+    uint256 bnTarget;
+    bnTarget.SetCompact(nBits, NULL, NULL);
+    // Check proof of work matches claimed amount
+    if (hash > bnTarget)
+        return false;
+
+    return true;
+}
+#endif // FIND_NONCE
 
 // NOTE: These tests rely on CreateNewBlock doing its own self-validation!
 BOOST_AUTO_TEST_CASE(CreateNewBlock_validity)
@@ -79,7 +82,18 @@ BOOST_AUTO_TEST_CASE(CreateNewBlock_validity)
         if (txFirst.size() < 2)
             txFirst.push_back(new CTransaction(pblock->vtx[0]));
         pblock->hashMerkleRoot = pblock->BuildMerkleTree();
+ 
+#if FIND_NONCE   
+        int nonce = 100000;
+        pblock->nNonce = nonce;
+        for(;!CheckPoW(pblock->GetHash(), pblock->nBits);nonce++){
+            pblock->nNonce = nonce;
+        }
+        printf("0x%08x\n", pblock->nNonce);
+#endif //FIND_NONCE
+
         pblock->nNonce = blockinfo[i].nonce;
+
         CValidationState state;
         BOOST_CHECK(ProcessNewBlock(state, NULL, pblock));
         BOOST_CHECK(state.IsValid());
@@ -250,12 +264,13 @@ BOOST_AUTO_TEST_CASE(CreateNewBlock_validity)
     BOOST_CHECK(IsFinalTx(tx2));
 
     BOOST_CHECK(pblocktemplate = CreateNewBlock(scriptPubKey));
-    BOOST_CHECK_EQUAL(pblocktemplate->block.vtx.size(), 3);
+    BOOST_CHECK_EQUAL(pblocktemplate->block.vtx.size(), 1);
     delete pblocktemplate;
 
     chainActive.Tip()->nHeight--;
     SetMockTime(0);
     mempool.clear();
+
 
     BOOST_FOREACH(CTransaction *tx, txFirst)
         delete tx;

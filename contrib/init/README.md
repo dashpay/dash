@@ -1,9 +1,9 @@
 Sample configuration files for:
 
-SystemD: dashd.service
-Upstart: dashd.conf
-OpenRC:  dashd.openrc
-         dashd.openrcconf
+SystemD: gamblrd.service
+Upstart: gamblrd.conf
+OpenRC:  gamblrd.openrc
+         gamblrd.openrcconf
 
 have been made available to assist packagers in creating node packages here.
 

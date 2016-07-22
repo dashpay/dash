@@ -1,0 +1,22 @@
+[Unit]
+Description=Gamblr's distributed currency daemon
+After=network.target
+
+[Service]
+User=gamblr
+Group=gamblr
+
+Type=forking
+PIDFile=/var/lib/gamblrd/gamblrd.pid
+ExecStart=/usr/bin/gamblrd -daemon -pid=/var/lib/gamblrd/gamblrd.pid \
+-conf=/etc/gamblr/gamblr.conf -datadir=/var/lib/gamblrd -disablewallet
+
+Restart=always
+PrivateTmp=true
+TimeoutStopSec=60s
+TimeoutStartSec=2s
+StartLimitInterval=120s
+StartLimitBurst=5
+
+[Install]
+WantedBy=multi-user.target

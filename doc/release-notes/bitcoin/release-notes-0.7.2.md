@@ -61,7 +61,7 @@ dansmith
 Gavin Andresen
 Gregory Maxwell
 Jeff Garzik
-Luke Dashjr
+Luke Gamblrjr
 Philip Kaufmann
 Pieter Wuille
 Wladimir J. van der Laan

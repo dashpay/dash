@@ -1,0 +1,27 @@
+# /etc/conf.d/gamblrd: config file for /etc/init.d/gamblrd
+
+# Config file location
+#BITCOIND_CONFIGFILE="/etc/gamblr/gamblr.conf"
+
+# What directory to write pidfile to?  (created and owned by $BITCOIND_USER)
+#BITCOIND_PIDDIR="/var/run/gamblrd"
+
+# What filename to give the pidfile
+#BITCOIND_PIDFILE="${BITCOIND_PIDDIR}/gamblrd.pid"
+
+# Where to write gamblrd data (be mindful that the blockchain is large)
+#BITCOIND_DATADIR="/var/lib/gamblrd"
+
+# User and group to own gamblrd process
+#BITCOIND_USER="gamblr"
+#BITCOIND_GROUP="gamblr"
+
+# Path to gamblrd executable
+#BITCOIND_BIN="/usr/bin/gamblrd"
+
+# Nice value to run gamblrd under
+#BITCOIND_NICE=0
+
+# Additional options (avoid -conf and -datadir, use flags above)
+BITCOIND_OPTS="-disablewallet"
+
