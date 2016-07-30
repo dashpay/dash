@@ -82,7 +82,7 @@ CNode* FindNode(const CNetAddr& ip);
 CNode* FindNode(const CSubNet& subNet);
 CNode* FindNode(const std::string& addrName);
 CNode* FindNode(const CService& ip);
-CNode* ConnectNode(CAddress addrConnect, const char *pszDest = NULL, bool darkSendMaster=false);
+CNode* ConnectNode(CAddress addrConnect, const char *pszDest = NULL, bool fDarkSendMaster=false);
 bool OpenNetworkConnection(const CAddress& addrConnect, CSemaphoreGrant *grantOutbound = NULL, const char *strDest = NULL, bool fOneShot = false);
 void MapPort(bool fUseUPnP);
 unsigned short GetListenPort();
@@ -419,7 +419,7 @@ public:
     // Whether a ping is requested.
     bool fPingQueued;
 
-    CNode(SOCKET hSocketIn, const CAddress &addrIn, const std::string &addrNameIn = "", bool fInboundIn = false);
+    CNode(SOCKET hSocketIn, const CAddress &addrIn, const std::string &addrNameIn = "", bool fInboundIn = false, bool fNetworkNodeIn = false);
     ~CNode();
 
 private:
