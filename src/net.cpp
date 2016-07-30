@@ -390,22 +390,22 @@ CNode* FindNode(const CService& addr)
     return NULL;
 }
 
-CNode* ConnectNode(CAddress addrConnect, const char *pszDest, bool fDarkSendMaster)
+CNode* ConnectNode(CAddress addrConnect, const char *pszDest, bool fConnectToMasternode)
 {
     if (pszDest == NULL) {
         // we clean masternode connections in CMasternodeMan::ProcessMasternodeConnections()
         // so should be safe to skip this and connect to local Hot MN on CActiveMasternode::ManageStatus()
-        if (IsLocal(addrConnect) && !fDarkSendMaster)
+        if (IsLocal(addrConnect) && !fConnectToMasternode)
             return NULL;
 
         // Look for an existing connection
         CNode* pnode = FindNode((CService)addrConnect);
         if (pnode)
         {
-            // previous connection was not for mixing,
+            // we have existing connection to this node but it was not a connection to masternode,
             // change flag and add reference so that we can correctly clear it later
-            if(fDarkSendMaster && !pnode->fDarkSendMaster) {
-                pnode->fDarkSendMaster = true;
+            if(fConnectToMasternode && !pnode->fMasternode) {
+                pnode->fMasternode = true;
                 pnode->AddRef();
             }
             return pnode;
@@ -440,8 +440,8 @@ CNode* ConnectNode(CAddress addrConnect, const char *pszDest, bool fDarkSendMast
         }
 
         pnode->nTimeConnected = GetTime();
-        if(fDarkSendMaster) {
-            pnode->fDarkSendMaster = true;
+        if(fConnectToMasternode) {
+            pnode->fMasternode = true;
             pnode->AddRef();
         }
 
@@ -1069,7 +1069,7 @@ void ThreadSocketHandler()
                     // hold in disconnected pool until all refs are released
                     if (pnode->fNetworkNode || pnode->fInbound)
                         pnode->Release();
-                    if (pnode->fDarkSendMaster)
+                    if (pnode->fMasternode)
                         pnode->Release();
                     vNodesDisconnected.push_back(pnode);
                 }
@@ -2423,7 +2423,7 @@ CNode::CNode(SOCKET hSocketIn, const CAddress& addrIn, const std::string& addrNa
     nPingUsecStart = 0;
     nPingUsecTime = 0;
     fPingQueued = false;
-    fDarkSendMaster = false;
+    fMasternode = false;
     nMinPingUsecTime = std::numeric_limits<int64_t>::max();
 
     {
