@@ -34,6 +34,7 @@
 #include "ui_interface.h"
 #include "util.h"
 #include "activemasternode.h"
+#include "darksend.h"
 #include "masternode-payments.h"
 #include "masternode-sync.h"
 #include "masternodeman.h"
@@ -1774,23 +1775,28 @@ bool AppInit2(boost::thread_group& threadGroup, CScheduler& scheduler)
     }
 
     if(fMasterNode) {
-        LogPrintf("IS DARKSEND MASTER NODE\n");
-        strMasterNodeAddr = GetArg("-masternodeaddr", "");
+        LogPrintf("MASTERNODE:\n");
+        activeMasternode.strMasterNodeAddr = GetArg("-masternodeaddr", "");
 
-        LogPrintf(" addr %s\n", strMasterNodeAddr);
 
-        if(!strMasterNodeAddr.empty()){
-            CService addrTest = CService(strMasterNodeAddr);
-            if (!addrTest.IsValid()) {
-                return InitError("Invalid -masternodeaddr address: " + strMasterNodeAddr);
+        CService service;
+        if(activeMasternode.strMasterNodeAddr.empty()) {
+            if(!GetLocal(service)) {
+                LogPrintf("Can't detect external address. Please consider using the masternodeaddr configuration option.\n");
+            }
+        } else {
+            service = CService(activeMasternode.strMasterNodeAddr);
+            if (!service.IsValid()) {
+                return InitError("Invalid masternodeaddr: " + activeMasternode.strMasterNodeAddr);
             }
         }
+        LogPrintf("  service: %s\n", service.ToString());
 
         std::string strMasterNodePrivKey = GetArg("-masternodeprivkey", "");
-        if(!strMasterNodePrivKey.empty()){
-            std::string errorMessage;
+        if(!strMasterNodePrivKey.empty()) {
+            std::string strErrorMessage;
 
-            if(!darkSendSigner.SetKey(strMasterNodePrivKey, errorMessage, activeMasternode.keyMasternode, activeMasternode.pubKeyMasternode))
+            if(!darkSendSigner.SetKey(strMasterNodePrivKey, strErrorMessage, activeMasternode.keyMasternode, activeMasternode.pubKeyMasternode))
                 return InitError(_("Invalid masternodeprivkey. Please see documenation."));
 
             LogPrintf("  pubKeyMasternode: %s\n", CBitcoinAddress(activeMasternode.pubKeyMasternode.GetID()).ToString());

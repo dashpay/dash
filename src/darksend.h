@@ -59,7 +59,6 @@ extern CDarksendPool darkSendPool;
 extern CDarkSendSigner darkSendSigner;
 extern std::vector<CDarksendQueue> vecDarksendQueue;
 extern map<uint256, CDarksendBroadcastTx> mapDarksendBroadcastTxes;
-extern CActiveMasternode activeMasternode;
 
 /** Holds an Darksend input
  */

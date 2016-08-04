@@ -43,7 +43,6 @@ extern int nWalletBackups;
 extern bool fEnablePrivateSend;
 extern bool fPrivateSendMultiSession;
 extern int64_t enforceMasternodePaymentsTime;
-extern std::string strMasterNodeAddr;
 extern int keysLoaded;
 extern bool fSucessfullyLoaded;
 extern std::vector<CAmount> darkSendDenominations;

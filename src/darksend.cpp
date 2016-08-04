@@ -37,8 +37,6 @@ std::vector<CDarksendQueue> vecDarksendQueue;
 std::vector<CTxIn> vecMasternodesUsed;
 // Keep track of the scanning errors I've seen
 map<uint256, CDarksendBroadcastTx> mapDarksendBroadcastTxes;
-// Keep track of the active Masternode
-CActiveMasternode activeMasternode;
 
 /* *** BEGIN DARKSEND MAGIC - DASH **********
     Copyright (c) 2014-2015, Dash Developers
@@ -2356,7 +2354,8 @@ void ThreadCheckDarkSendPool()
 
             // check if we should activate or ping every few minutes,
             // start right after sync is considered to be done
-            if(c % MASTERNODE_PING_SECONDS == 1) activeMasternode.ManageStatus();
+            if(c % MASTERNODE_PING_SECONDS == 1)
+                activeMasternode.ManageState();
 
             if(c % 60 == 0)
             {

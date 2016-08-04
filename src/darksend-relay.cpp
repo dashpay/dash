@@ -1,4 +1,4 @@
-
+#include "darksend.h"
 #include "darksend-relay.h"
 
 

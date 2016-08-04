@@ -7,6 +7,7 @@
 #include "db.h"
 #include "init.h"
 #include "activemasternode.h"
+#include "darksend.h"
 #include "governance.h"
 #include "masternode-payments.h"
 #include "masternode-sync.h"
@@ -199,7 +200,7 @@ UniValue masternode(const UniValue& params, bool fHelp)
 
     if (strCommand == "debug")
     {
-        if(activeMasternode.status != ACTIVE_MASTERNODE_INITIAL || !masternodeSync.IsBlockchainSynced())
+        if(activeMasternode.nState != ACTIVE_MASTERNODE_INITIAL || !masternodeSync.IsBlockchainSynced())
             return activeMasternode.GetStatus();
 
         CTxIn vin = CTxIn();
@@ -236,9 +237,9 @@ UniValue masternode(const UniValue& params, bool fHelp)
             }
         }
 
-        if(activeMasternode.status != ACTIVE_MASTERNODE_STARTED){
-            activeMasternode.status = ACTIVE_MASTERNODE_INITIAL; // TODO: consider better way
-            activeMasternode.ManageStatus();
+        if(activeMasternode.nState != ACTIVE_MASTERNODE_STARTED){
+            activeMasternode.nState = ACTIVE_MASTERNODE_INITIAL; // TODO: consider better way
+            activeMasternode.ManageState();
             pwalletMain->Lock();
         }
 

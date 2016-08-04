@@ -394,7 +394,7 @@ CNode* ConnectNode(CAddress addrConnect, const char *pszDest, bool fConnectToMas
 {
     if (pszDest == NULL) {
         // we clean masternode connections in CMasternodeMan::ProcessMasternodeConnections()
-        // so should be safe to skip this and connect to local Hot MN on CActiveMasternode::ManageStatus()
+        // so should be safe to skip this and connect to local Hot MN on CActiveMasternode::ManageState()
         if (IsLocal(addrConnect) && !fConnectToMasternode)
             return NULL;
 
