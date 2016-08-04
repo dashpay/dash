@@ -4261,7 +4261,7 @@ int CMerkleTx::GetDepthInMainChain(const CBlockIndex* &pindexRet, bool enableIX)
         }
     }
 
-    if(enableIX && nResult < 6 && IsLockedIXTransaction(GetHash()))
+    if(enableIX && nResult < 6 && IsLockedInstandSendTransaction(GetHash()))
         return nInstantSendDepth + nResult;
 
     return nResult;

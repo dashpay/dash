@@ -962,7 +962,7 @@ int GetInputAgeIX(uint256 nTXHash, CTxIn& vin)
     int nResult = GetInputAge(vin);
     if(nResult < 0) return -1;
 
-    if (nResult < 6 && IsLockedIXTransaction(nTXHash))
+    if (nResult < 6 && IsLockedInstandSendTransaction(nTXHash))
         return nInstantSendDepth + nResult;
 
     return nResult;
@@ -970,7 +970,7 @@ int GetInputAgeIX(uint256 nTXHash, CTxIn& vin)
 
 int GetIXConfirmations(uint256 nTXHash)
 {
-    if (IsLockedIXTransaction(nTXHash))
+    if (IsLockedInstandSendTransaction(nTXHash))
         return nInstantSendDepth;
 
     return 0;
@@ -5947,7 +5947,7 @@ bool static ProcessMessage(CNode* pfrom, string strCommand, CDataStream& vRecv, 
             darkSendPool.ProcessMessage(pfrom, strCommand, vRecv);
             mnodeman.ProcessMessage(pfrom, strCommand, vRecv);
             mnpayments.ProcessMessage(pfrom, strCommand, vRecv);
-            ProcessMessageInstantX(pfrom, strCommand, vRecv);
+            ProcessMessageInstantSend(pfrom, strCommand, vRecv);
             sporkManager.ProcessSpork(pfrom, strCommand, vRecv);
             masternodeSync.ProcessMessage(pfrom, strCommand, vRecv);
             governance.ProcessMessage(pfrom, strCommand, vRecv);

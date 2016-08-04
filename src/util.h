@@ -34,8 +34,6 @@
 
 extern bool fMasterNode;
 extern bool fLiteMode;
-extern bool fEnableInstantSend;
-extern int nInstantSendDepth;
 extern int nPrivateSendRounds;
 extern int nPrivateSendAmount;
 extern int nLiquidityProvider;

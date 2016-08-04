@@ -34,6 +34,7 @@
 #include "ui_interface.h"
 #include "util.h"
 #include "activemasternode.h"
+#include "instantx.h"
 #include "darksend.h"
 #include "masternode-payments.h"
 #include "masternode-sync.h"
@@ -564,8 +565,8 @@ std::string HelpMessage(HelpMessageMode mode)
     strUsage += HelpMessageOpt("-liquidityprovider=<n>", strprintf(_("Provide liquidity to PrivateSend by infrequently mixing coins on a continual basis (0-100, default: %u, 1=very frequent, high fees, 100=very infrequent, low fees)"), nLiquidityProvider));
 
     strUsage += HelpMessageGroup(_("InstantSend options:"));
-    strUsage += HelpMessageOpt("-enableinstantsend=<n>", strprintf(_("Enable InstantSend, show confirmations for locked transactions (0-1, default: %u)"), fEnableInstantSend));
-    strUsage += HelpMessageOpt("-instantsenddepth=<n>", strprintf(_("Show N confirmations for a successfully locked transaction (0-9999, default: %u)"), nInstantSendDepth));
+    strUsage += HelpMessageOpt("-enableinstantsend=<n>", strprintf(_("Enable InstantSend, show confirmations for locked transactions (0-1, default: %u)"), 1));
+    strUsage += HelpMessageOpt("-instantsenddepth=<n>", strprintf(_("Show N confirmations for a successfully locked transaction (0-9999, default: %u)"), DEFAULT_INSTANTSEND_DEPTH));
     strUsage += HelpMessageOpt("-instantsendnotify=<cmd>", _("Execute command when a wallet IS transaction is successfully locked (%s in cmd is replaced by TxID)"));
 
 
@@ -1838,8 +1839,8 @@ bool AppInit2(boost::thread_group& threadGroup, CScheduler& scheduler)
     nPrivateSendAmount = GetArg("-privatesendamount", nPrivateSendAmount);
     nPrivateSendAmount = std::min(std::max(nPrivateSendAmount, 2), 999999);
 
-    fEnableInstantSend = GetBoolArg("-enableinstantsend", fEnableInstantSend);
-    nInstantSendDepth = GetArg("-instantsenddepth", nInstantSendDepth);
+    fEnableInstantSend = GetBoolArg("-enableinstantsend", 1);
+    nInstantSendDepth = GetArg("-instantsenddepth", DEFAULT_INSTANTSEND_DEPTH);
     nInstantSendDepth = std::min(std::max(nInstantSendDepth, 0), 60);
 
     //lite mode disables all Masternode and Darksend related functionality
