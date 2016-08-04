@@ -52,7 +52,7 @@ UniValue privatesend(const UniValue& params, bool fHelp)
     }
 
     if(params[0].get_str() == "reset"){
-        darkSendPool.Reset();
+        darkSendPool.ResetPool();
         return "Mixing was reset";
     }
 
@@ -60,7 +60,7 @@ UniValue privatesend(const UniValue& params, bool fHelp)
         UniValue obj(UniValue::VOBJ);
         obj.push_back(Pair("status",            darkSendPool.GetStatus()));
         obj.push_back(Pair("keys_left",     pwalletMain->nKeysLeftSinceAutoBackup));
-        obj.push_back(Pair("warnings",      (pwalletMain->nKeysLeftSinceAutoBackup < PS_KEYS_THRESHOLD_WARNING
+        obj.push_back(Pair("warnings",      (pwalletMain->nKeysLeftSinceAutoBackup < PRIVATESEND_KEYS_THRESHOLD_WARNING
                                                 ? "WARNING: keypool is almost depleted!" : "")));
         return obj;
     }
@@ -78,7 +78,7 @@ UniValue getpoolinfo(const UniValue& params, bool fHelp)
     UniValue obj(UniValue::VOBJ);
     if (darkSendPool.pSubmittedToMasternode)
         obj.push_back(Pair("masternode",        darkSendPool.pSubmittedToMasternode->addr.ToString()));
-    obj.push_back(Pair("queue",                 (int64_t)vecDarksendQueue.size()));
+    obj.push_back(Pair("queue",                 darkSendPool.GetQueueSize()));
     obj.push_back(Pair("state",                 darkSendPool.GetState()));
     obj.push_back(Pair("entries",               darkSendPool.GetEntriesCount()));
     obj.push_back(Pair("entries_accepted",      darkSendPool.GetCountEntriesAccepted()));
@@ -162,12 +162,12 @@ UniValue masternode(const UniValue& params, bool fHelp)
                     mnodeman.GetNextMasternodeInQueueForPayment(chainActive.Tip()->nHeight, true, nCount);
             }
 
-            if(params[1].get_str() == "ps") return mnodeman.CountEnabled(MIN_POOL_PEER_PROTO_VERSION);
+            if(params[1].get_str() == "ps") return mnodeman.CountEnabled(MIN_PRIVATESEND_PEER_PROTO_VERSION);
             if(params[1].get_str() == "enabled") return mnodeman.CountEnabled();
             if(params[1].get_str() == "qualify") return nCount;
             if(params[1].get_str() == "all") return strprintf("Total: %d (PS Compatible: %d / Enabled: %d / Qualify: %d)",
                                                     mnodeman.size(),
-                                                    mnodeman.CountEnabled(MIN_POOL_PEER_PROTO_VERSION),
+                                                    mnodeman.CountEnabled(MIN_PRIVATESEND_PEER_PROTO_VERSION),
                                                     mnodeman.CountEnabled(),
                                                     nCount);
         }
