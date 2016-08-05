@@ -16,6 +16,10 @@
 #define MASTERNODES_DUMP_SECONDS               (15*60)
 #define MASTERNODES_DSEG_SECONDS               (3*60*60)
 
+#define NODE_IPV4 1
+#define NODE_IPV6 2
+#define NODE_TOR 3
+
 using namespace std;
 
 class CMasternodeMan;
@@ -85,6 +89,8 @@ public:
     void Clear();
 
     int CountEnabled(int protocolVersion = -1);
+    
+    int CountByIP(int nodeType);
 
     void DsegUpdate(CNode* pnode);
 
