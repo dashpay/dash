@@ -223,13 +223,11 @@ int CMasternodeMan::CountByIP(int nodeType)
     int nIPv4_nodes = 0;
     int nIPv6_nodes = 0;
     int nTOR_nodes = 0;
-    const std::string sIPv6_node ("[");
-    const std::string sTOR_node (".onion");
 
     BOOST_FOREACH(CMasternode& mn, vMasternodes) {
-        if(mn.addr.ToString().find(sIPv6_node) != std::string::npos){
+        if(mn.addr.IsIPv6()){
             nIPv6_nodes++;
-        } else if(mn.addr.ToString().find(sTOR_node) != std::string::npos){
+        } else if(mn.addr.IsTor()){
             nTOR_nodes++;
         }
         else{
@@ -239,20 +237,19 @@ int CMasternodeMan::CountByIP(int nodeType)
 
     switch(nodeType)
     {
-        case NODE_IPV4:
+        case NET_IPV4:
             return nIPv4_nodes;
-            break;
             
-        case NODE_IPV6:
+        case NET_IPV6:
             return nIPv6_nodes;
-            break;
             
-        case NODE_TOR:
+        case NET_TOR:
             return nTOR_nodes;
-            break;
+
+        default:
+            return nIPv4_nodes + nIPv6_nodes + nTOR_nodes; // Default: return all nodes
     }
 
-    return nIPv4_nodes + nIPv6_nodes + nTOR_nodes; // Default: return all nodes
 }
 
 void CMasternodeMan::DsegUpdate(CNode* pnode)
