@@ -138,8 +138,8 @@ BITCOIN_CORE_H = \
   miner.h \
   net.h \
   net_processing.h \
-  netbase.h \
   netaddress.h \
+  netbase.h \
   netfulfilledman.h \
   noui.h \
   policy/fees.h \
