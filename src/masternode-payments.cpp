@@ -8,6 +8,7 @@
 #include "masternodeman.h"
 #include "darksend.h"
 #include "activemasternode.h"
+#include "governance-classes.h"
 #include "util.h"
 #include "sync.h"
 #include "spork.h"
@@ -22,8 +23,32 @@ CCriticalSection cs_vecPayments;
 CCriticalSection cs_mapMasternodeBlocks;
 CCriticalSection cs_mapMasternodePayeeVotes;
 
+/**
+* IsBlockValueValid
+*
+*   Determine if coinbase outgoing created money is the correct value
+*
+*   Why is this needed?
+*   - In Dash some blocks are superblocks, which output much higher amounts of coins
+*   - Otherblocks are 10% lower in outgoing value, so in total, no extra coins are created
+*   - When non-superblocks are detected, the normal schedule should be maintained
+*/
+
 bool IsBlockValueValid(const CBlock& block, CAmount nExpectedValue){
+
+    // todo 12.1 -- block values need to be checked after testnet :D
+    /*
+        2016-08-01 20:26:22     dash-msghand | ERROR: ConnectBlock(): coinbase pays too much (actual=2500004700 vs limit=2500004700)
+        2016-08-01 20:26:22     dash-msghand | Misbehaving: 104.207.147.135:19999 (0 -> 100) BAN THRESHOLD EXCEEDED
+        2016-08-01 20:26:22     dash-msghand | InvalidChainFound: invalid block=00000008bb9b87e2bc97df39489cd9b825b61ee0f87bb3ed075b56fd7e33b714  height=48758  log2_work=42.833268  date=2016-08-01 20:26:22
+    */
+
+    return true;
+
+
     int nHeight = 0;
+
+    // RETRIEVE THE BLOCK HEIGHT FROM CBLOCK
 
     {
         LOCK(cs_main);
@@ -38,36 +63,34 @@ bool IsBlockValueValid(const CBlock& block, CAmount nExpectedValue){
                 nHeight = (*mi).second->nHeight+1;
         }
     }
+
+    // IF WE DON'T HAVE THE BLOCK, WE CAN'T DO MUCH
+
     if(nHeight == 0){
         LogPrintf("IsBlockValueValid() : WARNING: Couldn't find previous block");
+        return true; //note: is this correct?
     }
 
-    if(!masternodeSync.IsSynced()) { //there is no budget data to use to check anything
-        //super blocks will always be on these blocks, max Params().GetConsensus().nBudgetPaymentsWindowBlocks per budgeting
-        if(nHeight >= Params().GetConsensus().nBudgetPaymentsStartBlock &&
-            nHeight % Params().GetConsensus().nBudgetPaymentsCycleBlocks < Params().GetConsensus().nBudgetPaymentsWindowBlocks){
+    // IF WE'RE SYNCED, WE SHOULD HAVE SUPERBLOCK DATA, OTHERWISE WE 
+
+    if(!masternodeSync.IsSynced()) {
+        // IF NOT SYNCED, WE WILL SIMPLY FIND THE LONGEST CHAIN
+        return true;
+    }
+    
+    // SEE IF THIS IS A VALID SUPERBLOCK
+
+    if(CSuperblockManager::IsValidSuperblockHeight(nHeight))
+    {
+        if(CSuperblockManager::IsSuperblockTriggered(nHeight))
+        {
+            // IF WE HAVE A ACTIVATED TRIGGER
+
             return true;
-        } else {
-            if(block.vtx[0].GetValueOut() > nExpectedValue) return false;
         }
-    } else { // we're synced and have data so check the budget schedule
-
-        //are these blocks even enabled
-        if(!sporkManager.IsSporkActive(SPORK_13_ENABLE_SUPERBLOCKS)){
-            return block.vtx[0].GetValueOut() <= nExpectedValue;
-        }
-
-        // 12.1
-        // if(nHeight >= Params().GetConsensus().nBudgetPaymentsStartBlock &&
-        //     budget.IsBudgetPaymentBlock(nHeight)){
-        //     //the value of the block is evaluated in CheckBlock
-        //     return true;
-        // } else {
-        //     if(block.vtx[0].GetValueOut() > nExpectedValue) return false;
-        // }
     }
 
-    return true;
+    return false;
 }
 
 bool IsBlockPayeeValid(const CTransaction& txNew, int nBlockHeight)
@@ -77,31 +100,38 @@ bool IsBlockPayeeValid(const CTransaction& txNew, int nBlockHeight)
         return true;
     }
 
-    //check if it's a budget block
-    // 12.1
-    // if(sporkManager.IsSporkActive(SPORK_13_ENABLE_SUPERBLOCKS)){
-    //     if(budget.IsBudgetPaymentBlock(nBlockHeight)){
-    //         if(budget.IsTransactionValid(txNew, nBlockHeight)){
-    //             return true;
-    //         } else {
-    //             LogPrintf("Invalid budget payment detected %s", txNew.ToString());
-    //             if(sporkManager.IsSporkActive(SPORK_9_MASTERNODE_BUDGET_ENFORCEMENT)){
-    //                 return false;
-    //             } else {
-    //                 LogPrintf("Budget enforcement is disabled, accepting block\n");
-    //                 return true;
-    //             }
-    //         }
-    //     }
-    // }
+    // SEE IF THIS IS A VALID SUPERBLOCK
 
-    //check for masternode payee
+    if(CSuperblockManager::IsValidSuperblockHeight(nBlockHeight))
+    {
+        if(CSuperblockManager::IsSuperblockTriggered(nBlockHeight))
+        {
+            // IF WE HAVE A ACTIVATED TRIGGER
+
+            if(CSuperblockManager::IsValid(txNew, nBlockHeight)){
+                return true;
+            } else {
+                LogPrintf("Invalid superblock detected %s\n", txNew.ToString());
+                if(sporkManager.IsSporkActive(SPORK_9_MASTERNODE_SUPERBLOCK_ENFORCEMENT)) {
+                    return false;
+                } else {
+                    LogPrintf("Superblock enforcement is disabled, accepting block\n");
+                    return true;
+                }
+            }
+
+            return false; //note, is this correct?
+        }
+    }
+
+    // IF THIS ISN'T A SUPERBLOCK, IT SHOULD PAY A MASTERNODE DIRECTLY
+
     if(mnpayments.IsTransactionValid(txNew, nBlockHeight))
     {
         return true;
     } else {
-        LogPrintf("Invalid mn payment detected %s", txNew.ToString());
-        if(sporkManager.IsSporkActive(SPORK_8_MASTERNODE_PAYMENT_ENFORCEMENT)){
+        LogPrintf("Invalid masternode payment detected %s\n", txNew.ToString());
+        if(sporkManager.IsSporkActive(SPORK_8_MASTERNODE_PAYMENT_ENFORCEMENT)) {
             return false;
         } else {
             LogPrintf("Masternode payment enforcement is disabled, accepting block\n");
@@ -118,27 +148,50 @@ void FillBlockPayee(CMutableTransaction& txNew, CAmount nFees)
     AssertLockHeld(cs_main);
     if(!chainActive.Tip()) return;
 
-    // 12.1
-    // if(sporkManager.IsSporkActive(SPORK_13_ENABLE_SUPERBLOCKS) && budget.IsBudgetPaymentBlock(chainActive.Tip()->nHeight+1)){
-    //     budget.FillBlockPayee(txNew, nFees);
-    // } else {
-    //     mnpayments.FillBlockPayee(txNew, nFees);
-    // }
+    int nHeight = chainActive.Tip()->nHeight+1;
+
+    // SEE IF THIS IS A VALID SUPERBLOCK
+
+
+    if(CSuperblockManager::IsValidSuperblockHeight(nHeight))
+    {
+        if(CSuperblockManager::IsSuperblockTriggered(nHeight))
+        {
+            // IF WE HAVE A ACTIVATED TRIGGER
+            LogPrint("gobject", "FillBlockPayee, triggered superblock creation @ height %d\n", nHeight);
+            CSuperblockManager::CreateSuperblock(txNew, nFees, nHeight);
+            return;
+        }
+    }
+
+    // FILL BLOCK PAYEE WITH MASTERNODE PAYMENT OTHERWISE
+
     mnpayments.FillBlockPayee(txNew, nFees);
 }
 
 std::string GetRequiredPaymentsString(int nBlockHeight)
 {
-    // 12.1 -- added triggered payments
+    // IF THIS HEIGHT IS A SUPERBLOCK, GET THE REQUIRED PAYEES
 
-    // if(sporkManager.IsSporkActive(SPORK_13_ENABLE_SUPERBLOCKS) && budget.IsBudgetPaymentBlock(nBlockHeight)){
-    //     return budget.GetRequiredPaymentsString(nBlockHeight);
-    // } else {
-    //     return mnpayments.GetRequiredPaymentsString(nBlockHeight);
-    // }
+    if(CSuperblockManager::IsValidSuperblockHeight(nBlockHeight))
+    {
+        if(CSuperblockManager::IsSuperblockTriggered(nBlockHeight))
+        {
+            // IF WE HAVE A ACTIVATED TRIGGER
+            return CSuperblockManager::GetRequiredPaymentsString(nBlockHeight);
+        }
+    }
+
+    // OTHERWISE, PAY MASTERNODE
 
     return mnpayments.GetRequiredPaymentsString(nBlockHeight);
 }
+
+/**
+*   FillBlockPayee
+*
+*   Fill Masternode ONLY payment block
+*/
 
 void CMasternodePayments::FillBlockPayee(CMutableTransaction& txNew, CAmount nFees)
 {
@@ -148,7 +201,6 @@ void CMasternodePayments::FillBlockPayee(CMutableTransaction& txNew, CAmount nFe
     bool hasPayment = true;
     CScript payee;
 
-    //spork
     if(!mnpayments.GetBlockPayee(chainActive.Tip()->nHeight+1, payee)){
         //no masternode detected
         CMasternode* winningNode = mnodeman.GetCurrentMasterNode();
@@ -159,6 +211,8 @@ void CMasternodePayments::FillBlockPayee(CMutableTransaction& txNew, CAmount nFe
             hasPayment = false;
         }
     }
+
+    // GET MASTERNODE PAYMENT VARIABLES SETUP
 
     CAmount blockValue = nFees + GetBlockSubsidy(chainActive.Tip()->nBits, chainActive.Tip()->nHeight, Params().GetConsensus());
     CAmount masternodePayment = GetMasternodePayment(chainActive.Tip()->nHeight+1, blockValue);
