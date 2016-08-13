@@ -512,6 +512,10 @@ ParsePaymentSchedule(std::string& strPaymentAddresses, std::string& strPaymentAm
 bool CSuperblock::IsValid(const CTransaction& txNew)
 {
     // TODO : LOCK(cs);
+    // No reason for a lock here now since this method only accesses data
+    // internal to *this and since CSuperblock's are accessed only through
+    // shared pointers there's no way our object can get deleted while this
+    // code is running.
 
     std::string strPayeesPossible = "";
 
