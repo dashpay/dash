@@ -80,14 +80,10 @@ bool IsBlockValueValid(const CBlock& block, CAmount nExpectedValue){
     
     // SEE IF THIS IS A VALID SUPERBLOCK
 
-    if(CSuperblockManager::IsValidSuperblockHeight(nHeight))
-    {
-        if(CSuperblockManager::IsSuperblockTriggered(nHeight))
-        {
-            // IF WE HAVE A ACTIVATED TRIGGER
+    if(CSuperblockManager::IsSuperblockTriggered(nHeight)) {
+        // IF WE HAVE A ACTIVATED TRIGGER
 
-            return true;
-        }
+        return true;
     }
 
     return false;
@@ -102,26 +98,22 @@ bool IsBlockPayeeValid(const CTransaction& txNew, int nBlockHeight)
 
     // SEE IF THIS IS A VALID SUPERBLOCK
 
-    if(CSuperblockManager::IsValidSuperblockHeight(nBlockHeight))
-    {
-        if(CSuperblockManager::IsSuperblockTriggered(nBlockHeight))
-        {
-            // IF WE HAVE A ACTIVATED TRIGGER
+    if(CSuperblockManager::IsSuperblockTriggered(nBlockHeight)) {
+        // IF WE HAVE A ACTIVATED TRIGGER
 
-            if(CSuperblockManager::IsValid(txNew, nBlockHeight)){
-                return true;
+        if(CSuperblockManager::IsValid(txNew, nBlockHeight)){
+            return true;
+        } else {
+            LogPrintf("Invalid superblock detected %s\n", txNew.ToString());
+            if(sporkManager.IsSporkActive(SPORK_9_MASTERNODE_SUPERBLOCK_ENFORCEMENT)) {
+                return false;
             } else {
-                LogPrintf("Invalid superblock detected %s\n", txNew.ToString());
-                if(sporkManager.IsSporkActive(SPORK_9_MASTERNODE_SUPERBLOCK_ENFORCEMENT)) {
-                    return false;
-                } else {
-                    LogPrintf("Superblock enforcement is disabled, accepting block\n");
-                    return true;
-                }
+                LogPrintf("Superblock enforcement is disabled, accepting block\n");
+                return true;
             }
-
-            return false; //note, is this correct?
         }
+
+        return false; //note, is this correct?
     }
 
     // IF THIS ISN'T A SUPERBLOCK, IT SHOULD PAY A MASTERNODE DIRECTLY
@@ -152,16 +144,11 @@ void FillBlockPayee(CMutableTransaction& txNew, CAmount nFees)
 
     // SEE IF THIS IS A VALID SUPERBLOCK
 
-
-    if(CSuperblockManager::IsValidSuperblockHeight(nHeight))
-    {
-        if(CSuperblockManager::IsSuperblockTriggered(nHeight))
-        {
-            // IF WE HAVE A ACTIVATED TRIGGER
-            LogPrint("gobject", "FillBlockPayee, triggered superblock creation @ height %d\n", nHeight);
-            CSuperblockManager::CreateSuperblock(txNew, nFees, nHeight);
-            return;
-        }
+    if(CSuperblockManager::IsSuperblockTriggered(nHeight)) {
+        // IF WE HAVE A ACTIVATED TRIGGER
+        LogPrint("gobject", "FillBlockPayee, triggered superblock creation @ height %d\n", nHeight);
+        CSuperblockManager::CreateSuperblock(txNew, nFees, nHeight);
+        return;
     }
 
     // FILL BLOCK PAYEE WITH MASTERNODE PAYMENT OTHERWISE
@@ -173,13 +160,9 @@ std::string GetRequiredPaymentsString(int nBlockHeight)
 {
     // IF THIS HEIGHT IS A SUPERBLOCK, GET THE REQUIRED PAYEES
 
-    if(CSuperblockManager::IsValidSuperblockHeight(nBlockHeight))
-    {
-        if(CSuperblockManager::IsSuperblockTriggered(nBlockHeight))
-        {
-            // IF WE HAVE A ACTIVATED TRIGGER
-            return CSuperblockManager::GetRequiredPaymentsString(nBlockHeight);
-        }
+    if(CSuperblockManager::IsSuperblockTriggered(nBlockHeight)) {
+        // IF WE HAVE A ACTIVATED TRIGGER
+        return CSuperblockManager::GetRequiredPaymentsString(nBlockHeight);
     }
 
     // OTHERWISE, PAY MASTERNODE

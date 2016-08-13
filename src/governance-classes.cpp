@@ -228,6 +228,10 @@ std::vector<CSuperblock_sptr> CGovernanceTriggerManager::GetActiveTriggers()
 
 bool CSuperblockManager::IsSuperblockTriggered(int nBlockHeight)
 {
+    if (!IsValidSuperblockHeight(nBlockHeight)) {
+        return false;
+    }
+
     LOCK(governance.cs);
     // GET ALL ACTIVE TRIGGERS
     std::vector<CSuperblock_sptr> vecTriggers = triggerman.GetActiveTriggers();
