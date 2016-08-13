@@ -83,20 +83,6 @@ private:
 class CSuperblockManager
 {
 public:
-    static bool IsBlockValid(const CTransaction& txNew)
-    {
-        // 12.1 -- todo
-        // for(unsigned int i = 0; i < (int)txNew.vout.size(); i++)
-        // {
-        //     BOOST_FOREACH(const CTxOut& v, txNew[i].vout)
-        //     {
-        //         txNew.vout.push_back(v);
-        //     }
-        // }
-
-        // bool nExecuted = true;
-        return true;
-    }
 
     /**
      *   Is Valid Superblock Height
