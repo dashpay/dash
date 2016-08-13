@@ -98,7 +98,17 @@ public:
         return true;
     }
 
-    static bool IsValidSuperblockHeight(int nBlockHeight);
+    /**
+     *   Is Valid Superblock Height
+     *
+     *   - See if this block can be a superblock
+     */
+    static bool IsValidSuperblockHeight(int nBlockHeight)
+    {
+        // SUPERBLOCKS CAN HAPPEN ONCE PER DAY
+        return nBlockHeight % Params().GetConsensus().nSuperblockCycle;
+    }
+
     static bool IsSuperblockTriggered(int nBlockHeight);
     static void CreateSuperblock(CMutableTransaction& txNew, CAmount nFees, int nBlockHeight);
 

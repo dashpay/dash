@@ -218,18 +218,6 @@ std::vector<CSuperblock_sptr> CGovernanceTriggerManager::GetActiveTriggers()
     DBG( cout << "GetActiveTriggers: vecResults.size() = " << vecResults.size() << endl; );
 
     return vecResults;
-} 
-
-/**
-*   Is Valid Superblock Height
-*
-*   - See if this block can be a superblock
-*/
-
-bool CSuperblockManager::IsValidSuperblockHeight(int nBlockHeight)
-{
-    // SUPERBLOCKS CAN HAPPEN ONCE PER DAY
-    return nBlockHeight % Params().GetConsensus().nSuperblockCycle;
 }
 
 /**
