@@ -43,9 +43,6 @@ bool IsBlockValueValid(const CBlock& block, CAmount nExpectedValue){
         2016-08-01 20:26:22     dash-msghand | InvalidChainFound: invalid block=00000008bb9b87e2bc97df39489cd9b825b61ee0f87bb3ed075b56fd7e33b714  height=48758  log2_work=42.833268  date=2016-08-01 20:26:22
     */
 
-    return true;
-
-
     int nHeight = 0;
 
     // RETRIEVE THE BLOCK HEIGHT FROM CBLOCK
@@ -66,9 +63,18 @@ bool IsBlockValueValid(const CBlock& block, CAmount nExpectedValue){
 
     // IF WE DON'T HAVE THE BLOCK, WE CAN'T DO MUCH
 
-    if(nHeight == 0){
+    if(nHeight == 0) {
         LogPrintf("IsBlockValueValid() : WARNING: Couldn't find previous block");
         return true; //note: is this correct?
+    }
+
+    // IF THIS IS A VALID SUPERBLOCK RETURN TRUE SINCE SUPERBLOCKS ARE CHECKED
+    // ELSEWHERE.
+
+    if(CSuperblockManager::IsSuperblockTriggered(nHeight)) {
+        // IF WE HAVE A ACTIVATED TRIGGER
+
+        return true;
     }
 
     // IF WE'RE SYNCED, WE SHOULD HAVE SUPERBLOCK DATA, OTHERWISE WE 
@@ -78,13 +84,13 @@ bool IsBlockValueValid(const CBlock& block, CAmount nExpectedValue){
         return true;
     }
     
-    // SEE IF THIS IS A VALID SUPERBLOCK
+    // EXPECTED VALUE CHECK FOR NORMAL BLOCKS
 
-    if(CSuperblockManager::IsSuperblockTriggered(nHeight)) {
-        // IF WE HAVE A ACTIVATED TRIGGER
-
+    if (block.vtx[0].GetValueOut() <= nExpectedValue)  {
         return true;
     }
+
+    // DEFAULT TO RETURNING FALSE
 
     return false;
 }
