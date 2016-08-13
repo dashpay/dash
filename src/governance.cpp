@@ -80,7 +80,7 @@ bool IsCollateralValid(uint256 nTxCollateralHash, uint256 nExpectedHash, std::st
         }
 
     }
-    // 12.1 - todo:
+    // 12.1 - todo: resolved
     /*
         Governance object is not valid - 4f4c4c9bf19d28ddcf819a71002adde9a517570778ec7fe1f9b819f7c3e02711 - Couldn't find opReturn 4f4c4c9bf19d28ddcf819a71002adde9a517570778ec7fe1f9b819f7c3e02711 in CTransaction(hash=8a5eb3c478, ver=1, vin.size=1, vout.size=2, nLockTime=48761)
         CTxIn(COutPoint(455cd6da9357b267bcbae23b905ef9207b5ceced4436f9f0abfadf87a0a783ce, 1), scriptSig=4730440220538eb8c02ce268, nSequence=4294967294)
@@ -1105,7 +1105,7 @@ void CGovernanceObject::UpdateSentinelVariables(const CBlockIndex *pCurrentBlock
 
     // todo - 12.1 - should be set to `10` after governance vote compression is implemented
     //int nAbsVoteReq = nMnCount / 10;
-    // Temporarily set to 1 for testing
+    // todo - 12.1 - Temporarily set to 1 for testing
     int nAbsVoteReq = 1;
 
     // SET SENTINEL FLAGS TO FALSE
