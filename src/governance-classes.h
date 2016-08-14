@@ -92,7 +92,7 @@ public:
     static bool IsValidSuperblockHeight(int nBlockHeight)
     {
         // SUPERBLOCKS CAN HAPPEN ONCE PER DAY
-        return nBlockHeight % Params().GetConsensus().nSuperblockCycle;
+        return ((nBlockHeight % Params().GetConsensus().nSuperblockCycle) == 1);
     }
 
     static bool IsSuperblockTriggered(int nBlockHeight);
