@@ -2,6 +2,7 @@
 // Distributed under the MIT/X11 software license, see the accompanying
 // file COPYING or http://www.opensource.org/licenses/mit-license.php.
 
+#include "governance-classes.h"
 
 #include "core_io.h"
 #include "main.h"
@@ -13,7 +14,6 @@
 #include "consensus/validation.h"
 
 #include "governance.h"
-#include "governance-classes.h"
 #include "masternode.h"
 #include "governance.h"
 #include <boost/lexical_cast.hpp>
