@@ -49,15 +49,18 @@ bool IsBlockValueValid(const CBlock& block, CAmount nExpectedValue){
 
     {
         LOCK(cs_main);
-        if(!chainActive.Tip()) return true;
+        if(!chainActive.Tip()) {
+            return true;
+        }
 
-        if(chainActive.Tip()->GetBlockHash() == block.hashPrevBlock)
-        {
+        if (chainActive.Tip()->GetBlockHash() == block.hashPrevBlock) {
             nHeight = chainActive.Tip()->nHeight+1;
-        } else { //out of order
+        }
+        else { //out of order
             BlockMap::iterator mi = mapBlockIndex.find(block.hashPrevBlock);
-            if (mi != mapBlockIndex.end() && (*mi).second)
+            if (mi != mapBlockIndex.end() && (*mi).second) {
                 nHeight = (*mi).second->nHeight+1;
+            }
         }
     }
 
@@ -65,7 +68,15 @@ bool IsBlockValueValid(const CBlock& block, CAmount nExpectedValue){
 
     if(nHeight == 0) {
         LogPrintf("IsBlockValueValid() : WARNING: Couldn't find previous block");
-        return true; //note: is this correct?
+    }
+
+    bool valueok = (block.vtx[0].GetValueOut() <= nExpectedValue);
+
+    // IF WE'RE NOT SYNCED, WE MAY NOT HAVE SUPERBLOCK DATA, SO RETURN THE USUAL CHECK 
+
+    if(!masternodeSync.IsSynced()) {
+        // IF NOT SYNCED, WE WILL SIMPLY FIND THE LONGEST CHAIN
+        return valueok;
     }
 
     // IF THIS IS A VALID SUPERBLOCK RETURN TRUE SINCE SUPERBLOCKS ARE CHECKED
@@ -76,23 +87,10 @@ bool IsBlockValueValid(const CBlock& block, CAmount nExpectedValue){
 
         return true;
     }
-
-    // IF WE'RE SYNCED, WE SHOULD HAVE SUPERBLOCK DATA, OTHERWISE WE 
-
-    if(!masternodeSync.IsSynced()) {
-        // IF NOT SYNCED, WE WILL SIMPLY FIND THE LONGEST CHAIN
-        return true;
-    }
     
     // EXPECTED VALUE CHECK FOR NORMAL BLOCKS
 
-    if (block.vtx[0].GetValueOut() <= nExpectedValue)  {
-        return true;
-    }
-
-    // DEFAULT TO RETURNING FALSE
-
-    return false;
+    return valueok;
 }
 
 bool IsBlockPayeeValid(const CTransaction& txNew, int nBlockHeight)
