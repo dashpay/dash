@@ -1104,9 +1104,9 @@ void CGovernanceObject::UpdateSentinelVariables(const CBlockIndex *pCurrentBlock
     // CALCULATE THE MINUMUM VOTE COUNT REQUIRED FOR FULL SIGNAL
 
     // todo - 12.1 - should be set to `10` after governance vote compression is implemented
-    //int nAbsVoteReq = nMnCount / 10;
-    // todo - 12.1 - Temporarily set to 1 for testing
-    int nAbsVoteReq = 1;
+    int nAbsVoteReq = max(1, nMnCount / 10);
+    // todo - 12.1 - Temporarily set to 1 for testing - reverted
+    //nAbsVoteReq = 1;
 
     // SET SENTINEL FLAGS TO FALSE
 
