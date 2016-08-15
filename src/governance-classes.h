@@ -45,7 +45,7 @@ std::vector<std::string> SplitBy(std::string strCommand, std::string strDelimit)
 *   - After triggers are activated and executed, they can be removed
 */
 
-bool ParsePaymentAmount(std::string strAmount, CAmount& nAmount);
+CAmount ParsePaymentAmount(const std::string& strAmount);
 
 class CGovernanceTriggerManager
 {
@@ -178,9 +178,6 @@ class CSuperblock : public CGovernanceObject
 private:
     uint256 nGovObjHash;
 
-    bool fError;
-    std::string strError;
-
     int nEpochStart;
     int status;
     std::vector<CGovernancePayment> vecPayments;
@@ -197,14 +194,6 @@ public:
 
     void SetStatus(int status_)  {
         status = status_;
-    }
-
-    int GetErrorState()  {
-        return fError;
-    }
-
-    std::string GetErrorMessage()  {
-        return strError;
     }
 
     CGovernanceObject* GetGovernanceObject()  {
@@ -235,8 +224,6 @@ public:
         return nEpochStart;
     }
 
-    bool ParsePaymentSchedule(std::string& strPaymentAddresses, std::string& strPaymentAmounts);
-
     // IS THIS TRIGGER ALREADY EXECUTED?
     bool IsExecuted()
     {
@@ -266,6 +253,9 @@ public:
     }
 
     bool IsValid(const CTransaction& txNew);
+
+private:
+    void ParsePaymentSchedule(std::string& strPaymentAddresses, std::string& strPaymentAmounts);
 };
 
 #endif

@@ -57,47 +57,65 @@ std::vector<std::string> SplitBy(std::string strCommand, std::string strDelimit)
    return vParts;
 }
 
-bool ParsePaymentAmount(std::string strAmount, CAmount& nAmount)
+CAmount ParsePaymentAmount(const std::string& strAmount)
 {
-    nAmount = 0;
+    DBG( cout << "ParsePaymentAmount Start: strAmount = " << strAmount << endl; );
+
+    CAmount nAmount = 0;
     if (strAmount.empty()) {
-        return false;
+        std::ostringstream ostr;
+        ostr << "ParsePaymentAmount: Amount is empty";
+        throw runtime_error(ostr.str());
     }
     if(strAmount.size() > 20) {
         // String is much too long, the functions below impose stricter
         // requirements
-        return false;
-    }
+        std::ostringstream ostr;
+        ostr << "ParsePaymentAmount: Amount string too long";
+        throw runtime_error(ostr.str());
+   }
     // Make sure the string makes sense as an amount
     // Note: No spaces allowed
     size_t pos = strAmount.find_first_not_of("0123456789.");
     if (pos != std::string::npos) {
-        return false;
+        std::ostringstream ostr;
+        ostr << "ParsePaymentAmount: Amount string contains invalid character";
+        throw runtime_error(ostr.str());
     }
 
     pos = strAmount.find(".");
     if (pos == 0)  {
         // JSON doesn't allow values to start with a decimal point
-        return false;
+        std::ostringstream ostr;
+        ostr << "ParsePaymentAmount: Invalid amount string, leading decimal point not allowed";
+        throw runtime_error(ostr.str());
     }
 
     // Make sure there's no more than 1 decimal point
     if ((pos != std::string::npos) && (strAmount.find(".", pos+1) != std::string::npos)) {
-        return false;
+        std::ostringstream ostr;
+        ostr << "ParsePaymentAmount: Invalid amount string, too many decimal points";
+        throw runtime_error(ostr.str());
     }
 
     // Note this code is taken from AmountFromValue in rpcserver.cpp
     // which is used for parsing the amounts in createrawtransaction.
     if (!ParseFixedPoint(strAmount, 8, &nAmount)) {
         nAmount = 0;
-        return false;
+        std::ostringstream ostr;
+        ostr << "ParsePaymentAmount: ParseFixedPoint failed for string: " << strAmount;
+        throw runtime_error(ostr.str());
     }
     if (!MoneyRange(nAmount)) {
         nAmount = 0;
-        return false;
+        std::ostringstream ostr;
+        ostr << "ParsePaymentAmount: Invalid amount string, value outside of valid money range";
+        throw runtime_error(ostr.str());
     }
 
-    return true;
+    DBG( cout << "ParsePaymentAmount Returning true nAmount = " << nAmount << endl; );
+
+    return nAmount;
 }
 
 /**
@@ -120,11 +138,21 @@ bool CGovernanceTriggerManager::AddNewTrigger(uint256 nHash)
         return false;
     }
 
-    CSuperblock_sptr superblock(new CSuperblock(nHash));
-
-    if(superblock->GetErrorState()) {
-        DBG( cout << "AddNewTrigger: error in superblock: " << superblock->GetErrorMessage() << endl; );
-        LogPrint("superblock", "CGovernanceTriggerManager::AddNewTrigger: Error creating superblock: %s\n", superblock->GetErrorMessage());
+    CSuperblock_sptr superblock;
+    try  {
+        CSuperblock_sptr superblockTmp(new CSuperblock(nHash));
+        superblock = superblockTmp;
+    }
+    catch(std::exception& e)  {
+        DBG( cout << "CGovernanceTriggerManager::AddNewTrigger Error creating superblock"
+             << ", e.what() = " << e.what()
+             << endl; );
+        LogPrintf("CGovernanceTriggerManager::AddNewTrigger: Error creating superblock: %s\n", e.what());
+        return false;
+    }
+    catch(...)  {
+        LogPrintf("CGovernanceTriggerManager::AddNewTrigger: Unknown Error creating superblock\n");
+        DBG( cout << "CGovernanceTriggerManager::AddNewTrigger Error creating superblock catchall" << endl; );
         return false;
     }
 
@@ -400,19 +428,19 @@ void CSuperblockManager::CreateSuperblock(CMutableTransaction& txNew, CAmount nF
         if(pBlock->GetPayment(i, payment))  {
             DBG( cout << "CSuperblockManager::CreateSuperblock Payment found " << endl; );
             // SET COINBASE OUTPUT TO SUPERBLOCK SETTING
-            
+
             txNew.vout[i].scriptPubKey = payment.script;
             txNew.vout[i].nValue = payment.nAmount;
-            
+
             // PRINT NICE LOG OUTPUT FOR SUPERBLOCK PAYMENT
-            
+
             CTxDestination address1;
             ExtractDestination(payment.script, address1);
             CBitcoinAddress address2(address1);
-            
+
             // TODO: PRINT NICE N.N DASH OUTPUT
-            
-            DBG( cout << "CSuperblockManager::CreateSuperblock Before LogPrintf call " << endl; );
+
+            DBG( cout << "CSuperblockManager::CreateSuperblock Before LogPrintf call, nAmount = " << payment.nAmount << endl; );
             LogPrintf("NEW Superblock : output %d (addr %s, amount %d)\n", i, address2.ToString(), payment.nAmount);
             DBG( cout << "CSuperblockManager::CreateSuperblock After LogPrintf call " << endl; );
             pBlock->SetExecuted();
@@ -442,8 +470,6 @@ bool CSuperblockManager::IsValid(const CTransaction& txNew, int nBlockHeight)
 CSuperblock::
 CSuperblock()
     : nGovObjHash(),
-      fError(true),
-      strError(),
       nEpochStart(0),
       status(SEEN_OBJECT_UNKNOWN),
       vecPayments()
@@ -452,8 +478,6 @@ CSuperblock()
 CSuperblock::
 CSuperblock(uint256& nHash)
     : nGovObjHash(nHash),
-      fError(true),
-      strError(),
       nEpochStart(0),
       status(SEEN_OBJECT_UNKNOWN),
       vecPayments()
@@ -464,8 +488,7 @@ CSuperblock(uint256& nHash)
     
     if(!pGovObj) {
         DBG( cout << "CSuperblock Constructor pGovObjIn is NULL, returning" << endl; );
-        strError = "Failed to find Governance Object";
-        return;
+        throw runtime_error("CSuperblock: Failed to find Governance Object");
     }
     
     DBG( cout << "CSuperblock Constructor pGovObj : "
@@ -473,45 +496,28 @@ CSuperblock(uint256& nHash)
          << ", nObjectType = " << pGovObj->nObjectType
          << endl; );
     
-    if(pGovObj->GetObjectType() != GOVERNANCE_OBJECT_TRIGGER)  {
+    if (pGovObj->GetObjectType() != GOVERNANCE_OBJECT_TRIGGER)  {
         DBG( cout << "CSuperblock Constructor pHoObj not a trigger, returning" << endl; );
-        strError = "Governance Object not a trigger";
-        return;
+        throw runtime_error("CSuperblock: Governance Object not a trigger");
     }
 
     UniValue obj = pGovObj->GetJSONObject();
         
-    try  {
-        // FIRST WE GET THE START EPOCH, THE DATE WHICH THE PAYMENT SHALL OCCUR
-        strError = "Error parsing start epoch";
-        std::string nEpochStartStr = obj["event_block_height"].get_str();
-        if(!ParseInt32(nEpochStartStr, &nEpochStart))  {
-            throw runtime_error("CSuperblock: Parse error parsing event_block_height");
-        }
-
-        // NEXT WE GET THE PAYMENT INFORMATION AND RECONSTRUCT THE PAYMENT VECTOR
-        strError = "Missing payment information";
-        std::string strAddresses = obj["payment_addresses"].get_str();
-        std::string strAmounts = obj["payment_amounts"].get_str();
-        if (!ParsePaymentSchedule(strAddresses, strAmounts)) {
-            throw runtime_error("CSuperblock: Parse error parsing payment schedule");
-        }
-
-        fError = false;
-        strError = "";
+    // FIRST WE GET THE START EPOCH, THE DATE WHICH THE PAYMENT SHALL OCCUR
+    std::string nEpochStartStr = obj["event_block_height"].get_str();
+    if (!ParseInt32(nEpochStartStr, &nEpochStart))  {
+        throw runtime_error("CSuperblock: Parse error parsing event_block_height");
     }
-    catch(...)  {
-        fError = true;
-        strError = "Unparsable";
-        DBG( cout << "CSuperblock Constructor A parse error occurred" 
-             << ", obj = " << obj.write()
-             << endl; );
-    }
-
+    
+    // NEXT WE GET THE PAYMENT INFORMATION AND RECONSTRUCT THE PAYMENT VECTOR
+    std::string strAddresses = obj["payment_addresses"].get_str();
+    std::string strAmounts = obj["payment_amounts"].get_str();
+    ParsePaymentSchedule(strAddresses, strAmounts);
+    
     DBG( cout << "CSuperblock Constructor End" << endl; );
 }
 
-bool 
+void 
 CSuperblock::
 ParsePaymentSchedule(std::string& strPaymentAddresses, std::string& strPaymentAmounts)
 {
@@ -525,8 +531,15 @@ ParsePaymentSchedule(std::string& strPaymentAddresses, std::string& strPaymentAm
     // IF THESE DONT MATCH, SOMETHING IS WRONG
 
     if (vecParsed1.size() != vecParsed2.size()) {
-        strError = "Mismatched payments and amounts";
-        return false;
+        std::ostringstream ostr;
+        ostr << "CSuperblock::ParsePaymentSchedule Mismatched payments and amounts";
+        throw std::runtime_error(ostr.str());
+    }
+
+    if (vecParsed1.size() == 0) {
+        std::ostringstream ostr;
+        ostr << "CSuperblock::ParsePaymentSchedule Error no payments";
+        throw std::runtime_error(ostr.str());
     }
 
     // LOOP THROUGH THE ADDRESSES/AMOUNTS AND CREATE PAYMENTS
@@ -535,18 +548,21 @@ ParsePaymentSchedule(std::string& strPaymentAddresses, std::string& strPaymentAm
       AMOUNTS = [AMOUNT1|2|3|4|5\6]
     */
 
+    DBG( cout << "CSuperblock::ParsePaymentSchedule vecParsed1.size() = " << vecParsed1.size() << endl; );
+
     for (int i = 0; i < (int)vecParsed1.size(); i++) {
         CBitcoinAddress address(vecParsed1[i]);
         if (!address.IsValid())  {
-            strError = "Invalid Dash Address : " +  vecParsed1[i];
-            return false;
+            std::ostringstream ostr;
+            ostr << "CSuperblock::ParsePaymentSchedule Invalid Dash Address : " <<  vecParsed1[i];
+            throw std::runtime_error(ostr.str());
         }
 
-        CAmount nAmount = 0;
-        if (!ParsePaymentAmount(vecParsed2[i], nAmount)) {
-            strError = "Invalid Amount : " +  vecParsed2[i];
-            return false;
-        }
+        DBG( cout << "CSuperblock::ParsePaymentSchedule i = " << i 
+             <<  ", vecParsed2[i] = " << vecParsed2[i]
+             << endl; );
+
+        CAmount nAmount = ParsePaymentAmount(vecParsed2[i]);
 
         DBG( cout << "CSuperblock::ParsePaymentSchedule: "
              << "amount string = " << vecParsed2[i]
@@ -558,8 +574,6 @@ ParsePaymentSchedule(std::string& strPaymentAddresses, std::string& strPaymentAm
             vecPayments.push_back(payment);
         }
     }
-
-    return false;
 }
 
 
