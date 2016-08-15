@@ -846,7 +846,7 @@ UniValue CGovernanceObject::GetJSONObject()
 
 void CGovernanceObject::LoadData()
 {
-    // todo : 12.1
+    // todo : 12.1 - resolved
     //return;
 
     if(strData.empty())  {

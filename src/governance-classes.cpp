@@ -2,12 +2,15 @@
 // Distributed under the MIT/X11 software license, see the accompanying
 // file COPYING or http://www.opensource.org/licenses/mit-license.php.
 
+//#define ENABLE_DASH_DEBUG
+
 #include "governance-classes.h"
 
 #include "core_io.h"
 #include "main.h"
 #include "init.h"
 #include "chainparams.h"
+#include "utilstrencodings.h"
 
 #include "consensus/consensus.h"
 #include "consensus/merkle.h"
@@ -54,6 +57,48 @@ std::vector<std::string> SplitBy(std::string strCommand, std::string strDelimit)
    return vParts;
 }
 
+bool ParsePaymentAmount(std::string strAmount, CAmount& nAmount)
+{
+    nAmount = 0;
+    if (strAmount.empty()) {
+        return false;
+    }
+    if(strAmount.size() > 20) {
+        // String is much too long, the functions below impose stricter
+        // requirements
+        return false;
+    }
+    // Make sure the string makes sense as an amount
+    // Note: No spaces allowed
+    size_t pos = strAmount.find_first_not_of("0123456789.");
+    if (pos != std::string::npos) {
+        return false;
+    }
+
+    pos = strAmount.find(".");
+    if (pos == 0)  {
+        // JSON doesn't allow values to start with a decimal point
+        return false;
+    }
+
+    // Make sure there's no more than 1 decimal point
+    if ((pos != std::string::npos) && (strAmount.find(".", pos+1) != std::string::npos)) {
+        return false;
+    }
+
+    // Note this code is taken from AmountFromValue in rpcserver.cpp
+    // which is used for parsing the amounts in createrawtransaction.
+    if (!ParseFixedPoint(strAmount, 8, &nAmount)) {
+        nAmount = 0;
+        return false;
+    }
+    if (!MoneyRange(nAmount)) {
+        nAmount = 0;
+        return false;
+    }
+
+    return true;
+}
 
 /**
 *   Add Governance Object
@@ -441,15 +486,17 @@ CSuperblock(uint256& nHash)
         strError = "Error parsing start epoch";
         std::string nEpochStartStr = obj["event_block_height"].get_str();
         if(!ParseInt32(nEpochStartStr, &nEpochStart))  {
-            throw runtime_error("Parse error parsing event_block_height");
+            throw runtime_error("CSuperblock: Parse error parsing event_block_height");
         }
 
         // NEXT WE GET THE PAYMENT INFORMATION AND RECONSTRUCT THE PAYMENT VECTOR
         strError = "Missing payment information";
         std::string strAddresses = obj["payment_addresses"].get_str();
         std::string strAmounts = obj["payment_amounts"].get_str();
-        ParsePaymentSchedule(strAddresses, strAmounts);
-        
+        if (!ParsePaymentSchedule(strAddresses, strAmounts)) {
+            throw runtime_error("CSuperblock: Parse error parsing payment schedule");
+        }
+
         fError = false;
         strError = "";
     }
@@ -460,7 +507,7 @@ CSuperblock(uint256& nHash)
              << ", obj = " << obj.write()
              << endl; );
     }
-    
+
     DBG( cout << "CSuperblock Constructor End" << endl; );
 }
 
@@ -469,37 +516,46 @@ CSuperblock::
 ParsePaymentSchedule(std::string& strPaymentAddresses, std::string& strPaymentAmounts)
 {
     // SPLIT UP ADDR/AMOUNT STRINGS AND PUT IN VECTORS
-    
+
     std::vector<std::string> vecParsed1;
     std::vector<std::string> vecParsed2;
     vecParsed1 = SplitBy(strPaymentAddresses, "|");
     vecParsed2 = SplitBy(strPaymentAmounts, "|");
-    
+
     // IF THESE DONT MATCH, SOMETHING IS WRONG
-    
-    if(vecParsed1.size() != vecParsed2.size()) 
-        {
-            strError = "Mismatched payments and amounts";
-            return false;
-        }
-    
+
+    if (vecParsed1.size() != vecParsed2.size()) {
+        strError = "Mismatched payments and amounts";
+        return false;
+    }
+
     // LOOP THROUGH THE ADDRESSES/AMOUNTS AND CREATE PAYMENTS
     /*
       ADDRESSES = [ADDR1|2|3|4|5\6]
       AMOUNTS = [AMOUNT1|2|3|4|5\6]
     */
-    
-    for(int i = 0; i < (int)vecParsed1.size(); i++)  {
+
+    for (int i = 0; i < (int)vecParsed1.size(); i++) {
         CBitcoinAddress address(vecParsed1[i]);
         if (!address.IsValid())  {
             strError = "Invalid Dash Address : " +  vecParsed1[i];
             return false;
         }
-        int nAmount = boost::lexical_cast<int>(vecParsed2[i]);
-        
+
+        CAmount nAmount = 0;
+        if (!ParsePaymentAmount(vecParsed2[i], nAmount)) {
+            strError = "Invalid Amount : " +  vecParsed2[i];
+            return false;
+        }
+
+        DBG( cout << "CSuperblock::ParsePaymentSchedule: "
+             << "amount string = " << vecParsed2[i]
+             << ", nAmount = " << nAmount
+             << endl; );
+
         CGovernancePayment payment(address, nAmount);
-        if(payment.IsValid())  {
-            vecPayments.push_back(payment);   
+        if(payment.IsValid()) {
+            vecPayments.push_back(payment);
         }
     }
 

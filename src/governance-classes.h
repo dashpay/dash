@@ -45,6 +45,8 @@ std::vector<std::string> SplitBy(std::string strCommand, std::string strDelimit)
 *   - After triggers are activated and executed, they can be removed
 */
 
+bool ParsePaymentAmount(std::string strAmount, CAmount& nAmount);
+
 class CGovernanceTriggerManager
 {
     friend class CSuperblockManager;
