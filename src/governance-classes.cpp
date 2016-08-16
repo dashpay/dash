@@ -10,7 +10,6 @@
 #include "main.h"
 #include "init.h"
 #include "chainparams.h"
-#include "utilstrencodings.h"
 
 #include "consensus/consensus.h"
 #include "consensus/merkle.h"
