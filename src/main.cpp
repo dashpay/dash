@@ -5157,23 +5157,6 @@ void static ProcessGetData(CNode* pfrom, const Consensus::Params& consensusParam
                     }
                 }
 
-                if (!pushed && inv.type == MSG_GOVERNANCE_OBJECT_VOTE) {
-                    CDataStream ss(SER_NETWORK, PROTOCOL_VERSION);
-                    bool topush = false;
-                    {
-                        if(governance.HaveObjectForHash(inv.hash)) {
-                            ss.reserve(1000);
-                            if(governance.SerializeVoteForHash(inv.hash, ss))  {
-                                topush = true;
-                            }
-                        }
-                    }
-                    if(topush)  {
-                        pfrom->PushMessage(NetMsgType::MNGOVERNANCEOBJECTVOTE, ss);
-                        pushed = true;
-                    }
-                }
-
                 if (!pushed && inv.type == MSG_GOVERNANCE_OBJECT) {
                     CDataStream ss(SER_NETWORK, PROTOCOL_VERSION);
                     bool topush = false;
@@ -5187,6 +5170,23 @@ void static ProcessGetData(CNode* pfrom, const Consensus::Params& consensusParam
                     }
                     if(topush)  {
                         pfrom->PushMessage(NetMsgType::MNGOVERNANCEOBJECT, ss);
+                        pushed = true;
+                    }
+                }
+
+                if (!pushed && inv.type == MSG_GOVERNANCE_OBJECT_VOTE) {
+                    CDataStream ss(SER_NETWORK, PROTOCOL_VERSION);
+                    bool topush = false;
+                    {
+                        if(governance.HaveObjectForHash(inv.hash)) {
+                            ss.reserve(1000);
+                            if(governance.SerializeVoteForHash(inv.hash, ss))  {
+                                topush = true;
+                            }
+                        }
+                    }
+                    if(topush)  {
+                        pfrom->PushMessage(NetMsgType::MNGOVERNANCEOBJECTVOTE, ss);
                         pushed = true;
                     }
                 }
