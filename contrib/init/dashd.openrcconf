@@ -13,8 +13,8 @@
 #BITCOIND_DATADIR="/var/lib/dashd"
 
 # User and group to own dashd process
-#BITCOIND_USER="dash"
-#BITCOIND_GROUP="dash"
+#BITCOIND_USER="dashcore"
+#BITCOIND_GROUP="dashcore"
 
 # Path to dashd executable
 #BITCOIND_BIN="/usr/bin/dashd"

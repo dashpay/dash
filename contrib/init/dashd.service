@@ -3,8 +3,8 @@ Description=Dash's distributed currency daemon
 After=network.target
 
 [Service]
-User=dash
-Group=dash
+User=dashcore
+Group=dashcore
 
 Type=forking
 PIDFile=/var/lib/dashd/dashd.pid
