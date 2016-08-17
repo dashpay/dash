@@ -178,7 +178,7 @@ private:
     uint256 nGovObjHash;
 
     int nEpochStart;
-    int status;
+    int nStatus;
     std::vector<CGovernancePayment> vecPayments;
 
 public:
@@ -187,12 +187,14 @@ public:
 
     CSuperblock(uint256& nHash);
 
-    int GetStatus()  {
-        return status;
+    int GetStatus()
+    {
+        return nStatus;
     }
 
-    void SetStatus(int status_)  {
-        status = status_;
+    void SetStatus(int nStatus_)
+    {
+        nStatus = nStatus_;
     }
 
     CGovernanceObject* GetGovernanceObject()  {
@@ -226,13 +228,13 @@ public:
     // IS THIS TRIGGER ALREADY EXECUTED?
     bool IsExecuted()
     {
-        return (status == SEEN_OBJECT_EXECUTED);
+        return (nStatus == SEEN_OBJECT_EXECUTED);
     }
 
     // TELL THE ENGINE WE EXECUTED THIS EVENT
     void SetExecuted()
     {
-        status = SEEN_OBJECT_EXECUTED;
+        nStatus = SEEN_OBJECT_EXECUTED;
     }
 
     int CountPayments()
@@ -240,10 +242,9 @@ public:
         return (int)vecPayments.size();
     }
 
-    bool GetPayment(int nPaymentIndex, CGovernancePayment& paymentOut)
+    bool GetPayment(int nPaymentIndex, CGovernancePayment& paymentOut) 
     {
-        if(nPaymentIndex >= (int)vecPayments.size()) 
-        {
+        if(nPaymentIndex >= (int)vecPayments.size()) {
             return false;
         }
 

@@ -466,7 +466,7 @@ CSuperblock::
 CSuperblock()
     : nGovObjHash(),
       nEpochStart(0),
-      status(SEEN_OBJECT_UNKNOWN),
+      nStatus(SEEN_OBJECT_UNKNOWN),
       vecPayments()
 {}
 
@@ -474,7 +474,7 @@ CSuperblock::
 CSuperblock(uint256& nHash)
     : nGovObjHash(nHash),
       nEpochStart(0),
-      status(SEEN_OBJECT_UNKNOWN),
+      nStatus(SEEN_OBJECT_UNKNOWN),
       vecPayments()
 {
     DBG( cout << "CSuperblock Constructor Start" << endl; );
