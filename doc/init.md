@@ -54,7 +54,7 @@ see `contrib/debian/examples/dash.conf`.
 All three configurations assume several paths that might need to be adjusted.
 
 Binary:              `/usr/bin/dashd`  
-Configuration file:  `/etc/dash/dash.conf`  
+Configuration file:  `/etc/dashcore/dash.conf`  
 Data directory:      `/var/lib/dashd`  
 PID file:            `/var/run/dashd/dashd.pid` (OpenRC and Upstart) or `/var/lib/dashd/dashd.pid` (systemd)  
 Lock file:           `/var/lock/subsys/dashd` (CentOS)  
