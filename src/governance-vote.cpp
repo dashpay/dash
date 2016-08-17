@@ -93,11 +93,11 @@ int CGovernanceVoting::ConvertVoteOutcome(std::string strVoteOutcome)
 
 int CGovernanceVoting::ConvertVoteSignal(std::string strVoteSignal)
 {
-    if(strVoteSignal == "none") return 0;
-    if(strVoteSignal == "funding") return 1;
-    if(strVoteSignal == "valid") return 2;
-    if(strVoteSignal == "delete") return 3;
-    if(strVoteSignal == "endorsed") return 4;
+    if(strVoteSignal == "none") return VOTE_SIGNAL_NONE;         // 0
+    if(strVoteSignal == "funding") return VOTE_SIGNAL_FUNDING;   // 1
+    if(strVoteSignal == "valid") return VOTE_SIGNAL_VALID;       // 2
+    if(strVoteSignal == "delete") return VOTE_SIGNAL_DELETE;     // 3
+    if(strVoteSignal == "endorsed") return VOTE_SIGNAL_ENDORSED; // 4
 
     // ID FIVE THROUGH CUSTOM_START ARE TO BE USED BY GOVERNANCE ENGINE / TRIGGER SYSTEM
 

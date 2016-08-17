@@ -18,6 +18,7 @@
 #include "masternodeman.h"
 #include "rpcserver.h"
 #include "utilmoneystr.h"
+#include "governance-vote.h"
 #include <boost/lexical_cast.hpp>
 
 #include <fstream>
@@ -25,40 +26,6 @@
 #include <sstream>
 
 using namespace std;
-
-int ConvertVoteOutcome(std::string strVoteOutcome)
-{
-    int nVote = -1;
-    if(strVoteOutcome == "yes") nVote = VOTE_OUTCOME_YES;
-    if(strVoteOutcome == "no") nVote = VOTE_OUTCOME_NO;
-    if(strVoteOutcome == "abstain") nVote = VOTE_OUTCOME_ABSTAIN;
-    if(strVoteOutcome == "none") nVote = VOTE_OUTCOME_NONE;
-    return nVote;
-}
-
-int ConvertVoteSignal(std::string strVoteSignal)
-{
-    if(strVoteSignal == "none") return 0;
-    if(strVoteSignal == "funding") return 1;
-    if(strVoteSignal == "valid") return 2;
-    if(strVoteSignal == "delete") return 3;
-    if(strVoteSignal == "endorsed") return 4;
-
-    // ID FIVE THROUGH CUSTOM_START ARE TO BE USED BY GOVERNANCE ENGINE / TRIGGER SYSTEM
-
-    // convert custom sentinel outcomes to integer and store
-    try {
-        int  i = boost::lexical_cast<int>(strVoteSignal);
-        if(i < VOTE_SIGNAL_CUSTOM_START || i > VOTE_SIGNAL_CUSTOM_END) return -1;
-        return i;
-    }
-    catch(std::exception const & e)
-    {
-         cout<<"error : " << e.what() <<endl;
-    }
-
-    return -1;
-}
 
 UniValue gobject(const UniValue& params, bool fHelp)
 {
@@ -231,11 +198,11 @@ UniValue gobject(const UniValue& params, bool fHelp)
         std::string strVoteAction = params[2].get_str();
         std::string strVoteOutcome = params[3].get_str();
         
-        int nVoteSignal = ConvertVoteSignal(strVoteAction);
+        int nVoteSignal = CGovernanceVoting::ConvertVoteSignal(strVoteAction);
         if(nVoteSignal == VOTE_SIGNAL_NONE || nVoteSignal == -1)
             throw JSONRPCError(RPC_INVALID_PARAMETER, "Invalid vote signal. Please use one of the following: 'yes', 'no' or 'abstain'");
 
-        int nVoteOutcome = ConvertVoteOutcome(strVoteOutcome);
+        int nVoteOutcome = CGovernanceVoting::ConvertVoteOutcome(strVoteOutcome);
         if(nVoteOutcome == VOTE_OUTCOME_NONE || nVoteOutcome == -1)
             throw JSONRPCError(RPC_INVALID_PARAMETER, "Invalid vote outcome. Please using one of the following: (funding|valid|delete|clear_registers|endorsed|release_bounty1|release_bounty2|release_bounty3) OR `custom sentinel code` "); 
 
