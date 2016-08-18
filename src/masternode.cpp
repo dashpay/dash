@@ -10,6 +10,7 @@
 #include "masternode-payments.h"
 #include "masternode-sync.h"
 #include "masternodeman.h"
+#include "governance.h"
 #include "util.h"
 #include "sync.h"
 #include "addrman.h"
@@ -17,47 +18,6 @@
 
 // keep track of the scanning errors I've seen
 map<uint256, int> mapSeenMasternodeScanningErrors;
-// cache block hashes as we calculate them
-std::map<int64_t, uint256> mapCacheBlockHashes;
-
-//Get the last hash that matches the modulus given. Processed in reverse order
-bool GetBlockHash(uint256& hash, int nBlockHeight)
-{
-    LOCK(cs_main);
-    if (chainActive.Tip() == NULL) return false;
-
-    if(nBlockHeight == 0)
-        nBlockHeight = chainActive.Tip()->nHeight;
-
-    if(mapCacheBlockHashes.count(nBlockHeight)){
-        hash = mapCacheBlockHashes[nBlockHeight];
-        return true;
-    }
-
-    const CBlockIndex *BlockLastSolved = chainActive.Tip();
-    const CBlockIndex *BlockReading = chainActive.Tip();
-
-    if (BlockLastSolved == NULL || BlockLastSolved->nHeight == 0 || chainActive.Tip()->nHeight+1 < nBlockHeight) return false;
-
-    int nBlocksAgo = 0;
-    if(nBlockHeight > 0) nBlocksAgo = (chainActive.Tip()->nHeight+1)-nBlockHeight;
-    assert(nBlocksAgo >= 0);
-
-    int n = 0;
-    for (unsigned int i = 1; BlockReading && BlockReading->nHeight > 0; i++) {
-        if(n >= nBlocksAgo){
-            hash = BlockReading->GetBlockHash();
-            mapCacheBlockHashes[nBlockHeight] = hash;
-            return true;
-        }
-        n++;
-
-        if (BlockReading->pprev == NULL) { assert(BlockReading); break; }
-        BlockReading = BlockReading->pprev;
-    }
-
-    return false;
-}
 
 CMasternode::CMasternode()
 {
@@ -163,7 +123,7 @@ uint256 CMasternode::CalculateScore(int mod, int64_t nBlockHeight)
     uint256 aux = ArithToUint256(UintToArith256(vin.prevout.hash) + vin.prevout.n);
 
     if(!GetBlockHash(hash, nBlockHeight)) {
-        LogPrintf("CalculateScore ERROR - nHeight %d - Returned 0\n", nBlockHeight);
+        LogPrintf("CMasternode::CalculateScore -- ERROR: GetBlockHash() failed at nBlockHeight %d\n", nBlockHeight);
         return uint256();
     }
 
@@ -200,11 +160,17 @@ void CMasternode::Check(bool forceCheck)
         || (pubkey2 == activeMasternode.pubKeyMasternode && protocolVersion < PROTOCOL_VERSION)) {
         // remove it from the list
         activeState = MASTERNODE_REMOVE;
+
+        // RESCAN AFFECTED VOTES
+        FlagGovernanceItemsAsDirty(); 
         return;
     }
 
     if(!IsPingedWithin(MASTERNODE_EXPIRATION_SECONDS)){
         activeState = MASTERNODE_EXPIRED;
+
+        // RESCAN AFFECTED VOTES
+        FlagGovernanceItemsAsDirty();
         return;
     }
 
@@ -865,3 +831,33 @@ void CMasternodePing::Relay()
     CInv inv(MSG_MASTERNODE_PING, GetHash());
     RelayInv(inv);
 }
+
+void CMasternode::AddGovernanceVote(uint256 nGovernanceObjectHash)
+{
+    if(mapGovernaceObjectsVotedOn.count(nGovernanceObjectHash))
+    {
+        mapGovernaceObjectsVotedOn[nGovernanceObjectHash]++;
+    } else {
+        mapGovernaceObjectsVotedOn.insert(make_pair(nGovernanceObjectHash, 1));
+    }
+}
+
+/** 
+*   FLAG GOVERNANCE ITEMS AS DIRTY
+*
+*   - When masternode come and go on the network, we must flag the items they voted on to recalc it's cached flags
+*
+*/
+
+void CMasternode::FlagGovernanceItemsAsDirty()
+{
+    std::map<uint256, int>::iterator it = mapGovernaceObjectsVotedOn.begin();
+    while(it != mapGovernaceObjectsVotedOn.end()){
+        CGovernanceObject *pObj = governance.FindGovernanceObject((*it).first);
+
+        if(pObj) pObj->fDirtyCache = true;
+        ++it;
+    }
+
+}
+

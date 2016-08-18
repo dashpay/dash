@@ -247,7 +247,8 @@ int64_t CreateNewLock(CTransaction tx)
 
         CTransactionLock newLock;
         newLock.nBlockHeight = nBlockHeight;
-        newLock.nExpiration = GetTime()+(60*60); //locks expire after 60 minutes (24 confirmations)
+        //locks expire after nInstantSendKeepLock confirmations
+        newLock.nLockExpirationBlock = chainActive.Height() + Params().GetConsensus().nInstantSendKeepLock;
         newLock.nTimeout = GetTime()+(60*5);
         newLock.txHash = tx.GetHash();
         mapTxLocks.insert(std::make_pair(tx.GetHash(), newLock));
@@ -291,7 +292,7 @@ void DoConsensusVote(CTransaction& tx, int64_t nBlockHeight)
         LogPrintf("DoConsensusVote -- Failed to sign consensus vote\n");
         return;
     }
-    if(!vote.SignatureValid()) {
+    if(!vote.CheckSignature()) {
         LogPrintf("DoConsensusVote -- Signature invalid\n");
         return;
     }
@@ -326,7 +327,7 @@ bool ProcessConsensusVote(CNode* pnode, CConsensusVote& vote)
         return false;
     }
 
-    if(!vote.SignatureValid()) {
+    if(!vote.CheckSignature()) {
         LogPrintf("ProcessConsensusVote -- Signature invalid\n");
         // don't ban, it could just be a non-synced masternode
         mnodeman.AskForMN(pnode, vote.vinMasternode);
@@ -338,7 +339,8 @@ bool ProcessConsensusVote(CNode* pnode, CConsensusVote& vote)
 
         CTransactionLock newLock;
         newLock.nBlockHeight = 0;
-        newLock.nExpiration = GetTime()+(60*60);
+        //locks expire after nInstantSendKeepLock confirmations
+        newLock.nLockExpirationBlock = chainActive.Height() + Params().GetConsensus().nInstantSendKeepLock;
         newLock.nTimeout = GetTime()+(60*5);
         newLock.txHash = vote.txHash;
         mapTxLocks.insert(std::make_pair(vote.txHash, newLock));
@@ -433,10 +435,10 @@ bool FindConflictingLocks(CTransaction& tx)
                 LogPrintf("FindConflictingLocks -- found two complete conflicting locks, removing both: txid=%s, txin=%s", tx.GetHash().ToString(), mapLockedInputs[txin.prevout].ToString());
 
                 if(mapTxLocks.count(tx.GetHash()))
-                    mapTxLocks[tx.GetHash()].nExpiration = GetTime();
+                    mapTxLocks[tx.GetHash()].nLockExpirationBlock = -1;
 
                 if(mapTxLocks.count(mapLockedInputs[txin.prevout]))
-                    mapTxLocks[mapLockedInputs[txin.prevout]].nExpiration = GetTime();
+                    mapTxLocks[mapLockedInputs[txin.prevout]].nLockExpirationBlock = -1;
 
                 return true;
             }
@@ -452,8 +454,8 @@ void ResolveConflicts(CTransaction& tx)
     if (IsLockedInstandSendTransaction(tx.GetHash()) && !FindConflictingLocks(tx)) { //?????
         LogPrintf("ResolveConflicts -- Found Existing Complete IX Lock, resolving...\n");
 
-        //reprocess the last 15 blocks
-        ReprocessBlocks(15);
+        //reprocess the last nInstantSendReprocessBlocks blocks
+        ReprocessBlocks(Params().GetConsensus().nInstantSendReprocessBlocks);
         if(!mapTxLockReq.count(tx.GetHash()))
             mapTxLockReq.insert(std::make_pair(tx.GetHash(), tx)); //?????
     }
@@ -480,9 +482,10 @@ void CleanTransactionLocksList()
 
     std::map<uint256, CTransactionLock>::iterator it = mapTxLocks.begin();
 
+    int nHeight = chainActive.Height();
     while(it != mapTxLocks.end()) {
         CTransactionLock &txLock = it->second;
-        if(GetTime() > txLock.nExpiration){
+        if(nHeight > txLock.nLockExpirationBlock) {
             LogPrintf("Removing old transaction lock: txid=%s\n", txLock.txHash.ToString());
 
             if(mapTxLockReq.count(txLock.txHash)){
@@ -543,21 +546,21 @@ uint256 CConsensusVote::GetHash() const
 }
 
 
-bool CConsensusVote::SignatureValid()
+bool CConsensusVote::CheckSignature()
 {
-    std::string errorMessage;
+    std::string strError;
     std::string strMessage = txHash.ToString().c_str() + boost::lexical_cast<std::string>(nBlockHeight);
     //LogPrintf("verify strMessage %s \n", strMessage);
 
     CMasternode* pmn = mnodeman.Find(vinMasternode);
 
     if(pmn == NULL) {
-        LogPrintf("CConsensusVote::SignatureValid -- Unknown Masternode: txin=%s\n", vinMasternode.ToString());
+        LogPrintf("CConsensusVote::CheckSignature -- Unknown Masternode: txin=%s\n", vinMasternode.ToString());
         return false;
     }
 
-    if(!darkSendSigner.VerifyMessage(pmn->pubkey2, vchMasterNodeSignature, strMessage, errorMessage)) {
-        LogPrintf("CConsensusVote::SignatureValid -- VerifyMessage() failed\n");
+    if(!darkSendSigner.VerifyMessage(pmn->pubkey2, vchMasterNodeSignature, strMessage, strError)) {
+        LogPrintf("CConsensusVote::CheckSignature -- VerifyMessage() failed\n");
         return false;
     }
 
@@ -566,16 +569,16 @@ bool CConsensusVote::SignatureValid()
 
 bool CConsensusVote::Sign()
 {
-    std::string errorMessage;
+    std::string strError;
 
     std::string strMessage = txHash.ToString().c_str() + boost::lexical_cast<std::string>(nBlockHeight);
 
-    if(!darkSendSigner.SignMessage(strMessage, errorMessage, vchMasterNodeSignature, activeMasternode.keyMasternode)) {
+    if(!darkSendSigner.SignMessage(strMessage, strError, vchMasterNodeSignature, activeMasternode.keyMasternode)) {
         LogPrintf("CConsensusVote::Sign -- SignMessage() failed");
         return false;
     }
 
-    if(!darkSendSigner.VerifyMessage(activeMasternode.pubKeyMasternode, vchMasterNodeSignature, strMessage, errorMessage)) {
+    if(!darkSendSigner.VerifyMessage(activeMasternode.pubKeyMasternode, vchMasterNodeSignature, strMessage, strError)) {
         LogPrintf("CConsensusVote::Sign -- VerifyMessage() failed");
         return false;
     }
@@ -584,7 +587,7 @@ bool CConsensusVote::Sign()
 }
 
 
-bool CTransactionLock::VotesValid()
+bool CTransactionLock::IsAllVotesValid()
 {
 
     BOOST_FOREACH(CConsensusVote vote, vecConsensusVotes)
@@ -592,17 +595,17 @@ bool CTransactionLock::VotesValid()
         int n = mnodeman.GetMasternodeRank(vote.vinMasternode, vote.nBlockHeight, MIN_INSTANTSEND_PROTO_VERSION);
 
         if(n == -1) {
-            LogPrintf("CTransactionLock::VotesValid -- Unknown Masternode, txin=%s\n", vote.vinMasternode.ToString());
+            LogPrintf("CTransactionLock::IsAllVotesValid -- Unknown Masternode, txin=%s\n", vote.vinMasternode.ToString());
             return false;
         }
 
         if(n > INSTANTSEND_SIGNATURES_TOTAL) {
-            LogPrintf("CTransactionLock::VotesValid -- Masternode not in the top %s\n", INSTANTSEND_SIGNATURES_TOTAL);
+            LogPrintf("CTransactionLock::IsAllVotesValid -- Masternode not in the top %s\n", INSTANTSEND_SIGNATURES_TOTAL);
             return false;
         }
 
-        if(!vote.SignatureValid()) {
-            LogPrintf("CTransactionLock::VotesValid -- Signature not valid\n");
+        if(!vote.CheckSignature()) {
+            LogPrintf("CTransactionLock::IsAllVotesValid -- Signature not valid\n");
             return false;
         }
     }

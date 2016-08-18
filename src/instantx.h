@@ -86,11 +86,6 @@ public:
     int nBlockHeight;
     std::vector<unsigned char> vchMasterNodeSignature;
 
-    uint256 GetHash() const;
-
-    bool SignatureValid();
-    bool Sign();
-
     ADD_SERIALIZE_METHODS;
 
     template <typename Stream, typename Operation>
@@ -100,6 +95,11 @@ public:
         READWRITE(vchMasterNodeSignature);
         READWRITE(nBlockHeight);
     }
+
+    uint256 GetHash() const;
+
+    bool Sign();
+    bool CheckSignature();
 };
 
 class CTransactionLock
@@ -108,17 +108,14 @@ public:
     int nBlockHeight;
     uint256 txHash;
     std::vector<CConsensusVote> vecConsensusVotes;
-    int nExpiration;
+    int nLockExpirationBlock;
     int nTimeout;
 
-    bool VotesValid();
-    int CountVotes();
-    void AddVote(CConsensusVote& vote);
+    uint256 GetHash() const { return txHash; }
 
-    uint256 GetHash()
-    {
-        return txHash;
-    }
+    bool IsAllVotesValid();
+    void AddVote(CConsensusVote& vote);
+    int CountVotes();
 };
 
 

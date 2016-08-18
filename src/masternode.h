@@ -25,9 +25,6 @@ using namespace std;
 class CMasternode;
 class CMasternodeBroadcast;
 class CMasternodePing;
-extern map<int64_t, uint256> mapCacheBlockHashes;
-
-bool GetBlockHash(uint256& hash, int nBlockHeight);
 
 //
 // The Masternode Ping Class : Contains a different serialize method for sending pings from masternodes throughout the network
@@ -135,6 +132,9 @@ public:
     int nLastScanningErrorBlockHeight;
     CMasternodePing lastPing;
 
+    // KEEP TRACK OF GOVERNANCE ITEMS EACH MASTERNODE HAS VOTE UPON FOR RECALCULATION
+    std::map<uint256, int> mapGovernaceObjectsVotedOn;
+
     CMasternode();
     CMasternode(const CMasternode& other);
     CMasternode(const CMasternodeBroadcast& mnb);
@@ -163,6 +163,7 @@ public:
         swap(first.nLastDsq, second.nLastDsq);
         swap(first.nScanningErrorCount, second.nScanningErrorCount);
         swap(first.nLastScanningErrorBlockHeight, second.nLastScanningErrorBlockHeight);
+        swap(first.mapGovernaceObjectsVotedOn, second.mapGovernaceObjectsVotedOn);
     }
 
     CMasternode& operator=(CMasternode from)
@@ -179,7 +180,14 @@ public:
         return !(a.vin == b.vin);
     }
 
+    // CALCULATE A RANK AGAINST OF GIVEN BLOCK
     uint256 CalculateScore(int mod=1, int64_t nBlockHeight=0);
+
+    // KEEP TRACK OF EACH GOVERNANCE ITEM INCASE THIS NODE GOES OFFLINE, SO WE CAN RECALC THEIR STATUS
+    void AddGovernanceVote(uint256 nGovernanceObjectHash);
+
+    // RECALCULATE CACHED STATUS FLAGS FOR ALL AFFECTED OBJECTS
+    void FlagGovernanceItemsAsDirty();
 
     ADD_SERIALIZE_METHODS;
 
@@ -203,6 +211,7 @@ public:
             READWRITE(nLastDsq);
             READWRITE(nScanningErrorCount);
             READWRITE(nLastScanningErrorBlockHeight);
+            READWRITE(mapGovernaceObjectsVotedOn);
     }
 
     int64_t SecondsSincePayment();

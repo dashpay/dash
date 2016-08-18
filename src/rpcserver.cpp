@@ -280,6 +280,7 @@ static const CRPCCommand vRPCCommands[] =
     { "blockchain",         "getbestblockhash",       &getbestblockhash,       true  },
     { "blockchain",         "getblockcount",          &getblockcount,          true  },
     { "blockchain",         "getblock",               &getblock,               true  },
+    { "blockchain",         "getblockhashes",         &getblockhashes,         true  },
     { "blockchain",         "getblockhash",           &getblockhash,           true  },
     { "blockchain",         "getblockheader",         &getblockheader,         true  },
     { "blockchain",         "getblockheaders",        &getblockheaders,        true  },
@@ -292,8 +293,7 @@ static const CRPCCommand vRPCCommands[] =
     { "blockchain",         "verifytxoutproof",       &verifytxoutproof,       true  },
     { "blockchain",         "gettxoutsetinfo",        &gettxoutsetinfo,        true  },
     { "blockchain",         "verifychain",            &verifychain,            true  },
-    { "blockchain",         "invalidateblock",        &invalidateblock,        true  },
-    { "blockchain",         "reconsiderblock",        &reconsiderblock,        true  },
+    { "blockchain",         "getspentinfo",           &getspentinfo,           false },
 
     /* Mining */
     { "mining",             "getblocktemplate",       &getblocktemplate,       true  },
@@ -318,6 +318,13 @@ static const CRPCCommand vRPCCommands[] =
     { "rawtransactions",    "fundrawtransaction",     &fundrawtransaction,     false },
 #endif
 
+    /* Address index */
+    { "addressindex",       "getaddressmempool",      &getaddressmempool,      true  },
+    { "addressindex",       "getaddressutxos",        &getaddressutxos,        false },
+    { "addressindex",       "getaddressdeltas",       &getaddressdeltas,       false },
+    { "addressindex",       "getaddresstxids",        &getaddresstxids,        false },
+    { "addressindex",       "getaddressbalance",      &getaddressbalance,      false },
+
     /* Utility functions */
     { "util",               "createmultisig",         &createmultisig,         true  },
     { "util",               "validateaddress",        &validateaddress,        true  }, /* uses wallet if enabled */
@@ -339,7 +346,7 @@ static const CRPCCommand vRPCCommands[] =
     { "dash",               "masternode",             &masternode,             true  },
     { "dash",               "masternodelist",         &masternodelist,         true  },
     { "dash",               "masternodebroadcast",    &masternodebroadcast,    true  },
-    { "dash",               "mngovernance",           &mngovernance,           true  },
+    { "dash",               "gobject",                &gobject,                true  },
     { "dash",               "voteraw",                &voteraw,                true  },
     { "dash",               "mnsync",                 &mnsync,                 true  },
     { "dash",               "spork",                  &spork,                  true  },
