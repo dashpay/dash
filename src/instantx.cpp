@@ -560,7 +560,7 @@ bool CConsensusVote::CheckSignature()
     }
 
     if(!darkSendSigner.VerifyMessage(pmn->pubkey2, vchMasterNodeSignature, strMessage, strError)) {
-        LogPrintf("CConsensusVote::CheckSignature -- VerifyMessage() failed\n");
+        LogPrintf("CConsensusVote::CheckSignature -- VerifyMessage() failed, error: %s\n", strError);
         return false;
     }
 
@@ -579,7 +579,7 @@ bool CConsensusVote::Sign()
     }
 
     if(!darkSendSigner.VerifyMessage(activeMasternode.pubKeyMasternode, vchMasterNodeSignature, strMessage, strError)) {
-        LogPrintf("CConsensusVote::Sign -- VerifyMessage() failed");
+        LogPrintf("CConsensusVote::Sign -- VerifyMessage() failed, error: %s\n", strError);
         return false;
     }
 

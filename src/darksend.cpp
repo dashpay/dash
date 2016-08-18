@@ -2117,12 +2117,12 @@ bool CDarkSendSigner::VerifyMessage(CPubKey pubkey, const std::vector<unsigned c
 
     CPubKey pubkeyFromSig;
     if(!pubkeyFromSig.RecoverCompact(ss.GetHash(), vchSig)) {
-        strErrorRet = _("Error recovering public key.");
+        strErrorRet = "Error recovering public key.";
         return false;
     }
 
     if(pubkeyFromSig.GetID() != pubkey.GetID()) {
-        strErrorRet = strprintf("keys don't match: pubkey=%s, pubkeyFromSig=%s, strMessage=%s, vchSig=%s",
+        strErrorRet = strprintf("Keys don't match: pubkey=%s, pubkeyFromSig=%s, strMessage=%s, vchSig=%s",
                     pubkey.GetID().ToString(), pubkeyFromSig.GetID().ToString(), strMessage,
                     EncodeBase64(&vchSig[0], vchSig.size()));
         return false;
@@ -2190,7 +2190,7 @@ bool CDarksendQueue::CheckSignature()
     std::string strError = "";
 
     if(!darkSendSigner.VerifyMessage(pmn->pubkey2, vchSig, strMessage, strError)) {
-        LogPrintf("CDarksendQueue::CheckSignature -- Got bad Masternode queue signature, vin=%s\n", vin.ToString());
+        LogPrintf("CDarksendQueue::CheckSignature -- Got bad Masternode queue signature, vin=%s, error: %s\n", vin.ToString(), strError);
         return false;
     }
 
@@ -2247,7 +2247,7 @@ bool CDarksendBroadcastTx::CheckSignature()
     std::string strError = "";
 
     if(!darkSendSigner.VerifyMessage(pmn->pubkey2, vchSig, strMessage, strError)) {
-        LogPrintf("CDarksendBroadcastTx::CheckSignature -- Got bad dstx signature\n");
+        LogPrintf("CDarksendBroadcastTx::CheckSignature -- Got bad dstx signature, error: %s\n", strError);
         return false;
     }
 

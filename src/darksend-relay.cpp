@@ -54,7 +54,7 @@ bool CDarkSendRelay::Sign(std::string strSharedKey)
     }
 
     if(!darkSendSigner.VerifyMessage(pubkey2, vchSig2, strMessage, errorMessage)) {
-        LogPrintf("CDarkSendRelay():Sign - Verify message failed\n");
+        LogPrintf("CDarkSendRelay::Sign -- VerifyMessage() failed, error: %s\n", errorMessage);
         return false;
     }
 
@@ -76,7 +76,7 @@ bool CDarkSendRelay::VerifyMessage(std::string strSharedKey)
     }
 
     if(!darkSendSigner.VerifyMessage(pubkey2, vchSig2, strMessage, errorMessage)) {
-        LogPrintf("CDarkSendRelay()::VerifyMessage - Verify message failed\n");
+        LogPrintf("CDarkSendRelay::VerifyMessage -- VerifyMessage() failed, error: %s\n", errorMessage);
         return false;
     }
 
