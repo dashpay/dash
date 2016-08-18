@@ -226,7 +226,7 @@ public:
     /// Is the input associated with this public key? (and there is 1000 DASH - checking if valid masternode)
     bool IsVinAssociatedWithPubkey(const CTxIn& vin, const CPubKey& pubkey);
     /// Set the private/public key values, returns true if successful
-    bool GetKeysFromSecret(std::string strSecret, std::string& strErrorRet, CKey& keyRet, CPubKey& pubkeyRet);
+    bool GetKeysFromSecret(std::string strSecret, CKey& keyRet, CPubKey& pubkeyRet);
     /// Sign the message, returns true if successful
     bool SignMessage(std::string strMessage, std::vector<unsigned char>& vchSigRet, CKey key);
     /// Verify the message, returns true if succcessful

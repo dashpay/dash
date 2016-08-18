@@ -36,15 +36,14 @@ std::string CDarkSendRelay::ToString()
 
 bool CDarkSendRelay::Sign(std::string strSharedKey)
 {
+    std::string strError = "";
     std::string strMessage = in.ToString() + out.ToString();
 
     CKey key2;
     CPubKey pubkey2;
-    std::string errorMessage = "";
 
-    if(!darkSendSigner.GetKeysFromSecret(strSharedKey, errorMessage, key2, pubkey2))
-    {
-        LogPrintf("CDarkSendRelay():Sign - ERROR: Invalid shared key: '%s'\n", errorMessage);
+    if(!darkSendSigner.GetKeysFromSecret(strSharedKey, key2, pubkey2)) {
+        LogPrintf("CDarkSendRelay::Sign -- GetKeysFromSecret() failed, invalid shared key %s\n", strSharedKey);
         return false;
     }
 
@@ -53,8 +52,8 @@ bool CDarkSendRelay::Sign(std::string strSharedKey)
         return false;
     }
 
-    if(!darkSendSigner.VerifyMessage(pubkey2, vchSig2, strMessage, errorMessage)) {
-        LogPrintf("CDarkSendRelay::Sign -- VerifyMessage() failed, error: %s\n", errorMessage);
+    if(!darkSendSigner.VerifyMessage(pubkey2, vchSig2, strMessage, strError)) {
+        LogPrintf("CDarkSendRelay::Sign -- VerifyMessage() failed, error: %s\n", strError);
         return false;
     }
 
@@ -63,20 +62,19 @@ bool CDarkSendRelay::Sign(std::string strSharedKey)
 
 bool CDarkSendRelay::VerifyMessage(std::string strSharedKey)
 {
+    std::string strError = "";
     std::string strMessage = in.ToString() + out.ToString();
 
     CKey key2;
     CPubKey pubkey2;
-    std::string errorMessage = "";
 
-    if(!darkSendSigner.GetKeysFromSecret(strSharedKey, errorMessage, key2, pubkey2))
-    {
-        LogPrintf("CDarkSendRelay()::VerifyMessage - ERROR: Invalid shared key: '%s'\n", errorMessage);
+    if(!darkSendSigner.GetKeysFromSecret(strSharedKey, key2, pubkey2)) {
+        LogPrintf("CDarkSendRelay::VerifyMessage -- GetKeysFromSecret() failed, invalid shared key %s\n", strSharedKey);
         return false;
     }
 
-    if(!darkSendSigner.VerifyMessage(pubkey2, vchSig2, strMessage, errorMessage)) {
-        LogPrintf("CDarkSendRelay::VerifyMessage -- VerifyMessage() failed, error: %s\n", errorMessage);
+    if(!darkSendSigner.VerifyMessage(pubkey2, vchSig2, strMessage, strError)) {
+        LogPrintf("CDarkSendRelay::VerifyMessage -- VerifyMessage() failed, error: %s\n", strError);
         return false;
     }
 

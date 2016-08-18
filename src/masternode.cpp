@@ -337,8 +337,8 @@ bool CMasternodeBroadcast::Create(std::string strService, std::string strKeyMast
         return false;
     }
 
-    if(!darkSendSigner.GetKeysFromSecret(strKeyMasternode, strErrorMessage, keyMasternodeNew, pubKeyMasternodeNew)) {
-        strErrorMessage = strprintf("Can't find keys for masternode %s, error: %s", strService, strErrorMessage);
+    if(!darkSendSigner.GetKeysFromSecret(strKeyMasternode, keyMasternodeNew, pubKeyMasternodeNew)) {
+        strErrorMessage = strprintf("Invalid masternode key %s", strKeyMasternode);
         LogPrintf("CMasternodeBroadcast::Create -- %s\n", strErrorMessage);
         return false;
     }
