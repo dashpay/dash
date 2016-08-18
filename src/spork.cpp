@@ -207,8 +207,8 @@ bool CSporkMessage::Sign(std::string strSignKey)
         return false;
     }
 
-    if(!darkSendSigner.SignMessage(strMessage, errorMessage, vchSig, key)) {
-        LogPrintf("CSporkMessage::Sign -- SignMessage() failed");
+    if(!darkSendSigner.SignMessage(strMessage, vchSig, key)) {
+        LogPrintf("CSporkMessage::Sign -- SignMessage() failed\n");
         return false;
     }
 

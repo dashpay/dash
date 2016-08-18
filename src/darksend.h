@@ -228,7 +228,7 @@ public:
     /// Set the private/public key values, returns true if successful
     bool GetKeysFromSecret(std::string strSecret, std::string& strErrorRet, CKey& keyRet, CPubKey& pubkeyRet);
     /// Sign the message, returns true if successful
-    bool SignMessage(std::string strMessage, std::string& strErrorRet, std::vector<unsigned char>& vchSigRet, CKey key);
+    bool SignMessage(std::string strMessage, std::vector<unsigned char>& vchSigRet, CKey key);
     /// Verify the message, returns true if succcessful
     bool VerifyMessage(CPubKey pubkey, const std::vector<unsigned char>& vchSig, std::string strMessage, std::string& strErrorRet);
 };

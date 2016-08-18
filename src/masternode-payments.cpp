@@ -323,8 +323,8 @@ bool CMasternodePaymentWinner::Sign(CKey& keyMasternode, CPubKey& pubKeyMasterno
                 boost::lexical_cast<std::string>(nBlockHeight) +
                 ScriptToAsmStr(payee);
 
-    if(!darkSendSigner.SignMessage(strMessage, errorMessage, vchSig, keyMasternode)) {
-        LogPrintf("CMasternodePing::Sign() - Error: %s\n", errorMessage);
+    if(!darkSendSigner.SignMessage(strMessage, vchSig, keyMasternode)) {
+        LogPrintf("CMasternodePaymentWinner::Sign -- SignMessage() failed\n");
         return false;
     }
 

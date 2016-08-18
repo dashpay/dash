@@ -573,8 +573,8 @@ bool CConsensusVote::Sign()
 
     std::string strMessage = txHash.ToString().c_str() + boost::lexical_cast<std::string>(nBlockHeight);
 
-    if(!darkSendSigner.SignMessage(strMessage, strError, vchMasterNodeSignature, activeMasternode.keyMasternode)) {
-        LogPrintf("CConsensusVote::Sign -- SignMessage() failed");
+    if(!darkSendSigner.SignMessage(strMessage, vchMasterNodeSignature, activeMasternode.keyMasternode)) {
+        LogPrintf("CConsensusVote::Sign -- SignMessage() failed\n");
         return false;
     }
 

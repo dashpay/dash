@@ -2100,18 +2100,13 @@ bool CDarkSendSigner::GetKeysFromSecret(std::string strSecret, std::string& strE
     return true;
 }
 
-bool CDarkSendSigner::SignMessage(std::string strMessage, std::string& strErrorRet, std::vector<unsigned char>& vchSigRet, CKey key)
+bool CDarkSendSigner::SignMessage(std::string strMessage, std::vector<unsigned char>& vchSigRet, CKey key)
 {
     CHashWriter ss(SER_GETHASH, 0);
     ss << strMessageMagic;
     ss << strMessage;
 
-    if(!key.SignCompact(ss.GetHash(), vchSigRet)) {
-        strErrorRet = _("Signing failed.");
-        return false;
-    }
-
-    return true;
+    return key.SignCompact(ss.GetHash(), vchSigRet);
 }
 
 bool CDarkSendSigner::VerifyMessage(CPubKey pubkey, const std::vector<unsigned char>& vchSig, std::string strMessage, std::string& strErrorRet)
@@ -2177,9 +2172,8 @@ bool CDarksendQueue::Sign()
     if(!fMasterNode) return false;
 
     std::string strMessage = vin.ToString() + boost::lexical_cast<std::string>(nDenom) + boost::lexical_cast<std::string>(nTime) + boost::lexical_cast<std::string>(fReady);
-    std::string strError = "";
 
-    if(!darkSendSigner.SignMessage(strMessage, strError, vchSig, activeMasternode.keyMasternode)) {
+    if(!darkSendSigner.SignMessage(strMessage, vchSig, activeMasternode.keyMasternode)) {
         LogPrintf("CDarksendQueue::Sign -- SignMessage() failed\n");
         return false;
     }
@@ -2235,9 +2229,8 @@ bool CDarksendBroadcastTx::Sign()
     if(!fMasterNode) return false;
 
     std::string strMessage = tx.GetHash().ToString() + boost::lexical_cast<std::string>(sigTime);
-    std::string strError = "";
 
-    if(!darkSendSigner.SignMessage(strMessage, strError, vchSig, activeMasternode.keyMasternode)) {
+    if(!darkSendSigner.SignMessage(strMessage, vchSig, activeMasternode.keyMasternode)) {
         LogPrintf("CDarksendBroadcastTx::Sign -- SignMessage() failed\n");
         return false;
     }

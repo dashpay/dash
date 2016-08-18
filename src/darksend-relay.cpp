@@ -48,8 +48,8 @@ bool CDarkSendRelay::Sign(std::string strSharedKey)
         return false;
     }
 
-    if(!darkSendSigner.SignMessage(strMessage, errorMessage, vchSig2, key2)) {
-        LogPrintf("CDarkSendRelay():Sign - Sign message failed\n");
+    if(!darkSendSigner.SignMessage(strMessage, vchSig2, key2)) {
+        LogPrintf("CDarkSendRelay::Sign -- SignMessage() failed\n");
         return false;
     }
 
