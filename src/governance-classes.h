@@ -83,6 +83,9 @@ private:
 
 class CSuperblockManager
 {
+private:
+    static bool GetBestSuperblock(CSuperblock_sptr& pBlock, int nBlockHeight);
+
 public:
 
     /**
@@ -90,22 +93,12 @@ public:
      *
      *   - See if this block can be a superblock
      */
-    static bool IsValidSuperblockHeight(int nBlockHeight)
-    {
-        // SUPERBLOCKS CAN HAPPEN ONCE PER DAY
-        return ((nBlockHeight % Params().GetConsensus().nSuperblockCycle) == 1);
-    }
-
     static bool IsSuperblockTriggered(int nBlockHeight);
-    static void CreateSuperblock(CMutableTransaction& txNew, CAmount nFees, int nBlockHeight);
 
+    static void CreateSuperblock(CMutableTransaction& txNew, int nBlockHeight);
 
     static std::string GetRequiredPaymentsString(int nBlockHeight);
-    static bool IsValid(const CTransaction& txNew, int nBlockHeight);
-
-private:
-    static bool GetBestSuperblock(CSuperblock_sptr& pBlock, int nBlockHeight);
-
+    static bool IsValid(const CTransaction& txNew, int nBlockHeight, CAmount blockReward);
 };
 
 /**
@@ -181,23 +174,26 @@ private:
     int nStatus;
     std::vector<CGovernancePayment> vecPayments;
 
+    void ParsePaymentSchedule(std::string& strPaymentAddresses, std::string& strPaymentAmounts);
+
 public:
 
     CSuperblock();
-
     CSuperblock(uint256& nHash);
 
-    int GetStatus()
-    {
-        return nStatus;
-    }
+    static bool IsValidBlockHeight(int nBlockHeight);
+    static CAmount GetPaymentsLimit(int nBlockHeight);
 
-    void SetStatus(int nStatus_)
-    {
-        nStatus = nStatus_;
-    }
+    int GetStatus() { return nStatus; }
+    void SetStatus(int nStatusIn) { nStatus = nStatusIn; }
 
-    CGovernanceObject* GetGovernanceObject()  {
+    // IS THIS TRIGGER ALREADY EXECUTED?
+    bool IsExecuted() { return nStatus == SEEN_OBJECT_EXECUTED; }
+    // TELL THE ENGINE WE EXECUTED THIS EVENT
+    void SetExecuted() { nStatus = SEEN_OBJECT_EXECUTED; }
+
+    CGovernanceObject* GetGovernanceObject()
+    {
         AssertLockHeld(governance.cs);
         CGovernanceObject* pObj = governance.FindGovernanceObject(nGovObjHash);
         return pObj;
@@ -225,37 +221,11 @@ public:
         return nEpochStart;
     }
 
-    // IS THIS TRIGGER ALREADY EXECUTED?
-    bool IsExecuted()
-    {
-        return (nStatus == SEEN_OBJECT_EXECUTED);
-    }
+    int CountPayments() { return (int)vecPayments.size(); }
+    bool GetPayment(int nPaymentIndex, CGovernancePayment& paymentRet);
+    CAmount GetPaymentsTotalAmount();
 
-    // TELL THE ENGINE WE EXECUTED THIS EVENT
-    void SetExecuted()
-    {
-        nStatus = SEEN_OBJECT_EXECUTED;
-    }
-
-    int CountPayments()
-    {
-        return (int)vecPayments.size();
-    }
-
-    bool GetPayment(int nPaymentIndex, CGovernancePayment& paymentOut) 
-    {
-        if((nPaymentIndex<0) || (nPaymentIndex >= (int)vecPayments.size())) {
-            return false;
-        }
-
-        paymentOut = vecPayments[nPaymentIndex];
-        return true;
-    }
-
-    bool IsValid(const CTransaction& txNew);
-
-private:
-    void ParsePaymentSchedule(std::string& strPaymentAddresses, std::string& strPaymentAmounts);
+    bool IsValid(const CTransaction& txNew, int nBlockHeight, CAmount blockReward);
 };
 
 #endif
