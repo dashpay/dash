@@ -88,11 +88,6 @@ private:
 
 public:
 
-    /**
-     *   Is Valid Superblock Height
-     *
-     *   - See if this block can be a superblock
-     */
     static bool IsSuperblockTriggered(int nBlockHeight);
 
     static void CreateSuperblock(CMutableTransaction& txNew, int nBlockHeight);

@@ -299,8 +299,9 @@ std::vector<CSuperblock_sptr> CGovernanceTriggerManager::GetActiveTriggers()
 
 bool CSuperblockManager::IsSuperblockTriggered(int nBlockHeight)
 {
-    if (!CSuperblock::IsValidBlockHeight(nBlockHeight))
+    if (!CSuperblock::IsValidBlockHeight(nBlockHeight)) {
         return false;
+    }
 
     LOCK(governance.cs);
     // GET ALL ACTIVE TRIGGERS
@@ -509,6 +510,12 @@ CSuperblock(uint256& nHash)
     DBG( cout << "CSuperblock Constructor End" << endl; );
 }
 
+/**
+ *   Is Valid Superblock Height
+ *
+ *   - See if a block at this height can be a superblock
+ */
+
 bool CSuperblock::IsValidBlockHeight(int nBlockHeight)
 {
     // SUPERBLOCKS CAN HAPPEN ONLY after hardfork and only ONCE PER CYCLE
@@ -520,8 +527,9 @@ CAmount CSuperblock::GetPaymentsLimit(int nBlockHeight)
 {
     const Consensus::Params& consensusParams = Params().GetConsensus();
 
-    if(!IsValidBlockHeight(nBlockHeight))
+    if(!IsValidBlockHeight(nBlockHeight)) {
         return 0;
+    }
 
     // min subsidy for high diff networks and vice versa
     int nBits = consensusParams.fPowAllowMinDifficultyBlocks ? UintToArith256(consensusParams.powLimit).GetCompact() : 1;
