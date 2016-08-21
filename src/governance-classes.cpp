@@ -350,6 +350,10 @@ bool CSuperblockManager::IsSuperblockTriggered(int nBlockHeight)
 
 bool CSuperblockManager::GetBestSuperblock(CSuperblock_sptr& pBlock, int nBlockHeight)
 {
+    if(!CSuperblock::IsValidBlockHeight(nBlockHeight)) {
+        return false;
+    }
+
     AssertLockHeld(governance.cs);
     std::vector<CSuperblock_sptr> vecTriggers = triggerman.GetActiveTriggers();
     int nYesCount = 0;
@@ -633,6 +637,10 @@ bool CSuperblock::IsValid(const CTransaction& txNew, int nBlockHeight, CAmount b
     // internal to *this and since CSuperblock's are accessed only through
     // shared pointers there's no way our object can get deleted while this
     // code is running.
+    if(!IsValidBlockHeight(nBlockHeight)) {
+        LogPrintf("CSuperblock::IsValid -- ERROR: Block invalid, incorrect block height\n");
+        return false;
+    }
 
     std::string strPayeesPossible = "";
 

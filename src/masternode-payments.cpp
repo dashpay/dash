@@ -185,9 +185,9 @@ bool IsBlockPayeeValid(const CTransaction& txNew, int nBlockHeight, CAmount bloc
 
 void FillBlockPayee(CMutableTransaction& txNew, CAmount blockReward, int nBlockHeight)
 {
-    // only create superblocks after hardfork block AND if spork is enabled AND if superblock is actually triggered
-    if(nBlockHeight > Params().GetConsensus().nSuperblockStartBlock &&
-        sporkManager.IsSporkActive(SPORK_9_MASTERNODE_SUPERBLOCK_ENFORCEMENT) &&
+    // only create superblocks if spork is enabled AND if superblock is actually triggered
+    // (height should be validated inside)
+    if(sporkManager.IsSporkActive(SPORK_9_MASTERNODE_SUPERBLOCK_ENFORCEMENT) &&
         CSuperblockManager::IsSuperblockTriggered(nBlockHeight)) {
             LogPrint("gobject", "FillBlockPayee -- triggered superblock creation at height %d\n", nBlockHeight);
             CSuperblockManager::CreateSuperblock(txNew, nBlockHeight);
@@ -200,15 +200,12 @@ void FillBlockPayee(CMutableTransaction& txNew, CAmount blockReward, int nBlockH
 
 std::string GetRequiredPaymentsString(int nBlockHeight)
 {
-    // IF THIS HEIGHT IS A SUPERBLOCK, GET THE REQUIRED PAYEES
-
+    // IF WE HAVE A ACTIVATED TRIGGER FOR THIS HEIGHT - IT IS A SUPERBLOCK, GET THE REQUIRED PAYEES
     if(CSuperblockManager::IsSuperblockTriggered(nBlockHeight)) {
-        // IF WE HAVE A ACTIVATED TRIGGER
         return CSuperblockManager::GetRequiredPaymentsString(nBlockHeight);
     }
 
     // OTHERWISE, PAY MASTERNODE
-
     return mnpayments.GetRequiredPaymentsString(nBlockHeight);
 }
 
