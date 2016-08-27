@@ -271,6 +271,9 @@ extern UniValue masternode(const UniValue& params, bool fHelp);
 extern UniValue masternodelist(const UniValue& params, bool fHelp);
 extern UniValue masternodebroadcast(const UniValue& params, bool fHelp);
 extern UniValue gobject(const UniValue& params, bool fHelp);
+extern UniValue getsuperblockcycle(const UniValue& params, bool fHelp);
+extern UniValue getsuperblockbudget(const UniValue& params, bool fHelp);
+extern UniValue getmingovernancequorum(const UniValue& params, bool fHelp);
 extern UniValue voteraw(const UniValue& params, bool fHelp);
 extern UniValue mnsync(const UniValue& params, bool fHelp);
 
