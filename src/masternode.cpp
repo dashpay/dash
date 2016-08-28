@@ -495,13 +495,14 @@ bool CMasternodeBroadcast::CheckInputsAndAdd(int& nDoS)
     CTxOut vout = CTxOut(999.99*COIN, darkSendPool.collateralPubKey);
     tx.vin.push_back(vin);
     tx.vout.push_back(vout);
+    uint256 hash = GetHash();
 
     {
         TRY_LOCK(cs_main, lockMain);
         if(!lockMain) {
             // not mnb fault, let it to be checked again later
-            mnodeman.mapSeenMasternodeBroadcast.erase(GetHash());
-            masternodeSync.mapSeenSyncMNB.erase(GetHash());
+            mnodeman.mapSeenMasternodeBroadcast.erase(hash);
+            if(masternodeSync.mapSeenSyncMNB.count(hash)) masternodeSync.mapSeenSyncMNB.erase(hash);
             return false;
         }
 
@@ -517,8 +518,8 @@ bool CMasternodeBroadcast::CheckInputsAndAdd(int& nDoS)
     if(GetInputAge(vin) < MASTERNODE_MIN_CONFIRMATIONS){
         LogPrintf("mnb - Input must have at least %d confirmations\n", MASTERNODE_MIN_CONFIRMATIONS);
         // maybe we miss few blocks, let this mnb to be checked again later
-        mnodeman.mapSeenMasternodeBroadcast.erase(GetHash());
-        masternodeSync.mapSeenSyncMNB.erase(GetHash());
+        mnodeman.mapSeenMasternodeBroadcast.erase(hash);
+        if(masternodeSync.mapSeenSyncMNB.count(hash)) masternodeSync.mapSeenSyncMNB.erase(hash);
         return false;
     }
 

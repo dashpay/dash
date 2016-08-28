@@ -606,7 +606,8 @@ void CMasternodePayments::CleanPaymentList()
 
         if(chainActive.Tip()->nHeight - winner.nBlockHeight > nLimit){
             LogPrint("mnpayments", "CMasternodePayments::CleanPaymentList - Removing old Masternode payment - block %d\n", winner.nBlockHeight);
-            masternodeSync.mapSeenSyncMNW.erase((*it).first);
+            uint256 hash = (*it).first;
+            if(masternodeSync.mapSeenSyncMNW.count(hash)) masternodeSync.mapSeenSyncMNW.erase(hash);
             mapMasternodePayeeVotes.erase(it++);
             mapMasternodeBlocks.erase(winner.nBlockHeight);
         } else {
