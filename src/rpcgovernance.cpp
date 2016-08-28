@@ -612,7 +612,7 @@ UniValue getgovernanceinfo(const UniValue& params, bool fHelp)
             "Returns an object containing governance parameters.\n"
             "\nResult:\n"
             "{\n"
-            "  \"mingovernancequorum\": xxxxx,  (numeric) the absolute minimum number of votes needed to trigger a governance action\n"
+            "  \"governanceminquorum\": xxxxx,  (numeric) the absolute minimum number of votes needed to trigger a governance action\n"
             "  \"superblockcycle\": xxxxx,      (numeric) the number of blocks between superblocks\n"
             "}\n"
             "\nExamples:\n"
@@ -622,7 +622,7 @@ UniValue getgovernanceinfo(const UniValue& params, bool fHelp)
     }
 
     UniValue obj(UniValue::VOBJ);
-    obj.push_back(Pair("mingovernancequorum", Params().GetConsensus().nMinGovernanceQuorum));
+    obj.push_back(Pair("governanceminquorum", Params().GetConsensus().nGovernanceMinQuorum));
     obj.push_back(Pair("superblockcycle", Params().GetConsensus().nSuperblockCycle));
 
     return obj;
