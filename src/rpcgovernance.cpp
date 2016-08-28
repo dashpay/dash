@@ -604,38 +604,28 @@ UniValue voteraw(const UniValue& params, bool fHelp)
     }
 }
 
-UniValue getsuperblockcycle(const UniValue& params, bool fHelp)
+UniValue getgovernanceinfo(const UniValue& params, bool fHelp)
 {
     if (fHelp || params.size() != 0) {
         throw runtime_error(
-            "getsuperblockcycle\n"
-            "\nReturns the number of blocks between superblocks.\n"
+            "getgovernanceinfo\n"
+            "Returns an object containing governance parameters.\n"
             "\nResult:\n"
-            "n    (numeric) The current superblock cycle\n"
+            "{\n"
+            "  \"mingovernancequorum\": xxxxx,  (numeric) the absolute minimum number of votes needed to trigger a governance action\n"
+            "  \"superblockcycle\": xxxxx,      (numeric) the number of blocks between superblocks\n"
+            "}\n"
             "\nExamples:\n"
-            + HelpExampleCli("getsuperblockcycle", "")
-            + HelpExampleRpc("getsuperblockcycle", "")
+            + HelpExampleCli("getgovernanceinfo", "")
+            + HelpExampleRpc("getgovernanceinfo", "")
             );
     }
 
-    return Params().GetConsensus().nSuperblockCycle;
-}
+    UniValue obj(UniValue::VOBJ);
+    obj.push_back(Pair("mingovernancequorum", Params().GetConsensus().nMinGovernanceQuorum));
+    obj.push_back(Pair("superblockcycle", Params().GetConsensus().nSuperblockCycle));
 
-UniValue getmingovernancequorum(const UniValue& params, bool fHelp)
-{
-    if (fHelp || params.size() != 0) {
-        throw runtime_error(
-            "getmingovernancequorum\n"
-            "\nReturns the absolute minimum number of votes needed to trigger a governance action.\n"
-            "\nResult:\n"
-            "n    (numeric) The current minimum governance quorum\n"
-            "\nExamples:\n"
-            + HelpExampleCli("getmingovernancequorum", "")
-            + HelpExampleRpc("getmingovernancequorum", "")
-            );
-    }
-
-    return Params().GetConsensus().nMinGovernanceQuorum;
+    return obj;
 }
 
 UniValue getsuperblockbudget(const UniValue& params, bool fHelp)
