@@ -654,3 +654,23 @@ UniValue getsuperblockbudget(const UniValue& params, bool fHelp)
 
     return strBudget;
 }
+
+UniValue getsuperblockheight(const UniValue& params, bool fHelp)
+{
+    if (fHelp) {
+        throw runtime_error(
+            "getsuperblockheight\n"
+            "\nReturns the block height of the last/next superblock.\n"
+            "\nResult:\n"
+            "lastsuperblock    (numeric) the height of the last superblock\n"
+            "nextsuperblock    (numeric) the height of the next superblock\n"
+        );
+    }
+
+    UniValue obj(UniValue::VOBJ);
+    obj.push_back(Pair("lastsuperblock", CSuperblock::GetSuperblockHeight(true)));
+    obj.push_back(Pair("nextsuperblock", CSuperblock::GetSuperblockHeight(false)));
+
+    return obj;
+
+}
