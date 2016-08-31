@@ -119,6 +119,7 @@ public:
         ServiceFlags nRelevantServices = NODE_NONE;
         int nMaxConnections = 0;
         int nMaxOutbound = 0;
+        int nMaxFeeler = 0;
         int nBestHeight = 0;
         CClientUIInterface* uiInterface = nullptr;
         unsigned int nSendBufferMaxSize = 0;
@@ -401,6 +402,7 @@ private:
     CSemaphore *semMasternodeOutbound;
     int nMaxConnections;
     int nMaxOutbound;
+    int nMaxFeeler;
     std::atomic<int> nBestHeight;
     CClientUIInterface* clientInterface;
 };
