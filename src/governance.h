@@ -39,7 +39,10 @@ class CGovernanceVote;
 class CNode;
 
 static const CAmount GOVERNANCE_FEE_TX = (0.1*COIN);
-static const int64_t GOVERNANCE_FEE_CONFIRMATIONS = 1; //todo 12.1 -- easy testing
+static const CAmount GOVERNANCE_PROPOSAL_FEE_TX = (0.33*COIN);
+static const CAmount GOVERNANCE_SUPERBLOCK_FEE_TX = (3*COIN);
+
+static const int64_t GOVERNANCE_FEE_CONFIRMATIONS = 6;
 static const int64_t GOVERNANCE_UPDATE_MIN = 60*60;
 
 extern std::map<uint256, int64_t> mapAskedForGovernanceObject;
@@ -52,8 +55,6 @@ static const int SEEN_OBJECT_ERROR_IMMATURE = 2;
 static const int SEEN_OBJECT_EXECUTED = 3; //used for triggers
 static const int SEEN_OBJECT_UNKNOWN = 4; // the default
 
-//Check the collateral transaction for the budget proposal/finalized budget
-extern bool IsCollateralValid(uint256 nTxCollateralHash, uint256 nExpectedHash, std::string& strError, int& nConf, CAmount minFee);
 
 
 //
@@ -255,11 +256,17 @@ public:
     // CORE OBJECT FUNCTIONS
 
     bool IsValidLocally(const CBlockIndex* pindex, std::string& strError, bool fCheckCollateral);
+
+    /// Check the collateral transaction for the budget proposal/finalized budget
+    bool IsCollateralValid(std::string& strError);
+
     void UpdateLocalValidity(const CBlockIndex *pCurrentBlockIndex);
     void UpdateSentinelVariables(const CBlockIndex *pCurrentBlockIndex);
     int GetObjectType();
     int GetObjectSubtype();
     std::string GetName() {return strName; }
+
+    CAmount GetMinCollateralFee();
 
     UniValue GetJSONObject();
 
@@ -301,6 +308,7 @@ public:
 
         // AFTER DESERIALIZATION OCCURS, CACHED VARIABLES MUST BE CALCULATED MANUALLY
     }
+
 };
 
 
