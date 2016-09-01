@@ -178,7 +178,7 @@ public:
 
     static bool IsValidBlockHeight(int nBlockHeight);
     static CAmount GetPaymentsLimit(int nBlockHeight);
-    static int GetSuperblockHeight(bool last);
+    static void GetSuperblockHeight(int& nBlockHeight, int& nLastSuperblock, int& nNextSuperblock);
 
     int GetStatus() { return nStatus; }
     void SetStatus(int nStatusIn) { nStatus = nStatusIn; }
