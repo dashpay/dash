@@ -613,6 +613,8 @@ UniValue getgovernanceinfo(const UniValue& params, bool fHelp)
             "\nResult:\n"
             "{\n"
             "  \"governanceminquorum\": xxxxx,  (numeric) the absolute minimum number of votes needed to trigger a governance action\n"
+            "  \"proposalfee\": xxxxx,          (amount string) the collateral transaction fee which must be paid to create a proposal\n"
+            "  \"superblockfee\": xxxxx,        (amount string) the collateral transaction fee which must be paid to create a superblock\n"
             "  \"superblockcycle\": xxxxx,      (numeric) the number of blocks between superblocks\n"
             "}\n"
             "\nExamples:\n"
@@ -624,6 +626,8 @@ UniValue getgovernanceinfo(const UniValue& params, bool fHelp)
     UniValue obj(UniValue::VOBJ);
     obj.push_back(Pair("governanceminquorum", Params().GetConsensus().nGovernanceMinQuorum));
     obj.push_back(Pair("superblockcycle", Params().GetConsensus().nSuperblockCycle));
+    obj.push_back(Pair("proposalfee", ValueFromAmount(GOVERNANCE_PROPOSAL_FEE_TX)));
+    obj.push_back(Pair("superblockfee", ValueFromAmount(GOVERNANCE_SUPERBLOCK_FEE_TX)));
 
     return obj;
 }
