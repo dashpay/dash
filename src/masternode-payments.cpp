@@ -555,7 +555,15 @@ bool CMasternodePaymentWinner::IsValid(CNode* pnode, int nValidationHeight, std:
         return false;
     }
 
-    int nMinRequiredProtocol = mnpayments.GetMinMasternodePaymentsProto();
+    int nMinRequiredProtocol;
+    if(nBlockHeight > nValidationHeight) {
+        // new winners must comply SPORK_10_MASTERNODE_PAY_UPDATED_NODES rules
+        nMinRequiredProtocol = mnpayments.GetMinMasternodePaymentsProto();
+    } else {
+        // allow non-updated masternodes for old blocks
+        nMinRequiredProtocol = MIN_MASTERNODE_PAYMENT_PROTO_VERSION_1;
+    }
+
     if(pmn->protocolVersion < nMinRequiredProtocol) {
         strError = strprintf("Masternode protocol is too old: nProtocolVersion=%d, nMinRequiredProtocol=%d", pmn->protocolVersion, nMinRequiredProtocol);
         return false;
