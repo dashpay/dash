@@ -131,11 +131,19 @@ UniValue gobject(const UniValue& params, bool fHelp)
     // AFTER COLLATERAL TRANSACTION HAS MATURED USER CAN SUBMIT GOVERNANCE OBJECT TO PROPAGATE NETWORK
     if(strCommand == "submit")
     {
-        if (params.size() != 7)
-            throw JSONRPCError(RPC_INVALID_PARAMETER, "Correct usage is 'gobject submit <fee-tx> <parent-hash> <revision> <time> <name> <data-hex>'");
+        if ((params.size() < 6) || (params.size() > 7))  {
+            throw JSONRPCError(RPC_INVALID_PARAMETER, "Correct usage is 'gobject submit <parent-hash> <revision> <time> <name> <data-hex> <fee-tx>'");
+        }
 
         if(!masternodeSync.IsBlockchainSynced()) {
             throw JSONRPCError(RPC_CLIENT_IN_INITIAL_DOWNLOAD, "Must wait for client to sync with masternode network. Try again in a minute or so.");
+        }
+
+        CMasternode mn;
+        bool mnFound = mnodeman.Get(activeMasternode.pubKeyMasternode, mn);
+
+        if((params.size() == 6) && (!mnFound))  {
+            throw JSONRPCError(RPC_CLIENT_IN_INITIAL_DOWNLOAD, "Non-masternodes must include fee-tx parameter.");
         }
 
         // ASSEMBLE NEW GOVERNANCE OBJECT FROM USER PARAMETERS
@@ -143,27 +151,26 @@ UniValue gobject(const UniValue& params, bool fHelp)
         LOCK(cs_main);
         CBlockIndex* pindex = chainActive.Tip();
 
-        std::vector<CMasternodeConfig::CMasternodeEntry> mnEntries;
-        mnEntries = masternodeConfig.getEntries();
+        uint256 fee_tx;
 
-        uint256 fee_tx = ParseHashV(params[1], "fee-tx hash, parameter 1");
+        if(params.size() == 7) {
+            fee_tx = ParseHashV(params[6], "fee-tx hash, parameter 6");
+        }
         uint256 hashParent;
         if(params[2].get_str() == "0") { // attach to root node (root node doesn't really exist, but has a hash of zero)
             hashParent = uint256();
         } else {
-            hashParent = ParseHashV(params[2], "parent object hash, parameter 2");
+            hashParent = ParseHashV(params[1], "parent object hash, parameter 2");
         }
 
         // GET THE PARAMETERS FROM USER
 
-        std::string strRevision = params[3].get_str();
-        std::string strTime = params[4].get_str();
+        std::string strRevision = params[2].get_str();
+        std::string strTime = params[3].get_str();
         int nRevision = boost::lexical_cast<int>(strRevision);
         int nTime = boost::lexical_cast<int>(strTime);
-        std::string strName = SanitizeString(params[5].get_str());
-        std::string strData = params[6].get_str();
-
-        // CREATE A NEW COLLATERAL TRANSACTION FOR THIS SPECIFIC OBJECT
+        std::string strName = SanitizeString(params[4].get_str());
+        std::string strData = params[5].get_str();
 
         CGovernanceObject govobj(hashParent, nRevision, strName, nTime, fee_tx, strData);
 
@@ -173,8 +180,14 @@ UniValue gobject(const UniValue& params, bool fHelp)
              << ", fee_tx = " << fee_tx.GetHex()
              << endl; );
 
+        // Attempt to sign triggers if we are a MN
+        if((govobj.GetObjectType() == GOVERNANCE_OBJECT_TRIGGER) && mnFound) {
+            govobj.SetMasternodeInfo(mn.vin, activeMasternode.pubKeyMasternode);
+            govobj.Sign(activeMasternode.keyMasternode);
+        }
+
         std::string strError = "";
-        if(!govobj.IsValidLocally(pindex, strError, true)){
+        if(!govobj.IsValidLocally(pindex, strError, true)) {
             throw JSONRPCError(RPC_INTERNAL_ERROR, "Governance object is not valid - " + govobj.GetHash().ToString() + " - " + strError);
         }
 
@@ -613,8 +626,7 @@ UniValue getgovernanceinfo(const UniValue& params, bool fHelp)
             "\nResult:\n"
             "{\n"
             "  \"governanceminquorum\": xxxxx,  (numeric) the absolute minimum number of votes needed to trigger a governance action\n"
-            "  \"proposalfee\": xxxxx,          (amount string) the collateral transaction fee which must be paid to create a proposal\n"
-            "  \"superblockfee\": xxxxx,        (amount string) the collateral transaction fee which must be paid to create a superblock\n"
+            "  \"proposalfee\": xxxxx,          (amount string) the collateral transaction fee which must be paid to create a proposal in " + CURRENCY_UNIT + "\n"
             "  \"superblockcycle\": xxxxx,      (numeric) the number of blocks between superblocks\n"
             "}\n"
             "\nExamples:\n"
@@ -625,9 +637,8 @@ UniValue getgovernanceinfo(const UniValue& params, bool fHelp)
 
     UniValue obj(UniValue::VOBJ);
     obj.push_back(Pair("governanceminquorum", Params().GetConsensus().nGovernanceMinQuorum));
-    obj.push_back(Pair("superblockcycle", Params().GetConsensus().nSuperblockCycle));
     obj.push_back(Pair("proposalfee", ValueFromAmount(GOVERNANCE_PROPOSAL_FEE_TX)));
-    obj.push_back(Pair("superblockfee", ValueFromAmount(GOVERNANCE_SUPERBLOCK_FEE_TX)));
+    obj.push_back(Pair("superblockcycle", Params().GetConsensus().nSuperblockCycle));
 
     return obj;
 }

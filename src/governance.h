@@ -40,7 +40,6 @@ class CNode;
 
 static const CAmount GOVERNANCE_FEE_TX = (0.1*COIN);
 static const CAmount GOVERNANCE_PROPOSAL_FEE_TX = (0.33*COIN);
-static const CAmount GOVERNANCE_SUPERBLOCK_FEE_TX = (3*COIN);
 
 static const int64_t GOVERNANCE_FEE_CONFIRMATIONS = 6;
 static const int64_t GOVERNANCE_UPDATE_MIN = 60*60;
@@ -113,18 +112,13 @@ private:
     vote_m_t mapVotesByHash;
     vote_m_t mapVotesByType;
 
+    count_m_t mapLastMasternodeTrigger;
+
 public:
     // critical section to protect the inner data structures
     mutable CCriticalSection cs;
     
-    CGovernanceManager()
-        : mapCollateral(),
-          pCurrentBlockIndex(NULL),
-          nTimeLastDiff(0),
-          nCachedBlockHeight(0),
-          mapObjects(),
-          cs()
-    {}
+    CGovernanceManager();
 
     void ClearSeen() {
         LOCK(cs);
@@ -174,6 +168,7 @@ public:
         mapOrphanVotes.clear();
         mapVotesByType.clear();
         mapVotesByHash.clear();
+        mapLastMasternodeTrigger.clear();
     }
     
     std::string ToString() const;
@@ -189,6 +184,7 @@ public:
         READWRITE(mapObjects);
         READWRITE(mapVotesByHash);
         READWRITE(mapVotesByType);
+        READWRITE(mapLastMasternodeTrigger);
     }
 
     void UpdatedBlockTip(const CBlockIndex *pindex);
@@ -211,6 +207,8 @@ public:
     void AddSeenGovernanceObject(uint256 nHash, int status);
 
     void AddSeenVote(uint256 nHash, int status);
+
+    bool MasternodeRateCheck(const CPubKey& pubkey);
 
 };
 
@@ -238,6 +236,11 @@ public:
     bool fCachedLocalValidity; // is valid by blockchain 
     std::string strLocalValidityError;
 
+    // Masternode info for signed objects
+    CTxIn vinMasternode;
+    CPubKey pubkeyMasternode;
+    std::vector<unsigned char> vchSig;
+
     // VARIOUS FLAGS FOR OBJECT / SET VIA MASTERNODE VOTING
 
     bool fCachedFunding; // true == minimum network support has been reached for this object to be funded (doesn't mean it will for sure though)
@@ -252,6 +255,12 @@ public:
     CGovernanceObject(uint256 nHashParentIn, int nRevisionIn, std::string strNameIn, int64_t nTime, uint256 nCollateralHashIn, std::string strDataIn);
     CGovernanceObject(const CGovernanceObject& other);
     void swap(CGovernanceObject& first, CGovernanceObject& second); // nothrow
+
+    // Signature related functions
+
+    void SetMasternodeInfo(const CTxIn& vin, const CPubKey& pubkey);
+    bool Sign(CKey& keyMasternode);
+    bool IsSignatureValid();
 
     // CORE OBJECT FUNCTIONS
 
@@ -305,6 +314,9 @@ public:
         READWRITE(nCollateralHash);
         READWRITE(strData);
         READWRITE(nObjectType);
+        READWRITE(vinMasternode);
+        READWRITE(pubkeyMasternode);
+        READWRITE(vchSig);
 
         // AFTER DESERIALIZATION OCCURS, CACHED VARIABLES MUST BE CALCULATED MANUALLY
     }

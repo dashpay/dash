@@ -30,6 +30,19 @@ std::map<uint256, int64_t> mapAskedForGovernanceObject;
 
 int nSubmittedFinalBudget;
 
+CGovernanceManager::CGovernanceManager()
+    : mapCollateral(),
+      pCurrentBlockIndex(NULL),
+      nTimeLastDiff(0),
+      nCachedBlockHeight(0),
+      mapObjects(),
+      mapSeenGovernanceObjects(),
+      mapSeenVotes(),
+      mapOrphanVotes(),
+      mapLastMasternodeTrigger(),
+      cs()
+{}
+
 // Accessors for thread-safe access to maps
 bool CGovernanceManager::HaveObjectForHash(uint256 nHash)  {
     LOCK(cs);
@@ -287,8 +300,8 @@ bool CGovernanceManager::AddGovernanceObject(CGovernanceObject& govobj)
               << ", nObjectType = " << govobj.nObjectType
               << endl; );
 
-    if(govobj.nObjectType == GOVERNANCE_OBJECT_TRIGGER)
-    {
+    if(govobj.nObjectType == GOVERNANCE_OBJECT_TRIGGER) {
+        mapLastMasternodeTrigger[govobj.pubkeyMasternode.GetHash()] = nCachedBlockHeight;
         DBG( cout << "CGovernanceManager::AddGovernanceObject Before AddNewTrigger" << endl; );
         triggerman.AddNewTrigger(govobj.GetHash());
         DBG( cout << "CGovernanceManager::AddGovernanceObject After AddNewTrigger" << endl; );
@@ -611,6 +624,22 @@ bool CGovernanceManager::AddOrUpdateVote(const CGovernanceVote& vote, CNode* pfr
     return true;
 }
 
+bool CGovernanceManager::MasternodeRateCheck(const CPubKey& pubkey)
+{
+    LOCK(cs);
+    count_m_it it  = mapLastMasternodeTrigger.find(pubkey.GetHash());
+    if(it == mapLastMasternodeTrigger.end())  {
+        return true;
+    }
+    // Allow 1 trigger per mn per cycle, with a small fudge factor
+    int mindiff = Params().GetConsensus().nSuperblockCycle - Params().GetConsensus().nSuperblockCycle / 10;
+    if((nCachedBlockHeight - it->second) > mindiff)  {
+        return true;
+    }
+    return false;
+}
+
+
 CGovernanceObject::CGovernanceObject()
 {
     // MAIN OBJECT DATA
@@ -676,6 +705,9 @@ CGovernanceObject::CGovernanceObject(const CGovernanceObject& other)
     nObjectType = other.nObjectType;
     fUnparsable = true;
 
+    vinMasternode = other.vinMasternode;
+    vchSig = other.vchSig;
+
     // caching
     fCachedFunding = other.fCachedFunding;
     fCachedValid = other.fCachedValid;
@@ -683,6 +715,50 @@ CGovernanceObject::CGovernanceObject(const CGovernanceObject& other)
     fCachedEndorsed = other.fCachedEndorsed;
     fDirtyCache = other.fDirtyCache;
     fExpired = other.fExpired;
+}
+
+void CGovernanceObject::SetMasternodeInfo(const CTxIn& vin, const CPubKey& pubkey)
+{
+    vinMasternode = vin;
+    pubkeyMasternode = pubkey;
+}
+
+bool CGovernanceObject::Sign(CKey& keyMasternode)
+{
+    LOCK(cs);
+    CPubKey pubKeyCollateralAddress;
+    CKey keyCollateralAddress;
+
+    std::string strError;
+    uint256 nHash = GetHash();
+    std::string strMessage = nHash.ToString();
+
+    if(!darkSendSigner.SignMessage(strMessage, vchSig, keyMasternode)) {
+        LogPrintf("CGovernanceObject::Sign -- SignMessage() failed\n");
+        return false;
+    }
+
+    if(!darkSendSigner.VerifyMessage(pubkeyMasternode, vchSig, strMessage, strError)) {
+        LogPrintf("CGovernanceObject::Sign -- VerifyMessage() failed, error: %s\n", strError);
+        return false;
+    }
+
+    return true;
+}
+
+bool CGovernanceObject::IsSignatureValid()
+{
+    LOCK(cs);
+    std::string strError;
+    uint256 nHash = GetHash();
+    std::string strMessage = nHash.ToString();
+
+    if(!darkSendSigner.VerifyMessage(pubkeyMasternode, vchSig, strMessage, strError)) {
+        LogPrintf("CGovernance::IsSignatureValid -- VerifyMessage() failed, error: %s\n", strError);
+        return false;
+    }
+
+    return false;
 }
 
 int CGovernanceObject::GetObjectType()
@@ -889,14 +965,41 @@ bool CGovernanceObject::IsValidLocally(const CBlockIndex* pindex, std::string& s
 
     // IF ABSOLUTE NO COUNT (NO-YES VALID VOTES) IS MORE THAN 10% OF THE NETWORK MASTERNODES, OBJ IS INVALID
 
-    if(GetAbsoluteNoCount(VOTE_SIGNAL_VALID) > mnodeman.CountEnabled(MSG_GOVERNANCE_PEER_PROTO_VERSION)/10){
-         strError = "Automated removal";
-         return false;
+    if(GetAbsoluteNoCount(VOTE_SIGNAL_VALID) > mnodeman.CountEnabled(MSG_GOVERNANCE_PEER_PROTO_VERSION)/10) {
+        strError = "Automated removal";
+        return false;
     }
 
     // CHECK COLLATERAL IF REQUIRED (HIGH CPU USAGE)
 
-    if(fCheckCollateral){
+    if(fCheckCollateral) {
+        if(nObjectType == GOVERNANCE_OBJECT_TRIGGER) {
+            CMasternode mn;
+            bool mnfound = mnodeman.Get(pubkeyMasternode, mn);
+
+            if(!mnfound)  {
+                strError = "Masternode not found";
+                return false;
+            }
+            if(!mn.IsEnabled()) {
+                strError = "Masternode not enabled";
+                return false;
+            }
+
+            // Check that we have a valid MN signature
+            if(!IsSignatureValid()) {
+                strError = "Invalid masternode signature";
+                return false;
+            }
+
+            if(!governance.MasternodeRateCheck(pubkeyMasternode)) {
+                strError = "Masternode attempting to create too many objects";
+                return false;
+            }
+
+            return true;
+        }
+
         if(!IsCollateralValid(strError)) {
             // strError set in IsCollateralValid
             if(strError == "") strError = "Collateral is invalid";
@@ -923,10 +1026,8 @@ bool CGovernanceObject::IsValidLocally(const CBlockIndex* pindex, std::string& s
 CAmount CGovernanceObject::GetMinCollateralFee()
 {
     CAmount nMinFee = 0;
+    // Only 1 type has a fee for the moment but switch statement allows for future object types
     switch(nObjectType)  {
-    case GOVERNANCE_OBJECT_TRIGGER:
-        nMinFee = GOVERNANCE_SUPERBLOCK_FEE_TX;
-        break;
     case GOVERNANCE_OBJECT_PROPOSAL:
         nMinFee = GOVERNANCE_PROPOSAL_FEE_TX;
         break;
