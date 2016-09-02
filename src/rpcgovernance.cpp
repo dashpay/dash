@@ -626,7 +626,7 @@ UniValue getgovernanceinfo(const UniValue& params, bool fHelp)
             "\nResult:\n"
             "{\n"
             "  \"governanceminquorum\": xxxxx,  (numeric) the absolute minimum number of votes needed to trigger a governance action\n"
-            "  \"proposalfee\": xxxxx,          (amount string) the collateral transaction fee which must be paid to create a proposal in " + CURRENCY_UNIT + "\n"
+            "  \"proposalfee\": xxx.xx,         (numeric) the collateral transaction fee which must be paid to create a proposal in " + CURRENCY_UNIT + "\n"
             "  \"superblockcycle\": xxxxx,      (numeric) the number of blocks between superblocks\n"
             "}\n"
             "\nExamples:\n"
