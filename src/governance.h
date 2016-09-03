@@ -38,7 +38,6 @@ class CGovernanceObject;
 class CGovernanceVote;
 class CNode;
 
-static const CAmount GOVERNANCE_FEE_TX = (0.1*COIN);
 static const CAmount GOVERNANCE_PROPOSAL_FEE_TX = (0.33*COIN);
 
 static const int64_t GOVERNANCE_FEE_CONFIRMATIONS = 6;
