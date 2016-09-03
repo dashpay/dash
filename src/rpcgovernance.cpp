@@ -110,7 +110,7 @@ UniValue gobject(const UniValue& params, bool fHelp)
             throw JSONRPCError(RPC_INTERNAL_ERROR, "Governance object is not valid - " + govobj.GetHash().ToString() + " - " + strError);
 
         CWalletTx wtx;
-        if(!pwalletMain->GetBudgetSystemCollateralTX(wtx, govobj.GetHash(), false)){
+        if(!pwalletMain->GetBudgetSystemCollateralTX(wtx, govobj.GetHash(), govobj.GetMinCollateralFee(), false)) {
             throw JSONRPCError(RPC_INTERNAL_ERROR, "Error making collateral transaction for govobj. Please check your wallet balance and make sure your wallet is unlocked.");
         }
         
@@ -142,6 +142,10 @@ UniValue gobject(const UniValue& params, bool fHelp)
         CMasternode mn;
         bool mnFound = mnodeman.Get(activeMasternode.pubKeyMasternode, mn);
 
+        DBG( cout << "gobject: submit activeMasternode.pubKeyMasternode = " << activeMasternode.pubKeyMasternode.GetHash().ToString()
+             << ", params.size() = " << params.size()
+             << ", mnFound = " << mnFound << endl; );
+
         if((params.size() == 6) && (!mnFound))  {
             throw JSONRPCError(RPC_CLIENT_IN_INITIAL_DOWNLOAD, "Non-masternodes must include fee-tx parameter.");
         }
@@ -157,7 +161,7 @@ UniValue gobject(const UniValue& params, bool fHelp)
             fee_tx = ParseHashV(params[6], "fee-tx hash, parameter 6");
         }
         uint256 hashParent;
-        if(params[2].get_str() == "0") { // attach to root node (root node doesn't really exist, but has a hash of zero)
+        if(params[1].get_str() == "0") { // attach to root node (root node doesn't really exist, but has a hash of zero)
             hashParent = uint256();
         } else {
             hashParent = ParseHashV(params[1], "parent object hash, parameter 2");
