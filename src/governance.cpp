@@ -758,7 +758,7 @@ bool CGovernanceObject::IsSignatureValid()
         return false;
     }
 
-    return false;
+    return true;
 }
 
 int CGovernanceObject::GetObjectType()
@@ -1031,6 +1031,9 @@ CAmount CGovernanceObject::GetMinCollateralFee()
     case GOVERNANCE_OBJECT_PROPOSAL:
         nMinFee = GOVERNANCE_PROPOSAL_FEE_TX;
         break;
+    case GOVERNANCE_OBJECT_TRIGGER:
+        nMinFee = 0;
+        break;
     default:
       {
         std::ostringstream ostr;
@@ -1081,9 +1084,11 @@ bool CGovernanceObject::IsCollateralValid(std::string& strError)
 
     DBG( cout << "IsCollateralValid: findScript = " << ScriptToAsmStr( findScript, false ) << endl; );
 
+    DBG( cout << "IsCollateralValid: nMinFee = " << nMinFee << endl; );
+
 
     bool foundOpReturn = false;
-    BOOST_FOREACH(const CTxOut o, txCollateral.vout){
+    BOOST_FOREACH(const CTxOut o, txCollateral.vout) {
         DBG( cout << "IsCollateralValid txout : " << o.ToString() 
              << ", o.nValue = " << o.nValue
              << ", o.scriptPubKey = " << ScriptToAsmStr( o.scriptPubKey, false )
