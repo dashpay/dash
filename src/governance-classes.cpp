@@ -546,24 +546,23 @@ CAmount CSuperblock::GetPaymentsLimit(int nBlockHeight)
     return nPaymentsLimit;
 }
 
-void CSuperblock::GetSuperblockHeight(int& nBlockHeight, int& nLastSuperblock, int& nNextSuperblock)
+void CSuperblock::GetSuperblockHeight(int& nLastSuperblock, int& nNextSuperblock)
 {
-    // Get current block height if nothing was provided
-    if(nBlockHeight == 0)
-        nBlockHeight = (int)chainActive.Height();
+    // Get current block height
+    int nBlockHeight = (int)chainActive.Height();
 
     // Special case: return first superblock if the current block height is below the first superblock during sync
-    if(nBlockHeight < Params().GetConsensus().nSuperblockStartBlock){
+    if(nBlockHeight <= Params().GetConsensus().nFirstSuperblock){
         nLastSuperblock = 0;
-        nNextSuperblock = Params().GetConsensus().nSuperblockStartBlock;
+        nNextSuperblock = Params().GetConsensus().nFirstSuperblock;
         return;
     }
 
-    // Get last superblock
-    nLastSuperblock = nBlockHeight - ((nBlockHeight - Params().GetConsensus().nSuperblockStartBlock) % Params().GetConsensus().nSuperblockCycle);
-
     // Get next superblock
-    nNextSuperblock = nLastSuperblock + Params().GetConsensus().nSuperblockCycle;
+    nNextSuperblock = (int) (floor( nBlockHeight / Params().GetConsensus().nSuperblockCycle) + 1 ) * Params().GetConsensus().nSuperblockCycle;
+
+    // Get last superblock
+    nLastSuperblock = nNextSuperblock - Params().GetConsensus().nSuperblockCycle;
 
 }
 

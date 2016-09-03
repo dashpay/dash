@@ -606,6 +606,8 @@ UniValue voteraw(const UniValue& params, bool fHelp)
 
 UniValue getgovernanceinfo(const UniValue& params, bool fHelp)
 {
+    int nLastSuperblock, nNextSuperblock;
+    
     if (fHelp || params.size() != 0) {
         throw runtime_error(
             "getgovernanceinfo\n"
@@ -621,9 +623,13 @@ UniValue getgovernanceinfo(const UniValue& params, bool fHelp)
             );
     }
 
+    CSuperblock::GetSuperblockHeight(nLastSuperblock, nNextSuperblock);
+
     UniValue obj(UniValue::VOBJ);
     obj.push_back(Pair("governanceminquorum", Params().GetConsensus().nGovernanceMinQuorum));
     obj.push_back(Pair("superblockcycle", Params().GetConsensus().nSuperblockCycle));
+    obj.push_back(Pair("lastsuperblock", nLastSuperblock));
+    obj.push_back(Pair("nextsuperblock", nNextSuperblock));
 
     return obj;
 }
@@ -653,38 +659,4 @@ UniValue getsuperblockbudget(const UniValue& params, bool fHelp)
     std::string strBudget = FormatMoney(nBudget);
 
     return strBudget;
-}
-
-UniValue getsuperblockheight(const UniValue& params, bool fHelp)
-{
-    int nBlockHeight = 0;
-    int nLastSuperblock, nNextSuperblock;
-
-    if (fHelp || params.size() > 1) {
-        throw runtime_error(
-            "getsuperblockheight\n"
-            "\nReturns the block height of the last/next superblock.\n"
-            "\nArguments:\n"
-            "1. index        (numeric, optional, default = current blockchain height) The block index\n"
-            "\nResult:\n"
-            "lastsuperblock  (numeric) the height of the last superblock\n"
-            "nextsuperblock  (numeric) the height of the next superblock\n"
-        );
-    }
-
-    if(params.size() == 1)
-        nBlockHeight = params[0].get_int();
-
-    if (nBlockHeight < 0) {
-        throw JSONRPCError(RPC_INVALID_PARAMETER, "Block height out of range");
-    }
-
-    CSuperblock::GetSuperblockHeight(nBlockHeight, nLastSuperblock, nNextSuperblock);
-    
-    UniValue obj(UniValue::VOBJ);
-    obj.push_back(Pair("lastsuperblock", nLastSuperblock));
-    obj.push_back(Pair("nextsuperblock", nNextSuperblock));
-
-    return obj;
-
 }
