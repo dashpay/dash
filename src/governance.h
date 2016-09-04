@@ -259,7 +259,7 @@ public:
 
     void SetMasternodeInfo(const CTxIn& vin, const CPubKey& pubkey);
     bool Sign(CKey& keyMasternode);
-    bool IsSignatureValid();
+    bool CheckSignature();
 
     // CORE OBJECT FUNCTIONS
 

@@ -746,7 +746,7 @@ bool CGovernanceObject::Sign(CKey& keyMasternode)
     return true;
 }
 
-bool CGovernanceObject::IsSignatureValid()
+bool CGovernanceObject::CheckSignature()
 {
     LOCK(cs);
     std::string strError;
@@ -754,7 +754,7 @@ bool CGovernanceObject::IsSignatureValid()
     std::string strMessage = nHash.ToString();
 
     if(!darkSendSigner.VerifyMessage(pubkeyMasternode, vchSig, strMessage, strError)) {
-        LogPrintf("CGovernance::IsSignatureValid -- VerifyMessage() failed, error: %s\n", strError);
+        LogPrintf("CGovernance::CheckSignature -- VerifyMessage() failed, error: %s\n", strError);
         return false;
     }
 
@@ -975,9 +975,7 @@ bool CGovernanceObject::IsValidLocally(const CBlockIndex* pindex, std::string& s
     if(fCheckCollateral) {
         if(nObjectType == GOVERNANCE_OBJECT_TRIGGER) {
             CMasternode mn;
-            bool mnfound = mnodeman.Get(pubkeyMasternode, mn);
-
-            if(!mnfound)  {
+            if(mnodeman.Get(pubkeyMasternode, mn)) {
                 strError = "Masternode not found";
                 return false;
             }
@@ -987,7 +985,7 @@ bool CGovernanceObject::IsValidLocally(const CBlockIndex* pindex, std::string& s
             }
 
             // Check that we have a valid MN signature
-            if(!IsSignatureValid()) {
+            if(!CheckSignature()) {
                 strError = "Invalid masternode signature";
                 return false;
             }
@@ -1128,7 +1126,6 @@ bool CGovernanceObject::IsCollateralValid(std::string& strError)
         }
     }
 
-    //if we're syncing we won't have instantX information, so accept 1 confirmation 
     if(nConfirmationsIn >= GOVERNANCE_FEE_CONFIRMATIONS) {
         strError = "valid";
     } else {
