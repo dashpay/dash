@@ -607,7 +607,17 @@ UniValue voteraw(const UniValue& params, bool fHelp)
 UniValue getgovernanceinfo(const UniValue& params, bool fHelp)
 {
     int nLastSuperblock, nNextSuperblock;
-    
+
+    // Get current block height
+    int nBlockHeight = (int)chainActive.Height();
+
+    // Get chain parameters
+    int nSuperblockStartBlock = Params().GetConsensus().nSuperblockStartBlock;
+    int nSuperblockCycle = Params().GetConsensus().nSuperblockCycle;
+
+    // Get first superblock
+    int nFirstSuperblock = nSuperblockStartBlock - (nSuperblockStartBlock % nSuperblockCycle) + nSuperblockCycle;
+
     if (fHelp || params.size() != 0) {
         throw runtime_error(
             "getgovernanceinfo\n"
@@ -616,6 +626,8 @@ UniValue getgovernanceinfo(const UniValue& params, bool fHelp)
             "{\n"
             "  \"governanceminquorum\": xxxxx,  (numeric) the absolute minimum number of votes needed to trigger a governance action\n"
             "  \"superblockcycle\": xxxxx,      (numeric) the number of blocks between superblocks\n"
+            "  \"lastsuperblock\": xxxxx,       (numeric) the block number of the last superblock\n"
+            "  \"nextsuperblock\": xxxxx,       (numeric) the block number of the next superblock\n"
             "}\n"
             "\nExamples:\n"
             + HelpExampleCli("getgovernanceinfo", "")
@@ -623,7 +635,13 @@ UniValue getgovernanceinfo(const UniValue& params, bool fHelp)
             );
     }
 
-    CSuperblock::GetSuperblockHeight(nLastSuperblock, nNextSuperblock);
+    if(nBlockHeight < nFirstSuperblock){
+        nLastSuperblock = 0;
+        nNextSuperblock = nFirstSuperblock;
+    } else {
+        nLastSuperblock = nBlockHeight - nBlockHeight % nSuperblockCycle;
+        nNextSuperblock = nLastSuperblock + nSuperblockCycle;
+    }
 
     UniValue obj(UniValue::VOBJ);
     obj.push_back(Pair("governanceminquorum", Params().GetConsensus().nGovernanceMinQuorum));

@@ -48,7 +48,6 @@ struct Params {
     int nBudgetProposalEstablishingTime; // in seconds
     int nSuperblockStartBlock;
     int nSuperblockCycle; // in blocks
-    int nFirstSuperblock;
     int nGovernanceMinQuorum; // Min absolute vote count to trigger an action 
     int nMasternodeMinimumConfirmations;
     /** Used to check majorities for block version upgrade */

@@ -546,26 +546,6 @@ CAmount CSuperblock::GetPaymentsLimit(int nBlockHeight)
     return nPaymentsLimit;
 }
 
-void CSuperblock::GetSuperblockHeight(int& nLastSuperblock, int& nNextSuperblock)
-{
-    // Get current block height
-    int nBlockHeight = (int)chainActive.Height();
-
-    // Special case: return first superblock if the current block height is below the first superblock during sync
-    if(nBlockHeight <= Params().GetConsensus().nFirstSuperblock){
-        nLastSuperblock = 0;
-        nNextSuperblock = Params().GetConsensus().nFirstSuperblock;
-        return;
-    }
-
-    // Get next superblock
-    nNextSuperblock = (int) (floor( nBlockHeight / Params().GetConsensus().nSuperblockCycle) + 1 ) * Params().GetConsensus().nSuperblockCycle;
-
-    // Get last superblock
-    nLastSuperblock = nNextSuperblock - Params().GetConsensus().nSuperblockCycle;
-
-}
-
 void CSuperblock::ParsePaymentSchedule(std::string& strPaymentAddresses, std::string& strPaymentAmounts)
 {
     // SPLIT UP ADDR/AMOUNT STRINGS AND PUT IN VECTORS
