@@ -623,18 +623,6 @@ UniValue voteraw(const UniValue& params, bool fHelp)
 
 UniValue getgovernanceinfo(const UniValue& params, bool fHelp)
 {
-    int nLastSuperblock, nNextSuperblock;
-
-    // Get current block height
-    int nBlockHeight = (int)chainActive.Height();
-
-    // Get chain parameters
-    int nSuperblockStartBlock = Params().GetConsensus().nSuperblockStartBlock;
-    int nSuperblockCycle = Params().GetConsensus().nSuperblockCycle;
-
-    // Get first superblock
-    int nFirstSuperblock = nSuperblockStartBlock - (nSuperblockStartBlock % nSuperblockCycle) + nSuperblockCycle;
-
     if (fHelp || params.size() != 0) {
         throw runtime_error(
             "getgovernanceinfo\n"
@@ -652,6 +640,20 @@ UniValue getgovernanceinfo(const UniValue& params, bool fHelp)
             + HelpExampleRpc("getgovernanceinfo", "")
             );
     }
+
+    // Compute last/next superblock
+    int nLastSuperblock, nNextSuperblock;
+
+    // Get current block height
+    int nBlockHeight = (int)chainActive.Height();
+
+    // Get chain parameters
+    int nSuperblockStartBlock = Params().GetConsensus().nSuperblockStartBlock;
+    int nSuperblockCycle = Params().GetConsensus().nSuperblockCycle;
+
+    // Get first superblock
+    int nFirstSuperblockOffset = (nSuperblockCycle - nSuperblockStartBlock % nSuperblockCycle) % nSuperblockCycle;
+    int nFirstSuperblock = nSuperblockStartBlock + nFirstSuperblockOffset;
 
     if(nBlockHeight < nFirstSuperblock){
         nLastSuperblock = 0;
