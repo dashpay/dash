@@ -278,7 +278,8 @@ UniValue gobject(const UniValue& params, bool fHelp)
             statusObj.push_back(Pair("result", "success"));
         } else {
             failed++;
-            statusObj.push_back(Pair("result", strError.c_str()));
+            statusObj.push_back(Pair("result", "failed"));
+            statusObj.push_back(Pair("errorMessage", strError.c_str()));
         }
 
         resultsObj.push_back(Pair("dash.conf", statusObj));
@@ -390,7 +391,8 @@ UniValue gobject(const UniValue& params, bool fHelp)
                 statusObj.push_back(Pair("result", "success"));
             } else {
                 failed++;
-                statusObj.push_back(Pair("result", strError.c_str()));
+                statusObj.push_back(Pair("result", "failed"));
+                statusObj.push_back(Pair("errorMessage", strError.c_str()));
             }
 
             resultsObj.push_back(Pair(mne.getAlias(), statusObj));
