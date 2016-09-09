@@ -28,6 +28,11 @@
 
 #include <univalue.h>
 
+CWallet *GetWalletForJSONRPCRequest(const JSONRPCRequest& request)
+{
+    return pwalletMain;
+}
+
 int64_t nWalletUnlockTime;
 static CCriticalSection cs_nWalletUnlockTime;
 
@@ -1967,8 +1972,8 @@ UniValue keypoolrefill(const JSONRPCRequest& request)
 
 static void LockWallet(CWallet* pWallet)
 {
-    LOCK(cs_nWalletUnlockTime);
-    nWalletUnlockTime = 0;
+    LOCK(pWallet->cs_wallet);
+    pWallet->nRelockTime = 0;
     pWallet->Lock();
 }
 
@@ -2031,9 +2036,9 @@ UniValue walletpassphrase(const JSONRPCRequest& request)
 
     pwalletMain->TopUpKeyPool();
 
-    LOCK(cs_nWalletUnlockTime);
-    nWalletUnlockTime = GetTime() + nSleepTime;
-    RPCRunLater("lockwallet", boost::bind(LockWallet, pwalletMain), nSleepTime);
+    int64_t nSleepTime = request.params[1].get_int64();
+    pwallet->nRelockTime = GetTime() + nSleepTime;
+    RPCRunLater(strprintf("lockwallet_%u", uintptr_t(pwallet)), boost::bind(LockWallet, pwallet), nSleepTime);
 
     return NullUniValue;
 }
@@ -2111,14 +2116,11 @@ UniValue walletlock(const JSONRPCRequest& request)
 
     if (request.fHelp)
         return true;
-    if (!pwalletMain->IsCrypted())
+    if (!pwallet->IsCrypted())
         throw JSONRPCError(RPC_WALLET_WRONG_ENC_STATE, "Error: running with an unencrypted wallet, but walletlock was called.");
 
-    {
-        LOCK(cs_nWalletUnlockTime);
-        pwalletMain->Lock();
-        nWalletUnlockTime = 0;
-    }
+    pwallet->Lock();
+    pwallet->nRelockTime = 0;
 
     return NullUniValue;
 }
@@ -2458,8 +2460,8 @@ UniValue getwalletinfo(const JSONRPCRequest& request)
         obj.push_back(Pair("keypoolsize_hd_internal",   (int64_t)(pwalletMain->KeypoolCountInternalKeys())));
     }
     obj.push_back(Pair("keys_left",     pwalletMain->nKeysLeftSinceAutoBackup));
-    if (pwalletMain->IsCrypted())
-        obj.push_back(Pair("unlocked_until", nWalletUnlockTime));
+    if (pwallet->IsCrypted())
+        obj.push_back(Pair("unlocked_until", pwallet->nRelockTime));
     obj.push_back(Pair("paytxfee",      ValueFromAmount(payTxFee.GetFeePerK())));
     if (fHDEnabled) {
         obj.push_back(Pair("hdchainid", hdChainCurrent.GetID().GetHex()));

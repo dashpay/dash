@@ -102,12 +102,12 @@ UniValue getinfo(const JSONRPCRequest& request)
     obj.push_back(Pair("difficulty",    (double)GetDifficulty()));
     obj.push_back(Pair("testnet",       Params().NetworkIDString() == CBaseChainParams::TESTNET));
 #ifdef ENABLE_WALLET
-    if (pwalletMain) {
-        obj.push_back(Pair("keypoololdest", pwalletMain->GetOldestKeyPoolTime()));
-        obj.push_back(Pair("keypoolsize",   (int)pwalletMain->GetKeyPoolSize()));
+    if (pwallet) {
+        obj.push_back(Pair("keypoololdest", pwallet->GetOldestKeyPoolTime()));
+        obj.push_back(Pair("keypoolsize",   (int)pwallet->GetKeyPoolSize()));
     }
-    if (pwalletMain && pwalletMain->IsCrypted())
-        obj.push_back(Pair("unlocked_until", nWalletUnlockTime));
+    if (pwallet && pwallet->IsCrypted())
+        obj.push_back(Pair("unlocked_until", pwallet->nRelockTime));
     obj.push_back(Pair("paytxfee",      ValueFromAmount(payTxFee.GetFeePerK())));
 #endif
     obj.push_back(Pair("relayfee",      ValueFromAmount(::minRelayTxFee.GetFeePerK())));
