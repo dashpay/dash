@@ -149,6 +149,14 @@ public:
         return fUseCrypto;
     }
 
+    // This function should be used in a different combinations to determine
+    // if CCryptoKeyStore is fully locked so that no operations requiring access
+    // to private keys are possible:
+    //      IsLocked(true)
+    // or if CCryptoKeyStore's private keys are available for mixing only:
+    //      !IsLocked(true) && IsLocked()
+    // or if they are available for everything:
+    //      !IsLocked()
     bool IsLocked(bool fForMixing = false) const
     {
         if (!IsCrypted())
