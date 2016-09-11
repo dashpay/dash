@@ -215,6 +215,11 @@ WalletModel::SendCoinsReturn WalletModel::prepareTransaction(WalletModelTransact
         return OK;
     }
 
+    // This should never really happen, yet another safety check, just in case.
+    if(wallet->IsLocked()) {
+        return TransactionCreationFailed;
+    }
+
     QSet<QString> setAddress; // Used to detect duplicates
     int nAddresses = 0;
 
