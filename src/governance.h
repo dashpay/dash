@@ -47,8 +47,6 @@ static const int SEEN_OBJECT_UNKNOWN = 4; // the default
 
 extern std::map<uint256, int64_t> mapAskedForGovernanceObject;
 extern CGovernanceManager governance;
-extern CCriticalSection cs_budget;
-
 
 //
 // Governance Manager : Contains all proposals for the budget
@@ -96,7 +94,6 @@ private:
     // keep track of the scanning errors
     object_m_t mapObjects;
 
-    // note: move to private for better encapsulation
     count_m_t mapSeenGovernanceObjects;
     count_m_t mapSeenVotes;
     vote_m_t mapOrphanVotes;
