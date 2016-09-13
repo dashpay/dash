@@ -736,6 +736,18 @@ bool CMasternodePaymentWinner::CheckSignature()
     return true;
 }
 
+std::string CMasternodePaymentWinner::ToString() const
+{
+    std::ostringstream info;
+
+    info << vinMasternode.prevout.ToStringShort() <<
+            ", " << nBlockHeight <<
+            ", " << ScriptToAsmStr(payee) <<
+            ", " << (int)vchSig.size();
+
+    return info.str();
+}
+
 void CMasternodePayments::Sync(CNode* node, int nCountNeeded)
 {
     LOCK(cs_mapMasternodePayeeVotes);

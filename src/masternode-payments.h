@@ -148,15 +148,7 @@ public:
         READWRITE(vchSig);
     }
 
-    std::string ToString()
-    {
-        std::string ret = "";
-        ret += vinMasternode.ToString();
-        ret += ", " + boost::lexical_cast<std::string>(nBlockHeight);
-        ret += ", " + ScriptToAsmStr(payee);
-        ret += ", " + boost::lexical_cast<std::string>((int)vchSig.size());
-        return ret;
-    }
+    std::string ToString() const;
 };
 
 //
