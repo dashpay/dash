@@ -128,7 +128,7 @@ public:
         return ss.GetHash();
     }
 
-    bool Sign(CKey& keyMasternode, CPubKey& pubKeyMasternode);
+    bool Sign();
     bool IsValid(CNode* pnode, int nValidationHeight, std::string& strError);
     bool CheckSignature();
     void Relay();

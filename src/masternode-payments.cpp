@@ -356,22 +356,20 @@ void CMasternodePayments::ProcessMessage(CNode* pfrom, std::string& strCommand, 
     }
 }
 
-bool CMasternodePaymentWinner::Sign(CKey& keyMasternode, CPubKey& pubKeyMasternode)
+bool CMasternodePaymentWinner::Sign()
 {
     std::string strError;
-    std::string strMasterNodeSignMessage;
-
-    std::string strMessage =  vinMasternode.prevout.ToStringShort() +
+    std::string strMessage = vinMasternode.prevout.ToStringShort() +
                 boost::lexical_cast<std::string>(nBlockHeight) +
                 ScriptToAsmStr(payee);
 
-    if(!darkSendSigner.SignMessage(strMessage, vchSig, keyMasternode)) {
+    if(!darkSendSigner.SignMessage(strMessage, vchSig, activeMasternode.keyMasternode)) {
         LogPrintf("CMasternodePaymentWinner::Sign -- SignMessage() failed\n");
         return false;
     }
 
-    if(!darkSendSigner.VerifyMessage(pubKeyMasternode, vchSig, strMessage, strError)) {
-        LogPrintf("CMasternodePing::Sign() -- VerifyMessage() failed, error: %s\n", strError);
+    if(!darkSendSigner.VerifyMessage(activeMasternode.pubKeyMasternode, vchSig, strMessage, strError)) {
+        LogPrintf("CMasternodePaymentWinner::Sign -- VerifyMessage() failed, error: %s\n", strError);
         return false;
     }
 
@@ -703,7 +701,7 @@ bool CMasternodePayments::ProcessBlock(int nBlockHeight)
     std::string errorMessage;
 
     LogPrintf("CMasternodePayments::ProcessBlock() - Signing Winner\n");
-    if(newWinner.Sign(activeMasternode.keyMasternode, activeMasternode.pubKeyMasternode))
+    if(newWinner.Sign())
     {
         LogPrintf("CMasternodePayments::ProcessBlock() - AddWinningMasternode\n");
 
