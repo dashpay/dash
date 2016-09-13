@@ -416,19 +416,15 @@ bool CMasternodePayments::AddWinningMasternode(CMasternodePaymentWinner& winnerI
     uint256 blockHash = uint256();
     if(!GetBlockHash(blockHash, winnerIn.nBlockHeight - 101)) return false;
 
-    {
-        LOCK2(cs_mapMasternodePayeeVotes, cs_mapMasternodeBlocks);
-    
-        if(mapMasternodePayeeVotes.count(winnerIn.GetHash())){
-           return false;
-        }
+    LOCK2(cs_mapMasternodePayeeVotes, cs_mapMasternodeBlocks);
 
-        mapMasternodePayeeVotes[winnerIn.GetHash()] = winnerIn;
+    if(mapMasternodePayeeVotes.count(winnerIn.GetHash())) return false;
 
-        if(!mapMasternodeBlocks.count(winnerIn.nBlockHeight)){
-           CMasternodeBlockPayees blockPayees(winnerIn.nBlockHeight);
-           mapMasternodeBlocks[winnerIn.nBlockHeight] = blockPayees;
-        }
+    mapMasternodePayeeVotes[winnerIn.GetHash()] = winnerIn;
+
+    if(!mapMasternodeBlocks.count(winnerIn.nBlockHeight)) {
+       CMasternodeBlockPayees blockPayees(winnerIn.nBlockHeight);
+       mapMasternodeBlocks[winnerIn.nBlockHeight] = blockPayees;
     }
 
     mapMasternodeBlocks[winnerIn.nBlockHeight].AddPayee(winnerIn);
