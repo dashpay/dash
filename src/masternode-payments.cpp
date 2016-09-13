@@ -642,9 +642,9 @@ bool CMasternodePayments::ProcessBlock(int nBlockHeight)
 {
     // DETERMINE IF WE SHOULD BE VOTING FOR THE NEXT PAYEE
 
-    if(!fMasterNode) return false;
+    if(fLiteMode || !fMasterNode) return false;
 
-    // We have little chances to pick the right winner if we winners list is out of sync
+    // We have little chances to pick the right winner if winners list is out of sync
     // but we have no choice, so we'll try. However it doesn't make sense to even try to do so
     // if we have not enough data about masternodes.
     if(!masternodeSync.IsMasternodeListSynced()) return false;
@@ -664,45 +664,37 @@ bool CMasternodePayments::ProcessBlock(int nBlockHeight)
 
     // LOCATE THE NEXT MASTERNODE WHICH SHOULD BE PAID
 
-    CMasternodePaymentWinner newWinner;
-    {
-        LogPrintf("CMasternodePayments::ProcessBlock() Start nHeight %d - vin %s. \n", nBlockHeight, activeMasternode.vin.ToString());
+    LogPrintf("CMasternodePayments::ProcessBlock -- Start: nBlockHeight=%d, masternode=%s\n", nBlockHeight, activeMasternode.vin.prevout.ToStringShort());
 
-        // pay to the oldest MN that still had no payment but its input is old enough and it was active long enough
-        int nCount = 0;
-        CMasternode *pmn = mnodeman.GetNextMasternodeInQueueForPayment(nBlockHeight, true, nCount);
-        
-        if(pmn != NULL)
-        {
-            LogPrintf("CMasternodePayments::ProcessBlock() Found by FindOldestNotInVec \n");
+    // pay to the oldest MN that still had no payment but its input is old enough and it was active long enough
+    int nCount = 0;
+    CMasternode *pmn = mnodeman.GetNextMasternodeInQueueForPayment(nBlockHeight, true, nCount);
 
-            newWinner.nBlockHeight = nBlockHeight;
-            newWinner.vinMasternode = activeMasternode.vin;
-
-            CScript payee = GetScriptForDestination(pmn->pubkey.GetID());
-            newWinner.payee = payee;
-
-            CTxDestination address1;
-            ExtractDestination(payee, address1);
-            CBitcoinAddress address2(address1);
-
-            LogPrintf("CMasternodePayments::ProcessBlock() Winner payee %s nHeight %d. \n", address2.ToString(), newWinner.nBlockHeight);
-        } else {
-            LogPrintf("CMasternodePayments::ProcessBlock() Failed to find masternode to pay\n");
-        }
+    if (pmn == NULL) {
+        LogPrintf("CMasternodePayments::ProcessBlock -- ERROR: Failed to find masternode to pay\n");
+        return false;
     }
+
+    LogPrintf("CMasternodePayments::ProcessBlock -- Masternode found by GetNextMasternodeInQueueForPayment(): %s\n", pmn->vin.prevout.ToStringShort());
+
+
+    CScript payee = GetScriptForDestination(pmn->pubkey.GetID());
+
+    CMasternodePaymentWinner newWinner(activeMasternode.vin, nBlockHeight, payee);
+
+    CTxDestination address1;
+    ExtractDestination(payee, address1);
+    CBitcoinAddress address2(address1);
+
+    LogPrintf("CMasternodePayments::ProcessBlock -- Winner: payee=%s, nBlockHeight=%d\n", address2.ToString(), nBlockHeight);
 
     // SIGN MESSAGE TO NETWORK WITH OUR MASTERNODE KEYS
 
-    std::string errorMessage;
+    LogPrintf("CMasternodePayments::ProcessBlock -- Signing Winner\n");
+    if (newWinner.Sign()) {
+        LogPrintf("CMasternodePayments::ProcessBlock -- AddWinningMasternode()\n");
 
-    LogPrintf("CMasternodePayments::ProcessBlock() - Signing Winner\n");
-    if(newWinner.Sign())
-    {
-        LogPrintf("CMasternodePayments::ProcessBlock() - AddWinningMasternode\n");
-
-        if(AddWinningMasternode(newWinner))
-        {
+        if (AddWinningMasternode(newWinner)) {
             newWinner.Relay();
             return true;
         }
@@ -840,9 +832,7 @@ void CMasternodePayments::UpdatedBlockTip(const CBlockIndex *pindex)
     pCurrentBlockIndex = pindex;
     LogPrint("mnpayments", "pCurrentBlockIndex->nHeight: %d\n", pCurrentBlockIndex->nHeight);
 
-    if (!fLiteMode && masternodeSync.IsMasternodeListSynced()) {
-        ProcessBlock(pindex->nHeight + 10);
-    }
+    ProcessBlock(pindex->nHeight + 10);
     // normal wallet does not need to update this every block, doing update on rpc call should be enough
     if(fMasterNode) mnodeman.UpdateLastPaid(pindex);
 }
