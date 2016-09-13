@@ -130,7 +130,7 @@ public:
 
     bool Sign(CKey& keyMasternode, CPubKey& pubKeyMasternode);
     bool IsValid(CNode* pnode, int nValidationHeight, std::string& strError);
-    bool SignatureValid();
+    bool CheckSignature();
     void Relay();
 
     void AddPayee(CScript payeeIn){

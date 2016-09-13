@@ -332,7 +332,7 @@ void CMasternodePayments::ProcessMessage(CNode* pfrom, std::string& strCommand, 
             return;
         }
 
-        if(!winner.SignatureValid()) {
+        if(!winner.CheckSignature()) {
             // do not ban for old mnw, MN simply might be not active anymore
             if(masternodeSync.IsSynced() && winner.nBlockHeight > pCurrentBlockIndex->nHeight) {
                 LogPrintf("MNWINNER -- invalid signature\n");
@@ -723,26 +723,23 @@ void CMasternodePaymentWinner::Relay()
     RelayInv(inv);
 }
 
-bool CMasternodePaymentWinner::SignatureValid()
+bool CMasternodePaymentWinner::CheckSignature()
 {
 
     CMasternode* pmn = mnodeman.Find(vinMasternode);
 
-    if(pmn != NULL)
-    {
-        std::string strError = "";
-        std::string strMessage =  vinMasternode.prevout.ToStringShort() +
-                    boost::lexical_cast<std::string>(nBlockHeight) +
-                    ScriptToAsmStr(payee);
+    if (!pmn) return false;
 
-        if(!darkSendSigner.VerifyMessage(pmn->pubkey2, vchSig, strMessage, strError)) {
-            return error("CMasternodePaymentWinner::CheckSignature -- Got bad Masternode payment signature: vin=%s, error: %s", vinMasternode.ToString().c_str(), strError);
-        }
+    std::string strMessage = vinMasternode.prevout.ToStringShort() +
+                boost::lexical_cast<std::string>(nBlockHeight) +
+                ScriptToAsmStr(payee);
 
-        return true;
+    std::string strError = "";
+    if (!darkSendSigner.VerifyMessage(pmn->pubkey2, vchSig, strMessage, strError)) {
+        return error("CMasternodePaymentWinner::CheckSignature -- Got bad Masternode payment signature, masternode=%s, error: %s", vinMasternode.prevout.ToStringShort().c_str(), strError);
     }
 
-    return false;
+    return true;
 }
 
 void CMasternodePayments::Sync(CNode* node, int nCountNeeded)
