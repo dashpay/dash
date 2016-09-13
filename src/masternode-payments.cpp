@@ -664,7 +664,7 @@ bool CMasternodePayments::ProcessBlock(int nBlockHeight)
 
     // LOCATE THE NEXT MASTERNODE WHICH SHOULD BE PAID
 
-    CMasternodePaymentWinner newWinner(activeMasternode.vin);
+    CMasternodePaymentWinner newWinner;
     {
         LogPrintf("CMasternodePayments::ProcessBlock() Start nHeight %d - vin %s. \n", nBlockHeight, activeMasternode.vin.ToString());
 
@@ -677,9 +677,10 @@ bool CMasternodePayments::ProcessBlock(int nBlockHeight)
             LogPrintf("CMasternodePayments::ProcessBlock() Found by FindOldestNotInVec \n");
 
             newWinner.nBlockHeight = nBlockHeight;
+            newWinner.vinMasternode = activeMasternode.vin;
 
             CScript payee = GetScriptForDestination(pmn->pubkey.GetID());
-            newWinner.AddPayee(payee);
+            newWinner.payee = payee;
 
             CTxDestination address1;
             ExtractDestination(payee, address1);

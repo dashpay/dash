@@ -107,36 +107,17 @@ public:
     CScript payee;
     std::vector<unsigned char> vchSig;
 
-    CMasternodePaymentWinner() {
-        nBlockHeight = 0;
-        vinMasternode = CTxIn();
-        payee = CScript();
-    }
+    CMasternodePaymentWinner() :
+        vinMasternode(CTxIn()),
+        nBlockHeight(0),
+        payee(CScript())
+        {}
 
-    CMasternodePaymentWinner(CTxIn vinIn) {
-        nBlockHeight = 0;
-        vinMasternode = vinIn;
-        payee = CScript();
-    }
-
-    uint256 GetHash(){
-        CHashWriter ss(SER_GETHASH, PROTOCOL_VERSION);
-        ss << *(CScriptBase*)(&payee);
-        ss << nBlockHeight;
-        ss << vinMasternode.prevout;
-
-        return ss.GetHash();
-    }
-
-    bool Sign();
-    bool IsValid(CNode* pnode, int nValidationHeight, std::string& strError);
-    bool CheckSignature();
-    void Relay();
-
-    void AddPayee(CScript payeeIn){
-        payee = payeeIn;
-    }
-
+    CMasternodePaymentWinner(CTxIn vinMasternode, int nBlockHeight, CScript payee) :
+        vinMasternode(vinMasternode),
+        nBlockHeight(nBlockHeight),
+        payee(payee)
+        {}
 
     ADD_SERIALIZE_METHODS;
 
@@ -147,6 +128,20 @@ public:
         READWRITE(*(CScriptBase*)(&payee));
         READWRITE(vchSig);
     }
+
+    uint256 GetHash() const {
+        CHashWriter ss(SER_GETHASH, PROTOCOL_VERSION);
+        ss << *(CScriptBase*)(&payee);
+        ss << nBlockHeight;
+        ss << vinMasternode.prevout;
+        return ss.GetHash();
+    }
+
+    bool Sign();
+    bool CheckSignature();
+
+    bool IsValid(CNode* pnode, int nValidationHeight, std::string& strError);
+    void Relay();
 
     std::string ToString() const;
 };
