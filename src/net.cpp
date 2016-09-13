@@ -411,6 +411,9 @@ CNode* CConnman::ConnectNode(CAddress addrConnect, const char *pszDest, bool fCo
 
         // Add node
         CNode* pnode = new CNode(GetNewNodeId(), nLocalServices, GetBestHeight(), hSocket, addrConnect, pszDest ? pszDest : "", false, true);
+
+        PushVersion(pnode, GetTime());
+
         GetNodeSignals().InitializeNode(pnode->GetId(), pnode);
 
         pnode->nTimeConnected = GetTime();
@@ -431,6 +434,24 @@ CNode* CConnman::ConnectNode(CAddress addrConnect, const char *pszDest, bool fCo
     }
 
     return NULL;
+}
+
+void CConnman::PushVersion(CNode* pnode, int64_t nTime)
+{
+    ServiceFlags nLocalNodeServices = pnode->GetLocalServices();
+    CAddress addrYou = (pnode->addr.IsRoutable() && !IsProxy(pnode->addr) ? pnode->addr : CAddress(CService("0.0.0.0", 0), pnode->addr.nServices));
+    CAddress addrMe = GetLocalAddress(&pnode->addr, nLocalNodeServices);
+    uint64_t nonce = pnode->GetLocalNonce();
+    int nNodeStartingHeight = pnode->nMyStartingHeight;
+    NodeId id = pnode->GetId();
+
+    PushMessageWithVersion(pnode, INIT_PROTO_VERSION, NetMsgType::VERSION, PROTOCOL_VERSION, (uint64_t)nLocalNodeServices, nTime, addrYou, addrMe,
+            nonce, strSubVersion, nNodeStartingHeight, ::fRelayTxes);
+
+    if (fLogIPs)
+        LogPrint("net", "send version message: version %d, blocks=%d, us=%s, them=%s, peer=%d\n", PROTOCOL_VERSION, nNodeStartingHeight, addrMe.ToString(), addrYou.ToString(), id);
+    else
+        LogPrint("net", "send version message: version %d, blocks=%d, us=%s, peer=%d\n", PROTOCOL_VERSION, nNodeStartingHeight, addrMe.ToString(), id);
 }
 
 void CConnman::DumpBanlist()
@@ -467,23 +488,6 @@ void CNode::CloseSocketDisconnect()
     if (lockRecv)
         vRecvMsg.clear();
 }
-
-void CNode::PushVersion()
-{
-    int64_t nTime = (fInbound ? GetAdjustedTime() : GetTime());
-    CAddress addrYou = (addr.IsRoutable() && !IsProxy(addr) ? addr : CAddress(CService("0.0.0.0", 0), addr.nServices));
-    CAddress addrMe = GetLocalAddress(&addr, nLocalServices);
-    if (fLogIPs)
-        LogPrint("net", "send version message: version %d, blocks=%d, us=%s, them=%s, peer=%d\n", PROTOCOL_VERSION, nMyStartingHeight, addrMe.ToString(), addrYou.ToString(), id);
-    else
-        LogPrint("net", "send version message: version %d, blocks=%d, us=%s, peer=%d\n", PROTOCOL_VERSION, nMyStartingHeight, addrMe.ToString(), id);
-    PushMessage(NetMsgType::VERSION, PROTOCOL_VERSION, (uint64_t)nLocalServices, nTime, addrYou, addrMe,
-                nLocalHostNonce, strSubVersion, nMyStartingHeight, !GetBoolArg("-blocksonly", DEFAULT_BLOCKSONLY));
-}
-
-
-
-
 
 void CConnman::ClearBanned()
 {
@@ -2620,7 +2624,8 @@ unsigned int CConnman::GetSendBufferSize() const{ return nSendBufferMaxSize; }
 CNode::CNode(NodeId idIn, ServiceFlags nLocalServicesIn, int nMyStartingHeightIn, SOCKET hSocketIn, const CAddress& addrIn, const std::string& addrNameIn, bool fInboundIn, bool fNetworkNodeIn) :
     ssSend(SER_NETWORK, INIT_PROTO_VERSION),
     addrKnown(5000, 0.001),
-    filterInventoryKnown(50000, 0.000001)
+    filterInventoryKnown(50000, 0.000001),
+    nSendVersion(0)
 {
     nServices = NODE_NONE;
     nServicesExpected = NODE_NONE;
@@ -2685,10 +2690,6 @@ CNode::CNode(NodeId idIn, ServiceFlags nLocalServicesIn, int nMyStartingHeightIn
         LogPrint("net", "Added connection to %s peer=%d\n", addrName, id);
     else
         LogPrint("net", "Added connection peer=%d\n", id);
-
-    // Be shy and don't send version until we hear
-    if (hSocket != INVALID_SOCKET && !fInbound)
-        PushVersion();
 }
 
 CNode::~CNode()
@@ -2827,6 +2828,52 @@ std::vector<unsigned char> CNode::CalculateKeyedNetGroup(CAddress& address)
 
     hash.Finalize(begin_ptr(vch));
     return vch;
+}
+
+CDataStream CConnman::BeginMessage(CNode* pnode, int nVersion, int flags, const std::string& sCommand)
+{
+    return {SER_NETWORK, (nVersion ? nVersion : pnode->GetSendVersion()) | flags, CMessageHeader(Params().MessageStart(), sCommand.c_str(), 0) };
+}
+
+void CConnman::EndMessage(CDataStream& strm)
+{
+    // Set the size
+    assert(strm.size () >= CMessageHeader::HEADER_SIZE);
+    unsigned int nSize = strm.size() - CMessageHeader::HEADER_SIZE;
+    WriteLE32((uint8_t*)&strm[CMessageHeader::MESSAGE_SIZE_OFFSET], nSize);
+    // Set the checksum
+    uint256 hash = Hash(strm.begin() + CMessageHeader::HEADER_SIZE, strm.end());
+    memcpy((char*)&strm[CMessageHeader::CHECKSUM_OFFSET], hash.begin(), CMessageHeader::CHECKSUM_SIZE);
+
+}
+
+void CConnman::PushMessage(CNode* pnode, CDataStream& strm, const std::string& sCommand)
+{
+    if(strm.empty())
+        return;
+
+    unsigned int nSize = strm.size() - CMessageHeader::HEADER_SIZE;
+    LogPrint("net", "sending %s (%d bytes) peer=%d\n",  SanitizeString(sCommand.c_str()), nSize, pnode->id);
+
+    size_t nBytesSent = 0;
+    {
+        LOCK(pnode->cs_vSend);
+        if(pnode->hSocket == INVALID_SOCKET) {
+            return;
+        }
+        bool optimisticSend(pnode->vSendMsg.empty());
+        pnode->vSendMsg.emplace_back(strm.begin(), strm.end());
+
+        //log total amount of bytes per command
+        pnode->mapSendBytesPerMsgCmd[sCommand] += strm.size();
+        pnode->nSendSize += strm.size();
+
+        // If write queue empty, attempt "optimistic write"
+        if (optimisticSend == true)
+            nBytesSent = SocketSendData(pnode);
+    }
+    if (nBytesSent)
+        RecordBytesSent(nBytesSent);
 }
 
 bool CConnman::ForNode(const CService& addr, std::function<bool(CNode* pnode)> func)
