@@ -575,8 +575,7 @@ void CMasternodePayments::CheckAndRemove()
 
     LOCK2(cs_mapMasternodePayeeVotes, cs_mapMasternodeBlocks);
 
-    // keep a bit more for historical sake but at least minBlocksToStore
-    int nLimit = std::max(int(mnodeman.size() * nStorageCoeff), nMinBlocksToStore);
+    int nLimit = GetStorageLimit();
 
     std::map<uint256, CMasternodePaymentWinner>::iterator it = mapMasternodePayeeVotes.begin();
     while(it != mapMasternodePayeeVotes.end()) {
