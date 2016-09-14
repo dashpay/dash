@@ -97,7 +97,7 @@ UniValue masternode(const UniValue& params, bool fHelp)
         (strCommand != "start" && strCommand != "start-alias" && strCommand != "start-many" && strCommand != "start-all" && strCommand != "start-missing" &&
          strCommand != "start-disabled" && strCommand != "list" && strCommand != "list-conf" && strCommand != "count"  && strCommand != "enforce" &&
          strCommand != "debug" && strCommand != "current" && strCommand != "winner" && strCommand != "winners" && strCommand != "genkey" &&
-         strCommand != "connect" && strCommand != "outputs" && strCommand != "status" && strCommand != "calcscore"))
+         strCommand != "connect" && strCommand != "outputs" && strCommand != "status"))
             throw std::runtime_error(
                 "masternode \"command\"... ( \"passphrase\" )\n"
                 "Set of commands to execute masternode related actions\n"
@@ -430,47 +430,6 @@ UniValue masternode(const UniValue& params, bool fHelp)
 
         return obj;
     }
-
-    // 12.1 -- remove?
-    // /*
-    //     Shows which masternode wins by score each block
-    // */
-    // if (strCommand == "calcscore")
-    // {
-
-    //     int nHeight;
-    //     {
-    //         LOCK(cs_main);
-    //         CBlockIndex* pindex = chainActive.Tip();
-    //         if(!pindex) return NullUniValue;
-
-    //         nHeight = pindex->nHeight;
-    //     }
-
-    //     int nLast = 10;
-
-    //     if (params.size() >= 2){
-    //         nLast = atoi(params[1].get_str());
-    //     }
-    //     UniValue obj(UniValue::VOBJ);
-
-    //     std::vector<CMasternode> vMasternodes = mnodeman.GetFullMasternodeVector();
-    //     for(int i = nHeight - nLast; i < nHeight + 20; i++){
-    //         arith_uint256 nHigh = 0;
-    //         CMasternode *pBestMasternode = NULL;
-    //         BOOST_FOREACH(CMasternode& mn, vMasternodes) {
-    //             arith_uint256 n = UintToArith256(mn.CalculateScore(i - 101));
-    //             if(n > nHigh){
-    //                 nHigh = n;
-    //                 pBestMasternode = &mn;
-    //             }
-    //         }
-    //         if(pBestMasternode)
-    //             obj.push_back(Pair(strprintf("%d", i), pBestMasternode->vin.prevout.ToStringShort().c_str()));
-    //     }
-
-    //     return obj;
-    // }
 
     return NullUniValue;
 }
