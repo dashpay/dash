@@ -401,30 +401,6 @@ CMasternode *CMasternodeMan::FindRandomNotInVec(std::vector<CTxIn> &vecToExclude
     return NULL;
 }
 
-CMasternode* CMasternodeMan::GetCurrentMasterNode(int mod, int64_t nBlockHeight, int minProtocol)
-{
-    int64_t score = 0;
-    CMasternode* winner = NULL;
-
-    // scan for winner
-    BOOST_FOREACH(CMasternode& mn, vMasternodes) {
-        mn.Check();
-        if(mn.protocolVersion < minProtocol || !mn.IsEnabled()) continue;
-
-        // calculate the score for each Masternode
-        uint256 n = mn.CalculateScore(nBlockHeight);
-        int64_t n2 = UintToArith256(n).GetCompact(false);
-
-        // determine the winner
-        if(n2 > score){
-            score = n2;
-            winner = &mn;
-        }
-    }
-
-    return winner;
-}
-
 int CMasternodeMan::GetMasternodeRank(const CTxIn& vin, int64_t nBlockHeight, int minProtocol, bool fOnlyActive)
 {
     std::vector<pair<int64_t, CTxIn> > vecMasternodeScores;
