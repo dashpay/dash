@@ -453,7 +453,7 @@ UniValue masternode(const UniValue& params, bool fHelp)
     //         arith_uint256 nHigh = 0;
     //         CMasternode *pBestMasternode = NULL;
     //         BOOST_FOREACH(CMasternode& mn, vMasternodes) {
-    //             arith_uint256 n = UintToArith256(mn.CalculateScore(1, i - 101));
+    //             arith_uint256 n = UintToArith256(mn.CalculateScore(i - 101));
     //             if(n > nHigh){
     //                 nHigh = n;
     //                 pBestMasternode = &mn;
