@@ -629,7 +629,8 @@ bool CMasternodePaymentWinner::IsValid(CNode* pnode, int nValidationHeight, std:
         strError = strprintf("Masternode is not in the top %d (%d)", MNPAYMENTS_SIGNATURES_TOTAL, nRank);
         // Only ban for new mnw which is out of bounds, for old mnw MN list itself might be way too much off
         if(nRank > MNPAYMENTS_SIGNATURES_TOTAL*2 && nBlockHeight > nValidationHeight) {
-            LogPrintf("CMasternodePaymentWinner::IsValid -- Error: Masternode is not in the top %d (%d)\n", MNPAYMENTS_SIGNATURES_TOTAL*2, nRank);
+            strError = strprintf("Masternode is not in the top %d (%d)", MNPAYMENTS_SIGNATURES_TOTAL*2, nRank);
+            LogPrintf("CMasternodePaymentWinner::IsValid -- Error: %s\n", strError);
             Misbehaving(pnode->GetId(), 20);
         }
         // Still invalid however
