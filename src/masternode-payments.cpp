@@ -2,19 +2,17 @@
 // Distributed under the MIT/X11 software license, see the accompanying
 // file COPYING or http://www.opensource.org/licenses/mit-license.php.
 
+#include "activemasternode.h"
+#include "addrman.h"
+#include "darksend.h"
+#include "governance-classes.h"
 #include "masternode-payments.h"
-#include "governance.h"
 #include "masternode-sync.h"
 #include "masternodeman.h"
-#include "darksend.h"
-#include "activemasternode.h"
-#include "governance-classes.h"
-#include "util.h"
-#include "sync.h"
 #include "spork.h"
-#include "addrman.h"
+#include "util.h"
+
 #include <boost/lexical_cast.hpp>
-#include <boost/filesystem.hpp>
 
 /** Object for who's going to get paid on which blocks */
 CMasternodePayments mnpayments;
@@ -211,6 +209,13 @@ std::string GetRequiredPaymentsString(int nBlockHeight)
     return mnpayments.GetRequiredPaymentsString(nBlockHeight);
 }
 
+void CMasternodePayments::Clear()
+{
+    LOCK2(cs_mapMasternodeBlocks, cs_mapMasternodePayeeVotes);
+    mapMasternodeBlocks.clear();
+    mapMasternodePayeeVotes.clear();
+}
+
 bool CMasternodePayments::CanVote(COutPoint outMasternode, int nBlockHeight)
 {
     LOCK(cs_mapMasternodePayeeVotes);
@@ -290,7 +295,7 @@ void CMasternodePayments::ProcessMessage(CNode* pfrom, std::string& strCommand, 
 
         if(Params().NetworkIDString() == CBaseChainParams::MAIN){
             if(pfrom->HasFulfilledRequest(NetMsgType::MNWINNERSSYNC)) {
-                LogPrintf("mnget - peer already asked me for the list\n");
+                LogPrintf("MNWINNERSSYNC -- peer already asked me for the list, peer=%d\n", pfrom->id);
                 Misbehaving(pfrom->GetId(), 20);
                 return;
             }
@@ -298,10 +303,10 @@ void CMasternodePayments::ProcessMessage(CNode* pfrom, std::string& strCommand, 
 
         pfrom->FulfilledRequest(NetMsgType::MNWINNERSSYNC);
         Sync(pfrom, nCountNeeded);
-        LogPrintf("mnget - Sent Masternode winners to %s\n", pfrom->addr.ToString());
-    }
-    else if (strCommand == NetMsgType::MNWINNER) { //Masternode Payments Declare Winner
-        //this is required in litemodef
+        LogPrintf("MNWINNERSSYNC -- Sent Masternode winners to peer %d\n", pfrom->id);
+
+    } else if (strCommand == NetMsgType::MNWINNER) { //Masternode Payments Declare Winner
+
         CMasternodePaymentWinner winner;
         vRecv >> winner;
 
@@ -310,7 +315,7 @@ void CMasternodePayments::ProcessMessage(CNode* pfrom, std::string& strCommand, 
         if(!pCurrentBlockIndex) return;
 
         if(mapMasternodePayeeVotes.count(winner.GetHash())) {
-            LogPrint("mnpayments", "MNWINNER -- Already seen: hash=%s, nHeight=%d\n", winner.GetHash().ToString(), pCurrentBlockIndex->nHeight);
+            LogPrint("mnpayments", "MNWINNER -- hash=%s, nHeight=%d seen\n", winner.GetHash().ToString(), pCurrentBlockIndex->nHeight);
             masternodeSync.AddedMasternodeWinner();
             return;
         }
@@ -327,8 +332,8 @@ void CMasternodePayments::ProcessMessage(CNode* pfrom, std::string& strCommand, 
             return;
         }
 
-        if(!CanVote(winner.vinMasternode.prevout, winner.nBlockHeight)){
-            LogPrintf("MNWINNER -- masternode already voted: prevout=%s\n", winner.vinMasternode.prevout.ToStringShort());
+        if(!CanVote(winner.vinMasternode.prevout, winner.nBlockHeight)) {
+            LogPrintf("MNWINNER -- masternode already voted, masternode=%s\n", winner.vinMasternode.prevout.ToStringShort());
             return;
         }
 
@@ -385,7 +390,7 @@ bool CMasternodePayments::GetBlockPayee(int nBlockHeight, CScript& payee)
     return false;
 }
 
-// Is this masternode scheduled to get paid soon? 
+// Is this masternode scheduled to get paid soon?
 // -- Only look ahead up to 8 blocks to allow for propagation of the latest 2 winners
 bool CMasternodePayments::IsScheduled(CMasternode& mn, int nNotBlockHeight)
 {
@@ -399,12 +404,8 @@ bool CMasternodePayments::IsScheduled(CMasternode& mn, int nNotBlockHeight)
     CScript payee;
     for(int64_t h = pCurrentBlockIndex->nHeight; h <= pCurrentBlockIndex->nHeight + 8; h++){
         if(h == nNotBlockHeight) continue;
-        if(mapMasternodeBlocks.count(h)){
-            if(mapMasternodeBlocks[h].GetPayee(payee)){
-                if(mnpayee == payee) {
-                    return true;
-                }
-            }
+        if(mapMasternodeBlocks.count(h) && mapMasternodeBlocks[h].GetPayee(payee) && mnpayee == payee) {
+            return true;
         }
     }
 
@@ -581,15 +582,15 @@ void CMasternodePayments::CheckAndRemove()
     while(it != mapMasternodePayeeVotes.end()) {
         CMasternodePaymentWinner winner = (*it).second;
 
-        if(pCurrentBlockIndex->nHeight - winner.nBlockHeight > nLimit){
-            LogPrint("mnpayments", "CMasternodePayments::CleanPaymentList - Removing old Masternode payment - block %d\n", winner.nBlockHeight);
+        if(pCurrentBlockIndex->nHeight - winner.nBlockHeight > nLimit) {
+            LogPrint("mnpayments", "CMasternodePayments::CheckAndRemove -- Removing old Masternode payment: nBlockHeight=%d\n", winner.nBlockHeight);
             mapMasternodePayeeVotes.erase(it++);
             mapMasternodeBlocks.erase(winner.nBlockHeight);
         } else {
             ++it;
         }
     }
-    LogPrintf("CMasternodePayments::CleanPaymentList() - %s\n", ToString());
+    LogPrintf("CMasternodePayments::CheckAndRemove -- %s\n", ToString());
 }
 
 bool CMasternodePaymentWinner::IsValid(CNode* pnode, int nValidationHeight, std::string& strError)
@@ -625,7 +626,7 @@ bool CMasternodePaymentWinner::IsValid(CNode* pnode, int nValidationHeight, std:
     if(nRank > MNPAYMENTS_SIGNATURES_TOTAL) {
         // It's common to have masternodes mistakenly think they are in the top 10
         // We don't want to print all of these messages in normal mode, debug mode should print though
-        strError = strprintf("Masternode is not in the top %d (%d)\n", MNPAYMENTS_SIGNATURES_TOTAL, nRank);
+        strError = strprintf("Masternode is not in the top %d (%d)", MNPAYMENTS_SIGNATURES_TOTAL, nRank);
         // Only ban for new mnw which is out of bounds, for old mnw MN list itself might be way too much off
         if(nRank > MNPAYMENTS_SIGNATURES_TOTAL*2 && nBlockHeight > nValidationHeight) {
             LogPrintf("CMasternodePaymentWinner::IsValid -- Error: Masternode is not in the top %d (%d)\n", MNPAYMENTS_SIGNATURES_TOTAL*2, nRank);
@@ -740,7 +741,7 @@ std::string CMasternodePaymentWinner::ToString() const
     return info.str();
 }
 
-void CMasternodePayments::Sync(CNode* node, int nCountNeeded)
+void CMasternodePayments::Sync(CNode* pnode, int nCountNeeded)
 {
     LOCK(cs_mapMasternodePayeeVotes);
 
@@ -754,12 +755,14 @@ void CMasternodePayments::Sync(CNode* node, int nCountNeeded)
     while(it != mapMasternodePayeeVotes.end()) {
         CMasternodePaymentWinner winner = (*it).second;
         if(winner.nBlockHeight >= pCurrentBlockIndex->nHeight - nCountNeeded && winner.nBlockHeight <= pCurrentBlockIndex->nHeight + 20) {
-            node->PushInventory(CInv(MSG_MASTERNODE_WINNER, winner.GetHash()));
+            pnode->PushInventory(CInv(MSG_MASTERNODE_WINNER, winner.GetHash()));
             nInvCount++;
         }
         ++it;
     }
-    node->PushMessage(NetMsgType::SYNCSTATUSCOUNT, MASTERNODE_SYNC_MNW, nInvCount);
+
+    LogPrintf("CMasternodePayments::Sync -- Sent %d winners to peer %d\n", nInvCount, pnode->id);
+    pnode->PushMessage(NetMsgType::SYNCSTATUSCOUNT, MASTERNODE_SYNC_MNW, nInvCount);
 }
 
 std::string CMasternodePayments::ToString() const
@@ -770,44 +773,6 @@ std::string CMasternodePayments::ToString() const
             ", Blocks: " << (int)mapMasternodeBlocks.size();
 
     return info.str();
-}
-
-
-
-int CMasternodePayments::GetOldestBlock()
-{
-    LOCK(cs_mapMasternodeBlocks);
-
-    int nOldestBlock = std::numeric_limits<int>::max();
-
-    std::map<int, CMasternodeBlockPayees>::iterator it = mapMasternodeBlocks.begin();
-    while(it != mapMasternodeBlocks.end()) {
-        if((*it).first < nOldestBlock) {
-            nOldestBlock = (*it).first;
-        }
-        it++;
-    }
-
-    return nOldestBlock;
-}
-
-
-
-int CMasternodePayments::GetNewestBlock()
-{
-    LOCK(cs_mapMasternodeBlocks);
-
-    int nNewestBlock = 0;
-
-    std::map<int, CMasternodeBlockPayees>::iterator it = mapMasternodeBlocks.begin();
-    while(it != mapMasternodeBlocks.end()) {
-        if((*it).first > nNewestBlock) {
-            nNewestBlock = (*it).first;
-        }
-        it++;
-    }
-
-    return nNewestBlock;
 }
 
 bool CMasternodePayments::IsEnoughData(int nMnCount) {
@@ -830,7 +795,7 @@ int CMasternodePayments::GetStorageLimit()
 void CMasternodePayments::UpdatedBlockTip(const CBlockIndex *pindex)
 {
     pCurrentBlockIndex = pindex;
-    LogPrint("mnpayments", "pCurrentBlockIndex->nHeight: %d\n", pCurrentBlockIndex->nHeight);
+    LogPrint("mnpayments", "CMasternodePayments::UpdatedBlockTip -- pCurrentBlockIndex->nHeight=%d\n", pCurrentBlockIndex->nHeight);
 
     ProcessBlock(pindex->nHeight + 10);
     // normal wallet does not need to update this every block, doing update on rpc call should be enough
