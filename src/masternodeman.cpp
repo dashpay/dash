@@ -92,7 +92,7 @@ void CMasternodeMan::Check()
     }
 }
 
-void CMasternodeMan::CheckAndRemove(bool forceExpiredRemoval)
+void CMasternodeMan::CheckAndRemove(bool fForceExpiredRemoval)
 {
     LogPrintf("CMasternodeMan::CheckAndRemove\n");
 
@@ -100,36 +100,25 @@ void CMasternodeMan::CheckAndRemove(bool forceExpiredRemoval)
 
     LOCK(cs);
 
-    //remove inactive and outdated
-    vector<CMasternode>::iterator it = vMasternodes.begin();
-    while(it != vMasternodes.end()){
-        if((*it).activeState == CMasternode::MASTERNODE_REMOVE ||
-                (*it).activeState == CMasternode::MASTERNODE_VIN_SPENT ||
-                (forceExpiredRemoval && (*it).activeState == CMasternode::MASTERNODE_EXPIRED)) {
-            LogPrint("masternode", "CMasternodeMan::CheckAndRemove - Removing %s Masternode %s - %i now\n", (*it).Status(), (*it).addr.ToString(), size() - 1);
+    // Remove inactive and outdated masternodes
+    std::vector<CMasternode>::iterator it = vMasternodes.begin();
+    while(it != vMasternodes.end()) {
+        bool fRemove =  // If it's marked to be removed from the list by CMasternode::Check for whatever reason ...
+                        (*it).activeState == CMasternode::MASTERNODE_REMOVE ||
+                        // or collateral was spent ...
+                        (*it).activeState == CMasternode::MASTERNODE_VIN_SPENT ||
+                        // or we were asked to remove exired entries ...
+                        (fForceExpiredRemoval && (*it).activeState == CMasternode::MASTERNODE_EXPIRED);
 
-            //erase all of the broadcasts we've seen from this vin
-            // -- if we missed a few pings and the node was removed, this will allow is to get it back without them 
-            //    sending a brand new mnb
-            map<uint256, CMasternodeBroadcast>::iterator it3 = mapSeenMasternodeBroadcast.begin();
-            while(it3 != mapSeenMasternodeBroadcast.end()){
-                if((*it3).second.vin == (*it).vin){
-                    mapSeenMasternodeBroadcast.erase(it3++);
-                } else {
-                    ++it3;
-                }
-            }
+        if (fRemove) {
+            LogPrint("masternode", "CMasternodeMan::CheckAndRemove -- Removing Masternode: %s  addr=%s  %i now\n", (*it).Status(), (*it).addr.ToString(), size() - 1);
 
-            // allow us to ask for this masternode again if we see another ping
-            map<COutPoint, int64_t>::iterator it2 = mWeAskedForMasternodeListEntry.begin();
-            while(it2 != mWeAskedForMasternodeListEntry.end()){
-                if((*it2).first == (*it).vin.prevout){
-                    mWeAskedForMasternodeListEntry.erase(it2++);
-                } else {
-                    ++it2;
-                }
-            }
+            // erase all of the broadcasts we've seen from this txin, ...
+            mapSeenMasternodeBroadcast.erase(CMasternodeBroadcast(*it).GetHash());
+            // allow us to ask for this masternode again if we see another ping ...
+            mWeAskedForMasternodeListEntry.erase((*it).vin.prevout);
 
+            // and finally remove it from the list
             it = vMasternodes.erase(it);
         } else {
             ++it;
