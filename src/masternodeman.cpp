@@ -598,7 +598,7 @@ void CMasternodeMan::ProcessMessage(CNode* pfrom, std::string& strCommand, CData
         CTxIn vin;
         vRecv >> vin;
 
-        LogPrint("masternode", "dseg - Masternode list, vin: %s\n", vin.ToString());
+        LogPrint("masternode", "CMasternodeMan::ProcessMessage -- DSEG -- Masternode list, masternode=%s\n", vin.prevout.ToStringShort());
 
         if(vin == CTxIn()) { //only should ask for this once
             //local network
@@ -610,7 +610,7 @@ void CMasternodeMan::ProcessMessage(CNode* pfrom, std::string& strCommand, CData
                     int64_t t = (*i).second;
                     if (GetTime() < t) {
                         Misbehaving(pfrom->GetId(), 34);
-                        LogPrintf("dseg - peer already asked me for the list\n");
+                        LogPrintf("CMasternodeMan::ProcessMessage -- DSEG -- peer already asked me for the list, peer=\n", pfrom->id);
                         return;
                     }
                 }
@@ -619,34 +619,36 @@ void CMasternodeMan::ProcessMessage(CNode* pfrom, std::string& strCommand, CData
             }
         } //else, asking for a specific node which is ok
 
-
         int nInvCount = 0;
 
         BOOST_FOREACH(CMasternode& mn, vMasternodes) {
-            if(mn.addr.IsRFC1918() || mn.addr.IsLocal()) continue; //local network
+            if (vin != CTxIn() && vin != mn.vin) continue; // asked for specific vin but we are not there yet
+            if (mn.addr.IsRFC1918() || mn.addr.IsLocal()) continue; // do not send local network masternode
+            if (!mn.IsEnabled()) continue;
 
-            if(mn.IsEnabled()) {
-                if(vin == CTxIn() || vin == mn.vin){
-                    LogPrint("masternode", "dseg - Sending Masternode entry - %s \n", mn.addr.ToString());
-                    CMasternodeBroadcast mnb = CMasternodeBroadcast(mn);
-                    uint256 hash = mnb.GetHash();
-                    pfrom->PushInventory(CInv(MSG_MASTERNODE_ANNOUNCE, hash));
-                    nInvCount++;
+            LogPrint("masternode", "CMasternodeMan::ProcessMessage -- DSEG -- Sending Masternode entry: masternode=%s  addr=%s\n", mn.vin.prevout.ToStringShort(), mn.addr.ToString());
+            CMasternodeBroadcast mnb = CMasternodeBroadcast(mn);
+            uint256 hash = mnb.GetHash();
+            pfrom->PushInventory(CInv(MSG_MASTERNODE_ANNOUNCE, hash));
+            nInvCount++;
 
-                    if(!mapSeenMasternodeBroadcast.count(hash)) mapSeenMasternodeBroadcast.insert(make_pair(hash, mnb));
+            if (!mapSeenMasternodeBroadcast.count(hash)) {
+                mapSeenMasternodeBroadcast.insert(std::make_pair(hash, mnb));
+            }
 
-                    if(vin == mn.vin) {
-                        LogPrintf("dseg - Sent 1 Masternode entries to %s\n", pfrom->addr.ToString());
-                        return;
-                    }
-                }
+            if (vin == mn.vin) {
+                LogPrintf("CMasternodeMan::ProcessMessage -- DSEG -- Sent 1 Masternode inv to peer %d\n", pfrom->id);
+                return;
             }
         }
 
         if(vin == CTxIn()) {
             pfrom->PushMessage(NetMsgType::SYNCSTATUSCOUNT, MASTERNODE_SYNC_LIST, nInvCount);
-            LogPrintf("dseg - Sent %d Masternode entries to %s\n", nInvCount, pfrom->addr.ToString());
+            LogPrintf("CMasternodeMan::ProcessMessage -- DSEG -- Sent %d Masternode invs to peer %d\n", nInvCount, pfrom->id);
+            return;
         }
+        // smth weird happen - someone asked us for vin we have no idea about?
+        LogPrint("masternode", "CMasternodeMan::ProcessMessage -- DSEG -- No invs sent to peer %d\n", pfrom->id);
     }
 }
 
