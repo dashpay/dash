@@ -141,22 +141,23 @@ uint256 CMasternode::CalculateScore(int nBlockHeight)
 
 void CMasternode::Check(bool forceCheck)
 {
+    //once spent, stop doing the checks
+    if(activeState == MASTERNODE_VIN_SPENT) return;
+
     if(ShutdownRequested()) return;
 
     if(!forceCheck && (GetTime() - lastTimeChecked < MASTERNODE_CHECK_SECONDS)) return;
     lastTimeChecked = GetTime();
 
+    bool fRemove =  // If there were no pings for quite a long time ...
+                    !IsPingedWithin(MASTERNODE_REMOVAL_SECONDS) ||
+                    // or masternode doesn't meet payment protocol requirements ...
+                    protocolVersion < mnpayments.GetMinMasternodePaymentsProto() ||
+                    // or it's our own node and we just updated it to the new protocol but we are still waiting for activation ...
+                    (pubkey2 == activeMasternode.pubKeyMasternode && protocolVersion < PROTOCOL_VERSION);
 
-    //once spent, stop doing the checks
-    if(activeState == MASTERNODE_VIN_SPENT) return;
-
-    // If there are no pings for quite a long time ...
-    if(!IsPingedWithin(MASTERNODE_REMOVAL_SECONDS)
-        // or doesn't meet payments requirements ...
-        || protocolVersion < mnpayments.GetMinMasternodePaymentsProto()
-        // or it's our own node and we just updated it to the new protocol but we are still waiting for activation -
-        || (pubkey2 == activeMasternode.pubKeyMasternode && protocolVersion < PROTOCOL_VERSION)) {
-        // remove it from the list
+    if(fRemove) {
+        // it should be removed from the list
         activeState = MASTERNODE_REMOVE;
 
         // RESCAN AFFECTED VOTES
@@ -164,7 +165,7 @@ void CMasternode::Check(bool forceCheck)
         return;
     }
 
-    if(!IsPingedWithin(MASTERNODE_EXPIRATION_SECONDS)){
+    if(!IsPingedWithin(MASTERNODE_EXPIRATION_SECONDS)) {
         activeState = MASTERNODE_EXPIRED;
 
         // RESCAN AFFECTED VOTES
@@ -172,12 +173,12 @@ void CMasternode::Check(bool forceCheck)
         return;
     }
 
-    if(lastPing.sigTime - sigTime < MASTERNODE_MIN_MNP_SECONDS){
+    if(lastPing.sigTime - sigTime < MASTERNODE_MIN_MNP_SECONDS) {
         activeState = MASTERNODE_PRE_ENABLED;
         return;
     }
 
-    if(!unitTest){
+    if(!unitTest) {
         CValidationState state;
         CMutableTransaction tx = CMutableTransaction();
         CTxOut txout = CTxOut(999.99*COIN, mnodeman.dummyScriptPubkey);
