@@ -35,10 +35,10 @@ public:
     //removed stop
 
     CMasternodePing() :
-        vin(CTxIn()),
-        blockHash(uint256()),
+        vin(),
+        blockHash(),
         sigTime(0),
-        vchSig(std::vector<unsigned char>())
+        vchSig()
         {}
 
     CMasternodePing(CTxIn& vinNew);
