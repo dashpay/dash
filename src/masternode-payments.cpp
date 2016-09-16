@@ -439,12 +439,12 @@ void CMasternodeBlockPayees::AddPayee(CMasternodePaymentWinner winner)
     LOCK(cs_vecPayees);
 
     BOOST_FOREACH(CMasternodePayee& payee, vecPayees) {
-        if (payee.scriptPubKey == winner.payee) {
-            payee.nVotes++;
+        if (payee.GetPayee() == winner.payee) {
+            payee.AddVoteHash(winner.GetHash());
             return;
         }
     }
-    CMasternodePayee payeeNew(winner.payee, 1);
+    CMasternodePayee payeeNew(winner.payee, winner.GetHash());
     vecPayees.push_back(payeeNew);
 }
 
@@ -459,9 +459,9 @@ bool CMasternodeBlockPayees::GetPayee(CScript& payeeRet)
 
     int nVotes = -1;
     BOOST_FOREACH(CMasternodePayee& payee, vecPayees) {
-        if (payee.nVotes > nVotes) {
-            payeeRet = payee.scriptPubKey;
-            nVotes = payee.nVotes;
+        if (payee.GetVoteCount() > nVotes) {
+            payeeRet = payee.GetPayee();
+            nVotes = payee.GetVoteCount();
         }
     }
 
@@ -473,7 +473,7 @@ bool CMasternodeBlockPayees::HasPayeeWithVotes(CScript payeeIn, int nVotesReq)
     LOCK(cs_vecPayees);
 
     BOOST_FOREACH(CMasternodePayee& payee, vecPayees) {
-        if (payee.nVotes >= nVotesReq && payee.scriptPubKey == payeeIn) {
+        if (payee.GetVoteCount() >= nVotesReq && payee.GetPayee() == payeeIn) {
             return true;
         }
     }
@@ -494,8 +494,8 @@ bool CMasternodeBlockPayees::IsTransactionValid(const CTransaction& txNew)
     //require at least MNPAYMENTS_SIGNATURES_REQUIRED signatures
 
     BOOST_FOREACH(CMasternodePayee& payee, vecPayees) {
-        if (payee.nVotes >= nMaxSignatures) {
-            nMaxSignatures = payee.nVotes;
+        if (payee.GetVoteCount() >= nMaxSignatures) {
+            nMaxSignatures = payee.GetVoteCount();
         }
     }
 
@@ -503,16 +503,16 @@ bool CMasternodeBlockPayees::IsTransactionValid(const CTransaction& txNew)
     if(nMaxSignatures < MNPAYMENTS_SIGNATURES_REQUIRED) return true;
 
     BOOST_FOREACH(CMasternodePayee& payee, vecPayees) {
-        if (payee.nVotes >= MNPAYMENTS_SIGNATURES_REQUIRED) {
+        if (payee.GetVoteCount() >= MNPAYMENTS_SIGNATURES_REQUIRED) {
             BOOST_FOREACH(CTxOut txout, txNew.vout) {
-                if (payee.scriptPubKey == txout.scriptPubKey && nMasternodePayment == txout.nValue) {
+                if (payee.GetPayee() == txout.scriptPubKey && nMasternodePayment == txout.nValue) {
                     LogPrint("mnpayments", "CMasternodeBlockPayees::IsTransactionValid -- Found required payment\n");
                     return true;
                 }
             }
 
             CTxDestination address1;
-            ExtractDestination(payee.scriptPubKey, address1);
+            ExtractDestination(payee.GetPayee(), address1);
             CBitcoinAddress address2(address1);
 
             if(strPayeesPossible == "") {
@@ -536,13 +536,13 @@ std::string CMasternodeBlockPayees::GetRequiredPaymentsString()
     BOOST_FOREACH(CMasternodePayee& payee, vecPayees)
     {
         CTxDestination address1;
-        ExtractDestination(payee.scriptPubKey, address1);
+        ExtractDestination(payee.GetPayee(), address1);
         CBitcoinAddress address2(address1);
 
         if (strRequiredPayments != "Unknown") {
-            strRequiredPayments += ", " + address2.ToString() + ":" + boost::lexical_cast<std::string>(payee.nVotes);
+            strRequiredPayments += ", " + address2.ToString() + ":" + boost::lexical_cast<std::string>(payee.GetVoteCount());
         } else {
-            strRequiredPayments = address2.ToString() + ":" + boost::lexical_cast<std::string>(payee.nVotes);
+            strRequiredPayments = address2.ToString() + ":" + boost::lexical_cast<std::string>(payee.GetVoteCount());
         }
     }
 
@@ -743,9 +743,10 @@ std::string CMasternodePaymentWinner::ToString() const
     return info.str();
 }
 
+// Send all votes up to nCountNeeded blocks (but not more than GetStorageLimit)
 void CMasternodePayments::Sync(CNode* pnode, int nCountNeeded)
 {
-    LOCK(cs_mapMasternodePayeeVotes);
+    LOCK(cs_mapMasternodeBlocks);
 
     if(!pCurrentBlockIndex) return;
 
@@ -753,14 +754,17 @@ void CMasternodePayments::Sync(CNode* pnode, int nCountNeeded)
     if(nCountNeeded > nLimit) nCountNeeded = nLimit;
 
     int nInvCount = 0;
-    std::map<uint256, CMasternodePaymentWinner>::iterator it = mapMasternodePayeeVotes.begin();
-    while(it != mapMasternodePayeeVotes.end()) {
-        CMasternodePaymentWinner winner = (*it).second;
-        if(winner.nBlockHeight >= pCurrentBlockIndex->nHeight - nCountNeeded && winner.nBlockHeight <= pCurrentBlockIndex->nHeight + 20) {
-            pnode->PushInventory(CInv(MSG_MASTERNODE_WINNER, winner.GetHash()));
-            nInvCount++;
+
+    for(int h = pCurrentBlockIndex->nHeight - nCountNeeded; h < pCurrentBlockIndex->nHeight + 20; h++) {
+        if(mapMasternodeBlocks.count(h)) {
+            BOOST_FOREACH(CMasternodePayee& payee, mapMasternodeBlocks[h].vecPayees) {
+                std::vector<uint256> vecVoteHashes = payee.GetVoteHashes();
+                BOOST_FOREACH(uint256& hash, vecVoteHashes) {
+                    pnode->PushInventory(CInv(MSG_MASTERNODE_WINNER, hash));
+                    nInvCount++;
+                }
+            }
         }
-        ++it;
     }
 
     LogPrintf("CMasternodePayments::Sync -- Sent %d winners to peer %d\n", nInvCount, pnode->id);

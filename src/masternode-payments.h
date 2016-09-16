@@ -40,12 +40,25 @@ std::string GetRequiredPaymentsString(int nBlockHeight);
 
 class CMasternodePayee
 {
-public:
+private:
     CScript scriptPubKey;
     int nVotes;
+    std::vector<uint256> vecVoteHashes;
 
-    CMasternodePayee() : scriptPubKey(CScript()), nVotes(0) {}
-    CMasternodePayee(CScript payee, int nVotesIn) : scriptPubKey(payee), nVotes(nVotesIn) {}
+public:
+    CMasternodePayee() :
+        scriptPubKey(),
+        nVotes(0),
+        vecVoteHashes()
+        {}
+
+    CMasternodePayee(CScript payee, uint256 hashIn) :
+        scriptPubKey(payee),
+        nVotes(1),
+        vecVoteHashes(hashIn)
+    {
+        vecVoteHashes.push_back(hashIn);
+    }
 
     ADD_SERIALIZE_METHODS;
 
@@ -53,7 +66,18 @@ public:
     inline void SerializationOp(Stream& s, Operation ser_action, int nType, int nVersion) {
         READWRITE(*(CScriptBase*)(&scriptPubKey));
         READWRITE(nVotes);
-     }
+        READWRITE(vecVoteHashes);
+    }
+
+    CScript GetPayee() { return scriptPubKey; }
+    int GetVoteCount() { return nVotes; }
+
+    void AddVoteHash(uint256 hashIn)
+    {
+        vecVoteHashes.push_back(hashIn);
+        nVotes++;
+    }
+    std::vector<uint256> GetVoteHashes() { return vecVoteHashes; }
 };
 
 // Keep track of votes for payees from masternodes
