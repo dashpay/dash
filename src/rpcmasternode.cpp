@@ -242,16 +242,13 @@ UniValue masternode(const UniValue& params, bool fHelp)
 
     if (strCommand == "start-alias")
     {
-        if (params.size() < 2){
-            throw JSONRPCError(RPC_INVALID_PARAMETER, "Command needs at least 2 parameters");
-        }
-
-        std::string alias = params[1].get_str();
-
+        if (params.size() < 2)
+            throw JSONRPCError(RPC_INVALID_PARAMETER, "Please specify an alias");
 
         LOCK(pwalletMain->cs_wallet);
         EnsureWalletIsUnlocked();
 
+        std::string alias = params[1].get_str();
 
         bool found = false;
 
@@ -595,7 +592,7 @@ UniValue masternodebroadcast(const UniValue& params, bool fHelp)
             throw JSONRPCError(RPC_INTERNAL_ERROR, "Wait for reindex and/or import to finish");
 
         if (params.size() < 2)
-            throw JSONRPCError(RPC_INVALID_PARAMETER, "Command needs at least 2 parameters");
+            throw JSONRPCError(RPC_INVALID_PARAMETER, "Please specify an alias");
 
         std::string alias = params[1].get_str();
 
