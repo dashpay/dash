@@ -777,16 +777,10 @@ std::string CMasternodePayments::ToString() const
     return info.str();
 }
 
-bool CMasternodePayments::IsEnoughData(int nMnCount) {
-    if(GetBlockCount() > nMnCount * nStorageCoeff && GetBlockCount() > nMinBlocksToStore)
-    {
-        float nAverageVotes = (MNPAYMENTS_SIGNATURES_TOTAL + MNPAYMENTS_SIGNATURES_REQUIRED) / 2;
-        if(GetVoteCount() > nMnCount * nStorageCoeff * nAverageVotes && GetVoteCount() > nMinBlocksToStore * nAverageVotes)
-        {
-            return true;
-        }
-    }
-    return false;
+bool CMasternodePayments::IsEnoughData()
+{
+    float nAverageVotes = (MNPAYMENTS_SIGNATURES_TOTAL + MNPAYMENTS_SIGNATURES_REQUIRED) / 2;
+    return GetVoteCount() > GetStorageLimit() * nAverageVotes;
 }
 
 int CMasternodePayments::GetStorageLimit()
