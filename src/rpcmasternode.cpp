@@ -89,12 +89,16 @@ UniValue getpoolinfo(const UniValue& params, bool fHelp)
 
 UniValue masternode(const UniValue& params, bool fHelp)
 {
-    string strCommand;
-    if (params.size() >= 1)
+    std::string strCommand;
+    if (params.size() >= 1) {
         strCommand = params[0].get_str();
+    }
+
+    if (strCommand == "start-many")
+        throw JSONRPCError(RPC_INVALID_PARAMETER, "DEPRECATED, please use start-all instead");
 
     if (fHelp  ||
-        (strCommand != "start" && strCommand != "start-alias" && strCommand != "start-many" && strCommand != "start-all" && strCommand != "start-missing" &&
+        (strCommand != "start" && strCommand != "start-alias" && strCommand != "start-all" && strCommand != "start-missing" &&
          strCommand != "start-disabled" && strCommand != "list" && strCommand != "list-conf" && strCommand != "count"  && strCommand != "enforce" &&
          strCommand != "debug" && strCommand != "current" && strCommand != "winner" && strCommand != "winners" && strCommand != "genkey" &&
          strCommand != "connect" && strCommand != "outputs" && strCommand != "status"))
@@ -286,7 +290,7 @@ UniValue masternode(const UniValue& params, bool fHelp)
 
     }
 
-    if (strCommand == "start-many" || strCommand == "start-all" || strCommand == "start-missing" || strCommand == "start-disabled")
+    if (strCommand == "start-all" || strCommand == "start-missing" || strCommand == "start-disabled")
     {
         LOCK(pwalletMain->cs_wallet);
         EnsureWalletIsUnlocked();
