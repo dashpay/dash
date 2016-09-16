@@ -154,29 +154,31 @@ UniValue masternode(const UniValue& params, bool fHelp)
 
     if (strCommand == "count")
     {
-        if (params.size() > 2){
+        if (params.size() > 2)
             throw JSONRPCError(RPC_INVALID_PARAMETER, "Too many parameters");
-        }
-        if (params.size() == 2)
-        {
-            int nCount = 0;
 
-            {
-                LOCK(cs_main);
-                if(chainActive.Tip())
-                    mnodeman.GetNextMasternodeInQueueForPayment(chainActive.Tip()->nHeight, true, nCount);
-            }
+        if (params.size() == 1)
+            return mnodeman.size();
 
-            if(params[1].get_str() == "ps") return mnodeman.CountEnabled(MIN_PRIVATESEND_PEER_PROTO_VERSION);
-            if(params[1].get_str() == "enabled") return mnodeman.CountEnabled();
-            if(params[1].get_str() == "qualify") return nCount;
-            if(params[1].get_str() == "all") return strprintf("Total: %d (PS Compatible: %d / Enabled: %d / Qualify: %d)",
-                                                    mnodeman.size(),
-                                                    mnodeman.CountEnabled(MIN_PRIVATESEND_PEER_PROTO_VERSION),
-                                                    mnodeman.CountEnabled(),
-                                                    nCount);
-        }
-        return mnodeman.size();
+        std::string strMode = params[1].get_str();
+
+        if (strMode == "ps")
+            return mnodeman.CountEnabled(MIN_PRIVATESEND_PEER_PROTO_VERSION);
+
+        if (strMode == "enabled")
+            return mnodeman.CountEnabled();
+
+        LOCK(cs_main);
+        int nCount;
+        mnodeman.GetNextMasternodeInQueueForPayment(chainActive.Height(), true, nCount);
+
+        if (strMode == "qualify")
+            return nCount;
+
+        if (strMode == "all")
+            return strprintf("Total: %d (PS Compatible: %d / Enabled: %d / Qualify: %d)",
+                mnodeman.size(), mnodeman.CountEnabled(MIN_PRIVATESEND_PEER_PROTO_VERSION),
+                mnodeman.CountEnabled(), nCount);
     }
 
     if (strCommand == "current" || strCommand == "winner")
