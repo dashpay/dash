@@ -55,7 +55,7 @@ public:
     CMasternodePayee(CScript payee, uint256 hashIn) :
         scriptPubKey(payee),
         nVotes(1),
-        vecVoteHashes(hashIn)
+        vecVoteHashes()
     {
         vecVoteHashes.push_back(hashIn);
     }
@@ -193,6 +193,7 @@ public:
     bool ProcessBlock(int nBlockHeight);
 
     void Sync(CNode* node, int nCountNeeded);
+    void RequestLowDataPaymentBlocks(CNode* pnode);
     void CheckAndRemove();
 
     bool GetBlockPayee(int nBlockHeight, CScript& payee);
