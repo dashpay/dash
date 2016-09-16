@@ -99,7 +99,7 @@ UniValue masternode(const UniValue& params, bool fHelp)
 
     if (fHelp  ||
         (strCommand != "start" && strCommand != "start-alias" && strCommand != "start-all" && strCommand != "start-missing" &&
-         strCommand != "start-disabled" && strCommand != "list" && strCommand != "list-conf" && strCommand != "count"  && strCommand != "enforce" &&
+         strCommand != "start-disabled" && strCommand != "list" && strCommand != "list-conf" && strCommand != "count" &&
          strCommand != "debug" && strCommand != "current" && strCommand != "winner" && strCommand != "winners" && strCommand != "genkey" &&
          strCommand != "connect" && strCommand != "outputs" && strCommand != "status"))
             throw std::runtime_error(
@@ -113,7 +113,6 @@ UniValue masternode(const UniValue& params, bool fHelp)
                 "  current      - Print info on current masternode winner to be paid the next block (calculated locally)\n"
                 "  debug        - Print masternode status\n"
                 "  genkey       - Generate new masternodeprivkey\n"
-                "  enforce      - Enforce masternode payments\n"
                 "  outputs      - Print masternode compatible outputs\n"
                 "  start        - Start local Hot masternode configured in dash.conf\n"
                 "  start-alias  - Start single remote masternode by assigned alias configured in masternode.conf\n"
@@ -221,11 +220,6 @@ UniValue masternode(const UniValue& params, bool fHelp)
             throw JSONRPCError(RPC_INVALID_PARAMETER, "Missing masternode input, please look at the documentation for instructions on masternode creation");
 
         return activeMasternode.GetStatus();
-    }
-
-    if(strCommand == "enforce")
-    {
-        return (uint64_t)enforceMasternodePaymentsTime;
     }
 
     if (strCommand == "start")
