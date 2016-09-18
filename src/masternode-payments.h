@@ -42,19 +42,16 @@ class CMasternodePayee
 {
 private:
     CScript scriptPubKey;
-    int nVotes;
     std::vector<uint256> vecVoteHashes;
 
 public:
     CMasternodePayee() :
         scriptPubKey(),
-        nVotes(0),
         vecVoteHashes()
         {}
 
     CMasternodePayee(CScript payee, uint256 hashIn) :
         scriptPubKey(payee),
-        nVotes(1),
         vecVoteHashes()
     {
         vecVoteHashes.push_back(hashIn);
@@ -65,19 +62,14 @@ public:
     template <typename Stream, typename Operation>
     inline void SerializationOp(Stream& s, Operation ser_action, int nType, int nVersion) {
         READWRITE(*(CScriptBase*)(&scriptPubKey));
-        READWRITE(nVotes);
         READWRITE(vecVoteHashes);
     }
 
     CScript GetPayee() { return scriptPubKey; }
-    int GetVoteCount() { return nVotes; }
 
-    void AddVoteHash(uint256 hashIn)
-    {
-        vecVoteHashes.push_back(hashIn);
-        nVotes++;
-    }
+    void AddVoteHash(uint256 hashIn) { vecVoteHashes.push_back(hashIn); }
     std::vector<uint256> GetVoteHashes() { return vecVoteHashes; }
+    int GetVoteCount() { return vecVoteHashes.size(); }
 };
 
 // Keep track of votes for payees from masternodes
