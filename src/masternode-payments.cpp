@@ -780,7 +780,8 @@ std::string CMasternodePayments::ToString() const
 bool CMasternodePayments::IsEnoughData()
 {
     float nAverageVotes = (MNPAYMENTS_SIGNATURES_TOTAL + MNPAYMENTS_SIGNATURES_REQUIRED) / 2;
-    return GetVoteCount() > GetStorageLimit() * nAverageVotes;
+    int nStorageLimit = GetStorageLimit();
+    return GetBlockCount() > nStorageLimit && GetVoteCount() > nStorageLimit * nAverageVotes;
 }
 
 int CMasternodePayments::GetStorageLimit()
