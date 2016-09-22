@@ -112,16 +112,14 @@ void CGovernanceManager::ProcessMessage(CNode* pfrom, std::string& strCommand, C
 
         // IF THE NETWORK IS MAIN, MAKE SURE THEY HAVEN'T ASKED US BEFORE
 
-        if(Params().NetworkIDString() == CBaseChainParams::MAIN){
-            if(nProp == uint256()) {
-                if(pfrom->HasFulfilledRequest(NetMsgType::MNGOVERNANCESYNC)) {
-                    LogPrint("gobject", "peer already asked me for the list\n");
-                    // BAD PEER! BAD!
-                    Misbehaving(pfrom->GetId(), 20);
-                    return;
-                }
-                pfrom->FulfilledRequest(NetMsgType::MNGOVERNANCESYNC);
+        if(nProp == uint256()) {
+            if(pfrom->HasFulfilledRequest(NetMsgType::MNGOVERNANCESYNC)) {
+                LogPrint("gobject", "peer already asked me for the list\n");
+                // BAD PEER! BAD!
+                Misbehaving(pfrom->GetId(), 20);
+                return;
             }
+            pfrom->FulfilledRequest(NetMsgType::MNGOVERNANCESYNC);
         }
 
         Sync(pfrom, nProp);

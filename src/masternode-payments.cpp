@@ -293,12 +293,10 @@ void CMasternodePayments::ProcessMessage(CNode* pfrom, std::string& strCommand, 
         int nCountNeeded;
         vRecv >> nCountNeeded;
 
-        if(Params().NetworkIDString() == CBaseChainParams::MAIN){
-            if(pfrom->HasFulfilledRequest(NetMsgType::MASTERNODEPAYMENTSYNC)) {
-                LogPrintf("MASTERNODEPAYMENTSYNC -- peer already asked me for the list, peer=%d\n", pfrom->id);
-                Misbehaving(pfrom->GetId(), 20);
-                return;
-            }
+        if(pfrom->HasFulfilledRequest(NetMsgType::MASTERNODEPAYMENTSYNC)) {
+            LogPrintf("MASTERNODEPAYMENTSYNC -- peer already asked me for the list, peer=%d\n", pfrom->id);
+            Misbehaving(pfrom->GetId(), 20);
+            return;
         }
 
         pfrom->FulfilledRequest(NetMsgType::MASTERNODEPAYMENTSYNC);
