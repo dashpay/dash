@@ -47,7 +47,7 @@ namespace GUIUtil
     // Parse "dash:" URI into recipient object, return true on successful parsing
     bool parseBitcoinURI(const QUrl &uri, SendCoinsRecipient *out);
     bool parseBitcoinURI(QString uri, SendCoinsRecipient *out);
-    QString formatBitcoinURI(const SendCoinsRecipient &info, bool fUseInstandsend);
+    QString formatBitcoinURI(const SendCoinsRecipient &info, bool fUseInstantsend);
 
     // Returns true if given address+amount meets "dust" definition
     bool isDust(const QString& address, const CAmount& amount);
