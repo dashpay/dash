@@ -206,7 +206,7 @@ bool parseBitcoinURI(QString uri, SendCoinsRecipient *out)
     return parseBitcoinURI(uriInstance, out);
 }
 
-QString formatBitcoinURI(const SendCoinsRecipient &info)
+QString formatBitcoinURI(const SendCoinsRecipient &info, bool fUseInstantsend)
 {
     QString ret = QString("dash:%1").arg(info.address);
     int paramCount = 0;
@@ -228,6 +228,12 @@ QString formatBitcoinURI(const SendCoinsRecipient &info)
     {
         QString msg(QUrl::toPercentEncoding(info.message));;
         ret += QString("%1message=%2").arg(paramCount == 0 ? "?" : "&").arg(msg);
+        paramCount++;
+    }
+    
+    if(fUseInstantsend)
+    {
+        ret += QString("%1IS=1").arg(paramCount == 0 ? "?" : "&");
         paramCount++;
     }
 
