@@ -206,7 +206,7 @@ bool parseBitcoinURI(QString uri, SendCoinsRecipient *out)
     return parseBitcoinURI(uriInstance, out);
 }
 
-QString formatBitcoinURI(const SendCoinsRecipient &info, bool fUseInstantsend)
+QString formatBitcoinURI(const SendCoinsRecipient &info)
 {
     QString ret = QString("dash:%1").arg(info.address);
     int paramCount = 0;
@@ -231,7 +231,7 @@ QString formatBitcoinURI(const SendCoinsRecipient &info, bool fUseInstantsend)
         paramCount++;
     }
     
-    if(fUseInstantsend)
+    if(info.fUseInstantSend)
     {
         ret += QString("%1IS=1").arg(paramCount == 0 ? "?" : "&");
         paramCount++;

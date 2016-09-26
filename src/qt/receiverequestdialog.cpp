@@ -17,7 +17,6 @@
 #include <QMimeData>
 #include <QMouseEvent>
 #include <QPixmap>
-#include <QSettings>
 #if QT_VERSION < 0x050000
 #include <QUrl>
 #endif
@@ -129,9 +128,6 @@ void ReceiveRequestDialog::setInfo(const SendCoinsRecipient &info)
 
 void ReceiveRequestDialog::update()
 {
-    QSettings settings;
-    bool fUseInstantsend = settings.value("bUseInstantX").toBool();
-    
     if(!model)
         return;
     QString target = info.label;
@@ -139,7 +135,7 @@ void ReceiveRequestDialog::update()
         target = info.address;
     setWindowTitle(tr("Request payment to %1").arg(target));
 
-    QString uri = GUIUtil::formatBitcoinURI(info, fUseInstantsend);
+    QString uri = GUIUtil::formatBitcoinURI(info);
     ui->btnSaveAs->setEnabled(false);
     QString html;
     html += "<html><font face='verdana, arial, helvetica, sans-serif'>";
@@ -153,7 +149,7 @@ void ReceiveRequestDialog::update()
         html += "<b>"+tr("Label")+"</b>: " + GUIUtil::HtmlEscape(info.label) + "<br>";
     if(!info.message.isEmpty())
         html += "<b>"+tr("Message")+"</b>: " + GUIUtil::HtmlEscape(info.message) + "<br>";
-    if(fUseInstantsend)
+    if(info.fUseInstantSend)
         html += "<b>"+tr("InstantSend")+"</b>: Yes<br>";
     else
         html += "<b>"+tr("InstantSend")+"</b>: No<br>";
@@ -196,8 +192,7 @@ void ReceiveRequestDialog::update()
 
 void ReceiveRequestDialog::on_btnCopyURI_clicked()
 {
-    QSettings settings;
-    GUIUtil::setClipboard(GUIUtil::formatBitcoinURI(info, settings.value("bUseInstantX").toBool()));
+    GUIUtil::setClipboard(GUIUtil::formatBitcoinURI(info));
 }
 
 void ReceiveRequestDialog::on_btnCopyAddress_clicked()
