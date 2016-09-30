@@ -385,13 +385,14 @@ CMasternode *CMasternodeMan::FindRandomNotInVec(std::vector<CTxIn> &vecToExclude
             vpMasternodesShuffled.push_back(&mn);
     }
 
-    // Shuffle the resulting vector of Masternodes
-    std::random_shuffle(vpMasternodesShuffled.begin(), vpMasternodesShuffled.end(), GetRandInt);
+    if(vpMasternodesShuffled.size() > 0){
+        // Shuffle the resulting vector of Masternodes
+        std::random_shuffle(vpMasternodesShuffled.begin(), vpMasternodesShuffled.end(), GetRandInt);
 
-    // If we have non-excluded Masternodes, return the first one from the vector
-    // The shuffling guarantees that it's a random one
-    if(vpMasternodesShuffled.size() > 0)
+        // If we have non-excluded Masternodes, return the first one from the vector
+        // The shuffling guarantees that it's a random one
         return vpMasternodesShuffled.front();
+    }
 
     LogPrint("masternode", "CMasternodeMan::FindRandomNotInVec -- failed\n");
     return NULL;
