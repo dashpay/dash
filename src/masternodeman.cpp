@@ -366,31 +366,32 @@ CMasternode *CMasternodeMan::FindRandomNotInVec(std::vector<CTxIn> &vecToExclude
     LogPrintf("CMasternodeMan::FindRandomNotInVec -- %d enabled masternodes, %d masternodes aren't yet exluded\n", nCountEnabled, nCountNotExcluded);
     if(nCountNotExcluded < 1) return NULL;
 
-    // fill a vector of pointers
-    std::vector<CMasternode*> vpMasternodesShuffled;
-    BOOST_FOREACH(CMasternode &mn, vMasternodes) {
-        vpMasternodesShuffled.push_back(&mn);
-    }
-
-    // shuffle pointers
-    std::random_shuffle(vpMasternodesShuffled.begin(), vpMasternodesShuffled.end(), GetRandInt);
+    // Fill vector with Masternodes which are not in the exclude list
     bool fExclude;
+    std::vector<CMasternode*> vpMasternodesShuffled;
 
-    // loop through
-    BOOST_FOREACH(CMasternode* pmn, vpMasternodesShuffled) {
-        if(pmn->nProtocolVersion < nProtocolVersion || !pmn->IsEnabled()) continue;
+    BOOST_FOREACH(CMasternode &mn, vMasternodes) {
+
+        if(mn.nProtocolVersion < nProtocolVersion || !mn.IsEnabled()) continue;
         fExclude = false;
         BOOST_FOREACH(CTxIn &txinToExclude, vecToExclude) {
-            if(pmn->vin.prevout == txinToExclude.prevout) {
+            if(mn.vin.prevout == txinToExclude.prevout) {
                 fExclude = true;
                 break;
             }
         }
-        if(fExclude) continue;
-        // found the one not in vecToExclude
-        LogPrint("masternode", "CMasternodeMan::FindRandomNotInVec -- found, masternode=%s\n", pmn->vin.prevout.ToStringShort());
-        return pmn;
+        // Not in the exclude list -> add it 
+        if(!fExclude)
+            vpMasternodesShuffled.push_back(&mn);
     }
+
+    // Shuffle the resulting vector of Masternodes
+    std::random_shuffle(vpMasternodesShuffled.begin(), vpMasternodesShuffled.end(), GetRandInt);
+
+    // If we have non-excluded Masternodes, return the first one from the vector
+    // The shuffling guarantees that it's a random one
+    if(vpMasternodesShuffled.size() > 0)
+        return vpMasternodesShuffled.front();
 
     LogPrint("masternode", "CMasternodeMan::FindRandomNotInVec -- failed\n");
     return NULL;
