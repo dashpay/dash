@@ -354,7 +354,7 @@ CMasternode* CMasternodeMan::GetNextMasternodeInQueueForPayment(int nBlockHeight
     return pBestMasternode;
 }
 
-CMasternode *CMasternodeMan::FindRandomNotInVec(std::vector<CTxIn> &vecToExclude, int nProtocolVersion)
+CMasternode* CMasternodeMan::FindRandomNotInVec(const std::vector<CTxIn> &vecToExclude, int nProtocolVersion)
 {
     LOCK(cs);
 
@@ -365,6 +365,8 @@ CMasternode *CMasternodeMan::FindRandomNotInVec(std::vector<CTxIn> &vecToExclude
 
     LogPrintf("CMasternodeMan::FindRandomNotInVec -- %d enabled masternodes, %d masternodes aren't yet exluded\n", nCountEnabled, nCountNotExcluded);
     if(nCountNotExcluded < 1) return NULL;
+
+    std::vector<CTxIn> vecToExcludeTmp = vecToExclude;
 
     // fill a vector of pointers
     std::vector<CMasternode*> vpMasternodesShuffled;
@@ -380,14 +382,20 @@ CMasternode *CMasternodeMan::FindRandomNotInVec(std::vector<CTxIn> &vecToExclude
     BOOST_FOREACH(CMasternode* pmn, vpMasternodesShuffled) {
         if(pmn->nProtocolVersion < nProtocolVersion || !pmn->IsEnabled()) continue;
         fExclude = false;
-        BOOST_FOREACH(CTxIn &txinToExclude, vecToExclude) {
-            if(pmn->vin.prevout == txinToExclude.prevout) {
+        std::vector<CTxIn>::iterator it = vecToExcludeTmp.begin();
+        while(it != vecToExcludeTmp.end()) {
+            if(pmn->vin.prevout == it->prevout) {
                 fExclude = true;
+                // We found smth to exclude and there is no way that vMasternodes has 2 MNs
+                // with the same prevout, so we can be 100% sure we never going to hit this prevout
+                // again till the end of vpMasternodesShuffled. We can safely drop it from tmp vector.
+                vecToExcludeTmp.erase(it);
                 break;
             }
+            ++it;
         }
         if(fExclude) continue;
-        // found the one not in vecToExclude
+        // found the one not in vecToExcludeTmp
         LogPrint("masternode", "CMasternodeMan::FindRandomNotInVec -- found, masternode=%s\n", pmn->vin.prevout.ToStringShort());
         return pmn;
     }
