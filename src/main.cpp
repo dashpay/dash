@@ -1540,7 +1540,8 @@ bool AcceptToMemoryPoolWorker(CTxMemPool& pool, CValidationState &state, const C
         }
     }
 
-    if(!fDryRun) SyncWithWallets(tx, NULL);
+    if(!fDryRun)
+        GetMainSignals().SyncTransaction(tx, NULL);
 
     return true;
 }
@@ -3047,7 +3048,7 @@ bool static DisconnectTip(CValidationState& state, const Consensus::Params& cons
     // Let wallets know transactions went from 1-confirmed to
     // 0-confirmed or conflicted:
     BOOST_FOREACH(const CTransaction &tx, block.vtx) {
-        SyncWithWallets(tx, NULL);
+        GetMainSignals().SyncTransaction(tx, NULL);
     }
     return true;
 }
@@ -3106,11 +3107,11 @@ bool static ConnectTip(CValidationState& state, const CChainParams& chainparams,
     // Tell wallet about transactions that went from mempool
     // to conflicted:
     BOOST_FOREACH(const CTransaction &tx, txConflicted) {
-        SyncWithWallets(tx, NULL);
+        GetMainSignals().SyncTransaction(tx, NULL);
     }
     // ... and about transactions that got confirmed:
     BOOST_FOREACH(const CTransaction &tx, pblock->vtx) {
-        SyncWithWallets(tx, pblock);
+        GetMainSignals().SyncTransaction(tx, pblock);
     }
 
     int64_t nTime6 = GetTimeMicros(); nTimePostConnect += nTime6 - nTime5; nTimeTotal += nTime6 - nTime1;
