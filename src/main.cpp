@@ -3882,6 +3882,8 @@ static bool AcceptBlockHeader(const CBlockHeader& block, CValidationState& state
     if (ppindex)
         *ppindex = pindex;
 
+    CheckBlockIndex(chainparams.GetConsensus());
+
     return true;
 }
 
@@ -6100,8 +6102,6 @@ bool static ProcessMessage(CNode* pfrom, string strCommand, CDataStream& vRecv, 
                 }
             }
         }
-
-        CheckBlockIndex(chainparams.GetConsensus());
         }
 
         NotifyHeaderTip();
