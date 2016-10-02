@@ -354,14 +354,14 @@ CMasternode* CMasternodeMan::GetNextMasternodeInQueueForPayment(int nBlockHeight
     return pBestMasternode;
 }
 
-CMasternode *CMasternodeMan::FindRandomNotInVec(std::vector<CTxIn> &vecToExclude, int nProtocolVersion)
+CMasternode *CMasternodeMan::FindRandomNotInSet(std::set<CTxIn> &setToExclude, int nProtocolVersion)
 {
     LOCK(cs);
 
     nProtocolVersion = nProtocolVersion == -1 ? mnpayments.GetMinMasternodePaymentsProto() : nProtocolVersion;
 
     int nCountEnabled = CountEnabled(nProtocolVersion);
-    int nCountNotExcluded = nCountEnabled - vecToExclude.size();
+    int nCountNotExcluded = nCountEnabled - setToExclude.size();
 
     LogPrintf("CMasternodeMan::FindRandomNotInVec -- %d enabled masternodes, %d masternodes aren't yet exluded\n", nCountEnabled, nCountNotExcluded);
     if(nCountNotExcluded < 1) return NULL;
@@ -372,22 +372,19 @@ CMasternode *CMasternodeMan::FindRandomNotInVec(std::vector<CTxIn> &vecToExclude
         vpMasternodesShuffled.push_back(&mn);
     }
 
+    InsecureRand insecureRand;
+
     // shuffle pointers
-    std::random_shuffle(vpMasternodesShuffled.begin(), vpMasternodesShuffled.end(), GetRandInt);
-    bool fExclude;
+    std::random_shuffle(vpMasternodesShuffled.begin(), vpMasternodesShuffled.end(), insecureRand);
 
     // loop through
     BOOST_FOREACH(CMasternode* pmn, vpMasternodesShuffled) {
         if(pmn->nProtocolVersion < nProtocolVersion || !pmn->IsEnabled()) continue;
-        fExclude = false;
-        BOOST_FOREACH(CTxIn &txinToExclude, vecToExclude) {
-            if(pmn->vin.prevout == txinToExclude.prevout) {
-                fExclude = true;
-                break;
-            }
+
+        if(setToExclude.find(pmn->vin) != setToExclude.end()) {
+            continue;
         }
-        if(fExclude) continue;
-        // found the one not in vecToExclude
+
         LogPrint("masternode", "CMasternodeMan::FindRandomNotInVec -- found, masternode=%s\n", pmn->vin.prevout.ToStringShort());
         return pmn;
     }

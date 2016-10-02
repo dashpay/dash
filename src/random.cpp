@@ -137,3 +137,19 @@ void seed_insecure_rand(bool fDeterministic)
         insecure_rand_Rw = tmp;
     }
 }
+
+InsecureRand::InsecureRand()
+    : nRz(0),
+      nRw(0)
+{
+    // The seed values have some unlikely fixed points which we avoid.
+    uint32_t nTmp;
+    do {
+        GetRandBytes((unsigned char*)&nTmp, 4);
+    } while (nTmp == 0 || nTmp == 0x9068ffffU);
+    nRz = nTmp;
+    do {
+        GetRandBytes((unsigned char*)&nTmp, 4);
+    } while (nTmp == 0 || nTmp == 0x464fffffU);
+    nRw = nTmp;
+}
