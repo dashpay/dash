@@ -12,6 +12,7 @@
 #include "base58.h"
 #include "main.h"
 #include "masternode.h"
+#include "governance.h"
 
 #define MASTERNODES_DUMP_SECONDS               (15*60)
 #define MASTERNODES_DSEG_SECONDS               (3*60*60)
@@ -40,6 +41,8 @@ private:
     std::map<CNetAddr, int64_t> mWeAskedForMasternodeList;
     // which Masternodes we've asked for
     std::map<COutPoint, int64_t> mWeAskedForMasternodeListEntry;
+
+    std::vector<uint256> vecDirtyGovernanceObjectHashes;
 
 public:
     // Keep track of all broadcasts I've seen
@@ -102,6 +105,8 @@ public:
     bool Get(const CPubKey& pubKeyMasternode, CMasternode& masternode);
     bool Get(const CTxIn& vin, CMasternode& masternode);
 
+    bool Has(const CTxIn& vin);
+
     /// Find an entry in the masternode list that is next to be paid
     CMasternode* GetNextMasternodeInQueueForPayment(int nBlockHeight, bool fFilterSigTime, int& nCount);
 
@@ -135,6 +140,24 @@ public:
     bool CheckMnbAndUpdateMasternodeList(CMasternodeBroadcast mnb, int& nDos);
 
     void UpdateLastPaid(const CBlockIndex *pindex);
+
+    void AddDirtyGovernanceObjectHash(const uint256& nHash)
+    {
+        LOCK(cs);
+        vecDirtyGovernanceObjectHashes.push_back(nHash);
+    }
+
+    std::vector<uint256> GetAndClearDirtyGovernanceObjectHashes()
+    {
+        LOCK(cs);
+        std::vector<uint256> vecTmp = vecDirtyGovernanceObjectHashes;
+        vecDirtyGovernanceObjectHashes.clear();
+        return vecTmp;;
+    }
+
+    void AddGovernanceVote(const CTxIn& vin, uint256 nGovernanceObjectHash);
+
+    void RemoveGovernanceObject(uint256 nGovernanceObjectHash);
 };
 
 #endif

@@ -132,8 +132,13 @@ void CGovernanceManager::ProcessMessage(CNode* pfrom, std::string& strCommand, C
         CGovernanceObject govobj;
         vRecv >> govobj;
 
+        std::string strHash = govobj.GetHash().ToString();
+
+        LogPrint("gobject", "CGovernanceObject::ProcessMessage -- received govobj: %s", strHash);
+
         if(mapSeenGovernanceObjects.count(govobj.GetHash())){
             // TODO - print error code? what if it's GOVOBJ_ERROR_IMMATURE?
+            LogPrint("gobject", "CGovernanceObject::ProcessMessage -- govobj already seen: %s", strHash);
             return;
         }
 
@@ -144,7 +149,7 @@ void CGovernanceManager::ProcessMessage(CNode* pfrom, std::string& strCommand, C
 
         if(!govobj.IsValidLocally(pCurrentBlockIndex, strError, true)) {
             mapSeenGovernanceObjects.insert(std::make_pair(govobj.GetHash(), SEEN_OBJECT_ERROR_INVALID));
-            LogPrintf("Governance object is invalid - %s\n", strError);
+            LogPrintf("Governance object: %s is invalid - %s\n", strHash, strError);
             return;
         }
 
@@ -163,7 +168,7 @@ void CGovernanceManager::ProcessMessage(CNode* pfrom, std::string& strCommand, C
         mapSeenGovernanceObjects.insert(make_pair(govobj.GetHash(), SEEN_OBJECT_IS_VALID));
         masternodeSync.AddedBudgetItem(govobj.GetHash());
 
-        LogPrintf("MNGOVERNANCEOBJECT -- %s new\n", govobj.GetHash().ToString());
+        LogPrintf("MNGOVERNANCEOBJECT -- %s new\n", strHash);
         
         // WE MIGHT HAVE PENDING/ORPHAN VOTES FOR THIS OBJECT
 
@@ -186,8 +191,7 @@ void CGovernanceManager::ProcessMessage(CNode* pfrom, std::string& strCommand, C
 
         // FIND THE MASTERNODE OF THE VOTER
 
-        CMasternode* pmn = mnodeman.Find(vote.GetVinMasternode());
-        if(pmn == NULL) {
+        if(!mnodeman.Has(vote.GetVinMasternode())) {
             LogPrint("gobject", "gobject - unknown masternode - vin: %s\n", vote.GetVinMasternode().ToString());
             mnodeman.AskForMN(pfrom, vote.GetVinMasternode());
             return;
@@ -212,7 +216,7 @@ void CGovernanceManager::ProcessMessage(CNode* pfrom, std::string& strCommand, C
         if(AddOrUpdateVote(vote, pfrom, strError)) {
             vote.Relay();
             masternodeSync.AddedBudgetItem(vote.GetHash());
-            pmn->AddGovernanceVote(vote.GetParentHash());
+            mnodeman.AddGovernanceVote(vote.GetVinMasternode(), vote.GetParentHash());
         }
 
         LogPrint("gobject", "NEW governance vote: %s\n", vote.GetHash().ToString());
@@ -283,6 +287,16 @@ void CGovernanceManager::UpdateCachesAndClean()
 {
     LogPrintf("CGovernanceManager::UpdateCachesAndClean \n");
 
+    std::vector<uint256> vecDirtyHashes = mnodeman.GetAndClearDirtyGovernanceObjectHashes();
+
+    for(size_t i = 0; i < vecDirtyHashes.size(); ++i) {
+        object_m_it it = mapObjects.find(vecDirtyHashes[i]);
+        if(it == mapObjects.end()) {
+            continue;
+        }
+        it->second.fDirtyCache = true;
+    }
+
     LOCK(cs);
 
     // DOUBLE CHECK THAT WE HAVE A VALID POINTER TO TIP
@@ -322,6 +336,7 @@ void CGovernanceManager::UpdateCachesAndClean()
 
         if(pObj->fCachedDelete || pObj->fExpired) {
             LogPrintf("UpdateCachesAndClean --- erase obj %s\n", (*it).first.ToString());
+            mnodeman.RemoveGovernanceObject(pObj->GetHash());
             mapObjects.erase(it++);
         } else {
             ++it;
@@ -645,7 +660,7 @@ CGovernanceObject::CGovernanceObject(const CGovernanceObject& other)
     strData = other.strData;
     nObjectType = other.nObjectType;
 
-    fUnparsable = true;
+    fUnparsable = other.fUnparsable;
 
     vinMasternode = other.vinMasternode;
     vchSig = other.vchSig;
@@ -787,6 +802,7 @@ void CGovernanceObject::LoadData()
         nObjectType = obj["type"].get_int();
     }
     catch(std::exception& e) {
+        fUnparsable = true;
         std::ostringstream ostr;
         ostr << "CGovernanceObject::LoadData Error parsing JSON"
              << ", e.what() = " << e.what();
@@ -795,6 +811,7 @@ void CGovernanceObject::LoadData()
         return;
     }
     catch(...) {
+        fUnparsable = true;
         std::ostringstream ostr;
         ostr << "CGovernanceObject::LoadData Unknown Error parsing JSON";
         DBG( cout << ostr.str() << endl; );
@@ -850,6 +867,10 @@ bool CGovernanceObject::IsValidLocally(const CBlockIndex* pindex, std::string& s
     if(!pindex) {
         strError = "Tip is NULL";
         return true;
+    }
+
+    if(fUnparsable) {
+        return false;
     }
 
     switch(nObjectType) {

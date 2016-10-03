@@ -76,10 +76,21 @@ void CMasternodeMan::AskForMN(CNode* pnode, CTxIn &vin)
 
 void CMasternodeMan::Check()
 {
-    LOCK(cs);
+    bool fHaveDirtyGovernanceObjects = false;
+    {
+        LOCK(cs);
 
-    BOOST_FOREACH(CMasternode& mn, vMasternodes) {
-        mn.Check();
+        BOOST_FOREACH(CMasternode& mn, vMasternodes) {
+            mn.Check();
+        }
+
+        if(vecDirtyGovernanceObjectHashes.size() > 0) {
+            fHaveDirtyGovernanceObjects = true;
+        }
+    }
+    if(fHaveDirtyGovernanceObjects) {
+        // Signal governance manager to update dirty objects outside of lock
+        governance.UpdateCachesAndClean();
     }
 }
 
@@ -289,6 +300,16 @@ bool CMasternodeMan::Get(const CTxIn& vin, CMasternode& masternode)
         return false;
     }
     masternode = *pMN;
+    return true;
+}
+
+bool CMasternodeMan::Has(const CTxIn& vin)
+{
+    LOCK(cs);
+    CMasternode* pMN = Find(vin);
+    if(!pMN)  {
+        return false;
+    }
     return true;
 }
 
@@ -761,4 +782,22 @@ void CMasternodeMan::UpdateLastPaid(const CBlockIndex *pindex) {
 
     // every time is like the first time if winners list is not synced
     IsFirstRun = !masternodeSync.IsWinnersListSynced();
+}
+
+void CMasternodeMan::AddGovernanceVote(const CTxIn& vin, uint256 nGovernanceObjectHash)
+{
+    LOCK(cs);
+    CMasternode* pMN = Find(vin);
+    if(!pMN)  {
+        return;
+    }
+    pMN->AddGovernanceVote(nGovernanceObjectHash);
+}
+
+void CMasternodeMan::RemoveGovernanceObject(uint256 nGovernanceObjectHash)
+{
+    LOCK(cs);
+    BOOST_FOREACH(CMasternode& mn, vMasternodes) {
+        mn.RemoveGovernanceObject(nGovernanceObjectHash);
+    }
 }
