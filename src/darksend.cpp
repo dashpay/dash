@@ -1504,12 +1504,16 @@ bool CDarksendPool::DoAutomaticDenominating(bool fDryRun)
         }
     }
 
-    //if we've used 90% of the Masternode list then drop all the oldest first
-    int nThreshold = (int)(mnodeman.CountEnabled(MIN_PRIVATESEND_PEER_PROTO_VERSION) * 0.9);
-    LogPrint("privatesend", "Checking vecMasternodesUsed: size: %d, threshold: %d\n", (int)vecMasternodesUsed.size(), nThreshold);
-    while((int)vecMasternodesUsed.size() > nThreshold) {
-        vecMasternodesUsed.erase(vecMasternodesUsed.begin());
-        LogPrint("privatesend", "  vecMasternodesUsed: size: %d, threshold: %d\n", (int)vecMasternodesUsed.size(), nThreshold);
+    // If we've used 90% of the Masternode list then drop the oldest first ~30%
+    int nThreshold_high = (int)(mnodeman.CountEnabled(MIN_PRIVATESEND_PEER_PROTO_VERSION) * 0.9);
+    int nThreshold_low = nThreshold_high * 0.7;
+    LogPrint("privatesend", "Checking vecMasternodesUsed: size: %d, threshold: %d\n", (int)vecMasternodesUsed.size(), nThreshold_high);
+
+    if((int)vecMasternodesUsed.size() > nThreshold_high) {
+        while((int)vecMasternodesUsed.size() > nThreshold_low) {
+            vecMasternodesUsed.erase(vecMasternodesUsed.begin());
+            LogPrint("privatesend", "  vecMasternodesUsed: size: %d, threshold: %d\n", (int)vecMasternodesUsed.size(), nThreshold_low);
+        }
     }
 
     bool fUseQueue = insecure_rand()%100 > 33;
