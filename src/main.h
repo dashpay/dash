@@ -854,6 +854,7 @@ public:
     PeerLogicValidation(CConnman* connmanIn) : connman(connmanIn) {}
 
     virtual void UpdatedBlockTip(const CBlockIndex *pindexNew, const CBlockIndex *pindexFork, bool fInitialDownload);
+    virtual void BlockChecked(const CBlock& block, const CValidationState& state);
 };
 
 struct CNodeStateStats {
