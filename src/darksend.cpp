@@ -1510,10 +1510,8 @@ bool CDarksendPool::DoAutomaticDenominating(bool fDryRun)
     LogPrint("privatesend", "Checking vecMasternodesUsed: size: %d, threshold: %d\n", (int)vecMasternodesUsed.size(), nThreshold_high);
 
     if((int)vecMasternodesUsed.size() > nThreshold_high) {
-        while((int)vecMasternodesUsed.size() > nThreshold_low) {
-            vecMasternodesUsed.erase(vecMasternodesUsed.begin());
-            LogPrint("privatesend", "  vecMasternodesUsed: size: %d, threshold: %d\n", (int)vecMasternodesUsed.size(), nThreshold_low);
-        }
+        vecMasternodesUsed.erase(vecMasternodesUsed.begin(), vecMasternodesUsed.begin() + vecMasternodesUsed.size() - nThreshold_low);
+        LogPrint("privatesend", "  vecMasternodesUsed: new size: %d, threshold: %d\n", (int)vecMasternodesUsed.size(), nThreshold_high);
     }
 
     bool fUseQueue = insecure_rand()%100 > 33;
