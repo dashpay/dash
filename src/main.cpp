@@ -71,7 +71,7 @@ CCriticalSection cs_main;
 BlockMap mapBlockIndex;
 CChain chainActive;
 CBlockIndex *pindexBestHeader = NULL;
-int64_t nTimeBestReceived = 0;
+int64_t nTimeBestReceived = 0; // Used only to inform the wallet of when we last received a block
 CWaitableCriticalSection csBestBlock;
 CConditionVariable cvBlockChange;
 int nScriptCheckThreads = 0;
@@ -2947,7 +2947,6 @@ void static UpdateTip(CBlockIndex *pindexNew) {
     chainActive.SetTip(pindexNew);
 
     // New best block
-    nTimeBestReceived = GetTime();
     mempool.AddTransactionsUpdated(1);
 
     LogPrintf("%s: new best=%s  height=%d  log2_work=%.8g  tx=%lu  date=%s progress=%f  cache=%.1fMiB(%utx)\n", __func__,
@@ -4906,6 +4905,8 @@ void PeerLogicValidation::UpdatedBlockTip(const CBlockIndex *pindexNew, const CB
             }
         });
     }
+
+    nTimeBestReceived = GetTime();
 }
 
 void PeerLogicValidation::BlockChecked(const CBlock& block, const CValidationState& state) {
