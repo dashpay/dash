@@ -46,4 +46,11 @@ static inline uint32_t insecure_rand(void)
     return (insecure_rand_Rw << 16) + insecure_rand_Rz;
 }
 
+/**
+ * Function for std::random_shuffle
+ */
+static inline uint32_t insecure_shuffle_rand(uint32_t i){
+    return insecure_rand() % i;
+}
+
 #endif // BITCOIN_RANDOM_H
