@@ -49,7 +49,7 @@ static inline uint32_t insecure_rand(void)
 /**
  * Function for std::random_shuffle
  */
-static inline uint32_t insecure_shuffle_rand(uint32_t i){
+static inline uint32_t GetInsecureRand(uint32_t i){
     return insecure_rand() % i;
 }
 
