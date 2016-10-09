@@ -203,6 +203,14 @@ void CMasternode::Check(bool fForce)
     nActiveState = MASTERNODE_ENABLED; // OK
 }
 
+bool CMasternode::IsValidNetAddr()
+{
+    // TODO: regtest is fine with any addresses for now,
+    // should probably be a bit smarter if one day we start to implement tests for this
+    return Params().NetworkIDString() == CBaseChainParams::REGTEST ||
+            (addr.IsIPv4() && IsReachable(addr) && addr.IsRoutable());
+}
+
 std::string CMasternode::GetStatus()
 {
     switch(nActiveState) {
