@@ -14,7 +14,7 @@ static const char *MSG_HASHTX     = "hashtx";
 static const char *MSG_HASHTXLOCK = "hashtxlock";
 static const char *MSG_RAWBLOCK   = "rawblock";
 static const char *MSG_RAWTX      = "rawtx";
-static const char *MMSG_RAWTXLOCK = "rawtxlock";
+static const char *MSG_RAWTXLOCK = "rawtxlock";
 
 // Internal function to send multipart message
 static int zmq_send_multipart(void *sock, const void* data, size_t size, ...)
@@ -208,5 +208,5 @@ bool CZMQPublishRawTransactionLockNotifier::NotifyTransactionLock(const CTransac
     LogPrint("zmq", "zmq: Publish rawtxlock %s\n", hash.GetHex());
     CDataStream ss(SER_NETWORK, PROTOCOL_VERSION);
     ss << transaction;
-    return SendMessage(MMSG_RAWTXLOCK, &(*ss.begin()), ss.size());
+    return SendMessage(MSG_RAWTXLOCK, &(*ss.begin()), ss.size());
 }
