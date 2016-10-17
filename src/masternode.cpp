@@ -137,6 +137,8 @@ arith_uint256 CMasternode::CalculateScore(const uint256& blockHash)
 
 void CMasternode::Check(bool fForce)
 {
+    static int64_t nTimeStart;
+
     //once spent, stop doing the checks
     if(nActiveState == MASTERNODE_OUTPOINT_SPENT) return;
 
@@ -145,8 +147,12 @@ void CMasternode::Check(bool fForce)
     if(!fForce && (GetTime() - nTimeLastChecked < MASTERNODE_CHECK_SECONDS)) return;
     nTimeLastChecked = GetTime();
 
+    // keep old masternodes on start, give them a chance to receive an updated ping without removal/expiry
+    if(!masternodeSync.IsMasternodeListSynced()) nTimeStart = GetTime();
+    bool fWaitForPing = (GetTime() - nTimeStart < MASTERNODE_MIN_MNP_SECONDS);
+
     bool fRemove =  // If there were no pings for quite a long time ...
-                    !IsPingedWithin(MASTERNODE_REMOVAL_SECONDS) ||
+                    (!fWaitForPing && !IsPingedWithin(MASTERNODE_REMOVAL_SECONDS)) ||
                     // or masternode doesn't meet payment protocol requirements ...
                     nProtocolVersion < mnpayments.GetMinMasternodePaymentsProto() ||
                     // or it's our own node and we just updated it to the new protocol but we are still waiting for activation ...
@@ -161,7 +167,7 @@ void CMasternode::Check(bool fForce)
         return;
     }
 
-    if(!IsPingedWithin(MASTERNODE_EXPIRATION_SECONDS)) {
+    if(!fWaitForPing && !IsPingedWithin(MASTERNODE_EXPIRATION_SECONDS)) {
         nActiveState = MASTERNODE_EXPIRED;
 
         // RESCAN AFFECTED VOTES
