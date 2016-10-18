@@ -160,7 +160,7 @@ void CMasternode::Check(bool fForce)
 {
     LOCK(cs);
 
-    static int64_t nTimeStart;
+    static int64_t nTimeStart = GetTime();
 
     LogPrint("masternode", "CMasternode::Check start -- vin %s\n", vin.prevout.ToStringShort());
 

@@ -18,7 +18,6 @@
 /** Masternode manager */
 CMasternodeMan mnodeman;
 
-const int CMasternodeMan::MAX_POSE_RANK;
 const std::string CMasternodeMan::SERIALIZATION_VERSION_STRING = "CMasternodeMan-Version-1";
 
 struct CompareLastPaidBlock
@@ -768,7 +767,7 @@ void CMasternodeMan::DoFullVerificationStep()
     while(it != vecMasternodeRanks.end()) {
         if(it->first > MAX_POSE_RANK) {
             LogPrint("masternode", "CMasternodeMan::DoFullVerificationStep -- Must be in top %d to send verify request\n",
-                        MAX_POSE_RANK);
+                        (int)MAX_POSE_RANK);
             return;
         }
         if(it->second.vin == activeMasternode.vin) {
@@ -1087,7 +1086,7 @@ void CMasternodeMan::ProcessVerifyBroadcast(CNode* pnode, const CMasternodeVerif
     int nRank = GetMasternodeRank(mnv.vin2, mnv.nBlockHeight, MIN_POSE_PROTO_VERSION);
     if(nRank < MAX_POSE_RANK) {
         LogPrint("masternode", "MasternodeMan::ProcessVerifyBroadcast -- Mastrernode is not in top %d, current rank %d, peer=%d\n",
-                    MAX_POSE_RANK, nRank, pnode->id);
+                    (int)MAX_POSE_RANK, nRank, pnode->id);
         return;
     }
 
