@@ -842,6 +842,7 @@ void CMasternodeMan::CheckSameAddr()
             // initial step
             if(!pprevMasternode) {
                 pprevMasternode = pmn;
+                pverifiedMasternode = pmn->IsPoSeVerified() ? pmn : NULL;
                 continue;
             }
             // second+ step
@@ -856,8 +857,7 @@ void CMasternodeMan::CheckSameAddr()
                     pverifiedMasternode = pmn;
                 }
             } else {
-                // clear the reference
-                pverifiedMasternode = NULL;
+                pverifiedMasternode = pmn->IsPoSeVerified() ? pmn : NULL;
             }
             pprevMasternode = pmn;
         }
