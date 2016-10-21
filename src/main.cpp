@@ -5718,13 +5718,13 @@ bool static ProcessMessage(CNode* pfrom, string strCommand, CDataStream& vRecv, 
             {
                 if(!pmn->fAllowMixingTx) {
                     //multiple peers can send us a valid masternode transaction
-                    LogPrint("privatesend", "dstx: Masternode sending too many transactions %s\n", tx.GetHash().ToString());
+                    LogPrint("privatesend", "DSTX -- Masternode sending too many transactions %s\n", tx.GetHash().ToString());
                     return true;
                 }
 
                 if(!dstx.CheckSignature()) return false;
 
-                LogPrintf("dstx: Got Masternode transaction %s\n", tx.GetHash().ToString());
+                LogPrintf("DSTX -- Got Masternode transaction %s\n", tx.GetHash().ToString());
 
                 pmn->fAllowMixingTx = false;
 

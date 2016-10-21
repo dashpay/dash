@@ -110,7 +110,7 @@ void CGovernanceManager::ProcessMessage(CNode* pfrom, std::string& strCommand, C
         if(nProp == uint256()) {
             if(netfulfilledman.HasFulfilledRequest(pfrom->addr, NetMsgType::MNGOVERNANCESYNC)) {
                 // Asking for the whole list multiple times in a short period of time is no good
-                LogPrint("gobject", "peer already asked me for the list\n");
+                LogPrint("gobject", "MNGOVERNANCESYNC -- peer already asked me for the list\n");
                 Misbehaving(pfrom->GetId(), 20);
                 return;
             }
@@ -118,7 +118,7 @@ void CGovernanceManager::ProcessMessage(CNode* pfrom, std::string& strCommand, C
         }
 
         Sync(pfrom, nProp);
-        LogPrint("gobject", "syncing governance objects to our peer at %s\n", pfrom->addr.ToString());
+        LogPrint("gobject", "MNGOVERNANCESYNC -- syncing governance objects to our peer at %s\n", pfrom->addr.ToString());
 
     }
 
@@ -144,27 +144,25 @@ void CGovernanceManager::ProcessMessage(CNode* pfrom, std::string& strCommand, C
 
         if(!govobj.IsValidLocally(pCurrentBlockIndex, strError, true)) {
             mapSeenGovernanceObjects.insert(std::make_pair(govobj.GetHash(), SEEN_OBJECT_ERROR_INVALID));
-            LogPrintf("Governance object is invalid - %s\n", strError);
+            LogPrintf("MNGOVERNANCEOBJECT -- Governance object is invalid - %s\n", strError);
             return;
         }
 
         // UPDATE CACHED VARIABLES FOR THIS OBJECT AND ADD IT TO OUR MANANGED DATA
 
-        {
-            govobj.UpdateSentinelVariables(pCurrentBlockIndex); //this sets local vars in object
+        govobj.UpdateSentinelVariables(pCurrentBlockIndex); //this sets local vars in object
 
-            if(AddGovernanceObject(govobj))
-            {
-                govobj.Relay();
-            }
+        if(AddGovernanceObject(govobj))
+        {
+            LogPrintf("MNGOVERNANCEOBJECT -- %s new\n", govobj.GetHash().ToString());
+            govobj.Relay();
         }
 
         // UPDATE THAT WE'VE SEEN THIS OBJECT
         mapSeenGovernanceObjects.insert(make_pair(govobj.GetHash(), SEEN_OBJECT_IS_VALID));
         masternodeSync.AddedBudgetItem(govobj.GetHash());
 
-        LogPrintf("MNGOVERNANCEOBJECT -- %s new\n", govobj.GetHash().ToString());
-        
+
         // WE MIGHT HAVE PENDING/ORPHAN VOTES FOR THIS OBJECT
 
         CheckOrphanVotes();
@@ -187,7 +185,7 @@ void CGovernanceManager::ProcessMessage(CNode* pfrom, std::string& strCommand, C
         // FIND THE MASTERNODE OF THE VOTER
 
         if(!mnodeman.Has(vote.GetVinMasternode())) {
-            LogPrint("gobject", "gobject - unknown masternode - vin: %s\n", vote.GetVinMasternode().ToString());
+            LogPrint("gobject", "MNGOVERNANCEOBJECTVOTE -- unknown masternode - vin: %s\n", vote.GetVinMasternode().ToString());
             mnodeman.AskForMN(pfrom, vote.GetVinMasternode());
             return;
         }
@@ -195,7 +193,7 @@ void CGovernanceManager::ProcessMessage(CNode* pfrom, std::string& strCommand, C
         // CHECK LOCAL VALIDITY AGAINST BLOCKCHAIN, TIME DATA, ETC
 
         if(!vote.IsValid(true)){
-            LogPrintf("gobject - signature invalid\n");
+            LogPrintf("MNGOVERNANCEOBJECTVOTE -- signature invalid\n");
             if(masternodeSync.IsSynced()) Misbehaving(pfrom->GetId(), 20);
             // it could just be a non-synced masternode
             mnodeman.AskForMN(pfrom, vote.GetVinMasternode());
@@ -209,12 +207,12 @@ void CGovernanceManager::ProcessMessage(CNode* pfrom, std::string& strCommand, C
 
         std::string strError = "";
         if(AddOrUpdateVote(vote, pfrom, strError)) {
+            LogPrint("gobject", "MNGOVERNANCEOBJECTVOTE -- %s new\n", vote.GetHash().ToString());
             vote.Relay();
             masternodeSync.AddedBudgetItem(vote.GetHash());
             mnodeman.AddGovernanceVote(vote.GetVinMasternode(), vote.GetParentHash());
         }
 
-        LogPrint("gobject", "NEW governance vote: %s\n", vote.GetHash().ToString());
     }
 
 }
@@ -227,7 +225,7 @@ void CGovernanceManager::CheckOrphanVotes()
     vote_m_it it1 = mapOrphanVotes.begin();
     while(it1 != mapOrphanVotes.end()){
         if(AddOrUpdateVote(((*it1).second), NULL, strError)){
-            LogPrintf("CGovernanceManager::CheckOrphanVotes - Governance object is known, activating and removing orphan vote\n");
+            LogPrintf("CGovernanceManager::CheckOrphanVotes -- Governance object is known, activating and removing orphan vote\n");
             mapOrphanVotes.erase(it1++);
         } else {
             ++it1;
@@ -245,14 +243,14 @@ bool CGovernanceManager::AddGovernanceObject(CGovernanceObject& govobj)
     // MAKE SURE THIS OBJECT IS OK
 
     if(!govobj.IsValidLocally(pCurrentBlockIndex, strError, true)) {
-        LogPrintf("CGovernanceManager::AddGovernanceObject - invalid governance object - %s - (pCurrentBlockIndex nHeight %d) \n", strError, pCurrentBlockIndex->nHeight);
+        LogPrintf("CGovernanceManager::AddGovernanceObject -- invalid governance object - %s - (pCurrentBlockIndex nHeight %d) \n", strError, pCurrentBlockIndex->nHeight);
         return false;
     }
 
     // IF WE HAVE THIS OBJECT ALREADY, WE DON'T WANT ANOTHER COPY
 
     if(mapObjects.count(govobj.GetHash())) {
-        LogPrintf("CGovernanceManager::AddGovernanceObject - already have governance object - %s\n", strError);
+        LogPrintf("CGovernanceManager::AddGovernanceObject -- already have governance object - %s\n", strError);
         return false;
     }
 
@@ -284,7 +282,7 @@ bool CGovernanceManager::AddGovernanceObject(CGovernanceObject& govobj)
 
 void CGovernanceManager::UpdateCachesAndClean()
 {
-    LogPrintf("CGovernanceManager::UpdateCachesAndClean \n");
+    LogPrint("gobject", "CGovernanceManager::UpdateCachesAndClean\n");
 
     std::vector<uint256> vecDirtyHashes = mnodeman.GetAndClearDirtyGovernanceObjectHashes();
 
@@ -334,7 +332,7 @@ void CGovernanceManager::UpdateCachesAndClean()
         // IF DELETE=TRUE, THEN CLEAN THE MESS UP!
 
         if(pObj->fCachedDelete || pObj->fExpired) {
-            LogPrintf("UpdateCachesAndClean --- erase obj %s\n", (*it).first.ToString());
+            LogPrintf("UpdateCachesAndClean -- erase obj %s\n", (*it).first.ToString());
             mnodeman.RemoveGovernanceObject(pObj->GetHash());
             mapObjects.erase(it++);
         } else {
@@ -488,7 +486,7 @@ void CGovernanceManager::Sync(CNode* pfrom, uint256 nProp)
     }
 
     pfrom->PushMessage(NetMsgType::SYNCSTATUSCOUNT, MASTERNODE_SYNC_GOVOBJ, nInvCount);
-    LogPrintf("CGovernanceManager::Sync - sent %d items\n", nInvCount);
+    LogPrintf("CGovernanceManager::Sync -- sent %d items\n", nInvCount);
 }
 
 void CGovernanceManager::SyncParentObjectByVote(CNode* pfrom, const CGovernanceVote& vote)
@@ -515,7 +513,7 @@ bool CGovernanceManager::AddOrUpdateVote(const CGovernanceVote& vote, CNode* pfr
 
                 // ADD THE VOTE AS AN ORPHAN, TO BE USED UPON RECEIVAL OF THE PARENT OBJECT
 
-                LogPrintf("CGovernanceManager::AddOrUpdateVote - Unknown object %d, asking for source\n", vote.GetParentHash().ToString());
+                LogPrintf("CGovernanceManager::AddOrUpdateVote -- Unknown object %d, asking for source\n", vote.GetParentHash().ToString());
                 mapOrphanVotes[vote.GetParentHash()] = vote;
 
                 // ASK FOR THIS VOTES PARENT SPECIFICALLY FROM THIS USER (THEY SHOULD HAVE IT, NO?)
@@ -552,12 +550,12 @@ bool CGovernanceManager::AddOrUpdateVote(const CGovernanceVote& vote, CNode* pfr
     if(it != mapVotesByType.end()) {
         if(it->second.GetTimestamp() > vote.GetTimestamp()) {
             strError = strprintf("new vote older than existing vote - %s", nTypeHash.ToString());
-            LogPrint("gobject", "CGovernanceObject::AddOrUpdateVote - %s\n", strError);
+            LogPrint("gobject", "CGovernanceObject::AddOrUpdateVote -- %s\n", strError);
             return false;
         }
         if(vote.GetTimestamp() - it->second.GetTimestamp() < GOVERNANCE_UPDATE_MIN) {
             strError = strprintf("time between votes is too soon - %s - %lli", nTypeHash.ToString(), vote.GetTimestamp() - it->second.GetTimestamp());
-            LogPrint("gobject", "CGovernanceObject::AddOrUpdateVote - %s\n", strError);
+            LogPrint("gobject", "CGovernanceObject::AddOrUpdateVote -- %s\n", strError);
             return false;
         }
     }
@@ -579,7 +577,7 @@ bool CGovernanceManager::AddOrUpdateVote(const CGovernanceVote& vote, CNode* pfr
             mnodeman.UpdateWatchdogVoteTime(vote.GetVinMasternode());
         }
     } else {
-        LogPrintf("Governance object not found! Can't update fDirtyCache - %s\n", vote.GetParentHash().ToString());
+        LogPrintf("CGovernanceObject::AddOrUpdateVote -- Governance object not found! Can't update fDirtyCache - %s\n", vote.GetParentHash().ToString());
     }
 
     return true;
@@ -610,7 +608,7 @@ bool CGovernanceManager::MasternodeRateCheck(const CTxIn& vin, int nObjectType)
         return true;
     }
 
-    LogPrintf("CGovernanceManager::MasternodeRateCheck Rate too high: vin = %s, current height = %d, last MN height = %d, minimum difference = %d\n", 
+    LogPrintf("CGovernanceManager::MasternodeRateCheck -- Rate too high: vin = %s, current height = %d, last MN height = %d, minimum difference = %d\n",
               vin.prevout.ToStringShort(), nCachedBlockHeight, it->second, mindiff);
     return false;
 }
@@ -707,8 +705,8 @@ bool CGovernanceObject::Sign(CKey& keyMasternode, CPubKey& pubkeyMasternode)
         return false;
     }
 
-    LogPrint("gobject", "CGovernanceObject::Sign: pubkey id = %s, vin = %s\n", 
-             pubkeyMasternode.GetID().ToString(), vinMasternode.prevout.ToStringShort());
+    LogPrint("gobject", "CGovernanceObject::Sign -- pubkey id = %s, vin = %s\n",
+             pubKeyMasternode.GetID().ToString(), vinMasternode.prevout.ToStringShort());
 
 
     return true;
@@ -976,13 +974,13 @@ bool CGovernanceObject::IsCollateralValid(std::string& strError)
 
     if(!GetTransaction(nCollateralHash, txCollateral, Params().GetConsensus(), nBlockHash, true)){
         strError = strprintf("Can't find collateral tx %s", txCollateral.ToString());
-        LogPrintf("CGovernanceObject::IsCollateralValid - %s\n", strError);
+        LogPrintf("CGovernanceObject::IsCollateralValid -- %s\n", strError);
         return false;
     }
 
     if(txCollateral.vout.size() < 1) {
         strError = strprintf("tx vout size less than 1 | %d", txCollateral.vout.size());
-        LogPrintf ("CGovernanceObject::IsCollateralValid - %s\n", strError);
+        LogPrintf("CGovernanceObject::IsCollateralValid -- %s\n", strError);
         return false;
     }
 
@@ -1006,7 +1004,7 @@ bool CGovernanceObject::IsCollateralValid(std::string& strError)
              << endl; );
         if(!o.scriptPubKey.IsNormalPaymentScript() && !o.scriptPubKey.IsUnspendable()){
             strError = strprintf("Invalid Script %s", txCollateral.ToString());
-            LogPrintf ("CGovernanceObject::IsCollateralValid - %s\n", strError);
+            LogPrintf ("CGovernanceObject::IsCollateralValid -- %s\n", strError);
             return false;
         }
         if(o.scriptPubKey == findScript && o.nValue >= nMinFee) {
@@ -1021,7 +1019,7 @@ bool CGovernanceObject::IsCollateralValid(std::string& strError)
 
     if(!foundOpReturn){
         strError = strprintf("Couldn't find opReturn %s in %s", nExpectedHash.ToString(), txCollateral.ToString());
-        LogPrintf ("CGovernanceObject::IsCollateralValid - %s\n", strError);
+        LogPrintf ("CGovernanceObject::IsCollateralValid -- %s\n", strError);
         return false;
     }
 
@@ -1043,7 +1041,7 @@ bool CGovernanceObject::IsCollateralValid(std::string& strError)
         strError = "valid";
     } else {
         strError = strprintf("Collateral requires at least %d confirmations - %d confirmations", GOVERNANCE_FEE_CONFIRMATIONS, nConfirmationsIn);
-        LogPrintf ("CGovernanceObject::IsCollateralValid - %s - %d confirmations\n", strError, nConfirmationsIn);
+        LogPrintf ("CGovernanceObject::IsCollateralValid -- %s - %d confirmations\n", strError, nConfirmationsIn);
         return false;
     }
 
