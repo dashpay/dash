@@ -159,7 +159,7 @@ void CGovernanceManager::ProcessMessage(CNode* pfrom, std::string& strCommand, C
         }
 
         // UPDATE THAT WE'VE SEEN THIS OBJECT
-        mapSeenGovernanceObjects.insert(make_pair(govobj.GetHash(), SEEN_OBJECT_IS_VALID));
+        mapSeenGovernanceObjects.insert(std::make_pair(govobj.GetHash(), SEEN_OBJECT_IS_VALID));
         masternodeSync.AddedBudgetItem(govobj.GetHash());
 
 
@@ -521,7 +521,7 @@ bool CGovernanceManager::AddOrUpdateVote(const CGovernanceVote& vote, CNode* pfr
                 if(!mapAskedForGovernanceObject.count(vote.GetParentHash())){
                     syncparent = true;
                     votehash = vote.GetParentHash();
-                    mapAskedForGovernanceObject[vote.GetParentHash()] = GetTime();              
+                    mapAskedForGovernanceObject[vote.GetParentHash()] = GetTime();
                 } else {
                     strError = "Governance object not found! Sync message has been already pushed.";
                     return false;
@@ -687,7 +687,7 @@ void CGovernanceObject::SetMasternodeInfo(const CTxIn& vin)
     vinMasternode = vin;
 }
 
-bool CGovernanceObject::Sign(CKey& keyMasternode, CPubKey& pubkeyMasternode)
+bool CGovernanceObject::Sign(CKey& keyMasternode, CPubKey& pubKeyMasternode)
 {
     LOCK(cs);
 
@@ -700,7 +700,7 @@ bool CGovernanceObject::Sign(CKey& keyMasternode, CPubKey& pubkeyMasternode)
         return false;
     }
 
-    if(!darkSendSigner.VerifyMessage(pubkeyMasternode, vchSig, strMessage, strError)) {
+    if(!darkSendSigner.VerifyMessage(pubKeyMasternode, vchSig, strMessage, strError)) {
         LogPrintf("CGovernanceObject::Sign -- VerifyMessage() failed, error: %s\n", strError);
         return false;
     }
@@ -712,14 +712,14 @@ bool CGovernanceObject::Sign(CKey& keyMasternode, CPubKey& pubkeyMasternode)
     return true;
 }
 
-bool CGovernanceObject::CheckSignature(CPubKey& pubkeyMasternode)
+bool CGovernanceObject::CheckSignature(CPubKey& pubKeyMasternode)
 {
     LOCK(cs);
     std::string strError;
     uint256 nHash = GetHash();
     std::string strMessage = nHash.ToString();
 
-    if(!darkSendSigner.VerifyMessage(pubkeyMasternode, vchSig, strMessage, strError)) {
+    if(!darkSendSigner.VerifyMessage(pubKeyMasternode, vchSig, strMessage, strError)) {
         LogPrintf("CGovernance::CheckSignature -- VerifyMessage() failed, error: %s\n", strError);
         return false;
     }
@@ -902,16 +902,16 @@ bool CGovernanceObject::IsValidLocally(const CBlockIndex* pindex, std::string& s
 
     if(fCheckCollateral) { 
         if((nObjectType == GOVERNANCE_OBJECT_TRIGGER) || (nObjectType == GOVERNANCE_OBJECT_WATCHDOG)) {
-            std::string strVin = vinMasternode.prevout.ToStringShort();
+            std::string strOutpoint = vinMasternode.prevout.ToStringShort();
             masternode_info_t infoMn = mnodeman.GetMasternodeInfo(vinMasternode);
             if(!infoMn.fInfoValid) {
-                strError = "Masternode not found vin: " + strVin;
+                strError = "Masternode not found: " + strOutpoint;
                 return false;
             }
 
             // Check that we have a valid MN signature
             if(!CheckSignature(infoMn.pubKeyMasternode)) {
-                strError = "Invalid masternode signature for: " + strVin + ", pubkey id = " + infoMn.pubKeyMasternode.GetID().ToString();
+                strError = "Invalid masternode signature for: " + strOutpoint + ", pubkey id = " + infoMn.pubKeyMasternode.GetID().ToString();
                 return false;
             }
 
@@ -919,7 +919,7 @@ bool CGovernanceObject::IsValidLocally(const CBlockIndex* pindex, std::string& s
             // that objects will be seen in rapid succession
             if(masternodeSync.IsSynced()) {
                 if(!governance.MasternodeRateCheck(vinMasternode, nObjectType)) {
-                    strError = "Masternode attempting to create too many objects vin: " + strVin;
+                    strError = "Masternode attempting to create too many objects: " + strOutpoint;
                     return false;
                 }
             }

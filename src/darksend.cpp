@@ -1194,7 +1194,7 @@ bool CDarksendPool::UpdatePoolStateOnClient(PoolState nStateNew, int nEntriesCou
 // check it to make sure it's what we want, then sign it if we agree.
 // If we refuse to sign, it's possible we'll be charged collateral
 //
-bool CDarksendPool::SignFinalTransaction(const CTransaction& finalTransactionNew, CNode* node)
+bool CDarksendPool::SignFinalTransaction(const CTransaction& finalTransactionNew, CNode* pnode)
 {
     if(fMasterNode) return false;
 
@@ -1265,8 +1265,8 @@ bool CDarksendPool::SignFinalTransaction(const CTransaction& finalTransactionNew
     }
 
     // push all of our signatures to the Masternode
-    if(sigs.size() > 0 && node != NULL)
-        node->PushMessage(NetMsgType::DSSIGNFINALTX, sigs);
+    if(!sigs.empty() && pnode != NULL)
+        pnode->PushMessage(NetMsgType::DSSIGNFINALTX, sigs);
 
     return true;
 }

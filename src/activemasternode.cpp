@@ -39,8 +39,7 @@ void CActiveMasternode::ManageState()
 
     if(eType == MASTERNODE_REMOTE) {
         ManageStateRemote();
-    }
-    else {
+    } else {
         ManageStateLocal();
     }
 
@@ -55,12 +54,12 @@ void CActiveMasternode::ManageState()
 std::string CActiveMasternode::GetStatus()
 {
     switch (nState) {
-        case ACTIVE_MASTERNODE_INITIAL: return "Node just started, not yet activated";
+        case ACTIVE_MASTERNODE_INITIAL:         return "Node just started, not yet activated";
         case ACTIVE_MASTERNODE_SYNC_IN_PROCESS: return "Sync in progress. Must wait until sync is complete to start Masternode";
-        case ACTIVE_MASTERNODE_INPUT_TOO_NEW: return strprintf("Masternode input must have at least %d confirmations", Params().GetConsensus().nMasternodeMinimumConfirmations);
-        case ACTIVE_MASTERNODE_NOT_CAPABLE: return "Not capable masternode: " + strNotCapableReason;
-        case ACTIVE_MASTERNODE_STARTED: return "Masternode successfully started";
-        default: return "unknown";
+        case ACTIVE_MASTERNODE_INPUT_TOO_NEW:   return strprintf("Masternode input must have at least %d confirmations", Params().GetConsensus().nMasternodeMinimumConfirmations);
+        case ACTIVE_MASTERNODE_NOT_CAPABLE:     return "Not capable masternode: " + strNotCapableReason;
+        case ACTIVE_MASTERNODE_STARTED:         return "Masternode successfully started";
+        default:                                return "unknown";
     }
 }
 

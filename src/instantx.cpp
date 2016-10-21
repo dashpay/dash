@@ -178,20 +178,20 @@ bool IsInstantSendTxValid(const CTransaction& txCandidate)
 
     int64_t nValueIn = 0;
     int64_t nValueOut = 0;
-    bool missingTx = false;
+    bool fMissingInputs = false;
 
-    BOOST_FOREACH(const CTxOut txout, txCandidate.vout) {
+    BOOST_FOREACH(const CTxOut& txout, txCandidate.vout) {
         nValueOut += txout.nValue;
     }
 
-    BOOST_FOREACH(const CTxIn txin, txCandidate.vin) {
+    BOOST_FOREACH(const CTxIn& txin, txCandidate.vin) {
         CTransaction tx2;
         uint256 hash;
         if(GetTransaction(txin.prevout.hash, tx2, Params().GetConsensus(), hash, true)) {
             if(tx2.vout.size() > txin.prevout.n)
                 nValueIn += tx2.vout[txin.prevout.n].nValue;
         } else {
-            missingTx = true;
+            fMissingInputs = true;
         }
     }
 
@@ -200,8 +200,8 @@ bool IsInstantSendTxValid(const CTransaction& txCandidate)
         return false;
     }
 
-    if(missingTx) {
-        LogPrint("instantsend", "IsInstantSendTxValid -- Unknown inputs in IX transaction: txCandidate=%s", txCandidate.ToString());
+    if(fMissingInputs) {
+        LogPrint("instantsend", "IsInstantSendTxValid -- Unknown inputs in transaction: txCandidate=%s", txCandidate.ToString());
         /*
             This happens sometimes for an unknown reason, so we'll return that it's a valid transaction.
             If someone submits an invalid transaction it will be rejected by the network anyway and this isn't
