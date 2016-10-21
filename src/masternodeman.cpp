@@ -241,13 +241,14 @@ int CMasternodeMan::CountEnabled(int protocolVersion)
     return i;
 }
 
+/* Only IPv4 masternodes are allowed in 12.1, saving this for later
 int CMasternodeMan::CountByIP(int nNetworkType)
 {
     LOCK(cs);
     int nNodeCount = 0;
 
     BOOST_FOREACH(CMasternode& mn, vMasternodes)
-        if( (nNetworkType == NET_IPV4 && mn.addr.IsIPv4()) ||
+        if ((nNetworkType == NET_IPV4 && mn.addr.IsIPv4()) ||
             (nNetworkType == NET_TOR  && mn.addr.IsTor())  ||
             (nNetworkType == NET_IPV6 && mn.addr.IsIPv6())) {
                 nNodeCount++;
@@ -255,6 +256,7 @@ int CMasternodeMan::CountByIP(int nNetworkType)
 
     return nNodeCount;
 }
+*/
 
 void CMasternodeMan::DsegUpdate(CNode* pnode)
 {
@@ -582,22 +584,6 @@ CMasternode* CMasternodeMan::GetMasternodeByRank(int nRank, int64_t nBlockHeight
     }
 
     return NULL;
-}
-
-void CMasternodeMan::InitDummyScriptPubkey() {
-    CKey secret;
-    secret.MakeNewKey(true);
-
-    CPubKey pubkey = secret.GetPubKey();
-    assert(secret.VerifyPubKey(pubkey));
-
-    if (pubkey.IsValid()) {
-        CKeyID keyID = pubkey.GetID();
-        LogPrintf("Generated dummyScriptPubkey: address %s privkey %s\n", CBitcoinAddress(keyID).ToString(), CBitcoinSecret(secret).ToString());
-        dummyScriptPubkey = GetScriptForDestination(keyID);
-    } else {
-        LogPrintf("CMasternodeMan::InitDummyScriptPubkey - ERROR: can't assign dummyScriptPubkey\n");
-    }
 }
 
 void CMasternodeMan::ProcessMasternodeConnections()

@@ -59,8 +59,6 @@ public:
     // keep track of dsq count to prevent masternodes from gaming darksend queue
     int64_t nDsqCount;
 
-    // dummy script pubkey to test masternodes' vins against mempool
-    CScript dummyScriptPubkey;
 
     CMasternodeMan() : nLastWatchdogVoteTime(0), nDsqCount(0) {}
 
@@ -112,7 +110,7 @@ public:
     int CountEnabled(int protocolVersion = -1);
 
     /// Count Masternodes by network type - NET_IPV4, NET_IPV6, NET_TOR
-    int CountByIP(int nNetworkType);
+    // int CountByIP(int nNetworkType);
 
     void DsegUpdate(CNode* pnode);
 
@@ -142,8 +140,6 @@ public:
     std::vector<pair<int, CMasternode> > GetMasternodeRanks(int64_t nBlockHeight, int minProtocol=0);
     int GetMasternodeRank(const CTxIn &vin, int64_t nBlockHeight, int minProtocol=0, bool fOnlyActive=true);
     CMasternode* GetMasternodeByRank(int nRank, int64_t nBlockHeight, int minProtocol=0, bool fOnlyActive=true);
-
-    void InitDummyScriptPubkey();
 
     void ProcessMasternodeConnections();
 
