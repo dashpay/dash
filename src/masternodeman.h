@@ -105,8 +105,11 @@ public:
     /// Clear Masternode vector
     void Clear();
 
+    /// Count Masternodes filtered by protocolVersion.
+    /// Masternode protocolVersion should match or be above the one specified in param here.
     int CountMasternodes(int protocolVersion = -1);
-
+    /// Count enabled Masternodes filtered by protocolVersion.
+    /// Masternode protocolVersion should match or be above the one specified in param here.
     int CountEnabled(int protocolVersion = -1);
 
     /// Count Masternodes by network type - NET_IPV4, NET_IPV6, NET_TOR

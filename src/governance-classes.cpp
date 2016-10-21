@@ -30,12 +30,7 @@
 CGovernanceTriggerManager triggerman;
 
 // SPLIT UP STRING BY DELIMITER
-
-/*  
-    NOTE : SplitBy can be simplified via:
-    http://www.boost.org/doc/libs/1_58_0/doc/html/boost/algorithm/split_idp202406848.html
-*/
-
+// http://www.boost.org/doc/libs/1_58_0/doc/html/boost/algorithm/split_idp202406848.html
 std::vector<std::string> SplitBy(std::string strCommand, std::string strDelimit)
 {
     std::vector<std::string> vParts;

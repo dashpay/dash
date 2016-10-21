@@ -371,7 +371,7 @@ bool CMasternodeMan::Has(const CTxIn& vin)
     return (pMN != NULL);
 }
 
-// 
+//
 // Deterministically select the oldest/best masternode to pay on the network
 //
 CMasternode* CMasternodeMan::GetNextMasternodeInQueueForPayment(int nBlockHeight, bool fFilterSigTime, int& nCount)
@@ -400,7 +400,7 @@ CMasternode* CMasternodeMan::GetNextMasternodeInQueueForPayment(int nBlockHeight
         //it's too new, wait for a cycle
         if(fFilterSigTime && mn.sigTime + (nMnCount*2.6*60) > GetAdjustedTime()) continue;
 
-        //make sure it has as many confirmations as there are masternodes
+        //make sure it has at least as many confirmations as there are masternodes
         if(mn.GetCollateralAge() < nMnCount) continue;
 
         vecMasternodeLastPaid.push_back(std::make_pair(mn.GetLastPaidBlock(), &mn));
@@ -603,13 +603,13 @@ void CMasternodeMan::ProcessMasternodeConnections()
 
 void CMasternodeMan::ProcessMessage(CNode* pfrom, std::string& strCommand, CDataStream& vRecv)
 {
-
-    if(fLiteMode) return; //disable all Darksend/Masternode related functionality
+    if(fLiteMode) return; // disable all Dash specific functionality
     if(!masternodeSync.IsBlockchainSynced()) return;
 
     LOCK(cs);
 
     if (strCommand == NetMsgType::MNANNOUNCE) { //Masternode Broadcast
+
         CMasternodeBroadcast mnb;
         vRecv >> mnb;
 
@@ -734,6 +734,8 @@ void CMasternodeMan::ProcessMessage(CNode* pfrom, std::string& strCommand, CData
     }
 }
 
+// Verification of masternodes via unique direct requests.
+
 void CMasternodeMan::DoFullVerificationStep()
 {
     if(activeMasternode.vin == CTxIn()) return;
@@ -802,6 +804,11 @@ void CMasternodeMan::DoFullVerificationStep()
 
     LogPrint("masternode", "CMasternodeMan::DoFullVerificationStep -- Sent verification requests to %d masternodes\n", nCount);
 }
+
+// This function tries to find masternodes with the same addr,
+// find a verified one and ban all the other. If there are many nodes
+// with the same addr but none of them is verified yet, then none of them are banned.
+// It could take many times to run this before most of the duplicate nodes are banned.
 
 void CMasternodeMan::CheckSameAddr()
 {
@@ -1164,12 +1171,12 @@ int CMasternodeMan::GetEstimatedMasternodes(int nBlock)
 {
     /*
         Masternodes = (Coins/1000)*X on average
-        
+
         *X = nPercentage, starting at 0.52
         nPercentage goes up 0.01 each period
         Period starts at 35040, which has exponential slowing growth
 
-    */ 
+    */
 
     int nPercentage = 52; //0.52
     int nPeriod = 35040;
