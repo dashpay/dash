@@ -676,7 +676,7 @@ void CMasternodeMan::ProcessMessage(CNode* pfrom, std::string& strCommand, CData
                     int64_t t = (*i).second;
                     if (GetTime() < t) {
                         Misbehaving(pfrom->GetId(), 34);
-                        LogPrintf("DSEG -- peer already asked me for the list, peer=\n", pfrom->id);
+                        LogPrintf("DSEG -- peer already asked me for the list, peer=%d\n", pfrom->id);
                         return;
                     }
                 }

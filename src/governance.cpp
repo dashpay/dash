@@ -513,7 +513,7 @@ bool CGovernanceManager::AddOrUpdateVote(const CGovernanceVote& vote, CNode* pfr
 
                 // ADD THE VOTE AS AN ORPHAN, TO BE USED UPON RECEIVAL OF THE PARENT OBJECT
 
-                LogPrintf("CGovernanceManager::AddOrUpdateVote -- Unknown object %d, asking for source\n", vote.GetParentHash().ToString());
+                LogPrintf("CGovernanceManager::AddOrUpdateVote -- Unknown object %s, asking for source\n", vote.GetParentHash().ToString());
                 mapOrphanVotes[vote.GetParentHash()] = vote;
 
                 // ASK FOR THIS VOTES PARENT SPECIFICALLY FROM THIS USER (THEY SHOULD HAVE IT, NO?)
