@@ -5700,14 +5700,16 @@ bool static ProcessMessage(CNode* pfrom, string strCommand, CDataStream& vRecv, 
         vector<uint256> vWorkQueue;
         vector<uint256> vEraseQueue;
         CTransaction tx;
+        CDarksendBroadcastTx dstx;
+        int nInvType = MSG_TX;
 
         if(strCommand == NetMsgType::TX) {
             vRecv >> tx;
         } else if (strCommand == NetMsgType::DSTX) {
             //these allow masternodes to publish a limited amount of free transactions
-            CDarksendBroadcastTx dstx;
             vRecv >> dstx;
             tx = dstx.tx;
+            nInvType = MSG_DSTX;
 
             CMasternode* pmn = mnodeman.Find(dstx.vin);
             if(pmn != NULL)
@@ -5723,14 +5725,10 @@ bool static ProcessMessage(CNode* pfrom, string strCommand, CDataStream& vRecv, 
                 LogPrintf("DSTX -- Got Masternode transaction %s\n", tx.GetHash().ToString());
 
                 pmn->fAllowMixingTx = false;
-
-                if(!mapDarksendBroadcastTxes.count(tx.GetHash())){
-                    mapDarksendBroadcastTxes.insert(make_pair(tx.GetHash(), dstx));
-                }
             }
         }
 
-        CInv inv(MSG_TX, tx.GetHash());
+        CInv inv(nInvType, tx.GetHash());
         pfrom->AddInventoryKnown(inv);
 
         LOCK(cs_main);
@@ -5743,6 +5741,10 @@ bool static ProcessMessage(CNode* pfrom, string strCommand, CDataStream& vRecv, 
 
         if (!AlreadyHave(inv) && AcceptToMemoryPool(mempool, state, tx, true, &fMissingInputs))
         {
+            if (strCommand == NetMsgType::DSTX) {
+                mapDarksendBroadcastTxes.insert(make_pair(tx.GetHash(), dstx));
+            }
+
             mempool.check(pcoinsTip);
             RelayTransaction(tx);
             vWorkQueue.push_back(inv.hash);
