@@ -1201,9 +1201,6 @@ bool AcceptToMemoryPoolWorker(CTxMemPool& pool, CValidationState &state, const C
         unsigned int nSigOps = GetLegacySigOpCount(tx);
         nSigOps += GetP2SHSigOpCount(tx, view);
 
-        if(mapDarksendBroadcastTxes.count(hash))
-           mempool.PrioritiseTransaction(hash, hash.ToString(), 1000, 0.1*COIN);
-
         CAmount nValueOut = tx.GetValueOut();
         CAmount nFees = nValueIn-nValueOut;
         // nModifiedFees includes any fee deltas from PrioritiseTransaction
@@ -5706,25 +5703,26 @@ bool static ProcessMessage(CNode* pfrom, string strCommand, CDataStream& vRecv, 
         if(strCommand == NetMsgType::TX) {
             vRecv >> tx;
         } else if (strCommand == NetMsgType::DSTX) {
-            //these allow masternodes to publish a limited amount of free transactions
             vRecv >> dstx;
             tx = dstx.tx;
+            uint256 hashTx = tx.GetHash();
             nInvType = MSG_DSTX;
 
-            CMasternode* pmn = mnodeman.Find(dstx.vin);
-            if(pmn != NULL)
-            {
-                if(!pmn->fAllowMixingTx) {
-                    //multiple peers can send us a valid masternode transaction
-                    LogPrint("privatesend", "DSTX -- Masternode sending too many transactions %s\n", tx.GetHash().ToString());
-                    return true;
+            if(!mapDarksendBroadcastTxes.count(hashTx)) {
+                CMasternode* pmn = mnodeman.Find(dstx.vin);
+                if(pmn != NULL) {
+                    //allow masternodes to publish only a limited number of free transactions
+                    if(!pmn->fAllowMixingTx) {
+                        LogPrint("privatesend", "DSTX -- Masternode sending too many transactions %s\n", hashTx.ToString());
+                        return true;
+                    }
+
+                    if(!dstx.CheckSignature()) return false;
+
+                    LogPrintf("DSTX -- Got Masternode transaction %s\n", hashTx.ToString());
+                    mempool.PrioritiseTransaction(hashTx, hashTx.ToString(), 1000, 0.1*COIN);
+                    pmn->fAllowMixingTx = false;
                 }
-
-                if(!dstx.CheckSignature()) return false;
-
-                LogPrintf("DSTX -- Got Masternode transaction %s\n", tx.GetHash().ToString());
-
-                pmn->fAllowMixingTx = false;
             }
         }
 
