@@ -108,8 +108,9 @@ UniValue getinfo(const JSONRPCRequest& request)
         obj.push_back(Pair("keypoololdest", pwallet->GetOldestKeyPoolTime()));
         obj.push_back(Pair("keypoolsize",   (int)pwallet->GetKeyPoolSize()));
     }
-    if (pwallet && pwallet->IsCrypted())
+    if (pwallet && pwallet->IsCrypted()) {
         obj.push_back(Pair("unlocked_until", pwallet->nRelockTime));
+    }
     obj.push_back(Pair("paytxfee",      ValueFromAmount(payTxFee.GetFeePerK())));
 #endif
     obj.push_back(Pair("relayfee",      ValueFromAmount(::minRelayTxFee.GetFeePerK())));
@@ -360,8 +361,9 @@ UniValue validateaddress(const JSONRPCRequest& request)
         ret.push_back(Pair("iswatchonly", (mine & ISMINE_WATCH_ONLY) ? true: false));
         UniValue detail = boost::apply_visitor(DescribeAddressVisitor(pwallet), dest);
         ret.pushKVs(detail);
-        if (pwallet && pwallet->mapAddressBook.count(dest))
+        if (pwallet && pwallet->mapAddressBook.count(dest)) {
             ret.push_back(Pair("account", pwallet->mapAddressBook[dest].name));
+        }
         CKeyID keyID;
         if (pwallet) {
             const auto& meta = pwallet->mapKeyMetadata;
@@ -409,8 +411,7 @@ CScript _createmultisig_redeemScript(CWallet * const pwallet, const UniValue& pa
 #ifdef ENABLE_WALLET
         // Case 1: Dash address and we have full public key:
         CBitcoinAddress address(ks);
-        if (pwallet && address.IsValid())
-        {
+        if (pwallet && address.IsValid()) {
             CKeyID keyID;
             if (!address.GetKeyID(keyID))
                 throw std::runtime_error(
@@ -419,6 +420,7 @@ CScript _createmultisig_redeemScript(CWallet * const pwallet, const UniValue& pa
             if (!pwallet->GetPubKey(keyID, vchPubKey))
                 throw std::runtime_error(
                     strprintf("no full public key for address %s",ks));
+            }
             if (!vchPubKey.IsFullyValid())
                 throw std::runtime_error(" Invalid public key: "+ks);
             pubkeys[i] = vchPubKey;
