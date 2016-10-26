@@ -92,7 +92,7 @@ std::string CActiveMasternode::GetTypeString() const
 
 bool CActiveMasternode::SendMasternodePing()
 {
-    if(fPingerEnabled) {
+    if(!fPingerEnabled) {
         LogPrint("masterndoe", "CActiveMasternode::SendMasternodePing -- %s: masternode ping service is disabled, skipping...\n", GetStateString());
         return false;
     }
