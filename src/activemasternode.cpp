@@ -51,6 +51,18 @@ void CActiveMasternode::ManageState()
     }
 }
 
+std::string CActiveMasternode::GetStateString() const
+{
+    switch (nState) {
+        case ACTIVE_MASTERNODE_INITIAL:         return "INITIAL";
+        case ACTIVE_MASTERNODE_SYNC_IN_PROCESS: return "SYNC_IN_PROCESS";
+        case ACTIVE_MASTERNODE_INPUT_TOO_NEW:   return "INPUT_TOO_NEW";
+        case ACTIVE_MASTERNODE_NOT_CAPABLE:     return "NOT_CAPABLE";
+        case ACTIVE_MASTERNODE_STARTED:         return "STARTED";
+        default:                                return "UNKNOWN";
+    }
+}
+
 std::string CActiveMasternode::GetStatus()
 {
     switch (nState) {

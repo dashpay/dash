@@ -61,6 +61,7 @@ public:
     /// Manage state of active Masternode
     void ManageState();
 
+    std::string GetStateString() const;
     std::string GetStatus();
     std::string GetType();
 
