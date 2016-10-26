@@ -412,19 +412,16 @@ CNode* CConnman::ConnectNode(CAddress addrConnect, const char *pszDest, bool fCo
         // Add node
         CNode* pnode = new CNode(GetNewNodeId(), nLocalServices, GetBestHeight(), hSocket, addrConnect, pszDest ? pszDest : "", false, true);
 
-        PushVersion(pnode, GetTime());
-
-        GetNodeSignals().InitializeNode(pnode->GetId(), pnode);
-
+        pnode->nServicesExpected = ServiceFlags(addrConnect.nServices & nRelevantServices);
         pnode->nTimeConnected = GetTime();
         if(fConnectToMasternode) {
             pnode->AddRef();
             pnode->fMasternode = true;
         }
 
+        GetNodeSignals().InitializeNode(pnode, *this);
         LOCK(cs_vNodes);
         vNodes.push_back(pnode);
-        pnode->nServicesExpected = ServiceFlags(addrConnect.nServices & nRelevantServices);
 
         return pnode;
     } else if (!proxyConnectionFailed) {
@@ -434,24 +431,6 @@ CNode* CConnman::ConnectNode(CAddress addrConnect, const char *pszDest, bool fCo
     }
 
     return NULL;
-}
-
-void CConnman::PushVersion(CNode* pnode, int64_t nTime)
-{
-    ServiceFlags nLocalNodeServices = pnode->GetLocalServices();
-    CAddress addrYou = (pnode->addr.IsRoutable() && !IsProxy(pnode->addr) ? pnode->addr : CAddress(CService("0.0.0.0", 0), pnode->addr.nServices));
-    CAddress addrMe = GetLocalAddress(&pnode->addr, nLocalNodeServices);
-    uint64_t nonce = pnode->GetLocalNonce();
-    int nNodeStartingHeight = pnode->nMyStartingHeight;
-    NodeId id = pnode->GetId();
-
-    PushMessageWithVersion(pnode, INIT_PROTO_VERSION, NetMsgType::VERSION, PROTOCOL_VERSION, (uint64_t)nLocalNodeServices, nTime, addrYou, addrMe,
-            nonce, strSubVersion, nNodeStartingHeight, ::fRelayTxes);
-
-    if (fLogIPs)
-        LogPrint("net", "send version message: version %d, blocks=%d, us=%s, them=%s, peer=%d\n", PROTOCOL_VERSION, nNodeStartingHeight, addrMe.ToString(), addrYou.ToString(), id);
-    else
-        LogPrint("net", "send version message: version %d, blocks=%d, us=%s, peer=%d\n", PROTOCOL_VERSION, nNodeStartingHeight, addrMe.ToString(), id);
 }
 
 void CConnman::DumpBanlist()
@@ -1078,8 +1057,8 @@ void CConnman::AcceptConnection(const ListenSocket& hListenSocket) {
     }
 
     CNode* pnode = new CNode(GetNewNodeId(), nLocalServices, GetBestHeight(), hSocket, addr, "", true);
-    GetNodeSignals().InitializeNode(pnode->GetId(), pnode);
     pnode->fWhitelisted = whitelisted;
+    GetNodeSignals().InitializeNode(pnode, *this);
 
     LogPrint("net", "connection from %s accepted\n", addr.ToString());
 
@@ -2160,7 +2139,7 @@ bool CConnman::Start(boost::thread_group& threadGroup, CScheduler& scheduler, st
 
     if (pnodeLocalHost == NULL) {
         pnodeLocalHost = new CNode(GetNewNodeId(), nLocalServices, GetBestHeight(), INVALID_SOCKET, CAddress(CService("127.0.0.1", 0), nLocalServices));
-        GetNodeSignals().InitializeNode(pnodeLocalHost->GetId(), pnodeLocalHost);
+        GetNodeSignals().InitializeNode(pnodeLocalHost, *this);
     }
 
     //

@@ -169,9 +169,6 @@ public:
         PushMessageWithVersionAndFlag(pnode, 0, 0, sCommand, std::forward<Args>(args)...);
     }
 
-    void PushVersion(CNode* pnode, int64_t nTime);
-
-
     template<typename Callable>
     bool ForEachNodeContinueIf(Callable&& func)
     {
@@ -467,7 +464,7 @@ struct CNodeSignals
 {
     boost::signals2::signal<bool (CNode*, CConnman&), CombinerAll> ProcessMessages;
     boost::signals2::signal<bool (CNode*, CConnman&), CombinerAll> SendMessages;
-    boost::signals2::signal<void (NodeId, const CNode*)> InitializeNode;
+    boost::signals2::signal<void (CNode*, CConnman&)> InitializeNode;
     boost::signals2::signal<void (NodeId, bool&)> FinalizeNode;
 };
 
@@ -718,6 +715,10 @@ public:
 
     uint64_t GetLocalNonce() const {
       return nLocalHostNonce;
+    }
+
+    int GetMyStartingHeight() const {
+      return nMyStartingHeight;
     }
 
     int GetRefCount()
