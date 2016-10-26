@@ -196,26 +196,26 @@ void CActiveMasternode::ManageStateRemote()
              GetStatus(), fPingerEnabled, GetTypeString(), pubKeyMasternode.GetID().ToString());
 
     mnodeman.CheckMasternode(pubKeyMasternode);
-    CMasternode mn;
-    if(mnodeman.Get(pubKeyMasternode, mn)) {
-        if(mn.nProtocolVersion != PROTOCOL_VERSION) {
+    masternode_info_t infoMn = mnodeman.GetMasternodeInfo(pubKeyMasternode);
+    if(infoMn.fInfoValid) {
+        if(infoMn.nProtocolVersion != PROTOCOL_VERSION) {
             nState = ACTIVE_MASTERNODE_NOT_CAPABLE;
             strNotCapableReason = "Invalid protocol version";
             LogPrintf("CActiveMasternode::ManageStateRemote -- %s: %s\n", GetStateString(), strNotCapableReason);
             return;
         }
-        if(service != mn.addr) {
+        if(service != infoMn.addr) {
             nState = ACTIVE_MASTERNODE_NOT_CAPABLE;
             strNotCapableReason = "Specified IP doesn't match our external address.";
             LogPrintf("CActiveMasternode::ManageStateRemote -- %s: %s\n", GetStateString(), strNotCapableReason);
             return;
         }
-        vin = mn.vin;
-        service = mn.addr;
+        vin = infoMn.vin;
+        service = infoMn.addr;
         fPingerEnabled = true;
-        if(((mn.nActiveState == CMasternode::MASTERNODE_ENABLED) ||
-            (mn.nActiveState == CMasternode::MASTERNODE_PRE_ENABLED) ||
-            (mn.nActiveState == CMasternode::MASTERNODE_WATCHDOG_EXPIRED))) {
+        if(((infoMn.nActiveState == CMasternode::MASTERNODE_ENABLED) ||
+            (infoMn.nActiveState == CMasternode::MASTERNODE_PRE_ENABLED) ||
+            (infoMn.nActiveState == CMasternode::MASTERNODE_WATCHDOG_EXPIRED))) {
             if(nState != ACTIVE_MASTERNODE_STARTED) {
                 LogPrintf("CActiveMasternode::ManageStateRemote -- STARTED!\n");
             }
@@ -223,7 +223,7 @@ void CActiveMasternode::ManageStateRemote()
         }
         else {
             nState = ACTIVE_MASTERNODE_NOT_CAPABLE;
-            strNotCapableReason = strprintf("Masternode in %s state", mn.GetStateString());
+            strNotCapableReason = strprintf("Masternode in %s state", CMasternode::StateToString(infoMn.nActiveState));
             LogPrintf("CActiveMasternode::ManageStateRemote -- %s: %s\n", GetStateString(), strNotCapableReason);
         }
     }

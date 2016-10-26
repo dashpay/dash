@@ -260,6 +260,7 @@ public:
 
     masternode_info_t GetInfo();
 
+    static std::string StateToString(int nStateIn);
     std::string GetStateString() const;
     std::string GetStatus() const;
 
