@@ -184,7 +184,7 @@ public:
      */
     bool Sign();
     /// Check if we have a valid Masternode address
-    bool CheckSignature();
+    bool CheckSignature(const CPubKey& pubKeyMasternode);
 
     bool Relay();
 
@@ -238,7 +238,7 @@ public:
     }
 
     bool Sign();
-    bool CheckSignature();
+    bool CheckSignature(const CPubKey& pubKeyMasternode);
 };
 
 /** Helper object for signing and checking signatures

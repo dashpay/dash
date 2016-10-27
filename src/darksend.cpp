@@ -104,10 +104,16 @@ void CDarksendPool::ProcessMessage(CNode* pfrom, std::string& strCommand, CDataS
         LogPrint("privatesend", "DSQUEUE -- %s new\n", dsq.ToString());
 
         CService addr;
-        if(!dsq.GetAddress(addr) || !dsq.CheckSignature() || dsq.IsExpired()) return;
+        if(!dsq.GetAddress(addr) || dsq.IsExpired()) return;
 
         CMasternode* pmn = mnodeman.Find(dsq.vin);
         if(pmn == NULL) return;
+
+        if(!dsq.CheckSignature(pmn->pubKeyMasternode)) {
+            // we probably have outdated info
+            mnodeman.AskForMN(pfrom, dsq.vin);
+            return;
+        }
 
         // if the queue is ready, submit if we can
         if(dsq.fReady) {
@@ -2339,18 +2345,15 @@ bool CDarksendQueue::Sign()
         return false;
     }
 
-    return CheckSignature();
+    return CheckSignature(activeMasternode.pubKeyMasternode);
 }
 
-bool CDarksendQueue::CheckSignature()
+bool CDarksendQueue::CheckSignature(const CPubKey& pubKeyMasternode)
 {
-    CMasternode* pmn = mnodeman.Find(vin);
-    if(pmn == NULL) return false;
-
     std::string strMessage = vin.ToString() + boost::lexical_cast<std::string>(nDenom) + boost::lexical_cast<std::string>(nTime) + boost::lexical_cast<std::string>(fReady);
     std::string strError = "";
 
-    if(!darkSendSigner.VerifyMessage(pmn->pubKeyMasternode, vchSig, strMessage, strError)) {
+    if(!darkSendSigner.VerifyMessage(pubKeyMasternode, vchSig, strMessage, strError)) {
         LogPrintf("CDarksendQueue::CheckSignature -- Got bad Masternode queue signature: %s; error: %s\n", ToString(), strError);
         return false;
     }
@@ -2397,18 +2400,15 @@ bool CDarksendBroadcastTx::Sign()
         return false;
     }
 
-    return CheckSignature();
+    return CheckSignature(activeMasternode.pubKeyMasternode);
 }
 
-bool CDarksendBroadcastTx::CheckSignature()
+bool CDarksendBroadcastTx::CheckSignature(const CPubKey& pubKeyMasternode)
 {
-    CMasternode* pmn = mnodeman.Find(vin);
-    if(pmn == NULL) return false;
-
     std::string strMessage = tx.GetHash().ToString() + boost::lexical_cast<std::string>(sigTime);
     std::string strError = "";
 
-    if(!darkSendSigner.VerifyMessage(pmn->pubKeyMasternode, vchSig, strMessage, strError)) {
+    if(!darkSendSigner.VerifyMessage(pubKeyMasternode, vchSig, strMessage, strError)) {
         LogPrintf("CDarksendBroadcastTx::CheckSignature -- Got bad dstx signature, error: %s\n", strError);
         return false;
     }
