@@ -67,7 +67,10 @@ void CDarksendPool::ProcessMessage(CNode* pfrom, std::string& strCommand, CDataS
         }
 
         PoolMessage nMessageID = MSG_NOERR;
-        if(IsDenomCompatibleWithSession(nDenom, txCollateral, nMessageID)) {
+
+        bool fResult = nSessionID == 0  ? CreateNewSession(nDenom, txCollateral, nMessageID)
+                                        : AddUserToExistingSession(nDenom, txCollateral, nMessageID);
+        if(fResult) {
             LogPrintf("DSACCEPT -- is compatible, please submit!\n");
             PushStatus(pfrom, STATUS_ACCEPTED, nMessageID);
             return;
@@ -2055,57 +2058,105 @@ bool CDarksendPool::IsOutputsCompatibleWithSessionDenom(const std::vector<CTxDSO
     return true;
 }
 
-bool CDarksendPool::IsDenomCompatibleWithSession(int nDenom, CTransaction txCollateral, PoolMessage& nMessageIDRet)
+bool CDarksendPool::IsAcceptableDenomAndCollateral(int nDenom, CTransaction txCollateral, PoolMessage& nMessageIDRet)
 {
-    if(nDenom == 0) {
+    if(!fMasterNode) return false;
+
+    // is denom even smth legit?
+    std::vector<int> vecBits;
+    if(!GetDenominationsBits(nDenom, vecBits)) {
+        LogPrint("privatesend", "CDarksendPool::IsAcceptableDenomAndCollateral -- denom not valid!\n");
         nMessageIDRet = ERR_DENOM;
         return false;
     }
 
-    LogPrintf("CDarksendPool::IsDenomCompatibleWithSession -- nSessionDenom: %d (%s) nSessionUsers: %d\n",
-            nSessionDenom, GetDenominationsToString(nSessionDenom), nSessionUsers);
-
+    // check collateral
     if(!fUnitTest && !IsCollateralValid(txCollateral)) {
-        LogPrint("privatesend", "CDarksendPool::IsDenomCompatibleWithSession -- collateral not valid!\n");
+        LogPrint("privatesend", "CDarksendPool::IsAcceptableDenomAndCollateral -- collateral not valid!\n");
         nMessageIDRet = ERR_INVALID_COLLATERAL;
         return false;
     }
 
-    if(nSessionUsers < 0) nSessionUsers = 0;
+    return true;
+}
 
-    if(nSessionUsers == 0) {
-        nMessageIDRet = MSG_NOERR;
-        nSessionID = GetInsecureRand(999999)+1;
-        nSessionDenom = nDenom;
-        nSessionUsers++;
-        nLastTimeChanged = GetTimeMillis();
+bool CDarksendPool::CreateNewSession(int nDenom, CTransaction txCollateral, PoolMessage& nMessageIDRet)
+{
+    if(!fMasterNode || nSessionID != 0) return false;
 
-        if(!fUnitTest) {
-            //broadcast that I'm accepting entries, only if it's the first entry through
-            CDarksendQueue dsq(nDenom, activeMasternode.vin, GetTime(), false);
-            LogPrint("privatesend", "CDarksendPool::IsDenomCompatibleWithSession -- signing and relaying new queue: %s\n", dsq.ToString());
-            dsq.Sign();
-            dsq.Relay();
-        }
-
-        SetState(POOL_STATE_QUEUE);
-        vecSessionCollateral.push_back(txCollateral);
-        return true;
+    // new session can only be started in idle mode
+    if(nState != POOL_STATE_IDLE) {
+        nMessageIDRet = ERR_MODE;
+        LogPrintf("CDarksendPool::CreateNewSession -- incompatible mode: nState=%d\n", nState);
+        return false;
     }
 
-    if((nState != POOL_STATE_ACCEPTING_ENTRIES && nState != POOL_STATE_QUEUE) || nSessionUsers >= GetMaxPoolTransactions()) {
-        if((nState != POOL_STATE_ACCEPTING_ENTRIES && nState != POOL_STATE_QUEUE)) nMessageIDRet = ERR_MODE;
-        if(nSessionUsers >= GetMaxPoolTransactions()) nMessageIDRet = ERR_QUEUE_FULL;
-        LogPrintf("CDarksendPool::IsDenomCompatibleWithSession -- incompatible mode, return false: nState status %d, nSessionUsers status %d\n", nState != POOL_STATE_ACCEPTING_ENTRIES, nSessionUsers >= GetMaxPoolTransactions());
+    if(!IsAcceptableDenomAndCollateral(nDenom, txCollateral, nMessageIDRet)) {
+        return false;
+    }
+
+    // start new session
+    nMessageIDRet = MSG_NOERR;
+    nSessionID = GetInsecureRand(999999)+1;
+    nSessionDenom = nDenom;
+    nSessionUsers = 1;
+    nLastTimeChanged = GetTimeMillis();
+
+    if(!fUnitTest) {
+        //broadcast that I'm accepting entries, only if it's the first entry through
+        CDarksendQueue dsq(nDenom, activeMasternode.vin, GetTime(), false);
+        LogPrint("privatesend", "CDarksendPool::CreateNewSession -- signing and relaying new queue: %s\n", dsq.ToString());
+        dsq.Sign();
+        dsq.Relay();
+    }
+
+    LogPrintf("CDarksendPool::CreateNewSession -- new session created, nSessionDenom: %d (%s) nSessionUsers: %d\n",
+            nSessionDenom, GetDenominationsToString(nSessionDenom), nSessionUsers);
+
+    SetState(POOL_STATE_QUEUE);
+    vecSessionCollateral.push_back(txCollateral);
+    return true;
+}
+
+bool CDarksendPool::AddUserToExistingSession(int nDenom, CTransaction txCollateral, PoolMessage& nMessageIDRet)
+{
+    if(!fMasterNode || nSessionID == 0) return false;
+
+    if(!IsAcceptableDenomAndCollateral(nDenom, txCollateral, nMessageIDRet)) {
+        return false;
+    }
+
+    if(nSessionUsers < 0) {
+        // too many users sent us incorrect info, break the session and reset the pool
+        nMessageIDRet = ERR_SESSION;
+        SetNull();
+        return false;
+    }
+
+    // we only add new users to an existing session when we are in queue mode
+    if(nState != POOL_STATE_QUEUE) {
+        nMessageIDRet = ERR_MODE;
+        LogPrintf("CDarksendPool::AddUserToExistingSession -- incompatible mode: nState=%d\n", nState);
+        return false;
+    }
+
+    if(nSessionUsers >= GetMaxPoolTransactions()) {
+        // too many users in this session already, reject new ones
+        nMessageIDRet = ERR_QUEUE_FULL;
+        LogPrintf("CDarksendPool::AddUserToExistingSession -- queue is full: nSessionUsers=%d  GetMaxPoolTransactions()=%d\n", nSessionUsers, GetMaxPoolTransactions());
         return false;
     }
 
     if(nDenom != nSessionDenom) {
+        LogPrintf("CDarksendPool::AddUserToExistingSession -- incompatible denom %d (%s) != nSessionDenom %d (%s)\n",
+                    nDenom, GetDenominationsToString(nDenom), nSessionDenom, GetDenominationsToString(nSessionDenom));
         nMessageIDRet = ERR_DENOM;
         return false;
     }
 
-    LogPrintf("CDarksendPool::IsDenomCompatibleWithSession -- compatible\n");
+    // count new user as accepted to an existing session
+    LogPrintf("CDarksendPool::AddUserToExistingSession -- new user accepted, nSessionDenom: %d (%s) nSessionUsers: %d\n",
+            nSessionDenom, GetDenominationsToString(nSessionDenom), nSessionUsers);
 
     nMessageIDRet = MSG_NOERR;
     nSessionUsers++;

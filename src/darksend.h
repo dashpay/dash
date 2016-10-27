@@ -374,8 +374,11 @@ private:
 
     /// Are these outputs compatible with other client in the pool?
     bool IsOutputsCompatibleWithSessionDenom(const std::vector<CTxDSOut>& vecTxDSOut);
-    /// Is this nDenom compatible with other client in the pool?
-    bool IsDenomCompatibleWithSession(int nDenom, CTransaction txCollateral, PoolMessage &nMessageIDRet);
+
+    /// Is this nDenom and txCollateral acceptable?
+    bool IsAcceptableDenomAndCollateral(int nDenom, CTransaction txCollateral, PoolMessage &nMessageIDRet);
+    bool CreateNewSession(int nDenom, CTransaction txCollateral, PoolMessage &nMessageIDRet);
+    bool AddUserToExistingSession(int nDenom, CTransaction txCollateral, PoolMessage &nMessageIDRet);
 
     /// If the collateral is valid given by a client
     bool IsCollateralValid(const CTransaction& txCollateral);
