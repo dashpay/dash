@@ -362,7 +362,7 @@ private:
 
     void CheckFinalTransaction();
 
-    void CompletedTransaction(bool fError, PoolMessage nMessageID);
+    void CompletedTransaction(PoolMessage nMessageID);
 
     /// Get the denominations for a specific amount of dash.
     int GetDenominationsByAmounts(const std::vector<CAmount>& vecAmount);
@@ -420,7 +420,7 @@ private:
     void RelayIn(const CDarkSendEntry& entry);
     void PushStatus(CNode* pnode, PoolStatusUpdate nStatusUpdate, PoolMessage nMessageID);
     void RelayStatus(PoolStatusUpdate nStatusUpdate = STATUS_SET_STATE, PoolMessage nMessageID = MSG_NOERR);
-    void RelayCompletedTransaction(bool fError, PoolMessage nMessageID);
+    void RelayCompletedTransaction(PoolMessage nMessageID);
 
 public:
     CMasternode* pSubmittedToMasternode;

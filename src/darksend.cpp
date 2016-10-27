@@ -398,10 +398,19 @@ void CDarksendPool::ProcessMessage(CNode* pfrom, std::string& strCommand, CDataS
             return;
         }
 
-        int  nMsgSessionID;
-        bool fMsgError;
-        int  nMsgMessageID;
-        vRecv >> nMsgSessionID >> fMsgError >> nMsgMessageID;
+        int nMsgSessionID;
+        int nMsgMessageID;
+        //
+        // REMOVE AFTER MIGRATION TO 12.1
+        //
+        bool fError;
+        if(pfrom->nVersion < 70203)
+            vRecv >> nMsgSessionID >> fError >> nMsgMessageID;
+        else
+        //
+        // END REMOVE
+        //
+        vRecv >> nMsgSessionID >> nMsgMessageID;
 
         if(nMsgMessageID < MSG_POOL_MIN || nMsgMessageID > MSG_POOL_MAX) {
             LogPrint("privatesend", "DSSTATUSUPDATE -- nMsgMessageID is out of bounds: %d\n", nMsgMessageID);
@@ -413,7 +422,7 @@ void CDarksendPool::ProcessMessage(CNode* pfrom, std::string& strCommand, CDataS
             return;
         }
 
-        CompletedTransaction(fMsgError, PoolMessage(nMsgMessageID));
+        CompletedTransaction(PoolMessage(nMsgMessageID));
     }
 }
 
@@ -612,7 +621,7 @@ void CDarksendPool::CheckFinalTransaction()
         // See if the transaction is valid
         TRY_LOCK(cs_main, lockMain);
         CValidationState validationState;
-        mempool.PrioritiseTransaction(finalTransaction.GetHash(), finalTransaction.GetHash().ToString(), 1000, 0.1*COIN);
+        mempool.PrioritiseTransaction(hashTx, hashTx.ToString(), 1000, 0.1*COIN);
         if(!lockMain || !AcceptToMemoryPool(mempool, validationState, finalTransaction, false, NULL, false, true, true))
         {
             LogPrintf("CDarksendPool::CheckFinalTransaction -- AcceptToMemoryPool() error: Transaction not valid\n");
@@ -620,7 +629,7 @@ void CDarksendPool::CheckFinalTransaction()
 
             // not much we can do in this case
             SetState(POOL_STATE_ACCEPTING_ENTRIES);
-            RelayCompletedTransaction(true, ERR_INVALID_TX);
+            RelayCompletedTransaction(ERR_INVALID_TX);
             return;
         }
     }
@@ -640,7 +649,7 @@ void CDarksendPool::CheckFinalTransaction()
     RelayInv(inv);
 
     // Tell the clients it was successful
-    RelayCompletedTransaction(false, MSG_SUCCESS);
+    RelayCompletedTransaction(MSG_SUCCESS);
 
     // Randomly charge clients
     ChargeRandomFees();
@@ -1324,27 +1333,18 @@ void CDarksendPool::NewBlock()
 }
 
 // mixing transaction was completed (failed or successful)
-void CDarksendPool::CompletedTransaction(bool fError, PoolMessage nMessageID)
+void CDarksendPool::CompletedTransaction(PoolMessage nMessageID)
 {
     if(fMasterNode) return;
 
-    if(fError) {
-        LogPrintf("CompletedTransaction -- error\n");
-        SetState(POOL_STATE_ERROR);
-
-        CheckPool();
-        UnlockCoins();
-        SetNull();
-    } else {
+    if(nMessageID == MSG_SUCCESS) {
         LogPrintf("CompletedTransaction -- success\n");
-        SetState(POOL_STATE_SUCCESS);
-
-        UnlockCoins();
-        SetNull();
-
-        // To avoid race conditions, we'll only let DS run once per block
         nCachedLastSuccessBlock = pCurrentBlockIndex->nHeight;
+    } else {
+        LogPrintf("CompletedTransaction -- error\n");
     }
+    UnlockCoins();
+    SetNull();
     strLastMessage = GetMessageByID(nMessageID);
 }
 
@@ -2474,12 +2474,12 @@ void CDarksendPool::RelayStatus(PoolStatusUpdate nStatusUpdate, PoolMessage nMes
             PushStatus(pnode, nStatusUpdate, nMessageID);
 }
 
-void CDarksendPool::RelayCompletedTransaction(bool fError, PoolMessage nMessageID)
+void CDarksendPool::RelayCompletedTransaction(PoolMessage nMessageID)
 {
     LOCK(cs_vNodes);
     BOOST_FOREACH(CNode* pnode, vNodes)
         if(pnode->nVersion >= MIN_PRIVATESEND_PEER_PROTO_VERSION)
-            pnode->PushMessage(NetMsgType::DSCOMPLETE, nSessionID, fError, (int)nMessageID);
+            pnode->PushMessage(NetMsgType::DSCOMPLETE, nSessionID, (int)nMessageID);
 }
 
 void CDarksendPool::SetState(PoolState nStateNew)
