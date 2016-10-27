@@ -513,10 +513,6 @@ std::string CDarksendPool::GetStatus()
             else if(nStatusMessageProgress % 70 <= 60) strSuffix = "..";
             else if(nStatusMessageProgress % 70 <= 70) strSuffix = "...";
             return strprintf(_("Found enough users, signing ( waiting %s )"), strSuffix);
-        case POOL_STATE_TRANSMISSION:
-            return _("Transmitting final transaction.");
-        case POOL_STATE_FINALIZE_TRANSACTION:
-            return _("Finalizing transaction.");
         case POOL_STATE_ERROR:
             return _("PrivateSend request incomplete:") + " " + strLastMessage + " " + _("Will retry...");
         case POOL_STATE_SUCCESS:
@@ -801,10 +797,6 @@ void CDarksendPool::CheckTimeout()
     // catching hanging sessions
     if(!fMasterNode) {
         switch(nState) {
-            case POOL_STATE_TRANSMISSION:
-                LogPrint("privatesend", "CDarksendPool::CheckTimeout -- Session complete -- Running CheckPool\n");
-                CheckPool();
-                break;
             case POOL_STATE_ERROR:
                 LogPrint("privatesend", "CDarksendPool::CheckTimeout -- Pool error -- Running CheckPool\n");
                 CheckPool();
