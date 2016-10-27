@@ -1231,10 +1231,10 @@ bool CDarksendPool::UpdatePoolStateOnClient(PoolState nStateNew, int nEntriesCou
 //
 bool CDarksendPool::SignFinalTransaction(const CTransaction& finalTransactionNew, CNode* pnode)
 {
-    if(fMasterNode) return false;
+    if(fMasterNode || pnode == NULL) return false;
 
     finalMutableTransaction = finalTransactionNew;
-    LogPrintf("CDarksendPool::SignFinalTransaction -- %s", finalMutableTransaction.ToString());
+    LogPrintf("CDarksendPool::SignFinalTransaction -- finalMutableTransaction=%s", finalMutableTransaction.ToString());
 
     std::vector<CTxIn> sigs;
 
@@ -1293,15 +1293,20 @@ bool CDarksendPool::SignFinalTransaction(const CTransaction& finalTransactionNew
                 sigs.push_back(finalMutableTransaction.vin[nMyInputIndex]);
                 LogPrint("privatesend", "CDarksendPool::SignFinalTransaction -- nMyInputIndex: %d, sigs.size(): %d, scriptSig=%s\n", nMyInputIndex, (int)sigs.size(), ScriptToAsmStr(finalMutableTransaction.vin[nMyInputIndex].scriptSig));
             }
-
         }
+    }
 
-        LogPrint("privatesend", "CDarksendPool::SignFinalTransaction -- finalMutableTransaction=%s", finalMutableTransaction.ToString());
+    if(sigs.empty()) {
+        LogPrintf("CDarksendPool::SignFinalTransaction -- can't sign anything!\n");
+        UnlockCoins();
+        SetNull();
+
+        return false;
     }
 
     // push all of our signatures to the Masternode
-    if(!sigs.empty() && pnode != NULL)
-        pnode->PushMessage(NetMsgType::DSSIGNFINALTX, sigs);
+    LogPrintf("CDarksendPool::SignFinalTransaction -- pushing sigs to the masternode, finalMutableTransaction=%s", finalMutableTransaction.ToString());
+    pnode->PushMessage(NetMsgType::DSSIGNFINALTX, sigs);
 
     return true;
 }
