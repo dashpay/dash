@@ -36,19 +36,15 @@ void CDarksendPool::ProcessMessage(CNode* pfrom, std::string& strCommand, CDataS
 
     if(strCommand == NetMsgType::DSACCEPT) {
 
-        PoolMessage nMessageID = MSG_NOERR;
-
         if(pfrom->nVersion < MIN_PRIVATESEND_PEER_PROTO_VERSION) {
-            nMessageID = ERR_VERSION;
             LogPrintf("DSACCEPT -- incompatible version! nVersion: %d\n", pfrom->nVersion);
-            PushStatus(pfrom, STATUS_REJECTED, nMessageID);
+            PushStatus(pfrom, STATUS_REJECTED, ERR_VERSION);
             return;
         }
 
         if(!fMasterNode) {
-            nMessageID = ERR_NOT_A_MN;
             LogPrintf("DSACCEPT -- not a Masternode!\n");
-            PushStatus(pfrom, STATUS_REJECTED, nMessageID);
+            PushStatus(pfrom, STATUS_REJECTED, ERR_NOT_A_MN);
             return;
         }
 
@@ -58,8 +54,7 @@ void CDarksendPool::ProcessMessage(CNode* pfrom, std::string& strCommand, CDataS
 
         CMasternode* pmn = mnodeman.Find(activeMasternode.vin);
         if(pmn == NULL) {
-            nMessageID = ERR_MN_LIST;
-            PushStatus(pfrom, STATUS_REJECTED, nMessageID);
+            PushStatus(pfrom, STATUS_REJECTED, ERR_MN_LIST);
             return;
         }
 
@@ -67,11 +62,11 @@ void CDarksendPool::ProcessMessage(CNode* pfrom, std::string& strCommand, CDataS
             pmn->nLastDsq + mnodeman.CountEnabled(MIN_PRIVATESEND_PEER_PROTO_VERSION)/5 > mnodeman.nDsqCount)
         {
             LogPrintf("DSACCEPT -- last dsq too recent, must wait: addr=%s\n", pfrom->addr.ToString());
-            nMessageID = ERR_RECENT;
-            PushStatus(pfrom, STATUS_REJECTED, nMessageID);
+            PushStatus(pfrom, STATUS_REJECTED, ERR_RECENT);
             return;
         }
 
+        PoolMessage nMessageID = MSG_NOERR;
         if(IsDenomCompatibleWithSession(nDenom, txCollateral, nMessageID)) {
             LogPrintf("DSACCEPT -- is compatible, please submit!\n");
             PushStatus(pfrom, STATUS_ACCEPTED, nMessageID);
@@ -149,19 +144,16 @@ void CDarksendPool::ProcessMessage(CNode* pfrom, std::string& strCommand, CDataS
         }
 
     } else if(strCommand == NetMsgType::DSVIN) {
-        PoolMessage nMessageID = MSG_NOERR;
 
         if(pfrom->nVersion < MIN_PRIVATESEND_PEER_PROTO_VERSION) {
             LogPrintf("DSVIN -- incompatible version! nVersion: %d\n", pfrom->nVersion);
-            nMessageID = ERR_VERSION;
-            PushStatus(pfrom, STATUS_REJECTED, nMessageID);
+            PushStatus(pfrom, STATUS_REJECTED, ERR_VERSION);
             return;
         }
 
         if(!fMasterNode) {
             LogPrintf("DSVIN -- not a Masternode!\n");
-            nMessageID = ERR_NOT_A_MN;
-            PushStatus(pfrom, STATUS_REJECTED, nMessageID);
+            PushStatus(pfrom, STATUS_REJECTED, ERR_NOT_A_MN);
             return;
         }
 
@@ -178,8 +170,7 @@ void CDarksendPool::ProcessMessage(CNode* pfrom, std::string& strCommand, CDataS
         //do we have the same denominations as the current session?
         if(!IsOutputsCompatibleWithSessionDenom(entry.vecTxDSOut)) {
             LogPrintf("DSVIN -- not compatible with existing transactions!\n");
-            nMessageID = ERR_EXISTING_TX;
-            PushStatus(pfrom, STATUS_REJECTED, nMessageID);
+            PushStatus(pfrom, STATUS_REJECTED, ERR_EXISTING_TX);
             return;
         }
 
@@ -187,7 +178,6 @@ void CDarksendPool::ProcessMessage(CNode* pfrom, std::string& strCommand, CDataS
         {
             CAmount nValueIn = 0;
             CAmount nValueOut = 0;
-            bool fMissingTx = false;
 
             CMutableTransaction tx;
 
@@ -197,14 +187,12 @@ void CDarksendPool::ProcessMessage(CNode* pfrom, std::string& strCommand, CDataS
 
                 if(txout.scriptPubKey.size() != 25) {
                     LogPrintf("DSVIN -- non-standard pubkey detected! scriptPubKey=%s\n", ScriptToAsmStr(txout.scriptPubKey));
-                    nMessageID = ERR_NON_STANDARD_PUBKEY;
-                    PushStatus(pfrom, STATUS_REJECTED, nMessageID);
+                    PushStatus(pfrom, STATUS_REJECTED, ERR_NON_STANDARD_PUBKEY);
                     return;
                 }
                 if(!txout.scriptPubKey.IsNormalPaymentScript()) {
                     LogPrintf("DSVIN -- invalid script! scriptPubKey=%s\n", ScriptToAsmStr(txout.scriptPubKey));
-                    nMessageID = ERR_INVALID_SCRIPT;
-                    PushStatus(pfrom, STATUS_REJECTED, nMessageID);
+                    PushStatus(pfrom, STATUS_REJECTED, ERR_INVALID_SCRIPT);
                     return;
                 }
             }
@@ -220,21 +208,15 @@ void CDarksendPool::ProcessMessage(CNode* pfrom, std::string& strCommand, CDataS
                     if(txPrev.vout.size() > txin.prevout.n)
                         nValueIn += txPrev.vout[txin.prevout.n].nValue;
                 } else {
-                    fMissingTx = true;
+                    LogPrintf("DSVIN -- missing input! tx=%s", tx.ToString());
+                    PushStatus(pfrom, STATUS_REJECTED, ERR_MISSING_TX);
+                    return;
                 }
             }
 
             if(nValueIn > PRIVATESEND_POOL_MAX) {
                 LogPrintf("DSVIN -- more than PrivateSend pool max! nValueIn: %lld, tx=%s", nValueIn, tx.ToString());
-                nMessageID = ERR_MAXIMUM;
-                PushStatus(pfrom, STATUS_REJECTED, nMessageID);
-                return;
-            }
-
-            if(fMissingTx) {
-                LogPrintf("DSVIN -- missing input! tx=%s", tx.ToString());
-                nMessageID = ERR_MISSING_TX;
-                PushStatus(pfrom, STATUS_REJECTED, nMessageID);
+                PushStatus(pfrom, STATUS_REJECTED, ERR_MAXIMUM);
                 return;
             }
 
@@ -242,8 +224,7 @@ void CDarksendPool::ProcessMessage(CNode* pfrom, std::string& strCommand, CDataS
             // TODO: Or do not allow fees at all?
             if(nValueIn - nValueOut > vecPrivateSendDenominations.back()) {
                 LogPrintf("DSVIN -- fees are too high! fees: %lld, tx=%s", nValueIn - nValueOut, tx.ToString());
-                nMessageID = ERR_FEES;
-                PushStatus(pfrom, STATUS_REJECTED, nMessageID);
+                PushStatus(pfrom, STATUS_REJECTED, ERR_FEES);
                 return;
             }
 
@@ -253,12 +234,13 @@ void CDarksendPool::ProcessMessage(CNode* pfrom, std::string& strCommand, CDataS
                 mempool.PrioritiseTransaction(tx.GetHash(), tx.GetHash().ToString(), 1000, 0.1*COIN);
                 if(!AcceptToMemoryPool(mempool, validationState, CTransaction(tx), false, NULL, false, true, true)) {
                     LogPrintf("DSVIN -- transaction not valid! tx=%s", tx.ToString());
-                    nMessageID = ERR_INVALID_TX;
-                    PushStatus(pfrom, STATUS_REJECTED, nMessageID);
+                    PushStatus(pfrom, STATUS_REJECTED, ERR_INVALID_TX);
                     return;
                 }
             }
         }
+
+        PoolMessage nMessageID = MSG_NOERR;
 
         if(AddEntry(entry, nMessageID)) {
             PushStatus(pfrom, STATUS_ACCEPTED, nMessageID);
@@ -614,6 +596,7 @@ void CDarksendPool::CheckFinalTransaction()
     if(!fMasterNode) return; // check and relay final tx only on masternode
 
     CTransaction finalTransaction = CTransaction(finalMutableTransaction);
+    uint256 hashTx = finalTransaction.GetHash();
 
     LogPrint("privatesend", "CDarksendPool::CheckFinalTransaction -- finalTransaction=%s", finalTransaction.ToString());
 
@@ -637,15 +620,15 @@ void CDarksendPool::CheckFinalTransaction()
     LogPrintf("CDarksendPool::CheckFinalTransaction -- CREATING DSTX\n");
 
     // create and sign masternode dstx transaction
-    if(!mapDarksendBroadcastTxes.count(finalTransaction.GetHash())) {
+    if(!mapDarksendBroadcastTxes.count(hashTx)) {
         CDarksendBroadcastTx dstx(finalTransaction, activeMasternode.vin, GetAdjustedTime());
         dstx.Sign();
-        mapDarksendBroadcastTxes.insert(std::make_pair(finalTransaction.GetHash(), dstx));
+        mapDarksendBroadcastTxes.insert(std::make_pair(hashTx, dstx));
     }
 
     LogPrintf("CDarksendPool::CheckFinalTransaction -- TRANSMITTING DSTX\n");
 
-    CInv inv(MSG_DSTX, finalTransaction.GetHash());
+    CInv inv(MSG_DSTX, hashTx);
     RelayInv(inv);
 
     // Tell the clients it was successful
@@ -952,7 +935,7 @@ bool CDarksendPool::IsInputScriptSigValid(const CTxIn& txin)
 // check to make sure the collateral provided by the client is valid
 bool CDarksendPool::IsCollateralValid(const CTransaction& txCollateral)
 {
-    if(txCollateral.vout.size() < 1) return false;
+    if(txCollateral.vout.empty()) return false;
     if(txCollateral.nLockTime != 0) return false;
 
     CAmount nValueIn = 0;
@@ -1127,10 +1110,6 @@ bool CDarksendPool::SendDenominate(const std::vector<CTxIn>& vecTxIn, const std:
 
     BOOST_FOREACH(CTxIn txin, vecTxIn)
         vecOutPointLocked.push_back(txin.prevout);
-
-    //BOOST_FOREACH(CTxOut o, vecTxOut)
-    //    LogPrintf(" vecTxOut - %s\n", o.ToString());
-
 
     // we should already be connected to a Masternode
     if(!fSessionFoundMasternode) {
