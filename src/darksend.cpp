@@ -270,8 +270,14 @@ void CDarksendPool::ProcessMessage(CNode* pfrom, std::string& strCommand, CDataS
         }
 
     } else if(strCommand == NetMsgType::DSSTATUSUPDATE) {
+
         if(pfrom->nVersion < MIN_PRIVATESEND_PEER_PROTO_VERSION) {
             LogPrintf("DSSTATUSUPDATE -- incompatible version! nVersion: %d\n", pfrom->nVersion);
+            return;
+        }
+
+        if(fMasterNode) {
+            // LogPrintf("DSSTATUSUPDATE -- Can't run on a Masternode!\n");
             return;
         }
 
@@ -322,6 +328,11 @@ void CDarksendPool::ProcessMessage(CNode* pfrom, std::string& strCommand, CDataS
             return;
         }
 
+        if(!fMasterNode) {
+            LogPrintf("DSSIGNFINALTX -- not a Masternode!\n");
+            return;
+        }
+
         std::vector<CTxIn> vecTxIn;
         vRecv >> vecTxIn;
 
@@ -347,6 +358,11 @@ void CDarksendPool::ProcessMessage(CNode* pfrom, std::string& strCommand, CDataS
             return;
         }
 
+        if(fMasterNode) {
+            // LogPrintf("DSFINALTX -- Can't run on a Masternode!\n");
+            return;
+        }
+
         if(!pSubmittedToMasternode) return;
         if((CNetAddr)pSubmittedToMasternode->addr != (CNetAddr)pfrom->addr) {
             //LogPrintf("DSFINALTX -- message doesn't match current Masternode: pSubmittedToMasternode %s addr %s\n", pSubmittedToMasternode->addr.ToString(), pfrom->addr.ToString());
@@ -369,6 +385,11 @@ void CDarksendPool::ProcessMessage(CNode* pfrom, std::string& strCommand, CDataS
 
         if(pfrom->nVersion < MIN_PRIVATESEND_PEER_PROTO_VERSION) {
             LogPrintf("DSCOMPLETE -- incompatible version! nVersion: %d\n", pfrom->nVersion);
+            return;
+        }
+
+        if(fMasterNode) {
+            // LogPrintf("DSCOMPLETE -- Can't run on a Masternode!\n");
             return;
         }
 
