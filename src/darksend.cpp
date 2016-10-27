@@ -2468,11 +2468,11 @@ void CDarksendPool::SetState(PoolState nStateNew)
 
     LogPrintf("CDarksendPool::SetState -- nState: %d, nStateNew: %d\n", nState, nStateNew);
     if(nState != nStateNew) {
+        nState = nStateNew;
         if(fMasterNode) {
             RelayStatus(STATUS_SET_STATE);
         }
     }
-    nState = nStateNew;
 }
 
 void CDarksendPool::UpdatedBlockTip(const CBlockIndex *pindex)
