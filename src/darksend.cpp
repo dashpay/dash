@@ -451,7 +451,6 @@ void CDarksendPool::SetNull()
     // Client side
     nEntriesCount = 0;
     fLastEntryAccepted = false;
-    fSessionFoundMasternode = false;
 
     // Both sides
     nState = POOL_STATE_IDLE;
@@ -1115,7 +1114,7 @@ bool CDarksendPool::SendDenominate(const std::vector<CTxIn>& vecTxIn, const std:
         vecOutPointLocked.push_back(txin.prevout);
 
     // we should already be connected to a Masternode
-    if(!fSessionFoundMasternode) {
+    if(!nSessionID) {
         LogPrintf("CDarksendPool::SendDenominate -- No Masternode has been selected yet.\n");
         UnlockCoins();
         SetNull();
@@ -1176,41 +1175,36 @@ bool CDarksendPool::SendDenominate(const std::vector<CTxIn>& vecTxIn, const std:
 bool CDarksendPool::UpdatePoolStateOnClient(PoolState nStateNew, int nEntriesCountNew, PoolStatusUpdate nStatusUpdate, PoolMessage nMessageID, int nSessionIDNew)
 {
     if(fMasterNode) return false;
-    if(nState == POOL_STATE_ERROR || nState == POOL_STATE_SUCCESS) return false;
-
-    SetState(nStateNew);
-    nEntriesCount = nEntriesCountNew;
+    if(nState == POOL_STATE_IDLE || nState == POOL_STATE_ERROR || nState == POOL_STATE_SUCCESS) return false;
 
     strAutoDenomResult = _("Masternode:") + " " + GetMessageByID(nMessageID);
 
-    if(nStatusUpdate != STATUS_SET_STATE) {
-        fLastEntryAccepted = nStatusUpdate;
-        if(nStatusUpdate == STATUS_REJECTED) {
-            SetState(POOL_STATE_ERROR);
-            strLastMessage = GetMessageByID(nMessageID);
-        }
+    // if rejected at any state
+    if(nStatusUpdate == STATUS_REJECTED) {
+        LogPrintf("CDarksendPool::UpdatePoolStateOnClient -- entry is rejected by Masternode\n");
+        UnlockCoins();
+        SetNull();
+        SetState(POOL_STATE_ERROR);
+        strLastMessage = GetMessageByID(nMessageID);
+        return false;
+    }
 
-        if(nStatusUpdate == STATUS_ACCEPTED && nSessionIDNew != 0) {
+    if(nStatusUpdate == STATUS_ACCEPTED) {
+        if(nState == nStateNew && nStateNew == POOL_STATE_QUEUE && nSessionID == 0 && nSessionIDNew != 0) {
+            // new session id should be set only in POOL_STATE_QUEUE state
             nSessionID = nSessionIDNew;
+            nLastTimeChanged = GetTimeMillis();
             LogPrintf("CDarksendPool::UpdatePoolStateOnClient -- set nSessionID to %d\n", nSessionID);
-            fSessionFoundMasternode = true;
+        }
+        else if(nStateNew == POOL_STATE_ACCEPTING_ENTRIES && nEntriesCount != nEntriesCountNew) {
+            nEntriesCount = nEntriesCountNew;
+            nLastTimeChanged = GetTimeMillis();
+            fLastEntryAccepted = true;
+            LogPrintf("CDarksendPool::UpdatePoolStateOnClient -- new entry accepted!\n");
         }
     }
 
-    if(nStateNew == POOL_STATE_ACCEPTING_ENTRIES) {
-        if(nStatusUpdate == STATUS_ACCEPTED) {
-            LogPrintf("CDarksendPool::UpdatePoolStateOnClient -- entry accepted!\n");
-            fSessionFoundMasternode = true;
-            //wait for other users. Masternode will report when ready
-            SetState(POOL_STATE_QUEUE);
-        } else if(nStatusUpdate == STATUS_REJECTED && nSessionID == 0 && !fSessionFoundMasternode) {
-            LogPrintf("CDarksendPool::UpdatePoolStateOnClient -- entry not accepted by Masternode\n");
-            UnlockCoins();
-            SetState(POOL_STATE_ACCEPTING_ENTRIES);
-            DoAutomaticDenominating(); //try another Masternode
-        }
-        if(fSessionFoundMasternode) return true;
-    }
+    SetState(nStateNew);
 
     return true;
 }
@@ -1510,7 +1504,7 @@ bool CDarksendPool::DoAutomaticDenominating(bool fDryRun)
     if(!pwalletMain->HasCollateralInputs())
         return !pwalletMain->HasCollateralInputs(false) && MakeCollateralAmounts();
 
-    if(fSessionFoundMasternode) {
+    if(nSessionID) {
         strAutoDenomResult = _("Mixing in progress...");
         return false;
     }
@@ -1519,8 +1513,6 @@ bool CDarksendPool::DoAutomaticDenominating(bool fDryRun)
     // Clean if there is anything left from previous session
     UnlockCoins();
     SetNull();
-
-    SetState(POOL_STATE_ACCEPTING_ENTRIES);
 
     if(!fPrivateSendMultiSession && pwalletMain->GetDenominatedBalance(true) > 0) { //get denominated unconfirmed inputs
         LogPrintf("CDarksendPool::DoAutomaticDenominating -- Found unconfirmed denominated outputs, will wait till they confirm to continue.\n");
@@ -1614,6 +1606,7 @@ bool CDarksendPool::DoAutomaticDenominating(bool fDryRun)
                         nSessionDenom, GetDenominationsToString(nSessionDenom), pnode->addr.ToString());
                 strAutoDenomResult = _("Mixing in progress...");
                 dsq.nTime = 0; //remove node
+                SetState(POOL_STATE_QUEUE);
                 return true;
             } else {
                 LogPrintf("CDarksendPool::DoAutomaticDenominating -- can't connect, addr=%s\n", pmn->addr.ToString());
@@ -1668,6 +1661,7 @@ bool CDarksendPool::DoAutomaticDenominating(bool fDryRun)
             LogPrintf("CDarksendPool::DoAutomaticDenominating -- connected, sending DSACCEPT, nSessionDenom: %d (%s)\n",
                     nSessionDenom, GetDenominationsToString(nSessionDenom));
             strAutoDenomResult = _("Mixing in progress...");
+            SetState(POOL_STATE_QUEUE);
             return true;
         } else {
             LogPrintf("CDarksendPool::DoAutomaticDenominating -- can't connect, addr=%s\n", pmn->addr.ToString());

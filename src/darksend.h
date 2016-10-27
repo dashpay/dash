@@ -334,7 +334,6 @@ private:
 
     int nSessionID; // 0 if no mixing session is active
     int nSessionUsers; //N Users have said they'll join
-    bool fSessionFoundMasternode; //If we've found a compatible Masternode
 
     int nEntriesCount;
     bool fLastEntryAccepted;
