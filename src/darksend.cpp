@@ -165,16 +165,15 @@ void CDarksendPool::ProcessMessage(CNode* pfrom, std::string& strCommand, CDataS
             return;
         }
 
-        CDarkSendEntry entry;
-        vRecv >> entry;
-
         //do we have enough users in the current session?
         if(nSessionUsers < GetMaxPoolTransactions()) {
             LogPrintf("DSVIN -- session not complete!\n");
-            nMessageID = ERR_SESSION;
-            PushStatus(pfrom, STATUS_REJECTED, nMessageID);
+            PushStatus(pfrom, STATUS_REJECTED, ERR_SESSION);
             return;
         }
+
+        CDarkSendEntry entry;
+        vRecv >> entry;
 
         //do we have the same denominations as the current session?
         if(!IsOutputsCompatibleWithSessionDenom(entry.vecTxDSOut)) {
