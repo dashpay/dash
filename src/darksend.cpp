@@ -539,47 +539,19 @@ void CDarksendPool::CheckPool()
     if(fMasterNode) {
         LogPrint("privatesend", "CDarksendPool::CheckPool -- entries count %lu\n", GetEntriesCount());
 
-        // If entries is full, then move on to the next phase
+        // If entries are full, create finalized transaction
         if(nState == POOL_STATE_ACCEPTING_ENTRIES && GetEntriesCount() >= GetMaxPoolTransactions()) {
-            LogPrint("privatesend", "CDarksendPool::CheckPool -- TRYING TRANSACTION\n");
-            SetState(POOL_STATE_FINALIZE_TRANSACTION);
-        }
-    }
-
-    // create the finalized transaction for distribution to the clients
-    if(nState == POOL_STATE_FINALIZE_TRANSACTION) {
-        LogPrint("privatesend", "CDarksendPool::CheckPool -- FINALIZE TRANSACTIONS\n");
-        SetState(POOL_STATE_SIGNING);
-
-        if(!fMasterNode) return;
-
-        CMutableTransaction txNew;
-
-        // make our new transaction
-        for(int i = 0; i < GetEntriesCount(); i++) {
-            BOOST_FOREACH(const CTxDSOut& txdsout, vecEntries[i].vecTxDSOut)
-                txNew.vout.push_back(txdsout);
-
-            BOOST_FOREACH(const CTxDSIn& txdsin, vecEntries[i].vecTxDSIn)
-                txNew.vin.push_back(txdsin);
+            LogPrint("privatesend", "CDarksendPool::CheckPool -- FINALIZE TRANSACTIONS\n");
+            CreateFinalTransaction();
+            return;
         }
 
-        // BIP69 https://github.com/kristovatlas/bips/blob/master/bip-0069.mediawiki
-        sort(txNew.vin.begin(), txNew.vin.end());
-        sort(txNew.vout.begin(), txNew.vout.end());
-
-        finalMutableTransaction = txNew;
-        LogPrint("privatesend", "CDarksendPool::CheckPool -- finalMutableTransaction=%s", txNew.ToString());
-
-        // request signatures from clients
-        RelayFinalTransaction(finalMutableTransaction);
-    }
-
-    // If we have all of the signatures, try to compile the transaction
-    if(fMasterNode && nState == POOL_STATE_SIGNING && IsSignaturesComplete()) {
-        LogPrint("privatesend", "CDarksendPool::CheckPool -- SIGNING\n");
-        SetState(POOL_STATE_TRANSMISSION);
-        CheckFinalTransaction();
+        // If we have all of the signatures, try to compile the transaction
+        if(nState == POOL_STATE_SIGNING && IsSignaturesComplete()) {
+            LogPrint("privatesend", "CDarksendPool::CheckPool -- SIGNING\n");
+            CommitFinalTransaction();
+            return;
+        }
     }
 
     // reset if we're here for 10 seconds
@@ -587,20 +559,44 @@ void CDarksendPool::CheckPool()
         LogPrint("privatesend", "CDarksendPool::CheckPool -- timeout, RESETTING\n");
         UnlockCoins();
         SetNull();
-        if(fMasterNode) {
-            RelayStatus(STATUS_SET_STATE);
-        }
     }
 }
 
-void CDarksendPool::CheckFinalTransaction()
+void CDarksendPool::CreateFinalTransaction()
+{
+    LogPrint("privatesend", "CDarksendPool::CreateFinalTransaction -- FINALIZE TRANSACTIONS\n");
+
+    CMutableTransaction txNew;
+
+    // make our new transaction
+    for(int i = 0; i < GetEntriesCount(); i++) {
+        BOOST_FOREACH(const CTxDSOut& txdsout, vecEntries[i].vecTxDSOut)
+            txNew.vout.push_back(txdsout);
+
+        BOOST_FOREACH(const CTxDSIn& txdsin, vecEntries[i].vecTxDSIn)
+            txNew.vin.push_back(txdsin);
+    }
+
+    // BIP69 https://github.com/kristovatlas/bips/blob/master/bip-0069.mediawiki
+    sort(txNew.vin.begin(), txNew.vin.end());
+    sort(txNew.vout.begin(), txNew.vout.end());
+
+    finalMutableTransaction = txNew;
+    LogPrint("privatesend", "CDarksendPool::CreateFinalTransaction -- finalMutableTransaction=%s", txNew.ToString());
+
+    // request signatures from clients
+    RelayFinalTransaction(finalMutableTransaction);
+    SetState(POOL_STATE_SIGNING);
+}
+
+void CDarksendPool::CommitFinalTransaction()
 {
     if(!fMasterNode) return; // check and relay final tx only on masternode
 
     CTransaction finalTransaction = CTransaction(finalMutableTransaction);
     uint256 hashTx = finalTransaction.GetHash();
 
-    LogPrint("privatesend", "CDarksendPool::CheckFinalTransaction -- finalTransaction=%s", finalTransaction.ToString());
+    LogPrint("privatesend", "CDarksendPool::CommitFinalTransaction -- finalTransaction=%s", finalTransaction.ToString());
 
     {
         // See if the transaction is valid
@@ -609,17 +605,15 @@ void CDarksendPool::CheckFinalTransaction()
         mempool.PrioritiseTransaction(hashTx, hashTx.ToString(), 1000, 0.1*COIN);
         if(!lockMain || !AcceptToMemoryPool(mempool, validationState, finalTransaction, false, NULL, false, true, true))
         {
-            LogPrintf("CDarksendPool::CheckFinalTransaction -- AcceptToMemoryPool() error: Transaction not valid\n");
+            LogPrintf("CDarksendPool::CommitFinalTransaction -- AcceptToMemoryPool() error: Transaction not valid\n");
             SetNull();
-
-            // not much we can do in this case
-            SetState(POOL_STATE_ACCEPTING_ENTRIES);
+            // not much we can do in this case, just notify clients
             RelayCompletedTransaction(ERR_INVALID_TX);
             return;
         }
     }
 
-    LogPrintf("CDarksendPool::CheckFinalTransaction -- CREATING DSTX\n");
+    LogPrintf("CDarksendPool::CommitFinalTransaction -- CREATING DSTX\n");
 
     // create and sign masternode dstx transaction
     if(!mapDarksendBroadcastTxes.count(hashTx)) {
@@ -628,7 +622,7 @@ void CDarksendPool::CheckFinalTransaction()
         mapDarksendBroadcastTxes.insert(std::make_pair(hashTx, dstx));
     }
 
-    LogPrintf("CDarksendPool::CheckFinalTransaction -- TRANSMITTING DSTX\n");
+    LogPrintf("CDarksendPool::CommitFinalTransaction -- TRANSMITTING DSTX\n");
 
     CInv inv(MSG_DSTX, hashTx);
     RelayInv(inv);
@@ -640,9 +634,8 @@ void CDarksendPool::CheckFinalTransaction()
     ChargeRandomFees();
 
     // Reset
-    LogPrint("privatesend", "CDarksendPool::CheckFinalTransaction -- COMPLETED -- RESETTING\n");
+    LogPrint("privatesend", "CDarksendPool::CommitFinalTransaction -- COMPLETED -- RESETTING\n");
     SetNull();
-    RelayStatus(STATUS_SET_STATE);
 }
 
 //

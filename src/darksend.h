@@ -359,7 +359,8 @@ private:
     /// Check for process
     void CheckPool();
 
-    void CheckFinalTransaction();
+    void CreateFinalTransaction();
+    void CommitFinalTransaction();
 
     void CompletedTransaction(PoolMessage nMessageID);
 
