@@ -810,50 +810,17 @@ void CDarksendPool::CheckTimeout()
         }
     }
 
-    int nLagTime = 0;
-    if(!fMasterNode) nLagTime = 10000; //if we're the client, give the server a few extra seconds before resetting.
+    int nLagTime = fMasterNode ? 0 : 10000; // if we're the client, give the server a few extra seconds before resetting.
+    int nTimeout = (nState == POOL_STATE_SIGNING) ? PRIVATESEND_SIGNING_TIMEOUT : PRIVATESEND_QUEUE_TIMEOUT;
+    bool fTimeout = GetTimeMillis() - nLastTimeChanged >= nTimeout*1000 + nLagTime;
 
-    if(nState == POOL_STATE_ACCEPTING_ENTRIES || nState == POOL_STATE_QUEUE) {
-        int c = 0;
-
-        // check for a timeout and reset if needed
-        std::vector<CDarkSendEntry>::iterator it2 = vecEntries.begin();
-        while(it2 != vecEntries.end()) {
-            if((*it2).IsExpired()) {
-                LogPrint("privatesend", "CDarksendPool::CheckTimeout -- Removing expired entry: %d\n", c);
-                it2 = vecEntries.erase(it2);
-                if(GetEntriesCount() == 0) {
-                    UnlockCoins();
-                    SetNull();
-                }
-                if(fMasterNode) {
-                    RelayStatus(STATUS_SET_STATE);
-                }
-            } else ++it2;
-            c++;
-        }
-
-        if(GetTimeMillis() - nLastTimeChanged >= PRIVATESEND_QUEUE_TIMEOUT*1000 + nLagTime) {
-            UnlockCoins();
-            SetNull();
-        }
-    } else if (GetTimeMillis() - nLastTimeChanged >= PRIVATESEND_QUEUE_TIMEOUT*1000 + nLagTime) {
-        LogPrint("privatesend", "CDarksendPool::CheckTimeout -- Session timed out (%ds) -- resetting\n", PRIVATESEND_QUEUE_TIMEOUT);
-        UnlockCoins();
-        SetNull();
-
-        SetState(POOL_STATE_ERROR);
-        strLastMessage = _("Session timed out.");
-    }
-
-    if(nState == POOL_STATE_SIGNING && GetTimeMillis() - nLastTimeChanged >= PRIVATESEND_SIGNING_TIMEOUT*1000 + nLagTime) {
-        LogPrint("privatesend", "CDarksendPool::CheckTimeout -- Session timed out (%ds) -- restting\n", PRIVATESEND_SIGNING_TIMEOUT);
+    if(nState != POOL_STATE_IDLE && fTimeout) {
+        LogPrint("privatesend", "CDarksendPool::CheckTimeout -- Session timed out (%ds) -- restting\n", nTimeout);
         ChargeFees();
         UnlockCoins();
         SetNull();
-
         SetState(POOL_STATE_ERROR);
-        strLastMessage = _("Signing timed out.");
+        strLastMessage = _("Session timed out.");
     }
 }
 
@@ -1023,6 +990,7 @@ bool CDarksendPool::AddEntry(const CDarkSendEntry& entryNew, PoolMessage& nMessa
 
     LogPrint("privatesend", "CDarksendPool::AddEntry -- adding entry\n");
     nMessageIDRet = MSG_ENTRIES_ADDED;
+    nLastTimeChanged = GetTimeMillis();
 
     return true;
 }
@@ -1149,9 +1117,8 @@ bool CDarksendPool::SendDenominate(const std::vector<CTxIn>& vecTxIn, const std:
     // store our entry for later use
     CDarkSendEntry entry(vecTxIn, vecTxOut, txMyCollateral);
     vecEntries.push_back(entry);
-
     RelayIn(entry);
-    CheckPool();
+    nLastTimeChanged = GetTimeMillis();
 
     return true;
 }
@@ -1277,6 +1244,7 @@ bool CDarksendPool::SignFinalTransaction(const CTransaction& finalTransactionNew
     // push all of our signatures to the Masternode
     LogPrintf("CDarksendPool::SignFinalTransaction -- pushing sigs to the masternode, finalMutableTransaction=%s", finalMutableTransaction.ToString());
     pnode->PushMessage(NetMsgType::DSSIGNFINALTX, sigs);
+    nLastTimeChanged = GetTimeMillis();
 
     return true;
 }
@@ -1579,7 +1547,6 @@ bool CDarksendPool::DoAutomaticDenominating(bool fDryRun)
             vecMasternodesUsed.push_back(dsq.vin);
 
             LogPrintf("CDarksendPool::DoAutomaticDenominating -- attempt to connect to masternode from queue, addr=%s\n", pmn->addr.ToString());
-            nLastTimeChanged = GetTimeMillis();
             // connect to Masternode and submit the queue request
             CNode* pnode = ConnectNode((CAddress)addr, NULL, true);
             if(pnode) {
@@ -1591,6 +1558,7 @@ bool CDarksendPool::DoAutomaticDenominating(bool fDryRun)
                         nSessionDenom, GetDenominationsToString(nSessionDenom), pnode->addr.ToString());
                 strAutoDenomResult = _("Mixing in progress...");
                 dsq.nTime = 0; //remove node
+                nLastTimeChanged = GetTimeMillis();
                 SetState(POOL_STATE_QUEUE);
                 return true;
             } else {
@@ -1628,7 +1596,6 @@ bool CDarksendPool::DoAutomaticDenominating(bool fDryRun)
             continue;
         }
 
-        nLastTimeChanged = GetTimeMillis();
         LogPrintf("CDarksendPool::DoAutomaticDenominating -- attempt %d connection to Masternode %s\n", nTries, pmn->addr.ToString());
         CNode* pnode = ConnectNode((CAddress)pmn->addr, NULL, true);
         if(pnode) {
@@ -1646,6 +1613,7 @@ bool CDarksendPool::DoAutomaticDenominating(bool fDryRun)
             LogPrintf("CDarksendPool::DoAutomaticDenominating -- connected, sending DSACCEPT, nSessionDenom: %d (%s)\n",
                     nSessionDenom, GetDenominationsToString(nSessionDenom));
             strAutoDenomResult = _("Mixing in progress...");
+            nLastTimeChanged = GetTimeMillis();
             SetState(POOL_STATE_QUEUE);
             return true;
         } else {
@@ -2500,7 +2468,6 @@ void CDarksendPool::SetState(PoolState nStateNew)
 
     LogPrintf("CDarksendPool::SetState -- nState: %d, nStateNew: %d\n", nState, nStateNew);
     if(nState != nStateNew) {
-        nLastTimeChanged = GetTimeMillis();
         if(fMasterNode) {
             RelayStatus(STATUS_SET_STATE);
         }

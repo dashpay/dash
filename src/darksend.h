@@ -96,20 +96,17 @@ public:
     std::vector<CTxDSOut> vecTxDSOut;
     CTransaction txCollateral;
     CAmount nAmount; // depreciated since 12.1, it's used for backwards compatibility only and can be removed with future protocol bump
-    int64_t nTimeAdded; // time in UTC milliseconds
 
     CDarkSendEntry() :
         vecTxDSIn(std::vector<CTxDSIn>()),
         vecTxDSOut(std::vector<CTxDSOut>()),
         txCollateral(CTransaction()),
-        nAmount(0),
-        nTimeAdded(GetTime())
+        nAmount(0)
         {}
 
     CDarkSendEntry(const std::vector<CTxIn>& vecTxIn, const std::vector<CTxOut>& vecTxOut, const CTransaction& txCollateral) :
         txCollateral(txCollateral),
-        nAmount(0),
-        nTimeAdded(GetTime())
+        nAmount(0)
     {
         BOOST_FOREACH(CTxIn txin, vecTxIn)
             vecTxDSIn.push_back(txin);
@@ -128,8 +125,6 @@ public:
     }
 
     bool AddScriptSig(const CTxIn& txin);
-
-    bool IsExpired() { return GetTime() - nTimeAdded > PRIVATESEND_QUEUE_TIMEOUT; }
 };
 
 
