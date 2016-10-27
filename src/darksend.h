@@ -196,6 +196,11 @@ public:
         return strprintf("nDenom=%d, nTime=%lld, fReady=%s, masternode=%s",
                         nDenom, nTime, fReady ? "true" : "false", vin.prevout.ToStringShort());
     }
+
+    friend bool operator==(const CDarksendQueue& a, const CDarksendQueue& b)
+    {
+        return a.nDenom == b.nDenom && a.vin == b.vin && a.nTime == b.nTime && a.fReady == b.fReady && a.vchSig == b.vchSig;
+    }
 };
 
 /** Helper class to store mixing transaction (tx) information.

@@ -94,6 +94,15 @@ void CDarksendPool::ProcessMessage(CNode* pfrom, std::string& strCommand, CDataS
         CDarksendQueue dsq;
         vRecv >> dsq;
 
+        BOOST_FOREACH(CDarksendQueue q, vecDarksendQueue) {
+            if(q == dsq) {
+                // LogPrint("privatesend", "DSQUEUE -- %s seen\n", dsq.ToString());
+                return;
+            }
+        }
+
+        LogPrint("privatesend", "DSQUEUE -- %s new\n", dsq.ToString());
+
         CService addr;
         if(!dsq.GetAddress(addr) || !dsq.CheckSignature() || dsq.IsExpired()) return;
 
