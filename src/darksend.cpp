@@ -1663,8 +1663,8 @@ bool CDarksendPool::PrepareDenominate(int nMinRounds, int nMaxRounds, std::strin
         return false;
     }
 
-    if (GetState() != POOL_STATE_ERROR && GetState() != POOL_STATE_SUCCESS && GetEntriesCount() > 0) {
-        strErrorRet = "You already have pending entries in the PrivateSend pool";
+    if (GetEntriesCount() > 0) {
+        strErrorRet = "Already have pending entries in the PrivateSend pool";
         return false;
     }
 
