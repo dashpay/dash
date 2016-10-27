@@ -490,6 +490,11 @@ std::string CDarksendPool::GetStatus()
     switch(nState) {
         case POOL_STATE_IDLE:
             return _("PrivateSend is idle.");
+        case POOL_STATE_QUEUE:
+            if(     nStatusMessageProgress % 70 <= 30) strSuffix = ".";
+            else if(nStatusMessageProgress % 70 <= 50) strSuffix = "..";
+            else if(nStatusMessageProgress % 70 <= 70) strSuffix = "...";
+            return strprintf(_("Submitted to masternode, waiting in queue %s"), strSuffix);;
         case POOL_STATE_ACCEPTING_ENTRIES:
             if(nEntriesCount == 0) {
                 nStatusMessageProgress = 0;
@@ -517,11 +522,6 @@ std::string CDarksendPool::GetStatus()
             return _("PrivateSend request incomplete:") + " " + strLastMessage + " " + _("Will retry...");
         case POOL_STATE_SUCCESS:
             return _("PrivateSend request complete:") + " " + strLastMessage;
-        case POOL_STATE_QUEUE:
-            if(     nStatusMessageProgress % 70 <= 30) strSuffix = ".";
-            else if(nStatusMessageProgress % 70 <= 50) strSuffix = "..";
-            else if(nStatusMessageProgress % 70 <= 70) strSuffix = "...";
-            return strprintf(_("Submitted to masternode, waiting in queue %s"), strSuffix);;
        default:
             return strprintf(_("Unknown state: id = %u"), nState);
     }
