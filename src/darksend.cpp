@@ -58,7 +58,7 @@ void CDarksendPool::ProcessMessage(CNode* pfrom, std::string& strCommand, CDataS
             return;
         }
 
-        if(nSessionUsers == 0 && pmn->nLastDsq != 0 &&
+        if(vecSessionCollaterals.size() == 0 && pmn->nLastDsq != 0 &&
             pmn->nLastDsq + mnodeman.CountEnabled(MIN_PRIVATESEND_PEER_PROTO_VERSION)/5 > mnodeman.nDsqCount)
         {
             LogPrintf("DSACCEPT -- last dsq too recent, must wait: addr=%s\n", pfrom->addr.ToString());
@@ -161,7 +161,7 @@ void CDarksendPool::ProcessMessage(CNode* pfrom, std::string& strCommand, CDataS
         }
 
         //do we have enough users in the current session?
-        if(nSessionUsers < GetMaxPoolTransactions()) {
+        if(!IsSessionReady()) {
             LogPrintf("DSVIN -- session not complete!\n");
             PushStatus(pfrom, STATUS_REJECTED, ERR_SESSION);
             return;
@@ -251,6 +251,7 @@ void CDarksendPool::ProcessMessage(CNode* pfrom, std::string& strCommand, CDataS
             RelayStatus(STATUS_SET_STATE);
         } else {
             PushStatus(pfrom, STATUS_REJECTED, nMessageID);
+            SetNull();
         }
 
     } else if(strCommand == NetMsgType::DSSTATUSUPDATE) {
@@ -445,8 +446,7 @@ void CDarksendPool::ResetPool()
 void CDarksendPool::SetNull()
 {
     // MN side
-    nSessionUsers = 0;
-    vecSessionCollateral.clear();
+    vecSessionCollaterals.clear();
 
     // Client side
     nEntriesCount = 0;
@@ -656,7 +656,7 @@ void CDarksendPool::ChargeFees()
     if(r > 33) return;
 
     if(nState == POOL_STATE_ACCEPTING_ENTRIES) {
-        BOOST_FOREACH(const CTransaction& txCollateral, vecSessionCollateral) {
+        BOOST_FOREACH(const CTransaction& txCollateral, vecSessionCollaterals) {
             bool fFound = false;
             BOOST_FOREACH(const CDarkSendEntry& entry, vecEntries)
                 if(entry.txCollateral == txCollateral)
@@ -696,7 +696,7 @@ void CDarksendPool::ChargeFees()
     if(nOffences > 1) nTarget = 50;
 
     if(nState == POOL_STATE_ACCEPTING_ENTRIES) {
-        BOOST_FOREACH(const CTransaction& txCollateral, vecSessionCollateral) {
+        BOOST_FOREACH(const CTransaction& txCollateral, vecSessionCollaterals) {
             bool fFound = false;
             BOOST_FOREACH(const CDarkSendEntry& entry, vecEntries)
                 if(entry.txCollateral == txCollateral)
@@ -758,7 +758,7 @@ void CDarksendPool::ChargeRandomFees()
 {
     if(!fMasterNode) return;
 
-    BOOST_FOREACH(const CTransaction& txCollateral, vecSessionCollateral) {
+    BOOST_FOREACH(const CTransaction& txCollateral, vecSessionCollaterals) {
         int r = insecure_rand()%100;
 
         if(r > 10) return;
@@ -833,7 +833,7 @@ void CDarksendPool::CheckForCompleteQueue()
 {
     if(!fEnablePrivateSend && !fMasterNode) return;
 
-    if(nState == POOL_STATE_QUEUE && nSessionUsers == GetMaxPoolTransactions()) {
+    if(nState == POOL_STATE_QUEUE && IsSessionReady()) {
         SetState(POOL_STATE_ACCEPTING_ENTRIES);
 
         CDarksendQueue dsq(nSessionDenom, activeMasternode.vin, GetTime(), true);
@@ -953,7 +953,6 @@ bool CDarksendPool::AddEntry(const CDarkSendEntry& entryNew, PoolMessage& nMessa
         if(txin.prevout.IsNull()) {
             LogPrint("privatesend", "CDarksendPool::AddEntry -- input not valid!\n");
             nMessageIDRet = ERR_INVALID_INPUT;
-            nSessionUsers--;
             return false;
         }
     }
@@ -961,14 +960,12 @@ bool CDarksendPool::AddEntry(const CDarkSendEntry& entryNew, PoolMessage& nMessa
     if(!IsCollateralValid(entryNew.txCollateral)) {
         LogPrint("privatesend", "CDarksendPool::AddEntry -- collateral not valid!\n");
         nMessageIDRet = ERR_INVALID_COLLATERAL;
-        nSessionUsers--;
         return false;
     }
 
     if(GetEntriesCount() >= GetMaxPoolTransactions()) {
         LogPrint("privatesend", "CDarksendPool::AddEntry -- entries is full!\n");
         nMessageIDRet = ERR_ENTRIES_FULL;
-        nSessionUsers--;
         return false;
     }
 
@@ -979,7 +976,6 @@ bool CDarksendPool::AddEntry(const CDarkSendEntry& entryNew, PoolMessage& nMessa
                 if(txdsin.prevout == txin.prevout) {
                     LogPrint("privatesend", "CDarksendPool::AddEntry -- found in txin\n");
                     nMessageIDRet = ERR_ALREADY_HAVE;
-                    nSessionUsers--;
                     return false;
                 }
             }
@@ -2046,7 +2042,6 @@ bool CDarksendPool::CreateNewSession(int nDenom, CTransaction txCollateral, Pool
     nMessageIDRet = MSG_NOERR;
     nSessionID = GetInsecureRand(999999)+1;
     nSessionDenom = nDenom;
-    nSessionUsers = 1;
     nLastTimeChanged = GetTimeMillis();
 
     if(!fUnitTest) {
@@ -2057,11 +2052,11 @@ bool CDarksendPool::CreateNewSession(int nDenom, CTransaction txCollateral, Pool
         dsq.Relay();
     }
 
-    LogPrintf("CDarksendPool::CreateNewSession -- new session created, nSessionDenom: %d (%s) nSessionUsers: %d\n",
-            nSessionDenom, GetDenominationsToString(nSessionDenom), nSessionUsers);
-
     SetState(POOL_STATE_QUEUE);
-    vecSessionCollateral.push_back(txCollateral);
+    vecSessionCollaterals.push_back(txCollateral);
+    LogPrintf("CDarksendPool::CreateNewSession -- new session created, nSessionDenom: %d (%s) vecSessionCollaterals.size(): %d\n",
+            nSessionDenom, GetDenominationsToString(nSessionDenom), vecSessionCollaterals.size());
+
     return true;
 }
 
@@ -2073,13 +2068,6 @@ bool CDarksendPool::AddUserToExistingSession(int nDenom, CTransaction txCollater
         return false;
     }
 
-    if(nSessionUsers < 0) {
-        // too many users sent us incorrect info, break the session and reset the pool
-        nMessageIDRet = ERR_SESSION;
-        SetNull();
-        return false;
-    }
-
     // we only add new users to an existing session when we are in queue mode
     if(nState != POOL_STATE_QUEUE) {
         nMessageIDRet = ERR_MODE;
@@ -2087,10 +2075,10 @@ bool CDarksendPool::AddUserToExistingSession(int nDenom, CTransaction txCollater
         return false;
     }
 
-    if(nSessionUsers >= GetMaxPoolTransactions()) {
+    if(IsSessionReady()) {
         // too many users in this session already, reject new ones
         nMessageIDRet = ERR_QUEUE_FULL;
-        LogPrintf("CDarksendPool::AddUserToExistingSession -- queue is full: nSessionUsers=%d  GetMaxPoolTransactions()=%d\n", nSessionUsers, GetMaxPoolTransactions());
+        LogPrintf("CDarksendPool::AddUserToExistingSession -- queue is already full: vecSessionCollaterals.size()=%d  GetMaxPoolTransactions()=%d\n", vecSessionCollaterals.size(), GetMaxPoolTransactions());
         return false;
     }
 
@@ -2102,13 +2090,13 @@ bool CDarksendPool::AddUserToExistingSession(int nDenom, CTransaction txCollater
     }
 
     // count new user as accepted to an existing session
-    LogPrintf("CDarksendPool::AddUserToExistingSession -- new user accepted, nSessionDenom: %d (%s) nSessionUsers: %d\n",
-            nSessionDenom, GetDenominationsToString(nSessionDenom), nSessionUsers);
 
     nMessageIDRet = MSG_NOERR;
-    nSessionUsers++;
     nLastTimeChanged = GetTimeMillis();
-    vecSessionCollateral.push_back(txCollateral);
+    vecSessionCollaterals.push_back(txCollateral);
+
+    LogPrintf("CDarksendPool::AddUserToExistingSession -- new user accepted, nSessionDenom: %d (%s) vecSessionCollaterals.size(): %d\n",
+            nSessionDenom, GetDenominationsToString(nSessionDenom), vecSessionCollaterals.size());
 
     return true;
 }

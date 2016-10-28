@@ -317,7 +317,7 @@ private:
     std::vector<COutPoint> vecOutPointLocked;
     // Mixing uses collateral transactions to trust parties entering the pool
     // to behave honestly. If they don't it takes their money.
-    std::vector<CTransaction> vecSessionCollateral;
+    std::vector<CTransaction> vecSessionCollaterals;
     std::vector<CDarkSendEntry> vecEntries; // Masternode/clients entries
 
     PoolState nState; // should be one of the POOL_STATE_XXX values
@@ -328,7 +328,6 @@ private:
     const CBlockIndex *pCurrentBlockIndex; // Keep track of current block index
 
     int nSessionID; // 0 if no mixing session is active
-    int nSessionUsers; //N Users have said they'll join
 
     int nEntriesCount;
     bool fLastEntryAccepted;
@@ -478,7 +477,7 @@ public:
     void CheckTimeout();
     void CheckForCompleteQueue();
     /// Do we have enough users to take entries?
-    bool IsSessionReady(){ return nSessionUsers >= GetMaxPoolTransactions(); }
+    bool IsSessionReady(){ return (int)vecSessionCollaterals.size() >= GetMaxPoolTransactions(); }
 
     /// Process a new block
     void NewBlock();
