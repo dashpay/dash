@@ -118,10 +118,12 @@ share/BitcoindComparisonTool.jar
 
 !src/leveldb*/Makefile
 
+# IDE project files/folders
 .cproject
 .project
 .autotools
 /doc/doxygen/
+/nbproject/
 
 libbitcoinconsensus.pc
 src/qt/dash-qt.bash
