@@ -860,6 +860,7 @@ void CMasternodeMan::CheckSameAddr()
 
     // ban duplicates
     BOOST_FOREACH(CMasternode* pmn, vBan) {
+        LogPrintf("CMasternodeMan::CheckSameAddr -- increasing PoSe ban score for masternode %s\n", pmn->vin.prevout.ToStringShort());
         pmn->IncreasePoSeBanScore();
     }
 }
