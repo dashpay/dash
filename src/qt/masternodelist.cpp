@@ -61,6 +61,7 @@ MasternodeList::MasternodeList(const PlatformStyle *platformStyle, QWidget *pare
     timer->start(1000);
 
     fFilterUpdated = false;
+    nTimeFilterUpdated = GetTime();
     updateNodeList();
 }
 
