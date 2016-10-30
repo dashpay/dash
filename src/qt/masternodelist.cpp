@@ -60,6 +60,7 @@ MasternodeList::MasternodeList(const PlatformStyle *platformStyle, QWidget *pare
     connect(timer, SIGNAL(timeout()), this, SLOT(updateMyNodeList()));
     timer->start(1000);
 
+    fFilterUpdated = false;
     updateNodeList();
 }
 
@@ -232,7 +233,7 @@ void MasternodeList::updateNodeList()
                             : nTimeListUpdated - GetTime() + MASTERNODELIST_UPDATE_SECONDS;
 
     if(fFilterUpdated) ui->countLabel->setText(QString::fromStdString(strprintf("Please wait... %d", nSecondsToWait)));
-    if(nSecondsToWait > 0 && nSecondsToWait < 600) return;
+    if(nSecondsToWait > 0) return;
 
     nTimeListUpdated = GetTime();
     fFilterUpdated = false;
