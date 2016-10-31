@@ -143,7 +143,6 @@ void CDarksendPool::ProcessMessage(CNode* pfrom, std::string& strCommand, CDataS
             LogPrint("privatesend", "DSQUEUE -- new PrivateSend queue (%s) from masternode %s\n", dsq.ToString(), addr.ToString());
             vecDarksendQueue.push_back(dsq);
             dsq.Relay();
-            dsq.nTime = GetTime();
         }
 
     } else if(strCommand == NetMsgType::DSVIN) {
@@ -1502,7 +1501,10 @@ bool CDarksendPool::DoAutomaticDenominating(bool fDryRun)
 
         // Look through the queues and see if anything matches
         BOOST_FOREACH(CDarksendQueue& dsq, vecDarksendQueue) {
-            if(dsq.nTime == 0) continue;
+            // only try each queue once
+            if(dsq.fTried) continue;
+            dsq.fTried = true;
+
             if(dsq.IsExpired()) continue;
 
             CService addr;
@@ -1553,14 +1555,12 @@ bool CDarksendPool::DoAutomaticDenominating(bool fDryRun)
                 LogPrintf("CDarksendPool::DoAutomaticDenominating -- connected (from queue), sending DSACCEPT: nSessionDenom: %d (%s), addr=%s\n",
                         nSessionDenom, GetDenominationsToString(nSessionDenom), pnode->addr.ToString());
                 strAutoDenomResult = _("Mixing in progress...");
-                dsq.nTime = 0; //remove node
                 nLastTimeChanged = GetTimeMillis();
                 SetState(POOL_STATE_QUEUE);
                 return true;
             } else {
                 LogPrintf("CDarksendPool::DoAutomaticDenominating -- can't connect, addr=%s\n", pmn->addr.ToString());
                 strAutoDenomResult = _("Error connecting to Masternode.");
-                dsq.nTime = 0; //remove node
                 pmn->IncreasePoSeBanScore();
                 continue;
             }
