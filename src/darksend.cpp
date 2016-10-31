@@ -2377,7 +2377,7 @@ void CDarksendPool::RelayIn(const CDarkSendEntry& entry)
 void CDarksendPool::PushStatus(CNode* pnode, PoolStatusUpdate nStatusUpdate, PoolMessage nMessageID)
 {
     if(!pnode) return;
-    pnode->PushMessage(NetMsgType::DSSTATUSUPDATE, nSessionID, (int)nState, nEntriesCount, (int)nStatusUpdate, (int)nMessageID);
+    pnode->PushMessage(NetMsgType::DSSTATUSUPDATE, nSessionID, (int)nState, (int)vecEntries.size(), (int)nStatusUpdate, (int)nMessageID);
 }
 
 void CDarksendPool::RelayStatus(PoolStatusUpdate nStatusUpdate, PoolMessage nMessageID)
