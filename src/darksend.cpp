@@ -146,6 +146,9 @@ void CDarksendPool::ProcessMessage(CNode* pfrom, std::string& strCommand, CDataS
             pmn->fAllowMixingTx = true;
 
             LogPrint("privatesend", "DSQUEUE -- new PrivateSend queue (%s) from masternode %s\n", dsq.ToString(), pmn->addr.ToString());
+            if(pSubmittedToMasternode && pSubmittedToMasternode->vin.prevout == dsq.vin.prevout) {
+                dsq.fTried = true;
+            }
             vecDarksendQueue.push_back(dsq);
             dsq.Relay();
         }
