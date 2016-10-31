@@ -48,6 +48,13 @@ void CDarksendPool::ProcessMessage(CNode* pfrom, std::string& strCommand, CDataS
             return;
         }
 
+        if(IsSessionReady()) {
+            // too many users in this session already, reject new ones
+            LogPrintf("DSACCEPT -- queue is already full!\n");
+            PushStatus(pfrom, STATUS_ACCEPTED, ERR_QUEUE_FULL);
+            return;
+        }
+
         int nDenom;
         CTransaction txCollateral;
         vRecv >> nDenom >> txCollateral;
@@ -2057,7 +2064,7 @@ bool CDarksendPool::CreateNewSession(int nDenom, CTransaction txCollateral, Pool
 
 bool CDarksendPool::AddUserToExistingSession(int nDenom, CTransaction txCollateral, PoolMessage& nMessageIDRet)
 {
-    if(!fMasterNode || nSessionID == 0) return false;
+    if(!fMasterNode || nSessionID == 0 || IsSessionReady()) return false;
 
     if(!IsAcceptableDenomAndCollateral(nDenom, txCollateral, nMessageIDRet)) {
         return false;
@@ -2067,13 +2074,6 @@ bool CDarksendPool::AddUserToExistingSession(int nDenom, CTransaction txCollater
     if(nState != POOL_STATE_QUEUE) {
         nMessageIDRet = ERR_MODE;
         LogPrintf("CDarksendPool::AddUserToExistingSession -- incompatible mode: nState=%d\n", nState);
-        return false;
-    }
-
-    if(IsSessionReady()) {
-        // too many users in this session already, reject new ones
-        nMessageIDRet = ERR_QUEUE_FULL;
-        LogPrintf("CDarksendPool::AddUserToExistingSession -- queue is already full: vecSessionCollaterals.size()=%d  GetMaxPoolTransactions()=%d\n", vecSessionCollaterals.size(), GetMaxPoolTransactions());
         return false;
     }
 
