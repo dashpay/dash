@@ -59,7 +59,7 @@ void CDarksendPool::ProcessMessage(CNode* pfrom, std::string& strCommand, CDataS
         CTransaction txCollateral;
         vRecv >> nDenom >> txCollateral;
 
-        LogPrint("privatesend", "DSACCEPT -- nDenom %d  txCollateral %s", nDenom, txCollateral.ToString());
+        LogPrint("privatesend", "DSACCEPT -- nDenom %d (%s)  txCollateral %s", nDenom, GetDenominationsToString(nDenom), txCollateral.ToString());
 
         CMasternode* pmn = mnodeman.Find(activeMasternode.vin);
         if(pmn == NULL) {
@@ -396,16 +396,6 @@ void CDarksendPool::ProcessMessage(CNode* pfrom, std::string& strCommand, CDataS
 
         int nMsgSessionID;
         int nMsgMessageID;
-        //
-        // REMOVE AFTER MIGRATION TO 12.1
-        //
-        bool fError;
-        if(pfrom->nVersion < 70203)
-            vRecv >> nMsgSessionID >> fError >> nMsgMessageID;
-        else
-        //
-        // END REMOVE
-        //
         vRecv >> nMsgSessionID >> nMsgMessageID;
 
         if(nMsgMessageID < MSG_POOL_MIN || nMsgMessageID > MSG_POOL_MAX) {

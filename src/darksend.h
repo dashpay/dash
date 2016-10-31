@@ -19,7 +19,7 @@ static const int PRIVATESEND_QUEUE_TIMEOUT          = 30;
 static const int PRIVATESEND_SIGNING_TIMEOUT        = 15;
 
 //! minimum peer version accepted by mixing pool
-static const int MIN_PRIVATESEND_PEER_PROTO_VERSION = 70202;
+static const int MIN_PRIVATESEND_PEER_PROTO_VERSION = 70203;
 
 static const CAmount PRIVATESEND_COLLATERAL         = 0.001 * COIN;
 static const CAmount PRIVATESEND_POOL_MAX           = 999.999 * COIN;
@@ -95,18 +95,15 @@ public:
     std::vector<CTxDSIn> vecTxDSIn;
     std::vector<CTxDSOut> vecTxDSOut;
     CTransaction txCollateral;
-    CAmount nAmount; // depreciated since 12.1, it's used for backwards compatibility only and can be removed with future protocol bump
 
     CDarkSendEntry() :
         vecTxDSIn(std::vector<CTxDSIn>()),
         vecTxDSOut(std::vector<CTxDSOut>()),
-        txCollateral(CTransaction()),
-        nAmount(0)
+        txCollateral(CTransaction())
         {}
 
     CDarkSendEntry(const std::vector<CTxIn>& vecTxIn, const std::vector<CTxOut>& vecTxOut, const CTransaction& txCollateral) :
-        txCollateral(txCollateral),
-        nAmount(0)
+        txCollateral(txCollateral)
     {
         BOOST_FOREACH(CTxIn txin, vecTxIn)
             vecTxDSIn.push_back(txin);
@@ -119,7 +116,6 @@ public:
     template <typename Stream, typename Operation>
     inline void SerializationOp(Stream& s, Operation ser_action, int nType, int nVersion) {
         READWRITE(vecTxDSIn);
-        READWRITE(nAmount);
         READWRITE(txCollateral);
         READWRITE(vecTxDSOut);
     }
@@ -287,16 +283,13 @@ private:
 
     // pool states
     enum PoolState {
-        POOL_STATE_UNKNOWN,
         POOL_STATE_IDLE,
         POOL_STATE_QUEUE,
         POOL_STATE_ACCEPTING_ENTRIES,
-        POOL_STATE_FINALIZE_TRANSACTION, // not used
         POOL_STATE_SIGNING,
-        POOL_STATE_TRANSMISSION, // not used
         POOL_STATE_ERROR,
         POOL_STATE_SUCCESS,
-        POOL_STATE_MIN = POOL_STATE_UNKNOWN,
+        POOL_STATE_MIN = POOL_STATE_IDLE,
         POOL_STATE_MAX = POOL_STATE_SUCCESS
     };
 
