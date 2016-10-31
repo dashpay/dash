@@ -59,6 +59,8 @@ void CDarksendPool::ProcessMessage(CNode* pfrom, std::string& strCommand, CDataS
         CTransaction txCollateral;
         vRecv >> nDenom >> txCollateral;
 
+        LogPrint("privatesend", "DSACCEPT -- nDenom %d  txCollateral %s", nDenom, txCollateral.ToString());
+
         CMasternode* pmn = mnodeman.Find(activeMasternode.vin);
         if(pmn == NULL) {
             PushStatus(pfrom, STATUS_REJECTED, ERR_MN_LIST);
@@ -132,13 +134,10 @@ void CDarksendPool::ProcessMessage(CNode* pfrom, std::string& strCommand, CDataS
                 SubmitDenominate();
             }
         } else {
-            BOOST_FOREACH(CDarksendQueue q, vecDarksendQueue)
-                if(q.vin == dsq.vin) return;
-
-            LogPrint("privatesend", "DSQUEUE -- nLastDsq: %d  threshold: %d  nDsqCount: %d\n", pmn->nLastDsq, pmn->nLastDsq + mnodeman.size()/5, mnodeman.nDsqCount);
+            int nMnCountEnabled = mnodeman.CountEnabled(MIN_PRIVATESEND_PEER_PROTO_VERSION)/5;
+            LogPrint("privatesend", "DSQUEUE -- nLastDsq: %d  threshold: %d  nDsqCount: %d\n", pmn->nLastDsq, pmn->nLastDsq + nMnCountEnabled/5, mnodeman.nDsqCount);
             //don't allow a few nodes to dominate the queuing process
-            if(pmn->nLastDsq != 0 &&
-                pmn->nLastDsq + mnodeman.CountEnabled(MIN_PRIVATESEND_PEER_PROTO_VERSION)/5 > mnodeman.nDsqCount) {
+            if(pmn->nLastDsq != 0 && pmn->nLastDsq + nMnCountEnabled/5 > mnodeman.nDsqCount) {
                 LogPrint("privatesend", "DSQUEUE -- Masternode %s is sending too many dsq messages\n", pmn->addr.ToString());
                 return;
             }
@@ -174,6 +173,8 @@ void CDarksendPool::ProcessMessage(CNode* pfrom, std::string& strCommand, CDataS
 
         CDarkSendEntry entry;
         vRecv >> entry;
+
+        LogPrint("privatesend", "DSVIN -- txCollateral %s", entry.txCollateral.ToString());
 
         //do we have the same denominations as the current session?
         if(!IsOutputsCompatibleWithSessionDenom(entry.vecTxDSOut)) {
@@ -326,6 +327,8 @@ void CDarksendPool::ProcessMessage(CNode* pfrom, std::string& strCommand, CDataS
         std::vector<CTxIn> vecTxIn;
         vRecv >> vecTxIn;
 
+        LogPrint("privatesend", "DSSIGNFINALTX -- vecTxIn.size() %s\n", vecTxIn.size());
+
         int nTxInIndex = 0;
         int nTxInsCount = (int)vecTxIn.size();
 
@@ -368,6 +371,8 @@ void CDarksendPool::ProcessMessage(CNode* pfrom, std::string& strCommand, CDataS
             return;
         }
 
+        LogPrint("privatesend", "DSFINALTX -- txNew %s", txNew.ToString());
+
         //check to see if input is spent already? (and probably not confirmed)
         SignFinalTransaction(txNew, pfrom);
 
@@ -404,7 +409,7 @@ void CDarksendPool::ProcessMessage(CNode* pfrom, std::string& strCommand, CDataS
         vRecv >> nMsgSessionID >> nMsgMessageID;
 
         if(nMsgMessageID < MSG_POOL_MIN || nMsgMessageID > MSG_POOL_MAX) {
-            LogPrint("privatesend", "DSSTATUSUPDATE -- nMsgMessageID is out of bounds: %d\n", nMsgMessageID);
+            LogPrint("privatesend", "DSCOMPLETE -- nMsgMessageID is out of bounds: %d\n", nMsgMessageID);
             return;
         }
 
@@ -412,6 +417,8 @@ void CDarksendPool::ProcessMessage(CNode* pfrom, std::string& strCommand, CDataS
             LogPrint("privatesend", "DSCOMPLETE -- message doesn't match current PrivateSend session: nSessionID: %d  nMsgSessionID: %d\n", darkSendPool.nSessionID, nMsgSessionID);
             return;
         }
+
+        LogPrint("privatesend", "DSCOMPLETE -- nMsgSessionID %d  nMsgMessageID %d (%s)\n", nMsgSessionID, nMsgMessageID, GetMessageByID(PoolMessage(nMsgMessageID)));
 
         CompletedTransaction(PoolMessage(nMsgMessageID));
     }
@@ -784,7 +791,8 @@ void CDarksendPool::CheckTimeout()
     bool fTimeout = GetTimeMillis() - nLastTimeChanged >= nTimeout*1000 + nLagTime;
 
     if(nState != POOL_STATE_IDLE && fTimeout) {
-        LogPrint("privatesend", "CDarksendPool::CheckTimeout -- Session timed out (%ds) -- restting\n", nTimeout);
+        LogPrint("privatesend", "CDarksendPool::CheckTimeout -- %s timed out (%ds) -- restting\n",
+                (nState == POOL_STATE_SIGNING) ? "Signing" : "Session", nTimeout);
         ChargeFees();
         UnlockCoins();
         SetNull();
@@ -1455,8 +1463,10 @@ bool CDarksendPool::DoAutomaticDenominating(bool fDryRun)
         }
     }
 
+    int nMnCountEnabled = mnodeman.CountEnabled(MIN_PRIVATESEND_PEER_PROTO_VERSION);
+
     // If we've used 90% of the Masternode list then drop the oldest first ~30%
-    int nThreshold_high = (int)(mnodeman.CountEnabled(MIN_PRIVATESEND_PEER_PROTO_VERSION) * 0.9);
+    int nThreshold_high = nMnCountEnabled * 0.9;
     int nThreshold_low = nThreshold_high * 0.7;
     LogPrint("privatesend", "Checking vecMasternodesUsed: size: %d, threshold: %d\n", (int)vecMasternodesUsed.size(), nThreshold_high);
 
@@ -1542,12 +1552,11 @@ bool CDarksendPool::DoAutomaticDenominating(bool fDryRun)
         }
         vecMasternodesUsed.push_back(pmn->vin);
 
-        int nFifthCompatible = mnodeman.CountEnabled(MIN_PRIVATESEND_PEER_PROTO_VERSION)/5;
-        if(pmn->nLastDsq != 0 && pmn->nLastDsq + nFifthCompatible > mnodeman.nDsqCount) {
+        if(pmn->nLastDsq != 0 && pmn->nLastDsq + nMnCountEnabled/5 > mnodeman.nDsqCount) {
             LogPrintf("CDarksendPool::DoAutomaticDenominating -- Too early to mix on this masternode!"
                         " masternode=%s  addr=%s  nLastDsq=%d  CountEnabled/5=%d  nDsqCount=%d\n",
                         pmn->vin.prevout.ToStringShort(), pmn->addr.ToString(), pmn->nLastDsq,
-                        nFifthCompatible, mnodeman.nDsqCount);
+                        nMnCountEnabled/5, mnodeman.nDsqCount);
             nTries++;
             continue;
         }
@@ -2015,8 +2024,8 @@ bool CDarksendPool::CreateNewSession(int nDenom, CTransaction txCollateral, Pool
 
     SetState(POOL_STATE_QUEUE);
     vecSessionCollaterals.push_back(txCollateral);
-    LogPrintf("CDarksendPool::CreateNewSession -- new session created, nSessionDenom: %d (%s) vecSessionCollaterals.size(): %d\n",
-            nSessionDenom, GetDenominationsToString(nSessionDenom), vecSessionCollaterals.size());
+    LogPrintf("CDarksendPool::CreateNewSession -- new session created, nSessionID: %d  nSessionDenom: %d (%s)  vecSessionCollaterals.size(): %d\n",
+            nSessionID, nSessionDenom, GetDenominationsToString(nSessionDenom), vecSessionCollaterals.size());
 
     return true;
 }
@@ -2049,8 +2058,8 @@ bool CDarksendPool::AddUserToExistingSession(int nDenom, CTransaction txCollater
     nLastTimeChanged = GetTimeMillis();
     vecSessionCollaterals.push_back(txCollateral);
 
-    LogPrintf("CDarksendPool::AddUserToExistingSession -- new user accepted, nSessionDenom: %d (%s) vecSessionCollaterals.size(): %d\n",
-            nSessionDenom, GetDenominationsToString(nSessionDenom), vecSessionCollaterals.size());
+    LogPrintf("CDarksendPool::AddUserToExistingSession -- new user accepted, nSessionID: %d  nSessionDenom: %d (%s)  vecSessionCollaterals.size(): %d\n",
+            nSessionID, nSessionDenom, GetDenominationsToString(nSessionDenom), vecSessionCollaterals.size());
 
     return true;
 }
