@@ -302,9 +302,8 @@ private:
 
     // status update message constants
     enum PoolStatusUpdate {
-        STATUS_SET_STATE        = -1,
-        STATUS_REJECTED         = 0,
-        STATUS_ACCEPTED         = 1
+        STATUS_REJECTED,
+        STATUS_ACCEPTED
     };
 
     mutable CCriticalSection cs_darksend;
@@ -417,7 +416,7 @@ private:
     void RelayInAnon(std::vector<CTxIn>& vin, std::vector<CTxOut>& vout);
     void RelayIn(const CDarkSendEntry& entry);
     void PushStatus(CNode* pnode, PoolStatusUpdate nStatusUpdate, PoolMessage nMessageID);
-    void RelayStatus(PoolStatusUpdate nStatusUpdate = STATUS_SET_STATE, PoolMessage nMessageID = MSG_NOERR);
+    void RelayStatus(PoolStatusUpdate nStatusUpdate, PoolMessage nMessageID = MSG_NOERR);
     void RelayCompletedTransaction(PoolMessage nMessageID);
 
 public:
