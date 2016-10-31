@@ -282,6 +282,7 @@ void OverviewPage::setWalletModel(WalletModel *model)
 
         connect(ui->privateSendAuto, SIGNAL(clicked()), this, SLOT(privateSendAuto()));
         connect(ui->privateSendReset, SIGNAL(clicked()), this, SLOT(privateSendReset()));
+        connect(ui->privateSendInfo, SIGNAL(clicked()), this, SLOT(privateSendInfo()));
         connect(ui->togglePrivateSend, SIGNAL(clicked()), this, SLOT(togglePrivateSend()));
         updateWatchOnlyLabels(model->haveWatchOnly());
         connect(model, SIGNAL(notifyWatchonlyChanged(bool)), this, SLOT(updateWatchOnlyLabels(bool)));
@@ -441,6 +442,7 @@ void OverviewPage::updateAdvancedPSUI(bool fShowAdvancedPSUI) {
     ui->labelSubmittedDenom->setVisible(fShowAdvancedPSUI);
     ui->privateSendAuto->setVisible(fShowAdvancedPSUI);
     ui->privateSendReset->setVisible(fShowAdvancedPSUI);
+    ui->privateSendInfo->setVisible(true);
     ui->labelPrivateSendLastMessage->setVisible(fShowAdvancedPSUI);
 }
 
@@ -574,6 +576,41 @@ void OverviewPage::privateSendReset(){
     QMessageBox::warning(this, tr("PrivateSend"),
         tr("PrivateSend was successfully reset."),
         QMessageBox::Ok, QMessageBox::Ok);
+}
+
+void OverviewPage::privateSendInfo(){
+
+    // Artificial long boxtitle to ensure minimum width without overwriting the global CSS styles
+    QString placeHolder = "                                                                                                                                                                                    ";
+    QString infoBoxTitle = tr("PrivateSend") + placeHolder;
+    
+    QMessageBox::information(this, infoBoxTitle,
+        tr("\
+In order to utilize PrivateSend coins needs to be 'mixed' before they can be used.<hr> \
+<b>Mixing in a nutshell:</b>\
+<ol type=\"1\"> \
+<li>PrivateSend uses the fact that a transaction can be formed by multiple parties and made out to multiple parties to merge funds together ('Mixing') in a way where they can’t be uncoupled thereafter.</li> \
+<li>All PrivateSend transactions are setup for users to pay themselves, so the system is highly secure against theft and users coins always remain safe.</li> \
+<li>PrivateSend requires at least 3 participants to mix funds.</li> \
+<li>To improve privacy, the funds to be mixed will be denominated into 0.1DASH, 1DASH, 10DASH AND 100DASH payments. \
+Therefore in each mixing session, all users submit the same denominations as inputs and outputs.</li> \
+<li>PrivateSend is limited to 1000 DASH per user per session and requires multiple sessions to thoroughly anonymize significant amounts of money.</li> \
+<li>At set intervals, a user’s client will request to join with other clients via a Masternode.<br> \
+Upon entry into the Masternode, a queue object is propagated throughout the network detailing the denominations the user is looking to anonymize, but no information that can be used to identify the user.</li> \
+<li>Each PrivateSend session ('Round') can be thought of as an independent event increasing the anonymity of user’s funds. Each round of mixing utilizes multiple randomly chosen Masternodes, one after another. </li> \
+<li>At the end of the anonymization phase, the user’s coins are returned to their client at randomly generated change addresses.</li> \
+<li>When the user wishes to make a private transaction, the client forwards the intended amount from these anonymous change addresses directly to the intended receiver’s address.<br> \
+There is no direct involvement of of Masternodes in the final person-to-person transaction.</li> \
+</ol> \
+Step 8 above needs some extra attention: the Dash-wallet starts with with a pool (called keypool) of 1000 randomly generated change addresses.<br><br> \
+With every round of mixing, some of those addresses are used, reducing the number of unused keypool addresses.<br> \
+When the keypool is down to 100 addresses, the wallet tries to replenish the keypool. When replenishment has finished, the wallet MUST create a new backup of your newly generated Dash addresses.<br> \
+That's why mixing is disabled when you disable automatic wallet backups in the settings.<br><br> \
+Without this (automatic) backup you wouldn't be able to access this newly created addresses from old wallet backups, and thus losing coins!<hr> \
+For more info see <a href=\"https://dashpay.atlassian.net/wiki/display/DOC/PrivateSend\">https://dashpay.atlassian.net/wiki/display/DOC/PrivateSend</a> \
+        "),
+        QMessageBox::Ok, QMessageBox::Ok);
+
 }
 
 void OverviewPage::togglePrivateSend(){
