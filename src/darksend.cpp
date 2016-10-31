@@ -108,7 +108,7 @@ void CDarksendPool::ProcessMessage(CNode* pfrom, std::string& strCommand, CDataS
 
         LogPrint("privatesend", "DSQUEUE -- %s new\n", dsq.ToString());
 
-        if(dsq.IsExpired()) return;
+        if(dsq.IsExpired() || dsq.nTime > GetTime() + PRIVATESEND_QUEUE_TIMEOUT) return;
 
         CMasternode* pmn = mnodeman.Find(dsq.vin);
         if(pmn == NULL) return;
@@ -2052,6 +2052,7 @@ bool CDarksendPool::CreateNewSession(int nDenom, CTransaction txCollateral, Pool
         LogPrint("privatesend", "CDarksendPool::CreateNewSession -- signing and relaying new queue: %s\n", dsq.ToString());
         dsq.Sign();
         dsq.Relay();
+        vecDarksendQueue.push_back(dsq);
     }
 
     SetState(POOL_STATE_QUEUE);
