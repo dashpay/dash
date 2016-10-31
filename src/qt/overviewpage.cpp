@@ -602,7 +602,7 @@ Upon entry into the Masternode, a queue object is propagated throughout the netw
 <li>When the user wishes to make a private transaction, the client forwards the intended amount from these anonymous change addresses directly to the intended receiver’s address.<br> \
 There is no direct involvement of of Masternodes in the final person-to-person transaction.</li> \
 </ol> \
-Step 8 above needs some extra attention: the Dash-wallet starts with with a pool (called keypool) of 1000 randomly generated change addresses.<br><br> \
+Step 8 above needs some extra attention: the Dash-wallet starts with a pool (called keypool) of 1000 randomly generated change addresses.<br><br> \
 With every round of mixing, some of those addresses are used, reducing the number of unused keypool addresses.<br> \
 When the keypool is down to 100 addresses, the wallet tries to replenish the keypool. When replenishment has finished, the wallet MUST create a new backup of your newly generated Dash addresses.<br> \
 That's why mixing is disabled when you disable automatic wallet backups in the settings.<br><br> \
