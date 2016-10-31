@@ -101,8 +101,7 @@ void CDarksendPool::ProcessMessage(CNode* pfrom, std::string& strCommand, CDataS
 
         LogPrint("privatesend", "DSQUEUE -- %s new\n", dsq.ToString());
 
-        CService addr;
-        if(!dsq.GetAddress(addr) || dsq.IsExpired()) return;
+        if(dsq.IsExpired()) return;
 
         CMasternode* pmn = mnodeman.Find(dsq.vin);
         if(pmn == NULL) return;
@@ -116,13 +115,13 @@ void CDarksendPool::ProcessMessage(CNode* pfrom, std::string& strCommand, CDataS
         // if the queue is ready, submit if we can
         if(dsq.fReady) {
             if(!pSubmittedToMasternode) return;
-            if((CNetAddr)pSubmittedToMasternode->addr != (CNetAddr)addr) {
-                LogPrintf("DSQUEUE -- message doesn't match current Masternode: pSubmittedToMasternode=%s, addr=%s\n", pSubmittedToMasternode->addr.ToString(), addr.ToString());
+            if((CNetAddr)pSubmittedToMasternode->addr != (CNetAddr)pmn->addr) {
+                LogPrintf("DSQUEUE -- message doesn't match current Masternode: pSubmittedToMasternode=%s, addr=%s\n", pSubmittedToMasternode->addr.ToString(), pmn->addr.ToString());
                 return;
             }
 
             if(nState == POOL_STATE_QUEUE) {
-                LogPrint("privatesend", "DSQUEUE -- PrivateSend queue (%s) is ready on masternode %s\n", dsq.ToString(), addr.ToString());
+                LogPrint("privatesend", "DSQUEUE -- PrivateSend queue (%s) is ready on masternode %s\n", dsq.ToString(), pmn->addr.ToString());
                 SubmitDenominate();
             }
         } else {
@@ -140,7 +139,7 @@ void CDarksendPool::ProcessMessage(CNode* pfrom, std::string& strCommand, CDataS
             pmn->nLastDsq = mnodeman.nDsqCount;
             pmn->fAllowMixingTx = true;
 
-            LogPrint("privatesend", "DSQUEUE -- new PrivateSend queue (%s) from masternode %s\n", dsq.ToString(), addr.ToString());
+            LogPrint("privatesend", "DSQUEUE -- new PrivateSend queue (%s) from masternode %s\n", dsq.ToString(), pmn->addr.ToString());
             vecDarksendQueue.push_back(dsq);
             dsq.Relay();
         }
@@ -1507,12 +1506,13 @@ bool CDarksendPool::DoAutomaticDenominating(bool fDryRun)
 
             if(dsq.IsExpired()) continue;
 
-            CService addr;
-            if(!dsq.GetAddress(addr)) continue;
+            CMasternode* pmn = mnodeman.Find(dsq.vin);
+            if(pmn == NULL) {
+                LogPrintf("CDarksendPool::DoAutomaticDenominating -- dsq masternode is not in masternode list, masternode=%s\n", dsq.vin.prevout.ToStringShort());
+                continue;
+            }
 
-            int nProtocolVersion;
-            if(!dsq.GetProtocolVersion(nProtocolVersion)) continue;
-            if(nProtocolVersion < MIN_PRIVATESEND_PEER_PROTO_VERSION) continue;
+            if(pmn->nProtocolVersion < MIN_PRIVATESEND_PEER_PROTO_VERSION) continue;
 
             // incompatible denom
             if(dsq.nDenom >= (1 << vecPrivateSendDenominations.size())) continue;
@@ -1537,16 +1537,11 @@ bool CDarksendPool::DoAutomaticDenominating(bool fDryRun)
                 continue;
             }
 
-            CMasternode* pmn = mnodeman.Find(dsq.vin);
-            if(pmn == NULL) {
-                LogPrintf("CDarksendPool::DoAutomaticDenominating -- dsq masternode is not in masternode list, masternode=%s\n", dsq.vin.prevout.ToStringShort());
-                continue;
-            }
             vecMasternodesUsed.push_back(dsq.vin);
 
             LogPrintf("CDarksendPool::DoAutomaticDenominating -- attempt to connect to masternode from queue, addr=%s\n", pmn->addr.ToString());
             // connect to Masternode and submit the queue request
-            CNode* pnode = ConnectNode((CAddress)addr, NULL, true);
+            CNode* pnode = ConnectNode((CAddress)pmn->addr, NULL, true);
             if(pnode) {
                 pSubmittedToMasternode = pmn;
                 nSessionDenom = dsq.nDenom;
@@ -2348,24 +2343,6 @@ bool CDarksendQueue::CheckSignature(const CPubKey& pubKeyMasternode)
         return false;
     }
 
-    return true;
-}
-
-bool CDarksendQueue::GetAddress(CService &addrRet)
-{
-    CMasternode* pmn = mnodeman.Find(vin);
-    if(pmn == NULL) return false;
-
-    addrRet = pmn->addr;
-    return true;
-}
-
-bool CDarksendQueue::GetProtocolVersion(int &nProtocolVersionRet)
-{
-    CMasternode* pmn = mnodeman.Find(vin);
-    if(pmn == NULL) return false;
-
-    nProtocolVersionRet = pmn->nProtocolVersion;
     return true;
 }
 

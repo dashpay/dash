@@ -171,9 +171,6 @@ public:
         READWRITE(vchSig);
     }
 
-    bool GetAddress(CService &addrRet);
-    bool GetProtocolVersion(int &nProtocolVersionRet);
-
     /** Sign this mixing transaction
      *  \return true if all conditions are met:
      *     1) we have an active Masternode,
