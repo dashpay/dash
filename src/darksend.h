@@ -19,7 +19,7 @@ static const int PRIVATESEND_QUEUE_TIMEOUT          = 30;
 static const int PRIVATESEND_SIGNING_TIMEOUT        = 15;
 
 //! minimum peer version accepted by mixing pool
-static const int MIN_PRIVATESEND_PEER_PROTO_VERSION = 70202;
+static const int MIN_PRIVATESEND_PEER_PROTO_VERSION = 70203;
 
 static const CAmount PRIVATESEND_COLLATERAL         = 0.001 * COIN;
 static const CAmount PRIVATESEND_POOL_MAX           = 999.999 * COIN;
@@ -95,21 +95,15 @@ public:
     std::vector<CTxDSIn> vecTxDSIn;
     std::vector<CTxDSOut> vecTxDSOut;
     CTransaction txCollateral;
-    CAmount nAmount; // depreciated since 12.1, it's used for backwards compatibility only and can be removed with future protocol bump
-    int64_t nTimeAdded; // time in UTC milliseconds
 
     CDarkSendEntry() :
         vecTxDSIn(std::vector<CTxDSIn>()),
         vecTxDSOut(std::vector<CTxDSOut>()),
-        txCollateral(CTransaction()),
-        nAmount(0),
-        nTimeAdded(GetTime())
+        txCollateral(CTransaction())
         {}
 
     CDarkSendEntry(const std::vector<CTxIn>& vecTxIn, const std::vector<CTxOut>& vecTxOut, const CTransaction& txCollateral) :
-        txCollateral(txCollateral),
-        nAmount(0),
-        nTimeAdded(GetTime())
+        txCollateral(txCollateral)
     {
         BOOST_FOREACH(CTxIn txin, vecTxIn)
             vecTxDSIn.push_back(txin);
@@ -122,14 +116,11 @@ public:
     template <typename Stream, typename Operation>
     inline void SerializationOp(Stream& s, Operation ser_action, int nType, int nVersion) {
         READWRITE(vecTxDSIn);
-        READWRITE(nAmount);
         READWRITE(txCollateral);
         READWRITE(vecTxDSOut);
     }
 
     bool AddScriptSig(const CTxIn& txin);
-
-    bool IsExpired() { return GetTime() - nTimeAdded > PRIVATESEND_QUEUE_TIMEOUT; }
 };
 
 
@@ -144,13 +135,16 @@ public:
     int64_t nTime;
     bool fReady; //ready for submit
     std::vector<unsigned char> vchSig;
+    // memory only
+    bool fTried;
 
     CDarksendQueue() :
         nDenom(0),
         vin(CTxIn()),
         nTime(0),
         fReady(false),
-        vchSig(std::vector<unsigned char>())
+        vchSig(std::vector<unsigned char>()),
+        fTried(false)
         {}
 
     CDarksendQueue(int nDenom, CTxIn vin, int64_t nTime, bool fReady) :
@@ -158,7 +152,8 @@ public:
         vin(vin),
         nTime(nTime),
         fReady(fReady),
-        vchSig(std::vector<unsigned char>())
+        vchSig(std::vector<unsigned char>()),
+        fTried(false)
         {}
 
     ADD_SERIALIZE_METHODS;
@@ -172,9 +167,6 @@ public:
         READWRITE(vchSig);
     }
 
-    bool GetAddress(CService &addrRet);
-    bool GetProtocolVersion(int &nProtocolVersionRet);
-
     /** Sign this mixing transaction
      *  \return true if all conditions are met:
      *     1) we have an active Masternode,
@@ -184,7 +176,7 @@ public:
      */
     bool Sign();
     /// Check if we have a valid Masternode address
-    bool CheckSignature();
+    bool CheckSignature(const CPubKey& pubKeyMasternode);
 
     bool Relay();
 
@@ -193,8 +185,13 @@ public:
 
     std::string ToString()
     {
-        return strprintf("nDenom=%d, nTime=%lld, fReady=%s, masternode=%s",
-                        nDenom, nTime, fReady ? "true" : "false", vin.prevout.ToStringShort());
+        return strprintf("nDenom=%d, nTime=%lld, fReady=%s, fTried=%s, masternode=%s",
+                        nDenom, nTime, fReady ? "true" : "false", fTried ? "true" : "false", vin.prevout.ToStringShort());
+    }
+
+    friend bool operator==(const CDarksendQueue& a, const CDarksendQueue& b)
+    {
+        return a.nDenom == b.nDenom && a.vin.prevout == b.vin.prevout && a.nTime == b.nTime && a.fReady == b.fReady;
     }
 };
 
@@ -233,7 +230,7 @@ public:
     }
 
     bool Sign();
-    bool CheckSignature();
+    bool CheckSignature(const CPubKey& pubKeyMasternode);
 };
 
 /** Helper object for signing and checking signatures
@@ -286,24 +283,20 @@ private:
 
     // pool states
     enum PoolState {
-        POOL_STATE_UNKNOWN,
         POOL_STATE_IDLE,
         POOL_STATE_QUEUE,
         POOL_STATE_ACCEPTING_ENTRIES,
-        POOL_STATE_FINALIZE_TRANSACTION,
         POOL_STATE_SIGNING,
-        POOL_STATE_TRANSMISSION,
         POOL_STATE_ERROR,
         POOL_STATE_SUCCESS,
-        POOL_STATE_MIN = POOL_STATE_UNKNOWN,
+        POOL_STATE_MIN = POOL_STATE_IDLE,
         POOL_STATE_MAX = POOL_STATE_SUCCESS
     };
 
     // status update message constants
     enum PoolStatusUpdate {
-        STATUS_SET_STATE        = -1,
-        STATUS_REJECTED         = 0,
-        STATUS_ACCEPTED         = 1
+        STATUS_REJECTED,
+        STATUS_ACCEPTED
     };
 
     mutable CCriticalSection cs_darksend;
@@ -317,7 +310,7 @@ private:
     std::vector<COutPoint> vecOutPointLocked;
     // Mixing uses collateral transactions to trust parties entering the pool
     // to behave honestly. If they don't it takes their money.
-    std::vector<CTransaction> vecSessionCollateral;
+    std::vector<CTransaction> vecSessionCollaterals;
     std::vector<CDarkSendEntry> vecEntries; // Masternode/clients entries
 
     PoolState nState; // should be one of the POOL_STATE_XXX values
@@ -327,11 +320,9 @@ private:
     int nMinBlockSpacing; //required blocks between mixes
     const CBlockIndex *pCurrentBlockIndex; // Keep track of current block index
 
-    int nSessionID;
-    int nSessionUsers; //N Users have said they'll join
-    bool fSessionFoundMasternode; //If we've found a compatible Masternode
+    int nSessionID; // 0 if no mixing session is active
 
-    unsigned int nEntriesCount;
+    int nEntriesCount;
     bool fLastEntryAccepted;
 
     std::string strLastMessage;
@@ -355,9 +346,10 @@ private:
     /// Check for process
     void CheckPool();
 
-    void CheckFinalTransaction();
+    void CreateFinalTransaction();
+    void CommitFinalTransaction();
 
-    void CompletedTransaction(bool fError, PoolMessage nMessageID);
+    void CompletedTransaction(PoolMessage nMessageID);
 
     /// Get the denominations for a specific amount of dash.
     int GetDenominationsByAmounts(const std::vector<CAmount>& vecAmount);
@@ -369,8 +361,11 @@ private:
 
     /// Are these outputs compatible with other client in the pool?
     bool IsOutputsCompatibleWithSessionDenom(const std::vector<CTxDSOut>& vecTxDSOut);
-    /// Is this nDenom compatible with other client in the pool?
-    bool IsDenomCompatibleWithSession(int nDenom, CTransaction txCollateral, PoolMessage &nMessageIDRet);
+
+    /// Is this nDenom and txCollateral acceptable?
+    bool IsAcceptableDenomAndCollateral(int nDenom, CTransaction txCollateral, PoolMessage &nMessageIDRet);
+    bool CreateNewSession(int nDenom, CTransaction txCollateral, PoolMessage &nMessageIDRet);
+    bool AddUserToExistingSession(int nDenom, CTransaction txCollateral, PoolMessage &nMessageIDRet);
 
     /// If the collateral is valid given by a client
     bool IsCollateralValid(const CTransaction& txCollateral);
@@ -414,8 +409,8 @@ private:
     void RelayInAnon(std::vector<CTxIn>& vin, std::vector<CTxOut>& vout);
     void RelayIn(const CDarkSendEntry& entry);
     void PushStatus(CNode* pnode, PoolStatusUpdate nStatusUpdate, PoolMessage nMessageID);
-    void RelayStatus(PoolStatusUpdate nStatusUpdate = STATUS_SET_STATE, PoolMessage nMessageID = MSG_NOERR);
-    void RelayCompletedTransaction(bool fError, PoolMessage nMessageID);
+    void RelayStatus(PoolStatusUpdate nStatusUpdate, PoolMessage nMessageID = MSG_NOERR);
+    void RelayCompletedTransaction(PoolMessage nMessageID);
 
 public:
     CMasternode* pSubmittedToMasternode;
@@ -475,7 +470,7 @@ public:
     void CheckTimeout();
     void CheckForCompleteQueue();
     /// Do we have enough users to take entries?
-    bool IsSessionReady(){ return nSessionUsers >= GetMaxPoolTransactions(); }
+    bool IsSessionReady(){ return (int)vecSessionCollaterals.size() >= GetMaxPoolTransactions(); }
 
     /// Process a new block
     void NewBlock();
