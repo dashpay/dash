@@ -586,27 +586,29 @@ void OverviewPage::privateSendInfo(){
     
     QMessageBox::information(this, infoBoxTitle,
         tr("\
-In order to utilize PrivateSend coins needs to be 'mixed' before they can be used.<hr> \
-<b>Mixing in a nutshell:</b>\
+<h3>PrivateSend Basics</h3> \
+PrivateSend gives you true financial privacy by obscuring the origins of your funds. \
+All the Dash in your wallet is comprised of different \"inputs\" which you can think of as separate, discrete coins.<br> \
+PrivateSend uses an innovative process to mix your inputs with the inputs of two other people, without having your coins ever leave your wallet. \
+You retain control of your money at all times..<hr> \
+<b>The PrivateSend process works like this:</b>\
 <ol type=\"1\"> \
-<li>PrivateSend uses the fact that a transaction can be formed by multiple parties and made out to multiple parties to merge funds together ('Mixing') in a way where they can’t be uncoupled thereafter.</li> \
-<li>All PrivateSend transactions are setup for users to pay themselves, so the system is highly secure against theft and users coins always remain safe.</li> \
-<li>PrivateSend requires at least 3 participants to mix funds.</li> \
-<li>To improve privacy, the funds to be mixed will be denominated into 0.1DASH, 1DASH, 10DASH AND 100DASH payments. \
-Therefore in each mixing session, all users submit the same denominations as inputs and outputs.</li> \
-<li>PrivateSend is limited to 1000 DASH per user per session and requires multiple sessions to thoroughly anonymize significant amounts of money.</li> \
-<li>At set intervals, a user’s client will request to join with other clients via a Masternode.<br> \
-Upon entry into the Masternode, a queue object is propagated throughout the network detailing the denominations the user is looking to anonymize, but no information that can be used to identify the user.</li> \
-<li>Each PrivateSend session ('Round') can be thought of as an independent event increasing the anonymity of user’s funds. Each round of mixing utilizes multiple randomly chosen Masternodes, one after another. </li> \
-<li>At the end of the anonymization phase, the user’s coins are returned to their client at randomly generated change addresses.</li> \
-<li>When the user wishes to make a private transaction, the client forwards the intended amount from these anonymous change addresses directly to the intended receiver’s address.<br> \
-There is no direct involvement of of Masternodes in the final person-to-person transaction.</li> \
-</ol> \
-Step 8 above needs some extra attention: the Dash-wallet starts with a pool (called keypool) of 1000 randomly generated change addresses.<br><br> \
-With every round of mixing, some of those addresses are used, reducing the number of unused keypool addresses.<br> \
-When the keypool is down to 100 addresses, the wallet tries to replenish the keypool. When replenishment has finished, the wallet MUST create a new backup of your newly generated Dash addresses.<br> \
-That's why mixing is disabled when you disable automatic wallet backups in the settings.<br><br> \
-Without this (automatic) backup you wouldn't be able to access this newly created addresses from old wallet backups, and thus losing coins!<hr> \
+<li>PrivateSend begins by breaking your transaction inputs down into standard denominations. \
+These denominations are 0.1 DASH, 1 DASH, 10 DASH, and 100 DASH--sort of like the paper money you use every day.</li> \
+<li>Your wallet then sends requests to specially configured software nodes on the network, called \"Masternodes.\" \
+These Masternodes are informed then that you are interested in mixing a certain denomination. \
+No identifiable information is sent to the masternodes, so they never know \"who\" you are.</li> \
+<li>When two other people send similar messages, indicating that they wish to mix the same denomination, a mixing session begins. \
+The Masternode mixes up the inputs and instructs all three users' wallets to pay the now-transformed input back to themselves. \
+Your wallet pays that denomination directly to itself, but in a different address (called a change address).</li> \
+<li>In order to fully obscure your funds, your wallet must repeat this process a number of times with each denomination. \
+Each time the process is completed, it's called a \"round.\" Each round of PrivateSend makes it exponentially more difficult to determine where your funds originated.</li> \
+<li>This mixing process happens in the background without any intervention on your part. When you wish to make a transaction, \
+your funds will already be anonymized. No additional waiting is required.</li> \
+</ol> <hr>\
+<b>IMPORTANT:</b> Your wallet only contains 1000 of these \"change addresses.\" Every time a mixing event happens, one of your addresses is used up. \
+Once enough of them are used, your wallet must create more addresses. It can only do this, however, if you have automatic backups enabled.<br> \
+Consequently, users who have backups disabled will also have PrivateSend disabled. <hr>\
 For more info see <a href=\"https://dashpay.atlassian.net/wiki/display/DOC/PrivateSend\">https://dashpay.atlassian.net/wiki/display/DOC/PrivateSend</a> \
         "),
         QMessageBox::Ok, QMessageBox::Ok);
