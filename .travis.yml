@@ -30,6 +30,7 @@ env:
     - SDK_URL=https://dash.org/depends-sources/sdks
     - PYTHON_DEBUG=1
     - WINEDEBUG=fixme-all
+    - ENABLE_ZMQ=0
 
   matrix:
 # ARM
