@@ -44,12 +44,10 @@ matrix:
       addons:
         apt:
           packages:
+            - python3
             - nsis
-            - gcc-mingw-w64-i686
             - g++-mingw-w64-i686
-            - binutils-mingw-w64-i686
-            - mingw-w64-dev
-            - wine
+            - wine1.6
             - bc
     - compiler: ": 32-bit + dash"
       env: HOST=i686-pc-linux-gnu RUN_TESTS=true GOAL="install" BITCOIN_CONFIG="--enable-zmq --enable-glibc-back-compat --enable-reduce-exports LDFLAGS=-static-libstdc++" USE_SHELL="/bin/dash" PYZMQ=true
