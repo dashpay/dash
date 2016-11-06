@@ -19,7 +19,7 @@ cache:
     - depends/built
     - depends/sdk-sources
     - $HOME/.ccache
-    
+
 env:
   global:
     - MAKEJOBS=-j3
