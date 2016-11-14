@@ -619,7 +619,9 @@ bool CGovernanceManager::ProcessVote(CNode* pfrom, const CGovernanceVote& vote, 
     uint256 nHashGovobj = vote.GetParentHash();
     object_m_it it = mapObjects.find(nHashGovobj);
     if(it == mapObjects.end()) {
+        vote_mcache_t::size_type nSize = mapOrphanVotes.GetSize();
         mapOrphanVotes.Insert(nHashGovobj, vote);
+        if (nSize == mapOrphanVotes.GetSize()) return false;
         RequestGovernanceObject(pfrom, nHashGovobj);
         std::ostringstream ostr;
         ostr << "CGovernanceManager::ProcessVote -- Unknown parent object "
@@ -813,7 +815,9 @@ bool CGovernanceObject::ProcessVote(CNode* pfrom,
 {
     int nMNIndex = governance.GetMasternodeIndex(vote.GetVinMasternode());
     if(nMNIndex < 0) {
+        vote_mcache_t::size_type nSize = mapOrphanVotes.GetSize();
         mapOrphanVotes.Insert(vote.GetVinMasternode(), vote);
+        if (nSize == mapOrphanVotes.GetSize()) return false;
         if(pfrom) {
             mnodeman.AskForMN(pfrom, vote.GetVinMasternode());
         }
