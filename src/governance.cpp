@@ -619,7 +619,7 @@ bool CGovernanceManager::ProcessVote(CNode* pfrom, const CGovernanceVote& vote, 
     uint256 nHashGovobj = vote.GetParentHash();
     object_m_it it = mapObjects.find(nHashGovobj);
     if(it == mapObjects.end()) {
-        size_type nSize = mapOrphanVotes.GetSize();
+        vote_mcache_t::size_type nSize = mapOrphanVotes.GetSize();
         mapOrphanVotes.Insert(nHashGovobj, vote);
         if (nSize == mapOrphanVotes.GetSize()) return false;
         RequestGovernanceObject(pfrom, nHashGovobj);
@@ -815,7 +815,7 @@ bool CGovernanceObject::ProcessVote(CNode* pfrom,
 {
     int nMNIndex = governance.GetMasternodeIndex(vote.GetVinMasternode());
     if(nMNIndex < 0) {
-        uint32_t nSize = mapOrphanVotes.GetSize();
+        vote_mcache_t::size_type nSize = mapOrphanVotes.GetSize();
         mapOrphanVotes.Insert(vote.GetVinMasternode(), vote);
         if (nSize == mapOrphanVotes.GetSize()) return false;
         if(pfrom) {
