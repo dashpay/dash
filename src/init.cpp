@@ -864,19 +864,19 @@ void InitParameterInteraction()
 
     if(!GetBoolArg("-enableinstantsend", fEnableInstantSend)){
         if (SoftSetArg("-instantsenddepth", 0))
-            LogPrintf("AppInit2 : parameter interaction: -enableinstantsend=false -> setting -nInstantSendDepth=0\n");
+            LogPrintf("%s: parameter interaction: -enableinstantsend=false -> setting -nInstantSendDepth=0\n", __func__);
     }
 
-    if (GetArg("-liquidityprovider", 0) > 0) {
-        int nLiqProvTmp = GetArg("-liquidityprovider", 0);
+    int nLiqProvTmp = GetArg("-liquidityprovider", DEFAULT_PRIVATESEND_LIQUIDITY);
+    if (nLiqProvTmp > 0) {
         mapArgs["-enableprivatesend"] = "1";
-        LogPrintf("AppInit2 : parameter interaction: -liquidityprovider=%d -> setting -enableprivatesend=1\n", nLiqProvTmp);
+        LogPrintf("%s: parameter interaction: -liquidityprovider=%d -> setting -enableprivatesend=1\n", __func__, nLiqProvTmp);
         mapArgs["-privatesendrounds"] = "99999";
-        LogPrintf("AppInit2 : parameter interaction: -liquidityprovider=%d -> setting -privatesendrounds=99999\n", nLiqProvTmp);
+        LogPrintf("%s: parameter interaction: -liquidityprovider=%d -> setting -privatesendrounds=99999\n", __func__, nLiqProvTmp);
         mapArgs["-privatesendamount"] = "999999";
-        LogPrintf("AppInit2 : parameter interaction: -liquidityprovider=%d -> setting -privatesendamount=999999\n", nLiqProvTmp);
+        LogPrintf("%s: parameter interaction: -liquidityprovider=%d -> setting -privatesendamount=999999\n", __func__, nLiqProvTmp);
         mapArgs["-privatesendmultisession"] = "0";
-        LogPrintf("AppInit2 : parameter interaction: -liquidityprovider=%d -> setting -privatesendmultisession=0\n", nLiqProvTmp);
+        LogPrintf("%s: parameter interaction: -liquidityprovider=%d -> setting -privatesendmultisession=0\n", __func__, nLiqProvTmp);
     }
 }
 
