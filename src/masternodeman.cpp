@@ -543,8 +543,9 @@ CMasternode* CMasternodeMan::FindRandomNotInVec(const std::vector<CTxIn> &vecToE
         vpMasternodesShuffled.push_back(&mn);
     }
 
+    InsecureRand insecureRand;
     // shuffle pointers
-    std::random_shuffle(vpMasternodesShuffled.begin(), vpMasternodesShuffled.end(), GetInsecureRand);
+    std::random_shuffle(vpMasternodesShuffled.begin(), vpMasternodesShuffled.end(), insecureRand);
     bool fExclude;
 
     // loop through

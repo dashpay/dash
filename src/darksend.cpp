@@ -1480,7 +1480,7 @@ bool CDarksendPool::DoAutomaticDenominating(bool fDryRun)
         LogPrint("privatesend", "  vecMasternodesUsed: new size: %d, threshold: %d\n", (int)vecMasternodesUsed.size(), nThreshold_high);
     }
 
-    bool fUseQueue = insecure_rand()%100 > 33;
+    bool fUseQueue = GetInsecureRand(100) > 33;
     // don't use the queues all of the time for mixing unless we are a liquidity provider
     if(nLiquidityProvider || fUseQueue) {
 
@@ -2145,7 +2145,7 @@ int CDarksendPool::GetDenominations(const std::vector<CTxOut>& vecTxOut, bool fS
     int c = 0;
     // if the denomination is used, shift the bit on
     BOOST_FOREACH (PAIRTYPE(CAmount, int)& s, vecDenomUsed) {
-        int bit = (fSingleRandomDenom ? insecure_rand()%2 : 1) & s.second;
+        int bit = (fSingleRandomDenom ? GetInsecureRand(2) : 1) & s.second;
         nDenom |= bit << c++;
         if(fSingleRandomDenom && bit) break; // use just one random denomination
     }
