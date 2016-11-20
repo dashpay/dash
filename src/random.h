@@ -74,8 +74,4 @@ public:
     }
 };
 
-static inline uint32_t GetInsecureRand(uint32_t nMax) {
-    return InsecureRand()(nMax);
-}
-
 #endif // BITCOIN_RANDOM_H
