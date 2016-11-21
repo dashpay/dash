@@ -314,8 +314,7 @@ bool ProcessTxLockVote(CNode* pnode, CTxLockVote& vote)
 
     LogPrint("instantsend", "ProcessTxLockVote -- Transaction Lock Vote, txid=%s\n", vote.txHash.ToString());
 
-    CMasternode* pmn = mnodeman.Find(vote.vinMasternode);
-    if(pmn == NULL) {
+    if(!mnodeman.Has(vote.vinMasternode)) {
         LogPrint("instantsend", "ProcessTxLockVote -- Unknown masternode %s\n", vote.vinMasternode.prevout.ToStringShort());
         return false;
     }
@@ -474,6 +473,9 @@ void ResolveConflicts(const CTransaction& tx)
 
 int64_t GetAverageUnknownVoteTime()
 {
+    // should never actually call this function when mapUnknownVotes is empty
+    if(mapUnknownVotes.empty()) return 0;
+
     std::map<uint256, int64_t>::iterator it = mapUnknownVotes.begin();
     int64_t total = 0;
 
@@ -564,14 +566,14 @@ bool CTxLockVote::CheckSignature() const
     std::string strError;
     std::string strMessage = txHash.ToString().c_str() + boost::lexical_cast<std::string>(nBlockHeight);
 
-    CMasternode* pmn = mnodeman.Find(vinMasternode);
+    masternode_info_t infoMn = mnodeman.GetMasternodeInfo(vinMasternode);
 
-    if(pmn == NULL) {
+    if(!infoMn.fInfoValid) {
         LogPrintf("CTxLockVote::CheckSignature -- Unknown Masternode: txin=%s\n", vinMasternode.ToString());
         return false;
     }
 
-    if(!darkSendSigner.VerifyMessage(pmn->pubKeyMasternode, vchMasterNodeSignature, strMessage, strError)) {
+    if(!darkSendSigner.VerifyMessage(infoMn.pubKeyMasternode, vchMasterNodeSignature, strMessage, strError)) {
         LogPrintf("CTxLockVote::CheckSignature -- VerifyMessage() failed, error: %s\n", strError);
         return false;
     }
