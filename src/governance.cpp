@@ -424,7 +424,12 @@ std::vector<CGovernanceVote> CGovernanceManager::GetCurrentVotes(const uint256& 
     LOCK(cs);
     std::vector<CGovernanceVote> vecResult;
 
-    // compile a list of current Masternode VINs
+    // Find the governance object or short-circuit.
+    object_m_it it = mapObjects.find(nParentHash);
+    if(it == mapObjects.end()) return vecResult;
+    CGovernanceObject& govobj = it->second;
+
+    // Compile a list of current Masternode VINs
     std::vector<CTxIn> listMNVin;
     std::vector<CMasternode> mnlist = mnodeman.GetFullMasternodeVector();
     for (std::vector<CMasternode>::iterator it = mnlist.begin(); it != mnlist.end(); ++it)
@@ -432,14 +437,10 @@ std::vector<CGovernanceVote> CGovernanceManager::GetCurrentVotes(const uint256& 
         listMNVin.push_back(it->vin);
     }
 
+    // Loop thru each MN VIN and get the votes for the `nParentHash` governance object
     for (std::vector<CTxIn>::iterator it = listMNVin.begin(); it != listMNVin.end(); ++it)
     {
         CTxIn &masternodeVin = *it;
-
-        // find the govobj...
-        object_m_it it2 = mapObjects.find(nParentHash);
-        if(it2 == mapObjects.end()) continue;
-        CGovernanceObject& govobj = it2->second;
 
         // get a vote_rec_t from the govobj
         vote_rec_t voteRecord;
