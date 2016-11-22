@@ -36,7 +36,7 @@ UniValue gobject(const UniValue& params, bool fHelp)
 
     if (fHelp  ||
         (strCommand != "vote-many" && strCommand != "vote-conf" && strCommand != "vote-alias" && strCommand != "prepare" && strCommand != "submit" &&
-         strCommand != "vote" && strCommand != "get" && strCommand != "getvotes" && strCommand != "list" && strCommand != "diff" && strCommand != "deserialize"))
+         strCommand != "vote" && strCommand != "get" && strCommand != "getvotes" && strCommand != "getcurrentvotes" && strCommand != "list" && strCommand != "diff" && strCommand != "deserialize"))
         throw std::runtime_error(
                 "gobject \"command\"...\n"
                 "Manage governance objects\n"
@@ -44,7 +44,8 @@ UniValue gobject(const UniValue& params, bool fHelp)
                 "  prepare            - Prepare governance object by signing and creating tx\n"
                 "  submit             - Submit governance object to network\n"
                 "  get                - Get governance object by hash\n"
-                "  getvotes           - Get votes for a governance object hash\n"
+                "  getvotes           - Get all votes for a governance object hash (including old votes)\n"
+                "  getcurrentvotes    - Get only current (tallying) votes for a governance object hash (does not include old votes)\n"
                 "  list               - List all governance objects\n"
                 "  diff               - List differences since last diff\n"
                 "  vote-alias         - Vote on a governance object by masternode alias (using masternode.conf setup)\n"
@@ -673,9 +674,45 @@ UniValue gobject(const UniValue& params, bool fHelp)
     // GETVOTES FOR SPECIFIC GOVERNANCE OBJECT
     if(strCommand == "getvotes")
     {
+        if (params.size() != 2)
+            throw std::runtime_error(
+                "Correct usage is 'gobject getvotes <governance-hash>'"
+                );
+
+        // COLLECT PARAMETERS FROM USER
+
+        uint256 hash = ParseHashV(params[1], "Governance hash");
+
+        // FIND OBJECT USER IS LOOKING FOR
+
+        LOCK(governance.cs);
+
+        CGovernanceObject* pGovObj = governance.FindGovernanceObject(hash);
+
+        if(pGovObj == NULL) {
+            throw JSONRPCError(RPC_INVALID_PARAMETER, "Unknown governance-hash");
+        }
+
+        // REPORT RESULTS TO USER
+
+        UniValue bResult(UniValue::VOBJ);
+
+        // GET MATCHING VOTES BY HASH, THEN SHOW USERS VOTE INFORMATION
+
+        std::vector<CGovernanceVote> vecVotes = governance.GetMatchingVotes(hash);
+        BOOST_FOREACH(CGovernanceVote vote, vecVotes) {
+            bResult.push_back(Pair(vote.GetHash().ToString(),  vote.ToString()));
+        }
+
+        return bResult;
+    }
+
+    // GETVOTES FOR SPECIFIC GOVERNANCE OBJECT
+    if(strCommand == "getcurrentvotes")
+    {
         if (params.size() < 2 || params.size() == 3 || params.size() > 4)
             throw std::runtime_error(
-                "Correct usage is 'gobject getvotes <governance-hash> [txid vout_index]'"
+                "Correct usage is 'gobject getcurrentvotes <governance-hash> [txid vout_index]'"
                 );
 
         // COLLECT PARAMETERS FROM USER
