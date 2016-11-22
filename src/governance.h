@@ -175,7 +175,6 @@ public:
     CGovernanceObject *FindGovernanceObject(const uint256& nHash);
 
     std::vector<CGovernanceVote> GetMatchingVotes(const uint256& nParentHash);
-    std::vector<CGovernanceVote> GetCurrentVotes(const uint256& nParentHash);
     std::vector<CGovernanceVote> GetCurrentVotes(const uint256& nParentHash, const CTxIn& masternodeVin);
     std::vector<CGovernanceObject*> GetAllNewerThan(int64_t nMoreThanTime);
 

@@ -419,7 +419,7 @@ std::vector<CGovernanceVote> CGovernanceManager::GetMatchingVotes(const uint256&
     return govobj.GetVoteFile().GetVotes();
 }
 
-std::vector<CGovernanceVote> CGovernanceManager::GetCurrentVotes(const uint256& nParentHash)
+std::vector<CGovernanceVote> CGovernanceManager::GetCurrentVotes(const uint256& nParentHash, const CTxIn& masternodeVin)
 {
     LOCK(cs);
     std::vector<CGovernanceVote> vecResult;
@@ -429,12 +429,17 @@ std::vector<CGovernanceVote> CGovernanceManager::GetCurrentVotes(const uint256& 
     if(it == mapObjects.end()) return vecResult;
     CGovernanceObject& govobj = it->second;
 
-    // Compile a list of current Masternode VINs
+    // Compile a list of Masternode VINs for which to get votes
     std::vector<CTxIn> listMNVin;
-    std::vector<CMasternode> mnlist = mnodeman.GetFullMasternodeVector();
-    for (std::vector<CMasternode>::iterator it = mnlist.begin(); it != mnlist.end(); ++it)
-    {
-        listMNVin.push_back(it->vin);
+    if (masternodeVin == CTxIn()) {
+        std::vector<CMasternode> mnlist = mnodeman.GetFullMasternodeVector();
+        for (std::vector<CMasternode>::iterator it = mnlist.begin(); it != mnlist.end(); ++it)
+        {
+            listMNVin.push_back(it->vin);
+        }
+    }
+    else {
+        listMNVin.push_back(masternodeVin);
     }
 
     // Loop thru each MN VIN and get the votes for the `nParentHash` governance object
@@ -456,34 +461,6 @@ std::vector<CGovernanceVote> CGovernanceManager::GetCurrentVotes(const uint256& 
 
             vecResult.push_back(vote);
         }
-    }
-
-    return vecResult;
-}
-
-std::vector<CGovernanceVote> CGovernanceManager::GetCurrentVotes(const uint256& nParentHash, const CTxIn& masternodeVin)
-{
-    LOCK(cs);
-    std::vector<CGovernanceVote> vecResult;
-
-    // find the govobj...
-    object_m_it it = mapObjects.find(nParentHash);
-    if(it == mapObjects.end()) return vecResult;
-    CGovernanceObject& govobj = it->second;
-
-    // get a vote_rec_t from the govobj
-    vote_rec_t voteRecord;
-    if (!govobj.GetCurrentMNVotes(masternodeVin, voteRecord)) return vecResult;
-
-    for (vote_instance_m_it it = voteRecord.mapInstances.begin(); it != voteRecord.mapInstances.end(); ++it) {
-        int signal = (it->first);
-        int outcome = ((it->second).eOutcome);
-        int64_t nTime = ((it->second).nTime);
-
-        CGovernanceVote vote = CGovernanceVote(masternodeVin, nParentHash, (vote_signal_enum_t)signal, (vote_outcome_enum_t)outcome);
-        vote.SetTime(nTime);
-
-        vecResult.push_back(vote);
     }
 
     return vecResult;
