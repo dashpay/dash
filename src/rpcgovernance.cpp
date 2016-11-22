@@ -675,19 +675,19 @@ UniValue gobject(const UniValue& params, bool fHelp)
     {
         if (params.size() < 2 || params.size() == 3 || params.size() > 4)
             throw std::runtime_error(
-                "Correct usage is 'gobject getvotes <governance-hash> [txid vout]'"
+                "Correct usage is 'gobject getvotes <governance-hash> [txid vout_index]'"
                 );
 
         // COLLECT PARAMETERS FROM USER
 
         uint256 hash = ParseHashV(params[1], "Governance hash");
 
-        CTxIn mnVin;
+        CTxIn mnCollateralOutpoint;
         if (params.size() == 4) {
             uint256 txid = ParseHashV(params[2], "Masternode Collateral hash");
             std::string strVout = params[3].get_str();
             uint32_t vout = boost::lexical_cast<uint32_t>(strVout);
-            mnVin = CTxIn(txid, vout);
+            mnCollateralOutpoint = CTxIn(txid, vout);
         }
 
         // FIND OBJECT USER IS LOOKING FOR
@@ -706,7 +706,7 @@ UniValue gobject(const UniValue& params, bool fHelp)
 
         // GET MATCHING VOTES BY HASH, THEN SHOW USERS VOTE INFORMATION
 
-        std::vector<CGovernanceVote> vecVotes = governance.GetCurrentVotes(hash, mnVin);
+        std::vector<CGovernanceVote> vecVotes = governance.GetCurrentVotes(hash, mnCollateralOutpoint);
         BOOST_FOREACH(CGovernanceVote vote, vecVotes) {
             bResult.push_back(Pair(vote.GetHash().ToString(),  vote.ToString()));
         }
