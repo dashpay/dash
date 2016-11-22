@@ -682,12 +682,12 @@ UniValue gobject(const UniValue& params, bool fHelp)
 
         uint256 hash = ParseHashV(params[1], "Governance hash");
 
-        CTxIn *mn_vin = NULL;
+        CTxIn mnVin;
         if (params.size() == 4) {
             uint256 txid = ParseHashV(params[2], "Masternode Collateral hash");
             std::string strVout = params[3].get_str();
             uint32_t vout = boost::lexical_cast<uint32_t>(strVout);
-            mn_vin = new CTxIn(txid, vout);
+            mnVin = CTxIn(txid, vout);
         }
 
         // FIND OBJECT USER IS LOOKING FOR
@@ -708,10 +708,12 @@ UniValue gobject(const UniValue& params, bool fHelp)
 
         std::vector<CGovernanceVote> vecVotes;
 
-        if (mn_vin == NULL)
+        if (mnVin == CTxIn()) {
             vecVotes = governance.GetCurrentVotes(hash);
-        else
-            vecVotes = governance.GetCurrentVotes(hash, *mn_vin);
+        }
+        else {
+            vecVotes = governance.GetCurrentVotes(hash, mnVin);
+        }
 
         BOOST_FOREACH(CGovernanceVote vote, vecVotes) {
             bResult.push_back(Pair(vote.GetHash().ToString(),  vote.ToString()));
