@@ -180,8 +180,7 @@ void CMasternode::Check(bool fForce)
 
     int nHeight = 0;
     if(!fUnitTest) {
-        TRY_LOCK(cs_main, lockMain);
-        if(!lockMain) return;
+        AssertLockHeld(cs_main);
 
         CCoins coins;
         if(!pcoinsTip->GetCoins(vin.prevout.hash, coins) ||
@@ -307,12 +306,10 @@ std::string CMasternode::GetStatus() const
 
 int CMasternode::GetCollateralAge()
 {
-    int nHeight;
-    {
-        TRY_LOCK(cs_main, lockMain);
-        if(!lockMain || !chainActive.Tip()) return -1;
-        nHeight = chainActive.Height();
-    }
+    AssertLockHeld(cs_main);
+
+    if(!chainActive.Tip()) return -1;
+    int nHeight = chainActive.Height();
 
     if (nCacheCollateralBlock == 0) {
         int nInputAge = GetInputAge(vin);
@@ -564,33 +561,25 @@ bool CMasternodeBroadcast::CheckOutpoint(int& nDos)
         return false;
     }
 
-    {
-        TRY_LOCK(cs_main, lockMain);
-        if(!lockMain) {
-            // not mnb fault, let it to be checked again later
-            LogPrint("masternode", "CMasternodeBroadcast::CheckOutpoint -- Failed to aquire lock, addr=%s", addr.ToString());
-            mnodeman.mapSeenMasternodeBroadcast.erase(GetHash());
-            return false;
-        }
+    AssertLockHeld(cs_main);
 
-        CCoins coins;
-        if(!pcoinsTip->GetCoins(vin.prevout.hash, coins) ||
-           (unsigned int)vin.prevout.n>=coins.vout.size() ||
-           coins.vout[vin.prevout.n].IsNull()) {
-            LogPrint("masternode", "CMasternodeBroadcast::CheckOutpoint -- Failed to find Masternode UTXO, masternode=%s\n", vin.prevout.ToStringShort());
-            return false;
-        }
-        if(coins.vout[vin.prevout.n].nValue != 1000 * COIN) {
-            LogPrint("masternode", "CMasternodeBroadcast::CheckOutpoint -- Masternode UTXO should have 1000 DASH, masternode=%s\n", vin.prevout.ToStringShort());
-            return false;
-        }
-        if(chainActive.Height() - coins.nHeight + 1 < Params().GetConsensus().nMasternodeMinimumConfirmations) {
-            LogPrintf("CMasternodeBroadcast::CheckOutpoint -- Masternode UTXO must have at least %d confirmations, masternode=%s\n",
-                    Params().GetConsensus().nMasternodeMinimumConfirmations, vin.prevout.ToStringShort());
-            // maybe we miss few blocks, let this mnb to be checked again later
-            mnodeman.mapSeenMasternodeBroadcast.erase(GetHash());
-            return false;
-        }
+    CCoins coins;
+    if(!pcoinsTip->GetCoins(vin.prevout.hash, coins) ||
+       (unsigned int)vin.prevout.n>=coins.vout.size() ||
+       coins.vout[vin.prevout.n].IsNull()) {
+        LogPrint("masternode", "CMasternodeBroadcast::CheckOutpoint -- Failed to find Masternode UTXO, masternode=%s\n", vin.prevout.ToStringShort());
+        return false;
+    }
+    if(coins.vout[vin.prevout.n].nValue != 1000 * COIN) {
+        LogPrint("masternode", "CMasternodeBroadcast::CheckOutpoint -- Masternode UTXO should have 1000 DASH, masternode=%s\n", vin.prevout.ToStringShort());
+        return false;
+    }
+    if(chainActive.Height() - coins.nHeight + 1 < Params().GetConsensus().nMasternodeMinimumConfirmations) {
+        LogPrintf("CMasternodeBroadcast::CheckOutpoint -- Masternode UTXO must have at least %d confirmations, masternode=%s\n",
+                Params().GetConsensus().nMasternodeMinimumConfirmations, vin.prevout.ToStringShort());
+        // maybe we miss few blocks, let this mnb to be checked again later
+        mnodeman.mapSeenMasternodeBroadcast.erase(GetHash());
+        return false;
     }
 
     LogPrint("masternode", "CMasternodeBroadcast::CheckOutpoint -- Masternode UTXO verified\n");
@@ -608,17 +597,15 @@ bool CMasternodeBroadcast::CheckOutpoint(int& nDos)
     uint256 hashBlock = uint256();
     CTransaction tx2;
     GetTransaction(vin.prevout.hash, tx2, Params().GetConsensus(), hashBlock, true);
-    {
-        LOCK(cs_main);
-        BlockMap::iterator mi = mapBlockIndex.find(hashBlock);
-        if (mi != mapBlockIndex.end() && (*mi).second) {
-            CBlockIndex* pMNIndex = (*mi).second; // block for 1000 DASH tx -> 1 confirmation
-            CBlockIndex* pConfIndex = chainActive[pMNIndex->nHeight + Params().GetConsensus().nMasternodeMinimumConfirmations - 1]; // block where tx got nMasternodeMinimumConfirmations
-            if(pConfIndex->GetBlockTime() > sigTime) {
-                LogPrintf("CMasternodeBroadcast::CheckOutpoint -- Bad sigTime %d (%d conf block is at %d) for Masternode %s %s\n",
-                          sigTime, Params().GetConsensus().nMasternodeMinimumConfirmations, pConfIndex->GetBlockTime(), vin.prevout.ToStringShort(), addr.ToString());
-                return false;
-            }
+
+    BlockMap::iterator mi = mapBlockIndex.find(hashBlock);
+    if (mi != mapBlockIndex.end() && (*mi).second) {
+        CBlockIndex* pMNIndex = (*mi).second; // block for 1000 DASH tx -> 1 confirmation
+        CBlockIndex* pConfIndex = chainActive[pMNIndex->nHeight + Params().GetConsensus().nMasternodeMinimumConfirmations - 1]; // block where tx got nMasternodeMinimumConfirmations
+        if(pConfIndex->GetBlockTime() > sigTime) {
+            LogPrintf("CMasternodeBroadcast::CheckOutpoint -- Bad sigTime %d (%d conf block is at %d) for Masternode %s %s\n",
+                      sigTime, Params().GetConsensus().nMasternodeMinimumConfirmations, pConfIndex->GetBlockTime(), vin.prevout.ToStringShort(), addr.ToString());
+            return false;
         }
     }
 
@@ -779,21 +766,19 @@ bool CMasternodePing::CheckAndUpdate(int& nDos, bool fRequireEnabled, bool fSimp
         return false;
     }
 
-    {
-        LOCK(cs_main);
-        BlockMap::iterator mi = mapBlockIndex.find(blockHash);
-        if (mi == mapBlockIndex.end()) {
-            LogPrint("masternode", "CMasternodePing::CheckAndUpdate -- Masternode ping is invalid, unknown block hash: masternode=%s blockHash=%s\n", vin.prevout.ToStringShort(), blockHash.ToString());
-            // maybe we stuck or forked so we shouldn't ban this node, just fail to accept this ping
-            // TODO: or should we also request this block?
-            return false;
-        }
-        if ((*mi).second && (*mi).second->nHeight < chainActive.Height() - 24) {
-            LogPrintf("CMasternodePing::CheckAndUpdate -- Masternode ping is invalid, block hash is too old: masternode=%s  blockHash=%s\n", vin.prevout.ToStringShort(), blockHash.ToString());
-            // Do nothing here (no Masternode update, no mnping relay)
-            // Let this node to be visible but fail to accept mnping
-            return false;
-        }
+    AssertLockHeld(cs_main);
+    BlockMap::iterator mi = mapBlockIndex.find(blockHash);
+    if (mi == mapBlockIndex.end()) {
+        LogPrint("masternode", "CMasternodePing::CheckAndUpdate -- Masternode ping is invalid, unknown block hash: masternode=%s blockHash=%s\n", vin.prevout.ToStringShort(), blockHash.ToString());
+        // maybe we stuck or forked so we shouldn't ban this node, just fail to accept this ping
+        // TODO: or should we also request this block?
+        return false;
+    }
+    if ((*mi).second && (*mi).second->nHeight < chainActive.Height() - 24) {
+        LogPrintf("CMasternodePing::CheckAndUpdate -- Masternode ping is invalid, block hash is too old: masternode=%s  blockHash=%s\n", vin.prevout.ToStringShort(), blockHash.ToString());
+        // Do nothing here (no Masternode update, no mnping relay)
+        // Let this node to be visible but fail to accept mnping
+        return false;
     }
 
     if (fSimpleCheck) {
@@ -852,6 +837,7 @@ void CMasternodePing::Relay()
 
 void CMasternode::AddGovernanceVote(uint256 nGovernanceObjectHash)
 {
+    LOCK(cs);
     if(mapGovernanceObjectsVotedOn.count(nGovernanceObjectHash)) {
         mapGovernanceObjectsVotedOn[nGovernanceObjectHash]++;
     } else {
@@ -861,6 +847,7 @@ void CMasternode::AddGovernanceVote(uint256 nGovernanceObjectHash)
 
 void CMasternode::RemoveGovernanceObject(uint256 nGovernanceObjectHash)
 {
+    LOCK(cs);
     std::map<uint256, int>::iterator it = mapGovernanceObjectsVotedOn.find(nGovernanceObjectHash);
     if(it == mapGovernanceObjectsVotedOn.end()) {
         return;
@@ -882,6 +869,8 @@ void CMasternode::UpdateWatchdogVoteTime()
 */
 void CMasternode::FlagGovernanceItemsAsDirty()
 {
+    LOCK(cs);
+
     std::map<uint256, int>::iterator it = mapGovernanceObjectsVotedOn.begin();
     while(it != mapGovernanceObjectsVotedOn.end()){
         CGovernanceObject *pObj = governance.FindGovernanceObject((*it).first);

@@ -83,12 +83,6 @@ UniValue gobject(const UniValue& params, bool fHelp)
 
         // ASSEMBLE NEW GOVERNANCE OBJECT FROM USER PARAMETERS
 
-        CBlockIndex* pindex = NULL;
-        {
-            LOCK(cs_main);
-            pindex = chainActive.Tip();
-        }
-
         std::vector<CMasternodeConfig::CMasternodeEntry> mnEntries;
         mnEntries = masternodeConfig.getEntries();
 
@@ -116,9 +110,12 @@ UniValue gobject(const UniValue& params, bool fHelp)
             throw JSONRPCError(RPC_INVALID_PARAMETER, "Trigger and watchdog objects need not be prepared (however only masternodes can create them)");
         }
 
-        std::string strError = "";
-        if(!govobj.IsValidLocally(pindex, strError, false))
-            throw JSONRPCError(RPC_INTERNAL_ERROR, "Governance object is not valid - " + govobj.GetHash().ToString() + " - " + strError);
+        {
+            LOCK(cs_main);
+            std::string strError = "";
+            if(!govobj.IsValidLocally(chainActive.Tip(), strError, false))
+                throw JSONRPCError(RPC_INTERNAL_ERROR, "Governance object is not valid - " + govobj.GetHash().ToString() + " - " + strError);
+        }
 
         CWalletTx wtx;
         if(!pwalletMain->GetBudgetSystemCollateralTX(wtx, govobj.GetHash(), govobj.GetMinCollateralFee(), false)) {
@@ -159,12 +156,6 @@ UniValue gobject(const UniValue& params, bool fHelp)
              << ", mnFound = " << mnFound << endl; );
 
         // ASSEMBLE NEW GOVERNANCE OBJECT FROM USER PARAMETERS
-
-        CBlockIndex* pindex = NULL;
-        {
-            LOCK(cs_main);
-            pindex = chainActive.Tip();
-        }
 
         uint256 txidFee;
 
@@ -211,9 +202,12 @@ UniValue gobject(const UniValue& params, bool fHelp)
             }
         }
 
-        std::string strError = "";
-        if(!govobj.IsValidLocally(pindex, strError, true)) {
-            throw JSONRPCError(RPC_INTERNAL_ERROR, "Governance object is not valid - " + govobj.GetHash().ToString() + " - " + strError);
+        {
+            LOCK(cs_main);
+            std::string strError = "";
+            if(!govobj.IsValidLocally(chainActive.Tip(), strError, true)) {
+                throw JSONRPCError(RPC_INTERNAL_ERROR, "Governance object is not valid - " + govobj.GetHash().ToString() + " - " + strError);
+            }
         }
 
         // RELAY THIS OBJECT
@@ -552,17 +546,12 @@ UniValue gobject(const UniValue& params, bool fHelp)
 
         // SETUP BLOCK INDEX VARIABLE / RESULTS VARIABLE
 
-        CBlockIndex* pindex = NULL;
-        {
-            LOCK(cs_main);
-            pindex = chainActive.Tip();
-        }
+        LOCK2(cs_main, governance.cs);
+        CBlockIndex* pindex = chainActive.Tip();
 
         UniValue objResult(UniValue::VOBJ);
 
         // GET MATCHING GOVERNANCE OBJECTS
-
-        LOCK(governance.cs);
 
         std::vector<CGovernanceObject*> objs = governance.GetAllNewerThan(nStartTime);
         governance.UpdateLastDiffTime(GetTime());

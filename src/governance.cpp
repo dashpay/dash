@@ -110,8 +110,6 @@ void CGovernanceManager::ProcessMessage(CNode* pfrom, std::string& strCommand, C
 
     if(pfrom->nVersion < MIN_GOVERNANCE_PEER_PROTO_VERSION) return;
 
-    LOCK(cs);
-
     // ANOTHER USER IS ASKING US TO HELP THEM SYNC GOVERNANCE OBJECT DATA
     if (strCommand == NetMsgType::MNGOVERNANCESYNC)
     {
@@ -163,6 +161,8 @@ void CGovernanceManager::ProcessMessage(CNode* pfrom, std::string& strCommand, C
             Misbehaving(pfrom->GetId(), 20);
             return;
         }
+
+        LOCK2(cs_main, cs);
 
         if(mapSeenGovernanceObjects.count(nHash)) {
             // TODO - print error code? what if it's GOVOBJ_ERROR_IMMATURE?
@@ -278,7 +278,7 @@ void CGovernanceManager::CheckOrphanVotes(CNode* pfrom, CGovernanceObject& govob
 
 bool CGovernanceManager::AddGovernanceObject(CGovernanceObject& govobj)
 {
-    LOCK(cs);
+    LOCK2(cs_main, cs);
     std::string strError = "";
 
     DBG( cout << "CGovernanceManager::AddGovernanceObject START" << endl; );
@@ -333,7 +333,7 @@ void CGovernanceManager::UpdateCachesAndClean()
 
     std::vector<uint256> vecDirtyHashes = mnodeman.GetAndClearDirtyGovernanceObjectHashes();
 
-    LOCK(cs);
+    LOCK2(cs_main, cs);
 
     for(size_t i = 0; i < vecDirtyHashes.size(); ++i) {
         object_m_it it = mapObjects.find(vecDirtyHashes[i]);
@@ -542,7 +542,8 @@ void CGovernanceManager::NewBlock()
 
 bool CGovernanceManager::ConfirmInventoryRequest(const CInv& inv)
 {
-    LOCK(cs);
+    // FIXME:
+    // LOCK(cs);
 
     LogPrint("gobject", "CGovernanceManager::ConfirmInventoryRequest inv = %s\n", inv.ToString());
 
@@ -606,7 +607,7 @@ void CGovernanceManager::Sync(CNode* pfrom, uint256 nProp)
     // SYNC GOVERNANCE OBJECTS WITH OTHER CLIENT
 
     {
-        LOCK(cs);
+        LOCK2(cs_main, cs);
         for(object_m_it it = mapObjects.begin(); it != mapObjects.end(); ++it) {
             uint256 h = it->first;
 
@@ -867,7 +868,7 @@ void CGovernanceManager::UpdatedBlockTip(const CBlockIndex *pindex)
         return;
     }
 
-    LOCK(cs);
+    LOCK2(cs_main, cs);
     pCurrentBlockIndex = pindex;
     nCachedBlockHeight = pCurrentBlockIndex->nHeight;
     LogPrint("gobject", "CGovernanceManager::UpdatedBlockTip pCurrentBlockIndex->nHeight: %d\n", pCurrentBlockIndex->nHeight);
