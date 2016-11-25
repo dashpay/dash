@@ -74,7 +74,6 @@ int ClientModel::getNumConnections(unsigned int flags) const
 
 QString ClientModel::getMasternodeCountString() const
 {
-    LOCK(cs_main);
     return tr("Total: %1 (PS compatible: %2 / Enabled: %3)")
             .arg(QString::number((int)mnodeman.size()))
             .arg(QString::number((int)mnodeman.CountEnabled(MIN_PRIVATESEND_PEER_PROTO_VERSION)))

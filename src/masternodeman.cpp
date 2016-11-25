@@ -315,12 +315,11 @@ int CMasternodeMan::CountMasternodes(int nProtocolVersion)
 
 int CMasternodeMan::CountEnabled(int nProtocolVersion)
 {
-    LOCK2(cs_main, cs);
+    LOCK(cs);
     int nCount = 0;
     nProtocolVersion = nProtocolVersion == -1 ? mnpayments.GetMinMasternodePaymentsProto() : nProtocolVersion;
 
     BOOST_FOREACH(CMasternode& mn, vMasternodes) {
-        mn.Check();
         if(mn.nProtocolVersion < nProtocolVersion || !mn.IsEnabled()) continue;
         nCount++;
     }
@@ -484,7 +483,6 @@ CMasternode* CMasternodeMan::GetNextMasternodeInQueueForPayment(int nBlockHeight
     int nMnCount = CountEnabled();
     BOOST_FOREACH(CMasternode &mn, vMasternodes)
     {
-        mn.Check();
         if(!mn.IsValidForPayment()) continue;
 
         // //check protocol version
@@ -536,7 +534,7 @@ CMasternode* CMasternodeMan::GetNextMasternodeInQueueForPayment(int nBlockHeight
 
 CMasternode* CMasternodeMan::FindRandomNotInVec(const std::vector<CTxIn> &vecToExclude, int nProtocolVersion)
 {
-    LOCK2(cs_main, cs);
+    LOCK(cs);
 
     nProtocolVersion = nProtocolVersion == -1 ? mnpayments.GetMinMasternodePaymentsProto() : nProtocolVersion;
 
@@ -585,12 +583,11 @@ int CMasternodeMan::GetMasternodeRank(const CTxIn& vin, int nBlockHeight, int nM
     uint256 blockHash = uint256();
     if(!GetBlockHash(blockHash, nBlockHeight)) return -1;
 
-    LOCK2(cs_main, cs);
+    LOCK(cs);
 
     // scan for winner
     BOOST_FOREACH(CMasternode& mn, vMasternodes) {
         if(mn.nProtocolVersion < nMinProtocol) continue;
-        mn.Check();
         if(fOnlyActive) {
             if(!mn.IsEnabled()) continue;
         }
@@ -622,12 +619,10 @@ std::vector<std::pair<int, CMasternode> > CMasternodeMan::GetMasternodeRanks(int
     uint256 blockHash = uint256();
     if(!GetBlockHash(blockHash, nBlockHeight)) return vecMasternodeRanks;
 
-    LOCK2(cs_main, cs);
+    LOCK(cs);
 
     // scan for winner
     BOOST_FOREACH(CMasternode& mn, vMasternodes) {
-
-        mn.Check();
 
         if(mn.nProtocolVersion < nMinProtocol || !mn.IsEnabled()) continue;
 
@@ -651,7 +646,7 @@ CMasternode* CMasternodeMan::GetMasternodeByRank(int nRank, int nBlockHeight, in
 {
     std::vector<std::pair<int64_t, CMasternode*> > vecMasternodeScores;
 
-    LOCK2(cs_main, cs);
+    LOCK(cs);
 
     uint256 blockHash;
     if(!GetBlockHash(blockHash, nBlockHeight)) {
@@ -663,10 +658,7 @@ CMasternode* CMasternodeMan::GetMasternodeByRank(int nRank, int nBlockHeight, in
     BOOST_FOREACH(CMasternode& mn, vMasternodes) {
 
         if(mn.nProtocolVersion < nMinProtocol) continue;
-        if(fOnlyActive) {
-            mn.Check();
-            if(!mn.IsEnabled()) continue;
-        }
+        if(fOnlyActive && !mn.IsEnabled()) continue;
 
         int64_t nScore = mn.CalculateScore(blockHash).GetCompact(false);
 
@@ -1446,7 +1438,7 @@ void CMasternodeMan::RemoveGovernanceObject(uint256 nGovernanceObjectHash)
 
 void CMasternodeMan::CheckMasternode(const CTxIn& vin, bool fForce)
 {
-    LOCK(cs);
+    LOCK2(cs_main, cs);
     CMasternode* pMN = Find(vin);
     if(!pMN)  {
         return;
@@ -1456,7 +1448,7 @@ void CMasternodeMan::CheckMasternode(const CTxIn& vin, bool fForce)
 
 void CMasternodeMan::CheckMasternode(const CPubKey& pubKeyMasternode, bool fForce)
 {
-    LOCK(cs);
+    LOCK2(cs_main, cs);
     CMasternode* pMN = Find(pubKeyMasternode);
     if(!pMN)  {
         return;

@@ -278,7 +278,7 @@ void CGovernanceManager::CheckOrphanVotes(CNode* pfrom, CGovernanceObject& govob
 
 bool CGovernanceManager::AddGovernanceObject(CGovernanceObject& govobj)
 {
-    LOCK2(cs_main, cs);
+    LOCK(cs);
     std::string strError = "";
 
     DBG( cout << "CGovernanceManager::AddGovernanceObject START" << endl; );
@@ -333,7 +333,7 @@ void CGovernanceManager::UpdateCachesAndClean()
 
     std::vector<uint256> vecDirtyHashes = mnodeman.GetAndClearDirtyGovernanceObjectHashes();
 
-    LOCK2(cs_main, cs);
+    LOCK(cs);
 
     for(size_t i = 0; i < vecDirtyHashes.size(); ++i) {
         object_m_it it = mapObjects.find(vecDirtyHashes[i]);
@@ -607,7 +607,7 @@ void CGovernanceManager::Sync(CNode* pfrom, uint256 nProp)
     // SYNC GOVERNANCE OBJECTS WITH OTHER CLIENT
 
     {
-        LOCK2(cs_main, cs);
+        LOCK(cs);
         for(object_m_it it = mapObjects.begin(); it != mapObjects.end(); ++it) {
             uint256 h = it->first;
 
@@ -868,7 +868,7 @@ void CGovernanceManager::UpdatedBlockTip(const CBlockIndex *pindex)
         return;
     }
 
-    LOCK2(cs_main, cs);
+    LOCK(cs);
     pCurrentBlockIndex = pindex;
     nCachedBlockHeight = pCurrentBlockIndex->nHeight;
     LogPrint("gobject", "CGovernanceManager::UpdatedBlockTip pCurrentBlockIndex->nHeight: %d\n", pCurrentBlockIndex->nHeight);
