@@ -416,7 +416,7 @@ bool CMasternodePayments::AddPaymentVote(const CMasternodePaymentVote& vote)
     uint256 blockHash = uint256();
     if(!GetBlockHash(blockHash, vote.nBlockHeight - 101)) return false;
 
-    LOCK2(cs_mapMasternodePaymentVotes, cs_mapMasternodeBlocks);
+    LOCK2(cs_mapMasternodeBlocks, cs_mapMasternodePaymentVotes);
 
     if(mapMasternodePaymentVotes.count(vote.GetHash())) return false;
 
@@ -573,7 +573,7 @@ void CMasternodePayments::CheckAndRemove()
 {
     if(!pCurrentBlockIndex) return;
 
-    LOCK2(cs_mapMasternodePaymentVotes, cs_mapMasternodeBlocks);
+    LOCK2(cs_mapMasternodeBlocks, cs_mapMasternodePaymentVotes);
 
     int nLimit = GetStorageLimit();
 
