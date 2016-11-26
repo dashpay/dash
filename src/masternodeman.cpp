@@ -724,7 +724,8 @@ void CMasternodeMan::ProcessMessage(CNode* pfrom, std::string& strCommand, CData
 
         LogPrint("masternode", "MNPING -- Masternode ping, masternode=%s\n", mnp.vin.prevout.ToStringShort());
 
-        LOCK(cs);
+        // Need LOCK2 here to ensure consistent locking order because the CheckAndUpdate call below locks cs_main
+        LOCK2(cs_main, cs);
 
         if(mapSeenMasternodePing.count(mnp.GetHash())) return; //seen
         mapSeenMasternodePing.insert(std::make_pair(mnp.GetHash(), mnp));
@@ -838,7 +839,9 @@ void CMasternodeMan::DoFullVerificationStep()
 
     std::vector<std::pair<int, CMasternode> > vecMasternodeRanks = GetMasternodeRanks(pCurrentBlockIndex->nHeight - 1, MIN_POSE_PROTO_VERSION);
 
-    LOCK(cs);
+    // Need LOCK2 here to ensure consistent locking order because the SendVerifyRequest call below locks cs_main
+    // through GetHeight() signal in ConnectNode
+    LOCK2(cs_main, cs);
 
     int nCount = 0;
     int nCountMax = std::max(10, (int)vMasternodes.size() / 100); // verify at least 10 masternode at once but at most 1% of all known masternodes
@@ -1292,7 +1295,8 @@ void CMasternodeMan::UpdateMasternodeList(CMasternodeBroadcast mnb)
 
 bool CMasternodeMan::CheckMnbAndUpdateMasternodeList(CMasternodeBroadcast mnb, int& nDos)
 {
-    LOCK(cs);
+    // Need LOCK2 here to ensure consistent locking order because the SimpleCheck call below locks cs_main
+    LOCK2(cs_main, cs);
 
     nDos = 0;
     LogPrint("masternode", "CMasternodeMan::CheckMnbAndUpdateMasternodeList -- masternode=%s\n", mnb.vin.prevout.ToStringShort());
