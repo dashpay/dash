@@ -781,7 +781,7 @@ void CMasternodePayments::RequestLowDataPaymentBlocks(CNode* pnode)
     // Old nodes can't process this
     if(pnode->nVersion < 70202) return;
 
-    LOCK(cs_mapMasternodeBlocks);
+    LOCK2(cs_main, cs_mapMasternodeBlocks);
 
     std::vector<CInv> vToFetch;
     std::map<int, CMasternodeBlockPayees>::iterator it = mapMasternodeBlocks.begin();
