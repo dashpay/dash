@@ -2483,6 +2483,8 @@ void ThreadCheckDarkSendPool()
             if(nTick % MASTERNODE_MIN_MNP_SECONDS == 1)
                 activeMasternode.ManageState();
 
+            mnodeman.Check();
+
             if(nTick % 60 == 0) {
                 mnodeman.CheckAndRemove();
                 mnodeman.ProcessMasternodeConnections();

@@ -320,7 +320,6 @@ int CMasternodeMan::CountEnabled(int nProtocolVersion)
     nProtocolVersion = nProtocolVersion == -1 ? mnpayments.GetMinMasternodePaymentsProto() : nProtocolVersion;
 
     BOOST_FOREACH(CMasternode& mn, vMasternodes) {
-        mn.Check();
         if(mn.nProtocolVersion < nProtocolVersion || !mn.IsEnabled()) continue;
         nCount++;
     }
@@ -475,7 +474,6 @@ CMasternode* CMasternodeMan::GetNextMasternodeInQueueForPayment(int nBlockHeight
     int nMnCount = CountEnabled();
     BOOST_FOREACH(CMasternode &mn, vMasternodes)
     {
-        mn.Check();
         if(!mn.IsValidForPayment()) continue;
 
         // //check protocol version
@@ -581,7 +579,6 @@ int CMasternodeMan::GetMasternodeRank(const CTxIn& vin, int nBlockHeight, int nM
     // scan for winner
     BOOST_FOREACH(CMasternode& mn, vMasternodes) {
         if(mn.nProtocolVersion < nMinProtocol) continue;
-        mn.Check();
         if(fOnlyActive) {
             if(!mn.IsEnabled()) continue;
         }
@@ -618,8 +615,6 @@ std::vector<std::pair<int, CMasternode> > CMasternodeMan::GetMasternodeRanks(int
     // scan for winner
     BOOST_FOREACH(CMasternode& mn, vMasternodes) {
 
-        mn.Check();
-
         if(mn.nProtocolVersion < nMinProtocol || !mn.IsEnabled()) continue;
 
         int64_t nScore = mn.CalculateScore(blockHash).GetCompact(false);
@@ -654,10 +649,7 @@ CMasternode* CMasternodeMan::GetMasternodeByRank(int nRank, int nBlockHeight, in
     BOOST_FOREACH(CMasternode& mn, vMasternodes) {
 
         if(mn.nProtocolVersion < nMinProtocol) continue;
-        if(fOnlyActive) {
-            mn.Check();
-            if(!mn.IsEnabled()) continue;
-        }
+        if(fOnlyActive && !mn.IsEnabled()) continue;
 
         int64_t nScore = mn.CalculateScore(blockHash).GetCompact(false);
 
