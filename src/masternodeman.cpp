@@ -700,21 +700,18 @@ void CMasternodeMan::ProcessMessage(CNode* pfrom, std::string& strCommand, CData
 
     if (strCommand == NetMsgType::MNANNOUNCE) { //Masternode Broadcast
 
-        {
-            LOCK(cs);
+        CMasternodeBroadcast mnb;
+        vRecv >> mnb;
 
-            CMasternodeBroadcast mnb;
-            vRecv >> mnb;
+        int nDos = 0;
 
-            int nDos = 0;
-
-            if (CheckMnbAndUpdateMasternodeList(mnb, nDos)) {
-                // use announced Masternode as a peer
-                addrman.Add(CAddress(mnb.addr), pfrom->addr, 2*60*60);
-            } else if(nDos > 0) {
-                Misbehaving(pfrom->GetId(), nDos);
-            }
+        if (CheckMnbAndUpdateMasternodeList(mnb, nDos)) {
+            // use announced Masternode as a peer
+            addrman.Add(CAddress(mnb.addr), pfrom->addr, 2*60*60);
+        } else if(nDos > 0) {
+            Misbehaving(pfrom->GetId(), nDos);
         }
+
         if(fMasternodesAdded) {
             NotifyMasternodeUpdates();
         }
