@@ -542,8 +542,7 @@ void CGovernanceManager::NewBlock()
 
 bool CGovernanceManager::ConfirmInventoryRequest(const CInv& inv)
 {
-    // FIXME:
-    // LOCK(cs);
+    LOCK(cs);
 
     LogPrint("gobject", "CGovernanceManager::ConfirmInventoryRequest inv = %s\n", inv.ToString());
 
