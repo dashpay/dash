@@ -90,8 +90,6 @@ void CDarksendPool::ProcessMessage(CNode* pfrom, std::string& strCommand, CDataS
         }
 
     } else if(strCommand == NetMsgType::DSQUEUE) {
-        TRY_LOCK(cs_darksend, lockRecv);
-        if(!lockRecv) return;
 
         if(pfrom->nVersion < MIN_PRIVATESEND_PEER_PROTO_VERSION) {
             LogPrint("privatesend", "DSQUEUE -- incompatible version! nVersion: %d\n", pfrom->nVersion);
@@ -101,11 +99,14 @@ void CDarksendPool::ProcessMessage(CNode* pfrom, std::string& strCommand, CDataS
         CDarksendQueue dsq;
         vRecv >> dsq;
 
-        // process every dsq only once
-        BOOST_FOREACH(CDarksendQueue q, vecDarksendQueue) {
-            if(q == dsq) {
-                // LogPrint("privatesend", "DSQUEUE -- %s seen\n", dsq.ToString());
-                return;
+        {
+            LOCK(cs_darksend);
+            // process every dsq only once
+            BOOST_FOREACH(CDarksendQueue q, vecDarksendQueue) {
+                if(q == dsq) {
+                    // LogPrint("privatesend", "DSQUEUE -- %s seen\n", dsq.ToString());
+                    return;
+                }
             }
         }
 
@@ -135,11 +136,15 @@ void CDarksendPool::ProcessMessage(CNode* pfrom, std::string& strCommand, CDataS
                 SubmitDenominate();
             }
         } else {
-            BOOST_FOREACH(CDarksendQueue q, vecDarksendQueue) {
-                if(q.vin == dsq.vin) {
-                    // no way same mn can send another "not yet ready" dsq this soon
-                    LogPrint("privatesend", "DSQUEUE -- Masternode %s is sending WAY too many dsq messages\n", pmn->addr.ToString());
-                    return;
+
+            {
+                LOCK(cs_darksend);
+                BOOST_FOREACH(CDarksendQueue q, vecDarksendQueue) {
+                    if(q.vin == dsq.vin) {
+                        // no way same mn can send another "not yet ready" dsq this soon
+                        LogPrint("privatesend", "DSQUEUE -- Masternode %s is sending WAY too many dsq messages\n", pmn->addr.ToString());
+                        return;
+                    }
                 }
             }
 
@@ -724,6 +729,8 @@ void CDarksendPool::ChargeFees()
         LogPrintf("CDarksendPool::ChargeFees -- found uncooperative node (didn't %s transaction), charging fees: %s\n",
                 (nState == POOL_STATE_SIGNING) ? "sign" : "send", vecOffendersCollaterals[0].ToString());
 
+        LOCK(cs_main);
+
         CValidationState state;
         bool fMissingInputs;
         if(!AcceptToMemoryPool(mempool, state, vecOffendersCollaterals[0], false, &fMissingInputs, false, true)) {
@@ -751,6 +758,8 @@ void CDarksendPool::ChargeRandomFees()
 {
     if(!fMasterNode) return;
 
+    LOCK(cs_main);
+
     BOOST_FOREACH(const CTransaction& txCollateral, vecSessionCollaterals) {
 
         if(GetRandInt(100) > 10) return;
@@ -773,13 +782,17 @@ void CDarksendPool::ChargeRandomFees()
 //
 void CDarksendPool::CheckTimeout()
 {
-    // check mixing queue objects for timeouts
-    std::vector<CDarksendQueue>::iterator it = vecDarksendQueue.begin();
-    while(it != vecDarksendQueue.end()) {
-        if((*it).IsExpired()) {
-            LogPrint("privatesend", "CDarksendPool::CheckTimeout -- Removing expired queue (%s)\n", (*it).ToString());
-            it = vecDarksendQueue.erase(it);
-        } else ++it;
+    {
+        LOCK(cs_darksend);
+
+        // check mixing queue objects for timeouts
+        std::vector<CDarksendQueue>::iterator it = vecDarksendQueue.begin();
+        while(it != vecDarksendQueue.end()) {
+            if((*it).IsExpired()) {
+                LogPrint("privatesend", "CDarksendPool::CheckTimeout -- Removing expired queue (%s)\n", (*it).ToString());
+                it = vecDarksendQueue.erase(it);
+            } else ++it;
+        }
     }
 
     if(!fEnablePrivateSend && !fMasterNode) return;
@@ -1347,11 +1360,7 @@ bool CDarksendPool::DoAutomaticDenominating(bool fDryRun)
         return false;
     }
 
-    TRY_LOCK(cs_darksend, lockDS);
-    if(!lockDS) {
-        strAutoDenomResult = _("Lock is already in place.");
-        return false;
-    }
+    LOCK2(cs_main, cs_darksend);
 
     if(!fDryRun && pwalletMain->IsLocked(true)) {
         strAutoDenomResult = _("Wallet is locked.");
@@ -2335,11 +2344,22 @@ bool CDarksendQueue::CheckSignature(const CPubKey& pubKeyMasternode)
 
 bool CDarksendQueue::Relay()
 {
-    LOCK(cs_vNodes);
-    BOOST_FOREACH(CNode* pnode, vNodes)
+    std::vector<CNode*> vNodesCopy;
+    {
+        LOCK(cs_vNodes);
+        vNodesCopy = vNodes;
+        BOOST_FOREACH(CNode* pnode, vNodesCopy)
+            pnode->AddRef();
+    }
+    BOOST_FOREACH(CNode* pnode, vNodesCopy)
         if(pnode->nVersion >= MIN_PRIVATESEND_PEER_PROTO_VERSION)
             pnode->PushMessage(NetMsgType::DSQUEUE, (*this));
 
+    {
+        LOCK(cs_vNodes);
+        BOOST_FOREACH(CNode* pnode, vNodesCopy)
+            pnode->Release();
+    }
     return true;
 }
 
@@ -2462,6 +2482,8 @@ void ThreadCheckDarkSendPool()
             // start right after sync is considered to be done
             if(nTick % MASTERNODE_MIN_MNP_SECONDS == 1)
                 activeMasternode.ManageState();
+
+            mnodeman.Check();
 
             if(nTick % 60 == 0) {
                 mnodeman.CheckAndRemove();
