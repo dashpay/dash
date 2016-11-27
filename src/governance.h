@@ -210,10 +210,6 @@ public:
             Clear();
             return;
         }
-        if(ser_action.ForRead()) {
-            RebuildIndexes();
-            AddCachedTriggers();
-        }
     }
 
     void UpdatedBlockTip(const CBlockIndex *pindex);
@@ -249,6 +245,8 @@ public:
         LOCK(cs);
         return fRateChecksEnabled;
     }
+
+    void InitOnLoad();
 
 private:
     void RequestGovernanceObject(CNode* pfrom, const uint256& nHash);
