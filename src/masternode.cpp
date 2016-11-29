@@ -168,7 +168,7 @@ void CMasternode::Check(bool fForce)
 
     static int64_t nTimeStart = GetTime();
 
-    LogPrint("masternode", "CMasternode::Check start -- vin %s\n", vin.prevout.ToStringShort());
+    LogPrint("masternode", "CMasternode::Check -- Masternode %s is in %s state\n", vin.prevout.ToStringShort(), GetStateString());
 
     //once spent, stop doing the checks
     if(nActiveState == MASTERNODE_OUTPOINT_SPENT) return;
@@ -222,25 +222,31 @@ void CMasternode::Check(bool fForce)
     if(fRemove) {
         // it should be removed from the list
         nActiveState = MASTERNODE_REMOVE;
-
+        LogPrint("masternode", "CMasternode::Check -- Masternode %s is in %s state now\n", vin.prevout.ToStringShort(), GetStateString());
         // RESCAN AFFECTED VOTES
         FlagGovernanceItemsAsDirty();
         return;
     }
 
-    bool fWatchdogActive = mnodeman.IsWatchdogActive();
-    bool fWatchdogExpired = (fWatchdogActive && ((GetTime() - nTimeLastWatchdogVote) > MASTERNODE_WATCHDOG_MAX_SECONDS));
+    // only new nodes should expire because of watchdog, old nodes should not be punished for this
+    // (old nodes will be removed from the list via spork when migration is done, so it should be ok to ignore them here)
+    if(nProtocolVersion > 70103) {
+        bool fWatchdogActive = mnodeman.IsWatchdogActive();
+        bool fWatchdogExpired = (fWatchdogActive && ((GetTime() - nTimeLastWatchdogVote) > MASTERNODE_WATCHDOG_MAX_SECONDS));
 
-    LogPrint("masternode", "CMasternode::Check -- vin %s, nTimeLastWatchdogVote %d, GetTime() %d, fWatchdogExpired %d\n",
-            vin.prevout.ToStringShort(), nTimeLastWatchdogVote, GetTime(), fWatchdogExpired);
+        LogPrint("masternode", "CMasternode::Check -- masternode %s, nTimeLastWatchdogVote %d, GetTime() %d, fWatchdogExpired %d\n",
+                vin.prevout.ToStringShort(), nTimeLastWatchdogVote, GetTime(), fWatchdogExpired);
 
-    if(fWatchdogExpired) {
-        nActiveState = MASTERNODE_WATCHDOG_EXPIRED;
-        return;
+        if(fWatchdogExpired) {
+            nActiveState = MASTERNODE_WATCHDOG_EXPIRED;
+            LogPrint("masternode", "CMasternode::Check -- Masternode %s is in %s state now\n", vin.prevout.ToStringShort(), GetStateString());
+            return;
+        }
     }
 
     if(!fWaitForPing && !IsPingedWithin(MASTERNODE_EXPIRATION_SECONDS)) {
         nActiveState = MASTERNODE_EXPIRED;
+        LogPrint("masternode", "CMasternode::Check -- Masternode %s is in %s state now\n", vin.prevout.ToStringShort(), GetStateString());
         // RESCAN AFFECTED VOTES
         FlagGovernanceItemsAsDirty();
         return;
@@ -248,6 +254,7 @@ void CMasternode::Check(bool fForce)
 
     if(lastPing.sigTime - sigTime < MASTERNODE_MIN_MNP_SECONDS) {
         nActiveState = MASTERNODE_PRE_ENABLED;
+        LogPrint("masternode", "CMasternode::Check -- Masternode %s is in %s state now\n", vin.prevout.ToStringShort(), GetStateString());
         return;
     }
 
