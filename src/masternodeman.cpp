@@ -733,7 +733,7 @@ void CMasternodeMan::ProcessMessage(CNode* pfrom, std::string& strCommand, CData
         LogPrint("masternode", "MNPING -- Masternode ping, masternode=%s new\n", mnp.vin.prevout.ToStringShort());
 
         int nDos = 0;
-        if(mnp.CheckAndUpdate(nDos, false)) return;
+        if(mnp.CheckAndUpdate(nDos)) return;
 
         if(nDos > 0) {
             // if anything significant failed, mark that node
