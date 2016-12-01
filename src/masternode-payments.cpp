@@ -54,7 +54,7 @@ bool IsBlockValueValid(const CBlock& block, int nBlockHeight, CAmount blockRewar
                 // no budget blocks should be accepted here, if SPORK_13_OLD_SUPERBLOCK_FLAG is disabled
                 LogPrint("gobject", "IsBlockValueValid -- Client synced but budget spork is disabled, checking block value against normal block reward\n");
                 if(!isNormalBlockValueMet) {
-                    strErrorRet = strprintf("coinbase pays too much at height %d (actual=%d vs limit=%d)",
+                    strErrorRet = strprintf("coinbase pays too much at height %d (actual=%d vs limit=%d), exceeded normal block payment limit, budgets are disabled",
                                             nBlockHeight, block.vtx[0].GetValueOut(), blockReward);
                 }
                 return isNormalBlockValueMet;
@@ -65,7 +65,7 @@ bool IsBlockValueValid(const CBlock& block, int nBlockHeight, CAmount blockRewar
         }
         // LogPrint("gobject", "IsBlockValueValid -- Block is not in budget cycle window, checking block value against normal block reward\n");
         if(!isNormalBlockValueMet) {
-            strErrorRet = strprintf("coinbase pays too much at height %d (actual=%d vs limit=%d)",
+            strErrorRet = strprintf("coinbase pays too much at height %d (actual=%d vs limit=%d), exceeded normal block payment limit, block is not in budget cycle window",
                                     nBlockHeight, block.vtx[0].GetValueOut(), blockReward);
         }
         return isNormalBlockValueMet;
@@ -83,13 +83,13 @@ bool IsBlockValueValid(const CBlock& block, int nBlockHeight, CAmount blockRewar
         if(CSuperblock::IsValidBlockHeight(nBlockHeight)) {
             if(fDebug) LogPrintf("IsBlockPayeeValid -- WARNING: Client not synced, checking superblock max bounds only\n");
             if(!isSuperblockMaxValueMet) {
-                strErrorRet = strprintf("coinbase pays too much at height %d (actual=%d vs limit=%d)",
+                strErrorRet = strprintf("coinbase pays too much at height %d (actual=%d vs limit=%d), exceeded superblock payment limit",
                                         nBlockHeight, block.vtx[0].GetValueOut(), nSuperblockPaymentsLimit);
             }
             return isSuperblockMaxValueMet;
         }
         if(!isNormalBlockValueMet) {
-            strErrorRet = strprintf("coinbase pays too much at height %d (actual=%d vs limit=%d)",
+            strErrorRet = strprintf("coinbase pays too much at height %d (actual=%d vs limit=%d), exceeded normal block payment limit, only normal blocks are allowed at this height",
                                     nBlockHeight, block.vtx[0].GetValueOut(), blockReward);
         }
         // it MUST be a regular block otherwise
@@ -113,16 +113,20 @@ bool IsBlockValueValid(const CBlock& block, int nBlockHeight, CAmount blockRewar
             return false;
         }
         LogPrint("gobject", "IsBlockValueValid -- No triggered superblock detected at height %d\n", nBlockHeight);
+        if(!isNormalBlockValueMet) {
+            strErrorRet = strprintf("coinbase pays too much at height %d (actual=%d vs limit=%d), exceeded normal block payment limit, no triggered superblock detected",
+                                    nBlockHeight, block.vtx[0].GetValueOut(), blockReward);
+        }
     } else {
         // should NOT allow superblocks at all, when superblocks are disabled
         LogPrint("gobject", "IsBlockValueValid -- Superblocks are disabled, no superblocks allowed\n");
+        if(!isNormalBlockValueMet) {
+            strErrorRet = strprintf("coinbase pays too much at height %d (actual=%d vs limit=%d), exceeded normal block payment limit, superblocks are disabled",
+                                    nBlockHeight, block.vtx[0].GetValueOut(), blockReward);
+        }
     }
 
     // it MUST be a regular block
-    if(!isNormalBlockValueMet) {
-        strErrorRet = strprintf("coinbase pays too much at height %d (actual=%d vs limit=%d)",
-                                nBlockHeight, block.vtx[0].GetValueOut(), blockReward);
-    }
     return isNormalBlockValueMet;
 }
 
