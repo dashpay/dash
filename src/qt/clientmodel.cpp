@@ -13,6 +13,7 @@
 #include "chainparams.h"
 #include "checkpoints.h"
 #include "clientversion.h"
+#include "main.h"
 #include "net.h"
 #include "txmempool.h"
 #include "ui_interface.h"

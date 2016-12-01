@@ -5,6 +5,7 @@
 #include "chainparams.h"
 #include "main.h"
 #include "messagesigner.h"
+#include "net_processing.h"
 #include "spork.h"
 
 #include <boost/lexical_cast.hpp>

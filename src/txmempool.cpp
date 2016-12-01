@@ -10,6 +10,7 @@
 #include "consensus/validation.h"
 #include "main.h"
 #include "policy/fees.h"
+#include "random.h"
 #include "streams.h"
 #include "timedata.h"
 #include "util.h"

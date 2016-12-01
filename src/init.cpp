@@ -24,6 +24,7 @@
 #include "miner.h"
 #include "net.h"
 #include "netfulfilledman.h"
+#include "net_processing.h"
 #include "policy/policy.h"
 #include "rpc/server.h"
 #include "script/standard.h"

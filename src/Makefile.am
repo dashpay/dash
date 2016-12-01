@@ -138,6 +138,7 @@ BITCOIN_CORE_H = \
   messagesigner.h \
   miner.h \
   net.h \
+  net_processing.h \
   netbase.h \
   netfulfilledman.h \
   noui.h \
@@ -229,6 +230,7 @@ libbitcoin_server_a_SOURCES = \
   miner.cpp \
   net.cpp \
   netfulfilledman.cpp \
+  net_processing.cpp \
   noui.cpp \
   policy/fees.cpp \
   policy/policy.cpp \
