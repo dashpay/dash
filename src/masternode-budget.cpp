@@ -180,7 +180,7 @@ void CBudgetManager::SubmitFinalBudget()
         txidCollateral = mapCollateralTxids[tempBudget.GetHash()];
     }
 
-    int conf = GetIXConfirmations(tx.GetHash());
+    int conf = GetIXConfirmations(txidCollateral);
     CTransaction txCollateral;
     uint256 nBlockHash;
 
