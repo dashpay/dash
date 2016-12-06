@@ -719,7 +719,7 @@ bool CSuperblock::IsValid(const CTransaction& txNew, int nBlockHeight, CAmount b
         }
 
         if(!fPaymentMatch) {
-            // MISMATCHED SUPERBLOCK OUTPUT!
+            // Superblock payment not found!
 
             CTxDestination address1;
             ExtractDestination(payment.script, address1);
