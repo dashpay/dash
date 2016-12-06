@@ -43,7 +43,7 @@ private:
     // Last time when we received some masternode asset ...
     int64_t nTimeLastMasternodeList;
     int64_t nTimeLastPaymentVote;
-    int64_t nTimeLastBudgetItem;
+    int64_t nTimeLastGovernanceItem;
     // ... or failed
     int64_t nTimeLastFailure;
 
@@ -61,7 +61,7 @@ public:
 
     void AddedMasternodeList() { nTimeLastMasternodeList = GetTime(); }
     void AddedPaymentVote() { nTimeLastPaymentVote = GetTime(); }
-    void AddedBudgetItem(uint256 hash);
+    void AddedGovernanceItem() { nTimeLastGovernanceItem = GetTime(); };
 
     bool IsFailed() { return nRequestedMasternodeAssets == MASTERNODE_SYNC_FAILED; }
     bool IsBlockchainSynced();

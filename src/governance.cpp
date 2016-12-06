@@ -199,8 +199,8 @@ void CGovernanceManager::ProcessMessage(CNode* pfrom, std::string& strCommand, C
         }
 
         // UPDATE THAT WE'VE SEEN THIS OBJECT
-        mapSeenGovernanceObjects.insert(std::make_pair(govobj.GetHash(), SEEN_OBJECT_IS_VALID));
-        masternodeSync.AddedBudgetItem(govobj.GetHash());
+        mapSeenGovernanceObjects.insert(std::make_pair(nHash, SEEN_OBJECT_IS_VALID));
+        masternodeSync.AddedGovernanceItem();
 
 
         // WE MIGHT HAVE PENDING/ORPHAN VOTES FOR THIS OBJECT
@@ -235,6 +235,7 @@ void CGovernanceManager::ProcessMessage(CNode* pfrom, std::string& strCommand, C
         CGovernanceException exception;
         if(ProcessVote(pfrom, vote, exception)) {
             LogPrint("gobject", "CGovernanceManager -- Accepted vote\n");
+            masternodeSync.AddedGovernanceItem();
         }
         else {
             LogPrint("gobject", "CGovernanceManager -- Rejected vote, error = %s\n", exception.what());
