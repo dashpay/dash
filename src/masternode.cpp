@@ -222,9 +222,9 @@ void CMasternode::Check(bool fForce)
         nActiveState = MASTERNODE_REMOVE;
         if(nActiveStatePrev != nActiveState) {
             LogPrint("masternode", "CMasternode::Check -- Masternode %s is in %s state now\n", vin.prevout.ToStringShort(), GetStateString());
+            // RESCAN AFFECTED VOTES
+            FlagGovernanceItemsAsDirty();
         }
-        // RESCAN AFFECTED VOTES
-        FlagGovernanceItemsAsDirty();
         return;
     }
 
@@ -252,9 +252,9 @@ void CMasternode::Check(bool fForce)
         nActiveState = MASTERNODE_EXPIRED;
         if(nActiveStatePrev != nActiveState) {
             LogPrint("masternode", "CMasternode::Check -- Masternode %s is in %s state now\n", vin.prevout.ToStringShort(), GetStateString());
+            // RESCAN AFFECTED VOTES
+            FlagGovernanceItemsAsDirty();
         }
-        // RESCAN AFFECTED VOTES
-        FlagGovernanceItemsAsDirty();
         return;
     }
 
