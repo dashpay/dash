@@ -670,8 +670,7 @@ bool CSuperblock::IsValid(const CTransaction& txNew, int nBlockHeight, CAmount b
              nOutputs, nPayments, GetGovernanceObject()->GetDataAsHex());
 
     // We require an exact match (including order) between the expected
-    // superblock payments and the payments actually in the block, after
-    // skipping any initial miner payments.
+    // superblock payments and the payments actually in the block.
 
     if(nMinerPayments < 0) {
         // This means the block cannot have all the superblock payments
