@@ -696,6 +696,7 @@ bool CSuperblock::IsValid(const CTransaction& txNew, int nBlockHeight, CAmount b
         return false;
     }
 
+    int nVoutIndex = 0;
     for(int i = 0; i < nPayments; i++) {
         CGovernancePayment payment;
         if(!GetPayment(i, payment)) {
@@ -704,10 +705,18 @@ bool CSuperblock::IsValid(const CTransaction& txNew, int nBlockHeight, CAmount b
             continue;
         }
 
-        int nVoutIndex = nMinerPayments + i;
+        bool fPaymentMatch = false;
 
-        bool fPaymentMatch = ((payment.script == txNew.vout[nVoutIndex].scriptPubKey) &&
-                              (payment.nAmount == txNew.vout[nVoutIndex].nValue));
+        for (int j = nVoutIndex; j < nOutputs; j++) {
+            // Find superblock payment
+            fPaymentMatch = ((payment.script == txNew.vout[j].scriptPubKey) &&
+                             (payment.nAmount == txNew.vout[j].nValue));
+
+            if (fPaymentMatch) {
+                nVoutIndex = j;
+                break;
+            }
+        }
 
         if(!fPaymentMatch) {
             // MISMATCHED SUPERBLOCK OUTPUT!
@@ -715,7 +724,7 @@ bool CSuperblock::IsValid(const CTransaction& txNew, int nBlockHeight, CAmount b
             CTxDestination address1;
             ExtractDestination(payment.script, address1);
             CBitcoinAddress address2(address1);
-            LogPrintf("CSuperblock::IsValid -- ERROR: Block invalid: output n %d payment %d to %s\n", nVoutIndex, payment.nAmount, address2.ToString());
+            LogPrintf("CSuperblock::IsValid -- ERROR: Block invalid: %d payment %d to %s not found\n", i, payment.nAmount, address2.ToString());
 
             return false;
         }
