@@ -145,7 +145,7 @@ void CGovernanceManager::ProcessMessage(CNode* pfrom, std::string& strCommand, C
         // MAKE SURE WE HAVE A VALID REFERENCE TO THE TIP BEFORE CONTINUING
 
         if(!pCurrentBlockIndex) {
-            LogPrintf("CGovernanceManager::ProcessMessage MNGOVERNANCEOBJECT -- pCurrentBlockIndex is NULL\n");
+            LogPrintf("MNGOVERNANCEOBJECT -- pCurrentBlockIndex is NULL\n");
             return;
         }
 
@@ -155,10 +155,10 @@ void CGovernanceManager::ProcessMessage(CNode* pfrom, std::string& strCommand, C
         uint256 nHash = govobj.GetHash();
         std::string strHash = nHash.ToString();
 
-        LogPrint("gobject", "CGovernanceManager -- Received object: %s\n", strHash);
+        LogPrint("gobject", "MNGOVERNANCEOBJECT -- Received object: %s\n", strHash);
 
         if(!AcceptObjectMessage(nHash)) {
-            LogPrintf("CGovernanceManager -- Received unrequested object: %s\n", strHash);
+            LogPrintf("MNGOVERNANCEOBJECT -- Received unrequested object: %s\n", strHash);
             Misbehaving(pfrom->GetId(), 20);
             return;
         }
@@ -167,7 +167,7 @@ void CGovernanceManager::ProcessMessage(CNode* pfrom, std::string& strCommand, C
 
         if(mapSeenGovernanceObjects.count(nHash)) {
             // TODO - print error code? what if it's GOVOBJ_ERROR_IMMATURE?
-            LogPrint("gobject", "CGovernanceManager -- Received already seen object: %s\n", strHash);
+            LogPrint("gobject", "MNGOVERNANCEOBJECT -- Received already seen object: %s\n", strHash);
             return;
         }
 
@@ -178,8 +178,8 @@ void CGovernanceManager::ProcessMessage(CNode* pfrom, std::string& strCommand, C
         bool fIsValid = govobj.IsValidLocally(pCurrentBlockIndex, strError, fMasternodeMissing, true);
 
         if(fMasternodeMissing) {
-            mapMasternodeOrphanObjects.insert(std::make_pair(govobj.GetHash(), object_time_pair_t(govobj, GetAdjustedTime() + GOVERNANCE_ORPHAN_EXPIRATION_TIME)));
-            LogPrint("gobject", "CGovernanceManager -- Missing masternode for: %s\n", strHash);
+            mapMasternodeOrphanObjects.insert(std::make_pair(nHash, object_time_pair_t(govobj, GetAdjustedTime() + GOVERNANCE_ORPHAN_EXPIRATION_TIME)));
+            LogPrint("gobject", "MNGOVERNANCEOBJECT -- Missing masternode for: %s\n", strHash);
             // fIsValid must also be false here so we will return early in the next if block
         }
         if(!fIsValid) {
@@ -214,31 +214,32 @@ void CGovernanceManager::ProcessMessage(CNode* pfrom, std::string& strCommand, C
     {
         // Ignore such messages until masternode list is synced
         if(!masternodeSync.IsMasternodeListSynced()) {
-            LogPrint("gobject", "CGovernanceManager::ProcessMessage MNGOVERNANCEOBJECTVOTE -- masternode list not synced\n");
+            LogPrint("gobject", "MNGOVERNANCEOBJECTVOTE -- masternode list not synced\n");
             return;
         }
 
         CGovernanceVote vote;
         vRecv >> vote;
 
-        LogPrint("gobject", "CGovernanceManager -- Received vote: %s\n", vote.ToString());
+        LogPrint("gobject", "MNGOVERNANCEOBJECTVOTE -- Received vote: %s\n", vote.ToString());
 
-        if(!AcceptVoteMessage(vote.GetHash())) {
-            LogPrintf("CGovernanceManager -- Received unrequested vote object: %s, hash: %s, peer = %d\n",
-                      vote.ToString(),
-                      vote.GetHash().ToString(),
-                      pfrom->GetId());
+        uint256 nHash = vote.GetHash();
+        std::string strHash = nHash.ToString();
+
+        if(!AcceptVoteMessage(nHash)) {
+            LogPrint("gobject", "MNGOVERNANCEOBJECTVOTE -- Received unrequested vote object: %s, hash: %s, peer = %d\n",
+                      vote.ToString(), strHash, pfrom->GetId());
             //Misbehaving(pfrom->GetId(), 20);
             return;
         }
 
         CGovernanceException exception;
         if(ProcessVote(pfrom, vote, exception)) {
-            LogPrint("gobject", "CGovernanceManager -- Accepted vote\n");
+            LogPrint("gobject", "MNGOVERNANCEOBJECTVOTE -- %s new\n", strHash);
             masternodeSync.AddedGovernanceItem();
         }
         else {
-            LogPrint("gobject", "CGovernanceManager -- Rejected vote, error = %s\n", exception.what());
+            LogPrint("gobject", "MNGOVERNANCEOBJECTVOTE -- Rejected vote, error = %s\n", exception.what());
             if((exception.GetNodePenalty() != 0) && masternodeSync.IsSynced()) {
                 Misbehaving(pfrom->GetId(), exception.GetNodePenalty());
             }
@@ -754,7 +755,7 @@ bool CGovernanceManager::ProcessVote(CNode* pfrom, const CGovernanceVote& vote, 
     CGovernanceObject& govobj = it->second;
     bool fOk = govobj.ProcessVote(pfrom, vote, exception);
     if(fOk) {
-        mapVoteToObject.Insert(vote.GetHash(), &govobj);
+        mapVoteToObject.Insert(nHashVote, &govobj);
 
         if(govobj.GetObjectType() == GOVERNANCE_OBJECT_WATCHDOG) {
             mnodeman.UpdateWatchdogVoteTime(vote.GetVinMasternode());
