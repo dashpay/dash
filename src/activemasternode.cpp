@@ -127,8 +127,52 @@ bool CActiveMasternode::SendMasternodePing()
 void CActiveMasternode::ManageStateInitial()
 {
     LogPrint("masternode", "CActiveMasternode::ManageStateInitial -- status = %s, type = %s, pinger enabled = %d\n", GetStatus(), GetTypeString(), fPingerEnabled);
+
     // Check that our local network configuration is correct
-    if(!GetLocal(service)) {
+    if (!fListen) {
+        // listen option is probably overwritten by smth else, no good
+        nState = ACTIVE_MASTERNODE_NOT_CAPABLE;
+        strNotCapableReason = "Masternode must accept connections from outside. Make sure listen configuration option is not overwritten by some another parameter.";
+        LogPrintf("CActiveMasternode::ManageStateInitial -- %s: %s\n", GetStateString(), strNotCapableReason);
+        return;
+    }
+
+    bool fFoundLocal = false;
+    {
+        LOCK(cs_vNodes);
+
+        // First try to find whatever local address is specified by externalip option
+        fFoundLocal = GetLocal(service);
+        if(!fFoundLocal) {
+            // nothing and no live connections, can't do anything for now
+            if (vNodes.empty()) {
+                nState = ACTIVE_MASTERNODE_NOT_CAPABLE;
+                strNotCapableReason = "Can't detect external address. Will retry when there are some connections available.";
+                LogPrintf("CActiveMasternode::ManageStateInitial -- %s: %s\n", GetStateString(), strNotCapableReason);
+                return;
+            }
+            // We have some peers, let's try to find our local address from one of them
+        }
+
+        // We've got smth already probably but let's see if we can find a better one from one of our peers
+        BOOST_FOREACH(CNode* pnode, vNodes) {
+            // NOTE: borrowed some code from AdvertiseLocal
+            if (pnode->fSuccessfullyConnected) {
+                CAddress addrLocal = GetLocalAddress(&pnode->addr);
+                // Sometimes our peer has a better idea of our address than we do.
+                if (IsPeerAddrLocalGood(pnode) && !addrLocal.IsRoutable()) {
+                    addrLocal.SetIP(pnode->addrLocal);
+                }
+                if (addrLocal.IsRoutable()) {
+                    fFoundLocal = true;
+                    service = addrLocal;
+                    break;
+                }
+            }
+        }
+    }
+
+    if(!fFoundLocal) {
         nState = ACTIVE_MASTERNODE_NOT_CAPABLE;
         strNotCapableReason = "Can't detect external address. Please consider using the externalip configuration option if problem persists.";
         LogPrintf("CActiveMasternode::ManageStateInitial -- %s: %s\n", GetStateString(), strNotCapableReason);
@@ -150,7 +194,7 @@ void CActiveMasternode::ManageStateInitial()
         return;
     }
 
-    LogPrintf("CActiveMasternode::ManageState -- Checking inbound connection to '%s'\n", service.ToString());
+    LogPrintf("CActiveMasternode::ManageStateInitial -- Checking inbound connection to '%s'\n", service.ToString());
 
     if(!ConnectNode((CAddress)service, NULL, true)) {
         nState = ACTIVE_MASTERNODE_NOT_CAPABLE;
