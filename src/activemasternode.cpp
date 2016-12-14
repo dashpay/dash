@@ -142,12 +142,12 @@ void CActiveMasternode::ManageStateInitial()
         LOCK(cs_vNodes);
 
         // First try to find whatever local address is specified by externalip option
-        fFoundLocal = GetLocal(service);
+        fFoundLocal = GetLocal(service) && CMasternode::IsValidNetAddr(service);
         if(!fFoundLocal) {
             // nothing and no live connections, can't do anything for now
             if (vNodes.empty()) {
                 nState = ACTIVE_MASTERNODE_NOT_CAPABLE;
-                strNotCapableReason = "Can't detect external address. Will retry when there are some connections available.";
+                strNotCapableReason = "Can't detect valid external address. Will retry when there are some connections available.";
                 LogPrintf("CActiveMasternode::ManageStateInitial -- %s: %s\n", GetStateString(), strNotCapableReason);
                 return;
             }
@@ -160,10 +160,10 @@ void CActiveMasternode::ManageStateInitial()
             if (pnode->fSuccessfullyConnected) {
                 CAddress addrLocal = GetLocalAddress(&pnode->addr);
                 // Sometimes our peer has a better idea of our address than we do.
-                if (IsPeerAddrLocalGood(pnode) && !addrLocal.IsRoutable()) {
+                if (IsPeerAddrLocalGood(pnode) && !CMasternode::IsValidNetAddr(addrLocal)) {
                     addrLocal.SetIP(pnode->addrLocal);
                 }
-                if (addrLocal.IsRoutable()) {
+                if (CMasternode::IsValidNetAddr(addrLocal)) {
                     fFoundLocal = true;
                     service = addrLocal;
                     break;
@@ -174,7 +174,7 @@ void CActiveMasternode::ManageStateInitial()
 
     if(!fFoundLocal) {
         nState = ACTIVE_MASTERNODE_NOT_CAPABLE;
-        strNotCapableReason = "Can't detect external address. Please consider using the externalip configuration option if problem persists.";
+        strNotCapableReason = "Can't detect valid external address. Please consider using the externalip configuration option if problem persists. Make sure to use IPv4 address only.";
         LogPrintf("CActiveMasternode::ManageStateInitial -- %s: %s\n", GetStateString(), strNotCapableReason);
         return;
     }
