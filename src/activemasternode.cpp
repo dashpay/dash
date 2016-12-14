@@ -152,21 +152,10 @@ void CActiveMasternode::ManageStateInitial()
                 return;
             }
             // We have some peers, let's try to find our local address from one of them
-        }
-
-        // We've got smth already probably but let's see if we can find a better one from one of our peers
-        BOOST_FOREACH(CNode* pnode, vNodes) {
-            // NOTE: borrowed some code from AdvertiseLocal
-            if (pnode->fSuccessfullyConnected) {
-                CAddress addrLocal = GetLocalAddress(&pnode->addr);
-                // Sometimes our peer has a better idea of our address than we do.
-                if (IsPeerAddrLocalGood(pnode) && !CMasternode::IsValidNetAddr(addrLocal)) {
-                    addrLocal.SetIP(pnode->addrLocal);
-                }
-                if (CMasternode::IsValidNetAddr(addrLocal)) {
-                    fFoundLocal = true;
-                    service = addrLocal;
-                    break;
+            BOOST_FOREACH(CNode* pnode, vNodes) {
+                if (pnode->fSuccessfullyConnected && pnode->addr.IsIPv4()) {
+                    fFoundLocal = GetLocal(service, &pnode->addr) && CMasternode::IsValidNetAddr(service);
+                    if(fFoundLocal) break;
                 }
             }
         }
