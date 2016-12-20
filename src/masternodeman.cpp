@@ -139,11 +139,9 @@ void CMasternodeMan::AskForMN(CNode* pnode, const CTxIn &vin)
     LOCK(cs);
 
     std::map<COutPoint, std::map<CNetAddr, int64_t> >::iterator it1 = mWeAskedForMasternodeListEntry.find(vin.prevout);
-    std::map<CNetAddr, int64_t> tmpMap;
     if (it1 != mWeAskedForMasternodeListEntry.end()) {
-        tmpMap = it1->second;
-        std::map<CNetAddr, int64_t>::iterator it2 = tmpMap.find(pnode->addr);
-        if (it2 != tmpMap.end()) {
+        std::map<CNetAddr, int64_t>::iterator it2 = it1->second.find(pnode->addr);
+        if (it2 != it1->second.end()) {
             if (GetTime() < it2->second) {
                 // we've asked recently, should not repeat too often or we could get banned
                 return;
@@ -158,8 +156,7 @@ void CMasternodeMan::AskForMN(CNode* pnode, const CTxIn &vin)
         // we never asked any node for this outpoint
         LogPrintf("CMasternodeMan::AskForMN -- Asking peer %s for missing masternode entry for the first time: %s\n", pnode->addr.ToString(), vin.prevout.ToStringShort());
     }
-    tmpMap[pnode->addr] = GetTime() + DSEG_UPDATE_SECONDS;
-    mWeAskedForMasternodeListEntry[vin.prevout] = tmpMap;
+    mWeAskedForMasternodeListEntry[vin.prevout][pnode->addr] = GetTime() + DSEG_UPDATE_SECONDS;
 
     pnode->PushMessage(NetMsgType::DSEG, vin);
 }
