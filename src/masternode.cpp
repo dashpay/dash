@@ -94,7 +94,7 @@ CMasternode::CMasternode(const CMasternodeBroadcast& mnb) :
     nTimeLastChecked(0),
     nTimeLastPaid(0),
     nTimeLastWatchdogVote(mnb.sigTime),
-    nActiveState(MASTERNODE_ENABLED),
+    nActiveState(mnb.nActiveState),
     nCacheCollateralBlock(0),
     nBlockLastPaid(0),
     nProtocolVersion(mnb.nProtocolVersion),
@@ -508,7 +508,8 @@ bool CMasternodeBroadcast::SimpleCheck(int& nDos)
 
     // empty ping or incorrect sigTime/unknown blockhash
     if(lastPing == CMasternodePing() || !lastPing.SimpleCheck(nDos)) {
-        return false;
+        // one of us is probably forked or smth, just mark it as expired and check the rest of the rules
+        nActiveState = MASTERNODE_EXPIRED;
     }
 
     if(nProtocolVersion < mnpayments.GetMinMasternodePaymentsProto()) {
