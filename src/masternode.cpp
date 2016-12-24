@@ -229,6 +229,22 @@ void CMasternode::Check(bool fForce)
     // keep old masternodes on start, give them a chance to receive updates...
     bool fWaitForPing = !masternodeSync.IsMasternodeListSynced() && !IsPingedWithin(MASTERNODE_MIN_MNP_SECONDS);
 
+    //
+    // REMOVE AFTER MIGRATION TO 12.1
+    //
+    // Old nodes do send pings on dseg, so they could switch to one of the expired states
+    // if we were offline for too long even if they are actually enabled for the rest
+    // of the network. Postpone their check for MASTERNODE_MIN_MNP_SECONDS seconds.
+    // This could be usefull for 12.1 migration, can be removed after it's done.
+    static int64_t nTimeStart = GetTime();
+    if(nProtocolVersion < 70204) {
+        if(!masternodeSync.IsMasternodeListSynced()) nTimeStart = GetTime();
+        fWaitForPing = GetTime() - nTimeStart < MASTERNODE_MIN_MNP_SECONDS;
+    }
+    //
+    // END REMOVE
+    //
+
     if(fWaitForPing && !fOurMasternode) {
         // ...but if it was already expired before the initial check - return right away
         if(IsExpired() || IsWatchdogExpired() || IsNewStartRequired()) {
