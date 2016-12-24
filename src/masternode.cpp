@@ -232,7 +232,7 @@ void CMasternode::Check(bool fForce)
     //
     // REMOVE AFTER MIGRATION TO 12.1
     //
-    // Old nodes do send pings on dseg, so they could switch to one of the expired states
+    // Old nodes don't send pings on dseg, so they could switch to one of the expired states
     // if we were offline for too long even if they are actually enabled for the rest
     // of the network. Postpone their check for MASTERNODE_MIN_MNP_SECONDS seconds.
     // This could be usefull for 12.1 migration, can be removed after it's done.
