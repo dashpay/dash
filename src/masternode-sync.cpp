@@ -17,11 +17,12 @@
 class CMasternodeSync;
 CMasternodeSync masternodeSync;
 
-bool CMasternodeSync::IsBlockchainSynced(bool fReset)
+bool CMasternodeSync::IsBlockchainSynced(bool fBlockAccepted)
 {
     static bool fBlockchainSynced = false;
     static int64_t nTimeLastProcess = GetTime();
     static int nSkipped = 0;
+    static bool fFirstBlockAccepted = false;
 
     // if the last call to this function was more than 60 minutes ago (client was in sleep mode) reset the sync process
     if(GetTime() - nTimeLastProcess > 60*60) {
@@ -31,11 +32,12 @@ bool CMasternodeSync::IsBlockchainSynced(bool fReset)
 
     if(!pCurrentBlockIndex || !pindexBestHeader || fImporting || fReindex) return false;
 
-    if(fReset) {
+    if(fBlockAccepted) {
         // this should be only triggered while we are still syncing
         if(!IsSynced()) {
             // we are trying to download smth, reset blockchain sync status
             if(fDebug) LogPrintf("CMasternodeSync::IsBlockchainSynced -- reset\n");
+            fFirstBlockAccepted = true;
             fBlockchainSynced = false;
             nTimeLastProcess = GetTime();
             return false;
@@ -54,8 +56,12 @@ bool CMasternodeSync::IsBlockchainSynced(bool fReset)
     nSkipped = 0;
 
     if(fBlockchainSynced) return true;
+
     if(fCheckpointsEnabled && pCurrentBlockIndex->nHeight < Checkpoints::GetTotalBlocksEstimate(Params().Checkpoints()))
         return false;
+
+    // wait for at least one new block to be accepted
+    if(!fFirstBlockAccepted) return false;
 
     // same as !IsInitialBlockDownload() but no cs_main needed here
     int64_t nMaxBlockTime = std::max(pCurrentBlockIndex->GetBlockTime(), pindexBestHeader->GetBlockTime());
