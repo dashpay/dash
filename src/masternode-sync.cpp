@@ -17,7 +17,7 @@
 class CMasternodeSync;
 CMasternodeSync masternodeSync;
 
-bool CMasternodeSync::IsBlockchainSynced()
+bool CMasternodeSync::IsBlockchainSynced(bool fReset)
 {
     static bool fBlockchainSynced = false;
     static int64_t nTimeLastProcess = GetTime();
@@ -27,10 +27,27 @@ bool CMasternodeSync::IsBlockchainSynced()
         Reset();
         fBlockchainSynced = false;
     }
+
+    if(!pCurrentBlockIndex || !pindexBestHeader || fImporting || fReindex) return false;
+
+    if(fReset) {
+        // this should be only triggered while we are still syncing
+        if(!IsSynced()) {
+            // we are trying to download smth, reset blockchain sync status
+            fBlockchainSynced = false;
+            nTimeLastProcess = GetTime();
+            return false;
+        }
+    } else {
+        // skip if we already checked less than 1 tick ago
+        if(GetTime() - nTimeLastProcess < MASTERNODE_SYNC_TICK_SECONDS) {
+            return fBlockchainSynced;
+        }
+    }
+
     nTimeLastProcess = GetTime();
 
     if(fBlockchainSynced) return true;
-    if(!pCurrentBlockIndex || !pindexBestHeader || fImporting || fReindex) return false;
     if(fCheckpointsEnabled && pCurrentBlockIndex->nHeight < Checkpoints::GetTotalBlocksEstimate(Params().Checkpoints()))
         return false;
 
@@ -172,7 +189,7 @@ void ReleaseNodes(const std::vector<CNode*> &vNodesCopy)
 void CMasternodeSync::ProcessTick()
 {
     static int nTick = 0;
-    if(nTick++ % 6 != 0) return;
+    if(nTick++ % MASTERNODE_SYNC_TICK_SECONDS != 0) return;
     if(!pCurrentBlockIndex) return;
 
     //the actual count of masternodes we have currently
@@ -214,6 +231,9 @@ void CMasternodeSync::ProcessTick()
             !IsBlockchainSynced() && nRequestedMasternodeAssets > MASTERNODE_SYNC_SPORKS)
     {
         LogPrintf("CMasternodeSync::ProcessTick -- nTick %d nRequestedMasternodeAssets %d nRequestedMasternodeAttempt %d -- blockchain is not synced yet\n", nTick, nRequestedMasternodeAssets, nRequestedMasternodeAttempt);
+        nTimeLastMasternodeList = GetTime();
+        nTimeLastPaymentVote = GetTime();
+        nTimeLastGovernanceItem = GetTime();
         return;
     }
 
