@@ -21,6 +21,7 @@ bool CMasternodeSync::IsBlockchainSynced(bool fReset)
 {
     static bool fBlockchainSynced = false;
     static int64_t nTimeLastProcess = GetTime();
+    static int nSkipped = 0;
 
     // if the last call to this function was more than 60 minutes ago (client was in sleep mode) reset the sync process
     if(GetTime() - nTimeLastProcess > 60*60) {
@@ -34,6 +35,7 @@ bool CMasternodeSync::IsBlockchainSynced(bool fReset)
         // this should be only triggered while we are still syncing
         if(!IsSynced()) {
             // we are trying to download smth, reset blockchain sync status
+            if(fDebug) LogPrintf("CMasternodeSync::IsBlockchainSynced -- reset\n");
             fBlockchainSynced = false;
             nTimeLastProcess = GetTime();
             return false;
@@ -41,11 +43,15 @@ bool CMasternodeSync::IsBlockchainSynced(bool fReset)
     } else {
         // skip if we already checked less than 1 tick ago
         if(GetTime() - nTimeLastProcess < MASTERNODE_SYNC_TICK_SECONDS) {
+            nSkipped++;
             return fBlockchainSynced;
         }
     }
 
+    if(fDebug) LogPrintf("CMasternodeSync::IsBlockchainSynced -- state before check: %ssynced, skipped %d times\n", fBlockchainSynced ? "" : "not ", nSkipped);
+
     nTimeLastProcess = GetTime();
+    nSkipped = 0;
 
     if(fBlockchainSynced) return true;
     if(fCheckpointsEnabled && pCurrentBlockIndex->nHeight < Checkpoints::GetTotalBlocksEstimate(Params().Checkpoints()))
