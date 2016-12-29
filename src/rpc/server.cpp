@@ -235,7 +235,11 @@ std::string CRPCTable::help(const std::string& strCommand, const std::string& st
         vCommands.push_back(make_pair(mi->second->category + mi->first, mi->second));
     sort(vCommands.begin(), vCommands.end());
 
-    BOOST_FOREACH(const PAIRTYPE(std::string, const CRPCCommand*)& command, vCommands)
+    JSONRPCRequest jreq(helpreq);
+    jreq.fHelp = true;
+    jreq.params = UniValue();
+
+    BOOST_FOREACH(const PAIRTYPE(string, const CRPCCommand*)& command, vCommands)
     {
         const CRPCCommand *pcmd = command.second;
         std::string strMethod = pcmd->name;
@@ -244,6 +248,7 @@ std::string CRPCTable::help(const std::string& strCommand, const std::string& st
             continue;
         if ((strCommand != "" || pcmd->category == "hidden") && strMethod != strCommand)
             continue;
+        jreq.strMethod = strMethod;
         try
         {
             JSONRPCRequest jreq;
