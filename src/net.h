@@ -404,6 +404,8 @@ private:
     void ThreadDNSAddressSeed();
     void ThreadMnbRequestConnections();
 
+    void WakeMessageHandler();
+
     CNode* FindNode(const CNetAddr& ip);
     CNode* FindNode(const CSubNet& subNet);
     CNode* FindNode(const std::string& addrName);
