@@ -242,7 +242,7 @@ void CMasternodeMan::CheckAndRemove()
         while(itMnbReplies != mMnbRecoveryGoodReplies.end()){
             if(mMnbRecoveryRequests[itMnbReplies->first].first < GetTime()) {
                 // all nodes we asked should have replied now
-                if(itMnbReplies->second.size() > MNB_RECOVERY_QUORUM_REQUIRED) {
+                if(itMnbReplies->second.size() >= MNB_RECOVERY_QUORUM_REQUIRED) {
                     // majority of nodes we asked agrees that this mn doesn't require new mnb, reprocess one of new mnbs
                     LogPrint("masternode", "CMasternodeMan::CheckAndRemove -- reprocessing mnb, masternode=%s\n", itMnbReplies->second[0].vin.prevout.ToStringShort());
                     // mapSeenMasternodeBroadcast.erase(itMnbReplies->first);
