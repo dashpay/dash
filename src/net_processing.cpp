@@ -2178,36 +2178,43 @@ bool ProcessMessages(CNode* pfrom, CConnman& connman, std::atomic<bool>& interru
     //  (4) checksum
     //  (x) data
     //
-    bool fOk = true;
+    bool fMoreWork = false;
 
     if (!pfrom->vRecvGetData.empty())
         ProcessGetData(pfrom, chainparams.GetConsensus(), connman, interruptMsgProc);
 
-    // this maintains the order of responses
-    if (!pfrom->vRecvGetData.empty()) return fOk;
+    if (pfrom->fDisconnect)
+        return false;
 
-    auto it = pfrom->vRecvMsg.begin();
-    while (!pfrom->fDisconnect && it != pfrom->vRecvMsg.end()) {
+    // this maintains the order of responses
+    if (!pfrom->vRecvGetData.empty()) return true;
+
         // Don't bother if send buffer is too full to respond anyway
         if (pfrom->nSendSize >= nMaxSendBufferSize)
-            break;
+            return false;
 
-        // get next message
-        CNetMessage& msg = *it;
+        auto it = pfrom->vRecvMsg.begin();
+        if (it == pfrom->vRecvMsg.end())
+            return false;
 
         // end, if an incomplete message is found
-        if (!msg.complete())
-            break;
+        if (!it->complete())
+            return false;
+
+        // get next message
+        CNetMessage msg = std::move(*it);
 
         // at this point, any failure means we can delete the current message
-        it++;
+        pfrom->vRecvMsg.erase(pfrom->vRecvMsg.begin());
+
+        fMoreWork = !pfrom->vRecvMsg.empty() && pfrom->vRecvMsg.front().complete();
 
         msg.SetVersion(pfrom->GetRecvVersion());
         // Scan for message start
         if (memcmp(msg.hdr.pchMessageStart, chainparams.MessageStart(), MESSAGE_START_SIZE) != 0) {
             LogPrintf("PROCESSMESSAGE: INVALID MESSAGESTART %s peer=%d\n", SanitizeString(msg.hdr.GetCommand()), pfrom->id);
-            fOk = false;
-            break;
+            pfrom->fDisconnect = true;
+            return false;
         }
 
         // Read header
@@ -2215,7 +2222,7 @@ bool ProcessMessages(CNode* pfrom, CConnman& connman, std::atomic<bool>& interru
         if (!hdr.IsValid(chainparams.MessageStart()))
         {
             LogPrintf("PROCESSMESSAGE: ERRORS IN HEADER %s peer=%d\n", SanitizeString(hdr.GetCommand()), pfrom->id);
-            continue;
+            return fMoreWork;
         }
         string strCommand = hdr.GetCommand();
 
@@ -2231,7 +2238,7 @@ bool ProcessMessages(CNode* pfrom, CConnman& connman, std::atomic<bool>& interru
                SanitizeString(strCommand), nMessageSize,
                HexStr(hash.begin(), hash.begin()+CMessageHeader::CHECKSUM_SIZE),
                HexStr(hdr.pchChecksum, hdr.pchChecksum+CMessageHeader::CHECKSUM_SIZE));
-            continue;
+            return fMoreWork;
         }
 
         // Process message
@@ -2240,7 +2247,9 @@ bool ProcessMessages(CNode* pfrom, CConnman& connman, std::atomic<bool>& interru
         {
             fRet = ProcessMessage(pfrom, strCommand, vRecv, msg.nTime, connman, interruptMsgProc);
             if (interruptMsgProc)
-                return true;
+                return false;
+            if (!pfrom->vRecvGetData.empty())
+                fMoreWork = true;
         }
         catch (const std::ios_base::failure& e)
         {
@@ -2269,14 +2278,7 @@ bool ProcessMessages(CNode* pfrom, CConnman& connman, std::atomic<bool>& interru
         if (!fRet)
             LogPrintf("%s(%s, %u bytes) FAILED peer=%d\n", __func__, SanitizeString(strCommand), nMessageSize, pfrom->id);
 
-        break;
-    }
-
-    // In case the connection got shut down, its receive buffer was wiped
-    if (!pfrom->fDisconnect)
-        pfrom->vRecvMsg.erase(pfrom->vRecvMsg.begin(), it);
-
-    return fOk;
+    return fMoreWork;
 }
 
 
