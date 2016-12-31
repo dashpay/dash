@@ -672,6 +672,7 @@ public:
 
     CCriticalSection cs_vProcessMsg;
     std::list<CNetMessage> vProcessMsg;
+    size_t nProcessQueueSize;
 
     std::deque<CInv> vRecvGetData;
     std::list<CNetMessage> vRecvMsg;
@@ -715,6 +716,8 @@ public:
     CBloomFilter* pfilter;
     int nRefCount;
     NodeId id;
+
+    std::atomic_bool fPauseRecv;
 protected:
 
     mapMsgCmdSize mapSendBytesPerMsgCmd;
@@ -796,15 +799,6 @@ public:
         LOCK(cs_nRefCount);
         assert(nRefCount >= 0);
         return nRefCount;
-    }
-
-    // requires LOCK(cs_vRecvMsg)
-    unsigned int GetTotalRecvSize()
-    {
-        unsigned int total = 0;
-        BOOST_FOREACH(const CNetMessage &msg, vRecvMsg)
-            total += msg.vRecv.size() + 24;
-        return total;
     }
 
     // requires LOCK(cs_vRecvMsg)
