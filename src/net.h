@@ -667,7 +667,7 @@ public:
     CCriticalSection cs_vSend;
 
     std::deque<CInv> vRecvGetData;
-    std::deque<CNetMessage> vRecvMsg;
+    std::list<CNetMessage> vRecvMsg;
     CCriticalSection cs_vRecvMsg;
     uint64_t nRecvBytes;
     int nRecvVersion;
