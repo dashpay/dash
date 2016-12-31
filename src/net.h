@@ -386,6 +386,7 @@ public:
     int GetBestHeight() const;
 
 
+    unsigned int GetReceiveFloodSize() const;
 private:
     struct ListenSocket {
         SOCKET socket;
@@ -424,8 +425,6 @@ private:
     void DumpAddresses();
     void DumpData();
     void DumpBanlist();
-
-    unsigned int GetReceiveFloodSize() const;
 
     CDataStream BeginMessage(CNode* node, int nVersion, int flags, const std::string& sCommand);
     void PushMessage(CNode* pnode, CDataStream& strm, const std::string& sCommand);
