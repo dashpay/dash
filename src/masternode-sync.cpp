@@ -298,7 +298,8 @@ void CMasternodeSync::ProcessTick()
             CNodeStateStats stats;
             if(!GetNodeStateStats(pnode->id, stats) || stats.nCommonHeight == -1 || stats.nSyncHeight == -1) continue; // not enough info about this peer
 
-            if(pCurrentBlockIndex->nHeight > stats.nCommonHeight) {
+            // Check blocks and headers, allow a small error margin of 1 block
+            if(pCurrentBlockIndex->nHeight - 1 > stats.nCommonHeight) {
                 // This peer probably stuck, don't sync any additional data,
                 // disconnect to free this connection slot for another peer.
                 pnode->fDisconnect = true;
@@ -306,7 +307,7 @@ void CMasternodeSync::ProcessTick()
                             pCurrentBlockIndex->nHeight, stats.nCommonHeight, pnode->id);
                 continue;
             }
-            else if(pCurrentBlockIndex->nHeight < stats.nSyncHeight) {
+            else if(pCurrentBlockIndex->nHeight < stats.nSyncHeight - 1) {
                 // This peer has more headers than we do, we probably need to wait a bit
                 // or this peer is on another (longer??) chain, so our data could be incompatible,
                 // skip it anyway for now but do not disconnect, maybe that chain is the right one.
