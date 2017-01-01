@@ -308,10 +308,11 @@ void CMasternodeSync::ProcessTick()
                 continue;
             }
             else if(pCurrentBlockIndex->nHeight < stats.nSyncHeight - 1) {
-                // This peer has more headers than we do, we probably need to wait a bit
-                // or this peer is on another (longer??) chain, so our data could be incompatible,
-                // skip it anyway for now but do not disconnect, maybe that chain is the right one.
-                LogPrintf("CMasternodeSync::ProcessTick -- skipping peer, who has more headers than we do, nHeight=%d, nSyncHeight=%d, peer=%d\n",
+                // This peer announced more headers than we have blocks currently,
+                // we probably need to wait a bit or this peer is on another (longer??) chain,
+                // so our data could be incompatible, skip it anyway for now but do not disconnect,
+                // maybe that chain is the right one.
+                LogPrintf("CMasternodeSync::ProcessTick -- skipping peer, who announced more headers than we have blocks currently, nHeight=%d, nSyncHeight=%d, peer=%d\n",
                             pCurrentBlockIndex->nHeight, stats.nSyncHeight, pnode->id);
                 continue;
             }
