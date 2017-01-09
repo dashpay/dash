@@ -2508,6 +2508,7 @@ UniValue listunspent(const UniValue& params, bool fHelp)
             "    \"scriptPubKey\" : \"key\", (string) the script key\n"
             "    \"amount\" : x.xxx,         (numeric) the transaction amount in " + CURRENCY_UNIT + "\n"
             "    \"confirmations\" : n       (numeric) The number of confirmations\n"
+            "    \"spendable\" : true|false  (boolean) True if spendable\n"
             "  }\n"
             "  ,...\n"
             "]\n"
