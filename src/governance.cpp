@@ -141,6 +141,11 @@ void CGovernanceManager::ProcessMessage(CNode* pfrom, std::string& strCommand, C
             return;
         }
 
+        if(!masternodeSync.IsMasternodeListSynced()) {
+            LogPrint("gobject", "MNGOVERNANCEOBJECT -- masternode list not synced\n");
+            return;
+        }
+
         CGovernanceObject govobj;
         vRecv >> govobj;
 
@@ -654,27 +659,22 @@ void CGovernanceManager::Sync(CNode* pfrom, uint256 nProp)
 
     {
         LOCK2(cs_main, cs);
+        object_m_it it = nProp == uint256() ? mapObjects.begin() : mapObjects.find(nProp);
+
+        if(it == mapObjects.end()) {
+            LogPrint("gobject", "CGovernanceManager::Sync -- no matching object for hash %s, peer=%d\n", nProp.ToString(), pfrom->id);
+            return;
+        }
+
         fRateChecksEnabled = false;
-        for(object_m_it it = mapObjects.begin(); it != mapObjects.end(); ++it) {
+        for(; it != mapObjects.end(); ++it) {
             uint256 h = it->first;
 
             CGovernanceObject& govobj = it->second;
 
-            if((nProp != uint256()) && (h != nProp)) {
-                continue;
-            }
-
             std::string strHash = h.ToString();
 
             LogPrint("gobject", "CGovernanceManager::Sync -- attempting to sync govobj: %s, peer=%d\n", strHash, pfrom->id);
-
-            std::string strError;
-            bool fIsValid = govobj.IsValidLocally(strError, true);
-            if(!fIsValid) {
-                LogPrintf("CGovernanceManager::Sync -- not syncing invalid govobj: %s, strError = %s, fCachedValid = %d, peer=%d\n", 
-                         strHash, strError, govobj.IsSetCachedValid(), pfrom->id);
-                continue;
-            }
 
             if(!govobj.IsSetCachedValid()) {
                 LogPrintf("CGovernanceManager::Sync -- invalid flag cached, not syncing govobj: %s, fCachedValid = %d, peer=%d\n", 
@@ -687,6 +687,8 @@ void CGovernanceManager::Sync(CNode* pfrom, uint256 nProp)
             pfrom->PushInventory(CInv(MSG_GOVERNANCE_OBJECT, h));
             ++nObjCount;
 
+            if(nProp == uint256()) continue; // peer should request votes on per-obj basis later
+
             std::vector<CGovernanceVote> vecVotes = govobj.GetVoteFile().GetVotes();
             for(size_t i = 0; i < vecVotes.size(); ++i) {
                 if(!vecVotes[i].IsValid(true)) {
@@ -695,6 +697,7 @@ void CGovernanceManager::Sync(CNode* pfrom, uint256 nProp)
                 pfrom->PushInventory(CInv(MSG_GOVERNANCE_OBJECT_VOTE, vecVotes[i].GetHash()));
                 ++nVoteCount;
             }
+            break;
         }
         fRateChecksEnabled = true;
     }
@@ -918,6 +921,37 @@ void CGovernanceManager::RequestGovernanceObject(CNode* pfrom, const uint256& nH
     }
 
     pfrom->PushMessage(NetMsgType::MNGOVERNANCESYNC, nHash);
+}
+
+void CGovernanceManager::RequestGovernanceObjectVotes(CNode* pnode)
+{
+    static std::map<uint256, int64_t> mapAskedRecently;
+    LOCK2(cs_main, cs);
+    if(pnode->setAskFor.size() > SETASKFOR_MAX_SZ/2) return;
+    std::vector<CGovernanceObject> vGovObjsTmp;
+    std::vector<CGovernanceObject> vGovObjsTriggersTmp;
+    int64_t nNow = GetTime();
+    // request votes on per-obj basis while syncing
+    for(object_m_it it = mapObjects.begin(); it != mapObjects.end(); ++it) {
+        if(mapAskedRecently.count(it->first) && mapAskedRecently[it->first] > nNow) continue;
+        if((int)it->second.mapCurrentMNVotes.size() < mnodeman.CountEnabled()/2) {
+            if(it->second.nObjectType == GOVERNANCE_OBJECT_TRIGGER)
+                vGovObjsTriggersTmp.push_back(it->second);
+            else
+                vGovObjsTmp.push_back(it->second);
+        }
+    }
+    uint256 nHashGovobj;
+    // ask for triggers first
+    if(vGovObjsTriggersTmp.size()) {
+        nHashGovobj = vGovObjsTriggersTmp[GetRandInt(vGovObjsTriggersTmp.size())].GetHash();
+    } else {
+        if(vGovObjsTmp.empty()) return;
+        nHashGovobj = vGovObjsTmp[GetRandInt(vGovObjsTmp.size())].GetHash();
+    }
+    LogPrintf("CGovernanceManager::RequestGovernanceObjectVotes -- Requesting votes for %s, peer=%d\n", nHashGovobj.ToString(), pnode->id);
+    RequestGovernanceObject(pnode, nHashGovobj);
+    mapAskedRecently[nHashGovobj] = nNow + 2 * 60; // ask again in 2 minutes
 }
 
 bool CGovernanceManager::AcceptObjectMessage(const uint256& nHash)

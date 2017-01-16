@@ -375,6 +375,8 @@ public:
 
     void InitOnLoad();
 
+    void RequestGovernanceObjectVotes(CNode* pnode);
+
 private:
     void RequestGovernanceObject(CNode* pfrom, const uint256& nHash);
 
