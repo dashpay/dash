@@ -376,7 +376,7 @@ public:
     void InitOnLoad();
 
     void RequestGovernanceObjectVotes(CNode* pnode);
-    void RequestGovernanceObjectVotes(std::vector<CNode*> vNodesCopy);
+    void RequestGovernanceObjectVotes(const std::vector<CNode*>& vNodesCopy);
 
 private:
     void RequestGovernanceObject(CNode* pfrom, const uint256& nHash);

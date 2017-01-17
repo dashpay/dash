@@ -936,12 +936,13 @@ void CGovernanceManager::RequestGovernanceObject(CNode* pfrom, const uint256& nH
 
 void CGovernanceManager::RequestGovernanceObjectVotes(CNode* pnode)
 {
+    if(pnode->nVersion < MIN_GOVERNANCE_PEER_PROTO_VERSION) return;
     std::vector<CNode*> vNodesCopy;
     vNodesCopy.push_back(pnode);
     RequestGovernanceObjectVotes(vNodesCopy);
 }
 
-void CGovernanceManager::RequestGovernanceObjectVotes(std::vector<CNode*> vNodesCopy)
+void CGovernanceManager::RequestGovernanceObjectVotes(const std::vector<CNode*>& vNodesCopy)
 {
     static std::map<uint256, int64_t> mapAskedRecently;
     LOCK2(cs_main, cs);
@@ -959,6 +960,9 @@ void CGovernanceManager::RequestGovernanceObjectVotes(std::vector<CNode*> vNodes
         // only use reqular peers, don't try to ask from temporary nodes we connected to -
         // they stay connected for a short period of time and it's possible that we won't get everything we should
         if(pnode->fMasternode) continue;
+        // only use up to date peers
+        if(pnode->nVersion < MIN_GOVERNANCE_PEER_PROTO_VERSION) continue;
+        // stop early to prevent setAskFor overflow
         if(pnode->setAskFor.size() > SETASKFOR_MAX_SZ/2) continue;
         uint256 nHashGovobj;
         // ask for triggers first
