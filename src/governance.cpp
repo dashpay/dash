@@ -934,12 +934,10 @@ void CGovernanceManager::RequestGovernanceObjectVotes(CNode* pnode)
     // request votes on per-obj basis while syncing
     for(object_m_it it = mapObjects.begin(); it != mapObjects.end(); ++it) {
         if(mapAskedRecently.count(it->first) && mapAskedRecently[it->first] > nNow) continue;
-        if((int)it->second.mapCurrentMNVotes.size() < mnodeman.CountEnabled()/2) {
-            if(it->second.nObjectType == GOVERNANCE_OBJECT_TRIGGER)
-                vGovObjsTriggersTmp.push_back(it->second);
-            else
-                vGovObjsTmp.push_back(it->second);
-        }
+        if(it->second.nObjectType == GOVERNANCE_OBJECT_TRIGGER)
+            vGovObjsTriggersTmp.push_back(it->second);
+        else
+            vGovObjsTmp.push_back(it->second);
     }
     uint256 nHashGovobj;
     // ask for triggers first
@@ -951,7 +949,7 @@ void CGovernanceManager::RequestGovernanceObjectVotes(CNode* pnode)
     }
     LogPrintf("CGovernanceManager::RequestGovernanceObjectVotes -- Requesting votes for %s, peer=%d\n", nHashGovobj.ToString(), pnode->id);
     RequestGovernanceObject(pnode, nHashGovobj);
-    mapAskedRecently[nHashGovobj] = nNow + 2 * 60; // ask again in 2 minutes
+    mapAskedRecently[nHashGovobj] = nNow + mapObjects.size() * 60;
 }
 
 bool CGovernanceManager::AcceptObjectMessage(const uint256& nHash)
