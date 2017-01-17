@@ -283,10 +283,7 @@ void CMasternodeSync::ProcessTick()
                     BOOST_FOREACH(CNode* pnode, vNodesCopy)
                         pnode->AddRef();
                 }
-
-                BOOST_FOREACH(CNode* pnode, vNodesCopy)
-                    governance.RequestGovernanceObjectVotes(pnode);
-
+                governance.RequestGovernanceObjectVotes(vNodesCopy);
                 ReleaseNodes(vNodesCopy);
                 return;
             }
