@@ -102,6 +102,7 @@ CMasternodeMan::CMasternodeMan()
   mAskedUsForMasternodeList(),
   mWeAskedForMasternodeList(),
   mWeAskedForMasternodeListEntry(),
+  vScheduledMnbRequestConnections(),
   nLastIndexRebuildTime(0),
   indexMasternodes(),
   indexMasternodesOld(),
@@ -160,6 +161,16 @@ void CMasternodeMan::AskForMN(CNode* pnode, const CTxIn &vin)
     pnode->PushMessage(NetMsgType::DSEG, vin);
 }
 
+void CMasternodeMan::AskForMnb(CNode* pnode, const uint256 &hash)
+{
+    if(!pnode || hash == uint256()) return;
+
+    LogPrint("masternode", "CMasternodeMan::AskForMnb -- asking for mnb %s from addr=%s\n", hash.ToString(), pnode->addr.ToString());
+    std::vector<CInv> vToFetch;
+    vToFetch.push_back(CInv(MSG_MASTERNODE_ANNOUNCE, hash));
+    pnode->PushMessage(NetMsgType::GETDATA, vToFetch);
+}
+
 void CMasternodeMan::Check()
 {
     LOCK(cs);
@@ -179,7 +190,7 @@ void CMasternodeMan::CheckAndRemove()
 
     {
         // Need LOCK2 here to ensure consistent locking order because code below locks cs_main
-        // through GetHeight() signal in ConnectNode and in CheckMnbAndUpdateMasternodeList()
+        // in CheckMnbAndUpdateMasternodeList()
         LOCK2(cs_main, cs);
 
         Check();
@@ -223,18 +234,9 @@ void CMasternodeMan::CheckAndRemove()
                         if(mWeAskedForMasternodeListEntry.count(it->vin.prevout) && mWeAskedForMasternodeListEntry[it->vin.prevout].count(vecMasternodeRanks[i].second.addr)) continue;
                         // didn't ask recently, ok to ask now
                         CService addr = vecMasternodeRanks[i].second.addr;
-                        CNode* pnode = ConnectNode(CAddress(addr), NULL, true);
-                        if(pnode) {
-                            LogPrint("masternode", "CMasternodeMan::CheckAndRemove -- asking for mnb of %s, addr=%s\n", it->vin.prevout.ToStringShort(), addr.ToString());
-                            setRequested.insert(addr);
-                            // can't use AskForMN here, inv system is way too smart, request data directly instead
-                            std::vector<CInv> vToFetch;
-                            vToFetch.push_back(CInv(MSG_MASTERNODE_ANNOUNCE, hash));
-                            pnode->PushMessage(NetMsgType::GETDATA, vToFetch);
-                            fAskedForMnbRecovery = true;
-                        } else {
-                            LogPrint("masternode", "CMasternodeMan::CheckAndRemove -- can't connect to node to ask for mnb, addr=%s\n", addr.ToString());
-                        }
+                        setRequested.insert(addr);
+                        vScheduledMnbRequestConnections.push_back(std::make_pair(addr, hash));
+                        fAskedForMnbRecovery = true;
                     }
                     // wait for mnb recovery replies for MNB_RECOVERY_WAIT_SECONDS seconds
                     mMnbRecoveryRequests[hash] = std::make_pair(GetTime() + MNB_RECOVERY_WAIT_SECONDS, setRequested);
@@ -770,6 +772,17 @@ void CMasternodeMan::ProcessMasternodeConnections()
         }
     }
 }
+
+std::pair<CService, uint256> CMasternodeMan::PopScheduledMnbRequestConnection()
+{
+    LOCK(cs);
+    if(vScheduledMnbRequestConnections.empty()) return make_pair(CService(), uint256());
+    std::vector< std::pair<CService, uint256> >::iterator it = vScheduledMnbRequestConnections.begin();
+    std::pair<CService, uint256> p = (*it);
+    vScheduledMnbRequestConnections.erase(it);
+    return p;
+}
+
 
 void CMasternodeMan::ProcessMessage(CNode* pfrom, std::string& strCommand, CDataStream& vRecv)
 {
