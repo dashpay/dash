@@ -24,6 +24,7 @@
 #include "txmempool.h"
 #include "uint256.h"
 #include "utilstrencodings.h"
+#include "instantx.h"
 #ifdef ENABLE_WALLET
 #include "wallet/wallet.h"
 #endif
@@ -864,6 +865,10 @@ UniValue sendrawtransaction(const UniValue& params, bool fHelp)
         }
     } else if (fHaveChain) {
         throw JSONRPCError(RPC_TRANSACTION_ALREADY_IN_CHAIN, "transaction already in block chain");
+    }
+    if (IsInstantSendTxValid(tx)) {
+        mapLockRequestAccepted.insert(make_pair(hashTx, tx));
+        CreateTxLockCandidate(tx);
     }
     RelayTransaction(tx);
 
