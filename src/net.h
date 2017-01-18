@@ -634,7 +634,7 @@ public:
     std::string addrName;
     CService addrLocal;
     int nNumWarningsSkipped;
-    int nVersion;
+    std::atomic<int> nVersion;
     // strSubVer is whatever byte array we read from the wire. However, this field is intended
     // to be printed out, displayed to humans in various forms and so on. So we sanitize it and
     // store the sanitized version in cleanSubVer. The original should be used when dealing with
@@ -646,7 +646,7 @@ public:
     bool fClient;
     bool fInbound;
     bool fNetworkNode;
-    bool fSuccessfullyConnected;
+    std::atomic_bool fSuccessfullyConnected;
     bool fDisconnect;
     // We use fRelayTxes for two purposes -
     // a) it allows us to not relay tx invs before receiving the peer's version message
