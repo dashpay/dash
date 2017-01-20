@@ -129,7 +129,7 @@ private:
     // these maps are used for masternode recovery from MASTERNODE_NEW_START_REQUIRED state
     std::map<uint256, std::pair< int64_t, std::set<CNetAddr> > > mMnbRecoveryRequests;
     std::map<uint256, std::vector<CMasternodeBroadcast> > mMnbRecoveryGoodReplies;
-    std::vector< std::pair<CService, uint256> > vScheduledMnbRequestConnections;
+    std::list< std::pair<CService, uint256> > listScheduledMnbRequestConnections;
 
     int64_t nLastIndexRebuildTime;
 

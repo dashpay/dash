@@ -102,7 +102,7 @@ CMasternodeMan::CMasternodeMan()
   mAskedUsForMasternodeList(),
   mWeAskedForMasternodeList(),
   mWeAskedForMasternodeListEntry(),
-  vScheduledMnbRequestConnections(),
+  listScheduledMnbRequestConnections(),
   nLastIndexRebuildTime(0),
   indexMasternodes(),
   indexMasternodesOld(),
@@ -235,7 +235,7 @@ void CMasternodeMan::CheckAndRemove()
                         // didn't ask recently, ok to ask now
                         CService addr = vecMasternodeRanks[i].second.addr;
                         setRequested.insert(addr);
-                        vScheduledMnbRequestConnections.push_back(std::make_pair(addr, hash));
+                        listScheduledMnbRequestConnections.push_back(std::make_pair(addr, hash));
                         fAskedForMnbRecovery = true;
                     }
                     // wait for mnb recovery replies for MNB_RECOVERY_WAIT_SECONDS seconds
@@ -776,10 +776,9 @@ void CMasternodeMan::ProcessMasternodeConnections()
 std::pair<CService, uint256> CMasternodeMan::PopScheduledMnbRequestConnection()
 {
     LOCK(cs);
-    if(vScheduledMnbRequestConnections.empty()) return make_pair(CService(), uint256());
-    std::vector< std::pair<CService, uint256> >::iterator it = vScheduledMnbRequestConnections.begin();
-    std::pair<CService, uint256> p = (*it);
-    vScheduledMnbRequestConnections.erase(it);
+    if(listScheduledMnbRequestConnections.empty()) return make_pair(CService(), uint256());
+    std::pair<CService, uint256> p = listScheduledMnbRequestConnections.front();
+    listScheduledMnbRequestConnections.pop_front();
     return p;
 }
 
