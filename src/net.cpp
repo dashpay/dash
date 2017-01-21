@@ -2725,6 +2725,11 @@ void CNode::AskFor(const CInv& inv)
     mapAskFor.insert(std::make_pair(nRequestTime, inv));
 }
 
+bool CConnman::NodeFullyConnected(const CNode* pnode)
+{
+    return pnode && pnode->fSuccessfullyConnected && !pnode->fDisconnect;
+}
+
 std::vector<unsigned char> CNode::CalculateKeyedNetGroup(CAddress& address)
 {
     if(vchSecretKey.size() == 0) {
@@ -2802,7 +2807,7 @@ bool CConnman::ForNode(const CService& addr, std::function<bool(CNode* pnode)> f
             break;
         }
     }
-    return found != nullptr && func(found);
+    return found != nullptr && NodeFullyConnected(found) && func(found);
 }
 
 bool CConnman::ForNode(NodeId id, std::function<bool(CNode* pnode)> func)
@@ -2815,7 +2820,7 @@ bool CConnman::ForNode(NodeId id, std::function<bool(CNode* pnode)> func)
             break;
         }
     }
-    return found != nullptr && func(found);
+    return found != nullptr && NodeFullyConnected(found) && func(found);
 }
 
 int64_t PoissonNextSend(int64_t nNow, int average_interval_seconds) {
