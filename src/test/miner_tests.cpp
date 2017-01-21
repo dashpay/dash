@@ -8,7 +8,6 @@
 #include "consensus/merkle.h"
 #include "consensus/validation.h"
 #include "main.h"
-#include "masternode-payments.h"
 #include "miner.h"
 #include "pubkey.h"
 #include "script/standard.h"
@@ -16,6 +15,10 @@
 #include "uint256.h"
 #include "util.h"
 #include "utilstrencodings.h"
+
+#include "governance.h"
+#include "masternode-payments.h"
+#include "masternodeman.h"
 
 #include "test/test_dash.h"
 
@@ -86,6 +89,7 @@ BOOST_AUTO_TEST_CASE(CreateNewBlock_validity)
     entry.dPriority = 111.0;
     entry.nHeight = 11;
 
+    LOCK2(governance.cs, mnodeman.cs);
     LOCK(cs_main);
     fCheckpointsEnabled = false;
 

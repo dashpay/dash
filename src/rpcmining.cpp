@@ -21,11 +21,14 @@
 #include "spork.h"
 #include "txmempool.h"
 #include "util.h"
-#ifdef ENABLE_WALLET
-#include "masternode-sync.h"
-#endif
 #include "utilstrencodings.h"
 #include "validationinterface.h"
+
+#ifdef ENABLE_WALLET
+#include "governance.h"
+#include "masternode-sync.h"
+#include "masternodeman.h"
+#endif
 
 #include <stdint.h>
 
@@ -405,6 +408,7 @@ UniValue getblocktemplate(const UniValue& params, bool fHelp)
             + HelpExampleRpc("getblocktemplate", "")
          );
 
+    LOCK2(governance.cs, mnodeman.cs);
     LOCK(cs_main);
 
     std::string strMode = "template";

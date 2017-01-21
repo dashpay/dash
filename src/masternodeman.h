@@ -109,9 +109,6 @@ private:
     static const int MNB_RECOVERY_RETRY_SECONDS     = 3 * 60 * 60;
 
 
-    // critical section to protect the inner data structures
-    mutable CCriticalSection cs;
-
     // Keep track of current block index
     const CBlockIndex *pCurrentBlockIndex;
 
@@ -152,6 +149,9 @@ private:
     friend class CMasternodeSync;
 
 public:
+    // critical section to protect the inner data structures
+    mutable CCriticalSection cs;
+
     // Keep track of all broadcasts I've seen
     std::map<uint256, std::pair<int64_t, CMasternodeBroadcast> > mapSeenMasternodeBroadcast;
     // Keep track of all pings I've seen

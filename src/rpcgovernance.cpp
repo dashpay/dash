@@ -564,7 +564,7 @@ UniValue gobject(const UniValue& params, bool fHelp)
 
         // GET MATCHING GOVERNANCE OBJECTS
 
-        LOCK2(cs_main, governance.cs);
+        LOCK(governance.cs);
 
         std::vector<CGovernanceObject*> objs = governance.GetAllNewerThan(nStartTime);
         governance.UpdateLastDiffTime(GetTime());
@@ -620,7 +620,7 @@ UniValue gobject(const UniValue& params, bool fHelp)
         // COLLECT VARIABLES FROM OUR USER
         uint256 hash = ParseHashV(params[1], "GovObj hash");
 
-        LOCK2(cs_main, governance.cs);
+        LOCK(governance.cs);
 
         // FIND THE GOVERNANCE OBJECT THE USER IS LOOKING FOR
         CGovernanceObject* pGovObj = governance.FindGovernanceObject(hash);

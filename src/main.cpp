@@ -3333,6 +3333,7 @@ bool ActivateBestChain(CValidationState &state, const CChainParams& chainparams,
         const CBlockIndex *pindexFork;
         bool fInitialDownload;
         {
+            LOCK2(governance.cs, mnodeman.cs);
             LOCK(cs_main);
             CBlockIndex *pindexOldTip = chainActive.Tip();
             pindexMostWork = FindMostWorkChain();
@@ -4329,6 +4330,7 @@ CVerifyDB::~CVerifyDB()
 
 bool CVerifyDB::VerifyDB(const CChainParams& chainparams, CCoinsView *coinsview, int nCheckLevel, int nCheckDepth)
 {
+    LOCK2(governance.cs, mnodeman.cs);
     LOCK(cs_main);
     if (chainActive.Tip() == NULL || chainActive.Tip()->pprev == NULL)
         return true;
@@ -4449,6 +4451,7 @@ bool LoadBlockIndex()
 
 bool InitBlockIndex(const CChainParams& chainparams) 
 {
+    LOCK2(governance.cs, mnodeman.cs);
     LOCK(cs_main);
 
     // Initialize global variables that cannot be constructed at startup.
@@ -4871,6 +4874,7 @@ bool static AlreadyHave(const CInv& inv) EXCLUSIVE_LOCKS_REQUIRED(cs_main)
     {
     case MSG_TX:
         {
+            LOCK(cs_main);
             assert(recentRejects);
             if (chainActive.Tip()->GetBlockHash() != hashRecentRejectsChainTip)
             {
@@ -4889,7 +4893,10 @@ bool static AlreadyHave(const CInv& inv) EXCLUSIVE_LOCKS_REQUIRED(cs_main)
         }
 
     case MSG_BLOCK:
-        return mapBlockIndex.count(inv.hash);
+        {
+            LOCK(cs_main);
+            return mapBlockIndex.count(inv.hash);
+        }
 
     /* 
         Dash Related Inventory Messages
@@ -4914,6 +4921,7 @@ bool static AlreadyHave(const CInv& inv) EXCLUSIVE_LOCKS_REQUIRED(cs_main)
 
     case MSG_MASTERNODE_PAYMENT_BLOCK:
         {
+            LOCK(cs_main);
             BlockMap::iterator mi = mapBlockIndex.find(inv.hash);
             return mi != mapBlockIndex.end() && mnpayments.mapMasternodeBlocks.find(mi->second->nHeight) != mnpayments.mapMasternodeBlocks.end();
         }
@@ -4945,8 +4953,6 @@ void static ProcessGetData(CNode* pfrom, const Consensus::Params& consensusParam
 
     vector<CInv> vNotFound;
 
-    LOCK(cs_main);
-
     while (it != pfrom->vRecvGetData.end()) {
         // Don't bother if send buffer is too full to respond anyway
         if (pfrom->nSendSize >= SendBufferSize())
@@ -4960,6 +4966,7 @@ void static ProcessGetData(CNode* pfrom, const Consensus::Params& consensusParam
 
             if (inv.type == MSG_BLOCK || inv.type == MSG_FILTERED_BLOCK)
             {
+                LOCK(cs_main);
                 bool send = false;
                 BlockMap::iterator mi = mapBlockIndex.find(inv.hash);
                 if (mi != mapBlockIndex.end())
@@ -5103,8 +5110,8 @@ void static ProcessGetData(CNode* pfrom, const Consensus::Params& consensusParam
                 }
 
                 if (!pushed && inv.type == MSG_MASTERNODE_PAYMENT_BLOCK) {
+                    LOCK2(cs_main, cs_mapMasternodeBlocks);
                     BlockMap::iterator mi = mapBlockIndex.find(inv.hash);
-                    LOCK(cs_mapMasternodeBlocks);
                     if (mi != mapBlockIndex.end() && mnpayments.mapMasternodeBlocks.count(mi->second->nHeight)) {
                         BOOST_FOREACH(CMasternodePayee& payee, mnpayments.mapMasternodeBlocks[mi->second->nHeight].vecPayees) {
                             std::vector<uint256> vecVoteHashes = payee.GetVoteHashes();
@@ -5495,8 +5502,6 @@ bool static ProcessMessage(CNode* pfrom, string strCommand, CDataStream& vRecv, 
         if (pfrom->fWhitelisted && GetBoolArg("-whitelistrelay", DEFAULT_WHITELISTRELAY))
             fBlocksOnly = false;
 
-        LOCK(cs_main);
-
         std::vector<CInv> vToFetch;
 
 
@@ -5516,6 +5521,7 @@ bool static ProcessMessage(CNode* pfrom, string strCommand, CDataStream& vRecv, 
             LogPrint("net", "got inv: %s  %s peer=%d\n", inv.ToString(), fAlreadyHave ? "have" : "new", pfrom->id);
 
             if (inv.type == MSG_BLOCK) {
+                LOCK(cs_main);
                 UpdateBlockAvailability(pfrom->GetId(), inv.hash);
                 if (!fAlreadyHave && !fImporting && !fReindex && !mapBlocksInFlight.count(inv.hash)) {
                     // First request the headers preceding the announced block. In the normal fully-synced
@@ -6433,12 +6439,15 @@ bool SendMessages(CNode* pto)
             }
         }
 
+        int64_t nNow = 0;
+        vector<CInv> vGetData;
+        {
         TRY_LOCK(cs_main, lockMain); // Acquire cs_main for IsInitialBlockDownload() and CNodeState()
         if (!lockMain)
             return true;
 
         // Address refresh broadcast
-        int64_t nNow = GetTimeMicros();
+        nNow = GetTimeMicros();
         if (!IsInitialBlockDownload() && pto->nNextLocalAddrSend < nNow) {
             AdvertiseLocal(pto);
             pto->nNextLocalAddrSend = PoissonNextSend(nNow, AVG_LOCAL_ADDRESS_BROADCAST_INTERVAL);
@@ -6712,7 +6721,6 @@ bool SendMessages(CNode* pto)
         //
         // Message: getdata (blocks)
         //
-        vector<CInv> vGetData;
         if (!pto->fDisconnect && !pto->fClient && (fFetch || !IsInitialBlockDownload()) && state.nBlocksInFlight < MAX_BLOCKS_IN_TRANSIT_PER_PEER) {
             vector<CBlockIndex*> vToDownload;
             NodeId staller = -1;
@@ -6731,6 +6739,7 @@ bool SendMessages(CNode* pto)
             }
         }
 
+        }
         //
         // Message: getdata (non-blocks)
         //

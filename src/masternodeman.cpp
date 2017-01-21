@@ -178,9 +178,7 @@ void CMasternodeMan::CheckAndRemove()
     LogPrintf("CMasternodeMan::CheckAndRemove\n");
 
     {
-        // Need LOCK2 here to ensure consistent locking order because code below locks cs_main
-        // through GetHeight() signal in ConnectNode and in CheckMnbAndUpdateMasternodeList()
-        LOCK2(cs_main, cs);
+        LOCK(cs);
 
         Check();
 
@@ -548,8 +546,7 @@ CMasternode* CMasternodeMan::GetNextMasternodeInQueueForPayment(bool fFilterSigT
 
 CMasternode* CMasternodeMan::GetNextMasternodeInQueueForPayment(int nBlockHeight, bool fFilterSigTime, int& nCount)
 {
-    // Need LOCK2 here to ensure consistent locking order because the GetBlockHash call below locks cs_main
-    LOCK2(cs_main,cs);
+    LOCK(cs);
 
     CMasternode *pBestMasternode = NULL;
     std::vector<std::pair<int, CMasternode*> > vecMasternodeLastPaid;
@@ -814,8 +811,7 @@ void CMasternodeMan::ProcessMessage(CNode* pfrom, std::string& strCommand, CData
 
         LogPrint("masternode", "MNPING -- Masternode ping, masternode=%s\n", mnp.vin.prevout.ToStringShort());
 
-        // Need LOCK2 here to ensure consistent locking order because the CheckAndUpdate call below locks cs_main
-        LOCK2(cs_main, cs);
+        LOCK(cs);
 
         if(mapSeenMasternodePing.count(nHash)) return; //seen
         mapSeenMasternodePing.insert(std::make_pair(nHash, mnp));
@@ -908,8 +904,7 @@ void CMasternodeMan::ProcessMessage(CNode* pfrom, std::string& strCommand, CData
 
     } else if (strCommand == NetMsgType::MNVERIFY) { // Masternode Verify
 
-        // Need LOCK2 here to ensure consistent locking order because the all functions below call GetBlockHash which locks cs_main
-        LOCK2(cs_main, cs);
+        LOCK(cs);
 
         CMasternodeVerification mnv;
         vRecv >> mnv;
@@ -936,9 +931,7 @@ void CMasternodeMan::DoFullVerificationStep()
 
     std::vector<std::pair<int, CMasternode> > vecMasternodeRanks = GetMasternodeRanks(pCurrentBlockIndex->nHeight - 1, MIN_POSE_PROTO_VERSION);
 
-    // Need LOCK2 here to ensure consistent locking order because the SendVerifyRequest call below locks cs_main
-    // through GetHeight() signal in ConnectNode
-    LOCK2(cs_main, cs);
+    LOCK(cs);
 
     int nCount = 0;
     int nCountMax = std::max(10, (int)vMasternodes.size() / 100); // verify at least 10 masternode at once but at most 1% of all known masternodes
@@ -1366,8 +1359,7 @@ void CMasternodeMan::UpdateMasternodeList(CMasternodeBroadcast mnb)
 
 bool CMasternodeMan::CheckMnbAndUpdateMasternodeList(CNode* pfrom, CMasternodeBroadcast mnb, int& nDos)
 {
-    // Need LOCK2 here to ensure consistent locking order because the SimpleCheck call below locks cs_main
-    LOCK2(cs_main, cs);
+    LOCK(cs);
 
     nDos = 0;
     LogPrint("masternode", "CMasternodeMan::CheckMnbAndUpdateMasternodeList -- masternode=%s\n", mnb.vin.prevout.ToStringShort());

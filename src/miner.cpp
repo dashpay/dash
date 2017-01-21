@@ -24,9 +24,12 @@
 #include "txmempool.h"
 #include "util.h"
 #include "utilmoneystr.h"
+#include "validationinterface.h"
+
+#include "governance.h"
 #include "masternode-payments.h"
 #include "masternode-sync.h"
-#include "validationinterface.h"
+#include "masternodeman.h"
 
 #include <boost/thread.hpp>
 #include <boost/tuple/tuple.hpp>
@@ -124,6 +127,8 @@ CBlockTemplate* CreateNewBlock(const CChainParams& chainparams, const CScript& s
     CAmount nFees = 0;
 
     {
+        CCriticalBlock criticalblockGov(governance.cs, "governance.cs", __FILE__, __LINE__);
+        CCriticalBlock criticalblockMnman(mnodeman.cs, "mnodeman.cs", __FILE__, __LINE__);
         LOCK2(cs_main, mempool.cs);
         CBlockIndex* pindexPrev = chainActive.Tip();
         const int nHeight = pindexPrev->nHeight + 1;
