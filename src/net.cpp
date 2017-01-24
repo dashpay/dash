@@ -388,6 +388,7 @@ CNode* CConnman::ConnectNode(CAddress addrConnect, const char *pszDest, bool fCo
             // In that case, drop the connection that was just created, and return the existing CNode instead.
             // Also store the name we used to connect in that CNode, so that future FindNode() calls to that
             // name catch this early.
+            LOCK(cs_vNodes);
             CNode* pnode = FindNode((CService)addrConnect);
             if (pnode)
             {
@@ -397,11 +398,8 @@ CNode* CConnman::ConnectNode(CAddress addrConnect, const char *pszDest, bool fCo
                     pnode->AddRef();
                     pnode->fMasternode = true;
                 }
-                {
-                    LOCK(cs_vNodes);
-                    if (pnode->addrName.empty()) {
-                        pnode->addrName = std::string(pszDest);
-                    }
+                if (pnode->addrName.empty()) {
+                    pnode->addrName = std::string(pszDest);
                 }
                 CloseSocket(hSocket);
                 return pnode;
@@ -2402,6 +2400,7 @@ void CConnman::GetNodeStats(std::vector<CNodeStats>& vstats)
 
 bool CConnman::DisconnectNode(const std::string& strNode)
 {
+    LOCK(cs_vNodes);
     if (CNode* pnode = FindNode(strNode)) {
         pnode->fDisconnect = true;
         return true;
