@@ -2400,24 +2400,6 @@ void CConnman::GetNodeStats(std::vector<CNodeStats>& vstats)
     }
 }
 
-bool CConnman::DisconnectAddress(const CNetAddr& netAddr)
-{
-    if (CNode* pnode = FindNode(netAddr)) {
-        pnode->fDisconnect = true;
-        return true;
-    }
-    return false;
-}
-
-bool CConnman::DisconnectSubnet(const CSubNet& subNet)
-{
-    if (CNode* pnode = FindNode(subNet)) {
-        pnode->fDisconnect = true;
-        return true;
-    }
-    return false;
-}
-
 bool CConnman::DisconnectNode(const std::string& strNode)
 {
     if (CNode* pnode = FindNode(strNode)) {
