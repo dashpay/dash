@@ -47,7 +47,7 @@ private:
 
     std::map<uint256, CTxLockVote> mapTxLockVotesOrphan; // vote hash - vote
 
-    std::map<COutPoint, uint256> mapVotedOutpoints; // utxo - tx hash
+    std::map<COutPoint, std::set<uint256> > mapVotedOutpoints; // utxo - tx hash set
     std::map<COutPoint, uint256> mapLockedOutpoints; // utxo - tx hash
 
     //track masternodes who voted with no txreq (for DOS protection)
@@ -106,6 +106,8 @@ private:
     int64_t nTimeCreated;
 
 public:
+    static const int MAX_INPUTS             = 10;
+
     CTxLockRequest() :
         CTransaction(),
         nTimeCreated(GetTime())

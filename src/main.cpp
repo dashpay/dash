@@ -1100,6 +1100,21 @@ bool AcceptToMemoryPoolWorker(CTxMemPool& pool, CValidationState &state, const C
     if (pool.exists(hash))
         return state.Invalid(false, REJECT_ALREADY_KNOWN, "txn-already-in-mempool");
 
+    // If this is a Transaction Lock Request check to see if it's valid
+    if(instantsend.HasTxLockRequest(hash) && !CTxLockRequest(tx).IsValid())
+        return state.DoS(10, error("AcceptToMemoryPool : CTxLockRequest %s is invalid", hash.ToString()),
+                            REJECT_INVALID, "bad-txlockrequest");
+
+    // Check for conflicts with a completed Transaction Lock
+    BOOST_FOREACH(const CTxIn &txin, tx.vin)
+    {
+        uint256 hashLocked;
+        if(instantsend.GetLockedOutPointTxHash(txin.prevout, hashLocked) && hash != hashLocked)
+            return state.DoS(10, error("AcceptToMemoryPool : Transaction %s conflicts with completed Transaction Lock %s",
+                                    hash.ToString(), hashLocked.ToString()),
+                            REJECT_INVALID, "tx-txlock-conflict");
+    }
+
     // Check for conflicts with in-memory transactions
     set<uint256> setConflicts;
     {
@@ -1111,6 +1126,18 @@ bool AcceptToMemoryPoolWorker(CTxMemPool& pool, CValidationState &state, const C
             const CTransaction *ptxConflicting = pool.mapNextTx[txin.prevout].ptx;
             if (!setConflicts.count(ptxConflicting->GetHash()))
             {
+                // InstantSend txes are not replacable
+                if(instantsend.HasTxLockRequest(ptxConflicting->GetHash())) {
+                    // this tx conflicts with a Transaction Lock Request candidate
+                    return state.DoS(0, error("AcceptToMemoryPool : Transaction %s conflicts with Transaction Lock Request %s",
+                                            hash.ToString(), ptxConflicting->GetHash().ToString()),
+                                    REJECT_INVALID, "tx-txlockreq-mempool-conflict");
+                } else if (instantsend.HasTxLockRequest(hash)) {
+                    // this tx is a tx lock request and it conflicts with a normal tx
+                    return state.DoS(0, error("AcceptToMemoryPool : Transaction Lock Request %s conflicts with transaction %s",
+                                            hash.ToString(), ptxConflicting->GetHash().ToString()),
+                                    REJECT_INVALID, "txlockreq-tx-mempool-conflict");
+                }
                 // Allow opt-out of transaction replacement by setting
                 // nSequence >= maxint-1 on all inputs.
                 //
@@ -5855,46 +5882,6 @@ bool static ProcessMessage(CNode* pfrom, string strCommand, CDataStream& vRecv, 
                 // It's the first time we failed for this tx lock request,
                 // this should switch AlreadyHave to "true".
                 instantsend.RejectLockRequest(txLockRequest);
-
-                bool fConflictIdentified = false;
-
-                LOCK(mempool.cs); // protect mempool.mapNextTx, mempool.mapTx
-                BOOST_FOREACH(const CTxIn& txin, tx.vin) {
-                    uint256 hashLocked;
-                    if(instantsend.GetLockedOutPointTxHash(txin.prevout, hashLocked) && tx.GetHash() != hashLocked) {
-                        // conflicting with complete lock
-                        LogPrintf("TXLOCKREQUEST -- WARNING: Found conflicting Transaction Lock, skipping, txid=%s, conflicting txid=%s, peer=%d\n",
-                                tx.GetHash().ToString(), hashLocked.ToString(), pfrom->id);
-                        fConflictIdentified = true;
-                        break;
-                    } else if (mempool.mapNextTx.count(txin.prevout)) {
-                        // conflict with tx in mempool ...
-                        fConflictIdentified = true;
-                        const CTransaction *ptxConflicting = mempool.mapNextTx[txin.prevout].ptx;
-                        if(instantsend.HasTxLockRequest(ptxConflicting->GetHash())) {
-                            // ... and it's another lock request candidate
-                            LogPrintf("TXLOCKREQUEST -- WARNING: Found conflicting Transaction Lock Request, skipping, txid=%s, conflicting txid=%s, peer=%d\n",
-                                    tx.GetHash().ToString(), ptxConflicting->GetHash().ToString(), pfrom->id);
-                            break;
-                        } else {
-                            // ... and it's a normal tx ...
-                            LogPrintf("TXLOCKREQUEST -- WARNING: Found conflicting transaction, txid=%s, conflicting txid=%s, peer=%d\n",
-                                    tx.GetHash().ToString(), ptxConflicting->GetHash().ToString(), pfrom->id);
-                            CTxMemPool::indexed_transaction_set::const_iterator it = mempool.mapTx.find(tx.GetHash());
-                            if (it == mempool.mapTx.end()) break; // should never happen
-                            if (GetTime() - it->GetTime() < 5) {
-                                // ...which was received less then 5 sec ago, this must be an attack attempt
-                                LogPrintf("TXLOCKREQUEST -- ERROR: conflicting transaction is very close to Transaction Lock Request, probably an attack, txid=%s, conflicting txid=%s, peer=%d\n",
-                                        tx.GetHash().ToString(), ptxConflicting->GetHash().ToString(), pfrom->id);
-                            }
-                            break;
-                        }
-                    }
-                } // FOREACH
-                if(!fConflictIdentified) {
-                    LogPrintf("TXLOCKREQUEST -- ERROR: Transaction Lock Request rejected, unknown conflict type! txid=%s, peer=%d\n",
-                            tx.GetHash().ToString(), pfrom->id);
-                }
             }
 
             if (pfrom->fWhitelisted && GetBoolArg("-whitelistforcerelay", DEFAULT_WHITELISTFORCERELAY)) {
