@@ -1200,7 +1200,6 @@ bool static ProcessMessage(CNode* pfrom, string strCommand, CDataStream& vRecv, 
         // Change version
         pfrom->SetSendVersion(nSendVersion);
         pfrom->nVersion = nVersion;
-        pfrom->fSuccessfullyConnected = true;
 
         // Potentially mark this peer as a preferred download peer.
         {
@@ -1288,6 +1287,7 @@ bool static ProcessMessage(CNode* pfrom, string strCommand, CDataStream& vRecv, 
             // nodes)
             connman.PushMessage(pfrom, NetMsgType::SENDHEADERS);
         }
+        pfrom->fSuccessfullyConnected = true;
     }
 
 
@@ -2297,8 +2297,8 @@ bool SendMessages(CNode* pto, CConnman& connman, std::atomic<bool>& interruptMsg
 {
     const Consensus::Params& consensusParams = Params().GetConsensus();
     {
-        // Don't send anything until we get its version message
-        if (pto->nVersion == 0)
+        // Don't send anything until the version handshake is complete
+        if (!pto->fSuccessfullyConnected || pto->fDisconnect)
             return true;
 
         //
