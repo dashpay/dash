@@ -38,6 +38,9 @@ class CInstantSend
 private:
     static const int ORPHAN_VOTE_SECONDS            = 60;
 
+    // Keep track of current block index
+    const CBlockIndex *pCurrentBlockIndex;
+
     // maps for AlreadyHave
     std::map<uint256, CTxLockRequest> mapLockRequestAccepted; // tx hash - tx
     std::map<uint256, CTxLockRequest> mapLockRequestRejected; // tx hash - tx
@@ -95,6 +98,9 @@ public:
     void CheckAndRemove();
     // verify if transaction lock timed out
     bool IsTxLockRequestTimedOut(const uint256& txHash);
+
+    void UpdatedBlockTip(const CBlockIndex *pindex);
+    void SyncTransaction(const CTransaction& tx, const CBlock* pblock);
 };
 
 class CTxLockRequest : public CTransaction
@@ -131,7 +137,7 @@ private:
     COutPoint outpointMasternode;
     std::vector<unsigned char> vchMasternodeSignature;
     // local memory only
-    int nExpirationHeight;
+    int nConfirmedHeight;
     int64_t nTimeCreated;
 
 public:
@@ -140,16 +146,16 @@ public:
         outpoint(),
         outpointMasternode(),
         vchMasternodeSignature(),
-        nExpirationHeight(0),
+        nConfirmedHeight(-1),
         nTimeCreated(GetTime())
         {}
 
-    CTxLockVote(const uint256& txHashIn, const COutPoint& outpointIn, const COutPoint& outpointMasternodeIn, int nExpirationHeightIn) :
+    CTxLockVote(const uint256& txHashIn, const COutPoint& outpointIn, const COutPoint& outpointMasternodeIn) :
         txHash(txHashIn),
         outpoint(outpointIn),
         outpointMasternode(outpointMasternodeIn),
         vchMasternodeSignature(),
-        nExpirationHeight(nExpirationHeightIn),
+        nConfirmedHeight(-1),
         nTimeCreated(GetTime())
         {}
 
@@ -171,8 +177,8 @@ public:
     int64_t GetTimeCreated() const { return nTimeCreated; }
 
     bool IsValid(CNode* pnode) const;
-    void SetExpirationHeight(int nExpirationHeightIn) { nExpirationHeight = nExpirationHeightIn; }
-    bool IsExpired(int nExpirationHeightIn) const { return nExpirationHeightIn > nExpirationHeight; }
+    void SetConfirmedHeight(int nConfirmedHeightIn) { nConfirmedHeight = nConfirmedHeightIn; }
+    bool IsExpired(int nHeight) const;
 
     bool Sign();
     bool CheckSignature() const;
@@ -206,13 +212,11 @@ public:
 class CTxLockCandidate
 {
 private:
-    int nExpirationHeight;
-    int nLockConfirmed;
+    int nConfirmedHeight;
 
 public:
-    CTxLockCandidate(const CTxLockRequest& txLockRequestIn, int nExpirationHeightIn) :
-        nExpirationHeight(nExpirationHeightIn),
-        nLockConfirmed(0),
+    CTxLockCandidate(const CTxLockRequest& txLockRequestIn) :
+        nConfirmedHeight(-1),
         txLockRequest(txLockRequestIn),
         mapOutPointLocks()
         {}
@@ -229,8 +233,8 @@ public:
     bool HasMasternodeVoted(const COutPoint& outpointIn, const COutPoint& outpointMasternodeIn);
     int CountVotes() const;
 
-    void Expire() { nExpirationHeight = -1; }
-    bool IsExpired(int nExpirationHeightIn) const { return nExpirationHeightIn > nExpirationHeight; }
+    void SetConfirmedHeight(int nConfirmedHeightIn) { nConfirmedHeight = nConfirmedHeightIn; }
+    bool IsExpired(int nHeight) const;
 };
 
 #endif
