@@ -467,7 +467,37 @@ bool CInstantSend::ResolveConflicts(const CTxLockCandidate& txLockCandidate)
         LogPrintf("CInstantSend::ResolveConflicts -- Accepted completed Transaction Lock, txid=%s\n", txHash.ToString());
         return true;
     }
-    LogPrintf("CInstantSend::ResolveConflicts -- Done, no conflicts were found, txid=%s\n", txHash.ToString());
+    // No conflicts were found so far, check to see if it was already included in block
+    CTransaction txTmp;
+    uint256 hashBlock;
+    if(GetTransaction(txHash, txTmp, Params().GetConsensus(), hashBlock, true) && hashBlock != uint256()) {
+        LogPrint("instantsend", "CInstantSend::ResolveConflicts -- Done, %s is included in block %s\n", txHash.ToString(), hashBlock.ToString());
+        return true;
+    }
+    // Not in block yet, make sure all its inputs are still unspent
+    BOOST_FOREACH(const CTxIn& txin, txLockCandidate.txLockRequest.vin) {
+        CCoins coins;
+        if(!pcoinsTip->GetCoins(txin.prevout.hash, coins) ||
+           (unsigned int)txin.prevout.n>=coins.vout.size() ||
+           coins.vout[txin.prevout.n].IsNull()) {
+            // Not in UTXO anymore? Either this lock or conflicting tx was mined while we were waiting for votes.
+            // Reprocess tip to make sure tx for this lock was included.
+            //
+            LogPrintf("CTxLockRequest::ResolveConflicts -- Failed to find UTXO %s - disconnecting tip...\n", txin.prevout.ToStringShort());
+            DisconnectBlocks(1);
+            // Recursively check at "new" old height. Conflicting tx should be rejected by AcceptToMemoryPool.
+            ResolveConflicts(txLockCandidate);
+            LogPrintf("CTxLockRequest::ResolveConflicts -- Failed to find UTXO %s - activating best chain...\n", txin.prevout.ToStringShort());
+            // Activate best chain, block which includes conflicting tx should be rejected by ConnectBlock.
+            CValidationState state;
+            if(!ActivateBestChain(state, Params()) || !state.IsValid()) {
+                LogPrintf("CTxLockRequest::ResolveConflicts -- ActivateBestChain failed, txid=%s\n", txin.prevout.ToStringShort());
+                return false;
+            }
+            LogPrintf("CTxLockRequest::ResolveConflicts -- Failed to find UTXO %s - fixed!\n", txin.prevout.ToStringShort());
+        }
+    }
+    LogPrint("instantsend", "CInstantSend::ResolveConflicts -- Done, txid=%s\n", txHash.ToString());
 
     return true;
 }
@@ -666,6 +696,14 @@ bool CInstantSend::IsTxLockRequestTimedOut(const uint256& txHash)
     }
 
     return false;
+}
+
+void CInstantSend::Relay(const uint256& txHash) const
+{
+    std::map<uint256, CTxLockCandidate>::const_iterator itLockCandidate = mapTxLockCandidates.find(txHash);
+    if (itLockCandidate != mapTxLockCandidates.end()) {
+        itLockCandidate->second.Relay();
+    }
 }
 
 void CInstantSend::UpdatedBlockTip(const CBlockIndex *pindex)
@@ -882,7 +920,7 @@ bool CTxLockVote::Sign()
     return true;
 }
 
-void CTxLockVote::Relay()
+void CTxLockVote::Relay() const
 {
     CInv inv(MSG_TXLOCK_VOTE, GetHash());
     RelayInv(inv);
@@ -909,6 +947,15 @@ bool COutPointLock::AddVote(const CTxLockVote& vote)
 bool COutPointLock::HasMasternodeVoted(const COutPoint& outpointMasternodeIn)
 {
     return mapMasternodeVotes.count(outpointMasternodeIn);
+}
+
+void COutPointLock::Relay() const
+{
+    std::map<COutPoint, CTxLockVote>::const_iterator itVote = mapMasternodeVotes.begin();
+    while(itVote != mapMasternodeVotes.end()) {
+        itVote->second.Relay();
+        ++itVote;
+    }
 }
 
 //
@@ -962,4 +1009,14 @@ bool CTxLockCandidate::IsExpired(int nHeight) const
 {
     // Locks and votes expire nInstantSendKeepLock blocks after the block corresponding tx was included into.
     return (nConfirmedHeight != -1) && (nHeight - nConfirmedHeight > Params().GetConsensus().nInstantSendKeepLock);
+}
+
+void CTxLockCandidate::Relay() const
+{
+    RelayTransaction(txLockRequest);
+    std::map<COutPoint, COutPointLock>::const_iterator itOutpointLock = mapOutPointLocks.begin();
+    while(itOutpointLock != mapOutPointLocks.end()) {
+        itOutpointLock->second.Relay();
+        ++itOutpointLock;
+    }
 }

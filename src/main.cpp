@@ -3733,6 +3733,9 @@ bool CheckBlock(const CBlock& block, CValidationState& state, bool fCheckPOW, bo
     // DASH : CHECK TRANSACTIONS FOR INSTANTSEND
 
     if(sporkManager.IsSporkActive(SPORK_3_INSTANTSEND_BLOCK_FILTERING)) {
+        // We should never accept block which conflicts with completed transaction lock,
+        // that's why this is in CheckBlock unlike coinbase payee/amount.
+        // Require other nodes to comply, send them some data in case they are missing it.
         BOOST_FOREACH(const CTransaction& tx, block.vtx) {
             // skip coinbase, it has no inputs
             if (tx.IsCoinBase()) continue;
@@ -3740,10 +3743,14 @@ bool CheckBlock(const CBlock& block, CValidationState& state, bool fCheckPOW, bo
             BOOST_FOREACH(const CTxIn& txin, tx.vin) {
                 uint256 hashLocked;
                 if(instantsend.GetLockedOutPointTxHash(txin.prevout, hashLocked) && hashLocked != tx.GetHash()) {
+                    // Every node which relayed this block to us must invalidate it
+                    // but they probably need more data.
+                    // Relay corresponding transaction lock request and all its votes
+                    // to let other nodes complete the lock.
+                    instantsend.Relay(hashLocked);
                     mapRejectedBlocks.insert(make_pair(block.GetHash(), GetTime()));
-                    LogPrintf("CheckBlock(DASH): transaction conflicts with transaction lock, lockid=%s, txid=%s\n",
-                                hashLocked.ToString(), tx.GetHash().ToString());
-                    return state.DoS(0, error("CheckBlock(DASH): transaction conflicts with transaction lock"),
+                    return state.DoS(0, error("CheckBlock(DASH): transaction %s conflicts with transaction lock %s",
+                                                tx.GetHash().ToString(), hashLocked.ToString()),
                                      REJECT_INVALID, "conflict-tx-lock");
                 }
             }

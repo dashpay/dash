@@ -99,6 +99,8 @@ public:
     // verify if transaction lock timed out
     bool IsTxLockRequestTimedOut(const uint256& txHash);
 
+    void Relay(const uint256& txHash) const;
+
     void UpdatedBlockTip(const CBlockIndex *pindex);
     void SyncTransaction(const CTransaction& tx, const CBlock* pblock);
 };
@@ -183,7 +185,7 @@ public:
     bool Sign();
     bool CheckSignature() const;
 
-    void Relay();
+    void Relay() const;
 };
 
 class COutPointLock
@@ -207,6 +209,8 @@ public:
     bool HasMasternodeVoted(const COutPoint& outpointMasternodeIn);
     int CountVotes() const { return mapMasternodeVotes.size(); }
     bool IsReady() const { return CountVotes() >= SIGNATURES_REQUIRED; }
+
+    void Relay() const;
 };
 
 class CTxLockCandidate
@@ -235,6 +239,8 @@ public:
 
     void SetConfirmedHeight(int nConfirmedHeightIn) { nConfirmedHeight = nConfirmedHeightIn; }
     bool IsExpired(int nHeight) const;
+
+    void Relay() const;
 };
 
 #endif
