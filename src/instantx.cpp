@@ -675,19 +675,22 @@ void CInstantSend::UpdatedBlockTip(const CBlockIndex *pindex)
 
 void CInstantSend::SyncTransaction(const CTransaction& tx, const CBlock* pblock)
 {
+    // Update lock candidates and votes if corresponding tx confirmed
+    // or went from confirmed to 0-confirmed or conflicted.
+
     if (tx.IsCoinBase()) return;
 
-    // update lock candidates and votes if corresponding lock request was just confirmed
     LOCK2(cs_main, cs_instantsend);
 
     uint256 txHash = tx.GetHash();
-    // when tx is in mempool or it was returned to mempool (block was disconnected) pblock is NULL
+
+    // When tx is 0-confirmed or conflicted, pblock is NULL and nHeightNew should be set to -1
     CBlockIndex* pblockindex = pblock ? mapBlockIndex[pblock->GetHash()] : NULL;
     int nHeightNew = pblockindex ? pblockindex->nHeight : -1;
 
     LogPrint("instantsend", "CInstantSend::SyncTransaction -- txid=%s nHeightNew=%d\n", txHash.ToString(), nHeightNew);
 
-    // check lock candidates
+    // Check lock candidates
     std::map<uint256, CTxLockCandidate>::iterator itLockCandidate = mapTxLockCandidates.find(txHash);
     if(itLockCandidate != mapTxLockCandidates.end()) {
         LogPrint("instantsend", "CInstantSend::SyncTransaction -- txid=%s nHeightNew=%d lock candidate updated\n",
@@ -695,7 +698,7 @@ void CInstantSend::SyncTransaction(const CTransaction& tx, const CBlock* pblock)
         itLockCandidate->second.SetConfirmedHeight(nHeightNew);
     }
 
-    // check lock votes
+    // Check lock votes
     std::map<uint256, CTxLockVote>::iterator itVote = mapTxLockVotes.find(txHash);
     if(itVote != mapTxLockVotes.end()) {
         LogPrint("instantsend", "CInstantSend::SyncTransaction -- txid=%s nHeightNew=%d vote %s updated\n",
@@ -887,7 +890,7 @@ void CTxLockVote::Relay()
 
 bool CTxLockVote::IsExpired(int nHeight) const
 {
-    // locks and votes expire nInstantSendKeepLock blocks after corresponding tx confirmation
+    // Locks and votes expire nInstantSendKeepLock blocks after the block corresponding tx was included into.
     return (nConfirmedHeight != -1) && (nHeight - nConfirmedHeight > Params().GetConsensus().nInstantSendKeepLock);
 }
 
@@ -957,6 +960,6 @@ int CTxLockCandidate::CountVotes() const
 
 bool CTxLockCandidate::IsExpired(int nHeight) const
 {
-    // locks and votes expire nInstantSendKeepLock blocks after corresponding tx confirmation
+    // Locks and votes expire nInstantSendKeepLock blocks after the block corresponding tx was included into.
     return (nConfirmedHeight != -1) && (nHeight - nConfirmedHeight > Params().GetConsensus().nInstantSendKeepLock);
 }

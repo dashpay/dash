@@ -137,7 +137,7 @@ private:
     COutPoint outpointMasternode;
     std::vector<unsigned char> vchMasternodeSignature;
     // local memory only
-    int nConfirmedHeight;
+    int nConfirmedHeight; // when corresponding tx is 0-confirmed or conflicted, nConfirmedHeight is -1
     int64_t nTimeCreated;
 
 public:
@@ -212,7 +212,7 @@ public:
 class CTxLockCandidate
 {
 private:
-    int nConfirmedHeight;
+    int nConfirmedHeight; // when corresponding tx is 0-confirmed or conflicted, nConfirmedHeight is -1
 
 public:
     CTxLockCandidate(const CTxLockRequest& txLockRequestIn) :
