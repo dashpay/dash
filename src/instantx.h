@@ -45,16 +45,15 @@ private:
     std::map<uint256, CTxLockRequest> mapLockRequestAccepted; // tx hash - tx
     std::map<uint256, CTxLockRequest> mapLockRequestRejected; // tx hash - tx
     std::map<uint256, CTxLockVote> mapTxLockVotes; // vote hash - vote
+    std::map<uint256, CTxLockVote> mapTxLockVotesOrphan; // vote hash - vote
 
     std::map<uint256, CTxLockCandidate> mapTxLockCandidates; // tx hash - lock candidate
-
-    std::map<uint256, CTxLockVote> mapTxLockVotesOrphan; // vote hash - vote
 
     std::map<COutPoint, std::set<uint256> > mapVotedOutpoints; // utxo - tx hash set
     std::map<COutPoint, uint256> mapLockedOutpoints; // utxo - tx hash
 
     //track masternodes who voted with no txreq (for DOS protection)
-    std::map<COutPoint, int64_t> mapMasternodeOrphanVotes; // mn outpoint -- time
+    std::map<COutPoint, int64_t> mapMasternodeOrphanVotes; // mn outpoint - time
 
     bool CreateTxLockCandidate(const CTxLockRequest& txLockRequest);
     void Vote(CTxLockCandidate& txLockCandidate);
@@ -62,6 +61,8 @@ private:
     //process consensus vote message
     bool ProcessTxLockVote(CNode* pfrom, CTxLockVote& vote);
     void ProcessOrphanTxLockVotes();
+    bool IsEnoughOrphanVotesForTx(const CTxLockRequest& txLockRequest);
+    bool IsEnoughOrphanVotesForTxAndOutPoint(const uint256& txHash, const COutPoint& outpoint);
     int64_t GetAverageMasternodeOrphanVoteTime();
 
     void LockTransactionInputs(const CTxLockCandidate& txLockCandidate);
@@ -125,7 +126,7 @@ public:
         nTimeCreated(GetTime())
         {}
 
-    bool IsValid() const;
+    bool IsValid(bool fRequireUnspent = true) const;
     CAmount GetMinFee() const;
     int GetMaxSignatures() const;
     bool IsTimedOut() const;
