@@ -65,10 +65,11 @@ private:
     bool IsEnoughOrphanVotesForTxAndOutPoint(const uint256& txHash, const COutPoint& outpoint);
     int64_t GetAverageMasternodeOrphanVoteTime();
 
+    void TryToFinalizeLockCandidate(const CTxLockCandidate& txLockCandidate);
     void LockTransactionInputs(const CTxLockCandidate& txLockCandidate);
     //update UI and notify external script if any
-    void UpdateLockedTransaction(CTxLockCandidate& txLockCandidate, bool fForceNotification = false);
-    bool ResolveConflicts(const CTxLockCandidate& txLockCandidate);
+    void UpdateLockedTransaction(const CTxLockCandidate& txLockCandidate);
+    bool ResolveConflicts(const CTxLockCandidate& txLockCandidate, int nMaxBlocks);
 
     bool IsInstantSendReadyToLock(const uint256 &txHash);
 
@@ -100,7 +101,7 @@ public:
     // verify if transaction lock timed out
     bool IsTxLockRequestTimedOut(const uint256& txHash);
 
-    void Relay(const uint256& txHash) const;
+    void Relay(const uint256& txHash);
 
     void UpdatedBlockTip(const CBlockIndex *pindex);
     void SyncTransaction(const CTransaction& tx, const CBlock* pblock);
