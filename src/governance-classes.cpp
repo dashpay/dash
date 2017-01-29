@@ -521,7 +521,7 @@ bool CSuperblock::IsValidBlockHeight(int nBlockHeight)
 {
     // SUPERBLOCKS CAN HAPPEN ONLY after hardfork and only ONCE PER CYCLE
     return nBlockHeight >= Params().GetConsensus().nSuperblockStartBlock &&
-            ((nBlockHeight % Params().GetConsensus().nSuperblockCycle) == 0);
+        (((nBlockHeight - Params().GetConsensus().nSuperblockStartBlock)  % Params().GetConsensus().nSuperblockCycle) == 0);
 }
 
 CAmount CSuperblock::GetPaymentsLimit(int nBlockHeight)
