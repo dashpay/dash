@@ -102,7 +102,7 @@ struct COrphanTx {
 };
 map<uint256, COrphanTx> mapOrphanTransactions GUARDED_BY(cs_main);;
 map<uint256, set<uint256> > mapOrphanTransactionsByPrev GUARDED_BY(cs_main);;
-map<uint256, int64_t> mapRejectedBlocks;
+map<uint256, int64_t> mapRejectedBlocks GUARDED_BY(cs_main);
 void EraseOrphansFor(NodeId peer) EXCLUSIVE_LOCKS_REQUIRED(cs_main);
 
 /**
@@ -3170,13 +3170,14 @@ bool DisconnectBlocks(int blocks)
 
 void ReprocessBlocks(int nBlocks)
 {
+    LOCK(cs_main);
+
     std::map<uint256, int64_t>::iterator it = mapRejectedBlocks.begin();
     while(it != mapRejectedBlocks.end()){
         //use a window twice as large as is usual for the nBlocks we want to reset
         if((*it).second  > GetTime() - (nBlocks*60*5)) {
             BlockMap::iterator mi = mapBlockIndex.find((*it).first);
             if (mi != mapBlockIndex.end() && (*mi).second) {
-                LOCK(cs_main);
 
                 CBlockIndex* pindex = (*mi).second;
                 LogPrintf("ReprocessBlocks -- %s\n", (*it).first.ToString());
@@ -3748,6 +3749,7 @@ bool CheckBlock(const CBlock& block, CValidationState& state, bool fCheckPOW, bo
                     // Relay corresponding transaction lock request and all its votes
                     // to let other nodes complete the lock.
                     instantsend.Relay(hashLocked);
+                    LOCK(cs_main);
                     mapRejectedBlocks.insert(make_pair(block.GetHash(), GetTime()));
                     return state.DoS(0, error("CheckBlock(DASH): transaction %s conflicts with transaction lock %s",
                                                 tx.GetHash().ToString(), hashLocked.ToString()),
