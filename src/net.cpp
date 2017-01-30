@@ -1711,7 +1711,7 @@ void ThreadMnbRequestConnections()
 
         std::pair<CService, uint256> p = mnodeman.PopScheduledMnbRequestConnection();
         if(p.first == CService()) continue;
-        CNode* pnode = ConnectNode(CAddress(p.first), NULL, true);
+        CNode* pnode = ConnectNode(CAddress(p.first), NULL, false);
         if(pnode) {
             grant.MoveTo(pnode->grantMasternodeOutbound);
             if(p.second != uint256())
