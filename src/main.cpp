@@ -3162,8 +3162,11 @@ bool DisconnectBlocks(int blocks)
     const CChainParams& chainparams = Params();
 
     LogPrintf("DisconnectBlocks -- Got command to replay %d blocks\n", blocks);
-    for(int i = 0; i <= blocks; i++)
-        DisconnectTip(state, chainparams.GetConsensus());
+    for(int i = 0; i <= blocks; i++) {
+        if(!DisconnectTip(state, chainparams.GetConsensus()) || !state.IsValid()) {
+            return false;
+        }
+    }
 
     return true;
 }
@@ -3189,15 +3192,10 @@ void ReprocessBlocks(int nBlocks)
         ++it;
     }
 
-    CValidationState state;
-    {
-        LOCK(cs_main);
-        DisconnectBlocks(nBlocks);
-    }
+    DisconnectBlocks(nBlocks);
 
-    if (state.IsValid()) {
-        ActivateBestChain(state, Params());
-    }
+    CValidationState state;
+    ActivateBestChain(state, Params());
 }
 
 /**
