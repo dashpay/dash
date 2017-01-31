@@ -207,7 +207,7 @@ void CMasternodeMan::CheckAndRemove()
                 fMasternodesRemoved = true;
             } else {
                 bool fAsk = pCurrentBlockIndex &&
-                            nAskForMnbRecovery > 0 &&
+                            (nAskForMnbRecovery > 0) &&
                             masternodeSync.IsSynced() &&
                             it->IsNewStartRequired() &&
                             !IsMnbRecoveryRequested(hash);
