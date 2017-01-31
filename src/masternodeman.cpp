@@ -893,7 +893,12 @@ void CMasternodeMan::ProcessMessage(CNode* pfrom, std::string& strCommand, CData
 
         if(pfrom->nVersion >= DSEG_FILTER_VERSION) {
             vRecv >> filter;
+            filter.UpdateEmptyFull();
+        } else {
+            filter = CBloomFilter();
+            filter.clear();
         }
+        filter.UpdateEmptyFull();
 
         LogPrint("masternode", "DSEG -- Masternode list, masternode=%s\n", vin.prevout.ToStringShort());
 
