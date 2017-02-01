@@ -392,6 +392,7 @@ CNode* ConnectNode(CAddress addrConnect, const char *pszDest, bool fConnectToMas
         if (IsLocal(addrConnect) && !fConnectToMasternode)
             return NULL;
 
+        LOCK(cs_vNodes);
         // Look for an existing connection
         CNode* pnode = FindNode((CService)addrConnect);
         if (pnode)
@@ -425,13 +426,11 @@ CNode* ConnectNode(CAddress addrConnect, const char *pszDest, bool fConnectToMas
 
         addrman.Attempt(addrConnect);
 
+        LOCK(cs_vNodes);
         // Add node
         CNode* pnode = new CNode(hSocket, addrConnect, pszDest ? pszDest : "", false, true);
 
-        {
-            LOCK(cs_vNodes);
-            vNodes.push_back(pnode);
-        }
+        vNodes.push_back(pnode);
 
         pnode->nTimeConnected = GetTime();
         if(fConnectToMasternode) {
