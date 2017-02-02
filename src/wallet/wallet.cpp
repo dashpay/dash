@@ -1897,12 +1897,12 @@ CAmount CWallet::GetAnonymizedBalance() const
 
 // Note: calculated including unconfirmed,
 // that's ok as long as we use it for informational purposes only
-double CWallet::GetAverageAnonymizedRounds() const
+float CWallet::GetAverageAnonymizedRounds() const
 {
     if(fLiteMode) return 0;
 
-    double fTotal = 0;
-    double fCount = 0;
+    int nTotal = 0;
+    int nCount = 0;
 
     {
         LOCK2(cs_main, cs_wallet);
@@ -1914,20 +1914,19 @@ double CWallet::GetAverageAnonymizedRounds() const
 
             for (unsigned int i = 0; i < pcoin->vout.size(); i++) {
 
-                CTxIn vin = CTxIn(hash, i);
+                CTxIn txin = CTxIn(hash, i);
 
-                if(IsSpent(hash, i) || IsMine(pcoin->vout[i]) != ISMINE_SPENDABLE || !IsDenominated(vin)) continue;
+                if(IsSpent(hash, i) || IsMine(pcoin->vout[i]) != ISMINE_SPENDABLE || !IsDenominated(txin)) continue;
 
-                int rounds = GetInputPrivateSendRounds(vin);
-                fTotal += (float)rounds;
-                fCount += 1;
+                nTotal += GetInputPrivateSendRounds(txin);
+                nCount++;
             }
         }
     }
 
-    if(fCount == 0) return 0;
+    if(nCount == 0) return 0;
 
-    return fTotal/fCount;
+    return (float)nTotal/nCount;
 }
 
 // Note: calculated including unconfirmed,
