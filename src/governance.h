@@ -380,7 +380,7 @@ public:
     void RequestGovernanceObjectVotes(const std::vector<CNode*>& vNodesCopy);
 
 private:
-    void RequestGovernanceObject(CNode* pfrom, const uint256& nHash, bool fUseFilter = false);
+    void RequestGovernanceObject(CNode* pnode, const uint256& nHash, bool fUseFilter = false);
 
     void AddInvalidVote(const CGovernanceVote& vote)
     {
