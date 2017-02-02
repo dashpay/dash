@@ -1672,6 +1672,8 @@ bool CDarksendPool::SubmitDenominate()
 
 bool CDarksendPool::PrepareDenominate(int nMinRounds, int nMaxRounds, std::string& strErrorRet, std::vector<CTxIn>& vecTxInRet, std::vector<CTxOut>& vecTxOutRet)
 {
+    if(!pwalletMain) return false;
+
     if (pwalletMain->IsLocked(true)) {
         strErrorRet = "Wallet locked, unable to create transaction!";
         return false;
