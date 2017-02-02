@@ -247,10 +247,10 @@ void CDarksendPool::ProcessMessage(CNode* pfrom, std::string& strCommand, CDataS
                 }
             }
 
-            // Allow lowest denom (at max) as a a fee. Normally shouldn't happen though.
-            // TODO: Or do not allow fees at all?
-            if(nValueIn - nValueOut > vecPrivateSendDenominations.back()) {
-                LogPrintf("DSVIN -- fees are too high! fees: %lld, tx=%s", nValueIn - nValueOut, tx.ToString());
+            // There should be no fee in mixing tx
+            CAmount nFee = nValueIn - nValueOut;
+            if(nFee != 0) {
+                LogPrintf("DSVIN -- there should be no fee in mixing tx! fees: %lld, tx=%s", nFee, tx.ToString());
                 PushStatus(pfrom, STATUS_REJECTED, ERR_FEES);
                 return;
             }
