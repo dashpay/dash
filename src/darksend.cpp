@@ -2233,7 +2233,7 @@ std::string CDarksendPool::GetMessageByID(PoolMessage nMessageID)
         case ERR_INVALID_INPUT:         return _("Input is not valid.");
         case ERR_INVALID_SCRIPT:        return _("Invalid script detected.");
         case ERR_INVALID_TX:            return _("Transaction not valid.");
-        case ERR_MAXIMUM:               return _("Entry exceeds PrivateSend pool maximum size.");
+        case ERR_MAXIMUM:               return _("Entry exceeds maximum size.");
         case ERR_MN_LIST:               return _("Not in the Masternode list.");
         case ERR_MODE:                  return _("Incompatible mode.");
         case ERR_NON_STANDARD_PUBKEY:   return _("Non-standard public key detected.");
