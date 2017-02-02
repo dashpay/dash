@@ -1056,6 +1056,8 @@ void CGovernanceManager::RequestGovernanceObjectVotes(const std::vector<CNode*>&
             RequestGovernanceObject(pnode, nHashGovobj, true);
             mapAskedRecently[nHashGovobj][pnode->addr] = nNow + nTimeout;
             fAsked = true;
+            // stop loop if max number of peers per obj was asked
+            if(mapAskedRecently[nHashGovobj].size() >= nPeersPerHashMax) break;
         }
         // NOTE: this should match `if` above (the one before `while`)
         if(vpGovObjsTriggersTmp.size()) {
