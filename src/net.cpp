@@ -2522,6 +2522,8 @@ void CNode::AskFor(const CInv& inv)
         }
         return;
     }
+    LogPrint("net", "CNode::AskFor -- mapAskFor.size = %d, setAskFor.size = %d, MAPASKFOR_MAX_SZ = %d, SETASKFOR_MAX_SZ = %d, peer=%d\n",
+            mapAskFor.size(), setAskFor.size(), MAPASKFOR_MAX_SZ, SETASKFOR_MAX_SZ, id);
     // a peer may not have multiple non-responded queue positions for a single inv item
     if (!setAskFor.insert(inv.hash).second)
         return;

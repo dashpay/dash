@@ -460,6 +460,7 @@ void CGovernanceManager::UpdateCachesAndClean()
     }
 
     fRateChecksEnabled = true;
+    LogPrintf("CGovernanceManager::UpdateCachesAndClean -- %s\n", ToString());
 }
 
 CGovernanceObject *CGovernanceManager::FindGovernanceObject(const uint256& nHash)
@@ -942,18 +943,21 @@ void CGovernanceManager::RequestGovernanceObject(CNode* pfrom, const uint256& nH
     CBloomFilter filter;
     filter.clear();
 
+    int nVoteCount = 0;
     if(fUseFilter) {
         CGovernanceObject* pObj = FindGovernanceObject(nHash);
 
         if(pObj) {
             filter = CBloomFilter(Params().GetConsensus().nGovernanceFilterElements, GOVERNANCE_FILTER_FP_RATE, GetRandInt(999999), BLOOM_UPDATE_ALL);
             std::vector<CGovernanceVote> vecVotes = pObj->GetVoteFile().GetVotes();
+            nVoteCount = vecVotes.size();
             for(size_t i = 0; i < vecVotes.size(); ++i) {
                 filter.insert(vecVotes[i].GetHash());
             }
         }
     }
 
+    LogPrint("governance", "CGovernanceManager::RequestGovernanceObject -- nHash %s nVoteCount %d peer=%d\n", nHash.ToString(), nVoteCount, pfrom->id);
     pfrom->PushMessage(NetMsgType::MNGOVERNANCESYNC, nHash, filter);
 }
 

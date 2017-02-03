@@ -4994,8 +4994,10 @@ void static ProcessGetData(CNode* pfrom, const Consensus::Params& consensusParam
 
     while (it != pfrom->vRecvGetData.end()) {
         // Don't bother if send buffer is too full to respond anyway
-        if (pfrom->nSendSize >= SendBufferSize())
+        if (pfrom->nSendSize >= SendBufferSize()) {
+            LogPrint("net", "ProcessGetData -- ERROR: send buffer is full\n");
             break;
+        }
 
         const CInv &inv = *it;
         LogPrint("net", "ProcessGetData -- inv = %s\n", inv.ToString());
@@ -6359,8 +6361,10 @@ bool ProcessMessages(CNode* pfrom)
     std::deque<CNetMessage>::iterator it = pfrom->vRecvMsg.begin();
     while (!pfrom->fDisconnect && it != pfrom->vRecvMsg.end()) {
         // Don't bother if send buffer is too full to respond anyway
-        if (pfrom->nSendSize >= SendBufferSize())
+        if (pfrom->nSendSize >= SendBufferSize()) {
+            LogPrint("net", "ProcessMessages -- ERROR: send buffer is full\n");
             break;
+        }
 
         // get next message
         CNetMessage& msg = *it;
@@ -6793,34 +6797,30 @@ bool SendMessages(CNode* pto)
         //
         // Message: getdata (non-blocks)
         //
-        int64_t nFirst = -1;
-        if(!pto->mapAskFor.empty()) {
-            nFirst = (*pto->mapAskFor.begin()).first;
-        }
-        LogPrint("net", "SendMessages (mapAskFor) -- before loop: nNow = %d, nFirst = %d\n", nNow, nFirst);
         while (!pto->fDisconnect && !pto->mapAskFor.empty() && (*pto->mapAskFor.begin()).first <= nNow)
         {
             const CInv& inv = (*pto->mapAskFor.begin()).second;
-            LogPrint("net", "SendMessages (mapAskFor) -- inv = %s peer=%d\n", inv.ToString(), pto->id);
             if (!AlreadyHave(inv))
             {
-                if (fDebug)
-                    LogPrint("net", "Requesting %s peer=%d\n", inv.ToString(), pto->id);
+                LogPrint("net", "SendMessages -- GETDATA -- requesting inv = %s peer=%d\n", inv.ToString(), pto->id);
                 vGetData.push_back(inv);
                 if (vGetData.size() >= 1000)
                 {
                     pto->PushMessage(NetMsgType::GETDATA, vGetData);
+                    LogPrint("net", "SendMessages -- GETDATA -- pushed size = %lu peer=%d\n", vGetData.size(), pto->id);
                     vGetData.clear();
                 }
             } else {
                 //If we're not going to ask, don't expect a response.
-                LogPrint("net", "SendMessages -- already have inv = %s peer=%d\n", inv.ToString(), pto->id);
+                LogPrint("net", "SendMessages -- GETDATA -- already have inv = %s peer=%d\n", inv.ToString(), pto->id);
                 pto->setAskFor.erase(inv.hash);
             }
             pto->mapAskFor.erase(pto->mapAskFor.begin());
         }
-        if (!vGetData.empty())
+        if (!vGetData.empty()) {
             pto->PushMessage(NetMsgType::GETDATA, vGetData);
+            LogPrint("net", "SendMessages -- GETDATA -- pushed size = %lu peer=%d\n", vGetData.size(), pto->id);
+        }
 
     }
     return true;
