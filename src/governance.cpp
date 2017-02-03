@@ -16,8 +16,6 @@
 
 CGovernanceManager governance;
 
-std::map<uint256, int64_t> mapAskedForGovernanceObject;
-
 int nSubmittedFinalBudget;
 
 const std::string CGovernanceManager::SERIALIZATION_VERSION_STRING = "CGovernanceManager-Version-8";
@@ -583,18 +581,6 @@ void CGovernanceManager::NewBlock()
 
     if(!pCurrentBlockIndex) return;
     LOCK(cs);
-
-
-    // CHECK OBJECTS WE'VE ASKED FOR, REMOVE OLD ENTRIES
-
-    std::map<uint256, int64_t>::iterator it = mapAskedForGovernanceObject.begin();
-    while(it != mapAskedForGovernanceObject.end()) {
-        if((*it).second > GetTime() - (60*60*24)) {
-            ++it;
-        } else {
-            mapAskedForGovernanceObject.erase(it++);
-        }
-    }
 
     // CHECK AND REMOVE - REPROCESS GOVERNANCE OBJECTS
 

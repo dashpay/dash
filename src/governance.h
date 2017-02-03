@@ -24,7 +24,6 @@ class CGovernanceTriggerManager;
 class CGovernanceObject;
 class CGovernanceVote;
 
-extern std::map<uint256, int64_t> mapAskedForGovernanceObject;
 extern CGovernanceManager governance;
 
 typedef std::pair<CGovernanceObject, int64_t> object_time_pair_t;
