@@ -810,6 +810,7 @@ void CInstantSend::SyncTransaction(const CTransaction& tx, const CBlock* pblock)
 
 std::string CInstantSend::ToString() const
 {
+    LOCK(cs_instantsend);
     return strprintf("Lock Candidates: %lld, Votes %lld", mapTxLockCandidates.size(), mapTxLockVotes.size());
 }
 
