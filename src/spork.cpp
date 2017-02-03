@@ -75,9 +75,28 @@ void CSporkManager::ExecuteSpork(int nSporkID, int nValue)
 {
     //correct fork via spork technology
     if(nSporkID == SPORK_12_RECONSIDER_BLOCKS && nValue > 0) {
+        // allow to reprocess 6h of blocks max which is 2x fork detection time, should be enough to resolve any issues
+        int64_t nMaxBlocks = 144;
+        // this potentially can be a heavy operation, so only allow this to be executed once per 10 minutes
+        int64_t nTimeout = 10 * 60;
+
+        static int64_t nTimeExecuted = 0; // i.e. it was never executed before
+
+        if(GetTime() - nTimeExecuted < nTimeout) {
+            LogPrint("spork", "CSporkManager::ExecuteSpork -- ERROR: Trying to reconsider blocks, too soon - %d/%d\n", GetTime() - nTimeExecuted, nTimeout);
+            return;
+        }
+
+        if(nValue > nMaxBlocks) {
+            LogPrintf("CSporkManager::ExecuteSpork -- ERROR: Trying to reconsider too many blocks %d/%d\n", nValue, nMaxBlocks);
+            return;
+        }
+
+
         LogPrintf("CSporkManager::ExecuteSpork -- Reconsider Last %d Blocks\n", nValue);
 
         ReprocessBlocks(nValue);
+        nTimeExecuted = GetTime();
     }
 }
 
