@@ -181,33 +181,37 @@ void CMasternodeSync::SwitchToNextAsset()
             LogPrintf("CMasternodeSync::SwitchToNextAsset -- Starting %s\n", GetAssetName());
             break;
         case(MASTERNODE_SYNC_SPORKS):
+            LogPrintf("CMasternodeSync::SwitchToNextAsset -- Completed %s in %ss\n", GetAssetName(), GetTime() - nTimeAssetSyncStarted);
             nTimeLastMasternodeList = GetTime();
             nRequestedMasternodeAssets = MASTERNODE_SYNC_LIST;
             LogPrintf("CMasternodeSync::SwitchToNextAsset -- Starting %s\n", GetAssetName());
             break;
         case(MASTERNODE_SYNC_LIST):
+            LogPrintf("CMasternodeSync::SwitchToNextAsset -- Completed %s in %ss\n", GetAssetName(), GetTime() - nTimeAssetSyncStarted);
             nTimeLastPaymentVote = GetTime();
             nRequestedMasternodeAssets = MASTERNODE_SYNC_MNW;
             LogPrintf("CMasternodeSync::SwitchToNextAsset -- Starting %s\n", GetAssetName());
             break;
         case(MASTERNODE_SYNC_MNW):
+            LogPrintf("CMasternodeSync::SwitchToNextAsset -- Completed %s in %ss\n", GetAssetName(), GetTime() - nTimeAssetSyncStarted);
             nTimeLastGovernanceItem = GetTime();
             nRequestedMasternodeAssets = MASTERNODE_SYNC_GOVERNANCE;
             LogPrintf("CMasternodeSync::SwitchToNextAsset -- Starting %s\n", GetAssetName());
             break;
         case(MASTERNODE_SYNC_GOVERNANCE):
-            LogPrintf("CMasternodeSync::SwitchToNextAsset -- Sync has finished\n");
+            LogPrintf("CMasternodeSync::SwitchToNextAsset -- Completed %s in %ss\n", GetAssetName(), GetTime() - nTimeAssetSyncStarted);
             nRequestedMasternodeAssets = MASTERNODE_SYNC_FINISHED;
             uiInterface.NotifyAdditionalDataSyncProgressChanged(1);
             //try to activate our masternode if possible
             activeMasternode.ManageState();
 
             TRY_LOCK(cs_vNodes, lockRecv);
-            if(!lockRecv) return;
-
-            BOOST_FOREACH(CNode* pnode, vNodes) {
-                netfulfilledman.AddFulfilledRequest(pnode->addr, "full-sync");
+            if(lockRecv) {
+                BOOST_FOREACH(CNode* pnode, vNodes) {
+                    netfulfilledman.AddFulfilledRequest(pnode->addr, "full-sync");
+                }
             }
+            LogPrintf("CMasternodeSync::SwitchToNextAsset -- Sync has finished\n");
 
             break;
     }
@@ -356,8 +360,8 @@ void CMasternodeSync::ProcessTick()
         // NORMAL NETWORK MODE - TESTNET/MAINNET
         {
             if(netfulfilledman.HasFulfilledRequest(pnode->addr, "full-sync")) {
-                // we already fully synced from this node recently,
-                // disconnect to free this connection slot for a new node
+                // We already fully synced from this node recently,
+                // disconnect to free this connection slot for another peer.
                 pnode->fDisconnect = true;
                 LogPrintf("CMasternodeSync::ProcessTick -- disconnecting from recently synced peer %d\n", pnode->id);
                 continue;
@@ -382,7 +386,7 @@ void CMasternodeSync::ProcessTick()
             if(nRequestedMasternodeAssets == MASTERNODE_SYNC_LIST) {
                 LogPrint("masternode", "CMasternodeSync::ProcessTick -- nTick %d nRequestedMasternodeAssets %d nTimeLastMasternodeList %lld GetTime() %lld diff %lld\n", nTick, nRequestedMasternodeAssets, nTimeLastMasternodeList, GetTime(), GetTime() - nTimeLastMasternodeList);
                 // check for timeout first
-                if(nTimeLastMasternodeList < GetTime() - MASTERNODE_SYNC_TIMEOUT_SECONDS) {
+                if(GetTime() - nTimeLastMasternodeList > MASTERNODE_SYNC_TIMEOUT_SECONDS) {
                     LogPrintf("CMasternodeSync::ProcessTick -- nTick %d nRequestedMasternodeAssets %d -- timeout\n", nTick, nRequestedMasternodeAssets);
                     if (nRequestedMasternodeAttempt == 0) {
                         LogPrintf("CMasternodeSync::ProcessTick -- ERROR: failed to sync %s\n", GetAssetName());
@@ -416,7 +420,7 @@ void CMasternodeSync::ProcessTick()
                 // check for timeout first
                 // This might take a lot longer than MASTERNODE_SYNC_TIMEOUT_SECONDS minutes due to new blocks,
                 // but that should be OK and it should timeout eventually.
-                if(nTimeLastPaymentVote < GetTime() - MASTERNODE_SYNC_TIMEOUT_SECONDS) {
+                if(GetTime() - nTimeLastPaymentVote > MASTERNODE_SYNC_TIMEOUT_SECONDS) {
                     LogPrintf("CMasternodeSync::ProcessTick -- nTick %d nRequestedMasternodeAssets %d -- timeout\n", nTick, nRequestedMasternodeAssets);
                     if (nRequestedMasternodeAttempt == 0) {
                         LogPrintf("CMasternodeSync::ProcessTick -- ERROR: failed to sync %s\n", GetAssetName());
@@ -459,7 +463,7 @@ void CMasternodeSync::ProcessTick()
             // GOVOBJ : SYNC GOVERNANCE ITEMS FROM OUR PEERS
 
             if(nRequestedMasternodeAssets == MASTERNODE_SYNC_GOVERNANCE) {
-                LogPrint("mnpayments", "CMasternodeSync::ProcessTick -- nTick %d nRequestedMasternodeAssets %d nTimeLastPaymentVote %lld GetTime() %lld diff %lld\n", nTick, nRequestedMasternodeAssets, nTimeLastPaymentVote, GetTime(), GetTime() - nTimeLastPaymentVote);
+                LogPrint("governance", "CMasternodeSync::ProcessTick -- nTick %d nRequestedMasternodeAssets %d nTimeLastGovernanceItem %lld GetTime() %lld diff %lld\n", nTick, nRequestedMasternodeAssets, nTimeLastGovernanceItem, GetTime(), GetTime() - nTimeLastGovernanceItem);
 
                 // check for timeout first
                 if(GetTime() - nTimeLastGovernanceItem > MASTERNODE_SYNC_TIMEOUT_SECONDS) {
@@ -473,17 +477,12 @@ void CMasternodeSync::ProcessTick()
                     return;
                 }
 
-                // check for data
-                // if(nCountBudgetItemProp > 0 && nCountBudgetItemFin)
-                // {
-                //     if(governance.CountProposalInventoryItems() >= (nSumBudgetItemProp / nCountBudgetItemProp)*0.9)
-                //     {
-                //         if(governance.CountFinalizedInventoryItems() >= (nSumBudgetItemFin / nCountBudgetItemFin)*0.9)
-                //         {
-                //             SwitchToNextAsset();
-                //             return;
-                //         }
-                //     }
+                // TODO: check for data
+                // if(nRequestedMasternodeAttempt > 1 && governance.IsEnoughData()) {
+                //     LogPrintf("CMasternodeSync::ProcessTick -- nTick %d nRequestedMasternodeAssets %d -- found enough data\n", nTick, nRequestedMasternodeAssets);
+                //     SwitchToNextAsset();
+                //     ReleaseNodes(vNodesCopy);
+                //     return;
                 // }
 
                 // only request obj sync once from each peer, then request votes on per-obj basis

@@ -640,6 +640,7 @@ void CInstantSend::CheckAndRemove()
             ++itMasternodeOrphan;
         }
     }
+    LogPrintf("CInstantSend::CheckAndRemove -- %s\n", ToString());
 }
 
 bool CInstantSend::AlreadyHave(const uint256& hash)
@@ -805,7 +806,13 @@ void CInstantSend::SyncTransaction(const CTransaction& tx, const CBlock* pblock)
                 txHash.ToString(), nHeightNew, itVote->second.GetHash().ToString());
         itVote->second.SetConfirmedHeight(nHeightNew);
     }
- }
+}
+
+std::string CInstantSend::ToString() const
+{
+    LOCK(cs_instantsend);
+    return strprintf("Lock Candidates: %lld, Votes %lld", mapTxLockCandidates.size(), mapTxLockVotes.size());
+}
 
 //
 // CTxLockRequest

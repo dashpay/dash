@@ -16,8 +16,6 @@
 
 CGovernanceManager governance;
 
-std::map<uint256, int64_t> mapAskedForGovernanceObject;
-
 int nSubmittedFinalBudget;
 
 const std::string CGovernanceManager::SERIALIZATION_VERSION_STRING = "CGovernanceManager-Version-8";
@@ -120,8 +118,7 @@ void CGovernanceManager::ProcessMessage(CNode* pfrom, std::string& strCommand, C
         if(pfrom->nVersion >= GOVERNANCE_FILTER_PROTO_VERSION) {
             vRecv >> filter;
             filter.UpdateEmptyFull();
-        }
-        else {
+        } else {
             filter.clear();
         }
 
@@ -463,6 +460,7 @@ void CGovernanceManager::UpdateCachesAndClean()
     }
 
     fRateChecksEnabled = true;
+    LogPrintf("CGovernanceManager::UpdateCachesAndClean -- %s\n", ToString());
 }
 
 CGovernanceObject *CGovernanceManager::FindGovernanceObject(const uint256& nHash)
@@ -583,18 +581,6 @@ void CGovernanceManager::NewBlock()
 
     if(!pCurrentBlockIndex) return;
     LOCK(cs);
-
-
-    // CHECK OBJECTS WE'VE ASKED FOR, REMOVE OLD ENTRIES
-
-    std::map<uint256, int64_t>::iterator it = mapAskedForGovernanceObject.begin();
-    while(it != mapAskedForGovernanceObject.end()) {
-        if((*it).second > GetTime() - (60*60*24)) {
-            ++it;
-        } else {
-            mapAskedForGovernanceObject.erase(it++);
-        }
-    }
 
     // CHECK AND REMOVE - REPROCESS GOVERNANCE OBJECTS
 
@@ -957,18 +943,21 @@ void CGovernanceManager::RequestGovernanceObject(CNode* pfrom, const uint256& nH
     CBloomFilter filter;
     filter.clear();
 
+    int nVoteCount = 0;
     if(fUseFilter) {
         CGovernanceObject* pObj = FindGovernanceObject(nHash);
 
         if(pObj) {
             filter = CBloomFilter(Params().GetConsensus().nGovernanceFilterElements, GOVERNANCE_FILTER_FP_RATE, GetRandInt(999999), BLOOM_UPDATE_ALL);
             std::vector<CGovernanceVote> vecVotes = pObj->GetVoteFile().GetVotes();
+            nVoteCount = vecVotes.size();
             for(size_t i = 0; i < vecVotes.size(); ++i) {
                 filter.insert(vecVotes[i].GetHash());
             }
         }
     }
 
+    LogPrint("governance", "CGovernanceManager::RequestGovernanceObject -- nHash %s nVoteCount %d peer=%d\n", nHash.ToString(), nVoteCount, pfrom->id);
     pfrom->PushMessage(NetMsgType::MNGOVERNANCESYNC, nHash, filter);
 }
 

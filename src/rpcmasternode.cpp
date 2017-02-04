@@ -352,7 +352,7 @@ UniValue masternode(const UniValue& params, bool fHelp)
             CTxIn vin = CTxIn(uint256S(mne.getTxHash()), uint32_t(atoi(mne.getOutputIndex().c_str())));
             CMasternode *pmn = mnodeman.Find(vin);
 
-            std::string strStatus = pmn ? pmn->GetStatus() : "MISSING";
+            std::string strState = pmn ? pmn->GetStateString() : "MISSING";
 
             UniValue mnObj(UniValue::VOBJ);
             mnObj.push_back(Pair("alias", mne.getAlias()));
@@ -360,7 +360,7 @@ UniValue masternode(const UniValue& params, bool fHelp)
             mnObj.push_back(Pair("privateKey", mne.getPrivKey()));
             mnObj.push_back(Pair("txHash", mne.getTxHash()));
             mnObj.push_back(Pair("outputIndex", mne.getOutputIndex()));
-            mnObj.push_back(Pair("status", strStatus));
+            mnObj.push_back(Pair("status", strState));
             resultObj.push_back(Pair("masternode", mnObj));
         }
 
@@ -504,7 +504,7 @@ UniValue masternodelist(const UniValue& params, bool fHelp)
             } else if (strMode == "full") {
                 std::ostringstream streamFull;
                 streamFull << std::setw(18) <<
-                               mn.GetStatus() << " " <<
+                               mn.GetStateString() << " " <<
                                mn.nProtocolVersion << " " <<
                                CBitcoinAddress(mn.pubKeyCollateralAddress.GetID()).ToString() << " " <<
                                (int64_t)mn.lastPing.sigTime << " " << std::setw(8) <<
@@ -536,10 +536,10 @@ UniValue masternodelist(const UniValue& params, bool fHelp)
                     strOutpoint.find(strFilter) == std::string::npos) continue;
                 obj.push_back(Pair(strOutpoint, (int64_t)mn.nProtocolVersion));
             } else if (strMode == "status") {
-                std::string strStatus = mn.GetStatus();
-                if (strFilter !="" && strStatus.find(strFilter) == std::string::npos &&
+                std::string strState = mn.GetStateString();
+                if (strFilter !="" && strState.find(strFilter) == std::string::npos &&
                     strOutpoint.find(strFilter) == std::string::npos) continue;
-                obj.push_back(Pair(strOutpoint, strStatus));
+                obj.push_back(Pair(strOutpoint, strState));
             }
         }
     }
