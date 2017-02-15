@@ -177,7 +177,7 @@ bool PaymentRequestPlus::getMerchant(X509_STORE* certStore, QString& merchant) c
             throw SSLVerifyError("Bad signature, invalid payment request.");
         }
 
-if OPENSSL_VERSION_NUMBER >= 0x10100000L
+#if OPENSSL_VERSION_NUMBER >= 0x10100000L
         EVP_MD_CTX_free(ctx);
 #endif
 
