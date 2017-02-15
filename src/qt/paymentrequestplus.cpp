@@ -160,7 +160,7 @@ bool PaymentRequestPlus::getMerchant(X509_STORE* certStore, QString& merchant) c
         rcopy.SerializeToString(&data_to_verify);
 
 #if OPENSSL_VERSION_NUMBER >= 0x10100000L
-	EVP_MD_CTX *ctx = EVP_MD_CTX_new();
+        EVP_MD_CTX *ctx = EVP_MD_CTX_new();
         if (!ctx) throw SSLVerifyError("Error allocating OpenSSL context.");
 #else
         EVP_MD_CTX _ctx;
