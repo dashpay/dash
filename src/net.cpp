@@ -964,8 +964,8 @@ static bool AttemptToEvictConnection(bool fPreferNewConnection) {
 
 static void AcceptConnection(const ListenSocket& hListenSocket) {
     // don't accept incoming connections until fully synced
-    if(!masternodeSync.IsSynced()) {
-        LogPrintf("AcceptConnection -- node is not synced yet, skipping\n");
+    if(fMasterNode && !masternodeSync.IsSynced()) {
+        LogPrintf("AcceptConnection -- masternode is not synced yet, skipping inbound connection attempt\n");
         return;
     }
 

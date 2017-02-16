@@ -1052,7 +1052,7 @@ void CGovernanceManager::RequestGovernanceObjectVotes(const std::vector<CNode*>&
             // they stay connected for a short period of time and it's possible that we won't get everything we should.
             // Only use outbound connections - inbound connection could be a "masternode" connection
             // initialted from another node, so skip it too.
-            if(pnode->fMasternode || pnode->fInbound) continue;
+            if(pnode->fMasternode || (fMasterNode && pnode->fInbound)) continue;
             // only use up to date peers
             if(pnode->nVersion < MIN_GOVERNANCE_PEER_PROTO_VERSION) continue;
             // stop early to prevent setAskFor overflow
