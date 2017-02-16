@@ -666,7 +666,7 @@ void CGovernanceManager::Sync(CNode* pfrom, const uint256& nProp, const CBloomFi
     */
 
     // do not provide any data until our node is synced
-    if(!masternodeSync.IsSynced()) return;
+    if(fMasterNode && !masternodeSync.IsSynced()) return;
 
     int nObjCount = 0;
     int nVoteCount = 0;
