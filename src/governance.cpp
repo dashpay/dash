@@ -465,7 +465,9 @@ void CGovernanceManager::UpdateCachesAndClean()
                     ++lit;
                 }
             }
-
+            if(pObj->nObjectType == GOVERNANCE_OBJECT_WATCHDOG && pObj->IsSetCachedDelete()) {
+                mapWatchdogObjects.erase(it->first);
+            }
             mapObjects.erase(it++);
         } else {
             ++it;
