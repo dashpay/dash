@@ -324,6 +324,16 @@ bool CGovernanceManager::AddGovernanceObject(CGovernanceObject& govobj)
 
     LogPrint("gobject", "CGovernanceManager::AddGovernanceObject -- Adding object: hash = %s, type = %d\n", nHash.ToString(), govobj.GetObjectType()); 
 
+    // If it's a watchdog, make sure it fits required time bounds
+    if(govobj.nObjectType == GOVERNANCE_OBJECT_WATCHDOG &&
+        (govobj.GetCreationTime() < GetAdjustedTime() - GOVERNANCE_WATCHDOG_EXPIRATION_TIME ||
+        govobj.GetCreationTime() > GetAdjustedTime() + GOVERNANCE_WATCHDOG_EXPIRATION_TIME)
+    ) {
+        // drop it
+        LogPrint("gobject", "CGovernanceManager::AddGovernanceObject -- CreationTime is out of bounds: hash = %s\n", nHash.ToString());
+        return false;
+    }
+
     // INSERT INTO OUR GOVERNANCE OBJECT MEMORY
     mapObjects.insert(std::make_pair(nHash, govobj));
 
@@ -341,13 +351,6 @@ bool CGovernanceManager::AddGovernanceObject(CGovernanceObject& govobj)
         DBG( cout << "CGovernanceManager::AddGovernanceObject After AddNewTrigger" << endl; );
         break;
     case GOVERNANCE_OBJECT_WATCHDOG:
-        if(govobj.GetCreationTime() < GetAdjustedTime() - GOVERNANCE_WATCHDOG_EXPIRATION_TIME ||
-            govobj.GetCreationTime() > GetAdjustedTime() + GOVERNANCE_WATCHDOG_EXPIRATION_TIME) {
-            // drop it
-            LogPrint("gobject", "CGovernanceManager::AddGovernanceObject -- CreationTime is out of bounds: hash = %s\n", nHash.ToString());
-            mapObjects.erase(nHash);
-            return false;
-        }
         mapWatchdogObjects[nHash] = govobj.GetCreationTime() + GOVERNANCE_WATCHDOG_EXPIRATION_TIME;
         LogPrint("gobject", "CGovernanceManager::AddGovernanceObject -- Added watchdog to map: hash = %s\n", nHash.ToString());
         break;
