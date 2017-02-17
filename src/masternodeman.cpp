@@ -994,9 +994,9 @@ void CMasternodeMan::DoFullVerificationStep()
     // edge case: list is too short and this masternode is not enabled
     if(nMyRank == -1) return;
 
-    // send verify requests to up to MAX_POSE_CONNECTIONS masternodes starting from
-    // (MAX_POSE_RANK + MAX_POSE_CONNECTIONS * (nMyRank - 1) + 1)
-    int nOffset = MAX_POSE_RANK + MAX_POSE_CONNECTIONS * (nMyRank - 1);
+    // send verify requests to up to MAX_POSE_CONNECTIONS masternodes
+    // starting from MAX_POSE_RANK + nMyRank and using MAX_POSE_CONNECTIONS as a step
+    int nOffset = MAX_POSE_RANK + nMyRank - 1;
     if(nOffset >= (int)vecMasternodeRanks.size()) return;
 
     std::vector<CMasternode*> vSortedByAddr;
@@ -1014,7 +1014,9 @@ void CMasternodeMan::DoFullVerificationStep()
                         it->second.IsPoSeVerified() && it->second.IsPoSeBanned() ? " and " : "",
                         it->second.IsPoSeBanned() ? "banned" : "",
                         it->second.vin.prevout.ToStringShort(), it->second.addr.ToString());
-            ++it;
+            nOffset += MAX_POSE_CONNECTIONS;
+            if(nOffset >= (int)vecMasternodeRanks.size()) break;
+            it += MAX_POSE_CONNECTIONS;
             continue;
         }
         LogPrint("masternode", "CMasternodeMan::DoFullVerificationStep -- Verifying masternode %s rank %d/%d address %s\n",
@@ -1023,7 +1025,9 @@ void CMasternodeMan::DoFullVerificationStep()
             nCount++;
             if(nCount >= MAX_POSE_CONNECTIONS) break;
         }
-        ++it;
+        nOffset += MAX_POSE_CONNECTIONS;
+        if(nOffset >= (int)vecMasternodeRanks.size()) break;
+        it += MAX_POSE_CONNECTIONS;
     }
 
     LogPrint("masternode", "CMasternodeMan::DoFullVerificationStep -- Sent verification requests to %d masternodes\n", nCount);
