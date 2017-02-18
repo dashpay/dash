@@ -271,7 +271,7 @@ void CMasternodeMan::CheckAndRemove(bool forceExpiredRemoval)
             map<uint256, CMasternodeBroadcast>::iterator it3 = mapSeenMasternodeBroadcast.begin();
             while(it3 != mapSeenMasternodeBroadcast.end()){
                 if((*it3).second.vin == (*it).vin){
-                    masternodeSync.mapSeenSyncMNB.erase((*it3).first);
+                    if(masternodeSync.mapSeenSyncMNB.count((*it3).first)) masternodeSync.mapSeenSyncMNB.erase((*it3).first);
                     mapSeenMasternodeBroadcast.erase(it3++);
                 } else {
                     ++it3;
@@ -329,7 +329,8 @@ void CMasternodeMan::CheckAndRemove(bool forceExpiredRemoval)
     while(it3 != mapSeenMasternodeBroadcast.end()){
         if((*it3).second.lastPing.sigTime < GetTime() - MASTERNODE_REMOVAL_SECONDS*2){
             LogPrint("masternode", "CMasternodeMan::CheckAndRemove - Removing expired Masternode broadcast %s\n", (*it3).second.GetHash().ToString());
-            masternodeSync.mapSeenSyncMNB.erase((*it3).second.GetHash());
+            uint256 hash = (*it3).second.GetHash();
+            if(masternodeSync.mapSeenSyncMNB.count(hash)) masternodeSync.mapSeenSyncMNB.erase(hash);
             mapSeenMasternodeBroadcast.erase(it3++);
         } else {
             ++it3;
