@@ -6,6 +6,7 @@
 #include "txmempool.h"
 
 #include "clientversion.h"
+#include "darksend.h"
 #include "main.h"
 #include "streams.h"
 #include "util.h"
@@ -535,7 +536,7 @@ void CTxMemPool::removeForBlock(const std::vector<CTransaction>& vtx, unsigned i
     BOOST_FOREACH(const CTransaction& tx, vtx)
     {
         uint256 hash = tx.GetHash();
-        if (mapTx.count(hash))
+        if (mapTx.count(hash) && !mapDarksendBroadcastTxes.count(hash))
             entries.push_back(mapTx[hash]);
     }
     minerPolicyEstimator->seenBlock(entries, nBlockHeight, minRelayFee);
