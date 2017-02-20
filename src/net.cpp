@@ -24,6 +24,7 @@
 
 #include "darksend.h"
 #include "instantx.h"
+#include "masternode-sync.h"
 #include "masternodeman.h"
 
 #ifdef WIN32
@@ -1020,6 +1021,13 @@ static void AcceptConnection(const ListenSocket& hListenSocket) {
             CloseSocket(hSocket);
             return;
         }
+    }
+
+    // don't accept incoming connections until fully synced
+    if(fMasterNode && !masternodeSync.IsSynced()) {
+        LogPrintf("AcceptConnection -- masternode is not synced yet, skipping inbound connection attempt\n");
+        CloseSocket(hSocket);
+        return;
     }
 
     CNode* pnode = new CNode(hSocket, addr, "", true);

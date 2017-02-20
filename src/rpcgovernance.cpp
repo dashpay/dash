@@ -544,7 +544,7 @@ UniValue gobject(const UniValue& params, bool fHelp)
         // GET MAIN PARAMETER FOR THIS MODE, VALID OR ALL?
 
         std::string strShow = "valid";
-        if (params.size() == 2) strShow = params[1].get_str();
+        if (params.size() >= 2) strShow = params[1].get_str();
         if (strShow != "valid" && strShow != "all")
             return "Invalid mode, should be 'valid' or 'all'";
 
@@ -584,6 +584,7 @@ UniValue gobject(const UniValue& params, bool fHelp)
             bObj.push_back(Pair("DataString",  pGovObj->GetDataAsString()));
             bObj.push_back(Pair("Hash",  pGovObj->GetHash().ToString()));
             bObj.push_back(Pair("CollateralHash",  pGovObj->GetCollateralHash().ToString()));
+            bObj.push_back(Pair("ObjectType", pGovObj->GetObjectType()));
             bObj.push_back(Pair("CreationTime", pGovObj->GetCreationTime()));
             const CTxIn& masternodeVin = pGovObj->GetMasternodeVin();
             if(masternodeVin != CTxIn()) {
@@ -635,6 +636,7 @@ UniValue gobject(const UniValue& params, bool fHelp)
         objResult.push_back(Pair("DataString",  pGovObj->GetDataAsString()));
         objResult.push_back(Pair("Hash",  pGovObj->GetHash().ToString()));
         objResult.push_back(Pair("CollateralHash",  pGovObj->GetCollateralHash().ToString()));
+        objResult.push_back(Pair("ObjectType", pGovObj->GetObjectType()));
         objResult.push_back(Pair("CreationTime", pGovObj->GetCreationTime()));
         const CTxIn& masternodeVin = pGovObj->GetMasternodeVin();
         if(masternodeVin != CTxIn()) {
