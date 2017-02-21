@@ -388,7 +388,7 @@ bool CGovernanceManager::UpdateCurrentWatchdog(CGovernanceObject& watchdogNew)
     int64_t nNow = GetTime();
 
     if((nHashWatchdogCurrent == uint256()) ||
-       (((nNow - nTimeWatchdogCurrent) > nExpirationDelay) && (nNow - watchdogNew.GetCreationTime() <nExpirationDelay)) ||
+       (((nNow - nTimeWatchdogCurrent) > nExpirationDelay) && (nNow - watchdogNew.GetCreationTime() < nExpirationDelay)) ||
        (nHashNew > nHashCurrent)) {
         nHashWatchdogCurrent = watchdogNew.GetHash();
         nTimeWatchdogCurrent = watchdogNew.GetCreationTime();
