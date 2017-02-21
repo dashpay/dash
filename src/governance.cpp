@@ -30,6 +30,8 @@ CGovernanceManager::CGovernanceManager()
       mapSeenGovernanceObjects(),
       mapMasternodeOrphanObjects(),
       mapWatchdogObjects(),
+      nHashWatchdogCurrent(),
+      nTimeWatchdogCurrent(0),
       mapVoteToObject(MAX_CACHE_SIZE),
       mapInvalidVotes(MAX_CACHE_SIZE),
       mapOrphanVotes(MAX_CACHE_SIZE),
@@ -330,14 +332,20 @@ bool CGovernanceManager::AddGovernanceObject(CGovernanceObject& govobj)
 
     LogPrint("gobject", "CGovernanceManager::AddGovernanceObject -- Adding object: hash = %s, type = %d\n", nHash.ToString(), govobj.GetObjectType()); 
 
-    // If it's a watchdog, make sure it fits required time bounds
-    if(govobj.nObjectType == GOVERNANCE_OBJECT_WATCHDOG &&
-        (govobj.GetCreationTime() < GetAdjustedTime() - GOVERNANCE_WATCHDOG_EXPIRATION_TIME ||
-        govobj.GetCreationTime() > GetAdjustedTime() + GOVERNANCE_WATCHDOG_EXPIRATION_TIME)
-    ) {
-        // drop it
-        LogPrint("gobject", "CGovernanceManager::AddGovernanceObject -- CreationTime is out of bounds: hash = %s\n", nHash.ToString());
-        return false;
+    if(govobj.nObjectType == GOVERNANCE_OBJECT_WATCHDOG) {
+        // If it's a watchdog, make sure it fits required time bounds
+        if((govobj.GetCreationTime() < GetAdjustedTime() - GOVERNANCE_WATCHDOG_EXPIRATION_TIME ||
+            govobj.GetCreationTime() > GetAdjustedTime() + GOVERNANCE_WATCHDOG_EXPIRATION_TIME)
+            ) {
+            // drop it
+            LogPrint("gobject", "CGovernanceManager::AddGovernanceObject -- CreationTime is out of bounds: hash = %s\n", nHash.ToString());
+            return false;
+        }
+
+        if(!UpdateCurrentWatchdog(govobj)) {
+            LogPrint("gobject", "CGovernanceManager::AddGovernanceObject -- Watchdog not better than current: hash = %s\n", nHash.ToString());
+            return false;
+        }
     }
 
     // INSERT INTO OUR GOVERNANCE OBJECT MEMORY
@@ -367,6 +375,29 @@ bool CGovernanceManager::AddGovernanceObject(CGovernanceObject& govobj)
     DBG( cout << "CGovernanceManager::AddGovernanceObject END" << endl; );
 
     return true;
+}
+
+bool CGovernanceManager::UpdateCurrentWatchdog(CGovernanceObject& watchdogNew)
+{
+    bool fAccept = false;
+
+    arith_uint256 nHashNew = UintToArith256(watchdogNew.GetHash());
+    arith_uint256 nHashCurrent = UintToArith256(nHashWatchdogCurrent);
+
+    int64_t nExpirationDelay = GOVERNANCE_WATCHDOG_EXPIRATION_TIME / 2;
+    int64_t nNow = GetTime();
+
+    if((nHashWatchdogCurrent == uint256()) ||
+       (((nNow - nTimeWatchdogCurrent) > nExpirationDelay) && (nNow - watchdogNew.GetCreationTime() <nExpirationDelay)) ||
+       (nHashNew > nHashCurrent)) {
+        nHashWatchdogCurrent = watchdogNew.GetHash();
+        nTimeWatchdogCurrent = watchdogNew.GetCreationTime();
+        fAccept = true;
+        LogPrint("gobject", "CGovernanceManager::UpdateCurrentWatchdog -- Current watchdog updated to: hash = %s\n",
+                 ArithToUint256(nHashNew).ToString());
+    }
+
+    return fAccept;
 }
 
 void CGovernanceManager::UpdateCachesAndClean()
