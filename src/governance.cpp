@@ -20,7 +20,7 @@ std::map<uint256, int64_t> mapAskedForGovernanceObject;
 
 int nSubmittedFinalBudget;
 
-const std::string CGovernanceManager::SERIALIZATION_VERSION_STRING = "CGovernanceManager-Version-9";
+const std::string CGovernanceManager::SERIALIZATION_VERSION_STRING = "CGovernanceManager-Version-10";
 
 CGovernanceManager::CGovernanceManager()
     : pCurrentBlockIndex(NULL),
@@ -221,7 +221,7 @@ void CGovernanceManager::ProcessMessage(CNode* pfrom, std::string& strCommand, C
 
         govobj.UpdateSentinelVariables(); //this sets local vars in object
 
-        if(AddGovernanceObject(govobj))
+        if(AddGovernanceObject(govobj, pfrom))
         {
             LogPrintf("MNGOVERNANCEOBJECT -- %s new\n", strHash);
             govobj.Relay();
@@ -307,7 +307,7 @@ void CGovernanceManager::CheckOrphanVotes(CGovernanceObject& govobj, CGovernance
     fRateChecksEnabled = true;
 }
 
-bool CGovernanceManager::AddGovernanceObject(CGovernanceObject& govobj)
+bool CGovernanceManager::AddGovernanceObject(CGovernanceObject& govobj, CNode* pfrom)
 {
     LOCK2(cs_main, cs);
     std::string strError = "";
@@ -343,6 +343,9 @@ bool CGovernanceManager::AddGovernanceObject(CGovernanceObject& govobj)
         }
 
         if(!UpdateCurrentWatchdog(govobj)) {
+            if(pfrom && (nHashWatchdogCurrent != uint256())) {
+                pfrom->PushInventory(CInv(MSG_GOVERNANCE_OBJECT, nHashWatchdogCurrent));
+            }
             LogPrint("gobject", "CGovernanceManager::AddGovernanceObject -- Watchdog not better than current: hash = %s\n", nHash.ToString());
             return false;
         }
@@ -425,6 +428,7 @@ void CGovernanceManager::UpdateCachesAndClean()
                         it2->second.nDeletionTime = nNow;
                     }
                 }
+                nHashWatchdogCurrent = uint256();
                 mapWatchdogObjects.erase(it++);
             }
             else {
@@ -466,7 +470,8 @@ void CGovernanceManager::UpdateCachesAndClean()
             continue;
         }
 
-        std::string strHash = pObj->GetHash().ToString();
+        uint256 nHash = pObj->GetHash();
+        std::string strHash = nHash.ToString();
 
         // IF CACHE IS NOT DIRTY, WHY DO THIS?
         if(pObj->IsSetDirtyCache()) {
@@ -475,6 +480,10 @@ void CGovernanceManager::UpdateCachesAndClean()
 
             // UPDATE SENTINEL SIGNALING VARIABLES
             pObj->UpdateSentinelVariables();
+        }
+
+        if(pObj->IsSetCachedDelete() && (pObj->nObjectType == GOVERNANCE_OBJECT_WATCHDOG) && (nHash == nHashWatchdogCurrent)) {
+            nHashWatchdogCurrent = uint256();
         }
 
         // IF DELETE=TRUE, THEN CLEAN THE MESS UP!

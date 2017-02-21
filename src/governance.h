@@ -289,7 +289,7 @@ public:
     std::vector<CGovernanceObject*> GetAllNewerThan(int64_t nMoreThanTime);
 
     bool IsBudgetPaymentBlock(int nBlockHeight);
-    bool AddGovernanceObject (CGovernanceObject& govobj);
+    bool AddGovernanceObject(CGovernanceObject& govobj, CNode* pfrom = NULL);
 
     std::string GetRequiredPaymentsString(int nBlockHeight);
 
