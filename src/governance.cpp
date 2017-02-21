@@ -428,7 +428,9 @@ void CGovernanceManager::UpdateCachesAndClean()
                         it2->second.nDeletionTime = nNow;
                     }
                 }
-                nHashWatchdogCurrent = uint256();
+                if(it->first == nHashWatchdogCurrent) {
+                    nHashWatchdogCurrent = uint256();
+                }
                 mapWatchdogObjects.erase(it++);
             }
             else {
@@ -470,7 +472,7 @@ void CGovernanceManager::UpdateCachesAndClean()
             continue;
         }
 
-        uint256 nHash = pObj->GetHash();
+        uint256 nHash = it->first;
         std::string strHash = nHash.ToString();
 
         // IF CACHE IS NOT DIRTY, WHY DO THIS?
@@ -482,7 +484,7 @@ void CGovernanceManager::UpdateCachesAndClean()
             pObj->UpdateSentinelVariables();
         }
 
-        if(pObj->IsSetCachedDelete() && (pObj->nObjectType == GOVERNANCE_OBJECT_WATCHDOG) && (nHash == nHashWatchdogCurrent)) {
+        if(pObj->IsSetCachedDelete() && (nHash == nHashWatchdogCurrent)) {
             nHashWatchdogCurrent = uint256();
         }
 
