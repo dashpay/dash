@@ -954,6 +954,12 @@ bool CGovernanceManager::ProcessVote(CNode* pfrom, const CGovernanceVote& vote, 
     }
 
     CGovernanceObject& govobj = it->second;
+
+    if(govobj.IsSetCachedDelete() || govobj.IsSetExpired()) {
+        LogPrint("gobject", "CGovernanceObject::ProcessVote -- ignoring vote for expired or deleted object, hash = %s\n", nHashGovobj.ToString());
+        return false;
+    }
+
     bool fOk = govobj.ProcessVote(pfrom, vote, exception);
     if(fOk) {
         mapVoteToObject.Insert(nHashVote, &govobj);
