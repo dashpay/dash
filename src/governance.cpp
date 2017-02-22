@@ -393,6 +393,15 @@ bool CGovernanceManager::UpdateCurrentWatchdog(CGovernanceObject& watchdogNew)
     if((nHashWatchdogCurrent == uint256()) ||
        (((nNow - nTimeWatchdogCurrent) > nExpirationDelay) && (nNow - watchdogNew.GetCreationTime() < nExpirationDelay)) ||
        (nHashNew > nHashCurrent)) {
+        LOCK(cs);
+        object_m_it it = mapObjects.find(nHashWatchdogCurrent);
+        if(it != mapObjects.end()) {
+            LogPrint("gobject", "CGovernanceManager::UpdateCurrentWatchdog -- Expiring previous current watchdog, hash = %s\n", nHashWatchdogCurrent.ToString());
+            it->second.fExpired = true;
+            if(it->second.nDeletionTime == 0) {
+                it->second.nDeletionTime = nNow;
+            }
+        }
         nHashWatchdogCurrent = watchdogNew.GetHash();
         nTimeWatchdogCurrent = watchdogNew.GetCreationTime();
         fAccept = true;
@@ -513,7 +522,7 @@ void CGovernanceManager::UpdateCachesAndClean()
                     ++lit;
                 }
             }
-            if(pObj->nObjectType == GOVERNANCE_OBJECT_WATCHDOG && pObj->IsSetCachedDelete()) {
+            if(pObj->nObjectType == GOVERNANCE_OBJECT_WATCHDOG) {
                 mapWatchdogObjects.erase(it->first);
             }
             mapObjects.erase(it++);
