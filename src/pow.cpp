@@ -6,9 +6,9 @@
 #include "pow.h"
 
 #include "arith_uint256.h"
+#include "primitives/block.h"
 #include "chain.h"
 #include "chainparams.h"
-#include "primitives/block.h"
 #include "uint256.h"
 #include "util.h"
 

@@ -2,13 +2,14 @@
 // Distributed under the MIT/X11 software license, see the accompanying
 // file COPYING or http://www.opensource.org/licenses/mit-license.php.
 
+#include "masternode-sync.h"
+
 #include "activemasternode.h"
 #include "checkpoints.h"
 #include "governance.h"
 #include "main.h"
 #include "masternode.h"
 #include "masternode-payments.h"
-#include "masternode-sync.h"
 #include "masternodeman.h"
 #include "netfulfilledman.h"
 #include "spork.h"

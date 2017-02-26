@@ -9,9 +9,9 @@
 #include "script/interpreter.h"
 #include "uint256.h"
 
-#include <boost/variant.hpp>
-
 #include <stdint.h>
+
+#include <boost/variant.hpp>
 
 static const bool DEFAULT_ACCEPT_DATACARRIER = true;
 

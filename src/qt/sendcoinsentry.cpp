@@ -11,7 +11,6 @@
 #include "guiutil.h"
 #include "optionsmodel.h"
 #include "platformstyle.h"
-#include "walletmodel.h"
 
 #include <QApplication>
 #include <QClipboard>

@@ -2,16 +2,17 @@
 // Distributed under the MIT/X11 software license, see the accompanying
 // file COPYING or http://www.opensource.org/licenses/mit-license.php.
 
-#include "activemasternode.h"
-#include "consensus/validation.h"
-#include "darksend.h"
-#include "init.h"
-#include "governance.h"
 #include "masternode.h"
+
+#include "activemasternode.h"
+#include "darksend.h"
+#include "governance.h"
+#include "init.h"
 #include "masternode-payments.h"
 #include "masternode-sync.h"
 #include "masternodeman.h"
 #include "util.h"
+#include "consensus/validation.h"
 
 #include <boost/lexical_cast.hpp>
 

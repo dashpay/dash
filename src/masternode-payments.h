@@ -5,11 +5,11 @@
 #ifndef MASTERNODE_PAYMENTS_H
 #define MASTERNODE_PAYMENTS_H
 
-#include "util.h"
 #include "core_io.h"
 #include "key.h"
 #include "main.h"
 #include "masternode.h"
+#include "util.h"
 #include "utilstrencodings.h"
 
 class CMasternodePayments;

@@ -7,6 +7,7 @@
 #define BITCOIN_SERIALIZE_H
 
 #include "compat/endian.h"
+#include "prevector.h"
 
 #include <algorithm>
 #include <assert.h>
@@ -20,8 +21,6 @@
 #include <string.h>
 #include <utility>
 #include <vector>
-
-#include "prevector.h"
 
 static const unsigned int MAX_SIZE = 0x02000000;
 

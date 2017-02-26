@@ -6,15 +6,15 @@
 #ifndef BITCOIN_TXMEMPOOL_H
 #define BITCOIN_TXMEMPOOL_H
 
-#include <list>
-#include <set>
-
 #include "addressindex.h"
-#include "spentindex.h"
 #include "amount.h"
 #include "coins.h"
-#include "primitives/transaction.h"
+#include "spentindex.h"
 #include "sync.h"
+#include "primitives/transaction.h"
+
+#include <list>
+#include <set>
 
 #undef foreach
 #include "boost/multi_index_container.hpp"

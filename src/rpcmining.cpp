@@ -4,16 +4,17 @@
 // Distributed under the MIT software license, see the accompanying
 // file COPYING or http://www.opensource.org/licenses/mit-license.php.
 
-#include "rpcserver.h"
-#include "base58.h"
 #include "amount.h"
+#include "base58.h"
 #include "chain.h"
 #include "chainparams.h"
 #include "consensus/consensus.h"
-#include "consensus/validation.h"
 #include "core_io.h"
 #include "init.h"
 #include "main.h"
+#ifdef ENABLE_WALLET
+#include "masternode-sync.h"
+#endif
 #include "miner.h"
 #include "net.h"
 #include "pow.h"
@@ -21,18 +22,16 @@
 #include "spork.h"
 #include "txmempool.h"
 #include "util.h"
-#ifdef ENABLE_WALLET
-#include "masternode-sync.h"
-#endif
 #include "utilstrencodings.h"
+#include "consensus/validation.h"
 #include "validationinterface.h"
+
+#include <univalue.h>
 
 #include <stdint.h>
 
 #include <boost/assign/list_of.hpp>
 #include <boost/shared_ptr.hpp>
-
-#include <univalue.h>
 
 using namespace std;
 

@@ -5,14 +5,13 @@
 
 #include "utilitydialog.h"
 
-#include "ui_helpmessagedialog.h"
-
 #include "bitcoingui.h"
 #include "clientmodel.h"
 #include "guiconstants.h"
+#include "guiutil.h"
 #include "intro.h"
 #include "paymentrequestplus.h"
-#include "guiutil.h"
+#include "ui_helpmessagedialog.h"
 
 #include "clientversion.h"
 #include "init.h"

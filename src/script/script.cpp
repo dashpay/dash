@@ -4,6 +4,7 @@
 // file COPYING or http://www.opensource.org/licenses/mit-license.php.
 
 #include "script.h"
+
 #include "tinyformat.h"
 #include "utilstrencodings.h"
 

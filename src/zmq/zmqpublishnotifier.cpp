@@ -2,8 +2,9 @@
 // Distributed under the MIT software license, see the accompanying
 // file COPYING or http://www.opensource.org/licenses/mit-license.php.
 
-#include "chainparams.h"
 #include "zmqpublishnotifier.h"
+
+#include "chainparams.h"
 #include "main.h"
 #include "util.h"
 

@@ -1,8 +1,9 @@
 #ifndef MASTERNODELIST_H
 #define MASTERNODELIST_H
 
-#include "masternode.h"
 #include "platformstyle.h"
+
+#include "masternode.h"
 #include "sync.h"
 #include "util.h"
 

@@ -6,21 +6,20 @@
 
 #include "chainparams.h"
 #include "clientversion.h"
-#include "rpcserver.h"
+#include "httprpc.h"
+#include "httpserver.h"
 #include "init.h"
+#include "masternodeconfig.h"
 #include "noui.h"
+#include "rpcserver.h"
 #include "scheduler.h"
 #include "util.h"
-#include "masternodeconfig.h"
-#include "httpserver.h"
-#include "httprpc.h"
-#include "rpcserver.h"
+
+#include <stdio.h>
 
 #include <boost/algorithm/string/predicate.hpp>
 #include <boost/filesystem.hpp>
 #include <boost/thread.hpp>
-
-#include <stdio.h>
 
 /* Introduction text for doxygen: */
 
