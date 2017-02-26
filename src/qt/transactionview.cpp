@@ -8,7 +8,6 @@
 #include "bitcoinunits.h"
 #include "csvmodelwriter.h"
 #include "editaddressdialog.h"
-#include "guiutil.h"
 #include "optionsmodel.h"
 #include "platformstyle.h"
 #include "transactiondescdialog.h"

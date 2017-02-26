@@ -9,10 +9,10 @@
 #ifndef BITCOIN_UTILMONEYSTR_H
 #define BITCOIN_UTILMONEYSTR_H
 
+#include "amount.h"
+
 #include <stdint.h>
 #include <string>
-
-#include "amount.h"
 
 std::string FormatMoney(const CAmount& n);
 bool ParseMoney(const std::string& str, CAmount& nRet);

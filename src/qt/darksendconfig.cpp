@@ -1,11 +1,16 @@
+// Copyright (c) 2014-2017 The Dash Core developers
+// Distributed under the MIT software license, see the accompanying
+// file COPYING or http://www.opensource.org/licenses/mit-license.php.
+
 #include "darksendconfig.h"
 #include "ui_darksendconfig.h"
 
 #include "bitcoinunits.h"
-#include "darksend.h"
 #include "guiconstants.h"
 #include "optionsmodel.h"
 #include "walletmodel.h"
+
+#include "darksend.h"
 
 #include <QMessageBox>
 #include <QPushButton>

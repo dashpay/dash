@@ -5,12 +5,6 @@
 
 #include "keystore.h"
 
-#include "key.h"
-#include "pubkey.h"
-#include "util.h"
-
-#include <boost/foreach.hpp>
-
 bool CKeyStore::AddKey(const CKey &key) {
     return AddKeyPubKey(key, key.GetPubKey());
 }

@@ -6,6 +6,7 @@
 #define BITCOIN_DBWRAPPER_H
 
 #include "clientversion.h"
+#include "random.h"
 #include "serialize.h"
 #include "streams.h"
 #include "util.h"

@@ -5,14 +5,13 @@
 #ifndef CACHEMULTIMAP_H_
 #define CACHEMULTIMAP_H_
 
+#include "cachemap.h"
+#include "serialize.h"
+
 #include <cstddef>
 #include <map>
 #include <list>
 #include <set>
-
-#include "serialize.h"
-
-#include "cachemap.h"
 
 /**
  * Map like container that keeps the N most recently added items

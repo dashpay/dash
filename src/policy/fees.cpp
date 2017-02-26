@@ -4,11 +4,10 @@
 // file COPYING or http://www.opensource.org/licenses/mit-license.php.
 
 #include "policy/fees.h"
-#include "policy/policy.h"
 
-#include "amount.h"
-#include "primitives/transaction.h"
+#include "policy/policy.h"
 #include "streams.h"
+#include "primitives/transaction.h"
 #include "txmempool.h"
 #include "util.h"
 

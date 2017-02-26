@@ -5,9 +5,9 @@
 #ifndef GOVERNANCE_MISC_H
 #define GOVERNANCE_MISC_H
 
-#include "main.h"
 #include "governance.h"
 #include "init.h"
+#include "main.h"
 
 using namespace std;
 

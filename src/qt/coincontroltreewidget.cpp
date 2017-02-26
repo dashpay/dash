@@ -3,6 +3,7 @@
 // file COPYING or http://www.opensource.org/licenses/mit-license.php.
 
 #include "coincontroltreewidget.h"
+
 #include "coincontroldialog.h"
 
 CoinControlTreeWidget::CoinControlTreeWidget(QWidget *parent) :

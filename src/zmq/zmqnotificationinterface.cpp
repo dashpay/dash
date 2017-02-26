@@ -3,12 +3,12 @@
 // file COPYING or http://www.opensource.org/licenses/mit-license.php.
 
 #include "zmqnotificationinterface.h"
-#include "zmqpublishnotifier.h"
 
-#include "version.h"
 #include "main.h"
 #include "streams.h"
 #include "util.h"
+#include "version.h"
+#include "zmqpublishnotifier.h"
 
 void zmqError(const char *str)
 {

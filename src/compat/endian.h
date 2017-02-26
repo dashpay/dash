@@ -9,8 +9,6 @@
 #include "config/dash-config.h"
 #endif
 
-#include <stdint.h>
-
 #include "compat/byteswap.h"
 
 #if defined(HAVE_ENDIAN_H)
@@ -18,6 +16,7 @@
 #elif defined(HAVE_SYS_ENDIAN_H)
 #include <sys/endian.h>
 #endif
+#include <stdint.h>
 
 #if defined(WORDS_BIGENDIAN)
 

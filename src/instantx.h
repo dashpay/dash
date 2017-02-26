@@ -4,6 +4,7 @@
 #ifndef INSTANTX_H
 #define INSTANTX_H
 
+#include "chain.h"
 #include "net.h"
 #include "primitives/transaction.h"
 

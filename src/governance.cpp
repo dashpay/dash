@@ -2,17 +2,15 @@
 // Distributed under the MIT/X11 software license, see the accompanying
 // file COPYING or http://www.opensource.org/licenses/mit-license.php.
 
-#include "darksend.h"
 #include "governance.h"
-#include "governance-object.h"
-#include "governance-vote.h"
+
+#include "darksend.h"
 #include "governance-classes.h"
 #include "main.h"
 #include "masternode.h"
 #include "masternode-sync.h"
 #include "masternodeman.h"
 #include "netfulfilledman.h"
-#include "util.h"
 
 CGovernanceManager governance;
 

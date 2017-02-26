@@ -8,26 +8,28 @@
 #include "clientversion.h"
 #include "init.h"
 #include "main.h"
+#ifdef ENABLE_WALLET
+#include "masternode-sync.h"
+#endif
 #include "net.h"
 #include "netbase.h"
 #include "rpcserver.h"
+#include "spork.h"
 #include "timedata.h"
 #include "txmempool.h"
 #include "util.h"
-#include "spork.h"
 #include "utilstrencodings.h"
 #ifdef ENABLE_WALLET
-#include "masternode-sync.h"
 #include "wallet/wallet.h"
 #include "wallet/walletdb.h"
 #endif
+
+#include <univalue.h>
 
 #include <stdint.h>
 
 #include <boost/assign/list_of.hpp>
 #include <boost/algorithm/string.hpp>
-
-#include <univalue.h>
 
 using namespace std;
 

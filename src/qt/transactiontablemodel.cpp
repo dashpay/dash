@@ -20,13 +20,13 @@
 #include "util.h"
 #include "wallet/wallet.h"
 
+#include <boost/foreach.hpp>
+
 #include <QColor>
 #include <QDateTime>
 #include <QDebug>
 #include <QIcon>
 #include <QList>
-
-#include <boost/foreach.hpp>
 
 // Amount column is right-aligned it contains numbers
 static int column_alignments[] = {

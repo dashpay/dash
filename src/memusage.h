@@ -5,11 +5,11 @@
 #ifndef BITCOIN_MEMUSAGE_H
 #define BITCOIN_MEMUSAGE_H
 
-#include <stdlib.h>
-
 #include <map>
 #include <set>
 #include <vector>
+
+#include <stdlib.h>
 
 #include <boost/foreach.hpp>
 #include <boost/unordered_set.hpp>

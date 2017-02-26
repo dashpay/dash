@@ -6,10 +6,10 @@
 
 #include "chainparamsbase.h"
 #include "compat.h"
-#include "util.h"
 #include "netbase.h"
 #include "rpcprotocol.h" // For HTTP status codes
 #include "sync.h"
+#include "util.h"
 #include "ui_interface.h"
 
 #include <stdio.h>

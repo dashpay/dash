@@ -7,13 +7,14 @@
 #ifndef BITCOIN_UINT256_H
 #define BITCOIN_UINT256_H
 
+#include "crypto/common.h"
+
 #include <assert.h>
 #include <cstring>
 #include <stdexcept>
 #include <stdint.h>
 #include <string>
 #include <vector>
-#include "crypto/common.h"
 
 /** Template base class for fixed-sized opaque blobs. */
 template<unsigned int BITS>

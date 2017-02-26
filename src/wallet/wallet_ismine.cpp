@@ -8,7 +8,6 @@
 #include "key.h"
 #include "keystore.h"
 #include "script/script.h"
-#include "script/standard.h"
 #include "script/sign.h"
 
 #include <boost/foreach.hpp>

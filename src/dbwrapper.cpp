@@ -4,16 +4,16 @@
 
 #include "dbwrapper.h"
 
-#include "util.h"
 #include "random.h"
 
-#include <boost/filesystem.hpp>
+#include <memenv.h>
+#include <stdint.h>
 
 #include <leveldb/cache.h>
 #include <leveldb/env.h>
 #include <leveldb/filter_policy.h>
-#include <memenv.h>
-#include <stdint.h>
+
+#include <boost/filesystem.hpp>
 
 void HandleError(const leveldb::Status& status) throw(dbwrapper_error)
 {
