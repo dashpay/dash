@@ -2,14 +2,14 @@
 // Distributed under the MIT/X11 software license, see the accompanying
 // file COPYING or http://www.opensource.org/licenses/mit-license.php.
 
+#include "instantx.h"
+
 #include "activemasternode.h"
 #include "darksend.h"
-#include "instantx.h"
 #include "key.h"
 #include "main.h"
 #include "masternode-sync.h"
 #include "masternodeman.h"
-#include "net.h"
 #include "protocol.h"
 #include "spork.h"
 #include "sync.h"

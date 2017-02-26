@@ -12,20 +12,17 @@
 #include "bitcoinunits.h"
 #include "guiutil.h"
 
-#include "amount.h"
+#include "darksend.h"
 #include "init.h"
 #include "main.h" // For DEFAULT_SCRIPTCHECK_THREADS
+#ifdef ENABLE_WALLET
+#include "masternodeconfig.h"
+#endif
 #include "net.h"
 #include "txdb.h" // for -dbcache defaults
-
 #ifdef ENABLE_WALLET
 #include "wallet/wallet.h"
 #include "wallet/walletdb.h"
-#endif
-
-#include "darksend.h"
-#ifdef ENABLE_WALLET
-#include "masternodeconfig.h"
 #endif
 
 #include <QNetworkProxy>

@@ -11,26 +11,27 @@
 #include "chainparams.h"
 #include "coins.h"
 #include "consensus/consensus.h"
-#include "consensus/merkle.h"
-#include "consensus/validation.h"
 #include "hash.h"
 #include "main.h"
+#include "masternode-payments.h"
+#include "masternode-sync.h"
+#include "consensus/merkle.h"
 #include "net.h"
 #include "policy/policy.h"
 #include "pow.h"
-#include "primitives/transaction.h"
 #include "script/standard.h"
 #include "timedata.h"
+#include "primitives/transaction.h"
 #include "txmempool.h"
 #include "util.h"
 #include "utilmoneystr.h"
-#include "masternode-payments.h"
-#include "masternode-sync.h"
+#include "consensus/validation.h"
 #include "validationinterface.h"
+
+#include <queue>
 
 #include <boost/thread.hpp>
 #include <boost/tuple/tuple.hpp>
-#include <queue>
 
 using namespace std;
 

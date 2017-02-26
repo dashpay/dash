@@ -13,24 +13,23 @@
 #include "transactiontablemodel.h"
 
 #include "base58.h"
+#include "darksend.h"
+#include "instantx.h"
 #include "keystore.h"
 #include "main.h"
+#include "spork.h"
 #include "sync.h"
 #include "ui_interface.h"
 #include "wallet/wallet.h"
 #include "wallet/walletdb.h" // for BackupWallet
 
-#include "darksend.h"
-#include "instantx.h"
-#include "spork.h"
-
 #include <stdint.h>
+
+#include <boost/foreach.hpp>
 
 #include <QDebug>
 #include <QSet>
 #include <QTimer>
-
-#include <boost/foreach.hpp>
 
 WalletModel::WalletModel(const PlatformStyle *platformStyle, CWallet *wallet, OptionsModel *optionsModel, QObject *parent) :
     QObject(parent), wallet(wallet), optionsModel(optionsModel), addressTableModel(0),

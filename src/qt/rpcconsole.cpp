@@ -8,22 +8,20 @@
 
 #include "bantablemodel.h"
 #include "clientmodel.h"
-#include "guiutil.h"
 #include "platformstyle.h"
-#include "bantablemodel.h"
 
 #include "chainparams.h"
-#include "rpcserver.h"
 #include "rpcclient.h"
+#include "rpcserver.h"
 #include "util.h"
-
-#include <openssl/crypto.h>
 
 #include <univalue.h>
 
 #ifdef ENABLE_WALLET
 #include <db_cxx.h>
 #endif
+
+#include <openssl/crypto.h>
 
 #include <QDir>
 #include <QKeyEvent>

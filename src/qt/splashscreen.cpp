@@ -5,15 +5,14 @@
 
 #include "splashscreen.h"
 
+#include "guiutil.h"
 #include "networkstyle.h"
 
 #include "clientversion.h"
-#include "guiutil.h"
 #include "init.h"
 #include "util.h"
 #include "ui_interface.h"
 #include "version.h"
-
 #ifdef ENABLE_WALLET
 #include "wallet/wallet.h"
 #endif

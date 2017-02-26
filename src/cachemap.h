@@ -5,11 +5,11 @@
 #ifndef CACHEMAP_H_
 #define CACHEMAP_H_
 
+#include "serialize.h"
+
 #include <map>
 #include <list>
 #include <cstddef>
-
-#include "serialize.h"
 
 /**
  * Serializable structure for key/value items

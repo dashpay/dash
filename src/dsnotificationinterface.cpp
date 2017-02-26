@@ -3,6 +3,7 @@
 // file COPYING or http://www.opensource.org/licenses/mit-license.php.
 
 #include "dsnotificationinterface.h"
+
 #include "darksend.h"
 #include "instantx.h"
 #include "governance.h"

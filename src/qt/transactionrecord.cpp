@@ -7,12 +7,11 @@
 
 #include "base58.h"
 #include "consensus/consensus.h"
+#include "darksend.h"
+#include "instantx.h"
 #include "main.h"
 #include "timedata.h"
 #include "wallet/wallet.h"
-
-#include "darksend.h"
-#include "instantx.h"
 
 #include <stdint.h>
 

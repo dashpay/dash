@@ -5,12 +5,12 @@
 #ifndef GOVERNANCE_VOTEDB_H
 #define GOVERNANCE_VOTEDB_H
 
-#include <list>
-#include <map>
-
 #include "governance-vote.h"
 #include "serialize.h"
 #include "uint256.h"
+
+#include <list>
+#include <map>
 
 /**
  * Represents the collection of votes associated with a given CGovernanceObject

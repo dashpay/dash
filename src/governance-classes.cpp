@@ -4,16 +4,17 @@
 
 //#define ENABLE_DASH_DEBUG
 
-#include "core_io.h"
 #include "governance-classes.h"
+
+#include "core_io.h"
 #include "init.h"
 #include "main.h"
 #include "utilstrencodings.h"
 
+#include <univalue.h>
+
 #include <boost/algorithm/string.hpp>
 #include <boost/foreach.hpp>
-
-#include <univalue.h>
 
 // DECLARE GLOBAL VARIABLES FOR GOVERNANCE CLASSES
 CGovernanceTriggerManager triggerman;

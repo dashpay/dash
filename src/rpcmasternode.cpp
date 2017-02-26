@@ -14,9 +14,10 @@
 #include "util.h"
 #include "utilmoneystr.h"
 
+#include <univalue.h>
+
 #include <fstream>
 #include <iomanip>
-#include <univalue.h>
 
 void EnsureWalletIsUnlocked();
 

@@ -7,13 +7,12 @@
 #define BITCOIN_KEY_H
 
 #include "pubkey.h"
-#include "serialize.h"
 #include "support/allocators/secure.h"
+#include "serialize.h"
 #include "uint256.h"
 
 #include <stdexcept>
 #include <vector>
-
 
 /** 
  * secp256k1:

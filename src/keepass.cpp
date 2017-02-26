@@ -9,6 +9,7 @@
 #include "protocol.h"
 #include "random.h"
 #include "rpcprotocol.h"
+#include "support/cleanse.h" // for OPENSSL_cleanse()
 
 // Necessary to prevent compile errors due to forward declaration of
 //CScript in serialize.h (included from crypter.h)
@@ -18,8 +19,6 @@
 #include "util.h"
 #include "utilstrencodings.h"
 
-#include <boost/foreach.hpp>
-
 #include <event2/event.h>
 #include <event2/http.h>
 #include <event2/buffer.h>
@@ -28,7 +27,8 @@
 #include <openssl/bio.h>
 #include <openssl/evp.h>
 #include <openssl/buffer.h>
-#include "support/cleanse.h" // for OPENSSL_cleanse()
+
+#include <boost/foreach.hpp>
 
 const char* CKeePassIntegrator::KEEPASS_HTTP_HOST = "localhost";
 

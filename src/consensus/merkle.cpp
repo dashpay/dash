@@ -1,4 +1,5 @@
 #include "merkle.h"
+
 #include "hash.h"
 #include "utilstrencodings.h"
 

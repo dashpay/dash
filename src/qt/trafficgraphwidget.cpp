@@ -3,13 +3,14 @@
 // file COPYING or http://www.opensource.org/licenses/mit-license.php.
 
 #include "trafficgraphwidget.h"
+
 #include "clientmodel.h"
+
+#include <cmath>
 
 #include <QPainter>
 #include <QColor>
 #include <QTimer>
-
-#include <cmath>
 
 #define DESIRED_SAMPLES         800
 

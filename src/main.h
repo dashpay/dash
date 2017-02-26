@@ -16,9 +16,9 @@
 #include "coins.h"
 #include "net.h"
 #include "script/script_error.h"
+#include "spentindex.h"
 #include "sync.h"
 #include "versionbits.h"
-#include "spentindex.h"
 
 #include <algorithm>
 #include <exception>

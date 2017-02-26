@@ -13,20 +13,20 @@
 #include "addrman.h"
 #include "chainparams.h"
 #include "clientversion.h"
-#include "consensus/consensus.h"
 #include "crypto/common.h"
-#include "hash.h"
-#include "primitives/transaction.h"
-#include "scheduler.h"
-#include "ui_interface.h"
-#include "wallet/wallet.h"
-#include "utilstrencodings.h"
-
+#include "consensus/consensus.h"
 #include "darksend.h"
+#include "hash.h"
 #include "instantx.h"
 #include "masternode-sync.h"
 #include "masternodeman.h"
+#include "scheduler.h"
+#include "primitives/transaction.h"
+#include "ui_interface.h"
+#include "utilstrencodings.h"
+#include "wallet/wallet.h"
 
+#include <math.h>
 #ifdef WIN32
 #include <string.h>
 #else
@@ -43,7 +43,6 @@
 #include <boost/filesystem.hpp>
 #include <boost/thread.hpp>
 
-#include <math.h>
 
 // Dump addresses to peers.dat every 15 minutes (900s)
 #define DUMP_ADDRESSES_INTERVAL 900

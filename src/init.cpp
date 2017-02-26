@@ -10,25 +10,35 @@
 
 #include "init.h"
 
+#include "activemasternode.h"
 #include "addrman.h"
 #include "amount.h"
 #include "chain.h"
 #include "chainparams.h"
 #include "checkpoints.h"
-#include "compat/sanity.h"
-#include "consensus/validation.h"
+#include "darksend.h"
+#include "dsnotificationinterface.h"
+#include "flat-database.h"
+#include "governance.h"
 #include "httpserver.h"
 #include "httprpc.h"
+#include "instantx.h"
 #include "key.h"
 #include "main.h"
+#include "masternode-payments.h"
+#include "masternode-sync.h"
+#include "masternodeman.h"
+#include "masternodeconfig.h"
 #include "miner.h"
 #include "net.h"
 #include "netfulfilledman.h"
 #include "policy/policy.h"
 #include "rpcserver.h"
+#include "compat/sanity.h"
 #include "script/standard.h"
 #include "script/sigcache.h"
 #include "scheduler.h"
+#include "spork.h"
 #include "txdb.h"
 #include "txmempool.h"
 #include "torcontrol.h"
@@ -37,31 +47,19 @@
 #include "utilmoneystr.h"
 #include "utilstrencodings.h"
 #include "validationinterface.h"
+#include "consensus/validation.h"
 #ifdef ENABLE_WALLET
 #include "wallet/db.h"
+#include "keepass.h"
 #include "wallet/wallet.h"
 #include "wallet/walletdb.h"
 #endif
-
-#include "activemasternode.h"
-#include "darksend.h"
-#include "dsnotificationinterface.h"
-#include "flat-database.h"
-#include "governance.h"
-#include "instantx.h"
-#ifdef ENABLE_WALLET
-#include "keepass.h"
+#if ENABLE_ZMQ
+#include "zmq/zmqnotificationinterface.h"
 #endif
-#include "masternode-payments.h"
-#include "masternode-sync.h"
-#include "masternodeman.h"
-#include "masternodeconfig.h"
-#include "netfulfilledman.h"
-#include "spork.h"
 
 #include <stdint.h>
 #include <stdio.h>
-
 #ifndef WIN32
 #include <signal.h>
 #endif
@@ -76,10 +74,6 @@
 #include <boost/interprocess/sync/file_lock.hpp>
 #include <boost/thread.hpp>
 #include <openssl/crypto.h>
-
-#if ENABLE_ZMQ
-#include "zmq/zmqnotificationinterface.h"
-#endif
 
 using namespace std;
 

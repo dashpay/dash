@@ -9,7 +9,6 @@
 
 #include "bitcoingui.h"
 
-#include "chainparams.h"
 #include "clientmodel.h"
 #include "guiconstants.h"
 #include "guiutil.h"
@@ -17,23 +16,24 @@
 #include "net.h"
 #include "networkstyle.h"
 #include "optionsmodel.h"
+#ifdef ENABLE_WALLET
+#include "paymentserver.h"
+#endif
 #include "platformstyle.h"
 #include "splashscreen.h"
 #include "utilitydialog.h"
-#include "winshutdownmonitor.h"
-
 #ifdef ENABLE_WALLET
-#include "paymentserver.h"
 #include "walletmodel.h"
 #endif
-#include "masternodeconfig.h"
+#include "winshutdownmonitor.h"
 
+#include "chainparams.h"
 #include "init.h"
+#include "masternodeconfig.h"
 #include "rpcserver.h"
 #include "scheduler.h"
 #include "ui_interface.h"
 #include "util.h"
-
 #ifdef ENABLE_WALLET
 #include "wallet/wallet.h"
 #endif

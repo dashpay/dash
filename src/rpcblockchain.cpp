@@ -9,20 +9,20 @@
 #include "chainparams.h"
 #include "checkpoints.h"
 #include "coins.h"
-#include "consensus/validation.h"
 #include "main.h"
 #include "policy/policy.h"
-#include "primitives/transaction.h"
 #include "rpcserver.h"
 #include "streams.h"
 #include "sync.h"
+#include "primitives/transaction.h"
 #include "txmempool.h"
 #include "util.h"
 #include "utilstrencodings.h"
-
-#include <stdint.h>
+#include "consensus/validation.h"
 
 #include <univalue.h>
+
+#include <stdint.h>
 
 using namespace std;
 
