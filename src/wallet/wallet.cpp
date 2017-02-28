@@ -2363,21 +2363,37 @@ bool CWallet::SelectCoins(const CAmount& nTargetValue, set<pair<const CWalletTx*
 
     //if we're doing only denominated, we need to round up to the nearest smallest denomination
     if(nCoinType == ONLY_DENOMINATED) {
-        CAmount nSmallestDenom = vecPrivateSendDenominations.back();
-        // Make outputs by looping through denominations, from large to small
-        BOOST_FOREACH(CAmount nDenom, vecPrivateSendDenominations)
-        {
-            BOOST_FOREACH(const COutput& out, vCoins)
+        bool fFirstRun = maxTxFee > vecPrivateSendDenominations.back();
+        // try to round the amount up to the smallest denom first
+        CAmount nMaxFee = fFirstRun ? vecPrivateSendDenominations.back() : maxTxFee;
+        while(true) {
+            // Make outputs by looping through denominations, from large to small
+            BOOST_FOREACH(CAmount nDenom, vecPrivateSendDenominations)
             {
-                //make sure it's the denom we're looking for, round the amount up to smallest denom
-                if(out.tx->vout[out.i].nValue == nDenom && nValueRet + nDenom < nTargetValue + nSmallestDenom) {
-                    CTxIn txin = CTxIn(out.tx->GetHash(),out.i);
-                    int nRounds = GetInputPrivateSendRounds(txin);
-                    // make sure it's actually anonymized
-                    if(nRounds < nPrivateSendRounds) continue;
-                    nValueRet += nDenom;
-                    setCoinsRet.insert(make_pair(out.tx, out.i));
+                BOOST_FOREACH(const COutput& out, vCoins)
+                {
+                    //make sure it's the denom we're looking for and we won't exceed current max fee
+                    if(out.tx->vout[out.i].nValue == nDenom && nValueRet + nDenom < nTargetValue + nMaxFee) {
+                        CTxIn txin = CTxIn(out.tx->GetHash(),out.i);
+                        int nRounds = GetInputPrivateSendRounds(txin);
+                        // make sure it's actually anonymized
+                        if(nRounds < nPrivateSendRounds) continue;
+                        nValueRet += nDenom;
+                        setCoinsRet.insert(make_pair(out.tx, out.i));
+                    }
                 }
+            }
+            if(fFirstRun) {
+                if(nValueRet >= nTargetValue) {
+                    return true;
+                }
+                // start over again, make sure we won't exceed default max fee
+                fFirstRun = false;
+                nMaxFee = maxTxFee;
+                setCoinsRet.clear();
+            } else {
+                // tried to find coins both ways, nothing else we can do here
+                break;
             }
         }
         return (nValueRet >= nTargetValue);
