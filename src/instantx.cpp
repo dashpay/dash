@@ -848,8 +848,8 @@ bool CTxLockRequest::IsValid(bool fRequireUnspent) const
         return false;
     }
 
-    int64_t nValueIn = 0;
-    int64_t nValueOut = 0;
+    CAmount nValueIn = 0;
+    CAmount nValueOut = 0;
 
     BOOST_FOREACH(const CTxOut& txout, vout) {
         // InstantSend supports normal scripts and unspendable (i.e. data) scripts.
@@ -865,6 +865,8 @@ bool CTxLockRequest::IsValid(bool fRequireUnspent) const
 
         CCoins coins;
         int nPrevoutHeight = 0;
+        CAmount nValue = 0;
+
         if(!pcoinsTip->GetCoins(txin.prevout.hash, coins) ||
            (unsigned int)txin.prevout.n>=coins.vout.size() ||
            coins.vout[txin.prevout.n].IsNull()) {
@@ -878,17 +880,20 @@ bool CTxLockRequest::IsValid(bool fRequireUnspent) const
                 LogPrint("instantsend", "txLockRequest::IsValid -- Failed to find outpoint %s\n", txin.prevout.ToStringShort());
                 return false;
             }
-            LOCK(cs_main);
             BlockMap::iterator mi = mapBlockIndex.find(nHashOutpointConfirmed);
-            if(mi == mapBlockIndex.end()) {
-                // not on this chain?
+            if(mi == mapBlockIndex.end() || !mi->second) {
+                // shouldn't happen
                 LogPrint("instantsend", "txLockRequest::IsValid -- Failed to find block %s for outpoint %s\n", nHashOutpointConfirmed.ToString(), txin.prevout.ToStringShort());
                 return false;
             }
-            nPrevoutHeight = mi->second ? mi->second->nHeight : 0;
+            nPrevoutHeight = mi->second->nHeight;
+            nValue = txOutpointCreated.vout[txin.prevout.n].nValue;
+        } else {
+            nPrevoutHeight = coins.nHeight;
+            nValue = coins.vout[txin.prevout.n].nValue;
         }
 
-        int nTxAge = chainActive.Height() - (nPrevoutHeight ? nPrevoutHeight : coins.nHeight) + 1;
+        int nTxAge = chainActive.Height() - nPrevoutHeight + 1;
         // 1 less than the "send IX" gui requires, in case of a block propagating the network at the time
         int nConfirmationsRequired = INSTANTSEND_CONFIRMATIONS_REQUIRED - 1;
 
@@ -898,7 +903,7 @@ bool CTxLockRequest::IsValid(bool fRequireUnspent) const
             return false;
         }
 
-        nValueIn += coins.vout[txin.prevout.n].nValue;
+        nValueIn += nValue;
     }
 
     if(nValueOut > sporkManager.GetSporkValue(SPORK_5_INSTANTSEND_MAX_VALUE)*COIN) {
