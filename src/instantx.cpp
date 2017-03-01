@@ -880,10 +880,16 @@ bool CTxLockRequest::IsValid(bool fRequireUnspent) const
                 LogPrint("instantsend", "txLockRequest::IsValid -- Failed to find outpoint %s\n", txin.prevout.ToStringShort());
                 return false;
             }
+            if(txin.prevout.n >= txOutpointCreated.vout.size()) {
+                LogPrint("instantsend", "txLockRequest::IsValid -- Outpoint %s is out of bounds, size() = %lld\n",
+                        txin.prevout.ToStringShort(), txOutpointCreated.vout.size());
+                return false;
+            }
             BlockMap::iterator mi = mapBlockIndex.find(nHashOutpointConfirmed);
             if(mi == mapBlockIndex.end() || !mi->second) {
                 // shouldn't happen
-                LogPrint("instantsend", "txLockRequest::IsValid -- Failed to find block %s for outpoint %s\n", nHashOutpointConfirmed.ToString(), txin.prevout.ToStringShort());
+                LogPrint("instantsend", "txLockRequest::IsValid -- Failed to find block %s for outpoint %s\n",
+                        nHashOutpointConfirmed.ToString(), txin.prevout.ToStringShort());
                 return false;
             }
             nPrevoutHeight = mi->second->nHeight;
