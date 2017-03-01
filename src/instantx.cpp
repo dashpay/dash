@@ -877,18 +877,18 @@ bool CTxLockRequest::IsValid(bool fRequireUnspent) const
             CTransaction txOutpointCreated;
             uint256 nHashOutpointConfirmed;
             if(!GetTransaction(txin.prevout.hash, txOutpointCreated, Params().GetConsensus(), nHashOutpointConfirmed, true) || nHashOutpointConfirmed == uint256()) {
-                LogPrint("instantsend", "txLockRequest::IsValid -- Failed to find outpoint %s\n", txin.prevout.ToStringShort());
+                LogPrint("instantsend", "CTxLockRequest::IsValid -- Failed to find outpoint %s\n", txin.prevout.ToStringShort());
                 return false;
             }
             if(txin.prevout.n >= txOutpointCreated.vout.size()) {
-                LogPrint("instantsend", "txLockRequest::IsValid -- Outpoint %s is out of bounds, size() = %lld\n",
+                LogPrint("instantsend", "CTxLockRequest::IsValid -- Outpoint %s is out of bounds, size() = %lld\n",
                         txin.prevout.ToStringShort(), txOutpointCreated.vout.size());
                 return false;
             }
             BlockMap::iterator mi = mapBlockIndex.find(nHashOutpointConfirmed);
             if(mi == mapBlockIndex.end() || !mi->second) {
                 // shouldn't happen
-                LogPrint("instantsend", "txLockRequest::IsValid -- Failed to find block %s for outpoint %s\n",
+                LogPrint("instantsend", "CTxLockRequest::IsValid -- Failed to find block %s for outpoint %s\n",
                         nHashOutpointConfirmed.ToString(), txin.prevout.ToStringShort());
                 return false;
             }
