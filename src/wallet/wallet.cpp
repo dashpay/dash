@@ -1869,7 +1869,7 @@ CAmount CWallet::GetAnonymizableBalance(bool fSkipDenominated) const
         bool fIsDenominated = IsDenominatedAmount(item.nAmount);
         if(fSkipDenominated && fIsDenominated) continue;
         // assume that the fee to create denoms be PRIVATESEND_COLLATERAL at max
-        if(item.nAmount >= vecPrivateSendDenominations.back() + fIsDenominated ? 0 : PRIVATESEND_COLLATERAL)
+        if(item.nAmount >= vecPrivateSendDenominations.back() + (fIsDenominated ? 0 : PRIVATESEND_COLLATERAL))
             nTotal += item.nAmount;
     }
 
