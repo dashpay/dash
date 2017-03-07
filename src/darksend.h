@@ -21,8 +21,9 @@ static const int PRIVATESEND_SIGNING_TIMEOUT        = 15;
 //! minimum peer version accepted by mixing pool
 static const int MIN_PRIVATESEND_PEER_PROTO_VERSION = 70206;
 
-static const CAmount PRIVATESEND_COLLATERAL         = 0.001 * COIN;
-static const CAmount PRIVATESEND_POOL_MAX           = 999.999 * COIN;
+//! 1/10 of min denom, should not collide with other values to avoid confusion
+static const CAmount PRIVATESEND_COLLATERAL         = 0.001 * COIN + 1;
+static const CAmount PRIVATESEND_ENTRY_MAX_SIZE     = 9;
 static const int DENOMS_COUNT_MAX                   = 100;
 
 static const int DEFAULT_PRIVATESEND_ROUNDS         = 2;
@@ -452,6 +453,8 @@ public:
     int GetDenominations(const std::vector<CTxDSOut>& vecTxDSOut);
     std::string GetDenominationsToString(int nDenom);
     bool GetDenominationsBits(int nDenom, std::vector<int> &vecBitsRet);
+
+    CAmount GetMaxPoolAmount() { return vecPrivateSendDenominations.empty() ? 0 : PRIVATESEND_ENTRY_MAX_SIZE * vecPrivateSendDenominations.front(); }
 
     void SetMinBlockSpacing(int nMinBlockSpacingIn) { nMinBlockSpacing = nMinBlockSpacingIn; }
 
