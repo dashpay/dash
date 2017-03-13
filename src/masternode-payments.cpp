@@ -830,7 +830,7 @@ void CMasternodePayments::Sync(CNode* pnode, int nCountNeeded)
 
     int nInvCount = 0;
 
-    for(int h = pCurrentBlockIndex->nHeight - nCountNeeded; h < pCurrentBlockIndex->nHeight + 20; h++) {
+    for(int h = pCurrentBlockIndex->nHeight + 20; h > pCurrentBlockIndex->nHeight - nCountNeeded; h--) {
         if(mapMasternodeBlocks.count(h)) {
             BOOST_FOREACH(CMasternodePayee& payee, mapMasternodeBlocks[h].vecPayees) {
                 std::vector<uint256> vecVoteHashes = payee.GetVoteHashes();
