@@ -263,7 +263,7 @@ void CMasternodeSync::ProcessTick()
 {
     static int nTick = 0;
     if(nTick++ % MASTERNODE_SYNC_TICK_SECONDS != 0) return;
-    if(!pCurrentBlockIndex) return;
+    if(!pCurrentBlockIndex || !IsBlockchainSynced()) return;
 
     //the actual count of masternodes we have currently
     int nMnCount = mnodeman.CountMasternodes();
