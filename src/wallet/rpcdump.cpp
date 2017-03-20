@@ -656,12 +656,12 @@ UniValue dumpwallet(const UniValue& params, bool fHelp)
                 file << "hdmaster=1";
             } else if (setKeyPool.count(keyid)) {
                 file << "reserve=1";
-            } else if (pwalletMain->mapKeyMetadata[keyid].hdKeypath == "m") {
+            } else if (pwalletMain->mapKeyMetadata[keyid].extkeyMetadata.GetKeyPath() == "m") {
                 file << "inactivehdmaster=1";
             } else {
                 file << "change=1";
             }
-            file << strprintf(" # addr=%s%s\n", strAddr, (pwalletMain->mapKeyMetadata[keyid].hdKeypath.size() > 0 ? " hdkeypath="+pwalletMain->mapKeyMetadata[keyid].hdKeypath : ""));
+            file << strprintf(" # addr=%s%s\n", strAddr, (pwalletMain->mapKeyMetadata[keyid].extkeyMetadata.IsNull() ? "" : " hdkeypath="+pwalletMain->mapKeyMetadata[keyid].extkeyMetadata.GetKeyPath()));
         }
     }
     file << "\n";

@@ -317,10 +317,10 @@ UniValue validateaddress(const UniValue& params, bool fHelp)
         if (pwalletMain && pwalletMain->mapAddressBook.count(dest))
             ret.push_back(Pair("account", pwalletMain->mapAddressBook[dest].name));
         CKeyID keyID;
-        if (pwalletMain && address.GetKeyID(keyID) && pwalletMain->mapKeyMetadata.count(keyID) && !pwalletMain->mapKeyMetadata[keyID].hdKeypath.empty())
+        if (pwalletMain && address.GetKeyID(keyID) && pwalletMain->mapKeyMetadata.count(keyID) && !pwalletMain->mapKeyMetadata[keyID].extkeyMetadata.IsNull())
         {
-            ret.push_back(Pair("hdkeypath", pwalletMain->mapKeyMetadata[keyID].hdKeypath));
-            ret.push_back(Pair("hdmasterkeyid", pwalletMain->mapKeyMetadata[keyID].hdMasterKeyID.GetHex()));
+            ret.push_back(Pair("hdkeypath", pwalletMain->mapKeyMetadata[keyID].extkeyMetadata.GetKeyPath()));
+            ret.push_back(Pair("hdmasterkeyid", pwalletMain->mapKeyMetadata[keyID].extkeyMetadata.hdMasterKeyID.GetHex()));
         }
 #endif
     }

@@ -25,6 +25,19 @@ using namespace std;
 
 static uint64_t nAccountingEntryNumber = 0;
 
+
+std::string CExtKeyMetadata::GetKeyPath()
+{
+    if(fMaster)
+        return "m";
+
+    return "m/44'/" +
+            boost::to_string(Params().ExtCoinType()) + "'/" +
+            boost::to_string(nAccount) + "'/" +
+            boost::to_string(nChange) + "/" +
+            boost::to_string(nChild);
+}
+
 //
 // CWalletDB
 //

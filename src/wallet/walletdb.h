@@ -69,16 +69,58 @@ public:
     }
 };
 
+class CExtKeyMetadata
+{
+public:
+    CKeyID hdMasterKeyID; //id of the HD masterkey used to derive this key
+    unsigned int nAccount;
+    unsigned int nChange;
+    unsigned int nChild;
+    bool fMaster;
+
+    CExtKeyMetadata()
+    {
+        SetNull();
+    }
+
+    ADD_SERIALIZE_METHODS;
+
+    template <typename Stream, typename Operation>
+    inline void SerializationOp(Stream& s, Operation ser_action, int nType, int nVersion) {
+        READWRITE(hdMasterKeyID);
+        READWRITE(nAccount);
+        READWRITE(nChange);
+        READWRITE(nChild);
+        READWRITE(fMaster);
+    }
+
+    void SetNull()
+    {
+        hdMasterKeyID.SetNull();
+        nAccount = 0;
+        nChange = 0;
+        nChild = 0;
+        fMaster = false;
+    }
+
+    bool IsNull()
+    {
+        return hdMasterKeyID == CKeyID();
+    }
+
+    std::string GetKeyPath();
+};
+
 class CKeyMetadata
 {
 public:
     static const int VERSION_BASIC=1;
     static const int VERSION_WITH_HDDATA=10;
-    static const int CURRENT_VERSION=VERSION_WITH_HDDATA;
+    static const int VERSION_WITH_HDDATA_BIP44=11;
+    static const int CURRENT_VERSION=VERSION_WITH_HDDATA_BIP44;
     int nVersion;
     int64_t nCreateTime; // 0 means unknown
-    std::string hdKeypath; //optional HD/bip32 keypath
-    CKeyID hdMasterKeyID; //id of the HD masterkey used to derive this key
+    CExtKeyMetadata extkeyMetadata;
 
     CKeyMetadata()
     {
@@ -97,10 +139,9 @@ public:
         READWRITE(this->nVersion);
         nVersion = this->nVersion;
         READWRITE(nCreateTime);
-        if (this->nVersion >= VERSION_WITH_HDDATA)
+        if (this->nVersion >= VERSION_WITH_HDDATA_BIP44)
         {
-            READWRITE(hdKeypath);
-            READWRITE(hdMasterKeyID);
+            READWRITE(extkeyMetadata);
         }
     }
 
@@ -108,8 +149,7 @@ public:
     {
         nVersion = CKeyMetadata::CURRENT_VERSION;
         nCreateTime = 0;
-        hdKeypath.clear();
-        hdMasterKeyID.SetNull();
+        extkeyMetadata.SetNull();
     }
 };
 
