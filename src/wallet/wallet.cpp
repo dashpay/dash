@@ -26,6 +26,7 @@
 #include "util.h"
 #include "utilmoneystr.h"
 
+#include "bip39.h"
 #include "governance.h"
 #include "instantx.h"
 #include "keepass.h"
@@ -1367,16 +1368,43 @@ CAmount CWallet::GetChange(const CTxOut& txout) const
 }
 
 CPubKey CWallet::GenerateNewHDMasterKey()
- {
-    CKey key;
-    key.MakeNewKey(true);
+{
+    const char *mnemonic;
 
-    int64_t nCreationTime = GetTime();
-    CKeyMetadata metadata(nCreationTime);
+    if(mapArgs.count("-mnemonic")) {
+        mnemonic = GetArg("-mnemonic", "").c_str();
+    } else {
+        mnemonic = mnemonic_generate(128);
+    }
+
+    if(!mnemonic_check(mnemonic)) {
+        throw std::runtime_error("CWallet::GenerateNewHDMasterKey(): invalid mnemonic");
+    }
+    // printf("mnemonic: %s\n", mnemonic);
+
+    const char *passphrase;
+    if(mapArgs.count("-mnemonicpassphrase")) {
+        passphrase = GetArg("-mnemonicpassphrase", "").c_str();
+    } else {
+        unsigned char rand_pwd[32];
+        GetRandBytes(rand_pwd, 32);
+        passphrase = EncodeBase58(&rand_pwd[0],&rand_pwd[0]+32).c_str();
+    }
+    // printf("mnemonicpassphrase: %s\n", passphrase);
+
+    uint8_t seed[64];
+    mnemonic_to_seed(mnemonic, passphrase, seed, 0);
+
+    CExtKey extkey;
+    extkey.SetMaster(seed, 64);
+    CKey key = extkey.key;
 
     // calculate the pubkey
     CPubKey pubkey = key.GetPubKey();
     assert(key.VerifyPubKey(pubkey));
+
+    int64_t nCreationTime = GetTime();
+    CKeyMetadata metadata(nCreationTime);
 
     metadata.extkeyMetadata.fMaster = true;
     metadata.extkeyMetadata.hdMasterKeyID = pubkey.GetID();

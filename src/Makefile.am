@@ -73,6 +73,8 @@ BITCOIN_CORE_H = \
   amount.h \
   arith_uint256.h \
   base58.h \
+  bip39.h \
+  bip39_english.h \
   bloom.h \
   cachemap.h \
   cachemultimap.h \
@@ -260,7 +262,7 @@ libbitcoin_wallet_a_CPPFLAGS = $(AM_CPPFLAGS) $(BITCOIN_INCLUDES)
 libbitcoin_wallet_a_CXXFLAGS = $(AM_CXXFLAGS) $(PIE_FLAGS)
 libbitcoin_wallet_a_SOURCES = \
   activemasternode.cpp \
-  privatesend-client.cpp \
+  bip39.cpp \
   dsnotificationinterface.cpp \
   instantx.cpp \
   masternode.cpp \
@@ -269,6 +271,7 @@ libbitcoin_wallet_a_SOURCES = \
   masternodeconfig.cpp \
   masternodeman.cpp \
   keepass.cpp \
+  privatesend-client.cpp \
   wallet/crypter.cpp \
   wallet/db.cpp \
   wallet/rpcdump.cpp \
