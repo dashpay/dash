@@ -28,14 +28,14 @@ class KeyPoolTest(BitcoinTestFramework):
         addr = nodes[0].getnewaddress()
         addr_data = nodes[0].validateaddress(addr)
         wallet_info = nodes[0].getwalletinfo()
-        assert(addr_before_encrypting_data['hdmasterkeyid'] != wallet_info['hdmasterkeyid'])
+        assert(addr_before_encrypting_data['hdmasterkeyid'] == wallet_info['hdmasterkeyid'])
         assert(addr_data['hdmasterkeyid'] == wallet_info['hdmasterkeyid'])
 
         try:
             addr = nodes[0].getnewaddress()
-            raise AssertionError('Keypool should be exhausted after one address')
         except JSONRPCException as e:
-            assert(e.error['code']==-12)
+            raise AssertionError('Keypool should not be exhausted after one address')
+            # assert(e.error['code']==-12)
 
         # put three new keys in the keypool
         nodes[0].walletpassphrase('test', 12000)
