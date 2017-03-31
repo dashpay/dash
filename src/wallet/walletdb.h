@@ -69,58 +69,40 @@ public:
     }
 };
 
-class CExtKeyMetadata
+/* hd pubkey data model */
+class CHDPubKey
 {
 public:
-    CKeyID hdMasterKeyID; //id of the HD masterkey used to derive this key
+    static const int CURRENT_VERSION = 1;
+    int nVersion;
+    CExtPubKey extPubKey;
+    CKeyID masterKeyID;
     unsigned int nAccount;
     unsigned int nChange;
-    unsigned int nChild;
-    bool fMaster;
 
-    CExtKeyMetadata()
-    {
-        SetNull();
-    }
+    CHDPubKey() : nVersion(CHDPubKey::CURRENT_VERSION), nAccount(0), nChange(0) {}
 
     ADD_SERIALIZE_METHODS;
-
     template <typename Stream, typename Operation>
-    inline void SerializationOp(Stream& s, Operation ser_action, int nType, int nVersion) {
-        READWRITE(hdMasterKeyID);
+    inline void SerializationOp(Stream& s, Operation ser_action, int nType, int nVersion)
+    {
+        READWRITE(this->nVersion);
+        READWRITE(extPubKey);
+        READWRITE(masterKeyID);
         READWRITE(nAccount);
         READWRITE(nChange);
-        READWRITE(nChild);
-        READWRITE(fMaster);
     }
 
-    void SetNull()
-    {
-        hdMasterKeyID.SetNull();
-        nAccount = 0;
-        nChange = 0;
-        nChild = 0;
-        fMaster = false;
-    }
-
-    bool IsNull()
-    {
-        return hdMasterKeyID == CKeyID();
-    }
-
-    std::string GetKeyPath();
+    bool IsMaster() const { return extPubKey.pubkey.GetID() == masterKeyID; }
+    std::string GetKeyPath() const;
 };
 
 class CKeyMetadata
 {
 public:
-    static const int VERSION_BASIC=1;
-    static const int VERSION_WITH_HDDATA=10;
-    static const int VERSION_WITH_HDDATA_BIP44=11;
-    static const int CURRENT_VERSION=VERSION_WITH_HDDATA_BIP44;
+    static const int CURRENT_VERSION=1;
     int nVersion;
     int64_t nCreateTime; // 0 means unknown
-    CExtKeyMetadata extkeyMetadata;
 
     CKeyMetadata()
     {
@@ -139,17 +121,12 @@ public:
         READWRITE(this->nVersion);
         nVersion = this->nVersion;
         READWRITE(nCreateTime);
-        if (this->nVersion >= VERSION_WITH_HDDATA_BIP44)
-        {
-            READWRITE(extkeyMetadata);
-        }
     }
 
     void SetNull()
     {
         nVersion = CKeyMetadata::CURRENT_VERSION;
         nCreateTime = 0;
-        extkeyMetadata.SetNull();
     }
 };
 
@@ -215,6 +192,8 @@ public:
 
     //! write the hdchain model (external chain child index counter)
     bool WriteHDChain(const CHDChain& chain);
+
+    bool WriteHDPubKey(const CHDPubKey& hdPubKey, const CKeyMetadata& keyMeta);
 
 private:
     CWalletDB(const CWalletDB&);

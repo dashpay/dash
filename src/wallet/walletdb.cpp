@@ -26,16 +26,16 @@ using namespace std;
 static uint64_t nAccountingEntryNumber = 0;
 
 
-std::string CExtKeyMetadata::GetKeyPath()
+std::string CHDPubKey::GetKeyPath() const
 {
-    if(fMaster)
+    if(IsMaster())
         return "m";
 
     return "m/44'/" +
             boost::to_string(Params().ExtCoinType()) + "'/" +
             boost::to_string(nAccount) + "'/" +
             boost::to_string(nChange) + "/" +
-            boost::to_string(nChild);
+            boost::to_string(extPubKey.nChild);
 }
 
 //
@@ -622,6 +622,25 @@ ReadKeyValue(CWallet* pwallet, CDataStream& ssKey, CDataStream& ssValue,
                 return false;
             }
         }
+        else if (strType == "hdpubkey")
+        {
+            CPubKey vchPubKey;
+            ssKey >> vchPubKey;
+
+            CHDPubKey hdPubKey;
+            ssValue >> hdPubKey;
+
+            if(vchPubKey != hdPubKey.extPubKey.pubkey)
+            {
+                strErr = "Error reading wallet database: CHDPubKey corrupt";
+                return false;
+            }
+            if (!pwallet->LoadHDPubKey(hdPubKey))
+            {
+                strErr = "Error reading wallet database: LoadHDPubKey failed";
+                return false;
+            }
+        }
     } catch (...)
     {
         return false;
@@ -1114,7 +1133,7 @@ bool CWalletDB::Recover(CDBEnv& dbenv, const std::string& filename, bool fOnlyKe
                 fReadOK = ReadKeyValue(&dummyWallet, ssKey, ssValue,
                                         wss, strType, strErr);
             }
-            if (!IsKeyType(strType) && strType != "hdchain")
+            if (!IsKeyType(strType) && strType != "hdchain" && strType != "hdpubkey")
                 continue;
             if (!fReadOK)
             {
@@ -1155,4 +1174,15 @@ bool CWalletDB::WriteHDChain(const CHDChain& chain)
 {
     nWalletDBUpdated++;
     return Write(std::string("hdchain"), chain);
+}
+
+bool CWalletDB::WriteHDPubKey(const CHDPubKey& hdPubKey, const CKeyMetadata& keyMeta)
+{
+    nWalletDBUpdated++;
+
+    // NOTE: allow metadata overwriting for master HD pubkey
+    if (!Write(std::make_pair(std::string("keymeta"), hdPubKey.extPubKey.pubkey), keyMeta, hdPubKey.IsMaster()))
+        return false;
+
+    return Write(std::make_pair(std::string("hdpubkey"), hdPubKey.extPubKey.pubkey), hdPubKey, false);
 }
