@@ -2789,7 +2789,7 @@ bool CWallet::SelectCoinsMinConf(const CAmount& nTargetValue, const int nConfMin
                 s += FormatMoney(vValue[i].first) + " ";
             }
         }
-        LogPrint("selectcoins", "%s - total %s\n", s, FormatMoney(nBest));
+        LogPrint(BCLog::SELECTCOINS, "%s - total %s\n", s, FormatMoney(nBest));
     }
 
     // There is no change in PS, so we know the fee beforehand,
@@ -4011,7 +4011,7 @@ bool CWallet::SetDefaultKey(const CPubKey &vchPubKey)
 
 /**
  * Mark old keypool keys as used,
- * and generate all new keys 
+ * and generate all new keys
  */
 bool CWallet::NewKeyPool()
 {
