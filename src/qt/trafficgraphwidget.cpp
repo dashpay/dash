@@ -172,4 +172,5 @@ void TrafficGraphWidget::clear()
         nLastBytesOut = clientModel->getTotalBytesSent();
     }
     timer->start();
+    update();
 }
