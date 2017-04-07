@@ -21,9 +21,7 @@
 #include "spork.h"
 #include "txmempool.h"
 #include "util.h"
-#ifdef ENABLE_WALLET
 #include "masternode-sync.h"
-#endif
 #include "utilstrencodings.h"
 #include "validationinterface.h"
 

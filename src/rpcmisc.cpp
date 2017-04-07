@@ -16,8 +16,8 @@
 #include "util.h"
 #include "spork.h"
 #include "utilstrencodings.h"
-#ifdef ENABLE_WALLET
 #include "masternode-sync.h"
+#ifdef ENABLE_WALLET
 #include "wallet/wallet.h"
 #include "wallet/walletdb.h"
 #endif
