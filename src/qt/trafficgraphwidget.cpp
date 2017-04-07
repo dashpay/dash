@@ -16,10 +16,12 @@
 #define XMARGIN                 10
 #define YMARGIN                 10
 
+#define DEFAULT_SAMPLE_HEIGHT    1.1f
+
 TrafficGraphWidget::TrafficGraphWidget(QWidget *parent) :
     QWidget(parent),
     timer(0),
-    fMax(0.0f),
+    fMax(DEFAULT_SAMPLE_HEIGHT),
     nMins(0),
     vSamplesIn(),
     vSamplesOut(),
@@ -138,7 +140,7 @@ void TrafficGraphWidget::updateRates()
         vSamplesOut.pop_back();
     }
 
-    float tmax = 0.0f;
+    float tmax = DEFAULT_SAMPLE_HEIGHT;
     Q_FOREACH(float f, vSamplesIn) {
         if(f > tmax) tmax = f;
     }
@@ -165,7 +167,7 @@ void TrafficGraphWidget::clear()
 
     vSamplesOut.clear();
     vSamplesIn.clear();
-    fMax = 0.0f;
+    fMax = DEFAULT_SAMPLE_HEIGHT;
 
     if(clientModel) {
         nLastBytesIn = clientModel->getTotalBytesRecv();
