@@ -315,6 +315,10 @@ int GetHeight()
 
 void UpdatePreferredDownload(CNode* node, CNodeState* state)
 {
+    if(!state) {
+        return;
+    }
+
     nPreferredDownload -= state->fPreferredDownload;
 
     // Whether this node should be marked as a preferred download node.
