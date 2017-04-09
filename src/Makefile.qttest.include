@@ -3,8 +3,8 @@ TESTS += qt/test/test_dash-qt
 
 TEST_QT_MOC_CPP = \
   qt/test/moc_compattests.cpp \
-  qt/test/moc_uritests.cpp \
-  qt/test/moc_trafficgraphdatatests.cpp
+  qt/test/moc_trafficgraphdatatests.cpp \
+  qt/test/moc_uritests.cpp 
 
 if ENABLE_WALLET
 TEST_QT_MOC_CPP += qt/test/moc_paymentservertests.cpp

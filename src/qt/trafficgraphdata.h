@@ -1,8 +1,8 @@
 #ifndef TRAFFICGRAPHDATA_H
 #define TRAFFICGRAPHDATA_H
 
-#include<QHash>
-#include<QQueue>
+#include <QHash>
+#include <QQueue>
 
 struct TrafficSample
 {
@@ -17,7 +17,7 @@ struct TrafficSample
 
     TrafficSample operator+(const TrafficSample&  other) const
     {
-        return TrafficSample( this->in + other.in, this->out + other.out);
+        return TrafficSample(this->in + other.in, this->out + other.out);
     }
 
     TrafficSample& operator+=(const TrafficSample& rhs)

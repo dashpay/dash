@@ -1,4 +1,4 @@
-#include<trafficgraphdata.h>
+#include <trafficgraphdata.h>
 
 const int TrafficGraphData::RangeMinutes[] = {5,10,15,30,60,120,180,360,720,1440};
 const int TrafficGraphData::DESIRED_DATA_SAMPLES = 800;
@@ -126,11 +126,11 @@ void TrafficGraphData::switchRange(GraphRange newRange)
 TrafficGraphData::SampleQueue TrafficGraphData::sumEach2Samples(const SampleQueue& rangeQueue)
 {
     SampleQueue result;
-    int i = rangeQueue.size()-1;
+    int i = rangeQueue.size() - 1;
 
-    while(i-1 >= 0){
+    while (i - 1 >= 0){
         result.push_front(rangeQueue.at(i)+ rangeQueue.at(i-1));
-        i-=2;
+        i -= 2;
     }
     return result;
 }
@@ -143,7 +143,7 @@ TrafficGraphData::SampleQueue TrafficGraphData::sumEach3Samples(const SampleQueu
     // use stash first
     SampleQueue& stashQueue = sampleStash[range];
     TrafficSample sum(0,0);
-    for (int i=0; i<stashQueue.size(); i++){
+    for (int i = 0; i < stashQueue.size(); i++){
        sum+=stashQueue.at(i);
     }
     int toFullSample = 3 - stashQueue.size();
@@ -151,15 +151,15 @@ TrafficGraphData::SampleQueue TrafficGraphData::sumEach3Samples(const SampleQueu
         return result;
 
     // append to stash data to create whole sample
-    for (int i=0; i<toFullSample; i++){
+    for (int i = 0; i < toFullSample; i++){
         sum+=rangeQueue.at(lastUnusedSample);
         lastUnusedSample--;
     }
     result.push_front(sum);
 
-    while(lastUnusedSample-2 >= 0){
+    while (lastUnusedSample - 2 >= 0){
         result.push_front(rangeQueue.at(lastUnusedSample) + rangeQueue.at(lastUnusedSample-1) + rangeQueue.at(lastUnusedSample-2));
-        lastUnusedSample-=3;
+        lastUnusedSample -= 3;
     }
     return result;
 }

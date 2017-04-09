@@ -61,7 +61,8 @@ void TrafficGraphWidget::paintPath(QPainterPath &path, const TrafficGraphData::S
     }
 }
 
-namespace{
+namespace
+{
     float chooseIn(const TrafficSample& sample)
     {
         return sample.in;
