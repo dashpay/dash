@@ -282,6 +282,21 @@ void CMasternode::Check(bool fForce)
     }
 }
 
+bool CMasternode::IsVinAssociatedWithPubkey(const CTxIn& txin, const CPubKey& pubkey)
+{
+    CScript payee;
+    payee = GetScriptForDestination(pubkey.GetID());
+
+    CTransaction tx;
+    uint256 hash;
+    if(GetTransaction(txin.prevout.hash, tx, Params().GetConsensus(), hash, true)) {
+        BOOST_FOREACH(CTxOut out, tx.vout)
+            if(out.nValue == 1000*COIN && out.scriptPubKey == payee) return true;
+    }
+
+    return false;
+}
+
 bool CMasternode::IsValidNetAddr()
 {
     return IsValidNetAddr(addr);
@@ -639,9 +654,9 @@ bool CMasternodeBroadcast::CheckOutpoint(int& nDos)
 
     LogPrint("masternode", "CMasternodeBroadcast::CheckOutpoint -- Masternode UTXO verified\n");
 
-    // make sure the vout that was signed is related to the transaction that spawned the Masternode
-    //  - this is expensive, so it's only done once per Masternode
-    if(!IsVinAssociatedWithPubkey(vin, pubKeyCollateralAddress)) {
+    // make sure the input that was signed in masternode broadcast message is related to the transaction
+    // that spawned the Masternode - this is expensive, so it's only done once per Masternode
+    if(!CMasternode::IsVinAssociatedWithPubkey(vin, pubKeyCollateralAddress)) {
         LogPrintf("CMasternodeMan::CheckOutpoint -- Got mismatched pubKeyCollateralAddress and vin\n");
         nDos = 33;
         return false;
@@ -667,21 +682,6 @@ bool CMasternodeBroadcast::CheckOutpoint(int& nDos)
     }
 
     return true;
-}
-
-bool CMasternodeBroadcast::IsVinAssociatedWithPubkey(const CTxIn& txin, const CPubKey& pubkey)
-{
-    CScript payee;
-    payee = GetScriptForDestination(pubkey.GetID());
-
-    CTransaction tx;
-    uint256 hash;
-    if(GetTransaction(txin.prevout.hash, tx, Params().GetConsensus(), hash, true)) {
-        BOOST_FOREACH(CTxOut out, tx.vout)
-            if(out.nValue == 1000*COIN && out.scriptPubKey == payee) return true;
-    }
-
-    return false;
 }
 
 bool CMasternodeBroadcast::Sign(CKey& keyCollateralAddress)

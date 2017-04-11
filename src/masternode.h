@@ -290,6 +290,9 @@ public:
         return false;
     }
 
+    /// Is the input associated with this public key? (and there is 1000 DASH - checking if valid masternode)
+    static bool IsVinAssociatedWithPubkey(const CTxIn& vin, const CPubKey& pubkey);
+
     bool IsValidNetAddr();
     static bool IsValidNetAddr(CService addrIn);
 
@@ -379,8 +382,6 @@ public:
     bool SimpleCheck(int& nDos);
     bool Update(CMasternode* pmn, int& nDos);
     bool CheckOutpoint(int& nDos);
-    /// Is the input associated with this public key? (and there is 1000 DASH - checking if valid masternode)
-    bool IsVinAssociatedWithPubkey(const CTxIn& vin, const CPubKey& pubkey);
 
     bool Sign(CKey& keyCollateralAddress);
     bool CheckSignature(int& nDos);
