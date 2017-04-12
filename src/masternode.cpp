@@ -282,14 +282,14 @@ void CMasternode::Check(bool fForce)
     }
 }
 
-bool CMasternode::IsVinAssociatedWithPubkey(const CTxIn& txin, const CPubKey& pubkey)
+bool CMasternode::IsInputAssociatedWithPubkey()
 {
     CScript payee;
-    payee = GetScriptForDestination(pubkey.GetID());
+    payee = GetScriptForDestination(pubKeyCollateralAddress.GetID());
 
     CTransaction tx;
     uint256 hash;
-    if(GetTransaction(txin.prevout.hash, tx, Params().GetConsensus(), hash, true)) {
+    if(GetTransaction(vin.prevout.hash, tx, Params().GetConsensus(), hash, true)) {
         BOOST_FOREACH(CTxOut out, tx.vout)
             if(out.nValue == 1000*COIN && out.scriptPubKey == payee) return true;
     }
@@ -656,7 +656,7 @@ bool CMasternodeBroadcast::CheckOutpoint(int& nDos)
 
     // make sure the input that was signed in masternode broadcast message is related to the transaction
     // that spawned the Masternode - this is expensive, so it's only done once per Masternode
-    if(!CMasternode::IsVinAssociatedWithPubkey(vin, pubKeyCollateralAddress)) {
+    if(!IsInputAssociatedWithPubkey()) {
         LogPrintf("CMasternodeMan::CheckOutpoint -- Got mismatched pubKeyCollateralAddress and vin\n");
         nDos = 33;
         return false;
