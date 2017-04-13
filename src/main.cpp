@@ -4964,7 +4964,7 @@ bool static AlreadyHave(const CInv& inv) EXCLUSIVE_LOCKS_REQUIRED(cs_main)
         }
 
     case MSG_MASTERNODE_ANNOUNCE:
-        return mnodeman.mapSeenMasternodeBroadcast.count(inv.hash) && !mnodeman.IsMnbRecoveryRequested(inv.hash);
+        return mnodeman.mapSeenMasternodeBroadcast.count(inv.hash) && !mnodeman.IsMnbRecoveryRequested(inv.hash) && masternodeSync.IsMasternodeListSynced();
 
     case MSG_MASTERNODE_PING:
         return mnodeman.mapSeenMasternodePing.count(inv.hash);
