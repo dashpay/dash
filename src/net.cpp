@@ -1680,13 +1680,29 @@ void ThreadMnbRequestConnections()
         std::pair<CService, std::set<uint256> > p = mnodeman.PopScheduledMnbRequestConnection();
         if(p.first == CService() || p.second.empty()) continue;
 
-        CNode* pnode = NULL;
+        // ensure current nodes are not dropped while we are at this
+        vector<CNode*> vNodesCopy;
         {
-            LOCK2(cs_main, cs_vNodes);
-            pnode = ConnectNode(CAddress(p.first), NULL, true);
-            if(!pnode) continue;
-            pnode->AddRef();
+            LOCK(cs_vNodes);
+            vNodesCopy = vNodes;
+            BOOST_FOREACH(CNode* pnode, vNodesCopy) {
+                pnode->AddRef();
+            }
         }
+
+        CNode* pnode = ConnectNode(CAddress(p.first), NULL, true);
+        if(!pnode) {
+            // no current node was found and no new connection was established,
+            // release all previously existing nodes
+            {
+                LOCK(cs_vNodes);
+                BOOST_FOREACH(CNode* pnode, vNodesCopy)
+                    pnode->Release();
+            }
+            continue;
+        }
+        // ensure this node (no matter current or newly spwaned) is not dropped
+        pnode->AddRef();
 
         grant.MoveTo(pnode->grantMasternodeOutbound);
 
@@ -1704,7 +1720,16 @@ void ThreadMnbRequestConnections()
         // ask for data
         pnode->PushMessage(NetMsgType::GETDATA, vToFetch);
 
+        // release this node
         pnode->Release();
+
+        // release all previously existing nodes
+        {
+            LOCK(cs_vNodes);
+            BOOST_FOREACH(CNode* pnode, vNodesCopy)
+                pnode->Release();
+        }
+
     }
 }
 
