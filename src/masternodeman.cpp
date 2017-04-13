@@ -576,7 +576,12 @@ CMasternode* CMasternodeMan::GetNextMasternodeInQueueForPayment(int nBlockHeight
         //make sure it has at least as many confirmations as there are masternodes
         if(mn.GetCollateralAge() < nMnCount) continue;
 
-        vecMasternodeLastPaid.push_back(std::make_pair(mn.GetLastPaidBlock(), &mn));
+        //never get paid then assume sigtime is the last paid
+        if(mn.GetLastPaidTime() < mn.sigTime) {
+            vecMasternodeLastPaid.push_back(std::make_pair(mn.sigTime, &mn));
+        } else {
+            vecMasternodeLastPaid.push_back(std::make_pair(mn.GetLastPaidTime(), &mn));
+        }
     }
 
     nCount = (int)vecMasternodeLastPaid.size();
@@ -585,7 +590,7 @@ CMasternode* CMasternodeMan::GetNextMasternodeInQueueForPayment(int nBlockHeight
     if(fFilterSigTime && nCount < nMnCount/3) return GetNextMasternodeInQueueForPayment(nBlockHeight, false, nCount);
 
     // Sort them low to high
-    sort(vecMasternodeLastPaid.begin(), vecMasternodeLastPaid.end(), CompareLastPaidBlock());
+    sort(vecMasternodeLastPaid.begin(), vecMasternodeLastPaid.end(), CompareScoreMN());
 
     uint256 blockHash;
     if(!GetBlockHash(blockHash, nBlockHeight - 101)) {
