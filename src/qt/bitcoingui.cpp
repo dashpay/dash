@@ -679,7 +679,7 @@ void BitcoinGUI::setClientModel(ClientModel *_clientModel)
         connect(_clientModel, SIGNAL(networkActiveChanged(bool)), this, SLOT(setNetworkActive(bool)));
 
         modalOverlay->setKnownBestHeight(_clientModel->getHeaderTipHeight(), QDateTime::fromTime_t(_clientModel->getHeaderTipTime()));
-        setNumBlocks(_clientModel->getNumBlocks(), _clientModel->getLastBlockDate(), _clientModel->getVerificationProgress(nullptr), false);
+        setNumBlocks(m_node.getNumBlocks(), QDateTime::fromTime_t(m_node.getLastBlockTime()), m_node.getVerificationProgress(), false);
         connect(_clientModel, SIGNAL(numBlocksChanged(int,QDateTime,double,bool)), this, SLOT(setNumBlocks(int,QDateTime,double,bool)));
 
         connect(_clientModel, SIGNAL(additionalDataSyncProgressChanged(double)), this, SLOT(setAdditionalDataSyncProgress(double)));
@@ -1016,7 +1016,7 @@ void BitcoinGUI::updateNetworkState()
     default: icon = ":/icons/connect_4"; break;
     }
 
-    if (clientModel->getNetworkActive()) {
+    if (m_node.getNetworkActive()) {
         labelConnectionsIcon->setToolTip(tr("%n active connection(s) to Dash network", "", count));
     } else {
         labelConnectionsIcon->setToolTip(tr("Network activity disabled"));
@@ -1637,9 +1637,7 @@ void BitcoinGUI::unsubscribeFromCoreSignals()
 
 void BitcoinGUI::toggleNetworkActive()
 {
-    if (clientModel) {
-        clientModel->setNetworkActive(!clientModel->getNetworkActive());
-    }
+    m_node.setNetworkActive(!m_node.getNetworkActive());
 }
 
 /** Get restart command-line parameters and request restart */
