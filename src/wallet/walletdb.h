@@ -8,6 +8,7 @@
 
 #include "amount.h"
 #include "wallet/db.h"
+#include "hdchain.h"
 #include "key.h"
 
 #include <list>
@@ -38,63 +39,6 @@ enum DBErrors
     DB_TOO_NEW,
     DB_LOAD_FAIL,
     DB_NEED_REWRITE
-};
-
-/* simple HD chain data model */
-class CHDChain
-{
-public:
-    uint32_t nExternalChainCounter;
-    CKeyID masterKeyID; //!< master key hash160
-
-    static const int CURRENT_VERSION = 1;
-    int nVersion;
-
-    CHDChain() { SetNull(); }
-    ADD_SERIALIZE_METHODS;
-    template <typename Stream, typename Operation>
-    inline void SerializationOp(Stream& s, Operation ser_action, int nType, int nVersion)
-    {
-        READWRITE(this->nVersion);
-        nVersion = this->nVersion;
-        READWRITE(nExternalChainCounter);
-        READWRITE(masterKeyID);
-    }
-
-    void SetNull()
-    {
-        nVersion = CHDChain::CURRENT_VERSION;
-        nExternalChainCounter = 0;
-        masterKeyID.SetNull();
-    }
-};
-
-/* hd pubkey data model */
-class CHDPubKey
-{
-public:
-    static const int CURRENT_VERSION = 1;
-    int nVersion;
-    CExtPubKey extPubKey;
-    CKeyID masterKeyID;
-    unsigned int nAccount;
-    unsigned int nChange;
-
-    CHDPubKey() : nVersion(CHDPubKey::CURRENT_VERSION), nAccount(0), nChange(0) {}
-
-    ADD_SERIALIZE_METHODS;
-    template <typename Stream, typename Operation>
-    inline void SerializationOp(Stream& s, Operation ser_action, int nType, int nVersion)
-    {
-        READWRITE(this->nVersion);
-        READWRITE(extPubKey);
-        READWRITE(masterKeyID);
-        READWRITE(nAccount);
-        READWRITE(nChange);
-    }
-
-    bool IsMaster() const { return extPubKey.pubkey.GetID() == masterKeyID; }
-    std::string GetKeyPath() const;
 };
 
 class CKeyMetadata
@@ -192,7 +136,7 @@ public:
 
     //! write the hdchain model (external chain child index counter)
     bool WriteHDChain(const CHDChain& chain);
-
+    bool WriteCryptedHDChain(const CHDChain& chain);
     bool WriteHDPubKey(const CHDPubKey& hdPubKey, const CKeyMetadata& keyMeta);
 
 private:

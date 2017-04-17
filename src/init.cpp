@@ -1666,7 +1666,7 @@ bool AppInit2(boost::thread_group& threadGroup, CScheduler& scheduler)
 
             if (GetBoolArg("-usehd", DEFAULT_USE_HD_WALLET) && !pwalletMain->IsHDEnabled()) {
                 // generate a new master key
-                pwalletMain->GenerateNewHDMasterKey();
+                pwalletMain->GenerateNewHDChain();
             }
 
             CPubKey newDefaultKey;
