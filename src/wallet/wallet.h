@@ -1001,6 +1001,7 @@ public:
     /* Set the HD chain model (chain child index counters) */
     bool SetHDChain(const CHDChain& chain, bool memonly);
     bool SetCryptedHDChain(const CHDChain& chain, bool memonly);
+    bool GetDecryptedHDChainSeed(std::vector<unsigned char>& vchSeedRet);
 };
 
 /** A key allocated from the key pool. */

@@ -1372,38 +1372,48 @@ CAmount CWallet::GetChange(const CTxOut& txout) const
 void CWallet::GenerateNewHDChain()
 {
     const char *mnemonic;
+    std::vector<unsigned char> vchSeed;
+    std::string strSeed = GetArg("-hdseed", "not hex");
 
-    if(mapArgs.count("-mnemonic")) {
-        mnemonic = GetArg("-mnemonic", "").c_str();
+    if(mapArgs.count("-hdseed") && IsHex(strSeed)) {
+        vchSeed = ParseHex(strSeed);
     } else {
-        mnemonic = mnemonic_generate(128);
-    }
 
-    if(!mnemonic_check(mnemonic)) {
-        throw std::runtime_error(std::string(__func__) + ": invalid mnemonic");
-    }
-    DBG( printf("mnemonic: '%s'\n", mnemonic); );
+        if (mapArgs.count("-hdseed") && !IsHex(GetArg("-hdseed", "")))
+            LogPrintf("CWallet::GenerateNewHDChain -- Incorrect seed, generating random one instead\n");
 
-    const char *passphrase;
-    // default mnemonic passphrase is empty string
-    // however if no mnemonic was specified by the user, use random passphrase instead
-    passphrase = GetArg("-mnemonicpassphrase", "").c_str();
-    if (!mapArgs.count("-mnemonic")) {
-        unsigned char rand_pwd[32];
-        GetRandBytes(rand_pwd, 32);
-        passphrase = EncodeBase58(&rand_pwd[0],&rand_pwd[0]+32).c_str();
-    }
-    DBG( printf("mnemonicpassphrase: '%s'\n", passphrase); );
+        if(mapArgs.count("-mnemonic")) {
+            mnemonic = GetArg("-mnemonic", "").c_str();
+        } else {
+            mnemonic = mnemonic_generate(128);
+        }
 
-    uint8_t seed[64];
-    mnemonic_to_seed(mnemonic, passphrase, seed, 0);
-    std::vector<unsigned char> vchSeed(seed, seed + 64);
+        if(!mnemonic_check(mnemonic)) {
+            throw std::runtime_error(std::string(__func__) + ": invalid mnemonic");
+        }
+        DBG( printf("mnemonic: '%s'\n", mnemonic); );
+
+        const char *passphrase;
+        // default mnemonic passphrase is empty string
+        // however if no mnemonic was specified by the user, use random passphrase instead
+        passphrase = GetArg("-mnemonicpassphrase", "").c_str();
+        if (!mapArgs.count("-mnemonic")) {
+            unsigned char rand_pwd[32];
+            GetRandBytes(rand_pwd, 32);
+            passphrase = EncodeBase58(&rand_pwd[0],&rand_pwd[0]+32).c_str();
+        }
+        DBG( printf("mnemonicpassphrase: '%s'\n", passphrase); );
+
+        uint8_t seed[64];
+        mnemonic_to_seed(mnemonic, passphrase, seed, 0);
+        vchSeed = std::vector<unsigned char>(seed, seed + 64);
+    }
 
     DBG(
         printf("seed: '%s'\n", HexStr(vchSeed).c_str());
 
         CExtKey extkey;
-        extkey.SetMaster(seed, 64);
+        extkey.SetMaster(&vchSeed[0], vchSeed.size());
 
         CBitcoinExtKey b58extkey;
         b58extkey.SetKey(extkey);
@@ -1455,6 +1465,28 @@ bool CWallet::SetCryptedHDChain(const CHDChain& chain, bool memonly)
                 throw std::runtime_error(std::string(__func__) + ": WriteCryptedHDChain failed");
         }
     }
+
+    return true;
+}
+
+bool CWallet::GetDecryptedHDChainSeed(std::vector<unsigned char>& vchSeedRet)
+{
+    LOCK(cs_wallet);
+
+    CHDChain hdChainTmp;
+    if (!GetHDChain(hdChainTmp)) {
+        return false;
+    }
+
+    std::vector<unsigned char> vchSeed = hdChainTmp.GetSeed();
+    if (!DecryptHDChainSeed(vchSeed))
+        return false;
+    hdChainTmp.SetSeed(vchSeed, false);
+    // make sure seed matches this chain
+    if (hdChainTmp.id != hdChainTmp.GetSeedHash())
+        return false;
+
+    vchSeedRet = vchSeed;
 
     return true;
 }

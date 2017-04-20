@@ -409,9 +409,9 @@ bool CCryptoKeyStore::EncryptHDChainSeed(CKeyingMaterial& vMasterKeyIn)
 
     const std::vector<unsigned char> vchSeed = hdChain.GetSeed();
 
-    uint8_t secret[64];
-    memcpy(&secret[0], (unsigned char*)&(vchSeed.begin())[0], 64);
-    CKeyingMaterial vchSecret(secret, secret + 64);
+    uint8_t secret[vchSeed.size()];
+    memcpy(&secret[0], (unsigned char*)&(vchSeed.begin())[0], vchSeed.size());
+    CKeyingMaterial vchSecret(secret, secret + vchSeed.size());
 
     // make sure seed matches this chain
     if (hdChain.id != hdChain.GetSeedHash())
@@ -444,12 +444,9 @@ bool CCryptoKeyStore::DecryptHDChainSeed(std::vector<unsigned char>& vchSeedRet)
     if(!DecryptSecret(vMasterKey, vchCryptedSecret, cryptedHDChain.id, vchSecret))
         return false;
 
-    if (vchSecret.size() != 64)
-        return false;
-
-    uint8_t seed[64];
-    memcpy(&seed[0], (unsigned char*)&(vchSecret.begin())[0], 64);
-    std::vector<unsigned char> vchSeed(seed, seed + 64);
+    uint8_t seed[vchSecret.size()];
+    memcpy(&seed[0], (unsigned char*)&(vchSecret.begin())[0], vchSecret.size());
+    std::vector<unsigned char> vchSeed(seed, seed + vchSecret.size());
 
     vchSeedRet = vchSeed;
 
