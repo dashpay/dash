@@ -591,6 +591,72 @@ void CPrivateSendClient::CompletedTransaction(PoolMessage nMessageID)
     strLastMessage = GetMessageByID(nMessageID);
 }
 
+
+bool CPrivateSendClient::CheckAutomaticBackup()
+{
+    switch(nWalletBackups) {
+        case 0:
+            LogPrint("privatesend", "CPrivateSendClient::CheckAutomaticBackup -- Automatic backups disabled, no mixing available.\n");
+            strAutoDenomResult = _("Automatic backups disabled") + ", " + _("no mixing available.");
+            fEnablePrivateSend = false; // stop mixing
+            pwalletMain->nKeysLeftSinceAutoBackup = 0; // no backup, no "keys since last backup"
+            return false;
+        case -1:
+            // Automatic backup failed, nothing else we can do until user fixes the issue manually.
+            // There is no way to bring user attention in daemon mode so we just update status and
+            // keep spaming if debug is on.
+            LogPrint("privatesend", "CPrivateSendClient::CheckAutomaticBackup -- ERROR! Failed to create automatic backup.\n");
+            strAutoDenomResult = _("ERROR! Failed to create automatic backup") + ", " + _("see debug.log for details.");
+            return false;
+        case -2:
+            // We were able to create automatic backup but keypool was not replenished because wallet is locked.
+            // There is no way to bring user attention in daemon mode so we just update status and
+            // keep spaming if debug is on.
+            LogPrint("privatesend", "CPrivateSendClient::CheckAutomaticBackup -- WARNING! Failed to create replenish keypool, please unlock your wallet to do so.\n");
+            strAutoDenomResult = _("WARNING! Failed to replenish keypool, please unlock your wallet to do so.") + ", " + _("see debug.log for details.");
+            return false;
+    }
+
+    if(pwalletMain->nKeysLeftSinceAutoBackup < PRIVATESEND_KEYS_THRESHOLD_STOP) {
+        // We should never get here via mixing itself but probably smth else is still actively using keypool
+        LogPrint("privatesend", "CPrivateSendClient::CheckAutomaticBackup -- Very low number of keys left: %d, no mixing available.\n", pwalletMain->nKeysLeftSinceAutoBackup);
+        strAutoDenomResult = strprintf(_("Very low number of keys left: %d") + ", " + _("no mixing available."), pwalletMain->nKeysLeftSinceAutoBackup);
+        // It's getting really dangerous, stop mixing
+        fEnablePrivateSend = false;
+        return false;
+    } else if(pwalletMain->nKeysLeftSinceAutoBackup < PRIVATESEND_KEYS_THRESHOLD_WARNING) {
+        // Low number of keys left but it's still more or less safe to continue
+        LogPrint("privatesend", "CPrivateSendClient::CheckAutomaticBackup -- Very low number of keys left: %d\n", pwalletMain->nKeysLeftSinceAutoBackup);
+        strAutoDenomResult = strprintf(_("Very low number of keys left: %d"), pwalletMain->nKeysLeftSinceAutoBackup);
+
+        if(fCreateAutoBackups) {
+            LogPrint("privatesend", "CPrivateSendClient::CheckAutomaticBackup -- Trying to create new backup.\n");
+            std::string warningString;
+            std::string errorString;
+
+            if(!AutoBackupWallet(pwalletMain, "", warningString, errorString)) {
+                if(!warningString.empty()) {
+                    // There were some issues saving backup but yet more or less safe to continue
+                    LogPrintf("CPrivateSendClient::CheckAutomaticBackup -- WARNING! Something went wrong on automatic backup: %s\n", warningString);
+                }
+                if(!errorString.empty()) {
+                    // Things are really broken
+                    LogPrintf("CPrivateSendClient::CheckAutomaticBackup -- ERROR! Failed to create automatic backup: %s\n", errorString);
+                    strAutoDenomResult = strprintf(_("ERROR! Failed to create automatic backup") + ": %s", errorString);
+                    return false;
+                }
+            }
+        } else {
+            // Wait for smth else (e.g. GUI action) to create automatic backup for us
+            return false;
+        }
+    }
+
+    LogPrint("privatesend", "CPrivateSendClient::CheckAutomaticBackup -- Keys left since latest backup: %d\n", pwalletMain->nKeysLeftSinceAutoBackup);
+
+    return true;
+}
+
 //
 // Passively run mixing in the background to anonymize funds based on the given configuration.
 //
@@ -605,65 +671,8 @@ bool CPrivateSendClient::DoAutomaticDenominating(bool fDryRun)
         return false;
     }
 
-    switch(nWalletBackups) {
-        case 0:
-            LogPrint("privatesend", "CPrivateSendClient::DoAutomaticDenominating -- Automatic backups disabled, no mixing available.\n");
-            strAutoDenomResult = _("Automatic backups disabled") + ", " + _("no mixing available.");
-            fEnablePrivateSend = false; // stop mixing
-            pwalletMain->nKeysLeftSinceAutoBackup = 0; // no backup, no "keys since last backup"
-            return false;
-        case -1:
-            // Automatic backup failed, nothing else we can do until user fixes the issue manually.
-            // There is no way to bring user attention in daemon mode so we just update status and
-            // keep spaming if debug is on.
-            LogPrint("privatesend", "CPrivateSendClient::DoAutomaticDenominating -- ERROR! Failed to create automatic backup.\n");
-            strAutoDenomResult = _("ERROR! Failed to create automatic backup") + ", " + _("see debug.log for details.");
-            return false;
-        case -2:
-            // We were able to create automatic backup but keypool was not replenished because wallet is locked.
-            // There is no way to bring user attention in daemon mode so we just update status and
-            // keep spaming if debug is on.
-            LogPrint("privatesend", "CPrivateSendClient::DoAutomaticDenominating -- WARNING! Failed to create replenish keypool, please unlock your wallet to do so.\n");
-            strAutoDenomResult = _("WARNING! Failed to replenish keypool, please unlock your wallet to do so.") + ", " + _("see debug.log for details.");
-            return false;
-    }
-
-    if(pwalletMain->nKeysLeftSinceAutoBackup < PRIVATESEND_KEYS_THRESHOLD_STOP) {
-        // We should never get here via mixing itself but probably smth else is still actively using keypool
-        LogPrint("privatesend", "CPrivateSendClient::DoAutomaticDenominating -- Very low number of keys left: %d, no mixing available.\n", pwalletMain->nKeysLeftSinceAutoBackup);
-        strAutoDenomResult = strprintf(_("Very low number of keys left: %d") + ", " + _("no mixing available."), pwalletMain->nKeysLeftSinceAutoBackup);
-        // It's getting really dangerous, stop mixing
-        fEnablePrivateSend = false;
+    if(!CheckAutomaticBackup())
         return false;
-    } else if(pwalletMain->nKeysLeftSinceAutoBackup < PRIVATESEND_KEYS_THRESHOLD_WARNING) {
-        // Low number of keys left but it's still more or less safe to continue
-        LogPrint("privatesend", "CPrivateSendClient::DoAutomaticDenominating -- Very low number of keys left: %d\n", pwalletMain->nKeysLeftSinceAutoBackup);
-        strAutoDenomResult = strprintf(_("Very low number of keys left: %d"), pwalletMain->nKeysLeftSinceAutoBackup);
-
-        if(fCreateAutoBackups) {
-            LogPrint("privatesend", "CPrivateSendClient::DoAutomaticDenominating -- Trying to create new backup.\n");
-            std::string warningString;
-            std::string errorString;
-
-            if(!AutoBackupWallet(pwalletMain, "", warningString, errorString)) {
-                if(!warningString.empty()) {
-                    // There were some issues saving backup but yet more or less safe to continue
-                    LogPrintf("CPrivateSendClient::DoAutomaticDenominating -- WARNING! Something went wrong on automatic backup: %s\n", warningString);
-                }
-                if(!errorString.empty()) {
-                    // Things are really broken
-                    LogPrintf("CPrivateSendClient::DoAutomaticDenominating -- ERROR! Failed to create automatic backup: %s\n", errorString);
-                    strAutoDenomResult = strprintf(_("ERROR! Failed to create automatic backup") + ": %s", errorString);
-                    return false;
-                }
-            }
-        } else {
-            // Wait for someone else (e.g. GUI action) to create automatic backup for us
-            return false;
-        }
-    }
-
-    LogPrint("privatesend", "CPrivateSendClient::DoAutomaticDenominating -- Keys left since latest backup: %d\n", pwalletMain->nKeysLeftSinceAutoBackup);
 
     if(GetEntriesCount() > 0) {
         strAutoDenomResult = _("Mixing in progress...");
@@ -786,97 +795,111 @@ bool CPrivateSendClient::DoAutomaticDenominating(bool fDryRun)
 
     bool fUseQueue = GetRandInt(100) > 33;
     // don't use the queues all of the time for mixing unless we are a liquidity provider
-    if(nLiquidityProvider || fUseQueue) {
-
-        // Look through the queues and see if anything matches
-        BOOST_FOREACH(CDarksendQueue& dsq, vecDarksendQueue) {
-            // only try each queue once
-            if(dsq.fTried) continue;
-            dsq.fTried = true;
-
-            if(dsq.IsExpired()) continue;
-
-            CMasternode* pmn = mnodeman.Find(dsq.vin);
-            if(pmn == NULL) {
-                LogPrintf("CPrivateSendClient::DoAutomaticDenominating -- dsq masternode is not in masternode list, masternode=%s\n", dsq.vin.prevout.ToStringShort());
-                continue;
-            }
-
-            if(pmn->nProtocolVersion < MIN_PRIVATESEND_PEER_PROTO_VERSION) continue;
-
-            std::vector<int> vecBits;
-            if(!GetDenominationsBits(dsq.nDenom, vecBits)) {
-                // incompatible denom
-                continue;
-            }
-
-            // mixing rate limit i.e. nLastDsq check should already pass in DSQUEUE ProcessMessage
-            // in order for dsq to get into vecDarksendQueue, so we should be safe to mix already,
-            // no need for additional verification here
-
-            LogPrint("privatesend", "CPrivateSendClient::DoAutomaticDenominating -- found valid queue: %s\n", dsq.ToString());
-
-            CAmount nValueInTmp = 0;
-            std::vector<CTxIn> vecTxInTmp;
-            std::vector<COutput> vCoinsTmp;
-
-            // Try to match their denominations if possible, select at least 1 denominations
-            if(!pwalletMain->SelectCoinsByDenominations(dsq.nDenom, vecPrivateSendDenominations[vecBits.front()], nBalanceNeedsAnonymized, vecTxInTmp, vCoinsTmp, nValueInTmp, 0, nPrivateSendRounds)) {
-                LogPrintf("CPrivateSendClient::DoAutomaticDenominating -- Couldn't match denominations %d %d (%s)\n", vecBits.front(), dsq.nDenom, GetDenominationsToString(dsq.nDenom));
-                continue;
-            }
-
-            vecMasternodesUsed.push_back(dsq.vin);
-
-            CNode* pnodeFound = NULL;
-            {
-                LOCK(cs_vNodes);
-                pnodeFound = FindNode(pmn->addr);
-                if(pnodeFound) {
-                    if(pnodeFound->fDisconnect) {
-                        continue;
-                    } else {
-                        pnodeFound->AddRef();
-                    }
-                }
-            }
-
-            LogPrintf("CPrivateSendClient::DoAutomaticDenominating -- attempt to connect to masternode from queue, addr=%s\n", pmn->addr.ToString());
-            // connect to Masternode and submit the queue request
-            CNode* pnode = (pnodeFound && pnodeFound->fMasternode) ? pnodeFound : ConnectNode((CAddress)pmn->addr, NULL, true);
-            if(pnode) {
-                pSubmittedToMasternode = pmn;
-                nSessionDenom = dsq.nDenom;
-
-                pnode->PushMessage(NetMsgType::DSACCEPT, nSessionDenom, txMyCollateral);
-                LogPrintf("CPrivateSendClient::DoAutomaticDenominating -- connected (from queue), sending DSACCEPT: nSessionDenom: %d (%s), addr=%s\n",
-                        nSessionDenom, GetDenominationsToString(nSessionDenom), pnode->addr.ToString());
-                strAutoDenomResult = _("Mixing in progress...");
-                SetState(POOL_STATE_QUEUE);
-                nTimeLastSuccessfulStep = GetTimeMillis();
-                if(pnodeFound) {
-                    pnodeFound->Release();
-                }
-                return true;
-            } else {
-                LogPrintf("CPrivateSendClient::DoAutomaticDenominating -- can't connect, addr=%s\n", pmn->addr.ToString());
-                strAutoDenomResult = _("Error connecting to Masternode.");
-                continue;
-            }
-        }
-    }
+    if((nLiquidityProvider || fUseQueue) && JoinExistingQueue(nBalanceNeedsAnonymized))
+        return true;
 
     // do not initiate queue if we are a liquidity provider to avoid useless inter-mixing
     if(nLiquidityProvider) return false;
 
+    if(StartNewQueue(nValueMin, nBalanceNeedsAnonymized))
+        return true;
+
+    strAutoDenomResult = _("No compatible Masternode found.");
+    return false;
+}
+
+bool CPrivateSendClient::JoinExistingQueue(CAmount nBalanceNeedsAnonymized)
+{
+    // Look through the queues and see if anything matches
+    BOOST_FOREACH(CDarksendQueue& dsq, vecDarksendQueue) {
+        // only try each queue once
+        if(dsq.fTried) continue;
+        dsq.fTried = true;
+
+        if(dsq.IsExpired()) continue;
+
+        CMasternode* pmn = mnodeman.Find(dsq.vin);
+        if(pmn == NULL) {
+            LogPrintf("CPrivateSendClient::JoinExistingQueue -- dsq masternode is not in masternode list, masternode=%s\n", dsq.vin.prevout.ToStringShort());
+            continue;
+        }
+
+        if(pmn->nProtocolVersion < MIN_PRIVATESEND_PEER_PROTO_VERSION) continue;
+
+        std::vector<int> vecBits;
+        if(!GetDenominationsBits(dsq.nDenom, vecBits)) {
+            // incompatible denom
+            continue;
+        }
+
+        // mixing rate limit i.e. nLastDsq check should already pass in DSQUEUE ProcessMessage
+        // in order for dsq to get into vecDarksendQueue, so we should be safe to mix already,
+        // no need for additional verification here
+
+        LogPrint("privatesend", "CPrivateSendClient::JoinExistingQueue -- found valid queue: %s\n", dsq.ToString());
+
+        CAmount nValueInTmp = 0;
+        std::vector<CTxIn> vecTxInTmp;
+        std::vector<COutput> vCoinsTmp;
+
+        // Try to match their denominations if possible, select at least 1 denominations
+        if(!pwalletMain->SelectCoinsByDenominations(dsq.nDenom, vecPrivateSendDenominations[vecBits.front()], nBalanceNeedsAnonymized, vecTxInTmp, vCoinsTmp, nValueInTmp, 0, nPrivateSendRounds)) {
+            LogPrintf("CPrivateSendClient::JoinExistingQueue -- Couldn't match denominations %d %d (%s)\n", vecBits.front(), dsq.nDenom, GetDenominationsToString(dsq.nDenom));
+            continue;
+        }
+
+        vecMasternodesUsed.push_back(dsq.vin);
+
+        CNode* pnodeFound = NULL;
+        {
+            LOCK(cs_vNodes);
+            pnodeFound = FindNode(pmn->addr);
+            if(pnodeFound) {
+                if(pnodeFound->fDisconnect) {
+                    continue;
+                } else {
+                    pnodeFound->AddRef();
+                }
+            }
+        }
+
+        LogPrintf("CPrivateSendClient::JoinExistingQueue -- attempt to connect to masternode from queue, addr=%s\n", pmn->addr.ToString());
+        // connect to Masternode and submit the queue request
+        CNode* pnode = (pnodeFound && pnodeFound->fMasternode) ? pnodeFound : ConnectNode((CAddress)pmn->addr, NULL, true);
+        if(pnode) {
+            pSubmittedToMasternode = pmn;
+            nSessionDenom = dsq.nDenom;
+
+            pnode->PushMessage(NetMsgType::DSACCEPT, nSessionDenom, txMyCollateral);
+            LogPrintf("CPrivateSendClient::JoinExistingQueue -- connected (from queue), sending DSACCEPT: nSessionDenom: %d (%s), addr=%s\n",
+                    nSessionDenom, GetDenominationsToString(nSessionDenom), pnode->addr.ToString());
+            strAutoDenomResult = _("Mixing in progress...");
+            SetState(POOL_STATE_QUEUE);
+            nTimeLastSuccessfulStep = GetTimeMillis();
+            if(pnodeFound) {
+                pnodeFound->Release();
+            }
+            return true;
+        } else {
+            LogPrintf("CPrivateSendClient::JoinExistingQueue -- can't connect, addr=%s\n", pmn->addr.ToString());
+            strAutoDenomResult = _("Error connecting to Masternode.");
+            continue;
+        }
+    }
+    return false;
+}
+
+bool CPrivateSendClient::StartNewQueue(CAmount nValueMin, CAmount nBalanceNeedsAnonymized)
+{
     int nTries = 0;
+    int nMnCountEnabled = mnodeman.CountEnabled(MIN_PRIVATESEND_PEER_PROTO_VERSION);
 
     // ** find the coins we'll use
     std::vector<CTxIn> vecTxIn;
     CAmount nValueInTmp = 0;
     if(!pwalletMain->SelectCoinsDark(nValueMin, nBalanceNeedsAnonymized, vecTxIn, nValueInTmp, 0, nPrivateSendRounds)) {
         // this should never happen
-        LogPrintf("CPrivateSendClient::DoAutomaticDenominating -- Can't mix: no compatible inputs found!\n");
+        LogPrintf("CPrivateSendClient::StartNewQueue -- Can't mix: no compatible inputs found!\n");
         strAutoDenomResult = _("Can't mix: no compatible inputs found!");
         return false;
     }
@@ -885,14 +908,14 @@ bool CPrivateSendClient::DoAutomaticDenominating(bool fDryRun)
     while(nTries < 10) {
         CMasternode* pmn = mnodeman.FindRandomNotInVec(vecMasternodesUsed, MIN_PRIVATESEND_PEER_PROTO_VERSION);
         if(pmn == NULL) {
-            LogPrintf("CPrivateSendClient::DoAutomaticDenominating -- Can't find random masternode!\n");
+            LogPrintf("CPrivateSendClient::StartNewQueue -- Can't find random masternode!\n");
             strAutoDenomResult = _("Can't find random Masternode.");
             return false;
         }
         vecMasternodesUsed.push_back(pmn->vin);
 
         if(pmn->nLastDsq != 0 && pmn->nLastDsq + nMnCountEnabled/5 > mnodeman.nDsqCount) {
-            LogPrintf("CPrivateSendClient::DoAutomaticDenominating -- Too early to mix on this masternode!"
+            LogPrintf("CPrivateSendClient::StartNewQueue -- Too early to mix on this masternode!"
                         " masternode=%s  addr=%s  nLastDsq=%d  CountEnabled/5=%d  nDsqCount=%d\n",
                         pmn->vin.prevout.ToStringShort(), pmn->addr.ToString(), pmn->nLastDsq,
                         nMnCountEnabled/5, mnodeman.nDsqCount);
@@ -914,10 +937,10 @@ bool CPrivateSendClient::DoAutomaticDenominating(bool fDryRun)
             }
         }
 
-        LogPrintf("CPrivateSendClient::DoAutomaticDenominating -- attempt %d connection to Masternode %s\n", nTries, pmn->addr.ToString());
+        LogPrintf("CPrivateSendClient::StartNewQueue -- attempt %d connection to Masternode %s\n", nTries, pmn->addr.ToString());
         CNode* pnode = (pnodeFound && pnodeFound->fMasternode) ? pnodeFound : ConnectNode((CAddress)pmn->addr, NULL, true);
         if(pnode) {
-            LogPrintf("CPrivateSendClient::DoAutomaticDenominating -- connected, addr=%s\n", pmn->addr.ToString());
+            LogPrintf("CPrivateSendClient::StartNewQueue -- connected, addr=%s\n", pmn->addr.ToString());
             pSubmittedToMasternode = pmn;
 
             std::vector<CAmount> vecAmounts;
@@ -928,7 +951,7 @@ bool CPrivateSendClient::DoAutomaticDenominating(bool fDryRun)
             }
 
             pnode->PushMessage(NetMsgType::DSACCEPT, nSessionDenom, txMyCollateral);
-            LogPrintf("CPrivateSendClient::DoAutomaticDenominating -- connected, sending DSACCEPT, nSessionDenom: %d (%s)\n",
+            LogPrintf("CPrivateSendClient::StartNewQueue -- connected, sending DSACCEPT, nSessionDenom: %d (%s)\n",
                     nSessionDenom, GetDenominationsToString(nSessionDenom));
             strAutoDenomResult = _("Mixing in progress...");
             SetState(POOL_STATE_QUEUE);
@@ -938,13 +961,11 @@ bool CPrivateSendClient::DoAutomaticDenominating(bool fDryRun)
             }
             return true;
         } else {
-            LogPrintf("CPrivateSendClient::DoAutomaticDenominating -- can't connect, addr=%s\n", pmn->addr.ToString());
+            LogPrintf("CPrivateSendClient::StartNewQueue -- can't connect, addr=%s\n", pmn->addr.ToString());
             nTries++;
             continue;
         }
     }
-
-    strAutoDenomResult = _("No compatible Masternode found.");
     return false;
 }
 

@@ -66,6 +66,11 @@ private:
         return std::find(vecDenominationsSkipped.begin(), vecDenominationsSkipped.end(), nDenomValue) != vecDenominationsSkipped.end();
     }
 
+    // Make sure we have enough keys since last backup
+    bool CheckAutomaticBackup();
+    bool JoinExistingQueue(CAmount nBalanceNeedsAnonymized);
+    bool StartNewQueue(CAmount nValueMin, CAmount nBalanceNeedsAnonymized);
+
     /// Create denominations
     bool CreateDenominated();
     bool CreateDenominated(const CompactTallyItem& tallyItem, bool fCreateMixingCollaterals);
