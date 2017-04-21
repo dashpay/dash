@@ -44,7 +44,6 @@
 #endif
 
 #include "activemasternode.h"
-#include "darksend.h"
 #include "dsnotificationinterface.h"
 #include "flat-database.h"
 #include "governance.h"
@@ -58,6 +57,8 @@
 #include "masternodeconfig.h"
 #include "messagesigner.h"
 #include "netfulfilledman.h"
+#include "privatesend-client.h"
+#include "privatesend-server.h"
 #include "spork.h"
 
 #include <stdint.h>
@@ -1841,7 +1842,7 @@ bool AppInit2(boost::thread_group& threadGroup, CScheduler& scheduler)
 
     nLiquidityProvider = GetArg("-liquidityprovider", nLiquidityProvider);
     nLiquidityProvider = std::min(std::max(nLiquidityProvider, 0), 100);
-    darkSendPool.SetMinBlockSpacing(nLiquidityProvider * 15);
+    privateSendClient.SetMinBlockSpacing(nLiquidityProvider * 15);
 
     fEnablePrivateSend = GetBoolArg("-enableprivatesend", 0);
     fPrivateSendMultiSession = GetBoolArg("-privatesendmultisession", DEFAULT_PRIVATESEND_MULTISESSION);
@@ -1865,7 +1866,8 @@ bool AppInit2(boost::thread_group& threadGroup, CScheduler& scheduler)
     LogPrintf("PrivateSend rounds %d\n", nPrivateSendRounds);
     LogPrintf("PrivateSend amount %d\n", nPrivateSendAmount);
 
-    darkSendPool.InitDenominations();
+    privateSendClient.InitDenominations();
+    privateSendServer.InitDenominations();
 
     // ********************************************************* Step 11b: Load cache data
 
@@ -1913,14 +1915,18 @@ bool AppInit2(boost::thread_group& threadGroup, CScheduler& scheduler)
     // but don't call it directly to prevent triggering of other listeners like zmq etc.
     // GetMainSignals().UpdatedBlockTip(chainActive.Tip());
     mnodeman.UpdatedBlockTip(chainActive.Tip());
-    darkSendPool.UpdatedBlockTip(chainActive.Tip());
+    privateSendClient.UpdatedBlockTip(chainActive.Tip());
     mnpayments.UpdatedBlockTip(chainActive.Tip());
     masternodeSync.UpdatedBlockTip(chainActive.Tip());
     governance.UpdatedBlockTip(chainActive.Tip());
 
-    // ********************************************************* Step 11d: start dash-privatesend thread
+    // ********************************************************* Step 11d: start dash-ps-<smth> threads
 
-    threadGroup.create_thread(boost::bind(&ThreadCheckDarkSendPool));
+    threadGroup.create_thread(boost::bind(&ThreadCheckPrivateSend));
+    if (fMasterNode)
+        threadGroup.create_thread(boost::bind(&ThreadCheckPrivateSendServer));
+    else
+        threadGroup.create_thread(boost::bind(&ThreadCheckPrivateSendClient));
 
     // ********************************************************* Step 12: start node
 

@@ -18,10 +18,10 @@
 #include "utilitydialog.h"
 #include "walletmodel.h"
 
-#include "darksend.h"
 #include "instantx.h"
 #include "darksendconfig.h"
 #include "masternode-sync.h"
+#include "privatesend-client.h"
 
 #include <QAbstractItemDelegate>
 #include <QPainter>
@@ -173,9 +173,9 @@ OverviewPage::OverviewPage(const PlatformStyle *platformStyle, QWidget *parent) 
         } else {
             ui->togglePrivateSend->setText(tr("Stop Mixing"));
         }
-        // Disable darkSendPool builtin support for automatic backups while we are in GUI,
+        // Disable privateSendClient builtin support for automatic backups while we are in GUI,
         // we'll handle automatic backups and user warnings in privateSendStatus()
-        darkSendPool.fCreateAutoBackups = false;
+        privateSendClient.fCreateAutoBackups = false;
 
         timer = new QTimer(this);
         connect(timer, SIGNAL(timeout()), this, SLOT(privateSendStatus()));
@@ -456,7 +456,7 @@ void OverviewPage::privateSendStatus()
     int nBestHeight = clientModel->getNumBlocks();
 
     // We are processing more then 1 block per second, we'll just leave
-    if(((nBestHeight - darkSendPool.nCachedNumBlocks) / (GetTimeMillis() - nLastDSProgressBlockTime + 1) > 1)) return;
+    if(((nBestHeight - privateSendClient.nCachedNumBlocks) / (GetTimeMillis() - nLastDSProgressBlockTime + 1) > 1)) return;
     nLastDSProgressBlockTime = GetTimeMillis();
 
     QString strKeysLeftText(tr("keys left: %1").arg(pwalletMain->nKeysLeftSinceAutoBackup));
@@ -466,8 +466,8 @@ void OverviewPage::privateSendStatus()
     ui->labelPrivateSendEnabled->setToolTip(strKeysLeftText);
 
     if (!fEnablePrivateSend) {
-        if (nBestHeight != darkSendPool.nCachedNumBlocks) {
-            darkSendPool.nCachedNumBlocks = nBestHeight;
+        if (nBestHeight != privateSendClient.nCachedNumBlocks) {
+            privateSendClient.nCachedNumBlocks = nBestHeight;
             updatePrivateSendProgress();
         }
 
@@ -544,13 +544,13 @@ void OverviewPage::privateSendStatus()
     }
 
     // check darksend status and unlock if needed
-    if(nBestHeight != darkSendPool.nCachedNumBlocks) {
+    if(nBestHeight != privateSendClient.nCachedNumBlocks) {
         // Balance and number of transactions might have changed
-        darkSendPool.nCachedNumBlocks = nBestHeight;
+        privateSendClient.nCachedNumBlocks = nBestHeight;
         updatePrivateSendProgress();
     }
 
-    QString strStatus = QString(darkSendPool.GetStatus().c_str());
+    QString strStatus = QString(privateSendClient.GetStatus().c_str());
 
     QString s = tr("Last PrivateSend message:\n") + strStatus;
 
@@ -559,21 +559,21 @@ void OverviewPage::privateSendStatus()
 
     ui->labelPrivateSendLastMessage->setText(s);
 
-    if(darkSendPool.nSessionDenom == 0){
+    if(privateSendClient.nSessionDenom == 0){
         ui->labelSubmittedDenom->setText(tr("N/A"));
     } else {
-        QString strDenom(darkSendPool.GetDenominationsToString(darkSendPool.nSessionDenom).c_str());
+        QString strDenom(privateSendClient.GetDenominationsToString(privateSendClient.nSessionDenom).c_str());
         ui->labelSubmittedDenom->setText(strDenom);
     }
 
 }
 
 void OverviewPage::privateSendAuto(){
-    darkSendPool.DoAutomaticDenominating();
+    privateSendClient.DoAutomaticDenominating();
 }
 
 void OverviewPage::privateSendReset(){
-    darkSendPool.ResetPool();
+    privateSendClient.ResetPool();
 
     QMessageBox::warning(this, tr("PrivateSend"),
         tr("PrivateSend was successfully reset."),
@@ -612,7 +612,7 @@ void OverviewPage::togglePrivateSend(){
             if(!ctx.isValid())
             {
                 //unlock was cancelled
-                darkSendPool.nCachedNumBlocks = std::numeric_limits<int>::max();
+                privateSendClient.nCachedNumBlocks = std::numeric_limits<int>::max();
                 QMessageBox::warning(this, tr("PrivateSend"),
                     tr("Wallet is locked and user declined to unlock. Disabling PrivateSend."),
                     QMessageBox::Ok, QMessageBox::Ok);
@@ -624,11 +624,11 @@ void OverviewPage::togglePrivateSend(){
     }
 
     fEnablePrivateSend = !fEnablePrivateSend;
-    darkSendPool.nCachedNumBlocks = std::numeric_limits<int>::max();
+    privateSendClient.nCachedNumBlocks = std::numeric_limits<int>::max();
 
     if(!fEnablePrivateSend){
         ui->togglePrivateSend->setText(tr("Start Mixing"));
-        darkSendPool.UnlockCoins();
+        privateSendClient.UnlockCoins();
     } else {
         ui->togglePrivateSend->setText(tr("Stop Mixing"));
 

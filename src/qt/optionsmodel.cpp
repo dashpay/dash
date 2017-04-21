@@ -23,10 +23,10 @@
 #include "wallet/walletdb.h"
 #endif
 
-#include "darksend.h"
 #ifdef ENABLE_WALLET
 #include "masternodeconfig.h"
 #endif
+#include "privatesend-client.h"
 
 #include <QNetworkProxy>
 #include <QSettings>

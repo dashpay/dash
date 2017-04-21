@@ -4,13 +4,13 @@
 
 #include "activemasternode.h"
 #include "addrman.h"
-#include "darksend.h"
 #include "governance.h"
 #include "masternode-payments.h"
 #include "masternode-sync.h"
 #include "masternodeman.h"
 #include "messagesigner.h"
 #include "netfulfilledman.h"
+#include "privatesend-client.h"
 #include "util.h"
 
 /** Masternode manager */
@@ -766,7 +766,7 @@ void CMasternodeMan::ProcessMasternodeConnections()
     LOCK(cs_vNodes);
     BOOST_FOREACH(CNode* pnode, vNodes) {
         if(pnode->fMasternode) {
-            if(darkSendPool.pSubmittedToMasternode != NULL && pnode->addr == darkSendPool.pSubmittedToMasternode->addr) continue;
+            if(privateSendClient.pSubmittedToMasternode != NULL && pnode->addr == privateSendClient.pSubmittedToMasternode->addr) continue;
             LogPrintf("Closing Masternode connection: peer=%d, addr=%s\n", pnode->id, pnode->addr.ToString());
             pnode->fDisconnect = true;
         }

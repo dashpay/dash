@@ -2,9 +2,9 @@
 #include "ui_darksendconfig.h"
 
 #include "bitcoinunits.h"
-#include "darksend.h"
 #include "guiconstants.h"
 #include "optionsmodel.h"
+#include "privatesend-client.h"
 #include "walletmodel.h"
 
 #include <QMessageBox>
