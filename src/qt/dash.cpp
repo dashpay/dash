@@ -523,6 +523,15 @@ void BitcoinApplication::initializeResult(int retval)
         connect(paymentServer, SIGNAL(message(QString,QString,unsigned int)),
                          window, SLOT(message(QString,QString,unsigned int)));
         QTimer::singleShot(100, paymentServer, SLOT(uiReady()));
+
+        // Reset GUI options if the 'Reset Options' button is not accessible any more
+        if(GetBoolArg("-resetui", false))
+        {
+            if(clientModel->getOptionsModel()){
+                clientModel->getOptionsModel()->Reset();
+                QApplication::quit();
+            }
+        }
 #endif
     } else {
         quit(); // Exit main loop
