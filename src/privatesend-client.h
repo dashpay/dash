@@ -99,7 +99,7 @@ private:
     void SetNull();
 
 public:
-    CMasternode* pSubmittedToMasternode;
+    masternode_info_t infoMixingMasternode;
     int nCachedNumBlocks; //used for the overview screen
     bool fCreateAutoBackups; //builtin support for automatic backups
 

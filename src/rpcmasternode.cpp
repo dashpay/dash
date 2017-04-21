@@ -77,9 +77,9 @@ UniValue getpoolinfo(const UniValue& params, bool fHelp)
     obj.push_back(Pair("entries",           privateSend.GetEntriesCount()));
     obj.push_back(Pair("status",            privateSendClient.GetStatus()));
 
-    if (privateSendClient.pSubmittedToMasternode) {
-        obj.push_back(Pair("outpoint",      privateSendClient.pSubmittedToMasternode->vin.prevout.ToStringShort()));
-        obj.push_back(Pair("addr",          privateSendClient.pSubmittedToMasternode->addr.ToString()));
+    if (privateSendClient.infoMixingMasternode.fInfoValid) {
+        obj.push_back(Pair("outpoint",      privateSendClient.infoMixingMasternode.vin.prevout.ToStringShort()));
+        obj.push_back(Pair("addr",          privateSendClient.infoMixingMasternode.addr.ToString()));
     }
 
     if (pwalletMain) {

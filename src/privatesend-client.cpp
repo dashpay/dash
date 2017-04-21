@@ -63,9 +63,9 @@ void CPrivateSendClient::ProcessMessage(CNode* pfrom, std::string& strCommand, C
 
         // if the queue is ready, submit if we can
         if(dsq.fReady) {
-            if(!pSubmittedToMasternode) return;
-            if((CNetAddr)pSubmittedToMasternode->addr != (CNetAddr)pmn->addr) {
-                LogPrintf("DSQUEUE -- message doesn't match current Masternode: pSubmittedToMasternode=%s, addr=%s\n", pSubmittedToMasternode->addr.ToString(), pmn->addr.ToString());
+            if(!infoMixingMasternode.fInfoValid) return;
+            if((CNetAddr)infoMixingMasternode.addr != (CNetAddr)pmn->addr) {
+                LogPrintf("DSQUEUE -- message doesn't match current Masternode: infoMixingMasternode=%s, addr=%s\n", infoMixingMasternode.addr.ToString(), pmn->addr.ToString());
                 return;
             }
 
@@ -94,7 +94,7 @@ void CPrivateSendClient::ProcessMessage(CNode* pfrom, std::string& strCommand, C
             pmn->fAllowMixingTx = true;
 
             LogPrint("privatesend", "DSQUEUE -- new PrivateSend queue (%s) from masternode %s\n", dsq.ToString(), pmn->addr.ToString());
-            if(pSubmittedToMasternode && pSubmittedToMasternode->vin.prevout == dsq.vin.prevout) {
+            if(infoMixingMasternode.vin.prevout == dsq.vin.prevout) {
                 dsq.fTried = true;
             }
             vecDarksendQueue.push_back(dsq);
@@ -108,9 +108,9 @@ void CPrivateSendClient::ProcessMessage(CNode* pfrom, std::string& strCommand, C
             return;
         }
 
-        if(!pSubmittedToMasternode) return;
-        if((CNetAddr)pSubmittedToMasternode->addr != (CNetAddr)pfrom->addr) {
-            //LogPrintf("DSSTATUSUPDATE -- message doesn't match current Masternode: pSubmittedToMasternode %s addr %s\n", pSubmittedToMasternode->addr.ToString(), pfrom->addr.ToString());
+        if(!infoMixingMasternode.fInfoValid) return;
+        if((CNetAddr)infoMixingMasternode.addr != (CNetAddr)pfrom->addr) {
+            //LogPrintf("DSSTATUSUPDATE -- message doesn't match current Masternode: infoMixingMasternode %s addr %s\n", infoMixingMasternode.addr.ToString(), pfrom->addr.ToString());
             return;
         }
 
@@ -152,9 +152,9 @@ void CPrivateSendClient::ProcessMessage(CNode* pfrom, std::string& strCommand, C
             return;
         }
 
-        if(!pSubmittedToMasternode) return;
-        if((CNetAddr)pSubmittedToMasternode->addr != (CNetAddr)pfrom->addr) {
-            //LogPrintf("DSFINALTX -- message doesn't match current Masternode: pSubmittedToMasternode %s addr %s\n", pSubmittedToMasternode->addr.ToString(), pfrom->addr.ToString());
+        if(!infoMixingMasternode.fInfoValid) return;
+        if((CNetAddr)infoMixingMasternode.addr != (CNetAddr)pfrom->addr) {
+            //LogPrintf("DSFINALTX -- message doesn't match current Masternode: infoMixingMasternode %s addr %s\n", infoMixingMasternode.addr.ToString(), pfrom->addr.ToString());
             return;
         }
 
@@ -179,9 +179,9 @@ void CPrivateSendClient::ProcessMessage(CNode* pfrom, std::string& strCommand, C
             return;
         }
 
-        if(!pSubmittedToMasternode) return;
-        if((CNetAddr)pSubmittedToMasternode->addr != (CNetAddr)pfrom->addr) {
-            LogPrint("privatesend", "DSCOMPLETE -- message doesn't match current Masternode: pSubmittedToMasternode=%s  addr=%s\n", pSubmittedToMasternode->addr.ToString(), pfrom->addr.ToString());
+        if(!infoMixingMasternode.fInfoValid) return;
+        if((CNetAddr)infoMixingMasternode.addr != (CNetAddr)pfrom->addr) {
+            LogPrint("privatesend", "DSCOMPLETE -- message doesn't match current Masternode: infoMixingMasternode=%s  addr=%s\n", infoMixingMasternode.addr.ToString(), pfrom->addr.ToString());
             return;
         }
 
@@ -219,7 +219,7 @@ void CPrivateSendClient::SetNull()
     // Client side
     nEntriesCount = 0;
     fLastEntryAccepted = false;
-    pSubmittedToMasternode = NULL;
+    infoMixingMasternode = masternode_info_t();
 
     CPrivateSend::SetNull();
 }
@@ -818,13 +818,14 @@ bool CPrivateSendClient::JoinExistingQueue(CAmount nBalanceNeedsAnonymized)
 
         if(dsq.IsExpired()) continue;
 
-        CMasternode* pmn = mnodeman.Find(dsq.vin);
-        if(pmn == NULL) {
+        masternode_info_t infoMn = mnodeman.GetMasternodeInfo(dsq.vin);
+
+        if(!infoMn.fInfoValid) {
             LogPrintf("CPrivateSendClient::JoinExistingQueue -- dsq masternode is not in masternode list, masternode=%s\n", dsq.vin.prevout.ToStringShort());
             continue;
         }
 
-        if(pmn->nProtocolVersion < MIN_PRIVATESEND_PEER_PROTO_VERSION) continue;
+        if(infoMn.nProtocolVersion < MIN_PRIVATESEND_PEER_PROTO_VERSION) continue;
 
         std::vector<int> vecBits;
         if(!GetDenominationsBits(dsq.nDenom, vecBits)) {
@@ -853,7 +854,7 @@ bool CPrivateSendClient::JoinExistingQueue(CAmount nBalanceNeedsAnonymized)
         CNode* pnodeFound = NULL;
         {
             LOCK(cs_vNodes);
-            pnodeFound = FindNode(pmn->addr);
+            pnodeFound = FindNode(infoMn.addr);
             if(pnodeFound) {
                 if(pnodeFound->fDisconnect) {
                     continue;
@@ -863,11 +864,11 @@ bool CPrivateSendClient::JoinExistingQueue(CAmount nBalanceNeedsAnonymized)
             }
         }
 
-        LogPrintf("CPrivateSendClient::JoinExistingQueue -- attempt to connect to masternode from queue, addr=%s\n", pmn->addr.ToString());
+        LogPrintf("CPrivateSendClient::JoinExistingQueue -- attempt to connect to masternode from queue, addr=%s\n", infoMn.addr.ToString());
         // connect to Masternode and submit the queue request
-        CNode* pnode = (pnodeFound && pnodeFound->fMasternode) ? pnodeFound : ConnectNode((CAddress)pmn->addr, NULL, true);
+        CNode* pnode = (pnodeFound && pnodeFound->fMasternode) ? pnodeFound : ConnectNode((CAddress)infoMn.addr, NULL, true);
         if(pnode) {
-            pSubmittedToMasternode = pmn;
+            infoMixingMasternode = infoMn;
             nSessionDenom = dsq.nDenom;
 
             pnode->PushMessage(NetMsgType::DSACCEPT, nSessionDenom, txMyCollateral);
@@ -881,7 +882,7 @@ bool CPrivateSendClient::JoinExistingQueue(CAmount nBalanceNeedsAnonymized)
             }
             return true;
         } else {
-            LogPrintf("CPrivateSendClient::JoinExistingQueue -- can't connect, addr=%s\n", pmn->addr.ToString());
+            LogPrintf("CPrivateSendClient::JoinExistingQueue -- can't connect, addr=%s\n", infoMn.addr.ToString());
             strAutoDenomResult = _("Error connecting to Masternode.");
             continue;
         }
@@ -906,18 +907,18 @@ bool CPrivateSendClient::StartNewQueue(CAmount nValueMin, CAmount nBalanceNeedsA
 
     // otherwise, try one randomly
     while(nTries < 10) {
-        CMasternode* pmn = mnodeman.FindRandomNotInVec(vecMasternodesUsed, MIN_PRIVATESEND_PEER_PROTO_VERSION);
-        if(pmn == NULL) {
+        masternode_info_t infoMn = mnodeman.FindRandomNotInVec(vecMasternodesUsed, MIN_PRIVATESEND_PEER_PROTO_VERSION);
+        if(!infoMn.fInfoValid) {
             LogPrintf("CPrivateSendClient::StartNewQueue -- Can't find random masternode!\n");
             strAutoDenomResult = _("Can't find random Masternode.");
             return false;
         }
-        vecMasternodesUsed.push_back(pmn->vin);
+        vecMasternodesUsed.push_back(infoMn.vin);
 
-        if(pmn->nLastDsq != 0 && pmn->nLastDsq + nMnCountEnabled/5 > mnodeman.nDsqCount) {
+        if(infoMn.nLastDsq != 0 && infoMn.nLastDsq + nMnCountEnabled/5 > mnodeman.nDsqCount) {
             LogPrintf("CPrivateSendClient::StartNewQueue -- Too early to mix on this masternode!"
                         " masternode=%s  addr=%s  nLastDsq=%d  CountEnabled/5=%d  nDsqCount=%d\n",
-                        pmn->vin.prevout.ToStringShort(), pmn->addr.ToString(), pmn->nLastDsq,
+                        infoMn.vin.prevout.ToStringShort(), infoMn.addr.ToString(), infoMn.nLastDsq,
                         nMnCountEnabled/5, mnodeman.nDsqCount);
             nTries++;
             continue;
@@ -926,7 +927,7 @@ bool CPrivateSendClient::StartNewQueue(CAmount nValueMin, CAmount nBalanceNeedsA
         CNode* pnodeFound = NULL;
         {
             LOCK(cs_vNodes);
-            pnodeFound = FindNode(pmn->addr);
+            pnodeFound = FindNode(infoMn.addr);
             if(pnodeFound) {
                 if(pnodeFound->fDisconnect) {
                     nTries++;
@@ -937,11 +938,11 @@ bool CPrivateSendClient::StartNewQueue(CAmount nValueMin, CAmount nBalanceNeedsA
             }
         }
 
-        LogPrintf("CPrivateSendClient::StartNewQueue -- attempt %d connection to Masternode %s\n", nTries, pmn->addr.ToString());
-        CNode* pnode = (pnodeFound && pnodeFound->fMasternode) ? pnodeFound : ConnectNode((CAddress)pmn->addr, NULL, true);
+        LogPrintf("CPrivateSendClient::StartNewQueue -- attempt %d connection to Masternode %s\n", nTries, infoMn.addr.ToString());
+        CNode* pnode = (pnodeFound && pnodeFound->fMasternode) ? pnodeFound : ConnectNode((CAddress)infoMn.addr, NULL, true);
         if(pnode) {
-            LogPrintf("CPrivateSendClient::StartNewQueue -- connected, addr=%s\n", pmn->addr.ToString());
-            pSubmittedToMasternode = pmn;
+            LogPrintf("CPrivateSendClient::StartNewQueue -- connected, addr=%s\n", infoMn.addr.ToString());
+            infoMixingMasternode = infoMn;
 
             std::vector<CAmount> vecAmounts;
             pwalletMain->ConvertList(vecTxIn, vecAmounts);
@@ -961,7 +962,7 @@ bool CPrivateSendClient::StartNewQueue(CAmount nValueMin, CAmount nBalanceNeedsA
             }
             return true;
         } else {
-            LogPrintf("CPrivateSendClient::StartNewQueue -- can't connect, addr=%s\n", pmn->addr.ToString());
+            LogPrintf("CPrivateSendClient::StartNewQueue -- can't connect, addr=%s\n", infoMn.addr.ToString());
             nTries++;
             continue;
         }
@@ -1343,9 +1344,9 @@ bool CPrivateSendClient::CreateDenominated(const CompactTallyItem& tallyItem, bo
 
 void CPrivateSendClient::RelayIn(const CDarkSendEntry& entry)
 {
-    if(!pSubmittedToMasternode) return;
+    if(!infoMixingMasternode.fInfoValid) return;
 
-    CNode* pnode = FindNode(pSubmittedToMasternode->addr);
+    CNode* pnode = FindNode(infoMixingMasternode.addr);
     if(pnode != NULL) {
         LogPrintf("CPrivateSendClient::RelayIn -- found master, relaying message to %s\n", pnode->addr.ToString());
         pnode->PushMessage(NetMsgType::DSVIN, entry);
