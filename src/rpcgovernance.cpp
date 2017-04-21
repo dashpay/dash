@@ -692,10 +692,14 @@ UniValue gobject(const UniValue& params, bool fHelp)
     // GETVOTES FOR SPECIFIC GOVERNANCE OBJECT
     if(strCommand == "getvotes")
     {
-        if (params.size() != 2)
+        if (params.size() < 2 || params.size() > 3)
             throw std::runtime_error(
                 "Correct usage is 'gobject getvotes <governance-hash>'"
                 );
+
+        // set a filter
+        std::string strFilter = "";
+        if (params.size() == 3) strFilter = params[2].get_str();
 
         // COLLECT PARAMETERS FROM USER
 
@@ -719,6 +723,7 @@ UniValue gobject(const UniValue& params, bool fHelp)
 
         std::vector<CGovernanceVote> vecVotes = governance.GetMatchingVotes(hash);
         BOOST_FOREACH(CGovernanceVote vote, vecVotes) {
+            if (strFilter.size() > 0 && vote.ToString().find(strFilter) == std::string::npos) continue;
             bResult.push_back(Pair(vote.GetHash().ToString(),  vote.ToString()));
         }
 
