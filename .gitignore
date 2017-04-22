@@ -6,12 +6,13 @@ reset-files.bash
 *.tar.gz
 
 *.exe
-src/dash
-src/dashd
-src/dash-cli
-src/dash-tx
-src/test/test_dash
-src/qt/test/test_dash-qt
+src/owncoin
+src/owncoind
+src/owncoin-cli
+src/owncoin-tx
+src/test/test_owncoin
+src/qt/test/test_owncoin-qt
+src/bench/bench_owncoin
 
 # autoreconf
 Makefile.in
@@ -34,8 +35,8 @@ config.log
 config.status
 configure
 libtool
-src/config/dash-config.h
-src/config/dash-config.h.in
+src/config/owncoin-config.h
+src/config/owncoin-config.h.in
 src/config/stamp-h1
 share/setup.nsi
 share/qt/Info.plist
@@ -47,6 +48,7 @@ src/qt/moc_*.cpp
 src/qt/forms/ui_*.h
 
 src/qt/test/moc*.cpp
+libconftest.dylib*
 
 .deps
 .dirstamp
@@ -60,7 +62,7 @@ src/qt/test/moc*.cpp
 *.o
 *.o-*
 *.patch
-.dash
+.owncoin
 *.a
 *.pb.cc
 *.pb.h
@@ -79,19 +81,16 @@ src/qt/test/moc*.cpp
 # Compilation and Qt preprocessor part
 *.qm
 Makefile
-dash-qt
-Dash-Qt.app
+owncoin-qt
+Owncoin-Qt.app
 
 # Unit-tests
 Makefile.test
-dash-qt_test
+owncoin-qt_test
 src/test/buildenv.py
 
 # Resources cpp
 qrc_*.cpp
-
-# Qt creator
-*.pro.user
 
 # Mac specific
 .DS_Store
@@ -99,8 +98,9 @@ build
 
 #lcov
 *.gcno
+*.gcda
 /*.info
-test_dash.coverage/
+test_owncoin.coverage/
 total.coverage/
 coverage_percent.txt
 
@@ -109,12 +109,26 @@ linux-coverage-build
 linux-build
 win32-build
 qa/pull-tester/run-bitcoind-for-test.sh
-qa/pull-tester/tests-config.sh
+qa/pull-tester/tests_config.py
 qa/pull-tester/cache/*
 qa/pull-tester/test.*/*
+qa/tmp
+cache/
+share/BitcoindComparisonTool.jar
 
 !src/leveldb*/Makefile
 
 .cproject
 .project
+.autotools
 /doc/doxygen/
+
+libbitcoinconsensus.pc
+src/qt/owncoin-qt.bash
+qa/pull-tester/tests-config.sh
+
+#development symlinks
+owncoin-cli
+owncoind
+owncoin-qt
+make

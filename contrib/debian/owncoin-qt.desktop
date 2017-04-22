@@ -1,0 +1,12 @@
+[Desktop Entry]
+Encoding=UTF-8
+Name=Owncoin
+Comment=Owncoin P2P Cryptocurrency
+Comment[fr]=Owncoin, monnaie virtuelle cryptographique pair à pair
+Comment[tr]=Owncoin, eşten eşe kriptografik sanal para birimi
+Exec=owncoin-qt %u
+Terminal=false
+Type=Application
+Icon=owncoin128
+MimeType=x-scheme-handler/owncoin;
+Categories=Office;Finance;

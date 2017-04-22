@@ -1,4 +1,4 @@
-// Copyright (c) 2014 The Bitcoin developers
+// Copyright (c) 2014-2015 The Bitcoin Core developers
 // Distributed under the MIT software license, see the accompanying
 // file COPYING or http://www.opensource.org/licenses/mit-license.php.
 
@@ -172,7 +172,7 @@ bool CBase58Data::SetString(const char* psz, unsigned int nVersionBytes)
     vchData.resize(vchTemp.size() - nVersionBytes);
     if (!vchData.empty())
         memcpy(&vchData[0], &vchTemp[nVersionBytes], vchData.size());
-    OPENSSL_cleanse(&vchTemp[0], vchData.size());
+    memory_cleanse(&vchTemp[0], vchTemp.size());
     return true;
 }
 
@@ -260,6 +260,23 @@ CTxDestination CBitcoinAddress::Get() const
         return CScriptID(id);
     else
         return CNoDestination();
+}
+
+bool CBitcoinAddress::GetIndexKey(uint160& hashBytes, int& type) const
+{
+    if (!IsValid()) {
+        return false;
+    } else if (vchVersion == Params().Base58Prefix(CChainParams::PUBKEY_ADDRESS)) {
+        memcpy(&hashBytes, &vchData[0], 20);
+        type = 1;
+        return true;
+    } else if (vchVersion == Params().Base58Prefix(CChainParams::SCRIPT_ADDRESS)) {
+        memcpy(&hashBytes, &vchData[0], 20);
+        type = 2;
+        return true;
+    }
+
+    return false;
 }
 
 bool CBitcoinAddress::GetKeyID(CKeyID& keyID) const

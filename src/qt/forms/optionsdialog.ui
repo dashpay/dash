@@ -30,10 +30,10 @@
        <item>
         <widget class="QCheckBox" name="bitcoinAtStartup">
          <property name="toolTip">
-          <string>Automatically start Dash after logging in to the system.</string>
+          <string>Automatically start Owncoin Core after logging in to the system.</string>
          </property>
          <property name="text">
-          <string>&amp;Start Dash on system login</string>
+          <string>&amp;Start Owncoin Core on system login</string>
          </property>
         </widget>
        </item>
@@ -130,75 +130,6 @@
          </property>
         </spacer>
        </item>
-       <item>
-        <layout class="QHBoxLayout" name="horizontalLayout_4_Main">
-         <item>
-          <widget class="QLabel" name="label">
-           <property name="toolTip">
-            <string>This setting determines the amount of individual masternodes that an input will be anonymized through.&lt;br/&gt;More rounds of anonymization gives a higher degree of privacy, but also costs more in fees.</string>
-           </property>
-           <property name="text">
-            <string>Darksend rounds to use</string>
-           </property>
-          </widget>
-         </item>
-         <item>
-          <widget class="QSpinBox" name="darksendRounds">
-           <property name="minimum">
-            <number>2</number>
-           </property>
-           <property name="maximum">
-            <number>8</number>
-           </property>
-           <property name="value">
-            <number>4</number>
-           </property>
-          </widget>
-         </item>
-        </layout>
-       </item>
-       <item>
-        <layout class="QHBoxLayout" name="horizontalLayout">
-         <item>
-          <widget class="QLabel" name="label_2">
-           <property name="toolTip">
-            <string>This amount acts as a threshold to turn off Darksend once it's reached.</string>
-           </property>
-           <property name="statusTip">
-            <string notr="true"/>
-           </property>
-           <property name="whatsThis">
-            <string notr="true"/>
-           </property>
-           <property name="accessibleName">
-            <string notr="true"/>
-           </property>
-           <property name="accessibleDescription">
-            <string notr="true"/>
-           </property>
-           <property name="text">
-            <string>Amount of Dash to keep anonymized</string>
-           </property>
-          </widget>
-         </item>
-         <item>
-          <widget class="QSpinBox" name="anonymizeDarkcoin">
-           <property name="minimum">
-            <number>2</number>
-           </property>
-           <property name="maximum">
-            <number>2000</number>
-           </property>
-           <property name="singleStep">
-            <number>10</number>
-           </property>
-           <property name="value">
-            <number>1000</number>
-           </property>
-          </widget>
-         </item>
-        </layout>
-       </item>
       </layout>
      </widget>
      <widget class="QWidget" name="tabWallet">
@@ -223,6 +154,46 @@
            </widget>
           </item>
           <item>
+           <widget class="QCheckBox" name="showMasternodesTab">
+            <property name="toolTip">
+             <string>Show additional tab listing all your masternodes in first sub-tab&lt;br/&gt;and all masternodes on the network in second sub-tab.</string>
+            </property>
+            <property name="text">
+             <string>Show Masternodes Tab</string>
+            </property>
+           </widget>
+          </item>
+          <item>
+           <widget class="QCheckBox" name="showAdvancedPSUI">
+            <property name="toolTip">
+             <string>Show additional information and buttons for PrivateSend on overview screen.</string>
+            </property>
+            <property name="text">
+             <string>Enable advanced PrivateSend interface</string>
+            </property>
+           </widget>
+          </item>
+          <item>
+           <widget class="QCheckBox" name="lowKeysWarning">
+            <property name="toolTip">
+             <string>Show warning dialog when PrivateSend detects that wallet has very low number of keys left.</string>
+            </property>
+            <property name="text">
+             <string>Warn if PrivateSend is running out of keys</string>
+            </property>
+           </widget>
+          </item>
+          <item>
+           <widget class="QCheckBox" name="privateSendMultiSession">
+            <property name="toolTip">
+             <string>Whether to use experimental PrivateSend mode with multiple mixing sessions per block.&lt;br/&gt;Note: You must use this feature carefully.&lt;br/&gt;Make sure you always have recent wallet (auto)backup in a safe place!</string>
+            </property>
+            <property name="text">
+             <string>Enable PrivateSend &amp;multi-session</string>
+            </property>
+           </widget>
+          </item>
+          <item>
            <widget class="QCheckBox" name="spendZeroConfChange">
             <property name="toolTip">
              <string>If you disable the spending of unconfirmed change, the change from a transaction&lt;br/&gt;cannot be used until that transaction has at least one confirmation.&lt;br/&gt;This also affects how your balance is computed.</string>
@@ -234,6 +205,75 @@
           </item>
          </layout>
         </widget>
+       </item>
+       <item>
+        <layout class="QHBoxLayout" name="horizontalLayout_4_Wallet">
+         <item>
+          <widget class="QLabel" name="label">
+           <property name="toolTip">
+            <string>This setting determines the amount of individual masternodes that an input will be anonymized through.&lt;br/&gt;More rounds of anonymization gives a higher degree of privacy, but also costs more in fees.</string>
+           </property>
+           <property name="text">
+            <string>PrivateSend rounds to use</string>
+           </property>
+          </widget>
+         </item>
+         <item>
+          <widget class="QSpinBox" name="privateSendRounds">
+           <property name="minimum">
+            <number>2</number>
+           </property>
+           <property name="maximum">
+            <number>8</number>
+           </property>
+           <property name="value">
+            <number>4</number>
+           </property>
+          </widget>
+         </item>
+        </layout>
+       </item>
+       <item>
+        <layout class="QHBoxLayout" name="horizontalLayout">
+         <item>
+          <widget class="QLabel" name="label_2">
+           <property name="toolTip">
+            <string>This amount acts as a threshold to turn off PrivateSend once it's reached.</string>
+           </property>
+           <property name="statusTip">
+            <string notr="true"/>
+           </property>
+           <property name="whatsThis">
+            <string notr="true"/>
+           </property>
+           <property name="accessibleName">
+            <string notr="true"/>
+           </property>
+           <property name="accessibleDescription">
+            <string notr="true"/>
+           </property>
+           <property name="text">
+            <string>Amount of Owncoin to keep anonymized</string>
+           </property>
+          </widget>
+         </item>
+         <item>
+          <widget class="QSpinBox" name="privateSendAmount">
+           <property name="minimum">
+            <number>2</number>
+           </property>
+           <property name="maximum">
+            <number>2000</number>
+           </property>
+           <property name="singleStep">
+            <number>10</number>
+           </property>
+           <property name="value">
+            <number>1000</number>
+           </property>
+          </widget>
+         </item>
+        </layout>
        </item>
        <item>
         <spacer name="verticalSpacer_Wallet">
@@ -258,7 +298,7 @@
        <item>
         <widget class="QCheckBox" name="mapPortUpnp">
          <property name="toolTip">
-          <string>Automatically open the Dash client port on the router. This only works when your router supports UPnP and it is enabled.</string>
+          <string>Automatically open the Owncoin Core client port on the router. This only works when your router supports UPnP and it is enabled.</string>
          </property>
          <property name="text">
           <string>Map port using &amp;UPnP</string>
@@ -278,7 +318,7 @@
        <item>
         <widget class="QCheckBox" name="connectSocks">
          <property name="toolTip">
-          <string>Connect to the Dash network through a SOCKS5 proxy.</string>
+          <string>Connect to the Owncoin network through a SOCKS5 proxy.</string>
          </property>
          <property name="text">
           <string>&amp;Connect through SOCKS5 proxy (default proxy):</string>
@@ -367,6 +407,193 @@
         </layout>
        </item>
        <item>
+        <layout class="QHBoxLayout" name="horizontalLayout_2_Network">
+         <item>
+          <widget class="QLabel" name="proxyActiveNets">
+           <property name="text">
+            <string>Used for reaching peers via:</string>
+           </property>
+           <property name="textFormat">
+            <enum>Qt::PlainText</enum>
+           </property>
+          </widget>
+         </item>
+         <item>
+          <widget class="QCheckBox" name="proxyReachIPv4">
+           <property name="enabled">
+            <bool>false</bool>
+           </property>
+           <property name="toolTip">
+            <string>Shows, if the supplied default SOCKS5 proxy is used to reach peers via this network type.</string>
+           </property>
+           <property name="text">
+            <string/>
+           </property>
+          </widget>
+         </item>
+         <item>
+          <widget class="QLabel" name="proxyReachIPv4Label">
+           <property name="text">
+            <string>IPv4</string>
+           </property>
+           <property name="textFormat">
+            <enum>Qt::PlainText</enum>
+           </property>
+          </widget>
+         </item>
+         <item>
+          <widget class="QCheckBox" name="proxyReachIPv6">
+           <property name="enabled">
+            <bool>false</bool>
+           </property>
+           <property name="toolTip">
+            <string>Shows, if the supplied default SOCKS5 proxy is used to reach peers via this network type.</string>
+           </property>
+           <property name="text">
+            <string/>
+           </property>
+          </widget>
+         </item>
+         <item>
+          <widget class="QLabel" name="proxyReachIPv6Label">
+           <property name="text">
+            <string>IPv6</string>
+           </property>
+           <property name="textFormat">
+            <enum>Qt::PlainText</enum>
+           </property>
+          </widget>
+         </item>
+         <item>
+          <widget class="QCheckBox" name="proxyReachTor">
+           <property name="enabled">
+            <bool>false</bool>
+           </property>
+           <property name="toolTip">
+            <string>Shows, if the supplied default SOCKS5 proxy is used to reach peers via this network type.</string>
+           </property>
+           <property name="text">
+            <string/>
+           </property>
+          </widget>
+         </item>
+         <item>
+          <widget class="QLabel" name="proxyReachTorLabel">
+           <property name="text">
+            <string>Tor</string>
+           </property>
+           <property name="textFormat">
+            <enum>Qt::PlainText</enum>
+           </property>
+          </widget>
+         </item>
+         <item>
+          <spacer name="horizontalSpacer_2_Network">
+           <property name="orientation">
+            <enum>Qt::Horizontal</enum>
+           </property>
+           <property name="sizeHint" stdset="0">
+            <size>
+             <width>40</width>
+             <height>20</height>
+            </size>
+           </property>
+          </spacer>
+         </item>
+        </layout>
+       </item>
+       <item>
+        <widget class="QCheckBox" name="connectSocksTor">
+         <property name="toolTip">
+          <string>Connect to the Owncoin network through a separate SOCKS5 proxy for Tor hidden services.</string>
+         </property>
+         <property name="text">
+          <string>Use separate SOCKS5 proxy to reach peers via Tor hidden services:</string>
+         </property>
+        </widget>
+       </item>
+       <item>
+        <layout class="QHBoxLayout" name="horizontalLayout_3_Network">
+         <item>
+          <widget class="QLabel" name="proxyIpTorLabel">
+           <property name="text">
+            <string>Proxy &amp;IP:</string>
+           </property>
+           <property name="textFormat">
+            <enum>Qt::PlainText</enum>
+           </property>
+           <property name="buddy">
+            <cstring>proxyIpTor</cstring>
+           </property>
+          </widget>
+         </item>
+         <item>
+          <widget class="QValidatedLineEdit" name="proxyIpTor">
+           <property name="minimumSize">
+            <size>
+             <width>140</width>
+             <height>0</height>
+            </size>
+           </property>
+           <property name="maximumSize">
+            <size>
+             <width>140</width>
+             <height>16777215</height>
+            </size>
+           </property>
+           <property name="toolTip">
+            <string>IP address of the proxy (e.g. IPv4: 127.0.0.1 / IPv6: ::1)</string>
+           </property>
+          </widget>
+         </item>
+         <item>
+          <widget class="QLabel" name="proxyPortTorLabel">
+           <property name="text">
+            <string>&amp;Port:</string>
+           </property>
+           <property name="textFormat">
+            <enum>Qt::PlainText</enum>
+           </property>
+           <property name="buddy">
+            <cstring>proxyPortTor</cstring>
+           </property>
+          </widget>
+         </item>
+         <item>
+          <widget class="QLineEdit" name="proxyPortTor">
+           <property name="minimumSize">
+            <size>
+             <width>55</width>
+             <height>0</height>
+            </size>
+           </property>
+           <property name="maximumSize">
+            <size>
+             <width>55</width>
+             <height>16777215</height>
+            </size>
+           </property>
+           <property name="toolTip">
+            <string>Port of the proxy (e.g. 9050)</string>
+           </property>
+          </widget>
+         </item>
+         <item>
+          <spacer name="horizontalSpacer_4_Network">
+           <property name="orientation">
+            <enum>Qt::Horizontal</enum>
+           </property>
+           <property name="sizeHint" stdset="0">
+            <size>
+             <width>40</width>
+             <height>20</height>
+            </size>
+           </property>
+          </spacer>
+         </item>
+        </layout>
+       </item>
+       <item>
         <spacer name="verticalSpacer_Network">
          <property name="orientation">
           <enum>Qt::Vertical</enum>
@@ -399,7 +626,7 @@
        <item>
         <widget class="QCheckBox" name="minimizeOnClose">
          <property name="toolTip">
-          <string>Minimize instead of exit the application when the window is closed. When this option is enabled, the application will be closed only after selecting Quit in the menu.</string>
+          <string>Minimize instead of exit the application when the window is closed. When this option is enabled, the application will be closed only after selecting Exit in the menu.</string>
          </property>
          <property name="text">
           <string>M&amp;inimize on close</string>
@@ -444,7 +671,7 @@
          <item>
           <widget class="QValueComboBox" name="lang">
            <property name="toolTip">
-            <string>The user interface language can be set here. This setting will take effect after restarting Dash.</string>
+            <string>The user interface language can be set here. This setting will take effect after restarting Owncoin Core.</string>
            </property>
           </widget>
          </item>
@@ -466,7 +693,7 @@
          </property>
          <property name="text">
           <string>Language missing or translation incomplete? Help contributing translations here:
-https://www.transifex.com/projects/p/dash/</string>
+https://www.transifex.com/projects/p/owncoin/</string>
          </property>
          <property name="wordWrap">
           <bool>true</bool>
@@ -543,7 +770,7 @@ https://www.transifex.com/projects/p/dash/</string>
          <item>
           <widget class="QLabel" name="thirdPartyTxUrlsLabel">
            <property name="toolTip">
-            <string>Third party URLs (e.g. a block explorer) that appear in the transactions tab as context menu items. %s in the URL is replaced by transaction hash. Multiple URLs are separated by vertical bar |.</string>
+            <string>Third party URLs (e.g. a block explorer) that appear in the transactions tab as context menu items.&lt;br/&gt;%s in the URL is replaced by transaction hash. Multiple URLs are separated by vertical bar |.</string>
            </property>
            <property name="text">
             <string>Third party transaction URLs</string>
@@ -556,7 +783,7 @@ https://www.transifex.com/projects/p/dash/</string>
          <item>
           <widget class="QLineEdit" name="thirdPartyTxUrls">
            <property name="toolTip">
-            <string>Third party URLs (e.g. a block explorer) that appear in the transactions tab as context menu items. %s in the URL is replaced by transaction hash. Multiple URLs are separated by vertical bar |.</string>
+            <string>Third party URLs (e.g. a block explorer) that appear in the transactions tab as context menu items.&lt;br/&gt;%s in the URL is replaced by transaction hash. Multiple URLs are separated by vertical bar |.</string>
            </property>
           </widget>
          </item>

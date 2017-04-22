@@ -1,6 +1,6 @@
-// Copyright (c) 2011-2014 The Bitcoin developers
-// Copyright (c) 2014-2015 The Dash developers
-// Distributed under the MIT/X11 software license, see the accompanying
+// Copyright (c) 2011-2015 The Bitcoin Core developers
+// Copyright (c) 2014-2017 The Owncoin Core developers
+// Distributed under the MIT software license, see the accompanying
 // file COPYING or http://www.opensource.org/licenses/mit-license.php.
 
 #include "transactiondesc.h"
@@ -11,23 +11,23 @@
 #include "transactionrecord.h"
 
 #include "base58.h"
-#include "db.h"
+#include "consensus/consensus.h"
 #include "main.h"
 #include "script/script.h"
 #include "timedata.h"
-#include "ui_interface.h"
 #include "util.h"
-#include "wallet.h"
+#include "wallet/db.h"
+#include "wallet/wallet.h"
+
+#include "instantx.h"
 
 #include <stdint.h>
 #include <string>
 
-using namespace std;
-
 QString TransactionDesc::FormatTxStatus(const CWalletTx& wtx)
 {
     AssertLockHeld(cs_main);
-    if (!IsFinalTx(wtx, chainActive.Height() + 1))
+    if (!CheckFinalTx(wtx))
     {
         if (wtx.nLockTime < LOCKTIME_THRESHOLD)
             return tr("Open for %n more block(s)", "", wtx.nLockTime - chainActive.Height());
@@ -36,54 +36,36 @@ QString TransactionDesc::FormatTxStatus(const CWalletTx& wtx)
     }
     else
     {
-        int signatures = wtx.GetTransactionLockSignatures();
-        QString strUsingIX = "";
-        if(signatures >= 0){
+        int nDepth = wtx.GetDepthInMainChain();
+        if (nDepth < 0) return tr("conflicted");
 
-            if(signatures >= INSTANTX_SIGNATURES_REQUIRED){
-                int nDepth = wtx.GetDepthInMainChain();
-                if (nDepth < 0)
-                    return tr("conflicted");
-                else if (GetAdjustedTime() - wtx.nTimeReceived > 2 * 60 && wtx.GetRequestCount() == 0)
-                    return tr("%1/offline (verified via instantx)").arg(nDepth);
-                else if (nDepth < 6)
-                    return tr("%1/confirmed (verified via instantx)").arg(nDepth);
-                else
-                    return tr("%1 confirmations (verified via instantx)").arg(nDepth);
-            } else {
-                if(!wtx.IsTransactionLockTimedOut()){
-                    int nDepth = wtx.GetDepthInMainChain();
-                    if (nDepth < 0)
-                        return tr("conflicted");
-                    else if (GetAdjustedTime() - wtx.nTimeReceived > 2 * 60 && wtx.GetRequestCount() == 0)
-                        return tr("%1/offline (InstantX verification in progress - %2 of %3 signatures)").arg(nDepth).arg(signatures).arg(INSTANTX_SIGNATURES_TOTAL);
-                    else if (nDepth < 6)
-                        return tr("%1/confirmed (InstantX verification in progress - %2 of %3 signatures )").arg(nDepth).arg(signatures).arg(INSTANTX_SIGNATURES_TOTAL);
-                    else
-                        return tr("%1 confirmations (InstantX verification in progress - %2 of %3 signatures)").arg(nDepth).arg(signatures).arg(INSTANTX_SIGNATURES_TOTAL);
-                } else {
-                    int nDepth = wtx.GetDepthInMainChain();
-                    if (nDepth < 0)
-                        return tr("conflicted");
-                    else if (GetAdjustedTime() - wtx.nTimeReceived > 2 * 60 && wtx.GetRequestCount() == 0)
-                        return tr("%1/offline (InstantX verification failed)").arg(nDepth);
-                    else if (nDepth < 6)
-                        return tr("%1/confirmed (InstantX verification failed)").arg(nDepth);
-                    else
-                        return tr("%1 confirmations").arg(nDepth);
-                }
-            }
+        QString strTxStatus;
+        bool fOffline = (GetAdjustedTime() - wtx.nTimeReceived > 2 * 60) && (wtx.GetRequestCount() == 0);
+
+        if (fOffline) {
+            strTxStatus = tr("%1/offline").arg(nDepth);
+        } else if (nDepth < 6) {
+            strTxStatus = tr("%1/unconfirmed").arg(nDepth);
         } else {
-            int nDepth = wtx.GetDepthInMainChain();
-            if (nDepth < 0)
-                return tr("conflicted");
-            else if (GetAdjustedTime() - wtx.nTimeReceived > 2 * 60 && wtx.GetRequestCount() == 0)
-                return tr("%1/offline").arg(nDepth);
-            else if (nDepth < 6)
-                return tr("%1/unconfirmed").arg(nDepth);
-            else
-                return tr("%1 confirmations").arg(nDepth);
+            strTxStatus = tr("%1 confirmations").arg(nDepth);
         }
+
+        if(!instantsend.HasTxLockRequest(wtx.GetHash())) return strTxStatus; // regular tx
+
+        int nSignatures = instantsend.GetTransactionLockSignatures(wtx.GetHash());
+        int nSignaturesMax = CTxLockRequest(wtx).GetMaxSignatures();
+        // InstantSend
+        strTxStatus += " (";
+        if(instantsend.IsLockedInstantSendTransaction(wtx.GetHash())) {
+            strTxStatus += tr("verified via InstantSend");
+        } else if(!instantsend.IsTxLockRequestTimedOut(wtx.GetHash())) {
+            strTxStatus += tr("InstantSend verification in progress - %1 of %2 signatures").arg(nSignatures).arg(nSignaturesMax);
+        } else {
+            strTxStatus += tr("InstantSend verification failed");
+        }
+        strTxStatus += ")";
+
+        return strTxStatus;
     }
 }
 
@@ -207,7 +189,7 @@ QString TransactionDesc::toHTML(CWallet *wallet, CWalletTx &wtx, TransactionReco
 
         if (fAllFromMe)
         {
-            if(fAllFromMe == ISMINE_WATCH_ONLY)
+            if(fAllFromMe & ISMINE_WATCH_ONLY)
                 strHTML += "<b>" + tr("From") + ":</b> " + tr("watch-only") + "<br>";
 
             //
@@ -232,7 +214,7 @@ QString TransactionDesc::toHTML(CWallet *wallet, CWalletTx &wtx, TransactionReco
                         strHTML += GUIUtil::HtmlEscape(CBitcoinAddress(address).ToString());
                         if(toSelf == ISMINE_SPENDABLE)
                             strHTML += " (own address)";
-                        else if(toSelf == ISMINE_WATCH_ONLY)
+                        else if(toSelf & ISMINE_WATCH_ONLY)
                             strHTML += " (watch-only)";
                         strHTML += "<br>";
                     }
@@ -282,15 +264,15 @@ QString TransactionDesc::toHTML(CWallet *wallet, CWalletTx &wtx, TransactionReco
 
     strHTML += "<b>" + tr("Transaction ID") + ":</b> " + TransactionRecord::formatSubTxId(wtx.GetHash(), rec->idx) + "<br>";
 
-    // Message from normal dash:URI (dash:XyZ...?message=example)
-    foreach (const PAIRTYPE(string, string)& r, wtx.vOrderForm)
+    // Message from normal owncoin:URI (owncoin:XyZ...?message=example)
+    Q_FOREACH (const PAIRTYPE(std::string, std::string)& r, wtx.vOrderForm)
         if (r.first == "Message")
             strHTML += "<br><b>" + tr("Message") + ":</b><br>" + GUIUtil::HtmlEscape(r.second, true) + "<br>";
 
     //
     // PaymentRequest info:
     //
-    foreach (const PAIRTYPE(string, string)& r, wtx.vOrderForm)
+    Q_FOREACH (const PAIRTYPE(std::string, std::string)& r, wtx.vOrderForm)
     {
         if (r.first == "PaymentRequest")
         {

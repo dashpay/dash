@@ -1,10 +1,10 @@
-// Copyright (c) 2011-2014 The Bitcoin developers
-// Copyright (c) 2014-2015 The Dash developers
-// Distributed under the MIT/X11 software license, see the accompanying
+// Copyright (c) 2011-2015 The Bitcoin Core developers
+// Copyright (c) 2014-2017 The Owncoin Core developers
+// Distributed under the MIT software license, see the accompanying
 // file COPYING or http://www.opensource.org/licenses/mit-license.php.
 
 #if defined(HAVE_CONFIG_H)
-#include "config/dash-config.h"
+#include "config/owncoin-config.h"
 #endif
 
 #include "optionsmodel.h"
@@ -14,23 +14,28 @@
 
 #include "amount.h"
 #include "init.h"
-#include "main.h"
+#include "main.h" // For DEFAULT_SCRIPTCHECK_THREADS
 #include "net.h"
 #include "txdb.h" // for -dbcache defaults
 
 #ifdef ENABLE_WALLET
-#include "wallet.h"
-#include "walletdb.h"
+#include "wallet/wallet.h"
+#include "wallet/walletdb.h"
+#endif
+
+#include "darksend.h"
+#ifdef ENABLE_WALLET
+#include "masternodeconfig.h"
 #endif
 
 #include <QNetworkProxy>
 #include <QSettings>
 #include <QStringList>
 
-OptionsModel::OptionsModel(QObject *parent) :
+OptionsModel::OptionsModel(QObject *parent, bool resetSettings) :
     QAbstractListModel(parent)
 {
-    Init();
+    Init(resetSettings);
 }
 
 void OptionsModel::addOverriddenOption(const std::string &option)
@@ -39,9 +44,13 @@ void OptionsModel::addOverriddenOption(const std::string &option)
 }
 
 // Writes all missing QSettings with their default values
-void OptionsModel::Init()
+void OptionsModel::Init(bool resetSettings)
 {
-    resetSettings = false;
+    if (resetSettings)
+        Reset();
+
+    this->resetSettings = resetSettings;
+
     QSettings settings;
 
     // Ensure restart flag is unset on client startup
@@ -60,7 +69,7 @@ void OptionsModel::Init()
 
     // Display
     if (!settings.contains("nDisplayUnit"))
-        settings.setValue("nDisplayUnit", BitcoinUnits::DASH);
+        settings.setValue("nDisplayUnit", BitcoinUnits::OWNCOIN);
     nDisplayUnit = settings.value("nDisplayUnit").toInt();
 
     if (!settings.contains("strThirdPartyTxUrls"))
@@ -71,14 +80,20 @@ void OptionsModel::Init()
         settings.setValue("fCoinControlFeatures", false);
     fCoinControlFeatures = settings.value("fCoinControlFeatures", false).toBool();
 
-    if (!settings.contains("nDarksendRounds"))
-        settings.setValue("nDarksendRounds", 2);
+    if (!settings.contains("digits"))
+        settings.setValue("digits", "2");
+    if (!settings.contains("theme"))
+        settings.setValue("theme", "");
 
-    if (!settings.contains("nAnonymizeDarkcoinAmount"))
-        settings.setValue("nAnonymizeDarkcoinAmount", 1000);
+    if (!settings.contains("fShowMasternodesTab"))
+        settings.setValue("fShowMasternodesTab", masternodeConfig.getCount());
 
-    nDarksendRounds = settings.value("nDarksendRounds").toLongLong();
-    nAnonymizeDarkcoinAmount = settings.value("nAnonymizeDarkcoinAmount").toLongLong();
+    if (!settings.contains("fShowAdvancedPSUI"))
+        settings.setValue("fShowAdvancedPSUI", false);
+    fShowAdvancedPSUI = settings.value("fShowAdvancedPSUI", false).toBool();
+
+    if (!settings.contains("fLowKeysWarning"))
+        settings.setValue("fLowKeysWarning", true);
 
     // These are shared with the core or have a command-line parameter
     // and we want command-line parameters to overwrite the GUI settings.
@@ -105,6 +120,30 @@ void OptionsModel::Init()
         settings.setValue("bSpendZeroConfChange", true);
     if (!SoftSetBoolArg("-spendzeroconfchange", settings.value("bSpendZeroConfChange").toBool()))
         addOverriddenOption("-spendzeroconfchange");
+
+    // PrivateSend
+    if (!settings.contains("nPrivateSendRounds"))
+        settings.setValue("nPrivateSendRounds", DEFAULT_PRIVATESEND_ROUNDS);
+    if (!SoftSetArg("-privatesendrounds", settings.value("nPrivateSendRounds").toString().toStdString()))
+        addOverriddenOption("-privatesendrounds");
+    nPrivateSendRounds = settings.value("nPrivateSendRounds").toInt();
+
+    if (!settings.contains("nPrivateSendAmount")) {
+        // for migration from old settings
+        if (!settings.contains("nAnonymizeOwncoinAmount"))
+            settings.setValue("nPrivateSendAmount", DEFAULT_PRIVATESEND_AMOUNT);
+        else
+            settings.setValue("nPrivateSendAmount", settings.value("nAnonymizeOwncoinAmount").toInt());
+    }
+    if (!SoftSetArg("-privatesendamount", settings.value("nPrivateSendAmount").toString().toStdString()))
+        addOverriddenOption("-privatesendamount");
+    nPrivateSendAmount = settings.value("nPrivateSendAmount").toInt();
+
+    if (!settings.contains("fPrivateSendMultiSession"))
+        settings.setValue("fPrivateSendMultiSession", DEFAULT_PRIVATESEND_MULTISESSION);
+    if (!SoftSetBoolArg("-privatesendmultisession", settings.value("fPrivateSendMultiSession").toBool()))
+        addOverriddenOption("-privatesendmultisession");
+    fPrivateSendMultiSession = settings.value("fPrivateSendMultiSession").toBool();
 #endif
 
     // Network
@@ -128,20 +167,21 @@ void OptionsModel::Init()
     else if(!settings.value("fUseProxy").toBool() && !GetArg("-proxy", "").empty())
         addOverriddenOption("-proxy");
 
+    if (!settings.contains("fUseSeparateProxyTor"))
+        settings.setValue("fUseSeparateProxyTor", false);
+    if (!settings.contains("addrSeparateProxyTor"))
+        settings.setValue("addrSeparateProxyTor", "127.0.0.1:9050");
+    // Only try to set -onion, if user has enabled fUseSeparateProxyTor
+    if (settings.value("fUseSeparateProxyTor").toBool() && !SoftSetArg("-onion", settings.value("addrSeparateProxyTor").toString().toStdString()))
+        addOverriddenOption("-onion");
+    else if(!settings.value("fUseSeparateProxyTor").toBool() && !GetArg("-onion", "").empty())
+        addOverriddenOption("-onion");
+
     // Display
-    if (!settings.contains("digits"))
-        settings.setValue("digits", "2");
-    if (!settings.contains("theme"))
-        settings.setValue("theme", "");
     if (!settings.contains("language"))
         settings.setValue("language", "");
     if (!SoftSetArg("-lang", settings.value("language").toString().toStdString()))
         addOverriddenOption("-lang");
-
-    if (settings.contains("nDarksendRounds"))
-        SoftSetArg("-darksendrounds", settings.value("nDarksendRounds").toString().toStdString());
-    if (settings.contains("nAnonymizeDarkcoinAmount"))
-        SoftSetArg("-anonymizedashamount", settings.value("nAnonymizeDarkcoinAmount").toString().toStdString());
 
     language = settings.value("language").toString();
 }
@@ -152,7 +192,7 @@ void OptionsModel::Reset()
 
     // Remove all entries from our QSettings object
     settings.clear();
-    resetSettings = true; // Needed in dash.cpp during shotdown to also remove the window positions
+    resetSettings = true; // Needed in owncoin.cpp during shotdown to also remove the window positions
 
     // default setting for OptionsModel::StartAtStartup - disabled
     if (GUIUtil::GetStartOnSystemStartup())
@@ -199,18 +239,44 @@ QVariant OptionsModel::data(const QModelIndex & index, int role) const
             return strlIpPort.at(1);
         }
 
+        // separate Tor proxy
+        case ProxyUseTor:
+            return settings.value("fUseSeparateProxyTor", false);
+        case ProxyIPTor: {
+            // contains IP at index 0 and port at index 1
+            QStringList strlIpPort = settings.value("addrSeparateProxyTor").toString().split(":", QString::SkipEmptyParts);
+            return strlIpPort.at(0);
+        }
+        case ProxyPortTor: {
+            // contains IP at index 0 and port at index 1
+            QStringList strlIpPort = settings.value("addrSeparateProxyTor").toString().split(":", QString::SkipEmptyParts);
+            return strlIpPort.at(1);
+        }
+
 #ifdef ENABLE_WALLET
         case SpendZeroConfChange:
             return settings.value("bSpendZeroConfChange");
+        case ShowMasternodesTab:
+            return settings.value("fShowMasternodesTab");
+        case ShowAdvancedPSUI:
+            return fShowAdvancedPSUI;
+        case LowKeysWarning:
+            return settings.value("fLowKeysWarning");
+        case PrivateSendRounds:
+            return settings.value("nPrivateSendRounds");
+        case PrivateSendAmount:
+            return settings.value("nPrivateSendAmount");
+        case PrivateSendMultiSession:
+            return settings.value("fPrivateSendMultiSession");
 #endif
         case DisplayUnit:
             return nDisplayUnit;
         case ThirdPartyTxUrls:
             return strThirdPartyTxUrls;
         case Digits:
-            return settings.value("digits");            
+            return settings.value("digits");
         case Theme:
-            return settings.value("theme");            
+            return settings.value("theme");
         case Language:
             return settings.value("language");
         case CoinControlFeatures:
@@ -219,10 +285,6 @@ QVariant OptionsModel::data(const QModelIndex & index, int role) const
             return settings.value("nDatabaseCache");
         case ThreadsScriptVerif:
             return settings.value("nThreadsScriptVerif");
-        case DarksendRounds:
-            return QVariant(nDarksendRounds);
-        case AnonymizeDarkcoinAmount:
-            return QVariant(nAnonymizeDarkcoinAmount);
         case Listen:
             return settings.value("fListen");
         default:
@@ -288,11 +350,81 @@ bool OptionsModel::setData(const QModelIndex & index, const QVariant & value, in
             }
         }
         break;
+
+        // separate Tor proxy
+        case ProxyUseTor:
+            if (settings.value("fUseSeparateProxyTor") != value) {
+                settings.setValue("fUseSeparateProxyTor", value.toBool());
+                setRestartRequired(true);
+            }
+            break;
+        case ProxyIPTor: {
+            // contains current IP at index 0 and current port at index 1
+            QStringList strlIpPort = settings.value("addrSeparateProxyTor").toString().split(":", QString::SkipEmptyParts);
+            // if that key doesn't exist or has a changed IP
+            if (!settings.contains("addrSeparateProxyTor") || strlIpPort.at(0) != value.toString()) {
+                // construct new value from new IP and current port
+                QString strNewValue = value.toString() + ":" + strlIpPort.at(1);
+                settings.setValue("addrSeparateProxyTor", strNewValue);
+                setRestartRequired(true);
+            }
+        }
+        break;
+        case ProxyPortTor: {
+            // contains current IP at index 0 and current port at index 1
+            QStringList strlIpPort = settings.value("addrSeparateProxyTor").toString().split(":", QString::SkipEmptyParts);
+            // if that key doesn't exist or has a changed port
+            if (!settings.contains("addrSeparateProxyTor") || strlIpPort.at(1) != value.toString()) {
+                // construct new value from current IP and new port
+                QString strNewValue = strlIpPort.at(0) + ":" + value.toString();
+                settings.setValue("addrSeparateProxyTor", strNewValue);
+                setRestartRequired(true);
+            }
+        }
+        break;
+
 #ifdef ENABLE_WALLET
         case SpendZeroConfChange:
             if (settings.value("bSpendZeroConfChange") != value) {
                 settings.setValue("bSpendZeroConfChange", value);
                 setRestartRequired(true);
+            }
+            break;
+        case ShowMasternodesTab:
+            if (settings.value("fShowMasternodesTab") != value) {
+                settings.setValue("fShowMasternodesTab", value);
+                setRestartRequired(true);
+            }
+            break;
+        case ShowAdvancedPSUI:
+            fShowAdvancedPSUI = value.toBool();
+            settings.setValue("fShowAdvancedPSUI", fShowAdvancedPSUI);
+            Q_EMIT advancedPSUIChanged(fShowAdvancedPSUI);
+            break;
+        case LowKeysWarning:
+            settings.setValue("fLowKeysWarning", value);
+            break;
+        case PrivateSendRounds:
+            if (settings.value("nPrivateSendRounds") != value)
+            {
+                nPrivateSendRounds = value.toInt();
+                settings.setValue("nPrivateSendRounds", nPrivateSendRounds);
+                Q_EMIT privateSendRoundsChanged();
+            }
+            break;
+        case PrivateSendAmount:
+            if (settings.value("nPrivateSendAmount") != value)
+            {
+                nPrivateSendAmount = value.toInt();
+                settings.setValue("nPrivateSendAmount", nPrivateSendAmount);
+                Q_EMIT privateSentAmountChanged();
+            }
+            break;
+        case PrivateSendMultiSession:
+            if (settings.value("fPrivateSendMultiSession") != value)
+            {
+                fPrivateSendMultiSession = value.toBool();
+                settings.setValue("fPrivateSendMultiSession", fPrivateSendMultiSession);
             }
             break;
 #endif
@@ -324,20 +456,10 @@ bool OptionsModel::setData(const QModelIndex & index, const QVariant & value, in
                 setRestartRequired(true);
             }
             break;
-        case DarksendRounds:
-            nDarksendRounds = value.toInt();
-            settings.setValue("nDarksendRounds", nDarksendRounds);
-            emit darksendRoundsChanged(nDarksendRounds);
-            break;
-        case AnonymizeDarkcoinAmount:
-            nAnonymizeDarkcoinAmount = value.toInt();
-            settings.setValue("nAnonymizeDarkcoinAmount", nAnonymizeDarkcoinAmount);
-            emit anonymizeDarkcoinAmountChanged(nAnonymizeDarkcoinAmount);
-            break;
         case CoinControlFeatures:
             fCoinControlFeatures = value.toBool();
             settings.setValue("fCoinControlFeatures", fCoinControlFeatures);
-            emit coinControlFeaturesChanged(fCoinControlFeatures);
+            Q_EMIT coinControlFeaturesChanged(fCoinControlFeatures);
             break;
         case DatabaseCache:
             if (settings.value("nDatabaseCache") != value) {
@@ -362,7 +484,7 @@ bool OptionsModel::setData(const QModelIndex & index, const QVariant & value, in
         }
     }
 
-    emit dataChanged(index, index);
+    Q_EMIT dataChanged(index, index);
 
     return successful;
 }
@@ -375,7 +497,7 @@ void OptionsModel::setDisplayUnit(const QVariant &value)
         QSettings settings;
         nDisplayUnit = value.toInt();
         settings.setValue("nDisplayUnit", nDisplayUnit);
-        emit displayUnitChanged(nDisplayUnit);
+        Q_EMIT displayUnitChanged(nDisplayUnit);
     }
 }
 
@@ -386,8 +508,8 @@ bool OptionsModel::getProxySettings(QNetworkProxy& proxy) const
     proxyType curProxy;
     if (GetProxy(NET_IPV4, curProxy)) {
         proxy.setType(QNetworkProxy::Socks5Proxy);
-        proxy.setHostName(QString::fromStdString(curProxy.ToStringIP()));
-        proxy.setPort(curProxy.GetPort());
+        proxy.setHostName(QString::fromStdString(curProxy.proxy.ToStringIP()));
+        proxy.setPort(curProxy.proxy.GetPort());
 
         return true;
     }

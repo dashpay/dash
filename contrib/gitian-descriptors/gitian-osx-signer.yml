@@ -1,17 +1,22 @@
 ---
-name: "dash-dmg-signer"
+name: "owncoin-dmg-signer"
 suites:
-- "precise"
+- "trusty"
 architectures:
 - "amd64"
 packages:
-- "libc6:i386"
 - "faketime"
+<<<<<<< HEAD
+reference_datetime: "2017-01-01 00:00:00"
+remotes:
+- "url": "https://github.com/dmrtsvetkov/owncoin-detached-sigs.git"
+  "dir": "signature"
+=======
 reference_datetime: "2016-01-01 00:00:00"
 remotes: []
+>>>>>>> refs/remotes/dmrtsvetkov/v0.12.0.x
 files:
-- "dash-osx-unsigned.tar.gz"
-- "signature.tar.gz"
+- "owncoin-osx-unsigned.tar.gz"
 script: |
   WRAP_DIR=$HOME/wrapped
   mkdir -p ${WRAP_DIR}
@@ -22,16 +27,16 @@ script: |
   for prog in ${FAKETIME_PROGS}; do
     echo '#!/bin/bash' > ${WRAP_DIR}/${prog}
     echo "REAL=\`which -a ${prog} | grep -v ${WRAP_DIR}/${prog} | head -1\`" >> ${WRAP_DIR}/${prog}
-    echo 'export LD_PRELOAD=/usr/lib/faketime/libfaketime.so.1' >> ${WRAP_DIR}/${prog}
+    echo 'export LD_PRELOAD=/usr/lib/x86_64-linux-gnu/faketime/libfaketime.so.1' >> ${WRAP_DIR}/${prog}
     echo "export FAKETIME=\"${REFERENCE_DATETIME}\"" >> ${WRAP_DIR}/${prog}
     echo "\$REAL \$@" >> $WRAP_DIR/${prog}
     chmod +x ${WRAP_DIR}/${prog}
   done
 
-  UNSIGNED=dash-osx-unsigned.tar.gz
-  SIGNED=dash-osx-signed.dmg
+  UNSIGNED=owncoin-osx-unsigned.tar.gz
+  SIGNED=owncoin-osx-signed.dmg
 
   tar -xf ${UNSIGNED}
-  ./detached-sig-apply.sh ${UNSIGNED} signature.tar.gz
-  ${WRAP_DIR}/genisoimage -no-cache-inodes -D -l -probe -V "Dash-Qt" -no-pad -r -apple -o uncompressed.dmg signed-app
+  ./detached-sig-apply.sh ${UNSIGNED} signature/osx
+  ${WRAP_DIR}/genisoimage -no-cache-inodes -D -l -probe -V "Owncoin-Core" -no-pad -r -dir-mode 0755 -apple -o uncompressed.dmg signed-app
   ${WRAP_DIR}/dmg dmg uncompressed.dmg ${OUTDIR}/${SIGNED}

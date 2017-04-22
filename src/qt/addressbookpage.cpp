@@ -1,10 +1,10 @@
-// Copyright (c) 2011-2014 The Bitcoin developers
-// Copyright (c) 2014-2015 The Dash developers
-// Distributed under the MIT/X11 software license, see the accompanying
+// Copyright (c) 2011-2015 The Bitcoin Core developers
+// Copyright (c) 2014-2017 The Owncoin Core developers
+// Distributed under the MIT software license, see the accompanying
 // file COPYING or http://www.opensource.org/licenses/mit-license.php.
 
 #if defined(HAVE_CONFIG_H)
-#include "config/dash-config.h"
+#include "config/owncoin-config.h"
 #endif
 
 #include "addressbookpage.h"
@@ -15,27 +15,33 @@
 #include "csvmodelwriter.h"
 #include "editaddressdialog.h"
 #include "guiutil.h"
+#include "platformstyle.h"
 
 #include <QIcon>
 #include <QMenu>
 #include <QMessageBox>
 #include <QSortFilterProxyModel>
 
-AddressBookPage::AddressBookPage(Mode mode, Tabs tab, QWidget *parent) :
+AddressBookPage::AddressBookPage(const PlatformStyle *platformStyle, Mode mode, Tabs tab, QWidget *parent) :
     QDialog(parent),
     ui(new Ui::AddressBookPage),
     model(0),
     mode(mode),
     tab(tab)
 {
+    QString theme = GUIUtil::getThemeName();
     ui->setupUi(this);
-
-#ifdef Q_OS_MAC // Icons on push buttons are very uncommon on Mac
-    ui->newAddress->setIcon(QIcon());
-    ui->copyAddress->setIcon(QIcon());
-    ui->deleteAddress->setIcon(QIcon());
-    ui->exportButton->setIcon(QIcon());
-#endif
+    if (!platformStyle->getImagesOnButtons()) {
+        ui->newAddress->setIcon(QIcon());
+        ui->copyAddress->setIcon(QIcon());
+        ui->deleteAddress->setIcon(QIcon());
+        ui->exportButton->setIcon(QIcon());
+    } else {
+        ui->newAddress->setIcon(QIcon(":/icons/" + theme + "/add"));
+        ui->copyAddress->setIcon(QIcon(":/icons/" + theme + "/editcopy"));
+        ui->deleteAddress->setIcon(QIcon(":/icons/" + theme + "/remove"));
+        ui->exportButton->setIcon(QIcon(":/icons/" + theme + "/export"));
+    }
 
     switch(mode)
     {
@@ -62,11 +68,11 @@ AddressBookPage::AddressBookPage(Mode mode, Tabs tab, QWidget *parent) :
     switch(tab)
     {
     case SendingTab:
-        ui->labelExplanation->setText(tr("These are your Dash addresses for sending payments. Always check the amount and the receiving address before sending coins."));
+        ui->labelExplanation->setText(tr("These are your Owncoin addresses for sending payments. Always check the amount and the receiving address before sending coins."));
         ui->deleteAddress->setVisible(true);
         break;
     case ReceivingTab:
-        ui->labelExplanation->setText(tr("These are your Dash addresses for receiving payments. It is recommended to use a new receiving address for each transaction."));
+        ui->labelExplanation->setText(tr("These are your Owncoin addresses for receiving payments. It is recommended to use a new receiving address for each transaction."));
         ui->deleteAddress->setVisible(false);
         break;
     }
@@ -249,8 +255,7 @@ void AddressBookPage::done(int retval)
     // Figure out which address was selected, and return it
     QModelIndexList indexes = table->selectionModel()->selectedRows(AddressTableModel::Address);
 
-    foreach (QModelIndex index, indexes)
-    {
+    Q_FOREACH (const QModelIndex& index, indexes) {
         QVariant address = table->model()->data(index);
         returnValue = address.toString();
     }

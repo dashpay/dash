@@ -1,0 +1,6 @@
+usr/local/bin/owncoin-qt usr/bin
+share/pixmaps/owncoin32.xpm usr/share/pixmaps
+share/pixmaps/owncoin16.xpm usr/share/pixmaps
+share/pixmaps/owncoin128.png usr/share/pixmaps
+debian/owncoin-qt.desktop usr/share/applications
+debian/owncoin-qt.protocol usr/share/kde4/services/

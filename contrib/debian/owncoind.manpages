@@ -1,0 +1,3 @@
+debian/manpages/owncoind.1
+debian/manpages/owncoin.conf.5
+debian/manpages/owncoin-cli.1

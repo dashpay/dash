@@ -1,5 +1,5 @@
-// Copyright (c) 2011-2013 The Bitcoin developers
-// Distributed under the MIT/X11 software license, see the accompanying
+// Copyright (c) 2011-2013 The Bitcoin Core developers
+// Distributed under the MIT software license, see the accompanying
 // file COPYING or http://www.opensource.org/licenses/mit-license.php.
 
 #include "receiverequestdialog.h"
@@ -22,7 +22,7 @@
 #endif
 
 #if defined(HAVE_CONFIG_H)
-#include "config/dash-config.h" /* for USE_QRCODE */
+#include "config/owncoin-config.h" /* for USE_QRCODE */
 #endif
 
 #ifdef USE_QRCODE
@@ -144,11 +144,15 @@ void ReceiveRequestDialog::update()
     html += "<a href=\""+uri+"\">" + GUIUtil::HtmlEscape(uri) + "</a><br>";
     html += "<b>"+tr("Address")+"</b>: " + GUIUtil::HtmlEscape(info.address) + "<br>";
     if(info.amount)
-        html += "<b>"+tr("Amount")+"</b>: " + BitcoinUnits::formatWithUnit(model->getDisplayUnit(), info.amount) + "<br>";
+        html += "<b>"+tr("Amount")+"</b>: " + BitcoinUnits::formatHtmlWithUnit(model->getDisplayUnit(), info.amount) + "<br>";
     if(!info.label.isEmpty())
         html += "<b>"+tr("Label")+"</b>: " + GUIUtil::HtmlEscape(info.label) + "<br>";
     if(!info.message.isEmpty())
         html += "<b>"+tr("Message")+"</b>: " + GUIUtil::HtmlEscape(info.message) + "<br>";
+    if(info.fUseInstantSend)
+        html += "<b>"+tr("InstantSend")+"</b>: Yes<br>";
+    else
+        html += "<b>"+tr("InstantSend")+"</b>: No<br>";
     ui->outUri->setText(html);
 
 #ifdef USE_QRCODE

@@ -1,5 +1,5 @@
 // Copyright (c) 2009-2010 Satoshi Nakamoto
-// Copyright (c) 2009-2014 The Bitcoin developers
+// Copyright (c) 2009-2015 The Bitcoin Core developers
 // Distributed under the MIT software license, see the accompanying
 // file COPYING or http://www.opensource.org/licenses/mit-license.php.
 
@@ -17,11 +17,6 @@ std::string COutPoint::ToString() const
 std::string COutPoint::ToStringShort() const
 {
     return strprintf("%s-%u", hash.ToString().substr(0,64), n);
-}
-
-uint256 COutPoint::GetHash()
-{
-    return Hash(BEGIN(hash), END(hash), BEGIN(n), END(n));
 }
 
 CTxIn::CTxIn(COutPoint prevoutIn, CScript scriptSigIn, uint32_t nSequenceIn)
@@ -46,8 +41,8 @@ std::string CTxIn::ToString() const
     if (prevout.IsNull())
         str += strprintf(", coinbase %s", HexStr(scriptSig));
     else
-        str += strprintf(", scriptSig=%s", scriptSig.ToString().substr(0,24));
-    if (nSequence != std::numeric_limits<unsigned int>::max())
+        str += strprintf(", scriptSig=%s", HexStr(scriptSig).substr(0, 24));
+    if (nSequence != SEQUENCE_FINAL)
         str += strprintf(", nSequence=%u", nSequence);
     str += ")";
     return str;
@@ -67,7 +62,7 @@ uint256 CTxOut::GetHash() const
 
 std::string CTxOut::ToString() const
 {
-    return strprintf("CTxOut(nValue=%d.%08d, scriptPubKey=%s)", nValue / COIN, nValue % COIN, scriptPubKey.ToString().substr(0,30));
+    return strprintf("CTxOut(nValue=%d.%08d, scriptPubKey=%s)", nValue / COIN, nValue % COIN, HexStr(scriptPubKey).substr(0, 30));
 }
 
 CMutableTransaction::CMutableTransaction() : nVersion(CTransaction::CURRENT_VERSION), nLockTime(0) {}
@@ -81,7 +76,8 @@ uint256 CMutableTransaction::GetHash() const
 std::string CMutableTransaction::ToString() const
 {
     std::string str;
-    str += strprintf("CMutableTransaction(ver=%d, vin.size=%u, vout.size=%u, nLockTime=%u)\n",
+    str += strprintf("CMutableTransaction(hash=%s, ver=%d, vin.size=%u, vout.size=%u, nLockTime=%u)\n",
+        GetHash().ToString().substr(0,10),
         nVersion,
         vin.size(),
         vout.size(),
@@ -98,7 +94,7 @@ void CTransaction::UpdateHash() const
     *const_cast<uint256*>(&hash) = SerializeHash(*this);
 }
 
-CTransaction::CTransaction() : hash(0), nVersion(CTransaction::CURRENT_VERSION), vin(), vout(), nLockTime(0) { }
+CTransaction::CTransaction() : nVersion(CTransaction::CURRENT_VERSION), vin(), vout(), nLockTime(0) { }
 
 CTransaction::CTransaction(const CMutableTransaction &tx) : nVersion(tx.nVersion), vin(tx.vin), vout(tx.vout), nLockTime(tx.nLockTime) {
     UpdateHash();
@@ -120,7 +116,7 @@ CAmount CTransaction::GetValueOut() const
     {
         nValueOut += it->nValue;
         if (!MoneyRange(it->nValue) || !MoneyRange(nValueOut))
-            throw std::runtime_error("CTransaction::GetValueOut() : value out of range");
+            throw std::runtime_error("CTransaction::GetValueOut(): value out of range");
     }
     return nValueOut;
 }

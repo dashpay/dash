@@ -1,5 +1,5 @@
 ---
-name: "dash-raspberry-0.12"
+name: "owncoin-raspberry-0.12"
 enable_cache: true
 suites:
 - "precise"
@@ -15,10 +15,14 @@ packages:
 - "faketime"
 - "bsdmainutils"
 - "binutils-gold"
+<<<<<<< HEAD
+reference_datetime: "2017-01-01 00:00:00"
+=======
 reference_datetime: "2016-01-01 00:00:00"
+>>>>>>> refs/remotes/dmrtsvetkov/v0.12.0.x
 remotes:
-- "url": "https://github.com/dashpay/dash.git"
-  "dir": "dash"
+- "url": "https://github.com/dmrtsvetkov/owncoin.git"
+  "dir": "owncoin"
 files:
 - "raspberrypi-tools.tar.gz"
 script: |
@@ -67,7 +71,7 @@ script: |
   done
   export PATH=${WRAP_DIR}:${PATH}
 
-  cd dash
+  cd owncoin
   BASEPREFIX=`pwd`/depends
   # Build dependencies for each host
   for i in $HOSTS; do
@@ -78,13 +82,13 @@ script: |
   ./autogen.sh
   ./configure --prefix=${BASEPREFIX}/`echo "${HOSTS}" | awk '{print $1;}'`
   make NO_QT=1 dist
-  SOURCEDIST=`echo dash-*.tar.gz`
+  SOURCEDIST=`echo owncoincore-*.tar.gz`
   DISTNAME=`echo ${SOURCEDIST} | sed 's/.tar.*//'`
   # Correct tar file order
   mkdir -p temp
   pushd temp
   tar xf ../$SOURCEDIST
-  find dash-* | sort | tar --no-recursion --mode='u+rw,go+r-w,a+X' --owner=0 --group=0 -c -T - | gzip -9n > ../$SOURCEDIST
+  find owncoincore-* | sort | tar --no-recursion --mode='u+rw,go+r-w,a+X' --owner=0 --group=0 -c -T - | gzip -9n > ../$SOURCEDIST
   popd
 
   ORIGPATH="$PATH"

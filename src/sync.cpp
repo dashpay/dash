@@ -1,5 +1,5 @@
-// Copyright (c) 2011-2012 The Bitcoin developers
-// Distributed under the MIT/X11 software license, see the accompanying
+// Copyright (c) 2011-2015 The Bitcoin Core developers
+// Distributed under the MIT software license, see the accompanying
 // file COPYING or http://www.opensource.org/licenses/mit-license.php.
 
 #include "sync.h"
@@ -15,8 +15,7 @@
 #ifdef DEBUG_LOCKCONTENTION
 void PrintLockContention(const char* pszName, const char* pszFile, int nLine)
 {
-    LogPrintf("LOCKCONTENTION: %s\n", pszName);
-    LogPrintf("Locker: %s:%d\n", pszFile, nLine);
+    LogPrintf("LOCKCONTENTION: %s Locker: %s:%d\n", pszName, pszFile, nLine);
 }
 #endif /* DEBUG_LOCKCONTENTION */
 
@@ -33,20 +32,22 @@ void PrintLockContention(const char* pszName, const char* pszFile, int nLine)
 //
 
 struct CLockLocation {
-    CLockLocation(const char* pszName, const char* pszFile, int nLine)
+    CLockLocation(const char* pszName, const char* pszFile, int nLine, bool fTryIn)
     {
         mutexName = pszName;
         sourceFile = pszFile;
         sourceLine = nLine;
+        fTry = fTryIn;
     }
 
     std::string ToString() const
     {
-        return mutexName + "  " + sourceFile + ":" + itostr(sourceLine);
+        return mutexName + "  " + sourceFile + ":" + itostr(sourceLine) + (fTry ? " (TRY)" : "");
     }
 
     std::string MutexName() const { return mutexName; }
 
+    bool fTry;
 private:
     std::string mutexName;
     std::string sourceFile;
@@ -62,23 +63,57 @@ static boost::thread_specific_ptr<LockStack> lockstack;
 
 static void potential_deadlock_detected(const std::pair<void*, void*>& mismatch, const LockStack& s1, const LockStack& s2)
 {
-    LogPrintf("POTENTIAL DEADLOCK DETECTED\n");
-    LogPrintf("Previous lock order was:\n");
+    // We attempt to not assert on probably-not deadlocks by assuming that
+    // a try lock will immediately have otherwise bailed if it had
+    // failed to get the lock
+    // We do this by, for the locks which triggered the potential deadlock,
+    // in either lockorder, checking that the second of the two which is locked
+    // is only a TRY_LOCK, ignoring locks if they are reentrant.
+    bool firstLocked = false;
+    bool secondLocked = false;
+    bool onlyMaybeDeadlock = false;
+    std::string strOutput = "";
+
+    strOutput += "POTENTIAL DEADLOCK DETECTED\n";
+    strOutput += "Previous lock order was:\n";
     BOOST_FOREACH (const PAIRTYPE(void*, CLockLocation) & i, s2) {
-        if (i.first == mismatch.first)
-            LogPrintf(" (1)");
-        if (i.first == mismatch.second)
-            LogPrintf(" (2)");
-        LogPrintf(" %s\n", i.second.ToString());
+        if (i.first == mismatch.first) {
+            strOutput += " (1)";
+            if (!firstLocked && secondLocked && i.second.fTry)
+                onlyMaybeDeadlock = true;
+            firstLocked = true;
+        }
+        if (i.first == mismatch.second) {
+            strOutput += " (2)";
+            if (!secondLocked && firstLocked && i.second.fTry)
+                onlyMaybeDeadlock = true;
+            secondLocked = true;
+        }
+        strOutput += strprintf(" %s\n", i.second.ToString().c_str());
     }
-    LogPrintf("Current lock order is:\n");
+    firstLocked = false;
+    secondLocked = false;
+    strOutput += "Current lock order is:\n";
     BOOST_FOREACH (const PAIRTYPE(void*, CLockLocation) & i, s1) {
-        if (i.first == mismatch.first)
-            LogPrintf(" (1)");
-        if (i.first == mismatch.second)
-            LogPrintf(" (2)");
-        LogPrintf(" %s\n", i.second.ToString());
+        if (i.first == mismatch.first) {
+            strOutput += " (1)";
+            if (!firstLocked && secondLocked && i.second.fTry)
+                onlyMaybeDeadlock = true;
+            firstLocked = true;
+        }
+        if (i.first == mismatch.second) {
+            strOutput += " (2)";
+            if (!secondLocked && firstLocked && i.second.fTry)
+                onlyMaybeDeadlock = true;
+            secondLocked = true;
+        }
+        strOutput += strprintf(" %s\n", i.second.ToString().c_str());
     }
+    if(!onlyMaybeDeadlock) {
+        printf("%s\n", strOutput.c_str());
+        LogPrintf("%s\n", strOutput.c_str());
+    }
+    assert(onlyMaybeDeadlock);
 }
 
 static void push_lock(void* c, const CLockLocation& locklocation, bool fTry)
@@ -86,7 +121,6 @@ static void push_lock(void* c, const CLockLocation& locklocation, bool fTry)
     if (lockstack.get() == NULL)
         lockstack.reset(new LockStack);
 
-    LogPrint("lock", "Locking: %s\n", locklocation.ToString());
     dd_mutex.lock();
 
     (*lockstack).push_back(std::make_pair(c, locklocation));
@@ -102,10 +136,8 @@ static void push_lock(void* c, const CLockLocation& locklocation, bool fTry)
             lockorders[p1] = (*lockstack);
 
             std::pair<void*, void*> p2 = std::make_pair(c, i.first);
-            if (lockorders.count(p2)) {
+            if (lockorders.count(p2))
                 potential_deadlock_detected(p1, lockorders[p2], lockorders[p1]);
-                break;
-            }
         }
     }
     dd_mutex.unlock();
@@ -113,10 +145,6 @@ static void push_lock(void* c, const CLockLocation& locklocation, bool fTry)
 
 static void pop_lock()
 {
-    if (fDebug) {
-        const CLockLocation& locklocation = (*lockstack).rbegin()->second;
-        LogPrint("lock", "Unlocked: %s\n", locklocation.ToString());
-    }
     dd_mutex.lock();
     (*lockstack).pop_back();
     dd_mutex.unlock();
@@ -124,7 +152,7 @@ static void pop_lock()
 
 void EnterCritical(const char* pszName, const char* pszFile, int nLine, void* cs, bool fTry)
 {
-    push_lock(cs, CLockLocation(pszName, pszFile, nLine), fTry);
+    push_lock(cs, CLockLocation(pszName, pszFile, nLine, fTry), fTry);
 }
 
 void LeaveCritical()

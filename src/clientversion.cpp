@@ -1,4 +1,4 @@
-// Copyright (c) 2012-2014 The Bitcoin developers
+// Copyright (c) 2012-2014 The Bitcoin Core developers
 // Distributed under the MIT software license, see the accompanying
 // file COPYING or http://www.opensource.org/licenses/mit-license.php.
 
@@ -10,10 +10,10 @@
 
 /**
  * Name of client reported in the 'version' message. Report the same name
- * for both dashd and dash-qt, to make it harder for attackers to
+ * for both owncoind and owncoin-qt, to make it harder for attackers to
  * target servers or GUI users specifically.
  */
-const std::string CLIENT_NAME("Dash Core");
+const std::string CLIENT_NAME("Owncoin Core");
 
 /**
  * Client version number
