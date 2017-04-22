@@ -9,7 +9,7 @@ packages:
 <<<<<<< HEAD
 reference_datetime: "2017-01-01 00:00:00"
 remotes:
-- "url": "https://github.com/dashpay/dash-detached-sigs.git"
+- "url": "https://github.com/dmrtsvetkov/owncoin-detached-sigs.git"
   "dir": "signature"
 =======
 reference_datetime: "2016-01-01 00:00:00"
