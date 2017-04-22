@@ -123,7 +123,7 @@ public:
 };
 
 /**
- * Dash RPC command dispatcher.
+ * Owncoin RPC command dispatcher.
  */
 class CRPCTable
 {
@@ -406,6 +406,6 @@ extern bool HTTPReq_REST(AcceptedConnection *conn,
                   std::string& strURI,
                   std::map<std::string, std::string>& mapHeaders,
                   bool fRun);
->>>>>>> refs/remotes/dashpay/v0.12.0.x
+>>>>>>> refs/remotes/dmrtsvetkov/v0.12.0.x
 
 #endif // BITCOIN_RPCSERVER_H

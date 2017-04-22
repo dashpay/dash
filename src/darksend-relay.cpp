@@ -109,7 +109,7 @@ void CDarkSendRelay::RelayThroughNode(int nRank)
 =======
         CNode* pnode = ConnectNode((CAddress)pmn->addr, NULL, false);
         if(pnode){
->>>>>>> refs/remotes/dashpay/v0.12.0.x
+>>>>>>> refs/remotes/dmrtsvetkov/v0.12.0.x
             //printf("Connected\n");
             pnode->PushMessage("dsr", (*this));
             pnode->Release();

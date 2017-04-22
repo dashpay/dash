@@ -1,4 +1,4 @@
-// Copyright (c) 2014-2017 The Dash Core developers
+// Copyright (c) 2014-2017 The Owncoin Core developers
 // Distributed under the MIT/X11 software license, see the accompanying
 // file COPYING or http://www.opensource.org/licenses/mit-license.php.
 
@@ -376,7 +376,7 @@ void CMasternodeMan::CheckAndRemove()
             mapSeenMasternodePing.erase(it4++);
         } else {
             ++it4;
->>>>>>> refs/remotes/dashpay/v0.12.0.x
+>>>>>>> refs/remotes/dmrtsvetkov/v0.12.0.x
         }
     }
 
@@ -795,7 +795,7 @@ void CMasternodeMan::ProcessMasternodeConnections()
             LogPrintf("Closing Masternode connection %s \n", pnode->addr.ToString());
             pnode->fDarkSendMaster = false;
             pnode->Release();
->>>>>>> refs/remotes/dashpay/v0.12.0.x
+>>>>>>> refs/remotes/dmrtsvetkov/v0.12.0.x
         }
     }
 }
@@ -830,7 +830,7 @@ std::pair<CService, std::set<uint256> > CMasternodeMan::PopScheduledMnbRequestCo
 
 void CMasternodeMan::ProcessMessage(CNode* pfrom, std::string& strCommand, CDataStream& vRecv)
 {
-    if(fLiteMode) return; // disable all Dash specific functionality
+    if(fLiteMode) return; // disable all Owncoin specific functionality
     if(!masternodeSync.IsBlockchainSynced()) return;
 
     if (strCommand == NetMsgType::MNANNOUNCE) { //Masternode Broadcast
@@ -861,7 +861,7 @@ void CMasternodeMan::ProcessMessage(CNode* pfrom, std::string& strCommand, CData
              addrman.Add(CAddress(mnb.addr), pfrom->addr, 2*60*60);
         } else {
             if(nDoS > 0) Misbehaving(pfrom->GetId(), nDoS);
->>>>>>> refs/remotes/dashpay/v0.12.0.x
+>>>>>>> refs/remotes/dmrtsvetkov/v0.12.0.x
         }
     } else if (strCommand == NetMsgType::MNPING) { //Masternode Ping
 
@@ -1570,7 +1570,7 @@ void CMasternodeMan::CheckAndRebuildMasternodeIndex()
     for(size_t i = 0; i < vMasternodes.size(); ++i) {
         indexMasternodes.AddMasternodeVIN(vMasternodes[i].vin);
 =======
->>>>>>> refs/remotes/dashpay/v0.12.0.x
+>>>>>>> refs/remotes/dmrtsvetkov/v0.12.0.x
     }
 
     fIndexRebuilt = true;

@@ -1,5 +1,5 @@
 ---
-name: "dash-dmg-signer"
+name: "owncoin-dmg-signer"
 suites:
 - "trusty"
 architectures:
@@ -14,9 +14,9 @@ remotes:
 =======
 reference_datetime: "2016-01-01 00:00:00"
 remotes: []
->>>>>>> refs/remotes/dashpay/v0.12.0.x
+>>>>>>> refs/remotes/dmrtsvetkov/v0.12.0.x
 files:
-- "dash-osx-unsigned.tar.gz"
+- "owncoin-osx-unsigned.tar.gz"
 script: |
   WRAP_DIR=$HOME/wrapped
   mkdir -p ${WRAP_DIR}
@@ -33,10 +33,10 @@ script: |
     chmod +x ${WRAP_DIR}/${prog}
   done
 
-  UNSIGNED=dash-osx-unsigned.tar.gz
-  SIGNED=dash-osx-signed.dmg
+  UNSIGNED=owncoin-osx-unsigned.tar.gz
+  SIGNED=owncoin-osx-signed.dmg
 
   tar -xf ${UNSIGNED}
   ./detached-sig-apply.sh ${UNSIGNED} signature/osx
-  ${WRAP_DIR}/genisoimage -no-cache-inodes -D -l -probe -V "Dash-Core" -no-pad -r -dir-mode 0755 -apple -o uncompressed.dmg signed-app
+  ${WRAP_DIR}/genisoimage -no-cache-inodes -D -l -probe -V "Owncoin-Core" -no-pad -r -dir-mode 0755 -apple -o uncompressed.dmg signed-app
   ${WRAP_DIR}/dmg dmg uncompressed.dmg ${OUTDIR}/${SIGNED}

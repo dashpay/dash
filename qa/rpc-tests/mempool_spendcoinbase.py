@@ -40,7 +40,7 @@ class MempoolSpendCoinbaseTest(BitcoinTestFramework):
         spends_raw = [ create_tx(self.nodes[0], txid, node0_address, 500) for txid in coinbase_txids ]
 =======
         spends_raw = [ self.create_tx(txid, node0_address, 500) for txid in coinbase_txids ]
->>>>>>> refs/remotes/dashpay/v0.12.0.x
+>>>>>>> refs/remotes/dmrtsvetkov/v0.12.0.x
 
         spend_101_id = self.nodes[0].sendrawtransaction(spends_raw[0])
 

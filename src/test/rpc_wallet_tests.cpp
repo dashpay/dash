@@ -9,7 +9,7 @@
 #include "main.h"
 #include "wallet/wallet.h"
 
-#include "test/test_dash.h"
+#include "test/test_owncoin.h"
 
 #include <boost/algorithm/string.hpp>
 #include <boost/test/unit_test.hpp>
@@ -106,7 +106,7 @@ BOOST_AUTO_TEST_CASE(rpc_wallet)
     BOOST_CHECK_NO_THROW(CallRPC("getbalance"));
     BOOST_CHECK_NO_THROW(CallRPC("getbalance " + demoAddress.ToString()));
 =======
->>>>>>> refs/remotes/dashpay/v0.12.0.x
+>>>>>>> refs/remotes/dmrtsvetkov/v0.12.0.x
 
     /*********************************
      * 			listunspent

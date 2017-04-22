@@ -1,4 +1,4 @@
-// Copyright (c) 2014-2017 The Dash Core developers
+// Copyright (c) 2014-2017 The Owncoin Core developers
 // Distributed under the MIT/X11 software license, see the accompanying
 // file COPYING or http://www.opensource.org/licenses/mit-license.php.
 
@@ -27,7 +27,7 @@ CCriticalSection cs_mapMasternodePaymentVotes;
 *   Determine if coinbase outgoing created money is the correct value
 *
 *   Why is this needed?
-*   - In Dash some blocks are superblocks, which output much higher amounts of coins
+*   - In Owncoin some blocks are superblocks, which output much higher amounts of coins
 *   - Otherblocks are 10% lower in outgoing value, so in total, no extra coins are created
 *   - When non-superblocks are detected, the normal schedule should be maintained
 */
@@ -308,7 +308,7 @@ void CMasternodePayments::ProcessMessage(CNode* pfrom, std::string& strCommand, 
     // Ignore any payments messages until masternode list is synced
     if(!masternodeSync.IsMasternodeListSynced()) return;
 
-    if(fLiteMode) return; // disable all Dash specific functionality
+    if(fLiteMode) return; // disable all Owncoin specific functionality
 
     if (strCommand == NetMsgType::MASTERNODEPAYMENTSYNC) { //Masternode Payments Request Sync
 
@@ -379,7 +379,7 @@ void CMasternodePayments::ProcessMessage(CNode* pfrom, std::string& strCommand, 
         int nFirstBlock = nHeight - (mnodeman.CountEnabled()*1.25);
         if(winner.nBlockHeight < nFirstBlock || winner.nBlockHeight > nHeight+20){
             LogPrint("mnpayments", "mnw - winner out of range - FirstBlock %d Height %d bestHeight %d\n", nFirstBlock, winner.nBlockHeight, nHeight);
->>>>>>> refs/remotes/dashpay/v0.12.0.x
+>>>>>>> refs/remotes/dmrtsvetkov/v0.12.0.x
             return;
         }
 
@@ -428,7 +428,7 @@ void CMasternodePayments::ProcessMessage(CNode* pfrom, std::string& strCommand, 
         LogPrint("mnpayments", "MASTERNODEPAYMENTVOTE -- vote: address=%s, nBlockHeight=%d, nHeight=%d, prevout=%s\n", address2.ToString(), vote.nBlockHeight, pCurrentBlockIndex->nHeight, vote.vinMasternode.prevout.ToStringShort());
 =======
         LogPrint("mnpayments", "mnw - winning vote - Addr %s Height %d bestHeight %d - %s\n", address2.ToString().c_str(), winner.nBlockHeight, nHeight, winner.vinMasternode.prevout.ToStringShort());
->>>>>>> refs/remotes/dashpay/v0.12.0.x
+>>>>>>> refs/remotes/dmrtsvetkov/v0.12.0.x
 
         if(AddPaymentVote(vote)){
             vote.Relay();
@@ -481,7 +481,7 @@ bool CMasternodePayments::IsScheduled(CMasternode& mn, int nNotBlockHeight)
         if(!locked || chainActive.Tip() == NULL) return false;
         nHeight = chainActive.Tip()->nHeight;
     }
->>>>>>> refs/remotes/dashpay/v0.12.0.x
+>>>>>>> refs/remotes/dmrtsvetkov/v0.12.0.x
 
     CScript mnpayee;
     mnpayee = GetScriptForDestination(mn.pubKeyCollateralAddress.GetID());
@@ -491,7 +491,7 @@ bool CMasternodePayments::IsScheduled(CMasternode& mn, int nNotBlockHeight)
     for(int64_t h = pCurrentBlockIndex->nHeight; h <= pCurrentBlockIndex->nHeight + 8; h++){
 =======
     for(int64_t h = nHeight; h <= nHeight+8; h++){
->>>>>>> refs/remotes/dashpay/v0.12.0.x
+>>>>>>> refs/remotes/dmrtsvetkov/v0.12.0.x
         if(h == nNotBlockHeight) continue;
         if(mapMasternodeBlocks.count(h) && mapMasternodeBlocks[h].GetBestPayee(payee) && mnpayee == payee) {
             return true;
@@ -618,7 +618,7 @@ bool CMasternodeBlockPayees::IsTransactionValid(const CTransaction& txNew)
         }
     }
 
-    LogPrintf("CMasternodeBlockPayees::IsTransactionValid -- ERROR: Missing required payment, possible payees: '%s', amount: %f DASH\n", strPayeesPossible, (float)nMasternodePayment/COIN);
+    LogPrintf("CMasternodeBlockPayees::IsTransactionValid -- ERROR: Missing required payment, possible payees: '%s', amount: %f OWNCOIN\n", strPayeesPossible, (float)nMasternodePayment/COIN);
     return false;
 }
 
@@ -679,7 +679,7 @@ void CMasternodePayments::CheckAndRemove()
         if(!locked || chainActive.Tip() == NULL) return;
         nHeight = chainActive.Tip()->nHeight;
     }
->>>>>>> refs/remotes/dashpay/v0.12.0.x
+>>>>>>> refs/remotes/dmrtsvetkov/v0.12.0.x
 
     int nLimit = GetStorageLimit();
 
@@ -698,7 +698,7 @@ void CMasternodePayments::CheckAndRemove()
             masternodeSync.mapSeenSyncMNW.erase((*it).first);
             mapMasternodePayeeVotes.erase(it++);
             mapMasternodeBlocks.erase(winner.nBlockHeight);
->>>>>>> refs/remotes/dashpay/v0.12.0.x
+>>>>>>> refs/remotes/dmrtsvetkov/v0.12.0.x
         } else {
             ++it;
         }
@@ -875,7 +875,7 @@ std::string CMasternodePaymentVote::ToString() const
         if(!locked || chainActive.Tip() == NULL) return;
         nHeight = chainActive.Tip()->nHeight;
     }
->>>>>>> refs/remotes/dashpay/v0.12.0.x
+>>>>>>> refs/remotes/dmrtsvetkov/v0.12.0.x
 
     return info.str();
 }
@@ -907,7 +907,7 @@ void CMasternodePayments::Sync(CNode* pnode)
         if(winner.nBlockHeight >= nHeight-nCountNeeded && winner.nBlockHeight <= nHeight + 20) {
             node->PushInventory(CInv(MSG_MASTERNODE_WINNER, winner.GetHash()));
             nInvCount++;
->>>>>>> refs/remotes/dashpay/v0.12.0.x
+>>>>>>> refs/remotes/dmrtsvetkov/v0.12.0.x
         }
     }
 

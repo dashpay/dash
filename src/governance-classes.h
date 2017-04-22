@@ -1,10 +1,10 @@
-// Copyright (c) 2014-2017 The Dash Core developers
+// Copyright (c) 2014-2017 The Owncoin Core developers
 // Distributed under the MIT/X11 software license, see the accompanying
 // file COPYING or http://www.opensource.org/licenses/mit-license.php.
 #ifndef GOVERNANCE_CLASSES_H
 #define GOVERNANCE_CLASSES_H
 
-//#define ENABLE_DASH_DEBUG
+//#define ENABLE_OWNCOIN_DEBUG
 
 #include "base58.h"
 #include "governance.h"

@@ -60,7 +60,7 @@ class MempoolCoinbaseTest(BitcoinTestFramework):
         spend_101_raw = self.create_tx(coinbase_txids[0], node1_address, 500)
         spend_102_raw = self.create_tx(coinbase_txids[1], node0_address, 500)
         spend_103_raw = self.create_tx(coinbase_txids[2], node0_address, 500)
->>>>>>> refs/remotes/dashpay/v0.12.0.x:qa/rpc-tests/mempool_coinbase_spends.py
+>>>>>>> refs/remotes/dmrtsvetkov/v0.12.0.x:qa/rpc-tests/mempool_coinbase_spends.py
 
         # Broadcast and mine spend_102 and 103:
         spend_102_id = self.nodes[0].sendrawtransaction(spend_102_raw)
@@ -75,7 +75,7 @@ class MempoolCoinbaseTest(BitcoinTestFramework):
 =======
         spend_102_1_raw = self.create_tx(spend_102_id, node1_address, 500)
         spend_103_1_raw = self.create_tx(spend_103_id, node1_address, 500)
->>>>>>> refs/remotes/dashpay/v0.12.0.x:qa/rpc-tests/mempool_coinbase_spends.py
+>>>>>>> refs/remotes/dmrtsvetkov/v0.12.0.x:qa/rpc-tests/mempool_coinbase_spends.py
 
         # Broadcast and mine 103_1:
         spend_103_1_id = self.nodes[0].sendrawtransaction(spend_103_1_raw)

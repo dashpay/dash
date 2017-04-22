@@ -9,7 +9,7 @@
 #include "checkpoints.h"
 
 #include "uint256.h"
-#include "test/test_dash.h"
+#include "test/test_owncoin.h"
 #include "chainparams.h"
 
 #include <boost/test/unit_test.hpp>
@@ -41,6 +41,6 @@ BOOST_AUTO_TEST_CASE(sanity)
 
     BOOST_CHECK(Checkpoints::GetTotalBlocksEstimate() >= 107996);
 }    
->>>>>>> refs/remotes/dashpay/v0.12.0.x
+>>>>>>> refs/remotes/dmrtsvetkov/v0.12.0.x
 
 BOOST_AUTO_TEST_SUITE_END()

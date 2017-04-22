@@ -4,7 +4,7 @@
 
 #include "data/tx_invalid.json.h"
 #include "data/tx_valid.json.h"
-#include "test/test_dash.h"
+#include "test/test_owncoin.h"
 
 #include "clientversion.h"
 #include "consensus/validation.h"
@@ -342,9 +342,9 @@ BOOST_AUTO_TEST_CASE(test_IsStandard)
     // dust:
     t.vout[0].nValue = nDustThreshold - 1;
 =======
-    // Dash minRelayTxFee is 10000, typical tx is dust below 5460 sat    
+    // Owncoin minRelayTxFee is 10000, typical tx is dust below 5460 sat    
     t.vout[0].nValue = 5010; // dust
->>>>>>> refs/remotes/dashpay/v0.12.0.x
+>>>>>>> refs/remotes/dmrtsvetkov/v0.12.0.x
     BOOST_CHECK(!IsStandardTx(t, reason));
     // not dust:
     t.vout[0].nValue = nDustThreshold;
@@ -360,9 +360,9 @@ BOOST_AUTO_TEST_CASE(test_IsStandard)
     // not dust:
     t.vout[0].nValue = 6735;
 =======
-    // Dash minRelayTxFee is 10000, typical tx is dust below 5460 sat
+    // Owncoin minRelayTxFee is 10000, typical tx is dust below 5460 sat
     t.vout[0].nValue = 6010; // not dust
->>>>>>> refs/remotes/dashpay/v0.12.0.x
+>>>>>>> refs/remotes/dmrtsvetkov/v0.12.0.x
     BOOST_CHECK(IsStandardTx(t, reason));
     minRelayTxFee = CFeeRate(DEFAULT_MIN_RELAY_TX_FEE);
 

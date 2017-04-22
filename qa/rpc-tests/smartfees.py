@@ -307,7 +307,7 @@ class EstimateFeeTest(BitcoinTestFramework):
         for e in filter(lambda x: x >= 0, all_estimates):
             if float(e)+delta < min(fees_per_kb) or float(e)-delta > max(fees_per_kb):
                 raise AssertionError("Estimated fee (%f) out of range (%f,%f)"%(float(e), min_fee_kb, max_fee_kb))
->>>>>>> refs/remotes/dashpay/v0.12.0.x
+>>>>>>> refs/remotes/dmrtsvetkov/v0.12.0.x
 
             print("Creating transactions and mining them at a block size that is just big enough")
             # Generate transactions while mining 10 more blocks, this time with node1

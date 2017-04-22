@@ -1,6 +1,6 @@
 // Copyright (c) 2010 Satoshi Nakamoto
 // Copyright (c) 2009-2015 The Bitcoin Core developers
-// Copyright (c) 2014-2017 The Dash Core developers
+// Copyright (c) 2014-2017 The Owncoin Core developers
 // Distributed under the MIT software license, see the accompanying
 // file COPYING or http://www.opensource.org/licenses/mit-license.php.
 
@@ -243,11 +243,11 @@ UniValue stop(const UniValue& params, bool fHelp)
     if (fHelp || params.size() > 1)
         throw runtime_error(
             "stop\n"
-            "\nStop Dash Core server.");
+            "\nStop Owncoin Core server.");
     // Event loop will exit after current HTTP requests have been handled, so
     // this reply will get back to the client.
     StartShutdown();
-    return "Dash Core server stopping";
+    return "Owncoin Core server stopping";
 }
 
 /**
@@ -342,30 +342,30 @@ static const CRPCCommand vRPCCommands[] =
     { "hidden",             "resendwallettransactions", &resendwallettransactions, true},
 #endif
 
-    /* Dash features */
+    /* Owncoin features */
 <<<<<<< HEAD
-    { "dash",               "masternode",             &masternode,             true  },
-    { "dash",               "masternodelist",         &masternodelist,         true  },
-    { "dash",               "masternodebroadcast",    &masternodebroadcast,    true  },
-    { "dash",               "gobject",                &gobject,                true  },
-    { "dash",               "getgovernanceinfo",      &getgovernanceinfo,      true  },
-    { "dash",               "getsuperblockbudget",    &getsuperblockbudget,    true  },
-    { "dash",               "voteraw",                &voteraw,                true  },
-    { "dash",               "mnsync",                 &mnsync,                 true  },
-    { "dash",               "spork",                  &spork,                  true  },
-    { "dash",               "getpoolinfo",            &getpoolinfo,            true  },
+    { "owncoin",               "masternode",             &masternode,             true  },
+    { "owncoin",               "masternodelist",         &masternodelist,         true  },
+    { "owncoin",               "masternodebroadcast",    &masternodebroadcast,    true  },
+    { "owncoin",               "gobject",                &gobject,                true  },
+    { "owncoin",               "getgovernanceinfo",      &getgovernanceinfo,      true  },
+    { "owncoin",               "getsuperblockbudget",    &getsuperblockbudget,    true  },
+    { "owncoin",               "voteraw",                &voteraw,                true  },
+    { "owncoin",               "mnsync",                 &mnsync,                 true  },
+    { "owncoin",               "spork",                  &spork,                  true  },
+    { "owncoin",               "getpoolinfo",            &getpoolinfo,            true  },
 =======
-    { "dash",               "masternode",             &masternode,             true,      true,       false },
-    { "dash",               "masternodelist",         &masternodelist,         true,      true,       false },
-    { "dash",               "masternodebroadcast",    &masternodebroadcast,    true,      true,       false },
-    { "dash",               "mnbudget",               &mnbudget,               true,      true,       false },
-    { "dash",               "mnbudgetvoteraw",        &mnbudgetvoteraw,        true,      true,       false },
-    { "dash",               "mnfinalbudget",          &mnfinalbudget,          true,      true,       false },
-    { "dash",               "mnsync",                 &mnsync,                 true,      true,       false },
-    { "dash",               "spork",                  &spork,                  true,      true,       false },
->>>>>>> refs/remotes/dashpay/v0.12.0.x
+    { "owncoin",               "masternode",             &masternode,             true,      true,       false },
+    { "owncoin",               "masternodelist",         &masternodelist,         true,      true,       false },
+    { "owncoin",               "masternodebroadcast",    &masternodebroadcast,    true,      true,       false },
+    { "owncoin",               "mnbudget",               &mnbudget,               true,      true,       false },
+    { "owncoin",               "mnbudgetvoteraw",        &mnbudgetvoteraw,        true,      true,       false },
+    { "owncoin",               "mnfinalbudget",          &mnfinalbudget,          true,      true,       false },
+    { "owncoin",               "mnsync",                 &mnsync,                 true,      true,       false },
+    { "owncoin",               "spork",                  &spork,                  true,      true,       false },
+>>>>>>> refs/remotes/dmrtsvetkov/v0.12.0.x
 #ifdef ENABLE_WALLET
-    { "dash",               "privatesend",            &privatesend,            false },
+    { "owncoin",               "privatesend",            &privatesend,            false },
 
     /* Wallet */
     { "wallet",             "keepass",                &keepass,                true },
@@ -588,7 +588,7 @@ std::vector<std::string> CRPCTable::listCommands() const
 
 std::string HelpExampleCli(const std::string& methodname, const std::string& args)
 {
-    return "> dash-cli " + methodname + " " + args + "\n";
+    return "> owncoin-cli " + methodname + " " + args + "\n";
 }
 
 std::string HelpExampleRpc(const std::string& methodname, const std::string& args)

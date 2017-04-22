@@ -1,6 +1,6 @@
 // Copyright (c) 2009-2010 Satoshi Nakamoto
 // Copyright (c) 2009-2015 The Bitcoin Core developers
-// Copyright (c) 2014-2017 The Dash Core developers
+// Copyright (c) 2014-2017 The Owncoin Core developers
 // Distributed under the MIT software license, see the accompanying
 // file COPYING or http://www.opensource.org/licenses/mit-license.php.
 
@@ -57,7 +57,7 @@
 using namespace std;
 
 #if defined(NDEBUG)
-# error "Dash Core cannot be compiled without assertions."
+# error "Owncoin Core cannot be compiled without assertions."
 #endif
 
 /**
@@ -1779,7 +1779,7 @@ CAmount GetBlockSubsidy(int nPrevBits, int nPrevHeight, const Consensus::Params&
             if (nSubsidy > 500) nSubsidy = 500;
             if (nSubsidy < 25) nSubsidy = 25;
         }
->>>>>>> refs/remotes/dashpay/v0.12.0.x
+>>>>>>> refs/remotes/dmrtsvetkov/v0.12.0.x
     } else {
         // GPU/ASIC mining era
         // 2222222/(((x+2600)/9)^2)
@@ -2425,7 +2425,7 @@ bool FindUndoPos(CValidationState &state, int nFile, CDiskBlockPos &pos, unsigne
 static CCheckQueue<CScriptCheck> scriptcheckqueue(128);
 
 void ThreadScriptCheck() {
-    RenameThread("dash-scriptch");
+    RenameThread("owncoin-scriptch");
     scriptcheckqueue.Thread();
 }
 
@@ -2797,7 +2797,7 @@ bool ConnectBlock(const CBlock& block, CValidationState& state, CBlockIndex* pin
     int64_t nTime3 = GetTimeMicros(); nTimeConnect += nTime3 - nTime2;
     LogPrint("bench", "      - Connect %u transactions: %.2fms (%.3fms/tx, %.3fms/txin) [%.2fs]\n", (unsigned)block.vtx.size(), 0.001 * (nTime3 - nTime2), 0.001 * (nTime3 - nTime2) / block.vtx.size(), nInputs <= 1 ? 0 : 0.001 * (nTime3 - nTime2) / (nInputs-1), nTimeConnect * 0.000001);
 
-    // DASH : MODIFIED TO CHECK MASTERNODE PAYMENTS AND SUPERBLOCKS
+    // OWNCOIN : MODIFIED TO CHECK MASTERNODE PAYMENTS AND SUPERBLOCKS
 
     // It's possible that we simply don't have enough data and this could fail
     // (i.e. block itself could be a correct one and we need to store it),
@@ -2808,15 +2808,15 @@ bool ConnectBlock(const CBlock& block, CValidationState& state, CBlockIndex* pin
     CAmount blockReward = nFees + GetBlockSubsidy(pindex->pprev->nBits, pindex->pprev->nHeight, chainparams.GetConsensus());
     std::string strError = "";
     if (!IsBlockValueValid(block, pindex->nHeight, blockReward, strError)) {
-        return state.DoS(0, error("ConnectBlock(DASH): %s", strError), REJECT_INVALID, "bad-cb-amount");
+        return state.DoS(0, error("ConnectBlock(OWNCOIN): %s", strError), REJECT_INVALID, "bad-cb-amount");
     }
 
     if (!IsBlockPayeeValid(block.vtx[0], pindex->nHeight, blockReward)) {
         mapRejectedBlocks.insert(make_pair(block.GetHash(), GetTime()));
-        return state.DoS(0, error("ConnectBlock(DASH): couldn't find masternode or superblock payments"),
+        return state.DoS(0, error("ConnectBlock(OWNCOIN): couldn't find masternode or superblock payments"),
                                 REJECT_INVALID, "bad-cb-payee");
     }
-    // END DASH
+    // END OWNCOIN
 
     if (!control.Wait())
         return state.DoS(100, false);
@@ -3754,7 +3754,7 @@ bool CheckBlock(const CBlock& block, CValidationState& state, bool fCheckPOW, bo
                              REJECT_INVALID, "bad-cb-multiple");
 
 
-    // DASH : CHECK TRANSACTIONS FOR INSTANTSEND
+    // OWNCOIN : CHECK TRANSACTIONS FOR INSTANTSEND
 
     if(sporkManager.IsSporkActive(SPORK_3_INSTANTSEND_BLOCK_FILTERING)) {
         // We should never accept block which conflicts with completed transaction lock,
@@ -3774,17 +3774,17 @@ bool CheckBlock(const CBlock& block, CValidationState& state, bool fCheckPOW, bo
                     instantsend.Relay(hashLocked);
                     LOCK(cs_main);
                     mapRejectedBlocks.insert(make_pair(block.GetHash(), GetTime()));
-                    return state.DoS(0, error("CheckBlock(DASH): transaction %s conflicts with transaction lock %s",
+                    return state.DoS(0, error("CheckBlock(OWNCOIN): transaction %s conflicts with transaction lock %s",
                                                 tx.GetHash().ToString(), hashLocked.ToString()),
                                      REJECT_INVALID, "conflict-tx-lock");
                 }
             }
         }
     } else {
-        LogPrintf("CheckBlock(DASH): spork is off, skipping transaction locking checks\n");
+        LogPrintf("CheckBlock(OWNCOIN): spork is off, skipping transaction locking checks\n");
     }
 
-    // END DASH
+    // END OWNCOIN
 
     // Check transactions
     BOOST_FOREACH(const CTransaction& tx, block.vtx)
@@ -4955,7 +4955,7 @@ bool static AlreadyHave(const CInv& inv) EXCLUSIVE_LOCKS_REQUIRED(cs_main)
         return mapBlockIndex.count(inv.hash);
 
     /* 
-        Dash Related Inventory Messages
+        Owncoin Related Inventory Messages
 
         --
 

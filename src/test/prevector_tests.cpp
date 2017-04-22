@@ -9,7 +9,7 @@
 #include "serialize.h"
 #include "streams.h"
 
-#include "test/test_dash.h"
+#include "test/test_owncoin.h"
 
 #include <boost/test/unit_test.hpp>
 

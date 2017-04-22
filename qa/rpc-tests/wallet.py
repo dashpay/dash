@@ -14,8 +14,8 @@ from test_framework.util import *
 # Does the following:
 #   a) creates 3 nodes, with an empty chain (no blocks).
 #   b) node0 mines a block
-#   c) node1 mines 101 blocks, so now nodes 0 and 1 have 500 DASH, node2 has none. 
-#   d) node0 sends 21 DASH to node2, in two transactions (11 DASH, then 10 DASH).
+#   c) node1 mines 101 blocks, so now nodes 0 and 1 have 500 OWNCOIN, node2 has none. 
+#   d) node0 sends 21 OWNCOIN to node2, in two transactions (11 OWNCOIN, then 10 OWNCOIN).
 #   e) node0 mines a block, collects the fee on the second transaction
 #   f) node1 mines 100 blocks, to mature node0's just-mined block
 #   g) check that node0 has 1000-21, node2 has 21
@@ -27,7 +27,7 @@ from test_framework.util import *
 from test_framework import BitcoinTestFramework
 from util import *
 
->>>>>>> refs/remotes/dashpay/v0.12.0.x
+>>>>>>> refs/remotes/dmrtsvetkov/v0.12.0.x
 
 class WalletTest (BitcoinTestFramework):
 
@@ -36,10 +36,10 @@ class WalletTest (BitcoinTestFramework):
         fee = balance_with_fee - curr_balance
         target_fee = fee_per_byte * tx_size
         if fee < target_fee:
-            raise AssertionError("Fee of %s DASH too low! (Should be %s DASH)"%(str(fee), str(target_fee)))
+            raise AssertionError("Fee of %s OWNCOIN too low! (Should be %s OWNCOIN)"%(str(fee), str(target_fee)))
         # allow the node's estimation to be at most 2 bytes off
         if fee > fee_per_byte * (tx_size + 2):
-            raise AssertionError("Fee of %s DASH too high! (Should be %s DASH)"%(str(fee), str(target_fee)))
+            raise AssertionError("Fee of %s OWNCOIN too high! (Should be %s OWNCOIN)"%(str(fee), str(target_fee)))
         return curr_balance
 
     def setup_chain(self):
@@ -83,10 +83,10 @@ class WalletTest (BitcoinTestFramework):
         assert_equal(len(self.nodes[1].listunspent()), 1)
         assert_equal(len(self.nodes[2].listunspent()), 0)
 
-        # Send 210 DASH from 0 to 2 using sendtoaddress call.
+        # Send 210 OWNCOIN from 0 to 2 using sendtoaddress call.
 =======
-        # Send 21 DASH from 0 to 2 using sendtoaddress call.
->>>>>>> refs/remotes/dashpay/v0.12.0.x
+        # Send 21 OWNCOIN from 0 to 2 using sendtoaddress call.
+>>>>>>> refs/remotes/dmrtsvetkov/v0.12.0.x
         # Second transaction will be child of first, and will require a fee
         self.nodes[0].sendtoaddress(self.nodes[2].getnewaddress(), 110)
         self.nodes[0].sendtoaddress(self.nodes[2].getnewaddress(), 100)
@@ -111,7 +111,7 @@ class WalletTest (BitcoinTestFramework):
         self.nodes[1].generate(100)
         self.sync_all()
 
-        # node0 should end up with 1000 DASH in block rewards plus fees, but
+        # node0 should end up with 1000 OWNCOIN in block rewards plus fees, but
 <<<<<<< HEAD
         # minus the 210 plus fees sent to node2
         assert_equal(self.nodes[0].getbalance(), 1000-210)
@@ -120,7 +120,7 @@ class WalletTest (BitcoinTestFramework):
         # minus the 21 plus fees sent to node2
         assert_equal(self.nodes[0].getbalance(), 1000-21)
         assert_equal(self.nodes[2].getbalance(), 21)
->>>>>>> refs/remotes/dashpay/v0.12.0.x
+>>>>>>> refs/remotes/dmrtsvetkov/v0.12.0.x
 
         # Node0 should have two unspent outputs.
         # Create a couple of transactions to send them to node2, submit them through
@@ -151,7 +151,7 @@ class WalletTest (BitcoinTestFramework):
 <<<<<<< HEAD
         assert_equal(self.nodes[2].getbalance("from1"), 1000-210)
 
-        # Send 100 DASH normal
+        # Send 100 OWNCOIN normal
         address = self.nodes[0].getnewaddress("test")
         fee_per_byte = Decimal('0.001') / 1000
         self.nodes[2].settxfee(fee_per_byte * 1000)
@@ -161,7 +161,7 @@ class WalletTest (BitcoinTestFramework):
         node_2_bal = self.check_fee_amount(self.nodes[2].getbalance(), Decimal('900'), fee_per_byte, count_bytes(self.nodes[2].getrawtransaction(txid)))
         assert_equal(self.nodes[0].getbalance(), Decimal('100'))
 
-        # Send 100 DASH with subtract fee from amount
+        # Send 100 OWNCOIN with subtract fee from amount
         txid = self.nodes[2].sendtoaddress(address, 100, "", "", True)
         self.nodes[2].generate(1)
         self.sync_all()
@@ -169,7 +169,7 @@ class WalletTest (BitcoinTestFramework):
         assert_equal(self.nodes[2].getbalance(), node_2_bal)
         node_0_bal = self.check_fee_amount(self.nodes[0].getbalance(), Decimal('200'), fee_per_byte, count_bytes(self.nodes[2].getrawtransaction(txid)))
 
-        # Sendmany 100 DASH
+        # Sendmany 100 OWNCOIN
         txid = self.nodes[2].sendmany('from1', {address: 100}, 0, "", [])
         self.nodes[2].generate(1)
         self.sync_all()
@@ -177,7 +177,7 @@ class WalletTest (BitcoinTestFramework):
         node_2_bal = self.check_fee_amount(self.nodes[2].getbalance(), node_2_bal - Decimal('100'), fee_per_byte, count_bytes(self.nodes[2].getrawtransaction(txid)))
         assert_equal(self.nodes[0].getbalance(), node_0_bal)
 
-        # Sendmany 100 DASH with subtract fee from amount
+        # Sendmany 100 OWNCOIN with subtract fee from amount
         txid = self.nodes[2].sendmany('from1', {address: 100}, 0, "", [address])
         self.nodes[2].generate(1)
         self.sync_all()
@@ -371,7 +371,7 @@ class WalletTest (BitcoinTestFramework):
             assert_equal(balance_nodes, [self.nodes[i].getbalance() for i in range(3)])
 =======
         assert_equal(self.nodes[2].getbalance("from1"), 1000-21)
->>>>>>> refs/remotes/dashpay/v0.12.0.x
+>>>>>>> refs/remotes/dmrtsvetkov/v0.12.0.x
 
         # Exercise listsinceblock with the last two blocks
         coinbase_tx_1 = self.nodes[0].listsinceblock(blocks[0])

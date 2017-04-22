@@ -1,6 +1,6 @@
 // Copyright (c) 2009-2010 Satoshi Nakamoto
 // Copyright (c) 2009-2015 The Bitcoin Core developers
-// Copyright (c) 2014-2017 The Dash Core developers
+// Copyright (c) 2014-2017 The Owncoin Core developers
 // Distributed under the MIT software license, see the accompanying
 // file COPYING or http://www.opensource.org/licenses/mit-license.php.
 
@@ -67,7 +67,7 @@ static const bool DEFAULT_SEND_FREE_TRANSACTIONS = false;
 //! -txconfirmtarget default
 static const unsigned int DEFAULT_TX_CONFIRM_TARGET = 2;
 =======
->>>>>>> refs/remotes/dashpay/v0.12.0.x:src/wallet.h
+>>>>>>> refs/remotes/dmrtsvetkov/v0.12.0.x:src/wallet.h
 //! -maxtxfee will warn if called with a higher fee than this amount (in satoshis)
 static const CAmount nHighTransactionMaxFeeWarning = 100 * nHighTransactionFeeWarning;
 //! Largest (in bytes) free transaction we're willing to create
@@ -656,7 +656,7 @@ public:
     bool SelectCoinsDark(CAmount nValueMin, CAmount nValueMax, std::vector<CTxIn>& vecTxInRet, CAmount& nValueRet, int nPrivateSendRoundsMin, int nPrivateSendRoundsMax) const;
     bool SelectCoinsGrouppedByAddresses(std::vector<CompactTallyItem>& vecTallyRet, bool fSkipDenominated = true, bool fAnonymizable = true) const;
 
-    /// Get 1000DASH output and keys which can be used for the Masternode
+    /// Get 1000OWNCOIN output and keys which can be used for the Masternode
     bool GetMasternodeVinAndKeys(CTxIn& txinRet, CPubKey& pubKeyRet, CKey& keyRet, std::string strTxHash = "", std::string strOutputIndex = "");
     /// Extract txin information and keys from output
     bool GetVinAndKeysFromOutput(COutput out, CTxIn& txinRet, CPubKey& pubKeyRet, CKey& keyRet);

@@ -1,4 +1,4 @@
-// Copyright (c) 2014-2017 The Dash Core developers
+// Copyright (c) 2014-2017 The Owncoin Core developers
 // Distributed under the MIT/X11 software license, see the accompanying
 // file COPYING or http://www.opensource.org/licenses/mit-license.php.
 
@@ -69,7 +69,7 @@ public:
         return ss.GetHash();
     }
 
->>>>>>> refs/remotes/dashpay/v0.12.0.x
+>>>>>>> refs/remotes/dmrtsvetkov/v0.12.0.x
     void swap(CMasternodePing& first, CMasternodePing& second) // nothrow
     {
         // enable ADL (not necessary in our case, but good practice)
@@ -197,7 +197,7 @@ public:
     int nScanningErrorCount;
     int nLastScanningErrorBlockHeight;
     CMasternodePing lastPing;
->>>>>>> refs/remotes/dashpay/v0.12.0.x
+>>>>>>> refs/remotes/dmrtsvetkov/v0.12.0.x
 
     CMasternode();
     CMasternode(const CMasternode& other);
@@ -376,7 +376,7 @@ public:
     bool Sign(CKey& keyCollateralAddress);
     bool VerifySignature();
     void Relay();
->>>>>>> refs/remotes/dashpay/v0.12.0.x
+>>>>>>> refs/remotes/dmrtsvetkov/v0.12.0.x
 
     ADD_SERIALIZE_METHODS;
 

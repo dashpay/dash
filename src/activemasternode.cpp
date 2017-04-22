@@ -1,4 +1,4 @@
-// Copyright (c) 2014-2017 The Dash Core developers
+// Copyright (c) 2014-2017 The Owncoin Core developers
 // Distributed under the MIT software license, see the accompanying
 // file COPYING or http://www.opensource.org/licenses/mit-license.php.
 
@@ -97,7 +97,7 @@ void CActiveMasternode::ManageState()
 
             LOCK(pwalletMain->cs_wallet);
             pwalletMain->LockCoin(vin.prevout);
->>>>>>> refs/remotes/dashpay/v0.12.0.x
+>>>>>>> refs/remotes/dmrtsvetkov/v0.12.0.x
 
     LogPrint("masternode", "CActiveMasternode::ManageState -- status = %s, type = %s, pinger enabled = %d\n", GetStatus(), GetTypeString(), fPingerEnabled);
 
@@ -131,7 +131,7 @@ void CActiveMasternode::ManageState()
 
             LogPrintf("CActiveMasternode::ManageStatus() - Is capable master node!\n");
             status = ACTIVE_MASTERNODE_STARTED;
->>>>>>> refs/remotes/dashpay/v0.12.0.x
+>>>>>>> refs/remotes/dmrtsvetkov/v0.12.0.x
 
 std::string CActiveMasternode::GetStateString() const
 {
@@ -228,7 +228,7 @@ bool CActiveMasternode::SendMasternodePing()
         errorMessage = "Darksend Masternode List doesn't include our Masternode, shutting down Masternode pinging service! " + vin.ToString();
         status = ACTIVE_MASTERNODE_NOT_CAPABLE;
         notCapableReason = errorMessage;
->>>>>>> refs/remotes/dashpay/v0.12.0.x
+>>>>>>> refs/remotes/dmrtsvetkov/v0.12.0.x
         return false;
     }
 
@@ -265,7 +265,7 @@ bool CActiveMasternode::CreateBroadcast(std::string strService, std::string strK
         errorMessage = "Sync in progress. Must wait until sync is complete to start Masternode";
         LogPrintf("CActiveMasternode::CreateBroadcast() - %s\n", errorMessage);
         return false;
->>>>>>> refs/remotes/dashpay/v0.12.0.x
+>>>>>>> refs/remotes/dmrtsvetkov/v0.12.0.x
     }
 
     bool fFoundLocal = false;
@@ -339,7 +339,7 @@ bool CActiveMasternode::CreateBroadcast(std::string strService, std::string strK
     }
 
     if(pwalletMain->GetBalance() < 1000*COIN) {
-        LogPrintf("CActiveMasternode::ManageStateInitial -- %s: Wallet balance is < 1000 DASH\n", GetStateString());
+        LogPrintf("CActiveMasternode::ManageStateInitial -- %s: Wallet balance is < 1000 OWNCOIN\n", GetStateString());
         return;
     }
 
@@ -404,7 +404,7 @@ bool CActiveMasternode::CreateBroadcast(CTxIn vin, CService service, CKey keyCol
 
     return true;
 }
->>>>>>> refs/remotes/dashpay/v0.12.0.x
+>>>>>>> refs/remotes/dmrtsvetkov/v0.12.0.x
 
     LogPrint("masternode", "CActiveMasternode::ManageStateInitial -- End status = %s, type = %s, pinger enabled = %d\n", GetStatus(), GetTypeString(), fPingerEnabled);
 }
@@ -448,7 +448,7 @@ bool CActiveMasternode::GetMasterNodeVin(CTxIn& vin, CPubKey& pubkey, CKey& secr
                 found = true;
                 break;
             }
->>>>>>> refs/remotes/dashpay/v0.12.0.x
+>>>>>>> refs/remotes/dmrtsvetkov/v0.12.0.x
         }
         if(service != infoMn.addr) {
             nState = ACTIVE_MASTERNODE_NOT_CAPABLE;
@@ -505,7 +505,7 @@ bool CActiveMasternode::GetVinFromOutput(COutput out, CTxIn& vin, CPubKey& pubke
     if (!pwalletMain->GetKey(keyID, secretKey)) {
         LogPrintf ("CActiveMasternode::GetMasterNodeVin - Private key for address is not known\n");
         return false;
->>>>>>> refs/remotes/dashpay/v0.12.0.x
+>>>>>>> refs/remotes/dmrtsvetkov/v0.12.0.x
     }
 }
 

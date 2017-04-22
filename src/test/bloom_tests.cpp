@@ -14,7 +14,7 @@
 #include "uint256.h"
 #include "util.h"
 #include "utilstrencodings.h"
-#include "test/test_dash.h"
+#include "test/test_owncoin.h"
 
 #include <vector>
 
@@ -276,7 +276,7 @@ BOOST_AUTO_TEST_CASE(merkle_block_2)
     BOOST_CHECK(merkleBlock.vMatchedTxn[3].second == uint256S("0x3c1d7e82342158e4109df2e0b6348b6e84e403d8b4046d7007663ace63cddb23"));
 =======
     BOOST_CHECK(merkleBlock.vMatchedTxn[3].second == uint256("0x3c1d7e82342158e4109df2e0b6348b6e84e403d8b4046d7007663ace63cddb23"));
->>>>>>> refs/remotes/dashpay/v0.12.0.x
+>>>>>>> refs/remotes/dmrtsvetkov/v0.12.0.x
     BOOST_CHECK(merkleBlock.vMatchedTxn[3].first == 3);
 
     BOOST_CHECK(merkleBlock.txn.ExtractMatches(vMatched) == block.hashMerkleRoot);
@@ -331,7 +331,7 @@ BOOST_AUTO_TEST_CASE(merkle_block_2_with_update_none)
     BOOST_CHECK(merkleBlock.vMatchedTxn[2].second == uint256S("0x3c1d7e82342158e4109df2e0b6348b6e84e403d8b4046d7007663ace63cddb23"));
 =======
     BOOST_CHECK(merkleBlock.vMatchedTxn[2].second == uint256("0x3c1d7e82342158e4109df2e0b6348b6e84e403d8b4046d7007663ace63cddb23"));
->>>>>>> refs/remotes/dashpay/v0.12.0.x
+>>>>>>> refs/remotes/dmrtsvetkov/v0.12.0.x
     BOOST_CHECK(merkleBlock.vMatchedTxn[2].first == 3);
 
     BOOST_CHECK(merkleBlock.txn.ExtractMatches(vMatched) == block.hashMerkleRoot);
@@ -500,7 +500,7 @@ BOOST_AUTO_TEST_CASE(rolling_bloom)
         if (rb1.contains(RandomData()))
             ++nHits;
     }
-    // Run test_dash with --log_level=message to see BOOST_TEST_MESSAGEs:
+    // Run test_owncoin with --log_level=message to see BOOST_TEST_MESSAGEs:
     BOOST_TEST_MESSAGE("RollingBloomFilter got " << nHits << " false positives (~100 expected)");
 
     // Insanely unlikely to get a fp count outside this range:

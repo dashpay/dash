@@ -371,7 +371,7 @@ public:
     // (even if it's relative to mixing e.g. for blinding) should NOT set this to 'true'.
     // For such cases node should be released manually (preferably right after corresponding code).
     bool fDarkSendMaster;
->>>>>>> refs/remotes/dashpay/v0.12.0.x
+>>>>>>> refs/remotes/dmrtsvetkov/v0.12.0.x
     CSemaphoreGrant grantOutbound;
     CSemaphoreGrant grantMasternodeOutbound;
     CCriticalSection cs_filter;

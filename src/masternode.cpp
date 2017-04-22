@@ -1,4 +1,4 @@
-// Copyright (c) 2014-2017 The Dash Core developers
+// Copyright (c) 2014-2017 The Owncoin Core developers
 // Distributed under the MIT/X11 software license, see the accompanying
 // file COPYING or http://www.opensource.org/licenses/mit-license.php.
 
@@ -170,7 +170,7 @@ CMasternode::CMasternode(const CMasternodeBroadcast& mnb)
     nLastScanningErrorBlockHeight = 0;
     lastTimeChecked = 0;
 }
->>>>>>> refs/remotes/dashpay/v0.12.0.x
+>>>>>>> refs/remotes/dmrtsvetkov/v0.12.0.x
 
 //
 // When a new masternode broadcast is sent, update our information
@@ -563,7 +563,7 @@ bool CMasternodeBroadcast::SimpleCheck(int& nDos)
     }
 
 =======
->>>>>>> refs/remotes/dashpay/v0.12.0.x
+>>>>>>> refs/remotes/dmrtsvetkov/v0.12.0.x
     // make sure signature isn't in the future (past is OK)
     if (sigTime > GetAdjustedTime() + 60 * 60) {
         LogPrintf("CMasternodeBroadcast::SimpleCheck -- Signature rejected, too far into the future: masternode=%s\n", vin.prevout.ToStringShort());
@@ -583,7 +583,7 @@ bool CMasternodeBroadcast::SimpleCheck(int& nDos)
 =======
     if(protocolVersion < masternodePayments.GetMinMasternodePaymentsProto()) {
         LogPrintf("mnb - ignoring outdated Masternode %s protocol version %d\n", vin.ToString(), protocolVersion);
->>>>>>> refs/remotes/dashpay/v0.12.0.x
+>>>>>>> refs/remotes/dmrtsvetkov/v0.12.0.x
         return false;
     }
 
@@ -630,7 +630,7 @@ bool CMasternodeBroadcast::Update(CMasternode* pmn, int& nDos)
 =======
     // incorrect ping or its sigTime
     if(lastPing == CMasternodePing() || !lastPing.CheckAndUpdate(nDos, false, true))
->>>>>>> refs/remotes/dashpay/v0.12.0.x
+>>>>>>> refs/remotes/dmrtsvetkov/v0.12.0.x
         return false;
 
     std::string strMessage;
@@ -728,7 +728,7 @@ bool CMasternodeBroadcast::Update(CMasternode* pmn, int& nDos)
 
     // masternode is not enabled yet/already, nothing to update
     if(!pmn->IsEnabled()) return true;
->>>>>>> refs/remotes/dashpay/v0.12.0.x
+>>>>>>> refs/remotes/dmrtsvetkov/v0.12.0.x
 
     // if ther was no masternode broadcast recently or if it matches our Masternode privkey...
     if(!pmn->IsBroadcastedWithin(MASTERNODE_MIN_MNB_SECONDS) || (fMasterNode && pubKeyMasternode == activeMasternode.pubKeyMasternode)) {
@@ -767,7 +767,7 @@ bool CMasternodeBroadcast::CheckOutpoint(int& nDos)
         if(pmn->IsEnabled()) return true;
         // if it's not enabled, remove old MN first and continue
         else mnodeman.Remove(pmn->vin);
->>>>>>> refs/remotes/dashpay/v0.12.0.x
+>>>>>>> refs/remotes/dmrtsvetkov/v0.12.0.x
     }
 
     if (!CheckSignature(nDos)) {
@@ -792,7 +792,7 @@ bool CMasternodeBroadcast::CheckOutpoint(int& nDos)
             return false;
         }
         if(coins.vout[vin.prevout.n].nValue != 1000 * COIN) {
-            LogPrint("masternode", "CMasternodeBroadcast::CheckOutpoint -- Masternode UTXO should have 1000 DASH, masternode=%s\n", vin.prevout.ToStringShort());
+            LogPrint("masternode", "CMasternodeBroadcast::CheckOutpoint -- Masternode UTXO should have 1000 OWNCOIN, masternode=%s\n", vin.prevout.ToStringShort());
             return false;
         }
         if(chainActive.Height() - coins.nHeight + 1 < Params().GetConsensus().nMasternodeMinimumConfirmations) {
@@ -815,7 +815,7 @@ bool CMasternodeBroadcast::CheckOutpoint(int& nDos)
     }
 
     // verify that sig time is legit in past
-    // should be at least not earlier than block when 1000 DASH tx got nMasternodeMinimumConfirmations
+    // should be at least not earlier than block when 1000 OWNCOIN tx got nMasternodeMinimumConfirmations
     uint256 hashBlock = uint256();
     CTransaction tx2;
     GetTransaction(vin.prevout.hash, tx2, Params().GetConsensus(), hashBlock, true);
@@ -823,7 +823,7 @@ bool CMasternodeBroadcast::CheckOutpoint(int& nDos)
         LOCK(cs_main);
         BlockMap::iterator mi = mapBlockIndex.find(hashBlock);
         if (mi != mapBlockIndex.end() && (*mi).second) {
-            CBlockIndex* pMNIndex = (*mi).second; // block for 1000 DASH tx -> 1 confirmation
+            CBlockIndex* pMNIndex = (*mi).second; // block for 1000 OWNCOIN tx -> 1 confirmation
             CBlockIndex* pConfIndex = chainActive[pMNIndex->nHeight + Params().GetConsensus().nMasternodeMinimumConfirmations - 1]; // block where tx got nMasternodeMinimumConfirmations
             if(pConfIndex->GetBlockTime() > sigTime) {
                 LogPrintf("CMasternodeBroadcast::CheckOutpoint -- Bad sigTime %d (%d conf block is at %d) for Masternode %s %s\n",
@@ -849,7 +849,7 @@ bool CMasternodeBroadcast::Sign(CKey& keyCollateralAddress)
                     boost::lexical_cast<std::string>(nProtocolVersion);
 =======
     std::string strMessage = addr.ToString(false) + boost::lexical_cast<std::string>(sigTime) + vchPubKey + vchPubKey2 + boost::lexical_cast<std::string>(protocolVersion);
->>>>>>> refs/remotes/dashpay/v0.12.0.x
+>>>>>>> refs/remotes/dmrtsvetkov/v0.12.0.x
 
     if(!darkSendSigner.SignMessage(strMessage, vchSig, keyCollateralAddress)) {
         LogPrintf("CMasternodeBroadcast::Sign -- SignMessage() failed\n");
@@ -874,7 +874,7 @@ bool CMasternodeBroadcast::VerifySignature()
 
     if(!darkSendSigner.VerifyMessage(pubkey, sig, strMessage, errorMessage)) {
         LogPrintf("CMasternodeBroadcast::VerifySignature() - Error: %s\n", errorMessage);
->>>>>>> refs/remotes/dashpay/v0.12.0.x
+>>>>>>> refs/remotes/dmrtsvetkov/v0.12.0.x
         return false;
     }
 
@@ -957,7 +957,7 @@ bool CMasternodePing::VerifySignature(CPubKey& pubKeyMasternode, int &nDos) {
 }
 
 bool CMasternodePing::CheckAndUpdate(int& nDos, bool fRequireEnabled, bool fCheckSigTimeOnly)
->>>>>>> refs/remotes/dashpay/v0.12.0.x
+>>>>>>> refs/remotes/dmrtsvetkov/v0.12.0.x
 {
     std::string strMessage = vin.ToString() + blockHash.ToString() + boost::lexical_cast<std::string>(sigTime);
     std::string strError = "";
@@ -1018,7 +1018,7 @@ bool CMasternodePing::SimpleCheck(int& nDos)
         {
             if(!VerifySignature(pmn->pubkey2, nDos))
                 return false;
->>>>>>> refs/remotes/dashpay/v0.12.0.x
+>>>>>>> refs/remotes/dmrtsvetkov/v0.12.0.x
 
 bool CMasternodePing::CheckAndUpdate(CMasternode* pmn, bool fFromNewBroadcast, int& nDos)
 {
