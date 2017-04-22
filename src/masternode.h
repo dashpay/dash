@@ -55,6 +55,21 @@ public:
         READWRITE(vchSig);
     }
 
+<<<<<<< HEAD
+=======
+    bool CheckAndUpdate(int& nDos, bool fRequireEnabled = true, bool fCheckSigTimeOnly = false);
+    bool Sign(CKey& keyMasternode, CPubKey& pubKeyMasternode);
+    bool VerifySignature(CPubKey& pubKeyMasternode, int &nDos);
+    void Relay();
+
+    uint256 GetHash(){
+        CHashWriter ss(SER_GETHASH, PROTOCOL_VERSION);
+        ss << vin;
+        ss << sigTime;
+        return ss.GetHash();
+    }
+
+>>>>>>> refs/remotes/dashpay/v0.12.0.x
     void swap(CMasternodePing& first, CMasternodePing& second) // nothrow
     {
         // enable ADL (not necessary in our case, but good practice)
@@ -163,6 +178,7 @@ public:
     std::vector<unsigned char> vchSig;
     int64_t sigTime; //mnb message time
     int64_t nLastDsq; //the dsq count from the last dsq broadcast of this node
+<<<<<<< HEAD
     int64_t nTimeLastChecked;
     int64_t nTimeLastPaid;
     int64_t nTimeLastWatchdogVote;
@@ -177,6 +193,11 @@ public:
 
     // KEEP TRACK OF GOVERNANCE ITEMS EACH MASTERNODE HAS VOTE UPON FOR RECALCULATION
     std::map<uint256, int> mapGovernanceObjectsVotedOn;
+=======
+    int nScanningErrorCount;
+    int nLastScanningErrorBlockHeight;
+    CMasternodePing lastPing;
+>>>>>>> refs/remotes/dashpay/v0.12.0.x
 
     CMasternode();
     CMasternode(const CMasternode& other);
@@ -342,12 +363,20 @@ class CMasternodeBroadcast : public CMasternode
 {
 public:
 
+<<<<<<< HEAD
     bool fRecovery;
 
     CMasternodeBroadcast() : CMasternode(), fRecovery(false) {}
     CMasternodeBroadcast(const CMasternode& mn) : CMasternode(mn), fRecovery(false) {}
     CMasternodeBroadcast(CService addrNew, CTxIn vinNew, CPubKey pubKeyCollateralAddressNew, CPubKey pubKeyMasternodeNew, int nProtocolVersionIn) :
         CMasternode(addrNew, vinNew, pubKeyCollateralAddressNew, pubKeyMasternodeNew, nProtocolVersionIn), fRecovery(false) {}
+=======
+    bool CheckAndUpdate(int& nDoS);
+    bool CheckInputsAndAdd(int& nDos);
+    bool Sign(CKey& keyCollateralAddress);
+    bool VerifySignature();
+    void Relay();
+>>>>>>> refs/remotes/dashpay/v0.12.0.x
 
     ADD_SERIALIZE_METHODS;
 

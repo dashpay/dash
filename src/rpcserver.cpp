@@ -343,6 +343,7 @@ static const CRPCCommand vRPCCommands[] =
 #endif
 
     /* Dash features */
+<<<<<<< HEAD
     { "dash",               "masternode",             &masternode,             true  },
     { "dash",               "masternodelist",         &masternodelist,         true  },
     { "dash",               "masternodebroadcast",    &masternodebroadcast,    true  },
@@ -353,6 +354,16 @@ static const CRPCCommand vRPCCommands[] =
     { "dash",               "mnsync",                 &mnsync,                 true  },
     { "dash",               "spork",                  &spork,                  true  },
     { "dash",               "getpoolinfo",            &getpoolinfo,            true  },
+=======
+    { "dash",               "masternode",             &masternode,             true,      true,       false },
+    { "dash",               "masternodelist",         &masternodelist,         true,      true,       false },
+    { "dash",               "masternodebroadcast",    &masternodebroadcast,    true,      true,       false },
+    { "dash",               "mnbudget",               &mnbudget,               true,      true,       false },
+    { "dash",               "mnbudgetvoteraw",        &mnbudgetvoteraw,        true,      true,       false },
+    { "dash",               "mnfinalbudget",          &mnfinalbudget,          true,      true,       false },
+    { "dash",               "mnsync",                 &mnsync,                 true,      true,       false },
+    { "dash",               "spork",                  &spork,                  true,      true,       false },
+>>>>>>> refs/remotes/dashpay/v0.12.0.x
 #ifdef ENABLE_WALLET
     { "dash",               "privatesend",            &privatesend,            false },
 

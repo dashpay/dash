@@ -361,6 +361,11 @@ public:
      */
     void NotifyMasternodeUpdates();
 
+    /// Update masternode list and maps using provided CMasternodeBroadcast
+    void UpdateMasternodeList(CMasternodeBroadcast mnb);
+    /// Perform complete check and only then update list and maps
+    bool CheckMnbAndUpdateMasternodeList(CMasternodeBroadcast mnb, int& nDos);
+
 };
 
 #endif

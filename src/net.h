@@ -361,8 +361,17 @@ public:
     // b) the peer may tell us in its version message that we should not relay tx invs
     //    unless it loads a bloom filter.
     bool fRelayTxes;
+<<<<<<< HEAD
     // If 'true' this node will be disconnected on CMasternodeMan::ProcessMasternodeConnections()
     bool fMasternode;
+=======
+    // Should be 'true' only if we connected to this node to actually mix funds.
+    // In this case node will be released automatically via CMasternodeMan::ProcessMasternodeConnections().
+    // Connecting to verify connectability/status or connecting for sending/relaying single message
+    // (even if it's relative to mixing e.g. for blinding) should NOT set this to 'true'.
+    // For such cases node should be released manually (preferably right after corresponding code).
+    bool fDarkSendMaster;
+>>>>>>> refs/remotes/dashpay/v0.12.0.x
     CSemaphoreGrant grantOutbound;
     CSemaphoreGrant grantMasternodeOutbound;
     CCriticalSection cs_filter;

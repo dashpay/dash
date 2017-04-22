@@ -44,6 +44,7 @@ class MempoolCoinbaseTest(BitcoinTestFramework):
         # and make sure the mempool code behaves correctly.
         b = [ self.nodes[0].getblockhash(n) for n in range(101, 105) ]
         coinbase_txids = [ self.nodes[0].getblock(h)['tx'][0] for h in b ]
+<<<<<<< HEAD:qa/rpc-tests/mempool_reorg.py
         spend_101_raw = create_tx(self.nodes[0], coinbase_txids[1], node1_address, 500)
         spend_102_raw = create_tx(self.nodes[0], coinbase_txids[2], node0_address, 500)
         spend_103_raw = create_tx(self.nodes[0], coinbase_txids[3], node0_address, 500)
@@ -55,6 +56,11 @@ class MempoolCoinbaseTest(BitcoinTestFramework):
         timelock_tx = timelock_tx[:-8] + hex(self.nodes[0].getblockcount() + 2)[2:] + "000000"
         timelock_tx = self.nodes[0].signrawtransaction(timelock_tx)["hex"]
         assert_raises(JSONRPCException, self.nodes[0].sendrawtransaction, timelock_tx)
+=======
+        spend_101_raw = self.create_tx(coinbase_txids[0], node1_address, 500)
+        spend_102_raw = self.create_tx(coinbase_txids[1], node0_address, 500)
+        spend_103_raw = self.create_tx(coinbase_txids[2], node0_address, 500)
+>>>>>>> refs/remotes/dashpay/v0.12.0.x:qa/rpc-tests/mempool_coinbase_spends.py
 
         # Broadcast and mine spend_102 and 103:
         spend_102_id = self.nodes[0].sendrawtransaction(spend_102_raw)
@@ -63,8 +69,13 @@ class MempoolCoinbaseTest(BitcoinTestFramework):
         assert_raises(JSONRPCException, self.nodes[0].sendrawtransaction, timelock_tx)
 
         # Create 102_1 and 103_1:
+<<<<<<< HEAD:qa/rpc-tests/mempool_reorg.py
         spend_102_1_raw = create_tx(self.nodes[0], spend_102_id, node1_address, 500)
         spend_103_1_raw = create_tx(self.nodes[0], spend_103_id, node1_address, 500)
+=======
+        spend_102_1_raw = self.create_tx(spend_102_id, node1_address, 500)
+        spend_103_1_raw = self.create_tx(spend_103_id, node1_address, 500)
+>>>>>>> refs/remotes/dashpay/v0.12.0.x:qa/rpc-tests/mempool_coinbase_spends.py
 
         # Broadcast and mine 103_1:
         spend_103_1_id = self.nodes[0].sendrawtransaction(spend_103_1_raw)

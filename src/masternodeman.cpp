@@ -318,6 +318,7 @@ void CMasternodeMan::CheckAndRemove()
             }
         }
 
+<<<<<<< HEAD
         std::map<CNetAddr, CMasternodeVerification>::iterator it3 = mWeAskedForVerification.begin();
         while(it3 != mWeAskedForVerification.end()){
             if(it3->second.nBlockHeight < pCurrentBlockIndex->nHeight - MAX_POSE_BLOCKS) {
@@ -355,6 +356,27 @@ void CMasternodeMan::CheckAndRemove()
 
         if(fMasternodesRemoved) {
             CheckAndRebuildMasternodeIndex();
+=======
+    // remove expired mapSeenMasternodeBroadcast
+    map<uint256, CMasternodeBroadcast>::iterator it3 = mapSeenMasternodeBroadcast.begin();
+    while(it3 != mapSeenMasternodeBroadcast.end()){
+        if((*it3).second.lastPing.sigTime < GetTime() - MASTERNODE_REMOVAL_SECONDS*2){
+            LogPrint("masternode", "CMasternodeMan::CheckAndRemove - Removing expired Masternode broadcast %s\n", (*it3).second.GetHash().ToString());
+            masternodeSync.mapSeenSyncMNB.erase((*it3).second.GetHash());
+            mapSeenMasternodeBroadcast.erase(it3++);
+        } else {
+            ++it3;
+        }
+    }
+
+    // remove expired mapSeenMasternodePing
+    map<uint256, CMasternodePing>::iterator it4 = mapSeenMasternodePing.begin();
+    while(it4 != mapSeenMasternodePing.end()){
+        if((*it4).second.sigTime < GetTime()-(MASTERNODE_REMOVAL_SECONDS*2)){
+            mapSeenMasternodePing.erase(it4++);
+        } else {
+            ++it4;
+>>>>>>> refs/remotes/dashpay/v0.12.0.x
         }
     }
 
@@ -766,8 +788,14 @@ void CMasternodeMan::ProcessMasternodeConnections()
     BOOST_FOREACH(CNode* pnode, vNodes) {
         if(pnode->fMasternode) {
             if(darkSendPool.pSubmittedToMasternode != NULL && pnode->addr == darkSendPool.pSubmittedToMasternode->addr) continue;
+<<<<<<< HEAD
             LogPrintf("Closing Masternode connection: peer=%d, addr=%s\n", pnode->id, pnode->addr.ToString());
             pnode->fDisconnect = true;
+=======
+            LogPrintf("Closing Masternode connection %s \n", pnode->addr.ToString());
+            pnode->fDarkSendMaster = false;
+            pnode->Release();
+>>>>>>> refs/remotes/dashpay/v0.12.0.x
         }
     }
 }
@@ -810,6 +838,7 @@ void CMasternodeMan::ProcessMessage(CNode* pfrom, std::string& strCommand, CData
         CMasternodeBroadcast mnb;
         vRecv >> mnb;
 
+<<<<<<< HEAD
         pfrom->setAskFor.erase(mnb.GetHash());
 
         LogPrint("masternode", "MNANNOUNCE -- Masternode announce, masternode=%s\n", mnb.vin.prevout.ToStringShort());
@@ -825,6 +854,14 @@ void CMasternodeMan::ProcessMessage(CNode* pfrom, std::string& strCommand, CData
 
         if(fMasternodesAdded) {
             NotifyMasternodeUpdates();
+=======
+        int nDoS = 0;
+        if (CheckMnbAndUpdateMasternodeList(mnb, nDoS)) {
+            // use announced Masternode as a peer
+             addrman.Add(CAddress(mnb.addr), pfrom->addr, 2*60*60);
+        } else {
+            if(nDoS > 0) Misbehaving(pfrom->GetId(), nDoS);
+>>>>>>> refs/remotes/dashpay/v0.12.0.x
         }
     } else if (strCommand == NetMsgType::MNPING) { //Masternode Ping
 
@@ -927,6 +964,7 @@ void CMasternodeMan::ProcessMessage(CNode* pfrom, std::string& strCommand, CData
             LogPrintf("DSEG -- Sent %d Masternode invs to peer %d\n", nInvCount, pfrom->id);
             return;
         }
+<<<<<<< HEAD
         // smth weird happen - someone asked us for vin we have no idea about?
         LogPrint("masternode", "DSEG -- No invs sent to peer %d\n", pfrom->id);
 
@@ -1531,6 +1569,8 @@ void CMasternodeMan::CheckAndRebuildMasternodeIndex()
     indexMasternodes.Clear();
     for(size_t i = 0; i < vMasternodes.size(); ++i) {
         indexMasternodes.AddMasternodeVIN(vMasternodes[i].vin);
+=======
+>>>>>>> refs/remotes/dashpay/v0.12.0.x
     }
 
     fIndexRebuilt = true;
@@ -1676,4 +1716,58 @@ void CMasternodeMan::NotifyMasternodeUpdates()
     LOCK(cs);
     fMasternodesAdded = false;
     fMasternodesRemoved = false;
+}
+
+void CMasternodeMan::UpdateMasternodeList(CMasternodeBroadcast mnb) {
+    mapSeenMasternodePing.insert(make_pair(mnb.lastPing.GetHash(), mnb.lastPing));
+    mapSeenMasternodeBroadcast.insert(make_pair(mnb.GetHash(), mnb));
+    masternodeSync.AddedMasternodeList(mnb.GetHash());
+
+    LogPrintf("CMasternodeMan::UpdateMasternodeList() - addr: %s\n    vin: %s\n", mnb.addr.ToString(), mnb.vin.ToString());
+
+    CMasternode* pmn = Find(mnb.vin);
+    if(pmn == NULL)
+    {
+        CMasternode mn(mnb);
+        Add(mn);
+    } else {
+        pmn->UpdateFromNewBroadcast(mnb);
+    }
+}
+
+bool CMasternodeMan::CheckMnbAndUpdateMasternodeList(CMasternodeBroadcast mnb, int& nDos) {
+    nDos = 0;
+    LogPrint("masternode", "CMasternodeMan::CheckMnbAndUpdateMasternodeList - Masternode broadcast, vin: %s\n", mnb.vin.ToString());
+
+    if(mapSeenMasternodeBroadcast.count(mnb.GetHash())) { //seen
+        masternodeSync.AddedMasternodeList(mnb.GetHash());
+        return true;
+    }
+    mapSeenMasternodeBroadcast.insert(make_pair(mnb.GetHash(), mnb));
+
+    LogPrint("masternode", "CMasternodeMan::CheckMnbAndUpdateMasternodeList - Masternode broadcast, vin: %s new\n", mnb.vin.ToString());
+
+    if(!mnb.CheckAndUpdate(nDos)){
+        LogPrint("masternode", "CMasternodeMan::CheckMnbAndUpdateMasternodeList - Masternode broadcast, vin: %s CheckAndUpdate failed\n", mnb.vin.ToString());
+        return false;
+    }
+
+    // make sure the vout that was signed is related to the transaction that spawned the Masternode
+    //  - this is expensive, so it's only done once per Masternode
+    if(!darkSendSigner.IsVinAssociatedWithPubkey(mnb.vin, mnb.pubkey)) {
+        LogPrintf("CMasternodeMan::CheckMnbAndUpdateMasternodeList - Got mismatched pubkey and vin\n");
+        nDos = 33;
+        return false;
+    }
+
+    // make sure it's still unspent
+    //  - this is checked later by .check() in many places and by ThreadCheckDarkSendPool()
+    if(mnb.CheckInputsAndAdd(nDos)) {
+        masternodeSync.AddedMasternodeList(mnb.GetHash());
+    } else {
+        LogPrintf("CMasternodeMan::CheckMnbAndUpdateMasternodeList - Rejected Masternode entry %s\n", mnb.addr.ToString());
+        return false;
+    }
+
+    return true;
 }

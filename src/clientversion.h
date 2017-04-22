@@ -16,8 +16,13 @@
 //! These need to be macros, as clientversion.cpp's and dash*-res.rc's voodoo requires it
 #define CLIENT_VERSION_MAJOR 0
 #define CLIENT_VERSION_MINOR 12
+<<<<<<< HEAD
 #define CLIENT_VERSION_REVISION 1
 #define CLIENT_VERSION_BUILD 5
+=======
+#define CLIENT_VERSION_REVISION 0
+#define CLIENT_VERSION_BUILD 60
+>>>>>>> refs/remotes/dashpay/v0.12.0.x
 
 //! Set to true for release, false for prerelease or test build
 #define CLIENT_VERSION_IS_RELEASE true
@@ -26,7 +31,11 @@
  * Copyright year (2009-this)
  * Todo: update this when changing our copyright comments in the source
  */
+<<<<<<< HEAD
 #define COPYRIGHT_YEAR 2017
+=======
+#define COPYRIGHT_YEAR 2016
+>>>>>>> refs/remotes/dashpay/v0.12.0.x
 
 #endif //HAVE_CONFIG_H
 

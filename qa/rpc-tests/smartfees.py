@@ -255,6 +255,7 @@ class EstimateFeeTest(BitcoinTestFramework):
             self.memutxo = newmem
 
     def run_test(self):
+<<<<<<< HEAD
         self.fees_per_kb = []
         self.memutxo = []
         self.confutxo = self.txouts # Start with the set of confirmed txouts after splitting
@@ -265,6 +266,48 @@ class EstimateFeeTest(BitcoinTestFramework):
             # Create transactions and mine 10 small blocks with node 2, but create txs faster than we can mine
             self.transact_and_mine(10, self.nodes[2])
             check_estimates(self.nodes[1], self.fees_per_kb, 14)
+=======
+        # Prime the memory pool with pairs of transactions
+        # (high-priority, random fee and zero-priority, random fee)
+        min_fee = Decimal("0.00010000")
+        fees_per_kb = [];
+        for i in range(12):
+            (txid, txhex, fee) = random_zeropri_transaction(self.nodes, Decimal("1.1"),
+                                                            min_fee, min_fee, 20)
+            tx_kbytes = (len(txhex)/2)/1000.0
+            fees_per_kb.append(float(fee)/tx_kbytes)
+
+        # Mine blocks with node2 until the memory pool clears:
+        count_start = self.nodes[2].getblockcount()
+        while len(self.nodes[2].getrawmempool()) > 0:
+            self.nodes[2].setgenerate(True, 1)
+            self.sync_all()
+
+        all_estimates = [ self.nodes[0].estimatefee(i) for i in range(1,20) ]
+        print("Fee estimates, super-stingy miner: "+str([str(e) for e in all_estimates]))
+
+        # Estimates should be within the bounds of what transactions fees actually were:
+        delta = 1.0e-5 # account for rounding error
+        for e in filter(lambda x: x >= 0, all_estimates):
+            if float(e)+delta < min(fees_per_kb) or float(e)-delta > max(fees_per_kb):
+                raise AssertionError("Estimated fee (%f) out of range (%f,%f)"%(float(e), min_fee_kb, max_fee_kb))
+
+        # Generate transactions while mining 30 more blocks, this time with node1:
+        for i in range(30):
+            for j in range(random.randrange(6-4,6+4)):
+                (txid, txhex, fee) = random_transaction(self.nodes, Decimal("1.1"),
+                                                        Decimal("0.0"), min_fee, 20)
+                tx_kbytes = (len(txhex)/2)/1000.0
+                fees_per_kb.append(float(fee)/tx_kbytes)
+            self.nodes[1].setgenerate(True, 1)
+            self.sync_all()
+
+        all_estimates = [ self.nodes[0].estimatefee(i) for i in range(1,20) ]
+        print("Fee estimates, more generous miner: "+str([ str(e) for e in all_estimates]))
+        for e in filter(lambda x: x >= 0, all_estimates):
+            if float(e)+delta < min(fees_per_kb) or float(e)-delta > max(fees_per_kb):
+                raise AssertionError("Estimated fee (%f) out of range (%f,%f)"%(float(e), min_fee_kb, max_fee_kb))
+>>>>>>> refs/remotes/dashpay/v0.12.0.x
 
             print("Creating transactions and mining them at a block size that is just big enough")
             # Generate transactions while mining 10 more blocks, this time with node1

@@ -35,7 +35,12 @@ private:
 
     masternode_type_enum_t eType;
 
+<<<<<<< HEAD
     bool fPingerEnabled;
+=======
+    /// Create Masternode broadcast, needs to be relayed manually after that
+    bool CreateBroadcast(CTxIn vin, CService service, CKey key, CPubKey pubKey, CKey keyMasternode, CPubKey pubKeyMasternode, std::string &errorMessage, CMasternodeBroadcast &mnb);
+>>>>>>> refs/remotes/dashpay/v0.12.0.x
 
     /// Ping Masternode
     bool SendMasternodePing();
@@ -65,9 +70,14 @@ public:
     /// Manage state of active Masternode
     void ManageState();
 
+<<<<<<< HEAD
     std::string GetStateString() const;
     std::string GetStatus() const;
     std::string GetTypeString() const;
+=======
+    /// Create Masternode broadcast, needs to be relayed manually after that
+    bool CreateBroadcast(std::string strService, std::string strKey, std::string strTxHash, std::string strOutputIndex, std::string& errorMessage, CMasternodeBroadcast &mnb, bool fOffline = false);
+>>>>>>> refs/remotes/dashpay/v0.12.0.x
 
 private:
     void ManageStateInitial();

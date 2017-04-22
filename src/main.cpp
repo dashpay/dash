@@ -1743,6 +1743,7 @@ CAmount GetBlockSubsidy(int nPrevBits, int nPrevHeight, const Consensus::Params&
     double dDiff;
     CAmount nSubsidyBase;
 
+<<<<<<< HEAD
     if (nPrevHeight <= 4500 && Params().NetworkIDString() == CBaseChainParams::MAIN) {
         /* a bug which caused diff to not be correctly calculated */
         dDiff = (double)0x0000ffff / (double)(nPrevBits & 0x00ffffff);
@@ -1762,6 +1763,23 @@ CAmount GetBlockSubsidy(int nPrevBits, int nPrevHeight, const Consensus::Params&
         nSubsidyBase = (11111.0 / (pow((dDiff+51.0)/6.0,2.0)));
         if(nSubsidyBase > 500) nSubsidyBase = 500;
         else if(nSubsidyBase < 25) nSubsidyBase = 25;
+=======
+    /* fixed bug caused diff to not be correctly calculated */
+    if(nHeight > 4500 || Params().NetworkID() != CBaseChainParams::MAIN) dDiff = ConvertBitsToDouble(nBits);
+
+    int64_t nSubsidy = 0;
+    if(nHeight >= 5465) {
+        if((nHeight >= 17000 && dDiff > 75) || nHeight >= 24000) { // GPU/ASIC difficulty calc
+            // 2222222/(((x+2600)/9)^2)
+            nSubsidy = (2222222.0 / (pow((dDiff+2600.0)/9.0,2.0)));
+            if (nSubsidy > 25) nSubsidy = 25;
+            if (nSubsidy < 5) nSubsidy = 5;
+        } else { // CPU mining calc
+            nSubsidy = (11111.0 / (pow((dDiff+51.0)/6.0,2.0)));
+            if (nSubsidy > 500) nSubsidy = 500;
+            if (nSubsidy < 25) nSubsidy = 25;
+        }
+>>>>>>> refs/remotes/dashpay/v0.12.0.x
     } else {
         // GPU/ASIC mining era
         // 2222222/(((x+2600)/9)^2)

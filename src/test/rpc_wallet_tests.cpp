@@ -97,6 +97,7 @@ BOOST_AUTO_TEST_CASE(rpc_wallet)
     BOOST_CHECK_THROW(CallRPC("setaccount"), runtime_error);
     /* 1D1ZrZNe3JUo7ZycKEYQQiQAWd9y54F4X (33 chars) is an illegal address (should be 34 chars) */
     BOOST_CHECK_THROW(CallRPC("setaccount XnhQgp2Y11hPGWaCB7rdGF5xLxjf2kBZC nullaccount"), runtime_error);
+<<<<<<< HEAD
 
 
     /*********************************
@@ -104,6 +105,8 @@ BOOST_AUTO_TEST_CASE(rpc_wallet)
      *********************************/
     BOOST_CHECK_NO_THROW(CallRPC("getbalance"));
     BOOST_CHECK_NO_THROW(CallRPC("getbalance " + demoAddress.ToString()));
+=======
+>>>>>>> refs/remotes/dashpay/v0.12.0.x
 
     /*********************************
      * 			listunspent

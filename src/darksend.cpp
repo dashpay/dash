@@ -1490,12 +1490,51 @@ bool CDarksendPool::DoAutomaticDenominating(bool fDryRun)
                 continue;
             }
 
+<<<<<<< HEAD
             if(pmn->nProtocolVersion < MIN_PRIVATESEND_PEER_PROTO_VERSION) continue;
 
             std::vector<int> vecBits;
             if(!GetDenominationsBits(dsq.nDenom, vecBits)) {
                 // incompatible denom
                 continue;
+=======
+                std::vector<CTxIn> vTempCoins;
+                std::vector<COutput> vTempCoins2;
+                // Try to match their denominations if possible
+                if (!pwalletMain->SelectCoinsByDenominations(dsq.nDenom, nValueMin, nBalanceNeedsAnonymized, vTempCoins, vTempCoins2, nValueIn, 0, nDarksendRounds)){
+                    LogPrintf("DoAutomaticDenominating --- Couldn't match denominations %d\n", dsq.nDenom);
+                    continue;
+                }
+
+                CMasternode* pmn = mnodeman.Find(dsq.vin);
+                if(pmn == NULL)
+                {
+                    LogPrintf("DoAutomaticDenominating --- dsq vin %s is not in masternode list!", dsq.vin.ToString());
+                    continue;
+                }
+
+                LogPrintf("DoAutomaticDenominating --- attempt to connect to masternode from queue %s\n", pmn->addr.ToString());
+                lastTimeChanged = GetTimeMillis();
+                // connect to Masternode and submit the queue request
+                CNode* pnode = ConnectNode((CAddress)addr, NULL, true);
+                if(pnode != NULL)
+                {
+                    pSubmittedToMasternode = pmn;
+                    vecMasternodesUsed.push_back(dsq.vin);
+                    sessionDenom = dsq.nDenom;
+
+                    pnode->PushMessage("dsa", sessionDenom, txCollateral);
+                    LogPrintf("DoAutomaticDenominating --- connected (from queue), sending dsa for %d - %s\n", sessionDenom, pnode->addr.ToString());
+                    strAutoDenomResult = _("Mixing in progress...");
+                    dsq.time = 0; //remove node
+                    return true;
+                } else {
+                    LogPrintf("DoAutomaticDenominating --- error connecting \n");
+                    strAutoDenomResult = _("Error connecting to Masternode.");
+                    dsq.time = 0; //remove node
+                    continue;
+                }
+>>>>>>> refs/remotes/dashpay/v0.12.0.x
             }
 
             // mixing rate limit i.e. nLastDsq check should already pass in DSQUEUE ProcessMessage
@@ -1514,6 +1553,7 @@ bool CDarksendPool::DoAutomaticDenominating(bool fDryRun)
                 continue;
             }
 
+<<<<<<< HEAD
             vecMasternodesUsed.push_back(dsq.vin);
 
             CNode* pnodeFound = NULL;
@@ -1528,6 +1568,14 @@ bool CDarksendPool::DoAutomaticDenominating(bool fDryRun)
                     }
                 }
             }
+=======
+            lastTimeChanged = GetTimeMillis();
+            LogPrintf("DoAutomaticDenominating --- attempt %d connection to Masternode %s\n", i, pmn->addr.ToString());
+            CNode* pnode = ConnectNode((CAddress)pmn->addr, NULL, true);
+            if(pnode != NULL){
+                pSubmittedToMasternode = pmn;
+                vecMasternodesUsed.push_back(pmn->vin);
+>>>>>>> refs/remotes/dashpay/v0.12.0.x
 
             LogPrintf("CDarksendPool::DoAutomaticDenominating -- attempt to connect to masternode from queue, addr=%s\n", pmn->addr.ToString());
             // connect to Masternode and submit the queue request
@@ -2313,6 +2361,7 @@ bool CDarkSendSigner::VerifyMessage(CPubKey pubkey, const std::vector<unsigned c
         return false;
     }
 
+<<<<<<< HEAD
     return true;
 }
 
@@ -2331,6 +2380,16 @@ bool CDarkSendEntry::AddScriptSig(const CTxIn& txin)
     }
 
     return false;
+=======
+    if (pubkey2.GetID() != pubkey.GetID()) {
+        errorMessage = strprintf("keys don't match - input: %s, recovered: %s, message: %s, sig: %s\n",
+                    pubkey.GetID().ToString(), pubkey2.GetID().ToString(), strMessage,
+                    EncodeBase64(&vchSig[0], vchSig.size()));
+        return false;
+    }
+
+    return true;
+>>>>>>> refs/remotes/dashpay/v0.12.0.x
 }
 
 bool CDarksendQueue::Sign()

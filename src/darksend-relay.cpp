@@ -103,10 +103,16 @@ void CDarkSendRelay::RelayThroughNode(int nRank)
 
     if(pmn != NULL){
         //printf("RelayThroughNode %s\n", pmn->addr.ToString().c_str());
+<<<<<<< HEAD
         CNode* pnode = ConnectNode((CAddress)pmn->addr, NULL);
         if(pnode) {
+=======
+        CNode* pnode = ConnectNode((CAddress)pmn->addr, NULL, false);
+        if(pnode){
+>>>>>>> refs/remotes/dashpay/v0.12.0.x
             //printf("Connected\n");
             pnode->PushMessage("dsr", (*this));
+            pnode->Release();
             return;
         }
     } else {

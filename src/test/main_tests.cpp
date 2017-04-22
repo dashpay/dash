@@ -49,6 +49,7 @@ BOOST_AUTO_TEST_CASE(block_subsidy_test)
 
 BOOST_AUTO_TEST_CASE(subsidy_limit_test)
 {
+<<<<<<< HEAD
     // tested in dash_tests.cpp
     //const Consensus::Params& consensusParams = Params(CBaseChainParams::MAIN).GetConsensus();
     //CAmount nSum = 0;
@@ -60,6 +61,17 @@ BOOST_AUTO_TEST_CASE(subsidy_limit_test)
     //    BOOST_CHECK(MoneyRange(nSum));
     //}
     //BOOST_CHECK_EQUAL(nSum, 1350824726649000ULL);
+=======
+    CAmount nSum = 0;
+    for (int nHeight = 0; nHeight < 14000000; nHeight += 1000) {
+        /* @TODO fix subsidity, add nBits */
+        CAmount nSubsidy = GetBlockValue(0, nHeight, 0);
+        BOOST_CHECK(nSubsidy <= 25 * COIN);
+        nSum += nSubsidy * 1000;
+        BOOST_CHECK(MoneyRange(nSum));
+    }
+    BOOST_CHECK(nSum == 1350824726649000ULL);
+>>>>>>> refs/remotes/dashpay/v0.12.0.x
 }
 
 bool ReturnFalse() { return false; }

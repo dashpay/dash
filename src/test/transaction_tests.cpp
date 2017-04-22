@@ -335,16 +335,22 @@ BOOST_AUTO_TEST_CASE(test_IsStandard)
     string reason;
     BOOST_CHECK(IsStandardTx(t, reason));
 
+<<<<<<< HEAD
     // Check dust with default relay fee:
     CAmount nDustThreshold = 182 * minRelayTxFee.GetFeePerK()/1000 * 3;
     BOOST_CHECK_EQUAL(nDustThreshold, 5460);
     // dust:
     t.vout[0].nValue = nDustThreshold - 1;
+=======
+    // Dash minRelayTxFee is 10000, typical tx is dust below 5460 sat    
+    t.vout[0].nValue = 5010; // dust
+>>>>>>> refs/remotes/dashpay/v0.12.0.x
     BOOST_CHECK(!IsStandardTx(t, reason));
     // not dust:
     t.vout[0].nValue = nDustThreshold;
     BOOST_CHECK(IsStandardTx(t, reason));
 
+<<<<<<< HEAD
     // Check dust with odd relay fee to verify rounding:
     // nDustThreshold = 182 * 12340 / 1000 * 3
     minRelayTxFee = CFeeRate(12340);
@@ -353,6 +359,10 @@ BOOST_AUTO_TEST_CASE(test_IsStandard)
     BOOST_CHECK(!IsStandardTx(t, reason));
     // not dust:
     t.vout[0].nValue = 6735;
+=======
+    // Dash minRelayTxFee is 10000, typical tx is dust below 5460 sat
+    t.vout[0].nValue = 6010; // not dust
+>>>>>>> refs/remotes/dashpay/v0.12.0.x
     BOOST_CHECK(IsStandardTx(t, reason));
     minRelayTxFee = CFeeRate(DEFAULT_MIN_RELAY_TX_FEE);
 

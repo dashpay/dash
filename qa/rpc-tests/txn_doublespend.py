@@ -28,6 +28,7 @@ class TxnMallTest(BitcoinTestFramework):
             self.nodes[i].getnewaddress("")  # bug workaround, coins generated assigned to first getnewaddress!
         
         # Assign coins to foo and bar accounts:
+<<<<<<< HEAD
         node0_address_foo = self.nodes[0].getnewaddress("foo")
         fund_foo_txid = self.nodes[0].sendfrom("", node0_address_foo, 12190)
         fund_foo_tx = self.nodes[0].gettransaction(fund_foo_txid)
@@ -38,10 +39,16 @@ class TxnMallTest(BitcoinTestFramework):
 
         assert_equal(self.nodes[0].getbalance(""),
                      starting_balance - 12190 - 290 + fund_foo_tx["fee"] + fund_bar_tx["fee"])
+=======
+        self.nodes[0].move("", "foo", 12470)
+        self.nodes[0].move("", "bar", 30)
+        assert_equal(self.nodes[0].getbalance(""), 0)
+>>>>>>> refs/remotes/dashpay/v0.12.0.x
 
         # Coins are sent to node1_address
         node1_address = self.nodes[1].getnewaddress("from0")
 
+<<<<<<< HEAD
         # First: use raw transaction API to send 12400 DASH to node1_address,
         # but don't broadcast:
         doublespend_fee = Decimal('-.02')
@@ -56,13 +63,30 @@ class TxnMallTest(BitcoinTestFramework):
         outputs = {}
         outputs[node1_address] = 12400
         outputs[change_address] = 12480 - 12400 + doublespend_fee
+=======
+        # First: use raw transaction API to send 12460 BTC to node1_address,
+        # but don't broadcast:
+        (total_in, inputs) = gather_inputs(self.nodes[0], 12460)
+        change_address = self.nodes[0].getnewaddress("foo")
+        outputs = {}
+        outputs[change_address] = 40
+        outputs[node1_address] = 12460
+>>>>>>> refs/remotes/dashpay/v0.12.0.x
         rawtx = self.nodes[0].createrawtransaction(inputs, outputs)
         doublespend = self.nodes[0].signrawtransaction(rawtx)
         assert_equal(doublespend["complete"], True)
 
+<<<<<<< HEAD
         # Create two spends using 1 500 DASH coin each
         txid1 = self.nodes[0].sendfrom("foo", node1_address, 400, 0)
         txid2 = self.nodes[0].sendfrom("bar", node1_address, 200, 0)
+=======
+        # Create two transaction from node[0] to node[1]; the
+        # second must spend change from the first because the first
+        # spends all mature inputs:
+        txid1 = self.nodes[0].sendfrom("foo", node1_address, 12460, 0)
+        txid2 = self.nodes[0].sendfrom("bar", node1_address, 20, 0)
+>>>>>>> refs/remotes/dashpay/v0.12.0.x
         
         # Have node0 mine a block:
         if (self.options.mine_block):
@@ -72,17 +96,28 @@ class TxnMallTest(BitcoinTestFramework):
         tx1 = self.nodes[0].gettransaction(txid1)
         tx2 = self.nodes[0].gettransaction(txid2)
 
+<<<<<<< HEAD
         # Node0's balance should be starting balance, plus 500DASH for another
         # matured block, minus 400, minus 200, and minus transaction fees:
         expected = starting_balance + fund_foo_tx["fee"] + fund_bar_tx["fee"]
+=======
+        # Node0's balance should be starting balance, plus 500 DASH for another
+        # matured block, minus 12460, minus 20, and minus transaction fees:
+        expected = starting_balance
+>>>>>>> refs/remotes/dashpay/v0.12.0.x
         if self.options.mine_block: expected += 500
         expected += tx1["amount"] + tx1["fee"]
         expected += tx2["amount"] + tx2["fee"]
         assert_equal(self.nodes[0].getbalance(), expected)
 
         # foo and bar accounts should be debited:
+<<<<<<< HEAD
         assert_equal(self.nodes[0].getbalance("foo", 0), 12190+tx1["amount"]+tx1["fee"])
         assert_equal(self.nodes[0].getbalance("bar", 0), 290+tx2["amount"]+tx2["fee"])
+=======
+        assert_equal(self.nodes[0].getbalance("foo"), 12470+tx1["amount"]+tx1["fee"])
+        assert_equal(self.nodes[0].getbalance("bar"), 30+tx2["amount"]+tx2["fee"])
+>>>>>>> refs/remotes/dashpay/v0.12.0.x
 
         if self.options.mine_block:
             assert_equal(tx1["confirmations"], 1)
@@ -114,6 +149,7 @@ class TxnMallTest(BitcoinTestFramework):
         assert_equal(tx1["confirmations"], -2)
         assert_equal(tx2["confirmations"], -2)
 
+<<<<<<< HEAD
         # Node0's total balance should be starting balance, plus 1000DASH for
         # two more matured blocks, minus 12400 for the double-spend, plus fees (which are
         # negative):
@@ -136,6 +172,20 @@ class TxnMallTest(BitcoinTestFramework):
 
         # Node1's "from0" account balance should be just the doublespend:
         assert_equal(self.nodes[1].getbalance("from0"), 12400)
+=======
+        # Node0's total balance should be starting balance, plus 1000 DASH for 
+        # two more matured blocks, minus 12460 for the double-spend:
+        expected = starting_balance + 1000 - 12460
+        assert_equal(self.nodes[0].getbalance(), expected)
+        assert_equal(self.nodes[0].getbalance("*"), expected)
+
+        # foo account should be debited, but bar account should not:
+        assert_equal(self.nodes[0].getbalance("foo"), 12470-12460)
+        assert_equal(self.nodes[0].getbalance("bar"), 30)
+
+        # Node1's "from" account balance should be just the mutated send:
+        assert_equal(self.nodes[1].getbalance("from0"), 12460)
+>>>>>>> refs/remotes/dashpay/v0.12.0.x
 
 if __name__ == '__main__':
     TxnMallTest().main()

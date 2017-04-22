@@ -15,7 +15,11 @@ packages:
 - "faketime"
 - "bsdmainutils"
 - "binutils-gold"
+<<<<<<< HEAD
 reference_datetime: "2017-01-01 00:00:00"
+=======
+reference_datetime: "2016-01-01 00:00:00"
+>>>>>>> refs/remotes/dashpay/v0.12.0.x
 remotes:
 - "url": "https://github.com/dashpay/dash.git"
   "dir": "dash"

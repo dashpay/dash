@@ -333,6 +333,7 @@ void CMasternodePayments::ProcessMessage(CNode* pfrom, std::string& strCommand, 
 
     } else if (strCommand == NetMsgType::MASTERNODEPAYMENTVOTE) { // Masternode Payments Vote for the Winner
 
+<<<<<<< HEAD
         CMasternodePaymentVote vote;
         vRecv >> vote;
 
@@ -361,6 +362,24 @@ void CMasternodePayments::ProcessMessage(CNode* pfrom, std::string& strCommand, 
         int nFirstBlock = pCurrentBlockIndex->nHeight - GetStorageLimit();
         if(vote.nBlockHeight < nFirstBlock || vote.nBlockHeight > pCurrentBlockIndex->nHeight+20) {
             LogPrint("mnpayments", "MASTERNODEPAYMENTVOTE -- vote out of range: nFirstBlock=%d, nBlockHeight=%d, nHeight=%d\n", nFirstBlock, vote.nBlockHeight, pCurrentBlockIndex->nHeight);
+=======
+        int nHeight;
+        {
+            TRY_LOCK(cs_main, locked);
+            if(!locked || chainActive.Tip() == NULL) return;
+            nHeight = chainActive.Tip()->nHeight;
+        }
+
+        if(masternodePayments.mapMasternodePayeeVotes.count(winner.GetHash())){
+            LogPrint("mnpayments", "mnw - Already seen - %s bestHeight %d\n", winner.GetHash().ToString().c_str(), nHeight);
+            masternodeSync.AddedMasternodeWinner(winner.GetHash());
+            return;
+        }
+
+        int nFirstBlock = nHeight - (mnodeman.CountEnabled()*1.25);
+        if(winner.nBlockHeight < nFirstBlock || winner.nBlockHeight > nHeight+20){
+            LogPrint("mnpayments", "mnw - winner out of range - FirstBlock %d Height %d bestHeight %d\n", nFirstBlock, winner.nBlockHeight, nHeight);
+>>>>>>> refs/remotes/dashpay/v0.12.0.x
             return;
         }
 
@@ -405,7 +424,11 @@ void CMasternodePayments::ProcessMessage(CNode* pfrom, std::string& strCommand, 
         ExtractDestination(vote.payee, address1);
         CBitcoinAddress address2(address1);
 
+<<<<<<< HEAD
         LogPrint("mnpayments", "MASTERNODEPAYMENTVOTE -- vote: address=%s, nBlockHeight=%d, nHeight=%d, prevout=%s\n", address2.ToString(), vote.nBlockHeight, pCurrentBlockIndex->nHeight, vote.vinMasternode.prevout.ToStringShort());
+=======
+        LogPrint("mnpayments", "mnw - winning vote - Addr %s Height %d bestHeight %d - %s\n", address2.ToString().c_str(), winner.nBlockHeight, nHeight, winner.vinMasternode.prevout.ToStringShort());
+>>>>>>> refs/remotes/dashpay/v0.12.0.x
 
         if(AddPaymentVote(vote)){
             vote.Relay();
@@ -449,13 +472,26 @@ bool CMasternodePayments::IsScheduled(CMasternode& mn, int nNotBlockHeight)
 {
     LOCK(cs_mapMasternodeBlocks);
 
+<<<<<<< HEAD
     if(!pCurrentBlockIndex) return false;
+=======
+    int nHeight;
+    {
+        TRY_LOCK(cs_main, locked);
+        if(!locked || chainActive.Tip() == NULL) return false;
+        nHeight = chainActive.Tip()->nHeight;
+    }
+>>>>>>> refs/remotes/dashpay/v0.12.0.x
 
     CScript mnpayee;
     mnpayee = GetScriptForDestination(mn.pubKeyCollateralAddress.GetID());
 
     CScript payee;
+<<<<<<< HEAD
     for(int64_t h = pCurrentBlockIndex->nHeight; h <= pCurrentBlockIndex->nHeight + 8; h++){
+=======
+    for(int64_t h = nHeight; h <= nHeight+8; h++){
+>>>>>>> refs/remotes/dashpay/v0.12.0.x
         if(h == nNotBlockHeight) continue;
         if(mapMasternodeBlocks.count(h) && mapMasternodeBlocks[h].GetBestPayee(payee) && mnpayee == payee) {
             return true;
@@ -634,7 +670,16 @@ void CMasternodePayments::CheckAndRemove()
 {
     if(!pCurrentBlockIndex) return;
 
+<<<<<<< HEAD
     LOCK2(cs_mapMasternodeBlocks, cs_mapMasternodePaymentVotes);
+=======
+    int nHeight;
+    {
+        TRY_LOCK(cs_main, locked);
+        if(!locked || chainActive.Tip() == NULL) return;
+        nHeight = chainActive.Tip()->nHeight;
+    }
+>>>>>>> refs/remotes/dashpay/v0.12.0.x
 
     int nLimit = GetStorageLimit();
 
@@ -642,10 +687,18 @@ void CMasternodePayments::CheckAndRemove()
     while(it != mapMasternodePaymentVotes.end()) {
         CMasternodePaymentVote vote = (*it).second;
 
+<<<<<<< HEAD
         if(pCurrentBlockIndex->nHeight - vote.nBlockHeight > nLimit) {
             LogPrint("mnpayments", "CMasternodePayments::CheckAndRemove -- Removing old Masternode payment: nBlockHeight=%d\n", vote.nBlockHeight);
             mapMasternodePaymentVotes.erase(it++);
             mapMasternodeBlocks.erase(vote.nBlockHeight);
+=======
+        if(nHeight - winner.nBlockHeight > nLimit){
+            LogPrint("mnpayments", "CMasternodePayments::CleanPaymentList - Removing old Masternode payment - block %d\n", winner.nBlockHeight);
+            masternodeSync.mapSeenSyncMNW.erase((*it).first);
+            mapMasternodePayeeVotes.erase(it++);
+            mapMasternodeBlocks.erase(winner.nBlockHeight);
+>>>>>>> refs/remotes/dashpay/v0.12.0.x
         } else {
             ++it;
         }
@@ -810,10 +863,19 @@ std::string CMasternodePaymentVote::ToString() const
 {
     std::ostringstream info;
 
+<<<<<<< HEAD
     info << vinMasternode.prevout.ToStringShort() <<
             ", " << nBlockHeight <<
             ", " << ScriptToAsmStr(payee) <<
             ", " << (int)vchSig.size();
+=======
+    int nHeight;
+    {
+        TRY_LOCK(cs_main, locked);
+        if(!locked || chainActive.Tip() == NULL) return;
+        nHeight = chainActive.Tip()->nHeight;
+    }
+>>>>>>> refs/remotes/dashpay/v0.12.0.x
 
     return info.str();
 }
@@ -826,6 +888,7 @@ void CMasternodePayments::Sync(CNode* pnode)
     if(!pCurrentBlockIndex) return;
 
     int nInvCount = 0;
+<<<<<<< HEAD
 
     for(int h = pCurrentBlockIndex->nHeight; h < pCurrentBlockIndex->nHeight + 20; h++) {
         if(mapMasternodeBlocks.count(h)) {
@@ -837,6 +900,14 @@ void CMasternodePayments::Sync(CNode* pnode)
                     nInvCount++;
                 }
             }
+=======
+    std::map<uint256, CMasternodePaymentWinner>::iterator it = mapMasternodePayeeVotes.begin();
+    while(it != mapMasternodePayeeVotes.end()) {
+        CMasternodePaymentWinner winner = (*it).second;
+        if(winner.nBlockHeight >= nHeight-nCountNeeded && winner.nBlockHeight <= nHeight + 20) {
+            node->PushInventory(CInv(MSG_MASTERNODE_WINNER, winner.GetHash()));
+            nInvCount++;
+>>>>>>> refs/remotes/dashpay/v0.12.0.x
         }
     }
 

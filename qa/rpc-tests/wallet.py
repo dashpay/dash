@@ -5,8 +5,29 @@
 # Distributed under the MIT software license, see the accompanying
 # file COPYING or http://www.opensource.org/licenses/mit-license.php.
 
+<<<<<<< HEAD
 from test_framework.test_framework import BitcoinTestFramework
 from test_framework.util import *
+=======
+#
+# Exercise the wallet.  Ported from wallet.sh.  
+# Does the following:
+#   a) creates 3 nodes, with an empty chain (no blocks).
+#   b) node0 mines a block
+#   c) node1 mines 101 blocks, so now nodes 0 and 1 have 500 DASH, node2 has none. 
+#   d) node0 sends 21 DASH to node2, in two transactions (11 DASH, then 10 DASH).
+#   e) node0 mines a block, collects the fee on the second transaction
+#   f) node1 mines 100 blocks, to mature node0's just-mined block
+#   g) check that node0 has 1000-21, node2 has 21
+#   h) node0 should now have 2 unspent outputs;  send these to node2 via raw tx broadcast by node1
+#   i) have node1 mine a block
+#   j) check balances - node0 should have 0, node2 should have 1000
+#
+
+from test_framework import BitcoinTestFramework
+from util import *
+
+>>>>>>> refs/remotes/dashpay/v0.12.0.x
 
 class WalletTest (BitcoinTestFramework):
 
@@ -56,12 +77,16 @@ class WalletTest (BitcoinTestFramework):
         assert_equal(self.nodes[1].getbalance(), 500)
         assert_equal(self.nodes[2].getbalance(), 0)
 
+<<<<<<< HEAD
         # Check that only first and second nodes have UTXOs
         assert_equal(len(self.nodes[0].listunspent()), 1)
         assert_equal(len(self.nodes[1].listunspent()), 1)
         assert_equal(len(self.nodes[2].listunspent()), 0)
 
         # Send 210 DASH from 0 to 2 using sendtoaddress call.
+=======
+        # Send 21 DASH from 0 to 2 using sendtoaddress call.
+>>>>>>> refs/remotes/dashpay/v0.12.0.x
         # Second transaction will be child of first, and will require a fee
         self.nodes[0].sendtoaddress(self.nodes[2].getnewaddress(), 110)
         self.nodes[0].sendtoaddress(self.nodes[2].getnewaddress(), 100)
@@ -87,9 +112,15 @@ class WalletTest (BitcoinTestFramework):
         self.sync_all()
 
         # node0 should end up with 1000 DASH in block rewards plus fees, but
+<<<<<<< HEAD
         # minus the 210 plus fees sent to node2
         assert_equal(self.nodes[0].getbalance(), 1000-210)
         assert_equal(self.nodes[2].getbalance(), 210)
+=======
+        # minus the 21 plus fees sent to node2
+        assert_equal(self.nodes[0].getbalance(), 1000-21)
+        assert_equal(self.nodes[2].getbalance(), 21)
+>>>>>>> refs/remotes/dashpay/v0.12.0.x
 
         # Node0 should have two unspent outputs.
         # Create a couple of transactions to send them to node2, submit them through
@@ -117,6 +148,7 @@ class WalletTest (BitcoinTestFramework):
 
         assert_equal(self.nodes[0].getbalance(), 0)
         assert_equal(self.nodes[2].getbalance(), 1000)
+<<<<<<< HEAD
         assert_equal(self.nodes[2].getbalance("from1"), 1000-210)
 
         # Send 100 DASH normal
@@ -337,6 +369,9 @@ class WalletTest (BitcoinTestFramework):
                 # reindex will leave rpc warm up "early"; Wait for it to finish
                 time.sleep(0.1)
             assert_equal(balance_nodes, [self.nodes[i].getbalance() for i in range(3)])
+=======
+        assert_equal(self.nodes[2].getbalance("from1"), 1000-21)
+>>>>>>> refs/remotes/dashpay/v0.12.0.x
 
         # Exercise listsinceblock with the last two blocks
         coinbase_tx_1 = self.nodes[0].listsinceblock(blocks[0])

@@ -52,7 +52,11 @@
     ["-create",
      "in=4d49a71ec9da436f71ec4ee231d04f292a29cd316f598bb7068feccabdc59485:0",
      "set=privatekeys:[\"7qYrzJZWqnyCWMYswFcqaRJypGdVceudXPSxmZKsngN7fyo7aAV\"]",
+<<<<<<< HEAD
      "set=prevtxs:[{\"txid\":\"4d49a71ec9da436f71ec4ee231d04f292a29cd316f598bb7068feccabdc59485\",\"vout\":0,\"scriptPubKey\":\"76a91491b24bf9f5288532960ac687abb035127b1d28a588ac\"}]",
+=======
+     "set=prevtxs:[{\"txid\":\"4d49a71ec9da436f71ec4ee231d04f292a29cd316f598bb7068feccabdc59485\",\"vout\":0,\"scriptPubKey\":\"4d49a71ec9da436f71ec4ee231d04f292a29cd316f598bb7068feccabdc59485\"}]",
+>>>>>>> refs/remotes/dashpay/v0.12.0.x
      "sign=ALL",
      "outaddr=0.001:XijDvbYpPmznwgpWD3DkdYNfGmRP2KoVSk"],
     "output_cmp": "txcreatesign.hex"
