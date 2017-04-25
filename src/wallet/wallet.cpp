@@ -813,8 +813,12 @@ bool CWallet::EncryptWallet(const SecureString& strWalletPassphrase)
         Unlock(strWalletPassphrase);
 
         // if we are not using HD, generate new keypool
-        if(!IsHDEnabled())
+        if(IsHDEnabled()) {
+            TopUpKeyPool();
+        }
+        else {
             NewKeyPool();
+        }
 
         Lock();
 
