@@ -1127,7 +1127,7 @@ int CWallet::GetInputPrivateSendRounds(CTxIn txin) const
 {
     LOCK(cs_wallet);
     int realPrivateSendRounds = GetRealInputPrivateSendRounds(txin, 0);
-    return realPrivateSendRounds > nPrivateSendRounds ? nPrivateSendRounds : realPrivateSendRounds;
+    return realPrivateSendRounds > privateSendClient.nPrivateSendRounds ? privateSendClient.nPrivateSendRounds : realPrivateSendRounds;
 }
 
 bool CWallet::IsDenominated(const CTxIn &txin) const
@@ -1667,7 +1667,7 @@ CAmount CWalletTx::GetAnonymizedCredit(bool fUseCache) const
         if(pwallet->IsSpent(hashTx, i) || !pwallet->IsDenominated(txin)) continue;
 
         const int nRounds = pwallet->GetInputPrivateSendRounds(txin);
-        if(nRounds >= nPrivateSendRounds){
+        if(nRounds >= privateSendClient.nPrivateSendRounds){
             nCredit += pwallet->GetCredit(txout, ISMINE_SPENDABLE);
             if (!MoneyRange(nCredit))
                 throw std::runtime_error("CWalletTx::GetAnonymizedCredit() : value out of range");
@@ -1953,7 +1953,7 @@ CAmount CWallet::GetNormalizedAnonymizedBalance() const
                 if (pcoin->GetDepthInMainChain() < 0) continue;
 
                 int nRounds = GetInputPrivateSendRounds(txin);
-                nTotal += pcoin->vout[i].nValue * nRounds / nPrivateSendRounds;
+                nTotal += pcoin->vout[i].nValue * nRounds / privateSendClient.nPrivateSendRounds;
             }
         }
     }
@@ -1966,7 +1966,7 @@ CAmount CWallet::GetNeedsToBeAnonymizedBalance(CAmount nMinBalance) const
     if(fLiteMode) return 0;
 
     CAmount nAnonymizedBalance = GetAnonymizedBalance();
-    CAmount nNeedsToAnonymizeBalance = nPrivateSendAmount*COIN - nAnonymizedBalance;
+    CAmount nNeedsToAnonymizeBalance = privateSendClient.nPrivateSendAmount*COIN - nAnonymizedBalance;
 
     // try to overshoot target DS balance up to nMinBalance
     nNeedsToAnonymizeBalance += nMinBalance;
@@ -2353,7 +2353,7 @@ bool CWallet::SelectCoins(const CAmount& nTargetValue, set<pair<const CWalletTx*
                 CTxIn txin = CTxIn(out.tx->GetHash(),out.i);
                 int nRounds = GetInputPrivateSendRounds(txin);
                 // make sure it's actually anonymized
-                if(nRounds < nPrivateSendRounds) continue;
+                if(nRounds < privateSendClient.nPrivateSendRounds) continue;
             }
             nValueRet += out.tx->vout[out.i].nValue;
             setCoinsRet.insert(make_pair(out.tx, out.i));
@@ -2375,7 +2375,7 @@ bool CWallet::SelectCoins(const CAmount& nTargetValue, set<pair<const CWalletTx*
                     CTxIn txin = CTxIn(out.tx->GetHash(),out.i);
                     int nRounds = GetInputPrivateSendRounds(txin);
                     // make sure it's actually anonymized
-                    if(nRounds < nPrivateSendRounds) continue;
+                    if(nRounds < privateSendClient.nPrivateSendRounds) continue;
                     nValueRet += nDenom;
                     setCoinsRet.insert(make_pair(out.tx, out.i));
                 }
@@ -2596,7 +2596,7 @@ bool CWallet::SelectCoinsGrouppedByAddresses(std::vector<CompactTallyItem>& vecT
                 // otherwise they will just lead to higher fee / lower priority
                 if(wtx.vout[i].nValue <= vecPrivateSendDenominations.back()/10) continue;
                 // ignore anonymized
-                if(GetInputPrivateSendRounds(CTxIn(wtx.GetHash(), i)) >= nPrivateSendRounds) continue;
+                if(GetInputPrivateSendRounds(CTxIn(wtx.GetHash(), i)) >= privateSendClient.nPrivateSendRounds) continue;
             }
 
             CompactTallyItem& item = mapTally[address];
@@ -3446,7 +3446,7 @@ bool CWallet::NewKeyPool()
         BOOST_FOREACH(int64_t nIndex, setKeyPool)
             walletdb.ErasePool(nIndex);
         setKeyPool.clear();
-        fEnablePrivateSend = false;
+        privateSendClient.fEnablePrivateSend = false;
         nKeysLeftSinceAutoBackup = 0;
 
         if (IsLocked(true))

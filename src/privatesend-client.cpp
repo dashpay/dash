@@ -14,12 +14,6 @@
 #include "util.h"
 #include "utilmoneystr.h"
 
-int nPrivateSendRounds = DEFAULT_PRIVATESEND_ROUNDS;
-int nPrivateSendAmount = DEFAULT_PRIVATESEND_AMOUNT;
-int nLiquidityProvider = DEFAULT_PRIVATESEND_LIQUIDITY;
-bool fEnablePrivateSend = false;
-bool fPrivateSendMultiSession = DEFAULT_PRIVATESEND_MULTISESSION;
-
 CPrivateSendClient privateSendClient;
 
 void CPrivateSendClient::ProcessMessage(CNode* pfrom, std::string& strCommand, CDataStream& vRecv)

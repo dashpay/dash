@@ -24,12 +24,6 @@ static const int PRIVATESEND_KEYS_THRESHOLD_WARNING = 100;
 // Stop mixing completely, it's too dangerous to continue when we have only this many keys left
 static const int PRIVATESEND_KEYS_THRESHOLD_STOP    = 50;
 
-extern int nPrivateSendRounds;
-extern int nPrivateSendAmount;
-extern int nLiquidityProvider;
-extern bool fEnablePrivateSend;
-extern bool fPrivateSendMultiSession;
-
 // The main object for accessing mixing
 extern CPrivateSendClient privateSendClient;
 
@@ -99,6 +93,12 @@ private:
     void SetNull();
 
 public:
+    int nPrivateSendRounds;
+    int nPrivateSendAmount;
+    int nLiquidityProvider;
+    bool fEnablePrivateSend;
+    bool fPrivateSendMultiSession;
+
     masternode_info_t infoMixingMasternode;
     int nCachedNumBlocks; //used for the overview screen
     bool fCreateAutoBackups; //builtin support for automatic backups
@@ -107,6 +107,11 @@ public:
         nCachedLastSuccessBlock(0),
         nMinBlockSpacing(0),
         txMyCollateral(CMutableTransaction()),
+        nPrivateSendRounds(DEFAULT_PRIVATESEND_ROUNDS),
+        nPrivateSendAmount(DEFAULT_PRIVATESEND_AMOUNT),
+        nLiquidityProvider(DEFAULT_PRIVATESEND_LIQUIDITY),
+        fEnablePrivateSend(false),
+        fPrivateSendMultiSession(DEFAULT_PRIVATESEND_MULTISESSION),
         nCachedNumBlocks(std::numeric_limits<int>::max()),
         fCreateAutoBackups(true) { SetNull(); }
 

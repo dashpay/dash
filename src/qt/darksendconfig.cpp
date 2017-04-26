@@ -86,6 +86,6 @@ void DarksendConfig::configure(bool enabled, int coins, int rounds) {
     settings.setValue("nPrivateSendRounds", rounds);
     settings.setValue("nPrivateSendAmount", coins);
 
-    nPrivateSendRounds = rounds;
-    nPrivateSendAmount = coins;
+    privateSendClient.nPrivateSendRounds = rounds;
+    privateSendClient.nPrivateSendAmount = coins;
 }

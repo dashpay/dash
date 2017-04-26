@@ -43,13 +43,13 @@ UniValue privatesend(const UniValue& params, bool fHelp)
         if(fMasterNode)
             return "Mixing is not supported from masternodes";
 
-        fEnablePrivateSend = true;
+        privateSendClient.fEnablePrivateSend = true;
         bool result = privateSendClient.DoAutomaticDenominating();
         return "Mixing " + (result ? "started successfully" : ("start failed: " + privateSendClient.GetStatus() + ", will retry"));
     }
 
     if(params[0].get_str() == "stop") {
-        fEnablePrivateSend = false;
+        privateSendClient.fEnablePrivateSend = false;
         return "Mixing was stopped";
     }
 
@@ -72,7 +72,7 @@ UniValue getpoolinfo(const UniValue& params, bool fHelp)
 
     UniValue obj(UniValue::VOBJ);
     obj.push_back(Pair("state",             privateSend.GetStateString()));
-    obj.push_back(Pair("mixing_mode",       fPrivateSendMultiSession ? "multi-session" : "normal"));
+    obj.push_back(Pair("mixing_mode",       (!fMasterNode && privateSendClient.fPrivateSendMultiSession) ? "multi-session" : "normal"));
     obj.push_back(Pair("queue",             privateSend.GetQueueSize()));
     obj.push_back(Pair("entries",           privateSend.GetEntriesCount()));
     obj.push_back(Pair("status",            privateSendClient.GetStatus()));
