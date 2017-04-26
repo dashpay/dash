@@ -9,6 +9,7 @@ bool CHDChain::SetNull()
 {
     nVersion = CHDChain::CURRENT_VERSION;
     nExternalChainCounter = 0;
+    nInternalChainCounter = 0;
     vchSeed.clear();
     id = uint256();
     return IsNull();
@@ -37,7 +38,7 @@ uint256 CHDChain::GetSeedHash()
     return Hash(vchSeed.begin(), vchSeed.end());
 }
 
-void CHDChain::DeriveChildExtKey(uint32_t childIndex, CExtKey& extKeyRet)
+void CHDChain::DeriveChildExtKey(uint32_t childIndex, CExtKey& extKeyRet, bool fInternal)
 {
     // Use BIP44 keypath scheme i.e. m / purpose' / coin_type' / account' / change / address_index
     CExtKey masterKey;              //hd master key
@@ -60,7 +61,7 @@ void CHDChain::DeriveChildExtKey(uint32_t childIndex, CExtKey& extKeyRet)
     // derive m/purpose'/coin_type'/account'
     cointypeKey.Derive(accountKey, 0x80000000);
     // derive m/purpose'/coin_type'/account/change
-    accountKey.Derive(changeKey, 0);
+    accountKey.Derive(changeKey, fInternal ? 1 : 0);
     // derive m/purpose'/coin_type'/account/change/address_index
     changeKey.Derive(extKeyRet, childIndex);
 }

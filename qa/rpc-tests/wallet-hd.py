@@ -41,6 +41,11 @@ class WalletHDTest(BitcoinTestFramework):
         chainid = self.nodes[1].getwalletinfo()['hdchainid']
         assert_equal(len(chainid), 64)
 
+        # create an internal key
+        change_addr = self.nodes[1].getrawchangeaddress()
+        change_addrV= self.nodes[1].validateaddress(change_addr);
+        assert_equal(change_addrV["hdkeypath"], "m/44'/1'/0'/1/0") #first internal child key
+
         # Import a non-HD private key in the HD wallet
         non_hd_add = self.nodes[0].getnewaddress()
         self.nodes[1].importprivkey(self.nodes[0].dumpprivkey(non_hd_add))
@@ -63,6 +68,11 @@ class WalletHDTest(BitcoinTestFramework):
             self.nodes[0].generate(1)
         self.nodes[0].sendtoaddress(non_hd_add, 1)
         self.nodes[0].generate(1)
+
+        # create an internal key (again)
+        change_addr = self.nodes[1].getrawchangeaddress()
+        change_addrV= self.nodes[1].validateaddress(change_addr);
+        assert_equal(change_addrV["hdkeypath"], "m/44'/1'/0'/1/1") #second internal child key
 
         self.sync_all()
         assert_equal(self.nodes[1].getbalance(), num_hd_adds + 1)
@@ -88,6 +98,16 @@ class WalletHDTest(BitcoinTestFramework):
         self.nodes[1] = start_node(1, self.options.tmpdir, ['-usehd=1', '-keypool=0', '-rescan'])
         #connect_nodes_bi(self.nodes, 0, 1)
         assert_equal(self.nodes[1].getbalance(), num_hd_adds + 1)
+
+        # send a tx and make sure its using the internal chain for the changeoutput
+        txid = self.nodes[1].sendtoaddress(self.nodes[0].getnewaddress(), 1)
+        outs = self.nodes[1].decoderawtransaction(self.nodes[1].gettransaction(txid)['hex'])['vout'];
+        keypath = ""
+        for out in outs:
+            if out['value'] != 1:
+                keypath = self.nodes[1].validateaddress(out['scriptPubKey']['addresses'][0])['hdkeypath']
+
+        assert_equal(keypath[0:13], "m/44'/1'/0'/1")
 
 if __name__ == '__main__':
     WalletHDTest().main ()

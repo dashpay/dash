@@ -16,6 +16,7 @@ public:
     int nVersion;
     uint256 id;
     uint32_t nExternalChainCounter;
+    uint32_t nInternalChainCounter;
 
     CHDChain() : nVersion(CHDChain::CURRENT_VERSION), id(uint256()), nExternalChainCounter(0) { SetNull(); }
 
@@ -28,6 +29,7 @@ public:
         READWRITE(vchSeed);
         READWRITE(id);
         READWRITE(nExternalChainCounter);
+        READWRITE(nInternalChainCounter);
     }
 
     bool SetNull();
@@ -37,7 +39,7 @@ public:
     std::vector<unsigned char> GetSeed() const;
 
     uint256 GetSeedHash();
-    void DeriveChildExtKey(uint32_t childIndex, CExtKey& extKeyRet);
+    void DeriveChildExtKey(uint32_t childIndex, CExtKey& extKeyRet, bool fInternal);
 };
 
 /* hd pubkey data model */
