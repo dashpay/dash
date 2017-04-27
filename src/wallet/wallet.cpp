@@ -1383,7 +1383,7 @@ CAmount CWallet::GetChange(const CTxOut& txout) const
 
 void CWallet::GenerateNewHDChain()
 {
-    const char *mnemonic;
+    std::string mnemonic;
     std::vector<unsigned char> vchSeed;
     std::string strSeed = GetArg("-hdseed", "not hex");
 
@@ -1395,29 +1395,28 @@ void CWallet::GenerateNewHDChain()
             LogPrintf("CWallet::GenerateNewHDChain -- Incorrect seed, generating random one instead\n");
 
         if(mapArgs.count("-mnemonic")) {
-            mnemonic = GetArg("-mnemonic", "").c_str();
+            mnemonic = GetArg("-mnemonic", "");
         } else {
             mnemonic = mnemonic_generate(128);
         }
 
-        if(!mnemonic_check(mnemonic)) {
+        if(!mnemonic_check(mnemonic.c_str())) {
             throw std::runtime_error(std::string(__func__) + ": invalid mnemonic");
         }
-        DBG( printf("mnemonic: '%s'\n", mnemonic); );
+        DBG( printf("mnemonic: '%s'\n", mnemonic.c_str()); );
 
-        const char *passphrase;
         // default mnemonic passphrase is empty string
         // however if no mnemonic was specified by the user, use random passphrase instead
-        passphrase = GetArg("-mnemonicpassphrase", "").c_str();
+        std::string passphrase = GetArg("-mnemonicpassphrase", "");
         if (!mapArgs.count("-mnemonic")) {
             unsigned char rand_pwd[32];
             GetRandBytes(rand_pwd, 32);
-            passphrase = EncodeBase58(&rand_pwd[0],&rand_pwd[0]+32).c_str();
+            passphrase = EncodeBase58(&rand_pwd[0],&rand_pwd[0]+32);
         }
-        DBG( printf("mnemonicpassphrase: '%s'\n", passphrase); );
+        DBG( printf("mnemonicpassphrase: '%s'\n", passphrase.c_str()); );
 
         uint8_t seed[64];
-        mnemonic_to_seed(mnemonic, passphrase, seed, 0);
+        mnemonic_to_seed(mnemonic.c_str(), passphrase.c_str(), seed, 0);
         vchSeed = std::vector<unsigned char>(seed, seed + 64);
     }
 

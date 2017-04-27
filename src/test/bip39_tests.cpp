@@ -34,21 +34,19 @@ BOOST_AUTO_TEST_CASE(bip39_vectors)
             continue;
         }
 
-        const char *m;
         std::vector<uint8_t> vData = ParseHex(test[0].get_str());
-        m = mnemonic_from_data(&vData[0], vData.size());
 
-        const char *mnemonic = test[1].get_str().c_str();
+        std::string m = mnemonic_from_data(&vData[0], vData.size());
+        std::string mnemonic = test[1].get_str();
 
-        // printf("%s\n%s\n", m, mnemonic);
-        BOOST_CHECK(*m == *mnemonic);
-
-        BOOST_CHECK(mnemonic_check(mnemonic));
+        // printf("%s\n%s\n", m.c_str(), mnemonic.c_str());
+        BOOST_CHECK(m == mnemonic);
+        BOOST_CHECK(mnemonic_check(mnemonic.c_str()));
 
         uint8_t seed[64];
         const char *passphrase = "TREZOR";
 
-        mnemonic_to_seed(mnemonic, passphrase, seed, 0);
+        mnemonic_to_seed(mnemonic.c_str(), passphrase, seed, 0);
         // printf("seed: %s\n", HexStr(seed, seed + 64).c_str());
         BOOST_CHECK(HexStr(seed, seed + 64) == test[2].get_str());
 
