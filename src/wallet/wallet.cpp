@@ -1405,14 +1405,8 @@ void CWallet::GenerateNewHDChain()
         }
         DBG( printf("mnemonic: '%s'\n", mnemonic.c_str()); );
 
-        // default mnemonic passphrase is empty string
-        // however if no mnemonic was specified by the user, use random passphrase instead
+        // default mnemonic passphrase is an empty string
         std::string passphrase = GetArg("-mnemonicpassphrase", "");
-        if (!mapArgs.count("-mnemonic")) {
-            unsigned char rand_pwd[32];
-            GetRandBytes(rand_pwd, 32);
-            passphrase = EncodeBase58(&rand_pwd[0],&rand_pwd[0]+32);
-        }
         DBG( printf("mnemonicpassphrase: '%s'\n", passphrase.c_str()); );
 
         uint8_t seed[64];
