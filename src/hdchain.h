@@ -10,6 +10,10 @@ class CHDChain
 {
 private:
     std::vector<unsigned char> vchSeed;
+    std::vector<unsigned char> vchMnemonic;
+    std::vector<unsigned char> vchMnemonicPassphrase;
+
+    void Debug();
 
 public:
     static const int CURRENT_VERSION = 1;
@@ -27,6 +31,8 @@ public:
         READWRITE(this->nVersion);
         nVersion = this->nVersion;
         READWRITE(vchSeed);
+        READWRITE(vchMnemonic);
+        READWRITE(vchMnemonicPassphrase);
         READWRITE(id);
         READWRITE(nExternalChainCounter);
         READWRITE(nInternalChainCounter);
@@ -34,6 +40,10 @@ public:
 
     bool SetNull();
     bool IsNull() const;
+
+    bool SetMnemonic(const std::vector<unsigned char>& vchMnemonicIn, const std::vector<unsigned char>& vchMnemonicPassphraseIn, bool fUpdateID);
+    bool GetMnemonic(std::vector<unsigned char>& vchMnemonicRet, std::vector<unsigned char>& vchMnemonicPassphraseRet) const;
+    bool GetMnemonic(std::string& strMnemonicRet, std::string& strMnemonicPassphraseRet) const;
 
     bool SetSeed(const std::vector<unsigned char>& vchSeedIn, bool fUpdateID);
     std::vector<unsigned char> GetSeed() const;

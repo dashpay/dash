@@ -580,20 +580,24 @@ UniValue dumpprivkey(const UniValue& params, bool fHelp)
     return CBitcoinSecret(vchSecret).ToString();
 }
 
-UniValue dumphdseed(const UniValue& params, bool fHelp)
+UniValue dumphdinfo(const UniValue& params, bool fHelp)
 {
     if (!EnsureWalletIsAvailable(fHelp))
         return NullUniValue;
 
     if (fHelp || params.size() != 0)
         throw runtime_error(
-            "dumphdseed\n"
-            "\nReveals the HD seed for this wallet\n"
+            "dumphdinfo\n"
+            "Returns an object containing sensitive private info about this HD wallet.\n"
             "\nResult:\n"
-            "\"HD seed\"                (string) The HD seed in hex\n"
+            "{\n"
+            "  \"hdseed\": \"seed\",                    (string) The HD seed (bip32, in hex)\n"
+            "  \"mnemonic\": \"words\",                 (string) The mnemonic for this HD wallet (bip39, english words) \n"
+            "  \"mnemonicpassphrase\": \"passphrase\",  (string) The mnemonic passphrase for this HD wallet (bip39)\n"
+            "}\n"
             "\nExamples:\n"
-            + HelpExampleCli("dumphdseed", "")
-            + HelpExampleRpc("dumphdseed", "")
+            + HelpExampleCli("dumphdinfo", "")
+            + HelpExampleRpc("dumphdinfo", "")
         );
 
     LOCK(pwalletMain->cs_wallet);
@@ -604,10 +608,19 @@ UniValue dumphdseed(const UniValue& params, bool fHelp)
     CHDChain hdChainCurrent;
     if (pwalletMain->GetHDChain(hdChainCurrent))
     {
-        std::vector<unsigned char> vchSeed = hdChainCurrent.GetSeed();
-        if (!pwalletMain->GetDecryptedHDChainSeed(vchSeed))
+        if (!pwalletMain->GetDecryptedHDChain(hdChainCurrent))
             throw JSONRPCError(RPC_INTERNAL_ERROR, "Cannot decrypt HD seed");
-        return HexStr(vchSeed);
+
+        std::string strMnemonic;
+        std::string strMnemonicPassphrase;
+        hdChainCurrent.GetMnemonic(strMnemonic, strMnemonicPassphrase);
+
+        UniValue obj(UniValue::VOBJ);
+        obj.push_back(Pair("hdseed", HexStr(hdChainCurrent.GetSeed())));
+        obj.push_back(Pair("mnemonic", strMnemonic));
+        obj.push_back(Pair("mnemonicpassphrase", strMnemonicPassphrase));
+
+        return obj;
     }
 
     return NullUniValue;
@@ -662,19 +675,26 @@ UniValue dumpwallet(const UniValue& params, bool fHelp)
     CHDChain hdChainCurrent;
     if (pwalletMain->GetHDChain(hdChainCurrent))
     {
-        std::vector<unsigned char> vchSeed = hdChainCurrent.GetSeed();
 
-        if (!pwalletMain->GetDecryptedHDChainSeed(vchSeed))
-            throw JSONRPCError(RPC_INTERNAL_ERROR, "Cannot decrypt HD seed");
+        if (!pwalletMain->GetDecryptedHDChain(hdChainCurrent))
+            throw JSONRPCError(RPC_INTERNAL_ERROR, "Cannot decrypt HD chain");
+
+        std::string strMnemonic;
+        std::string strMnemonicPassphrase;
+        hdChainCurrent.GetMnemonic(strMnemonic, strMnemonicPassphrase);
+        file << "# mnemonic: " << strMnemonic << "\n";
+        file << "# mnemonic passphrase: " << strMnemonicPassphrase << "\n\n";
+
+        std::vector<unsigned char> vchSeed = hdChainCurrent.GetSeed();
+        file << "# HD seed: " << HexStr(vchSeed) << "\n\n";
 
         CExtKey masterKey;
         masterKey.SetMaster(&vchSeed[0], vchSeed.size());
-        file << "# HD seed: " << HexStr(vchSeed) << "\n\n";
 
         CBitcoinExtKey b58extkey;
         b58extkey.SetKey(masterKey);
 
-        file << "# extended private masterkey: " << b58extkey.ToString() << "\n\n";
+        file << "# extended private masterkey: " << b58extkey.ToString() << "\n";
 
         CExtPubKey masterPubkey;
         masterPubkey = masterKey.Neuter();
@@ -682,6 +702,9 @@ UniValue dumpwallet(const UniValue& params, bool fHelp)
         CBitcoinExtPubKey b58extpubkey;
         b58extpubkey.SetKey(masterPubkey);
         file << "# extended public masterkey: " << b58extpubkey.ToString() << "\n\n";
+
+        file << "# external chain counter: " << hdChainCurrent.nExternalChainCounter << "\n";
+        file << "# internal chain counter: " << hdChainCurrent.nInternalChainCounter << "\n\n";
     }
 
     for (std::vector<std::pair<int64_t, CKeyID> >::const_iterator it = vKeyBirth.begin(); it != vKeyBirth.end(); it++) {
