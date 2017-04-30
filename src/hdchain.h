@@ -13,7 +13,7 @@ private:
     std::vector<unsigned char> vchMnemonic;
     std::vector<unsigned char> vchMnemonicPassphrase;
 
-    void Debug();
+    bool fCrypted;
 
 public:
     static const int CURRENT_VERSION = 1;
@@ -22,7 +22,7 @@ public:
     uint32_t nExternalChainCounter;
     uint32_t nInternalChainCounter;
 
-    CHDChain() : nVersion(CHDChain::CURRENT_VERSION), id(uint256()), nExternalChainCounter(0) { SetNull(); }
+    CHDChain() : nVersion(CHDChain::CURRENT_VERSION) { SetNull(); }
 
     ADD_SERIALIZE_METHODS;
     template <typename Stream, typename Operation>
@@ -36,10 +36,16 @@ public:
         READWRITE(id);
         READWRITE(nExternalChainCounter);
         READWRITE(nInternalChainCounter);
+        READWRITE(fCrypted);
     }
 
     bool SetNull();
     bool IsNull() const;
+
+    void SetCrypted(bool fCryptedIn);
+    bool IsCrypted() const;
+
+    void Debug(std::string strName) const;
 
     bool SetMnemonic(const std::vector<unsigned char>& vchMnemonicIn, const std::vector<unsigned char>& vchMnemonicPassphraseIn, bool fUpdateID);
     bool GetMnemonic(std::vector<unsigned char>& vchMnemonicRet, std::vector<unsigned char>& vchMnemonicPassphraseRet) const;

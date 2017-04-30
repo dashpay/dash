@@ -1402,6 +1402,7 @@ void CWallet::GenerateNewHDChain()
         if (!newHdChain.SetMnemonic(vchMnemonic, vchMnemonicPassphrase, true))
             throw std::runtime_error(std::string(__func__) + ": SetMnemonic failed");
     }
+    newHdChain.Debug(__func__);
 
     if (!SetHDChain(newHdChain, false))
         throw std::runtime_error(std::string(__func__) + ": SetHDChain failed");

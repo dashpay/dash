@@ -11,13 +11,13 @@
 
 bool CHDChain::SetNull()
 {
-    nVersion = CHDChain::CURRENT_VERSION;
-    nExternalChainCounter = 0;
-    nInternalChainCounter = 0;
     vchSeed.clear();
     vchMnemonic.clear();
     vchMnemonicPassphrase.clear();
+    fCrypted = false;
     id = uint256();
+    nExternalChainCounter = 0;
+    nInternalChainCounter = 0;
     return IsNull();
 }
 
@@ -26,27 +26,43 @@ bool CHDChain::IsNull() const
     return vchSeed.empty() || id == uint256();
 }
 
-void CHDChain::Debug()
+void CHDChain::SetCrypted(bool fCryptedIn)
+{
+    fCrypted = fCryptedIn;
+}
+
+bool CHDChain::IsCrypted() const
+{
+    return fCrypted;
+}
+
+void CHDChain::Debug(std::string strName) const
 {
     DBG(
-        std::cout << "mnemonic: " << std::string(vchMnemonic.begin(), vchMnemonic.end()).c_str() << std::endl;
-        std::cout << "mnemonicpassphrase: " << std::string(vchMnemonicPassphrase.begin(), vchMnemonicPassphrase.end()).c_str() << std::endl;
+        std::cout << __func__ << ": ---" << strName << "---" << std::endl;
+        if (fCrypted) {
+            std::cout << "mnemonic: ***CRYPTED***" << std::endl;
+            std::cout << "mnemonicpassphrase: ***CRYPTED***" << std::endl;
+            std::cout << "seed: ***CRYPTED***" << std::endl;
+        } else {
+            std::cout << "mnemonic: " << std::string(vchMnemonic.begin(), vchMnemonic.end()).c_str() << std::endl;
+            std::cout << "mnemonicpassphrase: " << std::string(vchMnemonicPassphrase.begin(), vchMnemonicPassphrase.end()).c_str() << std::endl;
+            std::cout << "seed: " << HexStr(vchSeed).c_str() << std::endl;
 
-        std::cout << "seed: " << HexStr(vchSeed).c_str() << std::endl;
+            CExtKey extkey;
+            extkey.SetMaster(&vchSeed[0], vchSeed.size());
 
-        CExtKey extkey;
-        extkey.SetMaster(&vchSeed[0], vchSeed.size());
+            CBitcoinExtKey b58extkey;
+            b58extkey.SetKey(extkey);
+            std::cout << "extended private masterkey: " << b58extkey.ToString().c_str() << std::endl;
 
-        CBitcoinExtKey b58extkey;
-        b58extkey.SetKey(extkey);
-        std::cout << "extended private masterkey: " << b58extkey.ToString().c_str() << std::endl;
+            CExtPubKey extpubkey;
+            extpubkey = extkey.Neuter();
 
-        CExtPubKey extpubkey;
-        extpubkey = extkey.Neuter();
-
-        CBitcoinExtPubKey b58extpubkey;
-        b58extpubkey.SetKey(extpubkey);
-        std::cout << "extended public masterkey: " << b58extpubkey.ToString().c_str() << std::endl;
+            CBitcoinExtPubKey b58extpubkey;
+            b58extpubkey.SetKey(extpubkey);
+            std::cout << "extended public masterkey: " << b58extpubkey.ToString().c_str() << std::endl;
+        }
     );
 }
 
@@ -82,8 +98,6 @@ bool CHDChain::SetMnemonic(const std::vector<unsigned char>& vchMnemonicIn, cons
     vchMnemonic = vchMnemonicTmp;
     vchMnemonicPassphrase = vchMnemonicPassphraseIn;
 
-    Debug();
-
     return !IsNull();
 }
 
@@ -117,8 +131,6 @@ bool CHDChain::SetSeed(const std::vector<unsigned char>& vchSeedIn, bool fUpdate
     if (fUpdateID) {
         id = GetSeedHash();
     }
-
-    Debug();
 
     return !IsNull();
 }

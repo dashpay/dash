@@ -425,6 +425,9 @@ bool CCryptoKeyStore::EncryptHDChain(const CKeyingMaterial& vMasterKeyIn)
     if (!cryptedHDChain.IsNull())
         return true;
 
+    if (cryptedHDChain.IsCrypted())
+        return true;
+
     // make sure seed matches this chain
     if (hdChain.id != hdChain.GetSeedHash())
         return false;
@@ -433,7 +436,10 @@ bool CCryptoKeyStore::EncryptHDChain(const CKeyingMaterial& vMasterKeyIn)
     if (!EncryptVector(vMasterKeyIn, hdChain.GetSeed(), hdChain.id, vchCryptedSeed))
         return false;
 
+    hdChain.Debug(__func__);
     cryptedHDChain = hdChain;
+    cryptedHDChain.SetCrypted(true);
+
     if (!cryptedHDChain.SetSeed(vchCryptedSeed, false))
         return false;
 
@@ -445,9 +451,9 @@ bool CCryptoKeyStore::EncryptHDChain(const CKeyingMaterial& vMasterKeyIn)
         std::vector<unsigned char> vchCryptedMnemonic;
         std::vector<unsigned char> vchCryptedMnemonicPassphrase;
 
-        if (!EncryptVector(vMasterKeyIn, vchMnemonic, hdChain.id, vchCryptedMnemonic))
+        if (!vchMnemonic.empty() && !EncryptVector(vMasterKeyIn, vchMnemonic, hdChain.id, vchCryptedMnemonic))
             return false;
-        if (!EncryptVector(vMasterKeyIn, vchMnemonicPassphrase, hdChain.id, vchCryptedMnemonicPassphrase))
+        if (!vchMnemonicPassphrase.empty() && !EncryptVector(vMasterKeyIn, vchMnemonicPassphrase, hdChain.id, vchCryptedMnemonicPassphrase))
             return false;
 
         if (!cryptedHDChain.SetMnemonic(vchCryptedMnemonic, vchCryptedMnemonicPassphrase, false))
@@ -468,12 +474,16 @@ bool CCryptoKeyStore::DecryptHDChain(CHDChain& hdChainRet) const
     if (cryptedHDChain.IsNull())
         return false;
 
+    if (!cryptedHDChain.IsCrypted())
+        return false;
+
     std::vector<unsigned char> vchSeed;
     if (!DecryptVector(vMasterKey, cryptedHDChain.GetSeed(), cryptedHDChain.id, vchSeed))
         return false;
 
     hdChainRet = cryptedHDChain;
-    hdChainRet.SetSeed(vchSeed, false);
+    if (!hdChainRet.SetSeed(vchSeed, false))
+        return false;
 
     // hash of decrypted seed must match chain id
     if (hdChainRet.GetSeedHash() != cryptedHDChain.id)
@@ -487,14 +497,17 @@ bool CCryptoKeyStore::DecryptHDChain(CHDChain& hdChainRet) const
         std::vector<unsigned char> vchMnemonic;
         std::vector<unsigned char> vchMnemonicPassphrase;
 
-        if (!DecryptVector(vMasterKey, vchCryptedMnemonic, cryptedHDChain.id, vchMnemonic))
+        if (!vchCryptedMnemonic.empty() && !DecryptVector(vMasterKey, vchCryptedMnemonic, cryptedHDChain.id, vchMnemonic))
             return false;
-        if (!DecryptVector(vMasterKey, vchCryptedMnemonicPassphrase, cryptedHDChain.id, vchMnemonicPassphrase))
+        if (!vchCryptedMnemonicPassphrase.empty() && !DecryptVector(vMasterKey, vchCryptedMnemonicPassphrase, cryptedHDChain.id, vchMnemonicPassphrase))
             return false;
 
         if (!hdChainRet.SetMnemonic(vchMnemonic, vchMnemonicPassphrase, false))
             return false;
     }
+
+    hdChainRet.SetCrypted(false);
+    hdChainRet.Debug(__func__);
 
     return true;
 }
@@ -504,6 +517,9 @@ bool CCryptoKeyStore::SetHDChain(const CHDChain& chain)
     if (IsCrypted())
         return false;
 
+    if (chain.IsCrypted())
+        return false;
+
     hdChain = chain;
     return true;
 }
@@ -511,6 +527,9 @@ bool CCryptoKeyStore::SetHDChain(const CHDChain& chain)
 bool CCryptoKeyStore::SetCryptedHDChain(const CHDChain& chain)
 {
     if (!SetCrypted())
+        return false;
+
+    if (!chain.IsCrypted())
         return false;
 
     cryptedHDChain = chain;
