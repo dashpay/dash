@@ -322,6 +322,7 @@ public:
     bool IsMnbRecoveryRequested(const uint256& hash) { return mMnbRecoveryRequests.count(hash); }
 
     void UpdateLastPaid();
+    bool UpdateLastDsq(const CTxIn& vin);
 
     void CheckAndRebuildMasternodeIndex();
 

@@ -766,7 +766,7 @@ void CMasternodeMan::ProcessMasternodeConnections()
     LOCK(cs_vNodes);
     BOOST_FOREACH(CNode* pnode, vNodes) {
         if(pnode->fMasternode) {
-            if(pnode->addr == privateSendClient.infoMixingMasternode.addr) continue;
+            if(privateSendClient.infoMixingMasternode.fInfoValid && pnode->addr == privateSendClient.infoMixingMasternode.addr) continue;
             LogPrintf("Closing Masternode connection: peer=%d, addr=%s\n", pnode->id, pnode->addr.ToString());
             pnode->fDisconnect = true;
         }
@@ -1510,6 +1510,18 @@ void CMasternodeMan::UpdateLastPaid()
 
     // every time is like the first time if winners list is not synced
     IsFirstRun = !masternodeSync.IsWinnersListSynced();
+}
+
+bool CMasternodeMan::UpdateLastDsq(const CTxIn& vin)
+{
+    masternode_info_t info;
+    LOCK(cs);
+    CMasternode* pMN = Find(vin);
+    if(!pMN)
+        return false;
+    pMN->nLastDsq = nDsqCount;
+    pMN->fAllowMixingTx = true;
+    return true;
 }
 
 void CMasternodeMan::CheckAndRebuildMasternodeIndex()
