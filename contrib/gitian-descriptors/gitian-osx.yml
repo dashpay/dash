@@ -23,7 +23,7 @@ packages:
 - "python"
 reference_datetime: "2017-01-01 00:00:00"
 remotes:
-- "url": "https://github.com/dashpay/dash.git"
+- "url": "https://github.com/Petr-Economissa/gvidon.git"
   "dir": "dash"
 files:
 - "MacOSX10.9.sdk.tar.gz"

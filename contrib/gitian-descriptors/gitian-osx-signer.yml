@@ -8,7 +8,7 @@ packages:
 - "faketime"
 reference_datetime: "2017-01-01 00:00:00"
 remotes:
-- "url": "https://github.com/dashpay/dash-detached-sigs.git"
+- "url": "https://github.com/Petr-Economissa/gvidon-detached-sigs.git"
   "dir": "signature"
 files:
 - "dash-osx-unsigned.tar.gz"
