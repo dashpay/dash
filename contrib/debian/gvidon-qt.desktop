@@ -1,0 +1,12 @@
+[Desktop Entry]
+Encoding=UTF-8
+Name=Gvidon
+Comment=Gvidon P2P Cryptocurrency
+Comment[fr]=Gvidon, monnaie virtuelle cryptographique pair à pair
+Comment[tr]=Gvidon, eşten eşe kriptografik sanal para birimi
+Exec=gvidon-qt %u
+Terminal=false
+Type=Application
+Icon=gvidon128
+MimeType=x-scheme-handler/gvidon;
+Categories=Office;Finance;

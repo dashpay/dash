@@ -1,11 +1,11 @@
 Sample configuration files for:
 
-SystemD: dashd.service
-Upstart: dashd.conf
-OpenRC:  dashd.openrc
-         dashd.openrcconf
-CentOS:  dashd.init
-OS X:    org.dash.dashd.plist
+SystemD: gvidond.service
+Upstart: gvidond.conf
+OpenRC:  gvidond.openrc
+         gvidond.openrcconf
+CentOS:  gvidond.init
+OS X:    org.gvidon.gvidond.plist
 
 have been made available to assist packagers in creating node packages here.
 

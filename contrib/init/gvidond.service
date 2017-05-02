@@ -1,0 +1,22 @@
+[Unit]
+Description=Gvidon's distributed currency daemon
+After=network.target
+
+[Service]
+User=gvidoncore
+Group=gvidoncore
+
+Type=forking
+PIDFile=/var/lib/gvidond/gvidond.pid
+ExecStart=/usr/bin/gvidond -daemon -pid=/var/lib/gvidond/gvidond.pid \
+-conf=/etc/gvidoncore/gvidon.conf -datadir=/var/lib/gvidond -disablewallet
+
+Restart=always
+PrivateTmp=true
+TimeoutStopSec=60s
+TimeoutStartSec=2s
+StartLimitInterval=120s
+StartLimitBurst=5
+
+[Install]
+WantedBy=multi-user.target

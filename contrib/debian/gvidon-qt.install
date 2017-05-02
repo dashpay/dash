@@ -1,0 +1,6 @@
+usr/local/bin/gvidon-qt usr/bin
+share/pixmaps/gvidon32.xpm usr/share/pixmaps
+share/pixmaps/gvidon16.xpm usr/share/pixmaps
+share/pixmaps/gvidon128.png usr/share/pixmaps
+debian/gvidon-qt.desktop usr/share/applications
+debian/gvidon-qt.protocol usr/share/kde4/services/

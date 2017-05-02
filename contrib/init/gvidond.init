@@ -1,0 +1,67 @@
+#!/bin/bash
+#
+#  gvidond The Gvidon Core server.
+#
+#
+# chkconfig: 345 80 20
+# description: gvidond
+# processname: gvidond
+#
+
+# Source function library.
+. /etc/init.d/functions
+
+# you can override defaults in /etc/sysconfig/gvidond, see below
+if [ -f /etc/sysconfig/gvidond ]; then
+        . /etc/sysconfig/gvidond
+fi
+
+RETVAL=0
+
+prog=gvidond
+# you can override the lockfile via BITCOIND_LOCKFILE in /etc/sysconfig/gvidond
+lockfile=${BITCOIND_LOCKFILE-/var/lock/subsys/gvidond}
+
+# gvidond defaults to /usr/bin/gvidond, override with BITCOIND_BIN
+gvidond=${BITCOIND_BIN-/usr/bin/gvidond}
+
+# gvidond opts default to -disablewallet, override with BITCOIND_OPTS
+gvidond_opts=${BITCOIND_OPTS--disablewallet}
+
+start() {
+    echo -n $"Starting $prog: "
+    daemon $DAEMONOPTS $gvidond $gvidond_opts
+    RETVAL=$?
+    echo
+    [ $RETVAL -eq 0 ] && touch $lockfile
+    return $RETVAL
+}
+
+stop() {
+    echo -n $"Stopping $prog: "
+    killproc $prog
+    RETVAL=$?
+    echo
+    [ $RETVAL -eq 0 ] && rm -f $lockfile
+    return $RETVAL
+}
+
+case "$1" in
+    start)
+        start
+        ;;
+    stop)
+        stop
+        ;;
+    status)
+        status $prog
+        ;;
+    restart)
+        stop
+        start
+        ;;
+    *)
+        echo "Usage: service $prog {start|stop|status|restart}"
+        exit 1
+        ;;
+esac

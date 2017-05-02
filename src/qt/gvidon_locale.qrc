@@ -1,0 +1,20 @@
+<!DOCTYPE RCC><RCC version="1.0">
+    <qresource prefix="/translations">
+        <file alias="bg">locale/gvidon_bg.qm</file>
+        <file alias="de">locale/gvidon_de.qm</file>
+        <file alias="en">locale/gvidon_en.qm</file>
+        <file alias="es">locale/gvidon_es.qm</file>
+        <file alias="fi">locale/gvidon_fi.qm</file>
+        <file alias="fr">locale/gvidon_fr.qm</file>
+        <file alias="it">locale/gvidon_it.qm</file>
+        <file alias="ja">locale/gvidon_ja.qm</file>
+        <file alias="pl">locale/gvidon_pl.qm</file>
+        <file alias="pt">locale/gvidon_pt.qm</file>
+        <file alias="ru">locale/gvidon_ru.qm</file>
+        <file alias="sk">locale/gvidon_sk.qm</file>
+        <file alias="sv">locale/gvidon_sv.qm</file>
+        <file alias="vi">locale/gvidon_vi.qm</file>
+        <file alias="zh_CN">locale/gvidon_zh_CN.qm</file>
+        <file alias="zh_TW">locale/gvidon_zh_TW.qm</file>
+    </qresource>
+</RCC>

@@ -9,7 +9,7 @@
 #include "serialize.h"
 #include "streams.h"
 
-#include "test/test_dash.h"
+#include "test/test_gvidon.h"
 
 #include <boost/test/unit_test.hpp>
 
