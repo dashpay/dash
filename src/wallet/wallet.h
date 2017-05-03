@@ -579,7 +579,8 @@ public:
         SetNull();
     }
 
-    CWallet(const std::string& strWalletFileIn) : strWalletFile(strWalletFileIn)
+    CWallet(const std::string& strWalletFileIn) 
+    : strWalletFile(strWalletFileIn)
     {
         SetNull();
 
