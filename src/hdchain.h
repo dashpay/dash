@@ -4,39 +4,92 @@
 #define DASH_HDCHAIN_H
 
 #include "key.h"
+#include "sync.h"
 
-/* simple HD chain data model */
-class CHDChain
+/* hd account data model */
+class CHDAccount
 {
-private:
-    std::vector<unsigned char> vchSeed;
-    std::vector<unsigned char> vchMnemonic;
-    std::vector<unsigned char> vchMnemonicPassphrase;
-
-    bool fCrypted;
-
 public:
-    static const int CURRENT_VERSION = 1;
-    int nVersion;
-    uint256 id;
     uint32_t nExternalChainCounter;
     uint32_t nInternalChainCounter;
 
-    CHDChain() : nVersion(CHDChain::CURRENT_VERSION) { SetNull(); }
+    CHDAccount() : nExternalChainCounter(0), nInternalChainCounter(0) {}
 
     ADD_SERIALIZE_METHODS;
     template <typename Stream, typename Operation>
     inline void SerializationOp(Stream& s, Operation ser_action, int nType, int nVersion)
     {
+        READWRITE(nExternalChainCounter);
+        READWRITE(nInternalChainCounter);
+    }
+};
+
+/* simple HD chain data model */
+class CHDChain
+{
+private:
+    static const int CURRENT_VERSION = 1;
+    int nVersion;
+
+    uint256 id;
+
+    bool fCrypted;
+
+    std::vector<unsigned char> vchSeed;
+    std::vector<unsigned char> vchMnemonic;
+    std::vector<unsigned char> vchMnemonicPassphrase;
+
+    std::map<uint32_t, CHDAccount> mapAccounts;
+    // critical section to protect mapAccounts
+    mutable CCriticalSection cs_accounts;
+
+public:
+
+    CHDChain() : nVersion(CHDChain::CURRENT_VERSION) { SetNull(); }
+    CHDChain(const CHDChain& other) :
+        nVersion(other.nVersion),
+        id(other.id),
+        fCrypted(other.fCrypted),
+        vchSeed(other.vchSeed),
+        vchMnemonic(other.vchMnemonic),
+        vchMnemonicPassphrase(other.vchMnemonicPassphrase),
+        mapAccounts(other.mapAccounts)
+        {}
+
+    ADD_SERIALIZE_METHODS;
+    template <typename Stream, typename Operation>
+    inline void SerializationOp(Stream& s, Operation ser_action, int nType, int nVersion)
+    {
+        LOCK(cs_accounts);
         READWRITE(this->nVersion);
         nVersion = this->nVersion;
+        READWRITE(id);
+        READWRITE(fCrypted);
         READWRITE(vchSeed);
         READWRITE(vchMnemonic);
         READWRITE(vchMnemonicPassphrase);
-        READWRITE(id);
-        READWRITE(nExternalChainCounter);
-        READWRITE(nInternalChainCounter);
-        READWRITE(fCrypted);
+        READWRITE(mapAccounts);
+    }
+
+    void swap(CHDChain& first, CHDChain& second) // nothrow
+    {
+        // enable ADL (not necessary in our case, but good practice)
+        using std::swap;
+
+        // by swapping the members of two classes,
+        // the two classes are effectively swapped
+        swap(first.nVersion, second.nVersion);
+        swap(first.id, second.id);
+        swap(first.fCrypted, second.fCrypted);
+        swap(first.vchSeed, second.vchSeed);
+        swap(first.vchMnemonic, second.vchMnemonic);
+        swap(first.vchMnemonicPassphrase, second.vchMnemonicPassphrase);
+        swap(first.mapAccounts, second.mapAccounts);
+    }
+    CHDChain& operator=(CHDChain from)
+    {
+        swap(*this, from);
+        return *this;
     }
 
     bool SetNull();
@@ -54,22 +107,31 @@ public:
     bool SetSeed(const std::vector<unsigned char>& vchSeedIn, bool fUpdateID);
     std::vector<unsigned char> GetSeed() const;
 
+    uint256 GetID() const { return id; }
+
     uint256 GetSeedHash();
-    void DeriveChildExtKey(uint32_t childIndex, CExtKey& extKeyRet, bool fInternal);
+    void DeriveChildExtKey(uint32_t nAccountIndex, bool fInternal, uint32_t nChildIndex, CExtKey& extKeyRet);
+
+    void AddAccount();
+    bool GetAccount(uint32_t nAccountIndex, CHDAccount& hdAccountRet);
+    bool SetAccount(uint32_t nAccountIndex, const CHDAccount& hdAccount);
+    size_t CountAccounts();
 };
 
 /* hd pubkey data model */
 class CHDPubKey
 {
-public:
+private:
     static const int CURRENT_VERSION = 1;
     int nVersion;
+
+public:
     CExtPubKey extPubKey;
     uint256 hdchainID;
-    unsigned int nAccount;
-    unsigned int nChange;
+    uint32_t nAccountIndex;
+    uint32_t nChangeIndex;
 
-    CHDPubKey() : nVersion(CHDPubKey::CURRENT_VERSION), nAccount(0), nChange(0) {}
+    CHDPubKey() : nVersion(CHDPubKey::CURRENT_VERSION), nAccountIndex(0), nChangeIndex(0) {}
 
     ADD_SERIALIZE_METHODS;
     template <typename Stream, typename Operation>
@@ -79,8 +141,8 @@ public:
         nVersion = this->nVersion;
         READWRITE(extPubKey);
         READWRITE(hdchainID);
-        READWRITE(nAccount);
-        READWRITE(nChange);
+        READWRITE(nAccountIndex);
+        READWRITE(nChangeIndex);
     }
 
     std::string GetKeyPath() const;

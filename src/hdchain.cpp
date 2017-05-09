@@ -11,13 +11,16 @@
 
 bool CHDChain::SetNull()
 {
+    LOCK(cs_accounts);
+    nVersion = CURRENT_VERSION;
+    id = uint256();
+    fCrypted = false;
     vchSeed.clear();
     vchMnemonic.clear();
     vchMnemonicPassphrase.clear();
-    fCrypted = false;
-    id = uint256();
-    nExternalChainCounter = 0;
-    nInternalChainCounter = 0;
+    mapAccounts.clear();
+    // default blank account
+    mapAccounts.insert(std::pair<uint32_t, CHDAccount>(0, CHDAccount()));
     return IsNull();
 }
 
@@ -145,7 +148,7 @@ uint256 CHDChain::GetSeedHash()
     return Hash(vchSeed.begin(), vchSeed.end());
 }
 
-void CHDChain::DeriveChildExtKey(uint32_t childIndex, CExtKey& extKeyRet, bool fInternal)
+void CHDChain::DeriveChildExtKey(uint32_t nAccountIndex, bool fInternal, uint32_t nChildIndex, CExtKey& extKeyRet)
 {
     // Use BIP44 keypath scheme i.e. m / purpose' / coin_type' / account' / change / address_index
     CExtKey masterKey;              //hd master key
@@ -159,21 +162,51 @@ void CHDChain::DeriveChildExtKey(uint32_t childIndex, CExtKey& extKeyRet, bool f
 
     // Use hardened derivation for purpose, coin_type and account
     // (keys >= 0x80000000 are hardened after bip32)
-    // TODO: support multiple accounts, external/internal addresses, and multiple index per each
 
     // derive m/purpose'
     masterKey.Derive(purposeKey, 44 | 0x80000000);
     // derive m/purpose'/coin_type'
     purposeKey.Derive(cointypeKey, Params().ExtCoinType() | 0x80000000);
     // derive m/purpose'/coin_type'/account'
-    cointypeKey.Derive(accountKey, 0x80000000);
+    cointypeKey.Derive(accountKey, nAccountIndex | 0x80000000);
     // derive m/purpose'/coin_type'/account/change
     accountKey.Derive(changeKey, fInternal ? 1 : 0);
     // derive m/purpose'/coin_type'/account/change/address_index
-    changeKey.Derive(extKeyRet, childIndex);
+    changeKey.Derive(extKeyRet, nChildIndex);
+}
+
+void CHDChain::AddAccount()
+{
+    LOCK(cs_accounts);
+    mapAccounts.insert(std::pair<uint32_t, CHDAccount>(mapAccounts.size(), CHDAccount()));
+}
+
+bool CHDChain::GetAccount(uint32_t nAccountIndex, CHDAccount& hdAccountRet)
+{
+    LOCK(cs_accounts);
+    if (nAccountIndex > mapAccounts.size() - 1)
+        return false;
+    hdAccountRet = mapAccounts[nAccountIndex];
+    return true;
+}
+
+bool CHDChain::SetAccount(uint32_t nAccountIndex, const CHDAccount& hdAccount)
+{
+    LOCK(cs_accounts);
+    // can only replace existing accounts
+    if (nAccountIndex > mapAccounts.size() - 1)
+        return false;
+    mapAccounts[nAccountIndex] = hdAccount;
+    return true;
+}
+
+size_t CHDChain::CountAccounts()
+{
+    LOCK(cs_accounts);
+    return mapAccounts.size();
 }
 
 std::string CHDPubKey::GetKeyPath() const
 {
-    return strprintf("m/44'/%d'/%d'/%d/%d", Params().ExtCoinType(), nAccount, nChange, extPubKey.nChild);
+    return strprintf("m/44'/%d'/%d'/%d/%d", Params().ExtCoinType(), nAccountIndex, nChangeIndex, extPubKey.nChild);
 }

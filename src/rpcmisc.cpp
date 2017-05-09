@@ -321,7 +321,7 @@ UniValue validateaddress(const UniValue& params, bool fHelp)
         if (pwalletMain && address.GetKeyID(keyID) && pwalletMain->mapHdPubKeys.count(keyID) && pwalletMain->GetHDChain(hdChainCurrent))
         {
             ret.push_back(Pair("hdkeypath", pwalletMain->mapHdPubKeys[keyID].GetKeyPath()));
-            ret.push_back(Pair("hdchainid", hdChainCurrent.id.GetHex()));
+            ret.push_back(Pair("hdchainid", hdChainCurrent.GetID().GetHex()));
         }
 #endif
     }

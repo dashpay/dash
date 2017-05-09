@@ -100,7 +100,7 @@ const CWalletTx* CWallet::GetWalletTx(const uint256& hash) const
     return &(it->second);
 }
 
-CPubKey CWallet::GenerateNewKey(bool fInternal)
+CPubKey CWallet::GenerateNewKey(uint32_t nAccountIndex, bool fInternal)
 {
     AssertLockHeld(cs_wallet); // mapKeyMetadata
     bool fCompressed = CanSupportFeature(FEATURE_COMPRPUBKEY); // default to compressed public keys if we want 0.6.0 wallets
@@ -114,7 +114,7 @@ CPubKey CWallet::GenerateNewKey(bool fInternal)
     CPubKey pubkey;
     // use HD key derivation if HD was enabled during wallet creation
     if (IsHDEnabled()) {
-        DeriveNewChildKey(metadata, secret, fInternal);
+        DeriveNewChildKey(metadata, secret, nAccountIndex, fInternal);
         pubkey = secret.GetPubKey();
     } else {
         secret.MakeNewKey(fCompressed);
@@ -137,7 +137,7 @@ CPubKey CWallet::GenerateNewKey(bool fInternal)
     return pubkey;
 }
 
-void CWallet::DeriveNewChildKey(CKeyMetadata& metadata, CKey& secret, bool fInternal)
+void CWallet::DeriveNewChildKey(const CKeyMetadata& metadata, CKey& secretRet, uint32_t nAccountIndex, bool fInternal)
 {
     CHDChain hdChainTmp;
     if (!GetHDChain(hdChainTmp)) {
@@ -147,21 +147,25 @@ void CWallet::DeriveNewChildKey(CKeyMetadata& metadata, CKey& secret, bool fInte
     if (!DecryptHDChain(hdChainTmp))
         throw std::runtime_error(std::string(__func__) + ": DecryptHDChainSeed failed");
     // make sure seed matches this chain
-    if (hdChainTmp.id != hdChainTmp.GetSeedHash())
+    if (hdChainTmp.GetID() != hdChainTmp.GetSeedHash())
         throw std::runtime_error(std::string(__func__) + ": Wrong HD chain!");
+
+    CHDAccount acc;
+    if (!hdChainTmp.GetAccount(nAccountIndex, acc))
+        throw std::runtime_error(std::string(__func__) + ": Wrong HD account!");
 
     // derive child key at next index, skip keys already known to the wallet
     CExtKey childKey;
-    uint32_t childIndex = fInternal ? hdChainTmp.nInternalChainCounter : hdChainTmp.nExternalChainCounter;
+    uint32_t nChildIndex = fInternal ? acc.nInternalChainCounter : acc.nExternalChainCounter;
     do {
-        hdChainTmp.DeriveChildExtKey(childIndex, childKey, fInternal);
+        hdChainTmp.DeriveChildExtKey(nAccountIndex, fInternal, nChildIndex, childKey);
         // increment childkey index
-        childIndex++;
+        nChildIndex++;
     } while (HaveKey(childKey.key.GetPubKey().GetID()));
-    secret = childKey.key;
+    secretRet = childKey.key;
 
-    CPubKey pubkey = secret.GetPubKey();
-    assert(secret.VerifyPubKey(pubkey));
+    CPubKey pubkey = secretRet.GetPubKey();
+    assert(secretRet.VerifyPubKey(pubkey));
 
     // store metadata
     mapKeyMetadata[pubkey.GetID()] = metadata;
@@ -173,11 +177,14 @@ void CWallet::DeriveNewChildKey(CKeyMetadata& metadata, CKey& secret, bool fInte
     GetHDChain(hdChainCurrent);
 
     if (fInternal) {
-        hdChainCurrent.nInternalChainCounter = childIndex;
+        acc.nInternalChainCounter = nChildIndex;
     }
     else {
-        hdChainCurrent.nExternalChainCounter = childIndex;
+        acc.nExternalChainCounter = nChildIndex;
     }
+
+    if (!hdChainCurrent.SetAccount(nAccountIndex, acc))
+        throw std::runtime_error(std::string(__func__) + ": SetAccount failed");
 
     if (IsCrypted()) {
         if (!SetCryptedHDChain(hdChainCurrent, false))
@@ -220,11 +227,11 @@ bool CWallet::GetKey(const CKeyID &address, CKey& keyOut) const
         if (!DecryptHDChain(hdChainCurrent))
             throw std::runtime_error(std::string(__func__) + ": DecryptHDChainSeed failed");
         // make sure seed matches this chain
-        if (hdChainCurrent.id != hdChainCurrent.GetSeedHash())
+        if (hdChainCurrent.GetID() != hdChainCurrent.GetSeedHash())
             throw std::runtime_error(std::string(__func__) + ": Wrong HD chain!");
 
         CExtKey extkey;
-        hdChainCurrent.DeriveChildExtKey(hdPubKey.extPubKey.nChild, extkey, hdPubKey.nChange != 0);
+        hdChainCurrent.DeriveChildExtKey(hdPubKey.nAccountIndex, hdPubKey.nChangeIndex != 0, hdPubKey.extPubKey.nChild, extkey);
         keyOut = extkey.key;
 
         return true;
@@ -259,8 +266,8 @@ bool CWallet::AddHDPubKey(const CExtPubKey &extPubKey, bool fInternal)
 
     CHDPubKey hdPubKey;
     hdPubKey.extPubKey = extPubKey;
-    hdPubKey.hdchainID = hdChainCurrent.id;
-    hdPubKey.nChange = fInternal ? 1 : 0;
+    hdPubKey.hdchainID = hdChainCurrent.GetID();
+    hdPubKey.nChangeIndex = fInternal ? 1 : 0;
     mapHdPubKeys[extPubKey.pubkey.GetID()] = hdPubKey;
 
     // check if we need to remove from watch-only
@@ -790,7 +797,7 @@ bool CWallet::EncryptWallet(const SecureString& strWalletPassphrase)
             );
 
             // ids should match, seed hashes should not
-            assert(hdChainCurrent.id == hdChainCrypted.id);
+            assert(hdChainCurrent.GetID() == hdChainCrypted.GetID());
             assert(hdChainCurrent.GetSeedHash() != hdChainCrypted.GetSeedHash());
 
             assert(SetCryptedHDChain(hdChainCrypted, false));
@@ -1456,7 +1463,7 @@ bool CWallet::GetDecryptedHDChain(CHDChain& hdChainRet)
         return false;
 
     // make sure seed matches this chain
-    if (hdChainTmp.id != hdChainTmp.GetSeedHash())
+    if (hdChainTmp.GetID() != hdChainTmp.GetSeedHash())
         return false;
 
     hdChainRet = hdChainTmp;
@@ -3795,7 +3802,8 @@ bool CWallet::TopUpKeyPool(unsigned int kpSize)
             if (!setExternalKeyPool.empty()) {
                 nEnd = std::max(nEnd, *(--setExternalKeyPool.end()) + 1);
             }
-            if (!walletdb.WritePool(nEnd, CKeyPool(GenerateNewKey(fInternal), fInternal)))
+            // TODO: implement keypools for all accounts?
+            if (!walletdb.WritePool(nEnd, CKeyPool(GenerateNewKey(0, fInternal), fInternal)))
                 throw runtime_error("TopUpKeyPool(): writing generated key failed");
 
             if (fInternal) {
@@ -3885,7 +3893,8 @@ bool CWallet::GetKeyFromPool(CPubKey& result, bool fInternal)
         if (nIndex == -1)
         {
             if (IsLocked(true)) return false;
-            result = GenerateNewKey(fInternal);
+            // TODO: implement keypool for all accouts?
+            result = GenerateNewKey(0, fInternal);
             return true;
         }
         KeepKey(nIndex);

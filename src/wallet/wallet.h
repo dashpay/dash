@@ -653,7 +653,7 @@ private:
     void SyncMetaData(std::pair<TxSpends::iterator, TxSpends::iterator>);
 
     /* HD derive new child key (on internal or external chain) */
-    void DeriveNewChildKey(CKeyMetadata& metadata, CKey& secret, bool fInternal /*= false*/);
+    void DeriveNewChildKey(const CKeyMetadata& metadata, CKey& secretRet, uint32_t nAccountIndex, bool fInternal /*= false*/);
 
 public:
     /*
@@ -802,7 +802,7 @@ public:
      * keystore implementation
      * Generate a new key
      */
-    CPubKey GenerateNewKey(bool fInternal /*= false*/);
+    CPubKey GenerateNewKey(uint32_t nAccountIndex, bool fInternal /*= false*/);
     //! HaveKey implementation that also checks the mapHdPubKeys
     bool HaveKey(const CKeyID &address) const;
     //! GetPubKey implementation that also checks the mapHdPubKeys
