@@ -24,6 +24,8 @@ public:
     }
 };
 
+typedef std::vector<unsigned char, secure_allocator<unsigned char> > CSecureVector;
+
 /* simple HD chain data model */
 class CHDChain
 {
@@ -35,9 +37,9 @@ private:
 
     bool fCrypted;
 
-    std::vector<unsigned char> vchSeed;
-    std::vector<unsigned char> vchMnemonic;
-    std::vector<unsigned char> vchMnemonicPassphrase;
+    CSecureVector vchSeed;
+    CSecureVector vchMnemonic;
+    CSecureVector vchMnemonicPassphrase;
 
     std::map<uint32_t, CHDAccount> mapAccounts;
     // critical section to protect mapAccounts
@@ -100,12 +102,12 @@ public:
 
     void Debug(std::string strName) const;
 
-    bool SetMnemonic(const std::vector<unsigned char>& vchMnemonicIn, const std::vector<unsigned char>& vchMnemonicPassphraseIn, bool fUpdateID);
-    bool GetMnemonic(std::vector<unsigned char>& vchMnemonicRet, std::vector<unsigned char>& vchMnemonicPassphraseRet) const;
+    bool SetMnemonic(const CSecureVector& vchMnemonicIn, const CSecureVector& vchMnemonicPassphraseIn, bool fUpdateID);
+    bool GetMnemonic(CSecureVector& vchMnemonicRet, CSecureVector& vchMnemonicPassphraseRet) const;
     bool GetMnemonic(std::string& strMnemonicRet, std::string& strMnemonicPassphraseRet) const;
 
-    bool SetSeed(const std::vector<unsigned char>& vchSeedIn, bool fUpdateID);
-    std::vector<unsigned char> GetSeed() const;
+    bool SetSeed(const CSecureVector& vchSeedIn, bool fUpdateID);
+    CSecureVector GetSeed() const;
 
     uint256 GetID() const { return id; }
 

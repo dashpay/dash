@@ -69,9 +69,9 @@ void CHDChain::Debug(std::string strName) const
     );
 }
 
-bool CHDChain::SetMnemonic(const std::vector<unsigned char>& vchMnemonicIn, const std::vector<unsigned char>& vchMnemonicPassphraseIn, bool fUpdateID)
+bool CHDChain::SetMnemonic(const CSecureVector& vchMnemonicIn, const CSecureVector& vchMnemonicPassphraseIn, bool fUpdateID)
 {
-    std::vector<unsigned char> vchMnemonicTmp = vchMnemonicIn;
+    CSecureVector vchMnemonicTmp = vchMnemonicIn;
 
     if (fUpdateID) {
         // can't (re)set mnemonic if seed was already set
@@ -84,7 +84,7 @@ bool CHDChain::SetMnemonic(const std::vector<unsigned char>& vchMnemonicIn, cons
         // empty mnemonic i.e. "generate a new one"
         if (vchMnemonicIn.empty()) {
             strMnemonic = mnemonic_generate(128);
-            vchMnemonicTmp = std::vector<unsigned char>(strMnemonic.begin(), strMnemonic.end());
+            vchMnemonicTmp = CSecureVector(strMnemonic.begin(), strMnemonic.end());
         }
         // NOTE: default mnemonic passphrase is an empty string
 
@@ -94,7 +94,7 @@ bool CHDChain::SetMnemonic(const std::vector<unsigned char>& vchMnemonicIn, cons
 
         uint8_t seed[64];
         mnemonic_to_seed(strMnemonic.c_str(), strMnemonicPassphrase.c_str(), seed, 0);
-        vchSeed = std::vector<unsigned char>(seed, seed + 64);
+        vchSeed = CSecureVector(seed, seed + 64);
         id = GetSeedHash();
     }
 
@@ -104,7 +104,7 @@ bool CHDChain::SetMnemonic(const std::vector<unsigned char>& vchMnemonicIn, cons
     return !IsNull();
 }
 
-bool CHDChain::GetMnemonic(std::vector<unsigned char>& vchMnemonicRet, std::vector<unsigned char>& vchMnemonicPassphraseRet) const
+bool CHDChain::GetMnemonic(CSecureVector& vchMnemonicRet, CSecureVector& vchMnemonicPassphraseRet) const
 {
     // mnemonic was not set, fail
     if (vchMnemonic.empty())
@@ -127,7 +127,7 @@ bool CHDChain::GetMnemonic(std::string& strMnemonicRet, std::string& strMnemonic
     return true;
 }
 
-bool CHDChain::SetSeed(const std::vector<unsigned char>& vchSeedIn, bool fUpdateID)
+bool CHDChain::SetSeed(const CSecureVector& vchSeedIn, bool fUpdateID)
 {
     vchSeed = vchSeedIn;
 
@@ -138,7 +138,7 @@ bool CHDChain::SetSeed(const std::vector<unsigned char>& vchSeedIn, bool fUpdate
     return !IsNull();
 }
 
-std::vector<unsigned char> CHDChain::GetSeed() const
+CSecureVector CHDChain::GetSeed() const
 {
     return vchSeed;
 }
