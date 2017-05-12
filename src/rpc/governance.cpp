@@ -898,6 +898,7 @@ UniValue getgovernanceinfo(const UniValue& params, bool fHelp)
             "{\n"
             "  \"governanceminquorum\": xxxxx,           (numeric) the absolute minimum number of votes needed to trigger a governance action\n"
             "  \"masternodewatchdogmaxseconds\": xxxxx,  (numeric) sentinel watchdog expiration time in seconds\n"
+            "  \"hassentinelping\": xxxxx,               (boolean) has sentinel ping rpc call\n"
             "  \"proposalfee\": xxx.xx,                  (numeric) the collateral transaction fee which must be paid to create a proposal in " + CURRENCY_UNIT + "\n"
             "  \"superblockcycle\": xxxxx,               (numeric) the number of blocks between superblocks\n"
             "  \"lastsuperblock\": xxxxx,                (numeric) the block number of the last superblock\n"
@@ -938,6 +939,7 @@ UniValue getgovernanceinfo(const UniValue& params, bool fHelp)
     UniValue obj(UniValue::VOBJ);
     obj.push_back(Pair("governanceminquorum", Params().GetConsensus().nGovernanceMinQuorum));
     obj.push_back(Pair("masternodewatchdogmaxseconds", MASTERNODE_WATCHDOG_MAX_SECONDS));
+    obj.push_back(Pair("hassentinelping", true));
     obj.push_back(Pair("proposalfee", ValueFromAmount(GOVERNANCE_PROPOSAL_FEE_TX)));
     obj.push_back(Pair("superblockcycle", Params().GetConsensus().nSuperblockCycle));
     obj.push_back(Pair("lastsuperblock", nLastSuperblock));
