@@ -4064,8 +4064,8 @@ https://www.transifex.com/projects/p/gvidon/</translation>
         <translation>masternodeprivkey inválida. Por favor reveja a documentação.</translation>
     </message>
     <message>
-        <source>(must be 9999 for mainnet)</source>
-        <translation>(deve ser 9999 para mainnet)</translation>
+        <source>(must be 9900 for mainnet)</source>
+        <translation>(deve ser 9900 para mainnet)</translation>
     </message>
     <message>
         <source>Can't find random Masternode.</source>

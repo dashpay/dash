@@ -3959,8 +3959,8 @@ https://www.transifex.com/projects/p/gvidon/</translation>
         <translation>无效主节点私钥。请查阅文件材料。</translation>
     </message>
     <message>
-        <source>(must be 9999 for mainnet)</source>
-        <translation>(设置 9999 为主网)</translation>
+        <source>(must be 9900 for mainnet)</source>
+        <translation>(设置 9900 为主网)</translation>
     </message>
     <message>
         <source>Can't find random Masternode.</source>

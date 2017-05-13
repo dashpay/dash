@@ -4175,8 +4175,8 @@ Zaleca się również aby ustawić alarm powiadomień tzw. alertnotify, aby dać
         <translation>Nieprawidłowy klucz prywatny masternoda. Przeczytaj dokumentację.</translation>
     </message>
     <message>
-        <source>(must be 9999 for mainnet)</source>
-        <translation>(musi być 9999 dla głównej sieci)</translation>
+        <source>(must be 9900 for mainnet)</source>
+        <translation>(musi być 9900 dla głównej sieci)</translation>
     </message>
     <message>
         <source>Can't find random Masternode.</source>

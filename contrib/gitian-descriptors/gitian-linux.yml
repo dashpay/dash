@@ -1,5 +1,5 @@
 ---
-name: "gvidon-linux-0.12"
+name: "gvidon-linux-0.1"
 enable_cache: true
 suites:
 - "trusty"

@@ -4177,8 +4177,8 @@ por ejemplo: alertnotify=echo %%s | mail -s "Alerta de Gvidon" admin@foo.com
         <translation>La clave prinvada del nodo maestro no es válida. Por favor, consulte la  documentación.</translation>
     </message>
     <message>
-        <source>(must be 9999 for mainnet)</source>
-        <translation>(debe ser 9999 para la red principal)</translation>
+        <source>(must be 9900 for mainnet)</source>
+        <translation>(debe ser 9900 para la red principal)</translation>
     </message>
     <message>
         <source>Can't find random Masternode.</source>

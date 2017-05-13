@@ -52,8 +52,8 @@ reachable from the Tor network. Add these lines to your /etc/tor/torrc (or equiv
 config file):
 
 	HiddenServiceDir /var/lib/tor/gvidoncore-service/
-	HiddenServicePort 9999 127.0.0.1:9999
-	HiddenServicePort 19999 127.0.0.1:19999
+	HiddenServicePort 9900 127.0.0.1:9900
+	HiddenServicePort 19900 127.0.0.1:19900
 
 The directory can be different of course, but (both) port numbers should be equal to
 your gvidond's P2P listen port (9999 by default).
@@ -91,7 +91,7 @@ as well, use `discover` instead:
 
 	./gvidond ... -discover
 
-and open port 9999 on your firewall (or use -upnp).
+and open port 9900 on your firewall (or use -upnp).
 
 If you only want to use Tor to reach onion addresses, but not use it as a proxy
 for normal IPv4/IPv6 communication, use:

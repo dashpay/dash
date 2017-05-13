@@ -1,5 +1,5 @@
 ---
-name: "gvidon-osx-0.12"
+name: "gvidon-osx-0.1"
 enable_cache: true
 suites:
 - "trusty"

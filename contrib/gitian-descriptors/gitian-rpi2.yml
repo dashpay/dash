@@ -1,5 +1,5 @@
 ---
-name: "gvidon-raspberry-0.12"
+name: "gvidon-raspberry-0.1"
 enable_cache: true
 suites:
 - "precise"
