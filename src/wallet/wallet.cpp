@@ -1395,7 +1395,7 @@ void CWallet::GenerateNewHDChain()
             throw std::runtime_error(std::string(__func__) + ": SetSeed failed");
     }
     else {
-        if (mapArgs.count("-hdseed") && !IsHex(GetArg("-hdseed", "")))
+        if (mapArgs.count("-hdseed") && !IsHex(strSeed))
             LogPrintf("CWallet::GenerateNewHDChain -- Incorrect seed, generating random one instead\n");
 
         // NOTE: empty mnemonic means "generate a new one for me"
