@@ -115,14 +115,14 @@ bool CHDChain::GetMnemonic(CSecureVector& vchMnemonicRet, CSecureVector& vchMnem
     return true;
 }
 
-bool CHDChain::GetMnemonic(std::string& strMnemonicRet, std::string& strMnemonicPassphraseRet) const
+bool CHDChain::GetMnemonic(SecureString& ssMnemonicRet, SecureString& ssMnemonicPassphraseRet) const
 {
     // mnemonic was not set, fail
     if (vchMnemonic.empty())
         return false;
 
-    strMnemonicRet = std::string(vchMnemonic.begin(), vchMnemonic.end());
-    strMnemonicPassphraseRet = std::string(vchMnemonicPassphrase.begin(), vchMnemonicPassphrase.end());
+    ssMnemonicRet = SecureString(vchMnemonic.begin(), vchMnemonic.end());
+    ssMnemonicPassphraseRet = SecureString(vchMnemonicPassphrase.begin(), vchMnemonicPassphrase.end());
 
     return true;
 }

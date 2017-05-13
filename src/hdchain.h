@@ -104,7 +104,7 @@ public:
 
     bool SetMnemonic(const CSecureVector& vchMnemonicIn, const CSecureVector& vchMnemonicPassphraseIn, bool fUpdateID);
     bool GetMnemonic(CSecureVector& vchMnemonicRet, CSecureVector& vchMnemonicPassphraseRet) const;
-    bool GetMnemonic(std::string& strMnemonicRet, std::string& strMnemonicPassphraseRet) const;
+    bool GetMnemonic(SecureString& ssMnemonicRet, SecureString& ssMnemonicPassphraseRet) const;
 
     bool SetSeed(const CSecureVector& vchSeedIn, bool fUpdateID);
     CSecureVector GetSeed() const;

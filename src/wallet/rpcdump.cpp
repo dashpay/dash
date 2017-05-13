@@ -611,14 +611,14 @@ UniValue dumphdinfo(const UniValue& params, bool fHelp)
         if (!pwalletMain->GetDecryptedHDChain(hdChainCurrent))
             throw JSONRPCError(RPC_INTERNAL_ERROR, "Cannot decrypt HD seed");
 
-        std::string strMnemonic;
-        std::string strMnemonicPassphrase;
-        hdChainCurrent.GetMnemonic(strMnemonic, strMnemonicPassphrase);
+        SecureString ssMnemonic;
+        SecureString ssMnemonicPassphrase;
+        hdChainCurrent.GetMnemonic(ssMnemonic, ssMnemonicPassphrase);
 
         UniValue obj(UniValue::VOBJ);
         obj.push_back(Pair("hdseed", HexStr(hdChainCurrent.GetSeed())));
-        obj.push_back(Pair("mnemonic", strMnemonic));
-        obj.push_back(Pair("mnemonicpassphrase", strMnemonicPassphrase));
+        obj.push_back(Pair("mnemonic", std::string(ssMnemonic.begin(), ssMnemonic.end())));
+        obj.push_back(Pair("mnemonicpassphrase", std::string(ssMnemonicPassphrase.begin(), ssMnemonicPassphrase.end())));
 
         return obj;
     }
@@ -679,11 +679,11 @@ UniValue dumpwallet(const UniValue& params, bool fHelp)
         if (!pwalletMain->GetDecryptedHDChain(hdChainCurrent))
             throw JSONRPCError(RPC_INTERNAL_ERROR, "Cannot decrypt HD chain");
 
-        std::string strMnemonic;
-        std::string strMnemonicPassphrase;
-        hdChainCurrent.GetMnemonic(strMnemonic, strMnemonicPassphrase);
-        file << "# mnemonic: " << strMnemonic << "\n";
-        file << "# mnemonic passphrase: " << strMnemonicPassphrase << "\n\n";
+        SecureString ssMnemonic;
+        SecureString ssMnemonicPassphrase;
+        hdChainCurrent.GetMnemonic(ssMnemonic, ssMnemonicPassphrase);
+        file << "# mnemonic: " << std::string(ssMnemonic.begin(), ssMnemonic.end()) << "\n";
+        file << "# mnemonic passphrase: " << std::string(ssMnemonicPassphrase.begin(), ssMnemonicPassphrase.end()) << "\n\n";
 
         CSecureVector vchSeed = hdChainCurrent.GetSeed();
         file << "# HD seed: " << HexStr(vchSeed) << "\n\n";
