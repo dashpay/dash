@@ -24,9 +24,9 @@ Drag Dash-Qt to your applications folder, and then run Dash-Qt.
 
 ### Need Help?
 
-* See the [Dash documentation](https://dashpay.atlassian.net/wiki/display/DOC)
+* See the [Dash documentation](https://jastcoin.atlassian.net/wiki/display/DOC)
 for help and more information.
-* Ask for help on [#dashpay](http://webchat.freenode.net?channels=dashpay) on Freenode. If you don't have an IRC client use [webchat here](http://webchat.freenode.net?channels=dashpay).
+* Ask for help on [#jastcoin](http://webchat.freenode.net?channels=jastcoin) on Freenode. If you don't have an IRC client use [webchat here](http://webchat.freenode.net?channels=jastcoin).
 * Ask for help on the [DashTalk](https://dashtalk.org/) forums.
 
 Building
@@ -58,7 +58,7 @@ The Dash Core repo's [root README](/README.md) contains relevant information on 
 
 ### Resources
 * Discuss on the [DashTalk](https://dashtalk.org/) forums, in the Development & Technical Discussion board.
-* Discuss on [#dashpay](http://webchat.freenode.net/?channels=dashpay) on Freenode. If you don't have an IRC client use [webchat here](http://webchat.freenode.net/?channels=dashpay).
+* Discuss on [#jastcoin](http://webchat.freenode.net/?channels=jastcoin) on Freenode. If you don't have an IRC client use [webchat here](http://webchat.freenode.net/?channels=jastcoin).
 
 ### Miscellaneous
 - [Assets Attribution](assets-attribution.md)

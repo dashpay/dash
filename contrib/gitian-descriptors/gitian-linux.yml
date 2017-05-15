@@ -1,5 +1,5 @@
 ---
-name: "dash-linux-0.12"
+name: "jastcoin-linux-0.12"
 enable_cache: true
 suites:
 - "trusty"
@@ -20,7 +20,7 @@ packages:
 - "python"
 reference_datetime: "2017-01-01 00:00:00"
 remotes:
-- "url": "https://github.com/dashpay/dash.git"
+- "url": "https://github.com/microcrm/jastcoin.git"
   "dir": "dash"
 files: []
 script: |
@@ -120,4 +120,3 @@ script: |
   mv ${OUTDIR}/${DISTNAME}-i686-*-debug.tar.gz ${OUTDIR}/${DISTNAME}-linux32-debug.tar.gz
   mv ${OUTDIR}/${DISTNAME}-x86_64-*.tar.gz ${OUTDIR}/${DISTNAME}-linux64.tar.gz
   mv ${OUTDIR}/${DISTNAME}-i686-*.tar.gz ${OUTDIR}/${DISTNAME}-linux32.tar.gz
-

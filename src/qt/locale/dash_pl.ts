@@ -3702,8 +3702,8 @@ https://www.transifex.com/projects/p/dash/</translation>
         <translation>Ustaw liczbę wątków do generowania monet, jeśli jest ono włączone (-1 = wszystkie rdzenie. domyślnie: %d)</translation>
     </message>
     <message>
-        <source>Show N confirmations for a successfully locked transaction (0-9999, default: %u)</source>
-        <translation>Pokaż N potwierdzeń dla skutecznie zamkniętej transakcji (0-9999, domyślnie: %u)</translation>
+        <source>Show N confirmations for a successfully locked transaction (0-93232, default: %u)</source>
+        <translation>Pokaż N potwierdzeń dla skutecznie zamkniętej transakcji (0-93232, domyślnie: %u)</translation>
     </message>
     <message>
         <source>This product includes software developed by the OpenSSL Project for use in the OpenSSL Toolkit &lt;https://www.openssl.org/&gt; and cryptographic software written by Eric Young and UPnP software written by Thomas Bernard.</source>
@@ -3757,8 +3757,8 @@ Zaleca się również aby ustawić alarm powiadomień tzw. alertnotify, aby dać
         <translation>Peery z białej listy nie mogą zostać zbanowane a ich transakcje są zawsze retransmitowane, nawet jeśli już są w pamięci zbiorowej (mempool). Jest to przydatne np. dla bramek wyjściowych</translation>
     </message>
     <message>
-        <source>(9999 could be used only on mainnet)</source>
-        <translation>(9999 może być użyte tylko dla głównej sieci)</translation>
+        <source>(93232 could be used only on mainnet)</source>
+        <translation>(93232 może być użyte tylko dla głównej sieci)</translation>
     </message>
     <message>
         <source>(default: %s)</source>
@@ -4175,8 +4175,8 @@ Zaleca się również aby ustawić alarm powiadomień tzw. alertnotify, aby dać
         <translation>Nieprawidłowy klucz prywatny masternoda. Przeczytaj dokumentację.</translation>
     </message>
     <message>
-        <source>(must be 9999 for mainnet)</source>
-        <translation>(musi być 9999 dla głównej sieci)</translation>
+        <source>(must be 93232 for mainnet)</source>
+        <translation>(musi być 93232 dla głównej sieci)</translation>
     </message>
     <message>
         <source>Can't find random Masternode.</source>

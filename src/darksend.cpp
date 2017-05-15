@@ -2054,7 +2054,7 @@ bool CDarksendPool::CreateNewSession(int nDenom, CTransaction txCollateral, Pool
 
     // start new session
     nMessageIDRet = MSG_NOERR;
-    nSessionID = GetRandInt(999999)+1;
+    nSessionID = GetRandInt(9323299)+1;
     nSessionDenom = nDenom;
 
     SetState(POOL_STATE_QUEUE);

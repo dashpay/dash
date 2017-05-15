@@ -52,11 +52,11 @@ reachable from the Tor network. Add these lines to your /etc/tor/torrc (or equiv
 config file):
 
 	HiddenServiceDir /var/lib/tor/dashcore-service/
-	HiddenServicePort 9999 127.0.0.1:9999
-	HiddenServicePort 19999 127.0.0.1:19999
+	HiddenServicePort 93232 127.0.0.1:93232
+	HiddenServicePort 193232 127.0.0.1:193232
 
 The directory can be different of course, but (both) port numbers should be equal to
-your dashd's P2P listen port (9999 by default).
+your dashd's P2P listen port (93232 by default).
 
 	-externalip=X   You can tell Dash Core about its publicly reachable address using
 	                this option, and this can be a .onion address. Given the above
@@ -91,7 +91,7 @@ as well, use `discover` instead:
 
 	./dashd ... -discover
 
-and open port 9999 on your firewall (or use -upnp).
+and open port 93232 on your firewall (or use -upnp).
 
 If you only want to use Tor to reach onion addresses, but not use it as a proxy
 for normal IPv4/IPv6 communication, use:

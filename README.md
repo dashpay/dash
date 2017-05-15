@@ -1,7 +1,7 @@
 Dash Core staging tree 0.12.1
 ===============================
 
-`master:` [![Build Status](https://travis-ci.org/dashpay/dash.svg?branch=master)](https://travis-ci.org/dashpay/dash) `v0.12.0.x:` [![Build Status](https://travis-ci.org/dashpay/dash.svg?branch=v0.12.0.x)](https://travis-ci.org/dashpay/dash/branches) `v0.12.1.x:` [![Build Status](https://travis-ci.org/dashpay/dash.svg?branch=v0.12.1.x)](https://travis-ci.org/dashpay/dash/branches)
+`master:` [![Build Status](https://travis-ci.org/jastcoin/dash.svg?branch=master)](https://travis-ci.org/jastcoin/dash) `v0.12.0.x:` [![Build Status](https://travis-ci.org/jastcoin/dash.svg?branch=v0.12.0.x)](https://travis-ci.org/jastcoin/dash/branches) `v0.12.1.x:` [![Build Status](https://travis-ci.org/jastcoin/dash.svg?branch=v0.12.1.x)](https://travis-ci.org/jastcoin/dash/branches)
 
 https://www.dash.org
 
@@ -29,7 +29,7 @@ Development Process
 -------------------
 
 The `master` branch is meant to be stable. Development is normally done in separate branches.
-[Tags](https://github.com/dashpay/dash/tags) are created to indicate new official,
+[Tags](https://github.com/microcrm/jastcoin/tags) are created to indicate new official,
 stable release versions of Dash Core.
 
 The contribution workflow is described in [CONTRIBUTING.md](CONTRIBUTING.md).

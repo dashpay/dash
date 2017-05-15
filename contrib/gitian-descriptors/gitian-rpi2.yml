@@ -1,5 +1,5 @@
 ---
-name: "dash-raspberry-0.12"
+name: "jastcoin-raspberry-0.12"
 enable_cache: true
 suites:
 - "precise"
@@ -17,7 +17,7 @@ packages:
 - "binutils-gold"
 reference_datetime: "2017-01-01 00:00:00"
 remotes:
-- "url": "https://github.com/dashpay/dash.git"
+- "url": "https://github.com/microcrm/jastcoin.git"
   "dir": "dash"
 files:
 - "raspberrypi-tools.tar.gz"
@@ -27,7 +27,7 @@ script: |
   CONFIGFLAGS="--enable-upnp-default --enable-glibc-back-compat"
   FAKETIME_HOST_PROGS=""
   FAKETIME_PROGS="date ar ranlib nm strip"
-  
+
   tar --warning=no-timestamp -xzf raspberrypi-tools.tar.gz
   export TOOLCHAIN_BIN=$(pwd)/raspberrypi-tools/arm-bcm2708/gcc-linaro-arm-linux-gnueabihf-raspbian-x64/bin
   export PATH=$PATH:$TOOLCHAIN_BIN

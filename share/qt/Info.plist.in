@@ -71,7 +71,7 @@
         <string>application/x-dash-payment-request</string>
         <key>public.filename-extension</key>
         <array>
-          <string>dashpaymentrequest</string>
+          <string>jastcoinmentrequest</string>
         </array>
       </dict>
     </dict>

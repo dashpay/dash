@@ -1,11 +1,11 @@
 ---
-name: "dash-win-0.12"
+name: "jastcoin-win-0.12"
 enable_cache: true
 suites:
 - "trusty"
 architectures:
 - "amd64"
-packages: 
+packages:
 - "curl"
 - "g++"
 - "git-core"
@@ -23,7 +23,7 @@ packages:
 - "python"
 reference_datetime: "2017-01-01 00:00:00"
 remotes:
-- "url": "https://github.com/dashpay/dash.git"
+- "url": "https://github.com/microcrm/jastcoin.git"
   "dir": "dash"
 files: []
 script: |

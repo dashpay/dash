@@ -2494,7 +2494,7 @@ UniValue listunspent(const UniValue& params, bool fHelp)
             "{txid, vout, scriptPubKey, amount, confirmations}\n"
             "\nArguments:\n"
             "1. minconf          (numeric, optional, default=1) The minimum confirmations to filter\n"
-            "2. maxconf          (numeric, optional, default=9999999) The maximum confirmations to filter\n"
+            "2. maxconf          (numeric, optional, default=93232999) The maximum confirmations to filter\n"
             "3. \"addresses\"    (string) A json array of dash addresses to filter\n"
             "    [\n"
             "      \"address\"   (string) dash address\n"
@@ -2518,8 +2518,8 @@ UniValue listunspent(const UniValue& params, bool fHelp)
 
             "\nExamples\n"
             + HelpExampleCli("listunspent", "")
-            + HelpExampleCli("listunspent", "6 9999999 \"[\\\"XwnLY9Tf7Zsef8gMGL2fhWA9ZmMjt4KPwg\\\",\\\"XuQQkwA4FYkq2XERzMY2CiAZhJTEDAbtcg\\\"]\"")
-            + HelpExampleRpc("listunspent", "6, 9999999 \"[\\\"XwnLY9Tf7Zsef8gMGL2fhWA9ZmMjt4KPwg\\\",\\\"XuQQkwA4FYkq2XERzMY2CiAZhJTEDAbtcg\\\"]\"")
+            + HelpExampleCli("listunspent", "6 93232999 \"[\\\"XwnLY9Tf7Zsef8gMGL2fhWA9ZmMjt4KPwg\\\",\\\"XuQQkwA4FYkq2XERzMY2CiAZhJTEDAbtcg\\\"]\"")
+            + HelpExampleRpc("listunspent", "6, 93232999 \"[\\\"XwnLY9Tf7Zsef8gMGL2fhWA9ZmMjt4KPwg\\\",\\\"XuQQkwA4FYkq2XERzMY2CiAZhJTEDAbtcg\\\"]\"")
         );
 
     RPCTypeCheck(params, boost::assign::list_of(UniValue::VNUM)(UniValue::VNUM)(UniValue::VARR));
@@ -2528,7 +2528,7 @@ UniValue listunspent(const UniValue& params, bool fHelp)
     if (params.size() > 0)
         nMinDepth = params[0].get_int();
 
-    int nMaxDepth = 9999999;
+    int nMaxDepth = 93232999;
     if (params.size() > 1)
         nMaxDepth = params[1].get_int();
 

@@ -577,7 +577,7 @@ std::string HelpMessage(HelpMessageMode mode)
 
     strUsage += HelpMessageGroup(_("InstantSend options:"));
     strUsage += HelpMessageOpt("-enableinstantsend=<n>", strprintf(_("Enable InstantSend, show confirmations for locked transactions (0-1, default: %u)"), 1));
-    strUsage += HelpMessageOpt("-instantsenddepth=<n>", strprintf(_("Show N confirmations for a successfully locked transaction (0-9999, default: %u)"), DEFAULT_INSTANTSEND_DEPTH));
+    strUsage += HelpMessageOpt("-instantsenddepth=<n>", strprintf(_("Show N confirmations for a successfully locked transaction (0-93232, default: %u)"), DEFAULT_INSTANTSEND_DEPTH));
     strUsage += HelpMessageOpt("-instantsendnotify=<cmd>", _("Execute command when a wallet InstantSend transaction is successfully locked (%s in cmd is replaced by TxID)"));
 
 
@@ -883,10 +883,10 @@ void InitParameterInteraction()
     if (nLiqProvTmp > 0) {
         mapArgs["-enableprivatesend"] = "1";
         LogPrintf("%s: parameter interaction: -liquidityprovider=%d -> setting -enableprivatesend=1\n", __func__, nLiqProvTmp);
-        mapArgs["-privatesendrounds"] = "99999";
-        LogPrintf("%s: parameter interaction: -liquidityprovider=%d -> setting -privatesendrounds=99999\n", __func__, nLiqProvTmp);
-        mapArgs["-privatesendamount"] = "999999";
-        LogPrintf("%s: parameter interaction: -liquidityprovider=%d -> setting -privatesendamount=999999\n", __func__, nLiqProvTmp);
+        mapArgs["-privatesendrounds"] = "932329";
+        LogPrintf("%s: parameter interaction: -liquidityprovider=%d -> setting -privatesendrounds=932329\n", __func__, nLiqProvTmp);
+        mapArgs["-privatesendamount"] = "9323299";
+        LogPrintf("%s: parameter interaction: -liquidityprovider=%d -> setting -privatesendamount=9323299\n", __func__, nLiqProvTmp);
         mapArgs["-privatesendmultisession"] = "0";
         LogPrintf("%s: parameter interaction: -liquidityprovider=%d -> setting -privatesendmultisession=0\n", __func__, nLiqProvTmp);
     }
@@ -1845,9 +1845,9 @@ bool AppInit2(boost::thread_group& threadGroup, CScheduler& scheduler)
     fEnablePrivateSend = GetBoolArg("-enableprivatesend", 0);
     fPrivateSendMultiSession = GetBoolArg("-privatesendmultisession", DEFAULT_PRIVATESEND_MULTISESSION);
     nPrivateSendRounds = GetArg("-privatesendrounds", DEFAULT_PRIVATESEND_ROUNDS);
-    nPrivateSendRounds = std::min(std::max(nPrivateSendRounds, 2), nLiquidityProvider ? 99999 : 16);
+    nPrivateSendRounds = std::min(std::max(nPrivateSendRounds, 2), nLiquidityProvider ? 932329 : 16);
     nPrivateSendAmount = GetArg("-privatesendamount", DEFAULT_PRIVATESEND_AMOUNT);
-    nPrivateSendAmount = std::min(std::max(nPrivateSendAmount, 2), 999999);
+    nPrivateSendAmount = std::min(std::max(nPrivateSendAmount, 2), 9323299);
 
     fEnableInstantSend = GetBoolArg("-enableinstantsend", 1);
     nInstantSendDepth = GetArg("-instantsenddepth", DEFAULT_INSTANTSEND_DEPTH);

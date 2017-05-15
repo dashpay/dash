@@ -4,11 +4,11 @@
 
 Dash Core version 0.12.0 is now available from:
 
-  https://dashpay.io/downloads
+  https://jastcoin.io/downloads
 
 Please report bugs using the issue tracker at github:
 
-  https://github.com/dashpay/dash/issues
+  https://github.com/microcrm/jastcoin/issues
 
 
 How to Upgrade
