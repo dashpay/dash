@@ -1,7 +1,7 @@
 # Linearize
 Construct a linear, no-fork, best version of the blockchain.
 
-## Step 0: Install dash_hash
+## Step 0: Install jast_hash
 
 https://github.com/microcrm/jastcoin_hash
 

@@ -1,8 +1,8 @@
-Source: dash
+Source: jast
 Section: utils
 Priority: optional
-Maintainer: Holger Schinzel <holger@dash.org>
-Uploaders: Holger Schinzel <holger@dash.org>
+Maintainer: Holger Schinzel <holger@jast.org>
+Uploaders: Holger Schinzel <holger@jast.org>
 Build-Depends: debhelper,
  devscripts,
  automake,
@@ -24,11 +24,11 @@ Build-Depends: debhelper,
  libprotobuf-dev, protobuf-compiler,
  python
 Standards-Version: 3.9.2
-Homepage: https://www.dash.org/
+Homepage: https://www.jast.org/
 Vcs-Git: git://github.com/microcrm/jastcoin.git
 Vcs-Browser: https://github.com/microcrm/jastcoin
 
-Package: dashd
+Package: jastd
 Architecture: any
 Depends: ${shlibs:Depends}, ${misc:Depends}
 Description: peer-to-peer network based digital currency - daemon
@@ -38,10 +38,10 @@ Description: peer-to-peer network based digital currency - daemon
  and issuing money are carried out collectively by the network. Dash Core
  is the name of the open source software which enables the use of this currency.
  .
- This package provides the daemon, dashd, and the CLI tool
- dash-cli to interact with the daemon.
+ This package provides the daemon, jastd, and the CLI tool
+ jast-cli to interact with the daemon.
 
-Package: dash-qt
+Package: jast-qt
 Architecture: any
 Depends: ${shlibs:Depends}, ${misc:Depends}
 Description: peer-to-peer network based digital currency - Qt GUI
@@ -53,7 +53,7 @@ Description: peer-to-peer network based digital currency - Qt GUI
  .
  This package provides Dash-Qt, a GUI for Dash based on Qt.
 
-Package: dash-tx
+Package: jast-tx
 Architecture: any
 Depends: ${shlibs:Depends}, ${misc:Depends}
 Description: peer-to-peer digital currency - standalone transaction tool
@@ -63,6 +63,6 @@ Description: peer-to-peer digital currency - standalone transaction tool
  and issuing money are carried out collectively by the network. Dash Core
  is the name of the open source software which enables the use of this currency.
  .
- This package provides dash-tx, a command-line transaction creation
- tool which can be used without a dash daemon.  Some means of
+ This package provides jast-tx, a command-line transaction creation
+ tool which can be used without a jast daemon.  Some means of
  exchanging minimal transaction data with peers is still required.

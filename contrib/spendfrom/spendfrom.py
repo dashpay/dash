@@ -1,13 +1,13 @@
 #!/usr/bin/env python
 #
-# Use the raw transactions API to spend dashs received on particular addresses,
+# Use the raw transactions API to spend jasts received on particular addresses,
 # and send any change back to that same address.
 #
 # Example usage:
 #  spendfrom.py  # Lists available funds
 #  spendfrom.py --from=ADDRESS --to=ADDRESS --amount=11.00
 #
-# Assumes it will talk to a dashd or Dash-Qt running
+# Assumes it will talk to a jastd or Dash-Qt running
 # on localhost.
 #
 # Depends on jsonrpc
@@ -38,10 +38,10 @@ def determine_db_dir():
         return os.path.expanduser("~/Library/Application Support/DashCore/")
     elif platform.system() == "Windows":
         return os.path.join(os.environ['APPDATA'], "DashCore")
-    return os.path.expanduser("~/.dashcore")
+    return os.path.expanduser("~/.jastcore")
 
 def read_bitcoin_config(dbdir):
-    """Read the dash.conf file from dbdir, returns dictionary of settings"""
+    """Read the jast.conf file from dbdir, returns dictionary of settings"""
     from ConfigParser import SafeConfigParser
 
     class FakeSecHead(object):
@@ -59,7 +59,7 @@ def read_bitcoin_config(dbdir):
                 return s
 
     config_parser = SafeConfigParser()
-    config_parser.readfp(FakeSecHead(open(os.path.join(dbdir, "dash.conf"))))
+    config_parser.readfp(FakeSecHead(open(os.path.join(dbdir, "jast.conf"))))
     return dict(config_parser.items("all"))
 
 def connect_JSON(config):
@@ -72,7 +72,7 @@ def connect_JSON(config):
     try:
         result = ServiceProxy(connect)
         # ServiceProxy is lazy-connect, so send an RPC command mostly to catch connection errors,
-        # but also make sure the dashd we're talking to is/isn't testnet:
+        # but also make sure the jastd we're talking to is/isn't testnet:
         if result.getmininginfo()['testnet'] != testnet:
             sys.stderr.write("RPC server at "+connect+" testnet setting mismatch\n")
             sys.exit(1)
@@ -81,36 +81,36 @@ def connect_JSON(config):
         sys.stderr.write("Error connecting to RPC server at "+connect+"\n")
         sys.exit(1)
 
-def unlock_wallet(dashd):
-    info = dashd.getinfo()
+def unlock_wallet(jastd):
+    info = jastd.getinfo()
     if 'unlocked_until' not in info:
         return True # wallet is not encrypted
     t = int(info['unlocked_until'])
     if t <= time.time():
         try:
             passphrase = getpass.getpass("Wallet is locked; enter passphrase: ")
-            dashd.walletpassphrase(passphrase, 5)
+            jastd.walletpassphrase(passphrase, 5)
         except:
             sys.stderr.write("Wrong passphrase\n")
 
-    info = dashd.getinfo()
+    info = jastd.getinfo()
     return int(info['unlocked_until']) > time.time()
 
-def list_available(dashd):
+def list_available(jastd):
     address_summary = dict()
 
     address_to_account = dict()
-    for info in dashd.listreceivedbyaddress(0):
+    for info in jastd.listreceivedbyaddress(0):
         address_to_account[info["address"]] = info["account"]
 
-    unspent = dashd.listunspent(0)
+    unspent = jastd.listunspent(0)
     for output in unspent:
         # listunspent doesn't give addresses, so:
-        rawtx = dashd.getrawtransaction(output['txid'], 1)
+        rawtx = jastd.getrawtransaction(output['txid'], 1)
         vout = rawtx["vout"][output['vout']]
         pk = vout["scriptPubKey"]
 
-        # This code only deals with ordinary pay-to-dash-address
+        # This code only deals with ordinary pay-to-jast-address
         # or pay-to-script-hash outputs right now; anything exotic is ignored.
         if pk["type"] != "pubkeyhash" and pk["type"] != "scripthash":
             continue
@@ -139,8 +139,8 @@ def select_coins(needed, inputs):
         n += 1
     return (outputs, have-needed)
 
-def create_tx(dashd, fromaddresses, toaddress, amount, fee):
-    all_coins = list_available(dashd)
+def create_tx(jastd, fromaddresses, toaddress, amount, fee):
+    all_coins = list_available(jastd)
 
     total_available = Decimal("0.0")
     needed = amount+fee
@@ -159,7 +159,7 @@ def create_tx(dashd, fromaddresses, toaddress, amount, fee):
     # Note:
     # Python's json/jsonrpc modules have inconsistent support for Decimal numbers.
     # Instead of wrestling with getting json.dumps() (used by jsonrpc) to encode
-    # Decimals, I'm casting amounts to float before sending them to dashd.
+    # Decimals, I'm casting amounts to float before sending them to jastd.
     #
     outputs = { toaddress : float(amount) }
     (inputs, change_amount) = select_coins(needed, potential_inputs)
@@ -170,8 +170,8 @@ def create_tx(dashd, fromaddresses, toaddress, amount, fee):
         else:
             outputs[change_address] = float(change_amount)
 
-    rawtx = dashd.createrawtransaction(inputs, outputs)
-    signed_rawtx = dashd.signrawtransaction(rawtx)
+    rawtx = jastd.createrawtransaction(inputs, outputs)
+    signed_rawtx = jastd.signrawtransaction(rawtx)
     if not signed_rawtx["complete"]:
         sys.stderr.write("signrawtransaction failed\n")
         sys.exit(1)
@@ -179,10 +179,10 @@ def create_tx(dashd, fromaddresses, toaddress, amount, fee):
 
     return txdata
 
-def compute_amount_in(dashd, txinfo):
+def compute_amount_in(jastd, txinfo):
     result = Decimal("0.0")
     for vin in txinfo['vin']:
-        in_info = dashd.getrawtransaction(vin['txid'], 1)
+        in_info = jastd.getrawtransaction(vin['txid'], 1)
         vout = in_info['vout'][vin['vout']]
         result = result + vout['value']
     return result
@@ -193,12 +193,12 @@ def compute_amount_out(txinfo):
         result = result + vout['value']
     return result
 
-def sanity_test_fee(dashd, txdata_hex, max_fee):
+def sanity_test_fee(jastd, txdata_hex, max_fee):
     class FeeError(RuntimeError):
         pass
     try:
-        txinfo = dashd.decoderawtransaction(txdata_hex)
-        total_in = compute_amount_in(dashd, txinfo)
+        txinfo = jastd.decoderawtransaction(txdata_hex)
+        total_in = compute_amount_in(jastd, txinfo)
         total_out = compute_amount_out(txinfo)
         if total_in-total_out > max_fee:
             raise FeeError("Rejecting transaction, unreasonable fee of "+str(total_in-total_out))
@@ -221,15 +221,15 @@ def main():
 
     parser = optparse.OptionParser(usage="%prog [options]")
     parser.add_option("--from", dest="fromaddresses", default=None,
-                      help="addresses to get dashs from")
+                      help="addresses to get jasts from")
     parser.add_option("--to", dest="to", default=None,
-                      help="address to get send dashs to")
+                      help="address to get send jasts to")
     parser.add_option("--amount", dest="amount", default=None,
                       help="amount to send")
     parser.add_option("--fee", dest="fee", default="0.0",
                       help="fee to include")
     parser.add_option("--datadir", dest="datadir", default=determine_db_dir(),
-                      help="location of dash.conf file with RPC username/password (default: %default)")
+                      help="location of jast.conf file with RPC username/password (default: %default)")
     parser.add_option("--testnet", dest="testnet", default=False, action="store_true",
                       help="Use the test network")
     parser.add_option("--dry_run", dest="dry_run", default=False, action="store_true",
@@ -240,10 +240,10 @@ def main():
     check_json_precision()
     config = read_bitcoin_config(options.datadir)
     if options.testnet: config['testnet'] = True
-    dashd = connect_JSON(config)
+    jastd = connect_JSON(config)
 
     if options.amount is None:
-        address_summary = list_available(dashd)
+        address_summary = list_available(jastd)
         for address,info in address_summary.iteritems():
             n_transactions = len(info['outputs'])
             if n_transactions > 1:
@@ -253,14 +253,14 @@ def main():
     else:
         fee = Decimal(options.fee)
         amount = Decimal(options.amount)
-        while unlock_wallet(dashd) == False:
+        while unlock_wallet(jastd) == False:
             pass # Keep asking for passphrase until they get it right
-        txdata = create_tx(dashd, options.fromaddresses.split(","), options.to, amount, fee)
-        sanity_test_fee(dashd, txdata, amount*Decimal("0.01"))
+        txdata = create_tx(jastd, options.fromaddresses.split(","), options.to, amount, fee)
+        sanity_test_fee(jastd, txdata, amount*Decimal("0.01"))
         if options.dry_run:
             print(txdata)
         else:
-            txid = dashd.sendrawtransaction(txdata)
+            txid = jastd.sendrawtransaction(txdata)
             print(txid)
 
 if __name__ == '__main__':

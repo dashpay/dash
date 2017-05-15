@@ -34,5 +34,5 @@ blocks and transactions to fewer nodes.
 ## 3. Reduce maximum connections (`-maxconnections=<num>`)
 
 Reducing the maximum connected nodes to a minimum could be desirable if traffic
-limits are tiny. Keep in mind that dash's trustless model works best if you are
+limits are tiny. Keep in mind that jast's trustless model works best if you are
 connected to a handful of nodes.

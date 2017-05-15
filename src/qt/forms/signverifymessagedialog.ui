@@ -352,7 +352,7 @@
   </customwidget>
  </customwidgets>
  <resources>
-  <include location="../dash.qrc"/>
+  <include location="../jast.qrc"/>
  </resources>
  <connections/>
 </ui>

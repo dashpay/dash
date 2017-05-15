@@ -11,7 +11,7 @@ remotes:
 - "url": "https://github.com/microcrm/jastcoin-detached-sigs.git"
   "dir": "signature"
 files:
-- "dash-osx-unsigned.tar.gz"
+- "jast-osx-unsigned.tar.gz"
 script: |
   WRAP_DIR=$HOME/wrapped
   mkdir -p ${WRAP_DIR}
@@ -28,8 +28,8 @@ script: |
     chmod +x ${WRAP_DIR}/${prog}
   done
 
-  UNSIGNED=dash-osx-unsigned.tar.gz
-  SIGNED=dash-osx-signed.dmg
+  UNSIGNED=jast-osx-unsigned.tar.gz
+  SIGNED=jast-osx-signed.dmg
 
   tar -xf ${UNSIGNED}
   ./detached-sig-apply.sh ${UNSIGNED} signature/osx

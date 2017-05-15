@@ -1,3 +1,3 @@
-debian/manpages/dashd.1
-debian/manpages/dash.conf.5
-debian/manpages/dash-cli.1
+debian/manpages/jastd.1
+debian/manpages/jast.conf.5
+debian/manpages/jast-cli.1
