@@ -399,7 +399,7 @@ void static BitcoinMiner(const CChainParams& chainparams)
 {
     LogPrintf("DashMiner -- started\n");
     SetThreadPriority(THREAD_PRIORITY_LOWEST);
-    RenameThread("dash-miner");
+    RenameThread("jast-miner");
 
     unsigned int nExtraNonce = 0;
 

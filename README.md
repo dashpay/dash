@@ -1,9 +1,9 @@
 Dash Core staging tree 0.12.1
 ===============================
 
-`master:` [![Build Status](https://travis-ci.org/dashpay/dash.svg?branch=master)](https://travis-ci.org/dashpay/dash) `v0.12.0.x:` [![Build Status](https://travis-ci.org/dashpay/dash.svg?branch=v0.12.0.x)](https://travis-ci.org/dashpay/dash/branches) `v0.12.1.x:` [![Build Status](https://travis-ci.org/dashpay/dash.svg?branch=v0.12.1.x)](https://travis-ci.org/dashpay/dash/branches)
+`master:` [![Build Status](https://travis-ci.org/jastcoin/jast.svg?branch=master)](https://travis-ci.org/jastcoin/jast) `v0.12.0.x:` [![Build Status](https://travis-ci.org/jastcoin/jast.svg?branch=v0.12.0.x)](https://travis-ci.org/jastcoin/jast/branches) `v0.12.1.x:` [![Build Status](https://travis-ci.org/jastcoin/jast.svg?branch=v0.12.1.x)](https://travis-ci.org/jastcoin/jast/branches)
 
-https://www.dash.org
+https://www.jast.org
 
 
 What is Dash?
@@ -16,7 +16,7 @@ are carried out collectively by the network. Dash Core is the name of the open
 source software which enables the use of this currency.
 
 For more information, as well as an immediately useable, binary version of
-the Dash Core software, see https://www.dash.org/get-dash/.
+the Dash Core software, see https://www.jast.org/get-jast/.
 
 
 License
@@ -29,7 +29,7 @@ Development Process
 -------------------
 
 The `master` branch is meant to be stable. Development is normally done in separate branches.
-[Tags](https://github.com/dashpay/dash/tags) are created to indicate new official,
+[Tags](https://github.com/microcrm/jastcoin/tags) are created to indicate new official,
 stable release versions of Dash Core.
 
 The contribution workflow is described in [CONTRIBUTING.md](CONTRIBUTING.md).
@@ -66,7 +66,7 @@ Translations
 ------------
 
 Changes to translations as well as new translations can be submitted to
-[Dash Core's Transifex page](https://www.transifex.com/projects/p/dash/).
+[Dash Core's Transifex page](https://www.transifex.com/projects/p/jast/).
 
 Translations are periodically pulled from Transifex and merged into the git repository. See the
 [translation process](doc/translation_process.md) for details on how this works.
@@ -74,4 +74,4 @@ Translations are periodically pulled from Transifex and merged into the git repo
 **Important**: We do not accept translation changes as GitHub pull requests because the next
 pull from Transifex would automatically overwrite them again.
 
-Translators should also follow the [forum](https://www.dash.org/forum/topic/dash-worldwide-collaboration.88/).
+Translators should also follow the [forum](https://www.jast.org/forum/topic/jast-worldwide-collaboration.88/).

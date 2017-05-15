@@ -326,7 +326,7 @@
   <tabstop>removeRequestButton</tabstop>
  </tabstops>
  <resources>
-  <include location="../dash.qrc"/>
+  <include location="../jast.qrc"/>
  </resources>
  <connections/>
 </ui>

@@ -10,7 +10,7 @@
 #include "sync.h"
 #include "utilstrencodings.h"
 #include "utilmoneystr.h"
-#include "test/test_dash.h"
+#include "test/test_jast.h"
 
 #include <stdint.h>
 #include <vector>
@@ -455,10 +455,10 @@ BOOST_AUTO_TEST_CASE(test_ParseFixedPoint)
     BOOST_CHECK_EQUAL(amount, -1LL);
     BOOST_CHECK(ParseFixedPoint("1000000000.00000001", 8, &amount));
     BOOST_CHECK_EQUAL(amount, 100000000000000001LL);
-    BOOST_CHECK(ParseFixedPoint("9999999999.99999999", 8, &amount));
-    BOOST_CHECK_EQUAL(amount, 999999999999999999LL);
-    BOOST_CHECK(ParseFixedPoint("-9999999999.99999999", 8, &amount));
-    BOOST_CHECK_EQUAL(amount, -999999999999999999LL);
+    BOOST_CHECK(ParseFixedPoint("932329323299.9323293232", 8, &amount));
+    BOOST_CHECK_EQUAL(amount, 9323293232932329323299LL);
+    BOOST_CHECK(ParseFixedPoint("-932329323299.9323293232", 8, &amount));
+    BOOST_CHECK_EQUAL(amount, -9323293232932329323299LL);
 
     BOOST_CHECK(!ParseFixedPoint("", 8, &amount));
     BOOST_CHECK(!ParseFixedPoint("-", 8, &amount));
@@ -478,8 +478,8 @@ BOOST_AUTO_TEST_CASE(test_ParseFixedPoint)
     BOOST_CHECK(!ParseFixedPoint("10000000000.00000001", 8, &amount));
     BOOST_CHECK(!ParseFixedPoint("-10000000000.00000009", 8, &amount));
     BOOST_CHECK(!ParseFixedPoint("10000000000.00000009", 8, &amount));
-    BOOST_CHECK(!ParseFixedPoint("-99999999999.99999999", 8, &amount));
-    BOOST_CHECK(!ParseFixedPoint("99999909999.09999999", 8, &amount));
+    BOOST_CHECK(!ParseFixedPoint("-9323293232999.9323293232", 8, &amount));
+    BOOST_CHECK(!ParseFixedPoint("9323299093232.093232999", 8, &amount));
     BOOST_CHECK(!ParseFixedPoint("92233720368.54775807", 8, &amount));
     BOOST_CHECK(!ParseFixedPoint("92233720368.54775808", 8, &amount));
     BOOST_CHECK(!ParseFixedPoint("-92233720368.54775808", 8, &amount));
