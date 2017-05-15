@@ -1,5 +1,5 @@
 ---
-name: "jastcoin-win-0.12"
+name: "jastcoin-win-0.0.1.1"
 enable_cache: true
 suites:
 - "trusty"
