@@ -83,7 +83,7 @@ bool CHDChain::SetMnemonic(const CSecureVector& vchMnemonicIn, const CSecureVect
 
         // empty mnemonic i.e. "generate a new one"
         if (vchMnemonicIn.empty()) {
-            strMnemonic = mnemonic_generate(128);
+            strMnemonic = mnemonic_generate(256);
             vchMnemonicTmp = CSecureVector(strMnemonic.begin(), strMnemonic.end());
         }
         // NOTE: default mnemonic passphrase is an empty string
