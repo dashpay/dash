@@ -13,6 +13,7 @@
 #include "txmempool.h"
 #include "util.h"
 #include "utilmoneystr.h"
+#include <memory>
 
 CPrivateSendClient privateSendClient;
 
@@ -1241,7 +1242,7 @@ bool CPrivateSendClient::CreateDenominated(const CompactTallyItem& tallyItem, bo
     // ****** Add denoms ************ /
 
     // make our denom addresses
-    CReserveKey reservekeyDenom(pwalletMain);
+    std::vector<std::shared_ptr<CReserveKey>> reservekeyDenomVec;
 
     // try few times - skipping smallest denoms first if there are too much already, if failed - use them
     int nOutputsTotal = 0;
@@ -1273,10 +1274,11 @@ bool CPrivateSendClient::CreateDenominated(const CompactTallyItem& tallyItem, bo
                 CScript scriptDenom;
                 CPubKey vchPubKey;
                 //use a unique change address
-                assert(reservekeyDenom.GetReservedKey(vchPubKey)); // should never fail, as we just unlocked
+                std::shared_ptr<CReserveKey> reservekeyDenom = std::make_shared<CReserveKey>(pwalletMain);
+                reservekeyDenomVec.push_back(reservekeyDenom);
+
+                assert(reservekeyDenom->GetReservedKey(vchPubKey)); // should never fail, as we just unlocked
                 scriptDenom = GetScriptForDestination(vchPubKey.GetID());
-                // TODO: do not keep reservekeyDenom here
-                reservekeyDenom.KeepKey();
 
                 vecSend.push_back((CRecipient){ scriptDenom, nDenomValue, false });
 
@@ -1316,13 +1318,17 @@ bool CPrivateSendClient::CreateDenominated(const CompactTallyItem& tallyItem, bo
             nFeeRet, nChangePosRet, strFail, &coinControl, true, ONLY_NONDENOMINATED_NOT1000IFMN);
     if(!fSuccess) {
         LogPrintf("CPrivateSendClient::CreateDenominated -- Error: %s\n", strFail);
-        // TODO: return reservekeyDenom here
+        for(auto key : reservekeyDenomVec)
+            key->ReturnKey();
         reservekeyCollateral.ReturnKey();
+        LogPrintf("CPrivateSendClient::CreateDenominated -- %d keys returned\n", reservekeyDenomVec.size() + 1);
         return false;
     }
 
-    // TODO: keep reservekeyDenom here
+    for(auto key : reservekeyDenomVec)
+        key->KeepKey();
     reservekeyCollateral.KeepKey();
+    LogPrintf("CPrivateSendClient::CreateDenominated -- %d keys keeped\n", reservekeyDenomVec.size() + 1);
 
     if(!pwalletMain->CommitTransaction(wtx, reservekeyChange)) {
         LogPrintf("CPrivateSendClient::CreateDenominated -- CommitTransaction failed!\n");
