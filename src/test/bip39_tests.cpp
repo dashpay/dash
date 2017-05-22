@@ -44,7 +44,7 @@ BOOST_AUTO_TEST_CASE(bip39_vectors)
         BOOST_CHECK(m == mnemonic);
         BOOST_CHECK(mnemonic_check(mnemonic));
 
-        CSecureVector seed;
+        SecureVector seed;
         SecureString passphrase = SecureString("TREZOR");
 
         mnemonic_to_seed(mnemonic, passphrase, seed);

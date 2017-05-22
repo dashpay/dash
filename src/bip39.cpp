@@ -150,16 +150,16 @@ int mnemonic_check(SecureString mnemonic)
 }
 
 // passphrase must be at most 256 characters or code may crash
-void mnemonic_to_seed(SecureString mnemonic, SecureString passphrase, CSecureVector& seedRet)
+void mnemonic_to_seed(SecureString mnemonic, SecureString passphrase, SecureVector& seedRet)
 {
     SecureString ssSalt = SecureString("mnemonic") + passphrase;
-    CSecureVector vchSalt(ssSalt.begin(), ssSalt.end());
+    SecureVector vchSalt(ssSalt.begin(), ssSalt.end());
     // int PKCS5_PBKDF2_HMAC(const char *pass, int passlen,
     //                    const unsigned char *salt, int saltlen, int iter,
     //                    const EVP_MD *digest,
     //                    int keylen, unsigned char *out);
     uint8_t seed[64];
     PKCS5_PBKDF2_HMAC(mnemonic.c_str(), mnemonic.size(), &vchSalt[0], vchSalt.size(), 2048, EVP_sha512(), 64, seed);
-    seedRet = CSecureVector(seed, seed + 64);
+    seedRet = SecureVector(seed, seed + 64);
     memory_cleanse(seed, sizeof(seed));
 }

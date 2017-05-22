@@ -1391,7 +1391,7 @@ void CWallet::GenerateNewHDChain()
 
     if(mapArgs.count("-hdseed") && IsHex(strSeed)) {
         std::vector<unsigned char> vchSeed = ParseHex(strSeed);
-        if (!newHdChain.SetSeed(CSecureVector(vchSeed.begin(), vchSeed.end()), true))
+        if (!newHdChain.SetSeed(SecureVector(vchSeed.begin(), vchSeed.end()), true))
             throw std::runtime_error(std::string(__func__) + ": SetSeed failed");
     }
     else {
@@ -1403,8 +1403,8 @@ void CWallet::GenerateNewHDChain()
         // NOTE: default mnemonic passphrase is an empty string
         std::string strMnemonicPassphrase = GetArg("-mnemonicpassphrase", "");
 
-        CSecureVector vchMnemonic(strMnemonic.begin(), strMnemonic.end());
-        CSecureVector vchMnemonicPassphrase(strMnemonicPassphrase.begin(), strMnemonicPassphrase.end());
+        SecureVector vchMnemonic(strMnemonic.begin(), strMnemonic.end());
+        SecureVector vchMnemonicPassphrase(strMnemonicPassphrase.begin(), strMnemonicPassphrase.end());
 
         if (!newHdChain.SetMnemonic(vchMnemonic, vchMnemonicPassphrase, true))
             throw std::runtime_error(std::string(__func__) + ": SetMnemonic failed");

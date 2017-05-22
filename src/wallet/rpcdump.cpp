@@ -685,7 +685,7 @@ UniValue dumpwallet(const UniValue& params, bool fHelp)
         file << "# mnemonic: " << ssMnemonic << "\n";
         file << "# mnemonic passphrase: " << ssMnemonicPassphrase << "\n\n";
 
-        CSecureVector vchSeed = hdChainCurrent.GetSeed();
+        SecureVector vchSeed = hdChainCurrent.GetSeed();
         file << "# HD seed: " << HexStr(vchSeed) << "\n\n";
 
         CExtKey masterKey;

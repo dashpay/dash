@@ -33,6 +33,6 @@ SecureString mnemonic_from_data(const uint8_t *data, int len);
 int mnemonic_check(SecureString mnemonic);
 
 // passphrase must be at most 256 characters or code may crash
-void mnemonic_to_seed(SecureString mnemonic, SecureString passphrase, CSecureVector& seedRet);
+void mnemonic_to_seed(SecureString mnemonic, SecureString passphrase, SecureVector& seedRet);
 
 #endif

@@ -69,7 +69,7 @@ void CHDChain::Debug(std::string strName) const
     );
 }
 
-bool CHDChain::SetMnemonic(const CSecureVector& vchMnemonic, const CSecureVector& vchMnemonicPassphrase, bool fUpdateID)
+bool CHDChain::SetMnemonic(const SecureVector& vchMnemonic, const SecureVector& vchMnemonicPassphrase, bool fUpdateID)
 {
     return SetMnemonic(SecureString(vchMnemonic.begin(), vchMnemonic.end()), SecureString(vchMnemonicPassphrase.begin(), vchMnemonicPassphrase.end()), fUpdateID);
 }
@@ -98,13 +98,13 @@ bool CHDChain::SetMnemonic(const SecureString& ssMnemonic, const SecureString& s
         id = GetSeedHash();
     }
 
-    vchMnemonic = CSecureVector(ssMnemonicTmp.begin(), ssMnemonicTmp.end());
-    vchMnemonicPassphrase = CSecureVector(ssMnemonicPassphrase.begin(), ssMnemonicPassphrase.end());
+    vchMnemonic = SecureVector(ssMnemonicTmp.begin(), ssMnemonicTmp.end());
+    vchMnemonicPassphrase = SecureVector(ssMnemonicPassphrase.begin(), ssMnemonicPassphrase.end());
 
     return !IsNull();
 }
 
-bool CHDChain::GetMnemonic(CSecureVector& vchMnemonicRet, CSecureVector& vchMnemonicPassphraseRet) const
+bool CHDChain::GetMnemonic(SecureVector& vchMnemonicRet, SecureVector& vchMnemonicPassphraseRet) const
 {
     // mnemonic was not set, fail
     if (vchMnemonic.empty())
@@ -127,7 +127,7 @@ bool CHDChain::GetMnemonic(SecureString& ssMnemonicRet, SecureString& ssMnemonic
     return true;
 }
 
-bool CHDChain::SetSeed(const CSecureVector& vchSeedIn, bool fUpdateID)
+bool CHDChain::SetSeed(const SecureVector& vchSeedIn, bool fUpdateID)
 {
     vchSeed = vchSeedIn;
 
@@ -138,7 +138,7 @@ bool CHDChain::SetSeed(const CSecureVector& vchSeedIn, bool fUpdateID)
     return !IsNull();
 }
 
-CSecureVector CHDChain::GetSeed() const
+SecureVector CHDChain::GetSeed() const
 {
     return vchSeed;
 }
