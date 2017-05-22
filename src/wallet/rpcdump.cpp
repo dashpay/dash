@@ -703,7 +703,7 @@ UniValue dumpwallet(const UniValue& params, bool fHelp)
         b58extpubkey.SetKey(masterPubkey);
         file << "# extended public masterkey: " << b58extpubkey.ToString() << "\n\n";
 
-        for (int i = 0; i < hdChainCurrent.CountAccounts(); ++i)
+        for (size_t i = 0; i < hdChainCurrent.CountAccounts(); ++i)
         {
             CHDAccount acc;
             if(hdChainCurrent.GetAccount(i, acc)) {
