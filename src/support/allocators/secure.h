@@ -9,6 +9,7 @@
 #include "support/pagelocker.h"
 
 #include <string>
+#include <vector>
 
 //
 // Allocator that locks its contents from being paged
