@@ -45,8 +45,7 @@ BOOST_AUTO_TEST_CASE(bip39_vectors)
         BOOST_CHECK(mnemonic_check(mnemonic));
 
         SecureVector seed;
-        SecureString passphrase = SecureString("TREZOR");
-
+        SecureString passphrase("TREZOR");
         mnemonic_to_seed(mnemonic, passphrase, seed);
         // printf("seed: %s\n", HexStr(std::string(seed.begin(), seed.end())).c_str());
         BOOST_CHECK(HexStr(std::string(seed.begin(), seed.end())) == test[2].get_str());
