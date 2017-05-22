@@ -617,8 +617,8 @@ UniValue dumphdinfo(const UniValue& params, bool fHelp)
 
         UniValue obj(UniValue::VOBJ);
         obj.push_back(Pair("hdseed", HexStr(hdChainCurrent.GetSeed())));
-        obj.push_back(Pair("mnemonic", std::string(ssMnemonic.begin(), ssMnemonic.end())));
-        obj.push_back(Pair("mnemonicpassphrase", std::string(ssMnemonicPassphrase.begin(), ssMnemonicPassphrase.end())));
+        obj.push_back(Pair("mnemonic", ssMnemonic.c_str()));
+        obj.push_back(Pair("mnemonicpassphrase", ssMnemonicPassphrase.c_str()));
 
         return obj;
     }
@@ -682,8 +682,8 @@ UniValue dumpwallet(const UniValue& params, bool fHelp)
         SecureString ssMnemonic;
         SecureString ssMnemonicPassphrase;
         hdChainCurrent.GetMnemonic(ssMnemonic, ssMnemonicPassphrase);
-        file << "# mnemonic: " << std::string(ssMnemonic.begin(), ssMnemonic.end()) << "\n";
-        file << "# mnemonic passphrase: " << std::string(ssMnemonicPassphrase.begin(), ssMnemonicPassphrase.end()) << "\n\n";
+        file << "# mnemonic: " << ssMnemonic << "\n";
+        file << "# mnemonic passphrase: " << ssMnemonicPassphrase << "\n\n";
 
         CSecureVector vchSeed = hdChainCurrent.GetSeed();
         file << "# HD seed: " << HexStr(vchSeed) << "\n\n";
