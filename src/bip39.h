@@ -24,19 +24,15 @@
 #ifndef __BIP39_H__
 #define __BIP39_H__
 
-#include <stdint.h>
+#include "support/allocators/secure.h"
 
-#define BIP39_PBKDF2_ROUNDS 2048
+SecureString mnemonic_generate(int strength);    // strength in bits
 
-const char *mnemonic_generate(int strength);    // strength in bits
+SecureString mnemonic_from_data(const uint8_t *data, int len);
 
-const char *mnemonic_from_data(const uint8_t *data, int len);
-
-int mnemonic_check(const char *mnemonic);
+int mnemonic_check(SecureString mnemonic);
 
 // passphrase must be at most 256 characters or code may crash
-void mnemonic_to_seed(const char *mnemonic, const char *passphrase, uint8_t seed[512 / 8], void (*progress_callback)(uint32_t current, uint32_t total));
-
-const char * const *mnemonic_wordlist(void);
+void mnemonic_to_seed(SecureString mnemonic, SecureString passphrase, CSecureVector& seedRet);
 
 #endif

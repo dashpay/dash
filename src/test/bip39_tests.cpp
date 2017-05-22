@@ -36,24 +36,25 @@ BOOST_AUTO_TEST_CASE(bip39_vectors)
 
         std::vector<uint8_t> vData = ParseHex(test[0].get_str());
 
-        std::string m = mnemonic_from_data(&vData[0], vData.size());
-        std::string mnemonic = test[1].get_str();
+        SecureString m = mnemonic_from_data(&vData[0], vData.size());
+        std::string strMnemonic = test[1].get_str();
+        SecureString mnemonic(strMnemonic.begin(), strMnemonic.end());
 
         // printf("%s\n%s\n", m.c_str(), mnemonic.c_str());
         BOOST_CHECK(m == mnemonic);
-        BOOST_CHECK(mnemonic_check(mnemonic.c_str()));
+        BOOST_CHECK(mnemonic_check(mnemonic));
 
-        uint8_t seed[64];
-        const char *passphrase = "TREZOR";
+        CSecureVector seed;
+        SecureString passphrase = SecureString("TREZOR");
 
-        mnemonic_to_seed(mnemonic.c_str(), passphrase, seed, 0);
-        // printf("seed: %s\n", HexStr(seed, seed + 64).c_str());
-        BOOST_CHECK(HexStr(seed, seed + 64) == test[2].get_str());
+        mnemonic_to_seed(mnemonic, passphrase, seed);
+        // printf("seed: %s\n", HexStr(std::string(seed.begin(), seed.end())).c_str());
+        BOOST_CHECK(HexStr(std::string(seed.begin(), seed.end())) == test[2].get_str());
 
         CExtKey key;
         CExtPubKey pubkey;
 
-        key.SetMaster(seed, 64);
+        key.SetMaster(&seed[0], 64);
         pubkey = key.Neuter();
 
         CBitcoinExtKey b58key;

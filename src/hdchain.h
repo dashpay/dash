@@ -24,8 +24,6 @@ public:
     }
 };
 
-typedef std::vector<unsigned char, secure_allocator<unsigned char> > CSecureVector;
-
 /* simple HD chain data model */
 class CHDChain
 {
@@ -102,7 +100,8 @@ public:
 
     void Debug(std::string strName) const;
 
-    bool SetMnemonic(const CSecureVector& vchMnemonicIn, const CSecureVector& vchMnemonicPassphraseIn, bool fUpdateID);
+    bool SetMnemonic(const CSecureVector& vchMnemonic, const CSecureVector& vchMnemonicPassphrase, bool fUpdateID);
+    bool SetMnemonic(const SecureString& ssMnemonic, const SecureString& ssMnemonicPassphrase, bool fUpdateID);
     bool GetMnemonic(CSecureVector& vchMnemonicRet, CSecureVector& vchMnemonicPassphraseRet) const;
     bool GetMnemonic(SecureString& ssMnemonicRet, SecureString& ssMnemonicPassphraseRet) const;
 

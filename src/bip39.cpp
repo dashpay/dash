@@ -24,41 +24,33 @@
 // Source:
 // https://github.com/trezor/trezor-crypto
 
-#include <string.h>
-#include <stdbool.h>
-
 #include "bip39.h"
-// #include "hmac.h"
-// #include "rand.h"
-// #include "sha2.h"
-// #include "pbkdf2.h"
 #include "bip39_english.h"
-// #include "options.h"
 #include "crypto/sha256.h"
 #include "random.h"
 
 #include <openssl/evp.h>
 
-const char *mnemonic_generate(int strength)
+SecureString mnemonic_generate(int strength)
 {
     if (strength % 32 || strength < 128 || strength > 256) {
-        return 0;
+        return SecureString();
     }
     uint8_t data[32];
-    // random_buffer(data, 32);
     GetRandBytes(data, 32);
-    return mnemonic_from_data(data, strength / 8);
+    SecureString mnemonic = mnemonic_from_data(data, strength / 8);
+    memory_cleanse(data, sizeof(data));
+    return mnemonic;
 }
 
-const char *mnemonic_from_data(const uint8_t *data, int len)
+SecureString mnemonic_from_data(const uint8_t *data, int len)
 {
     if (len % 4 || len < 16 || len > 32) {
-        return 0;
+        return SecureString();
     }
 
     uint8_t bits[32 + 1];
 
-    // sha256_Raw(data, len, bits);
     CSHA256().Write(data, len).Finalize(bits);
     // checksum
     bits[len] = bits[0];
@@ -66,34 +58,33 @@ const char *mnemonic_from_data(const uint8_t *data, int len)
     memcpy(bits, data, len);
 
     int mlen = len * 3 / 4;
-    static char mnemo[24 * 10];
+    SecureString mnemonic;
 
     int i, j, idx;
-    char *p = mnemo;
     for (i = 0; i < mlen; i++) {
         idx = 0;
         for (j = 0; j < 11; j++) {
             idx <<= 1;
             idx += (bits[(i * 11 + j) / 8] & (1 << (7 - ((i * 11 + j) % 8)))) > 0;
         }
-        strcpy(p, wordlist[idx]);
-        p += strlen(wordlist[idx]);
-        *p = (i < mlen - 1) ? ' ' : 0;
-        p++;
+        mnemonic.append(wordlist[idx]);
+        if (i < mlen - 1) {
+            mnemonic += ' ';
+        }
     }
+    memory_cleanse(bits, sizeof(bits));
 
-    return mnemo;
+    return mnemonic;
 }
 
-int mnemonic_check(const char *mnemonic)
+int mnemonic_check(SecureString mnemonic)
 {
-    if (!mnemonic) {
+    if (mnemonic.empty()) {
         return 0;
     }
 
-    uint32_t i, n;
+    uint32_t i{}, n{};
 
-    i = 0; n = 0;
     while (mnemonic[i]) {
         if (mnemonic[i] == ' ') {
             n++;
@@ -108,8 +99,7 @@ int mnemonic_check(const char *mnemonic)
 
     char current_word[10];
     uint32_t j, k, ki, bi;
-    uint8_t bits[32 + 1];
-    memset(bits, 0, sizeof(bits));
+    uint8_t bits[32 + 1]{};
     i = 0; bi = 0;
     while (mnemonic[i]) {
         j = 0;
@@ -143,37 +133,33 @@ int mnemonic_check(const char *mnemonic)
         return 0;
     }
     bits[32] = bits[n * 4 / 3];
-    // sha256_Raw(bits, n * 4 / 3, bits);
     CSHA256().Write(bits, n * 4 / 3).Finalize(bits);
 
+    int result = 0;
     if (n == 12) {
-        return (bits[0] & 0xF0) == (bits[32] & 0xF0); // compare first 4 bits
+        result = (bits[0] & 0xF0) == (bits[32] & 0xF0); // compare first 4 bits
     } else
     if (n == 18) {
-        return (bits[0] & 0xFC) == (bits[32] & 0xFC); // compare first 6 bits
+        result = (bits[0] & 0xFC) == (bits[32] & 0xFC); // compare first 6 bits
     } else
     if (n == 24) {
-        return bits[0] == bits[32]; // compare 8 bits
+        result = bits[0] == bits[32]; // compare 8 bits
     }
-    return 0;
+    memory_cleanse(bits, sizeof(bits));
+    return result;
 }
 
 // passphrase must be at most 256 characters or code may crash
-void mnemonic_to_seed(const char *mnemonic, const char *passphrase, uint8_t seed[512 / 8], void (*progress_callback)(uint32_t current, uint32_t total))
+void mnemonic_to_seed(SecureString mnemonic, SecureString passphrase, CSecureVector& seedRet)
 {
-    int passphraselen = strlen(passphrase);
-    uint8_t salt[8 + 256 + 4];
-    memcpy(salt, "mnemonic", 8);
-    memcpy(salt + 8, passphrase, passphraselen);
-    // pbkdf2_hmac_sha512((const uint8_t *)mnemonic, strlen(mnemonic), salt, passphraselen + 8, BIP39_PBKDF2_ROUNDS, seed, 512 / 8, progress_callback);
+    SecureString ssSalt = SecureString("mnemonic") + passphrase;
+    CSecureVector vchSalt(ssSalt.begin(), ssSalt.end());
     // int PKCS5_PBKDF2_HMAC(const char *pass, int passlen,
     //                    const unsigned char *salt, int saltlen, int iter,
     //                    const EVP_MD *digest,
     //                    int keylen, unsigned char *out);
-    PKCS5_PBKDF2_HMAC(mnemonic, strlen(mnemonic), salt, passphraselen + 8, 2048, EVP_sha512(), 64, seed);
-}
-
-const char * const *mnemonic_wordlist(void)
-{
-    return wordlist;
+    uint8_t seed[64];
+    PKCS5_PBKDF2_HMAC(mnemonic.c_str(), mnemonic.size(), &vchSalt[0], vchSalt.size(), 2048, EVP_sha512(), 64, seed);
+    seedRet = CSecureVector(seed, seed + 64);
+    memory_cleanse(seed, sizeof(seed));
 }
