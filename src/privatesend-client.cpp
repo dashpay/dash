@@ -1285,7 +1285,7 @@ bool CPrivateSendClient::CreateDenominated(const CompactTallyItem& tallyItem, bo
                 //increment outputs and subtract denomination amount
                 nOutputs++;
                 nValueLeft -= nDenomValue;
-                LogPrintf("CreateDenominated1: nOutputsTotal: %d, nOutputs: %d, nValueLeft: %f\n", nOutputsTotal + nOutputs, nOutputs, (float)nValueLeft/COIN);
+                LogPrintf("CreateDenominated1: totalOutputs: %d, nOutputsTotal: %d, nOutputs: %d, nValueLeft: %f\n", nOutputsTotal + nOutputs, nOutputsTotal, nOutputs, (float)nValueLeft/COIN);
             }
 
             nOutputsTotal += nOutputs;
