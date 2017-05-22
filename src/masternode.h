@@ -34,13 +34,17 @@ public:
     uint256 blockHash;
     int64_t sigTime; //mnb message times
     std::vector<unsigned char> vchSig;
+    int64_t sentinelPing; // last sentinel ping time
+    uint32_t sentinelVersion;
     //removed stop
 
     CMasternodePing() :
         vin(),
         blockHash(),
         sigTime(0),
-        vchSig()
+        vchSig(),
+        sentinelPing(0),
+        sentinelVersion(0)
         {}
 
     CMasternodePing(CTxIn& vinNew);
@@ -53,6 +57,8 @@ public:
         READWRITE(blockHash);
         READWRITE(sigTime);
         READWRITE(vchSig);
+        READWRITE(sentinelPing);
+        READWRITE(sentinelVersion);
     }
 
     void swap(CMasternodePing& first, CMasternodePing& second) // nothrow
@@ -66,6 +72,8 @@ public:
         swap(first.blockHash, second.blockHash);
         swap(first.sigTime, second.sigTime);
         swap(first.vchSig, second.vchSig);
+        swap(first.sentinelPing, second.sentinelPing);
+        swap(first.sentinelVersion, second.sentinelVersion);
     }
 
     uint256 GetHash() const

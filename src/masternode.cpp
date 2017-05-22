@@ -744,6 +744,7 @@ CMasternodePing::CMasternodePing(CTxIn& vinNew)
     blockHash = chainActive[chainActive.Height() - 12]->GetBlockHash();
     sigTime = GetAdjustedTime();
     vchSig = std::vector<unsigned char>();
+    sentinelPing = 0;
 }
 
 bool CMasternodePing::Sign(CKey& keyMasternode, CPubKey& pubKeyMasternode)

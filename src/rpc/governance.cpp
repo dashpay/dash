@@ -977,15 +977,17 @@ UniValue getsuperblockbudget(const UniValue& params, bool fHelp)
 
 UniValue sentinelping(const UniValue& params, bool fHelp)
 {
-    if (fHelp || params.size() != 0) {
+    if (fHelp || params.size() != 1) {
         throw std::runtime_error(
-            "sentinelping\n"
+            "sentinelping version\n"
             "\nSentinel ping.\n"
+            "\nArguments:\n"
+            "1. version           (numeric, required) Sentinel version\n"
             "\nResult:\n"
             "state                (boolean) Ping result\n"
             "\nExamples:\n"
-            + HelpExampleCli("sentinelping", "")
-            + HelpExampleRpc("sentinelping", "")
+            + HelpExampleCli("sentinelping", "12")
+            + HelpExampleRpc("sentinelping", "12")
         );
     }
 
