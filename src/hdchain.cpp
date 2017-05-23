@@ -85,16 +85,16 @@ bool CHDChain::SetMnemonic(const SecureString& ssMnemonic, const SecureString& s
 
         // empty mnemonic i.e. "generate a new one"
         if (ssMnemonic.empty()) {
-            ssMnemonicTmp = mnemonic_generate(256);
+            ssMnemonicTmp = CMnemonic::Generate(256);
         }
         // NOTE: default mnemonic passphrase is an empty string
 
         // printf("mnemonic: %s\n", ssMnemonicTmp.c_str());
-        if (!mnemonic_check(ssMnemonicTmp)) {
+        if (!CMnemonic::Check(ssMnemonicTmp)) {
             throw std::runtime_error(std::string(__func__) + ": invalid mnemonic: `" + std::string(ssMnemonicTmp.c_str()) + "`");
         }
 
-        mnemonic_to_seed(ssMnemonicTmp, ssMnemonicPassphrase, vchSeed);
+        CMnemonic::ToSeed(ssMnemonicTmp, ssMnemonicPassphrase, vchSeed);
         id = GetSeedHash();
     }
 
