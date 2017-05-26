@@ -36,8 +36,7 @@ SecureString CMnemonic::Generate(int strength)
     if (strength % 32 || strength < 128 || strength > 256) {
         return SecureString();
     }
-    SecureVector data;
-    data.resize(32);
+    SecureVector data(32);
     GetRandBytes(&data[0], 32);
     SecureString mnemonic = FromData(data, strength / 8);
     return mnemonic;
@@ -50,13 +49,11 @@ SecureString CMnemonic::FromData(const SecureVector& data, int len)
         return SecureString();
     }
 
-    SecureVector checksum;
-    checksum.resize(32);
+    SecureVector checksum(32);
     CSHA256().Write(&data[0], len).Finalize(&checksum[0]);
 
     // data
-    SecureVector bits;
-    bits.resize(len);
+    SecureVector bits(len);
     memcpy(&bits[0], &data[0], len);
     // checksum
     bits.push_back(checksum[0]);
@@ -100,8 +97,7 @@ bool CMnemonic::Check(SecureString mnemonic)
     }
 
     SecureString ssCurrentWord;
-    SecureVector bits;
-    bits.resize(32 + 1);
+    SecureVector bits(32 + 1);
 
     uint32_t nWordIndex, ki, nBitsCount{};
 
