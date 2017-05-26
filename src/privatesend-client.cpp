@@ -1199,6 +1199,8 @@ bool CPrivateSendClient::MakeCollateralAmounts(const CompactTallyItem& tallyItem
 // Create denominations by looping through inputs grouped by addresses
 bool CPrivateSendClient::CreateDenominated()
 {
+    LOCK2(cs_main, pwalletMain->cs_wallet);
+
     std::vector<CompactTallyItem> vecTally;
     if(!pwalletMain->SelectCoinsGrouppedByAddresses(vecTally)) {
         LogPrint("privatesend", "CPrivateSendClient::CreateDenominated -- SelectCoinsGrouppedByAddresses can't find any inputs!\n");
