@@ -36,26 +36,30 @@ SecureString CMnemonic::Generate(int strength)
     if (strength % 32 || strength < 128 || strength > 256) {
         return SecureString();
     }
-    uint8_t data[32];
-    GetRandBytes(data, 32);
+    SecureVector data;
+    data.resize(32);
+    GetRandBytes(&data[0], 32);
     SecureString mnemonic = FromData(data, strength / 8);
-    memory_cleanse(data, sizeof(data));
     return mnemonic;
 }
 
-SecureString CMnemonic::FromData(const uint8_t *data, int len)
+// SecureString CMnemonic::FromData(const uint8_t *data, int len)
+SecureString CMnemonic::FromData(const SecureVector& data, int len)
 {
     if (len % 4 || len < 16 || len > 32) {
         return SecureString();
     }
 
-    uint8_t bits[32 + 1];
+    SecureVector checksum;
+    checksum.resize(32);
+    CSHA256().Write(&data[0], len).Finalize(&checksum[0]);
 
-    CSHA256().Write(data, len).Finalize(bits);
-    // checksum
-    bits[len] = bits[0];
     // data
-    memcpy(bits, data, len);
+    SecureVector bits;
+    bits.resize(len);
+    memcpy(&bits[0], &data[0], len);
+    // checksum
+    bits.push_back(checksum[0]);
 
     int mlen = len * 3 / 4;
     SecureString mnemonic;
@@ -72,15 +76,14 @@ SecureString CMnemonic::FromData(const uint8_t *data, int len)
             mnemonic += ' ';
         }
     }
-    memory_cleanse(bits, sizeof(bits));
 
     return mnemonic;
 }
 
-int CMnemonic::Check(SecureString mnemonic)
+bool CMnemonic::Check(SecureString mnemonic)
 {
     if (mnemonic.empty()) {
-        return 0;
+        return false;
     }
 
     uint32_t nWordCount{};
@@ -93,19 +96,21 @@ int CMnemonic::Check(SecureString mnemonic)
     nWordCount++;
     // check number of words
     if (nWordCount != 12 && nWordCount != 18 && nWordCount != 24) {
-        return 0;
+        return false;
     }
 
     SecureString ssCurrentWord;
-    uint32_t nWordLetterIndex{}, nWordIndex, ki, nBitsCount{};
-    uint8_t bits[32 + 1]{};
+    SecureVector bits;
+    bits.resize(32 + 1);
+
+    uint32_t nWordIndex, ki, nBitsCount{};
+
     for (size_t i = 0; i < mnemonic.size(); ++i)
     {
-        nWordLetterIndex = 0;
         ssCurrentWord = "";
         while (i + ssCurrentWord.size() < mnemonic.size() && mnemonic[i + ssCurrentWord.size()] != ' ') {
             if (ssCurrentWord.size() >= 9) {
-                return 0;
+                return false;
             }
             ssCurrentWord += mnemonic[i + ssCurrentWord.size()];
         }
@@ -113,9 +118,9 @@ int CMnemonic::Check(SecureString mnemonic)
         nWordIndex = 0;
         for (;;) {
             if (!wordlist[nWordIndex]) { // word not found
-                return 0;
+                return false;
             }
-            if (strcmp(ssCurrentWord.c_str(), wordlist[nWordIndex]) == 0) { // word found on index nWordIndex
+            if (ssCurrentWord == wordlist[nWordIndex]) { // word found on index nWordIndex
                 for (ki = 0; ki < 11; ki++) {
                     if (nWordIndex & (1 << (10 - ki))) {
                         bits[nBitsCount / 8] |= 1 << (7 - (nBitsCount % 8));
@@ -128,23 +133,23 @@ int CMnemonic::Check(SecureString mnemonic)
         }
     }
     if (nBitsCount != nWordCount * 11) {
-        return 0;
+        return false;
     }
     bits[32] = bits[nWordCount * 4 / 3];
-    CSHA256().Write(bits, nWordCount * 4 / 3).Finalize(bits);
+    CSHA256().Write(&bits[0], nWordCount * 4 / 3).Finalize(&bits[0]);
 
-    int nResult = 0;
+    bool fResult = 0;
     if (nWordCount == 12) {
-        nResult = (bits[0] & 0xF0) == (bits[32] & 0xF0); // compare first 4 bits
+        fResult = (bits[0] & 0xF0) == (bits[32] & 0xF0); // compare first 4 bits
     } else
     if (nWordCount == 18) {
-        nResult = (bits[0] & 0xFC) == (bits[32] & 0xFC); // compare first 6 bits
+        fResult = (bits[0] & 0xFC) == (bits[32] & 0xFC); // compare first 6 bits
     } else
     if (nWordCount == 24) {
-        nResult = bits[0] == bits[32]; // compare 8 bits
+        fResult = bits[0] == bits[32]; // compare 8 bits
     }
-    memory_cleanse(bits, sizeof(bits));
-    return nResult;
+
+    return fResult;
 }
 
 // passphrase must be at most 256 characters or code may crash
@@ -152,12 +157,10 @@ void CMnemonic::ToSeed(SecureString mnemonic, SecureString passphrase, SecureVec
 {
     SecureString ssSalt = SecureString("mnemonic") + passphrase;
     SecureVector vchSalt(ssSalt.begin(), ssSalt.end());
+    seedRet.resize(64);
     // int PKCS5_PBKDF2_HMAC(const char *pass, int passlen,
     //                    const unsigned char *salt, int saltlen, int iter,
     //                    const EVP_MD *digest,
     //                    int keylen, unsigned char *out);
-    uint8_t seed[64];
-    PKCS5_PBKDF2_HMAC(mnemonic.c_str(), mnemonic.size(), &vchSalt[0], vchSalt.size(), 2048, EVP_sha512(), 64, seed);
-    seedRet = SecureVector(seed, seed + 64);
-    memory_cleanse(seed, sizeof(seed));
+    PKCS5_PBKDF2_HMAC(mnemonic.c_str(), mnemonic.size(), &vchSalt[0], vchSalt.size(), 2048, EVP_sha512(), 64, &seedRet[0]);
 }
