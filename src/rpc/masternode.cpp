@@ -795,3 +795,28 @@ UniValue masternodebroadcast(const UniValue& params, bool fHelp)
 
     return NullUniValue;
 }
+
+UniValue sentinelping(const UniValue& params, bool fHelp)
+{
+    if (fHelp || params.size() != 1) {
+        throw std::runtime_error(
+            "sentinelping version\n"
+            "\nSentinel ping.\n"
+            "\nArguments:\n"
+            "1. version           (numeric, required) Sentinel version\n"
+            "\nResult:\n"
+            "state                (boolean) Ping result\n"
+            "\nExamples:\n"
+            + HelpExampleCli("sentinelping", "2")
+            + HelpExampleRpc("sentinelping", "2")
+        );
+    }
+
+    if(activeMasternode.nState == ACTIVE_MASTERNODE_INITIAL ||
+            masternodeSync.IsBlockchainSynced())
+        return false;
+
+
+    activeMasternode.SendSentinelPing(params[1].get_int());
+    return true;
+}

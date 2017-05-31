@@ -40,7 +40,7 @@ private:
     /// Ping Masternode
     bool SendMasternodePing();
 
-public:
+ public:
     // Keys for the active Masternode
     CPubKey pubKeyMasternode;
     CKey keyMasternode;
@@ -68,6 +68,8 @@ public:
     std::string GetStateString() const;
     std::string GetStatus() const;
     std::string GetTypeString() const;
+
+    bool SendSentinelPing(int version);
 
 private:
     void ManageStateInitial();
