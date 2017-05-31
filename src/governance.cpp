@@ -961,7 +961,7 @@ bool CGovernanceManager::ProcessVote(CNode* pfrom, const CGovernanceVote& vote, 
         ostr << "CGovernanceManager::ProcessVote -- Unknown parent object "
              << ", MN outpoint = " << vote.GetVinMasternode().prevout.ToStringShort()
              << ", governance object hash = " << vote.GetParentHash().ToString();
-        exception = CGovernanceException(ostr.str(), GOVERNANCE_EXCEPTION_WARNING, 1);
+        exception = CGovernanceException(ostr.str(), GOVERNANCE_EXCEPTION_WARNING);
         if(mapOrphanVotes.Insert(nHashGovobj, vote_time_pair_t(vote, GetAdjustedTime() + GOVERNANCE_ORPHAN_EXPIRATION_TIME))) {
             RequestGovernanceObject(pfrom, nHashGovobj);
             LogPrintf("%s\n", ostr.str());
