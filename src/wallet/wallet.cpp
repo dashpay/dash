@@ -2904,8 +2904,8 @@ bool CWallet::SelectCoinsGrouppedByAddresses(std::vector<CompactTallyItem>& vecT
     // order by amounts per address, from smallest to largest
     sort(vecTallyRet.rbegin(), vecTallyRet.rend(), CompareByAmount());
 
-    // cache anonymizable for later use
-    if(fAnonymizable) {
+    // cache already confirmed anonymizable entries for later use
+    if(fAnonymizable && fSkipUnconfirmed) {
         if(fSkipDenominated) {
             vecAnonymizableTallyCachedNonDenom = vecTallyRet;
             fAnonymizableTallyCachedNonDenom = true;
