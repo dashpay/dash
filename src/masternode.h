@@ -34,7 +34,7 @@ public:
     uint256 blockHash;
     int64_t sigTime; //mnb message times
     std::vector<unsigned char> vchSig;
-    int64_t sentinelPing; // last sentinel ping time
+    uint8_t sentinelPing; // flag 0:1 showing if last sentinel ping was actual
     uint32_t sentinelVersion;
     //removed stop
 
@@ -174,6 +174,7 @@ public:
     int64_t nTimeLastChecked;
     int64_t nTimeLastPaid;
     int64_t nTimeLastWatchdogVote;
+    int64_t nTimeLastSentinelPing;
     int nActiveState;
     int nCacheCollateralBlock;
     int nBlockLastPaid;
@@ -207,6 +208,7 @@ public:
         READWRITE(nTimeLastChecked);
         READWRITE(nTimeLastPaid);
         READWRITE(nTimeLastWatchdogVote);
+        READWRITE(nTimeLastSentinelPing);
         READWRITE(nActiveState);
         READWRITE(nCacheCollateralBlock);
         READWRITE(nBlockLastPaid);

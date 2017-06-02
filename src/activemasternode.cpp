@@ -108,6 +108,9 @@ bool CActiveMasternode::SendMasternodePing()
     }
 
     CMasternodePing mnp(vin);
+    mnp.sentinelVersion = sentinelVersion;
+    mnp.sentinelPing =
+            (abs(GetTime() - sentinelPing) < MASTERNODE_WATCHDOG_MAX_SECONDS) ? 1 : 0;
     if(!mnp.Sign(keyMasternode, pubKeyMasternode)) {
         LogPrintf("CActiveMasternode::SendMasternodePing -- ERROR: Couldn't sign Masternode Ping\n");
         return false;
@@ -127,38 +130,17 @@ bool CActiveMasternode::SendMasternodePing()
     return true;
 }
 
-bool CActiveMasternode::SendSentinelPing(int version)
+bool CActiveMasternode::UpdateSentinelPing(int version)
 {
-    if(!fPingerEnabled) {
-        LogPrint("masternode", "CActiveMasternode::SendMasternodePing -- %s: masternode ping service is disabled, skipping...\n", GetStateString());
-        return false;
-    }
-
     if(!mnodeman.Has(vin)) {
-        strNotCapableReason = "Masternode not in masternode list";
+        strNotCapableReason = "MSendMasternodePingasternode not in masternode list";
         nState = ACTIVE_MASTERNODE_NOT_CAPABLE;
-        LogPrintf("CActiveMasternode::SendMasternodePing -- %s: %s\n", GetStateString(), strNotCapableReason);
+        LogPrintf("CActiveMasternode::UpdateSentinelPing -- %s: %s\n", GetStateString(), strNotCapableReason);
         return false;
     }
 
-    CMasternodePing mnp(vin);
-    mnp.sentinelVersion = version;
-    mnp.sentinelPing = GetTime();
-    if(!mnp.Sign(keyMasternode, pubKeyMasternode)) {
-        LogPrintf("CActiveMasternode::SendMasternodePing -- ERROR: Couldn't sign Masternode Ping\n");
-        return false;
-    }
-
-    // Update lastPing for our masternode in Masternode list
-    if(mnodeman.IsMasternodePingedWithin(vin, MASTERNODE_MIN_MNP_SECONDS, mnp.sigTime)) {
-        LogPrintf("CActiveMasternode::SendMasternodePing -- Too early to send Masternode Ping\n");
-        return false;
-    }
-
-    mnodeman.SetMasternodeLastPing(vin, mnp);
-
-    LogPrintf("CActiveMasternode::SendMasternodePing -- Relaying ping, collateral=%s\n", vin.ToString());
-    mnp.Relay();
+    sentinelVersion = version;
+    sentinelPing = GetTime();
 
     return true;
 }

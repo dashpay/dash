@@ -40,6 +40,9 @@ private:
     /// Ping Masternode
     bool SendMasternodePing();
 
+    //  sentinel ping data
+    int64_t sentinelPing;
+    int sentinelVersion;
  public:
     // Keys for the active Masternode
     CPubKey pubKeyMasternode;
@@ -51,6 +54,7 @@ private:
 
     int nState; // should be one of ACTIVE_MASTERNODE_XXXX
     std::string strNotCapableReason;
+
 
     CActiveMasternode()
         : eType(MASTERNODE_UNKNOWN),
@@ -69,7 +73,7 @@ private:
     std::string GetStatus() const;
     std::string GetTypeString() const;
 
-    bool SendSentinelPing(int version);
+    bool UpdateSentinelPing(int version);
 
 private:
     void ManageStateInitial();
