@@ -735,7 +735,9 @@ void CMasternodeBroadcast::Relay()
     RelayInv(inv);
 }
 
-CMasternodePing::CMasternodePing(CTxIn& vinNew)
+CMasternodePing::CMasternodePing(CTxIn& vinNew) :
+    sentinelPing(0),
+    sentinelVersion(0)
 {
     LOCK(cs_main);
     if (!chainActive.Tip() || chainActive.Height() < 12) return;
@@ -744,7 +746,6 @@ CMasternodePing::CMasternodePing(CTxIn& vinNew)
     blockHash = chainActive[chainActive.Height() - 12]->GetBlockHash();
     sigTime = GetAdjustedTime();
     vchSig = std::vector<unsigned char>();
-    sentinelPing = 0;
 }
 
 bool CMasternodePing::Sign(CKey& keyMasternode, CPubKey& pubKeyMasternode)
