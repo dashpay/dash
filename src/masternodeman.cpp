@@ -1642,6 +1642,11 @@ void CMasternodeMan::SetMasternodeLastPing(const CTxIn& vin, const CMasternodePi
         return;
     }
     pMN->lastPing = mnp;
+    // if masternode uses sentinel ping instead of watchdog
+    // we shoud update nTimeLastWatchdogVote here if sentinel
+    // ping flag is actual
+    if(mnp.sentinelPing)
+        pMN->UpdateWatchdogVoteTime();
     mapSeenMasternodePing.insert(std::make_pair(mnp.GetHash(), mnp));
 
     CMasternodeBroadcast mnb(*pMN);
