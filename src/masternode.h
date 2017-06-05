@@ -174,7 +174,6 @@ public:
     int64_t nTimeLastChecked;
     int64_t nTimeLastPaid;
     int64_t nTimeLastWatchdogVote;
-    int64_t nTimeLastSentinelPing;
     int nActiveState;
     int nCacheCollateralBlock;
     int nBlockLastPaid;
@@ -208,7 +207,6 @@ public:
         READWRITE(nTimeLastChecked);
         READWRITE(nTimeLastPaid);
         READWRITE(nTimeLastWatchdogVote);
-        READWRITE(nTimeLastSentinelPing);
         READWRITE(nActiveState);
         READWRITE(nCacheCollateralBlock);
         READWRITE(nBlockLastPaid);
