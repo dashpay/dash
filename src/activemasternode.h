@@ -42,8 +42,9 @@ private:
 
     //  sentinel ping data
     int64_t sentinelPing;
-    int sentinelVersion;
- public:
+    uint16_t sentinelVersion;
+
+public:
     // Keys for the active Masternode
     CPubKey pubKeyMasternode;
     CKey keyMasternode;

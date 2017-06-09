@@ -109,8 +109,8 @@ bool CActiveMasternode::SendMasternodePing()
 
     CMasternodePing mnp(vin);
     mnp.sentinelVersion = sentinelVersion;
-    mnp.sentinelPing =
-            (abs(GetAdjustedTime() - sentinelPing) < MASTERNODE_WATCHDOG_MAX_SECONDS) ? 1 : 0;
+    mnp.sentinelIsActual =
+            (abs(GetAdjustedTime() - sentinelPing) < MASTERNODE_WATCHDOG_MAX_SECONDS);
     if(!mnp.Sign(keyMasternode, pubKeyMasternode)) {
         LogPrintf("CActiveMasternode::SendMasternodePing -- ERROR: Couldn't sign Masternode Ping\n");
         return false;
@@ -133,7 +133,7 @@ bool CActiveMasternode::SendMasternodePing()
 bool CActiveMasternode::UpdateSentinelPing(int version)
 {
     if(!mnodeman.Has(vin)) {
-        strNotCapableReason = "MSendMasternodePingasternode not in masternode list";
+        strNotCapableReason = "Masternode not in masternode list";
         nState = ACTIVE_MASTERNODE_NOT_CAPABLE;
         LogPrintf("CActiveMasternode::UpdateSentinelPing -- %s: %s\n", GetStateString(), strNotCapableReason);
         return false;

@@ -34,8 +34,8 @@ public:
     uint256 blockHash;
     int64_t sigTime; //mnb message times
     std::vector<unsigned char> vchSig;
-    uint8_t sentinelPing; // flag 0:1 showing if last sentinel ping was actual
-    uint32_t sentinelVersion;
+    bool sentinelIsActual; // true if last sentinel ping was actual
+    uint16_t sentinelVersion;
     //removed stop
 
     CMasternodePing() :
@@ -43,7 +43,7 @@ public:
         blockHash(),
         sigTime(0),
         vchSig(),
-        sentinelPing(0),
+        sentinelIsActual(false),
         sentinelVersion(0)
         {}
 
@@ -57,7 +57,7 @@ public:
         READWRITE(blockHash);
         READWRITE(sigTime);
         READWRITE(vchSig);
-        READWRITE(sentinelPing);
+        READWRITE(sentinelIsActual);
         READWRITE(sentinelVersion);
     }
 
@@ -72,7 +72,7 @@ public:
         swap(first.blockHash, second.blockHash);
         swap(first.sigTime, second.sigTime);
         swap(first.vchSig, second.vchSig);
-        swap(first.sentinelPing, second.sentinelPing);
+        swap(first.sentinelIsActual, second.sentinelIsActual);
         swap(first.sentinelVersion, second.sentinelVersion);
     }
 

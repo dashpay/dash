@@ -736,7 +736,7 @@ void CMasternodeBroadcast::Relay()
 }
 
 CMasternodePing::CMasternodePing(CTxIn& vinNew) :
-    sentinelPing(0),
+    sentinelIsActual(false),
     sentinelVersion(0)
 {
     LOCK(cs_main);
