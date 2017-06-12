@@ -83,7 +83,7 @@ std::string COutput::ToString() const
 
 int COutput::Priority() const
 {
-    BOOST_FOREACH(CAmount d, vecPrivateSendDenominations)
+    BOOST_FOREACH(CAmount d, CPrivateSend::GetStandardDenominations())
         if(tx->vout[i].nValue == d) return 10000;
     if(tx->vout[i].nValue < 1*COIN) return 20000;
 
@@ -1336,7 +1336,7 @@ bool CWallet::IsDenominated(const CTxIn &txin) const
 
 bool CWallet::IsDenominatedAmount(CAmount nInputAmount) const
 {
-    BOOST_FOREACH(CAmount d, vecPrivateSendDenominations)
+    BOOST_FOREACH(CAmount d, CPrivateSend::GetStandardDenominations())
         if(nInputAmount == d)
             return true;
     return false;
@@ -2153,6 +2153,7 @@ CAmount CWallet::GetAnonymizableBalance(bool fSkipDenominated, bool fSkipUnconfi
 
     CAmount nTotal = 0;
 
+    std::vector<CAmount> vecPrivateSendDenominations = CPrivateSend::GetStandardDenominations();
     BOOST_FOREACH(CompactTallyItem& item, vecTally) {
         bool fIsDenominated = IsDenominatedAmount(item.nAmount);
         if(fSkipDenominated && fIsDenominated) continue;
@@ -2268,7 +2269,7 @@ CAmount CWallet::GetNeedsToBeAnonymizedBalance(CAmount nMinBalance) const
     if(nNeedsToAnonymizeBalance > nAnonymizableBalance) nNeedsToAnonymizeBalance = nAnonymizableBalance;
 
     // we should never exceed the pool max
-    if (nNeedsToAnonymizeBalance > privateSendClient.GetMaxPoolAmount()) nNeedsToAnonymizeBalance = privateSendClient.GetMaxPoolAmount();
+    if (nNeedsToAnonymizeBalance > CPrivateSend::GetMaxPoolAmount()) nNeedsToAnonymizeBalance = CPrivateSend::GetMaxPoolAmount();
 
     return nNeedsToAnonymizeBalance;
 }
@@ -2491,7 +2492,7 @@ bool less_then_denom (const COutput& out1, const COutput& out2)
 
     bool found1 = false;
     bool found2 = false;
-    BOOST_FOREACH(CAmount d, vecPrivateSendDenominations) // loop through predefined denoms
+    BOOST_FOREACH(CAmount d, CPrivateSend::GetStandardDenominations()) // loop through predefined denoms
     {
         if(pcoin1->vout[out1.i].nValue == d) found1 = true;
         if(pcoin2->vout[out2.i].nValue == d) found2 = true;
@@ -2652,6 +2653,7 @@ bool CWallet::SelectCoins(const CAmount& nTargetValue, set<pair<const CWalletTx*
 
     //if we're doing only denominated, we need to round up to the nearest smallest denomination
     if(nCoinType == ONLY_DENOMINATED) {
+        std::vector<CAmount> vecPrivateSendDenominations = CPrivateSend::GetStandardDenominations();
         CAmount nSmallestDenom = vecPrivateSendDenominations.back();
         // Make outputs by looping through denominations, from large to small
         BOOST_FOREACH(CAmount nDenom, vecPrivateSendDenominations)
@@ -2787,12 +2789,13 @@ bool CWallet::SelectCoinsByDenominations(int nDenom, CAmount nValueMin, CAmount 
     // bit 3 - .1DASH+1
 
     std::vector<int> vecBits;
-    if (!privateSendClient.GetDenominationsBits(nDenom, vecBits)) {
+    if (!CPrivateSend::GetDenominationsBits(nDenom, vecBits)) {
         return false;
     }
 
     int nDenomResult = 0;
 
+    std::vector<CAmount> vecPrivateSendDenominations = CPrivateSend::GetStandardDenominations();
     InsecureRand insecureRand;
     BOOST_FOREACH(const COutput& out, vCoins)
     {
@@ -2856,6 +2859,8 @@ bool CWallet::SelectCoinsGrouppedByAddresses(std::vector<CompactTallyItem>& vecT
             return vecTallyRet.size() > 0;
         }
     }
+
+    std::vector<CAmount> vecPrivateSendDenominations = CPrivateSend::GetStandardDenominations();
 
     // Tally
     map<CBitcoinAddress, CompactTallyItem> mapTally;

@@ -19,9 +19,6 @@
 
 #include <boost/lexical_cast.hpp>
 
-std::map<uint256, CDarksendBroadcastTx> mapDarksendBroadcastTxes;
-std::vector<CAmount> vecPrivateSendDenominations;
-
 CDarkSendEntry::CDarkSendEntry(const std::vector<CTxIn>& vecTxIn, const std::vector<CTxOut>& vecTxOut, const CTransaction& txCollateral) :
     txCollateral(txCollateral)
 {
@@ -48,31 +45,72 @@ bool CDarkSendEntry::AddScriptSig(const CTxIn& txin)
     return false;
 }
 
-void CPrivateSend::InitDenominations()
+bool CDarksendQueue::Sign()
 {
-    vecPrivateSendDenominations.clear();
-    /* Denominations
+    if(!fMasterNode) return false;
 
-        A note about convertability. Within mixing pools, each denomination
-        is convertable to another.
+    std::string strMessage = vin.ToString() + boost::lexical_cast<std::string>(nDenom) + boost::lexical_cast<std::string>(nTime) + boost::lexical_cast<std::string>(fReady);
 
-        For example:
-        1DRK+1000 == (.1DRK+100)*10
-        10DRK+10000 == (1DRK+1000)*10
-    */
-    /* Disabled
-    vecPrivateSendDenominations.push_back( (100      * COIN)+100000 );
-    */
-    vecPrivateSendDenominations.push_back( (10       * COIN)+10000 );
-    vecPrivateSendDenominations.push_back( (1        * COIN)+1000 );
-    vecPrivateSendDenominations.push_back( (.1       * COIN)+100 );
-    vecPrivateSendDenominations.push_back( (.01      * COIN)+10 );
-    /* Disabled till we need them
-    vecPrivateSendDenominations.push_back( (.001     * COIN)+1 );
-    */
+    if(!CMessageSigner::SignMessage(strMessage, vchSig, activeMasternode.keyMasternode)) {
+        LogPrintf("CDarksendQueue::Sign -- SignMessage() failed, %s\n", ToString());
+        return false;
+    }
+
+    return CheckSignature(activeMasternode.pubKeyMasternode);
 }
 
-void CPrivateSend::SetNull()
+bool CDarksendQueue::CheckSignature(const CPubKey& pubKeyMasternode)
+{
+    std::string strMessage = vin.ToString() + boost::lexical_cast<std::string>(nDenom) + boost::lexical_cast<std::string>(nTime) + boost::lexical_cast<std::string>(fReady);
+    std::string strError = "";
+
+    if(!CMessageSigner::VerifyMessage(pubKeyMasternode, vchSig, strMessage, strError)) {
+        LogPrintf("CDarksendQueue::CheckSignature -- Got bad Masternode queue signature: %s; error: %s\n", ToString(), strError);
+        return false;
+    }
+
+    return true;
+}
+
+bool CDarksendQueue::Relay()
+{
+    std::vector<CNode*> vNodesCopy = CopyNodeVector();
+    BOOST_FOREACH(CNode* pnode, vNodesCopy)
+        if(pnode->nVersion >= MIN_PRIVATESEND_PEER_PROTO_VERSION)
+            pnode->PushMessage(NetMsgType::DSQUEUE, (*this));
+
+    ReleaseNodeVector(vNodesCopy);
+    return true;
+}
+
+bool CDarksendBroadcastTx::Sign()
+{
+    if(!fMasterNode) return false;
+
+    std::string strMessage = tx.GetHash().ToString() + boost::lexical_cast<std::string>(sigTime);
+
+    if(!CMessageSigner::SignMessage(strMessage, vchSig, activeMasternode.keyMasternode)) {
+        LogPrintf("CDarksendBroadcastTx::Sign -- SignMessage() failed\n");
+        return false;
+    }
+
+    return CheckSignature(activeMasternode.pubKeyMasternode);
+}
+
+bool CDarksendBroadcastTx::CheckSignature(const CPubKey& pubKeyMasternode)
+{
+    std::string strMessage = tx.GetHash().ToString() + boost::lexical_cast<std::string>(sigTime);
+    std::string strError = "";
+
+    if(!CMessageSigner::VerifyMessage(pubKeyMasternode, vchSig, strMessage, strError)) {
+        LogPrintf("CDarksendBroadcastTx::CheckSignature -- Got bad dstx signature, error: %s\n", strError);
+        return false;
+    }
+
+    return true;
+}
+
+void CPrivateSendBase::SetNull()
 {
     // Both sides
     nState = POOL_STATE_IDLE;
@@ -84,7 +122,7 @@ void CPrivateSend::SetNull()
     nTimeLastSuccessfulStep = GetTimeMillis();
 }
 
-std::string CPrivateSend::GetStateString() const
+std::string CPrivateSendBase::GetStateString() const
 {
     switch(nState) {
         case POOL_STATE_IDLE:                   return "IDLE";
@@ -95,6 +133,35 @@ std::string CPrivateSend::GetStateString() const
         case POOL_STATE_SUCCESS:                return "SUCCESS";
         default:                                return "UNKNOWN";
     }
+}
+
+// Definitions for static data members
+std::vector<CAmount> CPrivateSend::vecStandardDenominations;
+std::map<uint256, CDarksendBroadcastTx> CPrivateSend::mapDSTX;
+CCriticalSection CPrivateSend::cs_mapdstx;
+
+void CPrivateSend::InitStandardDenominations()
+{
+    vecStandardDenominations.clear();
+    /* Denominations
+
+        A note about convertability. Within mixing pools, each denomination
+        is convertable to another.
+
+        For example:
+        1DRK+1000 == (.1DRK+100)*10
+        10DRK+10000 == (1DRK+1000)*10
+    */
+    /* Disabled
+    vecStandardDenominations.push_back( (100      * COIN)+100000 );
+    */
+    vecStandardDenominations.push_back( (10       * COIN)+10000 );
+    vecStandardDenominations.push_back( (1        * COIN)+1000 );
+    vecStandardDenominations.push_back( (.1       * COIN)+100 );
+    vecStandardDenominations.push_back( (.01      * COIN)+10 );
+    /* Disabled till we need them
+    vecStandardDenominations.push_back( (.001     * COIN)+1 );
+    */
 }
 
 // check to make sure the collateral provided by the client is valid
@@ -165,7 +232,7 @@ bool CPrivateSend::IsCollateralValid(const CTransaction& txCollateral)
 std::string CPrivateSend::GetDenominationsToString(int nDenom)
 {
     std::string strDenom = "";
-    int nMaxDenoms = vecPrivateSendDenominations.size();
+    int nMaxDenoms = vecStandardDenominations.size();
 
     if(nDenom >= (1 << nMaxDenoms)) {
         return "out-of-bounds";
@@ -173,7 +240,7 @@ std::string CPrivateSend::GetDenominationsToString(int nDenom)
 
     for (int i = 0; i < nMaxDenoms; ++i) {
         if(nDenom & (1 << i)) {
-            strDenom += (strDenom.empty() ? "" : "+") + FormatMoney(vecPrivateSendDenominations[i]);
+            strDenom += (strDenom.empty() ? "" : "+") + FormatMoney(vecStandardDenominations[i]);
         }
     }
 
@@ -208,7 +275,7 @@ int CPrivateSend::GetDenominations(const std::vector<CTxOut>& vecTxOut, bool fSi
     std::vector<std::pair<CAmount, int> > vecDenomUsed;
 
     // make a list of denominations, with zero uses
-    BOOST_FOREACH(CAmount nDenomValue, vecPrivateSendDenominations)
+    BOOST_FOREACH(CAmount nDenomValue, vecStandardDenominations)
         vecDenomUsed.push_back(std::make_pair(nDenomValue, 0));
 
     // look for denominations and update uses to 1
@@ -243,7 +310,7 @@ bool CPrivateSend::GetDenominationsBits(int nDenom, std::vector<int> &vecBitsRet
     // bit 2 - 1DASH+1
     // bit 3 - .1DASH+1
 
-    int nMaxDenoms = vecPrivateSendDenominations.size();
+    int nMaxDenoms = vecStandardDenominations.size();
 
     if(nDenom >= (1 << nMaxDenoms)) return false;
 
@@ -300,69 +367,18 @@ std::string CPrivateSend::GetMessageByID(PoolMessage nMessageID)
     }
 }
 
-bool CDarksendQueue::Sign()
+void CPrivateSend::AddDSTX(const CDarksendBroadcastTx& dstx)
 {
-    if(!fMasterNode) return false;
-
-    std::string strMessage = vin.ToString() + boost::lexical_cast<std::string>(nDenom) + boost::lexical_cast<std::string>(nTime) + boost::lexical_cast<std::string>(fReady);
-
-    if(!CMessageSigner::SignMessage(strMessage, vchSig, activeMasternode.keyMasternode)) {
-        LogPrintf("CDarksendQueue::Sign -- SignMessage() failed, %s\n", ToString());
-        return false;
-    }
-
-    return CheckSignature(activeMasternode.pubKeyMasternode);
+    LOCK(cs_mapdstx);
+    mapDSTX.insert(std::make_pair(dstx.tx.GetHash(), dstx));
 }
 
-bool CDarksendQueue::CheckSignature(const CPubKey& pubKeyMasternode)
+bool CPrivateSend::GetDSTX(const uint256& hash, CDarksendBroadcastTx& dstxRet)
 {
-    std::string strMessage = vin.ToString() + boost::lexical_cast<std::string>(nDenom) + boost::lexical_cast<std::string>(nTime) + boost::lexical_cast<std::string>(fReady);
-    std::string strError = "";
-
-    if(!CMessageSigner::VerifyMessage(pubKeyMasternode, vchSig, strMessage, strError)) {
-        LogPrintf("CDarksendQueue::CheckSignature -- Got bad Masternode queue signature: %s; error: %s\n", ToString(), strError);
-        return false;
-    }
-
-    return true;
-}
-
-bool CDarksendQueue::Relay()
-{
-    std::vector<CNode*> vNodesCopy = CopyNodeVector();
-    BOOST_FOREACH(CNode* pnode, vNodesCopy)
-        if(pnode->nVersion >= MIN_PRIVATESEND_PEER_PROTO_VERSION)
-            pnode->PushMessage(NetMsgType::DSQUEUE, (*this));
-
-    ReleaseNodeVector(vNodesCopy);
-    return true;
-}
-
-bool CDarksendBroadcastTx::Sign()
-{
-    if(!fMasterNode) return false;
-
-    std::string strMessage = tx.GetHash().ToString() + boost::lexical_cast<std::string>(sigTime);
-
-    if(!CMessageSigner::SignMessage(strMessage, vchSig, activeMasternode.keyMasternode)) {
-        LogPrintf("CDarksendBroadcastTx::Sign -- SignMessage() failed\n");
-        return false;
-    }
-
-    return CheckSignature(activeMasternode.pubKeyMasternode);
-}
-
-bool CDarksendBroadcastTx::CheckSignature(const CPubKey& pubKeyMasternode)
-{
-    std::string strMessage = tx.GetHash().ToString() + boost::lexical_cast<std::string>(sigTime);
-    std::string strError = "";
-
-    if(!CMessageSigner::VerifyMessage(pubKeyMasternode, vchSig, strMessage, strError)) {
-        LogPrintf("CDarksendBroadcastTx::CheckSignature -- Got bad dstx signature, error: %s\n", strError);
-        return false;
-    }
-
-    return true;
+    LOCK(cs_mapdstx);
+    std::map<uint256, CDarksendBroadcastTx>::iterator it = mapDSTX.find(hash);
+    dstxRet = (it == mapDSTX.end()) ? CDarksendBroadcastTx() : it->second;
+    return dstxRet != CDarksendBroadcastTx();
 }
 
 //TODO: Rename/move to core
