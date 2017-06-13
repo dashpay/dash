@@ -911,10 +911,13 @@ void CMasternode::RemoveGovernanceObject(uint256 nGovernanceObjectHash)
     mapGovernanceObjectsVotedOn.erase(it);
 }
 
-void CMasternode::UpdateWatchdogVoteTime()
+void CMasternode::UpdateWatchdogVoteTime(uint64_t t)
 {
     LOCK(cs);
-    nTimeLastWatchdogVote = GetTime();
+    if(t == 0)
+        nTimeLastWatchdogVote = GetTime();
+    else
+        nTimeLastWatchdogVote = t;
 }
 
 /**
