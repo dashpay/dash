@@ -596,7 +596,7 @@ void OverviewPage::togglePrivateSend(){
         settings.setValue("hasMixed", "hasMixed");
     }
     if(!privateSendClient.fEnablePrivateSend){
-        CAmount nMinAmount = CPrivateSend::GetSmallestDenomination() + PRIVATESEND_COLLATERAL*4;
+        CAmount nMinAmount = CPrivateSend::GetSmallestDenomination() + CPrivateSend::GetCollateralAmount()*4;
         if(currentBalance < nMinAmount){
             QString strMinAmount(BitcoinUnits::formatWithUnit(nDisplayUnit, nMinAmount));
             QMessageBox::warning(this, tr("PrivateSend"),

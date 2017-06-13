@@ -199,8 +199,8 @@ bool CPrivateSend::IsCollateralValid(const CTransaction& txCollateral)
         return false;
     }
 
-    //collateral transactions are required to pay out PRIVATESEND_COLLATERAL as a fee to the miners
-    if(nValueIn - nValueOut < PRIVATESEND_COLLATERAL) {
+    //collateral transactions are required to pay out a small fee to the miners
+    if(nValueIn - nValueOut < GetCollateralAmount()) {
         LogPrint("privatesend", "CPrivateSend::IsCollateralValid -- did not include enough fees in transaction: fees: %d, txCollateral=%s", nValueOut - nValueIn, txCollateral.ToString());
         return false;
     }

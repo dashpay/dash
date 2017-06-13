@@ -697,12 +697,12 @@ bool CPrivateSendClient::DoAutomaticDenominating(bool fDryRun)
         return false;
     }
 
-    CAmount nValueMin = CPrivateSend::GetStandardDenominations().back();
+    CAmount nValueMin = CPrivateSend::GetSmallestDenomination();
 
     // if there are no confirmed DS collateral inputs yet
     if(!pwalletMain->HasCollateralInputs()) {
         // should have some additional amount for them
-        nValueMin += PRIVATESEND_COLLATERAL*4;
+        nValueMin += CPrivateSend::GetCollateralAmount() * 4;
     }
 
     // including denoms but applying some restrictions
@@ -735,7 +735,7 @@ bool CPrivateSendClient::DoAutomaticDenominating(bool fDryRun)
     // Check if we have should create more denominated inputs i.e.
     // there are funds to denominate and denominated balance does not exceed
     // max amount to mix yet.
-    if(nBalanceAnonimizableNonDenom >= nValueMin + PRIVATESEND_COLLATERAL && nBalanceDenominated < nPrivateSendAmount*COIN)
+    if(nBalanceAnonimizableNonDenom >= nValueMin + CPrivateSend::GetCollateralAmount() && nBalanceDenominated < nPrivateSendAmount*COIN)
         return CreateDenominated();
 
     //check if we have the collateral sized inputs
@@ -1156,7 +1156,7 @@ bool CPrivateSendClient::MakeCollateralAmounts(const CompactTallyItem& tallyItem
     assert(reservekeyCollateral.GetReservedKey(vchPubKey, false)); // should never fail, as we just unlocked
     scriptCollateral = GetScriptForDestination(vchPubKey.GetID());
 
-    vecSend.push_back((CRecipient){scriptCollateral, PRIVATESEND_COLLATERAL*4, false});
+    vecSend.push_back((CRecipient){scriptCollateral, CPrivateSend::GetCollateralAmount() * 4, false});
 
     // try to use non-denominated and not mn-like funds first, select them explicitly
     CCoinControl coinControl;
@@ -1225,7 +1225,8 @@ bool CPrivateSendClient::CreateDenominated(const CompactTallyItem& tallyItem, bo
 {
     std::vector<CRecipient> vecSend;
     CAmount nValueLeft = tallyItem.nAmount;
-    nValueLeft -= PRIVATESEND_COLLATERAL; // leave some room for fees
+    CAmount nMixingCollateral = CPrivateSend::GetCollateralAmount();
+    nValueLeft -= nMixingCollateral; // leave some room for fees
 
     LogPrintf("CreateDenominated0 nValueLeft: %f\n", (float)nValueLeft/COIN);
     // make our collateral address
@@ -1239,8 +1240,8 @@ bool CPrivateSendClient::CreateDenominated(const CompactTallyItem& tallyItem, bo
     // ****** Add collateral outputs ************ /
 
     if(fCreateMixingCollaterals) {
-        vecSend.push_back((CRecipient){scriptCollateral, PRIVATESEND_COLLATERAL*4, false});
-        nValueLeft -= PRIVATESEND_COLLATERAL*4;
+        vecSend.push_back((CRecipient){scriptCollateral, nMixingCollateral*4, false});
+        nValueLeft -= nMixingCollateral*4;
     }
 
     // ****** Add denoms ************ /
