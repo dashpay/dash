@@ -5193,7 +5193,7 @@ void static ProcessGetData(CNode* pfrom, const Consensus::Params& consensusParam
 
                 if (!pushed && inv.type == MSG_DSTX) {
                     CDarksendBroadcastTx dstx = CPrivateSend::GetDSTX(inv.hash);
-                    if(static_cast<bool>(dstx)) {
+                    if(dstx) {
                         CDataStream ss(SER_NETWORK, PROTOCOL_VERSION);
                         ss.reserve(1000);
                         ss << dstx;
@@ -5770,7 +5770,7 @@ bool static ProcessMessage(CNode* pfrom, string strCommand, CDataStream& vRecv, 
             }
         } else if (strCommand == NetMsgType::DSTX) {
             uint256 hashTx = tx.GetHash();
-            if(static_cast<bool>(CPrivateSend::GetDSTX(hashTx))) {
+            if(CPrivateSend::GetDSTX(hashTx)) {
                 LogPrint("privatesend", "DSTX -- Already have %s, skipping...\n", hashTx.ToString());
                 return true; // not an error
             }

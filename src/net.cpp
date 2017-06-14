@@ -2090,7 +2090,7 @@ void RelayTransaction(const CTransaction& tx)
     uint256 hash = tx.GetHash();
     CTxLockRequest txLockRequest;
     CDarksendBroadcastTx dstx = CPrivateSend::GetDSTX(hash);
-    if(static_cast<bool>(dstx)) { // MSG_DSTX
+    if(dstx) { // MSG_DSTX
         ss << dstx;
     } else if(instantsend.GetTxLockRequest(hash, txLockRequest)) { // MSG_TXLOCK_REQUEST
         ss << txLockRequest;
