@@ -375,6 +375,7 @@ void CPrivateSend::AddDSTX(const CDarksendBroadcastTx& dstx)
 
 CDarksendBroadcastTx CPrivateSend::GetDSTX(const uint256& hash)
 {
+    LOCK(cs_mapdstx);
     auto it = mapDSTX.find(hash);
     return (it == mapDSTX.end()) ? CDarksendBroadcastTx() : it->second;
 }
