@@ -2089,8 +2089,8 @@ void RelayTransaction(const CTransaction& tx)
     ss.reserve(10000);
     uint256 hash = tx.GetHash();
     CTxLockRequest txLockRequest;
-    CDarksendBroadcastTx dstx;
-    if(CPrivateSend::GetDSTX(hash, dstx)) { // MSG_DSTX
+    CDarksendBroadcastTx dstx = CPrivateSend::GetDSTX(hash);
+    if(static_cast<bool>(dstx)) { // MSG_DSTX
         ss << dstx;
     } else if(instantsend.GetTxLockRequest(hash, txLockRequest)) { // MSG_TXLOCK_REQUEST
         ss << txLockRequest;
@@ -2103,8 +2103,7 @@ void RelayTransaction(const CTransaction& tx)
 void RelayTransaction(const CTransaction& tx, const CDataStream& ss)
 {
     uint256 hash = tx.GetHash();
-    CDarksendBroadcastTx dstx;
-    int nInv = CPrivateSend::GetDSTX(hash, dstx) ? MSG_DSTX :
+    int nInv = static_cast<bool>(CPrivateSend::GetDSTX(hash)) ? MSG_DSTX :
                 (instantsend.HasTxLockRequest(hash) ? MSG_TXLOCK_REQUEST : MSG_TX);
     CInv inv(nInv, hash);
     {

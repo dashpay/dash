@@ -373,12 +373,10 @@ void CPrivateSend::AddDSTX(const CDarksendBroadcastTx& dstx)
     mapDSTX.insert(std::make_pair(dstx.tx.GetHash(), dstx));
 }
 
-bool CPrivateSend::GetDSTX(const uint256& hash, CDarksendBroadcastTx& dstxRet)
+CDarksendBroadcastTx CPrivateSend::GetDSTX(const uint256& hash)
 {
-    LOCK(cs_mapdstx);
-    std::map<uint256, CDarksendBroadcastTx>::iterator it = mapDSTX.find(hash);
-    dstxRet = (it == mapDSTX.end()) ? CDarksendBroadcastTx() : it->second;
-    return dstxRet != CDarksendBroadcastTx();
+    auto it = mapDSTX.find(hash);
+    return (it == mapDSTX.end()) ? CDarksendBroadcastTx() : it->second;
 }
 
 //TODO: Rename/move to core

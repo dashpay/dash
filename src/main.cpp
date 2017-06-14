@@ -4972,8 +4972,7 @@ bool static AlreadyHave(const CInv& inv) EXCLUSIVE_LOCKS_REQUIRED(cs_main)
         return mnodeman.mapSeenMasternodePing.count(inv.hash);
 
     case MSG_DSTX: {
-        CDarksendBroadcastTx dstx;
-        return CPrivateSend::GetDSTX(inv.hash, dstx);
+        return static_cast<bool>(CPrivateSend::GetDSTX(inv.hash));
     }
 
     case MSG_GOVERNANCE_OBJECT:
@@ -5193,8 +5192,8 @@ void static ProcessGetData(CNode* pfrom, const Consensus::Params& consensusParam
                 }
 
                 if (!pushed && inv.type == MSG_DSTX) {
-                    CDarksendBroadcastTx dstx;
-                    if(CPrivateSend::GetDSTX(inv.hash, dstx)) {
+                    CDarksendBroadcastTx dstx = CPrivateSend::GetDSTX(inv.hash);
+                    if(static_cast<bool>(dstx)) {
                         CDataStream ss(SER_NETWORK, PROTOCOL_VERSION);
                         ss.reserve(1000);
                         ss << dstx;
@@ -5771,9 +5770,7 @@ bool static ProcessMessage(CNode* pfrom, string strCommand, CDataStream& vRecv, 
             }
         } else if (strCommand == NetMsgType::DSTX) {
             uint256 hashTx = tx.GetHash();
-            CDarksendBroadcastTx dstxTmp;
-
-            if(CPrivateSend::GetDSTX(hashTx, dstxTmp)) {
+            if(static_cast<bool>(CPrivateSend::GetDSTX(hashTx))) {
                 LogPrint("privatesend", "DSTX -- Already have %s, skipping...\n", hashTx.ToString());
                 return true; // not an error
             }

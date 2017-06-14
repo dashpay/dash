@@ -253,6 +253,11 @@ public:
         return !(a == b);
     }
 
+    explicit operator bool() const
+    {
+        return *this != CDarksendBroadcastTx() && this->tx != CTransaction();
+    }
+
     bool Sign();
     bool CheckSignature(const CPubKey& pubKeyMasternode);
 };
@@ -331,7 +336,7 @@ public:
     static CAmount GetCollateralAmount() { return COLLATERAL; }
 
     static void AddDSTX(const CDarksendBroadcastTx& dstx);
-    static bool GetDSTX(const uint256& hash, CDarksendBroadcastTx& dstxRet);
+    static CDarksendBroadcastTx GetDSTX(const uint256& hash);
 };
 
 void ThreadCheckPrivateSend();
