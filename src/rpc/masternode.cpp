@@ -812,11 +812,6 @@ UniValue sentinelping(const UniValue& params, bool fHelp)
         );
     }
 
-    if(activeMasternode.nState == ACTIVE_MASTERNODE_INITIAL ||
-            masternodeSync.IsBlockchainSynced())
-        return false;
-
-
-    activeMasternode.UpdateSentinelPing(params[1].get_int());
+    activeMasternode.UpdateSentinelPing(params[0].get_int());
     return true;
 }
