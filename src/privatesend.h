@@ -252,10 +252,9 @@ public:
     {
         return !(a == b);
     }
-
     explicit operator bool() const
     {
-        return *this != CDarksendBroadcastTx() && this->tx != CTransaction();
+        return *this != CDarksendBroadcastTx();
     }
 
     bool Sign();
