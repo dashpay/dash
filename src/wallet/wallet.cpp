@@ -2153,8 +2153,8 @@ CAmount CWallet::GetAnonymizableBalance(bool fSkipDenominated, bool fSkipUnconfi
 
     CAmount nTotal = 0;
 
-    CAmount nSmallestDenom = CPrivateSend::GetSmallestDenomination();
-    CAmount nMixingCollateral = CPrivateSend::GetCollateralAmount();
+    const CAmount nSmallestDenom = CPrivateSend::GetSmallestDenomination();
+    const CAmount nMixingCollateral = CPrivateSend::GetCollateralAmount();
     BOOST_FOREACH(CompactTallyItem& item, vecTally) {
         bool fIsDenominated = IsDenominatedAmount(item.nAmount);
         if(fSkipDenominated && fIsDenominated) continue;
@@ -3083,10 +3083,9 @@ bool CWallet::HasCollateralInputs(bool fOnlyConfirmed) const
 bool CWallet::IsCollateralAmount(CAmount nInputAmount) const
 {
     // collateral inputs should always be a 2x..4x of mixing collateral
-    CAmount nMixingCollateral = CPrivateSend::GetCollateralAmount();
-    return  nInputAmount >= nMixingCollateral * 2 &&
-            nInputAmount <= nMixingCollateral * 4 &&
-            nInputAmount %  nMixingCollateral == 0;
+    return  nInputAmount >  CPrivateSend::GetCollateralAmount() &&
+            nInputAmount <= CPrivateSend::GetMaxCollateralAmount() &&
+            nInputAmount %  CPrivateSend::GetCollateralAmount() == 0;
 }
 
 bool CWallet::CreateCollateralTransaction(CMutableTransaction& txCollateral, std::string& strReason)

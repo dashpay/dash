@@ -610,7 +610,7 @@ bool CPrivateSendServer::AddEntry(const CDarkSendEntry& entryNew, PoolMessage& n
         return false;
     }
 
-    if(GetEntriesCount() >= CPrivateSend::CPrivateSend::GetMaxPoolTransactions()) {
+    if(GetEntriesCount() >= CPrivateSend::GetMaxPoolTransactions()) {
         LogPrint("privatesend", "CPrivateSendServer::AddEntry -- entries is full!\n");
         nMessageIDRet = ERR_ENTRIES_FULL;
         return false;

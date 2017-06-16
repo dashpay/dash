@@ -334,6 +334,7 @@ public:
     /// If the collateral is valid given by a client
     static bool IsCollateralValid(const CTransaction& txCollateral);
     static CAmount GetCollateralAmount() { return COLLATERAL; }
+    static CAmount GetMaxCollateralAmount() { return COLLATERAL*4; }
 
     static void AddDSTX(const CDarksendBroadcastTx& dstx);
     static CDarksendBroadcastTx GetDSTX(const uint256& hash);
