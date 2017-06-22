@@ -41,8 +41,8 @@ private:
     bool SendMasternodePing();
 
     //  sentinel ping data
-    int64_t sentinelPing;
-    uint16_t sentinelVersion;
+    int64_t nSentinelPingTime;
+    uint32_t nSentinelVersion;
 
 public:
     // Keys for the active Masternode
