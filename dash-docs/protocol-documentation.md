@@ -1,7 +1,7 @@
 Protocol Documentation - 0.12.1
 =====================================
 
-This document describes the protocol extensions for all additional functionality build into the Dash protocol. This doesn't include any of the Bitcoin procotol, which has been left in tact in the Dash project. For more information about the core protocol, please see https://en.bitcoin.it/w/index.php?title#Protocol_documentation&action#edit
+This document describes the protocol extensions for all additional functionality build into the Dash protocol. This doesn't include any of the Bitcoin protocol, which has been left intact in the Dash project. For more information about the core protocol, please see https://en.bitcoin.it/w/index.php?title#Protocol_documentation&action#edit
 
 ## Common Structures
 
