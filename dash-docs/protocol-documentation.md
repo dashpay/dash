@@ -215,3 +215,70 @@ Masternodes use governance voting in response to new proposals, contracts, setti
 | 4 | nVoteSignal | int | ???
 | 8 | nTime | int64_t | Time which the vote was created
 | 71-73 | vchSig | char[] | Signature of the masternode
+
+### SPORK - "spork"
+
+Spork
+
+Spork
+
+| Field Size | Field Name | Data type | Description |
+| ---------- | ----------- | --------- | -------- |
+| 4 | nSporkID | int | 
+| 8 | nValue | int64_t | 
+| 8 | nTimeSigned | int64_t | 
+| 66* | vchSig | char[] | Unclear if 66 is the correct size, but this is what it appears to be in most cases
+
+#### Defined Sporks (per src/sporks.h)
+ 
+| Spork ID | Number | Name | Description | 
+| ---------- | ---------- | ----------- | ----------- |
+| 10001 | 2 | INSTANTSEND_ENABLED | Turns on and off InstantSend network wide
+| 10002 | 3 | INSTANTSEND_BLOCK_FILTERING | Turns on and off InstantSend block filtering
+| 10004 | 5 | INSTANTSEND_MAX_VALUE | Controls the max value for an InstantSend transaction (currently 2000 dash)
+| 10007 | 8 | MASTERNODE_PAYMENT_ENFORCEMENT | Requires masternodes to be paid by miners when blocks are processed
+| 10008 | 9 | SUPERBLOCKS_ENABLED | Superblocks are enabled (the 10% comes to fund the dash treasury)
+| 10009 | 10 | MASTERNODE_PAY_UPDATED_NODES | Only current protocol version masternode's will be paid (not older nodes)
+| 10011 | 12 | RECONSIDER_BLOCKS |
+| 10012 | 13 | OLD_SUPERBLOCK_FLAG |
+| 10013 | 14 | REQUIRE_SENTINEL_FLAG | Only masternode's running sentinel will be paid 
+
+## Undocumented messages
+
+### MASTERNODEPAYMENTBLOCK - "mnwb"
+
+Masternode Payment Block
+
+*NOTE: Per src/protocol.cpp, there is no message for this (only inventory)*
+
+### MNVERIFY - "mnv"
+
+Masternode Verify
+
+### DSFINALTX - "dsf"
+
+Darksend Final Transaction
+
+### DSCOMPLETE - "dsc"
+
+Darksend Complete
+
+### TXLOCKREQUEST - "ix"
+
+Tx Lock Request
+
+### govsync
+
+Governance Sync
+
+### dseg
+
+???
+
+### ssc
+
+Sync Status Count
+
+### MASTERNODEPAYMENTSYNC - "mnget"
+
+Masternode Payment Sync
