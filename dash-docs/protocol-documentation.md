@@ -267,7 +267,7 @@ Darksend Complete
 
 Tx Lock Request
 
-### govsync
+### MNGOVERNANCESYNC - "govsync"
 
 Governance Sync
 
@@ -275,7 +275,7 @@ Governance Sync
 
 ???
 
-### ssc
+### SYNCSTATUSCOUNT - "ssc"
 
 Sync Status Count
 
