@@ -78,6 +78,8 @@
 #include <boost/algorithm/string/case_conv.hpp> // for to_lower()
 #include <boost/algorithm/string/join.hpp>
 #include <boost/algorithm/string/predicate.hpp> // for startswith() and endswith()
+#include <boost/algorithm/string/split.hpp>
+#include <boost/algorithm/string/classification.hpp>
 #include <boost/filesystem.hpp>
 #include <boost/filesystem/fstream.hpp>
 #include <boost/foreach.hpp>
@@ -952,3 +954,51 @@ int GetNumCores()
 #endif
 }
 
+VersionInfo::VersionInfo(uint32_t version)
+{
+    if((version >> 24) > 0)
+        throw std::runtime_error("Invalid version format");
+    if(version == 0)
+        throw std::runtime_error("Invalid version format");
+    nVersion = version;
+}
+
+VersionInfo::VersionInfo(const std::string& versionInfo)
+{
+    std::vector<std::string> tokens;
+    boost::split(tokens, versionInfo, boost::is_any_of("."));
+    if(tokens.size() != 3)
+        throw std::runtime_error("Invalid version format");
+    uint32_t version = 0;
+    for(unsigned idx = 0; idx < 3; idx++)
+    {
+        if(tokens[idx].length() == 0)
+            throw std::runtime_error("Invalid version format");
+        if(!std::none_of(tokens[idx].begin(), tokens[idx].end(),
+                         [](char c){return !std::isdigit(c);}))
+            throw std::runtime_error("Invalid version format");
+        uint32_t value = atol(tokens[idx].c_str());
+        if(value > 255)
+            throw std::runtime_error("Invalid version format");
+        version <<= 8;
+        version |= value;
+    }
+    nVersion = version;
+}
+
+VersionInfo::operator std::string() const
+{
+    std::array<std::string, 3> tokens;
+    for(unsigned idx = 0; idx < 3; idx++)
+    {
+        unsigned shift = (2 - idx) * 8;
+        uint32_t byteValue = (nVersion >> shift) & 0xff;
+        tokens[idx] = boost::lexical_cast<std::string>(byteValue);
+    }
+    return boost::join(tokens, ".");
+}
+
+VersionInfo::operator uint32_t() const
+{
+    return nVersion;
+}

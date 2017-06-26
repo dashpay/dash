@@ -271,4 +271,23 @@ template <typename Callable> void TraceThread(const char* name,  Callable func)
     }
 }
 
+
+/** Helper class to convert version strings of "x.x.x" format
+ * to 4-byte unsigned integer and vice versa.
+ * Most significant byte in integer is always 0.
+ */
+class VersionInfo{
+    uint32_t nVersion;
+public:
+    VersionInfo(uint32_t version);
+    VersionInfo(const std::string& version);
+
+    VersionInfo(const VersionInfo&) = default;
+    VersionInfo(VersionInfo&&) = default;
+    VersionInfo& operator=(const VersionInfo&) = default;
+
+    operator uint32_t() const;
+    operator std::string() const;
+};
+
 #endif // BITCOIN_UTIL_H

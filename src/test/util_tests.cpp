@@ -489,4 +489,21 @@ BOOST_AUTO_TEST_CASE(test_ParseFixedPoint)
     BOOST_CHECK(!ParseFixedPoint("1.", 8, &amount));
 }
 
+BOOST_AUTO_TEST_CASE(version_info_helper)
+{
+    BOOST_CHECK(VersionInfo("1.1.1") == 0x010101);
+    BOOST_CHECK(VersionInfo(0x010101) == 0x010101);
+    BOOST_CHECK(std::string(VersionInfo("1.1.1")) == "1.1.1");
+    BOOST_CHECK(std::string(VersionInfo(0x010101)) == "1.1.1");
+
+    BOOST_CHECK_THROW(VersionInfo("1.1.hgdghfgf"), runtime_error);
+    BOOST_CHECK_THROW(VersionInfo("1.1"), runtime_error);
+    BOOST_CHECK_THROW(VersionInfo("1.1.1f"), runtime_error);
+    BOOST_CHECK_THROW(VersionInfo("1.1.1000"), runtime_error);
+    BOOST_CHECK_THROW(VersionInfo("10"), runtime_error);
+    BOOST_CHECK_THROW(VersionInfo("1.1.1.1"), runtime_error);
+    BOOST_CHECK_THROW(VersionInfo(0x01010101), runtime_error);
+    BOOST_CHECK_THROW(VersionInfo(0), runtime_error);
+}
+
 BOOST_AUTO_TEST_SUITE_END()
