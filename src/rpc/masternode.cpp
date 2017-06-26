@@ -803,15 +803,15 @@ UniValue sentinelping(const UniValue& params, bool fHelp)
             "sentinelping version\n"
             "\nSentinel ping.\n"
             "\nArguments:\n"
-            "1. version           (numeric, required) Sentinel version\n"
+            "1. version           (string, required) Sentinel version in the form \"x.x.x\"\n"
             "\nResult:\n"
             "state                (boolean) Ping result\n"
             "\nExamples:\n"
-            + HelpExampleCli("sentinelping", "2")
-            + HelpExampleRpc("sentinelping", "2")
+            + HelpExampleCli("sentinelping", "1.0.2")
+            + HelpExampleRpc("sentinelping", "1.0.2")
         );
     }
 
-    activeMasternode.UpdateSentinelPing(params[0].get_int());
+    activeMasternode.UpdateSentinelPing(VersionInfo(params[0].get_str()));
     return true;
 }
