@@ -954,40 +954,33 @@ int GetNumCores()
 #endif
 }
 
-VersionInfo::VersionInfo(uint32_t version)
-{
-    if((version >> 24) > 0)
-        throw std::runtime_error("Invalid version format");
-    if(version == 0)
-        throw std::runtime_error("Invalid version format");
-    nVersion = version;
-}
 
-VersionInfo::VersionInfo(const std::string& versionInfo)
+uint32_t StringVersionToInt(const std::string& strVersion)
 {
     std::vector<std::string> tokens;
-    boost::split(tokens, versionInfo, boost::is_any_of("."));
+    boost::split(tokens, strVersion, boost::is_any_of("."));
     if(tokens.size() != 3)
-        throw std::runtime_error("Invalid version format");
-    uint32_t version = 0;
+        throw std::bad_cast();
+    uint32_t nVersion = 0;
     for(unsigned idx = 0; idx < 3; idx++)
     {
         if(tokens[idx].length() == 0)
-            throw std::runtime_error("Invalid version format");
-        if(!std::none_of(tokens[idx].begin(), tokens[idx].end(),
-                         [](char c){return !std::isdigit(c);}))
-            throw std::runtime_error("Invalid version format");
-        uint32_t value = atol(tokens[idx].c_str());
+            throw std::bad_cast();
+        uint32_t value = boost::lexical_cast<uint32_t>(tokens[idx]);
         if(value > 255)
-            throw std::runtime_error("Invalid version format");
-        version <<= 8;
-        version |= value;
+            throw std::bad_cast();
+        nVersion <<= 8;
+        nVersion |= value;
     }
-    nVersion = version;
+    return nVersion;
 }
 
-VersionInfo::operator std::string() const
+std::string IntVersionToString(uint32_t nVersion)
 {
+    if((nVersion >> 24) > 0) // MSB is always 0
+        throw std::bad_cast();
+    if(nVersion == 0)
+        throw std::bad_cast();
     std::array<std::string, 3> tokens;
     for(unsigned idx = 0; idx < 3; idx++)
     {
@@ -996,9 +989,4 @@ VersionInfo::operator std::string() const
         tokens[idx] = boost::lexical_cast<std::string>(byteValue);
     }
     return boost::join(tokens, ".");
-}
-
-VersionInfo::operator uint32_t() const
-{
-    return nVersion;
 }
