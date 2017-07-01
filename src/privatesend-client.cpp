@@ -1373,6 +1373,8 @@ void CPrivateSendClient::UpdatedBlockTip(const CBlockIndex *pindex)
     if(!fLiteMode && masternodeSync.IsMasternodeListSynced()) {
         NewBlock();
     }
+
+    CPrivateSend::CheckDSTXes(pindex->nHeight);
 }
 
 //TODO: Rename/move to core
