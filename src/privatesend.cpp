@@ -404,7 +404,8 @@ void CPrivateSend::SyncTransaction(const CTransaction& tx, const CBlock* pblock)
 {
     if (tx.IsCoinBase()) return;
 
-    LOCK(cs_mapdstx);
+    LOCK2(cs_main, cs_mapdstx);
+
     uint256 txHash = tx.GetHash();
     if (!mapDSTX.count(txHash)) return;
 
