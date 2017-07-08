@@ -32,9 +32,30 @@ public:
     void SetNull() { hash.SetNull(); n = (uint32_t) -1; }
     bool IsNull() const { return (hash.IsNull() && n == (uint32_t) -1); }
 
+    // BIP69 https://github.com/bitcoin/bips/blob/master/bip-0069.mediawiki
     friend bool operator<(const COutPoint& a, const COutPoint& b)
     {
-        return (a.hash < b.hash || (a.hash == b.hash && a.n < b.n));
+        if (a.hash == b.hash) return a.n < b.n;
+
+        unsigned int nSizeOfData = a.hash.size();
+        assert(nSizeOfData > 0);
+        assert(nSizeOfData == b.hash.size());
+
+        const unsigned char* paend = a.hash.end();
+        const unsigned char* pbend = b.hash.end();
+
+        for (unsigned int i = 0; i < nSizeOfData; ++i) {
+            --paend;
+            --pbend;
+            if (*paend < *pbend) {
+                return true;
+            }
+            else if (*paend > *pbend) {
+                return false;
+            }
+        }
+        // should never get here
+        assert(false);
     }
 
     friend bool operator==(const COutPoint& a, const COutPoint& b)
