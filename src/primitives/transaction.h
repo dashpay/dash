@@ -35,14 +35,14 @@ public:
     // BIP69 https://github.com/bitcoin/bips/blob/master/bip-0069.mediawiki
     friend bool operator<(const COutPoint& a, const COutPoint& b)
     {
+        if (a.hash == b.hash) return a.n < b.n;
+
         unsigned int nSizeOfData = a.hash.size();
         assert(nSizeOfData > 0);
         assert(nSizeOfData == b.hash.size());
 
         const unsigned char* paend = a.hash.end();
         const unsigned char* pbend = b.hash.end();
-
-        if (a.hash == b.hash) return a.n < b.n;
 
         for (unsigned int i = 0; i < nSizeOfData; ++i) {
             --paend;
