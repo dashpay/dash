@@ -206,7 +206,7 @@ CAddress::CAddress() : CService()
     Init();
 }
 
-CAddress::CAddress(CService ipIn, uint64_t nServicesIn) : CService(ipIn)
+CAddress::CAddress(CService ipIn, ServiceFlags nServicesIn) : CService(ipIn)
 {
     Init();
     nServices = nServicesIn;
@@ -214,7 +214,7 @@ CAddress::CAddress(CService ipIn, uint64_t nServicesIn) : CService(ipIn)
 
 void CAddress::Init()
 {
-    nServices = NODE_NETWORK;
+    nServices = NODE_NONE;
     nTime = 100000000;
 }
 
@@ -265,7 +265,11 @@ const char* CInv::GetCommand() const
 
 std::string CInv::ToString() const
 {
-    return strprintf("%s %s", GetCommand(), hash.ToString());
+    try {
+        return strprintf("%s %s", GetCommand(), hash.ToString());
+    } catch(const std::out_of_range &) {
+        return strprintf("0x%08x %s", type, hash.ToString());
+    }
 }
 
 const std::vector<std::string> &getAllNetMessageTypes()

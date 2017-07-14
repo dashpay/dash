@@ -13,7 +13,7 @@
 #include "main.h"
 #include "policy/policy.h"
 #include "primitives/transaction.h"
-#include "rpcserver.h"
+#include "rpc/server.h"
 #include "streams.h"
 #include "sync.h"
 #include "txmempool.h"
@@ -266,8 +266,6 @@ UniValue getrawmempool(const UniValue& params, bool fHelp)
             + HelpExampleCli("getrawmempool", "true")
             + HelpExampleRpc("getrawmempool", "true")
         );
-
-    LOCK(cs_main);
 
     bool fVerbose = false;
     if (params.size() > 0)

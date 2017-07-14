@@ -5,17 +5,18 @@
 //#define ENABLE_DASH_DEBUG
 
 #include "activemasternode.h"
-#include "darksend.h"
 #include "governance.h"
 #include "governance-vote.h"
 #include "governance-classes.h"
+#include "governance-validators.h"
 #include "init.h"
 #include "main.h"
 #include "masternode.h"
 #include "masternode-sync.h"
 #include "masternodeconfig.h"
 #include "masternodeman.h"
-#include "rpcserver.h"
+#include "messagesigner.h"
+#include "rpc/server.h"
 #include "util.h"
 #include "utilmoneystr.h"
 
@@ -29,11 +30,13 @@ UniValue gobject(const UniValue& params, bool fHelp)
 
     if (fHelp  ||
         (strCommand != "vote-many" && strCommand != "vote-conf" && strCommand != "vote-alias" && strCommand != "prepare" && strCommand != "submit" && strCommand != "count" &&
-         strCommand != "deserialize" && strCommand != "get" && strCommand != "getvotes" && strCommand != "getcurrentvotes" && strCommand != "list" && strCommand != "diff"))
+         strCommand != "deserialize" && strCommand != "get" && strCommand != "getvotes" && strCommand != "getcurrentvotes" && strCommand != "list" && strCommand != "diff" &&
+         strCommand != "check" ))
         throw std::runtime_error(
                 "gobject \"command\"...\n"
                 "Manage governance objects\n"
                 "\nAvailable commands:\n"
+                "  check              - Validate governance object data (proposal only)\n"
                 "  prepare            - Prepare governance object by signing and creating tx\n"
                 "  submit             - Submit governance object to network\n"
                 "  deserialize        - Deserialize governance object from hex string to JSON\n"
@@ -41,7 +44,7 @@ UniValue gobject(const UniValue& params, bool fHelp)
                 "  get                - Get governance object by hash\n"
                 "  getvotes           - Get all votes for a governance object hash (including old votes)\n"
                 "  getcurrentvotes    - Get only current (tallying) votes for a governance object hash (does not include old votes)\n"
-                "  list               - List governance objects (can be filtered by validity and/or object type)\n"
+                "  list               - List governance objects (can be filtered by signal and/or object type)\n"
                 "  diff               - List differences since last diff\n"
                 "  vote-alias         - Vote on a governance object by masternode alias (using masternode.conf setup)\n"
                 "  vote-conf          - Vote on a governance object by masternode configured in dash.conf\n"
@@ -75,6 +78,41 @@ UniValue gobject(const UniValue& params, bool fHelp)
         return u.write().c_str();
     }
 
+    // VALIDATE A GOVERNANCE OBJECT PRIOR TO SUBMISSION
+    if(strCommand == "check")
+    {
+        if (params.size() != 2) {
+            throw JSONRPCError(RPC_INVALID_PARAMETER, "Correct usage is 'gobject check <data-hex>'");
+        }
+
+        // ASSEMBLE NEW GOVERNANCE OBJECT FROM USER PARAMETERS
+
+        uint256 hashParent;
+
+        int nRevision = 1;
+
+        int64_t nTime = GetTime();
+        std::string strData = params[1].get_str();
+
+        CGovernanceObject govobj(hashParent, nRevision, nTime, uint256(), strData);
+
+        if(govobj.GetObjectType() == GOVERNANCE_OBJECT_PROPOSAL) {
+            CProposalValidator validator(strData);
+            if(!validator.Validate())  {
+                throw JSONRPCError(RPC_INVALID_PARAMETER, "Invalid proposal data, error messages:" + validator.GetErrorMessages());
+            }
+        }
+        else {
+            throw JSONRPCError(RPC_INVALID_PARAMETER, "Invalid object type, only proposals can be validated");
+        }
+
+        UniValue objResult(UniValue::VOBJ);
+
+        objResult.push_back(Pair("Object status", "OK"));
+
+        return objResult;
+    }
+
     // PREPARE THE GOVERNANCE OBJECT BY CREATING A COLLATERAL TRANSACTION
     if(strCommand == "prepare")
     {
@@ -103,14 +141,24 @@ UniValue gobject(const UniValue& params, bool fHelp)
 
         CGovernanceObject govobj(hashParent, nRevision, nTime, uint256(), strData);
 
+        if(govobj.GetObjectType() == GOVERNANCE_OBJECT_PROPOSAL) {
+            CProposalValidator validator(strData);
+            if(!validator.Validate())  {
+                throw JSONRPCError(RPC_INVALID_PARAMETER, "Invalid proposal data, error messages:" + validator.GetErrorMessages());
+            }
+        }
+
         if((govobj.GetObjectType() == GOVERNANCE_OBJECT_TRIGGER) ||
            (govobj.GetObjectType() == GOVERNANCE_OBJECT_WATCHDOG)) {
             throw JSONRPCError(RPC_INVALID_PARAMETER, "Trigger and watchdog objects need not be prepared (however only masternodes can create them)");
         }
 
-        std::string strError = "";
-        if(!govobj.IsValidLocally(strError, false))
-            throw JSONRPCError(RPC_INTERNAL_ERROR, "Governance object is not valid - " + govobj.GetHash().ToString() + " - " + strError);
+        {
+            LOCK(cs_main);
+            std::string strError = "";
+            if(!govobj.IsValidLocally(strError, false))
+                throw JSONRPCError(RPC_INTERNAL_ERROR, "Governance object is not valid - " + govobj.GetHash().ToString() + " - " + strError);
+        }
 
         CWalletTx wtx;
         if(!pwalletMain->GetBudgetSystemCollateralTX(wtx, govobj.GetHash(), govobj.GetMinCollateralFee(), false)) {
@@ -180,6 +228,13 @@ UniValue gobject(const UniValue& params, bool fHelp)
              << ", txidFee = " << txidFee.GetHex()
              << endl; );
 
+        if(govobj.GetObjectType() == GOVERNANCE_OBJECT_PROPOSAL) {
+            CProposalValidator validator(strData);
+            if(!validator.Validate())  {
+                throw JSONRPCError(RPC_INVALID_PARAMETER, "Invalid proposal data, error messages:" + validator.GetErrorMessages());
+            }
+        }
+
         // Attempt to sign triggers if we are a MN
         if((govobj.GetObjectType() == GOVERNANCE_OBJECT_TRIGGER) ||
            (govobj.GetObjectType() == GOVERNANCE_OBJECT_WATCHDOG)) {
@@ -202,9 +257,14 @@ UniValue gobject(const UniValue& params, bool fHelp)
         std::string strHash = govobj.GetHash().ToString();
 
         std::string strError = "";
-        if(!govobj.IsValidLocally(strError, true)) {
-            LogPrintf("gobject(submit) -- Object submission rejected because object is not valid - hash = %s, strError = %s\n", strHash, strError);
-            throw JSONRPCError(RPC_INTERNAL_ERROR, "Governance object is not valid - " + strHash + " - " + strError);
+        bool fMissingMasternode;
+        bool fMissingConfirmations;
+        {
+            LOCK(cs_main);
+            if(!govobj.IsValidLocally(strError, fMissingMasternode, fMissingConfirmations, true) && !fMissingConfirmations) {
+                LogPrintf("gobject(submit) -- Object submission rejected because object is not valid - hash = %s, strError = %s\n", strHash, strError);
+                throw JSONRPCError(RPC_INTERNAL_ERROR, "Governance object is not valid - " + strHash + " - " + strError);
+            }
         }
 
         // RELAY THIS OBJECT
@@ -218,11 +278,15 @@ UniValue gobject(const UniValue& params, bool fHelp)
             LogPrintf("gobject(submit) -- Object submission rejected because of rate check failure (buffer updated) - hash = %s\n", strHash);
             throw JSONRPCError(RPC_INVALID_PARAMETER, "Object creation rate limit exceeded");
         }
-        governance.AddSeenGovernanceObject(govobj.GetHash(), SEEN_OBJECT_IS_VALID);
-        govobj.Relay();
+
         LogPrintf("gobject(submit) -- Adding locally created governance object - %s\n", strHash);
-        bool fAddToSeen = true;
-        governance.AddGovernanceObject(govobj, fAddToSeen);
+
+        if(fMissingConfirmations) {
+            governance.AddPostponedObject(govobj);
+            govobj.Relay();
+        } else {
+            governance.AddGovernanceObject(govobj);
+        }
 
         return govobj.GetHash().ToString();
     }
@@ -350,7 +414,7 @@ UniValue gobject(const UniValue& params, bool fHelp)
 
             UniValue statusObj(UniValue::VOBJ);
 
-            if(!darkSendSigner.GetKeysFromSecret(mne.getPrivKey(), keyMasternode, pubKeyMasternode)){
+            if(!CMessageSigner::GetKeysFromSecret(mne.getPrivKey(), keyMasternode, pubKeyMasternode)){
                 nFailed++;
                 statusObj.push_back(Pair("result", "failed"));
                 statusObj.push_back(Pair("errorMessage", "Masternode signing error, could not set key correctly"));
@@ -469,7 +533,7 @@ UniValue gobject(const UniValue& params, bool fHelp)
 
             UniValue statusObj(UniValue::VOBJ);
 
-            if(!darkSendSigner.GetKeysFromSecret(mne.getPrivKey(), keyMasternode, pubKeyMasternode)) {
+            if(!CMessageSigner::GetKeysFromSecret(mne.getPrivKey(), keyMasternode, pubKeyMasternode)) {
                 nFailed++;
                 statusObj.push_back(Pair("result", "failed"));
                 statusObj.push_back(Pair("errorMessage", strprintf("Invalid masternode key %s.", mne.getPrivKey())));
@@ -540,14 +604,14 @@ UniValue gobject(const UniValue& params, bool fHelp)
     if(strCommand == "list" || strCommand == "diff")
     {
         if (params.size() > 3)
-            throw JSONRPCError(RPC_INVALID_PARAMETER, "Correct usage is 'gobject [list|diff] [valid] [type]'");
+            throw JSONRPCError(RPC_INVALID_PARAMETER, "Correct usage is 'gobject [list|diff] ( signal type )'");
 
         // GET MAIN PARAMETER FOR THIS MODE, VALID OR ALL?
 
-        std::string strShow = "valid";
-        if (params.size() >= 2) strShow = params[1].get_str();
-        if (strShow != "valid" && strShow != "all")
-            return "Invalid mode, should be 'valid' or 'all'";
+        std::string strCachedSignal = "valid";
+        if (params.size() >= 2) strCachedSignal = params[1].get_str();
+        if (strCachedSignal != "valid" && strCachedSignal != "funding" && strCachedSignal != "delete" && strCachedSignal != "endorsed" && strCachedSignal != "all")
+            return "Invalid signal, should be 'valid', 'funding', 'delete', 'endorsed' or 'all'";
 
         std::string strType = "all";
         if (params.size() == 3) strType = params[2].get_str();
@@ -574,7 +638,10 @@ UniValue gobject(const UniValue& params, bool fHelp)
 
         BOOST_FOREACH(CGovernanceObject* pGovObj, objs)
         {
-            if(strShow == "valid" && !pGovObj->IsSetCachedValid()) continue;
+            if(strCachedSignal == "valid" && !pGovObj->IsSetCachedValid()) continue;
+            if(strCachedSignal == "funding" && !pGovObj->IsSetCachedFunding()) continue;
+            if(strCachedSignal == "delete" && !pGovObj->IsSetCachedDelete()) continue;
+            if(strCachedSignal == "endorsed" && !pGovObj->IsSetCachedEndorsed()) continue;
 
             if(strType == "proposals" && pGovObj->GetObjectType() != GOVERNANCE_OBJECT_PROPOSAL) continue;
             if(strType == "triggers" && pGovObj->GetObjectType() != GOVERNANCE_OBJECT_TRIGGER) continue;
@@ -917,3 +984,4 @@ UniValue getsuperblockbudget(const UniValue& params, bool fHelp)
 
     return strBudget;
 }
+

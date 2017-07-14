@@ -10,7 +10,7 @@
 #include "main.h"
 #include "net.h"
 #include "netbase.h"
-#include "rpcserver.h"
+#include "rpc/server.h"
 #include "timedata.h"
 #include "txmempool.h"
 #include "util.h"
@@ -153,6 +153,7 @@ UniValue mnsync(const UniValue& params, bool fHelp)
         UniValue objStatus(UniValue::VOBJ);
         objStatus.push_back(Pair("AssetID", masternodeSync.GetAssetID()));
         objStatus.push_back(Pair("AssetName", masternodeSync.GetAssetName()));
+        objStatus.push_back(Pair("AssetStartTime", masternodeSync.GetAssetStartTime()));
         objStatus.push_back(Pair("Attempt", masternodeSync.GetAttempt()));
         objStatus.push_back(Pair("IsBlockchainSynced", masternodeSync.IsBlockchainSynced()));
         objStatus.push_back(Pair("IsMasternodeListSynced", masternodeSync.IsMasternodeListSynced()));
@@ -280,6 +281,8 @@ UniValue validateaddress(const UniValue& params, bool fHelp)
             "  \"pubkey\" : \"publickeyhex\",    (string) The hex value of the raw public key\n"
             "  \"iscompressed\" : true|false,  (boolean) If the address is compressed\n"
             "  \"account\" : \"account\"         (string) DEPRECATED. The account associated with the address, \"\" is the default account\n"
+            "  \"hdkeypath\" : \"keypath\"       (string, optional) The HD keypath if the key is HD and available\n"
+            "  \"hdchainid\" : \"<hash>\"        (string, optional) The ID of the HD chain\n"
             "}\n"
             "\nExamples:\n"
             + HelpExampleCli("validateaddress", "\"XwnLY9Tf7Zsef8gMGL2fhWA9ZmMjt4KPwg\"")
@@ -314,6 +317,13 @@ UniValue validateaddress(const UniValue& params, bool fHelp)
         ret.pushKVs(detail);
         if (pwalletMain && pwalletMain->mapAddressBook.count(dest))
             ret.push_back(Pair("account", pwalletMain->mapAddressBook[dest].name));
+        CKeyID keyID;
+        CHDChain hdChainCurrent;
+        if (pwalletMain && address.GetKeyID(keyID) && pwalletMain->mapHdPubKeys.count(keyID) && pwalletMain->GetHDChain(hdChainCurrent))
+        {
+            ret.push_back(Pair("hdkeypath", pwalletMain->mapHdPubKeys[keyID].GetKeyPath()));
+            ret.push_back(Pair("hdchainid", hdChainCurrent.GetID().GetHex()));
+        }
 #endif
     }
     return ret;

@@ -3,14 +3,15 @@
 // file COPYING or http://www.opensource.org/licenses/mit-license.php.
 
 #include "activemasternode.h"
-#include "darksend.h"
 #include "init.h"
 #include "main.h"
 #include "masternode-payments.h"
 #include "masternode-sync.h"
 #include "masternodeconfig.h"
 #include "masternodeman.h"
-#include "rpcserver.h"
+#include "privatesend-client.h"
+#include "privatesend-server.h"
+#include "rpc/server.h"
 #include "util.h"
 #include "utilmoneystr.h"
 
@@ -42,18 +43,18 @@ UniValue privatesend(const UniValue& params, bool fHelp)
         if(fMasterNode)
             return "Mixing is not supported from masternodes";
 
-        fEnablePrivateSend = true;
-        bool result = darkSendPool.DoAutomaticDenominating();
-        return "Mixing " + (result ? "started successfully" : ("start failed: " + darkSendPool.GetStatus() + ", will retry"));
+        privateSendClient.fEnablePrivateSend = true;
+        bool result = privateSendClient.DoAutomaticDenominating();
+        return "Mixing " + (result ? "started successfully" : ("start failed: " + privateSendClient.GetStatus() + ", will retry"));
     }
 
     if(params[0].get_str() == "stop") {
-        fEnablePrivateSend = false;
+        privateSendClient.fEnablePrivateSend = false;
         return "Mixing was stopped";
     }
 
     if(params[0].get_str() == "reset") {
-        darkSendPool.ResetPool();
+        privateSendClient.ResetPool();
         return "Mixing was reset";
     }
 
@@ -67,16 +68,18 @@ UniValue getpoolinfo(const UniValue& params, bool fHelp)
             "getpoolinfo\n"
             "Returns an object containing mixing pool related information.\n");
 
-    UniValue obj(UniValue::VOBJ);
-    obj.push_back(Pair("state",             darkSendPool.GetStateString()));
-    obj.push_back(Pair("mixing_mode",       fPrivateSendMultiSession ? "multi-session" : "normal"));
-    obj.push_back(Pair("queue",             darkSendPool.GetQueueSize()));
-    obj.push_back(Pair("entries",           darkSendPool.GetEntriesCount()));
-    obj.push_back(Pair("status",            darkSendPool.GetStatus()));
+    CPrivateSendBase privateSend = fMasterNode ? (CPrivateSendBase)privateSendServer : (CPrivateSendBase)privateSendClient;
 
-    if (darkSendPool.pSubmittedToMasternode) {
-        obj.push_back(Pair("outpoint",      darkSendPool.pSubmittedToMasternode->vin.prevout.ToStringShort()));
-        obj.push_back(Pair("addr",          darkSendPool.pSubmittedToMasternode->addr.ToString()));
+    UniValue obj(UniValue::VOBJ);
+    obj.push_back(Pair("state",             privateSend.GetStateString()));
+    obj.push_back(Pair("mixing_mode",       (!fMasterNode && privateSendClient.fPrivateSendMultiSession) ? "multi-session" : "normal"));
+    obj.push_back(Pair("queue",             privateSend.GetQueueSize()));
+    obj.push_back(Pair("entries",           privateSend.GetEntriesCount()));
+    obj.push_back(Pair("status",            privateSendClient.GetStatus()));
+
+    if (privateSendClient.infoMixingMasternode.fInfoValid) {
+        obj.push_back(Pair("outpoint",      privateSendClient.infoMixingMasternode.vin.prevout.ToStringShort()));
+        obj.push_back(Pair("addr",          privateSendClient.infoMixingMasternode.addr.ToString()));
     }
 
     if (pwalletMain) {
@@ -144,7 +147,7 @@ UniValue masternode(const UniValue& params, bool fHelp)
 
         CService addr = CService(strAddress);
 
-        CNode *pnode = ConnectNode((CAddress)addr, NULL);
+        CNode *pnode = ConnectNode(CAddress(addr, NODE_NETWORK), NULL);
         if(!pnode)
             throw JSONRPCError(RPC_INTERNAL_ERROR, strprintf("Couldn't connect to masternode %s", strAddress));
 
@@ -449,7 +452,7 @@ UniValue masternodelist(const UniValue& params, bool fHelp)
     if (params.size() == 2) strFilter = params[1].get_str();
 
     if (fHelp || (
-                strMode != "activeseconds" && strMode != "addr" && strMode != "full" &&
+                strMode != "activeseconds" && strMode != "addr" && strMode != "full" && strMode != "info" &&
                 strMode != "lastseen" && strMode != "lastpaidtime" && strMode != "lastpaidblock" &&
                 strMode != "protocol" && strMode != "payee" && strMode != "rank" && strMode != "status"))
     {
@@ -465,6 +468,8 @@ UniValue masternodelist(const UniValue& params, bool fHelp)
                 "                   (since latest issued \"masternode start/start-many/start-alias\")\n"
                 "  addr           - Print ip address associated with a masternode (can be additionally filtered, partial match)\n"
                 "  full           - Print info in format 'status protocol payee lastseen activeseconds lastpaidtime lastpaidblock IP'\n"
+                "                   (can be additionally filtered, partial match)\n"
+                "  info           - Print info in format 'status protocol payee lastseen activeseconds sentinelversion sentinelstate IP'\n"
                 "                   (can be additionally filtered, partial match)\n"
                 "  lastpaidblock  - Print the last block height a node was paid on the network\n"
                 "  lastpaidtime   - Print the last time a node was paid on the network\n"
@@ -517,6 +522,21 @@ UniValue masternodelist(const UniValue& params, bool fHelp)
                 if (strFilter !="" && strFull.find(strFilter) == std::string::npos &&
                     strOutpoint.find(strFilter) == std::string::npos) continue;
                 obj.push_back(Pair(strOutpoint, strFull));
+            } else if (strMode == "info") {
+                std::ostringstream streamInfo;
+                streamInfo << std::setw(18) <<
+                               mn.GetStatus() << " " <<
+                               mn.nProtocolVersion << " " <<
+                               CBitcoinAddress(mn.pubKeyCollateralAddress.GetID()).ToString() << " " <<
+                               (int64_t)mn.lastPing.sigTime << " " << std::setw(8) <<
+                               (int64_t)(mn.lastPing.sigTime - mn.sigTime) << " " <<
+                               SafeIntVersionToString(mn.lastPing.nSentinelVersion) << " "  <<
+                               (mn.lastPing.fSentinelIsCurrent ? "current" : "expired") << " " <<
+                               mn.addr.ToString();
+                std::string strInfo = streamInfo.str();
+                if (strFilter !="" && strInfo.find(strFilter) == std::string::npos &&
+                    strOutpoint.find(strFilter) == std::string::npos) continue;
+                obj.push_back(Pair(strOutpoint, strInfo));
             } else if (strMode == "lastpaidblock") {
                 if (strFilter !="" && strOutpoint.find(strFilter) == std::string::npos) continue;
                 obj.push_back(Pair(strOutpoint, mn.GetLastPaidBlock()));
@@ -791,4 +811,24 @@ UniValue masternodebroadcast(const UniValue& params, bool fHelp)
     }
 
     return NullUniValue;
+}
+
+UniValue sentinelping(const UniValue& params, bool fHelp)
+{
+    if (fHelp || params.size() != 1) {
+        throw std::runtime_error(
+            "sentinelping version\n"
+            "\nSentinel ping.\n"
+            "\nArguments:\n"
+            "1. version           (string, required) Sentinel version in the form \"x.x.x\"\n"
+            "\nResult:\n"
+            "state                (boolean) Ping result\n"
+            "\nExamples:\n"
+            + HelpExampleCli("sentinelping", "1.0.2")
+            + HelpExampleRpc("sentinelping", "1.0.2")
+        );
+    }
+
+    activeMasternode.UpdateSentinelPing(StringVersionToInt(params[0].get_str()));
+    return true;
 }

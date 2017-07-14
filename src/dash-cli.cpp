@@ -6,8 +6,8 @@
 
 #include "chainparamsbase.h"
 #include "clientversion.h"
-#include "rpcclient.h"
-#include "rpcprotocol.h"
+#include "rpc/client.h"
+#include "rpc/protocol.h"
 #include "util.h"
 #include "utilstrencodings.h"
 
@@ -92,7 +92,8 @@ static int AppInitRPC(int argc, char* argv[])
         }
         return EXIT_SUCCESS;
     }
-    if (!boost::filesystem::is_directory(GetDataDir(false))) {
+    bool datadirFromCmdLine = mapArgs.count("-datadir") != 0;
+    if (datadirFromCmdLine && !boost::filesystem::is_directory(GetDataDir(false))) {
         fprintf(stderr, "Error: Specified data directory \"%s\" does not exist.\n", mapArgs["-datadir"].c_str());
         return EXIT_FAILURE;
     }
@@ -100,6 +101,10 @@ static int AppInitRPC(int argc, char* argv[])
         ReadConfigFile(mapArgs, mapMultiArgs);
     } catch (const std::exception& e) {
         fprintf(stderr,"Error reading configuration file: %s\n", e.what());
+        return EXIT_FAILURE;
+    }
+    if (!datadirFromCmdLine && !boost::filesystem::is_directory(GetDataDir(false))) {
+        fprintf(stderr, "Error: Specified data directory \"%s\" from config file does not exist.\n", mapArgs["-datadir"].c_str());
         return EXIT_FAILURE;
     }
     // Check for -testnet or -regtest parameter (BaseParams() calls are only valid after this clause)
