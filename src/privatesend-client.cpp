@@ -1261,16 +1261,15 @@ bool CPrivateSendClient::CreateDenominated(const CompactTallyItem& tallyItem, bo
 
     LogPrintf("CreateDenominated0 nValueLeft: %f\n", (float)nValueLeft/COIN);
     // make our collateral address
-    CReserveKey reservekeyCollateral(pwalletMain);
-
-    CScript scriptCollateral;
-    CPubKey vchPubKey;
-    assert(reservekeyCollateral.GetReservedKey(vchPubKey, false)); // should never fail, as we just unlocked
-    scriptCollateral = GetScriptForDestination(vchPubKey.GetID());
-
-    // ****** Add collateral outputs ************ /
+    CReserveKey reservekeyCollateral(pwalletMain);    
 
     if(fCreateMixingCollaterals) {
+        CScript scriptCollateral;
+        CPubKey vchPubKey;
+        assert(reservekeyCollateral.GetReservedKey(vchPubKey, false)); // should never fail, as we just unlocked
+        scriptCollateral = GetScriptForDestination(vchPubKey.GetID());
+
+        // ****** Add collateral outputs ************ /
         vecSend.push_back((CRecipient){scriptCollateral, CPrivateSend::GetMaxCollateralAmount(), false});
         nValueLeft -= CPrivateSend::GetMaxCollateralAmount();
     }
@@ -1357,14 +1356,16 @@ bool CPrivateSendClient::CreateDenominated(const CompactTallyItem& tallyItem, bo
         LogPrintf("CPrivateSendClient::CreateDenominated -- Error: %s\n", strFail);
         for(auto key : reservekeyDenomVec)
             key->ReturnKey();
-        reservekeyCollateral.ReturnKey();
+        if (fCreateMixingCollaterals)
+            reservekeyCollateral.ReturnKey();
         LogPrintf("CPrivateSendClient::CreateDenominated -- %d keys returned\n", reservekeyDenomVec.size() + 1);
         return false;
     }
 
     for(auto key : reservekeyDenomVec)
         key->KeepKey();
-    reservekeyCollateral.KeepKey();
+    if (fCreateMixingCollaterals)
+        reservekeyCollateral.KeepKey();
     LogPrintf("CPrivateSendClient::CreateDenominated -- %d keys keeped\n", reservekeyDenomVec.size() + 1);
 
     if(!pwalletMain->CommitTransaction(wtx, reservekeyChange, &connman)) {
