@@ -6,9 +6,10 @@ reset-files.bash
 *.tar.gz
 
 *.exe
-src/dash
-src/dashd
-src/dash-cli
+src/energi
+src/energid
+src/energi-cli
+src/energi-tx
 src/dash-tx
 src/test/test_dash
 src/qt/test/test_dash-qt
