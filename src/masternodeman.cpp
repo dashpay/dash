@@ -162,7 +162,11 @@ void CMasternodeMan::AskForMN(CNode* pnode, const CTxIn &vin)
     }
     mWeAskedForMasternodeListEntry[vin.prevout][pnode->addr] = GetTime() + DSEG_UPDATE_SECONDS;
 
-    pnode->PushMessage(NetMsgType::DSEG, vin);
+    if(pnode->nVersion >= DSEG_FILTER_VERSION) {
+        pnode->PushMessage(NetMsgType::DSEG, vin, CBloomFilter());
+    } else {
+        pnode->PushMessage(NetMsgType::DSEG, vin);
+    }
 }
 
 void CMasternodeMan::Check()
@@ -437,8 +441,30 @@ void CMasternodeMan::DsegUpdate(CNode* pnode)
             }
         }
     }
-    
-    pnode->PushMessage(NetMsgType::DSEG, CTxIn());
+
+    if(pnode->nVersion >= DSEG_FILTER_VERSION) {
+        // Ask for masternodes which are unknown to us or listed as non-enabled
+        // by constructing a bloom filter for DSEG which includes only all enabled
+        //  MNs     FPRate      vData.size()    nHashFuncs
+        //  10000   0.01        11981           6
+        //  10000   0.001       17971           9
+        //  10000   0.0001      23962           13
+        //  10000   0.00001     29953           15
+        //  10000   0.000001    35943           19
+        CBloomFilter filter(DSEG_FILTER_ELEMENTS, 0.0001, GetRandInt(999999), BLOOM_UPDATE_ALL);
+        BOOST_FOREACH(CMasternode& mn, vMasternodes) {
+            if(mn.IsEnabled() && mn.IsPingedWithin(MASTERNODE_MIN_MNP_SECONDS)) {
+                // insert only the very "best" nodes, i.e. we are pretty sure they are fine
+                // and do NOT require any update via dseg
+                filter.insert(CMasternodeBroadcast(mn).GetHash());
+            }
+        }
+        pnode->PushMessage(NetMsgType::DSEG, CTxIn(), filter);
+    } else {
+        // old nodes have no idea about bloom filter for DSEG
+        pnode->PushMessage(NetMsgType::DSEG, CTxIn());
+    }
+
     int64_t askAgain = GetTime() + DSEG_UPDATE_SECONDS;
     mWeAskedForMasternodeList[pnode->addr] = askAgain;
 
@@ -879,7 +905,17 @@ void CMasternodeMan::ProcessMessage(CNode* pfrom, std::string& strCommand, CData
         if (!masternodeSync.IsSynced()) return;
 
         CTxIn vin;
+        CBloomFilter filter;
         vRecv >> vin;
+
+        if(pfrom->nVersion >= DSEG_FILTER_VERSION) {
+            vRecv >> filter;
+            filter.UpdateEmptyFull();
+        } else {
+            filter = CBloomFilter();
+            filter.clear();
+        }
+        filter.UpdateEmptyFull();
 
         LogPrint("masternode", "DSEG -- Masternode list, masternode=%s\n", vin.prevout.ToStringShort());
 
@@ -905,6 +941,7 @@ void CMasternodeMan::ProcessMessage(CNode* pfrom, std::string& strCommand, CData
 
         BOOST_FOREACH(CMasternode& mn, vMasternodes) {
             if (vin != CTxIn() && vin != mn.vin) continue; // asked for specific vin but we are not there yet
+            if (vin == CTxIn() && filter.contains(CMasternodeBroadcast(mn).GetHash())) continue; // the other node already knows about this mn
             if (mn.addr.IsRFC1918() || mn.addr.IsLocal()) continue; // do not send local network masternode
             if (mn.IsUpdateRequired()) continue; // do not send outdated masternodes
 
