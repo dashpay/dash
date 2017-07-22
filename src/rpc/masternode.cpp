@@ -455,7 +455,8 @@ UniValue masternodelist(const UniValue& params, bool fHelp)
     if (fHelp || (
                 strMode != "activeseconds" && strMode != "addr" && strMode != "full" && strMode != "info" &&
                 strMode != "lastseen" && strMode != "lastpaidtime" && strMode != "lastpaidblock" &&
-                strMode != "protocol" && strMode != "payee" && strMode != "rank" && strMode != "status"))
+                strMode != "protocol" && strMode != "payee" && strMode != "rank" && strMode != "status" &&
+                strMode != "pubkey"))
     {
         throw std::runtime_error(
                 "masternodelist ( \"mode\" \"filter\" )\n"
@@ -472,6 +473,7 @@ UniValue masternodelist(const UniValue& params, bool fHelp)
                 "                   (can be additionally filtered, partial match)\n"
                 "  info           - Print info in format 'status protocol payee lastseen activeseconds sentinelversion sentinelstate IP'\n"
                 "                   (can be additionally filtered, partial match)\n"
+                "  pubkey         - Print the masternode (not collateral) public key\n"
                 "  lastpaidblock  - Print the last block height a node was paid on the network\n"
                 "  lastpaidtime   - Print the last time a node was paid on the network\n"
                 "  lastseen       - Print timestamp of when a masternode was last seen on the network\n"
@@ -538,6 +540,9 @@ UniValue masternodelist(const UniValue& params, bool fHelp)
                 if (strFilter !="" && strInfo.find(strFilter) == std::string::npos &&
                     strOutpoint.find(strFilter) == std::string::npos) continue;
                 obj.push_back(Pair(strOutpoint, strInfo));
+            } else if (strMode == "pubkey") {
+                if (strFilter !="" && strOutpoint.find(strFilter) == std::string::npos) continue;
+                obj.push_back(Pair(strOutpoint, HexStr(mn.pubKeyMasternode)));
             } else if (strMode == "lastpaidblock") {
                 if (strFilter !="" && strOutpoint.find(strFilter) == std::string::npos) continue;
                 obj.push_back(Pair(strOutpoint, mn.GetLastPaidBlock()));
