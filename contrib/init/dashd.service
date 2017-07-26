@@ -1,15 +1,15 @@
 [Unit]
-Description=Dash's distributed currency daemon
+Description=Ox's distributed currency daemon
 After=network.target
 
 [Service]
-User=dashcore
-Group=dashcore
+User=oxcore
+Group=oxcore
 
 Type=forking
-PIDFile=/var/lib/dashd/dashd.pid
-ExecStart=/usr/bin/dashd -daemon -pid=/var/lib/dashd/dashd.pid \
--conf=/etc/dashcore/dash.conf -datadir=/var/lib/dashd -disablewallet
+PIDFile=/var/lib/oxd/oxd.pid
+ExecStart=/usr/bin/oxd -daemon -pid=/var/lib/oxd/oxd.pid \
+-conf=/etc/oxcore/ox.conf -datadir=/var/lib/oxd -disablewallet
 
 Restart=always
 PrivateTmp=true

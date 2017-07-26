@@ -5,7 +5,7 @@
 #ifndef GOVERNANCE_OBJECT_H
 #define GOVERNANCE_OBJECT_H
 
-//#define ENABLE_DASH_DEBUG
+//#define ENABLE_OX_DEBUG
 
 #include "cachemultimap.h"
 #include "governance-exceptions.h"
