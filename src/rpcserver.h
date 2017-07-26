@@ -123,7 +123,7 @@ public:
 };
 
 /**
- * Dash RPC command dispatcher.
+ * Ox RPC command dispatcher.
  */
 class CRPCTable
 {

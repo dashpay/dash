@@ -1,7 +1,7 @@
 Protocol Documentation - 0.12.1
 =====================================
 
-This document describes the protocol extensions for all additional functionality build into the Dash protocol. This doesn't include any of the Bitcoin procotol, which has been left in tact in the Dash project. For more information about the core protocol, please see https://en.bitcoin.it/w/index.php?title#Protocol_documentation&action#edit
+This document describes the protocol extensions for all additional functionality build into the Ox protocol. This doesn't include any of the Bitcoin procotol, which has been left in tact in the Ox project. For more information about the core protocol, please see https://en.bitcoin.it/w/index.php?title#Protocol_documentation&action#edit
 
 ## Common Structures
 
@@ -59,9 +59,9 @@ Whenever a masternode comes online or a client is syncing, they will send this m
 
 | Field Size | Field Name | Data type | Description |
 | ---------- | ----------- | --------- | -------- |
-| 41 | vin | CTxIn | The unspent output which is holding 1000 DASH
-| # | addr | CService | Address of the main 1000 DASH unspent output
-| 33-65 | pubKeyCollateralAddress | CPubKey | CPubKey of the main 1000 DASH unspent output
+| 41 | vin | CTxIn | The unspent output which is holding 1000 OX
+| # | addr | CService | Address of the main 1000 OX unspent output
+| 33-65 | pubKeyCollateralAddress | CPubKey | CPubKey of the main 1000 OX unspent output
 | 33-65 | pubKeyMasternode | CPubKey | CPubKey of the secondary signing key (For all other messaging other than announce message)
 | 71-73 | sig | char[] | Signature of this message
 | 8 | sigTime | int64_t | Time which the signature was created
