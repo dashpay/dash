@@ -1500,8 +1500,8 @@ void CMasternodeMan::UpdateLastPaid()
 {
     LOCK(cs);
 
-    if(fLiteMode) return;
-    if(!pCurrentBlockIndex) return;
+    if(fLiteMode || !pCurrentBlockIndex) return;
+    if(!masternodeSync.IsWinnersListSynced() || vMasternodes.empty()) return;
 
     static bool IsFirstRun = true;
     // Do full scan on first run or if we are not a masternode
@@ -1515,8 +1515,7 @@ void CMasternodeMan::UpdateLastPaid()
         mn.UpdateLastPaid(pCurrentBlockIndex, nMaxBlocksToScanBack);
     }
 
-    // every time is like the first time if winners list is not synced
-    IsFirstRun = !masternodeSync.IsWinnersListSynced();
+    IsFirstRun = false;
 }
 
 bool CMasternodeMan::UpdateLastDsq(const CTxIn& vin)
