@@ -17,112 +17,6 @@
 class CMasternodeSync;
 CMasternodeSync masternodeSync;
 
-bool CMasternodeSync::CheckNodeHeight(CNode* pnode, bool fDisconnectStuckNodes)
-{
-    CNodeStateStats stats;
-    if(!GetNodeStateStats(pnode->id, stats) || stats.nCommonHeight == -1 || stats.nSyncHeight == -1) return false; // not enough info about this peer
-
-    // Check blocks and headers, allow a small error margin of 1 block
-    if(pCurrentBlockIndex->nHeight - 1 > stats.nCommonHeight) {
-        // This peer probably stuck, don't sync any additional data from it
-        if(fDisconnectStuckNodes) {
-            // Disconnect to free this connection slot for another peer.
-            pnode->fDisconnect = true;
-            LogPrintf("CMasternodeSync::CheckNodeHeight -- disconnecting from stuck peer, nHeight=%d, nCommonHeight=%d, peer=%d\n",
-                        pCurrentBlockIndex->nHeight, stats.nCommonHeight, pnode->id);
-        } else {
-            LogPrintf("CMasternodeSync::CheckNodeHeight -- skipping stuck peer, nHeight=%d, nCommonHeight=%d, peer=%d\n",
-                        pCurrentBlockIndex->nHeight, stats.nCommonHeight, pnode->id);
-        }
-        return false;
-    }
-    else if(pCurrentBlockIndex->nHeight < stats.nSyncHeight - 1) {
-        // This peer announced more headers than we have blocks currently
-        LogPrintf("CMasternodeSync::CheckNodeHeight -- skipping peer, who announced more headers than we have blocks currently, nHeight=%d, nSyncHeight=%d, peer=%d\n",
-                    pCurrentBlockIndex->nHeight, stats.nSyncHeight, pnode->id);
-        return false;
-    }
-
-    return true;
-}
-
-bool CMasternodeSync::IsBlockchainSynced(bool fBlockAccepted)
-{
-    static bool fBlockchainSynced = false;
-    static int nSkipped = 0;
-    static bool fFirstBlockAccepted = false;
-
-    if(!pCurrentBlockIndex || !pindexBestHeader || fImporting || fReindex) return false;
-
-    static int64_t nTimeLastProcess = GetTime();
-
-    // if the last call to this function was more than 60 minutes ago (client was in sleep mode) reset the sync process
-    if(GetTime() - nTimeLastProcess > 60*60) {
-        Reset();
-        fBlockchainSynced = false;
-    }
-
-    if(fBlockAccepted) {
-        // this should be only triggered while we are still syncing
-        if(!IsSynced()) {
-            // we are trying to download smth, reset blockchain sync status
-            if(fDebug) LogPrintf("CMasternodeSync::IsBlockchainSynced -- reset\n");
-            fFirstBlockAccepted = true;
-            fBlockchainSynced = false;
-            nTimeLastProcess = GetTime();
-            return false;
-        }
-    } else {
-        // skip if we already checked less than 1 tick ago
-        if(GetTime() - nTimeLastProcess < MASTERNODE_SYNC_TICK_SECONDS) {
-            nSkipped++;
-            return fBlockchainSynced;
-        }
-    }
-
-    if(fDebug) LogPrintf("CMasternodeSync::IsBlockchainSynced -- state before check: %ssynced, skipped %d times\n", fBlockchainSynced ? "" : "not ", nSkipped);
-
-    nTimeLastProcess = GetTime();
-    nSkipped = 0;
-
-    if(fBlockchainSynced) return true;
-
-    if(fCheckpointsEnabled && pCurrentBlockIndex->nHeight < Checkpoints::GetTotalBlocksEstimate(Params().Checkpoints()))
-        return false;
-
-    std::vector<CNode*> vNodesCopy = g_connman->CopyNodeVector();
-
-    // We have enough peers and assume most of them are synced
-    if(vNodesCopy.size() >= MASTERNODE_SYNC_ENOUGH_PEERS) {
-        // Check to see how many of our peers are (almost) at the same height as we are
-        int nNodesAtSameHeight = 0;
-        BOOST_FOREACH(CNode* pnode, vNodesCopy)
-        {
-            // Make sure this peer is presumably at the same height
-            if(!CheckNodeHeight(pnode)) continue;
-            nNodesAtSameHeight++;
-            // if we have decent number of such peers, most likely we are synced now
-            if(nNodesAtSameHeight >= MASTERNODE_SYNC_ENOUGH_PEERS) {
-                LogPrintf("CMasternodeSync::IsBlockchainSynced -- found enough peers on the same height as we are, done\n");
-                fBlockchainSynced = true;
-                g_connman->ReleaseNodeVector(vNodesCopy);
-                return true;
-            }
-        }
-    }
-    g_connman->ReleaseNodeVector(vNodesCopy);
-
-    // wait for at least one new block to be accepted
-    if(!fFirstBlockAccepted) return false;
-
-    // same as !IsInitialBlockDownload() but no cs_main needed here
-    int64_t nMaxBlockTime = std::max(pCurrentBlockIndex->GetBlockTime(), pindexBestHeader->GetBlockTime());
-    fBlockchainSynced = pindexBestHeader->nHeight - pCurrentBlockIndex->nHeight < 24 * 6 &&
-                        GetTime() - nMaxBlockTime < Params().MaxTipAge();
-
-    return fBlockchainSynced;
-}
-
 void CMasternodeSync::Fail()
 {
     nTimeLastFailure = GetTime();
@@ -145,7 +39,7 @@ std::string CMasternodeSync::GetAssetName()
     switch(nRequestedMasternodeAssets)
     {
         case(MASTERNODE_SYNC_INITIAL):      return "MASTERNODE_SYNC_INITIAL";
-        case(MASTERNODE_SYNC_SPORKS):       return "MASTERNODE_SYNC_SPORKS";
+        case(MASTERNODE_SYNC_IBD):          return "MASTERNODE_SYNC_IBD";
         case(MASTERNODE_SYNC_LIST):         return "MASTERNODE_SYNC_LIST";
         case(MASTERNODE_SYNC_MNW):          return "MASTERNODE_SYNC_MNW";
         case(MASTERNODE_SYNC_GOVERNANCE):   return "MASTERNODE_SYNC_GOVERNANCE";
@@ -164,10 +58,10 @@ void CMasternodeSync::SwitchToNextAsset()
             break;
         case(MASTERNODE_SYNC_INITIAL):
             ClearFulfilledRequests();
-            nRequestedMasternodeAssets = MASTERNODE_SYNC_SPORKS;
+            nRequestedMasternodeAssets = MASTERNODE_SYNC_IBD;
             LogPrintf("CMasternodeSync::SwitchToNextAsset -- Starting %s\n", GetAssetName());
             break;
-        case(MASTERNODE_SYNC_SPORKS):
+        case(MASTERNODE_SYNC_IBD):
             LogPrintf("CMasternodeSync::SwitchToNextAsset -- Completed %s in %ss\n", GetAssetName(), GetTime() - nTimeAssetSyncStarted);
             nTimeLastMasternodeList = GetTime();
             nRequestedMasternodeAssets = MASTERNODE_SYNC_LIST;
@@ -211,7 +105,7 @@ std::string CMasternodeSync::GetSyncStatus()
 {
     switch (masternodeSync.nRequestedMasternodeAssets) {
         case MASTERNODE_SYNC_INITIAL:       return _("Synchronization pending...");
-        case MASTERNODE_SYNC_SPORKS:        return _("Synchronizing sporks...");
+        case MASTERNODE_SYNC_IBD:           return _("Synchronizing blockchain...");
         case MASTERNODE_SYNC_LIST:          return _("Synchronizing masternodes...");
         case MASTERNODE_SYNC_MNW:           return _("Synchronizing masternode payments...");
         case MASTERNODE_SYNC_GOVERNANCE:    return _("Synchronizing governance objects...");
@@ -257,58 +151,38 @@ void CMasternodeSync::ProcessTick()
     if(nTick++ % MASTERNODE_SYNC_TICK_SECONDS != 0) return;
     if(!pCurrentBlockIndex) return;
 
-    //the actual count of masternodes we have currently
-    int nMnCount = mnodeman.CountMasternodes();
-
-    if(fDebug) LogPrintf("CMasternodeSync::ProcessTick -- nTick %d nMnCount %d\n", nTick, nMnCount);
-
-    // RESET SYNCING INCASE OF FAILURE
-    {
-        if(IsSynced()) {
-            /*
-                Resync if we lost all masternodes from sleep/wake or failed to sync originally
-            */
-            if(nMnCount == 0) {
-                LogPrintf("CMasternodeSync::ProcessTick -- WARNING: not enough data, restarting sync\n");
-                Reset();
-            } else {
-                std::vector<CNode*> vNodesCopy = g_connman->CopyNodeVector();
-                governance.RequestGovernanceObjectVotes(vNodesCopy);
-                g_connman->ReleaseNodeVector(vNodesCopy);
-                return;
-            }
-        }
-
-        //try syncing again
-        if(IsFailed()) {
-            if(nTimeLastFailure + (1*60) < GetTime()) { // 1 minute cooldown after failed sync
-                Reset();
-            }
-            return;
-        }
+    // reset the sync process if the last call to this function was more than 60 minutes ago (client was in sleep mode)
+    static int64_t nTimeLastProcess = GetTime();
+    if(GetTime() - nTimeLastProcess > 60*60) {
+        LogPrintf("CMasternodeSync::HasSyncFailures -- WARNING: no actions for too long, restarting sync...\n");
+        Reset();
+        SwitchToNextAsset();
+        return;
     }
+    nTimeLastProcess = GetTime();
 
-    // INITIAL SYNC SETUP / LOG REPORTING
-    double nSyncProgress = double(nRequestedMasternodeAttempt + (nRequestedMasternodeAssets - 1) * 8) / (8*4);
-    LogPrintf("CMasternodeSync::ProcessTick -- nTick %d nRequestedMasternodeAssets %d nRequestedMasternodeAttempt %d nSyncProgress %f\n", nTick, nRequestedMasternodeAssets, nRequestedMasternodeAttempt, nSyncProgress);
-    uiInterface.NotifyAdditionalDataSyncProgressChanged(nSyncProgress);
-
-    // sporks synced but blockchain is not, wait until we're almost at a recent block to continue
-    if(Params().NetworkIDString() != CBaseChainParams::REGTEST &&
-            !IsBlockchainSynced() && nRequestedMasternodeAssets > MASTERNODE_SYNC_SPORKS)
-    {
-        LogPrintf("CMasternodeSync::ProcessTick -- nTick %d nRequestedMasternodeAssets %d nRequestedMasternodeAttempt %d -- blockchain is not synced yet\n", nTick, nRequestedMasternodeAssets, nRequestedMasternodeAttempt);
-        nTimeLastMasternodeList = GetTime();
-        nTimeLastPaymentVote = GetTime();
-        nTimeLastGovernanceItem = GetTime();
+    // reset sync status in case of any other sync failure
+    if(IsFailed()) {
+        if(nTimeLastFailure + (1*60) < GetTime()) { // 1 minute cooldown after failed sync
+            LogPrintf("CMasternodeSync::HasSyncFailures -- WARNING: failed to sync, trying again...\n");
+            Reset();
+            SwitchToNextAsset();
+        }
         return;
     }
 
-    if(nRequestedMasternodeAssets == MASTERNODE_SYNC_INITIAL ||
-        (nRequestedMasternodeAssets == MASTERNODE_SYNC_SPORKS && IsBlockchainSynced()))
-    {
-        SwitchToNextAsset();
+    // gradually request the rest of the votes after sync finished
+    if(IsSynced()) {
+        std::vector<CNode*> vNodesCopy = g_connman->CopyNodeVector();
+        governance.RequestGovernanceObjectVotes(vNodesCopy);
+        g_connman->ReleaseNodeVector(vNodesCopy);
+        return;
     }
+
+    // Calculate "progress" for LOG reporting / GUI notification
+    double nSyncProgress = double(nRequestedMasternodeAttempt + (nRequestedMasternodeAssets - 1) * 8) / (8*4);
+    LogPrintf("CMasternodeSync::ProcessTick -- nTick %d nRequestedMasternodeAssets %d nRequestedMasternodeAttempt %d nSyncProgress %f\n", nTick, nRequestedMasternodeAssets, nRequestedMasternodeAttempt, nSyncProgress);
+    uiInterface.NotifyAdditionalDataSyncProgressChanged(nSyncProgress);
 
     std::vector<CNode*> vNodesCopy = g_connman->CopyNodeVector();
 
@@ -518,7 +392,13 @@ void CMasternodeSync::SendGovernanceSyncRequest(CNode* pnode)
     }
 }
 
-void CMasternodeSync::UpdatedBlockTip(const CBlockIndex *pindex)
+void CMasternodeSync::UpdatedBlockTip(const CBlockIndex *pindexNew, bool fInitialDownload)
 {
-    pCurrentBlockIndex = pindex;
+    pCurrentBlockIndex = pindexNew;
+    if((fInitialDownload && nRequestedMasternodeAssets == MASTERNODE_SYNC_INITIAL) ||
+        (!fInitialDownload && !IsBlockchainSynced()))
+    {
+        SwitchToNextAsset();
+    }
+    if(fDebug) LogPrintf("CMasternodeSync::UpdatedBlockTip -- pCurrentBlockIndex->nHeight: %d fInitialDownload=%d\n", pCurrentBlockIndex->nHeight, fInitialDownload);
 }
