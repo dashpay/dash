@@ -42,11 +42,8 @@ private:
 
     // Time when current masternode asset sync started
     int64_t nTimeAssetSyncStarted;
-
-    // Last time when we received some masternode asset ...
-    int64_t nTimeLastMasternodeList;
-    int64_t nTimeLastPaymentVote;
-    int64_t nTimeLastGovernanceItem;
+    // ... last bumped
+    int64_t nTimeLastBumped;
     // ... or failed
     int64_t nTimeLastFailure;
 
@@ -59,9 +56,6 @@ private:
 public:
     CMasternodeSync() { Reset(); }
 
-    void AddedMasternodeList() { nTimeLastMasternodeList = GetTime(); }
-    void AddedPaymentVote() { nTimeLastPaymentVote = GetTime(); }
-    void AddedGovernanceItem() { nTimeLastGovernanceItem = GetTime(); };
 
     void SendGovernanceSyncRequest(CNode* pnode);
 
@@ -73,6 +67,7 @@ public:
 
     int GetAssetID() { return nRequestedMasternodeAssets; }
     int GetAttempt() { return nRequestedMasternodeAttempt; }
+    void BumpAssetLastTime(std::string strFuncName);
     int64_t GetAssetStartTime() { return nTimeAssetSyncStarted; }
     std::string GetAssetName();
     std::string GetSyncStatus();
