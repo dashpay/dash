@@ -704,6 +704,9 @@ void CGovernanceManager::DoMaintenance()
 
 bool CGovernanceManager::ConfirmInventoryRequest(const CInv& inv)
 {
+    // do not request objects until it's time to sync
+    if(!masternodeSync.IsWinnersListSynced()) return false;
+
     LOCK(cs);
 
     LogPrint("gobject", "CGovernanceManager::ConfirmInventoryRequest inv = %s\n", inv.ToString());
@@ -749,9 +752,6 @@ bool CGovernanceManager::ConfirmInventoryRequest(const CInv& inv)
         setHash->insert(inv.hash);
         LogPrint("gobject", "CGovernanceManager::ConfirmInventoryRequest added inv to requested set\n");
     }
-
-    // Keep sync alive
-    masternodeSync.AddedGovernanceItem();
 
     LogPrint("gobject", "CGovernanceManager::ConfirmInventoryRequest reached end, returning true\n");
     return true;
@@ -1073,6 +1073,8 @@ void CGovernanceManager::CheckMasternodeOrphanObjects()
 
 void CGovernanceManager::CheckPostponedObjects()
 {
+    if(!masternodeSync.IsSynced()) return;
+
     LOCK2(cs_main, cs);
 
     // Check postponed proposals
