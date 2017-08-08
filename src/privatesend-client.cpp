@@ -207,6 +207,7 @@ void CPrivateSendClient::ResetPool()
     txMyCollateral = CMutableTransaction();
     vecMasternodesUsed.clear();
     UnlockCoins();
+    keyHolderStorage.ClearWhenNotSure();
     SetNull();
 }
 
@@ -294,6 +295,7 @@ void CPrivateSendClient::CheckPool()
     if((nState == POOL_STATE_ERROR || nState == POOL_STATE_SUCCESS) && GetTimeMillis() - nTimeLastSuccessfulStep >= 10000) {
         LogPrint("privatesend", "CPrivateSendClient::CheckPool -- timeout, RESETTING\n");
         UnlockCoins();
+        keyHolderStorage.ClearOnFailure();
         SetNull();
     }
 }
@@ -343,6 +345,7 @@ void CPrivateSendClient::CheckTimeout()
         LogPrint("privatesend", "CPrivateSendClient::CheckTimeout -- %s timed out (%ds) -- restting\n",
                 (nState == POOL_STATE_SIGNING) ? "Signing" : "Session", nTimeout);
         UnlockCoins();
+        keyHolderStorage.ClearOnFailure();
         SetNull();
         SetState(POOL_STATE_ERROR);
         strLastMessage = _("Session timed out.");
@@ -376,12 +379,14 @@ bool CPrivateSendClient::SendDenominate(const std::vector<CTxIn>& vecTxIn, const
     if(!nSessionID) {
         LogPrintf("CPrivateSendClient::SendDenominate -- No Masternode has been selected yet.\n");
         UnlockCoins();
+        keyHolderStorage.ClearOnFailure();
         SetNull();
         return false;
     }
 
     if(!CheckDiskSpace()) {
         UnlockCoins();
+        keyHolderStorage.ClearOnFailure();
         SetNull();
         fEnablePrivateSend = false;
         LogPrintf("CPrivateSendClient::SendDenominate -- Not enough disk space, disabling PrivateSend.\n");
@@ -415,6 +420,7 @@ bool CPrivateSendClient::SendDenominate(const std::vector<CTxIn>& vecTxIn, const
         if(!lockMain || !AcceptToMemoryPool(mempool, validationState, CTransaction(tx), false, NULL, false, true, true)) {
             LogPrintf("CPrivateSendClient::SendDenominate -- AcceptToMemoryPool() failed! tx=%s", tx.ToString());
             UnlockCoins();
+            keyHolderStorage.ClearOnFailure();
             SetNull();
             return false;
         }
@@ -443,6 +449,7 @@ bool CPrivateSendClient::CheckPoolStateUpdate(PoolState nStateNew, int nEntriesC
     if(nStatusUpdate == STATUS_REJECTED) {
         LogPrintf("CPrivateSendClient::CheckPoolStateUpdate -- entry is rejected by Masternode\n");
         UnlockCoins();
+        keyHolderStorage.ClearOnFailure();
         SetNull();
         SetState(POOL_STATE_ERROR);
         strLastMessage = CPrivateSend::GetMessageByID(nMessageID);
@@ -523,6 +530,7 @@ bool CPrivateSendClient::SignFinalTransaction(const CTransaction& finalTransacti
                     // better then signing if the transaction doesn't look like what we wanted.
                     LogPrintf("CPrivateSendClient::SignFinalTransaction -- My entries are not correct! Refusing to sign: nFoundOutputsCount: %d, nTargetOuputsCount: %d\n", nFoundOutputsCount, nTargetOuputsCount);
                     UnlockCoins();
+                    keyHolderStorage.ClearOnFailure();
                     SetNull();
 
                     return false;
@@ -545,6 +553,7 @@ bool CPrivateSendClient::SignFinalTransaction(const CTransaction& finalTransacti
     if(sigs.empty()) {
         LogPrintf("CPrivateSendClient::SignFinalTransaction -- can't sign anything!\n");
         UnlockCoins();
+        keyHolderStorage.ClearOnFailure();
         SetNull();
 
         return false;
@@ -579,8 +588,10 @@ void CPrivateSendClient::CompletedTransaction(PoolMessage nMessageID)
     if(nMessageID == MSG_SUCCESS) {
         LogPrintf("CompletedTransaction -- success\n");
         nCachedLastSuccessBlock = pCurrentBlockIndex->nHeight;
+        keyHolderStorage.ClearOnSuccess();
     } else {
         LogPrintf("CompletedTransaction -- error\n");
+        keyHolderStorage.ClearOnFailure();
     }
     UnlockCoins();
     SetNull();
@@ -751,6 +762,7 @@ bool CPrivateSendClient::DoAutomaticDenominating(bool fDryRun)
     // Initial phase, find a Masternode
     // Clean if there is anything left from previous session
     UnlockCoins();
+    keyHolderStorage.ClearWhenNotSure();
     SetNull();
 
     // should be no unconfirmed denoms in non-multi-session mode
@@ -1020,7 +1032,6 @@ bool CPrivateSendClient::PrepareDenominate(int nMinRounds, int nMaxRounds, std::
     std::vector<CTxIn> vecTxIn;
     std::vector<COutput> vCoins;
     CAmount nValueIn = 0;
-    CReserveKey reservekey(pwalletMain);
 
     /*
         Select the coins we'll use
@@ -1073,12 +1084,7 @@ bool CPrivateSendClient::PrepareDenominate(int nMinRounds, int nMaxRounds, std::
                     vecTxIn.erase(it);
                     vCoins.erase(it2);
 
-                    CScript scriptDenom;
-                    CPubKey vchPubKey;
-                    // use unique address
-                    assert(reservekey.GetReservedKey(vchPubKey, false)); // should never fail, as we just unlocked
-                    scriptDenom = GetScriptForDestination(vchPubKey.GetID());
-                    reservekey.KeepKey();
+                    CScript scriptDenom = keyHolderStorage.AddKey(pwalletMain)->GetScriptForDestination();
 
                     // add new output
                     CTxOut txout(nValueDenom, scriptDenom);
@@ -1112,6 +1118,7 @@ bool CPrivateSendClient::PrepareDenominate(int nMinRounds, int nMaxRounds, std::
         BOOST_FOREACH(CTxIn txin, vecTxInRet) {
             pwalletMain->UnlockCoin(txin.prevout);
         }
+        keyHolderStorage.ClearOnFailure();
         strErrorRet = "Can't make current denominated outputs";
         return false;
     }
