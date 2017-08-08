@@ -54,8 +54,9 @@ static const bool DEFAULT_WHITELISTFORCERELAY = true;
 /** Default for -minrelaytxfee, minimum relay fee for transactions
  * We are ~100 times smaller then bitcoin now (2016-03-01), set minRelayTxFee only 10 times higher
  * so it's still 10 times lower comparing to bitcoin.
+ * 2017-07-14 change it back to 1000 as the price of dash has gone up.
  */
-static const unsigned int DEFAULT_MIN_RELAY_TX_FEE = 10000; // was 1000
+static const unsigned int DEFAULT_MIN_RELAY_TX_FEE = 1000; // was 1000
 /** Default for -maxorphantx, maximum number of orphan transactions kept in memory */
 static const unsigned int DEFAULT_MAX_ORPHAN_TRANSACTIONS = 100;
 /** Default for -limitancestorcount, max number of in-mempool ancestors */
