@@ -1969,10 +1969,8 @@ bool AppInit2(boost::thread_group& threadGroup, CScheduler& scheduler)
     mnodeman.UpdatedBlockTip(chainActive.Tip());
     privateSendClient.UpdatedBlockTip(chainActive.Tip());
     mnpayments.UpdatedBlockTip(chainActive.Tip());
-    masternodeSync.UpdatedBlockTip(chainActive.Tip(), true);
-    governance.UpdatedBlockTip(chainActive.Tip());
-    // make sure to skip IBD state in sync if we are already up to date
     masternodeSync.UpdatedBlockTip(chainActive.Tip(), IsInitialBlockDownload());
+    governance.UpdatedBlockTip(chainActive.Tip());
 
     // ********************************************************* Step 11d: start dash-ps-<smth> threads
 

@@ -44,7 +44,6 @@ std::string CMasternodeSync::GetAssetName()
     switch(nRequestedMasternodeAssets)
     {
         case(MASTERNODE_SYNC_INITIAL):      return "MASTERNODE_SYNC_INITIAL";
-        case(MASTERNODE_SYNC_IBD):          return "MASTERNODE_SYNC_IBD";
         case(MASTERNODE_SYNC_LIST):         return "MASTERNODE_SYNC_LIST";
         case(MASTERNODE_SYNC_MNW):          return "MASTERNODE_SYNC_MNW";
         case(MASTERNODE_SYNC_GOVERNANCE):   return "MASTERNODE_SYNC_GOVERNANCE";
@@ -63,11 +62,6 @@ void CMasternodeSync::SwitchToNextAsset()
             break;
         case(MASTERNODE_SYNC_INITIAL):
             ClearFulfilledRequests();
-            nRequestedMasternodeAssets = MASTERNODE_SYNC_IBD;
-            LogPrintf("CMasternodeSync::SwitchToNextAsset -- Starting %s\n", GetAssetName());
-            break;
-        case(MASTERNODE_SYNC_IBD):
-            LogPrintf("CMasternodeSync::SwitchToNextAsset -- Completed %s in %llds\n", GetAssetName(), GetTime() - nTimeAssetSyncStarted);
             nRequestedMasternodeAssets = MASTERNODE_SYNC_LIST;
             LogPrintf("CMasternodeSync::SwitchToNextAsset -- Starting %s\n", GetAssetName());
             break;
@@ -108,7 +102,6 @@ std::string CMasternodeSync::GetSyncStatus()
 {
     switch (masternodeSync.nRequestedMasternodeAssets) {
         case MASTERNODE_SYNC_INITIAL:       return _("Synchronization pending...");
-        case MASTERNODE_SYNC_IBD:           return _("Synchronizing blockchain...");
         case MASTERNODE_SYNC_LIST:          return _("Synchronizing masternodes...");
         case MASTERNODE_SYNC_MNW:           return _("Synchronizing masternode payments...");
         case MASTERNODE_SYNC_GOVERNANCE:    return _("Synchronizing governance objects...");
@@ -397,11 +390,13 @@ void CMasternodeSync::SendGovernanceSyncRequest(CNode* pnode)
 void CMasternodeSync::UpdatedBlockTip(const CBlockIndex *pindexNew, bool fInitialDownload)
 {
     pCurrentBlockIndex = pindexNew;
-    if((fInitialDownload && nRequestedMasternodeAssets == MASTERNODE_SYNC_INITIAL) ||
-        (!fInitialDownload && !IsBlockchainSynced()))
-    {
-        SwitchToNextAsset();
-    }
-    if(!IsSynced()) BumpAssetLastTime("CMasternodeSync::UpdatedBlockTip"); // postpone timeout because of new block
     if(fDebug) LogPrintf("CMasternodeSync::UpdatedBlockTip -- pCurrentBlockIndex->nHeight: %d fInitialDownload=%d\n", pCurrentBlockIndex->nHeight, fInitialDownload);
+    // nothing to do here if we failed to sync previousely,
+    // just wait till status reset after a cooldown (see ProcessTick)
+    if(IsFailed()) return;
+    // switch from MASTERNODE_SYNC_INITIAL to the next "asset"
+    // the first time we are out of IBD mode (and only the first time)
+    if(!fInitialDownload && !IsBlockchainSynced()) SwitchToNextAsset();
+    // postpone timeout each time new block arrives while we are syncing
+    if(!IsSynced()) BumpAssetLastTime("CMasternodeSync::UpdatedBlockTip");
 }

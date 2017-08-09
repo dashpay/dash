@@ -12,8 +12,7 @@
 class CMasternodeSync;
 
 static const int MASTERNODE_SYNC_FAILED          = -1;
-static const int MASTERNODE_SYNC_INITIAL         = 0;
-static const int MASTERNODE_SYNC_IBD             = 1;
+static const int MASTERNODE_SYNC_INITIAL         = 0; // sync just started, was reset recently or still in IDB
 static const int MASTERNODE_SYNC_LIST            = 2;
 static const int MASTERNODE_SYNC_MNW             = 3;
 static const int MASTERNODE_SYNC_GOVERNANCE      = 4;
@@ -60,7 +59,7 @@ public:
     void SendGovernanceSyncRequest(CNode* pnode);
 
     bool IsFailed() { return nRequestedMasternodeAssets == MASTERNODE_SYNC_FAILED; }
-    bool IsBlockchainSynced() { return nRequestedMasternodeAssets > MASTERNODE_SYNC_IBD; }
+    bool IsBlockchainSynced() { return nRequestedMasternodeAssets > MASTERNODE_SYNC_INITIAL; }
     bool IsMasternodeListSynced() { return nRequestedMasternodeAssets > MASTERNODE_SYNC_LIST; }
     bool IsWinnersListSynced() { return nRequestedMasternodeAssets > MASTERNODE_SYNC_MNW; }
     bool IsSynced() { return nRequestedMasternodeAssets == MASTERNODE_SYNC_FINISHED; }
