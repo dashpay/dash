@@ -1391,12 +1391,12 @@ void CMasternodeMan::UpdateMasternodeList(CMasternodeBroadcast mnb)
     CMasternode* pmn = Find(mnb.vin);
     if(pmn == NULL) {
         if(Add(mnb)) {
-            masternodeSync.BumpAssetLastTime("CMasternodeMan::UpdateMasternodeList 1");
+            masternodeSync.BumpAssetLastTime("CMasternodeMan::UpdateMasternodeList - new");
         }
     } else {
         CMasternodeBroadcast mnbOld = mapSeenMasternodeBroadcast[CMasternodeBroadcast(*pmn).GetHash()].second;
         if(pmn->UpdateFromNewBroadcast(mnb)) {
-            masternodeSync.BumpAssetLastTime("CMasternodeMan::UpdateMasternodeList 2");
+            masternodeSync.BumpAssetLastTime("CMasternodeMan::UpdateMasternodeList - seen");
             mapSeenMasternodeBroadcast.erase(mnbOld.GetHash());
         }
     }
@@ -1419,7 +1419,7 @@ bool CMasternodeMan::CheckMnbAndUpdateMasternodeList(CNode* pfrom, CMasternodeBr
             if(GetTime() - mapSeenMasternodeBroadcast[hash].first > MASTERNODE_NEW_START_REQUIRED_SECONDS - MASTERNODE_MIN_MNP_SECONDS * 2) {
                 LogPrint("masternode", "CMasternodeMan::CheckMnbAndUpdateMasternodeList -- masternode=%s seen update\n", mnb.vin.prevout.ToStringShort());
                 mapSeenMasternodeBroadcast[hash].first = GetTime();
-                masternodeSync.BumpAssetLastTime("CMasternodeMan::CheckMnbAndUpdateMasternodeList 1");
+                masternodeSync.BumpAssetLastTime("CMasternodeMan::CheckMnbAndUpdateMasternodeList - seen");
             }
             // did we ask this node for it?
             if(pfrom && IsMnbRecoveryRequested(hash) && GetTime() < mMnbRecoveryRequests[hash].first) {
@@ -1470,7 +1470,7 @@ bool CMasternodeMan::CheckMnbAndUpdateMasternodeList(CNode* pfrom, CMasternodeBr
 
     if(mnb.CheckOutpoint(nDos)) {
         Add(mnb);
-        masternodeSync.BumpAssetLastTime("CMasternodeMan::CheckMnbAndUpdateMasternodeList 2");
+        masternodeSync.BumpAssetLastTime("CMasternodeMan::CheckMnbAndUpdateMasternodeList - new");
         // if it matches our Masternode privkey...
         if(fMasterNode && mnb.pubKeyMasternode == activeMasternode.pubKeyMasternode) {
             mnb.nPoSeBanScore = -MASTERNODE_POSE_BAN_MAX_SCORE;
