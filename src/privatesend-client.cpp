@@ -1100,7 +1100,7 @@ bool CPrivateSendClient::PrepareDenominate(int nMinRounds, int nMaxRounds, std::
                     vecTxIn.erase(it);
                     vCoins.erase(it2);
 
-                    CScript scriptDenom = keyHolderStorage.AddKey(pwalletMain)->GetScriptForDestination();
+                    CScript scriptDenom = keyHolderStorage.AddKey(pwalletMain).GetScriptForDestination();
 
                     // add new output
                     CTxOut txout(nValueDenom, scriptDenom);
