@@ -44,7 +44,7 @@ private:
     int nCachedBlockHeight;
 
     // map to hold all MNs
-    std::vector<CMasternode> vMasternodes;
+    std::map<COutPoint, CMasternode> mapMasternodes;
     // who's asked for the Masternode list and the last time
     std::map<CNetAddr, int64_t> mAskedUsForMasternodeList;
     // who we asked for the Masternode list and the last time
@@ -96,7 +96,7 @@ public:
             READWRITE(strVersion);
         }
 
-        READWRITE(vMasternodes);
+        READWRITE(mapMasternodes);
         READWRITE(mAskedUsForMasternodeList);
         READWRITE(mWeAskedForMasternodeList);
         READWRITE(mWeAskedForMasternodeListEntry);
@@ -143,12 +143,9 @@ public:
     void DsegUpdate(CNode* pnode);
 
     /// Find an entry
-    CMasternode* Find(const CScript &payee);
     CMasternode* Find(const CTxIn& vin);
-    CMasternode* Find(const CPubKey& pubKeyMasternode);
 
     /// Versions of Find that are safe to use from outside the class
-    bool Get(const CPubKey& pubKeyMasternode, CMasternode& masternode);
     bool Get(const CTxIn& vin, CMasternode& masternode);
     bool Has(const CTxIn& vin);
 
@@ -164,7 +161,7 @@ public:
     /// Find a random entry
     masternode_info_t FindRandomNotInVec(const std::vector<CTxIn> &vecToExclude, int nProtocolVersion = -1);
 
-    std::vector<CMasternode> GetFullMasternodeVector() { return vMasternodes; }
+    std::map<COutPoint, CMasternode> GetFullMasternodeMap() { return mapMasternodes; }
 
     std::vector<std::pair<int, CMasternode> > GetMasternodeRanks(int nBlockHeight = -1, int nMinProtocol=0);
     int GetMasternodeRank(const CTxIn &vin, int nBlockHeight, int nMinProtocol=0, bool fOnlyActive=true);
@@ -183,7 +180,7 @@ public:
     void ProcessVerifyBroadcast(CNode* pnode, const CMasternodeVerification& mnv);
 
     /// Return the number of (unique) Masternodes
-    int size() { return vMasternodes.size(); }
+    int size() { return mapMasternodes.size(); }
 
     std::string ToString() const;
 
@@ -215,11 +212,7 @@ public:
     bool AddGovernanceVote(const CTxIn& vin, uint256 nGovernanceObjectHash);
     void RemoveGovernanceObject(uint256 nGovernanceObjectHash);
 
-    void CheckMasternode(const CTxIn& vin, bool fForce = false);
-    void CheckMasternode(const CPubKey& pubKeyMasternode, bool fForce = false);
-
-    int GetMasternodeState(const CTxIn& vin);
-    int GetMasternodeState(const CPubKey& pubKeyMasternode);
+    void CheckMasternode(const CPubKey& pubKeyMasternode, bool fForce);
 
     bool IsMasternodePingedWithin(const CTxIn& vin, int nSeconds, int64_t nTimeToCheckAt = -1);
     void SetMasternodeLastPing(const CTxIn& vin, const CMasternodePing& mnp);

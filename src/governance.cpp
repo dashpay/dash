@@ -590,34 +590,27 @@ std::vector<CGovernanceVote> CGovernanceManager::GetCurrentVotes(const uint256& 
     if(it == mapObjects.end()) return vecResult;
     CGovernanceObject& govobj = it->second;
 
-    // Compile a list of Masternode collateral outpoints for which to get votes
-    std::vector<CTxIn> vecMNTxIn;
-    if (mnCollateralOutpointFilter == CTxIn()) {
-        std::vector<CMasternode> mnlist = mnodeman.GetFullMasternodeVector();
-        for (std::vector<CMasternode>::iterator it = mnlist.begin(); it != mnlist.end(); ++it)
-        {
-            vecMNTxIn.push_back(it->vin);
-        }
-    }
-    else {
-        vecMNTxIn.push_back(mnCollateralOutpointFilter);
+    CMasternode mn;
+    std::map<COutPoint, CMasternode> mapMasternodes;
+    if(mnCollateralOutpointFilter == CTxIn()) {
+        mapMasternodes = mnodeman.GetFullMasternodeMap();
+    } else if (mnodeman.Get(mnCollateralOutpointFilter, mn)) {
+        mapMasternodes[mnCollateralOutpointFilter.prevout] = mn;
     }
 
     // Loop thru each MN collateral outpoint and get the votes for the `nParentHash` governance object
-    for (std::vector<CTxIn>::iterator it = vecMNTxIn.begin(); it != vecMNTxIn.end(); ++it)
+    for (auto& mnpair : mapMasternodes)
     {
-        CTxIn &mnCollateralOutpoint = *it;
-
         // get a vote_rec_t from the govobj
         vote_rec_t voteRecord;
-        if (!govobj.GetCurrentMNVotes(mnCollateralOutpoint, voteRecord)) continue;
+        if (!govobj.GetCurrentMNVotes(CTxIn(mnpair.first), voteRecord)) continue;
 
         for (vote_instance_m_it it3 = voteRecord.mapInstances.begin(); it3 != voteRecord.mapInstances.end(); ++it3) {
             int signal = (it3->first);
             int outcome = ((it3->second).eOutcome);
             int64_t nCreationTime = ((it3->second).nCreationTime);
 
-            CGovernanceVote vote = CGovernanceVote(mnCollateralOutpoint, nParentHash, (vote_signal_enum_t)signal, (vote_outcome_enum_t)outcome);
+            CGovernanceVote vote = CGovernanceVote(CTxIn(mnpair.first), nParentHash, (vote_signal_enum_t)signal, (vote_outcome_enum_t)outcome);
             vote.SetTime(nCreationTime);
 
             vecResult.push_back(vote);

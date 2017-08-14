@@ -263,10 +263,11 @@ void MasternodeList::updateNodeList()
     ui->tableWidgetMasternodes->setSortingEnabled(false);
     ui->tableWidgetMasternodes->clearContents();
     ui->tableWidgetMasternodes->setRowCount(0);
-    std::vector<CMasternode> vMasternodes = mnodeman.GetFullMasternodeVector();
+    std::map<COutPoint, CMasternode> mapMasternodes = mnodeman.GetFullMasternodeMap();
 
-    BOOST_FOREACH(CMasternode& mn, vMasternodes)
+    for(auto& mnpair : mapMasternodes)
     {
+        CMasternode mn = mnpair.second;
         // populate list
         // Address, Protocol, Status, Active Seconds, Last Seen, Pub Key
         QTableWidgetItem *addressItem = new QTableWidgetItem(QString::fromStdString(mn.addr.ToString()));
