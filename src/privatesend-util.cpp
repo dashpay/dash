@@ -19,25 +19,24 @@ void KeyHolder::ReturnKey()
     reserveKey.ReturnKey();
 }
 
-CScript KeyHolder::GetScriptForDestination()
+CScript KeyHolder::GetScriptForDestination() const
 {
     return ::GetScriptForDestination(pubKey.GetID());
 }
 
 
-KeyHolderPtr KeyHolderStorage::AddKey(CWallet* pwallet)
+const KeyHolder& KeyHolderStorage::AddKey(CWallet* pwallet)
 {
     LogPrintf("PrivateSend - KeyHolderStorage -- AddKey\n");
-    auto key = std::make_shared<KeyHolder>(pwallet);
-    storage.push_back(key);
-    return key;
+    storage.emplace_back(KeyHolder(pwallet));
+    return storage.back();
 }
 
 void KeyHolderStorage::KeepAll(){
     if (storage.size() > 0) {
         LogPrintf("PrivateSend - KeyHolderStorage -- KeepAll\n");
-        for (auto key : storage) {
-            key->KeepKey();
+        for (auto &key : storage) {
+            key.KeepKey();
         }
         storage.clear();
     }
@@ -47,8 +46,8 @@ void KeyHolderStorage::ReturnAll()
 {
     if (storage.size() > 0) {
         LogPrintf("PrivateSend - KeyHolderStorage -- ReturnAll\n");
-        for (auto key : storage) {
-            key->ReturnKey();
+        for (auto &key : storage) {
+            key.ReturnKey();
         }
         storage.clear();
     }

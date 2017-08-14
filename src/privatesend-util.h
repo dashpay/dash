@@ -17,19 +17,17 @@ public:
     void KeepKey();
     void ReturnKey();
 
-    CScript GetScriptForDestination();
+    CScript GetScriptForDestination() const;
 
 };
-
-typedef std::shared_ptr<KeyHolder> KeyHolderPtr;
 
 class KeyHolderStorage
 {
 private:
-    std::vector<KeyHolderPtr> storage;
+    std::vector<KeyHolder> storage;
 
 public:
-    KeyHolderPtr AddKey(CWallet* pwalletIn);
+    const KeyHolder& AddKey(CWallet* pwalletIn);
     void KeepAll();
     void ReturnAll();
 
