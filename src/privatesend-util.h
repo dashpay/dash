@@ -28,14 +28,10 @@ class KeyHolderStorage
 private:
     std::vector<KeyHolderPtr> storage;
 
-    void KeepAll();
-    void ReturnAll();
-
 public:
     KeyHolderPtr AddKey(CWallet* pwalletIn);
-    void ClearOnFailure();
-    void ClearOnSuccess();
-    void ClearWhenNotSure();
+    void KeepAll();
+    void ReturnAll();
 
 };
 #endif //PRIVATESENDUTIL_H

@@ -34,42 +34,22 @@ KeyHolderPtr KeyHolderStorage::AddKey(CWallet* pwallet)
 }
 
 void KeyHolderStorage::KeepAll(){
-    for(auto key : storage) {
-        key->KeepKey();
+    if (storage.size() > 0) {
+        LogPrintf("PrivateSend - KeyHolderStorage -- KeepAll\n");
+        for (auto key : storage) {
+            key->KeepKey();
+        }
+        storage.clear();
     }
-    storage.clear();
 }
 
 void KeyHolderStorage::ReturnAll()
 {
-    for(auto key : storage) {
-        key->ReturnKey();
-    }
-    storage.clear();
-}
-
-void KeyHolderStorage::ClearOnFailure()
-{
     if (storage.size() > 0) {
-        LogPrintf("PrivateSend - KeyHolderStorage -- returning keys on privatesend failure\n");
-        ReturnAll();
-    }
-
-}
-
-void KeyHolderStorage::ClearOnSuccess()
-{
-    if (storage.size() > 0) {
-        LogPrintf("PrivateSend - KeyHolderStorage -- keeping keys on privatesend success\n");
-        KeepAll();
+        LogPrintf("PrivateSend - KeyHolderStorage -- ReturnAll\n");
+        for (auto key : storage) {
+            key->ReturnKey();
+        }
+        storage.clear();
     }
 }
-
-void KeyHolderStorage::ClearWhenNotSure()
-{
-    if (storage.size() > 0) {
-        LogPrintf("PrivateSend - KeyHolderStorage --  keeping keys in - ClearWhenNotSure - some could get lost\n");
-        KeepAll(); // better to loose key than reuse it in private send
-    }
-}
-
