@@ -66,6 +66,9 @@
 
 const static std::string NET_MESSAGE_COMMAND_OTHER = "*other*";
 
+constexpr const CConnman::CFullyConnectedOnly CConnman::FullyConnectedOnly;
+constexpr const CConnman::CAllNodes CConnman::AllNodes;
+
 //
 // Global state variables
 //
@@ -2824,7 +2827,7 @@ void CConnman::PushMessage(CNode* pnode, CDataStream& strm, const std::string& s
         RecordBytesSent(nBytesSent);
 }
 
-bool CConnman::ForNode(const CService& addr, std::function<bool(CNode* pnode)> func)
+bool CConnman::ForNode(const CService& addr, std::function<bool(const CNode* pnode)> cond, std::function<bool(CNode* pnode)> func)
 {
     CNode* found = nullptr;
     LOCK(cs_vNodes);
@@ -2834,10 +2837,10 @@ bool CConnman::ForNode(const CService& addr, std::function<bool(CNode* pnode)> f
             break;
         }
     }
-    return found != nullptr && NodeFullyConnected(found) && func(found);
+    return found != nullptr && cond(found) && func(found);
 }
 
-bool CConnman::ForNode(NodeId id, std::function<bool(CNode* pnode)> func)
+bool CConnman::ForNode(NodeId id, std::function<bool(const CNode* pnode)> cond, std::function<bool(CNode* pnode)> func)
 {
     CNode* found = nullptr;
     LOCK(cs_vNodes);
@@ -2847,7 +2850,7 @@ bool CConnman::ForNode(NodeId id, std::function<bool(CNode* pnode)> func)
             break;
         }
     }
-    return found != nullptr && NodeFullyConnected(found) && func(found);
+    return found != nullptr && cond(found) && func(found);
 }
 
 int64_t PoissonNextSend(int64_t nNow, int average_interval_seconds) {
