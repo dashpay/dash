@@ -496,14 +496,14 @@ bool OptionsModel::setData(const QModelIndex & index, const QVariant & value, in
                 settings.setValue("digits", value);
                 setRestartRequired(true);
             }
-            break;            
+            break;
 #endif // ENABLE_WALLET
         case Theme:
             if (settings.value("theme") != value) {
                 settings.setValue("theme", value);
                 setRestartRequired(true);
             }
-            break;            
+            break;
         case Language:
             if (settings.value("language") != value) {
                 settings.setValue("language", value);

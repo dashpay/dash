@@ -9,7 +9,7 @@
 
 #include <fs.h>
 #include <qt/intro.h>
-#include <ui_intro.h>
+#include <qt/forms/ui_intro.h>
 
 #include <qt/guiutil.h>
 
