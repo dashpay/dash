@@ -24,7 +24,7 @@ public:
 class KeyHolderStorage
 {
 private:
-    std::vector<KeyHolder> storage;
+    std::vector<std::unique_ptr<KeyHolder> > storage;
 
 public:
     const KeyHolder& AddKey(CWallet* pwalletIn);

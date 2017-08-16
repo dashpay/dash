@@ -28,15 +28,15 @@ CScript KeyHolder::GetScriptForDestination() const
 const KeyHolder& KeyHolderStorage::AddKey(CWallet* pwallet)
 {
     LogPrintf("PrivateSend - KeyHolderStorage -- AddKey\n");
-    storage.emplace_back(KeyHolder(pwallet));
-    return storage.back();
+    storage.emplace_back(std::unique_ptr<KeyHolder>(new KeyHolder(pwallet)));
+    return *storage.back();
 }
 
 void KeyHolderStorage::KeepAll(){
     if (storage.size() > 0) {
         LogPrintf("PrivateSend - KeyHolderStorage -- KeepAll\n");
         for (auto &key : storage) {
-            key.KeepKey();
+            key->KeepKey();
         }
         storage.clear();
     }
@@ -47,7 +47,7 @@ void KeyHolderStorage::ReturnAll()
     if (storage.size() > 0) {
         LogPrintf("PrivateSend - KeyHolderStorage -- ReturnAll\n");
         for (auto &key : storage) {
-            key.ReturnKey();
+            key->ReturnKey();
         }
         storage.clear();
     }
