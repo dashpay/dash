@@ -232,10 +232,9 @@ private:
     static const int MAX_TIME_FUTURE_DEVIATION;
     static const int RELIABLE_PROPAGATION_TIME;
 
-    // Keep track of current block index
-    const CBlockIndex *pCurrentBlockIndex;
-
     int64_t nTimeLastDiff;
+
+    // keep track of current block height
     int nCachedBlockHeight;
 
     // keep track of the scanning errors
@@ -455,11 +454,6 @@ private:
     void CheckOrphanVotes(CGovernanceObject& govobj, CGovernanceException& exception);
 
     void RebuildIndexes();
-
-    /// Returns MN index, handling the case of index rebuilds
-    int GetMasternodeIndex(const CTxIn& masternodeVin);
-
-    void RebuildVoteMaps();
 
     void AddCachedTriggers();
 

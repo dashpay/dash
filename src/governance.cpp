@@ -23,8 +23,7 @@ const int CGovernanceManager::MAX_TIME_FUTURE_DEVIATION = 60*60;
 const int CGovernanceManager::RELIABLE_PROPAGATION_TIME = 60;
 
 CGovernanceManager::CGovernanceManager()
-    : pCurrentBlockIndex(NULL),
-      nTimeLastDiff(0),
+    : nTimeLastDiff(0),
       nCachedBlockHeight(0),
       mapObjects(),
       mapErasedGovernanceObjects(),
@@ -150,10 +149,6 @@ void CGovernanceManager::ProcessMessage(CNode* pfrom, std::string& strCommand, C
     {
         // MAKE SURE WE HAVE A VALID REFERENCE TO THE TIP BEFORE CONTINUING
 
-        if(!pCurrentBlockIndex) {
-            LogPrintf("MNGOVERNANCEOBJECT -- pCurrentBlockIndex is NULL\n");
-            return;
-        }
 
         if(!masternodeSync.IsMasternodeListSynced()) {
             LogPrint("gobject", "MNGOVERNANCEOBJECT -- masternode list not synced\n");
@@ -473,13 +468,7 @@ void CGovernanceManager::UpdateCachesAndClean()
         it->second.fDirtyCache = true;
     }
 
-    // DOUBLE CHECK THAT WE HAVE A VALID POINTER TO TIP
-
-    if(!pCurrentBlockIndex) return;
-
     CRateChecksGuard guard(false, *this);
-
-    LogPrint("gobject", "CGovernanceManager::UpdateCachesAndClean -- After pCurrentBlockIndex (not NULL)\n");
 
     // UPDATE CACHE FOR EACH OBJECT THAT IS FLAGGED DIRTYCACHE=TRUE
 
@@ -602,34 +591,27 @@ std::vector<CGovernanceVote> CGovernanceManager::GetCurrentVotes(const uint256& 
     if(it == mapObjects.end()) return vecResult;
     CGovernanceObject& govobj = it->second;
 
-    // Compile a list of Masternode collateral outpoints for which to get votes
-    std::vector<CTxIn> vecMNTxIn;
-    if (mnCollateralOutpointFilter == CTxIn()) {
-        std::vector<CMasternode> mnlist = mnodeman.GetFullMasternodeVector();
-        for (std::vector<CMasternode>::iterator it = mnlist.begin(); it != mnlist.end(); ++it)
-        {
-            vecMNTxIn.push_back(it->vin);
-        }
-    }
-    else {
-        vecMNTxIn.push_back(mnCollateralOutpointFilter);
+    CMasternode mn;
+    std::map<COutPoint, CMasternode> mapMasternodes;
+    if(mnCollateralOutpointFilter == CTxIn()) {
+        mapMasternodes = mnodeman.GetFullMasternodeMap();
+    } else if (mnodeman.Get(mnCollateralOutpointFilter, mn)) {
+        mapMasternodes[mnCollateralOutpointFilter.prevout] = mn;
     }
 
     // Loop thru each MN collateral outpoint and get the votes for the `nParentHash` governance object
-    for (std::vector<CTxIn>::iterator it = vecMNTxIn.begin(); it != vecMNTxIn.end(); ++it)
+    for (std::map<COutPoint, CMasternode>::iterator it = mapMasternodes.begin(); it != mapMasternodes.end(); ++it)
     {
-        CTxIn &mnCollateralOutpoint = *it;
-
         // get a vote_rec_t from the govobj
         vote_rec_t voteRecord;
-        if (!govobj.GetCurrentMNVotes(mnCollateralOutpoint, voteRecord)) continue;
+        if (!govobj.GetCurrentMNVotes(CTxIn(it->first), voteRecord)) continue;
 
         for (vote_instance_m_it it3 = voteRecord.mapInstances.begin(); it3 != voteRecord.mapInstances.end(); ++it3) {
             int signal = (it3->first);
             int outcome = ((it3->second).eOutcome);
             int64_t nCreationTime = ((it3->second).nCreationTime);
 
-            CGovernanceVote vote = CGovernanceVote(mnCollateralOutpoint, nParentHash, (vote_signal_enum_t)signal, (vote_outcome_enum_t)outcome);
+            CGovernanceVote vote = CGovernanceVote(CTxIn(it->first), nParentHash, (vote_signal_enum_t)signal, (vote_outcome_enum_t)outcome);
             vote.SetTime(nCreationTime);
 
             vecResult.push_back(vote);
@@ -681,15 +663,7 @@ struct sortProposalsByVotes {
 
 void CGovernanceManager::DoMaintenance()
 {
-    // NOTHING TO DO IN LITEMODE
-    if(fLiteMode) {
-        return;
-    }
-
-    // IF WE'RE NOT SYNCED, EXIT
-    if(!masternodeSync.IsSynced()) return;
-
-    if(!pCurrentBlockIndex) return;
+    if(fLiteMode || !masternodeSync.IsSynced()) return;
 
     // CHECK OBJECTS WE'VE ASKED FOR, REMOVE OLD ENTRIES
 
@@ -1321,29 +1295,6 @@ void CGovernanceManager::RebuildIndexes()
     }
 }
 
-int CGovernanceManager::GetMasternodeIndex(const CTxIn& masternodeVin)
-{
-    LOCK(cs);
-    bool fIndexRebuilt = false;
-    int nMNIndex = mnodeman.GetMasternodeIndex(masternodeVin, fIndexRebuilt);
-    if(fIndexRebuilt) {
-        RebuildVoteMaps();
-        nMNIndex = mnodeman.GetMasternodeIndex(masternodeVin, fIndexRebuilt);
-        if(fIndexRebuilt) {
-            LogPrintf("CGovernanceManager::GetMasternodeIndex -- WARNING: vote map rebuild failed\n");
-        }
-    }
-    return nMNIndex;
-}
-
-void CGovernanceManager::RebuildVoteMaps()
-{
-    for(object_m_it it = mapObjects.begin(); it != mapObjects.end(); ++it) {
-        it->second.RebuildVoteMap();
-    }
-    mnodeman.ClearOldMasternodeIndex();
-}
-
 void CGovernanceManager::AddCachedTriggers()
 {
     LOCK(cs);
@@ -1416,12 +1367,8 @@ void CGovernanceManager::UpdatedBlockTip(const CBlockIndex *pindex)
         return;
     }
 
-    {
-        LOCK(cs);
-        pCurrentBlockIndex = pindex;
-        nCachedBlockHeight = pCurrentBlockIndex->nHeight;
-        LogPrint("gobject", "CGovernanceManager::UpdatedBlockTip pCurrentBlockIndex->nHeight: %d\n", pCurrentBlockIndex->nHeight);
-    }
+    nCachedBlockHeight = pindex->nHeight;
+    LogPrint("gobject", "CGovernanceManager::UpdatedBlockTip -- nCachedBlockHeight: %d\n", nCachedBlockHeight);
 
     CheckPostponedObjects();
 }

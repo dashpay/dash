@@ -36,49 +36,6 @@ struct CompareScoreMN
     }
 };
 
-CMasternodeIndex::CMasternodeIndex()
-    : nSize(0),
-      mapIndex(),
-      mapReverseIndex()
-{}
-
-bool CMasternodeIndex::Get(int nIndex, CTxIn& vinMasternode) const
-{
-    rindex_m_cit it = mapReverseIndex.find(nIndex);
-    if(it == mapReverseIndex.end()) {
-        return false;
-    }
-    vinMasternode = it->second;
-    return true;
-}
-
-int CMasternodeIndex::GetMasternodeIndex(const CTxIn& vinMasternode) const
-{
-    index_m_cit it = mapIndex.find(vinMasternode);
-    if(it == mapIndex.end()) {
-        return -1;
-    }
-    return it->second;
-}
-
-void CMasternodeIndex::AddMasternodeVIN(const CTxIn& vinMasternode)
-{
-    index_m_it it = mapIndex.find(vinMasternode);
-    if(it != mapIndex.end()) {
-        return;
-    }
-    int nNextIndex = nSize;
-    mapIndex[vinMasternode] = nNextIndex;
-    mapReverseIndex[nNextIndex] = vinMasternode;
-    ++nSize;
-}
-
-void CMasternodeIndex::Clear()
-{
-    mapIndex.clear();
-    mapReverseIndex.clear();
-    nSize = 0;
-}
 struct CompareByAddr
 
 {
@@ -89,17 +46,9 @@ struct CompareByAddr
     }
 };
 
-void CMasternodeIndex::RebuildIndex()
-{
-    nSize = mapIndex.size();
-    for(index_m_it it = mapIndex.begin(); it != mapIndex.end(); ++it) {
-        mapReverseIndex[it->second] = it->first;
-    }
-}
-
 CMasternodeMan::CMasternodeMan()
 : cs(),
-  vMasternodes(),
+  mapMasternodes(),
   mAskedUsForMasternodeList(),
   mWeAskedForMasternodeList(),
   mWeAskedForMasternodeListEntry(),
@@ -107,10 +56,6 @@ CMasternodeMan::CMasternodeMan()
   mMnbRecoveryRequests(),
   mMnbRecoveryGoodReplies(),
   listScheduledMnbRequestConnections(),
-  nLastIndexRebuildTime(0),
-  indexMasternodes(),
-  indexMasternodesOld(),
-  fIndexRebuilt(false),
   fMasternodesAdded(false),
   fMasternodesRemoved(false),
   vecDirtyGovernanceObjectHashes(),
@@ -124,16 +69,12 @@ bool CMasternodeMan::Add(CMasternode &mn)
 {
     LOCK(cs);
 
-    CMasternode *pmn = Find(mn.vin);
-    if (pmn == NULL) {
-        LogPrint("masternode", "CMasternodeMan::Add -- Adding new Masternode: addr=%s, %i now\n", mn.addr.ToString(), size() + 1);
-        vMasternodes.push_back(mn);
-        indexMasternodes.AddMasternodeVIN(mn.vin);
-        fMasternodesAdded = true;
-        return true;
-    }
+    if (Has(mn.vin)) return false;
 
-    return false;
+    LogPrint("masternode", "CMasternodeMan::Add -- Adding new Masternode: addr=%s, %i now\n", mn.addr.ToString(), size() + 1);
+    mapMasternodes[mn.vin.prevout] = mn;
+    fMasternodesAdded = true;
+    return true;
 }
 
 void CMasternodeMan::AskForMN(CNode* pnode, const CTxIn &vin)
@@ -171,8 +112,8 @@ void CMasternodeMan::Check()
 
     LogPrint("masternode", "CMasternodeMan::Check -- nLastWatchdogVoteTime=%d, IsWatchdogActive()=%d\n", nLastWatchdogVoteTime, IsWatchdogActive());
 
-    BOOST_FOREACH(CMasternode& mn, vMasternodes) {
-        mn.Check();
+    for (auto& mnpair : mapMasternodes) {
+        mnpair.second.Check();
     }
 }
 
@@ -190,44 +131,43 @@ void CMasternodeMan::CheckAndRemove()
         Check();
 
         // Remove spent masternodes, prepare structures and make requests to reasure the state of inactive ones
-        std::vector<CMasternode>::iterator it = vMasternodes.begin();
         std::vector<std::pair<int, CMasternode> > vecMasternodeRanks;
         // ask for up to MNB_RECOVERY_MAX_ASK_ENTRIES masternode entries at a time
         int nAskForMnbRecovery = MNB_RECOVERY_MAX_ASK_ENTRIES;
-        while(it != vMasternodes.end()) {
-            CMasternodeBroadcast mnb = CMasternodeBroadcast(*it);
+        std::map<COutPoint, CMasternode>::iterator it = mapMasternodes.begin();
+        while (it != mapMasternodes.end()) {
+            CMasternodeBroadcast mnb = CMasternodeBroadcast(it->second);
             uint256 hash = mnb.GetHash();
             // If collateral was spent ...
-            if ((*it).IsOutpointSpent()) {
-                LogPrint("masternode", "CMasternodeMan::CheckAndRemove -- Removing Masternode: %s  addr=%s  %i now\n", (*it).GetStateString(), (*it).addr.ToString(), size() - 1);
+            if (it->second.IsOutpointSpent()) {
+                LogPrint("masternode", "CMasternodeMan::CheckAndRemove -- Removing Masternode: %s  addr=%s  %i now\n", it->second.GetStateString(), it->second.addr.ToString(), size() - 1);
 
                 // erase all of the broadcasts we've seen from this txin, ...
                 mapSeenMasternodeBroadcast.erase(hash);
-                mWeAskedForMasternodeListEntry.erase((*it).vin.prevout);
+                mWeAskedForMasternodeListEntry.erase(it->first);
 
                 // and finally remove it from the list
-                it->FlagGovernanceItemsAsDirty();
-                it = vMasternodes.erase(it);
+                it->second.FlagGovernanceItemsAsDirty();
+                mapMasternodes.erase(it++);
                 fMasternodesRemoved = true;
             } else {
-                bool fAsk = pCurrentBlockIndex &&
-                            (nAskForMnbRecovery > 0) &&
+                bool fAsk = (nAskForMnbRecovery > 0) &&
                             masternodeSync.IsSynced() &&
-                            it->IsNewStartRequired() &&
+                            it->second.IsNewStartRequired() &&
                             !IsMnbRecoveryRequested(hash);
                 if(fAsk) {
                     // this mn is in a non-recoverable state and we haven't asked other nodes yet
                     std::set<CNetAddr> setRequested;
                     // calulate only once and only when it's needed
                     if(vecMasternodeRanks.empty()) {
-                        int nRandomBlockHeight = GetRandInt(pCurrentBlockIndex->nHeight);
+                        int nRandomBlockHeight = GetRandInt(nCachedBlockHeight);
                         vecMasternodeRanks = GetMasternodeRanks(nRandomBlockHeight);
                     }
                     bool fAskedForMnbRecovery = false;
                     // ask first MNB_RECOVERY_QUORUM_TOTAL masternodes we can connect to and we haven't asked recently
                     for(int i = 0; setRequested.size() < MNB_RECOVERY_QUORUM_TOTAL && i < (int)vecMasternodeRanks.size(); i++) {
                         // avoid banning
-                        if(mWeAskedForMasternodeListEntry.count(it->vin.prevout) && mWeAskedForMasternodeListEntry[it->vin.prevout].count(vecMasternodeRanks[i].second.addr)) continue;
+                        if(mWeAskedForMasternodeListEntry.count(it->first) && mWeAskedForMasternodeListEntry[it->first].count(vecMasternodeRanks[i].second.addr)) continue;
                         // didn't ask recently, ok to ask now
                         CService addr = vecMasternodeRanks[i].second.addr;
                         setRequested.insert(addr);
@@ -235,7 +175,7 @@ void CMasternodeMan::CheckAndRemove()
                         fAskedForMnbRecovery = true;
                     }
                     if(fAskedForMnbRecovery) {
-                        LogPrint("masternode", "CMasternodeMan::CheckAndRemove -- Recovery initiated, masternode=%s\n", it->vin.prevout.ToStringShort());
+                        LogPrint("masternode", "CMasternodeMan::CheckAndRemove -- Recovery initiated, masternode=%s\n", it->first.ToStringShort());
                         nAskForMnbRecovery--;
                     }
                     // wait for mnb recovery replies for MNB_RECOVERY_WAIT_SECONDS seconds
@@ -321,7 +261,7 @@ void CMasternodeMan::CheckAndRemove()
 
         std::map<CNetAddr, CMasternodeVerification>::iterator it3 = mWeAskedForVerification.begin();
         while(it3 != mWeAskedForVerification.end()){
-            if(it3->second.nBlockHeight < pCurrentBlockIndex->nHeight - MAX_POSE_BLOCKS) {
+            if(it3->second.nBlockHeight < nCachedBlockHeight - MAX_POSE_BLOCKS) {
                 mWeAskedForVerification.erase(it3++);
             } else {
                 ++it3;
@@ -344,7 +284,7 @@ void CMasternodeMan::CheckAndRemove()
         // remove expired mapSeenMasternodeVerification
         std::map<uint256, CMasternodeVerification>::iterator itv2 = mapSeenMasternodeVerification.begin();
         while(itv2 != mapSeenMasternodeVerification.end()){
-            if((*itv2).second.nBlockHeight < pCurrentBlockIndex->nHeight - MAX_POSE_BLOCKS){
+            if((*itv2).second.nBlockHeight < nCachedBlockHeight - MAX_POSE_BLOCKS){
                 LogPrint("masternode", "CMasternodeMan::CheckAndRemove -- Removing expired Masternode verification: hash=%s\n", (*itv2).first.ToString());
                 mapSeenMasternodeVerification.erase(itv2++);
             } else {
@@ -353,10 +293,6 @@ void CMasternodeMan::CheckAndRemove()
         }
 
         LogPrintf("CMasternodeMan::CheckAndRemove -- %s\n", ToString());
-
-        if(fMasternodesRemoved) {
-            CheckAndRebuildMasternodeIndex();
-        }
     }
 
     if(fMasternodesRemoved) {
@@ -367,7 +303,7 @@ void CMasternodeMan::CheckAndRemove()
 void CMasternodeMan::Clear()
 {
     LOCK(cs);
-    vMasternodes.clear();
+    mapMasternodes.clear();
     mAskedUsForMasternodeList.clear();
     mWeAskedForMasternodeList.clear();
     mWeAskedForMasternodeListEntry.clear();
@@ -375,8 +311,6 @@ void CMasternodeMan::Clear()
     mapSeenMasternodePing.clear();
     nDsqCount = 0;
     nLastWatchdogVoteTime = 0;
-    indexMasternodes.Clear();
-    indexMasternodesOld.Clear();
 }
 
 int CMasternodeMan::CountMasternodes(int nProtocolVersion)
@@ -385,8 +319,8 @@ int CMasternodeMan::CountMasternodes(int nProtocolVersion)
     int nCount = 0;
     nProtocolVersion = nProtocolVersion == -1 ? mnpayments.GetMinMasternodePaymentsProto() : nProtocolVersion;
 
-    BOOST_FOREACH(CMasternode& mn, vMasternodes) {
-        if(mn.nProtocolVersion < nProtocolVersion) continue;
+    for (auto& mnpair : mapMasternodes) {
+        if(mnpair.second.nProtocolVersion < nProtocolVersion) continue;
         nCount++;
     }
 
@@ -399,8 +333,8 @@ int CMasternodeMan::CountEnabled(int nProtocolVersion)
     int nCount = 0;
     nProtocolVersion = nProtocolVersion == -1 ? mnpayments.GetMinMasternodePaymentsProto() : nProtocolVersion;
 
-    BOOST_FOREACH(CMasternode& mn, vMasternodes) {
-        if(mn.nProtocolVersion < nProtocolVersion || !mn.IsEnabled()) continue;
+    for (auto& mnpair : mapMasternodes) {
+        if(mnpair.second.nProtocolVersion < nProtocolVersion || !mnpair.second.IsEnabled()) continue;
         nCount++;
     }
 
@@ -413,10 +347,10 @@ int CMasternodeMan::CountByIP(int nNetworkType)
     LOCK(cs);
     int nNodeCount = 0;
 
-    BOOST_FOREACH(CMasternode& mn, vMasternodes)
-        if ((nNetworkType == NET_IPV4 && mn.addr.IsIPv4()) ||
-            (nNetworkType == NET_TOR  && mn.addr.IsTor())  ||
-            (nNetworkType == NET_IPV6 && mn.addr.IsIPv6())) {
+    for (auto& mnpair : mapMasternodes)
+        if ((nNetworkType == NET_IPV4 && mnpair.second.addr.IsIPv4()) ||
+            (nNetworkType == NET_TOR  && mnpair.second.addr.IsTor())  ||
+            (nNetworkType == NET_IPV6 && mnpair.second.addr.IsIPv6())) {
                 nNodeCount++;
         }
 
@@ -445,52 +379,11 @@ void CMasternodeMan::DsegUpdate(CNode* pnode)
     LogPrint("masternode", "CMasternodeMan::DsegUpdate -- asked %s for the list\n", pnode->addr.ToString());
 }
 
-CMasternode* CMasternodeMan::Find(const CScript &payee)
-{
-    LOCK(cs);
-
-    BOOST_FOREACH(CMasternode& mn, vMasternodes)
-    {
-        if(GetScriptForDestination(mn.pubKeyCollateralAddress.GetID()) == payee)
-            return &mn;
-    }
-    return NULL;
-}
-
 CMasternode* CMasternodeMan::Find(const CTxIn &vin)
 {
     LOCK(cs);
-
-    BOOST_FOREACH(CMasternode& mn, vMasternodes)
-    {
-        if(mn.vin.prevout == vin.prevout)
-            return &mn;
-    }
-    return NULL;
-}
-
-CMasternode* CMasternodeMan::Find(const CPubKey &pubKeyMasternode)
-{
-    LOCK(cs);
-
-    BOOST_FOREACH(CMasternode& mn, vMasternodes)
-    {
-        if(mn.pubKeyMasternode == pubKeyMasternode)
-            return &mn;
-    }
-    return NULL;
-}
-
-bool CMasternodeMan::Get(const CPubKey& pubKeyMasternode, CMasternode& masternode)
-{
-    // Theses mutexes are recursive so double locking by the same thread is safe.
-    LOCK(cs);
-    CMasternode* pMN = Find(pubKeyMasternode);
-    if(!pMN)  {
-        return false;
-    }
-    masternode = *pMN;
-    return true;
+    std::map<COutPoint, CMasternode>::iterator it = mapMasternodes.find(vin.prevout);
+    return it == mapMasternodes.end() ? NULL : &(it->second);
 }
 
 bool CMasternodeMan::Get(const CTxIn& vin, CMasternode& masternode)
@@ -519,21 +412,18 @@ masternode_info_t CMasternodeMan::GetMasternodeInfo(const CTxIn& vin)
 
 masternode_info_t CMasternodeMan::GetMasternodeInfo(const CPubKey& pubKeyMasternode)
 {
-    masternode_info_t info;
     LOCK(cs);
-    CMasternode* pMN = Find(pubKeyMasternode);
-    if(!pMN)  {
-        return info;
+    for (auto& mnpair : mapMasternodes) {
+        if (mnpair.second.pubKeyMasternode == pubKeyMasternode)
+            return mnpair.second.GetInfo();
     }
-    info = pMN->GetInfo();
-    return info;
+    return masternode_info_t();
 }
 
 bool CMasternodeMan::Has(const CTxIn& vin)
 {
     LOCK(cs);
-    CMasternode* pMN = Find(vin);
-    return (pMN != NULL);
+    return mapMasternodes.find(vin.prevout) != mapMasternodes.end();
 }
 
 //
@@ -541,15 +431,17 @@ bool CMasternodeMan::Has(const CTxIn& vin)
 //
 CMasternode* CMasternodeMan::GetNextMasternodeInQueueForPayment(bool fFilterSigTime, int& nCount)
 {
-    if(!pCurrentBlockIndex) {
-        nCount = 0;
-        return NULL;
-    }
-    return GetNextMasternodeInQueueForPayment(pCurrentBlockIndex->nHeight, fFilterSigTime, nCount);
+    return GetNextMasternodeInQueueForPayment(nCachedBlockHeight, fFilterSigTime, nCount);
 }
 
 CMasternode* CMasternodeMan::GetNextMasternodeInQueueForPayment(int nBlockHeight, bool fFilterSigTime, int& nCount)
 {
+    if (!masternodeSync.IsWinnersListSynced()) {
+        // without winner list we can't reliably find the next winner anyway
+        nCount = 0;
+        return NULL;
+    }
+
     // Need LOCK2 here to ensure consistent locking order because the GetBlockHash call below locks cs_main
     LOCK2(cs_main,cs);
 
@@ -561,23 +453,23 @@ CMasternode* CMasternodeMan::GetNextMasternodeInQueueForPayment(int nBlockHeight
     */
 
     int nMnCount = CountEnabled();
-    BOOST_FOREACH(CMasternode &mn, vMasternodes)
-    {
-        if(!mn.IsValidForPayment()) continue;
+
+    for (auto& mnpair : mapMasternodes) {
+        if(!mnpair.second.IsValidForPayment()) continue;
 
         //check protocol version
-        if(mn.nProtocolVersion < mnpayments.GetMinMasternodePaymentsProto()) continue;
+        if(mnpair.second.nProtocolVersion < mnpayments.GetMinMasternodePaymentsProto()) continue;
 
         //it's in the list (up to 8 entries ahead of current block to allow propagation) -- so let's skip it
-        if(mnpayments.IsScheduled(mn, nBlockHeight)) continue;
+        if(mnpayments.IsScheduled(mnpair.second, nBlockHeight)) continue;
 
         //it's too new, wait for a cycle
-        if(fFilterSigTime && mn.sigTime + (nMnCount*2.6*60) > GetAdjustedTime()) continue;
+        if(fFilterSigTime && mnpair.second.sigTime + (nMnCount*2.6*60) > GetAdjustedTime()) continue;
 
         //make sure it has at least as many confirmations as there are masternodes
-        if(mn.GetCollateralAge() < nMnCount) continue;
+        if(GetUTXOConfirmations(mnpair.first) < nMnCount) continue;
 
-        vecMasternodeLastPaid.push_back(std::make_pair(mn.GetLastPaidBlock(), &mn));
+        vecMasternodeLastPaid.push_back(std::make_pair(mnpair.second.GetLastPaidBlock(), &mnpair.second));
     }
 
     nCount = (int)vecMasternodeLastPaid.size();
@@ -626,8 +518,8 @@ masternode_info_t CMasternodeMan::FindRandomNotInVec(const std::vector<CTxIn> &v
 
     // fill a vector of pointers
     std::vector<CMasternode*> vpMasternodesShuffled;
-    BOOST_FOREACH(CMasternode &mn, vMasternodes) {
-        vpMasternodesShuffled.push_back(&mn);
+    for (auto& mnpair : mapMasternodes) {
+        vpMasternodesShuffled.push_back(&mnpair.second);
     }
 
     InsecureRand insecureRand;
@@ -666,17 +558,17 @@ int CMasternodeMan::GetMasternodeRank(const CTxIn& vin, int nBlockHeight, int nM
     LOCK(cs);
 
     // scan for winner
-    BOOST_FOREACH(CMasternode& mn, vMasternodes) {
-        if(mn.nProtocolVersion < nMinProtocol) continue;
+    for (auto& mnpair : mapMasternodes) {
+        if(mnpair.second.nProtocolVersion < nMinProtocol) continue;
         if(fOnlyActive) {
-            if(!mn.IsEnabled()) continue;
+            if(!mnpair.second.IsEnabled()) continue;
         }
         else {
-            if(!mn.IsValidForPayment()) continue;
+            if(!mnpair.second.IsValidForPayment()) continue;
         }
-        int64_t nScore = mn.CalculateScore(blockHash).GetCompact(false);
+        int64_t nScore = mnpair.second.CalculateScore(blockHash).GetCompact(false);
 
-        vecMasternodeScores.push_back(std::make_pair(nScore, &mn));
+        vecMasternodeScores.push_back(std::make_pair(nScore, &mnpair.second));
     }
 
     sort(vecMasternodeScores.rbegin(), vecMasternodeScores.rend(), CompareScoreMN());
@@ -702,13 +594,13 @@ std::vector<std::pair<int, CMasternode> > CMasternodeMan::GetMasternodeRanks(int
     LOCK(cs);
 
     // scan for winner
-    BOOST_FOREACH(CMasternode& mn, vMasternodes) {
+    for (auto& mnpair : mapMasternodes) {
 
-        if(mn.nProtocolVersion < nMinProtocol || !mn.IsEnabled()) continue;
+        if(mnpair.second.nProtocolVersion < nMinProtocol || !mnpair.second.IsEnabled()) continue;
 
-        int64_t nScore = mn.CalculateScore(blockHash).GetCompact(false);
+        int64_t nScore = mnpair.second.CalculateScore(blockHash).GetCompact(false);
 
-        vecMasternodeScores.push_back(std::make_pair(nScore, &mn));
+        vecMasternodeScores.push_back(std::make_pair(nScore, &mnpair.second));
     }
 
     sort(vecMasternodeScores.rbegin(), vecMasternodeScores.rend(), CompareScoreMN());
@@ -735,14 +627,14 @@ CMasternode* CMasternodeMan::GetMasternodeByRank(int nRank, int nBlockHeight, in
     }
 
     // Fill scores
-    BOOST_FOREACH(CMasternode& mn, vMasternodes) {
+    for (auto& mnpair : mapMasternodes) {
 
-        if(mn.nProtocolVersion < nMinProtocol) continue;
-        if(fOnlyActive && !mn.IsEnabled()) continue;
+        if(mnpair.second.nProtocolVersion < nMinProtocol) continue;
+        if(fOnlyActive && !mnpair.second.IsEnabled()) continue;
 
-        int64_t nScore = mn.CalculateScore(blockHash).GetCompact(false);
+        int64_t nScore = mnpair.second.CalculateScore(blockHash).GetCompact(false);
 
-        vecMasternodeScores.push_back(std::make_pair(nScore, &mn));
+        vecMasternodeScores.push_back(std::make_pair(nScore, &mnpair.second));
     }
 
     sort(vecMasternodeScores.rbegin(), vecMasternodeScores.rend(), CompareScoreMN());
@@ -903,23 +795,23 @@ void CMasternodeMan::ProcessMessage(CNode* pfrom, std::string& strCommand, CData
 
         int nInvCount = 0;
 
-        BOOST_FOREACH(CMasternode& mn, vMasternodes) {
-            if (vin != CTxIn() && vin != mn.vin) continue; // asked for specific vin but we are not there yet
-            if (mn.addr.IsRFC1918() || mn.addr.IsLocal()) continue; // do not send local network masternode
-            if (mn.IsUpdateRequired()) continue; // do not send outdated masternodes
+        for (auto& mnpair : mapMasternodes) {
+            if (vin != CTxIn() && vin != mnpair.second.vin) continue; // asked for specific vin but we are not there yet
+            if (mnpair.second.addr.IsRFC1918() || mnpair.second.addr.IsLocal()) continue; // do not send local network masternode
+            if (mnpair.second.IsUpdateRequired()) continue; // do not send outdated masternodes
 
-            LogPrint("masternode", "DSEG -- Sending Masternode entry: masternode=%s  addr=%s\n", mn.vin.prevout.ToStringShort(), mn.addr.ToString());
-            CMasternodeBroadcast mnb = CMasternodeBroadcast(mn);
+            LogPrint("masternode", "DSEG -- Sending Masternode entry: masternode=%s  addr=%s\n", mnpair.first.ToStringShort(), mnpair.second.addr.ToString());
+            CMasternodeBroadcast mnb = CMasternodeBroadcast(mnpair.second);
             uint256 hash = mnb.GetHash();
             pfrom->PushInventory(CInv(MSG_MASTERNODE_ANNOUNCE, hash));
-            pfrom->PushInventory(CInv(MSG_MASTERNODE_PING, mn.lastPing.GetHash()));
+            pfrom->PushInventory(CInv(MSG_MASTERNODE_PING, mnpair.second.lastPing.GetHash()));
             nInvCount++;
 
             if (!mapSeenMasternodeBroadcast.count(hash)) {
                 mapSeenMasternodeBroadcast.insert(std::make_pair(hash, std::make_pair(GetTime(), mnb)));
             }
 
-            if (vin == mn.vin) {
+            if (vin.prevout == mnpair.first) {
                 LogPrintf("DSEG -- Sent 1 Masternode inv to peer %d\n", pfrom->id);
                 return;
             }
@@ -961,7 +853,7 @@ void CMasternodeMan::DoFullVerificationStep()
     if(activeMasternode.vin == CTxIn()) return;
     if(!masternodeSync.IsSynced()) return;
 
-    std::vector<std::pair<int, CMasternode> > vecMasternodeRanks = GetMasternodeRanks(pCurrentBlockIndex->nHeight - 1, MIN_POSE_PROTO_VERSION);
+    std::vector<std::pair<int, CMasternode> > vecMasternodeRanks = GetMasternodeRanks(nCachedBlockHeight - 1, MIN_POSE_PROTO_VERSION);
 
     // Need LOCK2 here to ensure consistent locking order because the SendVerifyRequest call below locks cs_main
     // through GetHeight() signal in ConnectNode
@@ -998,8 +890,8 @@ void CMasternodeMan::DoFullVerificationStep()
     if(nOffset >= (int)vecMasternodeRanks.size()) return;
 
     std::vector<CMasternode*> vSortedByAddr;
-    BOOST_FOREACH(CMasternode& mn, vMasternodes) {
-        vSortedByAddr.push_back(&mn);
+    for (auto& mnpair : mapMasternodes) {
+        vSortedByAddr.push_back(&mnpair.second);
     }
 
     sort(vSortedByAddr.begin(), vSortedByAddr.end(), CompareByAddr());
@@ -1038,7 +930,7 @@ void CMasternodeMan::DoFullVerificationStep()
 
 void CMasternodeMan::CheckSameAddr()
 {
-    if(!masternodeSync.IsSynced() || vMasternodes.empty()) return;
+    if(!masternodeSync.IsSynced() || mapMasternodes.empty()) return;
 
     std::vector<CMasternode*> vBan;
     std::vector<CMasternode*> vSortedByAddr;
@@ -1049,8 +941,8 @@ void CMasternodeMan::CheckSameAddr()
         CMasternode* pprevMasternode = NULL;
         CMasternode* pverifiedMasternode = NULL;
 
-        BOOST_FOREACH(CMasternode& mn, vMasternodes) {
-            vSortedByAddr.push_back(&mn);
+        for (auto& mnpair : mapMasternodes) {
+            vSortedByAddr.push_back(&mnpair.second);
         }
 
         sort(vSortedByAddr.begin(), vSortedByAddr.end(), CompareByAddr());
@@ -1106,7 +998,7 @@ bool CMasternodeMan::SendVerifyRequest(const CAddress& addr, const std::vector<C
 
     netfulfilledman.AddFulfilledRequest(addr, strprintf("%s", NetMsgType::MNVERIFY)+"-request");
     // use random nonce, store it and require node to reply with correct one later
-    CMasternodeVerification mnv(addr, GetRandInt(999999), pCurrentBlockIndex->nHeight - 1);
+    CMasternodeVerification mnv(addr, GetRandInt(999999), nCachedBlockHeight - 1);
     mWeAskedForVerification[addr] = mnv;
     LogPrintf("CMasternodeMan::SendVerifyRequest -- verifying node using nonce %d addr=%s\n", mnv.nonce, addr.ToString());
     g_connman->PushMessage(pnode, NetMsgType::MNVERIFY, mnv);
@@ -1200,23 +1092,22 @@ void CMasternodeMan::ProcessVerifyReply(CNode* pnode, CMasternodeVerification& m
 
         CMasternode* prealMasternode = NULL;
         std::vector<CMasternode*> vpMasternodesToBan;
-        std::vector<CMasternode>::iterator it = vMasternodes.begin();
         std::string strMessage1 = strprintf("%s%d%s", pnode->addr.ToString(false), mnv.nonce, blockHash.ToString());
-        while(it != vMasternodes.end()) {
-            if(CAddress(it->addr, NODE_NETWORK) == pnode->addr) {
-                if(CMessageSigner::VerifyMessage(it->pubKeyMasternode, mnv.vchSig1, strMessage1, strError)) {
+        for (auto& mnpair : mapMasternodes) {
+            if(CAddress(mnpair.second.addr, NODE_NETWORK) == pnode->addr) {
+                if(CMessageSigner::VerifyMessage(mnpair.second.pubKeyMasternode, mnv.vchSig1, strMessage1, strError)) {
                     // found it!
-                    prealMasternode = &(*it);
-                    if(!it->IsPoSeVerified()) {
-                        it->DecreasePoSeBanScore();
+                    prealMasternode = &mnpair.second;
+                    if(!mnpair.second.IsPoSeVerified()) {
+                        mnpair.second.DecreasePoSeBanScore();
                     }
                     netfulfilledman.AddFulfilledRequest(pnode->addr, strprintf("%s", NetMsgType::MNVERIFY)+"-done");
 
                     // we can only broadcast it if we are an activated masternode
                     if(activeMasternode.vin == CTxIn()) continue;
                     // update ...
-                    mnv.addr = it->addr;
-                    mnv.vin1 = it->vin;
+                    mnv.addr = mnpair.second.addr;
+                    mnv.vin1 = mnpair.second.vin;
                     mnv.vin2 = activeMasternode.vin;
                     std::string strMessage2 = strprintf("%s%d%s%s%s", mnv.addr.ToString(false), mnv.nonce, blockHash.ToString(),
                                             mnv.vin1.prevout.ToStringShort(), mnv.vin2.prevout.ToStringShort());
@@ -1237,10 +1128,9 @@ void CMasternodeMan::ProcessVerifyReply(CNode* pnode, CMasternodeVerification& m
                     mnv.Relay();
 
                 } else {
-                    vpMasternodesToBan.push_back(&(*it));
+                    vpMasternodesToBan.push_back(&mnpair.second);
                 }
             }
-            ++it;
         }
         // no real masternode found?...
         if(!prealMasternode) {
@@ -1274,9 +1164,9 @@ void CMasternodeMan::ProcessVerifyBroadcast(CNode* pnode, const CMasternodeVerif
     mapSeenMasternodeVerification[mnv.GetHash()] = mnv;
 
     // we don't care about history
-    if(mnv.nBlockHeight < pCurrentBlockIndex->nHeight - MAX_POSE_BLOCKS) {
+    if(mnv.nBlockHeight < nCachedBlockHeight - MAX_POSE_BLOCKS) {
         LogPrint("masternode", "CMasternodeMan::ProcessVerifyBroadcast -- Outdated: current block %d, verification block %d, peer=%d\n",
-                    pCurrentBlockIndex->nHeight, mnv.nBlockHeight, pnode->id);
+                    nCachedBlockHeight, mnv.nBlockHeight, pnode->id);
         return;
     }
 
@@ -1354,12 +1244,12 @@ void CMasternodeMan::ProcessVerifyBroadcast(CNode* pnode, const CMasternodeVerif
 
         // increase ban score for everyone else with the same addr
         int nCount = 0;
-        BOOST_FOREACH(CMasternode& mn, vMasternodes) {
-            if(mn.addr != mnv.addr || mn.vin.prevout == mnv.vin1.prevout) continue;
-            mn.IncreasePoSeBanScore();
+        for (auto& mnpair : mapMasternodes) {
+            if(mnpair.second.addr != mnv.addr || mnpair.first == mnv.vin1.prevout) continue;
+            mnpair.second.IncreasePoSeBanScore();
             nCount++;
             LogPrint("masternode", "CMasternodeMan::ProcessVerifyBroadcast -- increased PoSe ban score for %s addr %s, new score %d\n",
-                        mn.vin.prevout.ToStringShort(), mn.addr.ToString(), mn.nPoSeBanScore);
+                        mnpair.first.ToStringShort(), mnpair.second.addr.ToString(), mnpair.second.nPoSeBanScore);
         }
         LogPrintf("CMasternodeMan::ProcessVerifyBroadcast -- PoSe score incresed for %d fake masternodes, addr %s\n",
                     nCount, pnode->addr.ToString());
@@ -1370,11 +1260,10 @@ std::string CMasternodeMan::ToString() const
 {
     std::ostringstream info;
 
-    info << "Masternodes: " << (int)vMasternodes.size() <<
+    info << "Masternodes: " << (int)mapMasternodes.size() <<
             ", peers who asked us for Masternode list: " << (int)mAskedUsForMasternodeList.size() <<
             ", peers we asked for Masternode list: " << (int)mWeAskedForMasternodeList.size() <<
             ", entries in Masternode list we asked for: " << (int)mWeAskedForMasternodeListEntry.size() <<
-            ", masternode index size: " << indexMasternodes.GetSize() <<
             ", nDsqCount: " << (int)nDsqCount;
 
     return info.str();
@@ -1495,12 +1384,11 @@ bool CMasternodeMan::CheckMnbAndUpdateMasternodeList(CNode* pfrom, CMasternodeBr
     return true;
 }
 
-void CMasternodeMan::UpdateLastPaid()
+void CMasternodeMan::UpdateLastPaid(const CBlockIndex* pindex)
 {
     LOCK(cs);
 
-    if(fLiteMode || !pCurrentBlockIndex) return;
-    if(!masternodeSync.IsWinnersListSynced() || vMasternodes.empty()) return;
+    if(fLiteMode || !masternodeSync.IsWinnersListSynced() || mapMasternodes.empty()) return;
 
     static bool IsFirstRun = true;
     // Do full scan on first run or if we are not a masternode
@@ -1508,10 +1396,10 @@ void CMasternodeMan::UpdateLastPaid()
     int nMaxBlocksToScanBack = (IsFirstRun || !fMasterNode) ? mnpayments.GetStorageLimit() : LAST_PAID_SCAN_BLOCKS;
 
     // LogPrint("mnpayments", "CMasternodeMan::UpdateLastPaid -- nHeight=%d, nMaxBlocksToScanBack=%d, IsFirstRun=%s\n",
-    //                         pCurrentBlockIndex->nHeight, nMaxBlocksToScanBack, IsFirstRun ? "true" : "false");
+    //                         nCachedBlockHeight, nMaxBlocksToScanBack, IsFirstRun ? "true" : "false");
 
-    BOOST_FOREACH(CMasternode& mn, vMasternodes) {
-        mn.UpdateLastPaid(pCurrentBlockIndex, nMaxBlocksToScanBack);
+    for (auto& mnpair: mapMasternodes) {
+        mnpair.second.UpdateLastPaid(pindex, nMaxBlocksToScanBack);
     }
 
     IsFirstRun = false;
@@ -1529,31 +1417,6 @@ bool CMasternodeMan::UpdateLastDsq(const CTxIn& vin)
     return true;
 }
 
-void CMasternodeMan::CheckAndRebuildMasternodeIndex()
-{
-    LOCK(cs);
-
-    if(GetTime() - nLastIndexRebuildTime < MIN_INDEX_REBUILD_TIME) {
-        return;
-    }
-
-    if(indexMasternodes.GetSize() <= MAX_EXPECTED_INDEX_SIZE) {
-        return;
-    }
-
-    if(indexMasternodes.GetSize() <= int(vMasternodes.size())) {
-        return;
-    }
-
-    indexMasternodesOld = indexMasternodes;
-    indexMasternodes.Clear();
-    for(size_t i = 0; i < vMasternodes.size(); ++i) {
-        indexMasternodes.AddMasternodeVIN(vMasternodes[i].vin);
-    }
-
-    fIndexRebuilt = true;
-    nLastIndexRebuildTime = GetTime();
-}
 
 void CMasternodeMan::UpdateWatchdogVoteTime(const CTxIn& vin)
 {
@@ -1587,49 +1450,20 @@ bool CMasternodeMan::AddGovernanceVote(const CTxIn& vin, uint256 nGovernanceObje
 void CMasternodeMan::RemoveGovernanceObject(uint256 nGovernanceObjectHash)
 {
     LOCK(cs);
-    BOOST_FOREACH(CMasternode& mn, vMasternodes) {
-        mn.RemoveGovernanceObject(nGovernanceObjectHash);
+    for(auto& mnpair : mapMasternodes) {
+        mnpair.second.RemoveGovernanceObject(nGovernanceObjectHash);
     }
-}
-
-void CMasternodeMan::CheckMasternode(const CTxIn& vin, bool fForce)
-{
-    LOCK(cs);
-    CMasternode* pMN = Find(vin);
-    if(!pMN)  {
-        return;
-    }
-    pMN->Check(fForce);
 }
 
 void CMasternodeMan::CheckMasternode(const CPubKey& pubKeyMasternode, bool fForce)
 {
     LOCK(cs);
-    CMasternode* pMN = Find(pubKeyMasternode);
-    if(!pMN)  {
-        return;
+    for (auto& mnpair : mapMasternodes) {
+        if (mnpair.second.pubKeyMasternode == pubKeyMasternode) {
+            mnpair.second.Check(fForce);
+            return;
+        }
     }
-    pMN->Check(fForce);
-}
-
-int CMasternodeMan::GetMasternodeState(const CTxIn& vin)
-{
-    LOCK(cs);
-    CMasternode* pMN = Find(vin);
-    if(!pMN)  {
-        return CMasternode::MASTERNODE_NEW_START_REQUIRED;
-    }
-    return pMN->nActiveState;
-}
-
-int CMasternodeMan::GetMasternodeState(const CPubKey& pubKeyMasternode)
-{
-    LOCK(cs);
-    CMasternode* pMN = Find(pubKeyMasternode);
-    if(!pMN)  {
-        return CMasternode::MASTERNODE_NEW_START_REQUIRED;
-    }
-    return pMN->nActiveState;
 }
 
 bool CMasternodeMan::IsMasternodePingedWithin(const CTxIn& vin, int nSeconds, int64_t nTimeToCheckAt)
@@ -1666,14 +1500,14 @@ void CMasternodeMan::SetMasternodeLastPing(const CTxIn& vin, const CMasternodePi
 
 void CMasternodeMan::UpdatedBlockTip(const CBlockIndex *pindex)
 {
-    pCurrentBlockIndex = pindex;
-    LogPrint("masternode", "CMasternodeMan::UpdatedBlockTip -- pCurrentBlockIndex->nHeight=%d\n", pCurrentBlockIndex->nHeight);
+    nCachedBlockHeight = pindex->nHeight;
+    LogPrint("masternode", "CMasternodeMan::UpdatedBlockTip -- nCachedBlockHeight=%d\n", nCachedBlockHeight);
 
     CheckSameAddr();
 
     if(fMasterNode) {
         // normal wallet does not need to update this every block, doing update on rpc call should be enough
-        UpdateLastPaid();
+        UpdateLastPaid(pindex);
     }
 }
 

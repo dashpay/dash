@@ -4,6 +4,7 @@
 #ifndef INSTANTX_H
 #define INSTANTX_H
 
+#include "chain.h"
 #include "net.h"
 #include "primitives/transaction.h"
 
@@ -38,8 +39,8 @@ class CInstantSend
 private:
     static const int ORPHAN_VOTE_SECONDS            = 60;
 
-    // Keep track of current block index
-    const CBlockIndex *pCurrentBlockIndex;
+    // Keep track of current block height
+    int nCachedBlockHeight;
 
     // maps for AlreadyHave
     std::map<uint256, CTxLockRequest> mapLockRequestAccepted; // tx hash - tx
@@ -95,6 +96,8 @@ public:
     bool IsLockedInstantSendTransaction(const uint256& txHash);
     // get the actual uber og accepted lock signatures
     int GetTransactionLockSignatures(const uint256& txHash);
+    // get instantsend confirmations (only)
+    int GetConfirmations(const uint256 &nTXHash);
 
     // remove expired entries from maps
     void CheckAndRemove();

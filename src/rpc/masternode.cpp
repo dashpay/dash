@@ -188,11 +188,13 @@ UniValue masternode(const UniValue& params, bool fHelp)
         int nCount;
         int nHeight;
         CMasternode* winner = NULL;
+        CBlockIndex* pindex = NULL;
         {
             LOCK(cs_main);
-            nHeight = chainActive.Height() + (strCommand == "current" ? 1 : 10);
+            pindex = chainActive.Tip();
         }
-        mnodeman.UpdateLastPaid();
+        nHeight = pindex->nHeight + (strCommand == "current" ? 1 : 10);
+        mnodeman.UpdateLastPaid(pindex);
         winner = mnodeman.GetNextMasternodeInQueueForPayment(nHeight, true, nCount);
         if(!winner) return "unknown";
 
@@ -487,7 +489,12 @@ UniValue masternodelist(const UniValue& params, bool fHelp)
     }
 
     if (strMode == "full" || strMode == "lastpaidtime" || strMode == "lastpaidblock") {
-        mnodeman.UpdateLastPaid();
+        CBlockIndex* pindex = NULL;
+        {
+            LOCK(cs_main);
+            pindex = chainActive.Tip();
+        }
+        mnodeman.UpdateLastPaid(pindex);
     }
 
     UniValue obj(UniValue::VOBJ);
@@ -499,9 +506,10 @@ UniValue masternodelist(const UniValue& params, bool fHelp)
             obj.push_back(Pair(strOutpoint, s.first));
         }
     } else {
-        std::vector<CMasternode> vMasternodes = mnodeman.GetFullMasternodeVector();
-        BOOST_FOREACH(CMasternode& mn, vMasternodes) {
-            std::string strOutpoint = mn.vin.prevout.ToStringShort();
+        std::map<COutPoint, CMasternode> mapMasternodes = mnodeman.GetFullMasternodeMap();
+        for (auto& mnpair : mapMasternodes) {
+            CMasternode mn = mnpair.second;
+            std::string strOutpoint = mnpair.first.ToStringShort();
             if (strMode == "activeseconds") {
                 if (strFilter !="" && strOutpoint.find(strFilter) == std::string::npos) continue;
                 obj.push_back(Pair(strOutpoint, (int64_t)(mn.lastPing.sigTime - mn.sigTime)));
