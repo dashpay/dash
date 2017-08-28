@@ -256,6 +256,7 @@ Masternode Payment Block
 Masternode Verify
 
 | Field Size | Field Name | Data type | Description |
+| ---------- | ----------- | --------- | -------- |
 | 41 | vin1 | CTxIn | The unspent output which is holding 1000 DASH for masternode 1
 | 41 | vin2 | CTxIn | The unspent output which is holding 1000 DASH for masternode 2
 | # | addr | CService | IPv4 address of the masternode
@@ -269,6 +270,7 @@ Masternode Verify
 Darksend Final Transaction
 
 | Field Size | Field Name | Data type | Description |
+| ---------- | ----------- | --------- | -------- |
 | 4 | nSessionID | int |
 | # | txFinal | CTransaction | Final mixing transaction
 
@@ -277,6 +279,7 @@ Darksend Final Transaction
 Darksend Complete
 
 | Field Size | Field Name | Data type | Description |
+| ---------- | ----------- | --------- | -------- |
 | 4 | nSessionID | int |
 | 4 | nMessageID | int |
 
@@ -285,6 +288,7 @@ Darksend Complete
 Governance Sync
 
 | Field Size | Field Name | Data type | Description |
+| ---------- | ----------- | --------- | -------- |
 | # | nHash | uint256 |
 | # | filter | CBloomFilter |
 
@@ -295,6 +299,7 @@ Masternode List/Entry Sync
 Get Masternode list or specific entry
 
 | Field Size | Field Name | Data type | Description |
+| ---------- | ----------- | --------- | -------- |
 | 41 | vin | CTxIn | The unspent output which is holding 1000 DASH
 
 ### SYNCSTATUSCOUNT - "ssc"
@@ -302,6 +307,7 @@ Get Masternode list or specific entry
 Sync Status Count
 
 | Field Size | Field Name | Data type | Description |
+| ---------- | ----------- | --------- | -------- |
 | 4 | nItemID | int | Masternode Sync Item ID
 | 4 | nCount | int | Masternode Sync Count
 
@@ -320,5 +326,6 @@ Sync Status Count
 Masternode Payment Sync
 
 | Field Size | Field Name | Data type | Description |
+| ---------- | ----------- | --------- | -------- |
 | 4 | nMnCount | int |
 
