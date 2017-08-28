@@ -41,6 +41,17 @@ Bitcoin Output https://bitcoin.org/en/glossary/output
 | 8 | nValue | int64_t | Transfered value
 | ? | scriptPubKey | CScript | The script for indicating what conditions must be fulfilled for this output to be further spent
 
+### CTransaction
+
+| Field Size | Field Name | Data type | Description |
+| ---------- | ----------- | --------- | -------- |
+| 4 | nVersion | int32_t | Transaction data format version
+| 1+ | tx_in count | var_int | Number of Transaction inputs
+| 41+ | vin | [CTxIn](#ctxin) | A list of 1 or more transaction inputs
+| 1+ | tx_out count | var_int | Number of Transaction outputs
+| 9+ | vout | [CTxOut](#ctxout) | A list of 1 or more transaction outputs
+| 4 | nLockTime | uint32_t | The block number or timestamp at which this transaction is unlocked
+
 ### CPubKey
 
 Bitcoin Public Key https://bitcoin.org/en/glossary/public-key
