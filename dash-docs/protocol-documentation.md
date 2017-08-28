@@ -255,21 +255,38 @@ Masternode Payment Block
 
 Masternode Verify
 
+| Field Size | Field Name | Data type | Description |
+| 41 | vin1 | CTxIn | The unspent output which is holding 1000 DASH for masternode 1
+| 41 | vin2 | CTxIn | The unspent output which is holding 1000 DASH for masternode 2
+| # | addr | CService | IPv4 address of the masternode
+| 4 | nonce | int | Nonce
+| 4 | nBlockHeight | int | The blockheight
+| 71-73 | vchSig1 | char[] | Signature of by masternode 1
+| 71-73 | vchSig2 | char[] | Signature of by masternode 2
+
 ### DSFINALTX - "dsf"
 
 Darksend Final Transaction
+
+| Field Size | Field Name | Data type | Description |
+| 4 | nSessionID | int |
+| # | txFinal | CTransaction | Final mixing transaction
 
 ### DSCOMPLETE - "dsc"
 
 Darksend Complete
 
-### TXLOCKREQUEST - "ix"
-
-Tx Lock Request
+| Field Size | Field Name | Data type | Description |
+| 4 | nSessionID | int |
+| 4 | nMessageID | int |
 
 ### MNGOVERNANCESYNC - "govsync"
 
 Governance Sync
+
+| Field Size | Field Name | Data type | Description |
+| # | nHash | uint256 |
+| # | filter | CBloomFilter |
 
 ### DSEG - "dseg"
 
@@ -277,10 +294,31 @@ Masternode List/Entry Sync
 
 Get Masternode list or specific entry
 
+| Field Size | Field Name | Data type | Description |
+| 41 | vin | CTxIn | The unspent output which is holding 1000 DASH
+
 ### SYNCSTATUSCOUNT - "ssc"
 
 Sync Status Count
 
+| Field Size | Field Name | Data type | Description |
+| 4 | nItemID | int | Masternode Sync Item ID
+| 4 | nCount | int | Masternode Sync Count
+
+#### Defined Sync Item IDs (per src/masternode-sync.h)
+
+| Item ID | Name | Description |
+| ---------- | ---------- | ----------- |
+| 2 | MASTERNODE_SYNC_LIST |
+| 3 | MASTERNODE_SYNC_MNW |
+| 4 | MASTERNODE_SYNC_GOVERNANCE |
+| 10 | MASTERNODE_SYNC_GOVOBJ |
+| 11 | MASTERNODE_SYNC_GOVOBJ_VOTE |
+
 ### MASTERNODEPAYMENTSYNC - "mnget"
 
 Masternode Payment Sync
+
+| Field Size | Field Name | Data type | Description |
+| 4 | nMnCount | int |
+
