@@ -27,7 +27,7 @@ Bitcoin Input https://bitcoin.org/en/glossary/input
 
 | Field Size | Field Name | Data type | Description |
 | ---------- | ----------- | --------- | -------- |
-| 36 | prevout | COutPoint | The previous output from an existing transaction, in the form of an unspent output
+| 36 | prevout | [COutPoint](#coutpoint) | The previous output from an existing transaction, in the form of an unspent output
 | 1+ | script length | var_int | The length of the signature script
 | ? | script | CScript | The script which is validated for this input to be spent
 | 4 | nSequence | uint_32t | Transaction version as defined by the sender. Intended for "replacement" of transactions when information is updated before inclusion into a block.
@@ -70,10 +70,10 @@ Whenever a masternode comes online or a client is syncing, they will send this m
 
 | Field Size | Field Name | Data type | Description |
 | ---------- | ----------- | --------- | -------- |
-| 41 | vin | CTxIn | The unspent output which is holding 1000 DASH
+| 41 | vin | [CTxIn](#ctxin) | The unspent output which is holding 1000 DASH
 | # | addr | CService | IPv4 address of the masternode
-| 33-65 | pubKeyCollateralAddress | CPubKey | CPubKey of the main 1000 DASH unspent output
-| 33-65 | pubKeyMasternode | CPubKey | CPubKey of the secondary signing key (For all other messaging other than announce message)
+| 33-65 | pubKeyCollateralAddress | [CPubKey](#cpubkey) | CPubKey of the main 1000 DASH unspent output
+| 33-65 | pubKeyMasternode | [CPubKey](#cpubkey) | CPubKey of the secondary signing key (For all other messaging other than announce message)
 | 71-73 | sig | char[] | Signature of this message (verifiable via pubKeyCollateralAddress)
 | 8 | sigTime | int64_t | Time which the signature was created
 | 4 | nProtocolVersion | int | The protocol version of the masternode
@@ -88,7 +88,7 @@ Every few minutes, masternodes ping the network with a message that propagates t
 
 | Field Size | Field Name | Data type | Description |
 | ---------- | ----------- | --------- | -------- |
-| 41 | vin | CTxIn | The unspent output of the masternode which is signing the message
+| 41 | vin | [CTxIn](#ctxin) | The unspent output of the masternode which is signing the message
 | 32 | blockHash | uint256 | Current chaintip blockhash minus 12
 | 8 | sigTime | int64_t | Signature time for this ping
 | 71-73 | vchSig | char[] | Signature of this message by masternode (verifiable via pubKeyMasternode)
@@ -101,7 +101,7 @@ When a new block is found on the network, a masternode quorum will be determined
 
 | Field Size | Field Name | Data type | Description |
 | ---------- | ----------- | --------- | -------- |
-| 41 | vinMasternode | CTxIn | The unspent output of the masternode which is signing the message
+| 41 | vinMasternode | [CTxIn](#ctxin) | The unspent output of the masternode which is signing the message
 | 4 | nBlockHeight | int | The blockheight which the payee should be paid
 | ? | payeeAddress | CScript | The address to pay to
 | 71-73 | sig | char[] | Signature of the masternode which is signing the message
@@ -114,8 +114,8 @@ Masternodes can broadcast subsidised transactions without fees for the sake of s
 
 | Field Size | Field Name | Data type | Description |
 | ---------- | ----------- | --------- | -------- |
-| # | tx | CTransaction | The transaction
-| 41 | vin | CTxIn | Masternode unspent output
+| # | tx | [CTransaction](#ctransaction) | The transaction
+| 41 | vin | [CTxIn](#ctxin) | Masternode unspent output
 | 71-73 | vchSig | char[] | Signature of this message by masternode (verifiable via pubKeyMasternode)
 | 8 | sigTime | int64_t | Time this message was signed
 
@@ -140,7 +140,7 @@ Asks users to sign final mixing tx message.
 | Field Size | Field Name | Data type | Description |
 | ---------- | ----------- | --------- | -------- |
 | 4 | nDenom | int | Which denomination is allowed in this mixing session
-| 41 | vin | CTxIn | unspend output from masternode which is hosting this session
+| 41 | vin | [CTxIn](#ctxin) | unspend output from masternode which is hosting this session
 | 4 | nTime | int | the time this DSQ was created
 | 4 | fReady | int | if the mixing pool is ready to be executed
 | 71-73 | vchSig | char[] | Signature of this message by masternode (verifiable via pubKeyMasternode)
@@ -162,10 +162,10 @@ When queue is ready user is expected to send his entry to start actual mixing
 
 | Field Size | Field Name | Data type | Description |
 | ---------- | ----------- | --------- | -------- |
-| ? | vecTxDSIn | CTxDSIn[] | vector of users inputs (CTxDSIn serialization is equal to CTxIn serialization)
+| ? | vecTxDSIn | CTxDSIn[] | vector of users inputs (CTxDSIn serialization is equal to [CTxIn](#ctxin) serialization)
 | 8 | nAmount | int64_t | depreciated since 12.1, it's used for backwards compatibility only and can be removed with future protocol bump
-| ? | txCollateral | CTransaction | Collateral transaction which is used to prevent misbehavior and also to charge fees randomly
-| ? | vecTxDSOut | CTxDSOut[] | vector of user outputs (CTxDSOut serialization is equal to CTxOut serialization)
+| ? | txCollateral | [CTransaction](#ctransaction) | Collateral transaction which is used to prevent misbehavior and also to charge fees randomly
+| ? | vecTxDSOut | CTxDSOut[] | vector of user outputs (CTxDSOut serialization is equal to [CTxOut](#ctxout) serialization)
 
 ### DSSIGNFINALTX - "dss"
 
@@ -173,14 +173,14 @@ User's signed inputs for a group transaction in a mixing session
 
 | Field Size | Field Name | Data type | Description |
 | ---------- | ----------- | --------- | -------- |
-| # | inputs | CTxIn[] | signed inputs for mixing session
+| # | inputs | [CTxIn](#ctxin)[] | signed inputs for mixing session
 
 
 ### TXLOCKREQUEST - "ix"
 
 CTxLockRequest
 
-Transaction Lock Request, serialization is the same as for CTransaction.
+Transaction Lock Request, serialization is the same as for [CTransaction](#ctransaction).
 
 ### TXLOCKVOTE - "txlvote"
 
@@ -191,8 +191,8 @@ Transaction Lock Vote
 | Field Size | Field Name | Data type | Description |
 | ---------- | ----------- | --------- | -------- |
 | 32 | txHash | uint256 | txid of the transaction to lock
-| 36 | outpoint | COutPoint | The utxo to lock in this transaction
-| 36 | outpointMasternode | COutPoint | The utxo of the masternode which is signing the vote
+| 36 | outpoint | [COutPoint](#coutpoint) | The utxo to lock in this transaction
+| 36 | outpointMasternode | [COutPoint](#coutpoint) | The utxo of the masternode which is signing the vote
 | 71-73 | vchMasternodeSignature | char[] | Signature of this message by masternode (verifiable via pubKeyMasternode)
 
 ### MNGOVERNANCEOBJECT - "govobj"
@@ -209,7 +209,7 @@ A proposal, contract or setting.
 | 32 | nCollateralHash | uint256 | Hash of the collateral fee transaction
 | 0-16384 | strData | string | Data field - can be used for anything
 | 4 | nObjectType | int | ????
-| 41 | vinMasternode | CTxIn | Unspent output for the masternode which is signing this object
+| 41 | vinMasternode | [CTxIn](#ctxin) | Unspent output for the masternode which is signing this object
 | 71-73 | vchSig | char[] | Signature of the masternode
 
 ### MNGOVERNANCEOBJECTVOTE - "govobjvote"
@@ -220,7 +220,7 @@ Masternodes use governance voting in response to new proposals, contracts, setti
 
 | Field Size | Field Name | Data type | Description |
 | ---------- | ----------- | --------- | -------- |
-| 41+ | vinMasternode | CTxIn | Unspent output for the masternode which is voting
+| 41+ | vinMasternode | [CTxIn](#ctxin) | Unspent output for the masternode which is voting
 | 32 | nParentHash | uint256 | Object which we're voting on (proposal, contract, setting or final budget)
 | 4 | nVoteOutcome | int | ???
 | 4 | nVoteSignal | int | ???
@@ -268,8 +268,8 @@ Masternode Verify
 
 | Field Size | Field Name | Data type | Description |
 | ---------- | ----------- | --------- | -------- |
-| 41 | vin1 | CTxIn | The unspent output which is holding 1000 DASH for masternode 1
-| 41 | vin2 | CTxIn | The unspent output which is holding 1000 DASH for masternode 2
+| 41 | vin1 | [CTxIn](#ctxin) | The unspent output which is holding 1000 DASH for masternode 1
+| 41 | vin2 | [CTxIn](#ctxin) | The unspent output which is holding 1000 DASH for masternode 2
 | # | addr | CService | IPv4 address of the masternode
 | 4 | nonce | int | Nonce
 | 4 | nBlockHeight | int | The blockheight
@@ -283,7 +283,7 @@ Darksend Final Transaction
 | Field Size | Field Name | Data type | Description |
 | ---------- | ----------- | --------- | -------- |
 | 4 | nSessionID | int |
-| # | txFinal | CTransaction | Final mixing transaction
+| # | txFinal | [CTransaction](#ctransaction) | Final mixing transaction
 
 ### DSCOMPLETE - "dsc"
 
@@ -311,7 +311,7 @@ Get Masternode list or specific entry
 
 | Field Size | Field Name | Data type | Description |
 | ---------- | ----------- | --------- | -------- |
-| 41 | vin | CTxIn | The unspent output which is holding 1000 DASH
+| 41 | vin | [CTxIn](#ctxin) | The unspent output which is holding 1000 DASH
 
 ### SYNCSTATUSCOUNT - "ssc"
 
