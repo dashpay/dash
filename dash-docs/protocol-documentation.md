@@ -60,6 +60,13 @@ Bitcoin Public Key https://bitcoin.org/en/glossary/public-key
 | ---------- | ----------- | --------- | -------- |
 | 33-65 | vch | char[] | The public portion of a keypair which can be used to verify signatures made with the private portion of the keypair.
 
+### CService
+
+| Field Size | Field Name | Data type | Description |
+| ---------- | ----------- | --------- | -------- |
+| 16 | IP | CNetAddr | IP Address
+| 2 | Port | uint16 | IP Port
+
 ## Message Types
 
 ### MNANNOUNCE - "mnb"
@@ -71,7 +78,7 @@ Whenever a masternode comes online or a client is syncing, they will send this m
 | Field Size | Field Name | Data type | Description |
 | ---------- | ----------- | --------- | -------- |
 | 41 | vin | [CTxIn](#ctxin) | The unspent output which is holding 1000 DASH
-| # | addr | CService | IPv4 address of the masternode
+| # | addr | [CService](#cservice) | IPv4 address of the masternode
 | 33-65 | pubKeyCollateralAddress | [CPubKey](#cpubkey) | CPubKey of the main 1000 DASH unspent output
 | 33-65 | pubKeyMasternode | [CPubKey](#cpubkey) | CPubKey of the secondary signing key (For all other messaging other than announce message)
 | 71-73 | sig | char[] | Signature of this message (verifiable via pubKeyCollateralAddress)
@@ -210,7 +217,7 @@ A proposal, contract or setting.
 | 0-16384 | strData | string | Data field - can be used for anything
 | 4 | nObjectType | int | ????
 | 41 | vinMasternode | [CTxIn](#ctxin) | Unspent output for the masternode which is signing this object
-| 71-73 | vchSig | char[] | Signature of the masternode
+| 66* | vchSig | char[] | Signature of the masternode (unclear if 66 is the correct size, but this is what it appears to be in most cases)
 
 ### MNGOVERNANCEOBJECTVOTE - "govobjvote"
 
@@ -225,7 +232,7 @@ Masternodes use governance voting in response to new proposals, contracts, setti
 | 4 | nVoteOutcome | int | ???
 | 4 | nVoteSignal | int | ???
 | 8 | nTime | int64_t | Time which the vote was created
-| 71-73 | vchSig | char[] | Signature of the masternode
+| 66* | vchSig | char[] | Signature of the masternode (unclear if 66 is the correct size, but this is what it appears to be in most cases)
 
 ### SPORK - "spork"
 
@@ -270,11 +277,11 @@ Masternode Verify
 | ---------- | ----------- | --------- | -------- |
 | 41 | vin1 | [CTxIn](#ctxin) | The unspent output which is holding 1000 DASH for masternode 1
 | 41 | vin2 | [CTxIn](#ctxin) | The unspent output which is holding 1000 DASH for masternode 2
-| # | addr | CService | IPv4 address of the masternode
+| # | addr | [CService](#cservice) | IPv4 address / port of the masternode
 | 4 | nonce | int | Nonce
 | 4 | nBlockHeight | int | The blockheight
-| 71-73 | vchSig1 | char[] | Signature of by masternode 1
-| 71-73 | vchSig2 | char[] | Signature of by masternode 2
+| 66* | vchSig1 | char[] | Signature of by masternode 1 (unclear if 66 is the correct size, but this is what it appears to be in most cases)
+| 66* | vchSig2 | char[] | Signature of by masternode 2 (unclear if 66 is the correct size, but this is what it appears to be in most cases)
 
 ### DSFINALTX - "dsf"
 
@@ -300,7 +307,7 @@ Governance Sync
 
 | Field Size | Field Name | Data type | Description |
 | ---------- | ----------- | --------- | -------- |
-| # | nHash | uint256 |
+| 32 | nHash | uint256 |
 | # | filter | CBloomFilter |
 
 ### DSEG - "dseg"
