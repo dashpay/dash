@@ -1380,7 +1380,7 @@ bool static ProcessMessage(CNode* pfrom, string strCommand, CDataStream& vRecv, 
             if (inv.type == MSG_BLOCK) {
                 UpdateBlockAvailability(pfrom->GetId(), inv.hash);
                 if (!fAlreadyHave && !fImporting && !fReindex && !mapBlocksInFlight.count(inv.hash)) {
-                    if (pindexBestHeader->GetBlockTime() < GetAdjustedTime() - 7 * 24 * 60 * 60) {
+                    if (chainparams.DelayGetHeadersTime() != 0 && pindexBestHeader->GetBlockTime() < GetAdjustedTime() - chainparams.DelayGetHeadersTime()) {
                         // We are pretty far from being completely synced at the moment. If we would initiate a new
                         // chain of GETHEADERS/HEADERS now, we may end up downnloading the full chain from multiple
                         // peers at the same time, slowing down the initial sync. At the same time, we don't know
@@ -2285,7 +2285,8 @@ bool ProcessMessages(CNode* pfrom, CConnman& connman, std::atomic<bool>& interru
 
 bool SendMessages(CNode* pto, CConnman& connman, std::atomic<bool>& interruptMsgProc)
 {
-    const Consensus::Params& consensusParams = Params().GetConsensus();
+    const CChainParams chainParams = Params();
+    const Consensus::Params& consensusParams = chainParams.GetConsensus();
     {
         // Don't send anything until the version handshake is complete
         if (!pto->fSuccessfullyConnected || pto->fDisconnect)
@@ -2402,7 +2403,7 @@ bool SendMessages(CNode* pto, CConnman& connman, std::atomic<bool>& interruptMsg
             }
         }
 
-        if (pindexBestHeader->GetBlockTime() > GetAdjustedTime() - 7 * 24 * 60 * 60) {
+        if (chainParams.DelayGetHeadersTime() != 0 && pindexBestHeader->GetBlockTime() >= GetAdjustedTime() - chainParams.DelayGetHeadersTime()) {
             // Headers chain has catched up enough so we can send out GETHEADER messages which were initially meant to
             // be sent directly after INV was received
             LOCK(pto->cs_inventory);
