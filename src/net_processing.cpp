@@ -1775,11 +1775,6 @@ bool static ProcessMessage(CNode* pfrom, string strCommand, CDataStream& vRecv, 
             ReadCompactSize(vRecv); // ignore tx count; assume it is 0.
         }
 
-        if (nCount == 0) {
-            // Nothing interesting. Stop asking this peers for more headers.
-            return true;
-        }
-
         CBlockIndex *pindexLast = NULL;
         {
         LOCK(cs_main);
@@ -1816,6 +1811,20 @@ bool static ProcessMessage(CNode* pfrom, string strCommand, CDataStream& vRecv, 
             // from there instead.
             LogPrint("net", "more getheaders (%d) to end to peer=%d (startheight:%d)\n", pindexLast->nHeight, pfrom->id, pfrom->nStartingHeight);
             connman.PushMessage(pfrom, NetMsgType::GETHEADERS, chainActive.GetLocator(pindexLast), uint256());
+        } else {
+            if (chainparams.DelayGetHeadersTime() != 0 && pindexBestHeader->GetBlockTime() < GetAdjustedTime() - chainparams.DelayGetHeadersTime()) {
+                // peer has sent us a HEADERS message below maximum size and we are still quite far from being fully
+                // synced, this means we probably got a bad peer for initial sync and need to continue with another one.
+                // By disconnecting we force to start a new iteration of initial headers sync in SendMessages
+                // TODO should we handle whitelisted peers here as we do in headers sync timeout handling?
+                pfrom->fDisconnect = true;
+                return error("detected bad peer for initial headers sync, disconnecting %d", pfrom->id);
+            }
+
+            if (nCount == 0) {
+                // Nothing interesting. Stop asking this peers for more headers.
+                return true;
+            }
         }
 
         bool fCanDirectFetch = CanDirectFetch(chainparams.GetConsensus());
