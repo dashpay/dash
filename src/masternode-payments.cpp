@@ -271,14 +271,14 @@ void CMasternodePayments::FillBlockPayee(CMutableTransaction& txNew, int nBlockH
     if(!mnpayments.GetBlockPayee(nBlockHeight, payee)) {
         // no masternode detected...
         int nCount = 0;
-        CMasternode *winningNode = mnodeman.GetNextMasternodeInQueueForPayment(nBlockHeight, true, nCount);
-        if(!winningNode) {
+        masternode_info_t mnInfo;
+        if(!mnodeman.GetNextMasternodeInQueueForPayment(nBlockHeight, true, nCount, mnInfo)) {
             // ...and we can't calculate it on our own
             LogPrintf("CMasternodePayments::FillBlockPayee -- Failed to detect masternode to pay\n");
             return;
         }
         // fill payee with locally calculated winner and hope for the best
-        payee = GetScriptForDestination(winningNode->pubKeyCollateralAddress.GetID());
+        payee = GetScriptForDestination(mnInfo.pubKeyCollateralAddress.GetID());
     }
 
     // GET MASTERNODE PAYMENT VARIABLES SETUP
@@ -739,17 +739,17 @@ bool CMasternodePayments::ProcessBlock(int nBlockHeight)
 
     // pay to the oldest MN that still had no payment but its input is old enough and it was active long enough
     int nCount = 0;
-    CMasternode *pmn = mnodeman.GetNextMasternodeInQueueForPayment(nBlockHeight, true, nCount);
+    masternode_info_t mnInfo;
 
-    if (pmn == NULL) {
+    if (!mnodeman.GetNextMasternodeInQueueForPayment(nBlockHeight, true, nCount, mnInfo)) {
         LogPrintf("CMasternodePayments::ProcessBlock -- ERROR: Failed to find masternode to pay\n");
         return false;
     }
 
-    LogPrintf("CMasternodePayments::ProcessBlock -- Masternode found by GetNextMasternodeInQueueForPayment(): %s\n", pmn->vin.prevout.ToStringShort());
+    LogPrintf("CMasternodePayments::ProcessBlock -- Masternode found by GetNextMasternodeInQueueForPayment(): %s\n", mnInfo.vin.prevout.ToStringShort());
 
 
-    CScript payee = GetScriptForDestination(pmn->pubKeyCollateralAddress.GetID());
+    CScript payee = GetScriptForDestination(mnInfo.pubKeyCollateralAddress.GetID());
 
     CMasternodePaymentVote voteNew(activeMasternode.outpoint, nBlockHeight, payee);
 

@@ -175,7 +175,8 @@ UniValue masternode(const UniValue& params, bool fHelp)
             return mnodeman.CountEnabled();
 
         int nCount;
-        mnodeman.GetNextMasternodeInQueueForPayment(true, nCount);
+        masternode_info_t mnInfo;
+        mnodeman.GetNextMasternodeInQueueForPayment(true, nCount, mnInfo);
 
         if (strMode == "qualify")
             return nCount;
@@ -190,7 +191,7 @@ UniValue masternode(const UniValue& params, bool fHelp)
     {
         int nCount;
         int nHeight;
-        CMasternode* winner = NULL;
+        masternode_info_t mnInfo;
         CBlockIndex* pindex = NULL;
         {
             LOCK(cs_main);
@@ -198,20 +199,19 @@ UniValue masternode(const UniValue& params, bool fHelp)
         }
         nHeight = pindex->nHeight + (strCommand == "current" ? 1 : 10);
         mnodeman.UpdateLastPaid(pindex);
-        winner = mnodeman.GetNextMasternodeInQueueForPayment(nHeight, true, nCount);
-        if(!winner) return "unknown";
+
+        if(!mnodeman.GetNextMasternodeInQueueForPayment(nHeight, true, nCount, mnInfo))
+            return "unknown";
 
         UniValue obj(UniValue::VOBJ);
 
         obj.push_back(Pair("height",        nHeight));
-        obj.push_back(Pair("IP:port",       winner->addr.ToString()));
-        obj.push_back(Pair("protocol",      (int64_t)winner->nProtocolVersion));
-        obj.push_back(Pair("outpoint",      winner->vin.prevout.ToStringShort()));
-        obj.push_back(Pair("payee",         CBitcoinAddress(winner->pubKeyCollateralAddress.GetID()).ToString()));
-        obj.push_back(Pair("lastseen",      (winner->lastPing == CMasternodePing()) ? winner->sigTime :
-                                                    winner->lastPing.sigTime));
-        obj.push_back(Pair("activeseconds", (winner->lastPing == CMasternodePing()) ? 0 :
-                                                    (winner->lastPing.sigTime - winner->sigTime)));
+        obj.push_back(Pair("IP:port",       mnInfo.addr.ToString()));
+        obj.push_back(Pair("protocol",      (int64_t)mnInfo.nProtocolVersion));
+        obj.push_back(Pair("outpoint",      mnInfo.vin.prevout.ToStringShort()));
+        obj.push_back(Pair("payee",         CBitcoinAddress(mnInfo.pubKeyCollateralAddress.GetID()).ToString()));
+        obj.push_back(Pair("lastseen",      mnInfo.nTimeLastPing));
+        obj.push_back(Pair("activeseconds", mnInfo.nTimeLastPing - mnInfo.sigTime));
         return obj;
     }
 

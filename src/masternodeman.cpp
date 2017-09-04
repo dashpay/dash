@@ -457,23 +457,24 @@ bool CMasternodeMan::Has(const COutPoint& outpoint)
 //
 // Deterministically select the oldest/best masternode to pay on the network
 //
-CMasternode* CMasternodeMan::GetNextMasternodeInQueueForPayment(bool fFilterSigTime, int& nCount)
+bool CMasternodeMan::GetNextMasternodeInQueueForPayment(bool fFilterSigTime, int& nCountRet, masternode_info_t& mnInfoRet)
 {
-    return GetNextMasternodeInQueueForPayment(nCachedBlockHeight, fFilterSigTime, nCount);
+    return GetNextMasternodeInQueueForPayment(nCachedBlockHeight, fFilterSigTime, nCountRet, mnInfoRet);
 }
 
-CMasternode* CMasternodeMan::GetNextMasternodeInQueueForPayment(int nBlockHeight, bool fFilterSigTime, int& nCount)
+bool CMasternodeMan::GetNextMasternodeInQueueForPayment(int nBlockHeight, bool fFilterSigTime, int& nCountRet, masternode_info_t& mnInfoRet)
 {
+    mnInfoRet = masternode_info_t();
+    nCountRet = 0;
+
     if (!masternodeSync.IsWinnersListSynced()) {
         // without winner list we can't reliably find the next winner anyway
-        nCount = 0;
-        return NULL;
+        return false;
     }
 
     // Need LOCK2 here to ensure consistent locking order because the GetBlockHash call below locks cs_main
     LOCK2(cs_main,cs);
 
-    CMasternode *pBestMasternode = NULL;
     std::vector<std::pair<int, CMasternode*> > vecMasternodeLastPaid;
 
     /*
@@ -500,10 +501,11 @@ CMasternode* CMasternodeMan::GetNextMasternodeInQueueForPayment(int nBlockHeight
         vecMasternodeLastPaid.push_back(std::make_pair(mnpair.second.GetLastPaidBlock(), &mnpair.second));
     }
 
-    nCount = (int)vecMasternodeLastPaid.size();
+    nCountRet = (int)vecMasternodeLastPaid.size();
 
     //when the network is in the process of upgrading, don't penalize nodes that recently restarted
-    if(fFilterSigTime && nCount < nMnCount/3) return GetNextMasternodeInQueueForPayment(nBlockHeight, false, nCount);
+    if(fFilterSigTime && nCountRet < nMnCount/3)
+        return GetNextMasternodeInQueueForPayment(nBlockHeight, false, nCountRet, mnInfoRet);
 
     // Sort them low to high
     sort(vecMasternodeLastPaid.begin(), vecMasternodeLastPaid.end(), CompareLastPaidBlock());
@@ -511,7 +513,7 @@ CMasternode* CMasternodeMan::GetNextMasternodeInQueueForPayment(int nBlockHeight
     uint256 blockHash;
     if(!GetBlockHash(blockHash, nBlockHeight - 101)) {
         LogPrintf("CMasternode::GetNextMasternodeInQueueForPayment -- ERROR: GetBlockHash() failed at nBlockHeight %d\n", nBlockHeight - 101);
-        return NULL;
+        return false;
     }
     // Look at 1/10 of the oldest nodes (by last payment), calculate their scores and pay the best one
     //  -- This doesn't look at who is being paid in the +8-10 blocks, allowing for double payments very rarely
@@ -520,6 +522,7 @@ CMasternode* CMasternodeMan::GetNextMasternodeInQueueForPayment(int nBlockHeight
     int nTenthNetwork = nMnCount/10;
     int nCountTenth = 0;
     arith_uint256 nHighest = 0;
+    CMasternode *pBestMasternode = NULL;
     BOOST_FOREACH (PAIRTYPE(int, CMasternode*)& s, vecMasternodeLastPaid){
         arith_uint256 nScore = s.second->CalculateScore(blockHash);
         if(nScore > nHighest){
@@ -529,7 +532,10 @@ CMasternode* CMasternodeMan::GetNextMasternodeInQueueForPayment(int nBlockHeight
         nCountTenth++;
         if(nCountTenth >= nTenthNetwork) break;
     }
-    return pBestMasternode;
+    if (pBestMasternode) {
+        mnInfoRet = pBestMasternode->GetInfo();
+    }
+    return mnInfoRet.fInfoValid;
 }
 
 masternode_info_t CMasternodeMan::FindRandomNotInVec(const std::vector<COutPoint> &vecToExclude, int nProtocolVersion)
