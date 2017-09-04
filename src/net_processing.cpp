@@ -1590,7 +1590,7 @@ bool static ProcessMessage(CNode* pfrom, string strCommand, CDataStream& vRecv, 
                 return true; // not an error
             }
 
-            CMasternode* pmn = mnodeman.Find(dstx.vin);
+            CMasternode* pmn = mnodeman.Find(dstx.vin.prevout);
             if(pmn == NULL) {
                 LogPrint("privatesend", "DSTX -- Can't find masternode %s to verify %s\n", dstx.vin.prevout.ToStringShort(), hashTx.ToString());
                 return false;

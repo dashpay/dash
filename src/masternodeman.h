@@ -118,7 +118,7 @@ public:
     bool Add(CMasternode &mn);
 
     /// Ask (source) node for mnb
-    void AskForMN(CNode *pnode, const CTxIn &vin);
+    void AskForMN(CNode *pnode, const COutPoint& outpoint);
     void AskForMnb(CNode *pnode, const uint256 &hash);
 
     /// Check all Masternodes
@@ -143,13 +143,13 @@ public:
     void DsegUpdate(CNode* pnode);
 
     /// Find an entry
-    CMasternode* Find(const CTxIn& vin);
+    CMasternode* Find(const COutPoint& outpoint);
 
     /// Versions of Find that are safe to use from outside the class
-    bool Get(const CTxIn& vin, CMasternode& masternode);
-    bool Has(const CTxIn& vin);
+    bool Get(const COutPoint& outpoint, CMasternode& masternodeRet);
+    bool Has(const COutPoint& outpoint);
 
-    masternode_info_t GetMasternodeInfo(const CTxIn& vin);
+    masternode_info_t GetMasternodeInfo(const COutPoint& outpoint);
 
     masternode_info_t GetMasternodeInfo(const CPubKey& pubKeyMasternode);
 
@@ -159,12 +159,12 @@ public:
     CMasternode* GetNextMasternodeInQueueForPayment(bool fFilterSigTime, int& nCount);
 
     /// Find a random entry
-    masternode_info_t FindRandomNotInVec(const std::vector<CTxIn> &vecToExclude, int nProtocolVersion = -1);
+    masternode_info_t FindRandomNotInVec(const std::vector<COutPoint> &vecToExclude, int nProtocolVersion = -1);
 
     std::map<COutPoint, CMasternode> GetFullMasternodeMap() { return mapMasternodes; }
 
     std::vector<std::pair<int, CMasternode> > GetMasternodeRanks(int nBlockHeight = -1, int nMinProtocol=0);
-    int GetMasternodeRank(const CTxIn &vin, int nBlockHeight, int nMinProtocol=0, bool fOnlyActive=true);
+    int GetMasternodeRank(const COutPoint &outpoint, int nBlockHeight, int nMinProtocol=0, bool fOnlyActive=true);
     bool GetMasternodeByRank(int nRank, int nBlockHeight, int nMinProtocol, bool fOnlyActive, masternode_info_t& mnInfoRet);
 
     void ProcessMasternodeConnections();
@@ -208,14 +208,14 @@ public:
     }
 
     bool IsWatchdogActive();
-    void UpdateWatchdogVoteTime(const CTxIn& vin);
-    bool AddGovernanceVote(const CTxIn& vin, uint256 nGovernanceObjectHash);
+    void UpdateWatchdogVoteTime(const COutPoint& outpoint);
+    bool AddGovernanceVote(const COutPoint& outpoint, uint256 nGovernanceObjectHash);
     void RemoveGovernanceObject(uint256 nGovernanceObjectHash);
 
     void CheckMasternode(const CPubKey& pubKeyMasternode, bool fForce);
 
-    bool IsMasternodePingedWithin(const CTxIn& vin, int nSeconds, int64_t nTimeToCheckAt = -1);
-    void SetMasternodeLastPing(const CTxIn& vin, const CMasternodePing& mnp);
+    bool IsMasternodePingedWithin(const COutPoint& outpoint, int nSeconds, int64_t nTimeToCheckAt = -1);
+    void SetMasternodeLastPing(const COutPoint& outpoint, const CMasternodePing& mnp);
 
     void UpdatedBlockTip(const CBlockIndex *pindex);
 

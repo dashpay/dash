@@ -135,9 +135,9 @@ void MasternodeList::StartAll(std::string strCommand)
             continue;
         }
 
-        CTxIn txin = CTxIn(uint256S(mne.getTxHash()), nOutputIndex);
+        COutPoint outpoint = COutPoint(uint256S(mne.getTxHash()), nOutputIndex);
 
-        if(strCommand == "start-missing" && mnodeman.Has(txin)) continue;
+        if(strCommand == "start-missing" && mnodeman.Has(outpoint)) continue;
 
         bool fSuccess = CMasternodeBroadcast::Create(mne.getIp(), mne.getPrivKey(), mne.getTxHash(), mne.getOutputIndex(), strError, mnb);
 
@@ -225,9 +225,9 @@ void MasternodeList::updateMyNodeList(bool fForce)
             continue;
         }
 
-        CTxIn txin = CTxIn(uint256S(mne.getTxHash()), nOutputIndex);
+        COutPoint outpoint = COutPoint(uint256S(mne.getTxHash()), nOutputIndex);
 
-        masternode_info_t infoMn = mnodeman.GetMasternodeInfo(txin);
+        masternode_info_t infoMn = mnodeman.GetMasternodeInfo(outpoint);
 
         updateMyMasternodeInfo(QString::fromStdString(mne.getAlias()), QString::fromStdString(mne.getIp()), infoMn);
     }

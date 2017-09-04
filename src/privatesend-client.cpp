@@ -48,12 +48,12 @@ void CPrivateSendClient::ProcessMessage(CNode* pfrom, std::string& strCommand, C
 
         if(dsq.IsExpired()) return;
 
-        masternode_info_t infoMn = mnodeman.GetMasternodeInfo(dsq.vin);
+        masternode_info_t infoMn = mnodeman.GetMasternodeInfo(dsq.vin.prevout);
         if(!infoMn.fInfoValid) return;
 
         if(!dsq.CheckSignature(infoMn.pubKeyMasternode)) {
             // we probably have outdated info
-            mnodeman.AskForMN(pfrom, dsq.vin);
+            mnodeman.AskForMN(pfrom, dsq.vin.prevout);
             return;
         }
 
@@ -826,7 +826,7 @@ bool CPrivateSendClient::JoinExistingQueue(CAmount nBalanceNeedsAnonymized)
 
         if(dsq.IsExpired()) continue;
 
-        masternode_info_t infoMn = mnodeman.GetMasternodeInfo(dsq.vin);
+        masternode_info_t infoMn = mnodeman.GetMasternodeInfo(dsq.vin.prevout);
 
         if(!infoMn.fInfoValid) {
             LogPrintf("CPrivateSendClient::JoinExistingQueue -- dsq masternode is not in masternode list, masternode=%s\n", dsq.vin.prevout.ToStringShort());
@@ -857,7 +857,7 @@ bool CPrivateSendClient::JoinExistingQueue(CAmount nBalanceNeedsAnonymized)
             continue;
         }
 
-        vecMasternodesUsed.push_back(dsq.vin);
+        vecMasternodesUsed.push_back(dsq.vin.prevout);
 
         CNode* pnodeFound = NULL;
         bool fDisconnect = false;
@@ -923,7 +923,7 @@ bool CPrivateSendClient::StartNewQueue(CAmount nValueMin, CAmount nBalanceNeedsA
             strAutoDenomResult = _("Can't find random Masternode.");
             return false;
         }
-        vecMasternodesUsed.push_back(infoMn.vin);
+        vecMasternodesUsed.push_back(infoMn.vin.prevout);
 
         if(infoMn.nLastDsq != 0 && infoMn.nLastDsq + nMnCountEnabled/5 > mnodeman.nDsqCount) {
             LogPrintf("CPrivateSendClient::StartNewQueue -- Too early to mix on this masternode!"

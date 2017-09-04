@@ -206,7 +206,7 @@ UniValue masternode(const UniValue& params, bool fHelp)
         obj.push_back(Pair("height",        nHeight));
         obj.push_back(Pair("IP:port",       winner->addr.ToString()));
         obj.push_back(Pair("protocol",      (int64_t)winner->nProtocolVersion));
-        obj.push_back(Pair("vin",           winner->vin.prevout.ToStringShort()));
+        obj.push_back(Pair("outpoint",      winner->vin.prevout.ToStringShort()));
         obj.push_back(Pair("payee",         CBitcoinAddress(winner->pubKeyCollateralAddress.GetID()).ToString()));
         obj.push_back(Pair("lastseen",      (winner->lastPing == CMasternodePing()) ? winner->sigTime :
                                                     winner->lastPing.sigTime));
@@ -220,11 +220,11 @@ UniValue masternode(const UniValue& params, bool fHelp)
         if(activeMasternode.nState != ACTIVE_MASTERNODE_INITIAL || !masternodeSync.IsBlockchainSynced())
             return activeMasternode.GetStatus();
 
-        CTxIn vin;
+        COutPoint outpoint;
         CPubKey pubkey;
         CKey key;
 
-        if(!pwalletMain || !pwalletMain->GetMasternodeVinAndKeys(vin, pubkey, key))
+        if(!pwalletMain || !pwalletMain->GetMasternodeOutpointAndKeys(outpoint, pubkey, key))
             throw JSONRPCError(RPC_INVALID_PARAMETER, "Missing masternode input, please look at the documentation for instructions on masternode creation");
 
         return activeMasternode.GetStatus();
@@ -313,8 +313,8 @@ UniValue masternode(const UniValue& params, bool fHelp)
         BOOST_FOREACH(CMasternodeConfig::CMasternodeEntry mne, masternodeConfig.getEntries()) {
             std::string strError;
 
-            CTxIn vin = CTxIn(uint256S(mne.getTxHash()), uint32_t(atoi(mne.getOutputIndex().c_str())));
-            CMasternode *pmn = mnodeman.Find(vin);
+            COutPoint outpoint = COutPoint(uint256S(mne.getTxHash()), uint32_t(atoi(mne.getOutputIndex().c_str())));
+            CMasternode *pmn = mnodeman.Find(outpoint);
             CMasternodeBroadcast mnb;
 
             if(strCommand == "start-missing" && pmn) continue;
@@ -359,8 +359,8 @@ UniValue masternode(const UniValue& params, bool fHelp)
         UniValue resultObj(UniValue::VOBJ);
 
         BOOST_FOREACH(CMasternodeConfig::CMasternodeEntry mne, masternodeConfig.getEntries()) {
-            CTxIn vin = CTxIn(uint256S(mne.getTxHash()), uint32_t(atoi(mne.getOutputIndex().c_str())));
-            CMasternode *pmn = mnodeman.Find(vin);
+            COutPoint outpoint = COutPoint(uint256S(mne.getTxHash()), uint32_t(atoi(mne.getOutputIndex().c_str())));
+            CMasternode *pmn = mnodeman.Find(outpoint);
 
             std::string strStatus = pmn ? pmn->GetStatus() : "MISSING";
 
@@ -398,11 +398,11 @@ UniValue masternode(const UniValue& params, bool fHelp)
 
         UniValue mnObj(UniValue::VOBJ);
 
-        mnObj.push_back(Pair("vin", activeMasternode.vin.ToString()));
+        mnObj.push_back(Pair("vin", activeMasternode.outpoint.ToStringShort()));
         mnObj.push_back(Pair("service", activeMasternode.service.ToString()));
 
         CMasternode mn;
-        if(mnodeman.Get(activeMasternode.vin, mn)) {
+        if(mnodeman.Get(activeMasternode.outpoint, mn)) {
             mnObj.push_back(Pair("payee", CBitcoinAddress(mn.pubKeyCollateralAddress.GetID()).ToString()));
         }
 

@@ -69,7 +69,7 @@ bool CMasternodeMan::Add(CMasternode &mn)
 {
     LOCK(cs);
 
-    if (Has(mn.vin)) return false;
+    if (Has(mn.vin.prevout)) return false;
 
     LogPrint("masternode", "CMasternodeMan::Add -- Adding new Masternode: addr=%s, %i now\n", mn.addr.ToString(), size() + 1);
     mapMasternodes[mn.vin.prevout] = mn;
@@ -77,13 +77,13 @@ bool CMasternodeMan::Add(CMasternode &mn)
     return true;
 }
 
-void CMasternodeMan::AskForMN(CNode* pnode, const CTxIn &vin)
+void CMasternodeMan::AskForMN(CNode* pnode, const COutPoint& outpoint)
 {
     if(!pnode) return;
 
     LOCK(cs);
 
-    std::map<COutPoint, std::map<CNetAddr, int64_t> >::iterator it1 = mWeAskedForMasternodeListEntry.find(vin.prevout);
+    std::map<COutPoint, std::map<CNetAddr, int64_t> >::iterator it1 = mWeAskedForMasternodeListEntry.find(outpoint);
     if (it1 != mWeAskedForMasternodeListEntry.end()) {
         std::map<CNetAddr, int64_t>::iterator it2 = it1->second.find(pnode->addr);
         if (it2 != it1->second.end()) {
@@ -92,18 +92,18 @@ void CMasternodeMan::AskForMN(CNode* pnode, const CTxIn &vin)
                 return;
             }
             // we asked this node for this outpoint but it's ok to ask again already
-            LogPrintf("CMasternodeMan::AskForMN -- Asking same peer %s for missing masternode entry again: %s\n", pnode->addr.ToString(), vin.prevout.ToStringShort());
+            LogPrintf("CMasternodeMan::AskForMN -- Asking same peer %s for missing masternode entry again: %s\n", pnode->addr.ToString(), outpoint.ToStringShort());
         } else {
             // we already asked for this outpoint but not this node
-            LogPrintf("CMasternodeMan::AskForMN -- Asking new peer %s for missing masternode entry: %s\n", pnode->addr.ToString(), vin.prevout.ToStringShort());
+            LogPrintf("CMasternodeMan::AskForMN -- Asking new peer %s for missing masternode entry: %s\n", pnode->addr.ToString(), outpoint.ToStringShort());
         }
     } else {
         // we never asked any node for this outpoint
-        LogPrintf("CMasternodeMan::AskForMN -- Asking peer %s for missing masternode entry for the first time: %s\n", pnode->addr.ToString(), vin.prevout.ToStringShort());
+        LogPrintf("CMasternodeMan::AskForMN -- Asking peer %s for missing masternode entry for the first time: %s\n", pnode->addr.ToString(), outpoint.ToStringShort());
     }
-    mWeAskedForMasternodeListEntry[vin.prevout][pnode->addr] = GetTime() + DSEG_UPDATE_SECONDS;
+    mWeAskedForMasternodeListEntry[outpoint][pnode->addr] = GetTime() + DSEG_UPDATE_SECONDS;
 
-    g_connman->PushMessage(pnode, NetMsgType::DSEG, vin);
+    g_connman->PushMessage(pnode, NetMsgType::DSEG, CTxIn(outpoint));
 }
 
 void CMasternodeMan::Check()
@@ -379,35 +379,34 @@ void CMasternodeMan::DsegUpdate(CNode* pnode)
     LogPrint("masternode", "CMasternodeMan::DsegUpdate -- asked %s for the list\n", pnode->addr.ToString());
 }
 
-CMasternode* CMasternodeMan::Find(const CTxIn &vin)
+CMasternode* CMasternodeMan::Find(const COutPoint &outpoint)
 {
     LOCK(cs);
-    std::map<COutPoint, CMasternode>::iterator it = mapMasternodes.find(vin.prevout);
+    auto it = mapMasternodes.find(outpoint);
     return it == mapMasternodes.end() ? NULL : &(it->second);
 }
 
-bool CMasternodeMan::Get(const CTxIn& vin, CMasternode& masternode)
+bool CMasternodeMan::Get(const COutPoint& outpoint, CMasternode& masternodeRet)
 {
     // Theses mutexes are recursive so double locking by the same thread is safe.
     LOCK(cs);
-    CMasternode* pMN = Find(vin);
-    if(!pMN)  {
+    auto it = mapMasternodes.find(outpoint);
+    if (it == mapMasternodes.end()) {
         return false;
     }
-    masternode = *pMN;
+
+    masternodeRet = it->second;
     return true;
 }
 
-masternode_info_t CMasternodeMan::GetMasternodeInfo(const CTxIn& vin)
+masternode_info_t CMasternodeMan::GetMasternodeInfo(const COutPoint& outpoint)
 {
-    masternode_info_t info;
     LOCK(cs);
-    CMasternode* pMN = Find(vin);
-    if(!pMN)  {
-        return info;
+    auto it = mapMasternodes.find(outpoint);
+    if (it == mapMasternodes.end()) {
+        return masternode_info_t();
     }
-    info = pMN->GetInfo();
-    return info;
+    return it->second.GetInfo();
 }
 
 masternode_info_t CMasternodeMan::GetMasternodeInfo(const CPubKey& pubKeyMasternode)
@@ -420,10 +419,10 @@ masternode_info_t CMasternodeMan::GetMasternodeInfo(const CPubKey& pubKeyMastern
     return masternode_info_t();
 }
 
-bool CMasternodeMan::Has(const CTxIn& vin)
+bool CMasternodeMan::Has(const COutPoint& outpoint)
 {
     LOCK(cs);
-    return mapMasternodes.find(vin.prevout) != mapMasternodes.end();
+    return mapMasternodes.find(outpoint) != mapMasternodes.end();
 }
 
 //
@@ -504,7 +503,7 @@ CMasternode* CMasternodeMan::GetNextMasternodeInQueueForPayment(int nBlockHeight
     return pBestMasternode;
 }
 
-masternode_info_t CMasternodeMan::FindRandomNotInVec(const std::vector<CTxIn> &vecToExclude, int nProtocolVersion)
+masternode_info_t CMasternodeMan::FindRandomNotInVec(const std::vector<COutPoint> &vecToExclude, int nProtocolVersion)
 {
     LOCK(cs);
 
@@ -531,8 +530,8 @@ masternode_info_t CMasternodeMan::FindRandomNotInVec(const std::vector<CTxIn> &v
     BOOST_FOREACH(CMasternode* pmn, vpMasternodesShuffled) {
         if(pmn->nProtocolVersion < nProtocolVersion || !pmn->IsEnabled()) continue;
         fExclude = false;
-        BOOST_FOREACH(const CTxIn &txinToExclude, vecToExclude) {
-            if(pmn->vin.prevout == txinToExclude.prevout) {
+        BOOST_FOREACH(const COutPoint &outpointToExclude, vecToExclude) {
+            if(pmn->vin.prevout == outpointToExclude) {
                 fExclude = true;
                 break;
             }
@@ -547,7 +546,7 @@ masternode_info_t CMasternodeMan::FindRandomNotInVec(const std::vector<CTxIn> &v
     return masternode_info_t();
 }
 
-int CMasternodeMan::GetMasternodeRank(const CTxIn& vin, int nBlockHeight, int nMinProtocol, bool fOnlyActive)
+int CMasternodeMan::GetMasternodeRank(const COutPoint& outpoint, int nBlockHeight, int nMinProtocol, bool fOnlyActive)
 {
     std::vector<std::pair<int64_t, CMasternode*> > vecMasternodeScores;
 
@@ -576,7 +575,7 @@ int CMasternodeMan::GetMasternodeRank(const CTxIn& vin, int nBlockHeight, int nM
     int nRank = 0;
     BOOST_FOREACH (PAIRTYPE(int64_t, CMasternode*)& scorePair, vecMasternodeScores) {
         nRank++;
-        if(scorePair.second->vin.prevout == vin.prevout) return nRank;
+        if(scorePair.second->vin.prevout == outpoint) return nRank;
     }
 
     return -1;
@@ -739,7 +738,7 @@ void CMasternodeMan::ProcessMessage(CNode* pfrom, std::string& strCommand, CData
         LogPrint("masternode", "MNPING -- Masternode ping, masternode=%s new\n", mnp.vin.prevout.ToStringShort());
 
         // see if we have this Masternode
-        CMasternode* pmn = mnodeman.Find(mnp.vin);
+        CMasternode* pmn = Find(mnp.vin.prevout);
 
         // if masternode uses sentinel ping instead of watchdog
         // we shoud update nTimeLastWatchdogVote here if sentinel
@@ -763,7 +762,7 @@ void CMasternodeMan::ProcessMessage(CNode* pfrom, std::string& strCommand, CData
 
         // something significant is broken or mn is unknown,
         // we might have to ask for a masternode entry once
-        AskForMN(pfrom, mnp.vin);
+        AskForMN(pfrom, mnp.vin.prevout);
 
     } else if (strCommand == NetMsgType::DSEG) { //Get Masternode list or specific entry
         // Ignore such requests until we are fully synced.
@@ -851,7 +850,7 @@ void CMasternodeMan::ProcessMessage(CNode* pfrom, std::string& strCommand, CData
 
 void CMasternodeMan::DoFullVerificationStep()
 {
-    if(activeMasternode.vin == CTxIn()) return;
+    if(activeMasternode.outpoint == COutPoint()) return;
     if(!masternodeSync.IsSynced()) return;
 
     std::vector<std::pair<int, CMasternode> > vecMasternodeRanks = GetMasternodeRanks(nCachedBlockHeight - 1, MIN_POSE_PROTO_VERSION);
@@ -873,7 +872,7 @@ void CMasternodeMan::DoFullVerificationStep()
                         (int)MAX_POSE_RANK);
             return;
         }
-        if(it->second.vin == activeMasternode.vin) {
+        if(it->second.vin.prevout == activeMasternode.outpoint) {
             nMyRank = it->first;
             LogPrint("masternode", "CMasternodeMan::DoFullVerificationStep -- Found self at rank %d/%d, verifying up to %d masternodes\n",
                         nMyRank, nRanksTotal, (int)MAX_POSE_CONNECTIONS);
@@ -1105,11 +1104,11 @@ void CMasternodeMan::ProcessVerifyReply(CNode* pnode, CMasternodeVerification& m
                     netfulfilledman.AddFulfilledRequest(pnode->addr, strprintf("%s", NetMsgType::MNVERIFY)+"-done");
 
                     // we can only broadcast it if we are an activated masternode
-                    if(activeMasternode.vin == CTxIn()) continue;
+                    if(activeMasternode.outpoint == COutPoint()) continue;
                     // update ...
                     mnv.addr = mnpair.second.addr;
                     mnv.vin1 = mnpair.second.vin;
-                    mnv.vin2 = activeMasternode.vin;
+                    mnv.vin2 = CTxIn(activeMasternode.outpoint);
                     std::string strMessage2 = strprintf("%s%d%s%s%s", mnv.addr.ToString(false), mnv.nonce, blockHash.ToString(),
                                             mnv.vin1.prevout.ToStringShort(), mnv.vin2.prevout.ToStringShort());
                     // ... and sign it
@@ -1187,7 +1186,7 @@ void CMasternodeMan::ProcessVerifyBroadcast(CNode* pnode, const CMasternodeVerif
         return;
     }
 
-    int nRank = GetMasternodeRank(mnv.vin2, mnv.nBlockHeight, MIN_POSE_PROTO_VERSION);
+    int nRank = GetMasternodeRank(mnv.vin2.prevout, mnv.nBlockHeight, MIN_POSE_PROTO_VERSION);
 
     if (nRank == -1) {
         LogPrint("masternode", "CMasternodeMan::ProcessVerifyBroadcast -- Can't calculate rank for masternode %s\n",
@@ -1208,13 +1207,13 @@ void CMasternodeMan::ProcessVerifyBroadcast(CNode* pnode, const CMasternodeVerif
         std::string strMessage2 = strprintf("%s%d%s%s%s", mnv.addr.ToString(false), mnv.nonce, blockHash.ToString(),
                                 mnv.vin1.prevout.ToStringShort(), mnv.vin2.prevout.ToStringShort());
 
-        CMasternode* pmn1 = Find(mnv.vin1);
+        CMasternode* pmn1 = Find(mnv.vin1.prevout);
         if(!pmn1) {
             LogPrintf("CMasternodeMan::ProcessVerifyBroadcast -- can't find masternode1 %s\n", mnv.vin1.prevout.ToStringShort());
             return;
         }
 
-        CMasternode* pmn2 = Find(mnv.vin2);
+        CMasternode* pmn2 = Find(mnv.vin2.prevout);
         if(!pmn2) {
             LogPrintf("CMasternodeMan::ProcessVerifyBroadcast -- can't find masternode2 %s\n", mnv.vin2.prevout.ToStringShort());
             return;
@@ -1278,7 +1277,7 @@ void CMasternodeMan::UpdateMasternodeList(CMasternodeBroadcast mnb)
 
     LogPrintf("CMasternodeMan::UpdateMasternodeList -- masternode=%s  addr=%s\n", mnb.vin.prevout.ToStringShort(), mnb.addr.ToString());
 
-    CMasternode* pmn = Find(mnb.vin);
+    CMasternode* pmn = Find(mnb.vin.prevout);
     if(pmn == NULL) {
         if(Add(mnb)) {
             masternodeSync.BumpAssetLastTime("CMasternodeMan::UpdateMasternodeList - new");
@@ -1344,7 +1343,7 @@ bool CMasternodeMan::CheckMnbAndUpdateMasternodeList(CNode* pfrom, CMasternodeBr
         }
 
         // search Masternode list
-        CMasternode* pmn = Find(mnb.vin);
+        CMasternode* pmn = Find(mnb.vin.prevout);
         if(pmn) {
             CMasternodeBroadcast mnbOld = mapSeenMasternodeBroadcast[CMasternodeBroadcast(*pmn).GetHash()].second;
             if(!mnb.Update(pmn, nDos)) {
@@ -1410,7 +1409,7 @@ bool CMasternodeMan::UpdateLastDsq(const CTxIn& vin)
 {
     masternode_info_t info;
     LOCK(cs);
-    CMasternode* pMN = Find(vin);
+    CMasternode* pMN = Find(vin.prevout);
     if(!pMN)
         return false;
     pMN->nLastDsq = nDsqCount;
@@ -1418,15 +1417,14 @@ bool CMasternodeMan::UpdateLastDsq(const CTxIn& vin)
     return true;
 }
 
-
-void CMasternodeMan::UpdateWatchdogVoteTime(const CTxIn& vin)
+void CMasternodeMan::UpdateWatchdogVoteTime(const COutPoint& outpoint)
 {
     LOCK(cs);
-    CMasternode* pMN = Find(vin);
-    if(!pMN)  {
+    CMasternode* pmn = Find(outpoint);
+    if(!pmn) {
         return;
     }
-    pMN->UpdateWatchdogVoteTime();
+    pmn->UpdateWatchdogVoteTime();
     nLastWatchdogVoteTime = GetTime();
 }
 
@@ -1437,14 +1435,14 @@ bool CMasternodeMan::IsWatchdogActive()
     return (GetTime() - nLastWatchdogVoteTime) <= MASTERNODE_WATCHDOG_MAX_SECONDS;
 }
 
-bool CMasternodeMan::AddGovernanceVote(const CTxIn& vin, uint256 nGovernanceObjectHash)
+bool CMasternodeMan::AddGovernanceVote(const COutPoint& outpoint, uint256 nGovernanceObjectHash)
 {
     LOCK(cs);
-    CMasternode* pMN = Find(vin);
-    if(!pMN)  {
+    CMasternode* pmn = Find(outpoint);
+    if(!pmn) {
         return false;
     }
-    pMN->AddGovernanceVote(nGovernanceObjectHash);
+    pmn->AddGovernanceVote(nGovernanceObjectHash);
     return true;
 }
 
@@ -1467,32 +1465,30 @@ void CMasternodeMan::CheckMasternode(const CPubKey& pubKeyMasternode, bool fForc
     }
 }
 
-bool CMasternodeMan::IsMasternodePingedWithin(const CTxIn& vin, int nSeconds, int64_t nTimeToCheckAt)
+bool CMasternodeMan::IsMasternodePingedWithin(const COutPoint& outpoint, int nSeconds, int64_t nTimeToCheckAt)
 {
     LOCK(cs);
-    CMasternode* pMN = Find(vin);
-    if(!pMN) {
-        return false;
-    }
-    return pMN->IsPingedWithin(nSeconds, nTimeToCheckAt);
+    CMasternode* pmn = Find(outpoint);
+    return pmn ? pmn->IsPingedWithin(nSeconds, nTimeToCheckAt) : false;
 }
 
-void CMasternodeMan::SetMasternodeLastPing(const CTxIn& vin, const CMasternodePing& mnp)
+void CMasternodeMan::SetMasternodeLastPing(const COutPoint& outpoint, const CMasternodePing& mnp)
 {
     LOCK(cs);
-    CMasternode* pMN = Find(vin);
-    if(!pMN)  {
+    CMasternode* pmn = Find(outpoint);
+    if(!pmn) {
         return;
     }
-    pMN->lastPing = mnp;
+    pmn->lastPing = mnp;
     // if masternode uses sentinel ping instead of watchdog
     // we shoud update nTimeLastWatchdogVote here if sentinel
     // ping flag is actual
-    if(mnp.fSentinelIsCurrent)
-        pMN->UpdateWatchdogVoteTime(mnp.sigTime);
+    if(mnp.fSentinelIsCurrent) {
+        pmn->UpdateWatchdogVoteTime(mnp.sigTime);
+    }
     mapSeenMasternodePing.insert(std::make_pair(mnp.GetHash(), mnp));
 
-    CMasternodeBroadcast mnb(*pMN);
+    CMasternodeBroadcast mnb(*pmn);
     uint256 hash = mnb.GetHash();
     if(mapSeenMasternodeBroadcast.count(hash)) {
         mapSeenMasternodeBroadcast[hash].second.lastPing = mnp;

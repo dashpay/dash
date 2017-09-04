@@ -580,7 +580,7 @@ std::vector<CGovernanceVote> CGovernanceManager::GetMatchingVotes(const uint256&
     return govobj.GetVoteFile().GetVotes();
 }
 
-std::vector<CGovernanceVote> CGovernanceManager::GetCurrentVotes(const uint256& nParentHash, const CTxIn& mnCollateralOutpointFilter)
+std::vector<CGovernanceVote> CGovernanceManager::GetCurrentVotes(const uint256& nParentHash, const COutPoint& mnCollateralOutpointFilter)
 {
     LOCK(cs);
     std::vector<CGovernanceVote> vecResult;
@@ -592,10 +592,10 @@ std::vector<CGovernanceVote> CGovernanceManager::GetCurrentVotes(const uint256& 
 
     CMasternode mn;
     std::map<COutPoint, CMasternode> mapMasternodes;
-    if(mnCollateralOutpointFilter == CTxIn()) {
+    if(mnCollateralOutpointFilter == COutPoint()) {
         mapMasternodes = mnodeman.GetFullMasternodeMap();
     } else if (mnodeman.Get(mnCollateralOutpointFilter, mn)) {
-        mapMasternodes[mnCollateralOutpointFilter.prevout] = mn;
+        mapMasternodes[mnCollateralOutpointFilter] = mn;
     }
 
     // Loop thru each MN collateral outpoint and get the votes for the `nParentHash` governance object
@@ -603,14 +603,14 @@ std::vector<CGovernanceVote> CGovernanceManager::GetCurrentVotes(const uint256& 
     {
         // get a vote_rec_t from the govobj
         vote_rec_t voteRecord;
-        if (!govobj.GetCurrentMNVotes(CTxIn(mnpair.first), voteRecord)) continue;
+        if (!govobj.GetCurrentMNVotes(mnpair.first, voteRecord)) continue;
 
         for (vote_instance_m_it it3 = voteRecord.mapInstances.begin(); it3 != voteRecord.mapInstances.end(); ++it3) {
             int signal = (it3->first);
             int outcome = ((it3->second).eOutcome);
             int64_t nCreationTime = ((it3->second).nCreationTime);
 
-            CGovernanceVote vote = CGovernanceVote(CTxIn(mnpair.first), nParentHash, (vote_signal_enum_t)signal, (vote_outcome_enum_t)outcome);
+            CGovernanceVote vote = CGovernanceVote(mnpair.first, nParentHash, (vote_signal_enum_t)signal, (vote_outcome_enum_t)outcome);
             vote.SetTime(nCreationTime);
 
             vecResult.push_back(vote);
@@ -933,7 +933,7 @@ bool CGovernanceManager::ProcessVote(CNode* pfrom, const CGovernanceVote& vote, 
     if(mapInvalidVotes.HasKey(nHashVote)) {
         std::ostringstream ostr;
         ostr << "CGovernanceManager::ProcessVote -- Old invalid vote "
-                << ", MN outpoint = " << vote.GetVinMasternode().prevout.ToStringShort()
+                << ", MN outpoint = " << vote.GetMasternodeOutpoint().ToStringShort()
                 << ", governance object hash = " << vote.GetParentHash().ToString();
         LogPrintf("%s\n", ostr.str());
         exception = CGovernanceException(ostr.str(), GOVERNANCE_EXCEPTION_PERMANENT_ERROR, 20);
@@ -946,7 +946,7 @@ bool CGovernanceManager::ProcessVote(CNode* pfrom, const CGovernanceVote& vote, 
     if(it == mapObjects.end()) {
         std::ostringstream ostr;
         ostr << "CGovernanceManager::ProcessVote -- Unknown parent object "
-             << ", MN outpoint = " << vote.GetVinMasternode().prevout.ToStringShort()
+             << ", MN outpoint = " << vote.GetMasternodeOutpoint().ToStringShort()
              << ", governance object hash = " << vote.GetParentHash().ToString();
         exception = CGovernanceException(ostr.str(), GOVERNANCE_EXCEPTION_WARNING);
         if(mapOrphanVotes.Insert(nHashGovobj, vote_time_pair_t(vote, GetAdjustedTime() + GOVERNANCE_ORPHAN_EXPIRATION_TIME))) {
@@ -974,7 +974,7 @@ bool CGovernanceManager::ProcessVote(CNode* pfrom, const CGovernanceVote& vote, 
         mapVoteToObject.Insert(nHashVote, &govobj);
 
         if(govobj.GetObjectType() == GOVERNANCE_OBJECT_WATCHDOG) {
-            mnodeman.UpdateWatchdogVoteTime(vote.GetVinMasternode());
+            mnodeman.UpdateWatchdogVoteTime(vote.GetMasternodeOutpoint());
             LogPrint("gobject", "CGovernanceObject::ProcessVote -- GOVERNANCE_OBJECT_WATCHDOG vote for %s\n", vote.GetParentHash().ToString());
         }
     }
