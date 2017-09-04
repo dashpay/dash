@@ -654,9 +654,9 @@ void CMasternodePayments::CheckAndRemove()
 
 bool CMasternodePaymentVote::IsValid(CNode* pnode, int nValidationHeight, std::string& strError)
 {
-    CMasternode* pmn = mnodeman.Find(vinMasternode.prevout);
+    masternode_info_t mnInfo = mnodeman.GetMasternodeInfo(vinMasternode.prevout);
 
-    if(!pmn) {
+    if(!mnInfo.fInfoValid) {
         strError = strprintf("Unknown Masternode: prevout=%s", vinMasternode.prevout.ToStringShort());
         // Only ask if we are already synced and still have no idea about that Masternode
         if(masternodeSync.IsMasternodeListSynced()) {
@@ -675,8 +675,8 @@ bool CMasternodePaymentVote::IsValid(CNode* pnode, int nValidationHeight, std::s
         nMinRequiredProtocol = MIN_MASTERNODE_PAYMENT_PROTO_VERSION_1;
     }
 
-    if(pmn->nProtocolVersion < nMinRequiredProtocol) {
-        strError = strprintf("Masternode protocol is too old: nProtocolVersion=%d, nMinRequiredProtocol=%d", pmn->nProtocolVersion, nMinRequiredProtocol);
+    if(mnInfo.nProtocolVersion < nMinRequiredProtocol) {
+        strError = strprintf("Masternode protocol is too old: nProtocolVersion=%d, nMinRequiredProtocol=%d", mnInfo.nProtocolVersion, nMinRequiredProtocol);
         return false;
     }
 

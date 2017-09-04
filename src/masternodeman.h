@@ -70,6 +70,8 @@ private:
     int64_t nLastWatchdogVoteTime;
 
     friend class CMasternodeSync;
+    /// Find an entry
+    CMasternode* Find(const COutPoint& outpoint);
 
 public:
     // Keep track of all broadcasts I've seen
@@ -121,6 +123,10 @@ public:
     void AskForMN(CNode *pnode, const COutPoint& outpoint);
     void AskForMnb(CNode *pnode, const uint256 &hash);
 
+    bool PoSeBan(const COutPoint &outpoint);
+    bool AllowMixing(const COutPoint &outpoint);
+    bool DisallowMixing(const COutPoint &outpoint);
+
     /// Check all Masternodes
     void Check();
 
@@ -141,9 +147,6 @@ public:
     // int CountByIP(int nNetworkType);
 
     void DsegUpdate(CNode* pnode);
-
-    /// Find an entry
-    CMasternode* Find(const COutPoint& outpoint);
 
     /// Versions of Find that are safe to use from outside the class
     bool Get(const COutPoint& outpoint, CMasternode& masternodeRet);
@@ -191,7 +194,6 @@ public:
     bool IsMnbRecoveryRequested(const uint256& hash) { return mMnbRecoveryRequests.count(hash); }
 
     void UpdateLastPaid(const CBlockIndex* pindex);
-    bool UpdateLastDsq(const CTxIn& vin);
 
     void AddDirtyGovernanceObjectHash(const uint256& nHash)
     {

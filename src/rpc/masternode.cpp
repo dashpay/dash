@@ -314,11 +314,12 @@ UniValue masternode(const UniValue& params, bool fHelp)
             std::string strError;
 
             COutPoint outpoint = COutPoint(uint256S(mne.getTxHash()), uint32_t(atoi(mne.getOutputIndex().c_str())));
-            CMasternode *pmn = mnodeman.Find(outpoint);
+            CMasternode mn;
+            bool fFound = mnodeman.Get(outpoint, mn);
             CMasternodeBroadcast mnb;
 
-            if(strCommand == "start-missing" && pmn) continue;
-            if(strCommand == "start-disabled" && pmn && pmn->IsEnabled()) continue;
+            if(strCommand == "start-missing" && fFound) continue;
+            if(strCommand == "start-disabled" && fFound && mn.IsEnabled()) continue;
 
             bool fResult = CMasternodeBroadcast::Create(mne.getIp(), mne.getPrivKey(), mne.getTxHash(), mne.getOutputIndex(), strError, mnb);
 
@@ -360,9 +361,10 @@ UniValue masternode(const UniValue& params, bool fHelp)
 
         BOOST_FOREACH(CMasternodeConfig::CMasternodeEntry mne, masternodeConfig.getEntries()) {
             COutPoint outpoint = COutPoint(uint256S(mne.getTxHash()), uint32_t(atoi(mne.getOutputIndex().c_str())));
-            CMasternode *pmn = mnodeman.Find(outpoint);
+            CMasternode mn;
+            bool fFound = mnodeman.Get(outpoint, mn);
 
-            std::string strStatus = pmn ? pmn->GetStatus() : "MISSING";
+            std::string strStatus = fFound ? mn.GetStatus() : "MISSING";
 
             UniValue mnObj(UniValue::VOBJ);
             mnObj.push_back(Pair("alias", mne.getAlias()));

@@ -106,6 +106,32 @@ void CMasternodeMan::AskForMN(CNode* pnode, const COutPoint& outpoint)
     g_connman->PushMessage(pnode, NetMsgType::DSEG, CTxIn(outpoint));
 }
 
+bool CMasternodeMan::AllowMixing(const COutPoint &outpoint)
+{
+    LOCK(cs);
+    CMasternode* pmn = Find(outpoint);
+    if (!pmn) {
+        return false;
+    }
+    nDsqCount++;
+    pmn->nLastDsq = nDsqCount;
+    pmn->fAllowMixingTx = true;
+
+    return true;
+}
+
+bool CMasternodeMan::DisallowMixing(const COutPoint &outpoint)
+{
+    LOCK(cs);
+    CMasternode* pmn = Find(outpoint);
+    if (!pmn) {
+        return false;
+    }
+    pmn->fAllowMixingTx = false;
+
+    return true;
+}
+
 void CMasternodeMan::Check()
 {
     LOCK(cs);
@@ -1403,18 +1429,6 @@ void CMasternodeMan::UpdateLastPaid(const CBlockIndex* pindex)
     }
 
     IsFirstRun = false;
-}
-
-bool CMasternodeMan::UpdateLastDsq(const CTxIn& vin)
-{
-    masternode_info_t info;
-    LOCK(cs);
-    CMasternode* pMN = Find(vin.prevout);
-    if(!pMN)
-        return false;
-    pMN->nLastDsq = nDsqCount;
-    pMN->fAllowMixingTx = true;
-    return true;
 }
 
 void CMasternodeMan::UpdateWatchdogVoteTime(const COutPoint& outpoint)
