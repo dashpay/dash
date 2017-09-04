@@ -917,7 +917,7 @@ void BitcoinGUI::updateNetworkState()
         labelConnectionsIcon->setToolTip(tr("%n active connection(s) to Dash network", "", count));
     } else {
         labelConnectionsIcon->setToolTip(tr("Network activity disabled"));
-        icon = ":/icons/network_disabled";
+        icon = ":/icons/" + theme + "/network_disabled";
     }
 
     labelConnectionsIcon->setPixmap(platformStyle->SingleColorIcon(icon).pixmap(STATUSBAR_ICONSIZE,STATUSBAR_ICONSIZE));
