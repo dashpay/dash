@@ -497,7 +497,7 @@ QVariant TransactionTableModel::txStatusDecoration(const TransactionRecord *wtx)
     case TransactionStatus::Unconfirmed:
         return QIcon(":/icons/" + theme + "/transaction_0");
     case TransactionStatus::Abandoned:
-        return QIcon(":/icons/transaction_abandoned");
+        return QIcon(":/icons/" + theme + "/transaction_abandoned");
     case TransactionStatus::Confirming:
         switch(wtx->status.depth)
         {
