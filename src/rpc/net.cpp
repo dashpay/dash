@@ -577,9 +577,9 @@ UniValue clearbanned(const UniValue& params, bool fHelp)
     return NullUniValue;
 }
 
-UniValue setnetworkactive(const JSONRPCRequest& request)
+UniValue setnetworkactive(const UniValue& params, bool fHelp)
 {
-    if (request.fHelp || request.params.size() != 1) {
+    if (fHelp || params.size() != 1) {
         throw runtime_error(
             "setnetworkactive true|false\n"
             "Disable/enable all p2p network activity."
@@ -590,7 +590,7 @@ UniValue setnetworkactive(const JSONRPCRequest& request)
         throw JSONRPCError(RPC_CLIENT_P2P_DISABLED, "Error: Peer-to-peer functionality missing or disabled");
     }
 
-    g_connman->SetNetworkActive(request.params[0].get_bool());
+    g_connman->SetNetworkActive(params[0].get_bool());
 
     return g_connman->GetNetworkActive();
 }
