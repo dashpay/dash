@@ -425,24 +425,27 @@ bool CMasternodeMan::Get(const COutPoint& outpoint, CMasternode& masternodeRet)
     return true;
 }
 
-masternode_info_t CMasternodeMan::GetMasternodeInfo(const COutPoint& outpoint)
+bool CMasternodeMan::GetMasternodeInfo(const COutPoint& outpoint, masternode_info_t& mnInfoRet)
 {
     LOCK(cs);
     auto it = mapMasternodes.find(outpoint);
     if (it == mapMasternodes.end()) {
-        return masternode_info_t();
+        return false;
     }
-    return it->second.GetInfo();
+    mnInfoRet = it->second.GetInfo();
+    return true;
 }
 
-masternode_info_t CMasternodeMan::GetMasternodeInfo(const CPubKey& pubKeyMasternode)
+bool CMasternodeMan::GetMasternodeInfo(const CPubKey& pubKeyMasternode, masternode_info_t& mnInfoRet)
 {
     LOCK(cs);
     for (auto& mnpair : mapMasternodes) {
-        if (mnpair.second.pubKeyMasternode == pubKeyMasternode)
-            return mnpair.second.GetInfo();
+        if (mnpair.second.pubKeyMasternode == pubKeyMasternode) {
+            mnInfoRet = mnpair.second.GetInfo();
+            return true;
+        }
     }
-    return masternode_info_t();
+    return false;
 }
 
 bool CMasternodeMan::Has(const COutPoint& outpoint)

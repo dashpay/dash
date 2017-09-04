@@ -1060,9 +1060,9 @@ bool CTxLockVote::CheckSignature() const
     std::string strError;
     std::string strMessage = txHash.ToString() + outpoint.ToStringShort();
 
-    masternode_info_t infoMn = mnodeman.GetMasternodeInfo(outpointMasternode);
+    masternode_info_t infoMn;
 
-    if(!infoMn.fInfoValid) {
+    if(!mnodeman.GetMasternodeInfo(outpointMasternode, infoMn)) {
         LogPrintf("CTxLockVote::CheckSignature -- Unknown Masternode: masternode=%s\n", outpointMasternode.ToString());
         return false;
     }

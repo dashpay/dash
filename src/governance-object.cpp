@@ -442,8 +442,8 @@ bool CGovernanceObject::IsValidLocally(std::string& strError, bool& fMissingMast
     if(fCheckCollateral) { 
         if((nObjectType == GOVERNANCE_OBJECT_TRIGGER) || (nObjectType == GOVERNANCE_OBJECT_WATCHDOG)) {
             std::string strOutpoint = vinMasternode.prevout.ToStringShort();
-            masternode_info_t infoMn = mnodeman.GetMasternodeInfo(vinMasternode.prevout);
-            if(!infoMn.fInfoValid) {
+            masternode_info_t infoMn;
+            if(!mnodeman.GetMasternodeInfo(vinMasternode.prevout, infoMn)) {
 
                 CMasternode::CollateralStatus err = CMasternode::CheckCollateral(vinMasternode.prevout);
                 if (err == CMasternode::COLLATERAL_OK) {

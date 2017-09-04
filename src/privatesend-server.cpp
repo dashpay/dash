@@ -42,8 +42,8 @@ void CPrivateSendServer::ProcessMessage(CNode* pfrom, std::string& strCommand, C
 
         LogPrint("privatesend", "DSACCEPT -- nDenom %d (%s)  txCollateral %s", nDenom, CPrivateSend::GetDenominationsToString(nDenom), txCollateral.ToString());
 
-        masternode_info_t mnInfo = mnodeman.GetMasternodeInfo(activeMasternode.outpoint);
-        if(!mnInfo.fInfoValid) {
+        masternode_info_t mnInfo;
+        if(!mnodeman.GetMasternodeInfo(activeMasternode.outpoint, mnInfo)) {
             PushStatus(pfrom, STATUS_REJECTED, ERR_MN_LIST);
             return;
         }
@@ -94,8 +94,8 @@ void CPrivateSendServer::ProcessMessage(CNode* pfrom, std::string& strCommand, C
 
         if(dsq.IsExpired()) return;
 
-        masternode_info_t mnInfo = mnodeman.GetMasternodeInfo(dsq.vin.prevout);
-        if(!mnInfo.fInfoValid) return;
+        masternode_info_t mnInfo;
+        if(!mnodeman.GetMasternodeInfo(dsq.vin.prevout, mnInfo)) return;
 
         if(!dsq.CheckSignature(mnInfo.pubKeyMasternode)) {
             // we probably have outdated info

@@ -152,9 +152,9 @@ public:
     bool Get(const COutPoint& outpoint, CMasternode& masternodeRet);
     bool Has(const COutPoint& outpoint);
 
-    masternode_info_t GetMasternodeInfo(const COutPoint& outpoint);
+    bool GetMasternodeInfo(const COutPoint& outpoint, masternode_info_t& mnInfoRet);
 
-    masternode_info_t GetMasternodeInfo(const CPubKey& pubKeyMasternode);
+    bool GetMasternodeInfo(const CPubKey& pubKeyMasternode, masternode_info_t& mnInfoRet);
 
     /// Find an entry in the masternode list that is next to be paid
     CMasternode* GetNextMasternodeInQueueForPayment(int nBlockHeight, bool fFilterSigTime, int& nCount);

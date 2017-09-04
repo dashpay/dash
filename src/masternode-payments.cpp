@@ -373,8 +373,8 @@ void CMasternodePayments::ProcessMessage(CNode* pfrom, std::string& strCommand, 
             return;
         }
 
-        masternode_info_t mnInfo = mnodeman.GetMasternodeInfo(vote.vinMasternode.prevout);
-        if(!mnInfo.fInfoValid) {
+        masternode_info_t mnInfo;
+        if(!mnodeman.GetMasternodeInfo(vote.vinMasternode.prevout, mnInfo)) {
             // mn was not found, so we can't check vote, some info is probably missing
             LogPrintf("MASTERNODEPAYMENTVOTE -- masternode is missing %s\n", vote.vinMasternode.prevout.ToStringShort());
             mnodeman.AskForMN(pfrom, vote.vinMasternode.prevout);
@@ -654,9 +654,9 @@ void CMasternodePayments::CheckAndRemove()
 
 bool CMasternodePaymentVote::IsValid(CNode* pnode, int nValidationHeight, std::string& strError)
 {
-    masternode_info_t mnInfo = mnodeman.GetMasternodeInfo(vinMasternode.prevout);
+    masternode_info_t mnInfo;
 
-    if(!mnInfo.fInfoValid) {
+    if(!mnodeman.GetMasternodeInfo(vinMasternode.prevout, mnInfo)) {
         strError = strprintf("Unknown Masternode: prevout=%s", vinMasternode.prevout.ToStringShort());
         // Only ask if we are already synced and still have no idea about that Masternode
         if(masternodeSync.IsMasternodeListSynced()) {

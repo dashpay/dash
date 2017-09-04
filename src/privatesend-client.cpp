@@ -48,8 +48,8 @@ void CPrivateSendClient::ProcessMessage(CNode* pfrom, std::string& strCommand, C
 
         if(dsq.IsExpired()) return;
 
-        masternode_info_t infoMn = mnodeman.GetMasternodeInfo(dsq.vin.prevout);
-        if(!infoMn.fInfoValid) return;
+        masternode_info_t infoMn;
+        if(!mnodeman.GetMasternodeInfo(dsq.vin.prevout, infoMn)) return;
 
         if(!dsq.CheckSignature(infoMn.pubKeyMasternode)) {
             // we probably have outdated info
@@ -825,9 +825,9 @@ bool CPrivateSendClient::JoinExistingQueue(CAmount nBalanceNeedsAnonymized)
 
         if(dsq.IsExpired()) continue;
 
-        masternode_info_t infoMn = mnodeman.GetMasternodeInfo(dsq.vin.prevout);
+        masternode_info_t infoMn;
 
-        if(!infoMn.fInfoValid) {
+        if(!mnodeman.GetMasternodeInfo(dsq.vin.prevout, infoMn)) {
             LogPrintf("CPrivateSendClient::JoinExistingQueue -- dsq masternode is not in masternode list, masternode=%s\n", dsq.vin.prevout.ToStringShort());
             continue;
         }

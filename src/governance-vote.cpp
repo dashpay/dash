@@ -273,8 +273,8 @@ bool CGovernanceVote::IsValid(bool fSignatureCheck) const
         return false;
     }
 
-    masternode_info_t infoMn = mnodeman.GetMasternodeInfo(vinMasternode.prevout);
-    if(!infoMn.fInfoValid) {
+    masternode_info_t infoMn;
+    if(!mnodeman.GetMasternodeInfo(vinMasternode.prevout, infoMn)) {
         LogPrint("gobject", "CGovernanceVote::IsValid -- Unknown Masternode - %s\n", vinMasternode.prevout.ToStringShort());
         return false;
     }
