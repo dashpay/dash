@@ -692,7 +692,8 @@ void CMasternodeMan::ProcessMasternodeConnections()
 
     g_connman->ForEachNode(CConnman::AllNodes, [](CNode* pnode) {
         if(pnode->fMasternode) {
-            if(privateSendClient.infoMixingMasternode.fInfoValid && pnode->addr == privateSendClient.infoMixingMasternode.addr) return true;
+            if(privateSendClient.infoMixingMasternode.fInfoValid && pnode->addr == privateSendClient.infoMixingMasternode.addr)
+                return;
             LogPrintf("Closing Masternode connection: peer=%d, addr=%s\n", pnode->id, pnode->addr.ToString());
             pnode->fDisconnect = true;
         }
