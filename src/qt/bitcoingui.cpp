@@ -970,6 +970,20 @@ void BitcoinGUI::setNumBlocks(int count, const QDateTime& blockDate, double nVer
     // Set icon state: spinning if catching up, tick otherwise
     QString theme = GUIUtil::getThemeName();
 
+#ifdef ENABLE_WALLET
+    if (walletFrame)
+    {
+        if(secs < 25*60) // 90*60 in bitcoin
+        {
+            modalOverlay->showHide(true, true);
+        }
+        else
+        {
+            modalOverlay->showHide();
+        }
+    }
+#endif // ENABLE_WALLET
+
     if(!masternodeSync.IsBlockchainSynced())
     {
         QString timeBehindText = GUIUtil::formateNiceTimeOffset(secs);
@@ -994,7 +1008,6 @@ void BitcoinGUI::setNumBlocks(int count, const QDateTime& blockDate, double nVer
         if(walletFrame)
         {
             walletFrame->showOutOfSyncWarning(true);
-            modalOverlay->showHide();
         }
 #endif // ENABLE_WALLET
 
