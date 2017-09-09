@@ -1284,7 +1284,7 @@ bool CPrivateSendClient::CreateDenominated(const CompactTallyItem& tallyItem, bo
     // ****** Add denoms ************ /
 
     // make our denom addresses
-    std::vector<std::shared_ptr<CReserveKey>> reservekeyDenomVec;
+    CKeyHolderStorage keyHolderStorageDenom;
 
     // try few times - skipping smallest denoms first if there are too much already, if failed - use them
     int nOutputsTotal = 0;
@@ -1314,14 +1314,7 @@ bool CPrivateSendClient::CreateDenominated(const CompactTallyItem& tallyItem, bo
 
             // add each output up to 11 times until it can't be added again
             while(nValueLeft - nDenomValue >= 0 && nOutputs <= 10) {
-                CScript scriptDenom;
-                CPubKey vchPubKey;
-                // use a unique address
-                std::shared_ptr<CReserveKey> reservekeyDenom = std::make_shared<CReserveKey>(pwalletMain);
-                reservekeyDenomVec.push_back(reservekeyDenom);
-
-                assert(reservekeyDenom->GetReservedKey(vchPubKey, false)); // should never fail, as we just unlocked
-                scriptDenom = GetScriptForDestination(vchPubKey.GetID());
+                CScript scriptDenom = keyHolderStorageDenom.AddKey(pwalletMain).GetScriptForDestination();
 
                 vecSend.push_back((CRecipient){ scriptDenom, nDenomValue, false });
 
@@ -1361,16 +1354,14 @@ bool CPrivateSendClient::CreateDenominated(const CompactTallyItem& tallyItem, bo
             nFeeRet, nChangePosRet, strFail, &coinControl, true, ONLY_NONDENOMINATED_NOT1000IFMN);
     if(!fSuccess) {
         LogPrintf("CPrivateSendClient::CreateDenominated -- Error: %s\n", strFail);
-        for(auto key : reservekeyDenomVec)
-            key->ReturnKey();
+        keyHolderStorageDenom.ReturnAll();
         if (fCreateMixingCollaterals)
             reservekeyCollateral.ReturnKey();
         LogPrintf("CPrivateSendClient::CreateDenominated -- %d keys returned\n", reservekeyDenomVec.size() + 1);
         return false;
     }
 
-    for(auto key : reservekeyDenomVec)
-        key->KeepKey();
+    keyHolderStorageDenom.KeepAll();
     if (fCreateMixingCollaterals)
         reservekeyCollateral.KeepKey();
     LogPrintf("CPrivateSendClient::CreateDenominated -- %d keys keeped\n", reservekeyDenomVec.size() + 1);
