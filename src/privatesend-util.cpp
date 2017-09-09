@@ -3,38 +3,38 @@
 // file COPYING or http://www.opensource.org/licenses/mit-license.php.
 #include "privatesend-util.h"
 
-KeyHolder::KeyHolder(CWallet* pwallet)
-        :reserveKey(pwallet)
+CKeyHolder::CKeyHolder(CWallet* pwallet) :
+    reserveKey(pwallet)
 {
-        reserveKey.GetReservedKey(pubKey, false);
+    reserveKey.GetReservedKey(pubKey, false);
 }
 
-void KeyHolder::KeepKey()
+void CKeyHolder::KeepKey()
 {
     reserveKey.KeepKey();
 }
 
-void KeyHolder::ReturnKey()
+void CKeyHolder::ReturnKey()
 {
     reserveKey.ReturnKey();
 }
 
-CScript KeyHolder::GetScriptForDestination() const
+CScript CKeyHolder::GetScriptForDestination() const
 {
     return ::GetScriptForDestination(pubKey.GetID());
 }
 
 
-const KeyHolder& KeyHolderStorage::AddKey(CWallet* pwallet)
+const CKeyHolder& CKeyHolderStorage::AddKey(CWallet* pwallet)
 {
-    LogPrintf("PrivateSend - KeyHolderStorage -- AddKey\n");
-    storage.emplace_back(std::unique_ptr<KeyHolder>(new KeyHolder(pwallet)));
+    LogPrintf("PrivateSend - CKeyHolderStorage -- AddKey\n");
+    storage.emplace_back(std::unique_ptr<CKeyHolder>(new CKeyHolder(pwallet)));
     return *storage.back();
 }
 
-void KeyHolderStorage::KeepAll(){
+void CKeyHolderStorage::KeepAll(){
     if (storage.size() > 0) {
-        LogPrintf("PrivateSend - KeyHolderStorage -- KeepAll\n");
+        LogPrintf("PrivateSend - CKeyHolderStorage -- KeepAll\n");
         for (auto &key : storage) {
             key->KeepKey();
         }
@@ -42,10 +42,10 @@ void KeyHolderStorage::KeepAll(){
     }
 }
 
-void KeyHolderStorage::ReturnAll()
+void CKeyHolderStorage::ReturnAll()
 {
     if (storage.size() > 0) {
-        LogPrintf("PrivateSend - KeyHolderStorage -- ReturnAll\n");
+        LogPrintf("PrivateSend - CKeyHolderStorage -- ReturnAll\n");
         for (auto &key : storage) {
             key->ReturnKey();
         }

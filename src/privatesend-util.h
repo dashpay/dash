@@ -7,13 +7,13 @@
 
 #include "wallet/wallet.h"
 
-class KeyHolder
+class CKeyHolder
 {
 private:
     CReserveKey reserveKey;
     CPubKey pubKey;
 public:
-    KeyHolder(CWallet* pwalletIn);
+    CKeyHolder(CWallet* pwalletIn);
     void KeepKey();
     void ReturnKey();
 
@@ -21,13 +21,13 @@ public:
 
 };
 
-class KeyHolderStorage
+class CKeyHolderStorage
 {
 private:
-    std::vector<std::unique_ptr<KeyHolder> > storage;
+    std::vector<std::unique_ptr<CKeyHolder> > storage;
 
 public:
-    const KeyHolder& AddKey(CWallet* pwalletIn);
+    const CKeyHolder& AddKey(CWallet* pwalletIn);
     void KeepAll();
     void ReturnAll();
 

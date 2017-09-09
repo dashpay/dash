@@ -56,7 +56,7 @@ private:
 
     CMutableTransaction txMyCollateral; // client side collateral
 
-    KeyHolderStorage keyHolderStorage; // storage for keys used in PrepereDenominate
+    CKeyHolderStorage keyHolderStorage; // storage for keys used in PrepareDenominate
 
     /// Check for process
     void CheckPool();
