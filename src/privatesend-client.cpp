@@ -1357,14 +1357,12 @@ bool CPrivateSendClient::CreateDenominated(const CompactTallyItem& tallyItem, bo
         keyHolderStorageDenom.ReturnAll();
         if (fCreateMixingCollaterals)
             reservekeyCollateral.ReturnKey();
-        LogPrintf("CPrivateSendClient::CreateDenominated -- %d keys returned\n", reservekeyDenomVec.size() + 1);
         return false;
     }
 
     keyHolderStorageDenom.KeepAll();
     if (fCreateMixingCollaterals)
         reservekeyCollateral.KeepKey();
-    LogPrintf("CPrivateSendClient::CreateDenominated -- %d keys keeped\n", reservekeyDenomVec.size() + 1);
 
     if(!pwalletMain->CommitTransaction(wtx, reservekeyChange, &connman)) {
         LogPrintf("CPrivateSendClient::CreateDenominated -- CommitTransaction failed!\n");
