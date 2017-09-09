@@ -295,7 +295,11 @@ void CPrivateSendClient::CheckPool()
     if((nState == POOL_STATE_ERROR || nState == POOL_STATE_SUCCESS) && GetTimeMillis() - nTimeLastSuccessfulStep >= 10000) {
         LogPrint("privatesend", "CPrivateSendClient::CheckPool -- timeout, RESETTING\n");
         UnlockCoins();
-        keyHolderStorage.ReturnAll();
+        if (nState == POOL_STATE_ERROR) {
+            keyHolderStorage.ReturnAll();
+        } else {
+            keyHolderStorage.KeepAll();
+        }
         SetNull();
     }
 }
