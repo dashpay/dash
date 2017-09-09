@@ -32,6 +32,7 @@ public Q_SLOTS:
     // will show or hide the modal layer
     void showHide(bool hide = false, bool userRequested = false);
     void closeClicked();
+    void hideForever();
     bool isLayerVisible() { return layerIsVisible; }
 
 protected:
@@ -45,6 +46,7 @@ private:
     QVector<QPair<qint64, double> > blockProcessTime;
     bool layerIsVisible;
     bool userClosed;
+    bool foreverHidden;
 };
 
 #endif // BITCOIN_QT_MODALOVERLAY_H
