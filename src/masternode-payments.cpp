@@ -684,7 +684,7 @@ bool CMasternodePaymentVote::IsValid(CNode* pnode, int nValidationHeight, std::s
     // Regular clients (miners included) need to verify masternode rank for future block votes only.
     if(!fMasterNode && nBlockHeight < nValidationHeight) return true;
 
-    int nRank = mnodeman.GetMasternodeRank(vinMasternode.prevout, nBlockHeight - 101, nMinRequiredProtocol, false);
+    int nRank = mnodeman.GetMasternodeRank(vinMasternode.prevout, nBlockHeight - 101, nMinRequiredProtocol);
 
     if(nRank == -1) {
         LogPrint("mnpayments", "CMasternodePaymentVote::IsValid -- Can't calculate rank for masternode %s\n",
@@ -723,7 +723,7 @@ bool CMasternodePayments::ProcessBlock(int nBlockHeight)
     // if we have not enough data about masternodes.
     if(!masternodeSync.IsMasternodeListSynced()) return false;
 
-    int nRank = mnodeman.GetMasternodeRank(activeMasternode.outpoint, nBlockHeight - 101, GetMinMasternodePaymentsProto(), false);
+    int nRank = mnodeman.GetMasternodeRank(activeMasternode.outpoint, nBlockHeight - 101, GetMinMasternodePaymentsProto());
 
     if (nRank == -1) {
         LogPrint("mnpayments", "CMasternodePayments::ProcessBlock -- Unknown Masternode\n");

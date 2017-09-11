@@ -17,6 +17,7 @@ extern CMasternodeMan mnodeman;
 class CMasternodeMan
 {
 public:
+    typedef std::vector<std::pair<arith_uint256, CMasternode*> > score_pair_m_t;
 
 private:
     static const std::string SERIALIZATION_VERSION_STRING;
@@ -72,6 +73,8 @@ private:
     friend class CMasternodeSync;
     /// Find an entry
     CMasternode* Find(const COutPoint& outpoint);
+
+    score_pair_m_t GetMasternodeScores(int nBlockHeight, uint256 blockHash, int nMinProtocol);
 
 public:
     // Keep track of all broadcasts I've seen
@@ -167,8 +170,8 @@ public:
     std::map<COutPoint, CMasternode> GetFullMasternodeMap() { return mapMasternodes; }
 
     std::vector<std::pair<int, CMasternode> > GetMasternodeRanks(int nBlockHeight = -1, int nMinProtocol=0);
-    int GetMasternodeRank(const COutPoint &outpoint, int nBlockHeight, int nMinProtocol=0, bool fOnlyActive=true);
-    bool GetMasternodeByRank(int nRank, int nBlockHeight, int nMinProtocol, bool fOnlyActive, masternode_info_t& mnInfoRet);
+    int GetMasternodeRank(const COutPoint &outpoint, int nBlockHeight, int nMinProtocol=0);
+    bool GetMasternodeByRank(int nRank, int nBlockHeight, int nMinProtocol, masternode_info_t& mnInfoRet);
 
     void ProcessMasternodeConnections();
     std::pair<CService, std::set<uint256> > PopScheduledMnbRequestConnection();

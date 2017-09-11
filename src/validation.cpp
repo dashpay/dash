@@ -1883,7 +1883,7 @@ int32_t ComputeBlockVersion(const CBlockIndex* pindexPrev, const Consensus::Para
         const struct BIP9DeploymentInfo& vbinfo = VersionBitsDeploymentInfo[pos];
         if (vbinfo.check_mn_protocol && state == THRESHOLD_STARTED && !fAssumeMasternodeIsUpgraded) {
             masternode_info_t mnInfo;
-            bool fFound = mnodeman.GetMasternodeByRank(1, pindexPrev->nHeight, 0, false, mnInfo);
+            bool fFound = mnodeman.GetMasternodeByRank(1, pindexPrev->nHeight, 0, mnInfo);
             if (!fFound || mnInfo.nProtocolVersion < PROTOCOL_VERSION) {
                 // no masternodes(?) or masternode is not upgraded yet
                 continue;
