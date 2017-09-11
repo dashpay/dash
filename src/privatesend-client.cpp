@@ -1267,30 +1267,24 @@ bool CPrivateSendClient::CreateDenominated(CConnman& connman)
 bool CPrivateSendClient::CreateDenominated(const CompactTallyItem& tallyItem, bool fCreateMixingCollaterals, CConnman& connman)
 {
     std::vector<CRecipient> vecSend;
+    CKeyHolderStorage keyHolderStorageDenom;
+
     CAmount nValueLeft = tallyItem.nAmount;
     nValueLeft -= CPrivateSend::GetCollateralAmount(); // leave some room for fees
 
     LogPrintf("CreateDenominated0 nValueLeft: %f\n", (float)nValueLeft/COIN);
-    // make our collateral address
-    CReserveKey reservekeyCollateral(pwalletMain);    
+
+    // ****** Add an output for mixing collaterals ************ /
 
     if(fCreateMixingCollaterals) {
-        CScript scriptCollateral;
-        CPubKey vchPubKey;
-        assert(reservekeyCollateral.GetReservedKey(vchPubKey, false)); // should never fail, as we just unlocked
-        scriptCollateral = GetScriptForDestination(vchPubKey.GetID());
-
-        // ****** Add collateral outputs ************ /
-        vecSend.push_back((CRecipient){scriptCollateral, CPrivateSend::GetMaxCollateralAmount(), false});
+        CScript scriptCollateral = keyHolderStorageDenom.AddKey(pwalletMain).GetScriptForDestination();
+        vecSend.push_back((CRecipient){ scriptCollateral, CPrivateSend::GetMaxCollateralAmount(), false });
         nValueLeft -= CPrivateSend::GetMaxCollateralAmount();
     }
 
-    // ****** Add denoms ************ /
+    // ****** Add outputs for denoms ************ /
 
-    // make our denom addresses
-    CKeyHolderStorage keyHolderStorageDenom;
-
-    // try few times - skipping smallest denoms first if there are too much already, if failed - use them
+    // try few times - skipping smallest denoms first if there are too many of them already, if failed - use them too
     int nOutputsTotal = 0;
     bool fSkip = true;
     do {
@@ -1359,14 +1353,10 @@ bool CPrivateSendClient::CreateDenominated(const CompactTallyItem& tallyItem, bo
     if(!fSuccess) {
         LogPrintf("CPrivateSendClient::CreateDenominated -- Error: %s\n", strFail);
         keyHolderStorageDenom.ReturnAll();
-        if (fCreateMixingCollaterals)
-            reservekeyCollateral.ReturnKey();
         return false;
     }
 
     keyHolderStorageDenom.KeepAll();
-    if (fCreateMixingCollaterals)
-        reservekeyCollateral.KeepKey();
 
     if(!pwalletMain->CommitTransaction(wtx, reservekeyChange, &connman)) {
         LogPrintf("CPrivateSendClient::CreateDenominated -- CommitTransaction failed!\n");
