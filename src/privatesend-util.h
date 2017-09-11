@@ -14,6 +14,8 @@ private:
     CPubKey pubKey;
 public:
     CKeyHolder(CWallet* pwalletIn);
+    CKeyHolder(CKeyHolder&&) = default;
+    CKeyHolder& operator=(CKeyHolder&&) = default;
     void KeepKey();
     void ReturnKey();
 
