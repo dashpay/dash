@@ -16,7 +16,7 @@
 /** Masternode manager */
 CMasternodeMan mnodeman;
 
-const std::string CMasternodeMan::SERIALIZATION_VERSION_STRING = "CMasternodeMan-Version-6";
+const std::string CMasternodeMan::SERIALIZATION_VERSION_STRING = "CMasternodeMan-Version-7";
 
 struct CompareLastPaidBlock
 {
