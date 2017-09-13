@@ -169,7 +169,7 @@ void CMasternodeMan::CheckAndRemove()
         Check();
 
         // Remove spent masternodes, prepare structures and make requests to reasure the state of inactive ones
-        std::vector<std::pair<int, CMasternode> > vecMasternodeRanks;
+        rank_pair_vec_t vecMasternodeRanks;
         // ask for up to MNB_RECOVERY_MAX_ASK_ENTRIES masternode entries at a time
         int nAskForMnbRecovery = MNB_RECOVERY_MAX_ASK_ENTRIES;
         std::map<COutPoint, CMasternode>::iterator it = mapMasternodes.begin();
@@ -199,7 +199,7 @@ void CMasternodeMan::CheckAndRemove()
                     // calulate only once and only when it's needed
                     if(vecMasternodeRanks.empty()) {
                         int nRandomBlockHeight = GetRandInt(nCachedBlockHeight);
-                        vecMasternodeRanks = GetMasternodeRanks(nRandomBlockHeight);
+                        GetMasternodeRanks(vecMasternodeRanks, nRandomBlockHeight);
                     }
                     bool fAskedForMnbRecovery = false;
                     // ask first MNB_RECOVERY_QUORUM_TOTAL masternodes we can connect to and we haven't asked recently
@@ -593,99 +593,88 @@ masternode_info_t CMasternodeMan::FindRandomNotInVec(const std::vector<COutPoint
     return masternode_info_t();
 }
 
-CMasternodeMan::score_pair_m_t CMasternodeMan::GetMasternodeScores(int nBlockHeight, uint256 blockHash, int nMinProtocol)
+bool CMasternodeMan::GetMasternodeScores(CMasternodeMan::score_pair_vec_t& vecMasternodeScoresRet, int nBlockHeight, int nMinProtocol)
 {
-    score_pair_m_t vecMasternodeScores;
+    vecMasternodeScoresRet.clear();
 
-    if(!masternodeSync.IsMasternodeListSynced())
-        return vecMasternodeScores;
-
-    assert(blockHash != uint256());
-
-    // lock is required and should be acquired outside
-    AssertLockHeld(cs);
-
-
-    // calculate scores
-    for (auto& mnpair : mapMasternodes) {
-        if(mnpair.second.nProtocolVersion >= nMinProtocol) {
-            vecMasternodeScores.push_back(std::make_pair(mnpair.second.CalculateScore(blockHash), &mnpair.second));
-        }
-    }
-
-    sort(vecMasternodeScores.rbegin(), vecMasternodeScores.rend(), CompareScoreMN());
-    return vecMasternodeScores;
-}
-
-int CMasternodeMan::GetMasternodeRank(const COutPoint& outpoint, int nBlockHeight, int nMinProtocol)
-{
-    if(!masternodeSync.IsMasternodeListSynced())
-        return -1;
+    if (!masternodeSync.IsMasternodeListSynced())
+        return false;
 
     // make sure we know about this block
     uint256 blockHash = uint256();
-    if(!GetBlockHash(blockHash, nBlockHeight)) {
-        LogPrintf("CMasternode::%s -- ERROR: GetBlockHash() failed at nBlockHeight %d\n", __func__, nBlockHeight);
-        return -1;
-    }
-
-    LOCK(cs);
-
-    score_pair_m_t vecMasternodeScores = GetMasternodeScores(nBlockHeight, blockHash, nMinProtocol);
-
-    int nRank = 0;
-    for (auto& scorePair : vecMasternodeScores) {
-        nRank++;
-        if(scorePair.second->vin.prevout == outpoint)
-            return nRank;
-    }
-
-    return -1;
-}
-
-std::vector<std::pair<int, CMasternode> > CMasternodeMan::GetMasternodeRanks(int nBlockHeight, int nMinProtocol)
-{
-    std::vector<std::pair<int, CMasternode> > vecMasternodeRanks;
-
-    if(!masternodeSync.IsMasternodeListSynced())
-        return vecMasternodeRanks;
-
-    //make sure we know about this block
-    uint256 blockHash = uint256();
-    if(!GetBlockHash(blockHash, nBlockHeight)) {
-        LogPrintf("CMasternode::%s -- ERROR: GetBlockHash() failed at nBlockHeight %d\n", __func__, nBlockHeight);
-        return vecMasternodeRanks;
-    }
-
-    LOCK(cs);
-
-    score_pair_m_t vecMasternodeScores = GetMasternodeScores(nBlockHeight, blockHash, nMinProtocol);
-
-    int nRank = 0;
-    for (auto& scorePair : vecMasternodeScores) {
-        nRank++;
-        vecMasternodeRanks.push_back(std::make_pair(nRank, *scorePair.second));
-    }
-
-    return vecMasternodeRanks;
-}
-
-bool CMasternodeMan::GetMasternodeByRank(int nRank, int nBlockHeight, int nMinProtocol, masternode_info_t& mnInfoRet)
-{
-    uint256 blockHash = uint256();
-    if(!GetBlockHash(blockHash, nBlockHeight)) {
-        LogPrintf("CMasternode::%s -- ERROR: GetBlockHash() failed at nBlockHeight %d\n", __func__, nBlockHeight);
+    if (!GetBlockHash(blockHash, nBlockHeight)) {
+        LogPrintf("CMasternodeMan::%s -- ERROR: GetBlockHash() failed at nBlockHeight %d\n", __func__, nBlockHeight);
         return false;
     }
 
     LOCK(cs);
 
-    score_pair_m_t vecMasternodeScores = GetMasternodeScores(nBlockHeight, blockHash, nMinProtocol);
+    if (mapMasternodes.empty())
+        return false;
 
-    int rank = 0;
+    // calculate scores
+    for (auto& mnpair : mapMasternodes) {
+        if (mnpair.second.nProtocolVersion >= nMinProtocol) {
+            vecMasternodeScoresRet.push_back(std::make_pair(mnpair.second.CalculateScore(blockHash), &mnpair.second));
+        }
+    }
+
+    sort(vecMasternodeScoresRet.rbegin(), vecMasternodeScoresRet.rend(), CompareScoreMN());
+    return !vecMasternodeScoresRet.empty();
+}
+
+bool CMasternodeMan::GetMasternodeRank(const COutPoint& outpoint, int& nRankRet, int nBlockHeight, int nMinProtocol)
+{
+    nRankRet = -1;
+
+    score_pair_vec_t vecMasternodeScores;
+    if (!GetMasternodeScores(vecMasternodeScores, nBlockHeight, nMinProtocol))
+        return false;
+
+    int nRank = 0;
     for (auto& scorePair : vecMasternodeScores) {
-        rank++;
-        if(rank == nRank) {
+        nRank++;
+        if(scorePair.second->vin.prevout == outpoint) {
+            nRankRet = nRank;
+            return true;
+        }
+    }
+
+    return false;
+}
+
+bool CMasternodeMan::GetMasternodeRanks(CMasternodeMan::rank_pair_vec_t& vecMasternodeRanksRet, int nBlockHeight, int nMinProtocol)
+{
+    vecMasternodeRanksRet.clear();
+
+    score_pair_vec_t vecMasternodeScores;
+    if (!GetMasternodeScores(vecMasternodeScores, nBlockHeight, nMinProtocol))
+        return false;
+
+    int nRank = 0;
+    for (auto& scorePair : vecMasternodeScores) {
+        nRank++;
+        vecMasternodeRanksRet.push_back(std::make_pair(nRank, *scorePair.second));
+    }
+
+    return true;
+}
+
+bool CMasternodeMan::GetMasternodeByRank(int nRankIn, masternode_info_t& mnInfoRet, int nBlockHeight, int nMinProtocol)
+{
+    mnInfoRet = masternode_info_t();
+
+    score_pair_vec_t vecMasternodeScores;
+    if (!GetMasternodeScores(vecMasternodeScores, nBlockHeight, nMinProtocol))
+        return false;
+
+    if (vecMasternodeScores.size() < nRankIn)
+        return false;
+
+    int nRank = 0;
+    for (auto& scorePair : vecMasternodeScores) {
+        nRank++;
+        if(nRank == nRankIn) {
             mnInfoRet = *scorePair.second;
             return true;
         }
@@ -898,7 +887,8 @@ void CMasternodeMan::DoFullVerificationStep()
     if(activeMasternode.outpoint == COutPoint()) return;
     if(!masternodeSync.IsSynced()) return;
 
-    std::vector<std::pair<int, CMasternode> > vecMasternodeRanks = GetMasternodeRanks(nCachedBlockHeight - 1, MIN_POSE_PROTO_VERSION);
+    rank_pair_vec_t vecMasternodeRanks;
+    GetMasternodeRanks(vecMasternodeRanks, nCachedBlockHeight - 1, MIN_POSE_PROTO_VERSION);
 
     // Need LOCK2 here to ensure consistent locking order because the SendVerifyRequest call below locks cs_main
     // through GetHeight() signal in ConnectNode
@@ -1231,9 +1221,9 @@ void CMasternodeMan::ProcessVerifyBroadcast(CNode* pnode, const CMasternodeVerif
         return;
     }
 
-    int nRank = GetMasternodeRank(mnv.vin2.prevout, mnv.nBlockHeight, MIN_POSE_PROTO_VERSION);
+    int nRank;
 
-    if (nRank == -1) {
+    if (!GetMasternodeRank(mnv.vin2.prevout, nRank, mnv.nBlockHeight, MIN_POSE_PROTO_VERSION)) {
         LogPrint("masternode", "CMasternodeMan::ProcessVerifyBroadcast -- Can't calculate rank for masternode %s\n",
                     mnv.vin2.prevout.ToStringShort());
         return;
