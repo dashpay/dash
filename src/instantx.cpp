@@ -992,28 +992,13 @@ bool CTxLockVote::IsValid(CNode* pnode) const
         return false;
     }
 
-    int nPrevoutHeight = GetUTXOHeight(outpoint);
-    if(nPrevoutHeight == -1) {
+    CCoins coins;
+    if(!GetUTXOCoins(outpoint, coins)) {
         LogPrint("instantsend", "CTxLockVote::IsValid -- Failed to find UTXO %s\n", outpoint.ToStringShort());
-        // Validating utxo set is not enough, votes can arrive after outpoint was already spent,
-        // if lock request was mined. We should process them too to count them later if they are legit.
-        CTransaction txOutpointCreated;
-        uint256 nHashOutpointConfirmed;
-        if(!GetTransaction(outpoint.hash, txOutpointCreated, Params().GetConsensus(), nHashOutpointConfirmed, true) || nHashOutpointConfirmed == uint256()) {
-            LogPrint("instantsend", "CTxLockVote::IsValid -- Failed to find outpoint %s\n", outpoint.ToStringShort());
-            return false;
-        }
-        LOCK(cs_main);
-        BlockMap::iterator mi = mapBlockIndex.find(nHashOutpointConfirmed);
-        if(mi == mapBlockIndex.end() || !mi->second) {
-            // not on this chain?
-            LogPrint("instantsend", "CTxLockVote::IsValid -- Failed to find block %s for outpoint %s\n", nHashOutpointConfirmed.ToString(), outpoint.ToStringShort());
-            return false;
-        }
-        nPrevoutHeight = mi->second->nHeight;
+        return false;
     }
 
-    int nLockInputHeight = nPrevoutHeight + 4;
+    int nLockInputHeight = coins.nHeight + 4;
 
     int n = mnodeman.GetMasternodeRank(outpointMasternode, nLockInputHeight, MIN_INSTANTSEND_PROTO_VERSION);
 
