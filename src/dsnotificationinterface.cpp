@@ -48,11 +48,11 @@ void CDSNotificationInterface::UpdatedBlockTip(const CBlockIndex *pindexNew, con
     // Update min fees only if activation changed and we are using default minRelayTxFee
     if (fDIP0001ActiveAtTipTmp != fDIP0001ActiveAtTip) {
         if (!mapArgs.count("-minrelaytxfee")) {
-            ::minRelayTxFee = CFeeRate(fDIP0001ActiveAtTip ? DEFAULT_LEGACY_MIN_RELAY_TX_FEE / 10 : DEFAULT_LEGACY_MIN_RELAY_TX_FEE);
+            ::minRelayTxFee = CFeeRate(fDIP0001ActiveAtTip ? DEFAULT_DIP0001_MIN_RELAY_TX_FEE : DEFAULT_LEGACY_MIN_RELAY_TX_FEE);
             mempool.UpdateMinFee(::minRelayTxFee);
         }
         if (!mapArgs.count("-mintxfee")) {
-            CWallet::minTxFee = CFeeRate(fDIP0001ActiveAtTip ? DEFAULT_LEGACY_TRANSACTION_MINFEE / 10 : DEFAULT_LEGACY_TRANSACTION_MINFEE);
+            CWallet::minTxFee = CFeeRate(fDIP0001ActiveAtTip ? DEFAULT_DIP0001_TRANSACTION_MINFEE : DEFAULT_LEGACY_TRANSACTION_MINFEE);
         }
     }
 }
