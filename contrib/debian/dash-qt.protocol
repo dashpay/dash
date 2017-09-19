@@ -1,6 +1,6 @@
 [Protocol]
-exec=dash-qt '%u'
-protocol=dash
+exec=kliq-qt '%u'
+protocol=kliq
 input=none
 output=none
 helper=true

@@ -1,12 +1,12 @@
 [Desktop Entry]
 Encoding=UTF-8
-Name=Dash
-Comment=Dash P2P Cryptocurrency
-Comment[fr]=Dash, monnaie virtuelle cryptographique pair à pair
-Comment[tr]=Dash, eşten eşe kriptografik sanal para birimi
-Exec=dash-qt %u
+Name=Kliq
+Comment=Kliq P2P Cryptocurrency
+Comment[fr]=Kliq, monnaie virtuelle cryptographique pair à pair
+Comment[tr]=Kliq, eşten eşe kriptografik sanal para birimi
+Exec=kliq-qt %u
 Terminal=false
 Type=Application
-Icon=dash128
-MimeType=x-scheme-handler/dash;
+Icon=kliq128
+MimeType=x-scheme-handler/kliq;
 Categories=Office;Finance;

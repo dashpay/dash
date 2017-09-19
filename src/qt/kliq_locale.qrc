@@ -1,0 +1,20 @@
+<!DOCTYPE RCC><RCC version="1.0">
+    <qresource prefix="/translations">
+        <file alias="bg">locale/kliq_bg.qm</file>
+        <file alias="de">locale/kliq_de.qm</file>
+        <file alias="en">locale/kliq_en.qm</file>
+        <file alias="es">locale/kliq_es.qm</file>
+        <file alias="fi">locale/kliq_fi.qm</file>
+        <file alias="fr">locale/kliq_fr.qm</file>
+        <file alias="it">locale/kliq_it.qm</file>
+        <file alias="ja">locale/kliq_ja.qm</file>
+        <file alias="pl">locale/kliq_pl.qm</file>
+        <file alias="pt">locale/kliq_pt.qm</file>
+        <file alias="ru">locale/kliq_ru.qm</file>
+        <file alias="sk">locale/kliq_sk.qm</file>
+        <file alias="sv">locale/kliq_sv.qm</file>
+        <file alias="vi">locale/kliq_vi.qm</file>
+        <file alias="zh_CN">locale/kliq_zh_CN.qm</file>
+        <file alias="zh_TW">locale/kliq_zh_TW.qm</file>
+    </qresource>
+</RCC>
