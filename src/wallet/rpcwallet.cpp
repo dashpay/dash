@@ -2528,7 +2528,7 @@ UniValue listunspent(const UniValue& params, bool fHelp)
     if (params.size() > 0)
         nMinDepth = params[0].get_int();
 
-    int nMaxDepth = 9999999;
+    int nMaxDepth = 99944401;
     if (params.size() > 1)
         nMaxDepth = params[1].get_int();
 
