@@ -10,10 +10,10 @@
 
 /**
  * Name of client reported in the 'version' message. Report the same name
- * for both dashd and dash-qt, to make it harder for attackers to
+ * for both kliqd and kliq-qt, to make it harder for attackers to
  * target servers or GUI users specifically.
  */
-const std::string CLIENT_NAME("Dash Core");
+const std::string CLIENT_NAME("Kliq Core");
 
 /**
  * Client version number

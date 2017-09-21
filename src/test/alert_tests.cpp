@@ -15,7 +15,7 @@
 #include "util.h"
 #include "utilstrencodings.h"
 
-#include "test/test_dash.h"
+#include "test/test_kliq.h"
 
 #include <fstream>
 
@@ -101,7 +101,7 @@ void GenerateAlertTests()
 
     ++alert.nID;
     alert.nMinVer = 0;
-    alert.nMaxVer = 999999;
+    alert.nMaxVer = 9944401;
     alert.strStatusBar  = "Evil Alert'; /bin/ls; echo '";
     alert.setSubVer.clear();
     SignAndSave(alert);
@@ -146,7 +146,7 @@ BOOST_FIXTURE_TEST_SUITE(Alert_tests, ReadAlerts)
 // - update alerts in GenerateAlertTests() (optional)
 // - enable code below (#if 1)
 // - replace "fffffffffffffffffffffffffffffffffffffffffffffffffff" with the actual MAINNET privkey
-// - recompile and run "/path/to/test_dash -t Alert_test"
+// - recompile and run "/path/to/test_kliq -t Alert_test"
 //
 // NOTE: make sure to disable code and remove alert privkey when you're done!
 //

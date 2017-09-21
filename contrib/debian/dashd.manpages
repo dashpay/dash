@@ -1,3 +1,3 @@
-debian/manpages/dashd.1
-debian/manpages/dash.conf.5
-debian/manpages/dash-cli.1
+debian/manpages/kliqd.1
+debian/manpages/kliq.conf.5
+debian/manpages/kliq-cli.1
