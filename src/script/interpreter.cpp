@@ -1213,23 +1213,18 @@ bool TransactionSignatureChecker::CheckSequence(const CScriptNum& nSequence) con
 
     // Mask off any bits that do not have consensus-enforced meaning
     // before doing the integer comparisons
-    const uint32_t nLockTimeMask = CTxIn::SEQUENCE_LOCKTIME_TYPE_FLAG | CTxIn::LEGACY_SEQUENCE_LOCKTIME_MASK;
-    const int64_t txToSequenceMasked = txToSequence & nLockTimeMask;
-    const CScriptNum nSequenceMasked = nSequence & nLockTimeMask;
+    const int64_t txToSequenceMasked = txToSequence & CTxIn::DIP0001_SEQUENCE_LOCKTIME_MASK;
+    const CScriptNum nSequenceMasked = nSequence & CTxIn::DIP0001_SEQUENCE_LOCKTIME_MASK;
 
     // There are two kinds of nSequence: lock-by-blockheight
     // and lock-by-blocktime, distinguished by whether
-    // nSequenceMasked < CTxIn::SEQUENCE_LOCKTIME_TYPE_FLAG.
+    // CTxIn::SEQUENCE_LOCKTIME_TYPE_FLAG is set.
     //
     // We want to compare apples to apples, so fail the script
-    // unless the type of nSequenceMasked being tested is the same as
-    // the nSequenceMasked in the transaction.
-    if (!(
-        (txToSequenceMasked <  CTxIn::SEQUENCE_LOCKTIME_TYPE_FLAG && nSequenceMasked <  CTxIn::SEQUENCE_LOCKTIME_TYPE_FLAG) ||
-        (txToSequenceMasked >= CTxIn::SEQUENCE_LOCKTIME_TYPE_FLAG && nSequenceMasked >= CTxIn::SEQUENCE_LOCKTIME_TYPE_FLAG)
-    )) {
+    // unless the type of nSequence being tested is the same as
+    // the nSequence in the transaction.
+    if (((nSequence ^ txToSequence) & CTxIn::SEQUENCE_LOCKTIME_TYPE_FLAG) != 0)
         return false;
-    }
 
     // Now that we know we're comparing apples-to-apples, the
     // comparison is a simple numeric one.
