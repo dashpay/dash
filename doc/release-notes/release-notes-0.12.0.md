@@ -841,7 +841,7 @@ Thanks to everyone who directly contributed to this release:
 - kazcw
 - Kevin Cooper
 - lpescher
-- Luke Dashjr
+- Luke Kliqjr
 - MarcoFalke
 - Mark Friedenbach
 - Matt

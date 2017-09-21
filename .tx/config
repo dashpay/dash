@@ -1,7 +1,7 @@
 [main]
 host = https://www.transifex.com
 
-[dash.qt-translation-012x]
-file_filter = src/qt/locale/dash_<lang>.ts
-source_file = src/qt/locale/dash_en.ts
+[kliq.qt-translation-012x]
+file_filter = src/qt/locale/kliq_<lang>.ts
+source_file = src/qt/locale/kliq_en.ts
 source_lang = en

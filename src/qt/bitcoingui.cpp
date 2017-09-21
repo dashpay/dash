@@ -1,5 +1,5 @@
 // Copyright (c) 2011-2015 The Bitcoin Core developers
-// Copyright (c) 2014-2017 The Dash Core developers
+// Copyright (c) 2014-2017 The Kliq Core developers
 // Distributed under the MIT software license, see the accompanying
 // file COPYING or http://www.opensource.org/licenses/mit-license.php.
 
@@ -124,7 +124,7 @@ BitcoinGUI::BitcoinGUI(const PlatformStyle *platformStyle, const NetworkStyle *n
 
     GUIUtil::restoreWindowGeometry("nWindow", QSize(850, 550), this);
 
-    QString windowTitle = tr("Dash Core") + " - ";
+    QString windowTitle = tr("Kliq Core") + " - ";
 #ifdef ENABLE_WALLET
     /* if compiled with wallet support, -disablewallet can still disable the wallet */
     enableWallet = !GetBoolArg("-disablewallet", false);
@@ -285,7 +285,7 @@ void BitcoinGUI::createActions()
     tabGroup->addAction(overviewAction);
 
     sendCoinsAction = new QAction(QIcon(":/icons/" + theme + "/send"), tr("&Send"), this);
-    sendCoinsAction->setStatusTip(tr("Send coins to a Dash address"));
+    sendCoinsAction->setStatusTip(tr("Send coins to a Kliq address"));
     sendCoinsAction->setToolTip(sendCoinsAction->statusTip());
     sendCoinsAction->setCheckable(true);
 #ifdef Q_OS_MAC
@@ -300,7 +300,7 @@ void BitcoinGUI::createActions()
     sendCoinsMenuAction->setToolTip(sendCoinsMenuAction->statusTip());
 
     receiveCoinsAction = new QAction(QIcon(":/icons/" + theme + "/receiving_addresses"), tr("&Receive"), this);
-    receiveCoinsAction->setStatusTip(tr("Request payments (generates QR codes and dash: URIs)"));
+    receiveCoinsAction->setStatusTip(tr("Request payments (generates QR codes and kliq: URIs)"));
     receiveCoinsAction->setToolTip(receiveCoinsAction->statusTip());
     receiveCoinsAction->setCheckable(true);
 #ifdef Q_OS_MAC
@@ -362,15 +362,15 @@ void BitcoinGUI::createActions()
     quitAction->setStatusTip(tr("Quit application"));
     quitAction->setShortcut(QKeySequence(Qt::CTRL + Qt::Key_Q));
     quitAction->setMenuRole(QAction::QuitRole);
-    aboutAction = new QAction(QIcon(":/icons/" + theme + "/about"), tr("&About Dash Core"), this);
-    aboutAction->setStatusTip(tr("Show information about Dash Core"));
+    aboutAction = new QAction(QIcon(":/icons/" + theme + "/about"), tr("&About Kliq Core"), this);
+    aboutAction->setStatusTip(tr("Show information about Kliq Core"));
     aboutAction->setMenuRole(QAction::AboutRole);
     aboutAction->setEnabled(false);
     aboutQtAction = new QAction(QIcon(":/icons/" + theme + "/about_qt"), tr("About &Qt"), this);
     aboutQtAction->setStatusTip(tr("Show information about Qt"));
     aboutQtAction->setMenuRole(QAction::AboutQtRole);
     optionsAction = new QAction(QIcon(":/icons/" + theme + "/options"), tr("&Options..."), this);
-    optionsAction->setStatusTip(tr("Modify configuration options for Dash Core"));
+    optionsAction->setStatusTip(tr("Modify configuration options for Kliq Core"));
     optionsAction->setMenuRole(QAction::PreferencesRole);
     optionsAction->setEnabled(false);
     toggleHideAction = new QAction(QIcon(":/icons/" + theme + "/about"), tr("&Show / Hide"), this);
@@ -387,9 +387,9 @@ void BitcoinGUI::createActions()
     unlockWalletAction->setToolTip(tr("Unlock wallet"));
     lockWalletAction = new QAction(tr("&Lock Wallet"), this);
     signMessageAction = new QAction(QIcon(":/icons/" + theme + "/edit"), tr("Sign &message..."), this);
-    signMessageAction->setStatusTip(tr("Sign messages with your Dash addresses to prove you own them"));
+    signMessageAction->setStatusTip(tr("Sign messages with your Kliq addresses to prove you own them"));
     verifyMessageAction = new QAction(QIcon(":/icons/" + theme + "/transaction_0"), tr("&Verify message..."), this);
-    verifyMessageAction->setStatusTip(tr("Verify messages to ensure they were signed with specified Dash addresses"));
+    verifyMessageAction->setStatusTip(tr("Verify messages to ensure they were signed with specified Kliq addresses"));
 
     openInfoAction = new QAction(QApplication::style()->standardIcon(QStyle::SP_MessageBoxInformation), tr("&Information"), this);
     openInfoAction->setStatusTip(tr("Show diagnostic information"));
@@ -420,11 +420,11 @@ void BitcoinGUI::createActions()
     usedReceivingAddressesAction->setStatusTip(tr("Show the list of used receiving addresses and labels"));
 
     openAction = new QAction(QApplication::style()->standardIcon(QStyle::SP_DirOpenIcon), tr("Open &URI..."), this);
-    openAction->setStatusTip(tr("Open a dash: URI or payment request"));
+    openAction->setStatusTip(tr("Open a kliq: URI or payment request"));
 
     showHelpMessageAction = new QAction(QApplication::style()->standardIcon(QStyle::SP_MessageBoxInformation), tr("&Command-line options"), this);
     showHelpMessageAction->setMenuRole(QAction::NoRole);
-    showHelpMessageAction->setStatusTip(tr("Show the Dash Core help message to get a list with possible Dash Core command-line options"));
+    showHelpMessageAction->setStatusTip(tr("Show the Kliq Core help message to get a list with possible Kliq Core command-line options"));
 
     showPrivateSendHelpAction = new QAction(QApplication::style()->standardIcon(QStyle::SP_MessageBoxInformation), tr("&PrivateSend information"), this);
     showPrivateSendHelpAction->setMenuRole(QAction::NoRole);
@@ -689,7 +689,7 @@ void BitcoinGUI::setWalletActionsEnabled(bool enabled)
 void BitcoinGUI::createTrayIcon(const NetworkStyle *networkStyle)
 {
     trayIcon = new QSystemTrayIcon(this);
-    QString toolTip = tr("Dash Core client") + " " + networkStyle->getTitleAddText();
+    QString toolTip = tr("Kliq Core client") + " " + networkStyle->getTitleAddText();
     trayIcon->setToolTip(toolTip);
     trayIcon->setIcon(networkStyle->getTrayAndWindowIcon());
     trayIcon->show();
@@ -888,7 +888,7 @@ void BitcoinGUI::setNumConnections(int count)
     }
     QIcon connectionItem = QIcon(icon).pixmap(STATUSBAR_ICONSIZE,STATUSBAR_ICONSIZE);
     labelConnectionsIcon->setIcon(connectionItem);
-    labelConnectionsIcon->setToolTip(tr("%n active connection(s) to Dash network", "", count));
+    labelConnectionsIcon->setToolTip(tr("%n active connection(s) to Kliq network", "", count));
 }
 
 void BitcoinGUI::setNumBlocks(int count, const QDateTime& blockDate, double nVerificationProgress)
@@ -1043,7 +1043,7 @@ void BitcoinGUI::setAdditionalDataSyncProgress(double nSyncProgress)
 
 void BitcoinGUI::message(const QString &title, const QString &message, unsigned int style, bool *ret)
 {
-    QString strTitle = tr("Dash Core"); // default title
+    QString strTitle = tr("Kliq Core"); // default title
     // Default to information icon
     int nMBoxIcon = QMessageBox::Information;
     int nNotifyIcon = Notificator::Information;
@@ -1069,7 +1069,7 @@ void BitcoinGUI::message(const QString &title, const QString &message, unsigned 
             break;
         }
     }
-    // Append title to "Dash Core - "
+    // Append title to "Kliq Core - "
     if (!msgType.isEmpty())
         strTitle += " - " + msgType;
 

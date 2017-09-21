@@ -7,7 +7,7 @@
 #include "uint256.h"
 #include "util.h"
 
-#include "test/test_dash.h"
+#include "test/test_kliq.h"
 
 #include <boost/test/unit_test.hpp>
 

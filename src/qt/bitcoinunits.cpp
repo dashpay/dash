@@ -1,5 +1,5 @@
 // Copyright (c) 2011-2015 The Bitcoin Core developers
-// Copyright (c) 2014-2017 The Dash Core developers
+// Copyright (c) 2014-2017 The Kliq Core developers
 // Distributed under the MIT software license, see the accompanying
 // file COPYING or http://www.opensource.org/licenses/mit-license.php.
 
@@ -19,9 +19,9 @@ BitcoinUnits::BitcoinUnits(QObject *parent):
 QList<BitcoinUnits::Unit> BitcoinUnits::availableUnits()
 {
     QList<BitcoinUnits::Unit> unitlist;
-    unitlist.append(DASH);
-    unitlist.append(mDASH);
-    unitlist.append(uDASH);
+    unitlist.append(KLIQ);
+    unitlist.append(mKLIQ);
+    unitlist.append(uKLIQ);
     unitlist.append(duffs);
     return unitlist;
 }
@@ -30,9 +30,9 @@ bool BitcoinUnits::valid(int unit)
 {
     switch(unit)
     {
-    case DASH:
-    case mDASH:
-    case uDASH:
+    case KLIQ:
+    case mKLIQ:
+    case uKLIQ:
     case duffs:
         return true;
     default:
@@ -46,9 +46,9 @@ QString BitcoinUnits::name(int unit)
     {
         switch(unit)
         {
-            case DASH: return QString("DASH");
-            case mDASH: return QString("mDASH");
-            case uDASH: return QString::fromUtf8("μDASH");
+            case KLIQ: return QString("KLIQ");
+            case mKLIQ: return QString("mKLIQ");
+            case uKLIQ: return QString::fromUtf8("μKLIQ");
             case duffs: return QString("duffs");
             default: return QString("???");
         }
@@ -57,9 +57,9 @@ QString BitcoinUnits::name(int unit)
     {
         switch(unit)
         {
-            case DASH: return QString("tDASH");
-            case mDASH: return QString("mtDASH");
-            case uDASH: return QString::fromUtf8("μtDASH");
+            case KLIQ: return QString("tKLIQ");
+            case mKLIQ: return QString("mtKLIQ");
+            case uKLIQ: return QString::fromUtf8("μtKLIQ");
             case duffs: return QString("tduffs");
             default: return QString("???");
         }
@@ -72,10 +72,10 @@ QString BitcoinUnits::description(int unit)
     {
         switch(unit)
         {
-            case DASH: return QString("Dash");
-            case mDASH: return QString("Milli-Dash (1 / 1" THIN_SP_UTF8 "000)");
-            case uDASH: return QString("Micro-Dash (1 / 1" THIN_SP_UTF8 "000" THIN_SP_UTF8 "000)");
-            case duffs: return QString("Ten Nano-Dash (1 / 100" THIN_SP_UTF8 "000" THIN_SP_UTF8 "000)");
+            case KLIQ: return QString("Kliq");
+            case mKLIQ: return QString("Milli-Kliq (1 / 1" THIN_SP_UTF8 "000)");
+            case uKLIQ: return QString("Micro-Kliq (1 / 1" THIN_SP_UTF8 "000" THIN_SP_UTF8 "000)");
+            case duffs: return QString("Ten Nano-Kliq (1 / 100" THIN_SP_UTF8 "000" THIN_SP_UTF8 "000)");
             default: return QString("???");
         }
     }
@@ -83,10 +83,10 @@ QString BitcoinUnits::description(int unit)
     {
         switch(unit)
         {
-            case DASH: return QString("TestDashs");
-            case mDASH: return QString("Milli-TestDash (1 / 1" THIN_SP_UTF8 "000)");
-            case uDASH: return QString("Micro-TestDash (1 / 1" THIN_SP_UTF8 "000" THIN_SP_UTF8 "000)");
-            case duffs: return QString("Ten Nano-TestDash (1 / 100" THIN_SP_UTF8 "000" THIN_SP_UTF8 "000)");
+            case KLIQ: return QString("TestKliqs");
+            case mKLIQ: return QString("Milli-TestKliq (1 / 1" THIN_SP_UTF8 "000)");
+            case uKLIQ: return QString("Micro-TestKliq (1 / 1" THIN_SP_UTF8 "000" THIN_SP_UTF8 "000)");
+            case duffs: return QString("Ten Nano-TestKliq (1 / 100" THIN_SP_UTF8 "000" THIN_SP_UTF8 "000)");
             default: return QString("???");
         }
     }
@@ -96,9 +96,9 @@ qint64 BitcoinUnits::factor(int unit)
 {
     switch(unit)
     {
-    case DASH:  return 100000000;
-    case mDASH: return 100000;
-    case uDASH: return 100;
+    case KLIQ:  return 100000000;
+    case mKLIQ: return 100000;
+    case uKLIQ: return 100;
     case duffs: return 1;
     default:   return 100000000;
     }
@@ -108,9 +108,9 @@ int BitcoinUnits::decimals(int unit)
 {
     switch(unit)
     {
-    case DASH: return 8;
-    case mDASH: return 5;
-    case uDASH: return 2;
+    case KLIQ: return 8;
+    case mKLIQ: return 5;
+    case uKLIQ: return 2;
     case duffs: return 0;
     default: return 0;
     }

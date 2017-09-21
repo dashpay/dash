@@ -1,6 +1,6 @@
 // Copyright (c) 2009-2010 Satoshi Nakamoto
 // Copyright (c) 2009-2015 The Bitcoin Core developers
-// Copyright (c) 2014-2017 The Dash Core developers
+// Copyright (c) 2014-2017 The Kliq Core developers
 // Distributed under the MIT software license, see the accompanying
 // file COPYING or http://www.opensource.org/licenses/mit-license.php.
 
@@ -278,7 +278,7 @@ unsigned int MurmurHash3(unsigned int nHashSeed, const std::vector<unsigned char
 
 void BIP32Hash(const ChainCode &chainCode, unsigned int nChild, unsigned char header, const unsigned char data[32], unsigned char output[64]);
 
-/* ----------- Dash Hash ------------------------------------------------ */
+/* ----------- Kliq Hash ------------------------------------------------ */
 template<typename T1>
 inline uint256 HashX11(const T1 pbegin, const T1 pend)
 

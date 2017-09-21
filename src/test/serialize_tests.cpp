@@ -5,7 +5,7 @@
 #include "serialize.h"
 #include "streams.h"
 #include "hash.h"
-#include "test/test_dash.h"
+#include "test/test_kliq.h"
 
 #include <stdint.h>
 
