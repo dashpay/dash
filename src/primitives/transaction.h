@@ -81,7 +81,7 @@ public:
      * applied to extract that lock-time from the sequence field. */
     static const uint32_t LEGACY_SEQUENCE_LOCKTIME_MASK = 0x0000ffff;
     static const uint32_t DIP0001_SEQUENCE_LOCKTIME_MASK = 0x0003ffff;
-    static const uint32_t GetSequenceLocktimeMask(bool fDIP0001Active /*= false */)
+    static uint32_t GetSequenceLocktimeMask(bool fDIP0001Active /*= false */)
     {
         return fDIP0001Active ? DIP0001_SEQUENCE_LOCKTIME_MASK : LEGACY_SEQUENCE_LOCKTIME_MASK;
     }
@@ -95,7 +95,7 @@ public:
      * 7 bits. */
     static const int LEGACY_SEQUENCE_LOCKTIME_GRANULARITY = 9;
     static const int DIP0001_SEQUENCE_LOCKTIME_GRANULARITY = 7;
-    static const int GetSequenceLocktimeGranularity(bool fDIP0001Active /*= false */)
+    static int GetSequenceLocktimeGranularity(bool fDIP0001Active /*= false */)
     {
         return fDIP0001Active ? DIP0001_SEQUENCE_LOCKTIME_GRANULARITY : LEGACY_SEQUENCE_LOCKTIME_GRANULARITY;
     }
