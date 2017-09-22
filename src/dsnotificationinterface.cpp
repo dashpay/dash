@@ -34,15 +34,6 @@ void CDSNotificationInterface::UpdatedBlockTip(const CBlockIndex *pindexNew, con
 
     masternodeSync.UpdatedBlockTip(pindexNew, fInitialDownload, connman);
 
-    if (fInitialDownload) // In IBD
-        return;
-
-    mnodeman.UpdatedBlockTip(pindexNew);
-    privateSendClient.UpdatedBlockTip(pindexNew);
-    instantsend.UpdatedBlockTip(pindexNew);
-    mnpayments.UpdatedBlockTip(pindexNew, connman);
-    governance.UpdatedBlockTip(pindexNew, connman);
-
     // DIP0001 updates
 
     bool fDIP0001ActiveAtTipTmp = fDIP0001ActiveAtTip;
@@ -60,6 +51,15 @@ void CDSNotificationInterface::UpdatedBlockTip(const CBlockIndex *pindexNew, con
             CWallet::minTxFee = CFeeRate(fDIP0001ActiveAtTip ? DEFAULT_DIP0001_TRANSACTION_MINFEE : DEFAULT_LEGACY_TRANSACTION_MINFEE);
         }
     }
+
+    if (fInitialDownload || !masternodeSync.IsBlockchainSynced())
+        return;
+
+    mnodeman.UpdatedBlockTip(pindexNew);
+    privateSendClient.UpdatedBlockTip(pindexNew);
+    instantsend.UpdatedBlockTip(pindexNew);
+    mnpayments.UpdatedBlockTip(pindexNew, connman);
+    governance.UpdatedBlockTip(pindexNew, connman);
 }
 
 void CDSNotificationInterface::SyncTransaction(const CTransaction &tx, const CBlock *pblock)
