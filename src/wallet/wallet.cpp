@@ -2868,7 +2868,7 @@ bool CWallet::SelectCoinsGrouppedByAddresses(std::vector<CompactTallyItem>& vecT
             isminefilter mine = ::IsMine(*this, txdest);
             if(!(mine & filter)) continue;
 
-            if(IsLockedCoin(outpoint.hash, i)) continue;
+            if(IsSpent(outpoint.hash, i) || IsLockedCoin(outpoint.hash, i)) continue;
 
             if(fSkipDenominated && IsDenominatedAmount(wtx.vout[i].nValue)) continue;
 
@@ -3628,10 +3628,13 @@ DBErrors CWallet::LoadWallet(bool& fFirstRunRet)
         }
     }
 
-    for (auto& pair : mapWallet) {
-        for(int i = 0; i < pair.second.vout.size(); ++i) {
-            if (IsMine(pair.second.vout[i]) && !IsSpent(pair.first, i)) {
-                setWalletUTXO.insert(COutPoint(pair.first, i));
+    {
+        LOCK2(cs_main, cs_wallet);
+        for (auto& pair : mapWallet) {
+            for(int i = 0; i < pair.second.vout.size(); ++i) {
+                if (IsMine(pair.second.vout[i]) && !IsSpent(pair.first, i)) {
+                    setWalletUTXO.insert(COutPoint(pair.first, i));
+                }
             }
         }
     }
