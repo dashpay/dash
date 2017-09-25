@@ -1210,7 +1210,7 @@ bool CPrivateSendClient::MakeCollateralAmounts(const CompactTallyItem& tallyItem
     coinControl.fAllowOtherInputs = false;
     coinControl.fAllowWatchOnly = false;
     // send change to the same address so that we were able create more denoms out of it later
-    coinControl.destChange = tallyItem.address.Get();
+    coinControl.destChange = tallyItem.txdest;
     BOOST_FOREACH(const CTxIn& txin, tallyItem.vecTxIn)
         coinControl.Select(txin.prevout);
 
@@ -1346,7 +1346,7 @@ bool CPrivateSendClient::CreateDenominated(const CompactTallyItem& tallyItem, bo
     coinControl.fAllowOtherInputs = false;
     coinControl.fAllowWatchOnly = false;
     // send change to the same address so that we were able create more denoms out of it later
-    coinControl.destChange = tallyItem.address.Get();
+    coinControl.destChange = tallyItem.txdest;
     BOOST_FOREACH(const CTxIn& txin, tallyItem.vecTxIn)
         coinControl.Select(txin.prevout);
 
