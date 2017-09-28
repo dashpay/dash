@@ -1858,13 +1858,13 @@ void CConnman::ThreadMnbRequestConnections()
         std::pair<CService, std::set<uint256> > p = mnodeman.PopScheduledMnbRequestConnection();
         if(p.first == CService() || p.second.empty()) continue;
 
-        CNode* pnode = ConnectNode(CAddress(p.first, NODE_NETWORK), NULL, true);
+        {
+            CNode* pnode = ConnectNode(CAddress(p.first, NODE_NETWORK), NULL, true);
+        }
 
-        // To ensure that node wasn't/won't be moved to "disconnected"
-        // and/or wasn't/won't be deleted in ThreadSocketHandler
         LOCK(cs_vNodes);
 
-        // Too late, node was either deleted or disconnected before we locked above
+        CNode *pnode = FindNode(p.first);
         if(!pnode || pnode->fDisconnect) continue;
 
         grant.MoveTo(pnode->grantMasternodeOutbound);
