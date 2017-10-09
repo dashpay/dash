@@ -15,6 +15,17 @@
 #include <QTimer>
 #include <QMessageBox>
 
+int GetOffsetFromUtc()
+{
+#if QT_VERSION < 0x050200
+    const QDateTime dateTime1 = QDateTime::currentDateTime();
+    const QDateTime dateTime2 = QDateTime(dateTime1.date(), dateTime1.time(), Qt::UTC);
+    return dateTime1.secsTo(dateTime2);
+#else
+    return QDateTime::currentDateTime().offsetFromUtc();
+#endif
+}
+
 MasternodeList::MasternodeList(const PlatformStyle *platformStyle, QWidget *parent) :
     QWidget(parent),
     ui(new Ui::MasternodeList),
@@ -186,13 +197,6 @@ void MasternodeList::updateMyMasternodeInfo(QString strAlias, QString strAddr, c
 
     masternode_info_t infoMn;
     bool fFound = mnodeman.GetMasternodeInfo(outpoint, infoMn);
-#if QT_VERSION < 0x050200
-    const QDateTime dateTime1 = QDateTime::currentDateTime();
-    const QDateTime dateTime2 = QDateTime(dateTime1.date(), dateTime1.time(), Qt::UTC);
-    int offsetFromUtc = dateTime1.secsTo(dateTime2);
-#else
-    int offsetFromUtc = QDateTime::currentDateTime().offsetFromUtc();
-#endif
 
     QTableWidgetItem *aliasItem = new QTableWidgetItem(strAlias);
     QTableWidgetItem *addrItem = new QTableWidgetItem(fFound ? QString::fromStdString(infoMn.addr.ToString()) : strAddr);
@@ -200,7 +204,7 @@ void MasternodeList::updateMyMasternodeInfo(QString strAlias, QString strAddr, c
     QTableWidgetItem *statusItem = new QTableWidgetItem(QString::fromStdString(fFound ? CMasternode::StateToString(infoMn.nActiveState) : "MISSING"));
     QTableWidgetItem *activeSecondsItem = new QTableWidgetItem(QString::fromStdString(DurationToDHMS(fFound ? (infoMn.nTimeLastPing - infoMn.sigTime) : 0)));
     QTableWidgetItem *lastSeenItem = new QTableWidgetItem(QString::fromStdString(DateTimeStrFormat("%Y-%m-%d %H:%M",
-                                                                                                   fFound ? infoMn.nTimeLastPing + offsetFromUtc : 0)));
+                                                                                                   fFound ? infoMn.nTimeLastPing + GetOffsetFromUtc() : 0)));
     QTableWidgetItem *pubkeyItem = new QTableWidgetItem(QString::fromStdString(fFound ? CBitcoinAddress(infoMn.pubKeyCollateralAddress.GetID()).ToString() : ""));
 
     ui->tableWidgetMyMasternodes->setItem(nNewRow, 0, aliasItem);
@@ -270,13 +274,7 @@ void MasternodeList::updateNodeList()
     ui->tableWidgetMasternodes->clearContents();
     ui->tableWidgetMasternodes->setRowCount(0);
     std::map<COutPoint, CMasternode> mapMasternodes = mnodeman.GetFullMasternodeMap();
-#if QT_VERSION < 0x050200
-    const QDateTime dateTime1 = QDateTime::currentDateTime();
-    const QDateTime dateTime2 = QDateTime(dateTime1.date(), dateTime1.time(), Qt::UTC);
-    int offsetFromUtc = dateTime1.secsTo(dateTime2);
-#else
-    int offsetFromUtc = QDateTime::currentDateTime().offsetFromUtc();
-#endif
+    int offsetFromUtc = GetOffsetFromUtc();
 
     for(auto& mnpair : mapMasternodes)
     {
