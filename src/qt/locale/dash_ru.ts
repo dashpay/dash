@@ -483,7 +483,7 @@
     </message>
     <message>
         <source>Show the Dash Core help message to get a list with possible Dash Core command-line options</source>
-        <translation>Показать помощь о Dash Core со списком возможных параметров командной строки</translation>
+        <translation>Показать справку по Dash Core со списком возможных параметров командной строки</translation>
     </message>
     <message>
         <source>&amp;PrivateSend information</source>
@@ -641,7 +641,7 @@
     </message>
     <message>
         <source>Wallet is &lt;b&gt;encrypted&lt;/b&gt; and currently &lt;b&gt;unlocked&lt;/b&gt; for mixing only</source>
-        <translation>Бумажник &lt;b&gt;зашифрован&lt;/b&gt; и в данный момент &lt;b&gt;разблокирован&lt;/b&gt; только для перемешивания</translation>
+        <translation>Кошелёк &lt;b&gt;зашифрован&lt;/b&gt; и в данный момент &lt;b&gt;разблокирован&lt;/b&gt; только для перемешивания</translation>
     </message>
     <message>
         <source>Wallet is &lt;b&gt;encrypted&lt;/b&gt; and currently &lt;b&gt;locked&lt;/b&gt;</source>
@@ -2900,7 +2900,7 @@ https://www.transifex.com/projects/p/dash/</translation>
     </message>
     <message>
         <source>Duplicate address found: addresses should only be used once each.</source>
-        <translation>Обнаружен дублирующийся адрес: каждый адрес должны быть использован только один раз.</translation>
+        <translation>Обнаружен дублирующийся адрес: каждый адрес должен быть использован только один раз.</translation>
     </message>
     <message>
         <source>Transaction creation failed!</source>
