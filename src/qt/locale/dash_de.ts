@@ -575,7 +575,7 @@
     </message>
     <message>
         <source>Synchronizing additional data: %p%</source>
-        <translation>Synchronisiere zusätzliche Daten:  %p%</translation>
+        <translation>Synchronisiere zusätzliche Daten: %p%</translation>
     </message>
     <message>
         <source>Error</source>
@@ -1221,7 +1221,7 @@ Der Mixing-Prozeß läuft nach dem Start vollständig im Hintergrund, d.h. es is
     </message>
     <message>
         <source>Recent transactions may not yet be visible, and therefore your wallet's balance might be incorrect. This information will be correct once your wallet has finished synchronizing with the Dash network, as detailed below.</source>
-        <translation>Kontostand möglicherweise falsch, da die neuesten Transaktionen ggf. noch nicht sichtbar sind. Der Kontostand wird automatisch aktualisiert, sobald Ihre Wallet die Synchronisation abgeschlossen mit dem Dash Netzwerk hat.</translation>
+        <translation>Kontostand möglicherweise falsch, da die neuesten Transaktionen ggf. noch nicht sichtbar sind. Der Kontostand wird automatisch aktualisiert, sobald Ihre Wallet die Synchronisation mit dem Dash Netzwerk abgeschlossen hat.</translation>
     </message>
     <message>
         <source>Attempting to spend Dash that are affected by not-yet-displayed transactions will not be accepted by the network.</source>
@@ -1229,7 +1229,7 @@ Der Mixing-Prozeß läuft nach dem Start vollständig im Hintergrund, d.h. es is
     </message>
     <message>
         <source>Number of blocks left</source>
-        <translation>Anzahl verbliebener Blöcke</translation>
+        <translation>Anzahl verbleibender Blöcke</translation>
     </message>
     <message>
         <source>Unknown...</source>
@@ -1740,7 +1740,7 @@ https://www.transifex.com/projects/p/dash/</translation>
     </message>
     <message>
         <source>Automatic backups are disabled, no mixing available!</source>
-        <translation>Automatische Datensicherungen sind deaktiviert, mischen nicht möglich!</translation>
+        <translation>Automatische Datensicherungen sind deaktiviert, mixen nicht möglich!</translation>
     </message>
     <message>
         <source>Start Mixing</source>
@@ -1992,7 +1992,7 @@ https://www.transifex.com/projects/p/dash/</translation>
     </message>
     <message>
         <source>Dash Core didn't yet exit safely...</source>
-        <translation>Dash Core wurde noch nicht sicher beendet.</translation>
+        <translation>Dash Core wurde noch nicht sicher beendet...</translation>
     </message>
     <message>
         <source>Amount</source>
@@ -2902,7 +2902,7 @@ https://www.transifex.com/projects/p/dash/</translation>
     </message>
     <message>
         <source>Duplicate address found: addresses should only be used once each.</source>
-        <translation>Doppelte Adresse gefunden: jede Adresse sollte jeweils nur 1x benutzt werden.</translation>
+        <translation>Doppelte Adresse gefunden: Jede Adresse sollte jeweils nur 1x benutzt werden.</translation>
     </message>
     <message>
         <source>Transaction creation failed!</source>
@@ -2927,7 +2927,7 @@ Dies kann passieren, wenn einige Dash aus ihrer Wallet bereits ausgegeben wurden
     </message>
     <message numerus="yes">
         <source>Estimated to begin confirmation within %n block(s).</source>
-        <translation><numerusform>Geschätzter Beginn der Bestätigung in %n Block.</numerusform><numerusform>Geschätzter Beginn der Bestätigung in %n Blocks.</numerusform></translation>
+        <translation><numerusform>Geschätzter Beginn der Bestätigung in %n Block.</numerusform><numerusform>Geschätzter Beginn der Bestätigung in %n Blöcken.</numerusform></translation>
     </message>
     <message>
         <source>Warning: Invalid Dash address</source>
@@ -3237,7 +3237,7 @@ Dies kann passieren, wenn einige Dash aus ihrer Wallet bereits ausgegeben wurden
     </message>
     <message>
         <source>abandoned</source>
-        <translation>verlassen</translation>
+        <translation>eingestellt</translation>
     </message>
     <message>
         <source>%1/unconfirmed</source>
@@ -3431,7 +3431,7 @@ Dies kann passieren, wenn einige Dash aus ihrer Wallet bereits ausgegeben wurden
     </message>
     <message>
         <source>Abandoned</source>
-        <translation>Verlassen</translation>
+        <translation>Eingestellt</translation>
     </message>
     <message>
         <source>Confirming (%1 of %2 recommended confirmations)</source>
@@ -3622,7 +3622,7 @@ Dies kann passieren, wenn einige Dash aus ihrer Wallet bereits ausgegeben wurden
     </message>
     <message>
         <source>Abandon transaction</source>
-        <translation>Transaktion fallenlassen</translation>
+        <translation>Transaktion einstellen</translation>
     </message>
     <message>
         <source>Copy address</source>
@@ -4021,7 +4021,7 @@ Dies kann passieren, wenn einige Dash aus ihrer Wallet bereits ausgegeben wurden
     </message>
     <message>
         <source>Error loading %s: You can't enable HD on a already existing non-HD wallet</source>
-        <translation>Fehler beim Laden von %s: Sie können HD nicht bei einer bestehenden HD Wallet aktivieren</translation>
+        <translation>Fehler beim Laden von %s: Sie können HD nicht bei einer bestehenden nicht-HD Wallet aktivieren</translation>
     </message>
     <message>
         <source>Found unconfirmed denominated outputs, will wait till they confirm to continue.</source>
@@ -4037,7 +4037,7 @@ Dies kann passieren, wenn einige Dash aus ihrer Wallet bereits ausgegeben wurden
     </message>
     <message>
         <source>If this block is in the chain assume that it and its ancestors are valid and potentially skip their script verification (0 to verify all, default: %s, testnet: %s)</source>
-        <translation>Ist dieser Block in der Chain gehe davon aus, dass er und seine Vorgänger gültig sind und überspringe deren Skript-Verifizierung (0 um alles zu verifizieren, Standard: %s, Testnet: %s)</translation>
+        <translation>Ist dieser Block in der Chain, gehe davon aus dass dieser und seine Vorgänger gültig sind und überspringe deren Skript-Verifizierung (0 um alles zu verifizieren, Standard: %s, Testnet: %s)</translation>
     </message>
     <message>
         <source>Invalid amount for -maxtxfee=&lt;amount&gt;: '%s' (must be at least the minrelay fee of %s to prevent stuck transactions)</source>
@@ -4097,7 +4097,7 @@ Dies kann passieren, wenn einige Dash aus ihrer Wallet bereits ausgegeben wurden
     </message>
     <message>
         <source>Warning: incorrect parameter -walletbackupsdir, path must exist! Using default path.</source>
-        <translation>Warnung: Falscher Parameter -walletbackupsdir. Pfad muss existieren! Nutze Standardpfad.</translation>
+        <translation>Warnung: Ungültiger Parameter -walletbackupsdir. Pfad muss existieren! Nutze Standardpfad.</translation>
     </message>
     <message>
         <source>Whitelist peers connecting from the given netmask or IP address. Can be specified multiple times.</source>
@@ -4109,7 +4109,7 @@ Dies kann passieren, wenn einige Dash aus ihrer Wallet bereits ausgegeben wurden
     </message>
     <message>
         <source>You need to rebuild the database using -reindex-chainstate to change -txindex</source>
-        <translation>Sie müssen die Datenbank mit Hilfe von -reindex neu erneuern, um -txindex zu verändern</translation>
+        <translation>Sie müssen die Datenbank mit Hilfe von -reindex-chainstate neu aufbauen, um -txindex zu verändern</translation>
     </message>
     <message>
         <source>(default: %s)</source>
@@ -4133,7 +4133,7 @@ Dies kann passieren, wenn einige Dash aus ihrer Wallet bereits ausgegeben wurden
     </message>
     <message>
         <source>Chain selection options:</source>
-        <translation>Chains zur Auswahl:</translation>
+        <translation>Chain Auswahloptionen:</translation>
     </message>
     <message>
         <source>Connect through SOCKS5 proxy</source>
@@ -4173,19 +4173,19 @@ Dies kann passieren, wenn einige Dash aus ihrer Wallet bereits ausgegeben wurden
     </message>
     <message>
         <source>Failed to load fulfilled requests cache from</source>
-        <translation>Zwischenspeicher für erfüllte Anfragen konnte nicht geladen werden aus</translation>
+        <translation>Cache für erfüllte Anfragen konnte nicht geladen werden aus</translation>
     </message>
     <message>
         <source>Failed to load governance cache from</source>
-        <translation>Zwischenspeicher für Governance konnte nicht geladen werden aus</translation>
+        <translation>Cache für Governance konnte nicht geladen werden aus</translation>
     </message>
     <message>
         <source>Failed to load masternode cache from</source>
-        <translation>Zwischenspeicher für Masternodes konnte nicht geladen werden aus</translation>
+        <translation>Cache für Masternodes konnte nicht geladen werden aus</translation>
     </message>
     <message>
         <source>Failed to load masternode payments cache from</source>
-        <translation>Zwischenspeicher für Masternode Zahlungen konnte nicht geladen werden aus</translation>
+        <translation>Cache für Masternode Zahlungen konnte nicht geladen werden aus</translation>
     </message>
     <message>
         <source>Found enough users, signing ( waiting %s )</source>
@@ -4286,7 +4286,7 @@ Dash Core wird heruntergefahren.</translation>
     </message>
     <message>
         <source>Loading fulfilled requests cache...</source>
-        <translation>Lade Zwischenspeicher erfüllter Anfragen...</translation>
+        <translation>Lade Cache erfüllter Anfragen...</translation>
     </message>
     <message>
         <source>Loading masternode cache...</source>
@@ -4718,7 +4718,7 @@ Dash Core wird heruntergefahren.</translation>
     </message>
     <message>
         <source>You need to rebuild the database using -reindex to go back to unpruned mode.  This will redownload the entire blockchain</source>
-        <translation>Sie müssen die Datenbank mit Hilfe von -reindex neu aufbauen, um Zurück in den nicht abgeschnittenen/pruned Modus zu gehen. Dies wird die gesamte Blockchain downloaden</translation>
+        <translation>Sie müssen die Datenbank mit Hilfe von -reindex neu aufbauen, um zurück in den nicht abgeschnittenen/pruned Modus zu gehen. Dies wird die gesamte Blockchain downloaden</translation>
     </message>
     <message>
         <source>masternodeaddr option is deprecated. Please use masternode.conf to manage your remote masternodes.</source>
