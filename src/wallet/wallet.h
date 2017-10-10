@@ -343,6 +343,7 @@ public:
     int64_t nOrderPos; //!< position in ordered transaction list
 
     // memory only
+    mutable bool fFromMeCached;
     mutable bool fDebitCached;
     mutable bool fCreditCached;
     mutable bool fImmatureCreditCached;
@@ -355,6 +356,8 @@ public:
     mutable bool fImmatureWatchCreditCached;
     mutable bool fAvailableWatchCreditCached;
     mutable bool fChangeCached;
+
+    mutable bool fFromMeCachedValue;
     mutable CAmount nDebitCached;
     mutable CAmount nCreditCached;
     mutable CAmount nImmatureCreditCached;
@@ -388,6 +391,7 @@ public:
         nTimeSmart = 0;
         fFromMe = false;
         strFromAccount.clear();
+        fFromMeCached = false;
         fDebitCached = false;
         fCreditCached = false;
         fImmatureCreditCached = false;
@@ -499,10 +503,12 @@ public:
     void GetAccountAmounts(const std::string& strAccount, CAmount& nReceived,
                            CAmount& nSent, CAmount& nFee, const isminefilter& filter) const;
 
-    bool IsFromMe(const isminefilter& filter) const
+    bool IsRelevantToMe(const isminefilter& filter) const
     {
         return (GetDebit(filter) > 0);
     }
+
+    bool IsFromMe(const isminefilter& filter) const;
 
     // True if only scriptSigs are different
     bool IsEquivalentTo(const CWalletTx& tx) const;
@@ -1039,8 +1045,8 @@ public:
     bool IsChange(const CTxOut& txout) const;
     CAmount GetChange(const CTxOut& txout) const;
     bool IsMine(const CTransaction& tx) const;
-    /** should probably be renamed to IsRelevantToMe */
-    bool IsFromMe(const CTransaction& tx) const;
+    bool IsRelevantToMe(const CTransaction& tx) const;
+    bool IsFromMe(const CTransaction& tx, const isminefilter& filter) const;
     CAmount GetDebit(const CTransaction& tx, const isminefilter& filter) const;
     /** Returns whether all of the inputs match the filter */
     bool IsAllFromMe(const CTransaction& tx, const isminefilter& filter) const;

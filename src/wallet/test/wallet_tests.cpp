@@ -38,20 +38,20 @@ BOOST_FIXTURE_TEST_SUITE(wallet_tests, WalletTestingSetup)
 static const CWallet testWallet;
 static std::vector<COutput> vCoins;
 
-static void add_coin(const CAmount& nValue, int nAge = 6*24, bool fIsFromMe = false, int nInput=0)
+static void add_coin(const CAmount& nValue, int nAge = 6*24, bool fIsRelevantToMe = false, int nInput=0)
 {
     static int nextLockTime = 0;
     CMutableTransaction tx;
     tx.nLockTime = nextLockTime++;        // so all transactions get different hashes
     tx.vout.resize(nInput+1);
     tx.vout[nInput].nValue = nValue;
-    if (fIsFromMe) {
-        // IsFromMe() returns (GetDebit() > 0), and GetDebit() is 0 if vin.empty(),
-        // so stop vin being empty, and cache a non-zero Debit to fake out IsFromMe()
+    if (fIsRelevantToMe) {
+        // IsRelevantToMe() returns (GetDebit() > 0), and GetDebit() is 0 if vin.empty(),
+        // so stop vin being empty, and cache a non-zero Debit to fake out IsRelevantToMe()
         tx.vin.resize(1);
     }
     std::unique_ptr<CWalletTx> wtx(new CWalletTx(&testWallet, MakeTransactionRef(std::move(tx))));
-    if (fIsFromMe)
+    if (fIsRelevantToMe)
     {
         wtx->fDebitCached = true;
         wtx->nDebitCached = 1;

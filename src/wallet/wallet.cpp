@@ -1174,7 +1174,7 @@ bool CWallet::AddToWalletIfInvolvingMe(const CTransaction& tx, const CBlockIndex
 
         bool fExisted = mapWallet.count(tx.GetHash()) != 0;
         if (fExisted && !fUpdate) return false;
-        if (fExisted || IsMine(tx) || IsFromMe(tx))
+        if (fExisted || IsMine(tx) || IsRelevantToMe(tx))
         {
             CWalletTx wtx(this, MakeTransactionRef(tx));
 
@@ -1618,9 +1618,25 @@ bool CWallet::IsMine(const CTransaction& tx) const
     return false;
 }
 
-bool CWallet::IsFromMe(const CTransaction& tx) const
+bool CWallet::IsRelevantToMe(const CTransaction& tx) const
 {
     return (GetDebit(tx, ISMINE_ALL) > 0);
+}
+
+bool CWallet::IsFromMe(const CTransaction& tx, const isminefilter& filter) const
+{
+    BOOST_FOREACH(const CTxIn& txin, tx.vin)
+    {
+        LOCK(cs_wallet);
+        map<uint256, CWalletTx>::const_iterator mi = mapWallet.find(txin.prevout.hash);
+        if (mi == mapWallet.end())
+            return false;
+
+        const CWalletTx& prev = (*mi).second;
+        if (txin.prevout.n < prev.vout.size())
+            if (!(IsMine(prev.vout[txin.prevout.n]) & filter))
+                return false;
+    }
 }
 
 CAmount CWallet::GetDebit(const CTransaction& tx, const isminefilter& filter) const
@@ -1735,7 +1751,8 @@ void CWalletTx::GetAmounts(std::list<COutputEntry>& listReceived,
 
     // Compute fee:
     CAmount nDebit = GetDebit(filter);
-    if (nDebit > 0) // debit>0 means we signed/sent this transaction
+    bool fFromMe = IsFromMe(filter);
+    if (fFromMe) // means we signed/sent this transaction and all inputs are from us
     {
         CAmount nValueOut = tx->GetValueOut();
         nFee = nDebit - nValueOut;
@@ -1749,7 +1766,7 @@ void CWalletTx::GetAmounts(std::list<COutputEntry>& listReceived,
         // Only need to handle txouts if AT LEAST one of these is true:
         //   1) they debit from us (sent)
         //   2) the output is to us (received)
-        if (nDebit > 0)
+        if (fFromMe)
         {
             // Don't report 'change' txouts
             if (pwallet->IsChange(txout))
@@ -1771,7 +1788,7 @@ void CWalletTx::GetAmounts(std::list<COutputEntry>& listReceived,
         COutputEntry output = {address, txout.nValue, (int)i};
 
         // If we are debited by the transaction, add the output as a "sent" entry
-        if (nDebit > 0)
+        if (fFromMe)
             listSent.push_back(output);
 
         // If we are receiving the output, add it as a "received" entry
@@ -1973,6 +1990,16 @@ CAmount CWalletTx::GetDebit(const isminefilter& filter) const
         }
     }
     return debit;
+}
+
+bool CWalletTx::IsFromMe(const isminefilter& filter) const
+{
+    if (fFromMeCached)
+        return fFromMeCachedValue;
+
+    fFromMeCachedValue = pwallet->IsFromMe(*this, filter);
+    fFromMeCached = true;
+    return fFromMeCachedValue;
 }
 
 CAmount CWalletTx::GetCredit(const isminefilter& filter) const
@@ -2691,7 +2718,15 @@ bool CWallet::SelectCoinsMinConf(const CAmount& nTargetValue, const int nConfMin
             const CWalletTx *pcoin = output.tx;
 
 //            if (fDebug) LogPrint("selectcoins", "value %s confirms %d\n", FormatMoney(pcoin->vout[output.i].nValue), output.nDepth);
-            if (output.nDepth < (pcoin->IsFromMe(ISMINE_ALL) ? nConfMine : nConfTheirs))
+            int minDepth;
+            if (!pcoin->IsRelevantToMe(ISMINE_ALL))
+                minDepth = nConfTheirs;
+            else if (pcoin->IsFromMe(ISMINE_ALL))
+                minDepth = nConfMine;
+            else
+                minDepth = max(nConfMine, nConfTheirs);
+
+            if (output.nDepth < minDepth)
                 continue;
 
             if (!mempool.TransactionWithinChainLimit(pcoin->GetHash(), nMaxAncestors))
