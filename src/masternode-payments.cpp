@@ -723,8 +723,6 @@ bool CMasternodePayments::ProcessBlock(int nBlockHeight, CConnman& connman)
     // if we have not enough data about masternodes.
     if(!masternodeSync.IsMasternodeListSynced()) return false;
 
-    CheckPreviousBlockVotes(nBlockHeight - 1);
-
     int nRank;
 
     if (!mnodeman.GetMasternodeRank(activeMasternode.outpoint, nRank, nBlockHeight - 101, GetMinMasternodePaymentsProto())) {
@@ -781,12 +779,16 @@ bool CMasternodePayments::ProcessBlock(int nBlockHeight, CConnman& connman)
 
 void CMasternodePayments::CheckPreviousBlockVotes(int nPrevBlockHeight)
 {
-    LogPrint("mnpayments", "CMasternodePayments::CheckPreviousBlockVotes -- nPrevBlockHeight=%d, expected voting MNs:\n",
-             nPrevBlockHeight);
+    if (!masternodeSync.IsWinnersListSynced()) return;
+
+    std::string debugStr;
+
+    debugStr += strprintf("CMasternodePayments::CheckPreviousBlockVotes -- nPrevBlockHeight=%d, expected voting MNs:\n", nPrevBlockHeight);
 
     CMasternodeMan::rank_pair_vec_t mns;
     if (!mnodeman.GetMasternodeRanks(mns, nPrevBlockHeight - 101, GetMinMasternodePaymentsProto())) {
-        LogPrint("mnpayments", "CMasternodePayments::CheckPreviousBlockVotes -- GetMasternodeRanks failed\n");
+        debugStr += "CMasternodePayments::CheckPreviousBlockVotes -- GetMasternodeRanks failed\n";
+        LogPrint("mnpayments", "%s", debugStr);
         return;
     }
 
@@ -801,8 +803,8 @@ void CMasternodePayments::CheckPreviousBlockVotes(int nPrevBlockHeight)
             for (auto &p : mapMasternodeBlocks[nPrevBlockHeight].vecPayees) {
                 for (auto &voteHash : p.GetVoteHashes()) {
                     if (!mapMasternodePaymentVotes.count(voteHash)) {
-                        LogPrint("mnpayments", "CMasternodePayments::CheckPreviousBlockVotes --   could not find vote %s\n",
-                                 voteHash.ToString());
+                        debugStr += strprintf("CMasternodePayments::CheckPreviousBlockVotes --   could not find vote %s\n",
+                                              voteHash.ToString());
                         continue;
                     }
                     auto vote = mapMasternodePaymentVotes[voteHash];
@@ -816,8 +818,8 @@ void CMasternodePayments::CheckPreviousBlockVotes(int nPrevBlockHeight)
         }
 
         if (!found) {
-            LogPrint("mnpayments", "CMasternodePayments::CheckPreviousBlockVotes --   %s - no vote received\n",
-                     mn.second.vin.prevout.ToStringShort());
+            debugStr += strprintf("CMasternodePayments::CheckPreviousBlockVotes --   %s - no vote received\n",
+                                  mn.second.vin.prevout.ToStringShort());
             mapMasternodesDidNotVote[mn.second.vin.prevout]++;
             continue;
         }
@@ -826,13 +828,15 @@ void CMasternodePayments::CheckPreviousBlockVotes(int nPrevBlockHeight)
         ExtractDestination(payee, address1);
         CBitcoinAddress address2(address1);
 
-        LogPrint("mnpayments", "CMasternodePayments::CheckPreviousBlockVotes --   %s - voted for %s\n",
-                 mn.second.vin.prevout.ToStringShort(), address2.ToString());
+        debugStr += strprintf("CMasternodePayments::CheckPreviousBlockVotes --   %s - voted for %s\n",
+                              mn.second.vin.prevout.ToStringShort(), address2.ToString());
     }
-    LogPrint("mnpayments", "CMasternodePayments::CheckPreviousBlockVotes -- Masternodes which missed a vote in the past:\n");
+    debugStr += "CMasternodePayments::CheckPreviousBlockVotes -- Masternodes which missed a vote in the past:\n";
     for (auto it : mapMasternodesDidNotVote) {
-        LogPrint("mnpayments", "CMasternodePayments::CheckPreviousBlockVotes --   %s: %d\n", it.first.ToStringShort(), it.second);
+        debugStr += strprintf("CMasternodePayments::CheckPreviousBlockVotes --   %s: %d\n", it.first.ToStringShort(), it.second);
     }
+
+    LogPrint("mnpayments", "%s", debugStr);
 }
 
 void CMasternodePaymentVote::Relay(CConnman& connman)
@@ -1014,5 +1018,8 @@ void CMasternodePayments::UpdatedBlockTip(const CBlockIndex *pindex, CConnman& c
     nCachedBlockHeight = pindex->nHeight;
     LogPrint("mnpayments", "CMasternodePayments::UpdatedBlockTip -- nCachedBlockHeight=%d\n", nCachedBlockHeight);
 
-    ProcessBlock(nCachedBlockHeight + 10, connman);
+    int nFutureBlock = nCachedBlockHeight + 10;
+
+    CheckPreviousBlockVotes(nFutureBlock - 1);
+    ProcessBlock(nFutureBlock, connman);
 }
