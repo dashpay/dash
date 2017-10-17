@@ -39,17 +39,19 @@ Notable changes
 DIP0001
 -------
 
-Example text.
+We outline an initial scaling mechanism for Dash. After deployment and activation, Dash will be able to handle double the transactions it can currently handle. This means that Dash will be prepared for eight times the traffic of Bitcoin.
+https://github.com/dashpay/dips/blob/master/dip-0001.md
+
 
 Fee reduction
 -------------
 
-Example text.
+All transaction fees are reduced 10x (from 10K per Kb to 1K per Kb), including fees for InstantSend (from 0.001 DASH per input to 0.0001 per input)
 
 InstantSend fix
 ---------------
 
-Example text.
+The potential vulnerability found by Matt Robertson and Alexander Block was fixed in d7a8489f3 (#1620).
 
 RPC changes
 -----------
@@ -59,12 +61,14 @@ Example text.
 PrivateSend improvements
 ------------------------
 
-Example text.
+Algorithm for selecting inputs was sligtly changed in 6067896ae (#1248). This should allow user to get some mixed funds much faster.
 
-Lots of backports
------------------
+Lots of backports, refactoring and bug fixes
+--------------------------------------------
 
-Example text.
+We backported some performance improvements from Bitcoin Core and aligned our codebase with their source a little bit better. We still do not have all the improvements so this work is going to be continued in next releases.
+
+A lot of refactoring and other fixes should make code more reliable and easier to review now.
 
 Experimental HD wallet
 ----------------------
@@ -156,13 +160,14 @@ Detailed [change log](https://github.com/dashpay/dash/compare/v0.12.1.x...dashpa
 - `8e9289e12` Keep track of wallet UTXOs and use them for PS balances and rounds calculations (#1655)
 - `f77efcf24` do not calculate stuff that are not going to be visible in simple PS UI anyway (#1656)
 
-### InstandSend:
+### InstantSend:
 - `68e1a8c79` Safety check in CInstantSend::SyncTransaction (#1412)
 - `4a9fbca08` Fix potential deadlock in CInstantSend::UpdateLockedTransaction (#1571)
 - `f786ce6ab` fix instantsendtoaddress param convertion (#1585)
 - `ae909d0a0` Fix: Reject invalid instantsend transaction (#1583)
 - `84ecccefc` InstandSend overhaul (#1592)
 - `5f4362cb8` fix SPORK_5_INSTANTSEND_MAX_VALUE validation in CWallet::CreateTransaction (#1619)
+- `d7a8489f3` Fix masternode score/rank calculations (#1620)
 - `b41f8d3dd` fix instantsend-related RPC output (#1628)
 - `502748487` bump MIN_INSTANTSEND_PROTO_VERSION to 70208 (#1650)
 
@@ -264,7 +269,6 @@ Detailed [change log](https://github.com/dashpay/dash/compare/v0.12.1.x...dashpa
 - `b5f7be649` slightly refactor CDSNotificationInterface (#1581)
 - `9028a22b8` safe version of GetMasternodeByRank (#1595)
 - `05da4557d` Refactor masternode management (#1611)
-- `d7a8489f3` Fix masternode score/rank calculations (#1620)
 - `adc7c6cb1` Remove some recursive locks (#1624)
 
 ### Other (technical) commits:
@@ -324,7 +328,7 @@ Thanks to everyone who directly contributed to this release:
 - UdjinM6
 - Will Wray
 
-As well as Bitcoin Core Developers and everyone that helped translating on [Transifex](https://www.transifex.com/projects/p/dash/).
+As well as Bitcoin Core Developers and everyone that submitted issues or helped translating on [Transifex](https://www.transifex.com/projects/p/dash/).
 
 
 Older releases
