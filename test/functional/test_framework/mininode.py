@@ -31,6 +31,8 @@ MSG_TX = 1
 MSG_BLOCK = 2
 MSG_TYPE_MASK = 0xffffffff >> 2
 
+MY_SUBVERSION_DEVNET = b"/python-mininode-tester:0.0.3,devnet=devnet-%s/"
+
 logger = logging.getLogger("TestFramework.mininode")
 
 MESSAGEMAP = {
@@ -93,7 +95,7 @@ class NodeConn(asyncore.dispatcher):
     def __init__(self):
         super().__init__(map=mininode_socket_map)
 
-    def peer_connect(self, dstaddr, dstport, net="regtest", services=NODE_NETWORK, send_version=True, devnet_name=None):
+    def peer_connect(self, dstaddr, dstport, net="regtest", devnet_name=None):
         self.dstaddr = dstaddr
         self.dstport = dstport
         self.create_socket(socket.AF_INET, socket.SOCK_STREAM)
@@ -104,19 +106,6 @@ class NodeConn(asyncore.dispatcher):
         self.network = net
         self.devnet_name = devnet_name
         self.disconnect = False
-
-        if send_version:
-            # stuff version msg into sendbuf
-            vt = msg_version()
-            vt.nServices = services
-            vt.addrTo.ip = self.dstaddr
-            vt.addrTo.port = self.dstport
-            vt.addrFrom.ip = "0.0.0.0"
-            vt.addrFrom.port = 0
-            vt.strSubVer = MY_SUBVERSION
-            if self.network == "devnet" and self.devnet_name is not None:
-                vt.strSubVer = MY_SUBVERSION_DEVNET % self.devnet_name.encode()
-            self.send_message(vt, True)
 
         logger.debug('Connecting to Dash Node: %s:%d' % (self.dstaddr, self.dstport))
 
@@ -303,6 +292,21 @@ class NodeConnCB(NodeConn):
 
         # The network services received from the peer
         self.nServices = 0
+
+    def peer_connect(self, *args, services=NODE_NETWORK|NODE_WITNESS, send_version=True, **kwargs):
+        super().peer_connect(*args, **kwargs)
+
+        if send_version:
+            # Send a version msg
+            vt = msg_version()
+            vt.nServices = services
+            vt.addrTo.ip = self.dstaddr
+            vt.addrTo.port = self.dstport
+            vt.addrFrom.ip = "0.0.0.0"
+            vt.addrFrom.port = 0
+            if self.network == "devnet" and self.devnet_name is not None:
+                vt.strSubVer = MY_SUBVERSION_DEVNET % self.devnet_name.encode()
+        self.send_message(vt, True)
 
     # Message receiving methods
 
