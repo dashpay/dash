@@ -1463,13 +1463,18 @@ void ListTransactions(CWallet * const pwallet, const CWalletTx& wtx, const std::
             }
             entry.push_back(Pair("account", strSentAccount));
             MaybePushAddress(entry, s.destination);
-            std::map<std::string, std::string>::const_iterator it = wtx.mapValue.find("DS");
-            entry.push_back(Pair("category", (it != wtx.mapValue.end() && it->second == "1") ? "privatesend" : "send"));
+            if (s.vout >= 0) {
+                std::map<std::string, std::string>::const_iterator it = wtx.mapValue.find("DS");
+                entry.push_back(Pair("category", (it != wtx.mapValue.end() && it->second == "1") ? "privatesend" : "send"));
+            } else {
+                entry.push_back(Pair("category", "mixedsend"));
+            }
             entry.push_back(Pair("amount", ValueFromAmount(-s.amount)));
             if (pwallet->mapAddressBook.count(s.destination)) {
                 entry.push_back(Pair("label", pwallet->mapAddressBook[s.destination].name));
             }
-            entry.push_back(Pair("vout", s.vout));
+            if (s.vout >= 0)
+                entry.push_back(Pair("vout", s.vout));
             if (nFee != 0)
                 entry.push_back(Pair("fee", ValueFromAmount(-nFee)));
             if (fLong)

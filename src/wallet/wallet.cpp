@@ -1753,6 +1753,7 @@ void CWalletTx::GetAmounts(std::list<COutputEntry>& listReceived,
 
     // Compute fee:
     CAmount nDebit = GetDebit(filter);
+    CAmount nReceived = 0;
     bool fFromMe = IsFromMe(filter);
     if (fFromMe) // means we signed/sent this transaction and all inputs are from us
     {
@@ -1773,8 +1774,7 @@ void CWalletTx::GetAmounts(std::list<COutputEntry>& listReceived,
             // Don't report 'change' txouts
             if (pwallet->IsChange(txout))
                 continue;
-        }
-        else if (!(fIsMine & filter))
+        } if (nDebit == 0 && !(fIsMine & filter))
             continue;
 
         // In either case, we need to get the destination address
@@ -1794,8 +1794,15 @@ void CWalletTx::GetAmounts(std::list<COutputEntry>& listReceived,
             listSent.push_back(output);
 
         // If we are receiving the output, add it as a "received" entry
-        if (fIsMine & filter)
+        if (fIsMine & filter) {
+            nReceived += txout.nValue;
             listReceived.push_back(output);
+        }
+    }
+
+    if (!fFromMe && nDebit > nReceived) {
+        COutputEntry output = {CNoDestination(), nDebit - nReceived, -1};
+        listSent.push_back(output);
     }
 
 }
