@@ -1774,7 +1774,9 @@ void CWalletTx::GetAmounts(std::list<COutputEntry>& listReceived,
             // Don't report 'change' txouts
             if (pwallet->IsChange(txout))
                 continue;
-        } if (nDebit == 0 && !(fIsMine & filter))
+        }
+
+        if (nDebit == 0 && !(fIsMine & filter))
             continue;
 
         // In either case, we need to get the destination address
