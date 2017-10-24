@@ -2439,6 +2439,9 @@ static void ApproximateBestSubset(vector<pair<CAmount, pair<const CWalletTx*,uns
         {
             for (unsigned int i = 0; i < vValue.size(); i++)
             {
+                if (fUseInstantSend && nTotal + vValue[i].first > sporkManager.GetSporkValue(SPORK_5_INSTANTSEND_MAX_VALUE)) {
+                    continue;
+                }
                 //The solver here uses a randomized algorithm,
                 //the randomness serves no real security purpose but is just
                 //needed to prevent degenerate behavior and it is important
@@ -2451,11 +2454,6 @@ static void ApproximateBestSubset(vector<pair<CAmount, pair<const CWalletTx*,uns
                     vfIncluded[i] = true;
                     if (nTotal >= nTargetValue)
                     {
-                        if (fUseInstantSend && nTotal > sporkManager.GetSporkValue(SPORK_5_INSTANTSEND_MAX_VALUE)) {
-                            nTotal -= vValue[i].first;
-                            vfIncluded[i] = false;
-                            continue;
-                        }
                         fReachedTarget = true;
                         if (nTotal < nBest)
                         {
