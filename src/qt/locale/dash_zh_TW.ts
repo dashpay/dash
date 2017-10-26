@@ -242,6 +242,10 @@
 <context>
     <name>BitcoinGUI</name>
     <message>
+        <source>A fatal error occurred. Dash Core can no longer continue safely and will quit.</source>
+        <translation>發生致命錯誤。達世幣核心軟體不再能安全地繼續運行下去，程式將會關閉。</translation>
+    </message>
+    <message>
         <source>Dash Core</source>
         <translation>達世幣核心</translation>
     </message>
@@ -1092,6 +1096,10 @@
         <translation>我的主節點</translation>
     </message>
     <message>
+        <source>Note: Status of your masternodes in local wallet can potentially be slightly incorrect.&lt;br /&gt;Always wait for wallet to sync additional data and then double check from another node&lt;br /&gt;if your masternode should be running but you still do not see "ENABLED" in "Status" field.</source>
+        <translation>注意: 本地錢包中的主節點狀態可能略有不正確。&lt;br /&gt;總是等待錢包同步額外的數據，然後再從另一個節點多檢查一次&lt;br /&gt;如果您的主節點應該已經運行，但您仍然在“狀態”欄看不到“ENABLED” 的字樣的話。</translation>
+    </message>
+    <message>
         <source>Alias</source>
         <translation>別名</translation>
     </message>
@@ -1203,6 +1211,14 @@
         <translation>表單</translation>
     </message>
     <message>
+        <source>Recent transactions may not yet be visible, and therefore your wallet's balance might be incorrect. This information will be correct once your wallet has finished synchronizing with the Dash network, as detailed below.</source>
+        <translation>最近的交易可能尚未顯示，因此您的錢包的餘額可能不正確。 一旦你的錢包完成與達世幣網絡的同步，這個信息將是正確的，如下所述。</translation>
+    </message>
+    <message>
+        <source>Attempting to spend Dash that are affected by not-yet-displayed transactions will not be accepted by the network.</source>
+        <translation>正在嘗試花費尚未顯示出來的結餘，這個交易將不會被網絡所接受。</translation>
+    </message>
+    <message>
         <source>Number of blocks left</source>
         <translation>尚餘區塊數量</translation>
     </message>
@@ -1307,6 +1323,10 @@
     <message>
         <source>&amp;Start Dash Core on system login</source>
         <translation>系統登入時啟動達世幣核心(&amp;S)</translation>
+    </message>
+    <message>
+        <source>Show additional tab listing all your masternodes in first sub-tab&lt;br/&gt;and all masternodes on the network in second sub-tab.</source>
+        <translation>顯示其他標籤，在第一個子標籤列出所有您的主節點&lt;br/&gt;在第二個子標籤列出所有網絡上的主節點。</translation>
     </message>
     <message>
         <source>Show Masternodes Tab</source>
@@ -1742,6 +1762,10 @@ https://www.transifex.com/projects/p/dash/</translation>
         <translation><numerusform>已除名輸入在%n次循環中平均有%5</numerusform></translation>
     </message>
     <message>
+        <source>keys left: %1</source>
+        <translation>餘下鑰: %1</translation>
+    </message>
+    <message>
         <source>Disabled</source>
         <translation>己禁用</translation>
     </message>
@@ -1927,6 +1951,10 @@ https://www.transifex.com/projects/p/dash/</translation>
     <message>
         <source>Error: Specified data directory "%1" does not exist.</source>
         <translation>錯誤: 指定的數據目錄 "%1" 並不存在。</translation>
+    </message>
+    <message>
+        <source>Error: Cannot parse configuration file: %1. Only use key=value syntax.</source>
+        <translation>錯誤: 無法解析配置文件: %1. 只使用 key=value 語法。</translation>
     </message>
     <message>
         <source>Error: %1</source>
@@ -3686,7 +3714,11 @@ https://www.transifex.com/projects/p/dash/</translation>
         <source>InstantSend doesn't support sending values that high yet. Transactions are currently limited to %1 DASH.</source>
         <translation>即時到帳系統暫時並不支援這麼高的交易金額。目前的金額僅限於%1 DASH。</translation>
     </message>
-    </context>
+    <message>
+        <source>Used way too many inputs (&gt;%1) for this InstantSend transaction, fees could be huge.</source>
+        <translation>這個即時到帳交易使用過多的輸入 (&gt;%1)，費用可能很大。</translation>
+    </message>
+</context>
 <context>
     <name>WalletView</name>
     <message>
@@ -3965,6 +3997,10 @@ https://www.transifex.com/projects/p/dash/</translation>
         <translation>維護全部交易的索引，用在 getrawtransaction 這個 RPC 請求(預設值: %u)</translation>
     </message>
     <message>
+        <source>Make sure to encrypt your wallet and delete all non-encrypted backups after you verified that wallet works!</source>
+        <translation>請確保加密您的錢包，並在驗證您的錢包能夠運作後刪除所有未加密的備份!</translation>
+    </message>
+    <message>
         <source>Maximum size of data in data carrier transactions we relay and mine (default: %u)</source>
         <translation>轉發和開採時，對只帶資料的交易的大小上限(預設值: %u)</translation>
     </message>
@@ -4021,6 +4057,10 @@ https://www.transifex.com/projects/p/dash/</translation>
         <translation>是否一定要用域名查詢來搜尋節點 (預設值: %u)</translation>
     </message>
     <message>
+        <source>Can't mix: no compatible inputs found!</source>
+        <translation>無法開始混合:沒有找到相容的輸入!</translation>
+    </message>
+    <message>
         <source>Cannot resolve -whitebind address: '%s'</source>
         <translation>沒辦法解析 -whitebind 指定的位址: '%s'</translation>
     </message>
@@ -4043,6 +4083,10 @@ https://www.transifex.com/projects/p/dash/</translation>
     <message>
         <source>Enable the client to act as a masternode (0-1, default: %u)</source>
         <translation>啟用客戶端作為一個主節點 (0-1, 預設值: %u)</translation>
+    </message>
+    <message>
+        <source>Entry exceeds maximum size.</source>
+        <translation>條目超過最大大小。</translation>
     </message>
     <message>
         <source>Error connecting to Masternode.</source>
@@ -4309,6 +4353,10 @@ https://www.transifex.com/projects/p/dash/</translation>
         <translation>與異常的節點斷線的臨界值 (預設: %u)</translation>
     </message>
     <message>
+        <source>Tor control port password (default: empty)</source>
+        <translation>Tor控制端口密碼 (預設值: 空白)</translation>
+    </message>
+    <message>
         <source>Unknown response.</source>
         <translation>未知回應。</translation>
     </message>
@@ -4473,8 +4521,24 @@ https://www.transifex.com/projects/p/dash/</translation>
         <translation>在扣除手續費後，交易金額太小，無法發送</translation>
     </message>
     <message>
+        <source>Unable to locate enough PrivateSend denominated funds for this transaction.</source>
+        <translation>在本之交易中，無法找到足夠的匿名發送已除名資金。</translation>
+    </message>
+    <message>
+        <source>Unable to locate enough PrivateSend non-denominated funds for this transaction that are not equal 1000 DASH.</source>
+        <translation>在本次交易中，無法找到不等於 1000 DASH的足夠未除名資金進行匿名發送。</translation>
+    </message>
+    <message>
+        <source>Unsupported argument -socks found. Setting SOCKS version isn't possible anymore, only SOCKS5 proxies are supported.</source>
+        <translation>找到不再支援的 -socks 參數。現在只支援 SOCKS5 協定的代理伺服器了，因為不再能夠指定 SOCKS 協定版本。</translation>
+    </message>
+    <message>
         <source>WARNING! Failed to replenish keypool, please unlock your wallet to do so.</source>
         <translation>警告! 無法補充公鑰池，請解鎖您的錢包。</translation>
+    </message>
+    <message>
+        <source>%s - %d confirmations</source>
+        <translation>%s - %d 次確認</translation>
     </message>
     <message>
         <source>(default: %u)</source>
@@ -4497,8 +4561,20 @@ https://www.transifex.com/projects/p/dash/</translation>
         <translation>自動備份已停用</translation>
     </message>
     <message>
+        <source>Automatically create Tor hidden service (default: %d)</source>
+        <translation>自動創建Tor匿名服務 (預設值: %d)</translation>
+    </message>
+    <message>
         <source>ERROR! Failed to create automatic backup</source>
         <translation>錯誤! 無法創建自動備份</translation>
+    </message>
+    <message>
+        <source>Enable publish hash block in &lt;address&gt;</source>
+        <translation>在&lt;address&gt;啟用發布哈希區塊</translation>
+    </message>
+    <message>
+        <source>Error: A fatal internal error occurred, see debug.log for details</source>
+        <translation>錯誤:發生一個致命的內部錯誤，請到debug.log查看更多細節</translation>
     </message>
     <message>
         <source>Failed to create backup %s!</source>
