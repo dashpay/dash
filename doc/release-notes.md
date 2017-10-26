@@ -56,7 +56,29 @@ The potential vulnerability found by Matt Robertson and Alexander Block was fixe
 RPC changes
 -----------
 
-Example text.
+There are few changes in existing RPC in this release:
+- There is no more `bcconfirmations` field in RPC output and `confirmations` shows blockchain only confirmations by default now. You can change this behaviour by switching new `addlockconf` param to `true`. There is a new rpc field `instantlock` which indicates whether a given transaction is locked via InstantSend. For more info and examples please see https://github.com/dashpay/dash/doc/instantsend.md;
+- `gobject list` and `gobject diff` accept `funding`, `delete` and `endorsed` filtering options now, in addition to `valid` and `all` currently available;
+- `vin` field in `masternode` commands is renamed to `outpoint` and shows data in short format now;
+- `getblocktemplate` output is extended with versionbits-related information;
+- Output of wallet-related commands `validateaddress` is extended with optional `hdkeypath` and `hdchainid` fields;
+- `satoshis` in every RPC output are renamed to `duffs`.
+
+There are few new RPC commands also:
+- `masternodelist info` shows additional information about sentinel for each masternode in the list;
+- `masternodelist pubkey` shows pubkey corresponding to masternodeprivkey for each masternode in the list;
+- `gobject check` allows to check proposal data for correctness before preparing/submitting the proposal, `gobject prepare` and `gobject submit` should also perform additional validation now though;
+- `setnetworkactive` allows to turn all network activity on and off;
+- `dumphdinfo` displays some information about HD wallet (if available).
+
+Command-line options
+--------------------
+
+New: `assumevalid`, `blocksonly, `reindex-chainstate`
+
+Experimental: `usehd`, `mnemonic`, `mnemonicpassphrase`, `hdseed`
+
+See `Help -> Command-line options` in Qt wallet or `dashd --help` for more info.
 
 PrivateSend improvements
 ------------------------
@@ -73,7 +95,9 @@ A lot of refactoring and other fixes should make code more reliable and easier t
 Experimental HD wallet
 ----------------------
 
-Example text.
+This release includes experimental implementation of BIP39/BIP44 compatible HD wallet. Wallet type (HD or non-HD) is selected when wallet is created via `usehd` command-line option, default is `0` which means that a regular non-deterministic wallet is going to be used. If you decide to use HD wallet, you can also specify BIP39 mnemonic and mnemonic passphrase (see `mnemonic` and `mnemonicpassphrase` command-line options) but you can do so only on initial wallet creation and can't change these afterwards. If you don't specify them, mnemonic is going to be generated randomly and mnemonic passphrase is going to be just a blank string.
+
+**WARNING:** The way it's currently implemented is NOT safe and is NOT recommended to use on mainnet. Wallet is created unencrypted with mnemonic stored inside, so even if you encrypt it later there will be a short period of time when mnemonic is stored in plain text. This issue will be addressed in future releases.
 
 0.12.2 Change log
 =================
@@ -142,6 +166,7 @@ Detailed [change log](https://github.com/dashpay/dash/compare/v0.12.1.x...dashpa
 - `690cb58f8` Backport Bitcoin Qt/Gui changes up to 0.14.x part 1 (#1614)
 - `9707ca5ce` Backport Bitcoin Qt/Gui changes up to 0.14.x part 2 (#1615)
 - `91d99fcd3` Backport Bitcoin Qt/Gui changes up to 0.14.x part 3 (#1617)
+- `4cac044d9` Merge #8944: Remove bogus assert on number of oubound connections. (#1685)
 
 ### PrivateSend:
 - `6067896ae` mix inputs with highest number of rounds first (#1248)
@@ -170,6 +195,7 @@ Detailed [change log](https://github.com/dashpay/dash/compare/v0.12.1.x...dashpa
 - `d7a8489f3` Fix masternode score/rank calculations (#1620)
 - `b41f8d3dd` fix instantsend-related RPC output (#1628)
 - `502748487` bump MIN_INSTANTSEND_PROTO_VERSION to 70208 (#1650)
+- `788ae63ac` Fix edge case for IS (skip inputs that are too large) (#1695)
 
 ### Governance:
 - `4595db0ce` Few changes for governance rpc: (#1351)
@@ -189,6 +215,7 @@ Detailed [change log](https://github.com/dashpay/dash/compare/v0.12.1.x...dashpa
 - `4ed838cb5` Fix MasternodeRateCheck (#1490)
 - `6496fc9da` fix off-by-1 in CSuperblock::GetPaymentsLimit (#1598)
 - `48d63ab29` Relay govobj and govvote to every compatible peer, not only to the one with the same version (#1662)
+- `6f57519c6` allow up to 40 chars in proposal name (#1693)
 
 ### Network/Sync:
 - `62963e911` fix sync reset which is triggered erroneously during reindex (#1478)
@@ -213,6 +240,8 @@ Detailed [change log](https://github.com/dashpay/dash/compare/v0.12.1.x...dashpa
 - `7a8910443` Fix unlocked access to vNodes.size() (#1654)
 - `278cf144b` Remove cs_main from ThreadMnbRequestConnections (#1658)
 - `52cd4d40d` Fix bug: nCachedBlockHeight was not updated on start (#1673)
+- `1df889e23` Add more logging for MN votes and MNs missing votes (#1683)
+- `28c8d1729` Fix sync reset on lack of activity (#1686)
 
 ### GUI:
 - `5758ae1bf` Full path in "failed to load cache" warnings (#1411)
@@ -249,6 +278,7 @@ Detailed [change log](https://github.com/dashpay/dash/compare/v0.12.1.x...dashpa
 - `8c1e5e838` remove send addresses from listreceivedbyaddress output (#1664)
 - `c3bc06bbf` fix Examples section of the RPC output for listreceivedbyaccount, listreceivedbyaccount and sendfrom commands (#1665)
 - `ece884994` RPC help formatting updates (#1670)
+- `32ad53e77` Revert "fix `masternode current` rpc (#1640)" (#1681)
 
 ### Docs:
 - `82a464313` Doc: fix broken formatting in markdown #headers (#1462)
@@ -256,6 +286,7 @@ Detailed [change log](https://github.com/dashpay/dash/compare/v0.12.1.x...dashpa
 - `5d2795029` Documentation: Add spork message / details to protocol-documentation.md (#1493)
 - `5617aef07` Documentation: Update undocumented messages in protocol-documentation.md  (#1596)
 - `72ef788c5` Update `instantsend.md` according to PR#1628 changes (#1663)
+- `304b886d0` Update build-osx.md formatting (#1690)
 
 ### Other (noticeable) refactoring and fixes:
 - `98990b683` Refactor: CDarkSendSigner (#1410)
@@ -298,6 +329,9 @@ Detailed [change log](https://github.com/dashpay/dash/compare/v0.12.1.x...dashpa
 - `381ffdc4b` Fork testnet to test 12.2 migration (#1660)
 - `33dbafbba` fork testnet again to re-test dip0001 because of 2 bugs found in 1st attempt (#1667)
 - `0b6955a7b` update nMinimumChainWork and defaultAssumeValid for testnet (#1668)
+- `4ecbedbe7` fix `setnetworkactive` (typo) (#1682)
+- `46342b2e8` update nCollateralMinConfBlockHash for local (hot) masternode on mn start (#1689)
+- `f5286b179` Fix/optimize images (#1688)
 
 Credits
 =======
@@ -315,6 +349,7 @@ Thanks to everyone who directly contributed to this release:
 - gladcow
 - Holger Schinzel
 - Ilya Savinov
+- Kamuela Franco
 - krychlicki
 - Nathan Marley
 - Oleg Girko
