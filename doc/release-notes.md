@@ -218,6 +218,7 @@ Detailed [change log](https://github.com/dashpay/dash/compare/v0.12.1.x...dashpa
 - [`6496fc9da`](https://github.com/dashpay/dash/commit/6496fc9da) fix off-by-1 in CSuperblock::GetPaymentsLimit (#1598)
 - [`48d63ab29`](https://github.com/dashpay/dash/commit/48d63ab29) Relay govobj and govvote to every compatible peer, not only to the one with the same version (#1662)
 - [`6f57519c6`](https://github.com/dashpay/dash/commit/6f57519c6) allow up to 40 chars in proposal name (#1693)
+- [`ceda3abe6`](https://github.com/dashpay/dash/commit/ceda3abe6) start_epoch, end_epoch and payment_amount should be numbers, not strings (#1707)
 
 ### Network/Sync:
 - [`62963e911`](https://github.com/dashpay/dash/commit/62963e911) fix sync reset which is triggered erroneously during reindex (#1478)
