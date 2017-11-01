@@ -83,7 +83,7 @@ See `Help -> Command-line options` in Qt wallet or `dashd --help` for more info.
 PrivateSend improvements
 ------------------------
 
-Algorithm for selecting inputs was sligtly changed in 6067896ae (#1248). This should allow user to get some mixed funds much faster.
+Algorithm for selecting inputs was slightly changed in [`6067896ae`](https://github.com/dashpay/dash/commit/6067896ae) ([#1248](https://github.com/dashpay/dash/pull/1248)). This should allow user to get some mixed funds much faster.
 
 Lots of backports, refactoring and bug fixes
 --------------------------------------------
@@ -167,6 +167,7 @@ Detailed [change log](https://github.com/dashpay/dash/compare/v0.12.1.x...dashpa
 - [`9707ca5ce`](https://github.com/dashpay/dash/commit/9707ca5ce) Backport Bitcoin Qt/Gui changes up to 0.14.x part 2 (#1615)
 - [`91d99fcd3`](https://github.com/dashpay/dash/commit/91d99fcd3) Backport Bitcoin Qt/Gui changes up to 0.14.x part 3 (#1617)
 - [`4cac044d9`](https://github.com/dashpay/dash/commit/4cac044d9) Merge #8944: Remove bogus assert on number of oubound connections. (#1685)
+- [`d23adcc0f`](https://github.com/dashpay/dash/commit/d23adcc0f) Merge #10231: [Qt] Reduce a significant cs_main lock freeze (#1704)
 
 ### PrivateSend:
 - [`6067896ae`](https://github.com/dashpay/dash/commit/6067896ae) mix inputs with highest number of rounds first (#1248)
