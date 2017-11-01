@@ -562,7 +562,6 @@ UniValue decodescript(const UniValue& params, bool fHelp)
     ScriptPubKeyToJSON(script, r, false);
 
     UniValue type;
-
     type = find_value(r, "type");
 
     if (type.isStr() && type.get_str() != "scripthash") {

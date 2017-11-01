@@ -5,7 +5,7 @@ suites:
 - "trusty"
 architectures:
 - "amd64"
-packages: 
+packages:
 - "curl"
 - "g++"
 - "git-core"
@@ -21,12 +21,14 @@ packages:
 - "libbz2-dev"
 - "ca-certificates"
 - "python"
-reference_datetime: "2017-01-01 00:00:00"
+- "python-dev"
+- "python-setuptools"
+- "fonts-tuffy"
 remotes:
 - "url": "https://github.com/dashpay/dash.git"
   "dir": "dash"
 files:
-- "MacOSX10.9.sdk.tar.gz"
+- "MacOSX10.11.sdk.tar.gz"
 script: |
   WRAP_DIR=$HOME/wrapped
   HOSTS="x86_64-apple-darwin11"
@@ -48,39 +50,52 @@ script: |
 
   export ZERO_AR_DATE=1
 
-  # Create global faketime wrappers
+  function create_global_faketime_wrappers {
   for prog in ${FAKETIME_PROGS}; do
     echo '#!/bin/bash' > ${WRAP_DIR}/${prog}
     echo "REAL=\`which -a ${prog} | grep -v ${WRAP_DIR}/${prog} | head -1\`" >> ${WRAP_DIR}/${prog}
     echo 'export LD_PRELOAD=/usr/lib/x86_64-linux-gnu/faketime/libfaketime.so.1' >> ${WRAP_DIR}/${prog}
-    echo "export FAKETIME=\"${REFERENCE_DATETIME}\"" >> ${WRAP_DIR}/${prog}
+    echo "export FAKETIME=\"$1\"" >> ${WRAP_DIR}/${prog}
     echo "\$REAL \$@" >> $WRAP_DIR/${prog}
     chmod +x ${WRAP_DIR}/${prog}
   done
+  }
 
-  # Create per-host faketime wrappers
+  function create_per-host_faketime_wrappers {
   for i in $HOSTS; do
     for prog in ${FAKETIME_HOST_PROGS}; do
         echo '#!/bin/bash' > ${WRAP_DIR}/${i}-${prog}
         echo "REAL=\`which -a ${i}-${prog} | grep -v ${WRAP_DIR}/${i}-${prog} | head -1\`" >> ${WRAP_DIR}/${i}-${prog}
         echo 'export LD_PRELOAD=/usr/lib/x86_64-linux-gnu/faketime/libfaketime.so.1' >> ${WRAP_DIR}/${i}-${prog}
-        echo "export FAKETIME=\"${REFERENCE_DATETIME}\"" >> ${WRAP_DIR}/${i}-${prog}
+        echo "export FAKETIME=\"$1\"" >> ${WRAP_DIR}/${i}-${prog}
         echo "\$REAL \$@" >> $WRAP_DIR/${i}-${prog}
         chmod +x ${WRAP_DIR}/${i}-${prog}
     done
   done
+  }
+
+  # Faketime for depends so intermediate results are comparable
+  export PATH_orig=${PATH}
+  create_global_faketime_wrappers "2000-01-01 12:00:00"
+  create_per-host_faketime_wrappers "2000-01-01 12:00:00"
   export PATH=${WRAP_DIR}:${PATH}
 
   cd dash
   BASEPREFIX=`pwd`/depends
 
   mkdir -p ${BASEPREFIX}/SDKs
-  tar -C ${BASEPREFIX}/SDKs -xf ${BUILD_DIR}/MacOSX10.9.sdk.tar.gz
+  tar -C ${BASEPREFIX}/SDKs -xf ${BUILD_DIR}/MacOSX10.11.sdk.tar.gz
 
   # Build dependencies for each host
   for i in $HOSTS; do
     make ${MAKEOPTS} -C ${BASEPREFIX} HOST="${i}"
   done
+
+  # Faketime for binaries
+  export PATH=${PATH_orig}
+  create_global_faketime_wrappers "${REFERENCE_DATETIME}"
+  create_per-host_faketime_wrappers "${REFERENCE_DATETIME}"
+  export PATH=${WRAP_DIR}:${PATH}
 
   # Create the release tarball using (arbitrarily) the first host
   ./autogen.sh

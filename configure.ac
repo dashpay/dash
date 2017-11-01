@@ -59,6 +59,9 @@ fi
 AC_PROG_OBJCXX
 ])
 
+dnl Check if -latomic is required for <std::atomic>
+CHECK_ATOMIC
+
 dnl Libtool init checks.
 LT_INIT([pic-only])
 
@@ -77,9 +80,7 @@ AC_PATH_PROG(XGETTEXT,xgettext)
 AC_PATH_PROG(HEXDUMP,hexdump)
 AC_PATH_TOOL(READELF, readelf)
 AC_PATH_TOOL(CPPFILT, c++filt)
-
-dnl pkg-config check.
-PKG_PROG_PKG_CONFIG
+AC_PATH_TOOL(OBJCOPY, objcopy)
 
 # Enable wallet
 AC_ARG_ENABLE([wallet],
@@ -362,6 +363,16 @@ case $host in
      ;;
 esac
 
+if test x$use_pkgconfig = xyes; then
+  m4_ifndef([PKG_PROG_PKG_CONFIG], [AC_MSG_ERROR(PKG_PROG_PKG_CONFIG macro not found. Please install pkg-config and re-run autogen.sh.)])
+  m4_ifdef([PKG_PROG_PKG_CONFIG], [
+  PKG_PROG_PKG_CONFIG
+  if test x"$PKG_CONFIG" = "x"; then
+    AC_MSG_ERROR(pkg-config not found.)
+  fi
+  ])
+fi
+
 if test x$use_comparison_tool != xno; then
   AC_SUBST(JAVA_COMPARISON_TOOL, $use_comparison_tool)
 fi
@@ -590,8 +601,11 @@ fi
 
 if test x$use_boost = xyes; then
 
+dnl Minimum required Boost version
+define(MINIMUM_REQUIRED_BOOST, 1.47.0)
+
 dnl Check for boost libs
-AX_BOOST_BASE
+AX_BOOST_BASE([MINIMUM_REQUIRED_BOOST])
 AX_BOOST_SYSTEM
 AX_BOOST_FILESYSTEM
 AX_BOOST_PROGRAM_OPTIONS
@@ -751,12 +765,7 @@ fi
 fi
 
 if test x$use_pkgconfig = xyes; then
-
-  if test x"$PKG_CONFIG" = "x"; then
-    AC_MSG_ERROR(pkg-config not found.)
-  fi
-
-  : #NOP
+  : dnl
   m4_ifdef(
     [PKG_CHECK_MODULES],
     [
@@ -1046,11 +1055,20 @@ AC_SUBST(TESTDEFS)
 AC_SUBST(LEVELDB_TARGET_FLAGS)
 AC_SUBST(MINIUPNPC_CPPFLAGS)
 AC_SUBST(MINIUPNPC_LIBS)
+AC_SUBST(CRYPTO_LIBS)
+AC_SUBST(SSL_LIBS)
+AC_SUBST(EVENT_LIBS)
+AC_SUBST(EVENT_PTHREADS_LIBS)
+AC_SUBST(ZMQ_LIBS)
+AC_SUBST(PROTOBUF_LIBS)
+AC_SUBST(QR_LIBS)
 AC_SUBST(LEVELDB_ATOMIC_CPPFLAGS)
 AC_SUBST(LEVELDB_ATOMIC_CXXFLAGS)
 AC_CONFIG_FILES([Makefile src/Makefile share/setup.nsi share/qt/Info.plist src/test/buildenv.py])
 AC_CONFIG_FILES([qa/pull-tester/run-bitcoind-for-test.sh],[chmod +x qa/pull-tester/run-bitcoind-for-test.sh])
 AC_CONFIG_FILES([qa/pull-tester/tests_config.py],[chmod +x qa/pull-tester/tests_config.py])
+AC_CONFIG_FILES([contrib/devtools/split-debug.sh],[chmod +x contrib/devtools/split-debug.sh])
+AC_CONFIG_LINKS([qa/pull-tester/rpc-tests.py:qa/pull-tester/rpc-tests.py])
 
 dnl boost's m4 checks do something really nasty: they export these vars. As a
 dnl result, they leak into secp256k1's configure and crazy things happen.
