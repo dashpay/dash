@@ -39,7 +39,8 @@ Notable changes
 DIP0001
 -------
 
-We outline an initial scaling mechanism for Dash. After deployment and activation, Dash will be able to handle double the transactions it can currently handle. This means that Dash will be prepared for eight times the traffic of Bitcoin.
+We outline an initial scaling mechanism for Dash. After deployment and activation, Dash will be able to handle double the transactions it can currently handle. Together with the faster block times, Dash we will be prepared to handle eight times the traffic of Bitcoin.
+
 https://github.com/dashpay/dips/blob/master/dip-0001.md
 
 
