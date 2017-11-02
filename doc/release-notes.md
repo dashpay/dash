@@ -61,8 +61,7 @@ There are few changes in existing RPC in this release:
 - `gobject list` and `gobject diff` accept `funding`, `delete` and `endorsed` filtering options now, in addition to `valid` and `all` currently available;
 - `vin` field in `masternode` commands is renamed to `outpoint` and shows data in short format now;
 - `getblocktemplate` output is extended with versionbits-related information;
-- Output of wallet-related commands `validateaddress` is extended with optional `hdkeypath` and `hdchainid` fields;
-- `satoshis` in every RPC output are renamed to `duffs`.
+- Output of wallet-related commands `validateaddress` is extended with optional `hdkeypath` and `hdchainid` fields.
 
 There are few new RPC commands also:
 - `masternodelist info` shows additional information about sentinel for each masternode in the list;
@@ -284,6 +283,7 @@ Detailed [change log](https://github.com/dashpay/dash/compare/v0.12.1.x...dashpa
 - [`c3bc06bbf`](https://github.com/dashpay/dash/commit/c3bc06bbf) fix Examples section of the RPC output for listreceivedbyaccount, listreceivedbyaccount and sendfrom commands (#1665)
 - [`ece884994`](https://github.com/dashpay/dash/commit/ece884994) RPC help formatting updates (#1670)
 - [`32ad53e77`](https://github.com/dashpay/dash/commit/32ad53e77) Revert "fix `masternode current` rpc (#1640)" (#1681)
+- [`a5f99ef2f`](https://github.com/dashpay/dash/commit/a5f99ef2f) partially revert "[Trivial] RPC help formatting updates #1670" (#1711)
 
 ### Docs:
 - [`82a464313`](https://github.com/dashpay/dash/commit/82a464313) Doc: fix broken formatting in markdown #headers (#1462)
