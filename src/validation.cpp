@@ -1112,6 +1112,10 @@ bool GetTransaction(const uint256 &hash, CTransaction &txOut, const Consensus::P
                 return error("%s: txid mismatch", __func__);
             return true;
         }
+
+        // Give up, even though fAllowSlow may be true. If we don't find a transaction in the optional txindex, we'll
+        // also not find it in the UTXO set.
+        return false;
     }
 
     if (fAllowSlow) { // use coin database to locate block that contains transaction, and scan it
