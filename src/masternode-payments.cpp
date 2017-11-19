@@ -305,9 +305,6 @@ int CMasternodePayments::GetMinMasternodePaymentsProto() {
 
 void CMasternodePayments::ProcessMessage(CNode* pfrom, std::string& strCommand, CDataStream& vRecv, CConnman& connman)
 {
-    // Ignore any payments messages until masternode list is synced
-    if(!masternodeSync.IsMasternodeListSynced()) return;
-
     if(fLiteMode) return; // disable all Dash specific functionality
 
     if (strCommand == NetMsgType::MASTERNODEPAYMENTSYNC) { //Masternode Payments Request Sync
@@ -333,14 +330,20 @@ void CMasternodePayments::ProcessMessage(CNode* pfrom, std::string& strCommand, 
 
     } else if (strCommand == NetMsgType::MASTERNODEPAYMENTVOTE) { // Masternode Payments Vote for the Winner
 
+
         CMasternodePaymentVote vote;
         vRecv >> vote;
-
-        if(pfrom->nVersion < GetMinMasternodePaymentsProto()) return;
 
         uint256 nHash = vote.GetHash();
 
         pfrom->setAskFor.erase(nHash);
+
+        // TODO: clear setAskFor for MSG_MASTERNODE_PAYMENT_BLOCK too
+
+        if(pfrom->nVersion < GetMinMasternodePaymentsProto()) return;
+
+        // Ignore any payments messages until masternode list is synced
+        if(!masternodeSync.IsMasternodeListSynced()) return;
 
         {
             LOCK(cs_mapMasternodePaymentVotes);
