@@ -914,6 +914,8 @@ void CMasternodeMan::ProcessMessage(CNode* pfrom, std::string& strCommand, CData
 
         pfrom->setAskFor.erase(mnv.GetHash());
 
+        if(!masternodeSync.IsMasternodeListSynced()) return;
+
         if(mnv.vchSig1.empty()) {
             // CASE 1: someone asked me to verify myself /IP we are using/
             SendVerifyReply(pfrom, mnv, connman);
