@@ -22,7 +22,6 @@ import logging
 import socket
 import struct
 import sys
-import time
 import threading
 
 from test_framework.messages import *
@@ -242,7 +241,6 @@ class NodeConn(asyncore.dispatcher):
         self.socket.setsockopt(socket.IPPROTO_TCP, socket.TCP_NODELAY, 1)
         self.sendbuf = b""
         self.recvbuf = b""
-        self.last_sent = 0
         self.state = "connecting"
         self.network = net
         self.devnet_name = devnet_name
@@ -341,8 +339,6 @@ class NodeConn(asyncore.dispatcher):
             raise
 
     def got_message(self, message):
-        if self.last_sent + 30 * 60 < time.time():
-            self.send_message(MESSAGEMAP[b'ping']())
         self._log_message("receive", message)
         self.cb.deliver(self, message)
 
@@ -394,7 +390,6 @@ class NodeConn(asyncore.dispatcher):
                     self.sendbuf = tmsg
             else:
                 self.sendbuf += tmsg
-            self.last_sent = time.time()
 
     # Class utility methods
 
