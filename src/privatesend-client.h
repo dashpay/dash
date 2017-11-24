@@ -54,6 +54,7 @@ private:
     std::string strLastMessage;
     std::string strAutoDenomResult;
 
+    masternode_info_t infoMixingMasternode;
     CMutableTransaction txMyCollateral; // client side collateral
 
     CKeyHolderStorage keyHolderStorage; // storage for keys used in PrepareDenominate
@@ -107,7 +108,6 @@ public:
     bool fEnablePrivateSend;
     bool fPrivateSendMultiSession;
 
-    masternode_info_t infoMixingMasternode;
     int nCachedNumBlocks; //used for the overview screen
     bool fCreateAutoBackups; //builtin support for automatic backups
 
@@ -129,11 +129,15 @@ public:
 
     void SetMinBlocksToWait(int nMinBlocksToWaitIn) { nMinBlocksToWait = nMinBlocksToWaitIn; }
 
+
     void ResetPool();
 
     void UnlockCoins();
 
     std::string GetStatus();
+
+    bool GetMixingMasternodeInfo(masternode_info_t& mnInfoRet);
+    bool IsMixingMasternode(const CNode* pnode);
 
     /// Passively run mixing in the background according to the configuration in settings
     bool DoAutomaticDenominating(CConnman& connman, bool fDryRun=false);

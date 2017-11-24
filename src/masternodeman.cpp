@@ -734,10 +734,10 @@ void CMasternodeMan::ProcessMasternodeConnections(CConnman& connman)
     if(Params().NetworkIDString() == CBaseChainParams::REGTEST) return;
 
     connman.ForEachNode(CConnman::AllNodes, [](CNode* pnode) {
-        if(pnode->fMasternode) {
 #ifdef ENABLE_WALLET
-           if(privateSendClient.infoMixingMasternode.fInfoValid && pnode->addr == privateSendClient.infoMixingMasternode.addr)
-                return;
+        if(pnode->fMasternode && !privateSendClient.IsMixingMasternode(pnode)) {
+#else
+        if(pnode->fMasternode) {
 #endif // ENABLE_WALLET
             LogPrintf("Closing Masternode connection: peer=%d, addr=%s\n", pnode->id, pnode->addr.ToString());
             pnode->fDisconnect = true;

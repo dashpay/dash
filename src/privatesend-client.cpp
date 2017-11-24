@@ -285,6 +285,17 @@ std::string CPrivateSendClient::GetStatus()
     }
 }
 
+bool CPrivateSendClient::GetMixingMasternodeInfo(masternode_info_t& mnInfoRet)
+{
+    mnInfoRet = infoMixingMasternode.fInfoValid ? infoMixingMasternode : masternode_info_t();
+    return infoMixingMasternode.fInfoValid;
+}
+
+bool CPrivateSendClient::IsMixingMasternode(const CNode* pnode)
+{
+    return infoMixingMasternode.fInfoValid && pnode->addr == infoMixingMasternode.addr;
+}
+
 //
 // Check the mixing progress and send client updates if a Masternode
 //
