@@ -331,6 +331,14 @@ int CPrivateSend::GetDenominationsByAmounts(const std::vector<CAmount>& vecAmoun
     return GetDenominations(vecTxOut, true);
 }
 
+bool CPrivateSend::IsDenominatedAmount(CAmount nInputAmount)
+{
+    for (const auto& nDenomValue : vecStandardDenominations)
+        if(nInputAmount == nDenomValue)
+            return true;
+    return false;
+}
+
 std::string CPrivateSend::GetMessageByID(PoolMessage nMessageID)
 {
     switch (nMessageID) {

@@ -325,6 +325,8 @@ public:
     /// Get the denominations for a specific amount of dash.
     static int GetDenominationsByAmounts(const std::vector<CAmount>& vecAmount);
 
+    static bool IsDenominatedAmount(CAmount nInputAmount);
+
     /// Get the denominations for a list of outputs (returns a bitshifted integer)
     static int GetDenominations(const std::vector<CTxOut>& vecTxOut, bool fSingleRandomDenom = false);
     static std::string GetDenominationsToString(int nDenom);

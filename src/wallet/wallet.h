@@ -794,7 +794,6 @@ public:
     int GetOutpointPrivateSendRounds(const COutPoint& outpoint) const;
 
     bool IsDenominated(const COutPoint& outpoint) const;
-    bool IsDenominatedAmount(CAmount nInputAmount) const;
 
     bool IsSpent(const uint256& hash, unsigned int n) const;
 

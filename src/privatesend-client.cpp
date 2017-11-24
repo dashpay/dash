@@ -1175,7 +1175,7 @@ bool CPrivateSendClient::MakeCollateralAmounts(const CompactTallyItem& tallyItem
     LOCK2(cs_main, pwalletMain->cs_wallet);
 
     // denominated input is always a single one, so we can check its amount directly and return early
-    if(!fTryDenominated && tallyItem.vecTxIn.size() == 1 && pwalletMain->IsDenominatedAmount(tallyItem.nAmount))
+    if(!fTryDenominated && tallyItem.vecTxIn.size() == 1 && CPrivateSend::IsDenominatedAmount(tallyItem.nAmount))
         return false;
 
     CWalletTx wtx;

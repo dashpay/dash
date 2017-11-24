@@ -1276,7 +1276,7 @@ int CWallet::GetRealOutpointPrivateSendRounds(const COutPoint& outpoint, int nRo
         }
 
         //make sure the final output is non-denominate
-        if (!IsDenominatedAmount(wtx->vout[nout].nValue)) { //NOT DENOM
+        if (!CPrivateSend::IsDenominatedAmount(wtx->vout[nout].nValue)) { //NOT DENOM
             mDenomWtxes[hash].vout[nout].nRounds = -2;
             LogPrint("privatesend", "GetRealOutpointPrivateSendRounds UPDATED   %s %3d %3d\n", hash.ToString(), nout, mDenomWtxes[hash].vout[nout].nRounds);
             return mDenomWtxes[hash].vout[nout].nRounds;
@@ -1284,7 +1284,7 @@ int CWallet::GetRealOutpointPrivateSendRounds(const COutPoint& outpoint, int nRo
 
         bool fAllDenoms = true;
         BOOST_FOREACH(CTxOut out, wtx->vout) {
-            fAllDenoms = fAllDenoms && IsDenominatedAmount(out.nValue);
+            fAllDenoms = fAllDenoms && CPrivateSend::IsDenominatedAmount(out.nValue);
         }
 
         // this one is denominated but there is another non-denominated output found in the same tx
@@ -1333,18 +1333,10 @@ bool CWallet::IsDenominated(const COutPoint& outpoint) const
     if (mi != mapWallet.end()) {
         const CWalletTx& prev = (*mi).second;
         if (outpoint.n < prev.vout.size()) {
-            return IsDenominatedAmount(prev.vout[outpoint.n].nValue);
+            return CPrivateSend::IsDenominatedAmount(prev.vout[outpoint.n].nValue);
         }
     }
 
-    return false;
-}
-
-bool CWallet::IsDenominatedAmount(CAmount nInputAmount) const
-{
-    BOOST_FOREACH(CAmount d, CPrivateSend::GetStandardDenominations())
-        if(nInputAmount == d)
-            return true;
     return false;
 }
 
@@ -2003,7 +1995,7 @@ CAmount CWalletTx::GetDenominatedCredit(bool unconfirmed, bool fUseCache) const
     {
         const CTxOut &txout = vout[i];
 
-        if(pwallet->IsSpent(hashTx, i) || !pwallet->IsDenominatedAmount(vout[i].nValue)) continue;
+        if(pwallet->IsSpent(hashTx, i) || !CPrivateSend::IsDenominatedAmount(vout[i].nValue)) continue;
 
         nCredit += pwallet->GetCredit(txout, ISMINE_SPENDABLE);
         if (!MoneyRange(nCredit))
@@ -2164,7 +2156,7 @@ CAmount CWallet::GetAnonymizableBalance(bool fSkipDenominated, bool fSkipUnconfi
     const CAmount nSmallestDenom = CPrivateSend::GetSmallestDenomination();
     const CAmount nMixingCollateral = CPrivateSend::GetCollateralAmount();
     BOOST_FOREACH(CompactTallyItem& item, vecTally) {
-        bool fIsDenominated = IsDenominatedAmount(item.nAmount);
+        bool fIsDenominated = CPrivateSend::IsDenominatedAmount(item.nAmount);
         if(fSkipDenominated && fIsDenominated) continue;
         // assume that the fee to create denoms should be mixing collateral at max
         if(item.nAmount >= nSmallestDenom + (fIsDenominated ? 0 : nMixingCollateral))
@@ -2390,10 +2382,10 @@ void CWallet::AvailableCoins(vector<COutput>& vCoins, bool fOnlyConfirmed, const
             for (unsigned int i = 0; i < pcoin->vout.size(); i++) {
                 bool found = false;
                 if(nCoinType == ONLY_DENOMINATED) {
-                    found = IsDenominatedAmount(pcoin->vout[i].nValue);
+                    found = CPrivateSend::IsDenominatedAmount(pcoin->vout[i].nValue);
                 } else if(nCoinType == ONLY_NONDENOMINATED) {
                     if (IsCollateralAmount(pcoin->vout[i].nValue)) continue; // do not use collateral amounts
-                    found = !IsDenominatedAmount(pcoin->vout[i].nValue);
+                    found = !CPrivateSend::IsDenominatedAmount(pcoin->vout[i].nValue);
                 } else if(nCoinType == ONLY_1000) {
                     found = pcoin->vout[i].nValue == 1000*COIN;
                 } else if(nCoinType == ONLY_PRIVATESEND_COLLATERAL) {
@@ -2531,7 +2523,7 @@ bool CWallet::SelectCoinsMinConf(const CAmount& nTargetValue, int nConfMine, int
 
             int i = output.i;
             CAmount n = pcoin->vout[i].nValue;
-            if (tryDenom == 0 && IsDenominatedAmount(n)) continue; // we don't want denom values on first run
+            if (tryDenom == 0 && CPrivateSend::IsDenominatedAmount(n)) continue; // we don't want denom values on first run
 
             pair<CAmount,pair<const CWalletTx*,unsigned int> > coin = make_pair(n,make_pair(pcoin, i));
 
@@ -2871,7 +2863,7 @@ bool CWallet::SelectCoinsGrouppedByAddresses(std::vector<CompactTallyItem>& vecT
 
             if(IsSpent(outpoint.hash, i) || IsLockedCoin(outpoint.hash, i)) continue;
 
-            if(fSkipDenominated && IsDenominatedAmount(wtx.vout[i].nValue)) continue;
+            if(fSkipDenominated && CPrivateSend::IsDenominatedAmount(wtx.vout[i].nValue)) continue;
 
             if(fAnonymizable) {
                 // ignore collaterals
@@ -3051,7 +3043,7 @@ int CWallet::CountInputsWithAmount(CAmount nInputAmount)
                     COutPoint outpoint = COutPoint(out.tx->GetHash(), out.i);
 
                     if(out.tx->vout[out.i].nValue != nInputAmount) continue;
-                    if(!IsDenominatedAmount(pcoin->vout[i].nValue)) continue;
+                    if(!CPrivateSend::IsDenominatedAmount(pcoin->vout[i].nValue)) continue;
                     if(IsSpent(out.tx->GetHash(), i) || IsMine(pcoin->vout[i]) != ISMINE_SPENDABLE || !IsDenominated(outpoint)) continue;
 
                     nTotal++;
