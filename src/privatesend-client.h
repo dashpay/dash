@@ -34,8 +34,6 @@ extern CPrivateSendClient privateSendClient;
 class CPrivateSendClient : public CPrivateSendBase
 {
 private:
-    mutable CCriticalSection cs_darksend;
-
     // Keep track of the used Masternodes
     std::vector<COutPoint> vecMasternodesUsed;
 

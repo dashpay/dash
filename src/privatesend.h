@@ -279,6 +279,8 @@ public:
 class CPrivateSendBase
 {
 protected:
+    mutable CCriticalSection cs_darksend;
+
     // The current mixing sessions in progress on the network
     std::vector<CDarksendQueue> vecDarksendQueue;
 
@@ -292,6 +294,7 @@ protected:
     CMutableTransaction finalMutableTransaction; // the finalized transaction ready for signing
 
     void SetNull();
+    void CheckQueue();
 
 public:
     int nSessionDenom; //Users must submit an denom matching this
