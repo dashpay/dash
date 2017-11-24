@@ -582,18 +582,6 @@ bool CPrivateSendClient::SignFinalTransaction(const CTransaction& finalTransacti
     return true;
 }
 
-void CPrivateSendClient::NewBlock()
-{
-    static int64_t nTimeNewBlockReceived = 0;
-
-    //we we're processing lots of blocks, we'll just leave
-    if(GetTime() - nTimeNewBlockReceived < 10) return;
-    nTimeNewBlockReceived = GetTime();
-    LogPrint("privatesend", "CPrivateSendClient::NewBlock\n");
-
-    CheckTimeout();
-}
-
 // mixing transaction was completed (failed or successful)
 void CPrivateSendClient::CompletedTransaction(PoolMessage nMessageID)
 {
@@ -1402,10 +1390,6 @@ void CPrivateSendClient::UpdatedBlockTip(const CBlockIndex *pindex)
 {
     nCachedBlockHeight = pindex->nHeight;
     LogPrint("privatesend", "CPrivateSendClient::UpdatedBlockTip -- nCachedBlockHeight: %d\n", nCachedBlockHeight);
-
-    if(!fLiteMode && masternodeSync.IsMasternodeListSynced()) {
-        NewBlock();
-    }
 
     CPrivateSend::CheckDSTXes(pindex->nHeight);
 }

@@ -142,9 +142,6 @@ public:
 
     void CheckTimeout();
 
-    /// Process a new block
-    void NewBlock();
-
     void UpdatedBlockTip(const CBlockIndex *pindex);
 };
 
