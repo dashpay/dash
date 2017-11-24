@@ -19,13 +19,6 @@
 
 #include <boost/lexical_cast.hpp>
 
-CDarkSendEntry::CDarkSendEntry(const std::vector<CTxIn>& vecTxIn, const std::vector<CTxOut>& vecTxOut, const CTransaction& txCollateral) :
-    vecTxOut(vecTxOut), txCollateral(txCollateral), addr(CService())
-{
-    BOOST_FOREACH(CTxIn txin, vecTxIn)
-        vecTxDSIn.push_back(txin);
-}
-
 bool CDarkSendEntry::AddScriptSig(const CTxIn& txin)
 {
     BOOST_FOREACH(CTxDSIn& txdsin, vecTxDSIn) {
@@ -33,7 +26,6 @@ bool CDarkSendEntry::AddScriptSig(const CTxIn& txin)
             if(txdsin.fHasSig) return false;
 
             txdsin.scriptSig = txin.scriptSig;
-            txdsin.prevPubKey = txin.prevPubKey;
             txdsin.fHasSig = true;
 
             return true;

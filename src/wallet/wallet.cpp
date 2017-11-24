@@ -2756,9 +2756,9 @@ bool CWallet::FundTransaction(CMutableTransaction& tx, CAmount &nFeeRet, int& nC
     return true;
 }
 
-bool CWallet::SelectCoinsByDenominations(int nDenom, CAmount nValueMin, CAmount nValueMax, std::vector<CTxIn>& vecTxInRet, std::vector<COutput>& vCoinsRet, CAmount& nValueRet, int nPrivateSendRoundsMin, int nPrivateSendRoundsMax)
+bool CWallet::SelectCoinsByDenominations(int nDenom, CAmount nValueMin, CAmount nValueMax, std::vector<CTxDSIn>& vecTxDSInRet, std::vector<COutput>& vCoinsRet, CAmount& nValueRet, int nPrivateSendRoundsMin, int nPrivateSendRoundsMax)
 {
-    vecTxInRet.clear();
+    vecTxDSInRet.clear();
     vCoinsRet.clear();
     nValueRet = 0;
 
@@ -2801,11 +2801,10 @@ bool CWallet::SelectCoinsByDenominations(int nDenom, CAmount nValueMin, CAmount 
                         nValueMax -= insecureRand(nValueMax/5);
                         //on average use 50% of the inputs or less
                         int r = insecureRand(vCoins.size());
-                        if((int)vecTxInRet.size() > r) return true;
+                        if((int)vecTxDSInRet.size() > r) return true;
                     }
-                    txin.prevPubKey = out.tx->vout[out.i].scriptPubKey; // the inputs PubKey
                     nValueRet += out.tx->vout[out.i].nValue;
-                    vecTxInRet.push_back(txin);
+                    vecTxDSInRet.push_back(CTxDSIn(txin, out.tx->vout[out.i].scriptPubKey));
                     vCoinsRet.push_back(out);
                     nDenomResult |= 1 << nBit;
                 }
@@ -2952,7 +2951,6 @@ bool CWallet::SelectCoinsDark(CAmount nValueMin, CAmount nValueMax, std::vector<
             if(nRounds >= nPrivateSendRoundsMax) continue;
             if(nRounds < nPrivateSendRoundsMin) continue;
 
-            txin.prevPubKey = out.tx->vout[out.i].scriptPubKey; // the inputs PubKey
             nValueRet += out.tx->vout[out.i].nValue;
             vecTxInRet.push_back(txin);
         }
@@ -2961,7 +2959,7 @@ bool CWallet::SelectCoinsDark(CAmount nValueMin, CAmount nValueMax, std::vector<
     return nValueRet >= nValueMin;
 }
 
-bool CWallet::GetCollateralTxIn(CTxIn& txinRet, CAmount& nValueRet) const
+bool CWallet::GetCollateralTxDSIn(CTxDSIn& txdsinRet, CAmount& nValueRet) const
 {
     vector<COutput> vCoins;
 
@@ -2971,8 +2969,7 @@ bool CWallet::GetCollateralTxIn(CTxIn& txinRet, CAmount& nValueRet) const
     {
         if(IsCollateralAmount(out.tx->vout[out.i].nValue))
         {
-            txinRet = CTxIn(out.tx->GetHash(), out.i);
-            txinRet.prevPubKey = out.tx->vout[out.i].scriptPubKey; // the inputs PubKey
+            txdsinRet = CTxDSIn(CTxIn(out.tx->GetHash(), out.i), out.tx->vout[out.i].scriptPubKey);
             nValueRet = out.tx->vout[out.i].nValue;
             return true;
         }
@@ -3089,9 +3086,9 @@ bool CWallet::CreateCollateralTransaction(CMutableTransaction& txCollateral, std
 
     CReserveKey reservekey(this);
     CAmount nValue = 0;
-    CTxIn txinCollateral;
+    CTxDSIn txdsinCollateral;
 
-    if (!GetCollateralTxIn(txinCollateral, nValue)) {
+    if (!GetCollateralTxDSIn(txdsinCollateral, nValue)) {
         strReason = "PrivateSend requires a collateral transaction and could not locate an acceptable input!";
         return false;
     }
@@ -3103,13 +3100,13 @@ bool CWallet::CreateCollateralTransaction(CMutableTransaction& txCollateral, std
     scriptChange = GetScriptForDestination(vchPubKey.GetID());
     reservekey.KeepKey();
 
-    txCollateral.vin.push_back(txinCollateral);
+    txCollateral.vin.push_back(txdsinCollateral);
 
     //pay collateral charge in fees
     CTxOut txout = CTxOut(nValue - CPrivateSend::GetCollateralAmount(), scriptChange);
     txCollateral.vout.push_back(txout);
 
-    if(!SignSignature(*this, txinCollateral.prevPubKey, txCollateral, 0, int(SIGHASH_ALL|SIGHASH_ANYONECANPAY))) {
+    if(!SignSignature(*this, txdsinCollateral.prevPubKey, txCollateral, 0, int(SIGHASH_ALL|SIGHASH_ANYONECANPAY))) {
         strReason = "Unable to sign collateral transaction!";
         return false;
     }
@@ -3409,14 +3406,16 @@ bool CWallet::CreateTransaction(const vector<CRecipient>& vecSend, CWalletTx& wt
                 //
                 // Note how the sequence number is set to max()-1 so that the
                 // nLockTime set above actually works.
+                std::vector<CTxDSIn> vecTxDSInTmp;
                 BOOST_FOREACH(const PAIRTYPE(const CWalletTx*,unsigned int)& coin, setCoins){
                     CTxIn txin = CTxIn(coin.first->GetHash(),coin.second,CScript(),
                                               std::numeric_limits<unsigned int>::max()-1);
-                    txin.prevPubKey = coin.first->vout[coin.second].scriptPubKey;
+                    vecTxDSInTmp.push_back(CTxDSIn(txin, coin.first->vout[coin.second].scriptPubKey));
                     txNew.vin.push_back(txin);
                 }
 
                 sort(txNew.vin.begin(), txNew.vin.end(), CompareInputBIP69());
+                sort(vecTxDSInTmp.begin(), vecTxDSInTmp.end(), CompareInputBIP69());
                 sort(txNew.vout.begin(), txNew.vout.end(), CompareOutputBIP69());
 
                 // If there was change output added before, we must update its position now
@@ -3436,10 +3435,10 @@ bool CWallet::CreateTransaction(const vector<CRecipient>& vecSend, CWalletTx& wt
                 // Sign
                 int nIn = 0;
                 CTransaction txNewConst(txNew);
-                BOOST_FOREACH(const CTxIn& txin, txNew.vin)
+                for (const auto& txdsin : vecTxDSInTmp)
                 {
                     bool signSuccess;
-                    const CScript& scriptPubKey = txin.prevPubKey;
+                    const CScript& scriptPubKey = txdsin.prevPubKey;
                     CScript& scriptSigRes = txNew.vin[nIn].scriptSig;
                     if (sign)
                         signSuccess = ProduceSignature(TransactionSignatureCreator(this, &txNewConst, nIn, SIGHASH_ALL), scriptPubKey, scriptSigRes);

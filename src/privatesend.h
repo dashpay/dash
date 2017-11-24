@@ -77,17 +77,21 @@ enum PoolStatusUpdate {
 class CTxDSIn : public CTxIn
 {
 public:
+    // memory only
+    CScript prevPubKey;
     bool fHasSig; // flag to indicate if signed
     int nSentTimes; //times we've sent this anonymously
 
-    CTxDSIn(const CTxIn& txin) :
+    CTxDSIn(const CTxIn& txin, const CScript& script) :
         CTxIn(txin),
+        prevPubKey(script),
         fHasSig(false),
         nSentTimes(0)
         {}
 
     CTxDSIn() :
         CTxIn(),
+        prevPubKey(),
         fHasSig(false),
         nSentTimes(0)
         {}
@@ -110,7 +114,12 @@ public:
         addr(CService())
         {}
 
-    CDarkSendEntry(const std::vector<CTxIn>& vecTxIn, const std::vector<CTxOut>& vecTxOut, const CTransaction& txCollateral);
+    CDarkSendEntry(const std::vector<CTxDSIn>& vecTxDSIn, const std::vector<CTxOut>& vecTxOut, const CTransaction& txCollateral) :
+        vecTxDSIn(vecTxDSIn),
+        vecTxOut(vecTxOut),
+        txCollateral(txCollateral),
+        addr(CService())
+        {}
 
     ADD_SERIALIZE_METHODS;
 

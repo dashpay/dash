@@ -646,7 +646,6 @@ bool CPrivateSendServer::AddScriptSig(const CTxIn& txinNew)
     BOOST_FOREACH(CTxIn& txin, finalMutableTransaction.vin) {
         if(txinNew.prevout == txin.prevout && txin.nSequence == txinNew.nSequence) {
             txin.scriptSig = txinNew.scriptSig;
-            txin.prevPubKey = txinNew.prevPubKey;
             LogPrint("privatesend", "CPrivateSendServer::AddScriptSig -- adding to finalMutableTransaction, scriptSig=%s\n", ScriptToAsmStr(txinNew.scriptSig).substr(0,24));
         }
     }
