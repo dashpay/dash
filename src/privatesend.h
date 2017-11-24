@@ -344,6 +344,8 @@ public:
     static CAmount GetCollateralAmount() { return COLLATERAL; }
     static CAmount GetMaxCollateralAmount() { return COLLATERAL*4; }
 
+    static bool IsCollateralAmount(CAmount nInputAmount);
+
     static void AddDSTX(const CDarksendBroadcastTx& dstx);
     static CDarksendBroadcastTx GetDSTX(const uint256& hash);
     static void CheckDSTXes(int nHeight);

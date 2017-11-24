@@ -222,6 +222,14 @@ bool CPrivateSend::IsCollateralValid(const CTransaction& txCollateral)
     return true;
 }
 
+bool CPrivateSend::IsCollateralAmount(CAmount nInputAmount)
+{
+    // collateral inputs should always be a 2x..4x of mixing collateral
+    return  nInputAmount >  GetCollateralAmount() &&
+            nInputAmount <= GetMaxCollateralAmount() &&
+            nInputAmount %  GetCollateralAmount() == 0;
+}
+
 /*  Create a nice string to show the denominations
     Function returns as follows (for 4 denominations):
         ( bit on if present )

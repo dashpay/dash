@@ -1269,7 +1269,7 @@ int CWallet::GetRealOutpointPrivateSendRounds(const COutPoint& outpoint, int nRo
             return -4;
         }
 
-        if (IsCollateralAmount(wtx->vout[nout].nValue)) {
+        if (CPrivateSend::IsCollateralAmount(wtx->vout[nout].nValue)) {
             mDenomWtxes[hash].vout[nout].nRounds = -3;
             LogPrint("privatesend", "GetRealOutpointPrivateSendRounds UPDATED   %s %3d %3d\n", hash.ToString(), nout, mDenomWtxes[hash].vout[nout].nRounds);
             return mDenomWtxes[hash].vout[nout].nRounds;
@@ -2384,12 +2384,12 @@ void CWallet::AvailableCoins(vector<COutput>& vCoins, bool fOnlyConfirmed, const
                 if(nCoinType == ONLY_DENOMINATED) {
                     found = CPrivateSend::IsDenominatedAmount(pcoin->vout[i].nValue);
                 } else if(nCoinType == ONLY_NONDENOMINATED) {
-                    if (IsCollateralAmount(pcoin->vout[i].nValue)) continue; // do not use collateral amounts
+                    if (CPrivateSend::IsCollateralAmount(pcoin->vout[i].nValue)) continue; // do not use collateral amounts
                     found = !CPrivateSend::IsDenominatedAmount(pcoin->vout[i].nValue);
                 } else if(nCoinType == ONLY_1000) {
                     found = pcoin->vout[i].nValue == 1000*COIN;
                 } else if(nCoinType == ONLY_PRIVATESEND_COLLATERAL) {
-                    found = IsCollateralAmount(pcoin->vout[i].nValue);
+                    found = CPrivateSend::IsCollateralAmount(pcoin->vout[i].nValue);
                 } else {
                     found = true;
                 }
@@ -2867,7 +2867,7 @@ bool CWallet::SelectCoinsGrouppedByAddresses(std::vector<CompactTallyItem>& vecT
 
             if(fAnonymizable) {
                 // ignore collaterals
-                if(IsCollateralAmount(wtx.vout[i].nValue)) continue;
+                if(CPrivateSend::IsCollateralAmount(wtx.vout[i].nValue)) continue;
                 if(fMasterNode && wtx.vout[i].nValue == 1000*COIN) continue;
                 // ignore outputs that are 10 times smaller then the smallest denomination
                 // otherwise they will just lead to higher fee / lower priority
@@ -2933,7 +2933,7 @@ bool CWallet::SelectCoinsDark(CAmount nValueMin, CAmount nValueMax, std::vector<
         //do not allow inputs less than 1/10th of minimum value
         if(out.tx->vout[out.i].nValue < nValueMin/10) continue;
         //do not allow collaterals to be selected
-        if(IsCollateralAmount(out.tx->vout[out.i].nValue)) continue;
+        if(CPrivateSend::IsCollateralAmount(out.tx->vout[out.i].nValue)) continue;
         if(fMasterNode && out.tx->vout[out.i].nValue == 1000*COIN) continue; //masternode input
 
         if(nValueRet + out.tx->vout[out.i].nValue <= nValueMax){
@@ -2959,7 +2959,7 @@ bool CWallet::GetCollateralTxDSIn(CTxDSIn& txdsinRet, CAmount& nValueRet) const
 
     BOOST_FOREACH(const COutput& out, vCoins)
     {
-        if(IsCollateralAmount(out.tx->vout[out.i].nValue))
+        if(CPrivateSend::IsCollateralAmount(out.tx->vout[out.i].nValue))
         {
             txdsinRet = CTxDSIn(CTxIn(out.tx->GetHash(), out.i), out.tx->vout[out.i].scriptPubKey);
             nValueRet = out.tx->vout[out.i].nValue;
@@ -3061,14 +3061,6 @@ bool CWallet::HasCollateralInputs(bool fOnlyConfirmed) const
     AvailableCoins(vCoins, fOnlyConfirmed, NULL, false, ONLY_PRIVATESEND_COLLATERAL);
 
     return !vCoins.empty();
-}
-
-bool CWallet::IsCollateralAmount(CAmount nInputAmount) const
-{
-    // collateral inputs should always be a 2x..4x of mixing collateral
-    return  nInputAmount >  CPrivateSend::GetCollateralAmount() &&
-            nInputAmount <= CPrivateSend::GetMaxCollateralAmount() &&
-            nInputAmount %  CPrivateSend::GetCollateralAmount() == 0;
 }
 
 bool CWallet::CreateCollateralTransaction(CMutableTransaction& txCollateral, std::string& strReason)
