@@ -20,12 +20,10 @@
 #include <boost/lexical_cast.hpp>
 
 CDarkSendEntry::CDarkSendEntry(const std::vector<CTxIn>& vecTxIn, const std::vector<CTxOut>& vecTxOut, const CTransaction& txCollateral) :
-    txCollateral(txCollateral), addr(CService())
+    vecTxOut(vecTxOut), txCollateral(txCollateral), addr(CService())
 {
     BOOST_FOREACH(CTxIn txin, vecTxIn)
         vecTxDSIn.push_back(txin);
-    BOOST_FOREACH(CTxOut txout, vecTxOut)
-        vecTxDSOut.push_back(txout);
 }
 
 bool CDarkSendEntry::AddScriptSig(const CTxIn& txin)
@@ -262,16 +260,6 @@ std::string CPrivateSend::GetDenominationsToString(int nDenom)
     }
 
     return strDenom;
-}
-
-int CPrivateSend::GetDenominations(const std::vector<CTxDSOut>& vecTxDSOut)
-{
-    std::vector<CTxOut> vecTxOut;
-
-    BOOST_FOREACH(CTxDSOut out, vecTxDSOut)
-        vecTxOut.push_back(out);
-
-    return GetDenominations(vecTxOut);
 }
 
 /*  Return a bitshifted integer representing the denominations in this list

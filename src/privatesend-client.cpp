@@ -526,19 +526,19 @@ bool CPrivateSendClient::SignFinalTransaction(const CTransaction& finalTransacti
                 CAmount nValue1 = 0;
                 CAmount nValue2 = 0;
 
-                for(unsigned int i = 0; i < finalMutableTransaction.vout.size(); i++) {
-                    BOOST_FOREACH(const CTxOut& txout, entry.vecTxDSOut) {
-                        if(finalMutableTransaction.vout[i] == txout) {
+                for (const auto& txoutFinal : finalMutableTransaction.vout) {
+                    for (const auto& txout: entry.vecTxOut) {
+                        if(txoutFinal == txout) {
                             nFoundOutputsCount++;
-                            nValue1 += finalMutableTransaction.vout[i].nValue;
+                            nValue1 += txoutFinal.nValue;
                         }
                     }
                 }
 
-                BOOST_FOREACH(const CTxOut txout, entry.vecTxDSOut)
+                for (const auto& txout : entry.vecTxOut)
                     nValue2 += txout.nValue;
 
-                int nTargetOuputsCount = entry.vecTxDSOut.size();
+                int nTargetOuputsCount = entry.vecTxOut.size();
                 if(nFoundOutputsCount < nTargetOuputsCount || nValue1 != nValue2) {
                     // in this case, something went wrong and we'll refuse to sign. It's possible we'll be charged collateral. But that's
                     // better then signing if the transaction doesn't look like what we wanted.

@@ -93,37 +93,19 @@ public:
         {}
 };
 
-/** Holds an mixing output
- */
-class CTxDSOut : public CTxOut
-{
-public:
-    int nSentTimes; //times we've sent this anonymously
-
-    CTxDSOut(const CTxOut& out) :
-        CTxOut(out),
-        nSentTimes(0)
-        {}
-
-    CTxDSOut() :
-        CTxOut(),
-        nSentTimes(0)
-        {}
-};
-
 // A clients transaction in the mixing pool
 class CDarkSendEntry
 {
 public:
     std::vector<CTxDSIn> vecTxDSIn;
-    std::vector<CTxDSOut> vecTxDSOut;
+    std::vector<CTxOut> vecTxOut;
     CTransaction txCollateral;
     // memory only
     CService addr;
 
     CDarkSendEntry() :
         vecTxDSIn(std::vector<CTxDSIn>()),
-        vecTxDSOut(std::vector<CTxDSOut>()),
+        vecTxOut(std::vector<CTxOut>()),
         txCollateral(CTransaction()),
         addr(CService())
         {}
@@ -136,7 +118,7 @@ public:
     inline void SerializationOp(Stream& s, Operation ser_action, int nType, int nVersion) {
         READWRITE(vecTxDSIn);
         READWRITE(txCollateral);
-        READWRITE(vecTxDSOut);
+        READWRITE(vecTxOut);
     }
 
     bool AddScriptSig(const CTxIn& txin);
@@ -336,7 +318,6 @@ public:
 
     /// Get the denominations for a list of outputs (returns a bitshifted integer)
     static int GetDenominations(const std::vector<CTxOut>& vecTxOut, bool fSingleRandomDenom = false);
-    static int GetDenominations(const std::vector<CTxDSOut>& vecTxDSOut);
     static std::string GetDenominationsToString(int nDenom);
     static bool GetDenominationsBits(int nDenom, std::vector<int> &vecBitsRet);
 
