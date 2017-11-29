@@ -7,7 +7,7 @@
     <x>0</x>
     <y>0</y>
     <width>850</width>
-    <height>526</height>
+    <height>677</height>
    </rect>
   </property>
   <property name="windowTitle">
@@ -411,7 +411,7 @@
                  </property>
                 </widget>
                </item>
-             </layout>
+              </layout>
              </item>
              <item>
               <layout class="QFormLayout" name="formLayoutCoinControl4">
@@ -587,8 +587,8 @@
        <rect>
         <x>0</x>
         <y>0</y>
-        <width>830</width>
-        <height>69</height>
+        <width>824</width>
+        <height>132</height>
        </rect>
       </property>
       <layout class="QVBoxLayout" name="verticalLayout_2" stretch="0,1">
@@ -1294,8 +1294,23 @@
            <height>0</height>
           </size>
          </property>
+         <property name="font">
+          <font>
+           <pointsize>12</pointsize>
+           <weight>50</weight>
+           <bold>false</bold>
+           <stylestrategy>PreferAntialias</stylestrategy>
+           <kerning>true</kerning>
+          </font>
+         </property>
          <property name="text">
           <string>PrivateSend</string>
+         </property>
+         <property name="iconSize">
+          <size>
+           <width>16</width>
+           <height>16</height>
+          </size>
          </property>
          <property name="checked">
           <bool>false</bool>
@@ -1303,6 +1318,19 @@
         </widget>
        </item>
        <item>
+        <spacer name="horizontalSpacer_7">
+         <property name="orientation">
+          <enum>Qt::Horizontal</enum>
+         </property>
+         <property name="sizeHint" stdset="0">
+          <size>
+           <width>5</width>
+           <height>20</height>
+          </size>
+         </property>
+        </spacer>
+       </item>
+        <item>
         <widget class="QCheckBox" name="checkUseInstantSend">
          <property name="enabled">
           <bool>true</bool>
@@ -1313,13 +1341,50 @@
            <height>0</height>
           </size>
          </property>
+         <property name="font">
+          <font>
+           <pointsize>12</pointsize>
+          </font>
+         </property>
          <property name="text">
           <string>InstantSend</string>
          </property>
         </widget>
        </item>
+      <item>
+        <spacer name="horizontalSpacer_8">
+         <property name="orientation">
+          <enum>Qt::Horizontal</enum>
+         </property>
+         <property name="sizeHint" stdset="0">
+          <size>
+           <width>10</width>
+           <height>20</height>
+          </size>
+         </property>
+        </spacer>
+       </item>
+       <item>
+        <widget class="QLabel" name="label_2">
+         <property name="font">
+          <font>
+           <pointsize>12</pointsize>
+           <weight>75</weight>
+           <bold>true</bold>
+          </font>
+         </property>
+         <property name="text">
+          <string>|</string>
+         </property>
+        </widget>
+       </item>
        <item>
         <widget class="QLabel" name="label">
+         <property name="font">
+          <font>
+           <pointsize>12</pointsize>
+          </font>
+         </property>
          <property name="text">
           <string>Balance:</string>
          </property>
@@ -1332,6 +1397,13 @@
            <horstretch>0</horstretch>
            <verstretch>0</verstretch>
           </sizepolicy>
+         </property>
+         <property name="font">
+          <font>
+           <pointsize>11</pointsize>
+           <weight>75</weight>
+           <bold>true</bold>
+          </font>
          </property>
          <property name="cursor">
           <cursorShape>IBeamCursor</cursorShape>
