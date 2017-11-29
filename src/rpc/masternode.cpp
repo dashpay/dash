@@ -20,6 +20,7 @@
 #include <iomanip>
 #include <univalue.h>
 
+#ifdef ENABLE_WALLET
 void EnsureWalletIsUnlocked();
 
 UniValue privatesend(const UniValue& params, bool fHelp)
@@ -61,6 +62,7 @@ UniValue privatesend(const UniValue& params, bool fHelp)
 
     return "Unknown command, please see \"help privatesend\"";
 }
+#endif // ENABLE_WALLET
 
 UniValue getpoolinfo(const UniValue& params, bool fHelp)
 {
