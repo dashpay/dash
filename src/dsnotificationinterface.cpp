@@ -8,7 +8,9 @@
 #include "masternodeman.h"
 #include "masternode-payments.h"
 #include "masternode-sync.h"
+#ifdef ENABLE_WALLET
 #include "privatesend-client.h"
+#endif // ENABLE_WALLET
 #include "txmempool.h"
 
 void CDSNotificationInterface::InitializeCurrentBlockTip()
