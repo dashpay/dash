@@ -10,7 +10,10 @@
 #include "masternodeman.h"
 #include "messagesigner.h"
 #include "netfulfilledman.h"
+#ifdef ENABLE_WALLET
 #include "privatesend-client.h"
+#endif // ENABLE_WALLET
+#include "script/standard.h"
 #include "util.h"
 
 /** Masternode manager */
