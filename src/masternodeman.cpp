@@ -710,7 +710,7 @@ bool CMasternodeMan::GetMasternodeByRank(int nRankIn, masternode_info_t& mnInfoR
     if (!GetMasternodeScores(nBlockHash, vecMasternodeScores, nMinProtocol))
         return false;
 
-    if (vecMasternodeScores.size() < nRankIn)
+    if ((int)vecMasternodeScores.size() < nRankIn)
         return false;
 
     int nRank = 0;
