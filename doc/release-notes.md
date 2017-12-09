@@ -71,7 +71,7 @@ Removal of support for local masternodes
 Keeping a wallet with 1000 DASH unlocked for 24/7 is definitely not a good idea
 anymore. Because of this fact, it's also no longer reasonable to update and test
 this feature, so it's completely removed now. If for some reason you were still
-using it, please follow one of the guides and setup remote masternode instead.
+using it, please follow one of the guides and setup a remote masternode instead.
 
 Other improvements and bug fixes
 --------------------------------
