@@ -22,17 +22,19 @@ How to Upgrade
 If you are running an older version, shut it down. Wait until it has completely
 shut down (which might take a few minutes for older versions), then run the
 installer (on Windows) or just copy over /Applications/Dash-Qt (on Mac) or
-dashd/dash-qt (on Linux). Because of per-UTXO fix (see below) there is a
-one-time database upgrade operation, so expect a slightly longer first run.
+dashd/dash-qt (on Linux). Because of the per-UTXO fix (see below) there is a
+one-time database upgrade operation, so expect a slightly longer startup time on
+the first run.
 
 Downgrade warning
 -----------------
 
 ### Downgrade to a version < 0.12.2.2
 
-Because release 0.12.2.2 includes per-UTXO fix (see below) which changes the
-structure of the internal database, this release is not backwards compatible.
-You will have to reindex database if you decide to use previous version.
+Because release 0.12.2.2 includes the per-UTXO fix (see below) which changes the
+structure of the internal database, this release is not fully backwards
+compatible. You will have to reindex the database if you decide to use any
+previous version.
 
 This does not affect wallet forward or backward compatibility.
 
@@ -43,10 +45,10 @@ Notable changes
 Per-UTXO fix
 ------------
 
-This fixes potential vulnerability, so called 'Corebleed', which was
-demonstrated this summer on Вrеаkіng Віtсоіn Соnfеrеnсе іn Раrіs. The DoS can
-cause nodes to allocate excessive amounts of memory, which leads them to a halt.
-You can read more about the fix in the original Bitcoin Core pull request
+This fixes a potential vulnerability, so called 'Corebleed', which was
+demonstrated this summer at the Вrеаkіng Віtсоіn Соnfеrеnсе іn Раrіs. The DoS
+can cause nodes to allocate excessive amounts of memory, which leads them to a
+halt. You can read more about the fix in the original Bitcoin Core pull request
 https://github.com/bitcoin/bitcoin/pull/10195
 
 To fix this issue in Dash Core however, we had to backport a lot of other
