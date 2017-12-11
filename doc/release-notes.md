@@ -220,7 +220,7 @@ Dash Core tree 0.12.0.x was a fork of Bitcoin Core tree 0.10.
 
 Dash Core tree 0.12.1.x was a fork of Bitcoin Core tree 0.12.
 
-These release are considered obsolete. Old changelogs can be found here:
+These release are considered obsolete. Old release notes can be found here:
 
 - [v0.12.2](release-notes/dash/release-notes-0.12.2.md) released Nov/08/2017
 - [v0.12.1](release-notes/dash/release-notes-0.12.1.md) released ???/??/2016
