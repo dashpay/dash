@@ -55,6 +55,14 @@ To fix this issue in Dash Core however, we had to backport a lot of other
 improvements from Bitcoin Core, see full list of backports in the detailed
 change log below.
 
+Additional indexes fix
+----------------------
+
+If you were using additional indexes like `addressindex`, `spentindex` or
+`timestampindex` it's possible that they are not accurate. Please consider
+reindexing the database by starting your node with `-reindex` command line
+option. This is a one-time operation, the issue should be fixed now.
+
 InstantSend fix
 ---------------
 
@@ -75,13 +83,22 @@ anymore. Because of this fact, it's also no longer reasonable to update and test
 this feature, so it's completely removed now. If for some reason you were still
 using it, please follow one of the guides and setup a remote masternode instead.
 
+Dropping old (pre-12.2) peers
+-----------------------------
+
+Connections from peers with protocol lower than 70208 are no longer accepted.
+
 Other improvements and bug fixes
 --------------------------------
 
 As a result of previous intensive refactoring and some additional fixes,
 it should be possible to compile Dash Core with `--disable-wallet` option now.
+
 This release also improves sync process and significantly lowers the time after
 which `getblocktemplate` rpc becomes available on node start.
+
+And as usual, various small bugs and typos were fixed and more refactoring was
+done too.
 
 
 0.12.2.2 Change log
@@ -155,6 +172,7 @@ See detailed [change log](https://github.com/dashpay/dash/compare/v0.12.2.1...da
 ### Network/Sync:
 - [`5d58dd90c`](https://github.com/dashpay/dash/commit/5d58dd90c) Make sure to clear setAskFor in Dash submodules (#1730)
 - [`328009749`](https://github.com/dashpay/dash/commit/328009749) fine-tune sync conditions in getblocktemplate (#1739)
+- [`362becbcc`](https://github.com/dashpay/dash/commit/362becbcc) Bump MIN_PEER_PROTO_VERSION to 70208 (#1772)
 
 ### Build:
 - [`c166ed39b`](https://github.com/dashpay/dash/commit/c166ed39b) Allow compilation with `--disable-wallet` (#1733)
@@ -178,6 +196,7 @@ See detailed [change log](https://github.com/dashpay/dash/compare/v0.12.2.1...da
 - [`442325b07`](https://github.com/dashpay/dash/commit/442325b07) add `maxgovobjdatasize` field to the output of `getgovernanceinfo` (#1757)
 - [`c5ec2f82a`](https://github.com/dashpay/dash/commit/c5ec2f82a) Drop `IsNormalPaymentScript`, use `IsPayToPublicKeyHash` (#1761)
 - [`f9f28e7c7`](https://github.com/dashpay/dash/commit/f9f28e7c7) De-bump to 0.12.2.2 (#1768)
+- [`54186a159`](https://github.com/dashpay/dash/commit/54186a159) Make sure additional indexes are recalculated correctly in VerifyDB (#1773)
 
 
 Credits
