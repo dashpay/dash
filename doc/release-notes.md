@@ -188,6 +188,7 @@ See detailed [change log](https://github.com/dashpay/dash/compare/v0.12.2.1...da
 - [`9e7cc56cb`](https://github.com/dashpay/dash/commit/9e7cc56cb) Fix typo in release-notes.md (#1759)
 - [`3f3705c47`](https://github.com/dashpay/dash/commit/3f3705c47) [Trivial] Typo/doc updates and RPC help formatting (#1758)
 - [`e96da9f19`](https://github.com/dashpay/dash/commit/e96da9f19) move 0.12.2 release notes
+- [`6915ee45e`](https://github.com/dashpay/dash/commit/6915ee45e) Bump version in README.md to 0.12.2 (#1774)
 
 ### Other:
 - [`ccbd5273e`](https://github.com/dashpay/dash/commit/ccbd5273e) bump to 0.12.3.0 (#1726)
