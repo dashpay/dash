@@ -1179,6 +1179,7 @@ void CMasternodeMan::ProcessVerifyReply(CNode* pnode, CMasternodeVerification& m
                     }
 
                     mWeAskedForVerification[pnode->addr] = mnv;
+                    mapSeenMasternodeVerification.insert(std::make_pair(mnv.GetHash(), mnv));
                     mnv.Relay();
 
                 } else {
