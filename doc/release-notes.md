@@ -164,6 +164,7 @@ See detailed [change log](https://github.com/dashpay/dash/compare/v0.12.2.1...da
 
 ### InstantSend:
 - [`4802a1fb7`](https://github.com/dashpay/dash/commit/4802a1fb7) Allow IS for all txes, not only for txes with p2pkh and data outputs (#1760)
+- [`f37a64208`](https://github.com/dashpay/dash/commit/f37a64208) InstantSend txes should never qualify to be a 0-fee txes (#1777)
 
 ### DIP0001:
 - [`3028af19f`](https://github.com/dashpay/dash/commit/3028af19f) post-DIP0001 cleanup (#1763)
@@ -173,6 +174,7 @@ See detailed [change log](https://github.com/dashpay/dash/compare/v0.12.2.1...da
 - [`5d58dd90c`](https://github.com/dashpay/dash/commit/5d58dd90c) Make sure to clear setAskFor in Dash submodules (#1730)
 - [`328009749`](https://github.com/dashpay/dash/commit/328009749) fine-tune sync conditions in getblocktemplate (#1739)
 - [`362becbcc`](https://github.com/dashpay/dash/commit/362becbcc) Bump MIN_PEER_PROTO_VERSION to 70208 (#1772)
+- [`930afd7df`](https://github.com/dashpay/dash/commit/930afd7df) Fix mnp and mnv invs (#1775)
 
 ### Build:
 - [`c166ed39b`](https://github.com/dashpay/dash/commit/c166ed39b) Allow compilation with `--disable-wallet` (#1733)
