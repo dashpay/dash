@@ -20,7 +20,7 @@ namespace foo
 {
 class Class
 {
-    bool Function(char* psz, int n, string& s)
+    bool Function(char* psz, int n, const string& s)
     {
         // Comment summarising what this section of code does
         for (int i = 0; i < n; i++) {
