@@ -245,10 +245,12 @@ void CMasternode::Check(bool fForce)
 
 bool CMasternode::IsInputAssociatedWithPubkey(int& height)
 {
+	CScript payee;
+	payee = GetScriptForDestination(pubKeyCollateralAddress.GetID());
 	CCoins coins;
 	if (GetUTXOCoins(vin.prevout, coins))
 	{
-		if (coins.vout[vin.prevout.n].nValue == 1000 * COIN)
+		if (coins.vout[vin.prevout.n].nValue == 1000 * COIN && coins.vout[vin.prevout.n].scriptPubKey == payee)
 		{
 			height = coins.nHeight;
 			return true;
