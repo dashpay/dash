@@ -175,6 +175,8 @@ See detailed [change log](https://github.com/dashpay/dash/compare/v0.12.2.1...da
 - [`328009749`](https://github.com/dashpay/dash/commit/328009749) fine-tune sync conditions in getblocktemplate (#1739)
 - [`362becbcc`](https://github.com/dashpay/dash/commit/362becbcc) Bump MIN_PEER_PROTO_VERSION to 70208 (#1772)
 - [`930afd7df`](https://github.com/dashpay/dash/commit/930afd7df) Fix mnp and mnv invs (#1775)
+- [`63e306148`](https://github.com/dashpay/dash/commit/63e306148) Improve sync (#1779)
+- [`a79c97248`](https://github.com/dashpay/dash/commit/a79c97248) Fix ProcessVerifyBroadcast (#1780)
 
 ### Build:
 - [`c166ed39b`](https://github.com/dashpay/dash/commit/c166ed39b) Allow compilation with `--disable-wallet` (#1733)
@@ -191,6 +193,7 @@ See detailed [change log](https://github.com/dashpay/dash/compare/v0.12.2.1...da
 - [`3f3705c47`](https://github.com/dashpay/dash/commit/3f3705c47) [Trivial] Typo/doc updates and RPC help formatting (#1758)
 - [`e96da9f19`](https://github.com/dashpay/dash/commit/e96da9f19) move 0.12.2 release notes
 - [`6915ee45e`](https://github.com/dashpay/dash/commit/6915ee45e) Bump version in README.md to 0.12.2 (#1774)
+- [`0291604ad`](https://github.com/dashpay/dash/commit/0291604ad) Clarify usage of pointers and references in code (#1778)
 
 ### Other:
 - [`ccbd5273e`](https://github.com/dashpay/dash/commit/ccbd5273e) bump to 0.12.3.0 (#1726)
