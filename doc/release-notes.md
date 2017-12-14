@@ -203,6 +203,7 @@ See detailed [change log](https://github.com/dashpay/dash/compare/v0.12.2.1...da
 - [`c5ec2f82a`](https://github.com/dashpay/dash/commit/c5ec2f82a) Drop `IsNormalPaymentScript`, use `IsPayToPublicKeyHash` (#1761)
 - [`f9f28e7c7`](https://github.com/dashpay/dash/commit/f9f28e7c7) De-bump to 0.12.2.2 (#1768)
 - [`54186a159`](https://github.com/dashpay/dash/commit/54186a159) Make sure additional indexes are recalculated correctly in VerifyDB (#1773)
+- [`86e6f0dd2`](https://github.com/dashpay/dash/commit/86e6f0dd2) Fix CMasternodeMan::ProcessVerify* logs (#1782)
 
 
 Credits
