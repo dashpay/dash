@@ -243,19 +243,20 @@ void CMasternode::Check(bool fForce)
     }
 }
 
-bool CMasternode::IsInputAssociatedWithPubkey()
+bool CMasternode::IsInputAssociatedWithPubkey(int& height)
 {
-    CScript payee;
-    payee = GetScriptForDestination(pubKeyCollateralAddress.GetID());
-
-    CTransaction tx;
-    uint256 hash;
-    if(GetTransaction(vin.prevout.hash, tx, Params().GetConsensus(), hash, true)) {
-        BOOST_FOREACH(CTxOut out, tx.vout)
-            if(out.nValue == 1000*COIN && out.scriptPubKey == payee) return true;
-    }
-
-    return false;
+	CScript payee;
+	payee = GetScriptForDestination(pubKeyCollateralAddress.GetID());
+	CCoins coins;
+	if (GetUTXOCoins(vin.prevout, coins))
+	{
+		if (coins.vout[vin.prevout.n].nValue == 1000 * COIN && coins.vout[vin.prevout.n].scriptPubKey == payee)
+		{
+			height = coins.nHeight;
+			return true;
+		}
+	}
+	return false;
 }
 
 bool CMasternode::IsValidNetAddr()
@@ -579,29 +580,26 @@ bool CMasternodeBroadcast::CheckOutpoint(int& nDos)
 
     // make sure the input that was signed in masternode broadcast message is related to the transaction
     // that spawned the Masternode - this is expensive, so it's only done once per Masternode
-    if(!IsInputAssociatedWithPubkey()) {
+	int masterNodeCollateralHeight = 0;
+	if (!IsInputAssociatedWithPubkey(masterNodeCollateralHeight)) {
         LogPrintf("CMasternodeMan::CheckOutpoint -- Got mismatched pubKeyCollateralAddress and vin\n");
         nDos = 33;
         return false;
     }
 
-    // verify that sig time is legit in past
-    // should be at least not earlier than block when 1000 DASH tx got nMasternodeMinimumConfirmations
-    uint256 hashBlock = uint256();
-    CTransaction tx2;
-    GetTransaction(vin.prevout.hash, tx2, Params().GetConsensus(), hashBlock, true);
-    {
-        LOCK(cs_main);
-        BlockMap::iterator mi = mapBlockIndex.find(hashBlock);
-        if (mi != mapBlockIndex.end() && (*mi).second) {
-            CBlockIndex* pMNIndex = (*mi).second; // block for 1000 DASH tx -> 1 confirmation
-            CBlockIndex* pConfIndex = chainActive[pMNIndex->nHeight + Params().GetConsensus().nMasternodeMinimumConfirmations - 1]; // block where tx got nMasternodeMinimumConfirmations
-            if(pConfIndex->GetBlockTime() > sigTime) {
-                LogPrintf("CMasternodeBroadcast::CheckOutpoint -- Bad sigTime %d (%d conf block is at %d) for Masternode %s %s\n",
-                          sigTime, Params().GetConsensus().nMasternodeMinimumConfirmations, pConfIndex->GetBlockTime(), vin.prevout.ToStringShort(), addr.ToString());
-                return false;
-            }
-        }
+	// verify that sig time is legit in past
+	// should be at least not earlier than block when 100000 SYS tx got nMasternodeMinimumConfirmations
+	if (chainActive.Height() < masterNodeCollateralHeight + Params().GetConsensus().nMasternodeMinimumConfirmations - 1) {
+		LogPrintf("CMasternodeMan::CheckOutpoint -- Broadcast too early\n");
+		return false;
+	}
+	CBlockIndex* pConfIndex = chainActive[masterNodeCollateralHeight + Params().GetConsensus().nMasternodeMinimumConfirmations - 1]; // block where tx got nMasternodeMinimumConfirmations
+	if (pConfIndex->GetBlockTime() > sigTime) {
+		LogPrintf("CMasternodeBroadcast::CheckOutpoint -- Bad sigTime %d (%d conf block is at %d) for Masternode %s %s\n",
+			sigTime, Params().GetConsensus().nMasternodeMinimumConfirmations, pConfIndex->GetBlockTime(), vin.prevout.ToStringShort(), addr.ToString());
+		return false;
+	}
+}
     }
 
     return true;
