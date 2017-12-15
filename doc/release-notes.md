@@ -182,6 +182,7 @@ See detailed [change log](https://github.com/dashpay/dash/compare/v0.12.2.1...da
 - [`c166ed39b`](https://github.com/dashpay/dash/commit/c166ed39b) Allow compilation with `--disable-wallet` (#1733)
 - [`31bc9d4ee`](https://github.com/dashpay/dash/commit/31bc9d4ee) Show test progress for tests running in wine to avoid Travis timeout (#1740)
 - [`32f21698e`](https://github.com/dashpay/dash/commit/32f21698e) Adjust tests to avoid Travis timeouts (#1745)
+- [`837c4fc5d`](https://github.com/dashpay/dash/commit/837c4fc5d) Force rcc to use resource format version 1. (#1784)
 
 ### GUI:
 - [`70cb2a4af`](https://github.com/dashpay/dash/commit/70cb2a4af) Fix traditional UI theme (#1741)
