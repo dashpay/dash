@@ -58,6 +58,7 @@ public:
     int GetDefaultPort() const { return nDefaultPort; }
 
     const CBlock& GenesisBlock() const { return genesis; }
+    const CBlock& DevNetGenesisBlock() const { return devnetGenesis; }
     /** Make miner wait to have peers to avoid wasting work */
     bool MiningRequiresPeers() const { return fMiningRequiresPeers; }
     /** Default value for -checkmempool and -checkblockindex argument */
@@ -95,6 +96,7 @@ protected:
     int nExtCoinType;
     std::string strNetworkID;
     CBlock genesis;
+    CBlock devnetGenesis;
     std::vector<SeedSpec6> vFixedSeeds;
     bool fMiningRequiresPeers;
     bool fDefaultConsistencyChecks;
@@ -123,6 +125,6 @@ CChainParams& Params(const std::string& chain);
  * Sets the params returned by Params() to those for the given BIP70 chain name.
  * @throws std::runtime_error when the chain is not supported.
  */
-void SelectParams(const std::string& chain);
+void SelectParams(const std::string& chain, const std::string& devNetName = "");
 
 #endif // BITCOIN_CHAINPARAMS_H

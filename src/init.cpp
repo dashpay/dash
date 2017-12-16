@@ -1042,6 +1042,14 @@ bool AppInit2(boost::thread_group& threadGroup, CScheduler& scheduler)
 #endif
     }
 
+    // Require setting of ports when running devnet
+    if (mapArgs.count("-devnet")) {
+        if (GetArg("-listen", DEFAULT_LISTEN) && !mapArgs.count("-port"))
+            return InitError(_("-port must be specified when -devnet and -listen are specified"));
+        if (GetArg("-server", false) && !mapArgs.count("-rpcport"))
+            return InitError(_("-rpcport must be specified when -devnet and -server are specified"));
+    }
+
     fAllowPrivateNet = GetBoolArg("-allowprivatenet", DEFAULT_ALLOWPRIVATENET);
 
     // Make sure enough file descriptors are available
@@ -1375,6 +1383,12 @@ bool AppInit2(boost::thread_group& threadGroup, CScheduler& scheduler)
 
     // sanitize comments per BIP-0014, format user agent and check total size
     std::vector<string> uacomments;
+
+    if (chainparams.NetworkIDString() == CBaseChainParams::DEVNET) {
+        // Add devnet name to user agent. This allows to disconnect nodes immediately if they don't belong to our own devnet
+        uacomments.push_back(strprintf("devnet=%s", DevNetNameFromCommandLine()));
+    }
+
     BOOST_FOREACH(string cmt, mapMultiArgs["-uacomment"])
     {
         if (cmt != SanitizeString(cmt, SAFE_CHARS_UA_COMMENT))
@@ -1602,6 +1616,9 @@ bool AppInit2(boost::thread_group& threadGroup, CScheduler& scheduler)
                 // (we're likely using a testnet datadir, or the other way around).
                 if (!mapBlockIndex.empty() && mapBlockIndex.count(chainparams.GetConsensus().hashGenesisBlock) == 0)
                     return InitError(_("Incorrect or no genesis block found. Wrong datadir for network?"));
+
+                if (chainparams.NetworkIDString() == CBaseChainParams::DEVNET && !mapBlockIndex.empty() && mapBlockIndex.count(chainparams.DevNetGenesisBlock().GetHash()) == 0)
+                    return InitError(_("Incorrect or no devnet genesis block found. Wrong datadir for devnet specified?"));
 
                 // Initialize the block index (no-op if non-empty database was already loaded)
                 if (!InitBlockIndex(chainparams)) {

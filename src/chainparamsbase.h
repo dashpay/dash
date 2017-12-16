@@ -54,6 +54,8 @@ void SelectBaseParams(const std::string& chain);
  */
 std::string ChainNameFromCommandLine();
 
+std::string DevNetNameFromCommandLine();
+
 /**
  * Return true if SelectBaseParamsFromCommandLine() has been called to select
  * a network.

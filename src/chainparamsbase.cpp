@@ -110,7 +110,7 @@ void SelectBaseParams(const std::string& chain)
 std::string ChainNameFromCommandLine()
 {
     bool fRegTest = GetBoolArg("-regtest", false);
-    bool fDevNet = GetBoolArg("-devnet", false);
+    bool fDevNet = mapArgs.count("-devnet") != 0;
     bool fTestNet = GetBoolArg("-testnet", false);
 
     // devnet switch over-rides all others
@@ -123,6 +123,16 @@ std::string ChainNameFromCommandLine()
     if (fTestNet)
         return CBaseChainParams::TESTNET;
     return CBaseChainParams::MAIN;
+}
+
+std::string DevNetNameFromCommandLine()
+{
+    if (!mapArgs.count("-devnet"))
+        return "";
+    std::string devNetName = GetArg("-devnet", "");
+    if (devNetName.empty())
+        return "devnet";
+    return devNetName;
 }
 
 bool AreBaseParamsConfigured()
