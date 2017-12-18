@@ -1042,12 +1042,15 @@ bool AppInit2(boost::thread_group& threadGroup, CScheduler& scheduler)
 #endif
     }
 
-    // Require setting of ports when running devnet
     if (mapArgs.count("-devnet")) {
+        // Require setting of ports when running devnet
         if (GetArg("-listen", DEFAULT_LISTEN) && !mapArgs.count("-port"))
             return InitError(_("-port must be specified when -devnet and -listen are specified"));
         if (GetArg("-server", false) && !mapArgs.count("-rpcport"))
             return InitError(_("-rpcport must be specified when -devnet and -server are specified"));
+
+        if (mapMultiArgs.count("-devnet") > 1)
+            return InitError(_("-devnet can only be specified once"));
     }
 
     fAllowPrivateNet = GetBoolArg("-allowprivatenet", DEFAULT_ALLOWPRIVATENET);

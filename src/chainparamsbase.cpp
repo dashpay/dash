@@ -113,11 +113,12 @@ std::string ChainNameFromCommandLine()
     bool fDevNet = mapArgs.count("-devnet") != 0;
     bool fTestNet = GetBoolArg("-testnet", false);
 
-    // devnet switch over-rides all others
+    int nameParamsCount = (fRegTest ? 1 : 0) + (fDevNet ? 1 : 0) + (fTestNet ? 1 : 0);
+    if (nameParamsCount > 1)
+        throw std::runtime_error("Only one of -regtest, -testnet or -devnet can be used.");
+
     if (fDevNet)
         return CBaseChainParams::DEVNET;
-    if (fTestNet && fRegTest)
-        throw std::runtime_error("Invalid combination of -regtest and -testnet.");
     if (fRegTest)
         return CBaseChainParams::REGTEST;
     if (fTestNet)
