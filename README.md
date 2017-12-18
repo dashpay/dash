@@ -1,28 +1,27 @@
-Dash Core staging tree 0.12.1
+Not Core staging
 ===============================
 
-`master:` [![Build Status](https://travis-ci.org/dashpay/dash.svg?branch=master)](https://travis-ci.org/dashpay/dash) `v0.12.0.x:` [![Build Status](https://travis-ci.org/dashpay/dash.svg?branch=v0.12.0.x)](https://travis-ci.org/dashpay/dash/branches) `v0.12.1.x:` [![Build Status](https://travis-ci.org/dashpay/dash.svg?branch=v0.12.1.x)](https://travis-ci.org/dashpay/dash/branches)
+Copyright (c) 2009-2016 The Bitcoin Core developers
 
-https://www.dash.org
+Copyright (c) 2014-2017 The Dash Core developers
+
+Copyright (c) 2017 The Not Coin developers
 
 
-What is Dash?
+What is NotCoin?
 ----------------
 
-Dash is an experimental new digital currency that enables anonymous, instant
-payments to anyone, anywhere in the world. Dash uses peer-to-peer technology
+NotCoin is an experimental new digital currency that enables anonymous, instant
+payments to anyone, anywhere in the world. NotCoin uses peer-to-peer technology
 to operate with no central authority: managing transactions and issuing money
-are carried out collectively by the network. Dash Core is the name of the open
+are carried out collectively by the network. Not Core is the name of the open
 source software which enables the use of this currency.
-
-For more information, as well as an immediately useable, binary version of
-the Dash Core software, see https://www.dash.org/get-dash/.
 
 
 License
 -------
 
-Dash Core is released under the terms of the MIT license. See [COPYING](COPYING) for more
+Not Core is released under the terms of the MIT license. See [COPYING](COPYING) for more
 information or see https://opensource.org/licenses/MIT.
 
 Development Process
