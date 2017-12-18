@@ -40,13 +40,15 @@ static CBlock CreateGenesisBlock(const char* pszTimestamp, const CScript& genesi
     return genesis;
 }
 
-static CBlock CreateDevNetGenesisBlock(const uint256 &prevBlockHash, const std::string& devnetName, uint32_t nTime, uint32_t nNonce, uint32_t nBits, int32_t nVersion, const CAmount& genesisReward)
+static CBlock CreateDevNetGenesisBlock(const uint256 &prevBlockHash, const std::string& devNetName, uint32_t nTime, uint32_t nNonce, uint32_t nBits, int32_t nVersion, const CAmount& genesisReward)
 {
+    assert(!devNetName.empty());
+
     CMutableTransaction txNew;
     txNew.nVersion = 1;
     txNew.vin.resize(1);
     txNew.vout.resize(1);
-    txNew.vin[0].scriptSig = CScript() << std::vector<unsigned char>(devnetName.begin(), devnetName.end());
+    txNew.vin[0].scriptSig = CScript() << std::vector<unsigned char>(devNetName.begin(), devNetName.end());
     txNew.vout[0].nValue = genesisReward;
     txNew.vout[0].scriptPubKey = CScript() << OP_RETURN;
 
@@ -79,9 +81,12 @@ static CBlock CreateGenesisBlock(uint32_t nTime, uint32_t nNonce, uint32_t nBits
     return CreateGenesisBlock(pszTimestamp, genesisOutputScript, nTime, nNonce, nBits, nVersion, genesisReward);
 }
 
-static CBlock FindDevNetGenesisBlock(const Consensus::Params& params, const CBlock &prevBlock, const CAmount& reward, const std::string& blockText)
+static CBlock FindDevNetGenesisBlock(const Consensus::Params& params, const CBlock &prevBlock, const CAmount& reward)
 {
-    CBlock block = CreateDevNetGenesisBlock(prevBlock.GetHash(), blockText.c_str(), prevBlock.nTime + 1, 0, prevBlock.nBits, prevBlock.nVersion, reward);
+    std::string devNetName = GetDevNetName();
+    assert(!devNetName.empty());
+
+    CBlock block = CreateDevNetGenesisBlock(prevBlock.GetHash(), devNetName.c_str(), prevBlock.nTime + 1, 0, prevBlock.nBits, prevBlock.nVersion, reward);
 
     arith_uint256 bnTarget;
     bnTarget.SetCompact(block.nBits);
@@ -96,7 +101,7 @@ static CBlock FindDevNetGenesisBlock(const Consensus::Params& params, const CBlo
 
     // This is very unlikely to happen as we start the devnet with a very low difficulty. In many cases even the first
     // iteration of the above loop will give a result already
-    error("FindDevNetGenesisBlock: could not find devnet genesis block for %s", blockText);
+    error("FindDevNetGenesisBlock: could not find devnet genesis block for %s", devNetName);
     assert(false);
 }
 
@@ -374,7 +379,7 @@ static CTestNetParams testNetParams;
  */
 class CDevNetParams : public CChainParams {
 public:
-    CDevNetParams(const std::string devNetName) {
+    CDevNetParams() {
         strNetworkID = "dev";
         consensus.nSubsidyHalvingInterval = 210240;
         consensus.nMasternodePaymentsStartBlock = 4010; // not true, but it's ok as long as it's less then nMasternodePaymentsIncreaseBlock
@@ -441,7 +446,7 @@ public:
         assert(consensus.hashGenesisBlock == uint256S("0x000008ca1832a4baf228eb1553c03d3a2c8e02399550dd6ea8d65cec3ef23d2e"));
         assert(genesis.hashMerkleRoot == uint256S("0xe0028eb9648db56b1ac77cf090b99048a8007e2bb64b68f092c03c7f56a662c7"));
 
-        devnetGenesis = FindDevNetGenesisBlock(consensus, genesis, 50 * COIN, devNetName);
+        devnetGenesis = FindDevNetGenesisBlock(consensus, genesis, 50 * COIN);
 
         vFixedSeeds.clear();
         vSeeds.clear();
@@ -610,13 +615,12 @@ CChainParams& Params(const std::string& chain)
         throw std::runtime_error(strprintf("%s: Unknown chain %s.", __func__, chain));
 }
 
-void SelectParams(const std::string& network, const std::string& devNetName)
+void SelectParams(const std::string& network)
 {
     if (network == CBaseChainParams::DEVNET) {
-        assert(!devNetName.empty());
-        devNetParams = new CDevNetParams(devNetName);
+        devNetParams = new CDevNetParams();
     }
 
-    SelectBaseParams(network, devNetName);
+    SelectBaseParams(network);
     pCurrentParams = &Params(network);
 }

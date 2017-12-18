@@ -103,9 +103,10 @@ CBaseChainParams& BaseParams(const std::string& chain)
         throw std::runtime_error(strprintf("%s: Unknown chain %s.", __func__, chain));
 }
 
-void SelectBaseParams(const std::string& chain, const std::string& devNetName)
+void SelectBaseParams(const std::string& chain)
 {
     if (chain == CBaseChainParams::DEVNET) {
+        std::string devNetName = GetDevNetName();
         assert(!devNetName.empty());
         devNetParams = new CBaseDevNetParams(devNetName);
     }
