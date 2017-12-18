@@ -6,10 +6,10 @@ reset-files.bash
 *.tar.gz
 
 *.exe
-src/dash
-src/dashd
-src/dash-cli
-src/dash-tx
+src/notcoin
+src/notcoind
+src/notcoin-cli
+src/notcoin-tx
 src/test/test_dash
 src/qt/test/test_dash-qt
 src/bench/bench_dash
@@ -35,8 +35,8 @@ config.log
 config.status
 configure
 libtool
-src/config/dash-config.h
-src/config/dash-config.h.in
+src/config/notcoin-config.h
+src/config/notcoin-config.h.in
 src/config/stamp-h1
 share/setup.nsi
 share/qt/Info.plist
@@ -81,8 +81,8 @@ libconftest.dylib*
 # Compilation and Qt preprocessor part
 *.qm
 Makefile
-dash-qt
-Dash-Qt.app
+notcoin-qt
+notcoin-Qt.app
 
 # Unit-tests
 Makefile.test
@@ -100,7 +100,7 @@ build
 *.gcno
 *.gcda
 /*.info
-test_dash.coverage/
+test_notcoin.coverage/
 total.coverage/
 coverage_percent.txt
 
@@ -124,11 +124,11 @@ share/BitcoindComparisonTool.jar
 /doc/doxygen/
 
 libdashconsensus.pc
-src/qt/dash-qt.bash
+src/qt/notcoin-qt.bash
 qa/pull-tester/tests-config.sh
 
 #development symlinks
-dash-cli
-dashd
-dash-qt
+notcoin-cli
+notcoind
+notcoin-qt
 make
