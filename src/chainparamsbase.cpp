@@ -107,7 +107,7 @@ void SelectBaseParams(const std::string& chain, const std::string& devNetName)
 {
     if (chain == CBaseChainParams::DEVNET) {
         assert(!devNetName.empty());
-        devNetParams = new CBaseDevNetParams("devnet-" + devNetName);
+        devNetParams = new CBaseDevNetParams(devNetName);
     }
 
     pCurrentBaseParams = &BaseParams(chain);
@@ -132,14 +132,12 @@ std::string ChainNameFromCommandLine()
     return CBaseChainParams::MAIN;
 }
 
-std::string DevNetNameFromCommandLine()
+std::string GetDevNetName()
 {
-    if (!mapArgs.count("-devnet"))
-        return "";
+    // This function should never be called for non-devnets
+    assert(mapArgs.count("-devnet"));
     std::string devNetName = GetArg("-devnet", "");
-    if (devNetName.empty())
-        return "devnet";
-    return devNetName;
+    return "devnet" + (devNetName.empty() ? "" : "-" + devNetName);
 }
 
 bool AreBaseParamsConfigured()

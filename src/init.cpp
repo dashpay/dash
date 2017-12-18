@@ -1389,7 +1389,7 @@ bool AppInit2(boost::thread_group& threadGroup, CScheduler& scheduler)
 
     if (chainparams.NetworkIDString() == CBaseChainParams::DEVNET) {
         // Add devnet name to user agent. This allows to disconnect nodes immediately if they don't belong to our own devnet
-        uacomments.push_back(strprintf("devnet=%s", DevNetNameFromCommandLine()));
+        uacomments.push_back(strprintf("devnet=%s", GetDevNetName()));
     }
 
     BOOST_FOREACH(string cmt, mapMultiArgs["-uacomment"])

@@ -22,7 +22,7 @@ static const struct {
 } network_styles[] = {
     {"main", QAPP_APP_NAME_DEFAULT, 0, 0, ""},
     {"test", QAPP_APP_NAME_TESTNET, 190, 20, QT_TRANSLATE_NOOP("SplashScreen", "[testnet]")},
-    {"dev", QAPP_APP_NAME_DEVNET, 190, 20, "[devnet-%s]"},
+    {"dev", QAPP_APP_NAME_DEVNET, 190, 20, "[devnet: %s]"},
     {"regtest", QAPP_APP_NAME_TESTNET, 160, 30, "[regtest]"}
 };
 static const unsigned network_styles_count = sizeof(network_styles)/sizeof(*network_styles);
@@ -110,8 +110,8 @@ const NetworkStyle *NetworkStyle::instantiate(const QString &networkId)
             std::string titleAddText = network_styles[x].titleAddText;
 
             if (networkId == QString(CBaseChainParams::DEVNET.c_str())) {
-                appName = strprintf(appName, DevNetNameFromCommandLine());
-                titleAddText = strprintf(titleAddText, DevNetNameFromCommandLine());
+                appName = strprintf(appName, GetDevNetName());
+                titleAddText = strprintf(titleAddText, GetDevNetName());
             }
 
             return new NetworkStyle(
