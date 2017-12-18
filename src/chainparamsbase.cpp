@@ -58,13 +58,13 @@ static CBaseTestNetParams testNetParams;
 class CBaseDevNetParams : public CBaseChainParams
 {
 public:
-    CBaseDevNetParams()
+    CBaseDevNetParams(const std::string &dataDir)
     {
         nRPCPort = 19998;
-        strDataDir = "devnet";
+        strDataDir = dataDir;
     }
 };
-static CBaseDevNetParams devNetParams;
+static CBaseDevNetParams *devNetParams;
 
 /*
  * Regression test
@@ -94,16 +94,22 @@ CBaseChainParams& BaseParams(const std::string& chain)
         return mainParams;
     else if (chain == CBaseChainParams::TESTNET)
         return testNetParams;
-    else if (chain == CBaseChainParams::DEVNET)
-        return devNetParams;
-    else if (chain == CBaseChainParams::REGTEST)
+    else if (chain == CBaseChainParams::DEVNET) {
+        assert(devNetParams);
+        return *devNetParams;
+    } else if (chain == CBaseChainParams::REGTEST)
         return regTestParams;
     else
         throw std::runtime_error(strprintf("%s: Unknown chain %s.", __func__, chain));
 }
 
-void SelectBaseParams(const std::string& chain)
+void SelectBaseParams(const std::string& chain, const std::string& devNetName)
 {
+    if (chain == CBaseChainParams::DEVNET) {
+        assert(!devNetName.empty());
+        devNetParams = new CBaseDevNetParams("devnet-" + devNetName);
+    }
+
     pCurrentBaseParams = &BaseParams(chain);
 }
 

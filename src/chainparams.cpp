@@ -617,6 +617,6 @@ void SelectParams(const std::string& network, const std::string& devNetName)
         devNetParams = new CDevNetParams(devNetName);
     }
 
-    SelectBaseParams(network);
+    SelectBaseParams(network, devNetName);
     pCurrentParams = &Params(network);
 }
