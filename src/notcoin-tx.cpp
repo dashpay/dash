@@ -52,7 +52,7 @@ static int AppInitRawTx(int argc, char* argv[])
     if (argc<2 || mapArgs.count("-?") || mapArgs.count("-h") || mapArgs.count("-help"))
     {
         // First part of help message is specific to this utility
-        std::string strUsage = _("Not Core dash-tx utility version") + " " + FormatFullVersion() + "\n\n" +
+        std::string strUsage = _("Not Core notcoin-tx utility version") + " " + FormatFullVersion() + "\n\n" +
             _("Usage:") + "\n" +
               "  notcoin-tx [options] <hex-tx> [commands]  " + _("Update hex-encoded notcoin transaction") + "\n" +
               "  notcoin-tx [options] -create [commands]   " + _("Create hex-encoded notcoin transaction") + "\n" +
