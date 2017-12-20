@@ -19,6 +19,9 @@
 #include "rpc/server.h"
 #include "util.h"
 #include "utilmoneystr.h"
+#ifdef ENABLE_WALLET
+#include "wallet/wallet.h"
+#endif // ENABLE_WALLET
 
 #include <boost/lexical_cast.hpp>
 
@@ -29,7 +32,11 @@ UniValue gobject(const UniValue& params, bool fHelp)
         strCommand = params[0].get_str();
 
     if (fHelp  ||
-        (strCommand != "vote-many" && strCommand != "vote-conf" && strCommand != "vote-alias" && strCommand != "prepare" && strCommand != "submit" && strCommand != "count" &&
+        (
+#ifdef ENABLE_WALLET
+         strCommand != "prepare" &&
+#endif // ENABLE_WALLET
+         strCommand != "vote-many" && strCommand != "vote-conf" && strCommand != "vote-alias" && strCommand != "submit" && strCommand != "count" &&
          strCommand != "deserialize" && strCommand != "get" && strCommand != "getvotes" && strCommand != "getcurrentvotes" && strCommand != "list" && strCommand != "diff" &&
          strCommand != "check" ))
         throw std::runtime_error(
@@ -37,7 +44,9 @@ UniValue gobject(const UniValue& params, bool fHelp)
                 "Manage governance objects\n"
                 "\nAvailable commands:\n"
                 "  check              - Validate governance object data (proposal only)\n"
+#ifdef ENABLE_WALLET
                 "  prepare            - Prepare governance object by signing and creating tx\n"
+#endif // ENABLE_WALLET
                 "  submit             - Submit governance object to network\n"
                 "  deserialize        - Deserialize governance object from hex string to JSON\n"
                 "  count              - Count governance objects and votes\n"
@@ -113,6 +122,7 @@ UniValue gobject(const UniValue& params, bool fHelp)
         return objResult;
     }
 
+#ifdef ENABLE_WALLET
     // PREPARE THE GOVERNANCE OBJECT BY CREATING A COLLATERAL TRANSACTION
     if(strCommand == "prepare")
     {
@@ -178,6 +188,7 @@ UniValue gobject(const UniValue& params, bool fHelp)
 
         return wtx.GetHash().ToString();
     }
+#endif // ENABLE_WALLET
 
     // AFTER COLLATERAL TRANSACTION HAS MATURED USER CAN SUBMIT GOVERNANCE OBJECT TO PROPAGATE NETWORK
     if(strCommand == "submit")
@@ -908,6 +919,7 @@ UniValue getgovernanceinfo(const UniValue& params, bool fHelp)
             "  \"superblockcycle\": xxxxx,               (numeric) the number of blocks between superblocks\n"
             "  \"lastsuperblock\": xxxxx,                (numeric) the block number of the last superblock\n"
             "  \"nextsuperblock\": xxxxx,                (numeric) the block number of the next superblock\n"
+            "  \"maxgovobjdatasize\": xxxxx,             (numeric) maximum governance object data size in bytes\n"
             "}\n"
             "\nExamples:\n"
             + HelpExampleCli("getgovernanceinfo", "")
@@ -948,6 +960,7 @@ UniValue getgovernanceinfo(const UniValue& params, bool fHelp)
     obj.push_back(Pair("superblockcycle", Params().GetConsensus().nSuperblockCycle));
     obj.push_back(Pair("lastsuperblock", nLastSuperblock));
     obj.push_back(Pair("nextsuperblock", nNextSuperblock));
+    obj.push_back(Pair("maxgovobjdatasize", MAX_GOVERNANCE_OBJECT_DATA_SIZE));
 
     return obj;
 }

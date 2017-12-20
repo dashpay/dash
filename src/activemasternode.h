@@ -5,9 +5,10 @@
 #ifndef ACTIVEMASTERNODE_H
 #define ACTIVEMASTERNODE_H
 
-#include "net.h"
+#include "chainparams.h"
 #include "key.h"
-#include "wallet/wallet.h"
+#include "net.h"
+#include "primitives/transaction.h"
 
 class CActiveMasternode;
 
@@ -25,8 +26,7 @@ class CActiveMasternode
 public:
     enum masternode_type_enum_t {
         MASTERNODE_UNKNOWN = 0,
-        MASTERNODE_REMOTE  = 1,
-        MASTERNODE_LOCAL   = 2
+        MASTERNODE_REMOTE  = 1
     };
 
 private:
@@ -79,7 +79,6 @@ public:
 private:
     void ManageStateInitial(CConnman& connman);
     void ManageStateRemote();
-    void ManageStateLocal(CConnman& connman);
 };
 
 #endif

@@ -3,6 +3,7 @@
 // file COPYING or http://www.opensource.org/licenses/mit-license.php.
 
 #include "activemasternode.h"
+#include "base58.h"
 #include "init.h"
 #include "netbase.h"
 #include "masternode.h"
@@ -10,7 +11,11 @@
 #include "masternode-sync.h"
 #include "masternodeman.h"
 #include "messagesigner.h"
+#include "script/standard.h"
 #include "util.h"
+#ifdef ENABLE_WALLET
+#include "wallet/wallet.h"
+#endif // ENABLE_WALLET
 
 #include <boost/lexical_cast.hpp>
 
@@ -90,27 +95,10 @@ bool CMasternode::UpdateFromNewBroadcast(CMasternodeBroadcast& mnb, CConnman& co
 //
 arith_uint256 CMasternode::CalculateScore(const uint256& blockHash)
 {
-    if (fDIP0001WasLockedIn) {
-        // Deterministically calculate a "score" for a Masternode based on any given (block)hash
-        CHashWriter ss(SER_GETHASH, PROTOCOL_VERSION);
-        ss << vin.prevout << nCollateralMinConfBlockHash << blockHash;
-        return UintToArith256(ss.GetHash());
-    }
-
-    // TODO: remove calculations below after migration to 12.2
-
-    uint256 aux = ArithToUint256(UintToArith256(vin.prevout.hash) + vin.prevout.n);
-
+    // Deterministically calculate a "score" for a Masternode based on any given (block)hash
     CHashWriter ss(SER_GETHASH, PROTOCOL_VERSION);
-    ss << blockHash;
-    arith_uint256 hash2 = UintToArith256(ss.GetHash());
-
-    CHashWriter ss2(SER_GETHASH, PROTOCOL_VERSION);
-    ss2 << blockHash;
-    ss2 << aux;
-    arith_uint256 hash3 = UintToArith256(ss2.GetHash());
-
-    return (hash3 > hash2 ? hash3 - hash2 : hash2 - hash3);
+    ss << vin.prevout << nCollateralMinConfBlockHash << blockHash;
+    return UintToArith256(ss.GetHash());
 }
 
 CMasternode::CollateralStatus CMasternode::CheckCollateral(const COutPoint& outpoint)
@@ -123,16 +111,16 @@ CMasternode::CollateralStatus CMasternode::CheckCollateral(const COutPoint& outp
 {
     AssertLockHeld(cs_main);
 
-    CCoins coins;
-    if(!GetUTXOCoins(outpoint, coins)) {
+    Coin coin;
+    if(!GetUTXOCoin(outpoint, coin)) {
         return COLLATERAL_UTXO_NOT_FOUND;
     }
 
-    if(coins.vout[outpoint.n].nValue != 1000 * COIN) {
+    if(coin.out.nValue != 1000 * COIN) {
         return COLLATERAL_INVALID_AMOUNT;
     }
 
-    nHeightRet = coins.nHeight;
+    nHeightRet = coin.nHeight;
     return COLLATERAL_OK;
 }
 
@@ -356,6 +344,7 @@ void CMasternode::UpdateLastPaid(const CBlockIndex *pindex, int nMaxBlocksToScan
     // LogPrint("masternode", "CMasternode::UpdateLastPaidBlock -- searching for block with payment to %s -- keeping old %d\n", vin.prevout.ToStringShort(), nBlockLastPaid);
 }
 
+#ifdef ENABLE_WALLET
 bool CMasternodeBroadcast::Create(std::string strService, std::string strKeyMasternode, std::string strTxHash, std::string strOutputIndex, std::string& strErrorRet, CMasternodeBroadcast &mnbRet, bool fOffline)
 {
     COutPoint outpoint;
@@ -426,6 +415,7 @@ bool CMasternodeBroadcast::Create(const COutPoint& outpoint, const CService& ser
 
     return true;
 }
+#endif // ENABLE_WALLET
 
 bool CMasternodeBroadcast::SimpleCheck(int& nDos)
 {
@@ -664,6 +654,12 @@ bool CMasternodeBroadcast::CheckSignature(int& nDos)
 
 void CMasternodeBroadcast::Relay(CConnman& connman)
 {
+    // Do not relay until fully synced
+    if(!masternodeSync.IsSynced()) {
+        LogPrint("masternode", "CMasternodeBroadcast::Relay -- won't relay until fully synced\n");
+        return;
+    }
+
     CInv inv(MSG_MASTERNODE_ANNOUNCE, GetHash());
     connman.RelayInv(inv);
 }
@@ -823,6 +819,12 @@ bool CMasternodePing::CheckAndUpdate(CMasternode* pmn, bool fFromNewBroadcast, i
 
 void CMasternodePing::Relay(CConnman& connman)
 {
+    // Do not relay until fully synced
+    if(!masternodeSync.IsSynced()) {
+        LogPrint("masternode", "CMasternodePing::Relay -- won't relay until fully synced\n");
+        return;
+    }
+
     CInv inv(MSG_MASTERNODE_PING, GetHash());
     connman.RelayInv(inv);
 }

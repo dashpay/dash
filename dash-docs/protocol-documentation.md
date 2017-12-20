@@ -148,9 +148,9 @@ Asks users to sign final mixing tx message.
 | ---------- | ----------- | --------- | -------- |
 | 4 | nDenom | int | Which denomination is allowed in this mixing session
 | 41 | vin | [CTxIn](#ctxin) | unspend output from masternode which is hosting this session
-| 4 | nTime | int | the time this DSQ was created
-| 4 | fReady | int | if the mixing pool is ready to be executed
-| 71-73 | vchSig | char[] | Signature of this message by masternode (verifiable via pubKeyMasternode)
+| 8 | nTime | int64_t | the time this DSQ was created
+| 1 | fReady | bool | if the mixing pool is ready to be executed
+| 66 | vchSig | char[] | Signature of this message by masternode (verifiable via pubKeyMasternode)
 
 ### DSACCEPT - "dsa"
 
@@ -172,7 +172,7 @@ When queue is ready user is expected to send his entry to start actual mixing
 | ? | vecTxDSIn | CTxDSIn[] | vector of users inputs (CTxDSIn serialization is equal to [CTxIn](#ctxin) serialization)
 | 8 | nAmount | int64_t | depreciated since 12.1, it's used for backwards compatibility only and can be removed with future protocol bump
 | ? | txCollateral | [CTransaction](#ctransaction) | Collateral transaction which is used to prevent misbehavior and also to charge fees randomly
-| ? | vecTxDSOut | CTxDSOut[] | vector of user outputs (CTxDSOut serialization is equal to [CTxOut](#ctxout) serialization)
+| ? | vecTxOut | CTxOut[] | vector of user outputs
 
 ### DSSIGNFINALTX - "dss"
 
