@@ -562,10 +562,10 @@ bool CMasternodeBroadcast::CheckOutpoint(int& nDos)
     // Verify that sig time is legit, should be at least not earlier than the timestamp of the block
     // at which collateral became nMasternodeMinimumConfirmations blocks deep.
     // NOTE: this is not accurate because block timestamp is NOT guaranteed to be 100% correct one.
-    CBlockIndex* pRequredConfIndex = chainActive[nHeight + Params().GetConsensus().nMasternodeMinimumConfirmations - 1]; // block where tx got nMasternodeMinimumConfirmations
-    if(pRequredConfIndex->GetBlockTime() > sigTime) {
+    CBlockIndex* pRequiredConfIndex = chainActive[nHeight + Params().GetConsensus().nMasternodeMinimumConfirmations - 1]; // block where tx got nMasternodeMinimumConfirmations
+    if(pRequiredConfIndex->GetBlockTime() > sigTime) {
         LogPrintf("CMasternodeBroadcast::CheckOutpoint -- Bad sigTime %d (%d conf block is at %d) for Masternode %s %s\n",
-                  sigTime, Params().GetConsensus().nMasternodeMinimumConfirmations, pRequredConfIndex->GetBlockTime(), vin.prevout.ToStringShort(), addr.ToString());
+                  sigTime, Params().GetConsensus().nMasternodeMinimumConfirmations, pRequiredConfIndex->GetBlockTime(), vin.prevout.ToStringShort(), addr.ToString());
         return false;
     }
 
@@ -575,7 +575,7 @@ bool CMasternodeBroadcast::CheckOutpoint(int& nDos)
     }
 
     // remember the block hash when collateral for this masternode had minimum required confirmations
-    nCollateralMinConfBlockHash = pRequredConfIndex->GetBlockHash();
+    nCollateralMinConfBlockHash = pRequiredConfIndex->GetBlockHash();
 
     return true;
 }
