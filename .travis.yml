@@ -42,7 +42,6 @@ env:
     - PYTHON_DEBUG=1
     - WINEDEBUG=fixme-all
     - DOCKER_BUILD=false
-    - DOCKER_REPO=dashpay/dashd
 
   matrix:
 # ARM
