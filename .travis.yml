@@ -99,7 +99,7 @@ script:
     - if [ "$RUN_TESTS" = "true" -a "$WINE" = "true" ]; then travis_wait 60 wine src/test/test_dash.exe; fi
     - if [ "$RUN_TESTS" = "true" ]; then qa/pull-tester/rpc-tests.py --coverage; fi
     - cd ..
-    - if [ "$DOCKER_BUILD" = "true" ]; then BUILD_DIR=dash-$HOST ./docker/build-docker.sh; fi
+    - if [ "$DOCKER_BUILD" = "true" ]; then BUILD_DIR=build ./docker/build-docker.sh; fi
 after_script:
     - echo $TRAVIS_COMMIT_RANGE
     - echo $TRAVIS_COMMIT_LOG
