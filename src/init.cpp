@@ -949,6 +949,7 @@ void InitLogging()
     fLogTimeMicros = GetBoolArg("-logtimemicros", DEFAULT_LOGTIMEMICROS);
     fLogThreadNames = GetBoolArg("-logthreadnames", DEFAULT_LOGTHREADNAMES);
     fLogIPs = GetBoolArg("-logips", DEFAULT_LOGIPS);
+    CTestLogger::GetInstance().Initialize(GetArg("-testlog", ""));
 
     LogPrintf("\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n");
     LogPrintf("Dash Core version %s (%s)\n", FormatFullVersion(), CLIENT_DATE);
