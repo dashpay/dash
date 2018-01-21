@@ -345,9 +345,6 @@ bool CConnman::CheckIncomingNonce(uint64_t nonce)
 CNode* CConnman::ConnectNode(CAddress addrConnect, const char *pszDest, bool fCountFailure)
 {
     if (pszDest == NULL) {
-        if (IsLocal(addrConnect))
-            return NULL;
-
         LOCK(cs_vNodes);
         // Look for an existing connection
         CNode* pnode = FindNode((CService)addrConnect);
@@ -1892,7 +1889,7 @@ bool CConnman::OpenNetworkConnection(const CAddress& addrConnect, bool fCountFai
         return false;
     }	
     if (!pszDest) {
-        if (IsLocal(addrConnect) ||
+        if ((IsLocal(addrConnect) && !fConnectToMasternode) || //Support self connectivity checking on CActiveMasternode::ManageState()
             FindNode((CNetAddr)addrConnect) || IsBanned(addrConnect) ||
             FindNode(addrConnect.ToStringIPPort()))
             return false;
