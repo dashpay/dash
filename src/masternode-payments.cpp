@@ -49,10 +49,10 @@ bool IsBlockValueValid(const CBlock& block, int nBlockHeight, CAmount blockRewar
         int nOffset = nBlockHeight % consensusParams.nBudgetPaymentsCycleBlocks;
         if(nBlockHeight >= consensusParams.nBudgetPaymentsStartBlock &&
             nOffset < consensusParams.nBudgetPaymentsWindowBlocks) {
-            // NOTE: old budget system is disabled since 12.1 but we still should check them
-            // to disincentivise mining new chain on top of some old blocks and producing infinite supply
+            // NOTE: old budget system is disabled since 12.1
             if(masternodeSync.IsSynced()) {
-                // no old budget blocks should be accepted here
+                // no old budget blocks should be accepted here on mainnet,
+                // testnet/devnet/regtest should produce regular bocks only
                 LogPrint("gobject", "IsBlockValueValid -- WARNING: Client synced but old budget system is disabled, checking block value against block reward\n");
                 if(!isBlockRewardValueMet) {
                     strErrorRet = strprintf("coinbase pays too much at height %d (actual=%d vs limit=%d), exceeded block reward, old budgets are disabled",
@@ -60,6 +60,7 @@ bool IsBlockValueValid(const CBlock& block, int nBlockHeight, CAmount blockRewar
                 }
                 return isBlockRewardValueMet;
             }
+            // when not synced, rely on online nodes (all networks)
             LogPrint("gobject", "IsBlockValueValid -- WARNING: Skipping old budget block value checks, accepting block\n");
             return true;
         }
