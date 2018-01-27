@@ -217,6 +217,10 @@ void CPrivateSendClient::SetNull()
     nEntriesCount = 0;
     fLastEntryAccepted = false;
     infoMixingMasternode = masternode_info_t();
+    {
+        LOCK(cs_dsaQueue);
+        dsaQueue.clear();
+    }
 
     CPrivateSendBase::SetNull();
 }
@@ -880,31 +884,23 @@ bool CPrivateSendClient::JoinExistingQueue(CAmount nBalanceNeedsAnonymized, CCon
             continue;
         }
 
-        LogPrintf("CPrivateSendClient::JoinExistingQueue -- attempt to connect to masternode from queue, addr=%s\n", infoMn.addr.ToString());
-        // connect to Masternode and submit the queue request
-        CAddress addr(infoMn.addr, NODE_NETWORK);
-        connman.OpenMasternodeConnection(addr);
+        nSessionDenom = dsq.nDenom;
+        infoMixingMasternode = infoMn;
 
-        bool fSuccess = connman.ForNode(addr, CConnman::AllNodes, [&](CNode* pnode){
-            infoMixingMasternode = infoMn;
-            nSessionDenom = dsq.nDenom;
-            CDarksendAccept dsa(nSessionDenom, txMyCollateral);
-            CNetMsgMaker msgMaker(pnode->GetSendVersion()); // TODO this gives a warning about version not being set (we should wait for VERSION exchange)
-            connman.PushMessage(pnode, msgMaker.Make(NetMsgType::DSACCEPT, dsa));
-            LogPrintf("CPrivateSendClient::JoinExistingQueue -- connected (from queue), sending DSACCEPT: nSessionDenom: %d (%s), addr=%s\n",
-                      nSessionDenom, CPrivateSend::GetDenominationsToString(nSessionDenom), pnode->addr.ToString());
-            strAutoDenomResult = _("Mixing in progress...");
-            SetState(POOL_STATE_QUEUE);
-            nTimeLastSuccessfulStep = GetTimeMillis();
-            return true;
-        });
-        if (!fSuccess) {
-            LogPrintf("CPrivateSendClient::JoinExistingQueue -- can't connect, addr=%s\n", infoMn.addr.ToString());
-            strAutoDenomResult = _("Error connecting to Masternode.");
-            continue;
+        {
+            LOCK(cs_dsaQueue);
+            dsaQueue.push_back(std::make_pair(GetTime(), std::make_pair(infoMn.addr, CDarksendAccept(nSessionDenom, txMyCollateral))));
         }
+
+        connman.AddPendingMasternode(infoMn.addr);
+        SetState(POOL_STATE_QUEUE);
+        nTimeLastSuccessfulStep = GetTimeMillis();
+        LogPrintf("CPrivateSendClient::JoinExistingQueue -- connecting (from queue): nSessionDenom: %d (%s), addr=%s\n",
+                  nSessionDenom, CPrivateSend::GetDenominationsToString(nSessionDenom), infoMn.addr.ToString());
+        strAutoDenomResult = _("Mixing in progress...");
         return true;
     }
+    strAutoDenomResult = _("Failed to join existing mixing queues");
     return false;
 }
 
@@ -949,37 +945,62 @@ bool CPrivateSendClient::StartNewQueue(CAmount nValueMin, CAmount nBalanceNeedsA
         }
 
         LogPrintf("CPrivateSendClient::StartNewQueue -- attempt %d connection to Masternode %s\n", nTries, infoMn.addr.ToString());
-        CAddress addr(infoMn.addr, NODE_NETWORK);
-        connman.OpenMasternodeConnection(addr);
 
-        bool fSuccess = connman.ForNode(addr, CConnman::AllNodes, [&](CNode* pnode){
-            LogPrintf("CPrivateSendClient::StartNewQueue -- connected, addr=%s\n", infoMn.addr.ToString());
-            infoMixingMasternode = infoMn;
-
-            std::vector<CAmount> vecAmounts;
-            pwalletMain->ConvertList(vecTxIn, vecAmounts);
-            // try to get a single random denom out of vecAmounts
-            while(nSessionDenom == 0) {
-                nSessionDenom = CPrivateSend::GetDenominationsByAmounts(vecAmounts);
-            }
-            CDarksendAccept dsa(nSessionDenom, txMyCollateral);
-            CNetMsgMaker msgMaker(pnode->GetSendVersion()); // TODO this gives a warning about version not being set (we should wait for VERSION exchange)
-            connman.PushMessage(pnode, msgMaker.Make(NetMsgType::DSACCEPT, dsa));
-            LogPrintf("CPrivateSendClient::StartNewQueue -- connected, sending DSACCEPT, nSessionDenom: %d (%s)\n",
-                    nSessionDenom, CPrivateSend::GetDenominationsToString(nSessionDenom));
-            strAutoDenomResult = _("Mixing in progress...");
-            SetState(POOL_STATE_QUEUE);
-            nTimeLastSuccessfulStep = GetTimeMillis();
-            return true;
-        });
-        if (!fSuccess) {
-            LogPrintf("CPrivateSendClient::StartNewQueue -- can't connect, addr=%s\n", infoMn.addr.ToString());
-            nTries++;
-            continue;
+        std::vector<CAmount> vecAmounts;
+        pwalletMain->ConvertList(vecTxIn, vecAmounts);
+        // try to get a single random denom out of vecAmounts
+        while(nSessionDenom == 0) {
+            nSessionDenom = CPrivateSend::GetDenominationsByAmounts(vecAmounts);
         }
+
+        infoMixingMasternode = infoMn;
+        connman.AddPendingMasternode(infoMn.addr);
+
+        {
+            LOCK(cs_dsaQueue);
+            dsaQueue.push_back(std::make_pair(GetTime(), std::make_pair(infoMn.addr, CDarksendAccept(nSessionDenom, txMyCollateral))));
+        }
+
+        SetState(POOL_STATE_QUEUE);
+        nTimeLastSuccessfulStep = GetTimeMillis();
+        LogPrintf("CPrivateSendClient::StartNewQueue -- pending connection, nSessionDenom: %d (%s), addr=%s\n",
+                nSessionDenom, CPrivateSend::GetDenominationsToString(nSessionDenom), infoMn.addr.ToString());
+        strAutoDenomResult = _("Mixing in progress...");
         return true;
     }
+    strAutoDenomResult = _("Failed to start a new mixing queue");
     return false;
+}
+
+void CPrivateSendClient::ProcessQueuedDsa(CConnman& connman)
+{
+    LOCK(cs_dsaQueue);
+
+    if (!dsaQueue.empty()) {
+        // wait at least 5 seconds since we tried to open corresponding connection
+        if (GetTime() - dsaQueue.front().first < 5) {
+            return;
+        }
+
+        auto request = dsaQueue.front().second;
+        LogPrint("privatesend", "CPrivateSendClient::%s -- processing dsa queue for addr=%s\n", __func__, request.first.ToString());
+
+        bool fFound = connman.ForNode(request.first, [&](CNode* pnode) {
+            LogPrint("privatesend", "-- processing dsa queue for addr=%s\n", request.first.ToString());
+            nTimeLastSuccessfulStep = GetTimeMillis();
+            CNetMsgMaker msgMaker(pnode->GetSendVersion());
+            connman.PushMessage(pnode, msgMaker.Make(NetMsgType::DSACCEPT, request.second));
+            return true;
+        });
+
+        dsaQueue.pop_front();
+        LogPrint("privatesend", "CPrivateSendClient::%s -- dsa queue size: %d\n", __func__, dsaQueue.size());
+
+        if (!fFound) {
+            LogPrint("privatesend", "CPrivateSendClient::%s -- failed to connect to %s\n", __func__, request.first.ToString());
+            SetNull();
+        }
+    }
 }
 
 bool CPrivateSendClient::SubmitDenominate(CConnman& connman)
@@ -1417,6 +1438,7 @@ void ThreadCheckPrivateSendClient(CConnman& connman)
         if(masternodeSync.IsBlockchainSynced() && !ShutdownRequested()) {
             nTick++;
             privateSendClient.CheckTimeout();
+            privateSendClient.ProcessQueuedDsa(connman);
             if(nDoAutoNextRun == nTick) {
                 privateSendClient.DoAutomaticDenominating(connman);
                 nDoAutoNextRun = nTick + PRIVATESEND_AUTO_TIMEOUT_MIN + GetRandInt(PRIVATESEND_AUTO_TIMEOUT_MAX - PRIVATESEND_AUTO_TIMEOUT_MIN);

@@ -54,6 +54,8 @@ private:
 
     masternode_info_t infoMixingMasternode;
     CMutableTransaction txMyCollateral; // client side collateral
+    CCriticalSection cs_dsaQueue;
+    std::deque<std::pair<int64_t, std::pair<CService, CDarksendAccept> > > dsaQueue;
 
     CKeyHolderStorage keyHolderStorage; // storage for keys used in PrepareDenominate
 
@@ -139,6 +141,8 @@ public:
 
     /// Passively run mixing in the background according to the configuration in settings
     bool DoAutomaticDenominating(CConnman& connman, bool fDryRun=false);
+
+    void ProcessQueuedDsa(CConnman& connman);
 
     void CheckTimeout();
 
