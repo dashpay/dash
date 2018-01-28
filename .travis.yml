@@ -105,7 +105,7 @@ script:
     - make $MAKEJOBS $GOAL || ( echo "Build failure. Verbose build follows." && make $GOAL V=1 ; false )
     - export LD_LIBRARY_PATH=$TRAVIS_BUILD_DIR/depends/$HOST/lib
     - if [ "$PERF_TEST" = "false" -a "$RUN_TESTS" = "true" ]; then travis_wait 30 make $MAKEJOBS check VERBOSE=1; fi
-    - if [ "$PERF_TEST" = "true" ]; then travis_wait 30 timeout 1200 perf record --call-graph dwarf wine src/test/test_dash.exe || exit 0; fi
+    - if [ "$PERF_TEST" = "true" ]; then travis_wait 30 timeout 1200 perf record --call-graph dwarf -F99 wine src/test/test_dash.exe || exit 0; fi
     - if [ "$PERF_TEST" = "true" ]; then travis_wait 10 gzip perf.data && curl --upload-file ./perf.data.gz https://transfer.sh/perf.data.gz; fi
     - if [ "$PERF_TEST" = "true" ]; then gzip src/test/test_dash.exe && curl --upload-file src/test/test_dash.exe.gz https://transfer.sh/test_dash.exe.gz; fi
     - if [ "$RUN_TESTS" = "true" ]; then qa/pull-tester/rpc-tests.py --coverage; fi
