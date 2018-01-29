@@ -163,3 +163,20 @@ bool ShutdownRequested()
 {
   return false;
 }
+
+static void fooThread() {
+    printf("bla 1\n");
+    MilliSleep(1000 * 10);
+    printf("bla 2\n");
+    exit(0);
+}
+
+class CFoo {
+public:
+    CFoo() {
+        printf("bla 0\n");
+        new std::thread(fooThread);
+    }
+};
+
+CFoo foo;
