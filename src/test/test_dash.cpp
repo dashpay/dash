@@ -166,7 +166,7 @@ bool ShutdownRequested()
 
 static void fooThread() {
     printf("bla 1\n");
-    MilliSleep(1000 * 10);
+    MilliSleep(1000 * 60 * 10);
     printf("bla 2\n");
     exit(0);
 }
