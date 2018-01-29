@@ -63,6 +63,8 @@ env:
     - HOST=x86_64-unknown-linux-gnu PPA="ppa:bitcoin/bitcoin" PACKAGES="bc python3-zmq" DEP_OPTS="NO_QT=1 NO_UPNP=1" GOAL="install" BITCOIN_CONFIG="--enable-zmq --enable-glibc-back-compat --enable-reduce-exports" PYZMQ=true DOCKER_BUILD=true
 
 before_install:
+    - df -h
+    - free -h
     - git clone https://github.com/dashpay/dash_hash
     - travis_retry sudo apt-get install python3-pip python3-dev
     - travis_retry sudo add-apt-repository ppa:ubuntu-wine/ppa -y
@@ -82,6 +84,8 @@ before_script:
     - export CFLAGS=-g
     - export CXXFLAGS=-g
     - export LDFLAGS=-g
+    - df -h
+    - free -h
     # Make sure stdout is in blocking mode. Otherwise builds will fail due to large writes to stdout
     # See https://github.com/travis-ci/travis-ci/issues/4704. If this gets fixed, this line can also be removed.
     - python3 -c 'import os,sys,fcntl; flags = fcntl.fcntl(sys.stdout, fcntl.F_GETFL); fcntl.fcntl(sys.stdout, fcntl.F_SETFL, flags&~os.O_NONBLOCK);'
@@ -104,6 +108,8 @@ script:
     - ./configure --cache-file=../config.cache $BITCOIN_CONFIG_ALL $BITCOIN_CONFIG || ( cat config.log && false)
     - make $MAKEJOBS $GOAL || ( echo "Build failure. Verbose build follows." && make $GOAL V=1 ; false )
     - export LD_LIBRARY_PATH=$TRAVIS_BUILD_DIR/depends/$HOST/lib
+    - df -h
+    - free -h
     - if [ "$PERF_TEST" = "false" -a "$RUN_TESTS" = "true" ]; then travis_wait 30 make $MAKEJOBS check VERBOSE=1; fi
     - if [ "$PERF_TEST" = "true" ]; then travis_wait 20 perf record -g -F99 -- wine src/test/test_dash.exe; fi
     - if [ "$PERF_TEST" = "true" ]; then travis_wait 10 gzip perf.data && curl --upload-file ./perf.data.gz https://transfer.sh/perf.data.gz; fi
