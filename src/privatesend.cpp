@@ -455,8 +455,8 @@ void ThreadCheckPrivateSend(CConnman& connman)
             // make sure to check all masternodes first
             mnodeman.Check();
 
-            mnodeman.ProcessQueuedMnbRequests(connman);
-            mnodeman.ProcessQueuedMnvRequests(connman);
+            mnodeman.ProcessPendingMnbRequests(connman);
+            mnodeman.ProcessPendingMnvRequests(connman);
 
             // check if we should activate or ping every few minutes,
             // slightly postpone first run to give net thread a chance to connect to some peers

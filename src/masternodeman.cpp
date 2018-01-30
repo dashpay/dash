@@ -740,30 +740,23 @@ std::pair<CService, std::set<uint256> > CMasternodeMan::PopScheduledMnbRequestCo
     return std::make_pair(pairFront.first, setResult);
 }
 
-void CMasternodeMan::ProcessQueuedMnbRequests(CConnman& connman)
+void CMasternodeMan::ProcessPendingMnbRequests(CConnman& connman)
 {
     std::pair<CService, std::set<uint256> > p = PopScheduledMnbRequestConnection();
     if (!(p.first == CService() || p.second.empty())) {
         if (connman.IsMasternodeOrDisconnectRequested(p.first)) return;
-        mnbQueue.push_back(std::make_pair(GetTime(), p));
+        mapPendingMNB.insert(std::make_pair(p.first, std::make_pair(GetTime(), p.second)));
         connman.AddPendingMasternode(p.first);
     }
 
-    if (!mnbQueue.empty()) {
-        // wait at least 5 seconds since we tried to open corresponding connection
-        if (GetTime() - mnbQueue.front().first < 5) {
-            return;
-        }
-
-        auto request = mnbQueue.front().second;
-        LogPrint("masternode", "%s -- processing mnb queue for addr=%s\n", __func__, request.first.ToString());
-
-        connman.ForNode(request.first, [&](CNode* pnode) {
-
+    std::map<CService, std::pair<int64_t, std::set<uint256> > >::iterator itPendingMNB = mapPendingMNB.begin();
+    while (itPendingMNB != mapPendingMNB.end()) {
+        bool fDone = connman.ForNode(itPendingMNB->first, [&](CNode* pnode) {
             // compile request vector
             std::vector<CInv> vToFetch;
-            std::set<uint256>::iterator it = request.second.begin();
-            while(it != request.second.end()) {
+            std::set<uint256>& setHashes = itPendingMNB->second.second;
+            std::set<uint256>::iterator it = setHashes.begin();
+            while(it != setHashes.end()) {
                 if(*it != uint256()) {
                     vToFetch.push_back(CInv(MSG_MASTERNODE_ANNOUNCE, *it));
                     LogPrint("masternode", "-- asking for mnb %s from addr=%s\n", it->ToString(), pnode->addr.ToString());
@@ -777,9 +770,16 @@ void CMasternodeMan::ProcessQueuedMnbRequests(CConnman& connman)
             return true;
         });
 
-        // drop it from the request queue regardless
-        mnbQueue.pop_front();
-        LogPrint("masternode", "%s -- mnb queue size: %d\n", __func__, mnbQueue.size());
+        int64_t nTimeAdded = itPendingMNB->second.first;
+        if (fDone || (GetTime() - nTimeAdded > 15)) {
+            if (!fDone) {
+                LogPrint("masternode", "CMasternodeMan::%s -- failed to connect to %s\n", __func__, itPendingMNB->first.ToString());
+            }
+            mapPendingMNB.erase(itPendingMNB++);
+        } else {
+            ++itPendingMNB;
+        }
+        LogPrint("masternode", "%s -- mapPendingMNB size: %d\n", __func__, mapPendingMNB.size());
     }
 }
 
@@ -1096,37 +1096,39 @@ bool CMasternodeMan::SendVerifyRequest(const CAddress& addr, const std::vector<C
     connman.AddPendingMasternode(addr);
     // use random nonce, store it and require node to reply with correct one later
     CMasternodeVerification mnv(addr, GetRandInt(999999), nCachedBlockHeight - 1);
-    LOCK(cs_mnvQueue);
-    mnvQueue.push_back(std::make_pair(GetTime(), std::make_pair(addr, mnv)));
+    LOCK(cs_mapPendingMNV);
+    mapPendingMNV.insert(std::make_pair(addr, std::make_pair(GetTime(), mnv)));
     LogPrintf("CMasternodeMan::SendVerifyRequest -- verifying node using nonce %d addr=%s\n", mnv.nonce, addr.ToString());
     return true;
 }
 
-void CMasternodeMan::ProcessQueuedMnvRequests(CConnman& connman)
+void CMasternodeMan::ProcessPendingMnvRequests(CConnman& connman)
 {
-    LOCK(cs_mnvQueue);
+    LOCK(cs_mapPendingMNV);
 
-    if (!mnvQueue.empty()) {
-        // wait at least 5 seconds since we tried to open corresponding connection
-        if (GetTime() - mnvQueue.front().first < 5) {
-            return;
-        }
+    std::map<CService, std::pair<int64_t, CMasternodeVerification> >::iterator itPendingMNV = mapPendingMNV.begin();
 
-        auto request = mnvQueue.front().second;
-        LogPrint("masternode", "CMasternodeMan::%s -- processing mnv queue for addr=%s\n", __func__, request.first.ToString());
-
-        connman.ForNode(request.first, [&](CNode* pnode) {
+    while (itPendingMNV != mapPendingMNV.end()) {
+        bool fDone = connman.ForNode(itPendingMNV->first, [&](CNode* pnode) {
             netfulfilledman.AddFulfilledRequest(pnode->addr, strprintf("%s", NetMsgType::MNVERIFY)+"-request");
             // use random nonce, store it and require node to reply with correct one later
-            mWeAskedForVerification[pnode->addr] = request.second;
-            LogPrint("masternode", "-- verifying node using nonce %d addr=%s\n", request.second.nonce, pnode->addr.ToString());
+            mWeAskedForVerification[pnode->addr] = itPendingMNV->second.second;
+            LogPrint("masternode", "-- verifying node using nonce %d addr=%s\n", itPendingMNV->second.second.nonce, pnode->addr.ToString());
             CNetMsgMaker msgMaker(pnode->GetSendVersion()); // TODO this gives a warning about version not being set (we should wait for VERSION exchange)
-            connman.PushMessage(pnode, msgMaker.Make(NetMsgType::MNVERIFY, request.second));
+            connman.PushMessage(pnode, msgMaker.Make(NetMsgType::MNVERIFY, itPendingMNV->second.second));
             return true;
         });
 
-        mnvQueue.pop_front();
-        LogPrint("masternode", "CMasternodeMan::%s -- mnv queue size: %d\n", __func__, mnvQueue.size());
+        int64_t nTimeAdded = itPendingMNV->second.first;
+        if (fDone || (GetTime() - nTimeAdded > 15)) {
+            if (!fDone) {
+                LogPrint("masternode", "CMasternodeMan::%s -- failed to connect to %s\n", __func__, itPendingMNV->first.ToString());
+            }
+            mapPendingMNV.erase(itPendingMNV++);
+        } else {
+            ++itPendingMNV;
+        }
+        LogPrint("masternode", "%s -- mapPendingMNV size: %d\n", __func__, mapPendingMNV.size());
     }
 }
 
