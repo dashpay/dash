@@ -742,7 +742,7 @@ std::pair<CService, std::set<uint256> > CMasternodeMan::PopScheduledMnbRequestCo
 
 void CMasternodeMan::ProcessQueuedMnbRequests(CConnman& connman)
 {
-    std::pair<CService, std::set<uint256> > p = mnodeman.PopScheduledMnbRequestConnection();
+    std::pair<CService, std::set<uint256> > p = PopScheduledMnbRequestConnection();
     if (!(p.first == CService() || p.second.empty())) {
         if (connman.IsMasternodeOrDisconnectRequested(p.first)) return;
         mnbQueue.push_back(std::make_pair(GetTime(), p));
