@@ -217,10 +217,7 @@ void CPrivateSendClient::SetNull()
     nEntriesCount = 0;
     fLastEntryAccepted = false;
     infoMixingMasternode = masternode_info_t();
-    {
-        LOCK(cs_mapPendingDSA);
-        mapPendingDSA.clear();
-    }
+    pendingDsaRequest = CPendingDsaRequest();
 
     CPrivateSendBase::SetNull();
 }
@@ -886,12 +883,7 @@ bool CPrivateSendClient::JoinExistingQueue(CAmount nBalanceNeedsAnonymized, CCon
 
         nSessionDenom = dsq.nDenom;
         infoMixingMasternode = infoMn;
-
-        {
-            LOCK(cs_mapPendingDSA);
-            mapPendingDSA.insert(std::make_pair(infoMn.addr, std::make_pair(GetTime(), CDarksendAccept(nSessionDenom, txMyCollateral))));
-        }
-
+        pendingDsaRequest = CPendingDsaRequest(infoMn.addr, CDarksendAccept(nSessionDenom, txMyCollateral));
         connman.AddPendingMasternode(infoMn.addr);
         // TODO: add new state POOL_STATE_CONNECTING and bump MIN_PRIVATESEND_PEER_PROTO_VERSION
         SetState(POOL_STATE_QUEUE);
@@ -956,12 +948,7 @@ bool CPrivateSendClient::StartNewQueue(CAmount nValueMin, CAmount nBalanceNeedsA
 
         infoMixingMasternode = infoMn;
         connman.AddPendingMasternode(infoMn.addr);
-
-        {
-            LOCK(cs_mapPendingDSA);
-            mapPendingDSA.insert(std::make_pair(infoMn.addr, std::make_pair(GetTime(), CDarksendAccept(nSessionDenom, txMyCollateral))));
-        }
-
+        pendingDsaRequest = CPendingDsaRequest(infoMn.addr, CDarksendAccept(nSessionDenom, txMyCollateral));
         // TODO: add new state POOL_STATE_CONNECTING and bump MIN_PRIVATESEND_PEER_PROTO_VERSION
         SetState(POOL_STATE_QUEUE);
         nTimeLastSuccessfulStep = GetTimeMillis();
@@ -974,35 +961,26 @@ bool CPrivateSendClient::StartNewQueue(CAmount nValueMin, CAmount nBalanceNeedsA
     return false;
 }
 
-void CPrivateSendClient::ProcessPendingDsaRequests(CConnman& connman)
+void CPrivateSendClient::ProcessPendingDsaRequest(CConnman& connman)
 {
-    LOCK(cs_mapPendingDSA);
+    if (pendingDsaRequest == CPendingDsaRequest()) return;
 
-    std::map<CService, std::pair<int64_t, CDarksendAccept> >::iterator itPendingDSA = mapPendingDSA.begin();
-    while (itPendingDSA != mapPendingDSA.end()) {
-        CDarksendAccept &dsa = itPendingDSA->second.second;
-        bool fDone = connman.ForNode(itPendingDSA->first, [&](CNode* pnode) {
-            LogPrint("privatesend", "-- processing dsa queue for addr=%s\n", pnode->addr.ToString());
-            nTimeLastSuccessfulStep = GetTimeMillis();
-            // TODO: this vvvv should be here after new state POOL_STATE_CONNECTING is added and MIN_PRIVATESEND_PEER_PROTO_VERSION is bumped
-            // SetState(POOL_STATE_QUEUE);
-            strAutoDenomResult = _("Mixing in progress...");
-            CNetMsgMaker msgMaker(pnode->GetSendVersion());
-            connman.PushMessage(pnode, msgMaker.Make(NetMsgType::DSACCEPT, dsa));
-            return true;
-        });
+    bool fDone = connman.ForNode(pendingDsaRequest.GetAddr(), [&](CNode* pnode) {
+        LogPrint("privatesend", "-- processing dsa queue for addr=%s\n", pnode->addr.ToString());
+        nTimeLastSuccessfulStep = GetTimeMillis();
+        // TODO: this vvvv should be here after new state POOL_STATE_CONNECTING is added and MIN_PRIVATESEND_PEER_PROTO_VERSION is bumped
+        // SetState(POOL_STATE_QUEUE);
+        strAutoDenomResult = _("Mixing in progress...");
+        CNetMsgMaker msgMaker(pnode->GetSendVersion());
+        connman.PushMessage(pnode, msgMaker.Make(NetMsgType::DSACCEPT, pendingDsaRequest.GetDSA()));
+        return true;
+    });
 
-        int64_t nTimeAdded = itPendingDSA->second.first;
-        if (fDone || (GetTime() - nTimeAdded > 15)) {
-            if (!fDone) {
-                LogPrint("privatesend", "CPrivateSendClient::%s -- failed to connect to %s\n", __func__, itPendingDSA->first.ToString());
-                SetNull();
-            }
-            mapPendingDSA.erase(itPendingDSA++);
-        } else {
-            ++itPendingDSA;
-        }
-        LogPrint("privatesend", "%s -- mapPendingDSA size: %d\n", __func__, mapPendingDSA.size());
+    if (fDone) {
+        pendingDsaRequest = CPendingDsaRequest();
+    } else if (pendingDsaRequest.IsExpired()) {
+        LogPrint("privatesend", "CPrivateSendClient::%s -- failed to connect to %s\n", __func__, pendingDsaRequest.GetAddr().ToString());
+        SetNull();
     }
 }
 
@@ -1441,7 +1419,7 @@ void ThreadCheckPrivateSendClient(CConnman& connman)
         if(masternodeSync.IsBlockchainSynced() && !ShutdownRequested()) {
             nTick++;
             privateSendClient.CheckTimeout();
-            privateSendClient.ProcessPendingDsaRequests(connman);
+            privateSendClient.ProcessPendingDsaRequest(connman);
             if(nDoAutoNextRun == nTick) {
                 privateSendClient.DoAutomaticDenominating(connman);
                 nDoAutoNextRun = nTick + PRIVATESEND_AUTO_TIMEOUT_MIN + GetRandInt(PRIVATESEND_AUTO_TIMEOUT_MAX - PRIVATESEND_AUTO_TIMEOUT_MIN);
