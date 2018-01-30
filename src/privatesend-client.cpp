@@ -893,14 +893,15 @@ bool CPrivateSendClient::JoinExistingQueue(CAmount nBalanceNeedsAnonymized, CCon
         }
 
         connman.AddPendingMasternode(infoMn.addr);
+        // TODO: add new state POOL_STATE_CONNECTING and bump MIN_PRIVATESEND_PEER_PROTO_VERSION
         SetState(POOL_STATE_QUEUE);
         nTimeLastSuccessfulStep = GetTimeMillis();
-        LogPrintf("CPrivateSendClient::JoinExistingQueue -- connecting (from queue): nSessionDenom: %d (%s), addr=%s\n",
+        LogPrintf("CPrivateSendClient::JoinExistingQueue -- pending connection (from queue): nSessionDenom: %d (%s), addr=%s\n",
                   nSessionDenom, CPrivateSend::GetDenominationsToString(nSessionDenom), infoMn.addr.ToString());
-        strAutoDenomResult = _("Mixing in progress...");
+        strAutoDenomResult = _("Trying to connect...");
         return true;
     }
-    strAutoDenomResult = _("Failed to join existing mixing queues");
+    strAutoDenomResult = _("Failed to find mixing queue to join");
     return false;
 }
 
@@ -961,11 +962,12 @@ bool CPrivateSendClient::StartNewQueue(CAmount nValueMin, CAmount nBalanceNeedsA
             mapPendingDSA.insert(std::make_pair(infoMn.addr, std::make_pair(GetTime(), CDarksendAccept(nSessionDenom, txMyCollateral))));
         }
 
+        // TODO: add new state POOL_STATE_CONNECTING and bump MIN_PRIVATESEND_PEER_PROTO_VERSION
         SetState(POOL_STATE_QUEUE);
         nTimeLastSuccessfulStep = GetTimeMillis();
         LogPrintf("CPrivateSendClient::StartNewQueue -- pending connection, nSessionDenom: %d (%s), addr=%s\n",
                 nSessionDenom, CPrivateSend::GetDenominationsToString(nSessionDenom), infoMn.addr.ToString());
-        strAutoDenomResult = _("Mixing in progress...");
+        strAutoDenomResult = _("Trying to connect...");
         return true;
     }
     strAutoDenomResult = _("Failed to start a new mixing queue");
@@ -982,6 +984,9 @@ void CPrivateSendClient::ProcessPendingDsaRequests(CConnman& connman)
         bool fDone = connman.ForNode(itPendingDSA->first, [&](CNode* pnode) {
             LogPrint("privatesend", "-- processing dsa queue for addr=%s\n", pnode->addr.ToString());
             nTimeLastSuccessfulStep = GetTimeMillis();
+            // TODO: this vvvv should be here after new state POOL_STATE_CONNECTING is added and MIN_PRIVATESEND_PEER_PROTO_VERSION is bumped
+            // SetState(POOL_STATE_QUEUE);
+            strAutoDenomResult = _("Mixing in progress...");
             CNetMsgMaker msgMaker(pnode->GetSendVersion());
             connman.PushMessage(pnode, msgMaker.Make(NetMsgType::DSACCEPT, dsa));
             return true;
