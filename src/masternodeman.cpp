@@ -779,8 +779,8 @@ void CMasternodeMan::ProcessPendingMnbRequests(CConnman& connman)
         } else {
             ++itPendingMNB;
         }
-        LogPrint("masternode", "%s -- mapPendingMNB size: %d\n", __func__, mapPendingMNB.size());
     }
+    LogPrint("masternode", "%s -- mapPendingMNB size: %d\n", __func__, mapPendingMNB.size());
 }
 
 void CMasternodeMan::ProcessMessage(CNode* pfrom, const std::string& strCommand, CDataStream& vRecv, CConnman& connman)
@@ -1128,8 +1128,8 @@ void CMasternodeMan::ProcessPendingMnvRequests(CConnman& connman)
         } else {
             ++itPendingMNV;
         }
-        LogPrint("masternode", "%s -- mapPendingMNV size: %d\n", __func__, mapPendingMNV.size());
     }
+    LogPrint("masternode", "%s -- mapPendingMNV size: %d\n", __func__, mapPendingMNV.size());
 }
 
 void CMasternodeMan::SendVerifyReply(CNode* pnode, CMasternodeVerification& mnv, CConnman& connman)
