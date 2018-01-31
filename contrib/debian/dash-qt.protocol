@@ -1,6 +1,6 @@
 [Protocol]
-exec=dash-qt '%u'
-protocol=dash
+exec=kriss-qt '%u'
+protocol=kriss
 input=none
 output=none
 helper=true

@@ -7,7 +7,7 @@
 #define BITCOIN_BITCOINCONSENSUS_H
 
 #if defined(BUILD_BITCOIN_INTERNAL) && defined(HAVE_CONFIG_H)
-#include "config/dash-config.h"
+#include "config/kriss-config.h"
   #if defined(_WIN32)
     #if defined(DLL_EXPORT)
       #if defined(HAVE_FUNC_ATTRIBUTE_DLLEXPORT)
@@ -33,32 +33,32 @@ extern "C" {
 
 #define BITCOINCONSENSUS_API_VER 0
 
-typedef enum dashconsensus_error_t
+typedef enum krissconsensus_error_t
 {
-    dashconsensus_ERR_OK = 0,
-    dashconsensus_ERR_TX_INDEX,
-    dashconsensus_ERR_TX_SIZE_MISMATCH,
-    dashconsensus_ERR_TX_DESERIALIZE,
-} dashconsensus_error;
+    krissconsensus_ERR_OK = 0,
+    krissconsensus_ERR_TX_INDEX,
+    krissconsensus_ERR_TX_SIZE_MISMATCH,
+    krissconsensus_ERR_TX_DESERIALIZE,
+} krissconsensus_error;
 
 /** Script verification flags */
 enum
 {
-    dashconsensus_SCRIPT_FLAGS_VERIFY_NONE                = 0,
-    dashconsensus_SCRIPT_FLAGS_VERIFY_P2SH                = (1U << 0), // evaluate P2SH (BIP16) subscripts
-    dashconsensus_SCRIPT_FLAGS_VERIFY_DERSIG              = (1U << 2), // enforce strict DER (BIP66) compliance
-    dashconsensus_SCRIPT_FLAGS_VERIFY_CHECKLOCKTIMEVERIFY = (1U << 9), // enable CHECKLOCKTIMEVERIFY (BIP65)
+    krissconsensus_SCRIPT_FLAGS_VERIFY_NONE                = 0,
+    krissconsensus_SCRIPT_FLAGS_VERIFY_P2SH                = (1U << 0), // evaluate P2SH (BIP16) subscripts
+    krissconsensus_SCRIPT_FLAGS_VERIFY_DERSIG              = (1U << 2), // enforce strict DER (BIP66) compliance
+    krissconsensus_SCRIPT_FLAGS_VERIFY_CHECKLOCKTIMEVERIFY = (1U << 9), // enable CHECKLOCKTIMEVERIFY (BIP65)
 };
 
 /// Returns 1 if the input nIn of the serialized transaction pointed to by
 /// txTo correctly spends the scriptPubKey pointed to by scriptPubKey under
 /// the additional constraints specified by flags.
 /// If not NULL, err will contain an error/success code for the operation
-EXPORT_SYMBOL int dashconsensus_verify_script(const unsigned char *scriptPubKey, unsigned int scriptPubKeyLen,
+EXPORT_SYMBOL int krissconsensus_verify_script(const unsigned char *scriptPubKey, unsigned int scriptPubKeyLen,
                                     const unsigned char *txTo        , unsigned int txToLen,
-                                    unsigned int nIn, unsigned int flags, dashconsensus_error* err);
+                                    unsigned int nIn, unsigned int flags, krissconsensus_error* err);
 
-EXPORT_SYMBOL unsigned int dashconsensus_version();
+EXPORT_SYMBOL unsigned int krissconsensus_version();
 
 #ifdef __cplusplus
 } // extern "C"

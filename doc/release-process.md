@@ -1,7 +1,7 @@
 Release Process
 ====================
 
-* Update translations, see [translation_process.md](https://github.com/dashpay/dash/blob/master/doc/translation_process.md#syncing-with-transifex)
+* Update translations, see [translation_process.md](https://github.com/krisscore/kriss/blob/master/doc/translation_process.md#syncing-with-transifex)
 * Update hardcoded [seeds](/contrib/seeds)
 
 * * *
@@ -10,14 +10,14 @@ Release Process
 Check out the source code in the following directory hierarchy.
 
 	cd /path/to/your/toplevel/build
-	git clone https://github.com/dashpay/gitian.sigs.git
-	git clone https://github.com/dashpay/dash-detached-sigs.git
+	git clone https://github.com/krisscore/gitian.sigs.git
+	git clone https://github.com/krisscore/kriss-detached-sigs.git
 	git clone https://github.com/devrandom/gitian-builder.git
-	git clone https://github.com/dashpay/dash.git
+	git clone https://github.com/krisscore/kriss.git
 
-### Dash Core maintainers/release engineers, update (commit) version in sources
+### Kriss Core maintainers/release engineers, update (commit) version in sources
 
-	pushd ./dash
+	pushd ./kriss
 	contrib/verifysfbinaries/verify.sh
 	configure.ac
 	doc/README*
@@ -40,7 +40,7 @@ Check out the source code in the following directory hierarchy.
 
  Setup Gitian descriptors:
 
-	pushd ./dash
+	pushd ./kriss
 	export SIGNER=(your Gitian key, ie bluematt, sipa, etc)
 	export VERSION=(new version, e.g. 0.8.0)
 	git fetch
@@ -76,52 +76,52 @@ Check out the source code in the following directory hierarchy.
 
 By default, Gitian will fetch source files as needed. To cache them ahead of time:
 
-	make -C ../dash/depends download SOURCES_PATH=`pwd`/cache/common
+	make -C ../kriss/depends download SOURCES_PATH=`pwd`/cache/common
 
 Only missing files will be fetched, so this is safe to re-run for each build.
 
 NOTE: Offline builds must use the --url flag to ensure Gitian fetches only from local URLs. For example:
 ```
-./bin/gbuild --url dash=/path/to/dash,signature=/path/to/sigs {rest of arguments}
+./bin/gbuild --url kriss=/path/to/kriss,signature=/path/to/sigs {rest of arguments}
 ```
 The gbuild invocations below <b>DO NOT DO THIS</b> by default.
 
-### Build and sign Dash Core for Linux, Windows, and OS X:
+### Build and sign Kriss Core for Linux, Windows, and OS X:
 
-	./bin/gbuild --commit dash=v${VERSION} ../dash/contrib/gitian-descriptors/gitian-linux.yml
-	./bin/gsign --signer $SIGNER --release ${VERSION}-linux --destination ../gitian.sigs/ ../dash/contrib/gitian-descriptors/gitian-linux.yml
-	mv build/out/dash-*.tar.gz build/out/src/dash-*.tar.gz ../
+	./bin/gbuild --commit kriss=v${VERSION} ../kriss/contrib/gitian-descriptors/gitian-linux.yml
+	./bin/gsign --signer $SIGNER --release ${VERSION}-linux --destination ../gitian.sigs/ ../kriss/contrib/gitian-descriptors/gitian-linux.yml
+	mv build/out/kriss-*.tar.gz build/out/src/kriss-*.tar.gz ../
 
-	./bin/gbuild --commit dash=v${VERSION} ../dash/contrib/gitian-descriptors/gitian-win.yml
-	./bin/gsign --signer $SIGNER --release ${VERSION}-win-unsigned --destination ../gitian.sigs/ ../dash/contrib/gitian-descriptors/gitian-win.yml
-	mv build/out/dash-*-win-unsigned.tar.gz inputs/dash-win-unsigned.tar.gz
-	mv build/out/dash-*.zip build/out/dash-*.exe ../
+	./bin/gbuild --commit kriss=v${VERSION} ../kriss/contrib/gitian-descriptors/gitian-win.yml
+	./bin/gsign --signer $SIGNER --release ${VERSION}-win-unsigned --destination ../gitian.sigs/ ../kriss/contrib/gitian-descriptors/gitian-win.yml
+	mv build/out/kriss-*-win-unsigned.tar.gz inputs/kriss-win-unsigned.tar.gz
+	mv build/out/kriss-*.zip build/out/kriss-*.exe ../
 
-	./bin/gbuild --commit dash=v${VERSION} ../dash/contrib/gitian-descriptors/gitian-osx.yml
-	./bin/gsign --signer $SIGNER --release ${VERSION}-osx-unsigned --destination ../gitian.sigs/ ../dash/contrib/gitian-descriptors/gitian-osx.yml
-	mv build/out/dash-*-osx-unsigned.tar.gz inputs/dash-osx-unsigned.tar.gz
-	mv build/out/dash-*.tar.gz build/out/dash-*.dmg ../
+	./bin/gbuild --commit kriss=v${VERSION} ../kriss/contrib/gitian-descriptors/gitian-osx.yml
+	./bin/gsign --signer $SIGNER --release ${VERSION}-osx-unsigned --destination ../gitian.sigs/ ../kriss/contrib/gitian-descriptors/gitian-osx.yml
+	mv build/out/kriss-*-osx-unsigned.tar.gz inputs/kriss-osx-unsigned.tar.gz
+	mv build/out/kriss-*.tar.gz build/out/kriss-*.dmg ../
 	popd
 
   Build output expected:
 
-  1. source tarball (dash-${VERSION}.tar.gz)
-  2. linux 32-bit and 64-bit dist tarballs (dash-${VERSION}-linux[32|64].tar.gz)
-  3. windows 32-bit and 64-bit unsigned installers and dist zips (dash-${VERSION}-win[32|64]-setup-unsigned.exe, dash-${VERSION}-win[32|64].zip)
-  4. OS X unsigned installer and dist tarball (dash-${VERSION}-osx-unsigned.dmg, dash-${VERSION}-osx64.tar.gz)
+  1. source tarball (kriss-${VERSION}.tar.gz)
+  2. linux 32-bit and 64-bit dist tarballs (kriss-${VERSION}-linux[32|64].tar.gz)
+  3. windows 32-bit and 64-bit unsigned installers and dist zips (kriss-${VERSION}-win[32|64]-setup-unsigned.exe, kriss-${VERSION}-win[32|64].zip)
+  4. OS X unsigned installer and dist tarball (kriss-${VERSION}-osx-unsigned.dmg, kriss-${VERSION}-osx64.tar.gz)
   5. Gitian signatures (in gitian.sigs/${VERSION}-<linux|{win,osx}-unsigned>/(your Gitian key)/
 
 ### Verify other gitian builders signatures to your own. (Optional)
 
   Add other gitian builders keys to your gpg keyring
 
-	gpg --import ../dash/contrib/gitian-downloader/*.pgp
+	gpg --import ../kriss/contrib/gitian-downloader/*.pgp
 
   Verify the signatures
 
-	./bin/gverify -v -d ../gitian.sigs/ -r ${VERSION}-linux ../dash/contrib/gitian-descriptors/gitian-linux.yml
-	./bin/gverify -v -d ../gitian.sigs/ -r ${VERSION}-win-unsigned ../dash/contrib/gitian-descriptors/gitian-win.yml
-	./bin/gverify -v -d ../gitian.sigs/ -r ${VERSION}-osx-unsigned ../dash/contrib/gitian-descriptors/gitian-osx.yml
+	./bin/gverify -v -d ../gitian.sigs/ -r ${VERSION}-linux ../kriss/contrib/gitian-descriptors/gitian-linux.yml
+	./bin/gverify -v -d ../gitian.sigs/ -r ${VERSION}-win-unsigned ../kriss/contrib/gitian-descriptors/gitian-win.yml
+	./bin/gverify -v -d ../gitian.sigs/ -r ${VERSION}-osx-unsigned ../kriss/contrib/gitian-descriptors/gitian-osx.yml
 
 	popd
 
@@ -139,25 +139,25 @@ Commit your signature to gitian.sigs:
 
   Wait for Windows/OS X detached signatures:
 	Once the Windows/OS X builds each have 3 matching signatures, they will be signed with their respective release keys.
-	Detached signatures will then be committed to the [dash-detached-sigs](https://github.com/dashpay/dash-detached-sigs) repository, which can be combined with the unsigned apps to create signed binaries.
+	Detached signatures will then be committed to the [kriss-detached-sigs](https://github.com/krisscore/kriss-detached-sigs) repository, which can be combined with the unsigned apps to create signed binaries.
 
   Create (and optionally verify) the signed OS X binary:
 
 	pushd ./gitian-builder
-	./bin/gbuild -i --commit signature=v${VERSION} ../dash/contrib/gitian-descriptors/gitian-osx-signer.yml
-	./bin/gsign --signer $SIGNER --release ${VERSION}-osx-signed --destination ../gitian.sigs/ ../dash/contrib/gitian-descriptors/gitian-osx-signer.yml
-	./bin/gverify -v -d ../gitian.sigs/ -r ${VERSION}-osx-signed ../dash/contrib/gitian-descriptors/gitian-osx-signer.yml
-	mv build/out/dash-osx-signed.dmg ../dash-${VERSION}-osx.dmg
+	./bin/gbuild -i --commit signature=v${VERSION} ../kriss/contrib/gitian-descriptors/gitian-osx-signer.yml
+	./bin/gsign --signer $SIGNER --release ${VERSION}-osx-signed --destination ../gitian.sigs/ ../kriss/contrib/gitian-descriptors/gitian-osx-signer.yml
+	./bin/gverify -v -d ../gitian.sigs/ -r ${VERSION}-osx-signed ../kriss/contrib/gitian-descriptors/gitian-osx-signer.yml
+	mv build/out/kriss-osx-signed.dmg ../kriss-${VERSION}-osx.dmg
 	popd
 
   Create (and optionally verify) the signed Windows binaries:
 
 	pushd ./gitian-builder
-	./bin/gbuild -i --commit signature=v${VERSION} ../dash/contrib/gitian-descriptors/gitian-win-signer.yml
-	./bin/gsign --signer $SIGNER --release ${VERSION}-win-signed --destination ../gitian.sigs/ ../dash/contrib/gitian-descriptors/gitian-win-signer.yml
-	./bin/gverify -v -d ../gitian.sigs/ -r ${VERSION}-win-signed ../dash/contrib/gitian-descriptors/gitian-win-signer.yml
-	mv build/out/dash-*win64-setup.exe ../dash-${VERSION}-win64-setup.exe
-	mv build/out/dash-*win32-setup.exe ../dash-${VERSION}-win32-setup.exe
+	./bin/gbuild -i --commit signature=v${VERSION} ../kriss/contrib/gitian-descriptors/gitian-win-signer.yml
+	./bin/gsign --signer $SIGNER --release ${VERSION}-win-signed --destination ../gitian.sigs/ ../kriss/contrib/gitian-descriptors/gitian-win-signer.yml
+	./bin/gverify -v -d ../gitian.sigs/ -r ${VERSION}-win-signed ../kriss/contrib/gitian-descriptors/gitian-win-signer.yml
+	mv build/out/kriss-*win64-setup.exe ../kriss-${VERSION}-win64-setup.exe
+	mv build/out/kriss-*win32-setup.exe ../kriss-${VERSION}-win32-setup.exe
 	popd
 
 Commit your signature for the signed OS X/Windows binaries:
@@ -182,21 +182,21 @@ rm SHA256SUMS
 (the digest algorithm is forced to sha256 to avoid confusion of the `Hash:` header that GPG adds with the SHA256 used for the files)
 Note: check that SHA256SUMS itself doesn't end up in SHA256SUMS, which is a spurious/nonsensical entry.
 
-- Upload zips and installers, as well as `SHA256SUMS.asc` from last step, to the dash.org server
+- Upload zips and installers, as well as `SHA256SUMS.asc` from last step, to the kriss.org server
 
-- Update dash.org
+- Update kriss.org
 
 - Announce the release:
 
-  - Release on Dash forum: https://www.dash.org/forum/topic/official-announcements.54/
+  - Release on Kriss forum: https://www.kriss.org/forum/topic/official-announcements.54/
 
-  - Dash-development mailing list
+  - Kriss-development mailing list
 
-  - Update title of #dashpay on Freenode IRC
+  - Update title of #krisscore on Freenode IRC
 
-  - Optionally reddit /r/Dashpay, ... but this will usually sort out itself
+  - Optionally reddit /r/Krisscore, ... but this will usually sort out itself
 
-- Notify flare so that he can start building [the PPAs](https://launchpad.net/~dash.org/+archive/ubuntu/dash)
+- Notify flare so that he can start building [the PPAs](https://launchpad.net/~kriss.org/+archive/ubuntu/kriss)
 
 - Add release notes for the new version to the directory `doc/release-notes` in git master
 
