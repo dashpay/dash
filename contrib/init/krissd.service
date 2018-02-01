@@ -1,0 +1,22 @@
+[Unit]
+Description=Kriss's distributed currency daemon
+After=network.target
+
+[Service]
+User=krisscore
+Group=krisscore
+
+Type=forking
+PIDFile=/var/lib/krissd/krissd.pid
+ExecStart=/usr/bin/krissd -daemon -pid=/var/lib/krissd/krissd.pid \
+-conf=/etc/krisscore/kriss.conf -datadir=/var/lib/krissd -disablewallet
+
+Restart=always
+PrivateTmp=true
+TimeoutStopSec=60s
+TimeoutStartSec=2s
+StartLimitInterval=120s
+StartLimitBurst=5
+
+[Install]
+WantedBy=multi-user.target

@@ -1,0 +1,6 @@
+usr/local/bin/kriss-qt usr/bin
+share/pixmaps/kriss32.xpm usr/share/pixmaps
+share/pixmaps/kriss16.xpm usr/share/pixmaps
+share/pixmaps/kriss128.png usr/share/pixmaps
+debian/kriss-qt.desktop usr/share/applications
+debian/kriss-qt.protocol usr/share/kde4/services/
