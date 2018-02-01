@@ -255,7 +255,7 @@ UniValue masternode(const JSONRPCRequest& request)
         UniValue statusObj(UniValue::VOBJ);
         statusObj.push_back(Pair("alias", strAlias));
 
-        for (auto mne : masternodeConfig.getEntries()) {
+        for (const auto& mne : masternodeConfig.getEntries()) {
             if(mne.getAlias() == strAlias) {
                 fFound = true;
                 std::string strError;
@@ -300,7 +300,7 @@ UniValue masternode(const JSONRPCRequest& request)
 
         UniValue resultsObj(UniValue::VOBJ);
 
-        for (auto mne : masternodeConfig.getEntries()) {
+        for (const auto& mne : masternodeConfig.getEntries()) {
             std::string strError;
 
             COutPoint outpoint = COutPoint(uint256S(mne.getTxHash()), uint32_t(atoi(mne.getOutputIndex().c_str())));
@@ -350,7 +350,7 @@ UniValue masternode(const JSONRPCRequest& request)
     {
         UniValue resultObj(UniValue::VOBJ);
 
-        for (auto mne : masternodeConfig.getEntries()) {
+        for (const auto& mne : masternodeConfig.getEntries()) {
             COutPoint outpoint = COutPoint(uint256S(mne.getTxHash()), uint32_t(atoi(mne.getOutputIndex().c_str())));
             CMasternode mn;
             bool fFound = mnodeman.Get(outpoint, mn);
@@ -377,7 +377,7 @@ UniValue masternode(const JSONRPCRequest& request)
         pwalletMain->AvailableCoins(vPossibleCoins, true, NULL, false, ONLY_1000);
 
         UniValue obj(UniValue::VOBJ);
-        for (auto& out : vPossibleCoins) {
+        for (const auto& out : vPossibleCoins) {
             obj.push_back(Pair(out.tx->GetHash().ToString(), strprintf("%d", out.i)));
         }
 
@@ -498,14 +498,14 @@ UniValue masternodelist(const JSONRPCRequest& request)
     if (strMode == "rank") {
         CMasternodeMan::rank_pair_vec_t vMasternodeRanks;
         mnodeman.GetMasternodeRanks(vMasternodeRanks);
-        for (auto& rankpair : vMasternodeRanks) {
+        for (const auto& rankpair : vMasternodeRanks) {
             std::string strOutpoint = rankpair.second.vin.prevout.ToStringShort();
             if (strFilter !="" && strOutpoint.find(strFilter) == std::string::npos) continue;
             obj.push_back(Pair(strOutpoint, rankpair.first));
         }
     } else {
         std::map<COutPoint, CMasternode> mapMasternodes = mnodeman.GetFullMasternodeMap();
-        for (auto& mnpair : mapMasternodes) {
+        for (const auto& mnpair : mapMasternodes) {
             CMasternode mn = mnpair.second;
             std::string strOutpoint = mnpair.first.ToStringShort();
             if (strMode == "activeseconds") {
@@ -645,7 +645,7 @@ UniValue masternodebroadcast(const JSONRPCRequest& request)
 
         statusObj.push_back(Pair("alias", strAlias));
 
-        for (auto mne : masternodeConfig.getEntries()) {
+        for (const auto& mne : masternodeConfig.getEntries()) {
             if(mne.getAlias() == strAlias) {
                 fFound = true;
                 std::string strError;
@@ -695,7 +695,7 @@ UniValue masternodebroadcast(const JSONRPCRequest& request)
         UniValue resultsObj(UniValue::VOBJ);
         std::vector<CMasternodeBroadcast> vecMnb;
 
-        for (auto mne : masternodeConfig.getEntries()) {
+        for (const auto& mne : masternodeConfig.getEntries()) {
             std::string strError;
             CMasternodeBroadcast mnb;
 
@@ -742,7 +742,7 @@ UniValue masternodebroadcast(const JSONRPCRequest& request)
         int nDos = 0;
         UniValue returnObj(UniValue::VOBJ);
 
-        for (auto& mnb : vecMnb) {
+        for (const auto& mnb : vecMnb) {
             UniValue resultObj(UniValue::VOBJ);
 
             if(mnb.CheckSignature(nDos)) {
@@ -795,7 +795,7 @@ UniValue masternodebroadcast(const JSONRPCRequest& request)
         UniValue returnObj(UniValue::VOBJ);
 
         // verify all signatures first, bailout if any of them broken
-        for (auto& mnb : vecMnb) {
+        for (const auto& mnb : vecMnb) {
             UniValue resultObj(UniValue::VOBJ);
 
             resultObj.push_back(Pair("outpoint", mnb.vin.prevout.ToStringShort()));

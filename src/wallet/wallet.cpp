@@ -85,7 +85,7 @@ std::string COutput::ToString() const
 
 int COutput::Priority() const
 {
-    for (auto d : CPrivateSend::GetStandardDenominations())
+    for (const auto& d : CPrivateSend::GetStandardDenominations())
         if(tx->tx->vout[i].nValue == d) return 10000;
     if(tx->tx->vout[i].nValue < 1*COIN) return 20000;
 
@@ -1467,7 +1467,7 @@ int CWallet::GetRealOutpointPrivateSendRounds(const COutPoint& outpoint, int nRo
         }
 
         bool fAllDenoms = true;
-        for (auto out : wtx->tx->vout) {
+        for (const auto& out : wtx->tx->vout) {
             fAllDenoms = fAllDenoms && CPrivateSend::IsDenominatedAmount(out.nValue);
         }
 
@@ -1481,7 +1481,7 @@ int CWallet::GetRealOutpointPrivateSendRounds(const COutPoint& outpoint, int nRo
         int nShortest = -10; // an initial value, should be no way to get this by calculations
         bool fDenomFound = false;
         // only denoms here so let's look up
-        for (auto txinNext : wtx->tx->vin) {
+        for (const auto& txinNext : wtx->tx->vin) {
             if (IsMine(txinNext)) {
                 int n = GetRealOutpointPrivateSendRounds(txinNext.prevout, nRounds + 1);
                 // denom found, find the shortest chain or initially assign nShortest with the first found value
@@ -2344,7 +2344,7 @@ CAmount CWallet::GetAnonymizableBalance(bool fSkipDenominated, bool fSkipUnconfi
 
     const CAmount nSmallestDenom = CPrivateSend::GetSmallestDenomination();
     const CAmount nMixingCollateral = CPrivateSend::GetCollateralAmount();
-    for (auto item : vecTally) {
+    for (const auto& item : vecTally) {
         bool fIsDenominated = CPrivateSend::IsDenominatedAmount(item.nAmount);
         if(fSkipDenominated && fIsDenominated) continue;
         // assume that the fee to create denoms should be mixing collateral at max
@@ -2364,7 +2364,7 @@ CAmount CWallet::GetAnonymizedBalance() const
     LOCK2(cs_main, cs_wallet);
 
     std::set<uint256> setWalletTxesCounted;
-    for (auto& outpoint : setWalletUTXO) {
+    for (const auto& outpoint : setWalletUTXO) {
 
         if (setWalletTxesCounted.find(outpoint.hash) != setWalletTxesCounted.end()) continue;
         setWalletTxesCounted.insert(outpoint.hash);
@@ -2388,7 +2388,7 @@ float CWallet::GetAverageAnonymizedRounds() const
     int nCount = 0;
 
     LOCK2(cs_main, cs_wallet);
-    for (auto& outpoint : setWalletUTXO) {
+    for (const auto& outpoint : setWalletUTXO) {
         if(!IsDenominated(outpoint)) continue;
 
         nTotal += GetOutpointPrivateSendRounds(outpoint);
@@ -2409,7 +2409,7 @@ CAmount CWallet::GetNormalizedAnonymizedBalance() const
     CAmount nTotal = 0;
 
     LOCK2(cs_main, cs_wallet);
-    for (auto& outpoint : setWalletUTXO) {
+    for (const auto& outpoint : setWalletUTXO) {
         map<uint256, CWalletTx>::const_iterator it = mapWallet.find(outpoint.hash);
         if (it == mapWallet.end()) continue;
         if (!IsDenominated(outpoint)) continue;
@@ -2660,7 +2660,7 @@ bool less_then_denom (const COutput& out1, const COutput& out2)
 
     bool found1 = false;
     bool found2 = false;
-    for (auto d : CPrivateSend::GetStandardDenominations()) // loop through predefined denoms
+    for (const auto& d : CPrivateSend::GetStandardDenominations()) // loop through predefined denoms
     {
         if(pcoin1->tx->vout[out1.i].nValue == d) found1 = true;
         if(pcoin2->tx->vout[out2.i].nValue == d) found2 = true;
@@ -2829,7 +2829,7 @@ bool CWallet::SelectCoins(const vector<COutput>& vAvailableCoins, const CAmount&
         std::vector<CAmount> vecPrivateSendDenominations = CPrivateSend::GetStandardDenominations();
         CAmount nSmallestDenom = vecPrivateSendDenominations.back();
         // Make outputs by looping through denominations, from large to small
-        for (auto nDenom : vecPrivateSendDenominations)
+        for (const auto& nDenom : vecPrivateSendDenominations)
         {
             for (const auto& out : vCoins)
             {
@@ -3001,7 +3001,7 @@ bool CWallet::SelectCoinsByDenominations(int nDenom, CAmount nValueMin, CAmount 
             if(nRounds >= nPrivateSendRoundsMax) continue;
             if(nRounds < nPrivateSendRoundsMin) continue;
 
-            for (auto nBit : vecBits) {
+            for (const auto& nBit : vecBits) {
                 if(out.tx->tx->vout[out.i].nValue == vecPrivateSendDenominations[nBit]) {
                     if(nValueRet >= nValueMin) {
                         //randomly reduce the max amount we'll submit (for anonymity)
@@ -3056,7 +3056,7 @@ bool CWallet::SelectCoinsGrouppedByAddresses(std::vector<CompactTallyItem>& vecT
     // Tally
     map<CTxDestination, CompactTallyItem> mapTally;
     std::set<uint256> setWalletTxesCounted;
-    for (auto& outpoint : setWalletUTXO) {
+    for (const auto& outpoint : setWalletUTXO) {
 
         if (setWalletTxesCounted.find(outpoint.hash) != setWalletTxesCounted.end()) continue;
         setWalletTxesCounted.insert(outpoint.hash);
@@ -3122,7 +3122,7 @@ bool CWallet::SelectCoinsGrouppedByAddresses(std::vector<CompactTallyItem>& vecT
     // debug
     if (LogAcceptCategory("selectcoins")) {
         std::string strMessage = "SelectCoinsGrouppedByAddresses - vecTallyRet:\n";
-        for (auto& item : vecTallyRet)
+        for (const auto& item : vecTallyRet)
             strMessage += strprintf("  %s %f\n", CBitcoinAddress(item.txdest).ToString().c_str(), float(item.nAmount)/COIN);
         LogPrint("selectcoins", "%s", strMessage);
     }
@@ -3205,7 +3205,7 @@ bool CWallet::GetMasternodeOutpointAndKeys(COutPoint& outpointRet, CPubKey& pubK
     uint256 txHash = uint256S(strTxHash);
     int nOutputIndex = atoi(strOutputIndex.c_str());
 
-    for (auto& out : vPossibleCoins)
+    for (const auto& out : vPossibleCoins)
         if(out.tx->GetHash() == txHash && out.i == nOutputIndex) // found it!
             return GetOutpointAndKeysFromOutput(out, outpointRet, pubKeyRet, keyRet);
 
@@ -3350,7 +3350,7 @@ bool CWallet::GetBudgetSystemCollateralTX(CWalletTx& tx, uint256 hash, CAmount a
 
 bool CWallet::ConvertList(std::vector<CTxIn> vecTxIn, std::vector<CAmount>& vecAmounts)
 {
-    for (auto txin : vecTxIn) {
+    for (const auto& txin : vecTxIn) {
         if (mapWallet.count(txin.prevout.hash)) {
             CWalletTx& wtx = mapWallet[txin.prevout.hash];
             if(txin.prevout.n < wtx.tx->vout.size()){

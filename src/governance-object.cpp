@@ -540,7 +540,7 @@ bool CGovernanceObject::IsCollateralValid(std::string& strError, bool& fMissingC
 
 
     bool foundOpReturn = false;
-    for (const auto output : txCollateral->vout) {
+    for (const auto& output : txCollateral->vout) {
         DBG( cout << "IsCollateralValid txout : " << output.ToString()
              << ", output.nValue = " << output.nValue
              << ", output.scriptPubKey = " << ScriptToAsmStr( output.scriptPubKey, false )

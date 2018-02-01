@@ -187,7 +187,7 @@ bool CPrivateSend::IsCollateralValid(const CTransaction& txCollateral)
     CAmount nValueIn = 0;
     CAmount nValueOut = 0;
 
-    for (const auto txout : txCollateral.vout) {
+    for (const auto& txout : txCollateral.vout) {
         nValueOut += txout.nValue;
 
         if(!txout.scriptPubKey.IsPayToPublicKeyHash()) {
@@ -196,7 +196,7 @@ bool CPrivateSend::IsCollateralValid(const CTransaction& txCollateral)
         }
     }
 
-    for (const auto txin : txCollateral.vin) {
+    for (const auto& txin : txCollateral.vin) {
         Coin coin;
         if(!GetUTXOCoin(txin.prevout, coin)) {
             LogPrint("privatesend", "CPrivateSend::IsCollateralValid -- Unknown inputs in collateral transaction, txCollateral=%s", txCollateral.ToString());
@@ -279,11 +279,11 @@ int CPrivateSend::GetDenominations(const std::vector<CTxOut>& vecTxOut, bool fSi
     std::vector<std::pair<CAmount, int> > vecDenomUsed;
 
     // make a list of denominations, with zero uses
-    for (auto nDenomValue : vecStandardDenominations)
+    for (const auto& nDenomValue : vecStandardDenominations)
         vecDenomUsed.push_back(std::make_pair(nDenomValue, 0));
 
     // look for denominations and update uses to 1
-    for (auto txout : vecTxOut) {
+    for (const auto& txout : vecTxOut) {
         bool found = false;
         for (auto& s : vecDenomUsed) {
             if(txout.nValue == s.first) {
@@ -297,7 +297,7 @@ int CPrivateSend::GetDenominations(const std::vector<CTxOut>& vecTxOut, bool fSi
     int nDenom = 0;
     int c = 0;
     // if the denomination is used, shift the bit on
-    for (auto& s : vecDenomUsed) {
+    for (const auto& s : vecDenomUsed) {
         int bit = (fSingleRandomDenom ? GetRandInt(2) : 1) & s.second;
         nDenom |= bit << c++;
         if(fSingleRandomDenom && bit) break; // use just one random denomination

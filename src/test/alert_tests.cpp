@@ -207,7 +207,7 @@ BOOST_AUTO_TEST_CASE(AlertNotify)
 
     ForceSetArg("-alertnotify", std::string("echo %s >> ") + temp.string());
 
-    for (auto alert : alerts)
+    for (const auto& alert : alerts)
         alert.ProcessAlert(alertKey, false);
 
     std::vector<std::string> r = read_lines(temp);

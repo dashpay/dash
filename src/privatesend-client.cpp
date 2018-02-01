@@ -38,7 +38,7 @@ void CPrivateSendClient::ProcessMessage(CNode* pfrom, const std::string& strComm
         vRecv >> dsq;
 
         // process every dsq only once
-        for (auto q : vecDarksendQueue) {
+        for (const auto& q : vecDarksendQueue) {
             if(q == dsq) {
                 // LogPrint("privatesend", "DSQUEUE -- %s seen\n", dsq.ToString());
                 return;
@@ -71,7 +71,7 @@ void CPrivateSendClient::ProcessMessage(CNode* pfrom, const std::string& strComm
                 SubmitDenominate(connman);
             }
         } else {
-            for (auto q : vecDarksendQueue) {
+            for (const auto& q : vecDarksendQueue) {
                 if(q.vin == dsq.vin) {
                     // no way same mn can send another "not yet ready" dsq this soon
                     LogPrint("privatesend", "DSQUEUE -- Masternode %s is sending WAY too many dsq messages\n", infoMn.addr.ToString());
@@ -230,7 +230,7 @@ void CPrivateSendClient::UnlockCoins()
     while(true) {
         TRY_LOCK(pwalletMain->cs_wallet, lockWallet);
         if(!lockWallet) {MilliSleep(50); continue;}
-        BOOST_FOREACH(COutPoint outpoint, vecOutPointLocked)
+        for (const auto& outpoint : vecOutPointLocked)
             pwalletMain->UnlockCoin(outpoint);
         break;
     }
@@ -373,7 +373,7 @@ bool CPrivateSendClient::SendDenominate(const std::vector<CTxDSIn>& vecTxDSIn, c
     }
 
     // lock the funds we're going to use
-    for (auto txin : txMyCollateral.vin)
+    for (const auto& txin : txMyCollateral.vin)
         vecOutPointLocked.push_back(txin.prevout);
 
     for (const auto& txdsin : vecTxDSIn)
@@ -508,8 +508,8 @@ bool CPrivateSendClient::SignFinalTransaction(const CTransaction& finalTransacti
     std::vector<CTxIn> sigs;
 
     //make sure my inputs/outputs are present, otherwise refuse to sign
-    for (const auto entry : vecEntries) {
-        for (const auto txdsin : entry.vecTxDSIn) {
+    for (const auto& entry : vecEntries) {
+        for (const auto& txdsin : entry.vecTxDSIn) {
             /* Sign my transaction and all outputs */
             int nMyInputIndex = -1;
             CScript prevPubKey = CScript();
@@ -1070,7 +1070,7 @@ bool CPrivateSendClient::PrepareDenominate(int nMinRounds, int nMaxRounds, std::
 
     {
         LOCK(pwalletMain->cs_wallet);
-        for (auto& txin : vecTxDSIn) {
+        for (const auto& txin : vecTxDSIn) {
             pwalletMain->LockCoin(txin.prevout);
         }
     }
@@ -1084,7 +1084,7 @@ bool CPrivateSendClient::PrepareDenominate(int nMinRounds, int nMaxRounds, std::
     int nStepsMax = 5 + GetRandInt(PRIVATESEND_ENTRY_MAX_SIZE-5+1);
 
     while (nStep < nStepsMax) {
-        for (auto nBit : vecBits) {
+        for (const auto& nBit : vecBits) {
             CAmount nValueDenom = vecStandardDenoms[nBit];
             if (nValueLeft - nValueDenom < 0) continue;
 
@@ -1123,7 +1123,7 @@ bool CPrivateSendClient::PrepareDenominate(int nMinRounds, int nMaxRounds, std::
     {
         // unlock unused coins
         LOCK(pwalletMain->cs_wallet);
-        for (auto& txin : vecTxDSIn) {
+        for (const auto& txin : vecTxDSIn) {
             pwalletMain->UnlockCoin(txin.prevout);
         }
     }
@@ -1131,7 +1131,7 @@ bool CPrivateSendClient::PrepareDenominate(int nMinRounds, int nMaxRounds, std::
     if (CPrivateSend::GetDenominations(vecTxOutRet) != nSessionDenom) {
         // unlock used coins on failure
         LOCK(pwalletMain->cs_wallet);
-        for (auto& txin : vecTxDSInRet) {
+        for (const auto& txin : vecTxDSInRet) {
             pwalletMain->UnlockCoin(txin.prevout);
         }
         keyHolderStorage.ReturnAll();
@@ -1153,13 +1153,13 @@ bool CPrivateSendClient::MakeCollateralAmounts(CConnman& connman)
     }
 
     // First try to use only non-denominated funds
-    for (auto& item : vecTally) {
+    for (const auto& item : vecTally) {
         if(!MakeCollateralAmounts(item, false, connman)) continue;
         return true;
     }
 
     // There should be at least some denominated funds we should be able to break in pieces to continue mixing
-    for (auto& item : vecTally) {
+    for (const auto& item : vecTally) {
         if(!MakeCollateralAmounts(item, true, connman)) continue;
         return true;
     }
@@ -1254,7 +1254,7 @@ bool CPrivateSendClient::CreateDenominated(CConnman& connman)
 
     bool fCreateMixingCollaterals = !pwalletMain->HasCollateralInputs();
 
-    for (auto& item : vecTally) {
+    for (const auto& item : vecTally) {
         if(!CreateDenominated(item, fCreateMixingCollaterals, connman)) continue;
         return true;
     }

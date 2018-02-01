@@ -49,7 +49,7 @@ void CUnsignedAlert::SetNull()
 std::string CUnsignedAlert::ToString() const
 {
     std::string strSetCancel;
-    for (auto n : setCancel)
+    for (const auto& n : setCancel)
         strSetCancel += strprintf("%d ", n);
     std::string strSetSubVer;
     for (const auto& str : setSubVer)
@@ -191,7 +191,7 @@ CAlert CAlert::getAlertByHash(const uint256 &hash)
     return retval;
 }
 
-bool CAlert::ProcessAlert(const std::vector<unsigned char>& alertKey, bool fThread)
+bool CAlert::ProcessAlert(const std::vector<unsigned char>& alertKey, bool fThread) const
 {
     if (!CheckSignature(alertKey))
         return false;
@@ -243,7 +243,7 @@ bool CAlert::ProcessAlert(const std::vector<unsigned char>& alertKey, bool fThre
         }
 
         // Check if this alert has been cancelled
-        for (auto& item : mapAlerts)
+        for (const auto& item : mapAlerts)
         {
             const CAlert& alert = item.second;
             if (alert.Cancels(*this))

@@ -292,7 +292,7 @@ bool CSuperblockManager::IsSuperblockTriggered(int nBlockHeight)
 
     DBG( cout << "IsSuperblockTriggered Number triggers = " << vecTriggers.size() << endl; );
 
-    for (auto pSuperblock : vecTriggers)
+    for (const auto& pSuperblock : vecTriggers)
     {
         if(!pSuperblock) {
             LogPrintf("CSuperblockManager::IsSuperblockTriggered -- Non-superblock found, continuing\n");
@@ -352,7 +352,7 @@ bool CSuperblockManager::GetBestSuperblock(CSuperblock_sptr& pSuperblockRet, int
     std::vector<CSuperblock_sptr> vecTriggers = triggerman.GetActiveTriggers();
     int nYesCount = 0;
 
-    for (auto pSuperblock : vecTriggers) {
+    for (const auto& pSuperblock : vecTriggers) {
         if(!pSuperblock) {
             DBG( cout << "GetBestSuperblock Not a superblock, continuing" << endl; );
             continue;
