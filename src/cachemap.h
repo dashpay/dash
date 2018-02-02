@@ -118,7 +118,7 @@ public:
             PruneLast();
         }
         listItems.push_front(item_t(key, value));
-        mapIndex[key] = listItems.begin();
+        mapIndex.emplace(key, listItems.begin());
         ++nCurrentSize;
         return true;
     }
@@ -193,7 +193,7 @@ private:
     {
         mapIndex.clear();
         for(list_it it = listItems.begin(); it != listItems.end(); ++it) {
-            mapIndex[it->key] = it;
+            mapIndex.emplace(it->key, it);
         }
     }
 };

@@ -96,7 +96,7 @@ public:
         }
         map_it mit = mapIndex.find(key);
         if(mit == mapIndex.end()) {
-            mit = mapIndex.insert(std::pair<K,it_map_t>(key, it_map_t())).first;
+            mit = mapIndex.emplace(key, it_map_t()).first;
         }
         it_map_t& mapIt = mit->second;
 
@@ -106,9 +106,7 @@ public:
         }
 
         listItems.push_front(item_t(key, value));
-        list_it lit = listItems.begin();
-
-        mapIt[value] = lit;
+        mapIt.emplace(value, listItems.begin());
         ++nCurrentSize;
         return true;
     }
@@ -251,10 +249,10 @@ private:
             item_t& item = *lit;
             map_it mit = mapIndex.find(item.key);
             if(mit == mapIndex.end()) {
-                mit = mapIndex.insert(std::pair<K,it_map_t>(item.key, it_map_t())).first;
+                mit = mapIndex.emplace(item.key, it_map_t()).first;
             }
             it_map_t& mapIt = mit->second;
-            mapIt[item.value] = lit;
+            mapIt.emplace(item.value, lit);
         }
     }
 };
