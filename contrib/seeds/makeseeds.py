@@ -97,6 +97,11 @@ def filterbyasn(ips, max_per_asn, max_total):
     ips_ipv6 = [ip for ip in ips if ip['net'] == 'ipv6']
     ips_onion = [ip for ip in ips if ip['net'] == 'onion']
 
+    my_resolver = dns.resolver.Resolver()
+
+    # OpenDNS servers
+    my_resolver.nameservers = ['208.67.222.222', '208.67.220.220']
+
     # Filter IPv4 by ASN
     result = []
     asn_count = {}
@@ -104,7 +109,7 @@ def filterbyasn(ips, max_per_asn, max_total):
         if len(result) == max_total:
             break
         try:
-            asn = int([x.to_text() for x in dns.resolver.query('.'.join(reversed(ip['ip'].split('.'))) + '.origin.asn.cymru.com', 'TXT').response.answer][0].split('\"')[1].split(' ')[0])
+            asn = int([x.to_text() for x in my_resolver.query('.'.join(reversed(ip['ip'].split('.'))) + '.origin.asn.cymru.com', 'TXT').response.answer][0].split('\"')[1].split(' ')[0])
             if asn not in asn_count:
                 asn_count[asn] = 0
             if asn_count[asn] == max_per_asn:
