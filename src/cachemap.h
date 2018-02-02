@@ -108,13 +108,11 @@ public:
         return nCurrentSize;
     }
 
-    void Insert(const K& key, const V& value)
+    bool Insert(const K& key, const V& value)
     {
         map_it it = mapIndex.find(key);
         if(it != mapIndex.end()) {
-            item_t& item = *(it->second);
-            item.value = value;
-            return;
+            return false;
         }
         if(nCurrentSize == nMaxSize) {
             PruneLast();
@@ -122,6 +120,7 @@ public:
         listItems.push_front(item_t(key, value));
         mapIndex[key] = listItems.begin();
         ++nCurrentSize;
+        return true;
     }
 
     bool HasKey(const K& key) const

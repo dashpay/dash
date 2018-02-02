@@ -69,6 +69,15 @@ BOOST_AUTO_TEST_CASE(cachemap_test)
     // make sure the map contains the key
     BOOST_CHECK(mapTest1.HasKey(-1) == true);
 
+    // make sure that insert fails to update already existing key
+    BOOST_CHECK(mapTest1.Insert(-1, -2) == false);
+    int nValRet = 0;
+    BOOST_CHECK(mapTest1.Get(-1, nValRet) == true);
+    BOOST_CHECK(nValRet == -1);
+
+    // make sure that the size is still the same
+    BOOST_CHECK(mapTest1.GetSize() == 1);
+
     // add 10 items
     for(int i = 0; i < 10; ++i) {
         mapTest1.Insert(i, i);
