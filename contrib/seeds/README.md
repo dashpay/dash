@@ -5,9 +5,9 @@ Utility to generate the seeds.txt list that is compiled into the client
 
 Be sure to update `MIN_PROTOCOL_VERSION` in `makeseeds.py` to include the current version.
 
-The seeds compiled into the release are created from sipa's DNS seed data, like this:
+The seeds compiled into the release are created from the current masternode list, like this:
 
-    dash-cli masternode list full > mnlist.json
+    dash-cli masternodelist full > mnlist.json
     python3 makeseeds.py < mnlist.json > nodes_main.txt
     python3 generate-seeds.py . > ../../src/chainparamsseeds.h
 
