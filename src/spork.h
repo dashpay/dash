@@ -37,7 +37,7 @@ static const int64_t SPORK_9_SUPERBLOCKS_ENABLED_DEFAULT                = 407090
 static const int64_t SPORK_10_MASTERNODE_PAY_UPDATED_NODES_DEFAULT      = 4070908800ULL;// OFF
 static const int64_t SPORK_12_RECONSIDER_BLOCKS_DEFAULT                 = 0;            // 0 BLOCKS
 static const int64_t SPORK_14_REQUIRE_SENTINEL_FLAG_DEFAULT             = 4070908800ULL;// OF
-static const int64_t SPORK_15_MASTERNODE_LOCK_NUMBER_DEFAULT		= 2000;		// LOCK THE AMMOUNT OF MN ON 2000
+static const int64_t SPORK_15_MASTERNODE_LOCK_NUMBER_DEFAULT		= 5000;		// LOCK THE AMMOUNT OF MN ON 2000
 
 
 extern std::map<uint256, CSporkMessage> mapSporks;

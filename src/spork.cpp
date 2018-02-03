@@ -7,7 +7,7 @@
 #include "messagesigner.h"
 #include "net_processing.h"
 #include "spork.h"
-
+#include "netmessagemaker.h"
 #include <boost/lexical_cast.hpp>
 
 class CSporkMessage;
