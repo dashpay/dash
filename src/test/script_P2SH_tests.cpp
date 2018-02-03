@@ -9,7 +9,7 @@
 #include "script/script.h"
 #include "script/script_error.h"
 #include "script/sign.h"
-#include "test/test_dash.h"
+#include "test/test_vbd.h"
 
 #ifdef ENABLE_WALLET
 #include "wallet/wallet_ismine.h"

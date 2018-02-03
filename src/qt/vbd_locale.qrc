@@ -1,0 +1,20 @@
+<!DOCTYPE RCC><RCC version="1.0">
+    <qresource prefix="/translations">
+        <file alias="bg">locale/vbd_bg.qm</file>
+        <file alias="de">locale/vbd_de.qm</file>
+        <file alias="en">locale/vbd_en.qm</file>
+        <file alias="es">locale/vbd_es.qm</file>
+        <file alias="fi">locale/vbd_fi.qm</file>
+        <file alias="fr">locale/vbd_fr.qm</file>
+        <file alias="it">locale/vbd_it.qm</file>
+        <file alias="ja">locale/vbd_ja.qm</file>
+        <file alias="pl">locale/vbd_pl.qm</file>
+        <file alias="pt">locale/vbd_pt.qm</file>
+        <file alias="ru">locale/vbd_ru.qm</file>
+        <file alias="sk">locale/vbd_sk.qm</file>
+        <file alias="sv">locale/vbd_sv.qm</file>
+        <file alias="vi">locale/vbd_vi.qm</file>
+        <file alias="zh_CN">locale/vbd_zh_CN.qm</file>
+        <file alias="zh_TW">locale/vbd_zh_TW.qm</file>
+    </qresource>
+</RCC>

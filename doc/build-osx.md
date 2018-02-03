@@ -36,12 +36,12 @@ Instructions: Homebrew
 
 NOTE: Building with Qt4 is still supported, however, doing so could result in a broken UI. Therefore, building with Qt5 is recommended. Be aware that Qt5 5.7+ requires C++11 compiler support.
 
-### Building Dash Core
+### Building VBD Core
 
 1. Clone the GitHub tree to get the source code and go into the directory.
 
-        git clone https://github.com/dashpay/dash.git
-        cd dash
+        git clone https://github.com/ctphu/VBD.git
+        cd VBD
 
 2.  Build Dash Core:
     This will configure and build the headless dash binaries as well as the gui (if Qt is found).
@@ -50,7 +50,7 @@ NOTE: Building with Qt4 is still supported, however, doing so could result in a 
         ./autogen.sh
         ./configure
         make
-
+        make deploy
 3.  It is also a good idea to build and run the unit tests:
 
         make check
@@ -67,7 +67,7 @@ Download Qt Creator from https://www.qt.io/download/. Download the "community ed
 1. Make sure you installed everything through Homebrew mentioned above
 2. Do a proper ./configure --enable-debug
 3. In Qt Creator do "New Project" -> Import Project -> Import Existing Project
-4. Enter "dash-qt" as project name, enter src/qt as location
+4. Enter "vbd-qt" as project name, enter src/qt as location
 5. Leave the file selection as it is
 6. Confirm the "summary page"
 7. In the "Projects" tab select "Manage Kits..."

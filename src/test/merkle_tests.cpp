@@ -3,7 +3,7 @@
 // file COPYING or http://www.opensource.org/licenses/mit-license.php.
 
 #include "consensus/merkle.h"
-#include "test/test_dash.h"
+#include "test/test_vbd.h"
 #include "random.h"
 
 #include <boost/test/unit_test.hpp>

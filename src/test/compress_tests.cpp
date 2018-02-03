@@ -4,7 +4,7 @@
 
 #include "compressor.h"
 #include "util.h"
-#include "test/test_dash.h"
+#include "test/test_vbd.h"
 
 #include <stdint.h>
 

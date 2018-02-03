@@ -17,13 +17,13 @@ BEGIN
         BLOCK "040904E4" // U.S. English - multilingual (hex)
         BEGIN
             VALUE "CompanyName",        "Dash"
-            VALUE "FileDescription",    "dash-tx (CLI Dash transaction editor utility)"
+            VALUE "FileDescription",    "vbd-cli (JSON-RPC client for Dash Core)"
             VALUE "FileVersion",        VER_FILEVERSION_STR
-            VALUE "InternalName",       "dash-tx"
+            VALUE "InternalName",       "vbd-cli"
             VALUE "LegalCopyright",     COPYRIGHT_STR
             VALUE "LegalTrademarks1",   "Distributed under the MIT software license, see the accompanying file COPYING or http://www.opensource.org/licenses/mit-license.php."
-            VALUE "OriginalFilename",   "dash-tx.exe"
-            VALUE "ProductName",        "dash-tx"
+            VALUE "OriginalFilename",   "vbd-cli.exe"
+            VALUE "ProductName",        "vbd-cli"
             VALUE "ProductVersion",     VER_PRODUCTVERSION_STR
         END
     END

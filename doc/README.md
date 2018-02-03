@@ -1,3 +1,70 @@
+VBD Core 0.12.2.3
+Build Node Ubuntu 16.4
+
+Run follow it:
+
+sudo apt-get update -y
+
+sudo apt-get install -y libboost-dev libboost-chrono-dev libboost-filesystem-dev libboost-program-options-dev libboost-system-dev libboost-test-dev libboost-thread-dev wget nano bsdmainutils curl libevent-dev automake libdb++-dev build-essential libtool autotools-dev autoconf pkg-config libssl-dev libboost-all-dev libminiupnpc-dev python-virtualenv git software-properties-common python-software-properties g++ virtualenv
+
+sudo add-apt-repository ppa:bitcoin/bitcoin
+
+sudo apt-get update -y
+
+sudo apt-get install libdb4.8-dev libdb4.8++-dev 
+
+sudo apt-get install libqt5gui5 libqt5core5a libqt5dbus5 qttools5-dev qttools5-dev-tools libprotobuf-dev protobuf-compiler 
+
+sudo apt-get upgrade 
+
+adduser vbd
+
+usermod -aG sudo vbd
+
+visudo
+
+# find root ALL=(ALL:ALL) ALL paste the following under neath
+
+vbd ALL=(ALL:ALL) ALL
+
+su vbd
+
+git clone https://github.com/ctphu/VBD
+
+cd VBD
+
+./autogen.sh
+
+./configure
+
+./make
+
+./sudo make install
+
+mkdir ~/.vbdcore
+
+nano ~/.vbdcore/vbd.conf
+
+# Add 6 row below
+
+server=1
+
+listen=1
+
+daemon=1
+
+txindex=1
+
+addnode=45.32.19.62
+
+addnode=104.238.157.165
+
+# Ctrl+X to save it
+
+# Run vbd:
+vbdd
+
+
 Dash Core 0.12.1
 =====================
 
@@ -11,12 +78,12 @@ The following are some helpful notes on how to run Dash on your native platform.
 
 Unpack the files into a directory and run:
 
-- `bin/dash-qt` (GUI) or
+- `bin/vbd-qt` (GUI) or
 - `bin/dashd` (headless)
 
 ### Windows
 
-Unpack the files into a directory, and then run dash-qt.exe.
+Unpack the files into a directory, and then run vbd-qt.exe.
 
 ### OS X
 
