@@ -86,9 +86,6 @@ public:
 
     bool Insert(const K& key, const V& value)
     {
-        if(listItems.size() == nMaxSize) {
-            PruneLast();
-        }
         map_it mit = mapIndex.find(key);
         if(mit == mapIndex.end()) {
             mit = mapIndex.emplace(key, it_map_t()).first;
@@ -100,6 +97,9 @@ public:
             return false;
         }
 
+        if(listItems.size() == nMaxSize) {
+            PruneLast();
+        }
         listItems.push_front(item_t(key, value));
         mapIt.emplace(value, listItems.begin());
         return true;
