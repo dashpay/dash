@@ -105,8 +105,7 @@ public:
 
     bool Insert(const K& key, const V& value)
     {
-        map_it it = mapIndex.find(key);
-        if(it != mapIndex.end()) {
+        if(mapIndex.find(key) != mapIndex.end()) {
             return false;
         }
         if(listItems.size() == nMaxSize) {
@@ -119,8 +118,7 @@ public:
 
     bool HasKey(const K& key) const
     {
-        map_cit it = mapIndex.find(key);
-        return (it != mapIndex.end());
+        return (mapIndex.find(key) != mapIndex.end());
     }
 
     bool Get(const K& key, V& value) const

@@ -107,8 +107,7 @@ public:
 
     bool HasKey(const K& key) const
     {
-        map_cit it = mapIndex.find(key);
-        return (it != mapIndex.end());
+        return (mapIndex.find(key) != mapIndex.end());
     }
 
     bool Get(const K& key, V& value) const
