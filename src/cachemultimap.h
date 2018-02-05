@@ -46,8 +46,6 @@ public:
 private:
     size_type nMaxSize;
 
-    size_type nCurrentSize;
-
     list_t listItems;
 
     map_t mapIndex;
@@ -55,14 +53,12 @@ private:
 public:
     CacheMultiMap(size_type nMaxSizeIn = 0)
         : nMaxSize(nMaxSizeIn),
-          nCurrentSize(0),
           listItems(),
           mapIndex()
     {}
 
     CacheMultiMap(const CacheMap<K,V>& other)
         : nMaxSize(other.nMaxSize),
-          nCurrentSize(other.nCurrentSize),
           listItems(other.listItems),
           mapIndex()
     {
@@ -73,7 +69,6 @@ public:
     {
         mapIndex.clear();
         listItems.clear();
-        nCurrentSize = 0;
     }
 
     void SetMaxSize(size_type nMaxSizeIn)
@@ -86,12 +81,12 @@ public:
     }
 
     size_type GetSize() const {
-        return nCurrentSize;
+        return listItems.size();
     }
 
     bool Insert(const K& key, const V& value)
     {
-        if(nCurrentSize == nMaxSize) {
+        if(listItems.size() == nMaxSize) {
             PruneLast();
         }
         map_it mit = mapIndex.find(key);
@@ -107,7 +102,6 @@ public:
 
         listItems.push_front(item_t(key, value));
         mapIt.emplace(value, listItems.begin());
-        ++nCurrentSize;
         return true;
     }
 
@@ -161,7 +155,6 @@ public:
 
         for(it_map_it it = mapIt.begin(); it != mapIt.end(); ++it) {
             listItems.erase(it->second);
-            --nCurrentSize;
         }
 
         mapIndex.erase(mit);
@@ -181,10 +174,9 @@ public:
         }
 
         listItems.erase(it->second);
-        --nCurrentSize;
         mapIt.erase(it);
 
-        if(mapIt.size() < 1) {
+        if(mapIt.empty()) {
             mapIndex.erase(mit);
         }
     }
@@ -196,7 +188,6 @@ public:
     CacheMap<K,V>& operator=(const CacheMap<K,V>& other)
     {
         nMaxSize = other.nMaxSize;
-        nCurrentSize = other.nCurrentSize;
         listItems = other.listItems;
         RebuildIndex();
         return *this;
@@ -208,7 +199,6 @@ public:
     inline void SerializationOp(Stream& s, Operation ser_action)
     {
         READWRITE(nMaxSize);
-        READWRITE(nCurrentSize);
         READWRITE(listItems);
         if(ser_action.ForRead()) {
             RebuildIndex();
@@ -218,7 +208,7 @@ public:
 private:
     void PruneLast()
     {
-        if(nCurrentSize < 1) {
+        if(listItems.empty()) {
             return;
         }
 
@@ -233,13 +223,12 @@ private:
 
             mapIt.erase(item.value);
 
-            if(mapIt.size() < 1) {
+            if(mapIt.empty()) {
                 mapIndex.erase(item.key);
             }
         }
 
         listItems.pop_back();
-        --nCurrentSize;
     }
 
     void RebuildIndex()
