@@ -185,28 +185,18 @@ UniValue masternode(const JSONRPCRequest& request)
         if (request.params.size() > 2)
             throw JSONRPCError(RPC_INVALID_PARAMETER, "Too many parameters");
 
-        if (request.params.size() == 1)
-            return mnodeman.size();
-
-        std::string strMode = request.params[1].get_str();
-
-        if (strMode == "ps")
-            return mnodeman.CountEnabled(MIN_PRIVATESEND_PEER_PROTO_VERSION);
-
-        if (strMode == "enabled")
-            return mnodeman.CountEnabled();
-
         int nCount;
         masternode_info_t mnInfo;
         mnodeman.GetNextMasternodeInQueueForPayment(true, nCount, mnInfo);
 
-        if (strMode == "qualify")
-            return nCount;
+        UniValue obj(UniValue::VOBJ);
 
-        if (strMode == "all")
-            return strprintf("Total: %d (PS Compatible: %d / Enabled: %d / Qualify: %d)",
-                mnodeman.size(), mnodeman.CountEnabled(MIN_PRIVATESEND_PEER_PROTO_VERSION),
-                mnodeman.CountEnabled(), nCount);
+        obj.push_back(Pair("total", mnodeman.size()));
+        obj.push_back(Pair("ps_compatible", mnodeman.CountEnabled(MIN_PRIVATESEND_PEER_PROTO_VERSION)));
+        obj.push_back(Pair("enabled", mnodeman.CountEnabled()));
+        obj.push_back(Pair("qualify", nCount));
+
+        return obj;
     }
 
     if (strCommand == "current" || strCommand == "winner")
