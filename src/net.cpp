@@ -912,7 +912,7 @@ static bool ReverseCompareNodeTimeConnected(const NodeEvictionCandidate& a, cons
 
 static bool CompareNetGroupKeyed(const NodeEvictionCandidate &a, const NodeEvictionCandidate &b) {
     return a.nKeyedNetGroup < b.nKeyedNetGroup;
-};
+}
 
 static bool CompareNodeBlockTime(const NodeEvictionCandidate &a, const NodeEvictionCandidate &b)
 {
