@@ -346,7 +346,7 @@ void CPrivateSendClient::CheckTimeout()
     bool fTimeout = GetTimeMillis() - nTimeLastSuccessfulStep >= nTimeout*1000 + nLagTime;
 
     if(nState != POOL_STATE_IDLE && fTimeout) {
-        LogPrint("privatesend", "CPrivateSendClient::CheckTimeout -- %s timed out (%ds) -- restting\n",
+        LogPrint("privatesend", "CPrivateSendClient::CheckTimeout -- %s timed out (%ds) -- resetting\n",
                 (nState == POOL_STATE_SIGNING) ? "Signing" : "Session", nTimeout);
         UnlockCoins();
         keyHolderStorage.ReturnAll();
@@ -1096,7 +1096,7 @@ bool CPrivateSendClient::PrepareDenominate(int nMinRounds, int nMaxRounds, std::
                 if ((*it2).tx->tx->vout[(*it2).i].nValue == nValueDenom) {
                     // add new input in resulting vector
                     vecTxDSInRet.push_back(*it);
-                    // remove corresponting items from initial vectors
+                    // remove corresponding items from initial vectors
                     vecTxDSIn.erase(it);
                     vCoins.erase(it2);
 
