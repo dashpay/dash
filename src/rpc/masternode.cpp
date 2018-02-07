@@ -189,14 +189,38 @@ UniValue masternode(const JSONRPCRequest& request)
         masternode_info_t mnInfo;
         mnodeman.GetNextMasternodeInQueueForPayment(true, nCount, mnInfo);
 
-        UniValue obj(UniValue::VOBJ);
+        int total = mnodeman.size();
+        int ps = mnodeman.CountEnabled(MIN_PRIVATESEND_PEER_PROTO_VERSION);
+        int enabled = mnodeman.CountEnabled();
 
-        obj.push_back(Pair("total", mnodeman.size()));
-        obj.push_back(Pair("ps_compatible", mnodeman.CountEnabled(MIN_PRIVATESEND_PEER_PROTO_VERSION)));
-        obj.push_back(Pair("enabled", mnodeman.CountEnabled()));
-        obj.push_back(Pair("qualify", nCount));
+        if (request.params.size() == 1) {
+            UniValue obj(UniValue::VOBJ);
 
-        return obj;
+            obj.push_back(Pair("total", total));
+            obj.push_back(Pair("ps_compatible", ps));
+            obj.push_back(Pair("enabled", enabled));
+            obj.push_back(Pair("qualify", nCount));
+
+            return obj;
+        }
+
+        std::string strMode = request.params[1].get_str();
+
+        if (strMode == "total")
+            return total;
+
+        if (strMode == "ps")
+            return ps;
+
+        if (strMode == "enabled")
+            return enabled;
+
+        if (strMode == "qualify")
+            return nCount;
+
+        if (strMode == "all")
+            return strprintf("Total: %d (PS Compatible: %d / Enabled: %d / Qualify: %d)",
+                total, ps, enabled, nCount);
     }
 
     if (strCommand == "current" || strCommand == "winner")
