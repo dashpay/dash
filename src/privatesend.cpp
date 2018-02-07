@@ -156,8 +156,8 @@ void CPrivateSend::InitStandardDenominations()
     vecStandardDenominations.clear();
     /* Denominations
 
-        A note about convertability. Within mixing pools, each denomination
-        is convertable to another.
+        A note about convertibility. Within mixing pools, each denomination
+        is convertible to another.
 
         For example:
         1DRK+1000 == (.1DRK+100)*10
