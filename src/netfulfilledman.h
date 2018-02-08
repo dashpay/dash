@@ -5,8 +5,7 @@
 #ifndef NETFULFILLEDMAN_H
 #define NETFULFILLEDMAN_H
 
-#include "netbase.h"
-#include "protocol.h"
+#include "netaddress.h"
 #include "serialize.h"
 #include "sync.h"
 
@@ -36,9 +35,9 @@ public:
         READWRITE(mapFulfilledRequests);
     }
 
-    void AddFulfilledRequest(CAddress addr, std::string strRequest); // expire after 1 hour by default
-    bool HasFulfilledRequest(CAddress addr, std::string strRequest);
-    void RemoveFulfilledRequest(CAddress addr, std::string strRequest);
+    void AddFulfilledRequest(CNetAddr addr, std::string strRequest);
+    bool HasFulfilledRequest(CNetAddr addr, std::string strRequest);
+    void RemoveFulfilledRequest(CNetAddr addr, std::string strRequest);
 
     void CheckAndRemove();
     void Clear();
