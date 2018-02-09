@@ -499,9 +499,8 @@ void CPrivateSendServer::CheckTimeout(CConnman& connman)
 
     if(!fMasternodeMode) return;
 
-    int nLagTime = fMasternodeMode ? 0 : 10000; // if we're the client, give the server a few extra seconds before resetting.
     int nTimeout = (nState == POOL_STATE_SIGNING) ? PRIVATESEND_SIGNING_TIMEOUT : PRIVATESEND_QUEUE_TIMEOUT;
-    bool fTimeout = GetTimeMillis() - nTimeLastSuccessfulStep >= nTimeout*1000 + nLagTime;
+    bool fTimeout = GetTime() - nTimeLastSuccessfulStep >= nTimeout;
 
     if(nState != POOL_STATE_IDLE && fTimeout) {
         LogPrint("privatesend", "CPrivateSendServer::CheckTimeout -- %s timed out (%ds) -- resetting\n",
@@ -618,7 +617,7 @@ bool CPrivateSendServer::AddEntry(const CDarkSendEntry& entryNew, PoolMessage& n
 
     LogPrint("privatesend", "CPrivateSendServer::AddEntry -- adding entry\n");
     nMessageIDRet = MSG_ENTRIES_ADDED;
-    nTimeLastSuccessfulStep = GetTimeMillis();
+    nTimeLastSuccessfulStep = GetTime();
 
     return true;
 }
@@ -726,7 +725,7 @@ bool CPrivateSendServer::CreateNewSession(const CDarksendAccept& dsa, PoolMessag
     nSessionDenom = dsa.nDenom;
 
     SetState(POOL_STATE_QUEUE);
-    nTimeLastSuccessfulStep = GetTimeMillis();
+    nTimeLastSuccessfulStep = GetTime();
 
     if(!fUnitTest) {
         //broadcast that I'm accepting entries, only if it's the first entry through
@@ -769,7 +768,7 @@ bool CPrivateSendServer::AddUserToExistingSession(const CDarksendAccept& dsa, Po
     // count new user as accepted to an existing session
 
     nMessageIDRet = MSG_NOERR;
-    nTimeLastSuccessfulStep = GetTimeMillis();
+    nTimeLastSuccessfulStep = GetTime();
     vecSessionCollaterals.push_back(MakeTransactionRef(dsa.txCollateral));
 
     LogPrintf("CPrivateSendServer::AddUserToExistingSession -- new user accepted, nSessionID: %d  nSessionDenom: %d (%s)  vecSessionCollaterals.size(): %d\n",
