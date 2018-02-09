@@ -445,6 +445,18 @@ bool CSuperblockManager::IsValid(const CTransaction& txNew, int nBlockHeight, CA
     return false;
 }
 
+void CSuperblockManager::ExecuteBestSuperblock(int nBlockHeight)
+{
+    LOCK(governance.cs);
+
+    CSuperblock_sptr pSuperblock;
+    if(GetBestSuperblock(pSuperblock, nBlockHeight)) {
+        // All checks are done in CSuperblock::IsValid via IsBlockValueValid and IsBlockPayeeValid,
+        // tip wouldn't be updated if anything was wrong. Mark this trigger as executed.
+        pSuperblock->SetExecuted();
+    }
+}
+
 CSuperblock::
 CSuperblock()
     : nGovObjHash(),
