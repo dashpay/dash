@@ -463,7 +463,7 @@ bool CSuperblockManager::IsValid(const CTransaction& txNew, int nBlockHeight, CA
 CSuperblock::
 CSuperblock()
     : nGovObjHash(),
-      nEpochStart(0),
+      nStartHeight(0),
       nStatus(SEEN_OBJECT_UNKNOWN),
       vecPayments()
 {}
@@ -471,7 +471,7 @@ CSuperblock()
 CSuperblock::
 CSuperblock(uint256& nHash)
     : nGovObjHash(nHash),
-      nEpochStart(0),
+      nStartHeight(0),
       nStatus(SEEN_OBJECT_UNKNOWN),
       vecPayments()
 {
@@ -496,16 +496,16 @@ CSuperblock(uint256& nHash)
 
     UniValue obj = pGovObj->GetJSONObject();
 
-    // FIRST WE GET THE START EPOCH, THE DATE WHICH THE PAYMENT SHALL OCCUR
-    nEpochStart = obj["event_block_height"].get_int();
+    // FIRST WE GET THE START HEIGHT, THE BLOCK HEIGHT AT WHICH THE PAYMENT SHALL OCCUR
+    nStartHeight = obj["event_block_height"].get_int();
 
     // NEXT WE GET THE PAYMENT INFORMATION AND RECONSTRUCT THE PAYMENT VECTOR
     std::string strAddresses = obj["payment_addresses"].get_str();
     std::string strAmounts = obj["payment_amounts"].get_str();
     ParsePaymentSchedule(strAddresses, strAmounts);
 
-    LogPrint("gobject", "CSuperblock -- nEpochStart = %d, strAddresses = %s, strAmounts = %s, vecPayments.size() = %d\n",
-             nEpochStart, strAddresses, strAmounts, vecPayments.size());
+    LogPrint("gobject", "CSuperblock -- nStartHeight = %d, strAddresses = %s, strAmounts = %s, vecPayments.size() = %d\n",
+             nStartHeight, strAddresses, strAmounts, vecPayments.size());
 
     DBG( cout << "CSuperblock Constructor End" << endl; );
 }
