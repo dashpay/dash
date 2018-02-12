@@ -177,7 +177,7 @@ public:
         return pObj;
     }
 
-    int GetBlockStart()
+    int GetBlockHeight()
     {
         return nStartHeight;
     }

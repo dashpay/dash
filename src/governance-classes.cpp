@@ -196,7 +196,7 @@ void CGovernanceTriggerManager::CleanAndRemove()
             case SEEN_OBJECT_IS_VALID:
             case SEEN_OBJECT_EXECUTED:
                 {
-                    int nTriggerBlock = pSuperblock->GetBlockStart();
+                    int nTriggerBlock = pSuperblock->GetBlockHeight();
                     // Rough approximation: a cycle of superblock ++
                     int nExpirationBlock = nTriggerBlock + GOVERNANCE_TRIGGER_EXPIRATION_BLOCKS;
                     LogPrint("gobject", "CGovernanceTriggerManager::CleanAndRemove -- nTriggerBlock = %d, nExpirationBlock = %d\n", nTriggerBlock, nExpirationBlock);
@@ -312,13 +312,13 @@ bool CSuperblockManager::IsSuperblockTriggered(int nBlockHeight)
 
         // note : 12.1 - is epoch calculation correct?
 
-        if(nBlockHeight != pSuperblock->GetBlockStart()) {
+        if(nBlockHeight != pSuperblock->GetBlockHeight()) {
             LogPrint("gobject", "CSuperblockManager::IsSuperblockTriggered -- block height doesn't match nBlockHeight = %d, blockStart = %d, continuing\n",
                      nBlockHeight,
-                     pSuperblock->GetBlockStart());
+                     pSuperblock->GetBlockHeight());
             DBG( cout << "IsSuperblockTriggered Not the target block, continuing"
                  << ", nBlockHeight = " << nBlockHeight
-                 << ", superblock->GetBlockStart() = " << pSuperblock->GetBlockStart()
+                 << ", superblock->GetBlockHeight() = " << pSuperblock->GetBlockHeight()
                  << endl; );
             continue;
         }
@@ -365,7 +365,7 @@ bool CSuperblockManager::GetBestSuperblock(CSuperblock_sptr& pSuperblockRet, int
             continue;
         }
 
-        if(nBlockHeight != pSuperblock->GetBlockStart()) {
+        if(nBlockHeight != pSuperblock->GetBlockHeight()) {
             DBG( cout << "GetBestSuperblock Not the target block, continuing" << endl; );
             continue;
         }
