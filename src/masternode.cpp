@@ -673,7 +673,7 @@ bool CMasternodePing::Sign(const CKey& keyMasternode, const CPubKey& pubKeyMaste
     return true;
 }
 
-bool CMasternodePing::CheckSignature(CPubKey& pubKeyMasternode, int &nDos)
+bool CMasternodePing::CheckSignature(const CPubKey& pubKeyMasternode, int &nDos)
 {
     // TODO: add sentinel data
     std::string strMessage = vin.ToString() + blockHash.ToString() + boost::lexical_cast<std::string>(sigTime);

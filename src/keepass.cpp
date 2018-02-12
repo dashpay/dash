@@ -286,7 +286,7 @@ static void http_request_done(struct evhttp_request *req, void *ctx)
 }
 
 // Send RPC message to KeePassHttp
-void CKeePassIntegrator::doHTTPPost(const std::string& sRequest, int& nStatus, std::string& strResponse)
+void CKeePassIntegrator::doHTTPPost(const std::string& sRequest, int& nStatusRet, std::string& strResponseRet)
 {
 //    // Prepare communication
 //    boost::asio::io_service io_service;
@@ -402,7 +402,7 @@ void CKeePassIntegrator::doHTTPPost(const std::string& sRequest, int& nStatus, s
 //    ReadHTTPMessage(response_stream, mapHeaders, strResponse, nProto, std::numeric_limits<size_t>::max());
 //    LogPrint("keepass", "CKeePassIntegrator::doHTTPPost -- Processed body\n");
 
-    nStatus = response.nStatus;
+    nStatusRet = response.nStatus;
     if (response.nStatus == 0)
         throw std::runtime_error("couldn't connect to server");
     else if (response.nStatus >= 400 && response.nStatus != HTTP_BAD_REQUEST && response.nStatus != HTTP_NOT_FOUND && response.nStatus != HTTP_INTERNAL_SERVER_ERROR)
@@ -418,7 +418,7 @@ void CKeePassIntegrator::doHTTPPost(const std::string& sRequest, int& nStatus, s
     if (reply.empty())
         throw std::runtime_error("expected reply to have result, error and id properties");
 
-    strResponse = valReply.get_str();
+    strResponseRet = valReply.get_str();
 }
 
 void CKeePassIntegrator::rpcTestAssociation(bool bTriggerUnlock)
@@ -534,13 +534,13 @@ SecureString CKeePassIntegrator::generateKeePassKey()
     return sKeyBase64;
 }
 
-void CKeePassIntegrator::rpcAssociate(std::string& strId, SecureString& sKeyBase64)
+void CKeePassIntegrator::rpcAssociate(std::string& strIdRet, SecureString& sKeyBase64Ret)
 {
     sKey = generateRandomKey(KEEPASS_CRYPTO_KEY_SIZE);
     CKeePassRequest request(sKey, "associate");
 
-    sKeyBase64 = EncodeBase64Secure(sKey);
-    request.addStrParameter("Key", std::string(&sKeyBase64[0], sKeyBase64.size()));
+    sKeyBase64Ret = EncodeBase64Secure(sKey);
+    request.addStrParameter("Key", std::string(&sKeyBase64Ret[0], sKeyBase64Ret.size()));
 
     int nStatus;
     std::string strResponse;
@@ -569,7 +569,7 @@ void CKeePassIntegrator::rpcAssociate(std::string& strId, SecureString& sKeyBase
     }
 
     // If we got here, we were successful. Return the information
-    strId = response.getStr("Id");
+    strIdRet = response.getStr("Id");
 }
 
 // Retrieve wallet passphrase from KeePass

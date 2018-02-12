@@ -115,7 +115,7 @@ private:
 
     static SecureString generateRandomKey(size_t nSize);
     static std::string constructHTTPPost(const std::string& strMsg, const std::map<std::string,std::string>& mapRequestHeaders);
-    void doHTTPPost(const std::string& strRequest, int& nStatus, std::string& strResponse);
+    void doHTTPPost(const std::string& strRequest, int& nStatusRet, std::string& strResponseRet);
     void rpcTestAssociation(bool bTriggerUnlock);
     std::vector<CKeePassEntry> rpcGetLogins();
     void rpcSetLogin(const SecureString& sWalletPass, const SecureString& sEntryId);
@@ -124,7 +124,7 @@ public:
     CKeePassIntegrator();
     void init();
     static SecureString generateKeePassKey();
-    void rpcAssociate(std::string& strId, SecureString& sKeyBase64);
+    void rpcAssociate(std::string& strIdRet, SecureString& sKeyBase64Ret);
     SecureString retrievePassphrase();
     void updatePassphrase(const SecureString& sWalletPassphrase);
 

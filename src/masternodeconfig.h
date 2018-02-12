@@ -78,7 +78,7 @@ public:
     }
 
     void clear();
-    bool read(std::string& strErr);
+    bool read(std::string& strErrRet);
     void add(const std::string& alias, const std::string& ip, const std::string& privKey, const std::string& txHash, const std::string& outputIndex);
 
     std::vector<CMasternodeEntry>& getEntries() {
