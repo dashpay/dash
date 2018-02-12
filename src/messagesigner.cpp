@@ -9,7 +9,7 @@
 #include "tinyformat.h"
 #include "utilstrencodings.h"
 
-bool CMessageSigner::GetKeysFromSecret(const std::string strSecret, CKey& keyRet, CPubKey& pubkeyRet)
+bool CMessageSigner::GetKeysFromSecret(const std::string& strSecret, CKey& keyRet, CPubKey& pubkeyRet)
 {
     CBitcoinSecret vchSecret;
 
@@ -21,7 +21,7 @@ bool CMessageSigner::GetKeysFromSecret(const std::string strSecret, CKey& keyRet
     return true;
 }
 
-bool CMessageSigner::SignMessage(const std::string strMessage, std::vector<unsigned char>& vchSigRet, const CKey key)
+bool CMessageSigner::SignMessage(const std::string& strMessage, std::vector<unsigned char>& vchSigRet, const CKey key)
 {
     CHashWriter ss(SER_GETHASH, 0);
     ss << strMessageMagic;
@@ -30,7 +30,7 @@ bool CMessageSigner::SignMessage(const std::string strMessage, std::vector<unsig
     return CHashSigner::SignHash(ss.GetHash(), key, vchSigRet);
 }
 
-bool CMessageSigner::VerifyMessage(const CPubKey pubkey, const std::vector<unsigned char>& vchSig, const std::string strMessage, std::string& strErrorRet)
+bool CMessageSigner::VerifyMessage(const CPubKey pubkey, const std::vector<unsigned char>& vchSig, const std::string& strMessage, std::string& strErrorRet)
 {
     CHashWriter ss(SER_GETHASH, 0);
     ss << strMessageMagic;

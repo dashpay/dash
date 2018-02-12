@@ -122,12 +122,12 @@ void CKeePassIntegrator::init()
     }
 }
 
-void CKeePassIntegrator::CKeePassRequest::addStrParameter(std::string strName, std::string strValue)
+void CKeePassIntegrator::CKeePassRequest::addStrParameter(const std::string& strName, const std::string& strValue)
 {
     requestObj.push_back(Pair(strName, strValue));
 }
 
-void CKeePassIntegrator::CKeePassRequest::addStrParameter(std::string strName, SecureString sValue)
+void CKeePassIntegrator::CKeePassRequest::addStrParameter(const std::string& strName, const SecureString& sValue)
 {
     std::string sCipherValue;
 
@@ -155,7 +155,7 @@ void CKeePassIntegrator::CKeePassRequest::init()
     addStrParameter("RequestType", strType);
 }
 
-void CKeePassIntegrator::CKeePassResponse::parseResponse(std::string strResponse)
+void CKeePassIntegrator::CKeePassResponse::parseResponse(const std::string& strResponse)
 {
     UniValue responseValue;
     if(!responseValue.read(strResponse))
@@ -171,12 +171,12 @@ void CKeePassIntegrator::CKeePassResponse::parseResponse(std::string strResponse
     strIV = DecodeBase64(getStr("Nonce"));
 }
 
-std::string CKeePassIntegrator::CKeePassResponse::getStr(std::string strName)
+std::string CKeePassIntegrator::CKeePassResponse::getStr(const std::string& strName)
 {
     return responseObj[strName].get_str();
 }
 
-SecureString CKeePassIntegrator::CKeePassResponse::getSecureStr(std::string strName)
+SecureString CKeePassIntegrator::CKeePassResponse::getSecureStr(const std::string& strName)
 {
     std::string strValueBase64Encrypted(responseObj[strName].get_str());
     SecureString sValue;
@@ -193,7 +193,7 @@ SecureString CKeePassIntegrator::CKeePassResponse::getSecureStr(std::string strN
     return sValue;
 }
 
-SecureString CKeePassIntegrator::CKeePassResponse::decrypt(std::string strValueBase64Encrypted)
+SecureString CKeePassIntegrator::CKeePassResponse::decrypt(const std::string& strValueBase64Encrypted)
 {
     std::string strValueEncrypted = DecodeBase64(strValueBase64Encrypted);
     SecureString sValue;

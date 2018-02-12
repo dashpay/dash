@@ -192,7 +192,7 @@ private:
 public:
     CGovernanceObject();
 
-    CGovernanceObject(uint256 nHashParentIn, int nRevisionIn, int64_t nTime, uint256 nCollateralHashIn, std::string strDataIn);
+    CGovernanceObject(uint256 nHashParentIn, int nRevisionIn, int64_t nTime, uint256 nCollateralHashIn, const std::string& strDataIn);
 
     CGovernanceObject(const CGovernanceObject& other);
 

@@ -43,7 +43,7 @@ CGovernanceObject::CGovernanceObject()
     LoadData();
 }
 
-CGovernanceObject::CGovernanceObject(uint256 nHashParentIn, int nRevisionIn, int64_t nTimeIn, uint256 nCollateralHashIn, std::string strDataIn)
+CGovernanceObject::CGovernanceObject(uint256 nHashParentIn, int nRevisionIn, int64_t nTimeIn, uint256 nCollateralHashIn, const std::string& strDataIn)
 : cs(),
   nObjectType(GOVERNANCE_OBJECT_UNKNOWN),
   nHashParent(nHashParentIn),
