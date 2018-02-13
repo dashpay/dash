@@ -509,6 +509,17 @@ int GetUTXOConfirmations(const COutPoint& outpoint)
 
 bool CheckTransaction(const CTransaction& tx, CValidationState &state, bool fCheckDuplicateInputs)
 {
+    // check version 3 transaction types
+    if (tx.nVersion >= 3) {
+        if (tx.nType != TRANSACTION_NORMAL) {
+            return state.DoS(100, false, REJECT_INVALID, "bad-txns-type");
+        }
+        if (tx.IsCoinBase() && tx.nType != TRANSACTION_NORMAL)
+            return state.DoS(100, false, REJECT_INVALID, "bad-txns-cb-type");
+    } else if (tx.nType != TRANSACTION_NORMAL) {
+        return state.DoS(100, false, REJECT_INVALID, "bad-txns-type");
+    }
+
     // Basic checks that don't depend on any context
     if (tx.vin.empty())
         return state.DoS(10, false, REJECT_INVALID, "bad-txns-vin-empty");
@@ -517,6 +528,8 @@ bool CheckTransaction(const CTransaction& tx, CValidationState &state, bool fChe
     // Size limits
     if (::GetSerializeSize(tx, SER_NETWORK, PROTOCOL_VERSION) > MAX_LEGACY_BLOCK_SIZE)
         return state.DoS(100, false, REJECT_INVALID, "bad-txns-oversize");
+    if (tx.extraPayload.size() > MAX_TX_EXTRA_PAYLOAD)
+        return state.DoS(100, false, REJECT_INVALID, "bad-txns-payload-oversize");
 
     // Check for negative or overflow output values
     CAmount nValueOut = 0;
