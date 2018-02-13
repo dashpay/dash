@@ -107,6 +107,7 @@ BITCOIN_CORE_H = \
   core_memusage.h \
   cuckoocache.h \
   evo/specialtx.h \
+  evo/providertx.h \
   privatesend.h \
   privatesend-client.h \
   privatesend-server.h \
@@ -218,6 +219,7 @@ libdash_server_a_SOURCES = \
   checkpoints.cpp \
   dsnotificationinterface.cpp \
   evo/specialtx.cpp \
+  evo/providertx.cpp \
   httprpc.cpp \
   httpserver.cpp \
   init.cpp \

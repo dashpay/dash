@@ -44,4 +44,7 @@ static const int DIP0001_PROTOCOL_VERSION = 70208;
 //! short-id-based block download starts with this version
 static const int SHORT_IDS_BLOCKS_VERSION = 70209;
 
+//! minimum ProTx proto version
+static const int MIN_PROTX_PROTO_VERSION = 70209;
+
 #endif // BITCOIN_VERSION_H
