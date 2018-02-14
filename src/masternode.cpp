@@ -643,6 +643,7 @@ CMasternodePing::CMasternodePing(const COutPoint& outpoint)
     masternodeOutpoint = outpoint;
     blockHash = chainActive[chainActive.Height() - 12]->GetBlockHash();
     sigTime = GetAdjustedTime();
+    nDaemonVersion = CLIENT_VERSION;
 }
 
 bool CMasternodePing::Sign(const CKey& keyMasternode, const CPubKey& pubKeyMasternode)
@@ -650,9 +651,19 @@ bool CMasternodePing::Sign(const CKey& keyMasternode, const CPubKey& pubKeyMaste
     std::string strError;
     std::string strMasterNodeSignMessage;
 
-    // TODO: add sentinel data
     sigTime = GetAdjustedTime();
-    std::string strMessage = CTxIn(masternodeOutpoint).ToString() + blockHash.ToString() + boost::lexical_cast<std::string>(sigTime);
+
+    std::string strMessage;
+    if (sporkManager.IsSporkActive(SPORK_6_NEW_SIGS)) {
+        strMessage = masternodeOutpoint.ToStringShort() + blockHash.ToString() +
+                    boost::lexical_cast<std::string>(sigTime) +
+                    boost::lexical_cast<std::string>(fSentinelIsCurrent) +
+                    boost::lexical_cast<std::string>(nSentinelVersion) +
+                    boost::lexical_cast<std::string>(nDaemonVersion);
+    } else {
+        strMessage = CTxIn(masternodeOutpoint).ToString() + blockHash.ToString() +
+                    boost::lexical_cast<std::string>(sigTime);
+    }
 
     if(!CMessageSigner::SignMessage(strMessage, vchSig, keyMasternode)) {
         LogPrintf("CMasternodePing::Sign -- SignMessage() failed\n");
@@ -669,8 +680,18 @@ bool CMasternodePing::Sign(const CKey& keyMasternode, const CPubKey& pubKeyMaste
 
 bool CMasternodePing::CheckSignature(const CPubKey& pubKeyMasternode, int &nDos)
 {
-    // TODO: add sentinel data
-    std::string strMessage = CTxIn(masternodeOutpoint).ToString() + blockHash.ToString() + boost::lexical_cast<std::string>(sigTime);
+    std::string strMessage;
+    if (sporkManager.IsSporkActive(SPORK_6_NEW_SIGS)) {
+        strMessage = masternodeOutpoint.ToStringShort() + blockHash.ToString() +
+                    boost::lexical_cast<std::string>(sigTime) +
+                    boost::lexical_cast<std::string>(fSentinelIsCurrent) +
+                    boost::lexical_cast<std::string>(nSentinelVersion) +
+                    boost::lexical_cast<std::string>(nDaemonVersion);
+    } else {
+        strMessage = CTxIn(masternodeOutpoint).ToString() + blockHash.ToString() +
+                    boost::lexical_cast<std::string>(sigTime);
+    }
+
     std::string strError = "";
     nDos = 0;
 
