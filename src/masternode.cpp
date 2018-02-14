@@ -77,7 +77,7 @@ bool CMasternode::UpdateFromNewBroadcast(CMasternodeBroadcast& mnb, CConnman& co
         nPoSeBanScore = -MASTERNODE_POSE_BAN_MAX_SCORE;
         if(nProtocolVersion == PROTOCOL_VERSION) {
             // ... and PROTOCOL_VERSION, then we've been remotely activated ...
-            activeMasternode.ManageState(connman);
+            legacyActiveMasternodeManager.ManageState(connman);
         } else {
             // ... otherwise we need to reactivate our node, do not add it to the list and do not relay
             // but also do not ban the node we get this message from

@@ -1573,7 +1573,7 @@ bool CMasternodeMan::CheckMnbAndUpdateMasternodeList(CNode* pfrom, CMasternodeBr
                 // ... and PROTOCOL_VERSION, then we've been remotely activated ...
                 LogPrintf("CMasternodeMan::CheckMnbAndUpdateMasternodeList -- Got NEW Masternode entry: masternode=%s  sigTime=%lld  addr=%s\n",
                             mnb.outpoint.ToStringShort(), mnb.sigTime, mnb.addr.ToString());
-                activeMasternode.ManageState(connman);
+                legacyActiveMasternodeManager.ManageState(connman);
             } else {
                 // ... otherwise we need to reactivate our node, do not add it to the list and do not relay
                 // but also do not ban the node we get this message from

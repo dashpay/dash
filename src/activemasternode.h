@@ -10,7 +10,8 @@
 #include "net.h"
 #include "primitives/transaction.h"
 
-class CActiveMasternode;
+class CActiveMasternodeInfo;
+class CActiveLegacyMasternodeManager;
 
 static const int ACTIVE_MASTERNODE_INITIAL          = 0; // initial state
 static const int ACTIVE_MASTERNODE_SYNC_IN_PROCESS  = 1;
@@ -18,10 +19,22 @@ static const int ACTIVE_MASTERNODE_INPUT_TOO_NEW    = 2;
 static const int ACTIVE_MASTERNODE_NOT_CAPABLE      = 3;
 static const int ACTIVE_MASTERNODE_STARTED          = 4;
 
-extern CActiveMasternode activeMasternode;
+extern CActiveMasternodeInfo activeMasternode;
+extern CActiveLegacyMasternodeManager legacyActiveMasternodeManager;
+
+class CActiveMasternodeInfo {
+public:
+    // Keys for the active Masternode
+    CPubKey pubKeyMasternode;
+    CKey keyMasternode;
+
+    // Initialized while registering Masternode
+    COutPoint outpoint;
+    CService service;
+};
 
 // Responsible for activating the Masternode and pinging the network
-class CActiveMasternode
+class CActiveLegacyMasternodeManager
 {
 public:
     enum masternode_type_enum_t {
@@ -45,25 +58,13 @@ private:
     uint32_t nSentinelVersion;
 
 public:
-    // Keys for the active Masternode
-    CPubKey pubKeyMasternode;
-    CKey keyMasternode;
-
-    // Initialized while registering Masternode
-    COutPoint outpoint;
-    CService service;
-
     int nState; // should be one of ACTIVE_MASTERNODE_XXXX
     std::string strNotCapableReason;
 
 
-    CActiveMasternode()
+    CActiveLegacyMasternodeManager()
         : eType(MASTERNODE_UNKNOWN),
           fPingerEnabled(false),
-          pubKeyMasternode(),
-          keyMasternode(),
-          outpoint(),
-          service(),
           nState(ACTIVE_MASTERNODE_INITIAL)
     {}
 
