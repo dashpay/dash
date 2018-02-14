@@ -318,7 +318,7 @@ Get Masternode list or specific entry
 
 | Field Size | Field Name | Data type | Description |
 | ---------- | ----------- | --------- | ---------- |
-| 36 | outpoint | [COutPoint](#coutpoint) | The unspent output which is holding 1000 DASH
+| 36 | masternodeOutpoint | [COutPoint](#coutpoint) | The unspent output which is holding 1000 DASH
 
 ### SYNCSTATUSCOUNT - "ssc"
 

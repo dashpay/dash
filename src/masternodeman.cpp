@@ -874,24 +874,24 @@ void CMasternodeMan::ProcessMessage(CNode* pfrom, const std::string& strCommand,
         // but this is a heavy one so it's better to finish sync first.
         if (!masternodeSync.IsSynced()) return;
 
-        COutPoint outpoint;
+        COutPoint masternodeOutpoint;
 
         if (pfrom->nVersion == 70208) {
             CTxIn vin;
             vRecv >> vin;
-            outpoint = vin.prevout;
+            masternodeOutpoint = vin.prevout;
         } else {
-            vRecv >> outpoint;
+            vRecv >> masternodeOutpoint;
         }
 
-        LogPrint("masternode", "DSEG -- Masternode list, masternode=%s\n", outpoint.ToStringShort());
+        LogPrint("masternode", "DSEG -- Masternode list, masternode=%s\n", masternodeOutpoint.ToStringShort());
 
         LOCK(cs);
 
-        if(outpoint == COutPoint()) {
+        if(masternodeOutpoint == COutPoint()) {
             SyncAll(pfrom, connman);
         } else {
-            SyncSingle(pfrom, outpoint, connman);
+            SyncSingle(pfrom, masternodeOutpoint, connman);
         }
 
     } else if (strCommand == NetMsgType::MNVERIFY) { // Masternode Verify
