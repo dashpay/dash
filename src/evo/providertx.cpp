@@ -4,6 +4,7 @@
 
 #include "providertx.h"
 #include "specialtx.h"
+#include "deterministicmns.h"
 
 #include "hash.h"
 #include "clientversion.h"
@@ -84,6 +85,24 @@ bool CheckProRegTx(const CTransaction& tx, const CBlockIndex* pindex, CValidatio
 
     if (ptx.operatorReward > 10000)
         return state.DoS(10, false, REJECT_INVALID, "bad-protx-operator-reward");
+
+    if (pindex) {
+        auto mnList = deterministicMNManager->GetListAtHeight(pindex->nHeight - 1);
+        std::set<CKeyID> keyIDs;
+        for (const auto& dmn : mnList.all_range()) {
+            keyIDs.emplace(dmn->state->keyIDOwner);
+            keyIDs.emplace(dmn->state->keyIDOperator);
+        }
+        if (keyIDs.count(ptx.keyIDOwner) || keyIDs.count(ptx.keyIDOperator)) {
+            return state.DoS(10, false, REJECT_DUPLICATE, "bad-protx-dup-key");
+        }
+
+        if (!deterministicMNManager->IsDeterministicMNsSporkActive(pindex->nHeight)) {
+            if (ptx.keyIDOwner != ptx.keyIDOperator || ptx.keyIDOwner != ptx.keyIDVoting) {
+                return state.DoS(10, false, REJECT_INVALID, "bad-protx-key-not-same");
+            }
+        }
+    }
 
     if (!CheckInputsHashAndSig(tx, ptx, ptx.keyIDOwner, state))
         return false;

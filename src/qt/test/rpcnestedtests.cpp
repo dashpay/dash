@@ -14,6 +14,8 @@
 #include "univalue.h"
 #include "util.h"
 
+#include "evo/deterministicmns.h"
+
 #include <QDir>
 #include <QtGlobal>
 
@@ -49,6 +51,7 @@ void RPCNestedTests::rpcNestedTests()
     //mempool.setSanityCheck(1.0);
     pblocktree = new CBlockTreeDB(1 << 20, true);
     pcoinsdbview = new CCoinsViewDB(1 << 23, true);
+    deterministicMNManager = new CDeterministicMNManager(1 << 20, true, true);
     pcoinsTip = new CCoinsViewCache(pcoinsdbview);
     InitBlockIndex(chainparams);
     {
