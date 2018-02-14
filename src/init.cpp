@@ -1711,6 +1711,9 @@ bool AppInitMain(boost::thread_group& threadGroup, CScheduler& scheduler)
                     break;
                 }
 
+                // Needs to be called after chain is initialized
+                if (chainActive.Tip() && chainActive.Tip()->pprev)
+                    fDIP0003ActiveAtTip = VersionBitsState(chainActive.Tip()->pprev, Params().GetConsensus(), Consensus::DEPLOYMENT_DIP0003, versionbitscache) == THRESHOLD_ACTIVE;
                 deterministicMNManager->Init();
 
                 uiInterface.InitMessage(_("Verifying blocks..."));

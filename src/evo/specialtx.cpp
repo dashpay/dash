@@ -7,6 +7,8 @@
 #include "consensus/validation.h"
 #include "hash.h"
 #include "clientversion.h"
+#include "validation.h"
+#include "chainparams.h"
 
 #include "specialtx.h"
 #include "providertx.h"
@@ -14,8 +16,14 @@
 
 bool CheckSpecialTx(const CTransaction& tx, const CBlockIndex* pindex, CValidationState& state)
 {
+    AssertLockHeld(cs_main);
+
     if (tx.nVersion < 3 || tx.nType == TRANSACTION_NORMAL)
         return true;
+
+    if (pindex && VersionBitsState(pindex->pprev, Params().GetConsensus(), Consensus::DEPLOYMENT_DIP0003, versionbitscache) != THRESHOLD_ACTIVE) {
+        return state.DoS(100, false, REJECT_INVALID, "bad-tx-type");
+    }
 
     switch (tx.nType) {
         case TRANSACTION_PROVIDER_REGISTER:
