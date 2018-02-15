@@ -375,6 +375,10 @@ bool CDeterministicMNManager::ProcessBlock(const CBlock& block, const CBlockInde
     state.curHeight = height;
     state.curBlockHash = block.GetHash();
 
+    UpdateSpork15Value();
+    if (height == state.spork15Value) {
+        LogPrintf("CDeterministicMNManager::%s -- spork15 is active now. height=%d\n", __func__, height);
+    }
 
     dbTransaction.Write(DB_MANAGER_STATE, state);
 
@@ -406,6 +410,16 @@ bool CDeterministicMNManager::UndoBlock(const CBlock& block, const CBlockIndex* 
     dbTransaction.Write(DB_MANAGER_STATE, state);
 
     return true;
+}
+
+void CDeterministicMNManager::UpdateSpork15Value()
+{
+    // only update cached spork15 value when it was not set before. This is needed because spork values are very unreliable when starting the node
+    int64_t newSpork15Value = sporkManager.GetSporkValue(SPORK_15_DETERMINISTIC_MNS_ENABLED);
+    if (newSpork15Value != state.spork15Value && newSpork15Value != SPORK_15_DETERMINISTIC_MNS_DEFAULT) {
+        state.spork15Value = newSpork15Value;
+        LogPrintf("CDeterministicMNManager::%s -- Updated spork15 value to %d\n", __func__, state.spork15Value);
+    }
 }
 
 void CDeterministicMNManager::RebuildLists(int startHeight, int endHeight)
@@ -486,3 +500,16 @@ bool CDeterministicMNManager::HasValidMNAtChainTip(const uint256& proTxHash)
     return HasValidMNAtHeight(state.curHeight, proTxHash);
 }
 
+bool CDeterministicMNManager::IsDeterministicMNsSporkActive(int height)
+{
+    LOCK(cs);
+
+    int64_t spork15Value = sporkManager.GetSporkValue(SPORK_15_DETERMINISTIC_MNS_ENABLED);
+    if (spork15Value == SPORK_15_DETERMINISTIC_MNS_DEFAULT)
+        spork15Value = state.spork15Value;
+    if (spork15Value < 0)
+        return false;
+    if (height == -1)
+        height = state.curHeight;
+    return height >= spork15Value;
+}

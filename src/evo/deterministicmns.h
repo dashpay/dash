@@ -8,6 +8,7 @@
 #include "providertx.h"
 #include "dbwrapper.h"
 #include "sync.h"
+#include "spork.h"
 
 #include <map>
 
@@ -300,6 +301,7 @@ public:
     int firstMNHeight{-1};
     int curHeight{0};
     uint256 curBlockHash;
+    int64_t spork15Value{SPORK_15_DETERMINISTIC_MNS_DEFAULT};
 
     ADD_SERIALIZE_METHODS;
 
@@ -309,6 +311,7 @@ public:
         READWRITE(firstMNHeight);
         READWRITE(curHeight);
         READWRITE(curBlockHash);
+        READWRITE(spork15Value);
     }
 };
 
@@ -365,7 +368,10 @@ public:
     bool HasValidMNAtHeight(int height, const uint256& proTxHash);
     bool HasValidMNAtChainTip(const uint256& proTxHash);
 
+    bool IsDeterministicMNsSporkActive(int height = -1);
+
 private:
+    void UpdateSpork15Value();
     void RebuildLists(int startHeight, int endHeight);
 };
 
