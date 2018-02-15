@@ -222,6 +222,7 @@ public:
         READWRITE(vchSig);
     }
 
+    uint256 GetSignatureHash() const;
     /** Sign this mixing transaction
      *  \return true if all conditions are met:
      *     1) we have an active Masternode,
@@ -231,14 +232,14 @@ public:
      */
     bool Sign();
     /// Check if we have a valid Masternode address
-    bool CheckSignature(const CPubKey& pubKeyMasternode);
+    bool CheckSignature(const CPubKey& pubKeyMasternode) const;
 
     bool Relay(CConnman &connman);
 
     /// Is this queue expired?
     bool IsExpired() { return GetAdjustedTime() - nTime > PRIVATESEND_QUEUE_TIMEOUT; }
 
-    std::string ToString()
+    std::string ToString() const
     {
         return strprintf("nDenom=%d, nTime=%lld, fReady=%s, fTried=%s, masternode=%s",
                         nDenom, nTime, fReady ? "true" : "false", fTried ? "true" : "false", masternodeOutpoint.ToStringShort());
