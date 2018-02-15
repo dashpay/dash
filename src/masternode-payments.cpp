@@ -401,7 +401,7 @@ bool CMasternodePaymentVote::Sign()
     std::string strError;
 
     if (sporkManager.IsSporkActive(SPORK_6_NEW_SIGS)) {
-        uint256 hash = GetHash();
+        uint256 hash = GetSignatureHash();
 
         if(!CHashSigner::SignHash(hash, activeMasternode.keyMasternode, vchSig)) {
             LogPrintf("CMasternodePaymentVote::Sign -- SignHash() failed\n");
@@ -853,7 +853,7 @@ bool CMasternodePaymentVote::CheckSignature(const CPubKey& pubKeyMasternode, int
     std::string strError = "";
 
     if (sporkManager.IsSporkActive(SPORK_6_NEW_SIGS)) {
-        uint256 hash = GetHash();
+        uint256 hash = GetSignatureHash();
 
         if (!CHashSigner::VerifyHash(hash, pubKeyMasternode, vchSig, strError)) {
             // could be a signature in old format

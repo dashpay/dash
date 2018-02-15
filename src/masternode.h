@@ -87,6 +87,7 @@ public:
     }
 
     uint256 GetHash() const;
+    uint256 GetSignatureHash() const { return GetHash(); }
 
     bool IsExpired() const { return GetAdjustedTime() - sigTime > MASTERNODE_NEW_START_REQUIRED_SECONDS; }
 

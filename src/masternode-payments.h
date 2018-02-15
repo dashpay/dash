@@ -161,6 +161,8 @@ public:
         return ss.GetHash();
     }
 
+    uint256 GetSignatureHash() const { return GetHash(); }
+
     bool Sign();
     bool CheckSignature(const CPubKey& pubKeyMasternode, int nValidationHeight, int &nDos) const;
 

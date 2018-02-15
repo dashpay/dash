@@ -211,6 +211,7 @@ public:
     }
 
     uint256 GetHash() const;
+    uint256 GetSignatureHash() const { return GetHash(); }
 
     uint256 GetTxHash() const { return txHash; }
     COutPoint GetOutpoint() const { return outpoint; }

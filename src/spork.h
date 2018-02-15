@@ -89,6 +89,8 @@ public:
         return ss.GetHash();
     }
 
+    uint256 GetSignatureHash() const { return GetHash(); }
+
     bool Sign(const std::string& strSignKey);
     bool CheckSignature() const;
     void Relay(CConnman& connman);

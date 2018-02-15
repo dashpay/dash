@@ -1054,7 +1054,7 @@ bool CTxLockVote::CheckSignature() const
     }
 
     if (sporkManager.IsSporkActive(SPORK_6_NEW_SIGS)) {
-        uint256 hash = GetHash();
+        uint256 hash = GetSignatureHash();
 
         if (!CHashSigner::VerifyHash(hash, infoMn.pubKeyMasternode, vchMasternodeSignature, strError)) {
             // could be a signature in old format
@@ -1081,7 +1081,7 @@ bool CTxLockVote::Sign()
     std::string strError;
 
     if (sporkManager.IsSporkActive(SPORK_6_NEW_SIGS)) {
-        uint256 hash = GetHash();
+        uint256 hash = GetSignatureHash();
 
         if(!CHashSigner::SignHash(hash, activeMasternode.keyMasternode, vchMasternodeSignature)) {
             LogPrintf("CTxLockVote::Sign -- SignHash() failed\n");

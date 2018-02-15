@@ -230,7 +230,7 @@ bool CSporkMessage::Sign(const std::string& strSignKey)
     }
 
     if (sporkManager.IsSporkActive(SPORK_6_NEW_SIGS)) {
-        uint256 hash = GetHash();
+        uint256 hash = GetSignatureHash();
 
         if(!CHashSigner::SignHash(hash, key, vchSig)) {
             LogPrintf("CSporkMessage::Sign -- SignHash() failed\n");
@@ -264,7 +264,7 @@ bool CSporkMessage::CheckSignature() const
     CPubKey pubkey(ParseHex(Params().SporkPubKey()));
 
     if (sporkManager.IsSporkActive(SPORK_6_NEW_SIGS)) {
-        uint256 hash = GetHash();
+        uint256 hash = GetSignatureHash();
 
         if (!CHashSigner::VerifyHash(hash, pubkey, vchSig, strError)) {
             // Note: unlike for many other messages when SPORK_6_NEW_SIGS is ON sporks in old format

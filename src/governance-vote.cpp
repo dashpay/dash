@@ -242,7 +242,7 @@ bool CGovernanceVote::Sign(const CKey& keyMasternode, const CPubKey& pubKeyMaste
     std::string strError;
 
     if (sporkManager.IsSporkActive(SPORK_6_NEW_SIGS)) {
-        uint256 hash = GetHash();
+        uint256 hash = GetSignatureHash();
 
         if(!CHashSigner::SignHash(hash, keyMasternode, vchSig)) {
             LogPrintf("CGovernanceVote::Sign -- SignHash() failed\n");
@@ -277,7 +277,7 @@ bool CGovernanceVote::CheckSignature(const CPubKey& pubKeyMasternode) const
     std::string strError;
 
     if (sporkManager.IsSporkActive(SPORK_6_NEW_SIGS)) {
-        uint256 hash = GetHash();
+        uint256 hash = GetSignatureHash();
 
         if (!CHashSigner::VerifyHash(hash, pubKeyMasternode, vchSig, strError)) {
             // could be a signature in old format

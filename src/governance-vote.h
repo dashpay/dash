@@ -149,6 +149,8 @@ public:
         return ss.GetHash();
     }
 
+    uint256 GetSignatureHash() const { return GetHash(); }
+
     std::string ToString() const
     {
         std::ostringstream ostr;
