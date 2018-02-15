@@ -90,7 +90,7 @@ public:
     }
 
     bool Sign(const std::string& strSignKey);
-    bool CheckSignature();
+    bool CheckSignature() const;
     void Relay(CConnman& connman);
 };
 
