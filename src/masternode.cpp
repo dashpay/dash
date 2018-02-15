@@ -673,12 +673,12 @@ bool CMasternodePing::Sign(const CKey& keyMasternode, const CPubKey& pubKeyMaste
     if (sporkManager.IsSporkActive(SPORK_6_NEW_SIGS)) {
         uint256 hash = GetHash();
 
-        if(!CHashSigner::SignHash(hash, vchSig, keyMasternode)) {
+        if(!CHashSigner::SignHash(hash, keyMasternode, vchSig)) {
             LogPrintf("CMasternodePing::Sign -- SignHash() failed\n");
             return false;
         }
 
-        if(!CHashSigner::VerifyHash(pubKeyMasternode, vchSig, hash, strError)) {
+        if(!CHashSigner::VerifyHash(hash, pubKeyMasternode, vchSig, strError)) {
             LogPrintf("CMasternodePing::Sign -- VerifyHash() failed, error: %s\n", strError);
             return false;
         }
@@ -708,7 +708,7 @@ bool CMasternodePing::CheckSignature(const CPubKey& pubKeyMasternode, int &nDos)
     if (sporkManager.IsSporkActive(SPORK_6_NEW_SIGS)) {
         uint256 hash = GetHash();
 
-        if(!CHashSigner::VerifyHash(pubKeyMasternode, vchSig, hash, strError)) {
+        if(!CHashSigner::VerifyHash(hash, pubKeyMasternode, vchSig, strError)) {
             LogPrintf("CMasternodePing::CheckSignature -- Got bad Masternode ping signature, masternode=%s, error: %s\n", masternodeOutpoint.ToStringShort(), strError);
             nDos = 33;
             return false;
