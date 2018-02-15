@@ -4,6 +4,7 @@
 
 #include "activemasternode.h"
 #include "base58.h"
+#include "clientversion.h"
 #include "init.h"
 #include "netbase.h"
 #include "masternode.h"
@@ -646,7 +647,7 @@ uint256 CMasternodePing::GetHash() const
         ss << nSentinelVersion;
         ss << nDaemonVersion;
     } else {
-        ss << masternodeOutpoint << uint8_t{} << 0xffffffff;  // adding dummy values here to match old hashing format
+        ss << masternodeOutpoint << uint8_t{} << 0xffffffff; // adding dummy values here to match old hashing format
         ss << sigTime;
     }
     return ss.GetHash();
@@ -666,19 +667,18 @@ CMasternodePing::CMasternodePing(const COutPoint& outpoint)
 bool CMasternodePing::Sign(const CKey& keyMasternode, const CPubKey& pubKeyMasternode)
 {
     std::string strError;
-    std::string strMasterNodeSignMessage;
 
     sigTime = GetAdjustedTime();
 
     if (sporkManager.IsSporkActive(SPORK_6_NEW_SIGS)) {
         uint256 hash = GetHash();
 
-        if(!CHashSigner::SignHash(hash, keyMasternode, vchSig)) {
+        if (!CHashSigner::SignHash(hash, keyMasternode, vchSig)) {
             LogPrintf("CMasternodePing::Sign -- SignHash() failed\n");
             return false;
         }
 
-        if(!CHashSigner::VerifyHash(hash, pubKeyMasternode, vchSig, strError)) {
+        if (!CHashSigner::VerifyHash(hash, pubKeyMasternode, vchSig, strError)) {
             LogPrintf("CMasternodePing::Sign -- VerifyHash() failed, error: %s\n", strError);
             return false;
         }
@@ -686,12 +686,12 @@ bool CMasternodePing::Sign(const CKey& keyMasternode, const CPubKey& pubKeyMaste
         std::string strMessage = CTxIn(masternodeOutpoint).ToString() + blockHash.ToString() +
                     boost::lexical_cast<std::string>(sigTime);
 
-        if(!CMessageSigner::SignMessage(strMessage, vchSig, keyMasternode)) {
+        if (!CMessageSigner::SignMessage(strMessage, vchSig, keyMasternode)) {
             LogPrintf("CMasternodePing::Sign -- SignMessage() failed\n");
             return false;
         }
 
-        if(!CMessageSigner::VerifyMessage(pubKeyMasternode, vchSig, strMessage, strError)) {
+        if (!CMessageSigner::VerifyMessage(pubKeyMasternode, vchSig, strMessage, strError)) {
             LogPrintf("CMasternodePing::Sign -- VerifyMessage() failed, error: %s\n", strError);
             return false;
         }
@@ -708,7 +708,7 @@ bool CMasternodePing::CheckSignature(const CPubKey& pubKeyMasternode, int &nDos)
     if (sporkManager.IsSporkActive(SPORK_6_NEW_SIGS)) {
         uint256 hash = GetHash();
 
-        if(!CHashSigner::VerifyHash(hash, pubKeyMasternode, vchSig, strError)) {
+        if (!CHashSigner::VerifyHash(hash, pubKeyMasternode, vchSig, strError)) {
             LogPrintf("CMasternodePing::CheckSignature -- Got bad Masternode ping signature, masternode=%s, error: %s\n", masternodeOutpoint.ToStringShort(), strError);
             nDos = 33;
             return false;
@@ -717,7 +717,7 @@ bool CMasternodePing::CheckSignature(const CPubKey& pubKeyMasternode, int &nDos)
         std::string strMessage = CTxIn(masternodeOutpoint).ToString() + blockHash.ToString() +
                     boost::lexical_cast<std::string>(sigTime);
 
-        if(!CMessageSigner::VerifyMessage(pubKeyMasternode, vchSig, strMessage, strError)) {
+        if (!CMessageSigner::VerifyMessage(pubKeyMasternode, vchSig, strMessage, strError)) {
             LogPrintf("CMasternodePing::CheckSignature -- Got bad Masternode ping signature, masternode=%s, error: %s\n", masternodeOutpoint.ToStringShort(), strError);
             nDos = 33;
             return false;
