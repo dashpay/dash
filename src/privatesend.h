@@ -319,8 +319,10 @@ public:
         return *this != CDarksendBroadcastTx();
     }
 
+    uint256 GetSignatureHash() const;
+
     bool Sign();
-    bool CheckSignature(const CPubKey& pubKeyMasternode);
+    bool CheckSignature(const CPubKey& pubKeyMasternode) const;
 
     void SetConfirmedHeight(int nConfirmedHeightIn) { nConfirmedHeight = nConfirmedHeightIn; }
     bool IsExpired(int nHeight);

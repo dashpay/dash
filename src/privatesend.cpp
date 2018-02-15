@@ -121,28 +121,69 @@ bool CDarksendQueue::Relay(CConnman& connman)
     return true;
 }
 
+uint256 CDarksendBroadcastTx::GetSignatureHash() const
+{
+    CHashWriter ss(SER_GETHASH, PROTOCOL_VERSION);
+    ss << tx->GetHash();
+    ss << masternodeOutpoint;
+    ss << sigTime;
+    return ss.GetHash();
+}
+
 bool CDarksendBroadcastTx::Sign()
 {
     if(!fMasternodeMode) return false;
 
-    std::string strMessage = tx->GetHash().ToString() + boost::lexical_cast<std::string>(sigTime);
-
-    if(!CMessageSigner::SignMessage(strMessage, vchSig, activeMasternode.keyMasternode)) {
-        LogPrintf("CDarksendBroadcastTx::Sign -- SignMessage() failed\n");
-        return false;
-    }
-
-    return CheckSignature(activeMasternode.pubKeyMasternode);
-}
-
-bool CDarksendBroadcastTx::CheckSignature(const CPubKey& pubKeyMasternode)
-{
-    std::string strMessage = tx->GetHash().ToString() + boost::lexical_cast<std::string>(sigTime);
     std::string strError = "";
 
-    if(!CMessageSigner::VerifyMessage(pubKeyMasternode, vchSig, strMessage, strError)) {
-        LogPrintf("CDarksendBroadcastTx::CheckSignature -- Got bad dstx signature, error: %s\n", strError);
-        return false;
+    if (sporkManager.IsSporkActive(SPORK_6_NEW_SIGS)) {
+        uint256 hash = GetSignatureHash();
+
+        if (!CHashSigner::SignHash(hash, activeMasternode.keyMasternode, vchSig)) {
+            LogPrintf("CDarksendBroadcastTx::Sign -- SignHash() failed\n");
+            return false;
+        }
+
+        if (!CHashSigner::VerifyHash(hash, activeMasternode.pubKeyMasternode, vchSig, strError)) {
+            LogPrintf("CDarksendBroadcastTx::Sign -- VerifyHash() failed, error: %s\n", strError);
+            return false;
+        }
+    } else {
+        std::string strMessage = tx->GetHash().ToString() + boost::lexical_cast<std::string>(sigTime);
+
+        if(!CMessageSigner::SignMessage(strMessage, vchSig, activeMasternode.keyMasternode)) {
+            LogPrintf("CDarksendBroadcastTx::Sign -- SignMessage() failed\n");
+            return false;
+        }
+
+        if(!CMessageSigner::VerifyMessage(activeMasternode.pubKeyMasternode, vchSig, strMessage, strError)) {
+            LogPrintf("CDarksendBroadcastTx::Sign -- VerifyMessage() failed, error: %s\n", strError);
+            return false;
+        }
+    }
+
+    return true;
+}
+
+bool CDarksendBroadcastTx::CheckSignature(const CPubKey& pubKeyMasternode) const
+{
+    std::string strError = "";
+
+    if (sporkManager.IsSporkActive(SPORK_6_NEW_SIGS)) {
+        uint256 hash = GetSignatureHash();
+
+        if (!CHashSigner::VerifyHash(hash, pubKeyMasternode, vchSig, strError)) {
+            // we don't care about dstxes with old signature format
+            LogPrintf("CDarksendBroadcastTx::CheckSignature -- VerifyHash() failed, error: %s\n", strError);
+            return false;
+        }
+    } else {
+        std::string strMessage = tx->GetHash().ToString() + boost::lexical_cast<std::string>(sigTime);
+
+        if(!CMessageSigner::VerifyMessage(pubKeyMasternode, vchSig, strMessage, strError)) {
+            LogPrintf("CDarksendBroadcastTx::CheckSignature -- Got bad dstx signature, error: %s\n", strError);
+            return false;
+        }
     }
 
     return true;
