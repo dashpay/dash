@@ -258,6 +258,7 @@ public:
     bool CheckSignature(const CPubKey& pubKeyMasternode);
 
     std::string GetSignatureMessage() const;
+    uint256 GetSignatureHash() const;
 
     // CORE OBJECT FUNCTIONS
 
