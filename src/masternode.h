@@ -457,6 +457,26 @@ public:
         return ss.GetHash();
     }
 
+    uint256 GetSignatureHash1(const uint256& blockHash) const
+    {
+        CHashWriter ss(SER_GETHASH, PROTOCOL_VERSION);
+        ss << addr;
+        ss << nonce;
+        ss << blockHash;
+        return ss.GetHash();
+    }
+
+    uint256 GetSignatureHash2(const uint256& blockHash) const
+    {
+        CHashWriter ss(SER_GETHASH, PROTOCOL_VERSION);
+        ss << masternodeOutpoint1;
+        ss << masternodeOutpoint2;
+        ss << addr;
+        ss << nonce;
+        ss << blockHash;
+        return ss.GetHash();
+    }
+
     void Relay() const
     {
         CInv inv(MSG_MASTERNODE_VERIFY, GetHash());
