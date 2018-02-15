@@ -10,6 +10,7 @@
 #include "masternode-payments.h"
 #include "masternode-sync.h"
 #include "privatesend.h"
+#include "evo/deterministicmns.h"
 #ifdef ENABLE_WALLET
 #include "privatesend-client.h"
 #endif // ENABLE_WALLET

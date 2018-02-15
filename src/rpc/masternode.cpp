@@ -20,6 +20,8 @@
 #include "util.h"
 #include "utilmoneystr.h"
 
+#include "evo/deterministicmns.h"
+
 #include <fstream>
 #include <iomanip>
 #include <univalue.h>
@@ -194,10 +196,15 @@ UniValue masternode(const JSONRPCRequest& request)
             throw JSONRPCError(RPC_INVALID_PARAMETER, "Too many parameters");
 
         int nCount;
-        masternode_info_t mnInfo;
-        mnodeman.GetNextMasternodeInQueueForPayment(true, nCount, mnInfo);
+        int total;
+        if (deterministicMNManager->IsDeterministicMNsSporkActive()) {
+            nCount = total = mnodeman.CountEnabled();
+        } else {
+            masternode_info_t mnInfo;
+            mnodeman.GetNextMasternodeInQueueForPayment(true, nCount, mnInfo);
+            total = mnodeman.size();
+        }
 
-        int total = mnodeman.size();
         int ps = mnodeman.CountEnabled(MIN_PRIVATESEND_PEER_PROTO_VERSION);
         int enabled = mnodeman.CountEnabled();
 
@@ -241,11 +248,24 @@ UniValue masternode(const JSONRPCRequest& request)
             LOCK(cs_main);
             pindex = chainActive.Tip();
         }
+
+        if (deterministicMNManager->IsDeterministicMNsSporkActive()) {
+            strCommand = "current";
+        }
+
         nHeight = pindex->nHeight + (strCommand == "current" ? 1 : 10);
         mnodeman.UpdateLastPaid(pindex);
 
-        if(!mnodeman.GetNextMasternodeInQueueForPayment(nHeight, true, nCount, mnInfo))
-            return "unknown";
+        if (deterministicMNManager->IsDeterministicMNsSporkActive()) {
+            auto payee = deterministicMNManager->GetListAtChainTip().GetMNPayee();
+            if (!payee)
+                return "unknown";
+            if (!mnodeman.GetMasternodeInfo(payee->proTxHash, mnInfo))
+                return "unknown";
+        } else {
+            if(!mnodeman.GetNextMasternodeInQueueForPayment(nHeight, true, nCount, mnInfo))
+                return "unknown";
+        }
 
         UniValue obj(UniValue::VOBJ);
 

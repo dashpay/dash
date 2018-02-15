@@ -15,6 +15,8 @@
 #include "util.h"
 #include "utilmoneystr.h"
 
+#include "evo/deterministicmns.h"
+
 #include <string>
 
 bool CDarkSendEntry::AddScriptSig(const CTxIn& txin)
