@@ -314,11 +314,11 @@ public:
             // converting from/to old format
             std::string strDataHex;
             if (ser_action.ForRead()) {
-                READWRITE(strDataHex);
+                READWRITE(LIMITED_STRING(strDataHex, MAX_GOVERNANCE_OBJECT_DATA_SIZE));
                 vchData = ParseHex(strDataHex);
             } else {
                 strDataHex = HexStr(vchData);
-                READWRITE(strDataHex);
+                READWRITE(LIMITED_STRING(strDataHex, MAX_GOVERNANCE_OBJECT_DATA_SIZE));
             }
         } else {
             // using new format directly
