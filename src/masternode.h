@@ -86,13 +86,7 @@ public:
         }
     }
 
-    uint256 GetHash() const
-    {
-        CHashWriter ss(SER_GETHASH, PROTOCOL_VERSION);
-        ss << masternodeOutpoint << uint8_t{} << 0xffffffff;
-        ss << sigTime;
-        return ss.GetHash();
-    }
+    uint256 GetHash() const;
 
     bool IsExpired() const { return GetAdjustedTime() - sigTime > MASTERNODE_NEW_START_REQUIRED_SECONDS; }
 
