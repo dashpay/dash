@@ -579,25 +579,59 @@ bool CMasternodeBroadcast::CheckOutpoint(int& nDos)
     return true;
 }
 
+uint256 CMasternodeBroadcast::GetHash() const
+{
+    CHashWriter ss(SER_GETHASH, PROTOCOL_VERSION);
+    ss << outpoint << uint8_t{} << 0xffffffff; // adding dummy values here to match old hashing format
+    ss << pubKeyCollateralAddress;
+    ss << sigTime;
+    return ss.GetHash();
+}
+
+uint256 CMasternodeBroadcast::GetSignatureHash() const
+{
+    CHashWriter ss(SER_GETHASH, PROTOCOL_VERSION);
+    ss << outpoint;
+    ss << addr;
+    ss << pubKeyCollateralAddress;
+    ss << pubKeyMasternode;
+    ss << sigTime;
+    ss << nProtocolVersion;
+    return ss.GetHash();
+}
+
 bool CMasternodeBroadcast::Sign(const CKey& keyCollateralAddress)
 {
     std::string strError;
-    std::string strMessage;
 
     sigTime = GetAdjustedTime();
 
-    strMessage = addr.ToString(false) + boost::lexical_cast<std::string>(sigTime) +
-                    pubKeyCollateralAddress.GetID().ToString() + pubKeyMasternode.GetID().ToString() +
-                    boost::lexical_cast<std::string>(nProtocolVersion);
+    if (sporkManager.IsSporkActive(SPORK_6_NEW_SIGS)) {
+        uint256 hash = GetSignatureHash();
 
-    if(!CMessageSigner::SignMessage(strMessage, vchSig, keyCollateralAddress)) {
-        LogPrintf("CMasternodeBroadcast::Sign -- SignMessage() failed\n");
-        return false;
-    }
+        if (!CHashSigner::SignHash(hash, keyCollateralAddress, vchSig)) {
+            LogPrintf("CMasternodeBroadcast::Sign -- SignHash() failed\n");
+            return false;
+        }
 
-    if(!CMessageSigner::VerifyMessage(pubKeyCollateralAddress, vchSig, strMessage, strError)) {
-        LogPrintf("CMasternodeBroadcast::Sign -- VerifyMessage() failed, error: %s\n", strError);
-        return false;
+        if (!CHashSigner::VerifyHash(hash, pubKeyCollateralAddress, vchSig, strError)) {
+            LogPrintf("CMasternodeBroadcast::Sign -- VerifyMessage() failed, error: %s\n", strError);
+            return false;
+        }
+    } else {
+        std::string strMessage = addr.ToString(false) + boost::lexical_cast<std::string>(sigTime) +
+                        pubKeyCollateralAddress.GetID().ToString() + pubKeyMasternode.GetID().ToString() +
+                        boost::lexical_cast<std::string>(nProtocolVersion);
+
+        if (!CMessageSigner::SignMessage(strMessage, vchSig, keyCollateralAddress)) {
+            LogPrintf("CMasternodeBroadcast::Sign -- SignMessage() failed\n");
+            return false;
+        }
+
+        if (!CMessageSigner::VerifyMessage(pubKeyCollateralAddress, vchSig, strMessage, strError)) {
+            LogPrintf("CMasternodeBroadcast::Sign -- VerifyMessage() failed, error: %s\n", strError);
+            return false;
+        }
     }
 
     return true;
@@ -605,20 +639,35 @@ bool CMasternodeBroadcast::Sign(const CKey& keyCollateralAddress)
 
 bool CMasternodeBroadcast::CheckSignature(int& nDos) const
 {
-    std::string strMessage;
     std::string strError = "";
     nDos = 0;
 
-    strMessage = addr.ToString(false) + boost::lexical_cast<std::string>(sigTime) +
-                    pubKeyCollateralAddress.GetID().ToString() + pubKeyMasternode.GetID().ToString() +
-                    boost::lexical_cast<std::string>(nProtocolVersion);
+    if (sporkManager.IsSporkActive(SPORK_6_NEW_SIGS)) {
+        uint256 hash = GetSignatureHash();
 
-    LogPrint("masternode", "CMasternodeBroadcast::CheckSignature -- strMessage: %s  pubKeyCollateralAddress address: %s  sig: %s\n", strMessage, CBitcoinAddress(pubKeyCollateralAddress.GetID()).ToString(), EncodeBase64(&vchSig[0], vchSig.size()));
+        if (!CHashSigner::VerifyHash(hash, pubKeyCollateralAddress, vchSig, strError)) {
+            // maybe it's in old format
+            std::string strMessage = addr.ToString(false) + boost::lexical_cast<std::string>(sigTime) +
+                            pubKeyCollateralAddress.GetID().ToString() + pubKeyMasternode.GetID().ToString() +
+                            boost::lexical_cast<std::string>(nProtocolVersion);
 
-    if(!CMessageSigner::VerifyMessage(pubKeyCollateralAddress, vchSig, strMessage, strError)){
-        LogPrintf("CMasternodeBroadcast::CheckSignature -- Got bad Masternode announce signature, error: %s\n", strError);
-        nDos = 100;
-        return false;
+            if (!CMessageSigner::VerifyMessage(pubKeyCollateralAddress, vchSig, strMessage, strError)){
+                // nope, not in old format either
+                LogPrintf("CMasternodeBroadcast::CheckSignature -- Got bad Masternode announce signature, error: %s\n", strError);
+                nDos = 100;
+                return false;
+            }
+        }
+    } else {
+        std::string strMessage = addr.ToString(false) + boost::lexical_cast<std::string>(sigTime) +
+                        pubKeyCollateralAddress.GetID().ToString() + pubKeyMasternode.GetID().ToString() +
+                        boost::lexical_cast<std::string>(nProtocolVersion);
+
+        if (!CMessageSigner::VerifyMessage(pubKeyCollateralAddress, vchSig, strMessage, strError)){
+            LogPrintf("CMasternodeBroadcast::CheckSignature -- Got bad Masternode announce signature, error: %s\n", strError);
+            nDos = 100;
+            return false;
+        }
     }
 
     return true;

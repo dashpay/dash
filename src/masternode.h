@@ -379,14 +379,8 @@ public:
         READWRITE(lastPing);
     }
 
-    uint256 GetHash() const
-    {
-        CHashWriter ss(SER_GETHASH, PROTOCOL_VERSION);
-        ss << outpoint << uint8_t{} << 0xffffffff;
-        ss << pubKeyCollateralAddress;
-        ss << sigTime;
-        return ss.GetHash();
-    }
+    uint256 GetHash() const;
+    uint256 GetSignatureHash() const;
 
     /// Create Masternode broadcast, needs to be relayed manually after that
     static bool Create(const COutPoint& outpoint, const CService& service, const CKey& keyCollateralAddressNew, const CPubKey& pubKeyCollateralAddressNew, const CKey& keyMasternodeNew, const CPubKey& pubKeyMasternodeNew, std::string &strErrorRet, CMasternodeBroadcast &mnbRet);
