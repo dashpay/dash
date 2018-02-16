@@ -99,7 +99,7 @@ Every few minutes, masternodes ping the network with a message that propagates t
 | 32 | blockHash | uint256 | Current chaintip blockhash minus 12
 | 8 | sigTime | int64_t | Signature time for this ping
 | 71-73 | vchSig | char[] | Signature of this message by masternode (verifiable via pubKeyMasternode)
-| 1 | fSentinelIsCurrent | bool | true if last sentinel ping was actual
+| 1 | fSentinelIsCurrent | bool | true if last sentinel ping was current
 | 4 | nSentinelVersion | uint32_t | The version of Sentinel running on the masternode which is signing the message
 | 4 | nDaemonVersion | uint32_t | The version of dashd of the masternode which is signing the message (i.e. CLIENT_VERSION)
 

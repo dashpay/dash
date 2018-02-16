@@ -267,8 +267,8 @@ bool CSporkMessage::CheckSignature() const
         uint256 hash = GetSignatureHash();
 
         if (!CHashSigner::VerifyHash(hash, pubkey, vchSig, strError)) {
-            // Note: unlike for many other messages when SPORK_6_NEW_SIGS is ON sporks in old format
-            // with newer timestamps should not be accepted, so if we failed here - that's it
+            // Note: unlike for many other messages when SPORK_6_NEW_SIGS is ON sporks with sigs in old format
+            // and newer timestamps should not be accepted, so if we failed here - that's it
             LogPrintf("CSporkMessage::CheckSignature -- VerifyHash() failed, error: %s\n", strError);
             return false;
         }
