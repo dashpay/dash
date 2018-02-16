@@ -224,16 +224,29 @@ std::string CGovernanceObject::GetSignatureMessage() const
     return strMessage;
 }
 
-uint256 CGovernanceObject::GetSignatureHash() const
+uint256 CGovernanceObject::GetHash() const
 {
+    // Note: doesn't match serialization
+
+    // CREATE HASH OF ALL IMPORTANT PIECES OF DATA
+
     CHashWriter ss(SER_GETHASH, PROTOCOL_VERSION);
     ss << nHashParent;
     ss << nRevision;
     ss << nTime;
-    ss << vchData;
-    ss << masternodeOutpoint;
-    ss << nCollateralHash;
+    ss << GetDataAsHexString();
+    ss << masternodeOutpoint << uint8_t{} << 0xffffffff; // adding dummy values here to match old hashing
+    ss << vchSig;
+    // fee_tx is left out on purpose
+
+    DBG( printf("CGovernanceObject::GetHash %i %li %s\n", nRevision, nTime, GetDataAsHexString().c_str()); );
+
     return ss.GetHash();
+}
+
+uint256 CGovernanceObject::GetSignatureHash() const
+{
+    return SerializeHash(*this);
 }
 
 void CGovernanceObject::SetMasternodeOutpoint(const COutPoint& outpoint)
@@ -303,24 +316,6 @@ bool CGovernanceObject::CheckSignature(const CPubKey& pubKeyMasternode)
     }
 
     return true;
-}
-
-uint256 CGovernanceObject::GetHash() const
-{
-    // CREATE HASH OF ALL IMPORTANT PIECES OF DATA
-
-    CHashWriter ss(SER_GETHASH, PROTOCOL_VERSION);
-    ss << nHashParent;
-    ss << nRevision;
-    ss << nTime;
-    ss << GetDataAsHexString();
-    ss << masternodeOutpoint << uint8_t{} << 0xffffffff;
-    ss << vchSig;
-    // fee_tx is left out on purpose
-
-    DBG( printf("CGovernanceObject::GetHash %i %li %s\n", nRevision, nTime, GetDataAsHexString().c_str()); );
-
-    return ss.GetHash();
 }
 
 /**

@@ -1035,11 +1035,12 @@ bool CTxLockVote::IsValid(CNode* pnode, CConnman& connman) const
 
 uint256 CTxLockVote::GetHash() const
 {
-    CHashWriter ss(SER_GETHASH, PROTOCOL_VERSION);
-    ss << txHash;
-    ss << outpoint;
-    ss << outpointMasternode;
-    return ss.GetHash();
+    return SerializeHash(*this);
+}
+
+uint256 CTxLockVote::GetSignatureHash() const
+{
+    return GetHash();
 }
 
 bool CTxLockVote::CheckSignature() const

@@ -219,7 +219,9 @@ public:
         }
         READWRITE(nTime);
         READWRITE(fReady);
-        READWRITE(vchSig);
+        if (!(s.GetType() & SER_GETHASH)) {
+            READWRITE(vchSig);
+        }
     }
 
     uint256 GetSignatureHash() const;
@@ -302,7 +304,9 @@ public:
             // using new format directly
             READWRITE(masternodeOutpoint);
         }
-        READWRITE(vchSig);
+        if (!(s.GetType() & SER_GETHASH)) {
+            READWRITE(vchSig);
+        }
         READWRITE(sigTime);
     }
 

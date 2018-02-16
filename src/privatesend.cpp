@@ -38,12 +38,7 @@ bool CDarkSendEntry::AddScriptSig(const CTxIn& txin)
 
 uint256 CDarksendQueue::GetSignatureHash() const
 {
-    CHashWriter ss(SER_GETHASH, PROTOCOL_VERSION);
-    ss << masternodeOutpoint;
-    ss << nDenom;
-    ss << nTime;
-    ss << fReady;
-    return ss.GetHash();
+    return SerializeHash(*this);
 }
 
 bool CDarksendQueue::Sign()
@@ -123,11 +118,7 @@ bool CDarksendQueue::Relay(CConnman& connman)
 
 uint256 CDarksendBroadcastTx::GetSignatureHash() const
 {
-    CHashWriter ss(SER_GETHASH, PROTOCOL_VERSION);
-    ss << tx->GetHash();
-    ss << masternodeOutpoint;
-    ss << sigTime;
-    return ss.GetHash();
+    return SerializeHash(*this);
 }
 
 bool CDarksendBroadcastTx::Sign()

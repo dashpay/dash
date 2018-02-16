@@ -218,6 +218,16 @@ bool CSporkManager::SetPrivKey(const std::string& strPrivKey)
     }
 }
 
+uint256 CSporkMessage::GetHash() const
+{
+    return SerializeHash(*this);
+}
+
+uint256 CSporkMessage::GetSignatureHash() const
+{
+    return GetHash();
+}
+
 bool CSporkMessage::Sign(const std::string& strSignKey)
 {
     CKey key;

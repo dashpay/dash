@@ -396,6 +396,22 @@ void CMasternodePayments::ProcessMessage(CNode* pfrom, const std::string& strCom
     }
 }
 
+uint256 CMasternodePaymentVote::GetHash() const
+{
+    // Note: doesn't match serialization
+
+    CHashWriter ss(SER_GETHASH, PROTOCOL_VERSION);
+    ss << *(CScriptBase*)(&payee);
+    ss << nBlockHeight;
+    ss << masternodeOutpoint;
+    return ss.GetHash();
+}
+
+uint256 CMasternodePaymentVote::GetSignatureHash() const
+{
+    return SerializeHash(*this);
+}
+
 bool CMasternodePaymentVote::Sign()
 {
     std::string strError;

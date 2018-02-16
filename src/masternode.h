@@ -68,8 +68,11 @@ public:
         }
         READWRITE(blockHash);
         READWRITE(sigTime);
-        READWRITE(vchSig);
+        if (!(s.GetType() & SER_GETHASH)) {
+            READWRITE(vchSig);
+        }
         if(ser_action.ForRead() && s.size() == 0) {
+            // TODO: drop this after migration to 70209
             fSentinelIsCurrent = false;
             nSentinelVersion = DEFAULT_SENTINEL_VERSION;
             nDaemonVersion = DEFAULT_DAEMON_VERSION;
@@ -78,6 +81,7 @@ public:
         READWRITE(fSentinelIsCurrent);
         READWRITE(nSentinelVersion);
         if(ser_action.ForRead() && s.size() == 0) {
+            // TODO: drop this after migration to 70209
             nDaemonVersion = DEFAULT_DAEMON_VERSION;
             return;
         }
@@ -87,7 +91,7 @@ public:
     }
 
     uint256 GetHash() const;
-    uint256 GetSignatureHash() const { return GetHash(); }
+    uint256 GetSignatureHash() const;
 
     bool IsExpired() const { return GetAdjustedTime() - sigTime > MASTERNODE_NEW_START_REQUIRED_SECONDS; }
 
@@ -374,10 +378,14 @@ public:
         READWRITE(addr);
         READWRITE(pubKeyCollateralAddress);
         READWRITE(pubKeyMasternode);
-        READWRITE(vchSig);
+        if (!(s.GetType() & SER_GETHASH)) {
+            READWRITE(vchSig);
+        }
         READWRITE(sigTime);
         READWRITE(nProtocolVersion);
-        READWRITE(lastPing);
+        if (!(s.GetType() & SER_GETHASH)) {
+            READWRITE(lastPing);
+        }
     }
 
     uint256 GetHash() const;
@@ -449,6 +457,8 @@ public:
 
     uint256 GetHash() const
     {
+        // Note: doesn't match serialization
+
         CHashWriter ss(SER_GETHASH, PROTOCOL_VERSION);
         ss << masternodeOutpoint1 << uint8_t{} << 0xffffffff;
         ss << masternodeOutpoint2 << uint8_t{} << 0xffffffff;
@@ -460,6 +470,8 @@ public:
 
     uint256 GetSignatureHash1(const uint256& blockHash) const
     {
+        // Note: doesn't match serialization
+
         CHashWriter ss(SER_GETHASH, PROTOCOL_VERSION);
         ss << addr;
         ss << nonce;
@@ -469,6 +481,8 @@ public:
 
     uint256 GetSignatureHash2(const uint256& blockHash) const
     {
+        // Note: doesn't match serialization
+
         CHashWriter ss(SER_GETHASH, PROTOCOL_VERSION);
         ss << masternodeOutpoint1;
         ss << masternodeOutpoint2;

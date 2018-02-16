@@ -138,18 +138,8 @@ public:
     *   GET UNIQUE HASH WITH DETERMINISTIC VALUE OF THIS SPECIFIC VOTE
     */
 
-    uint256 GetHash() const
-    {
-        CHashWriter ss(SER_GETHASH, PROTOCOL_VERSION);
-        ss << masternodeOutpoint << uint8_t{} << 0xffffffff;
-        ss << nParentHash;
-        ss << nVoteSignal;
-        ss << nVoteOutcome;
-        ss << nTime;
-        return ss.GetHash();
-    }
-
-    uint256 GetSignatureHash() const { return GetHash(); }
+    uint256 GetHash() const;
+    uint256 GetSignatureHash() const;
 
     std::string ToString() const
     {
@@ -212,7 +202,9 @@ public:
         READWRITE(nVoteOutcome);
         READWRITE(nVoteSignal);
         READWRITE(nTime);
-        READWRITE(vchSig);
+        if (!(s.GetType() & SER_GETHASH)) {
+            READWRITE(vchSig);
+        }
     }
 
 };

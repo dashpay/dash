@@ -237,6 +237,24 @@ void CGovernanceVote::Relay(CConnman& connman) const
     connman.RelayInv(inv, MIN_GOVERNANCE_PEER_PROTO_VERSION);
 }
 
+uint256 CGovernanceVote::GetHash() const
+{
+    // Note: doesn't match serialization
+
+    CHashWriter ss(SER_GETHASH, PROTOCOL_VERSION);
+    ss << masternodeOutpoint << uint8_t{} << 0xffffffff; // adding dummy values here to match old hashing format
+    ss << nParentHash;
+    ss << nVoteSignal;
+    ss << nVoteOutcome;
+    ss << nTime;
+    return ss.GetHash();
+}
+
+uint256 CGovernanceVote::GetSignatureHash() const
+{
+    return SerializeHash(*this);
+}
+
 bool CGovernanceVote::Sign(const CKey& keyMasternode, const CPubKey& pubKeyMasternode)
 {
     std::string strError;

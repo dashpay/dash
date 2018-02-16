@@ -340,7 +340,9 @@ public:
             // using new format directly
             READWRITE(masternodeOutpoint);
         }
-        READWRITE(vchSig);
+        if (!(s.GetType() & SER_GETHASH)) {
+            READWRITE(vchSig);
+        }
         if(s.GetType() & SER_DISK) {
             // Only include these for the disk file format
             LogPrint("gobject", "CGovernanceObject::SerializationOp Reading/writing votes from/to disk\n");
