@@ -100,6 +100,8 @@ public:
     bool SimpleCheck(int& nDos);
     bool CheckAndUpdate(CMasternode* pmn, bool fFromNewBroadcast, int& nDos, CConnman& connman);
     void Relay(CConnman& connman);
+
+    explicit operator bool() const;
 };
 
 inline bool operator==(const CMasternodePing& a, const CMasternodePing& b)
@@ -109,6 +111,10 @@ inline bool operator==(const CMasternodePing& a, const CMasternodePing& b)
 inline bool operator!=(const CMasternodePing& a, const CMasternodePing& b)
 {
     return !(a == b);
+}
+inline CMasternodePing::operator bool() const
+{
+    return *this != CMasternodePing();
 }
 
 struct masternode_info_t
@@ -249,7 +255,7 @@ public:
 
     bool IsPingedWithin(int nSeconds, int64_t nTimeToCheckAt = -1)
     {
-        if(lastPing == CMasternodePing()) return false;
+        if(!lastPing) return false;
 
         if(nTimeToCheckAt == -1) {
             nTimeToCheckAt = GetAdjustedTime();

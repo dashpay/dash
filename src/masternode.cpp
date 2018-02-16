@@ -69,7 +69,7 @@ bool CMasternode::UpdateFromNewBroadcast(CMasternodeBroadcast& mnb, CConnman& co
     nPoSeBanHeight = 0;
     nTimeLastChecked = 0;
     int nDos = 0;
-    if(mnb.lastPing == CMasternodePing() || (mnb.lastPing != CMasternodePing() && mnb.lastPing.CheckAndUpdate(this, true, nDos, connman))) {
+    if(!mnb.lastPing || (mnb.lastPing && mnb.lastPing.CheckAndUpdate(this, true, nDos, connman))) {
         lastPing = mnb.lastPing;
         mnodeman.mapSeenMasternodePing.insert(std::make_pair(lastPing.GetHash(), lastPing));
     }
@@ -430,7 +430,7 @@ bool CMasternodeBroadcast::SimpleCheck(int& nDos)
     }
 
     // empty ping or incorrect sigTime/unknown blockhash
-    if(lastPing == CMasternodePing() || !lastPing.SimpleCheck(nDos)) {
+    if(!lastPing || !lastPing.SimpleCheck(nDos)) {
         // one of us is probably forked or smth, just mark it as expired and check the rest of the rules
         nActiveState = MASTERNODE_EXPIRED;
     }
