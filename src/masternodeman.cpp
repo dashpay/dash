@@ -888,7 +888,7 @@ void CMasternodeMan::ProcessMessage(CNode* pfrom, const std::string& strCommand,
 
         LOCK(cs);
 
-        if(masternodeOutpoint == COutPoint()) {
+        if(masternodeOutpoint.IsNull()) {
             SyncAll(pfrom, connman);
         } else {
             SyncSingle(pfrom, masternodeOutpoint, connman);
@@ -991,7 +991,7 @@ void CMasternodeMan::PushDsegInvs(CNode* pnode, const CMasternode& mn)
 
 void CMasternodeMan::DoFullVerificationStep(CConnman& connman)
 {
-    if(activeMasternode.outpoint == COutPoint()) return;
+    if(activeMasternode.outpoint.IsNull()) return;
     if(!masternodeSync.IsSynced()) return;
 
     rank_pair_vec_t vecMasternodeRanks;
@@ -1295,7 +1295,7 @@ void CMasternodeMan::ProcessVerifyReply(CNode* pnode, CMasternodeVerification& m
                     netfulfilledman.AddFulfilledRequest(pnode->addr, strprintf("%s", NetMsgType::MNVERIFY)+"-done");
 
                     // we can only broadcast it if we are an activated masternode
-                    if(activeMasternode.outpoint == COutPoint()) continue;
+                    if(activeMasternode.outpoint.IsNull()) continue;
                     // update ...
                     mnv.addr = mnpair.second.addr;
                     mnv.masternodeOutpoint1 = mnpair.second.outpoint;
