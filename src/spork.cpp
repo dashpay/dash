@@ -238,7 +238,7 @@ bool CSporkMessage::Sign(const std::string& strSignKey)
         }
 
         if (!CHashSigner::VerifyHash(hash, pubkey, vchSig, strError)) {
-            LogPrintf("CSporkMessage::CheckSignature -- VerifyHash() failed, error: %s\n", strError);
+            LogPrintf("CSporkMessage::Sign -- VerifyHash() failed, error: %s\n", strError);
             return false;
         }
     } else {
