@@ -264,7 +264,7 @@ void CMasternodePayments::FillBlockPayee(CMutableTransaction& txNew, int nBlockH
             return;
         }
         // fill payee with locally calculated winner and hope for the best
-        payee = GetScriptForDestination(mnInfo.pubKeyCollateralAddress.GetID());
+        payee = GetScriptForDestination(mnInfo.pubKeyIDCollateralAddress);
     }
 
     // GET MASTERNODE PAYMENT VARIABLES SETUP
@@ -384,7 +384,7 @@ void CMasternodePayments::ProcessMessage(CNode* pfrom, const std::string& strCom
         }
 
         int nDos = 0;
-        if(!vote.CheckSignature(mnInfo.pubKeyMasternode, nCachedBlockHeight, nDos)) {
+        if(!vote.CheckSignature(mnInfo.pubKeyIDMasternode, nCachedBlockHeight, nDos)) {
             if(nDos) {
                 LOCK(cs_main);
                 LogPrintf("MASTERNODEPAYMENTVOTE -- ERROR: invalid signature\n");
@@ -449,7 +449,7 @@ bool CMasternodePaymentVote::Sign()
             return false;
         }
 
-        if (!CHashSigner::VerifyHash(hash, activeMasternode.pubKeyMasternode, vchSig, strError)) {
+        if (!CHashSigner::VerifyHash(hash, activeMasternode.pubKeyIDMasternode, vchSig, strError)) {
             LogPrintf("CMasternodePaymentVote::Sign -- VerifyHash() failed, error: %s\n", strError);
             return false;
         }
@@ -463,7 +463,7 @@ bool CMasternodePaymentVote::Sign()
             return false;
         }
 
-        if(!CMessageSigner::VerifyMessage(activeMasternode.pubKeyMasternode, vchSig, strMessage, strError)) {
+        if(!CMessageSigner::VerifyMessage(activeMasternode.pubKeyIDMasternode, vchSig, strMessage, strError)) {
             LogPrintf("CMasternodePaymentVote::Sign -- VerifyMessage() failed, error: %s\n", strError);
             return false;
         }
@@ -489,7 +489,7 @@ bool CMasternodePayments::IsScheduled(const masternode_info_t& mnInfo, int nNotB
     if(!masternodeSync.IsMasternodeListSynced()) return false;
 
     CScript mnpayee;
-    mnpayee = GetScriptForDestination(mnInfo.pubKeyCollateralAddress.GetID());
+    mnpayee = GetScriptForDestination(mnInfo.pubKeyIDCollateralAddress);
 
     CScript payee;
     for(int64_t h = nCachedBlockHeight; h <= nCachedBlockHeight + 8; h++){
@@ -786,7 +786,7 @@ bool CMasternodePayments::ProcessBlock(int nBlockHeight, CConnman& connman)
     LogPrintf("CMasternodePayments::ProcessBlock -- Masternode found by GetNextMasternodeInQueueForPayment(): %s\n", mnInfo.outpoint.ToStringShort());
 
 
-    CScript payee = GetScriptForDestination(mnInfo.pubKeyCollateralAddress.GetID());
+    CScript payee = GetScriptForDestination(mnInfo.pubKeyIDCollateralAddress);
 
     CMasternodePaymentVote voteNew(activeMasternode.outpoint, nBlockHeight, payee);
 
@@ -893,7 +893,7 @@ void CMasternodePaymentVote::Relay(CConnman& connman) const
     connman.RelayInv(inv);
 }
 
-bool CMasternodePaymentVote::CheckSignature(const CPubKey& pubKeyMasternode, int nValidationHeight, int &nDos) const
+bool CMasternodePaymentVote::CheckSignature(const CKeyID& pubKeyIDMasternode, int nValidationHeight, int &nDos) const
 {
     // do not ban by default
     nDos = 0;
@@ -902,12 +902,12 @@ bool CMasternodePaymentVote::CheckSignature(const CPubKey& pubKeyMasternode, int
     if (sporkManager.IsSporkActive(SPORK_6_NEW_SIGS)) {
         uint256 hash = GetSignatureHash();
 
-        if (!CHashSigner::VerifyHash(hash, pubKeyMasternode, vchSig, strError)) {
+        if (!CHashSigner::VerifyHash(hash, pubKeyIDMasternode, vchSig, strError)) {
             // could be a signature in old format
             std::string strMessage = masternodeOutpoint.ToStringShort() +
                         std::to_string(nBlockHeight) +
                         ScriptToAsmStr(payee);
-            if(!CMessageSigner::VerifyMessage(pubKeyMasternode, vchSig, strMessage, strError)) {
+            if(!CMessageSigner::VerifyMessage(pubKeyIDMasternode, vchSig, strMessage, strError)) {
                 // nope, not in old format either
                 // Only ban for future block vote when we are already synced.
                 // Otherwise it could be the case when MN which signed this vote is using another key now
@@ -924,7 +924,7 @@ bool CMasternodePaymentVote::CheckSignature(const CPubKey& pubKeyMasternode, int
                     std::to_string(nBlockHeight) +
                     ScriptToAsmStr(payee);
 
-        if (!CMessageSigner::VerifyMessage(pubKeyMasternode, vchSig, strMessage, strError)) {
+        if (!CMessageSigner::VerifyMessage(pubKeyIDMasternode, vchSig, strMessage, strError)) {
             // Only ban for future block vote when we are already synced.
             // Otherwise it could be the case when MN which signed this vote is using another key now
             // and we have no idea about the old one.
