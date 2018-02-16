@@ -311,7 +311,7 @@ public:
         READWRITE(nRevision);
         READWRITE(nTime);
         READWRITE(nCollateralHash);
-        if (nVersion == 70208) {
+        if (nVersion == 70208 && (s.GetType() & SER_NETWORK)) {
             // converting from/to old format
             std::string strDataHex;
             if (ser_action.ForRead()) {
@@ -326,7 +326,7 @@ public:
             READWRITE(vchData);
         }
         READWRITE(nObjectType);
-        if (nVersion == 70208) {
+        if (nVersion == 70208 && (s.GetType() & SER_NETWORK)) {
             // converting from/to old format
             CTxIn txin;
             if (ser_action.ForRead()) {
