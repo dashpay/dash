@@ -624,6 +624,14 @@ void OverviewPage::togglePrivateSend(){
                 LogPrint("privatesend", "OverviewPage::togglePrivateSend -- Wallet is locked and user declined to unlock. Disabling PrivateSend.\n");
                 return;
             }
+            if(walletModel->getEncryptionStatus() == WalletModel::Unlocked)
+            {
+                //wallet was locked and user requested full unlock even though he clicked "Start Mixing"
+                QMessageBox::warning(this, tr("PrivateSend"),
+                    tr("Wallet is fully unlocked now. Note that anyone can transfer your funds if they have physical or RPC access to your wallet while it's being unlocked."),
+                    QMessageBox::Ok, QMessageBox::Ok);
+                LogPrint("privatesend", "OverviewPage::togglePrivateSend -- Starting mixing with fully unlocked wallet.\n");
+            }
         }
 
     }
