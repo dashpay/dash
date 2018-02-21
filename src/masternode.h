@@ -466,7 +466,7 @@ public:
         // Note: doesn't match serialization
 
         CHashWriter ss(SER_GETHASH, PROTOCOL_VERSION);
-         // adding dummy values here to match old hashing format
+        // adding dummy values here to match old hashing format
         ss << masternodeOutpoint1 << uint8_t{} << 0xffffffff;
         ss << masternodeOutpoint2 << uint8_t{} << 0xffffffff;
         ss << addr;
