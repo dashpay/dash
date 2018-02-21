@@ -63,7 +63,7 @@ public:
     /**
      * Retrieve a vote cached in memory
      */
-    bool GetVoteDataStream(const uint256& nHash, CDataStream& ss) const;
+    bool SerializeVoteToStream(const uint256& nHash, CDataStream& ss) const;
 
     int GetVoteCount() {
         return nMemoryVotes;

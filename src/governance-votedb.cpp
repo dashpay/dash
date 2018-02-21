@@ -34,7 +34,7 @@ bool CGovernanceObjectVoteFile::HasVote(const uint256& nHash) const
     return true;
 }
 
-bool CGovernanceObjectVoteFile::GetVoteDataStream(const uint256& nHash, CDataStream& ss) const
+bool CGovernanceObjectVoteFile::SerializeVoteToStream(const uint256& nHash, CDataStream& ss) const
 {
     vote_m_cit it = mapVoteIndex.find(nHash);
     if(it == mapVoteIndex.end()) {
