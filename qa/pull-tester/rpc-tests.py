@@ -109,6 +109,7 @@ if ENABLE_ZMQ:
 
 testScripts = [
     # longest test should go first, to favor running tests in parallel
+    'dip3-deterministicmns.py',
     'wallet-hd.py',
     'walletbackup.py',
     # vv Tests less than 5m vv
