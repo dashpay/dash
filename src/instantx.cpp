@@ -128,6 +128,7 @@ bool CInstantSend::ProcessTxLockRequest(const CTxLockRequest& txLockRequest, CCo
     // forcing external script notification.
     std::map<uint256, CTxLockCandidate>::iterator itLockCandidate = mapTxLockCandidates.find(txHash);
     TryToFinalizeLockCandidate(itLockCandidate->second);
+    ProcessOrphanTxLockVotes(connman);
 
     return true;
 }
