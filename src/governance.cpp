@@ -358,8 +358,6 @@ void CGovernanceManager::UpdateCachesAndClean()
 
     LOCK2(cs_main, cs);
 
-    int64_t nNow = GetAdjustedTime();
-
     for(size_t i = 0; i < vecDirtyHashes.size(); ++i) {
         object_m_it it = mapObjects.find(vecDirtyHashes[i]);
         if(it == mapObjects.end()) {
@@ -377,6 +375,8 @@ void CGovernanceManager::UpdateCachesAndClean()
 
     // Clean up any expired or invalid triggers
     triggerman.CleanAndRemove();
+
+    int64_t nNow = GetAdjustedTime();
 
     while(it != mapObjects.end())
     {
@@ -401,7 +401,7 @@ void CGovernanceManager::UpdateCachesAndClean()
 
         // IF DELETE=TRUE, THEN CLEAN THE MESS UP!
 
-        int64_t nTimeSinceDeletion = GetAdjustedTime() - pObj->GetDeletionTime();
+        int64_t nTimeSinceDeletion = nNow - pObj->GetDeletionTime();
 
         LogPrint("gobject", "CGovernanceManager::UpdateCachesAndClean -- Checking object for deletion: %s, deletion time = %d, time since deletion = %d, delete flag = %d, expired flag = %d\n",
                  strHash, pObj->GetDeletionTime(), nTimeSinceDeletion, pObj->IsSetCachedDelete(), pObj->IsSetExpired());
