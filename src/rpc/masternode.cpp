@@ -282,6 +282,8 @@ UniValue masternode(const JSONRPCRequest& request)
 #ifdef ENABLE_WALLET
     if (strCommand == "start-alias")
     {
+        if (deterministicMNManager->IsDeterministicMNsSporkActive())
+            throw JSONRPCError(RPC_MISC_ERROR, "start-alias is not supported when deterministic masternode list is active (DIP3)");
         if (!EnsureWalletIsAvailable(request.fHelp))
             return NullUniValue;
 
@@ -334,6 +336,8 @@ UniValue masternode(const JSONRPCRequest& request)
 
     if (strCommand == "start-all" || strCommand == "start-missing" || strCommand == "start-disabled")
     {
+        if (deterministicMNManager->IsDeterministicMNsSporkActive())
+            throw JSONRPCError(RPC_MISC_ERROR, strprintf("%s is not supported when deterministic masternode list is active (DIP3)", strCommand));
         if (!EnsureWalletIsAvailable(request.fHelp))
             return NullUniValue;
 
