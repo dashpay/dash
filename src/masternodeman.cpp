@@ -1616,7 +1616,7 @@ bool CMasternodeMan::IsSentinelPingActive()
 {
     LOCK(cs);
     // Check if any masternodes have voted recently, otherwise return false
-    return (GetTime() - nLastSentinelPingTime <= MASTERNODE_SENTINEL_PING_MAX_SECONDS);
+    return (GetTime() - nLastSentinelPingTime) <= MASTERNODE_SENTINEL_PING_MAX_SECONDS;
 }
 
 bool CMasternodeMan::AddGovernanceVote(const COutPoint& outpoint, uint256 nGovernanceObjectHash)
