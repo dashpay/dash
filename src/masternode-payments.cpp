@@ -499,6 +499,8 @@ bool CMasternodePayments::AddPaymentVote(const CMasternodePaymentVote& vote)
 
     mapMasternodeBlocks[vote.nBlockHeight].AddPayee(vote);
 
+    LogPrint("mnpayments", "CMasternodePayments::AddPaymentVote -- added, hash=%s\n", vote.GetHash().ToString());
+
     return true;
 }
 
