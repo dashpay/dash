@@ -139,7 +139,7 @@ static const CRPCConvertParam vRPCConvertParams[] =
     { "setnetworkactive", 0, "state" },
     { "getmempoolancestors", 1, "verbose" },
     { "getmempooldescendants", 1, "verbose" },
-    { "spork", 1, "datetime" },
+    { "spork", 1, "value" },
     { "voteraw", 1, "tx_index" },
     { "voteraw", 5, "time" },
     { "getblockhashes", 0, "high"},
