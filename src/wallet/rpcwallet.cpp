@@ -2406,7 +2406,11 @@ UniValue getwalletinfo(const JSONRPCRequest& request)
     return obj;
 }
 
-UniValue keepass(const JSONRPCRequest& request) {
+UniValue keepass(const JSONRPCRequest& request)
+{
+    if (!EnsureWalletIsAvailable(request.fHelp))
+        return NullUniValue;
+
     std::string strCommand;
 
     if (request.params.size() >= 1)
@@ -2453,7 +2457,6 @@ UniValue keepass(const JSONRPCRequest& request) {
     }
 
     return "Invalid command";
-
 }
 
 UniValue resendwallettransactions(const JSONRPCRequest& request)
@@ -2767,6 +2770,9 @@ UniValue fundrawtransaction(const JSONRPCRequest& request)
 
 UniValue setbip69enabled(const JSONRPCRequest& request)
 {
+    if (!EnsureWalletIsAvailable(request.fHelp))
+        return NullUniValue;
+
     if (request.fHelp || request.params.size() != 1)
         throw std::runtime_error(
             "setbip69enabled enable\n"

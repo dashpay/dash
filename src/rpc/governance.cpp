@@ -24,6 +24,8 @@
 #include "wallet/wallet.h"
 #endif // ENABLE_WALLET
 
+bool EnsureWalletIsAvailable(bool avoidException);
+
 UniValue gobject(const JSONRPCRequest& request)
 {
     std::string strCommand;
@@ -125,6 +127,9 @@ UniValue gobject(const JSONRPCRequest& request)
     // PREPARE THE GOVERNANCE OBJECT BY CREATING A COLLATERAL TRANSACTION
     if(strCommand == "prepare")
     {
+        if (!EnsureWalletIsAvailable(request.fHelp))
+            return NullUniValue;
+
         if (request.params.size() != 5) {
             throw JSONRPCError(RPC_INVALID_PARAMETER, "Correct usage is 'gobject prepare <parent-hash> <revision> <time> <data-hex>'");
         }
