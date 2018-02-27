@@ -1012,7 +1012,7 @@ UniValue gettxoutsetinfo(const JSONRPCRequest& request)
             "  \"height\":n,     (numeric) The current block height (index)\n"
             "  \"bestblock\": \"hex\",   (string) the best block hash hex\n"
             "  \"transactions\": n,      (numeric) The number of transactions\n"
-            "  \"txouts\": n,            (numeric) The number of output transactions\n"
+            "  \"txouts\": n,            (numeric) The number of unspent transaction outputs\n"
             "  \"hash_serialized\": \"hash\",   (string) The serialized hash\n"
             "  \"disk_size\": n,         (numeric) The estimated size of the chainstate on disk\n"
             "  \"total_amount\": x.xxx          (numeric) The total amount\n"

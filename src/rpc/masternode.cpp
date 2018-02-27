@@ -696,7 +696,7 @@ UniValue masternodebroadcast(const JSONRPCRequest& request)
                     vecMnb.push_back(mnb);
                     CDataStream ssVecMnb(SER_NETWORK, PROTOCOL_VERSION);
                     ssVecMnb << vecMnb;
-                    statusObj.push_back(Pair("hex", HexStr(ssVecMnb.begin(), ssVecMnb.end())));
+                    statusObj.push_back(Pair("hex", HexStr(ssVecMnb)));
                 } else {
                     statusObj.push_back(Pair("errorMessage", strError));
                 }
