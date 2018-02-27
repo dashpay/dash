@@ -43,7 +43,7 @@ BOOST_AUTO_TEST_CASE(valid_proposals_test)
         const UniValue& objProposal = tests[i];
         std::string strHexData = CreateEncodedProposalObject(objProposal);
         CProposalValidator validator(strHexData);
-        BOOST_CHECK(validator.Validate());
+        BOOST_CHECK_MESSAGE(validator.Validate(), validator.GetErrorMessages());
     }
 }
 
@@ -56,7 +56,7 @@ BOOST_AUTO_TEST_CASE(invalid_proposals_test)
         const UniValue& objProposal = tests[i];
         std::string strHexData = CreateEncodedProposalObject(objProposal);
         CProposalValidator validator(strHexData);
-        BOOST_CHECK(!validator.Validate());
+        BOOST_CHECK_MESSAGE(!validator.Validate(), validator.GetErrorMessages());
     }
 }
 
