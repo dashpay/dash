@@ -456,7 +456,7 @@ UniValue instantsendtoaddress(const JSONRPCRequest& request)
             + HelpRequiringPassphrase() +
             "\nArguments:\n"
             "1. \"address\"     (string, required) The dash address to send to.\n"
-            "2. \"amount\"      (numeric, required) The amount in btc to send. eg 0.1\n"
+            "2. \"amount\"      (numeric, required) The amount in " + CURRENCY_UNIT + " to send. eg 0.1\n"
             "3. \"comment\"     (string, optional) A comment used to store what the transaction is for. \n"
             "                             This is not part of the transaction, just kept in your wallet.\n"
             "4. \"comment_to\"  (string, optional) A comment to store the name of the person or organization \n"
