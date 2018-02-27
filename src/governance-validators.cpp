@@ -70,13 +70,6 @@ bool CProposalValidator::ValidateName()
         return false;
     }
 
-    std::string strNameStripped = StripWhitespaces(strName);
-
-    if(strNameStripped.empty()) {
-        strErrorMessages += "name is empty;";
-        return false;
-    }
-
     static const std::string strAllowedChars = "-_abcdefghijklmnopqrstuvwxyz0123456789";
 
     std::transform(strName.begin(), strName.end(), strName.begin(), ::tolower);
@@ -169,14 +162,17 @@ bool CProposalValidator::ValidateURL()
         return false;
     }
 
-    std::string strURLStripped = StripWhitespaces(strURL);
+    if(std::find_if(strURL.begin(), strURL.end(), ::isspace) != strURL.end()) {
+        strErrorMessages += "url can't have whitespaces;";
+        return false;
+    }
 
-    if(strURLStripped.size() < 4U) {
+    if(strURL.size() < 4U) {
         strErrorMessages += "url too short;";
         return false;
     }
 
-    if(!CheckURL(strURLStripped)) {
+    if(!CheckURL(strURL)) {
         strErrorMessages += "url invalid;";
         return false;
     }
@@ -268,20 +264,6 @@ bool CProposalValidator::GetDataValue(const std::string& strKey, double& dValueR
         strErrorMessages += "Unknown exception;";
     }
     return fOK;
-}
-
-std::string CProposalValidator::StripWhitespaces(const std::string& strIn)
-{
-    static const std::string strWhitespace = " \f\n\r\t\v";
-
-    std::string::size_type nStart = strIn.find_first_not_of(strWhitespace);
-    std::string::size_type nEnd = strIn.find_last_not_of(strWhitespace);
-
-    if((nStart == std::string::npos) || (nEnd == std::string::npos)) {
-        return std::string();
-    }
-
-    return strIn.substr(nStart, nEnd - nStart + 1);
 }
 
 /*

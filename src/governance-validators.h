@@ -40,7 +40,6 @@ private:
     bool ValidatePaymentAddress();
     bool ValidateURL();
 
-    std::string StripWhitespaces(const std::string& strIn);
     bool CheckURL(const std::string& strURLIn);
 };
 
