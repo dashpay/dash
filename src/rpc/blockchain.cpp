@@ -10,6 +10,7 @@
 #include "checkpoints.h"
 #include "coins.h"
 #include "consensus/validation.h"
+#include "instantx.h"
 #include "validation.h"
 #include "policy/policy.h"
 #include "primitives/transaction.h"
@@ -380,6 +381,8 @@ void entryToJSON(UniValue &info, const CTxMemPoolEntry &e)
     }
 
     info.push_back(Pair("depends", depends));
+    info.push_back(Pair("instantsend", instantsend.HasTxLockRequest(tx.GetHash())));
+    info.push_back(Pair("instantlock", instantsend.IsLockedInstantSendTransaction(tx.GetHash())));
 }
 
 UniValue mempoolToJSON(bool fVerbose = false)
