@@ -170,12 +170,13 @@ UniValue gobject(const JSONRPCRequest& request)
             throw JSONRPCError(RPC_INVALID_PARAMETER, "Watchdogs are deprecated");
         }
 
-        {
-            LOCK(cs_main);
-            std::string strError = "";
-            if(!govobj.IsValidLocally(strError, false))
-                throw JSONRPCError(RPC_INTERNAL_ERROR, "Governance object is not valid - " + govobj.GetHash().ToString() + " - " + strError);
-        }
+        LOCK2(cs_main, pwalletMain->cs_wallet);
+
+        std::string strError = "";
+        if(!govobj.IsValidLocally(strError, false))
+            throw JSONRPCError(RPC_INTERNAL_ERROR, "Governance object is not valid - " + govobj.GetHash().ToString() + " - " + strError);
+
+        EnsureWalletIsUnlocked();
 
         CWalletTx wtx;
         if(!pwalletMain->GetBudgetSystemCollateralTX(wtx, govobj.GetHash(), govobj.GetMinCollateralFee(), false)) {
