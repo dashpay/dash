@@ -142,6 +142,11 @@ bool CProposalValidator::ValidatePaymentAddress()
         return false;
     }
 
+    if(std::find_if(strPaymentAddress.begin(), strPaymentAddress.end(), ::isspace) != strPaymentAddress.end()) {
+        strErrorMessages += "payment_address can't have whitespaces;";
+        return false;
+    }
+
     CBitcoinAddress address(strPaymentAddress);
     if(!address.IsValid()) {
         strErrorMessages += "payment_address is invalid;";
