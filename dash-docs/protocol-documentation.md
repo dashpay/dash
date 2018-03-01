@@ -161,7 +161,7 @@ Response to DSQ message which allows the user to join a mixing pool
 | Field Size | Field Name | Data type | Description |
 | ---------- | ----------- | --------- | ---------- |
 | 4 | nDenom | int | denomination that will be exclusively used when submitting inputs into the pool
-| 216+ | txCollateral | [CTransaction](#ctransaction) | collateral tx that will be charged if this client acts maliciousely
+| 216+ | txCollateral | [CTransaction](#ctransaction) | collateral tx that will be charged if this client acts maliciously
 
 ### DSVIN - "dsi"
 
