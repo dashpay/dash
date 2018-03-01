@@ -206,6 +206,15 @@ void CSporkManager::InitDefaultSporkAddress() {
         assert(false);
 }
 
+bool CSporkManager::SetSporkAddress(const std::string &strAddress) {
+    CBitcoinAddress address(strAddress);
+    if (!address.IsValid() || !address.GetKeyID(sporkPubKeyID)) {
+        LogPrintf("CSporkManager::SetSporkAddress -- Failed to parse spork address\n");
+        return false;
+    }
+    return true;
+}
+
 bool CSporkManager::SetPrivKey(const std::string& strPrivKey)
 {
     if (!IsHex(strPrivKey) || strPrivKey.size() != 130) {

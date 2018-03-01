@@ -115,6 +115,7 @@ public:
     std::string GetSporkNameByID(int nSporkID);
 
     void InitDefaultSporkAddress();
+    bool SetSporkAddress(const std::string &strAddress);
     bool SetPrivKey(const std::string& strPrivKey);
 };
 
