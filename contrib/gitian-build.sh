@@ -78,7 +78,7 @@ while :; do
         -S|--signer)
 	    if [ -n "$2" ]
 	    then
-		SIGNER=$2
+		SIGNER="$2"
 		shift
 	    else
 		echo 'Error: "--signer" requires a non-empty argument.'
@@ -193,7 +193,7 @@ fi
 # Get signer
 if [[ -n"$1" ]]
 then
-    SIGNER=$1
+    SIGNER="$1"
     shift
 fi
 
@@ -206,7 +206,7 @@ then
 fi
 
 # Check that a signer is specified
-if [[ $SIGNER == "" ]]
+if [[ "$SIGNER" == "" ]]
 then
     echo "$scriptName: Missing signer."
     echo "Try $scriptName --help for more information"
@@ -275,7 +275,7 @@ then
 	    echo "Compiling ${VERSION} Linux"
 	    echo ""
 	    ./bin/gbuild -j ${proc} -m ${mem} --commit dash=${COMMIT} --url dash=${url} ../dash/contrib/gitian-descriptors/gitian-linux.yml
-	    ./bin/gsign -p $signProg --signer $SIGNER --release ${VERSION}-linux --destination ../gitian.sigs/ ../dash/contrib/gitian-descriptors/gitian-linux.yml
+	    ./bin/gsign -p "$signProg" --signer "$SIGNER" --release ${VERSION}-linux --destination ../gitian.sigs/ ../dash/contrib/gitian-descriptors/gitian-linux.yml
 	    mv build/out/dash-*.tar.gz build/out/src/dash-*.tar.gz ../dash-binaries/${VERSION}
 	fi
 	# Windows
@@ -285,7 +285,7 @@ then
 	    echo "Compiling ${VERSION} Windows"
 	    echo ""
 	    ./bin/gbuild -j ${proc} -m ${mem} --commit dash=${COMMIT} --url dash=${url} ../dash/contrib/gitian-descriptors/gitian-win.yml
-	    ./bin/gsign -p $signProg --signer $SIGNER --release ${VERSION}-win-unsigned --destination ../gitian.sigs/ ../dash/contrib/gitian-descriptors/gitian-win.yml
+	    ./bin/gsign -p "$signProg" --signer "$SIGNER" --release ${VERSION}-win-unsigned --destination ../gitian.sigs/ ../dash/contrib/gitian-descriptors/gitian-win.yml
 	    mv build/out/dash-*-win-unsigned.tar.gz inputs/dash-win-unsigned.tar.gz
 	    mv build/out/dash-*.zip build/out/dash-*.exe ../dash-binaries/${VERSION}
 	fi
@@ -296,7 +296,7 @@ then
 	    echo "Compiling ${VERSION} Mac OSX"
 	    echo ""
 	    ./bin/gbuild -j ${proc} -m ${mem} --commit dash=${COMMIT} --url dash=${url} ../dash/contrib/gitian-descriptors/gitian-osx.yml
-	    ./bin/gsign -p $signProg --signer $SIGNER --release ${VERSION}-osx-unsigned --destination ../gitian.sigs/ ../dash/contrib/gitian-descriptors/gitian-osx.yml
+	    ./bin/gsign -p "$signProg" --signer "$SIGNER" --release ${VERSION}-osx-unsigned --destination ../gitian.sigs/ ../dash/contrib/gitian-descriptors/gitian-osx.yml
 	    mv build/out/dash-*-osx-unsigned.tar.gz inputs/dash-osx-unsigned.tar.gz
 	    mv build/out/dash-*.tar.gz build/out/dash-*.dmg ../dash-binaries/${VERSION}
 	fi
@@ -309,9 +309,9 @@ then
             echo "Committing ${VERSION} Unsigned Sigs"
             echo ""
             pushd gitian.sigs
-            git add ${VERSION}-linux/${SIGNER}
-            git add ${VERSION}-win-unsigned/${SIGNER}
-            git add ${VERSION}-osx-unsigned/${SIGNER}
+            git add ${VERSION}-linux/"${SIGNER}"
+            git add ${VERSION}-win-unsigned/"${SIGNER}"
+            git add ${VERSION}-osx-unsigned/"${SIGNER}"
             git commit -a -m "Add ${VERSION} unsigned sigs for ${SIGNER}"
             popd
         fi
@@ -361,7 +361,7 @@ then
 	    echo "Signing ${VERSION} Windows"
 	    echo ""
 	    ./bin/gbuild -i --commit signature=${COMMIT} ../dash/contrib/gitian-descriptors/gitian-win-signer.yml
-	    ./bin/gsign -p $signProg --signer $SIGNER --release ${VERSION}-win-signed --destination ../gitian.sigs/ ../dash/contrib/gitian-descriptors/gitian-win-signer.yml
+	    ./bin/gsign -p "$signProg" --signer "$SIGNER" --release ${VERSION}-win-signed --destination ../gitian.sigs/ ../dash/contrib/gitian-descriptors/gitian-win-signer.yml
 	    mv build/out/dash-*win64-setup.exe ../dash-binaries/${VERSION}
 	    mv build/out/dash-*win32-setup.exe ../dash-binaries/${VERSION}
 	fi
@@ -372,7 +372,7 @@ then
 	    echo "Signing ${VERSION} Mac OSX"
 	    echo ""
 	    ./bin/gbuild -i --commit signature=${COMMIT} ../dash/contrib/gitian-descriptors/gitian-osx-signer.yml
-	    ./bin/gsign -p $signProg --signer $SIGNER --release ${VERSION}-osx-signed --destination ../gitian.sigs/ ../dash/contrib/gitian-descriptors/gitian-osx-signer.yml
+	    ./bin/gsign -p "$signProg" --signer "$SIGNER" --release ${VERSION}-osx-signed --destination ../gitian.sigs/ ../dash/contrib/gitian-descriptors/gitian-osx-signer.yml
 	    mv build/out/dash-osx-signed.dmg ../dash-binaries/${VERSION}/dash-${VERSION}-osx.dmg
 	fi
 	popd
@@ -384,8 +384,8 @@ then
             echo ""
             echo "Committing ${VERSION} Signed Sigs"
             echo ""
-            git add ${VERSION}-win-signed/${SIGNER}
-            git add ${VERSION}-osx-signed/${SIGNER}
+            git add ${VERSION}-win-signed/"${SIGNER}"
+            git add ${VERSION}-osx-signed/"${SIGNER}"
             git commit -a -m "Add ${VERSION} signed binary sigs for ${SIGNER}"
             popd
         fi
