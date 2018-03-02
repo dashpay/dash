@@ -86,8 +86,8 @@ public:
     uint256 GetHash() const;
     uint256 GetSignatureHash() const;
 
-    bool Sign(const CKey &key);
-    bool CheckSignature(const CKeyID &pubKeyId) const;
+    bool Sign(const CKey& key);
+    bool CheckSignature(const CKeyID& pubKeyId) const;
     void Relay(CConnman& connman);
 };
 
@@ -114,7 +114,7 @@ public:
     int GetSporkIDByName(const std::string& strName);
     std::string GetSporkNameByID(int nSporkID);
 
-    bool SetSporkAddress(const std::string &strAddress);
+    bool SetSporkAddress(const std::string& strAddress);
     bool SetPrivKey(const std::string& strPrivKey);
 };
 

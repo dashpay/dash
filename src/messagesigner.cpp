@@ -35,7 +35,7 @@ bool CMessageSigner::VerifyMessage(const CPubKey& pubkey, const std::vector<unsi
     return VerifyMessage(pubkey.GetID(), vchSig, strMessage, strErrorRet);
 }
 
-bool CMessageSigner::VerifyMessage(const CKeyID& keyID, const std::vector<unsigned char>& vchSig, const std::string &strMessage, std::string& strErrorRet)
+bool CMessageSigner::VerifyMessage(const CKeyID& keyID, const std::vector<unsigned char>& vchSig, const std::string& strMessage, std::string& strErrorRet)
 {
     CHashWriter ss(SER_GETHASH, 0);
     ss << strMessageMagic;

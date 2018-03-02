@@ -201,7 +201,7 @@ std::string CSporkManager::GetSporkNameByID(int nSporkID)
     }
 }
 
-bool CSporkManager::SetSporkAddress(const std::string &strAddress) {
+bool CSporkManager::SetSporkAddress(const std::string& strAddress) {
     CBitcoinAddress address(strAddress);
     if (!address.IsValid() || !address.GetKeyID(sporkPubKeyID)) {
         LogPrintf("CSporkManager::SetSporkAddress -- Failed to parse spork address\n");
@@ -247,7 +247,7 @@ uint256 CSporkMessage::GetSignatureHash() const
     return GetHash();
 }
 
-bool CSporkMessage::Sign(const CKey &key)
+bool CSporkMessage::Sign(const CKey& key)
 {
     CKeyID pubKeyId = key.GetPubKey().GetID();
     std::string strError = "";
@@ -281,7 +281,7 @@ bool CSporkMessage::Sign(const CKey &key)
     return true;
 }
 
-bool CSporkMessage::CheckSignature(const CKeyID &pubKeyId) const
+bool CSporkMessage::CheckSignature(const CKeyID& pubKeyId) const
 {
     std::string strError = "";
 

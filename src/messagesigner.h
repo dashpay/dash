@@ -19,7 +19,7 @@ public:
     /// Verify the message signature, returns true if succcessful
     static bool VerifyMessage(const CPubKey& pubkey, const std::vector<unsigned char>& vchSig, const std::string& strMessage, std::string& strErrorRet);
     /// Verify the message signature, returns true if succcessful
-    static bool VerifyMessage(const CKeyID& keyID, const std::vector<unsigned char>& vchSig, const std::string &strMessage, std::string& strErrorRet);
+    static bool VerifyMessage(const CKeyID& keyID, const std::vector<unsigned char>& vchSig, const std::string& strMessage, std::string& strErrorRet);
 };
 
 /** Helper class for signing hashes and checking their signatures
