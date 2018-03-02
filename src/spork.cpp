@@ -4,12 +4,12 @@
 
 #include "spork.h"
 
+#include "base58.h"
 #include "chainparams.h"
 #include "validation.h"
 #include "messagesigner.h"
 #include "net_processing.h"
 #include "netmessagemaker.h"
-#include "base58.h"
 
 #include <boost/lexical_cast.hpp>
 
@@ -201,11 +201,6 @@ std::string CSporkManager::GetSporkNameByID(int nSporkID)
     }
 }
 
-void CSporkManager::InitDefaultSporkAddress() {
-    if (!SetSporkAddress(Params().SporkAddress()))
-        assert(false);
-}
-
 bool CSporkManager::SetSporkAddress(const std::string &strAddress) {
     CBitcoinAddress address(strAddress);
     if (!address.IsValid() || !address.GetKeyID(sporkPubKeyID)) {
@@ -217,10 +212,6 @@ bool CSporkManager::SetSporkAddress(const std::string &strAddress) {
 
 bool CSporkManager::SetPrivKey(const std::string& strPrivKey)
 {
-    if (!IsHex(strPrivKey) || strPrivKey.size() != 130) {
-        return false;
-    }
-
     CKey key;
     CPubKey pubKey;
     if(!CMessageSigner::GetKeysFromSecret(strPrivKey, key, pubKey)) {
