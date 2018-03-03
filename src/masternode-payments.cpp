@@ -492,16 +492,18 @@ bool CMasternodePayments::AddPaymentVote(const CMasternodePaymentVote& vote)
     uint256 blockHash = uint256();
     if(!GetBlockHash(blockHash, vote.nBlockHeight - 101)) return false;
 
-    if(HasVerifiedPaymentVote(vote.GetHash())) return false;
+    uint256 nVoteHash = vote.GetHash();
+
+    if(HasVerifiedPaymentVote(nVoteHash)) return false;
 
     LOCK2(cs_mapMasternodeBlocks, cs_mapMasternodePaymentVotes);
 
-    mapMasternodePaymentVotes.emplace(vote.GetHash(), vote);
+    mapMasternodePaymentVotes.emplace(nVoteHash, vote);
 
     auto it = mapMasternodeBlocks.emplace(vote.nBlockHeight, CMasternodeBlockPayees(vote.nBlockHeight)).first;
     it->second.AddPayee(vote);
 
-    LogPrint("mnpayments", "CMasternodePayments::AddPaymentVote -- added, hash=%s\n", vote.GetHash().ToString());
+    LogPrint("mnpayments", "CMasternodePayments::AddPaymentVote -- added, hash=%s\n", nVoteHash.ToString());
 
     return true;
 }
@@ -517,13 +519,15 @@ void CMasternodeBlockPayees::AddPayee(const CMasternodePaymentVote& vote)
 {
     LOCK(cs_vecPayees);
 
+    uint256 nVoteHash = vote.GetHash();
+
     for (auto& payee : vecPayees) {
         if (payee.GetPayee() == vote.payee) {
-            payee.AddVoteHash(vote.GetHash());
+            payee.AddVoteHash(nVoteHash);
             return;
         }
     }
-    CMasternodePayee payeeNew(vote.payee, vote.GetHash());
+    CMasternodePayee payeeNew(vote.payee, nVoteHash);
     vecPayees.push_back(payeeNew);
 }
 
