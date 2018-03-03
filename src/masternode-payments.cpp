@@ -253,7 +253,7 @@ void CMasternodePayments::FillBlockPayee(CMutableTransaction& txNew, int nBlockH
 
     CScript payee;
 
-    if(!mnpayments.GetBlockPayee(nBlockHeight, payee)) {
+    if(!GetBlockPayee(nBlockHeight, payee)) {
         // no masternode detected...
         int nCount = 0;
         masternode_info_t mnInfo;
@@ -509,7 +509,7 @@ bool CMasternodePayments::AddPaymentVote(const CMasternodePaymentVote& vote)
 bool CMasternodePayments::HasVerifiedPaymentVote(const uint256& hashIn) const
 {
     LOCK(cs_mapMasternodePaymentVotes);
-    std::map<uint256, CMasternodePaymentVote>::iterator it = mapMasternodePaymentVotes.find(hashIn);
+    const auto it = mapMasternodePaymentVotes.find(hashIn);
     return it != mapMasternodePaymentVotes.end() && it->second.IsVerified();
 }
 
@@ -531,7 +531,7 @@ bool CMasternodeBlockPayees::GetBestPayee(CScript& payeeRet) const
 {
     LOCK(cs_vecPayees);
 
-    if(!vecPayees.size()) {
+    if(vecPayees.empty()) {
         LogPrint("mnpayments", "CMasternodeBlockPayees::GetBestPayee -- ERROR: couldn't find any payee\n");
         return false;
     }
@@ -989,7 +989,7 @@ void CMasternodePayments::RequestLowDataPaymentBlocks(CNode* pnode, CConnman& co
         pindex = pindex->pprev;
     }
 
-    std::map<int, CMasternodeBlockPayees>::iterator it = mapMasternodeBlocks.begin();
+    auto it = mapMasternodeBlocks.begin();
 
     while(it != mapMasternodeBlocks.end()) {
         int nTotalVotes = 0;
