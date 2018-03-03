@@ -246,7 +246,7 @@ bool CMasternodePayments::CanVote(COutPoint outMasternode, int nBlockHeight)
 *   Fill Masternode ONLY payment block
 */
 
-void CMasternodePayments::FillBlockPayee(CMutableTransaction& txNew, int nBlockHeight, CAmount blockReward, CTxOut& txoutMasternodeRet)
+void CMasternodePayments::FillBlockPayee(CMutableTransaction& txNew, int nBlockHeight, CAmount blockReward, CTxOut& txoutMasternodeRet) const
 {
     // make sure it's not filled yet
     txoutMasternodeRet = CTxOut();
@@ -282,7 +282,7 @@ void CMasternodePayments::FillBlockPayee(CMutableTransaction& txNew, int nBlockH
     LogPrintf("CMasternodePayments::FillBlockPayee -- Masternode payment %lld to %s\n", masternodePayment, address2.ToString());
 }
 
-int CMasternodePayments::GetMinMasternodePaymentsProto() {
+int CMasternodePayments::GetMinMasternodePaymentsProto() const {
     return sporkManager.IsSporkActive(SPORK_10_MASTERNODE_PAY_UPDATED_NODES)
             ? MIN_MASTERNODE_PAYMENT_PROTO_VERSION_2
             : MIN_MASTERNODE_PAYMENT_PROTO_VERSION_1;
@@ -457,17 +457,17 @@ bool CMasternodePaymentVote::Sign()
     return true;
 }
 
-bool CMasternodePayments::GetBlockPayee(int nBlockHeight, CScript& payee)
+bool CMasternodePayments::GetBlockPayee(int nBlockHeight, CScript& payeeRet) const
 {
     LOCK(cs_mapMasternodeBlocks);
 
     auto it = mapMasternodeBlocks.find(nBlockHeight);
-    return it != mapMasternodeBlocks.end() && it->second.GetBestPayee(payee);
+    return it != mapMasternodeBlocks.end() && it->second.GetBestPayee(payeeRet);
 }
 
 // Is this masternode scheduled to get paid soon?
 // -- Only look ahead up to 8 blocks to allow for propagation of the latest 2 blocks of votes
-bool CMasternodePayments::IsScheduled(const masternode_info_t& mnInfo, int nNotBlockHeight)
+bool CMasternodePayments::IsScheduled(const masternode_info_t& mnInfo, int nNotBlockHeight) const
 {
     LOCK(cs_mapMasternodeBlocks);
 
@@ -506,7 +506,7 @@ bool CMasternodePayments::AddPaymentVote(const CMasternodePaymentVote& vote)
     return true;
 }
 
-bool CMasternodePayments::HasVerifiedPaymentVote(uint256 hashIn)
+bool CMasternodePayments::HasVerifiedPaymentVote(const uint256& hashIn) const
 {
     LOCK(cs_mapMasternodePaymentVotes);
     std::map<uint256, CMasternodePaymentVote>::iterator it = mapMasternodePaymentVotes.find(hashIn);
@@ -527,7 +527,7 @@ void CMasternodeBlockPayees::AddPayee(const CMasternodePaymentVote& vote)
     vecPayees.push_back(payeeNew);
 }
 
-bool CMasternodeBlockPayees::GetBestPayee(CScript& payeeRet)
+bool CMasternodeBlockPayees::GetBestPayee(CScript& payeeRet) const
 {
     LOCK(cs_vecPayees);
 
@@ -547,7 +547,7 @@ bool CMasternodeBlockPayees::GetBestPayee(CScript& payeeRet)
     return (nVotes > -1);
 }
 
-bool CMasternodeBlockPayees::HasPayeeWithVotes(const CScript& payeeIn, int nVotesReq)
+bool CMasternodeBlockPayees::HasPayeeWithVotes(const CScript& payeeIn, int nVotesReq) const
 {
     LOCK(cs_vecPayees);
 
@@ -561,7 +561,7 @@ bool CMasternodeBlockPayees::HasPayeeWithVotes(const CScript& payeeIn, int nVote
     return false;
 }
 
-bool CMasternodeBlockPayees::IsTransactionValid(const CTransaction& txNew)
+bool CMasternodeBlockPayees::IsTransactionValid(const CTransaction& txNew) const
 {
     LOCK(cs_vecPayees);
 
@@ -606,7 +606,7 @@ bool CMasternodeBlockPayees::IsTransactionValid(const CTransaction& txNew)
     return false;
 }
 
-std::string CMasternodeBlockPayees::GetRequiredPaymentsString()
+std::string CMasternodeBlockPayees::GetRequiredPaymentsString() const
 {
     LOCK(cs_vecPayees);
 
@@ -630,7 +630,7 @@ std::string CMasternodeBlockPayees::GetRequiredPaymentsString()
     return strRequiredPayments;
 }
 
-std::string CMasternodePayments::GetRequiredPaymentsString(int nBlockHeight)
+std::string CMasternodePayments::GetRequiredPaymentsString(int nBlockHeight) const
 {
     LOCK(cs_mapMasternodeBlocks);
 
@@ -638,7 +638,7 @@ std::string CMasternodePayments::GetRequiredPaymentsString(int nBlockHeight)
     return it == mapMasternodeBlocks.end() ? "Unknown" : it->second.GetRequiredPaymentsString();
 }
 
-bool CMasternodePayments::IsTransactionValid(const CTransaction& txNew, int nBlockHeight)
+bool CMasternodePayments::IsTransactionValid(const CTransaction& txNew, int nBlockHeight) const
 {
     LOCK(cs_mapMasternodeBlocks);
 
@@ -669,7 +669,7 @@ void CMasternodePayments::CheckAndRemove()
     LogPrintf("CMasternodePayments::CheckAndRemove -- %s\n", ToString());
 }
 
-bool CMasternodePaymentVote::IsValid(CNode* pnode, int nValidationHeight, std::string& strError, CConnman& connman)
+bool CMasternodePaymentVote::IsValid(CNode* pnode, int nValidationHeight, std::string& strError, CConnman& connman) const
 {
     masternode_info_t mnInfo;
 
@@ -861,7 +861,7 @@ void CMasternodePayments::CheckBlockVotes(int nBlockHeight)
     LogPrint("mnpayments", "%s", debugStr);
 }
 
-void CMasternodePaymentVote::Relay(CConnman& connman)
+void CMasternodePaymentVote::Relay(CConnman& connman) const
 {
     // Do not relay until fully synced
     if(!masternodeSync.IsSynced()) {
@@ -932,7 +932,7 @@ std::string CMasternodePaymentVote::ToString() const
 }
 
 // Send only votes for future blocks, node should request every other missing payment block individually
-void CMasternodePayments::Sync(CNode* pnode, CConnman& connman)
+void CMasternodePayments::Sync(CNode* pnode, CConnman& connman) const
 {
     LOCK(cs_mapMasternodeBlocks);
 
@@ -960,7 +960,7 @@ void CMasternodePayments::Sync(CNode* pnode, CConnman& connman)
 }
 
 // Request low data/unknown payment blocks in batches directly from some node instead of/after preliminary Sync.
-void CMasternodePayments::RequestLowDataPaymentBlocks(CNode* pnode, CConnman& connman)
+void CMasternodePayments::RequestLowDataPaymentBlocks(CNode* pnode, CConnman& connman) const
 {
     if(!masternodeSync.IsMasternodeListSynced()) return;
 
@@ -1051,14 +1051,14 @@ std::string CMasternodePayments::ToString() const
     return info.str();
 }
 
-bool CMasternodePayments::IsEnoughData()
+bool CMasternodePayments::IsEnoughData() const
 {
     float nAverageVotes = (MNPAYMENTS_SIGNATURES_TOTAL + MNPAYMENTS_SIGNATURES_REQUIRED) / 2;
     int nStorageLimit = GetStorageLimit();
     return GetBlockCount() > nStorageLimit && GetVoteCount() > nStorageLimit * nAverageVotes;
 }
 
-int CMasternodePayments::GetStorageLimit()
+int CMasternodePayments::GetStorageLimit() const
 {
     return std::max(int(mnodeman.size() * nStorageCoeff), nMinBlocksToStore);
 }
