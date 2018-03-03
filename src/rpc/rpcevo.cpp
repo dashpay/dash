@@ -19,6 +19,7 @@
 
 #include "evo/specialtx.h"
 #include "evo/providertx.h"
+#include "evo/deterministicmns.h"
 
 #ifdef ENABLE_WALLET
 extern UniValue signrawtransaction(const JSONRPCRequest& request);
@@ -241,6 +242,134 @@ UniValue protx_register(const JSONRPCRequest& request)
 
 
 
+void protx_list_help()
+{
+    throw std::runtime_error(
+            "protx list (\"type\")\n"
+            "\nLists all ProTxs in your wallet or on-chain, depending on the given type. If \"type\" is not\n"
+            "specified, it defaults to \"wallet\". All types have the optional argument \"detailed\" which if set to\n"
+            "\"true\" will result in a detailed list to be returned. If set to \"false\", only the hashes of the ProTx\n"
+            "will be returned.\n"
+            "\nAvailable types:\n"
+            "  wallet (detailed)              - List only ProTx which are found in your wallet. This will also include ProTx which\n"
+            "                                   failed PoSe verfication\n"
+            "  valid (height) (detailed)      - List only ProTx which are active/valid at the given chain height. If height is not\n"
+            "                                   specified, it defaults to the current chain-tip\n"
+            "  registered (height) (detaileD) - List all ProTx which are registered at the given chain height. If height is not\n"
+            "                                   specified, it defaults to the current chain-tip. This will also include ProTx\n"
+            "                                   which failed PoSe verification at that height\n"
+    );
+}
+
+static bool CheckWalletOwnsScript(const CScript& script) {
+    CTxDestination dest;
+    if (ExtractDestination(script, dest)) {
+        if ((boost::get<CKeyID>(&dest) && pwalletMain->HaveKey(*boost::get<CKeyID>(&dest))) || (boost::get<CScriptID>(&dest) && pwalletMain->HaveCScript(*boost::get<CScriptID>(&dest)))) {
+            return true;
+        }
+    }
+    return false;
+}
+
+UniValue BuildDMNListEntry(const CDeterministicMNCPtr& dmn, bool detailed)
+{
+    if (!detailed)
+        return dmn->proTxHash.ToString();
+
+    UniValue o(UniValue::VOBJ);
+
+    dmn->ToJson(o);
+
+    int confirmations = GetUTXOConfirmations(COutPoint(dmn->proTxHash, dmn->nCollateralIndex));
+    o.push_back(Pair("confirmations", confirmations));
+
+    bool hasOwnerKey = pwalletMain->HaveKey(dmn->state->keyIDOwner);
+    bool hasOperatorKey = pwalletMain->HaveKey(dmn->state->keyIDOperator);
+    bool hasVotingKey = pwalletMain->HaveKey(dmn->state->keyIDVoting);
+
+    bool ownsCollateral = false;
+    CTransactionRef collateralTx;
+    uint256 tmpHashBlock;
+    if (GetTransaction(dmn->proTxHash, collateralTx, Params().GetConsensus(), tmpHashBlock)) {
+        ownsCollateral = CheckWalletOwnsScript(collateralTx->vout[dmn->nCollateralIndex].scriptPubKey);
+    }
+
+    UniValue walletObj(UniValue::VOBJ);
+    walletObj.push_back(Pair("hasOwnerKey", hasOwnerKey));
+    walletObj.push_back(Pair("hasOperatorKey", hasOperatorKey));
+    walletObj.push_back(Pair("hasVotingKey", hasVotingKey));
+    walletObj.push_back(Pair("ownsCollateral", ownsCollateral));
+    walletObj.push_back(Pair("ownsPayeeScript", CheckWalletOwnsScript(dmn->state->scriptPayout)));
+    walletObj.push_back(Pair("ownsOperatorRewardScript", CheckWalletOwnsScript(dmn->state->scriptOperatorPayout)));
+    o.push_back(Pair("wallet", walletObj));
+
+    return o;
+}
+
+UniValue protx_list(const JSONRPCRequest& request)
+{
+    if (request.fHelp)
+        protx_list_help();
+
+    std::string type = "wallet";
+    if (request.params.size() > 1)
+        type = request.params[1].get_str();
+
+    UniValue ret(UniValue::VARR);
+
+    LOCK2(cs_main, pwalletMain->cs_wallet);
+
+    if (type == "wallet") {
+        if (request.params.size() > 3)
+            protx_list_help();
+
+        bool detailed = request.params.size() > 2 ? ParseBoolV(request.params[2], "detailed") : false;
+
+        std::vector<COutPoint> vOutpts;
+        pwalletMain->ListProTxCoins(vOutpts);
+        std::set<uint256> setOutpts;
+        for (const auto& outpt : vOutpts) {
+            setOutpts.emplace(outpt.hash);
+        }
+
+        for (const auto& dmn : deterministicMNManager->GetListAtChainTip().all_range()) {
+            if (setOutpts.count(dmn->proTxHash) ||
+                    pwalletMain->HaveKey(dmn->state->keyIDOwner) ||
+                    pwalletMain->HaveKey(dmn->state->keyIDOperator) ||
+                    pwalletMain->HaveKey(dmn->state->keyIDVoting) ||
+                    CheckWalletOwnsScript(dmn->state->scriptPayout) ||
+                    CheckWalletOwnsScript(dmn->state->scriptOperatorPayout)) {
+                ret.push_back(BuildDMNListEntry(dmn, detailed));
+            }
+        }
+    } else if (type == "valid" || type == "registered") {
+        if (request.params.size() > 4)
+            protx_list_help();
+
+        int height = request.params.size() > 2 ? ParseInt32V(request.params[2], "height") : chainActive.Height();
+        if (height < 1 || height > chainActive.Height())
+            throw JSONRPCError(RPC_INVALID_PARAMETER, "invalid height specified");
+
+        bool detailed = request.params.size() > 3 ? ParseBoolV(request.params[3], "detailed") : false;
+
+        CDeterministicMNList mnList = deterministicMNManager->GetListAtHeight(height);
+        CDeterministicMNList::range_type range;
+
+        if (type == "valid") {
+            range = mnList.valid_range();
+        } else if (type == "registered") {
+            range = mnList.all_range();
+        }
+        for (const auto& dmn : range) {
+            ret.push_back(BuildDMNListEntry(dmn, detailed));
+        }
+    } else {
+        throw JSONRPCError(RPC_INVALID_PARAMETER, "invalid type specified");
+    }
+
+    return ret;
+}
+
 UniValue protx(const JSONRPCRequest& request)
 {
     if (request.params.empty()) {
@@ -252,6 +381,7 @@ UniValue protx(const JSONRPCRequest& request)
                 "1. \"command\"        (string, required) The command to execute\n"
                 "\nAvailable commands:\n"
                 "  register    - Create and send ProTx to network\n"
+                "  list        - List ProTxs\n"
         );
     }
 
@@ -259,6 +389,8 @@ UniValue protx(const JSONRPCRequest& request)
 
     if (command == "register") {
         return protx_register(request);
+    } else if (command == "list") {
+        return protx_list(request);
     } else {
         throw std::runtime_error("invalid command: " + command);
     }
