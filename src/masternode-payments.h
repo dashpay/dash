@@ -217,7 +217,7 @@ public:
     bool IsTransactionValid(const CTransaction& txNew, int nBlockHeight) const;
     bool IsScheduled(const masternode_info_t& mnInfo, int nNotBlockHeight) const;
 
-    bool CanVote(COutPoint outMasternode, int nBlockHeight);
+    bool UpdateLastVote(const CMasternodePaymentVote& vote);
 
     int GetMinMasternodePaymentsProto() const;
     void ProcessMessage(CNode* pfrom, const std::string& strCommand, CDataStream& vRecv, CConnman& connman);

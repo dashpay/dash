@@ -223,20 +223,20 @@ void CMasternodePayments::Clear()
     mapMasternodePaymentVotes.clear();
 }
 
-bool CMasternodePayments::CanVote(COutPoint outMasternode, int nBlockHeight)
+bool CMasternodePayments::UpdateLastVote(const CMasternodePaymentVote& vote)
 {
     LOCK(cs_mapMasternodePaymentVotes);
 
-    const auto it = mapMasternodesLastVote.find(outMasternode);
+    const auto it = mapMasternodesLastVote.find(vote.masternodeOutpoint);
     if (it != mapMasternodesLastVote.end()) {
-        if (it->second == nBlockHeight)
+        if (it->second == vote.nBlockHeight)
             return false;
-        it->second = nBlockHeight;
+        it->second = vote.nBlockHeight;
         return true;
     }
 
     //record this masternode voted
-    mapMasternodesLastVote.emplace(outMasternode, nBlockHeight);
+    mapMasternodesLastVote.emplace(vote.masternodeOutpoint, vote.nBlockHeight);
     return true;
 }
 
@@ -361,7 +361,7 @@ void CMasternodePayments::ProcessMessage(CNode* pfrom, const std::string& strCom
             return;
         }
 
-        if(!CanVote(vote.masternodeOutpoint, vote.nBlockHeight)) {
+        if(!UpdateLastVote(vote)) {
             LogPrintf("MASTERNODEPAYMENTVOTE -- masternode already voted, masternode=%s\n", vote.masternodeOutpoint.ToStringShort());
             return;
         }
