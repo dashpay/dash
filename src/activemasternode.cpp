@@ -377,6 +377,9 @@ void CActiveLegacyMasternodeManager::ManageStateRemote()
             activeMasternodeInfo.service = infoMn.addr;
             fPingerEnabled = true;
             nState = ACTIVE_MASTERNODE_STARTED;
+        } else if (activeMasternodeInfo.outpoint != infoMn.outpoint) {
+            LogPrintf("CActiveLegacyMasternodeManager::ManageStateRemote -- STARTED with new collateral %s!\n", infoMn.outpoint.ToStringShort());
+            activeMasternodeInfo.outpoint = infoMn.outpoint;
         }
     }
     else {
