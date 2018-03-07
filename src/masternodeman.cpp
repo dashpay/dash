@@ -88,7 +88,7 @@ void CMasternodeMan::AskForMN(CNode* pnode, const COutPoint& outpoint, CConnman&
     CNetMsgMaker msgMaker(pnode->GetSendVersion());
     LOCK(cs);
 
-    CService addrSquashed = IsArgSet("-regtest") ? (CService)pnode->addr : CService(pnode->addr, 0);
+    CService addrSquashed = Params().AllowMultiplePorts() ? (CService)pnode->addr : CService(pnode->addr, 0);
     auto it1 = mWeAskedForMasternodeListEntry.find(outpoint);
     if (it1 != mWeAskedForMasternodeListEntry.end()) {
         auto it2 = it1->second.find(addrSquashed);
@@ -413,7 +413,7 @@ void CMasternodeMan::DsegUpdate(CNode* pnode, CConnman& connman)
     CNetMsgMaker msgMaker(pnode->GetSendVersion());
     LOCK(cs);
 
-    CService addrSquashed = IsArgSet("-regtest") ? (CService)pnode->addr : CService(pnode->addr, 0);
+    CService addrSquashed = Params().AllowMultiplePorts() ? (CService)pnode->addr : CService(pnode->addr, 0);
     if(Params().NetworkIDString() == CBaseChainParams::MAIN) {
         if(!(pnode->addr.IsRFC1918() || pnode->addr.IsLocal())) {
             auto it = mWeAskedForMasternodeList.find(addrSquashed);
@@ -948,7 +948,7 @@ void CMasternodeMan::SyncAll(CNode* pnode, CConnman& connman)
     // local network
     bool isLocal = (pnode->addr.IsRFC1918() || pnode->addr.IsLocal());
 
-    CService addrSquashed = IsArgSet("-regtest") ? (CService)pnode->addr : CService(pnode->addr, 0);
+    CService addrSquashed = Params().AllowMultiplePorts() ? (CService)pnode->addr : CService(pnode->addr, 0);
     // should only ask for this once
     if(!isLocal && Params().NetworkIDString() == CBaseChainParams::MAIN) {
         auto it = mAskedUsForMasternodeList.find(addrSquashed);
