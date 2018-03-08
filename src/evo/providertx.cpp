@@ -20,7 +20,7 @@
 template <typename ProTx>
 static bool CheckService(const ProTx& proTx, const CBlockIndex* pindex, CValidationState& state)
 {
-    if (proTx.nProtocolVersion < MIN_PROTX_PROTO_VERSION || proTx.nProtocolVersion > PROTOCOL_VERSION)
+    if (proTx.nProtocolVersion < MIN_PROTX_PROTO_VERSION || proTx.nProtocolVersion > MAX_PROTX_PROTO_VERSION)
         return state.DoS(10, false, REJECT_INVALID, "bad-protx-proto-version");
 
     if (!proTx.addr.IsValid())

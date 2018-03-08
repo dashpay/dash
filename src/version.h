@@ -47,4 +47,7 @@ static const int SHORT_IDS_BLOCKS_VERSION = 70209;
 //! minimum ProTx proto version
 static const int MIN_PROTX_PROTO_VERSION = 70209;
 
+//! maximum ProTx proto version (slightly higher then current PROTOCOL_VERSION to ensure masternodes can upgrade)
+static const int MAX_PROTX_PROTO_VERSION = PROTOCOL_VERSION + 2;
+
 #endif // BITCOIN_VERSION_H
