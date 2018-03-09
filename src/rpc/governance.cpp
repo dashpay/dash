@@ -518,7 +518,47 @@ UniValue gobject_vote_many(const JSONRPCRequest& request)
         throw JSONRPCError(RPC_INVALID_PARAMETER, "Invalid vote outcome. Please use one of the following: 'yes', 'no' or 'abstain'");
     }
 
-    return VoteWithMasternodeList(masternodeConfig.getEntries(), hash, eVoteSignal, eVoteOutcome);
+    std::vector<CMasternodeConfig::CMasternodeEntry> entries = masternodeConfig.getEntries();
+
+#ifdef ENABLE_WALLET
+    // This is a hack to maintain code-level backwards compatibility with masternode.conf and the deterministic masternodes.
+    // Deterministic masternode keys are managed inside the wallet instead of masternode.conf
+    // This allows voting on proposals when you have the MN voting key in your wallet
+    // We can remove this when we remove support for masternode.conf and only support wallet based masternode
+    // management
+    if (deterministicMNManager->IsDeterministicMNsSporkActive()) {
+        auto mnList = deterministicMNManager->GetListAtChainTip();
+        for (const auto &dmn : mnList.valid_range()) {
+            bool found = false;
+            for (const auto &mne : entries) {
+                uint256 nTxHash;
+                nTxHash.SetHex(mne.getTxHash());
+
+                int nOutputIndex = 0;
+                if(!ParseInt32(mne.getOutputIndex(), &nOutputIndex)) {
+                    continue;
+                }
+
+                if (nTxHash == dmn->proTxHash && (uint32_t)nOutputIndex == dmn->nCollateralIndex) {
+                    found = true;
+                    break;
+                }
+            }
+            if (found) {
+                continue;
+            }
+
+            CKey ownerKey;
+            if (pwalletMain->GetKey(dmn->pdmnState->keyIDVoting, ownerKey)) {
+                CBitcoinSecret secret(ownerKey);
+                CMasternodeConfig::CMasternodeEntry mne(dmn->proTxHash.ToString(), dmn->pdmnState->addr.ToStringIPPort(false), secret.ToString(), dmn->proTxHash.ToString(), itostr(dmn->nCollateralIndex));
+                entries.push_back(mne);
+            }
+        }
+    }
+#endif
+
+    return VoteWithMasternodeList(entries, hash, eVoteSignal, eVoteOutcome);
 }
 
 void gobject_vote_alias_help()
