@@ -465,6 +465,46 @@ UniValue gobject(const JSONRPCRequest& request)
         int nSuccessful = 0;
         int nFailed = 0;
 
+#ifdef ENABLE_WALLET
+        std::vector<CMasternodeConfig::CMasternodeEntry> mnEntries;
+        mnEntries = masternodeConfig.getEntries();
+
+        // This is a hack to maintain code-level backwards compatibility with the masternode.conf based code below
+        // It allows voting on proposals when you have the MN owner key in your wallet
+        // We can remove this when we remove support for masternode.conf and only support wallet based masternode
+        // management
+        if (deterministicMNManager->IsDeterministicMNsSporkActive()) {
+            auto mnList = deterministicMNManager->GetListAtChainTip();
+            for (const auto &dmn : mnList.valid_range()) {
+                bool found = false;
+                for (const auto &mne : mnEntries) {
+                    uint256 nTxHash;
+                    nTxHash.SetHex(mne.getTxHash());
+
+                    int nOutputIndex = 0;
+                    if(!ParseInt32(mne.getOutputIndex(), &nOutputIndex)) {
+                        continue;
+                    }
+
+                    if (nTxHash == dmn->proTxHash && (uint32_t)nOutputIndex == dmn->nCollateralIndex) {
+                        found = true;
+                        break;
+                    }
+                }
+                if (found) {
+                    continue;
+                }
+
+                CKey ownerKey;
+                if (pwalletMain->GetKey(dmn->state->keyIDVoting, ownerKey)) {
+                    CBitcoinSecret secret(ownerKey);
+                    CMasternodeConfig::CMasternodeEntry mne(dmn->proTxHash.ToString(), dmn->state->addr.ToStringIPPort(false), secret.ToString(), dmn->proTxHash.ToString(), itostr(dmn->nCollateralIndex));
+                    mnEntries.push_back(mne);
+                }
+            }
+        }
+#endif
+
         UniValue resultsObj(UniValue::VOBJ);
 
         for (const auto& mne : masternodeConfig.getEntries()) {
