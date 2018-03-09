@@ -1282,6 +1282,9 @@ public:
      * deadlock
      */
     void BlockUntilSyncedToCurrentChain() LOCKS_EXCLUDED(cs_wallet);
+
+    /** Whether a given output is spendable by this wallet */
+    bool OutputEligibleForSpending(const COutput& output, const int nConfMine, const int nConfTheirs, const uint64_t nMaxAncestors) const;
 };
 
 /** A key allocated from the key pool. */

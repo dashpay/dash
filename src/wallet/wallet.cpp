@@ -3119,6 +3119,22 @@ bool less_then_denom (const COutput& out1, const COutput& out2)
     return (!found1 && found2);
 }
 
+bool CWallet::OutputEligibleForSpending(const COutput& output, const int nConfMine, const int nConfTheirs, const uint64_t nMaxAncestors) const
+{
+    if (!output.fSpendable)
+        return false;
+
+    bool fLockedByIS = output.tx->IsLockedByInstantSend();
+
+    if (output.nDepth < (output.tx->IsFromMe(ISMINE_ALL) ? nConfMine : nConfTheirs) && !fLockedByIS)
+        return false;
+
+    if (!mempool.TransactionWithinChainLimit(output.tx->GetHash(), nMaxAncestors))
+        return false;
+
+    return true;
+}
+
 bool CWallet::SelectCoinsMinConf(const CAmount& nTargetValue, const int nConfMine, const int nConfTheirs, const uint64_t nMaxAncestors, std::vector<COutput> vCoins,
                                  std::set<CInputCoin>& setCoinsRet, CAmount& nValueRet, CoinType nCoinType) const
 {
@@ -3156,23 +3172,10 @@ bool CWallet::SelectCoinsMinConf(const CAmount& nTargetValue, const int nConfMin
         nTotalLower = 0;
         for (const COutput &output : vCoins)
         {
-            if (!output.fSpendable)
+            if (!OutputEligibleForSpending(output, nConfMine, nConfTheirs, nMaxAncestors))
                 continue;
 
-            const CWalletTx *pcoin = output.tx;
-
-            bool fLockedByIS = pcoin->IsLockedByInstantSend();
-
-            // if (logCategories != BCLog::NONE) LogPrint(BCLog::SELECTCOINS, "value %s confirms %d\n", FormatMoney(pcoin->vout[output.i].nValue), output.nDepth);
-            if (output.nDepth < (pcoin->IsFromMe(ISMINE_ALL) ? nConfMine : nConfTheirs) && !fLockedByIS)
-                continue;
-
-            if (!mempool.TransactionWithinChainLimit(pcoin->GetHash(), nMaxAncestors))
-                continue;
-
-            int i = output.i;
-
-            CInputCoin coin = CInputCoin(pcoin, i);
+            CInputCoin coin = CInputCoin(output.tx, output.i);
 
             if (tryDenom == 0 && CPrivateSend::IsDenominatedAmount(coin.txout.nValue)) continue; // we don't want denom values on first run
 
