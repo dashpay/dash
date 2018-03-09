@@ -999,9 +999,7 @@ void CMasternodeMan::DoFullVerificationStep(CConnman& connman)
     rank_pair_vec_t vecMasternodeRanks;
     GetMasternodeRanks(vecMasternodeRanks, nCachedBlockHeight - 1, MIN_POSE_PROTO_VERSION);
 
-    // Need LOCK2 here to ensure consistent locking order because the SendVerifyRequest call below locks cs_main
-    // through InitializeNode signal in OpenNetworkConnection
-    LOCK2(cs_main, cs);
+    LOCK(cs);
 
     int nCount = 0;
 
