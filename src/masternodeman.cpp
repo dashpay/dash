@@ -1693,12 +1693,12 @@ void CMasternodeMan::UpdatedBlockTip(const CBlockIndex *pindex)
 
 void CMasternodeMan::WarnMasternodeDaemonUpdates()
 {
+    LOCK(cs);
+
     static bool fWarned = false;
 
     if (fWarned || !size() || !masternodeSync.IsMasternodeListSynced())
         return;
-
-    LOCK(cs);
 
     int nUpdatedMasternodes{0};
 
