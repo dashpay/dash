@@ -3119,23 +3119,23 @@ bool less_then_denom (const COutput& out1, const COutput& out2)
     return (!found1 && found2);
 }
 
-bool CWallet::OutputEligibleForSpending(const COutput& output, const int nConfMine, const int nConfTheirs, const uint64_t nMaxAncestors) const
+bool CWallet::OutputEligibleForSpending(const COutput& output, const CoinEligibilityFilter& eligibilty_filter) const
 {
     if (!output.fSpendable)
         return false;
 
     bool fLockedByIS = output.tx->IsLockedByInstantSend();
 
-    if (output.nDepth < (output.tx->IsFromMe(ISMINE_ALL) ? nConfMine : nConfTheirs) && !fLockedByIS)
+    if ((output.nDepth < (output.tx->IsFromMe(ISMINE_ALL) ? eligibilty_filter.conf_mine : eligibilty_filter.conf_theirs)) && !fLockedByIS)
         return false;
 
-    if (!mempool.TransactionWithinChainLimit(output.tx->GetHash(), nMaxAncestors))
+    if (!mempool.TransactionWithinChainLimit(output.tx->GetHash(), eligibilty_filter.max_ancestors))
         return false;
 
     return true;
 }
 
-bool CWallet::SelectCoinsMinConf(const CAmount& nTargetValue, const int nConfMine, const int nConfTheirs, const uint64_t nMaxAncestors, std::vector<COutput> vCoins,
+bool CWallet::SelectCoinsMinConf(const CAmount& nTargetValue, const CoinEligibilityFilter& eligibilty_filter, std::vector<COutput> vCoins,
                                  std::set<CInputCoin>& setCoinsRet, CAmount& nValueRet, CoinType nCoinType) const
 {
     setCoinsRet.clear();
@@ -3172,7 +3172,7 @@ bool CWallet::SelectCoinsMinConf(const CAmount& nTargetValue, const int nConfMin
         nTotalLower = 0;
         for (const COutput &output : vCoins)
         {
-            if (!OutputEligibleForSpending(output, nConfMine, nConfTheirs, nMaxAncestors))
+            if (!OutputEligibleForSpending(output, eligibilty_filter))
                 continue;
 
             CInputCoin coin = CInputCoin(output.tx, output.i);
@@ -3332,13 +3332,13 @@ bool CWallet::SelectCoins(const std::vector<COutput>& vAvailableCoins, const CAm
     bool fRejectLongChains = gArgs.GetBoolArg("-walletrejectlongchains", DEFAULT_WALLET_REJECT_LONG_CHAINS);
 
     bool res = nTargetValue <= nValueFromPresetInputs ||
-        SelectCoinsMinConf(nTargetValue - nValueFromPresetInputs, 1, 6, 0, vCoins, setCoinsRet, nValueRet, nCoinType) ||
-        SelectCoinsMinConf(nTargetValue - nValueFromPresetInputs, 1, 1, 0, vCoins, setCoinsRet, nValueRet, nCoinType) ||
-        (bSpendZeroConfChange && SelectCoinsMinConf(nTargetValue - nValueFromPresetInputs, 0, 1, 2, vCoins, setCoinsRet, nValueRet, nCoinType)) ||
-        (bSpendZeroConfChange && SelectCoinsMinConf(nTargetValue - nValueFromPresetInputs, 0, 1, std::min((size_t)4, nMaxChainLength/3), vCoins, setCoinsRet, nValueRet, nCoinType)) ||
-        (bSpendZeroConfChange && SelectCoinsMinConf(nTargetValue - nValueFromPresetInputs, 0, 1, nMaxChainLength/2, vCoins, setCoinsRet, nValueRet, nCoinType)) ||
-        (bSpendZeroConfChange && SelectCoinsMinConf(nTargetValue - nValueFromPresetInputs, 0, 1, nMaxChainLength, vCoins, setCoinsRet, nValueRet, nCoinType)) ||
-        (bSpendZeroConfChange && !fRejectLongChains && SelectCoinsMinConf(nTargetValue - nValueFromPresetInputs, 0, 1, std::numeric_limits<uint64_t>::max(), vCoins, setCoinsRet, nValueRet, nCoinType));
+        SelectCoinsMinConf(nTargetValue - nValueFromPresetInputs, CoinEligibilityFilter(1, 6, 0), vCoins, setCoinsRet, nValueRet, nCoinType) ||
+        SelectCoinsMinConf(nTargetValue - nValueFromPresetInputs, CoinEligibilityFilter(1, 1, 0), vCoins, setCoinsRet, nValueRet, nCoinType) ||
+        (bSpendZeroConfChange && SelectCoinsMinConf(nTargetValue - nValueFromPresetInputs, CoinEligibilityFilter(0, 1, 2), vCoins, setCoinsRet, nValueRet, nCoinType)) ||
+        (bSpendZeroConfChange && SelectCoinsMinConf(nTargetValue - nValueFromPresetInputs, CoinEligibilityFilter(0, 1, std::min((size_t)4, nMaxChainLength/3)), vCoins, setCoinsRet, nValueRet, nCoinType)) ||
+        (bSpendZeroConfChange && SelectCoinsMinConf(nTargetValue - nValueFromPresetInputs, CoinEligibilityFilter(0, 1, nMaxChainLength/2), vCoins, setCoinsRet, nValueRet, nCoinType)) ||
+        (bSpendZeroConfChange && SelectCoinsMinConf(nTargetValue - nValueFromPresetInputs, CoinEligibilityFilter(0, 1, nMaxChainLength), vCoins, setCoinsRet, nValueRet, nCoinType)) ||
+        (bSpendZeroConfChange && !fRejectLongChains && SelectCoinsMinConf(nTargetValue - nValueFromPresetInputs, CoinEligibilityFilter(0, 1, std::numeric_limits<uint64_t>::max()), vCoins, setCoinsRet, nValueRet, nCoinType));
 
     // because SelectCoinsMinConf clears the setCoinsRet, we now add the possible inputs to the coinset
     setCoinsRet.insert(setPresetCoins.begin(), setPresetCoins.end());
