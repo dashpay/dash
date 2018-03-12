@@ -56,6 +56,8 @@ The wallet should start up on your screen.
 
 UI files are in `src/qt/forms`
 
+Careful with pull requests to send them to SicutDominus/lotterycoin rather than the default dashpay/dash branch.
+
 ## License
 
 Copyright LotteryCoin Developers 2018
