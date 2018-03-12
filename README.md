@@ -1,77 +1,72 @@
-Dash Core staging tree 0.12.2
-===============================
+# LotteryCoin
 
-`master:` [![Build Status](https://travis-ci.org/dashpay/dash.svg?branch=master)](https://travis-ci.org/dashpay/dash) `develop:` [![Build Status](https://travis-ci.org/dashpay/dash.svg?branch=develop)](https://travis-ci.org/dashpay/dash/branches)
+## Developers
 
-https://www.dash.org
+Extra info in: `~/doc/build_unix.md`, but it's pretty hard to follow.
 
+### Installation
 
-What is Dash?
-----------------
+Install dependencies:
 
-Dash is an experimental new digital currency that enables anonymous, instant
-payments to anyone, anywhere in the world. Dash uses peer-to-peer technology
-to operate with no central authority: managing transactions and issuing money
-are carried out collectively by the network. Dash Core is the name of the open
-source software which enables the use of this currency.
+    // Source link https://github.com/bitcoin/bitcoin/issues/7970
+    $ sudo add-apt-repository ppa:bitcoin/bitcoin
+    $ sudo apt-get update
+    $ sudo apt-get install libdb4.8-dev libdb4.8++-dev
 
-For more information, as well as an immediately useable, binary version of
-the Dash Core software, see https://www.dash.org/get-dash/.
+    // git clone this repo
+    // cd into the lotterycoin directory root
+    $ ./autogen.sh
+    $ ./configure
+    $ make
 
+The last command takes a freaking age (5 to 10 minutes) and produces a lot of `CXX libbitcoin ...` and warning messages, but if it's still running then let it do its thing.
 
-License
--------
+    $ sudo make install
 
-Dash Core is released under the terms of the MIT license. See [COPYING](COPYING) for more
-information or see https://opensource.org/licenses/MIT.
+Now set up the the terminal daemon:
 
-Development Process
--------------------
+    $ sudo apt-get install libqt5gui5 libqt5core5a libqt5dbus5 qttools5-dev qttools5-dev-tools libprotobuf-dev protobuf-compiler
 
-The `master` branch is meant to be stable. Development is normally done in separate branches.
-[Tags](https://github.com/dashpay/dash/tags) are created to indicate new official,
-stable release versions of Dash Core.
+    // Source link https://www.dash.org/forum/threads/install-dashcoind-to-ubuntu-14-04.4827/
+    // cd into lotterycoin/src directory
+    $ ./dashd --daemon
 
-The contribution workflow is described in [CONTRIBUTING.md](CONTRIBUTING.md).
+    // Now you should have the terminal version running
+    // Check if it's running on port 9998 or 9999
+    $ lsof wni
+    // You can also hit localhost:9998 in the browser
+    // This message means it's working `JSONRPC server handles only POST requests`
+    // With the daemon running you can use RPC commands
+    $ ./dash-cli help
+    $ ./dash-cli getwalletinfo
+    // Use Ctrl+C to kill the daemon, you can't run it at the same time as the wallet
+    // Alternative way to shut off the daemon
+    $ lsof wni
+    // Find the port number for `dashd`
+    $ kill <port number>
 
-Testing
--------
+Ok now to switch to the GUI wallet:
 
-Testing and code review is the bottleneck for development; we get more pull
-requests than we can review and test on short notice. Please be patient and help out by testing
-other people's pull requests, and remember this is a security-critical project where any mistake might cost people
-lots of money.
+    // cd into lotterycoin/src/qt
+    $ ./dash-qt
 
-### Automated Testing
+The wallet should start up on your screen.
 
-Developers are strongly encouraged to write [unit tests](/doc/unit-tests.md) for new code, and to
-submit new unit tests for old code. Unit tests can be compiled and run
-(assuming they weren't disabled in configure) with: `make check`
+### Developing
 
-There are also [regression and integration tests](/qa) of the RPC interface, written
-in Python, that are run automatically on the build server.
-These tests can be run (if the [test dependencies](/qa) are installed) with: `qa/pull-tester/rpc-tests.py`
+Changes will not appear in the live wallet unless the repository is remade (no hotloading)
 
-The Travis CI system makes sure that every pull request is built for Windows
-and Linux, OS X, and that unit and sanity tests are automatically run.
+    // close QT wallet
+    // cd into root directory
+    $ ./configure
+    $ make
+    $ cd ./src/qt
+    $ ./dash-qt
 
-### Manual Quality Assurance (QA) Testing
+UI files are in `src/qt/forms`
 
-Changes should be tested by somebody other than the developer who wrote the
-code. This is especially important for large or high-risk changes. It is useful
-to add a test plan to the pull request description if testing the changes is
-not straightforward.
+Careful with pull requests to send them to SicutDominus/lotterycoin rather than the default dashpay/dash branch.
 
-Translations
-------------
+## License
 
-Changes to translations as well as new translations can be submitted to
-[Dash Core's Transifex page](https://www.transifex.com/projects/p/dash/).
-
-Translations are periodically pulled from Transifex and merged into the git repository. See the
-[translation process](doc/translation_process.md) for details on how this works.
-
-**Important**: We do not accept translation changes as GitHub pull requests because the next
-pull from Transifex would automatically overwrite them again.
-
-Translators should also follow the [forum](https://www.dash.org/forum/topic/dash-worldwide-collaboration.88/).
+Copyright LotteryCoin Developers 2018
