@@ -267,7 +267,8 @@ bool CPrivateSend::IsCollateralValid(const CTransaction& txCollateral)
     for (const auto& txout : txCollateral.vout) {
         nValueOut += txout.nValue;
 
-        if(!txout.scriptPubKey.IsPayToPublicKeyHash() && !txout.scriptPubKey.IsUnspendable()) {
+        bool fAllowData = mnpayments.GetMinMasternodePaymentsProto() > 70208;
+        if(!txout.scriptPubKey.IsPayToPublicKeyHash() && !(fAllowData && txout.scriptPubKey.IsUnspendable())) {
             LogPrintf ("CPrivateSend::IsCollateralValid -- Invalid Script, txCollateral=%s", txCollateral.ToString());
             return false;
         }
@@ -305,8 +306,9 @@ bool CPrivateSend::IsCollateralValid(const CTransaction& txCollateral)
 bool CPrivateSend::IsCollateralAmount(CAmount nInputAmount)
 {
     // collateral input should be smth between 1x and 2x OR exactly Nx
-    return (nInputAmount > GetCollateralAmount() && nInputAmount < GetCollateralAmount()*2) ||
-           (nInputAmount >= GetCollateralAmount() && nInputAmount <= GetMaxCollateralAmount() && nInputAmount % GetCollateralAmount() == 0);
+    int nMin = mnpayments.GetMinMasternodePaymentsProto() > 70208 ? 1 : 2;
+    return (nInputAmount > GetCollateralAmount()*nMin && nInputAmount < GetCollateralAmount()*2) ||
+           (nInputAmount >= GetCollateralAmount()*nMin && nInputAmount <= GetMaxCollateralAmount() && nInputAmount % GetCollateralAmount() == 0);
 }
 
 /*  Create a nice string to show the denominations
