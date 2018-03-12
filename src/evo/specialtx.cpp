@@ -28,6 +28,8 @@ bool CheckSpecialTx(const CTransaction& tx, const CBlockIndex* pindex, CValidati
     switch (tx.nType) {
         case TRANSACTION_PROVIDER_REGISTER:
             return CheckProRegTx(tx, pindex, state);
+        case TRANSACTION_PROVIDER_UPDATE_SERVICE:
+            return CheckProUpServTx(tx, pindex, state);
     }
 
     return state.DoS(100, false, REJECT_INVALID, "bad-tx-type");
@@ -40,6 +42,7 @@ bool ProcessSpecialTx(const CTransaction& tx, const CBlockIndex* pindex, CValida
 
     switch (tx.nType) {
         case TRANSACTION_PROVIDER_REGISTER:
+        case TRANSACTION_PROVIDER_UPDATE_SERVICE:
             return true; // handled in batches per block
     }
 
@@ -53,6 +56,7 @@ bool UndoSpecialTx(const CTransaction& tx, const CBlockIndex* pindex)
 
     switch (tx.nType) {
         case TRANSACTION_PROVIDER_REGISTER:
+        case TRANSACTION_PROVIDER_UPDATE_SERVICE:
             return true; // handled in batches per block
     }
 
