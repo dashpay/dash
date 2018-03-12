@@ -54,6 +54,14 @@ The wallet should start up on your screen.
 
 ### Developing
 
+Changes will not appear in the live wallet unless the repository is remade (no hotloading)
+
+    // cd into root directory
+    $ ./configure
+    $ make
+    $ cd ./src/qt
+    $ ./dash-qt
+
 UI files are in `src/qt/forms`
 
 Careful with pull requests to send them to SicutDominus/lotterycoin rather than the default dashpay/dash branch.
