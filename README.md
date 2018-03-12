@@ -56,6 +56,7 @@ The wallet should start up on your screen.
 
 Changes will not appear in the live wallet unless the repository is remade (no hotloading)
 
+    // close QT wallet
     // cd into root directory
     $ ./configure
     $ make
