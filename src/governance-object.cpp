@@ -555,6 +555,12 @@ bool CGovernanceObject::IsCollateralValid(std::string& strError, bool& fMissingC
         return false;
     }
 
+    if(nBlockHash == uint256()) {
+        strError = strprintf("Collateral tx %s is not mined yet", txCollateral->ToString());
+        LogPrintf("CGovernanceObject::IsCollateralValid -- %s\n", strError);
+        return false;
+    }
+
     if(txCollateral->vout.size() < 1) {
         strError = strprintf("tx vout size less than 1 | %d", txCollateral->vout.size());
         LogPrintf("CGovernanceObject::IsCollateralValid -- %s\n", strError);
