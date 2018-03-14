@@ -458,36 +458,38 @@ bool CGovernanceObject::IsValidLocally(std::string& strError, bool& fMissingMast
     fMissingMasternode = false;
     fMissingConfirmations = false;
 
-    if(fUnparsable) {
+    if (fUnparsable) {
         strError = "Object data unparseable";
         return false;
     }
 
-    switch(nObjectType) {
-        case GOVERNANCE_OBJECT_WATCHDOG:
-            // watchdogs are deprecated
-            return false;
-        case GOVERNANCE_OBJECT_PROPOSAL:
-        case GOVERNANCE_OBJECT_TRIGGER:
-            if (vchData.size() > MAX_GOVERNANCE_OBJECT_DATA_SIZE) {
-                strError = strprintf("Invalid object size %d", vchData.size());
-                return false;
-            }
-            break;
-        default:
-            strError = strprintf("Invalid object type %d", nObjectType);
-            return false;
+    // TODO: This is redundant and should be removed
+    // TODO: Use size validation for each specific object type (if applicable)
+    if (vchData.size() > MAX_GOVERNANCE_OBJECT_DATA_SIZE) {
+        strError = strprintf("Invalid object size %d", vchData.size());
+        return false;
     }
 
-    // IF ABSOLUTE NO COUNT (NO-YES VALID VOTES) IS MORE THAN 10% OF THE NETWORK MASTERNODES, OBJ IS INVALID
+    switch(nObjectType) {
+        case GOVERNANCE_OBJECT_WATCHDOG: {
+            // watchdogs are deprecated
+            return false;
+        }
+        case GOVERNANCE_OBJECT_PROPOSAL: {
+            if (fCheckCollateral && !IsCollateralValid(strError, fMissingConfirmations)) {
+                strError = "Invalid proposal collateral";
+                return false;
+            }
+            return true;
+        }
+        case GOVERNANCE_OBJECT_TRIGGER: {
+            if (!fCheckCollateral)
+                // nothing else we can check here (yet?)
+                return true;
 
-    // CHECK COLLATERAL IF REQUIRED (HIGH CPU USAGE)
-
-    if(fCheckCollateral) { 
-        if(nObjectType == GOVERNANCE_OBJECT_TRIGGER) {
             std::string strOutpoint = masternodeOutpoint.ToStringShort();
             masternode_info_t infoMn;
-            if(!mnodeman.GetMasternodeInfo(masternodeOutpoint, infoMn)) {
+            if (!mnodeman.GetMasternodeInfo(masternodeOutpoint, infoMn)) {
 
                 CMasternode::CollateralStatus err = CMasternode::CheckCollateral(masternodeOutpoint, CPubKey());
                 if (err == CMasternode::COLLATERAL_UTXO_NOT_FOUND) {
@@ -506,19 +508,19 @@ bool CGovernanceObject::IsValidLocally(std::string& strError, bool& fMissingMast
             }
 
             // Check that we have a valid MN signature
-            if(!CheckSignature(infoMn.pubKeyMasternode)) {
+            if (!CheckSignature(infoMn.pubKeyMasternode)) {
                 strError = "Invalid masternode signature for: " + strOutpoint + ", pubkey id = " + infoMn.pubKeyMasternode.GetID().ToString();
                 return false;
             }
 
             return true;
         }
-
-        if (!IsCollateralValid(strError, fMissingConfirmations))
+        default: {
+            strError = strprintf("Invalid object type %d", nObjectType);
             return false;
+        }
     }
 
-    return true;
 }
 
 CAmount CGovernanceObject::GetMinCollateralFee()
