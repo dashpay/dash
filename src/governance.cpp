@@ -667,15 +667,14 @@ void CGovernanceManager::SyncSingleObjAndItsVotes(CNode* pnode, const uint256& n
     LogPrint("gobject", "CGovernanceManager::%s -- syncing govobj: %s, peer=%d\n", __func__, strHash, pnode->id);
     pnode->PushInventory(CInv(MSG_GOVERNANCE_OBJECT, it->first));
 
-    std::vector<CGovernanceVote> vecVotes = govobj.GetVoteFile().GetVotes();
-    for(size_t i = 0; i < vecVotes.size(); ++i) {
-        if(filter.contains(vecVotes[i].GetHash())) {
+    auto fileVotes = govobj.GetVoteFile();
+
+    for (const auto& vote : fileVotes.GetVotes()) {
+        uint256 nVoteHash = vote.GetHash();
+        if(filter.contains(nVoteHash) || !vote.IsValid(true)) {
             continue;
         }
-        if(!vecVotes[i].IsValid(true)) {
-            continue;
-        }
-        pnode->PushInventory(CInv(MSG_GOVERNANCE_OBJECT_VOTE, vecVotes[i].GetHash()));
+        pnode->PushInventory(CInv(MSG_GOVERNANCE_OBJECT_VOTE, nVoteHash));
         ++nVoteCount;
     }
 
