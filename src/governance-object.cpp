@@ -118,7 +118,8 @@ bool CGovernanceObject::ProcessVote(CNode* pfrom,
         return false;
     }
 
-    vote_instance_t voteInstance;
+    vote_instance_t dummyVoteInstance;
+    vote_instance_t& voteInstance = dummyVoteInstance;
     {
     LOCK(cs);
     vote_m_it it = mapCurrentMNVotes.find(vote.GetMasternodeOutpoint());
