@@ -510,19 +510,6 @@ bool CGovernanceObject::IsValidLocally(std::string& strError, bool& fMissingMast
             return false;
     }
 
-    /*
-        TODO
-
-        - There might be an issue with multisig in the coinbase on mainnet, we will add support for it in a future release.
-        - Post 12.2+ (test multisig coinbase transaction)
-    */
-
-    // 12.1 - todo - compile error
-    // if(address.IsPayToScriptHash()) {
-    //     strError = "Governance system - multisig is not currently supported";
-    //     return false;
-    // }
-
     return true;
 }
 
