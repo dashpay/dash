@@ -635,14 +635,10 @@ int CGovernanceObject::CountMatchingVotes(vote_signal_enum_t eVoteSignalIn, vote
     LOCK(cs);
 
     int nCount = 0;
-    for(vote_m_cit it = mapCurrentMNVotes.begin(); it != mapCurrentMNVotes.end(); ++it) {
-        const vote_rec_t& recVote = it->second;
+    for (const auto& votepair : mapCurrentMNVotes) {
+        const vote_rec_t& recVote = votepair.second;
         vote_instance_m_cit it2 = recVote.mapInstances.find(eVoteSignalIn);
-        if(it2 == recVote.mapInstances.end()) {
-            continue;
-        }
-        const vote_instance_t& voteInstance = it2->second;
-        if(voteInstance.eOutcome == eVoteOutcomeIn) {
+        if(it2 != recVote.mapInstances.end() && it2->second.eOutcome == eVoteOutcomeIn) {
             ++nCount;
         }
     }
