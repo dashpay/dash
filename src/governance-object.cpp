@@ -103,6 +103,16 @@ bool CGovernanceObject::ProcessVote(CNode* pfrom,
 {
     LOCK(cs);
 
+    // do not process already known valid votes twice
+    if (fileVotes.HasVote(vote.GetHash())) {
+        // nothing to do here, not an error
+        std::ostringstream ostr;
+        ostr << "CGovernanceObject::ProcessVote -- Already known valid vote";
+        LogPrint("gobject", "%s\n", ostr.str());
+        exception = CGovernanceException(ostr.str(), GOVERNANCE_EXCEPTION_NONE);
+        return false;
+    }
+
     if(!mnodeman.Has(vote.GetMasternodeOutpoint())) {
         std::ostringstream ostr;
         ostr << "CGovernanceObject::ProcessVote -- Masternode " << vote.GetMasternodeOutpoint().ToStringShort() << " not found";
@@ -193,9 +203,7 @@ bool CGovernanceObject::ProcessVote(CNode* pfrom,
     }
 
     voteInstance = vote_instance_t(vote.GetOutcome(), nVoteTimeUpdate, vote.GetTimestamp());
-    if(!fileVotes.HasVote(vote.GetHash())) {
-        fileVotes.AddVote(vote);
-    }
+    fileVotes.AddVote(vote);
     fDirtyCache = true;
     return true;
 }
