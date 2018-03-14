@@ -129,11 +129,8 @@ bool CGovernanceObject::ProcessVote(CNode* pfrom,
         return false;
     }
 
-    vote_m_it it = mapCurrentMNVotes.find(vote.GetMasternodeOutpoint());
-    if(it == mapCurrentMNVotes.end()) {
-        it = mapCurrentMNVotes.insert(vote_m_t::value_type(vote.GetMasternodeOutpoint(), vote_rec_t())).first;
-    }
-    vote_rec_t& recVote = it->second;
+    vote_m_it it = mapCurrentMNVotes.emplace(vote_m_t::value_type(vote.GetMasternodeOutpoint(), vote_rec_t())).first;
+    vote_rec_t& voteRecordRef = it->second;
     vote_signal_enum_t eSignal = vote.GetSignal();
     if(eSignal == VOTE_SIGNAL_NONE) {
         std::ostringstream ostr;
@@ -149,14 +146,11 @@ bool CGovernanceObject::ProcessVote(CNode* pfrom,
         exception = CGovernanceException(ostr.str(), GOVERNANCE_EXCEPTION_PERMANENT_ERROR, 20);
         return false;
     }
-    vote_instance_m_it it2 = recVote.mapInstances.find(int(eSignal));
-    if(it2 == recVote.mapInstances.end()) {
-        it2 = recVote.mapInstances.insert(vote_instance_m_t::value_type(int(eSignal), vote_instance_t())).first;
-    }
-    vote_instance_t& voteInstance = it2->second;
+    vote_instance_m_it it2 = voteRecordRef.mapInstances.emplace(vote_instance_m_t::value_type(int(eSignal), vote_instance_t())).first;
+    vote_instance_t& voteInstanceRef = it2->second;
 
     // Reject obsolete votes
-    if(vote.GetTimestamp() < voteInstance.nCreationTime) {
+    if(vote.GetTimestamp() < voteInstanceRef.nCreationTime) {
         std::ostringstream ostr;
         ostr << "CGovernanceObject::ProcessVote -- Obsolete vote";
         LogPrint("gobject", "%s\n", ostr.str());
@@ -165,9 +159,9 @@ bool CGovernanceObject::ProcessVote(CNode* pfrom,
     }
 
     int64_t nNow = GetAdjustedTime();
-    int64_t nVoteTimeUpdate = voteInstance.nTime;
+    int64_t nVoteTimeUpdate = voteInstanceRef.nTime;
     if(governance.AreRateChecksEnabled()) {
-        int64_t nTimeDelta = nNow - voteInstance.nTime;
+        int64_t nTimeDelta = nNow - voteInstanceRef.nTime;
         if(nTimeDelta < GOVERNANCE_UPDATE_MIN) {
             std::ostringstream ostr;
             ostr << "CGovernanceObject::ProcessVote -- Masternode voting too often"
@@ -180,6 +174,7 @@ bool CGovernanceObject::ProcessVote(CNode* pfrom,
             return false;
         }
     }
+
     // Finally check that the vote is actually valid (done last because of cost of signature verification)
     if(!vote.IsValid(true)) {
         std::ostringstream ostr;
@@ -192,6 +187,7 @@ bool CGovernanceObject::ProcessVote(CNode* pfrom,
         governance.AddInvalidVote(vote);
         return false;
     }
+
     if(!mnodeman.AddGovernanceVote(vote.GetMasternodeOutpoint(), vote.GetParentHash())) {
         std::ostringstream ostr;
         ostr << "CGovernanceObject::ProcessVote -- Unable to add governance vote"
@@ -202,7 +198,7 @@ bool CGovernanceObject::ProcessVote(CNode* pfrom,
         return false;
     }
 
-    voteInstance = vote_instance_t(vote.GetOutcome(), nVoteTimeUpdate, vote.GetTimestamp());
+    voteInstanceRef = vote_instance_t(vote.GetOutcome(), nVoteTimeUpdate, vote.GetTimestamp());
     fileVotes.AddVote(vote);
     fDirtyCache = true;
     return true;
