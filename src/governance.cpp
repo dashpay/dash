@@ -64,14 +64,7 @@ bool CGovernanceManager::HaveVoteForHash(const uint256& nHash) const
     LOCK(cs);
 
     CGovernanceObject* pGovobj = NULL;
-    if(!cmapVoteToObject.Get(nHash,pGovobj)) {
-        return false;
-    }
-
-    if(!pGovobj->GetVoteFile().HasVote(nHash)) {
-        return false;
-    }
-    return true;
+    return cmapVoteToObject.Get(nHash, pGovobj) && pGovobj->GetVoteFile().HasVote(nHash);
 }
 
 int CGovernanceManager::GetVoteCount() const
