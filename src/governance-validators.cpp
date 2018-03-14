@@ -10,6 +10,7 @@
 
 #include <algorithm>
 
+const size_t MAX_DATA_SIZE  = 512;
 const size_t MAX_NAME_SIZE  = 40;
 
 CProposalValidator::CProposalValidator(const std::string& strHexData) :
@@ -25,6 +26,10 @@ CProposalValidator::CProposalValidator(const std::string& strHexData) :
 void CProposalValidator::ParseStrHexData(const std::string& strHexData)
 {
     std::vector<unsigned char> v = ParseHex(strHexData);
+    if (v.size() > MAX_DATA_SIZE) {
+        strErrorMessages = strprintf("data exceeds %lu characters;", MAX_DATA_SIZE);
+        return;
+    }
     ParseJSONData(std::string(v.begin(), v.end()));
 }
 
