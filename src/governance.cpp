@@ -78,15 +78,7 @@ bool CGovernanceManager::SerializeVoteForHash(const uint256& nHash, CDataStream&
     LOCK(cs);
 
     CGovernanceObject* pGovobj = NULL;
-    if(!cmapVoteToObject.Get(nHash,pGovobj)) {
-        return false;
-    }
-
-    if(!pGovobj->GetVoteFile().SerializeVoteToStream(nHash, ss)) {
-        return false;
-    }
-
-    return true;
+    return cmapVoteToObject.Get(nHash,pGovobj) && pGovobj->GetVoteFile().SerializeVoteToStream(nHash, ss);
 }
 
 void CGovernanceManager::ProcessMessage(CNode* pfrom, const std::string& strCommand, CDataStream& vRecv, CConnman& connman)
