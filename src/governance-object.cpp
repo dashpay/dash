@@ -298,7 +298,7 @@ bool CGovernanceObject::Sign(const CKey& keyMasternode, const CPubKey& pubKeyMas
     return true;
 }
 
-bool CGovernanceObject::CheckSignature(const CPubKey& pubKeyMasternode)
+bool CGovernanceObject::CheckSignature(const CPubKey& pubKeyMasternode) const
 {
     std::string strError;
 
@@ -441,7 +441,7 @@ void CGovernanceObject::UpdateLocalValidity()
 };
 
 
-bool CGovernanceObject::IsValidLocally(std::string& strError, bool fCheckCollateral)
+bool CGovernanceObject::IsValidLocally(std::string& strError, bool fCheckCollateral) const
 {
     bool fMissingMasternode = false;
     bool fMissingConfirmations = false;
@@ -449,7 +449,7 @@ bool CGovernanceObject::IsValidLocally(std::string& strError, bool fCheckCollate
     return IsValidLocally(strError, fMissingMasternode, fMissingConfirmations, fCheckCollateral);
 }
 
-bool CGovernanceObject::IsValidLocally(std::string& strError, bool& fMissingMasternode, bool& fMissingConfirmations, bool fCheckCollateral)
+bool CGovernanceObject::IsValidLocally(std::string& strError, bool& fMissingMasternode, bool& fMissingConfirmations, bool fCheckCollateral) const
 {
     fMissingMasternode = false;
     fMissingConfirmations = false;
@@ -519,7 +519,7 @@ bool CGovernanceObject::IsValidLocally(std::string& strError, bool& fMissingMast
 
 }
 
-CAmount CGovernanceObject::GetMinCollateralFee()
+CAmount CGovernanceObject::GetMinCollateralFee() const
 {
     // Only 1 type has a fee for the moment but switch statement allows for future object types
     switch(nObjectType) {
@@ -530,7 +530,7 @@ CAmount CGovernanceObject::GetMinCollateralFee()
     }
 }
 
-bool CGovernanceObject::IsCollateralValid(std::string& strError, bool& fMissingConfirmations)
+bool CGovernanceObject::IsCollateralValid(std::string& strError, bool& fMissingConfirmations) const
 {
     strError = "";
     fMissingConfirmations = false;
@@ -674,11 +674,11 @@ int CGovernanceObject::GetAbstainCount(vote_signal_enum_t eVoteSignalIn) const
     return CountMatchingVotes(eVoteSignalIn, VOTE_OUTCOME_ABSTAIN);
 }
 
-bool CGovernanceObject::GetCurrentMNVotes(const COutPoint& mnCollateralOutpoint, vote_rec_t& voteRecord)
+bool CGovernanceObject::GetCurrentMNVotes(const COutPoint& mnCollateralOutpoint, vote_rec_t& voteRecord) const
 {
     LOCK(cs);
 
-    vote_m_it it = mapCurrentMNVotes.find(mnCollateralOutpoint);
+    vote_m_cit it = mapCurrentMNVotes.find(mnCollateralOutpoint);
     if (it == mapCurrentMNVotes.end()) {
         return false;
     }
