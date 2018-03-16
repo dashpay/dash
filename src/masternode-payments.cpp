@@ -586,7 +586,15 @@ bool CMasternodePayments::GetBlockTxOuts(int nBlockHeight, CAmount blockReward, 
         if (!dmnPayee) {
             return false;
         }
-        voutMasternodePaymentsRet.emplace_back(masternodeReward, dmnPayee->state->scriptPayout);
+
+        if (dmnPayee->operatorReward == 0 || dmnPayee->state->scriptOperatorPayout == CScript()) {
+            voutMasternodePaymentsRet.emplace_back(masternodeReward, dmnPayee->state->scriptPayout);
+        } else {
+            CAmount operatorReward = (masternodeReward * dmnPayee->operatorReward) / 10000;
+            masternodeReward -= operatorReward;
+            voutMasternodePaymentsRet.emplace_back(masternodeReward, dmnPayee->state->scriptPayout);
+            voutMasternodePaymentsRet.emplace_back(operatorReward, dmnPayee->state->scriptOperatorPayout);
+        }
         return true;
     } else {
         LOCK(cs_mapMasternodeBlocks);
