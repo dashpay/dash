@@ -519,7 +519,8 @@ bool CheckTransaction(const CTransaction& tx, CValidationState &state, bool fChe
         if (tx.nType != TRANSACTION_NORMAL &&
                 tx.nType != TRANSACTION_PROVIDER_REGISTER &&
                 tx.nType != TRANSACTION_PROVIDER_UPDATE_SERVICE &&
-                tx.nType != TRANSACTION_PROVIDER_UPDATE_REGISTRAR) {
+                tx.nType != TRANSACTION_PROVIDER_UPDATE_REGISTRAR &&
+                tx.nType != TRANSACTION_PROVIDER_UPDATE_REVOKE) {
             return state.DoS(100, false, REJECT_INVALID, "bad-txns-type");
         }
         if (tx.IsCoinBase() && tx.nType != TRANSACTION_NORMAL)
