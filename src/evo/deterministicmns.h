@@ -71,6 +71,21 @@ public:
         READWRITE(*(CScriptBase*)(&scriptOperatorPayout));
     }
 
+    void ResetOperatorFields()
+    {
+        keyIDOperator.SetNull();
+        addr = CService();
+        nProtocolVersion = 0;
+        scriptOperatorPayout = CScript();
+        revocationReason = CProUpRevTx::REASON_NOT_SPECIFIED;
+    }
+    void BanIfNotBanned(int height)
+    {
+        if (PoSeBanHeight == -1) {
+            PoSeBanHeight = height;
+        }
+    }
+
     bool operator==(const CDeterministicMNState& rhs) const
     {
         return registeredHeight == rhs.registeredHeight &&

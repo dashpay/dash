@@ -156,6 +156,71 @@ bool CheckProUpServTx(const CTransaction& tx, const CBlockIndex* pindex, CValida
     return true;
 }
 
+bool CheckProUpRegTx(const CTransaction& tx, const CBlockIndex* pindex, CValidationState& state)
+{
+    AssertLockHeld(cs_main);
+
+    CProUpRegTx ptx;
+    if (!GetTxPayload(tx, ptx))
+        return state.DoS(100, false, REJECT_INVALID, "bad-tx-payload");
+
+    if (ptx.nVersion != CProRegTx::CURRENT_VERSION)
+        return state.DoS(100, false, REJECT_INVALID, "bad-protx-version");
+
+    if (ptx.keyIDOperator.IsNull() || ptx.keyIDVoting.IsNull())
+        return state.DoS(10, false, REJECT_INVALID, "bad-protx-key-null");
+    // we may support P2SH later, but restrict it for now (while in transitioning phase from old MN list to deterministic list)
+    if (!ptx.scriptPayout.IsPayToPublicKeyHash())
+        return state.DoS(10, false, REJECT_INVALID, "bad-protx-payee");
+
+    CTxDestination payoutDest;
+    if (!ExtractDestination(ptx.scriptPayout, payoutDest)) {
+        // should not happen as we checked script types before
+        return state.DoS(10, false, REJECT_INVALID, "bad-protx-payee");
+    }
+
+    if (pindex) {
+        auto mnList = deterministicMNManager->GetListAtHeight(pindex->nHeight - 1);
+        auto dmn = mnList.GetMN(ptx.proTxHash);
+        if (!dmn)
+            return state.DoS(100, false, REJECT_INVALID, "bad-protx-hash");
+
+        // don't allow reuse of keys for different purposes
+        if (payoutDest == CTxDestination(dmn->state->keyIDOwner) || payoutDest == CTxDestination(ptx.keyIDOperator) || payoutDest == CTxDestination(ptx.keyIDVoting)) {
+            return state.DoS(10, false, REJECT_INVALID, "bad-protx-payee");
+        }
+
+        // This is a temporary restriction that will be lifted later
+        // It is required while we are transitioning from the old MN list to the deterministic list
+        CTransactionRef proRegTx;
+        uint256 tmpHashBlock;
+        if (!GetTransaction(ptx.proTxHash, proRegTx, Params().GetConsensus(), tmpHashBlock))
+            return state.DoS(100, false, REJECT_INVALID, "bad-protx-payee-collateral");
+        if (proRegTx->vout[dmn->nCollateralIndex].scriptPubKey != ptx.scriptPayout)
+            return state.DoS(10, false, REJECT_INVALID, "bad-protx-payee-collateral");
+
+        std::map<CKeyID, CDeterministicMNCPtr> keyIDs;
+        for (const auto& dmn2 : mnList.all_range()) {
+            keyIDs.emplace(dmn2->state->keyIDOwner, dmn2);
+            keyIDs.emplace(dmn2->state->keyIDOperator, dmn2);
+        }
+        if (keyIDs.count(ptx.keyIDOperator) && (ptx.proTxHash != keyIDs[ptx.keyIDOperator]->proTxHash || ptx.keyIDOperator != keyIDs[ptx.keyIDOperator]->state->keyIDOperator)) {
+            return state.DoS(10, false, REJECT_DUPLICATE, "bad-protx-dup-key");
+        }
+
+        if (!deterministicMNManager->IsDeterministicMNsSporkActive(pindex->nHeight)) {
+            if (dmn->state->keyIDOwner != ptx.keyIDOperator || dmn->state->keyIDOwner != ptx.keyIDVoting) {
+                return state.DoS(10, false, REJECT_INVALID, "bad-protx-key-not-same");
+            }
+        }
+
+        if (!CheckInputsHashAndSig(tx, ptx, dmn->state->keyIDOwner, state))
+            return false;
+    }
+
+    return true;
+}
+
 std::string CProRegTx::ToString() const
 {
     CTxDestination dest;
@@ -192,8 +257,14 @@ void CProRegTx::ToJson(UniValue& obj) const
 
 std::string CProUpServTx::ToString() const
 {
-    return strprintf("CProUpServTx(nVersion=%d, proTxHash=%s, nProtocolVersion=%d, addr=%s)",
-                     nVersion, proTxHash.ToString(), nProtocolVersion, addr.ToString());
+    CTxDestination dest;
+    std::string payee = "unknown";
+    if (ExtractDestination(scriptOperatorPayout, dest)) {
+        payee = CBitcoinAddress(dest).ToString();
+    }
+
+    return strprintf("CProUpServTx(nVersion=%d, proTxHash=%s, nProtocolVersion=%d, addr=%s, operatorPayoutAddress=%s)",
+                     nVersion, proTxHash.ToString(), nProtocolVersion, addr.ToString(), payee);
 }
 
 void CProUpServTx::ToJson(UniValue& obj) const
@@ -208,6 +279,34 @@ void CProUpServTx::ToJson(UniValue& obj) const
     if (ExtractDestination(scriptOperatorPayout, dest)) {
         CBitcoinAddress bitcoinAddress(dest);
         obj.push_back(Pair("operatorPayoutAddress", bitcoinAddress.ToString()));
+    }
+    obj.push_back(Pair("inputsHash", inputsHash.ToString()));
+}
+
+std::string CProUpRegTx::ToString() const
+{
+    CTxDestination dest;
+    std::string payee = "unknown";
+    if (ExtractDestination(scriptPayout, dest)) {
+        payee = CBitcoinAddress(dest).ToString();
+    }
+
+    return strprintf("CProUpRegTx(nVersion=%d, proTxHash=%s, keyIDOperator=%s, keyIDVoting=%s, payoutAddress=%s)",
+                     nVersion, proTxHash.ToString(), keyIDOperator.ToString(), keyIDVoting.ToString(), payee);
+}
+
+void CProUpRegTx::ToJson(UniValue& obj) const
+{
+    obj.clear();
+    obj.setObject();
+    obj.push_back(Pair("version", nVersion));
+    obj.push_back(Pair("proTxHash", proTxHash.ToString()));
+    obj.push_back(Pair("keyIDOperator", keyIDOperator.ToString()));
+    obj.push_back(Pair("keyIDVoting", keyIDVoting.ToString()));
+    CTxDestination dest;
+    if (ExtractDestination(scriptPayout, dest)) {
+        CBitcoinAddress bitcoinAddress(dest);
+        obj.push_back(Pair("payoutAddress", bitcoinAddress.ToString()));
     }
     obj.push_back(Pair("inputsHash", inputsHash.ToString()));
 }
