@@ -678,7 +678,9 @@ void CInstantSend::CheckAndRemove()
 {
     if(!masternodeSync.IsMasternodeListSynced()) return;
 
-    LOCK(cs_instantsend);
+    {
+    LOCK(cs_main); // cs_main for AcceptToMemoryPool
+    LOCK2(mempool.cs, cs_instantsend);
 
     std::map<uint256, CTxLockCandidate>::iterator itLockCandidate = mapTxLockCandidates.begin();
 
@@ -698,9 +700,24 @@ void CInstantSend::CheckAndRemove()
             mapLockRequestRejected.erase(txHash);
             mapTxLockCandidates.erase(itLockCandidate++);
         } else {
+            // keep non-expired completed lock requests alive until mined
+            bool fWasInMempool = (mapLockRequestAccepted.find(txHash) != mapLockRequestAccepted.end()) && !mempool.get(txHash);
+            // Entered the mempool earlier but was dropped from it, probably due to timeout.
+            if (fWasInMempool && !txLockCandidate.IsConfirmed() && IsLockedInstantSendTransaction(txHash)) {
+                // And still not confirmed yet even though it was locked. Try to re-add it to the mempool again.
+                LogPrintf("CInstantSend::CheckAndRemove -- WARNING: Completed Transaction Lock is not found in mempool, trying to re-add it\n");
+                CValidationState validationState;
+                if(!AcceptToMemoryPool(mempool, validationState, txLockCandidate.txLockRequest.tx, false, NULL, false)) {
+                    LogPrintf("CInstantSend::CheckAndRemove -- ERROR: Can't re-add missing completed Transaction Lock to mempool!\n");
+                    // TODO: Is there anything else we can do here?
+                }
+            }
             ++itLockCandidate;
         }
     }
+    } // LOCK, LOCK2
+
+    LOCK(cs_instantsend);
 
     // remove expired votes
     std::map<uint256, CTxLockVote>::iterator itVote = mapTxLockVotes.begin();

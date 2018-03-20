@@ -288,6 +288,7 @@ public:
     int CountVotes() const;
 
     void SetConfirmedHeight(int nConfirmedHeightIn) { nConfirmedHeight = nConfirmedHeightIn; }
+    bool IsConfirmed() { return nConfirmedHeight != -1; }
     bool IsExpired(int nHeight) const;
     bool IsTimedOut() const;
 
