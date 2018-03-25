@@ -1793,10 +1793,20 @@ bool AppInitMain(boost::thread_group& threadGroup, CScheduler& scheduler)
     fMasternodeMode = GetBoolArg("-masternode", false);
     // TODO: masternode should have no wallet
 
-    if((fMasternodeMode || masternodeConfig.getCount() > -1) && fTxIndex == false
+    //lite mode disables all Dash-specific functionality
+    fLiteMode = GetBoolArg("-litemode", false);
+
+    if(fLiteMode) {
+        InitWarning(_("You are starting in lite mode, all Dash-specific functionality is disabled."));
+    }
+
+    if((!fLiteMode && fTxIndex == false)
        && chainparams.NetworkIDString() != CBaseChainParams::REGTEST) { // TODO remove this when pruning is fixed. See https://github.com/dashpay/dash/pull/1817 and https://github.com/dashpay/dash/pull/1743
-        return InitError("Enabling Masternode support requires turning on transaction indexing."
-                  "Please add txindex=1 to your configuration and start with -reindex");
+        return InitError(_("Transaction index can't be disabled in full mode. Either start with -litemode command line switch or enable transaction index."));
+    }
+
+    if(fLiteMode && fMasternodeMode) {
+        return InitError(_("You can not start a masternode in lite mode."));
     }
 
     if(fMasternodeMode) {
@@ -1852,12 +1862,6 @@ bool AppInitMain(boost::thread_group& threadGroup, CScheduler& scheduler)
     fEnableInstantSend = GetBoolArg("-enableinstantsend", 1);
     nInstantSendDepth = GetArg("-instantsenddepth", DEFAULT_INSTANTSEND_DEPTH);
     nInstantSendDepth = std::min(std::max(nInstantSendDepth, MIN_INSTANTSEND_DEPTH), MAX_INSTANTSEND_DEPTH);
-
-    //lite mode disables all Dash-specific functionality
-    fLiteMode = GetBoolArg("-litemode", false);
-    if(fMasternodeMode && fLiteMode){
-        return InitError("You can not start a masternode in litemode");
-    }
 
     LogPrintf("fLiteMode %d\n", fLiteMode);
     LogPrintf("nInstantSendDepth %d\n", nInstantSendDepth);
