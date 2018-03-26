@@ -3469,7 +3469,7 @@ bool ContextualCheckBlock(const CBlock& block, CValidationState& state, const Co
     return true;
 }
 
-static bool AcceptBlockHeader(const CBlockHeader& block, CValidationState& state, const CChainParams& chainparams, CBlockIndex** ppindex)
+static bool AcceptBlockHeader(const CBlockHeader& block, CValidationState& state, const CChainParams& chainparams, CBlockIndex** ppindex, bool* fBlockIsKnown)
 {
     AssertLockHeld(cs_main);
     // Check for duplicate
@@ -3483,6 +3483,8 @@ static bool AcceptBlockHeader(const CBlockHeader& block, CValidationState& state
         if (miSelf != mapBlockIndex.end()) {
             // Block header is already known.
             pindex = miSelf->second;
+            if (fBlockIsKnown)
+                *fBlockIsKnown = true;
             if (ppindex)
                 *ppindex = pindex;
             if (pindex->nStatus & BLOCK_FAILED_MASK)
@@ -3524,17 +3526,24 @@ static bool AcceptBlockHeader(const CBlockHeader& block, CValidationState& state
 }
 
 // Exposed wrapper for AcceptBlockHeader
-bool ProcessNewBlockHeaders(const std::vector<CBlockHeader>& headers, CValidationState& state, const CChainParams& chainparams, const CBlockIndex** ppindex)
+bool ProcessNewBlockHeaders(const std::vector<CBlockHeader>& headers, CValidationState& state, const CChainParams& chainparams, const CBlockIndex** ppindex, bool* fAllBlocksAreKnown)
 {
     {
         LOCK(cs_main);
+        if (fAllBlocksAreKnown) {
+            *fAllBlocksAreKnown = true;
+        }
         for (const CBlockHeader& header : headers) {
             CBlockIndex *pindex = NULL; // Use a temp pindex instead of ppindex to avoid a const_cast
-            if (!AcceptBlockHeader(header, state, chainparams, &pindex)) {
+            bool fBlockIsKnown = false;
+            if (!AcceptBlockHeader(header, state, chainparams, &pindex, &fBlockIsKnown)) {
                 return false;
             }
             if (ppindex) {
                 *ppindex = pindex;
+            }
+            if (fAllBlocksAreKnown) {
+                *fAllBlocksAreKnown &= fBlockIsKnown;
             }
         }
     }
@@ -3553,7 +3562,7 @@ static bool AcceptBlock(const std::shared_ptr<const CBlock>& pblock, CValidation
     CBlockIndex *pindexDummy = NULL;
     CBlockIndex *&pindex = ppindex ? *ppindex : pindexDummy;
 
-    if (!AcceptBlockHeader(block, state, chainparams, &pindex))
+    if (!AcceptBlockHeader(block, state, chainparams, &pindex, NULL))
         return false;
 
     // Try to process all requested blocks that we don't have, but only
