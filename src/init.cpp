@@ -45,9 +45,6 @@
 #include <util.h>
 #include <utilmoneystr.h>
 #include <validationinterface.h>
-#ifdef ENABLE_WALLET
-#include <wallet/init.h>
-#endif
 
 #include <masternode/activemasternode.h>
 #include <dsnotificationinterface.h>
@@ -68,6 +65,7 @@
 #include <privatesend/privatesend-server.h>
 #include <spork.h>
 #include <warnings.h>
+#include <walletinitinterface.h>
 
 #include <evo/deterministicmns.h>
 #include <llmq/quorums_init.h>
@@ -104,6 +102,7 @@ static const bool DEFAULT_STOPAFTERBLOCKIMPORT = false;
 
 std::unique_ptr<CConnman> g_connman;
 std::unique_ptr<PeerLogicValidation> peerLogic;
+std::unique_ptr<WalletInitInterface> g_wallet_init_interface;
 
 #if ENABLE_ZMQ
 static CZMQNotificationInterface* pzmqNotificationInterface = nullptr;
@@ -233,14 +232,7 @@ void PrepareShutdown()
     std::string statusmessage;
     bool fRPCInWarmup = RPCIsInWarmup(&statusmessage);
 
-#ifdef ENABLE_WALLET
-    if (privateSendClient.fEnablePrivateSend && !fRPCInWarmup) {
-        // Stop PrivateSend, release keys
-        privateSendClient.fPrivateSendRunning = false;
-        privateSendClient.ResetPool();
-    }
-    FlushWallets();
-#endif
+    g_wallet_init_interface->Flush();
     MapPort(false);
 
     // Because these depend on each-other, we make sure that neither can be
@@ -316,9 +308,7 @@ void PrepareShutdown()
         deterministicMNManager.reset();
         evoDb.reset();
     }
-#ifdef ENABLE_WALLET
-    StopWallets();
-#endif
+    g_wallet_init_interface->Stop();
 
 #if ENABLE_ZMQ
     if (pzmqNotificationInterface) {
@@ -370,9 +360,8 @@ void Shutdown()
     }
    // Shutdown part 2: Stop TOR thread and delete wallet instance
     StopTorControl();
-#ifdef ENABLE_WALLET
-    CloseWallets();
-#endif
+    g_wallet_init_interface->Close();
+    g_wallet_init_interface.reset();
     globalVerifyHandle.reset();
     ECC_Stop();
     LogPrintf("%s: done\n", __func__);
@@ -527,11 +516,7 @@ std::string HelpMessage(HelpMessageMode mode)
         " " + _("Whitelisted peers cannot be DoS banned and their transactions are always relayed, even if they are already in the mempool, useful e.g. for a gateway"));
     strUsage += HelpMessageOpt("-maxuploadtarget=<n>", strprintf(_("Tries to keep outbound traffic under the given target (in MiB per 24h), 0 = no limit (default: %d)"), DEFAULT_MAX_UPLOAD_TARGET));
 
-#ifdef ENABLE_WALLET
-    strUsage += GetWalletHelpString(showDebug);
-    if (mode == HMM_BITCOIN_QT)
-        strUsage += HelpMessageOpt("-windowtitle=<name>", _("Wallet window title"));
-#endif
+    strUsage += g_wallet_init_interface->GetHelpString(showDebug);
 
 #if ENABLE_ZMQ
     strUsage += HelpMessageGroup(_("ZeroMQ notification options:"));
@@ -1306,10 +1291,7 @@ bool AppInitParameterInteraction()
         return InitError(strprintf("acceptnonstdtxn is not currently supported for %s chain", chainparams.NetworkIDString()));
     nBytesPerSigOp = gArgs.GetArg("-bytespersigop", nBytesPerSigOp);
 
-#ifdef ENABLE_WALLET
-    if (!WalletParameterInteraction())
-        return false;
-#endif // ENABLE_WALLET
+    if (!g_wallet_init_interface->ParameterInteraction()) return false;
 
     fIsBareMultisigStd = gArgs.GetBoolArg("-permitbaremultisig", DEFAULT_PERMIT_BAREMULTISIG);
     fAcceptDatacarrier = gArgs.GetBoolArg("-datacarrier", DEFAULT_ACCEPT_DATACARRIER);
@@ -1621,9 +1603,7 @@ bool AppInitMain()
      * available in the GUI RPC console even if external calls are disabled.
      */
     RegisterAllCoreRPCCommands(tableRPC);
-#ifdef ENABLE_WALLET
-    RegisterWalletRPC(tableRPC);
-#endif
+    g_wallet_init_interface->RegisterRPC(tableRPC);
 
     /* Start the RPC server already.  It will be started in "warmup" mode
      * and not really process calls already (but it will signify connections
@@ -1637,12 +1617,14 @@ bool AppInitMain()
             return InitError(_("Unable to start HTTP server. See debug log for details."));
     }
 
+    // ********************************************************* Step 5: verify wallet database integrity
+    if (!g_wallet_init_interface->Verify()) return false;
+
     // ********************************************************* Step 5: Backup wallet and verify wallet database integrity
+
+    // TODO need to remove ENABLE_WALLET here #10762
 #ifdef ENABLE_WALLET
     if (!CWallet::InitAutoBackup())
-        return false;
-
-    if (!VerifyWallets())
         return false;
 
     // Initialize KeePass Integration
@@ -2021,12 +2003,7 @@ bool AppInitMain()
     fFeeEstimatesInitialized = true;
 
     // ********************************************************* Step 8: load wallet
-#ifdef ENABLE_WALLET
-    if (!OpenWallets())
-        return false;
-#else
-    LogPrintf("No wallet support compiled in!\n");
-#endif
+    if (!g_wallet_init_interface->Open()) return false;
 
     // As InitLoadWallet can take several minutes, it's possible the user
     // requested to kill the GUI during the last operation. If so, exit.
@@ -2316,9 +2293,7 @@ bool AppInitMain()
     SetRPCWarmupFinished();
     uiInterface.InitMessage(_("Done loading"));
 
-#ifdef ENABLE_WALLET
-    StartWallets(scheduler);
-#endif
+    g_wallet_init_interface->Start(scheduler);
 
     return true;
 }
