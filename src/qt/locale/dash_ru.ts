@@ -2096,11 +2096,11 @@ https://www.transifex.com/projects/p/dash/</translation>
     <name>QRDialog</name>
     <message>
         <source>QR-Code Title</source>
-        <translation>Заголовок QR кода</translation>
+        <translation>Заголовок QR-кода</translation>
     </message>
     <message>
         <source>QR Code</source>
-        <translation>QR код</translation>
+        <translation>QR-код</translation>
     </message>
     <message>
         <source>&amp;Save Image...</source>
@@ -2108,7 +2108,7 @@ https://www.transifex.com/projects/p/dash/</translation>
     </message>
     <message>
         <source>Error creating QR Code.</source>
-        <translation>Ошибка создания QR кода</translation>
+        <translation>Ошибка создания QR-кода</translation>
     </message>
 </context>
 <context>
