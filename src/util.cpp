@@ -851,26 +851,9 @@ void ArgsManager::ForceSetArg(const std::string& strArg, const std::string& strV
     m_override_args[strArg] = {strValue};
 }
 
-void ArgsManager::ForceRemoveArg(const std::string& strArg)
+bool HelpRequested(const ArgsManager& args)
 {
-    LOCK(cs_args);
-
-    const auto& ov = m_override_args.find(strArg);
-    if (ov != m_override_args.end()) {
-        m_override_args.erase(ov);
-    }
-
-    if (!m_network.empty()) {
-        const auto& cfs = m_config_args.find(ArgsManagerHelper::NetworkArg(*this, strArg));
-        if (cfs != m_config_args.end()) {
-            m_config_args.erase(cfs);
-        }
-    }
-
-    const auto& cf = m_config_args.find(strArg);
-    if (cf != m_config_args.end()) {
-        m_config_args.erase(cf);
-    }
+    return args.IsArgSet("-?") || args.IsArgSet("-h") || args.IsArgSet("-help");
 }
 
 static const int screenWidth = 79;
