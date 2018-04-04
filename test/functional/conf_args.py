@@ -25,7 +25,7 @@ class ConfArgsTest(BitcoinTestFramework):
 
         # Check that using -datadir argument on non-existent directory fails
         self.nodes[0].datadir = new_data_dir
-        self.assert_start_raises_init_error(0, ['-datadir='+new_data_dir], 'Error: Specified data directory "' + new_data_dir + '" does not exist.')
+        self.nodes[0].assert_start_raises_init_error(['-datadir=' + new_data_dir], 'Error: Specified data directory "' + new_data_dir + '" does not exist.')
 
         # Check that using non-existent datadir in conf file fails
         conf_file = os.path.join(default_data_dir, "dash.conf")
@@ -34,7 +34,7 @@ class ConfArgsTest(BitcoinTestFramework):
         conf_file_contents = open(conf_file, encoding='utf8').read()
         with open(conf_file, 'w', encoding='utf8') as f:
             f.write("datadir=" + new_data_dir + "\n")
-            f.write(conf_file_contents)
+        self.nodes[0].assert_start_raises_init_error(['-conf=' + conf_file], 'Error reading configuration file: specified data directory "' + new_data_dir + '" does not exist.')
 
         self.assert_start_raises_init_error(0, ['-conf='+conf_file], 'Error reading configuration file: specified data directory "' + new_data_dir + '" does not exist.')
 
