@@ -13,6 +13,7 @@
 #include "specialtx.h"
 #include "providertx.h"
 #include "deterministicmns.h"
+#include "cbtx.h"
 
 bool CheckSpecialTx(const CTransaction& tx, const CBlockIndex* pindex, CValidationState& state)
 {
@@ -34,6 +35,8 @@ bool CheckSpecialTx(const CTransaction& tx, const CBlockIndex* pindex, CValidati
             return CheckProUpRegTx(tx, pindex, state);
         case TRANSACTION_PROVIDER_UPDATE_REVOKE:
             return CheckProUpRevTx(tx, pindex, state);
+        case TRANSACTION_COINBASE:
+            return CheckCbTx(tx, pindex, state);
     }
 
     return state.DoS(100, false, REJECT_INVALID, "bad-tx-type");
@@ -50,6 +53,8 @@ bool ProcessSpecialTx(const CTransaction& tx, const CBlockIndex* pindex, CValida
         case TRANSACTION_PROVIDER_UPDATE_REGISTRAR:
         case TRANSACTION_PROVIDER_UPDATE_REVOKE:
             return true; // handled in batches per block
+        case TRANSACTION_COINBASE:
+            return true; // nothing to do
     }
 
     return state.DoS(100, false, REJECT_INVALID, "bad-tx-type");
@@ -66,6 +71,8 @@ bool UndoSpecialTx(const CTransaction& tx, const CBlockIndex* pindex)
         case TRANSACTION_PROVIDER_UPDATE_REGISTRAR:
         case TRANSACTION_PROVIDER_UPDATE_REVOKE:
             return true; // handled in batches per block
+        case TRANSACTION_COINBASE:
+            return true; // nothing to do
     }
 
     return false;
