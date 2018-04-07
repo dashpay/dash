@@ -56,7 +56,20 @@ internal encryption logic and RPC behaviour were not affected.
 0.16.1.1 Change log
 ===================
 
-See detailed [set of changes](https://github.com/dashpay/dash/compare/v0.16.1.0...dashpay:v0.16.1.1).
+- The `createrawtransaction` RPC will now accept an array or dictionary (kept for compatibility) for the `outputs` parameter. This means the order of transaction outputs can be specified by the client.
+- The `fundrawtransaction` RPC will reject the previously deprecated `reserveChangeKey` option.
+- Wallet `getnewaddress` and `addmultisigaddress` RPC `account` named
+  parameters have been renamed to `label` with no change in behavior.
+- Wallet `getlabeladdress`, `getreceivedbylabel`, `listreceivedbylabel`, and
+  `setlabel` RPCs have been added to replace `getaccountaddress`,
+  `getreceivedbyaccount`, `listreceivedbyaccount`, and `setaccount` RPCs,
+  which are now deprecated. There is no change in behavior between the
+  new RPCs and deprecated RPCs.
+- Wallet `listreceivedbylabel`, `listreceivedbyaccount` and `listunspent` RPCs
+  add `label` fields to returned JSON objects that previously only had
+  `account` fields.
+- `sendmany` now shuffles outputs to improve privacy, so any previously expected behavior with regards to output ordering can no longer be relied upon.
+- The new RPC `testmempoolaccept` can be used to test acceptance of a transaction to the mempool without adding it.
 
 - [`ccef3b4836`](https://github.com/dashpay/dash/commit/ccef3b48363d8bff4b919d9119355182e3902ef3) qt: Fix wallet encryption dialog (#3816)
 
