@@ -335,9 +335,10 @@ class CDeterministicMNManager
     static const int SNAPSHOT_LIST_PERIOD = 576; // once per day
     static const int LISTS_CACHE_SIZE = 576;
 
-private:
+public:
     CCriticalSection cs;
 
+private:
     CDBWrapper db;
     CDBTransaction dbTransaction;
 
@@ -373,7 +374,7 @@ public:
 
     void Init();
 
-    bool ProcessBlock(const CBlock& block, const CBlockIndex* pindex, CValidationState& state);
+    bool ProcessBlock(const CBlock& block, const CBlockIndex* pindexPrev, CValidationState& state);
     bool UndoBlock(const CBlock& block, const CBlockIndex* pindex);
 
     CDeterministicMNList GetListAtHeight(int height);

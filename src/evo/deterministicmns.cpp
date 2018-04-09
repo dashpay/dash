@@ -262,11 +262,11 @@ void CDeterministicMNManager::Init()
     }
 }
 
-bool CDeterministicMNManager::ProcessBlock(const CBlock& block, const CBlockIndex* pindex, CValidationState& _state)
+bool CDeterministicMNManager::ProcessBlock(const CBlock& block, const CBlockIndex* pindexPrev, CValidationState& _state)
 {
     LOCK(cs);
 
-    int height = pindex->nHeight;
+    int height = pindexPrev->nHeight + 1;
 
     CDeterministicMNList newList(height);
     CDeterministicMNList oldList;
@@ -432,7 +432,7 @@ bool CDeterministicMNManager::ProcessBlock(const CBlock& block, const CBlockInde
     if ((height % SNAPSHOT_LIST_PERIOD) == 0) {
         dbTransaction.Write(std::make_pair(DB_LIST_SNAPSHOT, height), newList);
         LogPrintf("CDeterministicMNManager::%s -- Wrote snapshot. height=%d, mapCurMNs.size=%d\n",
-                  __func__, pindex->nHeight, newList.size());
+                  __func__, height, newList.size());
     }
 
     if (!diff.HasChanges()) {

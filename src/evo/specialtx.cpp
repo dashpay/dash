@@ -88,7 +88,10 @@ bool ProcessSpecialTxsInBlock(const CBlock& block, const CBlockIndex* pindex, CV
             return false;
     }
 
-    if (!deterministicMNManager->ProcessBlock(block, pindex, state))
+    if (!deterministicMNManager->ProcessBlock(block, pindex->pprev, state))
+        return false;
+
+    if (!CheckCbTxMerkleRootMNList(block, pindex, state))
         return false;
 
     return true;

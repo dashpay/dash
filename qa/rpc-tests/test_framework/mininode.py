@@ -793,6 +793,29 @@ class BlockTransactions(object):
         return "BlockTransactions(hash=%064x transactions=%s)" % (self.blockhash, repr(self.transactions))
 
 
+class CCbTx(object):
+    def __init__(self, height=None, merkleRootMNList=None):
+        self.set_null()
+        if height is not None:
+            self.height = height
+        if merkleRootMNList is not None:
+            self.merkleRootMNList = merkleRootMNList
+
+    def set_null(self):
+        self.height = 0
+        self.merkleRootMNList = None
+
+    def deserialize(self, f):
+        self.height = struct.unpack("<i", f.read(4))[0]
+        self.merkleRootMNList = deser_uint256(f)
+
+    def serialize(self):
+        r = b""
+        r += struct.pack("<i", self.height)
+        r += ser_uint256(self.merkleRootMNList)
+        return r
+
+
 # Objects that correspond to messages on the wire
 class msg_version(object):
     command = b"version"
