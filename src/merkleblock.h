@@ -49,7 +49,7 @@
  */
 class CPartialMerkleTree
 {
-protected:
+public:
     /** the total number of transactions in the block */
     unsigned int nTransactions;
 
@@ -59,6 +59,7 @@ protected:
     /** txids and internal hashes */
     std::vector<uint256> vHash;
 
+protected:
     /** flag set when encountering invalid data */
     bool fBad;
 
