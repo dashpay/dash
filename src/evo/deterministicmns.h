@@ -258,7 +258,7 @@ public:
      */
     std::vector<CDeterministicMNCPtr> GetProjectedMNPayees(int count) const;
 
-    void BuildDiff(const CDeterministicMNList& to, CDeterministicMNListDiff& diffRet) const;
+    CDeterministicMNListDiff BuildDiff(const CDeterministicMNList& to) const;
     CDeterministicMNList ApplyDiff(const CDeterministicMNListDiff& diff) const;
 
     void AddMN(const CDeterministicMNCPtr &dmn)

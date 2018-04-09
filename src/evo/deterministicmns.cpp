@@ -203,8 +203,9 @@ std::vector<CDeterministicMNCPtr> CDeterministicMNList::GetProjectedMNPayees(int
     return result;
 }
 
-void CDeterministicMNList::BuildDiff(const CDeterministicMNList& to, CDeterministicMNListDiff& diffRet) const
+CDeterministicMNListDiff CDeterministicMNList::BuildDiff(const CDeterministicMNList& to) const
 {
+    CDeterministicMNListDiff diffRet;
     diffRet.height = to.height;
 
     for (const auto& p : *to.mnMap) {
@@ -221,6 +222,8 @@ void CDeterministicMNList::BuildDiff(const CDeterministicMNList& to, CDeterminis
             diffRet.removedMns.insert(p.first);
         }
     }
+
+    return diffRet;
 }
 
 CDeterministicMNList CDeterministicMNList::ApplyDiff(const CDeterministicMNListDiff& diff) const
@@ -423,8 +426,7 @@ bool CDeterministicMNManager::ProcessBlock(const CBlock& block, const CBlockInde
         newList.UpdateMN(payee->proTxHash, newState);
     }
 
-    CDeterministicMNListDiff diff;
-    oldList.BuildDiff(newList, diff);
+    CDeterministicMNListDiff diff = oldList.BuildDiff(newList);
 
     if (diff.HasChanges()) {
         dbTransaction.Write(std::make_pair(DB_LIST_DIFF, height), diff);
