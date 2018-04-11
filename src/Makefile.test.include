@@ -78,6 +78,7 @@ BITCOIN_TESTS =\
   test/base64_tests.cpp \
   test/bip32_tests.cpp \
   test/bip39_tests.cpp \
+  test/blockencodings_tests.cpp \
   test/bloom_tests.cpp \
   test/bswap_tests.cpp \
   test/checkqueue_tests.cpp \
@@ -121,6 +122,7 @@ BITCOIN_TESTS =\
   test/sigopcount_tests.cpp \
   test/skiplist_tests.cpp \
   test/streams_tests.cpp \
+  test/subsidy_tests.cpp \
   test/test_dash.cpp \
   test/test_dash.h \
   test/test_random.h \
