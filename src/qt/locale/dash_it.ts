@@ -2524,7 +2524,7 @@ https://www.transifex.com/projects/p/dash/</translation>
     <name>ReceiveCoinsDialog</name>
     <message>
         <source>Reuse one of the previously used receiving addresses.&lt;br&gt;Reusing addresses has security and privacy issues.&lt;br&gt;Do not use this unless re-generating a payment request made before.</source>
-        <translation>Riutilizzare uno degli indirizzi di ricezione utilizzati in precedenza.&lt;br&gt; Gli indirizzi riutilizzati hanno problemi di sicurezza e privacy. &lt;br&gt;Non usarli a meno che non si generi nuovamente una richiesta di pagamento effettuata in precedenza.</translation>
+        <translation>Riutilizzare uno degli indirizzi di ricezione utilizzati in precedenza.&lt;br&gt; Gli indirizzi riutilizzati hanno problemi di sicurezza e di privacy. &lt;br&gt;Non ri-usarli a meno che non si generi nuovamente una richiesta di pagamento effettuata in precedenza.</translation>
     </message>
     <message>
         <source>R&amp;euse an existing receiving address (not recommended)</source>
@@ -2765,15 +2765,15 @@ https://www.transifex.com/projects/p/dash/</translation>
     </message>
     <message>
         <source>If this is activated, but the change address is empty or invalid, change will be sent to a newly generated address.</source>
-        <translation>Se questo è abilitato e l'indirizzo per il resto è vuoto o invalido, il resto sarà inviato ad un nuovo indirizzo generato appositamente.</translation>
+        <translation>Se è abilitato, ma l'indirizzo per il resto è vuoto o invalido, il resto sarà inviato ad un nuovo indirizzo generato appositamente.</translation>
     </message>
     <message>
         <source>Custom change address</source>
-        <translation>Personalizza indirizzo di resto</translation>
+        <translation>Personalizza indirizzo per il resto</translation>
     </message>
     <message>
         <source>Transaction Fee:</source>
-        <translation>Commissione della transazione</translation>
+        <translation>Commissione della transazione:</translation>
     </message>
     <message>
         <source>Choose...</source>
@@ -2805,15 +2805,15 @@ https://www.transifex.com/projects/p/dash/</translation>
     </message>
     <message>
         <source>If the custom fee is set to 1000 duffs and the transaction is only 250 bytes, then "per kilobyte" only pays 250 duffs in fee,&lt;br /&gt;while "at least" pays 1000 duffs. For transactions bigger than a kilobyte both pay by kilobyte.</source>
-        <translation>Se la tariffa personalizzata è impostata su 1000 duff e la transazione è di soli 250 byte, paghi solo 250 duff "per kilobyte" di Fee, &lt;br /&gt;mentre paghi "almeno"  1000 duff. Per le transazioni più grandi di un kilobyte pagate entrambi per kilobyte.</translation>
+        <translation>Se la tariffa personalizzata è impostata su 1000 duff e la transazione è di soli 250 byte, paga solo 250 duff "per kilobyte" di Fee, &lt;br /&gt;mentre paga "almeno"  1000 duff. Per le transazioni più grandi di un kilobyte pagate entrambi per kilobyte.</translation>
     </message>
     <message>
         <source>If the custom fee is set to 1000 duffs and the transaction is only 250 bytes, then "per kilobyte" only pays 250 duffs in fee,&lt;br /&gt;while "total at least" pays 1000 duffs. For transactions bigger than a kilobyte both pay by kilobyte.</source>
-        <translation>Se la tariffa personalizzata è impostata su 1000 duff e la transazione è di soli 250 byte, paghi solo 250 duff "per kilobyte" di Fee, &lt;br /&gt;mentre paghi "in totale almeno" 1000 duff. Per le transazioni più grandi di un kilobyte pagate entrambi per kilobyte.</translation>
+        <translation>Se la tariffa personalizzata è impostata su 1000 duff e la transazione è di soli 250 byte, paga solo 250 duff "per kilobyte" di Fee, &lt;br /&gt;mentre paga "in totale almeno" 1000 duff. Per le transazioni più grandi di un kilobyte pagate entrambi per kilobyte.</translation>
     </message>
     <message>
         <source>Paying only the minimum fee is just fine as long as there is less transaction volume than space in the blocks.&lt;br /&gt;But be aware that this can end up in a never confirming transaction once there is more demand for dash transactions than the network can process.</source>
-        <translation>Pagare solo la commissione minima va bene finché il volume di transazioni è minore rispetto allo spazio nei blocchi. &lt;br /&gt;Ma sii consapevole che questo potrebbe risultare in una transazione non confermata una volta che ci fosse più richiesta di transazioni di Dash di quanto la rete possa elaborare.</translation>
+        <translation>Pagare solo la commissione minima va bene finché il volume di transazioni è minore rispetto allo spazio nei blocchi. &lt;br /&gt;Ma sii consapevole che questo potrebbe risultare in una transazione non confermata, una volta che ci fosse più richiesta di transazioni di Dash di quanto la rete possa elaborare.</translation>
     </message>
     <message>
         <source>per kilobyte</source>
@@ -2857,7 +2857,7 @@ https://www.transifex.com/projects/p/dash/</translation>
     </message>
     <message>
         <source>S&amp;end</source>
-        <translation>&amp;Invia</translation>
+        <translation>I&amp;nvia</translation>
     </message>
     <message>
         <source>Clear all fields of the form.</source>
@@ -2957,7 +2957,7 @@ https://www.transifex.com/projects/p/dash/</translation>
     </message>
     <message>
         <source>The amount to pay must be larger than 0.</source>
-        <translation>L'importo da pagare dev'essere maggiore di 0.</translation>
+        <translation>L'importo da pagare deve essere maggiore di 0.</translation>
     </message>
     <message>
         <source>The amount exceeds your balance.</source>
@@ -2969,7 +2969,7 @@ https://www.transifex.com/projects/p/dash/</translation>
     </message>
     <message>
         <source>Duplicate address found: addresses should only be used once each.</source>
-        <translation> Rilevato un indirizzo duplicato Ciascun indirizzo dovrebbe essere utilizzato una sola volta.</translation>
+        <translation> Rilevato un indirizzo duplicato ciascun indirizzo dovrebbe essere utilizzato una sola volta.</translation>
     </message>
     <message>
         <source>Transaction creation failed!</source>
@@ -2993,11 +2993,11 @@ https://www.transifex.com/projects/p/dash/</translation>
     </message>
     <message>
         <source>Pay only the required fee of %1</source>
-        <translation> Paga solamente la commissione richiesta di %1</translation>
+        <translation> Paga solo la commissione richiesta di %1</translation>
     </message>
     <message numerus="yes">
         <source>Estimated to begin confirmation within %n block(s).</source>
-        <translation><numerusform>Inizio della confirmazione stimato in %n blocco</numerusform><numerusform>Inizio della confirmazione stimato in %n blocchi</numerusform></translation>
+        <translation><numerusform>Inizio della confirmazione stimato in %n blocco</numerusform><numerusform>Inizio del processo di conferma stimato in %n blocchi</numerusform></translation>
     </message>
     <message>
         <source>Warning: Invalid Dash address</source>
@@ -3013,7 +3013,7 @@ https://www.transifex.com/projects/p/dash/</translation>
     </message>
     <message>
         <source>The address you selected for change is not part of this wallet. Any or all funds in your wallet may be sent to this address. Are you sure?</source>
-        <translation>L'indirizzo selezionato per il cambio non fa parte di questo portafoglio. Alcuni o tutti i fondi nel tuo portafoglio potrebbero essere inviati a questo indirizzo. Sei sicuro?</translation>
+        <translation>L'indirizzo selezionato per il resto non fa parte di questo portafoglio. Alcuni o tutti i fondi nel tuo portafoglio potrebbero essere inviati a questo indirizzo. Sei sicuro?</translation>
     </message>
     <message>
         <source>(no label)</source>
@@ -3169,7 +3169,7 @@ https://www.transifex.com/projects/p/dash/</translation>
     </message>
     <message>
         <source>Sign the message to prove you own this Dash address</source>
-        <translation>Firma il mssaggio per dimostrare il possesso di questo indirizzo Dash</translation>
+        <translation>Firma il messaggio per dimostrare il possesso di questo indirizzo Dash</translation>
     </message>
     <message>
         <source>Sign &amp;Message</source>
@@ -3302,11 +3302,11 @@ https://www.transifex.com/projects/p/dash/</translation>
     </message>
     <message>
         <source>in memory pool</source>
-        <translation>nella riserva di memoria</translation>
+        <translation>nella memory pool</translation>
     </message>
     <message>
         <source>not in memory pool</source>
-        <translation>non nella riserva di memoria</translation>
+        <translation>non nella memory pool</translation>
     </message>
     <message>
         <source>abandoned</source>
@@ -3330,7 +3330,7 @@ https://www.transifex.com/projects/p/dash/</translation>
     </message>
     <message>
         <source>InstantSend verification failed</source>
-        <translation>Verifica InstantSend fallita</translation>
+        <translation>Verifica InstantSend fallita</translation>
     </message>
     <message>
         <source>Status</source>
@@ -3374,7 +3374,7 @@ https://www.transifex.com/projects/p/dash/</translation>
     </message>
     <message>
         <source>watch-only</source>
-        <translation>Solo per consultare</translation>
+        <translation>Per sola lettura</translation>
     </message>
     <message>
         <source>label</source>
@@ -3434,11 +3434,11 @@ https://www.transifex.com/projects/p/dash/</translation>
     </message>
     <message>
         <source>Merchant</source>
-        <translation>Mercante</translation>
+        <translation>Negoziante</translation>
     </message>
     <message>
         <source>Generated coins must mature %1 blocks before they can be spent. When you generated this block, it was broadcast to the network to be added to the block chain. If it fails to get into the chain, its state will change to "not accepted" and it won't be spendable. This may occasionally happen if another node generates a block within a few seconds of yours.</source>
-        <translation>È necessario attendere %1 blocchi prima che i monete generati possano essere spesi. Quando è stato generato questo blocco, è stato trasmesso alla rete in modo da poter essere aggiunto alla blocco catena. Se l'inserimento avrà esito negativo il suo stato sarà modificato in "non accettato" e risulterà non spendibile. Questo può occasionalmente accadere se un altro nodo genera un blocco entro pochi secondi dal tuo.</translation>
+        <translation>È necessario attendere %1 blocchi prima che le monete generate possano essere spese. Quando è stato generato questo blocco, è stato trasmesso alla rete in modo da poter essere aggiunto alla blockchain. Se l'inserimento avrà esito negativo il suo stato sarà modificato in "non accettato" e risulterà non spendibile. Questo può occasionalmente accadere se un altro nodo genera un blocco entro pochi secondi dal tuo.</translation>
     </message>
     <message>
         <source>Debug information</source>
@@ -3584,7 +3584,7 @@ https://www.transifex.com/projects/p/dash/</translation>
     </message>
     <message>
         <source>(n/a)</source>
-        <translation>(N / a)</translation>
+        <translation>(N/A)</translation>
     </message>
     <message>
         <source>(no label)</source>
@@ -3604,7 +3604,7 @@ https://www.transifex.com/projects/p/dash/</translation>
     </message>
     <message>
         <source>Whether or not a watch-only address is involved in this transaction.</source>
-        <translation>Incluso se in questa transazione é coinvolto un indirizzo di sola consulta</translation>
+        <translation>Anche se in questa transazione è coinvolto un indirizzo di sola lettura</translation>
     </message>
     <message>
         <source>User-defined intent/purpose of the transaction.</source>
@@ -3739,7 +3739,7 @@ https://www.transifex.com/projects/p/dash/</translation>
     </message>
     <message>
         <source>Comma separated file (*.csv)</source>
-        <translation>Testo CSV (*.csv)</translation>
+        <translation>file CSV (*.csv)</translation>
     </message>
     <message>
         <source>Confirmed</source>
@@ -3747,7 +3747,7 @@ https://www.transifex.com/projects/p/dash/</translation>
     </message>
     <message>
         <source>Watch-only</source>
-        <translation>Solo per consultare</translation>
+        <translation>Per sola lettura</translation>
     </message>
     <message>
         <source>Date</source>
@@ -3798,7 +3798,7 @@ https://www.transifex.com/projects/p/dash/</translation>
     <name>UnitDisplayStatusBarControl</name>
     <message>
         <source>Unit to show amounts in. Click to select another unit.</source>
-        <translation>Unitá per mostrare gli importi. Clicca per selezionare un'altra unitá.</translation>
+        <translation>Unitá con cui mostrare gli importi. Clicca per selezionare un'altra unitá.</translation>
     </message>
 </context>
 <context>
@@ -3812,7 +3812,7 @@ https://www.transifex.com/projects/p/dash/</translation>
     <name>WalletModel</name>
     <message>
         <source>Send Coins</source>
-        <translation>Invia dash</translation>
+        <translation>Invia Monete</translation>
     </message>
     <message>
         <source>InstantSend doesn't support sending values that high yet. Transactions are currently limited to %1 DASH.</source>
@@ -3870,7 +3870,7 @@ https://www.transifex.com/projects/p/dash/</translation>
     </message>
     <message>
         <source>Error: Listening for incoming connections failed (listen returned error %s)</source>
-        <translation>Errore: Ascolto per le connessioni in entrata non riuscita (ascoltare errore restituito %s)</translation>
+        <translation>Errore: Ascolto per le connessioni in entrata non riuscito (ascoltare errore restituito %s)</translation>
     </message>
     <message>
         <source>Execute command when a relevant alert is received or we see a really long fork (%s in cmd is replaced by message)</source>
@@ -3878,7 +3878,7 @@ https://www.transifex.com/projects/p/dash/</translation>
     </message>
     <message>
         <source>Execute command when a wallet transaction changes (%s in cmd is replaced by TxID)</source>
-        <translation>Esegui comando quando una transazione del portamonete cambia (%s in cmd è sostituito da TxID)</translation>
+        <translation>Esegui comando quando una transazione del portafoglio cambia (%s in cmd è sostituito da TxID)</translation>
     </message>
     <message>
         <source>Execute command when the best block changes (%s in cmd is replaced by block hash)</source>
@@ -3886,19 +3886,19 @@ https://www.transifex.com/projects/p/dash/</translation>
     </message>
     <message>
         <source>Name to construct url for KeePass entry that stores the wallet passphrase</source>
-        <translation>Nome di costruire url per l'ingresso KeePass che memorizza la parola d'ordine portafoglio</translation>
+        <translation>Nome per costruire l'url per l'accesso con KeePass che memorizza la passphrase del portafoglio</translation>
     </message>
     <message>
         <source>Set maximum size of high-priority/low-fee transactions in bytes (default: %d)</source>
-        <translation>Imposta la dimensione massima in byte delle transazioni ad alta-priorità/basse-commissioni (predefinita: %d)</translation>
+        <translation>Imposta la dimensione massima in byte delle transazioni ad alta-priorità/basse-commissioni (default: %d)</translation>
     </message>
     <message>
         <source>Set the number of script verification threads (%u to %d, 0 = auto, &lt;0 = leave that many cores free, default: %d)</source>
-        <translation>Imposta il numero di thread per la verifica degli script (da %u a %d, 0 = automatico, &lt;0 = lascia questo numero di core liberi, predefinito: %d)</translation>
+        <translation>Imposta il numero di thread per la verifica degli script (da %u a %d, 0 = automatico, &lt;0 = lascia questo numero di core liberi, default: %d)</translation>
     </message>
     <message>
         <source>This is a pre-release test build - use at your own risk - do not use for mining or merchant applications</source>
-        <translation>Questa versione è una compilazione pre-rilascio - usala a tuo rischio - non utilizzarla per la generazione o per applicazioni di commercio</translation>
+        <translation>Questa versione è una compilazione pre-rilascio - usala a tuo rischio - non utilizzarla per il mining o per applicazioni commerciali</translation>
     </message>
     <message>
         <source>Warning: The network does not appear to fully agree! Some miners appear to be experiencing issues.</source>
@@ -3926,7 +3926,7 @@ https://www.transifex.com/projects/p/dash/</translation>
     </message>
     <message>
         <source>Already have that input.</source>
-        <translation>Hai già quello ingresso.</translation>
+        <translation>Hai già quell'input.</translation>
     </message>
     <message>
         <source>Block creation options:</source>
@@ -3942,7 +3942,7 @@ https://www.transifex.com/projects/p/dash/</translation>
     </message>
     <message>
         <source>Collateral not valid.</source>
-        <translation>Collateral non valido.</translation>
+        <translation>Collaterale non valido.</translation>
     </message>
     <message>
         <source>Connect to a node to retrieve peer addresses, and disconnect</source>
@@ -3954,7 +3954,7 @@ https://www.transifex.com/projects/p/dash/</translation>
     </message>
     <message>
         <source>Corrupted block database detected</source>
-        <translation>Rilevato database blocchi corrotto</translation>
+        <translation>Rilevato database dei blocchi corrotto</translation>
     </message>
     <message>
         <source>Debugging/Testing options:</source>
@@ -3974,7 +3974,7 @@ https://www.transifex.com/projects/p/dash/</translation>
     </message>
     <message>
         <source>Entries are full.</source>
-        <translation>Entrate sono piene.</translation>
+        <translation>Gli ingressi sono pieni.</translation>
     </message>
     <message>
         <source>Error initializing block database</source>
@@ -3986,7 +3986,7 @@ https://www.transifex.com/projects/p/dash/</translation>
     </message>
     <message>
         <source>Error loading block database</source>
-        <translation>Errore caricamento database blocchi</translation>
+        <translation>Errore caricamento del database dei blocchi</translation>
     </message>
     <message>
         <source>Error opening block database</source>
@@ -4010,11 +4010,11 @@ https://www.transifex.com/projects/p/dash/</translation>
     </message>
     <message>
         <source>(1 = keep tx meta data e.g. account owner and payment request information, 2 = drop tx meta data)</source>
-        <translation>(1= mantiene il testo meta data p.es. propietario del conto e informazione richiesta di pagamento, 2 = scarta il testo meta data)</translation>
+        <translation>(1= mantiene il testo meta data p.es. proprietario del conto e informazione richiesta di pagamento, 2 = scarta il testo meta data)</translation>
     </message>
     <message>
         <source>-maxtxfee is set very high! Fees this large could be paid on a single transaction.</source>
-        <translation>-maxtxfee è impostato molto alto! Commissioni così alte possono venir pagate anche su una singola transazione.</translation>
+        <translation>-maxtxfee è impostato a molto alto! Commissioni così alte possono venir pagate anche su una singola transazione.</translation>
     </message>
     <message>
         <source>A fee rate (in %s/kB) that will be used when fee estimation has insufficient data (default: %s)</source>
@@ -4022,7 +4022,7 @@ https://www.transifex.com/projects/p/dash/</translation>
     </message>
     <message>
         <source>Accept relayed transactions received from whitelisted peers even when not relaying transactions (default: %d)</source>
-        <translation>Accetta le transazioni trasmesse ricevute da peers in whitelist anche se non si stanno trasmettendo transazioni (default: %d)</translation>
+        <translation>Accetta le transazioni ricevute dai peer in whitelist anche se non si stanno trasmettendo transazioni (default: %d)</translation>
     </message>
     <message>
         <source>Allow JSON-RPC connections from specified source. Valid for &lt;ip&gt; are a single IP (e.g. 1.2.3.4), a network/netmask (e.g. 1.2.3.4/255.255.255.0) or a network/CIDR (e.g. 1.2.3.4/24). This option can be specified multiple times</source>
@@ -4034,7 +4034,7 @@ https://www.transifex.com/projects/p/dash/</translation>
     </message>
     <message>
         <source>Bind to given address to listen for JSON-RPC connections. Use [host]:port notation for IPv6. This option can be specified multiple times (default: bind to all interfaces)</source>
-        <translation>Associare a un dato indirizzo per ascoltare le connessioni JSON-RPC. Usa [host]: notazione della porta per IPv6. Questa opzione può essere specificata più volte (impostazione predefinita: associare  a tutte le interfacce)</translation>
+        <translation>Associare a un dato indirizzo per ascoltare le connessioni JSON-RPC. Usa [host]: notazione della porta per IPv6. Questa opzione può essere specificata più volte (default:  associare  a tutte le interfacce)</translation>
     </message>
     <message>
         <source>Create new files with system default permissions, instead of umask 077 (only effective with disabled wallet functionality)</source>
@@ -4042,7 +4042,7 @@ https://www.transifex.com/projects/p/dash/</translation>
     </message>
     <message>
         <source>Delete all wallet transactions and only recover those parts of the blockchain through -rescan on startup</source>
-        <translation>Cancella tutte le transazioni del portafoglio e sistema solo quelle parti della catena di blocchi mediante -rescan quando apri il portafoglio</translation>
+        <translation>Cancella tutte le transazioni del portafoglio e sistema solo quelle parti della blockchain mediante -rescan quando apri il portafoglio</translation>
     </message>
     <message>
         <source>Error loading %s: You can't enable HD on a already existing non-HD wallet</source>
@@ -4050,7 +4050,7 @@ https://www.transifex.com/projects/p/dash/</translation>
     </message>
     <message>
         <source>Found unconfirmed denominated outputs, will wait till they confirm to continue.</source>
-        <translation>Uscite denominate non confermati trovati, saranno aspettare che confermano per continua.</translation>
+        <translation>Trovati output denominati non confermati, in attesa delle conferme per continuare.</translation>
     </message>
     <message>
         <source>How thorough the block verification of -checkblocks is (0-4, default: %u)</source>
@@ -4058,7 +4058,7 @@ https://www.transifex.com/projects/p/dash/</translation>
     </message>
     <message>
         <source>If paytxfee is not set, include enough fee so transactions begin confirmation on average within n blocks (default: %u)</source>
-        <translation>Nel caso in cui paytxfee non sia impostato, include una commissione tale da ottenere un avvio delle conferme entro una media di n blocchi (predefinito: %u)</translation>
+        <translation>Nel caso in cui paytxfee non sia impostato, include una commissione tale da ottenere un avvio delle conferme entro una media di n blocchi (default:%u)</translation>
     </message>
     <message>
         <source>If this block is in the chain assume that it and its ancestors are valid and potentially skip their script verification (0 to verify all, default: %s, testnet: %s)</source>
@@ -4070,7 +4070,7 @@ https://www.transifex.com/projects/p/dash/</translation>
     </message>
     <message>
         <source>Maintain a full transaction index, used by the getrawtransaction rpc call (default: %u)</source>
-        <translation>Mantiene l'indice completo delle transazioni usato dalla chiamata rpc getrawtransaction (predefinito: %u)</translation>
+        <translation>Mantiene l'indice completo delle transazioni usato dalla chiamata rpc getrawtransaction (default: %u)</translation>
     </message>
     <message>
         <source>Make sure to encrypt your wallet and delete all non-encrypted backups after you verified that wallet works!</source>
@@ -4078,27 +4078,27 @@ https://www.transifex.com/projects/p/dash/</translation>
     </message>
     <message>
         <source>Maximum size of data in data carrier transactions we relay and mine (default: %u)</source>
-        <translation>Dimensione massima dei dati in transazioni di trasporto dati che saranno trasmesse ed incluse nei blocchi (predefinito: %u)</translation>
+        <translation>Dimensione massima dei dati nelle transazioni di trasporto dati che saranno trasmesse ed incluse nei blocchi (predefinito: %u)</translation>
     </message>
     <message>
         <source>Number of seconds to keep misbehaving peers from reconnecting (default: %u)</source>
-        <translation>Numero di secondi di sospensione prima della riconnessione per i peer che mostrano un comportamento anomalo (predefinito: %u)</translation>
+        <translation>Numero di secondi di sospensione prima della riconnessione per i peer che mostrano un comportamento anomalo (default: %u)</translation>
     </message>
     <message>
         <source>Output debugging information (default: %u, supplying &lt;category&gt; is optional)</source>
-        <translation>Emette informazioni di debug (predefinito: %u, fornire &lt;category&gt; è opzionale)</translation>
+        <translation>Emette informazioni di debug (default: : %u, fornire &lt;category&gt; è opzionale)</translation>
     </message>
     <message>
         <source>Use separate SOCKS5 proxy to reach peers via Tor hidden services (default: %s)</source>
-        <translation>Usa un proxy SOCKS5 a parte per raggiungere i peer attraverso gli hidden services di Tor (predefinito: %s)</translation>
+        <translation>Usa un proxy SOCKS5 a parte per raggiungere i peer attraverso gli hidden services di Tor (default: %s)</translation>
     </message>
     <message>
         <source>User defined mnemonic for HD wallet (bip39). Only has effect during wallet creation/first start (default: randomly generated)</source>
-        <translation>Mnemonico definito dall'utente per portafoglio HD (bip39). Ha effetto solo durante la creazione del portafoglio/primo avvio (predefinito: generato casualmente).</translation>
+        <translation>Mnemonico definito dall'utente per portafoglio HD (bip39). Ha effetto solo durante la creazione del portafoglio/primo avvio (default: generato casualmente).</translation>
     </message>
     <message>
         <source>User defined seed for HD wallet (should be in hex). Only has effect during wallet creation/first start (default: randomly generated)</source>
-        <translation>Seed definite dall'utente per il portafoglio HD (dovrebbe essere in esadecimale). Ha effetto solo durante la creazione del portafoglio/primo avvio (predefinito: generato casualmente)</translation>
+        <translation>Seed definite dall'utente per il portafoglio HD (dovrebbe essere in esadecimale). Ha effetto solo durante la creazione del portafoglio/primo avvio (default: generato casualmente)</translation>
     </message>
     <message>
         <source>Whitelisted peers cannot be DoS banned and their transactions are always relayed, even if they are already in the mempool, useful e.g. for a gateway</source>
@@ -4110,15 +4110,15 @@ https://www.transifex.com/projects/p/dash/</translation>
     </message>
     <message>
         <source>(default: %s)</source>
-        <translation>(predefinito: %s)</translation>
+        <translation>(default: %s)</translation>
     </message>
     <message>
         <source>Accept public REST requests (default: %u)</source>
-        <translation>Accetta richieste REST pubbliche (predefinito: %u)</translation>
+        <translation>Accetta richieste REST pubbliche (default: %u)</translation>
     </message>
     <message>
         <source>Always query for peer addresses via DNS lookup (default: %u)</source>
-        <translation>Interroga sempre i DNS per ottenere gli indirizzi dei peer (predefinito: %u)</translation>
+        <translation>Interroga sempre i DNS per ottenere gli indirizzi dei peer (default: %u)</translation>
     </message>
     <message>
         <source>Can't mix: no compatible inputs found!</source>
@@ -4174,7 +4174,7 @@ https://www.transifex.com/projects/p/dash/</translation>
     </message>
     <message>
         <source>How many blocks to check at startup (default: %u, 0 = all)</source>
-        <translation>Numero di blocchi da controllare all'avvio (predefinito: %u, 0 = tutti)</translation>
+        <translation>Numero di blocchi da controllare all'avvio (default: %u, 0 = tutti)</translation>
     </message>
     <message>
         <source>Importing...</source>
@@ -4182,7 +4182,7 @@ https://www.transifex.com/projects/p/dash/</translation>
     </message>
     <message>
         <source>Include IP addresses in debug output (default: %u)</source>
-        <translation>Include gli indirizzi IP nell'output del debug (predefinito: %u)</translation>
+        <translation>Include gli indirizzi IP nell'output del debug (default: %u)</translation>
     </message>
     <message>
         <source>Incompatible mode.</source>
@@ -4226,15 +4226,15 @@ https://www.transifex.com/projects/p/dash/</translation>
     </message>
     <message>
         <source>Listen for JSON-RPC connections on &lt;port&gt; (default: %u or testnet: %u)</source>
-        <translation>Resta in attesa di connessioni JSON-RPC su &lt;port&gt; (predefinito: %u o testnet: %u)</translation>
+        <translation>Resta in attesa di connessioni JSON-RPC su &lt;port&gt; (default: %u o testnet: %u)</translation>
     </message>
     <message>
         <source>Listen for connections on &lt;port&gt; (default: %u or testnet: %u)</source>
-        <translation>Resta in attesa di connessioni su &lt;port&gt; (predefinito: %u o testnet: %u)</translation>
+        <translation>Resta in attesa di connessioni su &lt;port&gt; (default: %u o testnet: %u)</translation>
     </message>
     <message>
         <source>Loading banlist...</source>
-        <translation>Caricamento bloccati...</translation>
+        <translation>Caricamento lista dei bloccati...</translation>
     </message>
     <message>
         <source>Loading fulfilled requests cache...</source>
@@ -4258,11 +4258,11 @@ https://www.transifex.com/projects/p/dash/</translation>
     </message>
     <message>
         <source>Maximum per-connection receive buffer, &lt;n&gt;*1000 bytes (default: %u)</source>
-        <translation>Buffer di ricezione massimo per connessione, &lt;n&gt;*1000 byte (predefinito: %u)</translation>
+        <translation>Buffer di ricezione massimo per connessione, &lt;n&gt;*1000 byte (default: %u)</translation>
     </message>
     <message>
         <source>Maximum per-connection send buffer, &lt;n&gt;*1000 bytes (default: %u)</source>
-        <translation>Buffer di invio massimo per connessione, &lt;n&gt;*1000 byte (predefinito: %u)</translation>
+        <translation>Buffer di invio massimo per connessione, &lt;n&gt;*1000 byte (default: %u)</translation>
     </message>
     <message>
         <source>Mixing in progress...</source>
@@ -4282,11 +4282,11 @@ https://www.transifex.com/projects/p/dash/</translation>
     </message>
     <message>
         <source>No compatible Masternode found.</source>
-        <translation>Nessun compatibile Masternode trovato.</translation>
+        <translation>Nessun Masternode compatibile trovato.</translation>
     </message>
     <message>
         <source>Not in the Masternode list.</source>
-        <translation>Non si trova in lista di Masternode.</translation>
+        <translation>Non si trova nella  lista dei Masternode.</translation>
     </message>
     <message>
         <source>Only connect to nodes in network &lt;net&gt; (ipv4, ipv6 or onion)</source>
@@ -4318,19 +4318,19 @@ https://www.transifex.com/projects/p/dash/</translation>
     </message>
     <message>
         <source>Set key pool size to &lt;n&gt; (default: %u)</source>
-        <translation>Imposta la dimensione del pool di chiavi a &lt;n&gt; (predefinito: %u)</translation>
+        <translation>Imposta la dimensione del pool di chiavi a &lt;n&gt; (default: %u)</translation>
     </message>
     <message>
         <source>Set the number of threads to service RPC calls (default: %d)</source>
-        <translation>Imposta il numero di thread destinati a rispondere alle chiamate RPC (predefinito %d)</translation>
+        <translation>Imposta il numero di thread destinati a rispondere alle chiamate RPC (default: %d)</translation>
     </message>
     <message>
         <source>Specify configuration file (default: %s)</source>
-        <translation>Specifica il file di configurazione (predefinito: %s)</translation>
+        <translation>Specifica il file di configurazione (default: %s)</translation>
     </message>
     <message>
         <source>Specify connection timeout in milliseconds (minimum: 1, default: %d)</source>
-        <translation>Specifica il timeout di connessione in millisecondi (minimo:1, predefinito: %d)</translation>
+        <translation>Specifica il timeout di connessione in millisecondi (minimo: 1, default: %d)</translation>
     </message>
     <message>
         <source>Specify masternode configuration file (default: %s)</source>
@@ -4338,11 +4338,11 @@ https://www.transifex.com/projects/p/dash/</translation>
     </message>
     <message>
         <source>Specify pid file (default: %s)</source>
-        <translation>Specifica il file pid (predefinito: %s)</translation>
+        <translation>Specifica il file pid (default: %s)</translation>
     </message>
     <message>
         <source>Spend unconfirmed change when sending transactions (default: %u)</source>
-        <translation>Abilita la spesa di resto non confermato quando si inviano transazioni (predefinito: %u)</translation>
+        <translation>Abilita la spesa di resto non confermato quando si inviano transazioni (default: %u)</translation>
     </message>
     <message>
         <source>Submitted following entries to masternode: %u / %d</source>
@@ -4378,7 +4378,7 @@ https://www.transifex.com/projects/p/dash/</translation>
     </message>
     <message>
         <source>Threshold for disconnecting misbehaving peers (default: %u)</source>
-        <translation>Soglia di disconnessione per i peer che si comportano in maniera anomala (predefinito: %u)</translation>
+        <translation>Soglia di disconnessione per i peer che si comportano in maniera anomala (default: %u)</translation>
     </message>
     <message>
         <source>Too many %f denominations, removing.</source>
@@ -4386,7 +4386,7 @@ https://www.transifex.com/projects/p/dash/</translation>
     </message>
     <message>
         <source>Tor control port password (default: empty)</source>
-        <translation>Password porta controllo Tor (default: empty)</translation>
+        <translation>Password porta di controllo Tor (default: empty)</translation>
     </message>
     <message>
         <source>Tor control port to use if onion listening enabled (default: %s)</source>
@@ -4422,7 +4422,7 @@ https://www.transifex.com/projects/p/dash/</translation>
     </message>
     <message>
         <source>Use UPnP to map the listening port (default: %u)</source>
-        <translation>Usa UPnP per mappare la porta di ascolto (predefinito: %u)</translation>
+        <translation>Usa UPnP per mappare la porta di ascolto (default: %u)</translation>
     </message>
     <message>
         <source>Use the test chain</source>
@@ -4470,11 +4470,11 @@ https://www.transifex.com/projects/p/dash/</translation>
     </message>
     <message>
         <source>KeePassHttp key for AES encrypted communication with KeePass</source>
-        <translation>Chiave KeePassHttp per AES comunicazione cripra con KeePass</translation>
+        <translation>Chiave KeePassHttp per AES, comunicazione criptata con KeePass</translation>
     </message>
     <message>
         <source>Keep at most &lt;n&gt; unconnectable transactions in memory (default: %u)</source>
-        <translation>Mantenere al massimo &lt;n&gt; le operazioni in collegabile in memoria (predefinito: %u)</translation>
+        <translation>Mantenere al massimo &lt;n&gt;  operazioni non collegabili in memoria (default: %u)</translation>
     </message>
     <message>
         <source>Disable all Dash specific functionality (Masternodes, PrivateSend, InstantSend, Governance) (0-1, default: %u)</source>
@@ -4506,11 +4506,11 @@ https://www.transifex.com/projects/p/dash/</translation>
     </message>
     <message>
         <source>Failed to create backup, file already exists! This could happen if you restarted wallet in less than 60 seconds. You can continue if you are ok with this.</source>
-        <translation>Impossibile creare il backup, il file esiste già! Questo può accadere quando riavvii il wallet in meno di 60 secondi. Se per te va ben puoi continuare.</translation>
+        <translation>Impossibile creare il backup, il file esiste già! Questo può accadere quando riavvii il portafoglio in meno di 60 secondi. Se per te va bene puoi continuare.</translation>
     </message>
     <message>
         <source>Fees (in %s/kB) smaller than this are considered zero fee for relaying, mining and transaction creation (default: %s)</source>
-        <translation>Le commissioni (in %s/kB) inferiori a questo valore sono considerate pari a zero per trasmissione, mining e creazione della transazione (default: %s)</translation>
+        <translation>Le commissioni (in %s/kB) inferiori a questo valore sono considerate pari a zero per la trasmissione, mining e creazione della transazione (default: %s)</translation>
     </message>
     <message>
         <source>Fees (in %s/kB) smaller than this are considered zero fee for transaction creation (default: %s)</source>
@@ -4534,7 +4534,7 @@ https://www.transifex.com/projects/p/dash/</translation>
     </message>
     <message>
         <source>Maintain a full spent index, used to query the spending txid and input index for an outpoint (default: %u)</source>
-        <translation>Mantenere un indice esaustivo completo, utilizzato per interrogare il txid di spesa e l'indice di input per un outpoint (predefinito: %u)</translation>
+        <translation>Mantenere un indice esaustivo completo, utilizzato per interrogare il txid di spesa e l'indice di input per un outpoint (default: %u)</translation>
     </message>
     <message>
         <source>Maintain a timestamp index for block hashes, used to query blocks hashes by a range of timestamps (default: %u)</source>
@@ -4554,11 +4554,11 @@ https://www.transifex.com/projects/p/dash/</translation>
     </message>
     <message>
         <source>Prune: last wallet synchronisation goes beyond pruned data. You need to -reindex (download the whole blockchain again in case of pruned node)</source>
-        <translation>Prune: l'ultima sincronizzazione del wallet risulta essere oltre la riduzione dei dati. È necessario eseguire un -reindex (scaricare nuovamente la blockchain in caso di nodo pruned)</translation>
+        <translation>Prune: l'ultima sincronizzazione del portafoglio risulta essere oltre la riduzione dei dati. È necessario eseguire un -reindex (scaricare nuovamente la blockchain in caso di nodo pruned)</translation>
     </message>
     <message>
         <source>Randomize credentials for every proxy connection. This enables Tor stream isolation (default: %u)</source>
-        <translation>Randomizza le credenziali per ogni connessione proxy. Permette la Tor stream isolation (predefinito: %u)</translation>
+        <translation>Randomizza le credenziali per ogni connessione proxy. Permette la Tor stream isolation (default: %u)</translation>
     </message>
     <message>
         <source>Rescans are not possible in pruned mode. You will need to use -reindex which will download the whole blockchain again.</source>
@@ -4590,7 +4590,7 @@ https://www.transifex.com/projects/p/dash/</translation>
     </message>
     <message>
         <source>Unable to locate enough PrivateSend denominated funds for this transaction.</source>
-        <translation>Impossibile trovare abbastanza fondi denominati con PrivateSend per questa transazione .</translation>
+        <translation>Impossibile trovare abbastanza fondi denominati con PrivateSend per questa transazione.</translation>
     </message>
     <message>
         <source>Unsupported argument -socks found. Setting SOCKS version isn't possible anymore, only SOCKS5 proxies are supported.</source>
@@ -4666,11 +4666,11 @@ https://www.transifex.com/projects/p/dash/</translation>
     </message>
     <message>
         <source>Enable publish hash transaction in &lt;address&gt;</source>
-        <translation>Abilità pubblicazione hash transazione in &lt;address&gt;</translation>
+        <translation>Abilità la pubblicazione dell'hash della transazione in &lt;address&gt;</translation>
     </message>
     <message>
         <source>Enable publish raw block in &lt;address&gt;</source>
-        <translation>Abilita pubblicazione blocchi raw in &lt;address&gt;</translation>
+        <translation>Abilita la pubblicazione dei blocchi raw in &lt;address&gt;</translation>
     </message>
     <message>
         <source>Enable publish raw transaction (locked via InstantSend) in &lt;address&gt;</source>
@@ -4678,7 +4678,7 @@ https://www.transifex.com/projects/p/dash/</translation>
     </message>
     <message>
         <source>Enable publish raw transaction in &lt;address&gt;</source>
-        <translation>Abilita pubblicazione transazione raw in &lt;address&gt;</translation>
+        <translation>Abilita la pubblicazione delle transazione raw in &lt;address&gt;</translation>
     </message>
     <message>
         <source>Enable transaction replacement in the memory pool (default: %u)</source>
@@ -4722,7 +4722,7 @@ https://www.transifex.com/projects/p/dash/</translation>
     </message>
     <message>
         <source>Keep the transaction memory pool below &lt;n&gt; megabytes (default: %u)</source>
-        <translation>Mantieni la memory pool delle transazioni al di sotto di &lt;n&gt; megabytes (default: %u)</translation>
+        <translation>Mantieni la memory pool delle transazioni al di sotto di &lt;n&gt; megabyte (default: %u)</translation>
     </message>
     <message>
         <source>Last PrivateSend was too recent.</source>
@@ -4730,7 +4730,7 @@ https://www.transifex.com/projects/p/dash/</translation>
     </message>
     <message>
         <source>Last successful PrivateSend action was too recent.</source>
-        <translation>L'ultima uso con successo di PrivateSend è troppo recente</translation>
+        <translation>L'ultimo uso con successo di PrivateSend è troppo recente</translation>
     </message>
     <message>
         <source>Line: %d</source>
@@ -4758,11 +4758,11 @@ https://www.transifex.com/projects/p/dash/</translation>
     </message>
     <message>
         <source>Location of the auth cookie (default: data dir)</source>
-        <translation>Posizione del cookie di aiutorizzazione (default: data dir)</translation>
+        <translation>Posizione del cookie di autorizzazione (default: data dir)</translation>
     </message>
     <message>
         <source>Make the wallet broadcast transactions</source>
-        <translation>Configura il portamonete per la trasmissione di transazioni</translation>
+        <translation>Configura il portafolgio per la trasmissione di transazioni</translation>
     </message>
     <message>
         <source>Masternode cache is empty, skipping payments and governance cache...</source>
@@ -4774,7 +4774,7 @@ https://www.transifex.com/projects/p/dash/</translation>
     </message>
     <message>
         <source>Masternode queue is full.</source>
-        <translation>La lista di masternode e' piena.</translation>
+        <translation>La lista dei masternode e' piena.</translation>
     </message>
     <message>
         <source>Masternode:</source>
@@ -4794,19 +4794,19 @@ https://www.transifex.com/projects/p/dash/</translation>
     </message>
     <message>
         <source>No matching denominations found for mixing.</source>
-        <translation>Nessun denominazioni corrispondente trovato per la miscelazione.</translation>
+        <translation>Nessuna denominazione corrispondente trovata per il mixing.</translation>
     </message>
     <message>
         <source>Node relay options:</source>
-        <translation>Opzioni trasmissione nodo:</translation>
+        <translation>Opzioni di trasmissione del nodo:</translation>
     </message>
     <message>
         <source>Non-standard public key detected.</source>
-        <translation>Fuori norma pubblica chiave e rilevato.</translation>
+        <translation>Rilevata chiave pubblica non-standard.</translation>
     </message>
     <message>
         <source>Not compatible with existing transactions.</source>
-        <translation>Non compatibile con le operazioni esistenti.</translation>
+        <translation>Non compatibile con le transazioni esistenti.</translation>
     </message>
     <message>
         <source>Not enough file descriptors available.</source>
@@ -4831,7 +4831,7 @@ https://www.transifex.com/projects/p/dash/</translation>
     </message>
     <message>
         <source>Print version and exit</source>
-        <translation>Mostra la versione ed esci</translation>
+        <translation>Stampa la versione ed esci</translation>
     </message>
     <message>
         <source>PrivateSend is idle.</source>
@@ -4863,7 +4863,7 @@ https://www.transifex.com/projects/p/dash/</translation>
     </message>
     <message>
         <source>Rescan the block chain for missing wallet transactions on startup</source>
-        <translation>Ripete la scansione della block chain per individuare le transazioni che mancano dal wallet all'avvio</translation>
+        <translation>All'avvio ripete la scansione della blockchain per individuare le transazioni che mancano dal portafoglio</translation>
     </message>
     <message>
         <source>The wallet will avoid paying less than the minimum relay fee.</source>
@@ -4963,7 +4963,7 @@ https://www.transifex.com/projects/p/dash/</translation>
     </message>
     <message>
         <source>Distributed under the MIT software license, see the accompanying file %s or %s</source>
-        <translation>Distribuito sotto la licenza software del MIT, si veda il file %s o %s incluso</translation>
+        <translation>Distribuito sotto licenza MIT del software, si veda il file %s o %s incluso</translation>
     </message>
     <message>
         <source>Error reading %s! All keys read correctly, but transaction data or address book entries might be missing or incorrect.</source>
@@ -4971,7 +4971,7 @@ https://www.transifex.com/projects/p/dash/</translation>
     </message>
     <message>
         <source>Force relay of transactions from whitelisted peers even if they violate local relay policy (default: %d)</source>
-        <translation>Forza la trasmissione della transazione da peer in whitelist anche se violano le regole di trasmissione locali (predefinito: %d)</translation>
+        <translation>Forza la trasmissione della transazione da peer in whitelist anche se violano le regole di trasmissione locali (default: %d)</translation>
     </message>
     <message>
         <source>Incorrect or no devnet genesis block found. Wrong datadir for devnet specified?</source>
@@ -4979,11 +4979,11 @@ https://www.transifex.com/projects/p/dash/</translation>
     </message>
     <message>
         <source>Maximum allowed median peer time offset adjustment. Local perspective of time may be influenced by peers forward or backward by this amount. (default: %u seconds)</source>
-        <translation>Regolazione della massima differenza media di tempo dei peer consentita. L'impostazione dell'orario locale può essere impostata in avanti o indietro di questa quantità. (default %u secondi)</translation>
+        <translation>Regolazione della massima differenza media di tempo dei peer consentita. L'impostazione dell'orario locale può essere aggiustata in avanti o indietro di questa quantità. (default %u secondi)</translation>
     </message>
     <message>
         <source>Maximum total fees (in %s) to use in a single wallet transaction or raw transaction; setting this too low may abort large transactions (default: %s)</source>
-        <translation>Totale massimo di commissioni (in %s) da usare in una transazione singola o di gruppo del wallet; valori troppo bassi possono abortire grandi transazioni (default: %s)</translation>
+        <translation>Totale massimo di commissioni (in %s) da usare in una transazione singola del portafoglio o in una transazione raw; valori troppo bassi possono far fallire grandi transazioni (default: %s)</translation>
     </message>
     <message>
         <source>Override spork address. Only useful for regtest and devnet. Using this on mainnet or testnet will ban you.</source>
@@ -4991,7 +4991,7 @@ https://www.transifex.com/projects/p/dash/</translation>
     </message>
     <message>
         <source>Please check that your computer's date and time are correct! If your clock is wrong, %s will not work properly.</source>
-        <translation>Per favore controllate che la data del computer e l'ora siano corrette! Se il vostro orologio è sbagliato %s non funzionerà correttamente.</translation>
+        <translation>Per favore controllare che la data del computer e l'ora siano corrette! Se il vostro orologio è sbagliato %s non funzionerà correttamente.</translation>
     </message>
     <message>
         <source>Please contribute if you find %s useful. Visit %s for further information about the software.</source>
@@ -5011,7 +5011,7 @@ https://www.transifex.com/projects/p/dash/</translation>
     </message>
     <message>
         <source>Set lowest fee rate (in %s/kB) for transactions to be included in block creation. (default: %s)</source>
-        <translation>Imposta la tariffa di commissione più bassa (in %s/kB) per transazioni da includere nella creazione del blocco. (predefinito: %s)</translation>
+        <translation>Imposta la tariffa di commissione più bassa (in %s/kB) per transazioni da includere nella creazione del blocco. (default:  %s)</translation>
     </message>
     <message>
         <source>Show N confirmations for a successfully locked transaction (%u-%u, default: %u)</source>
@@ -5019,7 +5019,7 @@ https://www.transifex.com/projects/p/dash/</translation>
     </message>
     <message>
         <source>This is the transaction fee you may pay when fee estimates are not available.</source>
-        <translation>Questo è il costo di transazione che potresti pagare quando le stime della tariffa non sono disponibili.</translation>
+        <translation>Questo è il costo di transazione che potresti pagare quando le stime della fee non sono disponibili.</translation>
     </message>
     <message>
         <source>This product includes software developed by the OpenSSL Project for use in the OpenSSL Toolkit %s and cryptographic software written by Eric Young and UPnP software written by Thomas Bernard.</source>
@@ -5043,15 +5043,15 @@ https://www.transifex.com/projects/p/dash/</translation>
     </message>
     <message>
         <source>Username and hashed password for JSON-RPC connections. The field &lt;userpw&gt; comes in the format: &lt;USERNAME&gt;:&lt;SALT&gt;$&lt;HASH&gt;. A canonical python script is included in share/rpcuser. The client then connects normally using the rpcuser=&lt;USERNAME&gt;/rpcpassword=&lt;PASSWORD&gt; pair of arguments. This option can be specified multiple times</source>
-        <translation>Username e hash password per connessioni JSON-RPC. Il campo &lt;userpw&gt; utilizza il formato: &lt;USERNAME&gt;:&lt;SALT&gt;$&lt;HASH&gt;. Uno script python standard è incluso in share/rpcuser. Il cliente quindi si connette normalmente utilizzando la coppia di argomenti rpcuser=&lt;USERNAME&gt;/rpcpassword=&lt;PASSWORD&gt;. Questa opzione può essere specificata più volte</translation>
+        <translation>Username e hashed password per connessioni JSON-RPC. Il campo &lt;userpw&gt; utilizza il formato: &lt;USERNAME&gt;:&lt;SALT&gt;$&lt;HASH&gt;. Uno script python standard è incluso in share/rpcuser. Il cliente quindi si connette normalmente utilizzando la coppia di argomenti rpcuser=&lt;USERNAME&gt;/rpcpassword=&lt;PASSWORD&gt;. Questa opzione può essere specificata più volte</translation>
     </message>
     <message>
         <source>Wallet will not create transactions that violate mempool chain limits (default: %u)</source>
-        <translation>Il portafoglio non creerà transazioni che violino i limiti della mempool chain (predefinito: %u)</translation>
+        <translation>Il portafoglio non creerà transazioni che violino i limiti della mempool chain (default: %u)</translation>
     </message>
     <message>
         <source>Warning: At least %d of %d masternodes are running on a newer software version. Please check latest releases, you might need to update too.</source>
-        <translation>Attenzione: almeno %d di%d masternode sono in esecuzione su una versione più recente del software. Si prega di controllare le ultime versioni, potrebbe essere necessario aggiornare anche.</translation>
+        <translation>Attenzione: almeno %d di %d masternode sono in esecuzione su una versione più recente del software. Si prega di controllare le ultime versioni, potrebbe anche essere necessario fare un aggiornamento.</translation>
     </message>
     <message>
         <source>Warning: Every masternode (out of %d known ones) is running on a newer software version. Please check latest releases, it's very likely that you missed a major/critical update.</source>
@@ -5071,7 +5071,7 @@ https://www.transifex.com/projects/p/dash/</translation>
     </message>
     <message>
         <source>%s is not a valid backup folder!</source>
-        <translation>%s non è una cartella di backup valida !.</translation>
+        <translation>%s non è una cartella di backup valida!</translation>
     </message>
     <message>
         <source>%s is set very high!</source>
@@ -5167,11 +5167,11 @@ https://www.transifex.com/projects/p/dash/</translation>
     </message>
     <message>
         <source>Relay and mine data carrier transactions (default: %u)</source>
-        <translation>Trasmette ed include nei blocchi transazioni di trasporto dati (predefinito: %u)</translation>
+        <translation>Trasmetti ed include nei blocchi transazioni di trasporto dati (default: %u)</translation>
     </message>
     <message>
         <source>Relay non-P2SH multisig (default: %u)</source>
-        <translation>Trasmette transazioni non-P2SH multisig (predefinito: %u)</translation>
+        <translation>Trasmetti transazioni non-P2SH multisig (predefinito: %u)</translation>
     </message>
     <message>
         <source>Rescanning...</source>
@@ -5179,7 +5179,7 @@ https://www.transifex.com/projects/p/dash/</translation>
     </message>
     <message>
         <source>Run in the background as a daemon and accept commands</source>
-        <translation>Esegui in background come demone ed accetta i comandi</translation>
+        <translation>Esegui in background come daemon ed accetta i comandi</translation>
     </message>
     <message>
         <source>Send trace/debug info to console instead of debug.log file</source>
@@ -5211,7 +5211,7 @@ https://www.transifex.com/projects/p/dash/</translation>
     </message>
     <message>
         <source>Shrink debug.log file on client startup (default: 1 when no -debug)</source>
-        <translation>Riduci il file debug.log all'avvio del client (predefinito: 1 se non impostato -debug)</translation>
+        <translation>Riduci il file debug.log all'avvio del client (default: 1 se non impostato -debug)</translation>
     </message>
     <message>
         <source>Signing transaction failed</source>
@@ -5267,7 +5267,7 @@ https://www.transifex.com/projects/p/dash/</translation>
     </message>
     <message>
         <source>Transaction fees are too high.</source>
-        <translation>Commissioni della transazione troppo alte.</translation>
+        <translation>Le commissioni della transazione sono troppo alte.</translation>
     </message>
     <message>
         <source>Transaction not valid.</source>
@@ -5279,11 +5279,11 @@ https://www.transifex.com/projects/p/dash/</translation>
     </message>
     <message>
         <source>Unable to bind to %s on this computer (bind returned error %s)</source>
-        <translation>Incapace di legare al %s su questo computer (legare restituito l'errore %s)</translation>
+        <translation>Incapace di legare al %s su questo computer (bind return error %s)</translation>
     </message>
     <message>
         <source>Unable to sign spork message, wrong key?</source>
-        <translation>Impossibile firmare messaggio Spork, chiave sbagliato?</translation>
+        <translation>Impossibile firmare messaggio Spork, chiave sbagliata?</translation>
     </message>
     <message>
         <source>Unknown network specified in -onlynet: '%s'</source>
@@ -5295,8 +5295,7 @@ https://www.transifex.com/projects/p/dash/</translation>
     </message>
     <message>
         <source>Username for JSON-RPC connections</source>
-        <translation>Nome utente per connessioni JSON-RPC
-</translation>
+        <translation>Nome utente per connessioni JSON-RP</translation>
     </message>
     <message>
         <source>Verifying blocks...</source>

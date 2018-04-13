@@ -2449,7 +2449,7 @@ Näillä toiminnoilla voit korjata korruptoituneen lohkoketjun tai puuttuvat/van
     </message>
     <message>
         <source>Welcome to the %1 RPC console.</source>
-        <translation>Tervetuloa %1 RPC-konsoliin.</translation>
+        <translation>Tervetuloa %1 RPC konsoliin.</translation>
     </message>
     <message>
         <source>Use up and down arrows to navigate history, and &lt;b&gt;Ctrl-L&lt;/b&gt; to clear screen.</source>

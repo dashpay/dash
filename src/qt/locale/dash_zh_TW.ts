@@ -4381,6 +4381,10 @@ https://www.transifex.com/projects/p/dash/</translation>
         <translation>與異常的節點斷線的臨界值 (預設: %u)</translation>
     </message>
     <message>
+        <source>Too many %f denominations, removing.</source>
+        <translation>太多 %f 輸入金額，正在移除。</translation>
+    </message>
+    <message>
         <source>Tor control port password (default: empty)</source>
         <translation>Tor控制端口密碼 (預設值: 空白)</translation>
     </message>
