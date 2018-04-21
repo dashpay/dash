@@ -29,6 +29,9 @@ void RegisterNodeSignals(CNodeSignals& nodeSignals);
 /** Unregister a network node */
 void UnregisterNodeSignals(CNodeSignals& nodeSignals);
 
+/** sync sporks, masternode list, governance objects, etc. **/
+void ThreadDashSync(CConnman& connman);
+
 class PeerLogicValidation : public CValidationInterface {
 private:
     CConnman* connman;

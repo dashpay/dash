@@ -1924,9 +1924,12 @@ bool AppInitMain(boost::thread_group& threadGroup, CScheduler& scheduler)
     // GetMainSignals().UpdatedBlockTip(chainActive.Tip());
     pdsNotificationInterface->InitializeCurrentBlockTip();
 
-    // ********************************************************* Step 11d: start dash-ps-<smth> threads
+    // ********************************************************* Step 11d: start dash-sync thread
 
-    threadGroup.create_thread(boost::bind(&ThreadCheckPrivateSend, boost::ref(*g_connman)));
+    threadGroup.create_thread(boost::bind(&ThreadDashSync, boost::ref(*g_connman)));
+
+    // ********************************************************* Step 11e: start dash-ps-<smth> threads
+
     if (fMasternodeMode)
         threadGroup.create_thread(boost::bind(&ThreadCheckPrivateSendServer, boost::ref(*g_connman)));
 #ifdef ENABLE_WALLET

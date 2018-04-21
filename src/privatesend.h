@@ -418,6 +418,4 @@ public:
     static void SyncTransaction(const CTransaction& tx, const CBlockIndex *pindex, int posInBlock);
 };
 
-void ThreadCheckPrivateSend(CConnman& connman);
-
 #endif
