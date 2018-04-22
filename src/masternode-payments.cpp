@@ -27,7 +27,7 @@ CCriticalSection cs_mapMasternodePaymentVotes;
 *   Determine if coinbase outgoing created money is the correct value
 *
 *   Why is this needed?
-*   - In Dash some blocks are superblocks, which output much higher amounts of coins
+*   - In Paccoin some blocks are superblocks, which output much higher amounts of coins
 *   - Otherblocks are 10% lower in outgoing value, so in total, no extra coins are created
 *   - When non-superblocks are detected, the normal schedule should be maintained
 */
@@ -282,7 +282,7 @@ void CMasternodePayments::FillBlockPayee(CMutableTransaction& txNew, int nBlockH
     }
 
     // GET MASTERNODE PAYMENT VARIABLES SETUP
-    CAmount masternodePayment = GetMasternodePayment(nBlockHeight, blockReward);
+    CAmount masternodePayment = GetMasternodePayment(nBlockHeight, blockReward, Params().GetConsensus());
 
     // split reward between miner ...
     txNew.vout[0].nValue -= masternodePayment;
@@ -305,7 +305,7 @@ int CMasternodePayments::GetMinMasternodePaymentsProto() {
 
 void CMasternodePayments::ProcessMessage(CNode* pfrom, std::string& strCommand, CDataStream& vRecv, CConnman& connman)
 {
-    if(fLiteMode) return; // disable all Dash specific functionality
+    if(fLiteMode) return; // disable all Paccoin specific functionality
 
     if (strCommand == NetMsgType::MASTERNODEPAYMENTSYNC) { //Masternode Payments Request Sync
 
@@ -549,7 +549,7 @@ bool CMasternodeBlockPayees::IsTransactionValid(const CTransaction& txNew)
     int nMaxSignatures = 0;
     std::string strPayeesPossible = "";
 
-    CAmount nMasternodePayment = GetMasternodePayment(nBlockHeight, txNew.GetValueOut());
+    CAmount nMasternodePayment = GetMasternodePayment(nBlockHeight, txNew.GetValueOut(), Params().GetConsensus());
 
     //require at least MNPAYMENTS_SIGNATURES_REQUIRED signatures
 
@@ -583,7 +583,7 @@ bool CMasternodeBlockPayees::IsTransactionValid(const CTransaction& txNew)
         }
     }
 
-    LogPrintf("CMasternodeBlockPayees::IsTransactionValid -- ERROR: Missing required payment, possible payees: '%s', amount: %f DASH\n", strPayeesPossible, (float)nMasternodePayment/COIN);
+    LogPrintf("CMasternodeBlockPayees::IsTransactionValid -- ERROR: Missing required payment, possible payees: '%s', amount: %f PAC\n", strPayeesPossible, (float)nMasternodePayment/COIN);
     return false;
 }
 

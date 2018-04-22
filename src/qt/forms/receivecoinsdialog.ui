@@ -6,8 +6,8 @@
    <rect>
     <x>0</x>
     <y>0</y>
-    <width>776</width>
-    <height>387</height>
+    <width>1440</width>
+    <height>414</height>
    </rect>
   </property>
   <layout class="QVBoxLayout" name="verticalLayout" stretch="0,0,1">
@@ -48,7 +48,7 @@
         <item row="6" column="0">
          <widget class="QLabel" name="label_3">
           <property name="toolTip">
-           <string>An optional message to attach to the payment request, which will be displayed when the request is opened. Note: The message will not be sent with the payment over the Dash network.</string>
+           <string>An optional message to attach to the payment request, which will be displayed when the request is opened. Note: The message will not be sent with the payment over the Paccoin network.</string>
           </property>
           <property name="text">
            <string>&amp;Message:</string>
@@ -71,7 +71,7 @@
         <item row="6" column="2">
          <widget class="QLineEdit" name="reqMessage">
           <property name="toolTip">
-           <string>An optional message to attach to the payment request, which will be displayed when the request is opened.&lt;br&gt;Note: The message will not be sent with the payment over the Dash network.</string>
+           <string>An optional message to attach to the payment request, which will be displayed when the request is opened.&lt;br&gt;Note: The message will not be sent with the payment over the Paccoin network.</string>
           </property>
          </widget>
         </item>
@@ -186,7 +186,7 @@
         <item row="8" column="2">
          <widget class="QCheckBox" name="checkUseInstantSend">
           <property name="text">
-           <string>Request InstantSend</string>
+           <string>Request InstantPAC</string>
           </property>
           <property name="checked">
            <bool>true</bool>
@@ -241,6 +241,12 @@
       </item>
       <item>
        <widget class="QTableView" name="recentRequestsView">
+        <property name="minimumSize">
+         <size>
+          <width>0</width>
+          <height>0</height>
+         </size>
+        </property>
         <property name="contextMenuPolicy">
          <enum>Qt::CustomContextMenu</enum>
         </property>
@@ -326,7 +332,7 @@
   <tabstop>removeRequestButton</tabstop>
  </tabstops>
  <resources>
-  <include location="../dash.qrc"/>
+  <include location="../paccoin.qrc"/>
  </resources>
  <connections/>
 </ui>

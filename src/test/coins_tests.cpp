@@ -8,7 +8,7 @@
 #include "uint256.h"
 #include "undo.h"
 #include "utilstrencodings.h"
-#include "test/test_dash.h"
+#include "test/test_paccoin.h"
 #include "validation.h"
 #include "consensus/validation.h"
 

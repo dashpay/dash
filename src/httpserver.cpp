@@ -315,7 +315,7 @@ static void http_reject_request_cb(struct evhttp_request* req, void*)
 /** Event dispatcher thread */
 static void ThreadHTTP(struct event_base* base, struct evhttp* http)
 {
-    RenameThread("dash-http");
+    RenameThread("paccoin-http");
     LogPrint("http", "Entering http event loop\n");
     event_base_dispatch(base);
     // Event loop will be interrupted by InterruptHTTPServer()
@@ -364,7 +364,7 @@ static bool HTTPBindAddresses(struct evhttp* http)
 /** Simple wrapper to set thread name and run work queue */
 static void HTTPWorkQueueRun(WorkQueue<HTTPClosure>* queue)
 {
-    RenameThread("dash-httpworker");
+    RenameThread("paccoin-httpworker");
     queue->Run();
 }
 

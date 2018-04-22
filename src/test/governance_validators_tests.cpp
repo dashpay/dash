@@ -4,7 +4,7 @@
 #include "univalue.h"
 #include "utilstrencodings.h"
 
-#include "test/test_dash.h"
+#include "test/test_paccoin.h"
 
 #include <boost/test/unit_test.hpp>
 

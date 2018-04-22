@@ -1,6 +1,6 @@
 [Protocol]
-exec=dash-qt '%u'
-protocol=dash
+exec=paccoin-qt '%u'
+protocol=paccoin
 input=none
 output=none
 helper=true

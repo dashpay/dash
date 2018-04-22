@@ -1,7 +1,7 @@
 Description
 ------------
 
-This directory contains data-driven tests for various aspects of Dash.
+This directory contains data-driven tests for various aspects of Paccoin.
 
 License
 --------

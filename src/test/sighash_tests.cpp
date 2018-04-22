@@ -11,7 +11,7 @@
 #include "script/script.h"
 #include "serialize.h"
 #include "streams.h"
-#include "test/test_dash.h"
+#include "test/test_paccoin.h"
 #include "util.h"
 #include "utilstrencodings.h"
 #include "version.h"

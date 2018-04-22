@@ -1,12 +1,12 @@
-# bash programmable completion for dashd(1) and dash-cli(1)
+# bash programmable completion for paccoind(1) and paccoin-cli(1)
 # Copyright (c) 2012,2014 Christian von Roques <roques@mti.ag>
 # Distributed under the MIT software license, see the accompanying
 # file COPYING or http://www.opensource.org/licenses/mit-license.php.
 
-have dashd && {
+have paccoind && {
 
-# call $dashd for RPC
-_dash_rpc() {
+# call $paccoind for RPC
+_paccoin_rpc() {
     # determine already specified args necessary for RPC
     local rpcargs=()
     for i in ${COMP_LINE}; do
@@ -16,23 +16,23 @@ _dash_rpc() {
                 ;;
         esac
     done
-    $dashd "${rpcargs[@]}" "$@"
+    $paccoind "${rpcargs[@]}" "$@"
 }
 
-# Add dash accounts to COMPREPLY
-_dash_accounts() {
+# Add paccoin accounts to COMPREPLY
+_paccoin_accounts() {
     local accounts
-    accounts=$(_dash_rpc listaccounts | awk '/".*"/ { a=$1; gsub(/"/, "", a); print a}')
+    accounts=$(_paccoin_rpc listaccounts | awk '/".*"/ { a=$1; gsub(/"/, "", a); print a}')
     COMPREPLY=( "${COMPREPLY[@]}" $( compgen -W "$accounts" -- "$cur" ) )
 }
 
-_dashd() {
+_paccoind() {
     local cur prev words=() cword
-    local dashd
+    local paccoind
 
-    # save and use original argument to invoke dashd
-    # dashd might not be in $PATH
-    dashd="$1"
+    # save and use original argument to invoke paccoind
+    # paccoind might not be in $PATH
+    paccoind="$1"
 
     COMPREPLY=()
     _get_comp_words_by_ref -n = cur prev words cword
@@ -53,7 +53,7 @@ _dashd() {
     if ((cword > 3)); then
         case ${words[cword-3]} in
             addmultisigaddress)
-                _dash_accounts
+                _paccoin_accounts
                 return 0
                 ;;
             getbalance|gettxout|importaddress|importprivkey|listreceivedbyaccount|listreceivedbyaddress|listsinceblock)
@@ -74,7 +74,7 @@ _dashd() {
                 return 0
                 ;;
             move|setaccount)
-                _dash_accounts
+                _paccoin_accounts
                 return 0
                 ;;
         esac
@@ -90,7 +90,7 @@ _dashd() {
             return 0
             ;;
         getaccountaddress|getaddressesbyaccount|getbalance|getnewaddress|getreceivedbyaccount|listtransactions|move|sendfrom|sendmany)
-            _dash_accounts
+            _paccoin_accounts
             return 0
             ;;
     esac
@@ -114,12 +114,12 @@ _dashd() {
 
             # only parse --help if senseful
             if [[ -z "$cur" || "$cur" =~ ^- ]]; then
-                helpopts=$($dashd --help 2>&1 | awk '$1 ~ /^-/ { sub(/=.*/, "="); print $1 }' )
+                helpopts=$($paccoind --help 2>&1 | awk '$1 ~ /^-/ { sub(/=.*/, "="); print $1 }' )
             fi
 
             # only parse help if senseful
             if [[ -z "$cur" || "$cur" =~ ^[a-z] ]]; then
-                commands=$(_dash_rpc help 2>/dev/null | awk '$1 ~ /^[a-z]/ { print $1; }')
+                commands=$(_paccoin_rpc help 2>/dev/null | awk '$1 ~ /^[a-z]/ { print $1; }')
             fi
 
             COMPREPLY=( $( compgen -W "$helpopts $commands" -- "$cur" ) )
@@ -133,7 +133,7 @@ _dashd() {
     esac
 }
 
-complete -F _dashd dashd dash-cli
+complete -F _paccoind paccoind paccoin-cli
 }
 
 # Local variables:

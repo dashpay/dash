@@ -1,16 +1,16 @@
-Dash Core version 0.12.2.3
+Paccoin Core version 0.12.2.3
 ==========================
 
 Release is now available from:
 
-  <https://www.dash.org/downloads/#wallets>
+  <https://www.paccoin.org/downloads/#wallets>
 
 This is a new minor version release, bringing various bugfixes and other
 improvements.
 
 Please report bugs using the issue tracker at github:
 
-  <https://github.com/dashpay/dash/issues>
+  <https://github.com/paccoinpay/paccoin/issues>
 
 
 Upgrading and downgrading
@@ -21,15 +21,15 @@ How to Upgrade
 
 If you are running an older version, shut it down. Wait until it has completely
 shut down (which might take a few minutes for older versions), then run the
-installer (on Windows) or just copy over /Applications/Dash-Qt (on Mac) or
-dashd/dash-qt (on Linux).
+installer (on Windows) or just copy over /Applications/Paccoin-Qt (on Mac) or
+paccoind/paccoin-qt (on Linux).
 
 Downgrade warning
 -----------------
 
 ### Downgrade to a version < 0.12.2.2
 
-Because release 0.12.2.2 included the [per-UTXO fix](release-notes/dash/release-notes-0.12.2.2.md#per-utxo-fix)
+Because release 0.12.2.2 included the [per-UTXO fix](release-notes/paccoin/release-notes-0.12.2.2.md#per-utxo-fix)
 which changed the structure of the internal database, you will have to reindex
 the database if you decide to use any pre-0.12.2.2 version.
 
@@ -76,25 +76,25 @@ This release also fixes a few crashes and compatibility issues.
 0.12.2.3 Change log
 ===================
 
-See detailed [change log](https://github.com/dashpay/dash/compare/v0.12.2.2...dashpay:v0.12.2.3) below.
+See detailed [change log](https://github.com/paccoinpay/paccoin/compare/v0.12.2.2...paccoinpay:v0.12.2.3) below.
 
 ### Backports:
-- [`068b20bc7`](https://github.com/dashpay/dash/commit/068b20bc7) Merge #8256: BUG: bitcoin-qt crash
-- [`f71ab1daf`](https://github.com/dashpay/dash/commit/f71ab1daf) Merge #11847: Fixes compatibility with boost 1.66 (#1836)
+- [`068b20bc7`](https://github.com/paccoinpay/paccoin/commit/068b20bc7) Merge #8256: BUG: bitcoin-qt crash
+- [`f71ab1daf`](https://github.com/paccoinpay/paccoin/commit/f71ab1daf) Merge #11847: Fixes compatibility with boost 1.66 (#1836)
 
 ### PrivateSend:
-- [`fa5fc418a`](https://github.com/dashpay/dash/commit/fa5fc418a) Fix -liquidityprovider option (#1829)
-- [`d261575b4`](https://github.com/dashpay/dash/commit/d261575b4) Skip existing masternode conections on mixing (#1833)
-- [`21a10057d`](https://github.com/dashpay/dash/commit/21a10057d) Protect CKeyHolderStorage via mutex (#1834)
-- [`476888683`](https://github.com/dashpay/dash/commit/476888683) Avoid reference leakage in CKeyHolderStorage::AddKey (#1840)
+- [`fa5fc418a`](https://github.com/paccoinpay/paccoin/commit/fa5fc418a) Fix -liquidityprovider option (#1829)
+- [`d261575b4`](https://github.com/paccoinpay/paccoin/commit/d261575b4) Skip existing masternode conections on mixing (#1833)
+- [`21a10057d`](https://github.com/paccoinpay/paccoin/commit/21a10057d) Protect CKeyHolderStorage via mutex (#1834)
+- [`476888683`](https://github.com/paccoinpay/paccoin/commit/476888683) Avoid reference leakage in CKeyHolderStorage::AddKey (#1840)
 
 ### InstantSend:
-- [`d6e2aa843`](https://github.com/dashpay/dash/commit/d6e2aa843) Swap iterations and fUseInstantSend parameters in ApproximateBestSubset (#1819)
-- [`c9bafe154`](https://github.com/dashpay/dash/commit/c9bafe154) Vote on IS only if it was accepted to mempool (#1826)
+- [`d6e2aa843`](https://github.com/paccoinpay/paccoin/commit/d6e2aa843) Swap iterations and fUseInstantSend parameters in ApproximateBestSubset (#1819)
+- [`c9bafe154`](https://github.com/paccoinpay/paccoin/commit/c9bafe154) Vote on IS only if it was accepted to mempool (#1826)
 
 ### Other:
-- [`ada41c3af`](https://github.com/dashpay/dash/commit/ada41c3af) Fix crash on exit when -createwalletbackups=0 (#1810)
-- [`63e0e30e3`](https://github.com/dashpay/dash/commit/63e0e30e3) bump version to 0.12.2.3 (#1827)
+- [`ada41c3af`](https://github.com/paccoinpay/paccoin/commit/ada41c3af) Fix crash on exit when -createwalletbackups=0 (#1810)
+- [`63e0e30e3`](https://github.com/paccoinpay/paccoin/commit/63e0e30e3) bump version to 0.12.2.3 (#1827)
 
 Credits
 =======
@@ -107,13 +107,13 @@ Thanks to everyone who directly contributed to this release:
 
 As well as Bitcoin Core Developers and everyone that submitted issues,
 reviewed pull requests or helped translating on
-[Transifex](https://www.transifex.com/projects/p/dash/).
+[Transifex](https://www.transifex.com/projects/p/paccoin/).
 
 
 Older releases
 ==============
 
-Dash was previously known as Darkcoin.
+Paccoin was previously known as Darkcoin.
 
 Darkcoin tree 0.8.x was a fork of Litecoin tree 0.8, original name was XCoin
 which was first released on Jan/18/2014.
@@ -124,22 +124,22 @@ the 0.8.x tree and was first released on Mar/13/2014.
 Darkcoin tree 0.10.x used to be the closed source implementation of Darksend
 which was released open source on Sep/25/2014.
 
-Dash Core tree 0.11.x was a fork of Bitcoin Core tree 0.9,
-Darkcoin was rebranded to Dash.
+Paccoin Core tree 0.11.x was a fork of Bitcoin Core tree 0.9,
+Darkcoin was rebranded to Paccoin.
 
-Dash Core tree 0.12.0.x was a fork of Bitcoin Core tree 0.10.
+Paccoin Core tree 0.12.0.x was a fork of Bitcoin Core tree 0.10.
 
-Dash Core tree 0.12.1.x was a fork of Bitcoin Core tree 0.12.
+Paccoin Core tree 0.12.1.x was a fork of Bitcoin Core tree 0.12.
 
 These release are considered obsolete. Old release notes can be found here:
 
-- [v0.12.2.2](release-notes/dash/release-notes-0.12.2.2.md) released Dec/17/2017
-- [v0.12.2](release-notes/dash/release-notes-0.12.2.md) released Nov/08/2017
-- [v0.12.1](release-notes/dash/release-notes-0.12.1.md) released Feb/06/2017
-- [v0.12.0](release-notes/dash/release-notes-0.12.0.md) released Jun/15/2015
-- [v0.11.2](release-notes/dash/release-notes-0.11.2.md) released Mar/04/2015
-- [v0.11.1](release-notes/dash/release-notes-0.11.1.md) released Feb/10/2015
-- [v0.11.0](release-notes/dash/release-notes-0.11.0.md) released Jan/15/2015
-- [v0.10.x](release-notes/dash/release-notes-0.10.0.md) released Sep/25/2014
-- [v0.9.x](release-notes/dash/release-notes-0.9.0.md) released Mar/13/2014
+- [v0.12.2.2](release-notes/paccoin/release-notes-0.12.2.2.md) released Dec/17/2017
+- [v0.12.2](release-notes/paccoin/release-notes-0.12.2.md) released Nov/08/2017
+- [v0.12.1](release-notes/paccoin/release-notes-0.12.1.md) released Feb/06/2017
+- [v0.12.0](release-notes/paccoin/release-notes-0.12.0.md) released Jun/15/2015
+- [v0.11.2](release-notes/paccoin/release-notes-0.11.2.md) released Mar/04/2015
+- [v0.11.1](release-notes/paccoin/release-notes-0.11.1.md) released Feb/10/2015
+- [v0.11.0](release-notes/paccoin/release-notes-0.11.0.md) released Jan/15/2015
+- [v0.10.x](release-notes/paccoin/release-notes-0.10.0.md) released Sep/25/2014
+- [v0.9.x](release-notes/paccoin/release-notes-0.9.0.md) released Mar/13/2014
 

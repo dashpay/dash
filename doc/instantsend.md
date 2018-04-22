@@ -11,9 +11,9 @@ When a "Transaction Lock" occurs the hash of the related transaction is broadcas
 * `zmqpubrawtxlock`: publishes the raw transaction when locked via InstantSend
 * `zmqpubhashtxlock`: publishes the transaction hash when locked via InstantSend
 
-This mechanism has been integrated into Bitcore-Node-Dash which allows for notification to be broadcast through Insight API in one of two ways:
-* WebSocket: [https://github.com/dashpay/insight-api-dash#web-socket-api](https://github.com/dashpay/insight-api-dash#web-socket-api)
-* API: [https://github.com/dashpay/insight-api-dash#instantsend-transactions](https://github.com/dashpay/insight-api-dash#instantsend-transactions)
+This mechanism has been integrated into Bitcore-Node-Paccoin which allows for notification to be broadcast through Insight API in one of two ways:
+* WebSocket: [https://github.com/paccoinpay/insight-api-paccoin#web-socket-api](https://github.com/paccoinpay/insight-api-paccoin#web-socket-api)
+* API: [https://github.com/paccoinpay/insight-api-paccoin#instantsend-transactions](https://github.com/paccoinpay/insight-api-paccoin#instantsend-transactions)
 
 #### Command line option
 
@@ -27,13 +27,13 @@ When a wallet InstantSend transaction is successfully locked a shell command pro
 
 Details pertaining to an observed "Transaction Lock" can also be retrieved through RPC, it’s important however to understand the underlying mechanism.
 
-By default, the Dash Core daemon will launch using the following constant:
+By default, the Paccoin Core daemon will launch using the following constant:
 
 ```
 static const int DEFAULT_INSTANTSEND_DEPTH = 5;
 ```
 
-This value can be overridden by passing the following argument to the Dash Core daemon:
+This value can be overridden by passing the following argument to the Paccoin Core daemon:
 
 ```
 -instantsenddepth=<n>

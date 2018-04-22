@@ -1,6 +1,6 @@
 all:
-	$(MAKE) -C .. dash_test
+	$(MAKE) -C .. paccoin_test
 clean:
-	$(MAKE) -C .. dash_test_clean
+	$(MAKE) -C .. paccoin_test_clean
 check:
-	$(MAKE) -C .. dash_test_check
+	$(MAKE) -C .. paccoin_test_check

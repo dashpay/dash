@@ -142,7 +142,7 @@ public:
     // fConnectToMasternode should be 'true' only if you want this node to allow to connect to itself
     // and/or you want it to be disconnected on CMasternodeMan::ProcessMasternodeConnections()
     // Unfortunately, can't make this method private like in Bitcoin,
-    // because it's used in many Dash-specific places (masternode, privatesend).
+    // because it's used in many Paccoin-specific places (masternode, privatesend).
     CNode* ConnectNode(CAddress addrConnect, const char *pszDest = NULL, bool fConnectToMasternode = false);
 
     struct CFullyConnectedOnly {

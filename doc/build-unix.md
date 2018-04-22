@@ -1,12 +1,12 @@
 UNIX BUILD NOTES
 ====================
-Some notes on how to build Dash Core in Unix.
+Some notes on how to build Paccoin Core in Unix.
 
 (for OpenBSD specific instructions, see [build-openbsd.md](build-openbsd.md))
 
 Note
 ---------------------
-Always use absolute paths to configure and compile Dash Core and the dependencies,
+Always use absolute paths to configure and compile Paccoin Core and the dependencies,
 for example, when specifying the the path of the dependency:
 
 	../dist/configure --enable-cxx --disable-shared --with-pic --prefix=$BDB_PREFIX
@@ -24,7 +24,7 @@ make
 make install # optional
 ```
 
-This will build dash-qt as well if the dependencies are met.
+This will build paccoin-qt as well if the dependencies are met.
 
 Dependencies
 ---------------------
@@ -55,7 +55,7 @@ System requirements
 --------------------
 
 C++ compilers are memory-hungry. It is recommended to have at least 1 GB of
-memory available when compiling Dash Core. With 512MB of memory or less
+memory available when compiling Paccoin Core. With 512MB of memory or less
 compilation will take much longer due to swap thrashing.
 
 Dependency Build Instructions: Ubuntu & Debian
@@ -86,7 +86,7 @@ BerkeleyDB 5.1 or later, which break binary wallet compatibility with the distri
 are based on BerkeleyDB 4.8. If you do not care about wallet compatibility,
 pass `--with-incompatible-bdb` to configure.
 
-See the section "Disable-wallet mode" to build Dash Core without wallet.
+See the section "Disable-wallet mode" to build Paccoin Core without wallet.
 
 Optional:
 
@@ -99,7 +99,7 @@ ZMQ dependencies:
 Dependencies for the GUI: Ubuntu & Debian
 -----------------------------------------
 
-If you want to build Dash-Qt, make sure that the required packages for Qt development
+If you want to build Paccoin-Qt, make sure that the required packages for Qt development
 are installed. Either Qt 5 or Qt 4 are necessary to build the GUI.
 If both Qt 4 and Qt 5 are installed, Qt 5 will be used. Pass `--with-gui=qt4` to configure to choose Qt4.
 To build without GUI pass `--without-gui`.
@@ -116,12 +116,12 @@ libqrencode (optional) can be installed with:
 
     sudo apt-get install libqrencode-dev
 
-Once these are installed, they will be found by configure and a dash-qt executable will be
+Once these are installed, they will be found by configure and a paccoin-qt executable will be
 built by default.
 
 Notes
 -----
-The release is built with GCC and then "strip dashd" to strip the debug
+The release is built with GCC and then "strip paccoind" to strip the debug
 symbols, which reduces the executable size by about 90%.
 
 
@@ -142,10 +142,10 @@ Berkeley DB
 It is recommended to use Berkeley DB 4.8. If you have to build it yourself:
 
 ```bash
-DASH_ROOT=$(pwd)
+PAC_ROOT=$(pwd)
 
-# Pick some path to install BDB to, here we create a directory within the dash directory
-BDB_PREFIX="${DASH_ROOT}/db4"
+# Pick some path to install BDB to, here we create a directory within the paccoin directory
+BDB_PREFIX="${PAC_ROOT}/db4"
 mkdir -p $BDB_PREFIX
 
 # Fetch the source and verify that it is not tampered with
@@ -160,8 +160,8 @@ cd db-4.8.30.NC/build_unix/
 ../dist/configure --enable-cxx --disable-shared --with-pic --prefix=$BDB_PREFIX
 make install
 
-# Configure Dash Core to use our own-built instance of BDB
-cd $DASH_ROOT
+# Configure Paccoin Core to use our own-built instance of BDB
+cd $PAC_ROOT
 ./autogen.sh
 ./configure LDFLAGS="-L${BDB_PREFIX}/lib/" CPPFLAGS="-I${BDB_PREFIX}/include/" # (other args...)
 ```
@@ -179,7 +179,7 @@ If you need to build Boost yourself:
 
 Security
 --------
-To help make your Dash installation more secure by making certain attacks impossible to
+To help make your Paccoin installation more secure by making certain attacks impossible to
 exploit even if a vulnerability is found, binaries are hardened by default.
 This can be disabled with:
 
@@ -203,7 +203,7 @@ Hardening enables the following features:
 
     To test that you have built PIE executable, install scanelf, part of paxutils, and use:
 
-    	scanelf -e ./dashd
+    	scanelf -e ./paccoind
 
     The output should contain:
 
@@ -212,13 +212,13 @@ Hardening enables the following features:
 
 * Non-executable Stack
     If the stack is executable then trivial stack based buffer overflow exploits are possible if
-    vulnerable buffers are found. By default, Dash Core should be built with a non-executable stack
+    vulnerable buffers are found. By default, Paccoin Core should be built with a non-executable stack
     but if one of the libraries it uses asks for an executable stack or someone makes a mistake
     and uses a compiler extension which requires an executable stack, it will silently build an
     executable without the non-executable stack protection.
 
     To verify that the stack is non-executable after compiling use:
-    `scanelf -e ./dashd`
+    `scanelf -e ./paccoind`
 
     the output should contain:
 	STK/REL/PTL
@@ -228,7 +228,7 @@ Hardening enables the following features:
 
 Disable-wallet mode
 --------------------
-When the intention is to run only a P2P node without a wallet, Dash Core may be compiled in
+When the intention is to run only a P2P node without a wallet, Paccoin Core may be compiled in
 disable-wallet mode with:
 
     ./configure --disable-wallet

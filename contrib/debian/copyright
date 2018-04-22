@@ -54,7 +54,7 @@ Files: src/qt/res/icons/connect*.png
        src/qt/res/icons/*/network_disabled.png
        src/qt/res/src/network_disabled.svg
 Copyright: Marco Falke
-           Luke Dashjr
+           Luke Paccoinjr
 License: Expat
 Comment: Inspired by Stephan Hutchings Typicons
 

@@ -1,15 +1,15 @@
 [Unit]
-Description=Dash's distributed currency daemon
+Description=Paccoin's distributed currency daemon
 After=network.target
 
 [Service]
-User=dashcore
-Group=dashcore
+User=paccoincore
+Group=paccoincore
 
 Type=forking
-PIDFile=/var/lib/dashd/dashd.pid
-ExecStart=/usr/bin/dashd -daemon -pid=/var/lib/dashd/dashd.pid \
--conf=/etc/dashcore/dash.conf -datadir=/var/lib/dashd -disablewallet
+PIDFile=/var/lib/paccoind/paccoind.pid
+ExecStart=/usr/bin/paccoind -daemon -pid=/var/lib/paccoind/paccoind.pid \
+-conf=/etc/paccoincore/paccoin.conf -datadir=/var/lib/paccoind -disablewallet
 
 Restart=always
 PrivateTmp=true

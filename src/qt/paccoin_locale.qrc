@@ -1,0 +1,20 @@
+<!DOCTYPE RCC><RCC version="1.0">
+    <qresource prefix="/translations">
+        <file alias="bg">locale/paccoin_bg.qm</file>
+        <file alias="de">locale/paccoin_de.qm</file>
+        <file alias="en">locale/paccoin_en.qm</file>
+        <file alias="es">locale/paccoin_es.qm</file>
+        <file alias="fi">locale/paccoin_fi.qm</file>
+        <file alias="fr">locale/paccoin_fr.qm</file>
+        <file alias="it">locale/paccoin_it.qm</file>
+        <file alias="ja">locale/paccoin_ja.qm</file>
+        <file alias="pl">locale/paccoin_pl.qm</file>
+        <file alias="pt">locale/paccoin_pt.qm</file>
+        <file alias="ru">locale/paccoin_ru.qm</file>
+        <file alias="sk">locale/paccoin_sk.qm</file>
+        <file alias="sv">locale/paccoin_sv.qm</file>
+        <file alias="vi">locale/paccoin_vi.qm</file>
+        <file alias="zh_CN">locale/paccoin_zh_CN.qm</file>
+        <file alias="zh_TW">locale/paccoin_zh_TW.qm</file>
+    </qresource>
+</RCC>

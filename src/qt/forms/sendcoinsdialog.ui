@@ -7,7 +7,7 @@
     <x>0</x>
     <y>0</y>
     <width>850</width>
-    <height>526</height>
+    <height>584</height>
    </rect>
   </property>
   <property name="windowTitle">
@@ -324,7 +324,7 @@
                   <enum>Qt::ActionsContextMenu</enum>
                  </property>
                  <property name="text">
-                  <string notr="true">0.00 DASH</string>
+                  <string notr="true">0.00 PAC</string>
                  </property>
                  <property name="textInteractionFlags">
                   <set>Qt::LinksAccessibleByMouse|Qt::TextSelectableByKeyboard|Qt::TextSelectableByMouse</set>
@@ -404,14 +404,14 @@
                   <enum>Qt::ActionsContextMenu</enum>
                  </property>
                  <property name="text">
-                  <string notr="true">0.00 DASH</string>
+                  <string notr="true">0.00 PAC</string>
                  </property>
                  <property name="textInteractionFlags">
                   <set>Qt::LinksAccessibleByMouse|Qt::TextSelectableByKeyboard|Qt::TextSelectableByMouse</set>
                  </property>
                 </widget>
                </item>
-             </layout>
+              </layout>
              </item>
              <item>
               <layout class="QFormLayout" name="formLayoutCoinControl4">
@@ -455,7 +455,7 @@
                   <enum>Qt::ActionsContextMenu</enum>
                  </property>
                  <property name="text">
-                  <string notr="true">0.00 DASH</string>
+                  <string notr="true">0.00 PAC</string>
                  </property>
                  <property name="textInteractionFlags">
                   <set>Qt::LinksAccessibleByMouse|Qt::TextSelectableByKeyboard|Qt::TextSelectableByMouse</set>
@@ -484,7 +484,7 @@
                   <enum>Qt::ActionsContextMenu</enum>
                  </property>
                  <property name="text">
-                  <string notr="true">0.00 DASH</string>
+                  <string notr="true">0.00 PAC</string>
                  </property>
                  <property name="textInteractionFlags">
                   <set>Qt::LinksAccessibleByMouse|Qt::TextSelectableByKeyboard|Qt::TextSelectableByMouse</set>
@@ -587,8 +587,8 @@
        <rect>
         <x>0</x>
         <y>0</y>
-        <width>830</width>
-        <height>69</height>
+        <width>824</width>
+        <height>72</height>
        </rect>
       </property>
       <layout class="QVBoxLayout" name="verticalLayout_2" stretch="0,1">
@@ -875,7 +875,7 @@
                  <item>
                   <widget class="QCheckBox" name="checkBoxMinimumFee">
                    <property name="toolTip">
-                    <string>Paying only the minimum fee is just fine as long as there is less transaction volume than space in the blocks.&lt;br /&gt;But be aware that this can end up in a never confirming transaction once there is more demand for dash transactions than the network can process.</string>
+                    <string>Paying only the minimum fee is just fine as long as there is less transaction volume than space in the blocks.&lt;br /&gt;But be aware that this can end up in a never confirming transaction once there is more demand for paccoin transactions than the network can process.</string>
                    </property>
                    <property name="text">
                     <string/>
@@ -888,7 +888,7 @@
                     <bool>true</bool>
                    </property>
                    <property name="toolTip">
-                    <string>Paying only the minimum fee is just fine as long as there is less transaction volume than space in the blocks.&lt;br /&gt;But be aware that this can end up in a never confirming transaction once there is more demand for dash transactions than the network can process.</string>
+                    <string>Paying only the minimum fee is just fine as long as there is less transaction volume than space in the blocks.&lt;br /&gt;But be aware that this can end up in a never confirming transaction once there is more demand for paccoin transactions than the network can process.</string>
                    </property>
                    <property name="text">
                     <string>(read the tooltip)</string>
@@ -1295,7 +1295,7 @@
           </size>
          </property>
          <property name="text">
-          <string>PrivateSend</string>
+          <string>PrivatePAC</string>
          </property>
          <property name="checked">
           <bool>false</bool>
@@ -1314,7 +1314,7 @@
           </size>
          </property>
          <property name="text">
-          <string>InstantSend</string>
+          <string>InstantPAC</string>
          </property>
         </widget>
        </item>
@@ -1337,7 +1337,7 @@
           <cursorShape>IBeamCursor</cursorShape>
          </property>
          <property name="text">
-          <string notr="true">123.456 DASH</string>
+          <string notr="true">123.456 PAC</string>
          </property>
          <property name="textInteractionFlags">
           <set>Qt::LinksAccessibleByMouse|Qt::TextSelectableByKeyboard|Qt::TextSelectableByMouse</set>
@@ -1364,11 +1364,11 @@
   </customwidget>
  </customwidgets>
  <resources>
-  <include location="../dash.qrc"/>
+  <include location="../paccoin.qrc"/>
  </resources>
  <connections/>
  <buttongroups>
-  <buttongroup name="groupCustomFee"/>
   <buttongroup name="groupFee"/>
+  <buttongroup name="groupCustomFee"/>
  </buttongroups>
 </ui>

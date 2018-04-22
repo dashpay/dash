@@ -1,6 +1,6 @@
 Mac OS X Build Instructions and Notes
 ====================================
-This guide will show you how to build dashd (headless client) for OSX.
+This guide will show you how to build paccoind (headless client) for OSX.
 
 Notes
 -----
@@ -36,15 +36,15 @@ Instructions: Homebrew
 
 NOTE: Building with Qt4 is still supported, however, doing so could result in a broken UI. Therefore, building with Qt5 is recommended. Be aware that Qt5 5.7+ requires C++11 compiler support.
 
-### Building Dash Core
+### Building Paccoin Core
 
 1. Clone the GitHub tree to get the source code and go into the directory.
 
-        git clone https://github.com/dashpay/dash.git
-        cd dash
+        git clone https://github.com/paccoinpay/paccoin.git
+        cd paccoin
 
-2.  Build Dash Core:
-    This will configure and build the headless dash binaries as well as the gui (if Qt is found).
+2.  Build Paccoin Core:
+    This will configure and build the headless paccoin binaries as well as the gui (if Qt is found).
     You can disable the gui build by passing `--without-gui` to configure.
 
         ./autogen.sh
@@ -55,7 +55,7 @@ NOTE: Building with Qt4 is still supported, however, doing so could result in a 
 
         make check
 
-4.  (Optional) You can also install dashd to your path:
+4.  (Optional) You can also install paccoind to your path:
 
         make install
 
@@ -67,7 +67,7 @@ Download Qt Creator from https://www.qt.io/download/. Download the "community ed
 1. Make sure you installed everything through Homebrew mentioned above
 2. Do a proper ./configure --enable-debug
 3. In Qt Creator do "New Project" -> Import Project -> Import Existing Project
-4. Enter "dash-qt" as project name, enter src/qt as location
+4. Enter "paccoin-qt" as project name, enter src/qt as location
 5. Leave the file selection as it is
 6. Confirm the "summary page"
 7. In the "Projects" tab select "Manage Kits..."
@@ -77,11 +77,11 @@ Download Qt Creator from https://www.qt.io/download/. Download the "community ed
 
 Creating a release build
 ------------------------
-You can ignore this section if you are building `dashd` for your own use.
+You can ignore this section if you are building `paccoind` for your own use.
 
-dashd/dash-cli binaries are not included in the Dash-Qt.app bundle.
+paccoind/paccoin-cli binaries are not included in the Paccoin-Qt.app bundle.
 
-If you are building `dashd` or `Dash Core` for others, your build machine should be set up
+If you are building `paccoind` or `Paccoin Core` for others, your build machine should be set up
 as follows for maximum compatibility:
 
 All dependencies should be compiled with these flags:
@@ -90,30 +90,30 @@ All dependencies should be compiled with these flags:
  -arch x86_64
  -isysroot $(xcode-select --print-path)/Platforms/MacOSX.platform/Developer/SDKs/MacOSX10.7.sdk
 
-Once dependencies are compiled, see [doc/release-process.md](release-process.md) for how the Dash Core
+Once dependencies are compiled, see [doc/release-process.md](release-process.md) for how the Paccoin Core
 bundle is packaged and signed to create the .dmg disk image that is distributed.
 
 Running
 -------
 
-It's now available at `./dashd`, provided that you are still in the `src`
+It's now available at `./paccoind`, provided that you are still in the `src`
 directory. We have to first create the RPC configuration file, though.
 
-Run `./dashd` to get the filename where it should be put, or just try these
+Run `./paccoind` to get the filename where it should be put, or just try these
 commands:
 
-    echo -e "rpcuser=dashrpc\nrpcpassword=$(xxd -l 16 -p /dev/urandom)" > "/Users/${USER}/Library/Application Support/DashCore/dash.conf"
-    chmod 600 "/Users/${USER}/Library/Application Support/DashCore/dash.conf"
+    echo -e "rpcuser=paccoinrpc\nrpcpassword=$(xxd -l 16 -p /dev/urandom)" > "/Users/${USER}/Library/Application Support/PaccoinCore/paccoin.conf"
+    chmod 600 "/Users/${USER}/Library/Application Support/PaccoinCore/paccoin.conf"
 
 The next time you run it, it will start downloading the blockchain, but it won't
 output anything while it's doing this. This process may take several hours;
 you can monitor its process by looking at the debug.log file, like this:
 
-    tail -f $HOME/Library/Application\ Support/DashCore/debug.log
+    tail -f $HOME/Library/Application\ Support/PaccoinCore/debug.log
 
 Other commands:
 -------
 
-    ./dashd -daemon # to start the dash daemon.
-    ./dash-cli --help  # for a list of command-line options.
-    ./dash-cli help    # When the daemon is running, to get a list of RPC commands
+    ./paccoind -daemon # to start the paccoin daemon.
+    ./paccoin-cli --help  # for a list of command-line options.
+    ./paccoin-cli help    # When the daemon is running, to get a list of RPC commands

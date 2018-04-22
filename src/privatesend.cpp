@@ -164,13 +164,18 @@ void CPrivateSend::InitStandardDenominations()
         10DRK+10000 == (1DRK+1000)*10
     */
     /* Disabled
-    vecStandardDenominations.push_back( (100      * COIN)+100000 );
+    
     */
+
+    vecStandardDenominations.push_back( (10000    * COIN)+10000000 );
+    vecStandardDenominations.push_back( (1000     * COIN)+1000000 );
+    vecStandardDenominations.push_back( (100      * COIN)+100000 );
     vecStandardDenominations.push_back( (10       * COIN)+10000 );
+    
+    /* Disabled till we need them
     vecStandardDenominations.push_back( (1        * COIN)+1000 );
     vecStandardDenominations.push_back( (.1       * COIN)+100 );
     vecStandardDenominations.push_back( (.01      * COIN)+10 );
-    /* Disabled till we need them
     vecStandardDenominations.push_back( (.001     * COIN)+1 );
     */
 }
@@ -306,10 +311,10 @@ int CPrivateSend::GetDenominations(const std::vector<CTxOut>& vecTxOut, bool fSi
 bool CPrivateSend::GetDenominationsBits(int nDenom, std::vector<int> &vecBitsRet)
 {
     // ( bit on if present, 4 denominations example )
-    // bit 0 - 100DASH+1
-    // bit 1 - 10DASH+1
-    // bit 2 - 1DASH+1
-    // bit 3 - .1DASH+1
+    // bit 0 - 100PAC+1
+    // bit 1 - 10PAC+1
+    // bit 2 - 1PAC+1
+    // bit 3 - .1PAC+1
 
     int nMaxDenoms = vecStandardDenominations.size();
 
@@ -365,7 +370,7 @@ std::string CPrivateSend::GetMessageByID(PoolMessage nMessageID)
         case ERR_NON_STANDARD_PUBKEY:   return _("Non-standard public key detected.");
         case ERR_NOT_A_MN:              return _("This is not a Masternode."); // not used
         case ERR_QUEUE_FULL:            return _("Masternode queue is full.");
-        case ERR_RECENT:                return _("Last PrivateSend was too recent.");
+        case ERR_RECENT:                return _("Last PrivatePAC was too recent.");
         case ERR_SESSION:               return _("Session not complete!");
         case ERR_MISSING_TX:            return _("Missing input transaction information.");
         case ERR_VERSION:               return _("Incompatible version.");
@@ -438,14 +443,14 @@ void CPrivateSend::SyncTransaction(const CTransaction& tx, const CBlock* pblock)
 //TODO: Rename/move to core
 void ThreadCheckPrivateSend(CConnman& connman)
 {
-    if(fLiteMode) return; // disable all Dash specific functionality
+    if(fLiteMode) return; // disable all Paccoin specific functionality
 
     static bool fOneThread;
     if(fOneThread) return;
     fOneThread = true;
 
     // Make this thread recognisable as the PrivateSend thread
-    RenameThread("dash-ps");
+    RenameThread("paccoin-ps");
 
     unsigned int nTick = 0;
 

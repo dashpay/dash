@@ -7,7 +7,7 @@
     <x>0</x>
     <y>0</y>
     <width>576</width>
-    <height>402</height>
+    <height>457</height>
    </rect>
   </property>
   <property name="windowTitle">
@@ -30,10 +30,10 @@
        <item>
         <widget class="QCheckBox" name="bitcoinAtStartup">
          <property name="toolTip">
-          <string>Automatically start Dash Core after logging in to the system.</string>
+          <string>Automatically start Paccoin Core after logging in to the system.</string>
          </property>
          <property name="text">
-          <string>&amp;Start Dash Core on system login</string>
+          <string>&amp;Start $PAC Core on system login</string>
          </property>
         </widget>
        </item>
@@ -169,7 +169,7 @@
              <string>Show additional information and buttons for PrivateSend on overview screen.</string>
             </property>
             <property name="text">
-             <string>Enable advanced PrivateSend interface</string>
+             <string>Enable advanced PrivatePAC interface</string>
             </property>
            </widget>
           </item>
@@ -179,7 +179,7 @@
              <string>Show warning dialog when PrivateSend detects that wallet has very low number of keys left.</string>
             </property>
             <property name="text">
-             <string>Warn if PrivateSend is running out of keys</string>
+             <string>Warn if PrivatePAC is running out of keys</string>
             </property>
            </widget>
           </item>
@@ -189,7 +189,7 @@
              <string>Whether to use experimental PrivateSend mode with multiple mixing sessions per block.&lt;br/&gt;Note: You must use this feature carefully.&lt;br/&gt;Make sure you always have recent wallet (auto)backup in a safe place!</string>
             </property>
             <property name="text">
-             <string>Enable PrivateSend &amp;multi-session</string>
+             <string>Enable PrivatePAC &amp;multi-session</string>
             </property>
            </widget>
           </item>
@@ -253,23 +253,23 @@
             <string notr="true"/>
            </property>
            <property name="text">
-            <string>Amount of Dash to keep anonymized</string>
+            <string>Amount of $PAC to keep anonymized</string>
            </property>
           </widget>
          </item>
          <item>
           <widget class="QSpinBox" name="privateSendAmount">
            <property name="minimum">
-            <number>2</number>
+            <number>20</number>
            </property>
            <property name="maximum">
-            <number>2000</number>
+            <number>100000</number>
            </property>
            <property name="singleStep">
-            <number>10</number>
+            <number>1000</number>
            </property>
            <property name="value">
-            <number>1000</number>
+            <number>20000</number>
            </property>
           </widget>
          </item>
@@ -298,7 +298,7 @@
        <item>
         <widget class="QCheckBox" name="mapPortUpnp">
          <property name="toolTip">
-          <string>Automatically open the Dash Core client port on the router. This only works when your router supports UPnP and it is enabled.</string>
+          <string>Automatically open the Paccoin Core client port on the router. This only works when your router supports UPnP and it is enabled.</string>
          </property>
          <property name="text">
           <string>Map port using &amp;UPnP</string>
@@ -318,7 +318,7 @@
        <item>
         <widget class="QCheckBox" name="connectSocks">
          <property name="toolTip">
-          <string>Connect to the Dash network through a SOCKS5 proxy.</string>
+          <string>Connect to the Paccoin network through a SOCKS5 proxy.</string>
          </property>
          <property name="text">
           <string>&amp;Connect through SOCKS5 proxy (default proxy):</string>
@@ -505,7 +505,7 @@
        <item>
         <widget class="QCheckBox" name="connectSocksTor">
          <property name="toolTip">
-          <string>Connect to the Dash network through a separate SOCKS5 proxy for Tor hidden services.</string>
+          <string>Connect to the Paccoin network through a separate SOCKS5 proxy for Tor hidden services.</string>
          </property>
          <property name="text">
           <string>Use separate SOCKS5 proxy to reach peers via Tor hidden services:</string>
@@ -681,40 +681,11 @@
          <item>
           <widget class="QValueComboBox" name="lang">
            <property name="toolTip">
-            <string>The user interface language can be set here. This setting will take effect after restarting Dash Core.</string>
+            <string>The user interface language can be set here. This setting will take effect after restarting Paccoin Core.</string>
            </property>
           </widget>
          </item>
         </layout>
-       </item>
-       <item>
-        <widget class="QLabel" name="label_3">
-         <property name="toolTip">
-          <string notr="true"/>
-         </property>
-         <property name="statusTip">
-          <string notr="true"/>
-         </property>
-         <property name="whatsThis">
-          <string notr="true"/>
-         </property>
-         <property name="accessibleName">
-          <string notr="true"/>
-         </property>
-         <property name="text">
-          <string>Language missing or translation incomplete? Help contributing translations here:
-https://www.transifex.com/projects/p/dash/</string>
-         </property>
-         <property name="wordWrap">
-          <bool>true</bool>
-         </property>
-         <property name="openExternalLinks">
-          <bool>true</bool>
-         </property>
-         <property name="textInteractionFlags">
-          <set>Qt::TextBrowserInteraction</set>
-         </property>
-        </widget>
        </item>
        <item>
         <layout class="QHBoxLayout" name="horizontalLayout_4_Display" stretch="0,0">

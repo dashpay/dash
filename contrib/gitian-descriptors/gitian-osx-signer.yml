@@ -1,5 +1,5 @@
 ---
-name: "dash-dmg-signer"
+name: "paccoin-dmg-signer"
 suites:
 - "trusty"
 architectures:
@@ -8,10 +8,10 @@ packages:
 - "faketime"
 reference_datetime: "2017-01-01 00:00:00"
 remotes:
-- "url": "https://github.com/dashpay/dash-detached-sigs.git"
+- "url": "https://github.com/paccoinpay/paccoin-detached-sigs.git"
   "dir": "signature"
 files:
-- "dash-osx-unsigned.tar.gz"
+- "paccoin-osx-unsigned.tar.gz"
 script: |
   WRAP_DIR=$HOME/wrapped
   mkdir -p ${WRAP_DIR}
@@ -28,10 +28,10 @@ script: |
     chmod +x ${WRAP_DIR}/${prog}
   done
 
-  UNSIGNED=dash-osx-unsigned.tar.gz
-  SIGNED=dash-osx-signed.dmg
+  UNSIGNED=paccoin-osx-unsigned.tar.gz
+  SIGNED=paccoin-osx-signed.dmg
 
   tar -xf ${UNSIGNED}
   ./detached-sig-apply.sh ${UNSIGNED} signature/osx
-  ${WRAP_DIR}/genisoimage -no-cache-inodes -D -l -probe -V "Dash-Core" -no-pad -r -dir-mode 0755 -apple -o uncompressed.dmg signed-app
+  ${WRAP_DIR}/genisoimage -no-cache-inodes -D -l -probe -V "Paccoin-Core" -no-pad -r -dir-mode 0755 -apple -o uncompressed.dmg signed-app
   ${WRAP_DIR}/dmg dmg uncompressed.dmg ${OUTDIR}/${SIGNED}

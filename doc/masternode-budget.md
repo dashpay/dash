@@ -4,7 +4,7 @@ NOTE : 12.1 -- REWRITE
 Masternode Budget API
 =======================
 
-Dash now supports full decentralized budgets that are paid directly from the blockchain via superblocks once per month.
+Paccoin now supports full decentralized budgets that are paid directly from the blockchain via superblocks once per month.
 
 Budgets go through a series of stages before being paid:
  * prepare - create a special transaction that destroys coins in order to make a proposal
@@ -19,11 +19,11 @@ Budgets go through a series of stages before being paid:
 1. Prepare collateral transaction
 --
 
-In this transaction we prepare collateral for "_cool-project_". This proposal will pay _1200_ DASH, _12_ times over the course of a year totaling _24000_ DASH.
+In this transaction we prepare collateral for "_cool-project_". This proposal will pay _1200_ PAC, _12_ times over the course of a year totaling _24000_ PAC.
 
 **Warning: if you change any fields within this command, the collateral transaction will become invalid.**
 
-Format: ```mngovernance prepare proposal-name url payment-count block-start dash-address monthly-payment-dash```
+Format: ```mngovernance prepare proposal-name url payment-count block-start paccoin-address monthly-payment-paccoin```
 
 Example: ```mngovernance prepare cool-project http://www.cool-project/one.json 12 100000 y6R9oN12KnB9zydzTLc3LikD9cCjjQzYG7 1200 true```
 
@@ -36,7 +36,7 @@ This is the collateral hash, copy this output for the next step.
 
 Now we can submit our proposal to the network.
 
-Format: ```mngovernance submit proposal-name url payment-count block-start dash-address monthly-payment-dash fee-tx```
+Format: ```mngovernance submit proposal-name url payment-count block-start paccoin-address monthly-payment-paccoin fee-tx```
 
 Example: ```mngovernance submit cool-project http://www.cool-project/one.json 12 100000 y6R9oN12KnB9zydzTLc3LikD9cCjjQzYG7 1200 464a0eb70ea91c94295214df48c47baa72b3876cfb658744aaf863c7b5bf1ff0```
 
@@ -128,7 +128,7 @@ After you get enough votes, execute ```mngovernance projection``` to see if you 
 6. Get paid
 --
 
-When block ```1000000``` is reached you'll receive a payment for ```1200``` DASH to ```y6R9oN12KnB9zydzTLc3LikD9cCjjQzYG7```.
+When block ```1000000``` is reached you'll receive a payment for ```1200``` PAC to ```y6R9oN12KnB9zydzTLc3LikD9cCjjQzYG7```.
 
 7. Command list
 --
@@ -146,7 +146,7 @@ The following RPC commands are supported:
   - nextblock          - Get info about next superblock for budget system
   - nextsuperblocksize - Get superblock size for a given blockheight
   - projection         - Show the projection of which proposals will be paid the next cycle
-  - vote               - Vote on a proposal by single masternode (using dash.conf setup)
+  - vote               - Vote on a proposal by single masternode (using paccoin.conf setup)
   - vote-many          - Vote on a proposal by all masternodes (using masternode.conf setup)
   - vote-alias         - Vote on a proposal by alias
  - mnfinalbudget "command"... ( "passphrase" )

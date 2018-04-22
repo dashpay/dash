@@ -1,21 +1,21 @@
 
 Debian
 ====================
-This directory contains files used to package dashd/dash-qt
-for Debian-based Linux systems. If you compile dashd/dash-qt yourself, there are some useful files here.
+This directory contains files used to package paccoind/paccoin-qt
+for Debian-based Linux systems. If you compile paccoind/paccoin-qt yourself, there are some useful files here.
 
-## dash: URI support ##
+## paccoin: URI support ##
 
 
-dash-qt.desktop  (Gnome / Open Desktop)
+paccoin-qt.desktop  (Gnome / Open Desktop)
 To install:
 
-	sudo desktop-file-install dash-qt.desktop
+	sudo desktop-file-install paccoin-qt.desktop
 	sudo update-desktop-database
 
 If you build yourself, you will either need to modify the paths in
-the .desktop file or copy or symlink your dash-qt binary to `/usr/bin`
-and the `../../share/pixmaps/dash128.png` to `/usr/share/pixmaps`
+the .desktop file or copy or symlink your paccoin-qt binary to `/usr/bin`
+and the `../../share/pixmaps/paccoin128.png` to `/usr/share/pixmaps`
 
-dash-qt.protocol (KDE)
+paccoin-qt.protocol (KDE)
 

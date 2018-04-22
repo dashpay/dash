@@ -1,12 +1,12 @@
 [Desktop Entry]
 Encoding=UTF-8
-Name=Dash
-Comment=Dash P2P Cryptocurrency
-Comment[fr]=Dash, monnaie virtuelle cryptographique pair à pair
-Comment[tr]=Dash, eşten eşe kriptografik sanal para birimi
-Exec=dash-qt %u
+Name=Paccoin
+Comment=Paccoin P2P Cryptocurrency
+Comment[fr]=Paccoin, monnaie virtuelle cryptographique pair à pair
+Comment[tr]=Paccoin, eşten eşe kriptografik sanal para birimi
+Exec=paccoin-qt %u
 Terminal=false
 Type=Application
-Icon=dash128
-MimeType=x-scheme-handler/dash;
+Icon=paccoin128
+MimeType=x-scheme-handler/paccoin;
 Categories=Office;Finance;

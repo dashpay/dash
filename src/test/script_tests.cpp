@@ -12,10 +12,10 @@
 #include "script/sign.h"
 #include "util.h"
 #include "utilstrencodings.h"
-#include "test/test_dash.h"
+#include "test/test_paccoin.h"
 
 #if defined(HAVE_CONSENSUS_LIB)
-#include "script/dashconsensus.h"
+#include "script/paccoinconsensus.h"
 #endif
 
 #include <fstream>
@@ -155,7 +155,7 @@ void DoTest(const CScript& scriptPubKey, const CScript& scriptSig, int flags, co
 #if defined(HAVE_CONSENSUS_LIB)
     CDataStream stream(SER_NETWORK, PROTOCOL_VERSION);
     stream << tx2;
-    BOOST_CHECK_MESSAGE(dashconsensus_verify_script(begin_ptr(scriptPubKey), scriptPubKey.size(), (const unsigned char*)&stream[0], stream.size(), 0, flags, NULL) == expect,message);
+    BOOST_CHECK_MESSAGE(paccoinconsensus_verify_script(begin_ptr(scriptPubKey), scriptPubKey.size(), (const unsigned char*)&stream[0], stream.size(), 0, flags, NULL) == expect,message);
 #endif
 }
 

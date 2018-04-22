@@ -62,10 +62,10 @@ for arg in sys.argv[1:]:
 
 #Set env vars
 buildDir = BUILDDIR
-if "DASHD" not in os.environ:
-    os.environ["DASHD"] = buildDir + '/src/dashd' + EXEEXT
-if "DASHCLI" not in os.environ:
-    os.environ["DASHCLI"] = buildDir + '/src/dash-cli' + EXEEXT
+if "PACD" not in os.environ:
+    os.environ["PACD"] = buildDir + '/src/paccoind' + EXEEXT
+if "PACCLI" not in os.environ:
+    os.environ["PACCLI"] = buildDir + '/src/paccoin-cli' + EXEEXT
 
 if EXEEXT == ".exe" and "-win" not in opts:
     # https://github.com/bitcoin/bitcoin/commit/d52802551752140cf41f0d9a225a43e84404d3e9
@@ -117,15 +117,15 @@ testScripts = [
     'timestampindex.py',
     'spentindex.py',
     'decodescript.py',
-    'p2p-fullblocktest.py', # NOTE: needs dash_hash to pass
+    'p2p-fullblocktest.py', # NOTE: needs paccoin_hash to pass
     'blockchain.py',
     'disablewallet.py',
-    'sendheaders.py', # NOTE: needs dash_hash to pass
+    'sendheaders.py', # NOTE: needs paccoin_hash to pass
     'keypool.py',
     'keypool-hd.py',
     'prioritise_transaction.py',
-    'invalidblockrequest.py', # NOTE: needs dash_hash to pass
-    'invalidtxrequest.py', # NOTE: needs dash_hash to pass
+    'invalidblockrequest.py', # NOTE: needs paccoin_hash to pass
+    'invalidtxrequest.py', # NOTE: needs paccoin_hash to pass
     'abandonconflict.py',
     'p2p-versionbits-warning.py',
 ]
@@ -135,9 +135,9 @@ if ENABLE_ZMQ:
 testScriptsExt = [
     'bip9-softforks.py',
     'bip65-cltv.py',
-    'bip65-cltv-p2p.py', # NOTE: needs dash_hash to pass
+    'bip65-cltv-p2p.py', # NOTE: needs paccoin_hash to pass
     'bip68-sequence.py',
-    'bipdersig-p2p.py', # NOTE: needs dash_hash to pass
+    'bipdersig-p2p.py', # NOTE: needs paccoin_hash to pass
     'bipdersig.py',
     'getblocktemplate_longpoll.py', # FIXME: "socket.error: [Errno 54] Connection reset by peer" on my Mac, same as  https://github.com/bitcoin/bitcoin/issues/6651
     'getblocktemplate_proposals.py',
@@ -149,10 +149,10 @@ testScriptsExt = [
 #    'rpcbind_test.py', #temporary, bug in libevent, see #6655
     'smartfees.py',
     'maxblocksinflight.py',
-    'p2p-acceptblock.py', # NOTE: needs dash_hash to pass
+    'p2p-acceptblock.py', # NOTE: needs paccoin_hash to pass
     'mempool_packages.py',
     'maxuploadtarget.py',
-    # 'replace-by-fee.py', # RBF is disabled in Dash Core
+    # 'replace-by-fee.py', # RBF is disabled in Paccoin Core
 ]
 
 def runtests():

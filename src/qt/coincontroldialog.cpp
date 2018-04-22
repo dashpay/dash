@@ -441,7 +441,7 @@ void CoinControlDialog::viewItemChanged(QTreeWidgetItem* item, int column)
             int nRounds = pwalletMain->GetOutpointPrivateSendRounds(outpt);
             if (coinControl->fUsePrivateSend && nRounds < privateSendClient.nPrivateSendRounds) {
                 QMessageBox::warning(this, windowTitle(),
-                    tr("Non-anonymized input selected. <b>PrivateSend will be disabled.</b><br><br>If you still want to use PrivateSend, please deselect all non-nonymized inputs first and then check PrivateSend checkbox again."),
+                    tr("Non-anonymized input selected. <b>PrivatePAC will be disabled.</b><br><br>If you still want to use PrivatePAC, please deselect all non-nonymized inputs first and then check PrivatePAC checkbox again."),
                     QMessageBox::Ok, QMessageBox::Ok);
                 coinControl->fUsePrivateSend = false;
             }
@@ -625,7 +625,7 @@ void CoinControlDialog::updateLabels(WalletModel *model, QDialog* dialog)
     }
 
     // actually update labels
-    int nDisplayUnit = BitcoinUnits::DASH;
+    int nDisplayUnit = BitcoinUnits::PAC;
     if (model && model->getOptionsModel())
         nDisplayUnit = model->getOptionsModel()->getDisplayUnit();
 
@@ -753,7 +753,7 @@ void CoinControlDialog::updateView()
             {
                 sAddress = QString::fromStdString(CBitcoinAddress(outputAddress).ToString());
 
-                // if listMode or change => show dash address. In tree mode, address is not shown again for direct wallet address outputs
+                // if listMode or change => show paccoin address. In tree mode, address is not shown again for direct wallet address outputs
                 if (!treeMode || (!(sAddress == sWalletAddress)))
                     itemOutput->setText(COLUMN_ADDRESS, sAddress);
 

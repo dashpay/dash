@@ -59,11 +59,11 @@ QString TransactionDesc::FormatTxStatus(const CWalletTx& wtx)
         // InstantSend
         strTxStatus += " (";
         if(instantsend.IsLockedInstantSendTransaction(wtx.GetHash())) {
-            strTxStatus += tr("verified via InstantSend");
+            strTxStatus += tr("verified via InstantPAC");
         } else if(!instantsend.IsTxLockCandidateTimedOut(wtx.GetHash())) {
-            strTxStatus += tr("InstantSend verification in progress - %1 of %2 signatures").arg(nSignatures).arg(nSignaturesMax);
+            strTxStatus += tr("InstantPAC verification in progress - %1 of %2 signatures").arg(nSignatures).arg(nSignaturesMax);
         } else {
-            strTxStatus += tr("InstantSend verification failed");
+            strTxStatus += tr("InstantPAC verification failed");
         }
         strTxStatus += ")";
 
@@ -267,7 +267,7 @@ QString TransactionDesc::toHTML(CWallet *wallet, CWalletTx &wtx, TransactionReco
     strHTML += "<b>" + tr("Transaction ID") + ":</b> " + TransactionRecord::formatSubTxId(wtx.GetHash(), rec->idx) + "<br>";
     strHTML += "<b>" + tr("Transaction total size") + ":</b> " + QString::number(wtx.GetTotalSize()) + " bytes<br>";
 
-    // Message from normal dash:URI (dash:XyZ...?message=example)
+    // Message from normal paccoin:URI (paccoin:XyZ...?message=example)
     Q_FOREACH (const PAIRTYPE(std::string, std::string)& r, wtx.vOrderForm)
         if (r.first == "Message")
             strHTML += "<br><b>" + tr("Message") + ":</b><br>" + GUIUtil::HtmlEscape(r.second, true) + "<br>";

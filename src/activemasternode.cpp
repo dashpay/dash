@@ -120,7 +120,13 @@ bool CActiveMasternode::SendMasternodePing(CConnman& connman)
 bool CActiveMasternode::UpdateSentinelPing(int version)
 {
     nSentinelVersion = version;
+    if(version < MIN_SENTINEL_VERSION ){
+        LogPrintf("CActiveMasternode::UpdateSentinelPing -- Sentinel is out of date please update. Version = %s\n", SafeIntVersionToString(version));
+        return false;
+    }
+
     nSentinelPingTime = GetAdjustedTime();
+    LogPrint("masternode", "CActiveMasternode::UpdateSentinelPing -- Updated Sentinel Version = %s PingTime = %d\n", SafeIntVersionToString(nSentinelVersion), nSentinelPingTime);
 
     return true;
 }
@@ -197,7 +203,7 @@ void CActiveMasternode::ManageStateInitial(CConnman& connman)
 
 void CActiveMasternode::ManageStateRemote()
 {
-    LogPrint("masternode", "CActiveMasternode::ManageStateRemote -- Start status = %s, type = %s, pinger enabled = %d, pubKeyMasternode.GetID() = %s\n", 
+    LogPrint("masternode", "CActiveMasternode::ManageStateRemote -- Start status = %s, type = %s, pinger enabled = %d, pubKeyMasternode.GetID() = %s\n",
              GetStatus(), GetTypeString(), fPingerEnabled, pubKeyMasternode.GetID().ToString());
 
     mnodeman.CheckMasternode(pubKeyMasternode, true);

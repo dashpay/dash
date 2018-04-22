@@ -4,7 +4,7 @@
 
 #include "scriptnum10.h"
 #include "script/script.h"
-#include "test/test_dash.h"
+#include "test/test_paccoin.h"
 
 #include <boost/test/unit_test.hpp>
 #include <limits.h>

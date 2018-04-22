@@ -2,7 +2,7 @@
 
 #include "cachemultimap.h"
 
-#include "test/test_dash.h"
+#include "test/test_paccoin.h"
 
 #include <algorithm>
 #include <iostream>

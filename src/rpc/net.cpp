@@ -91,7 +91,7 @@ UniValue getpeerinfo(const UniValue& params, bool fHelp)
             "    \"minping\": n,              (numeric) minimum observed ping time (if any at all)\n"
             "    \"pingwait\": n,             (numeric) ping wait (if non-zero)\n"
             "    \"version\": v,              (numeric) The peer version, such as 7001\n"
-            "    \"subver\": \"/Dash Core:x.x.x/\",  (string) The string version\n"
+            "    \"subver\": \"/Paccoin Core:x.x.x/\",  (string) The string version\n"
             "    \"inbound\": true|false,     (boolean) Inbound (true) or Outbound (false)\n"
             "    \"startingheight\": n,       (numeric) The starting height (block) of the peer\n"
             "    \"banscore\": n,             (numeric) The ban score\n"
@@ -201,8 +201,8 @@ UniValue addnode(const UniValue& params, bool fHelp)
             "1. \"node\"     (string, required) The node (see getpeerinfo for nodes)\n"
             "2. \"command\"  (string, required) 'add' to add a node to the list, 'remove' to remove a node from the list, 'onetry' to try a connection to the node once\n"
             "\nExamples:\n"
-            + HelpExampleCli("addnode", "\"192.168.0.6:9999\" \"onetry\"")
-            + HelpExampleRpc("addnode", "\"192.168.0.6:9999\", \"onetry\"")
+            + HelpExampleCli("addnode", "\"192.168.0.6:7112\" \"onetry\"")
+            + HelpExampleRpc("addnode", "\"192.168.0.6:7112\", \"onetry\"")
         );
 
     if(!g_connman)
@@ -240,8 +240,8 @@ UniValue disconnectnode(const UniValue& params, bool fHelp)
             "\nArguments:\n"
             "1. \"node\"     (string, required) The node (see getpeerinfo for nodes)\n"
             "\nExamples:\n"
-            + HelpExampleCli("disconnectnode", "\"192.168.0.6:9999\"")
-            + HelpExampleRpc("disconnectnode", "\"192.168.0.6:9999\"")
+            + HelpExampleCli("disconnectnode", "\"192.168.0.6:7112\"")
+            + HelpExampleRpc("disconnectnode", "\"192.168.0.6:7112\"")
         );
 
     if(!g_connman)
@@ -271,7 +271,7 @@ UniValue getaddednodeinfo(const UniValue& params, bool fHelp)
             "    \"connected\" : true|false,          (boolean) If connected\n"
             "    \"addresses\" : [                    (list of objects) Only when connected = true\n"
             "       {\n"
-            "         \"address\" : \"192.168.0.201:9999\",  (string) The dash server IP and port we're connected to\n"
+            "         \"address\" : \"192.168.0.201:7112\",  (string) The paccoin server IP and port we're connected to\n"
             "         \"connected\" : \"outbound\"           (string) connection, inbound or outbound\n"
             "       }\n"
             "     ]\n"
@@ -398,7 +398,7 @@ UniValue getnetworkinfo(const UniValue& params, bool fHelp)
             "\nResult:\n"
             "{\n"
             "  \"version\": xxxxx,                      (numeric) the server version\n"
-            "  \"subversion\": \"/Dash Core:x.x.x/\",     (string) the server subversion string\n"
+            "  \"subversion\": \"/Paccoin Core:x.x.x/\",     (string) the server subversion string\n"
             "  \"protocolversion\": xxxxx,              (numeric) the protocol version\n"
             "  \"localservices\": \"xxxxxxxxxxxxxxxx\", (string) the services we offer to the network\n"
             "  \"localrelay\": true|false,              (bool) true if transaction relay is requested from peers\n"

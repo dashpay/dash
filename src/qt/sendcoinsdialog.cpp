@@ -64,7 +64,7 @@ SendCoinsDialog::SendCoinsDialog(const PlatformStyle *platformStyle, QWidget *pa
     connect(ui->checkBoxCoinControlChange, SIGNAL(stateChanged(int)), this, SLOT(coinControlChangeChecked(int)));
     connect(ui->lineEditCoinControlChange, SIGNAL(textEdited(const QString &)), this, SLOT(coinControlChangeEdited(const QString &)));
 
-    // Dash specific
+    // Paccoin specific
     QSettings settings;
     if (!settings.contains("bUseDarkSend"))
         settings.setValue("bUseDarkSend", false);
@@ -261,7 +261,7 @@ void SendCoinsDialog::on_sendButton_clicked()
             BitcoinUnits::formatWithUnit(
                 model->getOptionsModel()->getDisplayUnit(), CPrivateSend::GetSmallestDenomination()));
         strFee = QString(tr(
-            "(privatesend requires this amount to be rounded up to the nearest %1)."
+            "(privatepac requires this amount to be rounded up to the nearest %1)."
         ).arg(strNearestAmount));
     } else {
         recipients[0].inputType = ALL_COINS;
@@ -271,7 +271,7 @@ void SendCoinsDialog::on_sendButton_clicked()
     if(ui->checkUseInstantSend->isChecked()) {
         recipients[0].fUseInstantSend = true;
         strFunds += " ";
-        strFunds += tr("and InstantSend");
+        strFunds += tr("and InstantPAC");
     } else {
         recipients[0].fUseInstantSend = false;
     }
@@ -863,7 +863,7 @@ void SendCoinsDialog::coinControlChangeEdited(const QString& text)
         }
         else if (!addr.IsValid()) // Invalid address
         {
-            ui->labelCoinControlChangeLabel->setText(tr("Warning: Invalid Dash address"));
+            ui->labelCoinControlChangeLabel->setText(tr("Warning: Invalid $PAC address"));
         }
         else // Valid address
         {

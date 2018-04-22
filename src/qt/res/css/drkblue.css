@@ -740,7 +740,7 @@ QDialog#HelpMessageDialog QScrollBar:vertical, QDialog#HelpMessageDialog QScroll
 border:0;
 }
 
-/* About Dash Dialog */
+/* About Paccoin Dialog */
 QDialog#AboutDialog {
 background-color:#F8F6F6;
 }
@@ -749,7 +749,7 @@ QDialog#AboutDialog QLabel#label, QDialog#AboutDialog QLabel#copyrightLabel, QDi
 margin-left:10px;
 }
 
-QDialog#AboutDialog QLabel#label_2 { /* Margin for About Dash text */
+QDialog#AboutDialog QLabel#label_2 { /* Margin for About Paccoin text */
 margin-right:10px;
 }
 
@@ -1103,7 +1103,7 @@ min-width:410px;
 margin-right:20px;
 margin-left:0;
 margin-top:0;
-background-image: url(':/images/drkblue/dash_logo_horizontal');
+background-image: url(':/images/drkblue/paccoin_logo_horizontal');
 background-repeat:none;
 }
 

@@ -45,7 +45,7 @@
  * =========================
  *
  *   // network
- *   CDashNetwork lvl, network-type, network-status, network-error, milestone-status*
+ *   CPaccoinNetwork lvl, network-type, network-status, network-error, milestone-status*
  *   CCategory lvl, category-type, status, status-error
  *   CNetworkGlobalVariable lvl, global-type, status, status-error
  *   // base: actor
@@ -79,7 +79,7 @@
  *  TREE STRUCTURE
  *  ===========================================
  * 
- *  DASH NETWORK (ROOT)
+ *  PAC NETWORK (ROOT)
  *      -> NETWORK GLOBOLS
  *          -> SWITCHES, SETTINGS
  *      -> CATEGORIES
@@ -117,7 +117,7 @@ private:
     int nLevel;
     std::string strCategory;
 
-    // Current OBJECT STATUS (see http://govman.dash.org/index.php/Documentation_:_Status_Field)
+    // Current OBJECT STATUS (see http://govman.paccoin.org/index.php/Documentation_:_Status_Field)
     int nStatusID;
     std::string strStatusMessage;
 
@@ -130,7 +130,7 @@ public:
 };
 
 // // root node
-class CDashNetwork : public CGovernanceObject
+class CPaccoinNetwork : public CGovernanceObject
 {
 private:
     std::string strName;
@@ -138,7 +138,7 @@ private:
 
 
 public:
-    CDashNetwork(UniValue objIn)
+    CPaccoinNetwork(UniValue objIn)
     {
         strName = objIn["name"].get_str();
         strURL = objIn["name"].get_str();
@@ -174,9 +174,9 @@ public:
 
 };
 
-// // can be under: DashNetwork
+// // can be under: PaccoinNetwork
 // //   -- signature requirements : Key1(User)
-// class CDashNetworkVariable : public CGovernanceObject
+// class CPaccoinNetworkVariable : public CGovernanceObject
 // {
 // private:
 
@@ -279,7 +279,7 @@ public:
 //     // isRootCategory()
 //     // {
 //     //     // root categories won't have categories as parents
-//     //     return (IsType() == DashNetwork);
+//     //     return (IsType() == PaccoinNetwork);
 //     // }
 
 //     // isSubcategoryOf(std::string strParentName)

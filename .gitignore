@@ -6,13 +6,13 @@ reset-files.bash
 *.tar.gz
 
 *.exe
-src/dash
-src/dashd
-src/dash-cli
-src/dash-tx
-src/test/test_dash
-src/qt/test/test_dash-qt
-src/bench/bench_dash
+src/paccoin
+src/paccoind
+src/paccoin-cli
+src/paccoin-tx
+src/test/test_paccoin
+src/qt/test/test_paccoin-qt
+src/bench/bench_paccoin
 
 # autoreconf
 Makefile.in
@@ -35,8 +35,8 @@ config.log
 config.status
 configure
 libtool
-src/config/dash-config.h
-src/config/dash-config.h.in
+src/config/paccoin-config.h
+src/config/paccoin-config.h.in
 src/config/stamp-h1
 share/setup.nsi
 share/qt/Info.plist
@@ -62,7 +62,7 @@ libconftest.dylib*
 *.o
 *.o-*
 *.patch
-.dash
+.paccoin
 *.a
 *.pb.cc
 *.pb.h
@@ -81,12 +81,12 @@ libconftest.dylib*
 # Compilation and Qt preprocessor part
 *.qm
 Makefile
-dash-qt
-Dash-Qt.app
+paccoin-qt
+Paccoin-Qt.app
 
 # Unit-tests
 Makefile.test
-dash-qt_test
+paccoin-qt_test
 src/test/buildenv.py
 
 # Resources cpp
@@ -100,7 +100,7 @@ build
 *.gcno
 *.gcda
 /*.info
-test_dash.coverage/
+test_paccoin.coverage/
 total.coverage/
 coverage_percent.txt
 
@@ -123,12 +123,12 @@ share/BitcoindComparisonTool.jar
 .autotools
 /doc/doxygen/
 
-libdashconsensus.pc
-src/qt/dash-qt.bash
+libpaccoinconsensus.pc
+src/qt/paccoin-qt.bash
 qa/pull-tester/tests-config.sh
 
 #development symlinks
-dash-cli
-dashd
-dash-qt
+paccoin-cli
+paccoind
+paccoin-qt
 make

@@ -7,7 +7,7 @@
     <x>0</x>
     <y>0</y>
     <width>729</width>
-    <height>150</height>
+    <height>126</height>
    </rect>
   </property>
   <property name="focusPolicy">
@@ -57,7 +57,7 @@
       <item>
        <widget class="QValidatedLineEdit" name="payTo">
         <property name="toolTip">
-         <string>The Dash address to send the payment to</string>
+         <string>The Paccoin address to send the payment to</string>
         </property>
        </widget>
       </item>
@@ -158,7 +158,7 @@
       <item>
        <widget class="QCheckBox" name="checkboxSubtractFeeFromAmount">
         <property name="toolTip">
-         <string>The fee will be deducted from the amount being sent. The recipient will receive a lower amount of Dash than you enter in the amount field. If multiple recipients are selected, the fee is split equally.</string>
+         <string>The fee will be deducted from the amount being sent. The recipient will receive a lower amount of Paccoin than you enter in the amount field. If multiple recipients are selected, the fee is split equally.</string>
         </property>
         <property name="text">
          <string>S&amp;ubtract fee from amount</string>
@@ -180,7 +180,7 @@
     <item row="3" column="1">
      <widget class="QLabel" name="messageTextLabel">
       <property name="toolTip">
-       <string>A message that was attached to the dash: URI which will be stored with the transaction for your reference. Note: This message will not be sent over the Dash network.</string>
+       <string>A message that was attached to the paccoin: URI which will be stored with the transaction for your reference. Note: This message will not be sent over the Paccoin network.</string>
       </property>
       <property name="textFormat">
        <enum>Qt::PlainText</enum>
@@ -1234,6 +1234,7 @@
    <class>BitcoinAmountField</class>
    <extends>QLineEdit</extends>
    <header>bitcoinamountfield.h</header>
+   <container>1</container>
   </customwidget>
  </customwidgets>
  <tabstops>
@@ -1249,7 +1250,7 @@
   <tabstop>deleteButton_s</tabstop>
  </tabstops>
  <resources>
-  <include location="../dash.qrc"/>
+  <include location="../paccoin.qrc"/>
  </resources>
  <connections/>
 </ui>

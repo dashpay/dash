@@ -19,7 +19,7 @@ CPrivateSendServer privateSendServer;
 void CPrivateSendServer::ProcessMessage(CNode* pfrom, std::string& strCommand, CDataStream& vRecv, CConnman& connman)
 {
     if(!fMasterNode) return;
-    if(fLiteMode) return; // ignore all Dash related functionality
+    if(fLiteMode) return; // ignore all Paccoin related functionality
     if(!masternodeSync.IsBlockchainSynced()) return;
 
     if(strCommand == NetMsgType::DSACCEPT) {
@@ -122,7 +122,7 @@ void CPrivateSendServer::ProcessMessage(CNode* pfrom, std::string& strCommand, C
             }
             mnodeman.AllowMixing(dsq.vin.prevout);
 
-            LogPrint("privatesend", "DSQUEUE -- new PrivateSend queue (%s) from masternode %s\n", dsq.ToString(), mnInfo.addr.ToString());
+            LogPrint("privatesend", "DSQUEUE -- new PrivatePAC queue (%s) from masternode %s\n", dsq.ToString(), mnInfo.addr.ToString());
             vecDarksendQueue.push_back(dsq);
             dsq.Relay(connman);
         }
@@ -463,7 +463,7 @@ void CPrivateSendServer::ChargeFees(CConnman& connman)
 
     Being that mixing has "no fees" we need to have some kind of cost associated
     with using it to stop abuse. Otherwise it could serve as an attack vector and
-    allow endless transaction that would bloat Dash and make it unusable. To
+    allow endless transaction that would bloat Paccoin and make it unusable. To
     stop these kinds of attacks 1 in 10 successful transactions are charged. This
     adds up to a cost of 0.001DRK per transaction on average.
 */
@@ -872,14 +872,14 @@ void CPrivateSendServer::SetState(PoolState nStateNew)
 //TODO: Rename/move to core
 void ThreadCheckPrivateSendServer(CConnman& connman)
 {
-    if(fLiteMode) return; // disable all Dash specific functionality
+    if(fLiteMode) return; // disable all Paccoin specific functionality
 
     static bool fOneThread;
     if(fOneThread) return;
     fOneThread = true;
 
     // Make this thread recognisable as the PrivateSend thread
-    RenameThread("dash-ps-server");
+    RenameThread("paccoin-ps-server");
 
     unsigned int nTick = 0;
 

@@ -29,6 +29,10 @@ static const int MASTERNODE_POSE_BAN_MAX_SCORE          = 5;
 // sentinel version before sentinel ping implementation
 #define DEFAULT_SENTINEL_VERSION 0x010001
 
+// sentinel with voting fix to enable proposals
+#define MIN_SENTINEL_VERSION 0x010200
+
+
 class CMasternodePing
 {
 public:
@@ -251,7 +255,7 @@ public:
         return false;
     }
 
-    /// Is the input associated with collateral public key? (and there is 1000 DASH - checking if valid masternode)
+    /// Is the input associated with collateral public key? (and there is 500000 PAC - checking if valid masternode)
     bool IsInputAssociatedWithPubkey();
 
     bool IsValidNetAddr();
