@@ -77,9 +77,12 @@ vote_signal_enum_t CGovernanceVoting::ConvertVoteSignal(const std::string& strVo
         {"endorsed", VOTE_SIGNAL_ENDORSED}
     };
 
-    return mapStrVoteSignals.count(strVoteSignal)
-         ? mapStrVoteSignals[strVoteSignal]
-         : VOTE_SIGNAL_NONE;
+    const auto& it = mapStrVoteSignals.find(strVoteSignal);
+    if (it == mapStrVoteSignals.end()) {
+        LogPrintf("CGovernanceVoting::%s -- ERROR: Unknown signal %s\n", __func__, strVoteSignal);
+        return VOTE_SIGNAL_NONE;
+    }
+    return it->second;
 }
 
 CGovernanceVote::CGovernanceVote()
