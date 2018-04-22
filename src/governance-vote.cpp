@@ -70,7 +70,7 @@ vote_outcome_enum_t CGovernanceVoting::ConvertVoteOutcome(const std::string& str
 
 vote_signal_enum_t CGovernanceVoting::ConvertVoteSignal(const std::string& strVoteSignal)
 {
-    std::map <std::string, vote_signal_enum_t> mapStrVoteSignals = {
+    static const std::map <std::string, vote_signal_enum_t> mapStrVoteSignals = {
         {"funding",  VOTE_SIGNAL_FUNDING},
         {"valid",    VOTE_SIGNAL_VALID},
         {"delete",   VOTE_SIGNAL_DELETE},
