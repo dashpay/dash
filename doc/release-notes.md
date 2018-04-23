@@ -50,15 +50,15 @@ We introduce new feature we call [Named Devnets](https://github.com/dashpay/dash
 This feature allows the creation of multiple independent devnets. Each one is
 identified by a name which is hardened into a "devnet genesis" block,
 which is automatically positioned at height 1. Validation rules will
-ensure that a node from devnet=test1 never be able to accept blocks
-from devnet=test2. This is done by checking the expected devnet genesis
+ensure that a node from `devnet=test1` never be able to accept blocks
+from `devnet=test2`. This is done by checking the expected devnet genesis
 block.
 
 The genesis block of the devnet is the same as the one from regtest. This
 starts the devnet with a very low difficulty, allowing us to fill up
 needed balances for masternodes very fast.
 
-Also, the devnet name is put into the sub-version of the VERSION message.
+Also, the devnet name is put into the sub-version of the `VERSION` message.
 If a node connects to the wrong network, it will immediately be disconnected.
 
 New format of network messsage signatures
@@ -66,8 +66,8 @@ New format of network messsage signatures
 
 We introduce new signature format for Dash-specific network messages,
 read more [here](https://github.com/dashpay/dash/pull/1936) and [here](https://github.com/dashpay/dash/pull/1937).
-We also introduce new spork SPORK_6_NEW_SIGS which is going to be used to activate new format after network finishes the upgrade.
-Note that old pre-12.3 nodes won't be able to recognize and verify new signatures after SPORK_6_NEW_SIGS activates.
+We also introduce new spork `SPORK_6_NEW_SIGS` which is going to be used to activate new format after network finishes the upgrade.
+Note that old pre-12.3 nodes won't be able to recognize and verify new signatures after `SPORK_6_NEW_SIGS` activates.
 
 Governance system improvements
 ------------------------------
@@ -77,7 +77,7 @@ into masternode pings. With this update we add some additional information and c
 to ensure that pings were not maleated by some intermediary node. All messages and logic related to watchdogs
 are completely removed now. We also improved proposal message format, as well as proposal validation and processing,
 which should lower network traffic and CPU usage. Handling of triggers was also improved slightly.
-SPORK_13_OLD_SUPERBLOCK_FLAG was not used already too and we are completely removing it now.
+`SPORK_13_OLD_SUPERBLOCK_FLAG` was not used already too and we are completely removing it now.
 
 PrivateSend improvements
 ------------------------
@@ -88,8 +88,8 @@ be used in collaterals with OP_RETURN outputs which will allow such inputs to be
 (previousely they were not used at all and instead were kept in wallet and global UTXO forever).
 There are also some minor fixes which should slightly improve mixing process too.
 
-Additional indexes cover P2PK
------------------------------
+Additional indexes cover P2PK now
+---------------------------------
 
 Additional indexes like `addressindex` etc. process P2PK outputs correctly now. Note, that these indexes will
 not be re-built automatically on wallet update, you must reindex manually to update indexes with P2PK outputs.
@@ -112,19 +112,21 @@ There are few changes in existing RPC in this release:
 You can still specify additional param to get output in old format however (`all` for `count` and `status` for `list`).
 - `masternodelist` has few new modes: `daemon`, `json`, `sentinel`
 - `debug` rpc now requires categories to be separated via `+`, not `,` like before (e.g. `dash+net`)
-- TODO: rpc changes from btc 0.13/0.14
 
-There are few new RPC commands also:
-- TODO: `listaddressbalances`
-- TODO: new rpc from btc 0.13/0.14
+There is also a new RPC command `listaddressbalances`.
+
+You can read about RPC changes brought by backporting from Bitcoin Core in following docs:
+- https://github.com/bitcoin/bitcoin/blob/master/doc/release-notes/release-notes-0.13.0.md#low-level-rpc-changes
+- https://github.com/bitcoin/bitcoin/blob/master/doc/release-notes/release-notes-0.13.1.md#low-level-rpc-changes
+- https://github.com/bitcoin/bitcoin/blob/master/doc/release-notes/release-notes-0.14.0.md#low-level-rpc-changes
 
 Command-line options
 --------------------
 
-New:
-- new cmd-line options (Dash): `allowprivatenet`, `bip9params`, `sporkaddr`, `devnet`
-- new cmd-line options (Bitcoin Core 0.13/0.14): `blockreconstructionextratxn`, `maxtimeadjustment`, `maxtipage`,
-`incrementalrelayfee`, `dustrelayfee`, `blockmintxfee`
+New cmd-line options:
+- introduced in Dash Core 0.12.3: `allowprivatenet`, `bip9params`, `sporkaddr`, `devnet`;
+- backported from Bitcoin Core 0.13/0.14: `blockreconstructionextratxn`, `maxtimeadjustment`, `maxtipage`,
+`incrementalrelayfee`, `dustrelayfee`, `blockmintxfee`.
 
 See `Help -> Command-line options` in Qt wallet or `dashd --help` for more info.
 
@@ -137,12 +139,19 @@ Lots of backports, refactoring and bug fixes
 --------------------------------------------
 
 We backported many performance improvements from Bitcoin Core and aligned most of our codebase with version 0.14.
-You can read more about corresponding changes in following documents:
-- [release-notes-0.13.0.md](https://github.com/bitcoin/bitcoin/blob/master/doc/release-notes/release-notes-0.13.0.md),
-- [release-notes-0.13.1.md](https://github.com/bitcoin/bitcoin/blob/master/doc/release-notes/release-notes-0.13.1.md),
-- [release-notes-0.13.2.md](https://github.com/bitcoin/bitcoin/blob/master/doc/release-notes/release-notes-0.13.2.md),
-- [release-notes-0.14.0.md](https://github.com/bitcoin/bitcoin/blob/master/doc/release-notes/release-notes-0.14.0.md),
-- [release-notes-0.14.1.md](https://github.com/bitcoin/bitcoin/blob/master/doc/release-notes/release-notes-0.14.1.md),
+Most notable ones besides various performance and stability imrovements probably are
+[Compact Block support (BIP 152)](https://github.com/bitcoin/bitcoin/blob/master/doc/release-notes/release-notes-0.13.0.md#compact-block-support-bip-152),
+[Mining transaction selection ("Child Pays For Parent")](https://github.com/bitcoin/bitcoin/blob/master/doc/release-notes/release-notes-0.13.0.md#mining-transaction-selection-child-pays-for-parent),
+[Null dummy soft fork](https://github.com/bitcoin/bitcoin/blob/master/doc/release-notes/release-notes-0.13.1.md#null-dummy-soft-fork),
+[Nested RPC Commands in Debug Console](https://github.com/bitcoin/bitcoin/blob/master/doc/release-notes/release-notes-0.14.0.md#nested-rpc-commands-in-debug-console) and
+[Support for JSON-RPC Named Arguments](https://github.com/bitcoin/bitcoin/blob/master/doc/release-notes/release-notes-0.14.0.md#support-for-json-rpc-named-arguments).
+
+You can read more about all changes in Bitcoin Core 0.13 and 0.14 in following documents:
+- [release-notes-0.13.0.md](https://github.com/bitcoin/bitcoin/blob/master/doc/release-notes/release-notes-0.13.0.md);
+- [release-notes-0.13.1.md](https://github.com/bitcoin/bitcoin/blob/master/doc/release-notes/release-notes-0.13.1.md);
+- [release-notes-0.13.2.md](https://github.com/bitcoin/bitcoin/blob/master/doc/release-notes/release-notes-0.13.2.md);
+- [release-notes-0.14.0.md](https://github.com/bitcoin/bitcoin/blob/master/doc/release-notes/release-notes-0.14.0.md);
+- [release-notes-0.14.1.md](https://github.com/bitcoin/bitcoin/blob/master/doc/release-notes/release-notes-0.14.1.md);
 - [release-notes-0.14.2.md](https://github.com/bitcoin/bitcoin/blob/master/doc/release-notes/release-notes-0.14.2.md).
 
 Note that some features were already backported earlier (per-UTXO fix, GUI overlay etc.) and some were not backported at all
