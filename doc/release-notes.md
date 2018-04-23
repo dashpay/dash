@@ -133,7 +133,11 @@ See `Help -> Command-line options` in Qt wallet or `dashd --help` for more info.
 New Masternode Information Dialog
 ---------------------------------
 
-TODO
+You can now double-click on your masternode in `My Masternodes` list on `Masternodes` tab to reveal the new
+Masternode Information dialog which shows some basic information as well as software versions reported by the
+masternode. There is also a QR code now which encodes corresponding masternode private key (the one you set with
+mnprivkey during MN setup and NOT the one that controls 1000 DASH) which should make the process of pairing with
+mobile software allowing you to vote with your masternode a bit easier (this software is still in development).
 
 Lots of backports, refactoring and bug fixes
 --------------------------------------------
