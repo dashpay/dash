@@ -46,11 +46,11 @@ Notable changes
 Introducing Named Devnets
 -------------------------
 
-We introduce new feature we call [Named Devnets](https://github.com/dashpay/dash/pull/1791).
+We introduce a new feature called [Named Devnets](https://github.com/dashpay/dash/pull/1791).
 This feature allows the creation of multiple independent devnets. Each one is
 identified by a name which is hardened into a "devnet genesis" block,
 which is automatically positioned at height 1. Validation rules will
-ensure that a node from `devnet=test1` never be able to accept blocks
+ensure that a node from `devnet=test1` will never be able to accept blocks
 from `devnet=test2`. This is done by checking the expected devnet genesis
 block.
 
@@ -64,10 +64,13 @@ If a node connects to the wrong network, it will immediately be disconnected.
 New format of network messsage signatures
 -----------------------------------------
 
-We introduce new signature format for Dash-specific network messages,
+We introduced a new signature format for Dash-specific network messages,
 read more [here](https://github.com/dashpay/dash/pull/1936) and [here](https://github.com/dashpay/dash/pull/1937).
-We also introduce new spork `SPORK_6_NEW_SIGS` which is going to be used to activate new format after network finishes the upgrade.
+We also introduced a new spork `SPORK_6_NEW_SIGS` which is going to be used to activate the new format after the network has finished the upgrade.
 Note that old pre-12.3 nodes won't be able to recognize and verify new signatures after `SPORK_6_NEW_SIGS` activates.
+
+The old format is partly kept in the code to keep backwards compatibility. This code will be removed in an upcoming
+release.
 
 Governance system improvements
 ------------------------------
@@ -77,15 +80,16 @@ into masternode pings. With this update we add some additional information and c
 to ensure that pings were not maleated by some intermediary node. All messages and logic related to watchdogs
 are completely removed now. We also improved proposal message format, as well as proposal validation and processing,
 which should lower network traffic and CPU usage. Handling of triggers was also improved slightly.
-`SPORK_13_OLD_SUPERBLOCK_FLAG` was not used already too and we are completely removing it now.
+
+`SPORK_13_OLD_SUPERBLOCK_FLAG` was removed now as it was unused since some time.
 
 PrivateSend improvements
 ------------------------
 
-PrivateSend collateral is no longer required to be N times of the PrivateSend fee, instead any input
+PrivateSend collaterals are no longer required to be N times of the PrivateSend fee, instead any input
 which is in the [1..N] range can be used as a collateral. Inputs that are in the [1..2) range will now
 be used in collaterals with OP_RETURN outputs which will allow such inputs to be completely consumed
-(previousely they were not used at all and instead were kept in wallet and global UTXO forever).
+(previousely they were not used at all and instead were kept in the wallet and global UTXO set forever).
 There are also some minor fixes which should slightly improve mixing process too.
 
 Additional indexes cover P2PK now
@@ -98,19 +102,19 @@ Support for pruned nodes in Lite Mode
 -------------------------------------
 
 It is now possible to run a pruned node which stores only some recent blocks and not the whole blockchain.
-However this option is only available in so called Lite Mode. In this mode no Dash specific feature are available
-for such node which means that node will NOT be able to fully validate blockchain (masternode payments and superblocks).
-PrivateSend and InstantSend functions are also disabled on such node. You can think of such node as of an SPV-like one
+However this option is only available in so called Lite Mode. In this mode, Dash specific features are disabled, meaning
+that such nodes won't fully validate the blockchain (masternode payments and superblocks).
+PrivateSend and InstantSend functions are also disabled on such nodes. Such nodes are comparable to SPV-like nodes
 in terms of security and validation - it relies a lot on surrounding nodes, so please keep this in mind if you decide to
 use it for something.
 
 RPC changes
 -----------
 
-There are few changes in existing RPC in this release:
-- `gobject count`, `masternode count` and `masternode list` return output in JSON format by default now.
-You can still specify additional param to get output in old format however (`all` for `count` and `status` for `list`).
-- `masternodelist` has few new modes: `daemon`, `json`, `sentinel`
+There are a few changes in existing RPC interfaces in this release:
+- `gobject count`, `masternode count` and `masternode list` will now by default return JSON formatted output.
+If you rely on the old output format, you can still specify an additional parameter for backwards compatibility (`all` for `count` and `status` for `list`).
+- `masternodelist` has a few new modes: `daemon`, `json`, `sentinel`
 - `debug` rpc now requires categories to be separated via `+`, not `,` like before (e.g. `dash+net`)
 
 There is also a new RPC command `listaddressbalances`.
@@ -134,19 +138,19 @@ New Masternode Information Dialog
 ---------------------------------
 
 You can now double-click on your masternode in `My Masternodes` list on `Masternodes` tab to reveal the new
-Masternode Information dialog which shows some basic information as well as software versions reported by the
+Masternode Information dialog. It will show you some basic information as well as software versions reported by the
 masternode. There is also a QR code now which encodes corresponding masternode private key (the one you set with
-mnprivkey during MN setup and NOT the one that controls 1000 DASH) which should make the process of pairing with
+mnprivkey during MN setup and NOT the one that controls the 1000 DASH collateral) which should make the process of pairing with
 mobile software allowing you to vote with your masternode a bit easier (this software is still in development).
 
 Lots of backports, refactoring and bug fixes
 --------------------------------------------
 
-We backported many performance improvements from Bitcoin Core and aligned most of our codebase with version 0.14.
+We backported many performance improvements and refactoring from Bitcoin Core and aligned most of our codebase with version 0.14.
 Most notable ones besides various performance and stability improvements probably are
 [Compact Block support (BIP 152)](https://github.com/bitcoin/bitcoin/blob/master/doc/release-notes/release-notes-0.13.0.md#compact-block-support-bip-152),
 [Mining transaction selection ("Child Pays For Parent")](https://github.com/bitcoin/bitcoin/blob/master/doc/release-notes/release-notes-0.13.0.md#mining-transaction-selection-child-pays-for-parent),
-[Null dummy soft fork](https://github.com/bitcoin/bitcoin/blob/master/doc/release-notes/release-notes-0.13.1.md#null-dummy-soft-fork),
+[Null dummy soft fork (BIP 147, without SegWit)](https://github.com/bitcoin/bitcoin/blob/master/doc/release-notes/release-notes-0.13.1.md#null-dummy-soft-fork),
 [Nested RPC Commands in Debug Console](https://github.com/bitcoin/bitcoin/blob/master/doc/release-notes/release-notes-0.14.0.md#nested-rpc-commands-in-debug-console) and
 [Support for JSON-RPC Named Arguments](https://github.com/bitcoin/bitcoin/blob/master/doc/release-notes/release-notes-0.14.0.md#support-for-json-rpc-named-arguments).
 
@@ -158,11 +162,11 @@ You can read more about all changes in Bitcoin Core 0.13 and 0.14 in following d
 - [release-notes-0.14.1.md](https://github.com/bitcoin/bitcoin/blob/master/doc/release-notes/release-notes-0.14.1.md);
 - [release-notes-0.14.2.md](https://github.com/bitcoin/bitcoin/blob/master/doc/release-notes/release-notes-0.14.2.md).
 
-Note that some features were already backported earlier (per-UTXO fix, GUI overlay etc.) and some were not backported at all
+Note that some features were already backported earlier (per-UTXO fix, -assumevalid, GUI overlay etc.) and some were not backported at all
 (SegWit and feefilter, you can read more about why we did so [here](https://blog.dash.org/segwit-lighting-rbf-in-dash-9536868ca861) and [here](https://github.com/dashpay/dash/pull/2025)).
-Alert system was also kept in place for now. We are going to continue backporting the most notable fixes and improvements from Bitcoin Core versions 0.15 and 0.16 in future releases.
+The alert system was also kept in place for now. We are going to continue backporting the most notable fixes and improvements from Bitcoin Core versions 0.15 and 0.16 in future releases.
 
-A lot of refactoring, code cleanup and other small fixes were done in this release again. We are going to continue making code more reliable and easier to review in future releases as well.
+A lot of refactoring, code cleanups and other small fixes were done in this release again. We are going to continue making code more reliable and easier to review in future releases as well.
 
 
 0.12.3 Change log
