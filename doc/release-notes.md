@@ -108,6 +108,12 @@ PrivateSend and InstantSend functions are also disabled on such nodes. Such node
 in terms of security and validation - it relies a lot on surrounding nodes, so please keep this in mind if you decide to
 use it for something.
 
+Default maximum block size
+--------------------------
+
+We've changed the default maximum block size to 2MB. Such blocks were already allowed before, but the default setting
+for the maximum block size (which only affects miners) was kept in place until this version.
+
 RPC changes
 -----------
 
@@ -116,6 +122,7 @@ There are a few changes in existing RPC interfaces in this release:
 If you rely on the old output format, you can still specify an additional parameter for backwards compatibility (`all` for `count` and `status` for `list`).
 - `masternodelist` has a few new modes: `daemon`, `json`, `sentinel`
 - `debug` rpc now requires categories to be separated via `+`, not `,` like before (e.g. `dash+net`)
+- `getchaintips` now shows the `forkpoint`
 
 There is also a new RPC command `listaddressbalances`.
 
@@ -142,6 +149,22 @@ Masternode Information dialog. It will show you some basic information as well a
 masternode. There is also a QR code now which encodes corresponding masternode private key (the one you set with
 mnprivkey during MN setup and NOT the one that controls the 1000 DASH collateral) which should make the process of pairing with
 mobile software allowing you to vote with your masternode a bit easier (this software is still in development).
+
+Testnet fixes
+-------------
+
+While we've been in release preparation, a miner used his ASICs on testnet. This resulted in too many blocks being mined
+in a too short time. It revealed a few corner-case bugs in validation and synchronisation rules which we have fixed now.
+We've also backported a special testnet rule for our difficulty adjustment algorithm that allows to mine a low difficulty
+block on testnet when the last block is older than 5 minutes. This and the other fixes should stabilize our testnet in
+case of future ASIC uses on testnet.
+
+Using masternode lists for initial peers discovery
+--------------------------------------------------
+
+We now use a recent masternode list to feed the hardcoded seed nodes list in Dash Core. This list was previously
+unmaintained as we fully relied on DNS based discovery on startup. DNS discovery is still used as the main discovery
+method, but the hardcoded seed list should now be able to serve as a proper backup in case DNS fails for some reason.
 
 Lots of backports, refactoring and bug fixes
 --------------------------------------------
