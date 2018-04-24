@@ -61,8 +61,8 @@ needed balances for masternodes very fast.
 Also, the devnet name is put into the sub-version of the `VERSION` message.
 If a node connects to the wrong network, it will immediately be disconnected.
 
-New format of network messsage signatures
------------------------------------------
+New format of network message signatures
+----------------------------------------
 
 We introduced a new signature format for Dash-specific network messages,
 read more [here](https://github.com/dashpay/dash/pull/1936) and [here](https://github.com/dashpay/dash/pull/1937).
@@ -75,10 +75,10 @@ release.
 Governance system improvements
 ------------------------------
 
-We are no longer using watchdogs already, instead we are including all required information about sentinel
-into masternode pings. With this update we add some additional information and cover everything with a signature
-to ensure that pings were not maleated by some intermediary node. All messages and logic related to watchdogs
-are completely removed now. We also improved proposal message format, as well as proposal validation and processing,
+We do not use watchdogs since 12.2.x, instead we include all required information about sentinel into masternode
+pings. With this update we add some additional information and cover everything with a signature to ensure that
+masternode ping wasn't maleated by some intermediary node. All messages and logic related to watchdogs are
+completely removed now. We also improved proposal message format, as well as proposal validation and processing,
 which should lower network traffic and CPU usage. Handling of triggers was also improved slightly.
 
 `SPORK_13_OLD_SUPERBLOCK_FLAG` was removed now as it was unused since some time.
@@ -86,11 +86,19 @@ which should lower network traffic and CPU usage. Handling of triggers was also 
 PrivateSend improvements
 ------------------------
 
-PrivateSend collaterals are no longer required to be N times of the PrivateSend fee, instead any input
-which is in the [1..N] range can be used as a collateral. Inputs that are in the [1..2) range will now
-be used in collaterals with OP_RETURN outputs which will allow such inputs to be completely consumed
-(previousely they were not used at all and instead were kept in the wallet and global UTXO set forever).
-There are also some minor fixes which should slightly improve mixing process too.
+PrivateSend collaterals are no longer required to be N times of the PrivateSend fee (PSF), instead any input
+which is greater or equal 1 PSF but less or equal 4 PSF can be used as a collateral. Inputs that are greater or
+equal 1 PSF but strictly less than 2 PSF will be used in collaterals with OP_RETURN outputs. Note that such
+inputs will be consumed copletely, with no change outputs at all. This should lower number of inputs wallet
+would need to take care of, improve privacy by eleminating the case where user accidentally merge small
+non-private inputs together and also decrease global UTXO set size.
+
+It might feel that thanks to this change mixing fees are going to be slightly higher on average if have lots of
+such small inputs. However, you need to keep in mind that creating new PrivateSend collaterals cost some fee too
+and since such small inputs were not used at all you'd need more txes to create such collaterals. So in general,
+we believe average mixing fees should stay mostly the same.
+
+There are also some other minor fixes which should also slightly improve mixing process.
 
 Additional indexes cover P2PK now
 ---------------------------------
@@ -122,7 +130,10 @@ There are a few changes in existing RPC interfaces in this release:
 If you rely on the old output format, you can still specify an additional parameter for backwards compatibility (`all` for `count` and `status` for `list`).
 - `masternodelist` has a few new modes: `daemon`, `json`, `sentinel`
 - `debug` rpc now requires categories to be separated via `+`, not `,` like before (e.g. `dash+net`)
-- `getchaintips` now shows the `forkpoint`
+- `getchaintips` now shows the block fork occured in `forkpoint` field
+- `getrawmempool`'s has InstantSend-related info (`instantsend` and `instantlock`)
+- `getgovernanceinfo` has new field `sentinelpingmaxseconds`
+- `getwalletinfo` now shows PrivateSend balance in `privatesend_balance` field
 
 There is also a new RPC command `listaddressbalances`.
 
