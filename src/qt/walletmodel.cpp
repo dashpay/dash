@@ -795,8 +795,17 @@ bool WalletModel::saveReceiveRequest(const std::string &sAddress, const int64_t 
 
 bool WalletModel::transactionCanBeAbandoned(uint256 hash) const
 {
-    return wallet->TransactionCanBeAbandoned(hash);
-}
+    CCoinControl coin_control;
+    coin_control.m_signal_bip125_rbf = true;
+    std::vector<std::string> errors;
+    CAmount old_fee;
+    CAmount new_fee;
+    CMutableTransaction mtx;
+    if (!m_wallet->createBumpTransaction(hash, coin_control, 0 /* totalFee */, errors, old_fee, new_fee, mtx)) {
+        QMessageBox::critical(0, tr("Fee bump error"), tr("Increasing transaction fee failed") + "<br />(" +
+            (errors.size() ? QString::fromStdString(errors[0]) : "") +")");
+         return false;
+    }
 
 bool WalletModel::abandonTransaction(uint256 hash) const
 {

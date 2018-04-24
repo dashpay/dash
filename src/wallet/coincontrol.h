@@ -37,12 +37,14 @@ public:
     bool fAllowWatchOnly;
     //! Override automatic min/max checks on fee, m_feerate must be set if true
     bool fOverrideFeeRate;
-    //! Override the default payTxFee if set
+    //! Override the wallet's m_pay_tx_fee if set
     boost::optional<CFeeRate> m_feerate;
     //! Override the discard feerate estimation with m_discard_feerate in CreateTransaction if set
     boost::optional<CFeeRate> m_discard_feerate;
     //! Override the default confirmation target if set
     boost::optional<unsigned int> m_confirm_target;
+    //! Override the wallet's m_signal_rbf if set
+    boost::optional<bool> m_signal_bip125_rbf;
     //! Fee estimation mode to control arguments to estimateSmartFee
     FeeEstimateMode m_fee_mode;
     //! Controls which types of coins are allowed to be used (default: ALL_COINS)
@@ -64,6 +66,7 @@ public:
         m_discard_feerate.reset();
         fOverrideFeeRate = false;
         m_confirm_target.reset();
+        m_signal_bip125_rbf.reset();
         m_fee_mode = FeeEstimateMode::UNSET;
         nCoinType = CoinType::ALL_COINS;
     }
