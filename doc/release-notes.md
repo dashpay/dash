@@ -209,6 +209,8 @@ A lot of refactoring, code cleanups and other small fixes were done in this rele
 See detailed [change log](https://github.com/dashpay/dash/compare/v0.12.2.3...dashpay:v0.12.3) below.
 
 ### Governance:
+- [`2583e1963`](https://github.com/dashpay/dash/commit/2583e1963) Test: Add few valid/invalid proposals (internationalization) (#2044)
+- [`25eb6d7b3`](https://github.com/dashpay/dash/commit/25eb6d7b3) clean up governance vote code (#2042)
 - [`a0874b72a`](https://github.com/dashpay/dash/commit/a0874b72a) Validate data size for proposals only (#2004)
 - [`15fac7c7e`](https://github.com/dashpay/dash/commit/15fac7c7e) Validate proposals for expiration (#2003)
 - [`a3bcc4307`](https://github.com/dashpay/dash/commit/a3bcc4307) Refactor governance (#1993)
@@ -320,6 +322,7 @@ See detailed [change log](https://github.com/dashpay/dash/compare/v0.12.2.3...da
 - [`3dc62106b`](https://github.com/dashpay/dash/commit/3dc62106b) [Docs] Doxygen config update (#1796)
 
 ### Other fixes and improvements:
+- [`8e24b087b`](https://github.com/dashpay/dash/commit/8e24b087b) replace boost iterators in dash-specific code (#2048)
 - [`7719b7ec2`](https://github.com/dashpay/dash/commit/7719b7ec2) Update BIP147 deployment times, nMinimumChainWork and defaultAssumeValid (#2030)
 - [`b07503f01`](https://github.com/dashpay/dash/commit/b07503f01) Some cleanup (mostly trivial) (#2038)
 - [`f8e5c5d56`](https://github.com/dashpay/dash/commit/f8e5c5d56) Simplify spork defaults by using a map (#2037)
