@@ -143,7 +143,7 @@ Lots of backports, refactoring and bug fixes
 --------------------------------------------
 
 We backported many performance improvements from Bitcoin Core and aligned most of our codebase with version 0.14.
-Most notable ones besides various performance and stability imrovements probably are
+Most notable ones besides various performance and stability improvements probably are
 [Compact Block support (BIP 152)](https://github.com/bitcoin/bitcoin/blob/master/doc/release-notes/release-notes-0.13.0.md#compact-block-support-bip-152),
 [Mining transaction selection ("Child Pays For Parent")](https://github.com/bitcoin/bitcoin/blob/master/doc/release-notes/release-notes-0.13.0.md#mining-transaction-selection-child-pays-for-parent),
 [Null dummy soft fork](https://github.com/bitcoin/bitcoin/blob/master/doc/release-notes/release-notes-0.13.1.md#null-dummy-soft-fork),
