@@ -15,6 +15,7 @@
 #include <qt/test/trafficgraphdatatests.h>
 
 #ifdef ENABLE_WALLET
+#include <qt/test/addressbooktests.h>
 #include <qt/test/paymentservertests.h>
 #include <qt/test/wallettests.h>
 #endif
@@ -99,6 +100,10 @@ int main(int argc, char *argv[])
 #ifdef ENABLE_WALLET
     WalletTests test5;
     if (QTest::qExec(&test5) != 0) {
+        fInvalid = true;
+    }
+    AddressBookTests test6;
+    if (QTest::qExec(&test6) != 0) {
         fInvalid = true;
     }
 #endif

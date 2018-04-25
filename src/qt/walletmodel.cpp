@@ -439,7 +439,9 @@ WalletModel::SendCoinsReturn WalletModel::sendCoins(WalletModelTransaction &tran
                 std::map<CTxDestination, CAddressBookData>::iterator mi = wallet->mapAddressBook.find(dest);
 
                 // Check if we have a new address or an updated label
-                if (mi == wallet->mapAddressBook.end())
+                std::string name;
+                if (!m_wallet->getAddress(
+                     dest, &name, /* is_mine= */ nullptr, /* purpose= */ nullptr))
                 {
                     wallet->SetAddressBook(dest, strLabel, "send");
                 }

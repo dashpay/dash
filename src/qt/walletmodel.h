@@ -229,9 +229,9 @@ public:
     int getDefaultConfirmTarget() const;
     int getNumISLocks() const;
 
-    int getRealOutpointPrivateSendRounds(const COutPoint& outpoint) const;
-    bool isFullyMixed(const COutPoint& outpoint) const;
+    bool isMultiwallet();
 
+    AddressTableModel* getAddressTableModel() const { return addressTableModel; }
 private:
     CWallet *wallet;
     bool fHaveWatchOnly;
