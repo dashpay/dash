@@ -89,8 +89,8 @@ PrivateSend improvements
 PrivateSend collaterals are no longer required to be N times of the PrivateSend fee (PSF), instead any input
 which is greater or equal 1 PSF but less or equal 4 PSF can be used as a collateral. Inputs that are greater or
 equal 1 PSF but strictly less than 2 PSF will be used in collaterals with OP_RETURN outputs. Note that such
-inputs will be consumed copletely, with no change outputs at all. This should lower number of inputs wallet
-would need to take care of, improve privacy by eleminating the case where user accidentally merge small
+inputs will be consumed completely, with no change outputs at all. This should lower number of inputs wallet
+would need to take care of, improve privacy by eliminating the case where user accidentally merge small
 non-private inputs together and also decrease global UTXO set size.
 
 It might feel that thanks to this change mixing fees are going to be slightly higher on average if have lots of
@@ -130,7 +130,7 @@ There are a few changes in existing RPC interfaces in this release:
 If you rely on the old output format, you can still specify an additional parameter for backwards compatibility (`all` for `count` and `status` for `list`).
 - `masternodelist` has a few new modes: `daemon`, `json`, `sentinel`
 - `debug` rpc now requires categories to be separated via `+`, not `,` like before (e.g. `dash+net`)
-- `getchaintips` now shows the block fork occured in `forkpoint` field
+- `getchaintips` now shows the block fork occurred in `forkpoint` field
 - `getrawmempool`'s has InstantSend-related info (`instantsend` and `instantlock`)
 - `getgovernanceinfo` has new field `sentinelpingmaxseconds`
 - `getwalletinfo` now shows PrivateSend balance in `privatesend_balance` field
