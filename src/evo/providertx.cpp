@@ -28,6 +28,9 @@ static bool CheckService(const uint256& proTxHash, const ProTx& proTx, const CBl
     if (Params().NetworkIDString() != CBaseChainParams::REGTEST && !proTx.addr.IsRoutable())
         return state.DoS(10, false, REJECT_INVALID, "bad-protx-addr");
 
+    if (!proTx.addr.IsIPv4())
+        return state.DoS(10, false, REJECT_INVALID, "bad-protx-addr");
+
     if (pindex) {
         auto mnList = deterministicMNManager->GetListAtHeight(pindex->nHeight - 1);
         for (const auto& dmn : mnList.all_range()) {
