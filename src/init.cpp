@@ -21,6 +21,7 @@
 #include <fs.h>
 #include <httpserver.h>
 #include <httprpc.h>
+#include <index/txindex.h>
 #include <key.h>
 #include <validation.h>
 #include <miner.h>
@@ -222,6 +223,9 @@ void Interrupt()
     llmq::InterruptLLMQSystem();
     if (g_connman)
         g_connman->Interrupt();
+    if (g_txindex) {
+        g_txindex->Interrupt();
+    }
 }
 
 /** Preparing steps before shutting down or restarting the wallet */
@@ -257,7 +261,11 @@ void PrepareShutdown()
     // using the other before destroying them.
     if (peerLogic) UnregisterValidationInterface(peerLogic.get());
     if (g_connman) g_connman->Stop();
-    // if (g_txindex) g_txindex->Stop(); //TODO watch out when backporting bitcoin#13033 (don't accidently put the reset here, as we've already backported bitcoin#13894)
+    peerLogic.reset();
+    g_connman.reset();
+    if (g_txindex) {
+        g_txindex.reset();
+    }
 
     // After everything has been shut down, but before things get flushed, stop the
     // CScheduler/checkqueue threadGroup
@@ -1823,9 +1831,10 @@ bool AppInitMain()
     int64_t nTotalCache = (gArgs.GetArg("-dbcache", nDefaultDbCache) << 20);
     nTotalCache = std::max(nTotalCache, nMinDbCache << 20); // total cache cannot be less than nMinDbCache
     nTotalCache = std::min(nTotalCache, nMaxDbCache << 20); // total cache cannot be greater than nMaxDbcache
-    int64_t nBlockTreeDBCache = nTotalCache / 8;
-    nBlockTreeDBCache = std::min(nBlockTreeDBCache, (gArgs.GetBoolArg("-txindex", DEFAULT_TXINDEX) ? nMaxBlockDBAndTxIndexCache : nMaxBlockDBCache) << 20);
+    int64_t nBlockTreeDBCache = std::min(nTotalCache / 8, nMaxBlockDBCache << 20);
     nTotalCache -= nBlockTreeDBCache;
+    int64_t nTxIndexCache = std::min(nTotalCache / 8, gArgs.GetBoolArg("-txindex", DEFAULT_TXINDEX) ? nMaxTxIndexCache << 20 : 0);
+    nTotalCache -= nTxIndexCache;
     int64_t nCoinDBCache = std::min(nTotalCache / 2, (nTotalCache / 4) + (1 << 23)); // use 25%-50% of the remainder for disk cache
     nCoinDBCache = std::min(nCoinDBCache, nMaxCoinsDBCache << 20); // cap total coins db cache
     nTotalCache -= nCoinDBCache;
@@ -1834,6 +1843,9 @@ bool AppInitMain()
     int64_t nEvoDbCache = 1024 * 1024 * 16; // TODO
     LogPrintf("Cache configuration:\n");
     LogPrintf("* Using %.1fMiB for block index database\n", nBlockTreeDBCache * (1.0 / 1024 / 1024));
+    if (gArgs.GetBoolArg("-txindex", DEFAULT_TXINDEX)) {
+        LogPrintf("* Using %.1fMiB for transaction index database\n", nTxIndexCache * (1.0 / 1024 / 1024));
+    }
     LogPrintf("* Using %.1fMiB for chain state database\n", nCoinDBCache * (1.0 / 1024 / 1024));
     LogPrintf("* Using %.1fMiB for in-memory UTXO set (plus up to %.1fMiB of unused mempool space)\n", nCoinCacheUsage * (1.0 / 1024 / 1024), nMempoolSizeMax * (1.0 / 1024 / 1024));
 
@@ -1875,9 +1887,8 @@ bool AppInitMain()
 
                 if (fRequestShutdown) break;
 
-                // LoadBlockIndex will load fTxIndex from the db, or set it if
-                // we're reindexing. It will also load fHavePruned if we've
-                // ever removed a block file from disk.
+                // LoadBlockIndex will load fHavePruned if we've ever removed a
+                // block file from disk.
                 // Note that it also sets fReindex based on the disk flag!
                 // From here on out fReindex and fReset mean something different!
                 if (!LoadBlockIndex(chainparams)) {
@@ -1894,33 +1905,6 @@ bool AppInitMain()
                 // (we're likely using a testnet datadir, or the other way around).
                 if (!mapBlockIndex.empty() && mapBlockIndex.count(chainparams.GetConsensus().hashGenesisBlock) == 0)
                     return InitError(_("Incorrect or no genesis block found. Wrong datadir for network?"));
-
-                if (!chainparams.GetConsensus().hashDevnetGenesisBlock.IsNull() && !mapBlockIndex.empty() && mapBlockIndex.count(chainparams.GetConsensus().hashDevnetGenesisBlock) == 0)
-                    return InitError(_("Incorrect or no devnet genesis block found. Wrong datadir for devnet specified?"));
-
-                // Check for changed -txindex state
-                if (fTxIndex != gArgs.GetBoolArg("-txindex", DEFAULT_TXINDEX)) {
-                    strLoadError = _("You need to rebuild the database using -reindex to change -txindex");
-                    break;
-                }
-
-                // Check for changed -addressindex state
-                if (fAddressIndex != gArgs.GetBoolArg("-addressindex", DEFAULT_ADDRESSINDEX)) {
-                    strLoadError = _("You need to rebuild the database using -reindex to change -addressindex");
-                    break;
-                }
-
-                // Check for changed -timestampindex state
-                if (fTimestampIndex != gArgs.GetBoolArg("-timestampindex", DEFAULT_TIMESTAMPINDEX)) {
-                    strLoadError = _("You need to rebuild the database using -reindex to change -timestampindex");
-                    break;
-                }
-
-                // Check for changed -spentindex state
-                if (fSpentIndex != gArgs.GetBoolArg("-spentindex", DEFAULT_SPENTINDEX)) {
-                    strLoadError = _("You need to rebuild the database using -reindex to change -spentindex");
-                    break;
-                }
 
                 // Check for changed -prune state.  What we are concerned about is a user who has pruned blocks
                 // in the past, but is now trying to run unpruned.
@@ -2054,18 +2038,17 @@ bool AppInitMain()
         ::feeEstimator.Read(est_filein);
     fFeeEstimatesInitialized = true;
 
-    // ********************************************************* Step 8: load wallet
-    if (!g_wallet_init_interface->Open()) return false;
-
-    // As InitLoadWallet can take several minutes, it's possible the user
-    // requested to kill the GUI during the last operation. If so, exit.
-    if (fRequestShutdown)
-    {
-        LogPrintf("Shutdown requested. Exiting.\n");
-        return false;
+    // ********************************************************* Step 8: start indexers
+    if (gArgs.GetBoolArg("-txindex", DEFAULT_TXINDEX)) {
+        auto txindex_db = MakeUnique<TxIndexDB>(nTxIndexCache, false, fReindex);
+        g_txindex = MakeUnique<TxIndex>(std::move(txindex_db));
+        g_txindex->Start();
     }
 
-    // ********************************************************* Step 9: data directory maintenance
+    // ********************************************************* Step 9: load wallet
+    if (!g_wallet_init_interface.Open()) return false;
+
+    // ********************************************************* Step 10: data directory maintenance
 
     // if pruning, unset the service bit and perform the initial blockstore prune
     // after any wallet rescanning has taken place.
@@ -2086,22 +2069,7 @@ bool AppInitMain()
         return false;
     }
 
-    // ********************************************************* Step 10a: Prepare Masternode related stuff
-    fMasternodeMode = false;
-    std::string strMasterNodeBLSPrivKey = gArgs.GetArg("-masternodeblsprivkey", "");
-    if (!strMasterNodeBLSPrivKey.empty()) {
-        auto binKey = ParseHex(strMasterNodeBLSPrivKey);
-        CBLSSecretKey keyOperator;
-        keyOperator.SetBuf(binKey);
-        if (!keyOperator.IsValid()) {
-            return InitError(_("Invalid masternodeblsprivkey. Please see documentation."));
-        }
-        fMasternodeMode = true;
-        activeMasternodeInfo.blsKeyOperator = std::make_unique<CBLSSecretKey>(keyOperator);
-        activeMasternodeInfo.blsPubKeyOperator = std::make_unique<CBLSPublicKey>(activeMasternodeInfo.blsKeyOperator->GetPublicKey());
-        LogPrintf("MASTERNODE:\n");
-        LogPrintf("  blsPubKeyOperator: %s\n", keyOperator.GetPublicKey().ToString());
-    }
+    // ********************************************************* Step 11: import blocks
 
     if(fMasternodeMode) {
         // Create and register activeMasternodeManager, will init later in ThreadImport

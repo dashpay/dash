@@ -166,6 +166,7 @@ BITCOIN_CORE_H = \
   fs.h \
   httprpc.h \
   httpserver.h \
+  index/txindex.h \
   indirectmap.h \
   init.h \
   key.h \
@@ -294,6 +295,7 @@ libdash_server_a_SOURCES = \
   evo/specialtx.cpp \
   httprpc.cpp \
   httpserver.cpp \
+  index/txindex.cpp \
   init.cpp \
   dbwrapper.cpp \
   governance/governance.cpp \
