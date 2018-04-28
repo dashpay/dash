@@ -8,7 +8,7 @@
 #include "key.h"
 #include "validation.h"
 #include "spork.h"
-
+#include "clientversion.h"
 class CMasternode;
 class CMasternodeBroadcast;
 class CConnman;
@@ -29,7 +29,7 @@ static const int MASTERNODE_POSE_BAN_MAX_SCORE          = 5;
 // sentinel version before implementation of nSentinelVersion in CMasternodePing
 #define DEFAULT_SENTINEL_VERSION 0x010001
 // daemon version before implementation of nDaemonVersion in CMasternodePing
-#define DEFAULT_DAEMON_VERSION 120200
+#define DEFAULT_DAEMON_VERSION CLIENT_VERSION
 
 class CMasternodePing
 {
