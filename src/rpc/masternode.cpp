@@ -145,7 +145,7 @@ UniValue masternode(const JSONRPCRequest& request)
                 "  check        - Force check all masternodes and remove invalid ones\n"
                 "  count        - Get information about number of masternodes (DEPRECATED options: 'total', 'ps', 'enabled', 'qualify', 'all')\n"
                 "  current      - Print info on current masternode winner to be paid the next block (calculated locally)\n"
-                "  genkey       - Generate new masternodeprivkey\n"
+                "  genkey       - Generate new masternodeprivkey (optional param: boolean, optional, default=false) generate compressed privkey\n"
 #ifdef ENABLE_WALLET
                 "  outputs      - Print masternode compatible outputs\n"
                 "  start-alias  - Start single remote masternode by assigned alias configured in masternode.conf\n"
@@ -375,8 +375,13 @@ UniValue masternode(const JSONRPCRequest& request)
 
     if (strCommand == "genkey")
     {
+        bool fCompressed = false;
+        if (request.params.size() > 1) {
+            fCompressed = (request.params[1].get_str() == "true");
+        }
+
         CKey secret;
-        secret.MakeNewKey(false);
+        secret.MakeNewKey(fCompressed);
 
         return CBitcoinSecret(secret).ToString();
     }
