@@ -290,6 +290,7 @@ See detailed [change log](https://github.com/dashpay/dash/compare/v0.12.2.3...da
 - [`fa2549986`](https://github.com/dashpay/dash/commit/fa2549986) Swap iterations and fUseInstantSend parameters in ApproximateBestSubset (#1819)
 
 ### RPC:
+- [`6ab1fd763`](https://github.com/dashpay/dash/commit/6ab1fd763) RPC: Add description for InstantSend-related fields of mempool entry (#2050)
 - [`138441eb8`](https://github.com/dashpay/dash/commit/138441eb8) Add `forkpoint` to `getchaintips` (#2039)
 - [`9b17f2b9c`](https://github.com/dashpay/dash/commit/9b17f2b9c) Convert `gobject count` output to json (by default) (#1994)
 - [`4b128b1b9`](https://github.com/dashpay/dash/commit/4b128b1b9) Fix listaddressbalances (#1987)
@@ -322,6 +323,7 @@ See detailed [change log](https://github.com/dashpay/dash/compare/v0.12.2.3...da
 - [`3dc62106b`](https://github.com/dashpay/dash/commit/3dc62106b) [Docs] Doxygen config update (#1796)
 
 ### Other fixes and improvements:
+- [`741b94875`](https://github.com/dashpay/dash/commit/741b94875) Translations201804 (#2012)
 - [`8e24b087b`](https://github.com/dashpay/dash/commit/8e24b087b) replace boost iterators in dash-specific code (#2048)
 - [`7719b7ec2`](https://github.com/dashpay/dash/commit/7719b7ec2) Update BIP147 deployment times, nMinimumChainWork and defaultAssumeValid (#2030)
 - [`b07503f01`](https://github.com/dashpay/dash/commit/b07503f01) Some cleanup (mostly trivial) (#2038)
