@@ -398,21 +398,30 @@ UniValue getdifficulty(const JSONRPCRequest& request)
 
 std::string EntryDescriptionString()
 {
-    return "    \"size\" : n,                 (numeric) transaction size in bytes\n"
-           "    \"fee\" : n,                  (numeric) transaction fee in " + CURRENCY_UNIT + "\n"
-           "    \"modifiedfee\" : n,          (numeric) transaction fee with fee deltas used for mining priority\n"
-           "    \"time\" : n,                 (numeric) local time transaction entered pool in seconds since 1 Jan 1970 GMT\n"
-           "    \"height\" : n,               (numeric) block height when transaction entered pool\n"
-           "    \"descendantcount\" : n,      (numeric) number of in-mempool descendant transactions (including this one)\n"
-           "    \"descendantsize\" : n,       (numeric) size of in-mempool descendants (including this one)\n"
-           "    \"descendantfees\" : n,       (numeric) modified fees (see above) of in-mempool descendants (including this one)\n"
-           "    \"ancestorcount\" : n,        (numeric) number of in-mempool ancestor transactions (including this one)\n"
-           "    \"ancestorsize\" : n,         (numeric) size of in-mempool ancestors (including this one)\n"
-           "    \"ancestorfees\" : n,         (numeric) modified fees (see above) of in-mempool ancestors (including this one)\n"
-           "    \"depends\" : [               (array) unconfirmed transactions used as inputs for this transaction\n"
-           "        \"transactionid\",        (string) parent transaction id\n"
-           "       ... ],\n"
-           "    \"instantlock\" : true|false  (boolean) True if this transaction was locked via InstantSend\n";
+    return "    \"size\" : n,             (numeric) virtual transaction size as defined in BIP 141. This is different from actual serialized size for witness transactions as witness data is discounted.\n"
+           "    \"fee\" : n,              (numeric) transaction fee in " + CURRENCY_UNIT + " (DEPRECATED)\n"
+           "    \"modifiedfee\" : n,      (numeric) transaction fee with fee deltas used for mining priority (DEPRECATED)\n"
+           "    \"time\" : n,             (numeric) local time transaction entered pool in seconds since 1 Jan 1970 GMT\n"
+           "    \"height\" : n,           (numeric) block height when transaction entered pool\n"
+           "    \"descendantcount\" : n,  (numeric) number of in-mempool descendant transactions (including this one)\n"
+           "    \"descendantsize\" : n,   (numeric) virtual transaction size of in-mempool descendants (including this one)\n"
+           "    \"descendantfees\" : n,   (numeric) modified fees (see above) of in-mempool descendants (including this one) (DEPRECATED)\n"
+           "    \"ancestorcount\" : n,    (numeric) number of in-mempool ancestor transactions (including this one)\n"
+           "    \"ancestorsize\" : n,     (numeric) virtual transaction size of in-mempool ancestors (including this one)\n"
+           "    \"ancestorfees\" : n,     (numeric) modified fees (see above) of in-mempool ancestors (including this one) (DEPRECATED)\n"
+           "    \"wtxid\" : hash,         (string) hash of serialized transaction, including witness data\n"
+           "    \"fees\" : {\n"
+           "        \"base\" : n,         (numeric) transaction fee in " + CURRENCY_UNIT + "\n"
+           "        \"modified\" : n,     (numeric) transaction fee with fee deltas used for mining priority in " + CURRENCY_UNIT + "\n"
+           "        \"ancestor\" : n,     (numeric) modified fees (see above) of in-mempool ancestors (including this one) in " + CURRENCY_UNIT + "\n"
+           "        \"descendant\" : n,   (numeric) modified fees (see above) of in-mempool descendants (including this one) in " + CURRENCY_UNIT + "\n"
+           "    }\n"
+           "    \"depends\" : [           (array) unconfirmed transactions used as inputs for this transaction\n"
+           "        \"transactionid\",    (string) parent transaction id\n"
+           "       ... ]\n"
+           "    \"spentby\" : [           (array) unconfirmed transactions spending outputs from this transaction\n"
+           "        \"transactionid\",    (string) child transaction id\n"
+           "       ... ]\n";
 }
 
 void entryToJSON(UniValue &info, const CTxMemPoolEntry &e)
