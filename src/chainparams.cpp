@@ -45,7 +45,7 @@ static CBlock CreateDevNetGenesisBlock(const uint256 &prevBlockHash, const std::
     assert(!devNetName.empty());
 
     CMutableTransaction txNew;
-    txNew.nVersion = 2;
+    txNew.nVersion = 1;
     txNew.vin.resize(1);
     txNew.vout.resize(1);
     // put height (BIP34) and devnet name into coinbase
