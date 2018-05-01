@@ -9,6 +9,7 @@ from test_framework.util import (
     assert_equal,
     connect_nodes,
     disconnect_nodes,
+    sync_blocks,
 )
 
 class TxnMallTest(BitcoinTestFramework):
@@ -26,8 +27,13 @@ class TxnMallTest(BitcoinTestFramework):
         disconnect_nodes(self.nodes[2], 1)
 
     def run_test(self):
-        # All nodes should start with 12,500 DASH:
-        starting_balance = 12500
+        if self.options.segwit:
+            output_type = "p2sh-segwit"
+        else:
+            output_type = "legacy"
+
+        # All nodes should start with 1,250 BTC:
+        starting_balance = 1250
         for i in range(4):
             assert_equal(self.nodes[i].getbalance(), starting_balance)
             self.nodes[i].getnewaddress()  # bug workaround, coins generated assigned to first getnewaddress!
@@ -49,8 +55,8 @@ class TxnMallTest(BitcoinTestFramework):
         node1_address = self.nodes[1].getnewaddress()
 
         # Send tx1, and another transaction tx2 that won't be cloned
-        txid1 = self.nodes[0].sendtoaddress(node1_address, 400)
-        txid2 = self.nodes[0].sendtoaddress(node1_address, 200)
+        txid1 = self.nodes[0].sendfrom("foo", node1_address, 40, 0)
+        txid2 = self.nodes[0].sendfrom("bar", node1_address, 20, 0)
 
         # Construct a clone of tx1, to be malleated
         rawtx1 = self.nodes[0].getrawtransaction(txid1, 1)
@@ -62,11 +68,11 @@ class TxnMallTest(BitcoinTestFramework):
 
         # createrawtransaction randomizes the order of its outputs, so swap them if necessary.
         # output 0 is at version+#inputs+input+sigstub+sequence+#outputs
-        # 400 DASH serialized is 00902f5009000000
+        # 40 BTC serialized is 00286bee00000000
         pos0 = 2 * (4 + 1 + 36 + 1 + 4 + 1)
-        hex400 = "00902f5009000000"
+        hex40 = "00286bee00000000"
         output_len = 16 + 2 + 2 * int("0x" + clone_raw[pos0 + 16:pos0 + 16 + 2], 0)
-        if (rawtx1["vout"][0]["value"] == 400 and clone_raw[pos0:pos0 + 16] != hex400 or rawtx1["vout"][0]["value"] != 400 and clone_raw[pos0:pos0 + 16] == hex400):
+        if (rawtx1["vout"][0]["value"] == 40 and clone_raw[pos0:pos0 + 16] != hex40 or rawtx1["vout"][0]["value"] != 40 and clone_raw[pos0:pos0 + 16] == hex40):
             output0 = clone_raw[pos0:pos0 + output_len]
             output1 = clone_raw[pos0 + output_len:pos0 + 2 * output_len]
             clone_raw = clone_raw[:pos0] + output1 + output0 + clone_raw[pos0 + 2 * output_len:]
@@ -125,10 +131,23 @@ class TxnMallTest(BitcoinTestFramework):
 
         # Check node0's total balance; should be same as before the clone, + 1000 DASH for 2 matured,
         # less possible orphaned matured subsidy
-        expected += 1000
+        expected += 100
         if (self.options.mine_block):
-            expected -= 500
+            expected -= 50
         assert_equal(self.nodes[0].getbalance(), expected)
+        assert_equal(self.nodes[0].getbalance("*", 0), expected)
+
+        # Check node0's individual account balances.
+        # "foo" should have been debited by the equivalent clone of tx1
+        assert_equal(self.nodes[0].getbalance("foo"), 1219 + tx1["amount"] + tx1["fee"])
+        # "bar" should have been debited by (possibly unconfirmed) tx2
+        assert_equal(self.nodes[0].getbalance("bar", 0), 29 + tx2["amount"] + tx2["fee"])
+        # "" should have starting balance, less funding txes, plus subsidies
+        assert_equal(self.nodes[0].getbalance("", 0),
+                     starting_balance - 1219 + fund_foo_tx["fee"] - 29 + fund_bar_tx["fee"] + 100)
+
+        # Node1's "from0" account balance
+        assert_equal(self.nodes[1].getbalance("from0", 0), -(tx1["amount"] + tx2["amount"]))
 
 if __name__ == '__main__':
     TxnMallTest().main()

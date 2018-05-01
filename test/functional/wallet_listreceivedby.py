@@ -57,13 +57,13 @@ class ReceivedByTest(BitcoinTestFramework):
         # Test Address filtering
         # Only on addr
         expected = {"address": addr, "label": "", "amount": Decimal("0.1"), "confirmations": 10, "txids": [txid, ]}
-        res = self.nodes[1].listreceivedbyaddress(minconf=0, addlocked=False, include_empty=True, include_watchonly=True, address_filter=addr)
+        res = self.nodes[1].listreceivedbyaddress(minconf=0, include_empty=True, include_watchonly=True, address_filter=addr)
         assert_array_result(res, {"address": addr}, expected)
         assert_equal(len(res), 1)
         # Error on invalid address
-        assert_raises_rpc_error(-4, "address_filter parameter was invalid", self.nodes[1].listreceivedbyaddress, minconf=0, addlocked=True, include_empty=True, include_watchonly=True, address_filter="bamboozling")
+        assert_raises_rpc_error(-4, "address_filter parameter was invalid", self.nodes[1].listreceivedbyaddress, minconf=0, include_empty=True, include_watchonly=True, address_filter="bamboozling")
         # Another address receive money
-        res = self.nodes[1].listreceivedbyaddress(0, True, True, True)
+        res = self.nodes[1].listreceivedbyaddress(0, True, True)
         assert_equal(len(res), 2)  # Right now 2 entries
         other_addr = self.nodes[1].getnewaddress()
         txid2 = self.nodes[0].sendtoaddress(other_addr, 0.1)
@@ -71,21 +71,21 @@ class ReceivedByTest(BitcoinTestFramework):
         self.sync_all()
         # Same test as above should still pass
         expected = {"address": addr, "label": "", "amount": Decimal("0.1"), "confirmations": 11, "txids": [txid, ]}
-        res = self.nodes[1].listreceivedbyaddress(0, True, True, True, addr)
+        res = self.nodes[1].listreceivedbyaddress(0, True, True, addr)
         assert_array_result(res, {"address": addr}, expected)
         assert_equal(len(res), 1)
         # Same test as above but with other_addr should still pass
         expected = {"address": other_addr, "label": "", "amount": Decimal("0.1"), "confirmations": 1, "txids": [txid2, ]}
-        res = self.nodes[1].listreceivedbyaddress(0, True, True, True, other_addr)
+        res = self.nodes[1].listreceivedbyaddress(0, True, True, other_addr)
         assert_array_result(res, {"address": other_addr}, expected)
         assert_equal(len(res), 1)
         # Should be two entries though without filter
-        res = self.nodes[1].listreceivedbyaddress(0, True, True, True)
+        res = self.nodes[1].listreceivedbyaddress(0, True, True)
         assert_equal(len(res), 3)  # Became 3 entries
 
         # Not on random addr
         other_addr = self.nodes[0].getnewaddress()  # note on node[0]! just a random addr
-        res = self.nodes[1].listreceivedbyaddress(0, True, True, True, other_addr)
+        res = self.nodes[1].listreceivedbyaddress(0, True, True, other_addr)
         assert_equal(len(res), 0)
 
         self.log.info("getreceivedbyaddress Test")
@@ -115,9 +115,8 @@ class ReceivedByTest(BitcoinTestFramework):
         self.log.info("listreceivedbylabel + getreceivedbylabel Test")
 
         # set pre-state
-        label = ''
         address = self.nodes[1].getnewaddress()
-        assert_equal(self.nodes[1].getaddressinfo(address)['label'], label)
+        label = self.nodes[1].getaccount(address)
         received_by_label_json = [r for r in self.nodes[1].listreceivedbylabel() if r["label"] == label][0]
         balance_by_label = self.nodes[1].getreceivedbylabel(label)
 
