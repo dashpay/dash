@@ -98,6 +98,9 @@ namespace BCLog {
 
         std::string LogTimestampStr(const std::string& str);
         std::string LogThreadNameStr(const std::string &str);
+        /** std::atomic<uint32_t> m_categories{0};
+
+         std::string LogTimestampStr(const std::string& str); */
 
     public:
         bool m_print_to_console = false;
@@ -111,7 +114,7 @@ namespace BCLog {
         std::atomic<bool> m_reopen_file{false};
 
         /** Send a string to the log output */
-        void LogPrintStr(const std::string &str);
+        int LogPrintStr(const std::string &str);
 
         /** Returns whether logs will be written to any output */
         bool Enabled() const { return m_print_to_console || m_print_to_file; }
@@ -120,6 +123,7 @@ namespace BCLog {
         void ShrinkDebugFile();
 
         uint64_t GetCategoryMask() const { return m_categories.load(); }
+       /** uint32_t GetCategoryMask() const { return m_categories.load(); } */
 
         void EnableCategory(LogFlags flag);
         bool EnableCategory(const std::string& str);
@@ -202,6 +206,6 @@ template<typename T, typename... Args> static inline void MarkUsed(const T& t, c
         LogPrintf(__VA_ARGS__); \
     } \
 } while(0)
-#endif // USE_COVERAGE
+#endif
 
 #endif // BITCOIN_LOGGING_H

@@ -247,15 +247,11 @@ std::string BCLog::Logger::LogThreadNameStr(const std::string &str)
     return strThreadLogged;
 }
 
-void BCLog::Logger::LogPrintStr(const std::string &str)
+int BCLog::Logger::LogPrintStr(const std::string &str)
 {
-    std::string strThreadLogged = LogThreadNameStr(str);
-    std::string strTimestamped = LogTimestampStr(strThreadLogged);
+    int ret = 0; // Returns total number of characters written
 
-    if (!str.empty() && str[str.size()-1] == '\n')
-        m_started_new_line = true;
-    else
-        m_started_new_line = false;
+    std::string strTimestamped = LogTimestampStr(str);
 
     if (m_print_to_console) {
         // print to console
@@ -267,6 +263,7 @@ void BCLog::Logger::LogPrintStr(const std::string &str)
 
         // buffer if we haven't opened the log yet
         if (m_fileout == nullptr) {
+            ret = strTimestamped.length();
             m_msgs_before_open.push_back(strTimestamped);
         }
         else
@@ -274,14 +271,11 @@ void BCLog::Logger::LogPrintStr(const std::string &str)
             // reopen the log file, if requested
             if (m_reopen_file) {
                 m_reopen_file = false;
-                m_fileout = fsbridge::freopen(m_file_path, "a", m_fileout);
-                if (!m_fileout) {
-                    return;
-                }
-                setbuf(m_fileout, nullptr); // unbuffered
+                if (fsbridge::freopen(m_file_path,"a",m_fileout) != nullptr)
+                    setbuf(m_fileout, nullptr); // unbuffered
             }
 
-            FileWriteStr(strTimestamped, m_fileout);
+            ret = FileWriteStr(strTimestamped, m_fileout);
         }
     }
 }

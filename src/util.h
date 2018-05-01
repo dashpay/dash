@@ -88,6 +88,7 @@ template<typename... Args>
 bool error(const char* fmt, const Args&... args)
 {
     LogPrintf("ERROR: %s\n", SafeStringFormat(fmt, args...));
+    LogPrintf("ERROR: %s\n", tfm::format(fmt, args...));
     return false;
 }
 
