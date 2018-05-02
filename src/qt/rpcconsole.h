@@ -160,18 +160,19 @@ private:
 
     };
 
-    Ui::RPCConsole *ui;
-    QButtonGroup pageButtons;
-    ClientModel *clientModel;
+    interfaces::Node& m_node;
+    Ui::RPCConsole* const ui;
+    ClientModel *clientModel = nullptr;
     QStringList history;
-    int historyPtr;
+    int historyPtr = 0;
     QString cmdBeforeBrowsing;
     QList<NodeId> cachedNodeids;
-    RPCTimerInterface *rpcTimerInterface;
-    QMenu *peersTableContextMenu;
-    QMenu *banTableContextMenu;
-    int consoleFontSize;
-    QCompleter *autoCompleter;
+    const PlatformStyle* const platformStyle;
+    RPCTimerInterface *rpcTimerInterface = nullptr;
+    QMenu *peersTableContextMenu = nullptr;
+    QMenu *banTableContextMenu = nullptr;
+    int consoleFontSize = 0;
+    QCompleter *autoCompleter = nullptr;
     QThread thread;
 
     /** Update UI with latest network info from model. */

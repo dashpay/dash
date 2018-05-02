@@ -445,11 +445,7 @@ void RPCExecutor::request(const QString &command)
 RPCConsole::RPCConsole(QWidget* parent, Qt::WindowFlags flags) :
     QWidget(parent, flags),
     ui(new Ui::RPCConsole),
-    clientModel(0),
-    historyPtr(0),
-    peersTableContextMenu(0),
-    banTableContextMenu(0),
-    consoleFontSize(0)
+    platformStyle(_platformStyle)
 {
     ui->setupUi(this);
 
