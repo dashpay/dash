@@ -160,7 +160,14 @@ UniValue getnewaddress(const JSONRPCRequest& request)
     if (!request.params[0].isNull())
         strAccount = AccountFromValue(request.params[0]);
 
-    if (!pwallet->IsLocked(true)) {
+    OutputType output_type = pwallet->m_default_address_type;
+    if (!request.params[1].isNull()) {
+        if (!ParseOutputType(request.params[1].get_str(), output_type)) {
+            throw JSONRPCError(RPC_INVALID_ADDRESS_OR_KEY, strprintf("Unknown address type '%s'", request.params[1].get_str()));
+        }
+    }
+
+    if (!pwallet->IsLocked()) {
         pwallet->TopUpKeyPool();
     }
 
@@ -244,6 +251,13 @@ UniValue getrawchangeaddress(const JSONRPCRequest& request)
 
     if (!pwallet->IsLocked(true)) {
         pwallet->TopUpKeyPool();
+    }
+
+    OutputType output_type = pwallet->m_default_change_type != OutputType::CHANGE_AUTO ? pwallet->m_default_change_type : pwallet->m_default_address_type;
+    if (!request.params[0].isNull()) {
+        if (!ParseOutputType(request.params[0].get_str(), output_type)) {
+            throw JSONRPCError(RPC_INVALID_ADDRESS_OR_KEY, strprintf("Unknown address type '%s'", request.params[0].get_str()));
+        }
     }
 
     CReserveKey reservekey(pwallet);
@@ -1266,6 +1280,13 @@ UniValue addmultisigaddress(const JSONRPCRequest& request)
             pubkeys.push_back(HexToPubKey(keys_or_addrs[i].get_str()));
         } else {
             pubkeys.push_back(AddrToPubKey(pwallet, keys_or_addrs[i].get_str()));
+        }
+    }
+
+    OutputType output_type = pwallet->m_default_address_type;
+    if (!request.params[3].isNull()) {
+        if (!ParseOutputType(request.params[3].get_str(), output_type)) {
+            throw JSONRPCError(RPC_INVALID_ADDRESS_OR_KEY, strprintf("Unknown address type '%s'", request.params[3].get_str()));
         }
     }
 
@@ -3313,6 +3334,16 @@ UniValue fundrawtransaction(const JSONRPCRequest& request)
 
         if (options.exists("changePosition"))
             changePosition = options["changePosition"].get_int();
+
+        if (options.exists("change_type")) {
+            if (options.exists("changeAddress")) {
+                throw JSONRPCError(RPC_INVALID_PARAMETER, "Cannot specify both changeAddress and address_type options");
+            }
+            coinControl.m_change_type = pwallet->m_default_change_type;
+            if (!ParseOutputType(options["change_type"].get_str(), *coinControl.m_change_type)) {
+                throw JSONRPCError(RPC_INVALID_ADDRESS_OR_KEY, strprintf("Unknown change type '%s'", options["change_type"].get_str()));
+            }
+        }
 
         if (options.exists("includeWatching"))
             coinControl.fAllowWatchOnly = options["includeWatching"].get_bool();
