@@ -133,6 +133,7 @@ bool CInstantSend::ProcessTxLockRequest(const CTxLockRequest& txLockRequest, CCo
     // If this just happened - process orphan votes, lock inputs, resolve conflicting locks,
     // update transaction status forcing external script/zmq notifications.
     ProcessOrphanTxLockVotes();
+
     std::map<uint256, CTxLockCandidate>::iterator itLockCandidate = mapTxLockCandidates.find(txHash);
     TryToFinalizeLockCandidate(itLockCandidate->second);
 
@@ -189,23 +190,15 @@ void CInstantSend::CreateEmptyTxLockCandidate(const uint256& txHash)
 void CInstantSend::Vote(const uint256& txHash, CConnman& connman)
 {
     AssertLockHeld(cs_main);
-#ifdef ENABLE_WALLET
-    LOCK(pwalletMain ? &pwalletMain->cs_wallet : NULL);
-#endif
 
-    CTxLockRequest dummyRequest;
-    CTxLockCandidate txLockCandidate(dummyRequest);
-    {
-        LOCK(cs_instantsend);
-        auto itLockCandidate = mapTxLockCandidates.find(txHash);
-        if (itLockCandidate == mapTxLockCandidates.end()) return;
-        txLockCandidate = itLockCandidate->second;
-        Vote(txLockCandidate, connman);
-    }
+    LOCK(cs_instantsend);
 
+    std::map<uint256, CTxLockCandidate>::iterator itLockCandidate = mapTxLockCandidates.find(txHash);
+    if (itLockCandidate == mapTxLockCandidates.end()) return;
+    Vote(itLockCandidate->second, connman);
     // Let's see if our vote changed smth
-    LOCK2(mempool.cs, cs_instantsend);
-    TryToFinalizeLockCandidate(txLockCandidate);
+    TryToFinalizeLockCandidate(itLockCandidate->second);
+
 }
 
 void CInstantSend::Vote(CTxLockCandidate& txLockCandidate, CConnman& connman)

@@ -43,6 +43,7 @@ PROJECT_NAME           = "Dash Core"
 
 PROJECT_NUMBER         = 0.12.3.0
 
+
 # Using the PROJECT_BRIEF tag one can provide an optional one line description
 # for a project that appears at the top of each page and should give viewer a
 # quick idea about the purpose of the project. Keep the description short.
