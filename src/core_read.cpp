@@ -87,7 +87,8 @@ CScript ParseScript(const std::string& s)
     return result;
 }
 
-bool DecodeHexTx(CMutableTransaction& tx, const std::string& strHexTx)
+// Check that all of the input and output scripts of a transaction contains valid opcodes
+static bool CheckTxScriptsSanity(const CMutableTransaction& tx)
 {
     if (!IsHex(strHexTx))
         return false;

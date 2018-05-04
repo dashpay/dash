@@ -39,203 +39,7 @@
 
 #include <univalue.h>
 
-UniValue debug(const JSONRPCRequest& request)
-{
-    if (request.fHelp || request.params.size() != 1)
-        throw std::runtime_error(
-            "debug \"category\"\n"
-            "Change debug category on the fly. Specify single category or use '+' to specify many.\n"
-            "The valid debug categories are: " + ListLogCategories() + ".\n"
-            "libevent logging is configured on startup and cannot be modified by this RPC during runtime.\n"
-            "There are also a few meta-categories:\n"
-            " - \"all\", \"1\" and \"\" activate all categories at once;\n"
-            " - \"dash\" activates all Dash-specific categories at once;\n"
-            " - \"none\" (or \"0\") deactivates all categories at once.\n"
-            "Note: If specified category doesn't match any of the above, no error is thrown.\n"
-            "\nArguments:\n"
-            "1. \"category\"          (string, required) The name of the debug category to turn on.\n"
-            "\nResult:\n"
-            "  result               (string) \"Debug mode: \" followed by the specified category.\n"
-            "\nExamples:\n"
-            + HelpExampleCli("debug", "dash")
-            + HelpExampleRpc("debug", "dash+net")
-        );
-
-    std::string strMode = request.params[0].get_str();
-    logCategories = BCLog::NONE;
-
-    std::vector<std::string> categories;
-    boost::split(categories, strMode, boost::is_any_of("+"));
-
-    if (std::find(categories.begin(), categories.end(), std::string("0")) == categories.end()) {
-        for (const auto& cat : categories) {
-            uint64_t flag;
-            if (GetLogCategory(&flag, &cat)) {
-                logCategories |= flag;
-            }
-        }
-    }
-
-    return "Debug mode: " + ListActiveLogCategoriesString();
-}
-
-UniValue mnsync(const JSONRPCRequest& request)
-{
-    if (request.fHelp || request.params.size() != 1)
-        throw std::runtime_error(
-            "mnsync [status|next|reset]\n"
-            "Returns the sync status, updates to the next step or resets it entirely.\n"
-        );
-
-    std::string strMode = request.params[0].get_str();
-
-    if(strMode == "status") {
-        UniValue objStatus(UniValue::VOBJ);
-        objStatus.push_back(Pair("AssetID", masternodeSync.GetAssetID()));
-        objStatus.push_back(Pair("AssetName", masternodeSync.GetAssetName()));
-        objStatus.push_back(Pair("AssetStartTime", masternodeSync.GetAssetStartTime()));
-        objStatus.push_back(Pair("Attempt", masternodeSync.GetAttempt()));
-        objStatus.push_back(Pair("IsBlockchainSynced", masternodeSync.IsBlockchainSynced()));
-        objStatus.push_back(Pair("IsSynced", masternodeSync.IsSynced()));
-        return objStatus;
-    }
-
-    if(strMode == "next")
-    {
-        masternodeSync.SwitchToNextAsset(*g_connman);
-        return "sync updated to " + masternodeSync.GetAssetName();
-    }
-
-    if(strMode == "reset")
-    {
-        masternodeSync.Reset(true);
-        return "success";
-    }
-    return "failure";
-}
-
-#ifdef ENABLE_WALLET
-class DescribeAddressVisitor : public boost::static_visitor<UniValue>
-{
-public:
-    CWallet * const pwallet;
-
-    explicit DescribeAddressVisitor(CWallet *_pwallet) : pwallet(_pwallet) {}
-
-    UniValue operator()(const CNoDestination &dest) const { return UniValue(UniValue::VOBJ); }
-
-    UniValue operator()(const CKeyID &keyID) const {
-        UniValue obj(UniValue::VOBJ);
-        CPubKey vchPubKey;
-        obj.push_back(Pair("isscript", false));
-        if (pwallet && pwallet->GetPubKey(keyID, vchPubKey)) {
-            obj.push_back(Pair("pubkey", HexStr(vchPubKey)));
-            obj.push_back(Pair("iscompressed", vchPubKey.IsCompressed()));
-        }
-        return obj;
-    }
-
-    UniValue operator()(const CScriptID &scriptID) const {
-        UniValue obj(UniValue::VOBJ);
-        CScript subscript;
-        obj.push_back(Pair("isscript", true));
-        if (pwallet && pwallet->GetCScript(scriptID, subscript)) {
-            std::vector<CTxDestination> addresses;
-            txnouttype whichType;
-            int nRequired;
-            ExtractDestinations(subscript, whichType, addresses, nRequired);
-            obj.push_back(Pair("script", GetTxnOutputType(whichType)));
-            obj.push_back(Pair("hex", HexStr(subscript.begin(), subscript.end())));
-            UniValue a(UniValue::VARR);
-            for (const CTxDestination& addr : addresses) {
-                a.push_back(EncodeDestination(addr));
-            }
-            obj.push_back(Pair("addresses", a));
-            if (whichType == TX_MULTISIG)
-                obj.push_back(Pair("sigsrequired", nRequired));
-        }
-        return obj;
-    }
-};
-#endif
-
-/*
-    Used for updating/reading spork settings on the network
-*/
-UniValue spork(const JSONRPCRequest& request)
-{
-    if (request.params.size() == 1) {
-        // basic mode, show info
-        std:: string strCommand = request.params[0].get_str();
-        if (strCommand == "show") {
-            UniValue ret(UniValue::VOBJ);
-            for (const auto& sporkDef : sporkDefs) {
-                ret.push_back(Pair(sporkDef.name, sporkManager.GetSporkValue(sporkDef.sporkId)));
-            }
-            return ret;
-        } else if(strCommand == "active"){
-            UniValue ret(UniValue::VOBJ);
-            for (const auto& sporkDef : sporkDefs) {
-                ret.push_back(Pair(sporkDef.name, sporkManager.IsSporkActive(sporkDef.sporkId)));
-            }
-            return ret;
-        }
-    }
-
-    if (request.fHelp || request.params.size() != 2) {
-        // default help, for basic mode
-        throw std::runtime_error(
-            "spork \"command\"\n"
-            "\nShows information about current state of sporks\n"
-            "\nArguments:\n"
-            "1. \"command\"                     (string, required) 'show' to show all current spork values, 'active' to show which sporks are active\n"
-            "\nResult:\n"
-            "For 'show':\n"
-            "{\n"
-            "  \"SPORK_NAME\" : spork_value,    (number) The value of the specific spork with the name SPORK_NAME\n"
-            "  ...\n"
-            "}\n"
-            "For 'active':\n"
-            "{\n"
-            "  \"SPORK_NAME\" : true|false,     (boolean) 'true' for time-based sporks if spork is active and 'false' otherwise\n"
-            "  ...\n"
-            "}\n"
-            "\nExamples:\n"
-            + HelpExampleCli("spork", "show")
-            + HelpExampleRpc("spork", "\"show\""));
-    } else {
-        // advanced mode, update spork values
-        SporkId nSporkID = sporkManager.GetSporkIDByName(request.params[0].get_str());
-        if(nSporkID == SPORK_INVALID)
-            throw JSONRPCError(RPC_INVALID_PARAMETER, "Invalid spork name");
-
-        if (!g_connman)
-            throw JSONRPCError(RPC_CLIENT_P2P_DISABLED, "Error: Peer-to-peer functionality missing or disabled");
-
-        // SPORK VALUE
-        int64_t nValue = request.params[1].get_int64();
-
-        //broadcast new spork
-        if(sporkManager.UpdateSpork(nSporkID, nValue, *g_connman)){
-            return "success";
-        } else {
-            throw std::runtime_error(
-                "spork \"name\" value\n"
-                "\nUpdate the value of the specific spork. Requires \"-sporkkey\" to be set to sign the message.\n"
-                "\nArguments:\n"
-                "1. \"name\"              (string, required) The name of the spork to update\n"
-                "2. value               (number, required) The new desired value of the spork\n"
-                "\nResult:\n"
-                "  result               (string) \"success\" if spork value was updated or this help otherwise\n"
-                "\nExamples:\n"
-                + HelpExampleCli("spork", "SPORK_2_INSTANTSEND_ENABLED 4070908800")
-                + HelpExampleRpc("spork", "\"SPORK_2_INSTANTSEND_ENABLED\", 4070908800"));
-        }
-    }
-
-}
-
-UniValue validateaddress(const JSONRPCRequest& request)
+static UniValue validateaddress(const JSONRPCRequest& request)
 {
     if (request.fHelp || request.params.size() != 1)
         throw std::runtime_error(
@@ -334,7 +138,7 @@ UniValue validateaddress(const JSONRPCRequest& request)
 // Needed even with !ENABLE_WALLET, to pass (ignored) pointers around
 class CWallet;
 
-UniValue createmultisig(const JSONRPCRequest& request)
+static UniValue createmultisig(const JSONRPCRequest& request)
 {
     if (request.fHelp || request.params.size() < 2 || request.params.size() > 2)
     {
@@ -399,7 +203,7 @@ UniValue createmultisig(const JSONRPCRequest& request)
     return result;
 }
 
-UniValue verifymessage(const JSONRPCRequest& request)
+static UniValue verifymessage(const JSONRPCRequest& request)
 {
     if (request.fHelp || request.params.size() != 3)
         throw std::runtime_error(
@@ -455,7 +259,7 @@ UniValue verifymessage(const JSONRPCRequest& request)
     return (pubkey.GetID() == *keyID);
 }
 
-UniValue signmessagewithprivkey(const JSONRPCRequest& request)
+static UniValue signmessagewithprivkey(const JSONRPCRequest& request)
 {
     if (request.fHelp || request.params.size() != 2)
         throw std::runtime_error(
@@ -497,7 +301,7 @@ UniValue signmessagewithprivkey(const JSONRPCRequest& request)
     return EncodeBase64(vchSig.data(), vchSig.size());
 }
 
-UniValue setmocktime(const JSONRPCRequest& request)
+static UniValue setmocktime(const JSONRPCRequest& request)
 {
     if (request.fHelp || request.params.size() != 1)
         throw std::runtime_error(
@@ -1038,7 +842,7 @@ static std::string RPCMallocInfo()
 }
 #endif
 
-UniValue getmemoryinfo(const JSONRPCRequest& request)
+static UniValue getmemoryinfo(const JSONRPCRequest& request)
 {
     /* Please, avoid using the word "pool" here in the RPC interface or help,
      * as users will undoubtedly confuse it with the other "memory pool"
@@ -1085,7 +889,7 @@ UniValue getmemoryinfo(const JSONRPCRequest& request)
     }
 }
 
-void EnableOrDisableLogCategories(UniValue cats, bool enable) {
+static void EnableOrDisableLogCategories(UniValue cats, bool enable) {
     cats = cats.get_array();
     for (unsigned int i = 0; i < cats.size(); ++i) {
         std::string cat = cats[i].get_str();
@@ -1174,7 +978,7 @@ UniValue logging(const JSONRPCRequest& request)
     return result;
 }
 
-UniValue echo(const JSONRPCRequest& request)
+static UniValue echo(const JSONRPCRequest& request)
 {
     if (request.fHelp)
         throw std::runtime_error(
