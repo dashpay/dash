@@ -537,12 +537,12 @@ void CMasternodeBlockPayees::AddPayee(const CMasternodePaymentVote& vote)
     uint256 nVoteHash = vote.GetHash();
 
     for (auto& payee : vecPayees) {
-        if (payee.GetPayee() == vote.payee) {
+        if (payee.GetPayee() == vote.payee && payee.GetPayeeOutputIndex() == vote.masternodeOutpoint.n) {
             payee.AddVoteHash(nVoteHash);
             return;
         }
     }
-    CMasternodePayee payeeNew(vote.payee, nVoteHash);
+    CMasternodePayee payeeNew(vote.payee, nVoteHash, vote.masternodeOutpoint.n);
     vecPayees.push_back(payeeNew);
 }
 
@@ -566,12 +566,12 @@ bool CMasternodeBlockPayees::GetBestPayee(CScript& payeeRet) const
     return (nVotes > -1);
 }
 
-bool CMasternodeBlockPayees::HasPayeeWithVotes(const CScript& payeeIn, int nVotesReq) const
+bool CMasternodeBlockPayees::HasPayeeWithVotes(const CScript& payeeIn, int nVotesReq, int nOutputIndex) const
 {
     LOCK(cs_vecPayees);
 
     for (const auto& payee : vecPayees) {
-        if (payee.GetVoteCount() >= nVotesReq && payee.GetPayee() == payeeIn) {
+        if (payee.GetVoteCount() >= nVotesReq && payee.GetPayee() == payeeIn && payee.GetPayeeOutputIndex() == nOutputIndex) {
             return true;
         }
     }
@@ -640,7 +640,7 @@ std::string CMasternodeBlockPayees::GetRequiredPaymentsString() const
         if (!strRequiredPayments.empty())
             strRequiredPayments += ", ";
 
-        strRequiredPayments += strprintf("%s:%d", address2.ToString(), payee.GetVoteCount());
+        strRequiredPayments += strprintf("%s-%d:%d", address2.ToString(), payee.GetPayeeOutputIndex(), payee.GetVoteCount());
     }
 
     if (strRequiredPayments.empty())
