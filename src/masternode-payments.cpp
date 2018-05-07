@@ -357,7 +357,9 @@ void CMasternodePayments::ProcessMessage(CNode* pfrom, const std::string& strCom
             return;
         }
 
-        
+         // Ignore any payments messages until masternode list is synced
+        if(!masternodeSync.IsMasternodeListSynced()) return;
+
 
         masternode_info_t mnInfo;
         if(!mnodeman.GetMasternodeInfo(vote.masternodeOutpoint, mnInfo)) {
@@ -385,9 +387,7 @@ void CMasternodePayments::ProcessMessage(CNode* pfrom, const std::string& strCom
             // so just quit here.
             return;
         }
-        // Ignore any payments messages until masternode list is synced
-        if(!masternodeSync.IsMasternodeListSynced()) return;
-
+  
         {
             LOCK(cs_mapMasternodePaymentVotes);
 
