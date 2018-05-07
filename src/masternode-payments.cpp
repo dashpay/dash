@@ -351,8 +351,8 @@ void CMasternodePayments::ProcessMessage(CNode* pfrom, const std::string& strCom
 
             auto res = mapMasternodePaymentVotes.emplace(nHash, vote);
 
-            // Avoid processing same vote multiple times
-            if(!res.second) {
+            // Avoid processing same vote multiple times if it was already verified earlier
+            if(!res.second && res.first->second.IsVerified()) {
                 LogPrint("mnpayments", "MASTERNODEPAYMENTVOTE -- hash=%s, nBlockHeight=%d/%d seen\n",
                             nHash.ToString(), vote.nBlockHeight, nCachedBlockHeight);
                 return;
