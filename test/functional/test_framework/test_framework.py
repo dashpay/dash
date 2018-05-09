@@ -119,7 +119,7 @@ class BitcoinTestFramework(metaclass=BitcoinTestMetaClass):
         parser.add_option("--nocleanup", dest="nocleanup", default=False, action="store_true",
                           help="Leave dashds and test.* datadir on exit or error")
         parser.add_option("--noshutdown", dest="noshutdown", default=False, action="store_true",
-                          help="Don't stop dashds after the test execution")
+                          help="Don't stop bitcoinds after the test execution")
         parser.add_option("--cachedir", dest="cachedir", default=os.path.abspath(os.path.dirname(os.path.realpath(__file__)) + "/../../cache"),
                           help="Directory for caching pregenerated datadirs (default: %default)")
         parser.add_option("--tmpdir", dest="tmpdir", help="Root directory for datadirs")
@@ -148,10 +148,6 @@ class BitcoinTestFramework(metaclass=BitcoinTestMetaClass):
         if self.options.timeout_scale < 1:
             raise RuntimeError("--timeoutscale can't be less than 1")
 
-        set_timeout_scale(self.options.timeout_scale)
-
-        PortSeed.n = self.options.port_seed
-
         check_json_precision()
 
         self.options.cachedir = os.path.abspath(self.options.cachedir)
@@ -162,6 +158,10 @@ class BitcoinTestFramework(metaclass=BitcoinTestMetaClass):
         self.options.bitcoincli = os.getenv("BITCOINCLI", default=config["environment"]["BUILDDIR"] + '/src/dash-cli' + config["environment"]["EXEEXT"])
 
         self.extra_args_from_options = self.options.dashd_extra_args
+
+        os.environ['PATH'] = config['environment']['BUILDDIR'] + os.pathsep + \
+                             config['environment']['BUILDDIR'] + os.path.sep + "qt" + os.pathsep + \
+                             os.environ['PATH']
 
         os.environ['PATH'] = config['environment']['BUILDDIR'] + os.pathsep + \
                              config['environment']['BUILDDIR'] + os.path.sep + "qt" + os.pathsep + \
