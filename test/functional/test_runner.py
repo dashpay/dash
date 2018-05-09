@@ -327,8 +327,7 @@ def run_tests(*, test_list, src_dir, build_dir, exeext, tmpdir, jobs=1, enable_c
 
     tests_dir = src_dir + '/test/functional/'
 
-    flags = ["--srcdir={}/src".format(build_dir)] + args
-    flags.append("--cachedir=%s" % cache_dir)
+    flags = ['--cachedir={}'.format(cache_dir)] + args
 
     if enable_coverage:
         coverage = RPCCoverage()
