@@ -275,6 +275,23 @@ inline bool IsSwitchChar(char c)
 #endif
 }
 
+enum class OptionsCategory
+{
+    OPTIONS,
+    CONNECTION,
+    WALLET,
+    WALLET_DEBUG_TEST,
+    ZMQ,
+    DEBUG_TEST,
+    CHAINPARAMS,
+    NODE_RELAY,
+    BLOCK_CREATION,
+    RPC,
+    GUI,
+    COMMANDS,
+    REGISTER_COMMANDS
+};
+
 class ArgsManager
 {
 protected:
@@ -285,6 +302,7 @@ protected:
     std::map<std::string, std::vector<std::string>> m_config_args;
     std::string m_network;
     std::set<std::string> m_network_only_args;
+    std::map<std::pair<OptionsCategory, std::string>, std::pair<std::string, bool>> m_available_args;
 
     void ReadConfigStream(std::istream& stream);
 
@@ -389,11 +407,14 @@ public:
     std::string GetChainName() const;
 
     /**
-     * Looks for -devnet and returns either "devnet-<name>" or simply "devnet" if no name was specified.
-     * This function should never be called for non-devnets.
-     * @return either "devnet-<name>" or "devnet"; raises runtime error if no -devent was specified.
+     * Add argument
      */
-    std::string GetDevNetName() const;
+    void AddArg(const std::string& name, const std::string& help, const bool debug_only, const OptionsCategory& cat);
+
+    /**
+     * Get the help string
+     */
+    std::string GetHelpMessage();
 };
 
 extern ArgsManager gArgs;
