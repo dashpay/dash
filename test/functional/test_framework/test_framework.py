@@ -278,7 +278,7 @@ class BitcoinTestFramework(metaclass=BitcoinTestMetaClass):
         assert_equal(len(binary), num_nodes)
         old_num_nodes = len(self.nodes)
         for i in range(num_nodes):
-            self.nodes.append(TestNode(old_num_nodes + i, self.options.tmpdir, extra_args[i], self.extra_args_from_options, rpchost, timewait=timewait, binary=binary[i], stderr=stderr, mocktime=self.mocktime, coverage_dir=self.options.coveragedir, use_cli=self.options.usecli))
+            self.nodes.append(TestNode(i, get_datadir_path(self.options.tmpdir, i), rpchost=rpchost, timewait=timewait, bitcoind=binary[i], bitcoin_cli=self.options.bitcoincli, mocktime=self.mocktime, coverage_dir=self.options.coveragedir, extra_conf=extra_confs[i], extra_args=extra_args[i], use_cli=self.options.usecli))
 
     def start_node(self, i, *args, **kwargs):
         """Start a dashd"""
@@ -311,9 +311,9 @@ class BitcoinTestFramework(metaclass=BitcoinTestMetaClass):
             for node in self.nodes:
                 coverage.write_all_rpc_commands(self.options.coveragedir, node.rpc)
 
-    def stop_node(self, i, wait=0):
-        """Stop a dashd test node"""
-        self.nodes[i].stop_node(wait=wait)
+    def stop_node(self, i, expected_stderr=''):
+        """Stop a bitcoind test node"""
+        self.nodes[i].stop_node(expected_stderr)
         self.nodes[i].wait_until_stopped()
 
     def stop_nodes(self, wait=0):
@@ -468,9 +468,7 @@ class BitcoinTestFramework(metaclass=BitcoinTestMetaClass):
                 args = [os.getenv("DASHD", "dashd"), "-server", "-keypool=1", "-datadir=" + datadir, "-discover=0", "-mocktime="+str(GENESISTIME)]
                 if i > 0:
                     args.append("-connect=127.0.0.1:" + str(p2p_port(0)))
-                if extra_args is not None:
-                    args.extend(extra_args)
-                self.nodes.append(TestNode(i, self.options.cachedir, extra_args=[], extra_args_from_options=self.extra_args_from_options, rpchost=None, timewait=None, binary=None, stderr=stderr, mocktime=self.mocktime, coverage_dir=None))
+                self.nodes.append(TestNode(i, get_datadir_path(self.options.cachedir, i), extra_conf=["bind=127.0.0.1"], extra_args=[], rpchost=None, timewait=None, bitcoind=self.options.bitcoind, bitcoin_cli=self.options.bitcoincli, mocktime=self.mocktime, coverage_dir=None))
                 self.nodes[i].args = args
                 self.start_node(i)
 
