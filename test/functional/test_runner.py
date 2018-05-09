@@ -143,6 +143,7 @@ BASE_SCRIPTS = [
     'p2p_fingerprint.py',
     'feature_uacomment.py',
     'p2p_unrequested_blocks.py',
+    'feature_includeconf.py',
     'feature_logging.py',
     'node_network_limited.py',
     'conf_args.py',
