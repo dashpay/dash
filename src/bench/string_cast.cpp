@@ -9,6 +9,13 @@
 #include <boost/lexical_cast.hpp>
 #include <string>
 
+template <typename T>
+std::string NumberToString(T Number){
+    std::ostringstream oss;
+    oss << Number;
+    return oss.str();
+}
+
 static void int_atoi(benchmark::State& state)
 {
     while (state.KeepRunning())
@@ -33,6 +40,13 @@ static void strings_1_lexical_cast(benchmark::State& state)
     int i{0};
     while (state.KeepRunning())
         boost::lexical_cast<std::string>(++i);
+}
+
+static void strings_1_numberToString(benchmark::State& state)
+{
+    int i{0};
+    while (state.KeepRunning())
+        NumberToString(++i);
 }
 
 static void strings_1_to_string(benchmark::State& state)
@@ -64,6 +78,15 @@ static void strings_2_multi_lexical_cast(benchmark::State& state)
     }
 }
 
+static void strings_2_multi_numberToString(benchmark::State& state)
+{
+    int i{0};
+    while (state.KeepRunning()) {
+        NumberToString(i) + NumberToString(i+1) + NumberToString(i+2) + NumberToString(i+3) + NumberToString(i+4);
+        ++i;
+    }
+}
+
 static void strings_2_multi_to_string(benchmark::State& state)
 {
     int i{0};
@@ -86,8 +109,10 @@ BENCHMARK(int_atoi);
 BENCHMARK(int_lexical_cast);
 BENCHMARK(strings_1_itostr);
 BENCHMARK(strings_1_lexical_cast);
+BENCHMARK(strings_1_numberToString);
 BENCHMARK(strings_1_to_string);
 BENCHMARK(strings_2_multi_itostr);
 BENCHMARK(strings_2_multi_lexical_cast);
+BENCHMARK(strings_2_multi_numberToString);
 BENCHMARK(strings_2_multi_to_string);
 BENCHMARK(strings_2_strptintf);
