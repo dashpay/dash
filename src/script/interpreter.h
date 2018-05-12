@@ -95,6 +95,14 @@ enum
     // Signature(s) must be empty vector if an CHECK(MULTI)SIG operation failed
     //
     SCRIPT_VERIFY_NULLFAIL = (1U << 14),
+
+    // Public keys in segregated witness scripts must be compressed
+    //
+    SCRIPT_VERIFY_WITNESS_PUBKEYTYPE = (1U << 15),
+
+    // Making OP_CODESEPARATOR and FindAndDelete fail any non-segwit scripts
+    //
+    SCRIPT_VERIFY_CONST_SCRIPTCODE = (1U << 16),
 };
 
 bool CheckSignatureEncoding(const std::vector<unsigned char> &vchSig, unsigned int flags, ScriptError* serror);

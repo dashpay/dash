@@ -71,6 +71,24 @@ const char* ScriptErrorString(const ScriptError serror)
             return "Public key is neither compressed or uncompressed";
         case SCRIPT_ERR_CLEANSTACK:
             return "Extra items left on stack after execution";
+        case SCRIPT_ERR_WITNESS_PROGRAM_WRONG_LENGTH:
+            return "Witness program has incorrect length";
+        case SCRIPT_ERR_WITNESS_PROGRAM_WITNESS_EMPTY:
+            return "Witness program was passed an empty witness";
+        case SCRIPT_ERR_WITNESS_PROGRAM_MISMATCH:
+            return "Witness program hash mismatch";
+        case SCRIPT_ERR_WITNESS_MALLEATED:
+            return "Witness requires empty scriptSig";
+        case SCRIPT_ERR_WITNESS_MALLEATED_P2SH:
+            return "Witness requires only-redeemscript scriptSig";
+        case SCRIPT_ERR_WITNESS_UNEXPECTED:
+            return "Witness provided for non-witness script";
+        case SCRIPT_ERR_WITNESS_PUBKEYTYPE:
+            return "Using non-compressed keys in segwit";
+        case SCRIPT_ERR_OP_CODESEPARATOR:
+            return "Using OP_CODESEPARATOR in non-witness script";
+        case SCRIPT_ERR_SIG_FINDANDDELETE:
+            return "Signature is found in scriptCode";
         case SCRIPT_ERR_UNKNOWN_ERROR:
         case SCRIPT_ERR_ERROR_COUNT:
         default: break;
