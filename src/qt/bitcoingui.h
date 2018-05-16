@@ -91,7 +91,8 @@ private:
     UnitDisplayStatusBarControl *unitDisplayControl;
     QLabel *labelWalletEncryptionIcon;
     QLabel *labelWalletHDStatusIcon;
-    QLabel *labelConnectionsIcon;
+    QLabel *labelProxyIcon;
+    QLabel *connectionsControl;
     QLabel *labelBlocksIcon;
     QLabel *progressBarLabel;
     QProgressBar *progressBar;
@@ -244,6 +245,10 @@ public Q_SLOTS:
     void incomingTransaction(const QString& date, int unit, const CAmount& amount, const QString& type, const QString& address, const QString& label);
     void showIncomingTransactions();
 #endif // ENABLE_WALLET
+
+private:
+    /** Set the proxy-enabled icon as shown in the UI. */
+    void updateProxyIcon();
 
 private Q_SLOTS:
 #ifdef ENABLE_WALLET

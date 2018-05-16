@@ -16,6 +16,7 @@
 #include <clientversion.h>
 #include <validation.h>
 #include <net.h>
+#include <netbase.h>
 #include <txmempool.h>
 #include <ui_interface.h>
 #include <util.h>
@@ -397,4 +398,14 @@ void ClientModel::unsubscribeFromCoreSignals()
     uiInterface.NotifyHeaderTip.disconnect(boost::bind(BlockTipChanged, this, _1, _2, true));
     uiInterface.NotifyMasternodeListChanged.disconnect(boost::bind(NotifyMasternodeListChanged, this, _1));
     uiInterface.NotifyAdditionalDataSyncProgressChanged.disconnect(boost::bind(NotifyAdditionalDataSyncProgressChanged, this, _1));
+}
+
+bool ClientModel::getProxyInfo(std::string& ip_port) const
+{
+    proxyType ipv4, ipv6;
+    if (m_node.getProxy((Network) 1, ipv4) && m_node.getProxy((Network) 2, ipv6)) {
+      ip_port = ipv4.proxy.ToStringIPPort();
+      return true;
+    }
+    return false;
 }
