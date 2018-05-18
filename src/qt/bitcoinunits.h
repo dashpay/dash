@@ -57,10 +57,10 @@ public:
      */
     enum Unit
     {
-        DASH,
-        mDASH,
-        uDASH,
-        duffs
+        BTC,
+        mBTC,
+        uBTC,
+        SAT
     };
 
     enum SeparatorStyle
