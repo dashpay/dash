@@ -1375,11 +1375,12 @@ static void RelayAddress(const CAddress& addr, bool fReachable, CConnman* connma
     connman->ForEachNodeThen(std::move(sortfunc), std::move(pushfunc));
 }
 
-void static ProcessGetBlockData(CNode* pfrom, const Consensus::Params& consensusParams, const CInv& inv, CConnman* connman, const std::atomic<bool>& interruptMsgProc)
+void static ProcessGetBlockData(CNode* pfrom, const CChainParams& chainparams, const CInv& inv, CConnman* connman, const std::atomic<bool>& interruptMsgProc)
 {
     bool send = false;
     std::shared_ptr<const CBlock> a_recent_block;
     std::shared_ptr<const CBlockHeaderAndShortTxIDs> a_recent_compact_block;
+    const Consensus::Params& consensusParams = chainparams.GetConsensus();
     {
         LOCK(cs_most_recent_block);
         a_recent_block = most_recent_block;
@@ -1451,8 +1452,10 @@ void static ProcessGetBlockData(CNode* pfrom, const Consensus::Params& consensus
                 assert(!"cannot load block from disk");
             pblock = pblockRead;
         }
-        if (inv.type == MSG_BLOCK)
-            connman->PushMessage(pfrom, msgMaker.Make(NetMsgType::BLOCK, *pblock));
+        if (pblock) {
+            if (inv.type == MSG_BLOCK)
+                connman->PushMessage(pfrom, msgMaker.Make(NetMsgType::BLOCK, *pblock));
+        }
         else if (inv.type == MSG_FILTERED_BLOCK)
         {
             bool sendMerkleBlock = false;
@@ -1493,7 +1496,7 @@ void static ProcessGetBlockData(CNode* pfrom, const Consensus::Params& consensus
                     connman->PushMessage(pfrom, msgMaker.Make(NetMsgType::CMPCTBLOCK, cmpctblock));
                 }
             } else {
-                connman->PushMessage(pfrom, msgMaker.Make(NetMsgType::BLOCK, *pblock));
+                connman->PushMessage(pfrom, msgMaker.Make(NetMsgType::BLOCK, *pblock));}
             }
         }
 
@@ -1511,7 +1514,7 @@ void static ProcessGetBlockData(CNode* pfrom, const Consensus::Params& consensus
     }
 }
 
-void static ProcessGetData(CNode* pfrom, const Consensus::Params& consensusParams, CConnman* connman, const std::atomic<bool>& interruptMsgProc)
+void static ProcessGetData(CNode* pfrom, const CChainParams& chainparams, CConnman* connman, const std::atomic<bool>& interruptMsgProc)
 {
     AssertLockNotHeld(cs_main);
 
@@ -1681,7 +1684,7 @@ void static ProcessGetData(CNode* pfrom, const Consensus::Params& consensusParam
         const CInv &inv = *it;
         if (inv.type == MSG_BLOCK || inv.type == MSG_FILTERED_BLOCK || inv.type == MSG_CMPCT_BLOCK) {
             it++;
-            ProcessGetBlockData(pfrom, consensusParams, inv, connman, interruptMsgProc);
+            ProcessGetBlockData(pfrom, chainparams, inv, connman, interruptMsgProc);
         }
     }
 
@@ -2520,7 +2523,7 @@ bool static ProcessMessage(CNode* pfrom, const std::string& strCommand, CDataStr
         }
 
         pfrom->vRecvGetData.insert(pfrom->vRecvGetData.end(), vInv.begin(), vInv.end());
-        ProcessGetData(pfrom, chainparams.GetConsensus(), connman, interruptMsgProc);
+        ProcessGetData(pfrom, chainparams, connman, interruptMsgProc);
         return true;
     }
 
@@ -3542,7 +3545,7 @@ bool PeerLogicValidation::ProcessMessages(CNode* pfrom, std::atomic<bool>& inter
     fRetDidWork = false;
 
     if (!pfrom->vRecvGetData.empty()) {
-        ProcessGetData(pfrom, chainparams.GetConsensus(), connman, interruptMsgProc);
+        ProcessGetData(pfrom, chainparams, connman, interruptMsgProc);
         fRetDidWork = true;
     }
 
