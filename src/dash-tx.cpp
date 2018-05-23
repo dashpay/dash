@@ -509,8 +509,8 @@ static void MutateTxSign(CMutableTransaction& tx, const std::string& flagStr)
 
     // mergedTx will end up with all the signatures; it
     // starts as a clone of the raw tx:
-    CMutableTransaction mergedTx(txVariants[0]);
-    bool fComplete = true;
+    CMutableTransaction mergedTx{tx};
+    const CMutableTransaction txv{tx};
     CCoinsView viewDummy;
     CCoinsViewCache view(&viewDummy);
 
