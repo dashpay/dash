@@ -327,12 +327,7 @@ bool CDeterministicMNManager::BuildNewListFromBlock(const CBlock& block, const C
 
     auto payee = oldList.GetMNPayee();
 
-    std::map<CService, uint256> addrs;
-    std::set<CKeyID> pubKeyIDs;
     for (const auto& dmn : newList.all_range()) {
-        addrs.emplace(dmn->state->addr, dmn->proTxHash);
-        pubKeyIDs.emplace(dmn->state->keyIDOwner);
-        pubKeyIDs.emplace(dmn->state->keyIDOperator);
     }
 
     for (int i = 1; i < (int)block.vtx.size(); i++) {
@@ -356,13 +351,10 @@ bool CDeterministicMNManager::BuildNewListFromBlock(const CBlock& block, const C
                 assert(false); // this should have been handled already
             }
 
-            if (addrs.count(proTx.addr))
+            if (newList.HasUniqueProperty(proTx.addr))
                 return _state.DoS(100, false, REJECT_CONFLICT, "bad-protx-dup-addr");
-            if (pubKeyIDs.count(proTx.keyIDOwner) || pubKeyIDs.count(proTx.keyIDOperator))
+            if (newList.HasUniqueProperty(proTx.keyIDOwner) || newList.HasUniqueProperty(proTx.keyIDOperator))
                 return _state.DoS(100, false, REJECT_CONFLICT, "bad-protx-dup-key");
-            addrs.emplace(proTx.addr, tx.GetHash());
-            pubKeyIDs.emplace(proTx.keyIDOperator);
-            pubKeyIDs.emplace(proTx.keyIDOwner);
 
             auto dmn = std::make_shared<CDeterministicMN>(tx.GetHash(), proTx);
 
@@ -386,9 +378,8 @@ bool CDeterministicMNManager::BuildNewListFromBlock(const CBlock& block, const C
                 assert(false); // this should have been handled already
             }
 
-            if (addrs.count(proTx.addr) && addrs[proTx.addr] != proTx.proTxHash)
+            if (newList.HasUniqueProperty(proTx.addr) && newList.GetUniquePropertyMN(proTx.addr)->proTxHash != proTx.proTxHash)
                 return _state.DoS(100, false, REJECT_CONFLICT, "bad-protx-dup-addr");
-            addrs.emplace(proTx.addr, proTx.proTxHash);
 
             CDeterministicMNCPtr dmn = newList.GetMN(proTx.proTxHash);
             if (!dmn) {

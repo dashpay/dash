@@ -33,9 +33,8 @@ static bool CheckService(const uint256& proTxHash, const ProTx& proTx, const CBl
 
     if (pindexPrev) {
         auto mnList = deterministicMNManager->GetListForBlock(pindexPrev->GetBlockHash());
-        for (const auto& dmn : mnList.all_range()) {
-            if (dmn->state->addr == proTx.addr && dmn->proTxHash != proTxHash)
-                return state.DoS(10, false, REJECT_DUPLICATE, "bad-protx-dup-addr");
+        if (mnList.HasUniqueProperty(proTx.addr) && mnList.GetUniquePropertyMN(proTx.addr)->proTxHash != proTxHash) {
+            return state.DoS(10, false, REJECT_DUPLICATE, "bad-protx-dup-addr");
         }
     }
     return true;
@@ -101,12 +100,7 @@ bool CheckProRegTx(const CTransaction& tx, const CBlockIndex* pindexPrev, CValid
 
     if (pindexPrev) {
         auto mnList = deterministicMNManager->GetListForBlock(pindexPrev->GetBlockHash());
-        std::set<CKeyID> keyIDs;
-        for (const auto& dmn : mnList.all_range()) {
-            keyIDs.emplace(dmn->state->keyIDOwner);
-            keyIDs.emplace(dmn->state->keyIDOperator);
-        }
-        if (keyIDs.count(ptx.keyIDOwner) || keyIDs.count(ptx.keyIDOperator)) {
+        if (mnList.HasUniqueProperty(ptx.keyIDOwner) || mnList.HasUniqueProperty(ptx.keyIDOperator)) {
             return state.DoS(10, false, REJECT_DUPLICATE, "bad-protx-dup-key");
         }
 
@@ -202,13 +196,11 @@ bool CheckProUpRegTx(const CTransaction& tx, const CBlockIndex* pindexPrev, CVal
         if (proRegTx->vout[dmn->nCollateralIndex].scriptPubKey != ptx.scriptPayout)
             return state.DoS(10, false, REJECT_INVALID, "bad-protx-payee-collateral");
 
-        std::map<CKeyID, CDeterministicMNCPtr> keyIDs;
-        for (const auto& dmn2 : mnList.all_range()) {
-            keyIDs.emplace(dmn2->state->keyIDOwner, dmn2);
-            keyIDs.emplace(dmn2->state->keyIDOperator, dmn2);
-        }
-        if (keyIDs.count(ptx.keyIDOperator) && (ptx.proTxHash != keyIDs[ptx.keyIDOperator]->proTxHash || ptx.keyIDOperator != keyIDs[ptx.keyIDOperator]->state->keyIDOperator)) {
-            return state.DoS(10, false, REJECT_DUPLICATE, "bad-protx-dup-key");
+        if (mnList.HasUniqueProperty(ptx.keyIDOperator)) {
+            auto otherDmn = mnList.GetUniquePropertyMN(ptx.keyIDOperator);
+            if (ptx.proTxHash != otherDmn->proTxHash) {
+                return state.DoS(10, false, REJECT_DUPLICATE, "bad-protx-dup-key");
+            }
         }
 
         if (!deterministicMNManager->IsDeterministicMNsSporkActive(pindexPrev->nHeight)) {

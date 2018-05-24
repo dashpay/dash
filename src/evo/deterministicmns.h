@@ -184,11 +184,17 @@ class CDeterministicMNList
 {
 public:
     typedef immer::map<uint256, CDeterministicMNCPtr> MnMap;
+    typedef immer::map<uint256, std::pair<uint256, size_t>> MnUniquePropertyMap;
 
 private:
     uint256 blockHash;
     int height{-1};
     MnMap mnMap;
+
+    // map of unique properties like address and keys
+    // we keep track of this as checking for duplicates would otherwise be painfully slow
+    // the entries in the map are ref counted as some properties might appear multiple times per MN (e.g. operator/owner keys)
+    MnUniquePropertyMap mnUniquePropertyMap;
 
 public:
     CDeterministicMNList() {}
@@ -206,8 +212,10 @@ public:
         READWRITE(height);
         if (ser_action.ForRead()) {
             UnserializeImmerMap(s, mnMap);
+            UnserializeImmerMap(s, mnUniquePropertyMap);
         } else {
             SerializeImmerMap(s, mnMap);
+            SerializeImmerMap(s, mnUniquePropertyMap);
         }
     }
 
@@ -294,25 +302,88 @@ public:
     {
         assert(!mnMap.find(dmn->proTxHash));
         mnMap = mnMap.set(dmn->proTxHash, dmn);
+        AddUniqueProperty(dmn, dmn->state->addr);
+        AddUniqueProperty(dmn, dmn->state->keyIDOwner);
+        AddUniqueProperty(dmn, dmn->state->keyIDOperator);
     }
     void UpdateMN(const uint256 &proTxHash, const CDeterministicMNStateCPtr &state)
     {
         auto oldDmn = mnMap.find(proTxHash);
         assert(oldDmn != nullptr);
         auto dmn = std::make_shared<CDeterministicMN>(**oldDmn);
+        auto oldState = dmn->state;
         dmn->state = state;
         mnMap = mnMap.set(proTxHash, dmn);
+
+        UpdateUniqueProperty(dmn, oldState->addr, state->addr);
+        UpdateUniqueProperty(dmn, oldState->keyIDOwner, state->keyIDOwner);
+        UpdateUniqueProperty(dmn, oldState->keyIDOperator, state->keyIDOperator);
     }
     void RemoveMN(const uint256& proTxHash)
     {
         auto dmn = GetMN(proTxHash);
         assert(dmn != nullptr);
+        DeleteUniqueProperty(dmn, dmn->state->addr);
+        DeleteUniqueProperty(dmn, dmn->state->keyIDOwner);
+        DeleteUniqueProperty(dmn, dmn->state->keyIDOperator);
         mnMap = mnMap.erase(proTxHash);
+    }
+
+    template<typename T>
+    bool HasUniqueProperty(const T& v) const
+    {
+        return mnUniquePropertyMap.count(::SerializeHash(v)) != 0;
+    }
+    template<typename T>
+    CDeterministicMNCPtr GetUniquePropertyMN(const T& v) const
+    {
+        auto p = mnUniquePropertyMap.find(::SerializeHash(v));
+        if (!p) {
+            return nullptr;
+        }
+        return GetMN(p->first);
     }
 
 private:
     bool IsMNValid(const CDeterministicMNCPtr& dmn) const;
     bool IsMNPoSeBanned(const CDeterministicMNCPtr& dmn) const;
+
+    template<typename T>
+    void AddUniqueProperty(const CDeterministicMNCPtr& dmn, const T& v)
+    {
+        auto hash = ::SerializeHash(v);
+        auto oldEntry = mnUniquePropertyMap.find(hash);
+        assert(!oldEntry || oldEntry->first == dmn->proTxHash);
+        std::pair<uint256, size_t> newEntry(dmn->proTxHash, 1);
+        if (oldEntry) {
+            newEntry.second = oldEntry->second + 1;
+        }
+        mnUniquePropertyMap = mnUniquePropertyMap.set(hash, newEntry);
+    }
+    template<typename T>
+    void DeleteUniqueProperty(const CDeterministicMNCPtr& dmn, const T& oldValue)
+    {
+        auto oldHash = ::SerializeHash(oldValue);
+        auto p = mnUniquePropertyMap.find(oldHash);
+        if (!p || p->first != dmn->proTxHash) {
+            int a = 0;
+        }
+        assert(p && p->first == dmn->proTxHash);
+        if (p->second == 1) {
+            mnUniquePropertyMap = mnUniquePropertyMap.erase(oldHash);
+        } else {
+            mnUniquePropertyMap = mnUniquePropertyMap.set(oldHash, std::make_pair(dmn->proTxHash, p->second - 1));
+        }
+    }
+    template<typename T>
+    void UpdateUniqueProperty(const CDeterministicMNCPtr& dmn, const T& oldValue, const T& newValue)
+    {
+        if (oldValue == newValue) {
+            return;
+        }
+        DeleteUniqueProperty(dmn, oldValue);
+        AddUniqueProperty(dmn, newValue);
+    }
 };
 
 class CDeterministicMNListDiff
