@@ -465,10 +465,14 @@ void CDeterministicMNManager::UpdateSpork15Value()
 {
     AssertLockHeld(cs);
 
+    if (!sporkManager.IsSporkSet(SPORK_15_DETERMINISTIC_MNS_ENABLED)) {
+        return;
+    }
+
     // only update cached spork15 value when it was not set before. This is needed because spork values are very unreliable when starting the node
     int64_t oldSpork15Value = GetSpork15Value();
     int64_t newSpork15Value = sporkManager.GetSporkValue(SPORK_15_DETERMINISTIC_MNS_ENABLED);
-    if (newSpork15Value != oldSpork15Value && newSpork15Value != SPORK_15_DETERMINISTIC_MNS_DEFAULT) {
+    if (newSpork15Value != oldSpork15Value) {
         evoDb.Write(DB_SPORK15, newSpork15Value);
         LogPrintf("CDeterministicMNManager::%s -- Updated spork15 value to %d\n", __func__, newSpork15Value);
     }
@@ -482,7 +486,7 @@ int64_t CDeterministicMNManager::GetSpork15Value()
     if (evoDb.Read(DB_SPORK15, v)) {
         return v;
     }
-    return SPORK_15_DETERMINISTIC_MNS_DEFAULT;
+    return sporkManager.GetDefaultSporkValue(SPORK_15_DETERMINISTIC_MNS_ENABLED);
 }
 
 CDeterministicMNList CDeterministicMNManager::GetListForBlock(const uint256& blockHash)
@@ -548,9 +552,13 @@ bool CDeterministicMNManager::IsDeterministicMNsSporkActive(int height)
         height = tipHeight;
     }
 
-    int64_t spork15Value = sporkManager.GetSporkValue(SPORK_15_DETERMINISTIC_MNS_ENABLED);
-    if (spork15Value == SPORK_15_DETERMINISTIC_MNS_DEFAULT)
+    int64_t spork15Value;
+    if (sporkManager.IsSporkSet(SPORK_15_DETERMINISTIC_MNS_ENABLED)) {
+        spork15Value = sporkManager.GetSporkValue(SPORK_15_DETERMINISTIC_MNS_ENABLED);
+    } else {
         spork15Value = GetSpork15Value();
+    }
+
     if (spork15Value < 0)
         return false;
     return height >= spork15Value;
