@@ -289,7 +289,7 @@
         <file alias="crownium">res/css/crownium.css</file>
         <file alias="light">res/css/light.css</file>
         <file alias="light-retro">res/css/light-retro.css</file>
-        <file alias="light-hires">res/css/light-hires.css</file>
+        <file alias="light-hires-retro">res/css/light-hires-retro.css</file>
         <file alias="trad">res/css/trad.css</file>
     </qresource>
     <qresource prefix="/images/drkblue">

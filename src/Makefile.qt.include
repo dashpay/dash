@@ -590,7 +590,7 @@ RES_CSS = \
   qt/res/css/crownium.css \
   qt/res/css/light.css \
   qt/res/css/light-retro.css \
-  qt/res/css/light-hires.css \
+  qt/res/css/light-hires-retro.css \
   qt/res/css/trad.css
 
 RES_MOVIES = $(wildcard $(srcdir)/qt/res/movies/spinner-*.png)
