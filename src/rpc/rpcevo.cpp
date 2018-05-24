@@ -22,6 +22,8 @@
 #include "evo/deterministicmns.h"
 #include "evo/simplifiedmns.h"
 
+#include "bls/bls.h"
+
 #ifdef ENABLE_WALLET
 extern UniValue signrawtransaction(const JSONRPCRequest& request);
 extern UniValue sendrawtransaction(const JSONRPCRequest& request);
@@ -646,9 +648,38 @@ UniValue protx(const JSONRPCRequest& request)
 }
 #endif//ENABLE_WALLET
 
+UniValue bls_generate(const JSONRPCRequest& request)
+{
+    CBLSSecretKey sk;
+    sk.MakeNewKey();
+
+    UniValue ret(UniValue::VOBJ);
+    ret.push_back(Pair("secret", sk.ToString()));
+    ret.push_back(Pair("public", sk.GetPublicKey().ToString()));
+    return ret;
+}
+
+UniValue _bls(const JSONRPCRequest& request)
+{
+    if (request.params.empty()) {
+        throw std::runtime_error(
+                "bls \"command\" ...\n"
+        );
+    }
+
+    std::string command = request.params[0].get_str();
+
+    if (command == "generate") {
+        return bls_generate(request);
+    } else {
+        throw std::runtime_error("invalid command: " + command);
+    }
+}
+
 static const CRPCCommand commands[] =
 { //  category              name                      actor (function)         okSafeMode
   //  --------------------- ------------------------  -----------------------  ----------
+    { "evo",                "bls",                    &_bls,                   false, {}  },
 #ifdef ENABLE_WALLET
     // these require the wallet to be enabled to fund the transactions
     { "evo",                "protx",                  &protx,                  false, {}  },
