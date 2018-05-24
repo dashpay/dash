@@ -23,7 +23,7 @@ bool CheckSpecialTx(const CTransaction& tx, const CBlockIndex* pindexPrev, CVali
         return true;
 
     if (pindexPrev && VersionBitsState(pindexPrev, Params().GetConsensus(), Consensus::DEPLOYMENT_DIP0003, versionbitscache) != THRESHOLD_ACTIVE) {
-        return state.DoS(100, false, REJECT_INVALID, "bad-tx-type");
+        return state.DoS(10, false, REJECT_INVALID, "bad-tx-type");
     }
 
     switch (tx.nType) {
@@ -39,7 +39,7 @@ bool CheckSpecialTx(const CTransaction& tx, const CBlockIndex* pindexPrev, CVali
             return CheckCbTx(tx, pindexPrev, state);
     }
 
-    return state.DoS(100, false, REJECT_INVALID, "bad-tx-type");
+    return state.DoS(10, false, REJECT_INVALID, "bad-tx-type");
 }
 
 bool ProcessSpecialTx(const CTransaction& tx, const CBlockIndex* pindex, CValidationState& state)
