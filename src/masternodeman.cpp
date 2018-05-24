@@ -894,8 +894,8 @@ void CMasternodeMan::ProcessMasternodeConnections(CConnman& connman)
     privateSendClient.GetMixingMasternodesInfo(vecMnInfo);
 #endif // ENABLE_WALLET
 
-    connman.ForEachNode(CConnman::AllNodes, [&vecMnInfo](CNode* pnode) {
-        if (pnode->fMasternode) {
+    connman.ForEachNode(CConnman::AllNodes, [&vecMnInfo, &connman](CNode* pnode) {
+        if (pnode->fMasternode && !connman.IsMasternodeQuorumNode(pnode->addr)) {
 #ifdef ENABLE_WALLET
             bool fFound = false;
             for (const auto& mnInfo : vecMnInfo) {
