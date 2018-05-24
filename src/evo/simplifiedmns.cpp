@@ -54,7 +54,7 @@ CSimplifiedMNList::CSimplifiedMNList(const CDeterministicMNList& dmnList)
     }
 
     std::sort(mnList.begin(), mnList.end(), [&](const CSimplifiedMNListEntry& a, const CSimplifiedMNListEntry& b) {
-        return a.proRegTxHash.Compare(b.proRegTxHash);
+        return a.proRegTxHash.Compare(b.proRegTxHash) < 0;
     });
 }
 
