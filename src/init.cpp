@@ -297,6 +297,8 @@ void PrepareShutdown()
         pblocktree = NULL;
         delete deterministicMNManager;
         deterministicMNManager = NULL;
+        delete evoDb;
+        evoDb = NULL;
     }
 #ifdef ENABLE_WALLET
     if (pwalletMain)
@@ -1637,7 +1639,7 @@ bool AppInitMain(boost::thread_group& threadGroup, CScheduler& scheduler)
     nTotalCache -= nCoinDBCache;
     nCoinCacheUsage = nTotalCache; // the rest goes to in-memory cache
     int64_t nMempoolSizeMax = GetArg("-maxmempool", DEFAULT_MAX_MEMPOOL_SIZE) * 1000000;
-    int64_t nDeterministicMNsCache = 1024 * 1024 * 16; // TODO
+    int64_t nEvoDbCache = 1024 * 1024 * 16; // TODO
     LogPrintf("Cache configuration:\n");
     LogPrintf("* Using %.1fMiB for block index database\n", nBlockTreeDBCache * (1.0 / 1024 / 1024));
     LogPrintf("* Using %.1fMiB for chain state database\n", nCoinDBCache * (1.0 / 1024 / 1024));
@@ -1661,12 +1663,15 @@ bool AppInitMain(boost::thread_group& threadGroup, CScheduler& scheduler)
                 delete pcoinscatcher;
                 delete pblocktree;
                 delete deterministicMNManager;
+                delete evoDb;
+
+                evoDb = new CEvoDB(nEvoDbCache, false, fReindex || fReindexChainState);
 
                 pblocktree = new CBlockTreeDB(nBlockTreeDBCache, false, fReindex);
                 pcoinsdbview = new CCoinsViewDB(nCoinDBCache, false, fReindex || fReindexChainState);
                 pcoinscatcher = new CCoinsViewErrorCatcher(pcoinsdbview);
                 pcoinsTip = new CCoinsViewCache(pcoinscatcher);
-                deterministicMNManager = new CDeterministicMNManager(nDeterministicMNsCache, false, fReindex || fReindexChainState);
+                deterministicMNManager = new CDeterministicMNManager(*evoDb);
 
                 if (fReindex) {
                     pblocktree->WriteReindexing(true);

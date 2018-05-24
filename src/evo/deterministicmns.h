@@ -5,6 +5,7 @@
 #ifndef DASH_DETERMINISTICMNS_H
 #define DASH_DETERMINISTICMNS_H
 
+#include "evodb.h"
 #include "providertx.h"
 #include "dbwrapper.h"
 #include "sync.h"
@@ -339,8 +340,7 @@ public:
     CCriticalSection cs;
 
 private:
-    CDBWrapper db;
-    CDBTransaction dbTransaction;
+    CEvoDB& evoDb;
 
     CDeterministicMNManagerState state;
     CDeterministicMNManagerState stateBackup; // for rollback

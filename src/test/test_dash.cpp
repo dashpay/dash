@@ -67,9 +67,10 @@ TestingSetup::TestingSetup(const std::string& chainName) : BasicTestingSetup(cha
         boost::filesystem::create_directories(pathTemp);
         ForceSetArg("-datadir", pathTemp.string());
         mempool.setSanityCheck(1.0);
+        evoDb = new CEvoDB(1 << 20, true, true);
         pblocktree = new CBlockTreeDB(1 << 20, true);
         pcoinsdbview = new CCoinsViewDB(1 << 23, true);
-        deterministicMNManager = new CDeterministicMNManager(1 << 20, true, true);
+        deterministicMNManager = new CDeterministicMNManager(*evoDb);
         pcoinsTip = new CCoinsViewCache(pcoinsdbview);
         InitBlockIndex(chainparams);
         {
@@ -95,6 +96,7 @@ TestingSetup::~TestingSetup()
         delete deterministicMNManager;
         delete pcoinsdbview;
         delete pblocktree;
+        delete evoDb;
         boost::filesystem::remove_all(pathTemp);
 }
 

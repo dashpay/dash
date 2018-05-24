@@ -14,9 +14,9 @@
 
 #include <univalue.h>
 
-static const char DB_MANAGER_STATE = 's';
-static const char DB_LIST_SNAPSHOT = 'S';
-static const char DB_LIST_DIFF = 'D';
+static const std::string DB_SPORK15 = "dmn_s15";
+static const std::string DB_LIST_SNAPSHOT = "dmn_S";
+static const std::string DB_LIST_DIFF = "dmn_D";
 
 CDeterministicMNManager* deterministicMNManager;
 
@@ -247,9 +247,8 @@ CDeterministicMNList CDeterministicMNList::ApplyDiff(const CDeterministicMNListD
 }
 
 
-CDeterministicMNManager::CDeterministicMNManager(size_t nCacheSize, bool fMemory, bool fWipe)
-        : db(GetDataDir() / "masternodes", nCacheSize, fMemory, fWipe),
-          dbTransaction(db)
+CDeterministicMNManager::CDeterministicMNManager(CEvoDB& _evoDb) :
+    evoDb(_evoDb)
 {
 }
 
