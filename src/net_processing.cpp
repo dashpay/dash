@@ -44,8 +44,11 @@
 
 #include "evo/deterministicmns.h"
 #include "evo/simplifiedmns.h"
-#include "llmq/quorums_commitment.h"
+#include "llmq/quorums.h"
 #include "llmq/quorums_blockprocessor.h"
+#include "llmq/quorums_commitment.h"
+#include "llmq/quorums_dkgsessionmgr.h"
+#include "llmq/quorums_signing.h"
 
 #include <boost/thread.hpp>
 
@@ -977,6 +980,13 @@ bool static AlreadyHave(const CInv& inv) EXCLUSIVE_LOCKS_REQUIRED(cs_main)
 
     case MSG_QUORUM_FINAL_COMMITMENT:
         return llmq::quorumBlockProcessor->HasMinableCommitment(inv.hash);
+    case MSG_QUORUM_CONTRIB:
+    case MSG_QUORUM_COMPLAINT:
+    case MSG_QUORUM_JUSTIFICATION:
+    case MSG_QUORUM_PREMATURE_COMMITMENT:
+        return llmq::quorumDKGSessionManager->AlreadyHave(inv);
+    case MSG_QUORUM_RECOVERED_SIG:
+        return llmq::quorumsSigningManager->AlreadyHave(inv);
     }
 
     // Don't know what it is, just say we already got one
@@ -1294,6 +1304,42 @@ void static ProcessGetData(CNode* pfrom, const Consensus::Params& consensusParam
                     llmq::CFinalCommitment o;
                     if (llmq::quorumBlockProcessor->GetMinableCommitmentByHash(inv.hash, o)) {
                         connman.PushMessage(pfrom, msgMaker.Make(NetMsgType::QFCOMMITMENT, o));
+                        push = true;
+                    }
+                }
+
+                if (!push && (inv.type == MSG_QUORUM_CONTRIB)) {
+                    llmq::CDKGContribution o;
+                    if (llmq::quorumDKGSessionManager->GetContribution(inv.hash, o)) {
+                        connman.PushMessage(pfrom, msgMaker.Make(NetMsgType::QCONTRIB, o));
+                        push = true;
+                    }
+                }
+                if (!push && (inv.type == MSG_QUORUM_COMPLAINT)) {
+                    llmq::CDKGComplaint o;
+                    if (llmq::quorumDKGSessionManager->GetComplaint(inv.hash, o)) {
+                        connman.PushMessage(pfrom, msgMaker.Make(NetMsgType::QCOMPLAINT, o));
+                        push = true;
+                    }
+                }
+                if (!push && (inv.type == MSG_QUORUM_JUSTIFICATION)) {
+                    llmq::CDKGJustification o;
+                    if (llmq::quorumDKGSessionManager->GetJustification(inv.hash, o)) {
+                        connman.PushMessage(pfrom, msgMaker.Make(NetMsgType::QJUSTIFICATION, o));
+                        push = true;
+                    }
+                }
+                if (!push && (inv.type == MSG_QUORUM_PREMATURE_COMMITMENT)) {
+                    llmq::CDKGPrematureCommitment o;
+                    if (llmq::quorumDKGSessionManager->GetPrematureCommitment(inv.hash, o)) {
+                        connman.PushMessage(pfrom, msgMaker.Make(NetMsgType::QPCOMMITMENT, o));
+                        push = true;
+                    }
+                }
+                if (!push && (inv.type == MSG_QUORUM_RECOVERED_SIG)) {
+                    llmq::CRecoveredSig o;
+                    if (llmq::quorumsSigningManager->GetRecoveredSig(inv.hash, o)) {
+                        connman.PushMessage(pfrom, msgMaker.Make(NetMsgType::QSIGREC, o));
                         push = true;
                     }
                 }
@@ -1625,6 +1671,10 @@ bool static ProcessMessage(CNode* pfrom, const std::string& strCommand, CDataStr
             bool fAnnounceUsingCMPCTBLOCK = false;
             uint64_t nCMPCTBLOCKVersion = 1;
             connman.PushMessage(pfrom, msgMaker.Make(NetMsgType::SENDCMPCT, fAnnounceUsingCMPCTBLOCK, nCMPCTBLOCKVersion));
+        }
+
+        if (GetBoolArg("-watchquorums", llmq::DEFAULT_WATCH_QUORUMS)) {
+            connman.PushMessage(pfrom, msgMaker.Make(NetMsgType::QWATCH));
         }
 
         pfrom->fSuccessfullyConnected = true;
@@ -2933,6 +2983,8 @@ bool static ProcessMessage(CNode* pfrom, const std::string& strCommand, CDataStr
             masternodeSync.ProcessMessage(pfrom, strCommand, vRecv);
             governance.ProcessMessage(pfrom, strCommand, vRecv, connman);
             llmq::quorumBlockProcessor->ProcessMessage(pfrom, strCommand, vRecv, connman);
+            llmq::quorumDKGSessionManager->ProcessMessage(pfrom, strCommand, vRecv, connman);
+            llmq::quorumsSigningManager->ProcessMessage(pfrom, strCommand, vRecv, connman);
         }
         else
         {

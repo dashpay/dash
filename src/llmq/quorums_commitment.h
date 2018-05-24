@@ -32,8 +32,8 @@ public:
     CBLSPublicKey quorumPublicKey;
     uint256 quorumVvecHash;
 
-    CBLSSignature quorumSig; // recovered threshold sig of blockHash+validMembers+pubKeyHash+vvecHash
-    CBLSSignature membersSig; // aggregated member sig of blockHash+validMembers+pubKeyHash+vvecHash
+    CBLSSignature quorumSig; // recovered threshold sig of quorumHash+validMembers+pubKeyHash+vvecHash
+    CBLSSignature membersSig; // aggregated member sig of quorumHash+validMembers+pubKeyHash+vvecHash
 
 public:
     CFinalCommitment() {}

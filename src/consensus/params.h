@@ -97,6 +97,14 @@ struct LLMQParams {
     // should at the same time not be too large so that not too much space is wasted with null commitments in case a DKG
     // session failed.
     int dkgMiningWindowEnd;
+    int dkgRndSleepTime;
+    int dkgBadVotesThreshold;
+
+    int signingActiveQuorumCount;
+
+    int neighborConnections;
+    int diagonalConnections;
+    int keepOldConnections;
 };
 
 /**

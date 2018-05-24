@@ -10,6 +10,8 @@
 #include "masternode-payments.h"
 #include "masternode-sync.h"
 #include "privatesend.h"
+#include "llmq/quorums.h"
+#include "llmq/quorums_dkgsessionmgr.h"
 #ifdef ENABLE_WALLET
 #include "privatesend-client.h"
 #endif // ENABLE_WALLET
@@ -61,6 +63,8 @@ void CDSNotificationInterface::UpdatedBlockTip(const CBlockIndex *pindexNew, con
     instantsend.UpdatedBlockTip(pindexNew);
     mnpayments.UpdatedBlockTip(pindexNew, connman);
     governance.UpdatedBlockTip(pindexNew, connman);
+    llmq::quorumManager->UpdatedBlockTip(pindexNew, pindexFork, fInitialDownload);
+    llmq::quorumDKGSessionManager->UpdatedBlockTip(pindexNew, pindexFork, fInitialDownload);
 }
 
 void CDSNotificationInterface::SyncTransaction(const CTransaction &tx, const CBlockIndex *pindex, int posInBlock)

@@ -4,19 +4,33 @@
 
 #include "quorums_init.h"
 
+#include "quorums.h"
 #include "quorums_blockprocessor.h"
 #include "quorums_commitment.h"
+#include "quorums_dkgsessionmgr.h"
+#include "quorums_signing.h"
 
 namespace llmq
 {
 
+static CBLSWorker blsWorker;
+
 void InitLLMQSystem(CEvoDB& evoDb)
 {
     quorumBlockProcessor = new CQuorumBlockProcessor(evoDb);
+    quorumDKGSessionManager = new CDKGSessionManager(evoDb, blsWorker);
+    quorumManager = new CQuorumManager(evoDb, blsWorker, *quorumDKGSessionManager);
+    quorumsSigningManager = new CSigningManager(evoDb, blsWorker);
 }
 
 void DestroyLLMQSystem()
 {
+    delete quorumsSigningManager;
+    quorumsSigningManager = NULL;
+    delete quorumManager;
+    quorumManager = NULL;
+    delete quorumDKGSessionManager;
+    quorumDKGSessionManager = NULL;
     delete quorumBlockProcessor;
     quorumBlockProcessor = nullptr;
 }

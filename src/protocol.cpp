@@ -72,6 +72,15 @@ const char *MNVERIFY="mnv";
 const char *GETMNLISTDIFF="getmnlistd";
 const char *MNLISTDIFF="mnlistdiff";
 const char *QFCOMMITMENT="qfcommit";
+const char *QCONTRIB="qcontrib";
+const char *QCOMPLAINT="qcomplaint";
+const char *QJUSTIFICATION="qjustify";
+const char *QPCOMMITMENT="qpcommit";
+const char *QSIGSHARESINV="qsigsinv";
+const char *QGETSIGSHARES="qgetsigs";
+const char *QBSIGSHARES="qbsigs";
+const char *QSIGREC="qsigrec";
+const char *QWATCH="qwatch";
 };
 
 static const char* ppszTypeName[] =
@@ -101,6 +110,11 @@ static const char* ppszTypeName[] =
     "compact block", // Should never occur
     NetMsgType::QFCOMMITMENT,
     "qdcommit", // was only shortly used on testnet
+    NetMsgType::QCONTRIB,
+    NetMsgType::QCOMPLAINT,
+    NetMsgType::QJUSTIFICATION,
+    NetMsgType::QPCOMMITMENT,
+    NetMsgType::QSIGREC,
 };
 
 /** All known message types. Keep this in the same order as the list of
@@ -161,6 +175,15 @@ const static std::string allNetMessageTypes[] = {
     NetMsgType::GETMNLISTDIFF,
     NetMsgType::MNLISTDIFF,
     NetMsgType::QFCOMMITMENT,
+    NetMsgType::QCONTRIB,
+    NetMsgType::QCOMPLAINT,
+    NetMsgType::QJUSTIFICATION,
+    NetMsgType::QPCOMMITMENT,
+    NetMsgType::QSIGSHARESINV,
+    NetMsgType::QGETSIGSHARES,
+    NetMsgType::QBSIGSHARES,
+    NetMsgType::QSIGREC,
+    NetMsgType::QWATCH,
 };
 const static std::vector<std::string> allNetMessageTypesVec(allNetMessageTypes, allNetMessageTypes+ARRAYLEN(allNetMessageTypes));
 
