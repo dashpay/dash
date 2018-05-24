@@ -425,13 +425,14 @@ def set_node_times(nodes, t):
     for node in nodes:
         node.setmocktime(t)
 
-def connect_nodes(from_connection, node_num):
+def connect_nodes(from_connection, node_num, wait_for_handshake=True):
     ip_port = "127.0.0.1:"+str(p2p_port(node_num))
     from_connection.addnode(ip_port, "onetry")
     # poll until version handshake complete to avoid race conditions
     # with transaction relaying
-    while any(peer['version'] == 0 for peer in from_connection.getpeerinfo()):
-        time.sleep(0.1)
+    if wait_for_handshake:
+        while any(peer['version'] == 0 for peer in from_connection.getpeerinfo()):
+            time.sleep(0.1)
 
 def connect_nodes_bi(nodes, a, b):
     connect_nodes(nodes[a], b)
