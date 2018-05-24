@@ -119,15 +119,19 @@ class DIP3Test(BitcoinTestFramework):
         while self.nodes[0].getblockchaininfo()['bip9_softforks']['dip0003']['status'] == 'locked_in':
             self.nodes[0].generate(1)
 
-        print("testing rejection of ProTx right before dip3 activation")
-        self.test_fail_create_protx(self.nodes[0])
-
         # We have hundreds of blocks to sync here, give it more time
         print("syncing blocks for all nodes")
         sync_blocks(self.nodes, timeout=120)
 
-        # After this block it should be possible to mine ProTx
-        self.nodes[0].generate(1)
+        # DIP3 has activated here
+
+        print("testing rejection of ProTx right before dip3 activation")
+        best_block = self.nodes[0].getbestblockhash()
+        self.nodes[0].invalidateblock(best_block)
+        self.test_fail_create_protx(self.nodes[0])
+        self.nodes[0].reconsiderblock(best_block)
+
+        # Now it should be possible to mine ProTx
         self.sync_all()
         self.test_success_create_protx(self.nodes[0])
 
@@ -676,8 +680,10 @@ class DIP3Test(BitcoinTestFramework):
         if len(bt['coinbase_payload']) != 0:
             cbtx = FromHex(CCbTx(), bt['coinbase_payload'])
             if use_mnmerkleroot_from_tip:
-                #cbtx = FromHex(CCbTx(), bt['coinbase_payload'])
-                cbtx.merkleRootMNList = int(tip_block['cbTx']['merkleRootMNList'], 16)
+                if 'cbTx' in tip_block:
+                    cbtx.merkleRootMNList = int(tip_block['cbTx']['merkleRootMNList'], 16)
+                else:
+                    cbtx.merkleRootMNList = 0
             coinbase.nVersion = 3
             coinbase.nType = 5 # CbTx
             coinbase.extraPayload = cbtx.serialize()

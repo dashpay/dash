@@ -284,17 +284,14 @@ std::map<int, std::string> GetRequiredPaymentsStrings(int startHeight, int endHe
 {
     std::map<int, std::string> result;
 
-    int chainTipHeight;
-    {
-        LOCK(cs_main);
-        chainTipHeight = chainActive.Height();
-    }
+    LOCK(cs_main);
+    int chainTipHeight = chainActive.Height();
 
     bool doProjection = false;
     for(int h = startHeight; h < endHeight; h++) {
         if (deterministicMNManager->IsDeterministicMNsSporkActive(h)) {
             if (h <= chainTipHeight) {
-                auto payee = deterministicMNManager->GetListAtHeight(h - 1).GetMNPayee();
+                auto payee = deterministicMNManager->GetListForBlock(chainActive[h - 1]->GetBlockHash()).GetMNPayee();
                 result.emplace(h, GetRequiredPaymentsString(h, payee));
             } else {
                 doProjection = true;
@@ -581,8 +578,13 @@ bool CMasternodePayments::GetBlockTxOuts(int nBlockHeight, CAmount blockReward, 
     CAmount masternodeReward = GetMasternodePayment(nBlockHeight, blockReward);
 
     if (deterministicMNManager->IsDeterministicMNsSporkActive(nBlockHeight)) {
+        uint256 blockHash;
+        {
+            LOCK(cs_main);
+            blockHash = chainActive[nBlockHeight - 1]->GetBlockHash();
+        }
         uint256 proTxHash;
-        auto dmnPayee = deterministicMNManager->GetListAtHeight(nBlockHeight - 1).GetMNPayee();
+        auto dmnPayee = deterministicMNManager->GetListForBlock(blockHash).GetMNPayee();
         if (!dmnPayee) {
             return false;
         }

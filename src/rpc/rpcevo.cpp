@@ -533,13 +533,15 @@ UniValue protx_list(const JSONRPCRequest& request)
         if (request.params.size() > 4)
             protx_list_help();
 
+        LOCK(cs_main);
+
         int height = request.params.size() > 2 ? ParseInt32V(request.params[2], "height") : chainActive.Height();
         if (height < 1 || height > chainActive.Height())
             throw JSONRPCError(RPC_INVALID_PARAMETER, "invalid height specified");
 
         bool detailed = request.params.size() > 3 ? ParseBoolV(request.params[3], "detailed") : false;
 
-        CDeterministicMNList mnList = deterministicMNManager->GetListAtHeight(height);
+        CDeterministicMNList mnList = deterministicMNManager->GetListForBlock(chainActive[height]->GetBlockHash());
         CDeterministicMNList::range_type range;
 
         if (type == "valid") {

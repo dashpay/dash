@@ -37,7 +37,7 @@ public:
     void ToJson(UniValue& obj) const;
 };
 
-bool CheckCbTx(const CTransaction& tx, const CBlockIndex* pindex, CValidationState& state);
+bool CheckCbTx(const CTransaction& tx, const CBlockIndex* pindexPrev, CValidationState& state);
 
 bool CheckCbTxMerkleRootMNList(const CBlock& block, const CBlockIndex* pindex, CValidationState& state);
 bool CalcCbTxMerkleRootMNList(const CBlock& block, const CBlockIndex* pindexPrev, uint256& merkleRootRet, CValidationState& state);

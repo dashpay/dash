@@ -122,8 +122,8 @@ bool BuildSimplifiedMNListDiff(const uint256& baseBlockHash, const uint256& bloc
 
     LOCK(deterministicMNManager->cs);
 
-    auto baseDmnList = deterministicMNManager->GetListAtHeight(baseBlockIt->second->nHeight);
-    auto dmnList = deterministicMNManager->GetListAtHeight(blockIt->second->nHeight);
+    auto baseDmnList = deterministicMNManager->GetListForBlock(baseBlockHash);
+    auto dmnList = deterministicMNManager->GetListForBlock(blockHash);
     auto dmnDiff = baseDmnList.BuildDiff(dmnList);
 
     // TODO store coinbase TX in CBlockIndex

@@ -10,7 +10,7 @@
 #include "validation.h"
 #include "univalue.h"
 
-bool CheckCbTx(const CTransaction& tx, const CBlockIndex* pindex, CValidationState& state)
+bool CheckCbTx(const CTransaction& tx, const CBlockIndex* pindexPrev, CValidationState& state)
 {
     AssertLockHeld(cs_main);
 
@@ -24,8 +24,8 @@ bool CheckCbTx(const CTransaction& tx, const CBlockIndex* pindex, CValidationSta
     if (cbTx.nVersion != CCbTx::CURRENT_VERSION)
         return state.DoS(100, false, REJECT_INVALID, "bad-cbtx-version");
 
-    if (pindex) {
-        if (pindex->nHeight != cbTx.height)
+    if (pindexPrev) {
+        if (pindexPrev->nHeight + 1 != cbTx.height)
             return state.DoS(100, false, REJECT_INVALID, "bad-cbtx-height");
     }
 
@@ -45,13 +45,13 @@ bool CheckCbTxMerkleRootMNList(const CBlock& block, const CBlockIndex* pindex, C
         return state.DoS(100, false, REJECT_INVALID, "bad-tx-payload");
 
     if (pindex) {
-        auto mnList = deterministicMNManager->GetListAtHeight(pindex->nHeight);
-        CSimplifiedMNList sml(mnList);
-
-        bool mutated = false;
-        uint256 calculatedMerkleRoot = sml.CalcMerkleRoot(&mutated);
-        if (mutated || calculatedMerkleRoot != cbTx.merkleRootMNList)
+        uint256 calculatedMerkleRoot;
+        if (!CalcCbTxMerkleRootMNList(block, pindex->pprev, calculatedMerkleRoot, state)) {
             return state.DoS(100, false, REJECT_INVALID, "bad-cbtx-mnmerkleroot");
+        }
+        if (calculatedMerkleRoot != cbTx.merkleRootMNList) {
+            return state.DoS(100, false, REJECT_INVALID, "bad-cbtx-mnmerkleroot");
+        }
     }
 
     return true;
@@ -62,16 +62,15 @@ bool CalcCbTxMerkleRootMNList(const CBlock& block, const CBlockIndex* pindexPrev
     AssertLockHeld(cs_main);
     LOCK(deterministicMNManager->cs);
 
-    // begin transaction and let it rollback
-    auto dbTx = deterministicMNManager->BeginTransaction();
-
-    if (!deterministicMNManager->ProcessBlock(block, pindexPrev, state)) {
+    CDeterministicMNList tmpMNList;
+    if (!deterministicMNManager->BuildNewListFromBlock(block, pindexPrev, state, tmpMNList)) {
         return false;
     }
 
-    CSimplifiedMNList sml(deterministicMNManager->GetListAtChainTip());
-    merkleRootRet = sml.CalcMerkleRoot();
-    return true;
+    CSimplifiedMNList sml(tmpMNList);
+    bool mutated = false;
+    merkleRootRet = sml.CalcMerkleRoot(&mutated);
+    return !mutated;
 }
 
 std::string CCbTx::ToString() const

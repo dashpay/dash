@@ -18,7 +18,7 @@
 #include "base58.h"
 
 template <typename ProTx>
-static bool CheckService(const uint256& proTxHash, const ProTx& proTx, const CBlockIndex* pindex, CValidationState& state)
+static bool CheckService(const uint256& proTxHash, const ProTx& proTx, const CBlockIndex* pindexPrev, CValidationState& state)
 {
     if (proTx.nProtocolVersion < MIN_PROTX_PROTO_VERSION || proTx.nProtocolVersion > MAX_PROTX_PROTO_VERSION)
         return state.DoS(10, false, REJECT_INVALID, "bad-protx-proto-version");
@@ -31,8 +31,8 @@ static bool CheckService(const uint256& proTxHash, const ProTx& proTx, const CBl
     if (!proTx.addr.IsIPv4())
         return state.DoS(10, false, REJECT_INVALID, "bad-protx-addr");
 
-    if (pindex) {
-        auto mnList = deterministicMNManager->GetListAtHeight(pindex->nHeight - 1);
+    if (pindexPrev) {
+        auto mnList = deterministicMNManager->GetListForBlock(pindexPrev->GetBlockHash());
         for (const auto& dmn : mnList.all_range()) {
             if (dmn->state->addr == proTx.addr && dmn->proTxHash != proTxHash)
                 return state.DoS(10, false, REJECT_DUPLICATE, "bad-protx-dup-addr");
@@ -55,7 +55,7 @@ static bool CheckInputsHashAndSig(const CTransaction &tx, const ProTx& proTx, co
     return true;
 }
 
-bool CheckProRegTx(const CTransaction& tx, const CBlockIndex* pindex, CValidationState& state)
+bool CheckProRegTx(const CTransaction& tx, const CBlockIndex* pindexPrev, CValidationState& state)
 {
     AssertLockHeld(cs_main);
 
@@ -93,14 +93,14 @@ bool CheckProRegTx(const CTransaction& tx, const CBlockIndex* pindex, CValidatio
 
     // It's allowed to set addr/protocolVersion to 0, which will put the MN into PoSe-banned state and require a ProUpServTx to be issues later
     // If any of both is set, it must be valid however
-    if ((ptx.addr != CService() || ptx.nProtocolVersion != 0) && !CheckService(tx.GetHash(), ptx, pindex, state))
+    if ((ptx.addr != CService() || ptx.nProtocolVersion != 0) && !CheckService(tx.GetHash(), ptx, pindexPrev, state))
         return false;
 
     if (ptx.operatorReward > 10000)
         return state.DoS(10, false, REJECT_INVALID, "bad-protx-operator-reward");
 
-    if (pindex) {
-        auto mnList = deterministicMNManager->GetListAtHeight(pindex->nHeight - 1);
+    if (pindexPrev) {
+        auto mnList = deterministicMNManager->GetListForBlock(pindexPrev->GetBlockHash());
         std::set<CKeyID> keyIDs;
         for (const auto& dmn : mnList.all_range()) {
             keyIDs.emplace(dmn->state->keyIDOwner);
@@ -110,7 +110,7 @@ bool CheckProRegTx(const CTransaction& tx, const CBlockIndex* pindex, CValidatio
             return state.DoS(10, false, REJECT_DUPLICATE, "bad-protx-dup-key");
         }
 
-        if (!deterministicMNManager->IsDeterministicMNsSporkActive(pindex->nHeight)) {
+        if (!deterministicMNManager->IsDeterministicMNsSporkActive(pindexPrev->nHeight)) {
             if (ptx.keyIDOwner != ptx.keyIDOperator || ptx.keyIDOwner != ptx.keyIDVoting) {
                 return state.DoS(10, false, REJECT_INVALID, "bad-protx-key-not-same");
             }
@@ -122,7 +122,7 @@ bool CheckProRegTx(const CTransaction& tx, const CBlockIndex* pindex, CValidatio
     return true;
 }
 
-bool CheckProUpServTx(const CTransaction& tx, const CBlockIndex* pindex, CValidationState& state)
+bool CheckProUpServTx(const CTransaction& tx, const CBlockIndex* pindexPrev, CValidationState& state)
 {
     AssertLockHeld(cs_main);
 
@@ -133,11 +133,11 @@ bool CheckProUpServTx(const CTransaction& tx, const CBlockIndex* pindex, CValida
     if (ptx.nVersion != CProRegTx::CURRENT_VERSION)
         return state.DoS(100, false, REJECT_INVALID, "bad-protx-version");
 
-    if (!CheckService(ptx.proTxHash, ptx, pindex, state))
+    if (!CheckService(ptx.proTxHash, ptx, pindexPrev, state))
         return false;
 
-    if (pindex) {
-        auto mn = deterministicMNManager->GetMN(pindex->nHeight - 1, ptx.proTxHash);
+    if (pindexPrev) {
+        auto mn = deterministicMNManager->GetMN(pindexPrev->GetBlockHash(), ptx.proTxHash);
         if (!mn)
             return state.DoS(100, false, REJECT_INVALID, "bad-protx-hash");
 
@@ -151,7 +151,7 @@ bool CheckProUpServTx(const CTransaction& tx, const CBlockIndex* pindex, CValida
                 return state.DoS(10, false, REJECT_INVALID, "bad-protx-operator-payee");
         }
 
-        // we can only check the signature if pindex != NULL and the MN is known
+        // we can only check the signature if pindexPrev != NULL and the MN is known
         if (!CheckInputsHashAndSig(tx, ptx, mn->state->keyIDOperator, state))
             return false;
     }
@@ -159,7 +159,7 @@ bool CheckProUpServTx(const CTransaction& tx, const CBlockIndex* pindex, CValida
     return true;
 }
 
-bool CheckProUpRegTx(const CTransaction& tx, const CBlockIndex* pindex, CValidationState& state)
+bool CheckProUpRegTx(const CTransaction& tx, const CBlockIndex* pindexPrev, CValidationState& state)
 {
     AssertLockHeld(cs_main);
 
@@ -182,8 +182,8 @@ bool CheckProUpRegTx(const CTransaction& tx, const CBlockIndex* pindex, CValidat
         return state.DoS(10, false, REJECT_INVALID, "bad-protx-payee");
     }
 
-    if (pindex) {
-        auto mnList = deterministicMNManager->GetListAtHeight(pindex->nHeight - 1);
+    if (pindexPrev) {
+        auto mnList = deterministicMNManager->GetListForBlock(pindexPrev->GetBlockHash());
         auto dmn = mnList.GetMN(ptx.proTxHash);
         if (!dmn)
             return state.DoS(100, false, REJECT_INVALID, "bad-protx-hash");
@@ -211,7 +211,7 @@ bool CheckProUpRegTx(const CTransaction& tx, const CBlockIndex* pindex, CValidat
             return state.DoS(10, false, REJECT_DUPLICATE, "bad-protx-dup-key");
         }
 
-        if (!deterministicMNManager->IsDeterministicMNsSporkActive(pindex->nHeight)) {
+        if (!deterministicMNManager->IsDeterministicMNsSporkActive(pindexPrev->nHeight)) {
             if (dmn->state->keyIDOwner != ptx.keyIDOperator || dmn->state->keyIDOwner != ptx.keyIDVoting) {
                 return state.DoS(10, false, REJECT_INVALID, "bad-protx-key-not-same");
             }
@@ -224,7 +224,7 @@ bool CheckProUpRegTx(const CTransaction& tx, const CBlockIndex* pindex, CValidat
     return true;
 }
 
-bool CheckProUpRevTx(const CTransaction& tx, const CBlockIndex* pindex, CValidationState& state)
+bool CheckProUpRevTx(const CTransaction& tx, const CBlockIndex* pindexPrev, CValidationState& state)
 {
     AssertLockHeld(cs_main);
 
@@ -238,8 +238,8 @@ bool CheckProUpRevTx(const CTransaction& tx, const CBlockIndex* pindex, CValidat
     if (ptx.reason < CProUpRevTx::REASON_NOT_SPECIFIED || ptx.reason > CProUpRevTx::REASON_LAST)
         return state.DoS(100, false, REJECT_INVALID, "bad-protx-reason");
 
-    if (pindex) {
-        auto mnList = deterministicMNManager->GetListAtHeight(pindex->nHeight - 1);
+    if (pindexPrev) {
+        auto mnList = deterministicMNManager->GetListForBlock(pindexPrev->GetBlockHash());
         auto dmn = mnList.GetMN(ptx.proTxHash);
         if (!dmn)
             return state.DoS(100, false, REJECT_INVALID, "bad-protx-hash");

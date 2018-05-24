@@ -352,7 +352,7 @@ void CMasternode::UpdateLastPaid(const CBlockIndex *pindex, int nMaxBlocksToScan
     if(!pindex) return;
 
     if (deterministicMNManager->IsDeterministicMNsSporkActive(pindex->nHeight)) {
-        auto dmn = deterministicMNManager->GetListAtHeight(pindex->nHeight).GetMN(outpoint.hash);
+        auto dmn = deterministicMNManager->GetListForBlock(pindex->GetBlockHash()).GetMN(outpoint.hash);
         if (!dmn || dmn->state->lastPaidHeight == -1) {
             LogPrint("masternode", "CMasternode::UpdateLastPaidBlock -- searching for block with payment to %s -- not found\n", outpoint.ToStringShort());
         } else {

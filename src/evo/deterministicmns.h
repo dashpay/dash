@@ -11,6 +11,9 @@
 #include "sync.h"
 #include "spork.h"
 
+#include "immer/map.hpp"
+#include "immer/map_transient.hpp"
+
 #include <map>
 
 #include <boost/range/adaptors.hpp>
@@ -94,6 +97,7 @@ public:
                PoSePenality == rhs.PoSePenality &&
                PoSeRevivedHeight == rhs.PoSeRevivedHeight &&
                PoSeBanHeight == rhs.PoSeBanHeight &&
+               revocationReason == rhs.revocationReason &&
                keyIDOwner == rhs.keyIDOwner &&
                keyIDOperator == rhs.keyIDOperator &&
                keyIDVoting == rhs.keyIDVoting &&
@@ -155,50 +159,70 @@ typedef std::shared_ptr<const CDeterministicMN> CDeterministicMNCPtr;
 
 class CDeterministicMNListDiff;
 
+template<typename Stream, typename K, typename T, typename Hash, typename Equal>
+void SerializeImmerMap(Stream& os, const immer::map<K, T, Hash, Equal>& m)
+{
+    WriteCompactSize(os, m.size());
+    for (typename immer::map<K, T, Hash, Equal>::const_iterator mi = m.begin(); mi != m.end(); ++mi)
+        Serialize(os, (*mi));
+}
+
+template<typename Stream, typename K, typename T, typename Hash, typename Equal>
+void UnserializeImmerMap(Stream& is, immer::map<K, T, Hash, Equal>& m)
+{
+    m = immer::map<K, T, Hash, Equal>();
+    unsigned int nSize = ReadCompactSize(is);
+    for (unsigned int i = 0; i < nSize; i++)
+    {
+        std::pair<K, T> item;
+        Unserialize(is, item);
+        m = m.set(item.first, item.second);
+    }
+}
+
 class CDeterministicMNList
 {
 public:
-    typedef std::map<uint256, CDeterministicMNCPtr> MnMap;
-    typedef std::shared_ptr<MnMap> MnMapPtr;
+    typedef immer::map<uint256, CDeterministicMNCPtr> MnMap;
 
 private:
+    uint256 blockHash;
     int height{-1};
-    MnMapPtr mnMap;
+    MnMap mnMap;
 
 public:
-    CDeterministicMNList() : mnMap(std::make_shared<MnMap>()) {}
-    explicit CDeterministicMNList(int _height, MnMapPtr _mnMap = std::make_shared<MnMap>()) :
-            height(_height),
-            mnMap(_mnMap)
+    CDeterministicMNList() {}
+    explicit CDeterministicMNList(const uint256& _blockHash, int _height) :
+            blockHash(_blockHash),
+            height(_height)
     {}
-
-    CDeterministicMNList Clone() const
-    {
-        MnMapPtr newMnMap = std::make_shared<MnMap>(mnMap->begin(), mnMap->end());
-        return CDeterministicMNList(height, newMnMap);
-    }
 
     ADD_SERIALIZE_METHODS;
 
     template <typename Stream, typename Operation>
     inline void SerializationOp(Stream& s, Operation ser_action)
     {
+        READWRITE(blockHash);
         READWRITE(height);
-        READWRITE(*mnMap);
+        if (ser_action.ForRead()) {
+            UnserializeImmerMap(s, mnMap);
+        } else {
+            SerializeImmerMap(s, mnMap);
+        }
     }
 
 public:
 
     size_t size() const
     {
-        return mnMap->size();
+        return mnMap.size();
     }
 
     typedef boost::any_range<const CDeterministicMNCPtr&, boost::forward_traversal_tag> range_type;
 
     range_type all_range() const
     {
-        return boost::adaptors::transform(*mnMap, [] (const MnMap::value_type& p) -> const CDeterministicMNCPtr& {
+        return boost::adaptors::transform(mnMap, [] (const MnMap::value_type& p) -> const CDeterministicMNCPtr& {
             return p.second;
         });
     }
@@ -212,13 +236,13 @@ public:
 
     size_t all_count() const
     {
-        return mnMap->size();
+        return mnMap.size();
     }
 
     size_t valid_count() const
     {
         size_t c = 0;
-        for (const auto& p : *mnMap) {
+        for (const auto& p : mnMap) {
             if (IsMNValid(p.second)) {
                 c++;
             }
@@ -227,6 +251,14 @@ public:
     }
 
 public:
+    const uint256& GetBlockHash() const
+    {
+        return blockHash;
+    }
+    void SetBlockHash(const uint256& _blockHash)
+    {
+        blockHash = _blockHash;
+    }
     int GetHeight() const
     {
         return height;
@@ -234,10 +266,6 @@ public:
     void SetHeight(int _height)
     {
         height = _height;
-    }
-    MnMapPtr GetMap()
-    {
-        return mnMap;
     }
 
     bool IsMNValid(const uint256& proTxHash) const;
@@ -264,19 +292,22 @@ public:
 
     void AddMN(const CDeterministicMNCPtr &dmn)
     {
-        mnMap->emplace(dmn->proTxHash, dmn);
+        assert(!mnMap.find(dmn->proTxHash));
+        mnMap = mnMap.set(dmn->proTxHash, dmn);
     }
     void UpdateMN(const uint256 &proTxHash, const CDeterministicMNStateCPtr &state)
     {
-        auto it = mnMap->find(proTxHash);
-        assert(it != mnMap->end());
-        auto dmn = std::make_shared<CDeterministicMN>(*it->second);
+        auto oldDmn = mnMap.find(proTxHash);
+        assert(oldDmn != nullptr);
+        auto dmn = std::make_shared<CDeterministicMN>(**oldDmn);
         dmn->state = state;
-        it->second = dmn;
+        mnMap = mnMap.set(proTxHash, dmn);
     }
     void RemoveMN(const uint256& proTxHash)
     {
-        mnMap->erase(proTxHash);
+        auto dmn = GetMN(proTxHash);
+        assert(dmn != nullptr);
+        mnMap = mnMap.erase(proTxHash);
     }
 
 private:
@@ -287,7 +318,9 @@ private:
 class CDeterministicMNListDiff
 {
 public:
-    int height;
+    uint256 prevBlockHash;
+    uint256 blockHash;
+    int height{-1};
     std::map<uint256, CDeterministicMNCPtr> addedMNs;
     std::map<uint256, CDeterministicMNStateCPtr> updatedMNs;
     std::set<uint256> removedMns;
@@ -298,6 +331,8 @@ public:
     template <typename Stream, typename Operation>
     inline void SerializationOp(Stream& s, Operation ser_action)
     {
+        READWRITE(prevBlockHash);
+        READWRITE(blockHash);
         READWRITE(height);
         READWRITE(addedMNs);
         READWRITE(updatedMNs);
@@ -308,26 +343,6 @@ public:
     bool HasChanges() const
     {
         return !addedMNs.empty() || !updatedMNs.empty() || !removedMns.empty();
-    }
-};
-
-class CDeterministicMNManagerState
-{
-public:
-    int firstMNHeight{-1};
-    int curHeight{0};
-    uint256 curBlockHash;
-    int64_t spork15Value{SPORK_15_DETERMINISTIC_MNS_DEFAULT};
-
-    ADD_SERIALIZE_METHODS;
-
-    template <typename Stream, typename Operation>
-    inline void SerializationOp(Stream& s, Operation ser_action)
-    {
-        READWRITE(firstMNHeight);
-        READWRITE(curHeight);
-        READWRITE(curBlockHash);
-        READWRITE(spork15Value);
     }
 };
 
@@ -342,53 +357,34 @@ public:
 private:
     CEvoDB& evoDb;
 
-    CDeterministicMNManagerState state;
-    CDeterministicMNManagerState stateBackup; // for rollback
-
-    // stores a list per block.
-    // Mutliple consecutive entries might internally point to the same list in case nothing changed in a block
-    std::map<int, CDeterministicMNList> lists;
-    std::map<int, CDeterministicMNList> listsBackup; // for rollback
-
-    std::map<uint256, std::weak_ptr<const CProRegTx>> proTxCache;
+    std::map<uint256, CDeterministicMNList> mnListsCache;
+    int tipHeight{-1};
+    uint256 tipBlockHash;
 
 public:
-    CDeterministicMNManager(size_t nCacheSize, bool fMemory=false, bool fWipe=false);
-
-    std::unique_ptr<CScopedDBTransaction> BeginTransaction()
-    {
-        LOCK(cs);
-        stateBackup = state;
-        listsBackup = lists;
-        auto t = CScopedDBTransaction::Begin(dbTransaction);
-        t->SetRollbackHandler([&] {
-            state = stateBackup;
-            lists.swap(listsBackup);
-            listsBackup.clear();
-        });
-        t->SetCommitHandler([&] {
-            listsBackup.clear();
-        });
-        return t;
-    }
-
-    void Init();
+    CDeterministicMNManager(CEvoDB& _evoDb);
 
     bool ProcessBlock(const CBlock& block, const CBlockIndex* pindexPrev, CValidationState& state);
     bool UndoBlock(const CBlock& block, const CBlockIndex* pindex);
 
-    CDeterministicMNList GetListAtHeight(int height);
+    void UpdatedBlockTip(const CBlockIndex *pindex);
+
+    // the returned list will not contain the correct block hash (we can't know it yet as the coinbase TX is not updated yet)
+    bool BuildNewListFromBlock(const CBlock& block, const CBlockIndex* pindexPrev, CValidationState& state, CDeterministicMNList& mnListRet);
+
+    CDeterministicMNList GetListForBlock(const uint256& blockHash);
     CDeterministicMNList GetListAtChainTip();
 
-    CDeterministicMNCPtr GetMN(int height, const uint256& proTxHash);
-    bool HasValidMNAtHeight(int height, const uint256& proTxHash);
+    CDeterministicMNCPtr GetMN(const uint256& blockHash, const uint256& proTxHash);
+    bool HasValidMNAtBlock(const uint256& blockHash, const uint256& proTxHash);
     bool HasValidMNAtChainTip(const uint256& proTxHash);
 
     bool IsDeterministicMNsSporkActive(int height = -1);
 
 private:
     void UpdateSpork15Value();
-    void RebuildLists(int startHeight, int endHeight);
+    int64_t GetSpork15Value();
+    void CleanupCache(int height);
 };
 
 extern CDeterministicMNManager* deterministicMNManager;

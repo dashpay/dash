@@ -108,7 +108,7 @@ void CActiveDeterministicMasternodeManager::UpdatedBlockTip(const CBlockIndex* p
     if (state == MASTERNODE_WAITING_FOR_PROTX) {
         Init();
     } else if (state == MASTERNODE_READY) {
-        if (!deterministicMNManager->HasValidMNAtHeight(pindexNew->nHeight, mnListEntry->proTxHash)) {
+        if (!deterministicMNManager->HasValidMNAtBlock(pindexNew->GetBlockHash(), mnListEntry->proTxHash)) {
             // MN disappeared from MN list
             state = MASTERNODE_REMOVED;
             activeMasternodeInfo.outpoint.SetNull();
