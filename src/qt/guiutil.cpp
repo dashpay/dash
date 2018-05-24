@@ -928,7 +928,7 @@ QString getThemeName()
     if(!theme.isEmpty()){
         return theme;
     }
-    return QString("light-retro");  
+    return QString("light");
 }
 
 // Open CSS when configured
@@ -943,8 +943,8 @@ QString loadStyleSheet()
         cssName = QString(":/css/") + theme; 
     }
     else {
-        cssName = QString(":/css/light-retro");
-        settings.setValue("theme", "light-retro");
+        cssName = QString(":/css/light");
+        settings.setValue("theme", "light");
     }
     
     QFile qFile(cssName);      
