@@ -39,6 +39,32 @@ struct BIP9Deployment {
     int64_t nThreshold;
 };
 
+enum LLMQType : uint8_t
+{
+    LLMQ_NONE = 0xff,
+
+    LLMQ_50_60 = 1, // 50 members, 30 (60%) threshold, one per hour
+    LLMQ_400_60 = 2, // 400 members, 240 (60%) threshold, one every 12 hours
+    LLMQ_400_85 = 3, // 400 members, 340 (85%) threshold, one every 24 hours
+
+    // for testing only
+    LLMQ_10_60 = 100, // 10 members, 6 (60%) threshold, one per hour
+};
+
+struct LLMQParams {
+    LLMQType type;
+    std::string name;
+
+    int size;
+    int minSize;
+    int threshold;
+
+    int dkgInterval;
+    int dkgPhaseBlocks;
+    int dkgMiningWindowStart;
+    int dkgMiningWindowEnd;
+};
+
 /**
  * Parameters that influence chain consensus.
  */
@@ -96,6 +122,8 @@ struct Params {
     int nHighSubsidyBlocks{0};
     int nHighSubsidyFactor{1};
 
+    std::map<LLMQType, LLMQParams> llmqs;
+	
     // This is temporary until we reset testnet for retesting of the full DIP3 deployment
     int nTemporaryTestnetForkDIP3Height{0};
     uint256 nTemporaryTestnetForkDIP3BlockHash;
