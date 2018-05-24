@@ -371,6 +371,24 @@ bool CDeterministicMNManager::BuildNewListFromBlock(const CBlock& block, const C
 
     auto payee = oldList.GetMNPayee();
 
+    // we iterate the oldList here and update the newList
+    // this is only valid as long these have not diverged at this point, which is the case as long as we don't add
+    // code above this loop that modifies newList
+    oldList.ForEachMN(false, [&](const CDeterministicMNCPtr& dmn) {
+        if (!dmn->pdmnState->confirmedHash.IsNull()) {
+            // already confirmed
+            return;
+        }
+        // this works on the previous block, so confirmation will happen one block after nMasternodeMinimumConfirmations
+        // has been reached, but the block hash will then point to the block at nMasternodeMinimumConfirmations
+        int nConfirmations = pindexPrev->nHeight - dmn->pdmnState->nRegisteredHeight;
+        if (nConfirmations >= Params().GetConsensus().nMasternodeMinimumConfirmations) {
+            CDeterministicMNState newState = *dmn->pdmnState;
+            newState.UpdateConfirmedHash(dmn->proTxHash, pindexPrev->GetBlockHash());
+            newList.UpdateMN(dmn->proTxHash, std::make_shared<CDeterministicMNState>(newState));
+        }
+    });
+
     // we skip the coinbase
     for (int i = 1; i < (int)block.vtx.size(); i++) {
         const CTransaction& tx = *block.vtx[i];
