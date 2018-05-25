@@ -30,6 +30,7 @@ class DIP3Test(BitcoinTestFramework):
         self.extra_args += ["-sporkaddr=yebBV414nM8rqS8JjeisXuomoKDfpi4J6N", "-sporkkey=cP57a9nyCZgtFAR5buK5y4KUp6NJ3Yj7KtW7zX55LPSFkTHWNkoz"]
 
     def setup_network(self):
+        disable_mocktime()
         self.start_controller_node()
         self.is_network_split = False
 
