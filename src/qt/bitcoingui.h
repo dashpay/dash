@@ -227,11 +227,11 @@ public Q_SLOTS:
     void message(const QString &title, const QString &message, unsigned int style, bool *ret = nullptr);
 
 #ifdef ENABLE_WALLET
-    /** Set the hd-enabled status as shown in the UI.
-     @param[in] status            current hd enabled status
-     @see WalletModel::EncryptionStatus
-     */
-    void setHDStatus(int hdEnabled);
+    bool setCurrentWallet(const QString& name);
+    bool setCurrentWalletBySelectorIndex(int index);
+    /** Set the UI status indicators based on the currently selected wallet.
+    */
+    void updateWalletStatus();
 
     /** Set the encryption status as shown in the UI.
        @param[in] status            current encryption status
