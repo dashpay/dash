@@ -257,6 +257,8 @@ CDeterministicMNManager::CDeterministicMNManager(CEvoDB& _evoDb) :
 
 bool CDeterministicMNManager::ProcessBlock(const CBlock& block, const CBlockIndex* pindexPrev, CValidationState& _state)
 {
+    LOCK(cs);
+
     int height = pindexPrev->nHeight + 1;
 
     CDeterministicMNList newList;
@@ -316,7 +318,7 @@ void CDeterministicMNManager::UpdatedBlockTip(const CBlockIndex* pindex)
 
 bool CDeterministicMNManager::BuildNewListFromBlock(const CBlock& block, const CBlockIndex* pindexPrev, CValidationState& _state, CDeterministicMNList& mnListRet)
 {
-    LOCK(cs);
+    AssertLockHeld(cs);
 
     int height = pindexPrev->nHeight + 1;
 
