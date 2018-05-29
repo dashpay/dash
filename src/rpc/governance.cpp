@@ -465,10 +465,10 @@ UniValue gobject(const JSONRPCRequest& request)
         int nSuccessful = 0;
         int nFailed = 0;
 
-#ifdef ENABLE_WALLET
         std::vector<CMasternodeConfig::CMasternodeEntry> mnEntries;
         mnEntries = masternodeConfig.getEntries();
 
+#ifdef ENABLE_WALLET
         // This is a hack to maintain code-level backwards compatibility with the masternode.conf based code below
         // It allows voting on proposals when you have the MN owner key in your wallet
         // We can remove this when we remove support for masternode.conf and only support wallet based masternode
