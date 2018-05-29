@@ -184,7 +184,7 @@ class CDeterministicMNList
 {
 public:
     typedef immer::map<uint256, CDeterministicMNCPtr> MnMap;
-    typedef immer::map<uint256, std::pair<uint256, size_t>> MnUniquePropertyMap;
+    typedef immer::map<uint256, std::pair<uint256, uint32_t>> MnUniquePropertyMap;
 
 private:
     uint256 blockHash;
@@ -354,7 +354,7 @@ private:
         auto hash = ::SerializeHash(v);
         auto oldEntry = mnUniquePropertyMap.find(hash);
         assert(!oldEntry || oldEntry->first == dmn->proTxHash);
-        std::pair<uint256, size_t> newEntry(dmn->proTxHash, 1);
+        std::pair<uint256, uint32_t> newEntry(dmn->proTxHash, 1);
         if (oldEntry) {
             newEntry.second = oldEntry->second + 1;
         }
@@ -365,9 +365,6 @@ private:
     {
         auto oldHash = ::SerializeHash(oldValue);
         auto p = mnUniquePropertyMap.find(oldHash);
-        if (!p || p->first != dmn->proTxHash) {
-            int a = 0;
-        }
         assert(p && p->first == dmn->proTxHash);
         if (p->second == 1) {
             mnUniquePropertyMap = mnUniquePropertyMap.erase(oldHash);
