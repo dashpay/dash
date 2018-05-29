@@ -20,7 +20,8 @@ commit=false
 url=https://github.com/dashpay/dash
 proc=2
 mem=2000
-lxc=true
+lxc=false
+docker=true
 osslTarUrl=http://downloads.sourceforge.net/project/osslsigncode/osslsigncode/osslsigncode-1.7.1.tar.gz
 osslPatchUrl=https://bitcoincore.org/cfields/osslsigncode-Backports-to-1.7.1.patch
 scriptName=$(basename -- "$0")
@@ -47,8 +48,10 @@ Options:
 -o|--os		Specify which Operating Systems the build is for. Default is lwx. l for linux, w for windows, x for osx
 -j		Number of processes to use. Default 2
 -m		Memory to allocate in MiB. Default 2000
---kvm           Use KVM instead of LXC
---setup         Setup the gitian building environment. Uses KVM. If you want to use lxc, use the --lxc option. Only works on Debian-based systems (Ubuntu, Debian)
+--kvm           Use KVM
+--lxc           Use LXC
+--docker        Use Docker
+--setup         Setup the gitian building environment. Uses KVM. If you want to use lxc, use the --lxc option. If you want to use Docker, use --docker. Only works on Debian-based systems (Ubuntu, Debian)
 --detach-sign   Create the assert file for detached signing. Will not commit anything.
 --no-commit     Do not commit anything to git
 -h|--help	Print this help message
@@ -153,8 +156,19 @@ while :; do
 	    fi
 	    ;;
         # kvm
+        --lxc)
+            lxc=true
+            docker=false
+            ;;
+        # kvm
         --kvm)
             lxc=false
+            docker=false
+            ;;
+        # docker
+        --docker)
+            lxc=false
+            docker=true
             ;;
         # Detach sign
         --detach-sign)
@@ -181,6 +195,9 @@ then
     export USE_LXC=1
     export LXC_BRIDGE=lxcbr0
     sudo ifconfig lxcbr0 up 10.0.3.2
+elif [[ $docker = true ]]
+then
+    export USE_DOCKER=1
 fi
 
 # Check for OSX SDK
@@ -240,6 +257,10 @@ then
     then
         sudo apt-get install lxc
         bin/make-base-vm --suite trusty --arch amd64 --lxc
+    elif [[ -n "$USE_DOCKER" ]]
+    then
+        sudo apt-get install docker-ce
+        bin/make-base-vm --suite trusty --arch amd64 --docker
     else
         bin/make-base-vm --suite trusty --arch amd64
     fi
