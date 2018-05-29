@@ -393,7 +393,7 @@ class DIP3Test(BitcoinTestFramework):
         else:
             assert_equal(start_result, {'result': 'failed', 'alias': alias, 'errorMessage': 'Failed to verify MNB'})
 
-    def generate_blocks_until_winners(self, node, count, timeout=30):
+    def generate_blocks_until_winners(self, node, count, timeout=60):
         # Winner lists are pretty much messed up when too many blocks were generated in a short time
         # To allow proper testing of winners list, we need to slowly generate a few blocks until the list stabilizes
         good_count = 0
@@ -410,7 +410,7 @@ class DIP3Test(BitcoinTestFramework):
                     good_count = 0
             node.generate(1)
             self.sync_all()
-            time.sleep(0.5)
+            time.sleep(1)
         raise AssertionError("generate_blocks_until_winners timed out: {}".format(node.masternode('winners')))
 
     def test_mn_votes(self, block_count, test_enforcement=False):
