@@ -227,6 +227,7 @@ See detailed [change log](https://github.com/dashpay/dash/compare/v0.12.2.3...da
 - [`8a387ee09`](https://github.com/dashpay/dash/commit/8a387ee09) Drop SPORK_13_OLD_SUPERBLOCK_FLAG and check superblock start hash (#1872)
 
 ### InstantSend:
+- [`ef85d5144`](https://github.com/dashpay/dash/commit/ef85d5144) Comment updates - InstantSend (#2062)
 - [`c0a109998`](https://github.com/dashpay/dash/commit/c0a109998) Fix instantsend in testnet and regtest (#2016)
 - [`2f1661678`](https://github.com/dashpay/dash/commit/2f1661678) Locked txes should not expire until mined and have sufficient confirmations (#2011)
 - [`846f1d217`](https://github.com/dashpay/dash/commit/846f1d217) Avoid processing tx lock request twice in the wallet it was sent from (#2007)
@@ -235,6 +236,7 @@ See detailed [change log](https://github.com/dashpay/dash/compare/v0.12.2.3...da
 - [`2c04504f1`](https://github.com/dashpay/dash/commit/2c04504f1) Refactor IS votes processing (#1951)
 
 ### PrivateSend:
+- [`7ac4b972a`](https://github.com/dashpay/dash/commit/7ac4b972a) Require all participants to submit equal number of inputs (#2075)
 - [`d1bf615f3`](https://github.com/dashpay/dash/commit/d1bf615f3) No POOL_STATE_ERROR or POOL_STATE_SUCCESS on masternodes (#2009)
 - [`d03adb7c3`](https://github.com/dashpay/dash/commit/d03adb7c3) Check if in masternode mode first and only then do the job (or not) (#2008)
 - [`ddff32b96`](https://github.com/dashpay/dash/commit/ddff32b96) Fix TransactionRecord::PrivateSendMakeCollaterals tx type (#1996)
@@ -251,6 +253,7 @@ See detailed [change log](https://github.com/dashpay/dash/compare/v0.12.2.3...da
 - [`1d620d1f9`](https://github.com/dashpay/dash/commit/1d620d1f9) Fix calls to AcceptToMemoryPool in PS submodules (#1823)
 
 ### Network:
+- [`c60079b59`](https://github.com/dashpay/dash/commit/c60079b59) ThreadOpenMasternodeConnections should process only one mn at a time (#2080)
 - [`a648d6eff`](https://github.com/dashpay/dash/commit/a648d6eff) Drop delayed headers logic and fix duplicate initial headers sync by handling block inv correctly (#2032)
 - [`99085c5b6`](https://github.com/dashpay/dash/commit/99085c5b6) swap devnet magic bytes around (#2028)
 - [`a37dbd6d2`](https://github.com/dashpay/dash/commit/a37dbd6d2) Fix netfulfilledman usage (#2033)
@@ -274,11 +277,14 @@ See detailed [change log](https://github.com/dashpay/dash/compare/v0.12.2.3...da
 - [`81fb931fb`](https://github.com/dashpay/dash/commit/81fb931fb) Don't delay GETHEADERS when no blocks have arrived yet in devnet (#1807)
 
 ### Mining:
+- [`ff93dd613`](https://github.com/dashpay/dash/commit/ff93dd613) Check devnet genesis block (#2057)
+- [`1dbf5a0f6`](https://github.com/dashpay/dash/commit/1dbf5a0f6) Fix transaction/block versions for devnet genesis blocks (#2056)
 - [`880cbf43b`](https://github.com/dashpay/dash/commit/880cbf43b) Backport fPowAllowMinDifficultyBlocks rule to DarkGravityWave (#2027)
 - [`27dfed424`](https://github.com/dashpay/dash/commit/27dfed424) Bump default max block size from 750k to 2MB (#2023)
 - [`79183f630`](https://github.com/dashpay/dash/commit/79183f630) Add tests for GetBlockSubsidy algorithm (#2022)
 
 ### Wallet:
+- [`0260821f8`](https://github.com/dashpay/dash/commit/0260821f8) fix SelectCoinsByDenominations (#2074)
 - [`b7bd96e2b`](https://github.com/dashpay/dash/commit/b7bd96e2b) Clarify the warning displayed when encrypting HD wallet (#2002)
 - [`4930bb9f5`](https://github.com/dashpay/dash/commit/4930bb9f5) Don't hold cs_storage in CKeyHolderStorage while calling functions which might lock cs_wallet (#2000)
 - [`4d442376e`](https://github.com/dashpay/dash/commit/4d442376e) Limit the scope of cs_wallet lock in CPrivateSendClient::PrepareDenominate() (#1997)
@@ -307,6 +313,7 @@ See detailed [change log](https://github.com/dashpay/dash/compare/v0.12.2.3...da
 - [`1cffb8a7e`](https://github.com/dashpay/dash/commit/1cffb8a7e) Include p2pk into addressindex (#1839)
 
 ### GUI:
+- [`82805a6c6`](https://github.com/dashpay/dash/commit/82805a6c6) swap out old logo for T&C logo in Qt GUI (#2081)
 - [`e9f63073d`](https://github.com/dashpay/dash/commit/e9f63073d) Warn when more than 50% of masternodes are using newer version (#1963)
 - [`653600352`](https://github.com/dashpay/dash/commit/653600352) Draw text on top of everything else in TrafficGraphWidget (#1944)
 - [`118eeded6`](https://github.com/dashpay/dash/commit/118eeded6) [GUI] Create QR-code for Masternode private key (#1970)
@@ -314,6 +321,7 @@ See detailed [change log](https://github.com/dashpay/dash/compare/v0.12.2.3...da
 - [`e30009c31`](https://github.com/dashpay/dash/commit/e30009c31) Fix qt and fontconfig depends #1884
 
 ### Docs:
+- [`faeb4480a`](https://github.com/dashpay/dash/commit/faeb4480a) Update manpages with ./contrib/devtools/gen-manpages.sh (#2088)
 - [`4148b8200`](https://github.com/dashpay/dash/commit/4148b8200) Release notes cleanup (#2034)
 - [`d2c46a6a3`](https://github.com/dashpay/dash/commit/d2c46a6a3) Update protocol-documentation.md (#1964)
 - [`4db8483d4`](https://github.com/dashpay/dash/commit/4db8483d4) [Docs] Doxyfile Project version update (#1938)
@@ -323,6 +331,15 @@ See detailed [change log](https://github.com/dashpay/dash/compare/v0.12.2.3...da
 - [`3dc62106b`](https://github.com/dashpay/dash/commit/3dc62106b) [Docs] Doxygen config update (#1796)
 
 ### Other fixes and improvements:
+- [`cc593615e`](https://github.com/dashpay/dash/commit/cc593615e) Bump copyright year to 2018 (#2087)
+- [`2129ee4d8`](https://github.com/dashpay/dash/commit/2129ee4d8) Add docker support when doing Gitian builds (#2084)
+- [`6a1456ef4`](https://github.com/dashpay/dash/commit/6a1456ef4) Update gitian key for codablock (#2085)
+- [`ab96a6af6`](https://github.com/dashpay/dash/commit/ab96a6af6) Update gitian keys, script and doc (#2082)
+- [`5d057cf66`](https://github.com/dashpay/dash/commit/5d057cf66) Add string_cast benchmark (#2073)
+- [`cf71f5767`](https://github.com/dashpay/dash/commit/cf71f5767) Fix potential DoS vector for masternode payments (#2071)
+- [`febdc2116`](https://github.com/dashpay/dash/commit/febdc2116) Fix `nl` locale alias (#2061)
+- [`1264a5577`](https://github.com/dashpay/dash/commit/1264a5577) Fix spork signature check for new nodes after SPORK_6_NEW_SIGS is switched to ON (#2060)
+- [`41680f4d9`](https://github.com/dashpay/dash/commit/41680f4d9) small cleanup in a few places (#2058)
 - [`741b94875`](https://github.com/dashpay/dash/commit/741b94875) Translations201804 (#2012)
 - [`8e24b087b`](https://github.com/dashpay/dash/commit/8e24b087b) replace boost iterators in dash-specific code (#2048)
 - [`7719b7ec2`](https://github.com/dashpay/dash/commit/7719b7ec2) Update BIP147 deployment times, nMinimumChainWork and defaultAssumeValid (#2030)
