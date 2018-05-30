@@ -409,6 +409,7 @@ Credits
 Thanks to everyone who directly contributed to this release:
 
 - Alexander Block
+- Chris Adam
 - crowning-
 - gladcow
 - Kamil Woźniak
