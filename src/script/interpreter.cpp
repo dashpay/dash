@@ -1037,9 +1037,11 @@ namespace {
  * Wrapper that serializes like CTransaction, but with the modifications
  *  required for the signature hash done in-place
  */
-class CTransactionSignatureSerializer {
+template <class T>
+class CTransactionSignatureSerializer
+{
 private:
-    const CTransaction& txTo;  //!< reference to the spending transaction (the one being serialized)
+    const T& txTo;             //!< reference to the spending transaction (the one being serialized)
     const CScript& scriptCode; //!< output script being consumed
     const unsigned int nIn;    //!< input index of txTo being signed
     const bool fAnyoneCanPay;  //!< whether the hashtype has the SIGHASH_ANYONECANPAY flag set
@@ -1047,7 +1049,7 @@ private:
     const bool fHashNone;      //!< whether the hashtype is SIGHASH_NONE
 
 public:
-    CTransactionSignatureSerializer(const CTransaction &txToIn, const CScript &scriptCodeIn, unsigned int nInIn, int nHashTypeIn) :
+    CTransactionSignatureSerializer(const T& txToIn, const CScript& scriptCodeIn, unsigned int nInIn, int nHashTypeIn) :
         txTo(txToIn), scriptCode(scriptCodeIn), nIn(nInIn),
         fAnyoneCanPay(!!(nHashTypeIn & SIGHASH_ANYONECANPAY)),
         fHashSingle((nHashTypeIn & 0x1f) == SIGHASH_SINGLE),
@@ -1131,7 +1133,9 @@ public:
     }
 };
 
-uint256 GetPrevoutHash(const CTransaction& txTo) {
+template <class T>
+uint256 GetPrevoutHash(const T& txTo)
+{
     CHashWriter ss(SER_GETHASH, 0);
     for (const auto& txin : txTo.vin) {
         ss << txin.prevout;
@@ -1139,7 +1143,9 @@ uint256 GetPrevoutHash(const CTransaction& txTo) {
     return ss.GetHash();
 }
 
-uint256 GetSequenceHash(const CTransaction& txTo) {
+template <class T>
+uint256 GetSequenceHash(const T& txTo)
+{
     CHashWriter ss(SER_GETHASH, 0);
     for (const auto& txin : txTo.vin) {
         ss << txin.nSequence;
@@ -1147,7 +1153,9 @@ uint256 GetSequenceHash(const CTransaction& txTo) {
     return ss.GetHash();
 }
 
-uint256 GetOutputsHash(const CTransaction& txTo) {
+template <class T>
+uint256 GetOutputsHash(const T& txTo)
+{
     CHashWriter ss(SER_GETHASH, 0);
     for (const auto& txout : txTo.vout) {
         ss << txout;
@@ -1157,14 +1165,20 @@ uint256 GetOutputsHash(const CTransaction& txTo) {
 
 } // namespace
 
-PrecomputedTransactionData::PrecomputedTransactionData(const CTransaction& txTo)
+template <class T>
+PrecomputedTransactionData::PrecomputedTransactionData(const T& txTo)
 {
     hashPrevouts = GetPrevoutHash(txTo);
     hashSequence = GetSequenceHash(txTo);
     hashOutputs = GetOutputsHash(txTo);
 }
 
-uint256 SignatureHash(const CScript& scriptCode, const CTransaction& txTo, unsigned int nIn, int nHashType, const CAmount& amount, SigVersion sigversion, const PrecomputedTransactionData* cache)
+// explicit instantiation
+template PrecomputedTransactionData::PrecomputedTransactionData(const CTransaction& txTo);
+template PrecomputedTransactionData::PrecomputedTransactionData(const CMutableTransaction& txTo);
+
+template <class T>
+uint256 SignatureHash(const CScript& scriptCode, const T& txTo, unsigned int nIn, int nHashType, const CAmount& amount, SigVersion sigversion, const PrecomputedTransactionData* cache)
 {
     assert(nIn < txTo.vin.size());
 
@@ -1179,7 +1193,7 @@ uint256 SignatureHash(const CScript& scriptCode, const CTransaction& txTo, unsig
     }
 
     // Wrapper to serialize only the necessary parts of the transaction being signed
-    CTransactionSignatureSerializer txTmp(txTo, scriptCode, nIn, nHashType);
+    CTransactionSignatureSerializer<T> txTmp(txTo, scriptCode, nIn, nHashType);
 
     // Serialize and hash
     CHashWriter ss(SER_GETHASH, 0);
@@ -1187,12 +1201,14 @@ uint256 SignatureHash(const CScript& scriptCode, const CTransaction& txTo, unsig
     return ss.GetHash();
 }
 
-bool TransactionSignatureChecker::VerifySignature(const std::vector<unsigned char>& vchSig, const CPubKey& pubkey, const uint256& sighash) const
+template <class T>
+bool GenericTransactionSignatureChecker<T>::VerifySignature(const std::vector<unsigned char>& vchSig, const CPubKey& pubkey, const uint256& sighash) const
 {
     return pubkey.Verify(sighash, vchSig);
 }
 
-bool TransactionSignatureChecker::CheckSig(const std::vector<unsigned char>& vchSigIn, const std::vector<unsigned char>& vchPubKey, const CScript& scriptCode, SigVersion sigversion) const
+template <class T>
+bool GenericTransactionSignatureChecker<T>::CheckSig(const std::vector<unsigned char>& vchSigIn, const std::vector<unsigned char>& vchPubKey, const CScript& scriptCode, SigVersion sigversion) const
 {
     CPubKey pubkey(vchPubKey);
     if (!pubkey.IsValid())
@@ -1213,7 +1229,8 @@ bool TransactionSignatureChecker::CheckSig(const std::vector<unsigned char>& vch
     return true;
 }
 
-bool TransactionSignatureChecker::CheckLockTime(const CScriptNum& nLockTime) const
+template <class T>
+bool GenericTransactionSignatureChecker<T>::CheckLockTime(const CScriptNum& nLockTime) const
 {
     // There are two kinds of nLockTime: lock-by-blockheight
     // and lock-by-blocktime, distinguished by whether
@@ -1249,7 +1266,8 @@ bool TransactionSignatureChecker::CheckLockTime(const CScriptNum& nLockTime) con
     return true;
 }
 
-bool TransactionSignatureChecker::CheckSequence(const CScriptNum& nSequence) const
+template <class T>
+bool GenericTransactionSignatureChecker<T>::CheckSequence(const CScriptNum& nSequence) const
 {
     // Relative lock times are supported by comparing the passed
     // in operand to the sequence number of the input.
@@ -1295,7 +1313,11 @@ bool TransactionSignatureChecker::CheckSequence(const CScriptNum& nSequence) con
     return true;
 }
 
-bool VerifyScript(const CScript& scriptSig, const CScript& scriptPubKey, unsigned int flags, const BaseSignatureChecker& checker, ScriptError* serror)
+// explicit instantiation
+template class GenericTransactionSignatureChecker<CTransaction>;
+template class GenericTransactionSignatureChecker<CMutableTransaction>;
+
+static bool VerifyWitnessProgram(const CScriptWitness& witness, int witversion, const std::vector<unsigned char>& program, unsigned int flags, const BaseSignatureChecker& checker, ScriptError* serror)
 {
     set_error(serror, SCRIPT_ERR_UNKNOWN_ERROR);
 
