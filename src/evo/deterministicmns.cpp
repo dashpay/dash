@@ -329,9 +329,7 @@ bool CDeterministicMNManager::BuildNewListFromBlock(const CBlock& block, const C
 
     auto payee = oldList.GetMNPayee();
 
-    for (const auto& dmn : newList.all_range()) {
-    }
-
+    // we skip the coinbase
     for (int i = 1; i < (int)block.vtx.size(); i++) {
         const CTransaction& tx = *block.vtx[i];
 
