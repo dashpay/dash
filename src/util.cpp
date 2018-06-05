@@ -766,9 +766,9 @@ void ArgsManager::ParseParameters(int argc, const char* const argv[])
     if (it != m_override_args.end()) {
         if (it->second.size() > 0) {
             for (const auto& ic : it->second) {
-                fprintf(stderr, "warning: -includeconf cannot be used from commandline; ignoring -includeconf=%s\n", ic.c_str());
+                error += "-includeconf cannot be used from commandline; -includeconf=" + ic + "\n";
             }
-            m_override_args.erase(it);
+            return false;
         }
     }
 }
@@ -1055,11 +1055,12 @@ void ArgsManager::ReadConfigFiles()
         // if there is an -includeconf in the override args, but it is empty, that means the user
         // passed '-noincludeconf' on the command line, in which case we should not include anything
         if (m_override_args.count("-includeconf") == 0) {
+            std::string chain_id = GetChainName();
             std::vector<std::string> includeconf(GetArgs("-includeconf"));
             {
                 // We haven't set m_network yet (that happens in SelectParams()), so manually check
                 // for network.includeconf args.
-                std::vector<std::string> includeconf_net(GetArgs(std::string("-") + GetChainName() + ".includeconf"));
+                std::vector<std::string> includeconf_net(GetArgs(std::string("-") + chain_id + ".includeconf"));
                 includeconf.insert(includeconf.end(), includeconf_net.begin(), includeconf_net.end());
             }
 
@@ -1068,7 +1069,7 @@ void ArgsManager::ReadConfigFiles()
             {
                 LOCK(cs_args);
                 m_config_args.erase("-includeconf");
-                m_config_args.erase(std::string("-") + GetChainName() + ".includeconf");
+                m_config_args.erase(std::string("-") + chain_id + ".includeconf");
             }
 
             for (const std::string& to_include : includeconf) {
@@ -1077,15 +1078,22 @@ void ArgsManager::ReadConfigFiles()
                     ReadConfigStream(include_config);
                     LogPrintf("Included configuration file %s\n", to_include.c_str());
                 } else {
-                    fprintf(stderr, "Failed to include configuration file %s\n", to_include.c_str());
+                    error = "Failed to include configuration file " + to_include;
+                    return false;
                 }
             }
 
             // Warn about recursive -includeconf
             includeconf = GetArgs("-includeconf");
             {
-                std::vector<std::string> includeconf_net(GetArgs(std::string("-") + GetChainName() + ".includeconf"));
+                std::vector<std::string> includeconf_net(GetArgs(std::string("-") + chain_id + ".includeconf"));
                 includeconf.insert(includeconf.end(), includeconf_net.begin(), includeconf_net.end());
+                std::string chain_id_final = GetChainName();
+                if (chain_id_final != chain_id) {
+                    // Also warn about recursive includeconf for the chain that was specified in one of the includeconfs
+                    includeconf_net = GetArgs(std::string("-") + chain_id_final + ".includeconf");
+                    includeconf.insert(includeconf.end(), includeconf_net.begin(), includeconf_net.end());
+                }
             }
             for (const std::string& to_include : includeconf) {
                 fprintf(stderr, "warning: -includeconf cannot be used from included files; ignoring -includeconf=%s\n", to_include.c_str());
