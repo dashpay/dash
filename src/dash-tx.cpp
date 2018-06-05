@@ -610,11 +610,8 @@ static void MutateTxSign(CMutableTransaction& tx, const std::string& flagStr)
             ProduceSignature(MutableTransactionSignatureCreator(&keystore, &mergedTx, i, amount, nHashType), prevPubKey, sigdata);
 
         // ... and merge in other signatures:
-        for (const CTransaction& txv : txVariants)
-            sigdata = CombineSignatures(prevPubKey, MutableTransactionSignatureChecker(&mergedTx, i, amount), sigdata, DataFromTransaction(txv, i));
-        UpdateTransaction(mergedTx, i, sigdata);
-        if (!VerifyScript(txin.scriptSig, prevPubKey, STANDARD_SCRIPT_VERIFY_FLAGS, MutableTransactionSignatureChecker(&mergedTx, i, amount)))
-            fComplete = false;
+        sigdata = CombineSignatures(prevPubKey, MutableTransactionSignatureChecker(&mergedTx, i, amount), sigdata, DataFromTransaction(txv, i));
+        UpdateInput(txin, sigdata);
     }
 
     if (fComplete) {

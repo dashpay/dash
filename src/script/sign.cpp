@@ -158,21 +158,21 @@ SignatureData DataFromTransaction(const CMutableTransaction& tx, unsigned int nI
     return data;
 }
 
-void UpdateTransaction(CMutableTransaction& tx, unsigned int nIn, const SignatureData& data)
+void UpdateInput(CTxIn& input, const SignatureData& data)
 {
-    assert(tx.vin.size() > nIn);
-    tx.vin[nIn].scriptSig = data.scriptSig;
+    input.scriptSig = data.scriptSig;
+    input.scriptWitness = data.scriptWitness;
 }
 
-bool SignSignature(const CKeyStore &keystore, const CScript& fromPubKey, CMutableTransaction& txTo, unsigned int nIn, const CAmount& amount, int nHashType)
+bool SignSignature(const SigningProvider &provider, const CScript& fromPubKey, CMutableTransaction& txTo, unsigned int nIn, const CAmount& amount, int nHashType)
 {
     assert(nIn < txTo.vin.size());
 
     MutableTransactionSignatureCreator creator(&txTo, nIn, amount, nHashType);
 
     SignatureData sigdata;
-    bool ret = ProduceSignature(creator, fromPubKey, sigdata);
-    UpdateTransaction(txTo, nIn, sigdata);
+    bool ret = ProduceSignature(provider, creator, fromPubKey, sigdata);
+    UpdateInput(txTo.vin.at(nIn), sigdata);
     return ret;
 }
 

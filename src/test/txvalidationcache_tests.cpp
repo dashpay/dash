@@ -305,6 +305,73 @@ BOOST_FIXTURE_TEST_CASE(checkinputs_test, TestChain100Setup)
     }
 
     // TODO: add tests for remaining script flags
+
+    // Test that passing CheckInputs with a valid witness doesn't imply success
+    // for the same tx with a different witness.
+    {
+        CMutableTransaction valid_with_witness_tx;
+        valid_with_witness_tx.nVersion = 1;
+        valid_with_witness_tx.vin.resize(1);
+        valid_with_witness_tx.vin[0].prevout.hash = spend_tx.GetHash();
+        valid_with_witness_tx.vin[0].prevout.n = 1;
+        valid_with_witness_tx.vout.resize(1);
+        valid_with_witness_tx.vout[0].nValue = 11*CENT;
+        valid_with_witness_tx.vout[0].scriptPubKey = p2pk_scriptPubKey;
+
+        // Sign
+        SignatureData sigdata;
+        ProduceSignature(keystore, MutableTransactionSignatureCreator(&valid_with_witness_tx, 0, 11*CENT, SIGHASH_ALL), spend_tx.vout[1].scriptPubKey, sigdata);
+        UpdateInput(valid_with_witness_tx.vin[0], sigdata);
+
+        // This should be valid under all script flags.
+        ValidateCheckInputsForAllFlags(valid_with_witness_tx, 0, true);
+
+        // Remove the witness, and check that it is now invalid.
+        valid_with_witness_tx.vin[0].scriptWitness.SetNull();
+        ValidateCheckInputsForAllFlags(valid_with_witness_tx, SCRIPT_VERIFY_WITNESS, true);
+    }
+
+    {
+        // Test a transaction with multiple inputs.
+        CMutableTransaction tx;
+
+        tx.nVersion = 1;
+        tx.vin.resize(2);
+        tx.vin[0].prevout.hash = spend_tx.GetHash();
+        tx.vin[0].prevout.n = 0;
+        tx.vin[1].prevout.hash = spend_tx.GetHash();
+        tx.vin[1].prevout.n = 1;
+        tx.vout.resize(1);
+        tx.vout[0].nValue = 22*CENT;
+        tx.vout[0].scriptPubKey = p2pk_scriptPubKey;
+
+        // Sign
+        for (int i=0; i<2; ++i) {
+            SignatureData sigdata;
+            ProduceSignature(keystore, MutableTransactionSignatureCreator(&tx, i, 11*CENT, SIGHASH_ALL), spend_tx.vout[i].scriptPubKey, sigdata);
+            UpdateInput(tx.vin[i], sigdata);
+        }
+
+        // This should be valid under all script flags
+        ValidateCheckInputsForAllFlags(tx, 0, true);
+
+        // Check that if the second input is invalid, but the first input is
+        // valid, the transaction is not cached.
+        // Invalidate vin[1]
+        tx.vin[1].scriptWitness.SetNull();
+
+        CValidationState state;
+        PrecomputedTransactionData txdata(tx);
+        // This transaction is now invalid under segwit, because of the second input.
+        BOOST_CHECK(!CheckInputs(tx, state, pcoinsTip.get(), true, SCRIPT_VERIFY_P2SH | SCRIPT_VERIFY_WITNESS, true, true, txdata, nullptr));
+
+        std::vector<CScriptCheck> scriptchecks;
+        // Make sure this transaction was not cached (ie because the first
+        // input was valid)
+        BOOST_CHECK(CheckInputs(tx, state, pcoinsTip.get(), true, SCRIPT_VERIFY_P2SH | SCRIPT_VERIFY_WITNESS, true, true, txdata, &scriptchecks));
+        // Should get 2 script checks back -- caching is on a whole-transaction basis.
+        BOOST_CHECK_EQUAL(scriptchecks.size(), 2U);
+    }
 }
 
 BOOST_AUTO_TEST_SUITE_END()
