@@ -376,13 +376,10 @@ void CGovernanceManager::UpdateCachesAndClean()
 
     ScopedLockBool guard(cs, fRateChecksEnabled, false);
 
-    // UPDATE CACHE FOR EACH OBJECT THAT IS FLAGGED DIRTYCACHE=TRUE
-
-    object_m_it it = mapObjects.begin();
-
     // Clean up any expired or invalid triggers
     triggerman.CleanAndRemove();
 
+    object_m_it it = mapObjects.begin();
     int64_t nNow = GetAdjustedTime();
 
     while(it != mapObjects.end())
@@ -445,6 +442,7 @@ void CGovernanceManager::UpdateCachesAndClean()
             mapErasedGovernanceObjects.insert(std::make_pair(nHash, nTimeExpired));
             mapObjects.erase(it++);
         } else {
+            // NOTE: triggers are handled via triggerman
             // DO NOT USE THIS UNTIL MAY, 2018 on mainnet
             if ((GetAdjustedTime() >= 1526423380 || Params().NetworkIDString() != CBaseChainParams::MAIN) && pObj->GetObjectType() == GOVERNANCE_OBJECT_PROPOSAL) {
                 CProposalValidator validator(pObj->GetDataAsHexString());
