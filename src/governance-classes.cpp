@@ -163,7 +163,7 @@ void CGovernanceTriggerManager::CleanAndRemove()
     trigger_m_it it = mapTrigger.begin();
     while(it != mapTrigger.end()) {
         bool remove = false;
-        CGovernanceObject* pObj = NULL;
+        CGovernanceObject* pObj = nullptr;
         CSuperblock_sptr& pSuperblock = it->second;
         if(!pSuperblock) {
             DBG( std::cout << "CGovernanceTriggerManager::CleanAndRemove: NULL superblock marked for removal" << std::endl; );
