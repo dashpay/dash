@@ -207,9 +207,11 @@ void CGovernanceTriggerManager::CleanAndRemove()
                );
             LogPrint("gobject", "CGovernanceTriggerManager::CleanAndRemove -- Removing trigger object\n");
             // mark corresponding object for deletion
-            pObj->fCachedDelete = true;
-            if (pObj->nDeletionTime == 0) {
-                pObj->nDeletionTime = GetAdjustedTime();
+            if (pObj) {
+                pObj->fCachedDelete = true;
+                if (pObj->nDeletionTime == 0) {
+                    pObj->nDeletionTime = GetAdjustedTime();
+                }
             }
             // delete the trigger
             mapTrigger.erase(it++);
