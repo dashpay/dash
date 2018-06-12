@@ -55,7 +55,8 @@ install:
     - export HOST_CACHE_DIR=$HOME/cache
     - mkdir -p $HOST_CACHE_DIR/docker && mkdir -p $HOST_CACHE_DIR/ccache && mkdir -p $HOST_CACHE_DIR/depends && mkdir -p $HOST_CACHE_DIR/sdk-sources
     # Load cached builder image
-    - if [ -f $HOME/cache/docker/dash-builder-$BUILD_TARGET-$TRAVIS_JOB_NUMBER.tar.gz ]; then zcat $HOME//cache/docker/dash-builder-$BUILD_TARGET-$TRAVIS_JOB_NUMBER.tar.gz | docker load || true; fi
+    - ls -lah $HOST_CACHE_DIR && $HOST_CACHE_DIR/docker
+    - if [ -f $HOST_CACHE_DIR/docker/dash-builder-$BUILD_TARGET-$TRAVIS_JOB_NUMBER.tar.gz ]; then zcat $HOST_CACHE_DIR/docker/dash-builder-$BUILD_TARGET-$TRAVIS_JOB_NUMBER.tar.gz | docker load || true; fi
     - ./ci/build_builder.sh
 before_script:
     # Make sure stdout is in blocking mode. Otherwise builds will fail due to large writes to stdout
