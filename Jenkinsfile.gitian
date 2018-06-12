@@ -7,74 +7,69 @@ node {
 
   def osslTarUrl = 'http://downloads.sourceforge.net/project/osslsigncode/osslsigncode/osslsigncode-1.7.1.tar.gz'
   def osslPatchUrl = 'https://bitcoincore.org/cfields/osslsigncode-Backports-to-1.7.1.patch'
-  def proc = 6
+  def proc = 4
   def mem = 2000
 
   def repositoryUrl = "https://github.com/dashpay/dash.git"
   def commit = "develop"
 
-  for(int i = 0; i < targets.size(); i++) {
-    def target = targets[i]
+  try {
+    for(int i = 0; i < targets.size(); i++) {
+      def target = targets[i]
 
-    // TODO run this in parallel (requires non-ECS agents)
-    node {
-      def pwd = sh(returnStdout: true, script: 'pwd').trim()
-      stage("${target}/checkout") {
-        docker.image("ubuntu:bionic").inside("-u 0 -v \"${pwd}:${pwd}\"") {
-          sh """
-            chown 1000:1000 ${pwd} -R
-            ls -lah ${pwd}
-          """
-        }
-
-        dir('dash') {
-          checkout scm
-        }
-        dir('gitian-builder') {
-          git url: 'https://github.com/dashpay/gitian-builder.git'
-        }
-
-        stash 'source'
-      }
-
-      def gitianImage
-      stage("${target}/builder-image") {
-        dir('dash') {
-          gitianImage = docker.build("dash-gitian:${env.BUILD_ID}", 'ci -f ci/Dockerfile.gitian-builder')
-        }
-      }
-
-      gitianImage.inside("-t -u 1000 -v \"${pwd}:${pwd}\" -v \"/var/run/docker.sock:/var/run/docker.sock\"") {
-        stage("${target}/download") {
-          unstash 'source'
-          sh "pwd && ls -lah"
-          sh "ls -lah ${pwd}"
+      // TODO run this in parallel (requires non-ECS agents)
+      node {
+        def pwd = sh(returnStdout: true, script: 'pwd').trim()
+        def dockerGid = sh(returnStdout: true, script: "stat -c '%g' /var/run/docker.sock").trim()
+        stage("${target}/checkout") {
+          dir('dash') {
+            checkout scm
+          }
           dir('gitian-builder') {
-            sh "pwd && ls -lah"
-            sh "mkdir -p inputs"
-            sh "cd inputs && curl -R -O ${osslPatchUrl}"
-            sh "cd inputs && curl -R -O ${osslTarUrl}"
-            sh "make -C ../dash/depends download SOURCES_PATH=`pwd`/cache/common"
+            git url: 'https://github.com/dashpay/gitian-builder.git'
+          }
+          sh "mkdir -p dashcore-binaries"
+        }
+
+        def gitianImage
+        stage("${target}/builder-image") {
+          dir('dash') {
+            gitianImage = docker.build("dash-gitian:${env.BUILD_ID}", 'ci -f ci/Dockerfile.gitian-builder')
           }
         }
-        stage("${target}/base-vm") {
-          dir('gitian-builder') {
-            sh "./bin/make-base-vm --suite trusty --arch amd64 --docker"
-            // make sure an old version is not running
-            sh "docker rm -fv gitian-target || true"
+
+        gitianImage.inside("--group-add ${dockerGid} -t -v \"/var/run/docker.sock:/var/run/docker.sock\"") {
+          stage("${target}/download") {
+            dir('gitian-builder') {
+              sh "mkdir -p inputs"
+              sh "cd inputs && curl -R -O ${osslPatchUrl}"
+              sh "cd inputs && curl -R -O ${osslTarUrl}"
+              sh "make -C ../dash/depends download SOURCES_PATH=`pwd`/cache/common"
+            }
           }
-        }
-        stage("${target}/gbuild") {
-          dir('gitian-builder') {
-            sh """
-              export TERM=xterm
-              tail -F var/install.log &
-              tail -F var/build.log &
-              USE_DOCKER=1 ./bin/gbuild -j ${proc} -m ${mem} --commit dash=${commit} --url dash=${repositoryUrl} ../dash/contrib/gitian-descriptors/gitian-${target}.yml
-            """
+          stage("${target}/base-vm") {
+            dir('gitian-builder') {
+              sh "./bin/make-base-vm --suite trusty --arch amd64 --docker"
+              // make sure an old version is not running
+              sh "docker rm -fv gitian-target || true"
+            }
+          }
+          stage("${target}/gbuild") {
+            dir('gitian-builder') {
+              sh """
+                tail -F var/install.log &
+                tail -F var/build.log &
+                USE_DOCKER=1 ./bin/gbuild -j ${proc} -m ${mem} --commit dash=${commit} --url dash=${repositoryUrl} ../dash/contrib/gitian-descriptors/gitian-${target}.yml
+              """
+              sh "mv build/out/src/dashcore-* ../dashcore-binaries/"
+            }
           }
         }
       }
+    }
+  } finally {
+    stage("archive") {
+      archiveArtifacts artifacts: 'dashcore-binaries/*', fingerprint: true
     }
   }
 }

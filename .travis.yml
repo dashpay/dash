@@ -45,7 +45,7 @@ env:
 
 before_cache:
   # Save builder image
-  - docker save dash-builder-$BUILD_TARGET-$TRAVIS_JOB_NUMBER $(docker history -q dash-builder-$BUILD_TARGET-$TRAVIS_JOB_NUMBER | grep -v \<missing\>) | gzip -2 > $HOME/cache/docker/dash-builder-$BUILD_TARGET-$TRAVIS_JOB_NUMBER.tar.gz
+  - docker save dash-builder-$BUILD_TARGET-$TRAVIS_JOB_NUMBER $(docker history -q dash-builder-$BUILD_TARGET-$TRAVIS_JOB_NUMBER | grep -v \<missing\>) | gzip -2 > $HOME/cache/docker/dash-builder-$BUILD_TARGET.tar.gz
 
 install:
     # Our scripts try to be Travis agnostic
@@ -55,8 +55,8 @@ install:
     - export HOST_CACHE_DIR=$HOME/cache
     - mkdir -p $HOST_CACHE_DIR/docker && mkdir -p $HOST_CACHE_DIR/ccache && mkdir -p $HOST_CACHE_DIR/depends && mkdir -p $HOST_CACHE_DIR/sdk-sources
     # Load cached builder image
-    - ls -lah $HOST_CACHE_DIR && $HOST_CACHE_DIR/docker
-    - if [ -f $HOST_CACHE_DIR/docker/dash-builder-$BUILD_TARGET-$TRAVIS_JOB_NUMBER.tar.gz ]; then zcat $HOST_CACHE_DIR/docker/dash-builder-$BUILD_TARGET-$TRAVIS_JOB_NUMBER.tar.gz | docker load || true; fi
+    - ls -lah $HOST_CACHE_DIR && ls -lah $HOST_CACHE_DIR/docker
+    - if [ -f $HOST_CACHE_DIR/docker/dash-builder-$BUILD_TARGET.tar.gz ]; then zcat $HOST_CACHE_DIR/docker/dash-builder-$BUILD_TARGET.tar.gz | docker load || true; fi
     - ./ci/build_builder.sh
 before_script:
     # Make sure stdout is in blocking mode. Otherwise builds will fail due to large writes to stdout
