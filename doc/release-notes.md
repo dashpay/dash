@@ -341,6 +341,7 @@ See detailed [change log](https://github.com/dashpay/dash/compare/v0.12.2.3...da
 - [`3dc62106b`](https://github.com/dashpay/dash/commit/3dc62106b) [Docs] Doxygen config update (#1796)
 
 ### Other fixes and improvements:
+- [`806d7f049`](https://github.com/dashpay/dash/commit/806d7f049) Fix rpc tests broken by 2110 (#2118)
 - [`836e10471`](https://github.com/dashpay/dash/commit/836e10471) Bump proto to 70210 (#2109)
 - [`8d8fdb433`](https://github.com/dashpay/dash/commit/8d8fdb433) sendrawtransaction no longer bypasses transaction policy limits by default (#2110)
 - [`23ba94b37`](https://github.com/dashpay/dash/commit/23ba94b37) Bump remaining min protocols (#2097)
