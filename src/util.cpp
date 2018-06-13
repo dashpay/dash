@@ -869,6 +869,13 @@ void ArgsManager::AddArg(const std::string& name, const std::string& help, const
     m_available_args.emplace(key, std::pair<std::string, bool>(help, debug_only));
 }
 
+void ArgsManager::AddHiddenArgs(const std::vector<std::string>& names)
+{
+    for (const std::string& name : names) {
+        AddArg(name, "", false, OptionsCategory::HIDDEN);
+    }
+}
+
 std::string ArgsManager::GetHelpMessage()
 {
     const bool show_debug = gArgs.GetBoolArg("-help-debug", false);
