@@ -1304,7 +1304,7 @@ UniValue listreceivedbyaddress(const JSONRPCRequest& request)
     if (request.fHelp || request.params.size() > 4)
         throw std::runtime_error(
             "listreceivedbyaddress ( minconf addlockconf include_empty include_watchonly)\n"
-            "\nList balances by receiving address.\n"
+            "\nList recieves by receiving address.\n"
             "\nArguments:\n"
             "1. minconf           (numeric, optional, default=1) The minimum number of confirmations before payments are included.\n"
             "2. addlockconf       (bool, optional, default=false) Whether to add " + std::to_string(nInstantSendDepth) + " confirmations to transactions locked via InstantSend.\n"
@@ -1349,7 +1349,7 @@ UniValue listreceivedbyaccount(const JSONRPCRequest& request)
     if (request.fHelp || request.params.size() > 4)
         throw std::runtime_error(
             "listreceivedbyaccount ( minconf addlockconf include_empty include_watchonly)\n"
-            "\nDEPRECATED. List balances by account.\n"
+            "\nDEPRECATED. List recieves by account.\n"
             "\nArguments:\n"
             "1. minconf           (numeric, optional, default=1) The minimum number of confirmations before payments are included.\n"
             "2. addlockconf       (bool, optional, default=false) Whether to add " + std::to_string(nInstantSendDepth) + " confirmations to transactions locked via InstantSend.\n"
