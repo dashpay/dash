@@ -2564,7 +2564,7 @@ UniValue listunspent(const JSONRPCRequest& request)
             "    \"redeemScript\" : n        (string) The redeemScript if scriptPubKey is P2SH\n"
             "    \"spendable\" : xxx,        (bool) Whether we have the private keys to spend this output\n"
             "    \"solvable\" : xxx,         (bool) Whether we know how to spend this output, ignoring the lack of keys\n"
-            "    \"ps_rounds\" : n           (numeric) The number of PS round\n"
+            "    \"ps_rounds\" : n           (numeric) The number of PS rounds\n"
             "  }\n"
             "  ,...\n"
             "]\n"
