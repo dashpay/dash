@@ -1830,7 +1830,7 @@ https://www.transifex.com/projects/p/dash/</translation>
         <translation>我們即將為您創建一個新的自動備份，但&lt;span style='color.red;'&gt;您應該始終確保 您有另外的一些備份保存在安全的位置&lt;/span&gt;!</translation>
     </message>
     <message>
-        <source>Note: You turn this message off in options.</source>
+        <source>Note: You can turn this message off in options.</source>
         <translation>注意 : 您在選項中關閉了這項訊息。</translation>
     </message>
     <message>

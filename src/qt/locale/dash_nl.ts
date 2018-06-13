@@ -1833,7 +1833,7 @@ Om te mixen moeten andere gebruikers exact dezelfde denominaties inbrengen.</tra
         <translation>We staan op het punt om een nieuwe automatische backup voor u aan te maken, echter &lt;span style='color:red;'&gt;u moet er zelf altijd voor zorgen dat u backups op een veilige locatie heeft opgeslagen!&lt;/span&gt;</translation>
     </message>
     <message>
-        <source>Note: You turn this message off in options.</source>
+        <source>Note: You can turn this message off in options.</source>
         <translation>Opmerking: Dit bericht kan kan worden uitgeschakeld in de instellingen</translation>
     </message>
     <message>

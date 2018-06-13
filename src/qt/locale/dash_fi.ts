@@ -1830,7 +1830,7 @@ https://www.transifex.com/projects/p/dash/</translation>
         <translation>Olemme tekemässä uutta automaattista varmistusta sinulle, mutta&lt;span style='color:red;'&gt; varmista aina että olet tallettanut varmistuksen turvalliseen paikkaan&lt;/span&gt;!</translation>
     </message>
     <message>
-        <source>Note: You turn this message off in options.</source>
+        <source>Note: You can turn this message off in options.</source>
         <translation>Huom: Voit kytkeä tämän viestin pois asetuksissa.</translation>
     </message>
     <message>

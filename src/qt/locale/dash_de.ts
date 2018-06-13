@@ -1831,7 +1831,7 @@ https://www.transifex.com/projects/p/dash/</translation>
         <translation>Datensicherungen werden automatisch gemacht, aber &lt;span style='color:red;'&gt; Sie sollten zusätzlich immer noch Datensicherungen an einem sicheren Ort haben&lt;/span&gt;!</translation>
     </message>
     <message>
-        <source>Note: You turn this message off in options.</source>
+        <source>Note: You can turn this message off in options.</source>
         <translation>Hinweis: diese Nachricht kann man unter "Einstellungen" abschalten.</translation>
     </message>
     <message>

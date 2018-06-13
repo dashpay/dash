@@ -1830,7 +1830,7 @@ https://www.transifex.com/projects/p/dash/</translation>
         <translation>Мы собираемся создать автоматический бэкап, однако &lt;span style='color:red;'&gt; всегда проверяйте, что вы сохраняете их в безопасном месте&lt;/span&gt;!</translation>
     </message>
     <message>
-        <source>Note: You turn this message off in options.</source>
+        <source>Note: You can turn this message off in options.</source>
         <translation>Примечание: Вы можете отключить это сообщение в настройках.</translation>
     </message>
     <message>

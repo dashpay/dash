@@ -2350,8 +2350,8 @@ https://www.transifex.com/projects/p/dash/</translation>
     </message>
     <message>
         <location line="+3"/>
-        <source>Note: You turn this message off in options.</source>
-        <translation>Note: You turn this message off in options.</translation>
+        <source>Note: You can turn this message off in options.</source>
+        <translation>Note: You can turn this message off in options.</translation>
     </message>
     <message>
         <location line="+16"/>

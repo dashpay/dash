@@ -1830,7 +1830,7 @@ https://www.transifex.com/projects/p/dash/</translation>
         <translation>Une nouvelle sauvegarde automatique est sur le point d'être créée pour vous, cependant &lt;span style='color:red;'&gt;assurez-vous toujours d'avoir des sauvegardes en lieu sûr&lt;/span&gt; !</translation>
     </message>
     <message>
-        <source>Note: You turn this message off in options.</source>
+        <source>Note: You can turn this message off in options.</source>
         <translation>Note : masquez ce message dans Options.</translation>
     </message>
     <message>

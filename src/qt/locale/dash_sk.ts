@@ -1830,7 +1830,7 @@ https://www.transifex.com/projects/p/dash/</translation>
         <translation>Chystáme sa pre Vás vytvoriť automatickú zálohu, avšak &lt;span style='color:red;'&gt;mali by ste sa uistiť, že máte zálohy uložené na bezpečnom mieste&lt;/span&gt;!</translation>
     </message>
     <message>
-        <source>Note: You turn this message off in options.</source>
+        <source>Note: You can turn this message off in options.</source>
         <translation>Poznámka: Túto správu môžete vypnúť v nastaveniach.</translation>
     </message>
     <message>

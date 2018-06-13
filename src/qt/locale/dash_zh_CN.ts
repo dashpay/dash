@@ -1826,7 +1826,7 @@ https://www.transifex.com/projects/p/dash/</translation>
         <translation>我们即将为您创建一个新的自动备份，但&lt;span style='color:red;'&gt;您应该始终确保您有另外的一些备份保存在安全的位置&lt;/span&gt;！</translation>
     </message>
     <message>
-        <source>Note: You turn this message off in options.</source>
+        <source>Note: You can turn this message off in options.</source>
         <translation>注意：您在选项中关闭了这项信息。</translation>
     </message>
     <message>

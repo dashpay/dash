@@ -1830,7 +1830,7 @@ https://www.transifex.com/projects/p/dash/</translation>
         <translation>Chúng tôi sẽ tạo một bản tự động backup cho bạn, tuy nhiên &lt;span style='color:red;'&gt;bạn nên luôn chắc chắn rằng bạn đã lưu backup ở nơi nào đó an toàn&lt;/span&gt;!</translation>
     </message>
     <message>
-        <source>Note: You turn this message off in options.</source>
+        <source>Note: You can turn this message off in options.</source>
         <translation>Chú ý: Bạn đã tắt thông báo này trong phần tuỳ chọn.</translation>
     </message>
     <message>
