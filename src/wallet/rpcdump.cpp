@@ -722,6 +722,9 @@ UniValue dumphdinfo(const JSONRPCRequest& request)
         obj.push_back(Pair("mnemonicpassphrase", ssMnemonicPassphrase.c_str()));
 
         return obj;
+    } else 
+	{
+        throw JSONRPCError(RPC_WALLET_ERROR, "This wallet is not a HD (Hierarchical Deterministic) wallet.");
     }
 
     return NullUniValue;
