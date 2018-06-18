@@ -241,6 +241,11 @@ uint256 CSporkMessage::GetSignatureHash() const
 
 bool CSporkMessage::Sign(const CKey& key)
 {
+    if (!key.IsValid()) {
+        LogPrintf("CSporkMessage::Sign -- signing key is not valid\n");
+        return false;
+    }
+
     CKeyID pubKeyId = key.GetPubKey().GetID();
     std::string strError = "";
 
