@@ -241,8 +241,11 @@ void PrepareShutdown()
     peerLogic.reset();
     g_connman.reset();
 
-    // STORE DATA CACHES INTO SERIALIZED DAT FILES
     if (!fLiteMode) {
+        // Stop PrivateSend, release keys
+        privateSendClient.fEnablePrivateSend = false;
+        privateSendClient.ResetPool();
+        // STORE DATA CACHES INTO SERIALIZED DAT FILES
         CFlatDB<CMasternodeMan> flatdb1("mncache.dat", "magicMasternodeCache");
         flatdb1.Dump(mnodeman);
         CFlatDB<CMasternodePayments> flatdb2("mnpayments.dat", "magicMasternodePaymentsCache");
