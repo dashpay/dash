@@ -329,14 +329,7 @@ struct CMutableTransaction
      */
     uint256 GetHash() const;
 
-    std::string ToString() const;
-
-    friend bool operator==(const CMutableTransaction& a, const CMutableTransaction& b)
-    {
-        return a.GetHash() == b.GetHash();
-    }
-
-    friend bool operator!=(const CMutableTransaction& a, const CMutableTransaction& b)
+    bool HasWitness() const
     {
         return !(a == b);
     }
