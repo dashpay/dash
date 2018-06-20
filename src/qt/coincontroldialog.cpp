@@ -781,7 +781,7 @@ void CoinControlDialog::updateView()
 
             // PrivateSend rounds
             COutPoint outpoint = COutPoint(out.tx->tx->GetHash(), out.i);
-            int nRounds = pwalletMain->GetCappedOutpointPrivateSendRounds(outpoint);
+            int nRounds = pwalletMain->GetRealOutpointPrivateSendRounds(outpoint);
 
             if (nRounds >= 0 || fDebug) itemOutput->setText(COLUMN_PRIVATESEND_ROUNDS, QString::number(nRounds));
             else itemOutput->setText(COLUMN_PRIVATESEND_ROUNDS, tr("n/a"));
