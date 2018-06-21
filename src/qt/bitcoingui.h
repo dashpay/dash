@@ -67,11 +67,8 @@ public:
         The wallet model represents a bitcoin wallet, and offers access to the list of transactions, address book and sending
         functionality.
     */
-    bool addWallet(const QString& name, WalletModel *walletModel);
-    bool setCurrentWallet(const QString& name);
-    /** Set the UI status indicators based on the currently selected wallet.
-    */
-    void updateWalletStatus();
+    bool addWallet(WalletModel *walletModel);
+    bool removeWallet(WalletModel* walletModel);
     void removeAllWallets();
 #endif // ENABLE_WALLET
     bool enableWallet;
@@ -131,7 +128,11 @@ private:
     QAction *showBackupsAction;
     QAction *openAction;
     QAction *showHelpMessageAction;
-    QAction *showPrivateSendHelpAction;
+    QAction *m_wallet_selector_label_action = nullptr;
+    QAction *m_wallet_selector_action = nullptr;
+
+    QLabel *m_wallet_selector_label = nullptr;
+    QComboBox *m_wallet_selector;
 
     QSystemTrayIcon *trayIcon;
     QMenu *trayIconMenu;

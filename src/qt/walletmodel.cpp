@@ -558,7 +558,13 @@ int64_t WalletModel::getKeysLeftSinceAutoBackup() const
 }
 
 // Handlers for core signals
-static void NotifyKeyStoreStatusChanged(WalletModel *walletmodel, CCryptoKeyStore *wallet)
+static void NotifyUnload(WalletModel* walletModel)
+{
+    qDebug() << "NotifyUnload";
+    QMetaObject::invokeMethod(walletModel, "unload", Qt::QueuedConnection);
+}
+
+static void NotifyKeyStoreStatusChanged(WalletModel *walletmodel)
 {
     qDebug() << "NotifyKeyStoreStatusChanged";
     QMetaObject::invokeMethod(walletmodel, "updateStatus", Qt::QueuedConnection);
@@ -617,25 +623,23 @@ static void NotifyWatchonlyChanged(WalletModel *walletmodel, bool fHaveWatchonly
 void WalletModel::subscribeToCoreSignals()
 {
     // Connect signals to wallet
-    wallet->NotifyStatusChanged.connect(boost::bind(&NotifyKeyStoreStatusChanged, this, _1));
-    wallet->NotifyAddressBookChanged.connect(boost::bind(NotifyAddressBookChanged, this, _1, _2, _3, _4, _5, _6));
-    wallet->NotifyTransactionChanged.connect(boost::bind(NotifyTransactionChanged, this, _1, _2, _3));
-    wallet->NotifyISLockReceived.connect(boost::bind(NotifyISLockReceived, this));
-    wallet->NotifyChainLockReceived.connect(boost::bind(NotifyChainLockReceived, this, _1));
-    wallet->ShowProgress.connect(boost::bind(ShowProgress, this, _1, _2));
-    wallet->NotifyWatchonlyChanged.connect(boost::bind(NotifyWatchonlyChanged, this, _1));
+    m_handler_unload = m_wallet->handleUnload(boost::bind(&NotifyUnload, this));
+    m_handler_status_changed = m_wallet->handleStatusChanged(boost::bind(&NotifyKeyStoreStatusChanged, this));
+    m_handler_address_book_changed = m_wallet->handleAddressBookChanged(boost::bind(NotifyAddressBookChanged, this, _1, _2, _3, _4, _5));
+    m_handler_transaction_changed = m_wallet->handleTransactionChanged(boost::bind(NotifyTransactionChanged, this, _1, _2));
+    m_handler_show_progress = m_wallet->handleShowProgress(boost::bind(ShowProgress, this, _1, _2));
+    m_handler_watch_only_changed = m_wallet->handleWatchOnlyChanged(boost::bind(NotifyWatchonlyChanged, this, _1));
 }
 
 void WalletModel::unsubscribeFromCoreSignals()
 {
     // Disconnect signals from wallet
-    wallet->NotifyStatusChanged.disconnect(boost::bind(&NotifyKeyStoreStatusChanged, this, _1));
-    wallet->NotifyAddressBookChanged.disconnect(boost::bind(NotifyAddressBookChanged, this, _1, _2, _3, _4, _5, _6));
-    wallet->NotifyTransactionChanged.disconnect(boost::bind(NotifyTransactionChanged, this, _1, _2, _3));
-    wallet->NotifyISLockReceived.disconnect(boost::bind(NotifyISLockReceived, this));
-    wallet->NotifyChainLockReceived.disconnect(boost::bind(NotifyChainLockReceived, this, _1));
-    wallet->ShowProgress.disconnect(boost::bind(ShowProgress, this, _1, _2));
-    wallet->NotifyWatchonlyChanged.disconnect(boost::bind(NotifyWatchonlyChanged, this, _1));
+    m_handler_unload->disconnect();
+    m_handler_status_changed->disconnect();
+    m_handler_address_book_changed->disconnect();
+    m_handler_transaction_changed->disconnect();
+    m_handler_show_progress->disconnect();
+    m_handler_watch_only_changed->disconnect();
 }
 
 // WalletModel::UnlockContext implementation

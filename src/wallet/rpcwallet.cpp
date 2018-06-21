@@ -42,12 +42,21 @@
 
 static const std::string WALLET_ENDPOINT_BASE = "/wallet/";
 
-CWallet *GetWalletForJSONRPCRequest(const JSONRPCRequest& request)
+bool GetWalletNameFromJSONRPCRequest(const JSONRPCRequest& request, std::string& wallet_name)
 {
     if (request.URI.substr(0, WALLET_ENDPOINT_BASE.size()) == WALLET_ENDPOINT_BASE) {
         // wallet endpoint was used
-        std::string requestedWallet = urlDecode(request.URI.substr(WALLET_ENDPOINT_BASE.size()));
-        CWallet* pwallet = GetWallet(requestedWallet);
+        wallet_name = urlDecode(request.URI.substr(WALLET_ENDPOINT_BASE.size()));
+        return true;
+    }
+    return false;
+}
+
+std::shared_ptr<CWallet> GetWalletForJSONRPCRequest(const JSONRPCRequest& request)
+{
+    std::string wallet_name;
+    if (GetWalletNameFromJSONRPCRequest(request, wallet_name)) {
+        std::shared_ptr<CWallet> pwallet = GetWallet(wallet_name);
         if (!pwallet) throw JSONRPCError(RPC_WALLET_NOT_FOUND, "Requested wallet does not exist or is not loaded");
         return pwallet;
     }
@@ -68,11 +77,6 @@ bool EnsureWalletIsAvailable(CWallet * const pwallet, bool avoidException)
     if (pwallet) return true;
     if (avoidException) return false;
     if (!HasWallets()) {
-        // Note: It isn't currently possible to trigger this error because
-        // wallet RPC methods aren't registered unless a wallet is loaded. But
-        // this error is being kept as a precaution, because it's possible in
-        // the future that wallet RPC methods might get or remain registered
-        // when no wallets are loaded.
         throw JSONRPCError(
             RPC_METHOD_NOT_FOUND, "Method not found (wallet method is disabled because no wallet is loaded)");
     }
@@ -2891,6 +2895,149 @@ static UniValue listwallets(const JSONRPCRequest& request)
     return obj;
 }
 
+static UniValue loadwallet(const JSONRPCRequest& request)
+{
+    if (request.fHelp || request.params.size() != 1)
+        throw std::runtime_error(
+            "loadwallet \"filename\"\n"
+            "\nLoads a wallet from a wallet file or directory."
+            "\nNote that all wallet command-line options used when starting bitcoind will be"
+            "\napplied to the new wallet (eg -zapwallettxes, upgradewallet, rescan, etc).\n"
+            "\nArguments:\n"
+            "1. \"filename\"    (string, required) The wallet directory or .dat file.\n"
+            "\nResult:\n"
+            "{\n"
+            "  \"name\" :    <wallet_name>,        (string) The wallet name if loaded successfully.\n"
+            "  \"warning\" : <warning>,            (string) Warning message if wallet was not loaded cleanly.\n"
+            "}\n"
+            "\nExamples:\n"
+            + HelpExampleCli("loadwallet", "\"test.dat\"")
+            + HelpExampleRpc("loadwallet", "\"test.dat\"")
+        );
+    std::string wallet_file = request.params[0].get_str();
+    std::string error;
+
+    fs::path wallet_path = fs::absolute(wallet_file, GetWalletDir());
+    if (fs::symlink_status(wallet_path).type() == fs::file_not_found) {
+        throw JSONRPCError(RPC_WALLET_NOT_FOUND, "Wallet " + wallet_file + " not found.");
+    }
+
+    std::string warning;
+    if (!CWallet::Verify(wallet_file, false, error, warning)) {
+        throw JSONRPCError(RPC_WALLET_ERROR, "Wallet file verification failed: " + error);
+    }
+
+    std::shared_ptr<CWallet> const wallet = CWallet::CreateWalletFromFile(wallet_file, fs::absolute(wallet_file, GetWalletDir()));
+    if (!wallet) {
+        throw JSONRPCError(RPC_WALLET_ERROR, "Wallet loading failed.");
+    }
+    AddWallet(wallet);
+
+    wallet->postInitProcess();
+
+    UniValue obj(UniValue::VOBJ);
+    obj.pushKV("name", wallet->GetName());
+    obj.pushKV("warning", warning);
+
+    return obj;
+}
+
+static UniValue createwallet(const JSONRPCRequest& request)
+{
+    if (request.fHelp || request.params.size() != 1) {
+        throw std::runtime_error(
+            "createwallet \"wallet_name\"\n"
+            "\nCreates and loads a new wallet.\n"
+            "\nArguments:\n"
+            "1. \"wallet_name\"    (string, required) The name for the new wallet. If this is a path, the wallet will be created at the path location.\n"
+            "\nResult:\n"
+            "{\n"
+            "  \"name\" :    <wallet_name>,        (string) The wallet name if created successfully. If the wallet was created using a full path, the wallet_name will be the full path.\n"
+            "  \"warning\" : <warning>,            (string) Warning message if wallet was not loaded cleanly.\n"
+            "}\n"
+            "\nExamples:\n"
+            + HelpExampleCli("createwallet", "\"testwallet\"")
+            + HelpExampleRpc("createwallet", "\"testwallet\"")
+        );
+    }
+    std::string wallet_name = request.params[0].get_str();
+    std::string error;
+    std::string warning;
+
+    fs::path wallet_path = fs::absolute(wallet_name, GetWalletDir());
+    if (fs::symlink_status(wallet_path).type() != fs::file_not_found) {
+        throw JSONRPCError(RPC_WALLET_ERROR, "Wallet " + wallet_name + " already exists.");
+    }
+
+    // Wallet::Verify will check if we're trying to create a wallet with a duplication name.
+    if (!CWallet::Verify(wallet_name, false, error, warning)) {
+        throw JSONRPCError(RPC_WALLET_ERROR, "Wallet file verification failed: " + error);
+    }
+
+    std::shared_ptr<CWallet> const wallet = CWallet::CreateWalletFromFile(wallet_name, fs::absolute(wallet_name, GetWalletDir()));
+    if (!wallet) {
+        throw JSONRPCError(RPC_WALLET_ERROR, "Wallet creation failed.");
+    }
+    AddWallet(wallet);
+
+    wallet->postInitProcess();
+
+    UniValue obj(UniValue::VOBJ);
+    obj.pushKV("name", wallet->GetName());
+    obj.pushKV("warning", warning);
+
+    return obj;
+}
+
+static UniValue unloadwallet(const JSONRPCRequest& request)
+{
+    if (request.fHelp || request.params.size() > 1) {
+        throw std::runtime_error(
+            "unloadwallet ( \"wallet_name\" )\n"
+            "Unloads the wallet referenced by the request endpoint otherwise unloads the wallet specified in the argument.\n"
+            "Specifying the wallet name on a wallet endpoint is invalid."
+            "\nArguments:\n"
+            "1. \"wallet_name\"    (string, optional) The name of the wallet to unload.\n"
+            "\nExamples:\n"
+            + HelpExampleCli("unloadwallet", "wallet_name")
+            + HelpExampleRpc("unloadwallet", "wallet_name")
+        );
+    }
+
+    std::string wallet_name;
+    if (GetWalletNameFromJSONRPCRequest(request, wallet_name)) {
+        if (!request.params[0].isNull()) {
+            throw JSONRPCError(RPC_INVALID_PARAMETER, "Cannot unload the requested wallet");
+        }
+    } else {
+        wallet_name = request.params[0].get_str();
+    }
+
+    std::shared_ptr<CWallet> wallet = GetWallet(wallet_name);
+    if (!wallet) {
+        throw JSONRPCError(RPC_WALLET_NOT_FOUND, "Requested wallet does not exist or is not loaded");
+    }
+
+    // Release the "main" shared pointer and prevent further notifications.
+    // Note that any attempt to load the same wallet would fail until the wallet
+    // is destroyed (see CheckUniqueFileid).
+    if (!RemoveWallet(wallet)) {
+        throw JSONRPCError(RPC_MISC_ERROR, "Requested wallet already unloaded");
+    }
+    UnregisterValidationInterface(wallet.get());
+
+    // The wallet can be in use so it's not possible to explicitly unload here.
+    // Just notify the unload intent so that all shared pointers are released.
+    // The wallet will be destroyed once the last shared pointer is released.
+    wallet->NotifyUnload();
+
+    // There's no point in waiting for the wallet to unload.
+    // At this point this method should never fail. The unloading could only
+    // fail due to an unexpected error which would cause a process termination.
+
+    return NullUniValue;
+}
+
 static UniValue resendwallettransactions(const JSONRPCRequest& request)
 {
     CWallet * const pwallet = GetWalletForJSONRPCRequest(request);
@@ -4132,6 +4279,7 @@ static const CRPCCommand commands[] =
     { "wallet",             "settxfee",                         &settxfee,                      {"amount"} },
     { "wallet",             "signmessage",                      &signmessage,                   {"address","message"} },
     { "wallet",             "signrawtransactionwithwallet",     &signrawtransactionwithwallet,  {"hexstring","prevtxs","sighashtype"} },
+    { "wallet",             "unloadwallet",                     &unloadwallet,                  {"wallet_name"} },
     { "wallet",             "walletlock",                       &walletlock,                    {} },
     { "wallet",             "walletpassphrasechange",           &walletpassphrasechange,        {"oldpassphrase","newpassphrase"} },
     { "wallet",             "walletpassphrase",                 &walletpassphrase,              {"passphrase","timeout"} },

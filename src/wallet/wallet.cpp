@@ -91,6 +91,15 @@ CWallet* GetWallet(const std::string& name)
     return nullptr;
 }
 
+// Custom deleter for shared_ptr<CWallet>.
+static void ReleaseWallet(CWallet* wallet)
+{
+    LogPrintf("Releasing wallet %s\n", wallet->GetName());
+    wallet->BlockUntilSyncedToCurrentChain();
+    wallet->Flush();
+    delete wallet;
+}
+
 const uint32_t BIP32_HARDENED_KEY_LIMIT = 0x80000000;
 
 const uint256 CMerkleTx::ABANDON_HASH(uint256S("0000000000000000000000000000000000000000000000000000000000000001"));
@@ -1503,7 +1512,7 @@ void CWallet::BlockUntilSyncedToCurrentChain() {
         LOCK(cs_main);
         const CBlockIndex* initialChainTip = chainActive.Tip();
 
-        if (m_last_block_processed->GetAncestor(initialChainTip->nHeight) == initialChainTip) {
+        if (m_last_block_processed && m_last_block_processed->GetAncestor(initialChainTip->nHeight) == initialChainTip) {
             return;
         }
     }
@@ -5137,10 +5146,9 @@ CWallet* CWallet::CreateWalletFromFile(const std::string& name, const fs::path& 
 
     int64_t nStart = GetTimeMillis();
     bool fFirstRun = true;
-    // Make a temporary wallet unique pointer so memory doesn't get leaked if
-    // wallet creation fails.
-    auto temp_wallet = MakeUnique<CWallet>(name, WalletDatabase::Create(path));
-    CWallet *walletInstance = temp_wallet.get();
+    // TODO: Can't use std::make_shared because we need a custom deleter but
+    // should be possible to use std::allocate_shared.
+    std::shared_ptr<CWallet> walletInstance(new CWallet(name, WalletDatabase::Create(path)), ReleaseWallet);
     DBErrors nLoadWalletRet = walletInstance->LoadWallet(fFirstRun);
     if (nLoadWalletRet != DB_LOAD_OK)
     {

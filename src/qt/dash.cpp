@@ -239,6 +239,8 @@ public Q_SLOTS:
     void shutdownResult();
     /// Handle runaway exceptions. Shows a message box with the problem and quits the program.
     void handleRunawayException(const QString &message);
+    void addWallet(WalletModel* walletModel);
+    void removeWallet();
 
 Q_SIGNALS:
     void requestedInitialize();
@@ -483,6 +485,33 @@ void BitcoinApplication::requestShutdown()
     Q_EMIT requestedShutdown();
 }
 
+void BitcoinApplication::addWallet(WalletModel* walletModel)
+{
+#ifdef ENABLE_WALLET
+    window->addWallet(walletModel);
+
+    if (m_wallet_models.empty()) {
+        window->setCurrentWallet(walletModel->getWalletName());
+    }
+
+    connect(walletModel, SIGNAL(coinsSent(WalletModel*, SendCoinsRecipient, QByteArray)),
+        paymentServer, SLOT(fetchPaymentACK(WalletModel*, const SendCoinsRecipient&, QByteArray)));
+    connect(walletModel, SIGNAL(unload()), this, SLOT(removeWallet()));
+
+    m_wallet_models.push_back(walletModel);
+#endif
+}
+
+void BitcoinApplication::removeWallet()
+{
+#ifdef ENABLE_WALLET
+    WalletModel* walletModel = static_cast<WalletModel*>(sender());
+    m_wallet_models.erase(std::find(m_wallet_models.begin(), m_wallet_models.end(), walletModel));
+    window->removeWallet(walletModel);
+    walletModel->deleteLater();
+#endif
+}
+
 void BitcoinApplication::initializeResult(bool success)
 {
     qDebug() << __func__ << ": Initialization result: " << success;
@@ -501,10 +530,12 @@ void BitcoinApplication::initializeResult(bool success)
         window->setClientModel(clientModel);
 
 #ifdef ENABLE_WALLET
-        // TODO: Expose secondary wallets
-        if (HasWallets())
-        {
-            walletModel = new WalletModel(GetWallets()[0], optionsModel);
+        m_handler_load_wallet = m_node.handleLoadWallet([this](std::unique_ptr<interfaces::Wallet> wallet) {
+            WalletModel* wallet_model = new WalletModel(std::move(wallet), m_node, platformStyle, optionsModel, nullptr);
+            // Fix wallet model thread affinity.
+            wallet_model->moveToThread(thread());
+            QMetaObject::invokeMethod(this, "addWallet", Qt::QueuedConnection, Q_ARG(WalletModel*, wallet_model));
+        });
 
             window->addWallet(BitcoinGUI::DEFAULT_WALLET, walletModel);
             window->setCurrentWallet(BitcoinGUI::DEFAULT_WALLET);
