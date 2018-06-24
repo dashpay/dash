@@ -350,6 +350,7 @@ See detailed [change log](https://github.com/dashpay/dash/compare/v0.12.2.3...da
 - [`3dc62106b`](https://github.com/dashpay/dash/commit/3dc62106b) [Docs] Doxygen config update (#1796)
 
 ### Other fixes and improvements:
+- [`9af9d57b4`](https://github.com/dashpay/dash/commit/9af9d57b4) Release 0.12.3 (#2145)
 - [`8e6364694`](https://github.com/dashpay/dash/commit/8e6364694) Bump SERIALIZATION_VERSION_STRINGs (#2136)
 - [`641070521`](https://github.com/dashpay/dash/commit/641070521) Fix 2 small issues in sporks module (#2133)
 - [`97b9b4fed`](https://github.com/dashpay/dash/commit/97b9b4fed) Bump nMinimumChainWork, defaultAssumeValid and checkpoints (#2130)
