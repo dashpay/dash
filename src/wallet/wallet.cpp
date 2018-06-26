@@ -1422,7 +1422,8 @@ CAmount CWallet::GetDebit(const CTxIn &txin, const isminefilter& filter) const
     }
     return 0;
 }
-// Starts the recursive function which determines the rounds of a given input (How deep is the PrivateSend chain for a given input)
+
+// Recursively determine the rounds of a given input (How deep is the PrivateSend chain for a given input)	
 int CWallet::GetRealOutpointPrivateSendRounds(const COutPoint& outpoint) const
 {
     return GetRealOutpointPrivateSendRounds(outpoint, 0);
