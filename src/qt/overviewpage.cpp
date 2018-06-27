@@ -300,6 +300,11 @@ void OverviewPage::setWalletModel(WalletModel *model)
         connect(ui->privateSendReset, SIGNAL(clicked()), this, SLOT(privateSendReset()));
         connect(ui->privateSendInfo, SIGNAL(clicked()), this, SLOT(privateSendInfo()));
         connect(ui->togglePrivateSend, SIGNAL(clicked()), this, SLOT(togglePrivateSend()));
+
+        //PrivateSend buttons never have focus. Need to be clicked on. Space or Enter has no effect.
+        ui->privateSendReset->setFocusPolicy(Qt::NoFocus);
+        ui->privateSendInfo->setFocusPolicy(Qt::NoFocus);
+        ui->togglePrivateSend->setFocusPolicy(Qt::NoFocus);
     }
 }
 
