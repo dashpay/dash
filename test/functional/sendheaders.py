@@ -89,7 +89,7 @@ from test_framework.blocktools import create_block, create_coinbase
 from test_framework.mininode import (
     CBlockHeader,
     CInv,
-    network_thread_start,
+    NODE_WITNESS,
     P2PInterface,
     mininode_lock,
     msg_block,
@@ -237,15 +237,11 @@ class SendHeadersTest(BitcoinTestFramework):
         return [int(x, 16) for x in all_hashes]
 
     def run_test(self):
-        # Setup the p2p connections and start up the network thread.
+        # Setup the p2p connections
         inv_node = self.nodes[0].add_p2p_connection(BaseNode())
         # Make sure NODE_NETWORK is not set for test_node, so no block download
         # will occur outside of direct fetching
-        test_node = self.nodes[0].add_p2p_connection(BaseNode(), services=0)
-
-        network_thread_start()
-
-        # Test logic begins here
+        test_node = self.nodes[0].add_p2p_connection(BaseNode(), services=NODE_WITNESS)
         inv_node.wait_for_verack()
         test_node.wait_for_verack()
 

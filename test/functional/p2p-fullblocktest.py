@@ -20,7 +20,7 @@ from test_framework.mininode import (
     uint256_from_compact,
     uint256_from_str,
 )
-from test_framework.mininode import P2PDataStore, network_thread_start, network_thread_join
+from test_framework.mininode import P2PDataStore
 from test_framework.script import (
     CScript,
     MAX_SCRIPT_ELEMENT_SIZE,
@@ -1304,7 +1304,6 @@ class FullBlockTest(BitcoinTestFramework):
 
         Helper to connect and wait for version handshake."""
         self.nodes[0].add_p2p_connection(P2PDataStore())
-        network_thread_start()
         # We need to wait for the initial getheaders from the peer before we
         # start populating our blockstore. If we don't, then we may run ahead
         # to the next subtest before we receive the getheaders. We'd then send
@@ -1319,17 +1318,7 @@ class FullBlockTest(BitcoinTestFramework):
         The node gets disconnected several times in this test. This helper
         method reconnects the p2p and restarts the network thread."""
         self.nodes[0].disconnect_p2ps()
-        network_thread_join()
-        self.nodes[0].disconnect_p2ps()
-        self.nodes[0].add_p2p_connection(P2PDataStore())
-        network_thread_start()
-        # We need to wait for the initial getheaders from the peer before we
-        # start populating our blockstore. If we don't, then we may run ahead
-        # to the next subtest before we receive the getheaders. We'd then send
-        # an INV for the next block and receive two getheaders - one for the
-        # IBD and one for the INV. We'd respond to both and could get
-        # unexpectedly disconnected if the DoS score for that error is 50.
-        self.nodes[0].p2p.wait_for_getheaders(timeout=5)
+        self.bootstrap_p2p()
 
     def send_blocks(self, blocks, success=True, reject_code=None, reject_reason=None, request_block=True, reconnect=False, timeout=60):
         """Sends blocks to test node. Syncs and verifies that tip has advanced to most recent block.

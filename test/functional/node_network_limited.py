@@ -8,8 +8,8 @@ Tests that a node configured with -prune=550 signals NODE_NETWORK_LIMITED correc
 and that it responds to getdata requests for blocks correctly:
     - send a block within 288 + 2 of the tip
     - disconnect peers who request blocks older than that."""
-from test_framework.messages import CInv, msg_getdata, NODE_BLOOM, NODE_NETWORK_LIMITED, msg_verack
-from test_framework.mininode import NetworkThread, P2PInterface,  wait_until, mininode_lock, network_thread_start, network_thread_join
+from test_framework.messages import CInv, msg_getdata, msg_verack
+from test_framework.mininode import NODE_BLOOM, NODE_NETWORK_LIMITED, NODE_WITNESS, P2PInterface, wait_until, mininode_lock
 from test_framework.test_framework import BitcoinTestFramework
 from test_framework.util import assert_equal, disconnect_nodes, connect_nodes_bi, sync_blocks
 
@@ -51,7 +51,6 @@ class NodeNetworkLimitedTest(BitcoinTestFramework):
 
     def run_test(self):
         node = self.nodes[0].add_p2p_connection(P2PIgnoreInv())
-        network_thread_start()
         node.wait_for_verack()
 
         expected_services = NODE_BLOOM | NODE_NETWORK_LIMITED
@@ -77,9 +76,7 @@ class NodeNetworkLimitedTest(BitcoinTestFramework):
 
         self.log.info("Check local address relay, do a fresh connection.")
         self.nodes[0].disconnect_p2ps()
-        network_thread_join()
         node1 = self.nodes[0].add_p2p_connection(P2PIgnoreInv())
-        network_thread_start()
         node1.wait_for_verack()
         node1.send_message(msg_verack())
 
