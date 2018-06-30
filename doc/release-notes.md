@@ -262,6 +262,7 @@ See detailed [change log](https://github.com/dashpay/dash/compare/v0.12.2.3...da
 - [`1d620d1f9`](https://github.com/dashpay/dash/commit/1d620d1f9) Fix calls to AcceptToMemoryPool in PS submodules (#1823)
 
 ### Network:
+- [`fda74b4a8`](https://github.com/dashpay/dash/commit/fda74b4a8) Use correct protocol when serializing messages in reply to `getdata` (#2157)
 - [`6bf389afb`](https://github.com/dashpay/dash/commit/6bf389afb) Don't drop mnb-s for outdated MNs (#2131)
 - [`c60079b59`](https://github.com/dashpay/dash/commit/c60079b59) ThreadOpenMasternodeConnections should process only one mn at a time (#2080)
 - [`a648d6eff`](https://github.com/dashpay/dash/commit/a648d6eff) Drop delayed headers logic and fix duplicate initial headers sync by handling block inv correctly (#2032)
