@@ -339,6 +339,7 @@ See detailed [change log](https://github.com/dashpay/dash/compare/v0.12.2.3...da
 - [`e30009c31`](https://github.com/dashpay/dash/commit/e30009c31) Fix qt and fontconfig depends #1884
 
 ### Docs:
+- [`a80ef0423`](https://github.com/dashpay/dash/commit/a80ef0423) Update release notes (#2155)
 - [`5e1149a65`](https://github.com/dashpay/dash/commit/5e1149a65) Update release notes (#2142)
 - [`d46dc0f56`](https://github.com/dashpay/dash/commit/d46dc0f56) Update release notes (#2135)
 - [`d076ad4ce`](https://github.com/dashpay/dash/commit/d076ad4ce) Update release notes and staging tree in README (#2116)
