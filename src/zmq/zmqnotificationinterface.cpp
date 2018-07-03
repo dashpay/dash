@@ -156,7 +156,7 @@ void CZMQNotificationInterface::SyncTransaction(const CTransaction& tx, const CB
         else
         {
             (*it)->Shutdown();
-            it = notifiers.erase(it);
+            it = notifiers.erase(i);
         }
     }
 }
