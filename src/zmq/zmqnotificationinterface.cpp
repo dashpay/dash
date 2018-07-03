@@ -92,11 +92,11 @@ bool CZMQNotificationInterface::Initialize()
     {
         if ((*it)->Initialize(pcontext))
         {
-            LogPrint("zmq", "  Notifier %s ready (address = %s)\n", (*it)->GetType(), (*it)->GetAddress());
+            LogPrint("zmq", "  Notifier %s ready (address = %s)\n", it->GetType(), it->GetAddress());
         }
         else
         {
-            LogPrint("zmq", "  Notifier %s failed (address = %s)\n", (*it)->GetType(), (*it)->GetAddress());
+            LogPrint("zmq", "  Notifier %s failed (address = %s)\n", it->GetType(), it->GetAddress());
             break;
         }
     }
@@ -117,7 +117,7 @@ void CZMQNotificationInterface::Shutdown()
     {
         for (std::list<CZMQAbstractNotifier*>::iterator it=notifiers.begin(); it!=notifiers.end(); ++it)
         {
-            LogPrint("zmq", "   Shutdown notifier %s at %s\n", (*it)->GetType(), (*it)->GetAddress());
+            LogPrint("zmq", "   Shutdown notifier %s at %s\n", it->GetType(), it->GetAddress());
             (*it)->Shutdown();
         }
         zmq_ctx_destroy(pcontext);
@@ -140,7 +140,7 @@ void CZMQNotificationInterface::UpdatedBlockTip(const CBlockIndex *pindexNew, co
         else
         {
             (*it)->Shutdown();
-            it = notifiers.erase(it);
+            it = notifiers.erase(i);
         }
     }
 }
@@ -172,7 +172,7 @@ void CZMQNotificationInterface::NotifyTransactionLock(const CTransaction &tx)
         else
         {
             (*it)->Shutdown();
-            it = notifiers.erase(it);
+            it = notifiers.erase(i);
         }
     }
 }
@@ -188,7 +188,7 @@ void CZMQNotificationInterface::NotifyGovernanceVote(const CGovernanceVote &vote
         else
         {
             (*it)->Shutdown();
-            it = notifiers.erase(it);
+            it = notifiers.erase(i);
         }
     }
 }
@@ -204,7 +204,7 @@ void CZMQNotificationInterface::NotifyGovernanceObject(const CGovernanceObject &
         else
         {
             (*it)->Shutdown();
-            it = notifiers.erase(it);
+            it = notifiers.erase(i);
         }
     }
 }
