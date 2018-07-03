@@ -50,6 +50,13 @@ try:
         elif topic == "rawtxlock":
             print('- RAW TX LOCK ('+sequence+') -')
             print(binascii.hexlify(body).decode("utf-8"))
+        elif topic == "hashgovernancevote":
+            print('- HASH GOVERNANCE VOTE ('+sequence+') -')
+            print(binascii.hexlify(body).decode("utf-8"))
+        elif topic == "hashgovernanceobject":
+            print('- HASH GOVERNANCE OBJECT ('+sequence+') -')
+            print(binascii.hexlify(body).decode("utf-8"))
+
 
 except KeyboardInterrupt:
     zmqContext.destroy()
