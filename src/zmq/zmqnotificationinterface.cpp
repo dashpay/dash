@@ -90,7 +90,7 @@ bool CZMQNotificationInterface::Initialize()
     std::list<CZMQAbstractNotifier*>::iterator it=notifiers.begin();
     for (; it!=notifiers.end(); ++it)
     {
-        if ((*it)->Initialize(pcontext))
+        if (it->Initialize(pcontext))
         {
             LogPrint("zmq", "  Notifier %s ready (address = %s)\n", it->GetType(), it->GetAddress());
         }
@@ -118,7 +118,7 @@ void CZMQNotificationInterface::Shutdown()
         for (std::list<CZMQAbstractNotifier*>::iterator it=notifiers.begin(); it!=notifiers.end(); ++it)
         {
             LogPrint("zmq", "   Shutdown notifier %s at %s\n", it->GetType(), it->GetAddress());
-            (*it)->Shutdown();
+            it->Shutdown();
         }
         zmq_ctx_destroy(pcontext);
 
@@ -133,13 +133,13 @@ void CZMQNotificationInterface::UpdatedBlockTip(const CBlockIndex *pindexNew, co
 
     for (std::list<CZMQAbstractNotifier*>::iterator it = notifiers.begin(); it!=notifiers.end(); )
     {
-        if ((*it)->NotifyBlock(pindexNew))
+        if (it->NotifyBlock(pindexNew))
         {
             it++;
         }
         else
         {
-            (*it)->Shutdown();
+            it->Shutdown();
             it = notifiers.erase(i);
         }
     }
@@ -149,13 +149,13 @@ void CZMQNotificationInterface::SyncTransaction(const CTransaction& tx, const CB
 {
     for (std::list<CZMQAbstractNotifier*>::iterator it = notifiers.begin(); it!=notifiers.end(); )
     {
-        if ((*it)->NotifyTransaction(tx))
+        if (it->NotifyTransaction(tx))
         {
             it++;
         }
         else
         {
-            (*it)->Shutdown();
+            it->Shutdown();
             it = notifiers.erase(i);
         }
     }
@@ -165,13 +165,13 @@ void CZMQNotificationInterface::NotifyTransactionLock(const CTransaction &tx)
 {
     for (std::list<CZMQAbstractNotifier*>::iterator it = notifiers.begin(); it!=notifiers.end(); )
     {
-        if ((*it)->NotifyTransactionLock(tx))
+        if (it->NotifyTransactionLock(tx))
         {
             it++;
         }
         else
         {
-            (*it)->Shutdown();
+            it->Shutdown();
             it = notifiers.erase(i);
         }
     }
@@ -181,13 +181,13 @@ void CZMQNotificationInterface::NotifyGovernanceVote(const CGovernanceVote &vote
 {
     for (std::list<CZMQAbstractNotifier*>::iterator it = notifiers.begin(); it != notifiers.end(); )
     {
-        if ((*it)->NotifyGovernanceVote(vote))
+        if (it->NotifyGovernanceVote(vote))
         {
             it++;
         }
         else
         {
-            (*it)->Shutdown();
+            it->Shutdown();
             it = notifiers.erase(i);
         }
     }
@@ -197,13 +197,13 @@ void CZMQNotificationInterface::NotifyGovernanceObject(const CGovernanceObject &
 {
     for (std::list<CZMQAbstractNotifier*>::iterator it = notifiers.begin(); it != notifiers.end(); )
     {
-        if ((*it)->NotifyGovernanceObject(object))
+        if (it->NotifyGovernanceObject(object))
         {
             it++;
         }
         else
         {
-            (*it)->Shutdown();
+            it->Shutdown();
             it = notifiers.erase(i);
         }
     }
