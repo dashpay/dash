@@ -36,7 +36,7 @@ try:
             print('- HASH BLOCK ('+sequence+') -')
             print(binascii.hexlify(body).decode("utf-8"))
         elif topic == "hashtx":
-            print('- HASH TX ('+sequence+') -')
+            print ('- HASH TX ('+sequence+') -')
             print(binascii.hexlify(body).decode("utf-8"))
         elif topic == "hashtxlock":
             print('- HASH TX LOCK ('+sequence+') -')
