@@ -1017,15 +1017,7 @@ void CMasternode::RemoveGovernanceObject(uint256 nGovernanceObjectHash)
 */
 void CMasternode::FlagGovernanceItemsAsDirty()
 {
-    std::vector<uint256> vecDirty;
-    {
-        std::map<uint256, int>::iterator it = mapGovernanceObjectsVotedOn.begin();
-        while(it != mapGovernanceObjectsVotedOn.end()) {
-            vecDirty.push_back(it->first);
-            ++it;
-        }
-    }
-    for(size_t i = 0; i < vecDirty.size(); ++i) {
-        mnodeman.AddDirtyGovernanceObjectHash(vecDirty[i]);
+    for (auto& govObjHashPair : mapGovernanceObjectsVotedOn) {
+        mnodeman.AddDirtyGovernanceObjectHash(govObjHashPair.first);
     }
 }
