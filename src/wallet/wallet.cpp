@@ -22,7 +22,7 @@
 #include <primitives/block.h>
 #include <primitives/transaction.h>
 #include <script/script.h>
-#include <script/sign.h>
+#include <shutdown.h>
 #include <timedata.h>
 #include <txmempool.h>
 #include <util.h>

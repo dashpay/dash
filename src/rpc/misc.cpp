@@ -8,7 +8,9 @@
 #include <chain.h>
 #include <clientversion.h>
 #include <core_io.h>
-#include <init.h>
+#include <crypto/ripemd160.h>
+#include <key_io.h>
+#include <validation.h>
 #include <httpserver.h>
 #include <net.h>
 #include <netbase.h>

@@ -220,9 +220,7 @@ BITCOIN_CORE_H = \
   script/sigcache.h \
   script/sign.h \
   script/standard.h \
-  script/ismine.h \
-  spork.h \
-  stacktraces.h \
+  shutdown.h \
   streams.h \
   support/allocators/mt_pooled_secure.h \
   support/allocators/pooled_secure.h \
@@ -345,8 +343,7 @@ libdash_server_a_SOURCES = \
   rpc/server.cpp \
   rpc/privatesend.cpp \
   script/sigcache.cpp \
-  script/ismine.cpp \
-  spork.cpp \
+  shutdown.cpp \
   timedata.cpp \
   torcontrol.cpp \
   txdb.cpp \

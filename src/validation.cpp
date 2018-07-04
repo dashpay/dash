@@ -1,6 +1,5 @@
 // Copyright (c) 2009-2010 Satoshi Nakamoto
-// Copyright (c) 2009-2015 The Bitcoin Core developers
-// Copyright (c) 2014-2020 The Dash Core developers
+// Copyright (c) 2009-2018 The Bitcoin Core developers
 // Distributed under the MIT software license, see the accompanying
 // file COPYING or http://www.opensource.org/licenses/mit-license.php.
 
@@ -19,7 +18,6 @@
 #include <cuckoocache.h>
 #include <hash.h>
 #include <index/txindex.h>
-#include <init.h>
 #include <policy/fees.h>
 #include <policy/policy.h>
 #include <pow.h>
@@ -29,6 +27,7 @@
 #include <script/script.h>
 #include <script/sigcache.h>
 #include <script/standard.h>
+#include <shutdown.h>
 #include <timedata.h>
 #include <tinyformat.h>
 #include <txdb.h>

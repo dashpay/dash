@@ -10,8 +10,7 @@
 #include <qt/guiutil.h>
 #include <qt/walletmodel.h>
 
-#include <base58.h>
-#include <init.h>
+#include <key_io.h>
 #include <validation.h> // For strMessageMagic
 #include <wallet/wallet.h>
 

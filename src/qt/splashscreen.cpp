@@ -14,7 +14,9 @@
 
 #include <chainparams.h>
 #include <clientversion.h>
-#include <init.h>
+#include <interfaces/handler.h>
+#include <interfaces/node.h>
+#include <interfaces/wallet.h>
 #include <util.h>
 #include <ui_interface.h>
 #include <version.h>
