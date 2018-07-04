@@ -13,8 +13,8 @@ static std::multimap<std::string, CZMQAbstractPublishNotifier*> mapPublishNotifi
 static const char *MSG_HASHBLOCK  = "hashblock";
 static const char *MSG_HASHTX     = "hashtx";
 static const char *MSG_HASHTXLOCK = "hashtxlock";
-static const char *MSG_HASHGVOTE = "hashgovernancevote";
-static const char *MSG_HASHGOBJ = "hashgovernanceobject";
+static const char *MSG_HASHGVOTE  = "hashgovernancevote";
+static const char *MSG_HASHGOBJ   = "hashgovernanceobject";
 static const char *MSG_RAWBLOCK   = "rawblock";
 static const char *MSG_RAWTX      = "rawtx";
 static const char *MSG_RAWTXLOCK  = "rawtxlock";
