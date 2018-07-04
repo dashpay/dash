@@ -70,6 +70,43 @@ public:
     friend bool operator<(const CNoDestination &a, const CNoDestination &b) { return true; }
 };
 
+struct WitnessV0ScriptHash : public uint256
+{
+    WitnessV0ScriptHash() : uint256() {}
+    explicit WitnessV0ScriptHash(const uint256& hash) : uint256(hash) {}
+    explicit WitnessV0ScriptHash(const CScript& script);
+    using uint256::uint256;
+};
+
+struct WitnessV0KeyHash : public uint160
+{
+    WitnessV0KeyHash() : uint160() {}
+    explicit WitnessV0KeyHash(const uint160& hash) : uint160(hash) {}
+    using uint160::uint160;
+};
+
+//! CTxDestination subtype to encode any future Witness version
+struct WitnessUnknown
+{
+    unsigned int version;
+    unsigned int length;
+    unsigned char program[40];
+
+    friend bool operator==(const WitnessUnknown& w1, const WitnessUnknown& w2) {
+        if (w1.version != w2.version) return false;
+        if (w1.length != w2.length) return false;
+        return std::equal(w1.program, w1.program + w1.length, w2.program);
+    }
+
+    friend bool operator<(const WitnessUnknown& w1, const WitnessUnknown& w2) {
+        if (w1.version < w2.version) return true;
+        if (w1.version > w2.version) return false;
+        if (w1.length < w2.length) return true;
+        if (w1.length > w2.length) return false;
+        return std::lexicographical_compare(w1.program, w1.program + w1.length, w2.program, w2.program + w2.length);
+    }
+};
+
 /**
  * A txout script template with a specific destination. It is either:
  *  * CNoDestination: no destination set
