@@ -224,8 +224,8 @@ bool CZMQPublishHashGovernanceVoteNotifier::NotifyGovernanceVote(const CGovernan
     char data[32];
     auto hashData = hash.begin();
     for (unsigned int i = 0; i < 32; i++)
-        data[31 - i] = hashData[i];
-    return SendMessage(MSG_HASHGVOTE, data, 32);
+        data[31 - i] = dashData[i];
+    return SendMessage(MSG_GVOTE, data, 32);
 }
 
 bool CZMQPublishHashGovernanceObjectNotifier::NotifyGovernanceObject(const CGovernanceObject &object)
