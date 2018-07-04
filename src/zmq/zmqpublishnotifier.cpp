@@ -221,7 +221,7 @@ bool CZMQPublishHashGovernanceVoteNotifier::NotifyGovernanceVote(const CGovernan
     char data[32];
     for (unsigned int i = 0; i < 32; i++)
         data[31 - i] = hash.begin()[i];
-    return SendMessage(MSG_GVOTE, data, 32);
+    return SendMessage(MSG_HASHGVOTE, data, 32);
 }
 
 bool CZMQPublishHashGovernanceObjectNotifier::NotifyGovernanceObject(const CGovernanceObject &object)
@@ -231,5 +231,5 @@ bool CZMQPublishHashGovernanceObjectNotifier::NotifyGovernanceObject(const CGove
     char data[32];
     for (unsigned int i = 0; i < 32; i++)
         data[31 - i] = hash.begin()[i];
-    return SendMessage(MSG_GOBJECT, data, 32);
+    return SendMessage(MSG_HASHGOBJ, data, 32);
 }
