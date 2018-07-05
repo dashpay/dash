@@ -105,8 +105,8 @@ unsigned int static DarkGravityWave(const CBlockIndex* pindexLast, const CBlockH
         // then allow mining of a min-difficulty block.
         if (pblock->GetBlockTime() > pindexLast->GetBlockTime() + params.nPowTargetSpacing*2) {
             // start using smoother adjustment on testnet when total work hits
-            // 000000000000000000000000000000000000000000000000003f000000000000
-            if (pindexLast->nChainWork >= UintToArith256(uint256S("0x000000000000000000000000000000000000000000000000003f000000000000"))
+            // 000000000000000000000000000000000000000000000000003ff00000000000
+            if (pindexLast->nChainWork >= UintToArith256(uint256S("0x000000000000000000000000000000000000000000000000003ff00000000000"))
                 // and immediately on devnet
                 || !params.hashDevnetGenesisBlock.IsNull()) {
                 arith_uint256 bnNew = arith_uint256().SetCompact(pindexLast->nBits) * 10;
