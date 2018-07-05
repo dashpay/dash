@@ -13,7 +13,6 @@
 #include "masternodeman.h"
 #include "messagesigner.h"
 #include "util.h"
-#include "validationinterface.h"
 
 #include <univalue.h>
 
