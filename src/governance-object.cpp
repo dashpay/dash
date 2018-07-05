@@ -200,9 +200,6 @@ bool CGovernanceObject::ProcessVote(CNode* pfrom,
         return false;
     }
 
-    //Send notifications to scripts / zmq
-    GetMainSignals().NotifyGovernanceVote(vote);
-
     voteInstanceRef = vote_instance_t(vote.GetOutcome(), nVoteTimeUpdate, vote.GetTimestamp());
     fileVotes.AddVote(vote);
     fDirtyCache = true;

@@ -265,7 +265,8 @@ void CGovernanceManager::ProcessMessage(CNode* pfrom, const std::string& strComm
             }
             return;
         }
-
+        // SEND NOTIFICATION TO SCRIPT/ZMQ
+        GetMainSignals().NotifyGovernanceVote(vote);
     }
 }
 
@@ -362,7 +363,7 @@ void CGovernanceManager::AddGovernanceObject(CGovernanceObject& govobj, CConnman
     CGovernanceException exception;
     CheckOrphanVotes(govobj, exception, connman);
 
-    //Send notifications to scripts / zmq
+    // SEND NOTIFICATION TO SCRIPT/ZMQ
     GetMainSignals().NotifyGovernanceObject(govobj);
 
 
