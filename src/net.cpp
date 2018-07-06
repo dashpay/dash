@@ -348,7 +348,8 @@ bool CConnman::CheckIncomingNonce(uint64_t nonce)
 CNode* CConnman::ConnectNode(CAddress addrConnect, const char *pszDest, bool fCountFailure)
 {
     if (pszDest == NULL) {
-        if (IsLocal(addrConnect) && (!Params().AllowMultiplePorts() || addrConnect.GetPort() == GetListenPort())) {
+        bool fAllowLocal = Params().AllowMultiplePorts() && addrConnect.GetPort() != GetListenPort();
+        if (!fAllowLocal && IsLocal(addrConnect)) {
             return NULL;
         }
 
@@ -1791,7 +1792,8 @@ void CConnman::ThreadOpenConnections()
                 break;
 
             // if we selected a local address, restart (local addresses are allowed in regtest and devnet)
-            if (IsLocal(addr) && (!Params().AllowMultiplePorts() || addr.GetPort() == GetListenPort()))
+            bool fAllowLocal = Params().AllowMultiplePorts() && addrConnect.GetPort() != GetListenPort();
+            if (!fAllowLocal && IsLocal(addrConnect))
                 break;
 
             // If we didn't find an appropriate destination after trying 100 addresses fetched from addrman,
@@ -1995,13 +1997,16 @@ bool CConnman::OpenNetworkConnection(const CAddress& addrConnect, bool fCountFai
         return false;
     }
     if (!pszDest) {
-        if (IsBanned(addrConnect) ||
-            FindNode(addrConnect.ToStringIPPort()))
+        // banned or exact match?
+        if (IsBanned(addrConnect) || FindNode(addrConnect.ToStringIPPort()))
             return false;
-        if (IsLocal(addrConnect) && (!Params().AllowMultiplePorts() || addrConnect.GetPort() == GetListenPort()))
+        // local and not a connection to itself?
+        bool fAllowLocal = Params().AllowMultiplePorts() && addrConnect.GetPort() != GetListenPort();
+        if (!fAllowLocal && IsLocal(addrConnect))
             return false;
+        // if multiple ports for same IP are allowed, search for IP:PORT match, otherwise search for IP-only match
         if ((!Params().AllowMultiplePorts() && FindNode((CNetAddr)addrConnect)) ||
-                (Params().AllowMultiplePorts() && FindNode((CService)addrConnect)))
+            (Params().AllowMultiplePorts() && FindNode((CService)addrConnect)))
             return false;
     } else if (FindNode(std::string(pszDest)))
         return false;
