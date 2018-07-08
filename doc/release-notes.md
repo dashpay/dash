@@ -74,6 +74,7 @@ See detailed [change log](https://github.com/dashpay/dash/compare/v0.12.3.1...da
 - [`2c303cdb1`](https://github.com/dashpay/dash/commit/2c303cdb1) A few devnet related fixes (#2168)
 
 ### Mining:
+- [`b9a83d2ae`](https://github.com/dashpay/dash/commit/b9a83d2ae) Allow mining min diff for very slow (2h+) blocks (#2175)
 - [`050cabdf5`](https://github.com/dashpay/dash/commit/050cabdf5) Adjust diff for slow testnet/devnet blocks a bit smoother (#2161)
 
 ### GUI:
