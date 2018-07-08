@@ -109,7 +109,7 @@ unsigned int static DarkGravityWave(const CBlockIndex* pindexLast, const CBlockH
         if (pindexLast->nChainWork >= UintToArith256(uint256S("0x000000000000000000000000000000000000000000000000003ff00000000000"))
             // and immediately on devnet
             || !params.hashDevnetGenesisBlock.IsNull()) {
-            // recent block is more than 10 minues old
+            // recent block is more than 10 minutes old
             if (pblock->GetBlockTime() > pindexLast->GetBlockTime() + params.nPowTargetSpacing*4) {
                 arith_uint256 bnNew = arith_uint256().SetCompact(pindexLast->nBits) * 10;
                 if (bnNew > bnPowLimit) {
