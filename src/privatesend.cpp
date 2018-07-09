@@ -417,7 +417,7 @@ int CPrivateSend::GetDenominationsByAmounts(const std::vector<CAmount>& vecAmoun
     CScript scriptTmp = CScript();
     std::vector<CTxOut> vecTxOut;
 
-    for (auto it = vecAmount.rbegin(); it != vecAmount.rend(); it++) {
+    for (auto it = vecAmount.rbegin(); it != vecAmount.rend(); ++it) {
         CTxOut txout((*it), scriptTmp);
         vecTxOut.push_back(txout);
     }
