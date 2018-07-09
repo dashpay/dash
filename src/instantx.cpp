@@ -222,12 +222,10 @@ void CInstantSend::Vote(CTxLockCandidate& txLockCandidate, CConnman& connman)
     if(mapLockRequestAccepted.find(txHash) == mapLockRequestAccepted.end()) return;
     // check if we need to vote on this candidate's outpoints,
     // it's possible that we need to vote for several of them
-    std::map<COutPoint, COutPointLock>::iterator itOutpointLock = txLockCandidate.mapOutPointLocks.begin();
-    while(itOutpointLock != txLockCandidate.mapOutPointLocks.end()) {
-
-        int nPrevoutHeight = GetUTXOHeight(itOutpointLock->first);
+    for (auto& outpointLock : txLockCandidate.mapOutPointLocks) {
+        int nPrevoutHeight = GetUTXOHeight(outpointLock.first);
         if(nPrevoutHeight == -1) {
-            LogPrint("instantsend", "CInstantSend::Vote -- Failed to find UTXO %s\n", itOutpointLock->first.ToStringShort());
+            LogPrint("instantsend", "CInstantSend::Vote -- Failed to find UTXO %s\n", outpointLock.first.ToStringShort());
             return;
         }
 
@@ -237,20 +235,18 @@ void CInstantSend::Vote(CTxLockCandidate& txLockCandidate, CConnman& connman)
         int nMinRequiredProtocol = std::max(MIN_INSTANTSEND_PROTO_VERSION, mnpayments.GetMinMasternodePaymentsProto());
         if(!mnodeman.GetMasternodeRank(activeMasternode.outpoint, nRank, nLockInputHeight, nMinRequiredProtocol)) {
             LogPrint("instantsend", "CInstantSend::Vote -- Can't calculate rank for masternode %s\n", activeMasternode.outpoint.ToStringShort());
-            ++itOutpointLock;
             continue;
         }
 
         int nSignaturesTotal = COutPointLock::SIGNATURES_TOTAL;
         if(nRank > nSignaturesTotal) {
             LogPrint("instantsend", "CInstantSend::Vote -- Masternode not in the top %d (%d)\n", nSignaturesTotal, nRank);
-            ++itOutpointLock;
             continue;
         }
 
         LogPrint("instantsend", "CInstantSend::Vote -- In the top %d (%d)\n", nSignaturesTotal, nRank);
 
-        std::map<COutPoint, std::set<uint256> >::iterator itVoted = mapVotedOutpoints.find(itOutpointLock->first);
+        std::map<COutPoint, std::set<uint256> >::iterator itVoted = mapVotedOutpoints.find(outpointLock.first);
 
         // Check to see if we already voted for this outpoint,
         // refuse to vote twice or to include the same outpoint in another tx
@@ -258,23 +254,22 @@ void CInstantSend::Vote(CTxLockCandidate& txLockCandidate, CConnman& connman)
         if(itVoted != mapVotedOutpoints.end()) {
             for (const auto& hash : itVoted->second) {
                 std::map<uint256, CTxLockCandidate>::iterator it2 = mapTxLockCandidates.find(hash);
-                if(it2->second.HasMasternodeVoted(itOutpointLock->first, activeMasternode.outpoint)) {
+                if(it2->second.HasMasternodeVoted(outpointLock.first, activeMasternode.outpoint)) {
                     // we already voted for this outpoint to be included either in the same tx or in a competing one,
                     // skip it anyway
                     fAlreadyVoted = true;
                     LogPrintf("CInstantSend::Vote -- WARNING: We already voted for this outpoint, skipping: txHash=%s, outpoint=%s\n",
-                            txHash.ToString(), itOutpointLock->first.ToStringShort());
+                            txHash.ToString(), outpointLock.first.ToStringShort());
                     break;
                 }
             }
         }
         if(fAlreadyVoted) {
-            ++itOutpointLock;
             continue; // skip to the next outpoint
         }
 
         // we haven't voted for this outpoint yet, let's try to do this now
-        CTxLockVote vote(txHash, itOutpointLock->first, activeMasternode.outpoint);
+        CTxLockVote vote(txHash, outpointLock.first, activeMasternode.outpoint);
 
         if(!vote.Sign()) {
             LogPrintf("CInstantSend::Vote -- Failed to sign consensus vote\n");
@@ -288,27 +283,25 @@ void CInstantSend::Vote(CTxLockCandidate& txLockCandidate, CConnman& connman)
         // vote constructed sucessfully, let's store and relay it
         uint256 nVoteHash = vote.GetHash();
         mapTxLockVotes.insert(std::make_pair(nVoteHash, vote));
-        if(itOutpointLock->second.AddVote(vote)) {
+        if(outpointLock.second.AddVote(vote)) {
             LogPrintf("CInstantSend::Vote -- Vote created successfully, relaying: txHash=%s, outpoint=%s, vote=%s\n",
-                    txHash.ToString(), itOutpointLock->first.ToStringShort(), nVoteHash.ToString());
+                    txHash.ToString(), outpointLock.first.ToStringShort(), nVoteHash.ToString());
 
             if(itVoted == mapVotedOutpoints.end()) {
                 std::set<uint256> setHashes;
                 setHashes.insert(txHash);
-                mapVotedOutpoints.insert(std::make_pair(itOutpointLock->first, setHashes));
+                mapVotedOutpoints.insert(std::make_pair(outpointLock.first, setHashes));
             } else {
-                mapVotedOutpoints[itOutpointLock->first].insert(txHash);
-                if(mapVotedOutpoints[itOutpointLock->first].size() > 1) {
+                mapVotedOutpoints[outpointLock.first].insert(txHash);
+                if(mapVotedOutpoints[outpointLock.first].size() > 1) {
                     // it's ok to continue, just warn user
                     LogPrintf("CInstantSend::Vote -- WARNING: Vote conflicts with some existing votes: txHash=%s, outpoint=%s, vote=%s\n",
-                            txHash.ToString(), itOutpointLock->first.ToStringShort(), nVoteHash.ToString());
+                            txHash.ToString(), outpointLock.first.ToStringShort(), nVoteHash.ToString());
                 }
             }
 
             vote.Relay(connman);
         }
-
-        ++itOutpointLock;
     }
 }
 
@@ -547,11 +540,8 @@ void CInstantSend::LockTransactionInputs(const CTxLockCandidate& txLockCandidate
 
     if(!txLockCandidate.IsAllOutPointsReady()) return;
 
-    std::map<COutPoint, COutPointLock>::const_iterator it = txLockCandidate.mapOutPointLocks.begin();
-
-    while(it != txLockCandidate.mapOutPointLocks.end()) {
-        mapLockedOutpoints.insert(std::make_pair(it->first, txHash));
-        ++it;
+    for (const auto& pair : txLockCandidate.mapOutPointLocks) {
+        mapLockedOutpoints.insert(std::make_pair(pair.first, txHash));
     }
     LogPrint("instantsend", "CInstantSend::LockTransactionInputs -- done, txid=%s\n", txHash.ToString());
 }
@@ -647,12 +637,9 @@ int64_t CInstantSend::GetAverageMasternodeOrphanVoteTime()
     // NOTE: should never actually call this function when mapMasternodeOrphanVotes is empty
     if(mapMasternodeOrphanVotes.empty()) return 0;
 
-    std::map<COutPoint, int64_t>::iterator it = mapMasternodeOrphanVotes.begin();
     int64_t total = 0;
-
-    while(it != mapMasternodeOrphanVotes.end()) {
-        total+= it->second;
-        ++it;
+    for (const auto& pair : mapMasternodeOrphanVotes) {
+        total += pair.second;
     }
 
     return total / mapMasternodeOrphanVotes.size();
@@ -672,11 +659,10 @@ void CInstantSend::CheckAndRemove()
         uint256 txHash = txLockCandidate.GetHash();
         if(txLockCandidate.IsExpired(nCachedBlockHeight)) {
             LogPrintf("CInstantSend::CheckAndRemove -- Removing expired Transaction Lock Candidate: txid=%s\n", txHash.ToString());
-            std::map<COutPoint, COutPointLock>::iterator itOutpointLock = txLockCandidate.mapOutPointLocks.begin();
-            while(itOutpointLock != txLockCandidate.mapOutPointLocks.end()) {
-                mapLockedOutpoints.erase(itOutpointLock->first);
-                mapVotedOutpoints.erase(itOutpointLock->first);
-                ++itOutpointLock;
+
+            for (const auto& outpointLock : txLockCandidate.mapOutPointLocks) {
+                mapLockedOutpoints.erase(outpointLock.first);
+                mapVotedOutpoints.erase(outpointLock.first);
             }
             mapLockRequestAccepted.erase(txHash);
             mapLockRequestRejected.erase(txHash);
@@ -812,11 +798,9 @@ bool CInstantSend::IsLockedInstantSendTransaction(const uint256& txHash)
     if(itLockCandidate->second.mapOutPointLocks.empty()) return false;
 
     // and all of these outputs must be included in mapLockedOutpoints with correct hash
-    std::map<COutPoint, COutPointLock>::iterator itOutpointLock = itLockCandidate->second.mapOutPointLocks.begin();
-    while(itOutpointLock != itLockCandidate->second.mapOutPointLocks.end()) {
+    for (const auto& outpointLock : itLockCandidate->second.mapOutPointLocks) {
         uint256 hashLocked;
-        if(!GetLockedOutPointTxHash(itOutpointLock->first, hashLocked) || hashLocked != txHash) return false;
-        ++itOutpointLock;
+        if(!GetLockedOutPointTxHash(outpointLock.first, hashLocked) || hashLocked != txHash) return false;
     }
 
     return true;
@@ -896,35 +880,28 @@ void CInstantSend::SyncTransaction(const CTransaction& tx, const CBlockIndex *pi
                 txHash.ToString(), nHeightNew);
         itLockCandidate->second.SetConfirmedHeight(nHeightNew);
         // Loop through outpoint locks
-        std::map<COutPoint, COutPointLock>::iterator itOutpointLock = itLockCandidate->second.mapOutPointLocks.begin();
-        while(itOutpointLock != itLockCandidate->second.mapOutPointLocks.end()) {
+        for (const auto& outpointLock : itLockCandidate->second.mapOutPointLocks) {
+
             // Check corresponding lock votes
-            std::vector<CTxLockVote> vVotes = itOutpointLock->second.GetVotes();
-            std::vector<CTxLockVote>::iterator itVote = vVotes.begin();
-            std::map<uint256, CTxLockVote>::iterator it;
-            while(itVote != vVotes.end()) {
-                uint256 nVoteHash = itVote->GetHash();
+            for (const auto& vote : outpointLock.second.GetVotes()) {
+                uint256 nVoteHash = vote.GetHash();
                 LogPrint("instantsend", "CInstantSend::SyncTransaction -- txid=%s nHeightNew=%d vote %s updated\n",
                         txHash.ToString(), nHeightNew, nVoteHash.ToString());
-                it = mapTxLockVotes.find(nVoteHash);
+                const auto& it = mapTxLockVotes.find(nVoteHash);
                 if(it != mapTxLockVotes.end()) {
                     it->second.SetConfirmedHeight(nHeightNew);
                 }
-                ++itVote;
             }
-            ++itOutpointLock;
         }
     }
 
     // check orphan votes
-    std::map<uint256, CTxLockVote>::iterator itOrphanVote = mapTxLockVotesOrphan.begin();
-    while(itOrphanVote != mapTxLockVotesOrphan.end()) {
-        if(itOrphanVote->second.GetTxHash() == txHash) {
+    for (const auto& orphanVote : mapTxLockVotesOrphan) {
+        if(orphanVote.second.GetTxHash() == txHash) {
             LogPrint("instantsend", "CInstantSend::SyncTransaction -- txid=%s nHeightNew=%d vote %s updated\n",
-                    txHash.ToString(), nHeightNew, itOrphanVote->first.ToString());
-            mapTxLockVotes[itOrphanVote->first].SetConfirmedHeight(nHeightNew);
+                    txHash.ToString(), nHeightNew, orphanVote.first.ToString());
+            mapTxLockVotes[orphanVote.first].SetConfirmedHeight(nHeightNew);
         }
-        ++itOrphanVote;
     }
 }
 
@@ -1162,10 +1139,8 @@ bool COutPointLock::AddVote(const CTxLockVote& vote)
 std::vector<CTxLockVote> COutPointLock::GetVotes() const
 {
     std::vector<CTxLockVote> vRet;
-    std::map<COutPoint, CTxLockVote>::const_iterator itVote = mapMasternodeVotes.begin();
-    while(itVote != mapMasternodeVotes.end()) {
-        vRet.push_back(itVote->second);
-        ++itVote;
+    for (const auto& vote : mapMasternodeVotes) {
+        vRet.push_back(vote.second);
     }
     return vRet;
 }
@@ -1177,10 +1152,8 @@ bool COutPointLock::HasMasternodeVoted(const COutPoint& outpointMasternodeIn) co
 
 void COutPointLock::Relay(CConnman& connman) const
 {
-    std::map<COutPoint, CTxLockVote>::const_iterator itVote = mapMasternodeVotes.begin();
-    while(itVote != mapMasternodeVotes.end()) {
-        itVote->second.Relay(connman);
-        ++itVote;
+    for (const auto& vote : mapMasternodeVotes) {
+        vote.second.Relay(connman);
     }
 }
 
@@ -1211,10 +1184,8 @@ bool CTxLockCandidate::IsAllOutPointsReady() const
 {
     if(mapOutPointLocks.empty()) return false;
 
-    std::map<COutPoint, COutPointLock>::const_iterator it = mapOutPointLocks.begin();
-    while(it != mapOutPointLocks.end()) {
-        if(!it->second.IsReady()) return false;
-        ++it;
+    for (const auto& pair : mapOutPointLocks) {
+        if(!pair.second.IsReady()) return false;
     }
     return true;
 }
@@ -1229,10 +1200,8 @@ int CTxLockCandidate::CountVotes() const
 {
     // Note: do NOT use vote count to figure out if tx is locked, use IsAllOutPointsReady() instead
     int nCountVotes = 0;
-    std::map<COutPoint, COutPointLock>::const_iterator it = mapOutPointLocks.begin();
-    while(it != mapOutPointLocks.end()) {
-        nCountVotes += it->second.CountVotes();
-        ++it;
+    for (const auto& pair : mapOutPointLocks) {
+        nCountVotes += pair.second.CountVotes();
     }
     return nCountVotes;
 }
@@ -1251,9 +1220,7 @@ bool CTxLockCandidate::IsTimedOut() const
 void CTxLockCandidate::Relay(CConnman& connman) const
 {
     connman.RelayTransaction(*txLockRequest.tx);
-    std::map<COutPoint, COutPointLock>::const_iterator itOutpointLock = mapOutPointLocks.begin();
-    while(itOutpointLock != mapOutPointLocks.end()) {
-        itOutpointLock->second.Relay(connman);
-        ++itOutpointLock;
+    for (const auto& outpointLock : mapOutPointLocks) {
+        outpointLock.second.Relay(connman);
     }
 }
