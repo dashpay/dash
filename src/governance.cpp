@@ -524,7 +524,7 @@ std::vector<CGovernanceVote> CGovernanceManager::GetCurrentVotes(const uint256& 
         vote_rec_t voteRecord;
         if (!govobj.GetCurrentMNVotes(mnpair.first, voteRecord)) continue;
 
-        for (auto& voteInstancePair : voteRecord.mapInstances) {
+        for (const auto& voteInstancePair : voteRecord.mapInstances) {
             int signal = voteInstancePair.first;
             int outcome = voteInstancePair.second.eOutcome;
             int64_t nCreationTime = voteInstancePair.second.nCreationTime;
@@ -545,7 +545,7 @@ std::vector<const CGovernanceObject*> CGovernanceManager::GetAllNewerThan(int64_
 
     std::vector<const CGovernanceObject*> vGovObjs;
 
-    for (auto& objPair : mapObjects) {
+    for (const auto& objPair : mapObjects) {
         // IF THIS OBJECT IS OLDER THAN TIME, CONTINUE
         if(objPair.second.GetCreationTime() < nMoreThanTime) {
             continue;
@@ -715,7 +715,7 @@ void CGovernanceManager::SyncAll(CNode* pnode, CConnman& connman) const
     LOCK2(cs_main, cs);
 
     // all valid objects, no votes
-    for (auto& objPair : mapObjects) {
+    for (const auto& objPair : mapObjects) {
         uint256 nHash = objPair.first;
         const CGovernanceObject& govobj = objPair.second;
         std::string strHash = nHash.ToString();
@@ -1078,7 +1078,7 @@ int CGovernanceManager::RequestGovernanceObjectVotes(const std::vector<CNode*>& 
 
         if(mapObjects.empty()) return -2;
 
-        for (auto& objPair : mapObjects) {
+        for (const auto& objPair : mapObjects) {
             uint256 nHash = objPair.first;
             if(mapAskedRecently.count(nHash)) {
                 auto it = mapAskedRecently[nHash].begin();
@@ -1231,7 +1231,7 @@ std::string CGovernanceManager::ToString() const
     int nTriggerCount = 0;
     int nOtherCount = 0;
 
-    for (auto& objPair : mapObjects) {
+    for (const auto& objPair : mapObjects) {
         switch(objPair.second.GetObjectType()) {
             case GOVERNANCE_OBJECT_PROPOSAL:
                 nProposalCount++;
