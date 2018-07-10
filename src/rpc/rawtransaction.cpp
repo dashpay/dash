@@ -896,7 +896,7 @@ UniValue signrawtransaction(const JSONRPCRequest& request)
                 }
                 Coin newcoin;
                 newcoin.out.scriptPubKey = scriptPubKey;
-                newcoin.out.nValue = 0;
+                newcoin.out.nValue = MAX_MONEY;
                 if (prevOut.exists("amount")) {
                     newcoin.out.nValue = AmountFromValue(find_value(prevOut, "amount"));
                 }
@@ -973,6 +973,11 @@ UniValue signrawtransaction(const JSONRPCRequest& request)
         }
 
         UpdateInput(txin, sigdata);
+
+        // amount must be specified for valid segwit signature
+        if (amount == MAX_MONEY && !txin.scriptWitness.IsNull()) {
+            throw JSONRPCError(RPC_TYPE_ERROR, strprintf("Missing amount for %s", coin.out.ToString()));
+        }
 
         ScriptError serror = SCRIPT_ERR_OK;
         if (!VerifyScript(txin.scriptSig, prevPubKey, STANDARD_SCRIPT_VERIFY_FLAGS, TransactionSignatureChecker(&txConst, i, amount), &serror)) {

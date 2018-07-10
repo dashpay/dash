@@ -94,9 +94,96 @@ class RawTransactionsTest(BitcoinTestFramework):
         assert_raises_rpc_error(-8, "Invalid parameter, locktime out of range", self.nodes[0].createrawtransaction, [], {}, -1)
         assert_raises_rpc_error(-8, "Invalid parameter, locktime out of range", self.nodes[0].createrawtransaction, [], {}, 4294967296)
 
+        # Test `createrawtransaction` invalid `replaceable`
+        assert_raises_rpc_error(-3, "Expected type bool", self.nodes[0].createrawtransaction, [], {}, 0, 'foo')
+
+        self.log.info('Check that createrawtransaction accepts an array and object as outputs')
+        tx = CTransaction()
+        # One output
+        tx.deserialize(BytesIO(hex_str_to_bytes(self.nodes[2].createrawtransaction(inputs=[{'txid': txid, 'vout': 9}], outputs={address: 99}))))
+        assert_equal(len(tx.vout), 1)
+        assert_equal(
+            bytes_to_hex_str(tx.serialize()),
+            self.nodes[2].createrawtransaction(inputs=[{'txid': txid, 'vout': 9}], outputs=[{address: 99}]),
+        )
+        # Two outputs
+        tx.deserialize(BytesIO(hex_str_to_bytes(self.nodes[2].createrawtransaction(inputs=[{'txid': txid, 'vout': 9}], outputs=OrderedDict([(address, 99), (address2, 99)])))))
+        assert_equal(len(tx.vout), 2)
+        assert_equal(
+            bytes_to_hex_str(tx.serialize()),
+            self.nodes[2].createrawtransaction(inputs=[{'txid': txid, 'vout': 9}], outputs=[{address: 99}, {address2: 99}]),
+        )
+        # Two data outputs
+        tx.deserialize(BytesIO(hex_str_to_bytes(self.nodes[2].createrawtransaction(inputs=[{'txid': txid, 'vout': 9}], outputs=multidict([('data', '99'), ('data', '99')])))))
+        assert_equal(len(tx.vout), 2)
+        assert_equal(
+            bytes_to_hex_str(tx.serialize()),
+            self.nodes[2].createrawtransaction(inputs=[{'txid': txid, 'vout': 9}], outputs=[{'data': '99'}, {'data': '99'}]),
+        )
+        # Multiple mixed outputs
+        tx.deserialize(BytesIO(hex_str_to_bytes(self.nodes[2].createrawtransaction(inputs=[{'txid': txid, 'vout': 9}], outputs=multidict([(address, 99), ('data', '99'), ('data', '99')])))))
+        assert_equal(len(tx.vout), 3)
+        assert_equal(
+            bytes_to_hex_str(tx.serialize()),
+            self.nodes[2].createrawtransaction(inputs=[{'txid': txid, 'vout': 9}], outputs=[{address: 99}, {'data': '99'}, {'data': '99'}]),
+        )
+
+        for type in ["bech32", "p2sh-segwit", "legacy"]:
+            addr = self.nodes[0].getnewaddress("", type)
+            addrinfo = self.nodes[0].getaddressinfo(addr)
+            pubkey = addrinfo["scriptPubKey"]
+
+            self.log.info('sendrawtransaction with missing prevtx info (%s)' %(type))
+
+            # Test `signrawtransactionwithwallet` invalid `prevtxs`
+            inputs  = [ {'txid' : txid, 'vout' : 3, 'sequence' : 1000}]
+            outputs = { self.nodes[0].getnewaddress() : 1 }
+            rawtx   = self.nodes[0].createrawtransaction(inputs, outputs)
+
+            prevtx = dict(txid=txid, scriptPubKey=pubkey, vout=3, amount=1)
+            succ = self.nodes[0].signrawtransactionwithwallet(rawtx, [prevtx])
+            assert succ["complete"]
+            if type == "legacy":
+                del prevtx["amount"]
+                succ = self.nodes[0].signrawtransactionwithwallet(rawtx, [prevtx])
+                assert succ["complete"]
+
+            if type != "legacy":
+                assert_raises_rpc_error(-3, "Missing amount", self.nodes[0].signrawtransactionwithwallet, rawtx, [
+                    {
+                        "txid": txid,
+                        "scriptPubKey": pubkey,
+                        "vout": 3,
+                    }
+                ])
+
+            assert_raises_rpc_error(-3, "Missing vout", self.nodes[0].signrawtransactionwithwallet, rawtx, [
+                {
+                    "txid": txid,
+                    "scriptPubKey": pubkey,
+                    "amount": 1,
+                }
+            ])
+            assert_raises_rpc_error(-3, "Missing txid", self.nodes[0].signrawtransactionwithwallet, rawtx, [
+                {
+                    "scriptPubKey": pubkey,
+                    "vout": 3,
+                    "amount": 1,
+                }
+            ])
+            assert_raises_rpc_error(-3, "Missing scriptPubKey", self.nodes[0].signrawtransactionwithwallet, rawtx, [
+                {
+                    "txid": txid,
+                    "vout": 3,
+                    "amount": 1
+                }
+            ])
+
         #########################################
         # sendrawtransaction with missing input #
         #########################################
+
+        self.log.info('sendrawtransaction with missing input')
         inputs  = [ {'txid' : "1d1d4e24ed99057e84c3f80fd8fbec79ed9e1acee37da269356ecea000000000", 'vout' : 1}] #won't exists
         outputs = { self.nodes[0].getnewaddress() : 4.998 }
         rawtx   = self.nodes[2].createrawtransaction(inputs, outputs)
