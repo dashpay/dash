@@ -321,7 +321,7 @@ void TransactionRecord::updateStatus(const CWalletTx &wtx, int chainLockHeight)
 
             if (wtx.IsInMainChain())
             {
-                status.matures_in = wtx.GetBlocksToMaturity();
+                status.matures_in = wtx.blocks_to_maturity;
             }
             else
             {
