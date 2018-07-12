@@ -70,10 +70,15 @@ script:
     - $DOCKER_RUN_IN_BUILDER ./ci/build_depends.sh;
     # Skip Dash Core build if depends build take more than 20 mins.
     - if [ $SECONDS -lt 1200 ]; then $DOCKER_RUN_IN_BUILDER ./ci/build_src.sh && export SRC_BUILT="true"; fi
-    - if [ "$SRC_BUILT" = "true" ]; then
+    - |
+      if [ "$SRC_BUILT" = "true" ]; then
         travis_wait 30 $DOCKER_RUN_IN_BUILDER ./ci/test_unittests.sh;
         $DOCKER_RUN_IN_BUILDER ./ci/test_integrationtests.sh;
         if [ "$DOCKER_BUILD" = "true" ]; then BUILD_DIR=build-ci/dashcore-$BUILD_TARGET ./docker/build-docker.sh; fi;
+      else
+        # Let the build fail immediately. Caches are still uploaded even after failure. The next Travis run should then
+        # use the caches and thus be much faster, causing the build to succeed
+        false
       fi;
 after_script:
     - echo $TRAVIS_COMMIT_RANGE
