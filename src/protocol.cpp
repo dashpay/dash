@@ -69,7 +69,7 @@ const char *MNGOVERNANCESYNC="govsync";
 const char *MNGOVERNANCEOBJECT="govobj";
 const char *MNGOVERNANCEOBJECTVOTE="govobjvote";
 const char *MNVERIFY="mnv";
-const char *GETMNLISTDIFF="getmnlistdiff";
+const char *GETMNLISTDIFF="getmnlistd";
 const char *MNLISTDIFF="mnlistdiff";
 };
 
