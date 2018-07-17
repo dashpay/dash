@@ -144,6 +144,7 @@ BASE_SCRIPTS = [
     'feature_uacomment.py',
     'p2p_unrequested_blocks.py',
     'feature_includeconf.py',
+    'rpc_scantxoutset.py',
     'feature_logging.py',
     'node_network_limited.py',
     'conf_args.py',
