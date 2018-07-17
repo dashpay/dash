@@ -100,7 +100,10 @@ bool BuildSimplifiedMNListDiff(const uint256& baseBlockHash, const uint256& bloc
     AssertLockHeld(cs_main);
     mnListDiffRet = CSimplifiedMNListDiff();
 
-    auto baseBlockIt = mapBlockIndex.find(baseBlockHash);
+    BlockMap::iterator baseBlockIt = mapBlockIndex.begin();
+    if (!baseBlockHash.IsNull()) {
+        baseBlockIt = mapBlockIndex.find(baseBlockHash);
+    }
     auto blockIt = mapBlockIndex.find(blockHash);
     if (baseBlockIt == mapBlockIndex.end()) {
         errorRet = strprintf("block %s not found", baseBlockHash.ToString());
