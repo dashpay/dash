@@ -235,6 +235,8 @@ void CPrivateSendClient::SetNull()
 //
 void CPrivateSendClient::UnlockCoins()
 {
+    if (!pwalletMain) return;
+
     while(true) {
         TRY_LOCK(pwalletMain->cs_wallet, lockWallet);
         if(!lockWallet) {MilliSleep(50); continue;}
@@ -486,6 +488,8 @@ bool CPrivateSendClient::CheckPoolStateUpdate(PoolState nStateNew, int nEntriesC
 //
 bool CPrivateSendClient::SignFinalTransaction(const CTransaction& finalTransactionNew, CNode* pnode, CConnman& connman)
 {
+    if (!pwalletMain) return false;
+
     if(fMasternodeMode || pnode == nullptr) return false;
 
     finalMutableTransaction = finalTransactionNew;
@@ -619,6 +623,13 @@ bool CPrivateSendClient::WaitForAnotherBlock()
 
 bool CPrivateSendClient::CheckAutomaticBackup()
 {
+    if (!pwalletMain) {
+        LogPrint("privatesend", "CPrivateSendClient::CheckAutomaticBackup -- Wallet is not initialized, no mixing available.\n");
+        strAutoDenomResult = _("Wallet is not initialized") + ", " + _("no mixing available.");
+        fEnablePrivateSend = false; // no mixing
+        return false;
+    }
+
     switch(nWalletBackups) {
         case 0:
             LogPrint("privatesend", "CPrivateSendClient::CheckAutomaticBackup -- Automatic backups disabled, no mixing available.\n");
@@ -689,8 +700,12 @@ bool CPrivateSendClient::DoAutomaticDenominating(CConnman& connman, bool fDryRun
 {
     if(fMasternodeMode) return false; // no client-side mixing on masternodes
     if(!fEnablePrivateSend) return false;
-    if(!pwalletMain || pwalletMain->IsLocked(true)) return false;
     if(nState != POOL_STATE_IDLE) return false;
+
+    if (!pwalletMain) {
+        strAutoDenomResult = _("Wallet is not initialized");
+        return false;
+    }
 
     if(!masternodeSync.IsMasternodeListSynced()) {
         strAutoDenomResult = _("Can't mix while sync in progress.");
@@ -837,6 +852,8 @@ bool CPrivateSendClient::DoAutomaticDenominating(CConnman& connman, bool fDryRun
 
 bool CPrivateSendClient::JoinExistingQueue(CAmount nBalanceNeedsAnonymized, CConnman& connman)
 {
+    if (!pwalletMain)  return false;
+
     std::vector<CAmount> vecStandardDenoms = CPrivateSend::GetStandardDenominations();
     // Look through the queues and see if anything matches
     for (auto& dsq : vecDarksendQueue) {
@@ -917,6 +934,8 @@ bool CPrivateSendClient::JoinExistingQueue(CAmount nBalanceNeedsAnonymized, CCon
 
 bool CPrivateSendClient::StartNewQueue(CAmount nValueMin, CAmount nBalanceNeedsAnonymized, CConnman& connman)
 {
+    if (!pwalletMain) return false;
+
     int nTries = 0;
     int nMnCountEnabled = mnodeman.CountEnabled(MIN_PRIVATESEND_PEER_PROTO_VERSION);
 
@@ -1198,6 +1217,8 @@ bool CPrivateSendClient::PrepareDenominate(int nMinRounds, int nMaxRounds, std::
 // Create collaterals by looping through inputs grouped by addresses
 bool CPrivateSendClient::MakeCollateralAmounts(CConnman& connman)
 {
+    if (!pwalletMain) return false;
+
     std::vector<CompactTallyItem> vecTally;
     if(!pwalletMain->SelectCoinsGrouppedByAddresses(vecTally, false)) {
         LogPrint("privatesend", "CPrivateSendClient::MakeCollateralAmounts -- SelectCoinsGrouppedByAddresses can't find any inputs!\n");
@@ -1224,6 +1245,8 @@ bool CPrivateSendClient::MakeCollateralAmounts(CConnman& connman)
 // Split up large inputs or create fee sized inputs
 bool CPrivateSendClient::MakeCollateralAmounts(const CompactTallyItem& tallyItem, bool fTryDenominated, CConnman& connman)
 {
+    if (!pwalletMain) return false;
+
     LOCK2(cs_main, pwalletMain->cs_wallet);
 
     // denominated input is always a single one, so we can check its amount directly and return early
@@ -1296,6 +1319,8 @@ bool CPrivateSendClient::MakeCollateralAmounts(const CompactTallyItem& tallyItem
 // Create denominations by looping through inputs grouped by addresses
 bool CPrivateSendClient::CreateDenominated(CConnman& connman)
 {
+    if (!pwalletMain) return false;
+
     LOCK2(cs_main, pwalletMain->cs_wallet);
 
     std::vector<CompactTallyItem> vecTally;
@@ -1318,6 +1343,8 @@ bool CPrivateSendClient::CreateDenominated(CConnman& connman)
 // Create denominations
 bool CPrivateSendClient::CreateDenominated(const CompactTallyItem& tallyItem, bool fCreateMixingCollaterals, CConnman& connman)
 {
+    if (!pwalletMain) return false;
+
     std::vector<CRecipient> vecSend;
     CKeyHolderStorage keyHolderStorageDenom;
 
