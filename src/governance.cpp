@@ -1084,7 +1084,7 @@ int CGovernanceManager::RequestGovernanceObjectVotes(const std::vector<CNode*>& 
 
         if(mapObjects.empty()) return -2;
 
-        for (const auto& objPair : mapObjects) {
+        for (auto& objPair : mapObjects) {
             uint256 nHash = objPair.first;
             if(mapAskedRecently.count(nHash)) {
                 auto it = mapAskedRecently[nHash].begin();
@@ -1098,11 +1098,10 @@ int CGovernanceManager::RequestGovernanceObjectVotes(const std::vector<CNode*>& 
                 if(mapAskedRecently[nHash].size() >= nPeersPerHashMax) continue;
             }
 
-            auto govObj = objPair.second;
-            if(govObj.nObjectType == GOVERNANCE_OBJECT_TRIGGER) {
-                vpGovObjsTriggersTmp.push_back(&govObj);
+            if(objPair.second.nObjectType == GOVERNANCE_OBJECT_TRIGGER) {
+                vpGovObjsTriggersTmp.push_back(&objPair.second);
             } else {
-                vpGovObjsTmp.push_back(&govObj);
+                vpGovObjsTmp.push_back(&objPair.second);
             }
         }
     }
