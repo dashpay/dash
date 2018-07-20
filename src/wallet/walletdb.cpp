@@ -516,6 +516,15 @@ ReadKeyValue(CWallet* pwallet, CDataStream& ssKey, CDataStream& ssValue,
                 strErr = "Error reading wallet database: SetHDChain failed";
                 return false;
             }
+        } else if (strType == "flags") {
+            uint64_t flags;
+            ssValue >> flags;
+            if (!pwallet->SetWalletFlags(flags, true)) {
+                strErr = "Error reading wallet database: Unknown non-tolerable wallet flags found";
+                return false;
+            }
+        } else if (strType != "bestblock" && strType != "bestblock_nomerkle") {
+            wss.m_unknown_records++;
         }
         else if (strType == "chdchain")
         {
@@ -605,10 +614,12 @@ DBErrors WalletBatch::LoadWallet(CWallet* pwallet)
             {
                 // losing keys is considered a catastrophic error, anything else
                 // we assume the user can live with:
-                if (IsKeyType(strType) || strType == "defaultkey")
-                    result = DB_CORRUPT;
-                else
-                {
+                if (IsKeyType(strType) || strType == "defaultkey") {
+                    result = DBErrors::CORRUPT;
+                } else if(strType == "flags") {
+                    // reading the wallet flags can only fail if unknown flags are present
+                    result = DBErrors::TOO_NEW;
+                } else {
                     // Leave other errors alone, if we try to fix them we might make things worse.
                     fNoncriticalErrors = true; // ... but do warn the user there is something wrong.
                     if (strType == "tx")
@@ -879,22 +890,9 @@ bool WalletBatch::WriteHDChain(const CHDChain& chain)
     return WriteIC(std::string("hdchain"), chain);
 }
 
-bool WalletBatch::WriteCryptedHDChain(const CHDChain& chain)
+bool WalletBatch::WriteWalletFlags(const uint64_t flags)
 {
-    if (!WriteIC(std::string("chdchain"), chain))
-        return false;
-
-    EraseIC(std::string("hdchain"));
-
-    return true;
-}
-
-bool WalletBatch::WriteHDPubKey(const CHDPubKey& hdPubKey, const CKeyMetadata& keyMeta)
-{
-    if (!WriteIC(std::make_pair(std::string("keymeta"), hdPubKey.extPubKey.pubkey), keyMeta, false))
-        return false;
-
-    return WriteIC(std::make_pair(std::string("hdpubkey"), hdPubKey.extPubKey.pubkey), hdPubKey, false);
+    return WriteIC(std::string("flags"), flags);
 }
 
 bool WalletBatch::TxnBegin()

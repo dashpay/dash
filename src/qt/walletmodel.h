@@ -223,6 +223,7 @@ public:
     bool abandonTransaction(uint256 hash) const;
 
     static bool isWalletEnabled();
+    bool privateKeysDisabled() const;
 
     bool hdEnabled() const;
 
