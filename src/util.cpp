@@ -757,6 +757,14 @@ void ArgsManager::ParseParameters(int argc, const char* const argv[])
         } else {
             m_override_args[key].push_back(val);
         }
+
+        // Check that the arg is known
+        if (!(IsSwitchChar(key[0]) && key.size() == 1)) {
+            if (!IsArgKnown(key)) {
+                error = strprintf("Invalid parameter %s", key.c_str());
+                return false;
+            }
+        }
     }
 
     // we do not allow -includeconf from command line, so we clear it here
@@ -769,6 +777,22 @@ void ArgsManager::ParseParameters(int argc, const char* const argv[])
             return false;
         }
     }
+}
+
+bool ArgsManager::IsArgKnown(const std::string& key) const
+{
+    size_t option_index = key.find('.');
+    std::string arg_no_net;
+    if (option_index == std::string::npos) {
+        arg_no_net = key;
+    } else {
+        arg_no_net = std::string("-") + key.substr(option_index + 1, std::string::npos);
+    }
+
+    for (const auto& arg_map : m_available_args) {
+        if (arg_map.second.count(arg_no_net)) return true;
+    }
+    return false;
 }
 
 std::vector<std::string> ArgsManager::GetArgs(const std::string& strArg) const
@@ -874,7 +898,7 @@ void ArgsManager::AddHiddenArgs(const std::vector<std::string>& names)
     }
 }
 
-std::string ArgsManager::GetHelpMessage()
+std::string ArgsManager::GetHelpMessage() const
 {
     const bool show_debug = gArgs.GetBoolArg("-help-debug", false);
 
@@ -1075,7 +1099,7 @@ bool ArgsManager::ReadConfigStream(std::istream& stream, std::string& error, boo
         }
 
         // Check that the arg is known
-        if (!IsArgKnown(strKey, error) && !ignore_invalid_keys) {
+        if (!IsArgKnown(strKey) && !ignore_invalid_keys) {
             error = strprintf("Invalid configuration value %s", option.first.c_str());
             return false;
         }
