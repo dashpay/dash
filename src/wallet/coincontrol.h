@@ -43,6 +43,8 @@ public:
     boost::optional<unsigned int> m_confirm_target;
     //! Override the wallet's m_signal_rbf if set
     boost::optional<bool> m_signal_bip125_rbf;
+    //! Avoid partial use of funds sent to a given address
+    bool m_avoid_partial_spends;
     //! Fee estimation mode to control arguments to estimateSmartFee
     FeeEstimateMode m_fee_mode;
     //! Controls which types of coins are allowed to be used (default: ALL_COINS)
@@ -53,21 +55,7 @@ public:
         SetNull();
     }
 
-    void SetNull()
-    {
-        destChange = CNoDestination();
-        fAllowOtherInputs = false;
-        fRequireAllInputs = true;
-        fAllowWatchOnly = false;
-        setSelected.clear();
-        m_feerate.reset();
-        m_discard_feerate.reset();
-        fOverrideFeeRate = false;
-        m_confirm_target.reset();
-        m_signal_bip125_rbf.reset();
-        m_fee_mode = FeeEstimateMode::UNSET;
-        nCoinType = CoinType::ALL_COINS;
-    }
+    void SetNull();
 
     bool HasSelected() const
     {

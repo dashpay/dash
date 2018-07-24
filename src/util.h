@@ -532,4 +532,18 @@ std::unique_ptr<T> MakeUnique(Args&&... args)
     return std::unique_ptr<T>(new T(std::forward<Args>(args)...));
 }
 
+namespace util {
+
+//! Simplification of std insertion
+template <typename Tdst, typename Tsrc>
+inline void insert(Tdst& dst, const Tsrc& src) {
+    dst.insert(dst.begin(), src.begin(), src.end());
+}
+template <typename TsetT, typename Tsrc>
+inline void insert(std::set<TsetT>& dst, const Tsrc& src) {
+    dst.insert(src.begin(), src.end());
+}
+
+} // namespace util
+
 #endif // BITCOIN_UTIL_H

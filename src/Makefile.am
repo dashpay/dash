@@ -366,12 +366,11 @@ endif
 
 # wallet: shared between dashd and dash-qt, but only linked
 # when wallet enabled
-libdash_wallet_a_CPPFLAGS = $(AM_CPPFLAGS) $(BITCOIN_INCLUDES)
-libdash_wallet_a_CXXFLAGS = $(AM_CXXFLAGS) $(PIE_FLAGS)
-libdash_wallet_a_SOURCES = \
-  keepass.cpp \
-  privatesend/privatesend-client.cpp \
-  privatesend/privatesend-util.cpp \
+libbitcoin_wallet_a_CPPFLAGS = $(AM_CPPFLAGS) $(BITCOIN_INCLUDES)
+libbitcoin_wallet_a_CXXFLAGS = $(AM_CXXFLAGS) $(PIE_FLAGS)
+libbitcoin_wallet_a_SOURCES = \
+  interfaces/wallet.cpp \
+  wallet/coincontrol.cpp \
   wallet/crypter.cpp \
   wallet/db.cpp \
   wallet/fees.cpp \
