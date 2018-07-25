@@ -92,6 +92,17 @@ static bool GetWalletAddressesForKey(CWallet * const pwallet, const CKeyID &keyi
     return fLabelFound;
 }
 
+static const int64_t TIMESTAMP_MIN = 0;
+
+static void RescanWallet(CWallet& wallet, const WalletRescanReserver& reserver, int64_t time_begin = TIMESTAMP_MIN, bool update = true)
+{
+    int64_t scanned_time = wallet.RescanFromTime(time_begin, reserver, update);
+    if (wallet.IsAbortingRescan()) {
+        throw JSONRPCError(RPC_MISC_ERROR, "Rescan aborted by user.");
+    } else if (scanned_time > time_begin) {
+        throw JSONRPCError(RPC_WALLET_ERROR, "Rescan was unable to fully rescan the blockchain. Some transactions may be missing.");
+    }
+}
 
 UniValue importprivkey(const JSONRPCRequest& request)
 {
@@ -177,7 +188,7 @@ UniValue importprivkey(const JSONRPCRequest& request)
         }
     }
     if (fRescan) {
-        pwallet->RescanFromTime(TIMESTAMP_MIN, reserver, true /* update */);
+        RescanWallet(*pwallet, reserver);
     }
     return NullUniValue;
 }
@@ -315,7 +326,7 @@ UniValue importaddress(const JSONRPCRequest& request)
     }
     if (fRescan)
     {
-        pwallet->RescanFromTime(TIMESTAMP_MIN, reserver, true /* update */);
+        RescanWallet(*pwallet, reserver);
         pwallet->ReacceptWalletTransactions();
     }
 
@@ -480,7 +491,7 @@ UniValue importpubkey(const JSONRPCRequest& request)
     }
     if (fRescan)
     {
-        pwallet->RescanFromTime(TIMESTAMP_MIN, reserver, true /* update */);
+        RescanWallet(*pwallet, reserver);
         pwallet->ReacceptWalletTransactions();
     }
 
@@ -605,7 +616,8 @@ UniValue importwallet(const JSONRPCRequest& request)
         pwallet->ShowProgress("", 100); // hide progress dialog in GUI
         pwallet->UpdateTimeFirstKey(nTimeBegin);
     }
-    pwallet->RescanFromTime(nTimeBegin, reserver, false /* update */);
+    uiInterface.ShowProgress("", 100, false); // hide progress dialog in GUI
+    RescanWallet(*pwallet, reserver, nTimeBegin, false /* update */);
     pwallet->MarkDirty();
 
     if (!fGood)
