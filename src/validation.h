@@ -436,7 +436,7 @@ bool PreciousBlock(CValidationState& state, const CChainParams& params, CBlockIn
 bool InvalidateBlock(CValidationState& state, const CChainParams& chainparams, CBlockIndex *pindex);
 
 /** Remove invalidity status from a block and its descendants. */
-bool ResetBlockFailureFlags(CBlockIndex *pindex);
+void ResetBlockFailureFlags(CBlockIndex* pindex) EXCLUSIVE_LOCKS_REQUIRED(cs_main);
 
 /** The currently-connected chain of blocks (protected by cs_main). */
 extern CChain& chainActive;

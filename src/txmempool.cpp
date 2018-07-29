@@ -359,7 +359,7 @@ void CTxMemPool::AddTransactionsUpdated(unsigned int n)
     nTransactionsUpdated += n;
 }
 
-bool CTxMemPool::addUnchecked(const uint256& hash, const CTxMemPoolEntry &entry, setEntries &setAncestors, bool validFeeEstimate)
+void CTxMemPool::addUnchecked(const uint256& hash, const CTxMemPoolEntry &entry, setEntries &setAncestors, bool validFeeEstimate)
 {
     NotifyEntryAdded(entry.GetSharedTx());
     // Add to memory pool without checking anything.
@@ -414,55 +414,6 @@ bool CTxMemPool::addUnchecked(const uint256& hash, const CTxMemPoolEntry &entry,
 
     vTxHashes.emplace_back(hash, newit);
     newit->vTxHashesIdx = vTxHashes.size() - 1;
-
-    // Invalid ProTxes should never get this far because transactions should be
-    // fully checked by AcceptToMemoryPool() at this point, so we just assume that
-    // everything is fine here.
-    if (tx.nType == TRANSACTION_PROVIDER_REGISTER) {
-        CProRegTx proTx;
-        bool ok = GetTxPayload(tx, proTx);
-        assert(ok);
-        if (!proTx.collateralOutpoint.hash.IsNull()) {
-            mapProTxRefs.emplace(tx.GetHash(), proTx.collateralOutpoint.hash);
-        }
-        mapProTxAddresses.emplace(proTx.addr, tx.GetHash());
-        mapProTxPubKeyIDs.emplace(proTx.keyIDOwner, tx.GetHash());
-        mapProTxBlsPubKeyHashes.emplace(proTx.pubKeyOperator.GetHash(), tx.GetHash());
-        if (!proTx.collateralOutpoint.hash.IsNull()) {
-            mapProTxCollaterals.emplace(proTx.collateralOutpoint, tx.GetHash());
-        }
-    } else if (tx.nType == TRANSACTION_PROVIDER_UPDATE_SERVICE) {
-        CProUpServTx proTx;
-        bool ok = GetTxPayload(tx, proTx);
-        assert(ok);
-        mapProTxRefs.emplace(proTx.proTxHash, tx.GetHash());
-        mapProTxAddresses.emplace(proTx.addr, tx.GetHash());
-    } else if (tx.nType == TRANSACTION_PROVIDER_UPDATE_REGISTRAR) {
-        CProUpRegTx proTx;
-        bool ok = GetTxPayload(tx, proTx);
-        assert(ok);
-        mapProTxRefs.emplace(proTx.proTxHash, tx.GetHash());
-        mapProTxBlsPubKeyHashes.emplace(proTx.pubKeyOperator.GetHash(), tx.GetHash());
-        auto dmn = deterministicMNManager->GetListAtChainTip().GetMN(proTx.proTxHash);
-        assert(dmn);
-        newit->validForProTxKey = ::SerializeHash(dmn->pdmnState->pubKeyOperator);
-        if (dmn->pdmnState->pubKeyOperator.Get() != proTx.pubKeyOperator) {
-            newit->isKeyChangeProTx = true;
-        }
-    } else if (tx.nType == TRANSACTION_PROVIDER_UPDATE_REVOKE) {
-        CProUpRevTx proTx;
-        bool ok = GetTxPayload(tx, proTx);
-        assert(ok);
-        mapProTxRefs.emplace(proTx.proTxHash, tx.GetHash());
-        auto dmn = deterministicMNManager->GetListAtChainTip().GetMN(proTx.proTxHash);
-        assert(dmn);
-        newit->validForProTxKey = ::SerializeHash(dmn->pdmnState->pubKeyOperator);
-        if (dmn->pdmnState->pubKeyOperator.Get() != CBLSPublicKey()) {
-            newit->isKeyChangeProTx = true;
-        }
-    }
-
-    return true;
 }
 
 void CTxMemPool::addAddressIndex(const CTxMemPoolEntry &entry, const CCoinsViewCache &view)
@@ -1421,7 +1372,7 @@ int CTxMemPool::Expire(int64_t time) {
     return stage.size();
 }
 
-bool CTxMemPool::addUnchecked(const uint256&hash, const CTxMemPoolEntry &entry, bool validFeeEstimate)
+void CTxMemPool::addUnchecked(const uint256&hash, const CTxMemPoolEntry &entry, bool validFeeEstimate)
 {
     LOCK(cs);
     setEntries setAncestors;
