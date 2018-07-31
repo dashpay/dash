@@ -98,11 +98,8 @@ static bool AppInit(int argc, char* argv[])
             fprintf(stderr, "Error: Specified data directory \"%s\" does not exist.\n", gArgs.GetArg("-datadir", "").c_str());
             return false;
         }
-        try
-        {
-            gArgs.ReadConfigFiles();
-        } catch (const std::exception& e) {
-            fprintf(stderr,"Error reading configuration file: %s\n", e.what());
+        if (!gArgs.ReadConfigFiles(error, true)) {
+            fprintf(stderr, "Error reading configuration file: %s\n", error.c_str());
             return false;
         }
         if (!datadirFromCmdLine && !fs::is_directory(GetDataDir(false)))
