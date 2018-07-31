@@ -501,7 +501,7 @@ CDeterministicMNList CDeterministicMNManager::GetListForBlock(const uint256& blo
     CDeterministicMNList snapshot;
     if (evoDb.Read(std::make_pair(DB_LIST_SNAPSHOT, blockHash), snapshot)) {
         mnListsCache.emplace(blockHash, snapshot);
-        return std::move(snapshot);
+        return snapshot;
     }
 
     CDeterministicMNListDiff diff;
@@ -518,7 +518,7 @@ CDeterministicMNList CDeterministicMNManager::GetListForBlock(const uint256& blo
     }
 
     mnListsCache.emplace(blockHash, snapshot);
-    return std::move(snapshot);
+    return snapshot;
 }
 
 CDeterministicMNList CDeterministicMNManager::GetListAtChainTip()
