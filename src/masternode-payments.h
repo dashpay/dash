@@ -35,7 +35,7 @@ extern CMasternodePayments mnpayments;
 /// TODO: all 4 functions do not belong here really, they should be refactored/moved somewhere (main.cpp ?)
 bool IsBlockValueValid(const CBlock& block, int nBlockHeight, CAmount blockReward, std::string& strErrorRet);
 bool IsBlockPayeeValid(const CTransaction& txNew, int nBlockHeight, CAmount blockReward);
-void FillBlockPayments(CMutableTransaction& txNew, int nBlockHeight, CAmount blockReward, std::vector<CTxOut>& txoutsMasternodeRet, std::vector<CTxOut>& voutSuperblockRet);
+void FillBlockPayments(CMutableTransaction& txNew, int nBlockHeight, CAmount blockReward, std::vector<CTxOut>& voutMasternodeRet, std::vector<CTxOut>& voutSuperblockRet);
 std::string GetRequiredPaymentsString(int nBlockHeight);
 
 class CMasternodePayee
@@ -222,7 +222,7 @@ public:
     int GetMinMasternodePaymentsProto() const;
     void ProcessMessage(CNode* pfrom, const std::string& strCommand, CDataStream& vRecv, CConnman& connman);
     std::string GetRequiredPaymentsString(int nBlockHeight) const;
-    bool GetMasternodeTxOuts(int nBlockHeight, CAmount blockReward, std::vector<CTxOut>& vecTxOutsMasternodeRet) const;
+    bool GetMasternodeTxOuts(int nBlockHeight, CAmount blockReward, std::vector<CTxOut>& vecvoutMasternodeRet) const;
     std::string ToString() const;
 
     int GetBlockCount() const { return mapMasternodeBlocks.size(); }

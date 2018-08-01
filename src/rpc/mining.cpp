@@ -703,7 +703,7 @@ UniValue getblocktemplate(const JSONRPCRequest& request)
     result.push_back(Pair("height", (int64_t)(pindexPrev->nHeight+1)));
 
     UniValue masternodeObj(UniValue::VARR);
-    for (const auto& txout : pblocktemplate->txoutsMasternode) {
+    for (const auto& txout : pblocktemplate->voutMasternode) {
         CTxDestination address1;
         ExtractDestination(txout.scriptPubKey, address1);
         CBitcoinAddress address2(address1);
