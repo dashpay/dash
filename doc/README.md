@@ -5,7 +5,7 @@ This is the official reference wallet for Dash digital currency and comprises th
 
 Running
 ---------------------
-The following are some helpful notes on how to run Dash on your native platform.
+The following are some helpful notes on how to run Bitcoin Core on your native platform.
 
 ### Unix
 
@@ -20,7 +20,7 @@ Unpack the files into a directory, and then run dash-qt.exe.
 
 ### macOS
 
-Drag Dash-Qt to your applications folder, and then run Dash-Qt.
+Drag Bitcoin Core to your applications folder, and then run Bitcoin Core.
 
 ### Need Help?
 
@@ -33,7 +33,7 @@ for technical specifications and implementation details.
 
 Building
 ---------------------
-The following are developer notes on how to build Dash Core on your native platform. They are not complete guides, but include notes on the necessary libraries, compile flags, etc.
+The following are developer notes on how to build Bitcoin Core on your native platform. They are not complete guides, but include notes on the necessary libraries, compile flags, etc.
 
 - [Dependencies](dependencies.md)
 - [macOS Build Notes](build-osx.md)

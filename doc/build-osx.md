@@ -30,12 +30,38 @@ Building
 
 Follow the instructions in [build-generic](build-generic.md)
 
+Build Bitcoin Core
+------------------------
+
+1. Clone the Bitcoin Core source code and cd into `bitcoin`
+
+        git clone https://github.com/bitcoin/bitcoin
+        cd bitcoin
+
+2.  Build Bitcoin Core:
+
+    Configure and build the headless Bitcoin Core binaries as well as the GUI (if Qt is found).
+
+    You can disable the GUI build by passing `--without-gui` to configure.
+
+        ./autogen.sh
+        ./configure
+        make
+
+3.  It is recommended to build and run the unit tests:
+
+        make check
+
+4.  You can also create a .dmg that contains the .app bundle (optional):
+
+        make deploy
+
 Running
 -------
 
 Dash Core is now available at `./src/dashd`
 
-Before running, it's recommended you create an RPC configuration file.
+Before running, it's recommended that you create an RPC configuration file.
 
     echo -e "rpcuser=dashrpc\nrpcpassword=$(xxd -l 16 -p /dev/urandom)" > "/Users/${USER}/Library/Application Support/DashCore/dash.conf"
 
