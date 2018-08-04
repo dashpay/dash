@@ -1959,7 +1959,7 @@ bool AppInitMain(boost::thread_group& threadGroup, CScheduler& scheduler)
             scheduler.scheduleEvery(boost::bind(&CPrivateSendServer::DoMaintenance, boost::ref(privateSendServer), boost::ref(*g_connman)), 1);
 #ifdef ENABLE_WALLET
         else
-            scheduler.scheduleEvery(boost::bind(&CPrivateSendClient::DoMaintenance, boost::ref(privateSendClient), boost::ref(*g_connman)), 1);
+            scheduler.scheduleEvery(boost::bind(&CPrivateSendClientManager::DoMaintenance, boost::ref(privateSendClient), boost::ref(*g_connman)), 1);
 #endif // ENABLE_WALLET
     }
 

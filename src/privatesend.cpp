@@ -183,9 +183,10 @@ bool CDarksendBroadcastTx::IsExpired(int nHeight)
     return (nConfirmedHeight != -1) && (nHeight - nConfirmedHeight > 24);
 }
 
-void CPrivateSendBase::SetNull()
+void CPrivateSendBaseSession::SetNull()
 {
     // Both sides
+    LOCK(cs_darksend);
     nState = POOL_STATE_IDLE;
     nSessionID = 0;
     nSessionDenom = 0;
@@ -196,9 +197,15 @@ void CPrivateSendBase::SetNull()
     nTimeLastSuccessfulStep = GetTime();
 }
 
-void CPrivateSendBase::CheckQueue()
+void CPrivateSendBaseManager::SetNull()
 {
-    TRY_LOCK(cs_darksend, lockDS);
+    LOCK(cs_vecqueue);
+    vecDarksendQueue.clear();
+}
+
+void CPrivateSendBaseManager::CheckQueue()
+{
+    TRY_LOCK(cs_vecqueue, lockDS);
     if(!lockDS) return; // it's ok to fail here, we run this quite frequently
 
     // check mixing queue objects for timeouts
@@ -211,7 +218,23 @@ void CPrivateSendBase::CheckQueue()
     }
 }
 
-std::string CPrivateSendBase::GetStateString() const
+bool CPrivateSendBaseManager::GetQueueItemAndTry(CDarksendQueue& dsqRet)
+{
+    TRY_LOCK(cs_vecqueue, lockDS);
+    if(!lockDS) return false; // it's ok to fail here, we run this quite frequently
+
+    for (auto& dsq : vecDarksendQueue) {
+        // only try each queue once
+        if(dsq.fTried || dsq.IsExpired()) continue;
+        dsq.fTried = true;
+        dsqRet = dsq;
+        return true;
+    }
+
+    return false;
+}
+
+std::string CPrivateSendBaseSession::GetStateString() const
 {
     switch(nState) {
         case POOL_STATE_IDLE:                   return "IDLE";
