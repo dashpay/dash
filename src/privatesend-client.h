@@ -15,18 +15,20 @@ class CConnman;
 
 static const int DENOMS_COUNT_MAX                   = 100;
 
+static const int MIN_PRIVATESEND_SESSIONS           = 1;
 static const int MIN_PRIVATESEND_ROUNDS             = 2;
 static const int MIN_PRIVATESEND_AMOUNT             = 2;
 static const int MIN_PRIVATESEND_LIQUIDITY          = 0;
+static const int MAX_PRIVATESEND_SESSIONS           = 10;
 static const int MAX_PRIVATESEND_ROUNDS             = 16;
 static const int MAX_PRIVATESEND_AMOUNT             = MAX_MONEY / COIN;
 static const int MAX_PRIVATESEND_LIQUIDITY          = 100;
+static const int DEFAULT_PRIVATESEND_SESSIONS       = 4;
 static const int DEFAULT_PRIVATESEND_ROUNDS         = 4;
 static const int DEFAULT_PRIVATESEND_AMOUNT         = 1000;
 static const int DEFAULT_PRIVATESEND_LIQUIDITY      = 0;
 
 static const bool DEFAULT_PRIVATESEND_MULTISESSION  = false;
-static const int MAX_PARALLEL_PRIVATESEND_SESSIONS  = 4;
 
 // Warn user if mixing in gui or try to create backup if mixing in daemon mode
 // when we have only this many keys left
@@ -177,6 +179,7 @@ private:
     bool CheckAutomaticBackup();
 
 public:
+    int nPrivateSendSessions;
     int nPrivateSendRounds;
     int nPrivateSendAmount;
     int nLiquidityProvider;

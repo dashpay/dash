@@ -963,7 +963,7 @@ bool CPrivateSendClientManager::DoAutomaticDenominating(CConnman& connman, bool 
     }
 
     bool fResult = true;
-    if ((int)vecSessions.size() < MAX_PARALLEL_PRIVATESEND_SESSIONS) {
+    if ((int)vecSessions.size() < nPrivateSendSessions) {
         vecSessions.emplace_back();
     }
     for (auto& session : vecSessions) {
