@@ -51,7 +51,7 @@ def create_transaction(node, coinbase, to_address, amount):
 class BIP66Test(BitcoinTestFramework):
     def set_test_params(self):
         self.num_nodes = 1
-        self.extra_args = [['-whitelist=127.0.0.1', '-dip3params=9000:9000']]
+        self.extra_args = [['-whitelist=127.0.0.1']]
         self.setup_clean_chain = True
 
     def run_test(self):
@@ -110,7 +110,10 @@ class BIP66Test(BitcoinTestFramework):
 
         # First we show that this tx is valid except for DERSIG by getting it
         # rejected from the mempool for exactly that reason.
-        assert_raises_rpc_error(-26, '64: non-mandatory-script-verify-flag (Non-canonical DER signature)', self.nodes[0].sendrawtransaction, bytes_to_hex_str(spendtx.serialize()), True)
+        assert_equal(
+            [{'txid': spendtx.hash, 'allowed': False, 'reject-reason': '64: non-mandatory-script-verify-flag (Non-canonical DER signature)'}],
+            self.nodes[0].testmempoolaccept(rawtxs=[bytes_to_hex_str(spendtx.serialize())], allowhighfees=True)
+        )
 
         # Now we verify that a block with this transaction is also invalid.
         block.vtx.append(spendtx)
