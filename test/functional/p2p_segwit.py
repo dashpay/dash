@@ -159,9 +159,74 @@ class SegWitTest(BitcoinTestFramework):
         self.log.info("Verifying NODE_WITNESS service bit")
         assert((self.test_node.nServices & NODE_WITNESS) != 0)
 
+        assert self.test_node.nServices & NODE_WITNESS != 0
 
-    # See if sending a regular transaction works, and create a utxo
-    # to use in later tests.
+        # Keep a place to store utxo's that can be used in later tests
+        self.utxo = []
+
+        # Segwit status 'defined'
+        self.segwit_status = 'defined'
+
+        self.test_non_witness_transaction()
+        self.test_unnecessary_witness_before_segwit_activation()
+        self.test_v0_outputs_arent_spendable()
+        self.test_block_relay()
+        self.advance_to_segwit_started()
+
+        # Segwit status 'started'
+
+        self.test_getblocktemplate_before_lockin()
+        self.advance_to_segwit_lockin()
+
+        # Segwit status 'locked_in'
+
+        self.test_unnecessary_witness_before_segwit_activation()
+        self.test_witness_tx_relay_before_segwit_activation()
+        self.test_block_relay()
+        self.test_standardness_v0()
+        self.advance_to_segwit_active()
+
+        # Segwit status 'active'
+
+        self.test_p2sh_witness()
+        self.test_witness_commitments()
+        self.test_block_malleability()
+        self.test_witness_block_size()
+        self.test_submit_block()
+        self.test_extra_witness_data()
+        self.test_max_witness_push_length()
+        self.test_max_witness_program_length()
+        self.test_witness_input_length()
+        self.test_block_relay()
+        self.test_tx_relay_after_segwit_activation()
+        self.test_standardness_v0()
+        self.test_segwit_versions()
+        self.test_premature_coinbase_witness_spend()
+        self.test_uncompressed_pubkey()
+        self.test_signature_version_1()
+        self.test_non_standard_witness_blinding()
+        self.test_non_standard_witness()
+        self.test_upgrade_after_activation()
+        self.test_witness_sigops()
+
+    # Individual tests
+
+    def subtest(func):  # noqa: N805
+        """Wraps the subtests for logging and state assertions."""
+        def func_wrapper(self, *args, **kwargs):
+            self.log.info("Subtest: {} (Segwit status = {})".format(func.__name__, self.segwit_status))
+            # Assert segwit status is as expected
+            assert_equal(get_bip9_status(self.nodes[0], 'segwit')['status'], self.segwit_status)
+            func(self, *args, **kwargs)
+            # Each subtest should leave some utxos for the next subtest
+            assert self.utxo
+            sync_blocks(self.nodes)
+            # Assert segwit status is as expected at end of subtest
+            assert_equal(get_bip9_status(self.nodes[0], 'segwit')['status'], self.segwit_status)
+
+        return func_wrapper
+
+    @subtest
     def test_non_witness_transaction(self):
         # Mine a block with an anyone-can-spend coinbase,
         # let it mature, then try to spend it.

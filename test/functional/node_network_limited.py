@@ -51,7 +51,6 @@ class NodeNetworkLimitedTest(BitcoinTestFramework):
 
     def run_test(self):
         node = self.nodes[0].add_p2p_connection(P2PIgnoreInv())
-        node.wait_for_verack()
 
         expected_services = NODE_BLOOM | NODE_NETWORK_LIMITED
 
@@ -77,7 +76,6 @@ class NodeNetworkLimitedTest(BitcoinTestFramework):
         self.log.info("Check local address relay, do a fresh connection.")
         self.nodes[0].disconnect_p2ps()
         node1 = self.nodes[0].add_p2p_connection(P2PIgnoreInv())
-        node1.wait_for_verack()
         node1.send_message(msg_verack())
 
         node1.wait_for_addr()
