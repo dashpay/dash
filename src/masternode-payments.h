@@ -43,6 +43,7 @@ class CMasternodePayee
 private:
     CScript scriptPubKey;
     std::vector<uint256> vecVoteHashes;
+	int nOutputIndex;
 
 public:
     CMasternodePayee() :
@@ -50,9 +51,9 @@ public:
         vecVoteHashes()
         {}
 
-    CMasternodePayee(CScript payee, uint256 hashIn) :
+    CMasternodePayee(CScript payee, uint256 hashIn, int nOutput) :
         scriptPubKey(payee),
-        vecVoteHashes()
+        vecVoteHashes(), nOutputIndex(nOutput)
     {
         vecVoteHashes.push_back(hashIn);
     }
@@ -61,11 +62,16 @@ public:
 
     template <typename Stream, typename Operation>
     inline void SerializationOp(Stream& s, Operation ser_action) {
+		int nVersion = s.GetVersion();
         READWRITE(*(CScriptBase*)(&scriptPubKey));
         READWRITE(vecVoteHashes);
+		// include output index in new version to track address/n tuples
+		if (nVersion > 70208)
+			READWRITE(nOutputIndex);
     }
 
     CScript GetPayee() const { return scriptPubKey; }
+	int GetPayeeOutputIndex() const { return nOutputIndex; }
 
     void AddVoteHash(uint256 hashIn) { vecVoteHashes.push_back(hashIn); }
     std::vector<uint256> GetVoteHashes() const { return vecVoteHashes; }
@@ -98,7 +104,7 @@ public:
 
     void AddPayee(const CMasternodePaymentVote& vote);
     bool GetBestPayee(CScript& payeeRet) const;
-    bool HasPayeeWithVotes(const CScript& payeeIn, int nVotesReq) const;
+    bool HasPayeeWithVotes(const CScript& payeeIn, int nVotesReq, int nOutputIndex) const;
 
     bool IsTransactionValid(const CTransaction& txNew) const;
 
