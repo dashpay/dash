@@ -45,16 +45,16 @@ void CPrivateSendClientManager::ProcessMessage(CNode* pfrom, const std::string& 
         vRecv >> dsq;
 
         {
-        TRY_LOCK(cs_vecqueue, lockRecv);
-        if(!lockRecv) return;
+            TRY_LOCK(cs_vecqueue, lockRecv);
+            if(!lockRecv) return;
 
-        // process every dsq only once
-        for (const auto& q : vecDarksendQueue) {
-            if(q == dsq) {
-                // LogPrint("privatesend", "DSQUEUE -- %s seen\n", dsq.ToString());
-                return;
+            // process every dsq only once
+            for (const auto& q : vecDarksendQueue) {
+                if(q == dsq) {
+                    // LogPrint("privatesend", "DSQUEUE -- %s seen\n", dsq.ToString());
+                    return;
+                }
             }
-        }
         } // cs_vecqueue
 
         LogPrint("privatesend", "DSQUEUE -- %s new\n", dsq.ToString());
@@ -407,7 +407,7 @@ void CPrivateSendClientSession::CheckPool()
 }
 
 //
-// Check for various timeouts (queue objects, mixing, etc)
+// Check session timeouts
 //
 bool CPrivateSendClientSession::CheckTimeout()
 {
@@ -431,19 +431,22 @@ bool CPrivateSendClientSession::CheckTimeout()
     int nTimeout = (nState == POOL_STATE_SIGNING) ? PRIVATESEND_SIGNING_TIMEOUT : PRIVATESEND_QUEUE_TIMEOUT;
     bool fTimeout = GetTime() - nTimeLastSuccessfulStep >= nTimeout + nLagTime;
 
-    if(nState != POOL_STATE_IDLE && fTimeout) {
-        LogPrint("privatesend", "CPrivateSendClientSession::CheckTimeout -- %s timed out (%ds) -- resetting\n",
-                (nState == POOL_STATE_SIGNING) ? "Signing" : "Session", nTimeout);
-        UnlockCoins();
-        keyHolderStorage.ReturnAll();
-        SetNull();
-        SetState(POOL_STATE_ERROR);
+    if(nState == POOL_STATE_IDLE || !fTimeout)
         return false;
-    }
+
+    LogPrint("privatesend", "CPrivateSendClientSession::CheckTimeout -- %s timed out (%ds) -- resetting\n",
+            (nState == POOL_STATE_SIGNING) ? "Signing" : "Session", nTimeout);
+    UnlockCoins();
+    keyHolderStorage.ReturnAll();
+    SetNull();
+    SetState(POOL_STATE_ERROR);
 
     return true;
 }
 
+//
+// Check all queues and sessions for timeouts
+//
 void CPrivateSendClientManager::CheckTimeout()
 {
     if(fMasternodeMode) return;
@@ -452,11 +455,12 @@ void CPrivateSendClientManager::CheckTimeout()
     CheckQueue();
 
     for (auto& session : vecSessions) {
-        if (!session.CheckTimeout()) {
+        if (session.CheckTimeout()) {
             strAutoDenomResult = _("Session timed out.");
         }
     }
 }
+
 //
 // Execute a mixing denomination via a Masternode.
 // This is only ran from clients
