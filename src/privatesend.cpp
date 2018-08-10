@@ -52,7 +52,7 @@ bool CDarksendQueue::Sign()
             return false;
         }
 
-        if (!CHashSigner::VerifyHash(hash, activeMasternodeInfo.pubKeyIDMasternode, vchSig, strError)) {
+        if (!CHashSigner::VerifyHash(hash, activeMasternodeInfo.keyIDMasternode, vchSig, strError)) {
             LogPrintf("CDarksendQueue::Sign -- VerifyHash() failed, error: %s\n", strError);
             return false;
         }
@@ -67,7 +67,7 @@ bool CDarksendQueue::Sign()
             return false;
         }
 
-        if(!CMessageSigner::VerifyMessage(activeMasternodeInfo.pubKeyIDMasternode, vchSig, strMessage, strError)) {
+        if(!CMessageSigner::VerifyMessage(activeMasternodeInfo.keyIDMasternode, vchSig, strMessage, strError)) {
             LogPrintf("CDarksendQueue::Sign -- VerifyMessage() failed, error: %s\n", strError);
             return false;
         }
@@ -76,14 +76,14 @@ bool CDarksendQueue::Sign()
     return true;
 }
 
-bool CDarksendQueue::CheckSignature(const CKeyID& pubKeyIDMasternode) const
+bool CDarksendQueue::CheckSignature(const CKeyID& keyIDMasternode) const
 {
     std::string strError = "";
 
     if (sporkManager.IsSporkActive(SPORK_6_NEW_SIGS)) {
         uint256 hash = GetSignatureHash();
 
-        if (!CHashSigner::VerifyHash(hash, pubKeyIDMasternode, vchSig, strError)) {
+        if (!CHashSigner::VerifyHash(hash, keyIDMasternode, vchSig, strError)) {
             // we don't care about queues with old signature format
             LogPrintf("CDarksendQueue::CheckSignature -- VerifyHash() failed, error: %s\n", strError);
             return false;
@@ -94,7 +94,7 @@ bool CDarksendQueue::CheckSignature(const CKeyID& pubKeyIDMasternode) const
                         std::to_string(nTime) +
                         std::to_string(fReady);
 
-        if(!CMessageSigner::VerifyMessage(pubKeyIDMasternode, vchSig, strMessage, strError)) {
+        if(!CMessageSigner::VerifyMessage(keyIDMasternode, vchSig, strMessage, strError)) {
             LogPrintf("CDarksendQueue::CheckSignature -- Got bad Masternode queue signature: %s; error: %s\n", ToString(), strError);
             return false;
         }
@@ -132,7 +132,7 @@ bool CDarksendBroadcastTx::Sign()
             return false;
         }
 
-        if (!CHashSigner::VerifyHash(hash, activeMasternodeInfo.pubKeyIDMasternode, vchSig, strError)) {
+        if (!CHashSigner::VerifyHash(hash, activeMasternodeInfo.keyIDMasternode, vchSig, strError)) {
             LogPrintf("CDarksendBroadcastTx::Sign -- VerifyHash() failed, error: %s\n", strError);
             return false;
         }
@@ -144,7 +144,7 @@ bool CDarksendBroadcastTx::Sign()
             return false;
         }
 
-        if(!CMessageSigner::VerifyMessage(activeMasternodeInfo.pubKeyIDMasternode, vchSig, strMessage, strError)) {
+        if(!CMessageSigner::VerifyMessage(activeMasternodeInfo.keyIDMasternode, vchSig, strMessage, strError)) {
             LogPrintf("CDarksendBroadcastTx::Sign -- VerifyMessage() failed, error: %s\n", strError);
             return false;
         }
@@ -153,14 +153,14 @@ bool CDarksendBroadcastTx::Sign()
     return true;
 }
 
-bool CDarksendBroadcastTx::CheckSignature(const CKeyID& pubKeyIDMasternode) const
+bool CDarksendBroadcastTx::CheckSignature(const CKeyID& keyIDMasternode) const
 {
     std::string strError = "";
 
     if (sporkManager.IsSporkActive(SPORK_6_NEW_SIGS)) {
         uint256 hash = GetSignatureHash();
 
-        if (!CHashSigner::VerifyHash(hash, pubKeyIDMasternode, vchSig, strError)) {
+        if (!CHashSigner::VerifyHash(hash, keyIDMasternode, vchSig, strError)) {
             // we don't care about dstxes with old signature format
             LogPrintf("CDarksendBroadcastTx::CheckSignature -- VerifyHash() failed, error: %s\n", strError);
             return false;
@@ -168,7 +168,7 @@ bool CDarksendBroadcastTx::CheckSignature(const CKeyID& pubKeyIDMasternode) cons
     } else {
         std::string strMessage = tx->GetHash().ToString() + std::to_string(sigTime);
 
-        if(!CMessageSigner::VerifyMessage(pubKeyIDMasternode, vchSig, strMessage, strError)) {
+        if(!CMessageSigner::VerifyMessage(keyIDMasternode, vchSig, strMessage, strError)) {
             LogPrintf("CDarksendBroadcastTx::CheckSignature -- Got bad dstx signature, error: %s\n", strError);
             return false;
         }

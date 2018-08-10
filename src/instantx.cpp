@@ -1059,10 +1059,10 @@ bool CTxLockVote::CheckSignature() const
     if (sporkManager.IsSporkActive(SPORK_6_NEW_SIGS)) {
         uint256 hash = GetSignatureHash();
 
-        if (!CHashSigner::VerifyHash(hash, infoMn.pubKeyIDMasternode, vchMasternodeSignature, strError)) {
+        if (!CHashSigner::VerifyHash(hash, infoMn.keyIDMasternode, vchMasternodeSignature, strError)) {
             // could be a signature in old format
             std::string strMessage = txHash.ToString() + outpoint.ToStringShort();
-        if(!CMessageSigner::VerifyMessage(infoMn.pubKeyIDMasternode, vchMasternodeSignature, strMessage, strError)) {
+        if(!CMessageSigner::VerifyMessage(infoMn.keyIDMasternode, vchMasternodeSignature, strMessage, strError)) {
                 // nope, not in old format either
                 LogPrintf("CTxLockVote::CheckSignature -- VerifyMessage() failed, error: %s\n", strError);
                 return false;
@@ -1070,7 +1070,7 @@ bool CTxLockVote::CheckSignature() const
         }
     } else {
         std::string strMessage = txHash.ToString() + outpoint.ToStringShort();
-        if(!CMessageSigner::VerifyMessage(infoMn.pubKeyIDMasternode, vchMasternodeSignature, strMessage, strError)) {
+        if(!CMessageSigner::VerifyMessage(infoMn.keyIDMasternode, vchMasternodeSignature, strMessage, strError)) {
             LogPrintf("CTxLockVote::CheckSignature -- VerifyMessage() failed, error: %s\n", strError);
             return false;
         }
@@ -1091,7 +1091,7 @@ bool CTxLockVote::Sign()
             return false;
         }
 
-        if (!CHashSigner::VerifyHash(hash, activeMasternodeInfo.pubKeyIDMasternode, vchMasternodeSignature, strError)) {
+        if (!CHashSigner::VerifyHash(hash, activeMasternodeInfo.keyIDMasternode, vchMasternodeSignature, strError)) {
             LogPrintf("CTxLockVote::Sign -- VerifyHash() failed, error: %s\n", strError);
             return false;
         }
@@ -1103,7 +1103,7 @@ bool CTxLockVote::Sign()
             return false;
         }
 
-        if(!CMessageSigner::VerifyMessage(activeMasternodeInfo.pubKeyIDMasternode, vchMasternodeSignature, strMessage, strError)) {
+        if(!CMessageSigner::VerifyMessage(activeMasternodeInfo.keyIDMasternode, vchMasternodeSignature, strMessage, strError)) {
             LogPrintf("CTxLockVote::Sign -- VerifyMessage() failed, error: %s\n", strError);
             return false;
         }

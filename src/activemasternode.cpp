@@ -100,7 +100,7 @@ bool CActiveLegacyMasternodeManager::SendMasternodePing(CConnman& connman)
     mnp.nSentinelVersion = nSentinelVersion;
     mnp.fSentinelIsCurrent =
             (abs(GetAdjustedTime() - nSentinelPingTime) < MASTERNODE_SENTINEL_PING_MAX_SECONDS);
-    if(!mnp.Sign(activeMasternodeInfo.keyMasternode, activeMasternodeInfo.pubKeyIDMasternode)) {
+    if(!mnp.Sign(activeMasternodeInfo.keyMasternode, activeMasternodeInfo.keyIDMasternode)) {
         LogPrintf("CActiveLegacyMasternodeManager::SendMasternodePing -- ERROR: Couldn't sign Masternode Ping\n");
         return false;
     }
@@ -210,12 +210,12 @@ void CActiveLegacyMasternodeManager::ManageStateInitial(CConnman& connman)
 
 void CActiveLegacyMasternodeManager::ManageStateRemote()
 {
-    LogPrint("masternode", "CActiveLegacyMasternodeManager::ManageStateRemote -- Start status = %s, type = %s, pinger enabled = %d, pubKeyIDMasternode = %s\n",
-             GetStatus(), GetTypeString(), fPingerEnabled, activeMasternodeInfo.pubKeyIDMasternode.ToString());
+    LogPrint("masternode", "CActiveLegacyMasternodeManager::ManageStateRemote -- Start status = %s, type = %s, pinger enabled = %d, keyIDMasternode = %s\n",
+             GetStatus(), GetTypeString(), fPingerEnabled, activeMasternodeInfo.keyIDMasternode.ToString());
 
-    mnodeman.CheckMasternode(activeMasternodeInfo.pubKeyIDMasternode, true);
+    mnodeman.CheckMasternode(activeMasternodeInfo.keyIDMasternode, true);
     masternode_info_t infoMn;
-    if(mnodeman.GetMasternodeInfo(activeMasternodeInfo.pubKeyIDMasternode, infoMn)) {
+    if(mnodeman.GetMasternodeInfo(activeMasternodeInfo.keyIDMasternode, infoMn)) {
         if(infoMn.nProtocolVersion != PROTOCOL_VERSION) {
             nState = ACTIVE_MASTERNODE_NOT_CAPABLE;
             strNotCapableReason = "Invalid protocol version";

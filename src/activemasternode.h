@@ -24,7 +24,7 @@ extern CActiveLegacyMasternodeManager legacyActiveMasternodeManager;
 
 struct CActiveMasternodeInfo {
     // Keys for the active Masternode
-    CKeyID pubKeyIDMasternode;
+    CKeyID keyIDMasternode;
     CKey keyMasternode;
 
     // Initialized while registering Masternode

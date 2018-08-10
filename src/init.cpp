@@ -1855,9 +1855,9 @@ bool AppInitMain(boost::thread_group& threadGroup, CScheduler& scheduler)
             if(!CMessageSigner::GetKeysFromSecret(strMasterNodePrivKey, activeMasternodeInfo.keyMasternode, pubKeyMasternode))
                 return InitError(_("Invalid masternodeprivkey. Please see documenation."));
 
-            activeMasternodeInfo.pubKeyIDMasternode = pubKeyMasternode.GetID();
+            activeMasternodeInfo.keyIDMasternode = pubKeyMasternode.GetID();
 
-            LogPrintf("  pubKeyIDMasternode: %s\n", CBitcoinAddress(activeMasternodeInfo.pubKeyIDMasternode).ToString());
+            LogPrintf("  keyIDMasternode: %s\n", CBitcoinAddress(activeMasternodeInfo.keyIDMasternode).ToString());
         } else {
             return InitError(_("You must specify a masternodeprivkey in the configuration. Please see documentation for help."));
         }
