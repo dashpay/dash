@@ -47,12 +47,12 @@ bool CDarksendQueue::Sign()
     if (sporkManager.IsSporkActive(SPORK_6_NEW_SIGS)) {
         uint256 hash = GetSignatureHash();
 
-        if (!CHashSigner::SignHash(hash, activeMasternode.keyMasternode, vchSig)) {
+        if (!CHashSigner::SignHash(hash, activeMasternodeInfo.keyMasternode, vchSig)) {
             LogPrintf("CDarksendQueue::Sign -- SignHash() failed\n");
             return false;
         }
 
-        if (!CHashSigner::VerifyHash(hash, activeMasternode.pubKeyIDMasternode, vchSig, strError)) {
+        if (!CHashSigner::VerifyHash(hash, activeMasternodeInfo.pubKeyIDMasternode, vchSig, strError)) {
             LogPrintf("CDarksendQueue::Sign -- VerifyHash() failed, error: %s\n", strError);
             return false;
         }
@@ -62,12 +62,12 @@ bool CDarksendQueue::Sign()
                         std::to_string(nTime) +
                         std::to_string(fReady);
 
-        if(!CMessageSigner::SignMessage(strMessage, vchSig, activeMasternode.keyMasternode)) {
+        if(!CMessageSigner::SignMessage(strMessage, vchSig, activeMasternodeInfo.keyMasternode)) {
             LogPrintf("CDarksendQueue::Sign -- SignMessage() failed, %s\n", ToString());
             return false;
         }
 
-        if(!CMessageSigner::VerifyMessage(activeMasternode.pubKeyIDMasternode, vchSig, strMessage, strError)) {
+        if(!CMessageSigner::VerifyMessage(activeMasternodeInfo.pubKeyIDMasternode, vchSig, strMessage, strError)) {
             LogPrintf("CDarksendQueue::Sign -- VerifyMessage() failed, error: %s\n", strError);
             return false;
         }
@@ -127,24 +127,24 @@ bool CDarksendBroadcastTx::Sign()
     if (sporkManager.IsSporkActive(SPORK_6_NEW_SIGS)) {
         uint256 hash = GetSignatureHash();
 
-        if (!CHashSigner::SignHash(hash, activeMasternode.keyMasternode, vchSig)) {
+        if (!CHashSigner::SignHash(hash, activeMasternodeInfo.keyMasternode, vchSig)) {
             LogPrintf("CDarksendBroadcastTx::Sign -- SignHash() failed\n");
             return false;
         }
 
-        if (!CHashSigner::VerifyHash(hash, activeMasternode.pubKeyIDMasternode, vchSig, strError)) {
+        if (!CHashSigner::VerifyHash(hash, activeMasternodeInfo.pubKeyIDMasternode, vchSig, strError)) {
             LogPrintf("CDarksendBroadcastTx::Sign -- VerifyHash() failed, error: %s\n", strError);
             return false;
         }
     } else {
         std::string strMessage = tx->GetHash().ToString() + std::to_string(sigTime);
 
-        if(!CMessageSigner::SignMessage(strMessage, vchSig, activeMasternode.keyMasternode)) {
+        if(!CMessageSigner::SignMessage(strMessage, vchSig, activeMasternodeInfo.keyMasternode)) {
             LogPrintf("CDarksendBroadcastTx::Sign -- SignMessage() failed\n");
             return false;
         }
 
-        if(!CMessageSigner::VerifyMessage(activeMasternode.pubKeyIDMasternode, vchSig, strMessage, strError)) {
+        if(!CMessageSigner::VerifyMessage(activeMasternodeInfo.pubKeyIDMasternode, vchSig, strMessage, strError)) {
             LogPrintf("CDarksendBroadcastTx::Sign -- VerifyMessage() failed, error: %s\n", strError);
             return false;
         }

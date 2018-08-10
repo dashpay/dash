@@ -430,11 +430,11 @@ UniValue masternode(const JSONRPCRequest& request)
 
         UniValue mnObj(UniValue::VOBJ);
 
-        mnObj.push_back(Pair("outpoint", activeMasternode.outpoint.ToStringShort()));
-        mnObj.push_back(Pair("service", activeMasternode.service.ToString()));
+        mnObj.push_back(Pair("outpoint", activeMasternodeInfo.outpoint.ToStringShort()));
+        mnObj.push_back(Pair("service", activeMasternodeInfo.service.ToString()));
 
         CMasternode mn;
-        if(mnodeman.Get(activeMasternode.outpoint, mn)) {
+        if(mnodeman.Get(activeMasternodeInfo.outpoint, mn)) {
             mnObj.push_back(Pair("payee", CBitcoinAddress(mn.pubKeyIDCollateralAddress).ToString()));
         }
 

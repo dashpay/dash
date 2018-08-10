@@ -19,11 +19,10 @@ static const int ACTIVE_MASTERNODE_INPUT_TOO_NEW    = 2;
 static const int ACTIVE_MASTERNODE_NOT_CAPABLE      = 3;
 static const int ACTIVE_MASTERNODE_STARTED          = 4;
 
-extern CActiveMasternodeInfo activeMasternode;
+extern CActiveMasternodeInfo activeMasternodeInfo;
 extern CActiveLegacyMasternodeManager legacyActiveMasternodeManager;
 
-class CActiveMasternodeInfo {
-public:
+struct CActiveMasternodeInfo {
     // Keys for the active Masternode
     CKeyID pubKeyIDMasternode;
     CKey keyMasternode;

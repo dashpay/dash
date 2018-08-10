@@ -444,12 +444,12 @@ bool CMasternodePaymentVote::Sign()
     if (sporkManager.IsSporkActive(SPORK_6_NEW_SIGS)) {
         uint256 hash = GetSignatureHash();
 
-        if(!CHashSigner::SignHash(hash, activeMasternode.keyMasternode, vchSig)) {
+        if(!CHashSigner::SignHash(hash, activeMasternodeInfo.keyMasternode, vchSig)) {
             LogPrintf("CMasternodePaymentVote::Sign -- SignHash() failed\n");
             return false;
         }
 
-        if (!CHashSigner::VerifyHash(hash, activeMasternode.pubKeyIDMasternode, vchSig, strError)) {
+        if (!CHashSigner::VerifyHash(hash, activeMasternodeInfo.pubKeyIDMasternode, vchSig, strError)) {
             LogPrintf("CMasternodePaymentVote::Sign -- VerifyHash() failed, error: %s\n", strError);
             return false;
         }
@@ -458,12 +458,12 @@ bool CMasternodePaymentVote::Sign()
                     std::to_string(nBlockHeight) +
                     ScriptToAsmStr(payee);
 
-        if(!CMessageSigner::SignMessage(strMessage, vchSig, activeMasternode.keyMasternode)) {
+        if(!CMessageSigner::SignMessage(strMessage, vchSig, activeMasternodeInfo.keyMasternode)) {
             LogPrintf("CMasternodePaymentVote::Sign -- SignMessage() failed\n");
             return false;
         }
 
-        if(!CMessageSigner::VerifyMessage(activeMasternode.pubKeyIDMasternode, vchSig, strMessage, strError)) {
+        if(!CMessageSigner::VerifyMessage(activeMasternodeInfo.pubKeyIDMasternode, vchSig, strMessage, strError)) {
             LogPrintf("CMasternodePaymentVote::Sign -- VerifyMessage() failed, error: %s\n", strError);
             return false;
         }
@@ -759,7 +759,7 @@ bool CMasternodePayments::ProcessBlock(int nBlockHeight, CConnman& connman)
 
     int nRank;
 
-    if (!mnodeman.GetMasternodeRank(activeMasternode.outpoint, nRank, nBlockHeight - 101, GetMinMasternodePaymentsProto())) {
+    if (!mnodeman.GetMasternodeRank(activeMasternodeInfo.outpoint, nRank, nBlockHeight - 101, GetMinMasternodePaymentsProto())) {
         LogPrint("mnpayments", "CMasternodePayments::ProcessBlock -- Unknown Masternode\n");
         return false;
     }
@@ -772,7 +772,7 @@ bool CMasternodePayments::ProcessBlock(int nBlockHeight, CConnman& connman)
 
     // LOCATE THE NEXT MASTERNODE WHICH SHOULD BE PAID
 
-    LogPrintf("CMasternodePayments::ProcessBlock -- Start: nBlockHeight=%d, masternode=%s\n", nBlockHeight, activeMasternode.outpoint.ToStringShort());
+    LogPrintf("CMasternodePayments::ProcessBlock -- Start: nBlockHeight=%d, masternode=%s\n", nBlockHeight, activeMasternodeInfo.outpoint.ToStringShort());
 
     // pay to the oldest MN that still had no payment but its input is old enough and it was active long enough
     int nCount = 0;
@@ -788,7 +788,7 @@ bool CMasternodePayments::ProcessBlock(int nBlockHeight, CConnman& connman)
 
     CScript payee = GetScriptForDestination(mnInfo.pubKeyIDCollateralAddress);
 
-    CMasternodePaymentVote voteNew(activeMasternode.outpoint, nBlockHeight, payee);
+    CMasternodePaymentVote voteNew(activeMasternodeInfo.outpoint, nBlockHeight, payee);
 
     CTxDestination address1;
     ExtractDestination(payee, address1);
