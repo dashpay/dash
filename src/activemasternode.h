@@ -10,7 +10,7 @@
 #include "net.h"
 #include "primitives/transaction.h"
 
-class CActiveMasternodeInfo;
+struct CActiveMasternodeInfo;
 class CActiveLegacyMasternodeManager;
 
 static const int ACTIVE_MASTERNODE_INITIAL          = 0; // initial state
