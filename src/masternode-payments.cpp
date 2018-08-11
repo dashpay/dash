@@ -205,14 +205,14 @@ bool IsBlockPayeeValid(const CTransaction& txNew, int nBlockHeight, CAmount bloc
     return true;
 }
 
-void FillBlockPayments(CMutableTransaction& txNew, int nBlockHeight, CAmount blockReward, std::vector<CTxOut>& voutMasternodeRet, std::vector<CTxOut>& voutSuperblockRet)
+void FillBlockPayments(CMutableTransaction& txNew, int nBlockHeight, CAmount blockReward, std::vector<CTxOut>& voutMasternodePaymentsRet, std::vector<CTxOut>& voutSuperblockPaymentsRet)
 {
     // only create superblocks if spork is enabled AND if superblock is actually triggered
     // (height should be validated inside)
     if(sporkManager.IsSporkActive(SPORK_9_SUPERBLOCKS_ENABLED) &&
         CSuperblockManager::IsSuperblockTriggered(nBlockHeight)) {
             LogPrint("gobject", "%s -- triggered superblock creation at height %d\n", __func__, nBlockHeight);
-            CSuperblockManager::GetSuperblockPayments(nBlockHeight, voutSuperblockRet);
+            CSuperblockManager::GetSuperblockPayments(nBlockHeight, voutSuperblockPaymentsRet);
     }
 
     // TODO this is a placeholder until DIP3 is merged, which will allow superblock payments and MN reward payments
@@ -221,21 +221,21 @@ void FillBlockPayments(CMutableTransaction& txNew, int nBlockHeight, CAmount blo
     bool allowSuperblockAndMNReward = false;
 
     // don't allow payments to superblocks AND masternodes before spork15 activation
-    if (!voutSuperblockRet.empty() && !allowSuperblockAndMNReward) {
-        txNew.vout.insert(txNew.vout.end(), voutSuperblockRet.begin(), voutSuperblockRet.end());
+    if (!voutSuperblockPaymentsRet.empty() && !allowSuperblockAndMNReward) {
+        txNew.vout.insert(txNew.vout.end(), voutSuperblockPaymentsRet.begin(), voutSuperblockPaymentsRet.end());
         return;
     }
 
-    if (!mnpayments.GetMasternodeTxOuts(nBlockHeight, blockReward, voutMasternodeRet)) {
+    if (!mnpayments.GetMasternodeTxOuts(nBlockHeight, blockReward, voutMasternodePaymentsRet)) {
         // no idea whom to pay (MN list empty?), lets hope for the best
         return;
     }
 
-    txNew.vout.insert(txNew.vout.end(), voutMasternodeRet.begin(), voutMasternodeRet.end());
-    txNew.vout.insert(txNew.vout.end(), voutSuperblockRet.begin(), voutSuperblockRet.end());
+    txNew.vout.insert(txNew.vout.end(), voutMasternodePaymentsRet.begin(), voutMasternodePaymentsRet.end());
+    txNew.vout.insert(txNew.vout.end(), voutSuperblockPaymentsRet.begin(), voutSuperblockPaymentsRet.end());
 
     std::string voutMasternodeStr;
-    for (const auto& txout : voutMasternodeRet) {
+    for (const auto& txout : voutMasternodePaymentsRet) {
         // subtract MN payment from miner reward
         txNew.vout[0].nValue -= txout.nValue;
         if (!voutMasternodeStr.empty())
@@ -243,7 +243,7 @@ void FillBlockPayments(CMutableTransaction& txNew, int nBlockHeight, CAmount blo
         voutMasternodeStr += txout.ToString();
     }
 
-    LogPrint("mnpayments", "%s -- nBlockHeight %d blockReward %lld voutMasternodeRet \"%s\" txNew %s", __func__,
+    LogPrint("mnpayments", "%s -- nBlockHeight %d blockReward %lld voutMasternodePaymentsRet \"%s\" txNew %s", __func__,
                             nBlockHeight, blockReward, voutMasternodeStr, txNew.ToString());
 }
 
@@ -285,15 +285,15 @@ bool CMasternodePayments::UpdateLastVote(const CMasternodePaymentVote& vote)
 /**
 *   GetMasternodeTxOuts
 *
-*   Get masternode payment tx output
+*   Get masternode payment tx outputs
 */
 
-bool CMasternodePayments::GetMasternodeTxOuts(int nBlockHeight, CAmount blockReward, std::vector<CTxOut>& vecvoutMasternodeRet) const
+bool CMasternodePayments::GetMasternodeTxOuts(int nBlockHeight, CAmount blockReward, std::vector<CTxOut>& voutMasternodePaymentsRet) const
 {
     // make sure it's not filled yet
-    vecvoutMasternodeRet.clear();
+    voutMasternodePaymentsRet.clear();
 
-    if(!GetBlockTxOuts(nBlockHeight, blockReward, vecvoutMasternodeRet)) {
+    if(!GetBlockTxOuts(nBlockHeight, blockReward, voutMasternodePaymentsRet)) {
         // no masternode detected...
         int nCount = 0;
         masternode_info_t mnInfo;
@@ -305,10 +305,10 @@ bool CMasternodePayments::GetMasternodeTxOuts(int nBlockHeight, CAmount blockRew
         // fill payee with locally calculated winner and hope for the best
         CScript payee = GetScriptForDestination(mnInfo.keyIDCollateralAddress);
         CAmount masternodePayment = GetMasternodePayment(nBlockHeight, blockReward);
-        vecvoutMasternodeRet.emplace_back(masternodePayment, payee);
+        voutMasternodePaymentsRet.emplace_back(masternodePayment, payee);
     }
 
-    for (const auto& txout : vecvoutMasternodeRet) {
+    for (const auto& txout : voutMasternodePaymentsRet) {
         CTxDestination address1;
         ExtractDestination(txout.scriptPubKey, address1);
         CBitcoinAddress address2(address1);
@@ -508,9 +508,9 @@ bool CMasternodePaymentVote::Sign()
     return true;
 }
 
-bool CMasternodePayments::GetBlockTxOuts(int nBlockHeight, CAmount blockReward, std::vector<CTxOut>& vecTxOutsRet) const
+bool CMasternodePayments::GetBlockTxOuts(int nBlockHeight, CAmount blockReward, std::vector<CTxOut>& voutMasternodePaymentsRet) const
 {
-    vecTxOutsRet.clear();
+    voutMasternodePaymentsRet.clear();
 
     CAmount masternodeReward = GetMasternodePayment(nBlockHeight, blockReward);
 
@@ -520,7 +520,7 @@ bool CMasternodePayments::GetBlockTxOuts(int nBlockHeight, CAmount blockReward, 
     if (it == mapMasternodeBlocks.end() || !it->second.GetBestPayee(payee)) {
         return false;
     }
-    vecTxOutsRet.emplace_back(masternodeReward, payee);
+    voutMasternodePaymentsRet.emplace_back(masternodeReward, payee);
     return true;
 }
 
@@ -537,9 +537,9 @@ bool CMasternodePayments::IsScheduled(const masternode_info_t& mnInfo, int nNotB
 
     for(int64_t h = nCachedBlockHeight; h <= nCachedBlockHeight + 8; h++){
         if(h == nNotBlockHeight) continue;
-        std::vector<CTxOut> txOuts;
-        if(GetBlockTxOuts(h, 0, txOuts)) {
-            for (const auto& txout : txOuts) {
+        std::vector<CTxOut> voutMasternodePayments;
+        if(GetBlockTxOuts(h, 0, voutMasternodePayments)) {
+            for (const auto& txout : voutMasternodePayments) {
                 if (txout.scriptPubKey == mnpayee)
                     return true;
             }
@@ -706,13 +706,13 @@ std::string CMasternodePayments::GetRequiredPaymentsString(int nBlockHeight) con
 
 bool CMasternodePayments::IsTransactionValid(const CTransaction& txNew, int nBlockHeight, CAmount blockReward) const
 {
-    std::vector<CTxOut> masternodeTxOuts;
-    if (!GetBlockTxOuts(nBlockHeight, blockReward, masternodeTxOuts)) {
+    std::vector<CTxOut> voutMasternodePayments;
+    if (!GetBlockTxOuts(nBlockHeight, blockReward, voutMasternodePayments)) {
         LogPrintf("CMasternodePayments::%s -- ERROR failed to get payees for block at height %s\n", __func__, nBlockHeight);
         return false;
     }
 
-    for (const auto& txout : masternodeTxOuts) {
+    for (const auto& txout : voutMasternodePayments) {
         bool found = false;
         for (const auto& txout2 : txNew.vout) {
             if (txout == txout2) {

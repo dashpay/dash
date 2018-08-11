@@ -493,10 +493,10 @@ UniValue getblocktemplate(const JSONRPCRequest& request)
     }
 
     // when enforcement is on we need information about a masternode payee or otherwise our block is going to be orphaned by the network
-    std::vector<CTxOut> payees;
+    std::vector<CTxOut> voutMasternodePayments;
     if (sporkManager.IsSporkActive(SPORK_8_MASTERNODE_PAYMENT_ENFORCEMENT)
         && !masternodeSync.IsWinnersListSynced()
-        && !mnpayments.GetBlockTxOuts(chainActive.Height() + 1, 0, payees))
+        && !mnpayments.GetBlockTxOuts(chainActive.Height() + 1, 0, voutMasternodePayments))
             throw JSONRPCError(RPC_CLIENT_IN_INITIAL_DOWNLOAD, "Dash Core is downloading masternode winners...");
 
     // next bock is a superblock and we need governance info to correctly construct it
@@ -703,7 +703,7 @@ UniValue getblocktemplate(const JSONRPCRequest& request)
     result.push_back(Pair("height", (int64_t)(pindexPrev->nHeight+1)));
 
     UniValue masternodeObj(UniValue::VARR);
-    for (const auto& txout : pblocktemplate->voutMasternode) {
+    for (const auto& txout : pblocktemplate->voutMasternodePayments) {
         CTxDestination address1;
         ExtractDestination(txout.scriptPubKey, address1);
         CBitcoinAddress address2(address1);
@@ -720,8 +720,8 @@ UniValue getblocktemplate(const JSONRPCRequest& request)
     result.push_back(Pair("masternode_payments_enforced", sporkManager.IsSporkActive(SPORK_8_MASTERNODE_PAYMENT_ENFORCEMENT)));
 
     UniValue superblockObjArray(UniValue::VARR);
-    if(pblocktemplate->voutSuperblock.size()) {
-        for (const auto& txout : pblocktemplate->voutSuperblock) {
+    if(pblocktemplate->voutSuperblockPayments.size()) {
+        for (const auto& txout : pblocktemplate->voutSuperblockPayments) {
             UniValue entry(UniValue::VOBJ);
             CTxDestination address1;
             ExtractDestination(txout.scriptPubKey, address1);

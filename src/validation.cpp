@@ -1948,13 +1948,13 @@ int32_t ComputeBlockVersion(const CBlockIndex* pindexPrev, const Consensus::Para
         ThresholdState state = VersionBitsState(pindexPrev, params, pos, versionbitscache);
         const struct BIP9DeploymentInfo& vbinfo = VersionBitsDeploymentInfo[pos];
         if (vbinfo.check_mn_protocol && state == THRESHOLD_STARTED && !fAssumeMasternodeIsUpgraded) {
-            std::vector<CTxOut> blockTxOuts;;
+            std::vector<CTxOut> voutMasternodePayments;
             masternode_info_t mnInfo;
-            if (!mnpayments.GetBlockTxOuts(pindexPrev->nHeight + 1, 0, blockTxOuts)) {
+            if (!mnpayments.GetBlockTxOuts(pindexPrev->nHeight + 1, 0, voutMasternodePayments)) {
                 // no votes for this block
                 continue;
             }
-            if (!mnodeman.GetMasternodeInfo(blockTxOuts[0].scriptPubKey, mnInfo)) {
+            if (!mnodeman.GetMasternodeInfo(voutMasternodePayments[0].scriptPubKey, mnInfo)) {
                 // unknown masternode
                 continue;
             }
