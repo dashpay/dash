@@ -10,6 +10,11 @@ from test_framework.util import str_to_b64str, assert_equal
 import os
 import http.client
 import urllib.parse
+import subprocess
+from random import SystemRandom
+import string
+import configparser
+import sys
 
 class HTTPBasicsTest (BitcoinTestFramework):
     def set_test_params(self):
@@ -22,7 +27,17 @@ class HTTPBasicsTest (BitcoinTestFramework):
         rpcauth2 = "rpcauth=rt2:f8607b1a88861fac29dfccf9b52ff9f$ff36a0c23c8c62b4846112e50fa888416e94c17bfd4c42f88fd8f55ec6a3137e"
         rpcuser = "rpcuser=rpcuser💻"
         rpcpassword = "rpcpassword=rpcpassword🔑"
-        with open(os.path.join(self.options.tmpdir+"/node0", "dash.conf"), 'a', encoding='utf8') as f:
+
+        self.user = ''.join(SystemRandom().choice(string.ascii_letters + string.digits) for _ in range(10))
+        config = configparser.ConfigParser()
+        config.read_file(open(self.options.configfile))
+        gen_rpcauth = config['environment']['RPCAUTH']
+        p = subprocess.Popen([sys.executable, gen_rpcauth, self.user], stdout=subprocess.PIPE, universal_newlines=True)
+        lines = p.stdout.read().splitlines()
+        rpcauth3 = lines[1]
+        self.password = lines[3]
+
+        with open(os.path.join(get_datadir_path(self.options.tmpdir, 0), "bitcoin.conf"), 'a', encoding='utf8') as f:
             f.write(rpcauth+"\n")
             f.write(rpcauth2+"\n")
         with open(os.path.join(self.options.tmpdir+"/node1", "dash.conf"), 'a', encoding='utf8') as f:
