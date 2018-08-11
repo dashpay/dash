@@ -282,7 +282,7 @@ bool CMasternodePayments::UpdateLastVote(const CMasternodePaymentVote& vote)
 *   Get masternode payment tx output
 */
 
-bool CMasternodePayments::GetMasternodeTxOut(int nBlockHeight, CAmount blockReward, CTxOut &txoutMasternodeRet) const
+bool CMasternodePayments::GetMasternodeTxOut(int nBlockHeight, CAmount blockReward, CTxOut& txoutMasternodeRet) const
 {
     // make sure it's not filled yet
     txoutMasternodeRet = CTxOut();
