@@ -161,7 +161,7 @@ void CActiveLegacyMasternodeManager::ManageStateInitial(CConnman& connman)
     }
 
     if (!fFoundLocal && Params().NetworkIDString() == CBaseChainParams::REGTEST) {
-        if (Lookup("127.0.0.1", activeMasternode.service, GetListenPort(), false)) {
+        if (Lookup("127.0.0.1", activeMasternodeInfo.service, GetListenPort(), false)) {
             fFoundLocal = true;
         }
     }
