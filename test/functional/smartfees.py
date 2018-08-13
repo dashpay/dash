@@ -4,10 +4,18 @@
 # file COPYING or http://www.opensource.org/licenses/mit-license.php.
 """Test fee estimation code."""
 
-from test_framework.test_framework import BitcoinTestFramework
-from test_framework.util import *
+from test_framework.messages import CTransaction, CTxIn, CTxOut, COutPoint, ToHex, COIN
 from test_framework.script import CScript, OP_1, OP_DROP, OP_2, OP_HASH160, OP_EQUAL, hash160, OP_TRUE
-from test_framework.mininode import CTransaction, CTxIn, CTxOut, COutPoint, ToHex, COIN
+from test_framework.test_framework import BitcoinTestFramework
+from test_framework.util import (
+    assert_equal,
+    assert_greater_than,
+    assert_greater_than_or_equal,
+    connect_nodes,
+    satoshi_round,
+    sync_blocks,
+    sync_mempools,
+)
 
 # Construct 2 trivial P2SH's and the ScriptSigs that spend them
 # So we can create many transactions without needing to spend

@@ -40,6 +40,22 @@ Test structure:
          - check that utxo matches node3 using gettxoutsetinfo
 '''
 
+import errno
+import http.client
+import random
+import sys
+import time
+
+from test_framework.messages import COIN, COutPoint, CTransaction, CTxIn, CTxOut, ToHex
+from test_framework.test_framework import BitcoinTestFramework
+from test_framework.util import assert_equal, create_confirmed_utxos, hex_str_to_bytes
+
+HTTP_DISCONNECT_ERRORS = [http.client.CannotSendRequest]
+try:
+    HTTP_DISCONNECT_ERRORS.append(http.client.RemoteDisconnected)
+except AttributeError:
+    pass
+
 class ChainstateWriteCrashTest(BitcoinTestFramework):
 
     def set_test_params(self):

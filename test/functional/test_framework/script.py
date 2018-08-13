@@ -7,8 +7,8 @@
 This file is modified from python-bitcoinlib.
 """
 
+from .messages import CTransaction, CTxOut, sha256, hash256, uint256_from_str, ser_uint256, ser_string
 
-from .mininode import CTransaction, CTxOut, sha256, hash256
 from binascii import hexlify
 import hashlib
 

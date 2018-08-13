@@ -12,18 +12,18 @@ import threading
 import time
 
 from test_framework.blocktools import (create_block, create_coinbase)
+from test_framework.messages import CInv
 from test_framework.mininode import (
-    CInv,
     P2PInterface,
     msg_headers,
     msg_block,
     msg_getdata,
     msg_getheaders,
-    wait_until,
 )
 from test_framework.test_framework import BitcoinTestFramework
 from test_framework.util import (
     assert_equal,
+    wait_until,
 )
 
 class P2PFingerprintTest(BitcoinTestFramework):

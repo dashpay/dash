@@ -12,8 +12,12 @@ Test the following RPCs:
    - getrawtransaction
 """
 
+from collections import OrderedDict
+from decimal import Decimal
+from io import BytesIO
+from test_framework.messages import CTransaction, ToHex
 from test_framework.test_framework import BitcoinTestFramework
-from test_framework.util import *
+from test_framework.util import assert_equal, assert_raises_rpc_error, bytes_to_hex_str, connect_nodes_bi, hex_str_to_bytes
 
 
 class multidict(dict):
