@@ -1550,6 +1550,9 @@ bool CPrivateSendClientSession::CreateDenominated(const CompactTallyItem& tallyI
     } while (nOutputsTotal == 0 && !fSkip);
     LogPrintf("CPrivateSendClientSession::CreateDenominated -- 3 - nOutputsTotal: %d, nValueLeft: %f\n", nOutputsTotal, (float)nValueLeft/COIN);
 
+    // No reasons to create mixing collaterals if we can't create denoms to mix
+    if (nOutputsTotal == 0) return false;
+
     // if we have anything left over, it will be automatically send back as change - there is no need to send it manually
 
     CCoinControl coinControl;
