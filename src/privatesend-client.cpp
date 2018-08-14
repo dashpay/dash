@@ -1180,9 +1180,11 @@ bool CPrivateSendClientSession::SubmitDenominate(CConnman& connman)
     std::string strError;
     std::vector<CTxDSIn> vecTxDSInRet;
     std::vector<CTxOut> vecTxOutRet;
+    // lean towards "highest" branch but still mix via "lowest" one someties
+    bool fMixLowest = GetRandInt(4) == 0;
 
     // Submit transaction to the pool if we get here
-    if (privateSendClient.nLiquidityProvider) {
+    if (privateSendClient.nLiquidityProvider || fMixLowest) {
         // Try to use only inputs with the same number of rounds starting from the lowest number of rounds possible
         for(int i = 0; i< privateSendClient.nPrivateSendRounds; i++) {
             if(PrepareDenominate(i, i + 1, strError, vecTxDSInRet, vecTxOutRet)) {
