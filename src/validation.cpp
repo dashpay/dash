@@ -1954,7 +1954,14 @@ int32_t ComputeBlockVersion(const CBlockIndex* pindexPrev, const Consensus::Para
                 // no votes for this block
                 continue;
             }
-            if (!mnodeman.GetMasternodeInfo(voutMasternodePayments[0].scriptPubKey, mnInfo)) {
+            bool mnKnown = false;
+            for (const auto& txout : voutMasternodePayments) {
+                if (mnodeman.GetMasternodeInfo(txout.scriptPubKey, mnInfo)) {
+                    mnKnown = true;
+                    break;
+                }
+            }
+            if (!mnKnown) {
                 // unknown masternode
                 continue;
             }
