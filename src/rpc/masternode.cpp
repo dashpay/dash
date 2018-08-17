@@ -135,13 +135,14 @@ UniValue masternode(const JSONRPCRequest& request)
 #endif // ENABLE_WALLET
          strCommand != "list" && strCommand != "list-conf" && strCommand != "count" &&
          strCommand != "debug" && strCommand != "current" && strCommand != "winner" && strCommand != "winners" && strCommand != "genkey" &&
-         strCommand != "connect" && strCommand != "status"))
+         strCommand != "connect" && strCommand != "status" && strCommand != "check"))
             throw std::runtime_error(
                 "masternode \"command\"...\n"
                 "Set of commands to execute masternode related actions\n"
                 "\nArguments:\n"
                 "1. \"command\"        (string or set of strings, required) The command to execute\n"
                 "\nAvailable commands:\n"
+                "  check        - Force check all masternodes and remove invalid ones\n"
                 "  count        - Get information about number of masternodes (DEPRECATED options: 'total', 'ps', 'enabled', 'qualify', 'all')\n"
                 "  current      - Print info on current masternode winner to be paid the next block (calculated locally)\n"
                 "  genkey       - Generate new masternodeprivkey\n"
@@ -252,7 +253,7 @@ UniValue masternode(const JSONRPCRequest& request)
         obj.push_back(Pair("IP:port",       mnInfo.addr.ToString()));
         obj.push_back(Pair("protocol",      mnInfo.nProtocolVersion));
         obj.push_back(Pair("outpoint",      mnInfo.outpoint.ToStringShort()));
-        obj.push_back(Pair("payee",         CBitcoinAddress(mnInfo.pubKeyCollateralAddress.GetID()).ToString()));
+        obj.push_back(Pair("payee",         CBitcoinAddress(mnInfo.keyIDCollateralAddress).ToString()));
         obj.push_back(Pair("lastseen",      mnInfo.nTimeLastPing));
         obj.push_back(Pair("activeseconds", mnInfo.nTimeLastPing - mnInfo.sigTime));
         return obj;
@@ -429,15 +430,15 @@ UniValue masternode(const JSONRPCRequest& request)
 
         UniValue mnObj(UniValue::VOBJ);
 
-        mnObj.push_back(Pair("outpoint", activeMasternode.outpoint.ToStringShort()));
-        mnObj.push_back(Pair("service", activeMasternode.service.ToString()));
+        mnObj.push_back(Pair("outpoint", activeMasternodeInfo.outpoint.ToStringShort()));
+        mnObj.push_back(Pair("service", activeMasternodeInfo.service.ToString()));
 
         CMasternode mn;
-        if(mnodeman.Get(activeMasternode.outpoint, mn)) {
-            mnObj.push_back(Pair("payee", CBitcoinAddress(mn.pubKeyCollateralAddress.GetID()).ToString()));
+        if(mnodeman.Get(activeMasternodeInfo.outpoint, mn)) {
+            mnObj.push_back(Pair("payee", CBitcoinAddress(mn.keyIDCollateralAddress).ToString()));
         }
 
-        mnObj.push_back(Pair("status", activeMasternode.GetStatus()));
+        mnObj.push_back(Pair("status", legacyActiveMasternodeManager.GetStatus()));
         return mnObj;
     }
 
@@ -473,6 +474,26 @@ UniValue masternode(const JSONRPCRequest& request)
             if (strFilter !="" && strPayment.find(strFilter) == std::string::npos) continue;
             obj.push_back(Pair(strprintf("%d", i), strPayment));
         }
+
+        return obj;
+    }
+
+    if (strCommand == "check") {
+        int countBeforeCheck = mnodeman.CountMasternodes();
+        int countEnabledBeforeCheck = mnodeman.CountEnabled();
+
+        mnodeman.CheckAndRemove(*g_connman);
+
+        int countAfterCheck = mnodeman.CountMasternodes();
+        int countEnabledAfterCheck = mnodeman.CountEnabled();
+        int removedCount = std::max(0, countBeforeCheck - countAfterCheck);
+        int removedEnabledCount = std::max(0, countEnabledBeforeCheck - countEnabledAfterCheck);
+
+        UniValue obj(UniValue::VOBJ);
+        obj.push_back(Pair("removedTotalCount", removedCount));
+        obj.push_back(Pair("removedEnabledCount", removedEnabledCount));
+        obj.push_back(Pair("totalCount", countAfterCheck));
+        obj.push_back(Pair("enabledCount", countEnabledAfterCheck));
 
         return obj;
     }
@@ -517,7 +538,7 @@ UniValue masternodelist(const JSONRPCRequest& request)
                 "  payee          - Print Dash address associated with a masternode (can be additionally filtered,\n"
                 "                   partial match)\n"
                 "  protocol       - Print protocol of a masternode (can be additionally filtered, exact match)\n"
-                "  pubkey         - Print the masternode (not collateral) public key\n"
+                "  keyid          - Print the masternode (not collateral) key id\n"
                 "  rank           - Print rank of a masternode based on current block\n"
                 "  sentinel       - Print sentinel version of a masternode (can be additionally filtered, exact match)\n"
                 "  status         - Print masternode status: PRE_ENABLED / ENABLED / EXPIRED / SENTINEL_PING_EXPIRED / NEW_START_REQUIRED /\n"
@@ -557,12 +578,12 @@ UniValue masternodelist(const JSONRPCRequest& request)
                     strOutpoint.find(strFilter) == std::string::npos) continue;
                 obj.push_back(Pair(strOutpoint, strAddress));
             } else if (strMode == "daemon") {
-                std::string strDaemon = mn.lastPing.nDaemonVersion > DEFAULT_DAEMON_VERSION ? FormatVersion(mn.lastPing.nDaemonVersion) : "Unknown";
+                std::string strDaemon = mn.lastPing.GetDaemonString();
                 if (strFilter !="" && strDaemon.find(strFilter) == std::string::npos &&
                     strOutpoint.find(strFilter) == std::string::npos) continue;
                 obj.push_back(Pair(strOutpoint, strDaemon));
             } else if (strMode == "sentinel") {
-                std::string strSentinel = mn.lastPing.nSentinelVersion > DEFAULT_SENTINEL_VERSION ? SafeIntVersionToString(mn.lastPing.nSentinelVersion) : "Unknown";
+                std::string strSentinel = mn.lastPing.GetSentinelString();
                 if (strFilter !="" && strSentinel.find(strFilter) == std::string::npos &&
                     strOutpoint.find(strFilter) == std::string::npos) continue;
                 obj.push_back(Pair(strOutpoint, strSentinel));
@@ -571,7 +592,7 @@ UniValue masternodelist(const JSONRPCRequest& request)
                 streamFull << std::setw(18) <<
                                mn.GetStatus() << " " <<
                                mn.nProtocolVersion << " " <<
-                               CBitcoinAddress(mn.pubKeyCollateralAddress.GetID()).ToString() << " " <<
+                               CBitcoinAddress(mn.keyIDCollateralAddress).ToString() << " " <<
                                (int64_t)mn.lastPing.sigTime << " " << std::setw(8) <<
                                (int64_t)(mn.lastPing.sigTime - mn.sigTime) << " " << std::setw(10) <<
                                mn.GetLastPaidTime() << " "  << std::setw(6) <<
@@ -586,10 +607,10 @@ UniValue masternodelist(const JSONRPCRequest& request)
                 streamInfo << std::setw(18) <<
                                mn.GetStatus() << " " <<
                                mn.nProtocolVersion << " " <<
-                               CBitcoinAddress(mn.pubKeyCollateralAddress.GetID()).ToString() << " " <<
+                               CBitcoinAddress(mn.keyIDCollateralAddress).ToString() << " " <<
                                (int64_t)mn.lastPing.sigTime << " " << std::setw(8) <<
                                (int64_t)(mn.lastPing.sigTime - mn.sigTime) << " " <<
-                               SafeIntVersionToString(mn.lastPing.nSentinelVersion) << " "  <<
+                               mn.lastPing.GetSentinelString() << " "  <<
                                (mn.lastPing.fSentinelIsCurrent ? "current" : "expired") << " " <<
                                mn.addr.ToString();
                 std::string strInfo = streamInfo.str();
@@ -603,7 +624,7 @@ UniValue masternodelist(const JSONRPCRequest& request)
                                mn.GetStatus() << " " <<
                                mn.nProtocolVersion << " " <<
                                mn.lastPing.nDaemonVersion << " " <<
-                               SafeIntVersionToString(mn.lastPing.nSentinelVersion) << " " <<
+                               mn.lastPing.GetSentinelString() << " " <<
                                (mn.lastPing.fSentinelIsCurrent ? "current" : "expired") << " " <<
                                (int64_t)mn.lastPing.sigTime << " " <<
                                (int64_t)(mn.lastPing.sigTime - mn.sigTime) << " " <<
@@ -617,8 +638,8 @@ UniValue masternodelist(const JSONRPCRequest& request)
                 objMN.push_back(Pair("payee", CBitcoinAddress(mn.pubKeyCollateralAddress.GetID()).ToString()));
                 objMN.push_back(Pair("status", mn.GetStatus()));
                 objMN.push_back(Pair("protocol", mn.nProtocolVersion));
-                objMN.push_back(Pair("daemonversion", mn.lastPing.nDaemonVersion > DEFAULT_DAEMON_VERSION ? FormatVersion(mn.lastPing.nDaemonVersion) : "Unknown"));
-                objMN.push_back(Pair("sentinelversion", mn.lastPing.nSentinelVersion > DEFAULT_SENTINEL_VERSION ? SafeIntVersionToString(mn.lastPing.nSentinelVersion) : "Unknown"));
+                objMN.push_back(Pair("daemonversion", mn.lastPing.GetDaemonString()));
+                objMN.push_back(Pair("sentinelversion", mn.lastPing.GetSentinelString()));
                 objMN.push_back(Pair("sentinelstate", (mn.lastPing.fSentinelIsCurrent ? "current" : "expired")));
                 objMN.push_back(Pair("lastseen", (int64_t)mn.lastPing.sigTime));
                 objMN.push_back(Pair("activeseconds", (int64_t)(mn.lastPing.sigTime - mn.sigTime)));
@@ -635,7 +656,7 @@ UniValue masternodelist(const JSONRPCRequest& request)
                 if (strFilter !="" && strOutpoint.find(strFilter) == std::string::npos) continue;
                 obj.push_back(Pair(strOutpoint, (int64_t)mn.lastPing.sigTime));
             } else if (strMode == "payee") {
-                CBitcoinAddress address(mn.pubKeyCollateralAddress.GetID());
+                CBitcoinAddress address(mn.keyIDCollateralAddress);
                 std::string strPayee = address.ToString();
                 if (strFilter !="" && strPayee.find(strFilter) == std::string::npos &&
                     strOutpoint.find(strFilter) == std::string::npos) continue;
@@ -644,9 +665,9 @@ UniValue masternodelist(const JSONRPCRequest& request)
                 if (strFilter !="" && strFilter != strprintf("%d", mn.nProtocolVersion) &&
                     strOutpoint.find(strFilter) == std::string::npos) continue;
                 obj.push_back(Pair(strOutpoint, mn.nProtocolVersion));
-            } else if (strMode == "pubkey") {
+            } else if (strMode == "keyid") {
                 if (strFilter !="" && strOutpoint.find(strFilter) == std::string::npos) continue;
-                obj.push_back(Pair(strOutpoint, HexStr(mn.pubKeyMasternode)));
+                obj.push_back(Pair(strOutpoint, HexStr(mn.keyIDMasternode)));
             } else if (strMode == "status") {
                 std::string strStatus = mn.GetStatus();
                 if (strFilter !="" && strStatus.find(strFilter) == std::string::npos &&
@@ -831,8 +852,8 @@ UniValue masternodebroadcast(const JSONRPCRequest& request)
                 nSuccessful++;
                 resultObj.push_back(Pair("outpoint", mnb.outpoint.ToStringShort()));
                 resultObj.push_back(Pair("addr", mnb.addr.ToString()));
-                resultObj.push_back(Pair("pubKeyCollateralAddress", CBitcoinAddress(mnb.pubKeyCollateralAddress.GetID()).ToString()));
-                resultObj.push_back(Pair("pubKeyMasternode", CBitcoinAddress(mnb.pubKeyMasternode.GetID()).ToString()));
+                resultObj.push_back(Pair("keyIDCollateralAddress", CBitcoinAddress(mnb.keyIDCollateralAddress).ToString()));
+                resultObj.push_back(Pair("keyIDMasternode", CBitcoinAddress(mnb.keyIDMasternode).ToString()));
                 resultObj.push_back(Pair("vchSig", EncodeBase64(&mnb.vchSig[0], mnb.vchSig.size())));
                 resultObj.push_back(Pair("sigTime", mnb.sigTime));
                 resultObj.push_back(Pair("protocolVersion", mnb.nProtocolVersion));
@@ -923,7 +944,7 @@ UniValue sentinelping(const JSONRPCRequest& request)
         );
     }
 
-    activeMasternode.UpdateSentinelPing(StringVersionToInt(request.params[0].get_str()));
+    legacyActiveMasternodeManager.UpdateSentinelPing(StringVersionToInt(request.params[0].get_str()));
     return true;
 }
 

@@ -87,7 +87,7 @@ void CMasternodeSync::SwitchToNextAsset(CConnman& connman)
             nRequestedMasternodeAssets = MASTERNODE_SYNC_FINISHED;
             uiInterface.NotifyAdditionalDataSyncProgressChanged(1);
             //try to activate our masternode if possible
-            activeMasternode.ManageState(connman);
+            legacyActiveMasternodeManager.ManageState(connman);
 
             connman.ForEachNode(CConnman::AllNodes, [](CNode* pnode) {
                 netfulfilledman.AddFulfilledRequest(pnode->addr, "full-sync");
@@ -133,7 +133,7 @@ void CMasternodeSync::ProcessMessage(CNode* pfrom, const std::string& strCommand
 void CMasternodeSync::ProcessTick(CConnman& connman)
 {
     static int nTick = 0;
-    if(nTick++ % MASTERNODE_SYNC_TICK_SECONDS != 0) return;
+    nTick++;
 
     // reset the sync process if the last call to this function was more than 60 minutes ago (client was in sleep mode)
     static int64_t nTimeLastProcess = GetTime();
@@ -184,22 +184,21 @@ void CMasternodeSync::ProcessTick(CConnman& connman)
         // QUICK MODE (REGTEST ONLY!)
         if(Params().NetworkIDString() == CBaseChainParams::REGTEST)
         {
-            if(nRequestedMasternodeAttempt <= 2) {
+            if (nRequestedMasternodeAssets == MASTERNODE_SYNC_WAITING) {
                 connman.PushMessage(pnode, msgMaker.Make(NetMsgType::GETSPORKS)); //get current network sporks
-            } else if(nRequestedMasternodeAttempt < 4) {
+            } else if (nRequestedMasternodeAssets == MASTERNODE_SYNC_LIST) {
                 mnodeman.DsegUpdate(pnode, connman);
-            } else if(nRequestedMasternodeAttempt < 6) {
+            } else if (nRequestedMasternodeAssets == MASTERNODE_SYNC_MNW) {
                 //sync payment votes
                 if(pnode->nVersion == 70208) {
                     connman.PushMessage(pnode, msgMaker.Make(NetMsgType::MASTERNODEPAYMENTSYNC, mnpayments.GetStorageLimit())); //sync payment votes
                 } else {
                     connman.PushMessage(pnode, msgMaker.Make(NetMsgType::MASTERNODEPAYMENTSYNC)); //sync payment votes
                 }
+            } else if (nRequestedMasternodeAssets == MASTERNODE_SYNC_GOVERNANCE) {
                 SendGovernanceSyncRequest(pnode, connman);
-            } else {
-                nRequestedMasternodeAssets = MASTERNODE_SYNC_FINISHED;
             }
-            nRequestedMasternodeAttempt++;
+            SwitchToNextAsset(connman);
             connman.ReleaseNodeVector(vNodesCopy);
             return;
         }

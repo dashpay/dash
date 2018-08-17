@@ -194,8 +194,6 @@ public:
 
     CGovernanceObject(const CGovernanceObject& other);
 
-    void swap(CGovernanceObject& first, CGovernanceObject& second); // nothrow
-
     // Public Getter methods
 
     int64_t GetCreationTime() const {
@@ -253,8 +251,8 @@ public:
     // Signature related functions
 
     void SetMasternodeOutpoint(const COutPoint& outpoint);
-    bool Sign(const CKey& keyMasternode, const CPubKey& pubKeyMasternode);
-    bool CheckSignature(const CPubKey& pubKeyMasternode) const;
+    bool Sign(const CKey& keyMasternode, const CKeyID& keyIDMasternode);
+    bool CheckSignature(const CKeyID& keyIDMasternode) const;
 
     std::string GetSignatureMessage() const;
     uint256 GetSignatureHash() const;
@@ -353,12 +351,6 @@ public:
         }
 
         // AFTER DESERIALIZATION OCCURS, CACHED VARIABLES MUST BE CALCULATED MANUALLY
-    }
-
-    CGovernanceObject& operator=(CGovernanceObject from)
-    {
-        swap(*this, from);
-        return *this;
     }
 
 private:

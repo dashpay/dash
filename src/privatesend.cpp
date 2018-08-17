@@ -5,21 +5,17 @@
 
 #include "activemasternode.h"
 #include "consensus/validation.h"
-#include "governance.h"
-#include "init.h"
-#include "instantx.h"
 #include "masternode-payments.h"
 #include "masternode-sync.h"
 #include "masternodeman.h"
 #include "messagesigner.h"
-#include "netfulfilledman.h"
 #include "netmessagemaker.h"
 #include "script/sign.h"
 #include "txmempool.h"
 #include "util.h"
 #include "utilmoneystr.h"
 
-#include <boost/lexical_cast.hpp>
+#include <string>
 
 bool CDarkSendEntry::AddScriptSig(const CTxIn& txin)
 {
@@ -51,27 +47,27 @@ bool CDarksendQueue::Sign()
     if (sporkManager.IsSporkActive(SPORK_6_NEW_SIGS)) {
         uint256 hash = GetSignatureHash();
 
-        if (!CHashSigner::SignHash(hash, activeMasternode.keyMasternode, vchSig)) {
+        if (!CHashSigner::SignHash(hash, activeMasternodeInfo.keyMasternode, vchSig)) {
             LogPrintf("CDarksendQueue::Sign -- SignHash() failed\n");
             return false;
         }
 
-        if (!CHashSigner::VerifyHash(hash, activeMasternode.pubKeyMasternode, vchSig, strError)) {
+        if (!CHashSigner::VerifyHash(hash, activeMasternodeInfo.keyIDMasternode, vchSig, strError)) {
             LogPrintf("CDarksendQueue::Sign -- VerifyHash() failed, error: %s\n", strError);
             return false;
         }
     } else {
         std::string strMessage = CTxIn(masternodeOutpoint).ToString() +
-                        boost::lexical_cast<std::string>(nDenom) +
-                        boost::lexical_cast<std::string>(nTime) +
-                        boost::lexical_cast<std::string>(fReady);
+                        std::to_string(nDenom) +
+                        std::to_string(nTime) +
+                        std::to_string(fReady);
 
-        if(!CMessageSigner::SignMessage(strMessage, vchSig, activeMasternode.keyMasternode)) {
+        if(!CMessageSigner::SignMessage(strMessage, vchSig, activeMasternodeInfo.keyMasternode)) {
             LogPrintf("CDarksendQueue::Sign -- SignMessage() failed, %s\n", ToString());
             return false;
         }
 
-        if(!CMessageSigner::VerifyMessage(activeMasternode.pubKeyMasternode, vchSig, strMessage, strError)) {
+        if(!CMessageSigner::VerifyMessage(activeMasternodeInfo.keyIDMasternode, vchSig, strMessage, strError)) {
             LogPrintf("CDarksendQueue::Sign -- VerifyMessage() failed, error: %s\n", strError);
             return false;
         }
@@ -80,25 +76,25 @@ bool CDarksendQueue::Sign()
     return true;
 }
 
-bool CDarksendQueue::CheckSignature(const CPubKey& pubKeyMasternode) const
+bool CDarksendQueue::CheckSignature(const CKeyID& keyIDMasternode) const
 {
     std::string strError = "";
 
     if (sporkManager.IsSporkActive(SPORK_6_NEW_SIGS)) {
         uint256 hash = GetSignatureHash();
 
-        if (!CHashSigner::VerifyHash(hash, pubKeyMasternode, vchSig, strError)) {
+        if (!CHashSigner::VerifyHash(hash, keyIDMasternode, vchSig, strError)) {
             // we don't care about queues with old signature format
             LogPrintf("CDarksendQueue::CheckSignature -- VerifyHash() failed, error: %s\n", strError);
             return false;
         }
     } else {
         std::string strMessage = CTxIn(masternodeOutpoint).ToString() +
-                        boost::lexical_cast<std::string>(nDenom) +
-                        boost::lexical_cast<std::string>(nTime) +
-                        boost::lexical_cast<std::string>(fReady);
+                        std::to_string(nDenom) +
+                        std::to_string(nTime) +
+                        std::to_string(fReady);
 
-        if(!CMessageSigner::VerifyMessage(pubKeyMasternode, vchSig, strMessage, strError)) {
+        if(!CMessageSigner::VerifyMessage(keyIDMasternode, vchSig, strMessage, strError)) {
             LogPrintf("CDarksendQueue::CheckSignature -- Got bad Masternode queue signature: %s; error: %s\n", ToString(), strError);
             return false;
         }
@@ -131,24 +127,24 @@ bool CDarksendBroadcastTx::Sign()
     if (sporkManager.IsSporkActive(SPORK_6_NEW_SIGS)) {
         uint256 hash = GetSignatureHash();
 
-        if (!CHashSigner::SignHash(hash, activeMasternode.keyMasternode, vchSig)) {
+        if (!CHashSigner::SignHash(hash, activeMasternodeInfo.keyMasternode, vchSig)) {
             LogPrintf("CDarksendBroadcastTx::Sign -- SignHash() failed\n");
             return false;
         }
 
-        if (!CHashSigner::VerifyHash(hash, activeMasternode.pubKeyMasternode, vchSig, strError)) {
+        if (!CHashSigner::VerifyHash(hash, activeMasternodeInfo.keyIDMasternode, vchSig, strError)) {
             LogPrintf("CDarksendBroadcastTx::Sign -- VerifyHash() failed, error: %s\n", strError);
             return false;
         }
     } else {
-        std::string strMessage = tx->GetHash().ToString() + boost::lexical_cast<std::string>(sigTime);
+        std::string strMessage = tx->GetHash().ToString() + std::to_string(sigTime);
 
-        if(!CMessageSigner::SignMessage(strMessage, vchSig, activeMasternode.keyMasternode)) {
+        if(!CMessageSigner::SignMessage(strMessage, vchSig, activeMasternodeInfo.keyMasternode)) {
             LogPrintf("CDarksendBroadcastTx::Sign -- SignMessage() failed\n");
             return false;
         }
 
-        if(!CMessageSigner::VerifyMessage(activeMasternode.pubKeyMasternode, vchSig, strMessage, strError)) {
+        if(!CMessageSigner::VerifyMessage(activeMasternodeInfo.keyIDMasternode, vchSig, strMessage, strError)) {
             LogPrintf("CDarksendBroadcastTx::Sign -- VerifyMessage() failed, error: %s\n", strError);
             return false;
         }
@@ -157,22 +153,22 @@ bool CDarksendBroadcastTx::Sign()
     return true;
 }
 
-bool CDarksendBroadcastTx::CheckSignature(const CPubKey& pubKeyMasternode) const
+bool CDarksendBroadcastTx::CheckSignature(const CKeyID& keyIDMasternode) const
 {
     std::string strError = "";
 
     if (sporkManager.IsSporkActive(SPORK_6_NEW_SIGS)) {
         uint256 hash = GetSignatureHash();
 
-        if (!CHashSigner::VerifyHash(hash, pubKeyMasternode, vchSig, strError)) {
+        if (!CHashSigner::VerifyHash(hash, keyIDMasternode, vchSig, strError)) {
             // we don't care about dstxes with old signature format
             LogPrintf("CDarksendBroadcastTx::CheckSignature -- VerifyHash() failed, error: %s\n", strError);
             return false;
         }
     } else {
-        std::string strMessage = tx->GetHash().ToString() + boost::lexical_cast<std::string>(sigTime);
+        std::string strMessage = tx->GetHash().ToString() + std::to_string(sigTime);
 
-        if(!CMessageSigner::VerifyMessage(pubKeyMasternode, vchSig, strMessage, strError)) {
+        if(!CMessageSigner::VerifyMessage(keyIDMasternode, vchSig, strMessage, strError)) {
             LogPrintf("CDarksendBroadcastTx::CheckSignature -- Got bad dstx signature, error: %s\n", strError);
             return false;
         }
@@ -417,8 +413,8 @@ int CPrivateSend::GetDenominationsByAmounts(const std::vector<CAmount>& vecAmoun
     CScript scriptTmp = CScript();
     std::vector<CTxOut> vecTxOut;
 
-    BOOST_REVERSE_FOREACH(CAmount nAmount, vecAmount) {
-        CTxOut txout(nAmount, scriptTmp);
+    for (auto it = vecAmount.rbegin(); it != vecAmount.rend(); ++it) {
+        CTxOut txout((*it), scriptTmp);
         vecTxOut.push_back(txout);
     }
 
@@ -509,59 +505,4 @@ void CPrivateSend::SyncTransaction(const CTransaction& tx, const CBlockIndex *pi
     // When tx is 0-confirmed or conflicted, posInBlock is SYNC_TRANSACTION_NOT_IN_BLOCK and nConfirmedHeight should be set to -1
     mapDSTX[txHash].SetConfirmedHeight(posInBlock == CMainSignals::SYNC_TRANSACTION_NOT_IN_BLOCK ? -1 : pindex->nHeight);
     LogPrint("privatesend", "CPrivateSendClient::SyncTransaction -- txid=%s\n", txHash.ToString());
-}
-
-//TODO: Rename/move to core
-void ThreadCheckPrivateSend(CConnman& connman)
-{
-    if(fLiteMode) return; // disable all Dash specific functionality
-
-    static bool fOneThread;
-    if(fOneThread) return;
-    fOneThread = true;
-
-    // Make this thread recognisable as the PrivateSend thread
-    RenameThread("dash-ps");
-
-    unsigned int nTick = 0;
-
-    while (true)
-    {
-        MilliSleep(1000);
-
-        // try to sync from all available nodes, one step at a time
-        masternodeSync.ProcessTick(connman);
-
-        if(masternodeSync.IsBlockchainSynced() && !ShutdownRequested()) {
-
-            nTick++;
-
-            // make sure to check all masternodes first
-            mnodeman.Check();
-
-            mnodeman.ProcessPendingMnbRequests(connman);
-            mnodeman.ProcessPendingMnvRequests(connman);
-
-            // check if we should activate or ping every few minutes,
-            // slightly postpone first run to give net thread a chance to connect to some peers
-            if(nTick % MASTERNODE_MIN_MNP_SECONDS == 15)
-                activeMasternode.ManageState(connman);
-
-            if(nTick % 60 == 0) {
-                netfulfilledman.CheckAndRemove();
-                mnodeman.ProcessMasternodeConnections(connman);
-                mnodeman.CheckAndRemove(connman);
-                mnodeman.WarnMasternodeDaemonUpdates();
-                mnpayments.CheckAndRemove();
-                instantsend.CheckAndRemove();
-            }
-            if(fMasternodeMode && (nTick % (60 * 5) == 0)) {
-                mnodeman.DoFullVerificationStep(connman);
-            }
-
-            if(nTick % (60 * 5) == 0) {
-                governance.DoMaintenance(connman);
-            }
-        }
-    }
 }

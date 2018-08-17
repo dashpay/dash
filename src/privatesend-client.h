@@ -21,7 +21,7 @@ static const int MIN_PRIVATESEND_LIQUIDITY          = 0;
 static const int MAX_PRIVATESEND_ROUNDS             = 16;
 static const int MAX_PRIVATESEND_AMOUNT             = MAX_MONEY / COIN;
 static const int MAX_PRIVATESEND_LIQUIDITY          = 100;
-static const int DEFAULT_PRIVATESEND_ROUNDS         = 2;
+static const int DEFAULT_PRIVATESEND_ROUNDS         = 4;
 static const int DEFAULT_PRIVATESEND_AMOUNT         = 1000;
 static const int DEFAULT_PRIVATESEND_LIQUIDITY      = 0;
 
@@ -190,8 +190,8 @@ public:
     void CheckTimeout();
 
     void UpdatedBlockTip(const CBlockIndex *pindex);
-};
 
-void ThreadCheckPrivateSendClient(CConnman& connman);
+    void DoMaintenance(CConnman& connman);
+};
 
 #endif
