@@ -2383,7 +2383,7 @@ UniValue setprivatesendrounds(const JSONRPCRequest& request)
         );
 
     
-    CAmount nRounds = AmountFromValue(request.params[0]);
+    int nRounds = request.params[0].get_int();
 
     privateSendClient.nPrivateSendRounds = nRounds;
 
@@ -2408,7 +2408,7 @@ UniValue setprivatesendamount(const JSONRPCRequest& request)
         );
 
     // Amount
-    CAmount nAmount = AmountFromValue(request.params[0]);
+    int nAmount = request.params[0].get_int();
 
     privateSendClient.nPrivateSendAmount = nAmount;
 
