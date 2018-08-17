@@ -2367,60 +2367,60 @@ UniValue settxfee(const JSONRPCRequest& request)
 
 UniValue setprivatesendrounds(const JSONRPCRequest& request)
 {
-	if (!EnsureWalletIsAvailable(request.fHelp))
-		return NullUniValue;
+    if (!EnsureWalletIsAvailable(request.fHelp))
+        return NullUniValue;
 
-	if (request.fHelp || request.params.size() < 1 || request.params.size() > 1)
-		throw std::runtime_error(
-			"setprivatesendrounds rounds\n"
-			"\nSet the number of rounds for PrivateSend mixing.\n"
-			"\nArguments:\n"
-			"1. rounds         (numeric, required) The default number of rounds is " + std::to_string(DEFAULT_PRIVATESEND_ROUNDS) + 
-			" Cannot be more than " + std::to_string(MAX_PRIVATESEND_ROUNDS) + " nor less than " + std::to_string(MIN_PRIVATESEND_ROUNDS) +
-			"\nResult:\n"
-			"true|false        (boolean) Returns true if successful\n"
-			"\nExamples:\n"
-			+ HelpExampleCli("setprivatesendrounds", "4")
-			+ HelpExampleRpc("setprivatesendrounds", "16")
-		);
+    if (request.fHelp || request.params.size() < 1 || request.params.size() > 1)
+        throw std::runtime_error(
+            "setprivatesendrounds rounds\n"
+            "\nSet the number of rounds for PrivateSend mixing.\n"
+            "\nArguments:\n"
+            "1. rounds         (numeric, required) The default number of rounds is " + std::to_string(DEFAULT_PRIVATESEND_ROUNDS) + 
+            " Cannot be more than " + std::to_string(MAX_PRIVATESEND_ROUNDS) + " nor less than " + std::to_string(MIN_PRIVATESEND_ROUNDS) +
+            "\nResult:\n"
+            "true|false        (boolean) Returns true if successful\n"
+            "\nExamples:\n"
+            + HelpExampleCli("setprivatesendrounds", "4")
+            + HelpExampleRpc("setprivatesendrounds", "16")
+        );
 
-	LOCK2(cs_main, pwalletMain->cs_wallet);
+    LOCK2(cs_main, pwalletMain->cs_wallet);
 
-	// Amount
-	CAmount nRounds = AmountFromValue(request.params[0]);
+    // Amount
+    CAmount nRounds = AmountFromValue(request.params[0]);
 
-	privateSendClient.nPrivateSendRounds = nRounds;
+    privateSendClient.nPrivateSendRounds = nRounds;
 
-	return true;
+    return true;
 }
 
 UniValue setprivatesendamount(const JSONRPCRequest& request)
 {
-	if (!EnsureWalletIsAvailable(request.fHelp))
-		return NullUniValue;
+    if (!EnsureWalletIsAvailable(request.fHelp))
+        return NullUniValue;
 
-	if (request.fHelp || request.params.size() < 1 || request.params.size() > 1)
-		throw std::runtime_error(
-			"setprivatesendamount amount\n"
-			"\nSet the goal amount for PrivateSend mixing.\n"
-			"\nArguments:\n"
-			"1. amount         (numeric, required) The default amount is " + std::to_string(DEFAULT_PRIVATESEND_AMOUNT) +
-			" Cannot be more than " + std::to_string(MAX_PRIVATESEND_AMOUNT) + " nor less than " + std::to_string(MIN_PRIVATESEND_AMOUNT) +
-			"\nResult:\n"
-			"true|false        (boolean) Returns true if successful\n"
-			"\nExamples:\n"
-			+ HelpExampleCli("setprivatesendamount", "500")
-			+ HelpExampleRpc("setprivatesendamount", "208")
-		);
+    if (request.fHelp || request.params.size() < 1 || request.params.size() > 1)
+        throw std::runtime_error(
+            "setprivatesendamount amount\n"
+            "\nSet the goal amount for PrivateSend mixing.\n"
+            "\nArguments:\n"
+            "1. amount         (numeric, required) The default amount is " + std::to_string(DEFAULT_PRIVATESEND_AMOUNT) +
+            " Cannot be more than " + std::to_string(MAX_PRIVATESEND_AMOUNT) + " nor less than " + std::to_string(MIN_PRIVATESEND_AMOUNT) +
+            "\nResult:\n"
+            "true|false        (boolean) Returns true if successful\n"
+            "\nExamples:\n"
+            + HelpExampleCli("setprivatesendamount", "500")
+            + HelpExampleRpc("setprivatesendamount", "208")
+        );
 
-	LOCK2(cs_main, pwalletMain->cs_wallet);
+    LOCK2(cs_main, pwalletMain->cs_wallet);
 
-	// Amount
-	CAmount nAmount = AmountFromValue(request.params[0]);
+    // Amount
+    CAmount nAmount = AmountFromValue(request.params[0]);
 
-	privateSendClient.nPrivateSendAmount = nAmount;
+    privateSendClient.nPrivateSendAmount = nAmount;
 
-	return true;
+    return true;
 }
 
 UniValue getwalletinfo(const JSONRPCRequest& request)
