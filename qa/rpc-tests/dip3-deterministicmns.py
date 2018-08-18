@@ -151,6 +151,7 @@ class DIP3Test(BitcoinTestFramework):
 
         print("start MN %s" % before_dip3_mn.alias)
         self.start_mn(before_dip3_mn)
+        self.wait_for_sporks()
         self.force_finish_mnsync_list(before_dip3_mn.node)
         self.start_alias(self.nodes[0], before_dip3_mn.alias)
 
