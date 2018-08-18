@@ -366,7 +366,10 @@ bool CMasternodePayments::GetMasternodeTxOuts(int nBlockHeight, CAmount blockRew
     voutMasternodePaymentsRet.clear();
 
     if(!GetBlockTxOuts(nBlockHeight, blockReward, voutMasternodePaymentsRet)) {
-        assert(!deterministicMNManager->IsDeterministicMNsSporkActive(nBlockHeight));
+        if (deterministicMNManager->IsDeterministicMNsSporkActive(nBlockHeight)) {
+            LogPrintf("CMasternodePayments::%s -- deterministic masternode lists enabled and no payee", __func__);
+            return false;
+        }
 
         // no masternode detected...
         int nCount = 0;
