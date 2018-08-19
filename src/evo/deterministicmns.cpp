@@ -465,11 +465,11 @@ void CDeterministicMNManager::UpdateSpork15Value()
 {
     AssertLockHeld(cs);
 
+    // only update cached spork15 value when it was not set before. This is needed because spork values are very unreliable when starting the node
     if (!sporkManager.IsSporkSet(SPORK_15_DETERMINISTIC_MNS_ENABLED)) {
         return;
     }
 
-    // only update cached spork15 value when it was not set before. This is needed because spork values are very unreliable when starting the node
     int64_t oldSpork15Value = GetSpork15Value();
     int64_t newSpork15Value = sporkManager.GetSporkValue(SPORK_15_DETERMINISTIC_MNS_ENABLED);
     if (newSpork15Value != oldSpork15Value) {
