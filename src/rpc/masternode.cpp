@@ -377,7 +377,7 @@ UniValue masternode(const JSONRPCRequest& request)
     {
         bool fCompressed = false;
         if (request.params.size() > 1) {
-            fCompressed = (request.params[1].get_str() == "true");
+            fCompressed = ParseBoolV(request.params[1], "compressed");
         }
 
         CKey secret;
