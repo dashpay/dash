@@ -2382,8 +2382,10 @@ UniValue setprivatesendrounds(const JSONRPCRequest& request)
             + HelpExampleRpc("setprivatesendrounds", "16")
         );
 
-    
     int nRounds = request.params[0].get_int();
+
+    if (nRounds > MAX_PRIVATESEND_ROUNDS || nRounds < MIN_PRIVATESEND_ROUNDS)
+        throw JSONRPCError(RPC_INVALID_PARAMETER, "Invalid number of rounds");
 
     privateSendClient.nPrivateSendRounds = nRounds;
 
@@ -2407,8 +2409,10 @@ UniValue setprivatesendamount(const JSONRPCRequest& request)
             + HelpExampleRpc("setprivatesendamount", "208")
         );
 
-    // Amount
     int nAmount = request.params[0].get_int();
+
+    if (nAmount > MAX_PRIVATESEND_AMOUNT || nAmount < MIN_PRIVATESEND_AMOUNT)
+        throw JSONRPCError(RPC_INVALID_PARAMETER, "Invalid amount of " + CURRENCY_UNIT + " as mixing goal amount");
 
     privateSendClient.nPrivateSendAmount = nAmount;
 
