@@ -368,11 +368,6 @@ bool CPrivateSendClientSession::GetMixingMasternodeInfo(masternode_info_t& mnInf
     return infoMixingMasternode.fInfoValid;
 }
 
-bool CPrivateSendClientSession::IsMixingMasternode(const CNode* pnode) const
-{
-    return infoMixingMasternode.fInfoValid && pnode->addr == infoMixingMasternode.addr;
-}
-
 bool CPrivateSendClientManager::GetMixingMasternodesInfo(std::vector<masternode_info_t>& vecMnInfoRet) const
 {
     LOCK(cs_vecsessions);
@@ -383,18 +378,6 @@ bool CPrivateSendClientManager::GetMixingMasternodesInfo(std::vector<masternode_
         }
     }
     return !vecMnInfoRet.empty();
-}
-
-bool CPrivateSendClientManager::IsMixingMasternode(const CNode* pnode) const
-{
-    // TODO: fix deadlock with cs_vNodes in CMasternodeMan::ProcessMasternodeConnections() :/
-    // LOCK(cs_vecsessions);
-    for (const auto& session : vecSessions) {
-        if (session.IsMixingMasternode(pnode)) {
-            return true;
-        }
-    }
-    return false;
 }
 
 //

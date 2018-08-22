@@ -150,7 +150,6 @@ public:
     std::string GetStatus(bool fWaitForBlock);
 
     bool GetMixingMasternodeInfo(masternode_info_t& mnInfoRet) const;
-    bool IsMixingMasternode(const CNode* pnode) const;
 
     /// Passively run mixing in the background according to the configuration in settings
     bool DoAutomaticDenominating(CConnman& connman, bool fDryRun=false);
@@ -231,7 +230,6 @@ public:
     std::string GetSessionDenoms();
 
     bool GetMixingMasternodesInfo(std::vector<masternode_info_t>& vecMnInfoRet) const;
-    bool IsMixingMasternode(const CNode* pnode) const;
 
     /// Passively run mixing in the background according to the configuration in settings
     bool DoAutomaticDenominating(CConnman& connman, bool fDryRun=false);
