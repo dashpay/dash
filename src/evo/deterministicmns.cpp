@@ -391,11 +391,14 @@ bool CDeterministicMNManager::BuildNewListFromBlock(const CBlock& block, const C
             newState->scriptOperatorPayout = proTx.scriptOperatorPayout;
 
             if (newState->PoSeBanHeight != -1) {
-                newState->PoSeBanHeight = -1;
-                newState->PoSeRevivedHeight = height;
+                // only revive when all keys are set
+                if (!newState->keyIDOperator.IsNull() && !newState->keyIDVoting.IsNull() && !newState->keyIDOwner.IsNull()) {
+                    newState->PoSeBanHeight = -1;
+                    newState->PoSeRevivedHeight = height;
 
-                LogPrintf("CDeterministicMNManager::%s -- MN %s revived at height %d\n",
-                          __func__, proTx.proTxHash.ToString(), height);
+                    LogPrintf("CDeterministicMNManager::%s -- MN %s revived at height %d\n",
+                              __func__, proTx.proTxHash.ToString(), height);
+                }
             }
 
             newList.UpdateMN(proTx.proTxHash, newState);
