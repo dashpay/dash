@@ -73,6 +73,7 @@ void CPrivateSendClientManager::ProcessMessage(CNode* pfrom, const std::string& 
 
         // if the queue is ready, submit if we can
         if(dsq.fReady) {
+            LOCK(cs_vecsessions);
             for (auto& session : vecSessions) {
                 masternode_info_t mnMixing;
                 if (session.GetMixingMasternodeInfo(mnMixing) && mnMixing.addr == infoMn.addr && session.GetState() == POOL_STATE_QUEUE) {
@@ -82,6 +83,7 @@ void CPrivateSendClientManager::ProcessMessage(CNode* pfrom, const std::string& 
                 }
             }
         } else {
+            LOCK(cs_vecsessions); // have to lock this first to avoid deadlocks with cs_vecqueue
             TRY_LOCK(cs_vecqueue, lockRecv);
             if(!lockRecv) return;
 
@@ -119,6 +121,7 @@ void CPrivateSendClientManager::ProcessMessage(CNode* pfrom, const std::string& 
         strCommand == NetMsgType::DSFINALTX ||
         strCommand == NetMsgType::DSCOMPLETE
     ) {
+        LOCK(cs_vecsessions);
         for (auto& session : vecSessions) {
             session.ProcessMessage(pfrom, strCommand, vRecv, connman);
         }
@@ -249,6 +252,7 @@ void CPrivateSendClientSession::ResetPool()
 
 void CPrivateSendClientManager::ResetPool()
 {
+    LOCK(cs_vecsessions);
     nCachedLastSuccessBlock = 0;
     vecMasternodesUsed.clear();
     for (auto& session : vecSessions) {
@@ -337,6 +341,7 @@ std::string CPrivateSendClientSession::GetStatus(bool fWaitForBlock)
 
 std::string CPrivateSendClientManager::GetStatuses()
 {
+    LOCK(cs_vecsessions);
     std::string strStatus;
     bool fWaitForBlock = WaitForAnotherBlock();
 
@@ -348,6 +353,7 @@ std::string CPrivateSendClientManager::GetStatuses()
 
 std::string CPrivateSendClientManager::GetSessionDenoms()
 {
+    LOCK(cs_vecsessions);
     std::string strSessionDenoms;
 
     for (auto& session : vecSessions) {
@@ -369,6 +375,7 @@ bool CPrivateSendClientSession::IsMixingMasternode(const CNode* pnode) const
 
 bool CPrivateSendClientManager::GetMixingMasternodesInfo(std::vector<masternode_info_t>& vecMnInfoRet) const
 {
+    LOCK(cs_vecsessions);
     for (const auto& session : vecSessions) {
         masternode_info_t mnInfo;
         if (session.GetMixingMasternodeInfo(mnInfo)) {
@@ -380,6 +387,8 @@ bool CPrivateSendClientManager::GetMixingMasternodesInfo(std::vector<masternode_
 
 bool CPrivateSendClientManager::IsMixingMasternode(const CNode* pnode) const
 {
+    // TODO: fix deadlock with cs_vNodes in CMasternodeMan::ProcessMasternodeConnections() :/
+    // LOCK(cs_vecsessions);
     for (const auto& session : vecSessions) {
         if (session.IsMixingMasternode(pnode)) {
             return true;
@@ -454,6 +463,7 @@ void CPrivateSendClientManager::CheckTimeout()
 
     CheckQueue();
 
+    LOCK(cs_vecsessions);
     for (auto& session : vecSessions) {
         if (session.CheckTimeout()) {
             strAutoDenomResult = _("Session timed out.");
@@ -966,6 +976,7 @@ bool CPrivateSendClientManager::DoAutomaticDenominating(CConnman& connman, bool 
         LogPrint("privatesend", "  vecMasternodesUsed: new size: %d, threshold: %d\n", (int)vecMasternodesUsed.size(), nThreshold_high);
     }
 
+    LOCK(cs_vecsessions);
     bool fResult = true;
     if ((int)vecSessions.size() < nPrivateSendSessions) {
         vecSessions.emplace_back();
@@ -1197,6 +1208,7 @@ bool CPrivateSendClientSession::ProcessPendingDsaRequest(CConnman& connman)
 
 void CPrivateSendClientManager::ProcessPendingDsaRequest(CConnman& connman)
 {
+    LOCK(cs_vecsessions);
     for (auto& session : vecSessions) {
         if (session.ProcessPendingDsaRequest(connman)) {
             strAutoDenomResult = _("Mixing in progress...");

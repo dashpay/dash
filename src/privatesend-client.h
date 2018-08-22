@@ -165,6 +165,7 @@ private:
 
     // TODO: or map<denom, CPrivateSendClientSession> ??
     std::vector<CPrivateSendClientSession> vecSessions;
+    mutable CCriticalSection cs_vecsessions;
 
     int nCachedLastSuccessBlock;
     int nMinBlocksToWait; // how many blocks to wait after one successful mixing tx in non-multisession mode
