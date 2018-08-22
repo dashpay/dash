@@ -269,6 +269,9 @@ void MasternodeList::updateNodeList()
     if(!fLockAcquired) {
         return;
     }
+    if (ShutdownRequested()) {
+        return;
+    }
 
     static int64_t nTimeListUpdated = GetTime();
 
