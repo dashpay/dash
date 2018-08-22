@@ -369,9 +369,11 @@ public:
     int nSessionInputCount; //Users must submit a count matching this
 
     CPrivateSendBaseSession() :
+        vecEntries(),
         nState(POOL_STATE_IDLE),
         nTimeLastSuccessfulStep(0),
         nSessionID(0),
+        finalMutableTransaction(),
         nSessionDenom(0),
         nSessionInputCount(0)
         {}
@@ -396,7 +398,7 @@ protected:
     void CheckQueue();
 
 public:
-    CPrivateSendBaseManager() {}
+    CPrivateSendBaseManager() : vecDarksendQueue() {}
 
     int GetQueueSize() const { return vecDarksendQueue.size(); }
     bool GetQueueItemAndTry(CDarksendQueue& dsqRet);

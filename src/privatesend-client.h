@@ -128,7 +128,17 @@ private:
     void SetNull();
 
 public:
-    CPrivateSendClientSession() { SetNull(); }
+    CPrivateSendClientSession() :
+        vecOutPointLocked(),
+        nEntriesCount(0),
+        fLastEntryAccepted(false),
+        strLastMessage(),
+        strAutoDenomResult(),
+        infoMixingMasternode(),
+        txMyCollateral(),
+        pendingDsaRequest(),
+        keyHolderStorage()
+        {}
     CPrivateSendClientSession(const CPrivateSendClientSession& other) { /* dummy copy constructor*/ SetNull(); }
 
     void ProcessMessage(CNode* pfrom, const std::string& strCommand, CDataStream& vRecv, CConnman& connman);
@@ -191,6 +201,9 @@ public:
     bool fCreateAutoBackups; //builtin support for automatic backups
 
     CPrivateSendClientManager() :
+        vecMasternodesUsed(),
+        vecDenominationsSkipped(),
+        vecSessions(),
         nCachedLastSuccessBlock(0),
         nMinBlocksToWait(1),
         strAutoDenomResult(),

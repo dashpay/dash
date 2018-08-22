@@ -66,7 +66,7 @@ private:
     void SetNull();
 
 public:
-    CPrivateSendServer() : fUnitTest(false) {}
+    CPrivateSendServer() : vecSessionCollaterals(), fUnitTest(false) {}
 
     void ProcessMessage(CNode* pfrom, const std::string& strCommand, CDataStream& vRecv, CConnman& connman);
 
