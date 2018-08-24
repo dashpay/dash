@@ -810,6 +810,12 @@ bool CPrivateSendClientSession::DoAutomaticDenominating(CConnman& connman, bool 
         return false;
     }
 
+    CAmount nBalanceNeedsAnonymized;
+    CAmount nValueMin = CPrivateSend::GetSmallestDenomination();
+
+    {
+    LOCK2(cs_main, pwalletMain->cs_wallet);
+
     if(!fDryRun && pwalletMain->IsLocked(true)) {
         strAutoDenomResult = _("Wallet is locked.");
         return false;
@@ -832,8 +838,6 @@ bool CPrivateSendClientSession::DoAutomaticDenominating(CConnman& connman, bool 
         return false;
     }
 
-    CAmount nValueMin = CPrivateSend::GetSmallestDenomination();
-
     // if there are no confirmed DS collateral inputs yet
     if(!pwalletMain->HasCollateralInputs()) {
         // should have some additional amount for them
@@ -841,7 +845,7 @@ bool CPrivateSendClientSession::DoAutomaticDenominating(CConnman& connman, bool 
     }
 
     // including denoms but applying some restrictions
-    CAmount nBalanceNeedsAnonymized = pwalletMain->GetNeedsToBeAnonymizedBalance(nValueMin);
+    nBalanceNeedsAnonymized = pwalletMain->GetNeedsToBeAnonymizedBalance(nValueMin);
 
     // anonymizable balance is way too small
     if(nBalanceNeedsAnonymized < nValueMin) {
@@ -911,6 +915,7 @@ bool CPrivateSendClientSession::DoAutomaticDenominating(CConnman& connman, bool 
             }
         }
     }
+    } // LOCK2(cs_main, pwalletMain->cs_wallet);
 
     bool fUseQueue = GetRandInt(100) > 33;
     // don't use the queues all of the time for mixing unless we are a liquidity provider
@@ -1201,6 +1206,8 @@ void CPrivateSendClientManager::ProcessPendingDsaRequest(CConnman& connman)
 
 bool CPrivateSendClientSession::SubmitDenominate(CConnman& connman)
 {
+    LOCK2(cs_main, pwalletMain->cs_wallet);
+
     std::string strError;
     std::vector<CTxDSIn> vecTxDSInRet;
     std::vector<CTxOut> vecTxOutRet;
