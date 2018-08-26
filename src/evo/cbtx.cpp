@@ -75,14 +75,15 @@ bool CalcCbTxMerkleRootMNList(const CBlock& block, const CBlockIndex* pindexPrev
 
 std::string CCbTx::ToString() const
 {
-    return strprintf("CCbTx(height=%d, merkleRootMNList=%s)",
-        height, merkleRootMNList.ToString());
+    return strprintf("CCbTx(height=%d, version=%d, merkleRootMNList=%s)",
+        nVersion, height, merkleRootMNList.ToString());
 }
 
 void CCbTx::ToJson(UniValue& obj) const
 {
     obj.clear();
     obj.setObject();
+    obj.push_back(Pair("version", (int)nVersion));
     obj.push_back(Pair("height", (int)height));
     obj.push_back(Pair("merkleRootMNList", merkleRootMNList.ToString()));
 }
