@@ -515,22 +515,6 @@ int GetUTXOConfirmations(const COutPoint& outpoint)
 
 bool CheckTransaction(const CTransaction& tx, CValidationState &state, bool fCheckDuplicateInputs)
 {
-    // check version 3 transaction types
-    if (tx.nVersion >= 3) {
-        if (tx.nType != TRANSACTION_NORMAL &&
-                tx.nType != TRANSACTION_PROVIDER_REGISTER &&
-                tx.nType != TRANSACTION_PROVIDER_UPDATE_SERVICE &&
-                tx.nType != TRANSACTION_PROVIDER_UPDATE_REGISTRAR &&
-                tx.nType != TRANSACTION_PROVIDER_UPDATE_REVOKE &&
-                tx.nType != TRANSACTION_COINBASE) {
-            return state.DoS(100, false, REJECT_INVALID, "bad-txns-type");
-        }
-        if (tx.IsCoinBase() && tx.nType != TRANSACTION_COINBASE)
-            return state.DoS(100, false, REJECT_INVALID, "bad-txns-cb-type");
-    } else if (tx.nType != TRANSACTION_NORMAL) {
-        return state.DoS(100, false, REJECT_INVALID, "bad-txns-type");
-    }
-
     // Basic checks that don't depend on any context
     if (tx.vin.empty())
         return state.DoS(10, false, REJECT_INVALID, "bad-txns-vin-empty");
@@ -589,6 +573,25 @@ bool ContextualCheckTransaction(const CTransaction& tx, CValidationState &state,
 {
     int nHeight = pindexPrev == NULL ? 0 : pindexPrev->nHeight + 1;
     bool fDIP0001Active_context = nHeight >= consensusParams.DIP0001Height;
+    bool fDIP0003Active_context = VersionBitsState(pindexPrev, consensusParams, Consensus::DEPLOYMENT_DIP0003, versionbitscache) == THRESHOLD_ACTIVE;
+
+    if (fDIP0003Active_context) {
+        // check version 3 transaction types
+        if (tx.nVersion >= 3) {
+            if (tx.nType != TRANSACTION_NORMAL &&
+                tx.nType != TRANSACTION_PROVIDER_REGISTER &&
+                tx.nType != TRANSACTION_PROVIDER_UPDATE_SERVICE &&
+                tx.nType != TRANSACTION_PROVIDER_UPDATE_REGISTRAR &&
+                tx.nType != TRANSACTION_PROVIDER_UPDATE_REVOKE &&
+                tx.nType != TRANSACTION_COINBASE) {
+                return state.DoS(100, false, REJECT_INVALID, "bad-txns-type");
+            }
+            if (tx.IsCoinBase() && tx.nType != TRANSACTION_COINBASE)
+                return state.DoS(100, false, REJECT_INVALID, "bad-txns-cb-type");
+        } else if (tx.nType != TRANSACTION_NORMAL) {
+            return state.DoS(100, false, REJECT_INVALID, "bad-txns-type");
+        }
+    }
 
     // Size limits
     if (fDIP0001Active_context && ::GetSerializeSize(tx, SER_NETWORK, PROTOCOL_VERSION) > MAX_STANDARD_TX_SIZE)
