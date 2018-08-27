@@ -40,9 +40,9 @@ def serialize_script_num(value):
 # Create a coinbase transaction, assuming no miner fees.
 # If pubkey is passed in, the coinbase output will be a P2PK output;
 # otherwise an anyone-can-spend output.
-def create_coinbase(height, pubkey = None):
+def create_coinbase(height, pubkey = None, dip4_activated=False):
     coinbase = CTransaction()
-    coinbase.vin.append(CTxIn(COutPoint(0, 0xffffffff), 
+    coinbase.vin.append(CTxIn(COutPoint(0, 0xffffffff),
                 ser_string(serialize_script_num(height)), 0xffffffff))
     coinbaseoutput = CTxOut()
     coinbaseoutput.nValue = 500 * COIN
@@ -53,6 +53,11 @@ def create_coinbase(height, pubkey = None):
     else:
         coinbaseoutput.scriptPubKey = CScript([OP_TRUE])
     coinbase.vout = [ coinbaseoutput ]
+    if dip4_activated:
+        coinbase.nVersion = 3
+        coinbase.nType = 5
+        cbtx_payload = CCbTx(1, height, 0)
+        coinbase.extraPayload = cbtx_payload.serialize()
     coinbase.calc_sha256()
     return coinbase
 
@@ -80,3 +85,31 @@ def get_legacy_sigopcount_tx(tx, fAccurate=True):
         # scriptSig might be of type bytes, so convert to CScript for the moment
         count += CScript(j.scriptSig).GetSigOpCount(fAccurate)
     return count
+
+# Identical to GetMasternodePayment in C++ code
+def get_masternode_payment(nHeight, blockValue):
+    ret = int(blockValue / 5)
+
+    nMNPIBlock = 350
+    nMNPIPeriod = 10
+
+    if nHeight > nMNPIBlock:
+        ret += int(blockValue / 20)
+    if nHeight > nMNPIBlock+(nMNPIPeriod* 1):
+        ret += int(blockValue / 20)
+    if nHeight > nMNPIBlock+(nMNPIPeriod* 2):
+        ret += int(blockValue / 20)
+    if nHeight > nMNPIBlock+(nMNPIPeriod* 3):
+        ret += int(blockValue / 40)
+    if nHeight > nMNPIBlock+(nMNPIPeriod* 4):
+        ret += int(blockValue / 40)
+    if nHeight > nMNPIBlock+(nMNPIPeriod* 5):
+        ret += int(blockValue / 40)
+    if nHeight > nMNPIBlock+(nMNPIPeriod* 6):
+        ret += int(blockValue / 40)
+    if nHeight > nMNPIBlock+(nMNPIPeriod* 7):
+        ret += int(blockValue / 40)
+    if nHeight > nMNPIBlock+(nMNPIPeriod* 9):
+        ret += int(blockValue / 40)
+
+    return ret

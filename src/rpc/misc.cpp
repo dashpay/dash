@@ -167,6 +167,7 @@ UniValue mnsync(const JSONRPCRequest& request)
     if(strMode == "next")
     {
         masternodeSync.SwitchToNextAsset(*g_connman);
+        masternodeSync.ProcessTick(*g_connman);
         return "sync updated to " + masternodeSync.GetAssetName();
     }
 
