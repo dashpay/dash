@@ -138,6 +138,12 @@ bool CSporkManager::UpdateSpork(int nSporkID, int64_t nValue, CConnman& connman)
     return false;
 }
 
+bool CSporkManager::IsSporkSet(int nSporkID)
+{
+    LOCK(cs);
+    return mapSporksActive.count(nSporkID) != 0;
+}
+
 // grab the spork, otherwise say it's off
 bool CSporkManager::IsSporkActive(int nSporkID)
 {
@@ -169,6 +175,14 @@ int64_t CSporkManager::GetSporkValue(int nSporkID)
 
     LogPrint("spork", "CSporkManager::GetSporkValue -- Unknown Spork ID %d\n", nSporkID);
     return -1;
+}
+
+int64_t CSporkManager::GetDefaultSporkValue(int nSporkID)
+{
+    LOCK(cs);
+    auto it = mapSporkDefaults.find(nSporkID);
+    assert(it != mapSporkDefaults.end());
+    return it->second;
 }
 
 int CSporkManager::GetSporkIDByName(const std::string& strName)

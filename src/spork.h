@@ -114,8 +114,10 @@ public:
     void ExecuteSpork(int nSporkID, int nValue);
     bool UpdateSpork(int nSporkID, int64_t nValue, CConnman& connman);
 
+    bool IsSporkSet(int nSporkID);
     bool IsSporkActive(int nSporkID);
     int64_t GetSporkValue(int nSporkID);
+    int64_t GetDefaultSporkValue(int nSporkID);
     int GetSporkIDByName(const std::string& strName);
     std::string GetSporkNameByID(int nSporkID);
 
