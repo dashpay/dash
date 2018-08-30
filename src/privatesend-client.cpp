@@ -1036,7 +1036,7 @@ bool CPrivateSendClientSession::JoinExistingQueue(CAmount nBalanceNeedsAnonymize
         CAmount nMaxAmount = nBalanceNeedsAnonymized;
 
         // Try to match their denominations if possible, select exact number of denominations
-        if(!pwalletMain->SelectCoinsByDenominations(dsq.nDenom, nMinAmount, nMaxAmount, vecTxDSInTmp, vCoinsTmp, nValueInTmp, 0, privateSendClient.nPrivateSendRounds)) {
+        if(!pwalletMain->SelectCoinsByDenominations(dsq.nDenom, nMinAmount, nMaxAmount, vecTxDSInTmp, vCoinsTmp, nValueInTmp, 0, privateSendClient.nPrivateSendRounds, true)) {
             LogPrintf("CPrivateSendClientSession::JoinExistingQueue -- Couldn't match %d denominations %d (%s)\n", vecBits.front(), dsq.nDenom, CPrivateSend::GetDenominationsToString(dsq.nDenom));
             continue;
         }
@@ -1266,7 +1266,7 @@ bool CPrivateSendClientSession::PrepareDenominate(int nMinRounds, int nMaxRounds
         return false;
     }
     std::vector<CAmount> vecStandardDenoms = CPrivateSend::GetStandardDenominations();
-    bool fSelected = pwalletMain->SelectCoinsByDenominations(nSessionDenom, vecStandardDenoms[vecBits.front()], CPrivateSend::GetMaxPoolAmount(), vecTxDSIn, vCoins, nValueIn, nMinRounds, nMaxRounds);
+    bool fSelected = pwalletMain->SelectCoinsByDenominations(nSessionDenom, vecStandardDenoms[vecBits.front()], CPrivateSend::GetMaxPoolAmount(), vecTxDSIn, vCoins, nValueIn, nMinRounds, nMaxRounds, true);
     if (nMinRounds >= 0 && !fSelected) {
         strErrorRet = "Can't select current denominated inputs";
         return false;
