@@ -116,6 +116,11 @@ public:
     template <typename Stream, typename Operation>
     inline void SerializationOp(Stream& s, Operation ser_action) {
         READWRITE(nDenom);
+        int nVersion = s.GetVersion();
+        if (nVersion > 70208 && nVersion <= 70210) {
+            int nInputCount = 0;
+            READWRITE(nInputCount);
+        }
         READWRITE(txCollateral);
     }
 
@@ -200,6 +205,10 @@ public:
     inline void SerializationOp(Stream& s, Operation ser_action) {
         READWRITE(nDenom);
         int nVersion = s.GetVersion();
+        if (nVersion > 70208 && nVersion <= 70210) {
+            int nInputCount = 0;
+            READWRITE(nInputCount);
+        }
         if (nVersion == 70208 && (s.GetType() & SER_NETWORK)) {
             // converting from/to old format
             CTxIn txin{};
