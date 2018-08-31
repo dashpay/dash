@@ -362,6 +362,16 @@ UniValue gobject_vote_conf(const JSONRPCRequest& request)
         throw JSONRPCError(RPC_INVALID_PARAMETER, "Invalid vote outcome. Please use one of the following: 'yes', 'no' or 'abstain'");
     }
 
+    int govObjType;
+    {
+        LOCK(governance.cs);
+        CGovernanceObject *pGovObj = governance.FindGovernanceObject(hash);
+        if (!pGovObj) {
+            throw JSONRPCError(RPC_INVALID_PARAMETER, "Governance object not found");
+        }
+        govObjType = pGovObj->GetObjectType();
+    }
+
     int nSuccessful = 0;
     int nFailed = 0;
 
@@ -381,6 +391,18 @@ UniValue gobject_vote_conf(const JSONRPCRequest& request)
         returnObj.push_back(Pair("overall", strprintf("Voted successfully %d time(s) and failed %d time(s).", nSuccessful, nFailed)));
         returnObj.push_back(Pair("detail", resultsObj));
         return returnObj;
+    }
+
+    if (deterministicMNManager->IsDeterministicMNsSporkActive()) {
+        if (govObjType == GOVERNANCE_OBJECT_PROPOSAL && mn.keyIDVoting != activeMasternodeInfo.keyIDOperator) {
+            nFailed++;
+            statusObj.push_back(Pair("result", "failed"));
+            statusObj.push_back(Pair("errorMessage", "Can't vote on proposal when operator key does not match voting key"));
+            resultsObj.push_back(Pair("dash.conf", statusObj));
+            returnObj.push_back(Pair("overall", strprintf("Voted successfully %d time(s) and failed %d time(s).", nSuccessful, nFailed)));
+            returnObj.push_back(Pair("detail", resultsObj));
+            return returnObj;
+        }
     }
 
     CGovernanceVote vote(mn.outpoint, hash, eVoteSignal, eVoteOutcome);
@@ -416,6 +438,16 @@ UniValue VoteWithMasternodeList(const std::vector<CMasternodeConfig::CMasternode
                                 const uint256& hash, vote_signal_enum_t eVoteSignal,
                                 vote_outcome_enum_t eVoteOutcome)
 {
+    int govObjType;
+    {
+        LOCK(governance.cs);
+        CGovernanceObject *pGovObj = governance.FindGovernanceObject(hash);
+        if (!pGovObj) {
+            throw JSONRPCError(RPC_INVALID_PARAMETER, "Governance object not found");
+        }
+        govObjType = pGovObj->GetObjectType();
+    }
+
     int nSuccessful = 0;
     int nFailed = 0;
 
@@ -454,6 +486,16 @@ UniValue VoteWithMasternodeList(const std::vector<CMasternodeConfig::CMasternode
             statusObj.push_back(Pair("errorMessage", "Can't find masternode by collateral output"));
             resultsObj.push_back(Pair(mne.getAlias(), statusObj));
             continue;
+        }
+
+        if (deterministicMNManager->IsDeterministicMNsSporkActive()) {
+            if (govObjType == GOVERNANCE_OBJECT_PROPOSAL && mn.keyIDVoting != pubKeyOperator.GetID()) {
+                nFailed++;
+                statusObj.push_back(Pair("result", "failed"));
+                statusObj.push_back(Pair("errorMessage", "Can't vote on proposal when key does not match voting key"));
+                resultsObj.push_back(Pair(mne.getAlias(), statusObj));
+                continue;
+            }
         }
 
         CGovernanceVote vote(mn.outpoint, hash, eVoteSignal, eVoteOutcome);
