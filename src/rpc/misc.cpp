@@ -164,14 +164,12 @@ UniValue mnsync(const JSONRPCRequest& request)
         return objStatus;
     }
 
-    if(strMode == "next")
-    {
+    if(strMode == "next") {
         masternodeSync.SwitchToNextAsset(*g_connman);
         return "sync updated to " + masternodeSync.GetAssetName();
     }
 
-    if(strMode == "reset")
-    {
+    if(strMode == "reset") {
         masternodeSync.Reset();
         masternodeSync.SwitchToNextAsset(*g_connman);
         return "success";
@@ -229,14 +227,14 @@ UniValue spork(const JSONRPCRequest& request)
         std:: string strCommand = request.params[0].get_str();
         if (strCommand == "show") {
             UniValue ret(UniValue::VOBJ);
-            for(int nSporkID = SPORK_START; nSporkID <= SPORK_END; nSporkID++){
+            for(int nSporkID = SPORK_START; nSporkID <= SPORK_END; nSporkID++) {
                 if(sporkManager.GetSporkNameByID(nSporkID) != "Unknown")
                     ret.push_back(Pair(sporkManager.GetSporkNameByID(nSporkID), sporkManager.GetSporkValue(nSporkID)));
             }
             return ret;
-        } else if(strCommand == "active"){
+        } else if(strCommand == "active") {
             UniValue ret(UniValue::VOBJ);
-            for(int nSporkID = SPORK_START; nSporkID <= SPORK_END; nSporkID++){
+            for(int nSporkID = SPORK_START; nSporkID <= SPORK_END; nSporkID++) {
                 if(sporkManager.GetSporkNameByID(nSporkID) != "Unknown")
                     ret.push_back(Pair(sporkManager.GetSporkNameByID(nSporkID), sporkManager.IsSporkActive(nSporkID)));
             }
@@ -295,7 +293,6 @@ UniValue spork(const JSONRPCRequest& request)
                 + HelpExampleRpc("spork", "\"SPORK_2_INSTANTSEND_ENABLED\", 4070908800"));
         }
     }
-
 }
 
 UniValue validateaddress(const JSONRPCRequest& request)
@@ -337,8 +334,7 @@ UniValue validateaddress(const JSONRPCRequest& request)
 
     UniValue ret(UniValue::VOBJ);
     ret.push_back(Pair("isvalid", isValid));
-    if (isValid)
-    {
+    if (isValid) {
         CTxDestination dest = address.Get();
         std::string currentAddress = address.ToString();
         ret.push_back(Pair("address", currentAddress));
@@ -395,14 +391,12 @@ CScript _createmultisig_redeemScript(const UniValue& params)
         throw std::runtime_error("Number of addresses involved in the multisignature address creation > 16\nReduce the number");
     std::vector<CPubKey> pubkeys;
     pubkeys.resize(keys.size());
-    for (unsigned int i = 0; i < keys.size(); i++)
-    {
+    for (unsigned int i = 0; i < keys.size(); i++) {
         const std::string& ks = keys[i].get_str();
 #ifdef ENABLE_WALLET
         // Case 1: Dash address and we have full public key:
         CBitcoinAddress address(ks);
-        if (pwalletMain && address.IsValid())
-        {
+        if (pwalletMain && address.IsValid()) {
             CKeyID keyID;
             if (!address.GetKeyID(keyID))
                 throw std::runtime_error(
@@ -419,15 +413,12 @@ CScript _createmultisig_redeemScript(const UniValue& params)
         // Case 2: hex public key
         else
 #endif
-        if (IsHex(ks))
-        {
+        if (IsHex(ks)) {
             CPubKey vchPubKey(ParseHex(ks));
             if (!vchPubKey.IsFullyValid())
                 throw std::runtime_error(" Invalid public key: "+ks);
             pubkeys[i] = vchPubKey;
-        }
-        else
-        {
+        } else {
             throw std::runtime_error(" Invalid public key: "+ks);
         }
     }
@@ -442,8 +433,7 @@ CScript _createmultisig_redeemScript(const UniValue& params)
 
 UniValue createmultisig(const JSONRPCRequest& request)
 {
-    if (request.fHelp || request.params.size() < 2 || request.params.size() > 2)
-    {
+    if (request.fHelp || request.params.size() < 2 || request.params.size() > 2) {
         std::string msg = "createmultisig nrequired [\"key\",...]\n"
             "\nCreates a multi-signature address with n signature of m keys required.\n"
             "It returns a json object with the address and redeemScript.\n"
@@ -466,8 +456,7 @@ UniValue createmultisig(const JSONRPCRequest& request)
             "\nCreate a multisig address from 2 addresses\n"
             + HelpExampleCli("createmultisig", "2 \"[\\\"Xt4qk9uKvQYAonVGSZNXqxeDmtjaEWgfrs\\\",\\\"XoSoWQkpgLpppPoyyzbUFh1fq2RBvW6UK1\\\"]\"") +
             "\nAs a json rpc call\n"
-            + HelpExampleRpc("createmultisig", "2, \"[\\\"Xt4qk9uKvQYAonVGSZNXqxeDmtjaEWgfrs\\\",\\\"XoSoWQkpgLpppPoyyzbUFh1fq2RBvW6UK1\\\"]\"")
-        ;
+            + HelpExampleRpc("createmultisig", "2, \"[\\\"Xt4qk9uKvQYAonVGSZNXqxeDmtjaEWgfrs\\\",\\\"XoSoWQkpgLpppPoyyzbUFh1fq2RBvW6UK1\\\"]\"");
         throw std::runtime_error(msg);
     }
 
@@ -624,16 +613,14 @@ bool getAddressesFromParams(const UniValue& params, std::vector<std::pair<uint16
         CBitcoinAddress address(params[0].get_str());
         uint160 hashBytes;
         int type = 0;
-        if (!address.GetIndexKey(hashBytes, type)) {
+        if (!address.GetIndexKey(hashBytes, type))
             throw JSONRPCError(RPC_INVALID_ADDRESS_OR_KEY, "Invalid address");
-        }
         addresses.push_back(std::make_pair(hashBytes, type));
     } else if (params[0].isObject()) {
 
         UniValue addressValues = find_value(params[0].get_obj(), "addresses");
-        if (!addressValues.isArray()) {
+        if (!addressValues.isArray())
             throw JSONRPCError(RPC_INVALID_ADDRESS_OR_KEY, "Addresses is expected to be an array");
-        }
 
         std::vector<UniValue> values = addressValues.getValues();
 
@@ -642,9 +629,8 @@ bool getAddressesFromParams(const UniValue& params, std::vector<std::pair<uint16
             CBitcoinAddress address(it->get_str());
             uint160 hashBytes;
             int type = 0;
-            if (!address.GetIndexKey(hashBytes, type)) {
+            if (!address.GetIndexKey(hashBytes, type))
                 throw JSONRPCError(RPC_INVALID_ADDRESS_OR_KEY, "Invalid address");
-            }
             addresses.push_back(std::make_pair(hashBytes, type));
         }
     } else {
@@ -697,15 +683,13 @@ UniValue getaddressmempool(const JSONRPCRequest& request)
 
     std::vector<std::pair<uint160, int> > addresses;
 
-    if (!getAddressesFromParams(request.params, addresses)) {
+    if (!getAddressesFromParams(request.params, addresses))
         throw JSONRPCError(RPC_INVALID_ADDRESS_OR_KEY, "Invalid address");
-    }
 
     std::vector<std::pair<CMempoolAddressDeltaKey, CMempoolAddressDelta> > indexes;
 
-    if (!mempool.getAddressIndex(addresses, indexes)) {
+    if (!mempool.getAddressIndex(addresses, indexes))
         throw JSONRPCError(RPC_INVALID_ADDRESS_OR_KEY, "No information available for address");
-    }
 
     std::sort(indexes.begin(), indexes.end(), timestampSort);
 
@@ -715,9 +699,8 @@ UniValue getaddressmempool(const JSONRPCRequest& request)
          it != indexes.end(); it++) {
 
         std::string address;
-        if (!getAddressFromIndex(it->first.type, it->first.addressBytes, address)) {
+        if (!getAddressFromIndex(it->first.type, it->first.addressBytes, address))
             throw JSONRPCError(RPC_INVALID_ADDRESS_OR_KEY, "Unknown address type");
-        }
 
         UniValue delta(UniValue::VOBJ);
         delta.push_back(Pair("address", address));
@@ -767,16 +750,14 @@ UniValue getaddressutxos(const JSONRPCRequest& request)
 
     std::vector<std::pair<uint160, int> > addresses;
 
-    if (!getAddressesFromParams(request.params, addresses)) {
+    if (!getAddressesFromParams(request.params, addresses))
         throw JSONRPCError(RPC_INVALID_ADDRESS_OR_KEY, "Invalid address");
-    }
 
     std::vector<std::pair<CAddressUnspentKey, CAddressUnspentValue> > unspentOutputs;
 
     for (std::vector<std::pair<uint160, int> >::iterator it = addresses.begin(); it != addresses.end(); it++) {
-        if (!GetAddressUnspent((*it).first, (*it).second, unspentOutputs)) {
+        if (!GetAddressUnspent((*it).first, (*it).second, unspentOutputs))
             throw JSONRPCError(RPC_INVALID_ADDRESS_OR_KEY, "No information available for address");
-        }
     }
 
     std::sort(unspentOutputs.begin(), unspentOutputs.end(), heightSort);
@@ -786,9 +767,8 @@ UniValue getaddressutxos(const JSONRPCRequest& request)
     for (std::vector<std::pair<CAddressUnspentKey, CAddressUnspentValue> >::const_iterator it=unspentOutputs.begin(); it!=unspentOutputs.end(); it++) {
         UniValue output(UniValue::VOBJ);
         std::string address;
-        if (!getAddressFromIndex(it->first.type, it->first.hashBytes, address)) {
+        if (!getAddressFromIndex(it->first.type, it->first.hashBytes, address))
             throw JSONRPCError(RPC_INVALID_ADDRESS_OR_KEY, "Unknown address type");
-        }
 
         output.push_back(Pair("address", address));
         output.push_back(Pair("txid", it->first.txhash.GetHex()));
@@ -844,28 +824,24 @@ UniValue getaddressdeltas(const JSONRPCRequest& request)
     if (startValue.isNum() && endValue.isNum()) {
         start = startValue.get_int();
         end = endValue.get_int();
-        if (end < start) {
+        if (end < start)
             throw JSONRPCError(RPC_INVALID_ADDRESS_OR_KEY, "End value is expected to be greater than start");
-        }
     }
 
     std::vector<std::pair<uint160, int> > addresses;
 
-    if (!getAddressesFromParams(request.params, addresses)) {
+    if (!getAddressesFromParams(request.params, addresses))
         throw JSONRPCError(RPC_INVALID_ADDRESS_OR_KEY, "Invalid address");
-    }
 
     std::vector<std::pair<CAddressIndexKey, CAmount> > addressIndex;
 
     for (std::vector<std::pair<uint160, int> >::iterator it = addresses.begin(); it != addresses.end(); it++) {
         if (start > 0 && end > 0) {
-            if (!GetAddressIndex((*it).first, (*it).second, addressIndex, start, end)) {
+            if (!GetAddressIndex((*it).first, (*it).second, addressIndex, start, end))
                 throw JSONRPCError(RPC_INVALID_ADDRESS_OR_KEY, "No information available for address");
-            }
         } else {
-            if (!GetAddressIndex((*it).first, (*it).second, addressIndex)) {
+            if (!GetAddressIndex((*it).first, (*it).second, addressIndex))
                 throw JSONRPCError(RPC_INVALID_ADDRESS_OR_KEY, "No information available for address");
-            }
         }
     }
 
@@ -873,9 +849,8 @@ UniValue getaddressdeltas(const JSONRPCRequest& request)
 
     for (std::vector<std::pair<CAddressIndexKey, CAmount> >::const_iterator it=addressIndex.begin(); it!=addressIndex.end(); it++) {
         std::string address;
-        if (!getAddressFromIndex(it->first.type, it->first.hashBytes, address)) {
+        if (!getAddressFromIndex(it->first.type, it->first.hashBytes, address))
             throw JSONRPCError(RPC_INVALID_ADDRESS_OR_KEY, "Unknown address type");
-        }
 
         UniValue delta(UniValue::VOBJ);
         delta.push_back(Pair("satoshis", it->second));
@@ -916,25 +891,22 @@ UniValue getaddressbalance(const JSONRPCRequest& request)
 
     std::vector<std::pair<uint160, int> > addresses;
 
-    if (!getAddressesFromParams(request.params, addresses)) {
+    if (!getAddressesFromParams(request.params, addresses))
         throw JSONRPCError(RPC_INVALID_ADDRESS_OR_KEY, "Invalid address");
-    }
 
     std::vector<std::pair<CAddressIndexKey, CAmount> > addressIndex;
 
     for (std::vector<std::pair<uint160, int> >::iterator it = addresses.begin(); it != addresses.end(); it++) {
-        if (!GetAddressIndex((*it).first, (*it).second, addressIndex)) {
+        if (!GetAddressIndex((*it).first, (*it).second, addressIndex))
             throw JSONRPCError(RPC_INVALID_ADDRESS_OR_KEY, "No information available for address");
-        }
     }
 
     CAmount balance = 0;
     CAmount received = 0;
 
     for (std::vector<std::pair<CAddressIndexKey, CAmount> >::const_iterator it=addressIndex.begin(); it!=addressIndex.end(); it++) {
-        if (it->second > 0) {
+        if (it->second > 0)
             received += it->second;
-        }
         balance += it->second;
     }
 
@@ -974,9 +946,8 @@ UniValue getaddresstxids(const JSONRPCRequest& request)
 
     std::vector<std::pair<uint160, int> > addresses;
 
-    if (!getAddressesFromParams(request.params, addresses)) {
+    if (!getAddressesFromParams(request.params, addresses))
         throw JSONRPCError(RPC_INVALID_ADDRESS_OR_KEY, "Invalid address");
-    }
 
     int start = 0;
     int end = 0;
@@ -993,13 +964,11 @@ UniValue getaddresstxids(const JSONRPCRequest& request)
 
     for (std::vector<std::pair<uint160, int> >::iterator it = addresses.begin(); it != addresses.end(); it++) {
         if (start > 0 && end > 0) {
-            if (!GetAddressIndex((*it).first, (*it).second, addressIndex, start, end)) {
+            if (!GetAddressIndex((*it).first, (*it).second, addressIndex, start, end))
                 throw JSONRPCError(RPC_INVALID_ADDRESS_OR_KEY, "No information available for address");
-            }
         } else {
-            if (!GetAddressIndex((*it).first, (*it).second, addressIndex)) {
+            if (!GetAddressIndex((*it).first, (*it).second, addressIndex))
                 throw JSONRPCError(RPC_INVALID_ADDRESS_OR_KEY, "No information available for address");
-            }
         }
     }
 
@@ -1012,10 +981,8 @@ UniValue getaddresstxids(const JSONRPCRequest& request)
 
         if (addresses.size() > 1) {
             txids.insert(std::make_pair(height, txid));
-        } else {
-            if (txids.insert(std::make_pair(height, txid)).second) {
-                result.push_back(txid);
-            }
+        } else if (txids.insert(std::make_pair(height, txid)).second) {
+            result.push_back(txid);
         }
     }
 
@@ -1054,9 +1021,8 @@ UniValue getspentinfo(const JSONRPCRequest& request)
     UniValue txidValue = find_value(request.params[0].get_obj(), "txid");
     UniValue indexValue = find_value(request.params[0].get_obj(), "index");
 
-    if (!txidValue.isStr() || !indexValue.isNum()) {
+    if (!txidValue.isStr() || !indexValue.isNum())
         throw JSONRPCError(RPC_INVALID_ADDRESS_OR_KEY, "Invalid txid or index");
-    }
 
     uint256 txid = ParseHashV(txidValue, "txid");
     int outputIndex = indexValue.get_int();
@@ -1064,9 +1030,8 @@ UniValue getspentinfo(const JSONRPCRequest& request)
     CSpentIndexKey key(txid, outputIndex);
     CSpentIndexValue value;
 
-    if (!GetSpentIndex(key, value)) {
+    if (!GetSpentIndex(key, value))
         throw JSONRPCError(RPC_INVALID_ADDRESS_OR_KEY, "Unable to get spent info");
-    }
 
     UniValue obj(UniValue::VOBJ);
     obj.push_back(Pair("txid", value.txid.GetHex()));

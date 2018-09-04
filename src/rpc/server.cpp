@@ -76,18 +76,16 @@ void RPCTypeCheck(const UniValue& params,
             break;
 
         const UniValue& v = params[i];
-        if (!(fAllowNull && v.isNull())) {
+        if (!(fAllowNull && v.isNull()))
             RPCTypeCheckArgument(v, t);
-        }
         i++;
     }
 }
 
 void RPCTypeCheckArgument(const UniValue& value, UniValue::VType typeExpected)
 {
-    if (value.type() != typeExpected) {
+    if (value.type() != typeExpected)
         throw JSONRPCError(RPC_TYPE_ERROR, strprintf("Expected type %s, got %s", uvTypeName(typeExpected), uvTypeName(value.type())));
-    }
 }
 
 void RPCTypeCheckObj(const UniValue& o,
@@ -107,12 +105,9 @@ void RPCTypeCheckObj(const UniValue& o,
         }
     }
 
-    if (fStrict)
-    {
-        BOOST_FOREACH(const std::string& k, o.getKeys())
-        {
-            if (typesExpected.count(k) == 0)
-            {
+    if (fStrict) {
+        BOOST_FOREACH(const std::string& k, o.getKeys()) {
+            if (typesExpected.count(k) == 0) {
                 std::string err = strprintf("Unexpected key %s", k);
                 throw JSONRPCError(RPC_TYPE_ERROR, err);
             }
@@ -138,8 +133,7 @@ UniValue ValueFromAmount(const CAmount& amount)
     int64_t n_abs = (sign ? -amount : amount);
     int64_t quotient = n_abs / COIN;
     int64_t remainder = n_abs % COIN;
-    return UniValue(UniValue::VNUM,
-            strprintf("%s%d.%08d", sign ? "-" : "", quotient, remainder));
+    return UniValue(UniValue::VNUM, strprintf("%s%d.%08d", sign ? "-" : "", quotient, remainder));
 }
 
 uint256 ParseHashV(const UniValue& v, std::string strName)
@@ -155,10 +149,12 @@ uint256 ParseHashV(const UniValue& v, std::string strName)
     result.SetHex(strHex);
     return result;
 }
+
 uint256 ParseHashO(const UniValue& o, std::string strKey)
 {
     return ParseHashV(find_value(o, strKey), strKey);
 }
+
 std::vector<unsigned char> ParseHexV(const UniValue& v, std::string strName)
 {
     std::string strHex;
@@ -168,6 +164,7 @@ std::vector<unsigned char> ParseHexV(const UniValue& v, std::string strName)
         throw JSONRPCError(RPC_INVALID_PARAMETER, strName+" must be hexadecimal string (not '"+strHex+"')");
     return ParseHex(strHex);
 }
+
 std::vector<unsigned char> ParseHexO(const UniValue& o, std::string strKey)
 {
     return ParseHexV(find_value(o, strKey), strKey);
@@ -235,8 +232,7 @@ std::string CRPCTable::help(const std::string& strCommand, const std::string& st
         vCommands.push_back(make_pair(mi->second->category + mi->first, mi->second));
     sort(vCommands.begin(), vCommands.end());
 
-    BOOST_FOREACH(const PAIRTYPE(std::string, const CRPCCommand*)& command, vCommands)
-    {
+    BOOST_FOREACH(const PAIRTYPE(std::string, const CRPCCommand*)& command, vCommands) {
         const CRPCCommand *pcmd = command.second;
         std::string strMethod = pcmd->name;
         // We already filter duplicates, but these deprecated screw up the sort order
@@ -244,8 +240,7 @@ std::string CRPCTable::help(const std::string& strCommand, const std::string& st
             continue;
         if ((strCommand != "" || pcmd->category == "hidden") && strMethod != strCommand)
             continue;
-        try
-        {
+        try {
             JSONRPCRequest jreq;
             jreq.fHelp = true;
             if (!strSubCommand.empty()) {
@@ -255,18 +250,14 @@ std::string CRPCTable::help(const std::string& strCommand, const std::string& st
             rpcfn_type pfn = pcmd->actor;
             if (setDone.insert(pfn).second)
                 (*pfn)(jreq);
-        }
-        catch (const std::exception& e)
-        {
+        } catch (const std::exception& e) {
             // Help text is returned in an exception
             std::string strHelp = std::string(e.what());
-            if (strCommand == "")
-            {
+            if (strCommand == "") {
                 if (strHelp.find('\n') != std::string::npos)
                     strHelp = strHelp.substr(0, strHelp.find('\n'));
 
-                if (category != pcmd->category)
-                {
+                if (category != pcmd->category) {
                     if (!category.empty())
                         strRet += "\n";
                     category = pcmd->category;
@@ -334,8 +325,7 @@ static const CRPCCommand vRPCCommands[] =
 CRPCTable::CRPCTable()
 {
     unsigned int vcidx;
-    for (vcidx = 0; vcidx < (sizeof(vRPCCommands) / sizeof(vRPCCommands[0])); vcidx++)
-    {
+    for (vcidx = 0; vcidx < (sizeof(vRPCCommands) / sizeof(vRPCCommands[0])); vcidx++) {
         const CRPCCommand *pcmd;
 
         pcmd = &vRPCCommands[vcidx];
@@ -454,15 +444,10 @@ static UniValue JSONRPCExecOne(const UniValue& req)
 
         UniValue result = tableRPC.execute(jreq);
         rpc_result = JSONRPCReplyObj(result, NullUniValue, jreq.id);
-    }
-    catch (const UniValue& objError)
-    {
+    } catch (const UniValue& objError) {
         rpc_result = JSONRPCReplyObj(NullUniValue, objError, jreq.id);
-    }
-    catch (const std::exception& e)
-    {
-        rpc_result = JSONRPCReplyObj(NullUniValue,
-                                     JSONRPCError(RPC_PARSE_ERROR, e.what()), jreq.id);
+    } catch (const std::exception& e) {
+        rpc_result = JSONRPCReplyObj(NullUniValue, JSONRPCError(RPC_PARSE_ERROR, e.what()), jreq.id);
     }
 
     return rpc_result;
@@ -512,9 +497,8 @@ static inline JSONRPCRequest transformNamedArguments(const JSONRPCRequest& in, c
         }
     }
     // If there are still arguments in the argsIn map, this is an error.
-    if (!argsIn.empty()) {
+    if (!argsIn.empty())
         throw JSONRPCError(RPC_INVALID_PARAMETER, "Unknown named parameter " + argsIn.begin()->first);
-    }
     // Return request with named arguments transformed to positional arguments
     return out;
 }
@@ -535,17 +519,14 @@ UniValue CRPCTable::execute(const JSONRPCRequest &request) const
 
     g_rpcSignals.PreCommand(*pcmd);
 
-    try
-    {
+    try {
         // Execute, convert arguments to array if necessary
         if (request.params.isObject()) {
             return pcmd->actor(transformNamedArguments(request, pcmd->argNames));
         } else {
             return pcmd->actor(request);
         }
-    }
-    catch (const std::exception& e)
-    {
+    } catch (const std::exception& e) {
         throw JSONRPCError(RPC_MISC_ERROR, e.what());
     }
 

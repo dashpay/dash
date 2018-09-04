@@ -265,16 +265,13 @@ UniValue getrawtransaction(const JSONRPCRequest& request)
     bool fVerbose = false;
     if (request.params.size() > 1) {
         if (request.params[1].isNum()) {
-            if (request.params[1].get_int() != 0) {
+            if (request.params[1].get_int() != 0)
                 fVerbose = true;
-            }
         }
         else if(request.params[1].isBool()) {
-            if(request.params[1].isTrue()) {
+            if(request.params[1].isTrue())
                 fVerbose = true;
-            }
-        }
-        else {
+        } else {
             throw JSONRPCError(RPC_TYPE_ERROR, "Invalid type provided. Verbose parameter must be a boolean.");
         }
     }
@@ -342,21 +339,18 @@ UniValue gettxoutproof(const JSONRPCRequest& request)
     CBlockIndex* pblockindex = NULL;
 
     uint256 hashBlock;
-    if (request.params.size() > 1)
-    {
+    if (request.params.size() > 1) {
         hashBlock = uint256S(request.params[1].get_str());
         if (!mapBlockIndex.count(hashBlock))
             throw JSONRPCError(RPC_INVALID_ADDRESS_OR_KEY, "Block not found");
         pblockindex = mapBlockIndex[hashBlock];
     } else {
         const Coin& coin = AccessByTxid(*pcoinsTip, oneTxid);
-        if (!coin.IsSpent() && coin.nHeight > 0 && coin.nHeight <= chainActive.Height()) {
+        if (!coin.IsSpent() && coin.nHeight > 0 && coin.nHeight <= chainActive.Height())
             pblockindex = chainActive[coin.nHeight];
-        }
     }
 
-    if (pblockindex == NULL)
-    {
+    if (pblockindex == NULL) {
         CTransactionRef tx;
         if (!GetTransaction(oneTxid, tx, Params().GetConsensus(), hashBlock, false) || hashBlock.IsNull())
             throw JSONRPCError(RPC_INVALID_ADDRESS_OR_KEY, "Transaction not yet in block");
@@ -632,7 +626,7 @@ UniValue decodescript(const JSONRPCRequest& request)
 
     UniValue r(UniValue::VOBJ);
     CScript script;
-    if (request.params[0].get_str().size() > 0){
+    if (request.params[0].get_str().size() > 0) {
         std::vector<unsigned char> scriptData(ParseHexV(request.params[0], "argument"));
         script = CScript(scriptData.begin(), scriptData.end());
     } else {
@@ -740,8 +734,7 @@ UniValue signrawtransaction(const JSONRPCRequest& request)
             CMutableTransaction tx;
             ssData >> tx;
             txVariants.push_back(tx);
-        }
-        catch (const std::exception&) {
+        } catch (const std::exception&) {
             throw JSONRPCError(RPC_DESERIALIZATION_ERROR, "TX decode failed");
         }
     }
@@ -902,23 +895,20 @@ UniValue signrawtransaction(const JSONRPCRequest& request)
 
         // ... and merge in other signatures:
         BOOST_FOREACH(const CMutableTransaction& txv, txVariants) {
-            if (txv.vin.size() > i) {
+            if (txv.vin.size() > i)
                 txin.scriptSig = CombineSignatures(prevPubKey, txConst, i, txin.scriptSig, txv.vin[i].scriptSig);
-            }
         }
         ScriptError serror = SCRIPT_ERR_OK;
-        if (!VerifyScript(txin.scriptSig, prevPubKey, STANDARD_SCRIPT_VERIFY_FLAGS, TransactionSignatureChecker(&txConst, i), &serror)) {
+        if (!VerifyScript(txin.scriptSig, prevPubKey, STANDARD_SCRIPT_VERIFY_FLAGS, TransactionSignatureChecker(&txConst, i), &serror))
             TxInErrorToJSON(txin, vErrors, ScriptErrorString(serror));
-        }
     }
     bool fComplete = vErrors.empty();
 
     UniValue result(UniValue::VOBJ);
     result.push_back(Pair("hex", EncodeHexTx(mergedTx)));
     result.push_back(Pair("complete", fComplete));
-    if (!vErrors.empty()) {
+    if (!vErrors.empty())
         result.push_back(Pair("errors", vErrors));
-    }
 
     return result;
 }
@@ -988,9 +978,8 @@ UniValue sendrawtransaction(const JSONRPCRequest& request)
             if (state.IsInvalid()) {
                 throw JSONRPCError(RPC_TRANSACTION_REJECTED, strprintf("%i: %s", state.GetRejectCode(), state.GetRejectReason()));
             } else {
-                if (fMissingInputs) {
+                if (fMissingInputs)
                     throw JSONRPCError(RPC_TRANSACTION_ERROR, "Missing inputs");
-                }
                 throw JSONRPCError(RPC_TRANSACTION_ERROR, state.GetRejectReason());
             }
         }
