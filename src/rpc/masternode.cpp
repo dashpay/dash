@@ -1083,8 +1083,7 @@ bool DecodeHexVecMnb(std::vector<CMasternodeBroadcast>& vecMnb, std::string strH
     CDataStream ssData(mnbData, SER_NETWORK, PROTOCOL_VERSION);
     try {
         ssData >> vecMnb;
-    }
-    catch (const std::exception&) {
+    } catch (const std::exception&) {
         return false;
     }
 
@@ -1118,8 +1117,7 @@ UniValue masternodebroadcast(const JSONRPCRequest& request)
                 );
 
 #ifdef ENABLE_WALLET
-    if (strCommand == "create-alias")
-    {
+    if (strCommand == "create-alias") {
         if (!EnsureWalletIsAvailable(request.fHelp))
             return NullUniValue;
 
@@ -1173,8 +1171,7 @@ UniValue masternodebroadcast(const JSONRPCRequest& request)
 
     }
 
-    if (strCommand == "create-all")
-    {
+    if (strCommand == "create-all") {
         if (!EnsureWalletIsAvailable(request.fHelp))
             return NullUniValue;
 
@@ -1225,8 +1222,7 @@ UniValue masternodebroadcast(const JSONRPCRequest& request)
     }
 #endif // ENABLE_WALLET
 
-    if (strCommand == "decode")
-    {
+    if (strCommand == "decode") {
         if (request.params.size() != 2)
             throw JSONRPCError(RPC_INVALID_PARAMETER, "Correct usage is 'masternodebroadcast decode \"hexstring\"'");
 
@@ -1274,8 +1270,7 @@ UniValue masternodebroadcast(const JSONRPCRequest& request)
         return returnObj;
     }
 
-    if (strCommand == "relay")
-    {
+    if (strCommand == "relay") {
         if (request.params.size() < 2 || request.params.size() > 3)
             throw JSONRPCError(RPC_INVALID_PARAMETER,   "masternodebroadcast relay \"hexstring\"\n"
                                                         "\nArguments:\n"

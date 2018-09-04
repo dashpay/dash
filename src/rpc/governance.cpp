@@ -273,7 +273,7 @@ UniValue gobject_submit(const JSONRPCRequest& request)
 
     if(govobj.GetObjectType() == GOVERNANCE_OBJECT_PROPOSAL) {
         CProposalValidator validator(strDataHex);
-        if(!validator.Validate())  {
+        if(!validator.Validate()) {
             throw JSONRPCError(RPC_INVALID_PARAMETER, "Invalid proposal data, error messages:" + validator.GetErrorMessages());
         }
     }
@@ -287,17 +287,13 @@ UniValue gobject_submit(const JSONRPCRequest& request)
         if(fMnFound) {
             govobj.SetMasternodeOutpoint(activeMasternodeInfo.outpoint);
             govobj.Sign(activeMasternodeInfo.keyOperator, activeMasternodeInfo.keyIDOperator);
-        }
-        else {
+        } else {
             LogPrintf("gobject(submit) -- Object submission rejected because node is not a masternode\n");
             throw JSONRPCError(RPC_INVALID_PARAMETER, "Only valid masternodes can submit this type of object");
         }
-    }
-    else {
-        if(request.params.size() != 6) {
-            LogPrintf("gobject(submit) -- Object submission rejected because fee tx not provided\n");
-            throw JSONRPCError(RPC_INVALID_PARAMETER, "The fee-txid parameter must be included to submit this type of object");
-        }
+    } else if (request.params.size() != 6) {
+        LogPrintf("gobject(submit) -- Object submission rejected because fee tx not provided\n");
+        throw JSONRPCError(RPC_INVALID_PARAMETER, "The fee-txid parameter must be included to submit this type of object");
     }
 
     std::string strHash = govobj.GetHash().ToString();
@@ -1020,8 +1016,7 @@ UniValue voteraw(const JSONRPCRequest& request)
     CGovernanceException exception;
     if(governance.ProcessVoteAndRelay(vote, exception, *g_connman)) {
         return "Voted successfully";
-    }
-    else {
+    } else {
         throw JSONRPCError(RPC_INTERNAL_ERROR, "Error voting : " + exception.GetMessage());
     }
 }
