@@ -474,9 +474,8 @@ UniValue masternode_start_missing(const JSONRPCRequest& request)
         EnsureWalletIsUnlocked();
     }
 
-    if(!masternodeSync.IsMasternodeListSynced()) {
+    if(!masternodeSync.IsMasternodeListSynced())
         throw JSONRPCError(RPC_CLIENT_IN_INITIAL_DOWNLOAD, "You can't use this command until masternode list is synced");
-    }
 
     std::vector<CMasternodeConfig::CMasternodeEntry> entries;
     for (const auto& mne : masternodeConfig.getEntries()) {
@@ -510,9 +509,8 @@ UniValue masternode_start_disabled(const JSONRPCRequest& request)
         EnsureWalletIsUnlocked();
     }
 
-    if(!masternodeSync.IsMasternodeListSynced()) {
+    if(!masternodeSync.IsMasternodeListSynced())
         throw JSONRPCError(RPC_CLIENT_IN_INITIAL_DOWNLOAD, "You can't use this command until masternode list is synced");
-    }
 
     std::vector<CMasternodeConfig::CMasternodeEntry> entries;
     for (const auto& mne : masternodeConfig.getEntries()) {
@@ -1083,8 +1081,7 @@ bool DecodeHexVecMnb(std::vector<CMasternodeBroadcast>& vecMnb, std::string strH
     CDataStream ssData(mnbData, SER_NETWORK, PROTOCOL_VERSION);
     try {
         ssData >> vecMnb;
-    }
-    catch (const std::exception&) {
+    } catch (const std::exception&) {
         return false;
     }
 
@@ -1225,8 +1222,7 @@ UniValue masternodebroadcast(const JSONRPCRequest& request)
     }
 #endif // ENABLE_WALLET
 
-    if (strCommand == "decode")
-    {
+    if (strCommand == "decode") {
         if (request.params.size() != 2)
             throw JSONRPCError(RPC_INVALID_PARAMETER, "Correct usage is 'masternodebroadcast decode \"hexstring\"'");
 
@@ -1274,8 +1270,7 @@ UniValue masternodebroadcast(const JSONRPCRequest& request)
         return returnObj;
     }
 
-    if (strCommand == "relay")
-    {
+    if (strCommand == "relay") {
         if (request.params.size() < 2 || request.params.size() > 3)
             throw JSONRPCError(RPC_INVALID_PARAMETER,   "masternodebroadcast relay \"hexstring\"\n"
                                                         "\nArguments:\n"
@@ -1325,7 +1320,7 @@ UniValue masternodebroadcast(const JSONRPCRequest& request)
 
 UniValue sentinelping(const JSONRPCRequest& request)
 {
-    if (request.fHelp || request.params.size() != 1) {
+    if (request.fHelp || request.params.size() != 1)
         throw std::runtime_error(
             "sentinelping version\n"
             "\nSentinel ping.\n"
@@ -1337,7 +1332,6 @@ UniValue sentinelping(const JSONRPCRequest& request)
             + HelpExampleCli("sentinelping", "1.0.2")
             + HelpExampleRpc("sentinelping", "1.0.2")
         );
-    }
 
     legacyActiveMasternodeManager.UpdateSentinelPing(StringVersionToInt(request.params[0].get_str()));
     return true;
