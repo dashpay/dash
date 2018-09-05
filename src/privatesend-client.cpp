@@ -1181,15 +1181,20 @@ bool CPrivateSendClientSession::SubmitDenominate(CConnman& connman)
     std::vector<CTxDSIn> vecTxDSInRet;
     std::vector<CTxOut> vecTxOutRet;
     // lean towards "highest" branch but still mix via "lowest" one someties
-    bool fMixLowest = GetRandInt(4) == 0;
+    bool fMixLowest = privateSendClient.nLiquidityProvider || (GetRandInt(4) == 0);
     // lean towards edges but still mix starting from the middle someties
     // Note: liqudity providers always start from 0
-    int nRoundStart = GetRandInt(4) == 0
-                        ? (privateSendClient.nLiquidityProvider ? 0 : (privateSendClient.nPrivateSendRounds / 2))
-                        : (fMixLowest ? 0 : privateSendClient.nPrivateSendRounds);
+    bool fScanFromTheMiddle = (privateSendClient.nLiquidityProvider == 0) && (GetRandInt(4) == 0);
+
+    int nRoundStart{0};
+    if (fScanFromTheMiddle) {
+        nRoundStart = privateSendClient.nPrivateSendRounds / 2;
+    } else if (!fMixLowest) {
+        nRoundStart = privateSendClient.nPrivateSendRounds;
+    }
 
     // Submit transaction to the pool if we get here
-    if (privateSendClient.nLiquidityProvider || fMixLowest) {
+    if (fMixLowest) {
         // Try to use only inputs with the same number of rounds, from low to high
         while (true) {
             for(int i = nRoundStart; i < privateSendClient.nPrivateSendRounds; i++) {
