@@ -35,3 +35,8 @@ bool CZMQAbstractNotifier::NotifyGovernanceObject(const CGovernanceObject& /*obj
 {
     return true;
 }
+
+bool CZMQAbstractNotifier::NotifyInstantSendDoubleSpendAttempt(const COutPoint& /*output*/)
+{
+    return true;
+}

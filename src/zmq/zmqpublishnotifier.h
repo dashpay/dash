@@ -10,6 +10,7 @@
 class CBlockIndex;
 class CGovernanceVote;
 class CGovernanceObject;
+class COutPoint;
 
 class CZMQAbstractPublishNotifier : public CZMQAbstractNotifier
 {
@@ -60,6 +61,12 @@ public:
     bool NotifyGovernanceObject(const CGovernanceObject &object) override;
 };
 
+class CZMQPublishHashInstantSendDoubleSpendNotifier : public CZMQAbstractPublishNotifier
+{
+public:
+    bool NotifyInstantSendDoubleSpendAttempt(const COutPoint &output) override;
+};
+
 class CZMQPublishRawBlockNotifier : public CZMQAbstractPublishNotifier
 {
 public:
@@ -88,5 +95,11 @@ class CZMQPublishRawGovernanceObjectNotifier : public CZMQAbstractPublishNotifie
 {
 public:
     bool NotifyGovernanceObject(const CGovernanceObject &object) override;
+};
+
+class CZMQPublishRawInstantSendDoubleSpendNotifier : public CZMQAbstractPublishNotifier
+{
+public:
+    bool NotifyInstantSendDoubleSpendAttempt(const COutPoint &output) override;
 };
 #endif // BITCOIN_ZMQ_ZMQPUBLISHNOTIFIER_H
