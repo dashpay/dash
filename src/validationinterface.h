@@ -41,7 +41,7 @@ protected:
     virtual void NotifyTransactionLock(const CTransaction &tx) {}
     virtual void NotifyGovernanceVote(const CGovernanceVote &vote) {}
     virtual void NotifyGovernanceObject(const CGovernanceObject &object) {}
-    virtual void NotifyInstantSendDoubleSpendAttempt(const CGovernanceObject &object) {}
+    virtual void NotifyInstantSendDoubleSpendAttempt(const COutPoint &output) {}
     virtual void SetBestChain(const CBlockLocator &locator) {}
     virtual bool UpdatedTransaction(const uint256 &hash) { return false;}
     virtual void Inventory(const uint256 &hash) {}
