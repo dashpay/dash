@@ -64,7 +64,7 @@ public:
 class CZMQPublishHashInstantSendDoubleSpendNotifier : public CZMQAbstractPublishNotifier
 {
 public:
-    bool NotifyInstantSendDoubleSpendAttempt(const COutPoint &output) override;
+    bool NotifyInstantSendDoubleSpendAttempt(const uint256 &conflictingHash, const uint256 &conflictsAgainstHash) override;
 };
 
 class CZMQPublishRawBlockNotifier : public CZMQAbstractPublishNotifier
@@ -100,6 +100,6 @@ public:
 class CZMQPublishRawInstantSendDoubleSpendNotifier : public CZMQAbstractPublishNotifier
 {
 public:
-    bool NotifyInstantSendDoubleSpendAttempt(const COutPoint &output) override;
+    bool NotifyInstantSendDoubleSpendAttempt(const uint256 &conflictingHash, const uint256 &conflictsAgainstHash) override;
 };
 #endif // BITCOIN_ZMQ_ZMQPUBLISHNOTIFIER_H

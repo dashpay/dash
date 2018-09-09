@@ -36,7 +36,7 @@ bool CZMQAbstractNotifier::NotifyGovernanceObject(const CGovernanceObject& /*obj
     return true;
 }
 
-bool CZMQAbstractNotifier::NotifyInstantSendDoubleSpendAttempt(const COutPoint& /*output*/)
+bool CZMQAbstractNotifier::NotifyInstantSendDoubleSpendAttempt(const uint256 /*&conflictingHash*/, const uint256 /*&conflictsAgainstHash*/)
 {
     return true;
 }

@@ -220,11 +220,11 @@ void CZMQNotificationInterface::NotifyGovernanceObject(const CGovernanceObject &
     }
 }
 
-void CZMQNotificationInterface::NotifyInstantSendDoubleSpendAttempt(const COutPoint &output)
+void CZMQNotificationInterface::NotifyInstantSendDoubleSpendAttempt(const uint256 &conflictingHash, const uint256 &conflictsAgainstHash)
 {
     for (auto it = notifiers.begin(); it != notifiers.end();) {
         CZMQAbstractNotifier *notifier = *it;
-        if (notifier->NotifyInstantSendDoubleSpendAttempt(output)) {
+        if (notifier->NotifyInstantSendDoubleSpendAttempt(conflictingHash, conflictsAgainstHash)) {
             ++it;
         } else {
             notifier->Shutdown();

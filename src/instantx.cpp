@@ -117,8 +117,8 @@ bool CInstantSend::ProcessTxLockRequest(const CTxLockRequest& txLockRequest, CCo
                 if(hash != txLockRequest.GetHash()) {
                     LogPrint("instantsend", "CInstantSend::ProcessTxLockRequest -- Double spend attempt! %s\n", txin.prevout.ToStringShort());
                     // do not fail here, let it go and see which one will get the votes to be locked
-                    // NOTIFY SCRIPTS + ZMQ
-                    GetMainSignals().NotifyInstantSendDoubleSpendAttempt(txin.prevout);
+                    // NOTIFY ZMQ
+                    GetMainSignals().NotifyInstantSendDoubleSpendAttempt(txHash, hash);
                 }
             }
         }

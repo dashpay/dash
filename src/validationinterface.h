@@ -20,7 +20,6 @@ class CValidationInterface;
 class CValidationState;
 class CGovernanceVote;
 class CGovernanceObject;
-class COutPoint;
 class uint256;
 
 // These functions dispatch to one or all registered wallets
@@ -41,7 +40,7 @@ protected:
     virtual void NotifyTransactionLock(const CTransaction &tx) {}
     virtual void NotifyGovernanceVote(const CGovernanceVote &vote) {}
     virtual void NotifyGovernanceObject(const CGovernanceObject &object) {}
-    virtual void NotifyInstantSendDoubleSpendAttempt(const COutPoint &output) {}
+    virtual void NotifyInstantSendDoubleSpendAttempt(const uint256 &conflictingHash, const uint256 &conflictsAgainstHash) {}
     virtual void SetBestChain(const CBlockLocator &locator) {}
     virtual bool UpdatedTransaction(const uint256 &hash) { return false;}
     virtual void Inventory(const uint256 &hash) {}

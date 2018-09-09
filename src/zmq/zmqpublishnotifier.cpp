@@ -199,14 +199,18 @@ bool CZMQPublishHashGovernanceObjectNotifier::NotifyGovernanceObject(const CGove
     return SendMessage(MSG_HASHGOBJ, data, 32);
 }
 
-bool CZMQPublishHashInstantSendDoubleSpendNotifier::NotifyInstantSendDoubleSpendAttempt(const COutPoint &output)
+bool CZMQPublishHashInstantSendDoubleSpendNotifier::NotifyInstantSendDoubleSpendAttempt(const uint256 &conflictingHash, const uint256 &conflictsAgainstHash)
 {
-    uint256 hash = output.hash;
-    LogPrint("zmq", "zmq: Publish hashinstantsenddoublespend %s\n", hash.GetHex());
-    char data[32];
+    LogPrint("zmq", "zmq: Publish hashinstantsenddoublespend %s conflicts against %s\n", conflictingHash, conflictsAgainstHash);
+    char dataConflictingHash[32];
     for (unsigned int i = 0; i < 32; i++)
-        data[31 - i] = hash.begin()[i];
-    return SendMessage(MSG_HASHISCON, data, 32);
+        dataConflictingHash[31 - i] = conflictingHash.begin()[i];
+    bool result = SendMessage(MSG_HASHISCON, dataConflictingHash, 32);
+
+    char dataConflictsAgainstHash[32];
+    for (unsigned int i = 0; i < 32; i++)
+        dataConflictsAgainstHash[31 - i] = conflictsAgainstHash.begin()[i];
+    return SendMessage(MSG_HASHISCON, dataConflictsAgainstHash, 32) && result;
 }
 
 
@@ -267,11 +271,12 @@ bool CZMQPublishRawGovernanceObjectNotifier::NotifyGovernanceObject(const CGover
     return SendMessage(MSG_RAWGOBJ, &(*ss.begin()), ss.size());
 }
 
-bool CZMQPublishRawInstantSendDoubleSpendNotifier::NotifyInstantSendDoubleSpendAttempt(const COutPoint &output)
+bool CZMQPublishRawInstantSendDoubleSpendNotifier::NotifyInstantSendDoubleSpendAttempt(const uint256 &conflictingHash, const uint256 &conflictsAgainstHash)
 {
-    uint256 nHash = output.hash;
-    LogPrint("zmq", "zmq: Publish rawinstantsenddoublespend %s\n", nHash.GetHex());
+    LogPrint("zmq", "zmq: Publish rawinstantsenddoublespend %s conflicts with %s\n", conflictingHash, conflictsAgainstHash);
     CDataStream ss(SER_NETWORK, PROTOCOL_VERSION);
-    ss << output;
-    return SendMessage(MSG_RAWISCON, &(*ss.begin()), ss.size());
+    ss << conflictingHash;
+    bool result = SendMessage(MSG_RAWISCON, &(*ss.begin()), ss.size());
+    ss << conflictsAgainstHash;
+    return SendMessage(MSG_RAWISCON, &(*ss.begin()), ss.size()) && result;
 }
