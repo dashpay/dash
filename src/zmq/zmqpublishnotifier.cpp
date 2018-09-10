@@ -199,18 +199,18 @@ bool CZMQPublishHashGovernanceObjectNotifier::NotifyGovernanceObject(const CGove
     return SendMessage(MSG_HASHGOBJ, data, 32);
 }
 
-bool CZMQPublishHashInstantSendDoubleSpendNotifier::NotifyInstantSendDoubleSpendAttempt(const uint256 &conflictingHash, const uint256 &conflictsAgainstHash)
+bool CZMQPublishHashInstantSendDoubleSpendNotifier::NotifyInstantSendDoubleSpendAttempt(const CTransaction &currentTx, const CTransaction &previousTx)
 {
-    LogPrint("zmq", "zmq: Publish hashinstantsenddoublespend %s conflicts against %s\n", conflictingHash, conflictsAgainstHash);
-    char dataConflictingHash[32];
+    LogPrint("zmq", "zmq: Publish hashinstantsenddoublespend %s conflicts against %s\n", currentTx.GetHash(), previousTx.GetHash());
+    char dataCurrentHash[32];
     for (unsigned int i = 0; i < 32; i++)
-        dataConflictingHash[31 - i] = conflictingHash.begin()[i];
-    bool result = SendMessage(MSG_HASHISCON, dataConflictingHash, 32);
+        dataCurrentHash[31 - i] = currentTx.GetHash().begin()[i];
+    bool result = SendMessage(MSG_HASHISCON, dataCurrentHash, 32);
 
-    char dataConflictsAgainstHash[32];
+    char dataPreviousHash[32];
     for (unsigned int i = 0; i < 32; i++)
-        dataConflictsAgainstHash[31 - i] = conflictsAgainstHash.begin()[i];
-    return SendMessage(MSG_HASHISCON, dataConflictsAgainstHash, 32) && result;
+        dataPreviousHash[31 - i] = previousTx.GetHash().begin()[i];
+    return SendMessage(MSG_HASHISCON, dataPreviousHash, 32) && result;
 }
 
 
@@ -271,12 +271,12 @@ bool CZMQPublishRawGovernanceObjectNotifier::NotifyGovernanceObject(const CGover
     return SendMessage(MSG_RAWGOBJ, &(*ss.begin()), ss.size());
 }
 
-bool CZMQPublishRawInstantSendDoubleSpendNotifier::NotifyInstantSendDoubleSpendAttempt(const uint256 &conflictingHash, const uint256 &conflictsAgainstHash)
+bool CZMQPublishRawInstantSendDoubleSpendNotifier::NotifyInstantSendDoubleSpendAttempt(const CTransaction &currentTx, const CTransaction &previousTx)
 {
-    LogPrint("zmq", "zmq: Publish rawinstantsenddoublespend %s conflicts with %s\n", conflictingHash, conflictsAgainstHash);
+    LogPrint("zmq", "zmq: Publish rawinstantsenddoublespend %s conflicts with %s\n", currentTx.GetHash(), previousTx.GetHash());
     CDataStream ss(SER_NETWORK, PROTOCOL_VERSION);
-    ss << conflictingHash;
+    ss << currentTx;
     bool result = SendMessage(MSG_RAWISCON, &(*ss.begin()), ss.size());
-    ss << conflictsAgainstHash;
+    ss << previousTx;
     return SendMessage(MSG_RAWISCON, &(*ss.begin()), ss.size()) && result;
 }

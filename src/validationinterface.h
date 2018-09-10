@@ -40,7 +40,7 @@ protected:
     virtual void NotifyTransactionLock(const CTransaction &tx) {}
     virtual void NotifyGovernanceVote(const CGovernanceVote &vote) {}
     virtual void NotifyGovernanceObject(const CGovernanceObject &object) {}
-    virtual void NotifyInstantSendDoubleSpendAttempt(const uint256 &conflictingHash, const uint256 &conflictsAgainstHash) {}
+    virtual void NotifyInstantSendDoubleSpendAttempt(const CTransaction &currentTx, const CTransaction &previousTx) {}
     virtual void SetBestChain(const CBlockLocator &locator) {}
     virtual bool UpdatedTransaction(const uint256 &hash) { return false;}
     virtual void Inventory(const uint256 &hash) {}
@@ -79,7 +79,7 @@ struct CMainSignals {
     /** Notifies listeners of a new governance object. */
     boost::signals2::signal<void (const CGovernanceObject &)> NotifyGovernanceObject;
     /** Notifies listeners of a attempted InstantSend double spend*/
-    boost::signals2::signal<void(const COutPoint &)> NotifyInstantSendDoubleSpendAttempt;
+    boost::signals2::signal<void(const CTransaction &currentTx, const CTransaction &previousTx)> NotifyInstantSendDoubleSpendAttempt;
     /** Notifies listeners of an updated transaction without new data (for now: a coinbase potentially becoming visible). */
     boost::signals2::signal<bool (const uint256 &)> UpdatedTransaction;
     /** Notifies listeners of a new active block chain. */

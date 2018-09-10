@@ -118,7 +118,12 @@ bool CInstantSend::ProcessTxLockRequest(const CTxLockRequest& txLockRequest, CCo
                     LogPrint("instantsend", "CInstantSend::ProcessTxLockRequest -- Double spend attempt! %s\n", txin.prevout.ToStringShort());
                     // do not fail here, let it go and see which one will get the votes to be locked
                     // NOTIFY ZMQ
-                    GetMainSignals().NotifyInstantSendDoubleSpendAttempt(txHash, hash);
+                    CTransaction txCurrent = *txLockRequest.tx; // currently processed tx
+                    auto itPrevious = mapTxLockCandidates.find(hash);
+                    if (itPrevious != mapTxLockCandidates.end() && itPrevious->second.txLockRequest) {
+                        CTransaction txPrevious = *itPrevious->second.txLockRequest.tx; // previously locked one
+                        GetMainSignals().NotifyInstantSendDoubleSpendAttempt(txCurrent, txPrevious);
+                    }
                 }
             }
         }
