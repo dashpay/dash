@@ -174,7 +174,7 @@
            </widget>
           </item>
           <item>
-           <widget class="QCheckBox" name="showPrivatesendPopups">
+           <widget class="QCheckBox" name="showPrivateSendPopups">
             <property name="toolTip">
              <string>Show system popups for PrivateSend mixing transactions&lt;br/&gt;just like for all other transaction types.</string>
             </property>

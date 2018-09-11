@@ -197,7 +197,7 @@ void WalletView::processNewTransaction(const QModelIndex& parent, int start, int
 
     QModelIndex index = ttm->index(start, 0, parent);
     QSettings settings;
-    if (!settings.value("fShowPrivatesendPopups").toBool()) {
+    if (!settings.value("fShowPrivateSendPopups").toBool()) {
         QVariant nType = ttm->data(index, TransactionTableModel::TypeRole);
         if (nType == TransactionRecord::PrivateSendDenominate ||
             nType == TransactionRecord::PrivateSendCollateralPayment ||

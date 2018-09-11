@@ -101,8 +101,8 @@ void OptionsModel::Init(bool resetSettings)
         settings.setValue("fShowAdvancedPSUI", false);
     fShowAdvancedPSUI = settings.value("fShowAdvancedPSUI", false).toBool();
 
-    if (!settings.contains("fShowPrivatesendPopups"))
-        settings.setValue("fShowPrivatesendPopups", true);
+    if (!settings.contains("fShowPrivateSendPopups"))
+        settings.setValue("fShowPrivateSendPopups", true);
 
     if (!settings.contains("fLowKeysWarning"))
         settings.setValue("fLowKeysWarning", true);
@@ -275,8 +275,8 @@ QVariant OptionsModel::data(const QModelIndex & index, int role) const
             return settings.value("fShowMasternodesTab");
         case ShowAdvancedPSUI:
             return fShowAdvancedPSUI;
-        case ShowPrivatesendPopups:
-            return settings.value("fShowPrivatesendPopups");
+        case ShowPrivateSendPopups:
+            return settings.value("fShowPrivateSendPopups");
         case LowKeysWarning:
             return settings.value("fLowKeysWarning");
         case PrivateSendRounds:
@@ -427,8 +427,8 @@ bool OptionsModel::setData(const QModelIndex & index, const QVariant & value, in
             settings.setValue("fShowAdvancedPSUI", fShowAdvancedPSUI);
             Q_EMIT advancedPSUIChanged(fShowAdvancedPSUI);
             break;
-        case ShowPrivatesendPopups:
-            settings.setValue("fShowPrivatesendPopups", value);
+        case ShowPrivateSendPopups:
+            settings.setValue("fShowPrivateSendPopups", value);
             break;
         case LowKeysWarning:
             settings.setValue("fLowKeysWarning", value);
