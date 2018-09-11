@@ -1195,25 +1195,35 @@ bool CPrivateSendClientSession::SubmitDenominate(CConnman& connman)
     // lean towards edges but still mix starting from the middle someties
     // Note: liqudity providers always start from 0
     bool fScanFromTheMiddle = (privateSendClient.nLiquidityProvider == 0) && (GetRandInt(4) == 0);
+    // Try to mix more than one input by default. Will fallback to a single input
+    // if mixing more inputs is impossible atm.
+    // Note: liqudity providers don't care
+    bool fAvoidSingle = privateSendClient.nLiquidityProvider == 0;
 
     int nRoundStart = GetStartRound(fMixLowest, fScanFromTheMiddle);
     int nRoundEdge = GetStartRound(fMixLowest, false);
+    int nRoundStartTmp{0};
 
     // Submit transaction to the pool if we get here
     while (true) {
-        for (int i = nRoundStart; i >= 0 && i < privateSendClient.nPrivateSendRounds; i += nLoopStep) {
-            if (PrepareDenominate(i, i, strError, vecPSInOutPairs, vecPSInOutPairsTmp)) {
-                LogPrintf("CPrivateSendClientSession::SubmitDenominate -- Running PrivateSend denominate for %d rounds, success\n", i);
-                return SendDenominate(vecPSInOutPairsTmp, connman);
+        nRoundStartTmp = nRoundStart;
+        while (true) {
+            for (int i = nRoundStartTmp; i >= 0 && i < privateSendClient.nPrivateSendRounds; i += nLoopStep) {
+                if (PrepareDenominate(i, i, strError, vecPSInOutPairs, vecPSInOutPairsTmp, fAvoidSingle)) {
+                    LogPrintf("CPrivateSendClientSession::SubmitDenominate -- Running PrivateSend denominate for %d rounds, success\n", i);
+                    return SendDenominate(vecPSInOutPairsTmp, connman);
+                }
+                LogPrint("privatesend", "CPrivateSendClientSession::SubmitDenominate -- Running PrivateSend denominate for %d rounds, error: %s\n", i, strError);
             }
-            LogPrint("privatesend", "CPrivateSendClientSession::SubmitDenominate -- Running PrivateSend denominate for %d rounds, error: %s\n", i, strError);
+            if (nRoundStartTmp == nRoundEdge) break;
+            nRoundStartTmp = nRoundEdge;
         }
-        if (nRoundStart == nRoundEdge) break;
-        nRoundStart = nRoundEdge;
+        if (!fAvoidSingle) break;
+        fAvoidSingle = false;
     }
 
     // We failed? That's strange but let's just make final attempt and try to mix everything
-    if (PrepareDenominate(0, privateSendClient.nPrivateSendRounds - 1, strError, vecPSInOutPairs, vecPSInOutPairsTmp)) {
+    if (PrepareDenominate(0, privateSendClient.nPrivateSendRounds - 1, strError, vecPSInOutPairs, vecPSInOutPairsTmp, false)) {
         LogPrintf("CPrivateSendClientSession::SubmitDenominate -- Running PrivateSend denominate for all rounds, success\n");
         return SendDenominate(vecPSInOutPairsTmp, connman);
     }
@@ -1259,7 +1269,7 @@ bool CPrivateSendClientSession::SelectDenominate(std::string& strErrorRet, std::
     return true;
 }
 
-bool CPrivateSendClientSession::PrepareDenominate(int nMinRounds, int nMaxRounds, std::string& strErrorRet, const std::vector< std::pair<CTxDSIn, CTxOut> >& vecPSInOutPairsIn, std::vector< std::pair<CTxDSIn, CTxOut> >& vecPSInOutPairsRet)
+bool CPrivateSendClientSession::PrepareDenominate(int nMinRounds, int nMaxRounds, std::string& strErrorRet, const std::vector< std::pair<CTxDSIn, CTxOut> >& vecPSInOutPairsIn, std::vector< std::pair<CTxDSIn, CTxOut> >& vecPSInOutPairsRet, bool fAvoidSingle)
 {
     std::vector<int> vecBits;
     if (!CPrivateSend::GetDenominationsBits(nSessionDenom, vecBits)) {
@@ -1307,7 +1317,7 @@ bool CPrivateSendClientSession::PrepareDenominate(int nMinRounds, int nMaxRounds
         }
     }
 
-    if (nDenomResult != nSessionDenom) {
+    if (nDenomResult != nSessionDenom || (fAvoidSingle && vecPSInOutPairsRet.size() == 1)) {
         // unlock used coins on failure
         for (const auto& pair : vecPSInOutPairsRet) {
             pwalletMain->UnlockCoin(pair.first.prevout);
