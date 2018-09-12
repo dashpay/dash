@@ -2002,6 +2002,11 @@ bool AppInitMain(boost::thread_group& threadGroup, CScheduler& scheduler)
 
     // ********************************************************* Step 11c: update block tip in Dash modules
 
+    // Wait for importing thread to finish before we continue. Otherwise the current chain tip will not be up-to-date
+    while (fImporting) {
+        MilliSleep(100);
+    }
+
     // force UpdatedBlockTip to initialize nCachedBlockHeight for DS, MN payments and budgets
     // but don't call it directly to prevent triggering of other listeners like zmq etc.
     // GetMainSignals().UpdatedBlockTip(chainActive.Tip());
