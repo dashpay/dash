@@ -1355,7 +1355,7 @@ bool CPrivateSendClientSession::MakeCollateralAmounts(CConnman& connman)
     if (!pwalletMain) return false;
 
     std::vector<CompactTallyItem> vecTally;
-    if(!pwalletMain->SelectCoinsGrouppedByAddresses(vecTally, false)) {
+    if(!pwalletMain->SelectCoinsGrouppedByAddresses(vecTally, false, false)) {
         LogPrint("privatesend", "CPrivateSendClientSession::MakeCollateralAmounts -- SelectCoinsGrouppedByAddresses can't find any inputs!\n");
         return false;
     }
