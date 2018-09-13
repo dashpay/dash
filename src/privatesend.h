@@ -24,7 +24,7 @@ static const int PRIVATESEND_QUEUE_TIMEOUT = 30;
 static const int PRIVATESEND_SIGNING_TIMEOUT = 15;
 
 //! minimum peer version accepted by mixing pool
-static const int MIN_PRIVATESEND_PEER_PROTO_VERSION = 70210;
+static const int MIN_PRIVATESEND_PEER_PROTO_VERSION = 70211;
 
 static const size_t PRIVATESEND_ENTRY_MAX_SIZE = 9;
 
@@ -390,8 +390,6 @@ private:
     CPrivateSend(CPrivateSend const&) = delete;
     CPrivateSend& operator=(CPrivateSend const&) = delete;
 
-    static const CAmount COLLATERAL = 0.001 * COIN;
-
     // static members
     static std::vector<CAmount> vecStandardDenominations;
     static std::map<uint256, CPrivateSendBroadcastTx> mapDSTX;
@@ -424,8 +422,8 @@ public:
 
     /// If the collateral is valid given by a client
     static bool IsCollateralValid(const CTransaction& txCollateral);
-    static CAmount GetCollateralAmount() { return COLLATERAL; }
-    static CAmount GetMaxCollateralAmount() { return COLLATERAL * 4; }
+    static CAmount GetCollateralAmount() { return vecStandardDenominations.back() / 10; }
+    static CAmount GetMaxCollateralAmount() { return GetCollateralAmount() * 4; }
 
     static bool IsCollateralAmount(CAmount nInputAmount);
 
