@@ -888,11 +888,10 @@ bool AcceptToMemoryPoolWorker(CTxMemPool& pool, CValidationState& state, const C
                 __func__, hash.ToString(), FormatStateMessage(state));
         }
 
-        // This transaction should only count for fee estimation if it isn't a
-        // BIP 125 replacement transaction (may not be widely supported), the
+        // This transaction should only count for fee estimation if it the
         // node is not behind, and the transaction is not dependent on any other
         // transactions in the mempool.
-        bool validForFeeEstimation = !fReplacementTransaction && IsCurrentForFeeEstimation() && pool.HasNoInputsOf(tx);
+        bool validForFeeEstimation = IsCurrentForFeeEstimation() && pool.HasNoInputsOf(tx);
 
         // Store transaction in memory
         pool.addUnchecked(hash, entry, setAncestors, validForFeeEstimation);
