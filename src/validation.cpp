@@ -699,23 +699,21 @@ bool AcceptToMemoryPoolWorker(CTxMemPool& pool, CValidationState& state, const C
         if (itConflicting != pool.mapNextTx.end())
         {
             const CTransaction *ptxConflicting = itConflicting->second;
-            if (!setConflicts.count(ptxConflicting->GetHash()))
-            {
-                // InstantSend txes are not replacable
-                if(instantsend.HasTxLockRequest(ptxConflicting->GetHash())) {
-                    // this tx conflicts with a Transaction Lock Request candidate
-                    return state.DoS(0, error("AcceptToMemoryPool : Transaction %s conflicts with Transaction Lock Request %s",
-                                            hash.ToString(), ptxConflicting->GetHash().ToString()),
-                                    REJECT_INVALID, "tx-txlockreq-mempool-conflict");
-                } else if (instantsend.HasTxLockRequest(hash)) {
-                    // this tx is a tx lock request and it conflicts with a normal tx
-                    return state.DoS(0, error("AcceptToMemoryPool : Transaction Lock Request %s conflicts with transaction %s",
-                                            hash.ToString(), ptxConflicting->GetHash().ToString()),
-                                    REJECT_INVALID, "txlockreq-tx-mempool-conflict");
-                }
-                // Transaction conflicts with mempool and RBF doesn't exsist in Dash
-                return state.Invalid(false, REJECT_CONFLICT, "txn-mempool-conflict");
+     
+            // InstantSend txes are not replacable
+            if(instantsend.HasTxLockRequest(ptxConflicting->GetHash())) {
+                // this tx conflicts with a Transaction Lock Request candidate
+                return state.DoS(0, error("AcceptToMemoryPool : Transaction %s conflicts with Transaction Lock Request %s",
+                                        hash.ToString(), ptxConflicting->GetHash().ToString()),
+                                REJECT_INVALID, "tx-txlockreq-mempool-conflict");
+            } else if (instantsend.HasTxLockRequest(hash)) {
+                // this tx is a tx lock request and it conflicts with a normal tx
+                return state.DoS(0, error("AcceptToMemoryPool : Transaction Lock Request %s conflicts with transaction %s",
+                                        hash.ToString(), ptxConflicting->GetHash().ToString()),
+                                REJECT_INVALID, "txlockreq-tx-mempool-conflict");
             }
+            // Transaction conflicts with mempool and RBF doesn't exsist in Dash
+            return state.Invalid(false, REJECT_CONFLICT, "txn-mempool-conflict");
         }
     }
     }
