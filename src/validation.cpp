@@ -858,13 +858,6 @@ bool AcceptToMemoryPoolWorker(CTxMemPool& pool, CValidationState& state, const C
             return state.DoS(0, false, REJECT_NONSTANDARD, "too-long-mempool-chain", false, errString);
         }
 
-        
-
-        // If we don't hold the lock allConflicting might be incomplete; the
-        // subsequent RemoveStaged() and addUnchecked() calls don't guarantee
-        // mempool consistency for us.
-        LOCK(pool.cs);
-
         // If we aren't going to actually accept it but just were verifying it, we are fine already
         if(fDryRun) return true;
 
