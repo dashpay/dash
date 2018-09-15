@@ -91,7 +91,6 @@ size_t nCoinCacheUsage = 5000 * 300;
 uint64_t nPruneTarget = 0;
 bool fAlerts = DEFAULT_ALERTS;
 int64_t nMaxTipAge = DEFAULT_MAX_TIP_AGE;
-bool fEnableReplacement = DEFAULT_ENABLE_REPLACEMENT;
 
 std::atomic<bool> fDIP0001ActiveAtTip{false};
 std::atomic<bool> fDIP0003ActiveAtTip{false};
@@ -714,34 +713,8 @@ bool AcceptToMemoryPoolWorker(CTxMemPool& pool, CValidationState& state, const C
                                             hash.ToString(), ptxConflicting->GetHash().ToString()),
                                     REJECT_INVALID, "txlockreq-tx-mempool-conflict");
                 }
-                // Allow opt-out of transaction replacement by setting
-                // nSequence >= maxint-1 on all inputs.
-                //
-                // maxint-1 is picked to still allow use of nLockTime by
-                // non-replaceable transactions. All inputs rather than just one
-                // is for the sake of multi-party protocols, where we don't
-                // want a single party to be able to disable replacement.
-                //
-                // The opt-out ignores descendants as anyone relying on
-                // first-seen mempool behavior should be checking all
-                // unconfirmed ancestors anyway; doing otherwise is hopelessly
-                // insecure.
-                bool fReplacementOptOut = true;
-                if (fEnableReplacement)
-                {
-                    BOOST_FOREACH(const CTxIn &_txin, ptxConflicting->vin)
-                    {
-                        if (_txin.nSequence < std::numeric_limits<unsigned int>::max()-1)
-                        {
-                            fReplacementOptOut = false;
-                            break;
-                        }
-                    }
-                }
-                if (fReplacementOptOut)
-                    return state.Invalid(false, REJECT_CONFLICT, "txn-mempool-conflict");
-
-                setConflicts.insert(ptxConflicting->GetHash());
+                // Transaction conflicts with mempool and RBF doesn't exsist in Dash
+                return state.Invalid(false, REJECT_CONFLICT, "txn-mempool-conflict");
             }
         }
     }
