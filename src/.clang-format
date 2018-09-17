@@ -10,6 +10,7 @@ AllowShortIfStatementsOnASingleLine: true
 AllowShortLoopsOnASingleLine: false
 AlwaysBreakBeforeMultilineStrings: false
 AlwaysBreakTemplateDeclarations: true
+AlignConsecutiveAssignments: true
 BinPackArguments: true
 BinPackParameters: false
 BreakBeforeBinaryOperators: false
