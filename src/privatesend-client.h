@@ -141,7 +141,11 @@ public:
         pendingDsaRequest(),
         keyHolderStorage()
         {}
-    CPrivateSendClientSession(const CPrivateSendClientSession& other) { /* dummy copy constructor*/ SetNull(); }
+    CPrivateSendClientSession(const CPrivateSendClientSession& other) : CPrivateSendBaseSession() {
+        /* dummy copy constructor*/
+        SetNull();
+    }
+
 
     void ProcessMessage(CNode* pfrom, const std::string& strCommand, CDataStream& vRecv, CConnman& connman);
 
