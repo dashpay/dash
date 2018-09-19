@@ -141,7 +141,6 @@ public:
         pendingDsaRequest(),
         keyHolderStorage()
         {}
-    CPrivateSendClientSession(const CPrivateSendClientSession& other) { /* dummy copy constructor*/ SetNull(); }
 
     void ProcessMessage(CNode* pfrom, const std::string& strCommand, CDataStream& vRecv, CConnman& connman);
 
@@ -175,7 +174,7 @@ private:
     std::vector<CAmount> vecDenominationsSkipped;
 
     // TODO: or map<denom, CPrivateSendClientSession> ??
-    std::vector<CPrivateSendClientSession> vecSessions;
+    std::deque<CPrivateSendClientSession> vecSessions;
     mutable CCriticalSection cs_vecsessions;
 
     int nCachedLastSuccessBlock;
