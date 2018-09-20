@@ -1289,7 +1289,14 @@ bool CPrivateSendClientSession::PrepareDenominate(int nMinRounds, int nMaxRounds
             if (vecSteps[nBit] >= nStepsMax) break;
             CAmount nValueDenom = vecStandardDenoms[nBit];
             if (pair.second.nValue == nValueDenom) {
-                CScript scriptDenom = fDryRun ? CScript() : keyHolderStorage.AddKey(pwalletMain);
+                CScript scriptDenom;
+                if (fDryRun) {
+                    scriptDenom = CScript();
+                } else {
+                    // randomly skip some inputs when we have at least one of the same denom already
+                    if (vecSteps[nBit] > 1 && GetRandInt(2)) break;
+                    scriptDenom = keyHolderStorage.AddKey(pwalletMain);
+                }
                 vecPSInOutPairsRet.emplace_back(pair.first, CTxOut(nValueDenom, scriptDenom));
                 fFound = true;
                 nDenomResult |= 1 << nBit;
