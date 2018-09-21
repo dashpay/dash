@@ -50,6 +50,7 @@
 #include "llmq/quorums_debug.h"
 #include "llmq/quorums_dkgsessionmgr.h"
 #include "llmq/quorums_signing.h"
+#include "llmq/quorums_instantx.h"
 
 #include <boost/thread.hpp>
 
@@ -2139,6 +2140,10 @@ bool static ProcessMessage(CNode* pfrom, const std::string& strCommand, CDataStr
                         tx.GetHash().ToString(), pfrom->id);
                 instantsend.AcceptLockRequest(txLockRequest);
                 instantsend.Vote(tx.GetHash(), connman);
+            }
+
+            if (strCommand == NetMsgType::TX || strCommand == NetMsgType::TXLOCKREQUEST) {
+                llmq::quorumInstantXManager.ProcessTx(pfrom, tx, connman, chainparams.GetConsensus());
             }
 
             mempool.check(pcoinsTip);

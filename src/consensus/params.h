@@ -166,6 +166,7 @@ struct Params {
 
     std::map<LLMQType, LLMQParams> llmqs;
     bool fLLMQAllowDummyCommitments;
+    LLMQType llmqForInstantSend{LLMQ_NONE};
 
     // This is temporary until we reset testnet for retesting of the full DIP3 deployment
     int nTemporaryTestnetForkDIP3Height{0};

@@ -46,6 +46,7 @@
 #include "evo/providertx.h"
 #include "evo/deterministicmns.h"
 #include "evo/cbtx.h"
+#include "llmq/quorums_instantx.h"
 
 #include <atomic>
 #include <sstream>
@@ -695,6 +696,10 @@ bool AcceptToMemoryPoolWorker(CTxMemPool& pool, CValidationState& state, const C
             return state.DoS(10, error("AcceptToMemoryPool : Transaction %s conflicts with completed Transaction Lock %s",
                                     hash.ToString(), hashLocked.ToString()),
                             REJECT_INVALID, "tx-txlock-conflict");
+    }
+
+    if (llmq::quorumInstantXManager.IsConflicting(tx, Params().GetConsensus())) {
+        LogPrint("mempool", "Conflicting tx %s\n", tx.GetHash().ToString());
     }
 
     // Check for conflicts with in-memory transactions
@@ -3261,6 +3266,9 @@ bool CheckBlock(const CBlock& block, CValidationState& state, const Consensus::P
                     return state.DoS(100, false, REJECT_INVALID, "conflict-tx-lock", false, 
                                      strprintf("transaction %s conflicts with transaction lock %s", tx->GetHash().ToString(), hashLocked.ToString()));
                 }
+            }
+            if (llmq::quorumInstantXManager.IsConflicting(*tx, consensusParams)) {
+                LogPrintf("CheckBlock(DASH): conflicting transaction %s in block\n", tx->GetHash().ToString());
             }
         }
     } else {
