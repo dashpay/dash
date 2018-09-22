@@ -33,8 +33,8 @@ void CSporkManager::Clear()
     LOCK(cs);
     mapSporksActive.clear();
     mapSporksByHash.clear();
-    sporkPubKeyID.SetNull();
-    sporkPrivKey = CKey();
+    // sporkPubKeyID and sporkPrivKey should be set in init.cpp,
+    // we should not alter them here.
 }
 
 void CSporkManager::ProcessSpork(CNode* pfrom, const std::string& strCommand, CDataStream& vRecv, CConnman& connman)
