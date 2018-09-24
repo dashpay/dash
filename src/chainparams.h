@@ -87,7 +87,6 @@ public:
     const std::vector<SeedSpec6>& FixedSeeds() const { return vFixedSeeds; }
     const CCheckpointData& Checkpoints() const { return checkpointData; }
     const ChainTxData& TxData() const { return chainTxData; }
-    void UpdateVersionBitsParameters(Consensus::DeploymentPos d, int64_t nStartTime, int64_t nTimeout, int64_t nWindowSize, int64_t nThresholdStart, int64_t nThresholdMin, int64_t nFalloffCoeff);
     void UpdateDIP3Parameters(int nActivationHeight, int nEnforcementHeight);
     void UpdateDIP8Parameters(int nActivationHeight);
     void UpdateBudgetParameters(int nMasternodePaymentsStartBlock, int nBudgetPaymentsStartBlock, int nSuperblockStartBlock);
@@ -138,7 +137,7 @@ protected:
  * @returns a CChainParams* of the chosen chain.
  * @throws a std::runtime_error if the chain is not supported.
  */
-std::unique_ptr<CChainParams> CreateChainParams(const std::string& chain, bool fHelpOnly = false);
+std::unique_ptr<const CChainParams> CreateChainParams(const std::string& chain, bool fHelpOnly = false);
 
 /**
  * Return the currently selected parameters. This won't change after app
@@ -152,10 +151,6 @@ const CChainParams &Params();
  */
 void SelectParams(const std::string& chain);
 
-/**
- * Allows modifying the Version Bits regtest parameters.
- */
-void UpdateVersionBitsParameters(Consensus::DeploymentPos d, int64_t nStartTime, int64_t nTimeout, int64_t nWindowSize, int64_t nThresholdStart, int64_t nThresholdMin, int64_t nFalloffCoeff);
 
 /**
  * Allows modifying the DIP3 activation and enforcement height
@@ -196,5 +191,4 @@ void UpdateLLMQTestParams(int size, int threshold);
  * Allows modifying parameters of the devnet LLMQ
  */
 void UpdateLLMQDevnetParams(int size, int threshold);
-
 #endif // BITCOIN_CHAINPARAMS_H

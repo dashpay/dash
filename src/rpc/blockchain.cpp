@@ -28,6 +28,7 @@
 #include <util/validation.h>
 #include <hash.h>
 #include <validationinterface.h>
+#include <versionbitsinfo.h>
 #include <warnings.h>
 
 #include <evo/specialtx.h>
