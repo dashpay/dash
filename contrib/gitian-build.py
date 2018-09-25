@@ -7,20 +7,20 @@ import sys
 
 def setup():
     global args, workdir
-    programs = ['ruby', 'git', 'apt-cacher-ng', 'make', 'wget']
-    if args.kvm:
-        programs += ['python-vm-builder', 'qemu-kvm', 'qemu-utils']
-    elif args.docker:
+    programs = ['ruby', 'git', 'make', 'wget']
+    if args.lxc:
+        programs += ['apt-cacher-ng', 'lxc', 'debootstrap']
+    elif args.kvm:
+        programs += ['apt-cacher-ng', 'python-vm-builder', 'qemu-kvm', 'qemu-utils']
+    elif args.docker and not os.path.isfile('/lib/systemd/system/docker.service'):
         dockers = ['docker.io', 'docker-ce']
         for i in dockers:
             return_code = subprocess.call(['sudo', 'apt-get', 'install', '-qq', i])
             if return_code == 0:
                 break
         if return_code != 0:
-            print('Cannot find any way to install docker', file=sys.stderr)
+            print('Cannot find any way to install Docker', file=sys.stderr)
             exit(1)
-    else:
-        programs += ['lxc', 'debootstrap']
     subprocess.check_call(['sudo', 'apt-get', 'install', '-qq'] + programs)
     if not os.path.isdir('gitian.sigs'):
         subprocess.check_call(['git', 'clone', 'https://github.com/dashpay/gitian.sigs.git'])
@@ -34,7 +34,7 @@ def setup():
     make_image_prog = ['bin/make-base-vm', '--suite', 'bionic', '--arch', 'amd64']
     if args.docker:
         make_image_prog += ['--docker']
-    elif not args.kvm:
+    elif args.lxc:
         make_image_prog += ['--lxc']
     subprocess.check_call(make_image_prog)
     os.chdir(workdir)
@@ -46,7 +46,7 @@ def setup():
 def build():
     global args, workdir
 
-    os.makedirs('dash-binaries/' + args.version, exist_ok=True)
+    os.makedirs('dashcore-binaries/' + args.version, exist_ok=True)
     print('\nBuilding Dependencies\n')
     os.chdir('gitian-builder')
     os.makedirs('inputs', exist_ok=True)
@@ -59,21 +59,21 @@ def build():
         print('\nCompiling ' + args.version + ' Linux')
         subprocess.check_call(['bin/gbuild', '-j', args.jobs, '-m', args.memory, '--commit', 'dash='+args.commit, '--url', 'dash='+args.url, '../dash/contrib/gitian-descriptors/gitian-linux.yml'])
         subprocess.check_call(['bin/gsign', '-p', args.sign_prog, '--signer', args.signer, '--release', args.version+'-linux', '--destination', '../gitian.sigs/', '../dash/contrib/gitian-descriptors/gitian-linux.yml'])
-        subprocess.check_call('mv build/out/dash-*.tar.gz build/out/src/dash-*.tar.gz ../dash-binaries/'+args.version, shell=True)
+        subprocess.check_call('mv build/out/dashcore-*.tar.gz build/out/src/dashcore-*.tar.gz ../dashcore-binaries/'+args.version, shell=True)
 
     if args.windows:
         print('\nCompiling ' + args.version + ' Windows')
         subprocess.check_call(['bin/gbuild', '-j', args.jobs, '-m', args.memory, '--commit', 'dash='+args.commit, '--url', 'dash='+args.url, '../dash/contrib/gitian-descriptors/gitian-win.yml'])
         subprocess.check_call(['bin/gsign', '-p', args.sign_prog, '--signer', args.signer, '--release', args.version+'-win-unsigned', '--destination', '../gitian.sigs/', '../dash/contrib/gitian-descriptors/gitian-win.yml'])
-        subprocess.check_call('mv build/out/dash-*-win-unsigned.tar.gz inputs/dash-win-unsigned.tar.gz', shell=True)
-        subprocess.check_call('mv build/out/dash-*.zip build/out/dash-*.exe ../dash-binaries/'+args.version, shell=True)
+        subprocess.check_call('mv build/out/dashcore-*-win-unsigned.tar.gz inputs/dashcore-win-unsigned.tar.gz', shell=True)
+        subprocess.check_call('mv build/out/dashcore-*.zip build/out/dashcore-*.exe ../dashcore-binaries/'+args.version, shell=True)
 
     if args.macos:
         print('\nCompiling ' + args.version + ' MacOS')
         subprocess.check_call(['bin/gbuild', '-j', args.jobs, '-m', args.memory, '--commit', 'dash='+args.commit, '--url', 'dash='+args.url, '../dash/contrib/gitian-descriptors/gitian-osx.yml'])
         subprocess.check_call(['bin/gsign', '-p', args.sign_prog, '--signer', args.signer, '--release', args.version+'-osx-unsigned', '--destination', '../gitian.sigs/', '../dash/contrib/gitian-descriptors/gitian-osx.yml'])
-        subprocess.check_call('mv build/out/dash-*-osx-unsigned.tar.gz inputs/dash-osx-unsigned.tar.gz', shell=True)
-        subprocess.check_call('mv build/out/dash-*.tar.gz build/out/dash-*.dmg ../dash-binaries/'+args.version, shell=True)
+        subprocess.check_call('mv build/out/dashcore-*-osx-unsigned.tar.gz inputs/dashcore-osx-unsigned.tar.gz', shell=True)
+        subprocess.check_call('mv build/out/dashcore-*.tar.gz build/out/dashcore-*.dmg ../dashcore-binaries/'+args.version, shell=True)
 
     os.chdir(workdir)
 
@@ -94,14 +94,14 @@ def sign():
         print('\nSigning ' + args.version + ' Windows')
         subprocess.check_call(['bin/gbuild', '-i', '--commit', 'signature='+args.commit, '../dash/contrib/gitian-descriptors/gitian-win-signer.yml'])
         subprocess.check_call(['bin/gsign', '-p', args.sign_prog, '--signer', args.signer, '--release', args.version+'-win-signed', '--destination', '../gitian.sigs/', '../dash/contrib/gitian-descriptors/gitian-win-signer.yml'])
-        subprocess.check_call('mv build/out/dash-*win64-setup.exe ../dash-binaries/'+args.version, shell=True)
-        subprocess.check_call('mv build/out/dash-*win32-setup.exe ../dash-binaries/'+args.version, shell=True)
+        subprocess.check_call('mv build/out/dashcore-*win64-setup.exe ../dashcore-binaries/'+args.version, shell=True)
+        subprocess.check_call('mv build/out/dashcore-*win32-setup.exe ../dashcore-binaries/'+args.version, shell=True)
 
     if args.macos:
         print('\nSigning ' + args.version + ' MacOS')
         subprocess.check_call(['bin/gbuild', '-i', '--commit', 'signature='+args.commit, '../dash/contrib/gitian-descriptors/gitian-osx-signer.yml'])
         subprocess.check_call(['bin/gsign', '-p', args.sign_prog, '--signer', args.signer, '--release', args.version+'-osx-signed', '--destination', '../gitian.sigs/', '../dash/contrib/gitian-descriptors/gitian-osx-signer.yml'])
-        subprocess.check_call('mv build/out/dash-osx-signed.dmg ../dash-binaries/'+args.version+'/dash-'+args.version+'-osx.dmg', shell=True)
+        subprocess.check_call('mv build/out/dashcore-osx-signed.dmg ../dashcore-binaries/'+args.version+'/dashcore-'+args.version+'-osx.dmg', shell=True)
 
     os.chdir(workdir)
 
@@ -144,9 +144,8 @@ def main():
     parser.add_argument('-o', '--os', dest='os', default='lwm', help='Specify which Operating Systems the build is for. Default is %(default)s. l for Linux, w for Windows, m for MacOS')
     parser.add_argument('-j', '--jobs', dest='jobs', default='2', help='Number of processes to use. Default %(default)s')
     parser.add_argument('-m', '--memory', dest='memory', default='2000', help='Memory to allocate in MiB. Default %(default)s')
-    parser.add_argument('-k', '--kvm', action='store_true', dest='kvm', help='Use KVM instead of LXC')
-    parser.add_argument('-d', '--docker', action='store_true', dest='docker', help='Use Docker instead of LXC')
-    parser.add_argument('-S', '--setup', action='store_true', dest='setup', help='Set up the Gitian building environment. Uses LXC. If you want to use KVM, use the --kvm option. Only works on Debian-based systems (Ubuntu, Debian)')
+    parser.add_argument('-V', '--virtualization', dest='virtualization', default='lxc', help='Specify virtualization technology to use: lxc for LXC, kvm for KVM, docker for Docker. Default is %(default)s')
+    parser.add_argument('-S', '--setup', action='store_true', dest='setup', help='Set up the Gitian building environment. Only works on Debian-based systems (Ubuntu, Debian)')
     parser.add_argument('-D', '--detach-sign', action='store_true', dest='detach_sign', help='Create the assert file for detached signing. Will not commit anything.')
     parser.add_argument('-n', '--no-commit', action='store_false', dest='commit_files', help='Do not commit anything to git')
     parser.add_argument('signer', help='GPG signer to sign each build assert file')
@@ -162,30 +161,36 @@ def main():
     args.is_bionic = b'bionic' in subprocess.check_output(['lsb_release', '-cs'])
 
     if args.buildsign:
-        args.build=True
-        args.sign=True
-
-    if args.kvm and args.docker:
-        raise Exception('Error: cannot have both kvm and docker')
+        args.build = True
+        args.sign = True
 
     args.sign_prog = 'true' if args.detach_sign else 'gpg --detach-sign'
 
-    # Set environment variable USE_LXC or USE_DOCKER, let gitian-builder know that we use lxc or docker
-    if args.docker:
-        os.environ['USE_DOCKER'] = '1'
-    elif not args.kvm:
-        os.environ['USE_LXC'] = '1'
-        if not 'GITIAN_HOST_IP' in os.environ.keys():
-            os.environ['GITIAN_HOST_IP'] = '10.0.3.1'
-        if not 'LXC_GUEST_IP' in os.environ.keys():
-            os.environ['LXC_GUEST_IP'] = '10.0.3.5'
-
-    # Disable for MacOS if no SDK found
-    if args.macos and not os.path.isfile('gitian-builder/inputs/MacOSX10.11.sdk.tar.gz'):
-        print('Cannot build for MacOS, SDK does not exist. Will build for other OSes')
-        args.macos = False
+    args.lxc = (args.virtualization == 'lxc')
+    args.kvm = (args.virtualization == 'kvm')
+    args.docker = (args.virtualization == 'docker')
 
     script_name = os.path.basename(sys.argv[0])
+    # Set all USE_* environment variables for gitian-builder: USE_LXC, USE_DOCKER and USE_VBOX
+    os.environ['USE_VBOX'] = ''
+    if args.lxc:
+        os.environ['USE_LXC'] = '1'
+        os.environ['USE_DOCKER'] = ''
+        if 'GITIAN_HOST_IP' not in os.environ.keys():
+            os.environ['GITIAN_HOST_IP'] = '10.0.3.1'
+        if 'LXC_GUEST_IP' not in os.environ.keys():
+            os.environ['LXC_GUEST_IP'] = '10.0.3.5'
+    elif args.kvm:
+        os.environ['USE_LXC'] = ''
+        os.environ['USE_DOCKER'] = ''
+    elif args.docker:
+        os.environ['USE_LXC'] = ''
+        os.environ['USE_DOCKER'] = '1'
+    else:
+        print(script_name+': Wrong virtualization option.')
+        print('Try '+script_name+' --help for more information')
+        exit(1)
+
     # Signer and version shouldn't be empty
     if args.signer == '':
         print(script_name+': Missing signer.')
@@ -203,6 +208,14 @@ def main():
 
     if args.setup:
         setup()
+
+    if not args.build and not args.sign and not args.verify:
+        exit(0)
+
+    # Disable for MacOS if no SDK found
+    if args.macos and not os.path.isfile('gitian-builder/inputs/MacOSX10.11.sdk.tar.gz'):
+        print('Cannot build for MacOS, SDK does not exist. Will build for other OSes')
+        args.macos = False
 
     os.chdir('dash')
     if args.pull:
