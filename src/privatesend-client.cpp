@@ -1293,7 +1293,8 @@ bool CPrivateSendClientSession::PrepareDenominate(int nMinRounds, int nMaxRounds
                     scriptDenom = CScript();
                 } else {
                     // randomly skip some inputs when we have at least one of the same denom already
-                    if (vecSteps[nBit] > 1 && GetRandInt(2)) {
+                    // TODO: make it adjustable via options/cmd-line params
+                    if (vecSteps[nBit] >= 1 && GetRandInt(5) == 0) {
                         // still count it as a step to randomize number of inputs
                         // if we have more than (or exactly) PRIVATESEND_ENTRY_MAX_SIZE of them
                         ++vecSteps[nBit];
