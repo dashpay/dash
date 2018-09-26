@@ -786,7 +786,9 @@ public:
         // long living quorum params
         consensus.llmqs[Consensus::LLMQ_10_60] = llmq10_60;
         consensus.llmqs[Consensus::LLMQ_50_60] = llmq50_60;
-        consensus.llmqForInstantSend = Consensus::LLMQ_10_60;
+        consensus.llmqForInstantSend = Consensus::LLMQ_50_60;
+
+        consensus.llmqs[Consensus::LLMQ_50_60].dkgRndSleepTime = 0;
     }
 
     void UpdateBIP9Parameters(Consensus::DeploymentPos d, int64_t nStartTime, int64_t nTimeout)

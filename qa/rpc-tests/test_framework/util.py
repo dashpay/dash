@@ -30,7 +30,7 @@ from .authproxy import AuthServiceProxy, JSONRPCException
 COVERAGE_DIR = None
 
 # The maximum number of nodes a single test can spawn
-MAX_NODES = 100
+MAX_NODES = 300
 # Don't assign rpc or p2p ports lower than this
 PORT_MIN = 11000
 # The number of ports to "reserve" for p2p and rpc, each

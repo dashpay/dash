@@ -13,7 +13,7 @@ mkdir docker/bin
 cp $BUILD_DIR/src/dashd docker/bin/
 cp $BUILD_DIR/src/dash-cli docker/bin/
 cp $BUILD_DIR/src/dash-tx docker/bin/
-strip docker/bin/dashd
+#strip docker/bin/dashd
 strip docker/bin/dash-cli
 strip docker/bin/dash-tx
 
