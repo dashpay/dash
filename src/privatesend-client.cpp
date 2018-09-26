@@ -1268,16 +1268,15 @@ bool CPrivateSendClientSession::PrepareDenominate(int nMinRounds, int nMaxRounds
         pwalletMain->LockCoin(pair.first.prevout);
     }
 
-    // Try to add every needed denomination, repeat up to 5-PRIVATESEND_ENTRY_MAX_SIZE times.
     // NOTE: No need to randomize order of inputs because they were
     // initially shuffled in CWallet::SelectPSInOutPairsByDenominations already.
-    int nStepsMax = 5 + GetRandInt(PRIVATESEND_ENTRY_MAX_SIZE - 5 + 1);
     int nDenomResult{0};
 
     std::vector<CAmount> vecStandardDenoms = CPrivateSend::GetStandardDenominations();
     std::vector<int> vecSteps(vecStandardDenoms.size(), 0);
     vecPSInOutPairsRet.clear();
 
+    // Try to add up to PRIVATESEND_ENTRY_MAX_SIZE of every needed denomination
     for (const auto& pair: vecPSInOutPairsIn) {
         if (pair.second.nRounds < nMinRounds || pair.second.nRounds > nMaxRounds) {
             // unlock unused coins
@@ -1286,7 +1285,7 @@ bool CPrivateSendClientSession::PrepareDenominate(int nMinRounds, int nMaxRounds
         }
         bool fFound = false;
         for (const auto& nBit : vecBits) {
-            if (vecSteps[nBit] >= nStepsMax) break;
+            if (vecSteps[nBit] >= PRIVATESEND_ENTRY_MAX_SIZE) break;
             CAmount nValueDenom = vecStandardDenoms[nBit];
             if (pair.second.nValue == nValueDenom) {
                 CScript scriptDenom;
@@ -1294,7 +1293,12 @@ bool CPrivateSendClientSession::PrepareDenominate(int nMinRounds, int nMaxRounds
                     scriptDenom = CScript();
                 } else {
                     // randomly skip some inputs when we have at least one of the same denom already
-                    if (vecSteps[nBit] > 1 && GetRandInt(2)) break;
+                    if (vecSteps[nBit] > 1 && GetRandInt(2)) {
+                        // still count it as a step to randomize number of inputs
+                        // if we have more than (or exactly) PRIVATESEND_ENTRY_MAX_SIZE of them
+                        ++vecSteps[nBit];
+                        break;
+                    }
                     scriptDenom = keyHolderStorage.AddKey(pwalletMain);
                 }
                 vecPSInOutPairsRet.emplace_back(pair.first, CTxOut(nValueDenom, scriptDenom));
