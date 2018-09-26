@@ -461,10 +461,11 @@ void CGovernanceManager::UpdateCachesAndClean()
     // forget about expired deleted objects
     hash_time_m_it s_it = mapErasedGovernanceObjects.begin();
     while (s_it != mapErasedGovernanceObjects.end()) {
-        if (s_it->second < nNow)
+        if (s_it->second < nNow) {
             mapErasedGovernanceObjects.erase(s_it++);
-        else
+        } else {
             ++s_it;
+        }
     }
 
     LogPrintf("CGovernanceManager::UpdateCachesAndClean -- %s\n", ToString());
@@ -474,8 +475,7 @@ CGovernanceObject* CGovernanceManager::FindGovernanceObject(const uint256& nHash
 {
     LOCK(cs);
 
-    if (mapObjects.count(nHash))
-        return &mapObjects[nHash];
+    if (mapObjects.count(nHash)) return &mapObjects[nHash];
 
     return nullptr;
 }
@@ -558,8 +558,7 @@ std::vector<const CGovernanceObject*> CGovernanceManager::GetAllNewerThan(int64_
 struct sortProposalsByVotes {
     bool operator()(const std::pair<CGovernanceObject*, int>& left, const std::pair<CGovernanceObject*, int>& right)
     {
-        if (left.second != right.second)
-            return (left.second > right.second);
+        if (left.second != right.second) return (left.second > right.second);
         return (UintToArith256(left.first->GetCollateralHash()) > UintToArith256(right.first->GetCollateralHash()));
     }
 };
@@ -735,14 +734,14 @@ void CGovernanceManager::SyncAll(CNode* pnode, CConnman& connman) const
 
 void CGovernanceManager::MasternodeRateUpdate(const CGovernanceObject& govobj)
 {
-    if (govobj.GetObjectType() != GOVERNANCE_OBJECT_TRIGGER)
-        return;
+    if (govobj.GetObjectType() != GOVERNANCE_OBJECT_TRIGGER) return;
 
     const COutPoint& masternodeOutpoint = govobj.GetMasternodeOutpoint();
     txout_m_it it = mapLastMasternodeObject.find(masternodeOutpoint);
 
-    if (it == mapLastMasternodeObject.end())
+    if (it == mapLastMasternodeObject.end()) {
         it = mapLastMasternodeObject.insert(txout_m_t::value_type(masternodeOutpoint, last_object_rec(true))).first;
+    }
 
     int64_t nTimestamp = govobj.GetCreationTime();
     it->second.triggerBuffer.AddTimestamp(nTimestamp);
@@ -767,11 +766,7 @@ bool CGovernanceManager::MasternodeRateCheck(const CGovernanceObject& govobj, bo
 
     fRateCheckBypassed = false;
 
-    if (!masternodeSync.IsSynced()) {
-        return true;
-    }
-
-    if (!fRateChecksEnabled) {
+    if (!masternodeSync.IsSynced() || !fRateChecksEnabled) {
         return true;
     }
 
@@ -799,8 +794,7 @@ bool CGovernanceManager::MasternodeRateCheck(const CGovernanceObject& govobj, bo
     }
 
     txout_m_it it = mapLastMasternodeObject.find(masternodeOutpoint);
-    if (it == mapLastMasternodeObject.end())
-        return true;
+    if (it == mapLastMasternodeObject.end()) return true;
 
     if (it->second.fStatusOK && !fForce) {
         fRateCheckBypassed = true;
@@ -823,8 +817,7 @@ bool CGovernanceManager::MasternodeRateCheck(const CGovernanceObject& govobj, bo
     LogPrintf("CGovernanceManager::MasternodeRateCheck -- Rate too high: object hash = %s, masternode = %s, object timestamp = %d, rate = %f, max rate = %f\n",
         strHash, masternodeOutpoint.ToStringShort(), nTimestamp, dRate, dMaxRate);
 
-    if (fUpdateFailStatus)
-        it->second.fStatusOK = false;
+    if (fUpdateFailStatus) it->second.fStatusOK = false;
 
     return false;
 }
@@ -945,10 +938,11 @@ void CGovernanceManager::CheckPostponedObjects(CConnman& connman)
         std::string strError;
         bool fMissingConfirmations;
         if (govobj.IsCollateralValid(strError, fMissingConfirmations)) {
-            if (govobj.IsValidLocally(strError, false))
+            if (govobj.IsValidLocally(strError, false)) {
                 AddGovernanceObject(govobj, connman);
-            else
+            } else {
                 LogPrintf("CGovernanceManager::CheckPostponedObjects -- %s invalid\n", nHash.ToString());
+            }
 
         } else if (fMissingConfirmations) {
             // wait for more confirmations
