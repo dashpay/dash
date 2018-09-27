@@ -99,11 +99,6 @@ public:
     bool IsValid(bool useVotingKey) const;
     void Relay(CConnman& connman) const;
 
-    std::string GetVoteString() const
-    {
-        return CGovernanceVoting::ConvertOutcomeToString(GetOutcome());
-    }
-
     const COutPoint& GetMasternodeOutpoint() const { return masternodeOutpoint; }
 
     /**
