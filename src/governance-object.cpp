@@ -481,9 +481,10 @@ bool CGovernanceObject::IsValidLocally(std::string& strError, bool& fMissingMast
         return true;
     }
     case GOVERNANCE_OBJECT_TRIGGER: {
-        if (!fCheckCollateral)
+        if (!fCheckCollateral) {
             // nothing else we can check here (yet?)
             return true;
+        }
 
         std::string strOutpoint = masternodeOutpoint.ToStringShort();
         masternode_info_t infoMn;
