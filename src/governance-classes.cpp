@@ -198,10 +198,10 @@ void CGovernanceTriggerManager::CleanAndRemove()
                 std::string strDataAsPlainString = "NULL";
                 if (pObj) {
                     strDataAsPlainString = pObj->GetDataAsPlainString();
-                } std::cout
-                << "CGovernanceTriggerManager::CleanAndRemove: Removing object: "
-                << strDataAsPlainString
-                << std::endl;);
+                } 
+                std::cout << "CGovernanceTriggerManager::CleanAndRemove: Removing object: "
+                          << strDataAsPlainString
+                          << std::endl;);
             LogPrint("gobject", "CGovernanceTriggerManager::CleanAndRemove -- Removing trigger object\n");
             // mark corresponding object for deletion
             if (pObj) {
