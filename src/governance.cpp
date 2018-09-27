@@ -819,7 +819,9 @@ bool CGovernanceManager::MasternodeRateCheck(const CGovernanceObject& govobj, bo
     LogPrintf("CGovernanceManager::MasternodeRateCheck -- Rate too high: object hash = %s, masternode = %s, object timestamp = %d, rate = %f, max rate = %f\n",
         strHash, masternodeOutpoint.ToStringShort(), nTimestamp, dRate, dMaxRate);
 
-    if (fUpdateFailStatus) it->second.fStatusOK = false;
+    if (fUpdateFailStatus) {
+        it->second.fStatusOK = false;
+    }
 
     return false;
 }
