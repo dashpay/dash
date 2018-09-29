@@ -25,7 +25,7 @@ void CMasternodeSync::Fail()
 void CMasternodeSync::Reset()
 {
     nCurrentAsset = MASTERNODE_SYNC_INITIAL;
-    nPeerCount = 0;
+    nTriedPeerCount = 0;
     nTimeAssetSyncStarted = GetTime();
     nTimeLastBumped = GetTime();
     nTimeLastFailure = 0;
@@ -101,7 +101,7 @@ void CMasternodeSync::SwitchToNextAsset(CConnman& connman)
 
             break;
     }
-    nPeerCount = 0;
+    nTriedPeerCount = 0;
     nTimeAssetSyncStarted = GetTime();
     BumpAssetLastTime("CMasternodeSync::SwitchToNextAsset");
 }
@@ -170,8 +170,8 @@ void CMasternodeSync::ProcessTick(CConnman& connman)
     }
 
     // Calculate "progress" for LOG reporting / GUI notification
-    double nSyncProgress = double(nPeerCount + (nCurrentAsset - 1) * 8) / (8*4);
-    LogPrintf("CMasternodeSync::ProcessTick -- nTick %d nCurrentAsset %d nPeerCount %d nSyncProgress %f\n", nTick, nCurrentAsset, nPeerCount, nSyncProgress);
+    double nSyncProgress = double(nTriedPeerCount + (nCurrentAsset - 1) * 8) / (8*4);
+    LogPrintf("CMasternodeSync::ProcessTick -- nTick %d nCurrentAsset %d nTriedPeerCount %d nSyncProgress %f\n", nTick, nCurrentAsset, nTriedPeerCount, nSyncProgress);
     uiInterface.NotifyAdditionalDataSyncProgressChanged(nSyncProgress);
 
     std::vector<CNode*> vNodesCopy = connman.CopyNodeVector(CConnman::FullyConnectedOnly);
@@ -259,7 +259,7 @@ void CMasternodeSync::ProcessTick(CConnman& connman)
                 // check for timeout first
                 if(GetTime() - nTimeLastBumped > MASTERNODE_SYNC_TIMEOUT_SECONDS) {
                     LogPrintf("CMasternodeSync::ProcessTick -- nTick %d nCurrentAsset %d -- timeout\n", nTick, nCurrentAsset);
-                    if (nPeerCount == 0) {
+                    if (nTriedPeerCount == 0) {
                         LogPrintf("CMasternodeSync::ProcessTick -- ERROR: failed to sync %s\n", GetAssetName());
                         // there is no way we can continue without masternode list, fail here and try later
                         Fail();
@@ -272,7 +272,7 @@ void CMasternodeSync::ProcessTick(CConnman& connman)
                 }
 
                 // request from three peers max
-                if (nPeerCount > 2) {
+                if (nTriedPeerCount > 2) {
                     connman.ReleaseNodeVector(vNodesCopy);
                     return;
                 }
@@ -282,7 +282,7 @@ void CMasternodeSync::ProcessTick(CConnman& connman)
                 netfulfilledman.AddFulfilledRequest(pnode->addr, "masternode-list-sync");
 
                 if (pnode->nVersion < mnpayments.GetMinMasternodePaymentsProto()) continue;
-                nPeerCount++;
+                nTriedPeerCount++;
 
                 mnodeman.DsegUpdate(pnode, connman);
 
@@ -305,7 +305,7 @@ void CMasternodeSync::ProcessTick(CConnman& connman)
                 // but that should be OK and it should timeout eventually.
                 if(GetTime() - nTimeLastBumped > MASTERNODE_SYNC_TIMEOUT_SECONDS) {
                     LogPrintf("CMasternodeSync::ProcessTick -- nTick %d nCurrentAsset %d -- timeout\n", nTick, nCurrentAsset);
-                    if (nPeerCount == 0) {
+                    if (nTriedPeerCount == 0) {
                         LogPrintf("CMasternodeSync::ProcessTick -- ERROR: failed to sync %s\n", GetAssetName());
                         // probably not a good idea to proceed without winner list
                         Fail();
@@ -320,7 +320,7 @@ void CMasternodeSync::ProcessTick(CConnman& connman)
                 // check for data
                 // if mnpayments already has enough blocks and votes, switch to the next asset
                 // try to fetch data from at least two peers though
-                if(nPeerCount > 1 && mnpayments.IsEnoughData()) {
+                if(nTriedPeerCount > 1 && mnpayments.IsEnoughData()) {
                     LogPrintf("CMasternodeSync::ProcessTick -- nTick %d nCurrentAsset %d -- found enough data\n", nTick, nCurrentAsset);
                     SwitchToNextAsset(connman);
                     connman.ReleaseNodeVector(vNodesCopy);
@@ -328,7 +328,7 @@ void CMasternodeSync::ProcessTick(CConnman& connman)
                 }
 
                 // request from three peers max
-                if (nPeerCount > 2) {
+                if (nTriedPeerCount > 2) {
                     connman.ReleaseNodeVector(vNodesCopy);
                     return;
                 }
@@ -338,7 +338,7 @@ void CMasternodeSync::ProcessTick(CConnman& connman)
                 netfulfilledman.AddFulfilledRequest(pnode->addr, "masternode-payment-sync");
 
                 if(pnode->nVersion < mnpayments.GetMinMasternodePaymentsProto()) continue;
-                nPeerCount++;
+                nTriedPeerCount++;
 
                 // ask node for all payment votes it has (new nodes will only return votes for future payments)
                 connman.PushMessage(pnode, msgMaker.Make(NetMsgType::MASTERNODEPAYMENTSYNC));
@@ -357,7 +357,7 @@ void CMasternodeSync::ProcessTick(CConnman& connman)
                 // check for timeout first
                 if(GetTime() - nTimeLastBumped > MASTERNODE_SYNC_TIMEOUT_SECONDS) {
                     LogPrintf("CMasternodeSync::ProcessTick -- nTick %d nCurrentAsset %d -- timeout\n", nTick, nCurrentAsset);
-                    if(nPeerCount == 0) {
+                    if(nTriedPeerCount == 0) {
                         LogPrintf("CMasternodeSync::ProcessTick -- WARNING: failed to sync %s\n", GetAssetName());
                         // it's kind of ok to skip this for now, hopefully we'll catch up later?
                     }
@@ -402,7 +402,7 @@ void CMasternodeSync::ProcessTick(CConnman& connman)
                 netfulfilledman.AddFulfilledRequest(pnode->addr, "governance-sync");
 
                 if (pnode->nVersion < MIN_GOVERNANCE_PEER_PROTO_VERSION) continue;
-                nPeerCount++;
+                nTriedPeerCount++;
 
                 SendGovernanceSyncRequest(pnode, connman);
 

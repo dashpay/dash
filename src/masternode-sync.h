@@ -34,7 +34,7 @@ private:
     // Keep track of current asset
     int nCurrentAsset;
     // Count peers we've requested the asset from
-    int nPeerCount;
+    int nTriedPeerCount;
 
     // Time when current masternode asset sync started
     int64_t nTimeAssetSyncStarted;
@@ -58,7 +58,7 @@ public:
     bool IsSynced() { return nCurrentAsset == MASTERNODE_SYNC_FINISHED; }
 
     int GetAssetID() { return nCurrentAsset; }
-    int GetAttempt() { return nPeerCount; }
+    int GetAttempt() { return nTriedPeerCount; }
     void BumpAssetLastTime(const std::string& strFuncName);
     int64_t GetAssetStartTime() { return nTimeAssetSyncStarted; }
     std::string GetAssetName();
