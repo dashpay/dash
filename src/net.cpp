@@ -1966,7 +1966,7 @@ void CConnman::ThreadOpenMasternodeConnections()
 
         CService addr;
         { // don't hold lock while calling OpenMasternodeConnection as cs_main is locked deep inside
-            LOCK(cs_vPendingMasternodes);
+            LOCK2(cs_vNodes, cs_vPendingMasternodes);
 
             std::vector<CService> pending;
             for (auto& group : masternodeQuorumNodes) {
@@ -3128,7 +3128,7 @@ bool CConnman::ForNode(NodeId id, std::function<bool(const CNode* pnode)> cond, 
 
 void CConnman::ForEachQuorumMember(Consensus::LLMQType llmqType, const uint256& quorumHash, std::function<bool(CNode* pnode)> func) const
 {
-    LOCK2(cs_vPendingMasternodes, cs_vNodes);
+    LOCK2(cs_vNodes, cs_vPendingMasternodes);
     auto it = masternodeQuorumNodes.find(std::make_pair(llmqType, quorumHash));
     if (it == masternodeQuorumNodes.end()) {
         return;
