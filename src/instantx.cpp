@@ -989,7 +989,7 @@ bool CTxLockRequest::IsValid() const
 
 CAmount CTxLockRequest::GetMinFee() const
 {
-    if (IsSimple()) {
+    if (CInstantSend::CanAutoLock() && IsSimple()) {
         return CAmount();
     }
     CAmount nMinFee = MIN_FEE;
