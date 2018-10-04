@@ -262,6 +262,10 @@ class AutoInstantSendTest(BitcoinTestFramework):
     def send_regular_IX(self):
         receiver_addr = self.nodes[self.receiver_idx].getnewaddress()
         txid = self.nodes[0].instantsendtoaddress(receiver_addr, 1.0)
+        MIN_FEE = satoshi_round(-0.0001)
+        fee = self.nodes[0].gettransaction(txid)['fee']
+        expected_fee = MIN_FEE * len(self.nodes[0].getrawtransaction(txid, True)['vin'])
+        assert_equal(fee, expected_fee)
         return self.check_IX_lock(txid)
 
 
