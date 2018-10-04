@@ -302,5 +302,12 @@ class AutoInstantSendTest(BitcoinTestFramework):
         assert(self.send_simple_tx())
         assert(not self.send_complex_tx())
 
+        self.set_autoix_spork_state(False)
+        assert(not self.get_autoix_spork_state())
+
+        assert(self.send_regular_IX())
+        assert(not self.send_simple_tx())
+        assert(not self.send_complex_tx())
+
 if __name__ == '__main__':
     AutoInstantSendTest().main()
