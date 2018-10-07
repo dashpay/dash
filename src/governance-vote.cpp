@@ -36,7 +36,7 @@ std::string CGovernanceVoting::ConvertSignalToString(vote_signal_enum_t nSignal)
     const auto& it = mapSignalsString.find(nSignal);
     if (it == mapSignalsString.end()) {
         LogPrintf("CGovernanceVoting::%d -- ERROR: Unknown signal %d\n", __func__, nSignal);
-        return "NONE";
+        return "none";
     }
     return it->second;
 }
