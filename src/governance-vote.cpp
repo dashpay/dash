@@ -11,7 +11,7 @@
 
 std::string CGovernanceVoting::ConvertOutcomeToString(vote_outcome_enum_t nOutcome)
 {
-    static const std::map<vote_signal_enum_t, std::string> mapOutcomeString = {
+    static const std::map<vote_outcome_enum_t, std::string> mapOutcomeString = {
         { VOTE_OUTCOME_NONE, "none" },
         { VOTE_OUTCOME_YES, "yes" },
         { VOTE_OUTCOME_NO, "no" },
@@ -19,7 +19,7 @@ std::string CGovernanceVoting::ConvertOutcomeToString(vote_outcome_enum_t nOutco
 
     const auto& it = mapOutcomeString.find(nOutcome);
     if (it == mapOutcomeString.end()) {
-        LogPrintf("CGovernanceVoting::%s -- ERROR: Unknown outcome %s\n", __func__, nOutcome);
+        LogPrintf("CGovernanceVoting::%d -- ERROR: Unknown outcome %d\n", __func__, nOutcome);
         return "error";
     }
     return it->second;
@@ -27,7 +27,7 @@ std::string CGovernanceVoting::ConvertOutcomeToString(vote_outcome_enum_t nOutco
 
 std::string CGovernanceVoting::ConvertSignalToString(vote_signal_enum_t nSignal)
 {
-    static const std::map<std::string, vote_signal_enum_t> mapSignalsString = {
+    static const std::map<vote_signal_enum_t, std::string> mapSignalsString = {
         { VOTE_SIGNAL_FUNDING, "funding" },
         { VOTE_SIGNAL_VALID, "valid" },
         { VOTE_SIGNAL_DELETE, "delete" },
@@ -35,7 +35,7 @@ std::string CGovernanceVoting::ConvertSignalToString(vote_signal_enum_t nSignal)
 
     const auto& it = mapSignalsString.find(nSignal);
     if (it == mapSignalsString.end()) {
-        LogPrintf("CGovernanceVoting::%s -- ERROR: Unknown signal %s\n", __func__, nSignal);
+        LogPrintf("CGovernanceVoting::%d -- ERROR: Unknown signal %d\n", __func__, nSignal);
         return "NONE";
     }
     return it->second;
@@ -44,7 +44,7 @@ std::string CGovernanceVoting::ConvertSignalToString(vote_signal_enum_t nSignal)
 
 vote_outcome_enum_t CGovernanceVoting::ConvertVoteOutcome(const std::string& strVoteOutcome)
 {
-    static const std::map<vote_signal_enum_t, std::string> mapStringOutcome = {
+    static const std::map<std::string, vote_outcome_enum_t> mapStringOutcome = {
         { "none", VOTE_OUTCOME_NONE },
         { "yes", VOTE_OUTCOME_YES },
         { "no", VOTE_OUTCOME_NO },
