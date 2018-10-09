@@ -1178,7 +1178,7 @@ bool CPrivateSendClientSession::SubmitDenominate(CConnman& connman)
     }
 
     std::vector< std::pair<int, size_t> > vecInputsByRounds;
-    // Note: liqudity providers are fine whith whatever numner of inputs they've got
+    // Note: liqudity providers are fine with whatever number of inputs they've got
     bool fDryRun = privateSendClient.nLiquidityProvider == 0;
 
     for (int i = 0; i < privateSendClient.nPrivateSendRounds; i++) {
