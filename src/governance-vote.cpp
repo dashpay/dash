@@ -19,7 +19,7 @@ std::string CGovernanceVoting::ConvertOutcomeToString(vote_outcome_enum_t nOutco
 
     const auto& it = mapOutcomeString.find(nOutcome);
     if (it == mapOutcomeString.end()) {
-        LogPrintf("CGovernanceVoting::%s -- ERROR: Unknown outcome %s\n", __func__, nOutcome);
+        LogPrintf("CGovernanceVoting::%s -- ERROR: Unknown outcome %d\n", __func__, nOutcome);
         return "error";
     }
     return it->second;
@@ -35,7 +35,7 @@ std::string CGovernanceVoting::ConvertSignalToString(vote_signal_enum_t nSignal)
 
     const auto& it = mapSignalsString.find(nSignal);
     if (it == mapSignalsString.end()) {
-        LogPrintf("CGovernanceVoting::%s -- ERROR: Unknown signal %s\n", __func__, nSignal);
+        LogPrintf("CGovernanceVoting::%s -- ERROR: Unknown signal %d\n", __func__, nSignal);
         return "none";
     }
     return it->second;
