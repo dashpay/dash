@@ -17,7 +17,7 @@ $ sudo apt-get install curl build-essential libtool autotools-dev automake pkg-c
 
 #####Fedora:
 ```bash
-$ sudo dnf install gcc-c++ libtool make autoconf automake python3 cmake
+$ sudo dnf install gcc-c++ libtool make autoconf automake python3 cmake libstdc++-static patch
 ```
 
 #####Arch Linux
