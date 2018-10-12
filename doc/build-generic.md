@@ -67,7 +67,7 @@ The default maximum cache size is 5G, which might not be enough to cache multipl
 very often. It is advised to increase the maximum cache size:
 
 ```bash
-$ ./depends/<host>/bin/ccache -M20G
+$ ./depends/<host>/native/bin/ccache -M20G
 ```
 
 Additional Configure Flags
