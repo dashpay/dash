@@ -50,17 +50,18 @@ Notificator::Notificator(const QString &_programName, QSystemTrayIcon *_trayIcon
 #ifdef USE_DBUS
     interface = new QDBusInterface("org.freedesktop.Notifications",
         "/org/freedesktop/Notifications", "org.freedesktop.Notifications");
-    if(interface->isValid())
-    {
+    if (interface->isValid()) {
         mode = Freedesktop;
     }
 #endif
 #ifdef Q_OS_MAC
     // check if users OS has support for NSUserNotification
-    if( MacNotificationHandler::instance()->hasUserNotificationCenterSupport()) {
+    if (MacNotificationHandler::instance()->hasUserNotificationCenterSupport()) {
         mode = UserNotificationCenter;
-    }
-    else {
+    } else {
+#if defined(MAC_OSX)
+#pragma GCC diagnostic ignored "-Wdeprecated-declarations"
+#endif
         // Check if Growl is installed (based on Qt's tray icon implementation)
         CFURLRef cfurl;
         OSStatus status = LSGetApplicationForInfo(kLSUnknownType, kLSUnknownCreator, CFSTR("growlTicket"), kLSRolesAll, 0, &cfurl);
