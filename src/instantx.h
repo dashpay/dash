@@ -26,13 +26,13 @@ extern CInstantSend instantsend;
     (1000/2900.0)**5 = 0.004875397277841433
 */
 
-static const int MIN_INSTANTSEND_PROTO_VERSION      = 70210;
+static const int MIN_INSTANTSEND_PROTO_VERSION = 70210;
 
 static const int MIN_INSTANTSEND_WITHOUT_FEE_PROTO_VERSION = 70211;
 
 /// For how long we are going to accept votes/locks
 /// after we saw the first one for a specific transaction
-static const int INSTANTSEND_LOCK_TIMEOUT_SECONDS   = 15;
+static const int INSTANTSEND_LOCK_TIMEOUT_SECONDS = 15;
 /// For how long we are going to keep invalid votes and votes for failed lock attempts,
 /// must be greater than INSTANTSEND_LOCK_TIMEOUT_SECONDS
 static const int INSTANTSEND_FAILED_TIMEOUT_SECONDS = 60;
@@ -57,13 +57,13 @@ private:
     // maps for AlreadyHave
     std::map<uint256, CTxLockRequest> mapLockRequestAccepted; ///< Tx hash - Tx
     std::map<uint256, CTxLockRequest> mapLockRequestRejected; ///< Tx hash - Tx
-    std::map<uint256, CTxLockVote> mapTxLockVotes; ///< Vote hash - Vote
-    std::map<uint256, CTxLockVote> mapTxLockVotesOrphan; ///< Vote hash - Vote
+    std::map<uint256, CTxLockVote> mapTxLockVotes;            ///< Vote hash - Vote
+    std::map<uint256, CTxLockVote> mapTxLockVotesOrphan;      ///< Vote hash - Vote
 
     std::map<uint256, CTxLockCandidate> mapTxLockCandidates; ///< Tx hash - Lock candidate
 
     std::map<COutPoint, std::set<uint256> > mapVotedOutpoints; ///< UTXO - Tx hash set
-    std::map<COutPoint, uint256> mapLockedOutpoints; ///< UTXO - Tx hash
+    std::map<COutPoint, uint256> mapLockedOutpoints;           ///< UTXO - Tx hash
 
     /// Track masternodes who voted with no txlockrequest (for DOS protection)
     std::map<COutPoint, int64_t> mapMasternodeOrphanVotes; ///< MN outpoint - Time
@@ -92,12 +92,12 @@ public:
     ADD_SERIALIZE_METHODS;
 
     template <typename Stream, typename Operation>
-    inline void SerializationOp(Stream& s, Operation ser_action) {
+    inline void SerializationOp(Stream& s, Operation ser_action)
+    {
         std::string strVersion;
-        if(ser_action.ForRead()) {
+        if (ser_action.ForRead()) {
             READWRITE(strVersion);
-        }
-        else {
+        } else {
             strVersion = SERIALIZATION_VERSION_STRING;
             READWRITE(strVersion);
         }
@@ -112,7 +112,7 @@ public:
         READWRITE(mapMasternodeOrphanVotes);
         READWRITE(nCachedBlockHeight);
 
-        if(ser_action.ForRead() && (strVersion != SERIALIZATION_VERSION_STRING)) {
+        if (ser_action.ForRead() && (strVersion != SERIALIZATION_VERSION_STRING)) {
             Clear();
         }
     }
@@ -147,8 +147,8 @@ public:
 
     void Relay(const uint256& txHash, CConnman& connman);
 
-    void UpdatedBlockTip(const CBlockIndex *pindex);
-    void SyncTransaction(const CTransaction& tx, const CBlockIndex *pindex, int posInBlock);
+    void UpdatedBlockTip(const CBlockIndex* pindex);
+    void SyncTransaction(const CTransaction& tx, const CBlockIndex* pindex, int posInBlock);
 
     std::string ToString() const;
 
@@ -167,7 +167,7 @@ public:
 class CTxLockRequest
 {
 private:
-    static const CAmount MIN_FEE            = 0.0001 * COIN;
+    static const CAmount MIN_FEE = 0.0001 * COIN;
     /// If transaction has less or equal inputs than MAX_INPUTS_FOR_AUTO_IX,
     /// it will be automatically locked
     static const int MAX_INPUTS_FOR_AUTO_IX = 4;
@@ -175,18 +175,22 @@ private:
 public:
     /// Warn for a large number of inputs to an IS tx - fees could be substantial
     /// and the number txlvote responses requested large (10 * # of inputs)
-    static const int WARN_MANY_INPUTS       = 100;
+    static const int WARN_MANY_INPUTS = 100;
 
     CTransactionRef tx;
 
-    CTxLockRequest() : tx(MakeTransactionRef()) {}
-    CTxLockRequest(const CTransaction& _tx) : tx(MakeTransactionRef(_tx)) {};
-    CTxLockRequest(const CTransactionRef& _tx) : tx(_tx) {};
+    CTxLockRequest() :
+        tx(MakeTransactionRef()) {}
+    CTxLockRequest(const CTransaction& _tx) :
+        tx(MakeTransactionRef(_tx)){};
+    CTxLockRequest(const CTransactionRef& _tx) :
+        tx(_tx){};
 
     ADD_SERIALIZE_METHODS;
 
     template <typename Stream, typename Operation>
-    inline void SerializationOp(Stream& s, Operation ser_action) {
+    inline void SerializationOp(Stream& s, Operation ser_action)
+    {
         READWRITE(tx);
     }
 
@@ -197,11 +201,13 @@ public:
     // checks if related transaction is "simple" to lock it automatically
     bool IsSimple() const;
 
-    const uint256 &GetHash() const {
+    const uint256& GetHash() const
+    {
         return tx->GetHash();
     }
 
-    std::string ToString() const {
+    std::string ToString() const
+    {
         return tx->ToString();
     }
 
@@ -247,7 +253,8 @@ public:
         vchMasternodeSignature(),
         nConfirmedHeight(-1),
         nTimeCreated(GetTime())
-        {}
+    {
+    }
 
     CTxLockVote(const uint256& txHashIn, const COutPoint& outpointIn, const COutPoint& outpointMasternodeIn) :
         txHash(txHashIn),
@@ -256,12 +263,14 @@ public:
         vchMasternodeSignature(),
         nConfirmedHeight(-1),
         nTimeCreated(GetTime())
-        {}
+    {
+    }
 
     ADD_SERIALIZE_METHODS;
 
     template <typename Stream, typename Operation>
-    inline void SerializationOp(Stream& s, Operation ser_action) {
+    inline void SerializationOp(Stream& s, Operation ser_action)
+    {
         READWRITE(txHash);
         READWRITE(outpoint);
         READWRITE(outpointMasternode);
@@ -295,27 +304,29 @@ public:
 class COutPointLock
 {
 private:
-    COutPoint outpoint; ///< UTXO
+    COutPoint outpoint;                                  ///< UTXO
     std::map<COutPoint, CTxLockVote> mapMasternodeVotes; ///< Masternode outpoint - vote
     bool fAttacked = false;
 
 public:
-    static const int SIGNATURES_REQUIRED        = 6;
-    static const int SIGNATURES_TOTAL           = 10;
+    static const int SIGNATURES_REQUIRED = 6;
+    static const int SIGNATURES_TOTAL = 10;
 
     COutPointLock() {}
 
     COutPointLock(const COutPoint& outpointIn) :
         outpoint(outpointIn),
         mapMasternodeVotes()
-        {}
+    {
+    }
 
     COutPoint GetOutpoint() const { return outpoint; }
 
     ADD_SERIALIZE_METHODS;
 
     template <typename Stream, typename Operation>
-    inline void SerializationOp(Stream& s, Operation ser_action) {
+    inline void SerializationOp(Stream& s, Operation ser_action)
+    {
         READWRITE(outpoint);
         READWRITE(mapMasternodeVotes);
         READWRITE(fAttacked);
@@ -344,14 +355,16 @@ public:
     CTxLockCandidate() :
         nConfirmedHeight(-1),
         nTimeCreated(GetTime())
-    {}
+    {
+    }
 
     CTxLockCandidate(const CTxLockRequest& txLockRequestIn) :
         nConfirmedHeight(-1),
         nTimeCreated(GetTime()),
         txLockRequest(txLockRequestIn),
         mapOutPointLocks()
-        {}
+    {
+    }
 
     CTxLockRequest txLockRequest;
     std::map<COutPoint, COutPointLock> mapOutPointLocks;
@@ -359,7 +372,8 @@ public:
     ADD_SERIALIZE_METHODS;
 
     template <typename Stream, typename Operation>
-    inline void SerializationOp(Stream& s, Operation ser_action) {
+    inline void SerializationOp(Stream& s, Operation ser_action)
+    {
         READWRITE(txLockRequest);
         READWRITE(mapOutPointLocks);
         READWRITE(nTimeCreated);

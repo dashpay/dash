@@ -5,11 +5,11 @@
 #ifndef _BITCOIN_CUCKOOCACHE_H_
 #define _BITCOIN_CUCKOOCACHE_H_
 
-#include <array>
 #include <algorithm>
+#include <array>
 #include <atomic>
-#include <cstring>
 #include <cmath>
+#include <cstring>
 #include <memory>
 #include <vector>
 
@@ -218,13 +218,13 @@ private:
     inline std::array<uint32_t, 8> compute_hashes(const Element& e) const
     {
         return {{hash_function.template operator()<0>(e) & hash_mask,
-                 hash_function.template operator()<1>(e) & hash_mask,
-                 hash_function.template operator()<2>(e) & hash_mask,
-                 hash_function.template operator()<3>(e) & hash_mask,
-                 hash_function.template operator()<4>(e) & hash_mask,
-                 hash_function.template operator()<5>(e) & hash_mask,
-                 hash_function.template operator()<6>(e) & hash_mask,
-                 hash_function.template operator()<7>(e) & hash_mask}};
+            hash_function.template operator()<1>(e) & hash_mask,
+            hash_function.template operator()<2>(e) & hash_mask,
+            hash_function.template operator()<3>(e) & hash_mask,
+            hash_function.template operator()<4>(e) & hash_mask,
+            hash_function.template operator()<5>(e) & hash_mask,
+            hash_function.template operator()<6>(e) & hash_mask,
+            hash_function.template operator()<7>(e) & hash_mask}};
     }
 
     /* end
@@ -292,15 +292,16 @@ private:
             // epoch_unused_count), but we already know that `epoch_unused_count
             // < epoch_size` in this branch
             epoch_heuristic_counter = std::max(1u, std::max(epoch_size / 16,
-                        epoch_size - epoch_unused_count));
+                                                       epoch_size - epoch_unused_count));
     }
 
 public:
     /** You must always construct a cache with some elements via a subsequent
      * call to setup or setup_bytes, otherwise operations may segfault.
      */
-    cache() : table(), size(), collection_flags(0), epoch_flags(),
-    epoch_heuristic_counter(), epoch_size(), depth_limit(0), hash_function()
+    cache() :
+        table(), size(), collection_flags(0), epoch_flags(),
+        epoch_heuristic_counter(), epoch_size(), depth_limit(0), hash_function()
     {
     }
 
@@ -317,7 +318,7 @@ public:
         // depth_limit must be at least one otherwise errors can occur.
         depth_limit = static_cast<uint8_t>(std::log2(static_cast<float>(std::max((uint32_t)2, new_size))));
         size = 1 << depth_limit;
-        hash_mask = size-1;
+        hash_mask = size - 1;
         table.resize(size);
         collection_flags.setup(size);
         epoch_flags.resize(size);
@@ -342,7 +343,7 @@ public:
      */
     uint32_t setup_bytes(size_t bytes)
     {
-        return setup(bytes/sizeof(Element));
+        return setup(bytes / sizeof(Element));
     }
 
     /** insert loops at most depth_limit times trying to insert a hash

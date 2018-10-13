@@ -22,8 +22,9 @@ class WalletModel;
 class CCoinControl;
 class CTxMemPool;
 
-namespace Ui {
-    class CoinControlDialog;
+namespace Ui
+{
+class CoinControlDialog;
 }
 
 #define ASYMP_UTF8 "\xE2\x89\x88"
@@ -31,11 +32,14 @@ namespace Ui {
 class CCoinControlWidgetItem : public QTreeWidgetItem
 {
 public:
-    CCoinControlWidgetItem(QTreeWidget *parent, int type = Type) : QTreeWidgetItem(parent, type) {}
-    CCoinControlWidgetItem(int type = Type) : QTreeWidgetItem(type) {}
-    CCoinControlWidgetItem(QTreeWidgetItem *parent, int type = Type) : QTreeWidgetItem(parent, type) {}
+    CCoinControlWidgetItem(QTreeWidget* parent, int type = Type) :
+        QTreeWidgetItem(parent, type) {}
+    CCoinControlWidgetItem(int type = Type) :
+        QTreeWidgetItem(type) {}
+    CCoinControlWidgetItem(QTreeWidgetItem* parent, int type = Type) :
+        QTreeWidgetItem(parent, type) {}
 
-    bool operator<(const QTreeWidgetItem &other) const;
+    bool operator<(const QTreeWidgetItem& other) const;
 };
 
 
@@ -44,37 +48,36 @@ class CoinControlDialog : public QDialog
     Q_OBJECT
 
 public:
-    explicit CoinControlDialog(const PlatformStyle *platformStyle, QWidget *parent = 0);
+    explicit CoinControlDialog(const PlatformStyle* platformStyle, QWidget* parent = 0);
     ~CoinControlDialog();
 
-    void setModel(WalletModel *model);
+    void setModel(WalletModel* model);
 
     // static because also called from sendcoinsdialog
     static void updateLabels(WalletModel*, QDialog*);
 
     static QList<CAmount> payAmounts;
-    static CCoinControl *coinControl;
+    static CCoinControl* coinControl;
     static bool fSubtractFeeFromAmount;
 
 private:
-    Ui::CoinControlDialog *ui;
-    WalletModel *model;
+    Ui::CoinControlDialog* ui;
+    WalletModel* model;
     int sortColumn;
     Qt::SortOrder sortOrder;
 
-    QMenu *contextMenu;
-    QTreeWidgetItem *contextMenuItem;
-    QAction *copyTransactionHashAction;
-    QAction *lockAction;
-    QAction *unlockAction;
+    QMenu* contextMenu;
+    QTreeWidgetItem* contextMenuItem;
+    QAction* copyTransactionHashAction;
+    QAction* lockAction;
+    QAction* unlockAction;
 
-    const PlatformStyle *platformStyle;
+    const PlatformStyle* platformStyle;
 
     void sortView(int, Qt::SortOrder);
     void updateView();
 
-    enum
-    {
+    enum {
         COLUMN_CHECKBOX = 0,
         COLUMN_AMOUNT,
         COLUMN_LABEL,
@@ -88,7 +91,7 @@ private:
     friend class CCoinControlWidgetItem;
 
 private Q_SLOTS:
-    void showMenu(const QPoint &);
+    void showMenu(const QPoint&);
     void copyAmount();
     void copyLabel();
     void copyAddress();

@@ -37,33 +37,33 @@
 #define SPH_BMW_H__
 
 #ifdef __cplusplus
-extern "C"{
+extern "C" {
 #endif
 
-#include <stddef.h>
 #include "sph_types.h"
+#include <stddef.h>
 
 /**
  * Output size (in bits) for BMW-224.
  */
-#define SPH_SIZE_bmw224   224
+#define SPH_SIZE_bmw224 224
 
 /**
  * Output size (in bits) for BMW-256.
  */
-#define SPH_SIZE_bmw256   256
+#define SPH_SIZE_bmw256 256
 
 #if SPH_64
 
 /**
  * Output size (in bits) for BMW-384.
  */
-#define SPH_SIZE_bmw384   384
+#define SPH_SIZE_bmw384 384
 
 /**
  * Output size (in bits) for BMW-512.
  */
-#define SPH_SIZE_bmw512   512
+#define SPH_SIZE_bmw512 512
 
 #endif
 
@@ -79,13 +79,13 @@ extern "C"{
  */
 typedef struct {
 #ifndef DOXYGEN_IGNORE
-	unsigned char buf[64];    /* first field, for alignment */
-	size_t ptr;
-	sph_u32 H[16];
+    unsigned char buf[64]; /* first field, for alignment */
+    size_t ptr;
+    sph_u32 H[16];
 #if SPH_64
-	sph_u64 bit_count;
+    sph_u64 bit_count;
 #else
-	sph_u32 bit_count_high, bit_count_low;
+    sph_u32 bit_count_high, bit_count_low;
 #endif
 #endif
 } sph_bmw_small_context;
@@ -116,10 +116,10 @@ typedef sph_bmw_small_context sph_bmw256_context;
  */
 typedef struct {
 #ifndef DOXYGEN_IGNORE
-	unsigned char buf[128];    /* first field, for alignment */
-	size_t ptr;
-	sph_u64 H[16];
-	sph_u64 bit_count;
+    unsigned char buf[128]; /* first field, for alignment */
+    size_t ptr;
+    sph_u64 H[16];
+    sph_u64 bit_count;
 #endif
 } sph_bmw_big_context;
 
@@ -143,7 +143,7 @@ typedef sph_bmw_big_context sph_bmw512_context;
  * @param cc   the BMW-224 context (pointer to a
  *             <code>sph_bmw224_context</code>)
  */
-void sph_bmw224_init(void *cc);
+void sph_bmw224_init(void* cc);
 
 /**
  * Process some data bytes. It is acceptable that <code>len</code> is zero
@@ -153,7 +153,7 @@ void sph_bmw224_init(void *cc);
  * @param data   the input data
  * @param len    the input data length (in bytes)
  */
-void sph_bmw224(void *cc, const void *data, size_t len);
+void sph_bmw224(void* cc, const void* data, size_t len);
 
 /**
  * Terminate the current BMW-224 computation and output the result into
@@ -164,7 +164,7 @@ void sph_bmw224(void *cc, const void *data, size_t len);
  * @param cc    the BMW-224 context
  * @param dst   the destination buffer
  */
-void sph_bmw224_close(void *cc, void *dst);
+void sph_bmw224_close(void* cc, void* dst);
 
 /**
  * Add a few additional bits (0 to 7) to the current computation, then
@@ -180,7 +180,10 @@ void sph_bmw224_close(void *cc, void *dst);
  * @param dst   the destination buffer
  */
 void sph_bmw224_addbits_and_close(
-	void *cc, unsigned ub, unsigned n, void *dst);
+    void* cc,
+    unsigned ub,
+    unsigned n,
+    void* dst);
 
 /**
  * Initialize a BMW-256 context. This process performs no memory allocation.
@@ -188,7 +191,7 @@ void sph_bmw224_addbits_and_close(
  * @param cc   the BMW-256 context (pointer to a
  *             <code>sph_bmw256_context</code>)
  */
-void sph_bmw256_init(void *cc);
+void sph_bmw256_init(void* cc);
 
 /**
  * Process some data bytes. It is acceptable that <code>len</code> is zero
@@ -198,7 +201,7 @@ void sph_bmw256_init(void *cc);
  * @param data   the input data
  * @param len    the input data length (in bytes)
  */
-void sph_bmw256(void *cc, const void *data, size_t len);
+void sph_bmw256(void* cc, const void* data, size_t len);
 
 /**
  * Terminate the current BMW-256 computation and output the result into
@@ -209,7 +212,7 @@ void sph_bmw256(void *cc, const void *data, size_t len);
  * @param cc    the BMW-256 context
  * @param dst   the destination buffer
  */
-void sph_bmw256_close(void *cc, void *dst);
+void sph_bmw256_close(void* cc, void* dst);
 
 /**
  * Add a few additional bits (0 to 7) to the current computation, then
@@ -225,7 +228,10 @@ void sph_bmw256_close(void *cc, void *dst);
  * @param dst   the destination buffer
  */
 void sph_bmw256_addbits_and_close(
-	void *cc, unsigned ub, unsigned n, void *dst);
+    void* cc,
+    unsigned ub,
+    unsigned n,
+    void* dst);
 
 #if SPH_64
 
@@ -235,7 +241,7 @@ void sph_bmw256_addbits_and_close(
  * @param cc   the BMW-384 context (pointer to a
  *             <code>sph_bmw384_context</code>)
  */
-void sph_bmw384_init(void *cc);
+void sph_bmw384_init(void* cc);
 
 /**
  * Process some data bytes. It is acceptable that <code>len</code> is zero
@@ -245,7 +251,7 @@ void sph_bmw384_init(void *cc);
  * @param data   the input data
  * @param len    the input data length (in bytes)
  */
-void sph_bmw384(void *cc, const void *data, size_t len);
+void sph_bmw384(void* cc, const void* data, size_t len);
 
 /**
  * Terminate the current BMW-384 computation and output the result into
@@ -256,7 +262,7 @@ void sph_bmw384(void *cc, const void *data, size_t len);
  * @param cc    the BMW-384 context
  * @param dst   the destination buffer
  */
-void sph_bmw384_close(void *cc, void *dst);
+void sph_bmw384_close(void* cc, void* dst);
 
 /**
  * Add a few additional bits (0 to 7) to the current computation, then
@@ -272,7 +278,10 @@ void sph_bmw384_close(void *cc, void *dst);
  * @param dst   the destination buffer
  */
 void sph_bmw384_addbits_and_close(
-	void *cc, unsigned ub, unsigned n, void *dst);
+    void* cc,
+    unsigned ub,
+    unsigned n,
+    void* dst);
 
 /**
  * Initialize a BMW-512 context. This process performs no memory allocation.
@@ -280,7 +289,7 @@ void sph_bmw384_addbits_and_close(
  * @param cc   the BMW-512 context (pointer to a
  *             <code>sph_bmw512_context</code>)
  */
-void sph_bmw512_init(void *cc);
+void sph_bmw512_init(void* cc);
 
 /**
  * Process some data bytes. It is acceptable that <code>len</code> is zero
@@ -290,7 +299,7 @@ void sph_bmw512_init(void *cc);
  * @param data   the input data
  * @param len    the input data length (in bytes)
  */
-void sph_bmw512(void *cc, const void *data, size_t len);
+void sph_bmw512(void* cc, const void* data, size_t len);
 
 /**
  * Terminate the current BMW-512 computation and output the result into
@@ -301,7 +310,7 @@ void sph_bmw512(void *cc, const void *data, size_t len);
  * @param cc    the BMW-512 context
  * @param dst   the destination buffer
  */
-void sph_bmw512_close(void *cc, void *dst);
+void sph_bmw512_close(void* cc, void* dst);
 
 /**
  * Add a few additional bits (0 to 7) to the current computation, then
@@ -317,7 +326,10 @@ void sph_bmw512_close(void *cc, void *dst);
  * @param dst   the destination buffer
  */
 void sph_bmw512_addbits_and_close(
-	void *cc, unsigned ub, unsigned n, void *dst);
+    void* cc,
+    unsigned ub,
+    unsigned n,
+    void* dst);
 
 #endif
 

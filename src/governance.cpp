@@ -594,14 +594,14 @@ bool CGovernanceManager::ConfirmInventoryRequest(const CInv& inv)
             return false;
         }
         break;
-    } 
+    }
     case MSG_GOVERNANCE_OBJECT_VOTE: {
         if (cmapVoteToObject.HasKey(inv.hash)) {
             LogPrint("gobject", "CGovernanceManager::ConfirmInventoryRequest already have governance vote, returning false\n");
             return false;
         }
         break;
-    } 
+    }
     default:
         LogPrint("gobject", "CGovernanceManager::ConfirmInventoryRequest unknown type, returning false\n");
         return false;

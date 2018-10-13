@@ -33,45 +33,49 @@ static void CODE_TO_TIME(benchmark::State& state)
 BENCHMARK(CODE_TO_TIME);
 
  */
- 
-namespace benchmark {
 
-    class State {
-        std::string name;
-        double maxElapsed;
-        double beginTime;
-        double lastTime, minTime, maxTime, countMaskInv;
-        uint64_t count;
-        uint64_t countMask;
-        uint64_t beginCycles;
-        uint64_t lastCycles;
-        uint64_t minCycles;
-        uint64_t maxCycles;
-    public:
-        State(std::string _name, double _maxElapsed) : name(_name), maxElapsed(_maxElapsed), count(0) {
-            minTime = std::numeric_limits<double>::max();
-            maxTime = std::numeric_limits<double>::min();
-            minCycles = std::numeric_limits<uint64_t>::max();
-            maxCycles = std::numeric_limits<uint64_t>::min();
-            countMask = 1;
-            countMaskInv = 1./(countMask + 1);
-        }
-        bool KeepRunning();
-    };
+namespace benchmark
+{
+class State
+{
+    std::string name;
+    double maxElapsed;
+    double beginTime;
+    double lastTime, minTime, maxTime, countMaskInv;
+    uint64_t count;
+    uint64_t countMask;
+    uint64_t beginCycles;
+    uint64_t lastCycles;
+    uint64_t minCycles;
+    uint64_t maxCycles;
 
-    typedef boost::function<void(State&)> BenchFunction;
-
-    class BenchRunner
+public:
+    State(std::string _name, double _maxElapsed) :
+        name(_name), maxElapsed(_maxElapsed), count(0)
     {
-        typedef std::map<std::string, BenchFunction> BenchmarkMap;
-        static BenchmarkMap &benchmarks();
+        minTime = std::numeric_limits<double>::max();
+        maxTime = std::numeric_limits<double>::min();
+        minCycles = std::numeric_limits<uint64_t>::max();
+        maxCycles = std::numeric_limits<uint64_t>::min();
+        countMask = 1;
+        countMaskInv = 1. / (countMask + 1);
+    }
+    bool KeepRunning();
+};
 
-    public:
-        BenchRunner(std::string name, BenchFunction func);
+typedef boost::function<void(State&)> BenchFunction;
 
-        static void RunAll(double elapsedTimeForOne=1.0);
-    };
-}
+class BenchRunner
+{
+    typedef std::map<std::string, BenchFunction> BenchmarkMap;
+    static BenchmarkMap& benchmarks();
+
+public:
+    BenchRunner(std::string name, BenchFunction func);
+
+    static void RunAll(double elapsedTimeForOne = 1.0);
+};
+} // namespace benchmark
 
 // BENCHMARK(foo) expands to:  benchmark::BenchRunner bench_11foo("foo", foo);
 #define BENCHMARK(n) \

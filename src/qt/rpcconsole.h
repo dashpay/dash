@@ -11,16 +11,17 @@
 
 #include "net.h"
 
-#include <QWidget>
 #include <QCompleter>
 #include <QThread>
+#include <QWidget>
 
 class ClientModel;
 class PlatformStyle;
 class RPCTimerInterface;
 
-namespace Ui {
-    class RPCConsole;
+namespace Ui
+{
+class RPCConsole;
 }
 
 QT_BEGIN_NAMESPACE
@@ -29,20 +30,21 @@ class QItemSelection;
 QT_END_NAMESPACE
 
 /** Local Bitcoin RPC console. */
-class RPCConsole: public QWidget
+class RPCConsole : public QWidget
 {
     Q_OBJECT
 
 public:
-    explicit RPCConsole(const PlatformStyle *platformStyle, QWidget *parent);
+    explicit RPCConsole(const PlatformStyle* platformStyle, QWidget* parent);
     ~RPCConsole();
 
-    static bool RPCParseCommandLine(std::string &strResult, const std::string &strCommand, bool fExecute, std::string * const pstrFilteredOut = NULL);
-    static bool RPCExecuteCommandLine(std::string &strResult, const std::string &strCommand, std::string * const pstrFilteredOut = NULL) {
+    static bool RPCParseCommandLine(std::string& strResult, const std::string& strCommand, bool fExecute, std::string* const pstrFilteredOut = NULL);
+    static bool RPCExecuteCommandLine(std::string& strResult, const std::string& strCommand, std::string* const pstrFilteredOut = NULL)
+    {
         return RPCParseCommandLine(strResult, strCommand, true, pstrFilteredOut);
     }
 
-    void setClientModel(ClientModel *model);
+    void setClientModel(ClientModel* model);
 
     enum MessageClass {
         MC_ERROR,
@@ -61,8 +63,8 @@ public:
     };
 
 protected:
-    virtual bool eventFilter(QObject* obj, QEvent *event);
-    void keyPressEvent(QKeyEvent *);
+    virtual bool eventFilter(QObject* obj, QEvent* event);
+    void keyPressEvent(QKeyEvent*);
 
 private Q_SLOTS:
     void on_lineEdit_returnPressed();
@@ -73,9 +75,9 @@ private Q_SLOTS:
     void on_sldGraphRange_valueChanged(int value);
     /** update traffic statistics */
     void updateTrafficStats(quint64 totalBytesIn, quint64 totalBytesOut);
-    void resizeEvent(QResizeEvent *event);
-    void showEvent(QShowEvent *event);
-    void hideEvent(QHideEvent *event);
+    void resizeEvent(QResizeEvent* event);
+    void showEvent(QShowEvent* event);
+    void hideEvent(QHideEvent* event);
     /** Show custom context menu on Peers tab */
     void showPeersTableContextMenu(const QPoint& point);
     /** Show custom context menu on Bans tab */
@@ -90,7 +92,7 @@ public Q_SLOTS:
     void fontBigger();
     void fontSmaller();
     void setFontSize(int newSize);
-    
+
     /** Wallet repair options */
     void walletSalvage();
     void walletRescan();
@@ -98,15 +100,15 @@ public Q_SLOTS:
     void walletZaptxes2();
     void walletUpgrade();
     void walletReindex();
-    
+
     /** Append the message to the message widget */
-    void message(int category, const QString &message, bool html = false);
+    void message(int category, const QString& message, bool html = false);
     /** Set number of connections shown in the UI */
     void setNumConnections(int count);
     /** Set network state shown in the UI */
     void setNetworkActive(bool networkActive);
     /** Set number of masternodes shown in the UI */
-    void setMasternodeCount(const QString &strMasternodes);
+    void setMasternodeCount(const QString& strMasternodes);
     /** Set number of blocks and last block date shown in the UI */
     void setNumBlocks(int count, const QDateTime& blockDate, double nVerificationProgress, bool headers);
     /** Set size (number of transactions and memory usage) of the mempool in the UI */
@@ -116,7 +118,7 @@ public Q_SLOTS:
     /** Scroll console view to end */
     void scrollToEnd();
     /** Handle selection of peer in peers list */
-    void peerSelected(const QItemSelection &selected, const QItemSelection &deselected);
+    void peerSelected(const QItemSelection& selected, const QItemSelection& deselected);
     /** Handle selection caching before update */
     void peerLayoutAboutToChange();
     /** Handle updated peer information */
@@ -133,7 +135,7 @@ public Q_SLOTS:
 Q_SIGNALS:
     // For RPC command executor
     void stopExecutor();
-    void cmdRequest(const QString &command);
+    void cmdRequest(const QString& command);
     /** Get restart command-line parameters and handle restart */
     void handleRestart(QStringList args);
 
@@ -144,10 +146,9 @@ private:
     /** Build parameter list for restart */
     void buildParameterlist(QString arg);
     /** show detailed information on ui about selected node */
-    void updateNodeDetail(const CNodeCombinedStats *stats);
+    void updateNodeDetail(const CNodeCombinedStats* stats);
 
-    enum ColumnWidths
-    {
+    enum ColumnWidths {
         ADDRESS_COLUMN_WIDTH = 170,
         SUBVERSION_COLUMN_WIDTH = 150,
         PING_COLUMN_WIDTH = 80,
@@ -156,18 +157,18 @@ private:
 
     };
 
-    Ui::RPCConsole *ui;
-    ClientModel *clientModel;
+    Ui::RPCConsole* ui;
+    ClientModel* clientModel;
     QStringList history;
     int historyPtr;
     QString cmdBeforeBrowsing;
     QList<NodeId> cachedNodeids;
-    const PlatformStyle *platformStyle;
-    RPCTimerInterface *rpcTimerInterface;
-    QMenu *peersTableContextMenu;
-    QMenu *banTableContextMenu;
+    const PlatformStyle* platformStyle;
+    RPCTimerInterface* rpcTimerInterface;
+    QMenu* peersTableContextMenu;
+    QMenu* banTableContextMenu;
     int consoleFontSize;
-    QCompleter *autoCompleter;
+    QCompleter* autoCompleter;
     QThread thread;
 
     /** Update UI with latest network info from model. */

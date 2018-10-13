@@ -5,11 +5,10 @@
 #include "bench.h"
 
 #include "key.h"
-#include "validation.h"
 #include "util.h"
+#include "validation.h"
 
-int
-main(int argc, char** argv)
+int main(int argc, char** argv)
 {
     ECC_Start();
     SetupEnvironment();

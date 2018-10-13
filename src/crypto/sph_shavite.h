@@ -38,32 +38,32 @@
 #ifndef SPH_SHAVITE_H__
 #define SPH_SHAVITE_H__
 
-#include <stddef.h>
 #include "sph_types.h"
+#include <stddef.h>
 
 #ifdef __cplusplus
-extern "C"{
+extern "C" {
 #endif
 
 /**
  * Output size (in bits) for SHAvite-224.
  */
-#define SPH_SIZE_shavite224   224
+#define SPH_SIZE_shavite224 224
 
 /**
  * Output size (in bits) for SHAvite-256.
  */
-#define SPH_SIZE_shavite256   256
+#define SPH_SIZE_shavite256 256
 
 /**
  * Output size (in bits) for SHAvite-384.
  */
-#define SPH_SIZE_shavite384   384
+#define SPH_SIZE_shavite384 384
 
 /**
  * Output size (in bits) for SHAvite-512.
  */
-#define SPH_SIZE_shavite512   512
+#define SPH_SIZE_shavite512 512
 
 /**
  * This structure is a context for SHAvite-224 and SHAvite-256 computations:
@@ -77,10 +77,10 @@ extern "C"{
  */
 typedef struct {
 #ifndef DOXYGEN_IGNORE
-	unsigned char buf[64];    /* first field, for alignment */
-	size_t ptr;
-	sph_u32 h[8];
-	sph_u32 count0, count1;
+    unsigned char buf[64]; /* first field, for alignment */
+    size_t ptr;
+    sph_u32 h[8];
+    sph_u32 count0, count1;
 #endif
 } sph_shavite_small_context;
 
@@ -108,10 +108,10 @@ typedef sph_shavite_small_context sph_shavite256_context;
  */
 typedef struct {
 #ifndef DOXYGEN_IGNORE
-	unsigned char buf[128];    /* first field, for alignment */
-	size_t ptr;
-	sph_u32 h[16];
-	sph_u32 count0, count1, count2, count3;
+    unsigned char buf[128]; /* first field, for alignment */
+    size_t ptr;
+    sph_u32 h[16];
+    sph_u32 count0, count1, count2, count3;
 #endif
 } sph_shavite_big_context;
 
@@ -133,7 +133,7 @@ typedef sph_shavite_big_context sph_shavite512_context;
  * @param cc   the SHAvite-224 context (pointer to a
  *             <code>sph_shavite224_context</code>)
  */
-void sph_shavite224_init(void *cc);
+void sph_shavite224_init(void* cc);
 
 /**
  * Process some data bytes. It is acceptable that <code>len</code> is zero
@@ -143,7 +143,7 @@ void sph_shavite224_init(void *cc);
  * @param data   the input data
  * @param len    the input data length (in bytes)
  */
-void sph_shavite224(void *cc, const void *data, size_t len);
+void sph_shavite224(void* cc, const void* data, size_t len);
 
 /**
  * Terminate the current SHAvite-224 computation and output the result into
@@ -154,7 +154,7 @@ void sph_shavite224(void *cc, const void *data, size_t len);
  * @param cc    the SHAvite-224 context
  * @param dst   the destination buffer
  */
-void sph_shavite224_close(void *cc, void *dst);
+void sph_shavite224_close(void* cc, void* dst);
 
 /**
  * Add a few additional bits (0 to 7) to the current computation, then
@@ -170,7 +170,10 @@ void sph_shavite224_close(void *cc, void *dst);
  * @param dst   the destination buffer
  */
 void sph_shavite224_addbits_and_close(
-	void *cc, unsigned ub, unsigned n, void *dst);
+    void* cc,
+    unsigned ub,
+    unsigned n,
+    void* dst);
 
 /**
  * Initialize a SHAvite-256 context. This process performs no memory allocation.
@@ -178,7 +181,7 @@ void sph_shavite224_addbits_and_close(
  * @param cc   the SHAvite-256 context (pointer to a
  *             <code>sph_shavite256_context</code>)
  */
-void sph_shavite256_init(void *cc);
+void sph_shavite256_init(void* cc);
 
 /**
  * Process some data bytes. It is acceptable that <code>len</code> is zero
@@ -188,7 +191,7 @@ void sph_shavite256_init(void *cc);
  * @param data   the input data
  * @param len    the input data length (in bytes)
  */
-void sph_shavite256(void *cc, const void *data, size_t len);
+void sph_shavite256(void* cc, const void* data, size_t len);
 
 /**
  * Terminate the current SHAvite-256 computation and output the result into
@@ -199,7 +202,7 @@ void sph_shavite256(void *cc, const void *data, size_t len);
  * @param cc    the SHAvite-256 context
  * @param dst   the destination buffer
  */
-void sph_shavite256_close(void *cc, void *dst);
+void sph_shavite256_close(void* cc, void* dst);
 
 /**
  * Add a few additional bits (0 to 7) to the current computation, then
@@ -215,7 +218,10 @@ void sph_shavite256_close(void *cc, void *dst);
  * @param dst   the destination buffer
  */
 void sph_shavite256_addbits_and_close(
-	void *cc, unsigned ub, unsigned n, void *dst);
+    void* cc,
+    unsigned ub,
+    unsigned n,
+    void* dst);
 
 /**
  * Initialize a SHAvite-384 context. This process performs no memory allocation.
@@ -223,7 +229,7 @@ void sph_shavite256_addbits_and_close(
  * @param cc   the SHAvite-384 context (pointer to a
  *             <code>sph_shavite384_context</code>)
  */
-void sph_shavite384_init(void *cc);
+void sph_shavite384_init(void* cc);
 
 /**
  * Process some data bytes. It is acceptable that <code>len</code> is zero
@@ -233,7 +239,7 @@ void sph_shavite384_init(void *cc);
  * @param data   the input data
  * @param len    the input data length (in bytes)
  */
-void sph_shavite384(void *cc, const void *data, size_t len);
+void sph_shavite384(void* cc, const void* data, size_t len);
 
 /**
  * Terminate the current SHAvite-384 computation and output the result into
@@ -244,7 +250,7 @@ void sph_shavite384(void *cc, const void *data, size_t len);
  * @param cc    the SHAvite-384 context
  * @param dst   the destination buffer
  */
-void sph_shavite384_close(void *cc, void *dst);
+void sph_shavite384_close(void* cc, void* dst);
 
 /**
  * Add a few additional bits (0 to 7) to the current computation, then
@@ -260,7 +266,10 @@ void sph_shavite384_close(void *cc, void *dst);
  * @param dst   the destination buffer
  */
 void sph_shavite384_addbits_and_close(
-	void *cc, unsigned ub, unsigned n, void *dst);
+    void* cc,
+    unsigned ub,
+    unsigned n,
+    void* dst);
 
 /**
  * Initialize a SHAvite-512 context. This process performs no memory allocation.
@@ -268,7 +277,7 @@ void sph_shavite384_addbits_and_close(
  * @param cc   the SHAvite-512 context (pointer to a
  *             <code>sph_shavite512_context</code>)
  */
-void sph_shavite512_init(void *cc);
+void sph_shavite512_init(void* cc);
 
 /**
  * Process some data bytes. It is acceptable that <code>len</code> is zero
@@ -278,7 +287,7 @@ void sph_shavite512_init(void *cc);
  * @param data   the input data
  * @param len    the input data length (in bytes)
  */
-void sph_shavite512(void *cc, const void *data, size_t len);
+void sph_shavite512(void* cc, const void* data, size_t len);
 
 /**
  * Terminate the current SHAvite-512 computation and output the result into
@@ -289,7 +298,7 @@ void sph_shavite512(void *cc, const void *data, size_t len);
  * @param cc    the SHAvite-512 context
  * @param dst   the destination buffer
  */
-void sph_shavite512_close(void *cc, void *dst);
+void sph_shavite512_close(void* cc, void* dst);
 
 /**
  * Add a few additional bits (0 to 7) to the current computation, then
@@ -305,10 +314,13 @@ void sph_shavite512_close(void *cc, void *dst);
  * @param dst   the destination buffer
  */
 void sph_shavite512_addbits_and_close(
-	void *cc, unsigned ub, unsigned n, void *dst);
-	
+    void* cc,
+    unsigned ub,
+    unsigned n,
+    void* dst);
+
 #ifdef __cplusplus
 }
-#endif	
-	
+#endif
+
 #endif

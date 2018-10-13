@@ -151,8 +151,8 @@ static int CBCDecrypt(const T& dec, const unsigned char iv[AES_BLOCKSIZE], const
     return written * !fail;
 }
 
-AES256CBCEncrypt::AES256CBCEncrypt(const unsigned char key[AES256_KEYSIZE], const unsigned char ivIn[AES_BLOCKSIZE], bool padIn)
-    : enc(key), pad(padIn)
+AES256CBCEncrypt::AES256CBCEncrypt(const unsigned char key[AES256_KEYSIZE], const unsigned char ivIn[AES_BLOCKSIZE], bool padIn) :
+    enc(key), pad(padIn)
 {
     memcpy(iv, ivIn, AES_BLOCKSIZE);
 }
@@ -167,8 +167,8 @@ AES256CBCEncrypt::~AES256CBCEncrypt()
     memset(iv, 0, sizeof(iv));
 }
 
-AES256CBCDecrypt::AES256CBCDecrypt(const unsigned char key[AES256_KEYSIZE], const unsigned char ivIn[AES_BLOCKSIZE], bool padIn)
-    : dec(key), pad(padIn)
+AES256CBCDecrypt::AES256CBCDecrypt(const unsigned char key[AES256_KEYSIZE], const unsigned char ivIn[AES_BLOCKSIZE], bool padIn) :
+    dec(key), pad(padIn)
 {
     memcpy(iv, ivIn, AES_BLOCKSIZE);
 }
@@ -184,8 +184,8 @@ AES256CBCDecrypt::~AES256CBCDecrypt()
     memset(iv, 0, sizeof(iv));
 }
 
-AES128CBCEncrypt::AES128CBCEncrypt(const unsigned char key[AES128_KEYSIZE], const unsigned char ivIn[AES_BLOCKSIZE], bool padIn)
-    : enc(key), pad(padIn)
+AES128CBCEncrypt::AES128CBCEncrypt(const unsigned char key[AES128_KEYSIZE], const unsigned char ivIn[AES_BLOCKSIZE], bool padIn) :
+    enc(key), pad(padIn)
 {
     memcpy(iv, ivIn, AES_BLOCKSIZE);
 }
@@ -200,8 +200,8 @@ int AES128CBCEncrypt::Encrypt(const unsigned char* data, int size, unsigned char
     return CBCEncrypt(enc, iv, data, size, pad, out);
 }
 
-AES128CBCDecrypt::AES128CBCDecrypt(const unsigned char key[AES128_KEYSIZE], const unsigned char ivIn[AES_BLOCKSIZE], bool padIn)
-    : dec(key), pad(padIn)
+AES128CBCDecrypt::AES128CBCDecrypt(const unsigned char key[AES128_KEYSIZE], const unsigned char ivIn[AES_BLOCKSIZE], bool padIn) :
+    dec(key), pad(padIn)
 {
     memcpy(iv, ivIn, AES_BLOCKSIZE);
 }

@@ -13,8 +13,9 @@ static const bool DEFAULT_CHOOSE_DATADIR = false;
 
 class FreespaceChecker;
 
-namespace Ui {
-    class Intro;
+namespace Ui
+{
+class Intro;
 }
 
 /** Introduction screen (pre-GUI startup).
@@ -26,11 +27,11 @@ class Intro : public QDialog
     Q_OBJECT
 
 public:
-    explicit Intro(QWidget *parent = 0);
+    explicit Intro(QWidget* parent = 0);
     ~Intro();
 
     QString getDataDirectory();
-    void setDataDirectory(const QString &dataDir);
+    void setDataDirectory(const QString& dataDir);
 
     /**
      * Determine data directory. Let the user choose if the current one doesn't exist.
@@ -53,23 +54,23 @@ Q_SIGNALS:
     void stopThread();
 
 public Q_SLOTS:
-    void setStatus(int status, const QString &message, quint64 bytesAvailable);
+    void setStatus(int status, const QString& message, quint64 bytesAvailable);
 
 private Q_SLOTS:
-    void on_dataDirectory_textChanged(const QString &arg1);
+    void on_dataDirectory_textChanged(const QString& arg1);
     void on_ellipsisButton_clicked();
     void on_dataDirDefault_clicked();
     void on_dataDirCustom_clicked();
 
 private:
-    Ui::Intro *ui;
-    QThread *thread;
+    Ui::Intro* ui;
+    QThread* thread;
     QMutex mutex;
     bool signalled;
     QString pathToCheck;
 
     void startThread();
-    void checkPath(const QString &dataDir);
+    void checkPath(const QString& dataDir);
     QString getPathToCheck();
 
     friend class FreespaceChecker;

@@ -10,8 +10,8 @@
 #include <boost/bind.hpp>
 #include <boost/random/mersenne_twister.hpp>
 #include <boost/random/uniform_int_distribution.hpp>
-#include <boost/thread.hpp>
 #include <boost/test/unit_test.hpp>
+#include <boost/thread.hpp>
 
 BOOST_AUTO_TEST_SUITE(scheduler_tests)
 
@@ -35,8 +35,8 @@ static void MicroSleep(uint64_t n)
 #elif defined(HAVE_WORKING_BOOST_SLEEP)
     boost::this_thread::sleep(boost::posix_time::microseconds(n));
 #else
-    //should never get here
-    #error missing boost sleep implementation
+//should never get here
+#error missing boost sleep implementation
 #endif
 }
 
@@ -55,7 +55,7 @@ BOOST_AUTO_TEST_CASE(manythreads)
     CScheduler microTasks;
 
     boost::mutex counterMutex[10];
-    int counter[10] = { 0 };
+    int counter[10] = {0};
     boost::random::mt19937 rng(42);
     boost::random::uniform_int_distribution<> zeroToNine(0, 9);
     boost::random::uniform_int_distribution<> randomMsec(-11, 1000);
@@ -72,8 +72,8 @@ BOOST_AUTO_TEST_CASE(manythreads)
         boost::chrono::system_clock::time_point tReschedule = now + boost::chrono::microseconds(500 + randomMsec(rng));
         int whichCounter = zeroToNine(rng);
         CScheduler::Function f = boost::bind(&microTask, boost::ref(microTasks),
-                                             boost::ref(counterMutex[whichCounter]), boost::ref(counter[whichCounter]),
-                                             randomDelta(rng), tReschedule);
+            boost::ref(counterMutex[whichCounter]), boost::ref(counter[whichCounter]),
+            randomDelta(rng), tReschedule);
         microTasks.schedule(f, t);
     }
     nTasks = microTasks.getQueueInfo(first, last);
@@ -97,8 +97,8 @@ BOOST_AUTO_TEST_CASE(manythreads)
         boost::chrono::system_clock::time_point tReschedule = now + boost::chrono::microseconds(500 + randomMsec(rng));
         int whichCounter = zeroToNine(rng);
         CScheduler::Function f = boost::bind(&microTask, boost::ref(microTasks),
-                                             boost::ref(counterMutex[whichCounter]), boost::ref(counter[whichCounter]),
-                                             randomDelta(rng), tReschedule);
+            boost::ref(counterMutex[whichCounter]), boost::ref(counter[whichCounter]),
+            randomDelta(rng), tReschedule);
         microTasks.schedule(f, t);
     }
 

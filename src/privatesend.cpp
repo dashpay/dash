@@ -20,8 +20,8 @@
 bool CDarkSendEntry::AddScriptSig(const CTxIn& txin)
 {
     for (auto& txdsin : vecTxDSIn) {
-        if(txdsin.prevout == txin.prevout && txdsin.nSequence == txin.nSequence) {
-            if(txdsin.fHasSig) return false;
+        if (txdsin.prevout == txin.prevout && txdsin.nSequence == txin.nSequence) {
+            if (txdsin.fHasSig) return false;
 
             txdsin.scriptSig = txin.scriptSig;
             txdsin.fHasSig = true;
@@ -37,9 +37,9 @@ uint256 CDarksendQueue::GetSignatureHash() const
 {
     // Remove after migration to 70211
     {
-    masternode_info_t mnInfo;
-    mnodeman.GetMasternodeInfo(masternodeOutpoint, mnInfo);
-    return SerializeHash(*this, SER_GETHASH, mnInfo.nProtocolVersion);
+        masternode_info_t mnInfo;
+        mnodeman.GetMasternodeInfo(masternodeOutpoint, mnInfo);
+        return SerializeHash(*this, SER_GETHASH, mnInfo.nProtocolVersion);
     }
     // END remove, replace with the code below
     // return SerializeHash(*this);
@@ -47,7 +47,7 @@ uint256 CDarksendQueue::GetSignatureHash() const
 
 bool CDarksendQueue::Sign()
 {
-    if(!fMasternodeMode) return false;
+    if (!fMasternodeMode) return false;
 
     std::string strError = "";
 
@@ -65,16 +65,16 @@ bool CDarksendQueue::Sign()
         }
     } else {
         std::string strMessage = CTxIn(masternodeOutpoint).ToString() +
-                        std::to_string(nDenom) +
-                        std::to_string(nTime) +
-                        std::to_string(fReady);
+                                 std::to_string(nDenom) +
+                                 std::to_string(nTime) +
+                                 std::to_string(fReady);
 
-        if(!CMessageSigner::SignMessage(strMessage, vchSig, activeMasternodeInfo.keyOperator)) {
+        if (!CMessageSigner::SignMessage(strMessage, vchSig, activeMasternodeInfo.keyOperator)) {
             LogPrintf("CDarksendQueue::Sign -- SignMessage() failed, %s\n", ToString());
             return false;
         }
 
-        if(!CMessageSigner::VerifyMessage(activeMasternodeInfo.keyIDOperator, vchSig, strMessage, strError)) {
+        if (!CMessageSigner::VerifyMessage(activeMasternodeInfo.keyIDOperator, vchSig, strMessage, strError)) {
             LogPrintf("CDarksendQueue::Sign -- VerifyMessage() failed, error: %s\n", strError);
             return false;
         }
@@ -97,11 +97,11 @@ bool CDarksendQueue::CheckSignature(const CKeyID& keyIDOperator) const
         }
     } else {
         std::string strMessage = CTxIn(masternodeOutpoint).ToString() +
-                        std::to_string(nDenom) +
-                        std::to_string(nTime) +
-                        std::to_string(fReady);
+                                 std::to_string(nDenom) +
+                                 std::to_string(nTime) +
+                                 std::to_string(fReady);
 
-        if(!CMessageSigner::VerifyMessage(keyIDOperator, vchSig, strMessage, strError)) {
+        if (!CMessageSigner::VerifyMessage(keyIDOperator, vchSig, strMessage, strError)) {
             LogPrintf("CDarksendQueue::CheckSignature -- Got bad Masternode queue signature: %s; error: %s\n", ToString(), strError);
             return false;
         }
@@ -127,7 +127,7 @@ uint256 CDarksendBroadcastTx::GetSignatureHash() const
 
 bool CDarksendBroadcastTx::Sign()
 {
-    if(!fMasternodeMode) return false;
+    if (!fMasternodeMode) return false;
 
     std::string strError = "";
 
@@ -146,12 +146,12 @@ bool CDarksendBroadcastTx::Sign()
     } else {
         std::string strMessage = tx->GetHash().ToString() + std::to_string(sigTime);
 
-        if(!CMessageSigner::SignMessage(strMessage, vchSig, activeMasternodeInfo.keyOperator)) {
+        if (!CMessageSigner::SignMessage(strMessage, vchSig, activeMasternodeInfo.keyOperator)) {
             LogPrintf("CDarksendBroadcastTx::Sign -- SignMessage() failed\n");
             return false;
         }
 
-        if(!CMessageSigner::VerifyMessage(activeMasternodeInfo.keyIDOperator, vchSig, strMessage, strError)) {
+        if (!CMessageSigner::VerifyMessage(activeMasternodeInfo.keyIDOperator, vchSig, strMessage, strError)) {
             LogPrintf("CDarksendBroadcastTx::Sign -- VerifyMessage() failed, error: %s\n", strError);
             return false;
         }
@@ -175,7 +175,7 @@ bool CDarksendBroadcastTx::CheckSignature(const CKeyID& keyIDOperator) const
     } else {
         std::string strMessage = tx->GetHash().ToString() + std::to_string(sigTime);
 
-        if(!CMessageSigner::VerifyMessage(keyIDOperator, vchSig, strMessage, strError)) {
+        if (!CMessageSigner::VerifyMessage(keyIDOperator, vchSig, strMessage, strError)) {
             LogPrintf("CDarksendBroadcastTx::CheckSignature -- Got bad dstx signature, error: %s\n", strError);
             return false;
         }
@@ -212,26 +212,27 @@ void CPrivateSendBaseManager::SetNull()
 void CPrivateSendBaseManager::CheckQueue()
 {
     TRY_LOCK(cs_vecqueue, lockDS);
-    if(!lockDS) return; // it's ok to fail here, we run this quite frequently
+    if (!lockDS) return; // it's ok to fail here, we run this quite frequently
 
     // check mixing queue objects for timeouts
     std::vector<CDarksendQueue>::iterator it = vecDarksendQueue.begin();
-    while(it != vecDarksendQueue.end()) {
-        if((*it).IsExpired()) {
+    while (it != vecDarksendQueue.end()) {
+        if ((*it).IsExpired()) {
             LogPrint("privatesend", "CPrivateSendBaseManager::%s -- Removing expired queue (%s)\n", __func__, (*it).ToString());
             it = vecDarksendQueue.erase(it);
-        } else ++it;
+        } else
+            ++it;
     }
 }
 
 bool CPrivateSendBaseManager::GetQueueItemAndTry(CDarksendQueue& dsqRet)
 {
     TRY_LOCK(cs_vecqueue, lockDS);
-    if(!lockDS) return false; // it's ok to fail here, we run this quite frequently
+    if (!lockDS) return false; // it's ok to fail here, we run this quite frequently
 
     for (auto& dsq : vecDarksendQueue) {
         // only try each queue once
-        if(dsq.fTried || dsq.IsExpired()) continue;
+        if (dsq.fTried || dsq.IsExpired()) continue;
         dsq.fTried = true;
         dsqRet = dsq;
         return true;
@@ -242,14 +243,21 @@ bool CPrivateSendBaseManager::GetQueueItemAndTry(CDarksendQueue& dsqRet)
 
 std::string CPrivateSendBaseSession::GetStateString() const
 {
-    switch(nState) {
-        case POOL_STATE_IDLE:                   return "IDLE";
-        case POOL_STATE_QUEUE:                  return "QUEUE";
-        case POOL_STATE_ACCEPTING_ENTRIES:      return "ACCEPTING_ENTRIES";
-        case POOL_STATE_SIGNING:                return "SIGNING";
-        case POOL_STATE_ERROR:                  return "ERROR";
-        case POOL_STATE_SUCCESS:                return "SUCCESS";
-        default:                                return "UNKNOWN";
+    switch (nState) {
+    case POOL_STATE_IDLE:
+        return "IDLE";
+    case POOL_STATE_QUEUE:
+        return "QUEUE";
+    case POOL_STATE_ACCEPTING_ENTRIES:
+        return "ACCEPTING_ENTRIES";
+    case POOL_STATE_SIGNING:
+        return "SIGNING";
+    case POOL_STATE_ERROR:
+        return "ERROR";
+    case POOL_STATE_SUCCESS:
+        return "SUCCESS";
+    default:
+        return "UNKNOWN";
     }
 }
 
@@ -273,10 +281,10 @@ void CPrivateSend::InitStandardDenominations()
     /* Disabled
     vecStandardDenominations.push_back( (100      * COIN)+100000 );
     */
-    vecStandardDenominations.push_back( (10       * COIN)+10000 );
-    vecStandardDenominations.push_back( (1        * COIN)+1000 );
-    vecStandardDenominations.push_back( (.1       * COIN)+100 );
-    vecStandardDenominations.push_back( (.01      * COIN)+10 );
+    vecStandardDenominations.push_back((10 * COIN) + 10000);
+    vecStandardDenominations.push_back((1 * COIN) + 1000);
+    vecStandardDenominations.push_back((.1 * COIN) + 100);
+    vecStandardDenominations.push_back((.01 * COIN) + 10);
     /* Disabled till we need them
     vecStandardDenominations.push_back( (.001     * COIN)+1 );
     */
@@ -285,8 +293,8 @@ void CPrivateSend::InitStandardDenominations()
 // check to make sure the collateral provided by the client is valid
 bool CPrivateSend::IsCollateralValid(const CTransaction& txCollateral)
 {
-    if(txCollateral.vout.empty()) return false;
-    if(txCollateral.nLockTime != 0) return false;
+    if (txCollateral.vout.empty()) return false;
+    if (txCollateral.nLockTime != 0) return false;
 
     CAmount nValueIn = 0;
     CAmount nValueOut = 0;
@@ -295,15 +303,15 @@ bool CPrivateSend::IsCollateralValid(const CTransaction& txCollateral)
         nValueOut += txout.nValue;
 
         bool fAllowData = mnpayments.GetMinMasternodePaymentsProto() > 70208;
-        if(!txout.scriptPubKey.IsPayToPublicKeyHash() && !(fAllowData && txout.scriptPubKey.IsUnspendable())) {
-            LogPrintf ("CPrivateSend::IsCollateralValid -- Invalid Script, txCollateral=%s", txCollateral.ToString());
+        if (!txout.scriptPubKey.IsPayToPublicKeyHash() && !(fAllowData && txout.scriptPubKey.IsUnspendable())) {
+            LogPrintf("CPrivateSend::IsCollateralValid -- Invalid Script, txCollateral=%s", txCollateral.ToString());
             return false;
         }
     }
 
     for (const auto& txin : txCollateral.vin) {
         Coin coin;
-        if(!GetUTXOCoin(txin.prevout, coin)) {
+        if (!GetUTXOCoin(txin.prevout, coin)) {
             LogPrint("privatesend", "CPrivateSend::IsCollateralValid -- Unknown inputs in collateral transaction, txCollateral=%s", txCollateral.ToString());
             return false;
         }
@@ -311,7 +319,7 @@ bool CPrivateSend::IsCollateralValid(const CTransaction& txCollateral)
     }
 
     //collateral transactions are required to pay out a small fee to the miners
-    if(nValueIn - nValueOut < GetCollateralAmount()) {
+    if (nValueIn - nValueOut < GetCollateralAmount()) {
         LogPrint("privatesend", "CPrivateSend::IsCollateralValid -- did not include enough fees in transaction: fees: %d, txCollateral=%s", nValueOut - nValueIn, txCollateral.ToString());
         return false;
     }
@@ -321,7 +329,7 @@ bool CPrivateSend::IsCollateralValid(const CTransaction& txCollateral)
     {
         LOCK(cs_main);
         CValidationState validationState;
-        if(!AcceptToMemoryPool(mempool, validationState, MakeTransactionRef(txCollateral), false, NULL, false, maxTxFee, true)) {
+        if (!AcceptToMemoryPool(mempool, validationState, MakeTransactionRef(txCollateral), false, NULL, false, maxTxFee, true)) {
             LogPrint("privatesend", "CPrivateSend::IsCollateralValid -- didn't pass AcceptToMemoryPool()\n");
             return false;
         }
@@ -356,17 +364,17 @@ std::string CPrivateSend::GetDenominationsToString(int nDenom)
     std::string strDenom = "";
     int nMaxDenoms = vecStandardDenominations.size();
 
-    if(nDenom >= (1 << nMaxDenoms)) {
+    if (nDenom >= (1 << nMaxDenoms)) {
         return "out-of-bounds";
     }
 
     for (int i = 0; i < nMaxDenoms; ++i) {
-        if(nDenom & (1 << i)) {
+        if (nDenom & (1 << i)) {
             strDenom += (strDenom.empty() ? "" : "+") + FormatMoney(vecStandardDenominations[i]);
         }
     }
 
-    if(strDenom.empty()) {
+    if (strDenom.empty()) {
         return "non-denom";
     }
 
@@ -394,12 +402,12 @@ int CPrivateSend::GetDenominations(const std::vector<CTxOut>& vecTxOut, bool fSi
     for (const auto& txout : vecTxOut) {
         bool found = false;
         for (auto& s : vecDenomUsed) {
-            if(txout.nValue == s.first) {
+            if (txout.nValue == s.first) {
                 s.second = 1;
                 found = true;
             }
         }
-        if(!found) return 0;
+        if (!found) return 0;
     }
 
     int nDenom = 0;
@@ -408,13 +416,13 @@ int CPrivateSend::GetDenominations(const std::vector<CTxOut>& vecTxOut, bool fSi
     for (const auto& s : vecDenomUsed) {
         int bit = (fSingleRandomDenom ? GetRandInt(2) : 1) & s.second;
         nDenom |= bit << c++;
-        if(fSingleRandomDenom && bit) break; // use just one random denomination
+        if (fSingleRandomDenom && bit) break; // use just one random denomination
     }
 
     return nDenom;
 }
 
-bool CPrivateSend::GetDenominationsBits(int nDenom, std::vector<int> &vecBitsRet)
+bool CPrivateSend::GetDenominationsBits(int nDenom, std::vector<int>& vecBitsRet)
 {
     // ( bit on if present, 4 denominations example )
     // bit 0 - 100DASH+1
@@ -424,12 +432,12 @@ bool CPrivateSend::GetDenominationsBits(int nDenom, std::vector<int> &vecBitsRet
 
     int nMaxDenoms = vecStandardDenominations.size();
 
-    if(nDenom >= (1 << nMaxDenoms)) return false;
+    if (nDenom >= (1 << nMaxDenoms)) return false;
 
     vecBitsRet.clear();
 
     for (int i = 0; i < nMaxDenoms; ++i) {
-        if(nDenom & (1 << i)) {
+        if (nDenom & (1 << i)) {
             vecBitsRet.push_back(i);
         }
     }
@@ -453,7 +461,7 @@ int CPrivateSend::GetDenominationsByAmounts(const std::vector<CAmount>& vecAmoun
 bool CPrivateSend::IsDenominatedAmount(CAmount nInputAmount)
 {
     for (const auto& nDenomValue : vecStandardDenominations)
-        if(nInputAmount == nDenomValue)
+        if (nInputAmount == nDenomValue)
             return true;
     return false;
 }
@@ -461,29 +469,52 @@ bool CPrivateSend::IsDenominatedAmount(CAmount nInputAmount)
 std::string CPrivateSend::GetMessageByID(PoolMessage nMessageID)
 {
     switch (nMessageID) {
-        case ERR_ALREADY_HAVE:          return _("Already have that input.");
-        case ERR_DENOM:                 return _("No matching denominations found for mixing.");
-        case ERR_ENTRIES_FULL:          return _("Entries are full.");
-        case ERR_EXISTING_TX:           return _("Not compatible with existing transactions.");
-        case ERR_FEES:                  return _("Transaction fees are too high.");
-        case ERR_INVALID_COLLATERAL:    return _("Collateral not valid.");
-        case ERR_INVALID_INPUT:         return _("Input is not valid.");
-        case ERR_INVALID_SCRIPT:        return _("Invalid script detected.");
-        case ERR_INVALID_TX:            return _("Transaction not valid.");
-        case ERR_MAXIMUM:               return _("Entry exceeds maximum size.");
-        case ERR_MN_LIST:               return _("Not in the Masternode list.");
-        case ERR_MODE:                  return _("Incompatible mode.");
-        case ERR_NON_STANDARD_PUBKEY:   return _("Non-standard public key detected.");
-        case ERR_NOT_A_MN:              return _("This is not a Masternode."); // not used
-        case ERR_QUEUE_FULL:            return _("Masternode queue is full.");
-        case ERR_RECENT:                return _("Last PrivateSend was too recent.");
-        case ERR_SESSION:               return _("Session not complete!");
-        case ERR_MISSING_TX:            return _("Missing input transaction information.");
-        case ERR_VERSION:               return _("Incompatible version.");
-        case MSG_NOERR:                 return _("No errors detected.");
-        case MSG_SUCCESS:               return _("Transaction created successfully.");
-        case MSG_ENTRIES_ADDED:         return _("Your entries added successfully.");
-        default:                        return _("Unknown response.");
+    case ERR_ALREADY_HAVE:
+        return _("Already have that input.");
+    case ERR_DENOM:
+        return _("No matching denominations found for mixing.");
+    case ERR_ENTRIES_FULL:
+        return _("Entries are full.");
+    case ERR_EXISTING_TX:
+        return _("Not compatible with existing transactions.");
+    case ERR_FEES:
+        return _("Transaction fees are too high.");
+    case ERR_INVALID_COLLATERAL:
+        return _("Collateral not valid.");
+    case ERR_INVALID_INPUT:
+        return _("Input is not valid.");
+    case ERR_INVALID_SCRIPT:
+        return _("Invalid script detected.");
+    case ERR_INVALID_TX:
+        return _("Transaction not valid.");
+    case ERR_MAXIMUM:
+        return _("Entry exceeds maximum size.");
+    case ERR_MN_LIST:
+        return _("Not in the Masternode list.");
+    case ERR_MODE:
+        return _("Incompatible mode.");
+    case ERR_NON_STANDARD_PUBKEY:
+        return _("Non-standard public key detected.");
+    case ERR_NOT_A_MN:
+        return _("This is not a Masternode."); // not used
+    case ERR_QUEUE_FULL:
+        return _("Masternode queue is full.");
+    case ERR_RECENT:
+        return _("Last PrivateSend was too recent.");
+    case ERR_SESSION:
+        return _("Session not complete!");
+    case ERR_MISSING_TX:
+        return _("Missing input transaction information.");
+    case ERR_VERSION:
+        return _("Incompatible version.");
+    case MSG_NOERR:
+        return _("No errors detected.");
+    case MSG_SUCCESS:
+        return _("Transaction created successfully.");
+    case MSG_ENTRIES_ADDED:
+        return _("Your entries added successfully.");
+    default:
+        return _("Unknown response.");
     }
 }
 
@@ -504,7 +535,7 @@ void CPrivateSend::CheckDSTXes(int nHeight)
 {
     LOCK(cs_mapdstx);
     std::map<uint256, CDarksendBroadcastTx>::iterator it = mapDSTX.begin();
-    while(it != mapDSTX.end()) {
+    while (it != mapDSTX.end()) {
         if (it->second.IsExpired(nHeight)) {
             mapDSTX.erase(it++);
         } else {
@@ -514,14 +545,14 @@ void CPrivateSend::CheckDSTXes(int nHeight)
     LogPrint("privatesend", "CPrivateSend::CheckDSTXes -- mapDSTX.size()=%llu\n", mapDSTX.size());
 }
 
-void CPrivateSend::UpdatedBlockTip(const CBlockIndex *pindex)
+void CPrivateSend::UpdatedBlockTip(const CBlockIndex* pindex)
 {
-    if(pindex && !fLiteMode && masternodeSync.IsMasternodeListSynced()) {
+    if (pindex && !fLiteMode && masternodeSync.IsMasternodeListSynced()) {
         CheckDSTXes(pindex->nHeight);
     }
 }
 
-void CPrivateSend::SyncTransaction(const CTransaction& tx, const CBlockIndex *pindex, int posInBlock)
+void CPrivateSend::SyncTransaction(const CTransaction& tx, const CBlockIndex* pindex, int posInBlock)
 {
     if (tx.IsCoinBase()) return;
 

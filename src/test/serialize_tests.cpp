@@ -2,9 +2,9 @@
 // Distributed under the MIT software license, see the accompanying
 // file COPYING or http://www.opensource.org/licenses/mit-license.php.
 
+#include "hash.h"
 #include "serialize.h"
 #include "streams.h"
-#include "hash.h"
 #include "test/test_dash.h"
 
 #include <stdint.h>
@@ -21,13 +21,16 @@ protected:
     std::string stringval;
     const char* charstrval;
     CTransactionRef txval;
+
 public:
     CSerializeMethodsTestSingle() = default;
-    CSerializeMethodsTestSingle(int intvalin, bool boolvalin, std::string stringvalin, const char* charstrvalin, CTransaction txvalin) : intval(intvalin), boolval(boolvalin), stringval(std::move(stringvalin)), charstrval(charstrvalin), txval(MakeTransactionRef(txvalin)){}
+    CSerializeMethodsTestSingle(int intvalin, bool boolvalin, std::string stringvalin, const char* charstrvalin, CTransaction txvalin) :
+        intval(intvalin), boolval(boolvalin), stringval(std::move(stringvalin)), charstrval(charstrvalin), txval(MakeTransactionRef(txvalin)) {}
     ADD_SERIALIZE_METHODS;
 
     template <typename Stream, typename Operation>
-    inline void SerializationOp(Stream& s, Operation ser_action) {
+    inline void SerializationOp(Stream& s, Operation ser_action)
+    {
         READWRITE(intval);
         READWRITE(boolval);
         READWRITE(stringval);
@@ -37,11 +40,11 @@ public:
 
     bool operator==(const CSerializeMethodsTestSingle& rhs)
     {
-        return  intval == rhs.intval && \
-                boolval == rhs.boolval && \
-                stringval == rhs.stringval && \
-                strcmp(charstrval, rhs.charstrval) == 0 && \
-                *txval == *rhs.txval;
+        return intval == rhs.intval &&
+               boolval == rhs.boolval &&
+               stringval == rhs.stringval &&
+               strcmp(charstrval, rhs.charstrval) == 0 &&
+               *txval == *rhs.txval;
     }
 };
 
@@ -52,7 +55,8 @@ public:
     ADD_SERIALIZE_METHODS;
 
     template <typename Stream, typename Operation>
-    inline void SerializationOp(Stream& s, Operation ser_action) {
+    inline void SerializationOp(Stream& s, Operation ser_action)
+    {
         READWRITEMANY(intval, boolval, stringval, FLATDATA(charstrval), txval);
     }
 };
@@ -182,7 +186,7 @@ BOOST_AUTO_TEST_CASE(varints)
         BOOST_CHECK(size == ss.size());
     }
 
-    for (uint64_t i = 0;  i < 100000000000ULL; i += 999999937) {
+    for (uint64_t i = 0; i < 100000000000ULL; i += 999999937) {
         ss << VARINT(i);
         size += ::GetSerializeSize(VARINT(i), 0, 0);
         BOOST_CHECK(size == ss.size());
@@ -195,7 +199,7 @@ BOOST_AUTO_TEST_CASE(varints)
         BOOST_CHECK_MESSAGE(i == j, "decoded:" << j << " expected:" << i);
     }
 
-    for (uint64_t i = 0;  i < 100000000000ULL; i += 999999937) {
+    for (uint64_t i = 0; i < 100000000000ULL; i += 999999937) {
         uint64_t j = -1;
         ss >> VARINT(j);
         BOOST_CHECK_MESSAGE(i == j, "decoded:" << j << " expected:" << i);
@@ -205,22 +209,54 @@ BOOST_AUTO_TEST_CASE(varints)
 BOOST_AUTO_TEST_CASE(varints_bitpatterns)
 {
     CDataStream ss(SER_DISK, 0);
-    ss << VARINT(0); BOOST_CHECK_EQUAL(HexStr(ss), "00"); ss.clear();
-    ss << VARINT(0x7f); BOOST_CHECK_EQUAL(HexStr(ss), "7f"); ss.clear();
-    ss << VARINT((int8_t)0x7f); BOOST_CHECK_EQUAL(HexStr(ss), "7f"); ss.clear();
-    ss << VARINT(0x80); BOOST_CHECK_EQUAL(HexStr(ss), "8000"); ss.clear();
-    ss << VARINT((uint8_t)0x80); BOOST_CHECK_EQUAL(HexStr(ss), "8000"); ss.clear();
-    ss << VARINT(0x1234); BOOST_CHECK_EQUAL(HexStr(ss), "a334"); ss.clear();
-    ss << VARINT((int16_t)0x1234); BOOST_CHECK_EQUAL(HexStr(ss), "a334"); ss.clear();
-    ss << VARINT(0xffff); BOOST_CHECK_EQUAL(HexStr(ss), "82fe7f"); ss.clear();
-    ss << VARINT((uint16_t)0xffff); BOOST_CHECK_EQUAL(HexStr(ss), "82fe7f"); ss.clear();
-    ss << VARINT(0x123456); BOOST_CHECK_EQUAL(HexStr(ss), "c7e756"); ss.clear();
-    ss << VARINT((int32_t)0x123456); BOOST_CHECK_EQUAL(HexStr(ss), "c7e756"); ss.clear();
-    ss << VARINT(0x80123456U); BOOST_CHECK_EQUAL(HexStr(ss), "86ffc7e756"); ss.clear();
-    ss << VARINT((uint32_t)0x80123456U); BOOST_CHECK_EQUAL(HexStr(ss), "86ffc7e756"); ss.clear();
-    ss << VARINT(0xffffffff); BOOST_CHECK_EQUAL(HexStr(ss), "8efefefe7f"); ss.clear();
-    ss << VARINT(0x7fffffffffffffffLL); BOOST_CHECK_EQUAL(HexStr(ss), "fefefefefefefefe7f"); ss.clear();
-    ss << VARINT(0xffffffffffffffffULL); BOOST_CHECK_EQUAL(HexStr(ss), "80fefefefefefefefe7f"); ss.clear();
+    ss << VARINT(0);
+    BOOST_CHECK_EQUAL(HexStr(ss), "00");
+    ss.clear();
+    ss << VARINT(0x7f);
+    BOOST_CHECK_EQUAL(HexStr(ss), "7f");
+    ss.clear();
+    ss << VARINT((int8_t)0x7f);
+    BOOST_CHECK_EQUAL(HexStr(ss), "7f");
+    ss.clear();
+    ss << VARINT(0x80);
+    BOOST_CHECK_EQUAL(HexStr(ss), "8000");
+    ss.clear();
+    ss << VARINT((uint8_t)0x80);
+    BOOST_CHECK_EQUAL(HexStr(ss), "8000");
+    ss.clear();
+    ss << VARINT(0x1234);
+    BOOST_CHECK_EQUAL(HexStr(ss), "a334");
+    ss.clear();
+    ss << VARINT((int16_t)0x1234);
+    BOOST_CHECK_EQUAL(HexStr(ss), "a334");
+    ss.clear();
+    ss << VARINT(0xffff);
+    BOOST_CHECK_EQUAL(HexStr(ss), "82fe7f");
+    ss.clear();
+    ss << VARINT((uint16_t)0xffff);
+    BOOST_CHECK_EQUAL(HexStr(ss), "82fe7f");
+    ss.clear();
+    ss << VARINT(0x123456);
+    BOOST_CHECK_EQUAL(HexStr(ss), "c7e756");
+    ss.clear();
+    ss << VARINT((int32_t)0x123456);
+    BOOST_CHECK_EQUAL(HexStr(ss), "c7e756");
+    ss.clear();
+    ss << VARINT(0x80123456U);
+    BOOST_CHECK_EQUAL(HexStr(ss), "86ffc7e756");
+    ss.clear();
+    ss << VARINT((uint32_t)0x80123456U);
+    BOOST_CHECK_EQUAL(HexStr(ss), "86ffc7e756");
+    ss.clear();
+    ss << VARINT(0xffffffff);
+    BOOST_CHECK_EQUAL(HexStr(ss), "8efefefe7f");
+    ss.clear();
+    ss << VARINT(0x7fffffffffffffffLL);
+    BOOST_CHECK_EQUAL(HexStr(ss), "fefefefefefefefe7f");
+    ss.clear();
+    ss << VARINT(0xffffffffffffffffULL);
+    BOOST_CHECK_EQUAL(HexStr(ss), "80fefefefefefefefe7f");
+    ss.clear();
 }
 
 BOOST_AUTO_TEST_CASE(compactsize)
@@ -228,15 +264,13 @@ BOOST_AUTO_TEST_CASE(compactsize)
     CDataStream ss(SER_DISK, 0);
     std::vector<char>::size_type i, j;
 
-    for (i = 1; i <= MAX_SIZE; i *= 2)
-    {
-        WriteCompactSize(ss, i-1);
+    for (i = 1; i <= MAX_SIZE; i *= 2) {
+        WriteCompactSize(ss, i - 1);
         WriteCompactSize(ss, i);
     }
-    for (i = 1; i <= MAX_SIZE; i *= 2)
-    {
+    for (i = 1; i <= MAX_SIZE; i *= 2) {
         j = ReadCompactSize(ss);
-        BOOST_CHECK_MESSAGE((i-1) == j, "decoded:" << j << " expected:" << (i-1));
+        BOOST_CHECK_MESSAGE((i - 1) == j, "decoded:" << j << " expected:" << (i - 1));
         j = ReadCompactSize(ss);
         BOOST_CHECK_MESSAGE(i == j, "decoded:" << j << " expected:" << i);
     }
@@ -248,8 +282,8 @@ static bool isCanonicalException(const std::ios_base::failure& ex)
 
     // The string returned by what() can be different for different platforms.
     // Instead of directly comparing the ex.what() with an expected string,
-    // create an instance of exception to see if ex.what() matches 
-    // the expected explanatory string returned by the exception instance. 
+    // create an instance of exception to see if ex.what() matches
+    // the expected explanatory string returned by the exception instance.
     return strcmp(expectedException.what(), ex.what()) == 0;
 }
 
@@ -313,7 +347,7 @@ BOOST_AUTO_TEST_CASE(insert_delete)
     BOOST_CHECK_EQUAL(ss[4], (char)0xff);
     BOOST_CHECK_EQUAL(ss[5], c);
 
-    ss.insert(ss.begin()+2, c);
+    ss.insert(ss.begin() + 2, c);
     BOOST_CHECK_EQUAL(ss.size(), 7);
     BOOST_CHECK_EQUAL(ss[2], c);
 
@@ -322,11 +356,11 @@ BOOST_AUTO_TEST_CASE(insert_delete)
     BOOST_CHECK_EQUAL(ss.size(), 6);
     BOOST_CHECK_EQUAL(ss[0], 0);
 
-    ss.erase(ss.begin()+ss.size()-1);
+    ss.erase(ss.begin() + ss.size() - 1);
     BOOST_CHECK_EQUAL(ss.size(), 5);
     BOOST_CHECK_EQUAL(ss[4], (char)0xff);
 
-    ss.erase(ss.begin()+1);
+    ss.erase(ss.begin() + 1);
     BOOST_CHECK_EQUAL(ss.size(), 4);
     BOOST_CHECK_EQUAL(ss[0], 0);
     BOOST_CHECK_EQUAL(ss[1], 1);
@@ -341,29 +375,28 @@ BOOST_AUTO_TEST_CASE(insert_delete)
 
 // Change struct size and check if it can be deserialized
 // from old version archive and vice versa
-struct old_version
-{
+struct old_version {
     int field1;
 
     ADD_SERIALIZE_METHODS;
 
     template <typename Stream, typename Operation>
-    inline void SerializationOp(Stream& s, Operation ser_action) {
+    inline void SerializationOp(Stream& s, Operation ser_action)
+    {
         READWRITE(field1);
     }
-};\
-struct new_version
-{
+};
+struct new_version {
     int field1;
     int field2;
 
     ADD_SERIALIZE_METHODS;
 
     template <typename Stream, typename Operation>
-    inline void SerializationOp(Stream& s, Operation ser_action) {
+    inline void SerializationOp(Stream& s, Operation ser_action)
+    {
         READWRITE(field1);
-        if(ser_action.ForRead() && (s.size() == 0))
-        {
+        if (ser_action.ForRead() && (s.size() == 0)) {
             field2 = 0;
             return;
         }

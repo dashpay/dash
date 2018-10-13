@@ -2,8 +2,8 @@
 // Distributed under the MIT software license, see the accompanying
 // file COPYING or http://www.opensource.org/licenses/mit-license.php.
 
-#include "guiutil.h"
 #include "transactiondescdialog.h"
+#include "guiutil.h"
 #include "ui_transactiondescdialog.h"
 
 #include "transactiontablemodel.h"
@@ -12,7 +12,7 @@
 #include <QSettings>
 #include <QString>
 
-TransactionDescDialog::TransactionDescDialog(const QModelIndex &idx, QWidget *parent) :
+TransactionDescDialog::TransactionDescDialog(const QModelIndex& idx, QWidget* parent) :
     QDialog(parent),
     ui(new Ui::TransactionDescDialog)
 {

@@ -4,26 +4,26 @@
 
 #include "test/test_dash.h"
 
-#include "script/interpreter.h"
-#include "script/standard.h"
-#include "script/sign.h"
-#include "validation.h"
 #include "base58.h"
-#include "netbase.h"
-#include "messagesigner.h"
 #include "keystore.h"
+#include "messagesigner.h"
+#include "netbase.h"
+#include "script/interpreter.h"
+#include "script/sign.h"
+#include "script/standard.h"
 #include "spork.h"
+#include "validation.h"
 
-#include "evo/specialtx.h"
-#include "evo/providertx.h"
 #include "evo/deterministicmns.h"
+#include "evo/providertx.h"
+#include "evo/specialtx.h"
 
 #include <boost/test/unit_test.hpp>
 
-static const CBitcoinAddress payoutAddress  ("yRq1Ky1AfFmf597rnotj7QRxsDUKePVWNF");
-static const std::string payoutKey          ("cV3qrPWzDcnhzRMV4MqtTH4LhNPqPo26ZntGvfJhc8nqCi8Ae5xR");
+static const CBitcoinAddress payoutAddress("yRq1Ky1AfFmf597rnotj7QRxsDUKePVWNF");
+static const std::string payoutKey("cV3qrPWzDcnhzRMV4MqtTH4LhNPqPo26ZntGvfJhc8nqCi8Ae5xR");
 
-typedef std::map<COutPoint, std::pair<int, CAmount>> SimpleUTXOMap;
+typedef std::map<COutPoint, std::pair<int, CAmount> > SimpleUTXOMap;
 
 static SimpleUTXOMap BuildSimpleUtxoMap(const std::vector<CTransaction>& txs)
 {

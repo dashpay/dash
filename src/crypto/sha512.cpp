@@ -151,7 +151,8 @@ void Transform(uint64_t* s, const unsigned char* chunk)
 
 ////// SHA-512
 
-CSHA512::CSHA512() : bytes(0)
+CSHA512::CSHA512() :
+    bytes(0)
 {
     sha512::Initialize(s);
 }

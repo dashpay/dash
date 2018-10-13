@@ -9,95 +9,96 @@
 #include "utilstrencodings.h"
 
 #ifndef WIN32
-# include <arpa/inet.h>
+#include <arpa/inet.h>
 #endif
 
-namespace NetMsgType {
-const char *VERSION="version";
-const char *VERACK="verack";
-const char *ADDR="addr";
-const char *INV="inv";
-const char *GETDATA="getdata";
-const char *MERKLEBLOCK="merkleblock";
-const char *GETBLOCKS="getblocks";
-const char *GETHEADERS="getheaders";
-const char *TX="tx";
-const char *HEADERS="headers";
-const char *BLOCK="block";
-const char *GETADDR="getaddr";
-const char *MEMPOOL="mempool";
-const char *PING="ping";
-const char *PONG="pong";
-const char *ALERT="alert";
-const char *NOTFOUND="notfound";
-const char *FILTERLOAD="filterload";
-const char *FILTERADD="filteradd";
-const char *FILTERCLEAR="filterclear";
-const char *REJECT="reject";
-const char *SENDHEADERS="sendheaders";
-const char *SENDCMPCT="sendcmpct";
-const char *CMPCTBLOCK="cmpctblock";
-const char *GETBLOCKTXN="getblocktxn";
-const char *BLOCKTXN="blocktxn";
+namespace NetMsgType
+{
+const char* VERSION = "version";
+const char* VERACK = "verack";
+const char* ADDR = "addr";
+const char* INV = "inv";
+const char* GETDATA = "getdata";
+const char* MERKLEBLOCK = "merkleblock";
+const char* GETBLOCKS = "getblocks";
+const char* GETHEADERS = "getheaders";
+const char* TX = "tx";
+const char* HEADERS = "headers";
+const char* BLOCK = "block";
+const char* GETADDR = "getaddr";
+const char* MEMPOOL = "mempool";
+const char* PING = "ping";
+const char* PONG = "pong";
+const char* ALERT = "alert";
+const char* NOTFOUND = "notfound";
+const char* FILTERLOAD = "filterload";
+const char* FILTERADD = "filteradd";
+const char* FILTERCLEAR = "filterclear";
+const char* REJECT = "reject";
+const char* SENDHEADERS = "sendheaders";
+const char* SENDCMPCT = "sendcmpct";
+const char* CMPCTBLOCK = "cmpctblock";
+const char* GETBLOCKTXN = "getblocktxn";
+const char* BLOCKTXN = "blocktxn";
 // Dash message types
-const char *TXLOCKREQUEST="ix";
-const char *TXLOCKVOTE="txlvote";
-const char *SPORK="spork";
-const char *GETSPORKS="getsporks";
-const char *MASTERNODEPAYMENTVOTE="mnw";
-const char *MASTERNODEPAYMENTBLOCK="mnwb";
-const char *MASTERNODEPAYMENTSYNC="mnget";
-const char *MNBUDGETSYNC="mnvs"; // deprecated since 12.1
-const char *MNBUDGETVOTE="mvote"; // deprecated since 12.1
-const char *MNBUDGETPROPOSAL="mprop"; // deprecated since 12.1
-const char *MNBUDGETFINAL="fbs"; // deprecated since 12.1
-const char *MNBUDGETFINALVOTE="fbvote"; // deprecated since 12.1
-const char *MNQUORUM="mn quorum"; // not implemented
-const char *MNANNOUNCE="mnb";
-const char *MNPING="mnp";
-const char *DSACCEPT="dsa";
-const char *DSVIN="dsi";
-const char *DSFINALTX="dsf";
-const char *DSSIGNFINALTX="dss";
-const char *DSCOMPLETE="dsc";
-const char *DSSTATUSUPDATE="dssu";
-const char *DSTX="dstx";
-const char *DSQUEUE="dsq";
-const char *DSEG="dseg";
-const char *SYNCSTATUSCOUNT="ssc";
-const char *MNGOVERNANCESYNC="govsync";
-const char *MNGOVERNANCEOBJECT="govobj";
-const char *MNGOVERNANCEOBJECTVOTE="govobjvote";
-const char *MNVERIFY="mnv";
-const char *GETMNLISTDIFF="getmnlistd";
-const char *MNLISTDIFF="mnlistdiff";
-};
+const char* TXLOCKREQUEST = "ix";
+const char* TXLOCKVOTE = "txlvote";
+const char* SPORK = "spork";
+const char* GETSPORKS = "getsporks";
+const char* MASTERNODEPAYMENTVOTE = "mnw";
+const char* MASTERNODEPAYMENTBLOCK = "mnwb";
+const char* MASTERNODEPAYMENTSYNC = "mnget";
+const char* MNBUDGETSYNC = "mnvs";        // deprecated since 12.1
+const char* MNBUDGETVOTE = "mvote";       // deprecated since 12.1
+const char* MNBUDGETPROPOSAL = "mprop";   // deprecated since 12.1
+const char* MNBUDGETFINAL = "fbs";        // deprecated since 12.1
+const char* MNBUDGETFINALVOTE = "fbvote"; // deprecated since 12.1
+const char* MNQUORUM = "mn quorum";       // not implemented
+const char* MNANNOUNCE = "mnb";
+const char* MNPING = "mnp";
+const char* DSACCEPT = "dsa";
+const char* DSVIN = "dsi";
+const char* DSFINALTX = "dsf";
+const char* DSSIGNFINALTX = "dss";
+const char* DSCOMPLETE = "dsc";
+const char* DSSTATUSUPDATE = "dssu";
+const char* DSTX = "dstx";
+const char* DSQUEUE = "dsq";
+const char* DSEG = "dseg";
+const char* SYNCSTATUSCOUNT = "ssc";
+const char* MNGOVERNANCESYNC = "govsync";
+const char* MNGOVERNANCEOBJECT = "govobj";
+const char* MNGOVERNANCEOBJECTVOTE = "govobjvote";
+const char* MNVERIFY = "mnv";
+const char* GETMNLISTDIFF = "getmnlistd";
+const char* MNLISTDIFF = "mnlistdiff";
+}; // namespace NetMsgType
 
 static const char* ppszTypeName[] =
-{
-    "ERROR", // Should never occur
-    NetMsgType::TX,
-    NetMsgType::BLOCK,
-    "filtered block", // Should never occur
-    // Dash message types
-    // NOTE: include non-implmented here, we must keep this list in sync with enum in protocol.h
-    NetMsgType::TXLOCKREQUEST,
-    NetMsgType::TXLOCKVOTE,
-    NetMsgType::SPORK,
-    NetMsgType::MASTERNODEPAYMENTVOTE,
-    NetMsgType::MASTERNODEPAYMENTBLOCK, // reusing, was MNSCANERROR previousely, was NOT used in 12.0, we need this for inv
-    NetMsgType::MNBUDGETVOTE, // deprecated since 12.1
-    NetMsgType::MNBUDGETPROPOSAL, // deprecated since 12.1
-    NetMsgType::MNBUDGETFINAL, // deprecated since 12.1
-    NetMsgType::MNBUDGETFINALVOTE, // deprecated since 12.1
-    NetMsgType::MNQUORUM, // not implemented
-    NetMsgType::MNANNOUNCE,
-    NetMsgType::MNPING,
-    NetMsgType::DSTX,
-    NetMsgType::MNGOVERNANCEOBJECT,
-    NetMsgType::MNGOVERNANCEOBJECTVOTE,
-    NetMsgType::MNVERIFY,
-    "compact block", // Should never occur
+    {
+        "ERROR", // Should never occur
+        NetMsgType::TX,
+        NetMsgType::BLOCK,
+        "filtered block", // Should never occur
+        // Dash message types
+        // NOTE: include non-implmented here, we must keep this list in sync with enum in protocol.h
+        NetMsgType::TXLOCKREQUEST,
+        NetMsgType::TXLOCKVOTE,
+        NetMsgType::SPORK,
+        NetMsgType::MASTERNODEPAYMENTVOTE,
+        NetMsgType::MASTERNODEPAYMENTBLOCK, // reusing, was MNSCANERROR previousely, was NOT used in 12.0, we need this for inv
+        NetMsgType::MNBUDGETVOTE,           // deprecated since 12.1
+        NetMsgType::MNBUDGETPROPOSAL,       // deprecated since 12.1
+        NetMsgType::MNBUDGETFINAL,          // deprecated since 12.1
+        NetMsgType::MNBUDGETFINALVOTE,      // deprecated since 12.1
+        NetMsgType::MNQUORUM,               // not implemented
+        NetMsgType::MNANNOUNCE,
+        NetMsgType::MNPING,
+        NetMsgType::DSTX,
+        NetMsgType::MNGOVERNANCEOBJECT,
+        NetMsgType::MNGOVERNANCEOBJECTVOTE,
+        NetMsgType::MNVERIFY,
+        "compact block", // Should never occur
 };
 
 /** All known message types. Keep this in the same order as the list of
@@ -158,7 +159,7 @@ const static std::string allNetMessageTypes[] = {
     NetMsgType::GETMNLISTDIFF,
     NetMsgType::MNLISTDIFF,
 };
-const static std::vector<std::string> allNetMessageTypesVec(allNetMessageTypes, allNetMessageTypes+ARRAYLEN(allNetMessageTypes));
+const static std::vector<std::string> allNetMessageTypesVec(allNetMessageTypes, allNetMessageTypes + ARRAYLEN(allNetMessageTypes));
 
 CMessageHeader::CMessageHeader(const MessageStartChars& pchMessageStartIn)
 {
@@ -189,22 +190,18 @@ bool CMessageHeader::IsValid(const MessageStartChars& pchMessageStartIn) const
         return false;
 
     // Check the command string for errors
-    for (const char* p1 = pchCommand; p1 < pchCommand + COMMAND_SIZE; p1++)
-    {
-        if (*p1 == 0)
-        {
+    for (const char* p1 = pchCommand; p1 < pchCommand + COMMAND_SIZE; p1++) {
+        if (*p1 == 0) {
             // Must be all zeros after the first zero
             for (; p1 < pchCommand + COMMAND_SIZE; p1++)
                 if (*p1 != 0)
                     return false;
-        }
-        else if (*p1 < ' ' || *p1 > 0x7E)
+        } else if (*p1 < ' ' || *p1 > 0x7E)
             return false;
     }
 
     // Message size
-    if (nMessageSize > MAX_SIZE)
-    {
+    if (nMessageSize > MAX_SIZE) {
         LogPrintf("CMessageHeader::IsValid(): (%s, %u bytes) nMessageSize > MAX_SIZE\n", GetCommand(), nMessageSize);
         return false;
     }
@@ -213,13 +210,14 @@ bool CMessageHeader::IsValid(const MessageStartChars& pchMessageStartIn) const
 }
 
 
-
-CAddress::CAddress() : CService()
+CAddress::CAddress() :
+    CService()
 {
     Init();
 }
 
-CAddress::CAddress(CService ipIn, ServiceFlags nServicesIn) : CService(ipIn)
+CAddress::CAddress(CService ipIn, ServiceFlags nServicesIn) :
+    CService(ipIn)
 {
     Init();
     nServices = nServicesIn;
@@ -246,10 +244,8 @@ CInv::CInv(int typeIn, const uint256& hashIn)
 CInv::CInv(const std::string& strType, const uint256& hashIn)
 {
     unsigned int i;
-    for (i = 1; i < ARRAYLEN(ppszTypeName); i++)
-    {
-        if (strType == ppszTypeName[i])
-        {
+    for (i = 1; i < ARRAYLEN(ppszTypeName); i++) {
+        if (strType == ppszTypeName[i]) {
             type = i;
             break;
         }
@@ -280,12 +276,12 @@ std::string CInv::ToString() const
 {
     try {
         return strprintf("%s %s", GetCommand(), hash.ToString());
-    } catch(const std::out_of_range &) {
+    } catch (const std::out_of_range&) {
         return strprintf("0x%08x %s", type, hash.ToString());
     }
 }
 
-const std::vector<std::string> &getAllNetMessageTypes()
+const std::vector<std::string>& getAllNetMessageTypes()
 {
     return allNetMessageTypesVec;
 }

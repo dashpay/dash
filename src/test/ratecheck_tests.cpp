@@ -61,18 +61,18 @@ BOOST_AUTO_TEST_CASE(ratecheck_test)
     BOOST_CHECK(buffer.GetCount() == 5);
     BOOST_CHECK(buffer.GetMinTimestamp() == 1);
     BOOST_CHECK(buffer.GetMaxTimestamp() == 5);
-    BOOST_CHECK(fabs(buffer.GetRate() - (5.0/4.0)) < 1.0e-9);
+    BOOST_CHECK(fabs(buffer.GetRate() - (5.0 / 4.0)) < 1.0e-9);
 
     buffer.AddTimestamp(6);
     BOOST_CHECK(buffer.GetCount() == 5);
     BOOST_CHECK(buffer.GetMinTimestamp() == 2);
     BOOST_CHECK(buffer.GetMaxTimestamp() == 6);
-    BOOST_CHECK(fabs(buffer.GetRate() - (5.0/4.0)) < 1.0e-9);
+    BOOST_CHECK(fabs(buffer.GetRate() - (5.0 / 4.0)) < 1.0e-9);
 
     CRateCheckBuffer buffer2;
 
     BOOST_TEST_MESSAGE("Before loop tests");
-    for(int64_t i = 1; i < 11; ++i)  {
+    for (int64_t i = 1; i < 11; ++i) {
         BOOST_TEST_MESSAGE("In loop: i = " << i);
         buffer2.AddTimestamp(i);
         BOOST_CHECK(buffer2.GetCount() == (i <= 5 ? i : 5));

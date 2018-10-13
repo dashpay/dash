@@ -27,7 +27,8 @@ private:
     unsigned int nSize;
 
 public:
-    CMedianFilter(unsigned int size, T initial_value) : nSize(size)
+    CMedianFilter(unsigned int size, T initial_value) :
+        nSize(size)
     {
         vValues.reserve(size);
         vValues.push_back(initial_value);

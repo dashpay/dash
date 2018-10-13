@@ -5,9 +5,9 @@
 #include "bench.h"
 
 #include "chainparams.h"
-#include "validation.h"
-#include "streams.h"
 #include "consensus/validation.h"
+#include "streams.h"
+#include "validation.h"
 
 #include "bench/data/block813851.raw.h"
 
@@ -18,8 +18,8 @@
 static void DeserializeBlockTest(benchmark::State& state)
 {
     CDataStream stream((const char*)raw_bench::block813851,
-            (const char*)&raw_bench::block813851[sizeof(raw_bench::block813851)],
-            SER_NETWORK, PROTOCOL_VERSION);
+        (const char*)&raw_bench::block813851[sizeof(raw_bench::block813851)],
+        SER_NETWORK, PROTOCOL_VERSION);
     char a;
     stream.write(&a, 1); // Prevent compaction
 
@@ -33,8 +33,8 @@ static void DeserializeBlockTest(benchmark::State& state)
 static void DeserializeAndCheckBlockTest(benchmark::State& state)
 {
     CDataStream stream((const char*)raw_bench::block813851,
-            (const char*)&raw_bench::block813851[sizeof(raw_bench::block813851)],
-            SER_NETWORK, PROTOCOL_VERSION);
+        (const char*)&raw_bench::block813851[sizeof(raw_bench::block813851)],
+        SER_NETWORK, PROTOCOL_VERSION);
     char a;
     stream.write(&a, 1); // Prevent compaction
 

@@ -36,31 +36,31 @@
 #define SPH_GROESTL_H__
 
 #ifdef __cplusplus
-extern "C"{
+extern "C" {
 #endif
 
-#include <stddef.h>
 #include "sph_types.h"
+#include <stddef.h>
 
 /**
  * Output size (in bits) for Groestl-224.
  */
-#define SPH_SIZE_groestl224   224
+#define SPH_SIZE_groestl224 224
 
 /**
  * Output size (in bits) for Groestl-256.
  */
-#define SPH_SIZE_groestl256   256
+#define SPH_SIZE_groestl256 256
 
 /**
  * Output size (in bits) for Groestl-384.
  */
-#define SPH_SIZE_groestl384   384
+#define SPH_SIZE_groestl384 384
 
 /**
  * Output size (in bits) for Groestl-512.
  */
-#define SPH_SIZE_groestl512   512
+#define SPH_SIZE_groestl512 512
 
 /**
  * This structure is a context for Groestl-224 and Groestl-256 computations:
@@ -74,18 +74,18 @@ extern "C"{
  */
 typedef struct {
 #ifndef DOXYGEN_IGNORE
-	unsigned char buf[64];    /* first field, for alignment */
-	size_t ptr;
-	union {
+    unsigned char buf[64]; /* first field, for alignment */
+    size_t ptr;
+    union {
 #if SPH_64
-		sph_u64 wide[8];
+        sph_u64 wide[8];
 #endif
-		sph_u32 narrow[16];
-	} state;
+        sph_u32 narrow[16];
+    } state;
 #if SPH_64
-	sph_u64 count;
+    sph_u64 count;
 #else
-	sph_u32 count_high, count_low;
+    sph_u32 count_high, count_low;
 #endif
 #endif
 } sph_groestl_small_context;
@@ -114,18 +114,18 @@ typedef sph_groestl_small_context sph_groestl256_context;
  */
 typedef struct {
 #ifndef DOXYGEN_IGNORE
-	unsigned char buf[128];    /* first field, for alignment */
-	size_t ptr;
-	union {
+    unsigned char buf[128]; /* first field, for alignment */
+    size_t ptr;
+    union {
 #if SPH_64
-		sph_u64 wide[16];
+        sph_u64 wide[16];
 #endif
-		sph_u32 narrow[32];
-	} state;
+        sph_u32 narrow[32];
+    } state;
 #if SPH_64
-	sph_u64 count;
+    sph_u64 count;
 #else
-	sph_u32 count_high, count_low;
+    sph_u32 count_high, count_low;
 #endif
 #endif
 } sph_groestl_big_context;
@@ -148,7 +148,7 @@ typedef sph_groestl_big_context sph_groestl512_context;
  * @param cc   the Groestl-224 context (pointer to a
  *             <code>sph_groestl224_context</code>)
  */
-void sph_groestl224_init(void *cc);
+void sph_groestl224_init(void* cc);
 
 /**
  * Process some data bytes. It is acceptable that <code>len</code> is zero
@@ -158,7 +158,7 @@ void sph_groestl224_init(void *cc);
  * @param data   the input data
  * @param len    the input data length (in bytes)
  */
-void sph_groestl224(void *cc, const void *data, size_t len);
+void sph_groestl224(void* cc, const void* data, size_t len);
 
 /**
  * Terminate the current Groestl-224 computation and output the result into
@@ -169,7 +169,7 @@ void sph_groestl224(void *cc, const void *data, size_t len);
  * @param cc    the Groestl-224 context
  * @param dst   the destination buffer
  */
-void sph_groestl224_close(void *cc, void *dst);
+void sph_groestl224_close(void* cc, void* dst);
 
 /**
  * Add a few additional bits (0 to 7) to the current computation, then
@@ -185,7 +185,10 @@ void sph_groestl224_close(void *cc, void *dst);
  * @param dst   the destination buffer
  */
 void sph_groestl224_addbits_and_close(
-	void *cc, unsigned ub, unsigned n, void *dst);
+    void* cc,
+    unsigned ub,
+    unsigned n,
+    void* dst);
 
 /**
  * Initialize a Groestl-256 context. This process performs no memory allocation.
@@ -193,7 +196,7 @@ void sph_groestl224_addbits_and_close(
  * @param cc   the Groestl-256 context (pointer to a
  *             <code>sph_groestl256_context</code>)
  */
-void sph_groestl256_init(void *cc);
+void sph_groestl256_init(void* cc);
 
 /**
  * Process some data bytes. It is acceptable that <code>len</code> is zero
@@ -203,7 +206,7 @@ void sph_groestl256_init(void *cc);
  * @param data   the input data
  * @param len    the input data length (in bytes)
  */
-void sph_groestl256(void *cc, const void *data, size_t len);
+void sph_groestl256(void* cc, const void* data, size_t len);
 
 /**
  * Terminate the current Groestl-256 computation and output the result into
@@ -214,7 +217,7 @@ void sph_groestl256(void *cc, const void *data, size_t len);
  * @param cc    the Groestl-256 context
  * @param dst   the destination buffer
  */
-void sph_groestl256_close(void *cc, void *dst);
+void sph_groestl256_close(void* cc, void* dst);
 
 /**
  * Add a few additional bits (0 to 7) to the current computation, then
@@ -230,7 +233,10 @@ void sph_groestl256_close(void *cc, void *dst);
  * @param dst   the destination buffer
  */
 void sph_groestl256_addbits_and_close(
-	void *cc, unsigned ub, unsigned n, void *dst);
+    void* cc,
+    unsigned ub,
+    unsigned n,
+    void* dst);
 
 /**
  * Initialize a Groestl-384 context. This process performs no memory allocation.
@@ -238,7 +244,7 @@ void sph_groestl256_addbits_and_close(
  * @param cc   the Groestl-384 context (pointer to a
  *             <code>sph_groestl384_context</code>)
  */
-void sph_groestl384_init(void *cc);
+void sph_groestl384_init(void* cc);
 
 /**
  * Process some data bytes. It is acceptable that <code>len</code> is zero
@@ -248,7 +254,7 @@ void sph_groestl384_init(void *cc);
  * @param data   the input data
  * @param len    the input data length (in bytes)
  */
-void sph_groestl384(void *cc, const void *data, size_t len);
+void sph_groestl384(void* cc, const void* data, size_t len);
 
 /**
  * Terminate the current Groestl-384 computation and output the result into
@@ -259,7 +265,7 @@ void sph_groestl384(void *cc, const void *data, size_t len);
  * @param cc    the Groestl-384 context
  * @param dst   the destination buffer
  */
-void sph_groestl384_close(void *cc, void *dst);
+void sph_groestl384_close(void* cc, void* dst);
 
 /**
  * Add a few additional bits (0 to 7) to the current computation, then
@@ -275,7 +281,10 @@ void sph_groestl384_close(void *cc, void *dst);
  * @param dst   the destination buffer
  */
 void sph_groestl384_addbits_and_close(
-	void *cc, unsigned ub, unsigned n, void *dst);
+    void* cc,
+    unsigned ub,
+    unsigned n,
+    void* dst);
 
 /**
  * Initialize a Groestl-512 context. This process performs no memory allocation.
@@ -283,7 +292,7 @@ void sph_groestl384_addbits_and_close(
  * @param cc   the Groestl-512 context (pointer to a
  *             <code>sph_groestl512_context</code>)
  */
-void sph_groestl512_init(void *cc);
+void sph_groestl512_init(void* cc);
 
 /**
  * Process some data bytes. It is acceptable that <code>len</code> is zero
@@ -293,7 +302,7 @@ void sph_groestl512_init(void *cc);
  * @param data   the input data
  * @param len    the input data length (in bytes)
  */
-void sph_groestl512(void *cc, const void *data, size_t len);
+void sph_groestl512(void* cc, const void* data, size_t len);
 
 /**
  * Terminate the current Groestl-512 computation and output the result into
@@ -304,7 +313,7 @@ void sph_groestl512(void *cc, const void *data, size_t len);
  * @param cc    the Groestl-512 context
  * @param dst   the destination buffer
  */
-void sph_groestl512_close(void *cc, void *dst);
+void sph_groestl512_close(void* cc, void* dst);
 
 /**
  * Add a few additional bits (0 to 7) to the current computation, then
@@ -320,7 +329,10 @@ void sph_groestl512_close(void *cc, void *dst);
  * @param dst   the destination buffer
  */
 void sph_groestl512_addbits_and_close(
-	void *cc, unsigned ub, unsigned n, void *dst);
+    void* cc,
+    unsigned ub,
+    unsigned n,
+    void* dst);
 
 #ifdef __cplusplus
 }

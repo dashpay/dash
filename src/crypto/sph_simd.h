@@ -37,31 +37,31 @@
 #define SPH_SIMD_H__
 
 #ifdef __cplusplus
-extern "C"{
+extern "C" {
 #endif
 
-#include <stddef.h>
 #include "sph_types.h"
+#include <stddef.h>
 
 /**
  * Output size (in bits) for SIMD-224.
  */
-#define SPH_SIZE_simd224   224
+#define SPH_SIZE_simd224 224
 
 /**
  * Output size (in bits) for SIMD-256.
  */
-#define SPH_SIZE_simd256   256
+#define SPH_SIZE_simd256 256
 
 /**
  * Output size (in bits) for SIMD-384.
  */
-#define SPH_SIZE_simd384   384
+#define SPH_SIZE_simd384 384
 
 /**
  * Output size (in bits) for SIMD-512.
  */
-#define SPH_SIZE_simd512   512
+#define SPH_SIZE_simd512 512
 
 /**
  * This structure is a context for SIMD computations: it contains the
@@ -76,10 +76,10 @@ extern "C"{
  */
 typedef struct {
 #ifndef DOXYGEN_IGNORE
-	unsigned char buf[64];    /* first field, for alignment */
-	size_t ptr;
-	sph_u32 state[16];
-	sph_u32 count_low, count_high;
+    unsigned char buf[64]; /* first field, for alignment */
+    size_t ptr;
+    sph_u32 state[16];
+    sph_u32 count_low, count_high;
 #endif
 } sph_simd_small_context;
 
@@ -96,10 +96,10 @@ typedef struct {
  */
 typedef struct {
 #ifndef DOXYGEN_IGNORE
-	unsigned char buf[128];    /* first field, for alignment */
-	size_t ptr;
-	sph_u32 state[32];
-	sph_u32 count_low, count_high;
+    unsigned char buf[128]; /* first field, for alignment */
+    size_t ptr;
+    sph_u32 state[32];
+    sph_u32 count_low, count_high;
 #endif
 } sph_simd_big_context;
 
@@ -129,7 +129,7 @@ typedef sph_simd_big_context sph_simd512_context;
  * @param cc   the SIMD-224 context (pointer to a
  *             <code>sph_simd224_context</code>)
  */
-void sph_simd224_init(void *cc);
+void sph_simd224_init(void* cc);
 
 /**
  * Process some data bytes. It is acceptable that <code>len</code> is zero
@@ -139,7 +139,7 @@ void sph_simd224_init(void *cc);
  * @param data   the input data
  * @param len    the input data length (in bytes)
  */
-void sph_simd224(void *cc, const void *data, size_t len);
+void sph_simd224(void* cc, const void* data, size_t len);
 
 /**
  * Terminate the current SIMD-224 computation and output the result into
@@ -150,7 +150,7 @@ void sph_simd224(void *cc, const void *data, size_t len);
  * @param cc    the SIMD-224 context
  * @param dst   the destination buffer
  */
-void sph_simd224_close(void *cc, void *dst);
+void sph_simd224_close(void* cc, void* dst);
 
 /**
  * Add a few additional bits (0 to 7) to the current computation, then
@@ -166,7 +166,10 @@ void sph_simd224_close(void *cc, void *dst);
  * @param dst   the destination buffer
  */
 void sph_simd224_addbits_and_close(
-	void *cc, unsigned ub, unsigned n, void *dst);
+    void* cc,
+    unsigned ub,
+    unsigned n,
+    void* dst);
 
 /**
  * Initialize an SIMD-256 context. This process performs no memory allocation.
@@ -174,7 +177,7 @@ void sph_simd224_addbits_and_close(
  * @param cc   the SIMD-256 context (pointer to a
  *             <code>sph_simd256_context</code>)
  */
-void sph_simd256_init(void *cc);
+void sph_simd256_init(void* cc);
 
 /**
  * Process some data bytes. It is acceptable that <code>len</code> is zero
@@ -184,7 +187,7 @@ void sph_simd256_init(void *cc);
  * @param data   the input data
  * @param len    the input data length (in bytes)
  */
-void sph_simd256(void *cc, const void *data, size_t len);
+void sph_simd256(void* cc, const void* data, size_t len);
 
 /**
  * Terminate the current SIMD-256 computation and output the result into
@@ -195,7 +198,7 @@ void sph_simd256(void *cc, const void *data, size_t len);
  * @param cc    the SIMD-256 context
  * @param dst   the destination buffer
  */
-void sph_simd256_close(void *cc, void *dst);
+void sph_simd256_close(void* cc, void* dst);
 
 /**
  * Add a few additional bits (0 to 7) to the current computation, then
@@ -211,7 +214,10 @@ void sph_simd256_close(void *cc, void *dst);
  * @param dst   the destination buffer
  */
 void sph_simd256_addbits_and_close(
-	void *cc, unsigned ub, unsigned n, void *dst);
+    void* cc,
+    unsigned ub,
+    unsigned n,
+    void* dst);
 
 /**
  * Initialize an SIMD-384 context. This process performs no memory allocation.
@@ -219,7 +225,7 @@ void sph_simd256_addbits_and_close(
  * @param cc   the SIMD-384 context (pointer to a
  *             <code>sph_simd384_context</code>)
  */
-void sph_simd384_init(void *cc);
+void sph_simd384_init(void* cc);
 
 /**
  * Process some data bytes. It is acceptable that <code>len</code> is zero
@@ -229,7 +235,7 @@ void sph_simd384_init(void *cc);
  * @param data   the input data
  * @param len    the input data length (in bytes)
  */
-void sph_simd384(void *cc, const void *data, size_t len);
+void sph_simd384(void* cc, const void* data, size_t len);
 
 /**
  * Terminate the current SIMD-384 computation and output the result into
@@ -240,7 +246,7 @@ void sph_simd384(void *cc, const void *data, size_t len);
  * @param cc    the SIMD-384 context
  * @param dst   the destination buffer
  */
-void sph_simd384_close(void *cc, void *dst);
+void sph_simd384_close(void* cc, void* dst);
 
 /**
  * Add a few additional bits (0 to 7) to the current computation, then
@@ -256,7 +262,10 @@ void sph_simd384_close(void *cc, void *dst);
  * @param dst   the destination buffer
  */
 void sph_simd384_addbits_and_close(
-	void *cc, unsigned ub, unsigned n, void *dst);
+    void* cc,
+    unsigned ub,
+    unsigned n,
+    void* dst);
 
 /**
  * Initialize an SIMD-512 context. This process performs no memory allocation.
@@ -264,7 +273,7 @@ void sph_simd384_addbits_and_close(
  * @param cc   the SIMD-512 context (pointer to a
  *             <code>sph_simd512_context</code>)
  */
-void sph_simd512_init(void *cc);
+void sph_simd512_init(void* cc);
 
 /**
  * Process some data bytes. It is acceptable that <code>len</code> is zero
@@ -274,7 +283,7 @@ void sph_simd512_init(void *cc);
  * @param data   the input data
  * @param len    the input data length (in bytes)
  */
-void sph_simd512(void *cc, const void *data, size_t len);
+void sph_simd512(void* cc, const void* data, size_t len);
 
 /**
  * Terminate the current SIMD-512 computation and output the result into
@@ -285,7 +294,7 @@ void sph_simd512(void *cc, const void *data, size_t len);
  * @param cc    the SIMD-512 context
  * @param dst   the destination buffer
  */
-void sph_simd512_close(void *cc, void *dst);
+void sph_simd512_close(void* cc, void* dst);
 
 /**
  * Add a few additional bits (0 to 7) to the current computation, then
@@ -301,7 +310,10 @@ void sph_simd512_close(void *cc, void *dst);
  * @param dst   the destination buffer
  */
 void sph_simd512_addbits_and_close(
-	void *cc, unsigned ub, unsigned n, void *dst);
+    void* cc,
+    unsigned ub,
+    unsigned n,
+    void* dst);
 #ifdef __cplusplus
 }
 #endif

@@ -10,7 +10,8 @@
 #include <boost/bind.hpp>
 #include <utility>
 
-CScheduler::CScheduler() : nThreadsServicingQueue(0), stopRequested(false), stopWhenEmpty(false)
+CScheduler::CScheduler() :
+    nThreadsServicingQueue(0), stopRequested(false), stopWhenEmpty(false)
 {
 }
 
@@ -120,8 +121,8 @@ void CScheduler::scheduleEvery(CScheduler::Function f, int64_t deltaSeconds)
     scheduleFromNow(boost::bind(&Repeat, this, f, deltaSeconds), deltaSeconds);
 }
 
-size_t CScheduler::getQueueInfo(boost::chrono::system_clock::time_point &first,
-                             boost::chrono::system_clock::time_point &last) const
+size_t CScheduler::getQueueInfo(boost::chrono::system_clock::time_point& first,
+    boost::chrono::system_clock::time_point& last) const
 {
     boost::unique_lock<boost::mutex> lock(newTaskMutex);
     size_t result = taskQueue.size();

@@ -48,6 +48,7 @@ struct CLockLocation {
     std::string MutexName() const { return mutexName; }
 
     bool fTry;
+
 private:
     std::string mutexName;
     std::string sourceFile;
@@ -64,7 +65,8 @@ struct LockData {
     // as DeleteLock can get called by global CCriticalSection destructors
     // after LockData disappears.
     bool available;
-    LockData() : available(true) {}
+    LockData() :
+        available(true) {}
     ~LockData() { available = false; }
 
     LockOrders lockorders;

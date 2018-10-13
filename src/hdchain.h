@@ -13,7 +13,8 @@ public:
     uint32_t nExternalChainCounter;
     uint32_t nInternalChainCounter;
 
-    CHDAccount() : nExternalChainCounter(0), nInternalChainCounter(0) {}
+    CHDAccount() :
+        nExternalChainCounter(0), nInternalChainCounter(0) {}
 
     ADD_SERIALIZE_METHODS;
     template <typename Stream, typename Operation>
@@ -44,7 +45,6 @@ private:
     mutable CCriticalSection cs_accounts;
 
 public:
-
     CHDChain() { SetNull(); }
     CHDChain(const CHDChain& other) :
         nVersion(other.nVersion),
@@ -54,7 +54,8 @@ public:
         vchMnemonic(other.vchMnemonic),
         vchMnemonicPassphrase(other.vchMnemonicPassphrase),
         mapAccounts(other.mapAccounts)
-        {}
+    {
+    }
 
     ADD_SERIALIZE_METHODS;
     template <typename Stream, typename Operation>
@@ -131,7 +132,8 @@ public:
     uint32_t nAccountIndex;
     uint32_t nChangeIndex;
 
-    CHDPubKey() : nVersion(CHDPubKey::CURRENT_VERSION), nAccountIndex(0), nChangeIndex(0) {}
+    CHDPubKey() :
+        nVersion(CHDPubKey::CURRENT_VERSION), nAccountIndex(0), nChangeIndex(0) {}
 
     ADD_SERIALIZE_METHODS;
     template <typename Stream, typename Operation>

@@ -15,16 +15,16 @@ class NetworkStyle
 {
 public:
     /** Get style associated with provided BIP70 network id, or 0 if not known */
-    static const NetworkStyle *instantiate(const QString &networkId);
+    static const NetworkStyle* instantiate(const QString& networkId);
 
-    const QString &getAppName() const { return appName; }
-    const QIcon &getAppIcon() const { return appIcon; }
-    const QPixmap &getSplashImage() const { return splashImage; }
-    const QIcon &getTrayAndWindowIcon() const { return trayAndWindowIcon; }
-    const QString &getTitleAddText() const { return titleAddText; }
+    const QString& getAppName() const { return appName; }
+    const QIcon& getAppIcon() const { return appIcon; }
+    const QPixmap& getSplashImage() const { return splashImage; }
+    const QIcon& getTrayAndWindowIcon() const { return trayAndWindowIcon; }
+    const QString& getTitleAddText() const { return titleAddText; }
 
 private:
-    NetworkStyle(const QString &appName, const int iconColorHueShift, const int iconColorSaturationReduction, const char *titleAddText);
+    NetworkStyle(const QString& appName, const int iconColorHueShift, const int iconColorSaturationReduction, const char* titleAddText);
 
     QString appName;
     QIcon appIcon;

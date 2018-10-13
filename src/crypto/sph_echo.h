@@ -37,31 +37,31 @@
 #define SPH_ECHO_H__
 
 #ifdef __cplusplus
-extern "C"{
+extern "C" {
 #endif
 
-#include <stddef.h>
 #include "sph_types.h"
+#include <stddef.h>
 
 /**
  * Output size (in bits) for ECHO-224.
  */
-#define SPH_SIZE_echo224   224
+#define SPH_SIZE_echo224 224
 
 /**
  * Output size (in bits) for ECHO-256.
  */
-#define SPH_SIZE_echo256   256
+#define SPH_SIZE_echo256 256
 
 /**
  * Output size (in bits) for ECHO-384.
  */
-#define SPH_SIZE_echo384   384
+#define SPH_SIZE_echo384 384
 
 /**
  * Output size (in bits) for ECHO-512.
  */
-#define SPH_SIZE_echo512   512
+#define SPH_SIZE_echo512 512
 
 /**
  * This structure is a context for ECHO computations: it contains the
@@ -76,15 +76,15 @@ extern "C"{
  */
 typedef struct {
 #ifndef DOXYGEN_IGNORE
-	unsigned char buf[192];    /* first field, for alignment */
-	size_t ptr;
-	union {
-		sph_u32 Vs[4][4];
+    unsigned char buf[192]; /* first field, for alignment */
+    size_t ptr;
+    union {
+        sph_u32 Vs[4][4];
 #if SPH_64
-		sph_u64 Vb[4][2];
+        sph_u64 Vb[4][2];
 #endif
-	} u;
-	sph_u32 C0, C1, C2, C3;
+    } u;
+    sph_u32 C0, C1, C2, C3;
 #endif
 } sph_echo_small_context;
 
@@ -101,15 +101,15 @@ typedef struct {
  */
 typedef struct {
 #ifndef DOXYGEN_IGNORE
-	unsigned char buf[128];    /* first field, for alignment */
-	size_t ptr;
-	union {
-		sph_u32 Vs[8][4];
+    unsigned char buf[128]; /* first field, for alignment */
+    size_t ptr;
+    union {
+        sph_u32 Vs[8][4];
 #if SPH_64
-		sph_u64 Vb[8][2];
+        sph_u64 Vb[8][2];
 #endif
-	} u;
-	sph_u32 C0, C1, C2, C3;
+    } u;
+    sph_u32 C0, C1, C2, C3;
 #endif
 } sph_echo_big_context;
 
@@ -139,7 +139,7 @@ typedef sph_echo_big_context sph_echo512_context;
  * @param cc   the ECHO-224 context (pointer to a
  *             <code>sph_echo224_context</code>)
  */
-void sph_echo224_init(void *cc);
+void sph_echo224_init(void* cc);
 
 /**
  * Process some data bytes. It is acceptable that <code>len</code> is zero
@@ -149,7 +149,7 @@ void sph_echo224_init(void *cc);
  * @param data   the input data
  * @param len    the input data length (in bytes)
  */
-void sph_echo224(void *cc, const void *data, size_t len);
+void sph_echo224(void* cc, const void* data, size_t len);
 
 /**
  * Terminate the current ECHO-224 computation and output the result into
@@ -160,7 +160,7 @@ void sph_echo224(void *cc, const void *data, size_t len);
  * @param cc    the ECHO-224 context
  * @param dst   the destination buffer
  */
-void sph_echo224_close(void *cc, void *dst);
+void sph_echo224_close(void* cc, void* dst);
 
 /**
  * Add a few additional bits (0 to 7) to the current computation, then
@@ -176,7 +176,10 @@ void sph_echo224_close(void *cc, void *dst);
  * @param dst   the destination buffer
  */
 void sph_echo224_addbits_and_close(
-	void *cc, unsigned ub, unsigned n, void *dst);
+    void* cc,
+    unsigned ub,
+    unsigned n,
+    void* dst);
 
 /**
  * Initialize an ECHO-256 context. This process performs no memory allocation.
@@ -184,7 +187,7 @@ void sph_echo224_addbits_and_close(
  * @param cc   the ECHO-256 context (pointer to a
  *             <code>sph_echo256_context</code>)
  */
-void sph_echo256_init(void *cc);
+void sph_echo256_init(void* cc);
 
 /**
  * Process some data bytes. It is acceptable that <code>len</code> is zero
@@ -194,7 +197,7 @@ void sph_echo256_init(void *cc);
  * @param data   the input data
  * @param len    the input data length (in bytes)
  */
-void sph_echo256(void *cc, const void *data, size_t len);
+void sph_echo256(void* cc, const void* data, size_t len);
 
 /**
  * Terminate the current ECHO-256 computation and output the result into
@@ -205,7 +208,7 @@ void sph_echo256(void *cc, const void *data, size_t len);
  * @param cc    the ECHO-256 context
  * @param dst   the destination buffer
  */
-void sph_echo256_close(void *cc, void *dst);
+void sph_echo256_close(void* cc, void* dst);
 
 /**
  * Add a few additional bits (0 to 7) to the current computation, then
@@ -221,7 +224,10 @@ void sph_echo256_close(void *cc, void *dst);
  * @param dst   the destination buffer
  */
 void sph_echo256_addbits_and_close(
-	void *cc, unsigned ub, unsigned n, void *dst);
+    void* cc,
+    unsigned ub,
+    unsigned n,
+    void* dst);
 
 /**
  * Initialize an ECHO-384 context. This process performs no memory allocation.
@@ -229,7 +235,7 @@ void sph_echo256_addbits_and_close(
  * @param cc   the ECHO-384 context (pointer to a
  *             <code>sph_echo384_context</code>)
  */
-void sph_echo384_init(void *cc);
+void sph_echo384_init(void* cc);
 
 /**
  * Process some data bytes. It is acceptable that <code>len</code> is zero
@@ -239,7 +245,7 @@ void sph_echo384_init(void *cc);
  * @param data   the input data
  * @param len    the input data length (in bytes)
  */
-void sph_echo384(void *cc, const void *data, size_t len);
+void sph_echo384(void* cc, const void* data, size_t len);
 
 /**
  * Terminate the current ECHO-384 computation and output the result into
@@ -250,7 +256,7 @@ void sph_echo384(void *cc, const void *data, size_t len);
  * @param cc    the ECHO-384 context
  * @param dst   the destination buffer
  */
-void sph_echo384_close(void *cc, void *dst);
+void sph_echo384_close(void* cc, void* dst);
 
 /**
  * Add a few additional bits (0 to 7) to the current computation, then
@@ -266,7 +272,10 @@ void sph_echo384_close(void *cc, void *dst);
  * @param dst   the destination buffer
  */
 void sph_echo384_addbits_and_close(
-	void *cc, unsigned ub, unsigned n, void *dst);
+    void* cc,
+    unsigned ub,
+    unsigned n,
+    void* dst);
 
 /**
  * Initialize an ECHO-512 context. This process performs no memory allocation.
@@ -274,7 +283,7 @@ void sph_echo384_addbits_and_close(
  * @param cc   the ECHO-512 context (pointer to a
  *             <code>sph_echo512_context</code>)
  */
-void sph_echo512_init(void *cc);
+void sph_echo512_init(void* cc);
 
 /**
  * Process some data bytes. It is acceptable that <code>len</code> is zero
@@ -284,7 +293,7 @@ void sph_echo512_init(void *cc);
  * @param data   the input data
  * @param len    the input data length (in bytes)
  */
-void sph_echo512(void *cc, const void *data, size_t len);
+void sph_echo512(void* cc, const void* data, size_t len);
 
 /**
  * Terminate the current ECHO-512 computation and output the result into
@@ -295,7 +304,7 @@ void sph_echo512(void *cc, const void *data, size_t len);
  * @param cc    the ECHO-512 context
  * @param dst   the destination buffer
  */
-void sph_echo512_close(void *cc, void *dst);
+void sph_echo512_close(void* cc, void* dst);
 
 /**
  * Add a few additional bits (0 to 7) to the current computation, then
@@ -311,8 +320,11 @@ void sph_echo512_close(void *cc, void *dst);
  * @param dst   the destination buffer
  */
 void sph_echo512_addbits_and_close(
-	void *cc, unsigned ub, unsigned n, void *dst);
-	
+    void* cc,
+    unsigned ub,
+    unsigned n,
+    void* dst);
+
 #ifdef __cplusplus
 }
 #endif

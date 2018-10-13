@@ -2,8 +2,8 @@
 // Distributed under the MIT software license, see the accompanying
 // file COPYING or http://www.opensource.org/licenses/mit-license.php.
 
-#include <vector>
 #include "prevector.h"
+#include <vector>
 
 #include "serialize.h"
 #include "streams.h"
@@ -15,8 +15,9 @@
 
 BOOST_FIXTURE_TEST_SUITE(PrevectorTests, TestingSetup)
 
-template<unsigned int N, typename T>
-class prevector_tester {
+template <unsigned int N, typename T>
+class prevector_tester
+{
     typedef std::vector<T> realtype;
     realtype real_vector;
     realtype real_vector_alt;
@@ -31,39 +32,40 @@ class prevector_tester {
 
 
     template <typename A, typename B>
-        void local_check_equal(A a, B b)
-        {
-            local_check(a == b);
-        }
-    void local_check(bool b) 
+    void local_check_equal(A a, B b)
+    {
+        local_check(a == b);
+    }
+    void local_check(bool b)
     {
         passed &= b;
     }
-    void test() {
+    void test()
+    {
         const pretype& const_pre_vector = pre_vector;
         local_check_equal(real_vector.size(), pre_vector.size());
         local_check_equal(real_vector.empty(), pre_vector.empty());
         for (Size s = 0; s < real_vector.size(); s++) {
-             local_check(real_vector[s] == pre_vector[s]);
-             local_check(&(pre_vector[s]) == &(pre_vector.begin()[s]));
-             local_check(&(pre_vector[s]) == &*(pre_vector.begin() + s));
-             local_check(&(pre_vector[s]) == &*((pre_vector.end() + s) - real_vector.size()));
+            local_check(real_vector[s] == pre_vector[s]);
+            local_check(&(pre_vector[s]) == &(pre_vector.begin()[s]));
+            local_check(&(pre_vector[s]) == &*(pre_vector.begin() + s));
+            local_check(&(pre_vector[s]) == &*((pre_vector.end() + s) - real_vector.size()));
         }
         // local_check(realtype(pre_vector) == real_vector);
         local_check(pretype(real_vector.begin(), real_vector.end()) == pre_vector);
         local_check(pretype(pre_vector.begin(), pre_vector.end()) == pre_vector);
         size_t pos = 0;
-        BOOST_FOREACH(const T& v, pre_vector) {
-             local_check(v == real_vector[pos++]);
+        BOOST_FOREACH (const T& v, pre_vector) {
+            local_check(v == real_vector[pos++]);
         }
-        BOOST_REVERSE_FOREACH(const T& v, pre_vector) {
-             local_check(v == real_vector[--pos]);
+        BOOST_REVERSE_FOREACH (const T& v, pre_vector) {
+            local_check(v == real_vector[--pos]);
         }
-        BOOST_FOREACH(const T& v, const_pre_vector) {
-             local_check(v == real_vector[pos++]);
+        BOOST_FOREACH (const T& v, const_pre_vector) {
+            local_check(v == real_vector[pos++]);
         }
-        BOOST_REVERSE_FOREACH(const T& v, const_pre_vector) {
-             local_check(v == real_vector[--pos]);
+        BOOST_REVERSE_FOREACH (const T& v, const_pre_vector) {
+            local_check(v == real_vector[--pos]);
         }
         CDataStream ss1(SER_DISK, 0);
         CDataStream ss2(SER_DISK, 0);
@@ -76,7 +78,8 @@ class prevector_tester {
     }
 
 public:
-    void resize(Size s) {
+    void resize(Size s)
+    {
         real_vector.resize(s);
         local_check_equal(real_vector.size(), s);
         pre_vector.resize(s);
@@ -84,7 +87,8 @@ public:
         test();
     }
 
-    void reserve(Size s) {
+    void reserve(Size s)
+    {
         real_vector.reserve(s);
         local_check(real_vector.capacity() >= s);
         pre_vector.reserve(s);
@@ -92,103 +96,121 @@ public:
         test();
     }
 
-    void insert(Size position, const T& value) {
+    void insert(Size position, const T& value)
+    {
         real_vector.insert(real_vector.begin() + position, value);
         pre_vector.insert(pre_vector.begin() + position, value);
         test();
     }
 
-    void insert(Size position, Size count, const T& value) {
+    void insert(Size position, Size count, const T& value)
+    {
         real_vector.insert(real_vector.begin() + position, count, value);
         pre_vector.insert(pre_vector.begin() + position, count, value);
         test();
     }
 
-    template<typename I>
-    void insert_range(Size position, I first, I last) {
+    template <typename I>
+    void insert_range(Size position, I first, I last)
+    {
         real_vector.insert(real_vector.begin() + position, first, last);
         pre_vector.insert(pre_vector.begin() + position, first, last);
         test();
     }
 
-    void erase(Size position) {
+    void erase(Size position)
+    {
         real_vector.erase(real_vector.begin() + position);
         pre_vector.erase(pre_vector.begin() + position);
         test();
     }
 
-    void erase(Size first, Size last) {
+    void erase(Size first, Size last)
+    {
         real_vector.erase(real_vector.begin() + first, real_vector.begin() + last);
         pre_vector.erase(pre_vector.begin() + first, pre_vector.begin() + last);
         test();
     }
 
-    void update(Size pos, const T& value) {
+    void update(Size pos, const T& value)
+    {
         real_vector[pos] = value;
         pre_vector[pos] = value;
         test();
     }
 
-    void push_back(const T& value) {
+    void push_back(const T& value)
+    {
         real_vector.push_back(value);
         pre_vector.push_back(value);
         test();
     }
 
-    void pop_back() {
+    void pop_back()
+    {
         real_vector.pop_back();
         pre_vector.pop_back();
         test();
     }
 
-    void clear() {
+    void clear()
+    {
         real_vector.clear();
         pre_vector.clear();
     }
 
-    void assign(Size n, const T& value) {
+    void assign(Size n, const T& value)
+    {
         real_vector.assign(n, value);
         pre_vector.assign(n, value);
     }
 
-    Size size() {
+    Size size()
+    {
         return real_vector.size();
     }
 
-    Size capacity() {
+    Size capacity()
+    {
         return pre_vector.capacity();
     }
 
-    void shrink_to_fit() {
+    void shrink_to_fit()
+    {
         pre_vector.shrink_to_fit();
         test();
     }
 
-    void swap() {
+    void swap()
+    {
         real_vector.swap(real_vector_alt);
         pre_vector.swap(pre_vector_alt);
         test();
     }
 
-    void move() {
+    void move()
+    {
         real_vector = std::move(real_vector_alt);
         real_vector_alt.clear();
         pre_vector = std::move(pre_vector_alt);
         pre_vector_alt.clear();
     }
 
-    void copy() {
+    void copy()
+    {
         real_vector = real_vector_alt;
         pre_vector = pre_vector_alt;
     }
 
-    ~prevector_tester() {
+    ~prevector_tester()
+    {
         BOOST_CHECK_MESSAGE(passed, "insecure_rand_Rz: "
-                << rand_cache.Rz
-                << ", insecure_rand_Rw: "
-                << rand_cache.Rw);
+                                        << rand_cache.Rz
+                                        << ", insecure_rand_Rw: "
+                                        << rand_cache.Rw);
     }
-    prevector_tester() {
+    prevector_tester()
+    {
         seed_insecure_rand();
         rand_cache = insecure_rand_ctx;
     }

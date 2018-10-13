@@ -18,40 +18,32 @@ BOOST_AUTO_TEST_CASE(IsPayToPublicKeyHash)
     BOOST_CHECK(p2pkh.IsPayToPublicKeyHash());
 
     static const unsigned char direct[] = {
-        OP_DUP, OP_HASH160, 20, 0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0, OP_EQUALVERIFY, OP_CHECKSIG
-    };
-    BOOST_CHECK(CScript(direct, direct+sizeof(direct)).IsPayToPublicKeyHash());
+        OP_DUP, OP_HASH160, 20, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, OP_EQUALVERIFY, OP_CHECKSIG};
+    BOOST_CHECK(CScript(direct, direct + sizeof(direct)).IsPayToPublicKeyHash());
 
     static const unsigned char notp2pkh1[] = {
-        OP_DUP, OP_HASH160, 20, 0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0, OP_EQUALVERIFY, OP_CHECKSIG, OP_CHECKSIG
-    };
-    BOOST_CHECK(!CScript(notp2pkh1, notp2pkh1+sizeof(notp2pkh1)).IsPayToPublicKeyHash());
+        OP_DUP, OP_HASH160, 20, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, OP_EQUALVERIFY, OP_CHECKSIG, OP_CHECKSIG};
+    BOOST_CHECK(!CScript(notp2pkh1, notp2pkh1 + sizeof(notp2pkh1)).IsPayToPublicKeyHash());
 
     static const unsigned char p2sh[] = {
-        OP_HASH160, 20, 0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0, OP_EQUAL
-    };
-    BOOST_CHECK(!CScript(p2sh, p2sh+sizeof(p2sh)).IsPayToPublicKeyHash());
+        OP_HASH160, 20, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, OP_EQUAL};
+    BOOST_CHECK(!CScript(p2sh, p2sh + sizeof(p2sh)).IsPayToPublicKeyHash());
 
     static const unsigned char extra[] = {
-        OP_DUP, OP_HASH160, 20, 0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0, OP_EQUALVERIFY, OP_CHECKSIG, OP_CHECKSIG
-    };
-    BOOST_CHECK(!CScript(extra, extra+sizeof(extra)).IsPayToPublicKeyHash());
+        OP_DUP, OP_HASH160, 20, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, OP_EQUALVERIFY, OP_CHECKSIG, OP_CHECKSIG};
+    BOOST_CHECK(!CScript(extra, extra + sizeof(extra)).IsPayToPublicKeyHash());
 
     static const unsigned char missing[] = {
-        OP_HASH160, 20, 0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0, OP_EQUALVERIFY, OP_CHECKSIG, OP_RETURN
-    };
-    BOOST_CHECK(!CScript(missing, missing+sizeof(missing)).IsPayToPublicKeyHash());
+        OP_HASH160, 20, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, OP_EQUALVERIFY, OP_CHECKSIG, OP_RETURN};
+    BOOST_CHECK(!CScript(missing, missing + sizeof(missing)).IsPayToPublicKeyHash());
 
     static const unsigned char missing2[] = {
-        OP_DUP, OP_HASH160, 20, 0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0
-    };
-    BOOST_CHECK(!CScript(missing2, missing2+sizeof(missing2)).IsPayToPublicKeyHash());
+        OP_DUP, OP_HASH160, 20, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0};
+    BOOST_CHECK(!CScript(missing2, missing2 + sizeof(missing2)).IsPayToPublicKeyHash());
 
     static const unsigned char tooshort[] = {
-        OP_DUP, OP_HASH160, 2, 0,0, OP_EQUALVERIFY, OP_CHECKSIG
-    };
-    BOOST_CHECK(!CScript(tooshort, tooshort+sizeof(tooshort)).IsPayToPublicKeyHash());
-
+        OP_DUP, OP_HASH160, 2, 0, 0, OP_EQUALVERIFY, OP_CHECKSIG};
+    BOOST_CHECK(!CScript(tooshort, tooshort + sizeof(tooshort)).IsPayToPublicKeyHash());
 }
 
 BOOST_AUTO_TEST_SUITE_END()

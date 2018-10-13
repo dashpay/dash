@@ -3,12 +3,12 @@
 // Distributed under the MIT software license, see the accompanying
 // file COPYING or http://www.opensource.org/licenses/mit-license.php.
 
-#include <stdint.h>
-#include <vector>
-#include <string>
-#include <map>
-#include <univalue.h>
 #include "test/test_dash.h"
+#include <map>
+#include <stdint.h>
+#include <string>
+#include <univalue.h>
+#include <vector>
 
 #include <boost/test/unit_test.hpp>
 
@@ -56,7 +56,7 @@ BOOST_AUTO_TEST_CASE(univalue_constructor)
     BOOST_CHECK(v8.isStr());
     BOOST_CHECK_EQUAL(v8.getValStr(), "yawn");
 
-    const char *vcs = "zappa";
+    const char* vcs = "zappa";
     UniValue v9(vcs);
     BOOST_CHECK(v9.isStr());
     BOOST_CHECK_EQUAL(v9.getValStr(), "zappa");
@@ -173,7 +173,7 @@ BOOST_AUTO_TEST_CASE(univalue_array)
     std::string vStr("zippy");
     BOOST_CHECK(arr.push_back(vStr));
 
-    const char *s = "pippy";
+    const char* s = "pippy";
     BOOST_CHECK(arr.push_back(s));
 
     std::vector<UniValue> vec;
@@ -216,20 +216,20 @@ BOOST_AUTO_TEST_CASE(univalue_object)
     BOOST_CHECK(obj.pushKV(strKey, strVal));
 
     strKey = "last";
-    const char *cVal = "Smith";
+    const char* cVal = "Smith";
     BOOST_CHECK(obj.pushKV(strKey, cVal));
 
     strKey = "distance";
-    BOOST_CHECK(obj.pushKV(strKey, (int64_t) 25));
+    BOOST_CHECK(obj.pushKV(strKey, (int64_t)25));
 
     strKey = "time";
-    BOOST_CHECK(obj.pushKV(strKey, (uint64_t) 3600));
+    BOOST_CHECK(obj.pushKV(strKey, (uint64_t)3600));
 
     strKey = "calories";
-    BOOST_CHECK(obj.pushKV(strKey, (int) 12));
+    BOOST_CHECK(obj.pushKV(strKey, (int)12));
 
     strKey = "temperature";
-    BOOST_CHECK(obj.pushKV(strKey, (double) 90.012));
+    BOOST_CHECK(obj.pushKV(strKey, (double)90.012));
 
     UniValue obj2(UniValue::VOBJ);
     BOOST_CHECK(obj2.pushKV("cat1", 9000));
@@ -284,8 +284,8 @@ BOOST_AUTO_TEST_CASE(univalue_object)
     BOOST_CHECK_EQUAL(obj.size(), 0);
 }
 
-static const char *json1 =
-"[1.10000000,{\"key1\":\"str\\u0000\",\"key2\":800,\"key3\":{\"name\":\"martian http://test.com\"}}]";
+static const char* json1 =
+    "[1.10000000,{\"key1\":\"str\\u0000\",\"key2\":800,\"key3\":{\"name\":\"martian http://test.com\"}}]";
 
 BOOST_AUTO_TEST_CASE(univalue_readwrite)
 {

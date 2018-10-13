@@ -35,7 +35,7 @@ BOOST_AUTO_TEST_CASE(reverselock_errors)
     bool failed = false;
     try {
         reverse_lock<boost::unique_lock<boost::mutex> > rlock(lock);
-    } catch(...) {
+    } catch (...) {
         failed = true;
     }
 

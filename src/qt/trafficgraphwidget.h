@@ -9,8 +9,8 @@
 
 #include <boost/function.hpp>
 
-#include <QWidget>
 #include <QQueue>
+#include <QWidget>
 
 class ClientModel;
 
@@ -24,12 +24,12 @@ class TrafficGraphWidget : public QWidget
     Q_OBJECT
 
 public:
-    explicit TrafficGraphWidget(QWidget *parent = 0);
-    void setClientModel(ClientModel *model);
+    explicit TrafficGraphWidget(QWidget* parent = 0);
+    void setClientModel(ClientModel* model);
     int getGraphRangeMins() const;
 
 protected:
-    void paintEvent(QPaintEvent *);
+    void paintEvent(QPaintEvent*);
 
 public Q_SLOTS:
     void updateRates();
@@ -38,12 +38,12 @@ public Q_SLOTS:
 
 private:
     typedef boost::function<float(const TrafficSample&)> SampleChooser;
-    void paintPath(QPainterPath &path, const TrafficGraphData::SampleQueue &queue, SampleChooser chooser);
+    void paintPath(QPainterPath& path, const TrafficGraphData::SampleQueue& queue, SampleChooser chooser);
 
-    QTimer *timer;
+    QTimer* timer;
     float fMax;
     int nMins;
-    ClientModel *clientModel;
+    ClientModel* clientModel;
     TrafficGraphData trafficGraphData;
 };
 

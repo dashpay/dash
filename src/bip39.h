@@ -29,7 +29,7 @@
 class CMnemonic
 {
 public:
-    static SecureString Generate(int strength);    // strength in bits
+    static SecureString Generate(int strength); // strength in bits
     static SecureString FromData(const SecureVector& data, int len);
     static bool Check(SecureString mnemonic);
     // passphrase must be at most 256 characters or code may crash

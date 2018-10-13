@@ -15,7 +15,8 @@ QT_BEGIN_NAMESPACE
 class QDataWidgetMapper;
 QT_END_NAMESPACE
 
-namespace Ui {
+namespace Ui
+{
 class OptionsDialog;
 }
 
@@ -26,9 +27,9 @@ class ProxyAddressValidator : public QValidator
     Q_OBJECT
 
 public:
-    explicit ProxyAddressValidator(QObject *parent);
+    explicit ProxyAddressValidator(QObject* parent);
 
-    State validate(QString &input, int &pos) const;
+    State validate(QString& input, int& pos) const;
 };
 
 /** Preferences dialog. */
@@ -37,10 +38,10 @@ class OptionsDialog : public QDialog
     Q_OBJECT
 
 public:
-    explicit OptionsDialog(QWidget *parent, bool enableWallet);
+    explicit OptionsDialog(QWidget* parent, bool enableWallet);
     ~OptionsDialog();
 
-    void setModel(OptionsModel *model);
+    void setModel(OptionsModel* model);
     void setMapper();
 
 private Q_SLOTS:
@@ -49,7 +50,7 @@ private Q_SLOTS:
     void on_resetButton_clicked();
     void on_okButton_clicked();
     void on_cancelButton_clicked();
-    
+
     void on_hideTrayIcon_stateChanged(int fState);
 
     void showRestartWarning(bool fPersistent = false);
@@ -59,12 +60,12 @@ private Q_SLOTS:
     void updateDefaultProxyNets();
 
 Q_SIGNALS:
-    void proxyIpChecks(QValidatedLineEdit *pUiProxyIp, int nProxyPort);
+    void proxyIpChecks(QValidatedLineEdit* pUiProxyIp, int nProxyPort);
 
 private:
-    Ui::OptionsDialog *ui;
-    OptionsModel *model;
-    QDataWidgetMapper *mapper;
+    Ui::OptionsDialog* ui;
+    OptionsModel* model;
+    QDataWidgetMapper* mapper;
 };
 
 #endif // BITCOIN_QT_OPTIONSDIALOG_H
