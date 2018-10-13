@@ -6,6 +6,9 @@
 #ifndef SRC_MASTERNODECONFIG_H_
 #define SRC_MASTERNODECONFIG_H_
 
+#include <vector>
+#include <string>
+
 class CMasternodeConfig;
 extern CMasternodeConfig masternodeConfig;
 
