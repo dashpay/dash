@@ -5,19 +5,19 @@
 #ifndef MASTERNODE_PAYMENTS_H
 #define MASTERNODE_PAYMENTS_H
 
-#include "util.h"
 #include "core_io.h"
 #include "key.h"
 #include "masternode.h"
 #include "net_processing.h"
+#include "util.h"
 #include "utilstrencodings.h"
 
 class CMasternodePayments;
 class CMasternodePaymentVote;
 class CMasternodeBlockPayees;
 
-static const int MNPAYMENTS_SIGNATURES_REQUIRED         = 6;
-static const int MNPAYMENTS_SIGNATURES_TOTAL            = 10;
+static const int MNPAYMENTS_SIGNATURES_REQUIRED = 6;
+static const int MNPAYMENTS_SIGNATURES_TOTAL = 10;
 
 //! minimum peer version that can receive and send masternode payment messages,
 //  vote for masternode and be elected as a payment winner
@@ -47,7 +47,8 @@ public:
     CMasternodePayee() :
         scriptPubKey(),
         vecVoteHashes()
-        {}
+    {
+    }
 
     CMasternodePayee(CScript payee, uint256 hashIn) :
         scriptPubKey(payee),
@@ -59,7 +60,8 @@ public:
     ADD_SERIALIZE_METHODS;
 
     template <typename Stream, typename Operation>
-    inline void SerializationOp(Stream& s, Operation ser_action) {
+    inline void SerializationOp(Stream& s, Operation ser_action)
+    {
         READWRITE(*(CScriptBase*)(&scriptPubKey));
         READWRITE(vecVoteHashes);
     }
@@ -81,16 +83,19 @@ public:
     CMasternodeBlockPayees() :
         nBlockHeight(0),
         vecPayees()
-        {}
+    {
+    }
     CMasternodeBlockPayees(int nBlockHeightIn) :
         nBlockHeight(nBlockHeightIn),
         vecPayees()
-        {}
+    {
+    }
 
     ADD_SERIALIZE_METHODS;
 
     template <typename Stream, typename Operation>
-    inline void SerializationOp(Stream& s, Operation ser_action) {
+    inline void SerializationOp(Stream& s, Operation ser_action)
+    {
         READWRITE(nBlockHeight);
         READWRITE(vecPayees);
     }
@@ -119,19 +124,22 @@ public:
         nBlockHeight(0),
         payee(),
         vchSig()
-        {}
+    {
+    }
 
     CMasternodePaymentVote(COutPoint outpoint, int nBlockHeight, CScript payee) :
         masternodeOutpoint(outpoint),
         nBlockHeight(nBlockHeight),
         payee(payee),
         vchSig()
-        {}
+    {
+    }
 
     ADD_SERIALIZE_METHODS;
 
     template <typename Stream, typename Operation>
-    inline void SerializationOp(Stream& s, Operation ser_action) {
+    inline void SerializationOp(Stream& s, Operation ser_action)
+    {
         READWRITE(masternodeOutpoint);
         READWRITE(nBlockHeight);
         READWRITE(*(CScriptBase*)(&payee));
@@ -144,7 +152,7 @@ public:
     uint256 GetSignatureHash() const;
 
     bool Sign();
-    bool CheckSignature(const CKeyID& keyIDOperator, int nValidationHeight, int &nDos) const;
+    bool CheckSignature(const CKeyID& keyIDOperator, int nValidationHeight, int& nDos) const;
 
     bool IsValid(CNode* pnode, int nValidationHeight, std::string& strError, CConnman& connman) const;
     void Relay(CConnman& connman) const;
@@ -177,12 +185,14 @@ public:
     std::map<COutPoint, int> mapMasternodesLastVote;
     std::map<COutPoint, int> mapMasternodesDidNotVote;
 
-    CMasternodePayments() : nStorageCoeff(1.25), nMinBlocksToStore(6000) {}
+    CMasternodePayments() :
+        nStorageCoeff(1.25), nMinBlocksToStore(6000) {}
 
     ADD_SERIALIZE_METHODS;
 
     template <typename Stream, typename Operation>
-    inline void SerializationOp(Stream& s, Operation ser_action) {
+    inline void SerializationOp(Stream& s, Operation ser_action)
+    {
         READWRITE(mapMasternodePaymentVotes);
         READWRITE(mapMasternodeBlocks);
     }
@@ -216,7 +226,7 @@ public:
     bool IsEnoughData() const;
     int GetStorageLimit() const;
 
-    void UpdatedBlockTip(const CBlockIndex *pindex, CConnman& connman);
+    void UpdatedBlockTip(const CBlockIndex* pindex, CConnman& connman);
 
     void DoMaintenance() { CheckAndRemove(); }
 };

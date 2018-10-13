@@ -24,20 +24,20 @@ public:
 private:
     static const std::string SERIALIZATION_VERSION_STRING;
 
-    static const int DSEG_UPDATE_SECONDS        = 3 * 60 * 60;
+    static const int DSEG_UPDATE_SECONDS = 3 * 60 * 60;
 
     static const int LAST_PAID_SCAN_BLOCKS;
 
-    static const int MIN_POSE_PROTO_VERSION     = 70203;
-    static const int MAX_POSE_CONNECTIONS       = 10;
-    static const int MAX_POSE_RANK              = 10;
-    static const int MAX_POSE_BLOCKS            = 10;
+    static const int MIN_POSE_PROTO_VERSION = 70203;
+    static const int MAX_POSE_CONNECTIONS = 10;
+    static const int MAX_POSE_RANK = 10;
+    static const int MAX_POSE_BLOCKS = 10;
 
-    static const int MNB_RECOVERY_QUORUM_TOTAL      = 10;
-    static const int MNB_RECOVERY_QUORUM_REQUIRED   = 6;
-    static const int MNB_RECOVERY_MAX_ASK_ENTRIES   = 10;
-    static const int MNB_RECOVERY_WAIT_SECONDS      = 60;
-    static const int MNB_RECOVERY_RETRY_SECONDS     = 3 * 60 * 60;
+    static const int MNB_RECOVERY_QUORUM_TOTAL = 10;
+    static const int MNB_RECOVERY_QUORUM_REQUIRED = 6;
+    static const int MNB_RECOVERY_MAX_ASK_ENTRIES = 10;
+    static const int MNB_RECOVERY_WAIT_SECONDS = 60;
+    static const int MNB_RECOVERY_RETRY_SECONDS = 3 * 60 * 60;
 
 
     // critical section to protect the inner data structures
@@ -59,9 +59,9 @@ private:
     std::map<CService, CMasternodeVerification> mWeAskedForVerification;
 
     // these maps are used for masternode recovery from MASTERNODE_NEW_START_REQUIRED state
-    std::map<uint256, std::pair< int64_t, std::set<CService> > > mMnbRecoveryRequests;
+    std::map<uint256, std::pair<int64_t, std::set<CService> > > mMnbRecoveryRequests;
     std::map<uint256, std::vector<CMasternodeBroadcast> > mMnbRecoveryGoodReplies;
-    std::list< std::pair<CService, uint256> > listScheduledMnbRequestConnections;
+    std::list<std::pair<CService, uint256> > listScheduledMnbRequestConnections;
     std::map<CService, std::pair<int64_t, std::set<uint256> > > mapPendingMNB;
     std::map<CService, std::pair<int64_t, CMasternodeVerification> > mapPendingMNV;
     CCriticalSection cs_mapPendingMNV;
@@ -101,14 +101,14 @@ public:
     ADD_SERIALIZE_METHODS;
 
     template <typename Stream, typename Operation>
-    inline void SerializationOp(Stream& s, Operation ser_action) {
+    inline void SerializationOp(Stream& s, Operation ser_action)
+    {
         LOCK(cs);
         std::string strVersion;
-        if(ser_action.ForRead()) {
+        if (ser_action.ForRead()) {
             READWRITE(strVersion);
-        }
-        else {
-            strVersion = SERIALIZATION_VERSION_STRING; 
+        } else {
+            strVersion = SERIALIZATION_VERSION_STRING;
             READWRITE(strVersion);
         }
 
@@ -123,7 +123,7 @@ public:
 
         READWRITE(mapSeenMasternodeBroadcast);
         READWRITE(mapSeenMasternodePing);
-        if(ser_action.ForRead() && (strVersion != SERIALIZATION_VERSION_STRING)) {
+        if (ser_action.ForRead() && (strVersion != SERIALIZATION_VERSION_STRING)) {
             Clear();
         }
     }
@@ -131,14 +131,14 @@ public:
     CMasternodeMan();
 
     /// Add an entry
-    bool Add(CMasternode &mn);
+    bool Add(CMasternode& mn);
 
     /// Ask (source) node for mnb
-    void AskForMN(CNode *pnode, const COutPoint& outpoint, CConnman& connman);
+    void AskForMN(CNode* pnode, const COutPoint& outpoint, CConnman& connman);
 
-    bool PoSeBan(const COutPoint &outpoint);
-    bool AllowMixing(const COutPoint &outpoint);
-    bool DisallowMixing(const COutPoint &outpoint);
+    bool PoSeBan(const COutPoint& outpoint);
+    bool AllowMixing(const COutPoint& outpoint);
+    bool DisallowMixing(const COutPoint& outpoint);
 
     /// Check all Masternodes
     void Check();
@@ -182,12 +182,12 @@ public:
     bool GetNextMasternodeInQueueForPayment(bool fFilterSigTime, int& nCountRet, masternode_info_t& mnInfoRet);
 
     /// Find a random entry
-    masternode_info_t FindRandomNotInVec(const std::vector<COutPoint> &vecToExclude, int nProtocolVersion = -1);
+    masternode_info_t FindRandomNotInVec(const std::vector<COutPoint>& vecToExclude, int nProtocolVersion = -1);
 
     std::map<COutPoint, CMasternode> GetFullMasternodeMap();
 
     bool GetMasternodeRanks(rank_pair_vec_t& vecMasternodeRanksRet, int nBlockHeight = -1, int nMinProtocol = 0);
-    bool GetMasternodeRank(const COutPoint &outpoint, int& nRankRet, int nBlockHeight = -1, int nMinProtocol = 0);
+    bool GetMasternodeRank(const COutPoint& outpoint, int& nRankRet, int nBlockHeight = -1, int nMinProtocol = 0);
 
     void ProcessMasternodeConnections(CConnman& connman);
     std::pair<CService, std::set<uint256> > PopScheduledMnbRequestConnection();
@@ -239,7 +239,7 @@ public:
     bool IsMasternodePingedWithin(const COutPoint& outpoint, int nSeconds, int64_t nTimeToCheckAt = -1);
     void SetMasternodeLastPing(const COutPoint& outpoint, const CMasternodePing& mnp);
 
-    void UpdatedBlockTip(const CBlockIndex *pindex);
+    void UpdatedBlockTip(const CBlockIndex* pindex);
 
     void WarnMasternodeDaemonUpdates();
 
@@ -249,7 +249,7 @@ public:
      */
     void NotifyMasternodeUpdates(CConnman& connman, bool forceAddedChecks = false, bool forceRemovedChecks = false);
 
-    void DoMaintenance(CConnman &connman);
+    void DoMaintenance(CConnman& connman);
 };
 
 #endif

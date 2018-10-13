@@ -41,9 +41,9 @@ private:
     void CommitFinalTransaction(CConnman& connman);
 
     /// Is this nDenom and txCollateral acceptable?
-    bool IsAcceptableDSA(const CDarksendAccept& dsa, PoolMessage &nMessageIDRet);
-    bool CreateNewSession(const CDarksendAccept& dsa, PoolMessage &nMessageIDRet, CConnman& connman);
-    bool AddUserToExistingSession(const CDarksendAccept& dsa, PoolMessage &nMessageIDRet);
+    bool IsAcceptableDSA(const CDarksendAccept& dsa, PoolMessage& nMessageIDRet);
+    bool CreateNewSession(const CDarksendAccept& dsa, PoolMessage& nMessageIDRet, CConnman& connman);
+    bool AddUserToExistingSession(const CDarksendAccept& dsa, PoolMessage& nMessageIDRet);
     /// Do we have enough users to take entries?
     bool IsSessionReady() { return (int)vecSessionCollaterals.size() >= CPrivateSend::GetMaxPoolTransactions(); }
 
@@ -66,7 +66,8 @@ private:
     void SetNull();
 
 public:
-    CPrivateSendServer() : vecSessionCollaterals(), fUnitTest(false) {}
+    CPrivateSendServer() :
+        vecSessionCollaterals(), fUnitTest(false) {}
 
     void ProcessMessage(CNode* pfrom, const std::string& strCommand, CDataStream& vRecv, CConnman& connman);
 

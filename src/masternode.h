@@ -6,8 +6,8 @@
 #define MASTERNODE_H
 
 #include "key.h"
-#include "validation.h"
 #include "spork.h"
+#include "validation.h"
 
 #include "evo/deterministicmns.h"
 
@@ -15,14 +15,14 @@ class CMasternode;
 class CMasternodeBroadcast;
 class CConnman;
 
-static const int MASTERNODE_CHECK_SECONDS               =   5;
-static const int MASTERNODE_MIN_MNB_SECONDS             =   5 * 60;
-static const int MASTERNODE_MIN_MNP_SECONDS             =  10 * 60;
-static const int MASTERNODE_SENTINEL_PING_MAX_SECONDS   =  60 * 60;
-static const int MASTERNODE_EXPIRATION_SECONDS          = 120 * 60;
-static const int MASTERNODE_NEW_START_REQUIRED_SECONDS  = 180 * 60;
+static const int MASTERNODE_CHECK_SECONDS = 5;
+static const int MASTERNODE_MIN_MNB_SECONDS = 5 * 60;
+static const int MASTERNODE_MIN_MNP_SECONDS = 10 * 60;
+static const int MASTERNODE_SENTINEL_PING_MAX_SECONDS = 60 * 60;
+static const int MASTERNODE_EXPIRATION_SECONDS = 120 * 60;
+static const int MASTERNODE_NEW_START_REQUIRED_SECONDS = 180 * 60;
 
-static const int MASTERNODE_POSE_BAN_MAX_SCORE          = 5;
+static const int MASTERNODE_POSE_BAN_MAX_SCORE = 5;
 
 //
 // The Masternode Ping Class : Contains a different serialize method for sending pings from masternodes throughout the network
@@ -52,7 +52,8 @@ public:
     ADD_SERIALIZE_METHODS;
 
     template <typename Stream, typename Operation>
-    inline void SerializationOp(Stream& s, Operation ser_action) {
+    inline void SerializationOp(Stream& s, Operation ser_action)
+    {
         READWRITE(masternodeOutpoint);
         READWRITE(blockHash);
         READWRITE(sigTime);
@@ -70,7 +71,7 @@ public:
     bool IsExpired() const { return GetAdjustedTime() - sigTime > MASTERNODE_NEW_START_REQUIRED_SECONDS; }
 
     bool Sign(const CKey& keyMasternode, const CKeyID& keyIDOperator);
-    bool CheckSignature(CKeyID& keyIDOperator, int &nDos) const;
+    bool CheckSignature(CKeyID& keyIDOperator, int& nDos) const;
     bool SimpleCheck(int& nDos);
     bool CheckAndUpdate(CMasternode* pmn, bool fFromNewBroadcast, int& nDos, CConnman& connman);
     void Relay(CConnman& connman);
@@ -94,8 +95,7 @@ inline CMasternodePing::operator bool() const
     return *this != CMasternodePing();
 }
 
-struct masternode_info_t
-{
+struct masternode_info_t {
     // Note: all these constructors can be removed once C++14 is enabled.
     // (in C++11 the member initializers wrongly disqualify this as an aggregate)
     masternode_info_t() = default;
@@ -105,17 +105,13 @@ struct masternode_info_t
         nActiveState{activeState}, nProtocolVersion{protoVer}, sigTime{sTime} {}
 
     // only called when the network is in legacy MN list mode
-    masternode_info_t(int activeState, int protoVer, int64_t sTime,
-                      COutPoint const& outpnt, CService const& addr,
-                      CPubKey const& pkCollAddr, CPubKey const& pkMN) :
+    masternode_info_t(int activeState, int protoVer, int64_t sTime, COutPoint const& outpnt, CService const& addr, CPubKey const& pkCollAddr, CPubKey const& pkMN) :
         nActiveState{activeState}, nProtocolVersion{protoVer}, sigTime{sTime},
         outpoint{outpnt}, addr{addr},
         pubKeyCollateralAddress{pkCollAddr}, pubKeyMasternode{pkMN}, keyIDCollateralAddress{pkCollAddr.GetID()}, keyIDOwner{pkMN.GetID()}, keyIDOperator{pkMN.GetID()}, keyIDVoting{pkMN.GetID()} {}
 
     // only called when the network is in deterministic MN list mode
-    masternode_info_t(int activeState, int protoVer, int64_t sTime,
-                      COutPoint const& outpnt, CService const& addr,
-                      CKeyID const& pkCollAddr, CKeyID const& pkOwner, CKeyID const& pkOperator, CKeyID const& pkVoting) :
+    masternode_info_t(int activeState, int protoVer, int64_t sTime, COutPoint const& outpnt, CService const& addr, CKeyID const& pkCollAddr, CKeyID const& pkOwner, CKeyID const& pkOperator, CKeyID const& pkVoting) :
         nActiveState{activeState}, nProtocolVersion{protoVer}, sigTime{sTime},
         outpoint{outpnt}, addr{addr},
         pubKeyCollateralAddress{}, pubKeyMasternode{}, keyIDCollateralAddress{pkCollAddr}, keyIDOwner{pkOwner}, keyIDOperator{pkOperator}, keyIDVoting{pkVoting} {}
@@ -127,7 +123,7 @@ struct masternode_info_t
     COutPoint outpoint{};
     CService addr{};
     CPubKey pubKeyCollateralAddress{}; // this will be invalid/unset when the network switches to deterministic MNs (luckely it's only important for the broadcast hash)
-    CPubKey pubKeyMasternode{}; // this will be invalid/unset when the network switches to deterministic MNs (luckely it's only important for the broadcast hash)
+    CPubKey pubKeyMasternode{};        // this will be invalid/unset when the network switches to deterministic MNs (luckely it's only important for the broadcast hash)
     CKeyID keyIDCollateralAddress{};
     CKeyID keyIDOwner{};
     CKeyID keyIDOperator{};
@@ -137,7 +133,7 @@ struct masternode_info_t
     int64_t nTimeLastChecked = 0;
     int64_t nTimeLastPaid = 0;
     int64_t nTimeLastPing = 0; //* not in CMN
-    bool fInfoValid = false; //* not in CMN
+    bool fInfoValid = false;   //* not in CMN
 };
 
 //
@@ -188,12 +184,13 @@ public:
     CMasternode(const CMasternode& other);
     CMasternode(const CMasternodeBroadcast& mnb);
     CMasternode(CService addrNew, COutPoint outpointNew, CPubKey pubKeyCollateralAddressNew, CPubKey pubKeyMasternodeNew, int nProtocolVersionIn);
-    CMasternode(const uint256 &proTxHash, const CDeterministicMNCPtr& dmn);
+    CMasternode(const uint256& proTxHash, const CDeterministicMNCPtr& dmn);
 
     ADD_SERIALIZE_METHODS;
 
     template <typename Stream, typename Operation>
-    inline void SerializationOp(Stream& s, Operation ser_action) {
+    inline void SerializationOp(Stream& s, Operation ser_action)
+    {
         LOCK(cs);
         READWRITE(outpoint);
         READWRITE(addr);
@@ -233,9 +230,9 @@ public:
 
     bool IsPingedWithin(int nSeconds, int64_t nTimeToCheckAt = -1)
     {
-        if(!lastPing) return false;
+        if (!lastPing) return false;
 
-        if(nTimeToCheckAt == -1) {
+        if (nTimeToCheckAt == -1) {
             nTimeToCheckAt = GetAdjustedTime();
         }
         return nTimeToCheckAt - lastPing.sigTime < nSeconds;
@@ -254,19 +251,19 @@ public:
 
     static bool IsValidStateForAutoStart(int nActiveStateIn)
     {
-        return  nActiveStateIn == MASTERNODE_ENABLED ||
-                nActiveStateIn == MASTERNODE_PRE_ENABLED ||
-                nActiveStateIn == MASTERNODE_EXPIRED ||
-                nActiveStateIn == MASTERNODE_SENTINEL_PING_EXPIRED;
+        return nActiveStateIn == MASTERNODE_ENABLED ||
+               nActiveStateIn == MASTERNODE_PRE_ENABLED ||
+               nActiveStateIn == MASTERNODE_EXPIRED ||
+               nActiveStateIn == MASTERNODE_SENTINEL_PING_EXPIRED;
     }
 
     bool IsValidForPayment() const
     {
-        if(nActiveState == MASTERNODE_ENABLED) {
+        if (nActiveState == MASTERNODE_ENABLED) {
             return true;
         }
-        if(!sporkManager.IsSporkActive(SPORK_14_REQUIRE_SENTINEL_FLAG) &&
-           (nActiveState == MASTERNODE_SENTINEL_PING_EXPIRED)) {
+        if (!sporkManager.IsSporkActive(SPORK_14_REQUIRE_SENTINEL_FLAG) &&
+            (nActiveState == MASTERNODE_SENTINEL_PING_EXPIRED)) {
             return true;
         }
 
@@ -276,8 +273,14 @@ public:
     bool IsValidNetAddr();
     static bool IsValidNetAddr(CService addrIn);
 
-    void IncreasePoSeBanScore() { if(nPoSeBanScore < MASTERNODE_POSE_BAN_MAX_SCORE) nPoSeBanScore++; }
-    void DecreasePoSeBanScore() { if(nPoSeBanScore > -MASTERNODE_POSE_BAN_MAX_SCORE) nPoSeBanScore--; }
+    void IncreasePoSeBanScore()
+    {
+        if (nPoSeBanScore < MASTERNODE_POSE_BAN_MAX_SCORE) nPoSeBanScore++;
+    }
+    void DecreasePoSeBanScore()
+    {
+        if (nPoSeBanScore > -MASTERNODE_POSE_BAN_MAX_SCORE) nPoSeBanScore--;
+    }
     void PoSeBan() { nPoSeBanScore = MASTERNODE_POSE_BAN_MAX_SCORE; }
 
     masternode_info_t GetInfo() const;
@@ -288,7 +291,7 @@ public:
 
     int GetLastPaidTime() const { return nTimeLastPaid; }
     int GetLastPaidBlock() const { return nBlockLastPaid; }
-    void UpdateLastPaid(const CBlockIndex *pindex, int nMaxBlocksToScanBack);
+    void UpdateLastPaid(const CBlockIndex* pindex, int nMaxBlocksToScanBack);
 
     // KEEP TRACK OF EACH GOVERNANCE ITEM INCASE THIS NODE GOES OFFLINE, SO WE CAN RECALC THEIR STATUS
     void AddGovernanceVote(uint256 nGovernanceObjectHash);
@@ -299,7 +302,7 @@ public:
 
     CMasternode& operator=(CMasternode const& from)
     {
-        static_cast<masternode_info_t&>(*this)=from;
+        static_cast<masternode_info_t&>(*this) = from;
         lastPing = from.lastPing;
         vchSig = from.vchSig;
         nCollateralMinConfBlockHash = from.nCollateralMinConfBlockHash;
@@ -330,18 +333,20 @@ inline bool operator!=(const CMasternode& a, const CMasternode& b)
 class CMasternodeBroadcast : public CMasternode
 {
 public:
-
     bool fRecovery;
 
-    CMasternodeBroadcast() : CMasternode(), fRecovery(false) {}
-    CMasternodeBroadcast(const CMasternode& mn) : CMasternode(mn), fRecovery(false) {}
+    CMasternodeBroadcast() :
+        CMasternode(), fRecovery(false) {}
+    CMasternodeBroadcast(const CMasternode& mn) :
+        CMasternode(mn), fRecovery(false) {}
     CMasternodeBroadcast(CService addrNew, COutPoint outpointNew, CPubKey pubKeyCollateralAddressNew, CPubKey pubKeyMasternodeNew, int nProtocolVersionIn) :
         CMasternode(addrNew, outpointNew, pubKeyCollateralAddressNew, pubKeyMasternodeNew, nProtocolVersionIn), fRecovery(false) {}
 
     ADD_SERIALIZE_METHODS;
 
     template <typename Stream, typename Operation>
-    inline void SerializationOp(Stream& s, Operation ser_action) {
+    inline void SerializationOp(Stream& s, Operation ser_action)
+    {
         READWRITE(outpoint);
         READWRITE(addr);
         READWRITE(pubKeyCollateralAddress);
@@ -367,8 +372,8 @@ public:
     uint256 GetSignatureHash() const;
 
     /// Create Masternode broadcast, needs to be relayed manually after that
-    static bool Create(const COutPoint& outpoint, const CService& service, const CKey& keyCollateralAddressNew, const CPubKey& pubKeyCollateralAddressNew, const CKey& keyMasternodeNew, const CPubKey& pubKeyMasternodeNew, std::string &strErrorRet, CMasternodeBroadcast &mnbRet);
-    static bool Create(const std::string& strService, const std::string& strKey, const std::string& strTxHash, const std::string& strOutputIndex, std::string& strErrorRet, CMasternodeBroadcast &mnbRet, bool fOffline = false);
+    static bool Create(const COutPoint& outpoint, const CService& service, const CKey& keyCollateralAddressNew, const CPubKey& pubKeyCollateralAddressNew, const CKey& keyMasternodeNew, const CPubKey& pubKeyMasternodeNew, std::string& strErrorRet, CMasternodeBroadcast& mnbRet);
+    static bool Create(const std::string& strService, const std::string& strKey, const std::string& strTxHash, const std::string& strOutputIndex, std::string& strErrorRet, CMasternodeBroadcast& mnbRet, bool fOffline = false);
 
     bool SimpleCheck(int& nDos);
     bool Update(CMasternode* pmn, int& nDos, CConnman& connman);
@@ -396,12 +401,14 @@ public:
         addr(addr),
         nonce(nonce),
         nBlockHeight(nBlockHeight)
-    {}
+    {
+    }
 
     ADD_SERIALIZE_METHODS;
 
     template <typename Stream, typename Operation>
-    inline void SerializationOp(Stream& s, Operation ser_action) {
+    inline void SerializationOp(Stream& s, Operation ser_action)
+    {
         READWRITE(masternodeOutpoint1);
         READWRITE(masternodeOutpoint2);
         READWRITE(addr);
