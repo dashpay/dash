@@ -22,7 +22,7 @@ void AppendParamsHelpMessages(std::string& strUsage, bool debugHelp)
     strUsage += HelpMessageOpt("-devnet=<name>", _("Use devnet chain with provided name"));
     if (debugHelp) {
         strUsage += HelpMessageOpt("-regtest", "Enter regression test mode, which uses a special chain in which blocks can be solved instantly. "
-                                   "This is intended for regression testing tools and app development.");
+                                               "This is intended for regression testing tools and app development.");
     }
 }
 
@@ -59,13 +59,13 @@ static CBaseTestNetParams testNetParams;
 class CBaseDevNetParams : public CBaseChainParams
 {
 public:
-    CBaseDevNetParams(const std::string &dataDir)
+    CBaseDevNetParams(const std::string& dataDir)
     {
         nRPCPort = 19998;
         strDataDir = dataDir;
     }
 };
-static CBaseDevNetParams *devNetParams;
+static CBaseDevNetParams* devNetParams;
 
 /*
  * Regression test

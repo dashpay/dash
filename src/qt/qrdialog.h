@@ -13,8 +13,9 @@
 
 class OptionsModel;
 
-namespace Ui {
-    class QRDialog;
+namespace Ui
+{
+class QRDialog;
 }
 
 QT_BEGIN_NAMESPACE
@@ -29,7 +30,7 @@ class QRGeneralImageWidget : public QLabel
     Q_OBJECT
 
 public:
-    explicit QRGeneralImageWidget(QWidget *parent = 0);
+    explicit QRGeneralImageWidget(QWidget* parent = 0);
     QImage exportImage();
 
 public Q_SLOTS:
@@ -37,11 +38,11 @@ public Q_SLOTS:
     void copyImage();
 
 protected:
-    virtual void mousePressEvent(QMouseEvent *event);
-    virtual void contextMenuEvent(QContextMenuEvent *event);
+    virtual void mousePressEvent(QMouseEvent* event);
+    virtual void contextMenuEvent(QContextMenuEvent* event);
 
 private:
-    QMenu *contextMenu;
+    QMenu* contextMenu;
 };
 
 class QRDialog : public QDialog
@@ -49,18 +50,18 @@ class QRDialog : public QDialog
     Q_OBJECT
 
 public:
-    explicit QRDialog(QWidget *parent = 0);
+    explicit QRDialog(QWidget* parent = 0);
     ~QRDialog();
 
-    void setModel(OptionsModel *model);
+    void setModel(OptionsModel* model);
     void setInfo(QString strWindowtitle, QString strQRCode, QString strTextInfo, QString strQRCodeTitle);
 
 private Q_SLOTS:
     void update();
 
 private:
-    Ui::QRDialog *ui;
-    OptionsModel *model;
+    Ui::QRDialog* ui;
+    OptionsModel* model;
     QString strWindowtitle;
     QString strQRCode;
     QString strTextInfo;

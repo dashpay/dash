@@ -38,31 +38,31 @@
 #define SPH_CUBEHASH_H__
 
 #ifdef __cplusplus
-extern "C"{
+extern "C" {
 #endif
 
-#include <stddef.h>
 #include "sph_types.h"
+#include <stddef.h>
 
 /**
  * Output size (in bits) for CubeHash-224.
  */
-#define SPH_SIZE_cubehash224   224
+#define SPH_SIZE_cubehash224 224
 
 /**
  * Output size (in bits) for CubeHash-256.
  */
-#define SPH_SIZE_cubehash256   256
+#define SPH_SIZE_cubehash256 256
 
 /**
  * Output size (in bits) for CubeHash-384.
  */
-#define SPH_SIZE_cubehash384   384
+#define SPH_SIZE_cubehash384 384
 
 /**
  * Output size (in bits) for CubeHash-512.
  */
-#define SPH_SIZE_cubehash512   512
+#define SPH_SIZE_cubehash512 512
 
 /**
  * This structure is a context for CubeHash computations: it contains the
@@ -76,9 +76,9 @@ extern "C"{
  */
 typedef struct {
 #ifndef DOXYGEN_IGNORE
-	unsigned char buf[32];    /* first field, for alignment */
-	size_t ptr;
-	sph_u32 state[32];
+    unsigned char buf[32]; /* first field, for alignment */
+    size_t ptr;
+    sph_u32 state[32];
 #endif
 } sph_cubehash_context;
 
@@ -109,7 +109,7 @@ typedef sph_cubehash_context sph_cubehash512_context;
  * @param cc   the CubeHash-224 context (pointer to a
  *             <code>sph_cubehash224_context</code>)
  */
-void sph_cubehash224_init(void *cc);
+void sph_cubehash224_init(void* cc);
 
 /**
  * Process some data bytes. It is acceptable that <code>len</code> is zero
@@ -119,7 +119,7 @@ void sph_cubehash224_init(void *cc);
  * @param data   the input data
  * @param len    the input data length (in bytes)
  */
-void sph_cubehash224(void *cc, const void *data, size_t len);
+void sph_cubehash224(void* cc, const void* data, size_t len);
 
 /**
  * Terminate the current CubeHash-224 computation and output the result into
@@ -130,7 +130,7 @@ void sph_cubehash224(void *cc, const void *data, size_t len);
  * @param cc    the CubeHash-224 context
  * @param dst   the destination buffer
  */
-void sph_cubehash224_close(void *cc, void *dst);
+void sph_cubehash224_close(void* cc, void* dst);
 
 /**
  * Add a few additional bits (0 to 7) to the current computation, then
@@ -146,7 +146,10 @@ void sph_cubehash224_close(void *cc, void *dst);
  * @param dst   the destination buffer
  */
 void sph_cubehash224_addbits_and_close(
-	void *cc, unsigned ub, unsigned n, void *dst);
+    void* cc,
+    unsigned ub,
+    unsigned n,
+    void* dst);
 
 /**
  * Initialize a CubeHash-256 context. This process performs no memory
@@ -155,7 +158,7 @@ void sph_cubehash224_addbits_and_close(
  * @param cc   the CubeHash-256 context (pointer to a
  *             <code>sph_cubehash256_context</code>)
  */
-void sph_cubehash256_init(void *cc);
+void sph_cubehash256_init(void* cc);
 
 /**
  * Process some data bytes. It is acceptable that <code>len</code> is zero
@@ -165,7 +168,7 @@ void sph_cubehash256_init(void *cc);
  * @param data   the input data
  * @param len    the input data length (in bytes)
  */
-void sph_cubehash256(void *cc, const void *data, size_t len);
+void sph_cubehash256(void* cc, const void* data, size_t len);
 
 /**
  * Terminate the current CubeHash-256 computation and output the result into
@@ -176,7 +179,7 @@ void sph_cubehash256(void *cc, const void *data, size_t len);
  * @param cc    the CubeHash-256 context
  * @param dst   the destination buffer
  */
-void sph_cubehash256_close(void *cc, void *dst);
+void sph_cubehash256_close(void* cc, void* dst);
 
 /**
  * Add a few additional bits (0 to 7) to the current computation, then
@@ -192,7 +195,10 @@ void sph_cubehash256_close(void *cc, void *dst);
  * @param dst   the destination buffer
  */
 void sph_cubehash256_addbits_and_close(
-	void *cc, unsigned ub, unsigned n, void *dst);
+    void* cc,
+    unsigned ub,
+    unsigned n,
+    void* dst);
 
 /**
  * Initialize a CubeHash-384 context. This process performs no memory
@@ -201,7 +207,7 @@ void sph_cubehash256_addbits_and_close(
  * @param cc   the CubeHash-384 context (pointer to a
  *             <code>sph_cubehash384_context</code>)
  */
-void sph_cubehash384_init(void *cc);
+void sph_cubehash384_init(void* cc);
 
 /**
  * Process some data bytes. It is acceptable that <code>len</code> is zero
@@ -211,7 +217,7 @@ void sph_cubehash384_init(void *cc);
  * @param data   the input data
  * @param len    the input data length (in bytes)
  */
-void sph_cubehash384(void *cc, const void *data, size_t len);
+void sph_cubehash384(void* cc, const void* data, size_t len);
 
 /**
  * Terminate the current CubeHash-384 computation and output the result into
@@ -222,7 +228,7 @@ void sph_cubehash384(void *cc, const void *data, size_t len);
  * @param cc    the CubeHash-384 context
  * @param dst   the destination buffer
  */
-void sph_cubehash384_close(void *cc, void *dst);
+void sph_cubehash384_close(void* cc, void* dst);
 
 /**
  * Add a few additional bits (0 to 7) to the current computation, then
@@ -238,7 +244,10 @@ void sph_cubehash384_close(void *cc, void *dst);
  * @param dst   the destination buffer
  */
 void sph_cubehash384_addbits_and_close(
-	void *cc, unsigned ub, unsigned n, void *dst);
+    void* cc,
+    unsigned ub,
+    unsigned n,
+    void* dst);
 
 /**
  * Initialize a CubeHash-512 context. This process performs no memory
@@ -247,7 +256,7 @@ void sph_cubehash384_addbits_and_close(
  * @param cc   the CubeHash-512 context (pointer to a
  *             <code>sph_cubehash512_context</code>)
  */
-void sph_cubehash512_init(void *cc);
+void sph_cubehash512_init(void* cc);
 
 /**
  * Process some data bytes. It is acceptable that <code>len</code> is zero
@@ -257,7 +266,7 @@ void sph_cubehash512_init(void *cc);
  * @param data   the input data
  * @param len    the input data length (in bytes)
  */
-void sph_cubehash512(void *cc, const void *data, size_t len);
+void sph_cubehash512(void* cc, const void* data, size_t len);
 
 /**
  * Terminate the current CubeHash-512 computation and output the result into
@@ -268,7 +277,7 @@ void sph_cubehash512(void *cc, const void *data, size_t len);
  * @param cc    the CubeHash-512 context
  * @param dst   the destination buffer
  */
-void sph_cubehash512_close(void *cc, void *dst);
+void sph_cubehash512_close(void* cc, void* dst);
 
 /**
  * Add a few additional bits (0 to 7) to the current computation, then
@@ -284,7 +293,10 @@ void sph_cubehash512_close(void *cc, void *dst);
  * @param dst   the destination buffer
  */
 void sph_cubehash512_addbits_and_close(
-	void *cc, unsigned ub, unsigned n, void *dst);
+    void* cc,
+    unsigned ub,
+    unsigned n,
+    void* dst);
 #ifdef __cplusplus
 }
 #endif

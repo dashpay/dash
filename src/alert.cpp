@@ -15,9 +15,9 @@
 #include "util.h"
 #include "utilstrencodings.h"
 
-#include <stdint.h>
 #include <algorithm>
 #include <map>
+#include <stdint.h>
 
 #include <boost/algorithm/string/classification.hpp>
 #include <boost/algorithm/string/replace.hpp>
@@ -131,12 +131,10 @@ bool CAlert::RelayTo(CNode* pnode, CConnman& connman) const
     if (pnode->nVersion == 0)
         return false;
     // returns true if wasn't already contained in the set
-    if (pnode->setKnown.insert(GetHash()).second)
-    {
+    if (pnode->setKnown.insert(GetHash()).second) {
         if (AppliesTo(pnode->nVersion, pnode->strSubVer) ||
             AppliesToMe() ||
-            GetAdjustedTime() < nRelayUntil)
-        {
+            GetAdjustedTime() < nRelayUntil) {
             connman.PushMessage(pnode, CNetMsgMaker(pnode->GetSendVersion()).Make(NetMsgType::ALERT, *this));
             return true;
         }
@@ -150,14 +148,12 @@ bool CAlert::Sign()
     sMsg << *(CUnsignedAlert*)this;
     vchMsg = std::vector<unsigned char>(sMsg.begin(), sMsg.end());
     CBitcoinSecret vchSecret;
-    if (!vchSecret.SetString(GetArg("-alertkey", "")))
-    {
+    if (!vchSecret.SetString(GetArg("-alertkey", ""))) {
         printf("CAlert::SignAlert() : vchSecret.SetString failed\n");
         return false;
     }
     CKey key = vchSecret.GetKey();
-    if (!key.Sign(Hash(vchMsg.begin(), vchMsg.end()), vchSig))
-    {
+    if (!key.Sign(Hash(vchMsg.begin(), vchMsg.end()), vchSig)) {
         printf("CAlert::SignAlert() : key.Sign failed\n");
         return false;
     }
@@ -177,13 +173,13 @@ bool CAlert::CheckSignature(const std::vector<unsigned char>& alertKey) const
     return true;
 }
 
-CAlert CAlert::getAlertByHash(const uint256 &hash)
+CAlert CAlert::getAlertByHash(const uint256& hash)
 {
     CAlert retval;
     {
         LOCK(cs_mapAlerts);
         std::map<uint256, CAlert>::iterator mi = mapAlerts.find(hash);
-        if(mi != mapAlerts.end())
+        if (mi != mapAlerts.end())
             retval = mi->second;
     }
     return retval;
@@ -204,48 +200,39 @@ bool CAlert::ProcessAlert(const std::vector<unsigned char>& alertKey, bool fThre
     // send an "everything is OK, don't panic" version that
     // cannot be overridden):
     int maxInt = std::numeric_limits<int>::max();
-    if (nID == maxInt)
-    {
+    if (nID == maxInt) {
         if (!(
                 nExpiration == maxInt &&
-                nCancel == (maxInt-1) &&
+                nCancel == (maxInt - 1) &&
                 nMinVer == 0 &&
                 nMaxVer == maxInt &&
                 setSubVer.empty() &&
                 nPriority == maxInt &&
-                strStatusBar == "URGENT: Alert key compromised, upgrade required"
-                ))
+                strStatusBar == "URGENT: Alert key compromised, upgrade required"))
             return false;
     }
 
     {
         LOCK(cs_mapAlerts);
         // Cancel previous alerts
-        for (std::map<uint256, CAlert>::iterator mi = mapAlerts.begin(); mi != mapAlerts.end();)
-        {
+        for (std::map<uint256, CAlert>::iterator mi = mapAlerts.begin(); mi != mapAlerts.end();) {
             const CAlert& alert = (*mi).second;
-            if (Cancels(alert))
-            {
+            if (Cancels(alert)) {
                 LogPrint("alert", "cancelling alert %d\n", alert.nID);
                 uiInterface.NotifyAlertChanged((*mi).first, CT_DELETED);
                 mapAlerts.erase(mi++);
-            }
-            else if (!alert.IsInEffect())
-            {
+            } else if (!alert.IsInEffect()) {
                 LogPrint("alert", "expiring alert %d\n", alert.nID);
                 uiInterface.NotifyAlertChanged((*mi).first, CT_DELETED);
                 mapAlerts.erase(mi++);
-            }
-            else
+            } else
                 mi++;
         }
 
         // Check if this alert has been cancelled
-        for (const auto& item : mapAlerts)
-        {
+        for (const auto& item : mapAlerts) {
             const CAlert& alert = item.second;
-            if (alert.Cancels(*this))
-            {
+            if (alert.Cancels(*this)) {
                 LogPrint("alert", "alert already cancelled by %d\n", alert.nID);
                 return false;
             }
@@ -254,8 +241,7 @@ bool CAlert::ProcessAlert(const std::vector<unsigned char>& alertKey, bool fThre
         // Add to mapAlerts
         mapAlerts.insert(std::make_pair(GetHash(), *this));
         // Notify UI and -alertnotify if it applies to me
-        if(AppliesToMe())
-        {
+        if (AppliesToMe()) {
             uiInterface.NotifyAlertChanged(GetHash(), CT_NEW);
             Notify(strStatusBar, fThread);
         }
@@ -265,8 +251,7 @@ bool CAlert::ProcessAlert(const std::vector<unsigned char>& alertKey, bool fThre
     return true;
 }
 
-void
-CAlert::Notify(const std::string& strMessage, bool fThread)
+void CAlert::Notify(const std::string& strMessage, bool fThread)
 {
     std::string strCmd = GetArg("-alertnotify", "");
     if (strCmd.empty()) return;
@@ -276,7 +261,7 @@ CAlert::Notify(const std::string& strMessage, bool fThread)
     // the whole string before passing it to the shell:
     std::string singleQuote("'");
     std::string safeStatus = SanitizeString(strMessage);
-    safeStatus = singleQuote+safeStatus+singleQuote;
+    safeStatus = singleQuote + safeStatus + singleQuote;
     boost::replace_all(strCmd, "%s", safeStatus);
 
     if (fThread)

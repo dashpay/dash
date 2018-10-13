@@ -8,40 +8,40 @@
 
 BOOST_FIXTURE_TEST_SUITE(cachemap_tests, BasicTestingSetup)
 
-bool Compare(const CacheMap<int,int>& cmap1, const CacheMap<int,int>& cmap2)
+bool Compare(const CacheMap<int, int>& cmap1, const CacheMap<int, int>& cmap2)
 {
-    if(cmap1.GetMaxSize() != cmap2.GetMaxSize()) {
+    if (cmap1.GetMaxSize() != cmap2.GetMaxSize()) {
         return false;
     }
 
-    if(cmap1.GetSize() != cmap2.GetSize()) {
+    if (cmap1.GetSize() != cmap2.GetSize()) {
         return false;
     }
 
-    const CacheMap<int,int>::list_t& items1 = cmap1.GetItemList();
-    for(CacheMap<int,int>::list_cit it = items1.begin(); it != items1.end(); ++it) {
-        if(!cmap2.HasKey(it->key)) {
+    const CacheMap<int, int>::list_t& items1 = cmap1.GetItemList();
+    for (CacheMap<int, int>::list_cit it = items1.begin(); it != items1.end(); ++it) {
+        if (!cmap2.HasKey(it->key)) {
             return false;
         }
         int val = 0;
-        if(!cmap2.Get(it->key, val)) {
+        if (!cmap2.Get(it->key, val)) {
             return false;
         }
-        if(it->value != val) {
+        if (it->value != val) {
             return false;
         }
     }
 
-    const CacheMap<int,int>::list_t& items2 = cmap2.GetItemList();
-    for(CacheMap<int,int>::list_cit it = items2.begin(); it != items2.end(); ++it) {
-        if(!cmap1.HasKey(it->key)) {
+    const CacheMap<int, int>::list_t& items2 = cmap2.GetItemList();
+    for (CacheMap<int, int>::list_cit it = items2.begin(); it != items2.end(); ++it) {
+        if (!cmap1.HasKey(it->key)) {
             return false;
         }
         int val = 0;
-        if(!cmap1.Get(it->key, val)) {
+        if (!cmap1.Get(it->key, val)) {
             return false;
         }
-        if(it->value != val) {
+        if (it->value != val) {
             return false;
         }
     }
@@ -52,7 +52,7 @@ bool Compare(const CacheMap<int,int>& cmap1, const CacheMap<int,int>& cmap2)
 BOOST_AUTO_TEST_CASE(cachemap_test)
 {
     // create a CacheMap limited to 10 items
-    CacheMap<int,int> cmapTest1(10);
+    CacheMap<int, int> cmapTest1(10);
 
     // check that the max size is 10
     BOOST_CHECK(cmapTest1.GetMaxSize() == 10);
@@ -79,7 +79,7 @@ BOOST_AUTO_TEST_CASE(cachemap_test)
     BOOST_CHECK(cmapTest1.GetSize() == 1);
 
     // add 10 items
-    for(int i = 0; i < 10; ++i) {
+    for (int i = 0; i < 10; ++i) {
         cmapTest1.Insert(i, i);
     }
 
@@ -87,7 +87,7 @@ BOOST_AUTO_TEST_CASE(cachemap_test)
     BOOST_CHECK(cmapTest1.GetSize() == 10);
 
     // check that the map contains the expected items
-    for(int i = 0; i < 10; ++i) {
+    for (int i = 0; i < 10; ++i) {
         int nVal = 0;
         BOOST_CHECK(cmapTest1.Get(i, nVal) == true);
         BOOST_CHECK(nVal == i);
@@ -106,8 +106,8 @@ BOOST_AUTO_TEST_CASE(cachemap_test)
     BOOST_CHECK(cmapTest1.HasKey(5) == false);
 
     // check that the map contains the expected items
-    int expected[] = { 0, 1, 2, 3, 4, 6, 7, 8, 9 };
-    for(size_t i = 0; i < 9; ++i) {
+    int expected[] = {0, 1, 2, 3, 4, 6, 7, 8, 9};
+    for (size_t i = 0; i < 9; ++i) {
         int nVal = 0;
         int eVal = expected[i];
         BOOST_CHECK(cmapTest1.Get(eVal, nVal) == true);
@@ -118,17 +118,17 @@ BOOST_AUTO_TEST_CASE(cachemap_test)
     CDataStream ss(SER_NETWORK, PROTOCOL_VERSION);
     ss << cmapTest1;
 
-    CacheMap<int,int> mapTest2;
+    CacheMap<int, int> mapTest2;
     ss >> mapTest2;
 
     BOOST_CHECK(Compare(cmapTest1, mapTest2));
 
     // test copy constructor
-    CacheMap<int,int> mapTest3(cmapTest1);
+    CacheMap<int, int> mapTest3(cmapTest1);
     BOOST_CHECK(Compare(cmapTest1, mapTest3));
 
     // test assignment operator
-    CacheMap<int,int> mapTest4;
+    CacheMap<int, int> mapTest4;
     mapTest4 = cmapTest1;
     BOOST_CHECK(Compare(cmapTest1, mapTest4));
 }

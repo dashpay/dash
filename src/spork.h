@@ -6,9 +6,9 @@
 #define SPORK_H
 
 #include "hash.h"
+#include "key.h"
 #include "net.h"
 #include "utilstrencodings.h"
-#include "key.h"
 
 class CSporkMessage;
 class CSporkManager;
@@ -17,20 +17,20 @@ class CSporkManager;
     Don't ever reuse these IDs for other sporks
     - This would result in old clients getting confused about which spork is for what
 */
-static const int SPORK_2_INSTANTSEND_ENABLED                            = 10001;
-static const int SPORK_3_INSTANTSEND_BLOCK_FILTERING                    = 10002;
-static const int SPORK_5_INSTANTSEND_MAX_VALUE                          = 10004;
-static const int SPORK_6_NEW_SIGS                                       = 10005;
-static const int SPORK_8_MASTERNODE_PAYMENT_ENFORCEMENT                 = 10007;
-static const int SPORK_9_SUPERBLOCKS_ENABLED                            = 10008;
-static const int SPORK_10_MASTERNODE_PAY_UPDATED_NODES                  = 10009;
-static const int SPORK_12_RECONSIDER_BLOCKS                             = 10011;
-static const int SPORK_14_REQUIRE_SENTINEL_FLAG                         = 10013;
-static const int SPORK_15_DETERMINISTIC_MNS_ENABLED                     = 10014;
-static const int SPORK_16_INSTANTSEND_AUTOLOCKS                         = 10015;
+static const int SPORK_2_INSTANTSEND_ENABLED = 10001;
+static const int SPORK_3_INSTANTSEND_BLOCK_FILTERING = 10002;
+static const int SPORK_5_INSTANTSEND_MAX_VALUE = 10004;
+static const int SPORK_6_NEW_SIGS = 10005;
+static const int SPORK_8_MASTERNODE_PAYMENT_ENFORCEMENT = 10007;
+static const int SPORK_9_SUPERBLOCKS_ENABLED = 10008;
+static const int SPORK_10_MASTERNODE_PAY_UPDATED_NODES = 10009;
+static const int SPORK_12_RECONSIDER_BLOCKS = 10011;
+static const int SPORK_14_REQUIRE_SENTINEL_FLAG = 10013;
+static const int SPORK_15_DETERMINISTIC_MNS_ENABLED = 10014;
+static const int SPORK_16_INSTANTSEND_AUTOLOCKS = 10015;
 
-static const int SPORK_START                                            = SPORK_2_INSTANTSEND_ENABLED;
-static const int SPORK_END                                              = SPORK_16_INSTANTSEND_AUTOLOCKS;
+static const int SPORK_START = SPORK_2_INSTANTSEND_ENABLED;
+static const int SPORK_END = SPORK_16_INSTANTSEND_AUTOLOCKS;
 
 extern std::map<int, int64_t> mapSporkDefaults;
 extern CSporkManager sporkManager;
@@ -67,19 +67,22 @@ public:
         nSporkID(nSporkID),
         nValue(nValue),
         nTimeSigned(nTimeSigned)
-        {}
+    {
+    }
 
     CSporkMessage() :
         nSporkID(0),
         nValue(0),
         nTimeSigned(0)
-        {}
+    {
+    }
 
 
     ADD_SERIALIZE_METHODS;
 
     template <typename Stream, typename Operation>
-    inline void SerializationOp(Stream& s, Operation ser_action) {
+    inline void SerializationOp(Stream& s, Operation ser_action)
+    {
         READWRITE(nSporkID);
         READWRITE(nValue);
         READWRITE(nTimeSigned);
@@ -149,15 +152,15 @@ private:
     bool SporkValueIsActive(int nSporkID, int64_t& nActiveValueRet) const;
 
 public:
-
     CSporkManager() {}
 
     ADD_SERIALIZE_METHODS;
 
     template <typename Stream, typename Operation>
-    inline void SerializationOp(Stream& s, Operation ser_action) {
+    inline void SerializationOp(Stream& s, Operation ser_action)
+    {
         std::string strVersion;
-        if(ser_action.ForRead()) {
+        if (ser_action.ForRead()) {
             READWRITE(strVersion);
             if (strVersion != SERIALIZATION_VERSION_STRING) {
                 return;
@@ -249,7 +252,7 @@ public:
      * hash-based index of sporks for this reason, and this function is the access
      * point into that index.
      */
-    bool GetSporkByHash(const uint256& hash, CSporkMessage &sporkRet);
+    bool GetSporkByHash(const uint256& hash, CSporkMessage& sporkRet);
 
     /**
      * SetSporkAddress is used to set a public key ID which will be used to

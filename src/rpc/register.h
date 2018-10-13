@@ -10,23 +10,23 @@
 class CRPCTable;
 
 /** Register block chain RPC commands */
-void RegisterBlockchainRPCCommands(CRPCTable &tableRPC);
+void RegisterBlockchainRPCCommands(CRPCTable& tableRPC);
 /** Register P2P networking RPC commands */
-void RegisterNetRPCCommands(CRPCTable &tableRPC);
+void RegisterNetRPCCommands(CRPCTable& tableRPC);
 /** Register miscellaneous RPC commands */
-void RegisterMiscRPCCommands(CRPCTable &tableRPC);
+void RegisterMiscRPCCommands(CRPCTable& tableRPC);
 /** Register mining RPC commands */
-void RegisterMiningRPCCommands(CRPCTable &tableRPC);
+void RegisterMiningRPCCommands(CRPCTable& tableRPC);
 /** Register raw transaction RPC commands */
-void RegisterRawTransactionRPCCommands(CRPCTable &tableRPC);
+void RegisterRawTransactionRPCCommands(CRPCTable& tableRPC);
 /** Register masternode RPC commands */
-void RegisterMasternodeRPCCommands(CRPCTable &tableRPC);
+void RegisterMasternodeRPCCommands(CRPCTable& tableRPC);
 /** Register governance RPC commands */
-void RegisterGovernanceRPCCommands(CRPCTable &tableRPC);
+void RegisterGovernanceRPCCommands(CRPCTable& tableRPC);
 /** Register Evo RPC commands */
-void RegisterEvoRPCCommands(CRPCTable &tableRPC);
+void RegisterEvoRPCCommands(CRPCTable& tableRPC);
 
-static inline void RegisterAllCoreRPCCommands(CRPCTable &t)
+static inline void RegisterAllCoreRPCCommands(CRPCTable& t)
 {
     RegisterBlockchainRPCCommands(t);
     RegisterNetRPCCommands(t);

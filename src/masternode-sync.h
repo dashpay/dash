@@ -9,17 +9,17 @@
 
 class CMasternodeSync;
 
-static const int MASTERNODE_SYNC_FAILED          = -1;
-static const int MASTERNODE_SYNC_INITIAL         = 0; // sync just started, was reset recently or still in IDB
-static const int MASTERNODE_SYNC_WAITING         = 1; // waiting after initial to see if we can get more headers/blocks
-static const int MASTERNODE_SYNC_LIST            = 2;
-static const int MASTERNODE_SYNC_MNW             = 3;
-static const int MASTERNODE_SYNC_GOVERNANCE      = 4;
-static const int MASTERNODE_SYNC_GOVOBJ          = 10;
-static const int MASTERNODE_SYNC_GOVOBJ_VOTE     = 11;
-static const int MASTERNODE_SYNC_FINISHED        = 999;
+static const int MASTERNODE_SYNC_FAILED = -1;
+static const int MASTERNODE_SYNC_INITIAL = 0; // sync just started, was reset recently or still in IDB
+static const int MASTERNODE_SYNC_WAITING = 1; // waiting after initial to see if we can get more headers/blocks
+static const int MASTERNODE_SYNC_LIST = 2;
+static const int MASTERNODE_SYNC_MNW = 3;
+static const int MASTERNODE_SYNC_GOVERNANCE = 4;
+static const int MASTERNODE_SYNC_GOVOBJ = 10;
+static const int MASTERNODE_SYNC_GOVOBJ_VOTE = 11;
+static const int MASTERNODE_SYNC_FINISHED = 999;
 
-static const int MASTERNODE_SYNC_TICK_SECONDS    = 6;
+static const int MASTERNODE_SYNC_TICK_SECONDS = 6;
 static const int MASTERNODE_SYNC_TIMEOUT_SECONDS = 30; // our blocks are 2.5 minutes so 30 seconds should be fine
 
 extern CMasternodeSync masternodeSync;
@@ -70,11 +70,11 @@ public:
     void ProcessMessage(CNode* pfrom, const std::string& strCommand, CDataStream& vRecv);
     void ProcessTick(CConnman& connman);
 
-    void AcceptedBlockHeader(const CBlockIndex *pindexNew);
-    void NotifyHeaderTip(const CBlockIndex *pindexNew, bool fInitialDownload, CConnman& connman);
-    void UpdatedBlockTip(const CBlockIndex *pindexNew, bool fInitialDownload, CConnman& connman);
+    void AcceptedBlockHeader(const CBlockIndex* pindexNew);
+    void NotifyHeaderTip(const CBlockIndex* pindexNew, bool fInitialDownload, CConnman& connman);
+    void UpdatedBlockTip(const CBlockIndex* pindexNew, bool fInitialDownload, CConnman& connman);
 
-    void DoMaintenance(CConnman &connman) { ProcessTick(connman); }
+    void DoMaintenance(CConnman& connman) { ProcessTick(connman); }
 };
 
 #endif

@@ -15,22 +15,22 @@
 
 static void LockedPool(benchmark::State& state)
 {
-    void *synth_base = reinterpret_cast<void*>(0x08000000);
-    const size_t synth_size = 1024*1024;
+    void* synth_base = reinterpret_cast<void*>(0x08000000);
+    const size_t synth_size = 1024 * 1024;
     Arena b(synth_base, synth_size, 16);
 
     std::vector<void*> addr;
-    for (int x=0; x<ASIZE; ++x)
+    for (int x = 0; x < ASIZE; ++x)
         addr.push_back(0);
     uint32_t s = 0x12345678;
     while (state.KeepRunning()) {
-        for (int x=0; x<BITER; ++x) {
-            int idx = s & (addr.size()-1);
+        for (int x = 0; x < BITER; ++x) {
+            int idx = s & (addr.size() - 1);
             if (s & 0x80000000) {
                 b.free(addr[idx]);
                 addr[idx] = 0;
-            } else if(!addr[idx]) {
-                addr[idx] = b.alloc((s >> 16) & (MSIZE-1));
+            } else if (!addr[idx]) {
+                addr[idx] = b.alloc((s >> 16) & (MSIZE - 1));
             }
             bool lsb = s & 1;
             s >>= 1;
@@ -38,10 +38,9 @@ static void LockedPool(benchmark::State& state)
                 s ^= 0xf00f00f0; // LFSR period 0xf7ffffe0
         }
     }
-    for (void *ptr: addr)
+    for (void* ptr : addr)
         b.free(ptr);
     addr.clear();
 }
 
 BENCHMARK(LockedPool);
-

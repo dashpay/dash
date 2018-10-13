@@ -13,22 +13,23 @@
 
 #ifdef ENABLE_WALLET
 #include "wallet/wallet.h"
-#endif//ENABLE_WALLET
+#endif //ENABLE_WALLET
 
 #include "netbase.h"
 
-#include "evo/specialtx.h"
-#include "evo/providertx.h"
 #include "evo/deterministicmns.h"
+#include "evo/providertx.h"
 #include "evo/simplifiedmns.h"
+#include "evo/specialtx.h"
 
 #ifdef ENABLE_WALLET
 extern UniValue signrawtransaction(const JSONRPCRequest& request);
 extern UniValue sendrawtransaction(const JSONRPCRequest& request);
-#endif//ENABLE_WALLET
+#endif //ENABLE_WALLET
 
 // Allows to specify Dash address or priv key. In case of Dash address, the priv key is taken from the wallet
-static CKey ParsePrivKey(const std::string &strKeyOrAddress, bool allowAddresses = true) {
+static CKey ParsePrivKey(const std::string& strKeyOrAddress, bool allowAddresses = true)
+{
     CBitcoinAddress address;
     if (allowAddresses && address.SetString(strKeyOrAddress) && address.IsValid()) {
 #ifdef ENABLE_WALLET
@@ -37,9 +38,9 @@ static CKey ParsePrivKey(const std::string &strKeyOrAddress, bool allowAddresses
         if (!address.GetKeyID(keyId) || !pwalletMain->GetKey(keyId, key))
             throw std::runtime_error(strprintf("non-wallet or invalid address %s", strKeyOrAddress));
         return key;
-#else//ENABLE_WALLET
+#else  //ENABLE_WALLET
         throw std::runtime_error("addresses not supported in no-wallet builds");
-#endif//ENABLE_WALLET
+#endif //ENABLE_WALLET
     }
 
     CBitcoinSecret secret;
@@ -60,7 +61,7 @@ static CKeyID ParsePubKeyIDFromAddress(const std::string& strAddress, const std:
 
 #ifdef ENABLE_WALLET
 
-template<typename SpecialTxPayload>
+template <typename SpecialTxPayload>
 static void FundSpecialTx(CMutableTransaction& tx, SpecialTxPayload payload)
 {
     // resize so that fee calculation is correct
@@ -95,7 +96,7 @@ static void FundSpecialTx(CMutableTransaction& tx, SpecialTxPayload payload)
     }
 }
 
-template<typename SpecialTxPayload>
+template <typename SpecialTxPayload>
 static void SignSpecialTxPayload(const CMutableTransaction& tx, SpecialTxPayload& payload, const CKey& key)
 {
     payload.inputsHash = CalcTxInputsHash(tx);
@@ -131,37 +132,36 @@ static std::string SignAndSendSpecialTx(const CMutableTransaction& tx)
 void protx_register_help()
 {
     throw std::runtime_error(
-            "protx register \"collateralAddress\" collateralAmount \"ipAndPort\" protocolVersion \"ownerKeyAddr\" \"operatorKeyAddr\" \"votingKeyAddr\" operatorReward \"payoutAddress\"\n"
-            "\nCreates and sends a ProTx to the network. The resulting transaction will move the specified amount\n"
-            "to the address specified by collateralAddress and will then function as the collateral of your\n"
-            "masternode.\n"
-            "A few of the limitations you see in the arguments are temporary and might be lifted after DIP3\n"
-            "is fully deployed.\n"
-            "\nArguments:\n"
-            "1. \"collateralAddress\"   (string, required) The dash address to send the collateral to.\n"
-            "                         Must be a P2PKH address.\n"
-            "2. \"collateralAmount\"    (numeric or string, required) The collateral amount.\n"
-            "                         Must be exactly 1000 Dash.\n"
-            "3. \"ipAndPort\"           (string, required) IP and port in the form \"IP:PORT\".\n"
-            "                         Must be unique on the network. Can be set to 0, which will require a ProUpServTx afterwards.\n"
-            "4. \"protocolVersion\"     (numeric, required) The protocol version of your masternode.\n"
-            "                         Can be 0 to default to the clients protocol version.\n"
-            "5. \"ownerKeyAddr\"        (string, required) The owner key used for payee updates and proposal voting.\n"
-            "                         The private key belonging to this address be known in your wallet. The address must\n"
-            "                         be unused and must differ from the collateralAddress\n"
-            "6. \"operatorKeyAddr\"     (string, required) The operator key address. The private key does not have to be known by your wallet.\n"
-            "                         It has to match the private key which is later used when operating the masternode.\n"
-            "                         If set to \"0\" or an empty string, ownerAddr will be used.\n"
-            "7. \"votingKeyAddr\"       (string, required) The voting key address. The private key does not have to be known by your wallet.\n"
-            "                         It has to match the private key which is later used when voting on proposals.\n"
-            "                         If set to \"0\" or an empty string, ownerAddr will be used.\n"
-            "8. \"operatorReward\"      (numeric, required) The fraction in %% to share with the operator. If non-zero,\n"
-            "                         \"ipAndPort\" and \"protocolVersion\" must be zero as well. The value must be between 0 and 100.\n"
-            "9. \"payoutAddress\"       (string, required) The dash address to use for masternode reward payments\n"
-            "                         Must match \"collateralAddress\"."
-            "\nExamples:\n"
-            + HelpExampleCli("protx", "register \"XwnLY9Tf7Zsef8gMGL2fhWA9ZmMjt4KPwG\" 1000 \"1.2.3.4:1234\" 0 \"93Fd7XY2zF4q9YKTZUSFxLgp4Xs7MuaMnvY9kpvH7V8oXWqsCC1\" XwnLY9Tf7Zsef8gMGL2fhWA9ZmMjt4KPwG")
-    );
+        "protx register \"collateralAddress\" collateralAmount \"ipAndPort\" protocolVersion \"ownerKeyAddr\" \"operatorKeyAddr\" \"votingKeyAddr\" operatorReward \"payoutAddress\"\n"
+        "\nCreates and sends a ProTx to the network. The resulting transaction will move the specified amount\n"
+        "to the address specified by collateralAddress and will then function as the collateral of your\n"
+        "masternode.\n"
+        "A few of the limitations you see in the arguments are temporary and might be lifted after DIP3\n"
+        "is fully deployed.\n"
+        "\nArguments:\n"
+        "1. \"collateralAddress\"   (string, required) The dash address to send the collateral to.\n"
+        "                         Must be a P2PKH address.\n"
+        "2. \"collateralAmount\"    (numeric or string, required) The collateral amount.\n"
+        "                         Must be exactly 1000 Dash.\n"
+        "3. \"ipAndPort\"           (string, required) IP and port in the form \"IP:PORT\".\n"
+        "                         Must be unique on the network. Can be set to 0, which will require a ProUpServTx afterwards.\n"
+        "4. \"protocolVersion\"     (numeric, required) The protocol version of your masternode.\n"
+        "                         Can be 0 to default to the clients protocol version.\n"
+        "5. \"ownerKeyAddr\"        (string, required) The owner key used for payee updates and proposal voting.\n"
+        "                         The private key belonging to this address be known in your wallet. The address must\n"
+        "                         be unused and must differ from the collateralAddress\n"
+        "6. \"operatorKeyAddr\"     (string, required) The operator key address. The private key does not have to be known by your wallet.\n"
+        "                         It has to match the private key which is later used when operating the masternode.\n"
+        "                         If set to \"0\" or an empty string, ownerAddr will be used.\n"
+        "7. \"votingKeyAddr\"       (string, required) The voting key address. The private key does not have to be known by your wallet.\n"
+        "                         It has to match the private key which is later used when voting on proposals.\n"
+        "                         If set to \"0\" or an empty string, ownerAddr will be used.\n"
+        "8. \"operatorReward\"      (numeric, required) The fraction in %% to share with the operator. If non-zero,\n"
+        "                         \"ipAndPort\" and \"protocolVersion\" must be zero as well. The value must be between 0 and 100.\n"
+        "9. \"payoutAddress\"       (string, required) The dash address to use for masternode reward payments\n"
+        "                         Must match \"collateralAddress\"."
+        "\nExamples:\n" +
+        HelpExampleCli("protx", "register \"XwnLY9Tf7Zsef8gMGL2fhWA9ZmMjt4KPwG\" 1000 \"1.2.3.4:1234\" 0 \"93Fd7XY2zF4q9YKTZUSFxLgp4Xs7MuaMnvY9kpvH7V8oXWqsCC1\" XwnLY9Tf7Zsef8gMGL2fhWA9ZmMjt4KPwG"));
 }
 
 UniValue protx_register(const JSONRPCRequest& request)
@@ -225,14 +225,14 @@ UniValue protx_register(const JSONRPCRequest& request)
 
     FundSpecialTx(tx, ptx);
 
-    uint32_t collateralIndex = (uint32_t) - 1;
+    uint32_t collateralIndex = (uint32_t)-1;
     for (uint32_t i = 0; i < tx.vout.size(); i++) {
         if (tx.vout[i] == collateralTxOut) {
             collateralIndex = i;
             break;
         }
     }
-    assert(collateralIndex != (uint32_t) - 1);
+    assert(collateralIndex != (uint32_t)-1);
     ptx.nCollateralIndex = collateralIndex;
 
     SignSpecialTxPayload(tx, ptx, keyOwner);
@@ -244,21 +244,20 @@ UniValue protx_register(const JSONRPCRequest& request)
 void protx_update_service_help()
 {
     throw std::runtime_error(
-            "protx update_service \"proTxHash\" \"ipAndPort\" protocolVersion (\"operatorPayoutAddress\")\n"
-            "\nCreates and sends a ProUpServTx to the network. This will update the address and protocol version\n"
-            "of a masternode. The operator key of the masternode must be known to your wallet.\n"
-            "If this is done for a masternode that got PoSe-banned, the ProUpServTx will also revive this masternode.\n"
-            "\nArguments:\n"
-            "1. \"proTxHash\"                (string, required) The hash of the initial ProRegTx.\n"
-            "2. \"ipAndPort\"                (string, required) IP and port in the form \"IP:PORT\".\n"
-            "                              Must be unique on the network.\n"
-            "3. \"protocolVersion\"          (numeric, required) The protocol version of your masternode.\n"
-            "                              Can be 0 to default to the clients protocol version\n"
-            "4. \"operatorPayoutAddress\"    (string, optional) The address used for operator reward payments.\n"
-            "                              Only allowed when the ProRegTx had a non-zero operatorReward value.\n"
-            "\nExamples:\n"
-            + HelpExampleCli("protx", "update_service \"0123456701234567012345670123456701234567012345670123456701234567\" \"1.2.3.4:1234\" 0")
-    );
+        "protx update_service \"proTxHash\" \"ipAndPort\" protocolVersion (\"operatorPayoutAddress\")\n"
+        "\nCreates and sends a ProUpServTx to the network. This will update the address and protocol version\n"
+        "of a masternode. The operator key of the masternode must be known to your wallet.\n"
+        "If this is done for a masternode that got PoSe-banned, the ProUpServTx will also revive this masternode.\n"
+        "\nArguments:\n"
+        "1. \"proTxHash\"                (string, required) The hash of the initial ProRegTx.\n"
+        "2. \"ipAndPort\"                (string, required) IP and port in the form \"IP:PORT\".\n"
+        "                              Must be unique on the network.\n"
+        "3. \"protocolVersion\"          (numeric, required) The protocol version of your masternode.\n"
+        "                              Can be 0 to default to the clients protocol version\n"
+        "4. \"operatorPayoutAddress\"    (string, optional) The address used for operator reward payments.\n"
+        "                              Only allowed when the ProRegTx had a non-zero operatorReward value.\n"
+        "\nExamples:\n" +
+        HelpExampleCli("protx", "update_service \"0123456701234567012345670123456701234567012345670123456701234567\" \"1.2.3.4:1234\" 0"));
 }
 
 UniValue protx_update_service(const JSONRPCRequest& request)
@@ -310,24 +309,23 @@ UniValue protx_update_service(const JSONRPCRequest& request)
 void protx_update_registrar_help()
 {
     throw std::runtime_error(
-            "protx update_registrar \"proTxHash\" \"operatorKeyAddr\" \"votingKeyAddr\" operatorReward \"payoutAddress\"\n"
-            "\nCreates and sends a ProUpRegTx to the network. This will update the operator key, voting key and payout\n"
-            "address of the masternode specified by \"proTxHash\".\n"
-            "The owner key of the masternode must be known to your wallet.\n"
-            "\nArguments:\n"
-            "1. \"proTxHash\"           (string, required) The hash of the initial ProRegTx.\n"
-            "2. \"operatorKeyAddr\"     (string, required) The operator key address. The private key does not have to be known by your wallet.\n"
-            "                         It has to match the private key which is later used when operating the masternode.\n"
-            "                         If set to \"0\" or an empty string, the last on-chain operator key of the masternode will be used.\n"
-            "3. \"votingKeyAddr\"       (string, required) The voting key address. The private key does not have to be known by your wallet.\n"
-            "                         It has to match the private key which is later used when voting on proposals.\n"
-            "                         If set to \"0\" or an empty string, the last on-chain voting key of the masternode will be used.\n"
-            "5. \"payoutAddress\"       (string, required) The dash address to use for masternode reward payments\n"
-            "                         Must match \"collateralAddress\" of initial ProRegTx.\n"
-            "                         If set to \"0\" or an empty string, the last on-chain payout address of the masternode will be used.\n"
-            "\nExamples:\n"
-            + HelpExampleCli("protx", "update_registrar \"0123456701234567012345670123456701234567012345670123456701234567\" \"<operatorKeyAddr>\" \"0\" \"XwnLY9Tf7Zsef8gMGL2fhWA9ZmMjt4KPwG\"")
-    );
+        "protx update_registrar \"proTxHash\" \"operatorKeyAddr\" \"votingKeyAddr\" operatorReward \"payoutAddress\"\n"
+        "\nCreates and sends a ProUpRegTx to the network. This will update the operator key, voting key and payout\n"
+        "address of the masternode specified by \"proTxHash\".\n"
+        "The owner key of the masternode must be known to your wallet.\n"
+        "\nArguments:\n"
+        "1. \"proTxHash\"           (string, required) The hash of the initial ProRegTx.\n"
+        "2. \"operatorKeyAddr\"     (string, required) The operator key address. The private key does not have to be known by your wallet.\n"
+        "                         It has to match the private key which is later used when operating the masternode.\n"
+        "                         If set to \"0\" or an empty string, the last on-chain operator key of the masternode will be used.\n"
+        "3. \"votingKeyAddr\"       (string, required) The voting key address. The private key does not have to be known by your wallet.\n"
+        "                         It has to match the private key which is later used when voting on proposals.\n"
+        "                         If set to \"0\" or an empty string, the last on-chain voting key of the masternode will be used.\n"
+        "5. \"payoutAddress\"       (string, required) The dash address to use for masternode reward payments\n"
+        "                         Must match \"collateralAddress\" of initial ProRegTx.\n"
+        "                         If set to \"0\" or an empty string, the last on-chain payout address of the masternode will be used.\n"
+        "\nExamples:\n" +
+        HelpExampleCli("protx", "update_registrar \"0123456701234567012345670123456701234567012345670123456701234567\" \"<operatorKeyAddr>\" \"0\" \"XwnLY9Tf7Zsef8gMGL2fhWA9ZmMjt4KPwG\""));
 }
 
 UniValue protx_update_registrar(const JSONRPCRequest& request)
@@ -378,18 +376,17 @@ UniValue protx_update_registrar(const JSONRPCRequest& request)
 void protx_revoke_help()
 {
     throw std::runtime_error(
-            "protx revoke \"proTxHash\"\n"
-            "\nCreates and sends a ProUpRevTx to the network. This will revoke the operator key of the masternode and\n"
-            "put it into the PoSe-banned state. It will also set the service and protocol version fields of the masternode\n"
-            "to zero. Use this in case your operator key got compromised or you want to stop providing your service\n"
-            "to the masternode owner.\n"
-            "The operator key of the masternode must be known to your wallet.\n"
-            "\nArguments:\n"
-            "1. \"proTxHash\"           (string, required) The hash of the initial ProRegTx.\n"
-            "2. reason                  (numeric, optional) The reason for revocation.\n"
-            "\nExamples:\n"
-            + HelpExampleCli("protx", "revoke \"0123456701234567012345670123456701234567012345670123456701234567\" \"<operatorKeyAddr>\"")
-    );
+        "protx revoke \"proTxHash\"\n"
+        "\nCreates and sends a ProUpRevTx to the network. This will revoke the operator key of the masternode and\n"
+        "put it into the PoSe-banned state. It will also set the service and protocol version fields of the masternode\n"
+        "to zero. Use this in case your operator key got compromised or you want to stop providing your service\n"
+        "to the masternode owner.\n"
+        "The operator key of the masternode must be known to your wallet.\n"
+        "\nArguments:\n"
+        "1. \"proTxHash\"           (string, required) The hash of the initial ProRegTx.\n"
+        "2. reason                  (numeric, optional) The reason for revocation.\n"
+        "\nExamples:\n" +
+        HelpExampleCli("protx", "revoke \"0123456701234567012345670123456701234567012345670123456701234567\" \"<operatorKeyAddr>\""));
 }
 
 UniValue protx_revoke(const JSONRPCRequest& request)
@@ -432,23 +429,23 @@ UniValue protx_revoke(const JSONRPCRequest& request)
 void protx_list_help()
 {
     throw std::runtime_error(
-            "protx list (\"type\")\n"
-            "\nLists all ProTxs in your wallet or on-chain, depending on the given type. If \"type\" is not\n"
-            "specified, it defaults to \"wallet\". All types have the optional argument \"detailed\" which if set to\n"
-            "\"true\" will result in a detailed list to be returned. If set to \"false\", only the hashes of the ProTx\n"
-            "will be returned.\n"
-            "\nAvailable types:\n"
-            "  wallet (detailed)              - List only ProTx which are found in your wallet. This will also include ProTx which\n"
-            "                                   failed PoSe verfication\n"
-            "  valid (height) (detailed)      - List only ProTx which are active/valid at the given chain height. If height is not\n"
-            "                                   specified, it defaults to the current chain-tip\n"
-            "  registered (height) (detaileD) - List all ProTx which are registered at the given chain height. If height is not\n"
-            "                                   specified, it defaults to the current chain-tip. This will also include ProTx\n"
-            "                                   which failed PoSe verification at that height\n"
-    );
+        "protx list (\"type\")\n"
+        "\nLists all ProTxs in your wallet or on-chain, depending on the given type. If \"type\" is not\n"
+        "specified, it defaults to \"wallet\". All types have the optional argument \"detailed\" which if set to\n"
+        "\"true\" will result in a detailed list to be returned. If set to \"false\", only the hashes of the ProTx\n"
+        "will be returned.\n"
+        "\nAvailable types:\n"
+        "  wallet (detailed)              - List only ProTx which are found in your wallet. This will also include ProTx which\n"
+        "                                   failed PoSe verfication\n"
+        "  valid (height) (detailed)      - List only ProTx which are active/valid at the given chain height. If height is not\n"
+        "                                   specified, it defaults to the current chain-tip\n"
+        "  registered (height) (detaileD) - List all ProTx which are registered at the given chain height. If height is not\n"
+        "                                   specified, it defaults to the current chain-tip. This will also include ProTx\n"
+        "                                   which failed PoSe verification at that height\n");
 }
 
-static bool CheckWalletOwnsScript(const CScript& script) {
+static bool CheckWalletOwnsScript(const CScript& script)
+{
     CTxDestination dest;
     if (ExtractDestination(script, dest)) {
         if ((boost::get<CKeyID>(&dest) && pwalletMain->HaveKey(*boost::get<CKeyID>(&dest))) || (boost::get<CScriptID>(&dest) && pwalletMain->HaveCScript(*boost::get<CScriptID>(&dest)))) {
@@ -556,20 +553,19 @@ UniValue protx_list(const JSONRPCRequest& request)
 void protx_diff_help()
 {
     throw std::runtime_error(
-            "protx diff \"baseBlock\" \"block\"\n"
-            "\nCalculates a diff between two deterministic masternode lists. The result also contains proof data.\n"
-            "specified, it defaults to \"wallet\". All types have the optional argument \"detailed\" which if set to\n"
-            "\"true\" will result in a detailed list to be returned. If set to \"false\", only the hashes of the ProTx\n"
-            "will be returned.\n"
-            "\nAvailable types:\n"
-            "  wallet (detailed)              - List only ProTx which are found in your wallet. This will also include ProTx which\n"
-            "                                   failed PoSe verfication\n"
-            "  valid (height) (detailed)      - List only ProTx which are active/valid at the given chain height. If height is not\n"
-            "                                   specified, it defaults to the current chain-tip\n"
-            "  registered (height) (detaileD) - List all ProTx which are registered at the given chain height. If height is not\n"
-            "                                   specified, it defaults to the current chain-tip. This will also include ProTx\n"
-            "                                   which failed PoSe verification at that height\n"
-    );
+        "protx diff \"baseBlock\" \"block\"\n"
+        "\nCalculates a diff between two deterministic masternode lists. The result also contains proof data.\n"
+        "specified, it defaults to \"wallet\". All types have the optional argument \"detailed\" which if set to\n"
+        "\"true\" will result in a detailed list to be returned. If set to \"false\", only the hashes of the ProTx\n"
+        "will be returned.\n"
+        "\nAvailable types:\n"
+        "  wallet (detailed)              - List only ProTx which are found in your wallet. This will also include ProTx which\n"
+        "                                   failed PoSe verfication\n"
+        "  valid (height) (detailed)      - List only ProTx which are active/valid at the given chain height. If height is not\n"
+        "                                   specified, it defaults to the current chain-tip\n"
+        "  registered (height) (detaileD) - List all ProTx which are registered at the given chain height. If height is not\n"
+        "                                   specified, it defaults to the current chain-tip. This will also include ProTx\n"
+        "                                   which failed PoSe verification at that height\n");
 }
 
 static uint256 ParseBlock(const UniValue& v, std::string strName)
@@ -611,19 +607,18 @@ UniValue protx(const JSONRPCRequest& request)
 {
     if (request.params.empty()) {
         throw std::runtime_error(
-                "protx \"command\" ...\n"
-                "Set of commands to execute ProTx related actions.\n"
-                "To get help on individual commands, use \"help protx command\".\n"
-                "\nArguments:\n"
-                "1. \"command\"        (string, required) The command to execute\n"
-                "\nAvailable commands:\n"
-                "  register          - Create and send ProTx to network\n"
-                "  list              - List ProTxs\n"
-                "  update_service    - Create and send ProUpServTx to network\n"
-                "  update_registrar  - Create and send ProUpRegTx to network\n"
-                "  revoke            - Create and send ProUpRevTx to network\n"
-                "  diff              - Calculate a diff and a proof between two masternode lists\n"
-        );
+            "protx \"command\" ...\n"
+            "Set of commands to execute ProTx related actions.\n"
+            "To get help on individual commands, use \"help protx command\".\n"
+            "\nArguments:\n"
+            "1. \"command\"        (string, required) The command to execute\n"
+            "\nAvailable commands:\n"
+            "  register          - Create and send ProTx to network\n"
+            "  list              - List ProTxs\n"
+            "  update_service    - Create and send ProUpServTx to network\n"
+            "  update_registrar  - Create and send ProUpRegTx to network\n"
+            "  revoke            - Create and send ProUpRevTx to network\n"
+            "  diff              - Calculate a diff and a proof between two masternode lists\n");
     }
 
     std::string command = request.params[0].get_str();
@@ -644,18 +639,19 @@ UniValue protx(const JSONRPCRequest& request)
         throw std::runtime_error("invalid command: " + command);
     }
 }
-#endif//ENABLE_WALLET
+#endif //ENABLE_WALLET
 
 static const CRPCCommand commands[] =
-{ //  category              name                      actor (function)         okSafeMode
-  //  --------------------- ------------------------  -----------------------  ----------
+    {
+        //  category              name                      actor (function)         okSafeMode
+        //  --------------------- ------------------------  -----------------------  ----------
 #ifdef ENABLE_WALLET
-    // these require the wallet to be enabled to fund the transactions
-    { "evo",                "protx",                  &protx,                  false, {}  },
-#endif//ENABLE_WALLET
+        // these require the wallet to be enabled to fund the transactions
+        {"evo", "protx", &protx, false, {}},
+#endif //ENABLE_WALLET
 };
 
-void RegisterEvoRPCCommands(CRPCTable &tableRPC)
+void RegisterEvoRPCCommands(CRPCTable& tableRPC)
 {
     for (unsigned int vcidx = 0; vcidx < ARRAYLEN(commands); vcidx++)
         tableRPC.appendCommand(commands[vcidx].name, &commands[vcidx]);

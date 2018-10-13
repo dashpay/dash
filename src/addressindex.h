@@ -6,24 +6,25 @@
 #ifndef BITCOIN_ADDRESSINDEX_H
 #define BITCOIN_ADDRESSINDEX_H
 
-#include "uint256.h"
 #include "amount.h"
+#include "uint256.h"
 
-struct CMempoolAddressDelta
-{
+struct CMempoolAddressDelta {
     int64_t time;
     CAmount amount;
     uint256 prevhash;
     unsigned int prevout;
 
-    CMempoolAddressDelta(int64_t t, CAmount a, uint256 hash, unsigned int out) {
+    CMempoolAddressDelta(int64_t t, CAmount a, uint256 hash, unsigned int out)
+    {
         time = t;
         amount = a;
         prevhash = hash;
         prevout = out;
     }
 
-    CMempoolAddressDelta(int64_t t, CAmount a) {
+    CMempoolAddressDelta(int64_t t, CAmount a)
+    {
         time = t;
         amount = a;
         prevhash.SetNull();
@@ -31,15 +32,15 @@ struct CMempoolAddressDelta
     }
 };
 
-struct CMempoolAddressDeltaKey
-{
+struct CMempoolAddressDeltaKey {
     int type;
     uint160 addressBytes;
     uint256 txhash;
     unsigned int index;
     int spending;
 
-    CMempoolAddressDeltaKey(int addressType, uint160 addressHash, uint256 hash, unsigned int i, int s) {
+    CMempoolAddressDeltaKey(int addressType, uint160 addressHash, uint256 hash, unsigned int i, int s)
+    {
         type = addressType;
         addressBytes = addressHash;
         txhash = hash;
@@ -47,7 +48,8 @@ struct CMempoolAddressDeltaKey
         spending = s;
     }
 
-    CMempoolAddressDeltaKey(int addressType, uint160 addressHash) {
+    CMempoolAddressDeltaKey(int addressType, uint160 addressHash)
+    {
         type = addressType;
         addressBytes = addressHash;
         txhash.SetNull();
@@ -56,9 +58,9 @@ struct CMempoolAddressDeltaKey
     }
 };
 
-struct CMempoolAddressDeltaKeyCompare
-{
-    bool operator()(const CMempoolAddressDeltaKey& a, const CMempoolAddressDeltaKey& b) const {
+struct CMempoolAddressDeltaKeyCompare {
+    bool operator()(const CMempoolAddressDeltaKey& a, const CMempoolAddressDeltaKey& b) const
+    {
         if (a.type == b.type) {
             if (a.addressBytes == b.addressBytes) {
                 if (a.txhash == b.txhash) {

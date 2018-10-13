@@ -16,10 +16,10 @@ class QValueComboBox : public QComboBox
     Q_PROPERTY(QVariant value READ value WRITE setValue NOTIFY valueChanged USER true)
 
 public:
-    explicit QValueComboBox(QWidget *parent = 0);
+    explicit QValueComboBox(QWidget* parent = 0);
 
     QVariant value() const;
-    void setValue(const QVariant &value);
+    void setValue(const QVariant& value);
 
     /** Specify model role to use as ordinal value (defaults to Qt::UserRole) */
     void setRole(int role);

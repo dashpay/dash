@@ -7,6 +7,6 @@
 
 class CRPCTable;
 
-void RegisterWalletRPCCommands(CRPCTable &t);
+void RegisterWalletRPCCommands(CRPCTable& t);
 
 #endif //BITCOIN_WALLET_RPCWALLET_H

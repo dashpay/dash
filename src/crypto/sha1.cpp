@@ -146,7 +146,8 @@ void Transform(uint32_t* s, const unsigned char* chunk)
 
 ////// SHA1
 
-CSHA1::CSHA1() : bytes(0)
+CSHA1::CSHA1() :
+    bytes(0)
 {
     sha1::Initialize(s);
 }

@@ -101,8 +101,7 @@ bool CMnemonic::Check(SecureString mnemonic)
 
     uint32_t nWordIndex, ki, nBitsCount{};
 
-    for (size_t i = 0; i < mnemonic.size(); ++i)
-    {
+    for (size_t i = 0; i < mnemonic.size(); ++i) {
         ssCurrentWord = "";
         while (i + ssCurrentWord.size() < mnemonic.size() && mnemonic[i + ssCurrentWord.size()] != ' ') {
             if (ssCurrentWord.size() >= 9) {
@@ -137,11 +136,9 @@ bool CMnemonic::Check(SecureString mnemonic)
     bool fResult = 0;
     if (nWordCount == 12) {
         fResult = (bits[0] & 0xF0) == (bits[32] & 0xF0); // compare first 4 bits
-    } else
-    if (nWordCount == 18) {
+    } else if (nWordCount == 18) {
         fResult = (bits[0] & 0xFC) == (bits[32] & 0xFC); // compare first 6 bits
-    } else
-    if (nWordCount == 24) {
+    } else if (nWordCount == 24) {
         fResult = bits[0] == bits[32]; // compare 8 bits
     }
 

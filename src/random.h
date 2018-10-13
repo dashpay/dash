@@ -32,21 +32,25 @@ void GetStrongRandBytes(unsigned char* buf, int num);
  * is completely deterministic and insecure after that.
  * This class is not thread-safe.
  */
-class FastRandomContext {
+class FastRandomContext
+{
 public:
-    explicit FastRandomContext(bool fDeterministic=false);
+    explicit FastRandomContext(bool fDeterministic = false);
 
-    uint32_t rand32() {
+    uint32_t rand32()
+    {
         Rz = 36969 * (Rz & 65535) + (Rz >> 16);
         Rw = 18000 * (Rw & 65535) + (Rw >> 16);
         return (Rw << 16) + Rz;
     }
 
-    uint32_t rand32(uint32_t nMax) {
+    uint32_t rand32(uint32_t nMax)
+    {
         return rand32() % nMax;
     }
 
-    uint32_t operator()(uint32_t nMax) {
+    uint32_t operator()(uint32_t nMax)
+    {
         return rand32(nMax);
     }
 

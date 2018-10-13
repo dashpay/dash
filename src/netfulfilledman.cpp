@@ -2,8 +2,8 @@
 // Distributed under the MIT/X11 software license, see the accompanying
 // file COPYING or http://www.opensource.org/licenses/mit-license.php.
 
-#include "chainparams.h"
 #include "netfulfilledman.h"
+#include "chainparams.h"
 #include "util.h"
 
 CNetFulfilledRequestManager netfulfilledman;
@@ -21,9 +21,9 @@ bool CNetFulfilledRequestManager::HasFulfilledRequest(const CService& addr, cons
     CService addrSquashed = Params().AllowMultiplePorts() ? addr : CService(addr, 0);
     fulfilledreqmap_t::iterator it = mapFulfilledRequests.find(addrSquashed);
 
-    return  it != mapFulfilledRequests.end() &&
-            it->second.find(strRequest) != it->second.end() &&
-            it->second[strRequest] > GetTime();
+    return it != mapFulfilledRequests.end() &&
+           it->second.find(strRequest) != it->second.end() &&
+           it->second[strRequest] > GetTime();
 }
 
 void CNetFulfilledRequestManager::RemoveFulfilledRequest(const CService& addr, const std::string& strRequest)
@@ -44,16 +44,16 @@ void CNetFulfilledRequestManager::CheckAndRemove()
     int64_t now = GetTime();
     fulfilledreqmap_t::iterator it = mapFulfilledRequests.begin();
 
-    while(it != mapFulfilledRequests.end()) {
+    while (it != mapFulfilledRequests.end()) {
         fulfilledreqmapentry_t::iterator it_entry = it->second.begin();
-        while(it_entry != it->second.end()) {
-            if(now > it_entry->second) {
+        while (it_entry != it->second.end()) {
+            if (now > it_entry->second) {
                 it->second.erase(it_entry++);
             } else {
                 ++it_entry;
             }
         }
-        if(it->second.size() == 0) {
+        if (it->second.size() == 0) {
             mapFulfilledRequests.erase(it++);
         } else {
             ++it;

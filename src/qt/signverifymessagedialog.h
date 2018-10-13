@@ -10,8 +10,9 @@
 class PlatformStyle;
 class WalletModel;
 
-namespace Ui {
-    class SignVerifyMessageDialog;
+namespace Ui
+{
+class SignVerifyMessageDialog;
 }
 
 class SignVerifyMessageDialog : public QDialog
@@ -19,23 +20,23 @@ class SignVerifyMessageDialog : public QDialog
     Q_OBJECT
 
 public:
-    explicit SignVerifyMessageDialog(const PlatformStyle *platformStyle, QWidget *parent);
+    explicit SignVerifyMessageDialog(const PlatformStyle* platformStyle, QWidget* parent);
     ~SignVerifyMessageDialog();
 
-    void setModel(WalletModel *model);
-    void setAddress_SM(const QString &address);
-    void setAddress_VM(const QString &address);
+    void setModel(WalletModel* model);
+    void setAddress_SM(const QString& address);
+    void setAddress_VM(const QString& address);
 
     void showTab_SM(bool fShow);
     void showTab_VM(bool fShow);
 
 protected:
-    bool eventFilter(QObject *object, QEvent *event);
+    bool eventFilter(QObject* object, QEvent* event);
 
 private:
-    Ui::SignVerifyMessageDialog *ui;
-    WalletModel *model;
-    const PlatformStyle *platformStyle;
+    Ui::SignVerifyMessageDialog* ui;
+    WalletModel* model;
+    const PlatformStyle* platformStyle;
 
 private Q_SLOTS:
     /* sign message */

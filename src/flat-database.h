@@ -18,11 +18,10 @@
 *   ---------------------------
 */
 
-template<typename T>
+template <typename T>
 class CFlatDB
 {
 private:
-
     enum ReadResult {
         Ok,
         FileError,
@@ -45,14 +44,14 @@ private:
 
         // serialize, checksum data up to that point, then append checksum
         CDataStream ssObj(SER_DISK, CLIENT_VERSION);
-        ssObj << strMagicMessage; // specific magic message for this type of object
+        ssObj << strMagicMessage;                   // specific magic message for this type of object
         ssObj << FLATDATA(Params().MessageStart()); // network specific magic number
         ssObj << objToSave;
         uint256 hash = Hash(ssObj.begin(), ssObj.end());
         ssObj << hash;
 
         // open output file, and associate with CAutoFile
-        FILE *file = fopen(pathDB.string().c_str(), "wb");
+        FILE* file = fopen(pathDB.string().c_str(), "wb");
         CAutoFile fileout(file, SER_DISK, CLIENT_VERSION);
         if (fileout.IsNull())
             return error("%s: Failed to open file %s", __func__, pathDB.string());
@@ -60,8 +59,7 @@ private:
         // Write and commit header, data
         try {
             fileout << ssObj;
-        }
-        catch (std::exception &e) {
+        } catch (std::exception& e) {
             return error("%s: Serialize or I/O error - %s", __func__, e.what());
         }
         fileout.fclose();
@@ -78,10 +76,9 @@ private:
 
         int64_t nStart = GetTimeMillis();
         // open input file, and associate with CAutoFile
-        FILE *file = fopen(pathDB.string().c_str(), "rb");
+        FILE* file = fopen(pathDB.string().c_str(), "rb");
         CAutoFile filein(file, SER_DISK, CLIENT_VERSION);
-        if (filein.IsNull())
-        {
+        if (filein.IsNull()) {
             error("%s: Failed to open file %s", __func__, pathDB.string());
             return FileError;
         }
@@ -98,10 +95,9 @@ private:
 
         // read data and checksum from file
         try {
-            filein.read((char *)&vchData[0], dataSize);
+            filein.read((char*)&vchData[0], dataSize);
             filein >> hashIn;
-        }
-        catch (std::exception &e) {
+        } catch (std::exception& e) {
             error("%s: Deserialize or I/O error - %s", __func__, e.what());
             return HashReadError;
         }
@@ -111,8 +107,7 @@ private:
 
         // verify stored checksum matches input data
         uint256 hashTmp = Hash(ssObj.begin(), ssObj.end());
-        if (hashIn != hashTmp)
-        {
+        if (hashIn != hashTmp) {
             error("%s: Checksum mismatch, data corrupted", __func__);
             return IncorrectHash;
         }
@@ -125,8 +120,7 @@ private:
             ssObj >> strMagicMessageTmp;
 
             // ... verify the message matches predefined one
-            if (strMagicMessage != strMagicMessageTmp)
-            {
+            if (strMagicMessage != strMagicMessageTmp) {
                 error("%s: Invalid magic message", __func__);
                 return IncorrectMagicMessage;
             }
@@ -136,16 +130,14 @@ private:
             ssObj >> FLATDATA(pchMsgTmp);
 
             // ... verify the network matches ours
-            if (memcmp(pchMsgTmp, Params().MessageStart(), sizeof(pchMsgTmp)))
-            {
+            if (memcmp(pchMsgTmp, Params().MessageStart(), sizeof(pchMsgTmp))) {
                 error("%s: Invalid network magic number", __func__);
                 return IncorrectMagicNumber;
             }
 
             // de-serialize data into T object
             ssObj >> objToLoad;
-        }
-        catch (std::exception &e) {
+        } catch (std::exception& e) {
             objToLoad.Clear();
             error("%s: Deserialize or I/O error - %s", __func__, e.what());
             return IncorrectFormat;
@@ -153,7 +145,7 @@ private:
 
         LogPrintf("Loaded info from %s  %dms\n", strFilename, GetTimeMillis() - nStart);
         LogPrintf("     %s\n", objToLoad.ToString());
-        if(!fDryRun) {
+        if (!fDryRun) {
             LogPrintf("%s: Cleaning....\n", __func__);
             objToLoad.CheckAndRemove();
             LogPrintf("     %s\n", objToLoad.ToString());
@@ -177,14 +169,11 @@ public:
         ReadResult readResult = Read(objToLoad);
         if (readResult == FileError)
             LogPrintf("Missing file %s, will try to recreate\n", strFilename);
-        else if (readResult != Ok)
-        {
+        else if (readResult != Ok) {
             LogPrintf("Error reading %s: ", strFilename);
-            if(readResult == IncorrectFormat)
-            {
+            if (readResult == IncorrectFormat) {
                 LogPrintf("%s: Magic is ok but data has invalid format, will try to recreate\n", __func__);
-            }
-            else {
+            } else {
                 LogPrintf("%s: File format is unknown or invalid, please fix it manually\n", __func__);
                 // program should exit with an error
                 return false;
@@ -204,13 +193,11 @@ public:
         // there was an error and it was not an error on file opening => do not proceed
         if (readResult == FileError)
             LogPrintf("Missing file %s, will try to recreate\n", strFilename);
-        else if (readResult != Ok)
-        {
+        else if (readResult != Ok) {
             LogPrintf("Error reading %s: ", strFilename);
-            if(readResult == IncorrectFormat)
+            if (readResult == IncorrectFormat)
                 LogPrintf("%s: Magic is ok but data has invalid format, will try to recreate\n", __func__);
-            else
-            {
+            else {
                 LogPrintf("%s: File format is unknown or invalid, please fix it manually\n", __func__);
                 return false;
             }
@@ -222,7 +209,6 @@ public:
 
         return true;
     }
-
 };
 
 

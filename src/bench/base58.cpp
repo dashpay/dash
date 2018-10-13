@@ -4,11 +4,11 @@
 
 #include "bench.h"
 
-#include "validation.h"
 #include "base58.h"
+#include "validation.h"
 
-#include <vector>
 #include <string>
+#include <vector>
 
 
 static void Base58Encode(benchmark::State& state)
@@ -16,8 +16,7 @@ static void Base58Encode(benchmark::State& state)
     unsigned char buff[32] = {
         17, 79, 8, 99, 150, 189, 208, 162, 22, 23, 203, 163, 36, 58, 147,
         227, 139, 2, 215, 100, 91, 38, 11, 141, 253, 40, 117, 21, 16, 90,
-        200, 24
-    };
+        200, 24};
     unsigned char* b = buff;
     while (state.KeepRunning()) {
         EncodeBase58(b, b + 32);
@@ -30,8 +29,7 @@ static void Base58CheckEncode(benchmark::State& state)
     unsigned char buff[32] = {
         17, 79, 8, 99, 150, 189, 208, 162, 22, 23, 203, 163, 36, 58, 147,
         227, 139, 2, 215, 100, 91, 38, 11, 141, 253, 40, 117, 21, 16, 90,
-        200, 24
-    };
+        200, 24};
     unsigned char* b = buff;
     std::vector<unsigned char> vch;
     vch.assign(b, b + 32);

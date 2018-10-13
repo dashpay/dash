@@ -12,14 +12,15 @@
 class CNetMsgMaker
 {
 public:
-    CNetMsgMaker(int nVersionIn) : nVersion(nVersionIn){}
+    CNetMsgMaker(int nVersionIn) :
+        nVersion(nVersionIn) {}
 
     template <typename... Args>
     CSerializedNetMsg Make(int nFlags, std::string sCommand, Args&&... args) const
     {
         CSerializedNetMsg msg;
         msg.command = std::move(sCommand);
-        CVectorWriter{ SER_NETWORK, nFlags | nVersion, msg.data, 0, std::forward<Args>(args)... };
+        CVectorWriter{SER_NETWORK, nFlags | nVersion, msg.data, 0, std::forward<Args>(args)...};
         return msg;
     }
 

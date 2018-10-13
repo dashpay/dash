@@ -13,20 +13,20 @@ class CConnman;
 
 // INTENTION OF MASTERNODES REGARDING ITEM
 enum vote_outcome_enum_t {
-    VOTE_OUTCOME_NONE      = 0,
-    VOTE_OUTCOME_YES       = 1,
-    VOTE_OUTCOME_NO        = 2,
-    VOTE_OUTCOME_ABSTAIN   = 3
+    VOTE_OUTCOME_NONE = 0,
+    VOTE_OUTCOME_YES = 1,
+    VOTE_OUTCOME_NO = 2,
+    VOTE_OUTCOME_ABSTAIN = 3
 };
 
 
 // SIGNAL VARIOUS THINGS TO HAPPEN:
 enum vote_signal_enum_t {
-    VOTE_SIGNAL_NONE       = 0,
-    VOTE_SIGNAL_FUNDING    = 1, //   -- fund this object for it's stated amount
-    VOTE_SIGNAL_VALID      = 2, //   -- this object checks out in sentinel engine
-    VOTE_SIGNAL_DELETE     = 3, //   -- this object should be deleted from memory entirely
-    VOTE_SIGNAL_ENDORSED   = 4, //   -- officially endorsed by the network somehow (delegation)
+    VOTE_SIGNAL_NONE = 0,
+    VOTE_SIGNAL_FUNDING = 1,  //   -- fund this object for it's stated amount
+    VOTE_SIGNAL_VALID = 2,    //   -- this object checks out in sentinel engine
+    VOTE_SIGNAL_DELETE = 3,   //   -- this object should be deleted from memory entirely
+    VOTE_SIGNAL_ENDORSED = 4, //   -- officially endorsed by the network somehow (delegation)
 };
 
 static const int MAX_SUPPORTED_VOTE_SIGNAL = VOTE_SIGNAL_ENDORSED;

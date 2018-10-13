@@ -2,18 +2,18 @@
 // Distributed under the MIT/X11 software license, see the accompanying
 // file COPYING or http://www.opensource.org/licenses/mit-license.php.
 
+#include "messagesigner.h"
 #include "base58.h"
 #include "hash.h"
-#include "validation.h" // For strMessageMagic
-#include "messagesigner.h"
 #include "tinyformat.h"
 #include "utilstrencodings.h"
+#include "validation.h" // For strMessageMagic
 
 bool CMessageSigner::GetKeysFromSecret(const std::string& strSecret, CKey& keyRet, CPubKey& pubkeyRet)
 {
     CBitcoinSecret vchSecret;
 
-    if(!vchSecret.SetString(strSecret)) return false;
+    if (!vchSecret.SetString(strSecret)) return false;
 
     keyRet = vchSecret.GetKey();
     pubkeyRet = keyRet.GetPubKey();
@@ -57,15 +57,15 @@ bool CHashSigner::VerifyHash(const uint256& hash, const CPubKey& pubkey, const s
 bool CHashSigner::VerifyHash(const uint256& hash, const CKeyID& keyID, const std::vector<unsigned char>& vchSig, std::string& strErrorRet)
 {
     CPubKey pubkeyFromSig;
-    if(!pubkeyFromSig.RecoverCompact(hash, vchSig)) {
+    if (!pubkeyFromSig.RecoverCompact(hash, vchSig)) {
         strErrorRet = "Error recovering public key.";
         return false;
     }
 
-    if(pubkeyFromSig.GetID() != keyID) {
+    if (pubkeyFromSig.GetID() != keyID) {
         strErrorRet = strprintf("Keys don't match: pubkey=%s, pubkeyFromSig=%s, hash=%s, vchSig=%s",
-                    keyID.ToString(), pubkeyFromSig.GetID().ToString(), hash.ToString(),
-                    EncodeBase64(&vchSig[0], vchSig.size()));
+            keyID.ToString(), pubkeyFromSig.GetID().ToString(), hash.ToString(),
+            EncodeBase64(&vchSig[0], vchSig.size()));
         return false;
     }
 

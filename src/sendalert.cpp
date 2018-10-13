@@ -1,6 +1,6 @@
 #include "alert.h"
-#include "clientversion.h"
 #include "chainparams.h"
+#include "clientversion.h"
 #include "init.h"
 #include "net.h"
 #include "utilstrencodings.h"
@@ -31,7 +31,7 @@ void ThreadSendAlert(CConnman& connman)
     // Wait one minute so we get well connected. If we only need to print
     // but not to broadcast - do this right away.
     if (IsArgSet("-sendalert"))
-        MilliSleep(60*1000);
+        MilliSleep(60 * 1000);
 
     //
     // Alerts are relayed around the network until nRelayUntil, flood
@@ -42,29 +42,28 @@ void ThreadSendAlert(CConnman& connman)
     // Nodes never save alerts to disk, they are in-memory-only.
     //
     CAlert alert;
-    alert.nRelayUntil   = GetAdjustedTime() + 15 * 60;
-    alert.nExpiration   = GetAdjustedTime() + 30 * 60 * 60;
-    alert.nID           = 1;  // keep track of alert IDs somewhere
-    alert.nCancel       = 0;   // cancels previous messages up to this ID number
+    alert.nRelayUntil = GetAdjustedTime() + 15 * 60;
+    alert.nExpiration = GetAdjustedTime() + 30 * 60 * 60;
+    alert.nID = 1;     // keep track of alert IDs somewhere
+    alert.nCancel = 0; // cancels previous messages up to this ID number
 
     // These versions are protocol versions
-    alert.nMinVer       = 70000;
-    alert.nMaxVer       = 70103;
+    alert.nMinVer = 70000;
+    alert.nMaxVer = 70103;
 
     //
     //  1000 for Misc warnings like out of disk space and clock is wrong
     //  2000 for longer invalid proof-of-work chain
     //  Higher numbers mean higher priority
-    alert.nPriority     = 5000;
-    alert.strComment    = "";
-    alert.strStatusBar  = "URGENT: Upgrade required: see https://www.dash.org";
+    alert.nPriority = 5000;
+    alert.strComment = "";
+    alert.strStatusBar = "URGENT: Upgrade required: see https://www.dash.org";
 
     // Set specific client version/versions here. If setSubVer is empty, no filtering on subver is done:
     // alert.setSubVer.insert(std::string("/Dash Core:0.12.0.58/"));
 
     // Sign
-    if(!alert.Sign())
-    {
+    if (!alert.Sign()) {
         LogPrintf("ThreadSendAlert() : could not sign alert\n");
         return;
     }
@@ -74,8 +73,7 @@ void ThreadSendAlert(CConnman& connman)
     sBuffer << alert;
     CAlert alert2;
     sBuffer >> alert2;
-    if (!alert2.CheckSignature(Params().AlertKey()))
-    {
+    if (!alert2.CheckSignature(Params().AlertKey())) {
         printf("ThreadSendAlert() : CheckSignature failed\n");
         return;
     }
@@ -101,8 +99,7 @@ void ThreadSendAlert(CConnman& connman)
     int nSent = 0;
     {
         connman.ForEachNode([&alert2, &connman, &nSent](CNode* pnode) {
-            if (alert2.RelayTo(pnode, connman))
-            {
+            if (alert2.RelayTo(pnode, connman)) {
                 printf("ThreadSendAlert() : Sent alert to %s\n", pnode->addr.ToString().c_str());
                 nSent++;
             }

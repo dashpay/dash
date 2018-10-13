@@ -1,10 +1,10 @@
 // Copyright (c) 2014-2017 The Dash Core developers
 // Distributed under the MIT software license, see the accompanying
 
+#include "hdchain.h"
 #include "base58.h"
 #include "bip39.h"
 #include "chainparams.h"
-#include "hdchain.h"
 #include "tinyformat.h"
 #include "util.h"
 #include "utilstrencodings.h"
@@ -65,8 +65,7 @@ void CHDChain::Debug(const std::string& strName) const
             CBitcoinExtPubKey b58extpubkey;
             b58extpubkey.SetKey(extpubkey);
             std::cout << "extended public masterkey: " << b58extpubkey.ToString().c_str() << std::endl;
-        }
-    );
+        });
 }
 
 bool CHDChain::SetMnemonic(const SecureVector& vchMnemonic, const SecureVector& vchMnemonicPassphrase, bool fUpdateID)
@@ -151,12 +150,12 @@ uint256 CHDChain::GetSeedHash()
 void CHDChain::DeriveChildExtKey(uint32_t nAccountIndex, bool fInternal, uint32_t nChildIndex, CExtKey& extKeyRet)
 {
     // Use BIP44 keypath scheme i.e. m / purpose' / coin_type' / account' / change / address_index
-    CExtKey masterKey;              //hd master key
-    CExtKey purposeKey;             //key at m/purpose'
-    CExtKey cointypeKey;            //key at m/purpose'/coin_type'
-    CExtKey accountKey;             //key at m/purpose'/coin_type'/account'
-    CExtKey changeKey;              //key at m/purpose'/coin_type'/account'/change
-    CExtKey childKey;               //key at m/purpose'/coin_type'/account'/change/address_index
+    CExtKey masterKey;   //hd master key
+    CExtKey purposeKey;  //key at m/purpose'
+    CExtKey cointypeKey; //key at m/purpose'/coin_type'
+    CExtKey accountKey;  //key at m/purpose'/coin_type'/account'
+    CExtKey changeKey;   //key at m/purpose'/coin_type'/account'/change
+    CExtKey childKey;    //key at m/purpose'/coin_type'/account'/change/address_index
 
     masterKey.SetMaster(&vchSeed[0], vchSeed.size());
 

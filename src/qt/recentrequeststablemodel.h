@@ -8,15 +8,16 @@
 #include "walletmodel.h"
 
 #include <QAbstractTableModel>
-#include <QStringList>
 #include <QDateTime>
+#include <QStringList>
 
 class CWallet;
 
 class RecentRequestEntry
 {
 public:
-    RecentRequestEntry() : nVersion(RecentRequestEntry::CURRENT_VERSION), id(0) { }
+    RecentRequestEntry() :
+        nVersion(RecentRequestEntry::CURRENT_VERSION), id(0) {}
 
     static const int CURRENT_VERSION = 1;
     int nVersion;
@@ -27,7 +28,8 @@ public:
     ADD_SERIALIZE_METHODS;
 
     template <typename Stream, typename Operation>
-    inline void SerializationOp(Stream& s, Operation ser_action) {
+    inline void SerializationOp(Stream& s, Operation ser_action)
+    {
         unsigned int nDate = date.toTime_t();
 
         READWRITE(this->nVersion);
@@ -43,9 +45,9 @@ public:
 class RecentRequestEntryLessThan
 {
 public:
-    RecentRequestEntryLessThan(int nColumn, Qt::SortOrder fOrder):
+    RecentRequestEntryLessThan(int nColumn, Qt::SortOrder fOrder) :
         column(nColumn), order(fOrder) {}
-    bool operator()(RecentRequestEntry &left, RecentRequestEntry &right) const;
+    bool operator()(RecentRequestEntry& left, RecentRequestEntry& right) const;
 
 private:
     int column;
@@ -55,12 +57,12 @@ private:
 /** Model for list of recently generated payment requests / dash: URIs.
  * Part of wallet model.
  */
-class RecentRequestsTableModel: public QAbstractTableModel
+class RecentRequestsTableModel : public QAbstractTableModel
 {
     Q_OBJECT
 
 public:
-    explicit RecentRequestsTableModel(CWallet *wallet, WalletModel *parent);
+    explicit RecentRequestsTableModel(CWallet* wallet, WalletModel* parent);
     ~RecentRequestsTableModel();
 
     enum ColumnIndex {
@@ -73,27 +75,27 @@ public:
 
     /** @name Methods overridden from QAbstractTableModel
         @{*/
-    int rowCount(const QModelIndex &parent) const;
-    int columnCount(const QModelIndex &parent) const;
-    QVariant data(const QModelIndex &index, int role) const;
-    bool setData(const QModelIndex &index, const QVariant &value, int role);
+    int rowCount(const QModelIndex& parent) const;
+    int columnCount(const QModelIndex& parent) const;
+    QVariant data(const QModelIndex& index, int role) const;
+    bool setData(const QModelIndex& index, const QVariant& value, int role);
     QVariant headerData(int section, Qt::Orientation orientation, int role) const;
-    QModelIndex index(int row, int column, const QModelIndex &parent) const;
-    bool removeRows(int row, int count, const QModelIndex &parent = QModelIndex());
-    Qt::ItemFlags flags(const QModelIndex &index) const;
+    QModelIndex index(int row, int column, const QModelIndex& parent) const;
+    bool removeRows(int row, int count, const QModelIndex& parent = QModelIndex());
+    Qt::ItemFlags flags(const QModelIndex& index) const;
     /*@}*/
 
-    const RecentRequestEntry &entry(int row) const { return list[row]; }
-    void addNewRequest(const SendCoinsRecipient &recipient);
-    void addNewRequest(const std::string &recipient);
-    void addNewRequest(RecentRequestEntry &recipient);
+    const RecentRequestEntry& entry(int row) const { return list[row]; }
+    void addNewRequest(const SendCoinsRecipient& recipient);
+    void addNewRequest(const std::string& recipient);
+    void addNewRequest(RecentRequestEntry& recipient);
 
 public Q_SLOTS:
     void sort(int column, Qt::SortOrder order = Qt::AscendingOrder);
     void updateDisplayUnit();
 
 private:
-    WalletModel *walletModel;
+    WalletModel* walletModel;
     QStringList columns;
     QList<RecentRequestEntry> list;
     int64_t nReceiveRequestsMaxId;

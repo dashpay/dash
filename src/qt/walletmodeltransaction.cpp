@@ -6,7 +6,7 @@
 
 #include "wallet/wallet.h"
 
-WalletModelTransaction::WalletModelTransaction(const QList<SendCoinsRecipient> &_recipients) :
+WalletModelTransaction::WalletModelTransaction(const QList<SendCoinsRecipient>& _recipients) :
     recipients(_recipients),
     walletTransaction(0),
     keyChange(0),
@@ -26,7 +26,7 @@ QList<SendCoinsRecipient> WalletModelTransaction::getRecipients()
     return recipients;
 }
 
-CWalletTx *WalletModelTransaction::getTransaction()
+CWalletTx* WalletModelTransaction::getTransaction()
 {
     return walletTransaction;
 }
@@ -49,16 +49,13 @@ void WalletModelTransaction::setTransactionFee(const CAmount& newFee)
 void WalletModelTransaction::reassignAmounts(int nChangePosRet)
 {
     int i = 0;
-    for (QList<SendCoinsRecipient>::iterator it = recipients.begin(); it != recipients.end(); ++it)
-    {
+    for (QList<SendCoinsRecipient>::iterator it = recipients.begin(); it != recipients.end(); ++it) {
         SendCoinsRecipient& rcp = (*it);
 
-        if (rcp.paymentRequest.IsInitialized())
-        {
+        if (rcp.paymentRequest.IsInitialized()) {
             CAmount subtotal = 0;
             const payments::PaymentDetails& details = rcp.paymentRequest.getDetails();
-            for (int j = 0; j < details.outputs_size(); j++)
-            {
+            for (int j = 0; j < details.outputs_size(); j++) {
                 const payments::Output& out = details.outputs(j);
                 if (out.amount() <= 0) continue;
                 if (i == nChangePosRet)
@@ -67,8 +64,7 @@ void WalletModelTransaction::reassignAmounts(int nChangePosRet)
                 i++;
             }
             rcp.amount = subtotal;
-        }
-        else // normal recipient (no payment request)
+        } else // normal recipient (no payment request)
         {
             if (i == nChangePosRet)
                 i++;
@@ -81,19 +77,18 @@ void WalletModelTransaction::reassignAmounts(int nChangePosRet)
 CAmount WalletModelTransaction::getTotalTransactionAmount()
 {
     CAmount totalTransactionAmount = 0;
-    Q_FOREACH(const SendCoinsRecipient &rcp, recipients)
-    {
+    Q_FOREACH (const SendCoinsRecipient& rcp, recipients) {
         totalTransactionAmount += rcp.amount;
     }
     return totalTransactionAmount;
 }
 
-void WalletModelTransaction::newPossibleKeyChange(CWallet *wallet)
+void WalletModelTransaction::newPossibleKeyChange(CWallet* wallet)
 {
     keyChange = new CReserveKey(wallet);
 }
 
-CReserveKey *WalletModelTransaction::getPossibleKeyChange()
+CReserveKey* WalletModelTransaction::getPossibleKeyChange()
 {
     return keyChange;
 }

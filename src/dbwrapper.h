@@ -25,15 +25,16 @@ static const size_t DBWRAPPER_PREALLOC_VALUE_SIZE = 1024;
 class dbwrapper_error : public std::runtime_error
 {
 public:
-    dbwrapper_error(const std::string& msg) : std::runtime_error(msg) {}
+    dbwrapper_error(const std::string& msg) :
+        std::runtime_error(msg) {}
 };
 
 class CDBWrapper;
 
 /** These should be considered an implementation detail of the specific database.
  */
-namespace dbwrapper_private {
-
+namespace dbwrapper_private
+{
 /** Handle database error by throwing dbwrapper_error exception.
  */
 void HandleError(const leveldb::Status& status);
@@ -42,9 +43,9 @@ void HandleError(const leveldb::Status& status);
  * Database obfuscation should be considered an implementation detail of the
  * specific database.
  */
-const std::vector<unsigned char>& GetObfuscateKey(const CDBWrapper &w);
+const std::vector<unsigned char>& GetObfuscateKey(const CDBWrapper& w);
 
-};
+}; // namespace dbwrapper_private
 
 /** Batch of changes queued to be written to a CDBWrapper */
 class CDBBatch
@@ -52,7 +53,7 @@ class CDBBatch
     friend class CDBWrapper;
 
 private:
-    const CDBWrapper &parent;
+    const CDBWrapper& parent;
     leveldb::WriteBatch batch;
 
     CDataStream ssKey;
@@ -64,7 +65,8 @@ public:
     /**
      * @param[in] parent    CDBWrapper that this batch is to be submitted to
      */
-    CDBBatch(const CDBWrapper &_parent) : parent(_parent), ssKey(SER_DISK, CLIENT_VERSION), ssValue(SER_DISK, CLIENT_VERSION), size_estimate(0) { };
+    CDBBatch(const CDBWrapper& _parent) :
+        parent(_parent), ssKey(SER_DISK, CLIENT_VERSION), ssValue(SER_DISK, CLIENT_VERSION), size_estimate(0){};
 
     void Clear()
     {
@@ -117,24 +119,25 @@ public:
 class CDBIterator
 {
 private:
-    const CDBWrapper &parent;
-    leveldb::Iterator *piter;
+    const CDBWrapper& parent;
+    leveldb::Iterator* piter;
 
 public:
-
     /**
      * @param[in] _parent          Parent CDBWrapper instance.
      * @param[in] _piter           The original leveldb iterator.
      */
-    CDBIterator(const CDBWrapper &_parent, leveldb::Iterator *_piter) :
-        parent(_parent), piter(_piter) { };
+    CDBIterator(const CDBWrapper& _parent, leveldb::Iterator* _piter) :
+        parent(_parent), piter(_piter){};
     ~CDBIterator();
 
     bool Valid();
 
     void SeekToFirst();
 
-    template<typename K> void Seek(const K& key) {
+    template <typename K>
+    void Seek(const K& key)
+    {
         CDataStream ssKey(SER_DISK, CLIENT_VERSION);
         ssKey.reserve(DBWRAPPER_PREALLOC_KEY_SIZE);
         ssKey << key;
@@ -144,7 +147,9 @@ public:
 
     void Next();
 
-    template<typename K> bool GetKey(K& key) {
+    template <typename K>
+    bool GetKey(K& key)
+    {
         leveldb::Slice slKey = piter->key();
         try {
             CDataStream ssKey(slKey.data(), slKey.data() + slKey.size(), SER_DISK, CLIENT_VERSION);
@@ -155,11 +160,14 @@ public:
         return true;
     }
 
-    unsigned int GetKeySize() {
+    unsigned int GetKeySize()
+    {
         return piter->key().size();
     }
 
-    template<typename V> bool GetValue(V& value) {
+    template <typename V>
+    bool GetValue(V& value)
+    {
         leveldb::Slice slValue = piter->value();
         try {
             CDataStream ssValue(slValue.data(), slValue.data() + slValue.size(), SER_DISK, CLIENT_VERSION);
@@ -171,15 +179,16 @@ public:
         return true;
     }
 
-    unsigned int GetValueSize() {
+    unsigned int GetValueSize()
+    {
         return piter->value().size();
     }
-
 };
 
 class CDBWrapper
 {
-    friend const std::vector<unsigned char>& dbwrapper_private::GetObfuscateKey(const CDBWrapper &w);
+    friend const std::vector<unsigned char>& dbwrapper_private::GetObfuscateKey(const CDBWrapper& w);
+
 private:
     //! custom environment this database is using (may be NULL in case of default environment)
     leveldb::Env* penv;
@@ -300,7 +309,7 @@ public:
         return WriteBatch(batch, true);
     }
 
-    CDBIterator *NewIterator()
+    CDBIterator* NewIterator()
     {
         return new CDBIterator(*this, pdb->NewIterator(iteroptions));
     }
@@ -310,7 +319,7 @@ public:
      */
     bool IsEmpty();
 
-    template<typename K>
+    template <typename K>
     size_t EstimateSize(const K& key_begin, const K& key_end) const
     {
         CDataStream ssKey1(SER_DISK, CLIENT_VERSION), ssKey2(SER_DISK, CLIENT_VERSION);
@@ -329,7 +338,7 @@ public:
     /**
      * Compact a certain range of keys in the database.
      */
-    template<typename K>
+    template <typename K>
     void CompactRange(const K& key_begin, const K& key_end) const
     {
         CDataStream ssKey1(SER_DISK, CLIENT_VERSION), ssKey2(SER_DISK, CLIENT_VERSION);
@@ -341,30 +350,33 @@ public:
         leveldb::Slice slKey2(ssKey2.data(), ssKey2.size());
         pdb->CompactRange(&slKey1, &slKey2);
     }
-
 };
 
-class CDBTransaction {
+class CDBTransaction
+{
 private:
-    CDBWrapper &db;
+    CDBWrapper& db;
 
     struct KeyHolder {
         virtual ~KeyHolder() = default;
-        virtual bool Less(const KeyHolder &b) const = 0;
-        virtual void Erase(CDBBatch &batch) = 0;
+        virtual bool Less(const KeyHolder& b) const = 0;
+        virtual void Erase(CDBBatch& batch) = 0;
     };
     typedef std::unique_ptr<KeyHolder> KeyHolderPtr;
 
     template <typename K>
     struct KeyHolderImpl : KeyHolder {
-        KeyHolderImpl(const K &_key)
-                : key(_key) {
+        KeyHolderImpl(const K& _key) :
+            key(_key)
+        {
         }
-        virtual bool Less(const KeyHolder &b) const {
-            auto *b2 = dynamic_cast<const KeyHolderImpl<K>*>(&b);
+        virtual bool Less(const KeyHolder& b) const
+        {
+            auto* b2 = dynamic_cast<const KeyHolderImpl<K>*>(&b);
             return key < b2->key;
         }
-        virtual void Erase(CDBBatch &batch) {
+        virtual void Erase(CDBBatch& batch)
+        {
             batch.Erase(key);
         }
         K key;
@@ -372,24 +384,26 @@ private:
 
     struct KeyValueHolder {
         virtual ~KeyValueHolder() = default;
-        virtual void Write(CDBBatch &batch) = 0;
+        virtual void Write(CDBBatch& batch) = 0;
     };
     typedef std::unique_ptr<KeyValueHolder> KeyValueHolderPtr;
 
     template <typename K, typename V>
     struct KeyValueHolderImpl : KeyValueHolder {
-        KeyValueHolderImpl(const KeyHolderImpl<K> &_key, const V &_value)
-                : key(_key),
-                  value(_value) { }
-        virtual void Write(CDBBatch &batch) {
+        KeyValueHolderImpl(const KeyHolderImpl<K>& _key, const V& _value) :
+            key(_key),
+            value(_value) {}
+        virtual void Write(CDBBatch& batch)
+        {
             batch.Write(key.key, value);
         }
-        const KeyHolderImpl<K> &key;
+        const KeyHolderImpl<K>& key;
         V value;
     };
 
     struct keyCmp {
-        bool operator()(const KeyHolderPtr &a, const KeyHolderPtr &b) const {
+        bool operator()(const KeyHolderPtr& a, const KeyHolderPtr& b) const
+        {
             return a->Less(*b);
         }
     };
@@ -401,7 +415,8 @@ private:
     TypeKeyValueMap deletes;
 
     template <typename K>
-    KeyValueMap *getMapForType(TypeKeyValueMap &m, bool create) {
+    KeyValueMap* getMapForType(TypeKeyValueMap& m, bool create)
+    {
         auto it = m.find(typeid(K));
         if (it != m.end()) {
             return &it->second;
@@ -413,46 +428,51 @@ private:
     }
 
     template <typename K>
-    KeyValueMap *getWritesMap(bool create) {
+    KeyValueMap* getWritesMap(bool create)
+    {
         return getMapForType<K>(writes, create);
     }
 
     template <typename K>
-    KeyValueMap *getDeletesMap(bool create) {
+    KeyValueMap* getDeletesMap(bool create)
+    {
         return getMapForType<K>(deletes, create);
     }
 
 public:
-    CDBTransaction(CDBWrapper &_db) : db(_db) {}
+    CDBTransaction(CDBWrapper& _db) :
+        db(_db) {}
 
     template <typename K, typename V>
-    void Write(const K& key, const V& value) {
+    void Write(const K& key, const V& value)
+    {
         KeyHolderPtr k(new KeyHolderImpl<K>(key));
         KeyHolderImpl<K>* k2 = dynamic_cast<KeyHolderImpl<K>*>(k.get());
-        KeyValueHolderPtr kv(new KeyValueHolderImpl<K,V>(*k2, value));
+        KeyValueHolderPtr kv(new KeyValueHolderImpl<K, V>(*k2, value));
 
-        KeyValueMap *ds = getDeletesMap<K>(false);
+        KeyValueMap* ds = getDeletesMap<K>(false);
         if (ds)
             ds->erase(k);
 
-        KeyValueMap *ws = getWritesMap<K>(true);
+        KeyValueMap* ws = getWritesMap<K>(true);
         ws->erase(k);
         ws->emplace(std::make_pair(std::move(k), std::move(kv)));
     }
 
     template <typename K, typename V>
-    bool Read(const K& key, V& value) {
+    bool Read(const K& key, V& value)
+    {
         KeyHolderPtr k(new KeyHolderImpl<K>(key));
 
-        KeyValueMap *ds = getDeletesMap<K>(false);
+        KeyValueMap* ds = getDeletesMap<K>(false);
         if (ds && ds->count(k))
             return false;
 
-        KeyValueMap *ws = getWritesMap<K>(false);
+        KeyValueMap* ws = getWritesMap<K>(false);
         if (ws) {
             KeyValueMap::iterator it = ws->find(k);
             if (it != ws->end()) {
-                auto *impl = dynamic_cast<KeyValueHolderImpl<K, V> *>(it->second.get());
+                auto* impl = dynamic_cast<KeyValueHolderImpl<K, V>*>(it->second.get());
                 if (!impl)
                     return false;
                 value = impl->value;
@@ -464,14 +484,15 @@ public:
     }
 
     template <typename K>
-    bool Exists(const K& key) {
+    bool Exists(const K& key)
+    {
         KeyHolderPtr k(new KeyHolderImpl<K>(key));
 
-        KeyValueMap *ds = getDeletesMap<K>(false);
+        KeyValueMap* ds = getDeletesMap<K>(false);
         if (ds && ds->count(k))
             return false;
 
-        KeyValueMap *ws = getWritesMap<K>(false);
+        KeyValueMap* ws = getWritesMap<K>(false);
         if (ws && ws->count(k))
             return true;
 
@@ -479,30 +500,33 @@ public:
     }
 
     template <typename K>
-    void Erase(const K& key) {
+    void Erase(const K& key)
+    {
         KeyHolderPtr k(new KeyHolderImpl<K>(key));
 
-        KeyValueMap *ws = getWritesMap<K>(false);
+        KeyValueMap* ws = getWritesMap<K>(false);
         if (ws)
             ws->erase(k);
-        KeyValueMap *ds = getDeletesMap<K>(true);
+        KeyValueMap* ds = getDeletesMap<K>(true);
         ds->emplace(std::move(k), nullptr);
     }
 
-    void Clear() {
+    void Clear()
+    {
         writes.clear();
         deletes.clear();
     }
 
-    bool Commit() {
+    bool Commit()
+    {
         CDBBatch batch(db);
-        for (auto &p : deletes) {
-            for (auto &p2 : p.second) {
+        for (auto& p : deletes) {
+            for (auto& p2 : p.second) {
                 p2.first->Erase(batch);
             }
         }
-        for (auto &p : writes) {
-            for (auto &p2 : p.second) {
+        for (auto& p : writes) {
+            for (auto& p2 : p.second) {
                 p2.second->Write(batch);
             }
         }
@@ -511,25 +535,30 @@ public:
         return ret;
     }
 
-    bool IsClean() {
+    bool IsClean()
+    {
         return writes.empty() && deletes.empty();
     }
 };
 
-class CScopedDBTransaction {
+class CScopedDBTransaction
+{
 private:
-    CDBTransaction &dbTransaction;
-    std::function<void ()> commitHandler;
-    std::function<void ()> rollbackHandler;
+    CDBTransaction& dbTransaction;
+    std::function<void()> commitHandler;
+    std::function<void()> rollbackHandler;
     bool didCommitOrRollback{};
 
 public:
-    CScopedDBTransaction(CDBTransaction &dbTx) : dbTransaction(dbTx) {}
-    ~CScopedDBTransaction() {
+    CScopedDBTransaction(CDBTransaction& dbTx) :
+        dbTransaction(dbTx) {}
+    ~CScopedDBTransaction()
+    {
         if (!didCommitOrRollback)
             Rollback();
     }
-    bool Commit() {
+    bool Commit()
+    {
         assert(!didCommitOrRollback);
         didCommitOrRollback = true;
         bool result = dbTransaction.Commit();
@@ -537,7 +566,8 @@ public:
             commitHandler();
         return result;
     }
-    void Rollback() {
+    void Rollback()
+    {
         assert(!didCommitOrRollback);
         didCommitOrRollback = true;
         dbTransaction.Clear();
@@ -545,15 +575,18 @@ public:
             rollbackHandler();
     }
 
-    static std::unique_ptr<CScopedDBTransaction> Begin(CDBTransaction &dbTx) {
+    static std::unique_ptr<CScopedDBTransaction> Begin(CDBTransaction& dbTx)
+    {
         assert(dbTx.IsClean());
         return std::unique_ptr<CScopedDBTransaction>(new CScopedDBTransaction(dbTx));
     }
 
-    void SetCommitHandler(const std::function<void ()> &h) {
+    void SetCommitHandler(const std::function<void()>& h)
+    {
         commitHandler = h;
     }
-    void SetRollbackHandler(const std::function<void ()> &h) {
+    void SetRollbackHandler(const std::function<void()>& h)
+    {
         rollbackHandler = h;
     }
 };

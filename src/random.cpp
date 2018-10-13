@@ -14,8 +14,8 @@
 #include "util.h"             // for LogPrint()
 #include "utilstrencodings.h" // for GetTime()
 
-#include <stdlib.h>
 #include <limits>
+#include <stdlib.h>
 
 #ifndef WIN32
 #include <sys/time.h>
@@ -92,7 +92,7 @@ static void RandAddSeedPerfmon()
 }
 
 /** Get 32 bytes of system entropy. */
-static void GetOSRand(unsigned char *ent32)
+static void GetOSRand(unsigned char* ent32)
 {
 #ifdef WIN32
     HCRYPTPROV hProvider;

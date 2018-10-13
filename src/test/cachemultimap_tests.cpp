@@ -11,37 +11,37 @@
 
 BOOST_FIXTURE_TEST_SUITE(cachemultimap_tests, BasicTestingSetup)
 
-void DumpMap(const CacheMultiMap<int,int>& cmmap)
+void DumpMap(const CacheMultiMap<int, int>& cmmap)
 {
-    const CacheMultiMap<int,int>::list_t& listItems = cmmap.GetItemList();
-    for(CacheMultiMap<int,int>::list_cit it = listItems.begin(); it != listItems.end(); ++it) {
-        const CacheItem<int,int>& item = *it;
+    const CacheMultiMap<int, int>::list_t& listItems = cmmap.GetItemList();
+    for (CacheMultiMap<int, int>::list_cit it = listItems.begin(); it != listItems.end(); ++it) {
+        const CacheItem<int, int>& item = *it;
         std::cout << item.key << " : " << item.value << std::endl;
     }
 }
 
-bool Compare(const CacheMultiMap<int,int>& cmmap1, const CacheMultiMap<int,int>& cmmap2)
+bool Compare(const CacheMultiMap<int, int>& cmmap1, const CacheMultiMap<int, int>& cmmap2)
 {
-    if(cmmap1.GetMaxSize() != cmmap2.GetMaxSize()) {
+    if (cmmap1.GetMaxSize() != cmmap2.GetMaxSize()) {
         std::cout << "Compare returning false: max size mismatch" << std::endl;
         return false;
     }
 
-    if(cmmap1.GetSize() != cmmap2.GetSize()) {
+    if (cmmap1.GetSize() != cmmap2.GetSize()) {
         std::cout << "Compare returning false: size mismatch" << std::endl;
         return false;
     }
 
-    const CacheMultiMap<int,int>::list_t& items1 = cmmap1.GetItemList();
-    const CacheMultiMap<int,int>::list_t& items2 = cmmap2.GetItemList();
-    CacheMultiMap<int,int>::list_cit it2 = items2.begin();
-    for(CacheMultiMap<int,int>::list_cit it1 = items1.begin(); it1 != items1.end(); ++it1) {
-        const CacheItem<int,int>& item1 = *it1;
-        const CacheItem<int,int>& item2 = *it2;
-        if(item1.key != item2.key) {
+    const CacheMultiMap<int, int>::list_t& items1 = cmmap1.GetItemList();
+    const CacheMultiMap<int, int>::list_t& items2 = cmmap2.GetItemList();
+    CacheMultiMap<int, int>::list_cit it2 = items2.begin();
+    for (CacheMultiMap<int, int>::list_cit it1 = items1.begin(); it1 != items1.end(); ++it1) {
+        const CacheItem<int, int>& item1 = *it1;
+        const CacheItem<int, int>& item2 = *it2;
+        if (item1.key != item2.key) {
             return false;
         }
-        if(item1.value != item2.value) {
+        if (item1.value != item2.value) {
             return false;
         }
         ++it2;
@@ -50,18 +50,18 @@ bool Compare(const CacheMultiMap<int,int>& cmmap1, const CacheMultiMap<int,int>&
     return true;
 }
 
-bool CheckExpected(const CacheMultiMap<int,int>& cmmap, int* expected, CacheMultiMap<int,int>::size_type nSize)
+bool CheckExpected(const CacheMultiMap<int, int>& cmmap, int* expected, CacheMultiMap<int, int>::size_type nSize)
 {
-    if(cmmap.GetSize() != nSize) {
+    if (cmmap.GetSize() != nSize) {
         return false;
     }
-    for(CacheMultiMap<int,int>::size_type i = 0; i < nSize; ++i) {
+    for (CacheMultiMap<int, int>::size_type i = 0; i < nSize; ++i) {
         int nVal = 0;
         int eVal = expected[i];
-        if(!cmmap.Get(eVal, nVal)) {
+        if (!cmmap.Get(eVal, nVal)) {
             return false;
         }
-        if(nVal != eVal) {
+        if (nVal != eVal) {
             return false;
         }
     }
@@ -71,7 +71,7 @@ bool CheckExpected(const CacheMultiMap<int,int>& cmmap, int* expected, CacheMult
 BOOST_AUTO_TEST_CASE(cachemultimap_test)
 {
     // create a CacheMultiMap limited to 10 items
-    CacheMultiMap<int,int> cmmapTest1(10);
+    CacheMultiMap<int, int> cmmapTest1(10);
 
     // check that the max size is 10
     BOOST_CHECK(cmmapTest1.GetMaxSize() == 10);
@@ -89,7 +89,7 @@ BOOST_AUTO_TEST_CASE(cachemultimap_test)
     BOOST_CHECK(cmmapTest1.HasKey(-1) == true);
 
     // add 10 items
-    for(int i = 0; i < 10; ++i) {
+    for (int i = 0; i < 10; ++i) {
         cmmapTest1.Insert(i, i);
     }
 
@@ -97,7 +97,7 @@ BOOST_AUTO_TEST_CASE(cachemultimap_test)
     BOOST_CHECK(cmmapTest1.GetSize() == 10);
 
     // check that the map contains the expected items
-    for(int i = 0; i < 10; ++i) {
+    for (int i = 0; i < 10; ++i) {
         int nVal = 0;
         BOOST_CHECK(cmmapTest1.Get(i, nVal) == true);
         BOOST_CHECK(nVal == i);
@@ -116,8 +116,8 @@ BOOST_AUTO_TEST_CASE(cachemultimap_test)
     BOOST_CHECK(cmmapTest1.HasKey(5) == false);
 
     // check that the map contains the expected items
-    int expected[] = { 0, 1, 2, 3, 4, 6, 7, 8, 9 };
-    BOOST_CHECK(CheckExpected(cmmapTest1, expected, 9 ) == true);
+    int expected[] = {0, 1, 2, 3, 4, 6, 7, 8, 9};
+    BOOST_CHECK(CheckExpected(cmmapTest1, expected, 9) == true);
 
     // add multiple items for the same key
     cmmapTest1.Insert(5, 2);
@@ -140,18 +140,18 @@ BOOST_AUTO_TEST_CASE(cachemultimap_test)
     BOOST_CHECK(vecVals[1] == 2);
     BOOST_CHECK(vecVals[2] == 4);
 
-//    std::cout << "cmmapTest1 dump:" << std::endl;
-//    DumpMap(cmmapTest1);
+    //    std::cout << "cmmapTest1 dump:" << std::endl;
+    //    DumpMap(cmmapTest1);
 
     // test serialization
     CDataStream ss(SER_NETWORK, PROTOCOL_VERSION);
     ss << cmmapTest1;
 
-    CacheMultiMap<int,int> cmmapTest2;
+    CacheMultiMap<int, int> cmmapTest2;
     ss >> cmmapTest2;
 
-//    std::cout << "cmmapTest2 dump:" << std::endl;
-//    DumpMap(cmmapTest2);
+    //    std::cout << "cmmapTest2 dump:" << std::endl;
+    //    DumpMap(cmmapTest2);
 
     // check multiple values
     std::vector<int> vecVals2;
@@ -164,11 +164,11 @@ BOOST_AUTO_TEST_CASE(cachemultimap_test)
     BOOST_CHECK(Compare(cmmapTest1, cmmapTest2));
 
     // test copy constructor
-    CacheMultiMap<int,int> cmmapTest3(cmmapTest1);
+    CacheMultiMap<int, int> cmmapTest3(cmmapTest1);
     BOOST_CHECK(Compare(cmmapTest1, cmmapTest3));
 
     // test assignment operator
-    CacheMultiMap<int,int> mapTest4;
+    CacheMultiMap<int, int> mapTest4;
     mapTest4 = cmmapTest1;
     BOOST_CHECK(Compare(cmmapTest1, mapTest4));
 }
