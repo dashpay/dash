@@ -1915,8 +1915,8 @@ bool AppInitMain(boost::thread_group& threadGroup, CScheduler& scheduler)
             CBLSSecretKey keyOperator;
             keyOperator.SetBuf(binKey);
             if (keyOperator.IsValid()) {
-                activeMasternodeInfo.blsKeyOperator = keyOperator;
-                activeMasternodeInfo.blsPubKeyOperator = activeMasternodeInfo.blsKeyOperator.GetPublicKey();
+                activeMasternodeInfo.blsKeyOperator = std::make_unique<CBLSSecretKey>(keyOperator);
+                activeMasternodeInfo.blsPubKeyOperator = std::make_unique<CBLSPublicKey>(activeMasternodeInfo.blsKeyOperator->GetPublicKey());
                 LogPrintf("  blsPubKeyOperator: %s\n", keyOperator.GetPublicKey().ToString());
             } else {
                 return InitError(_("Invalid masternodeblsprivkey. Please see documenation."));
@@ -1928,6 +1928,13 @@ bool AppInitMain(boost::thread_group& threadGroup, CScheduler& scheduler)
         // init and register activeMasternodeManager
         activeMasternodeManager = new CActiveDeterministicMasternodeManager();
         RegisterValidationInterface(activeMasternodeManager);
+    }
+
+    if (activeMasternodeInfo.blsKeyOperator == nullptr) {
+        activeMasternodeInfo.blsKeyOperator = std::make_unique<CBLSSecretKey>();
+    }
+    if (activeMasternodeInfo.blsPubKeyOperator == nullptr) {
+        activeMasternodeInfo.blsPubKeyOperator = std::make_unique<CBLSPublicKey>();
     }
 
 #ifdef ENABLE_WALLET

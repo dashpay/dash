@@ -295,7 +295,7 @@ UniValue gobject_submit(const JSONRPCRequest& request)
         if (fMnFound) {
             govobj.SetMasternodeOutpoint(activeMasternodeInfo.outpoint);
             if (deterministicMNManager->IsDeterministicMNsSporkActive()) {
-                govobj.Sign(activeMasternodeInfo.blsKeyOperator);
+                govobj.Sign(*activeMasternodeInfo.blsKeyOperator);
             } else {
                 govobj.Sign(activeMasternodeInfo.legacyKeyOperator, activeMasternodeInfo.legacyKeyIDOperator);
             }

@@ -59,7 +59,7 @@ void CActiveDeterministicMasternodeManager::Init()
 
     CDeterministicMNList mnList = deterministicMNManager->GetListAtChainTip();
 
-    CDeterministicMNCPtr dmn = mnList.GetMNByOperatorKey(activeMasternodeInfo.blsPubKeyOperator);
+    CDeterministicMNCPtr dmn = mnList.GetMNByOperatorKey(*activeMasternodeInfo.blsPubKeyOperator);
     if (!dmn) {
         // MN not appeared on the chain yet
         return;

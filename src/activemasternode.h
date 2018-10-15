@@ -33,8 +33,8 @@ struct CActiveMasternodeInfo {
     CKeyID legacyKeyIDOperator;
     CKey legacyKeyOperator;
 
-    CBLSPublicKey blsPubKeyOperator;
-    CBLSSecretKey blsKeyOperator;
+    std::unique_ptr<CBLSPublicKey> blsPubKeyOperator;
+    std::unique_ptr<CBLSSecretKey> blsKeyOperator;
 
     // Initialized while registering Masternode
     COutPoint outpoint;

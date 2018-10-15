@@ -53,7 +53,7 @@ bool CDarksendQueue::Sign()
 
     if (deterministicMNManager->IsDeterministicMNsSporkActive()) {
         uint256 hash = GetSignatureHash();
-        CBLSSignature sig = activeMasternodeInfo.blsKeyOperator.Sign(hash);
+        CBLSSignature sig = activeMasternodeInfo.blsKeyOperator->Sign(hash);
         sig.GetBuf(vchSig);
     } else if (sporkManager.IsSporkActive(SPORK_6_NEW_SIGS)) {
         uint256 hash = GetSignatureHash();
@@ -146,7 +146,7 @@ bool CDarksendBroadcastTx::Sign()
     if (deterministicMNManager->IsDeterministicMNsSporkActive()) {
         uint256 hash = GetSignatureHash();
 
-        CBLSSignature sig = activeMasternodeInfo.blsKeyOperator.Sign(hash);
+        CBLSSignature sig = activeMasternodeInfo.blsKeyOperator->Sign(hash);
         sig.GetBuf(vchSig);
     } else if (sporkManager.IsSporkActive(SPORK_6_NEW_SIGS)) {
         uint256 hash = GetSignatureHash();
