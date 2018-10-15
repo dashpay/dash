@@ -3346,8 +3346,9 @@ bool SendMessages(CNode* pto, CConnman& connman, const std::atomic<bool>& interr
             bool fSendTrickle = pto->fWhitelisted;
             if (pto->nNextInvSend < nNow) {
                 fSendTrickle = true;
-                // Use half the delay for outbound peers, as there is less privacy concern for them.
-                pto->nNextInvSend = PoissonNextSend(nNow, INVENTORY_BROADCAST_INTERVAL >> !pto->fInbound);
+                // Use half the delay for regular outbound peers, as there is less privacy concern for them,
+                // and quarter the delay for Masternode outbound peers, as there is even less privacy concern in this case.
+                pto->nNextInvSend = PoissonNextSend(nNow, INVENTORY_BROADCAST_INTERVAL >> !pto->fInbound >> pto->fMasternode);
             }
 
             // Time to send but the peer has requested we not relay transactions.
