@@ -2861,26 +2861,36 @@ bool CWallet::SelectCoins(const std::vector<COutput>& vAvailableCoins, const CAm
     }
 
     //if we're doing only denominated, we need to round up to the nearest smallest denomination
-    if(nCoinType == ONLY_DENOMINATED) {
+    if (nCoinType == ONLY_DENOMINATED) {
         std::vector<CAmount> vecPrivateSendDenominations = CPrivateSend::GetStandardDenominations();
-        CAmount nSmallestDenom = vecPrivateSendDenominations.back();
-        // Make outputs by looping through denominations, from large to small
-        for (const auto& nDenom : vecPrivateSendDenominations)
-        {
-            for (const auto& out : vCoins)
-            {
-                //make sure it's the denom we're looking for, round the amount up to smallest denom
-                if(out.tx->tx->vout[out.i].nValue == nDenom && nValueRet + nDenom < nTargetValue + nSmallestDenom) {
-                    COutPoint outpoint = COutPoint(out.tx->GetHash(),out.i);
-                    int nRounds = GetCappedOutpointPrivateSendRounds(outpoint);
-                    // make sure it's actually anonymized
-                    if(nRounds < privateSendClient.nPrivateSendRounds) continue;
-                    nValueRet += nDenom;
-                    setCoinsRet.insert(std::make_pair(out.tx, out.i));
+        std::vector<CAmount> vecDenominationsAsAFee = vecPrivateSendDenominations;
+        std::reverse(vecDenominationsAsAFee.begin(), vecDenominationsAsAFee.end());
+
+        // Try to fit into fee that matches one of denominations, from small to large
+        for (const auto& nDenomAsAFee : vecDenominationsAsAFee) {
+            CAmount nMaxPSFee = std::min(nDenomAsAFee, maxTxFee);
+            // Make outputs by looping through denominations, from large to small
+            for (const auto& nDenom : vecPrivateSendDenominations) {
+                for (const auto& out : vCoins) {
+                    // Make sure it's the denom we're looking for, round the amount up to current max fee
+                    if (out.tx->tx->vout[out.i].nValue == nDenom && nValueRet + nDenom < nTargetValue + nMaxPSFee) {
+                        COutPoint outpoint = COutPoint(out.tx->GetHash(),out.i);
+                        int nRounds = GetRealOutpointPrivateSendRounds(outpoint);
+                        // Make sure it's actually anonymized
+                        if (nRounds < privateSendClient.nPrivateSendRounds) continue;
+                        nValueRet += nDenom;
+                        setCoinsRet.insert(std::make_pair(out.tx, out.i));
+                        if (nValueRet >= nTargetValue) return true; // Done, no need to look any further
+                    }
                 }
             }
+            // No luck, try next denom as current max fee
+            setCoinsRet.clear();
+            // but only if current denom doesn't exceed the global max fee already
+            if (nDenomAsAFee >= maxTxFee) return false;
         }
-        return (nValueRet >= nTargetValue);
+        // should never get here, just in case denom vector is empty for some reason
+        return false;
     }
     // calculate value from preset inputs and store them
     std::set<std::pair<const CWalletTx*, uint32_t> > setPresetCoins;
