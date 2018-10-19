@@ -144,7 +144,7 @@ def main():
     parser.add_argument('-o', '--os', dest='os', default='lwm', help='Specify which Operating Systems the build is for. Default is %(default)s. l for Linux, w for Windows, m for MacOS')
     parser.add_argument('-j', '--jobs', dest='jobs', default='2', help='Number of processes to use. Default %(default)s')
     parser.add_argument('-m', '--memory', dest='memory', default='2000', help='Memory to allocate in MiB. Default %(default)s')
-    parser.add_argument('-V', '--virtualization', dest='virtualization', default='lxc', help='Specify virtualization technology to use: lxc for LXC, kvm for KVM, docker for Docker. Default is %(default)s')
+    parser.add_argument('-V', '--virtualization', dest='virtualization', default='docker', help='Specify virtualization technology to use: lxc for LXC, kvm for KVM, docker for Docker. Default is %(default)s')
     parser.add_argument('-S', '--setup', action='store_true', dest='setup', help='Set up the Gitian building environment. Only works on Debian-based systems (Ubuntu, Debian)')
     parser.add_argument('-D', '--detach-sign', action='store_true', dest='detach_sign', help='Create the assert file for detached signing. Will not commit anything.')
     parser.add_argument('-n', '--no-commit', action='store_false', dest='commit_files', help='Do not commit anything to git')
