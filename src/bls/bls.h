@@ -107,7 +107,7 @@ public:
 
     void GetBuf(void* buf, size_t size) const
     {
-        assert(size >= SerSize);
+        assert(size == SerSize);
 
         if (!fValid) {
             memset(buf, 0, SerSize);
