@@ -1076,8 +1076,7 @@ bool CTxLockVote::CheckSignature() const
 
         CBLSSignature sig;
         sig.SetBuf(vchMasternodeSignature);
-        if (!sig.IsValid() || !sig.VerifyInsecure(infoMn.blsPubKeyOperator,
-                                                  hash)) {
+        if (!sig.IsValid() || !sig.VerifyInsecure(infoMn.blsPubKeyOperator, hash)) {
             LogPrintf("CTxLockVote::CheckSignature -- VerifyInsecure() failed\n");
             return false;
         }
@@ -1087,7 +1086,7 @@ bool CTxLockVote::CheckSignature() const
         if (!CHashSigner::VerifyHash(hash, infoMn.legacyKeyIDOperator, vchMasternodeSignature, strError)) {
             // could be a signature in old format
             std::string strMessage = txHash.ToString() + outpoint.ToStringShort();
-        if (!CMessageSigner::VerifyMessage(infoMn.legacyKeyIDOperator, vchMasternodeSignature, strMessage, strError)) {
+            if (!CMessageSigner::VerifyMessage(infoMn.legacyKeyIDOperator, vchMasternodeSignature, strMessage, strError)) {
                 // nope, not in old format either
                 LogPrintf("CTxLockVote::CheckSignature -- VerifyMessage() failed, error: %s\n", strError);
                 return false;
