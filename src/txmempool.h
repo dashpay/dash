@@ -536,7 +536,7 @@ private:
 
     std::map<CService, uint256> mapProTxAddresses;
     std::map<CKeyID, uint256> mapProTxPubKeyIDs;
-    std::map<uint256, uint256> mapProTxBlsPubKeys;
+    std::map<uint256, uint256> mapProTxBlsPubKeyHashes;
 
     void UpdateParent(txiter entry, txiter parent, bool add);
     void UpdateChild(txiter entry, txiter child, bool add);
