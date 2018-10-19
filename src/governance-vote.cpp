@@ -260,19 +260,13 @@ bool CGovernanceVote::IsValid(bool useVotingKey) const
     }
 
     if (useVotingKey) {
-        CheckSignature(infoMn.keyIDVoting);
+        return CheckSignature(infoMn.keyIDVoting);
     } else {
         if (deterministicMNManager->IsDeterministicMNsSporkActive()) {
-            CheckSignature(infoMn.blsPubKeyOperator);
+            return CheckSignature(infoMn.blsPubKeyOperator);
+        } else {
+            return CheckSignature(infoMn.legacyKeyIDOperator);
         }
-    }
-
-    if (useVotingKey) {
-        return CheckSignature(infoMn.keyIDVoting);
-    } else if (deterministicMNManager->IsDeterministicMNsSporkActive()) {
-        return CheckSignature(infoMn.blsPubKeyOperator);
-    } else {
-        return CheckSignature(infoMn.legacyKeyIDOperator);
     }
 }
 
