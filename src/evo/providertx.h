@@ -22,7 +22,6 @@ public:
 
 public:
     uint16_t nVersion{CURRENT_VERSION}; // message version
-    int32_t nProtocolVersion{0};
     uint32_t nCollateralIndex{(uint32_t) - 1};
     CService addr;
     CKeyID keyIDOwner;
@@ -40,7 +39,6 @@ public:
     inline void SerializationOp(Stream& s, Operation ser_action)
     {
         READWRITE(nVersion);
-        READWRITE(nProtocolVersion);
         READWRITE(nCollateralIndex);
         READWRITE(addr);
         READWRITE(keyIDOwner);
@@ -66,7 +64,6 @@ public:
 public:
     uint16_t nVersion{CURRENT_VERSION}; // message version
     uint256 proTxHash;
-    int32_t nProtocolVersion{0};
     CService addr;
     CScript scriptOperatorPayout;
     uint256 inputsHash; // replay protection
@@ -80,7 +77,6 @@ public:
     {
         READWRITE(nVersion);
         READWRITE(proTxHash);
-        READWRITE(nProtocolVersion);
         READWRITE(addr);
         READWRITE(*(CScriptBase*)(&scriptOperatorPayout));
         READWRITE(inputsHash);
