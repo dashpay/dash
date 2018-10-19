@@ -448,7 +448,7 @@ bool CTxMemPool::addUnchecked(const uint256& hash, const CTxMemPoolEntry &entry,
         }
         mapProTxAddresses.emplace(proTx.addr, tx.GetHash());
         mapProTxPubKeyIDs.emplace(proTx.keyIDOwner, tx.GetHash());
-        mapProTxBlsPubKeys.emplace(::SerializeHash(proTx.pubKeyOperator), tx.GetHash());
+        mapProTxBlsPubKeys.emplace(proTx.pubKeyOperator.GetHash(), tx.GetHash());
     } else if (tx.nType == TRANSACTION_PROVIDER_UPDATE_SERVICE) {
         CProUpServTx proTx;
         if (!GetTxPayload(tx, proTx)) {
@@ -460,7 +460,7 @@ bool CTxMemPool::addUnchecked(const uint256& hash, const CTxMemPoolEntry &entry,
         if (!GetTxPayload(tx, proTx)) {
             assert(false);
         }
-        mapProTxBlsPubKeys.emplace(::SerializeHash(proTx.pubKeyOperator), tx.GetHash());
+        mapProTxBlsPubKeys.emplace(proTx.pubKeyOperator.GetHash(), tx.GetHash());
     }
 
     return true;
@@ -645,7 +645,7 @@ void CTxMemPool::removeUnchecked(txiter it, MemPoolRemovalReason reason)
         }
         mapProTxAddresses.erase(proTx.addr);
         mapProTxPubKeyIDs.erase(proTx.keyIDOwner);
-        mapProTxBlsPubKeys.erase(::SerializeHash(proTx.pubKeyOperator));
+        mapProTxBlsPubKeys.erase(proTx.pubKeyOperator.GetHash());
     } else if (it->GetTx().nType == TRANSACTION_PROVIDER_UPDATE_SERVICE) {
         CProUpServTx proTx;
         if (!GetTxPayload(it->GetTx(), proTx)) {
@@ -657,7 +657,7 @@ void CTxMemPool::removeUnchecked(txiter it, MemPoolRemovalReason reason)
         if (!GetTxPayload(it->GetTx(), proTx)) {
             assert(false);
         }
-        mapProTxBlsPubKeys.erase(::SerializeHash(proTx.pubKeyOperator));
+        mapProTxBlsPubKeys.erase(proTx.pubKeyOperator.GetHash());
     }
 
     totalTxSize -= it->GetTxSize();
@@ -798,8 +798,8 @@ void CTxMemPool::removeProTxPubKeyConflicts(const CTransaction &tx, const CKeyID
 
 void CTxMemPool::removeProTxPubKeyConflicts(const CTransaction &tx, const CBLSPublicKey &pubKey)
 {
-    if (mapProTxBlsPubKeys.count(::SerializeHash(pubKey))) {
-        uint256 conflictHash = mapProTxBlsPubKeys[::SerializeHash(pubKey)];
+    if (mapProTxBlsPubKeys.count(pubKey.GetHash())) {
+        uint256 conflictHash = mapProTxBlsPubKeys[pubKey.GetHash()];
         if (conflictHash != tx.GetHash() && mapTx.count(conflictHash)) {
             removeRecursive(mapTx.find(conflictHash)->GetTx(), MemPoolRemovalReason::CONFLICT);
         }
@@ -1127,7 +1127,7 @@ bool CTxMemPool::existsProviderTxConflict(const CTransaction &tx) const {
         CProRegTx proTx;
         if (!GetTxPayload(tx, proTx))
             assert(false);
-        return mapProTxAddresses.count(proTx.addr) || mapProTxPubKeyIDs.count(proTx.keyIDOwner) || mapProTxBlsPubKeys.count(::SerializeHash(proTx.pubKeyOperator));
+        return mapProTxAddresses.count(proTx.addr) || mapProTxPubKeyIDs.count(proTx.keyIDOwner) || mapProTxBlsPubKeys.count(proTx.pubKeyOperator.GetHash());
     } else if (tx.nType == TRANSACTION_PROVIDER_UPDATE_SERVICE) {
         CProUpServTx proTx;
         if (!GetTxPayload(tx, proTx))
@@ -1138,7 +1138,7 @@ bool CTxMemPool::existsProviderTxConflict(const CTransaction &tx) const {
         CProUpRegTx proTx;
         if (!GetTxPayload(tx, proTx))
             assert(false);
-        auto it = mapProTxBlsPubKeys.find(::SerializeHash(proTx.pubKeyOperator));
+        auto it = mapProTxBlsPubKeys.find(proTx.pubKeyOperator.GetHash());
         return it != mapProTxBlsPubKeys.end() && it->second != proTx.proTxHash;
     }
     return false;
