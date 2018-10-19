@@ -78,6 +78,10 @@ bool CheckProRegTx(const CTransaction& tx, const CBlockIndex* pindexPrev, CValid
 
     if (ptx.nVersion > CProRegTx::CURRENT_VERSION)
         return state.DoS(100, false, REJECT_INVALID, "bad-protx-version");
+    if (ptx.nType != 0)
+        return state.DoS(100, false, REJECT_INVALID, "bad-protx-type");
+    if (ptx.nMode != 0)
+        return state.DoS(100, false, REJECT_INVALID, "bad-protx-mode");
 
     if (ptx.nCollateralIndex >= tx.vout.size())
         return state.DoS(10, false, REJECT_INVALID, "bad-protx-collateral-index");
@@ -177,6 +181,8 @@ bool CheckProUpRegTx(const CTransaction& tx, const CBlockIndex* pindexPrev, CVal
 
     if (ptx.nVersion > CProRegTx::CURRENT_VERSION)
         return state.DoS(100, false, REJECT_INVALID, "bad-protx-version");
+    if (ptx.nMode != 0)
+        return state.DoS(100, false, REJECT_INVALID, "bad-protx-mode");
 
     if (!ptx.pubKeyOperator.IsValid() || ptx.keyIDVoting.IsNull())
         return state.DoS(10, false, REJECT_INVALID, "bad-protx-key-null");
