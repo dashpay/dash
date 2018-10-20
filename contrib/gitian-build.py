@@ -72,6 +72,8 @@ def build():
 
     if args.macos:
         print('\nCompiling ' + args.version + ' MacOS')
+        subprocess.check_call(['wget', '-N', '-P', 'inputs', 'https://bitcoincore.org/depends-sources/sdks/MacOSX10.11.sdk.tar.gz'])
+        subprocess.check_output(["echo 'bec9d089ebf2e2dd59b1a811a38ec78ebd5da18cbbcd6ab39d1e59f64ac5033f inputs/MacOSX10.11.sdk.tar.gz' | sha256sum -c"], shell=True)
         subprocess.check_call(['bin/gbuild', '-j', args.jobs, '-m', args.memory, '--commit', 'dash='+args.commit, '--url', 'dash='+args.url, '../dash/contrib/gitian-descriptors/gitian-osx.yml'])
         subprocess.check_call(['bin/gsign', '-p', args.sign_prog, '--signer', args.signer, '--release', args.version+'-osx-unsigned', '--destination', '../gitian.sigs/', '../dash/contrib/gitian-descriptors/gitian-osx.yml'])
         subprocess.check_call('mv build/out/dashcore-*-osx-unsigned.tar.gz inputs/dashcore-osx-unsigned.tar.gz', shell=True)
