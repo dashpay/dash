@@ -170,8 +170,8 @@ static std::string SignAndSendSpecialTx(const CMutableTransaction& tx)
 void protx_register_help()
 {
     throw std::runtime_error(
-            "protx register \"collateralAddress\" collateralAmount \"ipAndPort\" \"ownerKeyAddr\" \"operatorKeyAddr\" \"votingKeyAddr\" operatorReward \"payoutAddress\"\n"
-            "\nCreates and sends a ProTx to the network. The resulting transaction will move the specified amount\n"
+            "protx register \"collateralAddress\" \"ipAndPort\" \"ownerKeyAddr\" \"operatorKeyAddr\" \"votingKeyAddr\" operatorReward \"payoutAddress\"\n"
+            "\nCreates and sends a ProTx to the network. The resulting transaction will move 1000 Dash\n"
             "to the address specified by collateralAddress and will then function as the collateral of your\n"
             "masternode.\n"
             "A few of the limitations you see in the arguments are temporary and might be lifted after DIP3\n"
@@ -179,25 +179,23 @@ void protx_register_help()
             "\nArguments:\n"
             "1. \"collateralAddress\"   (string, required) The dash address to send the collateral to.\n"
             "                         Must be a P2PKH address.\n"
-            "2. \"collateralAmount\"    (numeric or string, required) The collateral amount.\n"
-            "                         Must be exactly 1000 Dash.\n"
-            "3. \"ipAndPort\"           (string, required) IP and port in the form \"IP:PORT\".\n"
+            "2. \"ipAndPort\"           (string, required) IP and port in the form \"IP:PORT\".\n"
             "                         Must be unique on the network. Can be set to 0, which will require a ProUpServTx afterwards.\n"
-            "4. \"ownerKeyAddr\"        (string, required) The owner key used for payee updates and proposal voting.\n"
+            "3. \"ownerKeyAddr\"        (string, required) The owner key used for payee updates and proposal voting.\n"
             "                         The private key belonging to this address be known in your wallet. The address must\n"
             "                         be unused and must differ from the collateralAddress\n"
-            "5. \"operatorKeyAddr\"     (string, required) The operator key address. The private key does not have to be known by your wallet.\n"
+            "4. \"operatorKeyAddr\"     (string, required) The operator key address. The private key does not have to be known by your wallet.\n"
             "                         It has to match the private key which is later used when operating the masternode.\n"
             "                         If set to \"0\" or an empty string, ownerAddr will be used.\n"
-            "6. \"votingKeyAddr\"       (string, required) The voting key address. The private key does not have to be known by your wallet.\n"
+            "5. \"votingKeyAddr\"       (string, required) The voting key address. The private key does not have to be known by your wallet.\n"
             "                         It has to match the private key which is later used when voting on proposals.\n"
             "                         If set to \"0\" or an empty string, ownerAddr will be used.\n"
-            "7. \"operatorReward\"      (numeric, required) The fraction in %% to share with the operator. If non-zero,\n"
+            "6. \"operatorReward\"      (numeric, required) The fraction in %% to share with the operator. If non-zero,\n"
             "                         \"ipAndPort\" must be zero as well. The value must be between 0 and 100.\n"
-            "8. \"payoutAddress\"       (string, required) The dash address to use for masternode reward payments\n"
+            "7. \"payoutAddress\"       (string, required) The dash address to use for masternode reward payments\n"
             "                         Must match \"collateralAddress\"."
             "\nExamples:\n"
-            + HelpExampleCli("protx", "register \"XrVhS9LogauRJGJu2sHuryjhpuex4RNPSb\" 1000 \"1.2.3.4:1234\" \"Xt9AMWaYSz7tR7Uo7gzXA3m4QmeWgrR3rr\" \"Xt9AMWaYSz7tR7Uo7gzXA3m4QmeWgrR3rr\" \"Xt9AMWaYSz7tR7Uo7gzXA3m4QmeWgrR3rr\" 0 \"XrVhS9LogauRJGJu2sHuryjhpuex4RNPSb\"")
+            + HelpExampleCli("protx", "register \"XrVhS9LogauRJGJu2sHuryjhpuex4RNPSb\" \"1.2.3.4:1234\" \"Xt9AMWaYSz7tR7Uo7gzXA3m4QmeWgrR3rr\" \"Xt9AMWaYSz7tR7Uo7gzXA3m4QmeWgrR3rr\" \"Xt9AMWaYSz7tR7Uo7gzXA3m4QmeWgrR3rr\" 0 \"XrVhS9LogauRJGJu2sHuryjhpuex4RNPSb\"")
     );
 }
 
@@ -211,12 +209,7 @@ UniValue protx_register(const JSONRPCRequest& request)
         throw JSONRPCError(RPC_INVALID_ADDRESS_OR_KEY, strprintf("invalid collaterall address: %s", request.params[1].get_str()));
     CScript collateralScript = GetScriptForDestination(collateralAddress.Get());
 
-    CAmount collateralAmount;
-    if (!ParseMoney(request.params[2].get_str(), collateralAmount))
-        throw std::runtime_error(strprintf("invalid collateral amount %s", request.params[2].get_str()));
-    if (collateralAmount != 1000 * COIN)
-        throw std::runtime_error(strprintf("invalid collateral amount %d. only 1000 DASH is supported at the moment", collateralAmount));
-
+    CAmount collateralAmount = 1000 * COIN;
     CTxOut collateralTxOut(collateralAmount, collateralScript);
 
     CMutableTransaction tx;
@@ -227,24 +220,24 @@ UniValue protx_register(const JSONRPCRequest& request)
     CProRegTx ptx;
     ptx.nVersion = CProRegTx::CURRENT_VERSION;
 
-    if (request.params[3].get_str() != "0" && request.params[3].get_str() != "") {
+    if (request.params[2].get_str() != "0" && request.params[2].get_str() != "") {
         if (!Lookup(request.params[3].get_str().c_str(), ptx.addr, Params().GetDefaultPort(), false))
             throw std::runtime_error(strprintf("invalid network address %s", request.params[3].get_str()));
     }
 
-    CKey keyOwner = ParsePrivKey(request.params[4].get_str(), true);
-    CBLSPublicKey pubKeyOperator = ParseBLSPubKey(request.params[5].get_str(), "operator BLS address");
+    CKey keyOwner = ParsePrivKey(request.params[3].get_str(), true);
+    CBLSPublicKey pubKeyOperator = ParseBLSPubKey(request.params[4].get_str(), "operator BLS address");
     CKeyID keyIDVoting = keyOwner.GetPubKey().GetID();
-    if (request.params[6].get_str() != "0" && request.params[6].get_str() != "") {
-        keyIDVoting = ParsePubKeyIDFromAddress(request.params[6].get_str(), "voting address");
+    if (request.params[5].get_str() != "0" && request.params[5].get_str() != "") {
+        keyIDVoting = ParsePubKeyIDFromAddress(request.params[5].get_str(), "voting address");
     }
 
-    double operatorReward = ParseDoubleV(request.params[7], "operatorReward");
+    double operatorReward = ParseDoubleV(request.params[6], "operatorReward");
     if (operatorReward < 0 || operatorReward > 100)
         throw JSONRPCError(RPC_INVALID_PARAMETER, "operatorReward must be between 0 and 100");
     ptx.nOperatorReward = (uint16_t)(operatorReward * 100);
 
-    CBitcoinAddress payoutAddress(request.params[8].get_str());
+    CBitcoinAddress payoutAddress(request.params[7].get_str());
     if (!payoutAddress.IsValid())
         throw JSONRPCError(RPC_INVALID_ADDRESS_OR_KEY, strprintf("invalid payout address: %s", request.params[8].get_str()));
 
