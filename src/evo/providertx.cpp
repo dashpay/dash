@@ -68,7 +68,7 @@ static bool CheckInputsHashAndSig(const CTransaction &tx, const ProTx& proTx, co
     return true;
 }
 
-bool CheckProRegTx(const CTransaction& tx, const CBlockIndex* pindexPrev, CValidationState& state)
+bool CheckProRegTx(const CTransaction& tx, const CBlockIndex* pindexPrev, const CCoinsView& coinsView, CValidationState& state)
 {
     AssertLockHeld(cs_main);
 
@@ -134,7 +134,7 @@ bool CheckProRegTx(const CTransaction& tx, const CBlockIndex* pindexPrev, CValid
     return true;
 }
 
-bool CheckProUpServTx(const CTransaction& tx, const CBlockIndex* pindexPrev, CValidationState& state)
+bool CheckProUpServTx(const CTransaction& tx, const CBlockIndex* pindexPrev, const CCoinsView& coinsView, CValidationState& state)
 {
     AssertLockHeld(cs_main);
 
@@ -171,7 +171,7 @@ bool CheckProUpServTx(const CTransaction& tx, const CBlockIndex* pindexPrev, CVa
     return true;
 }
 
-bool CheckProUpRegTx(const CTransaction& tx, const CBlockIndex* pindexPrev, CValidationState& state)
+bool CheckProUpRegTx(const CTransaction& tx, const CBlockIndex* pindexPrev, const CCoinsView& coinsView, CValidationState& state)
 {
     AssertLockHeld(cs_main);
 
@@ -236,7 +236,7 @@ bool CheckProUpRegTx(const CTransaction& tx, const CBlockIndex* pindexPrev, CVal
     return true;
 }
 
-bool CheckProUpRevTx(const CTransaction& tx, const CBlockIndex* pindexPrev, CValidationState& state)
+bool CheckProUpRevTx(const CTransaction& tx, const CBlockIndex* pindexPrev, const CCoinsView& coinsView, CValidationState& state)
 {
     AssertLockHeld(cs_main);
 

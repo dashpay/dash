@@ -10,7 +10,7 @@
 #include "validation.h"
 #include "univalue.h"
 
-bool CheckCbTx(const CTransaction& tx, const CBlockIndex* pindexPrev, CValidationState& state)
+bool CheckCbTx(const CTransaction& tx, const CBlockIndex* pindexPrev, const CCoinsView& coinsView, CValidationState& state)
 {
     AssertLockHeld(cs_main);
 
@@ -63,7 +63,7 @@ bool CalcCbTxMerkleRootMNList(const CBlock& block, const CBlockIndex* pindexPrev
     LOCK(deterministicMNManager->cs);
 
     CDeterministicMNList tmpMNList;
-    if (!deterministicMNManager->BuildNewListFromBlock(block, pindexPrev, state, tmpMNList)) {
+    if (!deterministicMNManager->BuildNewListFromBlock(block, pindexPrev, nullptr, state, tmpMNList)) {
         return false;
     }
 

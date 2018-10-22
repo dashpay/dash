@@ -13,6 +13,7 @@
 #include "pubkey.h"
 
 class CBlockIndex;
+class CCoinsView;
 class UniValue;
 
 class CProRegTx
@@ -174,10 +175,10 @@ public:
 };
 
 
-bool CheckProRegTx(const CTransaction& tx, const CBlockIndex* pindexPrev, CValidationState& state);
-bool CheckProUpServTx(const CTransaction& tx, const CBlockIndex* pindexPrev, CValidationState& state);
-bool CheckProUpRegTx(const CTransaction& tx, const CBlockIndex* pindexPrev, CValidationState& state);
-bool CheckProUpRevTx(const CTransaction& tx, const CBlockIndex* pindexPrev, CValidationState& state);
+bool CheckProRegTx(const CTransaction& tx, const CBlockIndex* pindexPrev, const CCoinsView& coinsView, CValidationState& state);
+bool CheckProUpServTx(const CTransaction& tx, const CBlockIndex* pindexPrev, const CCoinsView& coinsView, CValidationState& state);
+bool CheckProUpRegTx(const CTransaction& tx, const CBlockIndex* pindexPrev, const CCoinsView& coinsView, CValidationState& state);
+bool CheckProUpRevTx(const CTransaction& tx, const CBlockIndex* pindexPrev, const CCoinsView& coinsView, CValidationState& state);
 
 bool IsProTxCollateral(const CTransaction& tx, uint32_t n);
 uint32_t GetProTxCollateralIndex(const CTransaction& tx);

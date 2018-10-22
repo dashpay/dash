@@ -385,13 +385,13 @@ private:
 public:
     CDeterministicMNManager(CEvoDB& _evoDb);
 
-    bool ProcessBlock(const CBlock& block, const CBlockIndex* pindexPrev, CValidationState& state);
+    bool ProcessBlock(const CBlock& block, const CBlockIndex* pindexPrev, const CCoinsView& coinsView, CValidationState& state);
     bool UndoBlock(const CBlock& block, const CBlockIndex* pindex);
 
     void UpdatedBlockTip(const CBlockIndex *pindex);
 
     // the returned list will not contain the correct block hash (we can't know it yet as the coinbase TX is not updated yet)
-    bool BuildNewListFromBlock(const CBlock& block, const CBlockIndex* pindexPrev, CValidationState& state, CDeterministicMNList& mnListRet);
+    bool BuildNewListFromBlock(const CBlock& block, const CBlockIndex* pindexPrev, const CCoinsView* coinsView, CValidationState& state, CDeterministicMNList& mnListRet);
 
     CDeterministicMNList GetListForBlock(const uint256& blockHash);
     CDeterministicMNList GetListAtChainTip();
