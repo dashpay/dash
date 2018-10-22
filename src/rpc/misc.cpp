@@ -286,8 +286,8 @@ UniValue deriveaddresses(const JSONRPCRequest& request)
 {
     if (request.fHelp || request.params.empty() || request.params.size() > 3) {
         throw std::runtime_error(
-            RPCHelpMan{"deriveaddresses",
-            {"\nDerives one or more addresses corresponding to an output descriptor.\n"
+            "deriveaddresses"
+            "\nDerives one or more addresses corresponding to an output descriptor.\n"
             "Examples of output descriptors are:\n"
             "    pkh(<pubkey>)                        P2PKH outputs for the given pubkey\n"
             "    wpkh(<pubkey>)                       Native segwit P2PKH outputs for the given pubkey\n"
@@ -295,19 +295,17 @@ UniValue deriveaddresses(const JSONRPCRequest& request)
             "    raw(<hex script>)                    Outputs whose scriptPubKey equals the specified hex scripts\n"
             "\nIn the above, <pubkey> either refers to a fixed public key in hexadecimal notation, or to an xpub/xprv optionally followed by one\n"
             "or more path elements separated by \"/\", where \"h\" represents a hardened child key.\n"
-            "For more information on output descriptors, see the documentation in the doc/descriptors.md file.\n"},
-            {
-                {"descriptor", RPCArg::Type::STR, /* opt */ false, /* default_val */ "", "The descriptor."},
-                {"begin", RPCArg::Type::NUM, /* opt */ true, /* default_val */ "", "If a ranged descriptor is used, this specifies the beginning of the range to import."},
-                {"end", RPCArg::Type::NUM, /* opt */ true, /* default_val */ "", "If a ranged descriptor is used, this specifies the end of the range to import."}
-            },
-            RPCResult{
-                "[ address ] (array) the derived addresses\n"
-            },
-            RPCExamples{
-                "First three native segwit receive addresses\n" +
-                HelpExampleCli("deriveaddresses", "\"wpkh([d34db33f/84h/0h/0h]xpub6DJ2dNUysrn5Vt36jH2KLBT2i1auw1tTSSomg8PhqNiUtx8QX2SvC9nrHu81fT41fvDUnhMjEzQgXnQjKEu3oaqMSzhSrHMxyyoEAmUHQbY/0/*)\" 0 2")
-            }}.ToString()
+            "For more information on output descriptors, see the documentation in the doc/descriptors.md file.\n"
+            "\nArguments:\n"
+			"1. \"descriptor\"  (string, required) The descriptor.\n"
+            "2. \"begin\"       (numeric) If a ranged descriptor is used, this specifies the beginning of the range to import.\n"
+            "3. \"end\"         (numeric) If a ranged descriptor is used, this specifies the end of the range to import.\n"
+            "\nResult:\n"
+            "[ address ] (array) the derived addresses\n"
+            "\nExamples:\n"
+			"First three native segwit receive addresses\n" +
+             HelpExampleCli("deriveaddresses", "\"wpkh([d34db33f/84h/0h/0h]xpub6DJ2dNUysrn5Vt36jH2KLBT2i1auw1tTSSomg8PhqNiUtx8QX2SvC9nrHu81fT41fvDUnhMjEzQgXnQjKEu3oaqMSzhSrHMxyyoEAmUHQbY/0/*)\" 0 2")
+
         );
     }
 
