@@ -33,6 +33,7 @@ void UnregisterAllValidationInterfaces();
 
 class CValidationInterface {
 protected:
+    ~CValidationInterface() = default;
     virtual void AcceptedBlockHeader(const CBlockIndex *pindexNew) {}
     virtual void NotifyHeaderTip(const CBlockIndex *pindexNew, bool fInitialDownload) {}
     virtual void UpdatedBlockTip(const CBlockIndex *pindexNew, const CBlockIndex *pindexFork, bool fInitialDownload) {}
