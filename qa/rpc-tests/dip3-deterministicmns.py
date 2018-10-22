@@ -312,10 +312,11 @@ class DIP3Test(BitcoinTestFramework):
         mn.blsMnkey = blsKey['secret']
         mn.collateral_address = node.getnewaddress()
 
-        mn.collateral_txid = node.protx('register', mn.collateral_address, '1000', '127.0.0.1:%d' % mn.p2p_port, mn.ownerAddr, mn.operatorAddr, mn.votingAddr, 0, mn.collateral_address)
-        rawtx = node.getrawtransaction(mn.collateral_txid, 1)
-
+        mn.protx_hash = node.protx('register', mn.collateral_address, '1000', '127.0.0.1:%d' % mn.p2p_port, mn.ownerAddr, mn.operatorAddr, mn.votingAddr, 0, mn.collateral_address)
+        mn.collateral_txid = mn.protx_hash
         mn.collateral_vout = -1
+
+        rawtx = node.getrawtransaction(mn.collateral_txid, 1)
         for txout in rawtx['vout']:
             if txout['value'] == Decimal(1000):
                 mn.collateral_vout = txout['n']
@@ -345,17 +346,17 @@ class DIP3Test(BitcoinTestFramework):
         return mn
 
     def test_protx_update_service(self, mn):
-        self.nodes[0].protx('update_service', mn.collateral_txid, '127.0.0.2:%d' % mn.p2p_port, mn.blsMnkey)
+        self.nodes[0].protx('update_service', mn.protx_hash, '127.0.0.2:%d' % mn.p2p_port, mn.blsMnkey)
         self.nodes[0].generate(1)
         self.sync_all()
         for node in self.nodes:
-            mn_info = node.masternode('info', mn.collateral_txid)
+            mn_info = node.masternode('info', mn.protx_hash)
             mn_list = node.masternode('list')
             assert_equal(mn_info['state']['addr'], '127.0.0.2:%d' % mn.p2p_port)
             assert_equal(mn_list['%s-%d' % (mn.collateral_txid, mn.collateral_vout)]['address'], '127.0.0.2:%d' % mn.p2p_port)
 
         # undo
-        self.nodes[0].protx('update_service', mn.collateral_txid, '127.0.0.1:%d' % mn.p2p_port, mn.blsMnkey)
+        self.nodes[0].protx('update_service', mn.protx_hash, '127.0.0.1:%d' % mn.p2p_port, mn.blsMnkey)
         self.nodes[0].generate(1)
 
     def force_finish_mnsync(self, node):

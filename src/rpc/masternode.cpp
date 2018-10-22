@@ -658,7 +658,8 @@ UniValue masternode_status(const JSONRPCRequest& request)
         auto dmn = activeMasternodeManager->GetDMN();
         if (dmn) {
             mnObj.push_back(Pair("proTxHash", dmn->proTxHash.ToString()));
-            mnObj.push_back(Pair("collateralIndex", (int)dmn->nCollateralIndex));
+            mnObj.push_back(Pair("collateralHash", dmn->collateralOutpoint.hash.ToString()));
+            mnObj.push_back(Pair("collateralIndex", (int)dmn->collateralOutpoint.n));
             UniValue stateObj;
             dmn->pdmnState->ToJson(stateObj);
             mnObj.push_back(Pair("dmnState", stateObj));

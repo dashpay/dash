@@ -16,6 +16,7 @@
 #include "core_io.h"
 #include "script/standard.h"
 #include "base58.h"
+#include "txmempool.h"
 
 template <typename ProTx>
 static bool CheckService(const uint256& proTxHash, const ProTx& proTx, const CBlockIndex* pindexPrev, CValidationState& state)
@@ -55,12 +56,21 @@ static bool CheckSig(const ProTx& proTx, const CBLSPublicKey& pubKey, CValidatio
     return true;
 }
 
-template <typename ProTx, typename PubKey>
-static bool CheckInputsHashAndSig(const CTransaction &tx, const ProTx& proTx, const PubKey& pubKey, CValidationState& state)
+template <typename ProTx>
+static bool CheckInputsHash(const CTransaction &tx, const ProTx& proTx, CValidationState& state)
 {
     uint256 inputsHash = CalcTxInputsHash(tx);
     if (inputsHash != proTx.inputsHash)
         return state.DoS(100, false, REJECT_INVALID, "bad-protx-inputs-hash");
+
+    return true;
+}
+
+template <typename ProTx, typename PubKey>
+static bool CheckInputsHashAndSig(const CTransaction &tx, const ProTx& proTx, const PubKey& pubKey, CValidationState& state)
+{
+    if (!CheckInputsHash(tx, proTx, state))
+        return false;
 
     if (!CheckSig(proTx, pubKey, state))
         return false;
@@ -83,10 +93,18 @@ bool CheckProRegTx(const CTransaction& tx, const CBlockIndex* pindexPrev, const 
     if (ptx.nMode != 0)
         return state.DoS(100, false, REJECT_INVALID, "bad-protx-mode");
 
-    if (ptx.nCollateralIndex >= tx.vout.size())
-        return state.DoS(10, false, REJECT_INVALID, "bad-protx-collateral-index");
-    if (tx.vout[ptx.nCollateralIndex].nValue != 1000 * COIN)
-        return state.DoS(10, false, REJECT_INVALID, "bad-protx-collateral");
+    // when collateralOutpoint refers to an external collateral, we check it further down
+    if (ptx.collateralOutpoint.hash.IsNull()) {
+        if (ptx.collateralOutpoint.n >= tx.vout.size())
+            return state.DoS(10, false, REJECT_INVALID, "bad-protx-collateral-index");
+        if (tx.vout[ptx.collateralOutpoint.n].nValue != 1000 * COIN)
+            return state.DoS(10, false, REJECT_INVALID, "bad-protx-collateral");
+
+        // This is a temporary restriction that will be lifted later
+        // It is required while we are transitioning from the old MN list to the deterministic list
+        if (tx.vout[ptx.collateralOutpoint.n].scriptPubKey != ptx.scriptPayout)
+            return state.DoS(10, false, REJECT_INVALID, "bad-protx-payee-collateral");
+    }
     if (ptx.keyIDOwner.IsNull() || !ptx.pubKeyOperator.IsValid() || ptx.keyIDVoting.IsNull())
         return state.DoS(10, false, REJECT_INVALID, "bad-protx-key-null");
     // we may support P2SH later, but restrict it for now (while in transitioning phase from old MN list to deterministic list)
@@ -103,11 +121,6 @@ bool CheckProRegTx(const CTransaction& tx, const CBlockIndex* pindexPrev, const 
         return state.DoS(10, false, REJECT_INVALID, "bad-protx-payee-reuse");
     }
 
-    // This is a temporary restriction that will be lifted later
-    // It is required while we are transitioning from the old MN list to the deterministic list
-    if (tx.vout[ptx.nCollateralIndex].scriptPubKey != ptx.scriptPayout)
-        return state.DoS(10, false, REJECT_INVALID, "bad-protx-payee-collateral");
-
     // It's allowed to set addr/protocolVersion to 0, which will put the MN into PoSe-banned state and require a ProUpServTx to be issues later
     // If any of both is set, it must be valid however
     if (ptx.addr != CService() && !CheckService(tx.GetHash(), ptx, pindexPrev, state))
@@ -116,10 +129,43 @@ bool CheckProRegTx(const CTransaction& tx, const CBlockIndex* pindexPrev, const 
     if (ptx.nOperatorReward > 10000)
         return state.DoS(10, false, REJECT_INVALID, "bad-protx-operator-reward");
 
+    CKeyID keyForPayloadSig;
+
+    if (!ptx.collateralOutpoint.hash.IsNull()) {
+        if (pindexPrev) {
+            assert(coinsView.GetBestBlock() == pindexPrev->GetBlockHash());
+        }
+        Coin coin;
+        if (!coinsView.GetCoin(ptx.collateralOutpoint, coin) || coin.IsSpent() || coin.out.nValue != 1000 * COIN) {
+            return state.DoS(10, false, REJECT_DUPLICATE, "bad-protx-collateral");
+        }
+
+        if (coin.nHeight == MEMPOOL_HEIGHT || pindexPrev->nHeight - coin.nHeight + 1 < 1) {
+            return state.DoS(10, false, REJECT_DUPLICATE, "bad-protx-collateral-height");
+        }
+
+        CTxDestination txDest;
+        if (!ExtractDestination(coin.out.scriptPubKey, txDest)) {
+            return state.DoS(10, false, REJECT_DUPLICATE, "bad-protx-collateral");
+        }
+
+        // Extract key from collateral. This only works for P2PK and P2PKH collaterals and will fail for P2SH.
+        // Issuer of this ProRegTx must prove ownership with this key by signing the ProRegTx
+        CBitcoinAddress txAddr(txDest);
+        if (!txAddr.GetKeyID(keyForPayloadSig)) {
+            return state.DoS(10, false, REJECT_DUPLICATE, "bad-protx-collateral");
+        }
+    }
+
     if (pindexPrev) {
         auto mnList = deterministicMNManager->GetListForBlock(pindexPrev->GetBlockHash());
         if (mnList.HasUniqueProperty(ptx.keyIDOwner) || mnList.HasUniqueProperty(ptx.pubKeyOperator)) {
             return state.DoS(10, false, REJECT_DUPLICATE, "bad-protx-dup-key");
+        }
+
+        // check for collaterals which are already used in other MNs
+        if (!ptx.collateralOutpoint.hash.IsNull() && mnList.HasUniqueProperty(ptx.collateralOutpoint)) {
+            return state.DoS(10, false, REJECT_DUPLICATE, "bad-protx-dup-collateral");
         }
 
         if (!deterministicMNManager->IsDeterministicMNsSporkActive(pindexPrev->nHeight)) {
@@ -129,8 +175,21 @@ bool CheckProRegTx(const CTransaction& tx, const CBlockIndex* pindexPrev, const 
         }
     }
 
-    if (!CheckInputsHashAndSig(tx, ptx, ptx.keyIDOwner, state))
-        return false;
+    if (!keyForPayloadSig.IsNull()) {
+        // collateral is not part of this ProRegTx, so we must verify ownership of the collateral
+        if (!CheckInputsHashAndSig(tx, ptx, keyForPayloadSig, state)) {
+            return false;
+        }
+    } else {
+        // collateral is part of this ProRegTx, so we know the collateral is owned by the issuer
+        if (!ptx.vchSig.empty()) {
+            return state.DoS(100, false, REJECT_INVALID, "bad-protx-sig");
+        }
+        if (!CheckInputsHash(tx, ptx, state)) {
+            return false;
+        }
+    }
+
     return true;
 }
 
@@ -149,7 +208,8 @@ bool CheckProUpServTx(const CTransaction& tx, const CBlockIndex* pindexPrev, con
         return false;
 
     if (pindexPrev) {
-        auto mn = deterministicMNManager->GetMN(pindexPrev->GetBlockHash(), ptx.proTxHash);
+        auto mnList = deterministicMNManager->GetListForBlock(pindexPrev->GetBlockHash());
+        auto mn = mnList.GetMN(ptx.proTxHash);
         if (!mn)
             return state.DoS(100, false, REJECT_INVALID, "bad-protx-hash");
 
@@ -210,7 +270,7 @@ bool CheckProUpRegTx(const CTransaction& tx, const CBlockIndex* pindexPrev, cons
         // This is a temporary restriction that will be lifted later
         // It is required while we are transitioning from the old MN list to the deterministic list
         Coin coin;
-        if (!GetUTXOCoin(COutPoint(dmn->proTxHash, dmn->nCollateralIndex), coin) || coin.IsSpent()) {
+        if (!coinsView.GetCoin(dmn->collateralOutpoint, coin) || coin.IsSpent()) {
             return state.DoS(100, false, REJECT_INVALID, "bad-protx-payee-collateral");
         }
         if (coin.out.scriptPubKey != ptx.scriptPayout)
@@ -273,8 +333,8 @@ std::string CProRegTx::ToString() const
         payee = CBitcoinAddress(dest).ToString();
     }
 
-    return strprintf("CProRegTx(nVersion=%d, nCollateralIndex=%d, addr=%s, nOperatorReward=%f, keyIDOwner=%s, pubKeyOperator=%s, keyIDVoting=%s, scriptPayout=%s)",
-        nVersion, nCollateralIndex, addr.ToString(), (double)nOperatorReward / 100, keyIDOwner.ToString(), pubKeyOperator.ToString(), keyIDVoting.ToString(), payee);
+    return strprintf("CProRegTx(nVersion=%d, collateralOutpoint=%s, addr=%s, nOperatorReward=%f, keyIDOwner=%s, pubKeyOperator=%s, keyIDVoting=%s, scriptPayout=%s)",
+        nVersion, collateralOutpoint.ToStringShort(), addr.ToString(), (double)nOperatorReward / 100, keyIDOwner.ToString(), pubKeyOperator.ToString(), keyIDVoting.ToString(), payee);
 }
 
 void CProRegTx::ToJson(UniValue& obj) const
@@ -282,7 +342,7 @@ void CProRegTx::ToJson(UniValue& obj) const
     obj.clear();
     obj.setObject();
     obj.push_back(Pair("version", nVersion));
-    obj.push_back(Pair("collateralIndex", (int)nCollateralIndex));
+    obj.push_back(Pair("collateralOutpoint", collateralOutpoint.ToString()));
     obj.push_back(Pair("service", addr.ToString(false)));
     obj.push_back(Pair("keyIDOwner", keyIDOwner.ToString()));
     obj.push_back(Pair("pubKeyOperator", pubKeyOperator.ToString()));
@@ -367,19 +427,4 @@ void CProUpRevTx::ToJson(UniValue& obj) const
     obj.push_back(Pair("proTxHash", proTxHash.ToString()));
     obj.push_back(Pair("reason", (int)nReason));
     obj.push_back(Pair("inputsHash", inputsHash.ToString()));
-}
-
-bool IsProTxCollateral(const CTransaction& tx, uint32_t n)
-{
-    return GetProTxCollateralIndex(tx) == n;
-}
-
-uint32_t GetProTxCollateralIndex(const CTransaction& tx)
-{
-    if (tx.nVersion < 3 || tx.nType != TRANSACTION_PROVIDER_REGISTER)
-        return (uint32_t) - 1;
-    CProRegTx proTx;
-    if (!GetTxPayload(tx, proTx))
-        assert(false);
-    return proTx.nCollateralIndex;
 }

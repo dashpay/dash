@@ -16,6 +16,7 @@
 #endif//ENABLE_WALLET
 
 #include "netbase.h"
+#include "txmempool.h"
 
 #include "evo/specialtx.h"
 #include "evo/providertx.h"
@@ -116,9 +117,15 @@ static void FundSpecialTx(CMutableTransaction& tx, SpecialTxPayload payload)
 }
 
 template<typename SpecialTxPayload>
-static void SignSpecialTxPayload(const CMutableTransaction& tx, SpecialTxPayload& payload, const CKey& key)
+static void UpdateSpecialTxInputsHash(const CMutableTransaction& tx, SpecialTxPayload& payload)
 {
     payload.inputsHash = CalcTxInputsHash(tx);
+}
+
+template<typename SpecialTxPayload>
+static void SignSpecialTxPayload(const CMutableTransaction& tx, SpecialTxPayload& payload, const CKey& key)
+{
+    UpdateSpecialTxInputsHash(tx, payload);
     payload.vchSig.clear();
 
     uint256 hash = ::SerializeHash(payload);
@@ -130,7 +137,7 @@ static void SignSpecialTxPayload(const CMutableTransaction& tx, SpecialTxPayload
 template<typename SpecialTxPayload>
 static void SignSpecialTxPayload(const CMutableTransaction& tx, SpecialTxPayload& payload, const CBLSSecretKey& key)
 {
-    payload.inputsHash = CalcTxInputsHash(tx);
+    UpdateSpecialTxInputsHash(tx, payload);
 
     uint256 hash = ::SerializeHash(payload);
     payload.sig = key.Sign(hash);
@@ -138,9 +145,12 @@ static void SignSpecialTxPayload(const CMutableTransaction& tx, SpecialTxPayload
 
 static std::string SignAndSendSpecialTx(const CMutableTransaction& tx)
 {
-    LOCK(cs_main);
+    LOCK2(cs_main, mempool.cs);
+
+    CCoinsViewMemPool viewMemPool(pcoinsTip, mempool);
+
     CValidationState state;
-    if (!CheckSpecialTx(tx, NULL, state))
+    if (!CheckSpecialTx(tx, chainActive.Tip(), viewMemPool, state))
         throw std::runtime_error(FormatStateMessage(state));
 
     CDataStream ds(SER_NETWORK, PROTOCOL_VERSION);
@@ -243,7 +253,7 @@ UniValue protx_register(const JSONRPCRequest& request)
     ptx.keyIDVoting = keyIDVoting;
     ptx.scriptPayout = GetScriptForDestination(payoutAddress.Get());
 
-    SignSpecialTxPayload(tx, ptx, keyOwner); // make sure sig is set, otherwise fee calculation won't be correct
+    UpdateSpecialTxInputsHash(tx, ptx);
     FundSpecialTx(tx, ptx);
 
     uint32_t collateralIndex = (uint32_t) - 1;
@@ -254,9 +264,9 @@ UniValue protx_register(const JSONRPCRequest& request)
         }
     }
     assert(collateralIndex != (uint32_t) - 1);
-    ptx.nCollateralIndex = collateralIndex;
+    ptx.collateralOutpoint.n = collateralIndex;
 
-    SignSpecialTxPayload(tx, ptx, keyOwner); // redo signing
+    UpdateSpecialTxInputsHash(tx, ptx);
     SetTxPayload(tx, ptx);
 
     return SignAndSendSpecialTx(tx);
@@ -487,7 +497,7 @@ UniValue BuildDMNListEntry(const CDeterministicMNCPtr& dmn, bool detailed)
 
     dmn->ToJson(o);
 
-    int confirmations = GetUTXOConfirmations(COutPoint(dmn->proTxHash, dmn->nCollateralIndex));
+    int confirmations = GetUTXOConfirmations(dmn->collateralOutpoint);
     o.push_back(Pair("confirmations", confirmations));
 
     bool hasOwnerKey = pwalletMain->HaveKey(dmn->pdmnState->keyIDOwner);
@@ -497,8 +507,8 @@ UniValue BuildDMNListEntry(const CDeterministicMNCPtr& dmn, bool detailed)
     bool ownsCollateral = false;
     CTransactionRef collateralTx;
     uint256 tmpHashBlock;
-    if (GetTransaction(dmn->proTxHash, collateralTx, Params().GetConsensus(), tmpHashBlock)) {
-        ownsCollateral = CheckWalletOwnsScript(collateralTx->vout[dmn->nCollateralIndex].scriptPubKey);
+    if (GetTransaction(dmn->collateralOutpoint.hash, collateralTx, Params().GetConsensus(), tmpHashBlock)) {
+        ownsCollateral = CheckWalletOwnsScript(collateralTx->vout[dmn->collateralOutpoint.n].scriptPubKey);
     }
 
     UniValue walletObj(UniValue::VOBJ);
@@ -534,13 +544,13 @@ UniValue protx_list(const JSONRPCRequest& request)
 
         std::vector<COutPoint> vOutpts;
         pwalletMain->ListProTxCoins(vOutpts);
-        std::set<uint256> setOutpts;
+        std::set<COutPoint> setOutpts;
         for (const auto& outpt : vOutpts) {
-            setOutpts.emplace(outpt.hash);
+            setOutpts.emplace(outpt);
         }
 
         deterministicMNManager->GetListAtChainTip().ForEachMN(false, [&](const CDeterministicMNCPtr& dmn) {
-            if (setOutpts.count(dmn->proTxHash) ||
+            if (setOutpts.count(dmn->collateralOutpoint) ||
                 pwalletMain->HaveKey(dmn->pdmnState->keyIDOwner) ||
                 pwalletMain->HaveKey(dmn->pdmnState->keyIDVoting) ||
                 CheckWalletOwnsScript(dmn->pdmnState->scriptPayout) ||

@@ -1119,11 +1119,10 @@ bool CWallet::AddToWallet(const CWalletTx& wtxIn, bool fFlushOnClose)
         }
         AddToSpends(hash);
 
-        uint32_t proTxCollateralIdx = GetProTxCollateralIndex(*wtx.tx);
         for(unsigned int i = 0; i < wtx.tx->vout.size(); ++i) {
             if (IsMine(wtx.tx->vout[i]) && !IsSpent(hash, i)) {
                 setWalletUTXO.insert(COutPoint(hash, i));
-                if (i == proTxCollateralIdx) {
+                if (deterministicMNManager->IsProTxWithCollateral(wtx.tx, i) || deterministicMNManager->HasMNCollateralAtChainTip(COutPoint(hash, i))) {
                     LockCoin(COutPoint(hash, i));
                 }
             }
@@ -3967,11 +3966,10 @@ DBErrors CWallet::LoadWallet(bool& fFirstRunRet)
     {
         LOCK2(cs_main, cs_wallet);
         for (auto& pair : mapWallet) {
-            uint32_t proTxCollateralIdx = GetProTxCollateralIndex(*pair.second.tx);
             for(unsigned int i = 0; i < pair.second.tx->vout.size(); ++i) {
                 if (IsMine(pair.second.tx->vout[i]) && !IsSpent(pair.first, i)) {
                     setWalletUTXO.insert(COutPoint(pair.first, i));
-                    if (i == proTxCollateralIdx) {
+                    if (deterministicMNManager->IsProTxWithCollateral(pair.second.tx, i) || deterministicMNManager->IsCollateralAtChainTip(COutPoint(pair.first, i))) {
                         LockCoin(COutPoint(pair.first, i));
                     }
                 }
@@ -4634,7 +4632,7 @@ void CWallet::ListProTxCoins(std::vector<COutPoint>& vOutpts)
     for (const auto &o : setWalletUTXO) {
         if (mapWallet.count(o.hash)) {
             const auto &p = mapWallet[o.hash];
-            if (IsProTxCollateral(*p.tx, o.n)) {
+            if (deterministicMNManager->IsProTxWithCollateral(p.tx, o.n) || deterministicMNManager->HasMNCollateralAtChainTip(o)) {
                 vOutpts.emplace_back(o);
             }
         }
