@@ -167,10 +167,10 @@ static std::string SignAndSendSpecialTx(const CMutableTransaction& tx)
     return sendrawtransaction(sendRequest).get_str();
 }
 
-void protx_register_help()
+void protx_fund_register_help()
 {
     throw std::runtime_error(
-            "protx register \"collateralAddress\" \"ipAndPort\" \"ownerKeyAddr\" \"operatorKeyAddr\" \"votingKeyAddr\" operatorReward \"payoutAddress\"\n"
+            "protx fund_register \"collateralAddress\" \"ipAndPort\" \"ownerKeyAddr\" \"operatorKeyAddr\" \"votingKeyAddr\" operatorReward \"payoutAddress\"\n"
             "\nCreates and sends a ProTx to the network. The resulting transaction will move 1000 Dash\n"
             "to the address specified by collateralAddress and will then function as the collateral of your\n"
             "masternode.\n"
@@ -195,14 +195,15 @@ void protx_register_help()
             "7. \"payoutAddress\"       (string, required) The dash address to use for masternode reward payments\n"
             "                         Must match \"collateralAddress\"."
             "\nExamples:\n"
-            + HelpExampleCli("protx", "register \"XrVhS9LogauRJGJu2sHuryjhpuex4RNPSb\" \"1.2.3.4:1234\" \"Xt9AMWaYSz7tR7Uo7gzXA3m4QmeWgrR3rr\" \"Xt9AMWaYSz7tR7Uo7gzXA3m4QmeWgrR3rr\" \"Xt9AMWaYSz7tR7Uo7gzXA3m4QmeWgrR3rr\" 0 \"XrVhS9LogauRJGJu2sHuryjhpuex4RNPSb\"")
+            + HelpExampleCli("protx", "fund_register \"XrVhS9LogauRJGJu2sHuryjhpuex4RNPSb\" \"1.2.3.4:1234\" \"Xt9AMWaYSz7tR7Uo7gzXA3m4QmeWgrR3rr\" \"Xt9AMWaYSz7tR7Uo7gzXA3m4QmeWgrR3rr\" \"Xt9AMWaYSz7tR7Uo7gzXA3m4QmeWgrR3rr\" 0 \"XrVhS9LogauRJGJu2sHuryjhpuex4RNPSb\"")
     );
 }
 
-UniValue protx_register(const JSONRPCRequest& request)
+
+UniValue protx_fund_register(const JSONRPCRequest& request)
 {
     if (request.fHelp || request.params.size() != 9)
-        protx_register_help();
+        protx_fund_register_help();
 
     CBitcoinAddress collateralAddress(request.params[1].get_str());
     if (!collateralAddress.IsValid())
@@ -675,8 +676,8 @@ UniValue protx(const JSONRPCRequest& request)
 
     std::string command = request.params[0].get_str();
 
-    if (command == "register") {
-        return protx_register(request);
+    if (command == "fund_register") {
+        return protx_fund_register(request);
     } else if (command == "list") {
         return protx_list(request);
     } else if (command == "info") {
