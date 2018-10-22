@@ -29,7 +29,7 @@ void RegisterNodeSignals(CNodeSignals& nodeSignals);
 /** Unregister a network node */
 void UnregisterNodeSignals(CNodeSignals& nodeSignals);
 
-class PeerLogicValidation : public CValidationInterface {
+class PeerLogicValidation final : public CValidationInterface {
 private:
     CConnman* connman;
 
