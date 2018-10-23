@@ -572,6 +572,30 @@ UniValue protx_list(const JSONRPCRequest& request)
     return ret;
 }
 
+void protx_info_help()
+{
+    throw std::runtime_error(
+            "protx info \"proTxHash\"\n"
+            "\nReturns detailed information about a deterministic masternode.\n"
+            "\nArguments:\n"
+            "1. \"proTxHash\"           (string, required) The hash of the initial ProRegTx.\n"
+    );
+}
+
+UniValue protx_info(const JSONRPCRequest& request)
+{
+    if (request.fHelp || request.params.size() != 2)
+        protx_info_help();
+
+    uint256 proTxHash = ParseHashV(request.params[1], "proTxHash");
+    auto mnList = deterministicMNManager->GetListAtChainTip();
+    auto dmn = mnList.GetMN(proTxHash);
+    if (!dmn) {
+        throw JSONRPCError(RPC_INVALID_PARAMETER, strprintf("%s not found", proTxHash.ToString()));
+    }
+    return BuildDMNListEntry(dmn, true);
+}
+
 void protx_diff_help()
 {
     throw std::runtime_error(
@@ -638,6 +662,7 @@ UniValue protx(const JSONRPCRequest& request)
                 "\nAvailable commands:\n"
                 "  register          - Create and send ProTx to network\n"
                 "  list              - List ProTxs\n"
+                "  info              - Return information about a ProTx\n"
                 "  update_service    - Create and send ProUpServTx to network\n"
                 "  update_registrar  - Create and send ProUpRegTx to network\n"
                 "  revoke            - Create and send ProUpRevTx to network\n"
@@ -651,6 +676,8 @@ UniValue protx(const JSONRPCRequest& request)
         return protx_register(request);
     } else if (command == "list") {
         return protx_list(request);
+    } else if (command == "info") {
+        return protx_info(request);
     } else if (command == "update_service") {
         return protx_update_service(request);
     } else if (command == "update_registrar") {
