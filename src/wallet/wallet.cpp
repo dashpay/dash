@@ -3969,9 +3969,6 @@ DBErrors CWallet::LoadWallet(bool& fFirstRunRet)
             for(unsigned int i = 0; i < pair.second.tx->vout.size(); ++i) {
                 if (IsMine(pair.second.tx->vout[i]) && !IsSpent(pair.first, i)) {
                     setWalletUTXO.insert(COutPoint(pair.first, i));
-                    if (deterministicMNManager->IsProTxWithCollateral(pair.second.tx, i) || deterministicMNManager->IsCollateralAtChainTip(COutPoint(pair.first, i))) {
-                        LockCoin(COutPoint(pair.first, i));
-                    }
                 }
             }
         }
@@ -3984,6 +3981,20 @@ DBErrors CWallet::LoadWallet(bool& fFirstRunRet)
     uiInterface.LoadWallet(this);
 
     return DB_LOAD_OK;
+}
+
+void CWallet::AutoLockMasternodeCollaterals()
+{
+    LOCK2(cs_main, cs_wallet);
+    for (auto& pair : mapWallet) {
+        for(unsigned int i = 0; i < pair.second.tx->vout.size(); ++i) {
+            if (IsMine(pair.second.tx->vout[i]) && !IsSpent(pair.first, i)) {
+                if (deterministicMNManager->IsProTxWithCollateral(pair.second.tx, i) || deterministicMNManager->HasMNCollateralAtChainTip(COutPoint(pair.first, i))) {
+                    LockCoin(COutPoint(pair.first, i));
+                }
+            }
+        }
+    }
 }
 
 DBErrors CWallet::ZapSelectTx(std::vector<uint256>& vHashIn, std::vector<uint256>& vHashOut)
