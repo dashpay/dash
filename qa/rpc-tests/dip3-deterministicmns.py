@@ -350,9 +350,9 @@ class DIP3Test(BitcoinTestFramework):
         self.nodes[0].generate(1)
         self.sync_all()
         for node in self.nodes:
-            mn_info = node.masternode('info', mn.protx_hash)
+            protx_info = node.protx('info', mn.protx_hash)
             mn_list = node.masternode('list')
-            assert_equal(mn_info['state']['addr'], '127.0.0.2:%d' % mn.p2p_port)
+            assert_equal(protx_info['state']['addr'], '127.0.0.2:%d' % mn.p2p_port)
             assert_equal(mn_list['%s-%d' % (mn.collateral_txid, mn.collateral_vout)]['address'], '127.0.0.2:%d' % mn.p2p_port)
 
         # undo
