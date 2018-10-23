@@ -1828,6 +1828,14 @@ bool AppInitMain(boost::thread_group& threadGroup, CScheduler& scheduler)
 
     // ********************************************************* Step 9: data directory maintenance
 
+    if (!fLiteMode) {
+        uiInterface.InitMessage(_("Loading sporks cache..."));
+        CFlatDB<CSporkManager> flatdb6("sporks.dat", "magicSporkCache");
+        if (!flatdb6.Load(sporkManager)) {
+            return InitError(_("Failed to load sporks cache from") + "\n" + (GetDataDir() / "sporks.dat").string());
+        }
+    }
+
     // if pruning, unset the service bit and perform the initial blockstore prune
     // after any wallet rescanning has taken place.
     if (fPruneMode) {
@@ -2034,13 +2042,6 @@ bool AppInitMain(boost::thread_group& threadGroup, CScheduler& scheduler)
             if(!flatdb5.Load(instantsend)) {
                 return InitError(_("Failed to load InstantSend data cache from") + "\n" + (pathDB / strDBName).string());
             }
-        }
-
-        strDBName = "sporks.dat";
-        uiInterface.InitMessage(_("Loading sporks cache..."));
-        CFlatDB<CSporkManager> flatdb6(strDBName, "magicSporkCache");
-        if(!flatdb6.Load(sporkManager)) {
-            return InitError(_("Failed to load sporks cache from") + "\n" + (pathDB / strDBName).string());
         }
     }
 
