@@ -86,8 +86,10 @@ std::string COutput::ToString() const
 
 int COutput::Priority() const
 {
-    for (const auto& d : CPrivateSend::GetStandardDenominations())
-        if(tx->tx->vout[i].nValue == d) return 10000;
+    for (const auto& d : CPrivateSend::GetStandardDenominations()) {
+        // large denoms have lower value
+        if(tx->tx->vout[i].nValue == d) return (float)COIN / d * 10000;
+    }
     if(tx->tx->vout[i].nValue < 1*COIN) return 20000;
 
     //nondenom return largest first
