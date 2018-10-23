@@ -44,4 +44,7 @@ static const int DIP0001_PROTOCOL_VERSION = 70208;
 //! short-id-based block download starts with this version
 static const int SHORT_IDS_BLOCKS_VERSION = 70209;
 
+//! introduction of DIP3/deterministic masternodes
+static const int DMN_PROTO_VERSION = 70211;
+
 #endif // BITCOIN_VERSION_H

@@ -391,7 +391,7 @@ void CMasternodeMan::AddDeterministicMasternodes()
             mn->blsPubKeyOperator = dmn->pdmnState->pubKeyOperator;
             mn->keyIDVoting = dmn->pdmnState->keyIDVoting;
             mn->addr = dmn->pdmnState->addr;
-            mn->nProtocolVersion = PROTOCOL_VERSION;
+            mn->nProtocolVersion = DMN_PROTO_VERSION;
 
             // If it appeared in the valid list, it is enabled no matter what
             mn->nActiveState = CMasternode::MASTERNODE_ENABLED;
