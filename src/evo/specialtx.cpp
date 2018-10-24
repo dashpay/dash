@@ -29,13 +29,13 @@ bool CheckSpecialTx(const CTransaction& tx, const CBlockIndex* pindexPrev, const
         case TRANSACTION_PROVIDER_REGISTER:
             return CheckProRegTx(tx, pindexPrev, coinsView, state);
         case TRANSACTION_PROVIDER_UPDATE_SERVICE:
-            return CheckProUpServTx(tx, pindexPrev, coinsView, state);
+            return CheckProUpServTx(tx, pindexPrev, state);
         case TRANSACTION_PROVIDER_UPDATE_REGISTRAR:
             return CheckProUpRegTx(tx, pindexPrev, coinsView, state);
         case TRANSACTION_PROVIDER_UPDATE_REVOKE:
-            return CheckProUpRevTx(tx, pindexPrev, coinsView, state);
+            return CheckProUpRevTx(tx, pindexPrev, state);
         case TRANSACTION_COINBASE:
-            return CheckCbTx(tx, pindexPrev, coinsView, state);
+            return CheckCbTx(tx, pindexPrev, state);
     }
 
     return state.DoS(10, false, REJECT_INVALID, "bad-tx-type");

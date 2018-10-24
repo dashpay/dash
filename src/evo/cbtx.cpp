@@ -10,7 +10,7 @@
 #include "validation.h"
 #include "univalue.h"
 
-bool CheckCbTx(const CTransaction& tx, const CBlockIndex* pindexPrev, const CCoinsView& coinsView, CValidationState& state)
+bool CheckCbTx(const CTransaction& tx, const CBlockIndex* pindexPrev, CValidationState& state)
 {
     AssertLockHeld(cs_main);
 
