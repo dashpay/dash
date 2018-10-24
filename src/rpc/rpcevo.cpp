@@ -209,7 +209,7 @@ void protx_register_help()
             "\nArguments:\n"
             "1. \"collateralHash\"     (string, required) The collateral transaction hash.\n"
             "2. collateralIndex      (numeric, required) The collateral transaction output index.\n"
-            "3., 4., 5. ...          See help text of \"protx register\"\n"
+            "3., 4., 5. ...          See help text of \"protx fund_register\"\n"
             "\nExamples:\n"
             + HelpExampleCli("protx", "register \"0123456701234567012345670123456701234567012345670123456701234567\" 0 \"1.2.3.4:1234\" \"Xt9AMWaYSz7tR7Uo7gzXA3m4QmeWgrR3rr\" \"Xt9AMWaYSz7tR7Uo7gzXA3m4QmeWgrR3rr\" \"Xt9AMWaYSz7tR7Uo7gzXA3m4QmeWgrR3rr\" 0 \"XrVhS9LogauRJGJu2sHuryjhpuex4RNPSb\"")
     );
@@ -281,7 +281,7 @@ UniValue protx_register(const JSONRPCRequest& request)
 
     CBitcoinAddress payoutAddress(request.params[paramIdx + 5].get_str());
     if (!payoutAddress.IsValid())
-        throw JSONRPCError(RPC_INVALID_ADDRESS_OR_KEY, strprintf("invalid payout address: %s", request.params[paramIdx + 6].get_str()));
+        throw JSONRPCError(RPC_INVALID_ADDRESS_OR_KEY, strprintf("invalid payout address: %s", request.params[paramIdx + 5].get_str()));
 
     ptx.keyIDOwner = keyOwner.GetPubKey().GetID();
     ptx.pubKeyOperator = pubKeyOperator;

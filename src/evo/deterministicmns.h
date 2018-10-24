@@ -394,7 +394,7 @@ public:
     bool HasMNCollateralAtChainTip(const COutPoint& outpoint);
 
     // Test if given TX is a ProRegTx which also contains the collateral at index n
-    bool IsProTxWithCollateral(const CTransactionRef& tx, int n);
+    bool IsProTxWithCollateral(const CTransactionRef& tx, uint32_t n);
 
     bool IsDeterministicMNsSporkActive(int nHeight = -1);
 

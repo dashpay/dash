@@ -137,23 +137,23 @@ bool CheckProRegTx(const CTransaction& tx, const CBlockIndex* pindexPrev, const 
         }
         Coin coin;
         if (!coinsView.GetCoin(ptx.collateralOutpoint, coin) || coin.IsSpent() || coin.out.nValue != 1000 * COIN) {
-            return state.DoS(10, false, REJECT_DUPLICATE, "bad-protx-collateral");
+            return state.DoS(10, false, REJECT_INVALID, "bad-protx-collateral");
         }
 
         if (coin.nHeight == MEMPOOL_HEIGHT || pindexPrev->nHeight - coin.nHeight + 1 < 1) {
-            return state.DoS(10, false, REJECT_DUPLICATE, "bad-protx-collateral-height");
+            return state.DoS(10, false, REJECT_INVALID, "bad-protx-collateral-height");
         }
 
         CTxDestination txDest;
         if (!ExtractDestination(coin.out.scriptPubKey, txDest)) {
-            return state.DoS(10, false, REJECT_DUPLICATE, "bad-protx-collateral");
+            return state.DoS(10, false, REJECT_INVALID, "bad-protx-collateral-dest");
         }
 
         // Extract key from collateral. This only works for P2PK and P2PKH collaterals and will fail for P2SH.
         // Issuer of this ProRegTx must prove ownership with this key by signing the ProRegTx
         CBitcoinAddress txAddr(txDest);
         if (!txAddr.GetKeyID(keyForPayloadSig)) {
-            return state.DoS(10, false, REJECT_DUPLICATE, "bad-protx-collateral");
+            return state.DoS(10, false, REJECT_INVALID, "bad-protx-collateral-pkh");
         }
     }
 
@@ -342,7 +342,8 @@ void CProRegTx::ToJson(UniValue& obj) const
     obj.clear();
     obj.setObject();
     obj.push_back(Pair("version", nVersion));
-    obj.push_back(Pair("collateralOutpoint", collateralOutpoint.ToString()));
+    obj.push_back(Pair("collateralHash", collateralOutpoint.hash.ToString()));
+    obj.push_back(Pair("collateralIndex", (int)collateralOutpoint.n));
     obj.push_back(Pair("service", addr.ToString(false)));
     obj.push_back(Pair("keyIDOwner", keyIDOwner.ToString()));
     obj.push_back(Pair("pubKeyOperator", pubKeyOperator.ToString()));

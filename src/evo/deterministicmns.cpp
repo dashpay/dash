@@ -415,7 +415,7 @@ bool CDeterministicMNManager::BuildNewListFromBlock(const CBlock& block, const C
                     return _state.DoS(100, false, REJECT_INVALID, "bad-protx-collateral");
                 }
                 if (!proTx.collateralOutpoint.hash.IsNull() && (coin.nHeight == MEMPOOL_HEIGHT || pindexPrev->nHeight - coin.nHeight + 1 < 1)) {
-                    return _state.DoS(100, false, REJECT_DUPLICATE, "bad-protx-collateral-height");
+                    return _state.DoS(100, false, REJECT_INVALID, "bad-protx-collateral-height");
                 }
             }
 
@@ -600,7 +600,7 @@ int64_t CDeterministicMNManager::GetSpork15Value()
     return sporkManager.GetSporkValue(SPORK_15_DETERMINISTIC_MNS_ENABLED);
 }
 
-bool CDeterministicMNManager::IsProTxWithCollateral(const CTransactionRef& tx, int n)
+bool CDeterministicMNManager::IsProTxWithCollateral(const CTransactionRef& tx, uint32_t n)
 {
     if (tx->nVersion < 3 || tx->nType != TRANSACTION_PROVIDER_REGISTER) {
         return false;

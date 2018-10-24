@@ -810,8 +810,10 @@ void ThreadImport(std::vector<boost::filesystem::path> vImportFiles)
     if (activeMasternodeManager && fDIP0003ActiveAtTip)
         activeMasternodeManager->Init();
 
+#ifdef ENABLE_WALLET
     // we can't do this before DIP3 is fully initialized
     pwalletMain->AutoLockMasternodeCollaterals();
+#endif
 
     LoadMempool();
     fDumpMempoolLater = !fRequestShutdown;
