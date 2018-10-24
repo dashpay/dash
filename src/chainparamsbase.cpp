@@ -9,7 +9,6 @@
 #include "util.h"
 
 #include <assert.h>
-#include <string.h>
 
 const std::string CBaseChainParams::MAIN = "main";
 const std::string CBaseChainParams::TESTNET = "test";
