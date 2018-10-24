@@ -436,6 +436,10 @@ static void* secure_allocate(size_t n)
 
 static void secure_free(void* p)
 {
+    if (!p) {
+        return;
+    }
+
     uint8_t* ptr = (uint8_t*)p - sizeof(size_t);
     size_t n = *(size_t*)ptr;
     return g_blsSecureAllocator.deallocate(ptr, n);

@@ -42,10 +42,12 @@ struct pooled_secure_allocator : public std::allocator<T> {
 
     void deallocate(T* p, std::size_t n)
     {
-        size_t chunks = (n * sizeof(T) + pool.get_requested_size() - 1) / pool.get_requested_size();
-        if (p != NULL) {
-            memory_cleanse(p, chunks * pool.get_requested_size());
+        if (!p) {
+            return;
         }
+
+        size_t chunks = (n * sizeof(T) + pool.get_requested_size() - 1) / pool.get_requested_size();
+        memory_cleanse(p, chunks * pool.get_requested_size());
         pool.ordered_free(p, chunks);
     }
 
