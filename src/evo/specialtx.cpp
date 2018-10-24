@@ -14,7 +14,7 @@
 #include "deterministicmns.h"
 #include "cbtx.h"
 
-bool CheckSpecialTx(const CTransaction& tx, const CBlockIndex* pindexPrev, const CCoinsView& coinsView, CValidationState& state)
+bool CheckSpecialTx(const CTransaction& tx, const CBlockIndex* pindexPrev, CValidationState& state)
 {
     AssertLockHeld(cs_main);
 
@@ -27,11 +27,11 @@ bool CheckSpecialTx(const CTransaction& tx, const CBlockIndex* pindexPrev, const
 
     switch (tx.nType) {
         case TRANSACTION_PROVIDER_REGISTER:
-            return CheckProRegTx(tx, pindexPrev, coinsView, state);
+            return CheckProRegTx(tx, pindexPrev, state);
         case TRANSACTION_PROVIDER_UPDATE_SERVICE:
             return CheckProUpServTx(tx, pindexPrev, state);
         case TRANSACTION_PROVIDER_UPDATE_REGISTRAR:
-            return CheckProUpRegTx(tx, pindexPrev, coinsView, state);
+            return CheckProUpRegTx(tx, pindexPrev, state);
         case TRANSACTION_PROVIDER_UPDATE_REVOKE:
             return CheckProUpRevTx(tx, pindexPrev, state);
         case TRANSACTION_COINBASE:
@@ -77,17 +77,17 @@ bool UndoSpecialTx(const CTransaction& tx, const CBlockIndex* pindex)
     return false;
 }
 
-bool ProcessSpecialTxsInBlock(const CBlock& block, const CBlockIndex* pindex, const CCoinsView& coinsView, CValidationState& state)
+bool ProcessSpecialTxsInBlock(const CBlock& block, const CBlockIndex* pindex, CValidationState& state)
 {
     for (int i = 0; i < (int)block.vtx.size(); i++) {
         const CTransaction& tx = *block.vtx[i];
-        if (!CheckSpecialTx(tx, pindex->pprev, coinsView, state))
+        if (!CheckSpecialTx(tx, pindex->pprev, state))
             return false;
         if (!ProcessSpecialTx(tx, pindex, state))
             return false;
     }
 
-    if (!deterministicMNManager->ProcessBlock(block, pindex->pprev, coinsView, state))
+    if (!deterministicMNManager->ProcessBlock(block, pindex->pprev, state))
         return false;
 
     if (!CheckCbTxMerkleRootMNList(block, pindex, state))

@@ -10,7 +10,6 @@
 
 class CBlock;
 class CBlockIndex;
-class CCoinsView;
 class UniValue;
 
 // coinbase transaction

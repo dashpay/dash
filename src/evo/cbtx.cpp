@@ -63,7 +63,7 @@ bool CalcCbTxMerkleRootMNList(const CBlock& block, const CBlockIndex* pindexPrev
     LOCK(deterministicMNManager->cs);
 
     CDeterministicMNList tmpMNList;
-    if (!deterministicMNManager->BuildNewListFromBlock(block, pindexPrev, nullptr, state, tmpMNList)) {
+    if (!deterministicMNManager->BuildNewListFromBlock(block, pindexPrev, state, tmpMNList)) {
         return false;
     }
 
