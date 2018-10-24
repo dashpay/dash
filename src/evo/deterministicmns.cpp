@@ -407,16 +407,11 @@ bool CDeterministicMNManager::BuildNewListFromBlock(const CBlock& block, const C
                 dmn->collateralOutpoint = proTx.collateralOutpoint;
             }
 
-            if (coinsView) {
-                Coin coin;
-                if (!coinsView->GetCoin(dmn->collateralOutpoint, coin) || coin.IsSpent() || coin.out.nValue != 1000 * COIN) {
-                    // should actually never get to this point as CheckProRegTx should have handled this case.
-                    // We do this additional check nevertheless to be 100% sure
-                    return _state.DoS(100, false, REJECT_INVALID, "bad-protx-collateral");
-                }
-                if (!proTx.collateralOutpoint.hash.IsNull() && (coin.nHeight == MEMPOOL_HEIGHT || pindexPrev->nHeight - coin.nHeight + 1 < 1)) {
-                    return _state.DoS(100, false, REJECT_INVALID, "bad-protx-collateral-height");
-                }
+            Coin coin;
+            if (!proTx.collateralOutpoint.hash.IsNull() && (!GetUTXOCoin(dmn->collateralOutpoint, coin) || coin.out.nValue != 1000 * COIN)) {
+                // should actually never get to this point as CheckProRegTx should have handled this case.
+                // We do this additional check nevertheless to be 100% sure
+                return _state.DoS(100, false, REJECT_INVALID, "bad-protx-collateral");
             }
 
             dmn->nOperatorReward = proTx.nOperatorReward;

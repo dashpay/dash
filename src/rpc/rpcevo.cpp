@@ -147,10 +147,8 @@ static std::string SignAndSendSpecialTx(const CMutableTransaction& tx)
 {
     LOCK2(cs_main, mempool.cs);
 
-    CCoinsViewMemPool viewMemPool(pcoinsTip, mempool);
-
     CValidationState state;
-    if (!CheckSpecialTx(tx, chainActive.Tip(), viewMemPool, state))
+    if (!CheckSpecialTx(tx, chainActive.Tip(), state))
         throw std::runtime_error(FormatStateMessage(state));
 
     CDataStream ds(SER_NETWORK, PROTOCOL_VERSION);

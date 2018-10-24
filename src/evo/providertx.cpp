@@ -132,16 +132,9 @@ bool CheckProRegTx(const CTransaction& tx, const CBlockIndex* pindexPrev, CValid
     CKeyID keyForPayloadSig;
 
     if (!ptx.collateralOutpoint.hash.IsNull()) {
-        if (pindexPrev) {
-            assert(coinsView.GetBestBlock() == pindexPrev->GetBlockHash());
-        }
         Coin coin;
-        if (!coinsView.GetCoin(ptx.collateralOutpoint, coin) || coin.IsSpent() || coin.out.nValue != 1000 * COIN) {
+        if (!GetUTXOCoin(ptx.collateralOutpoint, coin) || coin.out.nValue != 1000 * COIN) {
             return state.DoS(10, false, REJECT_INVALID, "bad-protx-collateral");
-        }
-
-        if (coin.nHeight == MEMPOOL_HEIGHT || pindexPrev->nHeight - coin.nHeight + 1 < 1) {
-            return state.DoS(10, false, REJECT_INVALID, "bad-protx-collateral-height");
         }
 
         CTxDestination txDest;
@@ -270,7 +263,7 @@ bool CheckProUpRegTx(const CTransaction& tx, const CBlockIndex* pindexPrev, CVal
         // This is a temporary restriction that will be lifted later
         // It is required while we are transitioning from the old MN list to the deterministic list
         Coin coin;
-        if (!coinsView.GetCoin(dmn->collateralOutpoint, coin) || coin.IsSpent()) {
+        if (!GetUTXOCoin(dmn->collateralOutpoint, coin)) {
             return state.DoS(100, false, REJECT_INVALID, "bad-protx-payee-collateral");
         }
         if (coin.out.scriptPubKey != ptx.scriptPayout)
