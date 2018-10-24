@@ -2744,6 +2744,7 @@ bool CWallet::SelectCoinsMinConf(const CAmount& nTargetValue, const int nConfMin
         nMinChange = 0;
     } else {
         // move denoms down on the list
+        // try not to use denominated coins when not needed, save denoms for privatesend
         std::sort(vCoins.begin(), vCoins.end(), less_then_denom);
     }
 
