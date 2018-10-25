@@ -12,7 +12,6 @@
 #include "base58.h"
 #include "core_io.h"
 #include "spork.h"
-#include "txmempool.h"
 
 #include <univalue.h>
 

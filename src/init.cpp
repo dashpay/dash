@@ -812,7 +812,9 @@ void ThreadImport(std::vector<boost::filesystem::path> vImportFiles)
 
 #ifdef ENABLE_WALLET
     // we can't do this before DIP3 is fully initialized
-    pwalletMain->AutoLockMasternodeCollaterals();
+    if (pwalletMain) {
+        pwalletMain->AutoLockMasternodeCollaterals();
+    }
 #endif
 
     LoadMempool();

@@ -16,7 +16,6 @@
 #endif//ENABLE_WALLET
 
 #include "netbase.h"
-#include "txmempool.h"
 
 #include "evo/specialtx.h"
 #include "evo/providertx.h"
@@ -145,7 +144,7 @@ static void SignSpecialTxPayload(const CMutableTransaction& tx, SpecialTxPayload
 
 static std::string SignAndSendSpecialTx(const CMutableTransaction& tx)
 {
-    LOCK2(cs_main, mempool.cs);
+    LOCK(cs_main);
 
     CValidationState state;
     if (!CheckSpecialTx(tx, chainActive.Tip(), state))
@@ -188,7 +187,7 @@ void protx_fund_register_help()
             "5. \"votingKeyAddr\"       (string, required) The voting key address. The private key does not have to be known by your wallet.\n"
             "                         It has to match the private key which is later used when voting on proposals.\n"
             "                         If set to \"0\" or an empty string, ownerAddr will be used.\n"
-            "6. \"operatorReward\"      (numeric, required) The fraction in %% to share with the operator. If non-zero,\n"
+            "6. \"operatorReward\"      (numeric, required) The fraction in % to share with the operator. If non-zero,\n"
             "                         \"ipAndPort\" must be zero as well. The value must be between 0 and 100.\n"
             "7. \"payoutAddress\"       (string, required) The dash address to use for masternode reward payments\n"
             "                         Must match \"collateralAddress\"."

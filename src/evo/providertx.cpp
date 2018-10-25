@@ -16,7 +16,6 @@
 #include "core_io.h"
 #include "script/standard.h"
 #include "base58.h"
-#include "txmempool.h"
 
 template <typename ProTx>
 static bool CheckService(const uint256& proTxHash, const ProTx& proTx, const CBlockIndex* pindexPrev, CValidationState& state)

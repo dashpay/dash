@@ -3988,8 +3988,8 @@ DBErrors CWallet::LoadWallet(bool& fFirstRunRet)
 void CWallet::AutoLockMasternodeCollaterals()
 {
     LOCK2(cs_main, cs_wallet);
-    for (auto& pair : mapWallet) {
-        for(unsigned int i = 0; i < pair.second.tx->vout.size(); ++i) {
+    for (const auto& pair : mapWallet) {
+        for (unsigned int i = 0; i < pair.second.tx->vout.size(); ++i) {
             if (IsMine(pair.second.tx->vout[i]) && !IsSpent(pair.first, i)) {
                 if (deterministicMNManager->IsProTxWithCollateral(pair.second.tx, i) || deterministicMNManager->HasMNCollateralAtChainTip(COutPoint(pair.first, i))) {
                     LockCoin(COutPoint(pair.first, i));
