@@ -1754,6 +1754,10 @@ static DisconnectResult DisconnectBlock(const CBlock& block, CValidationState& s
         }
     }
 
+    // make sure the flag is reset in case of a chain reorg
+    instantsend.isAutoLockBip9Active =
+            (VersionBitsState(pindex->pprev, Params().GetConsensus(), Consensus::DEPLOYMENT_ISAUTOLOCKS, versionbitscache) == THRESHOLD_ACTIVE);
+
     return fClean ? DISCONNECT_OK : DISCONNECT_UNCLEAN;
 }
 
