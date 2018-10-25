@@ -45,8 +45,9 @@ static CKey ParsePrivKey(const std::string &strKeyOrAddress, bool allowAddresses
     }
 
     CBitcoinSecret secret;
-    if (!secret.SetString(strKeyOrAddress) || !secret.IsValid())
+    if (!secret.SetString(strKeyOrAddress) || !secret.IsValid()) {
         throw std::runtime_error(strprintf("invalid priv-key/address %s", strKeyOrAddress));
+    }
     return secret.GetKey();
 }
 
@@ -54,8 +55,9 @@ static CKeyID ParsePubKeyIDFromAddress(const std::string& strAddress, const std:
 {
     CBitcoinAddress address(strAddress);
     CKeyID keyID;
-    if (!address.IsValid() || !address.GetKeyID(keyID))
+    if (!address.IsValid() || !address.GetKeyID(keyID)) {
         throw JSONRPCError(RPC_INVALID_PARAMETER, strprintf("%s must be a valid P2PKH address, not %s", paramName, strAddress));
+    }
     return keyID;
 }
 
@@ -103,8 +105,9 @@ static void FundSpecialTx(CMutableTransaction& tx, SpecialTxPayload payload)
     int nChangePos = -1;
     std::string strFailReason;
     std::set<int> setSubtractFeeFromOutputs;
-    if (!pwalletMain->FundTransaction(tx, nFee, false, feeRate, nChangePos, strFailReason, false, false, setSubtractFeeFromOutputs, true, CNoDestination()))
+    if (!pwalletMain->FundTransaction(tx, nFee, false, feeRate, nChangePos, strFailReason, false, false, setSubtractFeeFromOutputs, true, CNoDestination())) {
         throw JSONRPCError(RPC_INTERNAL_ERROR, strFailReason);
+    }
 
     if (dummyTxOutAdded && tx.vout.size() > 1) {
         // FundTransaction added a change output, so we don't need the dummy txout anymore
@@ -147,8 +150,9 @@ static std::string SignAndSendSpecialTx(const CMutableTransaction& tx)
     LOCK(cs_main);
 
     CValidationState state;
-    if (!CheckSpecialTx(tx, chainActive.Tip(), state))
+    if (!CheckSpecialTx(tx, chainActive.Tip(), state)) {
         throw std::runtime_error(FormatStateMessage(state));
+    }
 
     CDataStream ds(SER_NETWORK, PROTOCOL_VERSION);
     ds << tx;
@@ -236,8 +240,9 @@ UniValue protx_register(const JSONRPCRequest& request)
 
     if (isFundRegister) {
         CBitcoinAddress collateralAddress(request.params[paramIdx].get_str());
-        if (!collateralAddress.IsValid())
+        if (!collateralAddress.IsValid()) {
             throw JSONRPCError(RPC_INVALID_ADDRESS_OR_KEY, strprintf("invalid collaterall address: %s", request.params[paramIdx].get_str()));
+        }
         CScript collateralScript = GetScriptForDestination(collateralAddress.Get());
 
         CTxOut collateralTxOut(collateralAmount, collateralScript);
@@ -260,8 +265,9 @@ UniValue protx_register(const JSONRPCRequest& request)
     }
 
     if (request.params[paramIdx].get_str() != "0" && request.params[paramIdx].get_str() != "") {
-        if (!Lookup(request.params[paramIdx].get_str().c_str(), ptx.addr, Params().GetDefaultPort(), false))
+        if (!Lookup(request.params[paramIdx].get_str().c_str(), ptx.addr, Params().GetDefaultPort(), false)) {
             throw std::runtime_error(strprintf("invalid network address %s", request.params[paramIdx].get_str()));
+        }
     }
 
     CKey keyOwner = ParsePrivKey(request.params[paramIdx + 1].get_str(), true);
@@ -272,13 +278,15 @@ UniValue protx_register(const JSONRPCRequest& request)
     }
 
     double operatorReward = ParseDoubleV(request.params[paramIdx + 4], "operatorReward");
-    if (operatorReward < 0 || operatorReward > 100)
+    if (operatorReward < 0 || operatorReward > 100) {
         throw JSONRPCError(RPC_INVALID_PARAMETER, "operatorReward must be between 0 and 100");
+    }
     ptx.nOperatorReward = (uint16_t)(operatorReward * 100);
 
     CBitcoinAddress payoutAddress(request.params[paramIdx + 5].get_str());
-    if (!payoutAddress.IsValid())
+    if (!payoutAddress.IsValid()) {
         throw JSONRPCError(RPC_INVALID_ADDRESS_OR_KEY, strprintf("invalid payout address: %s", request.params[paramIdx + 5].get_str()));
+    }
 
     ptx.keyIDOwner = keyOwner.GetPubKey().GetID();
     ptx.pubKeyOperator = pubKeyOperator;
@@ -367,8 +375,9 @@ UniValue protx_update_service(const JSONRPCRequest& request)
 
     if (request.params.size() > 4) {
         CBitcoinAddress payoutAddress(request.params[4].get_str());
-        if (!payoutAddress.IsValid())
+        if (!payoutAddress.IsValid()) {
             throw JSONRPCError(RPC_INVALID_ADDRESS_OR_KEY, strprintf("invalid operator payout address: %s", request.params[4].get_str()));
+        }
         ptx.scriptOperatorPayout = GetScriptForDestination(payoutAddress.Get());
     }
 
@@ -417,8 +426,9 @@ void protx_update_registrar_help()
 
 UniValue protx_update_registrar(const JSONRPCRequest& request)
 {
-    if (request.fHelp || request.params.size() != 5)
+    if (request.fHelp || request.params.size() != 5) {
         protx_update_registrar_help();
+    }
 
     CProUpRegTx ptx;
     ptx.nVersion = CProRegTx::CURRENT_VERSION;
@@ -440,8 +450,9 @@ UniValue protx_update_registrar(const JSONRPCRequest& request)
     }
 
     CBitcoinAddress payoutAddress(request.params[4].get_str());
-    if (!payoutAddress.IsValid())
+    if (!payoutAddress.IsValid()) {
         throw JSONRPCError(RPC_INVALID_ADDRESS_OR_KEY, strprintf("invalid payout address: %s", request.params[4].get_str()));
+    }
     ptx.scriptPayout = GetScriptForDestination(payoutAddress.Get());
 
     CKey keyOwner;
@@ -481,8 +492,9 @@ void protx_revoke_help()
 
 UniValue protx_revoke(const JSONRPCRequest& request)
 {
-    if (request.fHelp || (request.params.size() != 2 && request.params.size() != 3))
+    if (request.fHelp || (request.params.size() != 2 && request.params.size() != 3)) {
         protx_revoke_help();
+    }
 
     CProUpRevTx ptx;
     ptx.nVersion = CProRegTx::CURRENT_VERSION;
@@ -492,8 +504,9 @@ UniValue protx_revoke(const JSONRPCRequest& request)
 
     if (request.params.size() > 3) {
         int32_t nReason = ParseInt32V(request.params[3], "reason");
-        if (nReason < 0 || nReason >= CProUpRevTx::REASON_LAST)
+        if (nReason < 0 || nReason >= CProUpRevTx::REASON_LAST) {
             throw JSONRPCError(RPC_INVALID_PARAMETER, strprintf("invalid reason %d, must be between 0 and %d", nReason, CProUpRevTx::REASON_LAST));
+        }
         ptx.nReason = (uint16_t)nReason;
     }
 
@@ -548,8 +561,9 @@ static bool CheckWalletOwnsScript(const CScript& script) {
 
 UniValue BuildDMNListEntry(const CDeterministicMNCPtr& dmn, bool detailed)
 {
-    if (!detailed)
+    if (!detailed) {
         return dmn->proTxHash.ToString();
+    }
 
     UniValue o(UniValue::VOBJ);
 
@@ -583,20 +597,23 @@ UniValue BuildDMNListEntry(const CDeterministicMNCPtr& dmn, bool detailed)
 
 UniValue protx_list(const JSONRPCRequest& request)
 {
-    if (request.fHelp)
+    if (request.fHelp) {
         protx_list_help();
+    }
 
     std::string type = "wallet";
-    if (request.params.size() > 1)
+    if (request.params.size() > 1) {
         type = request.params[1].get_str();
+    }
 
     UniValue ret(UniValue::VARR);
 
     LOCK2(cs_main, pwalletMain->cs_wallet);
 
     if (type == "wallet") {
-        if (request.params.size() > 3)
+        if (request.params.size() > 3) {
             protx_list_help();
+        }
 
         bool detailed = request.params.size() > 2 ? ParseBoolV(request.params[2], "detailed") : false;
 
@@ -617,14 +634,16 @@ UniValue protx_list(const JSONRPCRequest& request)
             }
         });
     } else if (type == "valid" || type == "registered") {
-        if (request.params.size() > 4)
+        if (request.params.size() > 4) {
             protx_list_help();
+        }
 
         LOCK(cs_main);
 
         int height = request.params.size() > 2 ? ParseInt32V(request.params[2], "height") : chainActive.Height();
-        if (height < 1 || height > chainActive.Height())
+        if (height < 1 || height > chainActive.Height()) {
             throw JSONRPCError(RPC_INVALID_PARAMETER, "invalid height specified");
+        }
 
         bool detailed = request.params.size() > 3 ? ParseBoolV(request.params[3], "detailed") : false;
 
@@ -652,8 +671,9 @@ void protx_info_help()
 
 UniValue protx_info(const JSONRPCRequest& request)
 {
-    if (request.fHelp || request.params.size() != 2)
+    if (request.fHelp || request.params.size() != 2) {
         protx_info_help();
+    }
 
     uint256 proTxHash = ParseHashV(request.params[1], "proTxHash");
     auto mnList = deterministicMNManager->GetListAtChainTip();
@@ -699,8 +719,9 @@ static uint256 ParseBlock(const UniValue& v, std::string strName)
 
 UniValue protx_diff(const JSONRPCRequest& request)
 {
-    if (request.fHelp || request.params.size() != 3)
+    if (request.fHelp || request.params.size() != 3) {
         protx_diff_help();
+    }
 
     LOCK(cs_main);
     uint256 baseBlockHash = ParseBlock(request.params[1], "baseBlock");
@@ -800,6 +821,7 @@ static const CRPCCommand commands[] =
 
 void RegisterEvoRPCCommands(CRPCTable &tableRPC)
 {
-    for (unsigned int vcidx = 0; vcidx < ARRAYLEN(commands); vcidx++)
+    for (unsigned int vcidx = 0; vcidx < ARRAYLEN(commands); vcidx++) {
         tableRPC.appendCommand(commands[vcidx].name, &commands[vcidx]);
+    }
 }
