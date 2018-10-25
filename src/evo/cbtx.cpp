@@ -27,10 +27,8 @@ bool CheckCbTx(const CTransaction& tx, const CBlockIndex* pindexPrev, CValidatio
         return state.DoS(100, false, REJECT_INVALID, "bad-cbtx-version");
     }
 
-    if (pindexPrev) {
-        if (pindexPrev->nHeight + 1 != cbTx.nHeight) {
-            return state.DoS(100, false, REJECT_INVALID, "bad-cbtx-height");
-        }
+    if (pindexPrev && pindexPrev->nHeight + 1 != cbTx.nHeight) {
+        return state.DoS(100, false, REJECT_INVALID, "bad-cbtx-height");
     }
 
     return true;

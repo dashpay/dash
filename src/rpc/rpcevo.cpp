@@ -404,7 +404,7 @@ UniValue protx_update_service(const JSONRPCRequest& request)
 void protx_update_registrar_help()
 {
     throw std::runtime_error(
-            "protx update_registrar \"proTxHash\" \"operatorKeyAddr\" \"votingKeyAddr\" operatorReward \"payoutAddress\"\n"
+            "protx update_registrar \"proTxHash\" \"operatorKeyAddr\" \"votingKeyAddr\" \"payoutAddress\"\n"
             "\nCreates and sends a ProUpRegTx to the network. This will update the operator key, voting key and payout\n"
             "address of the masternode specified by \"proTxHash\".\n"
             "The owner key of the masternode must be known to your wallet.\n"
@@ -416,11 +416,11 @@ void protx_update_registrar_help()
             "3. \"votingKeyAddr\"       (string, required) The voting key address. The private key does not have to be known by your wallet.\n"
             "                         It has to match the private key which is later used when voting on proposals.\n"
             "                         If set to \"0\" or an empty string, the last on-chain voting key of the masternode will be used.\n"
-            "5. \"payoutAddress\"       (string, required) The dash address to use for masternode reward payments\n"
+            "4. \"payoutAddress\"       (string, required) The dash address to use for masternode reward payments\n"
             "                         Must match \"collateralAddress\" of initial ProRegTx.\n"
             "                         If set to \"0\" or an empty string, the last on-chain payout address of the masternode will be used.\n"
             "\nExamples:\n"
-            + HelpExampleCli("protx", "update_registrar \"0123456701234567012345670123456701234567012345670123456701234567\" \"982eb34b7c7f614f29e5c665bc3605f1beeef85e3395ca12d3be49d2868ecfea5566f11cedfad30c51b2403f2ad95b67\" \"0\" \"XwnLY9Tf7Zsef8gMGL2fhWA9ZmMjt4KPwG\"")
+            + HelpExampleCli("protx", "update_registrar \"0123456701234567012345670123456701234567012345670123456701234567\" \"982eb34b7c7f614f29e5c665bc3605f1beeef85e3395ca12d3be49d2868ecfea5566f11cedfad30c51b2403f2ad95b67\" \"XwnLY9Tf7Zsef8gMGL2fhWA9ZmMjt4KPwG\"")
     );
 }
 
