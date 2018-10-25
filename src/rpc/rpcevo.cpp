@@ -187,7 +187,6 @@ void protx_fund_register_help()
             "                         be unused and must differ from the collateralAddress\n"
             "4. \"operatorPubKey\"      (string, required) The operator public key. The private key does not have to be known.\n"
             "                         It has to match the private key which is later used when operating the masternode.\n"
-            "                         If set to \"0\" or an empty string, ownerAddr will be used.\n"
             "5. \"votingKeyAddr\"       (string, required) The voting key address. The private key does not have to be known by your wallet.\n"
             "                         It has to match the private key which is later used when voting on proposals.\n"
             "                         If set to \"0\" or an empty string, ownerAddr will be used.\n"
