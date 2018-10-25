@@ -185,7 +185,7 @@ void protx_fund_register_help()
             "3. \"ownerKeyAddr\"        (string, required) The owner key used for payee updates and proposal voting.\n"
             "                         The private key belonging to this address be known in your wallet. The address must\n"
             "                         be unused and must differ from the collateralAddress\n"
-            "4. \"operatorKeyAddr\"     (string, required) The operator key address. The private key does not have to be known by your wallet.\n"
+            "4. \"operatorPubKey\"      (string, required) The operator public key. The private key does not have to be known.\n"
             "                         It has to match the private key which is later used when operating the masternode.\n"
             "                         If set to \"0\" or an empty string, ownerAddr will be used.\n"
             "5. \"votingKeyAddr\"       (string, required) The voting key address. The private key does not have to be known by your wallet.\n"
@@ -196,7 +196,7 @@ void protx_fund_register_help()
             "7. \"payoutAddress\"       (string, required) The dash address to use for masternode reward payments\n"
             "                         Must match \"collateralAddress\"."
             "\nExamples:\n"
-            + HelpExampleCli("protx", "fund_register \"XrVhS9LogauRJGJu2sHuryjhpuex4RNPSb\" \"1.2.3.4:1234\" \"Xt9AMWaYSz7tR7Uo7gzXA3m4QmeWgrR3rr\" \"Xt9AMWaYSz7tR7Uo7gzXA3m4QmeWgrR3rr\" \"Xt9AMWaYSz7tR7Uo7gzXA3m4QmeWgrR3rr\" 0 \"XrVhS9LogauRJGJu2sHuryjhpuex4RNPSb\"")
+            + HelpExampleCli("protx", "fund_register \"XrVhS9LogauRJGJu2sHuryjhpuex4RNPSb\" \"1.2.3.4:1234\" \"Xt9AMWaYSz7tR7Uo7gzXA3m4QmeWgrR3rr\" \"93746e8731c57f87f79b3620a7982924e2931717d49540a85864bd543de11c43fb868fd63e501a1db37e19ed59ae6db4\" \"Xt9AMWaYSz7tR7Uo7gzXA3m4QmeWgrR3rr\" 0 \"XrVhS9LogauRJGJu2sHuryjhpuex4RNPSb\"")
     );
 }
 
@@ -750,6 +750,7 @@ UniValue protx(const JSONRPCRequest& request)
                 "1. \"command\"        (string, required) The command to execute\n"
                 "\nAvailable commands:\n"
                 "  register          - Create and send ProTx to network\n"
+                "  fund_register     - Fund, create and send ProTx to network\n"
                 "  list              - List ProTxs\n"
                 "  info              - Return information about a ProTx\n"
                 "  update_service    - Create and send ProUpServTx to network\n"
