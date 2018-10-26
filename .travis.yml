@@ -159,7 +159,7 @@ jobs:
             - python3-pip
             - shellcheck
       install:
-        - if [ "$TRAVIS_EVENT_TYPE" = "pull_request" ]; then travis_retry pip3 install flake8 --user; fi
+        - travis_retry pip install flake8==3.5.0
       before_script:
         - git fetch --unshallow
       script:
