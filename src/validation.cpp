@@ -1755,8 +1755,9 @@ static DisconnectResult DisconnectBlock(const CBlock& block, CValidationState& s
     }
 
     // make sure the flag is reset in case of a chain reorg
+    // (we reused the DIP3 deployment)
     instantsend.isAutoLockBip9Active =
-            (VersionBitsState(pindex->pprev, Params().GetConsensus(), Consensus::DEPLOYMENT_ISAUTOLOCKS, versionbitscache) == THRESHOLD_ACTIVE);
+            (VersionBitsState(pindex->pprev, Params().GetConsensus(), Consensus::DEPLOYMENT_DIP0003, versionbitscache) == THRESHOLD_ACTIVE);
 
     return fClean ? DISCONNECT_OK : DISCONNECT_UNCLEAN;
 }
