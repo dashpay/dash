@@ -2008,7 +2008,7 @@ bool static ProcessMessage(CNode* pfrom, const std::string& strCommand, CDataStr
 
         LOCK(cs_main);
 
-        connman.RemoveAskFor(inv);
+        connman.RemoveAskFor(inv.hash);
 
         bool fMissingInputs = false;
         CValidationState state;

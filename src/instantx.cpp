@@ -75,7 +75,7 @@ void CInstantSend::ProcessMessage(CNode* pfrom, const std::string& strCommand, C
 
         {
             LOCK(cs_main);
-            connman.RemoveAskFor(CInv(MSG_TXLOCK_VOTE, nVoteHash));
+            connman.RemoveAskFor(nVoteHash);
         }
 
         // Ignore any InstantSend messages until masternode list is synced

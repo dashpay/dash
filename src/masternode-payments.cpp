@@ -448,7 +448,7 @@ void CMasternodePayments::ProcessMessage(CNode* pfrom, const std::string& strCom
 
         {
             LOCK(cs_main);
-            connman.RemoveAskFor(CInv(MSG_MASTERNODE_PAYMENT_VOTE, nHash));
+            connman.RemoveAskFor(nHash);
         }
 
         // TODO: clear setAskFor for MSG_MASTERNODE_PAYMENT_BLOCK too

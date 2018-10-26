@@ -2655,13 +2655,13 @@ void CConnman::RelayInvFiltered(CInv &inv, const CTransaction& relatedTx, const 
     }
 }
 
-void CConnman::RemoveAskFor(const CInv& inv)
+void CConnman::RemoveAskFor(const uint256& hash)
 {
-    mapAlreadyAskedFor.erase(inv.hash);
+    mapAlreadyAskedFor.erase(hash);
 
     LOCK(cs_vNodes);
     for (const auto& pnode : vNodes) {
-        pnode->RemoveAskFor(inv);
+        pnode->RemoveAskFor(hash);
     }
 }
 
@@ -2916,11 +2916,11 @@ void CNode::AskFor(const CInv& inv)
     mapAskFor.insert(std::make_pair(nRequestTime, inv));
 }
 
-void CNode::RemoveAskFor(const CInv& inv)
+void CNode::RemoveAskFor(const uint256& hash)
 {
-    setAskFor.erase(inv.hash);
+    setAskFor.erase(hash);
     for (auto it = mapAskFor.begin(); it != mapAskFor.end();) {
-        if (it->second.hash == inv.hash) {
+        if (it->second.hash == hash) {
             it = mapAskFor.erase(it);
         } else {
             ++it;
