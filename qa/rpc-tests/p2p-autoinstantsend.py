@@ -36,43 +36,20 @@ class AutoInstantSendTest(DashTestFramework):
         return info['bip9_softforks']['dip0003']['status']
 
     def activate_autoix_bip9(self):
-        # sync nodes periodically
-        # if we sync them too often, activation takes too many time
-        # if we sync them too rarely, nodes failed to update its state and
-        # bip9 status is not updated
-        # so, in this code nodes are synced once per 20 blocks
-        counter = 0
-        sync_period = 10
-
         while self.get_autoix_bip9_status() == 'defined':
             set_mocktime(get_mocktime() + 1)
             set_node_times(self.nodes, get_mocktime())
             self.nodes[0].generate(1)
-            counter += 1
-            if counter % sync_period == 0:
-                # sync nodes
-                self.sync_all()
-                sync_masternodes(self.nodes, True)
 
         while self.get_autoix_bip9_status() == 'started':
             set_mocktime(get_mocktime() + 1)
             set_node_times(self.nodes, get_mocktime())
             self.nodes[0].generate(1)
-            counter += 1
-            if counter % sync_period == 0:
-                # sync nodes
-                self.sync_all()
-                sync_masternodes(self.nodes, True)
 
         while self.get_autoix_bip9_status() == 'locked_in':
             set_mocktime(get_mocktime() + 1)
             set_node_times(self.nodes, get_mocktime())
             self.nodes[0].generate(1)
-            counter += 1
-            if counter % sync_period == 0:
-                # sync nodes
-                self.sync_all()
-                sync_masternodes(self.nodes, True)
 
         # sync nodes
         self.sync_all()
