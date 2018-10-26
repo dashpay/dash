@@ -1823,8 +1823,16 @@ bool static ProcessMessage(CNode* pfrom, const std::string& strCommand, CDataStr
                 pfrom->AddInventoryKnown(inv);
                 if (fBlocksOnly)
                     LogPrint("net", "transaction (%s) inv sent in violation of protocol peer=%d\n", inv.hash.ToString(), pfrom->id);
-                else if (!fAlreadyHave && !fImporting && !fReindex && !IsInitialBlockDownload())
-                    pfrom->AskFor(inv);
+                else if (!fAlreadyHave && !fImporting && !fReindex && !IsInitialBlockDownload()) {
+                    int64_t doubleRequestDelay = 2 * 60 * 1000000;
+                    // some messages need to be re-requested faster when the first announcing peer did not answer to GETDATA
+                    switch (inv.type) {
+                        case MSG_QUORUM_RECOVERED_SIG:
+                            doubleRequestDelay = 5 * 1000000;
+                            break;
+                    }
+                    pfrom->AskFor(inv, doubleRequestDelay);
+                }
             }
 
             // Track requests for our stuff
