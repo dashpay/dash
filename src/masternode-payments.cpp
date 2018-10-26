@@ -248,8 +248,7 @@ void FillBlockPayments(CMutableTransaction& txNew, int nBlockHeight, CAmount blo
     }
 
     if (!mnpayments.GetMasternodeTxOuts(nBlockHeight, blockReward, voutMasternodePaymentsRet)) {
-        // no idea whom to pay (MN list empty?), lets hope for the best
-        return;
+        LogPrint("mnpayments", "%s -- no masternode to pay (MN list probably empty)\n", __func__);
     }
 
     txNew.vout.insert(txNew.vout.end(), voutMasternodePaymentsRet.begin(), voutMasternodePaymentsRet.end());
