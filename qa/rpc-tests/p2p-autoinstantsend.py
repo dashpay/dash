@@ -104,7 +104,6 @@ class AutoInstantSendTest(DashTestFramework):
             set_node_times(self.nodes, get_mocktime())
             self.nodes[0].generate(1)
             
-        self.enforce_masternode_payments()  # required for bip9 activation
         assert(self.get_autoix_bip9_status() == 'defined')
         assert(not self.get_autoix_spork_state())
 
