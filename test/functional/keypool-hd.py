@@ -22,6 +22,9 @@ class KeyPoolTest(BitcoinTestFramework):
         self.extra_args = [['-usehd=1']]
         self.stderr = sys.stdout
 
+    def skip_test_if_missing_module(self):
+        self.skip_if_no_wallet()
+
     def run_test(self):
         nodes = self.nodes
         addr_before_encrypting = nodes[0].getnewaddress()

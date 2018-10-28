@@ -44,6 +44,9 @@ class RawTransactionsTest(BitcoinTestFramework):
         self.setup_clean_chain = True
         self.num_nodes = 3
 
+    def skip_test_if_missing_module(self):
+        self.skip_if_no_wallet()
+
     def setup_network(self, split=False):
         super().setup_network()
         connect_nodes_bi(self.nodes,0,2)
@@ -349,6 +352,17 @@ class RawTransactionsTest(BitcoinTestFramework):
         self.nodes[0].generate(1)
         self.sync_all()
         assert_equal(self.nodes[0].getbalance(), bal+Decimal('500.00000000')+Decimal('2.19000000')) #block reward + tx
+
+        # decoderawtransaction tests
+        # witness transaction
+        encrawtx = "010000000001010000000000000072c1a6a246ae63f74f931e8365e15a089c68d61900000000000000000000ffffffff0100e1f50500000000000102616100000000"
+        decrawtx = self.nodes[0].decoderawtransaction(encrawtx, True) # decode as witness transaction
+        assert_equal(decrawtx['vout'][0]['value'], Decimal('1.00000000'))
+        assert_raises_rpc_error(-22, 'TX decode failed', self.nodes[0].decoderawtransaction, encrawtx, False) # force decode as non-witness transaction
+        # non-witness transaction
+        encrawtx = "01000000010000000000000072c1a6a246ae63f74f931e8365e15a089c68d61900000000000000000000ffffffff0100e1f505000000000000000000"
+        decrawtx = self.nodes[0].decoderawtransaction(encrawtx, False) # decode as non-witness transaction
+        assert_equal(decrawtx['vout'][0]['value'], Decimal('1.00000000'))
 
         # getrawtransaction tests
         # 1. valid parameters - only supply txid

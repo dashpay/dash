@@ -47,18 +47,13 @@ from test_framework.mininode import (
 class BlockchainTest(BitcoinTestFramework):
     def set_test_params(self):
         self.num_nodes = 1
-        self.setup_clean_chain = True
-        self.stderr = sys.stdout
-        self.extra_args = [['-stopatheight=207', '-prune=1', '-txindex=0']]
+
+    def skip_test_if_missing_module(self):
+        self.skip_if_no_wallet()
 
     def run_test(self):
-        # Have to prepare the chain manually here.
-        # txindex=1 by default in Dash which is incompatible with pruning.
-        self.set_genesis_mocktime()
-        for i in range(200):
-            self.bump_mocktime(156)
-            self.nodes[0].generate(1)
-        # Actual tests
+        self.restart_node(0, extra_args=['-stopatheight=207', '-prune=1'])  # Set extra args with pruning after rescan is complete
+
         self._test_getblockchaininfo()
         self._test_getchaintxstats()
         self._test_gettxoutsetinfo()
@@ -157,7 +152,8 @@ class BlockchainTest(BitcoinTestFramework):
         assert_equal(res['transactions'], 200)
         assert_equal(res['height'], 200)
         assert_equal(res['txouts'], 200)
-        assert_equal(res['bogosize'], 17000),
+        assert_equal(res['bogosize'], 15000),
+        assert_equal(res['bestblock'], node.getblockhash(200))
         size = res['disk_size']
         assert size > 6400
         assert size < 64000

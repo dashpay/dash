@@ -21,13 +21,10 @@ class WalletHDTest(BitcoinTestFramework):
         self.num_nodes = 2
         self.extra_args = [['-usehd=0'], ['-usehd=1', '-keypool=0']]
 
-    def setup_network(self):
-        self.add_nodes(self.num_nodes, self.extra_args, stderr=sys.stdout)
-        self.start_nodes()
+    def skip_test_if_missing_module(self):
+        self.skip_if_no_wallet()
 
-    def run_test (self):
-        tmpdir = self.options.tmpdir
-
+    def run_test(self):
         # Make sure can't switch off usehd after wallet creation
         self.stop_node(1)
         self.assert_start_raises_init_error(1, ['-usehd=0'], 'already existing HD wallet')

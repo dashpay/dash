@@ -79,9 +79,8 @@ class ChainstateWriteCrashTest(BitcoinTestFramework):
         self.node3_args = ["-blockmaxweight=4000000"]
         self.extra_args = [self.node0_args, self.node1_args, self.node2_args, self.node3_args]
 
-        # We'll track some test coverage statistics
-        self.restart_counts = [0, 0, 0] # Track the restarts for nodes 0-2
-        self.crashed_on_restart = 0     # Track count of crashes during recovery
+    def skip_test_if_missing_module(self):
+        self.skip_if_no_wallet()
 
     def setup_network(self):
         self.add_nodes(self.num_nodes, extra_args=self.extra_args)

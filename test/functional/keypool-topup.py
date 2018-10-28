@@ -27,6 +27,9 @@ class KeypoolRestoreTest(BitcoinTestFramework):
         self.extra_args = [['-usehd=0'], ['-usehd=1', '-keypool=100', '-keypoolmin=20']]
         self.stderr = sys.stdout
 
+    def skip_test_if_missing_module(self):
+        self.skip_if_no_wallet()
+
     def run_test(self):
         self.tmpdir = self.options.tmpdir
         self.nodes[0].generate(101)
