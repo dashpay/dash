@@ -125,7 +125,7 @@ static void UpdateSpecialTxInputsHash(const CMutableTransaction& tx, SpecialTxPa
 }
 
 template<typename SpecialTxPayload>
-static void SignSpecialTxPayload(const CMutableTransaction& tx, SpecialTxPayload& payload, const CKey& key)
+static void SignSpecialTxPayloadByHash(const CMutableTransaction& tx, SpecialTxPayload& payload, const CKey& key)
 {
     UpdateSpecialTxInputsHash(tx, payload);
     payload.vchSig.clear();
@@ -137,7 +137,19 @@ static void SignSpecialTxPayload(const CMutableTransaction& tx, SpecialTxPayload
 }
 
 template<typename SpecialTxPayload>
-static void SignSpecialTxPayload(const CMutableTransaction& tx, SpecialTxPayload& payload, const CBLSSecretKey& key)
+static void SignSpecialTxPayloadByString(const CMutableTransaction& tx, SpecialTxPayload& payload, const CKey& key)
+{
+    UpdateSpecialTxInputsHash(tx, payload);
+    payload.vchSig.clear();
+
+    std::string m = payload.MakeSignString();
+    if (!CMessageSigner::SignMessage(m, payload.vchSig, key)) {
+        throw JSONRPCError(RPC_INTERNAL_ERROR, "failed to sign special tx");
+    }
+}
+
+template<typename SpecialTxPayload>
+static void SignSpecialTxPayloadByHash(const CMutableTransaction& tx, SpecialTxPayload& payload, const CBLSSecretKey& key)
 {
     UpdateSpecialTxInputsHash(tx, payload);
 
@@ -330,7 +342,7 @@ UniValue protx_register(const JSONRPCRequest& request)
         if (!pwalletMain->GetKey(keyID, key)) {
             throw JSONRPCError(RPC_INVALID_ADDRESS_OR_KEY, strprintf("collateral key not in wallet: %s", CBitcoinAddress(keyID).ToString()));
         }
-        SignSpecialTxPayload(tx, ptx, key);
+        SignSpecialTxPayloadByString(tx, ptx, key);
     }
     SetTxPayload(tx, ptx);
 
@@ -394,7 +406,7 @@ UniValue protx_update_service(const JSONRPCRequest& request)
     tx.nType = TRANSACTION_PROVIDER_UPDATE_SERVICE;
 
     FundSpecialTx(tx, ptx);
-    SignSpecialTxPayload(tx, ptx, keyOperator);
+    SignSpecialTxPayloadByHash(tx, ptx, keyOperator);
     SetTxPayload(tx, ptx);
 
     return SignAndSendSpecialTx(tx);
@@ -464,7 +476,7 @@ UniValue protx_update_registrar(const JSONRPCRequest& request)
     tx.nType = TRANSACTION_PROVIDER_UPDATE_REGISTRAR;
 
     FundSpecialTx(tx, ptx);
-    SignSpecialTxPayload(tx, ptx, keyOwner);
+    SignSpecialTxPayloadByHash(tx, ptx, keyOwner);
     SetTxPayload(tx, ptx);
 
     return SignAndSendSpecialTx(tx);
@@ -523,7 +535,7 @@ UniValue protx_revoke(const JSONRPCRequest& request)
     tx.nType = TRANSACTION_PROVIDER_UPDATE_REVOKE;
 
     FundSpecialTx(tx, ptx);
-    SignSpecialTxPayload(tx, ptx, keyOperator);
+    SignSpecialTxPayloadByHash(tx, ptx, keyOperator);
     SetTxPayload(tx, ptx);
 
     return SignAndSendSpecialTx(tx);
