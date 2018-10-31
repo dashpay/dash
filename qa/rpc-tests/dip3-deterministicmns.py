@@ -94,6 +94,9 @@ class DIP3Test(BitcoinTestFramework):
         print("wait for MNs to appear in MN lists")
         self.wait_for_mnlists(mns, True, False)
 
+        while not self.nodes[0].getblocktemplate()['superblocks_started']:
+            self.nodes[0].generate(1)
+
         print("testing MN payment votes")
         self.test_mn_votes(10)
 
@@ -201,7 +204,7 @@ class DIP3Test(BitcoinTestFramework):
         self.wait_for_mnlists_same()
 
         print("testing MN payment votes (with mixed ProTx and legacy nodes)")
-        self.test_mn_votes(10, test_enforcement=True)
+        self.test_mn_votes(10)
 
         print("testing instant send (with mixed ProTx and legacy nodes)")
         self.test_instantsend(10, 5)
@@ -449,13 +452,11 @@ class DIP3Test(BitcoinTestFramework):
             time.sleep(1)
         raise AssertionError("generate_blocks_until_winners timed out: {}".format(node.masternode('winners')))
 
-    def test_mn_votes(self, block_count, test_enforcement=False):
-        self.generate_blocks_until_winners(self.nodes[0], self.num_nodes)
+    def test_mn_votes(self, block_count):
+        self.nodes[0].spork('SPORK_8_MASTERNODE_PAYMENT_ENFORCEMENT', 0)
+        self.wait_for_sporks()
 
-        if test_enforcement:
-            self.nodes[0].spork('SPORK_8_MASTERNODE_PAYMENT_ENFORCEMENT', 0)
-            self.wait_for_sporks()
-            self.test_invalid_mn_payment(self.nodes[0])
+        self.generate_blocks_until_winners(self.nodes[0], self.num_nodes)
 
         cur_block = 0
         while cur_block < block_count:
@@ -465,12 +466,11 @@ class DIP3Test(BitcoinTestFramework):
                 if n1 is None:
                     continue
 
-                if test_enforcement:
-                    self.test_invalid_mn_payment(n1)
-
                 n1.generate(1)
                 cur_block += 1
                 self.sync_all()
+
+                self.test_invalid_mn_payment(n1)
 
                 height = n1.getblockchaininfo()['blocks']
                 winners = self.wait_for_winners(n1, height + 10)
@@ -484,8 +484,7 @@ class DIP3Test(BitcoinTestFramework):
                         print("winner2: " + str(winners2[str(height + 10)]))
                         raise AssertionError("winners did not match")
 
-        if test_enforcement:
-            self.nodes[0].spork('SPORK_8_MASTERNODE_PAYMENT_ENFORCEMENT', 4070908800)
+        self.nodes[0].spork('SPORK_8_MASTERNODE_PAYMENT_ENFORCEMENT', 4070908800)
 
     def test_instantsend(self, tx_count, repeat):
         self.nodes[0].spork('SPORK_2_INSTANTSEND_ENABLED', 0)
