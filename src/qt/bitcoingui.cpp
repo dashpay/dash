@@ -641,7 +641,7 @@ void BitcoinGUI::setClientModel(ClientModel *_clientModel)
             // Note: On Mac, the dock icon is also used to provide menu functionality
             // similar to one for tray icon
             MacDockIconHandler *dockIconHandler = MacDockIconHandler::instance();
-            dockIconHandler->setMainWindow((QMainWindow *)this);
+            connect(dockIconHandler, SIGNAL(dockIconClicked()), this, SLOT(macosDockIconActivated()));
             dockIconMenu = dockIconHandler->dockMenu();
 
             createIconMenu(dockIconMenu);
@@ -803,6 +803,12 @@ void BitcoinGUI::trayIconActivated(QSystemTrayIcon::ActivationReason reason)
         // Click on system tray icon triggers show/hide of the main window
         toggleHidden();
     }
+}
+#else
+void BitcoinGUI::macosDockIconActivated()
+{
+    show();
+    activateWindow();
 }
 #endif
 
