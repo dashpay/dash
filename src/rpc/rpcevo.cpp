@@ -180,10 +180,10 @@ static std::string SignAndSendSpecialTx(const CMutableTransaction& tx)
     return sendrawtransaction(sendRequest).get_str();
 }
 
-void protx_fund_register_help()
+void protx_register_fund_help()
 {
     throw std::runtime_error(
-            "protx fund_register \"collateralAddress\" \"ipAndPort\" \"ownerKeyAddr\" \"operatorKeyAddr\" \"votingKeyAddr\" operatorReward \"payoutAddress\"\n"
+            "protx register_fund \"collateralAddress\" \"ipAndPort\" \"ownerKeyAddr\" \"operatorKeyAddr\" \"votingKeyAddr\" operatorReward \"payoutAddress\"\n"
             "\nCreates, funds and sends a ProTx to the network. The resulting transaction will move 1000 Dash\n"
             "to the address specified by collateralAddress and will then function as the collateral of your\n"
             "masternode.\n"
@@ -207,7 +207,7 @@ void protx_fund_register_help()
             "7. \"payoutAddress\"       (string, required) The dash address to use for masternode reward payments\n"
             "                         Must match \"collateralAddress\"."
             "\nExamples:\n"
-            + HelpExampleCli("protx", "fund_register \"XrVhS9LogauRJGJu2sHuryjhpuex4RNPSb\" \"1.2.3.4:1234\" \"Xt9AMWaYSz7tR7Uo7gzXA3m4QmeWgrR3rr\" \"93746e8731c57f87f79b3620a7982924e2931717d49540a85864bd543de11c43fb868fd63e501a1db37e19ed59ae6db4\" \"Xt9AMWaYSz7tR7Uo7gzXA3m4QmeWgrR3rr\" 0 \"XrVhS9LogauRJGJu2sHuryjhpuex4RNPSb\"")
+            + HelpExampleCli("protx", "register_fund \"XrVhS9LogauRJGJu2sHuryjhpuex4RNPSb\" \"1.2.3.4:1234\" \"Xt9AMWaYSz7tR7Uo7gzXA3m4QmeWgrR3rr\" \"93746e8731c57f87f79b3620a7982924e2931717d49540a85864bd543de11c43fb868fd63e501a1db37e19ed59ae6db4\" \"Xt9AMWaYSz7tR7Uo7gzXA3m4QmeWgrR3rr\" 0 \"XrVhS9LogauRJGJu2sHuryjhpuex4RNPSb\"")
     );
 }
 
@@ -215,25 +215,25 @@ void protx_register_help()
 {
     throw std::runtime_error(
             "protx register \"collateralHash\" collateralIndex \"ipAndPort\" \"ownerKeyAddr\" \"operatorKeyAddr\" \"votingKeyAddr\" operatorReward \"payoutAddress\"\n"
-            "\nSame as \"protx fund_register\", but with an externally referenced collateral.\n"
+            "\nSame as \"protx register_fund\", but with an externally referenced collateral.\n"
             "The collateral is specified through \"collateralHash\" and \"collateralIndex\" and must be an unspent\n"
             "transaction output. It must also not be used by any other masternode.\n"
             "\nArguments:\n"
             "1. \"collateralHash\"     (string, required) The collateral transaction hash.\n"
             "2. collateralIndex      (numeric, required) The collateral transaction output index.\n"
-            "3., 4., 5. ...          See help text of \"protx fund_register\"\n"
+            "3., 4., 5. ...          See help text of \"protx register_fund\"\n"
             "\nExamples:\n"
             + HelpExampleCli("protx", "register \"0123456701234567012345670123456701234567012345670123456701234567\" 0 \"1.2.3.4:1234\" \"Xt9AMWaYSz7tR7Uo7gzXA3m4QmeWgrR3rr\" \"Xt9AMWaYSz7tR7Uo7gzXA3m4QmeWgrR3rr\" \"Xt9AMWaYSz7tR7Uo7gzXA3m4QmeWgrR3rr\" 0 \"XrVhS9LogauRJGJu2sHuryjhpuex4RNPSb\"")
     );
 }
 
-// handles register and fund_register in one method
+// handles register and register_fund in one method
 UniValue protx_register(const JSONRPCRequest& request)
 {
-    bool isFundRegister = request.params[0].get_str() == "fund_register";
+    bool isFundRegister = request.params[0].get_str() == "register_fund";
 
     if (isFundRegister && (request.fHelp || request.params.size() != 8)) {
-        protx_fund_register_help();
+        protx_register_fund_help();
     } else if (!isFundRegister && (request.fHelp || request.params.size() != 9)) {
         protx_register_help();
     }
@@ -761,7 +761,7 @@ UniValue protx(const JSONRPCRequest& request)
                 "1. \"command\"        (string, required) The command to execute\n"
                 "\nAvailable commands:\n"
                 "  register          - Create and send ProTx to network\n"
-                "  fund_register     - Fund, create and send ProTx to network\n"
+                "  register_fund     - Fund, create and send ProTx to network\n"
                 "  list              - List ProTxs\n"
                 "  info              - Return information about a ProTx\n"
                 "  update_service    - Create and send ProUpServTx to network\n"
@@ -773,7 +773,7 @@ UniValue protx(const JSONRPCRequest& request)
 
     std::string command = request.params[0].get_str();
 
-    if (command == "fund_register" || command == "register") {
+    if (command == "register" || command == "register_fund") {
         return protx_register(request);
     } else if (command == "list") {
         return protx_list(request);
