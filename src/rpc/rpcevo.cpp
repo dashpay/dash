@@ -841,7 +841,7 @@ UniValue protx(const JSONRPCRequest& request)
                 "  register          - Create and send ProTx to network\n"
                 "  register_fund     - Fund, create and send ProTx to network\n"
                 "  register_prepare  - Create an unsigned ProTx\n"
-                "  register_submit   - Signs and submits a ProTx\n"
+                "  register_submit   - Sign and submit a ProTx\n"
                 "  list              - List ProTxs\n"
                 "  info              - Return information about a ProTx\n"
                 "  update_service    - Create and send ProUpServTx to network\n"
