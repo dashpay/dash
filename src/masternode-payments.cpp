@@ -594,6 +594,13 @@ bool CMasternodePayments::GetBlockTxOuts(int nBlockHeight, CAmount blockReward, 
         uint256 blockHash;
         {
             LOCK(cs_main);
+            // GetBlockTxOuts is called for blocks in advance, which is ok before spork15 activation but not ok after that
+            // Call chain: GetMasternodeTxOuts->GetNextMasternodeInQueueForPayment->IsScheduled->GetBlockTxOuts
+            // It only happens when no legacy payment votes were present and the node reverts to local determination of next payee
+            // TODO after removal of compatibility code, this should be enforced with an assert
+            if (nBlockHeight - 1 > chainActive.Height()) {
+                return false;
+            }
             blockHash = chainActive[nBlockHeight - 1]->GetBlockHash();
         }
         uint256 proTxHash;
