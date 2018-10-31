@@ -811,26 +811,34 @@ UniValue bls_generate(const JSONRPCRequest& request)
     return ret;
 }
 
+void _bls_help()
+{
+    throw std::runtime_error(
+            "bls \"command\" ...\n"
+            "Set of commands to execute BLS related actions.\n"
+            "To get help on individual commands, use \"help bls command\".\n"
+            "\nArguments:\n"
+            "1. \"command\"        (string, required) The command to execute\n"
+            "\nAvailable commands:\n"
+            "  generate          - Create a BLS secret/public key pair\n"
+            );
+}
+
 UniValue _bls(const JSONRPCRequest& request)
 {
-    if (request.params.empty()) {
-        throw std::runtime_error(
-                "bls \"command\" ...\n"
-                "Set of commands to execute BLS related actions.\n"
-                "To get help on individual commands, use \"help bls command\".\n"
-                "\nArguments:\n"
-                "1. \"command\"        (string, required) The command to execute\n"
-                "\nAvailable commands:\n"
-                "  generate          - Create a BLS secret/public key pair\n"
-        );
-    }
+    std::string strCommand;
+    if (request.params.size() >= 1)
+        strCommand = request.params[0].get_str();
 
-    std::string command = request.params[0].get_str();
+    if ((request.fHelp && strCommand.empty())  ||
+        (
+         strCommand != "generate" ))
+            _bls_help();
 
-    if (command == "generate") {
+    if (strCommand == "generate") {
         return bls_generate(request);
     } else {
-        throw std::runtime_error("invalid command: " + command);
+        throw std::runtime_error("invalid command: " + strCommand);
     }
 }
 
