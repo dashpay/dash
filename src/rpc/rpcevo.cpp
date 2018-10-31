@@ -227,15 +227,54 @@ void protx_register_help()
     );
 }
 
-// handles register and register_fund in one method
+void protx_register_prepare_help()
+{
+    throw std::runtime_error(
+            "protx register_prepare \"collateralHash\" collateralIndex \"ipAndPort\" \"ownerKeyAddr\" \"operatorKeyAddr\" \"votingKeyAddr\" operatorReward \"payoutAddress\"\n"
+            "\nCreates an unsigned ProTx and returns it. The ProTx must be signed externally with the collateral\n"
+            "key and then passed to \"protx register_submit\". The prepared transaction will also contain inputs\n"
+            "and outputs to cover fees.\n"
+            "\nArguments:\n"
+            "1., 2., 3., ...         See help text of \"protx register_fund\".\n"
+            "\nResult:\n"
+            "{                         (json object)\n"
+            "  \"tx\" :                  (string) The serialized ProTx in hex format.\n"
+            "  \"collateralAddress\" :   (string) The collateral address.\n"
+            "  \"signMessage\" :         (string) The string message that needs to be signed with\n"
+            "                          the collateral key.\n"
+            "}\n"
+            "\nExamples:\n"
+            + HelpExampleCli("protx", "register_prepare \"XrVhS9LogauRJGJu2sHuryjhpuex4RNPSb\" \"1.2.3.4:1234\" \"Xt9AMWaYSz7tR7Uo7gzXA3m4QmeWgrR3rr\" \"93746e8731c57f87f79b3620a7982924e2931717d49540a85864bd543de11c43fb868fd63e501a1db37e19ed59ae6db4\" \"Xt9AMWaYSz7tR7Uo7gzXA3m4QmeWgrR3rr\" 0 \"XrVhS9LogauRJGJu2sHuryjhpuex4RNPSb\"")
+    );
+}
+
+void protx_register_submit_help()
+{
+    throw std::runtime_error(
+            "protx register_submit \"tx\" \"sig\"\n"
+            "\nSubmits the specified ProTx to the network. This command will also sign the inputs of the transaction\n"
+            "which were previously added by \"protx register_prepare\" to cover transaction fees\n"
+            "\nArguments:\n"
+            "1. \"tx\"                 (string, required) The serialized transaction previosly returned by \"protx register_prepare\"\n"
+            "2. \"sig\"                (string, required) The signature signed with the collateral key. Must be in base64 format.\n"
+            "\nExamples:\n"
+            + HelpExampleCli("protx", "register_submit \"tx\" \"sig\"")
+    );
+}
+
+// handles register, register_prepare and register_fund in one method
 UniValue protx_register(const JSONRPCRequest& request)
 {
+    bool isExternalRegister = request.params[0].get_str() == "register";
     bool isFundRegister = request.params[0].get_str() == "register_fund";
+    bool isPrepareRegister = request.params[0].get_str() == "register_prepare";
 
     if (isFundRegister && (request.fHelp || request.params.size() != 8)) {
         protx_register_fund_help();
-    } else if (!isFundRegister && (request.fHelp || request.params.size() != 9)) {
+    } else if (isExternalRegister && (request.fHelp || request.params.size() != 9)) {
         protx_register_help();
+    } else if (isPrepareRegister && (request.fHelp || request.params.size() != 9)) {
+        protx_register_prepare_help();
     }
 
     size_t paramIdx = 1;
@@ -309,8 +348,8 @@ UniValue protx_register(const JSONRPCRequest& request)
         ptx.vchSig.resize(65);
     }
 
-    UpdateSpecialTxInputsHash(tx, ptx);
     FundSpecialTx(tx, ptx);
+    UpdateSpecialTxInputsHash(tx, ptx);
 
     if (isFundRegister) {
         uint32_t collateralIndex = (uint32_t) -1;
@@ -322,12 +361,11 @@ UniValue protx_register(const JSONRPCRequest& request)
         }
         assert(collateralIndex != (uint32_t) -1);
         ptx.collateralOutpoint.n = collateralIndex;
-    }
 
-    if (isFundRegister) {
-        UpdateSpecialTxInputsHash(tx, ptx);
+        SetTxPayload(tx, ptx);
+        return SignAndSendSpecialTx(tx);
     } else {
-        // referencing external collateral, so lets prove we own it
+        // referencing external collateral
 
         Coin coin;
         if (!GetUTXOCoin(ptx.collateralOutpoint, coin)) {
@@ -338,14 +376,54 @@ UniValue protx_register(const JSONRPCRequest& request)
         if (!ExtractDestination(coin.out.scriptPubKey, txDest) || !CBitcoinAddress(txDest).GetKeyID(keyID)) {
             throw JSONRPCError(RPC_INVALID_ADDRESS_OR_KEY, strprintf("collateral type not supported: %s", ptx.collateralOutpoint.ToStringShort()));
         }
-        CKey key;
-        if (!pwalletMain->GetKey(keyID, key)) {
-            throw JSONRPCError(RPC_INVALID_ADDRESS_OR_KEY, strprintf("collateral key not in wallet: %s", CBitcoinAddress(keyID).ToString()));
-        }
-        SignSpecialTxPayloadByString(tx, ptx, key);
-    }
-    SetTxPayload(tx, ptx);
 
+        if (isPrepareRegister) {
+            // external signing with collateral key
+            ptx.vchSig.clear();
+            SetTxPayload(tx, ptx);
+
+            UniValue ret(UniValue::VOBJ);
+            ret.push_back(Pair("tx", EncodeHexTx(tx)));
+            ret.push_back(Pair("collateralAddress", CBitcoinAddress(txDest).ToString()));
+            ret.push_back(Pair("signMessage", ptx.MakeSignString()));
+            return ret;
+        } else {
+            // lets prove we own the collateral
+            CKey key;
+            if (!pwalletMain->GetKey(keyID, key)) {
+                throw JSONRPCError(RPC_INVALID_ADDRESS_OR_KEY, strprintf("collateral key not in wallet: %s", CBitcoinAddress(keyID).ToString()));
+            }
+            SignSpecialTxPayloadByString(tx, ptx, key);
+            SetTxPayload(tx, ptx);
+            return SignAndSendSpecialTx(tx);
+        }
+    }
+}
+
+UniValue protx_register_submit(const JSONRPCRequest& request)
+{
+    if (request.fHelp || request.params.size() != 3) {
+        protx_register_submit_help();
+    }
+
+    CMutableTransaction tx;
+    if (!DecodeHexTx(tx, request.params[1].get_str())) {
+        throw JSONRPCError(RPC_INVALID_PARAMETER, "transaction not deserializable");
+    }
+    if (tx.nType != TRANSACTION_PROVIDER_REGISTER) {
+        throw JSONRPCError(RPC_INVALID_PARAMETER, "transaction not a ProRegTx");
+    }
+    CProRegTx ptx;
+    if (!GetTxPayload(tx, ptx)) {
+        throw JSONRPCError(RPC_INVALID_PARAMETER, "transaction payload not deserializable");
+    }
+    if (!ptx.vchSig.empty()) {
+        throw JSONRPCError(RPC_INVALID_PARAMETER, "payload signature not empty");
+    }
+
+    ptx.vchSig = DecodeBase64(request.params[2].get_str().c_str());
+
+    SetTxPayload(tx, ptx);
     return SignAndSendSpecialTx(tx);
 }
 
@@ -762,6 +840,8 @@ UniValue protx(const JSONRPCRequest& request)
                 "\nAvailable commands:\n"
                 "  register          - Create and send ProTx to network\n"
                 "  register_fund     - Fund, create and send ProTx to network\n"
+                "  register_prepare  - Create an unsigned ProTx\n"
+                "  register_submit   - Signs and submits a ProTx\n"
                 "  list              - List ProTxs\n"
                 "  info              - Return information about a ProTx\n"
                 "  update_service    - Create and send ProUpServTx to network\n"
@@ -773,8 +853,10 @@ UniValue protx(const JSONRPCRequest& request)
 
     std::string command = request.params[0].get_str();
 
-    if (command == "register" || command == "register_fund") {
+    if (command == "register" || command == "register_fund" || command == "register_prepare") {
         return protx_register(request);
+    } if (command == "register_submit") {
+        return protx_register_submit(request);
     } else if (command == "list") {
         return protx_list(request);
     } else if (command == "info") {
