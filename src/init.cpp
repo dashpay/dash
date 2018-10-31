@@ -243,6 +243,11 @@ void PrepareShutdown()
     bool fRPCInWarmup = RPCIsInWarmup(&statusmessage);
 
 #ifdef ENABLE_WALLET
+    if (!fLiteMode && !fRPCInWarmup) {
+        // Stop PrivateSend, release keys
+        privateSendClient.fEnablePrivateSend = false;
+        privateSendClient.ResetPool();
+    }
     if (pwalletMain)
         pwalletMain->Flush(false);
 #endif
@@ -252,11 +257,6 @@ void PrepareShutdown()
     g_connman.reset();
 
     if (!fLiteMode && !fRPCInWarmup) {
-#ifdef ENABLE_WALLET
-        // Stop PrivateSend, release keys
-        privateSendClient.fEnablePrivateSend = false;
-        privateSendClient.ResetPool();
-#endif
         // STORE DATA CACHES INTO SERIALIZED DAT FILES
         CFlatDB<CMasternodeMan> flatdb1("mncache.dat", "magicMasternodeCache");
         flatdb1.Dump(mnodeman);
