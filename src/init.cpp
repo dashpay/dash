@@ -236,6 +236,12 @@ void PrepareShutdown()
     StopREST();
     StopRPC();
     StopHTTPServer();
+
+    // fRPCInWarmup should be `false` if we completed the loading sequence
+    // before a shutdown request was recieved
+    std::string statusmessage;
+    bool fRPCInWarmup = RPCIsInWarmup(&statusmessage);
+
 #ifdef ENABLE_WALLET
     if (pwalletMain)
         pwalletMain->Flush(false);
@@ -245,7 +251,7 @@ void PrepareShutdown()
     peerLogic.reset();
     g_connman.reset();
 
-    if (!fLiteMode) {
+    if (!fLiteMode && !fRPCInWarmup) {
 #ifdef ENABLE_WALLET
         // Stop PrivateSend, release keys
         privateSendClient.fEnablePrivateSend = false;
