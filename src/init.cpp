@@ -1849,7 +1849,20 @@ bool AppInitMain(boost::thread_group& threadGroup, CScheduler& scheduler)
     LogPrintf("No wallet support compiled in!\n");
 #endif
 
-    // ********************************************************* Step 9: data directory maintenance
+    // ********************************************************* Step 9a: check lite mode and load sporks
+
+    // lite mode disables all Dash-specific functionality
+    fLiteMode = GetBoolArg("-litemode", false);
+    LogPrintf("fLiteMode %d\n", fLiteMode);
+
+    if(fLiteMode) {
+        InitWarning(_("You are starting in lite mode, all Dash-specific functionality is disabled."));
+    }
+
+    if((!fLiteMode && fTxIndex == false)
+       && chainparams.NetworkIDString() != CBaseChainParams::REGTEST) { // TODO remove this when pruning is fixed. See https://github.com/dashpay/dash/pull/1817 and https://github.com/dashpay/dash/pull/1743
+        return InitError(_("Transaction index can't be disabled in full mode. Either start with -litemode command line switch or enable transaction index."));
+    }
 
     if (!fLiteMode) {
         uiInterface.InitMessage(_("Loading sporks cache..."));
@@ -1858,6 +1871,8 @@ bool AppInitMain(boost::thread_group& threadGroup, CScheduler& scheduler)
             return InitError(_("Failed to load sporks cache from") + "\n" + (GetDataDir() / "sporks.dat").string());
         }
     }
+
+    // ********************************************************* Step 9b: data directory maintenance
 
     // if pruning, unset the service bit and perform the initial blockstore prune
     // after any wallet rescanning has taken place.
@@ -1907,18 +1922,6 @@ bool AppInitMain(boost::thread_group& threadGroup, CScheduler& scheduler)
     // ********************************************************* Step 11a: setup PrivateSend
     fMasternodeMode = GetBoolArg("-masternode", false);
     // TODO: masternode should have no wallet
-
-    //lite mode disables all Dash-specific functionality
-    fLiteMode = GetBoolArg("-litemode", false);
-
-    if(fLiteMode) {
-        InitWarning(_("You are starting in lite mode, all Dash-specific functionality is disabled."));
-    }
-
-    if((!fLiteMode && fTxIndex == false)
-       && chainparams.NetworkIDString() != CBaseChainParams::REGTEST) { // TODO remove this when pruning is fixed. See https://github.com/dashpay/dash/pull/1817 and https://github.com/dashpay/dash/pull/1743
-        return InitError(_("Transaction index can't be disabled in full mode. Either start with -litemode command line switch or enable transaction index."));
-    }
 
     if(fLiteMode && fMasternodeMode) {
         return InitError(_("You can not start a masternode in lite mode."));
