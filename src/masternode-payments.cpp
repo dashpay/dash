@@ -945,6 +945,12 @@ bool CMasternodePayments::ProcessBlock(int nBlockHeight, CConnman& connman)
     // if we have not enough data about masternodes.
     if(!masternodeSync.IsMasternodeListSynced()) return false;
 
+    // Don't vote when enforcement is disabled. Doesn't make much sense on mainnet and also overloads regtest when
+    // too many blocks are generated
+    if (!sporkManager.IsSporkActive(SPORK_8_MASTERNODE_PAYMENT_ENFORCEMENT)) {
+        return false;
+    }
+
     int nRank;
 
     if (!mnodeman.GetMasternodeRank(activeMasternodeInfo.outpoint, nRank, nBlockHeight - 101, GetMinMasternodePaymentsProto())) {
