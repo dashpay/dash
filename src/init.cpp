@@ -1719,12 +1719,11 @@ bool AppInitMain(boost::thread_group& threadGroup, CScheduler& scheduler)
                 delete evoDb;
 
                 evoDb = new CEvoDB(nEvoDbCache, false, fReindex || fReindexChainState);
-
+                deterministicMNManager = new CDeterministicMNManager(*evoDb);
                 pblocktree = new CBlockTreeDB(nBlockTreeDBCache, false, fReindex);
                 pcoinsdbview = new CCoinsViewDB(nCoinDBCache, false, fReindex || fReindexChainState);
                 pcoinscatcher = new CCoinsViewErrorCatcher(pcoinsdbview);
                 pcoinsTip = new CCoinsViewCache(pcoinscatcher);
-                deterministicMNManager = new CDeterministicMNManager(*evoDb);
 
                 if (fReindex) {
                     pblocktree->WriteReindexing(true);
