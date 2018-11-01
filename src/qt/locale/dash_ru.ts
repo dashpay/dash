@@ -795,7 +795,7 @@
     </message>
     <message>
         <source>Non-anonymized input selected. &lt;b&gt;PrivateSend will be disabled.&lt;/b&gt;&lt;br&gt;&lt;br&gt;If you still want to use PrivateSend, please deselect all non-anonymized inputs first and then check the PrivateSend checkbox again.</source>
-        <translation>Выбраны неанонимизированные средства. &lt;b&gt;PrivateSend будет отключен.&lt;/b&gt;&lt;br&gt;&lt;br&gt;Если Вы все-таки хотите использовать PrivateSend, пожалуйста, снимите выделение с со всех неанонимизированных средств и заново поставьте галочку напротив PrivateSend.</translation>
+        <translation>Выбраны неанонимизированные средства. &lt;b&gt;PrivateSend будет отключен.&lt;/b&gt;&lt;br&gt;&lt;br&gt;Если Вы все-таки хотите использовать PrivateSend, пожалуйста, снимите выделение со всех неанонимизированных средств и заново поставьте галочку напротив PrivateSend.</translation>
     </message>
     <message>
         <source>(%1 locked)</source>
@@ -1030,7 +1030,7 @@
     </message>
     <message>
         <source>Note: Status of your masternodes in local wallet can potentially be slightly incorrect.&lt;br /&gt;Always wait for wallet to sync additional data and then double check from another node&lt;br /&gt;if your masternode should be running but you still do not see "ENABLED" in "Status" field.</source>
-        <translation>Примечание: Статус Ваших мастернод в локальном кошельке может быть не совсем корректным.&lt;br /&gt;Всегда дожидайтесь окончания синхронизации дополнительных данных и перепроверяйте с другой ноды,&lt;br /&gt;если Ваша мастернода должна быть активна, но Вы ее статус все равно не отображается как "ENABLED".</translation>
+        <translation>Примечание: Статус Ваших мастернод в локальном кошельке может быть не совсем корректным.&lt;br /&gt;Всегда дожидайтесь окончания синхронизации дополнительных данных и перепроверяйте с другой ноды,&lt;br /&gt;если Ваша мастернода должна быть активна, но ее статус все равно не отображается как "ENABLED".</translation>
     </message>
     <message>
         <source>Alias</source>
@@ -4091,11 +4091,11 @@ https://www.transifex.com/projects/p/dash/</translation>
     </message>
     <message>
         <source>Failed to load masternode cache from</source>
-        <translation>Ошибка загрузка кэша мастернод из</translation>
+        <translation>Ошибка загрузки кэша мастернод из</translation>
     </message>
     <message>
         <source>Failed to load masternode payments cache from</source>
-        <translation>Ошибка загрузка кэша выплат мастернодам из</translation>
+        <translation>Ошибка загрузки кэша выплат мастернодам из</translation>
     </message>
     <message>
         <source>Found enough users, signing ( waiting %s )</source>
@@ -4659,11 +4659,11 @@ https://www.transifex.com/projects/p/dash/</translation>
     </message>
     <message>
         <source>Failed to load InstantSend data cache from</source>
-        <translation>Ошибка загрузка кэша InstantSend из</translation>
+        <translation>Ошибка загрузки кэша InstantSend из</translation>
     </message>
     <message>
         <source>Failed to load sporks cache from</source>
-        <translation>Ошибка загрузка кэша спорков из</translation>
+        <translation>Ошибка загрузки кэша спорков из</translation>
     </message>
     <message>
         <source>Failed to parse host:port string</source>
