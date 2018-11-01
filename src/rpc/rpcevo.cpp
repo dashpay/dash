@@ -826,19 +826,16 @@ void _bls_help()
 
 UniValue _bls(const JSONRPCRequest& request)
 {
-    std::string command;
-    if (request.params.size() >= 1)
-        command = request.params[0].get_str();
+    if (request.params.empty()) {
+        _bls_help();
+    }
 
-    if ((request.fHelp && command.empty())  ||
-        (
-         command != "generate" ))
-            _bls_help();
+    std::string command = request.params[0].get_str();
 
     if (command == "generate") {
         return bls_generate(request);
     } else {
-        throw std::runtime_error("invalid command: " + command);
+        _bls_help();
     }
 }
 
