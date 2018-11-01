@@ -794,6 +794,10 @@
         <translation>โปรดเปลี่ยนเป็น List mode เพื่อใช้ฟังก์ชั่นนี้</translation>
     </message>
     <message>
+        <source>Non-anonymized input selected. &lt;b&gt;PrivateSend will be disabled.&lt;/b&gt;&lt;br&gt;&lt;br&gt;If you still want to use PrivateSend, please deselect all non-anonymized inputs first and then check the PrivateSend checkbox again.</source>
+        <translation>อินพุตแบบไม่ระบุตัวตนอินที่ถูกเลือก &lt;b&gt; PrivateSend จะถูกปิดการใช้งาน &lt;/b&gt;&lt;br&gt;&lt;br&gt; หากคุณยังต้องการใช้ PrivateSend โปรดยกเลิกการเลือกอินพุตที่ไม่ระบุตัวตนทั้งหมดก่อนแล้วจึงเช็คในช่อง PrivateSend อีกครั้ง</translation>
+    </message>
+    <message>
         <source>(%1 locked)</source>
         <translation>(%1 ล็อค)</translation>
     </message>
@@ -966,7 +970,11 @@
         <source>PrivateSend information</source>
         <translation>ข้อมูล PrivateSend</translation>
     </message>
-    </context>
+    <message>
+        <source>&lt;h3&gt;PrivateSend Basics&lt;/h3&gt; PrivateSend gives you true financial privacy by obscuring the origins of your funds. All the Dash in your wallet is comprised of different "inputs" which you can think of as separate, discrete coins.&lt;br&gt; PrivateSend uses an innovative process to mix your inputs with the inputs of two other people, without having your coins ever leave your wallet. You retain control of your money at all times.&lt;hr&gt; &lt;b&gt;The PrivateSend process works like this:&lt;/b&gt;&lt;ol type="1"&gt; &lt;li&gt;PrivateSend begins by breaking your transaction inputs down into standard denominations. These denominations are 0.01 DASH, 0.1 DASH, 1 DASH and 10 DASH -- sort of like the paper money you use every day.&lt;/li&gt; &lt;li&gt;Your wallet then sends requests to specially configured software nodes on the network, called "masternodes." These masternodes are informed then that you are interested in mixing a certain denomination. No identifiable information is sent to the masternodes, so they never know "who" you are.&lt;/li&gt; &lt;li&gt;When two other people send similar messages, indicating that they wish to mix the same denomination, a mixing session begins. The masternode mixes up the inputs and instructs all three users' wallets to pay the now-transformed input back to themselves. Your wallet pays that denomination directly to itself, but in a different address (called a change address).&lt;/li&gt; &lt;li&gt;In order to fully obscure your funds, your wallet must repeat this process a number of times with each denomination. Each time the process is completed, it's called a "round." Each round of PrivateSend makes it exponentially more difficult to determine where your funds originated.&lt;/li&gt; &lt;li&gt;This mixing process happens in the background without any intervention on your part. When you wish to make a transaction, your funds will already be anonymized. No additional waiting is required.&lt;/li&gt; &lt;/ol&gt; &lt;hr&gt;&lt;b&gt;IMPORTANT:&lt;/b&gt; Your wallet only contains 1000 of these "change addresses." Every time a mixing event happens, up to 9 of your addresses are used up. This means those 1000 addresses last for about 100 mixing events. When 900 of them are used, your wallet must create more addresses. It can only do this, however, if you have automatic backups enabled.&lt;br&gt; Consequently, users who have backups disabled will also have PrivateSend disabled. &lt;hr&gt;For more information, see the &lt;a href="https://docs.dash.org/en/latest/wallets/dashcore/privatesend-instantsend.html"&gt;PrivateSend documentation&lt;/a&gt;.         </source>
+        <translation>&lt;h3&gt;ข้อมูลพื้นฐานเกี่ยวกับ PrivateSend PrivateSend ช่วยให้คุณมีความเป็นส่วนตัวทางการเงินอย่างแท้จริงโดยปิดบังแหล่งที่มาของเงินทุนของคุณ  Dash ทั้งหมดใน wallet ของคุณประกอบด้วย "อินพุต" ที่แตกต่างกันซึ่งคุณสามารถแยกเหรียญกันได้ &lt;br&gt;  PrivateSend ใช้กระบวนการใหม่ในการผสมผสานอินพุตของคุณเข้ากับอินพุตของคนอื่นอีกสองคนโดยไม่ต้องมีเหรียญออกจาก wallet  คุณสามารถควบคุมเงินได้ตลอดเวลา&lt;hr&gt;&lt;b&gt;กระบวนการ PrivateSend ทำงานได้ดังนี้:&lt;/b&gt;&lt;ol type="1"&gt;&lt;li&gt;PrivateSend เริ่มต้นด้วยการทำลายอินพุตการทำธุรกรรมของคุณลงไปเป็นหน่วยเงินมาตรฐาน หน่วยเงินเหล่านี้คือ 0.01 DASH, 0.1 DASH, 1 DASH และ 10 DASH - เหมือนกับเงินกระดาษที่คุณใช้ทุกวัน&lt;/li&gt;&lt;li&gt; Wallet ของคุณจะส่งคำขอไปยังโหนดซอฟต์แวร์ที่กำหนดค่าไว้เป็นพิเศษในเครือข่ายที่ เรียกว่า "masternodes"  โดย masternodes เหล่านี้จะแจ้งให้ทราบแล้วว่าคุณสนใจที่จะผสมหน่วยเงินนั้นๆ  ไม่มีข้อมูลที่สามารถระบุตัวได้ถูกส่งไปยัง masternodes ดังนั้นพวกเขาจึงไม่เคยรู้จักว่าคุณเป็นใคร &lt;/li&gt;&lt;li&gt;เมื่อมีคนอีกสองคนส่งข้อความที่คล้ายกันแสดงว่าพวกเขาต้องการที่จะผสมผสานหน่วยเงินเดียวกันเซสชันการผสมจะเริ่มขึ้น  Masternode จะผสมผสานอินพุตเข้าด้วยกันและสั่งให้ wallet ของผู้ใช้ทั้ง 3 รายชำระค่าป้อนข้อมูลที่เปลี่ยนไปแล้วกลับคืนสู่ตัวเอง Wallet ของคุณจ่ายเงินให้กับตัวเองโดยตรง แต่ในที่อยู่อื่น (เรียกว่าที่อยู่เปลี่ยน)&lt;/li&gt;&lt;li&gt;เพื่อเป็นการปิดบังเงินทุนของคุณ   wallet ของคุณจะต้องทำซ้ำขั้นตอนนี้ซ้ำหลายครั้งโดยใช้แต่ละหน่วยเงิน ทุกครั้งที่ดำเนินการเสร็จสิ้นระบบจะเรียกว่า "รอบ ๆ "  รอบ PrivateSend ในแต่ละครั้งทำให้การระบุแหล่งเงินทุนของคุณเกิดขึ้นยากขึ้นอย่างมาก&lt;/li&gt;&lt;li&gt;กระบวนการผสมนี้เกิดขึ้นโดยไม่มีการก้าวก่ายในส่วนของคุณ  เมื่อคุณต้องการทำธุรกรรม เงินของคุณจะถูกซ่อนไว้  ไม่ต้องการเพิ่มเติม &lt;/li&gt;&lt;/ol&gt;&lt;hr&gt;&lt;b&gt;สำคัญ:&lt;/b&gt;Wallet ของคุณมีเพียง 1,000 ที่อยู่ในการเปลี่ยนแปลงเท่านั้น ทุกครั้งที่เกิดเหตุการณ์ผสมเกิดขึ้น 9 ที่อยู่ของคุณจะถูกนำมาใช้  ซึ่งหมายความว่า 1000 ที่อยู่ล่าสุดสำหรับการผสมประมาณ 100 เหตุการณ์ เมื่อมีการใช้ 900 ราย Wallet ของคุณต้องสร้างที่อยู่เพิ่มเติม  สามารถทำเช่นนี้ได้หากคุณเปิดใช้งานการสำรองข้อมูลอัตโนมัติไว้&lt;br&gt;ดังนั้นผู้ใช้ที่มีการสำรองข้อมูลถูกปิดใช้งานจะมีการปิดใช้ PrivateSend &lt;hr&gt;สำหรับข้อมูลเพิ่มเติม&lt;a href="https://docs.dash.org/en/latest/wallets/dashcore/privatesend-instantsend.html"&gt;โปรดดูที่เอกสาร PrivateSend &lt;/a&gt;</translation>
+    </message>
+</context>
 <context>
     <name>Intro</name>
     <message>
@@ -1571,6 +1579,10 @@ https://www.transifex.com/projects/p/dash/</translation>
         <translation>ไม่สามารถใช้ได้:</translation>
     </message>
     <message>
+        <source>Mined balance that has not yet matured</source>
+        <translation>ยอดดุลที่ขุดยังไม่ครบ</translation>
+    </message>
+    <message>
         <source>Balances</source>
         <translation>ยอดคงเหลือ</translation>
     </message>
@@ -1601,6 +1613,10 @@ https://www.transifex.com/projects/p/dash/</translation>
     <message>
         <source>Your current balance in watch-only addresses</source>
         <translation>ยอดเงินปัจจุบันของคุณในที่อยู่สำหรับดูอย่างเดียว</translation>
+    </message>
+    <message>
+        <source>Spendable:</source>
+        <translation>ที่สามารถใช้ได้: </translation>
     </message>
     <message>
         <source>PrivateSend</source>
@@ -1715,12 +1731,20 @@ https://www.transifex.com/projects/p/dash/</translation>
         <translation>ความคืบหน้าโดยรวม</translation>
     </message>
     <message>
+        <source>Denominated</source>
+        <translation>สกุลเงิน</translation>
+    </message>
+    <message>
         <source>Mixed</source>
         <translation>ผสม</translation>
     </message>
     <message>
         <source>Anonymized</source>
         <translation>ไม่ระบุชื่อ</translation>
+    </message>
+    <message numerus="yes">
+        <source>Denominated inputs have %5 of %n rounds on average</source>
+        <translation><numerusform>อินพุตที่เป็นสกุลเงินมีค่าเฉลี่ย %5 ของรอบ %n</numerusform></translation>
     </message>
     <message>
         <source>keys left: %1</source>
@@ -1737,6 +1761,10 @@ https://www.transifex.com/projects/p/dash/</translation>
     <message>
         <source>We are about to create a new automatic backup for you, however &lt;span style='color:red;'&gt; you should always make sure you have backups saved in some safe place&lt;/span&gt;!</source>
         <translation>เรากำลังจะสร้างการสำรองข้อมูลอัตโนมัติใหม่ให้กับคุณ แต่อย่างไรก็ตาม&lt;span style='color:red;'&gt;คุณควรตรวจสอบให้แน่ใจเสมอว่าคุณได้สำรองข้อมูลไว้ในที่ปลอดภัยแล้ว&lt;/span&gt;!</translation>
+    </message>
+    <message>
+        <source>Note: You can turn this message off in options.</source>
+        <translation>หมายเหตุ: คุณสามารถปิดข้อความนี้ได้</translation>
     </message>
     <message>
         <source>WARNING! Something went wrong on automatic backup</source>
@@ -2141,6 +2169,10 @@ https://www.transifex.com/projects/p/dash/</translation>
         <translation>ล้างคอนโซล</translation>
     </message>
     <message>
+        <source>&amp;Network Traffic</source>
+        <translation>&amp;Network Traffic</translation>
+    </message>
+    <message>
         <source>&amp;Clear</source>
         <translation>ลบล้าง</translation>
     </message>
@@ -2221,6 +2253,10 @@ https://www.transifex.com/projects/p/dash/</translation>
         <translation>บริการ</translation>
     </message>
     <message>
+        <source>Ban Score</source>
+        <translation>Ban Score</translation>
+    </message>
+    <message>
         <source>Connection Time</source>
         <translation>เวลาในการเชื่อมต่อ</translation>
     </message>
@@ -2231,6 +2267,22 @@ https://www.transifex.com/projects/p/dash/</translation>
     <message>
         <source>Last Receive</source>
         <translation>ได้รับล่าสุด</translation>
+    </message>
+    <message>
+        <source>Ping Time</source>
+        <translation>สัญญาณ Ping </translation>
+    </message>
+    <message>
+        <source>The duration of a currently outstanding ping.</source>
+        <translation>ระยะเวลาของ ping ที่โดดเด่นในปัจจุบัน</translation>
+    </message>
+    <message>
+        <source>Ping Wait</source>
+        <translation>รอ Ping</translation>
+    </message>
+    <message>
+        <source>Min Ping</source>
+        <translation>Min Ping</translation>
     </message>
     <message>
         <source>Time Offset</source>
@@ -2289,12 +2341,20 @@ https://www.transifex.com/projects/p/dash/</translation>
         <translation>ตัวเลือกการซ่อมแซม Wallet</translation>
     </message>
     <message>
+        <source>Rebuild index</source>
+        <translation>สร้างดัชนีใหม่</translation>
+    </message>
+    <message>
         <source>-reindex: Rebuild block chain index from current blk000??.dat files.</source>
         <translation>-reindex: สร้างดัชนี blockchain ใหม่จากไฟล์ blk000??.dat ปัจจุบัน</translation>
     </message>
     <message>
         <source>&amp;Disconnect</source>
         <translation>ยกเลิกการเชื่อมต่อ</translation>
+    </message>
+    <message>
+        <source>Ban for</source>
+        <translation>Ban สำหรับ</translation>
     </message>
     <message>
         <source>1 &amp;hour</source>
@@ -2311,6 +2371,10 @@ https://www.transifex.com/projects/p/dash/</translation>
     <message>
         <source>1 &amp;year</source>
         <translation>1 &amp; ปี</translation>
+    </message>
+    <message>
+        <source>&amp;Unban</source>
+        <translation>&amp;Unban</translation>
     </message>
     <message>
         <source>Welcome to the %1 RPC console.</source>
@@ -2709,6 +2773,10 @@ https://www.transifex.com/projects/p/dash/</translation>
         <translation>กำหนดเอง:</translation>
     </message>
     <message>
+        <source>(Smart fee not initialized yet. This usually takes a few blocks...)</source>
+        <translation>(ค่าธรรมเนียมยังไม่ถูกเก็บ โดยปกติจะใช้สองสามบล็อค ... )</translation>
+    </message>
+    <message>
         <source>normal</source>
         <translation>ปกติ</translation>
     </message>
@@ -2995,6 +3063,10 @@ https://www.transifex.com/projects/p/dash/</translation>
     <message>
         <source>&amp;Sign Message</source>
         <translation>ลงนามข้อความ</translation>
+    </message>
+    <message>
+        <source>You can sign messages/agreements with your addresses to prove you can receive Dash sent to them. Be careful not to sign anything vague or random, as phishing attacks may try to trick you into signing your identity over to them. Only sign fully-detailed statements you agree to.</source>
+        <translation>คุณสามารถลงนามในข้อความ / ข้อตกลงกับที่อยู่ของคุณเพื่อพิสูจน์ว่าคุณสามารถรับ Dash ส่งถึงพวกเขาได้  ระวังอย่าเซ็นชื่ออะไรที่กำกวม เนื่องจากการโจมตีแบบฟิชชิ่งอาจพยายามหลอกล่อให้คุณเซ็นชื่อตัวคุณเอง เพียงลงนามในคำชี้แจงอย่างละเอียดที่คุณเห็นด้วยเท่านั้น</translation>
     </message>
     <message>
         <source>The Dash address to sign the message with</source>
@@ -3298,12 +3370,20 @@ https://www.transifex.com/projects/p/dash/</translation>
         <translation>ร้านค้า</translation>
     </message>
     <message>
+        <source>Generated coins must mature %1 blocks before they can be spent. When you generated this block, it was broadcast to the network to be added to the block chain. If it fails to get into the chain, its state will change to "not accepted" and it won't be spendable. This may occasionally happen if another node generates a block within a few seconds of yours.</source>
+        <translation>เหรียญที่สร้างต้องครบกำหนด %1 ของบล็อกก่อนที่จะสามารถใช้จ่ายได้ เมื่อสร้างบล็อคนี้จะถูกส่งไปยังเครือข่ายเพื่อเพิ่มเข้าไปในบล็อก หากคุณไม่สามารถเข้าสู่สถานะนี้ มันจะเปลี่ยนเป็น "ไม่ยอมรับ" และไม่สามารถใช้จ่ายได้อีกต่อไป กรณีนี้อาจเกิดขึ้นเป็นครั้งคราวหากโหนดอื่นสร้างบล็อกไม่กี่วินาที</translation>
+    </message>
+    <message>
         <source>Debug information</source>
         <translation>ข้อมูล Debug</translation>
     </message>
     <message>
         <source>Transaction</source>
         <translation>ธุรกรรม</translation>
+    </message>
+    <message>
+        <source>Inputs</source>
+        <translation>อินพุต</translation>
     </message>
     <message>
         <source>Amount</source>
@@ -3412,6 +3492,10 @@ https://www.transifex.com/projects/p/dash/</translation>
         <translation>Mined</translation>
     </message>
     <message>
+        <source>PrivateSend Denominate</source>
+        <translation>PrivateSend Denominate</translation>
+    </message>
+    <message>
         <source>PrivateSend Collateral Payment</source>
         <translation>หลักประกันการชำระเงิน PrivateSend </translation>
     </message>
@@ -3491,6 +3575,14 @@ https://www.transifex.com/projects/p/dash/</translation>
         <translation>ปีนี้</translation>
     </message>
     <message>
+        <source>Range...</source>
+        <translation>ช่วง...</translation>
+    </message>
+    <message>
+        <source>Most Common</source>
+        <translation>ใช้บ่อยที่สุด</translation>
+    </message>
+    <message>
         <source>Received with</source>
         <translation>ได้รับด้วย</translation>
     </message>
@@ -3501,6 +3593,22 @@ https://www.transifex.com/projects/p/dash/</translation>
     <message>
         <source>PrivateSend</source>
         <translation>PrivateSend</translation>
+    </message>
+    <message>
+        <source>PrivateSend Make Collateral Inputs</source>
+        <translation>PrivateSend สร้างการป้อนข้อมูลหลักประกัน</translation>
+    </message>
+    <message>
+        <source>PrivateSend Create Denominations</source>
+        <translation>PrivateSend สร้างหน่วยเงิน</translation>
+    </message>
+    <message>
+        <source>PrivateSend Denominate</source>
+        <translation>PrivateSend Denominate</translation>
+    </message>
+    <message>
+        <source>PrivateSend Collateral Payment</source>
+        <translation>PrivateSend หลักประกันการชำระเงิน</translation>
     </message>
     <message>
         <source>To yourself</source>
@@ -3563,6 +3671,10 @@ https://www.transifex.com/projects/p/dash/</translation>
         <translation>ส่งออกประวัติการทำธุรกรรม</translation>
     </message>
     <message>
+        <source>Comma separated file (*.csv)</source>
+        <translation>ไฟล์ที่คั่นด้วยจุลภาค (* .csv)</translation>
+    </message>
+    <message>
         <source>Confirmed</source>
         <translation>ยืนยันแล้ว</translation>
     </message>
@@ -3607,6 +3719,10 @@ https://www.transifex.com/projects/p/dash/</translation>
         <translation>บันทึกประวัติการทำธุรกรรมสำเร็จแล้วที่ %1</translation>
     </message>
     <message>
+        <source>Range:</source>
+        <translation>ช่วง: </translation>
+    </message>
+    <message>
         <source>to</source>
         <translation>ถึง</translation>
     </message>
@@ -3635,7 +3751,11 @@ https://www.transifex.com/projects/p/dash/</translation>
         <source>InstantSend doesn't support sending values that high yet. Transactions are currently limited to %1 DASH.</source>
         <translation>InstantSend ไม่สนับสนุนการส่งค่าที่สูงเกินไป  ธุรกรรมปัจจุบันถูก จำกัด ไว้ที่ %1 DASH</translation>
     </message>
-    </context>
+    <message>
+        <source>Used way too many inputs (&gt;%1) for this InstantSend transaction, fees could be huge.</source>
+        <translation>จำนวนอินพุทที่ใช้มากเกินไป (&gt;%1) สำหรับการทำธุรกรรม InstantSend นี้ ค่าธรรมเนียมค่อนข้างสูง</translation>
+    </message>
+</context>
 <context>
     <name>WalletView</name>
     <message>
@@ -3678,6 +3798,18 @@ https://www.transifex.com/projects/p/dash/</translation>
 <context>
     <name>dash-core</name>
     <message>
+        <source>Bind to given address and always listen on it. Use [host]:port notation for IPv6</source>
+        <translation>เชื่อมโยงไปยังที่อยู่ที่กำหนดและฟังเสมอ โปรดใช้รูปแบบ  [host]:port สำหรับ IPv6</translation>
+    </message>
+    <message>
+        <source>Error: Listening for incoming connections failed (listen returned error %s)</source>
+        <translation>ข้อผิดพลาด: ฟังการเชื่อมต่อขาเข้าล้มเหลว (ฟังข้อผิดพลาด %s)</translation>
+    </message>
+    <message>
+        <source>Execute command when a relevant alert is received or we see a really long fork (%s in cmd is replaced by message)</source>
+        <translation>ดำเนินการคำสั่งเมื่อได้รับการแจ้งเตือนที่เกี่ยวข้องหรือเราเห็น fork ที่ยาวมาก (%s ในคำสั่งจะถูกแทนที่ด้วยข้อความ)</translation>
+    </message>
+    <message>
         <source>Execute command when a wallet transaction changes (%s in cmd is replaced by TxID)</source>
         <translation>ดำเนินการคำสั่งเมื่อมีการเปลี่ยนแปลงธุรกรรม wallet  (%s ใน cmd จะถูกแทนที่ด้วย TxID)</translation>
     </message>
@@ -3686,12 +3818,44 @@ https://www.transifex.com/projects/p/dash/</translation>
         <translation>ดำเนินการคำสั่งเมื่อมีการเปลี่ยนแปลงที่ดีที่สุดของบล็อก (%s ใน cmd ถูกแทนที่ด้วย block hash)</translation>
     </message>
     <message>
+        <source>Name to construct url for KeePass entry that stores the wallet passphrase</source>
+        <translation>ตั้งชื่อเพื่อสร้าง URL สำหรับเข้า KeePass ที่จัดเก็บวลีรหัสผ่าน wallet</translation>
+    </message>
+    <message>
+        <source>Set maximum size of high-priority/low-fee transactions in bytes (default: %d)</source>
+        <translation>ตั้งค่าขนาดสูงสุดของธุรกรรมที่มีความสำคัญสูง / ค่าธรรมเนียมต่ำเป็นไบต์ (ค่าเริ่มต้น: %d)</translation>
+    </message>
+    <message>
+        <source>Set the number of script verification threads (%u to %d, 0 = auto, &lt;0 = leave that many cores free, default: %d)</source>
+        <translation>กำหนดจำนวนของเธรดสคริปต์การตรวจสอบ (%u ถึง %d, 0 = อัตโนมัติ, &lt;0 = ปล่อยให้คอร์อิสระ , ค่าเริ่มต้น: %d)</translation>
+    </message>
+    <message>
+        <source>This is a pre-release test build - use at your own risk - do not use for mining or merchant applications</source>
+        <translation>นี่คือการสร้างการทดสอบก่อนวางจำหน่าย - ใช้ได้แต่ต้องรับผิดชอบความเสี่ยงด้วยตัวเอง-  ไม่ใช้แอพลิเคชั่นสำหรับการทำขุดหรือร้านค้า</translation>
+    </message>
+    <message>
+        <source>Warning: The network does not appear to fully agree! Some miners appear to be experiencing issues.</source>
+        <translation>คำเตือน: เครือข่ายไม่ปรากฏ! ไมเนอร์บางคนกำลังประสบปัญหา</translation>
+    </message>
+    <message>
+        <source>Warning: We do not appear to fully agree with our peers! You may need to upgrade, or other nodes may need to upgrade.</source>
+        <translation>คำเตือน: เราไม่ปรากฎกับ peer ของเรา! คุณอาจต้องอัพเกรดหรือโหนดอื่น ๆ อาจต้องอัพเกรด</translation>
+    </message>
+    <message>
+        <source>You must specify a masternodeprivkey in the configuration. Please see documentation for help.</source>
+        <translation>คุณต้องระบุ masternodeprivkey ในการกำหนดค่า โปรดดูเอกสารประกอบการช่วยเหลือ</translation>
+    </message>
+    <message>
         <source>Accept command line and JSON-RPC commands</source>
         <translation>ยอมรับ command line และคำสั่ง JSON-RPC</translation>
     </message>
     <message>
         <source>Add a node to connect to and attempt to keep the connection open</source>
         <translation>เพิ่มโหนดเพื่อเชื่อมต่อและพยายามทำให้เปิดการเชื่อมต่อ</translation>
+    </message>
+    <message>
+        <source>Allow DNS lookups for -addnode, -seednode and -connect</source>
+        <translation>อนุญาต DNS ค้นหาสำหรับ -addnode, -seednode และ -connect</translation>
     </message>
     <message>
         <source>Already have that input.</source>
@@ -3710,6 +3874,10 @@ https://www.transifex.com/projects/p/dash/</translation>
         <translation>ไม่สามารถเขียนที่อยู่เริ่มต้นได้</translation>
     </message>
     <message>
+        <source>Collateral not valid.</source>
+        <translation>หลักประกันไม่ถูกต้อง</translation>
+    </message>
+    <message>
         <source>Connect to a node to retrieve peer addresses, and disconnect</source>
         <translation>เชื่อมต่อกับโหนดเพื่อดึงข้อมูลที่อยู่ของ peer และยกเลิกการเชื่อมต่อ</translation>
     </message>
@@ -3726,6 +3894,10 @@ https://www.transifex.com/projects/p/dash/</translation>
         <translation>การแก้จุดบกพร่อง / ตัวเลือกการทดสอบ:</translation>
     </message>
     <message>
+        <source>Do not load the wallet and disable wallet RPC calls</source>
+        <translation>ห้ามโหลด wallet และปิดการใช้งาน wallet RPC</translation>
+    </message>
+    <message>
         <source>Do you want to rebuild the block database now?</source>
         <translation>คุณต้องการสร้างฐานข้อมูลบล็อกใหม่หรือไม่?</translation>
     </message>
@@ -3734,8 +3906,16 @@ https://www.transifex.com/projects/p/dash/</translation>
         <translation>โหลดเรียบร้อยแล้ว</translation>
     </message>
     <message>
+        <source>Entries are full.</source>
+        <translation>รายการเต็ม</translation>
+    </message>
+    <message>
         <source>Error initializing block database</source>
         <translation>เกิดข้อผิดพลาดในการเริ่มต้นฐานข้อมูลบล็อก</translation>
+    </message>
+    <message>
+        <source>Error initializing wallet database environment %s!</source>
+        <translation>เริ่มต้นข้อผิดพลาดด้านสภาพแวดล้อมของฐานข้อมูล Wallet %s!</translation>
     </message>
     <message>
         <source>Error loading block database</source>
@@ -3758,6 +3938,14 @@ https://www.transifex.com/projects/p/dash/</translation>
         <translation>ข้อผิดพลาด: พื้นที่ดิสก์ต่ำ!</translation>
     </message>
     <message>
+        <source>Failed to listen on any port. Use -listen=0 if you want this.</source>
+        <translation>เกิดข้อผิดพลาดในการฟังพอร์ตใด ๆ ใช้ -listen = 0 ถ้าต้องการ</translation>
+    </message>
+    <message>
+        <source>(1 = keep tx meta data e.g. account owner and payment request information, 2 = drop tx meta data)</source>
+        <translation>(1 = เก็บ tx meta data เช่น ชื่อเจ้าของบัญชีและข้อมูลการชำระเงิน,  2 = ทิ้ง tx meta data)</translation>
+    </message>
+    <message>
         <source>-maxtxfee is set very high! Fees this large could be paid on a single transaction.</source>
         <translation>-maxtxfee ตั้งค่าไว้สูงมาก! ค่าธรรมเนียมที่มีขนาดใหญ่นี้สามารถจ่ายได้เมื่อทำธุรกรรมครั้งเดียว</translation>
     </message>
@@ -3770,16 +3958,56 @@ https://www.transifex.com/projects/p/dash/</translation>
         <translation>ยอมรับการถ่ายทอดธุรกรรมที่ได้รับจาก whitelisted peers แม้ว่าจะไม่ได้ทำธุรกรรมแบบเดิมก็ตาม (ค่าเริ่มต้น: %d)</translation>
     </message>
     <message>
+        <source>Allow JSON-RPC connections from specified source. Valid for &lt;ip&gt; are a single IP (e.g. 1.2.3.4), a network/netmask (e.g. 1.2.3.4/255.255.255.0) or a network/CIDR (e.g. 1.2.3.4/24). This option can be specified multiple times</source>
+        <translation>อนุญาตให้ JSON-RPC เชื่อมต่อจากแหล่งที่ระบุ สามารถใช้ได้สำหรับ &lt;ip&gt; คือ IP เดียว (เช่น 1.2.3.4)  network / netmask (เช่น 1.2.3.4/255.255.255.0) หรือ network / CIDR (เช่น 1.2.3.4/24) สามารถระบุตัวเลือกนี้ได้หลายครั้ง</translation>
+    </message>
+    <message>
         <source>Bind to given address and whitelist peers connecting to it. Use [host]:port notation for IPv6</source>
         <translation>เชื่อมโยงไปยังที่อยู่ที่กำหนดและ whitelist peers ที่เชื่อมต่ออยู่  ใช้ [โฮสต์]: สัญลักษณ์พอร์ตสำหรับ IPv6</translation>
+    </message>
+    <message>
+        <source>Bind to given address to listen for JSON-RPC connections. Use [host]:port notation for IPv6. This option can be specified multiple times (default: bind to all interfaces)</source>
+        <translation>เชื่อมโยงไปยังที่อยู่ที่กำหนดเพื่อรับฟังการเชื่อมต่อ JSON-RPC  ใช้  [host]:port  พอร์ตสำหรับ IPv6 ตัวเลือกนี้สามารถระบุได้หลายครั้ง (ค่าดีฟอลต์: ผูกกับอินเทอร์เฟซทั้งหมด)</translation>
     </message>
     <message>
         <source>Create new files with system default permissions, instead of umask 077 (only effective with disabled wallet functionality)</source>
         <translation>สร้างไฟล์ใหม่ด้วยระบบสิทธิ์ดีฟอลต์แทนที่จะเป็น umask 077 (มีผลกับการทำงานของกระเป๋าสตางค์เท่านั้น)</translation>
     </message>
     <message>
+        <source>Delete all wallet transactions and only recover those parts of the blockchain through -rescan on startup</source>
+        <translation>ลบการทำธุรกรรมทั้งหมดของ wallet และกู้เฉพาะส่วนของ blockchain ผ่านการสแกนใหม่เมื่อเริ่มต้น</translation>
+    </message>
+    <message>
         <source>Error loading %s: You can't enable HD on a already existing non-HD wallet</source>
         <translation>เกิดข้อผิดพลาดในการโหลด %s: คุณไม่สามารถเปิดใช้งาน HD บน wallet ที่ไม่ใช่ของ HD ที่มีอยู่แล้ว</translation>
+    </message>
+    <message>
+        <source>Found unconfirmed denominated outputs, will wait till they confirm to continue.</source>
+        <translation>พบเอาท์พุตที่เป็นสกุลเงินที่ไม่ได้รับการยืนยัน จะรอจนกว่าพวกเขาจะยืนยันเพื่อดำเนินการต่อ</translation>
+    </message>
+    <message>
+        <source>How thorough the block verification of -checkblocks is (0-4, default: %u)</source>
+        <translation>การตรวจสอบบล็อกอย่างละเอียดด้วย -checkblocks (0-4 ค่าดีฟอลต์: %u)</translation>
+    </message>
+    <message>
+        <source>If paytxfee is not set, include enough fee so transactions begin confirmation on average within n blocks (default: %u)</source>
+        <translation>หากไม่ได้ตั้งค่า paytxfee ให้รวมค่าคอมมิชชั่นสำหรับการทำธุรกรรมเพื่อเริ่มต้นการยืนยันโดยเฉลี่ยในบล็อก n (ค่าเริ่มต้น: %u)</translation>
+    </message>
+    <message>
+        <source>If this block is in the chain assume that it and its ancestors are valid and potentially skip their script verification (0 to verify all, default: %s, testnet: %s)</source>
+        <translation>ถ้าบล็อกนี้อยู่ในสายโซ่ สมมติว่าสายโซ่และรุ่นก่อนนี้ถูกต้องและเป็นไปได้ที่จะข้ามการตรวจสอบความถูกต้องของสคริปต์ (0 เพื่อยืนยันทุกอย่าง, เริ่มต้น: %s, testnet: %s)</translation>
+    </message>
+    <message>
+        <source>Invalid amount for -maxtxfee=&lt;amount&gt;: '%s' (must be at least the minrelay fee of %s to prevent stuck transactions)</source>
+        <translation>จำนวนเงินไม่ถูกต้องสำหรับ -maxtxfee = &lt;amount&gt;'%s' (ต้องมีอย่างน้อยค่าธรรมเนียงการส่งของ %s เพื่อป้องกันธุรกรรมที่ติดค้าง)</translation>
+    </message>
+    <message>
+        <source>Maintain a full transaction index, used by the getrawtransaction rpc call (default: %u)</source>
+        <translation>รักษาดัชนีการทำรายการทั้งหมดโดยใช้การเรียก gettransaction rpc (ค่าเริ่มต้น: %u)</translation>
+    </message>
+    <message>
+        <source>Make sure to encrypt your wallet and delete all non-encrypted backups after you verified that wallet works!</source>
+        <translation>ตรวจสอบให้แน่ใจว่าได้เข้ารหัส wallet ของคุณและลบสำเนาสำรองที่ไม่ได้เข้ารหัสทั้งหมดหลังจากยืนยันว่า wallet ของคุณทำงานได้!  </translation>
     </message>
     <message>
         <source>Maximum size of data in data carrier transactions we relay and mine (default: %u)</source>
@@ -3794,6 +4022,10 @@ https://www.transifex.com/projects/p/dash/</translation>
         <translation>ข้อมูลการแก้ไขจุดบกพร่องของ Output (ค่าดีฟอลต์: %u &lt;category&gt; เป็นตัวเลือกเพิ่มเติม)</translation>
     </message>
     <message>
+        <source>Use separate SOCKS5 proxy to reach peers via Tor hidden services (default: %s)</source>
+        <translation>ใช้พร็อกซี SOCKS5 แยกเพื่อเข้าถึงเพื่อนร่วมทางผ่านบริการที่ซ่อนไว้ของ Tor (ค่าดีฟอลต์: %s)</translation>
+    </message>
+    <message>
         <source>User defined mnemonic for HD wallet (bip39). Only has effect during wallet creation/first start (default: randomly generated)</source>
         <translation>ผู้ใช้กำหนดเทคนิคช่วยจำสำหรับ wallet HD (bip39) จะมีผลเฉพาะระหว่างการสร้าง wallet / การเริ่มครั้งแรก (ค่าเริ่มต้น: สร้างแบบสุ่ม)</translation>
     </message>
@@ -3806,8 +4038,24 @@ https://www.transifex.com/projects/p/dash/</translation>
         <translation>Whitelisted peers ไม่สามารถถูกห้ามโดย DoS และการทำธุรกรรมของพวกเขาจะถูกส่งถึงแม้ว่าจะมีอยู่ในกลุ่ม mempool แล้วก็ตามเช่น สำหรับเกตเวย์</translation>
     </message>
     <message>
+        <source>You need to rebuild the database using -reindex-chainstate to change -txindex</source>
+        <translation>คุณจำเป็นต้องสร้างฐานข้อมูลโดยใช้ -reindex-chainstate เพื่อเปลี่ยน -txindex</translation>
+    </message>
+    <message>
         <source>(default: %s)</source>
         <translation>(ค่าดีฟอลต์: %s)</translation>
+    </message>
+    <message>
+        <source>Accept public REST requests (default: %u)</source>
+        <translation>ยอมรับคำขอ REST สาธารณะ (ค่าเริ่มต้น: %u)</translation>
+    </message>
+    <message>
+        <source>Always query for peer addresses via DNS lookup (default: %u)</source>
+        <translation>ค้นหา peer address ผ่านการค้นหา DNS เสมอ (ค่าดีฟอลต์: %u)</translation>
+    </message>
+    <message>
+        <source>Can't mix: no compatible inputs found!</source>
+        <translation>ไม่สามารถผสมได้: ไม่พบอินพุตที่เข้ากันได้!</translation>
     </message>
     <message>
         <source>Chain selection options:</source>
@@ -3818,8 +4066,36 @@ https://www.transifex.com/projects/p/dash/</translation>
         <translation>เชื่อมต่อผ่าน SOCKS5 proxy</translation>
     </message>
     <message>
+        <source>Connect to KeePassHttp on port &lt;port&gt; (default: %u)</source>
+        <translation>เชื่อมต่อกับ KeePassHttp บนพอร์ต  &lt;port&gt; (ค่าเริ่มต้น: %u)</translation>
+    </message>
+    <message>
+        <source>Enable the client to act as a masternode (0-1, default: %u)</source>
+        <translation>เปิดใช้งานไคลเอ็นต์เพื่อทำหน้าที่เป็น masternode (0-1 ค่าดีฟอลต์: %u)</translation>
+    </message>
+    <message>
         <source>Entry exceeds maximum size.</source>
         <translation>รายการมีขนาดสูงเกินไป</translation>
+    </message>
+    <message>
+        <source>Error loading %s: You can't disable HD on a already existing HD wallet</source>
+        <translation>เกิดข้อผิดพลาดในการโหลด %s: คุณไม่สามารถปิดใช้งาน HD ใน wallet HD ที่มีอยู่แล้ว</translation>
+    </message>
+    <message>
+        <source>Failed to load fulfilled requests cache from</source>
+        <translation>โหลดคำขอแคชล้มเหลว</translation>
+    </message>
+    <message>
+        <source>Failed to load governance cache from</source>
+        <translation>ไม่สามารถโหลดแคชกำกับดูแลจาก</translation>
+    </message>
+    <message>
+        <source>Failed to load masternode cache from</source>
+        <translation>ไม่สามารถโหลดแคช masternode ได้</translation>
+    </message>
+    <message>
+        <source>Failed to load masternode payments cache from</source>
+        <translation>ไม่สามารถโหลดแคชการชำระเงิน masternode ได้จาก</translation>
     </message>
     <message>
         <source>Found enough users, signing ( waiting %s )</source>
@@ -3890,8 +4166,48 @@ https://www.transifex.com/projects/p/dash/</translation>
         <translation>ฟังเพื่อการเชื่อมต่อ &lt;port&gt; (ค่าเริ่มต้น: %u หรือ testnet: %u)</translation>
     </message>
     <message>
+        <source>Loading banlist...</source>
+        <translation>กำลังโหลดรายการต้องห้าม</translation>
+    </message>
+    <message>
+        <source>Loading fulfilled requests cache...</source>
+        <translation>กำลังโหลดแคชของคำขอ...</translation>
+    </message>
+    <message>
+        <source>Loading masternode cache...</source>
+        <translation>กำลังโหลดแคช masternode ...</translation>
+    </message>
+    <message>
+        <source>Loading masternode payment cache...</source>
+        <translation>กำลังโหลดแคชการชำระเงิน masternode ...</translation>
+    </message>
+    <message>
+        <source>Lock is already in place.</source>
+        <translation>ล็อกอยู่ในตำแหน่งแล้ว</translation>
+    </message>
+    <message>
+        <source>Lock masternodes from masternode configuration file (default: %u)</source>
+        <translation>ล็อค masternodes จากไฟล์การกำหนดค่า masternode (ค่าดีฟอลต์: %u)</translation>
+    </message>
+    <message>
+        <source>Maximum per-connection receive buffer, &lt;n&gt;*1000 bytes (default: %u)</source>
+        <translation>สูงสุดต่อการเชื่อมต่อได้รับบัฟเฟอร์   &lt;n&gt; * 1000 ไบต์  (ค่าเริ่มต้น: %u)</translation>
+    </message>
+    <message>
+        <source>Maximum per-connection send buffer, &lt;n&gt;*1000 bytes (default: %u)</source>
+        <translation>สูงสุดบัฟเฟอร์ต่อการส่งต่อ &lt;n&gt; * 1000 ไบต์ (ค่าดีฟอลต์: %u)</translation>
+    </message>
+    <message>
         <source>Mixing in progress...</source>
         <translation>อยู่ระหว่างการผสม...</translation>
+    </message>
+    <message>
+        <source>Mnemonic passphrase is too long, must be at most 256 characters</source>
+        <translation>รหัสผ่านของ Mnemonic ยาวเกินไป จะต้องมีไม่เกิน 256 ตัว</translation>
+    </message>
+    <message>
+        <source>Need to specify a port with -whitebind: '%s'</source>
+        <translation>จำเป็นต้องระบุพอร์ตด้วย  -whitebind: '%s'  </translation>
     </message>
     <message>
         <source>No Masternodes detected.</source>
@@ -3912,6 +4228,10 @@ https://www.transifex.com/projects/p/dash/</translation>
     <message>
         <source>Port: %d</source>
         <translation>พอร์ต: %d</translation>
+    </message>
+    <message>
+        <source>Prepend debug output with timestamp (default: %u)</source>
+        <translation>แสดงผลลัพธ์ดีบักด้วย timestamp (ค่าดีฟอลต์: %u) </translation>
     </message>
     <message>
         <source>Rebuild chain state and block index from the blk*.dat files on disk</source>
@@ -3990,12 +4310,72 @@ https://www.transifex.com/projects/p/dash/</translation>
         <translation>นี่ไม่ใช่ Masternodes</translation>
     </message>
     <message>
+        <source>Threshold for disconnecting misbehaving peers (default: %u)</source>
+        <translation>เกณฑ์สำหรับการยกเลิกการเชื่อมต่อ peer ที่ทำงานผิดปกติ (ค่าเริ่มต้น: %u)</translation>
+    </message>
+    <message>
         <source>Too many %f denominations, removing.</source>
         <translation>จำนวนเงิน %f มากเกินไป, กำลังลบออก</translation>
     </message>
     <message>
+        <source>Tor control port password (default: empty)</source>
+        <translation>รหัสผ่านพอร์ตควบคุม Tor (ค่าเริ่มต้น: ว่าง)</translation>
+    </message>
+    <message>
+        <source>Tor control port to use if onion listening enabled (default: %s)</source>
+        <translation>เปิดพอร์ตควบคุม Tor เมื่อฟังการเชื่อมต่อ onion (ค่าดีฟอลต์: %s)</translation>
+    </message>
+    <message>
+        <source>Unable to start HTTP server. See debug log for details.</source>
+        <translation>ไม่สามารถเริ่มต้นเซิร์ฟเวอร์ HTTPได้  ดูบันทึกดีบักเพื่อดูรายละเอียด</translation>
+    </message>
+    <message>
         <source>Unknown response.</source>
         <translation>การตอบสนองที่ไม่รู้จัก</translation>
+    </message>
+    <message>
+        <source>Unsupported argument -benchmark ignored, use -debug=bench.</source>
+        <translation>อาร์กิวเมนต์ที่ไม่ได้รับการสนับสนุน -benchmark ถูกละเว้นใช้ -debug = bench</translation>
+    </message>
+    <message>
+        <source>Unsupported argument -debugnet ignored, use -debug=net.</source>
+        <translation>อาร์กิวเมนต์ที่ไม่ได้รับการสนับสนุน -debugnet ถูกละเว้นใช้ -debug = net</translation>
+    </message>
+    <message>
+        <source>Unsupported argument -tor found, use -onion.</source>
+        <translation>อาร์กิวเมนต์ที่ไม่ได้รับการสนับสนุน พบ -tor  , ใช้ -onion.</translation>
+    </message>
+    <message>
+        <source>Upgrade wallet to latest format on startup</source>
+        <translation>อัปเดต wallet เป็นรูปแบบล่าสุดเมื่อเริ่มต้น</translation>
+    </message>
+    <message>
+        <source>Use KeePass 2 integration using KeePassHttp plugin (default: %u)</source>
+        <translation>ใช้การรวม KeePass 2 โดยใช้ปลั๊กอิน KeePassHttp (ค่าเริ่มต้น: %u)</translation>
+    </message>
+    <message>
+        <source>Use UPnP to map the listening port (default: %u)</source>
+        <translation>ใช้ UPnP เพื่อวางแผนพอร์ตการฟัง (ค่าเริ่มต้น: %u)</translation>
+    </message>
+    <message>
+        <source>Use the test chain</source>
+        <translation>ใช้สายโซ่ทดสอบ</translation>
+    </message>
+    <message>
+        <source>User Agent comment (%s) contains unsafe characters.</source>
+        <translation>ตัวแทนผู้ใช้แสดงความคิดเห็น (%s) มีอักขระที่ไม่ปลอดภัย</translation>
+    </message>
+    <message>
+        <source>Will retry...</source>
+        <translation>จะลองใหม่ ...</translation>
+    </message>
+    <message>
+        <source>Invalid masternodeprivkey. Please see documenation.</source>
+        <translation>masternodeprivkey ไม่ถูกต้อง โปรดดูเอกสารประกอบ</translation>
+    </message>
+    <message>
+        <source>Can't find random Masternode.</source>
+        <translation>ไม่พบ Masternode </translation>
     </message>
     <message>
         <source>Can't mix while sync in progress.</source>
@@ -4006,8 +4386,36 @@ https://www.transifex.com/projects/p/dash/</translation>
         <translation>ไม่สามารถวิเคราะห์ masternode.conf</translation>
     </message>
     <message>
+        <source>Invalid netmask specified in -whitelist: '%s'</source>
+        <translation>netmask ไม่ถูกต้องที่ระบุใน -whitelist: '%s'</translation>
+    </message>
+    <message>
+        <source>Invalid port detected in masternode.conf</source>
+        <translation>ตรวจพบพอร์ตที่ไม่ถูกต้องใน masternode.conf</translation>
+    </message>
+    <message>
+        <source>Invalid script detected.</source>
+        <translation>ตรวจพบสคริปต์ที่ไม่ถูกต้อง</translation>
+    </message>
+    <message>
+        <source>KeePassHttp id for the established association</source>
+        <translation>รหัส KeePassHttp สำหรับสมาคมที่จัดตั้งขึ้น</translation>
+    </message>
+    <message>
+        <source>KeePassHttp key for AES encrypted communication with KeePass</source>
+        <translation>คีย์ KeePassHttp สำหรับการสื่อสารที่เข้ารหัสด้วย AES กับ KeePass</translation>
+    </message>
+    <message>
+        <source>Keep at most &lt;n&gt; unconnectable transactions in memory (default: %u)</source>
+        <translation>เก็บให้ได้มากที่สุด&lt;n&gt;รายการที่ไม่สามารถยกเลิกการทำธุรกรรมในหน่วยความจำ (ค่าเริ่มต้น: %u)</translation>
+    </message>
+    <message>
         <source>Disable all Dash specific functionality (Masternodes, PrivateSend, InstantSend, Governance) (0-1, default: %u)</source>
         <translation>ปิดใช้ฟังก์ชันการทำงานเฉพาะ Dash ทั้งหมด  (Masternodes, PrivateSend, InstantSend, Governance) (0-1, ค่าดีฟอลต์: %u)</translation>
+    </message>
+    <message>
+        <source>%s file contains all private keys from this wallet. Do not share it with anyone!</source>
+        <translation>ไฟล์ %s มี private keys ทั้งหมดจาก wallet นี้  ห้ามเผยแพร่กับคนอื่น</translation>
     </message>
     <message>
         <source>Discover own IP addresses (default: 1 when listening and no -externalip or -proxy)</source>
@@ -4034,6 +4442,10 @@ https://www.transifex.com/projects/p/dash/</translation>
         <translation>ดำเนินการคำสั่งเมื่อทำธุรกรรมแบบ InstantSend  ล็อคเรียบร้อยแล้ว (%s ใน cmd จะถูกแทนที่ด้วย TxID)</translation>
     </message>
     <message>
+        <source>Extra transactions to keep in memory for compact block reconstructions (default: %u)</source>
+        <translation>การทำธุรกรรมพิเศษเพื่อเก็บไว้ในหน่วยความจำสำหรับการสร้างบล็อคใหม่ทำที่มีขนาดกะทัดรัด (ค่าดีฟอลต์: %u)</translation>
+    </message>
+    <message>
         <source>Failed to create backup, file already exists! This could happen if you restarted wallet in less than 60 seconds. You can continue if you are ok with this.</source>
         <translation>ไม่สามารถสร้างไฟล์สำรองข้อมูลได้แล้ว! กรณีนี้อาจเกิดขึ้นหากคุณรีสตาร์ท wallet ภายในเวลาไม่ถึง 60 วินาที คุณสามารถดำเนินการต่อได้หากคุณต้องการ</translation>
     </message>
@@ -4044,6 +4456,10 @@ https://www.transifex.com/projects/p/dash/</translation>
     <message>
         <source>Fees (in %s/kB) smaller than this are considered zero fee for transaction creation (default: %s)</source>
         <translation>ค่าธรรมเนียม (ใน %s / kB) เล็กกว่านี้ถือว่าเป็นศูนย์สำหรับการทำธุรกรรม (ค่าดีฟอลต์: %s)</translation>
+    </message>
+    <message>
+        <source>If &lt;category&gt; is not supplied or if &lt;category&gt; = 1, output all debugging information.</source>
+        <translation>ถ้าไม่มี &lt;category&gt;หรือถ้า &lt;category&gt;= 1  , ผลลัพธ์ก็จะเกิดจากข้อมูลการดีบักทั้งหมด</translation>
     </message>
     <message>
         <source>InstantSend doesn't support sending values that high yet. Transactions are currently limited to %1 DASH.</source>
@@ -4058,16 +4474,96 @@ https://www.transifex.com/projects/p/dash/</translation>
         <translation>รักษาดัชนีที่อยู่แบบเต็มใช้ในการค้นหายอดคงเหลือ, txids และผลลัพธ์ที่ไม่ได้ระบุสำหรับที่อยู่ (ค่าดีฟอลต์: %u)</translation>
     </message>
     <message>
+        <source>Maintain a full spent index, used to query the spending txid and input index for an outpoint (default: %u)</source>
+        <translation>รักษาดัชนีที่ใช้เต็มรูปแบบ  ใช้เพื่อสอบถามค่าใช้จ่าย txid และดัชนีการป้อนข้อมูลสำหรับ outpoint (ค่าเริ่มต้น: %u)</translation>
+    </message>
+    <message>
+        <source>Maintain a timestamp index for block hashes, used to query blocks hashes by a range of timestamps (default: %u)</source>
+        <translation>รักษาดัชนี timestamps สำหรับแฮชบล็อค  ใช้ในการค้นหาแฮชบล็อคโดยใช้ช่วงของ timestamps (default: %u)</translation>
+    </message>
+    <message>
+        <source>Maintain at most &lt;n&gt; connections to peers (temporary service connections excluded) (default: %u)</source>
+        <translation>รักษาบริการเชื่อมต่อแบบ peer อย่างน้อย &lt;n&gt;  (ไม่รวมบริการเชื่อมต่อชั่วคราว) (ค่าเริ่มต้น: %u)</translation>
+    </message>
+    <message>
         <source>PrivateSend uses exact denominated amounts to send funds, you might simply need to anonymize some more coins.</source>
         <translation>PrivateSend ใช้จำนวนเงินตามสกุลเงินที่แน่นอนในการส่งเงิน คุณอาจเพียงต้องการระบุชื่อเหรียญเพิ่มเติม</translation>
+    </message>
+    <message>
+        <source>Prune configured below the minimum of %d MiB.  Please use a higher number.</source>
+        <translation>Prune มีการกำหนดค่าขั้นต่ำ %d MiB   โปรดใช้หมายเลขที่สูงกว่า</translation>
+    </message>
+    <message>
+        <source>Prune: last wallet synchronisation goes beyond pruned data. You need to -reindex (download the whole blockchain again in case of pruned node)</source>
+        <translation>การซิงโครไนซ์ wallet ครั้งล่าสุดเหนือกว่าข้อมูล pruned คุณต้อง -reindex (ดาวน์โหลด blockchain ทั้งหมดอีกครั้งในกรณีของ pruned โหนด)</translation>
+    </message>
+    <message>
+        <source>Randomize credentials for every proxy connection. This enables Tor stream isolation (default: %u)</source>
+        <translation>สุ่มข้อมูลตัวอย่างรับรองสำหรับการเชื่อมต่อพร็อกซีทุกครั้ง ซึ่งจะช่วยให้การแยก Tor สตรีม (ค่าเริ่มต้น: %u)</translation>
+    </message>
+    <message>
+        <source>Rescans are not possible in pruned mode. You will need to use -reindex which will download the whole blockchain again.</source>
+        <translation>Rescans ไม่สามารถทำได้ในโหมด pruned คุณจะต้องใช้ -reindex ซึ่งจะดาวน์โหลด blockchain ทั้งหมดอีกครั้ง</translation>
+    </message>
+    <message>
+        <source>Specify full path to directory for automatic wallet backups (must exist)</source>
+        <translation>ระบุแพทเต็มรูปแบบไปยังไดเรกทอรีสำหรับการสำรองข้อมูล wallet อัตโนมัติ (ต้องมีอยู่)</translation>
+    </message>
+    <message>
+        <source>Support filtering of blocks and transaction with bloom filters (default: %u)</source>
+        <translation>สนับสนุนการกรองบล็อคและการทำธุรกรรมด้วยตัวกรองของบลูม หรือ  bloom filters  (ค่าดีฟอลต์: %u)</translation>
+    </message>
+    <message>
+        <source>The block database contains a block which appears to be from the future. This may be due to your computer's date and time being set incorrectly. Only rebuild the block database if you are sure that your computer's date and time are correct</source>
+        <translation>ฐานข้อมูลบล็อกประกอบด้วยบล็อกที่เหมือนจะมาจากอนาคต  อาจเป็นเพราะวันที่และเวลาของคอมพิวเตอร์ของคุณไม่ถูกต้อง  สร้างฐานข้อมูลบล็อกใหม่เท่านั้น ถ้าคุณแน่ใจว่าวันที่และเวลาของคอมพิวเตอร์ถูกต้อง</translation>
     </message>
     <message>
         <source>The transaction amount is too small to send after the fee has been deducted</source>
         <translation>จำนวนเงินที่ทำธุรกรรมน้อยเกินเกินไปที่จะส่ง หลังจากหักค่าธรรมเนียมแล้ว</translation>
     </message>
     <message>
+        <source>Total length of network version string (%i) exceeds maximum length (%i). Reduce the number or size of uacomments.</source>
+        <translation>ความยาวทั้งหมดของสตริงเวอร์ชันเครือข่าย (%i) เกินความยาวสูงสุด (%i)  ลดจำนวนหรือขนาดของ uacomments</translation>
+    </message>
+    <message>
+        <source>Transaction index can't be disabled in full mode. Either start with -litemode command line switch or enable transaction index.</source>
+        <translation>ไม่สามารถปิดใช้ดัชนีรายการในโหมดเต็มได้ นอกจากจะเริ่มต้นด้วยสวิตช์คำสั่ง - litemode หรือเปิดใช้งานรายการดัชนี</translation>
+    </message>
+    <message>
+        <source>Tries to keep outbound traffic under the given target (in MiB per 24h), 0 = no limit (default: %d)</source>
+        <translation>พยายามให้การรับส่งข้อมูลขาออกตามเป้าหมายที่กำหนด (ใน MiB ต่อ 24 ชั่วโมง), 0 = ไม่มีขีด จำกัด (ค่าเริ่มต้น: %d)</translation>
+    </message>
+    <message>
+        <source>Unable to locate enough PrivateSend denominated funds for this transaction.</source>
+        <translation>ไม่สามารถหาเงินได้เพียงพอสำหรับ PrivateSend สำหรับธุรกรรมนี้</translation>
+    </message>
+    <message>
+        <source>Unsupported argument -socks found. Setting SOCKS version isn't possible anymore, only SOCKS5 proxies are supported.</source>
+        <translation>พบอาร์กิวเมนต์ที่ไม่สนับสนุน -socks  การตั้งค่าเวอร์ชัน BB ไม่สามารถทำได้อีกต่อไป สนับสนุนพร็อกซี SOCKS5 เท่านั้น</translation>
+    </message>
+    <message>
+        <source>Unsupported argument -whitelistalwaysrelay ignored, use -whitelistrelay and/or -whitelistforcerelay.</source>
+        <translation>เพิกเฉยอาร์กิวเมนต์ที่ไม่สนับสนุน - whitelistalwaysrelay   ใช้ -whitelistrelay และ/หรือ -whitelistforcerelay.</translation>
+    </message>
+    <message>
+        <source>Use UPnP to map the listening port (default: 1 when listening and no -proxy)</source>
+        <translation>ใช้ UPnP เพื่อวางแผนพอร์ตการฟัง (ค่าเริ่มต้น: 1 เมื่อกำลังฟังและไม่มี -proxy)</translation>
+    </message>
+    <message>
+        <source>WARNING! Failed to replenish keypool, please unlock your wallet to do so.</source>
+        <translation>คำเตือน! ไม่สามารถเติม keypool ได้  โปรดปลดล็อก wallet ของคุณเพื่อทำเช่นนั้น</translation>
+    </message>
+    <message>
+        <source>Wallet is locked, can't replenish keypool! Automatic backups and mixing are disabled, please unlock your wallet to replenish keypool.</source>
+        <translation>Wallet ถูกล็อคไม่สามารถเติม keypool! ปิดใช้งานการสำรองข้อมูลและการผสมข้อมูลอัตโนมัติ โปรดปลดล็อกเพื่อใส่พวง keypool</translation>
+    </message>
+    <message>
         <source>Warning: Unknown block versions being mined! It's possible unknown rules are in effect</source>
         <translation>คำเตือน: ไม่สามารถหาเงิน PrivateSend ที่ระบุได้เพียงพอสำหรับธุรกรรมนี้</translation>
+    </message>
+    <message>
+        <source>You are starting in lite mode, all Dash-specific functionality is disabled.</source>
+        <translation>คุณกำลังเริ่มต้นใน Lite Mode  ฟังก์ชันการทำงานเฉพาะ Dash ทั้งหมดจะถูกปิดใช้งาน</translation>
     </message>
     <message>
         <source>You need to rebuild the database using -reindex to go back to unpruned mode.  This will redownload the entire blockchain</source>
@@ -4082,12 +4578,20 @@ https://www.transifex.com/projects/p/dash/</translation>
         <translation>(ค่าเริ่มต้น: %u)</translation>
     </message>
     <message>
+        <source>(must be %d for mainnet)</source>
+        <translation>(ต้องเป็น %d สำหรับ mainnet)</translation>
+    </message>
+    <message>
         <source>-maxmempool must be at least %d MB</source>
         <translation>-maxmempool ต้องมีอย่างน้อย %d MB</translation>
     </message>
     <message>
         <source>&lt;category&gt; can be:</source>
         <translation>&lt;category&gt;เป็นไปได้: </translation>
+    </message>
+    <message>
+        <source>Append comment to the user agent string</source>
+        <translation>เพิ่มความคิดเห็นไปยังสตริงตัวแทนผู้ใช้</translation>
     </message>
     <message>
         <source>Automatic backups disabled</source>
@@ -4100,6 +4604,38 @@ https://www.transifex.com/projects/p/dash/</translation>
     <message>
         <source>ERROR! Failed to create automatic backup</source>
         <translation>ข้อผิดพลาด! ไม่สามารถสร้างการสำรองข้อมูลอัตโนมัติ</translation>
+    </message>
+    <message>
+        <source>Enable publish hash block in &lt;address&gt;</source>
+        <translation>เปิดใช้งานบล็อคแฮชใน &lt;address&gt;</translation>
+    </message>
+    <message>
+        <source>Enable publish hash of governance objects (like proposals) in &lt;address&gt;</source>
+        <translation>เปิดใช้งานแฮชการเผยแพร่เนื้อหาการกำกับดูแล (เช่น ข้อเสนอ) ใน &lt;address&gt;</translation>
+    </message>
+    <message>
+        <source>Enable publish hash of governance votes in &lt;address&gt;</source>
+        <translation>เปิดใช้งานแฮชการโหวตเกี่ยวกับการกำกับดูแลใน &lt;address&gt;</translation>
+    </message>
+    <message>
+        <source>Enable publish hash transaction (locked via InstantSend) in &lt;address&gt;</source>
+        <translation>เปิดใช้งานการทำธุรกรรมแฮช (ล็อกผ่าน InstantSend) ใน&lt;address&gt;</translation>
+    </message>
+    <message>
+        <source>Enable publish hash transaction in &lt;address&gt;</source>
+        <translation>เปิดใช้งานการธุรกรรมแฮชใน&lt;address&gt;</translation>
+    </message>
+    <message>
+        <source>Enable publish raw block in &lt;address&gt;</source>
+        <translation>เปิดใช้งานบล็อกแบบดิบใน&lt;address&gt;</translation>
+    </message>
+    <message>
+        <source>Enable publish raw transaction (locked via InstantSend) in &lt;address&gt;</source>
+        <translation>เปิดใช้งานการทำธุรกรรมดิบ (ล็อกผ่าน InstantSend) ใน&lt;address&gt;</translation>
+    </message>
+    <message>
+        <source>Enable publish raw transaction in &lt;address&gt;</source>
+        <translation>เปิดใช้งานการทำธุรกรรมดิบใหม่ใน &lt;address&gt;</translation>
     </message>
     <message>
         <source>Enable transaction replacement in the memory pool (default: %u)</source>
@@ -4122,6 +4658,18 @@ https://www.transifex.com/projects/p/dash/</translation>
         <translation>ไม่สามารถลบข้อมูลสำรอง  ผิดพลาด: %s</translation>
     </message>
     <message>
+        <source>Failed to load InstantSend data cache from</source>
+        <translation>โหลดแคชข้อมูล InstantSend  ล้มเหลว</translation>
+    </message>
+    <message>
+        <source>Failed to load sporks cache from</source>
+        <translation>โหลดแคช sporks ล้มเหลว</translation>
+    </message>
+    <message>
+        <source>Failed to parse host:port string</source>
+        <translation>แยกวิเคราะห์ host:port  ล้มเหลว</translation>
+    </message>
+    <message>
         <source>Fee (in %s/kB) to add to transactions you send (default: %s)</source>
         <translation>ค่าธรรมเนียม (ใน %s / kB) เพื่อเพิ่มธุรกรรมที่คุณส่ง (ค่าเริ่มต้น: %s)</translation>
     </message>
@@ -4138,6 +4686,10 @@ https://www.transifex.com/projects/p/dash/</translation>
         <translation>จำนวนเงินที่ไม่ถูกต้องสำหรับ -fallbackfee = 1: '%s'</translation>
     </message>
     <message>
+        <source>Invalid input count.</source>
+        <translation>จำนวนการป้อนข้อมูลไม่ถูกต้อง</translation>
+    </message>
+    <message>
         <source>Keep the transaction memory pool below &lt;n&gt; megabytes (default: %u)</source>
         <translation>เก็บหน่วยความจำธุรกรรมไว้ต่ำกว่า 1 เมกะไบต์ (ค่าเริ่มต้น: %u)</translation>
     </message>
@@ -4150,8 +4702,28 @@ https://www.transifex.com/projects/p/dash/</translation>
         <translation>การกระทำ PrivateSend ที่ประสบความสำเร็จล่าสุดเป็นข้อมูลล่าสุด</translation>
     </message>
     <message>
+        <source>Line: %d</source>
+        <translation>Line: %d</translation>
+    </message>
+    <message>
+        <source>Loading InstantSend data cache...</source>
+        <translation>กำลังโหลดแคชข้อมูล InstantSend ...</translation>
+    </message>
+    <message>
         <source>Loading addresses...</source>
         <translation>กำลังโหลดที่อยู่ ...</translation>
+    </message>
+    <message>
+        <source>Loading block index...</source>
+        <translation>กำลังโหลดดัชนีบล็อก ...</translation>
+    </message>
+    <message>
+        <source>Loading governance cache...</source>
+        <translation>โหลดแคชกำกับดูแล ...</translation>
+    </message>
+    <message>
+        <source>Loading sporks cache...</source>
+        <translation>กำลังโหลดแคช sporks...</translation>
     </message>
     <message>
         <source>Loading wallet... (%3.2f %%)</source>
@@ -4162,8 +4734,16 @@ https://www.transifex.com/projects/p/dash/</translation>
         <translation>กำลังโหลด Wallet ...</translation>
     </message>
     <message>
+        <source>Location of the auth cookie (default: data dir)</source>
+        <translation>ตำแหน่งของคุกกี้ที่ได้รับรองความถูกต้อง (ค่าดีฟอลต์: data dir)</translation>
+    </message>
+    <message>
         <source>Make the wallet broadcast transactions</source>
         <translation>ดำเนินการในการเผยแพร่ธุรกรรม wallet</translation>
+    </message>
+    <message>
+        <source>Masternode cache is empty, skipping payments and governance cache...</source>
+        <translation>แคช Masternode ว่างเปล่า  ละเว้นการชำระเงินและแคชการจัดการ...</translation>
     </message>
     <message>
         <source>Masternode options:</source>
@@ -4176,6 +4756,30 @@ https://www.transifex.com/projects/p/dash/</translation>
     <message>
         <source>Masternode:</source>
         <translation>Masternode:</translation>
+    </message>
+    <message>
+        <source>Minimum bytes per sigop in transactions we relay and mine (default: %u)</source>
+        <translation>ไบต์ขั้นต่ำต่อ sigop ในธุรกรรมที่เราส่งต่อและขุด  (ค่าเริ่มต้น: %u)</translation>
+    </message>
+    <message>
+        <source>Missing input transaction information.</source>
+        <translation>อินพุตข้อมูลธุรกรรมขาดหายไป</translation>
+    </message>
+    <message>
+        <source>No errors detected.</source>
+        <translation>ไม่พบข้อผิดพลาด</translation>
+    </message>
+    <message>
+        <source>No matching denominations found for mixing.</source>
+        <translation>ไม่พบสกุลเงินที่เหมาะสมสำหรับการผสม</translation>
+    </message>
+    <message>
+        <source>Node relay options:</source>
+        <translation>ตัวเลือกการถ่ายทอดโหนด:</translation>
+    </message>
+    <message>
+        <source>Non-standard public key detected.</source>
+        <translation>ตรวจพบคีย์สาธารณะที่ไม่เป็นไปตามมาตรฐาน</translation>
     </message>
     <message>
         <source>Not compatible with existing transactions.</source>
@@ -4222,6 +4826,18 @@ https://www.transifex.com/projects/p/dash/</translation>
         <translation>คำขอ PrivateSend ไม่สมบูรณ์:</translation>
     </message>
     <message>
+        <source>Prune cannot be configured with a negative value.</source>
+        <translation>Prune  ไม่สามารถกำหนดค่าได้ด้วยค่าลบ </translation>
+    </message>
+    <message>
+        <source>Prune mode is incompatible with -txindex.</source>
+        <translation>โหมด Prune ไม่สามารถใช้ได้กับ -txtindex ได้</translation>
+    </message>
+    <message>
+        <source>Pruning blockstore...</source>
+        <translation>กำลังตัด blockstore ...</translation>
+    </message>
+    <message>
         <source>Rescan the block chain for missing wallet transactions on startup</source>
         <translation>สแกน Block chain ใหม่สำหรับธุรกรรม Wallet ที่หายไปเมื่อเริ่มต้น</translation>
     </message>
@@ -4250,6 +4866,10 @@ https://www.transifex.com/projects/p/dash/</translation>
         <translation>ธุรกรรมต้องมีผู้รับอย่างน้อยหนึ่งราย</translation>
     </message>
     <message>
+        <source>Transaction too large</source>
+        <translation>ธุรกรรมมีขนาดใหญ่เกินไป</translation>
+    </message>
+    <message>
         <source>Trying to connect...</source>
         <translation>กำลังพยายามเชื่อมต่อ ...</translation>
     </message>
@@ -4258,8 +4878,20 @@ https://www.transifex.com/projects/p/dash/</translation>
         <translation>ไม่สามารถผูกกับ %s คอมพิวเตอร์เครื่องนี้ได้  %s อาจกำลังทำงานอยู่แล้ว</translation>
     </message>
     <message>
+        <source>Upgrading UTXO database</source>
+        <translation>การอัพเกรดฐานข้อมูล UTXO</translation>
+    </message>
+    <message>
         <source>Use devnet chain with provided name</source>
         <translation>ใช้ devnet chain พร้อมชื่อที่ระบุ</translation>
+    </message>
+    <message>
+        <source>Wallet debugging/testing options:</source>
+        <translation>การแก้จุดบกพร่อง / ตัวเลือกการทดสอบ Wallet:</translation>
+    </message>
+    <message>
+        <source>Wallet is not initialized</source>
+        <translation>ยังไม่ได้ลงชื่อ wallet </translation>
     </message>
     <message>
         <source>Wallet needed to be rewritten: restart %s to complete</source>
@@ -4272,6 +4904,14 @@ https://www.transifex.com/projects/p/dash/</translation>
     <message>
         <source>Wasn't able to create wallet backup folder %s!</source>
         <translation>ไม่สามารถสร้างโฟลเดอร์สำรอง Wallet ได้ %s!</translation>
+    </message>
+    <message>
+        <source>Whether to operate in a blocks only mode (default: %u)</source>
+        <translation>ใช้งานในโหมดบล็อกเฉพาะ (ค่าเริ่มต้น: %u)</translation>
+    </message>
+    <message>
+        <source>You can not start a masternode in lite mode.</source>
+        <translation>คุณไม่สามารถเริ่มต้น masternode ใน Lite mode</translation>
     </message>
     <message>
         <source>ZeroMQ notification options:</source>
@@ -4306,6 +4946,10 @@ https://www.transifex.com/projects/p/dash/</translation>
         <translation>ไม่สามารถรับการล็อกไดเรกทอรีข้อมูล %s ได้ %s มันอาจทำงานอยู่แล้ว</translation>
     </message>
     <message>
+        <source>Connect only to the specified node(s); -noconnect or -connect=0 alone to disable automatic connections</source>
+        <translation>เชื่อมต่อกับโหนดที่ระบุเท่านั้น -noconnect หรือ -connect = 0 เพื่อยกเลิกการเชื่อมต่ออัตโนมัติ</translation>
+    </message>
+    <message>
         <source>Distributed under the MIT software license, see the accompanying file %s or %s</source>
         <translation>เผยแพร่ภายใต้ใบอนุญาตซอฟต์แวร์ MIT โปรดดูที่ไฟล์ที่แนบมา %s หรือ %s</translation>
     </message>
@@ -4318,12 +4962,20 @@ https://www.transifex.com/projects/p/dash/</translation>
         <translation>บังคับให้การถ่ายทอดของธุรกรรมจาก whitelisted peers แม้ว่าจะละเมิดนโยบายการถ่ายทอดข้อมูลท้องถิ่น (ค่าเริ่มต้น: %d)</translation>
     </message>
     <message>
+        <source>Incorrect or no devnet genesis block found. Wrong datadir for devnet specified?</source>
+        <translation>ไม่พบหรือไม่พบแหล่งกำเนิด devnet genesis  ระบุข้อมูลที่ผิดสำหรับ devnet  หรือไม่ ?</translation>
+    </message>
+    <message>
         <source>Maximum allowed median peer time offset adjustment. Local perspective of time may be influenced by peers forward or backward by this amount. (default: %u seconds)</source>
         <translation>การปรับชดเชยชดเชยเวลาของค่ามัธยฐานได้สูงสุด มุมมองท้องถิ่นของเวลาอาจได้รับอิทธิพลจาก Peer ข้างหน้าหรือข้างหลังด้วยจำนวนนี้ (ค่าเริ่มต้น: %u วินาที)</translation>
     </message>
     <message>
         <source>Maximum total fees (in %s) to use in a single wallet transaction or raw transaction; setting this too low may abort large transactions (default: %s)</source>
         <translation>ค่าธรรมเนียมรวมสูงสุด (เป็น %s) ที่จะใช้ในธุรกรรม Wallet เดียวหรือธุรกรรมแบบดั้งเดิม การตั้งค่านี้ต่ำเกินไปอาจยกเลิกธุรกรรมที่มีขนาดใหญ่ (ค่าเริ่มต้น: %s)</translation>
+    </message>
+    <message>
+        <source>Override spork address. Only useful for regtest and devnet. Using this on mainnet or testnet will ban you.</source>
+        <translation>ยกเลิกที่อยู่ spork เป็นประโยชน์สำหรับ regtest และ devnet การใช้สิ่งนี้ใน mainnet หรือ testnet จะห้ามคุณไม่ให้ใช้</translation>
     </message>
     <message>
         <source>Please check that your computer's date and time are correct! If your clock is wrong, %s will not work properly.</source>
@@ -4342,6 +4994,10 @@ https://www.transifex.com/projects/p/dash/</translation>
         <translation>ข้อสงสัยสำหรับที่อยู่ของ peer ค้นหาได้ทาง DNS หากมีที่อยู่ต่ำ (ค่าเริ่มต้น: 1 เว้นแต่ -connect / -noconnect)</translation>
     </message>
     <message>
+        <source>Reduce storage requirements by enabling pruning (deleting) of old blocks. This allows the pruneblockchain RPC to be called to delete specific blocks, and enables automatic pruning of old blocks if a target size in MiB is provided. This mode is incompatible with -txindex and -rescan. Warning: Reverting this setting requires re-downloading the entire blockchain. (default: 0 = disable pruning blocks, 1 = allow manual pruning via RPC, &gt;%u = automatically prune block files to stay under the specified target size in MiB)</source>
+        <translation>ลดข้อกำหนดในการจัดเก็บโดยการตัดแต่ง (การลบ) บล็อกเก่า  ซึ่งจะช่วยให้สามารถเรียกใช้ RPM pruneblockchain เพื่อลบบล็อคที่ต้องการและช่วยให้การตัดบล็อกเก่าโดยอัตโนมัติหากมีการกำหนดขนาดเป้าหมายไว้ใน MiB โหมดนี้ไม่สามารถใช้ได้กับ -txtindex และ -rescan                                                    คำเตือน: การคืนค่าการตั้งค่านี้จะต้องดาวน์โหลดใหม่ทั้งหมด blockchain  (ค่าเริ่มต้น: 0 = ปิดใช้งานการตัดบล็อค, 1 = อนุญาตการตัดด้วยตนเองผ่านทาง RPC, &gt;%u = อัตโนมัติตัดไฟล์บล็อคเพื่อให้อยู่ภายใต้ขนาดเป้าหมายที่ระบุใน MiB)</translation>
+    </message>
+    <message>
         <source>Set lowest fee rate (in %s/kB) for transactions to be included in block creation. (default: %s)</source>
         <translation>กำหนดอัตราค่าธรรมเนียมต่ำสุด (%s / kB) สำหรับธุรกรรมที่ถูกรวมในการสร้างบล็อค (ค่าดีฟอลต์: %s)</translation>
     </message>
@@ -4350,12 +5006,28 @@ https://www.transifex.com/projects/p/dash/</translation>
         <translation>นี่คือค่าธรรมเนียมการทำธุรกรรมที่คุณอาจจะต้องจ่าย เมื่อประมาณการค่าบริการไม่พร้อมใช้งาน</translation>
     </message>
     <message>
+        <source>This product includes software developed by the OpenSSL Project for use in the OpenSSL Toolkit %s and cryptographic software written by Eric Young and UPnP software written by Thomas Bernard.</source>
+        <translation>ผลิตภัณฑ์นี้รวมถึงซอฟต์แวร์ที่พัฒนาโดย OpenSSL Project เพื่อใช้ใน OpenSSL Toolkit %s และซอฟต์แวร์เข้ารหัสที่เขียนขึ้นโดย Eric Young และซอฟต์แวร์ UPnP ที่เขียนโดย Thomas Bernard</translation>
+    </message>
+    <message>
+        <source>Unable to locate enough PrivateSend non-denominated funds for this transaction.</source>
+        <translation>ไม่สามารถหาเงินทุนที่ไม่ใช่สกุลเงินที่ระบุ PrivateSend ได้มากพอสำหรับธุรกรรมนี้</translation>
+    </message>
+    <message>
         <source>Use N separate masternodes for each denominated input to mix funds (%u-%u, default: %u)</source>
         <translation>ใช้ N masternodes แยกต่างหากสำหรับแต่ละสกุลเงินที่ป้อนเพื่อผสมเงิน (%u-%u, ค่าเริ่มต้น: %u)</translation>
     </message>
     <message>
+        <source>Use hierarchical deterministic key generation (HD) after BIP39/BIP44. Only has effect during wallet creation/first start</source>
+        <translation>ใช้คีย์ที่กำหนดตามลำดับชั้น (HD) หลังจาก BIP39 / BIP44  มีผลเฉพาะระหว่างการสร้าง / การเริ่มต้น wallet ครั้งแรก เท่านั้น</translation>
+    </message>
+    <message>
         <source>User defined mnemonic passphrase for HD wallet (BIP39). Only has effect during wallet creation/first start (default: empty string)</source>
         <translation>ผู้ใช้กำหนดรหัสผ่านสำหรับการจดจำรหัสผ่านสำหรับ HD Wallet  (BIP39) มีผลเฉพาะระหว่างการสร้าง Wallet / การเริ่มครั้งแรก (ค่าเริ่มต้น: ว่างเปล่า)</translation>
+    </message>
+    <message>
+        <source>Username and hashed password for JSON-RPC connections. The field &lt;userpw&gt; comes in the format: &lt;USERNAME&gt;:&lt;SALT&gt;$&lt;HASH&gt;. A canonical python script is included in share/rpcuser. The client then connects normally using the rpcuser=&lt;USERNAME&gt;/rpcpassword=&lt;PASSWORD&gt; pair of arguments. This option can be specified multiple times</source>
+        <translation>ชื่อผู้ใช้และ hashed password สำหรับการเชื่อมต่อ JSON-RPC   ฟิลด์&lt;userpw&gt;มาในรูปแบบ:&lt;USERNAME&gt;: &lt;SALT&gt;$&lt;HASH&gt; สคริปต์จะรวมอยู่ใน share / rpcuser ลูกค้าเชื่อมต่อโดยปกติโดยใช้ rpcuser = &lt;USERNAME&gt; / rpcpassword = &lt;PASSWORD&gt; คู่อาร์กิวเมนต์ สามารถระบุตัวเลือกนี้ได้หลายครั้ง</translation>
     </message>
     <message>
         <source>Wallet will not create transactions that violate mempool chain limits (default: %u)</source>
@@ -4398,6 +5070,14 @@ https://www.transifex.com/projects/p/dash/</translation>
         <translation>--devnet สามารถระบุได้เพียงครั้งเดียวเท่านั้น</translation>
     </message>
     <message>
+        <source>-port must be specified when -devnet and -listen are specified</source>
+        <translation>--port ควรระบุเฉพาะเมื่อระบุ -devnet และ -listen</translation>
+    </message>
+    <message>
+        <source>-rpcport must be specified when -devnet and -server are specified</source>
+        <translation>-rpcport ควรระบุเฉพาะเมื่อระบุ -devnet และ -server</translation>
+    </message>
+    <message>
         <source>Allow RFC1918 addresses to be relayed and connected to (default: %u)</source>
         <translation>อนุญาตให้ที่อยู่ RFC1918 ถูกส่งต่อและเชื่อมต่อกับ (ค่าเริ่มต้น: %u)</translation>
     </message>
@@ -4408,6 +5088,10 @@ https://www.transifex.com/projects/p/dash/</translation>
     <message>
         <source>Cannot resolve -%s address: '%s'</source>
         <translation>ไม่สามารถแก้ไขได้ -%s ที่อยู่: '%s'</translation>
+    </message>
+    <message>
+        <source>Change index out of range</source>
+        <translation>ปรับเปลี่ยนดัชนีนอกช่วง</translation>
     </message>
     <message>
         <source>Copyright (C)</source>
@@ -4436,6 +5120,10 @@ https://www.transifex.com/projects/p/dash/</translation>
     <message>
         <source>Failed to start a new mixing queue</source>
         <translation>ไม่สามารถเริ่มคิวการผสมใหม่</translation>
+    </message>
+    <message>
+        <source>Initialization sanity check failed. %s is shutting down.</source>
+        <translation>การตรวจสอบความถูกต้องล้มเหลว  %s กำลังจะปิด</translation>
     </message>
     <message>
         <source>Invalid amount for -%s=&lt;amount&gt;: '%s'</source>
@@ -4514,12 +5202,28 @@ https://www.transifex.com/projects/p/dash/</translation>
         <translation>ลงชื่อการทำธุรกรรมล้มเหลว</translation>
     </message>
     <message>
+        <source>Specify data directory</source>
+        <translation>ระบุไดเร็กทอรีข้อมูล</translation>
+    </message>
+    <message>
+        <source>Specify wallet file (within data directory)</source>
+        <translation>ระบุไฟล์ wallet (ภายในไดเรกทอรีข้อมูล)</translation>
+    </message>
+    <message>
         <source>Specify your own public address</source>
         <translation>กำหนดที่อยู่สาธารณะของคุณเอง</translation>
     </message>
     <message>
+        <source>Starting network threads...</source>
+        <translation>เริ่มต้นเธรดเครือข่าย ..</translation>
+    </message>
+    <message>
         <source>Synchronization pending...</source>
         <translation>กำลังรอการซิงค์</translation>
+    </message>
+    <message>
+        <source>Synchronizing governance objects...</source>
+        <translation>กำลังปรับเทียบออบเจคการกำกับ ...</translation>
     </message>
     <message>
         <source>Synchronizing masternode payments...</source>
@@ -4558,6 +5262,14 @@ https://www.transifex.com/projects/p/dash/</translation>
         <translation>ธุรกรรมมีขนาดใหญ่เกินไปสำหรับนโยบายค่าธรรมเนียม</translation>
     </message>
     <message>
+        <source>Unable to bind to %s on this computer (bind returned error %s)</source>
+        <translation>ไม่สามารถ bind กับ %s บนคอมพิวเตอร์เครื่องนี้ได้ (bind ผิดพลาด %s)</translation>
+    </message>
+    <message>
+        <source>Unable to sign spork message, wrong key?</source>
+        <translation>ไม่สามารถลงชื่อเข้าใช้ข้อความ spork ได้  คีย์ผิดหรือไม่?</translation>
+    </message>
+    <message>
         <source>Unknown network specified in -onlynet: '%s'</source>
         <translation>ไม่รู้จักเครือข่ายที่ระบุไว้ใน -onlynet: '%s'</translation>
     </message>
@@ -4580,6 +5292,10 @@ https://www.transifex.com/projects/p/dash/</translation>
     <message>
         <source>Very low number of keys left: %d</source>
         <translation>จำนวนคีย์ที่เหลืออยู่ต่ำมาก: %d</translation>
+    </message>
+    <message>
+        <source>Wallet %s resides outside data directory %s</source>
+        <translation>Wallet %s อยู่นอกไดเรกทอรีข้อมูล %s</translation>
     </message>
     <message>
         <source>Wallet is locked.</source>
@@ -4605,5 +5321,9 @@ https://www.transifex.com/projects/p/dash/</translation>
         <source>Your transaction was accepted into the pool!</source>
         <translation>การทำธุรกรรมของคุณได้รับการยอมรับเข้าสู่  pool แล้ว</translation>
     </message>
-    </context>
+    <message>
+        <source>Zapping all transactions from wallet...</source>
+        <translation>กำลังลบการทำธุรกรรมทั้งหมดจาก wallet...</translation>
+    </message>
+</context>
 </TS>
