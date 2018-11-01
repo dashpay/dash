@@ -811,7 +811,7 @@ UniValue bls_generate(const JSONRPCRequest& request)
     return ret;
 }
 
-void _bls_help()
+void bls_help()
 {
     throw std::runtime_error(
             "bls \"command\" ...\n"
@@ -827,7 +827,7 @@ void _bls_help()
 UniValue _bls(const JSONRPCRequest& request)
 {
     if (request.params.empty()) {
-        _bls_help();
+        bls_help();
     }
 
     std::string command = request.params[0].get_str();
@@ -835,7 +835,7 @@ UniValue _bls(const JSONRPCRequest& request)
     if (command == "generate") {
         return bls_generate(request);
     } else {
-        _bls_help();
+        bls_help();
     }
 }
 
