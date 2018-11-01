@@ -238,7 +238,7 @@ void PrepareShutdown()
     StopHTTPServer();
 
     // fRPCInWarmup should be `false` if we completed the loading sequence
-    // before a shutdown request was recieved
+    // before a shutdown request was received
     std::string statusmessage;
     bool fRPCInWarmup = RPCIsInWarmup(&statusmessage);
 
