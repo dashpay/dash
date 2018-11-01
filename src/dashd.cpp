@@ -173,11 +173,8 @@ bool AppInit(int argc, char* argv[])
         }
 
         fRet = AppInitMain(threadGroup, scheduler);
-    }
-    catch (const std::exception& e) {
-        PrintExceptionContinue(&e, "AppInit()");
     } catch (...) {
-        PrintExceptionContinue(NULL, "AppInit()");
+        PrintExceptionContinue(std::current_exception(), "AppInit()");
     }
 
     if (!fRet)
