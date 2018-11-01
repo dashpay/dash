@@ -25,6 +25,7 @@ QT_TS = \
   qt/locale/dash_sk.ts \
   qt/locale/dash_sv.ts \
   qt/locale/dash_th.ts \
+  qt/locale/dash_tr.ts \
   qt/locale/dash_vi.ts \
   qt/locale/dash_zh_CN.ts \
   qt/locale/dash_zh_TW.ts
