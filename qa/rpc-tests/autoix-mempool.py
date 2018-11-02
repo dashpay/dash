@@ -72,6 +72,10 @@ class AutoIXMempoolTest(DashTestFramework):
         # sync nodes
         self.sync_all()
 
+        # We generated blocks so fast that we've clogged message processing with too many MNW messages...
+        # let's wait for them to be fully processed on all nodes
+        self.wait_for_good_pings(self.nodes)
+
         assert(self.get_autoix_bip9_status() == 'active')
 
     def get_autoix_spork_state(self):
@@ -143,6 +147,9 @@ class AutoIXMempoolTest(DashTestFramework):
 
         # fill mempool with transactions
         self.fill_mempool()
+
+        # We generated many transactions, resulting in many IX votes...let's wait for them to be processed
+        self.wait_for_good_pings(self.nodes)
 
         # autoIX is not working now
         assert(not self.send_simple_tx(sender, receiver))
