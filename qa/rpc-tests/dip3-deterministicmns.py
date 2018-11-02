@@ -431,6 +431,15 @@ class DIP3Test(BitcoinTestFramework):
                 self.write_mnconf_line(mn, f)
 
     def start_alias(self, node, alias, should_fail=False):
+        # When generating blocks very fast, the logic in miner.cpp:UpdateTime might result in block times ahead of the real time
+        # This can easily accumulate to 30 seconds or more, which results in start-alias to fail as it expects the sigTime
+        # to be less or equal to the confirmation block time
+        # Solution is to sleep in this case.
+        lastblocktime = node.getblock(node.getbestblockhash())['time']
+        sleeptime = lastblocktime - time.time()
+        if sleeptime > 0:
+            time.sleep(sleeptime + 1) # +1 to be extra sure
+
         start_result = node.masternode('start-alias', alias)
         if not should_fail:
             assert_equal(start_result, {'result': 'successful', 'alias': alias})
