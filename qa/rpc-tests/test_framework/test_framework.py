@@ -369,6 +369,29 @@ class DashTestFramework(BitcoinTestFramework):
             sleep(0.1)
         return locked
 
+    def wait_for_good_pings(self, nodes, timeout=30, good_ping_time=0.1):
+        # wait for nodes to have good pings to all other nodes
+        # this is useful when too many messages were sent at once and thus queues being full
+        start = time()
+        while True:
+            for n in nodes:
+                n.ping()
+            all_good = True
+            for n in nodes:
+                pi = n.getpeerinfo()
+                for p in pi:
+                    if 'pingwait' in p:
+                        # still waiting for the ping reply
+                        all_good = False
+                    elif not 'pingtime' in p:
+                        # Can this really happen?
+                        all_good = False
+                    elif p['pingtime'] > good_ping_time:
+                        all_good = False
+            if all_good:
+                break
+            if time() > start + timeout * 100:
+                raise AssertionError("wait_for_good_pings timed out")
 
 # Test framework for doing p2p comparison testing, which sets up some bitcoind
 # binaries:
