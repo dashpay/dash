@@ -642,7 +642,9 @@ void BitcoinGUI::setClientModel(ClientModel *_clientModel)
             // similar to one for tray icon
             MacDockIconHandler *dockIconHandler = MacDockIconHandler::instance();
             connect(dockIconHandler, SIGNAL(dockIconClicked()), this, SLOT(macosDockIconActivated()));
-            dockIconMenu = dockIconHandler->dockMenu();
+
+            dockIconMenu = new QMenu(this);
+            dockIconMenu->setAsDockMenu();
 
             createIconMenu(dockIconMenu);
 #endif
