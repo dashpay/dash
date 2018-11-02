@@ -108,7 +108,7 @@ class DIP3Test(BitcoinTestFramework):
             self.nodes[0].generate(1)
         self.test_fail_create_protx(self.nodes[0])
 
-        # prepare mn which should still be accepted later when dip3 activates (because it is funded before final activation)
+        # prepare mn which should still be accepted later when dip3 activates
         print("creating collateral for mn-before-dip3")
         before_dip3_mn = self.create_mn(self.nodes[0], mn_idx, 'mn-before-dip3')
         mn_idx += 1
@@ -140,12 +140,12 @@ class DIP3Test(BitcoinTestFramework):
             time.sleep(1)
 
         print("testing if we can start a mn which was created before dip3 activation")
-        mns.append(before_dip3_mn)
-        self.write_mnconf(mns + [after_dip3_mn])
+        self.write_mnconf(mns + [before_dip3_mn, after_dip3_mn])
         self.restart_controller_node()
         self.force_finish_mnsync(self.nodes[0])
 
         print("start MN %s" % before_dip3_mn.alias)
+        mns.append(before_dip3_mn)
         self.start_mn(before_dip3_mn)
         self.wait_for_sporks()
         self.force_finish_mnsync_list(before_dip3_mn.node)
@@ -154,9 +154,17 @@ class DIP3Test(BitcoinTestFramework):
         self.wait_for_mnlists(mns)
         self.wait_for_mnlists_same()
 
-        # Test if nodes deny creating new non-ProTx MNs now
-        print("testing if MN start fails when using collateral which was created after dip3 activation")
-        self.start_alias(self.nodes[0], after_dip3_mn.alias, should_fail=True)
+        # Test if nodes still allow creating new non-ProTx MNs now
+        print("testing if MN start succeeds when using collateral which was created after dip3 activation")
+        print("start MN %s" % after_dip3_mn.alias)
+        mns.append(after_dip3_mn)
+        self.start_mn(after_dip3_mn)
+        self.wait_for_sporks()
+        self.force_finish_mnsync_list(after_dip3_mn.node)
+        self.start_alias(self.nodes[0], after_dip3_mn.alias)
+
+        self.wait_for_mnlists(mns)
+        self.wait_for_mnlists_same()
 
         first_upgrade_count = 5
         mns_after_upgrade = []
