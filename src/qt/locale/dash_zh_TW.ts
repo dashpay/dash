@@ -966,7 +966,7 @@
         <source>PrivateSend information</source>
         <translation>匿名發送資訊</translation>
     </message>
-    </context>
+</context>
 <context>
     <name>Intro</name>
     <message>
