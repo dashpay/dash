@@ -304,7 +304,6 @@ class DashTestFramework(BitcoinTestFramework):
         for i in range(1, self.mn_count + 1):
             res = self.nodes[0].masternode("start-alias", "mn%d" % i)
             assert (res["result"] == 'successful')
-        sync_masternodes(self.nodes, True)
         mn_info = self.nodes[0].masternodelist("status")
         assert (len(mn_info) == self.mn_count)
         for status in mn_info.values():

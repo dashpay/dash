@@ -50,7 +50,6 @@ class AutoIXMempoolTest(DashTestFramework):
             if counter % sync_period == 0:
                 # sync nodes
                 self.sync_all()
-                sync_masternodes(self.nodes, True)
 
         while self.get_autoix_bip9_status() == 'started':
             set_mocktime(get_mocktime() + 1)
@@ -60,7 +59,6 @@ class AutoIXMempoolTest(DashTestFramework):
             if counter % sync_period == 0:
                 # sync nodes
                 self.sync_all()
-                sync_masternodes(self.nodes, True)
 
         while self.get_autoix_bip9_status() == 'locked_in':
             set_mocktime(get_mocktime() + 1)
@@ -70,11 +68,9 @@ class AutoIXMempoolTest(DashTestFramework):
             if counter % sync_period == 0:
                 # sync nodes
                 self.sync_all()
-                sync_masternodes(self.nodes, True)
 
         # sync nodes
         self.sync_all()
-        sync_masternodes(self.nodes, True)
 
         assert(self.get_autoix_bip9_status() == 'active')
 
@@ -120,6 +116,8 @@ class AutoIXMempoolTest(DashTestFramework):
         self.sync_all()
 
     def run_test(self):
+        # make sure masternodes are synced
+        sync_masternodes(self.nodes)
         self.enforce_masternode_payments()  # required for bip9 activation
         self.activate_autoix_bip9()
         self.set_autoix_spork_state(True)
