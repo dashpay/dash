@@ -33,7 +33,7 @@ std::string CDeterministicMNState::ToString() const
     }
 
     return strprintf("CDeterministicMNState(nRegisteredHeight=%d, nLastPaidHeight=%d, nPoSePenalty=%d, nPoSeRevivedHeight=%d, nPoSeBanHeight=%d, nRevocationReason=%d, "
-                     "keyIDOwner=%s, pubKeyOperator=%s, keyIDVoting=%s, addr=%s, payoutAddress=%s, operatorRewardAddress=%s)",
+        "keyIDOwner=%s, pubKeyOperator=%s, keyIDVoting=%s, addr=%s, payoutAddress=%s, operatorRewardAddress=%s)",
         nRegisteredHeight, nLastPaidHeight, nPoSePenalty, nPoSeRevivedHeight, nPoSeBanHeight, nRevocationReason,
         keyIDOwner.ToString(), pubKeyOperator.ToString(), keyIDVoting.ToString(), addr.ToStringIPPort(false), payoutAddress, operatorRewardAddress);
 }
