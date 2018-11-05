@@ -108,6 +108,8 @@ class DIP3Test(BitcoinTestFramework):
             self.nodes[0].generate(1)
         self.test_fail_create_protx(self.nodes[0])
 
+        self.wait_for_good_pings(self.nodes)
+
         # prepare mn which should still be accepted later when dip3 activates
         print("creating collateral for mn-before-dip3")
         before_dip3_mn = self.create_mn(self.nodes[0], mn_idx, 'mn-before-dip3')
