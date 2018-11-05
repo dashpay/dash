@@ -757,7 +757,7 @@ UniValue masternode_check(const JSONRPCRequest& request)
     return obj;
 }
 
-void masternode_help()
+[[ noreturn ]] void masternode_help()
 {
     throw std::runtime_error(
         "masternode \"command\"...\n"
@@ -834,7 +834,6 @@ UniValue masternode(const JSONRPCRequest& request)
         return masternode_check(request);
     } else {
         masternode_help();
-        return UniValue::VNULL; // avoid compiler warnings
     }
 }
 

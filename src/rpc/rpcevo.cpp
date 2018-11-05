@@ -819,7 +819,7 @@ UniValue protx_diff(const JSONRPCRequest& request)
     return ret;
 }
 
-void protx_help()
+[[ noreturn ]] void protx_help()
 {
     throw std::runtime_error(
             "protx \"command\" ...\n"
@@ -867,7 +867,6 @@ UniValue protx(const JSONRPCRequest& request)
         return protx_diff(request);
     } else {
         protx_help();
-        return UniValue::VNULL; // avoid compiler warnings
     }
 }
 #endif//ENABLE_WALLET
@@ -902,7 +901,7 @@ UniValue bls_generate(const JSONRPCRequest& request)
     return ret;
 }
 
-void bls_help()
+[[ noreturn ]] void bls_help()
 {
     throw std::runtime_error(
             "bls \"command\" ...\n"
@@ -927,7 +926,6 @@ UniValue _bls(const JSONRPCRequest& request)
         return bls_generate(request);
     } else {
         bls_help();
-        return UniValue::VNULL; // avoid compiler warnings
     }
 }
 

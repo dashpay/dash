@@ -945,7 +945,7 @@ UniValue gobject_getcurrentvotes(const JSONRPCRequest& request)
     return bResult;
 }
 
-void gobject_help()
+[[ noreturn ]] void gobject_help()
 {
     throw std::runtime_error(
             "gobject \"command\"...\n"
@@ -1022,7 +1022,6 @@ UniValue gobject(const JSONRPCRequest& request)
         return gobject_getcurrentvotes(request);
     } else {
         gobject_help();
-        return UniValue::VNULL; // avoid compiler warnings
     }
 }
 
