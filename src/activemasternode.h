@@ -11,18 +11,18 @@
 #include "primitives/transaction.h"
 #include "validationinterface.h"
 
-#include "evo/providertx.h"
 #include "evo/deterministicmns.h"
+#include "evo/providertx.h"
 
 struct CActiveMasternodeInfo;
 class CActiveLegacyMasternodeManager;
 class CActiveDeterministicMasternodeManager;
 
-static const int ACTIVE_MASTERNODE_INITIAL          = 0; // initial state
-static const int ACTIVE_MASTERNODE_SYNC_IN_PROCESS  = 1;
-static const int ACTIVE_MASTERNODE_INPUT_TOO_NEW    = 2;
-static const int ACTIVE_MASTERNODE_NOT_CAPABLE      = 3;
-static const int ACTIVE_MASTERNODE_STARTED          = 4;
+static const int ACTIVE_MASTERNODE_INITIAL         = 0; // initial state
+static const int ACTIVE_MASTERNODE_SYNC_IN_PROCESS = 1;
+static const int ACTIVE_MASTERNODE_INPUT_TOO_NEW   = 2;
+static const int ACTIVE_MASTERNODE_NOT_CAPABLE     = 3;
+static const int ACTIVE_MASTERNODE_STARTED         = 4;
 
 extern CActiveMasternodeInfo activeMasternodeInfo;
 extern CActiveLegacyMasternodeManager legacyActiveMasternodeManager;
@@ -69,7 +69,7 @@ public:
     std::string GetStatus() const;
 
 private:
-    bool GetLocalAddress(CService &addrRet);
+    bool GetLocalAddress(CService& addrRet);
 };
 
 // Responsible for activating the Masternode and pinging the network (legacy MN list)
@@ -101,11 +101,12 @@ public:
     std::string strNotCapableReason;
 
 
-    CActiveLegacyMasternodeManager()
-        : eType(MASTERNODE_UNKNOWN),
-          fPingerEnabled(false),
-          nState(ACTIVE_MASTERNODE_INITIAL)
-    {}
+    CActiveLegacyMasternodeManager() :
+        eType(MASTERNODE_UNKNOWN),
+        fPingerEnabled(false),
+        nState(ACTIVE_MASTERNODE_INITIAL)
+    {
+    }
 
     /// Manage state of active Masternode
     void ManageState(CConnman& connman);
@@ -116,7 +117,7 @@ public:
 
     bool UpdateSentinelPing(int version);
 
-    void DoMaintenance(CConnman &connman);
+    void DoMaintenance(CConnman& connman);
 
 private:
     void ManageStateInitial(CConnman& connman);
