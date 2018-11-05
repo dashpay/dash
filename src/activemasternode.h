@@ -1,4 +1,4 @@
-// Copyright (c) 2014-2017 The Dash Core developers
+// Copyright (c) 2014-2018 The Dash Core developers
 // Distributed under the MIT/X11 software license, see the accompanying
 // file COPYING or http://www.opensource.org/licenses/mit-license.php.
 
@@ -18,11 +18,11 @@ struct CActiveMasternodeInfo;
 class CActiveLegacyMasternodeManager;
 class CActiveDeterministicMasternodeManager;
 
-static const int ACTIVE_MASTERNODE_INITIAL         = 0; // initial state
-static const int ACTIVE_MASTERNODE_SYNC_IN_PROCESS = 1;
-static const int ACTIVE_MASTERNODE_INPUT_TOO_NEW   = 2;
-static const int ACTIVE_MASTERNODE_NOT_CAPABLE     = 3;
-static const int ACTIVE_MASTERNODE_STARTED         = 4;
+static const int ACTIVE_MASTERNODE_INITIAL          = 0; // initial state
+static const int ACTIVE_MASTERNODE_SYNC_IN_PROCESS  = 1;
+static const int ACTIVE_MASTERNODE_INPUT_TOO_NEW    = 2;
+static const int ACTIVE_MASTERNODE_NOT_CAPABLE      = 3;
+static const int ACTIVE_MASTERNODE_STARTED          = 4;
 
 extern CActiveMasternodeInfo activeMasternodeInfo;
 extern CActiveLegacyMasternodeManager legacyActiveMasternodeManager;
