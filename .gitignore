@@ -145,3 +145,6 @@ make
 # CLion
 .idea
 cmake-build-debug
+
+# Output from running db4 installation
+db4/
