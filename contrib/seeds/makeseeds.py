@@ -138,7 +138,11 @@ def filterbyasn(ips, max_per_asn, max_total):
     return result
 
 def main():
-    js = json.load(sys.stdin)
+    if len(sys.argv) > 1:
+        with open(sys.argv[1], 'r') as f:
+            js = json.load(f)
+    else:
+        js = json.load(sys.stdin)
     ips = [parseline(line) for collateral, line in js.items()]
 
     cur_time = int(time.time())
