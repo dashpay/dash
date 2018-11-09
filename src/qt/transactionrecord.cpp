@@ -157,7 +157,6 @@ QList<TransactionRecord> TransactionRecord::decomposeTransaction(const CWallet *
                     for (const auto& txout : wtx.tx->vout) {
                         if(txout.nValue == CPrivateSend::GetMaxCollateralAmount()) {
                             sub.type = TransactionRecord::PrivateSendMakeCollaterals;
-                            break;
                         }
                         if(CPrivateSend::IsDenominatedAmount(txout.nValue)) {
                             sub.type = TransactionRecord::PrivateSendCreateDenominations;
