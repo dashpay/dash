@@ -108,8 +108,6 @@ class DIP3Test(BitcoinTestFramework):
             self.nodes[0].generate(1)
         self.test_fail_create_protx(self.nodes[0])
 
-        self.wait_for_good_pings(self.nodes)
-
         # prepare mn which should still be accepted later when dip3 activates
         print("creating collateral for mn-before-dip3")
         before_dip3_mn = self.create_mn(self.nodes[0], mn_idx, 'mn-before-dip3')
@@ -121,6 +119,8 @@ class DIP3Test(BitcoinTestFramework):
         # We have hundreds of blocks to sync here, give it more time
         print("syncing blocks for all nodes")
         sync_blocks(self.nodes, timeout=120)
+
+        self.wait_for_good_pings(self.nodes)
 
         # DIP3 has activated here
 
@@ -465,7 +465,7 @@ class DIP3Test(BitcoinTestFramework):
                     good_count = 0
             node.generate(1)
             self.sync_all()
-            time.sleep(1)
+            time.sleep(0.5)
         raise AssertionError("generate_blocks_until_winners timed out: {}".format(node.masternode('winners')))
 
     def test_mn_votes(self, block_count, test_enforcement=False):

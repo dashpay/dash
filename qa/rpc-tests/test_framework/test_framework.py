@@ -125,9 +125,11 @@ class BitcoinTestFramework(object):
                     elif p['pingtime'] > good_ping_time:
                         all_good = False
             if all_good:
+                print('wait_for_good_pings: t=%d' % (time() - start))
                 break
             if time() > start + timeout * 100:
                 raise AssertionError("wait_for_good_pings timed out")
+            sleep(1)
 
     def join_network(self):
         """
