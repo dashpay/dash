@@ -486,18 +486,18 @@ void MasternodeList::ShowQRCode(std::string strAlias)
 
     // Create dialog text as HTML
     QString strHTML = "<html><font face='verdana, arial, helvetica, sans-serif'>";
-    strHTML += "<b>" + tr("Alias") + ": </b>" + GUIUtil::HtmlEscape(strAlias) + "<br>";
-    strHTML += "<b>" + tr("Private Key") + ": </b>" + GUIUtil::HtmlEscape(strMNPrivKey) + "<br>";
-    strHTML += "<b>" + tr("Collateral") + ": </b>" + GUIUtil::HtmlEscape(strCollateral) + "<br>";
-    strHTML += "<b>" + tr("IP") + ": </b>" + GUIUtil::HtmlEscape(strIP) + "<br>";
+    strHTML += "<b>" + tr("Alias") +            ": </b>" + GUIUtil::HtmlEscape(strAlias) + "<br>";
+    strHTML += "<b>" + tr("Private Key") +      ": </b>" + GUIUtil::HtmlEscape(strMNPrivKey) + "<br>";
+    strHTML += "<b>" + tr("Collateral") +       ": </b>" + GUIUtil::HtmlEscape(strCollateral) + "<br>";
+    strHTML += "<b>" + tr("IP") +               ": </b>" + GUIUtil::HtmlEscape(strIP) + "<br>";
     if (fFound) {
-        strHTML += "<b>" + tr("Protocol") + ": </b>" + QString::number(mn.nProtocolVersion) + "<br>";
-        strHTML += "<b>" + tr("Version") + ": </b>" + (mn.lastPing.nDaemonVersion > DEFAULT_DAEMON_VERSION ? GUIUtil::HtmlEscape(FormatVersion(mn.lastPing.nDaemonVersion)) : tr("Unknown")) + "<br>";
-        strHTML += "<b>" + tr("Sentinel") + ": </b>" + (mn.lastPing.nSentinelVersion > DEFAULT_SENTINEL_VERSION ? GUIUtil::HtmlEscape(SafeIntVersionToString(mn.lastPing.nSentinelVersion)) : tr("Unknown")) + "<br>";
-        strHTML += "<b>" + tr("Status") + ": </b>" + GUIUtil::HtmlEscape(CMasternode::StateToString(mn.nActiveState)) + "<br>";
-        strHTML += "<b>" + tr("Payee") + ": </b>" + GUIUtil::HtmlEscape(CBitcoinAddress(mn.pubKeyCollateralAddress.GetID()).ToString()) + "<br>";
-        strHTML += "<b>" + tr("Active") + ": </b>" + GUIUtil::HtmlEscape(DurationToDHMS(mn.lastPing.sigTime - mn.sigTime)) + "<br>";
-        strHTML += "<b>" + tr("Last Seen") + ": </b>" + GUIUtil::HtmlEscape(DateTimeStrFormat("%Y-%m-%d %H:%M", mn.lastPing.sigTime + GetOffsetFromUtc())) + "<br>";
+        strHTML += "<b>" + tr("Protocol") +     ": </b>" + QString::number(mn.nProtocolVersion) + "<br>";
+        strHTML += "<b>" + tr("Version") +      ": </b>" + (mn.lastPing.nDaemonVersion > DEFAULT_DAEMON_VERSION ? GUIUtil::HtmlEscape(FormatVersion(mn.lastPing.nDaemonVersion)) : tr("Unknown")) + "<br>";
+        strHTML += "<b>" + tr("Sentinel") +     ": </b>" + (mn.lastPing.nSentinelVersion > DEFAULT_SENTINEL_VERSION ? GUIUtil::HtmlEscape(SafeIntVersionToString(mn.lastPing.nSentinelVersion)) : tr("Unknown")) + "<br>";
+        strHTML += "<b>" + tr("Status") +       ": </b>" + GUIUtil::HtmlEscape(CMasternode::StateToString(mn.nActiveState)) + "<br>";
+        strHTML += "<b>" + tr("Payee") +        ": </b>" + GUIUtil::HtmlEscape(CBitcoinAddress(mn.pubKeyCollateralAddress.GetID()).ToString()) + "<br>";
+        strHTML += "<b>" + tr("Active") +       ": </b>" + GUIUtil::HtmlEscape(DurationToDHMS(mn.lastPing.sigTime - mn.sigTime)) + "<br>";
+        strHTML += "<b>" + tr("Last Seen") +    ": </b>" + GUIUtil::HtmlEscape(DateTimeStrFormat("%Y-%m-%d %H:%M", mn.lastPing.sigTime + GetOffsetFromUtc())) + "<br>";
     }
 
     // Open QR dialog
