@@ -407,12 +407,9 @@ void CProRegTx::ToJson(UniValue& obj) const
     obj.push_back(Pair("keyIDOwner", keyIDOwner.ToString()));
     obj.push_back(Pair("pubKeyOperator", pubKeyOperator.ToString()));
     obj.push_back(Pair("keyIDVoting", keyIDVoting.ToString()));
-
-    CTxDestination dest;
-    if (ExtractDestination(scriptPayout, dest)) {
-        CBitcoinAddress bitcoinAddress(dest);
-        obj.push_back(Pair("payoutAddress", bitcoinAddress.ToString()));
-    }
+    UniValue o(UniValue::VOBJ);
+    ScriptPubKeyToUniv(scriptPayout, o, true);
+    obj.push_back(Pair("scriptPayout", o));
     obj.push_back(Pair("operatorReward", (double)nOperatorReward / 100));
 
     obj.push_back(Pair("inputsHash", inputsHash.ToString()));
@@ -437,11 +434,9 @@ void CProUpServTx::ToJson(UniValue& obj) const
     obj.push_back(Pair("version", nVersion));
     obj.push_back(Pair("proTxHash", proTxHash.ToString()));
     obj.push_back(Pair("service", addr.ToString(false)));
-    CTxDestination dest;
-    if (ExtractDestination(scriptOperatorPayout, dest)) {
-        CBitcoinAddress bitcoinAddress(dest);
-        obj.push_back(Pair("operatorPayoutAddress", bitcoinAddress.ToString()));
-    }
+    UniValue o(UniValue::VOBJ);
+    ScriptPubKeyToUniv(scriptOperatorPayout, o, true);
+    obj.push_back(Pair("scriptOperatorPayout", o));
     obj.push_back(Pair("inputsHash", inputsHash.ToString()));
 }
 
@@ -465,11 +460,9 @@ void CProUpRegTx::ToJson(UniValue& obj) const
     obj.push_back(Pair("proTxHash", proTxHash.ToString()));
     obj.push_back(Pair("pubKeyOperator", pubKeyOperator.ToString()));
     obj.push_back(Pair("keyIDVoting", keyIDVoting.ToString()));
-    CTxDestination dest;
-    if (ExtractDestination(scriptPayout, dest)) {
-        CBitcoinAddress bitcoinAddress(dest);
-        obj.push_back(Pair("payoutAddress", bitcoinAddress.ToString()));
-    }
+    UniValue o(UniValue::VOBJ);
+    ScriptPubKeyToUniv(scriptPayout, o, true);
+    obj.push_back(Pair("scriptPayout", o));
     obj.push_back(Pair("inputsHash", inputsHash.ToString()));
 }
 
