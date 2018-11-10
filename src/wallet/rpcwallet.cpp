@@ -1475,8 +1475,7 @@ void ListTransactions(CWallet * const pwallet, const CWalletTx& wtx, const std::
             }
             if (s.vout >= 0)
                 entry.push_back(Pair("vout", s.vout));
-            if (nFee != 0)
-                entry.push_back(Pair("fee", ValueFromAmount(-nFee)));
+            entry.push_back(Pair("fee", ValueFromAmount(-nFee)));
             if (fLong)
                 WalletTxToJSON(wtx, entry);
             entry.push_back(Pair("abandoned", wtx.isAbandoned()));
