@@ -1628,13 +1628,13 @@ bool CWallet::IsFromMe(const CTransaction& tx, const isminefilter& filter) const
     BOOST_FOREACH(const CTxIn& txin, tx.vin)
     {
         LOCK(cs_wallet);
-        map<uint256, CWalletTx>::const_iterator mi = mapWallet.find(txin.prevout.hash);
+        auto mi = mapWallet.find(txin.prevout.hash);
         if (mi == mapWallet.end())
             return false;
 
         const CWalletTx& prev = (*mi).second;
-        if (txin.prevout.n < prev.vout.size())
-            if (!(IsMine(prev.vout[txin.prevout.n]) & filter))
+        if (txin.prevout.n < prev.tx->vout.size())
+            if (!(IsMine(prev.tx->vout[txin.prevout.n]) & filter))
                 return false;
     }
 
@@ -2740,7 +2740,7 @@ bool CWallet::SelectCoinsMinConf(const CAmount& nTargetValue, const int nConfMin
             else if (pcoin->IsFromMe(ISMINE_ALL))
                 minDepth = nConfMine;
             else
-                minDepth = max(nConfMine, nConfTheirs);
+                minDepth = std::max(nConfMine, nConfTheirs);
 
             if (output.nDepth < minDepth)
                 continue;
