@@ -67,6 +67,7 @@ private:
     QComboBox *dateWidget;
     QComboBox *typeWidget;
     QComboBox *watchOnlyWidget;
+    QComboBox *instantsendWidget;
     QLineEdit *addressWidget;
     QLineEdit *amountWidget;
 
@@ -114,6 +115,7 @@ public Q_SLOTS:
     void chooseDate(int idx);
     void chooseType(int idx);
     void chooseWatchonly(int idx);
+    void chooseInstantSend(int idx);
     void changedPrefix(const QString &prefix);
     void changedAmount(const QString &amount);
     void exportClicked();
