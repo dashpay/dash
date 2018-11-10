@@ -1214,7 +1214,7 @@ static UniValue BIP9SoftForkDesc(const Consensus::Params& consensusParams, Conse
         rv.push_back(Pair("threshold", nThreshold));
         rv.push_back(Pair("windowStart", nWindowStart));
         rv.push_back(Pair("windowBlocks", nBlockCount));
-        rv.push_back(Pair("windowProgress", (double)nBlockCount / nThreshold));
+        rv.push_back(Pair("windowProgress", std::min(1.0, (double)nBlockCount / nThreshold)));
     }
     rv.push_back(Pair("startTime", consensusParams.vDeployments[id].nStartTime));
     rv.push_back(Pair("timeout", consensusParams.vDeployments[id].nTimeout));
