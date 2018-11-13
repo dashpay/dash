@@ -28,11 +28,6 @@
 
 #include <univalue.h>
 
-CWallet *GetWalletForJSONRPCRequest(const JSONRPCRequest& request)
-{
-    return pwalletMain;
-}
-
 int64_t nWalletUnlockTime;
 static CCriticalSection cs_nWalletUnlockTime;
 
@@ -149,10 +144,10 @@ UniValue getnewaddress(const JSONRPCRequest& request)
 }
 
 
-CBitcoinAddress GetAccountAddress(std::string strAccount, bool bForceNew=false)
+CBitcoinAddress GetAccountAddress(CWallet * const pwallet, std::string strAccount, bool bForceNew=false)
 {
     CPubKey pubKey;
-    if (!pwalletMain->GetAccountPubkey(pubKey, strAccount, bForceNew)) {
+    if (!pwallet->GetAccountPubkey(pubKey, strAccount, bForceNew)) {
         throw JSONRPCError(RPC_WALLET_KEYPOOL_RAN_OUT, "Error: Keypool ran out, please call keypoolrefill first");
     }
 
@@ -307,7 +302,7 @@ UniValue getaccount(const JSONRPCRequest& request)
 
     std::string strAccount;
     std::map<CTxDestination, CAddressBookData>::iterator mi = pwallet->mapAddressBook.find(address.Get());
-    if (mi != pwallet->mapAddressBook.end() && !(*mi).second.name.empty())
+    if (mi != pwallet->mapAddressBook.end() && !(*mi).second.name.empty()) {
         strAccount = (*mi).second.name;
     }
     return strAccount;
@@ -352,7 +347,7 @@ UniValue getaddressesbyaccount(const JSONRPCRequest& request)
     return ret;
 }
 
-static void SendMoney(const CTxDestination &address, CAmount nValue, bool fSubtractFeeFromAmount, CWalletTx& wtxNew, bool fUseInstantSend=false, bool fUsePrivateSend=false)
+static void SendMoney(CWallet * const pwallet, const CTxDestination &address, CAmount nValue, bool fSubtractFeeFromAmount, CWalletTx& wtxNew, bool fUseInstantSend=false, bool fUsePrivateSend=false)
 {
     CAmount curBalance = pwallet->GetBalance();
 
@@ -470,7 +465,7 @@ UniValue instantsendtoaddress(const JSONRPCRequest& request)
         throw std::runtime_error(
             "instantsendtoaddress \"address\" amount ( \"comment\" \"comment-to\" subtractfeefromamount )\n"
             "\nSend an amount to a given address. The amount is a real and is rounded to the nearest 0.00000001\n"
-            + HelpRequiringPassphrase() +
+            + HelpRequiringPassphrase(pwallet) +
             "\nArguments:\n"
             "1. \"address\"     (string, required) The dash address to send to.\n"
             "2. \"amount\"      (numeric, required) The amount in " + CURRENCY_UNIT + " to send. eg 0.1\n"
@@ -575,7 +570,8 @@ UniValue listaddressgroupings(const JSONRPCRequest& request)
 
 UniValue listaddressbalances(const JSONRPCRequest& request)
 {
-    if (!EnsureWalletIsAvailable(request.fHelp))
+    CWallet * const pwallet = GetWalletForJSONRPCRequest(request);
+    if (!EnsureWalletIsAvailable(pwallet, request.fHelp))
         return NullUniValue;
 
     if (request.fHelp || request.params.size() > 1)
@@ -596,7 +592,7 @@ UniValue listaddressbalances(const JSONRPCRequest& request)
             + HelpExampleRpc("listaddressbalances", "10")
         );
 
-    LOCK2(cs_main, pwalletMain->cs_wallet);
+    LOCK2(cs_main, pwallet->cs_wallet);
 
     CAmount nMinAmount = 0;
     if (request.params.size() > 0)
@@ -606,7 +602,7 @@ UniValue listaddressbalances(const JSONRPCRequest& request)
         throw JSONRPCError(RPC_TYPE_ERROR, "Invalid amount");
 
     UniValue jsonBalances(UniValue::VOBJ);
-    std::map<CTxDestination, CAmount> balances = pwalletMain->GetAddressBalances();
+    std::map<CTxDestination, CAmount> balances = pwallet->GetAddressBalances();
     for (auto& balance : balances)
         if (balance.second >= nMinAmount)
             jsonBalances.push_back(Pair(CBitcoinAddress(balance.first).ToString(), ValueFromAmount(balance.second)));
@@ -1476,7 +1472,7 @@ void ListTransactions(CWallet * const pwallet, const CWalletTx& wtx, const std::
     {
         BOOST_FOREACH(const COutputEntry& r, listReceived)
         {
-            string account;
+            std::string account;
             if (pwallet->mapAddressBook.count(r.destination)) {
                 account = pwallet->mapAddressBook[r.destination].name;
             }
@@ -2102,8 +2098,6 @@ UniValue walletpassphrase(const JSONRPCRequest& request)
     // Alternately, find a way to make request.params[0] mlock()'d to begin with.
     strWalletPass = request.params[0].get_str().c_str();
 
-    int64_t nSleepTime = request.params[1].get_int64();
-
     bool fForMixingOnly = false;
     if (request.params.size() >= 3)
         fForMixingOnly = request.params[2].get_bool();
@@ -2224,7 +2218,7 @@ UniValue encryptwallet(const JSONRPCRequest& request)
     }
 
     if (!pwallet->IsCrypted() && (request.fHelp || request.params.size() != 1)) {
-        throw runtime_error(
+        throw std::runtime_error(
             "encryptwallet \"passphrase\"\n"
             "\nEncrypts the wallet with 'passphrase'. This is for first time encryption.\n"
             "After this, any calls that interact with private keys such as sending or signing \n"
@@ -2451,7 +2445,8 @@ UniValue settxfee(const JSONRPCRequest& request)
 
 UniValue setprivatesendrounds(const JSONRPCRequest& request)
 {
-    if (!EnsureWalletIsAvailable(request.fHelp))
+    CWallet * const pwallet = GetWalletForJSONRPCRequest(request);
+    if (!EnsureWalletIsAvailable(pwallet, request.fHelp))
         return NullUniValue;
 
     if (request.fHelp || request.params.size() != 1)
@@ -2478,7 +2473,8 @@ UniValue setprivatesendrounds(const JSONRPCRequest& request)
 
 UniValue setprivatesendamount(const JSONRPCRequest& request)
 {
-    if (!EnsureWalletIsAvailable(request.fHelp))
+    CWallet * const pwallet = GetWalletForJSONRPCRequest(request);
+    if (!EnsureWalletIsAvailable(pwallet, request.fHelp))
         return NullUniValue;
 
     if (request.fHelp || request.params.size() != 1)
@@ -2590,7 +2586,8 @@ UniValue getwalletinfo(const JSONRPCRequest& request)
 
 UniValue keepass(const JSONRPCRequest& request)
 {
-    if (!EnsureWalletIsAvailable(request.fHelp))
+    CWallet * const pwallet = GetWalletForJSONRPCRequest(request);
+    if (!EnsureWalletIsAvailable(pwallet, request.fHelp))
         return NullUniValue;
 
     std::string strCommand;

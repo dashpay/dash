@@ -32,14 +32,15 @@
 
 UniValue masternodelist(const JSONRPCRequest& request);
 
-bool EnsureWalletIsAvailable(bool avoidException);
+bool EnsureWalletIsAvailable(CWallet * const pwallet, bool avoidException);
 
 #ifdef ENABLE_WALLET
 void EnsureWalletIsUnlocked(CWallet * const pwallet);
 
 UniValue privatesend(const JSONRPCRequest& request)
 {
-    if (!EnsureWalletIsAvailable(request.fHelp))
+    CWallet * const pwallet = GetWalletForJSONRPCRequest(request);
+    if (!EnsureWalletIsAvailable(pwallet, request.fHelp))
         return NullUniValue;
 
     if (request.fHelp || request.params.size() != 1)
@@ -564,12 +565,12 @@ UniValue masternode_outputs(const JSONRPCRequest& request)
     if (request.fHelp)
         masternode_outputs_help();
 
-    if (!EnsureWalletIsAvailable(request.fHelp))
+    CWallet * const pwallet = GetWalletForJSONRPCRequest(request);
+    if (!EnsureWalletIsAvailable(pwallet, request.fHelp))
         return NullUniValue;
 
     // Find possible candidates
     std::vector<COutput> vPossibleCoins;
-    CWallet * const pwallet = GetWalletForJSONRPCRequest(request);
     pwallet->AvailableCoins(vPossibleCoins, true, NULL, false, ONLY_1000);
 
     UniValue obj(UniValue::VOBJ);

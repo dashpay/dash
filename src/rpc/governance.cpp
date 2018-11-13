@@ -24,7 +24,7 @@
 #include "wallet/wallet.h"
 #endif // ENABLE_WALLET
 
-bool EnsureWalletIsAvailable(bool avoidException);
+bool EnsureWalletIsAvailable(CWallet * const pwallet, bool avoidException);
 
 void gobject_count_help()
 {

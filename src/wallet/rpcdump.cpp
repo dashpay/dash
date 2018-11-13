@@ -31,7 +31,7 @@
 #include <boost/foreach.hpp>
 
 void EnsureWalletIsUnlocked(CWallet * const pwallet);
-bool EnsureWalletIsAvailable(bool avoidException);
+bool EnsureWalletIsAvailable(CWallet * const pwallet, bool avoidException);
 
 std::string static EncodeDumpTime(int64_t nTime) {
     return DateTimeStrFormat("%Y-%m-%dT%H:%M:%SZ", nTime);
@@ -160,8 +160,8 @@ UniValue importprivkey(const JSONRPCRequest& request)
     return NullUniValue;
 }
 
-void ImportAddress(CWallet*, const CBitcoinAddress& address, const string& strLabel);
-void ImportScript(CWallet * const pwallet, const CScript& script, const string& strLabel, bool isRedeemScript)
+void ImportAddress(CWallet*, const CBitcoinAddress& address, const std::string& strLabel);
+void ImportScript(CWallet * const pwallet, const CScript& script, const std::string& strLabel, bool isRedeemScript)
 {
     if (!isRedeemScript && ::IsMine(*pwallet, script) == ISMINE_SPENDABLE) {
         throw JSONRPCError(RPC_WALLET_ERROR, "The wallet already contains the private key for this address or script");
@@ -186,7 +186,7 @@ void ImportScript(CWallet * const pwallet, const CScript& script, const string& 
     }
 }
 
-void ImportAddress(CWallet * const pwallet, const CBitcoinAddress& address, const string& strLabel)
+void ImportAddress(CWallet * const pwallet, const CBitcoinAddress& address, const std::string& strLabel)
 {
     CScript script = GetScriptForDestination(address.Get());
     ImportScript(pwallet, script, strLabel, false);
@@ -849,29 +849,28 @@ UniValue dumpwallet(const JSONRPCRequest& request)
             }
         }
         obj.push_back(Pair("hdaccounts", int(hdChainCurrent.CountAccounts())));
-    }
 
-    for (std::vector<std::pair<int64_t, CKeyID> >::const_iterator it = vKeyBirth.begin(); it != vKeyBirth.end(); it++) {
-        const CKeyID &keyid = it->second;
-        std::string strTime = EncodeDumpTime(it->first);
-        std::string strAddr = CBitcoinAddress(keyid).ToString();
-        CKey key;
-        if (pwallet->GetKey(keyid, key)) {
-            file << strprintf("%s %s ", CBitcoinSecret(key).ToString(), strTime);
-            if (pwallet->mapAddressBook.count(keyid)) {
-                file << strprintf("label=%s", EncodeDumpString(pwallet->mapAddressBook[keyid].name));
-            } else if (keyid == masterKeyID) {
-                file << "hdmaster=1";
-            } else if (setKeyPool.count(keyid)) {
-                file << "reserve=1";
-            } else if (pwallet->mapKeyMetadata[keyid].hdKeypath == "m") {
-                file << "inactivehdmaster=1";
-            } else {
-                file << "change=1";
+        for (std::vector<std::pair<int64_t, CKeyID> >::const_iterator it = vKeyBirth.begin(); it != vKeyBirth.end(); it++) {
+            const CKeyID &keyid = it->second;
+            std::string strTime = EncodeDumpTime(it->first);
+            std::string strAddr = CBitcoinAddress(keyid).ToString();
+            CKey key;
+            if (pwallet->GetKey(keyid, key)) {
+                file << strprintf("%s %s ", CBitcoinSecret(key).ToString(), strTime);
+                if (pwallet->mapAddressBook.count(keyid)) {
+                    file << strprintf("label=%s", EncodeDumpString(pwallet->mapAddressBook[keyid].name));
+                }
+                else if (setKeyPool.count(keyid)) {
+                    file << "reserve=1";
+                }
+                else {
+                    file << "change=1";
+                }
+                file << strprintf(" # addr=%s%s\n", strAddr, (pwalletMain->mapHdPubKeys.count(keyid) ? " hdkeypath=" + pwalletMain->mapHdPubKeys[keyid].GetKeyPath() : ""));
             }
-            file << strprintf(" # addr=%s%s\n", strAddr, (pwallet->mapKeyMetadata[keyid].hdKeypath.size() > 0 ? " hdkeypath="+pwallet->mapKeyMetadata[keyid].hdKeypath : ""));
         }
     }
+
     file << "\n";
     file << "# End of dump\n";
     file.close();

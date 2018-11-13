@@ -424,7 +424,6 @@ CScript _createmultisig_redeemScript(CWallet * const pwallet, const UniValue& pa
             if (!pwallet->GetPubKey(keyID, vchPubKey))
                 throw std::runtime_error(
                     strprintf("no full public key for address %s",ks));
-            }
             if (!vchPubKey.IsFullyValid())
                 throw std::runtime_error(" Invalid public key: "+ks);
             pubkeys[i] = vchPubKey;
