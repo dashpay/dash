@@ -30,7 +30,7 @@
 #include <boost/assign/list_of.hpp>
 #include <boost/foreach.hpp>
 
-void EnsureWalletIsUnlocked();
+void EnsureWalletIsUnlocked(CWallet * const pwallet);
 bool EnsureWalletIsAvailable(bool avoidException);
 
 std::string static EncodeDumpTime(int64_t nTime) {
@@ -534,7 +534,9 @@ UniValue importwallet(const JSONRPCRequest& request)
 
 UniValue importelectrumwallet(const JSONRPCRequest& request)
 {
-    if (!EnsureWalletIsAvailable(request.fHelp))
+    CWallet * const pwallet = GetWalletForJSONRPCRequest(request);
+
+    if (!EnsureWalletIsAvailable(pwallet, request.fHelp))
         return NullUniValue;
 
     if (request.fHelp || request.params.size() < 1 || request.params.size() > 2)
@@ -556,9 +558,9 @@ UniValue importelectrumwallet(const JSONRPCRequest& request)
     if (fPruneMode)
         throw JSONRPCError(RPC_WALLET_ERROR, "Importing wallets is disabled in pruned mode");
 
-    LOCK2(cs_main, pwalletMain->cs_wallet);
+    LOCK2(cs_main, pwallet->cs_wallet);
 
-    EnsureWalletIsUnlocked();
+    EnsureWalletIsUnlocked(pwallet);
 
     std::ifstream file;
     std::string strFileName = request.params[0].get_str();
@@ -707,7 +709,8 @@ UniValue dumpprivkey(const JSONRPCRequest& request)
 
 UniValue dumphdinfo(const JSONRPCRequest& request)
 {
-    if (!EnsureWalletIsAvailable(request.fHelp))
+    CWallet * const pwallet = GetWalletForJSONRPCRequest(request);
+    if (!EnsureWalletIsAvailable(pwallet, request.fHelp))
         return NullUniValue;
 
     if (request.fHelp || request.params.size() != 0)
@@ -725,9 +728,9 @@ UniValue dumphdinfo(const JSONRPCRequest& request)
             + HelpExampleRpc("dumphdinfo", "")
         );
 
-    LOCK(pwalletMain->cs_wallet);
+    LOCK(pwallet->cs_wallet);
 
-    EnsureWalletIsUnlocked();
+    EnsureWalletIsUnlocked(pwallet);
 
     CHDChain hdChainCurrent;
     if (!pwalletMain->GetHDChain(hdChainCurrent))

@@ -35,7 +35,7 @@ UniValue masternodelist(const JSONRPCRequest& request);
 bool EnsureWalletIsAvailable(bool avoidException);
 
 #ifdef ENABLE_WALLET
-void EnsureWalletIsUnlocked();
+void EnsureWalletIsUnlocked(CWallet * const pwallet);
 
 UniValue privatesend(const JSONRPCRequest& request)
 {
@@ -58,8 +58,9 @@ UniValue privatesend(const JSONRPCRequest& request)
 
     if (request.params[0].get_str() == "start") {
         {
-            LOCK(pwalletMain->cs_wallet);
-            if (pwalletMain->IsLocked(true))
+            CWallet * const pwallet = GetWalletForJSONRPCRequest(request);
+            LOCK(pwallet->cs_wallet);
+            if (pwallet->IsLocked(true))
                 throw JSONRPCError(RPC_WALLET_UNLOCK_NEEDED, "Error: Please unlock wallet for mixing with walletpassphrase first.");
         }
 
@@ -111,9 +112,10 @@ UniValue getpoolinfo(const JSONRPCRequest& request)
         obj.push_back(Pair("pools", pools));
     }
 
-    if (pwalletMain) {
-        obj.push_back(Pair("keys_left",     pwalletMain->nKeysLeftSinceAutoBackup));
-        obj.push_back(Pair("warnings",      pwalletMain->nKeysLeftSinceAutoBackup < PRIVATESEND_KEYS_THRESHOLD_WARNING
+    CWallet * const pwallet = GetWalletForJSONRPCRequest(request);
+    if (pwallet) {
+        obj.push_back(Pair("keys_left",     pwallet->nKeysLeftSinceAutoBackup));
+        obj.push_back(Pair("warnings",      pwallet->nKeysLeftSinceAutoBackup < PRIVATESEND_KEYS_THRESHOLD_WARNING
                                                 ? "WARNING: keypool is almost depleted!" : ""));
     }
 #else // ENABLE_WALLET
@@ -349,17 +351,19 @@ void masternode_start_alias_help()
 
 UniValue masternode_start_alias(const JSONRPCRequest& request)
 {
+    CWallet * const pwallet = GetWalletForJSONRPCRequest(request);
+
     if (request.fHelp || request.params.size() < 2)
         masternode_start_alias_help();
     if (deterministicMNManager->IsDeterministicMNsSporkActive())
         throw JSONRPCError(RPC_MISC_ERROR, "start-alias is not supported when deterministic masternode list is active (DIP3)");
 
-    if (!EnsureWalletIsAvailable(request.fHelp))
+    if (!EnsureWalletIsAvailable(pwallet, request.fHelp))
         return NullUniValue;
 
     {
-        LOCK(pwalletMain->cs_wallet);
-        EnsureWalletIsUnlocked();
+        LOCK(pwallet->cs_wallet);
+        EnsureWalletIsUnlocked(pwallet);
     }
 
     std::string strAlias = request.params[1].get_str();
@@ -456,12 +460,14 @@ UniValue masternode_start_all(const JSONRPCRequest& request)
     if (deterministicMNManager->IsDeterministicMNsSporkActive())
         throw JSONRPCError(RPC_MISC_ERROR, strprintf("start-all is not supported when deterministic masternode list is active (DIP3)"));
 
-    if (!EnsureWalletIsAvailable(request.fHelp))
+    CWallet * const pwallet = GetWalletForJSONRPCRequest(request);
+
+    if (!EnsureWalletIsAvailable(pwallet, request.fHelp))
         return NullUniValue;
 
     {
-        LOCK(pwalletMain->cs_wallet);
-        EnsureWalletIsUnlocked();
+        LOCK(pwallet->cs_wallet);
+        EnsureWalletIsUnlocked(pwallet);
     }
 
     return StartMasternodeList(masternodeConfig.getEntries());
@@ -480,12 +486,14 @@ UniValue masternode_start_missing(const JSONRPCRequest& request)
     if (request.fHelp)
         masternode_start_missing_help();
 
-    if (!EnsureWalletIsAvailable(request.fHelp))
+    CWallet * const pwallet = GetWalletForJSONRPCRequest(request);
+
+    if (!EnsureWalletIsAvailable(pwallet, request.fHelp))
         return NullUniValue;
 
     {
-        LOCK(pwalletMain->cs_wallet);
-        EnsureWalletIsUnlocked();
+        LOCK(pwallet->cs_wallet);
+        EnsureWalletIsUnlocked(pwallet);
     }
 
     if (!masternodeSync.IsMasternodeListSynced()) {
@@ -516,12 +524,14 @@ UniValue masternode_start_disabled(const JSONRPCRequest& request)
     if (request.fHelp)
         masternode_start_disabled_help();
 
-    if (!EnsureWalletIsAvailable(request.fHelp))
+    CWallet * const pwallet = GetWalletForJSONRPCRequest(request);
+
+    if (!EnsureWalletIsAvailable(pwallet, request.fHelp))
         return NullUniValue;
 
     {
-        LOCK(pwalletMain->cs_wallet);
-        EnsureWalletIsUnlocked();
+        LOCK(pwallet->cs_wallet);
+        EnsureWalletIsUnlocked(pwallet);
     }
 
     if (!masternodeSync.IsMasternodeListSynced()) {
@@ -559,7 +569,8 @@ UniValue masternode_outputs(const JSONRPCRequest& request)
 
     // Find possible candidates
     std::vector<COutput> vPossibleCoins;
-    pwalletMain->AvailableCoins(vPossibleCoins, true, NULL, false, ONLY_1000);
+    CWallet * const pwallet = GetWalletForJSONRPCRequest(request);
+    pwallet->AvailableCoins(vPossibleCoins, true, NULL, false, ONLY_1000);
 
     UniValue obj(UniValue::VOBJ);
     for (const auto& out : vPossibleCoins) {
@@ -1037,7 +1048,8 @@ UniValue masternodebroadcast(const JSONRPCRequest& request)
 
 #ifdef ENABLE_WALLET
     if (strCommand == "create-alias") {
-        if (!EnsureWalletIsAvailable(request.fHelp))
+        CWallet * const pwallet = GetWalletForJSONRPCRequest(request);
+        if (!EnsureWalletIsAvailable(pwallet, request.fHelp))
             return NullUniValue;
 
         // wait for reindex and/or import to finish
@@ -1048,8 +1060,8 @@ UniValue masternodebroadcast(const JSONRPCRequest& request)
             throw JSONRPCError(RPC_INVALID_PARAMETER, "Please specify an alias");
 
         {
-            LOCK(pwalletMain->cs_wallet);
-            EnsureWalletIsUnlocked();
+            LOCK(pwallet->cs_wallet);
+            EnsureWalletIsUnlocked(pwallet);
         }
 
         bool fFound = false;
@@ -1091,7 +1103,8 @@ UniValue masternodebroadcast(const JSONRPCRequest& request)
     }
 
     if (strCommand == "create-all") {
-        if (!EnsureWalletIsAvailable(request.fHelp))
+        CWallet * const pwallet = GetWalletForJSONRPCRequest(request);
+        if (!EnsureWalletIsAvailable(pwallet, request.fHelp))
             return NullUniValue;
 
         // wait for reindex and/or import to finish
@@ -1099,8 +1112,8 @@ UniValue masternodebroadcast(const JSONRPCRequest& request)
             throw JSONRPCError(RPC_INTERNAL_ERROR, "Wait for reindex and/or import to finish");
 
         {
-            LOCK(pwalletMain->cs_wallet);
-            EnsureWalletIsUnlocked();
+            LOCK(pwallet->cs_wallet);
+            EnsureWalletIsUnlocked(pwallet);
         }
 
         int nSuccessful = 0;

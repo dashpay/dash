@@ -453,7 +453,7 @@ UniValue sendtoaddress(const JSONRPCRequest& request)
     if (request.params.size() > 6)
         fUsePrivateSend = request.params[6].get_bool();
 
-    EnsureWalletIsUnlocked();
+    EnsureWalletIsUnlocked(pwallet);
 
     SendMoney(pwallet, address.Get(), nAmount, fSubtractFeeFromAmount, wtx, fUseInstantSend, fUsePrivateSend);
 
@@ -462,7 +462,8 @@ UniValue sendtoaddress(const JSONRPCRequest& request)
 
 UniValue instantsendtoaddress(const JSONRPCRequest& request)
 {
-    if (!EnsureWalletIsAvailable(request.fHelp))
+    CWallet * const pwallet = GetWalletForJSONRPCRequest(request);
+    if (!EnsureWalletIsAvailable(pwallet, request.fHelp))
         return NullUniValue;
 
     if (request.fHelp || request.params.size() < 2 || request.params.size() > 5)
@@ -489,7 +490,7 @@ UniValue instantsendtoaddress(const JSONRPCRequest& request)
             + HelpExampleRpc("instantsendtoaddress", "\"XwnLY9Tf7Zsef8gMGL2fhWA9ZmMjt4KPwG\", 0.1, \"donation\", \"seans outpost\"")
         );
 
-    LOCK2(cs_main, pwalletMain->cs_wallet);
+    LOCK2(cs_main, pwallet->cs_wallet);
 
     CBitcoinAddress address(request.params[0].get_str());
     if (!address.IsValid())
@@ -511,9 +512,9 @@ UniValue instantsendtoaddress(const JSONRPCRequest& request)
     if (request.params.size() > 4)
         fSubtractFeeFromAmount = request.params[4].get_bool();
 
-    EnsureWalletIsUnlocked();
+    EnsureWalletIsUnlocked(pwallet);
 
-    SendMoney(address.Get(), nAmount, fSubtractFeeFromAmount, wtx, true);
+    SendMoney(pwallet, address.Get(), nAmount, fSubtractFeeFromAmount, wtx, true);
 
     return wtx.GetHash().GetHex();
 }

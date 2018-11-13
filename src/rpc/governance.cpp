@@ -137,10 +137,13 @@ void gobject_prepare_help()
 
 UniValue gobject_prepare(const JSONRPCRequest& request)
 {
+
+    CWallet * const pwallet = GetWalletForJSONRPCRequest(request);
+
     if (request.fHelp || request.params.size() != 5)
         gobject_prepare_help();
 
-    if (!EnsureWalletIsAvailable(request.fHelp))
+    if (!EnsureWalletIsAvailable(pwallet, request.fHelp))
         return NullUniValue;
 
     // ASSEMBLE NEW GOVERNANCE OBJECT FROM USER PARAMETERS
@@ -188,24 +191,24 @@ UniValue gobject_prepare(const JSONRPCRequest& request)
         throw JSONRPCError(RPC_INVALID_PARAMETER, "Watchdogs are deprecated");
     }
 
-    LOCK2(cs_main, pwalletMain->cs_wallet);
+    LOCK2(cs_main, pwallet->cs_wallet);
 
     std::string strError = "";
     if (!govobj.IsValidLocally(strError, false))
         throw JSONRPCError(RPC_INTERNAL_ERROR, "Governance object is not valid - " + govobj.GetHash().ToString() + " - " + strError);
-
-    EnsureWalletIsUnlocked();
+    
+    EnsureWalletIsUnlocked(pwallet);
 
     CWalletTx wtx;
-    if (!pwalletMain->GetBudgetSystemCollateralTX(wtx, govobj.GetHash(), govobj.GetMinCollateralFee(), false)) {
+    if (!pwallet->GetBudgetSystemCollateralTX(wtx, govobj.GetHash(), govobj.GetMinCollateralFee(), false)) {
         throw JSONRPCError(RPC_INTERNAL_ERROR, "Error making collateral transaction for governance object. Please check your wallet balance and make sure your wallet is unlocked.");
     }
 
     // -- make our change address
-    CReserveKey reservekey(pwalletMain);
+    CReserveKey reservekey(pwallet);
     // -- send the tx to the network
     CValidationState state;
-    if (!pwalletMain->CommitTransaction(wtx, reservekey, g_connman.get(), state, NetMsgType::TX)) {
+    if (!pwallet->CommitTransaction(wtx, reservekey, g_connman.get(), state, NetMsgType::TX)) {
         throw JSONRPCError(RPC_INTERNAL_ERROR, "CommitTransaction failed! Reason given: " + state.GetRejectReason());
     }
 
@@ -593,7 +596,8 @@ UniValue gobject_vote_many(const JSONRPCRequest& request)
             }
             if (!found) {
                 CKey ownerKey;
-                if (pwalletMain->GetKey(dmn->pdmnState->keyIDVoting, ownerKey)) {
+                CWallet * const pwallet = GetWalletForJSONRPCRequest(request);
+                if (pwallet->GetKey(dmn->pdmnState->keyIDVoting, ownerKey)) {
                     CBitcoinSecret secret(ownerKey);
                     CMasternodeConfig::CMasternodeEntry mne(dmn->proTxHash.ToString(), dmn->pdmnState->addr.ToStringIPPort(false), secret.ToString(), dmn->collateralOutpoint.hash.ToString(), itostr(dmn->collateralOutpoint.n));
                     entries.push_back(mne);
