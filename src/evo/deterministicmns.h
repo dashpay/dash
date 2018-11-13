@@ -5,6 +5,7 @@
 #ifndef DASH_DETERMINISTICMNS_H
 #define DASH_DETERMINISTICMNS_H
 
+#include "arith_uint256.h"
 #include "bls/bls.h"
 #include "dbwrapper.h"
 #include "evodb.h"
@@ -295,6 +296,15 @@ public:
      * @return
      */
     std::vector<CDeterministicMNCPtr> GetProjectedMNPayees(int nCount) const;
+
+    /**
+     * Calculate a quorum based on the modifier. The resulting list is deterministically sorted by score
+     * @param maxSize
+     * @param modifier
+     * @return
+     */
+    std::vector<CDeterministicMNCPtr> CalculateQuorum(size_t maxSize, const uint256& modifier) const;
+    std::vector<std::pair<arith_uint256, CDeterministicMNCPtr>> CalculateScores(const uint256& modifier) const;
 
     CDeterministicMNListDiff BuildDiff(const CDeterministicMNList& to) const;
     CDeterministicMNList ApplyDiff(const CDeterministicMNListDiff& diff) const;
