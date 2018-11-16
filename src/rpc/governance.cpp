@@ -161,7 +161,7 @@ UniValue gobject_prepare(const JSONRPCRequest& request)
     int64_t nTime = atoi64(strTime);
     std::string strDataHex = request.params[4].get_str();
     bool useIS = false;
-    if (request.params.size > 5) useIS = request.params[5].getBool();
+    if (request.params.size() > 5) useIS = request.params[5].getBool();
 
     // CREATE A NEW COLLATERAL TRANSACTION FOR THIS SPECIFIC OBJECT
 
