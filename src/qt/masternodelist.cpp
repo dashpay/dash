@@ -422,7 +422,7 @@ void MasternodeList::updateDIP3List()
                     operatorRewardStr += tr(" to UNKNOWN");
                 }
             } else {
-                operatorRewardStr += tr(" to UNSPECIFIED");
+                operatorRewardStr += tr(" but not claimed");
             }
         } else {
             operatorRewardStr = tr("NONE");
