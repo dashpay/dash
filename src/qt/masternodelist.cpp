@@ -412,7 +412,7 @@ void MasternodeList::updateDIP3List()
 
         QString operatorRewardStr;
         if (dmn->nOperatorReward) {
-            operatorRewardStr += QString::number(dmn->nOperatorReward / 100.0, 'g', 2) + "%";
+            operatorRewardStr += QString::number(dmn->nOperatorReward / 100.0, 'f', 2) + "%";
 
             if (dmn->pdmnState->scriptOperatorPayout != CScript()) {
                 CTxDestination dest;
