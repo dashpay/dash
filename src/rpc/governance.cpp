@@ -138,7 +138,7 @@ void gobject_prepare_help()
 
 UniValue gobject_prepare(const JSONRPCRequest& request)
 {
-    if (request.fHelp || (request.params.size() >= 5 && request.params.size() <= 6)) 
+    if (request.fHelp || (request.params.size() != 5 && request.params.size() != 6)) 
         gobject_prepare_help();
 
     if (!EnsureWalletIsAvailable(request.fHelp))
