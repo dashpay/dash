@@ -1065,6 +1065,10 @@
         <translation>启动别名(&amp;T)</translation>
     </message>
     <message>
+        <source>Start &amp;all</source>
+        <translation>启动全部(&amp;A)</translation>
+    </message>
+    <message>
         <source>Start &amp;MISSING</source>
         <translation>启动遗漏(&amp;M)</translation>
     </message>
@@ -2227,6 +2231,10 @@ https://www.transifex.com/projects/p/dash/</translation>
     <message>
         <source>Datadir</source>
         <translation>数据目录</translation>
+    </message>
+    <message>
+        <source>Open the %1 debug log file from the current data directory. This can take a few seconds for large log files.</source>
+        <translation>打开当前目录中的%1调试日志文件。日志文件大的话可能要等上几秒钟。</translation>
     </message>
     <message>
         <source>Decrease font size</source>
@@ -4302,6 +4310,10 @@ https://www.transifex.com/projects/p/dash/</translation>
         <translation>断开无效节点的临界值(默认：%u)</translation>
     </message>
     <message>
+        <source>Too many %f denominations, removing.</source>
+        <translation>太多%f面额化资金，正在移除。</translation>
+    </message>
+    <message>
         <source>Tor control port password (default: empty)</source>
         <translation>Tor 控制端口密码 (默认值：空白)</translation>
     </message>
@@ -5048,6 +5060,10 @@ https://www.transifex.com/projects/p/dash/</translation>
     <message>
         <source>Failed to start a new mixing queue</source>
         <translation>无法开始一个新的混币队列</translation>
+    </message>
+    <message>
+        <source>Initialization sanity check failed. %s is shutting down.</source>
+        <translation>初始化完整性检查失败。%s即将关闭。</translation>
     </message>
     <message>
         <source>Invalid amount for -%s=&lt;amount&gt;: '%s'</source>
