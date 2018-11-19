@@ -88,15 +88,15 @@ MasternodeList::MasternodeList(const PlatformStyle* platformStyle, QWidget* pare
     connect(ui->tableWidgetMyMasternodes, SIGNAL(doubleClicked(QModelIndex)), this, SLOT(on_QRButton_clicked()));
     connect(startAliasAction, SIGNAL(triggered()), this, SLOT(on_startButton_clicked()));
 
-    QAction* copyProTxHashAction = new QAction(tr("Copy ProTx hash"), this);
-    QAction* copyCollateralTxHashAction = new QAction(tr("Copy Collateral hash"), this);
+    QAction* copyProTxHashAction = new QAction(tr("Copy ProTx Hash"), this);
+    QAction* copyCollateralOutpointAction = new QAction(tr("Copy Collateral Outpoint"), this);
     contextMenuDIP3 = new QMenu();
     contextMenuDIP3->addAction(copyProTxHashAction);
-    contextMenuDIP3->addAction(copyCollateralTxHashAction);
+    contextMenuDIP3->addAction(copyCollateralOutpointAction);
     connect(ui->tableWidgetMasternodesDIP3, SIGNAL(customContextMenuRequested(const QPoint&)), this, SLOT(showContextMenuDIP3(const QPoint&)));
     connect(ui->tableWidgetMasternodesDIP3, SIGNAL(doubleClicked(QModelIndex)), this, SLOT(on_extraInfoDIP3_clicked()));
     connect(copyProTxHashAction, SIGNAL(triggered()), this, SLOT(on_copyProTxHash_clicked()));
-    connect(copyCollateralTxHashAction, SIGNAL(triggered()), this, SLOT(on_copyCollateralTxHash_clicked()));
+    connect(copyCollateralOutpointAction, SIGNAL(triggered()), this, SLOT(on_copyCollateralOutpoint_clicked()));
 
     timer = new QTimer(this);
     connect(timer, SIGNAL(timeout()), this, SLOT(updateNodeList()));
@@ -718,7 +718,7 @@ void MasternodeList::on_copyProTxHash_clicked()
     QApplication::clipboard()->setText(QString::fromStdString(dmn->proTxHash.ToString()));
 }
 
-void MasternodeList::on_copyCollateralTxHash_clicked()
+void MasternodeList::on_copyCollateralOutpoint_clicked()
 {
     auto dmn = GetSelectedDIP3MN();
     if (!dmn) {
