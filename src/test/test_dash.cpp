@@ -27,6 +27,7 @@
 #include "evo/specialtx.h"
 #include "evo/deterministicmns.h"
 #include "evo/cbtx.h"
+#include "llmq/quorums_init.h"
 
 #include <memory>
 
@@ -73,6 +74,7 @@ TestingSetup::TestingSetup(const std::string& chainName) : BasicTestingSetup(cha
         pblocktree = new CBlockTreeDB(1 << 20, true);
         pcoinsdbview = new CCoinsViewDB(1 << 23, true);
         deterministicMNManager = new CDeterministicMNManager(*evoDb);
+        llmq::InitLLMQSystem(*evoDb);
         pcoinsTip = new CCoinsViewCache(pcoinsdbview);
         InitBlockIndex(chainparams);
         {
@@ -95,6 +97,7 @@ TestingSetup::~TestingSetup()
         threadGroup.join_all();
         UnloadBlockIndex();
         delete pcoinsTip;
+        llmq::DestroyLLMQSystem();
         delete deterministicMNManager;
         delete pcoinsdbview;
         delete pblocktree;
