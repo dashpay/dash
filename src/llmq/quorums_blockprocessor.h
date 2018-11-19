@@ -32,6 +32,8 @@ private:
 public:
     CQuorumBlockProcessor(CEvoDB& _evoDb) : evoDb(_evoDb) {}
 
+    void ProcessMessage(CNode* pfrom, const std::string& strCommand, CDataStream& vRecv, CConnman& connman);
+
     bool ProcessBlock(const CBlock& block, const CBlockIndex* pindexPrev, CValidationState& state);
     bool UndoBlock(const CBlock& block, const CBlockIndex* pindex);
 
