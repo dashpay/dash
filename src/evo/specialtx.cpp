@@ -14,6 +14,8 @@
 #include "deterministicmns.h"
 #include "specialtx.h"
 
+#include "llmq/quorums_commitment.h"
+
 bool CheckSpecialTx(const CTransaction& tx, const CBlockIndex* pindexPrev, CValidationState& state)
 {
     if (tx.nVersion != 3 || tx.nType == TRANSACTION_NORMAL)
@@ -34,6 +36,8 @@ bool CheckSpecialTx(const CTransaction& tx, const CBlockIndex* pindexPrev, CVali
         return CheckProUpRevTx(tx, pindexPrev, state);
     case TRANSACTION_COINBASE:
         return CheckCbTx(tx, pindexPrev, state);
+    case TRANSACTION_QUORUM_COMMITMENT:
+        return true; // can't really check much here. checks are done in ProcessBlock
     }
 
     return state.DoS(10, false, REJECT_INVALID, "bad-tx-type-check");
@@ -53,6 +57,8 @@ bool ProcessSpecialTx(const CTransaction& tx, const CBlockIndex* pindex, CValida
         return true; // handled in batches per block
     case TRANSACTION_COINBASE:
         return true; // nothing to do
+    case TRANSACTION_QUORUM_COMMITMENT:
+        return true; // handled per block
     }
 
     return state.DoS(100, false, REJECT_INVALID, "bad-tx-type-proc");
@@ -72,6 +78,8 @@ bool UndoSpecialTx(const CTransaction& tx, const CBlockIndex* pindex)
         return true; // handled in batches per block
     case TRANSACTION_COINBASE:
         return true; // nothing to do
+    case TRANSACTION_QUORUM_COMMITMENT:
+        return true; // handled per block
     }
 
     return false;
