@@ -5043,8 +5043,8 @@ https://www.transifex.com/projects/p/dash/</translation>
         <translation>Benutzerdefinierter Gedächtniscode für HD Wallet (BIP39). Nur gültig bei erstmaligem Start der Wallet (Standard: Leeres Zeichen). </translation>
     </message>
     <message>
-        <source>Username and hashed password for JSON-RPC connections. The field &lt;userpw&gt; comes in the format: &lt;USERNAME&gt;:&lt;SALT&gt;$&lt;HASH&gt;. A canonical python script is included in share/rpcuser. The client then connects normally using the rpcuser=&lt;USERNAME&gt;/rpcpassword=&lt;PASSWORD&gt; pair of arguments. This option can be specified multiple times</source>
-        <translation>Benutzername und gehashtes Passwort für JSON-RPC Verbindungen. Das Feld &lt;userpw&gt; kommt im Format: &lt;USERNAME&gt;:&lt;SALT&gt;$&lt;HASH&gt;. Ein kanonisches Pythonskript ist in share/rpcuser inbegriffen. Der client benutzt wie gehabt, die rpcuser/rpcpassword Parameter. Diese Option kann mehrere Male spezifiziert werden</translation>
+        <source>Username and hashed password for JSON-RPC connections. The field &lt;userpw&gt; comes in the format: &lt;USERNAME&gt;:&lt;SALT&gt;$&lt;HASH&gt;. A canonical python script is included in share/rpcauth. The client then connects normally using the rpcuser=&lt;USERNAME&gt;/rpcpassword=&lt;PASSWORD&gt; pair of arguments. This option can be specified multiple times</source>
+        <translation>Benutzername und gehashtes Passwort für JSON-RPC Verbindungen. Das Feld &lt;userpw&gt; kommt im Format: &lt;USERNAME&gt;:&lt;SALT&gt;$&lt;HASH&gt;. Ein kanonisches Pythonskript ist in share/rpcauth inbegriffen. Der client benutzt wie gehabt, die rpcuser/rpcpassword Parameter. Diese Option kann mehrere Male spezifiziert werden</translation>
     </message>
     <message>
         <source>Wallet will not create transactions that violate mempool chain limits (default: %u)</source>

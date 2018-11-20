@@ -5029,8 +5029,8 @@ https://www.transifex.com/projects/p/dash/</translation>
         <translation>HD钱包(BIP39)的用户自定义记忆密码. 仅在创建钱包/首次启动时才有效 (默认: 空白字符)</translation>
     </message>
     <message>
-        <source>Username and hashed password for JSON-RPC connections. The field &lt;userpw&gt; comes in the format: &lt;USERNAME&gt;:&lt;SALT&gt;$&lt;HASH&gt;. A canonical python script is included in share/rpcuser. The client then connects normally using the rpcuser=&lt;USERNAME&gt;/rpcpassword=&lt;PASSWORD&gt; pair of arguments. This option can be specified multiple times</source>
-        <translation>JSON-RPC 连接要使用的用户名和散列密码。&lt;userpw&gt; 的格式是：&lt;USERNAME&gt;:&lt;SALT&gt;$&lt;HASH&gt;。在 share/rpcuser 目录下有一个示范的 python 脚本。之后客户端程序就可以用这对参数正常连接：rpcuser=&lt;USERNAME&gt;和rpcpassword=&lt;PASSWORD&gt;。这个选项可以被多次指定。</translation>
+        <source>Username and hashed password for JSON-RPC connections. The field &lt;userpw&gt; comes in the format: &lt;USERNAME&gt;:&lt;SALT&gt;$&lt;HASH&gt;. A canonical python script is included in share/rpcauth. The client then connects normally using the rpcuser=&lt;USERNAME&gt;/rpcpassword=&lt;PASSWORD&gt; pair of arguments. This option can be specified multiple times</source>
+        <translation>JSON-RPC 连接要使用的用户名和散列密码。&lt;userpw&gt; 的格式是：&lt;USERNAME&gt;:&lt;SALT&gt;$&lt;HASH&gt;。在 share/rpcauth 目录下有一个示范的 python 脚本。之后客户端程序就可以用这对参数正常连接：rpcuser=&lt;USERNAME&gt;和rpcpassword=&lt;PASSWORD&gt;。这个选项可以被多次指定。</translation>
     </message>
     <message>
         <source>Wallet will not create transactions that violate mempool chain limits (default: %u)</source>

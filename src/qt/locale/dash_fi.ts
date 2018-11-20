@@ -5046,8 +5046,8 @@ Vähennä uakommenttien määrää tai kokoa.</translation>
         <translation>Käyttäjän määrittelemä mnemonic salasana HD lompakolle (BIP39). Vaikuttaa vain uuden lompakon luomisessa/ensimmäisessä käynnistyksessä (oletus: tyhjä)</translation>
     </message>
     <message>
-        <source>Username and hashed password for JSON-RPC connections. The field &lt;userpw&gt; comes in the format: &lt;USERNAME&gt;:&lt;SALT&gt;$&lt;HASH&gt;. A canonical python script is included in share/rpcuser. The client then connects normally using the rpcuser=&lt;USERNAME&gt;/rpcpassword=&lt;PASSWORD&gt; pair of arguments. This option can be specified multiple times</source>
-        <translation>Käyttäjänimi ja salattu salasana JSON-RPC yhteyksille. Kenttä &lt;userpw&gt; tulee olla formaatissa: &lt;USERNAME&gt;:&lt;SALT&gt;$&lt;HASH&gt;. Sääntöjen mukainen python scripti on sisällytetty share/rpcuser:ään. Sitten asiakasohjelma kytkeytyy normaalisti kayttäen rpcuser=&lt;USERNAME&gt;/rpcpassword=&lt;PASSWORD&gt; paria perusteena. Tämä optio voidaan määritellä useita kertoja</translation>
+        <source>Username and hashed password for JSON-RPC connections. The field &lt;userpw&gt; comes in the format: &lt;USERNAME&gt;:&lt;SALT&gt;$&lt;HASH&gt;. A canonical python script is included in share/rpcauth. The client then connects normally using the rpcuser=&lt;USERNAME&gt;/rpcpassword=&lt;PASSWORD&gt; pair of arguments. This option can be specified multiple times</source>
+        <translation>Käyttäjänimi ja salattu salasana JSON-RPC yhteyksille. Kenttä &lt;userpw&gt; tulee olla formaatissa: &lt;USERNAME&gt;:&lt;SALT&gt;$&lt;HASH&gt;. Sääntöjen mukainen python scripti on sisällytetty share/rpcauth:ään. Sitten asiakasohjelma kytkeytyy normaalisti kayttäen rpcuser=&lt;USERNAME&gt;/rpcpassword=&lt;PASSWORD&gt; paria perusteena. Tämä optio voidaan määritellä useita kertoja</translation>
     </message>
     <message>
         <source>Wallet will not create transactions that violate mempool chain limits (default: %u)</source>

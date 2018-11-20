@@ -5042,8 +5042,8 @@ https://www.transifex.com/projects/p/dash/</translation>
         <translation>Passphrase mnemonica definita dall'utente per portafoglio HD (BIP39). Ha effetto solo durante la creazione del wallet/primo avvio (default: stringa vuota)</translation>
     </message>
     <message>
-        <source>Username and hashed password for JSON-RPC connections. The field &lt;userpw&gt; comes in the format: &lt;USERNAME&gt;:&lt;SALT&gt;$&lt;HASH&gt;. A canonical python script is included in share/rpcuser. The client then connects normally using the rpcuser=&lt;USERNAME&gt;/rpcpassword=&lt;PASSWORD&gt; pair of arguments. This option can be specified multiple times</source>
-        <translation>Username e hashed password per connessioni JSON-RPC. Il campo &lt;userpw&gt; utilizza il formato: &lt;USERNAME&gt;:&lt;SALT&gt;$&lt;HASH&gt;. Uno script python standard è incluso in share/rpcuser. Il cliente quindi si connette normalmente utilizzando la coppia di argomenti rpcuser=&lt;USERNAME&gt;/rpcpassword=&lt;PASSWORD&gt;. Questa opzione può essere specificata più volte</translation>
+        <source>Username and hashed password for JSON-RPC connections. The field &lt;userpw&gt; comes in the format: &lt;USERNAME&gt;:&lt;SALT&gt;$&lt;HASH&gt;. A canonical python script is included in share/rpcauth. The client then connects normally using the rpcuser=&lt;USERNAME&gt;/rpcpassword=&lt;PASSWORD&gt; pair of arguments. This option can be specified multiple times</source>
+        <translation>Username e hashed password per connessioni JSON-RPC. Il campo &lt;userpw&gt; utilizza il formato: &lt;USERNAME&gt;:&lt;SALT&gt;$&lt;HASH&gt;. Uno script python standard è incluso in share/rpcauth. Il cliente quindi si connette normalmente utilizzando la coppia di argomenti rpcuser=&lt;USERNAME&gt;/rpcpassword=&lt;PASSWORD&gt;. Questa opzione può essere specificata più volte</translation>
     </message>
     <message>
         <source>Wallet will not create transactions that violate mempool chain limits (default: %u)</source>

@@ -5041,7 +5041,7 @@ https://www.transifex.com/projects/p/dash/</translation>
         <translation>Contraseña mnemonic definida por el usuario para monedero HD (BIP39). Solo tomara efecto durante la creación/primer inicio del monedero (predeterminado: linea vacía)</translation>
     </message>
     <message>
-        <source>Username and hashed password for JSON-RPC connections. The field &lt;userpw&gt; comes in the format: &lt;USERNAME&gt;:&lt;SALT&gt;$&lt;HASH&gt;. A canonical python script is included in share/rpcuser. The client then connects normally using the rpcuser=&lt;USERNAME&gt;/rpcpassword=&lt;PASSWORD&gt; pair of arguments. This option can be specified multiple times</source>
+        <source>Username and hashed password for JSON-RPC connections. The field &lt;userpw&gt; comes in the format: &lt;USERNAME&gt;:&lt;SALT&gt;$&lt;HASH&gt;. A canonical python script is included in share/rpcauth. The client then connects normally using the rpcuser=&lt;USERNAME&gt;/rpcpassword=&lt;PASSWORD&gt; pair of arguments. This option can be specified multiple times</source>
         <translation>Nombre de usuario y contraseña hasheada para conexiones JSON-RPC. El campo &lt;userpw&gt; viene en el formato: &lt;USERNAME&gt;:&lt;SALT&gt;$&lt;HASH&gt;. Una instrucción canónico de python está incluida en compartir/usuario rpc. Entonces el cliente se conecta normalmente utilizando la pareja de argumentos usuario rpc=&lt;USERNAME&gt;/contraseña rpc=&lt;PASSWORD&gt;. Esta opción puede ser especificada múltiples veces</translation>
     </message>
     <message>

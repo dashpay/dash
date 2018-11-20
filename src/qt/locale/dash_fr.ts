@@ -5041,8 +5041,8 @@ https://www.transifex.com/projects/p/dash/</translation>
         <translation>Utiliser une phrase de passe mnémonique définie par l'utilisateur pour le portefeuille HD (BIP39). N'a d'effet que lors de la création ou du premier lancement (par défaut : chaîne vide).</translation>
     </message>
     <message>
-        <source>Username and hashed password for JSON-RPC connections. The field &lt;userpw&gt; comes in the format: &lt;USERNAME&gt;:&lt;SALT&gt;$&lt;HASH&gt;. A canonical python script is included in share/rpcuser. The client then connects normally using the rpcuser=&lt;USERNAME&gt;/rpcpassword=&lt;PASSWORD&gt; pair of arguments. This option can be specified multiple times</source>
-        <translation>Nom d’utilisateur et mot de passe haché pour les connexions JSON-RPC. Le champ &lt;userpw&gt; est au format : &lt;USERNAME&gt;:&lt;SALT&gt;$&lt;HASH&gt;. Un script python canonique est inclus dans share/rpcuser. Le client se connecte ensuite normalement en utilisant la paire d’arguments rpcuser=&lt;USERNAME&gt;/rpcpassword=&lt;PASSWORD&gt;. Cette option peut être précisée plusieurs fois.</translation>
+        <source>Username and hashed password for JSON-RPC connections. The field &lt;userpw&gt; comes in the format: &lt;USERNAME&gt;:&lt;SALT&gt;$&lt;HASH&gt;. A canonical python script is included in share/rpcauth. The client then connects normally using the rpcuser=&lt;USERNAME&gt;/rpcpassword=&lt;PASSWORD&gt; pair of arguments. This option can be specified multiple times</source>
+        <translation>Nom d’utilisateur et mot de passe haché pour les connexions JSON-RPC. Le champ &lt;userpw&gt; est au format : &lt;USERNAME&gt;:&lt;SALT&gt;$&lt;HASH&gt;. Un script python canonique est inclus dans share/rpcauth. Le client se connecte ensuite normalement en utilisant la paire d’arguments rpcuser=&lt;USERNAME&gt;/rpcpassword=&lt;PASSWORD&gt;. Cette option peut être précisée plusieurs fois.</translation>
     </message>
     <message>
         <source>Wallet will not create transactions that violate mempool chain limits (default: %u)</source>

@@ -5042,8 +5042,8 @@ https://www.transifex.com/projects/p/dash/</translation>
         <translation>Užívateľsky definovaná zapamätaná prístupová fráza pre HD peňaženku (BIP39). Platí iba počas vytvárania peňaženky/prvého spustenia (predvolené: prázdny reťazec)</translation>
     </message>
     <message>
-        <source>Username and hashed password for JSON-RPC connections. The field &lt;userpw&gt; comes in the format: &lt;USERNAME&gt;:&lt;SALT&gt;$&lt;HASH&gt;. A canonical python script is included in share/rpcuser. The client then connects normally using the rpcuser=&lt;USERNAME&gt;/rpcpassword=&lt;PASSWORD&gt; pair of arguments. This option can be specified multiple times</source>
-        <translation>Užívateľské meno a zahašované heslo pre JSON-RPC spojenie. Pole &lt;userpw&gt;  má formát: &lt;USERNAME&gt;:&lt;SALT&gt;$&lt;HASH&gt;. Pomocný python skript je priložený v share/rpcuser. Klient sa potom už pripojuje normálne pomocou páru argumentov rpcuser=&lt;USERNAME&gt;/rpcpassword=&lt;PASSWORD&gt;. Túto voľbu môžete použiť i viackrát</translation>
+        <source>Username and hashed password for JSON-RPC connections. The field &lt;userpw&gt; comes in the format: &lt;USERNAME&gt;:&lt;SALT&gt;$&lt;HASH&gt;. A canonical python script is included in share/rpcauth. The client then connects normally using the rpcuser=&lt;USERNAME&gt;/rpcpassword=&lt;PASSWORD&gt; pair of arguments. This option can be specified multiple times</source>
+        <translation>Užívateľské meno a zahašované heslo pre JSON-RPC spojenie. Pole &lt;userpw&gt;  má formát: &lt;USERNAME&gt;:&lt;SALT&gt;$&lt;HASH&gt;. Pomocný python skript je priložený v share/rpcauth. Klient sa potom už pripojuje normálne pomocou páru argumentov rpcuser=&lt;USERNAME&gt;/rpcpassword=&lt;PASSWORD&gt;. Túto voľbu môžete použiť i viackrát</translation>
     </message>
     <message>
         <source>Wallet will not create transactions that violate mempool chain limits (default: %u)</source>

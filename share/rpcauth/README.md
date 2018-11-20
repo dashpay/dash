@@ -1,10 +1,10 @@
 RPC Tools
 ---------------------
 
-### [RPCUser](/share/rpcuser) ###
+### [RPCUser](/share/rpcauth) ###
 
 Create an RPC user login credential.
 
 Usage:
 
-    ./rpcuser.py <username>
+    ./rpcauth.py <username>
