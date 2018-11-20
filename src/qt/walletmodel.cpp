@@ -302,7 +302,8 @@ WalletModel::SendCoinsReturn WalletModel::prepareTransaction(WalletModelTransact
     }
 
     CAmount nFeeRequired = 0;
-    CWalletTx* newTx;
+    CAmount nValueOut = 0;
+    size_t nVinSize = 0;
     bool fCreated;
     std::string strFailReason;
     {
@@ -312,22 +313,25 @@ WalletModel::SendCoinsReturn WalletModel::prepareTransaction(WalletModelTransact
 
         int nChangePosRet = -1;
 
-        newTx = transaction.getTransaction();
+        CWalletTx* newTx = transaction.getTransaction();
         CReserveKey *keyChange = transaction.getPossibleKeyChange();
 
         fCreated = wallet->CreateTransaction(vecSend, *newTx, *keyChange, nFeeRequired, nChangePosRet, strFailReason, coinControl, true, recipients[0].inputType, recipients[0].fUseInstantSend);
         transaction.setTransactionFee(nFeeRequired);
         if (fSubtractFeeFromAmount && fCreated)
             transaction.reassignAmounts(nChangePosRet);
+
+        nValueOut = newTx->tx->GetValueOut();
+        nVinSize = newTx->tx->vin.size();
     }
 
     if(recipients[0].fUseInstantSend) {
-        if(newTx->tx->GetValueOut() > sporkManager.GetSporkValue(SPORK_5_INSTANTSEND_MAX_VALUE)*COIN) {
+        if(nValueOut > sporkManager.GetSporkValue(SPORK_5_INSTANTSEND_MAX_VALUE)*COIN) {
             Q_EMIT message(tr("Send Coins"), tr("InstantSend doesn't support sending values that high yet. Transactions are currently limited to %1 DASH.").arg(sporkManager.GetSporkValue(SPORK_5_INSTANTSEND_MAX_VALUE)),
                          CClientUIInterface::MSG_ERROR);
             return TransactionCreationFailed;
         }
-        if(newTx->tx->vin.size() > CTxLockRequest::WARN_MANY_INPUTS) {
+        if(nVinSize > CTxLockRequest::WARN_MANY_INPUTS) {
             Q_EMIT message(tr("Send Coins"), tr("Used way too many inputs (>%1) for this InstantSend transaction, fees could be huge.").arg(CTxLockRequest::WARN_MANY_INPUTS),
                          CClientUIInterface::MSG_WARNING);
         }
