@@ -565,7 +565,7 @@ UniValue protx_update_registrar(const JSONRPCRequest& request)
 void protx_revoke_help()
 {
     throw std::runtime_error(
-            "protx revoke \"proTxHash\"\n"
+            "protx revoke \"proTxHash\" \"operatorKey\"\n"
             "\nCreates and sends a ProUpRevTx to the network. This will revoke the operator key of the masternode and\n"
             "put it into the PoSe-banned state. It will also set the service field of the masternode\n"
             "to zero. Use this in case your operator key got compromised or you want to stop providing your service\n"
