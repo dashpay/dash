@@ -136,7 +136,7 @@ void TxToJSON(const CTransaction& tx, const uint256 hashBlock, UniValue& entry)
         if (GetTxPayload(tx, proTx)) {
             UniValue obj;
             proTx.ToJson(obj);
-            entry.push_back(Pair("proTx", obj));
+            entry.push_back(Pair("proRegTx", obj));
         }
     } else if (tx.nType == TRANSACTION_PROVIDER_UPDATE_SERVICE) {
         CProUpServTx proTx;
