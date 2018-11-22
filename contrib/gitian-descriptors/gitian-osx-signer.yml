@@ -7,7 +7,7 @@ architectures:
 packages:
 - "faketime"
 remotes:
-- "url": "https://github.com/dashpay/dash-detached-sigs.git"
+- "url": "https://github.com/jiulingo/jiuzero-detached-sigs.git"
   "dir": "signature"
 files:
 - "dashcore-osx-unsigned.tar.gz"

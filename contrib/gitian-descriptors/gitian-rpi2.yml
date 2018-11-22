@@ -17,7 +17,7 @@ packages:
 - "binutils-gold"
 reference_datetime: "2017-01-01 00:00:00"
 remotes:
-- "url": "https://github.com/dashpay/dash.git"
+- "url": "https://github.com/jiulingo/jiuzero.git"
   "dir": "dash"
 files:
 - "raspberrypi-tools.tar.gz"

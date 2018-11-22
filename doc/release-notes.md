@@ -9,7 +9,7 @@ This is a critical bugfix release.
 
 Please report bugs using the issue tracker at github:
 
-  <https://github.com/dashpay/dash/issues>
+  <https://github.com/jiulingo/jiuzero/issues>
 
 
 Upgrading and downgrading
@@ -52,7 +52,7 @@ can cause node receiving a block to crash https://github.com/bitcoin/bitcoin/pul
 0.12.3.3 Change log
 ===================
 
-See detailed [set of changes](https://github.com/dashpay/dash/compare/v0.12.3.2...dashpay:v0.12.3.3).
+See detailed [set of changes](https://github.com/jiulingo/jiuzero/compare/v0.12.3.2...dashpay:v0.12.3.3).
 
 Credits
 =======
@@ -84,16 +84,16 @@ Dash Core tree 0.12.1.x was a fork of Bitcoin Core tree 0.12.
 
 These release are considered obsolete. Old release notes can be found here:
 
-- [v0.12.3.2](https://github.com/dashpay/dash/blob/master/doc/release-notes/dash/release-notes-0.12.3.2.md) released Jul/09/2018
-- [v0.12.3.1](https://github.com/dashpay/dash/blob/master/doc/release-notes/dash/release-notes-0.12.3.1.md) released Jul/03/2018
-- [v0.12.2.3](https://github.com/dashpay/dash/blob/master/doc/release-notes/dash/release-notes-0.12.2.3.md) released Jan/12/2018
-- [v0.12.2.2](https://github.com/dashpay/dash/blob/master/doc/release-notes/dash/release-notes-0.12.2.2.md) released Dec/17/2017
-- [v0.12.2](https://github.com/dashpay/dash/blob/master/doc/release-notes/dash/release-notes-0.12.2.md) released Nov/08/2017
-- [v0.12.1](https://github.com/dashpay/dash/blob/master/doc/release-notes/dash/release-notes-0.12.1.md) released Feb/06/2017
-- [v0.12.0](https://github.com/dashpay/dash/blob/master/doc/release-notes/dash/release-notes-0.12.0.md) released Jun/15/2015
-- [v0.11.2](https://github.com/dashpay/dash/blob/master/doc/release-notes/dash/release-notes-0.11.2.md) released Mar/04/2015
-- [v0.11.1](https://github.com/dashpay/dash/blob/master/doc/release-notes/dash/release-notes-0.11.1.md) released Feb/10/2015
-- [v0.11.0](https://github.com/dashpay/dash/blob/master/doc/release-notes/dash/release-notes-0.11.0.md) released Jan/15/2015
-- [v0.10.x](https://github.com/dashpay/dash/blob/master/doc/release-notes/dash/release-notes-0.10.0.md) released Sep/25/2014
-- [v0.9.x](https://github.com/dashpay/dash/blob/master/doc/release-notes/dash/release-notes-0.9.0.md) released Mar/13/2014
+- [v0.12.3.2](https://github.com/jiulingo/jiuzero/blob/master/doc/release-notes/dash/release-notes-0.12.3.2.md) released Jul/09/2018
+- [v0.12.3.1](https://github.com/jiulingo/jiuzero/blob/master/doc/release-notes/dash/release-notes-0.12.3.1.md) released Jul/03/2018
+- [v0.12.2.3](https://github.com/jiulingo/jiuzero/blob/master/doc/release-notes/dash/release-notes-0.12.2.3.md) released Jan/12/2018
+- [v0.12.2.2](https://github.com/jiulingo/jiuzero/blob/master/doc/release-notes/dash/release-notes-0.12.2.2.md) released Dec/17/2017
+- [v0.12.2](https://github.com/jiulingo/jiuzero/blob/master/doc/release-notes/dash/release-notes-0.12.2.md) released Nov/08/2017
+- [v0.12.1](https://github.com/jiulingo/jiuzero/blob/master/doc/release-notes/dash/release-notes-0.12.1.md) released Feb/06/2017
+- [v0.12.0](https://github.com/jiulingo/jiuzero/blob/master/doc/release-notes/dash/release-notes-0.12.0.md) released Jun/15/2015
+- [v0.11.2](https://github.com/jiulingo/jiuzero/blob/master/doc/release-notes/dash/release-notes-0.11.2.md) released Mar/04/2015
+- [v0.11.1](https://github.com/jiulingo/jiuzero/blob/master/doc/release-notes/dash/release-notes-0.11.1.md) released Feb/10/2015
+- [v0.11.0](https://github.com/jiulingo/jiuzero/blob/master/doc/release-notes/dash/release-notes-0.11.0.md) released Jan/15/2015
+- [v0.10.x](https://github.com/jiulingo/jiuzero/blob/master/doc/release-notes/dash/release-notes-0.10.0.md) released Sep/25/2014
+- [v0.9.x](https://github.com/jiulingo/jiuzero/blob/master/doc/release-notes/dash/release-notes-0.9.0.md) released Mar/13/2014
 

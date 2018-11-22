@@ -309,7 +309,7 @@ Clone the git repositories for Dash Core and Gitian.
 
 ```bash
 git clone https://github.com/devrandom/gitian-builder.git
-git clone https://github.com/dashpay/dash
+git clone https://github.com/jiulingo/jiuzero
 git clone https://github.com/dashpay/gitian.sigs.git
 ```
 
@@ -376,7 +376,7 @@ Output from `gbuild` will look something like
     remote: Total 57959 (delta 0), reused 0 (delta 0), pack-reused 57958
     Receiving objects: 100% (57959/57959), 53.76 MiB | 484.00 KiB/s, done.
     Resolving deltas: 100% (41590/41590), done.
-    From https://github.com/dashpay/dash
+    From https://github.com/jiulingo/jiuzero
     ... (new tags, new branch etc)
     --- Building for trusty amd64 ---
     Stopping target if it is up
@@ -452,7 +452,7 @@ Then when building, override the remote URLs that gbuild would otherwise pull fr
 ```bash
 
 cd /some/root/path/
-git clone https://github.com/dashpay/dash-detached-sigs.git
+git clone https://github.com/jiulingo/jiuzero-detached-sigs.git
 
 BTCPATH=/some/root/path/dash
 SIGPATH=/some/root/path/dash-detached-sigs

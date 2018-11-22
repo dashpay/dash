@@ -29,7 +29,7 @@ Build Dash Core
 
 1. Clone the Dash Core source code and cd into `dash`
 
-        git clone https://github.com/dashpay/dash
+        git clone https://github.com/jiulingo/jiuzero
         cd dash
 
 2.  Build Dash Core:
