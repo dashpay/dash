@@ -191,7 +191,7 @@ bool CQuorumBlockProcessor::ProcessCommitment(const CBlockIndex* pindexPrev, con
     }
 
     if (qc.IsNull()) {
-        if (!qc.VerifyNull()) {
+        if (!qc.VerifyNull(pindexPrev->nHeight + 1)) {
             return state.DoS(100, false, REJECT_INVALID, "bad-qc-invalid-null");
         }
         return true;
@@ -412,6 +412,7 @@ bool CQuorumBlockProcessor::GetMinableCommitment(Consensus::LLMQType llmqType, c
     if (it == minableCommitmentsByQuorum.end()) {
         // null commitment required
         ret = CFinalCommitment(Params().GetConsensus().llmqs.at(llmqType), quorumHash);
+        ret.quorumVvecHash = ::SerializeHash(std::make_pair(quorumHash, nHeight));
         return true;
     }
 

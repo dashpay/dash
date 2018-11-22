@@ -99,7 +99,7 @@ bool CFinalCommitment::Verify(const std::vector<CDeterministicMNCPtr>& members) 
     return true;
 }
 
-bool CFinalCommitment::VerifyNull() const
+bool CFinalCommitment::VerifyNull(int nHeight) const
 {
     if (!Params().GetConsensus().llmqs.count((Consensus::LLMQType)llmqType)) {
         LogPrintfFinalCommitment("invalid llmqType=%d\n", llmqType);
@@ -107,7 +107,16 @@ bool CFinalCommitment::VerifyNull() const
     }
     const auto& params = Params().GetConsensus().llmqs.at((Consensus::LLMQType)llmqType);
 
-    return IsNull() && VerifySizes(params);
+    if (!IsNull() || !VerifySizes(params)) {
+        return false;
+    }
+
+    uint256 expectedQuorumVvecHash = ::SerializeHash(std::make_pair(quorumHash, nHeight));
+    if (quorumVvecHash != expectedQuorumVvecHash) {
+        return false;
+    }
+
+    return true;
 }
 
 bool CFinalCommitment::VerifySizes(const Consensus::LLMQParams& params) const

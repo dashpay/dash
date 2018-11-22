@@ -49,7 +49,7 @@ public:
     }
 
     bool Verify(const std::vector<CDeterministicMNCPtr>& members) const;
-    bool VerifyNull() const;
+    bool VerifyNull(int nHeight) const;
     bool VerifySizes(const Consensus::LLMQParams& params) const;
 
     void ToJson(UniValue& obj) const;
@@ -79,7 +79,6 @@ public:
             return false;
         }
         if (quorumPublicKey.IsValid() ||
-            !quorumVvecHash.IsNull() ||
             membersSig.IsValid() ||
             quorumSig.IsValid()) {
             return false;
