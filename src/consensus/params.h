@@ -51,17 +51,51 @@ enum LLMQType : uint8_t
     LLMQ_10_60 = 100, // 10 members, 6 (60%) threshold, one per hour
 };
 
+// Configures a LLMQ and its DKG
+// See https://github.com/dashpay/dips/blob/master/dip-0006.md for more details
 struct LLMQParams {
     LLMQType type;
+
+    // not consensus critical, only used in logging, RPC and UI
     std::string name;
 
+    // the size of the quorum, e.g. 50 or 400
     int size;
+
+    // The minimum number of valid members after the DKK. If less members are determined valid, no commitment can be
+    // created. Should be higher then the threshold to allow some room for failing nodes, otherwise quorum might end up
+    // not being able to ever created a recovered signature if more nodes fail after the DKG
     int minSize;
+
+    // The threshold required to recover a final signature. Should be at least 50%+1 of the quorum size. This value
+    // also controls the size of the public key verification vector and has a large influence on the performance of
+    // recovery. It also influences the amount of minimum messages that need to be exchanged for a single signing session.
+    // This value has the most influence on the security of the quorum. The number of total malicious masternodes
+    // required to negatively influence signing sessions highly correlates to the threshold percentage.
     int threshold;
 
+    // The interval in number blocks for DKGs and the creation of LLMQs. If set to 24 for example, a DKG will start
+    // every 24 blocks, which is approximately once every hour.
     int dkgInterval;
+
+    // The number of blocks per phase in a DKG session. There are 6 phases plus the mining phase that need to be processed
+    // per DKG. Set this value to a number of blocks so that each phase has enough time to propagate all required
+    // messages to all members before the next phase starts. If blocks are produced too fast, whole DKG sessions will
+    // fail.
     int dkgPhaseBlocks;
+
+    // The starting block inside the DKG interval for when mining of commitments starts. The value is inclusive.
+    // Starting from this block, the inclusion of (possibly null) commitments is enforced until the first non-null
+    // commitment is mined. The chosen value should be at least 5 * dkgPhaseBlocks so that it starts right after the
+    // finalization phase.
     int dkgMiningWindowStart;
+
+    // The ending block inside the DKG interval for when mining of commitments ends. The value is inclusive.
+    // Choose a value so that miners have enough time to receive the commitment and mine it. Also take into consideration
+    // that miners might omit real commitments and revert to always including null commitments. The mining window should
+    // be large enough so that other miners have a chance to produce a block containing a non-null commitment. The window
+    // should at the same time not be too large so that not too much space is wasted with null commitments in case a DKG
+    // session failed.
     int dkgMiningWindowEnd;
 };
 
