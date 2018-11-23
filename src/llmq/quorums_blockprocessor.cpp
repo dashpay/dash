@@ -283,12 +283,11 @@ bool CQuorumBlockProcessor::IsCommitmentRequired(Consensus::LLMQType llmqType, c
         // As we need to fork/revert the chain later to re-test all deployment stages of DIP3, we can
         // remove all this temporary code later.
         LOCK(cs_main);
-        int oldTestnetDIP3ActivationHeight = 264000;
-        int commitmentsActivationHeight = 270500;
-        uint256 oldTestnetDIP3ActivationBlock = uint256S("00000048e6e71d4bd90e7c456dcb94683ae832fcad13e1760d8283f7e89f332f");
-        if (pindexPrev->nHeight + 1 >= oldTestnetDIP3ActivationHeight &&
-            pindexPrev->nHeight + 1 < commitmentsActivationHeight &&
-            chainActive[oldTestnetDIP3ActivationHeight]->GetBlockHash() == oldTestnetDIP3ActivationBlock) {
+        const auto& consensus = Params().GetConsensus();
+        if (consensus.nTemporaryTestnetForkDIP3Height != 0 &&
+            pindexPrev->nHeight + 1 >= consensus.nTemporaryTestnetForkDIP3Height &&
+            pindexPrev->nHeight + 1 < consensus.nTemporaryTestnetForkHeight &&
+            chainActive[consensus.nTemporaryTestnetForkDIP3Height]->GetBlockHash() == consensus.nTemporaryTestnetForkDIP3BlockHash) {
             allowMissingQc = true;
         }
     }
