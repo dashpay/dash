@@ -1067,7 +1067,7 @@ bool CPrivateSendClientSession::StartNewQueue(CAmount nValueMin, CAmount nBalanc
     if (!pwalletMain) return false;
 
     int nTries = 0;
-    int nMnCountEnabled = mnodeman.CountEnabled(MIN_PRIVATESEND_PEER_PROTO_VERSION);
+    int nMnCount = mnodeman.CountMasternodes();
 
     // ** find the coins we'll use
     std::vector<CTxIn> vecTxIn;
@@ -1098,11 +1098,11 @@ bool CPrivateSendClientSession::StartNewQueue(CAmount nValueMin, CAmount nBalanc
             continue;
         }
 
-        if (infoMn.nLastDsq != 0 && infoMn.nLastDsq + nMnCountEnabled / 5 > mnodeman.nDsqCount) {
+        if (infoMn.nLastDsq != 0 && infoMn.nLastDsq + nMnCount / 5 > mnodeman.nDsqCount) {
             LogPrintf("CPrivateSendClientSession::StartNewQueue -- Too early to mix on this masternode!"
                       " masternode=%s  addr=%s  nLastDsq=%d  CountEnabled/5=%d  nDsqCount=%d\n",
                 infoMn.outpoint.ToStringShort(), infoMn.addr.ToString(), infoMn.nLastDsq,
-                nMnCountEnabled / 5, mnodeman.nDsqCount);
+                nMnCount / 5, mnodeman.nDsqCount);
             nTries++;
             continue;
         }

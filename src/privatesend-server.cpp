@@ -51,7 +51,7 @@ void CPrivateSendServer::ProcessMessage(CNode* pfrom, const std::string& strComm
         }
 
         if (vecSessionCollaterals.size() == 0 && mnInfo.nLastDsq != 0 &&
-            mnInfo.nLastDsq + mnodeman.CountEnabled(MIN_PRIVATESEND_PEER_PROTO_VERSION) / 5 > mnodeman.nDsqCount) {
+            mnInfo.nLastDsq + mnodeman.CountMasternodes() / 5 > mnodeman.nDsqCount) {
             LogPrintf("DSACCEPT -- last dsq too recent, must wait: addr=%s\n", pfrom->addr.ToString());
             PushStatus(pfrom, STATUS_REJECTED, ERR_RECENT, connman);
             return;
