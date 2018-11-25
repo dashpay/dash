@@ -361,7 +361,7 @@ class DIP3Test(BitcoinTestFramework):
             banned = False
             t = time.time()
             while (not punished or not banned) and (time.time() - t) < 30:
-                self.nodes[0].generate(4)
+                self.nodes[0].generate(2)
                 self.sync_all()
 
                 info = self.nodes[0].protx('info', mn.protx_hash)
