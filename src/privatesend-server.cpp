@@ -59,6 +59,7 @@ void CPrivateSendServer::ProcessMessage(CNode* pfrom, const std::string& strComm
                     if (q.masternodeOutpoint == activeMasternodeInfo.outpoint) {
                         // refuse to create another queue this often
                         LogPrint("privatesend", "DSACCEPT -- last dsq is still in queue, refuse to mix\n");
+                        PushStatus(pfrom, STATUS_REJECTED, ERR_RECENT, connman);
                         return;
                     }
                 }
