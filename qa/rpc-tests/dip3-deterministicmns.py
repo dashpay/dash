@@ -360,14 +360,14 @@ class DIP3Test(BitcoinTestFramework):
             punished = False
             banned = False
             t = time.time()
-            while (not punished or not banned) and (time.time() - t) < 30:
-                time.sleep(0.5)
+            while (not punished or not banned) and (time.time() - t) < 60:
+                time.sleep(1)
 
                 # 2 dummy phases
                 for j in range(2):
                     self.nodes[0].generate(2)
                     self.sync_all()
-                    time.sleep(0.5)
+                    time.sleep(1)
 
                 info = self.nodes[0].protx('info', mn.protx_hash)
                 if not punished:
@@ -379,6 +379,7 @@ class DIP3Test(BitcoinTestFramework):
 
                 # Fast-forward to next DKG session
                 self.nodes[0].generate(24 - (self.nodes[0].getblockcount() % 24))
+                self.sync_all()
             assert(punished and banned)
 
     def create_mn(self, node, idx, alias):
