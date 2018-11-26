@@ -171,8 +171,7 @@ bool CheckLLMQCommitment(const CTransaction& tx, const CBlockIndex* pindexPrev, 
     }
 
     if (!Params().GetConsensus().llmqs.count((Consensus::LLMQType)qcTx.commitment.llmqType)) {
-        LogPrintfFinalCommitment("invalid llmqType=%d\n", qcTx.commitment.llmqType);
-        return false;
+        return state.DoS(100, false, REJECT_INVALID, "bad-qc-type");
     }
     const auto& params = Params().GetConsensus().llmqs.at((Consensus::LLMQType)qcTx.commitment.llmqType);
 
@@ -185,7 +184,7 @@ bool CheckLLMQCommitment(const CTransaction& tx, const CBlockIndex* pindexPrev, 
 
     auto members = CLLMQUtils::GetAllQuorumMembers(params.type, qcTx.commitment.quorumHash);
     if (!qcTx.commitment.Verify(members, false)) {
-        return false;
+        return state.DoS(100, false, REJECT_INVALID, "bad-qc-invalid");
     }
 
     return true;
