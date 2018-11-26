@@ -216,7 +216,7 @@ UniValue gobject_prepare(const JSONRPCRequest& request)
     CWalletTx wtx;
     if (!pwalletMain->GetBudgetSystemCollateralTX(wtx, govobj.GetHash(), govobj.GetMinCollateralFee(), useIS, outpoint)) {
         std::string err = "Error making collateral transaction for governance object. Please check your wallet balance and make sure your wallet is unlocked.";
-        if (request.params.size() == 7) err += "Please verify your specified output is valid and is enough for the combined proposal fee and transaction fee.";
+        if (request.params.size() == 8) err += "Please verify your specified output is valid and is enough for the combined proposal fee and transaction fee.";
         throw JSONRPCError(RPC_INTERNAL_ERROR, err);
     }
 
