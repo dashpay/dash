@@ -6,6 +6,9 @@
 #include "quorums_utils.h"
 
 #include "chainparams.h"
+#include "validation.h"
+
+#include "evo/specialtx.h"
 
 #include <univalue.h>
 
@@ -114,11 +117,6 @@ bool CFinalCommitment::VerifyNull() const
         return false;
     }
 
-    uint256 expectedQuorumVvecHash = ::SerializeHash(std::make_pair(quorumHash, nHeight));
-    if (quorumVvecHash != expectedQuorumVvecHash) {
-        return false;
-    }
-
     return true;
 }
 
@@ -144,6 +142,53 @@ void CFinalCommitment::ToJson(UniValue& obj) const
     obj.push_back(Pair("signersCount", CountSigners()));
     obj.push_back(Pair("validMembersCount", CountValidMembers()));
     obj.push_back(Pair("quorumPublicKey", quorumPublicKey.ToString()));
+}
+
+bool CheckLLMQCommitment(const CTransaction& tx, const CBlockIndex* pindexPrev, CValidationState& state)
+{
+    CFinalCommitmentTxPayload qcTx;
+    if (!GetTxPayload(tx, qcTx)) {
+        return state.DoS(100, false, REJECT_INVALID, "bad-qc-payload");
+    }
+
+    if (qcTx.nVersion == 0 || qcTx.nVersion > CFinalCommitmentTxPayload::CURRENT_VERSION) {
+        return state.DoS(100, false, REJECT_INVALID, "bad-qc-version");
+    }
+
+    if (qcTx.nHeight != pindexPrev->nHeight + 1) {
+        return state.DoS(100, false, REJECT_INVALID, "bad-qc-height");
+    }
+
+    if (!mapBlockIndex.count(qcTx.commitment.quorumHash)) {
+        return state.DoS(100, false, REJECT_INVALID, "bad-qc-quorum-hash");
+    }
+
+    const CBlockIndex* pindexQuorum = mapBlockIndex[qcTx.commitment.quorumHash];
+
+    if (pindexQuorum != pindexPrev->GetAncestor(pindexQuorum->nHeight)) {
+        // not part of active chain
+        return state.DoS(100, false, REJECT_INVALID, "bad-qc-quorum-hash");
+    }
+
+    if (!Params().GetConsensus().llmqs.count((Consensus::LLMQType)qcTx.commitment.llmqType)) {
+        LogPrintfFinalCommitment("invalid llmqType=%d\n", qcTx.commitment.llmqType);
+        return false;
+    }
+    const auto& params = Params().GetConsensus().llmqs.at((Consensus::LLMQType)qcTx.commitment.llmqType);
+
+    if (qcTx.commitment.IsNull()) {
+        if (!qcTx.commitment.VerifyNull()) {
+            return state.DoS(100, false, REJECT_INVALID, "bad-qc-invalid-null");
+        }
+        return true;
+    }
+
+    auto members = CLLMQUtils::GetAllQuorumMembers(params.type, qcTx.commitment.quorumHash);
+    if (!qcTx.commitment.Verify(members, false)) {
+        return false;
+    }
+
+    return true;
 }
 
 }
