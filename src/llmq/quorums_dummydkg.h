@@ -25,7 +25,7 @@ class CConnman;
  * This is only used on testnet/devnet/regtest and will NEVER be used on
  * mainnet. It is NOT SECURE AT ALL! It will actually be removed later when the real DKG is introduced.
  *
- * It works by using a deterministic secure vector as the secure polynomial. Everying can calculate this
+ * It works by using a deterministic secure vector as the secure polynomial. Everyone can calculate this
  * polynomial by himself, which makes it insecure by definition.
  *
  * The purpose of this dummy implementation is to test final LLMQ commitments and simple PoSe on-chain.
