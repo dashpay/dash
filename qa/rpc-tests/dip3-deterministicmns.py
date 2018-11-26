@@ -588,7 +588,9 @@ class DIP3Test(BitcoinTestFramework):
                         break
                 to_address = to_node.getnewaddress()
                 txid = from_node.instantsendtoaddress(to_address, 0.01)
-                self.wait_for_instant_lock(to_node, to_node_idx, txid)
+                for node in self.nodes:
+                    if node is not None:
+                        self.wait_for_instant_lock(node, to_node_idx, txid)
             self.nodes[0].generate(6)
             self.sync_all()
 
