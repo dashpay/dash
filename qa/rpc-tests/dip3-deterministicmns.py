@@ -361,8 +361,13 @@ class DIP3Test(BitcoinTestFramework):
             banned = False
             t = time.time()
             while (not punished or not banned) and (time.time() - t) < 30:
-                self.nodes[0].generate(2)
-                self.sync_all()
+                time.sleep(0.5)
+
+                # 2 dummy phases
+                for j in range(2):
+                    self.nodes[0].generate(2)
+                    self.sync_all()
+                    time.sleep(0.5)
 
                 info = self.nodes[0].protx('info', mn.protx_hash)
                 if not punished:
@@ -372,7 +377,8 @@ class DIP3Test(BitcoinTestFramework):
                     if info['state']['PoSeBanHeight'] != -1:
                         banned = True
 
-                time.sleep(0.5)
+                # Fast-forward to next DKG session
+                self.nodes[0].generate(24 - (self.nodes[0].getblockcount() % 24))
             assert(punished and banned)
 
     def create_mn(self, node, idx, alias):
