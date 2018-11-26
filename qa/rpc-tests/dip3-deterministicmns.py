@@ -598,7 +598,7 @@ class DIP3Test(BitcoinTestFramework):
         st = time.time()
         while time.time() < st + timeout:
             try:
-                tx = node.gettransaction(txid)
+                tx = node.getrawtransaction(txid, 1)
             except:
                 tx = None
             if tx is None:
