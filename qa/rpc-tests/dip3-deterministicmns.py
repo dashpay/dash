@@ -598,8 +598,9 @@ class DIP3Test(BitcoinTestFramework):
             try:
                 tx = node.gettransaction(txid)
             except:
-                continue
+                tx = None
             if tx is None:
+                time.sleep(0.5)
                 continue
             if tx['instantlock']:
                 return
