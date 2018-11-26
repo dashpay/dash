@@ -136,7 +136,6 @@ void gobject_prepare_help()
                 "6. outputHash    (string, optional) the single output to submit the fee from\n"
                 "7. outputIndex   (numeric, optional) The output index.\n"
                 );
-    );
 }
 
 UniValue gobject_prepare(const JSONRPCRequest& request)
