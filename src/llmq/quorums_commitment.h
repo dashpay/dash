@@ -48,7 +48,7 @@ public:
         return (int)std::count(validMembers.begin(), validMembers.end(), true);
     }
 
-    bool Verify(const std::vector<CDeterministicMNCPtr>& members) const;
+    bool Verify(const std::vector<CDeterministicMNCPtr>& members, bool checkSigs) const;
     bool VerifyNull(int nHeight) const;
     bool VerifySizes(const Consensus::LLMQParams& params) const;
 

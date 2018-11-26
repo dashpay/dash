@@ -24,7 +24,7 @@ CFinalCommitment::CFinalCommitment(const Consensus::LLMQParams& params, const ui
     LogPrintStr(strprintf("CFinalCommitment::%s -- %s", __func__, tinyformat::format(__VA_ARGS__))); \
 } while(0)
 
-bool CFinalCommitment::Verify(const std::vector<CDeterministicMNCPtr>& members) const
+bool CFinalCommitment::Verify(const std::vector<CDeterministicMNCPtr>& members, bool checkSigs) const
 {
     if (nVersion == 0 || nVersion > CURRENT_VERSION) {
         return false;
@@ -76,30 +76,33 @@ bool CFinalCommitment::Verify(const std::vector<CDeterministicMNCPtr>& members) 
         }
     }
 
-    uint256 commitmentHash = CLLMQUtils::BuildCommitmentHash((uint8_t)params.type, quorumHash, validMembers, quorumPublicKey, quorumVvecHash);
+    // sigs are only checked when the block is processed
+    if (checkSigs) {
+        uint256 commitmentHash = CLLMQUtils::BuildCommitmentHash((uint8_t)params.type, quorumHash, validMembers, quorumPublicKey, quorumVvecHash);
 
-    std::vector<CBLSPublicKey> memberPubKeys;
-    for (size_t i = 0; i < members.size(); i++) {
-        if (!signers[i]) {
-            continue;
+        std::vector<CBLSPublicKey> memberPubKeys;
+        for (size_t i = 0; i < members.size(); i++) {
+            if (!signers[i]) {
+                continue;
+            }
+            memberPubKeys.emplace_back(members[i]->pdmnState->pubKeyOperator);
         }
-        memberPubKeys.emplace_back(members[i]->pdmnState->pubKeyOperator);
-    }
 
-    if (!membersSig.VerifySecureAggregated(memberPubKeys, commitmentHash)) {
-        LogPrintfFinalCommitment("invalid aggregated members signature\n");
-        return false;
-    }
+        if (!membersSig.VerifySecureAggregated(memberPubKeys, commitmentHash)) {
+            LogPrintfFinalCommitment("invalid aggregated members signature\n");
+            return false;
+        }
 
-    if (!quorumSig.VerifyInsecure(quorumPublicKey, commitmentHash)) {
-        LogPrintfFinalCommitment("invalid quorum signature\n");
-        return false;
+        if (!quorumSig.VerifyInsecure(quorumPublicKey, commitmentHash)) {
+            LogPrintfFinalCommitment("invalid quorum signature\n");
+            return false;
+        }
     }
 
     return true;
 }
 
-bool CFinalCommitment::VerifyNull(int nHeight) const
+bool CFinalCommitment::VerifyNull() const
 {
     if (!Params().GetConsensus().llmqs.count((Consensus::LLMQType)llmqType)) {
         LogPrintfFinalCommitment("invalid llmqType=%d\n", llmqType);
