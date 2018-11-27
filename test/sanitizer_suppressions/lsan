@@ -1,0 +1,13 @@
+<<<<<<< HEAD
+=======
+# Suppress warnings about addCoin(...) leak in the CoinSelection benchmark
+leak:addCoin
+leak:bench_bitcoin
+
+>>>>>>> c41489fc95... Merge #14794: tests: Add AddressSanitizer (ASan) Travis build
+# Suppress warnings triggered in dependencies
+leak:libcrypto
+leak:libqminimal
+leak:libQt5Core
+leak:libQt5Gui
+leak:libQt5Widgets
