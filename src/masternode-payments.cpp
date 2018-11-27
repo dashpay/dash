@@ -906,8 +906,9 @@ bool CMasternodePaymentVote::IsValid(CNode* pnode, int nValidationHeight, std::s
     if(!fMasternodeMode && nBlockHeight < nValidationHeight) return true;
 
     int nRank;
+    uint256 confirmedBlockHash;
 
-    if(!mnodeman.GetMasternodeRank(masternodeOutpoint, nRank, nBlockHeight - 101, nMinRequiredProtocol)) {
+    if(!mnodeman.GetMasternodeRank(masternodeOutpoint, nRank, confirmedBlockHash, nBlockHeight - 101, nMinRequiredProtocol)) {
         LogPrint("mnpayments", "CMasternodePaymentVote::%s -- Can't calculate rank for masternode %s\n", __func__,
                     masternodeOutpoint.ToStringShort());
         return false;
@@ -947,8 +948,9 @@ bool CMasternodePayments::ProcessBlock(int nBlockHeight, CConnman& connman)
     if(!masternodeSync.IsMasternodeListSynced()) return false;
 
     int nRank;
+    uint256 confirmedBlockHash;
 
-    if (!mnodeman.GetMasternodeRank(activeMasternodeInfo.outpoint, nRank, nBlockHeight - 101, GetMinMasternodePaymentsProto())) {
+    if (!mnodeman.GetMasternodeRank(activeMasternodeInfo.outpoint, nRank, confirmedBlockHash, nBlockHeight - 101, GetMinMasternodePaymentsProto())) {
         LogPrint("mnpayments", "CMasternodePayments::%s -- Unknown Masternode\n", __func__);
         return false;
     }
