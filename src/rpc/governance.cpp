@@ -133,7 +133,7 @@ void gobject_prepare_help()
                 "3. time          (numeric, required) time this object was created\n"
                 "4. data-hex      (string, required)  data in hex string form\n"
                 "5. use-IS        (boolean, optional, default=false) InstantSend lock the collateral, only requiring one chain confirmation\n"
-                "6. outputHash    (string, optional) the single output to submit the fee from\n"
+                "6. outputHash    (string, optional) the single output to submit the proposal fee from\n"
                 "7. outputIndex   (numeric, optional) The output index.\n"
                 );
 }
@@ -201,7 +201,7 @@ UniValue gobject_prepare(const JSONRPCRequest& request)
 
     EnsureWalletIsUnlocked();
 
-    // If specified, spend this outpoint as the fee
+    // If specified, spend this outpoint as the proposal fee
     COutPoint outpoint;
     outpoint.SetNull();
     if (request.params.size() == 8) {
