@@ -3371,7 +3371,6 @@ bool CWallet::GetBudgetSystemCollateralTX(CWalletTx& tx, uint256 hash, CAmount a
     vecSend.push_back((CRecipient){scriptChange, amount, false});
 
     CCoinControl coinControl;
-    coinControl.SetNull();
     if (!outpoint.IsNull()) {
         coinControl.Select(outpoint);
     }
