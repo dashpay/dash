@@ -274,10 +274,12 @@ $ ./configure --prefix=<prefix> CC=cc CXX=c++
 $ gmake # use -jX here for parallelism
 ```
 
-OpenBSD Resource limits
--------------------
-If the build runs into out-of-memory errors, the instructions in this section
-might help.
+    cd depends
+    make HOST=arm-linux-gnueabihf NO_QT=1
+    cd ..
+    ./autogen.sh
+    ./configure --prefix=$PWD/depends/arm-linux-gnueabihf --enable-glibc-back-compat --enable-reduce-exports LDFLAGS=-static-libstdc++
+    make
 
 The standard ulimit restrictions in OpenBSD are very strict:
 
