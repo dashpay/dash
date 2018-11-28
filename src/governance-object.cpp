@@ -790,3 +790,19 @@ void CGovernanceObject::CheckOrphanVotes(CConnman& connman)
         }
     }
 }
+
+std::vector<uint256> CGovernanceObject::RemoveOldVotes(unsigned int nMinTime)
+{
+    auto removed = fileVotes.RemoveOldVotes(nMinTime);
+
+    if (!removed.empty()) {
+        std::string removedStr;
+        for (auto& h : removed) {
+            removedStr += strprintf("  %s\n", h.ToString());
+        }
+        LogPrintf("CGovernanceObject::RemoveOldVotes -- Removed %d old (pre-DIP3) votes for %s:\n%s\n", removed.size(), GetHash().ToString(), removedStr);
+        fDirtyCache = true;
+    }
+
+    return removed;
+}
