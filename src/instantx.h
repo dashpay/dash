@@ -254,7 +254,7 @@ public:
         nTimeCreated(GetTime())
         {}
 
-    CTxLockVote(const uint256& txHashIn, const COutPoint& outpointIn, const uint256& outpointConfirmedBlockIn, const COutPoint& outpointMasternodeIn, const uint256& masternodeProTxHashIn) :
+    CTxLockVote(const uint256& txHashIn, const COutPoint& outpointIn, const COutPoint& outpointMasternodeIn, const uint256& outpointConfirmedBlockIn, const uint256& masternodeProTxHashIn) :
         txHash(txHashIn),
         outpoint(outpointIn),
         outpointMasternode(outpointMasternodeIn),

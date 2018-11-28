@@ -287,7 +287,7 @@ void CInstantSend::Vote(CTxLockCandidate& txLockCandidate, CConnman& connman)
 
         // we haven't voted for this outpoint yet, let's try to do this now
         // Please note that activeMasternodeInfo.proTxHash is only valid after spork15 activation
-        CTxLockVote vote(txHash, outpointLockPair.first, confirmedBlockHash, activeMasternodeInfo.outpoint, activeMasternodeInfo.proTxHash);
+        CTxLockVote vote(txHash, outpointLockPair.first, activeMasternodeInfo.outpoint, confirmedBlockHash, activeMasternodeInfo.proTxHash);
 
         if (!vote.Sign()) {
             LogPrintf("CInstantSend::Vote -- Failed to sign consensus vote\n");
