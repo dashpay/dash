@@ -820,6 +820,12 @@ bool CMasternodeMan::GetMasternodeScores(const uint256& nBlockHash, CMasternodeM
     return !vecMasternodeScoresRet.empty();
 }
 
+bool CMasternodeMan::GetMasternodeRank(const COutPoint& outpoint, int& nRankRet, int nBlockHeight, int nMinProtocol)
+{
+    uint256 tmp;
+    return GetMasternodeRank(outpoint, nRankRet, tmp, nBlockHeight, nMinProtocol);
+}
+
 bool CMasternodeMan::GetMasternodeRank(const COutPoint& outpoint, int& nRankRet, uint256& blockHashRet, int nBlockHeight, int nMinProtocol)
 {
     nRankRet = -1;
@@ -1609,9 +1615,8 @@ void CMasternodeMan::ProcessVerifyBroadcast(CNode* pnode, const CMasternodeVerif
     }
 
     int nRank;
-    uint256 confirmedBlockHash;
 
-    if (!GetMasternodeRank(mnv.masternodeOutpoint2, nRank, confirmedBlockHash, mnv.nBlockHeight, MIN_POSE_PROTO_VERSION)) {
+    if (!GetMasternodeRank(mnv.masternodeOutpoint2, nRank, mnv.nBlockHeight, MIN_POSE_PROTO_VERSION)) {
         LogPrint("masternode", "CMasternodeMan::ProcessVerifyBroadcast -- Can't calculate rank for masternode %s\n",
                     mnv.masternodeOutpoint2.ToStringShort());
         return;
