@@ -235,7 +235,7 @@ private:
     COutPoint outpoint;
     // TODO remove this member when the legacy masternode code is removed after DIP3 deployment
     COutPoint outpointMasternode;
-    uint256 outpointConfirmedBlock;
+    uint256 quorumModifierHash;
     uint256 masternodeProTxHash;
     std::vector<unsigned char> vchMasternodeSignature;
     // local memory only
@@ -247,18 +247,18 @@ public:
         txHash(),
         outpoint(),
         outpointMasternode(),
-        outpointConfirmedBlock(),
+        quorumModifierHash(),
         masternodeProTxHash(),
         vchMasternodeSignature(),
         nConfirmedHeight(-1),
         nTimeCreated(GetTime())
         {}
 
-    CTxLockVote(const uint256& txHashIn, const COutPoint& outpointIn, const COutPoint& outpointMasternodeIn, const uint256& outpointConfirmedBlockIn, const uint256& masternodeProTxHashIn) :
+    CTxLockVote(const uint256& txHashIn, const COutPoint& outpointIn, const COutPoint& outpointMasternodeIn, const uint256& quorumModifierHashIn, const uint256& masternodeProTxHashIn) :
         txHash(txHashIn),
         outpoint(outpointIn),
         outpointMasternode(outpointMasternodeIn),
-        outpointConfirmedBlock(outpointConfirmedBlockIn),
+        quorumModifierHash(quorumModifierHashIn),
         masternodeProTxHash(masternodeProTxHashIn),
         vchMasternodeSignature(),
         nConfirmedHeight(-1),
@@ -273,9 +273,9 @@ public:
         READWRITE(outpoint);
         READWRITE(outpointMasternode);
         if (deterministicMNManager->IsDeterministicMNsSporkActive()) {
-            // Starting with spork15 activation, the proTxHash and outpointConfirmedBlock is included. When we bump to >= 70213, we can remove
+            // Starting with spork15 activation, the proTxHash and quorumModifierHash is included. When we bump to >= 70213, we can remove
             // the surrounding if. We might also remove outpointMasternode as well later
-            READWRITE(outpointConfirmedBlock);
+            READWRITE(quorumModifierHash);
             READWRITE(masternodeProTxHash);
         }
         if (!(s.GetType() & SER_GETHASH)) {
