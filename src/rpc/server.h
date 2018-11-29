@@ -10,6 +10,8 @@
 #include <rpc/protocol.h>
 #include <uint256.h>
 
+#include <statsd_client.h>
+
 #include <list>
 #include <map>
 #include <stdint.h>
