@@ -682,7 +682,6 @@ void CGovernanceManager::SyncSingleObjAndItsVotes(CNode* pnode, const uint256& n
     pnode->PushInventory(CInv(MSG_GOVERNANCE_OBJECT, it->first));
 
     auto fileVotes = govobj.GetVoteFile();
-    bool onlyDIP3 = deterministicMNManager->IsDeterministicMNsSporkActive();
 
     for (const auto& vote : fileVotes.GetVotes()) {
         uint256 nVoteHash = vote.GetHash();
@@ -1361,10 +1360,10 @@ void CGovernanceManager::CleanOrphanObjects()
 unsigned int CGovernanceManager::GetMinVoteTime()
 {
     LOCK(cs_main);
-    int64_t dip3SporkHeight = sporkManager.GetSporkValue(SPORK_15_DETERMINISTIC_MNS_ENABLED);
-    if (dip3SporkHeight == 4070908800ULL || chainActive.Height() < dip3SporkHeight) {
+    if (!deterministicMNManager->IsDeterministicMNsSporkActive()) {
         return 0;
     }
+    int64_t dip3SporkHeight = sporkManager.GetSporkValue(SPORK_15_DETERMINISTIC_MNS_ENABLED);
     return chainActive[dip3SporkHeight]->nTime;
 }
 
