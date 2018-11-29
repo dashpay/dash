@@ -793,6 +793,8 @@ void CGovernanceObject::CheckOrphanVotes(CConnman& connman)
 
 std::vector<uint256> CGovernanceObject::RemoveOldVotes(unsigned int nMinTime)
 {
+    LOCK(cs);
+
     auto removed = fileVotes.RemoveOldVotes(nMinTime);
 
     if (!removed.empty()) {
