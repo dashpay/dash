@@ -719,6 +719,12 @@ UniValue protx_list(const JSONRPCRequest& request)
         protx_list_help();
     }
 
+#ifdef ENABLE_WALLET
+    bool hasWallet = pwalletMain != nullptr;
+#else
+    bool hasWallet = false;
+#endif
+
     std::string type = "registered";
     if (request.params.size() > 1) {
         type = request.params[1].get_str();
@@ -729,9 +735,10 @@ UniValue protx_list(const JSONRPCRequest& request)
     LOCK(cs_main);
 
     if (type == "wallet") {
-        if (!pwalletMain) {
+        if (!hasWallet) {
             throw std::runtime_error("\"protx list wallet\" not supported when wallet is disabled");
         }
+#ifdef ENABLE_WALLET
         LOCK(pwalletMain->cs_wallet);
 
         if (request.params.size() > 3) {
@@ -756,6 +763,7 @@ UniValue protx_list(const JSONRPCRequest& request)
                 ret.push_back(BuildDMNListEntry(dmn, detailed));
             }
         });
+#endif
     } else if (type == "valid" || type == "registered") {
         if (request.params.size() > 4) {
             protx_list_help();
