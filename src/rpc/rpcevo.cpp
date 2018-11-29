@@ -636,8 +636,10 @@ void protx_list_help()
             "\"true\" will result in a detailed list to be returned. If set to \"false\", only the hashes of the ProTx\n"
             "will be returned.\n"
             "\nAvailable types:\n"
+#ifdef ENABLE_WALLET
             "  wallet (detailed)              - List only ProTx which are found in your wallet. This will also include ProTx which\n"
             "                                   failed PoSe verfication\n"
+#endif
             "  valid (height) (detailed)      - List only ProTx which are active/valid at the given chain height. If height is not\n"
             "                                   specified, it defaults to the current chain-tip\n"
             "  registered (height) (detaileD) - List all ProTx which are registered at the given chain height. If height is not\n"
@@ -845,15 +847,19 @@ UniValue protx_diff(const JSONRPCRequest& request)
             "\nArguments:\n"
             "1. \"command\"        (string, required) The command to execute\n"
             "\nAvailable commands:\n"
+#ifdef ENABLE_WALLET
             "  register          - Create and send ProTx to network\n"
             "  register_fund     - Fund, create and send ProTx to network\n"
             "  register_prepare  - Create an unsigned ProTx\n"
             "  register_submit   - Sign and submit a ProTx\n"
+#endif
             "  list              - List ProTxs\n"
             "  info              - Return information about a ProTx\n"
+#ifdef ENABLE_WALLET
             "  update_service    - Create and send ProUpServTx to network\n"
             "  update_registrar  - Create and send ProUpRegTx to network\n"
             "  revoke            - Create and send ProUpRevTx to network\n"
+#endif
             "  diff              - Calculate a diff and a proof between two masternode lists\n"
     );
 }
