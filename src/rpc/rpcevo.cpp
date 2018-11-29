@@ -625,6 +625,7 @@ UniValue protx_revoke(const JSONRPCRequest& request)
 
     return SignAndSendSpecialTx(tx);
 }
+#endif//ENABLE_WALLET
 
 void protx_list_help()
 {
@@ -888,7 +889,6 @@ UniValue protx(const JSONRPCRequest& request)
         protx_help();
     }
 }
-#endif//ENABLE_WALLET
 
 void bls_generate_help()
 {
@@ -955,10 +955,8 @@ static const CRPCCommand commands[] =
 { //  category              name                      actor (function)         okSafeMode
   //  --------------------- ------------------------  -----------------------  ----------
     { "evo",                "bls",                    &_bls,                   false, {}  },
-#ifdef ENABLE_WALLET
     // these require the wallet to be enabled to fund the transactions
     { "evo",                "protx",                  &protx,                  false, {}  },
-#endif//ENABLE_WALLET
 };
 
 void RegisterEvoRPCCommands(CRPCTable &tableRPC)
