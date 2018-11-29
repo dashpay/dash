@@ -168,10 +168,10 @@ void TxToJSON(const CTransaction& tx, const uint256 hashBlock, UniValue& entry)
             entry.push_back(Pair("cbTx", obj));
         }
     } else if (tx.nType == TRANSACTION_QUORUM_COMMITMENT) {
-        llmq::CFinalCommitment qcTx;
+        llmq::CFinalCommitmentTxPayload qcTx;
         if (GetTxPayload(tx, qcTx)) {
             UniValue obj;
-            qcTx.ToJson(obj);
+            qcTx.commitment.ToJson(obj);
             entry.push_back(Pair("qcTx", obj));
         }
     }
