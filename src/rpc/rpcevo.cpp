@@ -869,20 +869,40 @@ UniValue protx(const JSONRPCRequest& request)
         command = request.params[0].get_str();
     }
 
+#ifdef ENABLE_WALLET
+    bool hasWallet = pwalletMain != nullptr;
+#else
+    bool hasWallet = false;
+#endif
+
+    auto checkWallet = [&](const std::string& command) {
+        if (!hasWallet) {
+            throw std::runtime_error(strprintf("%s not supported when wallet is disabled", command));
+        }
+    };
+
+#ifdef ENABLE_WALLET
     if (command == "register" || command == "register_fund" || command == "register_prepare") {
+        checkWallet(command);
         return protx_register(request);
     } if (command == "register_submit") {
+        checkWallet(command);
         return protx_register_submit(request);
-    } else if (command == "list") {
+    } else if (command == "update_service") {
+        checkWallet(command);
+        return protx_update_service(request);
+    } else if (command == "update_registrar") {
+        checkWallet(command);
+        return protx_update_registrar(request);
+    } else if (command == "revoke") {
+        checkWallet(command);
+        return protx_revoke(request);
+    } else
+#endif
+    if (command == "list") {
         return protx_list(request);
     } else if (command == "info") {
         return protx_info(request);
-    } else if (command == "update_service") {
-        return protx_update_service(request);
-    } else if (command == "update_registrar") {
-        return protx_update_registrar(request);
-    } else if (command == "revoke") {
-        return protx_revoke(request);
     } else if (command == "diff") {
         return protx_diff(request);
     } else {
