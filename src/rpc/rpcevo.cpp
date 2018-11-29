@@ -648,7 +648,21 @@ void protx_list_help()
     );
 }
 
+static bool CheckWalletOwnsKey(const CKeyID& keyID) {
+#ifndef ENABLE_WALLET
+    return false;
+#else
+    if (!pwalletMain) {
+        return false;
+    }
+    return pwalletMain->HaveKey(keyID);
+#endif
+}
+
 static bool CheckWalletOwnsScript(const CScript& script) {
+#ifndef ENABLE_WALLET
+    return false;
+#else
     if (!pwalletMain) {
         return false;
     }
@@ -660,6 +674,7 @@ static bool CheckWalletOwnsScript(const CScript& script) {
         }
     }
     return false;
+#endif
 }
 
 UniValue BuildDMNListEntry(const CDeterministicMNCPtr& dmn, bool detailed)
@@ -675,9 +690,9 @@ UniValue BuildDMNListEntry(const CDeterministicMNCPtr& dmn, bool detailed)
     int confirmations = GetUTXOConfirmations(dmn->collateralOutpoint);
     o.push_back(Pair("confirmations", confirmations));
 
-    bool hasOwnerKey = pwalletMain && pwalletMain->HaveKey(dmn->pdmnState->keyIDOwner);
-    bool hasOperatorKey = false; //pwalletMain && pwalletMain->HaveKey(dmn->pdmnState->keyIDOperator);
-    bool hasVotingKey = pwalletMain && pwalletMain->HaveKey(dmn->pdmnState->keyIDVoting);
+    bool hasOwnerKey = CheckWalletOwnsKey(dmn->pdmnState->keyIDOwner);
+    bool hasOperatorKey = false; //CheckWalletOwnsKey(dmn->pdmnState->keyIDOperator);
+    bool hasVotingKey = CheckWalletOwnsKey(dmn->pdmnState->keyIDVoting);
 
     bool ownsCollateral = false;
     CTransactionRef collateralTx;
@@ -734,8 +749,8 @@ UniValue protx_list(const JSONRPCRequest& request)
 
         deterministicMNManager->GetListAtChainTip().ForEachMN(false, [&](const CDeterministicMNCPtr& dmn) {
             if (setOutpts.count(dmn->collateralOutpoint) ||
-                pwalletMain->HaveKey(dmn->pdmnState->keyIDOwner) ||
-                pwalletMain->HaveKey(dmn->pdmnState->keyIDVoting) ||
+                CheckWalletOwnsKey(dmn->pdmnState->keyIDOwner) ||
+                CheckWalletOwnsKey(dmn->pdmnState->keyIDVoting) ||
                 CheckWalletOwnsScript(dmn->pdmnState->scriptPayout) ||
                 CheckWalletOwnsScript(dmn->pdmnState->scriptOperatorPayout)) {
                 ret.push_back(BuildDMNListEntry(dmn, detailed));
