@@ -1360,16 +1360,12 @@ void CGovernanceManager::CleanOrphanObjects()
 
 unsigned int CGovernanceManager::GetMinVoteTime()
 {
-    unsigned int dip3ActivationTime;
-    {
-        LOCK(cs_main);
-        int64_t dip3SporkHeight = sporkManager.GetSporkValue(SPORK_15_DETERMINISTIC_MNS_ENABLED);
-        if (dip3SporkHeight == 4070908800ULL || chainActive.Height() < dip3SporkHeight) {
-            return 0;
-        }
-        dip3ActivationTime = chainActive[dip3SporkHeight]->nTime;
+    LOCK(cs_main);
+    int64_t dip3SporkHeight = sporkManager.GetSporkValue(SPORK_15_DETERMINISTIC_MNS_ENABLED);
+    if (dip3SporkHeight == 4070908800ULL || chainActive.Height() < dip3SporkHeight) {
+        return 0;
     }
-    return dip3ActivationTime;
+    return chainActive[dip3SporkHeight]->nTime;
 }
 
 void CGovernanceManager::ClearPreDIP3Votes()
