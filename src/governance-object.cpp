@@ -177,7 +177,7 @@ bool CGovernanceObject::ProcessVote(CNode* pfrom,
         }
     }
 
-    bool onlyOwnerAllowed = nObjectType == GOVERNANCE_OBJECT_PROPOSAL;
+    bool onlyOwnerAllowed = nObjectType == GOVERNANCE_OBJECT_PROPOSAL && vote.GetSignal() == VOTE_SIGNAL_FUNDING;
 
     // Finally check that the vote is actually valid (done last because of cost of signature verification)
     if (!vote.IsValid(onlyOwnerAllowed)) {
