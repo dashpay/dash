@@ -1004,7 +1004,6 @@ static const CRPCCommand commands[] =
 { //  category              name                      actor (function)         okSafeMode
   //  --------------------- ------------------------  -----------------------  ----------
     { "evo",                "bls",                    &_bls,                   false, {}  },
-    // these require the wallet to be enabled to fund the transactions
     { "evo",                "protx",                  &protx,                  false, {}  },
 };
 
