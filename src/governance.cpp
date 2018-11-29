@@ -222,6 +222,12 @@ void CGovernanceManager::ProcessMessage(CNode* pfrom, const std::string& strComm
         CGovernanceVote vote;
         vRecv >> vote;
 
+        // TODO remove this check after full DIP3 deployment
+        if (vote.GetTimestamp() < GetMinVoteTime()) {
+            // Ignore votes pre-DIP3
+            return;
+        }
+
         uint256 nHash = vote.GetHash();
 
         {
