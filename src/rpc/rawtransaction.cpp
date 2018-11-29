@@ -171,7 +171,7 @@ void TxToJSON(const CTransaction& tx, const uint256 hashBlock, UniValue& entry)
         llmq::CFinalCommitmentTxPayload qcTx;
         if (GetTxPayload(tx, qcTx)) {
             UniValue obj;
-            qcTx.commitment.ToJson(obj);
+            qcTx.ToJson(obj);
             entry.push_back(Pair("qcTx", obj));
         }
     }
