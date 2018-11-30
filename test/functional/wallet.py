@@ -223,10 +223,6 @@ class WalletTest(BitcoinTestFramework):
 
         assert(txid1 in self.nodes[3].getrawmempool())
 
-        # Exercise balance rpcs
-        assert_equal(self.nodes[0].getwalletinfo()["unconfirmed_balance"], 1)
-        assert_equal(self.nodes[0].getunconfirmedbalance(), 1)
-
         # check if we can list zero value tx as available coins
         # 1. create raw_tx
         # 2. hex-changed one output to 0.0
