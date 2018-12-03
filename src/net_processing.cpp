@@ -1403,7 +1403,7 @@ bool static ProcessMessage(CNode* pfrom, const std::string& strCommand, CDataStr
             // on rules which are incompatible to ours. Better to ban him after some time as it might otherwise keep
             // asking for the same block (if -addnode/-connect was used on the other side).
             LOCK(cs_main);
-            Misbehaving(pfrom->id, 10);
+            Misbehaving(pfrom->id, 1);
         }
 
         if (fDebug) {
