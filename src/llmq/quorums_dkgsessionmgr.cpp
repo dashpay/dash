@@ -3,8 +3,10 @@
 // file COPYING or http://www.opensource.org/licenses/mit-license.php.
 
 #include "quorums_dkgsessionmgr.h"
+
 #include "quorums.h"
 #include "quorums_blockprocessor.h"
+#include "quorums_debug.h"
 #include "quorums_utils.h"
 
 #include "evo/specialtx.h"
@@ -55,6 +57,11 @@ void CDKGPendingMessages::PushPendingMessage(NodeId from, CDataStream& vRecv)
     if (!seenMessages.emplace(hash).second) {
         LogPrint("net", "CDKGPendingMessages::%s -- already seen %s, peer=%d", __func__, from);
         return;
+    }
+
+    {
+        LOCK(cs_main);
+        g_connman->RemoveAskFor(hash);
     }
 
     pendingMessages.emplace_back(std::make_pair(from, std::move(pm)));
@@ -128,6 +135,7 @@ void CDKGSessionHandler::UpdatedBlockTip(const CBlockIndex* pindexNew, const CBl
     QuorumPhase newPhase = phase;
     if (quorumStageInt == 0) {
         newPhase = QuorumPhase_Initialized;
+        quorumDKGDebugManager->ResetLocalSessionStatus(params.type, quorumHash, quorumHeight);
     } else if (quorumStageInt == params.dkgPhaseBlocks * 1) {
         newPhase = QuorumPhase_Contribute;
     } else if (quorumStageInt == params.dkgPhaseBlocks * 2) {
@@ -142,6 +150,17 @@ void CDKGSessionHandler::UpdatedBlockTip(const CBlockIndex* pindexNew, const CBl
         newPhase = QuorumPhase_Idle;
     }
     phase = newPhase;
+
+    quorumDKGDebugManager->UpdateLocalStatus([&](CDKGDebugStatus& status) {
+        bool changed = status.nHeight != pindexNew->nHeight;
+        status.nHeight = (uint32_t)pindexNew->nHeight;
+        return changed;
+    });
+    quorumDKGDebugManager->UpdateLocalSessionStatus(params.type, [&](CDKGDebugSessionStatus& status) {
+        bool changed = status.phase != (uint8_t)phase;
+        status.phase = (uint8_t)phase;
+        return changed;
+    });
 }
 
 void CDKGSessionHandler::ProcessMessage(CNode* pfrom, const std::string& strCommand, CDataStream& vRecv, CConnman& connman)
@@ -382,6 +401,11 @@ bool ProcessPendingMessageBatch(CDKGSession& session, CDKGPendingMessages& pendi
         const auto& msg = *p.second;
 
         auto hash = ::SerializeHash(msg);
+        {
+            LOCK(cs_main);
+            g_connman->RemoveAskFor(hash);
+        }
+
         bool ban = false;
         if (!session.PreVerifyMessage(hash, msg, ban)) {
             if (ban) {
@@ -454,7 +478,7 @@ void CDKGSessionHandler::HandleDKGRound()
     if (!InitNewQuorum(quorumHeight, quorumHash)) {
         // should actually never happen
         WaitForNewQuorum(curQuorumHash);
-        throw AbortPhaseException();;
+        throw AbortPhaseException();
     }
 
     if (curSession->AreWeMember() || GetBoolArg("-watchquorums", DEFAULT_WATCH_QUORUMS)) {
@@ -530,6 +554,10 @@ void CDKGSessionHandler::PhaseHandlerThread()
         try {
             HandleDKGRound();
         } catch (AbortPhaseException& e) {
+            quorumDKGDebugManager->UpdateLocalSessionStatus(params.type, [&](CDKGDebugSessionStatus& status) {
+                status.aborted = true;
+                return true;
+            });
             LogPrintf("CDKGSessionHandler::%s -- aborted current DKG session\n", __func__);
         }
     }

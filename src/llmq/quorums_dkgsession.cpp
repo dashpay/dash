@@ -6,6 +6,7 @@
 
 #include "quorums.h"
 #include "quorums_commitment.h"
+#include "quorums_debug.h"
 #include "quorums_dkgsessionmgr.h"
 #include "quorums_utils.h"
 
@@ -179,6 +180,11 @@ void CDKGSession::SendContributions()
 
     logger.Flush();
 
+    quorumDKGDebugManager->UpdateLocalSessionStatus(params.type, [&](CDKGDebugSessionStatus& status) {
+        status.sentContributions = true;
+        return true;
+    });
+
     uint256 hash = ::SerializeHash(qc);
     bool ban = false;
     if (PreVerifyMessage(hash, qc, ban)) {
@@ -267,6 +273,11 @@ void CDKGSession::ReceiveMessage(const uint256& hash, const CDKGContribution& qc
         invSet.emplace(inv);
         RelayInvToParticipants(inv);
 
+        quorumDKGDebugManager->UpdateLocalMemberStatus(params.type, member->idx, [&](CDKGDebugMemberStatus& status) {
+            status.receivedContribution = true;
+            return true;
+        });
+
         if (member->contributions.size() > 1) {
             // don't do any further processing if we got more than 1 contribution. we already relayed it,
             // so others know about his bad behavior
@@ -308,6 +319,10 @@ void CDKGSession::ReceiveMessage(const uint256& hash, const CDKGContribution& qc
 
     if (complain) {
         member->weComplain = true;
+        quorumDKGDebugManager->UpdateLocalMemberStatus(params.type, member->idx, [&](CDKGDebugMemberStatus& status) {
+            status.weComplain = true;
+            return true;
+        });
         return;
     }
 
@@ -370,6 +385,10 @@ void CDKGSession::VerifyPendingContributions()
             auto& m = members[memberIndexes[i]];
             logger.Printf("invalid contribution from %s. will complain later\n", m->dmn->proTxHash.ToString());
             m->weComplain = true;
+            quorumDKGDebugManager->UpdateLocalMemberStatus(params.type, m->idx, [&](CDKGDebugMemberStatus& status) {
+                status.weComplain = true;
+                return true;
+            });
         } else {
             size_t memberIdx = memberIndexes[i];
             dkgManager.WriteVerifiedSkContribution(params.type, quorumHash, members[memberIdx]->dmn->proTxHash, skContributions[i]);
@@ -448,6 +467,11 @@ void CDKGSession::SendComplaint()
 
     logger.Flush();
 
+    quorumDKGDebugManager->UpdateLocalSessionStatus(params.type, [&](CDKGDebugSessionStatus& status) {
+        status.sentComplaint = true;
+        return true;
+    });
+
     uint256 hash = ::SerializeHash(qc);
     bool ban = false;
     if (PreVerifyMessage(hash, qc, ban)) {
@@ -515,6 +539,11 @@ void CDKGSession::ReceiveMessage(const uint256& hash, const CDKGComplaint& qc, b
         invSet.emplace(inv);
         RelayInvToParticipants(inv);
 
+        quorumDKGDebugManager->UpdateLocalMemberStatus(params.type, member->idx, [&](CDKGDebugMemberStatus& status) {
+            status.receivedComplaint = true;
+            return true;
+        });
+
         if (member->complaints.size() > 1) {
             // don't do any further processing if we got more than 1 complaint. we already relayed it,
             // so others know about his bad behavior
@@ -530,6 +559,9 @@ void CDKGSession::ReceiveMessage(const uint256& hash, const CDKGComplaint& qc, b
         if (qc.complainForMembers[i]) {
             m->complaintsFromOthers.emplace(qc.proTxHash);
             m->someoneComplain = true;
+            quorumDKGDebugManager->UpdateLocalMemberStatus(params.type, m->idx, [&](CDKGDebugMemberStatus& status) {
+                return status.complaintsFromMembers.emplace(member->idx).second;
+            });
             if (AreWeMember() && i == myIdx) {
                 logger.Printf("%s complained about us\n", member->dmn->proTxHash.ToString());
             }
@@ -614,6 +646,11 @@ void CDKGSession::SendJustification(const std::set<uint256>& forMembers)
     qj.sig = activeMasternodeInfo.blsKeyOperator->Sign(qj.GetSignHash());
 
     logger.Flush();
+
+    quorumDKGDebugManager->UpdateLocalSessionStatus(params.type, [&](CDKGDebugSessionStatus& status) {
+        status.sentJustification = true;
+        return true;
+    });
 
     uint256 hash = ::SerializeHash(qj);
     bool ban = false;
@@ -710,6 +747,11 @@ void CDKGSession::ReceiveMessage(const uint256& hash, const CDKGJustification& q
         CInv inv(MSG_QUORUM_JUSTIFICATION, hash);
         invSet.emplace(inv);
         RelayInvToParticipants(inv);
+
+        quorumDKGDebugManager->UpdateLocalMemberStatus(params.type, member->idx, [&](CDKGDebugMemberStatus& status) {
+            status.receivedJustification = true;
+            return true;
+        });
 
         if (member->justifications.size() > 1) {
             // don't do any further processing if we got more than 1 justification. we already relayed it,
@@ -933,6 +975,11 @@ void CDKGSession::SendCommitment()
 
     logger.Flush();
 
+    quorumDKGDebugManager->UpdateLocalSessionStatus(params.type, [&](CDKGDebugSessionStatus& status) {
+        status.sentPrematureCommitment = true;
+        return true;
+    });
+
     uint256 hash = ::SerializeHash(qc);
     bool ban = false;
     if (PreVerifyMessage(hash, qc, ban)) {
@@ -1070,6 +1117,11 @@ void CDKGSession::ReceiveMessage(const uint256& hash, const CDKGPrematureCommitm
     invSet.emplace(inv);
     RelayInvToParticipants(inv);
 
+    quorumDKGDebugManager->UpdateLocalMemberStatus(params.type, member->idx, [&](CDKGDebugMemberStatus& status) {
+        status.receivedPrematureCommitment = true;
+        return true;
+    });
+
     int receivedCount = 0;
     for (auto& m : members) {
         if (!m->prematureCommitments.empty()) {
@@ -1190,6 +1242,10 @@ void CDKGSession::MarkBadMember(size_t idx)
     if (member->bad) {
         return;
     }
+    quorumDKGDebugManager->UpdateLocalMemberStatus(params.type, idx, [&](CDKGDebugMemberStatus& status) {
+        status.bad = true;
+        return true;
+    });
     member->bad = true;
 }
 
@@ -1212,6 +1268,7 @@ void CDKGSession::AddParticipatingNode(NodeId nodeId)
         return true;
     });
 }
+
 void CDKGSession::RelayInvToParticipants(const CInv& inv)
 {
     LOCK(invCs);

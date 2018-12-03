@@ -7,6 +7,7 @@
 #include "quorums.h"
 #include "quorums_blockprocessor.h"
 #include "quorums_commitment.h"
+#include "quorums_debug.h"
 #include "quorums_dkgsessionmgr.h"
 #include "quorums_signing.h"
 
@@ -23,10 +24,13 @@ void InitLLMQSystem(CEvoDB& evoDb, CScheduler* scheduler)
     quorumDKGSessionManager = new CDKGSessionManager(evoDb, blsWorker);
     quorumManager = new CQuorumManager(evoDb, blsWorker, *quorumDKGSessionManager);
     quorumsSigningManager = new CSigningManager(evoDb, blsWorker);
+    quorumDKGDebugManager = new CDKGDebugManager(scheduler);
 }
 
 void DestroyLLMQSystem()
 {
+    delete quorumDKGDebugManager;
+    quorumDKGDebugManager = nullptr;
     delete quorumsSigningManager;
     quorumsSigningManager = NULL;
     delete quorumManager;

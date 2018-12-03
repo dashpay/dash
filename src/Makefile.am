@@ -144,6 +144,7 @@ BITCOIN_CORE_H = \
   llmq/quorums.h \
   llmq/quorums_blockprocessor.h \
   llmq/quorums_commitment.h \
+  llmq/quorums_debug.h \
   llmq/quorums_dkgsessionmgr.h \
   llmq/quorums_dkgsession.h \
   llmq/quorums_init.h \
@@ -258,6 +259,7 @@ libdash_server_a_SOURCES = \
   llmq/quorums.cpp \
   llmq/quorums_blockprocessor.cpp \
   llmq/quorums_commitment.cpp \
+  llmq/quorums_debug.cpp \
   llmq/quorums_dkgsessionmgr.cpp \
   llmq/quorums_dkgsession.cpp \
   llmq/quorums_init.cpp \
