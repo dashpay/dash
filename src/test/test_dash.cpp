@@ -74,7 +74,7 @@ TestingSetup::TestingSetup(const std::string& chainName) : BasicTestingSetup(cha
         pblocktree = new CBlockTreeDB(1 << 20, true);
         pcoinsdbview = new CCoinsViewDB(1 << 23, true);
         deterministicMNManager = new CDeterministicMNManager(*evoDb);
-        llmq::InitLLMQSystem(*evoDb);
+        llmq::InitLLMQSystem(*evoDb, nullptr);
         pcoinsTip = new CCoinsViewCache(pcoinsdbview);
         InitBlockIndex(chainparams);
         {

@@ -6,11 +6,12 @@
 #define DASH_QUORUMS_INIT_H
 
 class CEvoDB;
+class CScheduler;
 
 namespace llmq
 {
 
-void InitLLMQSystem(CEvoDB& evoDb);
+void InitLLMQSystem(CEvoDB& evoDb, CScheduler* scheduler);
 void DestroyLLMQSystem();
 
 }
