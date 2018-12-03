@@ -1386,25 +1386,29 @@ bool static ProcessMessage(CNode* pfrom, const std::string& strCommand, CDataStr
 
     if (strCommand == NetMsgType::REJECT)
     {
-        if (fDebug) {
-            try {
-                std::string strMsg; unsigned char ccode; std::string strReason;
-                vRecv >> LIMITED_STRING(strMsg, CMessageHeader::COMMAND_SIZE) >> ccode >> LIMITED_STRING(strReason, MAX_REJECT_MESSAGE_LENGTH);
-
-                std::ostringstream ss;
-                ss << strMsg << " code " << itostr(ccode) << ": " << strReason;
-
-                if (strMsg == NetMsgType::BLOCK || strMsg == NetMsgType::TX)
-                {
-                    uint256 hash;
-                    vRecv >> hash;
-                    ss << ": hash " << hash.ToString();
-                }
-                LogPrint("net", "Reject %s\n", SanitizeString(ss.str()));
-            } catch (const std::ios_base::failure&) {
-                // Avoid feedback loops by preventing reject messages from triggering a new reject message.
-                LogPrint("net", "Unparseable reject message received\n");
+        std::string strMsg; unsigned char ccode; std::string strReason;
+        uint256 hash;
+        try {
+            vRecv >> LIMITED_STRING(strMsg, CMessageHeader::COMMAND_SIZE) >> ccode >> LIMITED_STRING(strReason, MAX_REJECT_MESSAGE_LENGTH);
+            if (strMsg == NetMsgType::BLOCK || strMsg == NetMsgType::TX) {
+                vRecv >> hash;
             }
+        } catch (const std::ios_base::failure&) {
+            // Avoid feedback loops by preventing reject messages from triggering a new reject message.
+            LogPrint("net", "Unparseable reject message received\n");
+        }
+
+        if (fDebug) {
+            std::ostringstream ss;
+            ss << strMsg << " code " << itostr(ccode) << ": " << strReason;
+
+            if (strMsg == NetMsgType::BLOCK || strMsg == NetMsgType::TX)
+            {
+                uint256 hash;
+                vRecv >> hash;
+                ss << ": hash " << hash.ToString();
+            }
+            LogPrint("net", "Reject %s\n", SanitizeString(ss.str()));
         }
     }
 
