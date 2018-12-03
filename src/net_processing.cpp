@@ -1410,10 +1410,7 @@ bool static ProcessMessage(CNode* pfrom, const std::string& strCommand, CDataStr
             std::ostringstream ss;
             ss << strMsg << " code " << itostr(ccode) << ": " << strReason;
 
-            if (strMsg == NetMsgType::BLOCK || strMsg == NetMsgType::TX)
-            {
-                uint256 hash;
-                vRecv >> hash;
+            if (strMsg == NetMsgType::BLOCK || strMsg == NetMsgType::TX) {
                 ss << ": hash " << hash.ToString();
             }
             LogPrint("net", "Reject %s\n", SanitizeString(ss.str()));
