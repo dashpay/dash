@@ -1398,6 +1398,14 @@ bool static ProcessMessage(CNode* pfrom, const std::string& strCommand, CDataStr
             LogPrint("net", "Unparseable reject message received\n");
         }
 
+        if (strMsg == NetMsgType::BLOCK) {
+            // The node requested a block from us and then rejected it, which indicates that it's most likely running
+            // on rules which are incompatible to ours. Better to ban him after some time as it might otherwise keep
+            // asking for the same block (if -addnode/-connect was used on the other side).
+            LOCK(cs_main);
+            Misbehaving(pfrom->id, 10);
+        }
+
         if (fDebug) {
             std::ostringstream ss;
             ss << strMsg << " code " << itostr(ccode) << ": " << strReason;
