@@ -593,6 +593,9 @@ UniValue gobject_vote_many(const JSONRPCRequest& request)
     // We can remove this when we remove support for masternode.conf and only support wallet based masternode
     // management
     if (deterministicMNManager->IsDeterministicMNsSporkActive()) {
+        if (!pwalletMain) {
+            throw JSONRPCError(RPC_INVALID_PARAMETER, "vote-many not supported when wallet is disabled.");
+        }
         entries.clear();
 
         auto mnList = deterministicMNManager->GetListAtChainTip();
