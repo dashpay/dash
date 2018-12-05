@@ -678,7 +678,7 @@ UniValue gobject_vote_alias(const JSONRPCRequest& request)
         uint256 proTxHash = ParseHashV(request.params[4], "alias-name");
         auto dmn = deterministicMNManager->GetListAtChainTip().GetValidMN(proTxHash);
         if (!dmn) {
-            throw JSONRPCError(RPC_INVALID_PARAMETER, "Invalid or unknown vote proTxHash");
+            throw JSONRPCError(RPC_INVALID_PARAMETER, "Invalid or unknown proTxHash");
         }
 
         CKey votingKey;
