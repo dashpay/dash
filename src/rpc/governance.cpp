@@ -633,6 +633,10 @@ UniValue gobject_vote_many(const JSONRPCRequest& request)
             }
         });
     }
+#else
+    if (deterministicMNManager->IsDeterministicMNsSporkActive()) {
+        throw JSONRPCError(RPC_INVALID_PARAMETER, "vote-many not supported when wallet is disabled.");
+    }
 #endif
 
     return VoteWithMasternodeList(entries, hash, eVoteSignal, eVoteOutcome);
@@ -675,6 +679,11 @@ UniValue gobject_vote_alias(const JSONRPCRequest& request)
     std::vector<CMasternodeConfig::CMasternodeEntry> entries;
 
     if (deterministicMNManager->IsDeterministicMNsSporkActive()) {
+#ifdef ENABLE_WALLET
+        if (!pwalletMain) {
+            throw JSONRPCError(RPC_INVALID_PARAMETER, "vote-alias not supported when wallet is disabled");
+        }
+
         uint256 proTxHash = ParseHashV(request.params[4], "alias-name");
         auto dmn = deterministicMNManager->GetListAtChainTip().GetValidMN(proTxHash);
         if (!dmn) {
@@ -689,6 +698,9 @@ UniValue gobject_vote_alias(const JSONRPCRequest& request)
         CBitcoinSecret secret(votingKey);
         CMasternodeConfig::CMasternodeEntry mne(dmn->proTxHash.ToString(), dmn->pdmnState->addr.ToStringIPPort(false), secret.ToString(), dmn->collateralOutpoint.hash.ToString(), itostr(dmn->collateralOutpoint.n));
         entries.push_back(mne);
+#else
+        throw JSONRPCError(RPC_INVALID_PARAMETER, "vote-alias not supported when wallet is disabled");
+#endif
     } else {
         std::string strAlias = request.params[4].get_str();
         for (const auto& mne : masternodeConfig.getEntries()) {
