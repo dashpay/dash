@@ -634,7 +634,7 @@ void gobject_vote_alias_help()
                 "1. governance-hash   (string, required) hash of the governance object\n"
                 "2. vote              (string, required) vote, possible values: [funding|valid|delete|endorsed]\n"
                 "3. vote-outcome      (string, required) vote outcome, possible values: [yes|no|abstain]\n"
-                "4. alias-name        (string, required) masternode alias"
+                "4. alias-name        (string, required) masternode alias or proTxHash after DIP3 activation"
                 );
 }
 
@@ -646,8 +646,6 @@ UniValue gobject_vote_alias(const JSONRPCRequest& request)
     uint256 hash = ParseHashV(request.params[1], "Object hash");
     std::string strVoteSignal = request.params[2].get_str();
     std::string strVoteOutcome = request.params[3].get_str();
-
-    std::string strAlias = request.params[4].get_str();
 
     vote_signal_enum_t eVoteSignal = CGovernanceVoting::ConvertVoteSignal(strVoteSignal);
     if (eVoteSignal == VOTE_SIGNAL_NONE) {
@@ -662,9 +660,28 @@ UniValue gobject_vote_alias(const JSONRPCRequest& request)
     }
 
     std::vector<CMasternodeConfig::CMasternodeEntry> entries;
-    for (const auto& mne : masternodeConfig.getEntries()) {
-        if (strAlias == mne.getAlias())
-            entries.push_back(mne);
+
+    if (deterministicMNManager->IsDeterministicMNsSporkActive()) {
+        uint256 proTxHash = ParseHashV(request.params[4], "alias-name");
+        auto dmn = deterministicMNManager->GetListAtChainTip().GetValidMN(proTxHash);
+        if (!dmn) {
+            throw JSONRPCError(RPC_INVALID_PARAMETER, "Invalid or unknown vote proTxHash");
+        }
+
+        CKey votingKey;
+        if (!pwalletMain->GetKey(dmn->pdmnState->keyIDVoting, votingKey)) {
+            throw JSONRPCError(RPC_INVALID_PARAMETER, strprintf("Voting ekey %s not known by wallet", CBitcoinAddress(dmn->pdmnState->keyIDVoting).ToString()));
+        }
+
+        CBitcoinSecret secret(votingKey);
+        CMasternodeConfig::CMasternodeEntry mne(dmn->proTxHash.ToString(), dmn->pdmnState->addr.ToStringIPPort(false), secret.ToString(), dmn->collateralOutpoint.hash.ToString(), itostr(dmn->collateralOutpoint.n));
+        entries.push_back(mne);
+    } else {
+        std::string strAlias = request.params[4].get_str();
+        for (const auto& mne : masternodeConfig.getEntries()) {
+            if (strAlias == mne.getAlias())
+                entries.push_back(mne);
+        }
     }
 
     return VoteWithMasternodeList(entries, hash, eVoteSignal, eVoteOutcome);
