@@ -227,7 +227,8 @@ UniValue masternode_count(const JSONRPCRequest& request)
     int nCount;
     int total;
     if (deterministicMNManager->IsDeterministicMNsSporkActive()) {
-        nCount = total = mnodeman.CountEnabled();
+        total = mnodeman.CountMasternodes();
+        nCount = mnodeman.CountEnabled();
     } else {
         masternode_info_t mnInfo;
         mnodeman.GetNextMasternodeInQueueForPayment(true, nCount, mnInfo);
