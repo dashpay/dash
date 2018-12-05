@@ -376,10 +376,6 @@ UniValue gobject_vote_conf(const JSONRPCRequest& request)
     if (request.fHelp || request.params.size() != 4)
         gobject_vote_conf_help();
 
-    if(deterministicMNManager->IsDeterministicMNsSporkActive()) {
-        throw JSONRPCError(RPC_INVALID_PARAMETER, "Can't use vote-conf when deterministic masternodes are active");
-    }
-
     uint256 hash;
 
     hash = ParseHashV(request.params[1], "Object hash");
@@ -430,7 +426,19 @@ UniValue gobject_vote_conf(const JSONRPCRequest& request)
     }
 
     CGovernanceVote vote(mn.outpoint, hash, eVoteSignal, eVoteOutcome);
-    if (!vote.Sign(activeMasternodeInfo.legacyKeyOperator, activeMasternodeInfo.legacyKeyIDOperator)) {
+
+    bool signSuccess = false;
+    if (deterministicMNManager->IsDeterministicMNsSporkActive()) {
+        if (govObjType == GOVERNANCE_OBJECT_PROPOSAL && eVoteSignal == VOTE_SIGNAL_FUNDING) {
+            throw JSONRPCError(RPC_INVALID_PARAMETER, "Can't use vote-conf for proposals when deterministic masternodes are active");
+        }
+        if (activeMasternodeInfo.blsKeyOperator) {
+            signSuccess = vote.Sign(*activeMasternodeInfo.blsKeyOperator);
+        }
+    } else {
+        signSuccess = vote.Sign(activeMasternodeInfo.legacyKeyOperator, activeMasternodeInfo.legacyKeyIDOperator);
+    }
+    if (!signSuccess) {
         nFailed++;
         statusObj.push_back(Pair("result", "failed"));
         statusObj.push_back(Pair("errorMessage", "Failure to sign."));
