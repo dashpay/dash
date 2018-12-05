@@ -5,6 +5,7 @@
 
 #include "primitives/block.h"
 
+#include "streams.h"
 #include "hash.h"
 #include "tinyformat.h"
 #include "utilstrencodings.h"
@@ -12,7 +13,9 @@
 
 uint256 CBlockHeader::GetHash() const
 {
-    return HashX11(BEGIN(nVersion), END(nNonce));
+    CDataStream ss(SER_NETWORK, PROTOCOL_VERSION);
+    ss << *this;
+    return HashX11((const char *)&ss[0], (const char *)&ss[0] + ss.size());
 }
 
 std::string CBlock::ToString() const
