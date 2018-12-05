@@ -2025,6 +2025,10 @@ bool static ProcessMessage(CNode* pfrom, const std::string& strCommand, CDataStr
 
         CInv inv(nInvType, tx.GetHash());
         pfrom->AddInventoryKnown(inv);
+        {
+            LOCK(cs_main);
+            connman.RemoveAskFor(inv.hash);
+        }
 
         // Process custom logic, no matter if tx will be accepted to mempool later or not
         if (strCommand == NetMsgType::TXLOCKREQUEST || fCanAutoLock) {
@@ -2070,8 +2074,6 @@ bool static ProcessMessage(CNode* pfrom, const std::string& strCommand, CDataStr
         }
 
         LOCK(cs_main);
-
-        connman.RemoveAskFor(inv.hash);
 
         bool fMissingInputs = false;
         CValidationState state;
