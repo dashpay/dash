@@ -593,6 +593,8 @@ UniValue gobject_vote_many(const JSONRPCRequest& request)
     // We can remove this when we remove support for masternode.conf and only support wallet based masternode
     // management
     if (deterministicMNManager->IsDeterministicMNsSporkActive()) {
+        entries.clear();
+
         auto mnList = deterministicMNManager->GetListAtChainTip();
         mnList.ForEachMN(true, [&](const CDeterministicMNCPtr& dmn) {
             bool found = false;
