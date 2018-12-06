@@ -398,9 +398,6 @@ libdash_consensus_a_SOURCES = \
   script/script_error.h \
   serialize.h \
   streams.h \
-  support/allocators/zeroafterfree.h \
-  support/cleanse.cpp \
-  support/cleanse.h \
   tinyformat.h \
   uint256.cpp \
   uint256.h \
