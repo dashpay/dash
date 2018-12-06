@@ -610,10 +610,10 @@ bool CMasternodePayments::GetBlockTxOuts(int nBlockHeight, CAmount blockReward, 
             return false;
         }
 
-        CAmount operatorReward = 0;;
+        CAmount operatorReward = 0;
         if (dmnPayee->nOperatorReward != 0 && dmnPayee->pdmnState->scriptOperatorPayout != CScript()) {
-            // This calculation might eventually turn out to result in 0 even if an operator reward percentage is given
-            // This will however only happen in a few years when the block rewards drops very low
+            // This calculation might eventually turn out to result in 0 even if an operator reward percentage is given.
+            // This will however only happen in a few years when the block rewards drops very low.
             operatorReward = (masternodeReward * dmnPayee->nOperatorReward) / 10000;
             masternodeReward -= operatorReward;
         }
