@@ -190,7 +190,7 @@ class TestNode():
             wallet_path = "wallet/{}".format(urllib.parse.quote(wallet_name))
             return self.rpc / wallet_path
 
-    def stop_node(self, wait=0):
+    def stop_node(self,expected_stderr='', wait=0):
         """Stop the node."""
         if not self.running:
             return
