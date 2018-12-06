@@ -225,14 +225,12 @@ UniValue masternode_count(const JSONRPCRequest& request)
         masternode_count_help();
 
     int nCount;
-    int total;
+    int total = mnodeman.CountMasternodes(0);
     if (deterministicMNManager->IsDeterministicMNsSporkActive()) {
-        total = mnodeman.CountMasternodes();
         nCount = mnodeman.CountEnabled();
     } else {
         masternode_info_t mnInfo;
         mnodeman.GetNextMasternodeInQueueForPayment(true, nCount, mnInfo);
-        total = mnodeman.size();
     }
 
     int ps = mnodeman.CountEnabled(MIN_PRIVATESEND_PEER_PROTO_VERSION);
