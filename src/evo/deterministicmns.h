@@ -399,8 +399,15 @@ private:
         if (oldValue == newValue) {
             return;
         }
-        DeleteUniqueProperty(dmn, oldValue);
-        AddUniqueProperty(dmn, newValue);
+        static const T nullValue;
+
+        if (oldValue != nullValue) {
+            DeleteUniqueProperty(dmn, oldValue);
+        }
+
+        if (newValue != nullValue) {
+            AddUniqueProperty(dmn, newValue);
+        }
     }
 };
 
