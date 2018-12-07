@@ -447,6 +447,9 @@ bool CTxMemPool::addUnchecked(const uint256& hash, const CTxMemPoolEntry &entry,
             LogPrintf("%s: ERROR: Invalid transaction payload, tx: %s", __func__, tx.ToString());
             return false;
         }
+        if (!proTx.collateralOutpoint.hash.IsNull()) {
+            mapProTxRefs.emplace(tx.GetHash(), proTx.collateralOutpoint.hash);
+        }
         mapProTxAddresses.emplace(proTx.addr, tx.GetHash());
         mapProTxPubKeyIDs.emplace(proTx.keyIDOwner, tx.GetHash());
         mapProTxBlsPubKeyHashes.emplace(proTx.pubKeyOperator.GetHash(), tx.GetHash());
@@ -459,6 +462,7 @@ bool CTxMemPool::addUnchecked(const uint256& hash, const CTxMemPoolEntry &entry,
             LogPrintf("%s: ERROR: Invalid transaction payload, tx: %s", __func__, tx.ToString());
             return false;
         }
+        mapProTxRefs.emplace(proTx.proTxHash, tx.GetHash());
         mapProTxAddresses.emplace(proTx.addr, tx.GetHash());
     } else if (tx.nType == TRANSACTION_PROVIDER_UPDATE_REGISTRAR) {
         CProUpRegTx proTx;
@@ -466,7 +470,15 @@ bool CTxMemPool::addUnchecked(const uint256& hash, const CTxMemPoolEntry &entry,
             LogPrintf("%s: ERROR: Invalid transaction payload, tx: %s", __func__, tx.ToString());
             return false;
         }
+        mapProTxRefs.emplace(proTx.proTxHash, tx.GetHash());
         mapProTxBlsPubKeyHashes.emplace(proTx.pubKeyOperator.GetHash(), tx.GetHash());
+    } else if (tx.nType == TRANSACTION_PROVIDER_UPDATE_REVOKE) {
+        CProUpRevTx proTx;
+        if (!GetTxPayload(tx, proTx)) {
+            LogPrintf("%s: ERROR: Invalid transaction payload, tx: %s", __func__, tx.ToString());
+            return false;
+        }
+        mapProTxRefs.emplace(proTx.proTxHash, tx.GetHash());
     }
 
     return true;
@@ -644,10 +656,24 @@ void CTxMemPool::removeUnchecked(txiter it, MemPoolRemovalReason reason)
     } else
         vTxHashes.clear();
 
+    auto eraseProTxRef = [&](const uint256& proTxHash, const uint256& txHash) {
+        auto its = mapProTxRefs.equal_range(proTxHash);
+        for (auto it = its.first; it != its.second;) {
+            if (it->second == txHash) {
+                it = mapProTxRefs.erase(it);
+            } else {
+                ++it;
+            }
+        }
+    };
+
     if (it->GetTx().nType == TRANSACTION_PROVIDER_REGISTER) {
         CProRegTx proTx;
         if (!GetTxPayload(it->GetTx(), proTx)) {
             assert(false);
+        }
+        if (!proTx.collateralOutpoint.IsNull()) {
+            eraseProTxRef(it->GetTx().GetHash(), proTx.collateralOutpoint.hash);
         }
         mapProTxAddresses.erase(proTx.addr);
         mapProTxPubKeyIDs.erase(proTx.keyIDOwner);
@@ -658,13 +684,21 @@ void CTxMemPool::removeUnchecked(txiter it, MemPoolRemovalReason reason)
         if (!GetTxPayload(it->GetTx(), proTx)) {
             assert(false);
         }
+        eraseProTxRef(proTx.proTxHash, it->GetTx().GetHash());
         mapProTxAddresses.erase(proTx.addr);
     } else if (it->GetTx().nType == TRANSACTION_PROVIDER_UPDATE_REGISTRAR) {
         CProUpRegTx proTx;
         if (!GetTxPayload(it->GetTx(), proTx)) {
             assert(false);
         }
+        eraseProTxRef(proTx.proTxHash, it->GetTx().GetHash());
         mapProTxBlsPubKeyHashes.erase(proTx.pubKeyOperator.GetHash());
+    } else if (it->GetTx().nType == TRANSACTION_PROVIDER_UPDATE_REVOKE) {
+        CProUpRevTx proTx;
+        if (!GetTxPayload(it->GetTx(), proTx)) {
+            assert(false);
+        }
+        eraseProTxRef(proTx.proTxHash, it->GetTx().GetHash());
     }
 
     totalTxSize -= it->GetTxSize();
