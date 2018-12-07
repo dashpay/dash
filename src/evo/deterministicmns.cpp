@@ -421,11 +421,11 @@ void CDeterministicMNList::RemoveMN(const uint256& proTxHash)
     auto dmn = GetMN(proTxHash);
     assert(dmn != nullptr);
     DeleteUniqueProperty(dmn, dmn->collateralOutpoint);
-    if (dmn, dmn->pdmnState->addr != CService()) {
+    if (dmn->pdmnState->addr != CService()) {
         DeleteUniqueProperty(dmn, dmn->pdmnState->addr);
     }
     DeleteUniqueProperty(dmn, dmn->pdmnState->keyIDOwner);
-    if (dmn, dmn->pdmnState->pubKeyOperator.IsValid()) {
+    if (dmn->pdmnState->pubKeyOperator.IsValid()) {
         DeleteUniqueProperty(dmn, dmn->pdmnState->pubKeyOperator);
     }
     mnMap = mnMap.erase(proTxHash);
