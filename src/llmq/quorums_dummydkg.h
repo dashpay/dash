@@ -114,7 +114,6 @@ public:
 class CDummyDKGSession
 {
 public:
-    std::set<uint256> badMembers;
     std::map<uint256, CDummyContribution> dummyContributions;
     std::map<uint256, CDummyCommitment> dummyCommitments;
     std::map<uint256, uint256> dummyContributionsFromMembers;
@@ -128,7 +127,6 @@ class CDummyDKG
 {
 private:
     CCriticalSection sessionCs;
-    std::map<Consensus::LLMQType, CDummyDKGSession> prevSessions;
     std::map<Consensus::LLMQType, CDummyDKGSession> curSessions;
 
 public:

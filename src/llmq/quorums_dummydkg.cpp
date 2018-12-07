@@ -278,16 +278,6 @@ void CDummyDKG::ProcessDummyCommitment(NodeId from, const llmq::CDummyCommitment
     uint256 hash = ::SerializeHash(qc);
     {
         LOCK(sessionCs);
-
-        // Mark all members as bad initially and clear that state when we receive a valid dummy commitment from them
-        // This information is then used in the next sessions to determine which ones are valid
-        if (curSessions[type].dummyCommitments.empty()) {
-            for (const auto& dmn : members) {
-                curSessions[type].badMembers.emplace(dmn->proTxHash);
-            }
-        }
-
-        curSessions[type].badMembers.erase(signer->proTxHash);
         curSessions[type].dummyCommitments[hash] = qc;
         curSessions[type].dummyCommitmentsFromMembers[commitmentHash][signer->proTxHash] = hash;
     }
@@ -397,6 +387,9 @@ void CDummyDKG::CreateDummyCommitment(Consensus::LLMQType llmqType, const CBlock
     auto vvec = BuildVvec(svec);
     auto vvecHash = ::SerializeHash(vvec);
     auto validMembers = GetValidMembers(llmqType, members);
+    if (std::count(validMembers.begin(), validMembers.end(), true) < params.minSize) {
+        return;
+    }
 
     auto commitmentHash = CLLMQUtils::BuildCommitmentHash((uint8_t)llmqType, quorumHash, validMembers, vvec[0], vvecHash);
 
@@ -499,9 +492,8 @@ void CDummyDKG::CreateFinalCommitment(Consensus::LLMQType llmqType, const CBlock
         quorumBlockProcessor->AddMinableCommitment(fqc);
     }
 
-    prevSessions[llmqType].badMembers = curSessions[llmqType].badMembers;
-    prevSessions[llmqType].dummyCommitments = std::move(curSessions[llmqType].dummyCommitments);
-    prevSessions[llmqType].dummyCommitmentsFromMembers = std::move(curSessions[llmqType].dummyCommitmentsFromMembers);
+    // reset for next round
+    curSessions[llmqType] = CDummyDKGSession();
 }
 
 std::vector<bool> CDummyDKG::GetValidMembers(Consensus::LLMQType llmqType, const std::vector<CDeterministicMNCPtr>& members)
@@ -511,20 +503,14 @@ std::vector<bool> CDummyDKG::GetValidMembers(Consensus::LLMQType llmqType, const
 
     LOCK(sessionCs);
 
-    // Valid members are members that sent us a dummy commitment in the previous session
+    // Valid members are members that sent us a dummy contribution in this session
 
     for (size_t i = 0; i < params.size; i++) {
-        if (!prevSessions[llmqType].badMembers.count(members[i]->proTxHash)) {
+        if (curSessions[llmqType].dummyContributionsFromMembers.count(members[i]->proTxHash)) {
             ret[i] = true;
         }
     }
 
-    // set all to valid if last sessions failed (this reboots everything)
-    if (std::count(ret.begin(), ret.end(), true) < params.minSize) {
-        for (size_t i = 0; i < params.size; i++) {
-            ret[i] = true;
-        }
-    }
     return ret;
 }
 
