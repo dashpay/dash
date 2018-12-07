@@ -857,8 +857,46 @@ void CTxMemPool::removeProTxCollateralConflicts(const CTransaction &tx, const CO
     }
 }
 
+void CTxMemPool::removeProTxSpentCollateralConflicts(const CTransaction &tx)
+{
+    // Remove TXs that refer to a MN for which the collateral was spent
+    auto removeSpentCollateralConflict = [&](const uint256& proTxHash) {
+        // Can't use equal_range here as every call to removeRecursive might invalidate iterators
+        while (true) {
+            auto it = mapProTxRefs.find(proTxHash);
+            if (it == mapProTxRefs.end()) {
+                break;
+            }
+            auto conflictIt = mapTx.find(it->second);
+            if (conflictIt != mapTx.end()) {
+                removeRecursive(conflictIt->GetTx(), MemPoolRemovalReason::CONFLICT);
+            } else {
+                // Should not happen as we track referencing TXs in addUnchecked/removeUnchecked.
+                // But lets be on the safe side and not run into an endless loop...
+                LogPrintf("%s: ERROR: found invalid TX ref in mapProTxRefs, proTxHash=%s, txHash=%s", __func__, proTxHash.ToString(), it->second.ToString());
+                mapProTxRefs.erase(it);
+            }
+        }
+    };
+    auto mnList = deterministicMNManager->GetListAtChainTip();
+    for (const auto& in : tx.vin) {
+        auto collateralIt = mapProTxCollaterals.find(in.prevout);
+        if (collateralIt != mapProTxCollaterals.end()) {
+            // These are not yet mined ProRegTxs
+            removeSpentCollateralConflict(collateralIt->second);
+        }
+        auto dmn = mnList.GetMNByCollateral(in.prevout);
+        if (dmn) {
+            // These are updates refering to a mined ProRegTx
+            removeSpentCollateralConflict(dmn->proTxHash);
+        }
+    }
+}
+
 void CTxMemPool::removeProTxConflicts(const CTransaction &tx)
 {
+    removeProTxSpentCollateralConflicts(tx);
+
     if (tx.nType == TRANSACTION_PROVIDER_REGISTER) {
         CProRegTx proTx;
         if (!GetTxPayload(tx, proTx)) {
