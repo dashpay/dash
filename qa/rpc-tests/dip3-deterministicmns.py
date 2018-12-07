@@ -363,8 +363,8 @@ class DIP3Test(BitcoinTestFramework):
             while (not punished or not banned) and (time.time() - t) < 60:
                 time.sleep(1)
 
-                # 2 dummy phases
-                for j in range(2):
+                # 3 dummy phases
+                for j in range(3):
                     self.nodes[0].generate(2)
                     self.sync_all()
                     time.sleep(1)
