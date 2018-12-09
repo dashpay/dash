@@ -24,6 +24,33 @@ MASTERNODE CONFIGURATIONS
 ```
 masternode genkey (This will be the masternode’s privkey. We’ll use this later…)
 ```
+2) Using the control wallet still, enter the following command:
+```
+getaccountaddress chooseAnyNameForYourMasternode
+```
+3) Still in the control wallet, send 100,000 CADEX to the address you generated in step 2 (Be 100% sure that you entered the address correctly. You can verify this when you paste the address into the “Pay To:” field, the label will autopopulate with the name you chose”, also make sure this is exactly 100,000 CADEX; No less, no more.)
+4) Still in the control wallet, enter the command into the console (This gets the proof of transaction of sending 10,000):
+```
+masternode outputs
+```
+5) Still on the main computer, go into the cadex data directory, by default in Windows it’ll be
+```
+%Appdata%/CADEXCOIN
+```
+or Linux
+```
+cd ~/.CADEXCOIN
+```
+Find masternode.conf and add the following line to it:
+```
+# Format: alias IP:port masternodeprivkey collateral_output_txid collateral_output_index
+```
+or follow here
+```
+<Name of Masternode(Use the name you entered earlier for simplicity)> <Unique IP address>:51472 <The result of Step 1> <Result of Step 4> <The number after the long line in Step 4>
+```
+B. VPS Remote wallet install
+----------------------------
 
 
 
