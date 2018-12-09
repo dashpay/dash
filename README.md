@@ -18,8 +18,11 @@ source software which enables the use of this currency.
 SPECIFICATIONS
 --------------
 Algorithm: x11
+
 Block Reward: 25.16 CADEX, masternode gets 15.017 CADEX of block reward and the rest goes to Miners
+
 RPCPORT: 28280
+
 P2P PORT: 27270
 
 
