@@ -98,7 +98,7 @@ bool ProcessSpecialTxsInBlock(const CBlock& block, const CBlockIndex* pindex, CV
         }
     }
 
-    if (!llmq::quorumBlockProcessor->ProcessBlock(block, pindex->pprev, state)) {
+    if (!llmq::quorumBlockProcessor->ProcessBlock(block, pindex, state)) {
         return false;
     }
 

@@ -105,11 +105,11 @@ void CQuorumBlockProcessor::ProcessMessage(CNode* pfrom, const std::string& strC
     }
 }
 
-bool CQuorumBlockProcessor::ProcessBlock(const CBlock& block, const CBlockIndex* pindexPrev, CValidationState& state)
+bool CQuorumBlockProcessor::ProcessBlock(const CBlock& block, const CBlockIndex* pindex, CValidationState& state)
 {
     AssertLockHeld(cs_main);
 
-    bool fDIP0003Active = VersionBitsState(pindexPrev, Params().GetConsensus(), Consensus::DEPLOYMENT_DIP0003, versionbitscache) == THRESHOLD_ACTIVE;
+    bool fDIP0003Active = VersionBitsState(pindex->pprev, Params().GetConsensus(), Consensus::DEPLOYMENT_DIP0003, versionbitscache) == THRESHOLD_ACTIVE;
     if (!fDIP0003Active) {
         return true;
     }
@@ -117,7 +117,7 @@ bool CQuorumBlockProcessor::ProcessBlock(const CBlock& block, const CBlockIndex*
     int nHeight = pindexPrev->nHeight + 1;
 
     std::map<Consensus::LLMQType, CFinalCommitment> qcs;
-    if (!GetCommitmentsFromBlock(block, pindexPrev, qcs, state)) {
+    if (!GetCommitmentsFromBlock(block, pindex->pprev, qcs, state)) {
         return false;
     }
 
@@ -131,7 +131,7 @@ bool CQuorumBlockProcessor::ProcessBlock(const CBlock& block, const CBlockIndex*
 
         // does the currently processed block contain a (possibly null) commitment for the current session?
         bool hasCommitmentInNewBlock = qcs.count(type) != 0;
-        bool isCommitmentRequired = IsCommitmentRequired(type, pindexPrev);
+        bool isCommitmentRequired = IsCommitmentRequired(type, pindex->pprev);
 
         if (hasCommitmentInNewBlock && !isCommitmentRequired) {
             // If we're either not in the mining phase or a non-null commitment was mined already, reject the block
@@ -147,7 +147,7 @@ bool CQuorumBlockProcessor::ProcessBlock(const CBlock& block, const CBlockIndex*
 
     for (auto& p : qcs) {
         auto& qc = p.second;
-        if (!ProcessCommitment(pindexPrev, qc, state)) {
+        if (!ProcessCommitment(pindex->pprev, qc, state)) {
             return false;
         }
     }
