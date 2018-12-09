@@ -114,8 +114,6 @@ bool CQuorumBlockProcessor::ProcessBlock(const CBlock& block, const CBlockIndex*
         return true;
     }
 
-    int nHeight = pindexPrev->nHeight + 1;
-
     std::map<Consensus::LLMQType, CFinalCommitment> qcs;
     if (!GetCommitmentsFromBlock(block, pindex->pprev, qcs, state)) {
         return false;
@@ -126,8 +124,6 @@ bool CQuorumBlockProcessor::ProcessBlock(const CBlock& block, const CBlockIndex*
     // allowed, including null commitments.
     for (const auto& p : Params().GetConsensus().llmqs) {
         auto type = p.first;
-
-        uint256 quorumHash = GetQuorumBlockHash(type, pindexPrev);
 
         // does the currently processed block contain a (possibly null) commitment for the current session?
         bool hasCommitmentInNewBlock = qcs.count(type) != 0;
@@ -383,8 +379,6 @@ bool CQuorumBlockProcessor::GetMinableCommitmentByHash(const uint256& commitment
 bool CQuorumBlockProcessor::GetMinableCommitment(Consensus::LLMQType llmqType, const CBlockIndex* pindexPrev, CFinalCommitment& ret)
 {
     AssertLockHeld(cs_main);
-
-    int nHeight = pindexPrev->nHeight + 1;
 
     if (!IsCommitmentRequired(llmqType, pindexPrev)) {
         // no commitment required
