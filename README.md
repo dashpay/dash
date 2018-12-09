@@ -9,11 +9,21 @@ http://cadex.xyz
 What is Cadex?
 ----------------
 
-Cadex is an experimental digital currency that enables anonymous, instant
+Cadex is a totl of dash fork an experimental digital currency that enables anonymous, instant
 payments to anyone, anywhere in the world. Cadex uses peer-to-peer technology
 to operate with no central authority: managing transactions and issuing money
 are carried out collectively by the network. Dash Core is the name of the open
 source software which enables the use of this currency.
+
+SPECIFICATIONS
+--------------
+
+MASTERNODE CONFIGURATIONS
+-------------------------
+1) Using the control wallet, enter the debug console (Tools > Debug console) and type the following command:
+```
+masternode genkey (This will be the masternode’s privkey. We’ll use this later…)
+```
 
 
 
