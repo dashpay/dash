@@ -3,7 +3,7 @@
 // file COPYING or http://www.opensource.org/licenses/mit-license.php.
 
 #if defined(HAVE_CONFIG_H)
-#include "config/dash-config.h"
+#include "config/cadex-config.h"
 #endif
 
 #include "optionsdialog.h"
@@ -92,13 +92,13 @@ OptionsDialog::OptionsDialog(QWidget *parent, bool enableWallet) :
     }
     
     /* Theme selector */
-    ui->theme->addItem(QString("DASH-light"), QVariant("light"));
-    ui->theme->addItem(QString("DASH-light-hires"), QVariant("light-hires"));
-    ui->theme->addItem(QString("DASH-light-retro"), QVariant("light-retro"));
-    ui->theme->addItem(QString("DASH-light-hires-retro"), QVariant("light-hires-retro"));
-    ui->theme->addItem(QString("DASH-blue"), QVariant("drkblue"));
-    ui->theme->addItem(QString("DASH-Crownium"), QVariant("crownium"));
-    ui->theme->addItem(QString("DASH-traditional"), QVariant("trad"));
+    ui->theme->addItem(QString("CADEX-light"), QVariant("light"));
+    ui->theme->addItem(QString("CADEX-light-hires"), QVariant("light-hires"));
+    ui->theme->addItem(QString("CADEX-light-retro"), QVariant("light-retro"));
+    ui->theme->addItem(QString("CADEX-light-hires-retro"), QVariant("light-hires-retro"));
+    ui->theme->addItem(QString("CADEX-blue"), QVariant("drkblue"));
+    ui->theme->addItem(QString("CADEX-Crownium"), QVariant("crownium"));
+    ui->theme->addItem(QString("CADEX-traditional"), QVariant("trad"));
     
     /* Language selector */
     QDir translations(":translations");

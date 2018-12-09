@@ -1,0 +1,21 @@
+<!DOCTYPE RCC><RCC version="1.0">
+    <qresource prefix="/translations">
+        <file alias="bg">locale/cadex_bg.qm</file>
+        <file alias="de">locale/cadex_de.qm</file>
+        <file alias="en">locale/cadex_en.qm</file>
+        <file alias="es">locale/cadex_es.qm</file>
+        <file alias="fi">locale/cadex_fi.qm</file>
+        <file alias="fr">locale/cadex_fr.qm</file>
+        <file alias="it">locale/cadex_it.qm</file>
+        <file alias="ja">locale/cadex_ja.qm</file>
+        <file alias="nl">locale/cadex_nl.qm</file>
+        <file alias="pl">locale/cadex_pl.qm</file>
+        <file alias="pt">locale/cadex_pt.qm</file>
+        <file alias="ru">locale/cadex_ru.qm</file>
+        <file alias="sk">locale/cadex_sk.qm</file>
+        <file alias="sv">locale/cadex_sv.qm</file>
+        <file alias="vi">locale/cadex_vi.qm</file>
+        <file alias="zh_CN">locale/cadex_zh_CN.qm</file>
+        <file alias="zh_TW">locale/cadex_zh_TW.qm</file>
+    </qresource>
+</RCC>

@@ -104,7 +104,7 @@ use old versions of Upstart and do not supply the start-stop-daemon utility.
 Copy dashd.init to /etc/init.d/dashd. Test by running `service dashd start`.
 
 Using this script, you can adjust the path and flags to the dashd program by
-setting the DASHD and FLAGS environment variables in the file
+setting the CADEXD and FLAGS environment variables in the file
 /etc/sysconfig/dashd. You can also use the DAEMONOPTS environment variable here.
 
 4e) Mac OS X

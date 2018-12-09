@@ -73,7 +73,7 @@
         <bool>false</bool>
        </property>
        <property name="pixmap">
-        <pixmap resource="../dash.qrc">:/images/drkblue/about</pixmap>
+        <pixmap resource="../cadex.qrc">:/images/drkblue/about</pixmap>
        </property>
        <property name="scaledContents">
         <bool>false</bool>
@@ -169,7 +169,7 @@
   </layout>
  </widget>
  <resources>
-  <include location="../dash.qrc"/>
+  <include location="../cadex.qrc"/>
  </resources>
  <connections>
   <connection>

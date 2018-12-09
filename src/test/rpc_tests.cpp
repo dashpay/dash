@@ -8,7 +8,7 @@
 #include "base58.h"
 #include "netbase.h"
 
-#include "test/test_dash.h"
+#include "test/test_cadex.h"
 
 #include <boost/algorithm/string.hpp>
 #include <boost/assign/list_of.hpp>

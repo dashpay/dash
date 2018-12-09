@@ -173,7 +173,7 @@ Threads
 
 - ThreadMapPort : Universal plug-and-play startup/shutdown
 
-- ThreadSocketHandler : Sends/Receives data from peers on port 9999.
+- ThreadSocketHandler : Sends/Receives data from peers on port 27270.
 
 - ThreadOpenAddedConnections : Opens network connections to added nodes.
 
@@ -185,7 +185,7 @@ Threads
 
 - ThreadFlushWalletDB : Close the wallet.dat file if it hasn't been used in 500ms.
 
-- ThreadRPCServer : Remote procedure call handler, listens on port 9998 for connections and services them.
+- ThreadRPCServer : Remote procedure call handler, listens on port 28280 for connections and services them.
 
 - BitcoinMiner : Generates coins (if wallet is enabled).
 

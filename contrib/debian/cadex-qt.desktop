@@ -1,0 +1,13 @@
+[Desktop Entry]
+Encoding=UTF-8
+Name=Cadex Core
+Comment=Cadex P2P Cryptocurrency
+Comment[de]=Verbinde mit dem Cadex peer-to-peer Netzwerk
+Comment[fr]=Cadex, monnaie virtuelle cryptographique pair à pair
+Comment[tr]=Cadex, eşten eşe kriptografik sanal para birimi
+Exec=cadex-qt %u
+Terminal=false
+Type=Application
+Icon=cadex128
+MimeType=x-scheme-handler/cadex;
+Categories=Office;Finance;

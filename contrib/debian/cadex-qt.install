@@ -1,0 +1,6 @@
+usr/local/bin/cadex-qt usr/bin
+share/pixmaps/cadex32.xpm usr/share/pixmaps
+share/pixmaps/cadex16.xpm usr/share/pixmaps
+share/pixmaps/cadex128.png usr/share/pixmaps
+debian/cadex-qt.desktop usr/share/applications
+debian/cadex-qt.protocol usr/share/kde4/services/

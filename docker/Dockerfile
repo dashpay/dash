@@ -1,6 +1,6 @@
 FROM debian:stretch
-LABEL maintainer="Dash Developers <dev@dash.org>"
-LABEL description="Dockerised DashCore, built from Travis"
+LABEL maintainer="Cadex Developers <dev@cadex.xyz>"
+LABEL description="Dockerised Cadex, built from Travis"
 
 RUN apt-get update && apt-get -y upgrade && apt-get clean && rm -fr /var/cache/apt/*
 

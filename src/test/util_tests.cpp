@@ -9,7 +9,7 @@
 #include "sync.h"
 #include "utilstrencodings.h"
 #include "utilmoneystr.h"
-#include "test/test_dash.h"
+#include "test/test_cadex.h"
 #include "test/test_random.h"
 
 #include <stdint.h>

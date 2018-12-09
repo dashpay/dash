@@ -514,7 +514,7 @@
                </font>
               </property>
               <property name="text">
-               <string notr="true">0 DASH</string>
+               <string notr="true">0 CADEX</string>
               </property>
              </widget>
             </item>
@@ -528,7 +528,7 @@
             <item row="3" column="1">
              <widget class="QLabel" name="labelAmountRounds">
               <property name="text">
-               <string>0 DASH / 0 Rounds</string>
+               <string>0 CADEX / 0 Rounds</string>
               </property>
              </widget>
             </item>

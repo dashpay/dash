@@ -10,7 +10,7 @@
 #include "script/script_error.h"
 #include "script/sign.h"
 #include "script/ismine.h"
-#include "test/test_dash.h"
+#include "test/test_cadex.h"
 
 #include <vector>
 

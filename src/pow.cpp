@@ -30,7 +30,6 @@ unsigned int static KimotoGravityWell(const CBlockIndex* pindexLast, const Conse
     uint64_t pastSecondsMax = params.nPowTargetTimespan * 7;
     uint64_t PastBlocksMin = pastSecondsMin / params.nPowTargetSpacing;
     uint64_t PastBlocksMax = pastSecondsMax / params.nPowTargetSpacing;
-
     if (BlockLastSolved == NULL || BlockLastSolved->nHeight == 0 || (uint64_t)BlockLastSolved->nHeight < PastBlocksMin) { return UintToArith256(params.powLimit).GetCompact(); }
 
     for (unsigned int i = 1; BlockReading && BlockReading->nHeight > 0; i++) {
@@ -79,8 +78,59 @@ unsigned int static KimotoGravityWell(const CBlockIndex* pindexLast, const Conse
     return bnNew.GetCompact();
 }
 
+const CBlockIndex* GetLastBlockIndex(const CBlockIndex* pindex)
+{
+    while (pindex && pindex->pprev)
+        pindex = pindex->pprev;
+    return pindex;
+}
+// Diff
+/*unsigned int GetNextWorkRequired(const CBlockIndex* pindexLast, const CBlockHeader *pblock, const Consensus::Params& params)
+{
+	if(!(pindexLast->nHeight >= params.nUpdateDiffAlgoHeight)) {
+		
+		unsigned int nProofOfWorkLimit = UintToArith256(params.powLimit).GetCompact();
+
+		if (pindexLast == NULL)
+			return nProofOfWorkLimit; // genesis block
+
+		const CBlockIndex* pindexPrev = GetLastBlockIndex(pindexLast);
+		if (pindexPrev->pprev == NULL)
+			return nProofOfWorkLimit; // first block
+			
+		const CBlockIndex* pindexPrevPrev = GetLastBlockIndex(pindexPrev->pprev);
+		if (pindexPrevPrev->pprev == NULL)
+			return nProofOfWorkLimit; // second block
+	
+		int64_t nTargetSpacing = params.nPowTargetTimespan;
+		int64_t nActualSpacing = pindexPrev->GetBlockTime() - pindexPrevPrev->GetBlockTime();
+
+		if (nActualSpacing < 0) {
+			nActualSpacing = nTargetSpacing;
+		}
+		else if (nActualSpacing > nTargetSpacing * 10) {
+			nActualSpacing = nTargetSpacing * 10;
+		}
+
+		// target change every block
+		// retarget with exponential moving toward target spacing
+		// Includes fix for wrong retargeting difficulty by Mammix2
+		arith_uint256 bnNew;
+		bnNew.SetCompact(pindexPrev->nBits);
+
+		int64_t nInterval = 10;
+		bnNew *= ((nInterval - 1) * nTargetSpacing + nActualSpacing + nActualSpacing);
+		bnNew /= ((nInterval + 1) * nTargetSpacing);
+
+		if (bnNew <= 0 || bnNew > nProofOfWorkLimit)
+        bnNew = nProofOfWorkLimit;
+		return bnNew.GetCompact();
+		
+	} else { return DeriveNextWorkRequired(pindexLast, pblock, params); }
+}
+*/
 unsigned int static DarkGravityWave(const CBlockIndex* pindexLast, const CBlockHeader *pblock, const Consensus::Params& params) {
-    /* current difficulty formula, dash - DarkGravity v3, written by Evan Duffield - evan@dash.org */
+    /* current difficulty formula, cadex - DarkGravity v3, written by Evan Duffield - evan@dash.org */
     const arith_uint256 bnPowLimit = UintToArith256(params.powLimit);
     int64_t nPastBlocks = 24;
 

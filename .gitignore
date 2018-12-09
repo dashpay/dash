@@ -6,13 +6,13 @@ reset-files.bash
 *.tar.gz
 
 *.exe
-src/dash
-src/dashd
-src/dash-cli
-src/dash-tx
-src/test/test_dash
-src/qt/test/test_dash-qt
-src/bench/bench_dash
+src/cadex
+src/cadexd
+src/cadex-cli
+src/cadex-tx
+src/test/test_cadex
+src/qt/test/test_cadex-qt
+src/bench/bench_cadex
 
 # autoreconf
 Makefile.in
@@ -35,8 +35,8 @@ config.log
 config.status
 configure
 libtool
-src/config/dash-config.h
-src/config/dash-config.h.in
+src/config/cadex-config.h
+src/config/cadex-config.h.in
 src/config/stamp-h1
 share/setup.nsi
 share/qt/Info.plist
@@ -80,12 +80,12 @@ libconftest.dylib*
 # Compilation and Qt preprocessor part
 *.qm
 Makefile
-dash-qt
-Dash-Qt.app
+cadex-qt
+CADEX-Qt.app
 
 # Unit-tests
 Makefile.test
-dash-qt_test
+cadex-qt_test
 src/test/buildenv.py
 
 # Resources cpp
@@ -99,7 +99,7 @@ build
 *.gcno
 *.gcda
 /*.info
-test_dash.coverage/
+test_cadex.coverage/
 total.coverage/
 coverage_percent.txt
 
@@ -117,15 +117,15 @@ qa/cache/*
 .autotools
 /doc/doxygen/
 
-libdashconsensus.pc
+libcadexconsensus.pc
 contrib/devtools/split-debug.sh
-src/qt/dash-qt.bash
+src/qt/cadex-qt.bash
 qa/pull-tester/tests-config.sh
 
 #development symlinks
-dash-cli
-dashd
-dash-qt
+cadex-cli
+cadexd
+cadex-qt
 make
 
 /docker/bin

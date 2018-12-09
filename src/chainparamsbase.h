@@ -9,8 +9,8 @@
 #include <vector>
 
 /**
- * CBaseChainParams defines the base parameters (shared between dash-cli and dashd)
- * of a given instance of the Dash system.
+ * CBaseChainParams defines the base parameters (shared between cadex-cli and cadexd)
+ * of a given instance of the cadex system.
  */
 class CBaseChainParams
 {

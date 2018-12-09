@@ -16,9 +16,9 @@ Create a new wallet address for each Masternode.
 
 Close your QT Wallet.
 
-### Send 1000 DASH to New Addresses
+### Send 1000 CADEX to New Addresses
 
-Send exactly 1000 DASH to each new address created above.
+Send exactly 1000 CADEX to each new address created above.
 
 ### Create New Masternode Private Keys
 
@@ -38,9 +38,9 @@ Remember... this is local. Make sure your QT is not running.
 
 Create the `masternode.conf` file in the same directory as your `wallet.dat`.
 
-Copy the masternode private key and correspondig collateral output transaction that holds the 1000 DASH.
+Copy the masternode private key and correspondig collateral output transaction that holds the 1000 CADEX.
 
-*Note: The masternode priviate key is **not** the same as a wallet private key. **Never** put your wallet private key in the masternode.conf file. That is almost equivalent to putting your 1000 DASH on the remote server and defeats the purpose of a hot/cold setup.*
+*Note: The masternode priviate key is **not** the same as a wallet private key. **Never** put your wallet private key in the masternode.conf file. That is almost equivalent to putting your 1000 CADEX on the remote server and defeats the purpose of a hot/cold setup.*
 
 ### Get the collateral output
 
@@ -120,7 +120,7 @@ dash-cli masternode status
 {
     "outpoint" : "<collateral_output>-<collateral_output_index>",
     "service" : "<ipaddress>:<port>",
-    "pubkey" : "<1000 DASH address>",
+    "pubkey" : "<1000 CADEX address>",
     "status" : "Masternode successfully started"
 }
 ```

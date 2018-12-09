@@ -8,7 +8,7 @@
 #include <string>
 #include <map>
 #include <univalue.h>
-#include "test/test_dash.h"
+#include "test/test_cadex.h"
 
 #include <boost/test/unit_test.hpp>
 

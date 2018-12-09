@@ -109,7 +109,8 @@ protected:
     bool fMineBlocksOnDemand;
     bool fAllowMultipleAddressesFromGroup;
     bool fAllowMultiplePorts;
-    CCheckpointData checkpointData;
+  bool startNewChain;   
+ CCheckpointData checkpointData;
     ChainTxData chainTxData;
     int nPoolMaxTransactions;
     int nFulfilledRequestExpireTime;

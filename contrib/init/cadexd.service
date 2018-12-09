@@ -1,0 +1,22 @@
+[Unit]
+Description=Cadex's distributed currency daemon
+After=network.target
+
+[Service]
+User=cadex
+Group=cadex
+
+Type=forking
+PIDFile=/var/lib/cadexd/cadexd.pid
+ExecStart=/usr/bin/cadexd -daemon -pid=/var/lib/cadexd/cadexd.pid \
+-conf=/etc/cadex/cadex.conf -datadir=/var/lib/cadexd -disablewallet
+
+Restart=always
+PrivateTmp=true
+TimeoutStopSec=60s
+TimeoutStartSec=2s
+StartLimitInterval=120s
+StartLimitBurst=5
+
+[Install]
+WantedBy=multi-user.target
