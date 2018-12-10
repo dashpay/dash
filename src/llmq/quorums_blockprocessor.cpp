@@ -143,18 +143,18 @@ bool CQuorumBlockProcessor::ProcessBlock(const CBlock& block, const CBlockIndex*
 
     for (auto& p : qcs) {
         auto& qc = p.second;
-        if (!ProcessCommitment(pindex->pprev, qc, state)) {
+        if (!ProcessCommitment(pindex, qc, state)) {
             return false;
         }
     }
     return true;
 }
 
-bool CQuorumBlockProcessor::ProcessCommitment(const CBlockIndex* pindexPrev, const CFinalCommitment& qc, CValidationState& state)
+bool CQuorumBlockProcessor::ProcessCommitment(const CBlockIndex* pindex, const CFinalCommitment& qc, CValidationState& state)
 {
     auto& params = Params().GetConsensus().llmqs.at((Consensus::LLMQType)qc.llmqType);
 
-    uint256 quorumHash = GetQuorumBlockHash((Consensus::LLMQType)qc.llmqType, pindexPrev->nHeight + 1);
+    uint256 quorumHash = GetQuorumBlockHash((Consensus::LLMQType)qc.llmqType, pindex->nHeight);
     if (quorumHash.IsNull()) {
         return state.DoS(100, false, REJECT_INVALID, "bad-qc-block");
     }
@@ -174,7 +174,7 @@ bool CQuorumBlockProcessor::ProcessCommitment(const CBlockIndex* pindexPrev, con
         return state.DoS(100, false, REJECT_INVALID, "bad-qc-dup");
     }
 
-    if (!IsMiningPhase(params.type, pindexPrev->nHeight + 1)) {
+    if (!IsMiningPhase(params.type, pindex->nHeight)) {
         // should not happen as it's already handled in ProcessBlock
         return state.DoS(100, false, REJECT_INVALID, "bad-qc-height");
     }
