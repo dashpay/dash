@@ -127,7 +127,7 @@ bool CQuorumBlockProcessor::ProcessBlock(const CBlock& block, const CBlockIndex*
 
         // does the currently processed block contain a (possibly null) commitment for the current session?
         bool hasCommitmentInNewBlock = qcs.count(type) != 0;
-        bool isCommitmentRequired = IsCommitmentRequired(type, pindex->pprev);
+        bool isCommitmentRequired = IsCommitmentRequired(type, pindex->nHeight);
 
         if (hasCommitmentInNewBlock && !isCommitmentRequired) {
             // If we're either not in the mining phase or a non-null commitment was mined already, reject the block
@@ -264,7 +264,7 @@ bool CQuorumBlockProcessor::IsMiningPhase(Consensus::LLMQType llmqType, int nHei
     return false;
 }
 
-bool CQuorumBlockProcessor::IsCommitmentRequired(Consensus::LLMQType llmqType, const CBlockIndex* pindexPrev)
+bool CQuorumBlockProcessor::IsCommitmentRequired(Consensus::LLMQType llmqType, int nHeight)
 {
     // BEGIN TEMPORARY CODE
     bool allowMissingQc = false;
@@ -278,19 +278,19 @@ bool CQuorumBlockProcessor::IsCommitmentRequired(Consensus::LLMQType llmqType, c
         LOCK(cs_main);
         const auto& consensus = Params().GetConsensus();
         if (consensus.nTemporaryTestnetForkDIP3Height != 0 &&
-            pindexPrev->nHeight + 1 > consensus.nTemporaryTestnetForkDIP3Height &&
-            pindexPrev->nHeight + 1 < consensus.nTemporaryTestnetForkHeight &&
+            nHeight > consensus.nTemporaryTestnetForkDIP3Height &&
+            nHeight < consensus.nTemporaryTestnetForkHeight &&
             chainActive[consensus.nTemporaryTestnetForkDIP3Height]->GetBlockHash() == consensus.nTemporaryTestnetForkDIP3BlockHash) {
             allowMissingQc = true;
         }
     }
     // END TEMPORARY CODE
 
-    uint256 quorumHash = GetQuorumBlockHash(llmqType, pindexPrev->nHeight + 1);
+    uint256 quorumHash = GetQuorumBlockHash(llmqType, nHeight);
 
     // perform extra check for quorumHash.IsNull as the quorum hash is unknown for the first block of a session
     // this is because the currently processed block's hash will be the quorumHash of this session
-    bool isMiningPhase = !quorumHash.IsNull() && IsMiningPhase(llmqType, pindexPrev->nHeight + 1);
+    bool isMiningPhase = !quorumHash.IsNull() && IsMiningPhase(llmqType, nHeight);
 
     // did we already mine a non-null commitment for this session?
     bool hasMinedCommitment = !quorumHash.IsNull() && HasMinedCommitment(llmqType, quorumHash);
@@ -378,7 +378,7 @@ bool CQuorumBlockProcessor::GetMinableCommitment(Consensus::LLMQType llmqType, c
 {
     AssertLockHeld(cs_main);
 
-    if (!IsCommitmentRequired(llmqType, pindexPrev)) {
+    if (!IsCommitmentRequired(llmqType, pindexPrev->nHeight + 1)) {
         // no commitment required
         return false;
     }
