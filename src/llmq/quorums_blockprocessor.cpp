@@ -374,16 +374,16 @@ bool CQuorumBlockProcessor::GetMinableCommitmentByHash(const uint256& commitment
 
 // Will return false if no commitment should be mined
 // Will return true and a null commitment if no minable commitment is known and none was mined yet
-bool CQuorumBlockProcessor::GetMinableCommitment(Consensus::LLMQType llmqType, const CBlockIndex* pindexPrev, CFinalCommitment& ret)
+bool CQuorumBlockProcessor::GetMinableCommitment(Consensus::LLMQType llmqType, int nHeight, CFinalCommitment& ret)
 {
     AssertLockHeld(cs_main);
 
-    if (!IsCommitmentRequired(llmqType, pindexPrev->nHeight + 1)) {
+    if (!IsCommitmentRequired(llmqType, nHeight)) {
         // no commitment required
         return false;
     }
 
-    uint256 quorumHash = GetQuorumBlockHash(llmqType, pindexPrev->nHeight + 1);
+    uint256 quorumHash = GetQuorumBlockHash(llmqType, nHeight);
     if (quorumHash.IsNull()) {
         return false;
     }
@@ -403,16 +403,16 @@ bool CQuorumBlockProcessor::GetMinableCommitment(Consensus::LLMQType llmqType, c
     return true;
 }
 
-bool CQuorumBlockProcessor::GetMinableCommitmentTx(Consensus::LLMQType llmqType, const CBlockIndex* pindexPrev, CTransactionRef& ret)
+bool CQuorumBlockProcessor::GetMinableCommitmentTx(Consensus::LLMQType llmqType, int nHeight, CTransactionRef& ret)
 {
     AssertLockHeld(cs_main);
 
     CFinalCommitmentTxPayload qc;
-    if (!GetMinableCommitment(llmqType, pindexPrev, qc.commitment)) {
+    if (!GetMinableCommitment(llmqType, nHeight, qc.commitment)) {
         return false;
     }
 
-    qc.nHeight = pindexPrev->nHeight + 1;
+    qc.nHeight = nHeight;
 
     CMutableTransaction tx;
     tx.nVersion = 3;
