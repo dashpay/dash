@@ -2491,6 +2491,7 @@ bool static DisconnectTip(CValidationState& state, const CChainParams& chainpara
             return error("DisconnectTip(): DisconnectBlock %s failed", pindexDelete->GetBlockHash().ToString());
         bool flushed = view.Flush();
         assert(flushed);
+        evoDb->Write(EVODB_BEST_BLOCK, pindexDelete->pprev->GetBlockHash());
         bool committed = dbTx->Commit();
         assert(committed);
     }
@@ -2581,6 +2582,23 @@ bool static ConnectTip(CValidationState& state, const CChainParams& chainparams,
         LogPrint("bench", "  - Connect total: %.2fms [%.2fs]\n", (nTime3 - nTime2) * 0.001, nTimeConnectTotal * 0.000001);
         bool flushed = view.Flush();
         assert(flushed);
+
+        // Make sure evodb is consistent.
+        // If we already have best block hash saved, the previous block should match it.
+        // If we don't, it's ok too but only before DIP3 activation.
+        uint256 hashBestBlock = uint256();
+        bool fHasHashBestBlock = evoDb->Read(EVODB_BEST_BLOCK, hashBestBlock);
+        uint256 hashPrevBlock = fHasHashBestBlock ? pindexNew->pprev->GetBlockHash() : uint256();
+        assert(hashBestBlock == hashPrevBlock);
+
+        bool fDIP0003Active = VersionBitsState(pindexNew->pprev, Params().GetConsensus(), Consensus::DEPLOYMENT_DIP0003, versionbitscache) == THRESHOLD_ACTIVE;
+        if (fDIP0003Active) {
+            // Nodes that upgraded after DIP3 activation will have to reindex to ensure evodb consistency
+            assert(fHasHashBestBlock);
+        }
+        // This ensures smooth transition for nodes that upgraded before DIP3 activation.
+        evoDb->Write(EVODB_BEST_BLOCK, pindexNew->GetBlockHash());
+
         bool committed = dbTx->Commit();
         assert(committed);
     }

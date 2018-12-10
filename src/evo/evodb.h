@@ -8,6 +8,8 @@
 #include "dbwrapper.h"
 #include "sync.h"
 
+static const std::string EVODB_BEST_BLOCK = "b_b";
+
 class CEvoDB
 {
 private:
