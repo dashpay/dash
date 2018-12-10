@@ -154,7 +154,7 @@ bool CQuorumBlockProcessor::ProcessCommitment(const CBlockIndex* pindexPrev, con
 {
     auto& params = Params().GetConsensus().llmqs.at((Consensus::LLMQType)qc.llmqType);
 
-    uint256 quorumHash = GetQuorumBlockHash((Consensus::LLMQType)qc.llmqType, pindexPrev);
+    uint256 quorumHash = GetQuorumBlockHash((Consensus::LLMQType)qc.llmqType, pindexPrev->nHeight + 1);
     if (quorumHash.IsNull()) {
         return state.DoS(100, false, REJECT_INVALID, "bad-qc-block");
     }
@@ -286,7 +286,7 @@ bool CQuorumBlockProcessor::IsCommitmentRequired(Consensus::LLMQType llmqType, c
     }
     // END TEMPORARY CODE
 
-    uint256 quorumHash = GetQuorumBlockHash(llmqType, pindexPrev);
+    uint256 quorumHash = GetQuorumBlockHash(llmqType, pindexPrev->nHeight + 1);
 
     // perform extra check for quorumHash.IsNull as the quorum hash is unknown for the first block of a session
     // this is because the currently processed block's hash will be the quorumHash of this session
@@ -299,18 +299,16 @@ bool CQuorumBlockProcessor::IsCommitmentRequired(Consensus::LLMQType llmqType, c
 }
 
 // WARNING: This method returns uint256() on the first block of the DKG interval (because the block hash is not known yet)
-uint256 CQuorumBlockProcessor::GetQuorumBlockHash(Consensus::LLMQType llmqType, const CBlockIndex* pindexPrev)
+uint256 CQuorumBlockProcessor::GetQuorumBlockHash(Consensus::LLMQType llmqType, int nHeight)
 {
     auto& params = Params().GetConsensus().llmqs.at(llmqType);
 
-    int nHeight = pindexPrev->nHeight + 1;
     int quorumStartHeight = nHeight - (nHeight % params.dkgInterval);
-    if (quorumStartHeight >= pindexPrev->nHeight) {
+    uint256 quorumBlockHash;
+    if (!GetBlockHash(quorumBlockHash, quorumStartHeight)) {
         return uint256();
     }
-    auto quorumIndex = pindexPrev->GetAncestor(quorumStartHeight);
-    assert(quorumIndex);
-    return quorumIndex->GetBlockHash();
+    return quorumBlockHash;
 }
 
 bool CQuorumBlockProcessor::HasMinedCommitment(Consensus::LLMQType llmqType, const uint256& quorumHash)
@@ -385,7 +383,7 @@ bool CQuorumBlockProcessor::GetMinableCommitment(Consensus::LLMQType llmqType, c
         return false;
     }
 
-    uint256 quorumHash = GetQuorumBlockHash(llmqType, pindexPrev);
+    uint256 quorumHash = GetQuorumBlockHash(llmqType, pindexPrev->nHeight + 1);
     if (quorumHash.IsNull()) {
         return false;
     }
