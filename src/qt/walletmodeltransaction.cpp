@@ -46,7 +46,7 @@ void WalletModelTransaction::setTransactionFee(const CAmount& newFee)
     fee = newFee;
 }
 
-void WalletModelTransaction::reassignAmounts(int nChangePosRet)
+void WalletModelTransaction::reassignAmounts()
 {
     // For each recipient look for a matching CTxOut in walletTransaction and reassign amounts
     for (QList<SendCoinsRecipient>::iterator it = recipients.begin(); it != recipients.end(); ++it)
