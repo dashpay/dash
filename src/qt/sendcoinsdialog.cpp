@@ -263,9 +263,6 @@ void SendCoinsDialog::on_sendButton_clicked()
     QString strFee = "";
 
     if(ui->checkUsePrivateSend->isChecked()) {
-        for (SendCoinsRecipient& rcp : recipients) {
-            rcp.inputType = ONLY_DENOMINATED;
-        }
         strFunds = tr("using") + " <b>" + tr("anonymous funds") + "</b>";
         QString strNearestAmount(
             BitcoinUnits::formatWithUnit(
@@ -274,24 +271,18 @@ void SendCoinsDialog::on_sendButton_clicked()
             "(privatesend requires this amount to be rounded up to the nearest %1)."
         ).arg(strNearestAmount));
     } else {
-        for (SendCoinsRecipient& rcp : recipients) {
-            rcp.inputType = ALL_COINS;
-        }
         strFunds = tr("using") + " <b>" + tr("any available funds (not anonymous)") + "</b>";
     }
 
     if(ui->checkUseInstantSend->isChecked()) {
-        for (SendCoinsRecipient& rcp : recipients) {
-            rcp.fUseInstantSend = true;
-        }
         strFunds += " ";
         strFunds += tr("and InstantSend");
-    } else {
-        for (SendCoinsRecipient& rcp : recipients) {
-            rcp.fUseInstantSend = false;
-        }
     }
 
+    for (SendCoinsRecipient& rcp : recipients) {
+        rcp.inputType = ui->checkUsePrivateSend->isChecked() ? ONLY_DENOMINATED : ALL_COINS;
+        rcp.fUseInstantSend = ui->checkUseInstantSend->isChecked();
+    }
 
     fNewRecipientAllowed = false;
     // request unlock only if was locked or unlocked for mixing:
