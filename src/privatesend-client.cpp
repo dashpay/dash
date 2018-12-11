@@ -1245,8 +1245,6 @@ bool CPrivateSendClientSession::SelectDenominate(std::string& strErrorRet, std::
         return false;
     }
 
-    vecPSInOutPairsRet.clear();
-
     std::vector<int> vecBits;
     if (!CPrivateSend::GetDenominationsBits(nSessionDenom, vecBits)) {
         strErrorRet = "Incorrect session denom";
