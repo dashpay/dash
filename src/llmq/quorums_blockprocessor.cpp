@@ -301,6 +301,8 @@ bool CQuorumBlockProcessor::IsCommitmentRequired(Consensus::LLMQType llmqType, i
 // WARNING: This method returns uint256() on the first block of the DKG interval (because the block hash is not known yet)
 uint256 CQuorumBlockProcessor::GetQuorumBlockHash(Consensus::LLMQType llmqType, int nHeight)
 {
+    AssertLockHeld(cs_main);
+
     auto& params = Params().GetConsensus().llmqs.at(llmqType);
 
     int quorumStartHeight = nHeight - (nHeight % params.dkgInterval);
