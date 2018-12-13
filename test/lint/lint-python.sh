@@ -35,7 +35,7 @@ enabled=(
     E701 # multiple statements on one line (colon)
     E702 # multiple statements on one line (semicolon)
     E703 # statement ends with a semicolon
-    # E711 # comparison to None should be 'if cond is None:'
+    E711 # comparison to None should be 'if cond is None:'
     E714 # test for object identity should be "is not"
     E721 # do not compare types, use "isinstance()"
     # E741 # do not use variables named "l", "O", or "I"
