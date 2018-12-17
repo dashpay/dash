@@ -24,8 +24,6 @@
 #include "evo/specialtx.h"
 #include "evo/deterministicmns.h"
 
-#include "evo/deterministicmns.h"
-
 #include <fstream>
 #include <iomanip>
 #include <univalue.h>
