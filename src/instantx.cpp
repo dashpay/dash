@@ -1033,7 +1033,6 @@ bool CTxLockVote::IsValid(CNode* pnode, CConnman& connman) const
 
     if (!mnList.HasValidMNByCollateral(outpointMasternode)) {
         LogPrint("instantsend", "CTxLockVote::IsValid -- Unknown masternode %s\n", outpointMasternode.ToStringShort());
-        mnodeman.AskForMN(pnode, outpointMasternode, connman);
         return false;
     }
 
