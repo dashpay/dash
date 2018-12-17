@@ -150,6 +150,15 @@ CDeterministicMNCPtr CDeterministicMNList::GetMNByCollateral(const COutPoint& co
     return GetUniquePropertyMN(collateralOutpoint);
 }
 
+CDeterministicMNCPtr CDeterministicMNList::GetValidMNByCollateral(const COutPoint& collateralOutpoint) const
+{
+    auto dmn = GetMNByCollateral(collateralOutpoint);
+    if (dmn && !IsMNValid(dmn)) {
+        return nullptr;
+    }
+    return dmn;
+}
+
 static int CompareByLastPaid_GetHeight(const CDeterministicMN& dmn)
 {
     int height = dmn.pdmnState->nLastPaidHeight;
@@ -816,20 +825,6 @@ CDeterministicMNList CDeterministicMNManager::GetListAtChainTip()
 {
     LOCK(cs);
     return GetListForBlock(tipBlockHash);
-}
-
-bool CDeterministicMNManager::HasValidMNCollateralAtChainTip(const COutPoint& outpoint)
-{
-    auto mnList = GetListAtChainTip();
-    auto dmn = mnList.GetMNByCollateral(outpoint);
-    return dmn && mnList.IsMNValid(dmn);
-}
-
-bool CDeterministicMNManager::HasMNCollateralAtChainTip(const COutPoint& outpoint)
-{
-    auto mnList = GetListAtChainTip();
-    auto dmn = mnList.GetMNByCollateral(outpoint);
-    return dmn != nullptr;
 }
 
 int64_t CDeterministicMNManager::GetSpork15Value()

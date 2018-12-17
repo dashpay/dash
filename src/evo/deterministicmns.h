@@ -289,10 +289,23 @@ public:
     {
         return GetMN(proTxHash) != nullptr;
     }
+    bool HasValidMN(const uint256& proTxHash) const
+    {
+        return GetValidMN(proTxHash) != nullptr;
+    }
+    bool HasMNByCollateral(const COutPoint& collateralOutpoint) const
+    {
+        return GetMNByCollateral(collateralOutpoint) != nullptr;
+    }
+    bool HasValidMNByCollateral(const COutPoint& collateralOutpoint) const
+    {
+        return GetValidMNByCollateral(collateralOutpoint) != nullptr;
+    }
     CDeterministicMNCPtr GetMN(const uint256& proTxHash) const;
     CDeterministicMNCPtr GetValidMN(const uint256& proTxHash) const;
     CDeterministicMNCPtr GetMNByOperatorKey(const CBLSPublicKey& pubKey);
     CDeterministicMNCPtr GetMNByCollateral(const COutPoint& collateralOutpoint) const;
+    CDeterministicMNCPtr GetValidMNByCollateral(const COutPoint& collateralOutpoint) const;
     CDeterministicMNCPtr GetMNPayee() const;
 
     /**
