@@ -70,3 +70,10 @@ void CDSNotificationInterface::SyncTransaction(const CTransaction &tx, const CBl
     instantsend.SyncTransaction(tx, pindex, posInBlock);
     CPrivateSend::SyncTransaction(tx, pindex, posInBlock);
 }
+
+void CDSNotificationInterface::NotifyMasternodeListChanged(const CDeterministicMNList& newList)
+{
+    governance.CheckMasternodeOrphanObjects(connman);
+    governance.CheckMasternodeOrphanVotes(connman);
+    governance.UpdateCachesAndClean();
+}
