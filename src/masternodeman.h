@@ -8,6 +8,8 @@
 #include "masternode.h"
 #include "sync.h"
 
+#include "evo/deterministicmns.h"
+
 class CMasternodeMan;
 class CConnman;
 
@@ -16,9 +18,9 @@ extern CMasternodeMan mnodeman;
 class CMasternodeMan
 {
 public:
-    typedef std::pair<arith_uint256, const CMasternode*> score_pair_t;
+    typedef std::pair<arith_uint256, const CDeterministicMNCPtr> score_pair_t;
     typedef std::vector<score_pair_t> score_pair_vec_t;
-    typedef std::pair<int, const CMasternode> rank_pair_t;
+    typedef std::pair<int, const CDeterministicMNCPtr> rank_pair_t;
     typedef std::vector<rank_pair_t> rank_pair_vec_t;
 
 private:
@@ -54,7 +56,7 @@ private:
     /// Find an entry
     CMasternode* Find(const COutPoint& outpoint);
 
-    bool GetMasternodeScores(const uint256& nBlockHash, score_pair_vec_t& vecMasternodeScoresRet, int nMinProtocol = 0);
+    bool GetMasternodeScores(const uint256& nBlockHash, score_pair_vec_t& vecMasternodeScoresRet);
 
 public:
     // keep track of dsq count to prevent masternodes from gaming privatesend queue
@@ -103,9 +105,7 @@ public:
 
     std::map<COutPoint, CMasternode> GetFullMasternodeMap();
 
-    bool GetMasternodeRanks(rank_pair_vec_t& vecMasternodeRanksRet, int nBlockHeight = -1, int nMinProtocol = 0);
-    bool GetMasternodeRank(const COutPoint &outpoint, int& nRankRet, int nBlockHeight = -1, int nMinProtocol = 0);
-    bool GetMasternodeRank(const COutPoint &outpoint, int& nRankRet, uint256& blockHashRet, int nBlockHeight = -1, int nMinProtocol = 0);
+    bool GetMasternodeRank(const COutPoint &outpoint, int& nRankRet, uint256& blockHashRet, int nBlockHeight = -1);
 
     void ProcessMasternodeConnections(CConnman& connman);
 

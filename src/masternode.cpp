@@ -49,21 +49,6 @@ CMasternode::CMasternode(const uint256 &proTxHash, const CDeterministicMNCPtr& d
 {
 }
 
-//
-// Deterministically calculate a given "score" for a Masternode depending on how close it's hash is to
-// the proof of work for that block. The further away they are the better, the furthest will win the election
-// and get paid this block
-//
-arith_uint256 CMasternode::CalculateScore(const uint256& blockHash) const
-{
-    // NOTE not called when deterministic masternodes (spork15) are activated
-
-    // Deterministically calculate a "score" for a Masternode based on any given (block)hash
-    CHashWriter ss(SER_GETHASH, PROTOCOL_VERSION);
-    ss << outpoint << nCollateralMinConfBlockHash << blockHash;
-    return UintToArith256(ss.GetHash());
-}
-
 CMasternode::CollateralStatus CMasternode::CheckCollateral(const COutPoint& outpoint, const CKeyID& keyID)
 {
     int nHeight;

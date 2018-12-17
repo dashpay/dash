@@ -42,10 +42,10 @@ struct CompareLastPaidBlock
 
 struct CompareScoreMN
 {
-    bool operator()(const std::pair<arith_uint256, const CMasternode*>& t1,
-                    const std::pair<arith_uint256, const CMasternode*>& t2) const
+    bool operator()(const std::pair<arith_uint256, const CDeterministicMNCPtr&>& t1,
+                    const std::pair<arith_uint256, const CDeterministicMNCPtr&>& t2) const
     {
-        return (t1.first != t2.first) ? (t1.first < t2.first) : (t1.second->outpoint < t2.second->outpoint);
+        return (t1.first != t2.first) ? (t1.first < t2.first) : (t1.second->collateralOutpoint < t2.second->collateralOutpoint);
     }
 };
 
@@ -253,7 +253,7 @@ std::map<COutPoint, CMasternode> CMasternodeMan::GetFullMasternodeMap()
     return result;
 }
 
-bool CMasternodeMan::GetMasternodeScores(const uint256& nBlockHash, CMasternodeMan::score_pair_vec_t& vecMasternodeScoresRet, int nMinProtocol)
+bool CMasternodeMan::GetMasternodeScores(const uint256& nBlockHash, CMasternodeMan::score_pair_vec_t& vecMasternodeScoresRet)
 {
     AssertLockHeld(cs);
 
@@ -262,21 +262,14 @@ bool CMasternodeMan::GetMasternodeScores(const uint256& nBlockHash, CMasternodeM
     auto mnList = deterministicMNManager->GetListAtChainTip();
     auto scores = mnList.CalculateScores(nBlockHash);
     for (const auto& p : scores) {
-        auto* mn = Find(p.second->collateralOutpoint);
-        vecMasternodeScoresRet.emplace_back(p.first, mn);
+        vecMasternodeScoresRet.emplace_back(p.first, p.second);
     }
 
     sort(vecMasternodeScoresRet.rbegin(), vecMasternodeScoresRet.rend(), CompareScoreMN());
     return !vecMasternodeScoresRet.empty();
 }
 
-bool CMasternodeMan::GetMasternodeRank(const COutPoint& outpoint, int& nRankRet, int nBlockHeight, int nMinProtocol)
-{
-    uint256 tmp;
-    return GetMasternodeRank(outpoint, nRankRet, tmp, nBlockHeight, nMinProtocol);
-}
-
-bool CMasternodeMan::GetMasternodeRank(const COutPoint& outpoint, int& nRankRet, uint256& blockHashRet, int nBlockHeight, int nMinProtocol)
+bool CMasternodeMan::GetMasternodeRank(const COutPoint& outpoint, int& nRankRet, uint256& blockHashRet, int nBlockHeight)
 {
     nRankRet = -1;
 
@@ -293,48 +286,19 @@ bool CMasternodeMan::GetMasternodeRank(const COutPoint& outpoint, int& nRankRet,
     LOCK(cs);
 
     score_pair_vec_t vecMasternodeScores;
-    if (!GetMasternodeScores(blockHashRet, vecMasternodeScores, nMinProtocol))
+    if (!GetMasternodeScores(blockHashRet, vecMasternodeScores))
         return false;
 
     int nRank = 0;
     for (const auto& scorePair : vecMasternodeScores) {
         nRank++;
-        if(scorePair.second->outpoint == outpoint) {
+        if(scorePair.second->collateralOutpoint == outpoint) {
             nRankRet = nRank;
             return true;
         }
     }
 
     return false;
-}
-
-bool CMasternodeMan::GetMasternodeRanks(CMasternodeMan::rank_pair_vec_t& vecMasternodeRanksRet, int nBlockHeight, int nMinProtocol)
-{
-    vecMasternodeRanksRet.clear();
-
-    if (!masternodeSync.IsBlockchainSynced())
-        return false;
-
-    // make sure we know about this block
-    uint256 nBlockHash = uint256();
-    if (!GetBlockHash(nBlockHash, nBlockHeight)) {
-        LogPrintf("CMasternodeMan::%s -- ERROR: GetBlockHash() failed at nBlockHeight %d\n", __func__, nBlockHeight);
-        return false;
-    }
-
-    LOCK(cs);
-
-    score_pair_vec_t vecMasternodeScores;
-    if (!GetMasternodeScores(nBlockHash, vecMasternodeScores, nMinProtocol))
-        return false;
-
-    int nRank = 0;
-    for (const auto& scorePair : vecMasternodeScores) {
-        nRank++;
-        vecMasternodeRanksRet.push_back(std::make_pair(nRank, *scorePair.second));
-    }
-
-    return true;
 }
 
 void CMasternodeMan::ProcessMasternodeConnections(CConnman& connman)
