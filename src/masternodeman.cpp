@@ -228,17 +228,6 @@ CMasternode* CMasternodeMan::Find(const COutPoint &outpoint)
     }
 }
 
-bool CMasternodeMan::Get(const COutPoint& outpoint, CMasternode& masternodeRet)
-{
-    // Theses mutexes are recursive so double locking by the same thread is safe.
-    LOCK(cs);
-    CMasternode* mn = Find(outpoint);
-    if (!mn)
-        return false;
-    masternodeRet = *mn;
-    return true;
-}
-
 bool CMasternodeMan::GetMasternodeInfo(const uint256& proTxHash, masternode_info_t& mnInfoRet)
 {
     auto dmn = deterministicMNManager->GetListAtChainTip().GetValidMN(proTxHash);
@@ -255,12 +244,6 @@ bool CMasternodeMan::GetMasternodeInfo(const COutPoint& outpoint, masternode_inf
         return false;
     mnInfoRet = mn->GetInfo();
     return true;
-}
-
-bool CMasternodeMan::Has(const COutPoint& outpoint)
-{
-    LOCK(cs);
-    return deterministicMNManager->HasValidMNCollateralAtChainTip(outpoint);
 }
 
 masternode_info_t CMasternodeMan::FindRandomNotInVec(const std::vector<COutPoint> &vecToExclude, int nProtocolVersion)

@@ -492,10 +492,6 @@ public:
     CDeterministicMNList GetListForBlock(const uint256& blockHash);
     CDeterministicMNList GetListAtChainTip();
 
-    // TODO remove after removal of old non-deterministic lists
-    bool HasValidMNCollateralAtChainTip(const COutPoint& outpoint);
-    bool HasMNCollateralAtChainTip(const COutPoint& outpoint);
-
     // Test if given TX is a ProRegTx which also contains the collateral at index n
     bool IsProTxWithCollateral(const CTransactionRef& tx, uint32_t n);
 

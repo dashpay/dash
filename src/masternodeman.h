@@ -100,10 +100,6 @@ public:
     /// Count enabled Masternodes.
     int CountEnabled();
 
-    /// Versions of Find that are safe to use from outside the class
-    bool Get(const COutPoint& outpoint, CMasternode& masternodeRet);
-    bool Has(const COutPoint& outpoint);
-
     bool GetMasternodeInfo(const uint256& proTxHash, masternode_info_t& mnInfoRet);
     bool GetMasternodeInfo(const COutPoint& outpoint, masternode_info_t& mnInfoRet);
 
