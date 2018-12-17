@@ -193,8 +193,6 @@ public:
     std::pair<CService, std::set<uint256> > PopScheduledMnbRequestConnection();
     void ProcessPendingMnbRequests(CConnman& connman);
 
-    void ProcessMessage(CNode* pfrom, const std::string& strCommand, CDataStream& vRecv, CConnman& connman);
-
     void DoFullVerificationStep(CConnman& connman);
     void CheckSameAddr();
     bool CheckVerifyRequestAddr(const CAddress& addr, CConnman& connman);
