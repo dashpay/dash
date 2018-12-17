@@ -132,59 +132,6 @@ std::string CMasternode::GetStatus() const
     return GetStateString();
 }
 
-void CMasternode::UpdateLastPaid(const CBlockIndex *pindex, int nMaxBlocksToScanBack)
-{
-    AssertLockHeld(cs_main);
-
-    if(!pindex) return;
-
-    if (deterministicMNManager->IsDeterministicMNsSporkActive(pindex->nHeight)) {
-        auto dmn = deterministicMNManager->GetListForBlock(pindex->GetBlockHash()).GetMNByCollateral(outpoint);
-        if (!dmn || dmn->pdmnState->nLastPaidHeight == -1) {
-            LogPrint("masternode", "CMasternode::UpdateLastPaidBlock -- searching for block with payment to %s -- not found\n", outpoint.ToStringShort());
-        } else {
-            nBlockLastPaid = (int)dmn->pdmnState->nLastPaidHeight;
-            nTimeLastPaid = chainActive[nBlockLastPaid]->nTime;
-            LogPrint("masternode", "CMasternode::UpdateLastPaidBlock -- searching for block with payment to %s -- found new %d\n", outpoint.ToStringShort(), nBlockLastPaid);
-        }
-        return;
-    }
-
-    const CBlockIndex *BlockReading = pindex;
-
-    CScript mnpayee = GetScriptForDestination(keyIDCollateralAddress);
-    // LogPrint("mnpayments", "CMasternode::UpdateLastPaidBlock -- searching for block with payment to %s\n", outpoint.ToStringShort());
-
-    LOCK(cs_mapMasternodeBlocks);
-
-    for (int i = 0; BlockReading && BlockReading->nHeight > nBlockLastPaid && i < nMaxBlocksToScanBack; i++) {
-        if(mnpayments.mapMasternodeBlocks.count(BlockReading->nHeight) &&
-            mnpayments.mapMasternodeBlocks[BlockReading->nHeight].HasPayeeWithVotes(mnpayee, 2))
-        {
-            CBlock block;
-            if(!ReadBlockFromDisk(block, BlockReading, Params().GetConsensus()))
-                continue; // shouldn't really happen
-
-            CAmount nMasternodePayment = GetMasternodePayment(BlockReading->nHeight, block.vtx[0]->GetValueOut());
-
-            for (const auto& txout : block.vtx[0]->vout)
-                if(mnpayee == txout.scriptPubKey && nMasternodePayment == txout.nValue) {
-                    nBlockLastPaid = BlockReading->nHeight;
-                    nTimeLastPaid = BlockReading->nTime;
-                    LogPrint("mnpayments", "CMasternode::UpdateLastPaidBlock -- searching for block with payment to %s -- found new %d\n", outpoint.ToStringShort(), nBlockLastPaid);
-                    return;
-                }
-        }
-
-        if (BlockReading->pprev == nullptr) { assert(BlockReading); break; }
-        BlockReading = BlockReading->pprev;
-    }
-
-    // Last payment for this masternode wasn't found in latest mnpayments blocks
-    // or it was found in mnpayments blocks but wasn't found in the blockchain.
-    // LogPrint("mnpayments", "CMasternode::UpdateLastPaidBlock -- searching for block with payment to %s -- keeping old %d\n", outpoint.ToStringShort(), nBlockLastPaid);
-}
-
 void CMasternode::AddGovernanceVote(uint256 nGovernanceObjectHash)
 {
     // Insert a zero value, or not. Then increment the value regardless. This

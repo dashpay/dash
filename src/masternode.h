@@ -91,7 +91,6 @@ public:
     std::vector<unsigned char> vchSig{};
 
     uint256 nCollateralMinConfBlockHash{};
-    int nBlockLastPaid{};
     int nPoSeBanScore{};
     int nPoSeBanHeight{};
     int nMixingTxCount{};
@@ -126,7 +125,6 @@ public:
         READWRITE(nTimeLastPaid);
         READWRITE(nActiveState);
         READWRITE(nCollateralMinConfBlockHash);
-        READWRITE(nBlockLastPaid);
         READWRITE(nProtocolVersion);
         READWRITE(nPoSeBanScore);
         READWRITE(nPoSeBanHeight);
@@ -159,10 +157,6 @@ public:
     std::string GetStateString() const;
     std::string GetStatus() const;
 
-    int GetLastPaidTime() const { return nTimeLastPaid; }
-    int GetLastPaidBlock() const { return nBlockLastPaid; }
-    void UpdateLastPaid(const CBlockIndex *pindex, int nMaxBlocksToScanBack);
-
     // KEEP TRACK OF EACH GOVERNANCE ITEM INCASE THIS NODE GOES OFFLINE, SO WE CAN RECALC THEIR STATUS
     void AddGovernanceVote(uint256 nGovernanceObjectHash);
     // RECALCULATE CACHED STATUS FLAGS FOR ALL AFFECTED OBJECTS
@@ -175,7 +169,6 @@ public:
         static_cast<masternode_info_t&>(*this)=from;
         vchSig = from.vchSig;
         nCollateralMinConfBlockHash = from.nCollateralMinConfBlockHash;
-        nBlockLastPaid = from.nBlockLastPaid;
         nPoSeBanScore = from.nPoSeBanScore;
         nPoSeBanHeight = from.nPoSeBanHeight;
         nMixingTxCount = from.nMixingTxCount;

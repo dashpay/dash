@@ -501,15 +501,6 @@ UniValue masternodelist(const JSONRPCRequest& request)
         masternode_list_help();
     }
 
-    if (strMode == "full" || strMode == "json" || strMode == "lastpaidtime" || strMode == "lastpaidblock") {
-        CBlockIndex* pindex = NULL;
-        {
-            LOCK(cs_main);
-            pindex = chainActive.Tip();
-        }
-        mnodeman.UpdateLastPaid(pindex);
-    }
-
     UniValue obj(UniValue::VOBJ);
     if (strMode == "rank") {
         CMasternodeMan::rank_pair_vec_t vMasternodeRanks;

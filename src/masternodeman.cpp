@@ -430,27 +430,6 @@ std::string CMasternodeMan::ToString() const
     return info.str();
 }
 
-void CMasternodeMan::UpdateLastPaid(const CBlockIndex* pindex)
-{
-    LOCK2(cs_main, cs);
-
-    if(fLiteMode || !masternodeSync.IsBlockchainSynced() || mapMasternodes.empty()) return;
-
-    static int nLastRunBlockHeight = 0;
-    // Scan at least LAST_PAID_SCAN_BLOCKS but no more than mnpayments.GetStorageLimit()
-    int nMaxBlocksToScanBack = std::max(LAST_PAID_SCAN_BLOCKS, nCachedBlockHeight - nLastRunBlockHeight);
-    nMaxBlocksToScanBack = std::min(nMaxBlocksToScanBack, 100);
-
-    LogPrint("masternode", "CMasternodeMan::UpdateLastPaid -- nCachedBlockHeight=%d, nLastRunBlockHeight=%d, nMaxBlocksToScanBack=%d\n",
-                            nCachedBlockHeight, nLastRunBlockHeight, nMaxBlocksToScanBack);
-
-    for (auto& mnpair : mapMasternodes) {
-        mnpair.second.UpdateLastPaid(pindex, nMaxBlocksToScanBack);
-    }
-
-    nLastRunBlockHeight = nCachedBlockHeight;
-}
-
 bool CMasternodeMan::AddGovernanceVote(const COutPoint& outpoint, uint256 nGovernanceObjectHash)
 {
     LOCK(cs);
@@ -477,11 +456,6 @@ void CMasternodeMan::UpdatedBlockTip(const CBlockIndex *pindex)
 
     AddDeterministicMasternodes();
     RemoveNonDeterministicMasternodes();
-
-    if(fMasternodeMode) {
-        // normal wallet does not need to update this every block, doing update on rpc call should be enough
-        UpdateLastPaid(pindex);
-    }
 }
 
 void CMasternodeMan::NotifyMasternodeUpdates(CConnman& connman, bool forceAddedChecks, bool forceRemovedChecks)

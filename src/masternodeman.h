@@ -122,8 +122,6 @@ public:
 
     std::string ToString() const;
 
-    void UpdateLastPaid(const CBlockIndex* pindex);
-
     void AddDirtyGovernanceObjectHash(const uint256& nHash)
     {
         LOCK(cs);
