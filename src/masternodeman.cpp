@@ -68,21 +68,6 @@ CMasternodeMan::CMasternodeMan():
     nDsqCount(0)
 {}
 
-bool CMasternodeMan::Add(CMasternode &mn)
-{
-    LOCK(cs);
-
-    if (deterministicMNManager->IsDeterministicMNsSporkActive())
-        return false;
-
-    if (Has(mn.outpoint)) return false;
-
-    LogPrint("masternode", "CMasternodeMan::Add -- Adding new Masternode: addr=%s, %i now\n", mn.addr.ToString(), size() + 1);
-    mapMasternodes[mn.outpoint] = mn;
-    fMasternodesAdded = true;
-    return true;
-}
-
 bool CMasternodeMan::AllowMixing(const COutPoint &outpoint)
 {
     LOCK(cs);
@@ -111,9 +96,6 @@ bool CMasternodeMan::DisallowMixing(const COutPoint &outpoint)
 
 void CMasternodeMan::AddDeterministicMasternodes()
 {
-    if (!deterministicMNManager->IsDeterministicMNsSporkActive())
-        return;
-
     bool added = false;
     {
         LOCK(cs);
@@ -146,9 +128,6 @@ void CMasternodeMan::AddDeterministicMasternodes()
 
 void CMasternodeMan::RemoveNonDeterministicMasternodes()
 {
-    if (!deterministicMNManager->IsDeterministicMNsSporkActive())
-        return;
-
     bool erased = false;
     {
         LOCK(cs);
@@ -183,39 +162,16 @@ int CMasternodeMan::CountMasternodes(int nProtocolVersion)
 {
     LOCK(cs);
 
-    int nCount = 0;
-    nProtocolVersion = nProtocolVersion == -1 ? mnpayments.GetMinMasternodePaymentsProto() : nProtocolVersion;
-
-    if (deterministicMNManager->IsDeterministicMNsSporkActive()) {
-        auto mnList = deterministicMNManager->GetListAtChainTip();
-        nCount = (int)mnList.GetAllMNsCount();
-    } else {
-        for (const auto& mnpair : mapMasternodes) {
-            if(mnpair.second.nProtocolVersion < nProtocolVersion) continue;
-            nCount++;
-        }
-    }
-    return nCount;
+    auto mnList = deterministicMNManager->GetListAtChainTip();
+    return (int)mnList.GetAllMNsCount();
 }
 
 int CMasternodeMan::CountEnabled(int nProtocolVersion)
 {
     LOCK(cs);
 
-    int nCount = 0;
-    nProtocolVersion = nProtocolVersion == -1 ? mnpayments.GetMinMasternodePaymentsProto() : nProtocolVersion;
-
-    if (deterministicMNManager->IsDeterministicMNsSporkActive()) {
-        auto mnList = deterministicMNManager->GetListAtChainTip();
-        nCount = (int)mnList.GetValidMNsCount();
-    } else {
-        for (const auto& mnpair : mapMasternodes) {
-            if (mnpair.second.nProtocolVersion < nProtocolVersion || !mnpair.second.IsEnabled()) continue;
-            nCount++;
-        }
-    }
-
-    return nCount;
+    auto mnList = deterministicMNManager->GetListAtChainTip();
+    return (int)mnList.GetValidMNsCount();
 }
 
 /* Only IPv4 masternodes are allowed in 12.1, saving this for later
@@ -239,31 +195,26 @@ CMasternode* CMasternodeMan::Find(const COutPoint &outpoint)
 {
     LOCK(cs);
 
-    if (deterministicMNManager->IsDeterministicMNsSporkActive()) {
-        // This code keeps compatibility to old code depending on the non-deterministic MN lists
-        // When deterministic MN lists get activated, we stop relying on the MNs we encountered due to MNBs and start
-        // using the MNs found in the deterministic MN manager. To keep compatibility, we create CMasternode entries
-        // for these and return them here. This is needed because we also need to track some data per MN that is not
-        // on-chain, like vote counts
+    // This code keeps compatibility to old code depending on the non-deterministic MN lists
+    // When deterministic MN lists get activated, we stop relying on the MNs we encountered due to MNBs and start
+    // using the MNs found in the deterministic MN manager. To keep compatibility, we create CMasternode entries
+    // for these and return them here. This is needed because we also need to track some data per MN that is not
+    // on-chain, like vote counts
 
-        auto mnList = deterministicMNManager->GetListAtChainTip();
-        auto dmn = mnList.GetMNByCollateral(outpoint);
-        if (!dmn || !mnList.IsMNValid(dmn)) {
-            return nullptr;
-        }
+    auto mnList = deterministicMNManager->GetListAtChainTip();
+    auto dmn = mnList.GetMNByCollateral(outpoint);
+    if (!dmn || !mnList.IsMNValid(dmn)) {
+        return nullptr;
+    }
 
-        auto it = mapMasternodes.find(outpoint);
-        if (it != mapMasternodes.end()) {
-            return &(it->second);
-        } else {
-            // MN is not in mapMasternodes but in the deterministic list. Create an entry in mapMasternodes for compatibility with legacy code
-            CMasternode mn(outpoint.hash, dmn);
-            it = mapMasternodes.emplace(outpoint, mn).first;
-            return &(it->second);
-        }
+    auto it = mapMasternodes.find(outpoint);
+    if (it != mapMasternodes.end()) {
+        return &(it->second);
     } else {
-        auto it = mapMasternodes.find(outpoint);
-        return it == mapMasternodes.end() ? nullptr : &(it->second);
+        // MN is not in mapMasternodes but in the deterministic list. Create an entry in mapMasternodes for compatibility with legacy code
+        CMasternode mn(outpoint.hash, dmn);
+        it = mapMasternodes.emplace(outpoint, mn).first;
+        return &(it->second);
     }
 }
 
@@ -296,146 +247,15 @@ bool CMasternodeMan::GetMasternodeInfo(const COutPoint& outpoint, masternode_inf
     return true;
 }
 
-bool CMasternodeMan::GetMasternodeInfo(const CKeyID& keyIDOperator, masternode_info_t& mnInfoRet) {
-    LOCK(cs);
-    if (deterministicMNManager->IsDeterministicMNsSporkActive()) {
-        return false;
-    } else {
-        for (const auto& mnpair : mapMasternodes) {
-            if (mnpair.second.legacyKeyIDOperator == keyIDOperator) {
-                mnInfoRet = mnpair.second.GetInfo();
-                return true;
-            }
-        }
-        return false;
-    }
-}
-
-bool CMasternodeMan::GetMasternodeInfo(const CScript& payee, masternode_info_t& mnInfoRet)
-{
-    if (deterministicMNManager->IsDeterministicMNsSporkActive()) {
-        // we can't reliably search by payee as there might be duplicates. Also, keyIDCollateralAddress is not
-        // always the payout address as DIP3 allows using different keys for collateral and payouts
-        // this method is only used from ComputeBlockVersion, which has a different logic for deterministic MNs
-        // this method won't be reimplemented when removing the compatibility code
-        return false;
-    } else {
-        CTxDestination dest;
-        if (!ExtractDestination(payee, dest) || !boost::get<CKeyID>(&dest))
-            return false;
-        CKeyID keyId = *boost::get<CKeyID>(&dest);
-        LOCK(cs);
-        for (const auto& mnpair : mapMasternodes) {
-            if (mnpair.second.keyIDCollateralAddress == keyId) {
-                mnInfoRet = mnpair.second.GetInfo();
-                return true;
-            }
-        }
-        return false;
-    }
-}
-
 bool CMasternodeMan::Has(const COutPoint& outpoint)
 {
     LOCK(cs);
-    if (deterministicMNManager->IsDeterministicMNsSporkActive()) {
-        return deterministicMNManager->HasValidMNCollateralAtChainTip(outpoint);
-    } else {
-        return mapMasternodes.find(outpoint) != mapMasternodes.end();
-    }
-}
-
-//
-// Deterministically select the oldest/best masternode to pay on the network
-//
-bool CMasternodeMan::GetNextMasternodeInQueueForPayment(bool fFilterSigTime, int& nCountRet, masternode_info_t& mnInfoRet)
-{
-    return GetNextMasternodeInQueueForPayment(nCachedBlockHeight, fFilterSigTime, nCountRet, mnInfoRet);
-}
-
-bool CMasternodeMan::GetNextMasternodeInQueueForPayment(int nBlockHeight, bool fFilterSigTime, int& nCountRet, masternode_info_t& mnInfoRet)
-{
-    if (deterministicMNManager->IsDeterministicMNsSporkActive(nBlockHeight)) {
-        return false;
-    }
-
-    mnInfoRet = masternode_info_t();
-    nCountRet = 0;
-
-    if (!masternodeSync.IsBlockchainSynced()) {
-        // without winner list we can't reliably find the next winner anyway
-        return false;
-    }
-
-    // Need LOCK2 here to ensure consistent locking order because the GetBlockHash call below locks cs_main
-    LOCK2(cs_main,cs);
-
-    std::vector<std::pair<int, const CMasternode*> > vecMasternodeLastPaid;
-
-    /*
-        Make a vector with all of the last paid times
-    */
-
-    int nMnCount = CountMasternodes();
-
-    for (const auto& mnpair : mapMasternodes) {
-        //check protocol version
-        if(mnpair.second.nProtocolVersion < mnpayments.GetMinMasternodePaymentsProto()) continue;
-
-        //it's in the list (up to 8 entries ahead of current block to allow propagation) -- so let's skip it
-        if(mnpayments.IsScheduled(mnpair.second, nBlockHeight)) continue;
-
-        //it's too new, wait for a cycle
-        if(fFilterSigTime && mnpair.second.sigTime + (nMnCount*2.6*60) > GetAdjustedTime()) continue;
-
-        //make sure it has at least as many confirmations as there are masternodes
-        if(GetUTXOConfirmations(mnpair.first) < nMnCount) continue;
-
-        vecMasternodeLastPaid.push_back(std::make_pair(mnpair.second.GetLastPaidBlock(), &mnpair.second));
-    }
-
-    nCountRet = (int)vecMasternodeLastPaid.size();
-
-    //when the network is in the process of upgrading, don't penalize nodes that recently restarted
-    if(fFilterSigTime && nCountRet < nMnCount/3)
-        return GetNextMasternodeInQueueForPayment(nBlockHeight, false, nCountRet, mnInfoRet);
-
-    // Sort them low to high
-    sort(vecMasternodeLastPaid.begin(), vecMasternodeLastPaid.end(), CompareLastPaidBlock());
-
-    uint256 blockHash;
-    if(!GetBlockHash(blockHash, nBlockHeight - 101)) {
-        LogPrintf("CMasternode::GetNextMasternodeInQueueForPayment -- ERROR: GetBlockHash() failed at nBlockHeight %d\n", nBlockHeight - 101);
-        return false;
-    }
-    // Look at 1/10 of the oldest nodes (by last payment), calculate their scores and pay the best one
-    //  -- This doesn't look at who is being paid in the +8-10 blocks, allowing for double payments very rarely
-    //  -- 1/100 payments should be a double payment on mainnet - (1/(3000/10))*2
-    //  -- (chance per block * chances before IsScheduled will fire)
-    int nTenthNetwork = nMnCount/10;
-    int nCountTenth = 0;
-    arith_uint256 nHighest = 0;
-    const CMasternode *pBestMasternode = nullptr;
-    for (const auto& s : vecMasternodeLastPaid) {
-        arith_uint256 nScore = s.second->CalculateScore(blockHash);
-        if(nScore > nHighest){
-            nHighest = nScore;
-            pBestMasternode = s.second;
-        }
-        nCountTenth++;
-        if(nCountTenth >= nTenthNetwork) break;
-    }
-    if (pBestMasternode) {
-        mnInfoRet = pBestMasternode->GetInfo();
-    }
-    return mnInfoRet.fInfoValid;
+    return deterministicMNManager->HasValidMNCollateralAtChainTip(outpoint);
 }
 
 masternode_info_t CMasternodeMan::FindRandomNotInVec(const std::vector<COutPoint> &vecToExclude, int nProtocolVersion)
 {
     LOCK(cs);
-
-    nProtocolVersion = nProtocolVersion == -1 ? mnpayments.GetMinMasternodePaymentsProto() : nProtocolVersion;
 
     int nCountEnabled = CountEnabled(nProtocolVersion);
     int nCountNotExcluded = nCountEnabled - vecToExclude.size();
@@ -465,7 +285,7 @@ masternode_info_t CMasternodeMan::FindRandomNotInVec(const std::vector<COutPoint
             }
         }
         if(fExclude) continue;
-        if (deterministicMNManager->IsDeterministicMNsSporkActive() && !deterministicMNManager->HasValidMNCollateralAtChainTip(pmn->outpoint))
+        if (!deterministicMNManager->HasValidMNCollateralAtChainTip(pmn->outpoint))
             continue;
         // found the one not in vecToExclude
         LogPrint("masternode", "CMasternodeMan::FindRandomNotInVec -- found, masternode=%s\n", pmn->outpoint.ToStringShort());
@@ -480,19 +300,15 @@ std::map<COutPoint, CMasternode> CMasternodeMan::GetFullMasternodeMap()
 {
     LOCK(cs);
 
-    if (deterministicMNManager->IsDeterministicMNsSporkActive()) {
-        std::map<COutPoint, CMasternode> result;
-        auto mnList = deterministicMNManager->GetListAtChainTip();
-        for (const auto &p : mapMasternodes) {
-            auto dmn = mnList.GetMNByCollateral(p.first);
-            if (dmn && mnList.IsMNValid(dmn)) {
-                result.emplace(p.first, p.second);
-            }
+    std::map<COutPoint, CMasternode> result;
+    auto mnList = deterministicMNManager->GetListAtChainTip();
+    for (const auto &p : mapMasternodes) {
+        auto dmn = mnList.GetMNByCollateral(p.first);
+        if (dmn && mnList.IsMNValid(dmn)) {
+            result.emplace(p.first, p.second);
         }
-        return result;
-    } else {
-        return mapMasternodes;
     }
+    return result;
 }
 
 bool CMasternodeMan::GetMasternodeScores(const uint256& nBlockHash, CMasternodeMan::score_pair_vec_t& vecMasternodeScoresRet, int nMinProtocol)
@@ -501,27 +317,13 @@ bool CMasternodeMan::GetMasternodeScores(const uint256& nBlockHash, CMasternodeM
 
     vecMasternodeScoresRet.clear();
 
-    if (deterministicMNManager->IsDeterministicMNsSporkActive()) {
-        auto mnList = deterministicMNManager->GetListAtChainTip();
-        auto scores = mnList.CalculateScores(nBlockHash);
-        for (const auto& p : scores) {
-            auto* mn = Find(p.second->collateralOutpoint);
-            vecMasternodeScoresRet.emplace_back(p.first, mn);
-        }
-    } else {
-        if (!masternodeSync.IsBlockchainSynced())
-            return false;
-
-        if (mapMasternodes.empty())
-            return false;
-
-        // calculate scores
-        for (const auto& mnpair : mapMasternodes) {
-            if (mnpair.second.nProtocolVersion >= nMinProtocol) {
-                vecMasternodeScoresRet.push_back(std::make_pair(mnpair.second.CalculateScore(nBlockHash), &mnpair.second));
-            }
-        }
+    auto mnList = deterministicMNManager->GetListAtChainTip();
+    auto scores = mnList.CalculateScores(nBlockHash);
+    for (const auto& p : scores) {
+        auto* mn = Find(p.second->collateralOutpoint);
+        vecMasternodeScoresRet.emplace_back(p.first, mn);
     }
+
     sort(vecMasternodeScoresRet.rbegin(), vecMasternodeScoresRet.rend(), CompareScoreMN());
     return !vecMasternodeScoresRet.empty();
 }
