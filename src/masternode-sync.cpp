@@ -92,8 +92,6 @@ void CMasternodeSync::SwitchToNextAsset(CConnman& connman)
             LogPrintf("CMasternodeSync::SwitchToNextAsset -- Completed %s in %llds\n", GetAssetName(), GetTime() - nTimeAssetSyncStarted);
             nCurrentAsset = MASTERNODE_SYNC_FINISHED;
             uiInterface.NotifyAdditionalDataSyncProgressChanged(1);
-            //try to activate our masternode if possible
-            legacyActiveMasternodeManager.ManageState(connman);
 
             connman.ForEachNode(CConnman::AllNodes, [](CNode* pnode) {
                 netfulfilledman.AddFulfilledRequest(pnode->addr, "full-sync");
