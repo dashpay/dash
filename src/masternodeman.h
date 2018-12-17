@@ -98,8 +98,6 @@ public:
     /// Clear Masternode vector
     void Clear();
 
-    std::map<COutPoint, CMasternode> GetFullMasternodeMap();
-
     bool GetMasternodeRank(const COutPoint &outpoint, int& nRankRet, uint256& blockHashRet, int nBlockHeight = -1);
 
     void ProcessMasternodeConnections(CConnman& connman);

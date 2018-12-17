@@ -222,21 +222,6 @@ CMasternode* CMasternodeMan::Find(const COutPoint &outpoint)
     }
 }
 
-std::map<COutPoint, CMasternode> CMasternodeMan::GetFullMasternodeMap()
-{
-    LOCK(cs);
-
-    std::map<COutPoint, CMasternode> result;
-    auto mnList = deterministicMNManager->GetListAtChainTip();
-    for (const auto &p : mapMasternodes) {
-        auto dmn = mnList.GetMNByCollateral(p.first);
-        if (dmn && mnList.IsMNValid(dmn)) {
-            result.emplace(p.first, p.second);
-        }
-    }
-    return result;
-}
-
 bool CMasternodeMan::GetMasternodeScores(const uint256& nBlockHash, CMasternodeMan::score_pair_vec_t& vecMasternodeScoresRet)
 {
     AssertLockHeld(cs);
