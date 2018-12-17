@@ -1107,10 +1107,9 @@ bool CTxLockVote::CheckSignature() const
 {
     std::string strError;
 
-    masternode_info_t infoMn;
-
-    if (!mnodeman.GetMasternodeInfo(outpointMasternode, infoMn)) {
-        LogPrintf("CTxLockVote::CheckSignature -- Unknown Masternode: masternode=%s\n", outpointMasternode.ToString());
+    auto dmn = deterministicMNManager->GetListAtChainTip().GetValidMN(masternodeProTxHash);
+    if (!dmn) {
+        LogPrintf("CTxLockVote::CheckSignature -- Unknown Masternode: masternode=%s\n", masternodeProTxHash.ToString());
         return false;
     }
 
@@ -1118,7 +1117,7 @@ bool CTxLockVote::CheckSignature() const
 
     CBLSSignature sig;
     sig.SetBuf(vchMasternodeSignature);
-    if (!sig.IsValid() || !sig.VerifyInsecure(infoMn.blsPubKeyOperator, hash)) {
+    if (!sig.IsValid() || !sig.VerifyInsecure(dmn->pdmnState->pubKeyOperator, hash)) {
         LogPrintf("CTxLockVote::CheckSignature -- VerifyInsecure() failed\n");
         return false;
     }
