@@ -256,49 +256,6 @@ bool CMasternodeMan::GetMasternodeInfo(const COutPoint& outpoint, masternode_inf
     return true;
 }
 
-masternode_info_t CMasternodeMan::FindRandomNotInVec(const std::vector<COutPoint> &vecToExclude, int nProtocolVersion)
-{
-    LOCK(cs);
-
-    int nCountEnabled = CountEnabled();
-    int nCountNotExcluded = nCountEnabled - vecToExclude.size();
-
-    LogPrintf("CMasternodeMan::FindRandomNotInVec -- %d enabled masternodes, %d masternodes to choose from\n", nCountEnabled, nCountNotExcluded);
-    if(nCountNotExcluded < 1) return masternode_info_t();
-
-    // fill a vector of pointers
-    std::vector<const CMasternode*> vpMasternodesShuffled;
-    for (const auto& mnpair : mapMasternodes) {
-        vpMasternodesShuffled.push_back(&mnpair.second);
-    }
-
-    FastRandomContext insecure_rand;
-    // shuffle pointers
-    std::random_shuffle(vpMasternodesShuffled.begin(), vpMasternodesShuffled.end(), insecure_rand);
-    bool fExclude;
-
-    // loop through
-    for (const auto& pmn : vpMasternodesShuffled) {
-        if(pmn->nProtocolVersion < nProtocolVersion || !pmn->IsEnabled()) continue;
-        fExclude = false;
-        for (const auto& outpointToExclude : vecToExclude) {
-            if(pmn->outpoint == outpointToExclude) {
-                fExclude = true;
-                break;
-            }
-        }
-        if(fExclude) continue;
-        if (!deterministicMNManager->HasValidMNCollateralAtChainTip(pmn->outpoint))
-            continue;
-        // found the one not in vecToExclude
-        LogPrint("masternode", "CMasternodeMan::FindRandomNotInVec -- found, masternode=%s\n", pmn->outpoint.ToStringShort());
-        return pmn->GetInfo();
-    }
-
-    LogPrint("masternode", "CMasternodeMan::FindRandomNotInVec -- failed\n");
-    return masternode_info_t();
-}
-
 std::map<COutPoint, CMasternode> CMasternodeMan::GetFullMasternodeMap()
 {
     LOCK(cs);
