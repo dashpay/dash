@@ -238,24 +238,6 @@ CMasternode* CMasternodeMan::Find(const COutPoint &outpoint)
     }
 }
 
-bool CMasternodeMan::GetMasternodeInfo(const uint256& proTxHash, masternode_info_t& mnInfoRet)
-{
-    auto dmn = deterministicMNManager->GetListAtChainTip().GetValidMN(proTxHash);
-    if (!dmn)
-        return false;
-    return GetMasternodeInfo(dmn->collateralOutpoint, mnInfoRet);
-}
-
-bool CMasternodeMan::GetMasternodeInfo(const COutPoint& outpoint, masternode_info_t& mnInfoRet)
-{
-    LOCK(cs);
-    CMasternode* mn = Find(outpoint);
-    if (!mn)
-        return false;
-    mnInfoRet = mn->GetInfo();
-    return true;
-}
-
 std::map<COutPoint, CMasternode> CMasternodeMan::GetFullMasternodeMap()
 {
     LOCK(cs);

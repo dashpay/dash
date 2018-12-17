@@ -101,9 +101,6 @@ public:
     /// Count enabled Masternodes.
     int CountEnabled();
 
-    bool GetMasternodeInfo(const uint256& proTxHash, masternode_info_t& mnInfoRet);
-    bool GetMasternodeInfo(const COutPoint& outpoint, masternode_info_t& mnInfoRet);
-
     std::map<COutPoint, CMasternode> GetFullMasternodeMap();
 
     bool GetMasternodeRanks(rank_pair_vec_t& vecMasternodeRanksRet, int nBlockHeight = -1, int nMinProtocol = 0);
