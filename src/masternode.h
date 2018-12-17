@@ -148,9 +148,6 @@ public:
         return nMixingTxCount <= MASTERNODE_MAX_MIXING_TXES;
     }
 
-    bool IsValidNetAddr();
-    static bool IsValidNetAddr(CService addrIn);
-
     masternode_info_t GetInfo() const;
 
     static std::string StateToString(int nStateIn);

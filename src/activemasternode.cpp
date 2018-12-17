@@ -160,7 +160,7 @@ void CActiveDeterministicMasternodeManager::UpdatedBlockTip(const CBlockIndex* p
 bool CActiveDeterministicMasternodeManager::GetLocalAddress(CService& addrRet)
 {
     // First try to find whatever local address is specified by externalip option
-    bool fFoundLocal = GetLocal(addrRet) && CMasternode::IsValidNetAddr(addrRet);
+    bool fFoundLocal = GetLocal(addrRet) && IsValidNetAddr(addrRet);
     if (!fFoundLocal && Params().NetworkIDString() == CBaseChainParams::REGTEST) {
         if (Lookup("127.0.0.1", addrRet, GetListenPort(), false)) {
             fFoundLocal = true;
@@ -172,7 +172,7 @@ bool CActiveDeterministicMasternodeManager::GetLocalAddress(CService& addrRet)
         g_connman->ForEachNodeContinueIf(CConnman::AllNodes, [&fFoundLocal, &empty](CNode* pnode) {
             empty = false;
             if (pnode->addr.IsIPv4())
-                fFoundLocal = GetLocal(activeMasternodeInfo.service, &pnode->addr) && CMasternode::IsValidNetAddr(activeMasternodeInfo.service);
+                fFoundLocal = GetLocal(activeMasternodeInfo.service, &pnode->addr) && IsValidNetAddr(activeMasternodeInfo.service);
             return !fFoundLocal;
         });
         // nothing and no live connections, can't do anything for now
@@ -183,4 +183,12 @@ bool CActiveDeterministicMasternodeManager::GetLocalAddress(CService& addrRet)
         }
     }
     return true;
+}
+
+bool CActiveDeterministicMasternodeManager::IsValidNetAddr(CService addrIn)
+{
+    // TODO: regtest is fine with any addresses for now,
+    // should probably be a bit smarter if one day we start to implement tests for this
+    return Params().NetworkIDString() == CBaseChainParams::REGTEST ||
+           (addrIn.IsIPv4() && IsReachable(addrIn) && addrIn.IsRoutable());
 }
