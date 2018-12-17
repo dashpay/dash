@@ -6,10 +6,9 @@
 #include "evo/deterministicmns.h"
 #include "init.h"
 #include "masternode-sync.h"
-#include "masternode.h"
-#include "masternodeman.h"
 #include "netbase.h"
 #include "protocol.h"
+#include "validation.h"
 #include "warnings.h"
 
 // Keep track of the active Masternode
