@@ -144,7 +144,7 @@ void CGovernanceManager::ProcessMessage(CNode* pfrom, const std::string& strComm
             return;
         }
 
-        if (!masternodeSync.IsMasternodeListSynced()) {
+        if (!masternodeSync.IsBlockchainSynced()) {
             LogPrint("gobject", "MNGOVERNANCEOBJECT -- masternode list not synced\n");
             return;
         }
@@ -241,7 +241,7 @@ void CGovernanceManager::ProcessMessage(CNode* pfrom, const std::string& strComm
         }
 
         // Ignore such messages until masternode list is synced
-        if (!masternodeSync.IsMasternodeListSynced()) {
+        if (!masternodeSync.IsBlockchainSynced()) {
             LogPrint("gobject", "MNGOVERNANCEOBJECTVOTE -- masternode list not synced\n");
             return;
         }
@@ -597,7 +597,7 @@ void CGovernanceManager::DoMaintenance(CConnman& connman)
 bool CGovernanceManager::ConfirmInventoryRequest(const CInv& inv)
 {
     // do not request objects until it's time to sync
-    if (!masternodeSync.IsWinnersListSynced()) return false;
+    if (!masternodeSync.IsBlockchainSynced()) return false;
 
     LOCK(cs);
 

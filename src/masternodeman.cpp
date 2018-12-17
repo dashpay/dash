@@ -362,7 +362,7 @@ bool CMasternodeMan::GetNextMasternodeInQueueForPayment(int nBlockHeight, bool f
     mnInfoRet = masternode_info_t();
     nCountRet = 0;
 
-    if (!masternodeSync.IsWinnersListSynced()) {
+    if (!masternodeSync.IsBlockchainSynced()) {
         // without winner list we can't reliably find the next winner anyway
         return false;
     }
@@ -509,7 +509,7 @@ bool CMasternodeMan::GetMasternodeScores(const uint256& nBlockHash, CMasternodeM
             vecMasternodeScoresRet.emplace_back(p.first, mn);
         }
     } else {
-        if (!masternodeSync.IsMasternodeListSynced())
+        if (!masternodeSync.IsBlockchainSynced())
             return false;
 
         if (mapMasternodes.empty())
@@ -536,7 +536,7 @@ bool CMasternodeMan::GetMasternodeRank(const COutPoint& outpoint, int& nRankRet,
 {
     nRankRet = -1;
 
-    if (!masternodeSync.IsMasternodeListSynced())
+    if (!masternodeSync.IsBlockchainSynced())
         return false;
 
     // make sure we know about this block
@@ -568,7 +568,7 @@ bool CMasternodeMan::GetMasternodeRanks(CMasternodeMan::rank_pair_vec_t& vecMast
 {
     vecMasternodeRanksRet.clear();
 
-    if (!masternodeSync.IsMasternodeListSynced())
+    if (!masternodeSync.IsBlockchainSynced())
         return false;
 
     // make sure we know about this block
@@ -632,7 +632,7 @@ void CMasternodeMan::UpdateLastPaid(const CBlockIndex* pindex)
 {
     LOCK2(cs_main, cs);
 
-    if(fLiteMode || !masternodeSync.IsWinnersListSynced() || mapMasternodes.empty()) return;
+    if(fLiteMode || !masternodeSync.IsBlockchainSynced() || mapMasternodes.empty()) return;
 
     static int nLastRunBlockHeight = 0;
     // Scan at least LAST_PAID_SCAN_BLOCKS but no more than mnpayments.GetStorageLimit()
