@@ -62,7 +62,6 @@ void CDSNotificationInterface::UpdatedBlockTip(const CBlockIndex *pindexNew, con
     privateSendClient.UpdatedBlockTip(pindexNew);
 #endif // ENABLE_WALLET
     instantsend.UpdatedBlockTip(pindexNew);
-    mnpayments.UpdatedBlockTip(pindexNew, connman);
     governance.UpdatedBlockTip(pindexNew, connman);
 }
 
