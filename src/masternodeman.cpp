@@ -68,6 +68,16 @@ CMasternodeMan::CMasternodeMan():
     nDsqCount(0)
 {}
 
+bool CMasternodeMan::IsValidForMixingTxes(const COutPoint& outpoint)
+{
+    LOCK(cs);
+    CMasternode* pmn = Find(outpoint);
+    if (!pmn) {
+        return false;
+    }
+    return pmn->IsValidForMixingTxes();
+}
+
 bool CMasternodeMan::AllowMixing(const COutPoint &outpoint)
 {
     LOCK(cs);

@@ -85,6 +85,7 @@ public:
 
     CMasternodeMan();
 
+    bool IsValidForMixingTxes(const COutPoint &outpoint);
     bool AllowMixing(const COutPoint &outpoint);
     bool DisallowMixing(const COutPoint &outpoint);
 
