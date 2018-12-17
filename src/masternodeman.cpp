@@ -178,22 +178,6 @@ void CMasternodeMan::Clear()
     nDsqCount = 0;
 }
 
-int CMasternodeMan::CountMasternodes()
-{
-    LOCK(cs);
-
-    auto mnList = deterministicMNManager->GetListAtChainTip();
-    return (int)mnList.GetAllMNsCount();
-}
-
-int CMasternodeMan::CountEnabled()
-{
-    LOCK(cs);
-
-    auto mnList = deterministicMNManager->GetListAtChainTip();
-    return (int)mnList.GetValidMNsCount();
-}
-
 /* Only IPv4 masternodes are allowed in 12.1, saving this for later
 int CMasternodeMan::CountByIP(int nNetworkType)
 {

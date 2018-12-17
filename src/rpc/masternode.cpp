@@ -215,8 +215,9 @@ UniValue masternode_count(const JSONRPCRequest& request)
     if (request.fHelp || request.params.size() > 2)
         masternode_count_help();
 
-    int total = mnodeman.CountMasternodes();
-    int enabled = mnodeman.CountEnabled();
+    auto mnList = deterministicMNManager->GetListAtChainTip();
+    int total = mnList.GetAllMNsCount();
+    int enabled = mnList.GetValidMNsCount();
 
     if (request.params.size() == 1) {
         UniValue obj(UniValue::VOBJ);

@@ -98,19 +98,11 @@ public:
     /// Clear Masternode vector
     void Clear();
 
-    /// Count Masternodes.
-    int CountMasternodes();
-    /// Count enabled Masternodes.
-    int CountEnabled();
-
     std::map<COutPoint, CMasternode> GetFullMasternodeMap();
 
     bool GetMasternodeRank(const COutPoint &outpoint, int& nRankRet, uint256& blockHashRet, int nBlockHeight = -1);
 
     void ProcessMasternodeConnections(CConnman& connman);
-
-    /// Return the number of (unique) Masternodes
-    int size() { return mapMasternodes.size(); }
 
     std::string ToString() const;
 
