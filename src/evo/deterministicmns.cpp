@@ -472,6 +472,10 @@ bool CDeterministicMNManager::ProcessBlock(const CBlock& block, const CBlockInde
             __func__, nHeight, newList.GetAllMNsCount());
     }
 
+    if (!diff.addedMNs.empty() || !diff.removedMns.empty()) {
+        GetMainSignals().NotifyMasternodeListChanged(newList);
+    }
+
     if (nHeight == GetSpork15Value()) {
         LogPrintf("CDeterministicMNManager::%s -- spork15 is active now. nHeight=%d\n", __func__, nHeight);
     }
@@ -488,9 +492,17 @@ bool CDeterministicMNManager::UndoBlock(const CBlock& block, const CBlockIndex* 
     int nHeight = pindex->nHeight;
     uint256 blockHash = block.GetHash();
 
+    CDeterministicMNListDiff diff;
+    evoDb.Read(std::make_pair(DB_LIST_DIFF, blockHash), diff);
+
     evoDb.Erase(std::make_pair(DB_LIST_DIFF, blockHash));
     evoDb.Erase(std::make_pair(DB_LIST_SNAPSHOT, blockHash));
     mnListsCache.erase(blockHash);
+
+    if (!diff.addedMNs.empty() || !diff.removedMns.empty()) {
+        auto prevList = GetListForBlock(pindex->pprev->GetBlockHash());
+        GetMainSignals().NotifyMasternodeListChanged(prevList);
+    }
 
     if (nHeight == GetSpork15Value()) {
         LogPrintf("CDeterministicMNManager::%s -- spork15 is not active anymore. nHeight=%d\n", __func__, nHeight);
