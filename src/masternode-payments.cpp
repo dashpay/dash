@@ -319,23 +319,8 @@ bool CMasternodePayments::GetMasternodeTxOuts(int nBlockHeight, CAmount blockRew
     voutMasternodePaymentsRet.clear();
 
     if(!GetBlockTxOuts(nBlockHeight, blockReward, voutMasternodePaymentsRet)) {
-        if (deterministicMNManager->IsDeterministicMNsSporkActive(nBlockHeight)) {
-            LogPrintf("CMasternodePayments::%s -- deterministic masternode lists enabled and no payee\n", __func__);
-            return false;
-        }
-
-        // no masternode detected...
-        int nCount = 0;
-        masternode_info_t mnInfo;
-        if(!mnodeman.GetNextMasternodeInQueueForPayment(nBlockHeight, true, nCount, mnInfo)) {
-            // ...and we can't calculate it on our own
-            LogPrintf("CMasternodePayments::%s -- Failed to detect masternode to pay\n", __func__);
-            return false;
-        }
-        // fill payee with locally calculated winner and hope for the best
-        CScript payee = GetScriptForDestination(mnInfo.keyIDCollateralAddress);
-        CAmount masternodePayment = GetMasternodePayment(nBlockHeight, blockReward);
-        voutMasternodePaymentsRet.emplace_back(masternodePayment, payee);
+        LogPrintf("CMasternodePayments::%s -- deterministic masternode lists enabled and no payee\n", __func__);
+        return false;
     }
 
     for (const auto& txout : voutMasternodePaymentsRet) {
