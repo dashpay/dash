@@ -511,21 +511,17 @@ bool CGovernanceObject::IsValidLocally(std::string& strError, bool& fMissingMast
         auto mnList = deterministicMNManager->GetListAtChainTip();
 
         std::string strOutpoint = masternodeOutpoint.ToStringShort();
-        auto dmn = mnList.GetValidMNByCollateral(masternodeOutpoint);
+        auto dmn = mnList.GetMNByCollateral(masternodeOutpoint);
         if (!dmn) {
-            CMasternode::CollateralStatus err = CMasternode::CheckCollateral(masternodeOutpoint, CKeyID());
-            if (err == CMasternode::COLLATERAL_UTXO_NOT_FOUND) {
-                strError = "Failed to find Masternode UTXO, missing masternode=" + strOutpoint + "\n";
-            } else if (err == CMasternode::COLLATERAL_INVALID_AMOUNT) {
-                strError = "Masternode UTXO should have 1000 DASH, missing masternode=" + strOutpoint + "\n";
-            } else if (err == CMasternode::COLLATERAL_INVALID_PUBKEY) {
-                fMissingMasternode = true;
-                strError = "Masternode not found: " + strOutpoint;
-            } else if (err == CMasternode::COLLATERAL_OK) {
-                // this should never happen with CPubKey() as a param
-                strError = "CheckCollateral critical failure! Masternode: " + strOutpoint;
+            strError = "Failed to find Masternode by UTXO, missing masternode=" + strOutpoint + "\n";
+            return false;
+        }
+        if (!mnList.IsMNValid(dmn)) {
+            if (mnList.IsMNPoSeBanned(dmn)) {
+                strError = "Masternode is POSE_BANNED, masternode=" + strOutpoint + "\n";
+            } else {
+                strError = "Masternode is invalid for unknown reason, masternode=" + strOutpoint + "\n";
             }
-
             return false;
         }
 
