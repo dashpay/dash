@@ -14,7 +14,6 @@
 #include "validation.h"
 #include "masternode.h"
 #include "masternode-sync.h"
-#include "masternodeconfig.h"
 #include "masternodeman.h"
 #include "messagesigner.h"
 #include "rpc/server.h"
