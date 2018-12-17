@@ -262,8 +262,6 @@ void PrepareShutdown()
         // STORE DATA CACHES INTO SERIALIZED DAT FILES
         CFlatDB<CMasternodeMan> flatdb1("mncache.dat", "magicMasternodeCache");
         flatdb1.Dump(mnodeman);
-        CFlatDB<CMasternodePayments> flatdb2("mnpayments.dat", "magicMasternodePaymentsCache");
-        flatdb2.Dump(mnpayments);
         CFlatDB<CGovernanceManager> flatdb3("governance.dat", "magicGovernanceCache");
         flatdb3.Dump(governance);
         CFlatDB<CNetFulfilledRequestManager> flatdb4("netfulfilled.dat", "magicFulfilledCache");
@@ -2042,13 +2040,6 @@ bool AppInitMain(boost::thread_group& threadGroup, CScheduler& scheduler)
         }
 
         if(mnodeman.size()) {
-            strDBName = "mnpayments.dat";
-            uiInterface.InitMessage(_("Loading masternode payment cache..."));
-            CFlatDB<CMasternodePayments> flatdb2(strDBName, "magicMasternodePaymentsCache");
-            if(!flatdb2.Load(mnpayments)) {
-                return InitError(_("Failed to load masternode payments cache from") + "\n" + (pathDB / strDBName).string());
-            }
-
             strDBName = "governance.dat";
             uiInterface.InitMessage(_("Loading governance cache..."));
             CFlatDB<CGovernanceManager> flatdb3(strDBName, "magicGovernanceCache");
@@ -2085,7 +2076,6 @@ bool AppInitMain(boost::thread_group& threadGroup, CScheduler& scheduler)
         scheduler.scheduleEvery(boost::bind(&CMasternodeSync::DoMaintenance, boost::ref(masternodeSync), boost::ref(*g_connman)), 1);
         scheduler.scheduleEvery(boost::bind(&CMasternodeMan::DoMaintenance, boost::ref(mnodeman), boost::ref(*g_connman)), 1);
 
-        scheduler.scheduleEvery(boost::bind(&CMasternodePayments::DoMaintenance, boost::ref(mnpayments)), 60);
         scheduler.scheduleEvery(boost::bind(&CGovernanceManager::DoMaintenance, boost::ref(governance), boost::ref(*g_connman)), 60 * 5);
 
         scheduler.scheduleEvery(boost::bind(&CInstantSend::DoMaintenance, boost::ref(instantsend)), 60);

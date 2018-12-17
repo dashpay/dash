@@ -637,7 +637,7 @@ void CMasternodeMan::UpdateLastPaid(const CBlockIndex* pindex)
     static int nLastRunBlockHeight = 0;
     // Scan at least LAST_PAID_SCAN_BLOCKS but no more than mnpayments.GetStorageLimit()
     int nMaxBlocksToScanBack = std::max(LAST_PAID_SCAN_BLOCKS, nCachedBlockHeight - nLastRunBlockHeight);
-    nMaxBlocksToScanBack = std::min(nMaxBlocksToScanBack, mnpayments.GetStorageLimit());
+    nMaxBlocksToScanBack = std::min(nMaxBlocksToScanBack, 100);
 
     LogPrint("masternode", "CMasternodeMan::UpdateLastPaid -- nCachedBlockHeight=%d, nLastRunBlockHeight=%d, nMaxBlocksToScanBack=%d\n",
                             nCachedBlockHeight, nLastRunBlockHeight, nMaxBlocksToScanBack);
