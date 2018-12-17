@@ -1253,26 +1253,6 @@ UniValue masternodebroadcast(const JSONRPCRequest& request)
     return NullUniValue;
 }
 
-UniValue sentinelping(const JSONRPCRequest& request)
-{
-    if (request.fHelp || request.params.size() != 1) {
-        throw std::runtime_error(
-            "sentinelping version\n"
-            "\nSentinel ping.\n"
-            "\nArguments:\n"
-            "1. version           (string, required) Sentinel version in the form \"x.x.x\"\n"
-            "\nResult:\n"
-            "state                (boolean) Ping result\n"
-            "\nExamples:\n"
-            + HelpExampleCli("sentinelping", "1.0.2")
-            + HelpExampleRpc("sentinelping", "1.0.2")
-        );
-    }
-
-    legacyActiveMasternodeManager.UpdateSentinelPing(StringVersionToInt(request.params[0].get_str()));
-    return true;
-}
-
 static const CRPCCommand commands[] =
 { //  category              name                      actor (function)         okSafe argNames
   //  --------------------- ------------------------  -----------------------  ------ ----------
@@ -1280,7 +1260,6 @@ static const CRPCCommand commands[] =
     { "dash",               "masternodelist",         &masternodelist,         true,  {} },
     { "dash",               "masternodebroadcast",    &masternodebroadcast,    true,  {} },
     { "dash",               "getpoolinfo",            &getpoolinfo,            true,  {} },
-    { "dash",               "sentinelping",           &sentinelping,           true,  {} },
 #ifdef ENABLE_WALLET
     { "dash",               "privatesend",            &privatesend,            false, {} },
 #endif // ENABLE_WALLET
