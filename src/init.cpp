@@ -2084,7 +2084,6 @@ bool AppInitMain(boost::thread_group& threadGroup, CScheduler& scheduler)
         scheduler.scheduleEvery(boost::bind(&CNetFulfilledRequestManager::DoMaintenance, boost::ref(netfulfilledman)), 60);
         scheduler.scheduleEvery(boost::bind(&CMasternodeSync::DoMaintenance, boost::ref(masternodeSync), boost::ref(*g_connman)), 1);
         scheduler.scheduleEvery(boost::bind(&CMasternodeMan::DoMaintenance, boost::ref(mnodeman), boost::ref(*g_connman)), 1);
-        scheduler.scheduleEvery(boost::bind(&CActiveLegacyMasternodeManager::DoMaintenance, boost::ref(legacyActiveMasternodeManager), boost::ref(*g_connman)), MASTERNODE_MIN_MNP_SECONDS);
 
         scheduler.scheduleEvery(boost::bind(&CMasternodePayments::DoMaintenance, boost::ref(mnpayments)), 60);
         scheduler.scheduleEvery(boost::bind(&CGovernanceManager::DoMaintenance, boost::ref(governance), boost::ref(*g_connman)), 60 * 5);

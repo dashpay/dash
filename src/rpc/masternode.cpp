@@ -674,13 +674,6 @@ UniValue masternode_status(const JSONRPCRequest& request)
         }
         mnObj.push_back(Pair("state", activeMasternodeManager->GetStateString()));
         mnObj.push_back(Pair("status", activeMasternodeManager->GetStatus()));
-    } else {
-        CMasternode mn;
-        if (mnodeman.Get(activeMasternodeInfo.outpoint, mn)) {
-            mnObj.push_back(Pair("payee", CBitcoinAddress(mn.keyIDCollateralAddress).ToString()));
-        }
-
-        mnObj.push_back(Pair("status", legacyActiveMasternodeManager.GetStatus()));
     }
     return mnObj;
 }
