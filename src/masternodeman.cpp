@@ -158,7 +158,7 @@ void CMasternodeMan::Clear()
     nDsqCount = 0;
 }
 
-int CMasternodeMan::CountMasternodes(int nProtocolVersion)
+int CMasternodeMan::CountMasternodes()
 {
     LOCK(cs);
 
@@ -166,7 +166,7 @@ int CMasternodeMan::CountMasternodes(int nProtocolVersion)
     return (int)mnList.GetAllMNsCount();
 }
 
-int CMasternodeMan::CountEnabled(int nProtocolVersion)
+int CMasternodeMan::CountEnabled()
 {
     LOCK(cs);
 
@@ -257,7 +257,7 @@ masternode_info_t CMasternodeMan::FindRandomNotInVec(const std::vector<COutPoint
 {
     LOCK(cs);
 
-    int nCountEnabled = CountEnabled(nProtocolVersion);
+    int nCountEnabled = CountEnabled();
     int nCountNotExcluded = nCountEnabled - vecToExclude.size();
 
     LogPrintf("CMasternodeMan::FindRandomNotInVec -- %d enabled masternodes, %d masternodes to choose from\n", nCountEnabled, nCountNotExcluded);

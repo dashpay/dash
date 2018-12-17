@@ -94,12 +94,10 @@ public:
     /// Clear Masternode vector
     void Clear();
 
-    /// Count Masternodes filtered by nProtocolVersion.
-    /// Masternode nProtocolVersion should match or be above the one specified in param here.
-    int CountMasternodes(int nProtocolVersion = -1);
-    /// Count enabled Masternodes filtered by nProtocolVersion.
-    /// Masternode nProtocolVersion should match or be above the one specified in param here.
-    int CountEnabled(int nProtocolVersion = -1);
+    /// Count Masternodes.
+    int CountMasternodes();
+    /// Count enabled Masternodes.
+    int CountEnabled();
 
     /// Versions of Find that are safe to use from outside the class
     bool Get(const COutPoint& outpoint, CMasternode& masternodeRet);

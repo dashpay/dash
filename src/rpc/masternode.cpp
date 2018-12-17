@@ -224,25 +224,14 @@ UniValue masternode_count(const JSONRPCRequest& request)
     if (request.fHelp || request.params.size() > 2)
         masternode_count_help();
 
-    int nCount;
-    int total = mnodeman.CountMasternodes(0);
-    if (deterministicMNManager->IsDeterministicMNsSporkActive()) {
-        nCount = mnodeman.CountEnabled();
-    } else {
-        masternode_info_t mnInfo;
-        mnodeman.GetNextMasternodeInQueueForPayment(true, nCount, mnInfo);
-    }
-
-    int ps = mnodeman.CountEnabled(MIN_PRIVATESEND_PEER_PROTO_VERSION);
+    int total = mnodeman.CountMasternodes();
     int enabled = mnodeman.CountEnabled();
 
     if (request.params.size() == 1) {
         UniValue obj(UniValue::VOBJ);
 
         obj.push_back(Pair("total", total));
-        obj.push_back(Pair("ps_compatible", ps));
         obj.push_back(Pair("enabled", enabled));
-        obj.push_back(Pair("qualify", nCount));
 
         return obj;
     }
@@ -252,18 +241,12 @@ UniValue masternode_count(const JSONRPCRequest& request)
     if (strMode == "total")
         return total;
 
-    if (strMode == "ps")
-        return ps;
-
     if (strMode == "enabled")
         return enabled;
 
-    if (strMode == "qualify")
-        return nCount;
-
     if (strMode == "all")
-        return strprintf("Total: %d (PS Compatible: %d / Enabled: %d / Qualify: %d)",
-            total, ps, enabled, nCount);
+        return strprintf("Total: %d (Enabled: %d)",
+            total, enabled);
 
     throw JSONRPCError(RPC_INVALID_PARAMETER, "Unknown mode value");
 }
