@@ -92,9 +92,6 @@ public:
     bool DisallowMixing(const COutPoint &outpoint);
     int64_t GetLastDsq(const COutPoint &outpoint);
 
-    void AddDeterministicMasternodes();
-    void RemoveNonDeterministicMasternodes();
-
     /// Clear Masternode vector
     void Clear();
 

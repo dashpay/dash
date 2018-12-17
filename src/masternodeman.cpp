@@ -114,63 +114,6 @@ int64_t CMasternodeMan::GetLastDsq(const COutPoint& outpoint)
     return pmn->nLastDsq;
 }
 
-void CMasternodeMan::AddDeterministicMasternodes()
-{
-    bool added = false;
-    {
-        LOCK(cs);
-        unsigned int oldMnCount = mapMasternodes.size();
-
-        auto mnList = deterministicMNManager->GetListAtChainTip();
-        mnList.ForEachMN(true, [this](const CDeterministicMNCPtr& dmn) {
-            // call Find() on each deterministic MN to force creation of CMasternode object
-            auto mn = Find(dmn->collateralOutpoint);
-            assert(mn);
-
-            // make sure we use the splitted keys from now on
-            mn->keyIDOwner = dmn->pdmnState->keyIDOwner;
-            mn->blsPubKeyOperator = dmn->pdmnState->pubKeyOperator;
-            mn->keyIDVoting = dmn->pdmnState->keyIDVoting;
-            mn->addr = dmn->pdmnState->addr;
-            mn->nProtocolVersion = DMN_PROTO_VERSION;
-
-            // If it appeared in the valid list, it is enabled no matter what
-            mn->nActiveState = CMasternode::MASTERNODE_ENABLED;
-        });
-
-        added = oldMnCount != mapMasternodes.size();
-    }
-
-    if (added) {
-        NotifyMasternodeUpdates(*g_connman, true, false);
-    }
-}
-
-void CMasternodeMan::RemoveNonDeterministicMasternodes()
-{
-    bool erased = false;
-    {
-        LOCK(cs);
-        std::set<COutPoint> mnSet;
-        auto mnList = deterministicMNManager->GetListAtChainTip();
-        mnList.ForEachMN(true, [&](const CDeterministicMNCPtr& dmn) {
-            mnSet.insert(dmn->collateralOutpoint);
-        });
-        auto it = mapMasternodes.begin();
-        while (it != mapMasternodes.end()) {
-            if (!mnSet.count(it->second.outpoint)) {
-                mapMasternodes.erase(it++);
-                erased = true;
-            } else {
-                ++it;
-            }
-        }
-    }
-    if (erased) {
-        NotifyMasternodeUpdates(*g_connman, false, true);
-    }
-}
-
 void CMasternodeMan::Clear()
 {
     LOCK(cs);
@@ -328,9 +271,6 @@ void CMasternodeMan::UpdatedBlockTip(const CBlockIndex *pindex)
 {
     nCachedBlockHeight = pindex->nHeight;
     LogPrint("masternode", "CMasternodeMan::UpdatedBlockTip -- nCachedBlockHeight=%d\n", nCachedBlockHeight);
-
-    AddDeterministicMasternodes();
-    RemoveNonDeterministicMasternodes();
 }
 
 void CMasternodeMan::NotifyMasternodeUpdates(CConnman& connman, bool forceAddedChecks, bool forceRemovedChecks)
