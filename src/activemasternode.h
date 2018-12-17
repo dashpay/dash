@@ -68,6 +68,8 @@ public:
     std::string GetStateString() const;
     std::string GetStatus() const;
 
+    static bool IsValidNetAddr(CService addrIn);
+
 private:
     bool GetLocalAddress(CService& addrRet);
 };
