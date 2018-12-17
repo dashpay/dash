@@ -10,7 +10,6 @@
 #include "validation.h"
 #include "masternode-payments.h"
 #include "masternode-sync.h"
-#include "masternodeconfig.h"
 #include "masternodeman.h"
 #ifdef ENABLE_WALLET
 #include "privatesend-client.h"
