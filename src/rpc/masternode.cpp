@@ -456,7 +456,7 @@ UniValue masternode_start_missing(const JSONRPCRequest& request)
         EnsureWalletIsUnlocked();
     }
 
-    if (!masternodeSync.IsMasternodeListSynced()) {
+    if (!masternodeSync.IsBlockchainSynced()) {
         throw JSONRPCError(RPC_CLIENT_IN_INITIAL_DOWNLOAD, "You can't use this command until masternode list is synced");
     }
 
@@ -492,7 +492,7 @@ UniValue masternode_start_disabled(const JSONRPCRequest& request)
         EnsureWalletIsUnlocked();
     }
 
-    if (!masternodeSync.IsMasternodeListSynced()) {
+    if (!masternodeSync.IsBlockchainSynced()) {
         throw JSONRPCError(RPC_CLIENT_IN_INITIAL_DOWNLOAD, "You can't use this command until masternode list is synced");
     }
 

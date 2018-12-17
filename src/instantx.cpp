@@ -79,8 +79,8 @@ void CInstantSend::ProcessMessage(CNode* pfrom, const std::string& strCommand, C
             connman.RemoveAskFor(nVoteHash);
         }
 
-        // Ignore any InstantSend messages until masternode list is synced
-        if (!masternodeSync.IsMasternodeListSynced()) return;
+        // Ignore any InstantSend messages until blockchain is synced
+        if (!masternodeSync.IsBlockchainSynced()) return;
 
         {
             LOCK(cs_instantsend);
@@ -666,7 +666,7 @@ int64_t CInstantSend::GetAverageMasternodeOrphanVoteTime()
 
 void CInstantSend::CheckAndRemove()
 {
-    if (!masternodeSync.IsMasternodeListSynced()) return;
+    if (!masternodeSync.IsBlockchainSynced()) return;
 
     LOCK(cs_instantsend);
 
