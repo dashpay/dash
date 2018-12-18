@@ -1112,8 +1112,6 @@ UniValue getgovernanceinfo(const JSONRPCRequest& request)
 
     UniValue obj(UniValue::VOBJ);
     obj.push_back(Pair("governanceminquorum", Params().GetConsensus().nGovernanceMinQuorum));
-    obj.push_back(Pair("masternodewatchdogmaxseconds", MASTERNODE_SENTINEL_PING_MAX_SECONDS));
-    obj.push_back(Pair("sentinelpingmaxseconds", MASTERNODE_SENTINEL_PING_MAX_SECONDS));
     obj.push_back(Pair("proposalfee", ValueFromAmount(GOVERNANCE_PROPOSAL_FEE_TX)));
     obj.push_back(Pair("superblockcycle", Params().GetConsensus().nSuperblockCycle));
     obj.push_back(Pair("lastsuperblock", nLastSuperblock));
