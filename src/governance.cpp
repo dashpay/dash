@@ -1404,7 +1404,7 @@ unsigned int CGovernanceManager::GetMinVoteTime()
     if (!deterministicMNManager->IsDIP3Active()) {
         return 0;
     }
-    int64_t dip3SporkHeight = sporkManager.GetSporkValue(SPORK_15_DETERMINISTIC_MNS_ENABLED);
+    int64_t dip3SporkHeight = Params().GetConsensus().DIP0003Height;
     return chainActive[dip3SporkHeight]->nTime;
 }
 
