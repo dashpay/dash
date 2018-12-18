@@ -1949,7 +1949,7 @@ bool AppInitMain(boost::thread_group& threadGroup, CScheduler& scheduler)
         }
 
         // init and register activeMasternodeManager
-        activeMasternodeManager = new CActiveDeterministicMasternodeManager();
+        activeMasternodeManager = new CActiveMasternodeManager();
         RegisterValidationInterface(activeMasternodeManager);
     }
 
