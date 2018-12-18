@@ -61,8 +61,6 @@ void CActiveMasternodeManager::Init()
 
     if (!fMasternodeMode) return;
 
-    if (!deterministicMNManager->IsDeterministicMNsSporkActive()) return;
-
     if (!GetLocalAddress(activeMasternodeInfo.service)) {
         state = MASTERNODE_ERROR;
         return;
@@ -107,7 +105,7 @@ void CActiveMasternodeManager::UpdatedBlockTip(const CBlockIndex* pindexNew, con
 
     if (!fMasternodeMode) return;
 
-    if (!deterministicMNManager->IsDeterministicMNsSporkActive(pindexNew->nHeight)) return;
+    if (!deterministicMNManager->IsDIP3Active(pindexNew->nHeight)) return;
 
     if (state == MASTERNODE_WAITING_FOR_PROTX) {
         Init();

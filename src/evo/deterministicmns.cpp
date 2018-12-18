@@ -9,7 +9,6 @@
 #include "chainparams.h"
 #include "core_io.h"
 #include "script/standard.h"
-#include "spork.h"
 #include "validation.h"
 #include "validationinterface.h"
 
@@ -476,8 +475,14 @@ bool CDeterministicMNManager::ProcessBlock(const CBlock& block, const CBlockInde
         GetMainSignals().NotifyMasternodeListChanged(newList);
     }
 
-    if (nHeight == GetSpork15Value()) {
-        LogPrintf("CDeterministicMNManager::%s -- spork15 is active now. nHeight=%d\n", __func__, nHeight);
+    const auto& consensusParams = Params().GetConsensus();
+    if (nHeight == consensusParams.DIP0003Height) {
+        if (!consensusParams.DIP0003Hash.IsNull() && consensusParams.DIP0003Hash != pindex->GetBlockHash()) {
+            LogPrintf("CDeterministicMNManager::%s -- DIP3 activation block has wrong hash: hash=%s, expected=%s, nHeight=%d\n", __func__,
+                    pindex->GetBlockHash().ToString(), consensusParams.DIP0003Hash.ToString(), nHeight);
+            return _state.DoS(100, false, REJECT_INVALID, "bad-dip3-block");
+        }
+        LogPrintf("CDeterministicMNManager::%s -- DIP3 is active now. nHeight=%d\n", __func__, nHeight);
     }
 
     CleanupCache(nHeight);
@@ -504,8 +509,9 @@ bool CDeterministicMNManager::UndoBlock(const CBlock& block, const CBlockIndex* 
         GetMainSignals().NotifyMasternodeListChanged(prevList);
     }
 
-    if (nHeight == GetSpork15Value()) {
-        LogPrintf("CDeterministicMNManager::%s -- spork15 is not active anymore. nHeight=%d\n", __func__, nHeight);
+    const auto& consensusParams = Params().GetConsensus();
+    if (nHeight == consensusParams.DIP0003Height) {
+        LogPrintf("CDeterministicMNManager::%s -- DIP3 is not active anymore. nHeight=%d\n", __func__, nHeight);
     }
 
     return true;
@@ -839,11 +845,6 @@ CDeterministicMNList CDeterministicMNManager::GetListAtChainTip()
     return GetListForBlock(tipBlockHash);
 }
 
-int64_t CDeterministicMNManager::GetSpork15Value()
-{
-    return sporkManager.GetSporkValue(SPORK_15_DETERMINISTIC_MNS_ENABLED);
-}
-
 bool CDeterministicMNManager::IsProTxWithCollateral(const CTransactionRef& tx, uint32_t n)
 {
     if (tx->nVersion != 3 || tx->nType != TRANSACTION_PROVIDER_REGISTER) {
@@ -866,16 +867,11 @@ bool CDeterministicMNManager::IsProTxWithCollateral(const CTransactionRef& tx, u
     return true;
 }
 
-bool CDeterministicMNManager::IsDeterministicMNsSporkActive(int nHeight)
+bool CDeterministicMNManager::IsDIP3Active(int nHeight)
 {
     LOCK(cs);
-
-    if (nHeight == -1) {
-        nHeight = tipHeight;
-    }
-
-    int64_t spork15Value = GetSpork15Value();
-    return nHeight >= spork15Value;
+    assert(nHeight >= 0);
+    return nHeight >= Params().GetConsensus().DIP0003Height;
 }
 
 void CDeterministicMNManager::CleanupCache(int nHeight)

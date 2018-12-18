@@ -495,10 +495,9 @@ public:
     // Test if given TX is a ProRegTx which also contains the collateral at index n
     bool IsProTxWithCollateral(const CTransactionRef& tx, uint32_t n);
 
-    bool IsDeterministicMNsSporkActive(int nHeight = -1);
+    bool IsDIP3Active(int nHeight);
 
 private:
-    int64_t GetSpork15Value();
     void CleanupCache(int nHeight);
 };
 
