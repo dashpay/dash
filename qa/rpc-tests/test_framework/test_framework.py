@@ -309,9 +309,6 @@ class DashTestFramework(BitcoinTestFramework):
         for status in mn_info.values():
             assert (status == 'ENABLED')
 
-    def enforce_masternode_payments(self):
-        self.nodes[0].spork('SPORK_8_MASTERNODE_PAYMENT_ENFORCEMENT', 0)
-
     def create_raw_trx(self, node_from, node_to, amount, min_inputs, max_inputs):
         assert (min_inputs <= max_inputs)
         # fill inputs
