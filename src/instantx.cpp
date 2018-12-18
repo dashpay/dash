@@ -249,10 +249,6 @@ void CInstantSend::Vote(CTxLockCandidate& txLockCandidate, CConnman& connman)
             LogPrint("instantsend", "CInstantSend::Vote -- Can't calculate rank for masternode %s\n", activeMasternodeInfo.outpoint.ToStringShort());
             continue;
         }
-        if (!deterministicMNManager->IsDeterministicMNsSporkActive()) {
-            // not used until spork15 activation
-            quorumModifierHash = uint256();
-        }
 
         int nSignaturesTotal = COutPointLock::SIGNATURES_TOTAL;
         if (nRank > nSignaturesTotal) {
@@ -1070,8 +1066,8 @@ bool CTxLockVote::IsValid(CNode* pnode, CConnman& connman) const
             LogPrint("instantsend", "CTxLockVote::IsValid -- invalid quorumModifierHash %s, expected %s\n", quorumModifierHash.ToString(), expectedQuorumModifierHash.ToString());
             return false;
         }
-    } else if (deterministicMNManager->IsDeterministicMNsSporkActive()) {
-        LogPrint("instantsend", "CTxLockVote::IsValid -- missing quorumModifierHash while DIP3 is active\n");
+    } else {
+        LogPrint("instantsend", "CTxLockVote::IsValid -- missing quorumModifierHash\n");
         return false;
     }
 
