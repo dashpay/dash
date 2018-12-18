@@ -588,7 +588,7 @@ void protx_revoke_help()
 
 UniValue protx_revoke(const JSONRPCRequest& request)
 {
-    if (request.fHelp || (request.params.size() != 2 && request.params.size() != 3)) {
+    if (request.fHelp || (request.params.size() != 3 && request.params.size() != 4)) {
         protx_revoke_help();
     }
 
