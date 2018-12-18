@@ -28,9 +28,6 @@ extern CActiveMasternodeManager* activeMasternodeManager;
 
 struct CActiveMasternodeInfo {
     // Keys for the active Masternode
-    CKeyID legacyKeyIDOperator;
-    CKey legacyKeyOperator;
-
     std::unique_ptr<CBLSPublicKey> blsPubKeyOperator;
     std::unique_ptr<CBLSSecretKey> blsKeyOperator;
 

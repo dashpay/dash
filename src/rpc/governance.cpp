@@ -261,7 +261,7 @@ UniValue gobject_submit(const JSONRPCRequest& request)
     auto mnList = deterministicMNManager->GetListAtChainTip();
     bool fMnFound = mnList.HasValidMNByCollateral(activeMasternodeInfo.outpoint);
 
-    DBG( std::cout << "gobject: submit activeMasternodeInfo.keyIDOperator = " << activeMasternodeInfo.legacyKeyIDOperator.ToString()
+    DBG( std::cout << "gobject: submit activeMasternodeInfo.pubKeyOperator = " << (activeMasternodeInfo.blsPubKeyOperator ? activeMasternodeInfo.blsPubKeyOperator->ToString() : "N/A")
          << ", outpoint = " << activeMasternodeInfo.outpoint.ToStringShort()
          << ", params.size() = " << request.params.size()
          << ", fMnFound = " << fMnFound << std::endl; );
@@ -311,11 +311,7 @@ UniValue gobject_submit(const JSONRPCRequest& request)
     if (govobj.GetObjectType() == GOVERNANCE_OBJECT_TRIGGER) {
         if (fMnFound) {
             govobj.SetMasternodeOutpoint(activeMasternodeInfo.outpoint);
-            if (deterministicMNManager->IsDeterministicMNsSporkActive()) {
-                govobj.Sign(*activeMasternodeInfo.blsKeyOperator);
-            } else {
-                govobj.Sign(activeMasternodeInfo.legacyKeyOperator, activeMasternodeInfo.legacyKeyIDOperator);
-            }
+            govobj.Sign(*activeMasternodeInfo.blsKeyOperator);
         } else {
             LogPrintf("gobject(submit) -- Object submission rejected because node is not a masternode\n");
             throw JSONRPCError(RPC_INVALID_PARAMETER, "Only valid masternodes can submit this type of object");
