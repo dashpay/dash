@@ -352,19 +352,18 @@ UniValue masternode_status(const JSONRPCRequest& request)
     mnObj.push_back(Pair("outpoint", activeMasternodeInfo.outpoint.ToStringShort()));
     mnObj.push_back(Pair("service", activeMasternodeInfo.service.ToString()));
 
-    if (deterministicMNManager->IsDeterministicMNsSporkActive()) {
-        auto dmn = activeMasternodeManager->GetDMN();
-        if (dmn) {
-            mnObj.push_back(Pair("proTxHash", dmn->proTxHash.ToString()));
-            mnObj.push_back(Pair("collateralHash", dmn->collateralOutpoint.hash.ToString()));
-            mnObj.push_back(Pair("collateralIndex", (int)dmn->collateralOutpoint.n));
-            UniValue stateObj;
-            dmn->pdmnState->ToJson(stateObj);
-            mnObj.push_back(Pair("dmnState", stateObj));
-        }
-        mnObj.push_back(Pair("state", activeMasternodeManager->GetStateString()));
-        mnObj.push_back(Pair("status", activeMasternodeManager->GetStatus()));
+    auto dmn = activeMasternodeManager->GetDMN();
+    if (dmn) {
+        mnObj.push_back(Pair("proTxHash", dmn->proTxHash.ToString()));
+        mnObj.push_back(Pair("collateralHash", dmn->collateralOutpoint.hash.ToString()));
+        mnObj.push_back(Pair("collateralIndex", (int)dmn->collateralOutpoint.n));
+        UniValue stateObj;
+        dmn->pdmnState->ToJson(stateObj);
+        mnObj.push_back(Pair("dmnState", stateObj));
     }
+    mnObj.push_back(Pair("state", activeMasternodeManager->GetStateString()));
+    mnObj.push_back(Pair("status", activeMasternodeManager->GetStatus()));
+
     return mnObj;
 }
 
