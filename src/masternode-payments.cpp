@@ -225,14 +225,6 @@ void FillBlockPayments(CMutableTransaction& txNew, int nBlockHeight, CAmount blo
             CSuperblockManager::GetSuperblockPayments(nBlockHeight, voutSuperblockPaymentsRet);
     }
 
-    bool allowSuperblockAndMNReward = deterministicMNManager->IsDeterministicMNsSporkActive(nBlockHeight);
-
-    // don't allow payments to superblocks AND masternodes before spork15 activation
-    if (!voutSuperblockPaymentsRet.empty() && !allowSuperblockAndMNReward) {
-        txNew.vout.insert(txNew.vout.end(), voutSuperblockPaymentsRet.begin(), voutSuperblockPaymentsRet.end());
-        return;
-    }
-
     if (!mnpayments.GetMasternodeTxOuts(nBlockHeight, blockReward, voutMasternodePaymentsRet)) {
         LogPrint("mnpayments", "%s -- no masternode to pay (MN list probably empty)\n", __func__);
     }
