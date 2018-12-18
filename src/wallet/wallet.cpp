@@ -2096,6 +2096,10 @@ CAmount CWalletTx::GetAvailableCredit(bool fUseCache) const
     if (IsCoinBase() && GetBlocksToMaturity() > 0)
         return 0;
 
+    // Do not use abandoned transactions
+    if (isAbandoned())
+        return 0;
+
     if (fUseCache && fAvailableCreditCached)
         return nAvailableCreditCached;
 
@@ -2140,6 +2144,10 @@ CAmount CWalletTx::GetAvailableWatchOnlyCredit(const bool& fUseCache) const
     if (IsCoinBase() && GetBlocksToMaturity() > 0)
         return 0;
 
+    // Do not use abandoned transactions
+    if (isAbandoned())
+        return 0;
+
     if (fUseCache && fAvailableWatchCreditCached)
         return nAvailableWatchCreditCached;
 
@@ -2167,6 +2175,10 @@ CAmount CWalletTx::GetAnonymizedCredit(bool fUseCache) const
 
     // Must wait until coinbase is safely deep enough in the chain before valuing it
     if (IsCoinBase() && GetBlocksToMaturity() > 0)
+        return 0;
+
+    // Do not use abandoned transactions
+    if (isAbandoned())
         return 0;
 
     if (fUseCache && fAnonymizedCreditCached)
@@ -2201,6 +2213,10 @@ CAmount CWalletTx::GetDenominatedCredit(bool unconfirmed, bool fUseCache) const
 
     // Must wait until coinbase is safely deep enough in the chain before valuing it
     if (IsCoinBase() && GetBlocksToMaturity() > 0)
+        return 0;
+
+    // Do not use abandoned transactions
+    if (isAbandoned())
         return 0;
 
     int nDepth = GetDepthInMainChain();
