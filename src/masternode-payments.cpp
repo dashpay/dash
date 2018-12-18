@@ -319,7 +319,7 @@ bool CMasternodePayments::GetMasternodeTxOuts(int nBlockHeight, CAmount blockRew
     voutMasternodePaymentsRet.clear();
 
     if(!GetBlockTxOuts(nBlockHeight, blockReward, voutMasternodePaymentsRet)) {
-        LogPrintf("CMasternodePayments::%s -- deterministic masternode lists enabled and no payee\n", __func__);
+        LogPrintf("CMasternodePayments::%s -- no payee (deterministic masternode list empty)\n", __func__);
         return false;
     }
 
@@ -343,13 +343,6 @@ bool CMasternodePayments::GetBlockTxOuts(int nBlockHeight, CAmount blockReward, 
     uint256 blockHash;
     {
         LOCK(cs_main);
-        if (nBlockHeight - 1 > chainActive.Height()) {
-            // there are some cases (e.g. IsScheduled) where legacy/compatibility code runs into this method with
-            // block heights above the chain tip. Return false in this case
-            // TODO remove this when removing the compatibility code and make sure this method is only called with
-            // correct block height
-            return false;
-        }
         blockHash = chainActive[nBlockHeight - 1]->GetBlockHash();
     }
     uint256 proTxHash;
