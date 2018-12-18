@@ -455,7 +455,7 @@ void MasternodeList::updateDIP3List()
             if (dmn->pdmnState->scriptOperatorPayout != CScript()) {
                 CTxDestination dest;
                 if (ExtractDestination(dmn->pdmnState->scriptOperatorPayout, dest)) {
-                    operatorRewardStr += tr(" to %1").arg(QString::fromStdString(CBitcoinAddress(payeeDest).ToString()));
+                    operatorRewardStr += tr(" to %1").arg(QString::fromStdString(CBitcoinAddress(dest).ToString()));
                 } else {
                     operatorRewardStr += tr(" to UNKNOWN");
                 }
