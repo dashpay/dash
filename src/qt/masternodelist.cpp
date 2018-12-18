@@ -402,6 +402,10 @@ void MasternodeList::updateDIP3List()
         return;
     }
 
+    if (deterministicMNManager->IsDeterministicMNsSporkActive()) {
+        ui->dip3NoteLabel->setVisible(false);
+    }
+
     TRY_LOCK(cs_dip3list, fLockAcquired);
     if (!fLockAcquired) return;
 
@@ -426,10 +430,6 @@ void MasternodeList::updateDIP3List()
     ui->tableWidgetMasternodesDIP3->setSortingEnabled(false);
     ui->tableWidgetMasternodesDIP3->clearContents();
     ui->tableWidgetMasternodesDIP3->setRowCount(0);
-
-    if (deterministicMNManager->IsDeterministicMNsSporkActive()) {
-        ui->dip3NoteLabel->setVisible(false);
-    }
 
     auto mnList = deterministicMNManager->GetListAtChainTip();
     auto projectedPayees = mnList.GetProjectedMNPayees(mnList.GetValidMNsCount());
