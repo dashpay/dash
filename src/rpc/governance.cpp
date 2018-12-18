@@ -940,9 +940,9 @@ UniValue gobject_getcurrentvotes(const JSONRPCRequest& request)
             "  getcurrentvotes    - Get only current (tallying) votes for a governance object hash (does not include old votes)\n"
             "  list               - List governance objects (can be filtered by signal and/or object type)\n"
             "  diff               - List differences since last diff\n"
-            "  vote-alias         - Vote on a governance object by masternode alias (using masternode.conf setup)\n"
+            "  vote-alias         - Vote on a governance object by masternode alias/proTxHash\n"
             "  vote-conf          - Vote on a governance object by masternode configured in dash.conf\n"
-            "  vote-many          - Vote on a governance object by all masternodes (using masternode.conf setup)\n"
+            "  vote-many          - Vote on a governance object by all masternodes for which the voting key is in the wallet\n"
             );
 }
 
