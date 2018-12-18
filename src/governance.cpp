@@ -223,12 +223,6 @@ void CGovernanceManager::ProcessMessage(CNode* pfrom, const std::string& strComm
         CGovernanceVote vote;
         vRecv >> vote;
 
-        // TODO remove this check after full DIP3 deployment
-        if (vote.GetTimestamp() < GetMinVoteTime()) {
-            // Ignore votes pre-DIP3
-            return;
-        }
-
         uint256 nHash = vote.GetHash();
 
         {
@@ -584,10 +578,6 @@ struct sortProposalsByVotes {
 void CGovernanceManager::DoMaintenance(CConnman& connman)
 {
     if (fLiteMode || !masternodeSync.IsSynced() || ShutdownRequested()) return;
-
-    if (deterministicMNManager->IsDeterministicMNsSporkActive()) {
-        ClearPreDIP3Votes();
-    }
 
     // CHECK OBJECTS WE'VE ASKED FOR, REMOVE OLD ENTRIES
 
@@ -1307,10 +1297,6 @@ void CGovernanceManager::UpdatedBlockTip(const CBlockIndex* pindex, CConnman& co
     nCachedBlockHeight = pindex->nHeight;
     LogPrint("gobject", "CGovernanceManager::UpdatedBlockTip -- nCachedBlockHeight: %d\n", nCachedBlockHeight);
 
-    if (deterministicMNManager->IsDeterministicMNsSporkActive(pindex->nHeight)) {
-        ClearPreDIP3Votes();
-    }
-
     CheckPostponedObjects(connman);
 
     CSuperblockManager::ExecuteBestSuperblock(pindex->nHeight);
@@ -1359,40 +1345,6 @@ void CGovernanceManager::CleanOrphanObjects()
         const vote_time_pair_t& pairVote = prevIt->value;
         if (pairVote.second < nNow) {
             cmmapOrphanVotes.Erase(prevIt->key, prevIt->value);
-        }
-    }
-}
-
-unsigned int CGovernanceManager::GetMinVoteTime()
-{
-    LOCK(cs_main);
-    if (!deterministicMNManager->IsDeterministicMNsSporkActive()) {
-        return 0;
-    }
-    int64_t dip3SporkHeight = sporkManager.GetSporkValue(SPORK_15_DETERMINISTIC_MNS_ENABLED);
-    return chainActive[dip3SporkHeight]->nTime;
-}
-
-void CGovernanceManager::ClearPreDIP3Votes()
-{
-    // This removes all votes which were created before DIP3 spork15 activation
-    // All these votes are invalid immediately after spork15 activation due to the introduction of voting keys, which
-    // are not equal to the old masternode private keys
-
-    unsigned int minVoteTime = GetMinVoteTime();
-
-    LOCK(cs);
-    for (auto& p : mapObjects) {
-        auto& obj = p.second;
-        auto removed = obj.RemoveOldVotes(minVoteTime);
-        if (removed.empty()) {
-            continue;
-        }
-        for (auto& voteHash : removed) {
-            cmapVoteToObject.Erase(voteHash);
-            cmapInvalidVotes.Erase(voteHash);
-            cmmapOrphanVotes.Erase(voteHash);
-            setRequestedVotes.erase(voteHash);
         }
     }
 }
