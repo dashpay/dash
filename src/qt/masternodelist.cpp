@@ -318,6 +318,16 @@ void MasternodeList::updateNodeList()
         return;
     }
 
+    if (deterministicMNManager->IsDeterministicMNsSporkActive()) {
+        // we misuse the fact that updateNodeList is called regularely here and remove both tabs
+        if (ui->tabWidget->indexOf(ui->tabDIP3Masternodes) != 0) {
+            // remove "My Masternode" and "All Masternodes" tabs
+            ui->tabWidget->removeTab(0);
+            ui->tabWidget->removeTab(0);
+        }
+        return;
+    }
+
     TRY_LOCK(cs_mnlist, fLockAcquired);
     if (!fLockAcquired) return;
 
