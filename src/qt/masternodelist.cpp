@@ -277,6 +277,9 @@ void MasternodeList::updateMyNodeList(bool fForce)
     if (ShutdownRequested()) {
         return;
     }
+    if (deterministicMNManager->IsDeterministicMNsSporkActive()) {
+        return;
+    }
 
     TRY_LOCK(cs_mymnlist, fLockAcquired);
     if (!fLockAcquired) return;
