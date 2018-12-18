@@ -162,7 +162,7 @@ bool IsBlockValueValid(const CBlock& block, int nBlockHeight, CAmount blockRewar
 
 bool IsBlockPayeeValid(const CTransaction& txNew, int nBlockHeight, CAmount blockReward)
 {
-    if((!masternodeSync.IsSynced() && !deterministicMNManager->IsDeterministicMNsSporkActive(nBlockHeight)) || fLiteMode) {
+    if(fLiteMode) {
         //there is no budget data to use to check anything, let's just accept the longest chain
         if(fDebug) LogPrintf("%s -- WARNING: Not enough data, skipping block payee checks\n", __func__);
         return true;
