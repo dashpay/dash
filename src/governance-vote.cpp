@@ -151,31 +151,16 @@ bool CGovernanceVote::Sign(const CKey& key, const CKeyID& keyID)
 {
     std::string strError;
 
-    if (sporkManager.IsSporkActive(SPORK_6_NEW_SIGS)) {
-        uint256 hash = GetSignatureHash();
+    uint256 hash = GetSignatureHash();
 
-        if (!CHashSigner::SignHash(hash, key, vchSig)) {
-            LogPrintf("CGovernanceVote::Sign -- SignHash() failed\n");
-            return false;
-        }
+    if (!CHashSigner::SignHash(hash, key, vchSig)) {
+        LogPrintf("CGovernanceVote::Sign -- SignHash() failed\n");
+        return false;
+    }
 
-        if (!CHashSigner::VerifyHash(hash, keyID, vchSig, strError)) {
-            LogPrintf("CGovernanceVote::Sign -- VerifyHash() failed, error: %s\n", strError);
-            return false;
-        }
-    } else {
-        std::string strMessage = masternodeOutpoint.ToStringShort() + "|" + nParentHash.ToString() + "|" +
-                                 std::to_string(nVoteSignal) + "|" + std::to_string(nVoteOutcome) + "|" + std::to_string(nTime);
-
-        if (!CMessageSigner::SignMessage(strMessage, vchSig, key)) {
-            LogPrintf("CGovernanceVote::Sign -- SignMessage() failed\n");
-            return false;
-        }
-
-        if (!CMessageSigner::VerifyMessage(keyID, vchSig, strMessage, strError)) {
-            LogPrintf("CGovernanceVote::Sign -- VerifyMessage() failed, error: %s\n", strError);
-            return false;
-        }
+    if (!CHashSigner::VerifyHash(hash, keyID, vchSig, strError)) {
+        LogPrintf("CGovernanceVote::Sign -- VerifyHash() failed, error: %s\n", strError);
+        return false;
     }
 
     return true;
@@ -185,32 +170,11 @@ bool CGovernanceVote::CheckSignature(const CKeyID& keyID) const
 {
     std::string strError;
 
-    if (sporkManager.IsSporkActive(SPORK_6_NEW_SIGS)) {
-        uint256 hash = GetSignatureHash();
+    uint256 hash = GetSignatureHash();
 
-        if (!CHashSigner::VerifyHash(hash, keyID, vchSig, strError)) {
-            // could be a signature in old format
-            std::string strMessage = masternodeOutpoint.ToStringShort() + "|" + nParentHash.ToString() + "|" +
-                                     std::to_string(nVoteSignal) + "|" +
-                                     std::to_string(nVoteOutcome) + "|" +
-                                     std::to_string(nTime);
-
-            if (!CMessageSigner::VerifyMessage(keyID, vchSig, strMessage, strError)) {
-                // nope, not in old format either
-                LogPrint("gobject", "CGovernanceVote::IsValid -- VerifyMessage() failed, error: %s\n", strError);
-                return false;
-            }
-        }
-    } else {
-        std::string strMessage = masternodeOutpoint.ToStringShort() + "|" + nParentHash.ToString() + "|" +
-                                 std::to_string(nVoteSignal) + "|" +
-                                 std::to_string(nVoteOutcome) + "|" +
-                                 std::to_string(nTime);
-
-        if (!CMessageSigner::VerifyMessage(keyID, vchSig, strMessage, strError)) {
-            LogPrint("gobject", "CGovernanceVote::IsValid -- VerifyMessage() failed, error: %s\n", strError);
-            return false;
-        }
+    if (!CHashSigner::VerifyHash(hash, keyID, vchSig, strError)) {
+        LogPrint("gobject", "CGovernanceVote::IsValid -- VerifyMessage() failed, error: %s\n", strError);
+        return false;
     }
 
     return true;
