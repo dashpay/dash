@@ -453,9 +453,9 @@ void MasternodeList::updateDIP3List()
             operatorRewardStr += QString::number(dmn->nOperatorReward / 100.0, 'f', 2) + "%";
 
             if (dmn->pdmnState->scriptOperatorPayout != CScript()) {
-                CTxDestination dest;
-                if (ExtractDestination(dmn->pdmnState->scriptOperatorPayout, dest)) {
-                    operatorRewardStr += tr(" to %1").arg(QString::fromStdString(CBitcoinAddress(dest).ToString()));
+                CTxDestination operatorDest;
+                if (ExtractDestination(dmn->pdmnState->scriptOperatorPayout, operatorDest)) {
+                    operatorRewardStr += tr(" to %1").arg(QString::fromStdString(CBitcoinAddress(operatorDest).ToString()));
                 } else {
                     operatorRewardStr += tr(" to UNKNOWN");
                 }
