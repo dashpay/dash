@@ -177,10 +177,10 @@ bool CGovernanceObject::ProcessVote(CNode* pfrom,
         }
     }
 
-    bool onlyOwnerAllowed = nObjectType == GOVERNANCE_OBJECT_PROPOSAL && vote.GetSignal() == VOTE_SIGNAL_FUNDING;
+    bool onlyVotingKeyAllowed = nObjectType == GOVERNANCE_OBJECT_PROPOSAL && vote.GetSignal() == VOTE_SIGNAL_FUNDING;
 
     // Finally check that the vote is actually valid (done last because of cost of signature verification)
-    if (!vote.IsValid(onlyOwnerAllowed)) {
+    if (!vote.IsValid(onlyVotingKeyAllowed)) {
         std::ostringstream ostr;
         ostr << "CGovernanceObject::ProcessVote -- Invalid vote"
              << ", MN outpoint = " << vote.GetMasternodeOutpoint().ToStringShort()
