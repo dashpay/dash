@@ -107,21 +107,6 @@ void CActiveDeterministicMasternodeManager::Init()
         return;
     }
 
-    int mainnetDefaultPort = Params(CBaseChainParams::MAIN).GetDefaultPort();
-    if (Params().NetworkIDString() == CBaseChainParams::MAIN) {
-        if (activeMasternodeInfo.service.GetPort() != mainnetDefaultPort) {
-            state = MASTERNODE_ERROR;
-            strError = strprintf("Invalid port: %u - only %d is supported on mainnet.", activeMasternodeInfo.service.GetPort(), mainnetDefaultPort);
-            LogPrintf("CActiveDeterministicMasternodeManager::Init -- ERROR: %s\n", strError);
-            return;
-        }
-    } else if (activeMasternodeInfo.service.GetPort() == mainnetDefaultPort) {
-        state = MASTERNODE_ERROR;
-        strError = strprintf("Invalid port: %u - %d is only supported on mainnet.", activeMasternodeInfo.service.GetPort(), mainnetDefaultPort);
-        LogPrintf("CActiveDeterministicMasternodeManager::Init -- ERROR: %s\n", strError);
-        return;
-    }
-
     if (Params().NetworkIDString() != CBaseChainParams::REGTEST) {
         // Check socket connectivity
         LogPrintf("CActiveDeterministicMasternodeManager::Init -- Checking inbound connection to '%s'\n", activeMasternodeInfo.service.ToString());
