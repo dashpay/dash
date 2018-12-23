@@ -356,7 +356,7 @@ UniValue protx_register(const JSONRPCRequest& request)
     }
 
     bool fUsePrivateSend = (request.params.size() > paramIdx + 6)
-        ? ParseBoolV(request.params[paramIdx + 6], "fUsePrivateSend")
+        ? ParseBoolV(request.params[paramIdx + 6], "usePrivateSend")
         : false;
 
     FundSpecialTx(tx, ptx, fUsePrivateSend);
@@ -497,7 +497,7 @@ UniValue protx_update_service(const JSONRPCRequest& request)
     tx.nType = TRANSACTION_PROVIDER_UPDATE_SERVICE;
 
     bool fUsePrivateSend = (request.params.size() > 5)
-        ? ParseBoolV(request.params[5], "fUsePrivateSend")
+        ? ParseBoolV(request.params[5], "usePrivateSend")
         : false;
 
     FundSpecialTx(tx, ptx, fUsePrivateSend);
@@ -575,7 +575,7 @@ UniValue protx_update_registrar(const JSONRPCRequest& request)
     ptx.vchSig.resize(65);
 
     bool fUsePrivateSend = (request.params.size() > 5)
-        ? ParseBoolV(request.params[5], "fUsePrivateSend")
+        ? ParseBoolV(request.params[5], "usePrivateSend")
         : false;
 
     FundSpecialTx(tx, ptx, fUsePrivateSend);
@@ -639,7 +639,7 @@ UniValue protx_revoke(const JSONRPCRequest& request)
     tx.nType = TRANSACTION_PROVIDER_UPDATE_REVOKE;
 
     bool fUsePrivateSend = (request.params.size() > 4)
-        ? ParseBoolV(request.params[4], "fUsePrivateSend")
+        ? ParseBoolV(request.params[4], "usePrivateSend")
         : false;
 
     FundSpecialTx(tx, ptx, fUsePrivateSend);
