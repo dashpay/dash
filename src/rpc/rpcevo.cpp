@@ -89,7 +89,7 @@ static CBLSSecretKey ParseBLSSecretKey(const std::string& hexKey, const std::str
 #ifdef ENABLE_WALLET
 
 template<typename SpecialTxPayload>
-static void FundSpecialTx(CMutableTransaction& tx, SpecialTxPayload payload)
+static void FundSpecialTx(CMutableTransaction& tx, SpecialTxPayload payload, bool fUsePrivateSend)
 {
     CDataStream ds(SER_NETWORK, PROTOCOL_VERSION);
     ds << payload;
@@ -108,7 +108,7 @@ static void FundSpecialTx(CMutableTransaction& tx, SpecialTxPayload payload)
     int nChangePos = -1;
     std::string strFailReason;
     std::set<int> setSubtractFeeFromOutputs;
-    if (!pwalletMain->FundTransaction(tx, nFee, false, feeRate, nChangePos, strFailReason, false, false, setSubtractFeeFromOutputs, true, CNoDestination())) {
+    if (!pwalletMain->FundTransaction(tx, nFee, false, feeRate, nChangePos, strFailReason, false, false, setSubtractFeeFromOutputs, true, CNoDestination(), fUsePrivateSend ? ONLY_DENOMINATED : ALL_COINS)) {
         throw JSONRPCError(RPC_INTERNAL_ERROR, strFailReason);
     }
 
@@ -186,7 +186,7 @@ static std::string SignAndSendSpecialTx(const CMutableTransaction& tx)
 void protx_register_fund_help()
 {
     throw std::runtime_error(
-            "protx register_fund \"collateralAddress\" \"ipAndPort\" \"ownerKeyAddr\" \"operatorPubKey\" \"votingKeyAddr\" operatorReward \"payoutAddress\"\n"
+            "protx register_fund \"collateralAddress\" \"ipAndPort\" \"ownerKeyAddr\" \"operatorPubKey\" \"votingKeyAddr\" operatorReward \"payoutAddress\" ( \"usePrivateSend\" )\n"
             "\nCreates, funds and sends a ProTx to the network. The resulting transaction will move 1000 Dash\n"
             "to the address specified by collateralAddress and will then function as the collateral of your\n"
             "masternode.\n"
@@ -208,6 +208,8 @@ void protx_register_fund_help()
             "6. \"operatorReward\"      (numeric, required) The fraction in % to share with the operator. The value must be\n"
             "                         between 0.00 and 100.00.\n"
             "7. \"payoutAddress\"       (string, required) The dash address to use for masternode reward payments."
+            "8. \"usePrivateSend\"      (bool, optional, default: false) If specified wallet will only use PrivateSend funds to create this ProTx.\n"
+            "                         Please be aware that this may result in high fees."
             "\nExamples:\n"
             + HelpExampleCli("protx", "register_fund \"XrVhS9LogauRJGJu2sHuryjhpuex4RNPSb\" \"1.2.3.4:1234\" \"Xt9AMWaYSz7tR7Uo7gzXA3m4QmeWgrR3rr\" \"93746e8731c57f87f79b3620a7982924e2931717d49540a85864bd543de11c43fb868fd63e501a1db37e19ed59ae6db4\" \"Xt9AMWaYSz7tR7Uo7gzXA3m4QmeWgrR3rr\" 0 \"XrVhS9LogauRJGJu2sHuryjhpuex4RNPSb\"")
     );
@@ -216,7 +218,7 @@ void protx_register_fund_help()
 void protx_register_help()
 {
     throw std::runtime_error(
-            "protx register \"collateralHash\" collateralIndex \"ipAndPort\" \"ownerKeyAddr\" \"operatorPubKey\" \"votingKeyAddr\" operatorReward \"payoutAddress\"\n"
+            "protx register \"collateralHash\" collateralIndex \"ipAndPort\" \"ownerKeyAddr\" \"operatorPubKey\" \"votingKeyAddr\" operatorReward \"payoutAddress\" ( \"usePrivateSend\" )\n"
             "\nSame as \"protx register_fund\", but with an externally referenced collateral.\n"
             "The collateral is specified through \"collateralHash\" and \"collateralIndex\" and must be an unspent\n"
             "transaction output. It must also not be used by any other masternode.\n"
@@ -232,7 +234,7 @@ void protx_register_help()
 void protx_register_prepare_help()
 {
     throw std::runtime_error(
-            "protx register_prepare \"collateralHash\" collateralIndex \"ipAndPort\" \"ownerKeyAddr\" \"operatorPubKey\" \"votingKeyAddr\" operatorReward \"payoutAddress\"\n"
+            "protx register_prepare \"collateralHash\" collateralIndex \"ipAndPort\" \"ownerKeyAddr\" \"operatorPubKey\" \"votingKeyAddr\" operatorReward \"payoutAddress\" ( \"usePrivateSend\" )\n"
             "\nCreates an unsigned ProTx and returns it. The ProTx must be signed externally with the collateral\n"
             "key and then passed to \"protx register_submit\". The prepared transaction will also contain inputs\n"
             "and outputs to cover fees.\n"
@@ -271,11 +273,11 @@ UniValue protx_register(const JSONRPCRequest& request)
     bool isFundRegister = request.params[0].get_str() == "register_fund";
     bool isPrepareRegister = request.params[0].get_str() == "register_prepare";
 
-    if (isFundRegister && (request.fHelp || request.params.size() != 8)) {
+    if (isFundRegister && (request.fHelp || (request.params.size() != 8 && request.params.size() != 9))) {
         protx_register_fund_help();
-    } else if (isExternalRegister && (request.fHelp || request.params.size() != 9)) {
+    } else if (isExternalRegister && (request.fHelp || (request.params.size() != 9 && request.params.size() != 10))) {
         protx_register_help();
-    } else if (isPrepareRegister && (request.fHelp || request.params.size() != 9)) {
+    } else if (isPrepareRegister && (request.fHelp || (request.params.size() != 9 && request.params.size() != 10))) {
         protx_register_prepare_help();
     }
 
@@ -353,7 +355,11 @@ UniValue protx_register(const JSONRPCRequest& request)
         ptx.vchSig.resize(65);
     }
 
-    FundSpecialTx(tx, ptx);
+    bool fUsePrivateSend = (request.params.size() > paramIdx + 6)
+        ? ParseBoolV(request.params[paramIdx + 6], "fUsePrivateSend")
+        : false;
+
+    FundSpecialTx(tx, ptx, fUsePrivateSend);
     UpdateSpecialTxInputsHash(tx, ptx);
 
     if (isFundRegister) {
@@ -435,7 +441,7 @@ UniValue protx_register_submit(const JSONRPCRequest& request)
 void protx_update_service_help()
 {
     throw std::runtime_error(
-            "protx update_service \"proTxHash\" \"ipAndPort\" \"operatorKey\" (\"operatorPayoutAddress\")\n"
+            "protx update_service \"proTxHash\" \"ipAndPort\" \"operatorKey\" (\"operatorPayoutAddress\" \"usePrivateSend\" )\n"
             "\nCreates and sends a ProUpServTx to the network. This will update the IP address\n"
             "of a masternode.\n"
             "If this is done for a masternode that got PoSe-banned, the ProUpServTx will also revive this masternode.\n"
@@ -447,6 +453,8 @@ void protx_update_service_help()
             "                              registered operator public key.\n"
             "4. \"operatorPayoutAddress\"    (string, optional) The address used for operator reward payments.\n"
             "                              Only allowed when the ProRegTx had a non-zero operatorReward value.\n"
+            "5. \"usePrivateSend\"           (bool, optional, default: false) If specified wallet will only use PrivateSend funds to create this ProTx.\n"
+            "                              Please be aware that this may result in high fees."
             "\nExamples:\n"
             + HelpExampleCli("protx", "update_service \"0123456701234567012345670123456701234567012345670123456701234567\" \"1.2.3.4:1234\" 5a2e15982e62f1e0b7cf9783c64cf7e3af3f90a52d6c40f6f95d624c0b1621cd")
     );
@@ -454,7 +462,7 @@ void protx_update_service_help()
 
 UniValue protx_update_service(const JSONRPCRequest& request)
 {
-    if (request.fHelp || (request.params.size() != 4 && request.params.size() != 5))
+    if (request.fHelp || (request.params.size() < 4 || request.params.size() > 6))
         protx_update_service_help();
 
     CProUpServTx ptx;
@@ -488,7 +496,11 @@ UniValue protx_update_service(const JSONRPCRequest& request)
     tx.nVersion = 3;
     tx.nType = TRANSACTION_PROVIDER_UPDATE_SERVICE;
 
-    FundSpecialTx(tx, ptx);
+    bool fUsePrivateSend = (request.params.size() > 5)
+        ? ParseBoolV(request.params[5], "fUsePrivateSend")
+        : false;
+
+    FundSpecialTx(tx, ptx, fUsePrivateSend);
     SignSpecialTxPayloadByHash(tx, ptx, keyOperator);
     SetTxPayload(tx, ptx);
 
@@ -498,7 +510,7 @@ UniValue protx_update_service(const JSONRPCRequest& request)
 void protx_update_registrar_help()
 {
     throw std::runtime_error(
-            "protx update_registrar \"proTxHash\" \"operatorKeyAddr\" \"votingKeyAddr\" \"payoutAddress\"\n"
+            "protx update_registrar \"proTxHash\" \"operatorKeyAddr\" \"votingKeyAddr\" \"payoutAddress\" ( \"usePrivateSend\" )\n"
             "\nCreates and sends a ProUpRegTx to the network. This will update the operator key, voting key and payout\n"
             "address of the masternode specified by \"proTxHash\".\n"
             "The owner key of the masternode must be known to your wallet.\n"
@@ -512,6 +524,8 @@ void protx_update_registrar_help()
             "                         If set to \"0\" or an empty string, the last on-chain voting key of the masternode will be used.\n"
             "4. \"payoutAddress\"       (string, required) The dash address to use for masternode reward payments\n"
             "                         If set to \"0\" or an empty string, the last on-chain payout address of the masternode will be used.\n"
+            "5. \"usePrivateSend\"      (bool, optional, default: false) If specified wallet will only use PrivateSend funds to create this ProTx.\n"
+            "                         Please be aware that this may result in high fees."
             "\nExamples:\n"
             + HelpExampleCli("protx", "update_registrar \"0123456701234567012345670123456701234567012345670123456701234567\" \"982eb34b7c7f614f29e5c665bc3605f1beeef85e3395ca12d3be49d2868ecfea5566f11cedfad30c51b2403f2ad95b67\" \"XwnLY9Tf7Zsef8gMGL2fhWA9ZmMjt4KPwG\"")
     );
@@ -519,7 +533,7 @@ void protx_update_registrar_help()
 
 UniValue protx_update_registrar(const JSONRPCRequest& request)
 {
-    if (request.fHelp || request.params.size() != 5) {
+    if (request.fHelp || (request.params.size() != 5 && request.params.size() != 6)) {
         protx_update_registrar_help();
     }
 
@@ -560,7 +574,11 @@ UniValue protx_update_registrar(const JSONRPCRequest& request)
     // make sure we get anough fees added
     ptx.vchSig.resize(65);
 
-    FundSpecialTx(tx, ptx);
+    bool fUsePrivateSend = (request.params.size() > 5)
+        ? ParseBoolV(request.params[5], "fUsePrivateSend")
+        : false;
+
+    FundSpecialTx(tx, ptx, fUsePrivateSend);
     SignSpecialTxPayloadByHash(tx, ptx, keyOwner);
     SetTxPayload(tx, ptx);
 
@@ -570,7 +588,7 @@ UniValue protx_update_registrar(const JSONRPCRequest& request)
 void protx_revoke_help()
 {
     throw std::runtime_error(
-            "protx revoke \"proTxHash\" \"operatorKey\" ( reason )\n"
+            "protx revoke \"proTxHash\" \"operatorKey\" ( reason \"usePrivateSend\")\n"
             "\nCreates and sends a ProUpRevTx to the network. This will revoke the operator key of the masternode and\n"
             "put it into the PoSe-banned state. It will also set the service field of the masternode\n"
             "to zero. Use this in case your operator key got compromised or you want to stop providing your service\n"
@@ -580,6 +598,8 @@ void protx_revoke_help()
             "2. \"operatorKey\"         (string, required) The operator private key belonging to the\n"
             "                         registered operator public key.\n"
             "3. reason                  (numeric, optional) The reason for revocation.\n"
+            "4. \"usePrivateSend\"      (bool, optional, default: false) If specified wallet will only use PrivateSend funds to create this ProTx.\n"
+            "                         Please be aware that this may result in high fees."
             "\nExamples:\n"
             + HelpExampleCli("protx", "revoke \"0123456701234567012345670123456701234567012345670123456701234567\" \"072f36a77261cdd5d64c32d97bac417540eddca1d5612f416feb07ff75a8e240\"")
     );
@@ -587,7 +607,7 @@ void protx_revoke_help()
 
 UniValue protx_revoke(const JSONRPCRequest& request)
 {
-    if (request.fHelp || (request.params.size() != 3 && request.params.size() != 4)) {
+    if (request.fHelp || (request.params.size() < 3 || request.params.size() > 5)) {
         protx_revoke_help();
     }
 
@@ -618,7 +638,11 @@ UniValue protx_revoke(const JSONRPCRequest& request)
     tx.nVersion = 3;
     tx.nType = TRANSACTION_PROVIDER_UPDATE_REVOKE;
 
-    FundSpecialTx(tx, ptx);
+    bool fUsePrivateSend = (request.params.size() > 4)
+        ? ParseBoolV(request.params[4], "fUsePrivateSend")
+        : false;
+
+    FundSpecialTx(tx, ptx, fUsePrivateSend);
     SignSpecialTxPayloadByHash(tx, ptx, keyOperator);
     SetTxPayload(tx, ptx);
 
