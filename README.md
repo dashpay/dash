@@ -13,17 +13,17 @@ Waggox is a fork of dash an experimental cryptocurrency with the aim of promotin
 
 SPECIFICATIONS
 --------------
-* Algorithm: x11/MN
+* Algorithm: x11
 
-* Block Reward: 8.11 WAGGOX
+* Block Reward: 8.11 WGGX
 
 * RPCPORT: 9920
 
 * P2P PORT: 9910
 
-* Max. Supply: 8million Waggox
+* Max. Supply: 8million WGGX
 
-* Masternode Collateral: 5000 Waggox
+* Masternode Collateral: 5000 WGGX
 
 
 License
