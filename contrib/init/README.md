@@ -1,11 +1,11 @@
 Sample configuration files for:
 
-SystemD: dashd.service
-Upstart: dashd.conf
-OpenRC:  dashd.openrc
-         dashd.openrcconf
-CentOS:  dashd.init
-OS X:    org.dash.dashd.plist
+SystemD: waggoxd.service
+Upstart: waggoxd.conf
+OpenRC:  waggoxd.openrc
+         waggoxd.openrcconf
+CentOS:  waggoxd.init
+OS X:    org.waggox.waggoxd.plist
 
 have been made available to assist packagers in creating node packages here.
 

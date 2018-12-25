@@ -12,11 +12,11 @@ The implementation is dependent on the following:
 
 ### A note about security
 
-Every connection to KeePassHTTP server is done via plain HTTP and even though protocol uses some internal encryption it should not be considered to be a highly secure one. This protocol has certain flaw which allow an attacker to decrypt your passwords when they manage to intercept communication between a KeePassHTTP server over a network connection (see [here](https://github.com/pfn/keepasshttp/issues/258) and [here](https://github.com/keepassxreboot/keepassxc/issues/147)). Dash Core therefore strictly limits communication between itself and KeePassHttp to your local computer. As long as your computer is not compromised, your wallet passphrase is as safe as if you would enter it directly.
+Every connection to KeePassHTTP server is done via plain HTTP and even though protocol uses some internal encryption it should not be considered to be a highly secure one. This protocol has certain flaw which allow an attacker to decrypt your passwords when they manage to intercept communication between a KeePassHTTP server over a network connection (see [here](https://github.com/pfn/keepasshttp/issues/258) and [here](https://github.com/keepassxreboot/keepassxc/issues/147)). Waggox Core therefore strictly limits communication between itself and KeePassHttp to your local computer. As long as your computer is not compromised, your wallet passphrase is as safe as if you would enter it directly.
 
 ### What's new
 
-The following new options are available for dashd and dash-qt:
+The following new options are available for waggoxd and waggox-qt:
  - _-keepass_ Use KeePass 2 integration using KeePassHttp plugin (default: 0)
  - _-keepassport=_ Connect to KeePassHttp on port (default: 19455)
  - _-keepasskey=_ KeePassHttp key for AES encrypted communication with KeePass
@@ -26,27 +26,27 @@ The following new options are available for dashd and dash-qt:
 The following rpc commands are available:
 
  - _keepass genkey_: generates a base64 encoded 256 bit AES key that can be used for the communication with KeePassHttp. Only necessary for manual configuration. Use init for automatic configuration.
- - _keepass init_: sets up the association between dashd and keepass by generating an AES key and sending an association message to KeePassHttp. This will trigger KeePass to ask for an Id for the association. Returns the association and the base64 encoded string for the AES key.
+ - _keepass init_: sets up the association between waggoxd and keepass by generating an AES key and sending an association message to KeePassHttp. This will trigger KeePass to ask for an Id for the association. Returns the association and the base64 encoded string for the AES key.
  - _keepass setpassphrase_: updates the passphrase in KeePassHttp to a new value. This should match the passphrase you intend to use for the wallet. Please note that the standard RPC commands _walletpassphrasechange_ and the wallet encrption from the QT GUI already send the updates to KeePassHttp, so this is only necessary for manual manipulation of the password.
 
 ### How to setup
 
-Sample initialization flow from _dash-qt_ console (this needs to be done only once to set up the association):
+Sample initialization flow from _waggox-qt_ console (this needs to be done only once to set up the association):
 
  - Have KeePass running with an open database
- - Start _dash-qt_
+ - Start _waggox-qt_
  - Open console
- - Type "_keepass init_" in dash-qt console
+ - Type "_keepass init_" in waggox-qt console
  - Keepass pops up and asks for an association id, fill that in, for example, "_mydrkwallet_"
- - You should get a response like this "_Association successful. Id: mydrkwalletdash - Key: AgQkcs6cI7v9tlSYKjG/+s8wJrGALHl3jLosJpPLzUE=_"
- - Edit _dash.conf_ and fill in these values
+ - You should get a response like this "_Association successful. Id: mydrkwalletwaggox - Key: AgQkcs6cI7v9tlSYKjG/+s8wJrGALHl3jLosJpPLzUE=_"
+ - Edit _waggox.conf_ and fill in these values
 ```
 keepass=1
 keepasskey=AgQkcs6cI7v9tlSYKjG/+s8wJrGALHl3jLosJpPLzUE=
 keepassid=mydrkwallet
 keepassname=testwallet
 ```
- - Restart _dash-qt_
+ - Restart _waggox-qt_
 
 At this point, the association is made. The next action depends on your particular situation:
 
@@ -55,4 +55,4 @@ At this point, the association is made. The next action depends on your particul
 
 At this point, the passphrase is stored in KeePassHttp. When Unlocking the wallet, one can use _keepass_ as the passphrase to trigger retrieval of the password. This works from the RPC commands as well as the GUI.
 
-Extended guide with screenshots is also available: https://www.dash.org/forum/threads/keepass-integration.3620/
+

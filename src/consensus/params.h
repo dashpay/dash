@@ -58,6 +58,7 @@ struct Params {
     int nSuperblockCycle; // in blocks
     int nGovernanceMinQuorum; // Min absolute vote count to trigger an action
     int nGovernanceFilterElements;
+    int64_t nUpdateDiffAlgoHeight;
     int nMasternodeMinimumConfirmations;
     /** Block height and hash at which BIP34 becomes active */
     int BIP34Height;

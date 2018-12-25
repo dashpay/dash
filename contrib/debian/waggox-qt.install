@@ -1,0 +1,6 @@
+usr/local/bin/waggox-qt usr/bin
+share/pixmaps/waggox32.xpm usr/share/pixmaps
+share/pixmaps/waggox16.xpm usr/share/pixmaps
+share/pixmaps/waggox128.png usr/share/pixmaps
+debian/waggox-qt.desktop usr/share/applications
+debian/waggox-qt.protocol usr/share/kde4/services/

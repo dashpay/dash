@@ -1,0 +1,13 @@
+[Desktop Entry]
+Encoding=UTF-8
+Name=Waggox Core
+Comment=Waggox P2P Cryptocurrency
+Comment[de]=Verbinde mit dem Waggox peer-to-peer Netzwerk
+Comment[fr]=Waggox, monnaie virtuelle cryptographique pair à pair
+Comment[tr]=Waggox, eşten eşe kriptografik sanal para birimi
+Exec=waggox-qt %u
+Terminal=false
+Type=Application
+Icon=waggox128
+MimeType=x-scheme-handler/waggox;
+Categories=Office;Finance;

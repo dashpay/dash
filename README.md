@@ -1,36 +1,43 @@
-Dash Core staging tree 0.12.3
+Waggox Core staging tree 1.0.0.0
 ===============================
 
 `master:` [![Build Status](https://travis-ci.org/dashpay/dash.svg?branch=master)](https://travis-ci.org/dashpay/dash) `develop:` [![Build Status](https://travis-ci.org/dashpay/dash.svg?branch=develop)](https://travis-ci.org/dashpay/dash/branches)
 
-https://www.dash.org
+https://website.waggok.tech
 
 
-What is Dash?
+What is Waggox?
 ----------------
+Waggox is a fork of dash an experimental cryptocurrency with the aim of promoting good and secure transactions. It is a coin good for buying and selling of different services as well as goods.
 
-Dash is an experimental digital currency that enables anonymous, instant
-payments to anyone, anywhere in the world. Dash uses peer-to-peer technology
-to operate with no central authority: managing transactions and issuing money
-are carried out collectively by the network. Dash Core is the name of the open
-source software which enables the use of this currency.
 
-For more information, as well as an immediately useable, binary version of
-the Dash Core software, see https://www.dash.org/get-dash/.
+SPECIFICATIONS
+--------------
+* Algorithm: x11/MN
+
+* Block Reward: 8.11 WAGGOX
+
+* RPCPORT: 9920
+
+* P2P PORT: 9910
+
+* Max. Supply: 8million Waggox
+
+* Masternode Collateral: 5000 Waggox
 
 
 License
 -------
 
-Dash Core is released under the terms of the MIT license. See [COPYING](COPYING) for more
+Waggox is released under the terms of the MIT license. See [COPYING](COPYING) for more
 information or see https://opensource.org/licenses/MIT.
 
 Development Process
 -------------------
 
 The `master` branch is meant to be stable. Development is normally done in separate branches.
-[Tags](https://github.com/dashpay/dash/tags) are created to indicate new official,
-stable release versions of Dash Core.
+[Tags](https://github.com/waggoxcoin/waggox/tags) are created to indicate new official,
+stable release versions of waggox core.
 
 The contribution workflow is described in [CONTRIBUTING.md](CONTRIBUTING.md).
 
@@ -66,7 +73,7 @@ Translations
 ------------
 
 Changes to translations as well as new translations can be submitted to
-[Dash Core's Transifex page](https://www.transifex.com/projects/p/dash/).
+[Waggox Core's Transifex page](https://www.transifex.com/projects/p/waggox/).
 
 Translations are periodically pulled from Transifex and merged into the git repository. See the
 [translation process](doc/translation_process.md) for details on how this works.
@@ -74,4 +81,3 @@ Translations are periodically pulled from Transifex and merged into the git repo
 **Important**: We do not accept translation changes as GitHub pull requests because the next
 pull from Transifex would automatically overwrite them again.
 
-Translators should also follow the [forum](https://www.dash.org/forum/topic/dash-worldwide-collaboration.88/).

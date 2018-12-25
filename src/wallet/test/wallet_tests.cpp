@@ -10,7 +10,7 @@
 #include <vector>
 
 #include "rpc/server.h"
-#include "test/test_dash.h"
+#include "test/test_waggox.h"
 #include "validation.h"
 #include "wallet/test/wallet_test_fixture.h"
 

@@ -1,0 +1,21 @@
+<!DOCTYPE RCC><RCC version="1.0">
+    <qresource prefix="/translations">
+        <file alias="bg">locale/waggox_bg.qm</file>
+        <file alias="de">locale/waggox_de.qm</file>
+        <file alias="en">locale/waggox_en.qm</file>
+        <file alias="es">locale/waggox_es.qm</file>
+        <file alias="fi">locale/waggox_fi.qm</file>
+        <file alias="fr">locale/waggox_fr.qm</file>
+        <file alias="it">locale/waggox_it.qm</file>
+        <file alias="ja">locale/waggox_ja.qm</file>
+        <file alias="nl">locale/waggox_nl.qm</file>
+        <file alias="pl">locale/waggox_pl.qm</file>
+        <file alias="pt">locale/waggox_pt.qm</file>
+        <file alias="ru">locale/waggox_ru.qm</file>
+        <file alias="sk">locale/waggox_sk.qm</file>
+        <file alias="sv">locale/waggox_sv.qm</file>
+        <file alias="vi">locale/waggox_vi.qm</file>
+        <file alias="zh_CN">locale/waggox_zh_CN.qm</file>
+        <file alias="zh_TW">locale/waggox_zh_TW.qm</file>
+    </qresource>
+</RCC>

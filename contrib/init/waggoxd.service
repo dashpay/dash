@@ -1,0 +1,22 @@
+[Unit]
+Description=Waggox's distributed currency daemon
+After=network.target
+
+[Service]
+User=waggox
+Group=waggox
+
+Type=forking
+PIDFile=/var/lib/waggoxd/waggoxd.pid
+ExecStart=/usr/bin/waggoxd -daemon -pid=/var/lib/waggoxd/waggoxd.pid \
+-conf=/etc/waggox/waggox.conf -datadir=/var/lib/waggoxd -disablewallet
+
+Restart=always
+PrivateTmp=true
+TimeoutStopSec=60s
+TimeoutStartSec=2s
+StartLimitInterval=120s
+StartLimitBurst=5
+
+[Install]
+WantedBy=multi-user.target
