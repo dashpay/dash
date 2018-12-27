@@ -121,6 +121,7 @@ static void FundSpecialTx(CMutableTransaction& tx, const SpecialTxPayload& paylo
 
     CCoinControl coinControl;
     coinControl.destChange = fundDest;
+    coinControl.fRequireAllInputs = false;
 
     std::vector<COutput> vecOutputs;
     pwalletMain->AvailableCoins(vecOutputs);
