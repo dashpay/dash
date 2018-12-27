@@ -255,7 +255,7 @@ void protx_register_fund_help()
 void protx_register_help()
 {
     throw std::runtime_error(
-            "protx register \"collateralHash\" collateralIndex \"ipAndPort\" \"ownerKeyAddr\" \"operatorPubKey\" \"votingKeyAddr\" operatorReward \"payoutAddress\" ( \"fundAddress\" )\n"
+            "protx register \"collateralHash\" collateralIndex \"ipAndPort\" \"ownerKeyAddr\" \"operatorPubKey\" \"votingKeyAddr\" operatorReward \"payoutAddress\" ( \"feeSourceAddress\" )\n"
             "\nSame as \"protx register_fund\", but with an externally referenced collateral.\n"
             "The collateral is specified through \"collateralHash\" and \"collateralIndex\" and must be an unspent\n"
             "transaction output. It must also not be used by any other masternode.\n"
@@ -263,6 +263,7 @@ void protx_register_help()
             "1. \"collateralHash\"     (string, required) The collateral transaction hash.\n"
             "2. collateralIndex      (numeric, required) The collateral transaction output index.\n"
             "3., 4., 5. ...          See help text of \"protx register_fund\"\n"
+            "feeSourceAddress        See help text for \"fundAddress\" of \"protx register_fund\"\n"
             "\nExamples:\n"
             + HelpExampleCli("protx", "register \"0123456701234567012345670123456701234567012345670123456701234567\" 0 \"1.2.3.4:1234\" \"Xt9AMWaYSz7tR7Uo7gzXA3m4QmeWgrR3rr\" \"93746e8731c57f87f79b3620a7982924e2931717d49540a85864bd543de11c43fb868fd63e501a1db37e19ed59ae6db4\" \"Xt9AMWaYSz7tR7Uo7gzXA3m4QmeWgrR3rr\" 0 \"XrVhS9LogauRJGJu2sHuryjhpuex4RNPSb\"")
     );
@@ -271,12 +272,13 @@ void protx_register_help()
 void protx_register_prepare_help()
 {
     throw std::runtime_error(
-            "protx register_prepare \"collateralHash\" collateralIndex \"ipAndPort\" \"ownerKeyAddr\" \"operatorPubKey\" \"votingKeyAddr\" operatorReward \"payoutAddress\" ( \"fundAddress\" )\n"
+            "protx register_prepare \"collateralHash\" collateralIndex \"ipAndPort\" \"ownerKeyAddr\" \"operatorPubKey\" \"votingKeyAddr\" operatorReward \"payoutAddress\" ( \"feeSourceAddress\" )\n"
             "\nCreates an unsigned ProTx and returns it. The ProTx must be signed externally with the collateral\n"
             "key and then passed to \"protx register_submit\". The prepared transaction will also contain inputs\n"
             "and outputs to cover fees.\n"
             "\nArguments:\n"
             "1., 2., 3., ...         See help text of \"protx register\".\n"
+            "feeSourceAddress        See help text for \"fundAddress\" of \"protx register_fund\"\n"
             "\nResult:\n"
             "{                         (json object)\n"
             "  \"tx\" :                  (string) The serialized ProTx in hex format.\n"
@@ -481,7 +483,7 @@ UniValue protx_register_submit(const JSONRPCRequest& request)
 void protx_update_service_help()
 {
     throw std::runtime_error(
-            "protx update_service \"proTxHash\" \"ipAndPort\" \"operatorKey\" (\"operatorPayoutAddress\" \"fundAddress\" )\n"
+            "protx update_service \"proTxHash\" \"ipAndPort\" \"operatorKey\" (\"operatorPayoutAddress\" \"feeSourceAddress\" )\n"
             "\nCreates and sends a ProUpServTx to the network. This will update the IP address\n"
             "of a masternode.\n"
             "If this is done for a masternode that got PoSe-banned, the ProUpServTx will also revive this masternode.\n"
@@ -493,7 +495,7 @@ void protx_update_service_help()
             "                              registered operator public key.\n"
             "4. \"operatorPayoutAddress\"    (string, optional) The address used for operator reward payments.\n"
             "                              Only allowed when the ProRegTx had a non-zero operatorReward value.\n"
-            "5. \"fundAddress\"              (string, optional) If specified wallet will only use coins from this address to fund ProTx.\n"
+            "5. \"feeSourceAddress\"         (string, optional) If specified wallet will only use coins from this address to fund ProTx.\n"
             "                              The private key belonging to this address must be known in your wallet.\n"
             "\nExamples:\n"
             + HelpExampleCli("protx", "update_service \"0123456701234567012345670123456701234567012345670123456701234567\" \"1.2.3.4:1234\" 5a2e15982e62f1e0b7cf9783c64cf7e3af3f90a52d6c40f6f95d624c0b1621cd")
@@ -536,14 +538,14 @@ UniValue protx_update_service(const JSONRPCRequest& request)
     tx.nVersion = 3;
     tx.nType = TRANSACTION_PROVIDER_UPDATE_SERVICE;
 
-    CBitcoinAddress fundAddress = payoutAddress;
+    CBitcoinAddress feeSourceAddress = payoutAddress;
     if (request.params.size() > 5) {
-        fundAddress = CBitcoinAddress(request.params[5].get_str());
-        if (!fundAddress.IsValid())
+        feeSourceAddress = CBitcoinAddress(request.params[5].get_str());
+        if (!feeSourceAddress.IsValid())
             throw JSONRPCError(RPC_INVALID_ADDRESS_OR_KEY, std::string("Invalid Dash address: ") + request.params[5].get_str());
     }
 
-    FundSpecialTx(tx, ptx, fundAddress.Get());
+    FundSpecialTx(tx, ptx, feeSourceAddress.Get());
     SignSpecialTxPayloadByHash(tx, ptx, keyOperator);
     SetTxPayload(tx, ptx);
 
@@ -553,7 +555,7 @@ UniValue protx_update_service(const JSONRPCRequest& request)
 void protx_update_registrar_help()
 {
     throw std::runtime_error(
-            "protx update_registrar \"proTxHash\" \"operatorKeyAddr\" \"votingKeyAddr\" \"payoutAddress\" ( \"fundAddress\" )\n"
+            "protx update_registrar \"proTxHash\" \"operatorKeyAddr\" \"votingKeyAddr\" \"payoutAddress\" ( \"feeSourceAddress\" )\n"
             "\nCreates and sends a ProUpRegTx to the network. This will update the operator key, voting key and payout\n"
             "address of the masternode specified by \"proTxHash\".\n"
             "The owner key of the masternode must be known to your wallet.\n"
@@ -567,7 +569,7 @@ void protx_update_registrar_help()
             "                         If set to \"0\" or an empty string, the last on-chain voting key of the masternode will be used.\n"
             "4. \"payoutAddress\"       (string, required) The dash address to use for masternode reward payments\n"
             "                         If set to \"0\" or an empty string, the last on-chain payout address of the masternode will be used.\n"
-            "5. \"fundAddress\"         (string, optional) If specified wallet will only use coins from this address to fund ProTx.\n"
+            "5. \"feeSourceAddress\"    (string, optional) If specified wallet will only use coins from this address to fund ProTx.\n"
             "                         The private key belonging to this address must be known in your wallet.\n"
             "\nExamples:\n"
             + HelpExampleCli("protx", "update_registrar \"0123456701234567012345670123456701234567012345670123456701234567\" \"982eb34b7c7f614f29e5c665bc3605f1beeef85e3395ca12d3be49d2868ecfea5566f11cedfad30c51b2403f2ad95b67\" \"XwnLY9Tf7Zsef8gMGL2fhWA9ZmMjt4KPwG\"")
@@ -617,14 +619,14 @@ UniValue protx_update_registrar(const JSONRPCRequest& request)
     // make sure we get anough fees added
     ptx.vchSig.resize(65);
 
-    CBitcoinAddress fundAddress = payoutAddress;
+    CBitcoinAddress feeSourceAddress = payoutAddress;
     if (request.params.size() > 5) {
-        fundAddress = CBitcoinAddress(request.params[5].get_str());
-        if (!fundAddress.IsValid())
+        feeSourceAddress = CBitcoinAddress(request.params[5].get_str());
+        if (!feeSourceAddress.IsValid())
             throw JSONRPCError(RPC_INVALID_ADDRESS_OR_KEY, std::string("Invalid Dash address: ") + request.params[5].get_str());
     }
 
-    FundSpecialTx(tx, ptx, fundAddress.Get());
+    FundSpecialTx(tx, ptx, feeSourceAddress.Get());
     SignSpecialTxPayloadByHash(tx, ptx, keyOwner);
     SetTxPayload(tx, ptx);
 
@@ -634,7 +636,7 @@ UniValue protx_update_registrar(const JSONRPCRequest& request)
 void protx_revoke_help()
 {
     throw std::runtime_error(
-            "protx revoke \"proTxHash\" \"operatorKey\" ( reason \"fundAddress\")\n"
+            "protx revoke \"proTxHash\" \"operatorKey\" ( reason \"feeSourceAddress\")\n"
             "\nCreates and sends a ProUpRevTx to the network. This will revoke the operator key of the masternode and\n"
             "put it into the PoSe-banned state. It will also set the service field of the masternode\n"
             "to zero. Use this in case your operator key got compromised or you want to stop providing your service\n"
@@ -643,8 +645,8 @@ void protx_revoke_help()
             "1. \"proTxHash\"           (string, required) The hash of the initial ProRegTx.\n"
             "2. \"operatorKey\"         (string, required) The operator private key belonging to the\n"
             "                         registered operator public key.\n"
-            "3. reason                  (numeric, optional) The reason for revocation.\n"
-            "4. \"fundAddress\"         (string, optional) If specified wallet will only use coins from this address to fund ProTx.\n"
+            "3. reason                (numeric, optional) The reason for revocation.\n"
+            "4. \"feeSourceAddress\"    (string, optional) If specified wallet will only use coins from this address to fund ProTx.\n"
             "                         The private key belonging to this address must be known in your wallet.\n"
             "\nExamples:\n"
             + HelpExampleCli("protx", "revoke \"0123456701234567012345670123456701234567012345670123456701234567\" \"072f36a77261cdd5d64c32d97bac417540eddca1d5612f416feb07ff75a8e240\"")
@@ -684,12 +686,12 @@ UniValue protx_revoke(const JSONRPCRequest& request)
     tx.nVersion = 3;
     tx.nType = TRANSACTION_PROVIDER_UPDATE_REVOKE;
 
-    CBitcoinAddress fundAddress;
+    CBitcoinAddress feeSourceAddress;
     if (request.params.size() > 4) {
-        fundAddress = CBitcoinAddress(request.params[4].get_str());
-        if (!fundAddress.IsValid())
+        feeSourceAddress = CBitcoinAddress(request.params[4].get_str());
+        if (!feeSourceAddress.IsValid())
             throw JSONRPCError(RPC_INVALID_ADDRESS_OR_KEY, std::string("Invalid Dash address: ") + request.params[4].get_str());
-        FundSpecialTx(tx, ptx, fundAddress.Get());
+        FundSpecialTx(tx, ptx, feeSourceAddress.Get());
     } else {
         // Using funds in previousely specified operator payout address
         if (dmn->pdmnState->scriptOperatorPayout == CScript()) {
