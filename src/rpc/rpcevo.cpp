@@ -704,21 +704,23 @@ UniValue protx_revoke(const JSONRPCRequest& request)
     tx.nVersion = 3;
     tx.nType = TRANSACTION_PROVIDER_UPDATE_REVOKE;
 
-    CBitcoinAddress feeSourceAddress;
     if (request.params.size() > 4) {
-        feeSourceAddress = CBitcoinAddress(request.params[4].get_str());
+        CBitcoinAddress feeSourceAddress = CBitcoinAddress(request.params[4].get_str());
         if (!feeSourceAddress.IsValid())
             throw JSONRPCError(RPC_INVALID_ADDRESS_OR_KEY, std::string("Invalid Dash address: ") + request.params[4].get_str());
         FundSpecialTx(tx, ptx, feeSourceAddress.Get());
-    } else {
-        // Using funds in previousely specified operator payout address
-        if (dmn->pdmnState->scriptOperatorPayout == CScript()) {
-            // No scriptOperatorPayout was specified, can't revoke
-            throw JSONRPCError(RPC_INVALID_ADDRESS_OR_KEY, "scriptOperatorPayout was not specified earlier, can't revoke");
-        }
+    } else if (dmn->pdmnState->scriptOperatorPayout != CScript()) {
+        // Using funds from previousely specified operator payout address
         CTxDestination txDest;
         ExtractDestination(dmn->pdmnState->scriptOperatorPayout, txDest);
         FundSpecialTx(tx, ptx, txDest);
+    } else if (dmn->pdmnState->scriptPayout != CScript()) {
+        // Using funds from previousely specified masternode payout address
+        CTxDestination txDest;
+        ExtractDestination(dmn->pdmnState->scriptPayout, txDest);
+        FundSpecialTx(tx, ptx, txDest);
+    } else {
+        throw JSONRPCError(RPC_INTERNAL_ERROR, "No payout or fee source addresses found, can't revoke");
     }
 
     SignSpecialTxPayloadByHash(tx, ptx, keyOperator);
