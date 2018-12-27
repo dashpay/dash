@@ -95,6 +95,11 @@ static void FundSpecialTx(CMutableTransaction& tx, const SpecialTxPayload& paylo
     assert(pwalletMain != NULL);
     LOCK2(cs_main, pwalletMain->cs_wallet);
 
+    CTxDestination nodest = CNoDestination();
+    if (fundDest == nodest) {
+        throw JSONRPCError(RPC_INTERNAL_ERROR, "No source of funds specified");
+    }
+
     CDataStream ds(SER_NETWORK, PROTOCOL_VERSION);
     ds << payload;
     tx.vExtraPayload.assign(ds.begin(), ds.end());
@@ -115,21 +120,16 @@ static void FundSpecialTx(CMutableTransaction& tx, const SpecialTxPayload& paylo
     }
 
     CCoinControl coinControl;
-    CTxDestination nodest = CNoDestination();
-    if (fundDest != nodest) {
-        coinControl.destChange = fundDest;
+    coinControl.destChange = fundDest;
 
-        std::vector<COutput> vecOutputs;
-        pwalletMain->AvailableCoins(vecOutputs);
+    std::vector<COutput> vecOutputs;
+    pwalletMain->AvailableCoins(vecOutputs);
 
-        for (const auto& out : vecOutputs) {
-            CTxDestination txDest;
-            if (ExtractDestination(out.tx->tx->vout[out.i].scriptPubKey, txDest) && txDest == fundDest) {
-                coinControl.Select(COutPoint(out.tx->tx->GetHash(), out.i));
-            }
+    for (const auto& out : vecOutputs) {
+        CTxDestination txDest;
+        if (ExtractDestination(out.tx->tx->vout[out.i].scriptPubKey, txDest) && txDest == fundDest) {
+            coinControl.Select(COutPoint(out.tx->tx->GetHash(), out.i));
         }
-    } else {
-        coinControl.fAllowOtherInputs = true;
     }
 
     CWalletTx wtx;
@@ -388,7 +388,7 @@ UniValue protx_register(const JSONRPCRequest& request)
         ptx.vchSig.resize(65);
     }
 
-    CBitcoinAddress fundAddress;
+    CBitcoinAddress fundAddress = payoutAddress;
     if (request.params.size() > paramIdx + 6) {
         fundAddress = CBitcoinAddress(request.params[paramIdx + 6].get_str());
         if (!fundAddress.IsValid())
@@ -532,7 +532,7 @@ UniValue protx_update_service(const JSONRPCRequest& request)
     tx.nVersion = 3;
     tx.nType = TRANSACTION_PROVIDER_UPDATE_SERVICE;
 
-    CBitcoinAddress fundAddress;
+    CBitcoinAddress fundAddress = payoutAddress;
     if (request.params.size() > 5) {
         fundAddress = CBitcoinAddress(request.params[5].get_str());
         if (!fundAddress.IsValid())
@@ -613,7 +613,7 @@ UniValue protx_update_registrar(const JSONRPCRequest& request)
     // make sure we get anough fees added
     ptx.vchSig.resize(65);
 
-    CBitcoinAddress fundAddress;
+    CBitcoinAddress fundAddress = payoutAddress;
     if (request.params.size() > 5) {
         fundAddress = CBitcoinAddress(request.params[5].get_str());
         if (!fundAddress.IsValid())
@@ -685,9 +685,18 @@ UniValue protx_revoke(const JSONRPCRequest& request)
         fundAddress = CBitcoinAddress(request.params[4].get_str());
         if (!fundAddress.IsValid())
             throw JSONRPCError(RPC_INVALID_ADDRESS_OR_KEY, std::string("Invalid Dash address: ") + request.params[4].get_str());
+        FundSpecialTx(tx, ptx, fundAddress.Get());
+    } else {
+        // Using funds in previousely specified operator payout address
+        if (dmn->pdmnState->scriptOperatorPayout == CScript()) {
+            // No scriptOperatorPayout was specified, can't revoke
+            throw JSONRPCError(RPC_INVALID_ADDRESS_OR_KEY, "scriptOperatorPayout was not specified earlier, can't revoke");
+        }
+        CTxDestination txDest;
+        ExtractDestination(dmn->pdmnState->scriptOperatorPayout, txDest);
+        FundSpecialTx(tx, ptx, txDest);
     }
 
-    FundSpecialTx(tx, ptx, fundAddress.Get());
     SignSpecialTxPayloadByHash(tx, ptx, keyOperator);
     SetTxPayload(tx, ptx);
 
