@@ -231,7 +231,7 @@ void protx_register_fund_help()
             "2. \"ipAndPort\"           (string, required) IP and port in the form \"IP:PORT\".\n"
             "                         Must be unique on the network. Can be set to 0, which will require a ProUpServTx afterwards.\n"
             "3. \"ownerKeyAddr\"        (string, required) The owner key used for payee updates and proposal voting.\n"
-            "                         The private key belonging to this address be known in your wallet. The address must\n"
+            "                         The private key belonging to this address must be known in your wallet. The address must\n"
             "                         be unused and must differ from the collateralAddress\n"
             "4. \"operatorPubKey\"      (string, required) The operator BLS public key. The private key does not have to be known.\n"
             "                         It has to match the private key which is later used when operating the masternode.\n"
@@ -242,7 +242,7 @@ void protx_register_fund_help()
             "                         between 0.00 and 100.00.\n"
             "7. \"payoutAddress\"       (string, required) The dash address to use for masternode reward payments.\n"
             "8. \"fundAddress\"         (string, optional) If specified wallet will only use coins from this address to fund ProTx.\n"
-            "                         The private key belonging to this address be known in your wallet.\n"
+            "                         The private key belonging to this address must be known in your wallet.\n"
             "\nExamples:\n"
             + HelpExampleCli("protx", "register_fund \"XrVhS9LogauRJGJu2sHuryjhpuex4RNPSb\" \"1.2.3.4:1234\" \"Xt9AMWaYSz7tR7Uo7gzXA3m4QmeWgrR3rr\" \"93746e8731c57f87f79b3620a7982924e2931717d49540a85864bd543de11c43fb868fd63e501a1db37e19ed59ae6db4\" \"Xt9AMWaYSz7tR7Uo7gzXA3m4QmeWgrR3rr\" 0 \"XrVhS9LogauRJGJu2sHuryjhpuex4RNPSb\"")
     );
@@ -490,7 +490,7 @@ void protx_update_service_help()
             "4. \"operatorPayoutAddress\"    (string, optional) The address used for operator reward payments.\n"
             "                              Only allowed when the ProRegTx had a non-zero operatorReward value.\n"
             "5. \"fundAddress\"              (string, optional) If specified wallet will only use coins from this address to fund ProTx.\n"
-            "                              The private key belonging to this address be known in your wallet.\n"
+            "                              The private key belonging to this address must be known in your wallet.\n"
             "\nExamples:\n"
             + HelpExampleCli("protx", "update_service \"0123456701234567012345670123456701234567012345670123456701234567\" \"1.2.3.4:1234\" 5a2e15982e62f1e0b7cf9783c64cf7e3af3f90a52d6c40f6f95d624c0b1621cd")
     );
@@ -564,7 +564,7 @@ void protx_update_registrar_help()
             "4. \"payoutAddress\"       (string, required) The dash address to use for masternode reward payments\n"
             "                         If set to \"0\" or an empty string, the last on-chain payout address of the masternode will be used.\n"
             "5. \"fundAddress\"         (string, optional) If specified wallet will only use coins from this address to fund ProTx.\n"
-            "                         The private key belonging to this address be known in your wallet.\n"
+            "                         The private key belonging to this address must be known in your wallet.\n"
             "\nExamples:\n"
             + HelpExampleCli("protx", "update_registrar \"0123456701234567012345670123456701234567012345670123456701234567\" \"982eb34b7c7f614f29e5c665bc3605f1beeef85e3395ca12d3be49d2868ecfea5566f11cedfad30c51b2403f2ad95b67\" \"XwnLY9Tf7Zsef8gMGL2fhWA9ZmMjt4KPwG\"")
     );
@@ -641,7 +641,7 @@ void protx_revoke_help()
             "                         registered operator public key.\n"
             "3. reason                  (numeric, optional) The reason for revocation.\n"
             "4. \"fundAddress\"         (string, optional) If specified wallet will only use coins from this address to fund ProTx.\n"
-            "                         The private key belonging to this address be known in your wallet.\n"
+            "                         The private key belonging to this address must be known in your wallet.\n"
             "\nExamples:\n"
             + HelpExampleCli("protx", "revoke \"0123456701234567012345670123456701234567012345670123456701234567\" \"072f36a77261cdd5d64c32d97bac417540eddca1d5612f416feb07ff75a8e240\"")
     );
