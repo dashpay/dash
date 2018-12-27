@@ -132,6 +132,10 @@ static void FundSpecialTx(CMutableTransaction& tx, const SpecialTxPayload& paylo
         }
     }
 
+    if (!coinControl.HasSelected()) {
+        throw JSONRPCError(RPC_INTERNAL_ERROR, "No funds at specified address");
+    }
+
     CWalletTx wtx;
     CReserveKey reservekey(pwalletMain);
     CAmount nFee;
