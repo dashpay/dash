@@ -533,35 +533,40 @@ UniValue protx_update_service(const JSONRPCRequest& request)
     tx.nVersion = 3;
     tx.nType = TRANSACTION_PROVIDER_UPDATE_SERVICE;
 
+    // param operatorPayoutAddress
     if (request.params.size() >= 5) {
-        // Using funds from currently specified operator payout address
-        CBitcoinAddress payoutAddress(request.params[4].get_str());
-        if (!payoutAddress.IsValid()) {
-            throw JSONRPCError(RPC_INVALID_ADDRESS_OR_KEY, strprintf("invalid operator payout address: %s", request.params[4].get_str()));
-        }
-        ptx.scriptOperatorPayout = GetScriptForDestination(payoutAddress.Get());
-        if (request.params.size() == 5) {
-            FundSpecialTx(tx, ptx, payoutAddress.Get());
+        if (request.params[4].get_str().empty() || request.params[4].get_str() == "0") {
+            ptx.scriptOperatorPayout = dmn->pdmnState->scriptOperatorPayout;
         } else {
-            // Using funds from currently specified feeSourceAddress
-            CBitcoinAddress feeSourceAddress = CBitcoinAddress(request.params[5].get_str());
-            if (!feeSourceAddress.IsValid())
-                throw JSONRPCError(RPC_INVALID_ADDRESS_OR_KEY, std::string("Invalid Dash address: ") + request.params[5].get_str());
-            FundSpecialTx(tx, ptx, feeSourceAddress.Get());
+            CBitcoinAddress payoutAddress(request.params[4].get_str());
+            if (!payoutAddress.IsValid()) {
+                throw JSONRPCError(RPC_INVALID_ADDRESS_OR_KEY, strprintf("invalid operator payout address: %s", request.params[4].get_str()));
+            }
+            ptx.scriptOperatorPayout = GetScriptForDestination(payoutAddress.Get());
         }
-    } else if (dmn->pdmnState->scriptOperatorPayout != CScript()) {
-        // Using funds from previousely specified operator payout address
-        CTxDestination txDest;
-        ExtractDestination(dmn->pdmnState->scriptOperatorPayout, txDest);
-        FundSpecialTx(tx, ptx, txDest);
-    } else if (dmn->pdmnState->scriptPayout != CScript()) {
-        // Using funds from previousely specified masternode payout address
-        CTxDestination txDest;
-        ExtractDestination(dmn->pdmnState->scriptPayout, txDest);
-        FundSpecialTx(tx, ptx, txDest);
     } else {
-        throw JSONRPCError(RPC_INTERNAL_ERROR, "No payout or fee source addresses found, can't update");
+        ptx.scriptOperatorPayout = dmn->pdmnState->scriptOperatorPayout;
     }
+
+    CTxDestination feeSource;
+
+    // param feeSourceAddress
+    if (request.params.size() >= 6) {
+        CBitcoinAddress feeSourceAddress = CBitcoinAddress(request.params[5].get_str());
+        if (!feeSourceAddress.IsValid())
+            throw JSONRPCError(RPC_INVALID_ADDRESS_OR_KEY, std::string("Invalid Dash address: ") + request.params[5].get_str());
+        feeSource = feeSourceAddress.Get();
+    } else {
+        if (ptx.scriptOperatorPayout != CScript()) {
+            // use operator reward address as default source for fees
+            ExtractDestination(ptx.scriptOperatorPayout, feeSource);
+        } else {
+            // use payout address as default source for fees
+            ExtractDestination(dmn->pdmnState->scriptPayout, feeSource);
+        }
+    }
+
+    FundSpecialTx(tx, ptx, feeSource);
 
     SignSpecialTxPayloadByHash(tx, ptx, keyOperator);
     SetTxPayload(tx, ptx);
