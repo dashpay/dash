@@ -332,6 +332,7 @@ See detailed [set of changes](https://github.com/dashpay/dash/compare/v0.12.3.4.
 - [`ac30196bc`](https://github.com/dashpay/dash/commit/ac30196bc) Show some info about the wallet dumped via dumpwallet (#2191)
 
 ### LLMQ and Deterministic Masternodes
+- [`3861c6a82`](https://github.com/dashpay/dash/commit/3861c6a82) Add BIP9 deployment for DIP3 on mainnet (#2585)
 - [`587911b36`](https://github.com/dashpay/dash/commit/587911b36) Fix IsBlockPayeeValid (#2577)
 - [`3c30a6aff`](https://github.com/dashpay/dash/commit/3c30a6aff) Add missing masternodeblsprivkey help text (#2569)
 - [`378dadd0f`](https://github.com/dashpay/dash/commit/378dadd0f) Ensure EvoDB consistency for quorum commitments by storing the best block hash (#2537)
