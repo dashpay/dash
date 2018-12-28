@@ -24,42 +24,14 @@ struct masternode_info_t
     masternode_info_t() = default;
     masternode_info_t(masternode_info_t const&) = default;
 
-    masternode_info_t(int activeState, int protoVer, int64_t sTime) :
-        nActiveState{activeState}, nProtocolVersion{protoVer}, sigTime{sTime} {}
-
     // only called when the network is in legacy MN list mode
-    masternode_info_t(int activeState, int protoVer, int64_t sTime,
-                      COutPoint const& outpnt, CService const& addr,
-                      CPubKey const& pkCollAddr, CPubKey const& pkMN) :
-        nActiveState{activeState}, nProtocolVersion{protoVer}, sigTime{sTime},
-        outpoint{outpnt}, addr{addr},
-        pubKeyCollateralAddress{pkCollAddr}, pubKeyMasternode{pkMN}, keyIDCollateralAddress{pkCollAddr.GetID()}, keyIDOwner{pkMN.GetID()}, legacyKeyIDOperator{pkMN.GetID()}, keyIDVoting{pkMN.GetID()} {}
-
-    // only called when the network is in deterministic MN list mode
-    masternode_info_t(int activeState, int protoVer, int64_t sTime,
-                      COutPoint const& outpnt, CService const& addr,
-                      CKeyID const& pkCollAddr, CKeyID const& pkOwner, CBLSPublicKey const& pkOperator, CKeyID const& pkVoting) :
-        nActiveState{activeState}, nProtocolVersion{protoVer}, sigTime{sTime},
-        outpoint{outpnt}, addr{addr},
-        pubKeyCollateralAddress{}, pubKeyMasternode{}, keyIDCollateralAddress{pkCollAddr}, keyIDOwner{pkOwner}, blsPubKeyOperator{pkOperator}, keyIDVoting{pkVoting} {}
-
-    int nActiveState = 0;
-    int nProtocolVersion = 0;
-    int64_t sigTime = 0; //mnb message time
+    masternode_info_t(COutPoint const& outpnt) :
+        outpoint{outpnt}
+        {}
 
     COutPoint outpoint{};
-    CService addr{};
-    CPubKey pubKeyCollateralAddress{}; // this will be invalid/unset when the network switches to deterministic MNs (luckely it's only important for the broadcast hash)
-    CPubKey pubKeyMasternode{}; // this will be invalid/unset when the network switches to deterministic MNs (luckely it's only important for the broadcast hash)
-    CKeyID keyIDCollateralAddress{}; // this is only used in compatibility code and won't be used when spork15 gets activated
-    CKeyID keyIDOwner{};
-    CKeyID legacyKeyIDOperator{};
-    CBLSPublicKey blsPubKeyOperator;
-    CKeyID keyIDVoting{};
 
     int64_t nLastDsq = 0; //the dsq count from the last dsq broadcast of this node
-    int64_t nTimeLastChecked = 0;
-    int64_t nTimeLastPaid = 0;
     bool fInfoValid = false; //* not in CMN
 };
 
@@ -87,21 +59,13 @@ public:
         COLLATERAL_INVALID_PUBKEY,
     };
 
-
-    std::vector<unsigned char> vchSig{};
-
-    uint256 nCollateralMinConfBlockHash{};
-    int nPoSeBanScore{};
-    int nPoSeBanHeight{};
     int nMixingTxCount{};
-    bool fUnitTest = false;
 
     // KEEP TRACK OF GOVERNANCE ITEMS EACH MASTERNODE HAS VOTE UPON FOR RECALCULATION
     std::map<uint256, int> mapGovernanceObjectsVotedOn;
 
     CMasternode();
     CMasternode(const CMasternode& other);
-    CMasternode(CService addrNew, COutPoint outpointNew, CPubKey pubKeyCollateralAddressNew, CPubKey pubKeyMasternodeNew, int nProtocolVersionIn);
     CMasternode(const uint256 &proTxHash, const CDeterministicMNCPtr& dmn);
 
     ADD_SERIALIZE_METHODS;
@@ -110,38 +74,10 @@ public:
     inline void SerializationOp(Stream& s, Operation ser_action) {
         LOCK(cs);
         READWRITE(outpoint);
-        READWRITE(addr);
-        READWRITE(pubKeyCollateralAddress);
-        READWRITE(pubKeyMasternode);
-        READWRITE(keyIDCollateralAddress);
-        READWRITE(keyIDOwner);
-        READWRITE(legacyKeyIDOperator);
-        READWRITE(blsPubKeyOperator);
-        READWRITE(keyIDVoting);
-        READWRITE(vchSig);
-        READWRITE(sigTime);
         READWRITE(nLastDsq);
-        READWRITE(nTimeLastChecked);
-        READWRITE(nTimeLastPaid);
-        READWRITE(nActiveState);
-        READWRITE(nCollateralMinConfBlockHash);
-        READWRITE(nProtocolVersion);
-        READWRITE(nPoSeBanScore);
-        READWRITE(nPoSeBanHeight);
         READWRITE(nMixingTxCount);
-        READWRITE(fUnitTest);
         READWRITE(mapGovernanceObjectsVotedOn);
     }
-
-    // CALCULATE A RANK AGAINST OF GIVEN BLOCK
-    arith_uint256 CalculateScore(const uint256& blockHash) const;
-
-    static CollateralStatus CheckCollateral(const COutPoint& outpoint, const CKeyID& keyID);
-    static CollateralStatus CheckCollateral(const COutPoint& outpoint, const CKeyID& keyID, int& nHeightRet);
-
-    bool IsEnabled() const { return nActiveState == MASTERNODE_ENABLED; }
-    bool IsPoSeBanned() const { return nActiveState == MASTERNODE_POSE_BAN; }
-    bool IsOutpointSpent() const { return nActiveState == MASTERNODE_OUTPOINT_SPENT; }
 
     bool IsValidForMixingTxes() const
     {
@@ -149,10 +85,6 @@ public:
     }
 
     masternode_info_t GetInfo() const;
-
-    static std::string StateToString(int nStateIn);
-    std::string GetStateString() const;
-    std::string GetStatus() const;
 
     // KEEP TRACK OF EACH GOVERNANCE ITEM INCASE THIS NODE GOES OFFLINE, SO WE CAN RECALC THEIR STATUS
     void AddGovernanceVote(uint256 nGovernanceObjectHash);
@@ -164,12 +96,7 @@ public:
     CMasternode& operator=(CMasternode const& from)
     {
         static_cast<masternode_info_t&>(*this)=from;
-        vchSig = from.vchSig;
-        nCollateralMinConfBlockHash = from.nCollateralMinConfBlockHash;
-        nPoSeBanScore = from.nPoSeBanScore;
-        nPoSeBanHeight = from.nPoSeBanHeight;
         nMixingTxCount = from.nMixingTxCount;
-        fUnitTest = from.fUnitTest;
         mapGovernanceObjectsVotedOn = from.mapGovernanceObjectsVotedOn;
         return *this;
     }

@@ -24,71 +24,17 @@
 
 
 CMasternode::CMasternode() :
-    masternode_info_t{ MASTERNODE_ENABLED, PROTOCOL_VERSION, GetAdjustedTime()}
-{}
-
-CMasternode::CMasternode(CService addr, COutPoint outpoint, CPubKey pubKeyCollateralAddressNew, CPubKey pubKeyMasternodeNew, int nProtocolVersionIn) :
-    masternode_info_t{ MASTERNODE_ENABLED, nProtocolVersionIn, GetAdjustedTime(),
-                       outpoint, addr, pubKeyCollateralAddressNew, pubKeyMasternodeNew}
+    masternode_info_t{ }
 {}
 
 CMasternode::CMasternode(const CMasternode& other) :
     masternode_info_t{other},
-    vchSig(other.vchSig),
-    nCollateralMinConfBlockHash(other.nCollateralMinConfBlockHash),
-    nBlockLastPaid(other.nBlockLastPaid),
-    nPoSeBanScore(other.nPoSeBanScore),
-    nPoSeBanHeight(other.nPoSeBanHeight),
-    nMixingTxCount(other.nMixingTxCount),
-    fUnitTest(other.fUnitTest)
+    nMixingTxCount(other.nMixingTxCount)
 {}
 
 CMasternode::CMasternode(const uint256 &proTxHash, const CDeterministicMNCPtr& dmn) :
-    masternode_info_t{ MASTERNODE_ENABLED, DMN_PROTO_VERSION, GetAdjustedTime(),
-                       dmn->collateralOutpoint, dmn->pdmnState->addr, CKeyID() /* not valid with DIP3 */, dmn->pdmnState->keyIDOwner, dmn->pdmnState->pubKeyOperator, dmn->pdmnState->keyIDVoting}
+    masternode_info_t{ dmn->collateralOutpoint }
 {
-}
-
-//
-// Deterministically calculate a given "score" for a Masternode depending on how close it's hash is to
-// the proof of work for that block. The further away they are the better, the furthest will win the election
-// and get paid this block
-//
-arith_uint256 CMasternode::CalculateScore(const uint256& blockHash) const
-{
-    // NOTE not called when deterministic masternodes (spork15) are activated
-
-    // Deterministically calculate a "score" for a Masternode based on any given (block)hash
-    CHashWriter ss(SER_GETHASH, PROTOCOL_VERSION);
-    ss << outpoint << nCollateralMinConfBlockHash << blockHash;
-    return UintToArith256(ss.GetHash());
-}
-
-CMasternode::CollateralStatus CMasternode::CheckCollateral(const COutPoint& outpoint, const CKeyID& keyID)
-{
-    int nHeight;
-    return CheckCollateral(outpoint, keyID, nHeight);
-}
-
-CMasternode::CollateralStatus CMasternode::CheckCollateral(const COutPoint& outpoint, const CKeyID& keyID, int& nHeightRet)
-{
-    AssertLockHeld(cs_main);
-
-    Coin coin;
-    if(!GetUTXOCoin(outpoint, coin)) {
-        return COLLATERAL_UTXO_NOT_FOUND;
-    }
-
-    if(coin.out.nValue != 1000 * COIN) {
-        return COLLATERAL_INVALID_AMOUNT;
-    }
-
-    if(keyID.IsNull() || coin.out.scriptPubKey != GetScriptForDestination(keyID)) {
-        return COLLATERAL_INVALID_PUBKEY;
-    }
-
-    nHeightRet = coin.nHeight;
-    return COLLATERAL_OK;
 }
 
 masternode_info_t CMasternode::GetInfo() const
@@ -96,27 +42,6 @@ masternode_info_t CMasternode::GetInfo() const
     masternode_info_t info{*this};
     info.fInfoValid = true;
     return info;
-}
-
-std::string CMasternode::StateToString(int nStateIn)
-{
-    switch(nStateIn) {
-        case MASTERNODE_ENABLED:                return "ENABLED";
-        case MASTERNODE_OUTPOINT_SPENT:         return "OUTPOINT_SPENT";
-        case MASTERNODE_POSE_BAN:               return "POSE_BAN";
-        default:                                return "UNKNOWN";
-    }
-}
-
-std::string CMasternode::GetStateString() const
-{
-    return StateToString(nActiveState);
-}
-
-std::string CMasternode::GetStatus() const
-{
-    // TODO: return smth a bit more human readable here
-    return GetStateString();
 }
 
 void CMasternode::AddGovernanceVote(uint256 nGovernanceObjectHash)
