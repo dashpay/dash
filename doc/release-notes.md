@@ -123,7 +123,9 @@ PrivateSend
 With further refactoring of PrivateSend code it became possible to implement mixing in few parallel
 mixing sessions at once from one single wallet. You can set number of mixing sessions via
 `privatesendsessions` cmd-line option. You can pick any number of sessions between 1 and 10, default is
-4 which should be good enough for most users.
+4 which should be good enough for most users. For this feature to work you should also make sure that
+`privatesendmultisession` is set to `1` via cmd-line or `Enable PrivateSend multi-session` is enabled
+in GUI.
 
 Introducing parallel mixing sessions should speed mixing up which makes it's reasonable to add a new
 mixing denom (0.00100001 DASH) now while keeping all the old ones too. It also makes sense to allow more
