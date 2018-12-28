@@ -259,31 +259,26 @@ CMasternode* CMasternodeMan::Find(const COutPoint &outpoint)
 {
     LOCK(cs);
 
-    if (deterministicMNManager->IsDIP3Active()) {
-        // This code keeps compatibility to old code depending on the non-deterministic MN lists
-        // When deterministic MN lists get activated, we stop relying on the MNs we encountered due to MNBs and start
-        // using the MNs found in the deterministic MN manager. To keep compatibility, we create CMasternode entries
-        // for these and return them here. This is needed because we also need to track some data per MN that is not
-        // on-chain, like vote counts
+    // This code keeps compatibility to old code depending on the non-deterministic MN lists
+    // When deterministic MN lists get activated, we stop relying on the MNs we encountered due to MNBs and start
+    // using the MNs found in the deterministic MN manager. To keep compatibility, we create CMasternode entries
+    // for these and return them here. This is needed because we also need to track some data per MN that is not
+    // on-chain, like vote counts
 
-        auto mnList = deterministicMNManager->GetListAtChainTip();
-        auto dmn = mnList.GetMNByCollateral(outpoint);
-        if (!dmn || !mnList.IsMNValid(dmn)) {
-            return nullptr;
-        }
+    auto mnList = deterministicMNManager->GetListAtChainTip();
+    auto dmn = mnList.GetMNByCollateral(outpoint);
+    if (!dmn || !mnList.IsMNValid(dmn)) {
+        return nullptr;
+    }
 
-        auto it = mapMasternodes.find(outpoint);
-        if (it != mapMasternodes.end()) {
-            return &(it->second);
-        } else {
-            // MN is not in mapMasternodes but in the deterministic list. Create an entry in mapMasternodes for compatibility with legacy code
-            CMasternode mn(outpoint.hash, dmn);
-            it = mapMasternodes.emplace(outpoint, mn).first;
-            return &(it->second);
-        }
+    auto it = mapMasternodes.find(outpoint);
+    if (it != mapMasternodes.end()) {
+        return &(it->second);
     } else {
-        auto it = mapMasternodes.find(outpoint);
-        return it == mapMasternodes.end() ? nullptr : &(it->second);
+        // MN is not in mapMasternodes but in the deterministic list. Create an entry in mapMasternodes for compatibility with legacy code
+        CMasternode mn(outpoint.hash, dmn);
+        it = mapMasternodes.emplace(outpoint, mn).first;
+        return &(it->second);
     }
 }
 
