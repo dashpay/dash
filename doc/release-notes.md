@@ -192,7 +192,7 @@ There are a few changes in existing RPC interfaces in this release:
 - `gobject prepare` accepts an UTXO reference to spend;
 - `masternode status` has DIP0003 related info now;
 - `previousbits` and `coinbase_payload` fields were added in `getblocktemplate`;
-- `getblocktemplate` now returns an array for masternode payments instead of a single object. Miners and pools have to upgrade their software to support multiple masternode payees.
+- `getblocktemplate` now returns an array for masternode payments instead of a single object (miners and mining pools have to upgrade their software to support multiple masternode payees);
 - `getblockchaininfo` shows BIP9 deployment progress;
 - `help command subCommand` should give detailed help for subcommands e.g. `help protx list`;
 - `compressed` option in `masternode genkey`;
