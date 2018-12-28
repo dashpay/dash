@@ -5,7 +5,7 @@ Release is now available from:
 
   <https://www.dash.org/downloads/#wallets>
 
-This is an optional release and only contains changes for testnet. It is not required to update masternodes on mainnet.
+This is a new major version release, bringing new features, various bugfixes and other improvements.
 
 Please report bugs using the issue tracker at github:
 
@@ -22,26 +22,17 @@ If you are running an older version, shut it down. Wait until it has completely
 shut down (which might take a few minutes for older versions), then run the
 installer (on Windows) or just copy over /Applications/Dash-Qt (on Mac) or
 dashd/dash-qt (on Linux). If you upgrade after DIP0003 activation you will
-have to reindex to make sure your wallet have all the new data synced.
+have to reindex (start with -reindex-chainstate or -reindex) to make sure
+your wallet has all the new data synced.
 
 Downgrade warning
 -----------------
 
-### Downgrade to a version < 0.12.2.2
+### Downgrade to a version < 0.13.0.0
 
-Because release 0.12.2.2 included the [per-UTXO fix](release-notes/dash/release-notes-0.12.2.2.md#per-utxo-fix)
-which changed the structure of the internal database, you will have to reindex
-the database if you decide to use any pre-0.12.2.2 version.
-
-Wallet forward or backward compatibility was not affected.
-
-### Downgrade to 0.12.3.x
-
-Downgrading to these versions does not require any additional actions, should be
-fully compatible.
-
-Note that while downgrading after DIP0003 activation is possible, you won't
-be able to sync because new nodes won't accept connection from old ones anymore.
+Downgrading to a version smaller than 0.13 is only supported as long as DIP2/DIP3
+has not been activated. Activation will happen when enough miners signal compatibility
+through a BIP9 (bit 3) deployment.
 
 Notable changes
 ===============
@@ -104,6 +95,7 @@ The new system is going to be activated via combination of a BIP9-like deploymen
 (`SPORK_15_DETERMINISTIC_MNS_ENABLED`).
 
 Read more: https://github.com/dashpay/dips/blob/master/dip-0003.md
+Upgrade instructions: https://docs.dash.org/DIP3-masternode-upgrade
 
 DIP0004 - Simplified Verification of Deterministic Masternode Lists
 -------------------------------------------------------------------
@@ -122,10 +114,8 @@ PrivateSend
 -----------
 With further refactoring of PrivateSend code it became possible to implement mixing in few parallel
 mixing sessions at once from one single wallet. You can set number of mixing sessions via
-`privatesendsessions` cmd-line option. You can pick any number of sessions between 1 and 10, default is
-4 which should be good enough for most users. For this feature to work you should also make sure that
-`privatesendmultisession` is set to `1` via cmd-line or `Enable PrivateSend multi-session` is enabled
-in GUI.
+`privatesendsessions` cmd-line option or dash.conf. You can pick any number of sessions between 1 and 10,
+default is 4 which should be good enough for most users.
 
 Introducing parallel mixing sessions should speed mixing up which makes it's reasonable to add a new
 mixing denom (0.00100001 DASH) now while keeping all the old ones too. It also makes sense to allow more
@@ -198,9 +188,9 @@ RPC changes
 -----------
 There are a few changes in existing RPC interfaces in this release:
 - `gobject prepare` accepts an UTXO reference to spend;
-- `masternode info <protx>` to show info about DIP0003-enabled masternode;
 - `masternode status` has DIP0003 related info now;
 - `previousbits` and `coinbase_payload` fields were added in `getblocktemplate`;
+- `getblocktemplate` now returns an array for masternode payments instead of a single object. Miners and pools have to upgrade their software to support multiple masternode payees.
 - `getblockchaininfo` shows BIP9 deployment progress;
 - `help command subCommand` should give detailed help for subcommands e.g. `help protx list`;
 - `compressed` option in `masternode genkey`;
@@ -210,7 +200,7 @@ There are a few changes in existing RPC interfaces in this release:
 - `addlocked` param added to `getreceivedbyaddress`, `getreceivedbyaccount`, `getbalance`, `sendfrom`, `sendmany`,
 `listreceivedbyaddress`, `listreceivedbyaccount`, `listaccounts`.
 
-There is also a new RPC commands:
+There are also new RPC commands:
 - `protx` (`list`, `info`, `diff`, `register`, `register_fund`, `register_prepare`,
 `register_submit`, `update_service`, `update_registrar`, `revoke`);
 - `bls generate`;
