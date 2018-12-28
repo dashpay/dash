@@ -118,7 +118,6 @@ class AutoIXMempoolTest(DashTestFramework):
     def run_test(self):
         # make sure masternodes are synced
         sync_masternodes(self.nodes)
-        self.enforce_masternode_payments()  # required for bip9 activation
         self.activate_autoix_bip9()
         self.set_autoix_spork_state(True)
 
