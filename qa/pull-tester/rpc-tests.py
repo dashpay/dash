@@ -94,7 +94,7 @@ BASE_SCRIPTS= [
 ]
 
 ZMQ_SCRIPTS = [
-    # ZMQ test can only be run if bitcoin was built with zmq-enabled.
+    # ZMQ test can only be run if Dash Core was built with zmq-enabled.
     # call rpc_tests.py with -nozmq to explicitly exclude these tests.
     "zmq_test.py"]
 
@@ -221,7 +221,7 @@ def run_tests(test_list, src_dir, build_dir, exeext, jobs=1, enable_coverage=Fal
 
     #Set env vars
     if "BITCOIND" not in os.environ:
-        os.environ["BITCOIND"] = build_dir + '/src/bitcoind' + exeext
+        os.environ["BITCOIND"] = build_dir + '/src/dashd' + exeext
 
     tests_dir = src_dir + '/qa/rpc-tests/'
 
