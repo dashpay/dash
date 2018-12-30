@@ -59,7 +59,7 @@ or follow here
 ```
 B. VPS Remote wallet install
 ----------------------------
-1. From your home directory, download the latest version from the PIVX GitHub repository:
+1. From your home directory, download the latest version from the CADEX GitHub repository:
 ```
 wget https://github.com/cadexproject/cadex/releases/download/v1.0.0/ubuntu16-cli.tar.gz
 ```
