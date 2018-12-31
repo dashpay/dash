@@ -79,6 +79,10 @@ class AutoIXMempoolTest(DashTestFramework):
         return info['SPORK_16_INSTANTSEND_AUTOLOCKS']
 
     def set_autoix_spork_state(self, state):
+        # Increment mocktime as otherwise nodes will not update sporks
+        set_mocktime(get_mocktime() + 1)
+        set_node_times(self.nodes, get_mocktime())
+
         if state:
             value = 0
         else:
