@@ -145,7 +145,9 @@ class AutoIXMempoolTest(DashTestFramework):
         assert(self.send_simple_tx(sender, receiver))
 
         # fill mempool with transactions
+        self.set_autoix_spork_state(False)
         self.fill_mempool()
+        self.set_autoix_spork_state(True)
 
         # autoIX is not working now
         assert(not self.send_simple_tx(sender, receiver))
