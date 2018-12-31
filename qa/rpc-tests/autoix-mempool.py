@@ -133,7 +133,7 @@ class AutoIXMempoolTest(DashTestFramework):
         sender = self.nodes[self.sender_idx]
         receiver = self.nodes[self.receiver_idx]
         sender_address = sender.getnewaddress()
-        for i in range(0, 3):
+        for i in range(0, 4):
             self.nodes[0].sendtoaddress(sender_address, 2.0)
         for i in range(0, 6):
             set_mocktime(get_mocktime() + 1)
@@ -152,6 +152,13 @@ class AutoIXMempoolTest(DashTestFramework):
         # autoIX is not working now
         assert(not self.send_simple_tx(sender, receiver))
         # regular IX is still working
+        assert(self.send_regular_IX(sender, receiver))
+
+        # generate one block to clean up mempool and retry auto and regular IX
+        # generate 2 more blocks to have enough confirmations for IX
+        self.nodes[0].generate(3)
+        self.sync_all()
+        assert(self.send_simple_tx(sender, receiver))
         assert(self.send_regular_IX(sender, receiver))
 
 
