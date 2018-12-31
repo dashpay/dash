@@ -374,6 +374,11 @@ bool CMasternodePayments::IsScheduled(const CDeterministicMNCPtr& dmnIn, int nNo
 
 bool CMasternodePayments::IsTransactionValid(const CTransaction& txNew, int nBlockHeight, CAmount blockReward) const
 {
+    if (!deterministicMNManager->IsDIP3Active(nBlockHeight)) {
+        // can't verify historical blocks here
+        return true;
+    }
+
     std::vector<CTxOut> voutMasternodePayments;
     if (!GetBlockTxOuts(nBlockHeight, blockReward, voutMasternodePayments)) {
         LogPrintf("CMasternodePayments::%s -- ERROR failed to get payees for block at height %s\n", __func__, nBlockHeight);
