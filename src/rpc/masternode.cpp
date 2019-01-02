@@ -146,7 +146,7 @@ void masternode_list_help()
             "  payee          - Print Dash address associated with a masternode (can be additionally filtered,\n"
             "                   partial match)\n"
             "  pubKeyOperator - Print the masternode operator public key\n"
-            "  status         - Print masternode status: ENABLED / POSE_BAN / OUTPOINT_SPENT\n"
+            "  status         - Print masternode status: ENABLED / POSE_BANNED\n"
             "                   (can be additionally filtered, partial match)\n"
         );
 }
