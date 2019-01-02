@@ -365,7 +365,7 @@ class DIP3Test(BitcoinTestFramework):
         for j in range(repeat):
             for i in range(tx_count):
                 while True:
-                    from_node_idx = random.randint(0, len(self.nodes) - 1)
+                    from_node_idx = random.randint(1, len(self.nodes) - 1)
                     from_node = self.nodes[from_node_idx]
                     if from_node is not None:
                         break
