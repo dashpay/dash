@@ -46,19 +46,6 @@ private:
     mutable CCriticalSection cs;
 
 public:
-    enum state {
-        MASTERNODE_ENABLED,
-        MASTERNODE_OUTPOINT_SPENT,
-        MASTERNODE_POSE_BAN
-    };
-
-    enum CollateralStatus {
-        COLLATERAL_OK,
-        COLLATERAL_UTXO_NOT_FOUND,
-        COLLATERAL_INVALID_AMOUNT,
-        COLLATERAL_INVALID_PUBKEY,
-    };
-
     int nMixingTxCount{};
 
     // KEEP TRACK OF GOVERNANCE ITEMS EACH MASTERNODE HAS VOTE UPON FOR RECALCULATION
