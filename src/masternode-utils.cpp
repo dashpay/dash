@@ -6,7 +6,9 @@
 
 #include "init.h"
 #include "masternode-sync.h"
+#ifdef ENABLE_WALLET
 #include "privatesend-client.h"
+#endif
 #include "validation.h"
 
 struct CompareScoreMN
