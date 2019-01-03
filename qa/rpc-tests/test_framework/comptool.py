@@ -363,7 +363,8 @@ class TestManager(object):
                         if (not self.check_results(tip, outcome)):
                             raise AssertionError("Test failed at test %d" % test_number)
                     else:
-                        invqueue.append(CInv(2, block.sha256))
+                        block_header = CBlockHeader(block)
+                        [ c.cb.send_header(block_header) for c in self.connections ]
                 elif isinstance(b_or_t, CBlockHeader):
                     block_header = b_or_t
                     self.block_store.add_header(block_header)
