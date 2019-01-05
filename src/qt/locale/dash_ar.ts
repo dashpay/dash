@@ -1158,7 +1158,7 @@
     </message>
     <message>
         <source>POSE_BANNED</source>
-        <translation>حضر_POSE</translation>
+        <translation>POSE_BANNED</translation>
     </message>
     <message>
         <source>UNKNOWN</source>
