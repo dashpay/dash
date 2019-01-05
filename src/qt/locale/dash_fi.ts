@@ -1158,7 +1158,7 @@
     </message>
     <message>
         <source>POSE_BANNED</source>
-        <translation>POSE_ESTETTY</translation>
+        <translation>POSE_BANNED</translation>
     </message>
     <message>
         <source>UNKNOWN</source>
