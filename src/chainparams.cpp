@@ -150,6 +150,7 @@ public:
         consensus.fPowNoRetargeting = false;
         consensus.nPowKGWHeight = 260;
         consensus.nPowDGWHeight = 398;
+      
         consensus.nRuleChangeActivationThreshold = 1916; // 95% of 2016
         consensus.nMinerConfirmationWindow = 2016; // nPowTargetTimespan / nPowTargetSpacing
         consensus.vDeployments[Consensus::DEPLOYMENT_TESTDUMMY].bit = 28;
@@ -192,6 +193,7 @@ public:
         pchMessageStart[3] = 0xb3;
         vAlertPubKey = ParseHex("04c3b213d0a75f32352f0efaf6c72264b855ae4d09acb5452ae8ed28218fcd73cfb572567780a4588062b6cc93588ff634d4eba06784addc7fe1c78c0ef683c2d7");
         nDefaultPort = 27270;
+     // nLastPOWBlock = 15496;
         nPruneAfterHeight = 100000;
 
         genesis = CreateGenesisBlock(1544267173, 75570, 0x1e0ffff0, 1, 50 * COIN);
