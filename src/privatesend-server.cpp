@@ -615,7 +615,7 @@ bool CPrivateSendServer::AddEntry(const CPrivateSendEntry& entryNew, PoolMessage
 
     vecEntries.push_back(entryNew);
 
-    LogPrint("privatesend", "CPrivateSendServer::AddEntry -- adding entry %d/%d\n", GetEntriesCount(), nSessionMaxParticipants);
+    LogPrint("privatesend", "CPrivateSendServer::AddEntry -- adding entry %d of %d required\n", GetEntriesCount(), nSessionMaxParticipants);
     nMessageIDRet = MSG_ENTRIES_ADDED;
     nTimeLastSuccessfulStep = GetTime();
 
