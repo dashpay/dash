@@ -549,7 +549,7 @@ UniValue masternodelist(const JSONRPCRequest& request)
             streamInfo << std::setw(18) <<
                            dmnToStatus(dmn) << " " <<
                            payeeStr << " " <<
-                                           dmn->pdmnState->addr.ToString();
+                           dmn->pdmnState->addr.ToString();
             std::string strInfo = streamInfo.str();
             if (strFilter !="" && strInfo.find(strFilter) == std::string::npos &&
                 strOutpoint.find(strFilter) == std::string::npos) return;
