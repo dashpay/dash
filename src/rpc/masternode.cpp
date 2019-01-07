@@ -560,7 +560,10 @@ UniValue masternodelist(const JSONRPCRequest& request)
                            payeeStr << " " <<
                            dmnToStatus(dmn) << " " <<
                            dmnToLastPaidTime(dmn) << " " <<
-                           dmn->pdmnState->nLastPaidHeight;
+                           dmn->pdmnState->nLastPaidHeight << " " <<
+                           HexStr(dmn->pdmnState->keyIDOwner) << " " <<
+                           HexStr(dmn->pdmnState->keyIDVoting) << " " <<
+                           dmn->pdmnState->pubKeyOperator.ToString();
             std::string strInfo = streamInfo.str();
             if (strFilter !="" && strInfo.find(strFilter) == std::string::npos &&
                 strOutpoint.find(strFilter) == std::string::npos) return;
@@ -570,6 +573,9 @@ UniValue masternodelist(const JSONRPCRequest& request)
             objMN.push_back(Pair("status", dmnToStatus(dmn)));
             objMN.push_back(Pair("lastpaidtime", dmnToLastPaidTime(dmn)));
             objMN.push_back(Pair("lastpaidblock", dmn->pdmnState->nLastPaidHeight));
+            objMN.push_back(Pair("keyidowner", HexStr(dmn->pdmnState->keyIDOwner)));
+            objMN.push_back(Pair("keyidvoting", HexStr(dmn->pdmnState->keyIDVoting)));
+            objMN.push_back(Pair("pubkeyoperator", dmn->pdmnState->pubKeyOperator.ToString()));
             obj.push_back(Pair(strOutpoint, objMN));
         } else if (strMode == "lastpaidblock") {
             if (strFilter !="" && strOutpoint.find(strFilter) == std::string::npos) return;
