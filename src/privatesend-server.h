@@ -48,7 +48,7 @@ private:
     bool CreateNewSession(const CPrivateSendAccept& dsa, PoolMessage& nMessageIDRet, CConnman& connman);
     bool AddUserToExistingSession(const CPrivateSendAccept& dsa, PoolMessage& nMessageIDRet);
     /// Do we have enough users to take entries?
-    bool IsSessionReady() { return (int)vecSessionCollaterals.size() >= nSessionMaxParticipants; }
+    bool IsSessionReady();
 
     /// Check that all inputs are signed. (Are all inputs signed?)
     bool IsSignaturesComplete();
