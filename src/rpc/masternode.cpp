@@ -557,7 +557,7 @@ UniValue masternodelist(const JSONRPCRequest& request)
         } else if (strMode == "json") {
             std::ostringstream streamInfo;
             streamInfo <<  dmn->pdmnState->addr.ToString() << " " <<
-                           CBitcoinAddress(dmn->pdmnState->scriptPayout).ToString() << " " <<
+                           payeeStr << " " <<
                            dmnToStatus(dmn) << " " <<
                            dmnToLastPaidTime(dmn) << " " <<
                            dmn->pdmnState->nLastPaidHeight;
@@ -566,7 +566,7 @@ UniValue masternodelist(const JSONRPCRequest& request)
                 strOutpoint.find(strFilter) == std::string::npos) return;
             UniValue objMN(UniValue::VOBJ);
             objMN.push_back(Pair("address", dmn->pdmnState->addr.ToString()));
-            objMN.push_back(Pair("payee", CBitcoinAddress(dmn->pdmnState->scriptPayout).ToString()));
+            objMN.push_back(Pair("payee", payeeStr));
             objMN.push_back(Pair("status", dmnToStatus(dmn)));
             objMN.push_back(Pair("lastpaidtime", dmnToLastPaidTime(dmn)));
             objMN.push_back(Pair("lastpaidblock", dmn->pdmnState->nLastPaidHeight));
