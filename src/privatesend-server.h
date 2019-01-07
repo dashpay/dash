@@ -70,7 +70,9 @@ private:
 
 public:
     CPrivateSendServer() :
-        vecSessionCollaterals(), fUnitTest(false) {}
+        vecSessionCollaterals(),
+        nSessionMaxParticipants(0),
+        fUnitTest(false) {}
 
     void ProcessMessage(CNode* pfrom, const std::string& strCommand, CDataStream& vRecv, CConnman& connman);
 
