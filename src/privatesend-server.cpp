@@ -331,8 +331,8 @@ void CPrivateSendServer::CreateFinalTransaction(CConnman& connman)
     LogPrint("privatesend", "CPrivateSendServer::CreateFinalTransaction -- finalMutableTransaction=%s", txNew.ToString());
 
     // request signatures from clients
-    RelayFinalTransaction(finalMutableTransaction, connman);
     SetState(POOL_STATE_SIGNING);
+    RelayFinalTransaction(finalMutableTransaction, connman);
 }
 
 void CPrivateSendServer::CommitFinalTransaction(CConnman& connman)
