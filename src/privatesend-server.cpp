@@ -244,7 +244,6 @@ void CPrivateSendServer::ProcessMessage(CNode* pfrom, const std::string& strComm
             RelayStatus(STATUS_ACCEPTED, connman);
         } else {
             PushStatus(pfrom, STATUS_REJECTED, nMessageID, connman);
-            SetNull();
         }
 
     } else if (strCommand == NetMsgType::DSSIGNFINALTX) {
@@ -484,7 +483,7 @@ void CPrivateSendServer::ChargeRandomFees(CConnman& connman)
 
         CValidationState state;
         if (!AcceptToMemoryPool(mempool, state, txCollateral, false, NULL, false, maxTxFee)) {
-            // should never really happen
+            // Can happen if this collateral belongs to some misbehaving participant we punished earlier
             LogPrintf("CPrivateSendServer::ChargeRandomFees -- ERROR: AcceptToMemoryPool failed!\n");
         } else {
             connman.RelayTransaction(*txCollateral);
@@ -498,18 +497,40 @@ void CPrivateSendServer::ChargeRandomFees(CConnman& connman)
 void CPrivateSendServer::CheckTimeout(CConnman& connman)
 {
     if (!fMasternodeMode) return;
+    if (nState == POOL_STATE_IDLE) return;
 
     CheckQueue();
 
     int nTimeout = (nState == POOL_STATE_SIGNING) ? PRIVATESEND_SIGNING_TIMEOUT : PRIVATESEND_QUEUE_TIMEOUT;
     bool fTimeout = GetTime() - nTimeLastSuccessfulStep >= nTimeout;
 
-    if (nState != POOL_STATE_IDLE && fTimeout) {
-        LogPrint("privatesend", "CPrivateSendServer::CheckTimeout -- %s timed out (%ds) -- resetting\n",
-            (nState == POOL_STATE_SIGNING) ? "Signing" : "Session", nTimeout);
-        ChargeFees(connman);
-        SetNull();
+    // Too early to do anything
+    if (!fTimeout) return;
+
+    // See if we have at least min number of participants, if so - we can still do smth
+    if (nState == POOL_STATE_QUEUE && vecSessionCollaterals.size() >= CPrivateSend::GetMinPoolParticipants()) {
+        LogPrint("privatesend", "CPrivateSendServer::CheckTimeout -- Queue for %d participants timed out (%ds) -- falling back to %d participants\n",
+            nSessionMaxParticipants, nTimeout, vecSessionCollaterals.size());
+        nSessionMaxParticipants = vecSessionCollaterals.size();
+        return;
     }
+
+    if (nState == POOL_STATE_ACCEPTING_ENTRIES && GetEntriesCount() >= CPrivateSend::GetMinPoolParticipants()) {
+        LogPrint("privatesend", "CPrivateSendServer::CheckTimeout -- Accepting entries for %d participants timed out (%ds) -- falling back to %d participants\n",
+            nSessionMaxParticipants, nTimeout, GetEntriesCount());
+        // Punish misbehaving participants
+        ChargeFees(connman);
+        // Try to complete this session ignoring the misbehaving ones
+        nSessionMaxParticipants = GetEntriesCount();
+        CheckPool(connman);
+        return;
+    }
+
+    // All other cases
+    LogPrint("privatesend", "CPrivateSendServer::CheckTimeout -- %s timed out (%ds) -- resetting\n",
+        (nState == POOL_STATE_SIGNING) ? "Signing" : "Session", nTimeout);
+    ChargeFees(connman);
+    SetNull();
 }
 
 /*
