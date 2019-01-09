@@ -143,10 +143,12 @@ void masternode_list_help()
             "  lastpaidblock  - Print the last block height a node was paid on the network\n"
             "  lastpaidtime   - Print the last time a node was paid on the network\n"
             "  payee          - Print Dash address associated with a masternode (can be additionally filtered,\n"
+            "  owneraddress   - Print the masternode owner Dash address\n"
             "                   partial match)\n"
             "  pubKeyOperator - Print the masternode operator public key\n"
             "  status         - Print masternode status: ENABLED / POSE_BANNED\n"
             "                   (can be additionally filtered, partial match)\n"
+            "  votingaddress  - Print the masternode voting Dash address\n"
         );
 }
 
@@ -488,6 +490,7 @@ UniValue masternodelist(const JSONRPCRequest& request)
     if (request.fHelp || (
                 strMode != "addr" && strMode != "full" && strMode != "info" && strMode != "json" &&
                 strMode != "keyidowner" && strMode != "keyidvoting" &&
+                strMode != "owneraddress" && strMode != "votingaddress" &&
                 strMode != "lastpaidtime" && strMode != "lastpaidblock" &&
                 strMode != "payee" && strMode != "pubkeyoperator" &&
                 strMode != "status"))
@@ -563,6 +566,8 @@ UniValue masternodelist(const JSONRPCRequest& request)
                            dmn->pdmnState->nLastPaidHeight << " " <<
                            HexStr(dmn->pdmnState->keyIDOwner) << " " <<
                            HexStr(dmn->pdmnState->keyIDVoting) << " " <<
+                           CBitcoinAddress(dmn->pdmnState->keyIDOwner).ToString() << " " <<
+                           CBitcoinAddress(dmn->pdmnState->keyIDVoting).ToString() << " " <<
                            dmn->pdmnState->pubKeyOperator.ToString();
             std::string strInfo = streamInfo.str();
             if (strFilter !="" && strInfo.find(strFilter) == std::string::npos &&
@@ -575,6 +580,8 @@ UniValue masternodelist(const JSONRPCRequest& request)
             objMN.push_back(Pair("lastpaidblock", dmn->pdmnState->nLastPaidHeight));
             objMN.push_back(Pair("keyidowner", HexStr(dmn->pdmnState->keyIDOwner)));
             objMN.push_back(Pair("keyidvoting", HexStr(dmn->pdmnState->keyIDVoting)));
+            objMN.push_back(Pair("owneraddress", CBitcoinAddress(dmn->pdmnState->keyIDOwner).ToString()));
+            objMN.push_back(Pair("votingaddress", CBitcoinAddress(dmn->pdmnState->keyIDVoting).ToString()));
             objMN.push_back(Pair("pubkeyoperator", dmn->pdmnState->pubKeyOperator.ToString()));
             obj.push_back(Pair(strOutpoint, objMN));
         } else if (strMode == "lastpaidblock") {
@@ -596,11 +603,17 @@ UniValue masternodelist(const JSONRPCRequest& request)
         } else if (strMode == "keyidvoting") {
             if (strFilter !="" && strOutpoint.find(strFilter) == std::string::npos) return;
             obj.push_back(Pair(strOutpoint, HexStr(dmn->pdmnState->keyIDVoting)));
+        } else if (strMode == "owneraddress") {
+            if (strFilter !="" && strOutpoint.find(strFilter) == std::string::npos) return;
+            obj.push_back(Pair(strOutpoint, CBitcoinAddress(dmn->pdmnState->keyIDOwner).ToString()));
         } else if (strMode == "status") {
             std::string strStatus = dmnToStatus(dmn);
             if (strFilter !="" && strStatus.find(strFilter) == std::string::npos &&
                 strOutpoint.find(strFilter) == std::string::npos) return;
             obj.push_back(Pair(strOutpoint, strStatus));
+        } else if (strMode == "votingaddress") {
+            if (strFilter !="" && strOutpoint.find(strFilter) == std::string::npos) return;
+            obj.push_back(Pair(strOutpoint, CBitcoinAddress(dmn->pdmnState->keyIDVoting).ToString()));
         }
     });
 
