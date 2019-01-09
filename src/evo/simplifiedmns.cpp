@@ -8,6 +8,7 @@
 #include "simplifiedmns.h"
 #include "specialtx.h"
 
+#include "base58.h"
 #include "chainparams.h"
 #include "consensus/merkle.h"
 #include "univalue.h"
@@ -45,6 +46,7 @@ void CSimplifiedMNListEntry::ToJson(UniValue& obj) const
     obj.push_back(Pair("service", service.ToString(false)));
     obj.push_back(Pair("pubKeyOperator", pubKeyOperator.ToString()));
     obj.push_back(Pair("keyIDVoting", keyIDVoting.ToString()));
+    obj.push_back(Pair("votingAddress", CBitcoinAddress(keyIDVoting).ToString()));
     obj.push_back(Pair("isValid", isValid));
 }
 
