@@ -138,12 +138,12 @@ void masternode_list_help()
             "  info           - Print info in format 'status payee IP'\n"
             "                   (can be additionally filtered, partial match)\n"
             "  json           - Print info in JSON format (can be additionally filtered, partial match)\n"
-            "  keyIDOwner     - Print the masternode owner key id\n"
-            "  keyIDVoting    - Print the masternode voting key id\n"
+            "  keyidowner     - Print the masternode owner key id\n"
+            "  keyidvoting    - Print the masternode voting key id\n"
             "  lastpaidblock  - Print the last block height a node was paid on the network\n"
             "  lastpaidtime   - Print the last time a node was paid on the network\n"
-            "  payee          - Print Dash address associated with a masternode (can be additionally filtered,\n"
             "  owneraddress   - Print the masternode owner Dash address\n"
+            "  payee          - Print the masternode payout Dash address (can be additionally filtered,\n"
             "                   partial match)\n"
             "  pubKeyOperator - Print the masternode operator public key\n"
             "  status         - Print masternode status: ENABLED / POSE_BANNED\n"
@@ -597,15 +597,15 @@ UniValue masternodelist(const JSONRPCRequest& request)
         } else if (strMode == "keyidowner") {
             if (strFilter !="" && strOutpoint.find(strFilter) == std::string::npos) return;
             obj.push_back(Pair(strOutpoint, HexStr(dmn->pdmnState->keyIDOwner)));
-        } else if (strMode == "pubkeyoperator") {
-            if (strFilter !="" && strOutpoint.find(strFilter) == std::string::npos) return;
-            obj.push_back(Pair(strOutpoint, dmn->pdmnState->pubKeyOperator.ToString()));
         } else if (strMode == "keyidvoting") {
             if (strFilter !="" && strOutpoint.find(strFilter) == std::string::npos) return;
             obj.push_back(Pair(strOutpoint, HexStr(dmn->pdmnState->keyIDVoting)));
         } else if (strMode == "owneraddress") {
             if (strFilter !="" && strOutpoint.find(strFilter) == std::string::npos) return;
             obj.push_back(Pair(strOutpoint, CBitcoinAddress(dmn->pdmnState->keyIDOwner).ToString()));
+        } else if (strMode == "pubkeyoperator") {
+            if (strFilter !="" && strOutpoint.find(strFilter) == std::string::npos) return;
+            obj.push_back(Pair(strOutpoint, dmn->pdmnState->pubKeyOperator.ToString()));
         } else if (strMode == "status") {
             std::string strStatus = dmnToStatus(dmn);
             if (strFilter !="" && strStatus.find(strFilter) == std::string::npos &&
