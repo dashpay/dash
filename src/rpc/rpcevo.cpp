@@ -632,7 +632,7 @@ UniValue protx_update_registrar(const JSONRPCRequest& request)
 
     CKey keyOwner;
     if (!pwalletMain->GetKey(dmn->pdmnState->keyIDOwner, keyOwner)) {
-        throw std::runtime_error(strprintf("owner key %s not found in your wallet", dmn->pdmnState->keyIDOwner.ToString()));
+        throw std::runtime_error(strprintf("Private key for owner address %s not found in your wallet", CBitcoinAddress(dmn->pdmnState->keyIDOwner).ToString()));
     }
 
     CMutableTransaction tx;
