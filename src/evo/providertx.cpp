@@ -417,8 +417,8 @@ std::string CProRegTx::ToString() const
         payee = CBitcoinAddress(dest).ToString();
     }
 
-    return strprintf("CProRegTx(nVersion=%d, collateralOutpoint=%s, addr=%s, nOperatorReward=%f, keyIDOwner=%s, pubKeyOperator=%s, keyIDVoting=%s, scriptPayout=%s)",
-        nVersion, collateralOutpoint.ToStringShort(), addr.ToString(), (double)nOperatorReward / 100, keyIDOwner.ToString(), pubKeyOperator.ToString(), keyIDVoting.ToString(), payee);
+    return strprintf("CProRegTx(nVersion=%d, collateralOutpoint=%s, addr=%s, nOperatorReward=%f, ownerAddress=%s, pubKeyOperator=%s, votingAddress=%s, scriptPayout=%s)",
+        nVersion, collateralOutpoint.ToStringShort(), addr.ToString(), (double)nOperatorReward / 100, CBitcoinAddress(keyIDOwner).ToString(), pubKeyOperator.ToString(), CBitcoinAddress(keyIDVoting).ToString(), payee);
 }
 
 void CProRegTx::ToJson(UniValue& obj) const
@@ -480,8 +480,8 @@ std::string CProUpRegTx::ToString() const
         payee = CBitcoinAddress(dest).ToString();
     }
 
-    return strprintf("CProUpRegTx(nVersion=%d, proTxHash=%s, pubKeyOperator=%s, keyIDVoting=%s, payoutAddress=%s)",
-        nVersion, proTxHash.ToString(), pubKeyOperator.ToString(), keyIDVoting.ToString(), payee);
+    return strprintf("CProUpRegTx(nVersion=%d, proTxHash=%s, pubKeyOperator=%s, votingAddress=%s, payoutAddress=%s)",
+        nVersion, proTxHash.ToString(), pubKeyOperator.ToString(), CBitcoinAddress(keyIDVoting).ToString(), payee);
 }
 
 void CProUpRegTx::ToJson(UniValue& obj) const

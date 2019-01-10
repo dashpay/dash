@@ -33,8 +33,8 @@ uint256 CSimplifiedMNListEntry::CalcHash() const
 
 std::string CSimplifiedMNListEntry::ToString() const
 {
-    return strprintf("CSimplifiedMNListEntry(proRegTxHash=%s, confirmedHash=%s, service=%s, pubKeyOperator=%s, keyIDVoting=%s, isValie=%d)",
-        proRegTxHash.ToString(), confirmedHash.ToString(), service.ToString(false), pubKeyOperator.ToString(), keyIDVoting.ToString(), isValid);
+    return strprintf("CSimplifiedMNListEntry(proRegTxHash=%s, confirmedHash=%s, service=%s, pubKeyOperator=%s, votingAddress=%s, isValie=%d)",
+        proRegTxHash.ToString(), confirmedHash.ToString(), service.ToString(false), pubKeyOperator.ToString(), CBitcoinAddress(keyIDVoting).ToString(), isValid);
 }
 
 void CSimplifiedMNListEntry::ToJson(UniValue& obj) const
