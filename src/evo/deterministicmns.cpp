@@ -26,18 +26,18 @@ std::string CDeterministicMNState::ToString() const
 {
     CTxDestination dest;
     std::string payoutAddress = "unknown";
-    std::string operatorRewardAddress = "none";
+    std::string operatorPayoutAddress = "none";
     if (ExtractDestination(scriptPayout, dest)) {
         payoutAddress = CBitcoinAddress(dest).ToString();
     }
     if (ExtractDestination(scriptOperatorPayout, dest)) {
-        operatorRewardAddress = CBitcoinAddress(dest).ToString();
+        operatorPayoutAddress = CBitcoinAddress(dest).ToString();
     }
 
     return strprintf("CDeterministicMNState(nRegisteredHeight=%d, nLastPaidHeight=%d, nPoSePenalty=%d, nPoSeRevivedHeight=%d, nPoSeBanHeight=%d, nRevocationReason=%d, "
-        "ownerAddress=%s, pubKeyOperator=%s, votingAddress=%s, addr=%s, payoutAddress=%s, operatorRewardAddress=%s)",
+        "ownerAddress=%s, pubKeyOperator=%s, votingAddress=%s, addr=%s, payoutAddress=%s, operatorPayoutAddress=%s)",
         nRegisteredHeight, nLastPaidHeight, nPoSePenalty, nPoSeRevivedHeight, nPoSeBanHeight, nRevocationReason,
-        CBitcoinAddress(keyIDOwner).ToString(), pubKeyOperator.ToString(), CBitcoinAddress(keyIDVoting).ToString(), addr.ToStringIPPort(false), payoutAddress, operatorRewardAddress);
+        CBitcoinAddress(keyIDOwner).ToString(), pubKeyOperator.ToString(), CBitcoinAddress(keyIDVoting).ToString(), addr.ToStringIPPort(false), payoutAddress, operatorPayoutAddress);
 }
 
 void CDeterministicMNState::ToJson(UniValue& obj) const
