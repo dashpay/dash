@@ -45,7 +45,6 @@ void CSimplifiedMNListEntry::ToJson(UniValue& obj) const
     obj.push_back(Pair("confirmedHash", confirmedHash.ToString()));
     obj.push_back(Pair("service", service.ToString(false)));
     obj.push_back(Pair("pubKeyOperator", pubKeyOperator.ToString()));
-    obj.push_back(Pair("keyIDVoting", keyIDVoting.ToString()));
     obj.push_back(Pair("votingAddress", CBitcoinAddress(keyIDVoting).ToString()));
     obj.push_back(Pair("isValid", isValid));
 }
