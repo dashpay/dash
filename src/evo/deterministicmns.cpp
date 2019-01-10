@@ -56,13 +56,13 @@ void CDeterministicMNState::ToJson(UniValue& obj) const
 
     CTxDestination dest;
     if (ExtractDestination(scriptPayout, dest)) {
-        CBitcoinAddress bitcoinAddress(dest);
-        obj.push_back(Pair("payoutAddress", bitcoinAddress.ToString()));
+        CBitcoinAddress payoutAddress(dest);
+        obj.push_back(Pair("payoutAddress", payoutAddress.ToString()));
     }
     obj.push_back(Pair("pubKeyOperator", pubKeyOperator.ToString()));
     if (ExtractDestination(scriptOperatorPayout, dest)) {
-        CBitcoinAddress bitcoinAddress(dest);
-        obj.push_back(Pair("operatorRewardAddress", bitcoinAddress.ToString()));
+        CBitcoinAddress operatorPayoutAddress(dest);
+        obj.push_back(Pair("operatorPayoutAddress", operatorPayoutAddress.ToString()));
     }
 }
 
