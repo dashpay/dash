@@ -242,7 +242,7 @@ void protx_register_fund_help()
             "                         It has to match the private key which is later used when operating the masternode.\n"
             "5. \"votingAddress\"       (string, required) The voting key address. The private key does not have to be known by your wallet.\n"
             "                         It has to match the private key which is later used when voting on proposals.\n"
-            "                         If set an empty string, ownerAddr will be used.\n"
+            "                         If set to an empty string, ownerAddress will be used.\n"
             "6. \"operatorReward\"      (numeric, required) The fraction in % to share with the operator. The value must be\n"
             "                         between 0.00 and 100.00.\n"
             "7. \"payoutAddress\"       (string, required) The dash address to use for masternode reward payments.\n"
