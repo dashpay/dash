@@ -12,6 +12,8 @@
 #include <immer/detail/rbts/position.hpp>
 #include <immer/detail/rbts/operations.hpp>
 
+#include <immer/detail/type_traits.hpp>
+
 #include <cassert>
 #include <memory>
 #include <numeric>
@@ -35,23 +37,34 @@ struct rbtree
     node_t*  root;
     node_t*  tail;
 
-    static const rbtree empty;
+    static const rbtree& empty()
+    {
+        static const rbtree empty_ {
+            0,
+            BL,
+            node_t::make_inner_n(0u),
+            node_t::make_leaf_n(0u)
+        };
+        return empty_;
+    }
 
     template <typename U>
     static auto from_initializer_list(std::initializer_list<U> values)
     {
         auto e = owner_t{};
-        auto result = rbtree{empty};
+        auto result = rbtree{empty()};
         for (auto&& v : values)
             result.push_back_mut(e, v);
         return result;
     }
 
-    template <typename Iter>
-    static auto from_range(Iter first, Iter last)
+    template <typename Iter, typename Sent,
+              std::enable_if_t
+              <compatible_sentinel_v<Iter, Sent>, bool> = true>
+    static auto from_range(Iter first, Sent last)
     {
         auto e = owner_t{};
-        auto result = rbtree{empty};
+        auto result = rbtree{empty()};
         for (; first != last; ++first)
             result.push_back_mut(e, *first);
         return result;
@@ -60,7 +73,7 @@ struct rbtree
     static auto from_fill(size_t n, T v)
     {
         auto e = owner_t{};
-        auto result = rbtree{empty};
+        auto result = rbtree{empty()};
         while (n --> 0)
             result.push_back_mut(e, v);
         return result;
@@ -79,7 +92,7 @@ struct rbtree
     }
 
     rbtree(rbtree&& other)
-        : rbtree{empty}
+        : rbtree{empty()}
     {
         swap(*this, other);
     }
@@ -235,7 +248,7 @@ struct rbtree
     {
         if (size != other.size) return false;
         if (size == 0) return true;
-        return (size <= branches<B>
+        return (size <= branches<BL>
                 || make_regular_sub_pos(root, shift, tail_offset()).visit(
                     equals_visitor{}, other.root))
             && make_leaf_sub_pos(tail, tail_size()).visit(
@@ -415,7 +428,7 @@ struct rbtree
     {
         auto tail_off = tail_offset();
         if (new_size == 0) {
-            return empty;
+            return empty();
         } else if (new_size >= size) {
             return *this;
         } else if (new_size > tail_off) {
@@ -434,7 +447,7 @@ struct rbtree
                 assert(new_root->check(new_shift, new_size - get<2>(r)));
                 return { new_size, new_shift, new_root, new_tail };
             } else {
-                return { new_size, BL, empty.root->inc(), new_tail };
+                return { new_size, BL, empty().root->inc(), new_tail };
             }
         }
     }
@@ -444,7 +457,7 @@ struct rbtree
         auto tail_off = tail_offset();
         if (new_size == 0) {
             // todo: more efficient?
-            *this = empty;
+            *this = empty();
         } else if (new_size >= size) {
             return;
         } else if (new_size > tail_off) {
@@ -471,7 +484,7 @@ struct rbtree
                 root  = new_root;
                 shift = new_shift;
             } else {
-                root  = empty.root->inc();
+                root  = empty().root->inc();
                 shift = BL;
             }
             dec_leaf(tail, size - tail_off);
@@ -513,14 +526,6 @@ struct rbtree
 #endif
         return true;
     }
-};
-
-template <typename T, typename MP, bits_t B, bits_t BL>
-const rbtree<T, MP, B, BL> rbtree<T, MP, B, BL>::empty = {
-    0,
-    BL,
-    node_t::make_inner_n(0),
-    node_t::make_leaf_n(0)
 };
 
 } // namespace rbts
