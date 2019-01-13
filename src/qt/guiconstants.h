@@ -1,5 +1,5 @@
 // Copyright (c) 2011-2015 The Bitcoin Core developers
-// Copyright (c) 2014-2017 The Dash Core developers
+// Copyright (c) 2014-2017 The Waggox Core developers
 // Distributed under the MIT software license, see the accompanying
 // file COPYING or http://www.opensource.org/licenses/mit-license.php.
 
@@ -12,7 +12,7 @@ static const int MODEL_UPDATE_DELAY = 250;
 /* AskPassphraseDialog -- Maximum passphrase length */
 static const int MAX_PASSPHRASE_SIZE = 1024;
 
-/* DashGUI -- Size of icons in status bar */
+/* WaggoxGUI -- Size of icons in status bar */
 static const int STATUSBAR_ICONSIZE = 16;
 
 static const bool DEFAULT_SPLASHSCREEN = true;
@@ -50,7 +50,7 @@ static const int MAX_URI_LENGTH = 255;
 #define SPINNER_FRAMES 36
 
 #define QAPP_ORG_NAME "Waggox"
-#define QAPP_ORG_DOMAIN "website.waggok.tech"
+#define QAPP_ORG_DOMAIN "waggox"
 #define QAPP_APP_NAME_DEFAULT "Waggox-Qt"
 #define QAPP_APP_NAME_TESTNET "Waggox-Qt-testnet"
 #define QAPP_APP_NAME_DEVNET "Waggox-Qt-%s"

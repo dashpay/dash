@@ -1,4 +1,4 @@
-// Copyright (c) 2014-2017 The Dash Core developers
+// Copyright (c) 2014-2017 The Waggox Core developers
 // Distributed under the MIT/X11 software license, see the accompanying
 // file COPYING or http://www.opensource.org/licenses/mit-license.php.
 #ifndef GOVERNANCE_CLASSES_H
@@ -73,7 +73,7 @@ public:
     static void ExecuteBestSuperblock(int nBlockHeight);
 
     static std::string GetRequiredPaymentsString(int nBlockHeight);
-    static bool IsValid(const CTransaction& txNew, int nBlockHeight, CAmount blockReward);
+    static bool IsValid(const CTransactionRef& txNew, int nBlockHeight, CAmount expectedReward, CAmount actualReward);
 };
 
 /**
@@ -185,7 +185,7 @@ public:
     bool GetPayment(int nPaymentIndex, CGovernancePayment& paymentRet);
     CAmount GetPaymentsTotalAmount();
 
-    bool IsValid(const CTransaction& txNew, int nBlockHeight, CAmount blockReward);
+    bool IsValid(const CTransactionRef &txNew, int nBlockHeight, CAmount expectedReward, CAmount actualReward);
     bool IsExpired();
 };
 

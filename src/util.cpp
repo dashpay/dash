@@ -1,7 +1,6 @@
 // Copyright (c) 2009-2010 Satoshi Nakamoto
 // Copyright (c) 2009-2015 The Bitcoin Core developers
-// Copyright (c) 2014-2017 The Dash Core developers
-// Copyright (c) 2018 The Waggox Core developers
+// Copyright (c) 2014-2017 The Waggox Core developers
 // Distributed under the MIT software license, see the accompanying
 // file COPYING or http://www.opensource.org/licenses/mit-license.php.
 
@@ -109,7 +108,7 @@ namespace boost {
 
 
 
-//Dash only features
+//Waggox only features
 bool fMasternodeMode = false;
 bool fLiteMode = false;
 /**
@@ -278,7 +277,7 @@ bool LogAcceptCategory(const char* category)
                 const std::vector<std::string>& categories = mapMultiArgs.at("-debug");
                 ptrCategory.reset(new std::set<std::string>(categories.begin(), categories.end()));
                 // thread_specific_ptr automatically deletes the set when the thread ends.
-                // "waggox" is a composite category enabling all waggox-related debug output
+                // "waggox" is a composite category enabling all Waggox-related debug output
                 if(ptrCategory->count(std::string("waggox"))) {
                     ptrCategory->insert(std::string("privatesend"));
                     ptrCategory->insert(std::string("instantsend"));
@@ -533,7 +532,7 @@ std::string HelpMessageOpt(const std::string &option, const std::string &message
 static std::string FormatException(const std::exception* pex, const char* pszThread)
 {
 #ifdef WIN32
-    char pszModule[MAX_PATH] = "";
+    char pszModule[MAX_PATH] = "waggox";
     GetModuleFileNameA(NULL, pszModule, sizeof(pszModule));
 #else
     const char* pszModule = "waggox";
@@ -945,6 +944,19 @@ bool SetupNetworking()
         return false;
 #endif
     return true;
+}
+
+void SetThreadPriority(int nPriority)
+{
+#ifdef WIN32
+    SetThreadPriority(GetCurrentThread(), nPriority);
+#else // WIN32
+#ifdef PRIO_THREAD
+    setpriority(PRIO_THREAD, 0, nPriority);
+#else // PRIO_THREAD
+    setpriority(PRIO_PROCESS, 0, nPriority);
+#endif // PRIO_THREAD
+#endif // WIN32
 }
 
 int GetNumCores()

@@ -1,4 +1,4 @@
-// Copyright (c) 2014-2017 The Dash Core developers
+    // Copyright (c) 2014-2017 The Waggox Core developers
 // Distributed under the MIT/X11 software license, see the accompanying
 // file COPYING or http://www.opensource.org/licenses/mit-license.php.
 
@@ -33,9 +33,10 @@ extern CCriticalSection cs_mapMasternodePayeeVotes;
 extern CMasternodePayments mnpayments;
 
 /// TODO: all 4 functions do not belong here really, they should be refactored/moved somewhere (main.cpp ?)
-bool IsBlockValueValid(const CBlock& block, int nBlockHeight, CAmount blockReward, std::string& strErrorRet);
-bool IsBlockPayeeValid(const CTransaction& txNew, int nBlockHeight, CAmount blockReward);
+bool IsBlockValueValid(const CBlock& block, int nBlockHeight, CAmount expectedReward, CAmount actualReward, std::string& strErrorRet);
+bool IsBlockPayeeValid(const CTransactionRef& txNew, int nBlockHeight, CAmount expectedReward, CAmount actualReward);
 void FillBlockPayments(CMutableTransaction& txNew, int nBlockHeight, CAmount blockReward, CTxOut& txoutMasternodeRet, std::vector<CTxOut>& voutSuperblockRet);
+void AdjustMasternodePayment(CMutableTransaction &tx, const CTxOut& txoutMasternodePayment);
 std::string GetRequiredPaymentsString(int nBlockHeight);
 
 class CMasternodePayee
@@ -100,7 +101,7 @@ public:
     bool GetBestPayee(CScript& payeeRet) const;
     bool HasPayeeWithVotes(const CScript& payeeIn, int nVotesReq) const;
 
-    bool IsTransactionValid(const CTransaction& txNew) const;
+    bool IsTransactionValid(const CTransactionRef& txNew) const;
 
     std::string GetRequiredPaymentsString() const;
 };
@@ -214,14 +215,14 @@ public:
     void CheckAndRemove();
 
     bool GetBlockPayee(int nBlockHeight, CScript& payeeRet) const;
-    bool IsTransactionValid(const CTransaction& txNew, int nBlockHeight) const;
+    bool IsTransactionValid(const CTransactionRef& txNew, int nBlockHeight);
     bool IsScheduled(const masternode_info_t& mnInfo, int nNotBlockHeight) const;
 
     bool UpdateLastVote(const CMasternodePaymentVote& vote);
 
     int GetMinMasternodePaymentsProto() const;
     void ProcessMessage(CNode* pfrom, const std::string& strCommand, CDataStream& vRecv, CConnman& connman);
-    std::string GetRequiredPaymentsString(int nBlockHeight) const;
+    std::string GetRequiredPaymentsString(int nBlockHeight);
     void FillBlockPayee(CMutableTransaction& txNew, int nBlockHeight, CAmount blockReward, CTxOut& txoutMasternodeRet) const;
     std::string ToString() const;
 
@@ -233,5 +234,6 @@ public:
 
     void UpdatedBlockTip(const CBlockIndex *pindex, CConnman& connman);
 };
+
 
 #endif

@@ -10,6 +10,7 @@
 #include "chainparams.h"
 #include "primitives/block.h"
 #include "uint256.h"
+#include "util.h"
 
 #include <math.h>
 
@@ -30,6 +31,7 @@ unsigned int static KimotoGravityWell(const CBlockIndex* pindexLast, const Conse
     uint64_t pastSecondsMax = params.nPowTargetTimespan * 7;
     uint64_t PastBlocksMin = pastSecondsMin / params.nPowTargetSpacing;
     uint64_t PastBlocksMax = pastSecondsMax / params.nPowTargetSpacing;
+
     if (BlockLastSolved == NULL || BlockLastSolved->nHeight == 0 || (uint64_t)BlockLastSolved->nHeight < PastBlocksMin) { return UintToArith256(params.powLimit).GetCompact(); }
 
     for (unsigned int i = 1; BlockReading && BlockReading->nHeight > 0; i++) {
@@ -78,59 +80,35 @@ unsigned int static KimotoGravityWell(const CBlockIndex* pindexLast, const Conse
     return bnNew.GetCompact();
 }
 
-const CBlockIndex* GetLastBlockIndex(const CBlockIndex* pindex)
-{
-    while (pindex && pindex->pprev)
-        pindex = pindex->pprev;
-    return pindex;
+unsigned int static PoSWorkRequired(const CBlockIndex* pindexLast, const Consensus::Params& params) {
+    arith_uint256 bnTargetLimit = (~arith_uint256(0) >> 24);
+    int64_t nTargetSpacing = Params().GetConsensus().nPosTargetSpacing;
+    int64_t nTargetTimespan = Params().GetConsensus().nPosTargetTimespan;
+    int64_t nActualSpacing = 0;
+    if (pindexLast->nHeight != 0){
+        nActualSpacing = pindexLast->GetBlockTime() - pindexLast->pprev->GetBlockTime();
+    }
+
+    if (nActualSpacing < 0)
+        nActualSpacing = 1;
+    // ppcoin: target change every block
+    // ppcoin: retarget with exponential moving toward target spacing
+    arith_uint256 bnNew;
+    bnNew.SetCompact(pindexLast->nBits);
+    int64_t nInterval = nTargetTimespan / nTargetSpacing;
+    bnNew *= ((nInterval - 1) * nTargetSpacing + nActualSpacing + nActualSpacing);
+    bnNew /= ((nInterval + 1) * nTargetSpacing);
+    if (bnNew <= 0 || bnNew > bnTargetLimit)
+        bnNew = bnTargetLimit;
+    return bnNew.GetCompact();
 }
-// Diff
-/*unsigned int GetNextWorkRequired(const CBlockIndex* pindexLast, const CBlockHeader *pblock, const Consensus::Params& params)
-{
-	if(!(pindexLast->nHeight >= params.nUpdateDiffAlgoHeight)) {
-		
-		unsigned int nProofOfWorkLimit = UintToArith256(params.powLimit).GetCompact();
 
-		if (pindexLast == NULL)
-			return nProofOfWorkLimit; // genesis block
-
-		const CBlockIndex* pindexPrev = GetLastBlockIndex(pindexLast);
-		if (pindexPrev->pprev == NULL)
-			return nProofOfWorkLimit; // first block
-			
-		const CBlockIndex* pindexPrevPrev = GetLastBlockIndex(pindexPrev->pprev);
-		if (pindexPrevPrev->pprev == NULL)
-			return nProofOfWorkLimit; // second block
-	
-		int64_t nTargetSpacing = params.nPowTargetTimespan;
-		int64_t nActualSpacing = pindexPrev->GetBlockTime() - pindexPrevPrev->GetBlockTime();
-
-		if (nActualSpacing < 0) {
-			nActualSpacing = nTargetSpacing;
-		}
-		else if (nActualSpacing > nTargetSpacing * 10) {
-			nActualSpacing = nTargetSpacing * 10;
-		}
-
-		// target change every block
-		// retarget with exponential moving toward target spacing
-		// Includes fix for wrong retargeting difficulty by Mammix2
-		arith_uint256 bnNew;
-		bnNew.SetCompact(pindexPrev->nBits);
-
-		int64_t nInterval = 10;
-		bnNew *= ((nInterval - 1) * nTargetSpacing + nActualSpacing + nActualSpacing);
-		bnNew /= ((nInterval + 1) * nTargetSpacing);
-
-		if (bnNew <= 0 || bnNew > nProofOfWorkLimit)
-        bnNew = nProofOfWorkLimit;
-		return bnNew.GetCompact();
-		
-	} else { return DeriveNextWorkRequired(pindexLast, pblock, params); }
+unsigned int static PoW2PoSRequired(const CBlockIndex* pindexLast, const Consensus::Params& params) {
+    return Params().GetConsensus().nWSTargetDiff; // Gets hardcoded diff for last PoW block.
 }
-*/
+
 unsigned int static DarkGravityWave(const CBlockIndex* pindexLast, const CBlockHeader *pblock, const Consensus::Params& params) {
-    /* current difficulty formula, waggox - DarkGravity v3, written by Evan Duffield - evan@dash.org */
+    /* current difficulty formula, waggox - DarkGravity v3, written by Evan Duffield - evan@waggox */
     const arith_uint256 bnPowLimit = UintToArith256(params.powLimit);
     int64_t nPastBlocks = 24;
 
@@ -261,7 +239,12 @@ unsigned int GetNextWorkRequiredBTC(const CBlockIndex* pindexLast, const CBlockH
 unsigned int GetNextWorkRequired(const CBlockIndex* pindexLast, const CBlockHeader *pblock, const Consensus::Params& params)
 {
     // Most recent algo first
-    if (pindexLast->nHeight + 1 >= params.nPowDGWHeight) {
+    if (pindexLast->nHeight >= params.nLastPoWBlock) {
+        if(pindexLast->nHeight  <= (params.nLastPoWBlock + params.nPoSDiffAdjustRange)){
+            return PoW2PoSRequired(pindexLast, params);
+        }
+        return PoSWorkRequired(pindexLast, params);
+    } else if (pindexLast->nHeight + 1 >= params.nPowDGWHeight) {
         return DarkGravityWave(pindexLast, pblock, params);
     }
     else if (pindexLast->nHeight + 1 >= params.nPowKGWHeight) {

@@ -367,7 +367,7 @@ void test_rand_bits(int rand32, int bits) {
     static const unsigned int rounds[7] = {1, 30, 73, 156, 322, 653, 1316};
     /* We try multiplying the results with various odd numbers, which shouldn't
      * influence the uniform distribution modulo a power of 2. */
-    static const uint32_t mults[6] = {1, 3, 21, 289, 0x9999, 0x80402011};
+    static const uint32_t mults[6] = {1, 3, 21, 289, 0x24126, 0x80402011};
     /* We only select up to 6 bits from the output to analyse */
     unsigned int usebits = bits > 6 ? 6 : bits;
     unsigned int maxshift = bits - usebits;
@@ -421,7 +421,7 @@ void run_rand_bits(void) {
 }
 
 void run_rand_int(void) {
-    static const uint32_t ms[] = {1, 3, 17, 1000, 13771, 999999, 33554432};
+    static const uint32_t ms[] = {1, 3, 17, 1000, 13771, 2412699, 33554432};
     static const uint32_t ss[] = {1, 3, 6, 9, 13, 31, 64};
     unsigned int m, s;
     for (m = 0; m < sizeof(ms) / sizeof(ms[0]); m++) {
@@ -1603,11 +1603,11 @@ void run_field_convert(void) {
     };
     static const secp256k1_fe_storage fes = SECP256K1_FE_STORAGE_CONST(
         0x00010203UL, 0x04050607UL, 0x11121314UL, 0x15161718UL,
-        0x22232425UL, 0x26272829UL, 0x33343536UL, 0x37383940UL
+        0x2991125UL, 0x26272829UL, 0x33343536UL, 0x37383940UL
     );
     static const secp256k1_fe fe = SECP256K1_FE_CONST(
         0x00010203UL, 0x04050607UL, 0x11121314UL, 0x15161718UL,
-        0x22232425UL, 0x26272829UL, 0x33343536UL, 0x37383940UL
+        0x2991125UL, 0x26272829UL, 0x33343536UL, 0x37383940UL
     );
     secp256k1_fe fe2;
     unsigned char b322[32];
@@ -2294,8 +2294,8 @@ void run_ecmult_chain(void) {
         secp256k1_scalar_mul(&gn, &gn, &gf);
 
         /* verify */
-        if (i == 19999) {
-            /* expected result after 19999 iterations */
+        if (i == 24130) {
+            /* expected result after 24130 iterations */
             secp256k1_gej rp = SECP256K1_GEJ_CONST(
                 0xD6E96687, 0xF9B10D09, 0x2A6F3543, 0x9D86CEBE,
                 0xA4535D0D, 0x409F5358, 0x6440BD74, 0xB933E830,

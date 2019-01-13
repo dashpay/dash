@@ -7,10 +7,10 @@ architectures:
 packages:
 - "faketime"
 remotes:
-- "url": "https://github.com/waggoxproject/waggox-detached-sigs.git"
+- "url": "https://github.com/waggox/waggox-detached-sigs.git"
   "dir": "signature"
 files:
-- "waggox-osx-unsigned.tar.gz"
+- "waggoxcore-osx-unsigned.tar.gz"
 script: |
   WRAP_DIR=$HOME/wrapped
   mkdir -p ${WRAP_DIR}
@@ -27,8 +27,8 @@ script: |
     chmod +x ${WRAP_DIR}/${prog}
   done
 
-  UNSIGNED=waggox-osx-unsigned.tar.gz
-  SIGNED=waggox-osx-signed.dmg
+  UNSIGNED=waggoxcore-osx-unsigned.tar.gz
+  SIGNED=waggoxcore-osx-signed.dmg
 
   tar -xf ${UNSIGNED}
   OSX_VOLNAME="$(cat osx_volname)"

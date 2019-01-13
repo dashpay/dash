@@ -38,7 +38,7 @@ struct ChainTxData {
 
 /**
  * CChainParams defines various tweakable parameters of a given instance of the
- * Dash system. There are three: the main network on which people trade goods
+ * Waggox system. There are three: the main network on which people trade goods
  * and services, the public test network which gets reset from time to time and
  * a regression test mode which is intended for private networks only. It has
  * minimal difficulty to ensure that blocks can be found instantly.
@@ -109,8 +109,7 @@ protected:
     bool fMineBlocksOnDemand;
     bool fAllowMultipleAddressesFromGroup;
     bool fAllowMultiplePorts;
-  bool startNewChain;   
- CCheckpointData checkpointData;
+    CCheckpointData checkpointData;
     ChainTxData chainTxData;
     int nPoolMaxTransactions;
     int nFulfilledRequestExpireTime;

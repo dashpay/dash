@@ -1,7 +1,6 @@
 // Copyright (c) 2010 Satoshi Nakamoto
 // Copyright (c) 2009-2015 The Bitcoin Core developers
-// Copyright (c) 2014-2017 The Dash Core developers
-// Copyright (c) 2018 The Waggox Core developers
+// Copyright (c) 2014-2017 The Waggox Core developers
 // Distributed under the MIT software license, see the accompanying
 // file COPYING or http://www.opensource.org/licenses/mit-license.php.
 
@@ -31,6 +30,8 @@
 
 #include <univalue.h>
 
+extern int64_t nLastCoinStakeSearchInterval;
+
 /**
  * @note Do not add or change anything in the information returned by this
  * method. `getinfo` exists for backwards-compatibility only. It combines
@@ -56,7 +57,6 @@ UniValue getinfo(const JSONRPCRequest& request)
             "  \"protocolversion\": xxxxx,   (numeric) the protocol version\n"
             "  \"walletversion\": xxxxx,     (numeric) the wallet version\n"
             "  \"balance\": xxxxxxx,         (numeric) the total waggox balance of the wallet\n"
-            "  \"privatesend_balance\": xxxxxx, (numeric) the anonymized waggox balance of the wallet\n"
             "  \"blocks\": xxxxxx,           (numeric) the current number of blocks processed in the server\n"
             "  \"timeoffset\": xxxxx,        (numeric) the time offset\n"
             "  \"connections\": xxxxx,       (numeric) the number of connections\n"
@@ -91,9 +91,7 @@ UniValue getinfo(const JSONRPCRequest& request)
     if (pwalletMain) {
         obj.push_back(Pair("walletversion", pwalletMain->GetVersion()));
         obj.push_back(Pair("balance",       ValueFromAmount(pwalletMain->GetBalance())));
-        if(!fLiteMode)
-            obj.push_back(Pair("privatesend_balance",       ValueFromAmount(pwalletMain->GetAnonymizedBalance())));
-    }
+         }
 #endif
     obj.push_back(Pair("blocks",        (int)chainActive.Height()));
     obj.push_back(Pair("timeoffset",    GetTimeOffset()));
@@ -323,8 +321,8 @@ UniValue validateaddress(const JSONRPCRequest& request)
             "  \"hdchainid\" : \"<hash>\"        (string, optional) The ID of the HD chain\n"
             "}\n"
             "\nExamples:\n"
-            + HelpExampleCli("validateaddress", "\"XwnLY9Tf7Zsef8gMGL2fhWA9ZmMjt4KPwg\"")
-            + HelpExampleRpc("validateaddress", "\"XwnLY9Tf7Zsef8gMGL2fhWA9ZmMjt4KPwg\"")
+            + HelpExampleCli("validateaddress", "\"PK6NyLfYDqXyKXZz8EhJWjz3rReqT4VR4a\"")
+            + HelpExampleRpc("validateaddress", "\"PK6NyLfYDqXyKXZz8EhJWjz3rReqT4VR4a\"")
         );
 
 #ifdef ENABLE_WALLET
@@ -400,7 +398,7 @@ CScript _createmultisig_redeemScript(const UniValue& params)
     {
         const std::string& ks = keys[i].get_str();
 #ifdef ENABLE_WALLET
-        // Case 1: waggox address and we have full public key:
+        // Case 1: Waggox address and we have full public key:
         CBitcoinAddress address(ks);
         if (pwalletMain && address.IsValid())
         {
@@ -500,11 +498,11 @@ UniValue verifymessage(const JSONRPCRequest& request)
             "\nUnlock the wallet for 30 seconds\n"
             + HelpExampleCli("walletpassphrase", "\"mypassphrase\" 30") +
             "\nCreate the signature\n"
-            + HelpExampleCli("signmessage", "\"XwnLY9Tf7Zsef8gMGL2fhWA9ZmMjt4KPwG\" \"my message\"") +
+            + HelpExampleCli("signmessage", "\"PK6NyLfYDqXyKXZz8EhJWjz3rReqT4VR4a\" \"my message\"") +
             "\nVerify the signature\n"
-            + HelpExampleCli("verifymessage", "\"XwnLY9Tf7Zsef8gMGL2fhWA9ZmMjt4KPwG\" \"signature\" \"my message\"") +
+            + HelpExampleCli("verifymessage", "\"PK6NyLfYDqXyKXZz8EhJWjz3rReqT4VR4a\" \"signature\" \"my message\"") +
             "\nAs json rpc\n"
-            + HelpExampleRpc("verifymessage", "\"XwnLY9Tf7Zsef8gMGL2fhWA9ZmMjt4KPwG\", \"signature\", \"my message\"")
+            + HelpExampleRpc("verifymessage", "\"PK6NyLfYDqXyKXZz8EhJWjz3rReqT4VR4a\", \"signature\", \"my message\"")
         );
 
     LOCK(cs_main);
@@ -553,7 +551,7 @@ UniValue signmessagewithprivkey(const JSONRPCRequest& request)
             "\nCreate the signature\n"
             + HelpExampleCli("signmessagewithprivkey", "\"privkey\" \"my message\"") +
             "\nVerify the signature\n"
-            + HelpExampleCli("verifymessage", "\"XwnLY9Tf7Zsef8gMGL2fhWA9ZmMjt4KPwG\" \"signature\" \"my message\"") +
+            + HelpExampleCli("verifymessage", "\"PK6NyLfYDqXyKXZz8EhJWjz3rReqT4VR4a\" \"signature\" \"my message\"") +
             "\nAs json rpc\n"
             + HelpExampleRpc("signmessagewithprivkey", "\"privkey\", \"my message\"")
         );
@@ -685,15 +683,15 @@ UniValue getaddressmempool(const JSONRPCRequest& request)
             "    \"address\"  (string) The base58check encoded address\n"
             "    \"txid\"  (string) The related txid\n"
             "    \"index\"  (number) The related input or output index\n"
-            "    \"satoshis\"  (number) The difference of duffs\n"
+            "    \"satoshis\"  (number) The difference of politoshis\n"
             "    \"timestamp\"  (number) The time the transaction entered the mempool (seconds)\n"
             "    \"prevtxid\"  (string) The previous txid (if spending)\n"
             "    \"prevout\"  (string) The previous transaction output index (if spending)\n"
             "  }\n"
             "]\n"
             "\nExamples:\n"
-            + HelpExampleCli("getaddressmempool", "'{\"addresses\": [\"XwnLY9Tf7Zsef8gMGL2fhWA9ZmMjt4KPwg\"]}'")
-            + HelpExampleRpc("getaddressmempool", "{\"addresses\": [\"XwnLY9Tf7Zsef8gMGL2fhWA9ZmMjt4KPwg\"]}")
+            + HelpExampleCli("getaddressmempool", "'{\"addresses\": [\"PK6NyLfYDqXyKXZz8EhJWjz3rReqT4VR4a\"]}'")
+            + HelpExampleRpc("getaddressmempool", "{\"addresses\": [\"PK6NyLfYDqXyKXZz8EhJWjz3rReqT4VR4a\"]}")
         );
 
     std::vector<std::pair<uint160, int> > addresses;
@@ -757,13 +755,13 @@ UniValue getaddressutxos(const JSONRPCRequest& request)
             "    \"txid\"  (string) The output txid\n"
             "    \"outputIndex\"  (number) The output index\n"
             "    \"script\"  (string) The script hex encoded\n"
-            "    \"satoshis\"  (number) The number of duffs of the output\n"
+            "    \"satoshis\"  (number) The number of politoshis of the output\n"
             "    \"height\"  (number) The block height\n"
             "  }\n"
             "]\n"
             "\nExamples:\n"
-            + HelpExampleCli("getaddressutxos", "'{\"addresses\": [\"XwnLY9Tf7Zsef8gMGL2fhWA9ZmMjt4KPwg\"]}'")
-            + HelpExampleRpc("getaddressutxos", "{\"addresses\": [\"XwnLY9Tf7Zsef8gMGL2fhWA9ZmMjt4KPwg\"]}")
+            + HelpExampleCli("getaddressutxos", "'{\"addresses\": [\"PK6NyLfYDqXyKXZz8EhJWjz3rReqT4VR4a\"]}'")
+            + HelpExampleRpc("getaddressutxos", "{\"addresses\": [\"PK6NyLfYDqXyKXZz8EhJWjz3rReqT4VR4a\"]}")
         );
 
     std::vector<std::pair<uint160, int> > addresses;
@@ -822,7 +820,7 @@ UniValue getaddressdeltas(const JSONRPCRequest& request)
             "\nResult:\n"
             "[\n"
             "  {\n"
-            "    \"satoshis\"  (number) The difference of duffs\n"
+            "    \"satoshis\"  (number) The difference of politoshis\n"
             "    \"txid\"  (string) The related txid\n"
             "    \"index\"  (number) The related input or output index\n"
             "    \"blockindex\"  (number) The related block index\n"
@@ -831,8 +829,8 @@ UniValue getaddressdeltas(const JSONRPCRequest& request)
             "  }\n"
             "]\n"
             "\nExamples:\n"
-            + HelpExampleCli("getaddressdeltas", "'{\"addresses\": [\"XwnLY9Tf7Zsef8gMGL2fhWA9ZmMjt4KPwg\"]}'")
-            + HelpExampleRpc("getaddressdeltas", "{\"addresses\": [\"XwnLY9Tf7Zsef8gMGL2fhWA9ZmMjt4KPwg\"]}")
+            + HelpExampleCli("getaddressdeltas", "'{\"addresses\": [\"PK6NyLfYDqXyKXZz8EhJWjz3rReqT4VR4a\"]}'")
+            + HelpExampleRpc("getaddressdeltas", "{\"addresses\": [\"PK6NyLfYDqXyKXZz8EhJWjz3rReqT4VR4a\"]}")
         );
 
 
@@ -907,12 +905,12 @@ UniValue getaddressbalance(const JSONRPCRequest& request)
             "}\n"
             "\nResult:\n"
             "{\n"
-            "  \"balance\"  (string) The current balance in duffs\n"
-            "  \"received\"  (string) The total number of duffs received (including change)\n"
+            "  \"balance\"  (string) The current balance in politoshis\n"
+            "  \"received\"  (string) The total number of politoshis received (including change)\n"
             "}\n"
             "\nExamples:\n"
-            + HelpExampleCli("getaddressbalance", "'{\"addresses\": [\"XwnLY9Tf7Zsef8gMGL2fhWA9ZmMjt4KPwg\"]}'")
-            + HelpExampleRpc("getaddressbalance", "{\"addresses\": [\"XwnLY9Tf7Zsef8gMGL2fhWA9ZmMjt4KPwg\"]}")
+            + HelpExampleCli("getaddressbalance", "'{\"addresses\": [\"PK6NyLfYDqXyKXZz8EhJWjz3rReqT4VR4a\"]}'")
+            + HelpExampleRpc("getaddressbalance", "{\"addresses\": [\"PK6NyLfYDqXyKXZz8EhJWjz3rReqT4VR4a\"]}")
         );
 
     std::vector<std::pair<uint160, int> > addresses;
@@ -969,8 +967,8 @@ UniValue getaddresstxids(const JSONRPCRequest& request)
             "  ,...\n"
             "]\n"
             "\nExamples:\n"
-            + HelpExampleCli("getaddresstxids", "'{\"addresses\": [\"XwnLY9Tf7Zsef8gMGL2fhWA9ZmMjt4KPwg\"]}'")
-            + HelpExampleRpc("getaddresstxids", "{\"addresses\": [\"XwnLY9Tf7Zsef8gMGL2fhWA9ZmMjt4KPwg\"]}")
+            + HelpExampleCli("getaddresstxids", "'{\"addresses\": [\"PK6NyLfYDqXyKXZz8EhJWjz3rReqT4VR4a\"]}'")
+            + HelpExampleRpc("getaddresstxids", "{\"addresses\": [\"PK6NyLfYDqXyKXZz8EhJWjz3rReqT4VR4a\"]}")
         );
 
     std::vector<std::pair<uint160, int> > addresses;
@@ -1132,6 +1130,42 @@ UniValue echo(const JSONRPCRequest& request)
     return request.params;
 }
 
+UniValue getstakingstatus(const JSONRPCRequest& request)
+{
+    if (request.fHelp || request.params.size() != 0)
+        throw std::runtime_error(
+                "getstakingstatus\n"
+                "Returns an object containing various staking information.\n"
+                "\nResult:\n"
+                "{\n"
+                "  \"validtime\": true|false,          (boolean) if the chain tip is within staking phases\n"
+                "  \"haveconnections\": true|false,    (boolean) if network connections are present\n"
+                "  \"walletunlocked\": true|false,     (boolean) if the wallet is unlocked\n"
+                "  \"mintablecoins\": true|false,      (boolean) if the wallet has mintable coins\n"
+                "  \"enoughcoins\": true|false,        (boolean) if available coins are greater than reserve balance\n"
+                "  \"mnsync\": true|false,             (boolean) if masternode data is synced\n"
+                "  \"staking status\": true|false,     (boolean) if the wallet is staking or not\n"
+                "  \"staking tpos txid\" ,             (string)  if the wallet is tposing or not\n"
+                "}\n"
+                "\nExamples:\n" +
+                HelpExampleCli("getstakingstatus", "") + HelpExampleRpc("getstakingstatus", ""));
+    UniValue obj(UniValue::VOBJ);
+    obj.push_back(Pair("validtime", chainActive.Tip()->nTime > 1471482000));
+    obj.push_back(Pair("haveconnections", g_connman->GetNodeCount(CConnman::CONNECTIONS_ALL) > 0));
+    if (pwalletMain) {
+        obj.push_back(Pair("walletunlocked", !pwalletMain->IsLocked(true)));
+        obj.push_back(Pair("mintablecoins", pwalletMain->MintableCoins()));
+        obj.push_back(Pair("enoughcoins", pwalletMain->GetBalance() > 0));
+    }
+    obj.push_back(Pair("mnsync", masternodeSync.IsSynced()));
+    bool nStaking = false;
+    if (nLastCoinStakeSearchInterval > 0)
+        nStaking = true;
+    obj.push_back(Pair("staking status", nStaking));
+    uint256 txId;
+    return obj;
+}
+
 static const CRPCCommand commands[] =
 { //  category              name                      actor (function)         okSafeMode
   //  --------------------- ------------------------  -----------------------  ----------
@@ -1142,6 +1176,7 @@ static const CRPCCommand commands[] =
     { "util",               "createmultisig",         &createmultisig,         true,  {"nrequired","keys"} },
     { "util",               "verifymessage",          &verifymessage,          true,  {"address","signature","message"} },
     { "util",               "signmessagewithprivkey", &signmessagewithprivkey, true,  {"privkey","message"} },
+    { "util",               "getstakingstatus",       &getstakingstatus,       true,  {} },
     { "blockchain",         "getspentinfo",           &getspentinfo,           false, {"json"} },
 
     /* Address index */
@@ -1151,7 +1186,7 @@ static const CRPCCommand commands[] =
     { "addressindex",       "getaddresstxids",        &getaddresstxids,        false, {"addresses"} },
     { "addressindex",       "getaddressbalance",      &getaddressbalance,      false, {"addresses"} },
 
-    /* waggox features */
+    /* Waggox features */
     { "waggox",               "mnsync",                 &mnsync,                 true,  {} },
     { "waggox",               "spork",                  &spork,                  true,  {"value"} },
 

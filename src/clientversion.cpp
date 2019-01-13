@@ -13,7 +13,7 @@
  * for both waggoxd and waggox-qt, to make it harder for attackers to
  * target servers or GUI users specifically.
  */
-const std::string CLIENT_NAME("WaGoX Core");
+const std::string CLIENT_NAME("Waggox Core");
 
 /**
  * Client version number
@@ -55,7 +55,7 @@ const std::string CLIENT_NAME("WaGoX Core");
     "v" DO_STRINGIZE(maj) "." DO_STRINGIZE(min) "." DO_STRINGIZE(rev) "." DO_STRINGIZE(build) "-g" commit
 
 #define BUILD_DESC_FROM_UNKNOWN(maj, min, rev, build) \
-    "v" DO_STRINGIZE(maj) "." DO_STRINGIZE(min) "." DO_STRINGIZE(rev) "." DO_STRINGIZE(build) "-unk"
+    "v" DO_STRINGIZE(maj) "." DO_STRINGIZE(min) "." DO_STRINGIZE(rev) "." DO_STRINGIZE(build) "-paco"
 
 #ifndef BUILD_DESC
 #ifdef BUILD_SUFFIX

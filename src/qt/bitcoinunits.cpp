@@ -1,5 +1,5 @@
 // Copyright (c) 2011-2015 The Bitcoin Core developers
-// Copyright (c) 2014-2017 The Dash Core developers
+// Copyright (c) 2014-2017 The Waggox Core developers
 // Distributed under the MIT software license, see the accompanying
 // file COPYING or http://www.opensource.org/licenses/mit-license.php.
 
@@ -22,7 +22,7 @@ QList<BitcoinUnits::Unit> BitcoinUnits::availableUnits()
     unitlist.append(WGGX);
     unitlist.append(mWGGX);
     unitlist.append(uWGGX);
-    unitlist.append(edirin);
+    unitlist.append(helptoshis);
     return unitlist;
 }
 
@@ -33,7 +33,7 @@ bool BitcoinUnits::valid(int unit)
     case WGGX:
     case mWGGX:
     case uWGGX:
-    case edirin:
+    case helptoshis:
         return true;
     default:
         return false;
@@ -49,7 +49,7 @@ QString BitcoinUnits::name(int unit)
             case WGGX: return QString("WGGX");
             case mWGGX: return QString("mWGGX");
             case uWGGX: return QString::fromUtf8("μWGGX");
-            case edirin: return QString("edirin");
+            case helptoshis: return QString("helptoshis");
             default: return QString("???");
         }
     }
@@ -60,7 +60,7 @@ QString BitcoinUnits::name(int unit)
             case WGGX: return QString("tWGGX");
             case mWGGX: return QString("mtWGGX");
             case uWGGX: return QString::fromUtf8("μtWGGX");
-            case edirin: return QString("tedirin");
+            case helptoshis: return QString("thelptoshis");
             default: return QString("???");
         }
     }
@@ -72,10 +72,10 @@ QString BitcoinUnits::description(int unit)
     {
         switch(unit)
         {
-            case WGGX: return QString("WGGX");
-            case mWGGX: return QString("Milli-WAGGOX (1 / 1" THIN_SP_UTF8 "000)");
-            case uWGGX: return QString("Micro-WAGGOX (1 / 1" THIN_SP_UTF8 "000" THIN_SP_UTF8 "000)");
-            case edirin: return QString("Ten Nano-Waggox (1 / 100" THIN_SP_UTF8 "000" THIN_SP_UTF8 "000)");
+            case WGGX: return QString("Waggox");
+            case mWGGX: return QString("Milli-Waggox (1 / 1" THIN_SP_UTF8 "000)");
+            case uWGGX: return QString("Micro-Waggox (1 / 1" THIN_SP_UTF8 "000" THIN_SP_UTF8 "000)");
+            case helptoshis: return QString("Ten Nano-Waggox (1 / 100" THIN_SP_UTF8 "000" THIN_SP_UTF8 "000)");
             default: return QString("???");
         }
     }
@@ -83,10 +83,10 @@ QString BitcoinUnits::description(int unit)
     {
         switch(unit)
         {
-            case WGGX: return QString("TestWAGGOXs");
-            case mWGGX: return QString("Milli-TestWAGGOX (1 / 1" THIN_SP_UTF8 "000)");
-            case uWGGX: return QString("Micro-TestWAGGOX (1 / 1" THIN_SP_UTF8 "000" THIN_SP_UTF8 "000)");
-            case edirin: return QString("Ten Nano-TestWAGGOX (1 / 100" THIN_SP_UTF8 "000" THIN_SP_UTF8 "000)");
+            case WGGX: return QString("TestWaggoxs");
+            case mWGGX: return QString("Milli-TestWaggox (1 / 1" THIN_SP_UTF8 "000)");
+            case uWGGX: return QString("Micro-TestWaggox (1 / 1" THIN_SP_UTF8 "000" THIN_SP_UTF8 "000)");
+            case helptoshis: return QString("Ten Nano-TestWaggox (1 / 100" THIN_SP_UTF8 "000" THIN_SP_UTF8 "000)");
             default: return QString("???");
         }
     }
@@ -99,7 +99,7 @@ qint64 BitcoinUnits::factor(int unit)
     case WGGX:  return 100000000;
     case mWGGX: return 100000;
     case uWGGX: return 100;
-    case edirin: return 1;
+    case helptoshis: return 1;
     default:   return 100000000;
     }
 }
@@ -111,7 +111,7 @@ int BitcoinUnits::decimals(int unit)
     case WGGX: return 8;
     case mWGGX: return 5;
     case uWGGX: return 2;
-    case edirin: return 0;
+    case helptoshis: return 0;
     default: return 0;
     }
 }

@@ -62,12 +62,12 @@
         <translation>Адреси за получаване</translation>
     </message>
     <message>
-        <source>These are your Dash addresses for sending payments. Always check the amount and the receiving address before sending coins.</source>
-        <translation>Това са вашите Dash адреси за изпращане на плащания. Преди изпращане винаги проверявайте количеството и адреса за получаване на монетите.</translation>
+        <source>These are your Waggox addresses for sending payments. Always check the amount and the receiving address before sending coins.</source>
+        <translation>Това са вашите Waggox адреси за изпращане на плащания. Преди изпращане винаги проверявайте количеството и адреса за получаване на монетите.</translation>
     </message>
     <message>
-        <source>These are your Dash addresses for receiving payments. It is recommended to use a new receiving address for each transaction.</source>
-        <translation>Това са вашите Dash адреси за получаване на плащания. Препоръчително е да използвате нов адрес за всяка нова транзакция. </translation>
+        <source>These are your Waggox addresses for receiving payments. It is recommended to use a new receiving address for each transaction.</source>
+        <translation>Това са вашите Waggox адреси за получаване на плащания. Препоръчително е да използвате нов адрес за всяка нова транзакция. </translation>
     </message>
     <message>
         <source>&amp;Copy Address</source>
@@ -242,12 +242,12 @@
 <context>
     <name>BitcoinGUI</name>
     <message>
-        <source>A fatal error occurred. Dash Core can no longer continue safely and will quit.</source>
-        <translation>Възникна фатална грешка. Dash Core не може да продължи безопасно и ще се изключи.</translation>
+        <source>A fatal error occurred. Waggox Core can no longer continue safely and will quit.</source>
+        <translation>Възникна фатална грешка. Waggox Core не може да продължи безопасно и ще се изключи.</translation>
     </message>
     <message>
-        <source>Dash Core</source>
-        <translation>Dash Ядро</translation>
+        <source>Waggox Core</source>
+        <translation>Waggox Ядро</translation>
     </message>
     <message>
         <source>Wallet</source>
@@ -270,8 +270,8 @@
         <translation>&amp;Изпращане</translation>
     </message>
     <message>
-        <source>Send coins to a Dash address</source>
-        <translation>Изпращане на монети към Dash адрес</translation>
+        <source>Send coins to a Waggox address</source>
+        <translation>Изпращане на монети към Waggox адрес</translation>
     </message>
     <message>
         <source>&amp;Receive</source>
@@ -279,7 +279,7 @@
     </message>
     <message>
         <source>Request payments (generates QR codes and waggox: URIs)</source>
-        <translation>Заявка за плащане (генерира QR кодове и Dash: URI)</translation>
+        <translation>Заявка за плащане (генерира QR кодове и Waggox: URI)</translation>
     </message>
     <message>
         <source>&amp;Transactions</source>
@@ -306,8 +306,8 @@
         <translation>Изход от приложението</translation>
     </message>
     <message>
-        <source>Show information about Dash Core</source>
-        <translation>Покаци информация за Dash Core</translation>
+        <source>Show information about Waggox Core</source>
+        <translation>Покаци информация за Waggox Core</translation>
     </message>
     <message>
         <source>About &amp;Qt</source>
@@ -378,16 +378,16 @@
         <translation>Подписване на &amp;съобщение...</translation>
     </message>
     <message>
-        <source>Sign messages with your Dash addresses to prove you own them</source>
-        <translation>Подпиши съобщения с твоите Dash адреси за да докажеш че ги притежаваш</translation>
+        <source>Sign messages with your Waggox addresses to prove you own them</source>
+        <translation>Подпиши съобщения с твоите Waggox адреси за да докажеш че ги притежаваш</translation>
     </message>
     <message>
         <source>&amp;Verify message...</source>
         <translation>&amp;Проверка на съобщение...</translation>
     </message>
     <message>
-        <source>Verify messages to ensure they were signed with specified Dash addresses</source>
-        <translation>Проверете съобщенията, за да сте сигурни че са подписани с определен Dash адрес</translation>
+        <source>Verify messages to ensure they were signed with specified Waggox addresses</source>
+        <translation>Проверете съобщенията, за да сте сигурни че са подписани с определен Waggox адрес</translation>
     </message>
     <message>
         <source>&amp;Information</source>
@@ -475,15 +475,15 @@
     </message>
     <message>
         <source>Open a waggox: URI or payment request</source>
-        <translation>Отвори Dash: URI или заявка за плащане</translation>
+        <translation>Отвори Waggox: URI или заявка за плащане</translation>
     </message>
     <message>
         <source>&amp;Command-line options</source>
         <translation>&amp;Опции на командния ред</translation>
     </message>
     <message>
-        <source>Show the %1 help message to get a list with possible Dash command-line options</source>
-        <translation>Покажи %1 помощното съобщение за да получите списък с възможни Dash команди</translation>
+        <source>Show the %1 help message to get a list with possible Waggox command-line options</source>
+        <translation>Покажи %1 помощното съобщение за да получите списък с възможни Waggox команди</translation>
     </message>
     <message>
         <source>%1 client</source>
@@ -518,8 +518,8 @@
         <translation>Лента с инструменти</translation>
     </message>
     <message numerus="yes">
-        <source>%n active connection(s) to Dash network</source>
-        <translation><numerusform>%n активни връзки към Dash мрежата</numerusform><numerusform>%n активни връзки към Dash мрежата</numerusform></translation>
+        <source>%n active connection(s) to Waggox network</source>
+        <translation><numerusform>%n активни връзки към Waggox мрежата</numerusform><numerusform>%n активни връзки към Waggox мрежата</numerusform></translation>
     </message>
     <message>
         <source>Network activity disabled</source>
@@ -814,8 +814,8 @@
         <translation>Този етикет става червен, ако получателят получи сума, по-малка от прага за незначителен остатък.</translation>
     </message>
     <message>
-        <source>Can vary +/- %1 duff(s) per input.</source>
-        <translation>Може да варира +/- %1 duff(s) за вход.</translation>
+        <source>Can vary +/- %1 politoshi(s) per input.</source>
+        <translation>Може да варира +/- %1 politoshi(s) за вход.</translation>
     </message>
     <message>
         <source>(no label)</source>
@@ -857,28 +857,28 @@
         <translation>Моля изберете ниво на сигурност.</translation>
     </message>
     <message>
-        <source>Use 2 separate masternodes to mix funds up to 5000 WAGGOX</source>
-        <translation>Използване на 2 различни masternodes за смесване на средства до 5000 WAGGOX</translation>
+        <source>Use 2 separate masternodes to mix funds up to 1000 WAGGOX</source>
+        <translation>Използване на 2 различни masternodes за смесване на средства до 1000 WAGGOX</translation>
     </message>
     <message>
-        <source>Use 8 separate masternodes to mix funds up to 5000 WAGGOX</source>
-        <translation>Използване на 8 различни masternodes за смесване на средства до 5000 WAGGOX</translation>
+        <source>Use 8 separate masternodes to mix funds up to 1000 WAGGOX</source>
+        <translation>Използване на 8 различни masternodes за смесване на средства до 1000 WAGGOX</translation>
     </message>
     <message>
         <source>Use 16 separate masternodes</source>
-        <translation>Използване на 16 различни masternodes за смесване на средства до 5000 WAGGOX</translation>
+        <translation>Използване на 16 различни masternodes за смесване на средства до 1000 WAGGOX</translation>
     </message>
     <message>
-        <source>This option is the quickest and will cost about ~0.025 WAGGOX to anonymize 5000 WAGGOX</source>
-        <translation>Това е най-бързият вариант, анонимизиране на 5000 WAGGOX ще ви струва около 0.025 WAGGOX</translation>
+        <source>This option is the quickest and will cost about ~0.025 WAGGOX to anonymize 1000 WAGGOX</source>
+        <translation>Това е най-бързият вариант, анонимизиране на 1000 WAGGOX ще ви струва около 0.025 WAGGOX</translation>
     </message>
     <message>
-        <source>This option is moderately fast and will cost about 0.05 WAGGOX to anonymize 5000 WAGGOX</source>
-        <translation>Това е средно бърз вариант, анонимизиране на 5000 WAGGOX ще ви струва около 0.05 WAGGOX</translation>
+        <source>This option is moderately fast and will cost about 0.05 WAGGOX to anonymize 1000 WAGGOX</source>
+        <translation>Това е средно бърз вариант, анонимизиране на 1000 WAGGOX ще ви струва около 0.05 WAGGOX</translation>
     </message>
     <message>
-        <source>0.1 WAGGOX per 5000 WAGGOX you anonymize.</source>
-        <translation>0.1 WAGGOX за всеки 5000 WAGGOX които анонимизирате.</translation>
+        <source>0.1 WAGGOX per 1000 WAGGOX you anonymize.</source>
+        <translation>0.1 WAGGOX за всеки 1000 WAGGOX които анонимизирате.</translation>
     </message>
     <message>
         <source>This is the slowest and most secure option. Using maximum anonymity will cost</source>
@@ -889,16 +889,16 @@
         <translation>PrivateSend конфигурация</translation>
     </message>
     <message>
-        <source>PrivateSend was successfully set to basic (%1 and 2 rounds). You can change this at any time by opening Dash's configuration screen.</source>
-        <translation>PrivateSend беше успешно настроен до основно ниво (%1  2 цикъла). Може да промените това по всяко време, като отворите екрана за конфигурация на Dash.</translation>
+        <source>PrivateSend was successfully set to basic (%1 and 2 rounds). You can change this at any time by opening Waggox's configuration screen.</source>
+        <translation>PrivateSend беше успешно настроен до основно ниво (%1  2 цикъла). Може да промените това по всяко време, като отворите екрана за конфигурация на Waggox.</translation>
     </message>
     <message>
-        <source>PrivateSend was successfully set to high (%1 and 8 rounds). You can change this at any time by opening Dash's configuration screen.</source>
-        <translation>PrivateSend беше успешно настроен до високо ниво (%1 и 8 цикъла). Може да промените това по всяко време, като отворите екрана за конфигурация на Dash.</translation>
+        <source>PrivateSend was successfully set to high (%1 and 8 rounds). You can change this at any time by opening Waggox's configuration screen.</source>
+        <translation>PrivateSend беше успешно настроен до високо ниво (%1 и 8 цикъла). Може да промените това по всяко време, като отворите екрана за конфигурация на Waggox.</translation>
     </message>
     <message>
-        <source>PrivateSend was successfully set to maximum (%1 and 16 rounds). You can change this at any time by opening Dash's configuration screen.</source>
-        <translation>PrivateSend беше успешно настроен до максимално ниво (%1 и 16 цикъла). Може да промените това по всяко време, като отворите екрана за конфигурация на Dash.</translation>
+        <source>PrivateSend was successfully set to maximum (%1 and 16 rounds). You can change this at any time by opening Waggox's configuration screen.</source>
+        <translation>PrivateSend беше успешно настроен до максимално ниво (%1 и 16 цикъла). Може да промените това по всяко време, като отворите екрана за конфигурация на Waggox.</translation>
     </message>
 </context>
 <context>
@@ -940,8 +940,8 @@
         <translation>Редактиране на адрес за изпращане</translation>
     </message>
     <message>
-        <source>The entered address "%1" is not a valid Dash address.</source>
-        <translation>Въведеният адрес "%1" не е валиден Dash адрес.</translation>
+        <source>The entered address "%1" is not a valid Waggox address.</source>
+        <translation>Въведеният адрес "%1" не е валиден Waggox адрес.</translation>
     </message>
     <message>
         <source>The entered address "%1" is already in the address book.</source>
@@ -1038,8 +1038,8 @@
         <translation>PrivateSend информация</translation>
     </message>
     <message>
-        <source>&lt;h3&gt;PrivateSend Basics&lt;/h3&gt; PrivateSend gives you true financial privacy by obscuring the origins of your funds. All the Dash in your wallet is comprised of different "inputs" which you can think of as separate, discrete coins.&lt;br&gt; PrivateSend uses an innovative process to mix your inputs with the inputs of two other people, without having your coins ever leave your wallet. You retain control of your money at all times.&lt;hr&gt; &lt;b&gt;The PrivateSend process works like this:&lt;/b&gt;&lt;ol type="1"&gt; &lt;li&gt;PrivateSend begins by breaking your transaction inputs down into standard denominations. These denominations are 0.01 WAGGOX, 0.1 WAGGOX, 1 WAGGOX and 10 WAGGOX -- sort of like the paper money you use every day.&lt;/li&gt; &lt;li&gt;Your wallet then sends requests to specially configured software nodes on the network, called "masternodes." These masternodes are informed then that you are interested in mixing a certain denomination. No identifiable information is sent to the masternodes, so they never know "who" you are.&lt;/li&gt; &lt;li&gt;When two other people send similar messages, indicating that they wish to mix the same denomination, a mixing session begins. The masternode mixes up the inputs and instructs all three users' wallets to pay the now-transformed input back to themselves. Your wallet pays that denomination directly to itself, but in a different address (called a change address).&lt;/li&gt; &lt;li&gt;In order to fully obscure your funds, your wallet must repeat this process a number of times with each denomination. Each time the process is completed, it's called a "round." Each round of PrivateSend makes it exponentially more difficult to determine where your funds originated.&lt;/li&gt; &lt;li&gt;This mixing process happens in the background without any intervention on your part. When you wish to make a transaction, your funds will already be anonymized. No additional waiting is required.&lt;/li&gt; &lt;/ol&gt; &lt;hr&gt;&lt;b&gt;IMPORTANT:&lt;/b&gt; Your wallet only contains 5000 of these "change addresses." Every time a mixing event happens, up to 9 of your addresses are used up. This means those 5000 addresses last for about 100 mixing events. When 900 of them are used, your wallet must create more addresses. It can only do this, however, if you have automatic backups enabled.&lt;br&gt; Consequently, users who have backups disabled will also have PrivateSend disabled. &lt;hr&gt;For more info see &lt;a href="https://waggoxpay.atlassian.net/wiki/display/DOC/PrivateSend"&gt;https://waggoxpay.atlassian.net/wiki/display/DOC/PrivateSend&lt;/a&gt;         </source>
-        <translation>&lt;h3&gt;PrivateSend основни понятия&lt;/h3&gt; PrivateSend ви дава истинска финансова независимост чрез скриване произхода на средствата ви. Всички Dash монети в портфейла ви са съставени от различни "входове" които можете да приемете като отделни дискретни монети&lt;br&gt; PrivateSend използва иновативен процес като смесва вашите входове с входовете на други двама души без монетите да напускат изобщо портфейла ви. Имате пълен контрол върху парите си през цялото време. &lt;hr&gt; &lt;b&gt; PrivateSend процесът работи по следния начин:&lt;/b&gt;&lt;ol type="1"&gt; &lt;li&gt;PrivateSend започва чрез разделяне на транзакцията ви до стандартни деноминации. Тези деноминации са 0.01 WAGGOX, 0.1 WAGGOX, 1 WAGGOX и 10 WAGGOX --подобно на стандартните пари, които ползваме ежедневно.&lt;/li&gt; &lt;li&gt;Вашия портфейл изпраща запитване към специално конфигурираните софтуерни възли в мрежата, наречени "masternodes." Тези masternodes са информирани, че се интересувате от смесване на определена деноминация. Никаква идентификационна информация не се изпраща към   masternodes, така, че те никога не знаят "кой" сте.&lt;/li&gt; &lt;li&gt;Когато други двама души изпратят подобни съобщения, обозначаващи, че искат да смесят същата деноминация, смесващата сесия започва. Masternode смесват входовете и инструктират портфейлите на тримата потребители да платят новотрансформираните входове обратно към притежателите им. Вашият портфейл плаща деноминацията директно на себе си, но с различен адрес (наричан сменен адрес).  &lt;/li&gt; &lt;li&gt;С цел напълно скриване на доходите ви, вашият портфейл трябва да повтори този процес няколко пъти във всяка деноминация.  Всеки път завършеният процес се нарича "цикъл." Всеки цикъл на PrivateSend прави откриването на първоначалния източник на вашите средства напълно непроследим.&lt;/li&gt; &lt;li&gt;Този смесващ процес се случва като процес на заден фон без никаква намеса от ваша страна. Когато искате да направите транзакция, вашите средства са винаги анонимни. Не е необходимо допълнително изчакване. &lt;/li&gt; &lt;/ol&gt; &lt;hr&gt;&lt;b&gt;ВАЖНО:&lt;/b&gt; Вашият портфейл съдържа само 5000 от тези "сменяеми адреси". Всеки път когато се случва смесването до 9 от вашите адреси се ползват.  Това означава, че тези 5000 адреси се миксират в около 100 смесващи събития. Когато 900 се използват, вашия портфейл трябва да създаде повече адреси. Това може да стане само ако имате автоматично архивиране.&lt;br&gt; Следователно, потребителите, на които е изключено автоматичното архивиране, нямат и  PrivateSend включено. &lt;hr&gt;За повече информация вижте&lt;a href="https://waggoxpay.atlassian.net/wiki/display/DOC/PrivateSend"&gt;https://waggoxpay.atlassian.net/wiki/display/DOC/PrivateSend&lt;/a&gt;         </translation>
+        <source>&lt;h3&gt;PrivateSend Basics&lt;/h3&gt; PrivateSend gives you true financial privacy by obscuring the origins of your funds. All the Waggox in your wallet is comprised of different "inputs" which you can think of as separate, discrete coins.&lt;br&gt; PrivateSend uses an innovative process to mix your inputs with the inputs of two other people, without having your coins ever leave your wallet. You retain control of your money at all times.&lt;hr&gt; &lt;b&gt;The PrivateSend process works like this:&lt;/b&gt;&lt;ol type="1"&gt; &lt;li&gt;PrivateSend begins by breaking your transaction inputs down into standard denominations. These denominations are 0.01 WAGGOX, 0.1 WAGGOX, 1 WAGGOX and 10 WAGGOX -- sort of like the paper money you use every day.&lt;/li&gt; &lt;li&gt;Your wallet then sends requests to specially configured software nodes on the network, called "masternodes." These masternodes are informed then that you are interested in mixing a certain denomination. No identifiable information is sent to the masternodes, so they never know "who" you are.&lt;/li&gt; &lt;li&gt;When two other people send similar messages, indicating that they wish to mix the same denomination, a mixing session begins. The masternode mixes up the inputs and instructs all three users' wallets to pay the now-transformed input back to themselves. Your wallet pays that denomination directly to itself, but in a different address (called a change address).&lt;/li&gt; &lt;li&gt;In order to fully obscure your funds, your wallet must repeat this process a number of times with each denomination. Each time the process is completed, it's called a "round." Each round of PrivateSend makes it exponentially more difficult to determine where your funds originated.&lt;/li&gt; &lt;li&gt;This mixing process happens in the background without any intervention on your part. When you wish to make a transaction, your funds will already be anonymized. No additional waiting is required.&lt;/li&gt; &lt;/ol&gt; &lt;hr&gt;&lt;b&gt;IMPORTANT:&lt;/b&gt; Your wallet only contains 1000 of these "change addresses." Every time a mixing event happens, up to 9 of your addresses are used up. This means those 1000 addresses last for about 100 mixing events. When 900 of them are used, your wallet must create more addresses. It can only do this, however, if you have automatic backups enabled.&lt;br&gt; Consequently, users who have backups disabled will also have PrivateSend disabled. &lt;hr&gt;For more info see &lt;a href="https://waggox.atlassian.net/wiki/display/DOC/PrivateSend"&gt;https://waggox.atlassian.net/wiki/display/DOC/PrivateSend&lt;/a&gt;         </source>
+        <translation>&lt;h3&gt;PrivateSend основни понятия&lt;/h3&gt; PrivateSend ви дава истинска финансова независимост чрез скриване произхода на средствата ви. Всички Waggox монети в портфейла ви са съставени от различни "входове" които можете да приемете като отделни дискретни монети&lt;br&gt; PrivateSend използва иновативен процес като смесва вашите входове с входовете на други двама души без монетите да напускат изобщо портфейла ви. Имате пълен контрол върху парите си през цялото време. &lt;hr&gt; &lt;b&gt; PrivateSend процесът работи по следния начин:&lt;/b&gt;&lt;ol type="1"&gt; &lt;li&gt;PrivateSend започва чрез разделяне на транзакцията ви до стандартни деноминации. Тези деноминации са 0.01 WAGGOX, 0.1 WAGGOX, 1 WAGGOX и 10 WAGGOX --подобно на стандартните пари, които ползваме ежедневно.&lt;/li&gt; &lt;li&gt;Вашия портфейл изпраща запитване към специално конфигурираните софтуерни възли в мрежата, наречени "masternodes." Тези masternodes са информирани, че се интересувате от смесване на определена деноминация. Никаква идентификационна информация не се изпраща към   masternodes, така, че те никога не знаят "кой" сте.&lt;/li&gt; &lt;li&gt;Когато други двама души изпратят подобни съобщения, обозначаващи, че искат да смесят същата деноминация, смесващата сесия започва. Masternode смесват входовете и инструктират портфейлите на тримата потребители да платят новотрансформираните входове обратно към притежателите им. Вашият портфейл плаща деноминацията директно на себе си, но с различен адрес (наричан сменен адрес).  &lt;/li&gt; &lt;li&gt;С цел напълно скриване на доходите ви, вашият портфейл трябва да повтори този процес няколко пъти във всяка деноминация.  Всеки път завършеният процес се нарича "цикъл." Всеки цикъл на PrivateSend прави откриването на първоначалния източник на вашите средства напълно непроследим.&lt;/li&gt; &lt;li&gt;Този смесващ процес се случва като процес на заден фон без никаква намеса от ваша страна. Когато искате да направите транзакция, вашите средства са винаги анонимни. Не е необходимо допълнително изчакване. &lt;/li&gt; &lt;/ol&gt; &lt;hr&gt;&lt;b&gt;ВАЖНО:&lt;/b&gt; Вашият портфейл съдържа само 1000 от тези "сменяеми адреси". Всеки път когато се случва смесването до 9 от вашите адреси се ползват.  Това означава, че тези 1000 адреси се миксират в около 100 смесващи събития. Когато 900 се използват, вашия портфейл трябва да създаде повече адреси. Това може да стане само ако имате автоматично архивиране.&lt;br&gt; Следователно, потребителите, на които е изключено автоматичното архивиране, нямат и  PrivateSend включено. &lt;hr&gt;За повече информация вижте&lt;a href="https://waggox.atlassian.net/wiki/display/DOC/PrivateSend"&gt;https://waggox.atlassian.net/wiki/display/DOC/PrivateSend&lt;/a&gt;         </translation>
     </message>
 </context>
 <context>
@@ -1057,8 +1057,8 @@
         <translation>Тъй като това е първият път, когато програмата се стартира, можете да изберете къде %1 да съхранява данните си.</translation>
     </message>
     <message>
-        <source>%1 will download and store a copy of the Dash block chain. At least %2GB of data will be stored in this directory, and it will grow over time. The wallet will also be stored in this directory.</source>
-        <translation>%1 ще свали и съхрани копие на Dash регистъра на блокове. Най-малко %2GB от информацията ще се съхрани в тази директория и ще нараства с времето.  Портфейлът също ще бъде съхранен в тази директория. </translation>
+        <source>%1 will download and store a copy of the Waggox block chain. At least %2GB of data will be stored in this directory, and it will grow over time. The wallet will also be stored in this directory.</source>
+        <translation>%1 ще свали и съхрани копие на Waggox регистъра на блокове. Най-малко %2GB от информацията ще се съхрани в тази директория и ще нараства с времето.  Портфейлът също ще бъде съхранен в тази директория. </translation>
     </message>
     <message>
         <source>Use the default data directory</source>
@@ -1251,12 +1251,12 @@
         <translation>Форма</translation>
     </message>
     <message>
-        <source>Recent transactions may not yet be visible, and therefore your wallet's balance might be incorrect. This information will be correct once your wallet has finished synchronizing with the Dash network, as detailed below.</source>
-        <translation>Скорошните транзакции може да не са видими, поради което салдото на портфейла Ви може да е неправилно. Тази информация ще бъде правилна, след като портфейлът ви е завършил синхронизиране с Dash мрежата, както е описано по-долу.</translation>
+        <source>Recent transactions may not yet be visible, and therefore your wallet's balance might be incorrect. This information will be correct once your wallet has finished synchronizing with the Waggox network, as detailed below.</source>
+        <translation>Скорошните транзакции може да не са видими, поради което салдото на портфейла Ви може да е неправилно. Тази информация ще бъде правилна, след като портфейлът ви е завършил синхронизиране с Waggox мрежата, както е описано по-долу.</translation>
     </message>
     <message>
-        <source>Attempting to spend Dash that are affected by not-yet-displayed transactions will not be accepted by the network.</source>
-        <translation>Опита да похарчите Dash, които са  от не визуализирани транзакции няма да бъде приет от мрежата.</translation>
+        <source>Attempting to spend Waggox that are affected by not-yet-displayed transactions will not be accepted by the network.</source>
+        <translation>Опита да похарчите Waggox, които са  от не визуализирани транзакции няма да бъде приет от мрежата.</translation>
     </message>
     <message>
         <source>Number of blocks left</source>
@@ -1345,8 +1345,8 @@
         <translation>(0 = автоматично, &lt;0 = оставете толкова неизползвани ядра)</translation>
     </message>
     <message>
-        <source>Amount of Dash to keep anonymized</source>
-        <translation>Постоянно поддържано количество анонимни Dash монети </translation>
+        <source>Amount of Waggox to keep anonymized</source>
+        <translation>Постоянно поддържано количество анонимни Waggox монети </translation>
     </message>
     <message>
         <source>W&amp;allet</source>
@@ -1359,6 +1359,10 @@
     <message>
         <source>Show Masternodes Tab</source>
         <translation>Показване на раздел Masternodes </translation>
+    </message>
+    <message>
+        <source>Show Governance Tab</source>
+        <translation>Показване на раздел Governance </translation>
     </message>
     <message>
         <source>Show additional information and buttons for PrivateSend on overview screen.</source>
@@ -1397,8 +1401,8 @@
         <translation>Тази сума действа като лимит, за да се изключи PrivateSend, когато веднъж бъде достигнат.</translation>
     </message>
     <message>
-        <source>Automatically open the Dash Core client port on the router. This only works when your router supports UPnP and it is enabled.</source>
-        <translation>Автоматично отваря порта за Dash Core клиента в маршрутизатора. Това работи само когато вашият маршрутизатор поддържа UPnP и той е разрешен.</translation>
+        <source>Automatically open the Waggox Core client port on the router. This only works when your router supports UPnP and it is enabled.</source>
+        <translation>Автоматично отваря порта за Waggox Core клиента в маршрутизатора. Това работи само когато вашият маршрутизатор поддържа UPnP и той е разрешен.</translation>
     </message>
     <message>
         <source>Accept connections from outside</source>
@@ -1409,8 +1413,8 @@
         <translation>Разрешени входящи връзки</translation>
     </message>
     <message>
-        <source>Connect to the Dash network through a SOCKS5 proxy.</source>
-        <translation>Свързване с мрежата на Dash чрез SOCKS5 прокси.</translation>
+        <source>Connect to the Waggox network through a SOCKS5 proxy.</source>
+        <translation>Свързване с мрежата на Waggox чрез SOCKS5 прокси.</translation>
     </message>
     <message>
         <source>&amp;Connect through SOCKS5 proxy (default proxy):</source>
@@ -1497,8 +1501,8 @@
         <translation>Tor</translation>
     </message>
     <message>
-        <source>Connect to the Dash network through a separate SOCKS5 proxy for Tor hidden services.</source>
-        <translation>Свързване с мрежата на Dash чрез SOCKS5 прокси за Tor скрити услуги.</translation>
+        <source>Connect to the Waggox network through a separate SOCKS5 proxy for Tor hidden services.</source>
+        <translation>Свързване с мрежата на Waggox чрез SOCKS5 прокси за Tor скрити услуги.</translation>
     </message>
     <message>
         <source>Use separate SOCKS5 proxy to reach peers via Tor hidden services:</source>
@@ -1622,8 +1626,8 @@ https://www.transifex.com/projects/p/waggox/</translation>
         <translation>Формуляр</translation>
     </message>
     <message>
-        <source>The displayed information may be out of date. Your wallet automatically synchronizes with the Dash network after a connection is established, but this process has not completed yet.</source>
-        <translation>Показаната информация може да е остаряла. Вашият портфейл се синхронизира автоматично след изграждането на връзка с Dash мрежата, но този процес все още не е завършен.</translation>
+        <source>The displayed information may be out of date. Your wallet automatically synchronizes with the Waggox network after a connection is established, but this process has not completed yet.</source>
+        <translation>Показаната информация може да е остаряла. Вашият портфейл се синхронизира автоматично след изграждането на връзка с Waggox мрежата, но този процес все още не е завършен.</translation>
     </message>
     <message>
         <source>Available:</source>
@@ -1907,8 +1911,8 @@ https://www.transifex.com/projects/p/waggox/</translation>
         <translation>Невалиден адрес за плащане %1</translation>
     </message>
     <message>
-        <source>URI cannot be parsed! This can be caused by an invalid Dash address or malformed URI parameters.</source>
-        <translation>Грешка при анализ на URI! Това може да е следствие от неправилен Dash адрес или неправилно зададени URI параметри.</translation>
+        <source>URI cannot be parsed! This can be caused by an invalid Waggox address or malformed URI parameters.</source>
+        <translation>Грешка при анализ на URI! Това може да е следствие от неправилен Waggox адрес или неправилно зададени URI параметри.</translation>
     </message>
     <message>
         <source>Payment request file handling</source>
@@ -1997,8 +2001,8 @@ https://www.transifex.com/projects/p/waggox/</translation>
 <context>
     <name>QObject</name>
     <message>
-        <source>Dash Core</source>
-        <translation>Dash Core</translation>
+        <source>Waggox Core</source>
+        <translation>Waggox Core</translation>
     </message>
     <message>
         <source>%1 didn't yet exit safely...</source>
@@ -2013,8 +2017,8 @@ https://www.transifex.com/projects/p/waggox/</translation>
         <translation>Сума</translation>
     </message>
     <message>
-        <source>Enter a Dash address (e.g. %1)</source>
-        <translation>Въведете Dash адрес (напр.%1)</translation>
+        <source>Enter a Waggox address (e.g. %1)</source>
+        <translation>Въведете Waggox адрес (напр.%1)</translation>
     </message>
     <message>
         <source>%1 d</source>
@@ -2531,8 +2535,8 @@ https://www.transifex.com/projects/p/waggox/</translation>
         <translation>П&amp;овторно използване на съществуващ адрес за получаване (не се препоръчва)</translation>
     </message>
     <message>
-        <source>An optional message to attach to the payment request, which will be displayed when the request is opened. Note: The message will not be sent with the payment over the Dash network.</source>
-        <translation>Възможност  да се прикрепи съобщение към заявката за плащане, което да бъде показано при отваряне на заявката. Забележка: съобщението няма да бъде изпратено с плащането по мрежата на Dash.</translation>
+        <source>An optional message to attach to the payment request, which will be displayed when the request is opened. Note: The message will not be sent with the payment over the Waggox network.</source>
+        <translation>Възможност  да се прикрепи съобщение към заявката за плащане, което да бъде показано при отваряне на заявката. Забележка: съобщението няма да бъде изпратено с плащането по мрежата на Waggox.</translation>
     </message>
     <message>
         <source>&amp;Message:</source>
@@ -2543,8 +2547,8 @@ https://www.transifex.com/projects/p/waggox/</translation>
         <translation>Възможност да се прикрепи наименование към новия адрес за получаване.</translation>
     </message>
     <message>
-        <source>An optional message to attach to the payment request, which will be displayed when the request is opened.&lt;br&gt;Note: The message will not be sent with the payment over the Dash network.</source>
-        <translation>Възможност  да се прикрепи съобщение към заявката за плащане, което да бъде показано при отваряне на заявката. &lt;br&gt;Забележка: съобщението няма да бъде изпратено с плащането по мрежата на Dash.</translation>
+        <source>An optional message to attach to the payment request, which will be displayed when the request is opened.&lt;br&gt;Note: The message will not be sent with the payment over the Waggox network.</source>
+        <translation>Възможност  да се прикрепи съобщение към заявката за плащане, което да бъде показано при отваряне на заявката. &lt;br&gt;Забележка: съобщението няма да бъде изпратено с плащането по мрежата на Waggox.</translation>
     </message>
     <message>
         <source>Use this form to request payments. All fields are &lt;b&gt;optional&lt;/b&gt;.</source>
@@ -2804,12 +2808,12 @@ https://www.transifex.com/projects/p/waggox/</translation>
         <translation>InstantSend</translation>
     </message>
     <message>
-        <source>If the custom fee is set to 5000 duffs and the transaction is only 250 bytes, then "per kilobyte" only pays 250 duffs in fee,&lt;br /&gt;while "at least" pays 5000 duffs. For transactions bigger than a kilobyte both pay by kilobyte.</source>
-        <translation>Ако променената такса е 5000 duffs и транзакцията е само 250 байта, тогава "за килобайт" само плаща такса 250 duffs,,&lt;br /&gt; тогава"за последно" заплаща 5000 duffs. За транзакции по-големи от килобайт едновременно се заплащат от килобайт.</translation>
+        <source>If the custom fee is set to 1000 politoshis and the transaction is only 250 bytes, then "per kilobyte" only pays 250 politoshis in fee,&lt;br /&gt;while "at least" pays 1000 politoshis. For transactions bigger than a kilobyte both pay by kilobyte.</source>
+        <translation>Ако променената такса е 1000 politoshis и транзакцията е само 250 байта, тогава "за килобайт" само плаща такса 250 politoshis,,&lt;br /&gt; тогава"за последно" заплаща 1000 politoshis. За транзакции по-големи от килобайт едновременно се заплащат от килобайт.</translation>
     </message>
     <message>
-        <source>If the custom fee is set to 5000 duffs and the transaction is only 250 bytes, then "per kilobyte" only pays 250 duffs in fee,&lt;br /&gt;while "total at least" pays 5000 duffs. For transactions bigger than a kilobyte both pay by kilobyte.</source>
-        <translation>Ако променената такса е 5000 duffs и транзакцията е само 250 байта, тогава "за килобайт" само плаща такса 250 duffs,&lt;br /&gt; тогава"за последно" заплаща 5000 duffs. За транзакции по-големи от килобайт едновременно се заплащат от килобайт.</translation>
+        <source>If the custom fee is set to 1000 politoshis and the transaction is only 250 bytes, then "per kilobyte" only pays 250 politoshis in fee,&lt;br /&gt;while "total at least" pays 1000 politoshis. For transactions bigger than a kilobyte both pay by kilobyte.</source>
+        <translation>Ако променената такса е 1000 politoshis и транзакцията е само 250 байта, тогава "за килобайт" само плаща такса 250 politoshis,&lt;br /&gt; тогава"за последно" заплаща 1000 politoshis. За транзакции по-големи от килобайт едновременно се заплащат от килобайт.</translation>
     </message>
     <message>
         <source>Paying only the minimum fee is just fine as long as there is less transaction volume than space in the blocks.&lt;br /&gt;But be aware that this can end up in a never confirming transaction once there is more demand for waggox transactions than the network can process.</source>
@@ -3000,8 +3004,8 @@ https://www.transifex.com/projects/p/waggox/</translation>
         <translation><numerusform>Очаква се да започне потвърждение в %n блока.</numerusform><numerusform>Очаква се да започне потвърждение в %n блока.</numerusform></translation>
     </message>
     <message>
-        <source>Warning: Invalid Dash address</source>
-        <translation>Внимание: Невалиден Dash адрес</translation>
+        <source>Warning: Invalid Waggox address</source>
+        <translation>Внимание: Невалиден Waggox адрес</translation>
     </message>
     <message>
         <source>Warning: Unknown change address</source>
@@ -3031,8 +3035,8 @@ https://www.transifex.com/projects/p/waggox/</translation>
         <translation>Плати &amp;На:</translation>
     </message>
     <message>
-        <source>The Dash address to send the payment to</source>
-        <translation>Dash адресът да изпрати плащането към </translation>
+        <source>The Waggox address to send the payment to</source>
+        <translation>Waggox адресът да изпрати плащането към </translation>
     </message>
     <message>
         <source>Choose previously used address</source>
@@ -3067,8 +3071,8 @@ https://www.transifex.com/projects/p/waggox/</translation>
         <translation>С&amp;ума:</translation>
     </message>
     <message>
-        <source>The fee will be deducted from the amount being sent. The recipient will receive a lower amount of Dash than you enter in the amount field. If multiple recipients are selected, the fee is split equally.</source>
-        <translation>Таксата ще бъде приспадната от количеството за изпращане. Получателят ще получи по-малко количество Dash от това, което сте въвели в полето. Ако са избрани няколко получателя, таксата ще бъде разделена  по равно.</translation>
+        <source>The fee will be deducted from the amount being sent. The recipient will receive a lower amount of Waggox than you enter in the amount field. If multiple recipients are selected, the fee is split equally.</source>
+        <translation>Таксата ще бъде приспадната от количеството за изпращане. Получателят ще получи по-малко количество Waggox от това, което сте въвели в полето. Ако са избрани няколко получателя, таксата ще бъде разделена  по равно.</translation>
     </message>
     <message>
         <source>S&amp;ubtract fee from amount</source>
@@ -3079,8 +3083,8 @@ https://www.transifex.com/projects/p/waggox/</translation>
         <translation>Съобщение:</translation>
     </message>
     <message>
-        <source>A message that was attached to the waggox: URI which will be stored with the transaction for your reference. Note: This message will not be sent over the Dash network.</source>
-        <translation>Съобщението което беше прикрепено към waggox: URI ще бъде запазено с транзакцията за ваше сведение. Забележка: Това съобщение няма да бъде изпратено през Dash мрежата.</translation>
+        <source>A message that was attached to the waggox: URI which will be stored with the transaction for your reference. Note: This message will not be sent over the Waggox network.</source>
+        <translation>Съобщението което беше прикрепено към waggox: URI ще бъде запазено с транзакцията за ваше сведение. Забележка: Това съобщение няма да бъде изпратено през Waggox мрежата.</translation>
     </message>
     <message>
         <source>This is an unauthenticated payment request.</source>
@@ -3132,12 +3136,12 @@ https://www.transifex.com/projects/p/waggox/</translation>
         <translation>&amp;Подпиши</translation>
     </message>
     <message>
-        <source>You can sign messages/agreements with your addresses to prove you can receive Dash sent to them. Be careful not to sign anything vague or random, as phishing attacks may try to trick you into signing your identity over to them. Only sign fully-detailed statements you agree to.</source>
-        <translation>Може да подпишете съобщенията/потвържденията с вашите адреси като доказателство, че сте получили Dash. Бъдете внимателни, не подписвайте съобщения, които биха разкрили лична информация без ваше съгласие.</translation>
+        <source>You can sign messages/agreements with your addresses to prove you can receive Waggox sent to them. Be careful not to sign anything vague or random, as phishing attacks may try to trick you into signing your identity over to them. Only sign fully-detailed statements you agree to.</source>
+        <translation>Може да подпишете съобщенията/потвържденията с вашите адреси като доказателство, че сте получили Waggox. Бъдете внимателни, не подписвайте съобщения, които биха разкрили лична информация без ваше съгласие.</translation>
     </message>
     <message>
-        <source>The Dash address to sign the message with</source>
-        <translation>Dash адресът да подпише съобщението</translation>
+        <source>The Waggox address to sign the message with</source>
+        <translation>Waggox адресът да подпише съобщението</translation>
     </message>
     <message>
         <source>Choose previously used address</source>
@@ -3168,8 +3172,8 @@ https://www.transifex.com/projects/p/waggox/</translation>
         <translation>Копиране на текущия подпис в системния клипборд</translation>
     </message>
     <message>
-        <source>Sign the message to prove you own this Dash address</source>
-        <translation>Подпиши съобщението за да докажеш че притежаваш този Dash адрес</translation>
+        <source>Sign the message to prove you own this Waggox address</source>
+        <translation>Подпиши съобщението за да докажеш че притежаваш този Waggox адрес</translation>
     </message>
     <message>
         <source>Sign &amp;Message</source>
@@ -3192,12 +3196,12 @@ https://www.transifex.com/projects/p/waggox/</translation>
         <translation>Въведете адреса на получателя, съобщението (уверете се, че сте копирали редовете, спациите, табовете и другите точно) и подпишете отдолу, за да удостоверите съобщението. Внимавайте да не вмъкнете излишни символи в подписа от това, което е в самото съобщение, за избегнете риска от злонамерена външна намеса. Имайте предвид, че това само доказва, че подписа е получен с адреса, но не доказва изпращането на всяка транзакция!</translation>
     </message>
     <message>
-        <source>The Dash address the message was signed with</source>
-        <translation>Dash адресът ,с който е подписано съобщението</translation>
+        <source>The Waggox address the message was signed with</source>
+        <translation>Waggox адресът ,с който е подписано съобщението</translation>
     </message>
     <message>
-        <source>Verify the message to ensure it was signed with the specified Dash address</source>
-        <translation>Проверете съобщението, за да сте сигурни че е подписано с определен Dash адрес</translation>
+        <source>Verify the message to ensure it was signed with the specified Waggox address</source>
+        <translation>Проверете съобщението, за да сте сигурни че е подписано с определен Waggox адрес</translation>
     </message>
     <message>
         <source>Verify &amp;Message</source>
@@ -4257,12 +4261,12 @@ https://www.transifex.com/projects/p/waggox/</translation>
         <translation>Заключване на masternodes от конфигурационния файл(по подразбиране: %u)</translation>
     </message>
     <message>
-        <source>Maximum per-connection receive buffer, &lt;n&gt;*5000 bytes (default: %u)</source>
-        <translation>Максимален размер на буфера при получаване, &lt;n&gt;*5000 байта (по подразбиране: %u)</translation>
+        <source>Maximum per-connection receive buffer, &lt;n&gt;*1000 bytes (default: %u)</source>
+        <translation>Максимален размер на буфера при получаване, &lt;n&gt;*1000 байта (по подразбиране: %u)</translation>
     </message>
     <message>
-        <source>Maximum per-connection send buffer, &lt;n&gt;*5000 bytes (default: %u)</source>
-        <translation>Максимален размер на буфера при изпращане, &lt;n&gt;*5000 байта (по подразбиране:  %u)</translation>
+        <source>Maximum per-connection send buffer, &lt;n&gt;*1000 bytes (default: %u)</source>
+        <translation>Максимален размер на буфера при изпращане, &lt;n&gt;*1000 байта (по подразбиране:  %u)</translation>
     </message>
     <message>
         <source>Mixing in progress...</source>
@@ -4477,8 +4481,8 @@ https://www.transifex.com/projects/p/waggox/</translation>
         <translation>Пази поне &lt;n&gt; неосъществени транзакции в паметта (по подразбиране: %u)</translation>
     </message>
     <message>
-        <source>Disable all Dash specific functionality (Masternodes, PrivateSend, InstantSend, Governance) (0-1, default: %u)</source>
-        <translation>Изключване на всички специфични Dash функции (PrivateSend, InstantSend, Governance) (0-1, по подразбиране: %u)</translation>
+        <source>Disable all Waggox specific functionality (Masternodes, PrivateSend, InstantSend, Governance) (0-1, default: %u)</source>
+        <translation>Изключване на всички специфични Waggox функции (PrivateSend, InstantSend, Governance) (0-1, по подразбиране: %u)</translation>
     </message>
     <message>
         <source>Discover own IP addresses (default: 1 when listening and no -externalip or -proxy)</source>
@@ -4941,8 +4945,8 @@ https://www.transifex.com/projects/p/waggox/</translation>
         <translation>Опции на RPC сървъра:</translation>
     </message>
     <message>
-        <source>Dash Core</source>
-        <translation>Dash Core</translation>
+        <source>Waggox Core</source>
+        <translation>Waggox Core</translation>
     </message>
     <message>
         <source>The %s developers</source>

@@ -107,7 +107,7 @@ class WalletDumpTest(BitcoinTestFramework):
         found_addr, found_addr_chg, found_addr_rsv, hd_master_addr_enc = \
             read_dump(tmpdir + "/node0/wallet.encrypted.dump", addrs, hd_master_addr_unenc)
         assert_equal(found_addr, test_addr_count)
-        # TODO clarify if we want the behavior that is tested below in Dash (only when HD seed was generated and not user-provided)
+        # TODO clarify if we want the behavior that is tested below in Waggox (only when HD seed was generated and not user-provided)
         # assert_equal(found_addr_chg, 180 + 50)  # old reserve keys are marked as change now
         assert_equal(found_addr_rsv, 180)  # keypool size
 

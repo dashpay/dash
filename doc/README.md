@@ -1,4 +1,4 @@
-Waggox Core 1.0.0
+Waggox Core 0.12.1
 =====================
 
 This is the official reference wallet for Waggox digital currency and comprises the backbone of the Waggox peer-to-peer network. You can [download Waggox Core](https://website.waggok.tech/downloads/) or [build it yourself](#building) using the guides below.
@@ -24,9 +24,10 @@ Drag Waggox-Qt to your applications folder, and then run Waggox-Qt.
 
 ### Need Help?
 
-* See the [Waggox documentation](https://waggoxcoin.atlassian.net/wiki/display/DOC)
+* See the [Waggox documentation](https://waggox.atlassian.net/wiki/display/DOC)
 for help and more information.
-* 
+* Ask for help on [Waggox Nation Discord](http://waggoxchat.org)
+* Ask for help on the [Waggox Forum](https://waggox/forum)
 
 Building
 ---------------------
@@ -56,8 +57,8 @@ The Waggox Core repo's [root README](/README.md) contains relevant information o
 - [Benchmarking](benchmarking.md)
 
 ### Resources
-* 
-* 
+* Discuss on the [Waggox Forum](https://waggox/forum), in the Development & Technical Discussion board.
+* Discuss on [Waggox Nation Discord](http://waggoxchat.org)
 
 ### Miscellaneous
 - [Assets Attribution](assets-attribution.md)

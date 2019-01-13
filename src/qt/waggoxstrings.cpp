@@ -52,7 +52,7 @@ QT_TRANSLATE_NOOP("waggox-core", ""
 "Delete all wallet transactions and only recover those parts of the "
 "blockchain through -rescan on startup"),
 QT_TRANSLATE_NOOP("waggox-core", ""
-"Disable all waggox specific functionality (Masternodes, PrivateSend, "
+"Disable all Waggox specific functionality (Masternodes, PrivateSend, "
 "InstantSend, Governance) (0-1, default: %u)"),
 QT_TRANSLATE_NOOP("waggox-core", ""
 "Discover own IP addresses (default: 1 when listening and no -externalip or -"
@@ -426,7 +426,7 @@ QT_TRANSLATE_NOOP("waggox-core", "Invalid script detected."),
 QT_TRANSLATE_NOOP("waggox-core", "Invalid spork address specified with -sporkaddr"),
 QT_TRANSLATE_NOOP("waggox-core", "KeePassHttp id for the established association"),
 QT_TRANSLATE_NOOP("waggox-core", "KeePassHttp key for AES encrypted communication with KeePass"),
-QT_TRANSLATE_NOOP("waggox-core", "Keep N waggox anonymized (%u-%u, default: %u)"),
+QT_TRANSLATE_NOOP("waggox-core", "Keep N WAGGOX anonymized (%u-%u, default: %u)"),
 QT_TRANSLATE_NOOP("waggox-core", "Keep at most <n> unconnectable transactions in memory (default: %u)"),
 QT_TRANSLATE_NOOP("waggox-core", "Keep the transaction memory pool below <n> megabytes (default: %u)"),
 QT_TRANSLATE_NOOP("waggox-core", "Keypool ran out, please call keypoolrefill first"),

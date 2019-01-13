@@ -47,7 +47,7 @@ MAX_VERSIONS = {
 
 # Ignore symbols that are exported as part of every executable
 IGNORE_EXPORTS = {
-b'_edata', b'_end', b'_init', b'__bss_start', b'_fini', b'_IO_stdin_used'
+'_edata', '_end', '_init', '__bss_start', '_fini', '_IO_stdin_used', 'stdin', 'stdout', 'stderr'
 }
 READELF_CMD = os.getenv('READELF', '/usr/bin/readelf')
 CPPFILT_CMD = os.getenv('CPPFILT', '/usr/bin/c++filt')

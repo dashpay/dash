@@ -18,10 +18,10 @@
 #define CLIENT_VERSION_MAJOR 1
 
 /* Minor version */
-#define CLIENT_VERSION_MINOR 0
+#define CLIENT_VERSION_MINOR 4
 
 /* Build revision */
-#define CLIENT_VERSION_REVISION 0
+#define CLIENT_VERSION_REVISION 7
 
 /* Copyright holder(s) before %s replacement */
 #define COPYRIGHT_HOLDERS "The %s developers"
@@ -313,22 +313,22 @@
 #define LT_OBJDIR ".libs/"
 
 /* Define to the address where bug reports for this package should be sent. */
-#define PACKAGE_BUGREPORT "https://github.com/waggoxproject/waggox/issues"
+#define PACKAGE_BUGREPORT "https://github.com/waggox/waggox/issues"
 
 /* Define to the full name of this package. */
 #define PACKAGE_NAME "Waggox Core"
 
 /* Define to the full name and version of this package. */
-#define PACKAGE_STRING "Waggox Core 1.0.0"
+#define PACKAGE_STRING "Waggox Core 1.4.7"
 
 /* Define to the one symbol short name of this package. */
-#define PACKAGE_TARNAME "waggox"
+#define PACKAGE_TARNAME "waggoxcore"
 
 /* Define to the home page for this package. */
-#define PACKAGE_URL "http://website.waggok.tech/"
+#define PACKAGE_URL "https://waggox/"
 
 /* Define to the version of this package. */
-#define PACKAGE_VERSION "1.0.0"
+#define PACKAGE_VERSION "1.4.7"
 
 /* Define to necessary symbol if this constant uses a non-standard name on
    your system. */

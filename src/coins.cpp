@@ -92,7 +92,7 @@ void AddCoins(CCoinsViewCache& cache, const CTransaction &tx, int nHeight) {
     for (size_t i = 0; i < tx.vout.size(); ++i) {
         // Pass fCoinbase as the possible_overwrite flag to AddCoin, in order to correctly
         // deal with the pre-BIP30 occurrances of duplicate coinbase transactions.
-        cache.AddCoin(COutPoint(txid, i), Coin(tx.vout[i], nHeight, fCoinbase), fCoinbase);
+        cache.AddCoin(COutPoint(txid, i), Coin(tx.vout[i], nHeight, fCoinbase, tx.IsCoinStake()), fCoinbase);
     }
 }
 
@@ -246,18 +246,18 @@ bool CCoinsViewCache::HaveInputs(const CTransaction& tx) const
 double CCoinsViewCache::GetPriority(const CTransaction &tx, int nHeight, CAmount &inChainInputValue) const
 {
     inChainInputValue = 0;
-    if (tx.IsCoinBase())
+    if (tx.IsCoinBase() || tx.IsCoinStake())
         return 0.0;
     double dResult = 0.0;
     BOOST_FOREACH(const CTxIn& txin, tx.vin)
-    {
-        const Coin& coin = AccessCoin(txin.prevout);
-        if (coin.IsSpent()) continue;
-        if (coin.nHeight <= nHeight) {
-            dResult += (double)coin.out.nValue * (nHeight-coin.nHeight);
-            inChainInputValue += coin.out.nValue;
-        }
-    }
+                {
+                    const Coin& coin = AccessCoin(txin.prevout);
+                    if (coin.IsSpent()) continue;
+                    if (coin.nHeight <= nHeight) {
+                        dResult += (double)coin.out.nValue * (nHeight-coin.nHeight);
+                        inChainInputValue += coin.out.nValue;
+                    }
+                }
     return tx.ComputePriority(dResult);
 }
 

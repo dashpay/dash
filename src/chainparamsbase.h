@@ -10,7 +10,7 @@
 
 /**
  * CBaseChainParams defines the base parameters (shared between waggox-cli and waggoxd)
- * of a given instance of the waggox system.
+ * of a given instance of the Waggox system.
  */
 class CBaseChainParams
 {

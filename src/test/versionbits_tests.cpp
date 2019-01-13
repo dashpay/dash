@@ -189,8 +189,8 @@ BOOST_AUTO_TEST_CASE(versionbits_test)
                            .Mine(2000, TestTime(10000), 0x101).TestStarted().TestStateSinceHeight(2000) // So that's what happens the next period
                            .Mine(2050, TestTime(10010), 0x200).TestStarted().TestStateSinceHeight(2000) // 50 old blocks
                            .Mine(2950, TestTime(10020), 0x100).TestStarted().TestStateSinceHeight(2000) // 900 new blocks
-                           .Mine(2999, TestTime(19999), 0x200).TestStarted().TestStateSinceHeight(2000) // 49 old blocks
-                           .Mine(3000, TestTime(29999), 0x200).TestLockedIn().TestStateSinceHeight(3000) // 1 old block (so 900 out of the past 1000)
+                           .Mine(2999, TestTime(24130), 0x200).TestStarted().TestStateSinceHeight(2000) // 49 old blocks
+                           .Mine(3000, TestTime(224126), 0x200).TestLockedIn().TestStateSinceHeight(3000) // 1 old block (so 900 out of the past 1000)
                            .Mine(3999, TestTime(30001), 0).TestLockedIn().TestStateSinceHeight(3000)
                            .Mine(4000, TestTime(30002), 0).TestActive().TestStateSinceHeight(4000)
                            .Mine(14333, TestTime(30003), 0).TestActive().TestStateSinceHeight(4000)

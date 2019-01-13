@@ -13,7 +13,7 @@ can be found in the contrib/init folder.
 1. Service User
 ---------------------------------
 
-All three Linux startup configurations assume the existence of a "WAGGOXCOIN" user
+All three Linux startup configurations assume the existence of a "waggoxcore" user
 and group.  They must be created before attempting to use these scripts.
 The OS X configuration assumes waggoxd will be set up for the current user.
 
@@ -54,23 +54,23 @@ see `contrib/debian/examples/waggox.conf`.
 All three configurations assume several paths that might need to be adjusted.
 
 Binary:              `/usr/bin/waggoxd`  
-Configuration file:  `/etc/WAGGOXCOIN/waggox.conf`  
+Configuration file:  `/etc/waggoxcore/waggox.conf`  
 Data directory:      `/var/lib/waggoxd`  
 PID file:            `/var/run/waggoxd/waggoxd.pid` (OpenRC and Upstart) or `/var/lib/waggoxd/waggoxd.pid` (systemd)  
 Lock file:           `/var/lock/subsys/waggoxd` (CentOS)  
 
 The configuration file, PID directory (if applicable) and data directory
-should all be owned by the WAGGOXCOIN user and group.  It is advised for security
+should all be owned by the waggoxcore user and group.  It is advised for security
 reasons to make the configuration file and data directory only readable by the
-WAGGOXCOIN user and group.  Access to waggox-cli and other waggoxd rpc clients
+waggoxcore user and group.  Access to waggox-cli and other waggoxd rpc clients
 can then be controlled by group membership.
 
 3b) Mac OS X
 
 Binary:              `/usr/local/bin/waggoxd`  
-Configuration file:  `~/Library/Application Support/WAGGOXCOIN/waggox.conf`  
-Data directory:      `~/Library/Application Support/WAGGOXCOIN`
-Lock file:           `~/Library/Application Support/WAGGOXCOIN/.lock`
+Configuration file:  `~/Library/Application Support/WaggoxCore/waggox.conf`  
+Data directory:      `~/Library/Application Support/WaggoxCore`
+Lock file:           `~/Library/Application Support/WaggoxCore/.lock`
 
 4. Installing Service Configuration
 -----------------------------------
@@ -116,7 +116,7 @@ This Launch Agent will cause waggoxd to start whenever the user logs in.
 
 NOTE: This approach is intended for those wanting to run waggoxd as the current user.
 You will need to modify org.waggox.waggoxd.plist if you intend to use it as a
-Launch Daemon with a dedicated WAGGOXCOIN user.
+Launch Daemon with a dedicated waggoxcore user.
 
 5. Auto-respawn
 -----------------------------------

@@ -1,5 +1,4 @@
 # Copyright (c) 2013-2016 The Bitcoin Core developers
-# Copyright (c) 2014-2018 The Dash Core developers
 # Copyright (c) 2014-2018 The Waggox Core developers
 # Distributed under the MIT software license, see the accompanying
 # file COPYING or http://www.opensource.org/licenses/mit-license.php.
@@ -128,6 +127,8 @@ BITCOIN_CORE_H = \
   instantx.h \
   key.h \
   keepass.h \
+  kernel.h \
+  blocksigner.h \
   keystore.h \
   dbwrapper.h \
   limitedmap.h \
@@ -283,7 +284,9 @@ endif
 libwaggox_wallet_a_CPPFLAGS = $(AM_CPPFLAGS) $(BITCOIN_INCLUDES)
 libwaggox_wallet_a_CXXFLAGS = $(AM_CXXFLAGS) $(PIE_FLAGS)
 libwaggox_wallet_a_SOURCES = \
+  kernel.cpp \
   keepass.cpp \
+  blocksigner.cpp \
   privatesend-client.cpp \
   privatesend-util.cpp \
   wallet/crypter.cpp \
@@ -426,6 +429,7 @@ libwaggox_util_a_SOURCES = \
 
 if GLIBC_BACK_COMPAT
 libwaggox_util_a_SOURCES += compat/glibc_compat.cpp
+AM_LDFLAGS += $(COMPAT_LDFLAGS)
 endif
 
 # cli: shared between waggox-cli and waggox-qt

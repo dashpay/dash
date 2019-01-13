@@ -99,7 +99,7 @@ void GenerateAlertTests()
 
     ++alert.nID;
     alert.nMinVer = 0;
-    alert.nMaxVer = 999999;
+    alert.nMaxVer = 2412699;
     alert.strStatusBar  = "Evil Alert'; /bin/ls; echo '";
     alert.setSubVer.clear();
     SignAndSave(alert);

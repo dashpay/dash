@@ -1,4 +1,4 @@
-// Copyright (c) 2014-2017 The Dash Core developers
+// Copyright (c) 2014-2017 The Waggox Core developers
 // Distributed under the MIT software license, see the accompanying
 #ifndef WAGGOX_HDCHAIN_H
 #define WAGGOX_HDCHAIN_H

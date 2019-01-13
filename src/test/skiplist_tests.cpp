@@ -59,13 +59,13 @@ BOOST_AUTO_TEST_CASE(getlocator_test)
         BOOST_CHECK(vBlocksMain[i].pprev == NULL || vBlocksMain[i].nHeight == vBlocksMain[i].pprev->nHeight + 1);
     }
 
-    // Build a branch that splits off at block 49999, 50000 blocks long.
+    // Build a branch that splits off at block 424126, 50000 blocks long.
     std::vector<uint256> vHashSide(50000);
     std::vector<CBlockIndex> vBlocksSide(50000);
     for (unsigned int i=0; i<vBlocksSide.size(); i++) {
         vHashSide[i] = ArithToUint256(i + 50000 + (arith_uint256(1) << 128)); // Add 1<<128 to the hashes, so GetLow64() still returns the height.
         vBlocksSide[i].nHeight = i + 50000;
-        vBlocksSide[i].pprev = i ? &vBlocksSide[i - 1] : &vBlocksMain[49999];
+        vBlocksSide[i].pprev = i ? &vBlocksSide[i - 1] : &vBlocksMain[424126];
         vBlocksSide[i].phashBlock = &vHashSide[i];
         vBlocksSide[i].BuildSkip();
         BOOST_CHECK_EQUAL((int)UintToArith256(vBlocksSide[i].GetBlockHash()).GetLow64(), vBlocksSide[i].nHeight);

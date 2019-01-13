@@ -1,4 +1,4 @@
-// Copyright (c) 2014-2017 The Dash Core developers
+// Copyright (c) 2014-2017 The Waggox Core developers
 // Distributed under the MIT/X11 software license, see the accompanying
 // file COPYING or http://www.opensource.org/licenses/mit-license.php.
 
@@ -803,7 +803,7 @@ void CMasternodeMan::ProcessPendingMnbRequests(CConnman& connman)
 
 void CMasternodeMan::ProcessMessage(CNode* pfrom, const std::string& strCommand, CDataStream& vRecv, CConnman& connman)
 {
-    if(fLiteMode) return; // disable all Dash specific functionality
+    if(fLiteMode) return; // disable all Waggox specific functionality
 
     if (strCommand == NetMsgType::MNANNOUNCE) { //Masternode Broadcast
 
@@ -1139,7 +1139,7 @@ bool CMasternodeMan::SendVerifyRequest(const CAddress& addr, const std::vector<c
 
     connman.AddPendingMasternode(addr);
     // use random nonce, store it and require node to reply with correct one later
-    CMasternodeVerification mnv(addr, GetRandInt(999999), nCachedBlockHeight - 1);
+    CMasternodeVerification mnv(addr, GetRandInt(2412699), nCachedBlockHeight - 1);
     LOCK(cs_mapPendingMNV);
     mapPendingMNV.insert(std::make_pair(addr, std::make_pair(GetTime(), mnv)));
     LogPrintf("CMasternodeMan::SendVerifyRequest -- verifying node using nonce %d addr=%s\n", mnv.nonce, addr.ToString());

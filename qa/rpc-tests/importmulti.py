@@ -245,7 +245,7 @@ class ImportMultiTest (BitcoinTestFramework):
         assert_equal(address_assert['isscript'], True)
         assert_equal(address_assert['iswatchonly'], True)
         assert_equal(address_assert['timestamp'], timestamp)
-        p2shunspent = self.nodes[1].listunspent(0,999999, [multi_sig_script['address']])[0]
+        p2shunspent = self.nodes[1].listunspent(0,2412699, [multi_sig_script['address']])[0]
         assert_equal(p2shunspent['spendable'], False)
         assert_equal(p2shunspent['solvable'], False)
 
@@ -273,7 +273,7 @@ class ImportMultiTest (BitcoinTestFramework):
         address_assert = self.nodes[1].validateaddress(multi_sig_script['address'])
         assert_equal(address_assert['timestamp'], timestamp)
 
-        p2shunspent = self.nodes[1].listunspent(0,999999, [multi_sig_script['address']])[0]
+        p2shunspent = self.nodes[1].listunspent(0,2412699, [multi_sig_script['address']])[0]
         assert_equal(p2shunspent['spendable'], False)
         assert_equal(p2shunspent['solvable'], True)
 
@@ -302,7 +302,7 @@ class ImportMultiTest (BitcoinTestFramework):
         address_assert = self.nodes[1].validateaddress(multi_sig_script['address'])
         assert_equal(address_assert['timestamp'], timestamp)
 
-        p2shunspent = self.nodes[1].listunspent(0,999999, [multi_sig_script['address']])[0]
+        p2shunspent = self.nodes[1].listunspent(0,2412699, [multi_sig_script['address']])[0]
         assert_equal(p2shunspent['spendable'], False)
         assert_equal(p2shunspent['solvable'], True)
 

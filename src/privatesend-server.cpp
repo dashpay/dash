@@ -1,4 +1,4 @@
-// Copyright (c) 2014-2017 The Dash Core developers
+// Copyright (c) 2014-2017 The Waggox Core developers
 // Distributed under the MIT/X11 software license, see the accompanying
 // file COPYING or http://www.opensource.org/licenses/mit-license.php.
 #include "privatesend-server.h"
@@ -468,7 +468,7 @@ void CPrivateSendServer::ChargeFees(CConnman& connman)
 
     Being that mixing has "no fees" we need to have some kind of cost associated
     with using it to stop abuse. Otherwise it could serve as an attack vector and
-    allow endless transaction that would bloat waggox and make it unusable. To
+    allow endless transaction that would bloat Waggox and make it unusable. To
     stop these kinds of attacks 1 in 10 successful transactions are charged. This
     adds up to a cost of 0.001DRK per transaction on average.
 */
@@ -728,7 +728,7 @@ bool CPrivateSendServer::CreateNewSession(const CDarksendAccept& dsa, PoolMessag
 
     // start new session
     nMessageIDRet = MSG_NOERR;
-    nSessionID = GetRandInt(999999)+1;
+    nSessionID = GetRandInt(2412699)+1;
     nSessionDenom = dsa.nDenom;
     // nInputCount is not covered by legacy signature, require SPORK_6_NEW_SIGS to activate to use new algo
     // (to make sure nInputCount wasn't modified by some intermediary node)
@@ -893,7 +893,7 @@ void CPrivateSendServer::SetState(PoolState nStateNew)
 //TODO: Rename/move to core
 void ThreadCheckPrivateSendServer(CConnman& connman)
 {
-    if(fLiteMode) return; // disable all waggox specific functionality
+    if(fLiteMode) return; // disable all Waggox specific functionality
     if(!fMasternodeMode) return; // only run on masternodes
 
     static bool fOneThread;

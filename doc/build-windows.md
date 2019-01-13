@@ -1,7 +1,7 @@
 WINDOWS BUILD NOTES
 ====================
 
-Below are some notes on how to build Waggox coin for Windows.
+Below are some notes on how to build Waggox Core for Windows.
 
 Most developers use cross-compilation from Ubuntu to build executables for
 Windows. This is also used to build the release binaries.
@@ -88,6 +88,16 @@ Then build using:
     ./autogen.sh # not required when building from tarball
     CONFIG_SITE=$PWD/depends/i686-w64-mingw32/share/config.site ./configure --prefix=/
     make
+
+If the compilation process shows that there are some unknown references, change to the posix implementation as stated in the following [dash issue](https://github.com/dashpay/dash/issues/1751).
+
+Commands
+
+``` console
+sudo update-alternatives --config i686-w64-mingw32-gcc
+sudo update-alternatives --config i686-w64-mingw32-g++
+```
+And select posix implementation at each.
 
 ## Depends system
 

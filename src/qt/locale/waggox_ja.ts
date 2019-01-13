@@ -2860,12 +2860,12 @@
         <translation>ピアの接続数を最大でも &lt;n&gt; 個に維持する (デフォルト設定： %u)</translation>
     </message>
     <message>
-        <source>Maximum per-connection receive buffer, &lt;n&gt;*5000 bytes (default: %u)</source>
-        <translation>接続毎の最大受信バッファ &lt;n&gt;*5000 バイト (デフォルト設定： %u)</translation>
+        <source>Maximum per-connection receive buffer, &lt;n&gt;*1000 bytes (default: %u)</source>
+        <translation>接続毎の最大受信バッファ &lt;n&gt;*1000 バイト (デフォルト設定： %u)</translation>
     </message>
     <message>
-        <source>Maximum per-connection send buffer, &lt;n&gt;*5000 bytes (default: %u)</source>
-        <translation>接続毎の最大送信バッファ &lt;n&gt;*5000 バイト (デフォルト設定： %u)</translation>
+        <source>Maximum per-connection send buffer, &lt;n&gt;*1000 bytes (default: %u)</source>
+        <translation>接続毎の最大送信バッファ &lt;n&gt;*1000 バイト (デフォルト設定： %u)</translation>
     </message>
     <message>
         <source>Need to specify a port with -whitebind: '%s'</source>

@@ -3,13 +3,13 @@ Description=Waggox's distributed currency daemon
 After=network.target
 
 [Service]
-User=waggox
-Group=waggox
+User=waggoxcore
+Group=waggoxcore
 
 Type=forking
 PIDFile=/var/lib/waggoxd/waggoxd.pid
 ExecStart=/usr/bin/waggoxd -daemon -pid=/var/lib/waggoxd/waggoxd.pid \
--conf=/etc/waggox/waggox.conf -datadir=/var/lib/waggoxd -disablewallet
+-conf=/etc/waggoxcore/waggox.conf -datadir=/var/lib/waggoxd -disablewallet
 
 Restart=always
 PrivateTmp=true

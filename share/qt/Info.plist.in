@@ -71,7 +71,7 @@
         <string>application/x-waggox-payment-request</string>
         <key>public.filename-extension</key>
         <array>
-          <string>waggoxpaymentrequest</string>
+          <string>waggoxmentrequest</string>
         </array>
       </dict>
     </dict>

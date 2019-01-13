@@ -38,7 +38,7 @@ import logging
 import copy
 from test_framework.siphash import siphash256
 
-import waggox_hash
+import dash_hash
 
 BIP0031_VERSION = 60000
 MY_VERSION = 70209  # SHORT_IDS_BLOCKS_VERSION to support cmpct blocks
@@ -76,7 +76,7 @@ def hash256(s):
     return sha256(sha256(s))
 
 def waggoxhash(s):
-    return waggox_hash.getPoWHash(s)
+    return dash_hash.getPoWHash(s)
 
 def ser_compact_size(l):
     r = b""

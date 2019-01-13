@@ -1,6 +1,6 @@
 all:
-	$(MAKE) -C .. waggox_test
+	$(MAKE) -C .. dash_test
 clean:
-	$(MAKE) -C .. waggox_test_clean
+	$(MAKE) -C .. dash_test_clean
 check:
-	$(MAKE) -C .. waggox_test_check
+	$(MAKE) -C .. dash_test_check

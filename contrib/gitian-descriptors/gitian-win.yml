@@ -1,18 +1,19 @@
 ---
-name: "waggox-win-0.12"
+name: "waggox-win-1.4.7"
 enable_cache: true
 suites:
-- "trusty"
+- "bionic"
 architectures:
 - "amd64"
 packages:
 - "curl"
 - "g++"
-- "git-core"
+- "git"
 - "pkg-config"
 - "autoconf"
 - "libtool"
 - "automake"
+- "cmake"
 - "faketime"
 - "bsdmainutils"
 - "mingw-w64"
@@ -21,19 +22,20 @@ packages:
 - "zip"
 - "ca-certificates"
 - "python"
+- "python3"
+- "rename"
 remotes:
-- "url": "https://github.com/waggoxproject/waggox.git"
+- "url": "https://github.com/waggox/waggox.git"
   "dir": "waggox"
 files: []
 script: |
   WRAP_DIR=$HOME/wrapped
   HOSTS="i686-w64-mingw32 x86_64-w64-mingw32"
   CONFIGFLAGS="--enable-reduce-exports --disable-bench --disable-gui-tests"
-  FAKETIME_HOST_PROGS="g++ ar ranlib nm windres strip objcopy"
+  FAKETIME_HOST_PROGS="ar ranlib nm windres strip objcopy"
   FAKETIME_PROGS="date makensis zip"
   HOST_CFLAGS="-O2 -g"
   HOST_CXXFLAGS="-O2 -g"
-
   export QT_RCC_TEST=1
   export GZIP="-9n"
   export TAR_OPTIONS="--mtime="$REFERENCE_DATE\\\ $REFERENCE_TIME""
@@ -42,34 +44,50 @@ script: |
   mkdir -p ${WRAP_DIR}
   if test -n "$GBUILD_CACHE_ENABLED"; then
     export SOURCES_PATH=${GBUILD_COMMON_CACHE}
-    export BASE_CACHE=${GBUILD_PACKAGE_CACHE}
+    export BASE_CACHE=${GBUILD_PACKAGE_CACHE}/depends
     mkdir -p ${BASE_CACHE} ${SOURCES_PATH}
+    # Setup ccache to use correct cache directories and fix the compiler check of ccache
+    CONFIGFLAGS="${CONFIGFLAGS} --enable-ccache"
+    export CCACHE_DIR=${GBUILD_PACKAGE_CACHE}/ccache
+    # As we later wrap the gcc binaries, this is fast
+    export CCACHE_COMPILERCHECK="content"
+    if [ -f ${GBUILD_PACKAGE_CACHE}/ccache.tar.gz ]; then
+      pushd ${GBUILD_PACKAGE_CACHE}
+      tar xzf ccache.tar.gz
+      rm ccache.tar.gz
+      popd
+    fi
+  else
+    CONFIGFLAGS="${CONFIGFLAGS} --disable-ccache"
   fi
-
+  # We include the GCC version in all wrappers so that ccache can detect compiler upgrades when hashing the wrappers
+  GCCVERSION=`gcc --version | head -1`
   function create_global_faketime_wrappers {
   for prog in ${FAKETIME_PROGS}; do
     echo '#!/bin/bash' > ${WRAP_DIR}/${prog}
+    echo "# GCCVERSION=${GCCVERSION}" >> ${WRAP_DIR}/${prog}
     echo "REAL=\`which -a ${prog} | grep -v ${WRAP_DIR}/${prog} | head -1\`" >> ${WRAP_DIR}/${prog}
     echo 'export LD_PRELOAD=/usr/lib/x86_64-linux-gnu/faketime/libfaketime.so.1' >> ${WRAP_DIR}/${prog}
     echo "export FAKETIME=\"$1\"" >> ${WRAP_DIR}/${prog}
     echo "\$REAL \$@" >> $WRAP_DIR/${prog}
     chmod +x ${WRAP_DIR}/${prog}
+    touch -d "${REFERENCE_DATETIME}" ${WRAP_DIR}/${prog}
   done
   }
-
   function create_per-host_faketime_wrappers {
   for i in $HOSTS; do
     for prog in ${FAKETIME_HOST_PROGS}; do
         echo '#!/bin/bash' > ${WRAP_DIR}/${i}-${prog}
+        echo "# GCCVERSION=${GCCVERSION}" >> ${WRAP_DIR}/${i}-${prog}
         echo "REAL=\`which -a ${i}-${prog} | grep -v ${WRAP_DIR}/${i}-${prog} | head -1\`" >> ${WRAP_DIR}/${i}-${prog}
         echo 'export LD_PRELOAD=/usr/lib/x86_64-linux-gnu/faketime/libfaketime.so.1' >> ${WRAP_DIR}/${i}-${prog}
         echo "export FAKETIME=\"$1\"" >> ${WRAP_DIR}/${i}-${prog}
         echo "\$REAL \$@" >> $WRAP_DIR/${i}-${prog}
         chmod +x ${WRAP_DIR}/${i}-${prog}
+        touch -d "${REFERENCE_DATETIME}" ${WRAP_DIR}/${i}-${prog}
     done
   done
   }
-
   function create_per-host_linker_wrapper {
   # This is only needed for trusty, as the mingw linker leaks a few bytes of
   # heap, causing non-determinism. See discussion in https://github.com/bitcoin/bitcoin/pull/6900
@@ -77,60 +95,60 @@ script: |
     mkdir -p ${WRAP_DIR}/${i}
     for prog in collect2; do
         echo '#!/bin/bash' > ${WRAP_DIR}/${i}/${prog}
+        echo "# GCCVERSION=${GCCVERSION}" >> ${WRAP_DIR}/${i}/${prog}
         REAL=$(${i}-gcc -print-prog-name=${prog})
         echo "export MALLOC_PERTURB_=255" >> ${WRAP_DIR}/${i}/${prog}
         echo "${REAL} \$@" >> $WRAP_DIR/${i}/${prog}
         chmod +x ${WRAP_DIR}/${i}/${prog}
+        touch -d "${REFERENCE_DATETIME}" ${WRAP_DIR}/${i}/${prog}
     done
     for prog in gcc g++; do
         echo '#!/bin/bash' > ${WRAP_DIR}/${i}-${prog}
-        echo "REAL=\`which -a ${i}-${prog} | grep -v ${WRAP_DIR}/${i}-${prog} | head -1\`" >> ${WRAP_DIR}/${i}-${prog}
+        echo "# GCCVERSION=${GCCVERSION}" >> ${WRAP_DIR}/${i}-${prog}
+        echo "REAL=\`which -a ${i}-${prog}-posix | grep -v ${WRAP_DIR}/${i}-${prog} | head -1\`" >> ${WRAP_DIR}/${i}-${prog}
+        echo '# Add the gcc version to the wrapper so that ccache takes this into account (we use CCACHE_COMPILERCHECK=content)' >> ${WRAP_DIR}/${i}-${prog}
+        echo "# `${prog} --version | head -1`" >> ${WRAP_DIR}/${i}-${prog}
         echo 'export LD_PRELOAD=/usr/lib/x86_64-linux-gnu/faketime/libfaketime.so.1' >> ${WRAP_DIR}/${i}-${prog}
         echo "export FAKETIME=\"$1\"" >> ${WRAP_DIR}/${i}-${prog}
         echo "export COMPILER_PATH=${WRAP_DIR}/${i}" >> ${WRAP_DIR}/${i}-${prog}
         echo "\$REAL \$@" >> $WRAP_DIR/${i}-${prog}
         chmod +x ${WRAP_DIR}/${i}-${prog}
+        touch -d "${REFERENCE_DATETIME}" ${WRAP_DIR}/${i}-${prog}
     done
   done
   }
-
   # Faketime for depends so intermediate results are comparable
   export PATH_orig=${PATH}
   create_global_faketime_wrappers "2000-01-01 12:00:00"
   create_per-host_faketime_wrappers "2000-01-01 12:00:00"
   create_per-host_linker_wrapper "2000-01-01 12:00:00"
   export PATH=${WRAP_DIR}:${PATH}
-
   cd waggox
   BASEPREFIX=`pwd`/depends
   # Build dependencies for each host
   for i in $HOSTS; do
     make ${MAKEOPTS} -C ${BASEPREFIX} HOST="${i}"
   done
-
   # Faketime for binaries
   export PATH=${PATH_orig}
   create_global_faketime_wrappers "${REFERENCE_DATETIME}"
   create_per-host_faketime_wrappers "${REFERENCE_DATETIME}"
   create_per-host_linker_wrapper "${REFERENCE_DATETIME}"
   export PATH=${WRAP_DIR}:${PATH}
-
   # Create the release tarball using (arbitrarily) the first host
   ./autogen.sh
   CONFIG_SITE=${BASEPREFIX}/`echo "${HOSTS}" | awk '{print $1;}'`/share/config.site ./configure --prefix=/
   make dist
-  SOURCEDIST=`echo waggox-*.tar.gz`
+  SOURCEDIST=`echo waggoxcore-*.tar.gz`
   DISTNAME=`echo ${SOURCEDIST} | sed 's/.tar.*//'`
-
   # Correct tar file order
   mkdir -p temp
   pushd temp
   tar xf ../$SOURCEDIST
-  find waggox-* | sort | tar --no-recursion --mode='u+rw,go+r-w,a+X' --owner=0 --group=0 -c -T - | gzip -9n > ../$SOURCEDIST
+  find waggoxcore-* | sort | tar --no-recursion --mode='u+rw,go+r-w,a+X' --owner=0 --group=0 -c -T - | gzip -9n > ../$SOURCEDIST
   mkdir -p $OUTDIR/src
   cp ../$SOURCEDIST $OUTDIR/src
   popd
-
   ORIGPATH="$PATH"
   # Extract the release tarball into a dir for each host and build
   for i in ${HOSTS}; do
@@ -140,13 +158,12 @@ script: |
     INSTALLPATH=`pwd`/installed/${DISTNAME}
     mkdir -p ${INSTALLPATH}
     tar --strip-components=1 -xf ../$SOURCEDIST
-
-    CONFIG_SITE=${BASEPREFIX}/${i}/share/config.site ./configure --prefix=/ --disable-ccache --disable-maintainer-mode --disable-dependency-tracking ${CONFIGFLAGS} CFLAGS="${HOST_CFLAGS}" CXXFLAGS="${HOST_CXXFLAGS}"
+    CONFIG_SITE=${BASEPREFIX}/${i}/share/config.site ./configure --prefix=/ --disable-maintainer-mode --disable-dependency-tracking ${CONFIGFLAGS} CFLAGS="${HOST_CFLAGS}" CXXFLAGS="${HOST_CXXFLAGS}"
     make ${MAKEOPTS}
     make ${MAKEOPTS} -C src check-security
     make deploy
     make install DESTDIR=${INSTALLPATH}
-    cp -f waggox-*setup*.exe $OUTDIR/
+    cp -f waggoxcore-*setup*.exe $OUTDIR/
     cd installed
     mv ${DISTNAME}/bin/*.dll ${DISTNAME}/lib/
     find . -name "lib*.la" -delete
@@ -166,3 +183,10 @@ script: |
   mv ${OUTDIR}/${DISTNAME}-i686-*-debug.zip ${OUTDIR}/${DISTNAME}-win32-debug.zip
   mv ${OUTDIR}/${DISTNAME}-x86_64-*.zip ${OUTDIR}/${DISTNAME}-win64.zip
   mv ${OUTDIR}/${DISTNAME}-i686-*.zip ${OUTDIR}/${DISTNAME}-win32.zip
+  # Compress ccache (otherwise the assert file will get too huge)
+  if [ "$CCACHE_DIR" != "" ]; then
+    pushd ${GBUILD_PACKAGE_CACHE}
+    tar czf ccache.tar.gz ccache
+    rm -rf ccache
+    popd
+  fi

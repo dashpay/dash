@@ -77,9 +77,9 @@ Whenever a masternode comes online or a client is syncing, they will send this m
 
 | Field Size | Field Name | Data type | Description |
 | ---------- | ----------- | --------- | ---------- |
-| 36 | outpoint | [COutPoint](#coutpoint) | The unspent output which is holding 5000 WAGGOX
+| 36 | outpoint | [COutPoint](#coutpoint) | The unspent output which is holding 1000 WAGGOX
 | # | addr | [CService](#cservice) | IPv4 address of the masternode
-| 33-65 | pubKeyCollateralAddress | [CPubKey](#cpubkey) | CPubKey of the main 5000 WAGGOX unspent output
+| 33-65 | pubKeyCollateralAddress | [CPubKey](#cpubkey) | CPubKey of the main 1000 WAGGOX unspent output
 | 33-65 | pubKeyMasternode | [CPubKey](#cpubkey) | CPubKey of the secondary signing key (For all other messaging other than announce message)
 | 71-73 | sig | char[] | Signature of this message (verifiable via pubKeyCollateralAddress)
 | 8 | sigTime | int64_t | Time which the signature was created
@@ -277,8 +277,8 @@ Masternode Verify
 
 | Field Size | Field Name | Data type | Description |
 | ---------- | ----------- | --------- | ---------- |
-| 36 | masternodeOutpoint1 | [COutPoint](#coutpoint) | The unspent output which is holding 5000 WAGGOX for masternode 1
-| 36 | masternodeOutpoint2 | [COutPoint](#coutpoint) | The unspent output which is holding 5000 WAGGOX for masternode 2
+| 36 | masternodeOutpoint1 | [COutPoint](#coutpoint) | The unspent output which is holding 1000 WAGGOX for masternode 1
+| 36 | masternodeOutpoint2 | [COutPoint](#coutpoint) | The unspent output which is holding 1000 WAGGOX for masternode 2
 | # | addr | [CService](#cservice) | IPv4 address / port of the masternode
 | 4 | nonce | int | Nonce
 | 4 | nBlockHeight | int | The blockheight
@@ -320,7 +320,7 @@ Get Masternode list or specific entry
 
 | Field Size | Field Name | Data type | Description |
 | ---------- | ----------- | --------- | ---------- |
-| 36 | masternodeOutpoint | [COutPoint](#coutpoint) | The unspent output which is holding 5000 WAGGOX
+| 36 | masternodeOutpoint | [COutPoint](#coutpoint) | The unspent output which is holding 1000 WAGGOX
 
 ### SYNCSTATUSCOUNT - "ssc"
 

@@ -372,9 +372,20 @@ bool CBlockTreeDB::LoadBlockIndexGuts(boost::function<CBlockIndex*(const uint256
                 pindexNew->nStatus        = diskindex.nStatus;
                 pindexNew->nTx            = diskindex.nTx;
 
-                if (!CheckProofOfWork(pindexNew->GetBlockHash(), pindexNew->nBits, Params().GetConsensus()))
-                    return error("%s: CheckProofOfWork failed: %s", __func__, pindexNew->ToString());
+                // Proof of Stake
 
+                pindexNew->nMint            = diskindex.nMint;
+                pindexNew->nMoneySupply     = diskindex.nMoneySupply;
+                pindexNew->nFlags           = diskindex.nFlags;
+                pindexNew->nStakeModifier   = diskindex.nStakeModifier;
+                pindexNew->prevoutStake     = diskindex.prevoutStake;
+                pindexNew->nStakeTime       = diskindex.nStakeTime;
+                pindexNew->hashProofOfStake = diskindex.hashProofOfStake;
+                if(pindexNew->nHeight <= Params().GetConsensus().nLastPoWBlock) {
+                    if (!CheckProofOfWork(pindexNew->GetBlockHash(), pindexNew->nBits, Params().GetConsensus())) {
+                        return error("%s: CheckProofOfWork failed: %s", __func__, pindexNew->ToString());
+                    }
+                }
                 pcursor->Next();
             } else {
                 return error("%s: failed to read value", __func__);
@@ -485,7 +496,7 @@ bool CCoinsViewDB::Upgrade() {
             COutPoint outpoint(key.second, 0);
             for (size_t i = 0; i < old_coins.vout.size(); ++i) {
                 if (!old_coins.vout[i].IsNull() && !old_coins.vout[i].scriptPubKey.IsUnspendable()) {
-                    Coin newcoin(std::move(old_coins.vout[i]), old_coins.nHeight, old_coins.fCoinBase);
+                    Coin newcoin(std::move(old_coins.vout[i]), old_coins.nHeight, old_coins.fCoinBase, false);
                     outpoint.n = i;
                     CoinEntry entry(&outpoint);
                     batch.Write(entry, newcoin);

@@ -1,14 +1,14 @@
 dnl require autoconf 2.60 (AS_ECHO/AS_ECHO_N)
 AC_PREREQ([2.60])
 define(_CLIENT_VERSION_MAJOR, 1)
-define(_CLIENT_VERSION_MINOR, 0)
-define(_CLIENT_VERSION_REVISION, 0)
+define(_CLIENT_VERSION_MINOR, 4)
+define(_CLIENT_VERSION_REVISION,7)
 define(_CLIENT_VERSION_BUILD, 0)
 define(_CLIENT_VERSION_IS_RELEASE, true)
 define(_COPYRIGHT_YEAR, 2018)
 define(_COPYRIGHT_HOLDERS,[The %s developers])
 define(_COPYRIGHT_HOLDERS_SUBSTITUTION,[[Waggox Core]])
-AC_INIT([Waggox Core],[_CLIENT_VERSION_MAJOR._CLIENT_VERSION_MINOR._CLIENT_VERSION_REVISION],[https://github.com/waggoxproject/waggox/issues],[waggox],[http://website.waggok.tech/])
+AC_INIT([Waggox Core],[_CLIENT_VERSION_MAJOR._CLIENT_VERSION_MINOR._CLIENT_VERSION_REVISION],[https://github.com/waggox/waggox/issues],[waggoxcore],[https://waggox/])
 AC_CONFIG_SRCDIR([src/validation.cpp])
 AC_CONFIG_HEADERS([src/config/waggox-config.h])
 AC_CONFIG_AUX_DIR([build-aux])
@@ -20,22 +20,12 @@ BITCOIN_CLI_NAME=waggox-cli
 BITCOIN_TX_NAME=waggox-tx
 
 AC_CANONICAL_HOST
-AC_MSG_NOTICE([------------------------------------])
-AC_MSG_NOTICE([------------------------------------])
-AC_MSG_NOTICE([                                    ])
-AC_MSG_NOTICE([                 2018-2019          ])
-AC_MSG_NOTICE([      WaggoX coin                   ])
-AC_MSG_NOTICE([                                    ])
-AC_MSG_NOTICE([     Setting up build for     ])
-AC_MSG_NOTICE([     $host      ])
-AC_MSG_NOTICE([------------------------------------])
-AC_MSG_NOTICE([------------------------------------])
 
 AH_TOP([#ifndef WAGGOX_CONFIG_H])
 AH_TOP([#define WAGGOX_CONFIG_H])
 AH_BOTTOM([#endif //WAGGOX_CONFIG_H])
 
-dnl faketime breaks configure and is only needed for make. Disable it here.
+dnl faketime breaks configure anfd is only needed for make. Disable it here.
 unset FAKETIME
 
 dnl Automake init set-up and checks
@@ -498,6 +488,8 @@ if test x$use_glibc_compat != xno; then
     [ fdelt_type="long int"])
   AC_MSG_RESULT($fdelt_type)
   AC_DEFINE_UNQUOTED(FDELT_TYPE, $fdelt_type,[parameter and return value type for __fdelt_chk])
+  AX_CHECK_LINK_FLAG([[-Wl,--wrap=__divmoddi4]], [COMPAT_LDFLAGS="$COMPAT_LDFLAGS -Wl,--wrap=__divmoddi4"])
+  AX_CHECK_LINK_FLAG([[-Wl,--wrap=log2f]], [COMPAT_LDFLAGS="$COMPAT_LDFLAGS -Wl,--wrap=log2f"])
 else
   AC_SEARCH_LIBS([clock_gettime],[rt])
 fi
@@ -1101,6 +1093,7 @@ AC_SUBST(BITCOIN_CLI_NAME)
 AC_SUBST(BITCOIN_TX_NAME)
 
 AC_SUBST(RELDFLAGS)
+AC_SUBST(COMPAT_LDFLAGS)
 AC_SUBST(ERROR_CXXFLAGS)
 AC_SUBST(HARDENED_CXXFLAGS)
 AC_SUBST(HARDENED_CPPFLAGS)
@@ -1178,7 +1171,7 @@ case ${OS} in
    ;;
 esac
 
-echo 
+echo
 echo "Options used to compile and link:"
 echo "  with wallet   = $enable_wallet"
 echo "  with gui / qt = $bitcoin_enable_qt"
@@ -1192,7 +1185,7 @@ echo "  with bench    = $use_bench"
 echo "  with upnp     = $use_upnp"
 echo "  debug enabled = $enable_debug"
 echo "  werror        = $enable_werror"
-echo 
+echo
 echo "  target os     = $TARGET_OS"
 echo "  build os      = $BUILD_OS"
 echo
@@ -1202,4 +1195,4 @@ echo "  CPPFLAGS      = $CPPFLAGS"
 echo "  CXX           = $CXX"
 echo "  CXXFLAGS      = $CXXFLAGS"
 echo "  LDFLAGS       = $LDFLAGS"
-echo 
+echo

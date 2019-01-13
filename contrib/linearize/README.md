@@ -1,10 +1,10 @@
 # Linearize
-Construct a linear, no-fork, best version of the Dash blockchain. The scripts
+Construct a linear, no-fork, best version of the Waggox blockchain. The scripts
 run using Python 3 but are compatible with Python 2.
 
-## Step 0: Install waggox_hash
+## Step 0: Install dash_hash
 
-https://github.com/waggoxproject/waggox_hash
+https://github.com/dashpay/dash_hash
 
 ## Step 1: Download hash list
 
@@ -15,7 +15,7 @@ Required configuration file settings for linearize-hashes:
 
 Optional config file setting for linearize-hashes:
 * RPC: `host`  (Default: `127.0.0.1`)
-* RPC: `port`  (Default: `9920`)
+* RPC: `port`  (Default: `23323`)
 * Blockchain: `min_height`, `max_height`
 * `rev_hash_bytes`: If true, the written block hash list will be
 byte-reversed. (In other words, the hash returned by getblockhash will have its

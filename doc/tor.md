@@ -1,7 +1,7 @@
 TOR SUPPORT IN WAGGOX CORE
 =======================
 
-It is possible to run Dash Core as a Tor hidden service, and connect to such services.
+It is possible to run Waggox Core as a Tor hidden service, and connect to such services.
 
 The following directions assume you have a Tor proxy running on port 9050. Many
 distributions default to having a SOCKS proxy listening on port 9050, but others
@@ -10,10 +10,10 @@ See [Tor Project FAQ:TBBSocksPort](https://www.torproject.org/docs/faq.html.en#T
 for how to properly configure Tor.
 
 
-1. Run Dash Core behind a Tor proxy
+1. Run Waggox Core behind a Tor proxy
 ----------------------------------
 
-The first step is running Dash Core behind a Tor proxy. This will already make all
+The first step is running Waggox Core behind a Tor proxy. This will already make all
 outgoing connections be anonymized, but more is possible.
 
 	-proxy=ip:port  Set the proxy server. If SOCKS5 is selected (default), this proxy
@@ -44,7 +44,7 @@ In a typical situation, this suffices to run behind a Tor proxy:
 	./waggoxd -proxy=127.0.0.1:9050
 
 
-2. Run a Dash Core hidden server
+2. Run a Waggox Core hidden server
 -------------------------------
 
 If you configure your Tor system accordingly, it is possible to make your node also
@@ -52,13 +52,13 @@ reachable from the Tor network. Add these lines to your /etc/tor/torrc (or equiv
 config file):
 
 	HiddenServiceDir /var/lib/tor/waggoxcore-service/
-	HiddenServicePort 9999 127.0.0.1:9910
-	HiddenServicePort 19999 127.0.0.1:9911
+	HiddenServicePort 22323 127.0.0.1:22323
+	HiddenServicePort 24130 127.0.0.1:24130
 
 The directory can be different of course, but (both) port numbers should be equal to
-your waggoxd's P2P listen port (9910 by default).
+your waggoxd's P2P listen port (22323 by default).
 
-	-externalip=X   You can tell Dash Core about its publicly reachable address using
+	-externalip=X   You can tell Waggox Core about its publicly reachable address using
 	                this option, and this can be a .onion address. Given the above
 	                configuration, you can find your onion address in
 	                /var/lib/tor/waggoxcore-service/hostname. Onion addresses are given
@@ -91,7 +91,7 @@ as well, use `discover` instead:
 
 	./waggoxd ... -discover
 
-and open port 9999 on your firewall (or use -upnp).
+and open port 22323 on your firewall (or use -upnp).
 
 If you only want to use Tor to reach onion addresses, but not use it as a proxy
 for normal IPv4/IPv6 communication, use:
@@ -99,7 +99,7 @@ for normal IPv4/IPv6 communication, use:
 	./waggoxd -onion=127.0.0.1:9050 -externalip=ssapp53tmftyjmjb.onion -discover
 
 
-3. List of known Dash Core Tor relays
+3. List of known Waggox Core Tor relays
 ------------------------------------
 
 * [darkcoinie7ghp67.onion](http://darkcoinie7ghp67.onion/)
@@ -120,13 +120,13 @@ for normal IPv4/IPv6 communication, use:
 
 Starting with Tor version 0.2.7.1 it is possible, through Tor's control socket
 API, to create and destroy 'ephemeral' hidden services programmatically.
-Dash Core has been updated to make use of this.
+Waggox Core has been updated to make use of this.
 
 This means that if Tor is running (and proper authentication has been configured),
-Dash Core automatically creates a hidden service to listen on. This will positively 
+Waggox Core automatically creates a hidden service to listen on. This will positively 
 affect the number of available .onion nodes.
 
-This new feature is enabled by default if Dash Core is listening (`-listen`), and
+This new feature is enabled by default if Waggox Core is listening (`-listen`), and
 requires a Tor connection to work. It can be explicitly disabled with `-listenonion=0`
 and, if not disabled, configured using the `-torcontrol` and `-torpassword` settings.
 To show verbose debugging information, pass `-debug=tor`.

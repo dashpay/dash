@@ -1,5 +1,5 @@
 // Copyright (c) 2011-2015 The Bitcoin Core developers
-// Copyright (c) 2014-2017 The Dash Core developers
+// Copyright (c) 2014-2017 The Waggox Core developers
 // Distributed under the MIT software license, see the accompanying
 // file COPYING or http://www.opensource.org/licenses/mit-license.php.
 
@@ -24,6 +24,8 @@
 #include "wallet/walletdb.h"
 
 #include "masternodeconfig.h"
+#include "governance.h"
+
 #include "privatesend-client.h"
 #endif
 
@@ -79,8 +81,8 @@ void OptionsModel::Init(bool resetSettings)
     nDisplayUnit = settings.value("nDisplayUnit").toInt();
 
     if (!settings.contains("strThirdPartyTxUrls"))
-        settings.setValue("strThirdPartyTxUrls", "https://blocks.waggok.tech/tx/%s");
-    strThirdPartyTxUrls = settings.value("strThirdPartyTxUrls", "https://blocks.waggok.tech/tx/%s").toString();
+        settings.setValue("strThirdPartyTxUrls", "");
+    strThirdPartyTxUrls = settings.value("strThirdPartyTxUrls", "").toString();
 
     if (!settings.contains("theme"))
         settings.setValue("theme", "");
@@ -95,6 +97,9 @@ void OptionsModel::Init(bool resetSettings)
 
     if (!settings.contains("fShowMasternodesTab"))
         settings.setValue("fShowMasternodesTab", masternodeConfig.getCount());
+
+    if (!settings.contains("fShowGovernanceTab"))
+        settings.setValue("fShowGovernanceTab", masternodeConfig.getCount());
 
     // PrivateSend
     if (!settings.contains("fShowAdvancedPSUI"))
@@ -270,6 +275,8 @@ QVariant OptionsModel::data(const QModelIndex & index, int role) const
             return settings.value("bSpendZeroConfChange");
         case ShowMasternodesTab:
             return settings.value("fShowMasternodesTab");
+        case ShowGovernanceTab:
+            return settings.value("fShowGovernanceTab");
         case ShowAdvancedPSUI:
             return fShowAdvancedPSUI;
         case LowKeysWarning:
@@ -414,6 +421,12 @@ bool OptionsModel::setData(const QModelIndex & index, const QVariant & value, in
         case ShowMasternodesTab:
             if (settings.value("fShowMasternodesTab") != value) {
                 settings.setValue("fShowMasternodesTab", value);
+                setRestartRequired(true);
+            }
+            break;
+        case ShowGovernanceTab:
+            if (settings.value("fShowGovernanceTab") != value) {
+                settings.setValue("fShowGovernanceTab", value);
                 setRestartRequired(true);
             }
             break;

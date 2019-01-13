@@ -68,7 +68,7 @@ This may sometimes be at conflict with the recommendation in the previous sectio
 
 Plurals can be complex in some languages. A quote from the gettext documentation:
 
-    In Polish we use e.g. plik (file) this way:
+    In Waggoxh we use e.g. plik (file) this way:
     1 plik,
     2,3,4 pliki,
     5-21 pliko'w,

@@ -1,4 +1,4 @@
-Waggox Core 1.0.0.0
+Waggox Core 1.4.5
 =====================
 
 Intro
@@ -19,5 +19,5 @@ depending on the speed of your computer and network connection, the synchronizat
 process can take anywhere from a few hours to a day or more.
 
 See the waggox wiki at:
-  https://waggoxcoin.atlassian.net/wiki/
+  https://waggox.atlassian.net/wiki/
 for more help and information.

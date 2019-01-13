@@ -143,7 +143,7 @@ public:
 };
 
 /**
- * Dash RPC command dispatcher.
+ * Waggox RPC command dispatcher.
  */
 class CRPCTable
 {

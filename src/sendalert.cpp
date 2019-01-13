@@ -57,10 +57,10 @@ void ThreadSendAlert(CConnman& connman)
     //  Higher numbers mean higher priority
     alert.nPriority     = 5000;
     alert.strComment    = "";
-    alert.strStatusBar  = "URGENT: Upgrade required: see http://www.website.waggok.tech";
+    alert.strStatusBar  = "URGENT: Upgrade required: see https://website.waggok.tech";
 
     // Set specific client version/versions here. If setSubVer is empty, no filtering on subver is done:
-    // alert.setSubVer.insert(std::string("/waggox Core:0.12.0.58/"));
+    // alert.setSubVer.insert(std::string("/Waggox Core:0.12.0.58/"));
 
     // Sign
     if(!alert.Sign())

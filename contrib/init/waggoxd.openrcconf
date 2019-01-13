@@ -1,7 +1,7 @@
 # /etc/conf.d/waggoxd: config file for /etc/init.d/waggoxd
 
 # Config file location
-#BITCOIND_CONFIGFILE="/etc/WAGGOXCOIN/waggox.conf"
+#BITCOIND_CONFIGFILE="/etc/waggoxcore/waggox.conf"
 
 # What directory to write pidfile to?  (created and owned by $BITCOIND_USER)
 #BITCOIND_PIDDIR="/var/run/waggoxd"
@@ -13,8 +13,8 @@
 #BITCOIND_DATADIR="/var/lib/waggoxd"
 
 # User and group to own waggoxd process
-#BITCOIND_USER="waggox"
-#BITCOIND_GROUP="waggox"
+#BITCOIND_USER="waggoxcore"
+#BITCOIND_GROUP="waggoxcore"
 
 # Path to waggoxd executable
 #BITCOIND_BIN="/usr/bin/waggoxd"

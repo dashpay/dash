@@ -1,8 +1,8 @@
 Source: waggox
 Section: utils
 Priority: optional
-Maintainer: Holger Schinzel <holger@dash.org>
-Uploaders: Holger Schinzel <holger@dash.org>
+Maintainer: Holger Schinzel <holger@website.waggok.tech>
+Uploaders: Holger Schinzel <holger@website.waggok.tech>
 Build-Depends: debhelper,
  devscripts,
  automake,
@@ -26,9 +26,9 @@ Build-Depends: debhelper,
  python,
  libzmq3-dev
 Standards-Version: 3.9.2
-Homepage: http://website.waggok.tech/
-Vcs-Git: git://github.com/waggoxproject/waggox.git
-Vcs-Browser: https://github.com/waggoxproject/waggox
+Homepage: https://website.waggok.tech/
+Vcs-Git: git://github.com/waggox/waggox.git
+Vcs-Browser: https://github.com/waggox/waggox
 
 Package: waggoxd
 Architecture: any
