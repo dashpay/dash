@@ -1,6 +1,7 @@
 // Copyright (c) 2010 Satoshi Nakamoto
 // Copyright (c) 2009-2014 The Bitcoin Core developers
-// Copyright (c) 2014-2017 The Waggox Core developers
+// Copyright (c) 2014-2017 The Dash Core developers
+// Copyright (c) 2018-2019 The Waggox Core developers
 // Distributed under the MIT software license, see the accompanying
 // file COPYING or http://www.opensource.org/licenses/mit-license.php.
 
@@ -182,7 +183,7 @@ public:
             consensus.nStakeMaxAge = 60 * 60 * 24; // one day
             consensus.nWSTargetDiff = 0x1e0ffff0; // Genesis Difficulty
             consensus.nPoSDiffAdjustRange = 5;
-            consensus.nLastPoWBlock = 50000;
+            consensus.nLastPoWBlock = 100000;
 
             consensus.nRuleChangeActivationThreshold = 1916; // 95% of 2016
             consensus.nMinerConfirmationWindow = 2016; // nPowTargetTimespan / nPowTargetSpacing
