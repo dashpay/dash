@@ -1,41 +1,43 @@
-![Waggox](https://github.com/waggox/waggox/raw/master/src/qt/res/icons/bitcoin.png "Waggox")
+Waggox Core staging tree 1.0.0.0
+===============================
 
-WAGGOX Core integration/staging tree
-=====================================
-[![Build Status](https://travis-ci.org/waggox/waggox.svg?branch=master)](https://travis-ci.org/waggox/waggox)
+`master:` [![Build Status](https://travis-ci.org/dashpay/dash.svg?branch=master)](https://travis-ci.org/dashpay/dash) `develop:` [![Build Status](https://travis-ci.org/dashpay/dash.svg?branch=develop)](https://travis-ci.org/dashpay/dash/branches)
 
+https://website.waggok.tech
 
-http://website.waggok.tech
-
-- Copyright (c) 2009-2015 Bitcoin Developers
-- Copyright (c) 2014-2017 Dash Developers
-- Copyright (c) 2017-2018 Waggox Developers
 
 What is Waggox?
 ----------------
+Waggox is a fork of dash an experimental cryptocurrency with the aim of promoting good and secure transactions. It is a coin good for buying and selling of different services as well as goods.
 
-Waggox is an experimental digital currency that enables anonymous, instant
-payments to anyone, anywhere in the world. Waggox uses peer-to-peer technology
-to operate with no central authority: managing transactions and issuing money
-are carried out collectively by the network. Waggox Core is the name of the open
-source software which enables the use of this currency.
 
-For more information, as well as an immediately useable, binary version of
-the Waggox Core software, see https://website.waggok.tech/Find-waggox/.
+SPECIFICATIONS
+--------------
+* Algorithm: x11
+
+* Block Reward: 8.11 WGGX
+
+* RPCPORT: 9920
+
+* P2P PORT: 9910
+
+* Max. Supply: 8million WGGX
+
+* Masternode Collateral: 5000 WGGX
 
 
 License
 -------
 
-Waggox Core is released under the terms of the MIT license. See [COPYING](COPYING) for more
+Waggox is released under the terms of the MIT license. See [COPYING](COPYING) for more
 information or see https://opensource.org/licenses/MIT.
 
 Development Process
 -------------------
 
 The `master` branch is meant to be stable. Development is normally done in separate branches.
-[Tags](https://github.com/waggox/waggox/tags) are created to indicate new official,
-stable release versions of Waggox Core.
+[Tags](https://github.com/waggoxcoin/waggox/tags) are created to indicate new official,
+stable release versions of waggox core.
 
 The contribution workflow is described in [CONTRIBUTING.md](CONTRIBUTING.md).
 
@@ -79,4 +81,3 @@ Translations are periodically pulled from Transifex and merged into the git repo
 **Important**: We do not accept translation changes as GitHub pull requests because the next
 pull from Transifex would automatically overwrite them again.
 
-Translators should also follow the [forum](https://website.waggok.tech/forum/topic/waggox-worldwide-collaboration.88/).
