@@ -120,6 +120,10 @@ case for P2SH is multisig but script can be pretty much anything. If your pool s
 P2SH addresses, the simplest way to fix it is to use `script` field which shows scriptPubKey for each
 entry of masternode payments array in `getblocktemplate`.
 
+And finally, after DIP0003 activation your pool software must be able to produce Coinbase Special
+Transaction https://github.com/dashpay/dips/blob/master/dip-0004.md#coinbase-special-transaction.
+Use `coinbase_payload` from `getblocktemplate` to get extra payload needed to construct this transaction.
+
 PrivateSend
 -----------
 With further refactoring of PrivateSend code it became possible to implement mixing in few parallel
