@@ -283,6 +283,7 @@ See detailed [set of changes](https://github.com/dashpay/dash/compare/v0.12.3.4.
 - [`0a086898f`](https://github.com/dashpay/dash/commit/0a086898f) Implement and enforce CbTx with correct block height and deprecate BIP34
 
 ### RPC
+- [`a22f1bffe`](https://github.com/dashpay/dash/commit/a22f1bffe) Remove support for "0" as an alternative to "" when the default is requested (#2622) (#2624)
 - [`18e1edabf`](https://github.com/dashpay/dash/commit/18e1edabf) Backport 2618 to v0.13.0.x (#2619)
 - [`0dce846d5`](https://github.com/dashpay/dash/commit/0dce846d5) Add an option to use specific address as a source of funds in protx rpc commands (otherwise use payoutAddress/operatorPayoutAddress) (#2581)
 - [`e71ea29e6`](https://github.com/dashpay/dash/commit/e71ea29e6) Add ownerAddr and votingAddr to CDeterministicMNState::ToJson (#2571)
@@ -524,6 +525,8 @@ See detailed [set of changes](https://github.com/dashpay/dash/compare/v0.12.3.4.
 - [`d7e210341`](https://github.com/dashpay/dash/commit/d7e210341) Fixes inaccurate round count in CoinControlDialog (#2137)
 
 ### Cleanups/Tests/Docs/Other
+- [`b5670c475`](https://github.com/dashpay/dash/commit/b5670c475) Set CLIENT_VERSION_IS_RELEASE to true (#2591)
+- [`a05eeb21e`](https://github.com/dashpay/dash/commit/a05eeb21e) Update immer to c89819df92191d6969a6a22c88c72943b8e25016 (#2626)
 - [`10b3736bd`](https://github.com/dashpay/dash/commit/10b3736bd) [0.13.0.x] Translations201901 (#2592)
 - [`34d2a6038`](https://github.com/dashpay/dash/commit/34d2a6038) Release notes 0.13.0.0 draft (#2583)
 - [`c950a8f51`](https://github.com/dashpay/dash/commit/c950a8f51) Merge v0.12.3.4 commits into develop (#2582)
