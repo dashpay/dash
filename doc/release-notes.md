@@ -127,9 +127,9 @@ You can also adjust rounds and amount via `setprivatesendrounds` and `setprivate
 which override corresponding cmd-line params (`privatesendrounds` and `privatesendamount` respectively).
 
 NOTE: Introducing the new denom and a couple of other changes made it incompatible with mixing on
-masternodes running on pre-0.13 software. Please keep using 0.12.3 local wallet to mix you coins until
+masternodes running on pre-0.13 software. Please keep using 0.12.3 local wallet to mix your coins until
 there is some significant number of masternodes running on version 0.13 to make sure you have enough
-masternodes to choose from when wallet picks one to mix funds on.
+masternodes to choose from when the wallet picks one to mix funds on.
 
 InstantSend
 -----------
