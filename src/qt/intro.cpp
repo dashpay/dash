@@ -130,7 +130,7 @@ Intro::Intro(QWidget *parent) :
         .arg(tr(PACKAGE_NAME))
         .arg(BLOCK_CHAIN_SIZE)
         .arg(2014)
-        .arg(tr("Dash"))
+        .arg("Dash")
     );
     ui->lblExplanation2->setText(ui->lblExplanation2->text().arg(tr(PACKAGE_NAME)));
 
