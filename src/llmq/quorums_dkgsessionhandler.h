@@ -15,15 +15,14 @@ namespace llmq
 {
 
 enum QuorumPhase {
-    QuorumPhase_Idle,
+    QuorumPhase_None = -1,
     QuorumPhase_Initialized,
     QuorumPhase_Contribute,
     QuorumPhase_Complain,
     QuorumPhase_Justify,
     QuorumPhase_Commit,
     QuorumPhase_Finalize,
-
-    QuorumPhase_None=-1,
+    QuorumPhase_Idle,
 };
 
 /**

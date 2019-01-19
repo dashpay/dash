@@ -120,24 +120,11 @@ void CDKGSessionHandler::UpdatedBlockTip(const CBlockIndex* pindexNew, const CBl
     quorumHeight = pindexQuorum->nHeight;
     quorumHash = pindexQuorum->GetBlockHash();
 
-    QuorumPhase newPhase = phase;
-    if (quorumStageInt == 0) {
-        newPhase = QuorumPhase_Initialized;
-        quorumDKGDebugManager->ResetLocalSessionStatus(params.type, quorumHash, quorumHeight);
-    } else if (quorumStageInt == params.dkgPhaseBlocks * 1) {
-        newPhase = QuorumPhase_Contribute;
-    } else if (quorumStageInt == params.dkgPhaseBlocks * 2) {
-        newPhase = QuorumPhase_Complain;
-    } else if (quorumStageInt == params.dkgPhaseBlocks * 3) {
-        newPhase = QuorumPhase_Justify;
-    } else if (quorumStageInt == params.dkgPhaseBlocks * 4) {
-        newPhase = QuorumPhase_Commit;
-    } else if (quorumStageInt == params.dkgPhaseBlocks * 5) {
-        newPhase = QuorumPhase_Finalize;
-    } else if (quorumStageInt == params.dkgPhaseBlocks * 6) {
-        newPhase = QuorumPhase_Idle;
+    bool fNewPhase = quorumStageInt % params.dkgPhaseBlocks == 0;
+    int phaseInt = quorumStageInt / params.dkgPhaseBlocks;
+    if (fNewPhase && phaseInt >= QuorumPhase_Initialized && phaseInt <= QuorumPhase_Idle) {
+        phase = static_cast<QuorumPhase>(phaseInt);
     }
-    phase = newPhase;
 
     quorumDKGDebugManager->UpdateLocalStatus([&](CDKGDebugStatus& status) {
         bool changed = status.nHeight != pindexNew->nHeight;
