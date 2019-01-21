@@ -466,6 +466,7 @@ bool ProcessPendingMessageBatch(CDKGSession& session, CDKGPendingMessages& pendi
 void CDKGSessionHandler::HandleDKGRound()
 {
     uint256 curQuorumHash;
+    int curQuorumHeight;
 
     WaitForNextPhase(QuorumPhase_None, QuorumPhase_Initialized, curQuorumHash, []{return false;});
 
@@ -475,9 +476,11 @@ void CDKGSessionHandler::HandleDKGRound()
         pendingComplaints.Clear();
         pendingJustifications.Clear();
         pendingPrematureCommitments.Clear();
+        curQuorumHash = quorumHash;
+        curQuorumHeight = quorumHeight;
     }
 
-    if (!InitNewQuorum(quorumHeight, quorumHash)) {
+    if (!InitNewQuorum(curQuorumHeight, curQuorumHash)) {
         // should actually never happen
         WaitForNewQuorum(curQuorumHash);
         throw AbortPhaseException();
