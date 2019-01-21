@@ -490,8 +490,9 @@ void CDKGSessionHandler::HandleDKGRound()
             LogPrintf(debugMsg);
             g_connman->AddMasternodeQuorumNodes(params.type, curQuorumHash, connections);
 
+            auto participatingNodesTmp = g_connman->GetMasternodeQuorumAddresses(params.type, curQuorumHash);
             LOCK(curSession->invCs);
-            curSession->participatingNodes = g_connman->GetMasternodeQuorumAddresses(params.type, curQuorumHash);
+            curSession->participatingNodes = std::move(participatingNodesTmp);
         }
     }
 
