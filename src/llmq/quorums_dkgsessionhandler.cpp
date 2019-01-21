@@ -198,7 +198,7 @@ class AbortPhaseException : public std::exception {
 
 void CDKGSessionHandler::WaitForNextPhase(QuorumPhase curPhase,
                                           QuorumPhase nextPhase,
-                                          uint256& expectedQuorumHash,
+                                          const uint256& expectedQuorumHash,
                                           const WhileWaitFunc& runWhileWaiting)
 {
     while (true) {
@@ -210,7 +210,6 @@ void CDKGSessionHandler::WaitForNextPhase(QuorumPhase curPhase,
             throw AbortPhaseException();
         }
         if (p.first == nextPhase) {
-            expectedQuorumHash = p.second;
             return;
         }
         if (curPhase != QuorumPhase_None && p.first != curPhase) {
@@ -238,7 +237,7 @@ void CDKGSessionHandler::WaitForNewQuorum(const uint256& oldQuorumHash)
 
 // Sleep some time to not fully overload the whole network
 void CDKGSessionHandler::SleepBeforePhase(QuorumPhase curPhase,
-                                          uint256& expectedQuorumHash,
+                                          const uint256& expectedQuorumHash,
                                           double randomSleepFactor,
                                           const WhileWaitFunc& runWhileWaiting)
 {
@@ -273,7 +272,7 @@ void CDKGSessionHandler::SleepBeforePhase(QuorumPhase curPhase,
 
 void CDKGSessionHandler::HandlePhase(QuorumPhase curPhase,
                                      QuorumPhase nextPhase,
-                                     uint256& expectedQuorumHash,
+                                     const uint256& expectedQuorumHash,
                                      double randomSleepFactor,
                                      const StartPhaseFunc& startPhaseFunc,
                                      const WhileWaitFunc& runWhileWaiting)
@@ -468,7 +467,7 @@ void CDKGSessionHandler::HandleDKGRound()
     uint256 curQuorumHash;
     int curQuorumHeight;
 
-    WaitForNextPhase(QuorumPhase_None, QuorumPhase_Initialized, curQuorumHash, []{return false;});
+    WaitForNextPhase(QuorumPhase_None, QuorumPhase_Initialized, uint256(), []{return false;});
 
     {
         LOCK(cs);
