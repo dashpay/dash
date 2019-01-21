@@ -165,7 +165,7 @@ void CDKGSessionHandler::ProcessMessage(CNode* pfrom, const std::string& strComm
     }
 }
 
-bool CDKGSessionHandler::InitNewQuorum(int height, const uint256& quorumHash)
+bool CDKGSessionHandler::InitNewQuorum(int newQuorumHeight, const uint256& newQuorumHash)
 {
     //AssertLockHeld(cs_main);
 
@@ -173,13 +173,13 @@ bool CDKGSessionHandler::InitNewQuorum(int height, const uint256& quorumHash)
 
     curSession = std::make_shared<CDKGSession>(params, evoDb, blsWorker, dkgManager);
 
-    if (!deterministicMNManager->IsDIP3Active(height)) {
+    if (!deterministicMNManager->IsDIP3Active(newQuorumHeight)) {
         return false;
     }
 
-    auto mns = CLLMQUtils::GetAllQuorumMembers(params.type, quorumHash);
+    auto mns = CLLMQUtils::GetAllQuorumMembers(params.type, newQuorumHash);
 
-    if (!curSession->Init(height, quorumHash, mns, activeMasternodeInfo.proTxHash)) {
+    if (!curSession->Init(newQuorumHeight, newQuorumHash, mns, activeMasternodeInfo.proTxHash)) {
         LogPrintf("CDKGSessionManager::%s -- quorum initialiation failed\n", __func__);
         return false;
     }

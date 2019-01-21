@@ -127,7 +127,7 @@ public:
     void ProcessMessage(CNode* pfrom, const std::string& strCommand, CDataStream& vRecv, CConnman& connman);
 
 private:
-    bool InitNewQuorum(int height, const uint256& quorumHash);
+    bool InitNewQuorum(int newQuorumHeight, const uint256& newQuorumHash);
 
     std::pair<QuorumPhase, uint256> GetPhaseAndQuorumHash() const;
 
