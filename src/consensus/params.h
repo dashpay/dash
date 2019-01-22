@@ -178,7 +178,6 @@ struct Params {
     int nHighSubsidyFactor{1};
 
     std::map<LLMQType, LLMQParams> llmqs;
-    bool fLLMQAllowDummyCommitments;
 };
 } // namespace Consensus
 
