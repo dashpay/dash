@@ -417,7 +417,7 @@ class DashTestFramework(BitcoinTestFramework):
             all_ok = True
             for node in self.nodes:
                 s = node.quorum("dkgstatus")["session"]["llmq_10"]
-                if not s["receivedFinalCommitment"]:
+                if "receivedFinalCommitment" not in s or not s["receivedFinalCommitment"]:
                     all_ok = False
                     break
             if all_ok:
