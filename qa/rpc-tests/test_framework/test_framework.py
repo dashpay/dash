@@ -408,8 +408,9 @@ class DashTestFramework(BitcoinTestFramework):
                         all_ok = False
                         break
             if all_ok:
-                break
+                return
             sleep(0.1)
+        raise AssertionError("wait_for_quorum_phase timed out")
 
     def wait_for_quorum_commitment(self, timeout = 5):
         t = time()
@@ -421,8 +422,9 @@ class DashTestFramework(BitcoinTestFramework):
                     all_ok = False
                     break
             if all_ok:
-                break
+                return
             sleep(0.1)
+        raise AssertionError("wait_for_quorum_commitment timed out")
 
     def mine_quorum(self, expected_valid_count=10):
         quorums = self.nodes[0].quorum("list")
