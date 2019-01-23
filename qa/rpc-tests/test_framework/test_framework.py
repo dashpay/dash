@@ -232,9 +232,9 @@ class DashTestFramework(BitcoinTestFramework):
 
         self.extra_args += ["-sporkkey=cP4EKFyJsHT39LDqgdcB43Y3YXjNyjb5Fuas1GQSeAtjnZWmZEQK"]
 
+        self.fast_dip3_activation = fast_dip3_activation
         if fast_dip3_activation:
             self.extra_args += ["-bip9params=dip0003:0:999999999999:10:5", "-dip3activationheight=50"]
-            self.fast_dip3_activation = True
 
     def create_simple_node(self):
         idx = len(self.nodes)
