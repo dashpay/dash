@@ -404,7 +404,7 @@ class DashTestFramework(BitcoinTestFramework):
                     all_ok = False
                     break
                 if check_received_messages is not None:
-                    if s["receivedContributions"] < check_received_messages_count:
+                    if s[check_received_messages] < check_received_messages_count:
                         all_ok = False
                         break
             if all_ok:
