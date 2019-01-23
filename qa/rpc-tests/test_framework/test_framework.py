@@ -36,7 +36,8 @@ from .util import (
     set_node_times,
     p2p_port,
     satoshi_round,
-    wait_to_sync, copy_datadir)
+    wait_to_sync,
+    copy_datadir)
 from .authproxy import JSONRPCException
 
 
