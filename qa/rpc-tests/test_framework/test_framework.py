@@ -391,7 +391,7 @@ class DashTestFramework(BitcoinTestFramework):
                 return False
         return True
 
-    def wait_for_quorum_phase(self, phase, check_received_messages, check_received_messages_count, timeout=5):
+    def wait_for_quorum_phase(self, phase, check_received_messages, check_received_messages_count, timeout=15):
         t = time()
         while time() - t < timeout:
             all_ok = True
@@ -412,7 +412,7 @@ class DashTestFramework(BitcoinTestFramework):
             sleep(0.1)
         raise AssertionError("wait_for_quorum_phase timed out")
 
-    def wait_for_quorum_commitment(self, timeout = 5):
+    def wait_for_quorum_commitment(self, timeout = 15):
         t = time()
         while time() - t < timeout:
             all_ok = True
