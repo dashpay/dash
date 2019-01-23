@@ -35,7 +35,7 @@ from .util import (
     set_node_times,
     p2p_port,
     satoshi_round,
-    wait_to_sync)
+    wait_to_sync, copy_datadir)
 from .authproxy import JSONRPCException
 
 
@@ -228,6 +228,8 @@ class DashTestFramework(BitcoinTestFramework):
         # additional args
         self.extra_args = extra_args
 
+        self.extra_args += ["-sporkkey=cP4EKFyJsHT39LDqgdcB43Y3YXjNyjb5Fuas1GQSeAtjnZWmZEQK"]
+
     def create_simple_node(self):
         idx = len(self.nodes)
         args = self.extra_args
@@ -268,6 +270,17 @@ class DashTestFramework(BitcoinTestFramework):
             self.mninfo.append(MasternodeInfo(proTxHash, ownerAddr, votingAddr, bls['public'], bls['secret'], address, txid, collateral_vout))
         self.sync_all()
 
+    def prepare_datadirs(self):
+        # stop faucet node so that we can copy the datadir
+        stop_node(self.nodes[0], 0)
+
+        start_idx = len(self.nodes)
+        for idx in range(0, self.mn_count):
+            copy_datadir(0, idx + start_idx, self.options.tmpdir)
+
+        # restart faucet node
+        self.nodes[0] = start_node(0, self.options.tmpdir, self.extra_args)
+
     def start_masternodes(self):
         start_idx = len(self.nodes)
         for idx in range(0, self.mn_count):
@@ -284,8 +297,7 @@ class DashTestFramework(BitcoinTestFramework):
     def setup_network(self):
         self.nodes = []
         # create faucet node for collateral and transactions
-        args = ["-sporkkey=cP4EKFyJsHT39LDqgdcB43Y3YXjNyjb5Fuas1GQSeAtjnZWmZEQK"] + self.extra_args
-        self.nodes.append(start_node(0, self.options.tmpdir, args))
+        self.nodes.append(start_node(0, self.options.tmpdir, self.extra_args))
         required_balance = MASTERNODE_COLLATERAL * self.mn_count + 1
         while self.nodes[0].getbalance() < required_balance:
             set_mocktime(get_mocktime() + 1)
@@ -303,6 +315,7 @@ class DashTestFramework(BitcoinTestFramework):
 
         # create masternodes
         self.prepare_masternodes()
+        self.prepare_datadirs()
         self.start_masternodes()
 
         set_mocktime(get_mocktime() + 1)
