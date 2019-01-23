@@ -800,6 +800,10 @@ public:
             consensus.vDeployments[d].nThreshold = nThreshold;
         }
     }
+
+    void UpdateDIP3ActivationHeight(int nHeight)
+    {
+        consensus.DIP0003Height = nHeight;
     }
 
     void UpdateBudgetParameters(int nMasternodePaymentsStartBlock, int nBudgetPaymentsStartBlock, int nSuperblockStartBlock)
@@ -849,6 +853,10 @@ void UpdateRegtestBIP9Parameters(Consensus::DeploymentPos d, int64_t nStartTime,
 {
     regTestParams.UpdateBIP9Parameters(d, nStartTime, nTimeout, nWindowSize, nThreshold);
 }
+
+void UpdateRegtestDIP3ActivationHeight(int nHeight)
+{
+    regTestParams.UpdateDIP3ActivationHeight(nHeight);
 }
 
 void UpdateRegtestBudgetParameters(int nMasternodePaymentsStartBlock, int nBudgetPaymentsStartBlock, int nSuperblockStartBlock)

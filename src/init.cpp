@@ -1324,6 +1324,10 @@ bool AppInitParameterInteraction()
         }
     }
 
+    if (IsArgSet("-dip3activationheight")) {
+        UpdateRegtestDIP3ActivationHeight(GetArg("-dip3activationheight", 0));
+    }
+
     if (IsArgSet("-budgetparams")) {
         // Allow overriding budget parameters for testing
         if (!chainparams.MineBlocksOnDemand()) {
