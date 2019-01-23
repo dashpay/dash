@@ -11,6 +11,7 @@ import sys
 import shutil
 import tempfile
 import traceback
+from concurrent.futures import ThreadPoolExecutor
 from time import time, sleep
 
 from .util import (
@@ -283,16 +284,46 @@ class DashTestFramework(BitcoinTestFramework):
 
     def start_masternodes(self):
         start_idx = len(self.nodes)
+
         for idx in range(0, self.mn_count):
+            self.nodes.append(None)
+        executor = ThreadPoolExecutor(max_workers=20)
+
+        def do_start(idx):
             args = ['-masternode=1',
                     '-masternodeblsprivkey=%s' % self.mninfo[idx].keyOperator] + self.extra_args
             node = start_node(idx + start_idx, self.options.tmpdir, args)
             self.mninfo[idx].node = node
-            self.nodes.append(node)
+            self.nodes[idx + start_idx] = node
+            wait_to_sync(node, True)
+
+        def do_connect(idx):
             for i in range(0, idx + 1):
                 connect_nodes(self.nodes[idx + start_idx], i)
-            wait_to_sync(node, True)
+
+        jobs = []
+
+        # start up nodes in parallel
+        for idx in range(0, self.mn_count):
+            jobs.append(executor.submit(do_start, idx))
+
+        # wait for all nodes to start up
+        for job in jobs:
+            job.result()
+        jobs.clear()
+
+        # connect nodes in parallel
+        for idx in range(0, self.mn_count):
+            jobs.append(executor.submit(do_connect, idx))
+
+        # wait for all nodes to connect
+        for job in jobs:
+            job.result()
+        jobs.clear()
+
         sync_masternodes(self.nodes, True)
+
+        executor.shutdown()
 
     def setup_network(self):
         self.nodes = []
