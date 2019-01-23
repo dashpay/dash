@@ -449,7 +449,7 @@ class DashTestFramework(BitcoinTestFramework):
         self.nodes[0].generate(2)
 
         # Make sure all reached phase 3 (complain) and received all complaints
-        self.wait_for_quorum_phase(3, "receivedComplaints" if expected_valid_count != 0 else None, expected_valid_count)
+        self.wait_for_quorum_phase(3, "receivedComplaints" if expected_valid_count != 10 else None, expected_valid_count)
         set_mocktime(get_mocktime() + 1)
         set_node_times(self.nodes, get_mocktime())
         self.nodes[0].generate(2)
