@@ -41,7 +41,7 @@ elif [ "$BUILD_TARGET" = "win32" ]; then
   export DPKG_ADD_ARCH="i386"
   export DEP_OPTS="NO_QT=1"
   export PACKAGES="python3 nsis g++-mingw-w64-i686 wine-stable wine32 bc"
-  export BITCOIN_CONFIG="--enable-gui --enable-reduce-exports"
+  export BITCOIN_CONFIG="--enable-gui --enable-reduce-exports --debug"
   export DIRECT_WINE_EXEC_TESTS=true
   export RUN_TESTS=true
 elif [ "$BUILD_TARGET" = "win64" ]; then
@@ -49,7 +49,7 @@ elif [ "$BUILD_TARGET" = "win64" ]; then
   export DPKG_ADD_ARCH="i386"
   export DEP_OPTS="NO_QT=1"
   export PACKAGES="python3 nsis g++-mingw-w64-x86-64 wine-stable wine64 bc"
-  export BITCOIN_CONFIG="--enable-gui --enable-reduce-exports"
+  export BITCOIN_CONFIG="--enable-gui --enable-reduce-exports --debug"
   export DIRECT_WINE_EXEC_TESTS=true
   export RUN_TESTS=true
 elif [ "$BUILD_TARGET" = "linux32" ]; then

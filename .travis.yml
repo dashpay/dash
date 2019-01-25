@@ -34,14 +34,14 @@ env:
     - DOCKER_BUILD=false
 
   matrix:
-    - BUILD_TARGET=arm-linux
+#    - BUILD_TARGET=arm-linux
     - BUILD_TARGET=win32
     - BUILD_TARGET=win64
-    - BUILD_TARGET=linux32
-    - BUILD_TARGET=linux64
-    - BUILD_TARGET=linux64_nowallet
-    - BUILD_TARGET=linux64_release DOCKER_BUILD=true
-    - BUILD_TARGET=mac
+#    - BUILD_TARGET=linux32
+#    - BUILD_TARGET=linux64
+#    - BUILD_TARGET=linux64_nowallet
+#    - BUILD_TARGET=linux64_release DOCKER_BUILD=true
+#    - BUILD_TARGET=mac
 
 before_cache:
   # Save builder image
