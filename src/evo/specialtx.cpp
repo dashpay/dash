@@ -86,7 +86,7 @@ bool UndoSpecialTx(const CTransaction& tx, const CBlockIndex* pindex)
     return false;
 }
 
-bool ProcessSpecialTxsInBlock(const CBlock& block, const CBlockIndex* pindex, CValidationState& state)
+bool ProcessSpecialTxsInBlock(const CBlock& block, const CBlockIndex* pindex, CValidationState& state, bool fJustCheck)
 {
     for (int i = 0; i < (int)block.vtx.size(); i++) {
         const CTransaction& tx = *block.vtx[i];
@@ -98,11 +98,11 @@ bool ProcessSpecialTxsInBlock(const CBlock& block, const CBlockIndex* pindex, CV
         }
     }
 
-    if (!llmq::quorumBlockProcessor->ProcessBlock(block, pindex, state)) {
+    if (!llmq::quorumBlockProcessor->ProcessBlock(block, pindex, state, fJustCheck)) {
         return false;
     }
 
-    if (!deterministicMNManager->ProcessBlock(block, pindex, state)) {
+    if (!deterministicMNManager->ProcessBlock(block, pindex, state, fJustCheck)) {
         return false;
     }
 

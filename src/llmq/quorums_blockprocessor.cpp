@@ -106,7 +106,7 @@ void CQuorumBlockProcessor::ProcessMessage(CNode* pfrom, const std::string& strC
     }
 }
 
-bool CQuorumBlockProcessor::ProcessBlock(const CBlock& block, const CBlockIndex* pindex, CValidationState& state)
+bool CQuorumBlockProcessor::ProcessBlock(const CBlock& block, const CBlockIndex* pindex, CValidationState& state, bool fJustCheck)
 {
     AssertLockHeld(cs_main);
 
@@ -144,14 +144,14 @@ bool CQuorumBlockProcessor::ProcessBlock(const CBlock& block, const CBlockIndex*
 
     for (auto& p : qcs) {
         auto& qc = p.second;
-        if (!ProcessCommitment(pindex, qc, state)) {
+        if (!ProcessCommitment(pindex, qc, state, fJustCheck)) {
             return false;
         }
     }
     return true;
 }
 
-bool CQuorumBlockProcessor::ProcessCommitment(const CBlockIndex* pindex, const CFinalCommitment& qc, CValidationState& state)
+bool CQuorumBlockProcessor::ProcessCommitment(const CBlockIndex* pindex, const CFinalCommitment& qc, CValidationState& state, bool fJustCheck)
 {
     auto& params = Params().GetConsensus().llmqs.at((Consensus::LLMQType)qc.llmqType);
 
@@ -186,8 +186,10 @@ bool CQuorumBlockProcessor::ProcessCommitment(const CBlockIndex* pindex, const C
         return state.DoS(100, false, REJECT_INVALID, "bad-qc-invalid");
     }
 
-    // Store commitment in DB
-    evoDb.Write(std::make_pair(DB_MINED_COMMITMENT, std::make_pair((uint8_t)params.type, quorumHash)), qc);
+    if (!fJustCheck) {
+        // Store commitment in DB
+        evoDb.Write(std::make_pair(DB_MINED_COMMITMENT, std::make_pair((uint8_t)params.type, quorumHash)), qc);
+    }
 
     LogPrintf("CQuorumBlockProcessor::%s -- processed commitment from block. type=%d, quorumHash=%s, signers=%s, validMembers=%d, quorumPublicKey=%s\n", __func__,
               qc.llmqType, quorumHash.ToString(), qc.CountSigners(), qc.CountValidMembers(), qc.quorumPublicKey.ToString());
