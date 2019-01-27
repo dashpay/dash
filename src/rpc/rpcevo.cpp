@@ -30,6 +30,73 @@ extern UniValue signrawtransaction(const JSONRPCRequest& request);
 extern UniValue sendrawtransaction(const JSONRPCRequest& request);
 #endif//ENABLE_WALLET
 
+std::string GetHelpString(int nParamNum, std::string strParamName)
+{
+    std::map<std::string, std::string> mapParamHelp = {
+        {"collateralAddress",
+            "%d. \"collateralAddress\"        (string, required) The dash address to send the collateral to.\n"
+            "                              Must be a P2PKH address.\n"
+        },
+        {"collateralHash",
+            "%d. \"collateralHash\"           (string, required) The collateral transaction hash.\n"
+        },
+        {"collateralIndex",
+            "%d. collateralIndex            (numeric, required) The collateral transaction output index.\n"
+        },
+        {"feeSourceAddress",
+            "%d. \"feeSourceAddress\"         (string, optional) If specified wallet will only use coins from this address to fund ProTx.\n"
+            "                              If not specified, payoutAddress is the one that is going to be used.\n"
+            "                              The private key belonging to this address must be known in your wallet.\n"
+        },
+        {"fundAddress",
+            "%d. \"fundAddress\"              (string, optional) If specified wallet will only use coins from this address to fund ProTx.\n"
+            "                              If not specified, payoutAddress is the one that is going to be used.\n"
+            "                              The private key belonging to this address must be known in your wallet.\n"
+        },
+        {"ipAndPort",
+            "%d. \"ipAndPort\"                (string, required) IP and port in the form \"IP:PORT\".\n"
+            "                              Must be unique on the network. Can be set to 0, which will require a ProUpServTx afterwards.\n"
+        },
+        {"operatorKey",
+            "%d. \"operatorKey\"              (string, required) The operator private key belonging to the\n"
+            "                              registered operator public key.\n"
+        },
+        {"operatorPubKey",
+            "%d. \"operatorPubKey\"           (string, required) The operator BLS public key. The private key does not have to be known.\n"
+            "                              It has to match the private key which is later used when operating the masternode.\n"
+        },
+        {"operatorReward",
+            "%d. \"operatorReward\"           (numeric, required) The fraction in %% to share with the operator. The value must be\n"
+            "                              between 0.00 and 100.00.\n"
+        },
+        {"ownerAddress",
+            "%d. \"ownerAddress\"             (string, required) The dash address to use for payee updates and proposal voting.\n"
+            "                              The private key belonging to this address must be known in your wallet. The address must\n"
+            "                              be unused and must differ from the collateralAddress\n"
+        },
+        {"payoutAddress",
+            "%d. \"payoutAddress\"            (string, required) The dash address to use for masternode reward payments.\n"
+        },
+        {"proTxHash",
+            "%d. \"proTxHash\"                (string, required) The hash of the initial ProRegTx.\n"
+        },
+        {"reason",
+            "%d. reason                     (numeric, optional) The reason for masternode service revocation.\n"
+        },
+        {"votingAddress",
+            "%d. \"votingAddress\"            (string, required) The voting key address. The private key does not have to be known by your wallet.\n"
+            "                              It has to match the private key which is later used when voting on proposals.\n"
+            "                              If set to an empty string, ownerAddress will be used.\n"
+        },
+    };
+
+    auto it = mapParamHelp.find(strParamName);
+    if (it == mapParamHelp.end())
+        throw std::runtime_error(strprintf("FIXME: WRONG PARAM NAME %s!", strParamName));
+
+    return strprintf(it->second, nParamNum);
+}
+
 // Allows to specify Dash address or priv key. In case of Dash address, the priv key is taken from the wallet
 static CKey ParsePrivKey(const std::string &strKeyOrAddress, bool allowAddresses = true) {
     CBitcoinAddress address;
@@ -219,73 +286,6 @@ static std::string SignAndSendSpecialTx(const CMutableTransaction& tx)
     sendRequest.params.setArray();
     sendRequest.params.push_back(signResult["hex"].get_str());
     return sendrawtransaction(sendRequest).get_str();
-}
-
-std::string GetHelpString(int nParamNum, std::string strParamName)
-{
-    std::map<std::string, std::string> mapParamHelp = {
-        {"collateralAddress",
-            "%d. \"collateralAddress\"        (string, required) The dash address to send the collateral to.\n"
-            "                              Must be a P2PKH address.\n"
-        },
-        {"collateralHash",
-            "%d. \"collateralHash\"           (string, required) The collateral transaction hash.\n"
-        },
-        {"collateralIndex",
-            "%d. collateralIndex            (numeric, required) The collateral transaction output index.\n"
-        },
-        {"feeSourceAddress",
-            "%d. \"feeSourceAddress\"         (string, optional) If specified wallet will only use coins from this address to fund ProTx.\n"
-            "                              If not specified, payoutAddress is the one that is going to be used.\n"
-            "                              The private key belonging to this address must be known in your wallet.\n"
-        },
-        {"fundAddress",
-            "%d. \"fundAddress\"              (string, optional) If specified wallet will only use coins from this address to fund ProTx.\n"
-            "                              If not specified, payoutAddress is the one that is going to be used.\n"
-            "                              The private key belonging to this address must be known in your wallet.\n"
-        },
-        {"ipAndPort",
-            "%d. \"ipAndPort\"                (string, required) IP and port in the form \"IP:PORT\".\n"
-            "                              Must be unique on the network. Can be set to 0, which will require a ProUpServTx afterwards.\n"
-        },
-        {"operatorKey",
-            "%d. \"operatorKey\"              (string, required) The operator private key belonging to the\n"
-            "                              registered operator public key.\n"
-        },
-        {"operatorPubKey",
-            "%d. \"operatorPubKey\"           (string, required) The operator BLS public key. The private key does not have to be known.\n"
-            "                              It has to match the private key which is later used when operating the masternode.\n"
-        },
-        {"operatorReward",
-            "%d. \"operatorReward\"           (numeric, required) The fraction in %% to share with the operator. The value must be\n"
-            "                              between 0.00 and 100.00.\n"
-        },
-        {"ownerAddress",
-            "%d. \"ownerAddress\"             (string, required) The dash address to use for payee updates and proposal voting.\n"
-            "                              The private key belonging to this address must be known in your wallet. The address must\n"
-            "                              be unused and must differ from the collateralAddress\n"
-        },
-        {"payoutAddress",
-            "%d. \"payoutAddress\"            (string, required) The dash address to use for masternode reward payments.\n"
-        },
-        {"proTxHash",
-            "%d. \"proTxHash\"                (string, required) The hash of the initial ProRegTx.\n"
-        },
-        {"reason",
-            "%d. reason                     (numeric, optional) The reason for masternode service revocation.\n"
-        },
-        {"votingAddress",
-            "%d. \"votingAddress\"            (string, required) The voting key address. The private key does not have to be known by your wallet.\n"
-            "                              It has to match the private key which is later used when voting on proposals.\n"
-            "                              If set to an empty string, ownerAddress will be used.\n"
-        },
-    };
-
-    auto it = mapParamHelp.find(strParamName);
-    if (it == mapParamHelp.end())
-        throw std::runtime_error(strprintf("FIXME: WRONG PARAM NAME %s!", strParamName));
-
-    return strprintf(it->second, nParamNum);
 }
 
 void protx_register_fund_help()
