@@ -537,6 +537,8 @@ void protx_update_service_help()
             "5. \"feeSourceAddress\"         (string, optional) If specified wallet will only use coins from this address to fund ProTx.\n"
             "                              If not specified, operatorPayoutAddress is the one that is going to be used.\n"
             "                              The private key belonging to this address must be known in your wallet.\n"
+            "\nResult:\n"
+            "\"txid\"                        (string) The transaction id.\n"
             "\nExamples:\n"
             + HelpExampleCli("protx", "update_service \"0123456701234567012345670123456701234567012345670123456701234567\" \"1.2.3.4:1234\" 5a2e15982e62f1e0b7cf9783c64cf7e3af3f90a52d6c40f6f95d624c0b1621cd")
     );
@@ -631,6 +633,8 @@ void protx_update_registrar_help()
             "5. \"feeSourceAddress\"         (string, optional) If specified wallet will only use coins from this address to fund ProTx.\n"
             "                              If not specified, payoutAddress is the one that is going to be used.\n"
             "                              The private key belonging to this address must be known in your wallet.\n"
+            "\nResult:\n"
+            "\"txid\"                        (string) The transaction id.\n"
             "\nExamples:\n"
             + HelpExampleCli("protx", "update_registrar \"0123456701234567012345670123456701234567012345670123456701234567\" \"982eb34b7c7f614f29e5c665bc3605f1beeef85e3395ca12d3be49d2868ecfea5566f11cedfad30c51b2403f2ad95b67\" \"XwnLY9Tf7Zsef8gMGL2fhWA9ZmMjt4KPwG\"")
     );
@@ -709,6 +713,8 @@ void protx_revoke_help()
             "4. \"feeSourceAddress\"         (string, optional) If specified wallet will only use coins from this address to fund ProTx.\n"
             "                              If not specified, operatorPayoutAddress specified earlier is the one that is going to be used.\n"
             "                              The private key belonging to this address must be known in your wallet.\n"
+            "\nResult:\n"
+            "\"txid\"                        (string) The transaction id.\n"
             "\nExamples:\n"
             + HelpExampleCli("protx", "revoke \"0123456701234567012345670123456701234567012345670123456701234567\" \"072f36a77261cdd5d64c32d97bac417540eddca1d5612f416feb07ff75a8e240\"")
     );
@@ -947,6 +953,11 @@ void protx_info_help()
             "\nReturns detailed information about a deterministic masternode.\n"
             "\nArguments:\n"
             "1. \"proTxHash\"           (string, required) The hash of the initial ProRegTx.\n"
+            "\nResult:\n"
+            "{                             (json object) Details about a specific deterministic masternode\n"
+            "}\n"
+            "\nExamples:\n"
+            + HelpExampleCli("protx", "info \"0123456701234567012345670123456701234567012345670123456701234567\"")
     );
 }
 
