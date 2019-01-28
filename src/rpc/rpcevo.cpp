@@ -32,7 +32,7 @@ extern UniValue sendrawtransaction(const JSONRPCRequest& request);
 
 std::string GetHelpString(int nParamNum, std::string strParamName)
 {
-    std::map<std::string, std::string> mapParamHelp = {
+    static const std::map<std::string, std::string> mapParamHelp = {
         {"collateralAddress",
             "%d. \"collateralAddress\"        (string, required) The dash address to send the collateral to.\n"
             "                              Must be a P2PKH address.\n"
