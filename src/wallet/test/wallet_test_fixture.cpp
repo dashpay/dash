@@ -11,22 +11,33 @@
 WalletTestingSetup::WalletTestingSetup(const std::string& chainName):
     TestingSetup(chainName)
 {
+    LogPrintf("WalletTestingSetup 1\n");
+
     bitdb.MakeMock();
+    LogPrintf("WalletTestingSetup 2\n");
 
     bool fFirstRun;
     pwalletMain = new CWallet("wallet_test.dat");
     pwalletMain->LoadWallet(fFirstRun);
+    LogPrintf("WalletTestingSetup 3\n");
     RegisterValidationInterface(pwalletMain);
 
     RegisterWalletRPCCommands(tableRPC);
+    LogPrintf("WalletTestingSetup 4\n");
+
 }
 
 WalletTestingSetup::~WalletTestingSetup()
 {
+    LogPrintf("~WalletTestingSetup 1\n");
     UnregisterValidationInterface(pwalletMain);
+    LogPrintf("~WalletTestingSetup 2\n");
     delete pwalletMain;
+    LogPrintf("~WalletTestingSetup 3\n");
     pwalletMain = NULL;
 
     bitdb.Flush(true);
+    LogPrintf("~WalletTestingSetup 4\n");
     bitdb.Reset();
+    LogPrintf("~WalletTestingSetup 5\n");
 }

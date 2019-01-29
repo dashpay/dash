@@ -274,6 +274,8 @@ BOOST_AUTO_TEST_CASE(test_CheckQueue_Recovers_From_Failure)
 // more than once as well
 BOOST_AUTO_TEST_CASE(test_CheckQueue_UniqueCheck)
 {
+    LogPrintf("test_CheckQueue_UniqueCheck 1\n");
+
     auto queue = std::unique_ptr<Unique_Queue>(new Unique_Queue {QUEUE_BATCH_SIZE});
     boost::thread_group tg;
     for (auto x = 0; x < nScriptCheckThreads; ++x) {
@@ -381,6 +383,7 @@ BOOST_AUTO_TEST_CASE(test_CheckQueue_FrozenCleanup)
 /** Test that CCheckQueueControl is threadsafe */
 BOOST_AUTO_TEST_CASE(test_CheckQueueControl_Locks)
 {
+    LogPrintf("test_CheckQueueControl_Locks 1\n");
     auto queue = std::unique_ptr<Standard_Queue>(new Standard_Queue{QUEUE_BATCH_SIZE});
     {
         boost::thread_group tg;
@@ -389,15 +392,24 @@ BOOST_AUTO_TEST_CASE(test_CheckQueueControl_Locks)
         for (size_t i = 0; i < 3; ++i) {
             tg.create_thread(
                     [&]{
-                    CCheckQueueControl<FakeCheck> control(queue.get());
+                        LogPrintf("test_CheckQueueControl_Locks thread 1\n");
+
+                        CCheckQueueControl<FakeCheck> control(queue.get());
+                        LogPrintf("test_CheckQueueControl_Locks thread 2\n");
                     // While sleeping, no other thread should execute to this point
                     auto observed = ++nThreads;
+                        LogPrintf("test_CheckQueueControl_Locks thread 3\n");
                     MilliSleep(10);
+                        LogPrintf("test_CheckQueueControl_Locks thread 4\n");
                     fails += observed  != nThreads;
+                        LogPrintf("test_CheckQueueControl_Locks thread 5\n");
                     });
         }
+        LogPrintf("test_CheckQueueControl_Locks 2\n");
         tg.join_all();
+        LogPrintf("test_CheckQueueControl_Locks 3\n");
         BOOST_REQUIRE_EQUAL(fails, 0);
+        LogPrintf("test_CheckQueueControl_Locks 4\n");
     }
     {
         boost::thread_group tg;
@@ -407,35 +419,55 @@ BOOST_AUTO_TEST_CASE(test_CheckQueueControl_Locks)
         bool done {false};
         bool done_ack {false};
         std::condition_variable cv;
+        LogPrintf("test_CheckQueueControl_Locks 5\n");
+
         {
             std::unique_lock<std::mutex> l(m);
+            LogPrintf("test_CheckQueueControl_Locks 6\n");
             tg.create_thread([&]{
+                LogPrintf("test_CheckQueueControl_Locks thread2 1\n");
                     CCheckQueueControl<FakeCheck> control(queue.get());
+                LogPrintf("test_CheckQueueControl_Locks thread2 2\n");
                     std::unique_lock<std::mutex> l(m);
+                LogPrintf("test_CheckQueueControl_Locks thread2 3\n");
                     has_lock = true;
                     cv.notify_one();
+                LogPrintf("test_CheckQueueControl_Locks thread2 4\n");
                     cv.wait(l, [&]{return has_tried;});
+                LogPrintf("test_CheckQueueControl_Locks thread2 5\n");
                     done = true;
                     cv.notify_one();
+                LogPrintf("test_CheckQueueControl_Locks thread2 6\n");
                     // Wait until the done is acknowledged
                     //
                     cv.wait(l, [&]{return done_ack;});
+                LogPrintf("test_CheckQueueControl_Locks thread2 7\n");
                     });
+            LogPrintf("test_CheckQueueControl_Locks 7\n");
             // Wait for thread to get the lock
             cv.wait(l, [&](){return has_lock;});
+            LogPrintf("test_CheckQueueControl_Locks 8\n");
             bool fails = false;
             for (auto x = 0; x < 100 && !fails; ++x) {
                 fails = queue->ControlMutex.try_lock();
             }
+            LogPrintf("test_CheckQueueControl_Locks 9\n");
             has_tried = true;
             cv.notify_one();
+            LogPrintf("test_CheckQueueControl_Locks 10\n");
+
             cv.wait(l, [&](){return done;});
+            LogPrintf("test_CheckQueueControl_Locks 11\n");
             // Acknowledge the done
             done_ack = true;
             cv.notify_one();
+            LogPrintf("test_CheckQueueControl_Locks 12\n");
             BOOST_REQUIRE(!fails);
+            LogPrintf("test_CheckQueueControl_Locks 13\n");
         }
+        LogPrintf("test_CheckQueueControl_Locks 14\n");
         tg.join_all();
+        LogPrintf("test_CheckQueueControl_Locks 15\n");
     }
 }
 BOOST_AUTO_TEST_SUITE_END()

@@ -35,24 +35,32 @@ void InitLLMQSystem(CEvoDB& evoDb, CScheduler* scheduler, bool unitTests)
 
 void DestroyLLMQSystem()
 {
+    LogPrintf("DestroyLLMQSystem 1\n");
     if (quorumSigSharesManager) {
         quorumSigSharesManager->StopWorkerThread();
     }
+    LogPrintf("DestroyLLMQSystem 2\n");
 
     delete chainLocksHandler;
     chainLocksHandler = nullptr;
     delete quorumSigningManager;
     quorumSigningManager = nullptr;
+    LogPrintf("DestroyLLMQSystem 3\n");
     delete quorumSigSharesManager;
     quorumSigSharesManager = nullptr;
+    LogPrintf("DestroyLLMQSystem 4\n");
     delete quorumManager;
     quorumManager = NULL;
+    LogPrintf("DestroyLLMQSystem 5\n");
     delete quorumDKGSessionManager;
     quorumDKGSessionManager = NULL;
+    LogPrintf("DestroyLLMQSystem 6\n");
     delete quorumBlockProcessor;
     quorumBlockProcessor = nullptr;
+    LogPrintf("DestroyLLMQSystem 7\n");
     delete quorumDKGDebugManager;
     quorumDKGDebugManager = nullptr;
+    LogPrintf("DestroyLLMQSystem 8\n");
 }
 
 }

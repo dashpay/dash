@@ -13,6 +13,8 @@
 #include <boost/thread/locks.hpp>
 #include <boost/thread/mutex.hpp>
 
+#include "util.h"
+
 template <typename T>
 class CCheckQueueControl;
 
@@ -73,9 +75,12 @@ private:
         vChecks.reserve(nBatchSize);
         unsigned int nNow = 0;
         bool fOk = true;
+//        LogPrintf("Loop 1\n");
         do {
             {
+//                LogPrintf("Loop 2\n");
                 boost::unique_lock<boost::mutex> lock(mutex);
+//                LogPrintf("Loop 3\n");
                 // first do the clean-up of the previous loop run (allowing us to do it in the same critsect)
                 if (nNow) {
                     fAllOk &= fOk;
@@ -87,6 +92,7 @@ private:
                     // first iteration
                     nTotal++;
                 }
+//                LogPrintf("Loop 4\n");
                 // logically, the do loop starts here
                 while (queue.empty()) {
                     if ((fMaster || fQuit) && nTodo == 0) {
@@ -99,9 +105,12 @@ private:
                         return fRet;
                     }
                     nIdle++;
+//                    LogPrintf("Loop begin wait\n");
                     cond.wait(lock); // wait
+//                    LogPrintf("Loop end wait\n");
                     nIdle--;
                 }
+//                LogPrintf("Loop 5\n");
                 // Decide how many work units to process now.
                 // * Do not try to do everything at once, but aim for increasingly smaller batches so
                 //   all workers finish approximately simultaneously.
@@ -117,12 +126,15 @@ private:
                 }
                 // Check whether we need to do work at all
                 fOk = fAllOk;
+//                LogPrintf("Loop 6\n");
             }
+//            LogPrintf("Loop 7\n");
             // execute work
             BOOST_FOREACH (T& check, vChecks)
                 if (fOk)
                     fOk = check();
             vChecks.clear();
+//            LogPrintf("Loop 8\n");
         } while (true);
     }
 
@@ -136,7 +148,14 @@ public:
     //! Worker thread
     void Thread()
     {
-        Loop();
+        try {
+            LogPrintf("Loop Thread enter\n");
+            Loop();
+            LogPrintf("Loop Thread exit\n");
+        } catch (...) {
+            LogPrintf("Loop Thread exc\n");
+            throw;
+        }
     }
 
     //! Wait until execution finishes, and return whether all evaluations were successful.

@@ -129,7 +129,7 @@ std::map<std::string, std::string> mapArgs;
 static std::map<std::string, std::vector<std::string> > _mapMultiArgs;
 const std::map<std::string, std::vector<std::string> >& mapMultiArgs = _mapMultiArgs;
 bool fDebug = false;
-bool fPrintToConsole = false;
+bool fPrintToConsole = true;
 bool fPrintToDebugLog = true;
 
 bool fLogTimestamps = DEFAULT_LOGTIMESTAMPS;
@@ -252,6 +252,8 @@ void OpenDebugLog()
 
 bool LogAcceptCategory(const char* category)
 {
+    //return true;
+
     if (category != NULL)
     {
         // Give each thread quick access to -debug settings.

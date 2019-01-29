@@ -43,7 +43,9 @@ extern void noui_connect();
 
 BasicTestingSetup::BasicTestingSetup(const std::string& chainName)
 {
-        ECC_Start();
+    LogPrintf("BasicTestingSetup 1\n");
+
+    ECC_Start();
         BLSInit();
         SetupEnvironment();
         SetupNetworking();
@@ -54,19 +56,27 @@ BasicTestingSetup::BasicTestingSetup(const std::string& chainName)
         evoDb = new CEvoDB(1 << 20, true, true);
         deterministicMNManager = new CDeterministicMNManager(*evoDb);
         noui_connect();
+    LogPrintf("BasicTestingSetup 2\n");
 }
 
 BasicTestingSetup::~BasicTestingSetup()
 {
+    LogPrintf("~BasicTestingSetup 1\n");
         delete deterministicMNManager;
+    LogPrintf("~BasicTestingSetup 2\n");
         delete evoDb;
+    LogPrintf("~BasicTestingSetup 3\n");
 
         ECC_Stop();
+    LogPrintf("~BasicTestingSetup 4\n");
         g_connman.reset();
+    LogPrintf("~BasicTestingSetup 5\n");
 }
 
 TestingSetup::TestingSetup(const std::string& chainName) : BasicTestingSetup(chainName)
 {
+    LogPrintf("TestingSetup 1\n");
+
     const CChainParams& chainparams = Params();
         // Ideally we'd move all the RPC tests to the functional testing framework
         // instead of unit tests, but for now we need these here.
@@ -92,19 +102,36 @@ TestingSetup::TestingSetup(const std::string& chainName) : BasicTestingSetup(cha
         for (int i=0; i < nScriptCheckThreads-1; i++)
             threadGroup.create_thread(&ThreadScriptCheck);
         RegisterNodeSignals(GetNodeSignals());
+    LogPrintf("TestingSetup 2\n");
 }
 
 TestingSetup::~TestingSetup()
 {
+    LogPrintf("~TestingSetup 1\n");
         UnregisterNodeSignals(GetNodeSignals());
+    LogPrintf("~TestingSetup 2\n");
+    try {
         threadGroup.interrupt_all();
+        LogPrintf("~TestingSetup 2 interrupted\n");
         threadGroup.join_all();
+    } catch (std::exception& e) {
+        LogPrintf("~TestingSetup exc: %s\n", e.what());
+    } catch (...) {
+        LogPrintf("~TestingSetup unknown exc\n");
+    }
+    LogPrintf("~TestingSetup 3\n");
         UnloadBlockIndex();
+    LogPrintf("~TestingSetup 4\n");
         delete pcoinsTip;
+    LogPrintf("~TestingSetup 5\n");
         llmq::DestroyLLMQSystem();
+    LogPrintf("~TestingSetup 6\n");
         delete pcoinsdbview;
+    LogPrintf("~TestingSetup 7\n");
         delete pblocktree;
+    LogPrintf("~TestingSetup 8\n");
         boost::filesystem::remove_all(pathTemp);
+    LogPrintf("~TestingSetup 9\n");
 }
 
 TestChainSetup::TestChainSetup(int blockCount) : TestingSetup(CBaseChainParams::REGTEST)
