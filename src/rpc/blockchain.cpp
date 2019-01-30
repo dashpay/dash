@@ -1639,7 +1639,7 @@ UniValue getspecialtxes(const JSONRPCRequest& request)
     if (request.fHelp || request.params.size() < 1 || request.params.size() > 5)
         throw std::runtime_error(
             "getspecialtxes \"blockhash\" ( type count skip verbosity ) \n"
-            "Returns an array containing special transactions found in the specified block\n"
+            "Returns an array of special transactions found in the specified block\n"
             "\nIf verbosity is 0, returns tx hash for each transaction.\n"
             "If verbosity is 1, returns hex-encoded data for each transaction.\n"
             "If verbosity is 2, returns an Object with information for each transaction.\n"
