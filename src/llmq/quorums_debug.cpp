@@ -305,7 +305,7 @@ bool CDKGDebugManager::AlreadyHave(const CInv& inv)
         return true;
     }
 
-    return statuses.count(inv.hash) != 0;
+    return statuses.count(inv.hash) != 0 || seenStatuses.count(inv.hash) != 0;
 }
 
 bool CDKGDebugManager::GetDebugStatus(const uint256& hash, llmq::CDKGDebugStatus& ret)
