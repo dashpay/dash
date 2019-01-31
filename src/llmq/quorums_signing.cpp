@@ -562,7 +562,7 @@ CQuorumCPtr CSigningManager::SelectQuorumForSigning(Consensus::LLMQType llmqType
     uint256 startBlock;
     {
         LOCK(cs_main);
-        if (signHeight > chainActive.Height()) {
+        if (signHeight - SIGN_HEIGHT_OFFSET > chainActive.Height()) {
             return nullptr;
         }
         startBlock = chainActive[signHeight - SIGN_HEIGHT_OFFSET]->GetBlockHash();
