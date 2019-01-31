@@ -217,6 +217,10 @@ void CDKGDebugManager::ProcessPending()
         pend = std::move(pendingIncomingStatuses);
     }
 
+    if (!sporkManager.IsSporkActive(SPORK_18_QUORUM_DEBUG_ENABLED)) {
+        return;
+    }
+
     CBLSInsecureBatchVerifier<NodeId, uint256> batchVerifier(true, 8);
     for (const auto& p : pend) {
         const auto& hash = p.first;
