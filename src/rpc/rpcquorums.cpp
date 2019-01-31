@@ -156,11 +156,8 @@ UniValue quorum_dkgstatus(const JSONRPCRequest& request)
 
     auto ret = status.ToJson(detailLevel);
 
-    int tipHeight;
-    {
-        LOCK(cs_main);
-        tipHeight = chainActive.Height();
-    }
+    LOCK(cs_main);
+    int tipHeight = chainActive.Height();
 
     UniValue minableCommitments(UniValue::VOBJ);
     for (const auto& p : Params().GetConsensus().llmqs) {
