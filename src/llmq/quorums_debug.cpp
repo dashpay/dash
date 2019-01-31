@@ -96,7 +96,6 @@ UniValue CDKGDebugSessionStatus::ToJson(int detailLevel) const
     push(receivedComplaints, "receivedComplaints");
     push(receivedJustifications, "receivedJustifications");
     push(receivedPrematureCommitments, "receivedPrematureCommitments");
-    ret.push_back(Pair("receivedFinalCommitment", receivedFinalCommitment));
 
     if (detailLevel == 2) {
         UniValue arr(UniValue::VARR);
@@ -365,7 +364,6 @@ void CDKGDebugManager::InitLocalSessionStatus(Consensus::LLMQType llmqType, cons
     session.statusBitset = 0;
     session.members.clear();
     session.members.resize((size_t)params.size);
-    session.receivedFinalCommitment = false;
 }
 
 void CDKGDebugManager::UpdateLocalStatus(std::function<bool(CDKGDebugStatus& status)>&& func)
