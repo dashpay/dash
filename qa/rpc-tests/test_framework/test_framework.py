@@ -471,8 +471,12 @@ class DashTestFramework(BitcoinTestFramework):
         while time() - t < timeout:
             all_ok = True
             for node in self.nodes:
-                s = node.quorum("dkgstatus")["session"]["llmq_10"]
-                if "receivedFinalCommitment" not in s or not s["receivedFinalCommitment"]:
+                s = node.quorum("dkgstatus")
+                if "minableCommitments" not in s:
+                    all_ok = False
+                    break
+                s = s["minableCommitments"]
+                if "llmq_10" not in s:
                     all_ok = False
                     break
             if all_ok:
