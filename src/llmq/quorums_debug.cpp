@@ -289,7 +289,6 @@ UniValue CDKGDebugStatus::ToJson(int detailLevel) const
     UniValue ret(UniValue::VOBJ);
 
     ret.push_back(Pair("proTxHash", proTxHash.ToString()));
-    ret.push_back(Pair("height", (int)nHeight));
     ret.push_back(Pair("time", nTime));
     ret.push_back(Pair("timeStr", DateTimeStrFormat("%Y-%m-%d %H:%M:%S", nTime)));
 

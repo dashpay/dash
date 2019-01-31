@@ -106,7 +106,6 @@ class CDKGDebugStatus
 public:
     uint256 proTxHash;
     int64_t nTime{0};
-    uint32_t nHeight{0};
 
     std::map<uint8_t, CDKGDebugSessionStatus> sessions;
 
@@ -120,7 +119,6 @@ public:
     {
         READWRITE(proTxHash);
         READWRITE(nTime);
-        READWRITE(nHeight);
         READWRITE(sessions);
     }
 

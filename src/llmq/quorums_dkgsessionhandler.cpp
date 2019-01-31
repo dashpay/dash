@@ -124,12 +124,6 @@ void CDKGSessionHandler::UpdatedBlockTip(const CBlockIndex* pindexNew, const CBl
     if (fNewPhase && phaseInt >= QuorumPhase_Initialized && phaseInt <= QuorumPhase_Idle) {
         phase = static_cast<QuorumPhase>(phaseInt);
     }
-
-    quorumDKGDebugManager->UpdateLocalStatus([&](CDKGDebugStatus& status) {
-        bool changed = status.nHeight != pindexNew->nHeight;
-        status.nHeight = (uint32_t)pindexNew->nHeight;
-        return changed;
-    });
 }
 
 void CDKGSessionHandler::ProcessMessage(CNode* pfrom, const std::string& strCommand, CDataStream& vRecv, CConnman& connman)
