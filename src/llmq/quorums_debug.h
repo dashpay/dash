@@ -145,7 +145,13 @@ public:
 class CDKGDebugManager
 {
 private:
+    CScheduler* scheduler;
+
     CCriticalSection cs;
+
+    std::map<uint256, int64_t> seenStatuses;
+    std::multimap<uint256, std::pair<CDKGDebugStatus, NodeId>> pendingIncomingStatuses;
+    bool hasScheduledProcessPending{false};
 
     std::map<uint256, CDKGDebugStatus> statuses;
     std::map<uint256, uint256> statusesForMasternodes;
@@ -154,10 +160,13 @@ private:
     uint256 lastStatusHash;
 
 public:
-    CDKGDebugManager(CScheduler* scheduler);
+    CDKGDebugManager(CScheduler* _scheduler);
 
     void ProcessMessage(CNode* pfrom, const std::string& strCommand, CDataStream& vRecv, CConnman& connman);
-    void ProcessDebugStatusMessage(NodeId nodeId, CDKGDebugStatus& status);
+    bool PreVerifyDebugStatusMessage(const uint256& hash, CDKGDebugStatus& status, bool& retBan);
+    void ScheduleProcessPending();
+    void ProcessPending();
+    void ProcessDebugStatusMessage(const uint256& hash, const CDKGDebugStatus& status);
 
     bool AlreadyHave(const CInv& inv);
     bool GetDebugStatus(const uint256& hash, CDKGDebugStatus& ret);
