@@ -36,7 +36,7 @@ public:
             bool receivedJustification : 1;
             bool receivedPrematureCommitment : 1;
         };
-        uint16_t statusBitset;
+        uint8_t statusBitset;
     };
 
     std::set<uint16_t> complaintsFromMembers;
@@ -74,7 +74,7 @@ public:
 
             bool aborted : 1;
         };
-        uint16_t statusBitset;
+        uint8_t statusBitset;
     };
 
     std::vector<CDKGDebugMemberStatus> members;
