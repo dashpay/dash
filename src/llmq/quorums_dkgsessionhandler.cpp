@@ -196,13 +196,14 @@ void CDKGSessionHandler::WaitForNextPhase(QuorumPhase curPhase,
     }
 
     if (nextPhase == QuorumPhase_Initialized) {
-        quorumDKGDebugManager->ResetLocalSessionStatus(params.type, quorumHash, quorumHeight);
+        quorumDKGDebugManager->ResetLocalSessionStatus(params.type);
+    } else {
+        quorumDKGDebugManager->UpdateLocalSessionStatus(params.type, [&](CDKGDebugSessionStatus& status) {
+            bool changed = status.phase != (uint8_t) nextPhase;
+            status.phase = (uint8_t) nextPhase;
+            return changed;
+        });
     }
-    quorumDKGDebugManager->UpdateLocalSessionStatus(params.type, [&](CDKGDebugSessionStatus& status) {
-        bool changed = status.phase != (uint8_t)nextPhase;
-        status.phase = (uint8_t)nextPhase;
-        return changed;
-    });
 }
 
 void CDKGSessionHandler::WaitForNewQuorum(const uint256& oldQuorumHash)
@@ -468,6 +469,12 @@ void CDKGSessionHandler::HandleDKGRound()
         WaitForNewQuorum(curQuorumHash);
         throw AbortPhaseException();
     }
+
+    quorumDKGDebugManager->UpdateLocalSessionStatus(params.type, [&](CDKGDebugSessionStatus& status) {
+        bool changed = status.phase != (uint8_t) QuorumPhase_Initialized;
+        status.phase = (uint8_t) QuorumPhase_Initialized;
+        return changed;
+    });
 
     if (curSession->AreWeMember() || GetBoolArg("-watchquorums", DEFAULT_WATCH_QUORUMS)) {
         std::set<CService> connections;

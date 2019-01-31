@@ -446,7 +446,11 @@ class DashTestFramework(BitcoinTestFramework):
         while time() - t < timeout:
             all_ok = True
             for mn in self.mninfo:
-                s = mn.node.quorum("dkgstatus")["session"]["llmq_10"]
+                s = mn.node.quorum("dkgstatus")["session"]
+                if "llmq_10" not in s:
+                    all_ok = False
+                    break
+                s = s["llmq_10"]
                 if "phase" not in s:
                     all_ok = False
                     break

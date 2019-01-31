@@ -112,10 +112,6 @@ UniValue CDKGDebugSessionStatus::ToJson(int detailLevel) const
 CDKGDebugManager::CDKGDebugManager(CScheduler* _scheduler) :
     scheduler(_scheduler)
 {
-    for (const auto& p : Params().GetConsensus().llmqs) {
-        ResetLocalSessionStatus(p.first, uint256(), 0);
-    }
-
     if (scheduler) {
         scheduler->scheduleEvery([&]() {
             SendLocalStatus();
@@ -183,8 +179,7 @@ bool CDKGDebugManager::PreVerifyDebugStatusMessage(const uint256& hash, llmq::CD
         }
     }
 
-    // check if all expected LLMQ types are present and valid
-    std::set<Consensus::LLMQType> llmqTypes;
+    // check if all present LLMQ types are valid
     for (const auto& p : status.sessions) {
         if (!Params().GetConsensus().llmqs.count((Consensus::LLMQType)p.first)) {
             retBan = true;
@@ -192,13 +187,6 @@ bool CDKGDebugManager::PreVerifyDebugStatusMessage(const uint256& hash, llmq::CD
         }
         const auto& params = Params().GetConsensus().llmqs.at((Consensus::LLMQType)p.first);
         if (p.second.llmqType != p.first || p.second.members.size() != (size_t)params.size) {
-            retBan = true;
-            return false;
-        }
-        llmqTypes.emplace((Consensus::LLMQType)p.first);
-    }
-    for (const auto& p : Params().GetConsensus().llmqs) {
-        if (!llmqTypes.count(p.first)) {
             retBan = true;
             return false;
         }
@@ -346,16 +334,30 @@ void CDKGDebugManager::GetLocalDebugStatus(llmq::CDKGDebugStatus& ret)
     ret.proTxHash = activeMasternodeInfo.proTxHash;
 }
 
-void CDKGDebugManager::ResetLocalSessionStatus(Consensus::LLMQType llmqType, const uint256& quorumHash, int quorumHeight)
+void CDKGDebugManager::ResetLocalSessionStatus(Consensus::LLMQType llmqType)
 {
     LOCK(cs);
 
-    auto& params = Params().GetConsensus().llmqs.at(llmqType);
+    auto it = localStatus.sessions.find(llmqType);
+    if (it == localStatus.sessions.end()) {
+        return;
+    }
 
+    localStatus.sessions.erase(it);
     localStatus.nTime = GetAdjustedTime();
+}
 
-    auto& session = localStatus.sessions[llmqType];
+void CDKGDebugManager::InitLocalSessionStatus(Consensus::LLMQType llmqType, const uint256& quorumHash, int quorumHeight)
+{
+    LOCK(cs);
 
+    auto it = localStatus.sessions.find(llmqType);
+    if (it == localStatus.sessions.end()) {
+        it = localStatus.sessions.emplace((uint8_t)llmqType, CDKGDebugSessionStatus()).first;
+    }
+
+    auto& params = Params().GetConsensus().llmqs.at(llmqType);
+    auto& session = it->second;
     session.llmqType = llmqType;
     session.quorumHash = quorumHash;
     session.quorumHeight = (uint32_t)quorumHeight;
@@ -377,7 +379,13 @@ void CDKGDebugManager::UpdateLocalStatus(std::function<bool(CDKGDebugStatus& sta
 void CDKGDebugManager::UpdateLocalSessionStatus(Consensus::LLMQType llmqType, std::function<bool(CDKGDebugSessionStatus& status)>&& func)
 {
     LOCK(cs);
-    if (func(localStatus.sessions.at(llmqType))) {
+
+    auto it = localStatus.sessions.find(llmqType);
+    if (it == localStatus.sessions.end()) {
+        return;
+    }
+
+    if (func(it->second)) {
         localStatus.nTime = GetAdjustedTime();
     }
 }
@@ -385,7 +393,13 @@ void CDKGDebugManager::UpdateLocalSessionStatus(Consensus::LLMQType llmqType, st
 void CDKGDebugManager::UpdateLocalMemberStatus(Consensus::LLMQType llmqType, size_t memberIdx, std::function<bool(CDKGDebugMemberStatus& status)>&& func)
 {
     LOCK(cs);
-    if (func(localStatus.sessions.at(llmqType).members.at(memberIdx))) {
+
+    auto it = localStatus.sessions.find(llmqType);
+    if (it == localStatus.sessions.end()) {
+        return;
+    }
+
+    if (func(it->second.members.at(memberIdx))) {
         localStatus.nTime = GetAdjustedTime();
     }
 }

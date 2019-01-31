@@ -171,7 +171,8 @@ public:
     bool GetDebugStatusForMasternode(const uint256& proTxHash, CDKGDebugStatus& ret);
     void GetLocalDebugStatus(CDKGDebugStatus& ret);
 
-    void ResetLocalSessionStatus(Consensus::LLMQType llmqType, const uint256& quorumHash, int quorumHeight);
+    void ResetLocalSessionStatus(Consensus::LLMQType llmqType);
+    void InitLocalSessionStatus(Consensus::LLMQType llmqType, const uint256& quorumHash, int quorumHeight);
 
     void UpdateLocalStatus(std::function<bool(CDKGDebugStatus& status)>&& func);
     void UpdateLocalSessionStatus(Consensus::LLMQType llmqType, std::function<bool(CDKGDebugSessionStatus& status)>&& func);
