@@ -315,7 +315,7 @@ std::vector<CQuorumCPtr> CQuorumManager::ScanQuorums(Consensus::LLMQType llmqTyp
     auto firstQuorumHash = quorumBlockProcessor->GetFirstMinedQuorumHash(llmqType);
     if (firstQuorumHash.IsNull()) {
         // no quorum mined yet, avoid scanning the whole chain down to genesis
-        return {};
+        return result;
     }
 
     LOCK(cs_main);
