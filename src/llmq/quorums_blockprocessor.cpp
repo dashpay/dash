@@ -219,6 +219,11 @@ bool CQuorumBlockProcessor::UndoBlock(const CBlock& block, const CBlockIndex* pi
 
         // if a reorg happened, we should allow to mine this commitment later
         AddMinableCommitment(qc);
+
+        uint256 fmq = GetFirstMinedQuorumHash(p.first);
+        if (fmq == qc.quorumHash) {
+            evoDb.Erase(std::make_pair(DB_FIRST_MINED_COMMITMENT, (uint8_t)p.first));
+        }
     }
 
     return true;
