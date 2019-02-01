@@ -217,10 +217,8 @@ bool CQuorumBlockProcessor::UndoBlock(const CBlock& block, const CBlockIndex* pi
 
         evoDb.Erase(std::make_pair(DB_MINED_COMMITMENT, std::make_pair(qc.llmqType, qc.quorumHash)));
 
-        if (!qc.IsNull()) {
-            // if a reorg happened, we should allow to mine this commitment later
-            AddMinableCommitment(qc);
-        }
+        // if a reorg happened, we should allow to mine this commitment later
+        AddMinableCommitment(qc);
     }
 
     return true;
