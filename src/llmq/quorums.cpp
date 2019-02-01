@@ -330,11 +330,9 @@ std::vector<CQuorumCPtr> CQuorumManager::ScanQuorums(Consensus::LLMQType llmqTyp
             && pindex->nHeight >= params.dkgInterval
             && result.size() < maxCount
             && deterministicMNManager->IsDIP3Enforced(pindex->nHeight)) {
-        if (HasQuorum(llmqType, pindex->GetBlockHash())) {
-            auto quorum = GetQuorum(llmqType, pindex->GetBlockHash());
-            if (quorum) {
-                result.emplace_back(quorum);
-            }
+        auto quorum = GetQuorum(llmqType, pindex->GetBlockHash());
+        if (quorum) {
+            result.emplace_back(quorum);
         }
 
         if (pindex->GetBlockHash() == firstQuorumHash) {
