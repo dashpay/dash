@@ -3,7 +3,8 @@ Dash Core version 0.16.1.1
 
 Release is now available from:
 
-  <https://www.dash.org/downloads/#wallets>
+This is a new minor version release, including new features, various bugfixes
+and performance improvements, as well as updated translations.
 
 This is a new hotfix release.
 
@@ -49,12 +50,19 @@ so downgrading is not recommended.
 Notable changes
 ===============
 
-There was an unexpected behaviour of the "Encrypt wallet" menu item for unencrypted wallets
-which was showing users the "Decrypt wallet" dialog instead. This was a GUI only issue,
-internal encryption logic and RPC behaviour were not affected.
+Documentation
+-------------
 
-0.16.1.1 Change log
-===================
+- A new document introduces Bitcoin Core's BIP174
+  [Partially-Signed Bitcoin Transactions (PSBT)](https://github.com/bitcoin/bitcoin/blob/0.17/doc/psbt.md)
+  interface, which is used to allow multiple programs to collaboratively
+  work to create, sign, and broadcast new transactions.  This is useful
+  for offline (cold storage) wallets, multisig wallets, coinjoin
+  implementations, and many other cases where two or more programs need
+  to interact to generate a complete transaction.
+
+0.17.x change log
+=================
 
 - The `createrawtransaction` RPC will now accept an array or dictionary (kept for compatibility) for the `outputs` parameter. This means the order of transaction outputs can be specified by the client.
 - The `fundrawtransaction` RPC will reject the previously deprecated `reserveChangeKey` option.
