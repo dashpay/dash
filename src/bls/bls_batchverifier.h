@@ -11,7 +11,7 @@
 #include <vector>
 
 template<typename SourceId, typename MessageId>
-class CBLSInsecureBatchVerifier
+class CBLSBatchVerifier
 {
 private:
     struct Message {
@@ -37,7 +37,7 @@ public:
     std::set<MessageId> badMessages;
 
 public:
-    CBLSInsecureBatchVerifier(bool _secureVerification, bool _perMessageFallback, size_t _subBatchSize = 0) :
+    CBLSBatchVerifier(bool _secureVerification, bool _perMessageFallback, size_t _subBatchSize = 0) :
             secureVerification(_secureVerification),
             perMessageFallback(_perMessageFallback),
             subBatchSize(_subBatchSize)
