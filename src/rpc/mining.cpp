@@ -410,7 +410,8 @@ UniValue getblocktemplate(const JSONRPCRequest& request)
             "  ],\n"
             "  \"superblocks_started\" : true|false, (boolean) true, if superblock payments started\n"
             "  \"superblocks_enabled\" : true|false, (boolean) true, if superblock payments are enabled\n"
-            "  \"coinbase_payload\" : \"xxxxxxxx\"    (string) coinbase transaction payload data encoded in hexadecimal\n"
+            "  \"coinbase_payload\" : \"xxxxxxxx\"     (string) coinbase transaction payload data encoded in hexadecimal,\n"
+            "                                      consists of \"extra_payload_size\" and \"extra_payload\" serialized as in DIP0002\n"
             "}\n"
 
             "\nExamples:\n"
