@@ -1300,9 +1300,13 @@ bool CTxMemPool::existsProviderTxConflict(const CTransaction &tx) const {
             return true; // i.e. can't decode payload == conflict
         }
 
-        // only allow one operator key change in the mempool
+        // this method should only be called with validated ProTxs
         auto dmn = deterministicMNManager->GetListAtChainTip().GetMN(proTx.proTxHash);
-        assert(dmn); // this method should only be called with validated ProTxs
+        if (!dmn) {
+            LogPrintf("%s: ERROR: Masternode is not in the list, proTxHash: %s", __func__, proTx.proTxHash.ToString());
+            return true; // i.e. failed to find validated ProTx == conflict
+        }
+        // only allow one operator key change in the mempool
         if (dmn->pdmnState->pubKeyOperator != proTx.pubKeyOperator) {
             if (hasKeyChangeInMempool(proTx.proTxHash)) {
                 return true;
@@ -1318,9 +1322,13 @@ bool CTxMemPool::existsProviderTxConflict(const CTransaction &tx) const {
             return true; // i.e. can't decode payload == conflict
         }
 
-        // only allow one operator key change in the mempool
+        // this method should only be called with validated ProTxs
         auto dmn = deterministicMNManager->GetListAtChainTip().GetMN(proTx.proTxHash);
-        assert(dmn); // this method should only be called with validated ProTxs
+        if (!dmn) {
+            LogPrintf("%s: ERROR: Masternode is not in the list, proTxHash: %s", __func__, proTx.proTxHash.ToString());
+            return true; // i.e. failed to find validated ProTx == conflict
+        }
+        // only allow one operator key change in the mempool
         if (dmn->pdmnState->pubKeyOperator != CBLSPublicKey()) {
             if (hasKeyChangeInMempool(proTx.proTxHash)) {
                 return true;
