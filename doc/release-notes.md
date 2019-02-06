@@ -25,6 +25,10 @@ dashd/dash-qt (on Linux). If you upgrade after DIP0003 activation you will
 have to reindex (start with -reindex-chainstate or -reindex) to make sure
 your wallet has all the new data synced (only if you were using version < 0.13).
 
+Note that there is no protocol bump in this version and thus active masternodes
+updating from v0.13.0.0 do not require any additional actions (no need to issue
+`masternode start` command).
+
 Downgrade warning
 -----------------
 
