@@ -73,6 +73,9 @@ See detailed [set of changes](https://github.com/dashpay/dash/compare/v0.13.0.0.
 
 ### Backports
 
+- [`da5a861c0`](https://github.com/dashpay/dash/commit/da5a861c0) Change the way invalid ProTxes are handled in `addUnchecked` and `existsProviderTxConflict` (#2691)
+- [`6ada90c11`](https://github.com/dashpay/dash/commit/6ada90c11) Call existsProviderTxConflict after CheckSpecialTx (#2690)
+- [`23eb70cb7`](https://github.com/dashpay/dash/commit/23eb70cb7) Add getspecialtxes rpc (#2668)
 - [`023f8a01a`](https://github.com/dashpay/dash/commit/023f8a01a) Fix bench log for payee and special txes (#2678)
 - [`8961a6acc`](https://github.com/dashpay/dash/commit/8961a6acc) Stop checking MN protocol version before signalling DIP3 (#2684)
 - [`e18916386`](https://github.com/dashpay/dash/commit/e18916386) Add missing help text for `operatorPayoutAddress` (#2679)
