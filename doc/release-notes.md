@@ -38,6 +38,10 @@ Downgrading to a version smaller than 0.13 is only supported as long as DIP2/DIP
 has not been activated. Activation will happen when enough miners signal compatibility
 through a BIP9 (bit 3) deployment.
 
+### Downgrade to 0.13.0.0
+
+Downgrading to 0.13.0.0 is fully supported but is not recommended unless you have some serious issues with 0.13.1.0.
+
 Notable changes
 ===============
 
