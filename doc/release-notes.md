@@ -70,7 +70,7 @@ There are few bug fixes in this release:
 in some rare cases otherwise);
 - Signature verification and processing of special transactions is decoupled to avoid any potential issues.
 
-0.13.0.0 Change log
+ 0.13.1.0 Change log
 ===================
 
 See detailed [set of changes](https://github.com/dashpay/dash/compare/v0.13.0.0...dashpay:v0.13.1.0).
