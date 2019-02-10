@@ -107,17 +107,6 @@ void MasternodeList::showContextMenuDIP3(const QPoint& point)
     if (item) contextMenuDIP3->exec(QCursor::pos());
 }
 
-static bool CheckWalletOwnsScript(const CScript& script)
-{
-    CTxDestination dest;
-    if (ExtractDestination(script, dest)) {
-        if ((boost::get<CKeyID>(&dest) && pwalletMain->HaveKey(*boost::get<CKeyID>(&dest))) || (boost::get<CScriptID>(&dest) && pwalletMain->HaveCScript(*boost::get<CScriptID>(&dest)))) {
-            return true;
-        }
-    }
-    return false;
-}
-
 void MasternodeList::updateDIP3List()
 {
     if (ShutdownRequested()) {
@@ -158,23 +147,21 @@ void MasternodeList::updateDIP3List()
     }
 
     std::set<COutPoint> setOutpts;
-    if (pwalletMain && ui->checkBoxMyMasternodesOnly->isChecked()) {
-        LOCK(pwalletMain->cs_wallet);
+    if (walletModel && ui->checkBoxMyMasternodesOnly->isChecked()) {
         std::vector<COutPoint> vOutpts;
-        pwalletMain->ListProTxCoins(vOutpts);
+        walletModel->listProTxCoins(vOutpts);
         for (const auto& outpt : vOutpts) {
             setOutpts.emplace(outpt);
         }
     }
 
     mnList.ForEachMN(false, [&](const CDeterministicMNCPtr& dmn) {
-        if (pwalletMain && ui->checkBoxMyMasternodesOnly->isChecked()) {
-            LOCK(pwalletMain->cs_wallet);
+        if (walletModel && ui->checkBoxMyMasternodesOnly->isChecked()) {
             bool fMyMasternode = setOutpts.count(dmn->collateralOutpoint) ||
-                pwalletMain->HaveKey(dmn->pdmnState->keyIDOwner) ||
-                pwalletMain->HaveKey(dmn->pdmnState->keyIDVoting) ||
-                CheckWalletOwnsScript(dmn->pdmnState->scriptPayout) ||
-                CheckWalletOwnsScript(dmn->pdmnState->scriptOperatorPayout);
+                walletModel->havePrivKey(dmn->pdmnState->keyIDOwner) ||
+                walletModel->havePrivKey(dmn->pdmnState->keyIDVoting) ||
+                walletModel->havePrivKey(dmn->pdmnState->scriptPayout) ||
+                walletModel->havePrivKey(dmn->pdmnState->scriptOperatorPayout);
             if (!fMyMasternode) return;
         }
         // populate list
