@@ -101,7 +101,6 @@ private:
     BanTableModel *banTableModel;
 
     QTimer *pollTimer;
-    QTimer *pollMnTimer;
 
     // The cache for mn list is not technically needed because CDeterministicMNManager
     // caches it internally for recent blocks but it's not enough to get consistent
@@ -130,7 +129,6 @@ Q_SIGNALS:
 
 public Q_SLOTS:
     void updateTimer();
-    void updateMnTimer();
     void updateNumConnections(int numConnections);
     void updateNetworkActive(bool networkActive);
     void updateAlert(const QString &hash, int status);

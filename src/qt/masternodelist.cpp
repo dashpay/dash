@@ -34,7 +34,9 @@ MasternodeList::MasternodeList(const PlatformStyle* platformStyle, QWidget* pare
     QWidget(parent),
     ui(new Ui::MasternodeList),
     clientModel(0),
-    walletModel(0)
+    walletModel(0),
+    fFilterUpdatedDIP3(true),
+    nTimeFilterUpdatedDIP3(0)
 {
     ui->setupUi(this);
 
@@ -74,12 +76,8 @@ MasternodeList::MasternodeList(const PlatformStyle* platformStyle, QWidget* pare
     connect(copyCollateralOutpointAction, SIGNAL(triggered()), this, SLOT(copyCollateralOutpoint_clicked()));
 
     timer = new QTimer(this);
-    connect(timer, SIGNAL(timeout()), this, SLOT(updateDIP3List()));
+    connect(timer, SIGNAL(timeout()), this, SLOT(updateDIP3ListScheduled()));
     timer->start(1000);
-
-    fFilterUpdatedDIP3 = false;
-    nTimeFilterUpdatedDIP3 = GetTime();
-    updateDIP3List();
 }
 
 MasternodeList::~MasternodeList()
@@ -92,7 +90,7 @@ void MasternodeList::setClientModel(ClientModel* model)
     this->clientModel = model;
     if (model) {
         // try to update list when masternode count changes
-        connect(clientModel, SIGNAL(masternodeListChanged()), this, SLOT(updateNodeList()));
+        connect(clientModel, SIGNAL(masternodeListChanged()), this, SLOT(updateDIP3ListForced()));
     }
 }
 
@@ -107,7 +105,17 @@ void MasternodeList::showContextMenuDIP3(const QPoint& point)
     if (item) contextMenuDIP3->exec(QCursor::pos());
 }
 
-void MasternodeList::updateDIP3List()
+void MasternodeList::updateDIP3ListScheduled()
+{
+    updateDIP3List(false);
+}
+
+void MasternodeList::updateDIP3ListForced()
+{
+    updateDIP3List(true);
+}
+
+void MasternodeList::updateDIP3List(bool fForce)
 {
     if (!clientModel || ShutdownRequested()) {
         return;
@@ -116,20 +124,17 @@ void MasternodeList::updateDIP3List()
     TRY_LOCK(cs_dip3list, fLockAcquired);
     if (!fLockAcquired) return;
 
-    static int64_t nTimeListUpdated = GetTime();
+    // To prevent high cpu usage update only once in MASTERNODELIST_FILTER_COOLDOWN_SECONDS seconds
+    // after filter was last changed unless we want to force the update.
+    if (!fForce) {
+        if (!fFilterUpdatedDIP3) return;
 
-    // to prevent high cpu usage update only once in MASTERNODELIST_UPDATE_SECONDS seconds
-    // or MASTERNODELIST_FILTER_COOLDOWN_SECONDS seconds after filter was last changed
-    int64_t nSecondsToWait = fFilterUpdatedDIP3
-                             ? nTimeFilterUpdatedDIP3 - GetTime() + MASTERNODELIST_FILTER_COOLDOWN_SECONDS
-                             : nTimeListUpdated - GetTime() + MASTERNODELIST_UPDATE_SECONDS;
-
-    if (fFilterUpdatedDIP3) {
+        int64_t nSecondsToWait = nTimeFilterUpdatedDIP3 - GetTime() + MASTERNODELIST_FILTER_COOLDOWN_SECONDS;
         ui->countLabelDIP3->setText(QString::fromStdString(strprintf("Please wait... %d", nSecondsToWait)));
-    }
-    if (nSecondsToWait > 0) return;
 
-    nTimeListUpdated = GetTime();
+        if (nSecondsToWait > 0) return;
+    }
+
     fFilterUpdatedDIP3 = false;
 
     QString strToFilter;

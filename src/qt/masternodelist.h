@@ -46,7 +46,7 @@ private:
     bool fFilterUpdatedDIP3;
 
 public Q_SLOTS:
-    void updateDIP3List();
+    void updateDIP3List(bool fForce);
 
 Q_SIGNALS:
     void doubleClicked(const QModelIndex&);
@@ -70,5 +70,8 @@ private Q_SLOTS:
     void extraInfoDIP3_clicked();
     void copyProTxHash_clicked();
     void copyCollateralOutpoint_clicked();
+
+    void updateDIP3ListScheduled();
+    void updateDIP3ListForced();
 };
 #endif // MASTERNODELIST_H

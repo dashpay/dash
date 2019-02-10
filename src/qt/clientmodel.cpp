@@ -49,11 +49,6 @@ ClientModel::ClientModel(OptionsModel *_optionsModel, QObject *parent) :
     connect(pollTimer, SIGNAL(timeout()), this, SLOT(updateTimer()));
     pollTimer->start(MODEL_UPDATE_DELAY);
 
-    pollMnTimer = new QTimer(this);
-    connect(pollMnTimer, SIGNAL(timeout()), this, SLOT(updateMnTimer()));
-    // no need to update as frequent as data for balances/txes/blocks
-    pollMnTimer->start(MODEL_UPDATE_DELAY * 4);
-
     subscribeToCoreSignals();
 }
 
@@ -183,12 +178,6 @@ void ClientModel::updateTimer()
     // the following calls will acquire the required lock
     Q_EMIT mempoolSizeChanged(getMempoolSize(), getMempoolDynamicUsage());
     Q_EMIT bytesChanged(getTotalBytesRecv(), getTotalBytesSent());
-}
-
-void ClientModel::updateMnTimer()
-{
-    LOCK(cs_mnlinst);
-    refreshMasternodeList();
 }
 
 void ClientModel::updateNumConnections(int numConnections)
@@ -364,6 +353,22 @@ static void BlockTipChanged(ClientModel *clientmodel, bool initialSync, const CB
     }
 }
 
+static void MasternodeListChanged(ClientModel *clientmodel, const CDeterministicMNList& mnList)
+{
+    int64_t now = 0;
+    bool initialSync = !masternodeSync.IsBlockchainSynced();
+    if (initialSync)
+        now = GetTimeMillis();
+
+    static int64_t nLastMasternodeUpdateNotification = 0;
+    // if we are in-sync, update the UI regardless of last update time
+    // no need to refresh masternode as often as blocks etc.
+    if (!initialSync || now - nLastMasternodeUpdateNotification > MODEL_UPDATE_DELAY*4*5) {
+        clientmodel->setMasternodeList(mnList);
+        nLastMasternodeUpdateNotification = now;
+    }
+}
+
 static void NotifyAdditionalDataSyncProgressChanged(ClientModel *clientmodel, double nSyncProgress)
 {
     QMetaObject::invokeMethod(clientmodel, "additionalDataSyncProgressChanged", Qt::QueuedConnection,
@@ -381,6 +386,7 @@ void ClientModel::subscribeToCoreSignals()
     uiInterface.NotifyBlockTip.connect(boost::bind(BlockTipChanged, this, _1, _2, false));
     uiInterface.NotifyHeaderTip.connect(boost::bind(BlockTipChanged, this, _1, _2, true));
     uiInterface.NotifyAdditionalDataSyncProgressChanged.connect(boost::bind(NotifyAdditionalDataSyncProgressChanged, this, _1));
+    uiInterface.NotifyMasternodeListChanged.connect(boost::bind(MasternodeListChanged, this, _1));
 }
 
 void ClientModel::unsubscribeFromCoreSignals()
@@ -394,4 +400,5 @@ void ClientModel::unsubscribeFromCoreSignals()
     uiInterface.NotifyBlockTip.disconnect(boost::bind(BlockTipChanged, this, _1, _2, false));
     uiInterface.NotifyHeaderTip.disconnect(boost::bind(BlockTipChanged, this, _1, _2, true));
     uiInterface.NotifyAdditionalDataSyncProgressChanged.disconnect(boost::bind(NotifyAdditionalDataSyncProgressChanged, this, _1));
+    uiInterface.NotifyMasternodeListChanged.disconnect(boost::bind(MasternodeListChanged, this, _1));
 }
