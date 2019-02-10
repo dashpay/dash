@@ -6,7 +6,7 @@
 #include "sync.h"
 #include "util.h"
 
-#include <evo/deterministicmns.h>
+#include "evo/deterministicmns.h"
 
 #include <QMenu>
 #include <QTimer>
@@ -38,20 +38,12 @@ public:
 
     void setClientModel(ClientModel* clientModel);
     void setWalletModel(WalletModel* walletModel);
-    CDeterministicMNCPtr GetSelectedDIP3MN();
 
 private:
     QMenu* contextMenuDIP3;
     int64_t nTimeFilterUpdatedDIP3;
     bool fFilterUpdatedDIP3;
 
-public Q_SLOTS:
-    void updateDIP3List(bool fForce);
-
-Q_SIGNALS:
-    void doubleClicked(const QModelIndex&);
-
-private:
     QTimer* timer;
     Ui::MasternodeList* ui;
     ClientModel* clientModel;
@@ -61,6 +53,13 @@ private:
     CCriticalSection cs_dip3list;
 
     QString strCurrentFilterDIP3;
+
+    CDeterministicMNCPtr GetSelectedDIP3MN();
+
+    void updateDIP3List(bool fForce);
+
+Q_SIGNALS:
+    void doubleClicked(const QModelIndex&);
 
 private Q_SLOTS:
     void showContextMenuDIP3(const QPoint&);
