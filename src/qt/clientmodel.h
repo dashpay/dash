@@ -6,6 +6,9 @@
 #ifndef BITCOIN_QT_CLIENTMODEL_H
 #define BITCOIN_QT_CLIENTMODEL_H
 
+#include "evo/deterministicmns.h"
+#include "sync.h"
+
 #include <QObject>
 #include <QDateTime>
 
@@ -61,6 +64,10 @@ public:
     long getMempoolSize() const;
     //! Return the dynamic memory usage of the mempool
     size_t getMempoolDynamicUsage() const;
+
+    void setMasternodeList(const CDeterministicMNList& mnList);
+    void getMasternodeList(CDeterministicMNList& mnListRet) const;
+    void refreshMasternodeList();
     
     quint64 getTotalBytesRecv() const;
     quint64 getTotalBytesSent() const;
@@ -97,6 +104,12 @@ private:
 
     QTimer *pollTimer;
     QTimer *pollMnTimer;
+
+    // The cache for mn list is not technically needed because CDeterministicMNManager
+    // caches it internally for recent blocks but it's not enough to get consistent
+    // representation of the list in UI during initial sync/reindex, so we cache it here too.
+    mutable CCriticalSection cs_mnlinst; // protects mnListCached
+    CDeterministicMNList mnListCached;
 
     void subscribeToCoreSignals();
     void unsubscribeFromCoreSignals();

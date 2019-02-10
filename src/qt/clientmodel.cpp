@@ -23,8 +23,6 @@
 #include "masternode-sync.h"
 #include "privatesend.h"
 
-#include "evo/deterministicmns.h"
-
 #include <stdint.h>
 
 #include <QDebug>
@@ -83,14 +81,36 @@ int ClientModel::getNumConnections(unsigned int flags) const
 
 QString ClientModel::getMasternodeCountString() const
 {
+    LOCK(cs_mnlinst);
     // return tr("Total: %1 (PS compatible: %2 / Enabled: %3) (IPv4: %4, IPv6: %5, TOR: %6)").arg(QString::number((int)mnodeman.size()))
-    auto mnList = deterministicMNManager->GetListAtChainTip();
     return tr("Total: %1 (Enabled: %2)")
-            .arg(QString::number((int)mnList.GetAllMNsCount()))
-            .arg(QString::number((int)mnList.GetValidMNsCount()));
+            .arg(QString::number((int)mnListCached.GetAllMNsCount()))
+            .arg(QString::number((int)mnListCached.GetValidMNsCount()));
             // .arg(QString::number((int)mnodeman.CountByIP(NET_IPV4)))
             // .arg(QString::number((int)mnodeman.CountByIP(NET_IPV6)))
             // .arg(QString::number((int)mnodeman.CountByIP(NET_TOR)));
+}
+
+void ClientModel::setMasternodeList(const CDeterministicMNList& mnList)
+{
+    LOCK(cs_mnlinst);
+    if (mnListCached.GetBlockHash() == mnList.GetBlockHash()) {
+        return;
+    }
+    mnListCached = mnList;
+    Q_EMIT strMasternodesChanged(getMasternodeCountString());
+}
+
+void ClientModel::getMasternodeList(CDeterministicMNList& mnListRet) const
+{
+    LOCK(cs_mnlinst);
+    mnListRet = mnListCached;
+}
+
+void ClientModel::refreshMasternodeList()
+{
+    LOCK(cs_mnlinst);
+    setMasternodeList(deterministicMNManager->GetListAtChainTip());
 }
 
 int ClientModel::getNumBlocks() const
@@ -180,14 +200,8 @@ void ClientModel::updateTimer()
 
 void ClientModel::updateMnTimer()
 {
-    QString newMasternodeCountString = getMasternodeCountString();
-
-    if (cachedMasternodeCountString != newMasternodeCountString)
-    {
-        cachedMasternodeCountString = newMasternodeCountString;
-
-        Q_EMIT strMasternodesChanged(cachedMasternodeCountString);
-    }
+    LOCK(cs_mnlinst);
+    refreshMasternodeList();
 }
 
 void ClientModel::updateNumConnections(int numConnections)

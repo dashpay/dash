@@ -109,7 +109,7 @@ void MasternodeList::showContextMenuDIP3(const QPoint& point)
 
 void MasternodeList::updateDIP3List()
 {
-    if (ShutdownRequested()) {
+    if (!clientModel || ShutdownRequested()) {
         return;
     }
 
@@ -138,7 +138,8 @@ void MasternodeList::updateDIP3List()
     ui->tableWidgetMasternodesDIP3->clearContents();
     ui->tableWidgetMasternodesDIP3->setRowCount(0);
 
-    auto mnList = deterministicMNManager->GetListAtChainTip();
+    CDeterministicMNList mnList;
+    clientModel->getMasternodeList(mnList);
     auto projectedPayees = mnList.GetProjectedMNPayees(mnList.GetValidMNsCount());
     std::map<uint256, int> nextPayments;
     for (size_t i = 0; i < projectedPayees.size(); i++) {
@@ -248,6 +249,10 @@ void MasternodeList::on_checkBoxMyMasternodesOnly_stateChanged(int state)
 
 CDeterministicMNCPtr MasternodeList::GetSelectedDIP3MN()
 {
+    if (!clientModel) {
+        return nullptr;
+    }
+
     std::string strProTxHash;
     {
         LOCK(cs_dip3list);
@@ -265,7 +270,8 @@ CDeterministicMNCPtr MasternodeList::GetSelectedDIP3MN()
     uint256 proTxHash;
     proTxHash.SetHex(strProTxHash);
 
-    auto mnList = deterministicMNManager->GetListAtChainTip();
+    CDeterministicMNList mnList;
+    clientModel->getMasternodeList(mnList);
     return mnList.GetMN(proTxHash);
 }
 
