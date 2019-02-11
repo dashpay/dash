@@ -446,6 +446,13 @@ CDeterministicMNManager::CDeterministicMNManager(CEvoDB& _evoDb) :
 
 bool CDeterministicMNManager::ProcessBlock(const CBlock& block, const CBlockIndex* pindex, CValidationState& _state, bool fJustCheck)
 {
+    AssertLockHeld(cs_main);
+
+    bool fDIP0003Active = VersionBitsState(pindex->pprev, Params().GetConsensus(), Consensus::DEPLOYMENT_DIP0003, versionbitscache) == THRESHOLD_ACTIVE;
+    if (!fDIP0003Active) {
+        return true;
+    }
+
     CDeterministicMNList oldList, newList;
     CDeterministicMNListDiff diff;
 
