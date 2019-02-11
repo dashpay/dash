@@ -813,6 +813,8 @@ void ThreadImport(std::vector<boost::filesystem::path> vImportFiles)
     // but don't call it directly to prevent triggering of other listeners like zmq etc.
     // GetMainSignals().UpdatedBlockTip(chainActive.Tip());
     pdsNotificationInterface->InitializeCurrentBlockTip();
+    auto mnList = deterministicMNManager->GetListAtChainTip();
+    uiInterface.NotifyMasternodeListChanged(mnList);
 
     bool fDIP003Active;
     {

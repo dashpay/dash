@@ -53,24 +53,19 @@ std::string CMasternodeSync::GetAssetName()
 
 void CMasternodeSync::SwitchToNextAsset(CConnman& connman)
 {
-    CDeterministicMNList mnList;
     switch(nCurrentAsset)
     {
         case(MASTERNODE_SYNC_FAILED):
             throw std::runtime_error("Can't switch to next asset from failed, should use Reset() first!");
             break;
         case(MASTERNODE_SYNC_INITIAL):
-            // try to update UI with the current MN list/count (can fail since we might be still syncing)
-            mnList = deterministicMNManager->GetListAtChainTip();
-            uiInterface.NotifyMasternodeListChanged(mnList);
             nCurrentAsset = MASTERNODE_SYNC_WAITING;
             LogPrintf("CMasternodeSync::SwitchToNextAsset -- Starting %s\n", GetAssetName());
             break;
         case(MASTERNODE_SYNC_WAITING):
             LogPrintf("CMasternodeSync::SwitchToNextAsset -- Completed %s in %llds\n", GetAssetName(), GetTime() - nTimeAssetSyncStarted);
             // blockchain is synced, update UI with the correct MN list/count
-            mnList = deterministicMNManager->GetListAtChainTip();
-            uiInterface.NotifyMasternodeListChanged(mnList);
+            uiInterface.NotifyMasternodeListChanged(deterministicMNManager->GetListAtChainTip());
             nCurrentAsset = MASTERNODE_SYNC_GOVERNANCE;
             LogPrintf("CMasternodeSync::SwitchToNextAsset -- Starting %s\n", GetAssetName());
             break;
