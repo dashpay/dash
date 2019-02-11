@@ -65,7 +65,7 @@ public:
     size_t getMempoolDynamicUsage() const;
 
     void setMasternodeList(const CDeterministicMNList& mnList);
-    void getMasternodeList(CDeterministicMNList& mnListRet) const;
+    CDeterministicMNList getMasternodeList() const;
     void refreshMasternodeList();
     
     quint64 getTotalBytesRecv() const;

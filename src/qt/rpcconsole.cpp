@@ -889,8 +889,7 @@ void RPCConsole::setMasternodeCount()
     if (!clientModel) {
         return;
     }
-    CDeterministicMNList mnList;
-    clientModel->getMasternodeList(mnList);
+    auto mnList = clientModel->getMasternodeList();
     // QString strMasternodeCount = tr("Total: %1 (PS compatible: %2 / Enabled: %3) (IPv4: %4, IPv6: %5, TOR: %6)").arg(QString::number((int)mnodeman.size()))
     QString strMasternodeCount = tr("Total: %1 (Enabled: %2)")
         .arg(QString::number(mnList.GetAllMNsCount()))

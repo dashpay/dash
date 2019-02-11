@@ -83,10 +83,10 @@ void ClientModel::setMasternodeList(const CDeterministicMNList& mnList)
     Q_EMIT masternodeListChanged();
 }
 
-void ClientModel::getMasternodeList(CDeterministicMNList& mnListRet) const
+CDeterministicMNList ClientModel::getMasternodeList() const
 {
     LOCK(cs_mnlinst);
-    mnListRet = mnListCached;
+    return mnListCached;
 }
 
 void ClientModel::refreshMasternodeList()

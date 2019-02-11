@@ -143,8 +143,7 @@ void MasternodeList::updateDIP3List(bool fForce)
     ui->tableWidgetMasternodesDIP3->clearContents();
     ui->tableWidgetMasternodesDIP3->setRowCount(0);
 
-    CDeterministicMNList mnList;
-    clientModel->getMasternodeList(mnList);
+    auto mnList = clientModel->getMasternodeList();
     auto projectedPayees = mnList.GetProjectedMNPayees(mnList.GetValidMNsCount());
     std::map<uint256, int> nextPayments;
     for (size_t i = 0; i < projectedPayees.size(); i++) {
@@ -275,8 +274,7 @@ CDeterministicMNCPtr MasternodeList::GetSelectedDIP3MN()
     uint256 proTxHash;
     proTxHash.SetHex(strProTxHash);
 
-    CDeterministicMNList mnList;
-    clientModel->getMasternodeList(mnList);
+    auto mnList = clientModel->getMasternodeList();
     return mnList.GetMN(proTxHash);
 }
 
