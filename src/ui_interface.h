@@ -113,9 +113,6 @@ public:
     /** Additional data sync progress changed */
     boost::signals2::signal<void (double nSyncProgress)> NotifyAdditionalDataSyncProgressChanged;
 
-    /** Masternode list has changed */
-    boost::signals2::signal<void (const CDeterministicMNList& mnList)> NotifyMasternodeListChanged;
-
     /** Banlist did change. */
     boost::signals2::signal<void (void)> BannedListChanged;
 };

@@ -483,7 +483,6 @@ bool CDeterministicMNManager::ProcessBlock(const CBlock& block, const CBlockInde
     // Don't hold cs while calling signals
     if (!diff.addedMNs.empty() || !diff.removedMns.empty()) {
         GetMainSignals().NotifyMasternodeListChanged(newList);
-        uiInterface.NotifyMasternodeListChanged(newList);
     }
 
     const auto& consensusParams = Params().GetConsensus();

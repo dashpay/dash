@@ -64,8 +64,6 @@ void CMasternodeSync::SwitchToNextAsset(CConnman& connman)
             break;
         case(MASTERNODE_SYNC_WAITING):
             LogPrintf("CMasternodeSync::SwitchToNextAsset -- Completed %s in %llds\n", GetAssetName(), GetTime() - nTimeAssetSyncStarted);
-            // blockchain is synced, update UI with the correct MN list/count
-            uiInterface.NotifyMasternodeListChanged(deterministicMNManager->GetListAtChainTip());
             nCurrentAsset = MASTERNODE_SYNC_GOVERNANCE;
             LogPrintf("CMasternodeSync::SwitchToNextAsset -- Starting %s\n", GetAssetName());
             break;

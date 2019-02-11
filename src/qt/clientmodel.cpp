@@ -351,20 +351,12 @@ static void BlockTipChanged(ClientModel *clientmodel, bool initialSync, const CB
                                   Q_ARG(bool, fHeader));
         nLastUpdateNotification = now;
     }
-}
-
-static void MasternodeListChanged(ClientModel *clientmodel, const CDeterministicMNList& mnList)
-{
-    int64_t now = 0;
-    bool initialSync = !masternodeSync.IsBlockchainSynced();
-    if (initialSync)
-        now = GetTimeMillis();
 
     static int64_t nLastMasternodeUpdateNotification = 0;
     // if we are in-sync, update the UI regardless of last update time
-    // no need to refresh masternode as often as blocks etc.
+    // no need to refresh masternode list/stats as often as blocks etc.
     if (!initialSync || now - nLastMasternodeUpdateNotification > MODEL_UPDATE_DELAY*4*5) {
-        clientmodel->setMasternodeList(mnList);
+        clientmodel->refreshMasternodeList();
         nLastMasternodeUpdateNotification = now;
     }
 }
@@ -386,7 +378,6 @@ void ClientModel::subscribeToCoreSignals()
     uiInterface.NotifyBlockTip.connect(boost::bind(BlockTipChanged, this, _1, _2, false));
     uiInterface.NotifyHeaderTip.connect(boost::bind(BlockTipChanged, this, _1, _2, true));
     uiInterface.NotifyAdditionalDataSyncProgressChanged.connect(boost::bind(NotifyAdditionalDataSyncProgressChanged, this, _1));
-    uiInterface.NotifyMasternodeListChanged.connect(boost::bind(MasternodeListChanged, this, _1));
 }
 
 void ClientModel::unsubscribeFromCoreSignals()
@@ -400,5 +391,4 @@ void ClientModel::unsubscribeFromCoreSignals()
     uiInterface.NotifyBlockTip.disconnect(boost::bind(BlockTipChanged, this, _1, _2, false));
     uiInterface.NotifyHeaderTip.disconnect(boost::bind(BlockTipChanged, this, _1, _2, true));
     uiInterface.NotifyAdditionalDataSyncProgressChanged.disconnect(boost::bind(NotifyAdditionalDataSyncProgressChanged, this, _1));
-    uiInterface.NotifyMasternodeListChanged.disconnect(boost::bind(MasternodeListChanged, this, _1));
 }
