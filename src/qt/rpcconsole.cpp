@@ -890,13 +890,9 @@ void RPCConsole::updateMasternodeCount()
         return;
     }
     auto mnList = clientModel->getMasternodeList();
-    // QString strMasternodeCount = tr("Total: %1 (PS compatible: %2 / Enabled: %3) (IPv4: %4, IPv6: %5, TOR: %6)").arg(QString::number((int)mnodeman.size()))
     QString strMasternodeCount = tr("Total: %1 (Enabled: %2)")
         .arg(QString::number(mnList.GetAllMNsCount()))
         .arg(QString::number(mnList.GetValidMNsCount()));
-        // .arg(QString::number((int)mnodeman.CountByIP(NET_IPV4)))
-        // .arg(QString::number((int)mnodeman.CountByIP(NET_IPV6)))
-        // .arg(QString::number((int)mnodeman.CountByIP(NET_TOR)));
     ui->masternodeCount->setText(strMasternodeCount);
 }
 
