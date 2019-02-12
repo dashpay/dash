@@ -34,16 +34,12 @@ static fs::path SetDataDir()
 }
 static void SetupBenchArgs()
 {
-    gArgs.AddArg("-?", "Print this help message and exit", false, OptionsCategory::OPTIONS);
+    SetupHelpOptions(gArgs);
     gArgs.AddArg("-list", "List benchmarks without executing them", false, OptionsCategory::OPTIONS);
     gArgs.AddArg("-filter=<regex>", strprintf("Regular expression filter to select benchmark by name (default: %s)", DEFAULT_BENCH_FILTER), false, OptionsCategory::OPTIONS);
     gArgs.AddArg("-asymptote=n1,n2,n3,...", strprintf("Test asymptotic growth of the runtime of an algorithm, if supported by the benchmark"), false, OptionsCategory::OPTIONS);
     gArgs.AddArg("-output_csv=<output.csv>", "Generate CSV file with the most important benchmark results.", false, OptionsCategory::OPTIONS);
     gArgs.AddArg("-output_json=<output.json>", "Generate JSON file with all benchmark results.", false, OptionsCategory::OPTIONS);
-
-    // Hidden
-    gArgs.AddArg("-h", "", false, OptionsCategory::HIDDEN);
-    gArgs.AddArg("-help", "", false, OptionsCategory::HIDDEN);
 }
 
 // parses a comma separated list like "10,20,30,50"
