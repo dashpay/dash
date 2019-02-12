@@ -15,6 +15,7 @@ from test_framework.blocktools import create_coinbase
 from test_framework.messages import (
     CBlock,
     CBlockHeader,
+    BLOCK_HEADER_SIZE
 )
 from test_framework.mininode import (
     P2PDataStore,
@@ -119,10 +120,9 @@ class MiningTest(BitcoinTestFramework):
 
         self.log.info("getblocktemplate: Test bad tx count")
         # The tx count is immediately after the block header
-        TX_COUNT_OFFSET = 80
         bad_block_sn = bytearray(block.serialize())
-        assert_equal(bad_block_sn[TX_COUNT_OFFSET], 1)
-        bad_block_sn[TX_COUNT_OFFSET] += 1
+        assert_equal(bad_block_sn[BLOCK_HEADER_SIZE], 1)
+        bad_block_sn[BLOCK_HEADER_SIZE] += 1
         assert_raises_rpc_error(-22, "Block decode failed", node.getblocktemplate, {'data': bad_block_sn.hex(), 'mode': 'proposal'})
 
         self.log.info("getblocktemplate: Test bad bits")
@@ -148,9 +148,9 @@ class MiningTest(BitcoinTestFramework):
         assert_template(node, bad_block, 'inconclusive-not-best-prevblk')
 
         self.log.info('submitheader tests')
-        assert_raises_rpc_error(-22, 'Block header decode failed', lambda: node.submitheader(hexdata='xx' * 80))
-        assert_raises_rpc_error(-22, 'Block header decode failed', lambda: node.submitheader(hexdata='ff' * 78))
-        assert_raises_rpc_error(-25, 'Must submit previous header', lambda: node.submitheader(hexdata='ff' * 80))
+        assert_raises_rpc_error(-22, 'Block header decode failed', lambda: node.submitheader(hexdata='xx' * BLOCK_HEADER_SIZE))
+        assert_raises_rpc_error(-22, 'Block header decode failed', lambda: node.submitheader(hexdata='ff' * (BLOCK_HEADER_SIZE-2)))
+        assert_raises_rpc_error(-25, 'Must submit previous header', lambda: node.submitheader(hexdata=super(CBlock, bad_block).serialize().hex()))
 
         block.solve()
 
