@@ -1114,6 +1114,8 @@ void CSigSharesManager::WorkThreadMain()
 {
     workInterrupt.reset();
 
+    int64_t lastSendTime = 0;
+
     while (!workInterrupt) {
         if (!quorumSigningManager || !g_connman || !quorumSigningManager) {
             if (!workInterrupt.sleep_for(std::chrono::milliseconds(100))) {
@@ -1128,7 +1130,12 @@ void CSigSharesManager::WorkThreadMain()
         didWork |= quorumSigningManager->ProcessPendingRecoveredSigs(*g_connman);
         didWork |= ProcessPendingSigShares(*g_connman);
         didWork |= SignPendingSigShares();
-        SendMessages();
+
+        if (GetTimeMillis() - lastSendTime > 100) {
+            lastSendTime = GetTimeMillis();
+            SendMessages();
+        }
+
         Cleanup();
         quorumSigningManager->Cleanup();
 
@@ -1137,6 +1144,7 @@ void CSigSharesManager::WorkThreadMain()
             if (!workInterrupt.sleep_for(std::chrono::milliseconds(100))) {
                 return;
             }
+            lastSendTime = 0;
         }
     }
 }
