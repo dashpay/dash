@@ -1132,8 +1132,8 @@ void CSigSharesManager::WorkThreadMain()
         didWork |= SignPendingSigShares();
 
         if (GetTimeMillis() - lastSendTime > 100) {
-            lastSendTime = GetTimeMillis();
             SendMessages();
+            lastSendTime = GetTimeMillis();
         }
 
         Cleanup();
@@ -1144,7 +1144,6 @@ void CSigSharesManager::WorkThreadMain()
             if (!workInterrupt.sleep_for(std::chrono::milliseconds(100))) {
                 return;
             }
-            lastSendTime = 0;
         }
     }
 }
