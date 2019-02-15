@@ -19,6 +19,7 @@
 #include <thread>
 #include <mutex>
 #include <unordered_map>
+#include <unordered_set>
 
 class CEvoDB;
 class CScheduler;
@@ -36,6 +37,14 @@ namespace std {
         std::size_t operator()(const llmq::SigShareKey& k) const
         {
             return (std::size_t)((k.second + 1) * k.first.GetCheapHash());
+        }
+    };
+    template <>
+    struct hash<std::pair<NodeId, uint256>>
+    {
+        std::size_t operator()(const std::pair<NodeId, uint256>& k) const
+        {
+            return (std::size_t)((k.first + 1) * k.second.GetCheapHash());
         }
     };
 }
@@ -299,14 +308,14 @@ public:
         CSigSharesInv knows;
     };
     // TODO limit number of sessions per node
-    std::map<uint256, Session> sessions;
+    std::unordered_map<uint256, Session> sessions;
 
     SigShareMap<CSigShare> pendingIncomingSigShares;
     SigShareMap<int64_t> requestedSigShares;
 
     // elements are added whenever we receive a valid sig share from this node
     // this triggers us to send inventory items to him as he seems to be interested in these
-    std::set<std::pair<Consensus::LLMQType, uint256>> interestedIn;
+    std::unordered_set<std::pair<Consensus::LLMQType, uint256>> interestedIn;
 
     bool banned{false};
 
@@ -335,9 +344,9 @@ private:
     CThreadInterrupt workInterrupt;
 
     SigShareMap<CSigShare> sigShares;
-    std::map<uint256, int64_t> firstSeenForSessions;
+    std::unordered_map<uint256, int64_t> firstSeenForSessions;
 
-    std::map<NodeId, CSigSharesNodeState> nodeStates;
+    std::unordered_map<NodeId, CSigSharesNodeState> nodeStates;
     SigShareMap<std::pair<NodeId, int64_t>> sigSharesRequested;
     SigShareMap<bool> sigSharesToAnnounce;
 
@@ -371,10 +380,10 @@ private:
     bool VerifySigSharesInv(NodeId from, const CSigSharesInv& inv);
     bool PreVerifyBatchedSigShares(NodeId nodeId, const CBatchedSigShares& batchedSigShares, bool& retBan);
 
-    void CollectPendingSigSharesToVerify(size_t maxUniqueSessions, std::map<NodeId, std::vector<CSigShare>>& retSigShares, std::map<std::pair<Consensus::LLMQType, uint256>, CQuorumCPtr>& retQuorums);
+    void CollectPendingSigSharesToVerify(size_t maxUniqueSessions, std::unordered_map<NodeId, std::vector<CSigShare>>& retSigShares, std::unordered_map<std::pair<Consensus::LLMQType, uint256>, CQuorumCPtr>& retQuorums);
     bool ProcessPendingSigShares(CConnman& connman);
 
-    void ProcessPendingSigSharesFromNode(NodeId nodeId, const std::vector<CSigShare>& sigShares, const std::map<std::pair<Consensus::LLMQType, uint256>, CQuorumCPtr>& quorums, CConnman& connman);
+    void ProcessPendingSigSharesFromNode(NodeId nodeId, const std::vector<CSigShare>& sigShares, const std::unordered_map<std::pair<Consensus::LLMQType, uint256>, CQuorumCPtr>& quorums, CConnman& connman);
 
     void ProcessSigShare(NodeId nodeId, const CSigShare& sigShare, CConnman& connman, const CQuorumCPtr& quorum);
     void TryRecoverSig(const CQuorumCPtr& quorum, const uint256& id, const uint256& msgHash, CConnman& connman);
@@ -387,9 +396,9 @@ private:
     void BanNode(NodeId nodeId);
 
     bool SendMessages();
-    void CollectSigSharesToRequest(std::map<NodeId, std::map<uint256, CSigSharesInv>>& sigSharesToRequest);
-    void CollectSigSharesToSend(std::map<NodeId, std::map<uint256, CBatchedSigShares>>& sigSharesToSend);
-    void CollectSigSharesToAnnounce(std::map<NodeId, std::map<uint256, CSigSharesInv>>& sigSharesToAnnounce);
+    void CollectSigSharesToRequest(std::unordered_map<NodeId, std::unordered_map<uint256, CSigSharesInv>>& sigSharesToRequest);
+    void CollectSigSharesToSend(std::unordered_map<NodeId, std::unordered_map<uint256, CBatchedSigShares>>& sigSharesToSend);
+    void CollectSigSharesToAnnounce(std::unordered_map<NodeId, std::unordered_map<uint256, CSigSharesInv>>& sigSharesToAnnounce);
     bool SignPendingSigShares();
     void WorkThreadMain();
 };
