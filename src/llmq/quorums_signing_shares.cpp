@@ -176,16 +176,20 @@ CSigSharesInv CBatchedSigShares::ToInv() const
 
 CSigSharesManager::CSigSharesManager()
 {
-    StartWorkerThread();
+    workInterrupt.reset();
 }
 
 CSigSharesManager::~CSigSharesManager()
 {
-    StopWorkerThread();
 }
 
 void CSigSharesManager::StartWorkerThread()
 {
+    // can't start new thread if we have one running already
+    if (workThread.joinable()) {
+        assert(false);
+    }
+
     workThread = std::thread(&TraceThread<std::function<void()> >,
         "sigshares",
         std::function<void()>(std::bind(&CSigSharesManager::WorkThreadMain, this)));
@@ -193,6 +197,11 @@ void CSigSharesManager::StartWorkerThread()
 
 void CSigSharesManager::StopWorkerThread()
 {
+    // make sure to call InterruptWorkerThread() first
+    if (!workInterrupt) {
+        assert(false);
+    }
+
     if (workThread.joinable()) {
         workThread.join();
     }
@@ -1112,8 +1121,6 @@ void CSigSharesManager::BanNode(NodeId nodeId)
 
 void CSigSharesManager::WorkThreadMain()
 {
-    workInterrupt.reset();
-
     int64_t lastSendTime = 0;
 
     while (!workInterrupt) {
