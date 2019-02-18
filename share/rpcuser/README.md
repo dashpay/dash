@@ -1,7 +1,7 @@
 RPC Tools
 ---------------------
 
-### [RPCUser](/share/rpcauth) ###
+### [RPCAuth](/share/rpcauth) ###
 
 Create an RPC user login credential.
 
