@@ -36,7 +36,7 @@ masternode genkey (This will be the masternode’s privkey. We’ll use this lat
 ```
 getaccountaddress chooseAnyNameForYourMasternode
 ```
-3) Still in the control wallet, send 100,000 CADEX to the address you generated in step 2 (Be 100% sure that you entered the address correctly. You can verify this when you paste the address into the “Pay To:” field, the label will autopopulate with the name you chose”, also make sure this is exactly 100,000 CADEX; No less, no more.)
+3) Still in the control wallet, send 100,000 CADEX to the address you generated in step 2 (Be 100% sure that you entered the address correctly. You can verify this when you paste the address into the “Pay To:” field, the label will autopopulate with the name you chose”, also make sure this is exactly 100,000 CADEX; No less, no more.). ###Wait for 15 confirmation before starting the masternode
 4) Still in the control wallet, enter the command into the console (This gets the proof of transaction of sending 100,000):
 ```
 masternode outputs
