@@ -5142,8 +5142,8 @@ https://www.transifex.com/projects/p/dash/</translation>
         <translation>ผู้ใช้กำหนดรหัสผ่านสำหรับการจดจำรหัสผ่านสำหรับ HD Wallet  (BIP39) มีผลเฉพาะระหว่างการสร้าง Wallet / การเริ่มครั้งแรก (ค่าเริ่มต้น: ว่างเปล่า)</translation>
     </message>
     <message>
-        <source>Username and hashed password for JSON-RPC connections. The field &lt;userpw&gt; comes in the format: &lt;USERNAME&gt;:&lt;SALT&gt;$&lt;HASH&gt;. A canonical python script is included in share/rpcuser. The client then connects normally using the rpcuser=&lt;USERNAME&gt;/rpcpassword=&lt;PASSWORD&gt; pair of arguments. This option can be specified multiple times</source>
-        <translation>ชื่อผู้ใช้และ hashed password สำหรับการเชื่อมต่อ JSON-RPC   ฟิลด์&lt;userpw&gt;มาในรูปแบบ:&lt;USERNAME&gt;: &lt;SALT&gt;$&lt;HASH&gt; สคริปต์จะรวมอยู่ใน share / rpcuser ลูกค้าเชื่อมต่อโดยปกติโดยใช้ rpcuser = &lt;USERNAME&gt; / rpcpassword = &lt;PASSWORD&gt; คู่อาร์กิวเมนต์ สามารถระบุตัวเลือกนี้ได้หลายครั้ง</translation>
+        <source>Username and hashed password for JSON-RPC connections. The field &lt;userpw&gt; comes in the format: &lt;USERNAME&gt;:&lt;SALT&gt;$&lt;HASH&gt;. A canonical python script is included in share/rpcauth. The client then connects normally using the rpcauth=&lt;USERNAME&gt;/rpcpassword=&lt;PASSWORD&gt; pair of arguments. This option can be specified multiple times</source>
+        <translation>ชื่อผู้ใช้และ hashed password สำหรับการเชื่อมต่อ JSON-RPC   ฟิลด์&lt;userpw&gt;มาในรูปแบบ:&lt;USERNAME&gt;: &lt;SALT&gt;$&lt;HASH&gt; สคริปต์จะรวมอยู่ใน share / rpcauth ลูกค้าเชื่อมต่อโดยปกติโดยใช้ rpcauth = &lt;USERNAME&gt; / rpcpassword = &lt;PASSWORD&gt; คู่อาร์กิวเมนต์ สามารถระบุตัวเลือกนี้ได้หลายครั้ง</translation>
     </message>
     <message>
         <source>Wallet will not create transactions that violate mempool chain limits (default: %u)</source>

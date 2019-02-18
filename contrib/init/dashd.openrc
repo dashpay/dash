@@ -75,7 +75,7 @@ checkconfig()
 		eerror "The setting must appear in ${BITCOIND_CONFIGFILE}"
 		eerror ""
 		eerror "This password is security critical to securing wallets "
-		eerror "and must not be the same as the rpcuser setting."
+		eerror "and must not be the same as the rpcauth setting."
 		eerror "You can generate a suitable random password using the following"
 		eerror "command from the shell:"
 		eerror ""

@@ -11,7 +11,7 @@ https://github.com/dashpay/dash_hash
     $ ./linearize-hashes.py linearize.cfg > hashlist.txt
 
 Required configuration file settings for linearize-hashes:
-* RPC: `rpcuser`, `rpcpassword`
+* RPC: `rpcauth`, `rpcpassword`
 
 Optional config file setting for linearize-hashes:
 * RPC: `host`  (Default: `127.0.0.1`)

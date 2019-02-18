@@ -5142,8 +5142,8 @@ https://www.transifex.com/projects/p/dash/</translation>
         <translation>HD 지갑을 위해 사용자가 지정한 연상 기호 암호문(BIP39)은 지갑 생성/첫 시작에만 효력이 있습니다. (디폴트: 빈 문자열)</translation>
     </message>
     <message>
-        <source>Username and hashed password for JSON-RPC connections. The field &lt;userpw&gt; comes in the format: &lt;USERNAME&gt;:&lt;SALT&gt;$&lt;HASH&gt;. A canonical python script is included in share/rpcuser. The client then connects normally using the rpcuser=&lt;USERNAME&gt;/rpcpassword=&lt;PASSWORD&gt; pair of arguments. This option can be specified multiple times</source>
-        <translation>클라이언트JSON-RPC 연결에 필요한 사용자 이름과 해시화된 암호문.  해당 필드는 &lt;userpw&gt; 다음과 같은 필드로 구성되어 있습니다: &lt;USERNAME&gt;:&lt;SALT&gt;$&lt;HASH&gt;. share/rpcuser에는 표준 파이톤 스크립트가 포함됩니다. 이후 클라이언트는 rpcuser=&lt;USERNAME&gt;/ rpcpassword=&lt;PASSWORD&gt; 쌍의 매개 변수를 이용하여 정상적으로 연결합니다. 이 옵션은 복수로 지정할 수 있습니다.</translation>
+        <source>Username and hashed password for JSON-RPC connections. The field &lt;userpw&gt; comes in the format: &lt;USERNAME&gt;:&lt;SALT&gt;$&lt;HASH&gt;. A canonical python script is included in share/rpcauth. The client then connects normally using the rpcauth=&lt;USERNAME&gt;/rpcpassword=&lt;PASSWORD&gt; pair of arguments. This option can be specified multiple times</source>
+        <translation>클라이언트JSON-RPC 연결에 필요한 사용자 이름과 해시화된 암호문.  해당 필드는 &lt;userpw&gt; 다음과 같은 필드로 구성되어 있습니다: &lt;USERNAME&gt;:&lt;SALT&gt;$&lt;HASH&gt;. share/rpcauth에는 표준 파이톤 스크립트가 포함됩니다. 이후 클라이언트는 rpcauth=&lt;USERNAME&gt;/ rpcpassword=&lt;PASSWORD&gt; 쌍의 매개 변수를 이용하여 정상적으로 연결합니다. 이 옵션은 복수로 지정할 수 있습니다.</translation>
     </message>
     <message>
         <source>Wallet will not create transactions that violate mempool chain limits (default: %u)</source>

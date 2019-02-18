@@ -205,7 +205,7 @@ def initialize_datadir(dirname, n):
     rpc_u, rpc_p = rpc_auth_pair(n)
     with open(os.path.join(datadir, "dash.conf"), 'w', encoding='utf8') as f:
         f.write("regtest=1\n")
-        f.write("rpcuser=" + rpc_u + "\n")
+        f.write("rpcauth=" + rpc_u + "\n")
         f.write("rpcpassword=" + rpc_p + "\n")
         f.write("port="+str(p2p_port(n))+"\n")
         f.write("rpcport="+str(rpc_port(n))+"\n")
@@ -213,7 +213,7 @@ def initialize_datadir(dirname, n):
     return datadir
 
 def rpc_auth_pair(n):
-    return 'rpcuser💻' + str(n), 'rpcpass🔑' + str(n)
+    return 'rpcauth💻' + str(n), 'rpcpass🔑' + str(n)
 
 def rpc_url(i, rpchost=None):
     rpc_u, rpc_p = rpc_auth_pair(i)

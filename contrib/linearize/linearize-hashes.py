@@ -68,7 +68,7 @@ class BitcoinRPC:
 
 def get_block_hashes(settings, max_blocks_per_call=10000):
 	rpc = BitcoinRPC(settings['host'], settings['port'],
-			 settings['rpcuser'], settings['rpcpassword'])
+			 settings['rpcauth'], settings['rpcpassword'])
 
 	height = settings['min_height']
 	while height < settings['max_height']+1:
@@ -122,7 +122,7 @@ if __name__ == '__main__':
 		settings['max_height'] = 313000
 	if 'rev_hash_bytes' not in settings:
 		settings['rev_hash_bytes'] = 'false'
-	if 'rpcuser' not in settings or 'rpcpassword' not in settings:
+	if 'rpcauth' not in settings or 'rpcpassword' not in settings:
 		print("Missing username and/or password in cfg file", file=stderr)
 		sys.exit(1)
 

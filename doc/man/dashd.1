@@ -640,7 +640,7 @@ multiple times (default: bind to all interfaces)
 .IP
 Location of the auth cookie (default: data dir)
 .HP
-\fB\-rpcuser=\fR<user>
+\fB\-rpcauth=\fR<user>
 .IP
 Username for JSON\-RPC connections
 .HP
@@ -652,9 +652,9 @@ Password for JSON\-RPC connections
 .IP
 Username and hashed password for JSON\-RPC connections. The field
 <userpw> comes in the format: <USERNAME>:<SALT>$<HASH>. A
-canonical python script is included in share/rpcuser. The client
+canonical python script is included in share/rpcauth. The client
 then connects normally using the
-rpcuser=<USERNAME>/rpcpassword=<PASSWORD> pair of arguments. This
+rpcauth=<USERNAME>/rpcpassword=<PASSWORD> pair of arguments. This
 option can be specified multiple times
 .HP
 \fB\-rpcport=\fR<port>

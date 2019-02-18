@@ -5143,8 +5143,8 @@ https://www.transifex.com/projects/p/dash/</translation>
         <translation>ユーザー定義ニーモニックパスフレーズをHDウォレットに使用します (BIP39)。ウォレット作成時にのみ有効です。(初期設定: 空文字)</translation>
     </message>
     <message>
-        <source>Username and hashed password for JSON-RPC connections. The field &lt;userpw&gt; comes in the format: &lt;USERNAME&gt;:&lt;SALT&gt;$&lt;HASH&gt;. A canonical python script is included in share/rpcuser. The client then connects normally using the rpcuser=&lt;USERNAME&gt;/rpcpassword=&lt;PASSWORD&gt; pair of arguments. This option can be specified multiple times</source>
-        <translation>JSON-RPC 接続時のユーザ名とハッシュ化されたパスワード。&lt;userpw&gt; フィールドのフォーマットは &lt;USERNAME&gt;:&lt;SALT&gt;$&lt;HASH&gt;。標準的な Python スクリプトが share/rpcuser 内に含まれています。クライアントは通常の場合には rpcuser=&lt;USERNAME&gt;/rpcpassword=&lt;PASSWORD&gt; を利用して接続を行います。このオプションは複数回指定できます。</translation>
+        <source>Username and hashed password for JSON-RPC connections. The field &lt;userpw&gt; comes in the format: &lt;USERNAME&gt;:&lt;SALT&gt;$&lt;HASH&gt;. A canonical python script is included in share/rpcauth. The client then connects normally using the rpcauth=&lt;USERNAME&gt;/rpcpassword=&lt;PASSWORD&gt; pair of arguments. This option can be specified multiple times</source>
+        <translation>JSON-RPC 接続時のユーザ名とハッシュ化されたパスワード。&lt;userpw&gt; フィールドのフォーマットは &lt;USERNAME&gt;:&lt;SALT&gt;$&lt;HASH&gt;。標準的な Python スクリプトが share/rpcauth 内に含まれています。クライアントは通常の場合には rpcauth=&lt;USERNAME&gt;/rpcpassword=&lt;PASSWORD&gt; を利用して接続を行います。このオプションは複数回指定できます。</translation>
     </message>
     <message>
         <source>Wallet will not create transactions that violate mempool chain limits (default: %u)</source>

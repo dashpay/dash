@@ -5134,8 +5134,8 @@ https://www.transifex.com/projects/p/dash/</translation>
         <translation>تعريف المستخدم عبارة مرور ذاكري لمحفظة HD (BIP39). يكون تأثيره فقط أثناء إنشاء المحفظة / البدء الأول (افتراضي: سلسلة فارغة)</translation>
     </message>
     <message>
-        <source>Username and hashed password for JSON-RPC connections. The field &lt;userpw&gt; comes in the format: &lt;USERNAME&gt;:&lt;SALT&gt;$&lt;HASH&gt;. A canonical python script is included in share/rpcuser. The client then connects normally using the rpcuser=&lt;USERNAME&gt;/rpcpassword=&lt;PASSWORD&gt; pair of arguments. This option can be specified multiple times</source>
-        <translation>اسم المستخدم وكلمة المرور المجزأة لاتصالات JSON-RPC. الميدان&lt;userpw&gt; يأتي في الشكل:&lt;USERNAME&gt; : &lt;SALT&gt; $&lt;HASH&gt; يتم تضمين النصي بيثون الكنسي في المشاركة / rpcuser. ثم يتصل العميل عادة باستخدام rpcuser = &lt;USERNAME&gt; /rpcpassword&lt;PASSWORD&gt;  زوج من الحجج. يمكن تحديد هذا الخيار عدة مرات</translation>
+        <source>Username and hashed password for JSON-RPC connections. The field &lt;userpw&gt; comes in the format: &lt;USERNAME&gt;:&lt;SALT&gt;$&lt;HASH&gt;. A canonical python script is included in share/rpcauth. The client then connects normally using the rpcauth=&lt;USERNAME&gt;/rpcpassword=&lt;PASSWORD&gt; pair of arguments. This option can be specified multiple times</source>
+        <translation>اسم المستخدم وكلمة المرور المجزأة لاتصالات JSON-RPC. الميدان&lt;userpw&gt; يأتي في الشكل:&lt;USERNAME&gt; : &lt;SALT&gt; $&lt;HASH&gt; يتم تضمين النصي بيثون الكنسي في المشاركة / rpcauth. ثم يتصل العميل عادة باستخدام rpcauth = &lt;USERNAME&gt; /rpcpassword&lt;PASSWORD&gt;  زوج من الحجج. يمكن تحديد هذا الخيار عدة مرات</translation>
     </message>
     <message>
         <source>Wallet will not create transactions that violate mempool chain limits (default: %u)</source>
