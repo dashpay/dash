@@ -9,11 +9,11 @@ http://cadex.xyz
 What is Cadex?
 ----------------
 
-Cadex is a totl of dash fork an experimental digital currency that enables anonymous, instant
+Cadex is a total of dash fork an experimental digital currency that enables anonymous, instant
 payments to anyone, anywhere in the world. Cadex uses peer-to-peer technology
 to operate with no central authority: managing transactions and issuing money
 are carried out collectively by the network. Cadex coin is the name of the open
-source software which enables the use of this currency.
+source software which enables the use of this currency. We are building a platform for business solutions
 
 SPECIFICATIONS
 --------------
