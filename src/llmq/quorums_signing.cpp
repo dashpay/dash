@@ -566,7 +566,7 @@ bool CSigningManager::AsyncSignIfMember(Consensus::LLMQType llmqType, const uint
 
         if (db.HasRecoveredSigForId(llmqType, id)) {
             // no need to sign it if we already have a recovered sig
-            return false;
+            return true;
         }
         db.WriteVoteForId(llmqType, id, msgHash);
     }
