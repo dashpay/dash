@@ -41,6 +41,4 @@ inline std::string GetExceptionWhat(const T& e)
 void RegisterPrettyTerminateHander();
 void RegisterPrettySignalHandlers();
 
-void TestCrash(bool allowOtherThread = true);
-
 #endif//DASH_STACKTRACES_H
