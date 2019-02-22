@@ -26,9 +26,6 @@
 #include <execinfo.h>
 #include <unistd.h>
 #include <signal.h>
-#if !__APPLE__
-#include <linux/limits.h> // for PATH_MAX
-#endif
 #endif
 
 #if !WIN32
