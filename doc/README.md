@@ -46,7 +46,7 @@ The following are developer notes on how to build Dash on your native platform. 
 
 Development
 ---------------------
-The Dash repo's [root README](https://github.com/dashpay/dash/blob/master/README.md) contains relevant information on the development process and automated testing.
+The Dash repo's [root README](https://github.com/Y3tiq/evacoin/blob/master/README.md) contains relevant information on the development process and automated testing.
 
 - [Coding Guidelines](coding.md)
 - [Multiwallet Qt Development](multiwallet-qt.md)

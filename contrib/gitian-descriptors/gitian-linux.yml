@@ -17,7 +17,7 @@ packages:
 - "binutils-gold"
 reference_datetime: "2016-01-01 00:00:00"
 remotes:
-- "url": "https://github.com/dashpay/dash.git"
+- "url": "https://github.com/Y3tiq/evacoin.git"
   "dir": "dash"
 files: []
 script: |

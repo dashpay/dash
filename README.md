@@ -33,10 +33,10 @@ Development Process
 -------------------
 
 The `master` branch is meant to be stable. Development is normally done in separate branches.
-[Tags](https://github.com/dashpay/dash/tags) are created to indicate new official,
+[Tags](https://github.com/Y3tiq/evacoin/tags) are created to indicate new official,
 stable release versions of Dash Core.
 
-The contribution workflow is described in [CONTRIBUTING.md](https://github.com/dashpay/dash/blob/v0.12.1.x/CONTRIBUTING.md).
+The contribution workflow is described in [CONTRIBUTING.md](https://github.com/Y3tiq/evacoin/blob/v0.12.1.x/CONTRIBUTING.md).
 
 
 Testing
