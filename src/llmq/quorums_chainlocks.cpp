@@ -201,6 +201,12 @@ void CChainLocksHandler::UpdatedBlockTip(const CBlockIndex* pindexNew, const CBl
     {
         LOCK(cs);
 
+        if (bestChainLockBlockIndex == pindexNew) {
+            // we first got the CLSIG, then the header, and then the block was connected.
+            // In this case there is no need to continue here.
+            return;
+        }
+
         if (InternalHasConflictingChainLock(pindexNew->nHeight, pindexNew->GetBlockHash())) {
             if (!inEnforceBestChainLock) {
                 // we accepted this block when there was no lock yet, but now a conflicting lock appeared. Invalidate it.
