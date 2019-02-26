@@ -567,7 +567,16 @@ void CSigSharesManager::ProcessSigShare(NodeId nodeId, const CSigShare& sigShare
         }
         
         sigSharesToAnnounce.Add(sigShare.GetKey(), true);
-        firstSeenForSessions.emplace(sigShare.GetSignHash(), GetTimeMillis());
+
+        auto it = timeSeenForSessions.find(sigShare.GetSignHash());
+        if (it == timeSeenForSessions.end()) {
+            auto t = GetTimeMillis();
+            // insert first-seen and last-seen time
+            timeSeenForSessions.emplace(sigShare.GetSignHash(), std::make_pair(t, t));
+        } else {
+            // update last-seen time
+            it->second.second = GetTimeMillis();
+        }
 
         if (!quorumNodes.empty()) {
             // don't announce and wait for other nodes to request this share and directly send it to them
@@ -968,11 +977,12 @@ void CSigSharesManager::Cleanup()
 
         // Remove sessions which timed out
         std::unordered_set<uint256> timeoutSessions;
-        for (auto& p : firstSeenForSessions) {
+        for (auto& p : timeSeenForSessions) {
             auto& signHash = p.first;
-            int64_t time = p.second;
+            int64_t firstSeenTime = p.second.first;
+            int64_t lastSeenTime = p.second.second;
 
-            if (now - time >= SIGNING_SESSION_TIMEOUT) {
+            if (now - firstSeenTime >= SESSION_TOTAL_TIMEOUT || now - lastSeenTime >= SESSION_NEW_SHARES_TIMEOUT) {
                 timeoutSessions.emplace(signHash);
             }
         }
@@ -1054,7 +1064,7 @@ void CSigSharesManager::RemoveSigSharesForSession(const uint256& signHash)
     sigSharesRequested.EraseAllForSignHash(signHash);
     sigSharesToAnnounce.EraseAllForSignHash(signHash);
     sigShares.EraseAllForSignHash(signHash);
-    firstSeenForSessions.erase(signHash);
+    timeSeenForSessions.erase(signHash);
 }
 
 void CSigSharesManager::RemoveBannedNodeStates()

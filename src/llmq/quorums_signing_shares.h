@@ -334,7 +334,8 @@ public:
 
 class CSigSharesManager : public CRecoveredSigsListener
 {
-    static const int64_t SIGNING_SESSION_TIMEOUT = 60 * 1000;
+    static const int64_t SESSION_NEW_SHARES_TIMEOUT = 60 * 1000;
+    static const int64_t SESSION_TOTAL_TIMEOUT = 5 * 60 * 1000;
     static const int64_t SIG_SHARE_REQUEST_TIMEOUT = 5 * 1000;
 
 private:
@@ -344,7 +345,9 @@ private:
     CThreadInterrupt workInterrupt;
 
     SigShareMap<CSigShare> sigShares;
-    std::unordered_map<uint256, int64_t> firstSeenForSessions;
+
+    // stores time of first and last receivedSigShare. Used to detect timeouts
+    std::unordered_map<uint256, std::pair<int64_t, int64_t>> timeSeenForSessions;
 
     std::unordered_map<NodeId, CSigSharesNodeState> nodeStates;
     SigShareMap<std::pair<NodeId, int64_t>> sigSharesRequested;
