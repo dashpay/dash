@@ -1133,8 +1133,22 @@ void CSigSharesManager::Cleanup()
                 assert(m);
 
                 auto& oneSigShare = m->begin()->second;
-                LogPrintf("CSigSharesManager::%s -- signing session timed out. signHash=%s, id=%s, msgHash=%s, sigShareCount=%d\n", __func__,
-                          signHash.ToString(), oneSigShare.id.ToString(), oneSigShare.msgHash.ToString(), count);
+
+                std::string strMissingMembers;
+                if (LogAcceptCategory("llmq")) {
+                    auto quorum = quorumManager->GetQuorum((Consensus::LLMQType)oneSigShare.llmqType, oneSigShare.quorumHash);
+                    if (quorum) {
+                        for (size_t i = 0; i < quorum->members.size(); i++) {
+                            if (!m->count((uint16_t)i)) {
+                                auto& dmn = quorum->members[i];
+                                strMissingMembers += strprintf("\n  %s", dmn->proTxHash.ToString());
+                            }
+                        }
+                    }
+                }
+
+                LogPrintf("CSigSharesManager::%s -- signing session timed out. signHash=%s, id=%s, msgHash=%s, sigShareCount=%d, missingMembers=%s\n", __func__,
+                          signHash.ToString(), oneSigShare.id.ToString(), oneSigShare.msgHash.ToString(), count, strMissingMembers);
             } else {
                 LogPrintf("CSigSharesManager::%s -- signing session timed out. signHash=%s, sigShareCount=%d\n", __func__,
                           signHash.ToString(), count);
