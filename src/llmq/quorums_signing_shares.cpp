@@ -179,6 +179,16 @@ void CSigSharesManager::StopWorkerThread()
     }
 }
 
+void CSigSharesManager::RegisterAsRecoveredSigsListener()
+{
+    quorumSigningManager->RegisterRecoveredSigsListener(this);
+}
+
+void CSigSharesManager::UnregisterAsRecoveredSigsListener()
+{
+    quorumSigningManager->UnregisterRecoveredSigsListener(this);
+}
+
 void CSigSharesManager::InterruptWorkerThread()
 {
     workInterrupt();
@@ -1190,6 +1200,12 @@ void CSigSharesManager::Sign(const CQuorumCPtr& quorum, const uint256& id, const
     LogPrintf("CSigSharesManager::%s -- signed sigShare. id=%s, msgHash=%s, time=%s\n", __func__,
               sigShare.id.ToString(), sigShare.msgHash.ToString(), t.count());
     ProcessSigShare(-1, sigShare, *g_connman, quorum);
+}
+
+void CSigSharesManager::HandleNewRecoveredSig(const llmq::CRecoveredSig& recoveredSig)
+{
+    LOCK(cs);
+    RemoveSigSharesForSession(CLLMQUtils::BuildSignHash(recoveredSig));
 }
 
 }
