@@ -75,17 +75,17 @@ void CChainLocksHandler::ProcessMessage(CNode* pfrom, const std::string& strComm
 
         auto hash = ::SerializeHash(clsig);
 
-        {
-            LOCK(cs_main);
-            connman.RemoveAskFor(hash);
-        }
-
         ProcessNewChainLock(pfrom->id, clsig, hash);
     }
 }
 
 void CChainLocksHandler::ProcessNewChainLock(NodeId from, const llmq::CChainLockSig& clsig, const uint256& hash)
 {
+    {
+        LOCK(cs_main);
+        g_connman->RemoveAskFor(hash);
+    }
+
     {
         LOCK(cs);
         if (!seenChainLocks.emplace(hash, GetTimeMillis()).second) {
