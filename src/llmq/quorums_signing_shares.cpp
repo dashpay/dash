@@ -327,10 +327,6 @@ bool CSigSharesManager::ProcessMessageSigSesAnn(CNode* pfrom, const CSigSesAnn& 
 
 bool CSigSharesManager::VerifySigSharesInv(NodeId from, Consensus::LLMQType llmqType, const CSigSharesInv& inv)
 {
-    if (!fMasternodeMode || activeMasternodeInfo.proTxHash.IsNull()) {
-        return false;
-    }
-
     size_t quorumSize = (size_t)Params().GetConsensus().llmqs.at(llmqType).size;
 
     if (inv.inv.size() != quorumSize) {
