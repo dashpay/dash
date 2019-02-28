@@ -337,6 +337,13 @@ class CSigSharesManager : public CRecoveredSigsListener
     static const int64_t SESSION_TOTAL_TIMEOUT = 5 * 60 * 1000;
     static const int64_t SIG_SHARE_REQUEST_TIMEOUT = 5 * 1000;
 
+    // we try to keep total message size below 10k
+    const size_t MAX_MSGS_CNT_QSIGSESANN = 100;
+    const size_t MAX_MSGS_CNT_QGETSIGSHARES = 200;
+    const size_t MAX_MSGS_CNT_QSIGSHARESINV = 200;
+    // 400 is the maximum quorum size, so this is also the maximum number of sigs we need to support
+    const size_t MAX_MSGS_TOTAL_BATCHED_SIGS = 400;
+
 private:
     CCriticalSection cs;
 

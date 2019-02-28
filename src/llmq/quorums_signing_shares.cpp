@@ -229,21 +229,66 @@ void CSigSharesManager::ProcessMessage(CNode* pfrom, const std::string& strComma
     }
 
     if (strCommand == NetMsgType::QSIGSESANN) {
-        CSigSesAnn ann;
-        vRecv >> ann;
-        ProcessMessageSigSesAnn(pfrom, ann, connman);
+        std::vector<CSigSesAnn> msgs;
+        vRecv >> msgs;
+        if (msgs.size() > MAX_MSGS_CNT_QSIGSESANN) {
+            LogPrint("llmq", "CSigSharesManager::%s -- too many announcements in QSIGSESANN message. cnt=%d, max=%d, node=%d\n", __func__, msgs.size(), MAX_MSGS_CNT_QSIGSESANN, pfrom->id);
+            BanNode(pfrom->id);
+            return;
+        }
+        for (auto& ann : msgs) {
+            if (!ProcessMessageSigSesAnn(pfrom, ann, connman)) {
+                return;
+            }
+        }
+        // not accounting as pending msg (as it's not batched in any way)
     } else if (strCommand == NetMsgType::QSIGSHARESINV) {
-        CSigSharesInv inv;
-        vRecv >> inv;
-        ProcessMessageSigSharesInv(pfrom, inv, connman);
+        std::vector<CSigSharesInv> msgs;
+        vRecv >> msgs;
+        if (msgs.size() > MAX_MSGS_CNT_QSIGSHARESINV) {
+            LogPrint("llmq", "CSigSharesManager::%s -- too many invs in QSIGSHARESINV message. cnt=%d, max=%d, node=%d\n", __func__, msgs.size(), MAX_MSGS_CNT_QSIGSHARESINV, pfrom->id);
+            BanNode(pfrom->id);
+            return;
+        }
+        for (auto& inv : msgs) {
+            if (!ProcessMessageSigSharesInv(pfrom, inv, connman)) {
+                return;
+            }
+        }
+        LOCK(cs);
+        nodeStates[pfrom->id].pendingReceivedMsgCount += msgs.size();
     } else if (strCommand == NetMsgType::QGETSIGSHARES) {
-        CSigSharesInv inv;
-        vRecv >> inv;
-        ProcessMessageGetSigShares(pfrom, inv, connman);
+        std::vector<CSigSharesInv> msgs;
+        vRecv >> msgs;
+        if (msgs.size() > MAX_MSGS_CNT_QGETSIGSHARES) {
+            LogPrint("llmq", "CSigSharesManager::%s -- too many invs in QGETSIGSHARES message. cnt=%d, max=%d, node=%d\n", __func__, msgs.size(), MAX_MSGS_CNT_QGETSIGSHARES, pfrom->id);
+            BanNode(pfrom->id);
+            return;
+        }
+        for (auto& inv : msgs) {
+            if (!ProcessMessageGetSigShares(pfrom, inv, connman)) {
+                return;
+            }
+        }
     } else if (strCommand == NetMsgType::QBSIGSHARES) {
-        CBatchedSigShares batchedSigShares;
-        vRecv >> batchedSigShares;
-        ProcessMessageBatchedSigShares(pfrom, batchedSigShares, connman);
+        std::vector<CBatchedSigShares> msgs;
+        vRecv >> msgs;
+        size_t totalSigsCount = 0;
+        for (auto& bs : msgs) {
+            totalSigsCount += bs.sigShares.size();
+        }
+        if (totalSigsCount > MAX_MSGS_TOTAL_BATCHED_SIGS) {
+            LogPrint("llmq", "CSigSharesManager::%s -- too many sigs in QBSIGSHARES message. cnt=%d, max=%d, node=%d\n", __func__, msgs.size(), MAX_MSGS_TOTAL_BATCHED_SIGS, pfrom->id);
+            BanNode(pfrom->id);
+            return;
+        }
+        for (auto& bs : msgs) {
+            if (!ProcessMessageBatchedSigShares(pfrom, bs, connman)) {
+                return;
+            }
+        }
+        LOCK(cs);
+        nodeStates[pfrom->id].pendingReceivedMsgCount += msgs.size();
     }
 }
 
@@ -1017,48 +1062,87 @@ bool CSigSharesManager::SendMessages()
 
         auto it1 = sigSessionAnnouncements.find(pnode->id);
         if (it1 != sigSessionAnnouncements.end()) {
+            std::vector<CSigSesAnn> msgs;
+            msgs.reserve(it1->second.size());
             for (auto& sigSesAnn : it1->second) {
                 LogPrint("llmq", "CSigSharesManager::SendMessages -- QSIGSESANN signHash=%s, sessionId=%d, node=%d\n",
                          CLLMQUtils::BuildSignHash(sigSesAnn).ToString(), sigSesAnn.sessionId, pnode->id);
-                g_connman->PushMessage(pnode, msgMaker.Make(NetMsgType::QSIGSESANN, sigSesAnn), false);
+                msgs.emplace_back(sigSesAnn);
+                if (msgs.size() >= MAX_MSGS_CNT_QSIGSESANN) {
+                    g_connman->PushMessage(pnode, msgMaker.Make(NetMsgType::QSIGSESANN, msgs), false);
+                    msgs.clear();
+                }
                 didSend = true;
+            }
+            if (!msgs.empty()) {
+                g_connman->PushMessage(pnode, msgMaker.Make(NetMsgType::QSIGSESANN, msgs), false);
             }
         }
 
         auto it = sigSharesToRequest.find(pnode->id);
         if (it != sigSharesToRequest.end()) {
+            std::vector<CSigSharesInv> msgs;
             for (auto& p : it->second) {
                 assert(p.second.CountSet() != 0);
                 LogPrint("llmq", "CSigSharesManager::SendMessages -- QGETSIGSHARES signHash=%s, inv={%s}, node=%d\n",
                          p.first.ToString(), p.second.ToString(), pnode->id);
-                g_connman->PushMessage(pnode, msgMaker.Make(NetMsgType::QGETSIGSHARES, p.second), false);
+                msgs.emplace_back(std::move(p.second));
+                if (msgs.size() >= MAX_MSGS_CNT_QGETSIGSHARES) {
+                    g_connman->PushMessage(pnode, msgMaker.Make(NetMsgType::QGETSIGSHARES, msgs), false);
+                    msgs.clear();
+                }
                 didSend = true;
+            }
+            if (!msgs.empty()) {
+                g_connman->PushMessage(pnode, msgMaker.Make(NetMsgType::QGETSIGSHARES, msgs), false);
             }
         }
 
         auto jt = sigSharesToSend.find(pnode->id);
         if (jt != sigSharesToSend.end()) {
+            size_t totalSigsCount = 0;
+            std::vector<CBatchedSigShares> msgs;
             for (auto& p : jt->second) {
                 assert(!p.second.sigShares.empty());
                 if (LogAcceptCategory("llmq")) {
                     LOCK(cs);
                     auto session = nodeStates[pnode->id].GetSessionBySignHash(p.first);
+                    assert(session);
                     LogPrint("llmq", "CSigSharesManager::SendMessages -- QBSIGSHARES signHash=%s, inv={%s}, node=%d\n",
                              p.first.ToString(), p.second.ToInv(session->llmqType).ToString(), pnode->id);
                 }
-                g_connman->PushMessage(pnode, msgMaker.Make(NetMsgType::QBSIGSHARES, p.second), false);
+
+                if (totalSigsCount + p.second.sigShares.size() > MAX_MSGS_TOTAL_BATCHED_SIGS) {
+                    g_connman->PushMessage(pnode, msgMaker.Make(NetMsgType::QBSIGSHARES, msgs), false);
+                    msgs.clear();
+                    totalSigsCount = 0;
+                }
+                totalSigsCount += p.second.sigShares.size();
+                msgs.emplace_back(std::move(p.second));
+
                 didSend = true;
+            }
+            if (!msgs.empty()) {
+                g_connman->PushMessage(pnode, msgMaker.Make(NetMsgType::QBSIGSHARES, std::move(msgs)), false);
             }
         }
 
         auto kt = sigSharesToAnnounce.find(pnode->id);
         if (kt != sigSharesToAnnounce.end()) {
+            std::vector<CSigSharesInv> msgs;
             for (auto& p : kt->second) {
                 assert(p.second.CountSet() != 0);
                 LogPrint("llmq", "CSigSharesManager::SendMessages -- QSIGSHARESINV signHash=%s, inv={%s}, node=%d\n",
                          p.first.ToString(), p.second.ToString(), pnode->id);
-                g_connman->PushMessage(pnode, msgMaker.Make(NetMsgType::QSIGSHARESINV, p.second), false);
+                msgs.emplace_back(std::move(p.second));
+                if (msgs.size() >= MAX_MSGS_CNT_QSIGSHARESINV) {
+                    g_connman->PushMessage(pnode, msgMaker.Make(NetMsgType::QSIGSHARESINV, msgs), false);
+                    msgs.clear();
+                }
                 didSend = true;
+            }
+            if (!msgs.empty()) {
+                g_connman->PushMessage(pnode, msgMaker.Make(NetMsgType::QSIGSHARESINV, msgs), false);
             }
         }
 
