@@ -1056,7 +1056,7 @@ bool CSigSharesManager::SendMessages()
                 LogPrint("llmq", "CSigSharesManager::SendMessages -- QSIGSESANN signHash=%s, sessionId=%d, node=%d\n",
                          CLLMQUtils::BuildSignHash(sigSesAnn).ToString(), sigSesAnn.sessionId, pnode->id);
                 msgs.emplace_back(sigSesAnn);
-                if (msgs.size() >= MAX_MSGS_CNT_QSIGSESANN) {
+                if (msgs.size() == MAX_MSGS_CNT_QSIGSESANN) {
                     g_connman->PushMessage(pnode, msgMaker.Make(NetMsgType::QSIGSESANN, msgs), false);
                     msgs.clear();
                 }
@@ -1075,7 +1075,7 @@ bool CSigSharesManager::SendMessages()
                 LogPrint("llmq", "CSigSharesManager::SendMessages -- QGETSIGSHARES signHash=%s, inv={%s}, node=%d\n",
                          p.first.ToString(), p.second.ToString(), pnode->id);
                 msgs.emplace_back(std::move(p.second));
-                if (msgs.size() >= MAX_MSGS_CNT_QGETSIGSHARES) {
+                if (msgs.size() == MAX_MSGS_CNT_QGETSIGSHARES) {
                     g_connman->PushMessage(pnode, msgMaker.Make(NetMsgType::QGETSIGSHARES, msgs), false);
                     msgs.clear();
                 }
@@ -1123,7 +1123,7 @@ bool CSigSharesManager::SendMessages()
                 LogPrint("llmq", "CSigSharesManager::SendMessages -- QSIGSHARESINV signHash=%s, inv={%s}, node=%d\n",
                          p.first.ToString(), p.second.ToString(), pnode->id);
                 msgs.emplace_back(std::move(p.second));
-                if (msgs.size() >= MAX_MSGS_CNT_QSIGSHARESINV) {
+                if (msgs.size() == MAX_MSGS_CNT_QSIGSHARESINV) {
                     g_connman->PushMessage(pnode, msgMaker.Make(NetMsgType::QSIGSHARESINV, msgs), false);
                     msgs.clear();
                 }
