@@ -238,6 +238,7 @@ void CSigSharesManager::ProcessMessage(CNode* pfrom, const std::string& strComma
         }
         for (auto& ann : msgs) {
             if (!ProcessMessageSigSesAnn(pfrom, ann, connman)) {
+                BanNode(pfrom->id);
                 return;
             }
         }
@@ -251,6 +252,7 @@ void CSigSharesManager::ProcessMessage(CNode* pfrom, const std::string& strComma
         }
         for (auto& inv : msgs) {
             if (!ProcessMessageSigSharesInv(pfrom, inv, connman)) {
+                BanNode(pfrom->id);
                 return;
             }
         }
@@ -264,6 +266,7 @@ void CSigSharesManager::ProcessMessage(CNode* pfrom, const std::string& strComma
         }
         for (auto& inv : msgs) {
             if (!ProcessMessageGetSigShares(pfrom, inv, connman)) {
+                BanNode(pfrom->id);
                 return;
             }
         }
@@ -281,6 +284,7 @@ void CSigSharesManager::ProcessMessage(CNode* pfrom, const std::string& strComma
         }
         for (auto& bs : msgs) {
             if (!ProcessMessageBatchedSigShares(pfrom, bs, connman)) {
+                BanNode(pfrom->id);
                 return;
             }
         }
@@ -291,11 +295,9 @@ bool CSigSharesManager::ProcessMessageSigSesAnn(CNode* pfrom, const CSigSesAnn& 
 {
     auto llmqType = (Consensus::LLMQType)ann.llmqType;
     if (!Params().GetConsensus().llmqs.count(llmqType)) {
-        BanNode(pfrom->id);
         return false;
     }
     if (ann.sessionId == (uint32_t)-1 || ann.quorumHash.IsNull() || ann.id.IsNull() || ann.msgHash.IsNull()) {
-        BanNode(pfrom->id);
         return false;
     }
 
@@ -332,7 +334,6 @@ bool CSigSharesManager::VerifySigSharesInv(NodeId from, Consensus::LLMQType llmq
     size_t quorumSize = (size_t)Params().GetConsensus().llmqs.at(llmqType).size;
 
     if (inv.inv.size() != quorumSize) {
-        BanNode(from);
         return false;
     }
     return true;
@@ -407,11 +408,7 @@ bool CSigSharesManager::ProcessMessageBatchedSigShares(CNode* pfrom, const CBatc
 
     bool ban = false;
     if (!PreVerifyBatchedSigShares(pfrom->id, sessionInfo, batchedSigShares, ban)) {
-        if (ban) {
-            BanNode(pfrom->id);
-            return false;
-        }
-        return true;
+        return ban;
     }
 
     std::vector<CSigShare> sigShares;
