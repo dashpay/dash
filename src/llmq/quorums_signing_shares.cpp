@@ -241,7 +241,6 @@ void CSigSharesManager::ProcessMessage(CNode* pfrom, const std::string& strComma
                 return;
             }
         }
-        // not accounting as pending msg (as it's not batched in any way)
     } else if (strCommand == NetMsgType::QSIGSHARESINV) {
         std::vector<CSigSharesInv> msgs;
         vRecv >> msgs;
@@ -255,8 +254,6 @@ void CSigSharesManager::ProcessMessage(CNode* pfrom, const std::string& strComma
                 return;
             }
         }
-        LOCK(cs);
-        nodeStates[pfrom->id].pendingReceivedMsgCount += msgs.size();
     } else if (strCommand == NetMsgType::QGETSIGSHARES) {
         std::vector<CSigSharesInv> msgs;
         vRecv >> msgs;
@@ -287,8 +284,6 @@ void CSigSharesManager::ProcessMessage(CNode* pfrom, const std::string& strComma
                 return;
             }
         }
-        LOCK(cs);
-        nodeStates[pfrom->id].pendingReceivedMsgCount += msgs.size();
     }
 }
 
