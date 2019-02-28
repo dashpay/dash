@@ -1059,11 +1059,12 @@ bool CSigSharesManager::SendMessages()
                 if (msgs.size() == MAX_MSGS_CNT_QSIGSESANN) {
                     g_connman->PushMessage(pnode, msgMaker.Make(NetMsgType::QSIGSESANN, msgs), false);
                     msgs.clear();
+                    didSend = true;
                 }
-                didSend = true;
             }
             if (!msgs.empty()) {
                 g_connman->PushMessage(pnode, msgMaker.Make(NetMsgType::QSIGSESANN, msgs), false);
+                didSend = true;
             }
         }
 
@@ -1078,11 +1079,12 @@ bool CSigSharesManager::SendMessages()
                 if (msgs.size() == MAX_MSGS_CNT_QGETSIGSHARES) {
                     g_connman->PushMessage(pnode, msgMaker.Make(NetMsgType::QGETSIGSHARES, msgs), false);
                     msgs.clear();
+                    didSend = true;
                 }
-                didSend = true;
             }
             if (!msgs.empty()) {
                 g_connman->PushMessage(pnode, msgMaker.Make(NetMsgType::QGETSIGSHARES, msgs), false);
+                didSend = true;
             }
         }
 
@@ -1104,14 +1106,15 @@ bool CSigSharesManager::SendMessages()
                     g_connman->PushMessage(pnode, msgMaker.Make(NetMsgType::QBSIGSHARES, msgs), false);
                     msgs.clear();
                     totalSigsCount = 0;
+                    didSend = true;
                 }
                 totalSigsCount += p.second.sigShares.size();
                 msgs.emplace_back(std::move(p.second));
 
-                didSend = true;
             }
             if (!msgs.empty()) {
                 g_connman->PushMessage(pnode, msgMaker.Make(NetMsgType::QBSIGSHARES, std::move(msgs)), false);
+                didSend = true;
             }
         }
 
@@ -1126,11 +1129,12 @@ bool CSigSharesManager::SendMessages()
                 if (msgs.size() == MAX_MSGS_CNT_QSIGSHARESINV) {
                     g_connman->PushMessage(pnode, msgMaker.Make(NetMsgType::QSIGSHARESINV, msgs), false);
                     msgs.clear();
+                    didSend = true;
                 }
-                didSend = true;
             }
             if (!msgs.empty()) {
                 g_connman->PushMessage(pnode, msgMaker.Make(NetMsgType::QSIGSHARESINV, msgs), false);
+                didSend = true;
             }
         }
 
