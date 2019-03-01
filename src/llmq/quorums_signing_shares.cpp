@@ -358,7 +358,7 @@ bool CSigSharesManager::ProcessMessageSigSharesInv(CNode* pfrom, const CSigShare
         // TODO we should allow to ask other nodes for the quorum vvec if we missed it in the DKG
         LogPrintf("CSigSharesManager::%s -- we don't have the quorum vvec for %s, not requesting sig shares. node=%d\n", __func__,
                   sessionInfo.quorumHash.ToString(), pfrom->id);
-        return;
+        return true;
     }
 
     LOCK(cs);
