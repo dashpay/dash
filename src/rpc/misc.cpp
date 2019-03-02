@@ -1216,7 +1216,7 @@ static const CRPCCommand commands[] =
     { "control",            "logging",                &logging,                {"include", "exclude"}},
     { "util",               "validateaddress",        &validateaddress,        {"address"} },
     { "util",               "createmultisig",         &createmultisig,         {"nrequired","keys"} },
-    { "util",               "deriveaddresses",        &deriveaddresses,        {"descriptor", "begin", "end"} },    
+    { "util",               "deriveaddresses",        &deriveaddresses,        {"descriptor", "range"} },
     { "util",               "verifymessage",          &verifymessage,          {"address","signature","message"} },
     { "util",               "signmessagewithprivkey", &signmessagewithprivkey, {"privkey","message"} },
     { "blockchain",         "getspentinfo",           &getspentinfo,           {"json"} },
