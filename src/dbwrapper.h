@@ -506,7 +506,7 @@ public:
         deletes.clear();
     }
 
-    bool Commit() {
+    void Commit() {
         CDBBatch batch(db);
         for (auto &p : deletes) {
             for (auto &p2 : p.second) {
@@ -520,7 +520,6 @@ public:
         }
         bool ret = db.WriteBatch(batch, true);
         Clear();
-        return ret;
     }
 
     bool IsClean() {
@@ -541,13 +540,12 @@ public:
         if (!didCommitOrRollback)
             Rollback();
     }
-    bool Commit() {
+    void Commit() {
         assert(!didCommitOrRollback);
         didCommitOrRollback = true;
-        bool result = dbTransaction.Commit();
+        dbTransaction.Commit();
         if (commitHandler)
             commitHandler();
-        return result;
     }
     void Rollback() {
         assert(!didCommitOrRollback);
