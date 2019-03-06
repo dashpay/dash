@@ -356,14 +356,16 @@ public:
 
 };
 
+template<typename Parent, typename CommitTarget>
 class CDBTransaction {
-private:
-    CDBWrapper &db;
+protected:
+    Parent &parent;
+    CommitTarget &commitTarget;
 
     struct KeyHolder {
         virtual ~KeyHolder() = default;
         virtual bool Less(const KeyHolder &b) const = 0;
-        virtual void Erase(CDBBatch &batch) = 0;
+        virtual void Erase(CommitTarget &commitTarget) = 0;
     };
     typedef std::unique_ptr<KeyHolder> KeyHolderPtr;
 
@@ -376,15 +378,15 @@ private:
             auto *b2 = dynamic_cast<const KeyHolderImpl<K>*>(&b);
             return key < b2->key;
         }
-        virtual void Erase(CDBBatch &batch) {
-            batch.Erase(key);
+        virtual void Erase(CommitTarget &commitTarget) {
+            commitTarget.Erase(key);
         }
         K key;
     };
 
     struct KeyValueHolder {
         virtual ~KeyValueHolder() = default;
-        virtual void Write(CDBBatch &batch) = 0;
+        virtual void Write(CommitTarget &parent) = 0;
     };
     typedef std::unique_ptr<KeyValueHolder> KeyValueHolderPtr;
 
@@ -393,8 +395,8 @@ private:
         KeyValueHolderImpl(const KeyHolderImpl<K> &_key, const V &_value)
                 : key(_key),
                   value(_value) { }
-        virtual void Write(CDBBatch &batch) {
-            batch.Write(key.key, value);
+        virtual void Write(CommitTarget &commitTarget) {
+            commitTarget.Write(key.key, std::move(value));
         }
         const KeyHolderImpl<K> &key;
         V value;
@@ -435,7 +437,7 @@ private:
     }
 
 public:
-    CDBTransaction(CDBWrapper &_db) : db(_db) {}
+    CDBTransaction(Parent &_parent, CommitTarget &_commitTarget) : parent(_parent), commitTarget(_commitTarget) {}
 
     template <typename K, typename V>
     void Write(const K& key, const V& value) {
@@ -462,7 +464,7 @@ public:
 
         KeyValueMap *ws = getWritesMap<K>(false);
         if (ws) {
-            KeyValueMap::iterator it = ws->find(k);
+            auto it = ws->find(k);
             if (it != ws->end()) {
                 auto *impl = dynamic_cast<KeyValueHolderImpl<K, V> *>(it->second.get());
                 if (!impl)
@@ -472,7 +474,7 @@ public:
             }
         }
 
-        return db.Read(key, value);
+        return parent.Read(key, value);
     }
 
     template <typename K>
@@ -487,7 +489,7 @@ public:
         if (ws && ws->count(k))
             return true;
 
-        return db.Exists(key);
+        return parent.Exists(key);
     }
 
     template <typename K>
@@ -507,18 +509,16 @@ public:
     }
 
     void Commit() {
-        CDBBatch batch(db);
         for (auto &p : deletes) {
             for (auto &p2 : p.second) {
-                p2.first->Erase(batch);
+                p2.first->Erase(commitTarget);
             }
         }
         for (auto &p : writes) {
             for (auto &p2 : p.second) {
-                p2.second->Write(batch);
+                p2.second->Write(commitTarget);
             }
         }
-        bool ret = db.WriteBatch(batch, true);
         Clear();
     }
 
@@ -527,15 +527,19 @@ public:
     }
 };
 
+template<typename Parent, typename CommitTarget>
 class CScopedDBTransaction {
+public:
+    typedef CDBTransaction<Parent, CommitTarget> Transaction;
+
 private:
-    CDBTransaction &dbTransaction;
+    Transaction &dbTransaction;
     std::function<void ()> commitHandler;
     std::function<void ()> rollbackHandler;
     bool didCommitOrRollback{};
 
 public:
-    CScopedDBTransaction(CDBTransaction &dbTx) : dbTransaction(dbTx) {}
+    CScopedDBTransaction(Transaction &dbTx) : dbTransaction(dbTx) {}
     ~CScopedDBTransaction() {
         if (!didCommitOrRollback)
             Rollback();
@@ -555,9 +559,9 @@ public:
             rollbackHandler();
     }
 
-    static std::unique_ptr<CScopedDBTransaction> Begin(CDBTransaction &dbTx) {
+    static std::unique_ptr<CScopedDBTransaction<Parent, CommitTarget>> Begin(Transaction &dbTx) {
         assert(dbTx.IsClean());
-        return std::unique_ptr<CScopedDBTransaction>(new CScopedDBTransaction(dbTx));
+        return std::make_unique<CScopedDBTransaction<Parent, CommitTarget>>(dbTx);
     }
 
     void SetCommitHandler(const std::function<void ()> &h) {
