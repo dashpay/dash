@@ -395,7 +395,12 @@ protected:
         KeyValueHolderImpl(const KeyHolderImpl<K> &_key, const V &_value)
                 : key(_key),
                   value(_value) { }
+        KeyValueHolderImpl(const KeyHolderImpl<K> &_key, V &&_value)
+                : key(_key),
+                  value(std::forward<V>(_value)) { }
         virtual void Write(CommitTarget &commitTarget) {
+            // we're moving the value instead of copying it. This means that Write() can only be called once per
+            // KeyValueHolderImpl instance. Commit() clears the write maps, so this ok.
             commitTarget.Write(key.key, std::move(value));
         }
         const KeyHolderImpl<K> &key;
@@ -436,22 +441,34 @@ protected:
         return getMapForType<K>(deletes, create);
     }
 
+    template <typename K, typename KV>
+    void writeImpl(KeyHolderImpl<K>* k, KV&& kv) {
+        auto k2 = KeyHolderPtr(k);
+
+        KeyValueMap *ds = getDeletesMap<K>(false);
+        if (ds)
+            ds->erase(k2);
+
+        KeyValueMap *ws = getWritesMap<K>(true);
+        ws->erase(k2);
+        ws->emplace(std::make_pair(std::move(k2), std::forward<KV>(kv)));
+    }
+
 public:
     CDBTransaction(Parent &_parent, CommitTarget &_commitTarget) : parent(_parent), commitTarget(_commitTarget) {}
 
     template <typename K, typename V>
-    void Write(const K& key, const V& value) {
-        KeyHolderPtr k(new KeyHolderImpl<K>(key));
-        KeyHolderImpl<K>* k2 = dynamic_cast<KeyHolderImpl<K>*>(k.get());
-        KeyValueHolderPtr kv(new KeyValueHolderImpl<K,V>(*k2, value));
+    void Write(const K& key, const V& v) {
+        auto k = new KeyHolderImpl<K>(key);
+        auto kv = std::make_unique<KeyValueHolderImpl<K, V>>(*k, v);
+        writeImpl(k, std::move(kv));
+    }
 
-        KeyValueMap *ds = getDeletesMap<K>(false);
-        if (ds)
-            ds->erase(k);
-
-        KeyValueMap *ws = getWritesMap<K>(true);
-        ws->erase(k);
-        ws->emplace(std::make_pair(std::move(k), std::move(kv)));
+    template <typename K, typename V>
+    void Write(const K& key, V&& v) {
+        auto k = new KeyHolderImpl<K>(key);
+        auto kv = std::make_unique<KeyValueHolderImpl<K, typename std::remove_reference<V>::type>>(*k, std::forward<V>(v));
+        writeImpl(k, std::move(kv));
     }
 
     template <typename K, typename V>
