@@ -64,7 +64,10 @@ void WalletTxToJSON(const CWalletTx& wtx, UniValue& entry)
 {
     int confirms = wtx.GetDepthInMainChain();
     bool fLocked = instantsend.IsLockedInstantSendTransaction(wtx.GetHash());
-    bool chainlock = llmq::chainLocksHandler->HasChainLock(wtx.nIndex, wtx.hashBlock);
+    bool chainlock = false;
+    if (confirms > 0) {
+        chainlock = llmq::chainLocksHandler->HasChainLock(mapBlockIndex[wtx.hashBlock]->nHeight, wtx.hashBlock);
+    }
     entry.push_back(Pair("confirmations", confirms));
     entry.push_back(Pair("instantlock", fLocked));
     entry.push_back(Pair("chainlock", chainlock));
