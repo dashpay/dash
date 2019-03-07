@@ -62,11 +62,11 @@ void EnsureWalletIsUnlocked(CWallet * const pwallet)
 
 void WalletTxToJSON(const CWalletTx& wtx, UniValue& entry)
 {
+    AssertLockHeld(cs_main); // for mapBlockIndex
     int confirms = wtx.GetDepthInMainChain();
     bool fLocked = instantsend.IsLockedInstantSendTransaction(wtx.GetHash());
     bool chainlock = false;
     if (confirms > 0) {
-        AssertLockHeld(cs_main); // for mapBlockIndex
         chainlock = llmq::chainLocksHandler->HasChainLock(mapBlockIndex[wtx.hashBlock]->nHeight, wtx.hashBlock);
     }
     entry.push_back(Pair("confirmations", confirms));
