@@ -121,7 +121,9 @@ Credits
 
 Thanks to everyone who directly contributed to this release:
 
-- Alexander Block
+- Alexander Block (codablock)
+- Felix Yan (felixonmars)
+- PastaPastaPasta
 - UdjinM6
 
 As well as everyone that submitted issues and reviewed pull requests.
