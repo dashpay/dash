@@ -113,6 +113,7 @@ See detailed [set of changes](https://github.com/dashpay/dash/compare/v0.13.1.0.
 
 ### Other
 
+- [`9dd16cdbe`](https://github.com/dashpay/dash/commit/9dd16cdbe) Bump minChainWork and AssumeValid to block #1033120 (#2750)
 - [`18f087b27`](https://github.com/dashpay/dash/commit/18f087b27) Fix some typos in doc/guide-startmany.md (#2711)
 - [`709ab6d3e`](https://github.com/dashpay/dash/commit/709ab6d3e) Minimal fix for litemode vs bad-protx-key-not-same issue (#2694)
 
