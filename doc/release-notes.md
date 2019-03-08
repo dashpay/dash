@@ -44,7 +44,7 @@ Downgrading to 0.13.0.0 is fully supported but is not recommended unless you hav
 Notable changes
 ===============
 
-Providing "masternodeblsprivkey" is now mandatory when "masternode" is 1
+Providing "masternodeblsprivkey" is now mandatory when the node is launched as a masternode ("masternode=1")
 ------------------------------------------------------------------------
 In previous versions, "masternodeblsprivkey" was not mandatory as these versions had to function with and without DIP3
 activation. Now that DIP3 has activated on mainnet and testnet, we can make "masternodeblsprivkey" mandatory when
