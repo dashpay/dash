@@ -19,8 +19,8 @@
 #include "primitives/block.h"
 #include "primitives/transaction.h"
 
-#include "governance-object.h"
-#include "governance-vote.h"
+#include "governance/governance-object.h"
+#include "governance/governance-vote.h"
 
 #include "instantx.h"
 

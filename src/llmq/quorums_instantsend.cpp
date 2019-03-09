@@ -10,7 +10,7 @@
 #include "chainparams.h"
 #include "coins.h"
 #include "txmempool.h"
-#include "masternode-sync.h"
+#include "masternode/masternode-sync.h"
 #include "net_processing.h"
 #include "spork.h"
 #include "validation.h"

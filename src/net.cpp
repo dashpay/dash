@@ -26,8 +26,8 @@
 #include "validation.h"
 
 #include "instantx.h"
-#include "masternode-sync.h"
-#include "privatesend.h"
+#include "masternode/masternode-sync.h"
+#include "privatesend/privatesend.h"
 #include "llmq/quorums_instantsend.h"
 
 #ifdef WIN32

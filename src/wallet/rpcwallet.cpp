@@ -20,7 +20,7 @@
 #include "wallet.h"
 #include "walletdb.h"
 #include "keepass.h"
-#include "privatesend-client.h"
+#include "privatesend/privatesend-client.h"
 
 #include "llmq/quorums_chainlocks.h"
 #include "llmq/quorums_instantsend.h"

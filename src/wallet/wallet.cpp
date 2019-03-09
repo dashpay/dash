@@ -28,10 +28,10 @@
 #include "ui_interface.h"
 #include "utilmoneystr.h"
 
-#include "governance.h"
+#include "governance/governance.h"
 #include "instantx.h"
 #include "keepass.h"
-#include "privatesend-client.h"
+#include "privatesend/privatesend-client.h"
 #include "spork.h"
 
 #include "evo/providertx.h"
