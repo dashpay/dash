@@ -4,7 +4,7 @@
 
 #include "masternode/activemasternode.h"
 #include "init.h"
-#include "instantx.h"
+#include "instantsend.h"
 #include "key.h"
 #include "validation.h"
 #include "masternode/masternode-payments.h"

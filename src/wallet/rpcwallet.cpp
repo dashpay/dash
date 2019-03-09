@@ -10,7 +10,7 @@
 #include "consensus/validation.h"
 #include "core_io.h"
 #include "init.h"
-#include "instantx.h"
+#include "instantsend.h"
 #include "net.h"
 #include "rpc/server.h"
 #include "timedata.h"

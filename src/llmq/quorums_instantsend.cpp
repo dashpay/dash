@@ -20,7 +20,7 @@
 #endif
 
 // needed for AUTO_IX_MEMPOOL_THRESHOLD
-#include "instantx.h"
+#include "instantsend.h"
 
 #include <boost/algorithm/string/replace.hpp>
 #include <boost/thread.hpp>

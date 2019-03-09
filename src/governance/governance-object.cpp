@@ -8,7 +8,7 @@
 #include "governance-validators.h"
 #include "governance-vote.h"
 #include "governance.h"
-#include "instantx.h"
+#include "instantsend.h"
 #include "masternode/masternode-meta.h"
 #include "masternode/masternode-sync.h"
 #include "messagesigner.h"

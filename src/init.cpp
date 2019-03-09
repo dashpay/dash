@@ -48,7 +48,7 @@
 #include "dsnotificationinterface.h"
 #include "flat-database.h"
 #include "governance/governance.h"
-#include "instantx.h"
+#include "instantsend.h"
 #ifdef ENABLE_WALLET
 #include "keepass.h"
 #endif

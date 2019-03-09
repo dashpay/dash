@@ -38,7 +38,7 @@
 #include "versionbits.h"
 #include "warnings.h"
 
-#include "instantx.h"
+#include "instantsend.h"
 #include "masternode/masternode-payments.h"
 
 #include "evo/specialtx.h"

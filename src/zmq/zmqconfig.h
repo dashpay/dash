@@ -22,7 +22,7 @@
 #include "governance/governance-object.h"
 #include "governance/governance-vote.h"
 
-#include "instantx.h"
+#include "instantsend.h"
 
 void zmqError(const char *str);
 
