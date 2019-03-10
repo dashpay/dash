@@ -298,18 +298,18 @@ void CChainLocksHandler::TrySignChainTip()
             }
 
             for (auto& txid : *txids) {
-                int64_t txAge = 0;
+                int confirmations = 0;
                 {
                     LOCK(cs);
-                    auto it = txFirstSeenTime.find(txid);
-                    if (it != txFirstSeenTime.end()) {
-                        txAge = GetAdjustedTime() - it->second;
+                    auto it = txFirstSeenBlockHeight.find(txid);
+                    if (it != txFirstSeenBlockHeight.end()) {
+                        confirmations = pindex->nHeight - it->second;
                     }
                 }
 
-                if (txAge < WAIT_FOR_ISLOCK_TIMEOUT && !quorumInstantSendManager->IsLocked(txid)) {
-                    LogPrintf("CChainLocksHandler::%s -- not signing block %s due to TX %s not being ixlocked and not old enough. age=%d\n", __func__,
-                              pindexWalk->GetBlockHash().ToString(), txid.ToString(), txAge);
+                if (confirmations < WAIT_FOR_ISLOCK_CONFIRMATIONS && !quorumInstantSendManager->IsLocked(txid)) {
+                    LogPrintf("CChainLocksHandler::%s -- not signing block %s due to TX %s not being ixlocked and not old enough, confirmations=%d\n", __func__,
+                              pindexWalk->GetBlockHash().ToString(), txid.ToString(), confirmations);
                     return;
                 }
             }
@@ -344,8 +344,6 @@ void CChainLocksHandler::NewPoWValidBlock(const CBlockIndex* pindex, const std::
         return;
     }
 
-    int64_t curTime = GetAdjustedTime();
-
     // We listen for NewPoWValidBlock so that we can collect all TX ids of all included TXs of newly received blocks
     // We need this information later when we try to sign a new tip, so that we can determine if all included TXs are
     // safe.
@@ -359,7 +357,7 @@ void CChainLocksHandler::NewPoWValidBlock(const CBlockIndex* pindex, const std::
             }
         }
         txs->emplace(tx->GetHash());
-        txFirstSeenTime.emplace(tx->GetHash(), curTime);
+        txFirstSeenBlockHeight.emplace(tx->GetHash(), pindex->nHeight - 1);
     }
     blockTxs[pindex->GetBlockHash()] = txs;
 }
@@ -373,12 +371,25 @@ void CChainLocksHandler::SyncTransaction(const CTransaction& tx, const CBlockInd
         }
     }
 
-    LOCK(cs);
-    int64_t curTime = GetAdjustedTime();
-    txFirstSeenTime.emplace(tx.GetHash(), curTime);
+    uint256 txHash = tx.GetHash();
+
+    {
+        LOCK(cs);
+        if (txFirstSeenBlockHeight.count(txHash)) {
+            return;
+        }
+    }
+
+    if (pindex) {
+        LOCK(cs);
+        txFirstSeenBlockHeight.emplace(txHash, pindex->nHeight);
+    } else {
+        LOCK2(cs_main, cs);
+        txFirstSeenBlockHeight.emplace(txHash, chainActive.Height());
+    }
 }
 
-bool CChainLocksHandler::IsTxSafeForMining(const uint256& txid)
+bool CChainLocksHandler::IsTxSafeForMining(const uint256& txid, int nHeight)
 {
     if (!sporkManager.IsSporkActive(SPORK_19_CHAINLOCKS_ENABLED) || !sporkManager.IsSporkActive(SPORK_3_INSTANTSEND_BLOCK_FILTERING)) {
         return true;
@@ -387,16 +398,16 @@ bool CChainLocksHandler::IsTxSafeForMining(const uint256& txid)
         return true;
     }
 
-    int64_t txAge = 0;
+    int confirmations = 0;
     {
         LOCK(cs);
-        auto it = txFirstSeenTime.find(txid);
-        if (it != txFirstSeenTime.end()) {
-            txAge = GetAdjustedTime() - it->second;
+        auto it = txFirstSeenBlockHeight.find(txid);
+        if (it != txFirstSeenBlockHeight.end()) {
+            confirmations = nHeight - it->second;
         }
     }
 
-    if (txAge < WAIT_FOR_ISLOCK_TIMEOUT && !quorumInstantSendManager->IsLocked(txid)) {
+    if (confirmations < WAIT_FOR_ISLOCK_CONFIRMATIONS && !quorumInstantSendManager->IsLocked(txid)) {
         return false;
     }
     return true;
@@ -594,7 +605,7 @@ void CChainLocksHandler::Cleanup()
         auto pindex = mapBlockIndex.at(it->first);
         if (InternalHasChainLock(pindex->nHeight, pindex->GetBlockHash())) {
             for (auto& txid : *it->second) {
-                txFirstSeenTime.erase(txid);
+                txFirstSeenBlockHeight.erase(txid);
             }
             it = blockTxs.erase(it);
         } else if (InternalHasConflictingChainLock(pindex->nHeight, pindex->GetBlockHash())) {
@@ -603,17 +614,17 @@ void CChainLocksHandler::Cleanup()
             ++it;
         }
     }
-    for (auto it = txFirstSeenTime.begin(); it != txFirstSeenTime.end(); ) {
+    for (auto it = txFirstSeenBlockHeight.begin(); it != txFirstSeenBlockHeight.end(); ) {
         CTransactionRef tx;
         uint256 hashBlock;
         if (!GetTransaction(it->first, tx, Params().GetConsensus(), hashBlock)) {
             // tx has vanished, probably due to conflicts
-            it = txFirstSeenTime.erase(it);
+            it = txFirstSeenBlockHeight.erase(it);
         } else if (!hashBlock.IsNull()) {
             auto pindex = mapBlockIndex.at(hashBlock);
-            if (chainActive.Tip()->GetAncestor(pindex->nHeight) == pindex && chainActive.Height() - pindex->nHeight >= 6) {
-                // tx got confirmed >= 6 times, so we can stop keeping track of it
-                it = txFirstSeenTime.erase(it);
+            if (chainActive.Tip()->GetAncestor(pindex->nHeight) == pindex && chainActive.Height() - pindex->nHeight >= WAIT_FOR_ISLOCK_CONFIRMATIONS) {
+                // tx got confirmed >= WAIT_FOR_ISLOCK_CONFIRMATIONS times, so we can stop keeping track of it
+                it = txFirstSeenBlockHeight.erase(it);
             } else {
                 ++it;
             }

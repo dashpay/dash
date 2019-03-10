@@ -293,7 +293,7 @@ bool BlockAssembler::TestPackageTransactions(const CTxMemPool::setEntries& packa
     BOOST_FOREACH (const CTxMemPool::txiter it, package) {
         if (!IsFinalTx(it->GetTx(), nHeight, nLockTimeCutoff))
             return false;
-        if (!llmq::chainLocksHandler->IsTxSafeForMining(it->GetTx().GetHash())) {
+        if (!llmq::chainLocksHandler->IsTxSafeForMining(it->GetTx().GetHash(), nHeight)) {
             return false;
         }
     }
@@ -337,7 +337,7 @@ bool BlockAssembler::TestForBlock(CTxMemPool::txiter iter)
     if (!IsFinalTx(iter->GetTx(), nHeight, nLockTimeCutoff))
         return false;
 
-    if (!llmq::chainLocksHandler->IsTxSafeForMining(iter->GetTx().GetHash())) {
+    if (!llmq::chainLocksHandler->IsTxSafeForMining(iter->GetTx().GetHash(), nHeight)) {
         return false;
     }
 

@@ -46,8 +46,8 @@ class CChainLocksHandler : public CRecoveredSigsListener
     static const int64_t CLEANUP_INTERVAL = 1000 * 30;
     static const int64_t CLEANUP_SEEN_TIMEOUT = 24 * 60 * 60 * 1000;
 
-    // how long to wait for ixlocks until we consider a block with non-ixlocked TXs to be safe to sign
-    static const int64_t WAIT_FOR_ISLOCK_TIMEOUT = 10 * 60;
+    // how many blocks to wait for ixlocks until we consider a block with non-ixlocked TXs to be safe to sign
+    static const int WAIT_FOR_ISLOCK_CONFIRMATIONS = 6;
 
 private:
     CScheduler* scheduler;
@@ -68,7 +68,7 @@ private:
 
     // We keep track of txids from recently received blocks so that we can check if all TXs got ixlocked
     std::unordered_map<uint256, std::shared_ptr<std::unordered_set<uint256, StaticSaltedHasher>>> blockTxs;
-    std::unordered_map<uint256, int64_t> txFirstSeenTime;
+    std::unordered_map<uint256, int> txFirstSeenBlockHeight;
 
     std::map<uint256, int64_t> seenChainLocks;
 
@@ -97,7 +97,7 @@ public:
     bool HasChainLock(int nHeight, const uint256& blockHash);
     bool HasConflictingChainLock(int nHeight, const uint256& blockHash);
 
-    bool IsTxSafeForMining(const uint256& txid);
+    bool IsTxSafeForMining(const uint256& txid, int nHeight);
 
 private:
     // these require locks to be held already
