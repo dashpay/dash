@@ -115,6 +115,8 @@ void CChainLocksHandler::ProcessNewChainLock(NodeId from, const llmq::CChainLock
         return;
     }
 
+    const CBlockIndex* pindexNotify = nullptr;
+
     {
         LOCK2(cs_main, cs);
 
@@ -149,41 +151,36 @@ void CChainLocksHandler::ProcessNewChainLock(NodeId from, const llmq::CChainLock
         const CBlockIndex* pindex = blockIt->second;
         bestChainLockWithKnownBlock = bestChainLock;
         bestChainLockBlockIndex = pindex;
+        if (lastNotifyChainLockBlockIndex != bestChainLockBlockIndex) {
+            lastNotifyChainLockBlockIndex = bestChainLockBlockIndex;
+            pindexNotify = pindex;
+        }
     }
 
-    EnforceBestChainLock();
+    if (pindexNotify != nullptr) {
+        EnforceBestChainLock();
+        GetMainSignals().NotifyChainLock(pindexNotify);
+    }
 
     LogPrintf("CChainLocksHandler::%s -- processed new CLSIG (%s), peer=%d\n",
               __func__, clsig.ToString(), from);
-
-    if (lastNotifyChainLockBlockIndex != bestChainLockBlockIndex) {
-        lastNotifyChainLockBlockIndex = bestChainLockBlockIndex;
-        GetMainSignals().NotifyChainLock(bestChainLockBlockIndex);
-    }
 }
 
 void CChainLocksHandler::AcceptedBlockHeader(const CBlockIndex* pindexNew)
 {
-    bool doEnforce = false;
-    {
-        LOCK2(cs_main, cs);
+    LOCK(cs);
 
-        if (pindexNew->GetBlockHash() == bestChainLock.blockHash) {
-            LogPrintf("CChainLocksHandler::%s -- block header %s came in late, updating and enforcing\n", __func__, pindexNew->GetBlockHash().ToString());
+    if (pindexNew->GetBlockHash() == bestChainLock.blockHash) {
+        LogPrintf("CChainLocksHandler::%s -- block header %s came in late, updating and enforcing\n", __func__, pindexNew->GetBlockHash().ToString());
 
-            if (bestChainLock.nHeight != pindexNew->nHeight) {
-                // Should not happen, same as the conflict check from ProcessNewChainLock.
-                LogPrintf("CChainLocksHandler::%s -- height of CLSIG (%s) does not match the specified block's height (%d)\n",
-                          __func__, bestChainLock.ToString(), pindexNew->nHeight);
-                return;
-            }
-
-            bestChainLockBlockIndex = pindexNew;
-            doEnforce = true;
+        if (bestChainLock.nHeight != pindexNew->nHeight) {
+            // Should not happen, same as the conflict check from ProcessNewChainLock.
+            LogPrintf("CChainLocksHandler::%s -- height of CLSIG (%s) does not match the specified block's height (%d)\n",
+                      __func__, bestChainLock.ToString(), pindexNew->nHeight);
+            return;
         }
-    }
-    if (doEnforce) {
-        EnforceBestChainLock();
+
+        bestChainLockBlockIndex = pindexNew;
     }
 }
 
@@ -234,11 +231,6 @@ void CChainLocksHandler::TrySignChainTip()
         if (bestChainLockBlockIndex == pindex) {
             // we first got the CLSIG, then the header, and then the block was connected.
             // In this case there is no need to continue here.
-            // However, NotifyChainLock might not have been called yet, so call it now if needed
-            if (lastNotifyChainLockBlockIndex != bestChainLockBlockIndex) {
-                lastNotifyChainLockBlockIndex = bestChainLockBlockIndex;
-                GetMainSignals().NotifyChainLock(bestChainLockBlockIndex);
-            }
             return;
         }
 
@@ -337,31 +329,50 @@ void CChainLocksHandler::TrySignChainTip()
 
 void CChainLocksHandler::NewPoWValidBlock(const CBlockIndex* pindex, const std::shared_ptr<const CBlock>& block)
 {
-    LOCK(cs);
-    if (blockTxs.count(pindex->GetBlockHash())) {
-        // should actually not happen (blocks are only written once to disk and this is when NewPoWValidBlock is called)
-        // but be extra safe here in case this behaviour changes.
-        return;
-    }
+    // NotifyChainLock might not have been called yet, so call it now if needed.
+    bool fEnforceAndNotify = false;
 
-    int64_t curTime = GetAdjustedTime();
+    {
+        LOCK(cs);
+        if (blockTxs.count(pindex->GetBlockHash())) {
+            // should actually not happen (blocks are only written once to disk and this is when NewPoWValidBlock is called)
+            // but be extra safe here in case this behaviour changes.
+            return;
+        }
 
-    // We listen for NewPoWValidBlock so that we can collect all TX ids of all included TXs of newly received blocks
-    // We need this information later when we try to sign a new tip, so that we can determine if all included TXs are
-    // safe.
+        int64_t curTime = GetAdjustedTime();
 
-    auto txs = std::make_shared<std::unordered_set<uint256, StaticSaltedHasher>>();
-    for (const auto& tx : block->vtx) {
-        if (tx->nVersion == 3) {
-            if (tx->nType == TRANSACTION_COINBASE ||
-                tx->nType == TRANSACTION_QUORUM_COMMITMENT) {
-                continue;
+        // We listen for NewPoWValidBlock so that we can collect all TX ids of all included TXs of newly received blocks
+        // We need this information later when we try to sign a new tip, so that we can determine if all included TXs are
+        // safe.
+
+        auto txs = std::make_shared<std::unordered_set<uint256, StaticSaltedHasher>>();
+        for (const auto& tx : block->vtx) {
+            if (tx->nVersion == 3) {
+                if (tx->nType == TRANSACTION_COINBASE ||
+                    tx->nType == TRANSACTION_QUORUM_COMMITMENT) {
+                    continue;
+                }
+            }
+            txs->emplace(tx->GetHash());
+            txFirstSeenTime.emplace(tx->GetHash(), curTime);
+        }
+        blockTxs[pindex->GetBlockHash()] = txs;
+
+        // we got the CLSIG first and then received the block.
+        if (bestChainLockBlockIndex == pindex) {
+            bestChainLockWithKnownBlock = bestChainLock;
+            if (lastNotifyChainLockBlockIndex != bestChainLockBlockIndex) {
+                lastNotifyChainLockBlockIndex = bestChainLockBlockIndex;
+                fEnforceAndNotify = true;
             }
         }
-        txs->emplace(tx->GetHash());
-        txFirstSeenTime.emplace(tx->GetHash(), curTime);
     }
-    blockTxs[pindex->GetBlockHash()] = txs;
+
+    if (fEnforceAndNotify) {
+        EnforceBestChainLock();
+        GetMainSignals().NotifyChainLock(pindex);
+    }
 }
 
 void CChainLocksHandler::SyncTransaction(const CTransaction& tx, const CBlockIndex* pindex, int posInBlock)
