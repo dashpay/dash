@@ -405,10 +405,16 @@ void CChainLocksHandler::EnforceBestChainLock()
 {
     CChainLockSig clsig;
     const CBlockIndex* pindex;
+    const CBlockIndex* bestChainLockBlockIndex;
     {
         LOCK(cs);
         clsig = bestChainLockWithKnownBlock;
-        pindex = bestChainLockBlockIndex;
+        pindex = bestChainLockBlockIndex = this->bestChainLockBlockIndex;
+
+        if (!bestChainLockBlockIndex) {
+            // we don't have the header/block, so we can't do anything right now
+            return;
+        }
     }
 
     bool activateNeeded;
