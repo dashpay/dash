@@ -791,6 +791,8 @@ void CSigSharesManager::TryRecoverSig(const CQuorumCPtr& quorum, const uint256& 
 // cs must be held
 void CSigSharesManager::CollectSigSharesToRequest(std::unordered_map<NodeId, std::unordered_map<uint256, CSigSharesInv, StaticSaltedHasher>>& sigSharesToRequest)
 {
+    AssertLockHeld(cs);
+
     int64_t now = GetTimeMillis();
     const size_t maxRequestsForNode = 32;
 
@@ -885,6 +887,8 @@ void CSigSharesManager::CollectSigSharesToRequest(std::unordered_map<NodeId, std
 // cs must be held
 void CSigSharesManager::CollectSigSharesToSend(std::unordered_map<NodeId, std::unordered_map<uint256, CBatchedSigShares, StaticSaltedHasher>>& sigSharesToSend)
 {
+    AssertLockHeld(cs);
+
     for (auto& p : nodeStates) {
         auto nodeId = p.first;
         auto& nodeState = p.second;
@@ -936,6 +940,8 @@ void CSigSharesManager::CollectSigSharesToSend(std::unordered_map<NodeId, std::u
 // cs must be held
 void CSigSharesManager::CollectSigSharesToAnnounce(std::unordered_map<NodeId, std::unordered_map<uint256, CSigSharesInv, StaticSaltedHasher>>& sigSharesToAnnounce)
 {
+    AssertLockHeld(cs);
+
     std::unordered_set<std::pair<Consensus::LLMQType, uint256>, StaticSaltedHasher> quorumNodesPrepared;
 
     this->sigSharesToAnnounce.ForEach([&](const SigShareKey& sigShareKey, bool) {
