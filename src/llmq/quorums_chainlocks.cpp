@@ -411,6 +411,7 @@ void CChainLocksHandler::EnforceBestChainLock()
         pindex = bestChainLockBlockIndex;
     }
 
+    bool activateNeeded;
     {
         LOCK(cs_main);
 
@@ -438,10 +439,12 @@ void CChainLocksHandler::EnforceBestChainLock()
         if (!bestChainLockBlockIndex->IsValid()) {
             ResetBlockFailureFlags(mapBlockIndex.at(bestChainLockBlockIndex->GetBlockHash()));
         }
+
+        activateNeeded = chainActive.Tip() != bestChainLockBlockIndex;
     }
 
     CValidationState state;
-    if (!ActivateBestChain(state, Params())) {
+    if (activateNeeded && !ActivateBestChain(state, Params())) {
         LogPrintf("CChainLocksHandler::%s -- ActivateBestChain failed: %s\n", __func__, FormatStateMessage(state));
     }
 }
