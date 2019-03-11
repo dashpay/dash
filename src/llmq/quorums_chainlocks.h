@@ -103,7 +103,6 @@ private:
     bool InternalHasChainLock(int nHeight, const uint256& blockHash);
     bool InternalHasConflictingChainLock(int nHeight, const uint256& blockHash);
 
-    void ScheduleInvalidateBlock(const CBlockIndex* pindex);
     void DoInvalidateBlock(const CBlockIndex* pindex, bool activateBestChain);
 
     void Cleanup();
