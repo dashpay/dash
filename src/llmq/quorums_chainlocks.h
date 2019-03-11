@@ -53,7 +53,6 @@ private:
     CScheduler* scheduler;
     CCriticalSection cs;
     bool tryLockChainTipScheduled{false};
-    std::atomic<bool> inEnforceBestChainLock{false};
 
     uint256 bestChainLockHash;
     CChainLockSig bestChainLock;

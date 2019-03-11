@@ -151,7 +151,9 @@ void CChainLocksHandler::ProcessNewChainLock(NodeId from, const llmq::CChainLock
         bestChainLockBlockIndex = pindex;
     }
 
-    EnforceBestChainLock();
+    scheduler->scheduleFromNow([&]() {
+        EnforceBestChainLock();
+    }, 0);
 
     LogPrintf("CChainLocksHandler::%s -- processed new CLSIG (%s), peer=%d\n",
               __func__, clsig.ToString(), from);
@@ -164,39 +166,37 @@ void CChainLocksHandler::ProcessNewChainLock(NodeId from, const llmq::CChainLock
 
 void CChainLocksHandler::AcceptedBlockHeader(const CBlockIndex* pindexNew)
 {
-    bool doEnforce = false;
-    {
-        LOCK2(cs_main, cs);
+    LOCK2(cs_main, cs);
 
-        if (pindexNew->GetBlockHash() == bestChainLock.blockHash) {
-            LogPrintf("CChainLocksHandler::%s -- block header %s came in late, updating and enforcing\n", __func__, pindexNew->GetBlockHash().ToString());
+    if (pindexNew->GetBlockHash() == bestChainLock.blockHash) {
+        LogPrintf("CChainLocksHandler::%s -- block header %s came in late, updating and enforcing\n", __func__, pindexNew->GetBlockHash().ToString());
 
-            if (bestChainLock.nHeight != pindexNew->nHeight) {
-                // Should not happen, same as the conflict check from ProcessNewChainLock.
-                LogPrintf("CChainLocksHandler::%s -- height of CLSIG (%s) does not match the specified block's height (%d)\n",
-                          __func__, bestChainLock.ToString(), pindexNew->nHeight);
-                return;
-            }
-
-            bestChainLockBlockIndex = pindexNew;
-            doEnforce = true;
+        if (bestChainLock.nHeight != pindexNew->nHeight) {
+            // Should not happen, same as the conflict check from ProcessNewChainLock.
+            LogPrintf("CChainLocksHandler::%s -- height of CLSIG (%s) does not match the specified block's height (%d)\n",
+                      __func__, bestChainLock.ToString(), pindexNew->nHeight);
+            return;
         }
-    }
-    if (doEnforce) {
-        EnforceBestChainLock();
+
+        // when EnforceBestChainLock is called later, it might end up invalidating other chains but not activating the
+        // CLSIG locked chain. This happens when only the header is known but the block is still missing yet. The usual
+        // block processing logic will handle this when the block arrives
+        bestChainLockBlockIndex = pindexNew;
     }
 }
 
 void CChainLocksHandler::UpdatedBlockTip(const CBlockIndex* pindexNew, const CBlockIndex* pindexFork)
 {
     // don't call TrySignChainTip directly but instead let the scheduler call it. This way we ensure that cs_main is
-    // never locked and TrySignChainTip is not called twice in parallel
+    // never locked and TrySignChainTip is not called twice in parallel. Also avoids recursive calls due to
+    // EnforceBestChainLock switching chains.
     LOCK(cs);
     if (tryLockChainTipScheduled) {
         return;
     }
     tryLockChainTipScheduled = true;
     scheduler->scheduleFromNow([&]() {
+        EnforceBestChainLock();
         TrySignChainTip();
         LOCK(cs);
         tryLockChainTipScheduled = false;
@@ -403,6 +403,7 @@ bool CChainLocksHandler::IsTxSafeForMining(const uint256& txid)
 }
 
 // WARNING: cs_main and cs should not be held!
+// This should also not be called from validation signals, as this might result in recursive calls
 void CChainLocksHandler::EnforceBestChainLock()
 {
     CChainLockSig clsig;
