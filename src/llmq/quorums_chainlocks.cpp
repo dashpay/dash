@@ -428,7 +428,7 @@ void CChainLocksHandler::EnforceBestChainLock()
                     continue;
                 }
                 LogPrintf("CChainLocksHandler::%s -- CLSIG (%s) invalidates block %s\n",
-                          __func__, bestChainLockWithKnownBlock.ToString(), jt->second->GetBlockHash().ToString());
+                          __func__, clsig.ToString(), jt->second->GetBlockHash().ToString());
                 DoInvalidateBlock(jt->second, false);
             }
 
