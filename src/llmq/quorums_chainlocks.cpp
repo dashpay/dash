@@ -298,18 +298,18 @@ void CChainLocksHandler::TrySignChainTip()
             }
 
             for (auto& txid : *txids) {
-                int confirmations = 0;
+                int nMissedBlocks = 0;
                 {
                     LOCK(cs);
                     auto it = txFirstSeenBlockHeight.find(txid);
                     if (it != txFirstSeenBlockHeight.end()) {
-                        confirmations = pindex->nHeight - it->second;
+                        nMissedBlocks = pindex->nHeight - it->second;
                     }
                 }
 
-                if (confirmations < WAIT_FOR_ISLOCK_CONFIRMATIONS && !quorumInstantSendManager->IsLocked(txid)) {
-                    LogPrintf("CChainLocksHandler::%s -- not signing block %s due to TX %s not being ixlocked and not old enough, confirmations=%d\n", __func__,
-                              pindexWalk->GetBlockHash().ToString(), txid.ToString(), confirmations);
+                if (nMissedBlocks < WAIT_FOR_ISLOCK_BLOCKS && !quorumInstantSendManager->IsLocked(txid)) {
+                    LogPrintf("CChainLocksHandler::%s -- not signing block %s due to TX %s not being ixlocked and not old enough, nMissedBlocks=%d\n", __func__,
+                              pindexWalk->GetBlockHash().ToString(), txid.ToString(), nMissedBlocks);
                     return;
                 }
             }
@@ -398,16 +398,16 @@ bool CChainLocksHandler::IsTxSafeForMining(const uint256& txid, int nHeight)
         return true;
     }
 
-    int confirmations = 0;
+    int nMissedBlocks = 0;
     {
         LOCK(cs);
         auto it = txFirstSeenBlockHeight.find(txid);
         if (it != txFirstSeenBlockHeight.end()) {
-            confirmations = nHeight - it->second;
+            nMissedBlocks = nHeight - it->second;
         }
     }
 
-    if (confirmations < WAIT_FOR_ISLOCK_CONFIRMATIONS && !quorumInstantSendManager->IsLocked(txid)) {
+    if (nMissedBlocks < WAIT_FOR_ISLOCK_BLOCKS && !quorumInstantSendManager->IsLocked(txid)) {
         return false;
     }
     return true;
@@ -622,8 +622,8 @@ void CChainLocksHandler::Cleanup()
             it = txFirstSeenBlockHeight.erase(it);
         } else if (!hashBlock.IsNull()) {
             auto pindex = mapBlockIndex.at(hashBlock);
-            if (chainActive.Tip()->GetAncestor(pindex->nHeight) == pindex && chainActive.Height() - pindex->nHeight >= WAIT_FOR_ISLOCK_CONFIRMATIONS) {
-                // tx got confirmed >= WAIT_FOR_ISLOCK_CONFIRMATIONS times, so we can stop keeping track of it
+            if (chainActive.Tip()->GetAncestor(pindex->nHeight) == pindex && chainActive.Height() - pindex->nHeight >= WAIT_FOR_ISLOCK_BLOCKS) {
+                // tx got confirmed >= WAIT_FOR_ISLOCK_BLOCKS times, so we can stop keeping track of it
                 it = txFirstSeenBlockHeight.erase(it);
             } else {
                 ++it;
