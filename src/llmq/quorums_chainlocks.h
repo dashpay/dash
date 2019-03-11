@@ -47,7 +47,8 @@ class CChainLocksHandler : public CRecoveredSigsListener
     static const int64_t CLEANUP_SEEN_TIMEOUT = 24 * 60 * 60 * 1000;
 
     // how many blocks to wait for ixlocks until we consider a block with non-ixlocked TXs to be safe to sign
-    static const int WAIT_FOR_ISLOCK_BLOCKS = 6;
+    static const int WAIT_FOR_ISLOCK_BLOCKS = 4;
+    static const int CLEANUP_ISLOCK_BLOCKS = 6;
 
 private:
     CScheduler* scheduler;

@@ -622,8 +622,8 @@ void CChainLocksHandler::Cleanup()
             it = txFirstSeenBlockHeight.erase(it);
         } else if (!hashBlock.IsNull()) {
             auto pindex = mapBlockIndex.at(hashBlock);
-            if (chainActive.Tip()->GetAncestor(pindex->nHeight) == pindex && chainActive.Height() - pindex->nHeight >= WAIT_FOR_ISLOCK_BLOCKS) {
-                // tx got confirmed >= WAIT_FOR_ISLOCK_BLOCKS times, so we can stop keeping track of it
+            if (chainActive.Tip()->GetAncestor(pindex->nHeight) == pindex && chainActive.Height() - pindex->nHeight >= CLEANUP_ISLOCK_BLOCKS) {
+                // tx got confirmed >= CLEANUP_ISLOCK_BLOCKS times, so we can stop keeping track of it
                 it = txFirstSeenBlockHeight.erase(it);
             } else {
                 ++it;
