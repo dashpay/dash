@@ -40,7 +40,8 @@ void CChainLocksHandler::Start()
 {
     quorumSigningManager->RegisterRecoveredSigsListener(this);
     scheduler->scheduleEvery([&]() {
-        // regularely retry signing the current chaintip as it might have failed before due to missing ixlocks
+        EnforceBestChainLock();
+        // regularly retry signing the current chaintip as it might have failed before due to missing ixlocks
         TrySignChainTip();
     }, 5000);
 }
@@ -435,14 +436,19 @@ void CChainLocksHandler::EnforceBestChainLock()
 
             pindex = pindex->pprev;
         }
+        // In case blocks from the correct chain are invalid at the moment, reconsider them. The only case where this
+        // can happen right now is when missing superblock triggers caused the main chain to be dismissed first. When
+        // the trigger later appears, this should bring us to the correct chain eventually. Please note that this does
+        // NOT enforce invalid blocks in any way, it just causes re-validation.
+        if (!bestChainLockBlockIndex->IsValid()) {
+            ResetBlockFailureFlags(mapBlockIndex.at(bestChainLockBlockIndex->GetBlockHash()));
+        }
         inEnforceBestChainLock = false;
     }
 
     CValidationState state;
     if (!ActivateBestChain(state, Params())) {
         LogPrintf("CChainLocksHandler::%s -- ActivateBestChain failed: %s\n", __func__, FormatStateMessage(state));
-        // This should not have happened and we are in a state were it's not safe to continue anymore
-        assert(false);
     }
 }
 
