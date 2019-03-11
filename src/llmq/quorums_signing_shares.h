@@ -127,7 +127,7 @@ public:
         READWRITE(sigShares);
     }
 
-    CSigSharesInv ToInv(Consensus::LLMQType llmqType) const;
+    std::string ToInvString() const;
 };
 
 template<typename T>
