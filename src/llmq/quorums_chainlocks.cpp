@@ -158,11 +158,6 @@ void CChainLocksHandler::ProcessNewChainLock(NodeId from, const llmq::CChainLock
 
     LogPrintf("CChainLocksHandler::%s -- processed new CLSIG (%s), peer=%d\n",
               __func__, clsig.ToString(), from);
-
-    if (lastNotifyChainLockBlockIndex != bestChainLockBlockIndex) {
-        lastNotifyChainLockBlockIndex = bestChainLockBlockIndex;
-        GetMainSignals().NotifyChainLock(bestChainLockBlockIndex);
-    }
 }
 
 void CChainLocksHandler::AcceptedBlockHeader(const CBlockIndex* pindexNew)
@@ -231,17 +226,6 @@ void CChainLocksHandler::TrySignChainTip()
 
     {
         LOCK(cs);
-
-        if (bestChainLockBlockIndex == pindex) {
-            // we first got the CLSIG, then the header, and then the block was connected.
-            // In this case there is no need to continue here.
-            // However, NotifyChainLock might not have been called yet, so call it now if needed
-            if (lastNotifyChainLockBlockIndex != bestChainLockBlockIndex) {
-                lastNotifyChainLockBlockIndex = bestChainLockBlockIndex;
-                GetMainSignals().NotifyChainLock(bestChainLockBlockIndex);
-            }
-            return;
-        }
 
         if (pindex->nHeight == lastSignedHeight) {
             // already signed this one
@@ -452,6 +436,20 @@ void CChainLocksHandler::EnforceBestChainLock()
     CValidationState state;
     if (activateNeeded && !ActivateBestChain(state, Params())) {
         LogPrintf("CChainLocksHandler::%s -- ActivateBestChain failed: %s\n", __func__, FormatStateMessage(state));
+    }
+
+    const CBlockIndex* pindexNotify = nullptr;
+    {
+        LOCK(cs_main);
+        if (lastNotifyChainLockBlockIndex != bestChainLockBlockIndex &&
+            chainActive.Tip()->GetAncestor(bestChainLockBlockIndex->nHeight) == bestChainLockBlockIndex) {
+            lastNotifyChainLockBlockIndex = bestChainLockBlockIndex;
+            pindexNotify = bestChainLockBlockIndex;
+        }
+    }
+
+    if (pindexNotify) {
+        GetMainSignals().NotifyChainLock(pindexNotify);
     }
 }
 
