@@ -101,7 +101,7 @@ public:
         READWRITE(AUTOBITSET(inv, (size_t)invSize));
     }
 
-    void Init(Consensus::LLMQType _llmqType);
+    void Init(size_t size);
     bool IsSet(uint16_t quorumMember) const;
     void Set(uint16_t quorumMember, bool v);
     void Merge(const CSigSharesInv& inv2);

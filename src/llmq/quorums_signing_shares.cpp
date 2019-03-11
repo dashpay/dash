@@ -65,10 +65,9 @@ std::string CSigSharesInv::ToString() const
     return str;
 }
 
-void CSigSharesInv::Init(Consensus::LLMQType _llmqType)
+void CSigSharesInv::Init(size_t size)
 {
-    size_t llmqSize = (size_t)(Params().GetConsensus().llmqs.at(_llmqType).size);
-    inv.resize(llmqSize, false);
+    inv.resize(size, false);
 }
 
 bool CSigSharesInv::IsSet(uint16_t quorumMember) const
@@ -86,9 +85,8 @@ void CSigSharesInv::Set(uint16_t quorumMember, bool v)
 std::string CBatchedSigShares::ToInvString() const
 {
     CSigSharesInv inv;
-    // we use LLMQ_400_60 here no matter what the real type is. The llmqType is only used to properly initialize the
-    // inv object's bitset. We don't really care about that size as we just want to call ToString()
-    inv.Init(Consensus::LLMQ_400_60);
+    // we use 400 here no matter what the real size is. We don't really care about that size as we just want to call ToString()
+    inv.Init(400);
     for (size_t i = 0; i < sigShares.size(); i++) {
         inv.inv[sigShares[i].first] = true;
     }
@@ -98,14 +96,16 @@ std::string CBatchedSigShares::ToInvString() const
 template<typename T>
 static void InitSession(CSigSharesNodeState::Session& s, const uint256& signHash, T& from)
 {
+    const auto& params = Params().GetConsensus().llmqs.at((Consensus::LLMQType)from.llmqType);
+
     s.llmqType = (Consensus::LLMQType)from.llmqType;
     s.quorumHash = from.quorumHash;
     s.id = from.id;
     s.msgHash = from.msgHash;
     s.signHash = signHash;
-    s.announced.Init((Consensus::LLMQType)from.llmqType);
-    s.requested.Init((Consensus::LLMQType)from.llmqType);
-    s.knows.Init((Consensus::LLMQType)from.llmqType);
+    s.announced.Init((size_t)params.size);
+    s.requested.Init((size_t)params.size);
+    s.knows.Init((size_t)params.size);
 }
 
 CSigSharesNodeState::Session& CSigSharesNodeState::GetOrCreateSessionFromShare(const llmq::CSigShare& sigShare)
@@ -873,7 +873,8 @@ void CSigSharesManager::CollectSigSharesToRequest(std::unordered_map<NodeId, std
                 }
                 auto& inv = (*invMap)[signHash];
                 if (inv.inv.empty()) {
-                    inv.Init(session.llmqType);
+                    const auto& params = Params().GetConsensus().llmqs.at((Consensus::LLMQType)session.llmqType);
+                    inv.Init((size_t)params.size);
                 }
                 inv.inv[k.second] = true;
 
@@ -984,7 +985,8 @@ void CSigSharesManager::CollectSigSharesToAnnounce(std::unordered_map<NodeId, st
 
             auto& inv = sigSharesToAnnounce[nodeId][signHash];
             if (inv.inv.empty()) {
-                inv.Init((Consensus::LLMQType)sigShare->llmqType);
+                const auto& params = Params().GetConsensus().llmqs.at((Consensus::LLMQType)sigShare->llmqType);
+                inv.Init((size_t)params.size);
             }
             inv.inv[quorumMember] = true;
             session.knows.inv[quorumMember] = true;
