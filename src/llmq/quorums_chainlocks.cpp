@@ -430,7 +430,7 @@ void CChainLocksHandler::EnforceBestChainLock()
             ResetBlockFailureFlags(mapBlockIndex.at(currentBestChainLockBlockIndex->GetBlockHash()));
         }
 
-        activateNeeded = chainActive.Tip() != currentBestChainLockBlockIndex;
+        activateNeeded = chainActive.Tip()->GetAncestor(currentBestChainLockBlockIndex->nHeight) != currentBestChainLockBlockIndex;
     }
 
     CValidationState state;
