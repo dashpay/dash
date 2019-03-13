@@ -251,8 +251,6 @@ bool CInstantSendManager::CheckCanLock(const CTransaction& tx, bool printDebug, 
         return false;
     }
 
-    int nInstantSendConfirmationsRequired = params.nInstantSendConfirmationsRequired;
-
     CAmount nValueIn = 0;
     for (const auto& in : tx.vin) {
         CAmount v = 0;
