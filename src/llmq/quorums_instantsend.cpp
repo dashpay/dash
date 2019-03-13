@@ -294,20 +294,23 @@ bool CInstantSendManager::CheckCanLock(const COutPoint& outpoint, bool printDebu
         return false;
     }
 
-    Coin coin;
-    const CBlockIndex* pindexMined = nullptr;
+    CTransactionRef tx;
+    uint256 hashBlock;
+    // this relies on enabled txindex and won't work if we ever try to remove the requirement for txindex for masternodes
+    if (!GetTransaction(outpoint.hash, tx, params, hashBlock, false)) {
+        if (printDebug) {
+            LogPrint("instantsend", "CInstantSendManager::%s -- txid=%s: failed to find parent TX %s\n", __func__,
+                     txHash.ToString(), outpoint.hash.ToString());
+        }
+        return false;
+    }
+
+    const CBlockIndex* pindexMined;
     int nTxAge;
     {
         LOCK(cs_main);
-        if (!pcoinsTip->GetCoin(outpoint, coin) || coin.IsSpent()) {
-            if (printDebug) {
-                LogPrint("instantsend", "CInstantSendManager::%s -- txid=%s: failed to find UTXO %s\n", __func__,
-                         txHash.ToString(), outpoint.ToStringShort());
-            }
-            return false;
-        }
-        pindexMined = chainActive[coin.nHeight];
-        nTxAge = chainActive.Height() - coin.nHeight + 1;
+        pindexMined = mapBlockIndex.at(hashBlock);
+        nTxAge = chainActive.Height() - pindexMined->nHeight + 1;
     }
 
     if (nTxAge < nInstantSendConfirmationsRequired) {
@@ -321,7 +324,7 @@ bool CInstantSendManager::CheckCanLock(const COutPoint& outpoint, bool printDebu
     }
 
     if (retValue) {
-        *retValue = coin.out.nValue;
+        *retValue = tx->vout[outpoint.n].nValue;
     }
 
     return true;
