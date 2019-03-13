@@ -676,7 +676,7 @@ void CInstantSendManager::ProcessInstantSendLock(NodeId from, const uint256& has
     g_connman->RelayInv(inv);
 
     RemoveMempoolConflictsForLock(hash, islock);
-    RetryLockMempoolTxs(islock.txid);
+    RetryLockTxs(islock.txid);
 
     UpdateWalletTransaction(islock.txid, tx);
 }
@@ -712,7 +712,7 @@ void CInstantSendManager::SyncTransaction(const CTransaction& tx, const CBlockIn
     }
 
     if (IsLocked(tx.GetHash())) {
-        RetryLockMempoolTxs(tx.GetHash());
+        RetryLockTxs(tx.GetHash());
     }
 }
 
@@ -759,7 +759,7 @@ void CInstantSendManager::NotifyChainLock(const CBlockIndex* pindexChainLock)
         db.WriteLastChainLockBlock(pindexChainLock->GetBlockHash());
     }
 
-    RetryLockMempoolTxs(uint256());
+    RetryLockTxs(uint256());
 }
 
 void CInstantSendManager::RemoveFinalISLock(const uint256& hash, const CInstantSendLockPtr& islock)
@@ -798,9 +798,9 @@ void CInstantSendManager::RemoveMempoolConflictsForLock(const uint256& hash, con
     }
 }
 
-void CInstantSendManager::RetryLockMempoolTxs(const uint256& lockedParentTx)
+void CInstantSendManager::RetryLockTxs(const uint256& lockedParentTx)
 {
-    // Let's retry all mempool TXs which don't have an islock yet and where the parents got ChainLocked now
+    // Let's retry all unlocked TXs from mempool and and recently connected blocks
 
     std::unordered_map<uint256, CTransactionRef> txs;
 
@@ -820,6 +820,39 @@ void CInstantSendManager::RetryLockMempoolTxs(const uint256& lockedParentTx)
             }
         }
     }
+
+    uint256 lastChainLockBlock;
+    const CBlockIndex* pindexLastChainLockBlock = nullptr;
+    const CBlockIndex* pindexWalk = nullptr;
+    {
+        LOCK(cs);
+        lastChainLockBlock = db.GetLastChainLockBlock();
+    }
+    {
+        LOCK(cs_main);
+        if (!lastChainLockBlock.IsNull()) {
+            pindexLastChainLockBlock = mapBlockIndex.at(lastChainLockBlock);
+            pindexWalk = chainActive.Tip();
+        }
+    }
+
+    while (pindexWalk && pindexWalk != pindexLastChainLockBlock) {
+        CBlock block;
+        {
+            LOCK(cs_main);
+            if (!ReadBlockFromDisk(block, pindexWalk, Params().GetConsensus())) {
+                pindexWalk = pindexWalk->pprev;
+                continue;
+            }
+        }
+
+        for (const auto& tx : block.vtx) {
+            txs.emplace(tx->GetHash(), tx);
+        }
+
+        pindexWalk = pindexWalk->pprev;
+    }
+
     for (auto& p : txs) {
         auto& tx = p.second;
         {
