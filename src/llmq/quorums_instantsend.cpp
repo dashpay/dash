@@ -174,7 +174,7 @@ void CInstantSendManager::UnregisterAsRecoveredSigsListener()
     quorumSigningManager->UnregisterRecoveredSigsListener(this);
 }
 
-bool CInstantSendManager::ProcessTx(CNode* pfrom, const CTransaction& tx, CConnman& connman, const Consensus::Params& params)
+bool CInstantSendManager::ProcessTx(const CTransaction& tx, const Consensus::Params& params)
 {
     if (!IsNewInstantSendEnabled()) {
         return true;
@@ -849,7 +849,7 @@ void CInstantSendManager::RetryLockMempoolTxs(const uint256& lockedParentTx)
                      tx->GetHash().ToString());
         }
 
-        ProcessTx(nullptr, *tx, *g_connman, Params().GetConsensus());
+        ProcessTx(*tx, Params().GetConsensus());
     }
 }
 

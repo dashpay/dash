@@ -99,7 +99,7 @@ public:
     void UnregisterAsRecoveredSigsListener();
 
 public:
-    bool ProcessTx(CNode* pfrom, const CTransaction& tx, CConnman& connman, const Consensus::Params& params);
+    bool ProcessTx(const CTransaction& tx, const Consensus::Params& params);
     bool CheckCanLock(const CTransaction& tx, bool printDebug, const Consensus::Params& params);
     bool CheckCanLock(const COutPoint& outpoint, bool printDebug, const uint256* _txHash, CAmount* retValue, const Consensus::Params& params);
     bool IsLocked(const uint256& txHash);
