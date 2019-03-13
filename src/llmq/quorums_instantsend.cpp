@@ -711,8 +711,17 @@ void CInstantSendManager::SyncTransaction(const CTransaction& tx, const CBlockIn
         return;
     }
 
-    if (IsLocked(tx.GetHash())) {
+    if (posInBlock == 0) {
+        // coinbase can't be locked
+        return;
+    }
+
+    bool locked = IsLocked(tx.GetHash());
+    bool chainlocked = pindex && chainLocksHandler->HasChainLock(pindex->nHeight, pindex->GetBlockHash());
+    if (locked || chainlocked) {
         RetryLockTxs(tx.GetHash());
+    } else {
+        ProcessTx(tx, Params().GetConsensus());
     }
 }
 
