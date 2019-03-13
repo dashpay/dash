@@ -246,6 +246,11 @@ bool CInstantSendManager::CheckCanLock(const CTransaction& tx, bool printDebug, 
         return false;
     }
 
+    if (tx.vin.empty()) {
+        // can't lock TXs without inputs (e.g. quorum commitments)
+        return false;
+    }
+
     int nInstantSendConfirmationsRequired = params.nInstantSendConfirmationsRequired;
 
     CAmount nValueIn = 0;
