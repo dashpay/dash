@@ -389,13 +389,13 @@ void CChainLocksHandler::EnforceBestChainLock()
 {
     CChainLockSig clsig;
     const CBlockIndex* pindex;
-    const CBlockIndex* bestChainLockBlockIndex;
+    const CBlockIndex* currentBestChainLockBlockIndex;
     {
         LOCK(cs);
         clsig = bestChainLockWithKnownBlock;
-        pindex = bestChainLockBlockIndex = this->bestChainLockBlockIndex;
+        pindex = currentBestChainLockBlockIndex = this->bestChainLockBlockIndex;
 
-        if (!bestChainLockBlockIndex) {
+        if (!currentBestChainLockBlockIndex) {
             // we don't have the header/block, so we can't do anything right now
             return;
         }
@@ -426,11 +426,11 @@ void CChainLocksHandler::EnforceBestChainLock()
         // can happen right now is when missing superblock triggers caused the main chain to be dismissed first. When
         // the trigger later appears, this should bring us to the correct chain eventually. Please note that this does
         // NOT enforce invalid blocks in any way, it just causes re-validation.
-        if (!bestChainLockBlockIndex->IsValid()) {
-            ResetBlockFailureFlags(mapBlockIndex.at(bestChainLockBlockIndex->GetBlockHash()));
+        if (!currentBestChainLockBlockIndex->IsValid()) {
+            ResetBlockFailureFlags(mapBlockIndex.at(currentBestChainLockBlockIndex->GetBlockHash()));
         }
 
-        activateNeeded = chainActive.Tip() != bestChainLockBlockIndex;
+        activateNeeded = chainActive.Tip() != currentBestChainLockBlockIndex;
     }
 
     CValidationState state;
@@ -441,10 +441,10 @@ void CChainLocksHandler::EnforceBestChainLock()
     const CBlockIndex* pindexNotify = nullptr;
     {
         LOCK(cs_main);
-        if (lastNotifyChainLockBlockIndex != bestChainLockBlockIndex &&
-            chainActive.Tip()->GetAncestor(bestChainLockBlockIndex->nHeight) == bestChainLockBlockIndex) {
-            lastNotifyChainLockBlockIndex = bestChainLockBlockIndex;
-            pindexNotify = bestChainLockBlockIndex;
+        if (lastNotifyChainLockBlockIndex != currentBestChainLockBlockIndex &&
+            chainActive.Tip()->GetAncestor(currentBestChainLockBlockIndex->nHeight) == currentBestChainLockBlockIndex) {
+            lastNotifyChainLockBlockIndex = currentBestChainLockBlockIndex;
+            pindexNotify = currentBestChainLockBlockIndex;
         }
     }
 
