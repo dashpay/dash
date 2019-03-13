@@ -101,7 +101,7 @@ public:
 public:
     bool ProcessTx(const CTransaction& tx, const Consensus::Params& params);
     bool CheckCanLock(const CTransaction& tx, bool printDebug, const Consensus::Params& params);
-    bool CheckCanLock(const COutPoint& outpoint, bool printDebug, const uint256* _txHash, CAmount* retValue, const Consensus::Params& params);
+    bool CheckCanLock(const COutPoint& outpoint, bool printDebug, const uint256& txHash, CAmount* retValue, const Consensus::Params& params);
     bool IsLocked(const uint256& txHash);
     bool IsConflicted(const CTransaction& tx);
     bool GetConflictingTx(const CTransaction& tx, uint256& retConflictTxHash);

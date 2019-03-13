@@ -248,11 +248,10 @@ bool CInstantSendManager::CheckCanLock(const CTransaction& tx, bool printDebug, 
 
     int nInstantSendConfirmationsRequired = params.nInstantSendConfirmationsRequired;
 
-    uint256 txHash = tx.GetHash();
     CAmount nValueIn = 0;
     for (const auto& in : tx.vin) {
         CAmount v = 0;
-        if (!CheckCanLock(in.prevout, printDebug, &txHash, &v, params)) {
+        if (!CheckCanLock(in.prevout, printDebug, tx.GetHash(), &v, params)) {
             return false;
         }
 
@@ -274,7 +273,7 @@ bool CInstantSendManager::CheckCanLock(const CTransaction& tx, bool printDebug, 
     return true;
 }
 
-bool CInstantSendManager::CheckCanLock(const COutPoint& outpoint, bool printDebug, const uint256* _txHash, CAmount* retValue, const Consensus::Params& params)
+bool CInstantSendManager::CheckCanLock(const COutPoint& outpoint, bool printDebug, const uint256& txHash, CAmount* retValue, const Consensus::Params& params)
 {
     int nInstantSendConfirmationsRequired = params.nInstantSendConfirmationsRequired;
 
@@ -283,17 +282,11 @@ bool CInstantSendManager::CheckCanLock(const COutPoint& outpoint, bool printDebu
         return true;
     }
 
-    static uint256 txHashNull;
-    const uint256* txHash = &txHashNull;
-    if (_txHash) {
-        txHash = _txHash;
-    }
-
     auto mempoolTx = mempool.get(outpoint.hash);
     if (mempoolTx) {
         if (printDebug) {
             LogPrint("instantsend", "CInstantSendManager::%s -- txid=%s: parent mempool TX %s is not locked\n", __func__,
-                     txHash->ToString(), outpoint.hash.ToString());
+                     txHash.ToString(), outpoint.hash.ToString());
         }
         return false;
     }
@@ -305,7 +298,7 @@ bool CInstantSendManager::CheckCanLock(const COutPoint& outpoint, bool printDebu
         if (!pcoinsTip->GetCoin(outpoint, coin) || coin.IsSpent()) {
             if (printDebug) {
                 LogPrint("instantsend", "CInstantSendManager::%s -- txid=%s: failed to find UTXO %s\n", __func__,
-                         txHash->ToString(), outpoint.ToStringShort());
+                         txHash.ToString(), outpoint.ToStringShort());
             }
             return false;
         }
@@ -320,7 +313,7 @@ bool CInstantSendManager::CheckCanLock(const COutPoint& outpoint, bool printDebu
         if (!llmq::chainLocksHandler->HasChainLock(pindexMined->nHeight, pindexMined->GetBlockHash())) {
             if (printDebug) {
                 LogPrint("instantsend", "CInstantSendManager::%s -- txid=%s: outpoint %s too new and not ChainLocked. nTxAge=%d, nConfirmationsRequired=%d\n", __func__,
-                         txHash->ToString(), outpoint.ToStringShort(), nTxAge, nConfirmationsRequired);
+                         txHash.ToString(), outpoint.ToStringShort(), nTxAge, nConfirmationsRequired);
             }
             return false;
         }
