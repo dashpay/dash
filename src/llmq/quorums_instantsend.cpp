@@ -713,18 +713,19 @@ void CInstantSendManager::SyncTransaction(const CTransaction& tx, const CBlockIn
     }
 }
 
-void CInstantSendManager::NotifyChainLock(const CBlockIndex* pindex)
+void CInstantSendManager::NotifyChainLock(const CBlockIndex* pindexChainLock)
 {
     uint256 lastChainLockBlock;
     {
         LOCK(cs);
-        db.GetLastChainLockBlock();
+        lastChainLockBlock = db.GetLastChainLockBlock();
     }
 
     // Let's find all islocks that correspond to TXs which are part of the freshly ChainLocked chain and then delete
     // the islocks. We do this because the ChainLocks imply locking and thus it's not needed to further track
     // or propagate the islocks
     std::unordered_set<uint256> toDelete;
+    auto pindex = pindexChainLock;
     while (pindex && pindex->GetBlockHash() != lastChainLockBlock) {
         CBlock block;
         {
@@ -752,7 +753,7 @@ void CInstantSendManager::NotifyChainLock(const CBlockIndex* pindex)
 
     {
         LOCK(cs);
-        db.WriteLastChainLockBlock(pindex ? pindex->GetBlockHash() : uint256());
+        db.WriteLastChainLockBlock(pindexChainLock->GetBlockHash());
     }
 
     RetryLockMempoolTxs(uint256());

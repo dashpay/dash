@@ -120,7 +120,7 @@ public:
     void UpdateWalletTransaction(const uint256& txid, const CTransactionRef& tx);
 
     void SyncTransaction(const CTransaction &tx, const CBlockIndex *pindex, int posInBlock);
-    void NotifyChainLock(const CBlockIndex* pindex);
+    void NotifyChainLock(const CBlockIndex* pindexChainLock);
     void RemoveFinalISLock(const uint256& hash, const CInstantSendLockPtr& islock);
 
     void RemoveMempoolConflictsForLock(const uint256& hash, const CInstantSendLock& islock);
