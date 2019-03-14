@@ -332,12 +332,10 @@ void CChainLocksHandler::NewPoWValidBlock(const CBlockIndex* pindex, const std::
     // safe.
 
     auto txs = std::make_shared<std::unordered_set<uint256, StaticSaltedHasher>>();
-    for (const auto& tx : block->vtx) {
-        if (tx->nVersion == 3) {
-            if (tx->nType == TRANSACTION_COINBASE ||
-                tx->nType == TRANSACTION_QUORUM_COMMITMENT) {
-                continue;
-            }
+    for (size_t i = 0; i < block->vtx.size(); i++) {
+        const auto& tx = block->vtx[i];
+        if (i == 0 || tx->vin.empty()) {
+            continue;
         }
         txs->emplace(tx->GetHash());
         txFirstSeenTime.emplace(tx->GetHash(), curTime);
@@ -347,11 +345,8 @@ void CChainLocksHandler::NewPoWValidBlock(const CBlockIndex* pindex, const std::
 
 void CChainLocksHandler::SyncTransaction(const CTransaction& tx, const CBlockIndex* pindex, int posInBlock)
 {
-    if (tx.nVersion == 3) {
-        if (tx.nType == TRANSACTION_COINBASE ||
-            tx.nType == TRANSACTION_QUORUM_COMMITMENT) {
-            return;
-        }
+    if (posInBlock == 0 || tx.vin.empty()) {
+        return;
     }
 
     LOCK(cs);
