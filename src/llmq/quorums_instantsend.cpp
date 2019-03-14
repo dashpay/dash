@@ -845,7 +845,11 @@ void CInstantSendManager::RetryLockTxs(const uint256& lockedParentTx)
         }
     }
 
-    while (pindexWalk && pindexWalk != pindexLastChainLockBlock) {
+    // scan blocks until we hit the last chainlocked block we know of. Also stop scanning after a depth of 6 to avoid
+    // signing thousands of TXs at once. Also, after a depth of 6, blocks get eligible for ChainLocking even if unsafe
+    // TXs are included, so there is no need to retroactively sign these.
+    int depth = 0;
+    while (pindexWalk && pindexWalk != pindexLastChainLockBlock && depth < 6) {
         CBlock block;
         {
             LOCK(cs_main);
@@ -873,6 +877,7 @@ void CInstantSendManager::RetryLockTxs(const uint256& lockedParentTx)
         }
 
         pindexWalk = pindexWalk->pprev;
+        depth++;
     }
 
     for (auto& p : txs) {
