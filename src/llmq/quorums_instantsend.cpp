@@ -309,14 +309,11 @@ bool CInstantSendManager::CheckCanLock(const COutPoint& outpoint, bool printDebu
     }
 
     int nTxAge = chainActive.Height() - coin.nHeight + 1;
-    // 1 less than the "send IX" gui requires, in case of a block propagating the network at the time
-    int nConfirmationsRequired = nInstantSendConfirmationsRequired - 1;
-
-    if (nTxAge < nConfirmationsRequired) {
+    if (nTxAge < nInstantSendConfirmationsRequired) {
         if (!llmq::chainLocksHandler->HasChainLock(pindexMined->nHeight, pindexMined->GetBlockHash())) {
             if (printDebug) {
-                LogPrint("instantsend", "CInstantSendManager::%s -- txid=%s: outpoint %s too new and not ChainLocked. nTxAge=%d, nConfirmationsRequired=%d\n", __func__,
-                         txHash.ToString(), outpoint.ToStringShort(), nTxAge, nConfirmationsRequired);
+                LogPrint("instantsend", "CInstantSendManager::%s -- txid=%s: outpoint %s too new and not ChainLocked. nTxAge=%d, nInstantSendConfirmationsRequired=%d\n", __func__,
+                         txHash.ToString(), outpoint.ToStringShort(), nTxAge, nInstantSendConfirmationsRequired);
             }
             return false;
         }
