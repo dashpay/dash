@@ -50,7 +50,7 @@ class InstantSendTest(DashTestFramework):
                                        self.nodes[self.isolated_idx],
                                        0.5, 1, 100)
         # stop one node to isolate it from network
-        stop_node(self.nodes[self.isolated_idx], self.isolated_idx)
+        self.nodes[self.isolated_idx].setnetworkactive(False)
         # instantsend to receiver
         receiver_addr = self.nodes[self.receiver_idx].getnewaddress()
         is_id = self.nodes[self.sender_idx].instantsendtoaddress(receiver_addr, 0.9)
@@ -66,10 +66,6 @@ class InstantSendTest(DashTestFramework):
                 break
             sleep(0.1)
         assert(locked)
-        # start last node
-        self.nodes[self.isolated_idx] = start_node(self.isolated_idx,
-                                                   self.options.tmpdir,
-                                                   self.extra_args)
         # send doublespend transaction to isolated node
         self.nodes[self.isolated_idx].sendrawtransaction(dblspnd_tx['hex'])
         # generate block on isolated node with doublespend transaction
@@ -78,6 +74,7 @@ class InstantSendTest(DashTestFramework):
         self.nodes[self.isolated_idx].generate(1)
         wrong_block = self.nodes[self.isolated_idx].getbestblockhash()
         # connect isolated block to network
+        self.nodes[self.isolated_idx].setnetworkactive(True)
         for i in range(0, self.isolated_idx):
             connect_nodes(self.nodes[i], self.isolated_idx)
         # check doublespend block is rejected by other nodes
