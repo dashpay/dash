@@ -25,8 +25,8 @@ class AutoIXMempoolTest(DashTestFramework):
     def __init__(self):
         super().__init__(8, 5, ["-maxmempool=%d" % MAX_MEMPOOL_SIZE, '-limitdescendantsize=10'], fast_dip3_enforcement=True)
         # set sender,  receiver
-        self.receiver_idx = self.num_nodes - 2
-        self.sender_idx = self.num_nodes - 3
+        self.receiver_idx = 1
+        self.sender_idx = 2
 
     def get_autoix_bip9_status(self):
         info = self.nodes[0].getblockchaininfo()

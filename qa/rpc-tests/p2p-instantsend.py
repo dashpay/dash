@@ -16,9 +16,9 @@ class InstantSendTest(DashTestFramework):
     def __init__(self):
         super().__init__(9, 5, [], fast_dip3_enforcement=True)
         # set sender,  receiver,  isolated nodes
-        self.isolated_idx = self.num_nodes - 1
-        self.receiver_idx = self.num_nodes - 2
-        self.sender_idx = self.num_nodes - 3
+        self.isolated_idx = 1
+        self.receiver_idx = 2
+        self.sender_idx = 3
 
     def run_test(self):
         self.nodes[0].spork("SPORK_17_QUORUM_DKG_ENABLED", 0)
@@ -82,7 +82,9 @@ class InstantSendTest(DashTestFramework):
             connect_nodes(self.nodes[i], self.isolated_idx)
         # check doublespend block is rejected by other nodes
         timeout = 10
-        for i in range(0, self.isolated_idx):
+        for i in range(0, self.num_nodes):
+            if i == self.isolated_idx:
+                continue
             res = self.nodes[i].waitforblock(wrong_block, timeout)
             assert (res['hash'] != wrong_block)
             # wait for long time only for first node
