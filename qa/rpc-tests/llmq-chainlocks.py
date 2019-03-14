@@ -97,6 +97,7 @@ class LLMQChainLocksTest(DashTestFramework):
         txs = []
         for i in range(3):
             txs.append(self.nodes[0].sendtoaddress(self.nodes[0].getnewaddress(), 1))
+        txs += self.create_chained_txs(self.nodes[0], 1)
         # Assert that after block generation these TXs are NOT included (as they are "unsafe")
         self.nodes[0].generate(1)
         for txid in txs:
@@ -140,6 +141,24 @@ class LLMQChainLocksTest(DashTestFramework):
                 pass
             sleep(0.1)
         raise AssertionError("wait_for_chainlock timed out")
+
+    def create_chained_txs(self, node, amount):
+        txid = node.sendtoaddress(node.getnewaddress(), amount)
+        tx = node.getrawtransaction(txid, 1)
+        inputs = []
+        valueIn = 0
+        for txout in tx["vout"]:
+            inputs.append({"txid": txid, "vout": txout["n"]})
+            valueIn += txout["value"]
+        outputs = {
+            node.getnewaddress(): round(float(valueIn) - 0.0001, 6)
+        }
+
+        rawtx = node.createrawtransaction(inputs, outputs)
+        rawtx = node.signrawtransaction(rawtx)
+        rawtxid = node.sendrawtransaction(rawtx["hex"])
+
+        return [txid, rawtxid]
 
 
 if __name__ == '__main__':
