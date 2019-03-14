@@ -856,7 +856,20 @@ void CInstantSendManager::RetryLockTxs(const uint256& lockedParentTx)
         }
 
         for (const auto& tx : block.vtx) {
-            txs.emplace(tx->GetHash(), tx);
+            if (lockedParentTx.IsNull()) {
+                txs.emplace(tx->GetHash(), tx);
+            } else {
+                bool isChild  = false;
+                for (auto& in : tx->vin) {
+                    if (in.prevout.hash == lockedParentTx) {
+                        isChild = true;
+                        break;
+                    }
+                }
+                if (isChild) {
+                    txs.emplace(tx->GetHash(), tx);
+                }
+            }
         }
 
         pindexWalk = pindexWalk->pprev;
