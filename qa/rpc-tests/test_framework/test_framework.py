@@ -492,8 +492,9 @@ class DashTestFramework(BitcoinTestFramework):
                 inputs[-1] = input
             last_amount = float(tx['amount'])
 
-        assert (len(inputs) > 0)
-        assert (in_amount > amount)
+        assert (len(inputs) >= min_inputs)
+        assert (len(inputs) <= max_inputs)
+        assert (in_amount >= amount)
         # fill outputs
         receiver_address = node_to.getnewaddress()
         change_address = node_from.getnewaddress()
