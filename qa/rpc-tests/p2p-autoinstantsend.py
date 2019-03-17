@@ -48,14 +48,17 @@ class AutoInstantSendTest(DashTestFramework):
     def test_auto(self, new_is = False):
         sender = self.nodes[self.sender_idx]
         receiver = self.nodes[self.receiver_idx]
-        # feed the sender with some balance
-        sender_addr = self.nodes[self.sender_idx].getnewaddress()
-        self.nodes[0].sendtoaddress(sender_addr, 1)
+        # feed the sender with some balance, make sure there are enough inputs
+        sender_addr = sender.getnewaddress()
+        for i in range(0, 30):
+            self.nodes[0].sendtoaddress(sender_addr, 1)
+
         # make sender funds mature for InstantSend
         for i in range(0, 2):
             set_mocktime(get_mocktime() + 1)
             set_node_times(self.nodes, get_mocktime())
             self.nodes[0].generate(1)
+        self.sync_all()
 
         assert(not self.get_autois_spork_state(self.nodes[0]))
 
