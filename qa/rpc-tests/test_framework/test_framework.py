@@ -541,7 +541,7 @@ class DashTestFramework(BitcoinTestFramework):
                 break
             if time() > start + 10:
                 break
-            sleep(0.1)
+            sleep(0.5)
         return locked
 
     def wait_for_sporks_same(self, timeout=30):
