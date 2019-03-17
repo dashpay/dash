@@ -83,6 +83,11 @@ class AutoInstantSendTest(DashTestFramework):
         assert(self.send_simple_tx(sender, receiver) if new_is else not self.send_simple_tx(sender, receiver))
         assert(self.send_complex_tx(sender, receiver) if new_is else not self.send_complex_tx(sender, receiver))
 
+        # mine all mempool txes
+        set_mocktime(get_mocktime() + 1)
+        set_node_times(self.nodes, get_mocktime())
+        self.nodes[0].generate(1)
+        self.sync_all()
 
 if __name__ == '__main__':
     AutoInstantSendTest().main()
