@@ -461,7 +461,7 @@ class DashTestFramework(BitcoinTestFramework):
             value = 4070908800
         node.spork('SPORK_16_INSTANTSEND_AUTOLOCKS', value)
 
-    def create_raw_trx(self, node_from, node_to, amount, min_inputs, max_inputs):
+    def create_raw_tx(self, node_from, node_to, amount, min_inputs, max_inputs):
         assert (min_inputs <= max_inputs)
         # fill inputs
         inputs = []
@@ -517,14 +517,14 @@ class DashTestFramework(BitcoinTestFramework):
 
     # sends simple tx, it should become locked if autolocks are allowed
     def send_simple_tx(self, sender, receiver):
-        raw_tx = self.create_raw_trx(sender, receiver, 1.0, 1, 4)
+        raw_tx = self.create_raw_tx(sender, receiver, 1.0, 1, 4)
         txid = self.nodes[0].sendrawtransaction(raw_tx['hex'])
         self.sync_all()
         return self.wait_for_instantlock(txid, sender)
 
     # sends complex tx, it should never become locked for old instentsend
     def send_complex_tx(self, sender, receiver):
-        raw_tx = self.create_raw_trx(sender, receiver, 1.0, 5, 100)
+        raw_tx = self.create_raw_tx(sender, receiver, 1.0, 5, 100)
         txid = sender.sendrawtransaction(raw_tx['hex'])
         self.sync_all()
         return self.wait_for_instantlock(txid, sender)

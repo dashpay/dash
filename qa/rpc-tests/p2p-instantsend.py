@@ -49,7 +49,7 @@ class InstantSendTest(DashTestFramework):
         self.sync_all()
 
         # create doublepending transaction,  but don't relay it
-        dblspnd_tx = self.create_raw_trx(sender, isolated, 0.5, 1, 100)
+        dblspnd_tx = self.create_raw_tx(sender, isolated, 0.5, 1, 100)
         # stop one node to isolate it from network
         isolated.setnetworkactive(False)
         # instantsend to receiver
