@@ -21,86 +21,12 @@ MB_SIZE = 1000000 # C++ code use this coefficient to calc MB in mempool
 AUTO_IX_MEM_THRESHOLD = 0.1
 
 
-class AutoIXMempoolTest(DashTestFramework):
+class AutoISMempoolTest(DashTestFramework):
     def __init__(self):
         super().__init__(8, 5, ["-maxmempool=%d" % MAX_MEMPOOL_SIZE, '-limitdescendantsize=10'], fast_dip3_enforcement=True)
         # set sender,  receiver
         self.receiver_idx = 1
         self.sender_idx = 2
-
-    def get_autoix_bip9_status(self):
-        info = self.nodes[0].getblockchaininfo()
-        # we reuse the dip3 deployment
-        return info['bip9_softforks']['dip0003']['status']
-
-    def activate_autoix_bip9(self):
-        # sync nodes periodically
-        # if we sync them too often, activation takes too many time
-        # if we sync them too rarely, nodes failed to update its state and
-        # bip9 status is not updated
-        # so, in this code nodes are synced once per 20 blocks
-        counter = 0
-        sync_period = 10
-
-        while self.get_autoix_bip9_status() == 'defined':
-            set_mocktime(get_mocktime() + 1)
-            set_node_times(self.nodes, get_mocktime())
-            self.nodes[0].generate(1)
-            counter += 1
-            if counter % sync_period == 0:
-                # sync nodes
-                self.sync_all()
-
-        while self.get_autoix_bip9_status() == 'started':
-            set_mocktime(get_mocktime() + 1)
-            set_node_times(self.nodes, get_mocktime())
-            self.nodes[0].generate(1)
-            counter += 1
-            if counter % sync_period == 0:
-                # sync nodes
-                self.sync_all()
-
-        while self.get_autoix_bip9_status() == 'locked_in':
-            set_mocktime(get_mocktime() + 1)
-            set_node_times(self.nodes, get_mocktime())
-            self.nodes[0].generate(1)
-            counter += 1
-            if counter % sync_period == 0:
-                # sync nodes
-                self.sync_all()
-
-        # sync nodes
-        self.sync_all()
-
-        assert(self.get_autoix_bip9_status() == 'active')
-
-    def get_autoix_spork_state(self):
-        info = self.nodes[0].spork('active')
-        return info['SPORK_16_INSTANTSEND_AUTOLOCKS']
-
-    def set_autoix_spork_state(self, state):
-        # Increment mocktime as otherwise nodes will not update sporks
-        set_mocktime(get_mocktime() + 1)
-        set_node_times(self.nodes, get_mocktime())
-
-        if state:
-            value = 0
-        else:
-            value = 4070908800
-        self.nodes[0].spork('SPORK_16_INSTANTSEND_AUTOLOCKS', value)
-
-    # sends regular IX with high fee and may inputs (not-simple transaction)
-    def send_regular_IX(self, sender, receiver):
-        receiver_addr = receiver.getnewaddress()
-        txid = sender.instantsendtoaddress(receiver_addr, 1.0)
-        return self.wait_for_instantlock(txid, sender)
-
-    # sends simple trx, it should become IX if autolocks are allowed
-    def send_simple_tx(self, sender, receiver):
-        raw_tx = self.create_raw_trx(sender, receiver, 1.0, 1, 4)
-        txid = self.nodes[0].sendrawtransaction(raw_tx['hex'])
-        self.sync_all()
-        return self.wait_for_instantlock(txid, sender)
 
     def get_mempool_usage(self, node):
         info = node.getmempoolinfo()
@@ -137,12 +63,12 @@ class AutoIXMempoolTest(DashTestFramework):
         self.test_auto(True);
 
     def test_auto(self, new_is = False):
-        self.activate_autoix_bip9()
-        self.set_autoix_spork_state(True)
+        self.activate_autois_bip9(self.nodes[0])
+        self.set_autois_spork_state(self.nodes[0], True)
 
-        # check pre-conditions for autoIX
-        assert(self.get_autoix_bip9_status() == 'active')
-        assert(self.get_autoix_spork_state())
+        # check pre-conditions for autoIS
+        assert(self.get_autois_bip9_status(self.nodes[0]) == 'active')
+        assert(self.get_autois_spork_state(self.nodes[0]))
 
         # create 3 inputs for txes on sender node and give them 6 confirmations
         sender = self.nodes[self.sender_idx]
@@ -156,30 +82,30 @@ class AutoIXMempoolTest(DashTestFramework):
             self.nodes[0].generate(1)
         self.sync_all()
 
-        # autoIX is working
+        # autoIS is working
         assert(self.send_simple_tx(sender, receiver))
 
         # fill mempool with transactions
-        self.set_autoix_spork_state(False)
+        self.set_autois_spork_state(self.nodes[0], False)
         self.nodes[0].spork("SPORK_2_INSTANTSEND_ENABLED", 4070908800)
         self.wait_for_sporks_same()
         self.fill_mempool()
-        self.set_autoix_spork_state(True)
+        self.set_autois_spork_state(self.nodes[0], True)
         self.nodes[0].spork("SPORK_2_INSTANTSEND_ENABLED", 0)
         self.wait_for_sporks_same()
 
-        # autoIX is not working now
+        # autoIS is not working now
         assert(not self.send_simple_tx(sender, receiver))
-        # regular IX is still working for old IS but not for new one
-        assert(not self.send_regular_IX(sender, receiver) if new_is else self.send_regular_IX(sender, receiver))
+        # regular IS is still working for old IS but not for new one
+        assert(not self.send_regular_instantsend(sender, receiver, False) if new_is else self.send_regular_instantsend(sender, receiver))
 
-        # generate one block to clean up mempool and retry auto and regular IX
-        # generate 2 more blocks to have enough confirmations for IX
+        # generate one block to clean up mempool and retry auto and regular IS
+        # generate 2 more blocks to have enough confirmations for IS
         self.nodes[0].generate(3)
         self.sync_all()
         assert(self.send_simple_tx(sender, receiver))
-        assert(self.send_regular_IX(sender, receiver))
+        assert(self.send_regular_instantsend(sender, receiver, not new_is))
 
 
 if __name__ == '__main__':
-    AutoIXMempoolTest().main()
+    AutoISMempoolTest().main()
