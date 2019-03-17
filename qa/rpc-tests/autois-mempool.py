@@ -70,13 +70,13 @@ class AutoISMempoolTest(DashTestFramework):
         assert(self.get_autois_bip9_status(self.nodes[0]) == 'active')
         assert(self.get_autois_spork_state(self.nodes[0]))
 
-        # create 3 inputs for txes on sender node and give them 6 confirmations
+        # create 3 inputs for txes on sender node and give them enough confirmations
         sender = self.nodes[self.sender_idx]
         receiver = self.nodes[self.receiver_idx]
         sender_address = sender.getnewaddress()
         for i in range(0, 4):
             self.nodes[0].sendtoaddress(sender_address, 2.0)
-        for i in range(0, 6):
+        for i in range(0, 2):
             set_mocktime(get_mocktime() + 1)
             set_node_times(self.nodes, get_mocktime())
             self.nodes[0].generate(1)
