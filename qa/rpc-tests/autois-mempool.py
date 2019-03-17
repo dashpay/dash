@@ -9,7 +9,7 @@ from test_framework.util import *
 from time import *
 
 '''
-autoix-mempool.py
+autois-mempool.py
 
 Checks if automatic InstantSend locks stop working when transaction mempool 
 is full (more than 0.1 part from max value). 
