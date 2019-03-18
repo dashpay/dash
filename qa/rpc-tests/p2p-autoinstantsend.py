@@ -49,9 +49,11 @@ class AutoInstantSendTest(DashTestFramework):
         sender = self.nodes[self.sender_idx]
         receiver = self.nodes[self.receiver_idx]
         # feed the sender with some balance, make sure there are enough inputs
-        sender_addr = sender.getnewaddress()
+        recipients = {}
         for i in range(0, 30):
-            self.nodes[0].sendtoaddress(sender_addr, 1)
+            recipients[sender.getnewaddress()] = 1
+        # use a single transaction to not overload Travis with InstantSend
+        self.nodes[0].sendmany("", recipients)
 
         # make sender funds mature for InstantSend
         for i in range(0, 2):
