@@ -154,7 +154,7 @@ bool CDKGSessionHandler::InitNewQuorum(int newQuorumHeight, const uint256& newQu
     auto mns = CLLMQUtils::GetAllQuorumMembers(params.type, newQuorumHash);
 
     if (!curSession->Init(newQuorumHeight, newQuorumHash, mns, activeMasternodeInfo.proTxHash)) {
-        LogPrintf("CDKGSessionManager::%s -- quorum initialiation failed\n", __func__);
+        LogPrint("llmq", "CDKGSessionManager::%s -- quorum initialiation failed\n", __func__);
         return false;
     }
 
@@ -376,7 +376,7 @@ bool ProcessPendingMessageBatch(CDKGSession& session, CDKGPendingMessages& pendi
 
     for (const auto& p : msgs) {
         if (!p.second) {
-            LogPrint("net", "%s -- failed to deserialize message, peer=%d\n", __func__, p.first);
+            LogPrint("llmq", "%s -- failed to deserialize message, peer=%d\n", __func__, p.first);
             {
                 LOCK(cs_main);
                 Misbehaving(p.first, 100);
@@ -394,13 +394,13 @@ bool ProcessPendingMessageBatch(CDKGSession& session, CDKGPendingMessages& pendi
         bool ban = false;
         if (!session.PreVerifyMessage(hash, msg, ban)) {
             if (ban) {
-                LogPrint("net", "%s -- banning node due to failed preverification, peer=%d", __func__, p.first);
+                LogPrint("llmq", "%s -- banning node due to failed preverification, peer=%d", __func__, p.first);
                 {
                     LOCK(cs_main);
                     Misbehaving(p.first, 100);
                 }
             }
-            LogPrint("net", "%s -- skipping message due to failed preverification, peer=%d", __func__, p.first);
+            LogPrint("llmq", "%s -- skipping message due to failed preverification, peer=%d", __func__, p.first);
             continue;
         }
         hashes.emplace_back(hash);
@@ -414,7 +414,7 @@ bool ProcessPendingMessageBatch(CDKGSession& session, CDKGPendingMessages& pendi
     if (!badNodes.empty()) {
         LOCK(cs_main);
         for (auto nodeId : badNodes) {
-            LogPrint("net", "%s -- failed to verify signature, peer=%d", __func__, nodeId);
+            LogPrint("llmq", "%s -- failed to verify signature, peer=%d", __func__, nodeId);
             Misbehaving(nodeId, 100);
         }
     }
@@ -428,7 +428,7 @@ bool ProcessPendingMessageBatch(CDKGSession& session, CDKGPendingMessages& pendi
         bool ban = false;
         session.ReceiveMessage(hashes[i], msg, ban);
         if (ban) {
-            LogPrint("net", "%s -- banning node after ReceiveMessage failed, peer=%d", __func__, nodeId);
+            LogPrint("llmq", "%s -- banning node after ReceiveMessage failed, peer=%d", __func__, nodeId);
             LOCK(cs_main);
             Misbehaving(nodeId, 100);
             badNodes.emplace(nodeId);
@@ -490,7 +490,7 @@ void CDKGSessionHandler::HandleDKGRound()
             for (const auto& c : connections) {
                 debugMsg += strprintf("  %s\n", c.ToString(false));
             }
-            LogPrintf(debugMsg);
+            LogPrint("llmq", debugMsg);
             g_connman->AddMasternodeQuorumNodes(params.type, curQuorumHash, connections);
 
             auto participatingNodesTmp = g_connman->GetMasternodeQuorumAddresses(params.type, curQuorumHash);
@@ -553,7 +553,7 @@ void CDKGSessionHandler::PhaseHandlerThread()
                 status.aborted = true;
                 return true;
             });
-            LogPrintf("CDKGSessionHandler::%s -- aborted current DKG session for llmq=%s\n", __func__, params.name);
+            LogPrint("llmq", "CDKGSessionHandler::%s -- aborted current DKG session for llmq=%s\n", __func__, params.name);
         }
     }
 }
