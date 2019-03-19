@@ -296,6 +296,7 @@ bool CInstantSendManager::CheckCanLock(const COutPoint& outpoint, bool printDebu
 
     Coin coin;
     const CBlockIndex* pindexMined = nullptr;
+    int nTxAge;
     {
         LOCK(cs_main);
         if (!pcoinsTip->GetCoin(outpoint, coin) || coin.IsSpent()) {
@@ -306,9 +307,9 @@ bool CInstantSendManager::CheckCanLock(const COutPoint& outpoint, bool printDebu
             return false;
         }
         pindexMined = chainActive[coin.nHeight];
+        nTxAge = chainActive.Height() - coin.nHeight + 1;
     }
 
-    int nTxAge = chainActive.Height() - coin.nHeight + 1;
     if (nTxAge < nInstantSendConfirmationsRequired) {
         if (!llmq::chainLocksHandler->HasChainLock(pindexMined->nHeight, pindexMined->GetBlockHash())) {
             if (printDebug) {
