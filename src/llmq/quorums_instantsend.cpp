@@ -711,8 +711,8 @@ void CInstantSendManager::SyncTransaction(const CTransaction& tx, const CBlockIn
         return;
     }
 
-    if (posInBlock == 0) {
-        // coinbase can't be locked
+    if (tx.IsCoinBase() || tx.vin.empty()) {
+        // coinbase can't and TXs with no inputs be locked
         return;
     }
 
