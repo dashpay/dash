@@ -455,7 +455,7 @@ bool CSigningManager::ProcessPendingRecoveredSigs(CConnman& connman)
 
         if (batchVerifier.badSources.count(nodeId)) {
             LOCK(cs_main);
-            LogPrint("llmq", "CSigningManager::%s -- invalid recSig from other node, banning peer=%d\n", __func__, nodeId);
+            LogPrintf("CSigningManager::%s -- invalid recSig from other node, banning peer=%d\n", __func__, nodeId);
             Misbehaving(nodeId, 100);
             continue;
         }
@@ -500,7 +500,7 @@ void CSigningManager::ProcessRecoveredSig(NodeId nodeId, const CRecoveredSig& re
                 if (signHash != otherSignHash) {
                     // this should really not happen, as each masternode is participating in only one vote,
                     // even if it's a member of multiple quorums. so a majority is only possible on one quorum and one msgHash per id
-                    LogPrint("llmq", "CSigningManager::%s -- conflicting recoveredSig for signHash=%s, id=%s, msgHash=%s, otherSignHash=%s\n", __func__,
+                    LogPrintf("CSigningManager::%s -- conflicting recoveredSig for signHash=%s, id=%s, msgHash=%s, otherSignHash=%s\n", __func__,
                               signHash.ToString(), recoveredSig.id.ToString(), recoveredSig.msgHash.ToString(), otherSignHash.ToString());
                 } else {
                     // Looks like we're trying to process a recSig that is already known. This might happen if the same
@@ -574,7 +574,7 @@ bool CSigningManager::AsyncSignIfMember(Consensus::LLMQType llmqType, const uint
             uint256 prevMsgHash;
             db.GetVoteForId(llmqType, id, prevMsgHash);
             if (msgHash != prevMsgHash) {
-                LogPrint("llmq", "CSigningManager::%s -- already voted for id=%s and msgHash=%s. Not voting on conflicting msgHash=%s\n", __func__,
+                LogPrintf("CSigningManager::%s -- already voted for id=%s and msgHash=%s. Not voting on conflicting msgHash=%s\n", __func__,
                         id.ToString(), prevMsgHash.ToString(), msgHash.ToString());
             } else {
                 LogPrint("llmq", "CSigningManager::%s -- already voted for id=%s and msgHash=%s. Not voting again.\n", __func__,

@@ -108,7 +108,7 @@ void CChainLocksHandler::ProcessNewChainLock(NodeId from, const llmq::CChainLock
     uint256 requestId = ::SerializeHash(std::make_pair(CLSIG_REQUESTID_PREFIX, clsig.nHeight));
     uint256 msgHash = clsig.blockHash;
     if (!quorumSigningManager->VerifyRecoveredSig(Params().GetConsensus().llmqChainLocks, clsig.nHeight, requestId, msgHash, clsig.sig)) {
-        LogPrint("chainlocks", "CChainLocksHandler::%s -- invalid CLSIG (%s), peer=%d\n", __func__, clsig.ToString(), from);
+        LogPrintf("CChainLocksHandler::%s -- invalid CLSIG (%s), peer=%d\n", __func__, clsig.ToString(), from);
         if (from != -1) {
             LOCK(cs_main);
             Misbehaving(from, 10);
@@ -122,7 +122,7 @@ void CChainLocksHandler::ProcessNewChainLock(NodeId from, const llmq::CChainLock
         if (InternalHasConflictingChainLock(clsig.nHeight, clsig.blockHash)) {
             // This should not happen. If it happens, it means that a malicious entity controls a large part of the MN
             // network. In this case, we don't allow him to reorg older chainlocks.
-            LogPrint("chainlocks", "CChainLocksHandler::%s -- new CLSIG (%s) tries to reorg previous CLSIG (%s), peer=%d\n",
+            LogPrintf("CChainLocksHandler::%s -- new CLSIG (%s) tries to reorg previous CLSIG (%s), peer=%d\n",
                       __func__, clsig.ToString(), bestChainLock.ToString(), from);
             return;
         }
@@ -142,7 +142,7 @@ void CChainLocksHandler::ProcessNewChainLock(NodeId from, const llmq::CChainLock
 
         if (blockIt->second->nHeight != clsig.nHeight) {
             // Should not happen, same as the conflict check from above.
-            LogPrint("chainlocks", "CChainLocksHandler::%s -- height of CLSIG (%s) does not match the specified block's height (%d)\n",
+            LogPrintf("CChainLocksHandler::%s -- height of CLSIG (%s) does not match the specified block's height (%d)\n",
                     __func__, clsig.ToString(), blockIt->second->nHeight);
             return;
         }
@@ -165,11 +165,11 @@ void CChainLocksHandler::AcceptedBlockHeader(const CBlockIndex* pindexNew)
     LOCK2(cs_main, cs);
 
     if (pindexNew->GetBlockHash() == bestChainLock.blockHash) {
-        LogPrint("chainlocks", "CChainLocksHandler::%s -- block header %s came in late, updating and enforcing\n", __func__, pindexNew->GetBlockHash().ToString());
+        LogPrintf("CChainLocksHandler::%s -- block header %s came in late, updating and enforcing\n", __func__, pindexNew->GetBlockHash().ToString());
 
         if (bestChainLock.nHeight != pindexNew->nHeight) {
             // Should not happen, same as the conflict check from ProcessNewChainLock.
-            LogPrint("chainlocks", "CChainLocksHandler::%s -- height of CLSIG (%s) does not match the specified block's height (%d)\n",
+            LogPrintf("CChainLocksHandler::%s -- height of CLSIG (%s) does not match the specified block's height (%d)\n",
                       __func__, bestChainLock.ToString(), pindexNew->nHeight);
             return;
         }
@@ -271,7 +271,7 @@ void CChainLocksHandler::TrySignChainTip()
                 auto it = blockTxs.find(pindexWalk->GetBlockHash());
                 if (it == blockTxs.end()) {
                     // this should actually not happen as NewPoWValidBlock should have been called before
-                    LogPrint("chainlocks", "CChainLocksHandler::%s -- blockTxs for %s not found\n", __func__,
+                    LogPrintf("CChainLocksHandler::%s -- blockTxs for %s not found\n", __func__,
                               pindexWalk->GetBlockHash().ToString());
                     return;
                 }
@@ -402,7 +402,7 @@ void CChainLocksHandler::EnforceBestChainLock()
                 if (jt->second == pindex) {
                     continue;
                 }
-                LogPrint("chainlocks", "CChainLocksHandler::%s -- CLSIG (%s) invalidates block %s\n",
+                LogPrintf("CChainLocksHandler::%s -- CLSIG (%s) invalidates block %s\n",
                           __func__, clsig.ToString(), jt->second->GetBlockHash().ToString());
                 DoInvalidateBlock(jt->second, false);
             }
@@ -422,7 +422,7 @@ void CChainLocksHandler::EnforceBestChainLock()
 
     CValidationState state;
     if (activateNeeded && !ActivateBestChain(state, Params())) {
-        LogPrint("chainlocks", "CChainLocksHandler::%s -- ActivateBestChain failed: %s\n", __func__, FormatStateMessage(state));
+        LogPrintf("CChainLocksHandler::%s -- ActivateBestChain failed: %s\n", __func__, FormatStateMessage(state));
     }
 
     const CBlockIndex* pindexNotify = nullptr;
@@ -479,7 +479,7 @@ void CChainLocksHandler::DoInvalidateBlock(const CBlockIndex* pindex, bool activ
 
         CValidationState state;
         if (!InvalidateBlock(state, params, pindex2)) {
-            LogPrint("chainlocks", "CChainLocksHandler::%s -- InvalidateBlock failed: %s\n", __func__, FormatStateMessage(state));
+            LogPrintf("CChainLocksHandler::%s -- InvalidateBlock failed: %s\n", __func__, FormatStateMessage(state));
             // This should not have happened and we are in a state were it's not safe to continue anymore
             assert(false);
         }
@@ -487,7 +487,7 @@ void CChainLocksHandler::DoInvalidateBlock(const CBlockIndex* pindex, bool activ
 
     CValidationState state;
     if (activateBestChain && !ActivateBestChain(state, params)) {
-        LogPrint("chainlocks", "CChainLocksHandler::%s -- ActivateBestChain failed: %s\n", __func__, FormatStateMessage(state));
+        LogPrintf("CChainLocksHandler::%s -- ActivateBestChain failed: %s\n", __func__, FormatStateMessage(state));
         // This should not have happened and we are in a state were it's not safe to continue anymore
         assert(false);
     }

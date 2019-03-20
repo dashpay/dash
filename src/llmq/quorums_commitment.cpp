@@ -24,9 +24,7 @@ CFinalCommitment::CFinalCommitment(const Consensus::LLMQParams& params, const ui
 }
 
 #define LogPrintfFinalCommitment(...) do { \
-    if (LogAcceptCategory("llmq")) { \
-        LogPrintStr(strprintf("CFinalCommitment::%s -- %s", __func__, tinyformat::format(__VA_ARGS__))); \
-    } \
+    LogPrintStr(strprintf("CFinalCommitment::%s -- %s", __func__, tinyformat::format(__VA_ARGS__))); \
 } while(0)
 
 bool CFinalCommitment::Verify(const std::vector<CDeterministicMNCPtr>& members, bool checkSigs) const
