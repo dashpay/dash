@@ -817,6 +817,8 @@ public:
     // Whether a ping is requested.
     std::atomic<bool> fPingQueued;
 
+    // If true, we will announce/send him plain recovered sigs (usually true for full nodes)
+    std::atomic<bool> fSendRecSigs{false};
     // If true, we will send him all quorum related messages, even if he is not a member of our quorums
     std::atomic_bool qwatch{false};
 
