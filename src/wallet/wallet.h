@@ -22,7 +22,7 @@
 #include <wallet/coincontrol.h>
 #include <wallet/crypter.h>
 #include <wallet/walletdb.h>
-#include <wallet/rpcwallet.h>
+#include <wallet/walletutil.h>
 
 #include <privatesend/privatesend.h>
 
@@ -858,12 +858,8 @@ private:
      */
     bool AddWatchOnly(const CScript& dest) override;
 
-    /**
-     * Wallet filename from wallet=<path> command line or config option.
-     * Used in debug logs and to send RPCs to the right wallet instance when
-     * more than one wallet is loaded.
-     */
-    std::string m_name;
+    /** Wallet location which includes wallet name (see WalletLocation). */
+    WalletLocation m_location;
 
     /** Internal database handle. */
     std::unique_ptr<WalletDatabase> database;
@@ -913,9 +909,19 @@ public:
         return *database;
     }
 
+    /**
+     * Select a set of coins such that nValueRet >= nTargetValue and at least
+     * all coins from coinControl are selected; Never select unconfirmed coins
+     * if they are not ours
+     */
+    bool SelectCoins(const std::vector<COutput>& vAvailableCoins, const CAmount& nTargetValue, std::set<CInputCoin>& setCoinsRet, CAmount& nValueRet,
+                    const CCoinControl& coin_control, CoinSelectionParams& coin_selection_params, bool& bnb_used) const;
+
+    const WalletLocation& GetLocation() const { return m_location; }
+
     /** Get a name for this wallet for logging/debugging purposes.
      */
-    const std::string& GetName() const { return m_name; }
+    const std::string& GetName() const { return m_location.GetName(); }
 
     void LoadKeyPool(int64_t nIndex, const CKeyPool &keypool);
     void MarkPreSplitKeys();
@@ -931,7 +937,7 @@ public:
     unsigned int nMasterKeyMaxID;
 
     /** Construct wallet with specified name and database implementation. */
-    CWallet(std::string name, std::unique_ptr<WalletDatabase> database) : m_name(std::move(name)), database(std::move(database))
+    CWallet(const WalletLocation& location, std::unique_ptr<WalletDatabase> database) : m_location(location), database(std::move(database))
     {
         SetNull();
     }
@@ -1332,10 +1338,10 @@ public:
     bool AbandonTransaction(const uint256& hashTx);
 
     //! Verify wallet naming and perform salvage on the wallet if required
-    static bool Verify(std::string wallet_file, bool salvage_wallet, std::string& error_string, std::string& warning_string);
+    static bool Verify(const WalletLocation& location, bool salvage_wallet, std::string& error_string, std::string& warning_string);
 
     /* Initializes the wallet, returns a new CWallet instance or a null pointer in case of an error */
-    static std::shared_ptr<CWallet> CreateWalletFromFile(const std::string& name, const fs::path& path, uint64_t wallet_creation_flags = 0);
+    static std::shared_ptr<CWallet> CreateWalletFromFile(const WalletLocation& location, uint64_t wallet_creation_flags = 0);
 
     /**
      * Wallet post-init setup

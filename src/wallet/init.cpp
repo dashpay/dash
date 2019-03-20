@@ -246,16 +246,16 @@ bool WalletInit::Verify()
     // Keep track of each wallet absolute path to detect duplicates.
     std::set<fs::path> wallet_paths;
 
-    for (const auto wallet_file : wallet_files) {
-        fs::path wallet_path = fs::absolute(wallet_file, GetWalletDir());
+    for (const auto& wallet_file : wallet_files) {
+        WalletLocation location(wallet_file);
 
-        if (!wallet_paths.insert(wallet_path).second) {
+        if (!wallet_paths.insert(location.GetPath()).second) {
             return InitError(strprintf(_("Error loading wallet %s. Duplicate -wallet filename specified."), wallet_file));
         }
 
         std::string error_string;
         std::string warning_string;
-        bool verify_success = CWallet::Verify(wallet_file, salvage_wallet, error_string, warning_string);
+        bool verify_success = CWallet::Verify(location, salvage_wallet, error_string, warning_string);
         if (!error_string.empty()) InitError(error_string);
         if (!warning_string.empty()) InitWarning(warning_string);
         if (!verify_success) return false;
@@ -272,7 +272,7 @@ bool WalletInit::Open()
     }
 
     for (const std::string& walletFile : gArgs.GetArgs("-wallet")) {
-        CWallet * const pwallet = CWallet::CreateWalletFromFile(walletFile, fs::absolute(walletFile, GetWalletDir()));
+        std::shared_ptr<CWallet> pwallet = CWallet::CreateWalletFromFile(WalletLocation(walletFile));
         if (!pwallet) {
             return false;
         }

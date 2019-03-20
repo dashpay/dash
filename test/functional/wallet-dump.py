@@ -121,9 +121,8 @@ class WalletDumpTest(BitcoinTestFramework):
         assert_equal(witness_addr_ret, witness_addr)  # p2sh-p2wsh address added to the first key
 
         #encrypt wallet, restart, unlock and dump
-        self.nodes[0].node_encrypt_wallet('test')
-        self.start_node(0)
-        self.nodes[0].walletpassphrase('test', 30)
+        self.nodes[0].encryptwallet('test')
+        self.nodes[0].walletpassphrase('test', 10)
         # Should be a no-op:
         self.nodes[0].keypoolrefill()
         self.nodes[0].dumpwallet(tmpdir + "/node0/wallet.encrypted.dump")
