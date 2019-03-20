@@ -101,13 +101,13 @@ CInstantSendLockPtr CInstantSendDb::GetInstantSendLockByHash(const uint256& hash
     return ret;
 }
 
-CInstantSendLockPtr CInstantSendDb::GetInstantSendLockByTxid(const uint256& txid)
+uint256 CInstantSendDb::GetInstantSendLockHashByTxid(const uint256& txid)
 {
     uint256 islockHash;
 
     bool found = txidCache.get(txid, islockHash);
     if (found && islockHash.IsNull()) {
-        return nullptr;
+        return uint256();
     }
 
     if (!found) {
@@ -116,6 +116,15 @@ CInstantSendLockPtr CInstantSendDb::GetInstantSendLockByTxid(const uint256& txid
     }
 
     if (!found) {
+        return uint256();
+    }
+    return islockHash;
+}
+
+CInstantSendLockPtr CInstantSendDb::GetInstantSendLockByTxid(const uint256& txid)
+{
+    uint256 islockHash = GetInstantSendLockHashByTxid(txid);
+    if (islockHash.IsNull()) {
         return nullptr;
     }
     return GetInstantSendLockByHash(islockHash);
