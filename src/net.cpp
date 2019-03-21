@@ -986,7 +986,7 @@ bool CConnman::AttemptToEvictConnection()
                 }
                 // if MNAUTH was valid, the node is always protected (and at the same time not accounted when
                 // checking incoming connection limits)
-                if (!node->verifiedProRegTx.IsNull()) {
+                if (!node->verifiedProRegTxHash.IsNull()) {
                     isProtected = true;
                 }
                 if (isProtected) {
@@ -1093,7 +1093,7 @@ void CConnman::AcceptConnection(const ListenSocket& hListenSocket) {
         BOOST_FOREACH(CNode* pnode, vNodes) {
             if (pnode->fInbound) {
                 nInbound++;
-                if (!pnode->verifiedProRegTx.IsNull()) {
+                if (!pnode->verifiedProRegTxHash.IsNull()) {
                     nVerifiedInboundMasternodes++;
                 }
             }
@@ -2048,11 +2048,11 @@ void CConnman::ThreadOpenMasternodeConnections()
             return;
 
         std::set<CService> connectedNodes;
-        std::set<uint256> connectedProRegTxs;
+        std::set<uint256> connectedProRegTxHashes;
         ForEachNode([&](const CNode* pnode) {
             connectedNodes.emplace(pnode->addr);
-            if (!pnode->verifiedProRegTx.IsNull()) {
-                connectedProRegTxs.emplace(pnode->verifiedProRegTx);
+            if (!pnode->verifiedProRegTxHash.IsNull()) {
+                connectedProRegTxHashes.emplace(pnode->verifiedProRegTxHash);
             }
         });
 
@@ -2070,8 +2070,8 @@ void CConnman::ThreadOpenMasternodeConnections()
             for (const auto& group : masternodeQuorumNodes) {
                 for (const auto& p : group.second) {
                     auto& addr = p.first;
-                    auto& proRegTx = p.second;
-                    if (!connectedNodes.count(addr) && !IsMasternodeOrDisconnectRequested(addr) && !connectedProRegTxs.count(proRegTx)) {
+                    auto& proRegTxHash = p.second;
+                    if (!connectedNodes.count(addr) && !IsMasternodeOrDisconnectRequested(addr) && !connectedProRegTxHashes.count(proRegTxHash)) {
                         pending.emplace_back(addr);
                     }
                 }

@@ -829,8 +829,8 @@ public:
     mutable CCriticalSection cs_mnauth;
     uint256 sentMNAuthChallenge;
     uint256 receivedMNAuthChallenge;
-    uint256 verifiedProRegTx;
-    uint256 verifiedPubKey;
+    uint256 verifiedProRegTxHash;
+    uint256 verifiedPubKeyHash;
 
     // If true, we will announce/send him plain recovered sigs (usually true for full nodes)
     std::atomic<bool> fSendRecSigs{false};

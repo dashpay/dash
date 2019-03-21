@@ -62,7 +62,7 @@ void CMNAuth::ProcessMessage(CNode* pnode, const std::string& strCommand, CDataS
         {
             LOCK(pnode->cs_mnauth);
             // only one MNAUTH allowed
-            if (!pnode->verifiedProRegTx.IsNull()) {
+            if (!pnode->verifiedProRegTxHash.IsNull()) {
                 LOCK(cs_main);
                 Misbehaving(pnode->id, 100);
                 return;
@@ -101,7 +101,7 @@ void CMNAuth::ProcessMessage(CNode* pnode, const std::string& strCommand, CDataS
         }
 
         connman.ForEachNode([&](CNode* pnode2) {
-            if (pnode2->verifiedProRegTx == mnauth.proRegTxHash) {
+            if (pnode2->verifiedProRegTxHash == mnauth.proRegTxHash) {
                 LogPrint("net", "CMNAuth::ProcessMessage -- Masternode %s has already verified as peer %d, dropping old connection. peer=%d\n",
                         mnauth.proRegTxHash.ToString(), pnode2->id, pnode->id);
                 pnode2->fDisconnect = true;
@@ -110,8 +110,8 @@ void CMNAuth::ProcessMessage(CNode* pnode, const std::string& strCommand, CDataS
 
         {
             LOCK(pnode->cs_mnauth);
-            pnode->verifiedProRegTx = mnauth.proRegTxHash;
-            pnode->verifiedPubKey = dmn->pdmnState->pubKeyOperator.GetHash();
+            pnode->verifiedProRegTxHash = mnauth.proRegTxHash;
+            pnode->verifiedPubKeyHash = dmn->pdmnState->pubKeyOperator.GetHash();
         }
 
         LogPrint("net", "CMNAuth::%s -- Valid MNAUTH for %s, peer=%d\n", __func__, mnauth.proRegTxHash.ToString(), pnode->id);
@@ -123,8 +123,8 @@ void CMNAuth::NotifyMasternodeListChanged(const CDeterministicMNList& newList)
     std::unordered_set<uint256> pubKeys;
     g_connman->ForEachNode([&](const CNode* pnode) {
         LOCK(pnode->cs_mnauth);
-        if (!pnode->verifiedProRegTx.IsNull()) {
-            pubKeys.emplace(pnode->verifiedProRegTx);
+        if (!pnode->verifiedProRegTxHash.IsNull()) {
+            pubKeys.emplace(pnode->verifiedPubKeyHash);
         }
     });
     newList.ForEachMN(true, [&](const CDeterministicMNCPtr& dmn) {
@@ -132,9 +132,9 @@ void CMNAuth::NotifyMasternodeListChanged(const CDeterministicMNList& newList)
     });
     g_connman->ForEachNode([&](CNode* pnode) {
         LOCK(pnode->cs_mnauth);
-        if (!pnode->verifiedProRegTx.IsNull() && pubKeys.count(pnode->verifiedPubKey)) {
+        if (!pnode->verifiedProRegTxHash.IsNull() && pubKeys.count(pnode->verifiedPubKeyHash)) {
             LogPrint("net", "CMNAuth::NotifyMasternodeListChanged -- Disconnecting MN %s due to key changed/removed, peer=%d\n",
-                    pnode->verifiedProRegTx.ToString(), pnode->id);
+                    pnode->verifiedProRegTxHash.ToString(), pnode->id);
             pnode->fDisconnect = true;
         }
     });
