@@ -68,6 +68,8 @@ static const int MAX_ADDNODE_CONNECTIONS = 8;
 /** Maximum number if outgoing masternodes */
 static const int MAX_OUTBOUND_MASTERNODE_CONNECTIONS = 30;
 static const int MAX_OUTBOUND_MASTERNODE_CONNECTIONS_ON_MN = 250;
+/** Eviction protection time for incoming connections  */
+static const int INBOUND_EVICTION_PROTECTION_TIME = 1;
 /** -listen default */
 static const bool DEFAULT_LISTEN = true;
 /** -upnp default */
@@ -726,6 +728,8 @@ public:
     const int64_t nTimeConnected;
     std::atomic<int64_t> nTimeOffset;
     std::atomic<int64_t> nLastWarningTime;
+    std::atomic<int64_t> nTimeFirstMessageReceived;
+    std::atomic<bool> fFirstMessageIsMNAUTH;
     const CAddress addr;
     std::atomic<int> nNumWarningsSkipped;
     std::atomic<int> nVersion;
