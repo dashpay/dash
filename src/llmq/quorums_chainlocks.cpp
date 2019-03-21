@@ -177,6 +177,7 @@ void CChainLocksHandler::AcceptedBlockHeader(const CBlockIndex* pindexNew)
         // when EnforceBestChainLock is called later, it might end up invalidating other chains but not activating the
         // CLSIG locked chain. This happens when only the header is known but the block is still missing yet. The usual
         // block processing logic will handle this when the block arrives
+        bestChainLockWithKnownBlock = bestChainLock;
         bestChainLockBlockIndex = pindexNew;
     }
 }
