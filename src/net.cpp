@@ -2048,8 +2048,12 @@ void CConnman::ThreadOpenMasternodeConnections()
             return;
 
         std::set<CService> connectedNodes;
-        ForEachNode([&connectedNodes](const CNode* pnode) {
+        std::set<uint256> connectedProRegTxs;
+        ForEachNode([&](const CNode* pnode) {
             connectedNodes.emplace(pnode->addr);
+            if (!pnode->verifiedProRegTx.IsNull()) {
+                connectedProRegTxs.emplace(pnode->verifiedProRegTx);
+            }
         });
 
         CSemaphoreGrant grant(*semMasternodeOutbound);
@@ -2064,8 +2068,10 @@ void CConnman::ThreadOpenMasternodeConnections()
 
             std::vector<CService> pending;
             for (const auto& group : masternodeQuorumNodes) {
-                for (const auto& addr : group.second) {
-                    if (!connectedNodes.count(addr) && !IsMasternodeOrDisconnectRequested(addr)) {
+                for (const auto& p : group.second) {
+                    auto& addr = p.first;
+                    auto& proRegTx = p.second;
+                    if (!connectedNodes.count(addr) && !IsMasternodeOrDisconnectRequested(addr) && !connectedProRegTxs.count(proRegTx)) {
                         pending.emplace_back(addr);
                     }
                 }
