@@ -2661,7 +2661,7 @@ bool CConnman::AddPendingMasternode(const CService& service)
     return true;
 }
 
-bool CConnman::AddMasternodeQuorumNodes(Consensus::LLMQType llmqType, const uint256& quorumHash, const std::set<CService>& addresses)
+bool CConnman::AddMasternodeQuorumNodes(Consensus::LLMQType llmqType, const uint256& quorumHash, const std::map<CService, uint256>& addresses)
 {
     LOCK(cs_vPendingMasternodes);
     auto it = masternodeQuorumNodes.find(std::make_pair(llmqType, quorumHash));
@@ -2691,7 +2691,7 @@ std::set<uint256> CConnman::GetMasternodeQuorums(Consensus::LLMQType llmqType)
     return result;
 }
 
-std::set<CService> CConnman::GetMasternodeQuorumAddresses(Consensus::LLMQType llmqType, const uint256& quorumHash) const
+std::map<CService, uint256> CConnman::GetMasternodeQuorumAddresses(Consensus::LLMQType llmqType, const uint256& quorumHash) const
 {
     LOCK(cs_vPendingMasternodes);
     auto it = masternodeQuorumNodes.find(std::make_pair(llmqType, quorumHash));
