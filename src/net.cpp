@@ -2519,7 +2519,8 @@ void CConnman::Interrupt()
     }
 
     if (semMasternodeOutbound) {
-        for (int i=0; i<(fMasternodeMode ? MAX_OUTBOUND_MASTERNODE_CONNECTIONS_ON_MN : MAX_OUTBOUND_MASTERNODE_CONNECTIONS); i++) {
+        int nMaxMasternodeOutbound = fMasternodeMode ? MAX_OUTBOUND_MASTERNODE_CONNECTIONS_ON_MN : MAX_OUTBOUND_MASTERNODE_CONNECTIONS;
+        for (int i = 0; i < nMaxMasternodeOutbound; i++) {
             semMasternodeOutbound->post();
         }
     }
