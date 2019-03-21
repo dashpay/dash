@@ -2519,7 +2519,7 @@ void CConnman::Interrupt()
     }
 
     if (semMasternodeOutbound) {
-        for (int i=0; i<fMasternodeMode ? MAX_OUTBOUND_MASTERNODE_CONNECTIONS_ON_MN : MAX_OUTBOUND_MASTERNODE_CONNECTIONS; i++) {
+        for (int i=0; i<(fMasternodeMode ? MAX_OUTBOUND_MASTERNODE_CONNECTIONS_ON_MN : MAX_OUTBOUND_MASTERNODE_CONNECTIONS); i++) {
             semMasternodeOutbound->post();
         }
     }
