@@ -2749,16 +2749,6 @@ std::set<uint256> CConnman::GetMasternodeQuorums(Consensus::LLMQType llmqType)
     return result;
 }
 
-std::map<CService, uint256> CConnman::GetMasternodeQuorumAddresses(Consensus::LLMQType llmqType, const uint256& quorumHash) const
-{
-    LOCK(cs_vPendingMasternodes);
-    auto it = masternodeQuorumNodes.find(std::make_pair(llmqType, quorumHash));
-    if (it == masternodeQuorumNodes.end()) {
-        return {};
-    }
-    return it->second;
-}
-
 std::set<NodeId> CConnman::GetMasternodeQuorumNodes(Consensus::LLMQType llmqType, const uint256& quorumHash) const
 {
     LOCK2(cs_vNodes, cs_vPendingMasternodes);
