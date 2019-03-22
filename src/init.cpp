@@ -817,16 +817,19 @@ void ThreadImport(std::vector<boost::filesystem::path> vImportFiles)
     // GetMainSignals().UpdatedBlockTip(chainActive.Tip());
     pdsNotificationInterface->InitializeCurrentBlockTip();
 
-    bool fDIP003Active;
-    {
-        LOCK(cs_main);
-        if (chainActive.Tip()->pprev) {
-            fDIP003Active = VersionBitsState(chainActive.Tip()->pprev, Params().GetConsensus(), Consensus::DEPLOYMENT_DIP0003, versionbitscache) == THRESHOLD_ACTIVE;
+    if (fMasternodeMode) {
+        bool fDIP003Active{false};
+        {
+            LOCK(cs_main);
+            if (chainActive.Tip()->pprev) {
+                fDIP003Active = VersionBitsState(chainActive.Tip()->pprev, Params().GetConsensus(), Consensus::DEPLOYMENT_DIP0003, versionbitscache) == THRESHOLD_ACTIVE;
+            }
+        }
+        if (fDIP003Active) {
+            assert(activeMasternodeManager);
+            activeMasternodeManager->Init();
         }
     }
-
-    if (activeMasternodeManager && fDIP003Active)
-        activeMasternodeManager->Init();
 
 #ifdef ENABLE_WALLET
     // we can't do this before DIP3 is fully initialized
