@@ -51,7 +51,7 @@ std::set<CService> CLLMQUtils::GetQuorumConnections(Consensus::LLMQType llmqType
         auto& dmn = mns[i];
         if (dmn->proTxHash == forMember) {
             // Connect to nodes at indexes (i+2^k)%n, where
-            //   k: 0..min(1, floor(log2(n-1))-1)
+            //   k: 0..max(1, floor(log2(n-1))-1)
             //   n: size of the quorum/ring
             int gap = 1;
             int gap_max = (int)mns.size() - 1;
