@@ -2766,12 +2766,18 @@ std::set<NodeId> CConnman::GetMasternodeQuorumNodes(Consensus::LLMQType llmqType
     if (it == masternodeQuorumNodes.end()) {
         return {};
     }
+    std::set<uint256> proRegTxHashes;
+    for (auto& p : it->second) {
+        proRegTxHashes.emplace(p.second);
+    }
+
     std::set<NodeId> nodes;
     for (const auto pnode : vNodes) {
         if (pnode->fDisconnect) {
             continue;
         }
-        if (!pnode->qwatch && !it->second.count(pnode->addr)) {
+        if (!pnode->qwatch && !it->second.count(pnode->addr) &&
+            (pnode->verifiedProRegTxHash.IsNull() || !proRegTxHashes.count(pnode->verifiedProRegTxHash))) {
             continue;
         }
         nodes.emplace(pnode->id);
