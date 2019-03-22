@@ -40,6 +40,7 @@ env:
     - BUILD_TARGET=linux32
     - BUILD_TARGET=linux64
     - BUILD_TARGET=linux64_nowallet
+    - BUILD_TARGET=linux64_qt
     - BUILD_TARGET=linux64_release DOCKER_BUILD=true
     - BUILD_TARGET=mac
 
