@@ -243,7 +243,7 @@ fi
 
 AM_CONDITIONAL([ENABLE_STACKTRACES], [test x$enable_stacktraces = xyes])
 if test "x$enable_stacktraces" = xyes; then
-    AC_DEFINE(ENABLE_STACKTRACES, 1, [Define this symbol if stacktraces should be enables])
+    AC_DEFINE(ENABLE_STACKTRACES, 1, [Define this symbol if stacktraces should be enabled])
 fi
 AX_CHECK_LINK_FLAG([-Wl,-wrap=__cxa_allocate_exception], [LINK_WRAP_SUPPORTED=yes],,,)
 AX_CHECK_COMPILE_FLAG([-rdynamic], [RDYNAMIC_SUPPORTED=yes],,,)
