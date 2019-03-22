@@ -2785,12 +2785,17 @@ void CConnman::RemoveMasternodeQuorumNodes(Consensus::LLMQType llmqType, const u
     masternodeQuorumNodes.erase(std::make_pair(llmqType, quorumHash));
 }
 
-bool CConnman::IsMasternodeQuorumNode(const CService& addr)
+bool CConnman::IsMasternodeQuorumNode(const CNode* pnode)
 {
     LOCK(cs_vPendingMasternodes);
     for (const auto& p : masternodeQuorumNodes) {
-        if (p.second.count(addr)) {
-            return true;
+        for (const auto& p2 : p.second) {
+            if (p2.first == (CService)pnode->addr) {
+                return true;
+            }
+            if (!pnode->verifiedProRegTxHash.IsNull() && p2.second == pnode->verifiedProRegTxHash) {
+                return true;
+            }
         }
     }
     return false;
