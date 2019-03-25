@@ -275,6 +275,7 @@ bool LogAcceptCategory(const char* category)
         {
             cacheCounter.reset(new int(logAcceptCategoryCacheCounter.load()));
 
+            LOCK(cs_args);
             if (mapMultiArgs.count("-debug")) {
                 std::string strThreadName = GetThreadName();
                 LogPrintf("debug turned on:\n");
