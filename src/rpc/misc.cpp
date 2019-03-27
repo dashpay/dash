@@ -132,6 +132,7 @@ UniValue debug(const JSONRPCRequest& request)
             "                       (or specifically: chainlocks, gobject, instantsend, keepass, llmq, llmq-dkg, llmq-sigs,\n"
             "                       masternode, mnpayments, mnsync, privatesend, spork).\n"
             "                       Can also use \"1\" to turn all categories on at once and \"0\" to turn them off.\n"
+            "                       Note: If specified category doesn't match any of the above, no error is thrown.\n"
             "\nResult:\n"
             "  result               (string) \"Debug mode: \" followed by the specified category.\n"
             "\nExamples:\n"
