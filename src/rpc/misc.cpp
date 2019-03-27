@@ -128,7 +128,7 @@ UniValue debug(const JSONRPCRequest& request)
             "\nArguments:\n"
             "1. \"category\"          (string, required) The name of the debug category to turn on. Can be one of the following:\n"
             "                       addrman, alert, bench, cmpctblock, coindb, db, http, leveldb, libevent, lock, mempool,\n"
-            "                       mempoolrej, net, proxy, prune, rand, reindex, rpc, selectcoins, tor, zmq, dash\n"
+            "                       mempoolrej, net, proxy, prune, qt, rand, reindex, rpc, selectcoins, tor, zmq, dash\n"
             "                       (or specifically: chainlocks, gobject, instantsend, keepass, llmq, llmq-dkg, llmq-sigs,\n"
             "                       masternode, mnpayments, mnsync, privatesend, spork).\n"
             "                       Can also use \"1\" to turn all categories on at once and \"0\" to turn them off.\n"
