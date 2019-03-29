@@ -1353,8 +1353,7 @@ void CGovernanceManager::RemoveInvalidVotes()
         auto oldDmn = lastMNListForVotingKeys.GetMN(p.first);
         if (p.second->keyIDVoting != oldDmn->pdmnState->keyIDVoting) {
             changedKeyMNs.emplace_back(oldDmn->collateralOutpoint);
-        }
-        if (p.second->pubKeyOperator != oldDmn->pdmnState->pubKeyOperator) {
+        } else if (p.second->pubKeyOperator != oldDmn->pdmnState->pubKeyOperator) {
             changedKeyMNs.emplace_back(oldDmn->collateralOutpoint);
         }
     }
