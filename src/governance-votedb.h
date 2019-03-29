@@ -88,6 +88,7 @@ public:
     }
 
 private:
+    void RemoveOldVotes(const CGovernanceVote& vote);
     void RebuildIndex();
 };
 
