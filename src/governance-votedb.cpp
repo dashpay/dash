@@ -95,10 +95,10 @@ void CGovernanceObjectVoteFile::RemoveOldVotes(const CGovernanceVote& vote)
 {
     vote_l_it it = listVotes.begin();
     while (it != listVotes.end()) {
-        if (it->GetMasternodeOutpoint() == vote.GetMasternodeOutpoint()
-            && it->GetParentHash() == vote.GetParentHash()
-            && it->GetTimestamp() < vote.GetTimestamp()
-            && it->GetHash() != vote.GetHash())
+        if (it->GetMasternodeOutpoint() == vote.GetMasternodeOutpoint() // same masternode
+            && it->GetParentHash() == vote.GetParentHash() // same governance object (e.g. same proposal)
+            && it->GetSignal() == vote.GetSignal() // same signal (e.g. "funding", "delete", etc.)
+            && it->GetTimestamp() < vote.GetTimestamp()) // older than new vote
         {
             --nMemoryVotes;
             mapVoteIndex.erase(it->GetHash());
