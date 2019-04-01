@@ -24,7 +24,8 @@ namespace immer {
 template <typename Base>
 struct debug_size_heap
 {
-    constexpr static auto extra_size = alignof(std::max_align_t);
+    // temporary fix until https://github.com/arximboldi/immer/issues/78 is fixed
+    constexpr static auto extra_size = sizeof(void*) * 2; //alignof(std::max_align_t);
 
     template <typename... Tags>
     static void* allocate(std::size_t size, Tags... tags)
