@@ -242,6 +242,7 @@ BITCOIN_CORE_H = \
   policy/feerate.h \
   policy/fees.h \
   policy/policy.h \
+  policy/settings.h \
   pow.h \
   protocol.h \
   psbt.h \
@@ -402,6 +403,7 @@ libdash_server_a_SOURCES = \
   noui.cpp \
   policy/fees.cpp \
   policy/policy.cpp \
+  policy/settings.cpp \
   pow.cpp \
   rest.cpp \
   rpc/blockchain.cpp \
@@ -620,6 +622,7 @@ libdash_common_a_SOURCES = \
   netbase.cpp \
   net_permissions.cpp \
   policy/feerate.cpp \
+  policy/policy.cpp \
   psbt.cpp \
   protocol.cpp \
   saltedhasher.cpp \

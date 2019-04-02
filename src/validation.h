@@ -83,8 +83,6 @@ static const unsigned int MAX_REJECT_MESSAGE_LENGTH = 111;
 
 static const int64_t DEFAULT_MAX_TIP_AGE = 6 * 60 * 60; // ~144 blocks behind -> 2 x fork detection time, was 24 * 60 * 60 in bitcoin
 
-/** Default for -permitbaremultisig */
-static const bool DEFAULT_PERMIT_BAREMULTISIG = true;
 static const bool DEFAULT_CHECKPOINTS_ENABLED = true;
 static const bool DEFAULT_TXINDEX = true;
 static const bool DEFAULT_ADDRESSINDEX = false;
@@ -139,7 +137,6 @@ extern std::atomic_bool fReindex;
 extern bool fAddressIndex;
 extern bool fTimestampIndex;
 extern bool fSpentIndex;
-extern bool fIsBareMultisigStd;
 /** Whether there are dedicated script-checking threads running.
  * False indicates all script checking is done on the main threadMessageHandler thread.
  */
