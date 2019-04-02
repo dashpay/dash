@@ -417,7 +417,6 @@ libdash_server_a_SOURCES = \
   rpc/rpcquorums.cpp \
   rpc/server.cpp \
   rpc/coinjoin.cpp \
-  rpc/util.cpp \
   script/sigcache.cpp \
   shutdown.cpp \
   spork.cpp \
@@ -625,6 +624,7 @@ libdash_common_a_SOURCES = \
   policy/policy.cpp \
   psbt.cpp \
   protocol.cpp \
+  rpc/util.cpp \
   saltedhasher.cpp \
   scheduler.cpp \
   script/descriptor.cpp \
