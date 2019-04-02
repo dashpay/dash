@@ -340,7 +340,6 @@ libdash_server_a_SOURCES = \
   addrman.cpp \
   banman.cpp \
   batchedlogger.cpp \
-  bloom.cpp \
   blockencodings.cpp \
   blockfilter.cpp \
   chain.cpp \
@@ -363,7 +362,6 @@ libdash_server_a_SOURCES = \
   index/blockfilterindex.cpp \
   index/txindex.cpp \
   interfaces/chain.cpp \
-  interfaces/handler.cpp \
   interfaces/node.cpp \
   init.cpp \
   dbwrapper.cpp \
@@ -391,7 +389,6 @@ libdash_server_a_SOURCES = \
   masternode/payments.cpp \
   masternode/sync.cpp \
   masternode/utils.cpp \
-  merkleblock.cpp \
   messagesigner.cpp \
   miner.cpp \
   net.cpp \
@@ -608,6 +605,7 @@ libdash_common_a_SOURCES = \
   base58.cpp \
   bech32.cpp \
   bip39.cpp \
+  bloom.cpp \
   chainparams.cpp \
   coins.cpp \
   compressor.cpp \
@@ -617,6 +615,7 @@ libdash_common_a_SOURCES = \
   key.cpp \
   key_io.cpp \
   keystore.cpp \
+  merkleblock.cpp \
   netaddress.cpp \
   netbase.cpp \
   net_permissions.cpp \
@@ -654,6 +653,7 @@ libdash_util_a_SOURCES = \
   compat/glibcxx_sanity.cpp \
   compat/strnlen.cpp \
   fs.cpp \
+  interfaces/handler.cpp \
   logging.cpp \
   random.cpp \
   rpc/protocol.cpp \
