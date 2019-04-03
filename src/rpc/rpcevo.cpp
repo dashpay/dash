@@ -1168,6 +1168,46 @@ UniValue bls_generate(const JSONRPCRequest& request)
     return ret;
 }
 
+void bls_sk2pk_help()
+{
+    throw std::runtime_error(
+            "bls sk2pk <secret-key>\n"
+            "\nParses a BLS secret key and returns the secret/public key pair.\n"
+            "\nResult:\n"
+            "{\n"
+            "  \"secret\": \"xxxx\",        (string) BLS secret key\n"
+            "  \"public\": \"xxxx\",        (string) BLS public key\n"
+            "}\n"
+            "\nExamples:\n"
+            + HelpExampleCli("bls sk2pk", "000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f")
+    );
+}
+
+UniValue bls_sk2pk(const JSONRPCRequest& request)
+{
+    if (request.fHelp || request.params.size() != 2) {
+        bls_sk2pk_help();
+    }
+    std::string strBLSPrivKey;
+    strBLSPrivKey = request.params[1].get_str();
+
+    if (!IsHex(strBLSPrivKey)) {
+        throw JSONRPCError(RPC_INVALID_PARAMETER, "Secret key must be a valid hex string of length 64");
+    }
+    auto b = ParseHex(strBLSPrivKey);
+    if (b.size() != 32) {
+        throw JSONRPCError(RPC_INVALID_PARAMETER, strprintf("Secret key must be 32 bytes long, not %d", (int)b.size()));
+    }
+
+    CBLSSecretKey sk;
+    sk.SetBuf((const uint8_t*)b.data(), b.size());
+
+    UniValue ret(UniValue::VOBJ);
+    ret.push_back(Pair("secret", sk.ToString()));
+    ret.push_back(Pair("public", sk.GetPublicKey().ToString()));
+    return ret;
+}
+
 [[ noreturn ]] void bls_help()
 {
     throw std::runtime_error(
@@ -1178,6 +1218,7 @@ UniValue bls_generate(const JSONRPCRequest& request)
             "1. \"command\"        (string, required) The command to execute\n"
             "\nAvailable commands:\n"
             "  generate          - Create a BLS secret/public key pair\n"
+            "  sk2pk             - Parse a BLS secret key and return the secret/public key pair\n"
             );
 }
 
@@ -1194,6 +1235,8 @@ UniValue _bls(const JSONRPCRequest& request)
 
     if (command == "generate") {
         return bls_generate(request);
+    } else if (command == "sk2pk") {
+        return bls_sk2pk(request);
     } else {
         bls_help();
     }
