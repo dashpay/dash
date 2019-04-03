@@ -1699,7 +1699,7 @@ bool static ProcessMessage(CNode* pfrom, const std::string& strCommand, CDataStr
 
         if (pfrom->nVersion >= SENDDSQUEUE_PROTO_VERSION) {
             // Tell our peer that he should send us PrivateSend queue messages
-            connman.PushMessage(pfrom, msgMaker.Make(NetMsgType::SENDDSQUEUE, true));
+            connman.PushMessage(pfrom, msgMaker.Make(NetMsgType::SENDDSQUEUE));
         } else {
             // older nodes do not support SENDDSQUEUE and expect us to always send PrivateSend queue messages
             // TODO we can remove this compatibility code in 0.15.0
@@ -1711,7 +1711,7 @@ bool static ProcessMessage(CNode* pfrom, const std::string& strCommand, CDataStr
             // Otherwise the peer would only announce/send messages resulting from QRECSIG,
             // e.g. InstantSend locks or ChainLocks. SPV nodes should not send this message
             // as they are usually only interested in the higher level messages
-            connman.PushMessage(pfrom, msgMaker.Make(NetMsgType::QSENDRECSIGS, true));
+            connman.PushMessage(pfrom, msgMaker.Make(NetMsgType::QSENDRECSIGS));
         }
 
         if (GetBoolArg("-watchquorums", llmq::DEFAULT_WATCH_QUORUMS)) {
@@ -1798,16 +1798,12 @@ bool static ProcessMessage(CNode* pfrom, const std::string& strCommand, CDataStr
 
     else if (strCommand == NetMsgType::SENDDSQUEUE)
     {
-        bool b;
-        vRecv >> b;
-        pfrom->fSendDSQueue = b;
+        pfrom->fSendDSQueue = true;
     }
 
 
     else if (strCommand == NetMsgType::QSENDRECSIGS) {
-        bool b;
-        vRecv >> b;
-        pfrom->fSendRecSigs = b;
+        pfrom->fSendRecSigs = true;
     }
 
 
