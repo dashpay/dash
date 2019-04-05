@@ -1171,8 +1171,10 @@ UniValue bls_generate(const JSONRPCRequest& request)
 void bls_sk2pk_help()
 {
     throw std::runtime_error(
-            "bls sk2pk <secret-key>\n"
+            "bls sk2pk \"secret\"\n"
             "\nParses a BLS secret key and returns the secret/public key pair.\n"
+            "\nArguments:\n"
+            "1. \"secret\"                (string, required) The BLS secret key\n"
             "\nResult:\n"
             "{\n"
             "  \"secret\": \"xxxx\",        (string) BLS secret key\n"
@@ -1188,19 +1190,11 @@ UniValue bls_sk2pk(const JSONRPCRequest& request)
     if (request.fHelp || request.params.size() != 2) {
         bls_sk2pk_help();
     }
-    std::string strBLSPrivKey;
-    strBLSPrivKey = request.params[1].get_str();
-
-    if (!IsHex(strBLSPrivKey)) {
-        throw JSONRPCError(RPC_INVALID_PARAMETER, "Secret key must be a valid hex string of length 64");
-    }
-    auto b = ParseHex(strBLSPrivKey);
-    if (b.size() != 32) {
-        throw JSONRPCError(RPC_INVALID_PARAMETER, strprintf("Secret key must be 32 bytes long, not %d", (int)b.size()));
-    }
 
     CBLSSecretKey sk;
-    sk.SetBuf((const uint8_t*)b.data(), b.size());
+    if (!sk.SetHexStr(request.params[1].get_str())) {
+        throw JSONRPCError(RPC_INVALID_PARAMETER, strprintf("Secret key must be a valid hex string of length %d", sk.SerSize*2));
+    }
 
     UniValue ret(UniValue::VOBJ);
     ret.push_back(Pair("secret", sk.ToString()));
