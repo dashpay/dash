@@ -1168,10 +1168,10 @@ UniValue bls_generate(const JSONRPCRequest& request)
     return ret;
 }
 
-void bls_sk2pk_help()
+void bls_fromsecret_help()
 {
     throw std::runtime_error(
-            "bls sk2pk \"secret\"\n"
+            "bls fromsecret \"secret\"\n"
             "\nParses a BLS secret key and returns the secret/public key pair.\n"
             "\nArguments:\n"
             "1. \"secret\"                (string, required) The BLS secret key\n"
@@ -1181,14 +1181,14 @@ void bls_sk2pk_help()
             "  \"public\": \"xxxx\",        (string) BLS public key\n"
             "}\n"
             "\nExamples:\n"
-            + HelpExampleCli("bls sk2pk", "000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f")
+            + HelpExampleCli("bls fromsecret", "000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f")
     );
 }
 
-UniValue bls_sk2pk(const JSONRPCRequest& request)
+UniValue bls_fromsecret(const JSONRPCRequest& request)
 {
     if (request.fHelp || request.params.size() != 2) {
-        bls_sk2pk_help();
+        bls_fromsecret_help();
     }
 
     CBLSSecretKey sk;
@@ -1212,7 +1212,7 @@ UniValue bls_sk2pk(const JSONRPCRequest& request)
             "1. \"command\"        (string, required) The command to execute\n"
             "\nAvailable commands:\n"
             "  generate          - Create a BLS secret/public key pair\n"
-            "  sk2pk             - Parse a BLS secret key and return the secret/public key pair\n"
+            "  fromsecret        - Parse a BLS secret key and return the secret/public key pair\n"
             );
 }
 
@@ -1229,8 +1229,8 @@ UniValue _bls(const JSONRPCRequest& request)
 
     if (command == "generate") {
         return bls_generate(request);
-    } else if (command == "sk2pk") {
-        return bls_sk2pk(request);
+    } else if (command == "fromsecret") {
+        return bls_fromsecret(request);
     } else {
         bls_help();
     }
