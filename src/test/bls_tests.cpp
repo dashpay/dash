@@ -13,12 +13,19 @@ BOOST_FIXTURE_TEST_SUITE(bls_tests, BasicTestingSetup)
 BOOST_AUTO_TEST_CASE(bls_sethexstr_tests)
 {
     CBLSSecretKey sk;
-    BOOST_CHECK(sk.SetHexStr("000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f"));
-    BOOST_CHECK(!sk.SetHexStr("000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e"));
-    BOOST_CHECK(!sk.SetHexStr("000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1"));
-    BOOST_CHECK(!sk.SetHexStr("000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1fzz"));
-    // invalid SetHexStr()-s should not alter internal data set via a valid one earlier
-    BOOST_CHECK(sk.ToString() == "000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f");
+    std::string strValidSecret = "000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f";
+    // Note: invalid string passed to SetHexStr() should cause it to fail and reset key internal data
+    BOOST_CHECK(sk.SetHexStr(strValidSecret));
+    BOOST_CHECK(!sk.SetHexStr("000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1g")); // non-hex
+    BOOST_CHECK(!sk.IsValid());
+    BOOST_CHECK(sk == CBLSSecretKey());
+    // Try few more invalid strings
+    BOOST_CHECK(sk.SetHexStr(strValidSecret));
+    BOOST_CHECK(!sk.SetHexStr("000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e")); // hex but too short
+    BOOST_CHECK(!sk.IsValid());
+    BOOST_CHECK(sk.SetHexStr(strValidSecret));
+    BOOST_CHECK(!sk.SetHexStr("000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f20")); // hex but too long
+    BOOST_CHECK(!sk.IsValid());
 }
 
 BOOST_AUTO_TEST_CASE(bls_sig_tests)
