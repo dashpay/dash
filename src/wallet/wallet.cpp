@@ -3146,19 +3146,18 @@ bool CWallet::GetCollateralTxDSIn(CTxDSIn& txdsinRet, CAmount& nValueRet) const
 
     std::vector<COutput> vCoins;
 
-    AvailableCoins(vCoins);
+    AvailableCoins(vCoins, true, NULL, false, ONLY_PRIVATESEND_COLLATERAL);
 
-    for (const auto& out : vCoins)
-    {
-        if(CPrivateSend::IsCollateralAmount(out.tx->tx->vout[out.i].nValue))
-        {
-            txdsinRet = CTxDSIn(CTxIn(out.tx->tx->GetHash(), out.i), out.tx->tx->vout[out.i].scriptPubKey);
-            nValueRet = out.tx->tx->vout[out.i].nValue;
-            return true;
-        }
+    if (vCoins.empty()) {
+        return false;
     }
 
-    return false;
+    std::random_shuffle(vCoins.rbegin(), vCoins.rend(), GetRandInt);
+
+    const auto& out = vCoins.back();
+    txdsinRet = CTxDSIn(CTxIn(out.tx->tx->GetHash(), out.i), out.tx->tx->vout[out.i].scriptPubKey);
+    nValueRet = out.tx->tx->vout[out.i].nValue;
+    return true;
 }
 
 bool CWallet::GetMasternodeOutpointAndKeys(COutPoint& outpointRet, CPubKey& pubKeyRet, CKey& keyRet, const std::string& strTxHash, const std::string& strOutputIndex)
