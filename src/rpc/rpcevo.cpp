@@ -140,10 +140,8 @@ static CKeyID ParsePubKeyIDFromAddress(const std::string& strAddress, const std:
 
 static CBLSPublicKey ParseBLSPubKey(const std::string& hexKey, const std::string& paramName)
 {
-    auto binKey = ParseHex(hexKey);
     CBLSPublicKey pubKey;
-    pubKey.SetBuf(binKey);
-    if (!pubKey.IsValid()) {
+    if (!pubKey.SetHexStr(hexKey)) {
         throw JSONRPCError(RPC_INVALID_PARAMETER, strprintf("%s must be a valid BLS address, not %s", paramName, hexKey));
     }
     return pubKey;
@@ -151,10 +149,8 @@ static CBLSPublicKey ParseBLSPubKey(const std::string& hexKey, const std::string
 
 static CBLSSecretKey ParseBLSSecretKey(const std::string& hexKey, const std::string& paramName)
 {
-    auto binKey = ParseHex(hexKey);
     CBLSSecretKey secKey;
-    secKey.SetBuf(binKey);
-    if (!secKey.IsValid()) {
+    if (!secKey.SetHexStr(hexKey)) {
         throw JSONRPCError(RPC_INVALID_PARAMETER, strprintf("%s must be a valid BLS secret key", paramName));
     }
     return secKey;
