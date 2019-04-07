@@ -1326,6 +1326,10 @@ void CGovernanceManager::CleanOrphanObjects()
 
 void CGovernanceManager::RemoveInvalidVotes()
 {
+    if (!masternodeSync.IsSynced()) {
+        return;
+    }
+
     LOCK(cs);
 
     auto curMNList = deterministicMNManager->GetListAtChainTip();
