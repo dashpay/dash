@@ -557,10 +557,6 @@ void CGovernanceManager::DoMaintenance(CConnman& connman)
 {
     if (fLiteMode || !masternodeSync.IsSynced() || ShutdownRequested()) return;
 
-    if (deterministicMNManager->IsDIP3Enforced()) {
-        RemoveInvalidVotes();
-    }
-
     // CHECK OBJECTS WE'VE ASKED FOR, REMOVE OLD ENTRIES
 
     CleanOrphanObjects();
