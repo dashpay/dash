@@ -1330,10 +1330,10 @@ void CGovernanceManager::CleanOrphanObjects()
 
 void CGovernanceManager::RemoveInvalidVotes()
 {
+    LOCK(cs);
+
     auto curMNList = deterministicMNManager->GetListAtChainTip();
     auto diff = lastMNListForVotingKeys.BuildDiff(curMNList);
-
-    LOCK(cs);
 
     std::vector<COutPoint> changedKeyMNs;
     for (const auto& p : diff.updatedMNs) {
