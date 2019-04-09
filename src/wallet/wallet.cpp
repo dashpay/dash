@@ -2385,10 +2385,10 @@ CAmount CWallet::GetNormalizedAnonymizedBalance() const
 
     LOCK2(cs_main, cs_wallet);
     for (const auto& outpoint : setWalletUTXO) {
-        std::map<uint256, CWalletTx>::const_iterator it = mapWallet.find(outpoint.hash);
-        if (it == mapWallet.end()) continue;
-        if (!IsDenominated(outpoint)) continue;
-        if (it->second.GetDepthInMainChain() < 0) continue;
+        const auto it = mapWallet.find(outpoint.hash);
+
+        if (it == mapWallet.end() || it->second.GetDepthInMainChain() < 0) continue;
+        if (!CPrivateSend::IsDenominatedAmount(it->second.tx->vout[outpoint.n].nValue)) continue;
 
         int nRounds = GetCappedOutpointPrivateSendRounds(outpoint);
         nTotal += it->second.tx->vout[outpoint.n].nValue * nRounds / privateSendClient.nPrivateSendRounds;
