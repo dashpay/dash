@@ -337,7 +337,8 @@ class BitcoinTestFramework():
         """
         disconnect_nodes(self.nodes[1], 2)
         disconnect_nodes(self.nodes[2], 1)
-        self.sync_all([self.nodes[:2], self.nodes[2:]])
+        self.sync_all(self.nodes[:2])
+        self.sync_all(self.nodes[2:])
 
     def join_network(self):
         """
@@ -346,13 +347,9 @@ class BitcoinTestFramework():
         connect_nodes_bi(self.nodes, 1, 2)
         self.sync_all()
 
-    def sync_all(self, node_groups=None):
-        if not node_groups:
-            node_groups = [self.nodes]
-
-        for group in node_groups:
-            sync_blocks(group)
-            sync_mempools(group, wait=0.1, wait_func=lambda: self.bump_mocktime(3, True))
+    def sync_all(self, nodes=None, **kwargs):
+            sync_blocks(nodes or self.nodes, **kwargs)
+            sync_mempools(nodes or self.nodes, wait=0.1, wait_func=lambda: self.bump_mocktime(3, True), **kwargs)
 
     def disable_mocktime(self):
         self.mocktime = 0
