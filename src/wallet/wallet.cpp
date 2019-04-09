@@ -3225,26 +3225,19 @@ bool CWallet::GetOutpointAndKeysFromOutput(const COutput& out, COutPoint& outpoi
 int CWallet::CountInputsWithAmount(CAmount nInputAmount)
 {
     CAmount nTotal = 0;
-    {
-        LOCK2(cs_main, cs_wallet);
-        for (std::map<uint256, CWalletTx>::const_iterator it = mapWallet.begin(); it != mapWallet.end(); ++it)
-        {
-            const CWalletTx* pcoin = &(*it).second;
-            if (pcoin->IsTrusted()){
-                int nDepth = pcoin->GetDepthInMainChain();
 
-                for (unsigned int i = 0; i < pcoin->tx->vout.size(); i++) {
-                    COutput out = COutput(pcoin, i, nDepth, true, true, false);
-                    COutPoint outpoint = COutPoint(out.tx->GetHash(), out.i);
+    LOCK2(cs_main, cs_wallet);
 
-                    if(out.tx->tx->vout[out.i].nValue != nInputAmount) continue;
-                    if(!CPrivateSend::IsDenominatedAmount(pcoin->tx->vout[i].nValue)) continue;
-                    if(IsSpent(out.tx->GetHash(), i) || IsMine(pcoin->tx->vout[i]) != ISMINE_SPENDABLE || !IsDenominated(outpoint)) continue;
+    for (const auto& outpoint : setWalletUTXO) {
+        const auto it = mapWallet.find(outpoint.hash);
+        if (it == mapWallet.end() || it->second.GetDepthInMainChain() < 0) continue;
 
-                    nTotal++;
-                }
-            }
-        }
+        const CTxOut &txout = it->second.tx->vout[outpoint.n];
+
+        if (txout.nValue != nInputAmount) continue;
+        if (!CPrivateSend::IsDenominatedAmount(txout.nValue)) continue;
+
+        nTotal++;
     }
 
     return nTotal;
