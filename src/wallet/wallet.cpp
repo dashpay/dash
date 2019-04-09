@@ -2139,10 +2139,10 @@ CAmount CWalletTx::GetDenominatedCredit(bool unconfirmed, bool fUseCache) const
         return 0;
 
     int nDepth = GetDepthInMainChain();
-    if(nDepth < 0) return 0;
+    if (nDepth < 0) return 0;
 
     bool isUnconfirmed = IsTrusted() && nDepth == 0;
-    if(unconfirmed != isUnconfirmed) return 0;
+    if (unconfirmed != isUnconfirmed) return 0;
 
     if (fUseCache) {
         if(unconfirmed && fDenomUnconfCreditCached)
@@ -2157,14 +2157,14 @@ CAmount CWalletTx::GetDenominatedCredit(bool unconfirmed, bool fUseCache) const
     {
         const CTxOut &txout = tx->vout[i];
 
-        if(pwallet->IsSpent(hashTx, i) || !CPrivateSend::IsDenominatedAmount(tx->vout[i].nValue)) continue;
+        if (pwallet->IsSpent(hashTx, i) || !CPrivateSend::IsDenominatedAmount(txout.nValue)) continue;
 
         nCredit += pwallet->GetCredit(txout, ISMINE_SPENDABLE);
         if (!MoneyRange(nCredit))
             throw std::runtime_error(std::string(__func__) + ": value out of range");
     }
 
-    if(unconfirmed) {
+    if (unconfirmed) {
         nDenomUnconfCreditCached = nCredit;
         fDenomUnconfCreditCached = true;
     } else {
