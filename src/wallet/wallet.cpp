@@ -1458,15 +1458,16 @@ bool CWallet::IsDenominated(const COutPoint& outpoint) const
 {
     LOCK(cs_wallet);
 
-    std::map<uint256, CWalletTx>::const_iterator mi = mapWallet.find(outpoint.hash);
-    if (mi != mapWallet.end()) {
-        const CWalletTx& prev = (*mi).second;
-        if (outpoint.n < prev.tx->vout.size()) {
-            return CPrivateSend::IsDenominatedAmount(prev.tx->vout[outpoint.n].nValue);
-        }
+    const auto it = mapWallet.find(outpoint.hash);
+    if (it == mapWallet.end() || it->second.GetDepthInMainChain() < 0) {
+        return false;
     }
 
-    return false;
+    if (outpoint.n >= it->second.tx->vout.size()) {
+        return false;
+    }
+
+    return CPrivateSend::IsDenominatedAmount(it->second.tx->vout[outpoint.n].nValue);
 }
 
 isminetype CWallet::IsMine(const CTxOut& txout) const
