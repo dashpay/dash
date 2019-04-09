@@ -2344,10 +2344,10 @@ CAmount CWallet::GetAnonymizedBalance() const
         if (setWalletTxesCounted.find(outpoint.hash) != setWalletTxesCounted.end()) continue;
         setWalletTxesCounted.insert(outpoint.hash);
 
-        for (std::map<uint256, CWalletTx>::const_iterator it = mapWallet.find(outpoint.hash); it != mapWallet.end() && it->first == outpoint.hash; ++it) {
-            if (it->second.IsTrusted())
-                nTotal += it->second.GetAnonymizedCredit();
-        }
+        const auto it = mapWallet.find(outpoint.hash);
+        if (it == mapWallet.end() || !it->second.IsTrusted()) continue;
+
+        nTotal += it->second.GetAnonymizedCredit();
     }
 
     return nTotal;
