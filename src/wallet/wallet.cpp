@@ -2426,14 +2426,18 @@ CAmount CWallet::GetDenominatedBalance(bool unconfirmed) const
     if(fLiteMode) return 0;
 
     CAmount nTotal = 0;
-    {
-        LOCK2(cs_main, cs_wallet);
-        for (std::map<uint256, CWalletTx>::const_iterator it = mapWallet.begin(); it != mapWallet.end(); ++it)
-        {
-            const CWalletTx* pcoin = &(*it).second;
 
-            nTotal += pcoin->GetDenominatedCredit(unconfirmed);
-        }
+    LOCK2(cs_main, cs_wallet);
+
+    std::set<uint256> setWalletTxesCounted;
+    for (const auto& outpoint : setWalletUTXO) {
+        if (setWalletTxesCounted.find(outpoint.hash) != setWalletTxesCounted.end()) continue;
+        setWalletTxesCounted.insert(outpoint.hash);
+
+        const auto it = mapWallet.find(outpoint.hash);
+        if (it == mapWallet.end() || it->second.GetDepthInMainChain() < 0) continue;
+
+        nTotal += it->second.GetDenominatedCredit(unconfirmed);
     }
 
     return nTotal;
