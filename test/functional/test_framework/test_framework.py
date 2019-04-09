@@ -347,9 +347,15 @@ class BitcoinTestFramework():
         connect_nodes_bi(self.nodes, 1, 2)
         self.sync_all()
 
+    def sync_blocks(self, nodes=None, **kwargs):
+        sync_blocks(nodes or self.nodes, **kwargs)
+
+    def sync_mempools(self, nodes=None, **kwargs):
+        sync_mempools(nodes or self.nodes, **kwargs)
+
     def sync_all(self, nodes=None, **kwargs):
-            sync_blocks(nodes or self.nodes, **kwargs)
-            sync_mempools(nodes or self.nodes, wait=0.1, wait_func=lambda: self.bump_mocktime(3, True), **kwargs)
+        self.sync_blocks(nodes, **kwargs)
+        self.sync_mempools(nodes, wait=0.1, wait_func=lambda: self.bump_mocktime(3, True), **kwargs)
 
     def disable_mocktime(self):
         self.mocktime = 0
@@ -451,7 +457,7 @@ class BitcoinTestFramework():
                         self.nodes[peer].generate(1)
                         block_time += 156
                     # Must sync before next peer starts generating blocks
-                    sync_blocks(self.nodes)
+                    self.sync_blocks()
 
             # Shut them down, and clean up cache directories:
             self.stop_nodes()
