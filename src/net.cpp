@@ -1923,7 +1923,7 @@ void CConnman::ThreadOpenConnections()
             }
 
             // do not allow non-default ports, unless after 50 invalid addresses selected already
-            if (!isMasternode && addr.GetPort() != Params().GetDefaultPort() && addr.GetPort() != GetListenPort() && nTries < 50)
+            if ((!isMasternode || !Params().AllowMultiplePorts()) && addr.GetPort() != Params().GetDefaultPort() && addr.GetPort() != GetListenPort() && nTries < 50)
                 continue;
 
             addrConnect = addr;
