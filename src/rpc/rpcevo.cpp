@@ -1014,6 +1014,41 @@ UniValue protx_info(const JSONRPCRequest& request)
     return BuildDMNListEntry(pwallet, dmn, true);
 }
 
+void protx_infoall_help()
+{
+    throw std::runtime_error(
+            "protx infoall\n"
+            "\nReturns detailed information about all deterministic masternodes.\n"
+            "\nResult:\n"
+            "[                             (json array) Details about all deterministic masternodes\n"
+            "]\n"
+            "\nExamples:\n"
+            + HelpExampleCli("protx", "infoall")
+    );
+}
+
+// TODO: add a string filter
+UniValue protx_infoall(const JSONRPCRequest& request)
+{
+    if (request.fHelp || request.params.size() != 1) {
+        protx_infoall_help();
+    }
+
+#ifdef ENABLE_WALLET
+    CWallet* const pwallet = GetWalletForJSONRPCRequest(request);
+#else
+    CWallet* const pwallet = nullptr;
+#endif
+
+    UniValue ret(UniValue::VARR);
+
+    auto mnList = deterministicMNManager->GetListAtChainTip();
+    mnList.ForEachMN(false, [&](const CDeterministicMNCPtr& dmn) {
+        ret.push_back(BuildDMNListEntry(pwallet, dmn, true));
+    });
+    return ret;
+}
+
 void protx_diff_help()
 {
     throw std::runtime_error(
@@ -1077,6 +1112,7 @@ UniValue protx_diff(const JSONRPCRequest& request)
 #endif
             "  list              - List ProTxs\n"
             "  info              - Return information about a ProTx\n"
+            "  infoall           - Return information about all ProTxes\n"
 #ifdef ENABLE_WALLET
             "  update_service    - Create and send ProUpServTx to network\n"
             "  update_registrar  - Create and send ProUpRegTx to network\n"
@@ -1131,6 +1167,8 @@ UniValue protx(const JSONRPCRequest& request)
         return protx_list(request);
     } else if (command == "info") {
         return protx_info(request);
+    } else if (command == "infoall") {
+        return protx_infoall(request);
     } else if (command == "diff") {
         return protx_diff(request);
     } else {
