@@ -29,6 +29,7 @@
 #include <thread>
 #include <memory>
 #include <condition_variable>
+#include <unordered_set>
 
 #ifndef WIN32
 #include <arpa/inet.h>
@@ -793,7 +794,7 @@ public:
     // List of non-tx/non-block inventory items
     std::vector<CInv> vInventoryOtherToSend;
     CCriticalSection cs_inventory;
-    std::set<uint256> setAskFor;
+    std::unordered_set<uint256, StaticSaltedHasher> setAskFor;
     std::multimap<int64_t, CInv> mapAskFor;
     int64_t nNextInvSend;
     // Used for headers announcements - unfiltered blocks to relay
