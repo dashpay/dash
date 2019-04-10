@@ -301,7 +301,7 @@ void CChainLocksHandler::TrySignChainTip()
                 auto it = blockTxs.find(pindexWalk->GetBlockHash());
                 if (it == blockTxs.end()) {
                     // this should actually not happen as NewPoWValidBlock should have been called before
-                    LogPrintf("CChainLocksHandler::%s -- blockTxs for %s not found\n", __func__,
+                    LogPrint("chainlocks", "CChainLocksHandler::%s -- blockTxs for %s not found\n", __func__,
                               pindexWalk->GetBlockHash().ToString());
                     return;
                 }
