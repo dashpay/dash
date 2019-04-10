@@ -434,13 +434,19 @@ void CBLSLazySignature::SetSig(const CBLSSignature& _sig)
 const CBLSSignature& CBLSLazySignature::GetSig() const
 {
     std::unique_lock<std::mutex> l(mutex);
+    static CBLSSignature invalidSig;
     if (!bufValid && !sigInitialized) {
-        static CBLSSignature invalidSig;
         return invalidSig;
     }
     if (!sigInitialized) {
         sig.SetBuf(buf, sizeof(buf));
-        sigInitialized = true;
+        if (!sig.CheckMalleable(buf, sizeof(buf))) {
+            bufValid = false;
+            sigInitialized = false;
+            sig = invalidSig;
+        } else {
+            sigInitialized = true;
+        }
     }
     return sig;
 }

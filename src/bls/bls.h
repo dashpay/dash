@@ -176,10 +176,6 @@ public:
         char buf[SerSize] = {0};
         GetBuf(buf, SerSize);
         s.write((const char*)buf, SerSize);
-
-        // if (s.GetType() != SER_GETHASH) {
-        //    CheckMalleable(buf, SerSize);
-        // }
     }
     template <typename Stream>
     inline void Unserialize(Stream& s, bool checkMalleable = true)
@@ -188,23 +184,22 @@ public:
         s.read((char*)buf, SerSize);
         SetBuf(buf, SerSize);
 
-        if (checkMalleable) {
-            CheckMalleable(buf, SerSize);
+        if (checkMalleable && !CheckMalleable(buf, SerSize)) {
+            throw std::ios_base::failure("malleable BLS object");
         }
     }
 
-    inline void CheckMalleable(void* buf, size_t size) const
+    inline bool CheckMalleable(void* buf, size_t size) const
     {
         char buf2[SerSize];
-        C tmp;
-        tmp.SetBuf(buf, SerSize);
-        tmp.GetBuf(buf2, SerSize);
+        GetBuf(buf2, SerSize);
         if (memcmp(buf, buf2, SerSize)) {
             // TODO not sure if this is actually possible with the BLS libs. I'm assuming here that somewhere deep inside
             // these libs masking might happen, so that 2 different binary representations could result in the same object
             // representation
-            throw std::ios_base::failure("malleable BLS object");
+            return false;
         }
+        return true;
     }
 
     inline std::string ToString() const
