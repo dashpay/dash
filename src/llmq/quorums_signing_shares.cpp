@@ -762,11 +762,11 @@ void CSigSharesManager::TryRecoverSig(const CQuorumCPtr& quorum, const uint256& 
     rs.quorumHash = quorum->qc.quorumHash;
     rs.id = id;
     rs.msgHash = msgHash;
-    rs.sig = recoveredSig;
+    rs.sig.SetSig(recoveredSig);
     rs.UpdateHash();
 
     auto signHash = CLLMQUtils::BuildSignHash(rs);
-    bool valid = rs.sig.VerifyInsecure(quorum->qc.quorumPublicKey, signHash);
+    bool valid = recoveredSig.VerifyInsecure(quorum->qc.quorumPublicKey, signHash);
     if (!valid) {
         // this should really not happen as we have verified all signature shares before
         LogPrintf("CSigSharesManager::%s -- own recovered signature is invalid. id=%s, msgHash=%s\n", __func__,
