@@ -15,6 +15,7 @@
 #include "netaddress.h"
 #include "protocol.h"
 #include "random.h"
+#include "saltedhasher.h"
 #include "streams.h"
 #include "sync.h"
 #include "uint256.h"
@@ -604,7 +605,7 @@ extern bool fDiscover;
 extern bool fListen;
 extern bool fRelayTxes;
 
-extern limitedmap<uint256, int64_t> mapAlreadyAskedFor;
+extern limitedmap<uint256, int64_t, StaticSaltedHasher> mapAlreadyAskedFor;
 
 /** Subversion as sent to the P2P network in `version` messages */
 extern std::string strSubVersion;

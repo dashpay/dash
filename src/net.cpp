@@ -85,7 +85,7 @@ std::map<CNetAddr, LocalServiceInfo> mapLocalHost;
 static bool vfLimited[NET_MAX] = {};
 std::string strSubVersion;
 
-limitedmap<uint256, int64_t> mapAlreadyAskedFor(MAX_INV_SZ);
+limitedmap<uint256, int64_t, StaticSaltedHasher> mapAlreadyAskedFor(MAX_INV_SZ);
 
 // Signals for message handling
 static CNodeSignals g_signals;
