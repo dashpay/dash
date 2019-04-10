@@ -6,7 +6,6 @@
 #define BITCOIN_LIMITEDMAP_H
 
 #include <assert.h>
-#include <map>
 #include <unordered_map>
 
 /** STL-like map container that only keeps the N elements with the highest value. */
@@ -23,15 +22,22 @@ public:
 protected:
     std::unordered_map<K, V, Hash> map;
     typedef typename std::unordered_map<K, V, Hash>::iterator iterator;
-    std::multimap<V, iterator> rmap;
-    typedef typename std::multimap<V, iterator>::iterator rmap_iterator;
+    std::unordered_multimap<V, iterator> rmap;
+    typedef typename std::unordered_multimap<V, iterator>::iterator rmap_iterator;
     size_type nMaxSize;
+    size_type nPruneAfterSize;
 
 public:
-    limitedmap(size_type nMaxSizeIn)
+    limitedmap(size_type nMaxSizeIn, size_type nPruneAfterSizeIn = 0)
     {
         assert(nMaxSizeIn > 0);
         nMaxSize = nMaxSizeIn;
+        if (nPruneAfterSizeIn == 0) {
+            nPruneAfterSize = nMaxSize;
+        } else {
+            nPruneAfterSize = nPruneAfterSizeIn;
+        }
+        assert(nPruneAfterSize >= nMaxSize);
     }
     const_iterator begin() const { return map.begin(); }
     const_iterator end() const { return map.end(); }
@@ -43,10 +49,7 @@ public:
     {
         std::pair<iterator, bool> ret = map.insert(x);
         if (ret.second) {
-            if (map.size() > nMaxSize) {
-                map.erase(rmap.begin()->second);
-                rmap.erase(rmap.begin());
-            }
+            prune();
             rmap.insert(make_pair(x.second, ret.first));
         }
     }
@@ -86,15 +89,42 @@ public:
         assert(0);
     }
     size_type max_size() const { return nMaxSize; }
-    size_type max_size(size_type s)
+    size_type max_size(size_type nMaxSizeIn, size_type nPruneAfterSizeIn = 0)
     {
-        assert(s > 0);
-        while (map.size() > s) {
-            map.erase(rmap.begin()->second);
-            rmap.erase(rmap.begin());
+        assert(nMaxSizeIn > 0);
+        nMaxSize = nMaxSizeIn;
+        if (nPruneAfterSizeIn == 0) {
+            nPruneAfterSize = nMaxSize;
+        } else {
+            nPruneAfterSize = nPruneAfterSizeIn;
         }
-        nMaxSize = s;
+        assert(nPruneAfterSize >= nMaxSize);
+        prune();
         return nMaxSize;
+    }
+    void prune()
+    {
+        if (map.size() <= nPruneAfterSize) {
+            return;
+        }
+
+        std::vector<rmap_iterator> sortedIterators;
+        sortedIterators.reserve(map.size());
+        for (auto it = rmap.begin(); it != rmap.end(); ++it) {
+            sortedIterators.emplace_back(it);
+        }
+        std::sort(sortedIterators.begin(), sortedIterators.end(), [](const rmap_iterator& it1, const rmap_iterator& it2) {
+            return it1->first < it2->first;
+        });
+
+        size_type tooMuch = map.size() - nMaxSize;
+        assert(tooMuch > 0);
+        sortedIterators.resize(tooMuch);
+
+        for (auto& it : sortedIterators) {
+            map.erase(it->second);
+            rmap.erase(it);
+        }
     }
 };
 
