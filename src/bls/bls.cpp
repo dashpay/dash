@@ -423,16 +423,9 @@ bool CBLSSignature::Recover(const std::vector<CBLSSignature>& sigs, const std::v
     return true;
 }
 
-CBLSLazySignature::CBLSLazySignature(CBLSSignature& _sig) :
-    bufValid(false),
-    sigInitialized(true),
-    sig(_sig)
-{
-
-}
-
 void CBLSLazySignature::SetSig(const CBLSSignature& _sig)
 {
+    std::unique_lock<std::mutex> l(mutex);
     bufValid = false;
     sigInitialized = true;
     sig = _sig;
@@ -440,6 +433,7 @@ void CBLSLazySignature::SetSig(const CBLSSignature& _sig)
 
 const CBLSSignature& CBLSLazySignature::GetSig() const
 {
+    std::unique_lock<std::mutex> l(mutex);
     if (!bufValid && !sigInitialized) {
         static CBLSSignature invalidSig;
         return invalidSig;

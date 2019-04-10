@@ -18,6 +18,7 @@
 #undef DOUBLE
 
 #include <array>
+#include <mutex>
 #include <unistd.h>
 
 // reversed BLS12-381
@@ -316,6 +317,8 @@ protected:
 class CBLSLazySignature
 {
 private:
+    mutable std::mutex mutex;
+
     mutable char buf[BLS_CURVE_SIG_SIZE];
     mutable bool bufValid{false};
 
@@ -323,9 +326,38 @@ private:
     mutable bool sigInitialized{false};
 
 public:
+    CBLSLazySignature()
+    {
+        memset(buf, 0, sizeof(buf));
+    }
+
+    CBLSLazySignature(const CBLSLazySignature& r)
+    {
+        *this = r;
+    }
+
+    CBLSLazySignature& operator=(const CBLSLazySignature& r)
+    {
+        std::unique_lock<std::mutex> l(r.mutex);
+        bufValid = r.bufValid;
+        if (r.bufValid) {
+            memcpy(buf, r.buf, sizeof(buf));
+        } else {
+            memset(buf, 0, sizeof(buf));
+        }
+        sigInitialized = r.sigInitialized;
+        if (r.sigInitialized) {
+            sig = r.sig;
+        } else {
+            sig.Reset();
+        }
+        return *this;
+    }
+
     template<typename Stream>
     inline void Serialize(Stream& s) const
     {
+        std::unique_lock<std::mutex> l(mutex);
         if (!sigInitialized && !bufValid) {
             throw std::ios_base::failure("sig and buf not initialized");
         }
@@ -339,14 +371,11 @@ public:
     template<typename Stream>
     inline void Unserialize(Stream& s)
     {
+        std::unique_lock<std::mutex> l(mutex);
         s.read(buf, sizeof(buf));
         bufValid = true;
         sigInitialized = false;
     }
-
-public:
-    CBLSLazySignature() = default;
-    CBLSLazySignature(CBLSSignature& _sig);
 
     void SetSig(const CBLSSignature& _sig);
     const CBLSSignature& GetSig() const;
