@@ -423,6 +423,7 @@ bool CBLSSignature::Recover(const std::vector<CBLSSignature>& sigs, const std::v
     return true;
 }
 
+#ifndef BUILD_BITCOIN_INTERNAL
 void CBLSLazySignature::SetSig(const CBLSSignature& _sig)
 {
     std::unique_lock<std::mutex> l(mutex);
@@ -450,8 +451,6 @@ const CBLSSignature& CBLSLazySignature::GetSig() const
     }
     return sig;
 }
-
-#ifndef BUILD_BITCOIN_INTERNAL
 
 static std::once_flag init_flag;
 static mt_pooled_secure_allocator<uint8_t>* secure_allocator_instance;

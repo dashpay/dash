@@ -309,6 +309,7 @@ protected:
     bool InternalGetBuf(void* buf) const;
 };
 
+#ifndef BUILD_BITCOIN_INTERNAL
 class CBLSLazySignature
 {
 private:
@@ -375,6 +376,7 @@ public:
     void SetSig(const CBLSSignature& _sig);
     const CBLSSignature& GetSig() const;
 };
+#endif
 
 typedef std::vector<CBLSId> BLSIdVector;
 typedef std::vector<CBLSPublicKey> BLSVerificationVector;
