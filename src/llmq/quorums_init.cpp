@@ -36,7 +36,7 @@ void InitLLMQSystem(CEvoDB& evoDb, CScheduler* scheduler, bool unitTests, bool f
     quorumSigSharesManager = new CSigSharesManager();
     quorumSigningManager = new CSigningManager(*llmqDb, unitTests);
     chainLocksHandler = new CChainLocksHandler(scheduler);
-    quorumInstantSendManager = new CInstantSendManager(scheduler, *llmqDb);
+    quorumInstantSendManager = new CInstantSendManager(*llmqDb);
 }
 
 void DestroyLLMQSystem()

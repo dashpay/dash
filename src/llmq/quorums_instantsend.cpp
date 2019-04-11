@@ -12,7 +12,6 @@
 #include "txmempool.h"
 #include "masternode-sync.h"
 #include "net_processing.h"
-#include "scheduler.h"
 #include "spork.h"
 #include "validation.h"
 
@@ -24,6 +23,7 @@
 #include "instantx.h"
 
 #include <boost/algorithm/string/replace.hpp>
+#include <boost/thread.hpp>
 
 namespace llmq
 {
@@ -208,8 +208,7 @@ CInstantSendLockPtr CInstantSendDb::GetInstantSendLockByInput(const COutPoint& o
 
 ////////////////
 
-CInstantSendManager::CInstantSendManager(CScheduler* _scheduler, CDBWrapper& _llmqDb) :
-    scheduler(_scheduler),
+CInstantSendManager::CInstantSendManager(CDBWrapper& _llmqDb) :
     db(_llmqDb)
 {
 }

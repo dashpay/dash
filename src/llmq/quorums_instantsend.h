@@ -14,8 +14,6 @@
 #include <unordered_map>
 #include <unordered_set>
 
-class CScheduler;
-
 namespace llmq
 {
 
@@ -72,7 +70,6 @@ class CInstantSendManager : public CRecoveredSigsListener
 {
 private:
     CCriticalSection cs;
-    CScheduler* scheduler;
     CInstantSendDb db;
 
     std::thread workThread;
@@ -97,7 +94,7 @@ private:
     std::unordered_map<uint256, std::pair<NodeId, CInstantSendLock>> pendingInstantSendLocks;
 
 public:
-    CInstantSendManager(CScheduler* _scheduler, CDBWrapper& _llmqDb);
+    CInstantSendManager(CDBWrapper& _llmqDb);
     ~CInstantSendManager();
 
     void Start();
