@@ -6,7 +6,9 @@
 #define BITCOIN_LIMITEDMAP_H
 
 #include <assert.h>
+#include <algorithm>
 #include <unordered_map>
+#include <vector>
 
 /** STL-like map container that only keeps the N elements with the highest value. */
 template <typename K, typename V, typename Hash = std::hash<K>>
