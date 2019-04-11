@@ -3162,7 +3162,7 @@ void CNode::AskFor(const CInv& inv, int64_t doubleRequestDelay)
     // We're using vecAskFor as a priority queue,
     // the key is the earliest time the request can be sent
     int64_t nRequestTime;
-    unordered_limitedmap<uint256, int64_t>::const_iterator it = mapAlreadyAskedFor.find(inv.hash);
+    auto it = mapAlreadyAskedFor.find(inv.hash);
     if (it != mapAlreadyAskedFor.end())
         nRequestTime = it->second;
     else
