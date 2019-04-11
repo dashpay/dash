@@ -211,6 +211,7 @@ CInstantSendLockPtr CInstantSendDb::GetInstantSendLockByInput(const COutPoint& o
 CInstantSendManager::CInstantSendManager(CDBWrapper& _llmqDb) :
     db(_llmqDb)
 {
+    workInterrupt.reset();
 }
 
 CInstantSendManager::~CInstantSendManager()
