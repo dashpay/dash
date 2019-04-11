@@ -581,7 +581,7 @@ bool CInstantSendManager::PreVerifyInstantSendLock(NodeId nodeId, const llmq::CI
     return true;
 }
 
-void CInstantSendManager::ProcessPendingInstantSendLocks()
+bool CInstantSendManager::ProcessPendingInstantSendLocks()
 {
     auto llmqType = Params().GetConsensus().llmqForInstantSend;
 
@@ -593,8 +593,12 @@ void CInstantSendManager::ProcessPendingInstantSendLocks()
         pend = std::move(pendingInstantSendLocks);
     }
 
+    if (pend.empty()) {
+        return false;
+    }
+
     if (!IsNewInstantSendEnabled()) {
-        return;
+        return false;
     }
 
     int tipHeight;
@@ -621,7 +625,7 @@ void CInstantSendManager::ProcessPendingInstantSendLocks()
         auto quorum = quorumSigningManager->SelectQuorumForSigning(llmqType, tipHeight, id);
         if (!quorum) {
             // should not happen, but if one fails to select, all others will also fail to select
-            return;
+            return false;
         }
         uint256 signHash = CLLMQUtils::BuildSignHash(llmqType, quorum->qc.quorumHash, id, islock.txid);
         batchVerifier.PushMessage(nodeId, hash, signHash, islock.sig, quorum->qc.quorumPublicKey);
@@ -679,6 +683,8 @@ void CInstantSendManager::ProcessPendingInstantSendLocks()
             }
         }
     }
+
+    return true;
 }
 
 void CInstantSendManager::ProcessInstantSendLock(NodeId from, const uint256& hash, const CInstantSendLock& islock)
