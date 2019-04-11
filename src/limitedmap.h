@@ -11,8 +11,11 @@
 #include <vector>
 
 /** STL-like map container that only keeps the N elements with the highest value. */
+// WARNING, this was initially the "limitedmap" class from Bitcoin, but now does not maintain ordering. If any backports
+// ever start using this map in a way that requires ordering, do NOT use this as it is but instead reintroduce the original
+// limitedmap
 template <typename K, typename V, typename Hash = std::hash<K>>
-class limitedmap
+class unordered_limitedmap
 {
 public:
     typedef K key_type;
@@ -30,7 +33,7 @@ protected:
     size_type nPruneAfterSize;
 
 public:
-    limitedmap(size_type nMaxSizeIn, size_type nPruneAfterSizeIn = 0)
+    unordered_limitedmap(size_type nMaxSizeIn, size_type nPruneAfterSizeIn = 0)
     {
         assert(nMaxSizeIn > 0);
         nMaxSize = nMaxSizeIn;
