@@ -75,6 +75,9 @@ private:
     CScheduler* scheduler;
     CInstantSendDb db;
 
+    std::thread workThread;
+    CThreadInterrupt workInterrupt;
+
     /**
      * Request ids of inputs that we signed. Used to determine if a recovered signature belongs to an
      * in-progress input lock.
@@ -92,14 +95,14 @@ private:
 
     // Incoming and not verified yet
     std::unordered_map<uint256, std::pair<NodeId, CInstantSendLock>> pendingInstantSendLocks;
-    bool hasScheduledProcessPending{false};
 
 public:
     CInstantSendManager(CScheduler* _scheduler, CDBWrapper& _llmqDb);
     ~CInstantSendManager();
 
-    void RegisterAsRecoveredSigsListener();
-    void UnregisterAsRecoveredSigsListener();
+    void Start();
+    void Stop();
+    void InterruptWorkerThread();
 
 public:
     bool ProcessTx(const CTransaction& tx, const Consensus::Params& params);
@@ -133,6 +136,8 @@ public:
 
     bool AlreadyHave(const CInv& inv);
     bool GetInstantSendLockByHash(const uint256& hash, CInstantSendLock& ret);
+
+    void WorkThreadMain();
 };
 
 extern CInstantSendManager* quorumInstantSendManager;

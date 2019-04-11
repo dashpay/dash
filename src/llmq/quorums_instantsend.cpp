@@ -218,14 +218,35 @@ CInstantSendManager::~CInstantSendManager()
 {
 }
 
-void CInstantSendManager::RegisterAsRecoveredSigsListener()
+void CInstantSendManager::Start()
 {
+    // can't start new thread if we have one running already
+    if (workThread.joinable()) {
+        assert(false);
+    }
+
+    workThread = std::thread(&TraceThread<std::function<void()> >, "instantsend", std::function<void()>(std::bind(&CInstantSendManager::WorkThreadMain, this)));
+
     quorumSigningManager->RegisterRecoveredSigsListener(this);
 }
 
-void CInstantSendManager::UnregisterAsRecoveredSigsListener()
+void CInstantSendManager::Stop()
 {
     quorumSigningManager->UnregisterRecoveredSigsListener(this);
+
+    // make sure to call InterruptWorkerThread() first
+    if (!workInterrupt) {
+        assert(false);
+    }
+
+    if (workThread.joinable()) {
+        workThread.join();
+    }
+}
+
+void CInstantSendManager::InterruptWorkerThread()
+{
+    workInterrupt();
 }
 
 bool CInstantSendManager::ProcessTx(const CTransaction& tx, const Consensus::Params& params)
@@ -552,13 +573,6 @@ void CInstantSendManager::ProcessMessageInstantSendLock(CNode* pfrom, const llmq
             islock.txid.ToString(), hash.ToString(), pfrom->id);
 
     pendingInstantSendLocks.emplace(hash, std::make_pair(pfrom->id, std::move(islock)));
-
-    if (!hasScheduledProcessPending) {
-        hasScheduledProcessPending = true;
-        scheduler->scheduleFromNow([&] {
-            ProcessPendingInstantSendLocks();
-        }, 100);
-    }
 }
 
 bool CInstantSendManager::PreVerifyInstantSendLock(NodeId nodeId, const llmq::CInstantSendLock& islock, bool& retBan)
@@ -589,7 +603,6 @@ bool CInstantSendManager::ProcessPendingInstantSendLocks()
 
     {
         LOCK(cs);
-        hasScheduledProcessPending = false;
         pend = std::move(pendingInstantSendLocks);
     }
 
@@ -1056,6 +1069,21 @@ bool CInstantSendManager::GetConflictingTx(const CTransaction& tx, uint256& retC
         }
     }
     return false;
+}
+
+void CInstantSendManager::WorkThreadMain()
+{
+    while (!workInterrupt) {
+        bool didWork = false;
+
+        didWork |= ProcessPendingInstantSendLocks();
+
+        if (!didWork) {
+            if (!workInterrupt.sleep_for(std::chrono::milliseconds(100))) {
+                return;
+            }
+        }
+    }
 }
 
 bool IsOldInstantSendEnabled()
