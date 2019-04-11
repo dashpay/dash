@@ -531,6 +531,7 @@ private:
     /** a pipe which is added to select() calls to wakeup before the timeout */
     int wakeupPipe[2]{-1,-1};
 #endif
+    std::atomic<bool> isInSelect{false};
 
     std::thread threadDNSAddressSeed;
     std::thread threadSocketHandler;
