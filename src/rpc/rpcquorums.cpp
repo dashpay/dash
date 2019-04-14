@@ -19,6 +19,17 @@ void quorum_list_help()
             "\nArguments:\n"
             "1. count           (number, optional) Number of quorums to list. Will list active quorums\n"
             "                   if \"count\" is not specified.\n"
+            "\nResult:\n"
+            "{\n"
+            "  \"quorumName\" : [                    (array of strings) List of quorum hashes per some quorum type.\n"
+            "     \"quorumHash\"                     (string) Quorum hash. Note: most recent quorums come first.\n"
+            "     ,...\n"
+            "  ],\n"
+            "}\n"
+            "\nExamples:\n"
+            + HelpExampleCli("quorum", "list")
+            + HelpExampleCli("quorum", "list 10")
+            + HelpExampleRpc("quorum", "list, 10")
     );
 }
 
