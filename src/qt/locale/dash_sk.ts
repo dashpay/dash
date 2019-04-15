@@ -22,6 +22,14 @@
         <translation>&amp;Kopírovať</translation>
     </message>
     <message>
+        <source>Show QR code for the currently selected address</source>
+        <translation>&amp;Zobraziť QR kód pre zrovna vybrané adresy</translation>
+    </message>
+    <message>
+        <source>&amp;Show QR code</source>
+        <translation>&amp;Zobraziť QR kód</translation>
+    </message>
+    <message>
         <source>Delete the currently selected address from the list</source>
         <translation>Odstrániť vybranú adresu zo zoznamu</translation>
     </message>
@@ -80,6 +88,14 @@
     <message>
         <source>&amp;Edit</source>
         <translation>&amp;Upraviť</translation>
+    </message>
+    <message>
+        <source>&amp;Show address QR code</source>
+        <translation>&amp;Zobraziť adresový QR kód</translation>
+    </message>
+    <message>
+        <source>QR code</source>
+        <translation>QR kód</translation>
     </message>
     <message>
         <source>Export Address List</source>
@@ -438,14 +454,6 @@
         <translation>Otvoriť konfiguračný súbor </translation>
     </message>
     <message>
-        <source>Open &amp;Masternode Configuration File</source>
-        <translation>Otvoriť konfiguračný súbor &amp;Masternode</translation>
-    </message>
-    <message>
-        <source>Open Masternode configuration file</source>
-        <translation>Otvoriť konfiguračný súbor Masternode</translation>
-    </message>
-    <message>
         <source>Show Automatic &amp;Backups</source>
         <translation>Zobraziť automatické &amp;zálohy</translation>
     </message>
@@ -650,10 +658,6 @@
 </context>
 <context>
     <name>ClientModel</name>
-    <message>
-        <source>Total: %1 (PS compatible: %2 / Enabled: %3)</source>
-        <translation>Celkovo: %1 (Kompatibilné s PS: %2 / Zapnuté: %3)</translation>
-    </message>
     <message>
         <source>Network Alert</source>
         <translation>Výstraha siete</translation>
@@ -990,8 +994,16 @@
         <translation>Keďže toto je prvé spustenie programu, môžete si vybrať, kam %1 bude ukladať vaše údaje.</translation>
     </message>
     <message>
-        <source>%1 will download and store a copy of the Dash block chain. At least %2GB of data will be stored in this directory, and it will grow over time. The wallet will also be stored in this directory.</source>
-        <translation>%1 stiahne a uloží kópiu reťazca blokov Dash. V tomto adresári bude uložené aspoň %2GB dát a bude časom rásť. Peňaženka bude tiež uložená v tomto adresári.</translation>
+        <source>When you click OK, %1 will begin to download and process the full %4 block chain (%2GB) starting with the earliest transactions in %3 when %4 initially launched.</source>
+        <translation>Keď kliknete na OK tak %1 začne sťahovanie a spracuje celý %4 blockchain (%2GB) počnúc najmladšími transakciami v %3 keď sa %4 prvý krát spustil.</translation>
+    </message>
+    <message>
+        <source>This initial synchronisation is very demanding, and may expose hardware problems with your computer that had previously gone unnoticed. Each time you run %1, it will continue downloading where it left off.</source>
+        <translation>Počiatočná synchronizácia je veľmi náročná a môže odhaliť hardvérové problémy vo Vašom počítači o ktorých ste do teraz nevedeli. Vždy keď zapnete %1 tak sa sťahovanie začne presne tam kde bolo pred vypnutím.</translation>
+    </message>
+    <message>
+        <source>If you have chosen to limit block chain storage (pruning), the historical data must still be downloaded and processed, but will be deleted afterward to keep your disk usage low.</source>
+        <translation>Keď ste si vybrali limit na uloženie blockchainu (zmenšenie) tak sa historické dáta budú musieť aj tak stiahnuť a spracovať, ale potom budú zmazané aby sa používanie disku znížilo.</translation>
     </message>
     <message>
         <source>Use the default data directory</source>
@@ -1000,6 +1012,22 @@
     <message>
         <source>Use a custom data directory:</source>
         <translation>Použiť vlastný dátový adresár:</translation>
+    </message>
+    <message>
+        <source>At least %1 GB of data will be stored in this directory, and it will grow over time.</source>
+        <translation>V tomto adresári bude uložené minimálne %1 GB dát, časom sa využité dáta zvýšia.</translation>
+    </message>
+    <message>
+        <source>Approximately %1 GB of data will be stored in this directory.</source>
+        <translation>V tomto adresári bude uložených približne %1 GB dát.</translation>
+    </message>
+    <message>
+        <source>%1 will download and store a copy of the Dash block chain.</source>
+        <translation>%1 stiahne a bude uchovávať kópiu Dash blockchainu.</translation>
+    </message>
+    <message>
+        <source>The wallet will also be stored in this directory.</source>
+        <translation>Peňaženka bude tiež uložená v tomto adresári.</translation>
     </message>
     <message>
         <source>Error: Specified data directory "%1" cannot be created.</source>
@@ -1025,76 +1053,20 @@
         <translation>Od</translation>
     </message>
     <message>
-        <source>My Masternodes</source>
-        <translation>Moje Masternódy</translation>
-    </message>
-    <message>
-        <source>Note: Status of your masternodes in local wallet can potentially be slightly incorrect.&lt;br /&gt;Always wait for wallet to sync additional data and then double check from another node&lt;br /&gt;if your masternode should be running but you still do not see "ENABLED" in "Status" field.</source>
-        <translation>Poznámka: Stav Vašich masternódov v lokálnej peňaženke môže byť potencionálne trochu nepresný.&lt;br /&gt;Vždy počkajte na peňaženku pokým nestiahne dodatočné dáta a opätovne neoverí z druhého uzlu,&lt;br /&gt;ak by Váš masternode mal bežať, ale stále nevidíte "Zapnuté" v poli "Stav".</translation>
-    </message>
-    <message>
-        <source>Alias</source>
-        <translation>Alias</translation>
-    </message>
-    <message>
         <source>Address</source>
         <translation>Adresa</translation>
-    </message>
-    <message>
-        <source>Protocol</source>
-        <translation>Protokol</translation>
     </message>
     <message>
         <source>Status</source>
         <translation>Stav</translation>
     </message>
     <message>
-        <source>Active</source>
-        <translation>Aktívne</translation>
-    </message>
-    <message>
-        <source>Last Seen</source>
-        <translation>Naposledy videné</translation>
-    </message>
-    <message>
         <source>Payee</source>
         <translation>Príjemca</translation>
     </message>
     <message>
-        <source>S&amp;tart alias</source>
-        <translation>&amp;Začať alias</translation>
-    </message>
-    <message>
-        <source>Start &amp;all</source>
-        <translation>Začať &amp;všetko</translation>
-    </message>
-    <message>
-        <source>Start &amp;MISSING</source>
-        <translation>Začať &amp;CHÝBAJÚCE</translation>
-    </message>
-    <message>
-        <source>&amp;Update status</source>
-        <translation>&amp;Aktualizovať stav</translation>
-    </message>
-    <message>
-        <source>Show additional Masternode information</source>
-        <translation>Zobraziť ďalšie informácie o Masternode</translation>
-    </message>
-    <message>
-        <source>Show &amp;Info...</source>
-        <translation>Zobraziť &amp;informácie...</translation>
-    </message>
-    <message>
-        <source>Status will be updated automatically in (sec):</source>
-        <translation>Stav bude automaticky aktualizovaný za (sekúnd):</translation>
-    </message>
-    <message>
         <source>0</source>
         <translation>0</translation>
-    </message>
-    <message>
-        <source>All Masternodes</source>
-        <translation>Všetky Masternódy</translation>
     </message>
     <message>
         <source>Filter List:</source>
@@ -1109,12 +1081,16 @@
         <translation>Počet uzlov:</translation>
     </message>
     <message>
-        <source>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;Note: This list represents the legacy and non-deterministic masternode list. It is only active as long as DIP3 has not been fully activated. After SPORK15 activation, this list will be empty.&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</source>
-        <translation>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;Poznámka: Tento zoznam predstavuje starší a nedeterministický zoznam masternódov. Je aktívny iba pokým DIP3 nebol plne aktivovaný. Po aktivácii SPORK15 bude tento zoznam prázdny.&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</translation>
-    </message>
-    <message>
         <source>DIP3 Masternodes</source>
         <translation>DIP3 Masternódy</translation>
+    </message>
+    <message>
+        <source>Show only masternodes this wallet has keys for.</source>
+        <translation>Zobraziť len masternódy, pre ktoré má táto peňaženka kľúče.</translation>
+    </message>
+    <message>
+        <source>My masternodes only</source>
+        <translation>Iba moje masternódy</translation>
     </message>
     <message>
         <source>PoSe Score</source>
@@ -1135,14 +1111,6 @@
     <message>
         <source>Operator Reward</source>
         <translation>Odmena operátora</translation>
-    </message>
-    <message>
-        <source>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;Note: This list is not active yet and only for informational purposes. The network is still running in compatibility mode, which means that the non-deterministic masternode list is still active. Only after SPORK15 activation, this list will become the active one. Also, the values in the payment related fields are not used at the moment, but still updated for every block. Please ignore this until SPORK15 activation.&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</source>
-        <translation>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;Poznámka: Tento zoznam ešte nie je aktívny a slúži len na informačné účely. Sieť stále beží v režime kompatibility, čo znamená, že nedeterministický zoznam masternódov je stále aktívny. Iba po aktivácii SPORK15 sa tento zoznam stane aktívnym. Hodnoty v poliach súvisiacich s platbou sa v súčasnosti nepoužívajú, ale aktualizujú sa pre každý blok. Prosím, ignorujte to až do aktivácie SPORK15.&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</translation>
-    </message>
-    <message>
-        <source>Start alias</source>
-        <translation>Začať alias</translation>
     </message>
     <message>
         <source>Copy ProTx Hash</source>
@@ -1179,70 +1147,6 @@
     <message>
         <source>NONE</source>
         <translation>ŽIADNE</translation>
-    </message>
-    <message>
-        <source>Confirm masternode start</source>
-        <translation>Potvrdiť spustenie masternode</translation>
-    </message>
-    <message>
-        <source>Are you sure you want to start masternode %1?</source>
-        <translation>Ste si istý, že chcete spustiť masternode %1?</translation>
-    </message>
-    <message>
-        <source>Confirm all masternodes start</source>
-        <translation>Potvrdiť spustenie všetkých masternódov</translation>
-    </message>
-    <message>
-        <source>Are you sure you want to start ALL masternodes?</source>
-        <translation>Ste si istý, že chcete spustiť VŠETKY masternódy?</translation>
-    </message>
-    <message>
-        <source>Command is not available right now</source>
-        <translation>Príkaz je momentálne nedostupný</translation>
-    </message>
-    <message>
-        <source>You can't use this command until masternode list is synced</source>
-        <translation>Tento príkaz nemôžete použiť pokým sa nesynchronizuje zoznam masternode</translation>
-    </message>
-    <message>
-        <source>Confirm missing masternodes start</source>
-        <translation>Potvrdiť spustenie chýbajúcich masternódov</translation>
-    </message>
-    <message>
-        <source>Are you sure you want to start MISSING masternodes?</source>
-        <translation>Ste si istý, že chcete spustiť CHÝBAJÚCE masternódy?</translation>
-    </message>
-    <message>
-        <source>Additional information for Masternode %1</source>
-        <translation>Ďalšie informácie o Masternode %1</translation>
-    </message>
-    <message>
-        <source>Masternode Private Key</source>
-        <translation>Súkromný kľúč masternode</translation>
-    </message>
-    <message>
-        <source>Private Key</source>
-        <translation>Súkromný kľúč</translation>
-    </message>
-    <message>
-        <source>Collateral</source>
-        <translation>Zaistenie</translation>
-    </message>
-    <message>
-        <source>IP</source>
-        <translation>IP</translation>
-    </message>
-    <message>
-        <source>Version</source>
-        <translation>Verzia</translation>
-    </message>
-    <message>
-        <source>Unknown</source>
-        <translation>Neznáme</translation>
-    </message>
-    <message>
-        <source>Sentinel</source>
-        <translation>Strážca</translation>
     </message>
     <message>
         <source>Additional information for DIP3 Masternode %1</source>
@@ -2007,16 +1911,8 @@ https://www.transifex.com/projects/p/dash/</translation>
 <context>
     <name>QObject</name>
     <message>
-        <source>Dash Core</source>
-        <translation>Dash Core</translation>
-    </message>
-    <message>
         <source>%1 didn't yet exit safely...</source>
         <translation>%1 nebol ešte bezpečne ukončený...</translation>
-    </message>
-    <message>
-        <source>Error reading masternode configuration file: %1</source>
-        <translation>Chyba pri načítaní konfiguračného súboru masternode: %1</translation>
     </message>
     <message>
         <source>Amount</source>
@@ -2480,6 +2376,10 @@ https://www.transifex.com/projects/p/dash/</translation>
     <message>
         <source>Network activity disabled</source>
         <translation>Sieťová aktivita zakázaná</translation>
+    </message>
+    <message>
+        <source>Total: %1 (Enabled: %2)</source>
+        <translation>Celkovo: %1 (Povolené: %2)</translation>
     </message>
     <message>
         <source>%1 B</source>
@@ -3331,6 +3231,14 @@ https://www.transifex.com/projects/p/dash/</translation>
         <translation>%1 potvrdení</translation>
     </message>
     <message>
+        <source>locked via LLMQ based ChainLocks</source>
+        <translation>zamknuté pomocou LLMQ ChainLocks</translation>
+    </message>
+    <message>
+        <source>verified via LLMQ based InstantSend</source>
+        <translation>overené pomocou LLMQ InstantSend</translation>
+    </message>
+    <message>
         <source>verified via InstantSend</source>
         <translation>overené cez InstantSend</translation>
     </message>
@@ -3717,7 +3625,7 @@ https://www.transifex.com/projects/p/dash/</translation>
     </message>
     <message>
         <source>Min amount</source>
-        <translation>Min množstvo</translation>
+        <translation>Minimálna suma</translation>
     </message>
     <message>
         <source>Abandon transaction</source>
@@ -3754,6 +3662,10 @@ https://www.transifex.com/projects/p/dash/</translation>
     <message>
         <source>Show transaction details</source>
         <translation>Zobraziť podrobnosti transakcie</translation>
+    </message>
+    <message>
+        <source>Show address QR code</source>
+        <translation>Zobraziť adresový QR kód</translation>
     </message>
     <message>
         <source>Export Transaction History</source>
@@ -3806,6 +3718,10 @@ https://www.transifex.com/projects/p/dash/</translation>
     <message>
         <source>The transaction history was successfully saved to %1.</source>
         <translation>História transakciá bola úspešne uložená do %1.</translation>
+    </message>
+    <message>
+        <source>QR code</source>
+        <translation>QR kód</translation>
     </message>
     <message>
         <source>Range:</source>
@@ -3931,10 +3847,6 @@ https://www.transifex.com/projects/p/dash/</translation>
         <translation>Upozornenie: Zjavne sa úplne nezhodujeme s našimi peer-mi! Možno potrebujete prejsť na novšiu verziu alebo ostatné uzly potrebujú vyššiu verziu.</translation>
     </message>
     <message>
-        <source>You must specify a masternodeprivkey in the configuration. Please see documentation for help.</source>
-        <translation>V konfigurácii musíte špecifikovať masternodeprivkey. Pre pomoc sa prosím pozrite do dokumentácie.</translation>
-    </message>
-    <message>
         <source>Accept command line and JSON-RPC commands</source>
         <translation>Prijímať príkazy z príkazového riadku a JSON-RPC</translation>
     </message>
@@ -4055,10 +3967,6 @@ https://www.transifex.com/projects/p/dash/</translation>
         <translation>Spojiť s danou adresou a povolenými partnerskými zariadeniami ktoré sa tam pripájajú. Použite zápis [host]:port pre IPv6</translation>
     </message>
     <message>
-        <source>Bind to given address to listen for JSON-RPC connections. Use [host]:port notation for IPv6. This option can be specified multiple times (default: bind to all interfaces)</source>
-        <translation>Spojiť s danou adresou pre počúvanie JSON-RPC spojení. Použite zápis [host]:port pre IPv6. Táto možnosť môže byt zadaná niekoľko krát (predvolené: spojiť so všetkými rozhraniami)</translation>
-    </message>
-    <message>
         <source>Create new files with system default permissions, instead of umask 077 (only effective with disabled wallet functionality)</source>
         <translation>Vytvoriť nové súbory z predvolenými systémovými právami, namiesto umask 077 (funguje iba z vypnutou funkcionalitou peňaženky)</translation>
     </message>
@@ -4072,7 +3980,7 @@ https://www.transifex.com/projects/p/dash/</translation>
     </message>
     <message>
         <source>Enable publish transaction hashes of attempted InstantSend double spend in &lt;address&gt;</source>
-        <translation>Povoliť publikovanie transakčných hashov, ktoré sa pokúsili o dvojité minutie InstantSend v </translation>
+        <translation>Povoliť publikovanie transakčných hashov, ktoré sa pokúsili o dvojité minutie InstantSend v &lt;address&gt;</translation>
     </message>
     <message>
         <source>Error loading %s: You can't enable HD on a already existing non-HD wallet</source>
@@ -4155,6 +4063,10 @@ https://www.transifex.com/projects/p/dash/</translation>
         <translation>(predvolené: %s)</translation>
     </message>
     <message>
+        <source>-wallet parameter must only specify a filename (not a path)</source>
+        <translation>-wallet parameter musí špecifikovať len názov súboru (nie cestu)</translation>
+    </message>
+    <message>
         <source>Accept public REST requests (default: %u)</source>
         <translation>Akceptovať verejné REST žiadosti (predvolené: %u)</translation>
     </message>
@@ -4203,10 +4115,6 @@ https://www.transifex.com/projects/p/dash/</translation>
         <translation>Chyba pri načítaní vyrovnávajúcej pamäti masternode z</translation>
     </message>
     <message>
-        <source>Failed to load masternode payments cache from</source>
-        <translation>Chyba pri načítaní vyrovnávajúcej pamäti platieb masternode z</translation>
-    </message>
-    <message>
         <source>Found enough users, signing ( waiting %s )</source>
         <translation>Nájdený dostatok používateľov, pospisuje sa ( čakanie %s )</translation>
     </message>
@@ -4251,14 +4159,6 @@ https://www.transifex.com/projects/p/dash/</translation>
         <translation>Nedostatok prostriedkov.</translation>
     </message>
     <message>
-        <source>Invalid -onion address: '%s'</source>
-        <translation>Neplatná -onion adresa: '%s'</translation>
-    </message>
-    <message>
-        <source>Invalid -proxy address: '%s'</source>
-        <translation>Neplatná -proxy adresa: '%s'</translation>
-    </message>
-    <message>
         <source>Invalid amount for -paytxfee=&lt;amount&gt;: '%s' (must be at least %s)</source>
         <translation>Neplatná suma pre -paytxfee=&lt;amount&gt;: '%s' (musí byť aspoň %s)</translation>
     </message>
@@ -4295,16 +4195,8 @@ https://www.transifex.com/projects/p/dash/</translation>
         <translation>Načíta sa vyrovnávacia pamäť masternode...</translation>
     </message>
     <message>
-        <source>Loading masternode payment cache...</source>
-        <translation>Načíta sa vyrovnávacia pamäť platieb masternode...</translation>
-    </message>
-    <message>
         <source>Lock is already in place.</source>
         <translation>Zámok je už na mieste.</translation>
-    </message>
-    <message>
-        <source>Lock masternodes from masternode configuration file (default: %u)</source>
-        <translation>Zamknúť masternody z konfiguračného súboru masternode (predvolené: %u)</translation>
     </message>
     <message>
         <source>Maximum per-connection receive buffer, &lt;n&gt;*1000 bytes (default: %u)</source>
@@ -4341,10 +4233,6 @@ https://www.transifex.com/projects/p/dash/</translation>
     <message>
         <source>Only connect to nodes in network &lt;net&gt; (ipv4, ipv6 or onion)</source>
         <translation>Pripojiť iba k uzlom v sieti &lt;net&gt; (ipv4, ipv6, alebo onion)</translation>
-    </message>
-    <message>
-        <source>Port: %d</source>
-        <translation>Port: %d</translation>
     </message>
     <message>
         <source>Prepend debug output with timestamp (default: %u)</source>
@@ -4387,10 +4275,6 @@ https://www.transifex.com/projects/p/dash/</translation>
         <translation>Zadajte časový limit pripojenia v milisekundách (minimum: 1, predvolené: %d)</translation>
     </message>
     <message>
-        <source>Specify masternode configuration file (default: %s)</source>
-        <translation>Zadať konfiguračný súbor masternode (predvolené: %s)</translation>
-    </message>
-    <message>
         <source>Specify pid file (default: %s)</source>
         <translation>Zadať pid súbor (predvolené: %s)</translation>
     </message>
@@ -4399,20 +4283,8 @@ https://www.transifex.com/projects/p/dash/</translation>
         <translation>Minúť nepotvrdené zmenu pri posielaní transakcií (predvolené: %u)</translation>
     </message>
     <message>
-        <source>Submitted following entries to masternode: %u / %d</source>
-        <translation>Položky odoslané na masternode: %u / %d</translation>
-    </message>
-    <message>
-        <source>Submitted to masternode, waiting for more entries ( %u / %d ) %s</source>
-        <translation>Odoslané na masternode, čaká na viac položiek ( %u / %d ) %s</translation>
-    </message>
-    <message>
         <source>Submitted to masternode, waiting in queue %s</source>
         <translation>Odoslané na masternode, čaká vo fronte %s</translation>
-    </message>
-    <message>
-        <source>Synchroning blockchain...</source>
-        <translation>Synchronizuje sa blockchain...</translation>
     </message>
     <message>
         <source>Synchronization failed</source>
@@ -4421,10 +4293,6 @@ https://www.transifex.com/projects/p/dash/</translation>
     <message>
         <source>Synchronization finished</source>
         <translation>Synchronizácia dokončená</translation>
-    </message>
-    <message>
-        <source>Synchronizing masternodes...</source>
-        <translation>Synchronizujú sa masternode...</translation>
     </message>
     <message>
         <source>This is not a Masternode.</source>
@@ -4495,10 +4363,6 @@ https://www.transifex.com/projects/p/dash/</translation>
         <translation>Skúsime znovu...</translation>
     </message>
     <message>
-        <source>Invalid masternodeprivkey. Please see documenation.</source>
-        <translation>Neplatný masternodeprivkey. Prosím pozrite do dokumentácie.</translation>
-    </message>
-    <message>
         <source>Can't find random Masternode.</source>
         <translation>Nedá sa nájsť náhodný Masternode.</translation>
     </message>
@@ -4507,16 +4371,8 @@ https://www.transifex.com/projects/p/dash/</translation>
         <translation>Miešanie nefunguje počas synchronizácie.</translation>
     </message>
     <message>
-        <source>Could not parse masternode.conf</source>
-        <translation>Nedá sa analyzovať masternode.conf</translation>
-    </message>
-    <message>
         <source>Invalid netmask specified in -whitelist: '%s'</source>
         <translation>Nadaná neplatná netmask vo -whitelist: '%s'</translation>
-    </message>
-    <message>
-        <source>Invalid port detected in masternode.conf</source>
-        <translation>Zistený neplatný port v masternode.conf</translation>
     </message>
     <message>
         <source>Invalid script detected.</source>
@@ -4541,6 +4397,10 @@ https://www.transifex.com/projects/p/dash/</translation>
     <message>
         <source>%s file contains all private keys from this wallet. Do not share it with anyone!</source>
         <translation>Súbor %s obsahuje všetky súkromné kľúče z tejto peňaženky. Nezdieľajte s nikým!</translation>
+    </message>
+    <message>
+        <source>Bind to given address to listen for JSON-RPC connections. This option is ignored unless -rpcallowip is also passed. Port is optional and overrides -rpcport. Use [host]:port notation for IPv6. This option can be specified multiple times (default: 127.0.0.1 and ::1 i.e., localhost, or if -rpcallowip has been specified, 0.0.0.0 and :: i.e., all addresses)</source>
+        <translation>Pripojte na zadanú adresu pre počúvanie spojenia JSON-RPC. Táto voľba sa ignoruje, pokiaľ nie je úspešne zadané -rpcallowip. Port je voliteľný a prepisuje -rpcport. Pre IPv6 použite zápis [host]:port. Táto možnosť môže byť zadaná viackrát (predvolené: 127.0.0.1 a ::1, t.j. localhost, alebo ak bolo zadané -rpcallowip, 0.0.0.0 a :: t.j. všetky adresy)</translation>
     </message>
     <message>
         <source>Discover own IP addresses (default: 1 when listening and no -externalip or -proxy)</source>
@@ -4695,16 +4555,8 @@ https://www.transifex.com/projects/p/dash/</translation>
         <translation>K návratu k neorezanému režimu je treba prestavať databázu použitím -reindex. Tiež sa znova stiahne celý blockchain</translation>
     </message>
     <message>
-        <source>(%d could be used only on mainnet)</source>
-        <translation>(%d môže byť použité iba pre hlavnú sieť)</translation>
-    </message>
-    <message>
         <source>(default: %u)</source>
         <translation>(predvolené: %u)</translation>
-    </message>
-    <message>
-        <source>(must be %d for mainnet)</source>
-        <translation>(pre hlavnú sieť musí byť %d)</translation>
     </message>
     <message>
         <source>-maxmempool must be at least %d MB</source>
@@ -4787,10 +4639,6 @@ https://www.transifex.com/projects/p/dash/</translation>
         <translation>Chyba pri načítaní vyrovnávajúcej pamäti sporks z</translation>
     </message>
     <message>
-        <source>Failed to parse host:port string</source>
-        <translation>Chyba pri načítaní reťazca host:port</translation>
-    </message>
-    <message>
         <source>Fee (in %s/kB) to add to transactions you send (default: %s)</source>
         <translation>Poplatok (v %s/kB) pridaný do transakcie, ktorú posielate (predvolené: %s)</translation>
     </message>
@@ -4819,16 +4667,8 @@ https://www.transifex.com/projects/p/dash/</translation>
         <translation>Posledná úspešná PrivateSend akcia bola uskutočnená pred príliš krátkou chvíľou.</translation>
     </message>
     <message>
-        <source>Line: %d</source>
-        <translation>Riadok: %d</translation>
-    </message>
-    <message>
         <source>Loading InstantSend data cache...</source>
         <translation>Načíta sa vyrovnávacia pamäť InstantSend dát...</translation>
-    </message>
-    <message>
-        <source>Loading addresses...</source>
-        <translation>Načítavanie adries...</translation>
     </message>
     <message>
         <source>Loading block index...</source>
@@ -4857,10 +4697,6 @@ https://www.transifex.com/projects/p/dash/</translation>
     <message>
         <source>Make the wallet broadcast transactions</source>
         <translation>Vysielať transakcie z peňaženky</translation>
-    </message>
-    <message>
-        <source>Masternode cache is empty, skipping payments and governance cache...</source>
-        <translation>Vyrovnávacia pamäť Masternode je prázdna, vynechávajú sa platby a vyrovnávacia pamäť správy...</translation>
     </message>
     <message>
         <source>Masternode options:</source>
@@ -4957,6 +4793,18 @@ https://www.transifex.com/projects/p/dash/</translation>
     <message>
         <source>Rescan the block chain for missing wallet transactions on startup</source>
         <translation>Pri spustení skontrolovať reťaz blokov pre chýbajúce transakcie peňaženky</translation>
+    </message>
+    <message>
+        <source>Submitted following entries to masternode: %u</source>
+        <translation>Odoslané nasledujúce záznamy na masternód :%u</translation>
+    </message>
+    <message>
+        <source>Submitted to masternode, waiting for more entries ( %u ) %s</source>
+        <translation>Odoslané na masternód, čaká sa na viac vstupov ( %u ) %s</translation>
+    </message>
+    <message>
+        <source>Synchronizing blockchain...</source>
+        <translation>Synchronizuje sa blockchain...</translation>
     </message>
     <message>
         <source>The wallet will avoid paying less than the minimum relay fee.</source>
@@ -5132,7 +4980,7 @@ https://www.transifex.com/projects/p/dash/</translation>
     </message>
     <message>
         <source>Use N separate masternodes for each denominated input to mix funds (%u-%u, default: %u)</source>
-        <translation>Použiť N oddelených masternode pre každý denominovaný vstup na zmiešanie prostriedkov (%u-%u, predvolené: %u)</translation>
+        <translation>Použiť N oddelených masternódov pre každý denominovaný vstup na zmiešanie prostriedkov (%u-%u, predvolené: %u)</translation>
     </message>
     <message>
         <source>Use hierarchical deterministic key generation (HD) after BIP39/BIP44. Only has effect during wallet creation/first start</source>
@@ -5149,14 +4997,6 @@ https://www.transifex.com/projects/p/dash/</translation>
     <message>
         <source>Wallet will not create transactions that violate mempool chain limits (default: %u)</source>
         <translation>Peňaženka nebude vytvárať transakcie, ktoré by porušovali limity transakčného zásobníku reťazcov (predvolené: %u)</translation>
-    </message>
-    <message>
-        <source>Warning: At least %d of %d masternodes are running on a newer software version. Please check latest releases, you might need to update too.</source>
-        <translation>Upozornenie: Aspoň %d z %d masternódov beží na novšej verzii softvéru. Skontrolujte najnovšie verzie, možno budete musieť tiež aktualizovať.</translation>
-    </message>
-    <message>
-        <source>Warning: Every masternode (out of %d known ones) is running on a newer software version. Please check latest releases, it's very likely that you missed a major/critical update.</source>
-        <translation>Upozornenie: Každý masternode (z %d známych) beží na novšej verzii softvéru. Skontrolujte najnovšie verzie, je veľmi pravdepodobné, že ste vynechali hlavnú/kritickú aktualizáciu.</translation>
     </message>
     <message>
         <source>Warning: Wallet file corrupt, data salvaged! Original %s saved as %s in %s; if your balance or transactions are incorrect you should restore from a backup.</source>
@@ -5243,8 +5083,20 @@ https://www.transifex.com/projects/p/dash/</translation>
         <translation>Kontrola čistoty pri inicializácií zlyhala. %s sa vypína.</translation>
     </message>
     <message>
+        <source>Invalid -onion address or hostname: '%s'</source>
+        <translation>Neplatná -onion adresa alebo hostiteľ: '%s'</translation>
+    </message>
+    <message>
+        <source>Invalid -proxy address or hostname: '%s'</source>
+        <translation>Neplatná -proxy adresa alebo hostiteľ: '%s'</translation>
+    </message>
+    <message>
         <source>Invalid amount for -%s=&lt;amount&gt;: '%s'</source>
         <translation>Neplatná suma pre -%s=&lt;amount&gt;: '%s'</translation>
+    </message>
+    <message>
+        <source>Invalid characters in -wallet filename</source>
+        <translation>Neplatné znaky v názve súboru -wallet</translation>
     </message>
     <message>
         <source>Invalid spork address specified with -sporkaddr</source>
@@ -5253,6 +5105,10 @@ https://www.transifex.com/projects/p/dash/</translation>
     <message>
         <source>Keep N DASH anonymized (%u-%u, default: %u)</source>
         <translation>Udržujte N DASH anonymizovaných (%u-%u, predvolené: %u)</translation>
+    </message>
+    <message>
+        <source>Loading P2P addresses...</source>
+        <translation>Načítavam P2P adresy…</translation>
     </message>
     <message>
         <source>Print this help message and exit</source>
@@ -5303,10 +5159,6 @@ https://www.transifex.com/projects/p/dash/</translation>
         <translation>Nastaviť maximálnu veľkosť v bajtoch (predvolené: %d)</translation>
     </message>
     <message>
-        <source>Set the masternode private key</source>
-        <translation>Nastaviť súkromný kľúč masternode</translation>
-    </message>
-    <message>
         <source>Show all debugging options (usage: --help -help-debug)</source>
         <translation>Zobraziť všetky možnosti ladenia (použitie: --help --help-debug)</translation>
     </message>
@@ -5341,10 +5193,6 @@ https://www.transifex.com/projects/p/dash/</translation>
     <message>
         <source>Synchronizing governance objects...</source>
         <translation>Synchronizujú sa objekty správy...</translation>
-    </message>
-    <message>
-        <source>Synchronizing masternode payments...</source>
-        <translation>Synchronizujú sa masternode platby...</translation>
     </message>
     <message>
         <source>The source code is available from %s.</source>
