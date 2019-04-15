@@ -74,6 +74,7 @@ void CMNAuth::ProcessMessage(CNode* pnode, const std::string& strCommand, CDataS
         auto mnList = deterministicMNManager->GetListAtChainTip();
         auto dmn = mnList.GetValidMN(mnauth.proRegTxHash);
         if (!dmn) {
+            LOCK(cs_main);
             // in case he was unlucky and not up to date, just let him be connected as a regular node, which gives him
             // a chance to get up-to-date and thus realize by himself that he's not a MN anymore. We still give him a
             // low DoS score.
