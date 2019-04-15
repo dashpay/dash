@@ -856,10 +856,7 @@ void CInstantSendManager::SyncTransaction(const CTransaction& tx, const CBlockIn
 void CInstantSendManager::AddNonLockedTx(const CTransactionRef& tx)
 {
     AssertLockHeld(cs);
-    auto it = nonLockedTxs.find(tx->GetHash());
-    if (it == nonLockedTxs.end()) {
-        it = nonLockedTxs.emplace(tx->GetHash(), NonLockedTxInfo()).first;
-    }
+    auto it = nonLockedTxs.emplace(tx->GetHash(), NonLockedTxInfo()).first;
     auto& info = it->second;
 
     if (!info.tx) {
@@ -875,28 +872,29 @@ void CInstantSendManager::RemoveNonLockedTx(const uint256& txid)
     AssertLockHeld(cs);
 
     auto it = nonLockedTxs.find(txid);
-    if (it != nonLockedTxs.end()) {
-        auto& info = it->second;
+    if (it == nonLockedTxs.end()) {
+        return;
+    }
+    auto& info = it->second;
 
-        // TX got locked, so we can retry locking children
-        for (auto& childTxid : info.children) {
-            pendingRetryTxs.emplace(childTxid);
-        }
+    // TX got locked, so we can retry locking children
+    for (auto& childTxid : info.children) {
+        pendingRetryTxs.emplace(childTxid);
+    }
 
-        if (info.tx) {
-            for (const auto& in : info.tx->vin) {
-                auto jt = nonLockedTxs.find(in.prevout.hash);
-                if (jt != nonLockedTxs.end()) {
-                    jt->second.children.erase(txid);
-                    if (!jt->second.tx && jt->second.children.empty()) {
-                        nonLockedTxs.erase(jt);
-                    }
+    if (info.tx) {
+        for (const auto& in : info.tx->vin) {
+            auto jt = nonLockedTxs.find(in.prevout.hash);
+            if (jt != nonLockedTxs.end()) {
+                jt->second.children.erase(txid);
+                if (!jt->second.tx && jt->second.children.empty()) {
+                    nonLockedTxs.erase(jt);
                 }
             }
         }
-
-        nonLockedTxs.erase(it);
     }
+
+    nonLockedTxs.erase(it);
 }
 
 void CInstantSendManager::NotifyChainLock(const CBlockIndex* pindexChainLock)
@@ -945,12 +943,9 @@ void CInstantSendManager::HandleFullyConfirmedBlock(const CBlockIndex* pindex)
         // from the nonLockedTxs map. Also collect all children of these TXs and mark them for retrying of IS locking.
         std::vector<uint256> toRemove;
         for (auto& p : nonLockedTxs) {
-            auto& info = p.second;
-            if (!p.second.pindexMined) {
-                continue;
-            }
+            auto pindexMined = p.second.pindexMined;
 
-            if (pindex->GetAncestor(info.pindexMined->nHeight) == info.pindexMined) {
+            if (pindexMined && pindex->GetAncestor(pindexMined->nHeight) == pindexMined) {
                 toRemove.emplace_back(p.first);
             }
         }
