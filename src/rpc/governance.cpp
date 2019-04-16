@@ -543,6 +543,10 @@ UniValue gobject_vote_many(const JSONRPCRequest& request)
         throw JSONRPCError(RPC_INVALID_PARAMETER, "vote-many not supported when wallet is disabled.");
     }
 
+    if (pwallet->IsLocked()) {
+        throw JSONRPCError(RPC_INVALID_PARAMETER, "vote-many requires the wallet to be unlocked first.");
+    }
+
     std::map<uint256, CKey> votingKeys;
 
     auto mnList = deterministicMNManager->GetListAtChainTip();
