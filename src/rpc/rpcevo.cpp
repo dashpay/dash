@@ -211,7 +211,7 @@ static void FundSpecialTx(CWallet* pwallet, CMutableTransaction& tx, const Speci
     }
 
     CWalletTx wtx;
-    CReserveKey reservekey(pwalletMain);
+    CReserveKey reservekey(pwallet);
     CAmount nFee;
     int nChangePos = -1;
     std::string strFailReason;
@@ -735,7 +735,7 @@ UniValue protx_update_registrar(const JSONRPCRequest& request)
     ptx.scriptPayout = GetScriptForDestination(payoutAddress.Get());
 
     CKey keyOwner;
-    if (!pwalletMain->GetKey(dmn->pdmnState->keyIDOwner, keyOwner)) {
+    if (!pwallet->GetKey(dmn->pdmnState->keyIDOwner, keyOwner)) {
         throw std::runtime_error(strprintf("Private key for owner address %s not found in your wallet", CBitcoinAddress(dmn->pdmnState->keyIDOwner).ToString()));
     }
 
