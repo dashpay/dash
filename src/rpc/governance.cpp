@@ -544,7 +544,7 @@ UniValue gobject_vote_many(const JSONRPCRequest& request)
     }
 
     if (pwallet->IsLocked()) {
-        throw JSONRPCError(RPC_INVALID_PARAMETER, "vote-many requires the wallet to be unlocked first.");
+        throw JSONRPCError(RPC_WALLET_UNLOCK_NEEDED, "vote-many requires the wallet to be unlocked first.");
     }
 
     std::map<uint256, CKey> votingKeys;
