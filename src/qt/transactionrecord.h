@@ -21,7 +21,8 @@ class TransactionStatus
 public:
     TransactionStatus():
         countsForBalance(false), lockedByInstantSend(false), sortKey(""),
-        matures_in(0), status(Offline), depth(0), open_for(0), cur_num_blocks(-1), cachedChainLockHeight(-1)
+        matures_in(0), status(Offline), depth(0), open_for(0), cur_num_blocks(-1),
+        cachedNumISLocks(-1), cachedChainLockHeight(-1)
     { }
 
     enum Status {
