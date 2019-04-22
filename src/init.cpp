@@ -817,17 +817,8 @@ void ThreadImport(std::vector<boost::filesystem::path> vImportFiles)
     pdsNotificationInterface->InitializeCurrentBlockTip();
 
     if (fMasternodeMode) {
-        bool fDIP003Active{false};
-        {
-            LOCK(cs_main);
-            if (chainActive.Tip()->pprev) {
-                fDIP003Active = VersionBitsState(chainActive.Tip()->pprev, Params().GetConsensus(), Consensus::DEPLOYMENT_DIP0003, versionbitscache) == THRESHOLD_ACTIVE;
-            }
-        }
-        if (fDIP003Active) {
-            assert(activeMasternodeManager);
-            activeMasternodeManager->Init();
-        }
+        assert(activeMasternodeManager);
+        activeMasternodeManager->Init();
     }
 
 #ifdef ENABLE_WALLET
