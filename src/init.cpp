@@ -1327,8 +1327,25 @@ bool AppInitParameterInteraction()
         }
     }
 
-    if (IsArgSet("-dip3enforcementheight")) {
-        UpdateRegtestDIP3EnforcementHeight(GetArg("-dip3enforcementheight", 0));
+    if (IsArgSet("-dip3params")) {
+        // Allow overriding budget parameters for testing
+        if (!chainparams.MineBlocksOnDemand()) {
+            return InitError("DIP3 parameters may only be overridden on regtest.");
+        }
+        std::string strDIP3Params = GetArg("-dip3params", "");
+        std::vector<std::string> vDIP3Params;
+        boost::split(vDIP3Params, strDIP3Params, boost::is_any_of(":"));
+        if (vDIP3Params.size() != 2) {
+            return InitError("DIP3 parameters malformed, expecting DIP3ActivationHeight:DIP3EnforcementHeight");
+        }
+        int nDIP3ActivationHeight, nDIP3EnforcementHeight;
+        if (!ParseInt32(vDIP3Params[0], &nDIP3ActivationHeight)) {
+            return InitError(strprintf("Invalid nDIP3ActivationHeight (%s)", vDIP3Params[0]));
+        }
+        if (!ParseInt32(vDIP3Params[1], &nDIP3EnforcementHeight)) {
+            return InitError(strprintf("Invalid nDIP3EnforcementHeight (%s)", vDIP3Params[1]));
+        }
+        UpdateRegtestDIP3Parameters(nDIP3ActivationHeight, nDIP3EnforcementHeight);
     }
 
     if (IsArgSet("-budgetparams")) {
