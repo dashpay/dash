@@ -1019,7 +1019,7 @@
     </message>
     <message>
         <source>Approximately %1 GB of data will be stored in this directory.</source>
-        <translation>Приблизительно %1 GB данных будет сохранен в этой папке.</translation>
+        <translation>Приблизительно %1 GB данных будет сохранено в этой папке.</translation>
     </message>
     <message>
         <source>%1 will download and store a copy of the Dash block chain.</source>
