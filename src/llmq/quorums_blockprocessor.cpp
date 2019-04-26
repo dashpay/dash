@@ -435,7 +435,7 @@ std::vector<const CBlockIndex*> CQuorumBlockProcessor::GetMinedCommitmentsUntilB
 
         auto quorumIndex = pindex->GetAncestor(quorumHeight);
         assert(quorumIndex);
-        ret.emplace_back(pindex->GetAncestor(quorumHeight));
+        ret.emplace_back(quorumIndex);
 
         dbIt->Next();
     }
