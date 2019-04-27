@@ -1003,7 +1003,7 @@
     </message>
     <message>
         <source>If you have chosen to limit block chain storage (pruning), the historical data must still be downloaded and processed, but will be deleted afterward to keep your disk usage low.</source>
-        <translation>Если Вы решили ограничить хранение цепочки блоков (удаление старых блоков), исторические данные все равно будут скачаны и проверены, после чего они будут удалены для уменьшения размера хранимых данных.</translation>
+        <translation>Если Вы выбрали ограниченное хранение цепочки блоков (удаление старых блоков), исторические данные все равно будут скачаны и проверены, после чего они будут удалены для уменьшения размера хранимых данных.</translation>
     </message>
     <message>
         <source>Use the default data directory</source>
