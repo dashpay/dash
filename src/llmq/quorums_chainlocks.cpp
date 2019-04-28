@@ -9,6 +9,7 @@
 #include "quorums_utils.h"
 
 #include "chain.h"
+#include "masternode-sync.h"
 #include "net_processing.h"
 #include "scheduler.h"
 #include "spork.h"
@@ -232,15 +233,20 @@ void CChainLocksHandler::TrySignChainTip()
 {
     Cleanup();
 
+    if (!fMasternodeMode) {
+        return;
+    }
+
+    if (!masternodeSync.IsBlockchainSynced()) {
+        return;
+    }
+
     const CBlockIndex* pindex;
     {
         LOCK(cs_main);
         pindex = chainActive.Tip();
     }
 
-    if (!fMasternodeMode) {
-        return;
-    }
     if (!pindex->pprev) {
         return;
     }
@@ -407,6 +413,10 @@ bool CChainLocksHandler::IsTxSafeForMining(const uint256& txid)
 // This should also not be called from validation signals, as this might result in recursive calls
 void CChainLocksHandler::EnforceBestChainLock()
 {
+    if (!masternodeSync.IsBlockchainSynced()) {
+        return;
+    }
+
     CChainLockSig clsig;
     const CBlockIndex* pindex;
     const CBlockIndex* currentBestChainLockBlockIndex;
@@ -594,6 +604,10 @@ bool CChainLocksHandler::InternalHasConflictingChainLock(int nHeight, const uint
 
 void CChainLocksHandler::Cleanup()
 {
+    if (!masternodeSync.IsBlockchainSynced()) {
+        return;
+    }
+
     {
         LOCK(cs);
         if (GetTimeMillis() - lastCleanupTime < CLEANUP_INTERVAL) {
