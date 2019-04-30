@@ -413,10 +413,6 @@ bool CChainLocksHandler::IsTxSafeForMining(const uint256& txid)
 // This should also not be called from validation signals, as this might result in recursive calls
 void CChainLocksHandler::EnforceBestChainLock()
 {
-    if (!masternodeSync.IsBlockchainSynced()) {
-        return;
-    }
-
     CChainLockSig clsig;
     const CBlockIndex* pindex;
     const CBlockIndex* currentBestChainLockBlockIndex;
