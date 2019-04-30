@@ -142,7 +142,7 @@ static CBLSPublicKey ParseBLSPubKey(const std::string& hexKey, const std::string
 {
     CBLSPublicKey pubKey;
     if (!pubKey.SetHexStr(hexKey)) {
-        throw JSONRPCError(RPC_INVALID_PARAMETER, strprintf("%s must be a valid BLS address, not %s", paramName, hexKey));
+        throw JSONRPCError(RPC_INVALID_PARAMETER, strprintf("%s must be a valid BLS public key, not %s", paramName, hexKey));
     }
     return pubKey;
 }

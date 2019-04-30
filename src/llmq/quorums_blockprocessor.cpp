@@ -320,7 +320,6 @@ bool CQuorumBlockProcessor::GetCommitmentsFromBlock(const CBlock& block, const C
                 return state.DoS(100, false, REJECT_INVALID, "bad-qc-dup");
             }
 
-            LogPrint("llmq", "CQuorumBlockProcessor::%s -- commitment found in block %s tx %s\n", __func__, block.GetHash().ToString(), tx->GetHash().ToString());
             ret.emplace((Consensus::LLMQType)qc.commitment.llmqType, std::move(qc.commitment));
         }
     }
