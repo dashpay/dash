@@ -892,17 +892,23 @@ bool CPrivateSendClientSession::DoAutomaticDenominating(CConnman& connman, bool 
 
         LogPrint("privatesend", "CPrivateSendClientSession::DoAutomaticDenominating -- current stats:\n"
             "    nValueMin: %s\n"
+            "    nBalanceAnonymizable: %s\n"
+            "    nBalanceAnonymized: %s\n"
             "    nBalanceNeedsAnonymized: %s\n"
             "    nBalanceAnonimizableNonDenom: %s\n"
             "    nBalanceDenominatedConf: %s\n"
             "    nBalanceDenominatedUnconf: %s\n"
             "    nBalanceDenominated: %s\n",
+            "    nBalanceToDenominate: %s\n",
             FormatMoney(nValueMin),
+            FormatMoney(nBalanceAnonymizable),
+            FormatMoney(nBalanceAnonymized),
             FormatMoney(nBalanceNeedsAnonymized),
             FormatMoney(nBalanceAnonimizableNonDenom),
             FormatMoney(nBalanceDenominatedConf),
             FormatMoney(nBalanceDenominatedUnconf),
-            FormatMoney(nBalanceDenominated)
+            FormatMoney(nBalanceDenominated),
+            FormatMoney(nBalanceToDenominate)
             );
 
         if (fDryRun) return true;
