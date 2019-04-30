@@ -25,12 +25,12 @@ CPrivateSendClientManager privateSendClient;
 void CPrivateSendClientManager::ProcessMessage(CNode* pfrom, const std::string& strCommand, CDataStream& vRecv, CConnman& connman)
 {
     if (fMasternodeMode) return;
-    if (fLiteMode) return; // ignore all Dash related functionality
+    if (!fEnablePrivateSend) return;
     if (!masternodeSync.IsBlockchainSynced()) return;
 
     if (!CheckDiskSpace()) {
         ResetPool();
-        fEnablePrivateSend = false;
+        fPrivateSendRunning = false;
         LogPrintf("CPrivateSendClientManager::ProcessMessage -- Not enough disk space, disabling PrivateSend.\n");
         return;
     }
@@ -131,7 +131,7 @@ void CPrivateSendClientManager::ProcessMessage(CNode* pfrom, const std::string& 
 void CPrivateSendClientSession::ProcessMessage(CNode* pfrom, const std::string& strCommand, CDataStream& vRecv, CConnman& connman)
 {
     if (fMasternodeMode) return;
-    if (fLiteMode) return; // ignore all Dash related functionality
+    if (!privateSendClient.fEnablePrivateSend) return;
     if (!masternodeSync.IsBlockchainSynced()) return;
 
     if (strCommand == NetMsgType::DSSTATUSUPDATE) {
@@ -428,7 +428,7 @@ void CPrivateSendClientManager::CheckTimeout()
 
     CheckQueue();
 
-    if (!fEnablePrivateSend) return;
+    if (!fEnablePrivateSend || !fPrivateSendRunning) return;
 
     LOCK(cs_deqsessions);
     for (auto& session : deqSessions) {
@@ -702,7 +702,8 @@ bool CPrivateSendClientManager::CheckAutomaticBackup()
     if (!pwalletMain) {
         LogPrint(BCLog::PRIVATESEND, "CPrivateSendClientManager::CheckAutomaticBackup -- Wallet is not initialized, no mixing available.\n");
         strAutoDenomResult = _("Wallet is not initialized") + ", " + _("no mixing available.");
-        fEnablePrivateSend = false; // no mixing
+        fEnablePrivateSend = false;  // no mixing
+        fPrivateSendRunning = false; // no mixing
         return false;
     }
 
@@ -710,7 +711,7 @@ bool CPrivateSendClientManager::CheckAutomaticBackup()
     case 0:
         LogPrint(BCLog::PRIVATESEND, "CPrivateSendClientManager::CheckAutomaticBackup -- Automatic backups disabled, no mixing available.\n");
         strAutoDenomResult = _("Automatic backups disabled") + ", " + _("no mixing available.");
-        fEnablePrivateSend = false;                // stop mixing
+        fPrivateSendRunning = false;               // stop mixing
         pwalletMain->nKeysLeftSinceAutoBackup = 0; // no backup, no "keys since last backup"
         return false;
     case -1:
@@ -734,7 +735,7 @@ bool CPrivateSendClientManager::CheckAutomaticBackup()
         LogPrint(BCLog::PRIVATESEND, "CPrivateSendClientManager::CheckAutomaticBackup -- Very low number of keys left: %d, no mixing available.\n", pwalletMain->nKeysLeftSinceAutoBackup);
         strAutoDenomResult = strprintf(_("Very low number of keys left: %d") + ", " + _("no mixing available."), pwalletMain->nKeysLeftSinceAutoBackup);
         // It's getting really dangerous, stop mixing
-        fEnablePrivateSend = false;
+        fPrivateSendRunning = false;
         return false;
     } else if (pwalletMain->nKeysLeftSinceAutoBackup < PRIVATESEND_KEYS_THRESHOLD_WARNING) {
         // Low number of keys left but it's still more or less safe to continue
@@ -953,7 +954,7 @@ bool CPrivateSendClientSession::DoAutomaticDenominating(CConnman& connman, bool 
 bool CPrivateSendClientManager::DoAutomaticDenominating(CConnman& connman, bool fDryRun)
 {
     if (fMasternodeMode) return false; // no client-side mixing on masternodes
-    if (!fEnablePrivateSend) return false;
+    if (!fEnablePrivateSend || !fPrivateSendRunning) return false;
 
     if (!masternodeSync.IsBlockchainSynced()) {
         strAutoDenomResult = _("Can't mix while sync in progress.");
@@ -1679,7 +1680,7 @@ void CPrivateSendClientManager::UpdatedBlockTip(const CBlockIndex* pindex)
 
 void CPrivateSendClientManager::DoMaintenance(CConnman& connman)
 {
-    if (fLiteMode) return;       // disable all Dash specific functionality
+    if (!fEnablePrivateSend) return;
     if (fMasternodeMode) return; // no client-side mixing on masternodes
 
     if (!masternodeSync.IsBlockchainSynced() || ShutdownRequested()) return;
