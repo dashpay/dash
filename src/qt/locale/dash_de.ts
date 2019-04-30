@@ -94,6 +94,10 @@
         <translation>&amp;QR Code für Adresse anzeigen</translation>
     </message>
     <message>
+        <source>QR code</source>
+        <translation>QR Code</translation>
+    </message>
+    <message>
         <source>Export Address List</source>
         <translation>Adressliste exportieren</translation>
     </message>
@@ -1080,6 +1084,14 @@ Der Mixing-Prozeß läuft nach dem Start vollständig im Hintergrund, d.h. es is
     <message>
         <source>DIP3 Masternodes</source>
         <translation>DIP3 Masternodes</translation>
+    </message>
+    <message>
+        <source>Show only masternodes this wallet has keys for.</source>
+        <translation>Nur Masternodes anzeigen für welche diese Wallet die Schlüssel hat.</translation>
+    </message>
+    <message>
+        <source>My masternodes only</source>
+        <translation>Nur meine Masternodes</translation>
     </message>
     <message>
         <source>PoSe Score</source>
@@ -2367,6 +2379,10 @@ https://www.transifex.com/projects/p/dash/</translation>
         <translation>Netzwerk-Aktivität deaktiviert</translation>
     </message>
     <message>
+        <source>Total: %1 (Enabled: %2)</source>
+        <translation>Insgesamt: %1 (Aktiv: %2)</translation>
+    </message>
+    <message>
         <source>%1 B</source>
         <translation>%1 B</translation>
     </message>
@@ -3216,6 +3232,14 @@ https://www.transifex.com/projects/p/dash/</translation>
         <translation>%1 Bestätigungen</translation>
     </message>
     <message>
+        <source>locked via LLMQ based ChainLocks</source>
+        <translation>durch LLMQ basierte ChainLocks bestätigt</translation>
+    </message>
+    <message>
+        <source>verified via LLMQ based InstantSend</source>
+        <translation>durch LLMQ basiertes InstantSend verifiziert</translation>
+    </message>
+    <message>
         <source>verified via InstantSend</source>
         <translation>überprüft durch InstantSend</translation>
     </message>
@@ -3641,6 +3665,10 @@ https://www.transifex.com/projects/p/dash/</translation>
         <translation>Transaktionsdetails anzeigen</translation>
     </message>
     <message>
+        <source>Show address QR code</source>
+        <translation>QR Code für Adresse anzeigen</translation>
+    </message>
+    <message>
         <source>Export Transaction History</source>
         <translation>Transaktionsverlauf exportieren</translation>
     </message>
@@ -3691,6 +3719,10 @@ https://www.transifex.com/projects/p/dash/</translation>
     <message>
         <source>The transaction history was successfully saved to %1.</source>
         <translation>Speichern des Transaktionsverlaufs nach %1 war erfolgreich.</translation>
+    </message>
+    <message>
+        <source>QR code</source>
+        <translation>QR Code</translation>
     </message>
     <message>
         <source>Range:</source>
@@ -4032,6 +4064,10 @@ https://www.transifex.com/projects/p/dash/</translation>
         <translation>(Standard: %s)</translation>
     </message>
     <message>
+        <source>-wallet parameter must only specify a filename (not a path)</source>
+        <translation>-wallet parameter darf nur den Dateinamen angeben (nicht den Pfad)</translation>
+    </message>
+    <message>
         <source>Accept public REST requests (default: %u)</source>
         <translation>Akzeptiere öffentliche REST-Anforderungen (Standard: %u)</translation>
     </message>
@@ -4362,6 +4398,10 @@ https://www.transifex.com/projects/p/dash/</translation>
     <message>
         <source>%s file contains all private keys from this wallet. Do not share it with anyone!</source>
         <translation>Die Datei %s beinhaltet alle privaten Schlüssel der Wallet. Diese sollten niemals weitergegeben werden!</translation>
+    </message>
+    <message>
+        <source>Bind to given address to listen for JSON-RPC connections. This option is ignored unless -rpcallowip is also passed. Port is optional and overrides -rpcport. Use [host]:port notation for IPv6. This option can be specified multiple times (default: 127.0.0.1 and ::1 i.e., localhost, or if -rpcallowip has been specified, 0.0.0.0 and :: i.e., all addresses)</source>
+        <translation>An angegebene Adresse für JSON-RPC Verbindungen binden. Diese Option wird ignoriert, außer wenn -rpcallowip gesetzt ist. Der Port ist optional und überschreibt -rpcport. Up IPv6 zu nutzen, kann die [host]:port Notation genutzt werden. Diese Option kann mehrere male angegeben werden (Standard: 127.0.0.1, ::1 und localhost oder wenn -rpcallowip angegeben wurde, 0.0.0.0 und ::, also alle Adressen)</translation>
     </message>
     <message>
         <source>Discover own IP addresses (default: 1 when listening and no -externalip or -proxy)</source>
@@ -4756,6 +4796,18 @@ https://www.transifex.com/projects/p/dash/</translation>
         <translation>Blockkette erneut nach fehlenden Wallet-Transaktionen durchsuchen</translation>
     </message>
     <message>
+        <source>Submitted following entries to masternode: %u</source>
+        <translation>Folgende Einträge wurden an Masternode gesendet: %u</translation>
+    </message>
+    <message>
+        <source>Submitted to masternode, waiting for more entries ( %u ) %s</source>
+        <translation>An Masternode gesendet, warte auf weitere Einträge ( %u ) %s</translation>
+    </message>
+    <message>
+        <source>Synchronizing blockchain...</source>
+        <translation>Synchronisiere Blockchain...</translation>
+    </message>
+    <message>
         <source>The wallet will avoid paying less than the minimum relay fee.</source>
         <translation>Das Wallet verhindert Zahlungen, die die Mindesttransaktionsgebühr nicht berücksichtigen.</translation>
     </message>
@@ -5042,6 +5094,10 @@ https://www.transifex.com/projects/p/dash/</translation>
     <message>
         <source>Invalid amount for -%s=&lt;amount&gt;: '%s'</source>
         <translation>Ungültiger Betrag für -%s=&lt;amount&gt;: '%s'</translation>
+    </message>
+    <message>
+        <source>Invalid characters in -wallet filename</source>
+        <translation>Ungültige Zeichen in -wallet Dateinamen</translation>
     </message>
     <message>
         <source>Invalid spork address specified with -sporkaddr</source>
