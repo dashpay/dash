@@ -152,7 +152,7 @@ UniValue quorum_dkgstatus(const JSONRPCRequest& request)
 
     int detailLevel = 0;
     if (request.params.size() > 1) {
-         detailLevel = ParseInt32V(request.params[1], "detail_level");
+        detailLevel = ParseInt32V(request.params[1], "detail_level");
         if (detailLevel < 0 || detailLevel > 2) {
             throw JSONRPCError(RPC_INVALID_PARAMETER, "invalid detail_level");
         }
