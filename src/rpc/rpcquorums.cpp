@@ -135,7 +135,7 @@ UniValue quorum_info(const JSONRPCRequest& request)
 void quorum_dkgstatus_help()
 {
     throw std::runtime_error(
-            "quorum dkgstatus (detail_level)\n"
+            "quorum dkgstatus ( detail_level )\n"
             "Return the status of the current DKG process.\n"
             "Works only when SPORK_17_QUORUM_DKG_ENABLED spork is ON.\n"
             "\nArguments:\n"
@@ -152,7 +152,7 @@ UniValue quorum_dkgstatus(const JSONRPCRequest& request)
 
     int detailLevel = 0;
     if (request.params.size() > 1) {
-        detailLevel = ParseInt32V(request.params[2], "detail_level");
+         detailLevel = ParseInt32V(request.params[1], "detail_level");
         if (detailLevel < 0 || detailLevel > 2) {
             throw JSONRPCError(RPC_INVALID_PARAMETER, "invalid detail_level");
         }
