@@ -310,6 +310,7 @@ public:
 
     void SetConfirmedHeight(int nConfirmedHeightIn) { nConfirmedHeight = nConfirmedHeightIn; }
     bool IsExpired(int nHeight);
+    bool IsValidStructure();
 };
 
 // base class

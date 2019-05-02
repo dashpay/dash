@@ -122,6 +122,26 @@ bool CPrivateSendBroadcastTx::IsExpired(int nHeight)
     return (nConfirmedHeight != -1) && (nHeight - nConfirmedHeight > 24);
 }
 
+bool CPrivateSendBroadcastTx::IsValidStructure()
+{
+    // some trivial checks only
+    if (tx->vin.size() != tx->vout.size()) {
+        return false;
+    }
+    if (tx->vin.size() < CPrivateSend::GetMinPoolParticipants()) {
+        return false;
+    }
+    for (const auto& out : tx->vout) {
+        if (!CPrivateSend::IsDenominatedAmount(out.nValue)) {
+            return false;
+        }
+        if (!out.scriptPubKey.IsPayToPublicKeyHash()) {
+            return false;
+        }
+    }
+    return true;
+}
+
 void CPrivateSendBaseSession::SetNull()
 {
     // Both sides
