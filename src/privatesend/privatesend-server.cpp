@@ -171,15 +171,28 @@ void CPrivateSendServer::ProcessMessage(CNode* pfrom, const std::string& strComm
 
         LogPrint(BCLog::PRIVATESEND, "DSVIN -- txCollateral %s", entry.txCollateral->ToString());
 
+        auto consumeCollateral = [&](const CTransactionRef& txref) {
+            LOCK(cs_main);
+            CValidationState validationState;
+            if (!AcceptToMemoryPool(mempool, validationState, txref, true, NULL)) {
+                LogPrint("privatesend", "DSVIN -- consumeCollateral didn't pass AcceptToMemoryPool()\n");
+            } else {
+                connman.RelayTransaction(*txref);
+                LogPrint("privatesend", "DSVIN -- consumeCollateral done\n");
+            }
+        };
+
         if (entry.vecTxDSIn.size() > PRIVATESEND_ENTRY_MAX_SIZE) {
             LogPrintf("DSVIN -- ERROR: too many inputs! %d/%d\n", entry.vecTxDSIn.size(), PRIVATESEND_ENTRY_MAX_SIZE);
             PushStatus(pfrom, STATUS_REJECTED, ERR_MAXIMUM, connman);
+            consumeCollateral(entry.txCollateral);
             return;
         }
 
         if (entry.vecTxOut.size() > PRIVATESEND_ENTRY_MAX_SIZE) {
             LogPrintf("DSVIN -- ERROR: too many outputs! %d/%d\n", entry.vecTxOut.size(), PRIVATESEND_ENTRY_MAX_SIZE);
             PushStatus(pfrom, STATUS_REJECTED, ERR_MAXIMUM, connman);
+            consumeCollateral(entry.txCollateral);
             return;
         }
 
@@ -204,11 +217,13 @@ void CPrivateSendServer::ProcessMessage(CNode* pfrom, const std::string& strComm
                 if (txout.scriptPubKey.size() != 25) {
                     LogPrintf("DSVIN -- non-standard pubkey detected! scriptPubKey=%s\n", ScriptToAsmStr(txout.scriptPubKey));
                     PushStatus(pfrom, STATUS_REJECTED, ERR_NON_STANDARD_PUBKEY, connman);
+                    consumeCollateral(entry.txCollateral);
                     return;
                 }
                 if (!txout.scriptPubKey.IsPayToPublicKeyHash()) {
                     LogPrintf("DSVIN -- invalid script! scriptPubKey=%s\n", ScriptToAsmStr(txout.scriptPubKey));
                     PushStatus(pfrom, STATUS_REJECTED, ERR_INVALID_SCRIPT, connman);
+                    consumeCollateral(entry.txCollateral);
                     return;
                 }
             }
@@ -226,8 +241,20 @@ void CPrivateSendServer::ProcessMessage(CNode* pfrom, const std::string& strComm
                         PushStatus(pfrom, STATUS_REJECTED, ERR_MISSING_TX, connman);
                         return;
                     }
+                    if (!CPrivateSend::IsDenominatedAmount(mempoolTx->vout[txin.prevout.n].nValue)) {
+                        LogPrintf("DSVIN -- non-denominated mempool input! txin=%s\n", txin.ToString());
+                        PushStatus(pfrom, STATUS_REJECTED, ERR_DENOM, connman);
+                        consumeCollateral(entry.txCollateral);
+                        return;
+                    }
                     nValueIn += mempoolTx->vout[txin.prevout.n].nValue;
                 } else if (GetUTXOCoin(txin.prevout, coin)) {
+                    if (!CPrivateSend::IsDenominatedAmount(coin.out.nValue)) {
+                        LogPrintf("DSVIN -- non-denominated input! txin=%s\n", txin.ToString());
+                        PushStatus(pfrom, STATUS_REJECTED, ERR_DENOM, connman);
+                        consumeCollateral(entry.txCollateral);
+                        return;
+                    }
                     nValueIn += coin.out.nValue;
                 } else {
                     LogPrintf("DSVIN -- missing input! txin=%s\n", txin.ToString());
