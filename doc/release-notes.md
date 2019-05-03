@@ -47,7 +47,7 @@ DIP0004 - Coinbase Payload v2
 Coinbase Payload v2 introduces new field `merkleRootQuorums` which represents the merkle root of
 all the hashes of the final quorum commitments of all active LLMQ sets. This allows SPV clients
 to verify active LLMQ sets and use this information to further verify ChainLocks and LLMQ-based
-InstantSend messages.
+InstantSend messages. Coinbase Payload v2 relies on DIP0008 (bit 4) activation.
 
 https://github.com/dashpay/dips/blob/master/dip-0004.md#calculating-the-merkle-root-of-the-active-llmqs
 
@@ -55,7 +55,7 @@ DIP0008 - ChainLocks
 --------------------
 This version introduces ChainLocks, a technology for near-instant confirmation of blocks and
 finding near-instant consensus on the longest valid/accepted chain. ChainLocks leverages LLMQ
-Signing Requests/Sessions to accomplish this. ChainLocks activation relies on DIP0004 activation and
+Signing Requests/Sessions to accomplish this. ChainLocks relies on DIP0008 (bit 4) activation and
 `SPORK_19_CHAINLOCKS_ENABLED` spork.
 
 Read more: https://github.com/dashpay/dips/blob/master/dip-0008.md
@@ -69,11 +69,9 @@ Network
 Legacy messages `mnw`, `mnwb`, `mnget`, `mnb`, `mnp`, `dseg`, `mnv`, `qdcommit` and their corresponding
 inventory types (7, 10, 14, 15, 19, 22) are no longer suported.
 
-Message `version` is extended with a 256 bit field - a challange sent to a masternode. Masternode which
-received such a challange must reply with new p2p message `mnauth` directly after `verack`. This `mnauth`
+Message `version` is extended with a 256 bit field - a challenge sent to a masternode. Masternode which
+received such a challenge must reply with new p2p message `mnauth` directly after `verack`. This `mnauth`
 message must include a signed challenge that was previously sent via `version`.
-
-Read more: https://github.com/dashpay/dips/blob/master/dip-000?.md
 
 Mining
 ------
@@ -85,14 +83,14 @@ and solo-miners to check their software compatibility on testnet to ensure flawl
 
 PrivateSend
 -----------
-Wallet will try to create and consume denoms a bit more accurately now. It will also only create limited
+The wallet will try to create and consume denoms a bit more accurately now. It will also only create limited
 number of inputs of each denominated amount to prevent bloating itself with mostly the smallest denoms.
 You can control this number of inputs via new `-privatesenddenoms` cmd-line option (default is 300).
 
 InstantSend
 -----------
-Legacy InstantSend is going to be superseded by the newly implemented LLMQ-based one once DIP0004 is
-active and `SPORK_20_INSTANTSEND_LLMQ_BASED` spork is ON.
+Legacy InstantSend is going to be superseded by the newly implemented LLMQ-based one once DIP0008 (bit 4)
+is active and `SPORK_20_INSTANTSEND_LLMQ_BASED` spork is ON.
 
 Sporks
 ------
@@ -108,7 +106,7 @@ in transactions list (right click -> "Show QR-code").
 RPC changes
 -----------
 There are a few changes in existing RPC interfaces in this release:
-- for blockchain based RPC commands `instantlock` will say `true` if transaction
+- for blockchain based RPC commands `instantlock` will say `true` if the transaction
 was locked via LLMQ based ChainLocks (for backwards compatibility reasons)
 - `prioritisetransaction` no longer allows adjusting priority
 - `getgovernanceinfo` no longer has `masternodewatchdogmaxseconds` and `sentinelpingmaxseconds` fields
@@ -164,7 +162,7 @@ See detailed [set of changes](https://github.com/dashpay/dash/compare/v0.14.0.0.
 - [`5d05ab17a`](https://github.com/dashpay/dash/commit/5d05ab17a) Fix PrivateSend log (#2892)
 - [`53827a376`](https://github.com/dashpay/dash/commit/53827a376) Remove code for QDEBUGSTATUS propagation (#2891)
 - [`783cb9ca6`](https://github.com/dashpay/dash/commit/783cb9ca6) Skip CheckCbTxMerkleRoots until assumeValid block (#2890)
-- [`4dee7c4a2`](https://github.com/dashpay/dash/commit/4dee7c4a2) Cache heavy parts of CalcCbTxMerkleRoot* (#2885)
+- [`4dee7c4a2`](https://github.com/dashpay/dash/commit/4dee7c4a2) Cache heavy parts of `CalcCbTxMerkleRoot*` (#2885)
 - [`b3ed6410f`](https://github.com/dashpay/dash/commit/b3ed6410f) Be more accurate with denom creation/consumption (#2853)
 - [`3d993ee8f`](https://github.com/dashpay/dash/commit/3d993ee8f) Translations v14 (#2638)
 - [`fbd244dde`](https://github.com/dashpay/dash/commit/fbd244dde) Bail out in few more places when blockchain is not synced yet (#2888)
@@ -468,7 +466,7 @@ See detailed [set of changes](https://github.com/dashpay/dash/compare/v0.14.0.0.
 - [`8a436ec36`](https://github.com/dashpay/dash/commit/8a436ec36) Merge #9932: Fix verify-commits on travis and always check top commit's tree
 - [`31267f4c8`](https://github.com/dashpay/dash/commit/31267f4c8) Merge #9555: [test] Avoid reading a potentially uninitialized variable in tx_invalid-test (transaction_tests.cpp)
 - [`a31b2de7a`](https://github.com/dashpay/dash/commit/a31b2de7a) Merge #9906: Disallow copy constructor CReserveKeys
-- [`22cda1a92`](https://github.com/dashpay/dash/commit/22cda1a92) Merge #9929: tests: Delete unused function _rpchost_to_args
+- [`22cda1a92`](https://github.com/dashpay/dash/commit/22cda1a92) Merge #9929: tests: Delete unused function `_rpchost_to_args`
 - [`6addbe074`](https://github.com/dashpay/dash/commit/6addbe074) Merge #9880: Verify Tree-SHA512s in merge commits, enforce sigs are not SHA1
 - [`29bbfc58f`](https://github.com/dashpay/dash/commit/29bbfc58f) Merge #8574: [Wallet] refactor CWallet/CWalletDB/CDB
 - [`67a86091a`](https://github.com/dashpay/dash/commit/67a86091a) Implement and use secure BLS batch verification (#2681)
@@ -577,7 +575,7 @@ See detailed [set of changes](https://github.com/dashpay/dash/compare/v0.14.0.0.
 - [`b6346a2f6`](https://github.com/dashpay/dash/commit/b6346a2f6) Implement CBLSInsecureBatchVerifier for convenient batch verification
 - [`dd8f24588`](https://github.com/dashpay/dash/commit/dd8f24588) Implement IsBanned to allow checking for banned nodes outside of net_processing.cpp
 - [`49de41726`](https://github.com/dashpay/dash/commit/49de41726) Implement CFixedVarIntsBitSet and CAutoBitSet
-- [`76a58f5a4`](https://github.com/dashpay/dash/commit/76a58f5a4) Add src/bls/*.h and .cpp to CMakeLists.txt
+- [`76a58f5a4`](https://github.com/dashpay/dash/commit/76a58f5a4) Add `src/bls/*.h` and .cpp to CMakeLists.txt
 - [`b627528ce`](https://github.com/dashpay/dash/commit/b627528ce) Use void as return type for WriteContributions
 - [`edac100f5`](https://github.com/dashpay/dash/commit/edac100f5) Fix "quorum" RPCs help and unify logic in the sub-commands RPC entry point
 - [`217f3941d`](https://github.com/dashpay/dash/commit/217f3941d) Skip starting of cache populator thread in case we don't have a valid vvec
