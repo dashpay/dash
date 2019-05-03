@@ -105,6 +105,12 @@ void CInstantSendDb::RemoveInstantSendLockMined(const uint256& hash, int nHeight
     db.Erase(BuildInversedISLockKey("is_m", nHeight, hash));
 }
 
+void CInstantSendDb::WriteInstantSendLockArchived(CDBBatch& batch, const uint256& hash, int nHeight)
+{
+    batch.Write(BuildInversedISLockKey("is_a1", nHeight, hash), true);
+    batch.Write(std::make_tuple(std::string("is_a2"), hash), true);
+}
+
 std::unordered_map<uint256, CInstantSendLockPtr> CInstantSendDb::RemoveConfirmedInstantSendLocks(int nUntilHeight)
 {
     auto it = std::unique_ptr<CDBIterator>(db.NewIterator());
@@ -133,8 +139,7 @@ std::unordered_map<uint256, CInstantSendLockPtr> CInstantSendDb::RemoveConfirmed
         }
 
         // archive the islock hash, so that we're still able to check if we've seen the islock in the past
-        batch.Write(BuildInversedISLockKey("is_a1", nHeight, islockHash), true);
-        batch.Write(std::make_tuple(std::string("is_a2"), islockHash), true);
+        WriteInstantSendLockArchived(batch, islockHash, nHeight);
 
         batch.Erase(curKey);
 
