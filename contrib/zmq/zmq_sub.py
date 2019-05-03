@@ -43,12 +43,14 @@ class ZMQHandler():
 
         self.zmqSubSocket = self.zmqContext.socket(zmq.SUB)
         self.zmqSubSocket.setsockopt_string(zmq.SUBSCRIBE, "hashblock")
+        self.zmqSubSocket.setsockopt_string(zmq.SUBSCRIBE, "hashchainlock")
         self.zmqSubSocket.setsockopt_string(zmq.SUBSCRIBE, "hashtx")
         self.zmqSubSocket.setsockopt_string(zmq.SUBSCRIBE, "hashtxlock")
         self.zmqSubSocket.setsockopt_string(zmq.SUBSCRIBE, "hashgovernancevote")
         self.zmqSubSocket.setsockopt_string(zmq.SUBSCRIBE, "hashgovernanceobject")
         self.zmqSubSocket.setsockopt_string(zmq.SUBSCRIBE, "hashinstantsenddoublespend")
         self.zmqSubSocket.setsockopt_string(zmq.SUBSCRIBE, "rawblock")
+        self.zmqSubSocket.setsockopt_string(zmq.SUBSCRIBE, "rawchainlock")
         self.zmqSubSocket.setsockopt_string(zmq.SUBSCRIBE, "rawtx")
         self.zmqSubSocket.setsockopt_string(zmq.SUBSCRIBE, "rawtxlock")
         self.zmqSubSocket.setsockopt_string(zmq.SUBSCRIBE, "rawgovernancevote")
@@ -69,6 +71,9 @@ class ZMQHandler():
         if topic == b"hashblock":
             print('- HASH BLOCK ('+sequence+') -')
             print(binascii.hexlify(body).decode("utf-8"))
+        elif topic == b"hashchainlock":
+            print('- HASH CHAINLOCK ('+sequence+') -')
+            print(binascii.hexlify(body).decode("utf-8"))
         elif topic == b"hashtx":
             print ('- HASH TX ('+sequence+') -')
             print(binascii.hexlify(body).decode("utf-8"))
@@ -86,6 +91,9 @@ class ZMQHandler():
             print(binascii.hexlify(body).decode("utf-8"))
         elif topic == b"rawblock":
             print('- RAW BLOCK HEADER ('+sequence+') -')
+            print(binascii.hexlify(body[:80]).decode("utf-8"))
+        elif topic == b"rawchainlock":
+            print('- RAW CHAINLOCK ('+sequence+') -')
             print(binascii.hexlify(body[:80]).decode("utf-8"))
         elif topic == b"rawtx":
             print('- RAW TX ('+sequence+') -')

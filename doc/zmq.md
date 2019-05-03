@@ -57,12 +57,14 @@ the command line or in the configuration file.
 Currently, the following notifications are supported:
 
     -zmqpubhashblock=address
+    -zmqpubhashchainlock=address
     -zmqpubhashtx=address
     -zmqpubhashtxlock=address
     -zmqpubhashgovernancevote=address
     -zmqpubhashgovernanceobject=address
     -zmqpubhashinstantsenddoublespend=address
     -zmqpubrawblock=address
+    -zmqpubrawchainlock=address
     -zmqpubrawtx=address
     -zmqpubrawtxlock=address
     -zmqpubrawgovernancevote=address
