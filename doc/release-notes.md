@@ -83,9 +83,9 @@ and solo-miners to check their software compatibility on testnet to ensure flawl
 
 PrivateSend
 -----------
-The wallet will try to create and consume denoms a bit more accurately now. It will also only create limited
-number of inputs of each denominated amount to prevent bloating itself with mostly the smallest denoms.
-You can control this number of inputs via new `-privatesenddenoms` cmd-line option (default is 300).
+The wallet will try to create and consume denoms a bit more accurately now. It will also only create a
+limited number of inputs for each denominated amount to prevent bloating itself with mostly the smallest
+denoms. You can control this number of inputs via new `-privatesenddenoms` cmd-line option (default is 300).
 
 InstantSend
 -----------
@@ -100,7 +100,7 @@ It will be turned on once 80% masternodes are upgraded to v0.14 which will enabl
 
 QR codes
 --------
-Wallet can now show QR codes for addresses in address book, receiving addresses and addresses identified
+Wallet can now show QR codes for addresses in the address book, receiving addresses and addresses identified
 in transactions list (right click -> "Show QR-code").
 
 RPC changes
@@ -112,7 +112,7 @@ was locked via LLMQ based ChainLocks (for backwards compatibility reasons)
 - `getgovernanceinfo` no longer has `masternodewatchdogmaxseconds` and `sentinelpingmaxseconds` fields
 - `masternodelist` no longer supports `activeseconds`, `daemon`, `lastseen`, `protocol`, `keyid`, `rank`
 and `sentinel` modes, new mode - `pubkeyoperator`
-- `masterenode count` no longer has `ps_compatible` and `qualify` fields and `ps` and `qualify` modes
+- `masternode count` no longer has `ps_compatible` and `qualify` fields and `ps` and `qualify` modes
 - `masternode winner` and `masternode current` no longer have `protocol`, `lastseen` and `activeseconds`
 fields, new field - `proTxHash`
 - `debug` supports new categories: `chainlocks`, `llmq`, `llmq-dkg`, `llmq-sigs`
