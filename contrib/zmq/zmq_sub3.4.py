@@ -78,6 +78,15 @@ class ZMQHandler():
         elif topic == b"hashtxlock":
             print('- HASH TX LOCK ('+sequence+') -')
             print(binascii.hexlify(body).decode("utf-8"))
+        elif topic == b"hashgovernancevote":
+            print('- HASH GOVERNANCE VOTE ('+sequence+') -')
+            print(binascii.hexlify(body).decode("utf-8"))
+        elif topic == b"hashgovernanceobject":
+            print('- HASH GOVERNANCE OBJECT ('+sequence+') -')
+            print(binascii.hexlify(body).decode("utf-8"))
+        elif topic == b"hashinstantsenddoublespend":
+            print('- HASH IS DOUBLE SPEND ('+sequence+') -')
+            print(binascii.hexlify(body).decode("utf-8"))
         elif topic == b"rawblock":
             print('- RAW BLOCK HEADER ('+sequence+') -')
             print(binascii.hexlify(body[:80]).decode("utf-8"))
@@ -87,23 +96,14 @@ class ZMQHandler():
         elif topic == b"rawtxlock":
             print('- RAW TX LOCK ('+sequence+') -')
             print(binascii.hexlify(body).decode("utf-8"))
-        elif topic == b"rawinstantsenddoublespend":
-            print('- RAW IS DOUBLE SPEND ('+sequence+') -')
-            print(binascii.hexlify(body).decode("utf-8"))
-        elif topic == b"hashgovernancevote":
-            print('- HASH GOVERNANCE VOTE ('+sequence+') -')
-            print(binascii.hexlify(body).decode("utf-8"))
-        elif topic == b"hashgovernanceobject":
-            print('- HASH GOVERNANCE OBJECT ('+sequence+') -')
-            print(binascii.hexlify(body).decode("utf-8"))
         elif topic == b"rawgovernancevote":
             print('- RAW GOVERNANCE VOTE ('+sequence+') -')
             print(binascii.hexlify(body).decode("utf-8"))
         elif topic == b"rawgovernanceobject":
             print('- RAW GOVERNANCE OBJECT ('+sequence+') -')
             print(binascii.hexlify(body).decode("utf-8"))
-        elif topic == b"hashinstantsenddoublespend":
-            print('- HASH IS DOUBLE SPEND ('+sequence+') -')
+        elif topic == b"rawinstantsenddoublespend":
+            print('- RAW IS DOUBLE SPEND ('+sequence+') -')
             print(binascii.hexlify(body).decode("utf-8"))
         # schedule ourselves to receive the next message
         asyncio.ensure_future(self.handle())
