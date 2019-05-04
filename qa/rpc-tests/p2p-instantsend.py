@@ -50,7 +50,7 @@ class InstantSendTest(DashTestFramework):
         self.nodes[0].generate(2)
         self.sync_all()
 
-        # create doublepending transaction, but don't relay it
+        # create doublespending transaction, but don't relay it
         dblspnd_tx = self.create_raw_tx(sender, isolated, 0.5, 1, 100)
         # stop one node to isolate it from network
         isolated.setnetworkactive(False)
@@ -98,7 +98,7 @@ class InstantSendTest(DashTestFramework):
         self.nodes[0].generate(2)
         self.sync_all()
 
-        # create doublepending transaction, but don't relay it
+        # create doublespending transaction, but don't relay it
         dblspnd_tx = self.create_raw_tx(sender, isolated, 0.5, 1, 100)
         dblspnd_txid = bytes_to_hex_str(hash256(hex_str_to_bytes(dblspnd_tx['hex']))[::-1])
         # isolate one node from network
@@ -119,7 +119,7 @@ class InstantSendTest(DashTestFramework):
         is_id = sender.instantsendtoaddress(receiver_addr, 0.9)
         for node in self.nodes:
             self.wait_for_instantlock(is_id, node)
-        assert_raises_jsonrpc(-5, "No such mempool or blockchain transaction", isolated, dblspnd_txid)
+        assert_raises_jsonrpc(-5, "No such mempool or blockchain transaction", isolated.getrawtransaction, dblspnd_txid)
 
 if __name__ == '__main__':
     InstantSendTest().main()
