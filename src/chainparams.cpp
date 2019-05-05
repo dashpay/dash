@@ -265,11 +265,11 @@ public:
         vSeeds.push_back(CDNSSeedData("dashdot.io", "dnsseed.dashdot.io"));
         vSeeds.push_back(CDNSSeedData("masternode.io", "dnsseed.masternode.io"));
 
-        // Dash addresses start with 'X'
+        // Dash addresses start with 'M'
         base58Prefixes[PUBKEY_ADDRESS] = std::vector<unsigned char>(1,76);
-        // Dash script addresses start with '7'
+        // Dash script addresses start with '6'
         base58Prefixes[SCRIPT_ADDRESS] = std::vector<unsigned char>(1,16);
-        // Dash private keys start with '7' or 'X'
+        // Dash private keys start with '6' or 'M'
         base58Prefixes[SECRET_KEY] =     std::vector<unsigned char>(1,204);
         // Dash BIP32 pubkeys start with 'xpub' (Bitcoin defaults)
         base58Prefixes[EXT_PUBLIC_KEY] = boost::assign::list_of(0x04)(0x88)(0xB2)(0x1E).convert_to_container<std::vector<unsigned char> >();
