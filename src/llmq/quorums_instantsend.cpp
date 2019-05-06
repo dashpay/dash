@@ -892,6 +892,7 @@ void CInstantSendManager::ProcessInstantSendLock(NodeId from, const uint256& has
     }
 
     RemoveMempoolConflictsForLock(hash, islock);
+    ResolveBlockConflicts(hash, islock, true);
     UpdateWalletTransaction(islock.txid, tx);
 }
 
@@ -1144,6 +1145,112 @@ void CInstantSendManager::RemoveMempoolConflictsForLock(const uint256& hash, con
             }
         }
         AskNodesForLockedTx(islock.txid);
+    }
+}
+
+void CInstantSendManager::ResolveBlockConflicts(const uint256& islockHash, const llmq::CInstantSendLock& islock, bool allowInvalidate)
+{
+    // Lets first collect all non-locked TXs which conflict with the given ISLOCK
+    std::unordered_map<const CBlockIndex*, std::unordered_map<uint256, CTransactionRef, StaticSaltedHasher>> conflicts;
+    {
+        LOCK(cs);
+        for (auto& in : islock.inputs) {
+            auto its = nonLockedTxsByInputs.equal_range(in.hash);
+            for (auto it = its.first; it != its.second; ++it) {
+                if (it->second.first != in.n) {
+                    continue;
+                }
+                auto& conflictTxid = it->second.second;
+                if (conflictTxid == islock.txid) {
+                    continue;
+                }
+                auto jt = nonLockedTxs.find(conflictTxid);
+                if (jt == nonLockedTxs.end()) {
+                    continue;
+                }
+                auto& info = jt->second;
+                if (!info.pindexMined || !info.tx) {
+                    continue;
+                }
+                LogPrintf("CInstantSendManager::%s -- txid=%s, islock=%s: mined TX %s with input %s and mined in block %s conflicts with islock\n", __func__,
+                          islock.txid.ToString(), islockHash.ToString(), conflictTxid.ToString(), in.ToStringShort(), info.pindexMined->GetBlockHash().ToString());
+                conflicts[info.pindexMined].emplace(conflictTxid, info.tx);
+            }
+        }
+    }
+
+    // Lets see if any of the conflicts was already mined into a ChainLocked block
+    bool hasChainLockedConflict = false;
+    for (const auto& p : conflicts) {
+        auto pindex = p.first;
+        if (chainLocksHandler->HasChainLock(pindex->nHeight, pindex->GetBlockHash())) {
+            hasChainLockedConflict = true;
+            break;
+        }
+    }
+
+    // If a conflict was mined into a ChainLocked block, then we have no other choice and must prune the ISLOCK and all
+    // chained ISLOCKs that build on top of this one. The probability of this is practically zero and can only happen
+    // when large parts of the masternode network are controlled by an attacker. In this case we must still find consensus
+    // and its better to sacrifice individual ISLOCKs then to sacrifice whole ChainLocks.
+    if (hasChainLockedConflict) {
+        LogPrintf("CInstantSendManager::%s -- txid=%s, islock=%s: at least one conflicted TX already got a ChainLock. Removing ISLOCK and its chained children.\n", __func__,
+                  islock.txid.ToString(), islockHash.ToString());
+        int tipHeight;
+        {
+            LOCK(cs_main);
+            tipHeight = chainActive.Height();
+        }
+
+        LOCK(cs);
+        auto removedIslocks = db.RemoveChainedInstantSendLocks(islockHash, islock.txid, tipHeight);
+        for (auto& h : removedIslocks) {
+            LogPrintf("CInstantSendManager::%s -- txid=%s, islock=%s: removed (child) ISLOCk %s\n", __func__,
+                      islock.txid.ToString(), islockHash.ToString(), h.ToString());
+        }
+        return;
+    }
+
+    // This method is called from 2 different places. Once when a fresh ISLOCK arrives, in which case it is fine/desired
+    // to invalidate blocks which contain conflicts. This method might also be called from ConnectBlock, in which case
+    // we can not call InvalidateBlock/ActivateBestChain due to the cs_main lock requirements. This is fine as when called
+    // from ConnectBlock, we know that the conflicting block got a ChainLock, so the above code has already handled this.
+    if (!allowInvalidate) {
+        return;
+    }
+
+    bool activateBestChain = false;
+    for (const auto& p : conflicts) {
+        auto pindex = p.first;
+        {
+            LOCK(cs);
+            for (auto& p2 : p.second) {
+                const auto& tx = *p2.second;
+                RemoveConflictedTx(tx);
+            }
+        }
+
+        LogPrintf("CInstantSendManager::%s -- invalidating block %s\n", __func__, pindex->GetBlockHash().ToString());
+
+        LOCK(cs_main);
+        CValidationState state;
+        // need non-const pointer
+        auto pindex2 = mapBlockIndex.at(pindex->GetBlockHash());
+        if (!InvalidateBlock(state, Params(), pindex2)) {
+            LogPrintf("CInstantSendManager::%s -- InvalidateBlock failed: %s\n", __func__, FormatStateMessage(state));
+            // This should not have happened and we are in a state were it's not safe to continue anymore
+            assert(false);
+        }
+        activateBestChain = true;
+    }
+
+    if (activateBestChain) {
+        CValidationState state;
+        if (!ActivateBestChain(state, Params())) {
+            LogPrintf("CChainLocksHandler::%s -- ActivateBestChain failed: %s\n", __func__, FormatStateMessage(state));
+            // This should not have happened and we are in a state were it's not safe to continue anymore
+            assert(false);
+        }
     }
 }
 
