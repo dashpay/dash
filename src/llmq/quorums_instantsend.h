@@ -67,6 +67,9 @@ public:
     uint256 GetInstantSendLockHashByTxid(const uint256& txid);
     CInstantSendLockPtr GetInstantSendLockByTxid(const uint256& txid);
     CInstantSendLockPtr GetInstantSendLockByInput(const COutPoint& outpoint);
+
+    std::vector<uint256> GetInstantSendLocksByParent(const uint256& parent);
+    std::vector<uint256> RemoveChainedInstantSendLocks(const uint256& islockHash, const uint256& txid, int nHeight);
 };
 
 class CInstantSendManager : public CRecoveredSigsListener

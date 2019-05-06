@@ -249,6 +249,73 @@ CInstantSendLockPtr CInstantSendDb::GetInstantSendLockByInput(const COutPoint& o
     return GetInstantSendLockByHash(islockHash);
 }
 
+std::vector<uint256> CInstantSendDb::GetInstantSendLocksByParent(const uint256& parent)
+{
+    auto it = std::unique_ptr<CDBIterator>(db.NewIterator());
+    auto firstKey = std::make_tuple(std::string("is_in"), COutPoint(parent, 0));
+    it->Seek(firstKey);
+
+    std::vector<uint256> result;
+
+    while (it->Valid()) {
+        decltype(firstKey) curKey;
+        if (!it->GetKey(curKey) || std::get<0>(curKey) != "is_in") {
+            break;
+        }
+        auto& outpoint = std::get<1>(curKey);
+        if (outpoint.hash != parent) {
+            break;
+        }
+
+        uint256 islockHash;
+        if (!it->GetValue(islockHash)) {
+            break;
+        }
+        result.emplace_back(islockHash);
+        it->Next();
+    }
+
+    return result;
+}
+
+std::vector<uint256> CInstantSendDb::RemoveChainedInstantSendLocks(const uint256& islockHash, const uint256& txid, int nHeight)
+{
+    std::vector<uint256> result;
+
+    std::vector<uint256> stack;
+    std::unordered_set<uint256, StaticSaltedHasher> added;
+    stack.emplace_back(txid);
+
+    CDBBatch batch(db);
+    while (!stack.empty()) {
+        auto children = GetInstantSendLocksByParent(stack.back());
+        stack.pop_back();
+
+        for (auto& childIslockHash : children) {
+            auto childIsLock = GetInstantSendLockByHash(childIslockHash);
+            if (!childIsLock) {
+                continue;
+            }
+
+            RemoveInstantSendLock(batch, childIslockHash, childIsLock);
+            WriteInstantSendLockArchived(batch, childIslockHash, nHeight);
+            result.emplace_back(childIslockHash);
+
+            if (added.emplace(childIsLock->txid).second) {
+                stack.emplace_back(childIsLock->txid);
+            }
+        }
+    }
+
+    RemoveInstantSendLock(batch, islockHash, nullptr);
+    WriteInstantSendLockArchived(batch, islockHash, nHeight);
+    result.emplace_back(islockHash);
+
+    db.WriteBatch(batch);
+
+    return result;
+}
+
 ////////////////
 
 CInstantSendManager::CInstantSendManager(CDBWrapper& _llmqDb) :
