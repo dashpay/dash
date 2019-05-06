@@ -174,7 +174,7 @@ void CPrivateSendServer::ProcessMessage(CNode* pfrom, const std::string& strComm
         auto consumeCollateral = [&](const CTransactionRef& txref) {
             LOCK(cs_main);
             CValidationState validationState;
-            if (!AcceptToMemoryPool(mempool, validationState, txref, true, NULL)) {
+            if (!AcceptToMemoryPool(mempool, validationState, txref, true, nullptr)) {
                 LogPrint("privatesend", "DSVIN -- consumeCollateral didn't pass AcceptToMemoryPool()\n");
             } else {
                 connman.RelayTransaction(*txref);
