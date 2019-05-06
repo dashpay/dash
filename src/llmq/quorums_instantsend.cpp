@@ -879,7 +879,7 @@ void CInstantSendManager::ProcessInstantSendLock(NodeId from, const uint256& has
         }
 
         // This will also add children TXs to pendingRetryTxs
-        RemoveNonLockedTx(islock.txid);
+        RemoveNonLockedTx(islock.txid, true);
     }
 
     CInv inv(MSG_ISLOCK, hash);
@@ -957,7 +957,7 @@ void CInstantSendManager::SyncTransaction(const CTransaction& tx, const CBlockIn
         nonLockedTxs.at(tx.GetHash()).pindexMined = posInBlock == CMainSignals::SYNC_TRANSACTION_NOT_IN_BLOCK ? pindex : nullptr;
     } else {
         // TX is locked, so make sure we don't track it anymore
-        RemoveNonLockedTx(tx.GetHash());
+        RemoveNonLockedTx(tx.GetHash(), true);
     }
 }
 
@@ -975,7 +975,7 @@ void CInstantSendManager::AddNonLockedTx(const CTransactionRef& tx)
     }
 }
 
-void CInstantSendManager::RemoveNonLockedTx(const uint256& txid)
+void CInstantSendManager::RemoveNonLockedTx(const uint256& txid, bool retryChildren)
 {
     AssertLockHeld(cs);
 
@@ -985,9 +985,11 @@ void CInstantSendManager::RemoveNonLockedTx(const uint256& txid)
     }
     auto& info = it->second;
 
-    // TX got locked, so we can retry locking children
-    for (auto& childTxid : info.children) {
-        pendingRetryTxs.emplace(childTxid);
+    if (retryChildren) {
+        // TX got locked, so we can retry locking children
+        for (auto& childTxid : info.children) {
+            pendingRetryTxs.emplace(childTxid);
+        }
     }
 
     if (info.tx) {
@@ -1003,6 +1005,17 @@ void CInstantSendManager::RemoveNonLockedTx(const uint256& txid)
     }
 
     nonLockedTxs.erase(it);
+}
+
+void CInstantSendManager::RemoveConflictedTx(const CTransaction& tx)
+{
+    AssertLockHeld(cs);
+    RemoveNonLockedTx(tx.GetHash(), false);
+
+    for (const auto& in : tx.vin) {
+        auto inputRequestId = ::SerializeHash(std::make_pair(INPUTLOCK_REQUESTID_PREFIX, in));
+        inputRequestIds.erase(inputRequestId);
+    }
 }
 
 void CInstantSendManager::NotifyChainLock(const CBlockIndex* pindexChainLock)
@@ -1062,7 +1075,7 @@ void CInstantSendManager::HandleFullyConfirmedBlock(const CBlockIndex* pindex)
         }
         for (auto& txid : toRemove) {
             // This will also add children to pendingRetryTxs
-            RemoveNonLockedTx(txid);
+            RemoveNonLockedTx(txid, true);
         }
     }
 
@@ -1097,6 +1110,12 @@ void CInstantSendManager::RemoveMempoolConflictsForLock(const uint256& hash, con
     }
 
     if (!toDelete.empty()) {
+        {
+            LOCK(cs);
+            for (auto& p : toDelete) {
+                RemoveConflictedTx(*p.second);
+            }
+        }
         AskNodesForLockedTx(islock.txid);
     }
 }

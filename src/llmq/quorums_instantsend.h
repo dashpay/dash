@@ -141,7 +141,8 @@ public:
 
     void SyncTransaction(const CTransaction &tx, const CBlockIndex *pindex, int posInBlock);
     void AddNonLockedTx(const CTransactionRef& tx);
-    void RemoveNonLockedTx(const uint256& txid);
+    void RemoveNonLockedTx(const uint256& txid, bool retryChildren);
+    void RemoveConflictedTx(const CTransaction& tx);
 
     void NotifyChainLock(const CBlockIndex* pindexChainLock);
     void UpdatedBlockTip(const CBlockIndex* pindexNew);
