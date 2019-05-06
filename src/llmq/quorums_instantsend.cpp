@@ -930,6 +930,19 @@ void CInstantSendManager::SyncTransaction(const CTransaction& tx, const CBlockIn
         return;
     }
 
+    bool inMempool = mempool.get(tx.GetHash()) != nullptr;
+
+    // Are we called from validation.cpp/MemPoolConflictRemovalTracker?
+    // TODO refactor this when we backport the BlockConnected signal from Bitcoin, as it gives better info about
+    // conflicted TXs
+    bool isConflictRemoved = !pindex && posInBlock == CMainSignals::SYNC_TRANSACTION_NOT_IN_BLOCK && !inMempool;
+
+    if (isConflictRemoved) {
+        LOCK(cs);
+        RemoveConflictedTx(tx);
+        return;
+    }
+
     uint256 islockHash;
     {
         LOCK(cs);
