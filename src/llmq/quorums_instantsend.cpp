@@ -986,6 +986,10 @@ void CInstantSendManager::AddNonLockedTx(const CTransactionRef& tx)
             nonLockedTxs[in.prevout.hash].children.emplace(tx->GetHash());
         }
     }
+
+    for (auto& in : tx->vin) {
+        nonLockedTxsByInputs.emplace(in.prevout.hash, std::make_pair(in.prevout.n, tx->GetHash()));
+    }
 }
 
 void CInstantSendManager::RemoveNonLockedTx(const uint256& txid, bool retryChildren)
@@ -1012,6 +1016,16 @@ void CInstantSendManager::RemoveNonLockedTx(const uint256& txid, bool retryChild
                 jt->second.children.erase(txid);
                 if (!jt->second.tx && jt->second.children.empty()) {
                     nonLockedTxs.erase(jt);
+                }
+            }
+
+            auto its = nonLockedTxsByInputs.equal_range(in.prevout.hash);
+            for (auto kt = its.first; kt != its.second; ) {
+                if (kt->second.first != in.prevout.n) {
+                    ++kt;
+                    continue;
+                } else {
+                    kt = nonLockedTxsByInputs.erase(kt);
                 }
             }
         }
