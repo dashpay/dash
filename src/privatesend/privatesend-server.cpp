@@ -171,28 +171,17 @@ void CPrivateSendServer::ProcessMessage(CNode* pfrom, const std::string& strComm
 
         LogPrint(BCLog::PRIVATESEND, "DSVIN -- txCollateral %s", entry.txCollateral->ToString());
 
-        auto consumeCollateral = [&](const CTransactionRef& txref) {
-            LOCK(cs_main);
-            CValidationState validationState;
-            if (!AcceptToMemoryPool(mempool, validationState, txref, true, nullptr)) {
-                LogPrint("privatesend", "DSVIN -- consumeCollateral didn't pass AcceptToMemoryPool()\n");
-            } else {
-                connman.RelayTransaction(*txref);
-                LogPrint("privatesend", "DSVIN -- consumeCollateral done\n");
-            }
-        };
-
         if (entry.vecTxDSIn.size() > PRIVATESEND_ENTRY_MAX_SIZE) {
             LogPrintf("DSVIN -- ERROR: too many inputs! %d/%d\n", entry.vecTxDSIn.size(), PRIVATESEND_ENTRY_MAX_SIZE);
             PushStatus(pfrom, STATUS_REJECTED, ERR_MAXIMUM, connman);
-            consumeCollateral(entry.txCollateral);
+            ConsumeCollateral(connman, entry.txCollateral);
             return;
         }
 
         if (entry.vecTxOut.size() > PRIVATESEND_ENTRY_MAX_SIZE) {
             LogPrintf("DSVIN -- ERROR: too many outputs! %d/%d\n", entry.vecTxOut.size(), PRIVATESEND_ENTRY_MAX_SIZE);
             PushStatus(pfrom, STATUS_REJECTED, ERR_MAXIMUM, connman);
-            consumeCollateral(entry.txCollateral);
+            ConsumeCollateral(connman, entry.txCollateral);
             return;
         }
 
@@ -217,13 +206,13 @@ void CPrivateSendServer::ProcessMessage(CNode* pfrom, const std::string& strComm
                 if (txout.scriptPubKey.size() != 25) {
                     LogPrintf("DSVIN -- non-standard pubkey detected! scriptPubKey=%s\n", ScriptToAsmStr(txout.scriptPubKey));
                     PushStatus(pfrom, STATUS_REJECTED, ERR_NON_STANDARD_PUBKEY, connman);
-                    consumeCollateral(entry.txCollateral);
+                    ConsumeCollateral(connman, entry.txCollateral);
                     return;
                 }
                 if (!txout.scriptPubKey.IsPayToPublicKeyHash()) {
                     LogPrintf("DSVIN -- invalid script! scriptPubKey=%s\n", ScriptToAsmStr(txout.scriptPubKey));
                     PushStatus(pfrom, STATUS_REJECTED, ERR_INVALID_SCRIPT, connman);
-                    consumeCollateral(entry.txCollateral);
+                    ConsumeCollateral(connman, entry.txCollateral);
                     return;
                 }
             }
@@ -244,7 +233,7 @@ void CPrivateSendServer::ProcessMessage(CNode* pfrom, const std::string& strComm
                     if (!CPrivateSend::IsDenominatedAmount(mempoolTx->vout[txin.prevout.n].nValue)) {
                         LogPrintf("DSVIN -- non-denominated mempool input! txin=%s\n", txin.ToString());
                         PushStatus(pfrom, STATUS_REJECTED, ERR_DENOM, connman);
-                        consumeCollateral(entry.txCollateral);
+                        ConsumeCollateral(connman, entry.txCollateral);
                         return;
                     }
                     nValueIn += mempoolTx->vout[txin.prevout.n].nValue;
@@ -252,7 +241,7 @@ void CPrivateSendServer::ProcessMessage(CNode* pfrom, const std::string& strComm
                     if (!CPrivateSend::IsDenominatedAmount(coin.out.nValue)) {
                         LogPrintf("DSVIN -- non-denominated input! txin=%s\n", txin.ToString());
                         PushStatus(pfrom, STATUS_REJECTED, ERR_DENOM, connman);
-                        consumeCollateral(entry.txCollateral);
+                        ConsumeCollateral(connman, entry.txCollateral);
                         return;
                     }
                     nValueIn += coin.out.nValue;
@@ -483,16 +472,7 @@ void CPrivateSendServer::ChargeFees(CConnman& connman)
     if (nState == POOL_STATE_ACCEPTING_ENTRIES || nState == POOL_STATE_SIGNING) {
         LogPrintf("CPrivateSendServer::ChargeFees -- found uncooperative node (didn't %s transaction), charging fees: %s",
             (nState == POOL_STATE_SIGNING) ? "sign" : "send", vecOffendersCollaterals[0]->ToString());
-
-        LOCK(cs_main);
-
-        CValidationState state;
-        if (!AcceptToMemoryPool(mempool, state, vecOffendersCollaterals[0], false, NULL, false, maxTxFee)) {
-            // should never really happen
-            LogPrintf("CPrivateSendServer::ChargeFees -- ERROR: AcceptToMemoryPool failed!\n");
-        } else {
-            connman.RelayTransaction(*vecOffendersCollaterals[0]);
-        }
+        ConsumeCollateral(connman, vecOffendersCollaterals[0]);
     }
 }
 
@@ -512,19 +492,22 @@ void CPrivateSendServer::ChargeRandomFees(CConnman& connman)
 {
     if (!fMasternodeMode) return;
 
-    LOCK(cs_main);
-
     for (const auto& txCollateral : vecSessionCollaterals) {
         if (GetRandInt(100) > 10) return;
         LogPrintf("CPrivateSendServer::ChargeRandomFees -- charging random fees, txCollateral=%s", txCollateral->ToString());
+        ConsumeCollateral(connman, txCollateral);
+    }
+}
 
-        CValidationState state;
-        if (!AcceptToMemoryPool(mempool, state, txCollateral, false, NULL, false, maxTxFee)) {
-            // Can happen if this collateral belongs to some misbehaving participant we punished earlier
-            LogPrintf("CPrivateSendServer::ChargeRandomFees -- ERROR: AcceptToMemoryPool failed!\n");
-        } else {
-            connman.RelayTransaction(*txCollateral);
-        }
+void CPrivateSendServer::ConsumeCollateral(CConnman& connman, const CTransactionRef& txref)
+{
+    LOCK(cs_main);
+    CValidationState validationState;
+    if (!AcceptToMemoryPool(mempool, validationState, txref, false, nullptr)) {
+        LogPrint("privatesend", "%s -- AcceptToMemoryPool failed\n", __func__);
+    } else {
+        connman.RelayTransaction(*txref);
+        LogPrint("privatesend", "%s -- Collateral was consumed\n", __func__);
     }
 }
 
