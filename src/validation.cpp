@@ -2220,7 +2220,7 @@ static bool ConnectBlock(const CBlock& block, CValidationState& state, CBlockInd
             llmq::CInstantSendLockPtr conflictLock = llmq::quorumInstantSendManager->GetConflictingLock(*tx);
             if (conflictLock) {
                 if (llmq::chainLocksHandler->HasChainLock(pindex->nHeight, pindex->GetBlockHash())) {
-                    llmq::quorumInstantSendManager->ResolveBlockConflicts(::SerializeHash(*conflictLock), *conflictLock, false);
+                    llmq::quorumInstantSendManager->RemoveChainLockConflictingLock(::SerializeHash(*conflictLock), *conflictLock);
                     assert(llmq::quorumInstantSendManager->GetConflictingLock(*tx) == nullptr);
                 } else {
                     // The node which relayed this should switch to correct chain.

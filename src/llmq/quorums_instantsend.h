@@ -151,7 +151,8 @@ public:
     void HandleFullyConfirmedBlock(const CBlockIndex* pindex);
 
     void RemoveMempoolConflictsForLock(const uint256& hash, const CInstantSendLock& islock);
-    void ResolveBlockConflicts(const uint256& islockHash, const CInstantSendLock& islock, bool allowInvalidate);
+    void ResolveBlockConflicts(const uint256& islockHash, const CInstantSendLock& islock);
+    void RemoveChainLockConflictingLock(const uint256& islockHash, const CInstantSendLock& islock);
     void AskNodesForLockedTx(const uint256& txid);
     bool ProcessPendingRetryLockTxs();
 

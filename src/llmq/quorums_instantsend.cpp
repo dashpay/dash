@@ -892,7 +892,7 @@ void CInstantSendManager::ProcessInstantSendLock(NodeId from, const uint256& has
     }
 
     RemoveMempoolConflictsForLock(hash, islock);
-    ResolveBlockConflicts(hash, islock, true);
+    ResolveBlockConflicts(hash, islock);
     UpdateWalletTransaction(islock.txid, tx);
 }
 
@@ -1148,7 +1148,7 @@ void CInstantSendManager::RemoveMempoolConflictsForLock(const uint256& hash, con
     }
 }
 
-void CInstantSendManager::ResolveBlockConflicts(const uint256& islockHash, const llmq::CInstantSendLock& islock, bool allowInvalidate)
+void CInstantSendManager::ResolveBlockConflicts(const uint256& islockHash, const llmq::CInstantSendLock& islock)
 {
     // Lets first collect all non-locked TXs which conflict with the given ISLOCK
     std::unordered_map<const CBlockIndex*, std::unordered_map<uint256, CTransactionRef, StaticSaltedHasher>> conflicts;
@@ -1194,28 +1194,7 @@ void CInstantSendManager::ResolveBlockConflicts(const uint256& islockHash, const
     // when large parts of the masternode network are controlled by an attacker. In this case we must still find consensus
     // and its better to sacrifice individual ISLOCKs then to sacrifice whole ChainLocks.
     if (hasChainLockedConflict) {
-        LogPrintf("CInstantSendManager::%s -- txid=%s, islock=%s: at least one conflicted TX already got a ChainLock. Removing ISLOCK and its chained children.\n", __func__,
-                  islock.txid.ToString(), islockHash.ToString());
-        int tipHeight;
-        {
-            LOCK(cs_main);
-            tipHeight = chainActive.Height();
-        }
-
-        LOCK(cs);
-        auto removedIslocks = db.RemoveChainedInstantSendLocks(islockHash, islock.txid, tipHeight);
-        for (auto& h : removedIslocks) {
-            LogPrintf("CInstantSendManager::%s -- txid=%s, islock=%s: removed (child) ISLOCk %s\n", __func__,
-                      islock.txid.ToString(), islockHash.ToString(), h.ToString());
-        }
-        return;
-    }
-
-    // This method is called from 2 different places. Once when a fresh ISLOCK arrives, in which case it is fine/desired
-    // to invalidate blocks which contain conflicts. This method might also be called from ConnectBlock, in which case
-    // we can not call InvalidateBlock/ActivateBestChain due to the cs_main lock requirements. This is fine as when called
-    // from ConnectBlock, we know that the conflicting block got a ChainLock, so the above code has already handled this.
-    if (!allowInvalidate) {
+        RemoveChainLockConflictingLock(islockHash, islock);
         return;
     }
 
@@ -1251,6 +1230,24 @@ void CInstantSendManager::ResolveBlockConflicts(const uint256& islockHash, const
             // This should not have happened and we are in a state were it's not safe to continue anymore
             assert(false);
         }
+    }
+}
+
+void CInstantSendManager::RemoveChainLockConflictingLock(const uint256& islockHash, const llmq::CInstantSendLock& islock)
+{
+    LogPrintf("CInstantSendManager::%s -- txid=%s, islock=%s: at least one conflicted TX already got a ChainLock. Removing ISLOCK and its chained children.\n", __func__,
+              islock.txid.ToString(), islockHash.ToString());
+    int tipHeight;
+    {
+        LOCK(cs_main);
+        tipHeight = chainActive.Height();
+    }
+
+    LOCK(cs);
+    auto removedIslocks = db.RemoveChainedInstantSendLocks(islockHash, islock.txid, tipHeight);
+    for (auto& h : removedIslocks) {
+        LogPrintf("CInstantSendManager::%s -- txid=%s, islock=%s: removed (child) ISLOCK %s\n", __func__,
+                  islock.txid.ToString(), islockHash.ToString(), h.ToString());
     }
 }
 
