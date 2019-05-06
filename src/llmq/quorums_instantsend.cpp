@@ -1158,15 +1158,13 @@ bool CInstantSendManager::IsLocked(const uint256& txHash)
 
 bool CInstantSendManager::IsConflicted(const CTransaction& tx)
 {
-    LOCK(cs);
-    uint256 dummy;
-    return GetConflictingTx(tx, dummy);
+    return GetConflictingLock(tx) != nullptr;
 }
 
-bool CInstantSendManager::GetConflictingTx(const CTransaction& tx, uint256& retConflictTxHash)
+CInstantSendLockPtr CInstantSendManager::GetConflictingLock(const CTransaction& tx)
 {
     if (!IsNewInstantSendEnabled()) {
-        return false;
+        return nullptr;
     }
 
     LOCK(cs);
@@ -1177,11 +1175,10 @@ bool CInstantSendManager::GetConflictingTx(const CTransaction& tx, uint256& retC
         }
 
         if (otherIsLock->txid != tx.GetHash()) {
-            retConflictTxHash = otherIsLock->txid;
-            return true;
+            return otherIsLock;
         }
     }
-    return false;
+    return nullptr;
 }
 
 void CInstantSendManager::WorkThreadMain()

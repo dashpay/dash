@@ -120,7 +120,7 @@ public:
     bool CheckCanLock(const COutPoint& outpoint, bool printDebug, const uint256& txHash, CAmount* retValue, const Consensus::Params& params);
     bool IsLocked(const uint256& txHash);
     bool IsConflicted(const CTransaction& tx);
-    bool GetConflictingTx(const CTransaction& tx, uint256& retConflictTxHash);
+    CInstantSendLockPtr GetConflictingLock(const CTransaction& tx);
 
     virtual void HandleNewRecoveredSig(const CRecoveredSig& recoveredSig);
     void HandleNewInputLockRecoveredSig(const CRecoveredSig& recoveredSig, const uint256& txid);
