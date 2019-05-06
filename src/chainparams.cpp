@@ -300,19 +300,10 @@ public:
         fBIP9CheckMasternodesUpgraded = true;
         consensus.fLLMQAllowDummyCommitments = false;
 
-        checkpointData = (CCheckpointData) {
-            boost::assign::map_list_of
-            
-                checkpointData = {};
-
-        chainTxData = ChainTxData{
-            1541738255, // * UNIX timestamp of last known number of transactions
-            8822293,    // * total number of transactions between genesis and that timestamp
-                        //   (the tx=... number in the SetBestChain debug.log lines)
-            0.1         // * estimated number of transactions per second after that timestamp
-        };
-    }
-};
+        checkpointData = {};
+                    
+      };
+    };
 static CMainParams mainParams;
 
 /**
@@ -443,21 +434,10 @@ public:
         fBIP9CheckMasternodesUpgraded = true;
         consensus.fLLMQAllowDummyCommitments = true;
 
-        checkpointData = (CCheckpointData) {
-            boost::assign::map_list_of
-            (    261, uint256S("0x00000c26026d0815a7e2ce4fa270775f61403c040647ff2c3091f99e894a4618"))
-            (   1999, uint256S("0x00000052e538d27fa53693efe6fb6892a0c1d26c0235f599171c48a3cce553b1"))
-            (   2999, uint256S("0x0000024bc3f4f4cb30d29827c13d921ad77d2c6072e586c7f60d83c2722cdcc5"))
-        };
+        checkpointData = {}; 
+       
 
-        chainTxData = ChainTxData{
-            1544707462, // * UNIX timestamp of last known number of transactions
-            4100,       // * total number of transactions between genesis and that timestamp
-                        //   (the tx=... number in the SetBestChain debug.log lines)
-            0.01        // * estimated number of transactions per second after that timestamp
-        };
-
-    }
+    };
 };
 static CTestNetParams testNetParams;
 
@@ -587,17 +567,9 @@ public:
         fBIP9CheckMasternodesUpgraded = false;
         consensus.fLLMQAllowDummyCommitments = true;
 
-        checkpointData = (CCheckpointData) {
-            boost::assign::map_list_of
-            (      0, uint256S("0x000008ca1832a4baf228eb1553c03d3a2c8e02399550dd6ea8d65cec3ef23d2e"))
-            (      1, devnetGenesis.GetHash())
-        };
-
-        chainTxData = ChainTxData{
-            devnetGenesis.GetBlockTime(), // * UNIX timestamp of devnet genesis block
-            2,                            // * we only have 2 coinbase transactions when a devnet is started up
-            0.01                          // * estimated number of transactions per second
-        };
+        checkpointData = {};
+            
+        
     }
 
     void UpdateSubsidyAndDiffParams(int nMinimumDifficultyBlocks, int nHighSubsidyBlocks, int nHighSubsidyFactor)
@@ -700,10 +672,7 @@ public:
         fBIP9CheckMasternodesUpgraded = false;
         consensus.fLLMQAllowDummyCommitments = true;
 
-        checkpointData = (CCheckpointData){
-            boost::assign::map_list_of
-            ( 0, uint256S("0x000008ca1832a4baf228eb1553c03d3a2c8e02399550dd6ea8d65cec3ef23d2e"))
-        };
+        checkpointData = {};
 
         chainTxData = ChainTxData{
             0,
