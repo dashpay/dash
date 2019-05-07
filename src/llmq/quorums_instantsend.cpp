@@ -978,8 +978,8 @@ void CInstantSendManager::SyncTransaction(const CTransaction& tx, const CBlockIn
 void CInstantSendManager::AddNonLockedTx(const CTransactionRef& tx)
 {
     AssertLockHeld(cs);
-    auto it = nonLockedTxs.emplace(tx->GetHash(), NonLockedTxInfo()).first;
-    auto& info = it->second;
+    auto res = nonLockedTxs.emplace(tx->GetHash(), NonLockedTxInfo());
+    auto& info = res.first->second;
 
     if (!info.tx) {
         info.tx = tx;
@@ -988,8 +988,10 @@ void CInstantSendManager::AddNonLockedTx(const CTransactionRef& tx)
         }
     }
 
-    for (auto& in : tx->vin) {
-        nonLockedTxsByInputs.emplace(in.prevout.hash, std::make_pair(in.prevout.n, tx->GetHash()));
+    if (res.second) {
+        for (auto& in : tx->vin) {
+            nonLockedTxsByInputs.emplace(in.prevout.hash, std::make_pair(in.prevout.n, tx->GetHash()));
+        }
     }
 }
 
