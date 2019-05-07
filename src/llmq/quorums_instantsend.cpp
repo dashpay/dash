@@ -968,7 +968,7 @@ void CInstantSendManager::SyncTransaction(const CTransaction& tx, const CBlockIn
     if (!chainlocked && islockHash.IsNull()) {
         // TX is not locked, so make sure it is tracked
         AddNonLockedTx(MakeTransactionRef(tx));
-        nonLockedTxs.at(tx.GetHash()).pindexMined = posInBlock == CMainSignals::SYNC_TRANSACTION_NOT_IN_BLOCK ? pindex : nullptr;
+        nonLockedTxs.at(tx.GetHash()).pindexMined = posInBlock != CMainSignals::SYNC_TRANSACTION_NOT_IN_BLOCK ? pindex : nullptr;
     } else {
         // TX is locked, so make sure we don't track it anymore
         RemoveNonLockedTx(tx.GetHash(), true);
