@@ -182,7 +182,7 @@ void CDKGSession::SendContributions(CDKGPendingMessages& pendingMessages)
         auto& m = members[i];
         CBLSSecretKey skContrib = skContributions[i];
 
-        if (ShouldSimulateError("contribution-lie")) {
+        if (i != myIdx && ShouldSimulateError("contribution-lie")) {
             logger.Batch("lying for %s", m->dmn->proTxHash.ToString());
             skContrib.MakeNewKey();
         }
@@ -323,7 +323,7 @@ void CDKGSession::ReceiveMessage(const uint256& hash, const CDKGContribution& qc
     if (!qc.contributions->Decrypt(myIdx, *activeMasternodeInfo.blsKeyOperator, skContribution, PROTOCOL_VERSION)) {
         logger.Batch("contribution from %s could not be decrypted", member->dmn->proTxHash.ToString());
         complain = true;
-    } else if (ShouldSimulateError("complain-lie")) {
+    } else if (member->idx != myIdx && ShouldSimulateError("complain-lie")) {
         logger.Batch("lying/complaining for %s", member->dmn->proTxHash.ToString());
         complain = true;
     }
@@ -656,7 +656,7 @@ void CDKGSession::SendJustification(CDKGPendingMessages& pendingMessages, const 
 
         CBLSSecretKey skContribution = skContributions[i];
 
-        if (ShouldSimulateError("justify-lie")) {
+        if (i != myIdx && ShouldSimulateError("justify-lie")) {
             logger.Batch("lying for %s", m->dmn->proTxHash.ToString());
             skContribution.MakeNewKey();
         }
