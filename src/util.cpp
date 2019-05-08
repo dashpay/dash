@@ -260,20 +260,23 @@ bool LogAcceptCategory(const char* category)
         // This helps prevent issues debugging global destructors,
         // where mapMultiArgs might be deleted before another
         // global destructor calls LogPrint()
-        static boost::thread_specific_ptr<std::set<std::string> > ptrCategory;
-        static boost::thread_specific_ptr<int> cacheCounter;
+        static thread_local bool initialized = false;
+        static thread_local std::set<std::string> setCategories;
+        static thread_local int cacheCounter;
 
         if (!fDebug) {
-            if (ptrCategory.get() != NULL) {
+            if (initialized) {
                 LogPrintf("debug turned off: thread %s\n", GetThreadName());
-                ptrCategory.release();
+                setCategories.clear();
+                initialized = false;
             }
             return false;
         }
 
-        if (ptrCategory.get() == NULL || *cacheCounter != logAcceptCategoryCacheCounter.load())
+        if (!initialized || cacheCounter != logAcceptCategoryCacheCounter.load())
         {
-            cacheCounter.reset(new int(logAcceptCategoryCacheCounter.load()));
+            initialized = true;
+            cacheCounter = logAcceptCategoryCacheCounter.load();
 
             LOCK(cs_args);
             if (mapMultiArgs.count("-debug")) {
@@ -282,28 +285,27 @@ bool LogAcceptCategory(const char* category)
                 for (int i = 0; i < (int)mapMultiArgs.at("-debug").size(); ++i)
                     LogPrintf("  thread %s category %s\n", strThreadName, mapMultiArgs.at("-debug")[i]);
                 const std::vector<std::string>& categories = mapMultiArgs.at("-debug");
-                ptrCategory.reset(new std::set<std::string>(categories.begin(), categories.end()));
+                setCategories = std::set<std::string>(categories.begin(), categories.end());
                 // thread_specific_ptr automatically deletes the set when the thread ends.
                 // "dash" is a composite category enabling all Dash-related debug output
-                if(ptrCategory->count(std::string("dash"))) {
-                    ptrCategory->insert(std::string("chainlocks"));
-                    ptrCategory->insert(std::string("gobject"));
-                    ptrCategory->insert(std::string("instantsend"));
-                    ptrCategory->insert(std::string("keepass"));
-                    ptrCategory->insert(std::string("llmq"));
-                    ptrCategory->insert(std::string("llmq-dkg"));
-                    ptrCategory->insert(std::string("llmq-sigs"));
-                    ptrCategory->insert(std::string("masternode"));
-                    ptrCategory->insert(std::string("mnpayments"));
-                    ptrCategory->insert(std::string("mnsync"));
-                    ptrCategory->insert(std::string("spork"));
-                    ptrCategory->insert(std::string("privatesend"));
+                if(setCategories.count(std::string("dash"))) {
+                    setCategories.insert(std::string("chainlocks"));
+                    setCategories.insert(std::string("gobject"));
+                    setCategories.insert(std::string("instantsend"));
+                    setCategories.insert(std::string("keepass"));
+                    setCategories.insert(std::string("llmq"));
+                    setCategories.insert(std::string("llmq-dkg"));
+                    setCategories.insert(std::string("llmq-sigs"));
+                    setCategories.insert(std::string("masternode"));
+                    setCategories.insert(std::string("mnpayments"));
+                    setCategories.insert(std::string("mnsync"));
+                    setCategories.insert(std::string("spork"));
+                    setCategories.insert(std::string("privatesend"));
                 }
             } else {
-                ptrCategory.reset(new std::set<std::string>());
+                setCategories.clear();
             }
         }
-        const std::set<std::string>& setCategories = *ptrCategory;
 
         // if not debugging everything and not debugging specific category, LogPrint does nothing.
         if (setCategories.count(std::string("")) == 0 &&
