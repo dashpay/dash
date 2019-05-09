@@ -984,11 +984,6 @@ void CSigSharesManager::CollectSigSharesToAnnounce(std::unordered_map<NodeId, st
 
 bool CSigSharesManager::SendMessages()
 {
-    std::multimap<CService, NodeId> nodesByAddress;
-    g_connman->ForEachNode([&nodesByAddress](CNode* pnode) {
-        nodesByAddress.emplace(pnode->addr, pnode->id);
-    });
-
     std::unordered_map<NodeId, std::unordered_map<uint256, CSigSharesInv, StaticSaltedHasher>> sigSharesToRequest;
     std::unordered_map<NodeId, std::unordered_map<uint256, CBatchedSigShares, StaticSaltedHasher>> sigSharesToSend;
     std::unordered_map<NodeId, std::unordered_map<uint256, CSigSharesInv, StaticSaltedHasher>> sigSharesToAnnounce;
