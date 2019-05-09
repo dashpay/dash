@@ -391,6 +391,7 @@ CChainLocksHandler::BlockTxs::mapped_type CChainLocksHandler::GetBlockTxs(const 
         LogPrint("chainlocks", "CChainLocksHandler::%s -- blockTxs for %s not found. Trying ReadBlockFromDisk\n", __func__,
                  blockHash.ToString());
 
+        uint32_t blockTime;
         {
             LOCK(cs_main);
             auto pindex = mapBlockIndex.at(blockHash);
@@ -406,10 +407,15 @@ CChainLocksHandler::BlockTxs::mapped_type CChainLocksHandler::GetBlockTxs(const 
                 }
                 ret->emplace(tx->GetHash());
             }
+
+            blockTime = block.nTime;
         }
 
         LOCK(cs);
         blockTxs.emplace(blockHash, ret);
+        for (auto& txid : *ret) {
+            txFirstSeenTime.emplace(txid, blockTime);
+        }
     }
     return ret;
 }
