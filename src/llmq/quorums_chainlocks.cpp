@@ -301,18 +301,7 @@ void CChainLocksHandler::TrySignChainTip()
                 break;
             }
 
-            decltype(blockTxs.begin()->second) txids;
-            {
-                LOCK(cs);
-                auto it = blockTxs.find(pindexWalk->GetBlockHash());
-                if (it == blockTxs.end()) {
-                    // this should actually not happen as NewPoWValidBlock should have been called before
-                    LogPrint("chainlocks", "CChainLocksHandler::%s -- blockTxs for %s not found\n", __func__,
-                              pindexWalk->GetBlockHash().ToString());
-                    return;
-                }
-                txids = it->second;
-            }
+            auto txids = GetBlockTxs(pindexWalk->GetBlockHash());
 
             for (auto& txid : *txids) {
                 int64_t txAge = 0;
@@ -380,6 +369,49 @@ void CChainLocksHandler::SyncTransaction(const CTransaction& tx, const CBlockInd
             txs.emplace(tx.GetHash());
         }
     }
+}
+
+CChainLocksHandler::BlockTxs::mapped_type CChainLocksHandler::GetBlockTxs(const uint256& blockHash)
+{
+    AssertLockNotHeld(cs);
+    AssertLockNotHeld(cs_main);
+
+    CChainLocksHandler::BlockTxs::mapped_type ret;
+
+    {
+        LOCK(cs);
+        auto it = blockTxs.find(blockHash);
+        if (it != blockTxs.end()) {
+            ret = it->second;
+        }
+    }
+    if (!ret) {
+        // This should only happen when freshly started.
+        // If running for some time, SyncTransaction should have been called before which fills blockTxs.
+        LogPrint("chainlocks", "CChainLocksHandler::%s -- blockTxs for %s not found. Trying ReadBlockFromDisk\n", __func__,
+                 blockHash.ToString());
+
+        {
+            LOCK(cs_main);
+            auto pindex = mapBlockIndex.at(blockHash);
+            CBlock block;
+            if (!ReadBlockFromDisk(block, pindex, Params().GetConsensus())) {
+                return nullptr;
+            }
+
+            ret = std::make_shared<std::unordered_set<uint256, StaticSaltedHasher>>();
+            for (auto& tx : block.vtx) {
+                if (tx->IsCoinBase() || tx->vin.empty()) {
+                    continue;
+                }
+                ret->emplace(tx->GetHash());
+            }
+        }
+
+        LOCK(cs);
+        blockTxs.emplace(blockHash, ret);
+    }
+    return ret;
 }
 
 bool CChainLocksHandler::IsTxSafeForMining(const uint256& txid)
