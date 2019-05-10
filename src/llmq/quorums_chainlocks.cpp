@@ -302,6 +302,10 @@ void CChainLocksHandler::TrySignChainTip()
             }
 
             auto txids = GetBlockTxs(pindexWalk->GetBlockHash());
+            if (!txids) {
+                pindexWalk = pindexWalk->pprev;
+                continue;
+            }
 
             for (auto& txid : *txids) {
                 int64_t txAge = 0;
