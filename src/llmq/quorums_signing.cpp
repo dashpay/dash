@@ -277,6 +277,11 @@ void CRecoveredSigsDb::CleanupOldRecoveredSigs(int64_t maxAge)
             hasSigForIdCache.erase(std::make_pair((Consensus::LLMQType)recSig.llmqType, recSig.id));
             hasSigForSessionCache.erase(signHash);
             hasSigForHashCache.erase(recSig.GetHash());
+
+            if (batch.SizeEstimate() >= (1 << 24)) {
+                db.WriteBatch(batch);
+                batch.Clear();
+            }
         }
     }
 
