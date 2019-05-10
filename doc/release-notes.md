@@ -132,6 +132,11 @@ Few RPC commands are no longer supported: `estimatepriority`, `estimatesmartprio
 
 See `help command` in rpc for more info.
 
+ZMQ changes
+-----------
+Added two new messages `hashchainlock` and `rawchainlock` which return the hash of the chainlocked block
+or the raw block itself respectively.
+
 Command-line options
 --------------------
 
@@ -157,8 +162,16 @@ A lot of refactoring, backports, code cleanups and other small fixes were done i
  0.14.0.0 Change log
 ===================
 
-See detailed [set of changes](https://github.com/dashpay/dash/compare/v0.14.0.0...dashpay:v0.13.3.0).
+See detailed [set of changes](https://github.com/dashpay/dash/compare/v0.13.3.0...dashpay:v0.14.0.0).
 
+- [`4dc5c0e9e`](https://github.com/dashpay/dash/commit/4dc5c0e9e) Bump "keepOldConnections" by one for all LLMQ types (#2909)
+- [`7696a6fc8`](https://github.com/dashpay/dash/commit/7696a6fc8) Print inputs on which we voted and quorums used for signing (#2907)
+- [`a173e6836`](https://github.com/dashpay/dash/commit/a173e6836) Implement integration tests for DKG error handling (#2905)
+- [`89f6f7591`](https://github.com/dashpay/dash/commit/89f6f7591) Implement zmq notifications for chainlocked blocks (#2899)
+- [`66a2cdeaf`](https://github.com/dashpay/dash/commit/66a2cdeaf) Properly handle conflicts between ChainLocks and InstantSend (#2904)
+- [`b63f7dd39`](https://github.com/dashpay/dash/commit/b63f7dd39) Fix a crash in `masternode winners` when `count` is too large (#2902)
+- [`357b7279d`](https://github.com/dashpay/dash/commit/357b7279d) Implement isolate_node/reconnect_isolated_node in tests (#2901)
+- [`7fdc66dd8`](https://github.com/dashpay/dash/commit/7fdc66dd8) Ask for locked TXs after removing conflicting TXs (#2898)
 - [`5d05ab17a`](https://github.com/dashpay/dash/commit/5d05ab17a) Fix PrivateSend log (#2892)
 - [`53827a376`](https://github.com/dashpay/dash/commit/53827a376) Remove code for QDEBUGSTATUS propagation (#2891)
 - [`783cb9ca6`](https://github.com/dashpay/dash/commit/783cb9ca6) Skip CheckCbTxMerkleRoots until assumeValid block (#2890)
