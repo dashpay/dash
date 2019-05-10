@@ -39,6 +39,50 @@ UniValue CRecoveredSig::ToJson() const
 CRecoveredSigsDb::CRecoveredSigsDb(CDBWrapper& _db) :
     db(_db)
 {
+    if (Params().NetworkIDString() == CBaseChainParams::TESTNET) {
+        // TODO this can be completely removed after some time (when we're pretty sure the conversion has been run on most testnet MNs)
+        if (db.Exists(std::string("rs_upgraded"))) {
+            return;
+        }
+
+        ConvertInvalidTimeKeys();
+
+        db.Write(std::string("rs_upgraded"), (uint8_t)1);
+    }
+}
+
+// This converts time values in "rs_t" from host endiannes to big endiannes, which is required to have proper ordering of the keys
+void CRecoveredSigsDb::ConvertInvalidTimeKeys()
+{
+    LogPrintf("CRecoveredSigsDb::%s -- converting invalid rs_t keys\n", __func__);
+
+    std::unique_ptr<CDBIterator> pcursor(db.NewIterator());
+
+    auto start = std::make_tuple(std::string("rs_t"), (uint32_t)0, (uint8_t)0, uint256());
+    pcursor->Seek(start);
+
+    CDBBatch batch(db);
+    size_t cnt = 0;
+    while (pcursor->Valid()) {
+        decltype(start) k;
+
+        if (!pcursor->GetKey(k) || std::get<0>(k) != "rs_t") {
+            break;
+        }
+
+        batch.Erase(k);
+        std::get<1>(k) = htobe32(std::get<1>(k));
+        batch.Write(k, (uint8_t)1);
+
+        cnt++;
+
+        pcursor->Next();
+    }
+    pcursor.reset();
+
+    db.WriteBatch(batch);
+
+    LogPrintf("CRecoveredSigsDb::%s -- converted %d invalid rs_t keys\n", __func__, cnt);
 }
 
 bool CRecoveredSigsDb::HasRecoveredSig(Consensus::LLMQType llmqType, const uint256& id, const uint256& msgHash)
@@ -161,7 +205,7 @@ void CRecoveredSigsDb::WriteRecoveredSig(const llmq::CRecoveredSig& recSig)
     batch.Erase(k5);
 
     // store by current time. Allows fast cleanup of old recSigs
-    auto k6 = std::make_tuple(std::string("rs_t"), (uint32_t)GetAdjustedTime(), recSig.llmqType, recSig.id);
+    auto k6 = std::make_tuple(std::string("rs_t"), (uint32_t)htobe32(GetAdjustedTime()), recSig.llmqType, recSig.id);
     batch.Write(k6, (uint8_t)1);
 
     db.WriteBatch(batch);
@@ -180,9 +224,8 @@ void CRecoveredSigsDb::CleanupOldRecoveredSigs(int64_t maxAge)
 {
     std::unique_ptr<CDBIterator> pcursor(db.NewIterator());
 
-    static const uint256 maxUint256 = uint256S("ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff");
     auto start = std::make_tuple(std::string("rs_t"), (uint32_t)0, (uint8_t)0, uint256());
-    auto end = std::make_tuple(std::string("rs_t"), (uint32_t)(GetAdjustedTime() - maxAge), (uint8_t)255, maxUint256);
+    uint32_t endTime = (uint32_t)(GetAdjustedTime() - maxAge);
     pcursor->Seek(start);
 
     std::vector<std::pair<Consensus::LLMQType, uint256>> toDelete;
@@ -191,10 +234,10 @@ void CRecoveredSigsDb::CleanupOldRecoveredSigs(int64_t maxAge)
     while (pcursor->Valid()) {
         decltype(start) k;
 
-        if (!pcursor->GetKey(k)) {
+        if (!pcursor->GetKey(k) || std::get<0>(k) != "rs_t") {
             break;
         }
-        if (k >= end) {
+        if (be32toh(std::get<1>(k)) >= endTime) {
             break;
         }
 
@@ -242,6 +285,8 @@ void CRecoveredSigsDb::CleanupOldRecoveredSigs(int64_t maxAge)
     }
 
     db.WriteBatch(batch);
+
+    LogPrint("llmq", "CRecoveredSigsDb::%d -- deleted %d entries\n", __func__, toDelete.size());
 }
 
 bool CRecoveredSigsDb::HasVotedOnId(Consensus::LLMQType llmqType, const uint256& id)

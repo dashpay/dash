@@ -74,6 +74,8 @@ private:
 public:
     CRecoveredSigsDb(CDBWrapper& _db);
 
+    void ConvertInvalidTimeKeys();
+
     bool HasRecoveredSig(Consensus::LLMQType llmqType, const uint256& id, const uint256& msgHash);
     bool HasRecoveredSigForId(Consensus::LLMQType llmqType, const uint256& id);
     bool HasRecoveredSigForSession(const uint256& signHash);
