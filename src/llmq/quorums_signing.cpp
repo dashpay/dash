@@ -86,8 +86,8 @@ void CRecoveredSigsDb::ConvertInvalidTimeKeys()
     LogPrintf("CRecoveredSigsDb::%s -- converted %d invalid rs_t keys\n", __func__, cnt);
 }
 
-// This adds rs_vt keys for every rs_v entry to the DB. The time in the key is set to the current time. This causes cleanup
-// of all these votes a week later.
+// This adds rs_vt keys for every rs_v entry to the DB. The time in the key is set to the current time.
+// This causes cleanup of all these votes a week later.
 void CRecoveredSigsDb::AddVoteTimeKeys()
 {
     LogPrintf("CRecoveredSigsDb::%s -- adding rs_vt keys with current time\n", __func__);
