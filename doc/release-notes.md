@@ -164,6 +164,11 @@ A lot of refactoring, backports, code cleanups and other small fixes were done i
 
 See detailed [set of changes](https://github.com/dashpay/dash/compare/v0.13.3.0...dashpay:v0.14.0.0).
 
+- [`394bec483`](https://github.com/dashpay/dash/commit/394bec483) Skip processing in SyncTransaction when chain is not synced yet (#2920)
+- [`c8a80b279`](https://github.com/dashpay/dash/commit/c8a80b279) Set DIP0008 mainnet activation params (#2915)
+- [`040abafe3`](https://github.com/dashpay/dash/commit/040abafe3) [0.14] Bump chainparams (#2910)
+- [`240238b19`](https://github.com/dashpay/dash/commit/240238b19) Fix db leaks in LLMQ db (#2914)
+- [`56f31195d`](https://github.com/dashpay/dash/commit/56f31195d) Fall back to ReadBlockFromDisk when blockTxs is not filled yet (#2908)
 - [`4dc5c0e9e`](https://github.com/dashpay/dash/commit/4dc5c0e9e) Bump "keepOldConnections" by one for all LLMQ types (#2909)
 - [`7696a6fc8`](https://github.com/dashpay/dash/commit/7696a6fc8) Print inputs on which we voted and quorums used for signing (#2907)
 - [`a173e6836`](https://github.com/dashpay/dash/commit/a173e6836) Implement integration tests for DKG error handling (#2905)
