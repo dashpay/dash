@@ -60,9 +60,20 @@ Signing Requests/Sessions to accomplish this. ChainLocks relies on DIP0008 (bit 
 
 Read more: https://github.com/dashpay/dips/blob/master/dip-0008.md
 
-DIP000? - LLMQ-based InstantSend
+DIP0010 - LLMQ-based InstantSend
 --------------------------------
-Read more: https://github.com/dashpay/dips/blob/master/dip-000?.md
+InstantSend is a feature to allow instant confirmations of payments. It works by locking transaction
+inputs through masternode quorums. It has been present in Dash for a few years and been proven to work.
+Nevertheless, there are some limits which could theoretically be removed in the old system but doing so
+would have created risks in terms of scalability and security.
+
+We introduce LLMQ-based InstantSend which is designed to be much more scalable without sacrificing
+security and which allows all transactions to be treated as InstantSend transactions. The old system
+differentiated transactions as InstantSend transactions by using the P2P message “ix” instead of “tx”.
+Since this distinction is not required in the new system, the P2P message “ix” will be removed after
+DIP0008 deployment (for now, transactions sent via "ix" message will be relayed further via "tx" message).
+
+Read more: https://github.com/dashpay/dips/blob/master/dip-0010.md
 
 Network
 ------
