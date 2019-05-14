@@ -21,6 +21,8 @@ uint64_t GetRand(uint64_t nMax);
 int GetRandInt(int nMax);
 uint256 GetRandHash();
 
+bool GetRandBool(double rate);
+
 /**
  * Function to gather random data from multiple sources, failing whenever any
  * of those source fail to provide a result.
@@ -53,5 +55,22 @@ public:
     uint32_t Rz;
     uint32_t Rw;
 };
+
+/* Number of random bytes returned by GetOSRand.
+ * When changing this constant make sure to change all call sites, and make
+ * sure that the underlying OS APIs for all platforms support the number.
+ * (many cap out at 256 bytes).
+ */
+static const ssize_t NUM_OS_RANDOM_BYTES = 32;
+
+/** Get 32 bytes of system entropy. Do not use this in application code: use
+ * GetStrongRandBytes instead.
+ */
+void GetOSRand(unsigned char *ent32);
+
+/** Check that OS randomness is available and returning the requested number
+ * of bytes.
+ */
+bool Random_SanityCheck();
 
 #endif // BITCOIN_RANDOM_H

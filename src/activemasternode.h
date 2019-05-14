@@ -1,4 +1,4 @@
-// Copyright (c) 2014-2018 The Dash Core developers
+// Copyright (c) 2014-2019 The Dash Core developers
 // Distributed under the MIT/X11 software license, see the accompanying
 // file COPYING or http://www.opensource.org/licenses/mit-license.php.
 
@@ -15,8 +15,7 @@
 #include "evo/providertx.h"
 
 struct CActiveMasternodeInfo;
-class CActiveLegacyMasternodeManager;
-class CActiveDeterministicMasternodeManager;
+class CActiveMasternodeManager;
 
 static const int ACTIVE_MASTERNODE_INITIAL          = 0; // initial state
 static const int ACTIVE_MASTERNODE_SYNC_IN_PROCESS  = 1;
@@ -25,14 +24,10 @@ static const int ACTIVE_MASTERNODE_NOT_CAPABLE      = 3;
 static const int ACTIVE_MASTERNODE_STARTED          = 4;
 
 extern CActiveMasternodeInfo activeMasternodeInfo;
-extern CActiveLegacyMasternodeManager legacyActiveMasternodeManager;
-extern CActiveDeterministicMasternodeManager* activeMasternodeManager;
+extern CActiveMasternodeManager* activeMasternodeManager;
 
 struct CActiveMasternodeInfo {
     // Keys for the active Masternode
-    CKeyID legacyKeyIDOperator;
-    CKey legacyKeyOperator;
-
     std::unique_ptr<CBLSPublicKey> blsPubKeyOperator;
     std::unique_ptr<CBLSSecretKey> blsKeyOperator;
 
@@ -43,7 +38,7 @@ struct CActiveMasternodeInfo {
 };
 
 
-class CActiveDeterministicMasternodeManager : public CValidationInterface
+class CActiveMasternodeManager : public CValidationInterface
 {
 public:
     enum masternode_state_t {
@@ -70,60 +65,10 @@ public:
     std::string GetStateString() const;
     std::string GetStatus() const;
 
+    static bool IsValidNetAddr(CService addrIn);
+
 private:
     bool GetLocalAddress(CService& addrRet);
-};
-
-// Responsible for activating the Masternode and pinging the network (legacy MN list)
-class CActiveLegacyMasternodeManager
-{
-public:
-    enum masternode_type_enum_t {
-        MASTERNODE_UNKNOWN = 0,
-        MASTERNODE_REMOTE  = 1
-    };
-
-private:
-    // critical section to protect the inner data structures
-    mutable CCriticalSection cs;
-
-    masternode_type_enum_t eType;
-
-    bool fPingerEnabled;
-
-    /// Ping Masternode
-    bool SendMasternodePing(CConnman& connman);
-
-    //  sentinel ping data
-    int64_t nSentinelPingTime;
-    uint32_t nSentinelVersion;
-
-public:
-    int nState; // should be one of ACTIVE_MASTERNODE_XXXX
-    std::string strNotCapableReason;
-
-
-    CActiveLegacyMasternodeManager() :
-        eType(MASTERNODE_UNKNOWN),
-        fPingerEnabled(false),
-        nState(ACTIVE_MASTERNODE_INITIAL)
-    {
-    }
-
-    /// Manage state of active Masternode
-    void ManageState(CConnman& connman);
-
-    std::string GetStateString() const;
-    std::string GetStatus() const;
-    std::string GetTypeString() const;
-
-    bool UpdateSentinelPing(int version);
-
-    void DoMaintenance(CConnman& connman);
-
-private:
-    void ManageStateInitial(CConnman& connman);
-    void ManageStateRemote();
 };
 
 #endif

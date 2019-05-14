@@ -18,6 +18,7 @@
 #undef DOUBLE
 
 #include <array>
+#include <mutex>
 #include <unistd.h>
 
 // reversed BLS12-381
@@ -51,7 +52,18 @@ public:
 
     CBLSWrapper()
     {
-        UpdateHash();
+        struct NullHash {
+            uint256 hash;
+            NullHash() {
+                char buf[_SerSize];
+                memset(buf, 0, _SerSize);
+                CHashWriter ss(SER_GETHASH, 0);
+                ss.write(buf, _SerSize);
+                hash = ss.GetHash();
+            }
+        };
+        static NullHash nullHash;
+        cachedHash = nullHash.hash;
     }
 
     CBLSWrapper(const CBLSWrapper& ref) = default;
@@ -144,8 +156,13 @@ public:
 
     bool SetHexStr(const std::string& str)
     {
+        if (!IsHex(str)) {
+            Reset();
+            return false;
+        }
         auto b = ParseHex(str);
         if (b.size() != SerSize) {
+            Reset();
             return false;
         }
         SetBuf(b);
@@ -159,33 +176,30 @@ public:
         char buf[SerSize] = {0};
         GetBuf(buf, SerSize);
         s.write((const char*)buf, SerSize);
-
-        // if (s.GetType() != SER_GETHASH) {
-        //    CheckMalleable(buf, SerSize);
-        // }
     }
     template <typename Stream>
-    inline void Unserialize(Stream& s)
+    inline void Unserialize(Stream& s, bool checkMalleable = true)
     {
         char buf[SerSize];
         s.read((char*)buf, SerSize);
         SetBuf(buf, SerSize);
 
-        CheckMalleable(buf, SerSize);
+        if (checkMalleable && !CheckMalleable(buf, SerSize)) {
+            throw std::ios_base::failure("malleable BLS object");
+        }
     }
 
-    inline void CheckMalleable(void* buf, size_t size) const
+    inline bool CheckMalleable(void* buf, size_t size) const
     {
         char buf2[SerSize];
-        C tmp;
-        tmp.SetBuf(buf, SerSize);
-        tmp.GetBuf(buf2, SerSize);
+        GetBuf(buf2, SerSize);
         if (memcmp(buf, buf2, SerSize)) {
             // TODO not sure if this is actually possible with the BLS libs. I'm assuming here that somewhere deep inside
             // these libs masking might happen, so that 2 different binary representations could result in the same object
             // representation
-            throw std::ios_base::failure("malleable BLS object");
+            return false;
         }
+        return true;
     }
 
     inline std::string ToString() const
@@ -294,6 +308,75 @@ protected:
     bool InternalSetBuf(const void* buf);
     bool InternalGetBuf(void* buf) const;
 };
+
+#ifndef BUILD_BITCOIN_INTERNAL
+class CBLSLazySignature
+{
+private:
+    mutable std::mutex mutex;
+
+    mutable char buf[BLS_CURVE_SIG_SIZE];
+    mutable bool bufValid{false};
+
+    mutable CBLSSignature sig;
+    mutable bool sigInitialized{false};
+
+public:
+    CBLSLazySignature()
+    {
+        memset(buf, 0, sizeof(buf));
+    }
+
+    CBLSLazySignature(const CBLSLazySignature& r)
+    {
+        *this = r;
+    }
+
+    CBLSLazySignature& operator=(const CBLSLazySignature& r)
+    {
+        std::unique_lock<std::mutex> l(r.mutex);
+        bufValid = r.bufValid;
+        if (r.bufValid) {
+            memcpy(buf, r.buf, sizeof(buf));
+        } else {
+            memset(buf, 0, sizeof(buf));
+        }
+        sigInitialized = r.sigInitialized;
+        if (r.sigInitialized) {
+            sig = r.sig;
+        } else {
+            sig.Reset();
+        }
+        return *this;
+    }
+
+    template<typename Stream>
+    inline void Serialize(Stream& s) const
+    {
+        std::unique_lock<std::mutex> l(mutex);
+        if (!sigInitialized && !bufValid) {
+            throw std::ios_base::failure("sig and buf not initialized");
+        }
+        if (!bufValid) {
+            sig.GetBuf(buf, sizeof(buf));
+            bufValid = true;
+        }
+        s.write(buf, sizeof(buf));
+    }
+
+    template<typename Stream>
+    inline void Unserialize(Stream& s)
+    {
+        std::unique_lock<std::mutex> l(mutex);
+        s.read(buf, sizeof(buf));
+        bufValid = true;
+        sigInitialized = false;
+    }
+
+    void SetSig(const CBLSSignature& _sig);
+    const CBLSSignature& GetSig() const;
+};
+#endif
 
 typedef std::vector<CBLSId> BLSIdVector;
 typedef std::vector<CBLSPublicKey> BLSVerificationVector;

@@ -29,6 +29,11 @@ void SetMockTime(int64_t nMockTimeIn)
     nMockTime = nMockTimeIn;
 }
 
+bool IsMockTime()
+{
+    return nMockTime != 0;
+}
+
 int64_t GetTimeMillis()
 {
     int64_t now = (boost::posix_time::microsec_clock::universal_time() -
@@ -85,19 +90,4 @@ std::string DateTimeStrFormat(const char* pszFormat, int64_t nTime)
     ss.imbue(loc);
     ss << boost::posix_time::from_time_t(nTime);
     return ss.str();
-}
-
-std::string DurationToDHMS(int64_t nDurationTime)
-{
-    int seconds = nDurationTime % 60;
-    nDurationTime /= 60;
-    int minutes = nDurationTime % 60;
-    nDurationTime /= 60;
-    int hours = nDurationTime % 24;
-    int days = nDurationTime / 24;
-    if(days)
-        return strprintf("%dd %02dh:%02dm:%02ds", days, hours, minutes, seconds);
-    if(hours)
-        return strprintf("%02dh:%02dm:%02ds", hours, minutes, seconds);
-    return strprintf("%02dm:%02ds", minutes, seconds);
 }

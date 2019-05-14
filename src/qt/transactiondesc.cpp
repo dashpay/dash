@@ -41,15 +41,25 @@ QString TransactionDesc::FormatTxStatus(const CWalletTx& wtx)
 
         QString strTxStatus;
         bool fOffline = (GetAdjustedTime() - wtx.nTimeReceived > 2 * 60) && (wtx.GetRequestCount() == 0);
+        bool fChainLocked = wtx.IsChainLocked();
 
         if (fOffline) {
             strTxStatus = tr("%1/offline").arg(nDepth);
         } else if (nDepth == 0) {
             strTxStatus = tr("0/unconfirmed, %1").arg((wtx.InMempool() ? tr("in memory pool") : tr("not in memory pool"))) + (wtx.isAbandoned() ? ", "+tr("abandoned") : "");
-        } else if (nDepth < 6) {
+        } else if (!fChainLocked && nDepth < 6) {
             strTxStatus = tr("%1/unconfirmed").arg(nDepth);
         } else {
             strTxStatus = tr("%1 confirmations").arg(nDepth);
+            if (fChainLocked) {
+                strTxStatus += " (" + tr("locked via LLMQ based ChainLocks") + ")";
+                return strTxStatus;
+            }
+        }
+
+        if (wtx.IsLockedByLLMQInstantSend()) {
+            strTxStatus += " (" + tr("verified via LLMQ based InstantSend") + ")";
+            return strTxStatus;
         }
 
         if(!instantsend.HasTxLockRequest(wtx.GetHash())) return strTxStatus; // regular tx
@@ -322,17 +332,17 @@ QString TransactionDesc::toHTML(CWallet *wallet, CWalletTx &wtx, TransactionReco
             {
                 {
                     strHTML += "<li>";
-                    const CTxOut &vout = prev.out;
+                    const CTxOut& txout = prev.out;
                     CTxDestination address;
-                    if (ExtractDestination(vout.scriptPubKey, address))
+                    if (ExtractDestination(txout.scriptPubKey, address))
                     {
                         if (wallet->mapAddressBook.count(address) && !wallet->mapAddressBook[address].name.empty())
                             strHTML += GUIUtil::HtmlEscape(wallet->mapAddressBook[address].name) + " ";
                         strHTML += QString::fromStdString(CBitcoinAddress(address).ToString());
                     }
-                    strHTML = strHTML + " " + tr("Amount") + "=" + BitcoinUnits::formatHtmlWithUnit(unit, vout.nValue);
-                    strHTML = strHTML + " IsMine=" + (wallet->IsMine(vout) & ISMINE_SPENDABLE ? tr("true") : tr("false"));
-                    strHTML = strHTML + " IsWatchOnly=" + (wallet->IsMine(vout) & ISMINE_WATCH_ONLY ? tr("true") : tr("false")) + "</li>";
+                    strHTML = strHTML + " " + tr("Amount") + "=" + BitcoinUnits::formatHtmlWithUnit(unit, txout.nValue);
+                    strHTML = strHTML + " IsMine=" + (wallet->IsMine(txout) & ISMINE_SPENDABLE ? tr("true") : tr("false"));
+                    strHTML = strHTML + " IsWatchOnly=" + (wallet->IsMine(txout) & ISMINE_WATCH_ONLY ? tr("true") : tr("false")) + "</li>";
                 }
             }
         }

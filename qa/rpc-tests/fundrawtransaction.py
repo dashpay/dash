@@ -2,6 +2,7 @@
 # Copyright (c) 2014-2016 The Bitcoin Core developers
 # Distributed under the MIT software license, see the accompanying
 # file COPYING or http://www.opensource.org/licenses/mit-license.php.
+"""Test the fundrawtransaction RPC."""
 
 from test_framework.test_framework import BitcoinTestFramework
 from test_framework.util import *
@@ -33,8 +34,6 @@ class RawTransactionsTest(BitcoinTestFramework):
         self.sync_all()
 
     def run_test(self):
-        print("Mining blocks...")
-
         min_relay_tx_fee = self.nodes[0].getnetworkinfo()['relayfee']
         # This test is not meant to test fee estimation and we'd like
         # to be sure all txs are sent at a consistent desired feerate
@@ -186,12 +185,7 @@ class RawTransactionsTest(BitcoinTestFramework):
         dec_tx  = self.nodes[2].decoderawtransaction(rawtx)
         assert_equal(utx['txid'], dec_tx['vin'][0]['txid'])
 
-        try:
-            self.nodes[2].fundrawtransaction(rawtx, {'foo': 'bar'})
-            raise AssertionError("Accepted invalid option foo")
-        except JSONRPCException as e:
-            assert("Unexpected key foo" in e.error['message'])
-
+        assert_raises_jsonrpc(-3, "Unexpected key foo", self.nodes[2].fundrawtransaction, rawtx, {'foo':'bar'})
 
         ############################################################
         # test a fundrawtransaction with an invalid change address #
@@ -204,12 +198,7 @@ class RawTransactionsTest(BitcoinTestFramework):
         dec_tx  = self.nodes[2].decoderawtransaction(rawtx)
         assert_equal(utx['txid'], dec_tx['vin'][0]['txid'])
 
-        try:
-            self.nodes[2].fundrawtransaction(rawtx, {'changeAddress': 'foobar'})
-            raise AssertionError("Accepted invalid dash address")
-        except JSONRPCException as e:
-            assert("changeAddress must be a valid dash address" in e.error['message'])
-
+        assert_raises_jsonrpc(-5, "changeAddress must be a valid dash address", self.nodes[2].fundrawtransaction, rawtx, {'changeAddress':'foobar'})
 
         ############################################################
         # test a fundrawtransaction with a provided change address #
@@ -223,12 +212,7 @@ class RawTransactionsTest(BitcoinTestFramework):
         assert_equal(utx['txid'], dec_tx['vin'][0]['txid'])
 
         change = self.nodes[2].getnewaddress()
-        try:
-            rawtxfund = self.nodes[2].fundrawtransaction(rawtx, {'changeAddress': change, 'changePosition': 2})
-        except JSONRPCException as e:
-            assert('changePosition out of bounds' == e.error['message'])
-        else:
-            assert(False)
+        assert_raises_jsonrpc(-8, "changePosition out of bounds", self.nodes[2].fundrawtransaction, rawtx, {'changeAddress':change, 'changePosition':2})
         rawtxfund = self.nodes[2].fundrawtransaction(rawtx, {'changeAddress': change, 'changePosition': 0})
         dec_tx  = self.nodes[2].decoderawtransaction(rawtxfund['hex'])
         out = dec_tx['vout'][0]
@@ -337,12 +321,7 @@ class RawTransactionsTest(BitcoinTestFramework):
         rawtx   = self.nodes[2].createrawtransaction(inputs, outputs)
         dec_tx  = self.nodes[2].decoderawtransaction(rawtx)
 
-        try:
-            rawtxfund = self.nodes[2].fundrawtransaction(rawtx)
-            raise AssertionError("Spent more than available")
-        except JSONRPCException as e:
-            assert("Insufficient" in e.error['message'])
-
+        assert_raises_jsonrpc(-4, "Insufficient funds", self.nodes[2].fundrawtransaction, rawtx)
 
         ############################################################
         #compare fee of a standard pubkeyhash transaction
@@ -498,21 +477,13 @@ class RawTransactionsTest(BitcoinTestFramework):
         rawTx = self.nodes[1].createrawtransaction(inputs, outputs)
         # fund a transaction that requires a new key for the change output
         # creating the key must be impossible because the wallet is locked
-        try:
-            fundedTx = self.nodes[1].fundrawtransaction(rawTx)
-            raise AssertionError("Wallet unlocked without passphrase")
-        except JSONRPCException as e:
-            assert('Keypool ran out' in e.error['message'])
+        assert_raises_jsonrpc(-4, "Insufficient funds", self.nodes[1].fundrawtransaction, rawtx)
 
         #refill the keypool
         self.nodes[1].walletpassphrase("test", 100)
         self.nodes[1].walletlock()
 
-        try:
-            self.nodes[1].sendtoaddress(self.nodes[0].getnewaddress(), 12)
-            raise AssertionError("Wallet unlocked without passphrase")
-        except JSONRPCException as e:
-            assert('walletpassphrase' in e.error['message'])
+        assert_raises_jsonrpc(-13, "walletpassphrase", self.nodes[1].sendtoaddress, self.nodes[0].getnewaddress(), 12)
 
         oldBalance = self.nodes[0].getbalance()
 

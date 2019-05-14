@@ -1,4 +1,4 @@
-// Copyright (c) 2014-2018 The Dash Core developers
+// Copyright (c) 2014-2019 The Dash Core developers
 // Distributed under the MIT/X11 software license, see the accompanying
 // file COPYING or http://www.opensource.org/licenses/mit-license.php.
 
@@ -225,7 +225,7 @@ public:
      */
     bool Sign();
     /// Check if we have a valid Masternode address
-    bool CheckSignature(const CKeyID& keyIDOperator, const CBLSPublicKey& blsPubKey) const;
+    bool CheckSignature(const CBLSPublicKey& blsPubKey) const;
 
     bool Relay(CConnman& connman);
 
@@ -306,7 +306,7 @@ public:
     uint256 GetSignatureHash() const;
 
     bool Sign();
-    bool CheckSignature(const CKeyID& keyIDOperator, const CBLSPublicKey& blsPubKey) const;
+    bool CheckSignature(const CBLSPublicKey& blsPubKey) const;
 
     void SetConfirmedHeight(int nConfirmedHeightIn) { nConfirmedHeight = nConfirmedHeightIn; }
     bool IsExpired(int nHeight);
@@ -403,8 +403,9 @@ public:
 
     static std::string GetMessageByID(PoolMessage nMessageID);
 
-    /// Get the maximum number of transactions for the pool
-    static int GetMaxPoolTransactions() { return Params().PoolMaxTransactions(); }
+    /// Get the minimum/maximum number of participants for the pool
+    static int GetMinPoolParticipants() { return Params().PoolMinParticipants(); }
+    static int GetMaxPoolParticipants() { return Params().PoolMaxParticipants(); }
 
     static CAmount GetMaxPoolAmount() { return vecStandardDenominations.empty() ? 0 : PRIVATESEND_ENTRY_MAX_SIZE * vecStandardDenominations.front(); }
 

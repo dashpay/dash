@@ -21,6 +21,7 @@
 #include "rpc/server.h"
 #include "rpc/register.h"
 #include "script/sigcache.h"
+#include "stacktraces.h"
 
 #include "test/testutil.h"
 
@@ -33,6 +34,7 @@
 
 #include <boost/filesystem.hpp>
 #include <boost/test/unit_test.hpp>
+#include <boost/test/unit_test_monitor.hpp>
 #include <boost/thread.hpp>
 
 std::unique_ptr<CConnman> g_connman;
@@ -76,27 +78,28 @@ TestingSetup::TestingSetup(const std::string& chainName) : BasicTestingSetup(cha
         boost::filesystem::create_directories(pathTemp);
         ForceSetArg("-datadir", pathTemp.string());
         mempool.setSanityCheck(1.0);
+        g_connman = std::unique_ptr<CConnman>(new CConnman(0x1337, 0x1337)); // Deterministic randomness for tests.
+        connman = g_connman.get();
         pblocktree = new CBlockTreeDB(1 << 20, true);
         pcoinsdbview = new CCoinsViewDB(1 << 23, true);
-        llmq::InitLLMQSystem(*evoDb);
+        llmq::InitLLMQSystem(*evoDb, nullptr, true);
         pcoinsTip = new CCoinsViewCache(pcoinsdbview);
-        InitBlockIndex(chainparams);
+        BOOST_REQUIRE(InitBlockIndex(chainparams));
         {
             CValidationState state;
             bool ok = ActivateBestChain(state, chainparams);
-            BOOST_CHECK(ok);
+            BOOST_REQUIRE(ok);
         }
         nScriptCheckThreads = 3;
         for (int i=0; i < nScriptCheckThreads-1; i++)
             threadGroup.create_thread(&ThreadScriptCheck);
-        g_connman = std::unique_ptr<CConnman>(new CConnman(0x1337, 0x1337)); // Deterministic randomness for tests.
-        connman = g_connman.get();
         RegisterNodeSignals(GetNodeSignals());
 }
 
 TestingSetup::~TestingSetup()
 {
         UnregisterNodeSignals(GetNodeSignals());
+        llmq::InterruptLLMQSystem();
         threadGroup.interrupt_all();
         threadGroup.join_all();
         UnloadBlockIndex();
@@ -174,6 +177,9 @@ CBlock TestChainSetup::CreateBlock(const std::vector<CMutableTransaction>& txns,
         if (!CalcCbTxMerkleRootMNList(block, chainActive.Tip(), cbTx.merkleRootMNList, state)) {
             BOOST_ASSERT(false);
         }
+        if (!CalcCbTxMerkleRootQuorums(block, chainActive.Tip(), cbTx.merkleRootQuorums, state)) {
+            BOOST_ASSERT(false);
+        }
         CMutableTransaction tmpTx = *block.vtx[0];
         SetTxPayload(tmpTx, cbTx);
         block.vtx[0] = MakeTransactionRef(tmpTx);
@@ -200,27 +206,57 @@ TestChainSetup::~TestChainSetup()
 }
 
 
-CTxMemPoolEntry TestMemPoolEntryHelper::FromTx(const CMutableTransaction &tx, CTxMemPool *pool) {
+CTxMemPoolEntry TestMemPoolEntryHelper::FromTx(const CMutableTransaction &tx) {
     CTransaction txn(tx);
-    return FromTx(txn, pool);
+    return FromTx(txn);
 }
 
-CTxMemPoolEntry TestMemPoolEntryHelper::FromTx(const CTransaction &txn, CTxMemPool *pool) {
-    return CTxMemPoolEntry(MakeTransactionRef(txn), nFee, nTime, dPriority, nHeight,
-                           txn.GetValueOut(), spendsCoinbase, sigOpCount, lp);
+CTxMemPoolEntry TestMemPoolEntryHelper::FromTx(const CTransaction &txn) {
+    return CTxMemPoolEntry(MakeTransactionRef(txn), nFee, nTime, nHeight,
+                           spendsCoinbase, sigOpCount, lp);
 }
 
 void Shutdown(void* parg)
 {
-  exit(0);
+  exit(EXIT_SUCCESS);
 }
 
 void StartShutdown()
 {
-  exit(0);
+  exit(EXIT_SUCCESS);
 }
 
 bool ShutdownRequested()
 {
   return false;
 }
+
+template<typename T>
+void translate_exception(const T &e)
+{
+    std::cerr << GetPrettyExceptionStr(std::current_exception()) << std::endl;
+    throw;
+}
+
+template<typename T>
+void register_exception_translator()
+{
+    boost::unit_test::unit_test_monitor.register_exception_translator<T>(&translate_exception<T>);
+}
+
+struct ExceptionInitializer {
+    ExceptionInitializer()
+    {
+        RegisterPrettyTerminateHander();
+        RegisterPrettySignalHandlers();
+
+        register_exception_translator<std::exception>();
+        register_exception_translator<std::string>();
+        register_exception_translator<const char*>();
+    }
+    ~ExceptionInitializer()
+    {
+    }
+};
+
+BOOST_GLOBAL_FIXTURE( ExceptionInitializer );

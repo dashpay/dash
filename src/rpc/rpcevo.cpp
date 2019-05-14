@@ -1,4 +1,4 @@
-// Copyright (c) 2018 The Dash Core developers
+// Copyright (c) 2018-2019 The Dash Core developers
 // Distributed under the MIT software license, see the accompanying
 // file COPYING or http://www.opensource.org/licenses/mit-license.php.
 
@@ -14,6 +14,7 @@
 #ifdef ENABLE_WALLET
 #include "wallet/coincontrol.h"
 #include "wallet/wallet.h"
+#include "wallet/rpcwallet.h"
 #endif//ENABLE_WALLET
 
 #include "netbase.h"
@@ -35,7 +36,6 @@ std::string GetHelpString(int nParamNum, std::string strParamName)
     static const std::map<std::string, std::string> mapParamHelp = {
         {"collateralAddress",
             "%d. \"collateralAddress\"        (string, required) The dash address to send the collateral to.\n"
-            "                              Must be a P2PKH address.\n"
         },
         {"collateralHash",
             "%d. \"collateralHash\"           (string, required) The collateral transaction hash.\n"
@@ -103,16 +103,17 @@ std::string GetHelpString(int nParamNum, std::string strParamName)
 }
 
 // Allows to specify Dash address or priv key. In case of Dash address, the priv key is taken from the wallet
-static CKey ParsePrivKey(const std::string &strKeyOrAddress, bool allowAddresses = true) {
+static CKey ParsePrivKey(CWallet* pwallet, const std::string &strKeyOrAddress, bool allowAddresses = true) {
     CBitcoinAddress address;
     if (allowAddresses && address.SetString(strKeyOrAddress) && address.IsValid()) {
 #ifdef ENABLE_WALLET
-        if (!pwalletMain) {
+        if (!pwallet) {
             throw std::runtime_error("addresses not supported when wallet is disabled");
         }
+        EnsureWalletIsUnlocked(pwallet);
         CKeyID keyId;
         CKey key;
-        if (!address.GetKeyID(keyId) || !pwalletMain->GetKey(keyId, key))
+        if (!address.GetKeyID(keyId) || !pwallet->GetKey(keyId, key))
             throw std::runtime_error(strprintf("non-wallet or invalid address %s", strKeyOrAddress));
         return key;
 #else//ENABLE_WALLET
@@ -139,21 +140,17 @@ static CKeyID ParsePubKeyIDFromAddress(const std::string& strAddress, const std:
 
 static CBLSPublicKey ParseBLSPubKey(const std::string& hexKey, const std::string& paramName)
 {
-    auto binKey = ParseHex(hexKey);
     CBLSPublicKey pubKey;
-    pubKey.SetBuf(binKey);
-    if (!pubKey.IsValid()) {
-        throw JSONRPCError(RPC_INVALID_PARAMETER, strprintf("%s must be a valid BLS address, not %s", paramName, hexKey));
+    if (!pubKey.SetHexStr(hexKey)) {
+        throw JSONRPCError(RPC_INVALID_PARAMETER, strprintf("%s must be a valid BLS public key, not %s", paramName, hexKey));
     }
     return pubKey;
 }
 
 static CBLSSecretKey ParseBLSSecretKey(const std::string& hexKey, const std::string& paramName)
 {
-    auto binKey = ParseHex(hexKey);
     CBLSSecretKey secKey;
-    secKey.SetBuf(binKey);
-    if (!secKey.IsValid()) {
+    if (!secKey.SetHexStr(hexKey)) {
         throw JSONRPCError(RPC_INVALID_PARAMETER, strprintf("%s must be a valid BLS secret key", paramName));
     }
     return secKey;
@@ -162,10 +159,10 @@ static CBLSSecretKey ParseBLSSecretKey(const std::string& hexKey, const std::str
 #ifdef ENABLE_WALLET
 
 template<typename SpecialTxPayload>
-static void FundSpecialTx(CMutableTransaction& tx, const SpecialTxPayload& payload, const CTxDestination& fundDest)
+static void FundSpecialTx(CWallet* pwallet, CMutableTransaction& tx, const SpecialTxPayload& payload, const CTxDestination& fundDest)
 {
-    assert(pwalletMain != NULL);
-    LOCK2(cs_main, pwalletMain->cs_wallet);
+    assert(pwallet != NULL);
+    LOCK2(cs_main, pwallet->cs_wallet);
 
     CTxDestination nodest = CNoDestination();
     if (fundDest == nodest) {
@@ -196,7 +193,7 @@ static void FundSpecialTx(CMutableTransaction& tx, const SpecialTxPayload& paylo
     coinControl.fRequireAllInputs = false;
 
     std::vector<COutput> vecOutputs;
-    pwalletMain->AvailableCoins(vecOutputs);
+    pwallet->AvailableCoins(vecOutputs);
 
     for (const auto& out : vecOutputs) {
         CTxDestination txDest;
@@ -210,12 +207,12 @@ static void FundSpecialTx(CMutableTransaction& tx, const SpecialTxPayload& paylo
     }
 
     CWalletTx wtx;
-    CReserveKey reservekey(pwalletMain);
+    CReserveKey reservekey(pwallet);
     CAmount nFee;
     int nChangePos = -1;
     std::string strFailReason;
 
-    if (!pwalletMain->CreateTransaction(vecSend, wtx, reservekey, nFee, nChangePos, strFailReason, &coinControl, false, ALL_COINS, false, tx.vExtraPayload.size())) {
+    if (!pwallet->CreateTransaction(vecSend, wtx, reservekey, nFee, nChangePos, strFailReason, &coinControl, false, ALL_COINS, false, tx.vExtraPayload.size())) {
         throw JSONRPCError(RPC_INTERNAL_ERROR, strFailReason);
     }
 
@@ -282,10 +279,10 @@ static std::string SignAndSendSpecialTx(const CMutableTransaction& tx)
     CDataStream ds(SER_NETWORK, PROTOCOL_VERSION);
     ds << tx;
 
-    JSONRPCRequest signReqeust;
-    signReqeust.params.setArray();
-    signReqeust.params.push_back(HexStr(ds.begin(), ds.end()));
-    UniValue signResult = signrawtransaction(signReqeust);
+    JSONRPCRequest signRequest;
+    signRequest.params.setArray();
+    signRequest.params.push_back(HexStr(ds.begin(), ds.end()));
+    UniValue signResult = signrawtransaction(signRequest);
 
     JSONRPCRequest sendRequest;
     sendRequest.params.setArray();
@@ -293,7 +290,7 @@ static std::string SignAndSendSpecialTx(const CMutableTransaction& tx)
     return sendrawtransaction(sendRequest).get_str();
 }
 
-void protx_register_fund_help()
+void protx_register_fund_help(CWallet* const pwallet)
 {
     throw std::runtime_error(
             "protx register_fund \"collateralAddress\" \"ipAndPort\" \"ownerAddress\" \"operatorPubKey\" \"votingAddress\" operatorReward \"payoutAddress\" ( \"fundAddress\" )\n"
@@ -302,6 +299,7 @@ void protx_register_fund_help()
             "masternode.\n"
             "A few of the limitations you see in the arguments are temporary and might be lifted after DIP3\n"
             "is fully deployed.\n"
+            + HelpRequiringPassphrase(pwallet) + "\n"
             "\nArguments:\n"
             + GetHelpString(1, "collateralAddress")
             + GetHelpString(2, "ipAndPort")
@@ -318,13 +316,14 @@ void protx_register_fund_help()
     );
 }
 
-void protx_register_help()
+void protx_register_help(CWallet* const pwallet)
 {
     throw std::runtime_error(
             "protx register \"collateralHash\" collateralIndex \"ipAndPort\" \"ownerAddress\" \"operatorPubKey\" \"votingAddress\" operatorReward \"payoutAddress\" ( \"feeSourceAddress\" )\n"
             "\nSame as \"protx register_fund\", but with an externally referenced collateral.\n"
             "The collateral is specified through \"collateralHash\" and \"collateralIndex\" and must be an unspent\n"
             "transaction output spendable by this wallet. It must also not be used by any other masternode.\n"
+            + HelpRequiringPassphrase(pwallet) + "\n"
             "\nArguments:\n"
             + GetHelpString(1, "collateralHash")
             + GetHelpString(2, "collateralIndex")
@@ -371,12 +370,13 @@ void protx_register_prepare_help()
     );
 }
 
-void protx_register_submit_help()
+void protx_register_submit_help(CWallet* const pwallet)
 {
     throw std::runtime_error(
             "protx register_submit \"tx\" \"sig\"\n"
             "\nSubmits the specified ProTx to the network. This command will also sign the inputs of the transaction\n"
             "which were previously added by \"protx register_prepare\" to cover transaction fees\n"
+            + HelpRequiringPassphrase(pwallet) + "\n"
             "\nArguments:\n"
             "1. \"tx\"                 (string, required) The serialized transaction previously returned by \"protx register_prepare\"\n"
             "2. \"sig\"                (string, required) The signature signed with the collateral key. Must be in base64 format.\n"
@@ -390,16 +390,24 @@ void protx_register_submit_help()
 // handles register, register_prepare and register_fund in one method
 UniValue protx_register(const JSONRPCRequest& request)
 {
+    CWallet* const pwallet = GetWalletForJSONRPCRequest(request);
     bool isExternalRegister = request.params[0].get_str() == "register";
     bool isFundRegister = request.params[0].get_str() == "register_fund";
     bool isPrepareRegister = request.params[0].get_str() == "register_prepare";
 
     if (isFundRegister && (request.fHelp || (request.params.size() != 8 && request.params.size() != 9))) {
-        protx_register_fund_help();
+        protx_register_fund_help(pwallet);
     } else if (isExternalRegister && (request.fHelp || (request.params.size() != 9 && request.params.size() != 10))) {
-        protx_register_help();
+        protx_register_help(pwallet);
     } else if (isPrepareRegister && (request.fHelp || (request.params.size() != 9 && request.params.size() != 10))) {
         protx_register_prepare_help();
+    }
+
+    if (!EnsureWalletIsAvailable(pwallet, request.fHelp))
+        return NullUniValue;
+
+    if (isExternalRegister || isFundRegister) {
+        EnsureWalletIsUnlocked(pwallet);
     }
 
     size_t paramIdx = 1;
@@ -435,8 +443,8 @@ UniValue protx_register(const JSONRPCRequest& request)
         paramIdx += 2;
 
         // TODO unlock on failure
-        LOCK(pwalletMain->cs_wallet);
-        pwalletMain->LockCoin(ptx.collateralOutpoint);
+        LOCK(pwallet->cs_wallet);
+        pwallet->LockCoin(ptx.collateralOutpoint);
     }
 
     if (request.params[paramIdx].get_str() != "") {
@@ -445,7 +453,7 @@ UniValue protx_register(const JSONRPCRequest& request)
         }
     }
 
-    CKey keyOwner = ParsePrivKey(request.params[paramIdx + 1].get_str(), true);
+    CKey keyOwner = ParsePrivKey(pwallet, request.params[paramIdx + 1].get_str(), true);
     CBLSPublicKey pubKeyOperator = ParseBLSPubKey(request.params[paramIdx + 2].get_str(), "operator BLS address");
     CKeyID keyIDVoting = keyOwner.GetPubKey().GetID();
     if (request.params[paramIdx + 3].get_str() != "") {
@@ -483,7 +491,7 @@ UniValue protx_register(const JSONRPCRequest& request)
             throw JSONRPCError(RPC_INVALID_ADDRESS_OR_KEY, std::string("Invalid Dash address: ") + request.params[paramIdx + 6].get_str());
     }
 
-    FundSpecialTx(tx, ptx, fundAddress.Get());
+    FundSpecialTx(pwallet, tx, ptx, fundAddress.Get());
     UpdateSpecialTxInputsHash(tx, ptx);
 
     if (isFundRegister) {
@@ -525,7 +533,7 @@ UniValue protx_register(const JSONRPCRequest& request)
         } else {
             // lets prove we own the collateral
             CKey key;
-            if (!pwalletMain->GetKey(keyID, key)) {
+            if (!pwallet->GetKey(keyID, key)) {
                 throw JSONRPCError(RPC_INVALID_ADDRESS_OR_KEY, strprintf("collateral key not in wallet: %s", CBitcoinAddress(keyID).ToString()));
             }
             SignSpecialTxPayloadByString(tx, ptx, key);
@@ -537,9 +545,15 @@ UniValue protx_register(const JSONRPCRequest& request)
 
 UniValue protx_register_submit(const JSONRPCRequest& request)
 {
+    CWallet* const pwallet = GetWalletForJSONRPCRequest(request);
     if (request.fHelp || request.params.size() != 3) {
-        protx_register_submit_help();
+        protx_register_submit_help(pwallet);
     }
+
+    if (!EnsureWalletIsAvailable(pwallet, request.fHelp))
+        return NullUniValue;
+
+    EnsureWalletIsUnlocked(pwallet);
 
     CMutableTransaction tx;
     if (!DecodeHexTx(tx, request.params[1].get_str())) {
@@ -562,13 +576,14 @@ UniValue protx_register_submit(const JSONRPCRequest& request)
     return SignAndSendSpecialTx(tx);
 }
 
-void protx_update_service_help()
+void protx_update_service_help(CWallet* const pwallet)
 {
     throw std::runtime_error(
             "protx update_service \"proTxHash\" \"ipAndPort\" \"operatorKey\" (\"operatorPayoutAddress\" \"feeSourceAddress\" )\n"
             "\nCreates and sends a ProUpServTx to the network. This will update the IP address\n"
             "of a masternode.\n"
             "If this is done for a masternode that got PoSe-banned, the ProUpServTx will also revive this masternode.\n"
+            + HelpRequiringPassphrase(pwallet) + "\n"
             "\nArguments:\n"
             + GetHelpString(1, "proTxHash")
             + GetHelpString(2, "ipAndPort")
@@ -584,8 +599,14 @@ void protx_update_service_help()
 
 UniValue protx_update_service(const JSONRPCRequest& request)
 {
+    CWallet* const pwallet = GetWalletForJSONRPCRequest(request);
     if (request.fHelp || (request.params.size() < 4 || request.params.size() > 6))
-        protx_update_service_help();
+        protx_update_service_help(pwallet);
+
+    if (!EnsureWalletIsAvailable(pwallet, request.fHelp))
+        return NullUniValue;
+
+    EnsureWalletIsUnlocked(pwallet);
 
     CProUpServTx ptx;
     ptx.nVersion = CProRegTx::CURRENT_VERSION;
@@ -643,7 +664,7 @@ UniValue protx_update_service(const JSONRPCRequest& request)
         }
     }
 
-    FundSpecialTx(tx, ptx, feeSource);
+    FundSpecialTx(pwallet, tx, ptx, feeSource);
 
     SignSpecialTxPayloadByHash(tx, ptx, keyOperator);
     SetTxPayload(tx, ptx);
@@ -651,13 +672,14 @@ UniValue protx_update_service(const JSONRPCRequest& request)
     return SignAndSendSpecialTx(tx);
 }
 
-void protx_update_registrar_help()
+void protx_update_registrar_help(CWallet* const pwallet)
 {
     throw std::runtime_error(
             "protx update_registrar \"proTxHash\" \"operatorPubKey\" \"votingAddress\" \"payoutAddress\" ( \"feeSourceAddress\" )\n"
             "\nCreates and sends a ProUpRegTx to the network. This will update the operator key, voting key and payout\n"
             "address of the masternode specified by \"proTxHash\".\n"
             "The owner key of the masternode must be known to your wallet.\n"
+            + HelpRequiringPassphrase(pwallet) + "\n"
             "\nArguments:\n"
             + GetHelpString(1, "proTxHash")
             + GetHelpString(2, "operatorPubKey")
@@ -673,9 +695,15 @@ void protx_update_registrar_help()
 
 UniValue protx_update_registrar(const JSONRPCRequest& request)
 {
+    CWallet* const pwallet = GetWalletForJSONRPCRequest(request);
     if (request.fHelp || (request.params.size() != 5 && request.params.size() != 6)) {
-        protx_update_registrar_help();
+        protx_update_registrar_help(pwallet);
     }
+
+    if (!EnsureWalletIsAvailable(pwallet, request.fHelp))
+        return NullUniValue;
+
+    EnsureWalletIsUnlocked(pwallet);
 
     CProUpRegTx ptx;
     ptx.nVersion = CProRegTx::CURRENT_VERSION;
@@ -703,7 +731,7 @@ UniValue protx_update_registrar(const JSONRPCRequest& request)
     ptx.scriptPayout = GetScriptForDestination(payoutAddress.Get());
 
     CKey keyOwner;
-    if (!pwalletMain->GetKey(dmn->pdmnState->keyIDOwner, keyOwner)) {
+    if (!pwallet->GetKey(dmn->pdmnState->keyIDOwner, keyOwner)) {
         throw std::runtime_error(strprintf("Private key for owner address %s not found in your wallet", CBitcoinAddress(dmn->pdmnState->keyIDOwner).ToString()));
     }
 
@@ -721,14 +749,14 @@ UniValue protx_update_registrar(const JSONRPCRequest& request)
             throw JSONRPCError(RPC_INVALID_ADDRESS_OR_KEY, std::string("Invalid Dash address: ") + request.params[5].get_str());
     }
 
-    FundSpecialTx(tx, ptx, feeSourceAddress.Get());
+    FundSpecialTx(pwallet, tx, ptx, feeSourceAddress.Get());
     SignSpecialTxPayloadByHash(tx, ptx, keyOwner);
     SetTxPayload(tx, ptx);
 
     return SignAndSendSpecialTx(tx);
 }
 
-void protx_revoke_help()
+void protx_revoke_help(CWallet* const pwallet)
 {
     throw std::runtime_error(
             "protx revoke \"proTxHash\" \"operatorKey\" ( reason \"feeSourceAddress\")\n"
@@ -736,6 +764,7 @@ void protx_revoke_help()
             "put it into the PoSe-banned state. It will also set the service field of the masternode\n"
             "to zero. Use this in case your operator key got compromised or you want to stop providing your service\n"
             "to the masternode owner.\n"
+            + HelpRequiringPassphrase(pwallet) + "\n"
             "\nArguments:\n"
             + GetHelpString(1, "proTxHash")
             + GetHelpString(2, "operatorKey")
@@ -750,9 +779,15 @@ void protx_revoke_help()
 
 UniValue protx_revoke(const JSONRPCRequest& request)
 {
+    CWallet* const pwallet = GetWalletForJSONRPCRequest(request);
     if (request.fHelp || (request.params.size() < 3 || request.params.size() > 5)) {
-        protx_revoke_help();
+        protx_revoke_help(pwallet);
     }
+
+    if (!EnsureWalletIsAvailable(pwallet, request.fHelp))
+        return NullUniValue;
+
+    EnsureWalletIsUnlocked(pwallet);
 
     CProUpRevTx ptx;
     ptx.nVersion = CProRegTx::CURRENT_VERSION;
@@ -785,17 +820,17 @@ UniValue protx_revoke(const JSONRPCRequest& request)
         CBitcoinAddress feeSourceAddress = CBitcoinAddress(request.params[4].get_str());
         if (!feeSourceAddress.IsValid())
             throw JSONRPCError(RPC_INVALID_ADDRESS_OR_KEY, std::string("Invalid Dash address: ") + request.params[4].get_str());
-        FundSpecialTx(tx, ptx, feeSourceAddress.Get());
+        FundSpecialTx(pwallet, tx, ptx, feeSourceAddress.Get());
     } else if (dmn->pdmnState->scriptOperatorPayout != CScript()) {
         // Using funds from previousely specified operator payout address
         CTxDestination txDest;
         ExtractDestination(dmn->pdmnState->scriptOperatorPayout, txDest);
-        FundSpecialTx(tx, ptx, txDest);
+        FundSpecialTx(pwallet, tx, ptx, txDest);
     } else if (dmn->pdmnState->scriptPayout != CScript()) {
         // Using funds from previousely specified masternode payout address
         CTxDestination txDest;
         ExtractDestination(dmn->pdmnState->scriptPayout, txDest);
-        FundSpecialTx(tx, ptx, txDest);
+        FundSpecialTx(pwallet, tx, ptx, txDest);
     } else {
         throw JSONRPCError(RPC_INTERNAL_ERROR, "No payout or fee source addresses found, can't revoke");
     }
@@ -826,28 +861,28 @@ void protx_list_help()
     );
 }
 
-static bool CheckWalletOwnsKey(const CKeyID& keyID) {
+static bool CheckWalletOwnsKey(CWallet* pwallet, const CKeyID& keyID) {
 #ifndef ENABLE_WALLET
     return false;
 #else
-    if (!pwalletMain) {
+    if (!pwallet) {
         return false;
     }
-    return pwalletMain->HaveKey(keyID);
+    return pwallet->HaveKey(keyID);
 #endif
 }
 
-static bool CheckWalletOwnsScript(const CScript& script) {
+static bool CheckWalletOwnsScript(CWallet* pwallet, const CScript& script) {
 #ifndef ENABLE_WALLET
     return false;
 #else
-    if (!pwalletMain) {
+    if (!pwallet) {
         return false;
     }
 
     CTxDestination dest;
     if (ExtractDestination(script, dest)) {
-        if ((boost::get<CKeyID>(&dest) && pwalletMain->HaveKey(*boost::get<CKeyID>(&dest))) || (boost::get<CScriptID>(&dest) && pwalletMain->HaveCScript(*boost::get<CScriptID>(&dest)))) {
+        if ((boost::get<CKeyID>(&dest) && pwallet->HaveKey(*boost::get<CKeyID>(&dest))) || (boost::get<CScriptID>(&dest) && pwallet->HaveCScript(*boost::get<CScriptID>(&dest)))) {
             return true;
         }
     }
@@ -855,7 +890,7 @@ static bool CheckWalletOwnsScript(const CScript& script) {
 #endif
 }
 
-UniValue BuildDMNListEntry(const CDeterministicMNCPtr& dmn, bool detailed)
+UniValue BuildDMNListEntry(CWallet* pwallet, const CDeterministicMNCPtr& dmn, bool detailed)
 {
     if (!detailed) {
         return dmn->proTxHash.ToString();
@@ -868,15 +903,15 @@ UniValue BuildDMNListEntry(const CDeterministicMNCPtr& dmn, bool detailed)
     int confirmations = GetUTXOConfirmations(dmn->collateralOutpoint);
     o.push_back(Pair("confirmations", confirmations));
 
-    bool hasOwnerKey = CheckWalletOwnsKey(dmn->pdmnState->keyIDOwner);
+    bool hasOwnerKey = CheckWalletOwnsKey(pwallet, dmn->pdmnState->keyIDOwner);
     bool hasOperatorKey = false; //CheckWalletOwnsKey(dmn->pdmnState->keyIDOperator);
-    bool hasVotingKey = CheckWalletOwnsKey(dmn->pdmnState->keyIDVoting);
+    bool hasVotingKey = CheckWalletOwnsKey(pwallet, dmn->pdmnState->keyIDVoting);
 
     bool ownsCollateral = false;
     CTransactionRef collateralTx;
     uint256 tmpHashBlock;
     if (GetTransaction(dmn->collateralOutpoint.hash, collateralTx, Params().GetConsensus(), tmpHashBlock)) {
-        ownsCollateral = CheckWalletOwnsScript(collateralTx->vout[dmn->collateralOutpoint.n].scriptPubKey);
+        ownsCollateral = CheckWalletOwnsScript(pwallet, collateralTx->vout[dmn->collateralOutpoint.n].scriptPubKey);
     }
 
     UniValue walletObj(UniValue::VOBJ);
@@ -884,8 +919,8 @@ UniValue BuildDMNListEntry(const CDeterministicMNCPtr& dmn, bool detailed)
     walletObj.push_back(Pair("hasOperatorKey", hasOperatorKey));
     walletObj.push_back(Pair("hasVotingKey", hasVotingKey));
     walletObj.push_back(Pair("ownsCollateral", ownsCollateral));
-    walletObj.push_back(Pair("ownsPayeeScript", CheckWalletOwnsScript(dmn->pdmnState->scriptPayout)));
-    walletObj.push_back(Pair("ownsOperatorRewardScript", CheckWalletOwnsScript(dmn->pdmnState->scriptOperatorPayout)));
+    walletObj.push_back(Pair("ownsPayeeScript", CheckWalletOwnsScript(pwallet, dmn->pdmnState->scriptPayout)));
+    walletObj.push_back(Pair("ownsOperatorRewardScript", CheckWalletOwnsScript(pwallet, dmn->pdmnState->scriptOperatorPayout)));
     o.push_back(Pair("wallet", walletObj));
 
     return o;
@@ -898,9 +933,9 @@ UniValue protx_list(const JSONRPCRequest& request)
     }
 
 #ifdef ENABLE_WALLET
-    bool hasWallet = pwalletMain != nullptr;
+    CWallet* const pwallet = GetWalletForJSONRPCRequest(request);
 #else
-    bool hasWallet = false;
+    CWallet* const pwallet = nullptr;
 #endif
 
     std::string type = "registered";
@@ -913,11 +948,11 @@ UniValue protx_list(const JSONRPCRequest& request)
     LOCK(cs_main);
 
     if (type == "wallet") {
-        if (!hasWallet) {
+        if (!pwallet) {
             throw std::runtime_error("\"protx list wallet\" not supported when wallet is disabled");
         }
 #ifdef ENABLE_WALLET
-        LOCK2(cs_main, pwalletMain->cs_wallet);
+        LOCK2(cs_main, pwallet->cs_wallet);
 
         if (request.params.size() > 3) {
             protx_list_help();
@@ -931,7 +966,7 @@ UniValue protx_list(const JSONRPCRequest& request)
         }
 
         std::vector<COutPoint> vOutpts;
-        pwalletMain->ListProTxCoins(vOutpts);
+        pwallet->ListProTxCoins(vOutpts);
         std::set<COutPoint> setOutpts;
         for (const auto& outpt : vOutpts) {
             setOutpts.emplace(outpt);
@@ -940,11 +975,11 @@ UniValue protx_list(const JSONRPCRequest& request)
         CDeterministicMNList mnList = deterministicMNManager->GetListForBlock(chainActive[height]->GetBlockHash());
         mnList.ForEachMN(false, [&](const CDeterministicMNCPtr& dmn) {
             if (setOutpts.count(dmn->collateralOutpoint) ||
-                CheckWalletOwnsKey(dmn->pdmnState->keyIDOwner) ||
-                CheckWalletOwnsKey(dmn->pdmnState->keyIDVoting) ||
-                CheckWalletOwnsScript(dmn->pdmnState->scriptPayout) ||
-                CheckWalletOwnsScript(dmn->pdmnState->scriptOperatorPayout)) {
-                ret.push_back(BuildDMNListEntry(dmn, detailed));
+                CheckWalletOwnsKey(pwallet, dmn->pdmnState->keyIDOwner) ||
+                CheckWalletOwnsKey(pwallet, dmn->pdmnState->keyIDVoting) ||
+                CheckWalletOwnsScript(pwallet, dmn->pdmnState->scriptPayout) ||
+                CheckWalletOwnsScript(pwallet, dmn->pdmnState->scriptOperatorPayout)) {
+                ret.push_back(BuildDMNListEntry(pwallet, dmn, detailed));
             }
         });
 #endif
@@ -965,7 +1000,7 @@ UniValue protx_list(const JSONRPCRequest& request)
         CDeterministicMNList mnList = deterministicMNManager->GetListForBlock(chainActive[height]->GetBlockHash());
         bool onlyValid = type == "valid";
         mnList.ForEachMN(onlyValid, [&](const CDeterministicMNCPtr& dmn) {
-            ret.push_back(BuildDMNListEntry(dmn, detailed));
+            ret.push_back(BuildDMNListEntry(pwallet, dmn, detailed));
         });
     } else {
         throw JSONRPCError(RPC_INVALID_PARAMETER, "invalid type specified");
@@ -995,13 +1030,19 @@ UniValue protx_info(const JSONRPCRequest& request)
         protx_info_help();
     }
 
+#ifdef ENABLE_WALLET
+    CWallet* const pwallet = GetWalletForJSONRPCRequest(request);
+#else
+    CWallet* const pwallet = nullptr;
+#endif
+
     uint256 proTxHash = ParseHashV(request.params[1], "proTxHash");
     auto mnList = deterministicMNManager->GetListAtChainTip();
     auto dmn = mnList.GetMN(proTxHash);
     if (!dmn) {
         throw JSONRPCError(RPC_INVALID_PARAMETER, strprintf("%s not found", proTxHash.ToString()));
     }
-    return BuildDMNListEntry(dmn, true);
+    return BuildDMNListEntry(pwallet, dmn, true);
 }
 
 void protx_diff_help()
@@ -1088,32 +1129,15 @@ UniValue protx(const JSONRPCRequest& request)
     }
 
 #ifdef ENABLE_WALLET
-    bool hasWallet = pwalletMain != nullptr;
-#else
-    bool hasWallet = false;
-#endif
-
-    auto checkWallet = [&](const std::string& command) {
-        if (!hasWallet) {
-            throw std::runtime_error(strprintf("%s not supported when wallet is disabled", command));
-        }
-    };
-
-#ifdef ENABLE_WALLET
     if (command == "register" || command == "register_fund" || command == "register_prepare") {
-        checkWallet(command);
         return protx_register(request);
-    } if (command == "register_submit") {
-        checkWallet(command);
+    } else if (command == "register_submit") {
         return protx_register_submit(request);
     } else if (command == "update_service") {
-        checkWallet(command);
         return protx_update_service(request);
     } else if (command == "update_registrar") {
-        checkWallet(command);
         return protx_update_registrar(request);
     } else if (command == "revoke") {
-        checkWallet(command);
         return protx_revoke(request);
     } else
 #endif
@@ -1158,6 +1182,40 @@ UniValue bls_generate(const JSONRPCRequest& request)
     return ret;
 }
 
+void bls_fromsecret_help()
+{
+    throw std::runtime_error(
+            "bls fromsecret \"secret\"\n"
+            "\nParses a BLS secret key and returns the secret/public key pair.\n"
+            "\nArguments:\n"
+            "1. \"secret\"                (string, required) The BLS secret key\n"
+            "\nResult:\n"
+            "{\n"
+            "  \"secret\": \"xxxx\",        (string) BLS secret key\n"
+            "  \"public\": \"xxxx\",        (string) BLS public key\n"
+            "}\n"
+            "\nExamples:\n"
+            + HelpExampleCli("bls fromsecret", "000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f")
+    );
+}
+
+UniValue bls_fromsecret(const JSONRPCRequest& request)
+{
+    if (request.fHelp || request.params.size() != 2) {
+        bls_fromsecret_help();
+    }
+
+    CBLSSecretKey sk;
+    if (!sk.SetHexStr(request.params[1].get_str())) {
+        throw JSONRPCError(RPC_INVALID_PARAMETER, strprintf("Secret key must be a valid hex string of length %d", sk.SerSize*2));
+    }
+
+    UniValue ret(UniValue::VOBJ);
+    ret.push_back(Pair("secret", sk.ToString()));
+    ret.push_back(Pair("public", sk.GetPublicKey().ToString()));
+    return ret;
+}
+
 [[ noreturn ]] void bls_help()
 {
     throw std::runtime_error(
@@ -1168,6 +1226,7 @@ UniValue bls_generate(const JSONRPCRequest& request)
             "1. \"command\"        (string, required) The command to execute\n"
             "\nAvailable commands:\n"
             "  generate          - Create a BLS secret/public key pair\n"
+            "  fromsecret        - Parse a BLS secret key and return the secret/public key pair\n"
             );
 }
 
@@ -1184,6 +1243,8 @@ UniValue _bls(const JSONRPCRequest& request)
 
     if (command == "generate") {
         return bls_generate(request);
+    } else if (command == "fromsecret") {
+        return bls_fromsecret(request);
     } else {
         bls_help();
     }

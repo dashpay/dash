@@ -1,13 +1,15 @@
-// Copyright (c) 2014-2018 The Dash Core developers
+// Copyright (c) 2014-2019 The Dash Core developers
 // Distributed under the MIT/X11 software license, see the accompanying
 // file COPYING or http://www.opensource.org/licenses/mit-license.php.
 
 #include "governance-vote.h"
 #include "governance-object.h"
 #include "masternode-sync.h"
-#include "masternodeman.h"
 #include "messagesigner.h"
+#include "spork.h"
 #include "util.h"
+
+#include "evo/deterministicmns.h"
 
 std::string CGovernanceVoting::ConvertOutcomeToString(vote_outcome_enum_t nOutcome)
 {
@@ -256,20 +258,16 @@ bool CGovernanceVote::IsValid(bool useVotingKey) const
         return false;
     }
 
-    masternode_info_t infoMn;
-    if (!mnodeman.GetMasternodeInfo(masternodeOutpoint, infoMn)) {
+    auto dmn = deterministicMNManager->GetListAtChainTip().GetValidMNByCollateral(masternodeOutpoint);
+    if (!dmn) {
         LogPrint("gobject", "CGovernanceVote::IsValid -- Unknown Masternode - %s\n", masternodeOutpoint.ToStringShort());
         return false;
     }
 
     if (useVotingKey) {
-        return CheckSignature(infoMn.keyIDVoting);
+        return CheckSignature(dmn->pdmnState->keyIDVoting);
     } else {
-        if (deterministicMNManager->IsDeterministicMNsSporkActive()) {
-            return CheckSignature(infoMn.blsPubKeyOperator);
-        } else {
-            return CheckSignature(infoMn.legacyKeyIDOperator);
-        }
+        return CheckSignature(dmn->pdmnState->pubKeyOperator);
     }
 }
 

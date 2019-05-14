@@ -1,4 +1,4 @@
-// Copyright (c) 2014-2017 The Dash Core developers
+// Copyright (c) 2014-2019 The Dash Core developers
 // Distributed under the MIT/X11 software license, see the accompanying
 // file COPYING or http://www.opensource.org/licenses/mit-license.php.
 
@@ -9,7 +9,7 @@
 #include "validation.h"
 #include "masternode-payments.h"
 #include "masternode-sync.h"
-#include "masternodeman.h"
+#include "masternode-utils.h"
 #include "messagesigner.h"
 #include "net.h"
 #include "netmessagemaker.h"
@@ -25,6 +25,8 @@
 #include "wallet/wallet.h"
 #endif // ENABLE_WALLET
 
+#include "llmq/quorums_instantsend.h"
+
 #include <boost/algorithm/string/replace.hpp>
 #include <boost/thread.hpp>
 
@@ -34,7 +36,6 @@ extern CWallet* pwalletMain;
 extern CTxMemPool mempool;
 
 bool fEnableInstantSend = true;
-int nCompleteTXLocks;
 
 std::atomic<bool> CInstantSend::isAutoLockBip9Active{false};
 const double CInstantSend::AUTO_IX_MEMPOOL_THRESHOLD = 0.1;
@@ -45,8 +46,8 @@ const std::string CInstantSend::SERIALIZATION_VERSION_STRING = "CInstantSend-Ver
 // Transaction Locks
 //
 // step 1) Some node announces intention to lock transaction inputs via "txlockrequest" message (ix)
-// step 2) Top COutPointLock::SIGNATURES_TOTAL masternodes per each spent outpoint push "txlockvote" message (txlvote)
-// step 3) Once there are COutPointLock::SIGNATURES_REQUIRED valid "txlockvote" messages (txlvote) per each spent outpoint
+// step 2) Top nInstantSendSigsTotal masternodes per each spent outpoint push "txlockvote" message (txlvote)
+// step 3) Once there are nInstantSendSigsRequired valid "txlockvote" messages (txlvote) per each spent outpoint
 //         for a corresponding "txlockrequest" message (ix), all outpoints from that tx are treated as locked
 
 //
@@ -56,7 +57,7 @@ const std::string CInstantSend::SERIALIZATION_VERSION_STRING = "CInstantSend-Ver
 void CInstantSend::ProcessMessage(CNode* pfrom, const std::string& strCommand, CDataStream& vRecv, CConnman& connman)
 {
     if (fLiteMode) return; // disable all Dash specific functionality
-    if (!sporkManager.IsSporkActive(SPORK_2_INSTANTSEND_ENABLED)) return;
+    if (!llmq::IsOldInstantSendEnabled()) return;
 
     // NOTE: NetMsgType::TXLOCKREQUEST is handled via ProcessMessage() in net_processing.cpp
 
@@ -79,8 +80,8 @@ void CInstantSend::ProcessMessage(CNode* pfrom, const std::string& strCommand, C
             connman.RemoveAskFor(nVoteHash);
         }
 
-        // Ignore any InstantSend messages until masternode list is synced
-        if (!masternodeSync.IsMasternodeListSynced()) return;
+        // Ignore any InstantSend messages until blockchain is synced
+        if (!masternodeSync.IsBlockchainSynced()) return;
 
         {
             LOCK(cs_instantsend);
@@ -224,7 +225,7 @@ void CInstantSend::Vote(const uint256& txHash, CConnman& connman)
 void CInstantSend::Vote(CTxLockCandidate& txLockCandidate, CConnman& connman)
 {
     if (!fMasternodeMode) return;
-    if (!sporkManager.IsSporkActive(SPORK_2_INSTANTSEND_ENABLED)) return;
+    if (!llmq::IsOldInstantSendEnabled()) return;
 
     AssertLockHeld(cs_main);
     AssertLockHeld(cs_instantsend);
@@ -245,17 +246,12 @@ void CInstantSend::Vote(CTxLockCandidate& txLockCandidate, CConnman& connman)
 
         int nRank;
         uint256 quorumModifierHash;
-        int nMinRequiredProtocol = std::max(MIN_INSTANTSEND_PROTO_VERSION, mnpayments.GetMinMasternodePaymentsProto());
-        if (!mnodeman.GetMasternodeRank(activeMasternodeInfo.outpoint, nRank, quorumModifierHash, nLockInputHeight, nMinRequiredProtocol)) {
+        if (!CMasternodeUtils::GetMasternodeRank(activeMasternodeInfo.outpoint, nRank, quorumModifierHash, nLockInputHeight)) {
             LogPrint("instantsend", "CInstantSend::Vote -- Can't calculate rank for masternode %s\n", activeMasternodeInfo.outpoint.ToStringShort());
             continue;
         }
-        if (!deterministicMNManager->IsDeterministicMNsSporkActive()) {
-            // not used until spork15 activation
-            quorumModifierHash = uint256();
-        }
 
-        int nSignaturesTotal = COutPointLock::SIGNATURES_TOTAL;
+        int nSignaturesTotal = Params().GetConsensus().nInstantSendSigsTotal;
         if (nRank > nSignaturesTotal) {
             LogPrint("instantsend", "CInstantSend::Vote -- Masternode not in the top %d (%d)\n", nSignaturesTotal, nRank);
             continue;
@@ -469,7 +465,8 @@ void CInstantSend::UpdateVotedOutpoints(const CTxLockVote& vote, CTxLockCandidat
                     txLockCandidate.MarkOutpointAsAttacked(vote.GetOutpoint());
                     it2->second.MarkOutpointAsAttacked(vote.GetOutpoint());
                     // apply maximum PoSe ban score to this masternode i.e. PoSe-ban it instantly
-                    mnodeman.PoSeBan(vote.GetMasternodeOutpoint());
+                    // TODO Call new PoSe system when it's ready
+                    //mnodeman.PoSeBan(vote.GetMasternodeOutpoint());
                     // NOTE: This vote must be relayed further to let all other nodes know about such
                     // misbehaviour of this masternode. This way they should also be able to construct
                     // conflicting lock and PoSe-ban this masternode.
@@ -500,7 +497,7 @@ void CInstantSend::ProcessOrphanTxLockVotes()
 
 void CInstantSend::TryToFinalizeLockCandidate(const CTxLockCandidate& txLockCandidate)
 {
-    if (!sporkManager.IsSporkActive(SPORK_2_INSTANTSEND_ENABLED)) return;
+    if (!llmq::IsOldInstantSendEnabled()) return;
 
     AssertLockHeld(cs_main);
     AssertLockHeld(cs_instantsend);
@@ -533,8 +530,6 @@ void CInstantSend::UpdateLockedTransaction(const CTxLockCandidate& txLockCandida
 
 #ifdef ENABLE_WALLET
     if (pwalletMain && pwalletMain->UpdatedTransaction(txHash)) {
-        // bumping this to update UI
-        nCompleteTXLocks++;
         // notify an external script once threshold is reached
         std::string strCmd = GetArg("-instantsendnotify", "");
         if (!strCmd.empty()) {
@@ -551,7 +546,7 @@ void CInstantSend::UpdateLockedTransaction(const CTxLockCandidate& txLockCandida
 
 void CInstantSend::LockTransactionInputs(const CTxLockCandidate& txLockCandidate)
 {
-    if (!sporkManager.IsSporkActive(SPORK_2_INSTANTSEND_ENABLED)) return;
+    if (!llmq::IsOldInstantSendEnabled()) return;
 
     LOCK(cs_instantsend);
 
@@ -666,7 +661,7 @@ int64_t CInstantSend::GetAverageMasternodeOrphanVoteTime()
 
 void CInstantSend::CheckAndRemove()
 {
-    if (!masternodeSync.IsMasternodeListSynced()) return;
+    if (!masternodeSync.IsBlockchainSynced()) return;
 
     LOCK(cs_instantsend);
 
@@ -744,6 +739,10 @@ void CInstantSend::CheckAndRemove()
 
 bool CInstantSend::AlreadyHave(const uint256& hash)
 {
+    if (!llmq::IsOldInstantSendEnabled()) {
+        return true;
+    }
+
     LOCK(cs_instantsend);
     return mapLockRequestAccepted.count(hash) ||
             mapLockRequestRejected.count(hash) ||
@@ -770,6 +769,10 @@ bool CInstantSend::HasTxLockRequest(const uint256& txHash)
 
 bool CInstantSend::GetTxLockRequest(const uint256& txHash, CTxLockRequest& txLockRequestRet)
 {
+    if (!llmq::IsOldInstantSendEnabled()) {
+        return false;
+    }
+
     LOCK(cs_instantsend);
 
     std::map<uint256, CTxLockCandidate>::iterator it = mapTxLockCandidates.find(txHash);
@@ -781,6 +784,10 @@ bool CInstantSend::GetTxLockRequest(const uint256& txHash, CTxLockRequest& txLoc
 
 bool CInstantSend::GetTxLockVote(const uint256& hash, CTxLockVote& txLockVoteRet)
 {
+    if (!llmq::IsOldInstantSendEnabled()) {
+        return false;
+    }
+
     LOCK(cs_instantsend);
 
     std::map<uint256, CTxLockVote>::iterator it = mapTxLockVotes.find(hash);
@@ -832,7 +839,7 @@ int CInstantSend::GetTransactionLockSignatures(const uint256& txHash)
 {
     if (!fEnableInstantSend) return -1;
     if (GetfLargeWorkForkFound() || GetfLargeWorkInvalidChainFound()) return -2;
-    if (!sporkManager.IsSporkActive(SPORK_2_INSTANTSEND_ENABLED)) return -3;
+    if (!llmq::IsOldInstantSendEnabled()) return -3;
 
     LOCK(cs_instantsend);
 
@@ -936,7 +943,7 @@ void CInstantSend::DoMaintenance()
 
 bool CInstantSend::CanAutoLock()
 {
-    if (!isAutoLockBip9Active) {
+    if (!isAutoLockBip9Active || !llmq::IsOldInstantSendEnabled()) {
         return false;
     }
     if (!sporkManager.IsSporkActive(SPORK_16_INSTANTSEND_AUTOLOCKS)) {
@@ -1015,7 +1022,7 @@ CAmount CTxLockRequest::GetMinFee(bool fForceMinFee) const
 
 int CTxLockRequest::GetMaxSignatures() const
 {
-    return tx->vin.size() * COutPointLock::SIGNATURES_TOTAL;
+    return tx->vin.size() * Params().GetConsensus().nInstantSendSigsTotal;
 }
 
 bool CTxLockRequest::IsSimple() const
@@ -1029,22 +1036,24 @@ bool CTxLockRequest::IsSimple() const
 
 bool CTxLockVote::IsValid(CNode* pnode, CConnman& connman) const
 {
-    if (!mnodeman.Has(outpointMasternode)) {
+    auto mnList = deterministicMNManager->GetListAtChainTip();
+
+    if (!mnList.HasValidMNByCollateral(outpointMasternode)) {
         LogPrint("instantsend", "CTxLockVote::IsValid -- Unknown masternode %s\n", outpointMasternode.ToStringShort());
-        mnodeman.AskForMN(pnode, outpointMasternode, connman);
         return false;
     }
 
     // Verify that masternodeProTxHash belongs to the same MN referred by the collateral
-    // Only v13 nodes will send us locks with this field set, and only after spork15 activation
+    // This is a leftover from the legacy non-deterministic MN list where we used the collateral to identify MNs
+    // TODO eventually remove the collateral from CTxLockVote
     if (!masternodeProTxHash.IsNull()) {
-        masternode_info_t mnInfo;
-        if (!mnodeman.GetMasternodeInfo(masternodeProTxHash, mnInfo) || mnInfo.outpoint != outpointMasternode) {
+        auto dmn = mnList.GetValidMN(masternodeProTxHash);
+        if (!dmn || dmn->collateralOutpoint != outpointMasternode) {
             LogPrint("instantsend", "CTxLockVote::IsValid -- invalid masternodeProTxHash %s\n", masternodeProTxHash.ToString());
             return false;
         }
-    } else if (deterministicMNManager->IsDeterministicMNsSporkActive()) {
-        LogPrint("instantsend", "CTxLockVote::IsValid -- missing masternodeProTxHash while DIP3 is active\n");
+    } else {
+        LogPrint("instantsend", "CTxLockVote::IsValid -- missing masternodeProTxHash\n");
         return false;
     }
 
@@ -1058,8 +1067,7 @@ bool CTxLockVote::IsValid(CNode* pnode, CConnman& connman) const
 
     int nRank;
     uint256 expectedQuorumModifierHash;
-    int nMinRequiredProtocol = std::max(MIN_INSTANTSEND_PROTO_VERSION, mnpayments.GetMinMasternodePaymentsProto());
-    if (!mnodeman.GetMasternodeRank(outpointMasternode, nRank, expectedQuorumModifierHash, nLockInputHeight, nMinRequiredProtocol)) {
+    if (!CMasternodeUtils::GetMasternodeRank(outpointMasternode, nRank, expectedQuorumModifierHash, nLockInputHeight)) {
         //can be caused by past versions trying to vote with an invalid protocol
         LogPrint("instantsend", "CTxLockVote::IsValid -- Can't calculate rank for masternode %s\n", outpointMasternode.ToStringShort());
         return false;
@@ -1069,14 +1077,14 @@ bool CTxLockVote::IsValid(CNode* pnode, CConnman& connman) const
             LogPrint("instantsend", "CTxLockVote::IsValid -- invalid quorumModifierHash %s, expected %s\n", quorumModifierHash.ToString(), expectedQuorumModifierHash.ToString());
             return false;
         }
-    } else if (deterministicMNManager->IsDeterministicMNsSporkActive()) {
-        LogPrint("instantsend", "CTxLockVote::IsValid -- missing quorumModifierHash while DIP3 is active\n");
+    } else {
+        LogPrint("instantsend", "CTxLockVote::IsValid -- missing quorumModifierHash\n");
         return false;
     }
 
     LogPrint("instantsend", "CTxLockVote::IsValid -- Masternode %s, rank=%d\n", outpointMasternode.ToStringShort(), nRank);
 
-    int nSignaturesTotal = COutPointLock::SIGNATURES_TOTAL;
+    int nSignaturesTotal = Params().GetConsensus().nInstantSendSigsTotal;
     if (nRank > nSignaturesTotal) {
         LogPrint("instantsend", "CTxLockVote::IsValid -- Masternode %s is not in the top %d (%d), vote hash=%s\n",
                 outpointMasternode.ToStringShort(), nSignaturesTotal, nRank, GetHash().ToString());
@@ -1105,83 +1113,33 @@ bool CTxLockVote::CheckSignature() const
 {
     std::string strError;
 
-    masternode_info_t infoMn;
-
-    if (!mnodeman.GetMasternodeInfo(outpointMasternode, infoMn)) {
-        LogPrintf("CTxLockVote::CheckSignature -- Unknown Masternode: masternode=%s\n", outpointMasternode.ToString());
+    auto dmn = deterministicMNManager->GetListAtChainTip().GetValidMN(masternodeProTxHash);
+    if (!dmn) {
+        LogPrintf("CTxLockVote::CheckSignature -- Unknown Masternode: masternode=%s\n", masternodeProTxHash.ToString());
         return false;
     }
 
-    if (deterministicMNManager->IsDeterministicMNsSporkActive()) {
-        uint256 hash = GetSignatureHash();
+    uint256 hash = GetSignatureHash();
 
-        CBLSSignature sig;
-        sig.SetBuf(vchMasternodeSignature);
-        if (!sig.IsValid() || !sig.VerifyInsecure(infoMn.blsPubKeyOperator, hash)) {
-            LogPrintf("CTxLockVote::CheckSignature -- VerifyInsecure() failed\n");
-            return false;
-        }
-    } else if (sporkManager.IsSporkActive(SPORK_6_NEW_SIGS)) {
-        uint256 hash = GetSignatureHash();
-
-        if (!CHashSigner::VerifyHash(hash, infoMn.legacyKeyIDOperator, vchMasternodeSignature, strError)) {
-            // could be a signature in old format
-            std::string strMessage = txHash.ToString() + outpoint.ToStringShort();
-            if (!CMessageSigner::VerifyMessage(infoMn.legacyKeyIDOperator, vchMasternodeSignature, strMessage, strError)) {
-                // nope, not in old format either
-                LogPrintf("CTxLockVote::CheckSignature -- VerifyMessage() failed, error: %s\n", strError);
-                return false;
-            }
-        }
-    } else {
-        std::string strMessage = txHash.ToString() + outpoint.ToStringShort();
-        if (!CMessageSigner::VerifyMessage(infoMn.legacyKeyIDOperator, vchMasternodeSignature, strMessage, strError)) {
-            LogPrintf("CTxLockVote::CheckSignature -- VerifyMessage() failed, error: %s\n", strError);
-            return false;
-        }
+    CBLSSignature sig;
+    sig.SetBuf(vchMasternodeSignature);
+    if (!sig.IsValid() || !sig.VerifyInsecure(dmn->pdmnState->pubKeyOperator, hash)) {
+        LogPrintf("CTxLockVote::CheckSignature -- VerifyInsecure() failed\n");
+        return false;
     }
-
     return true;
 }
 
 bool CTxLockVote::Sign()
 {
-    std::string strError;
 
-    if (deterministicMNManager->IsDeterministicMNsSporkActive()) {
-        uint256 hash = GetSignatureHash();
+    uint256 hash = GetSignatureHash();
 
-        CBLSSignature sig = activeMasternodeInfo.blsKeyOperator->Sign(hash);
-        if (!sig.IsValid()) {
-            return false;
-        }
-        sig.GetBuf(vchMasternodeSignature);
-    } else if (sporkManager.IsSporkActive(SPORK_6_NEW_SIGS)) {
-        uint256 hash = GetSignatureHash();
-
-        if (!CHashSigner::SignHash(hash, activeMasternodeInfo.legacyKeyOperator, vchMasternodeSignature)) {
-            LogPrintf("CTxLockVote::Sign -- SignHash() failed\n");
-            return false;
-        }
-
-        if (!CHashSigner::VerifyHash(hash, activeMasternodeInfo.legacyKeyIDOperator, vchMasternodeSignature, strError)) {
-            LogPrintf("CTxLockVote::Sign -- VerifyHash() failed, error: %s\n", strError);
-            return false;
-        }
-    } else {
-        std::string strMessage = txHash.ToString() + outpoint.ToStringShort();
-
-        if (!CMessageSigner::SignMessage(strMessage, vchMasternodeSignature, activeMasternodeInfo.legacyKeyOperator)) {
-            LogPrintf("CTxLockVote::Sign -- SignMessage() failed\n");
-            return false;
-        }
-
-        if (!CMessageSigner::VerifyMessage(activeMasternodeInfo.legacyKeyIDOperator, vchMasternodeSignature, strMessage, strError)) {
-            LogPrintf("CTxLockVote::Sign -- VerifyMessage() failed, error: %s\n", strError);
-            return false;
-        }
+    CBLSSignature sig = activeMasternodeInfo.blsKeyOperator->Sign(hash);
+    if (!sig.IsValid()) {
+        return false;
     }
-
+    sig.GetBuf(vchMasternodeSignature);
     return true;
 }
 
@@ -1233,6 +1191,11 @@ std::vector<CTxLockVote> COutPointLock::GetVotes() const
 bool COutPointLock::HasMasternodeVoted(const COutPoint& outpointMasternodeIn) const
 {
     return mapMasternodeVotes.count(outpointMasternodeIn);
+}
+
+bool COutPointLock::IsReady() const
+{
+    return !fAttacked && CountVotes() >= Params().GetConsensus().nInstantSendSigsRequired;
 }
 
 void COutPointLock::Relay(CConnman& connman) const

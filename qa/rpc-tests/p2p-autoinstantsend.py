@@ -15,8 +15,7 @@ Test automatic InstantSend locks functionality.
 
 Checks that simple transactions automatically become InstantSend locked, 
 complex transactions don't become IS-locked and this functionality is
-activated only if it is BIP9-activated and SPORK_16_INSTANTSEND_AUTOLOCKS is 
-active.
+activated only if SPORK_16_INSTANTSEND_AUTOLOCKS is active.
 
 Also checks that this functionality doesn't influence regular InstantSend
 transactions with high fee. 
@@ -24,132 +23,77 @@ transactions with high fee.
 
 class AutoInstantSendTest(DashTestFramework):
     def __init__(self):
-        super().__init__(14, 10, [])
+        super().__init__(8, 5, [], fast_dip3_enforcement=True)
         # set sender,  receiver,  isolated nodes
-        self.isolated_idx = self.num_nodes - 1
-        self.receiver_idx = self.num_nodes - 2
-        self.sender_idx = self.num_nodes - 3
-
-    def get_autoix_bip9_status(self):
-        info = self.nodes[0].getblockchaininfo()
-        # we reuse the dip3 deployment
-        return info['bip9_softforks']['dip0003']['status']
-
-    def activate_autoix_bip9(self):
-        # sync nodes periodically
-        # if we sync them too often, activation takes too many time
-        # if we sync them too rarely, nodes failed to update its state and
-        # bip9 status is not updated
-        # so, in this code nodes are synced once per 20 blocks
-        counter = 0
-        sync_period = 10
-
-        while self.get_autoix_bip9_status() == 'defined':
-            set_mocktime(get_mocktime() + 1)
-            set_node_times(self.nodes, get_mocktime())
-            self.nodes[0].generate(1)
-            counter += 1
-            if counter % sync_period == 0:
-                # sync nodes
-                self.sync_all()
-
-        while self.get_autoix_bip9_status() == 'started':
-            set_mocktime(get_mocktime() + 1)
-            set_node_times(self.nodes, get_mocktime())
-            self.nodes[0].generate(1)
-            counter += 1
-            if counter % sync_period == 0:
-                # sync nodes
-                self.sync_all()
-
-        while self.get_autoix_bip9_status() == 'locked_in':
-            set_mocktime(get_mocktime() + 1)
-            set_node_times(self.nodes, get_mocktime())
-            self.nodes[0].generate(1)
-            counter += 1
-            if counter % sync_period == 0:
-                # sync nodes
-                self.sync_all()
-
-        # sync nodes
-        self.sync_all()
-
-        assert(self.get_autoix_bip9_status() == 'active')
-
-    def get_autoix_spork_state(self):
-        info = self.nodes[0].spork('active')
-        return info['SPORK_16_INSTANTSEND_AUTOLOCKS']
-
-    def set_autoix_spork_state(self, state):
-        set_mocktime(get_mocktime() + 1)
-        set_node_times(self.nodes, get_mocktime())
-        if state:
-            value = 0
-        else:
-            value = 4070908800
-        self.nodes[0].spork('SPORK_16_INSTANTSEND_AUTOLOCKS', value)
-
-    # sends regular IX with high fee and may inputs (not-simple transaction)
-    def send_regular_IX(self):
-        receiver_addr = self.nodes[self.receiver_idx].getnewaddress()
-        txid = self.nodes[0].instantsendtoaddress(receiver_addr, 1.0)
-        MIN_FEE = satoshi_round(-0.0001)
-        fee = self.nodes[0].gettransaction(txid)['fee']
-        expected_fee = MIN_FEE * len(self.nodes[0].getrawtransaction(txid, True)['vin'])
-        assert_equal(fee, expected_fee)
-        return self.wait_for_instantlock(txid, self.nodes[0])
-
-    # sends simple trx, it should become IX if autolocks are allowed
-    def send_simple_tx(self):
-        raw_tx = self.create_raw_trx(self.nodes[0], self.nodes[self.receiver_idx], 1.0, 1, 4)
-        txid = self.nodes[0].sendrawtransaction(raw_tx['hex'])
-        self.sync_all()
-        return self.wait_for_instantlock(txid, self.nodes[0])
-
-    # sends complex trx, it should never become IX
-    def send_complex_tx(self):
-        raw_tx = self.create_raw_trx(self.nodes[0], self.nodes[self.receiver_idx], 1.0, 5, 100)
-        txid = self.nodes[0].sendrawtransaction(raw_tx['hex'])
-        self.sync_all()
-        return self.wait_for_instantlock(txid, self.nodes[0])
+        self.receiver_idx = 1
+        self.sender_idx = 2
 
     def run_test(self):
         # make sure masternodes are synced
         sync_masternodes(self.nodes)
-        # feed the sender with some balance
-        sender_addr = self.nodes[self.sender_idx].getnewaddress()
-        self.nodes[0].sendtoaddress(sender_addr, 1)
+
+        self.nodes[0].spork("SPORK_17_QUORUM_DKG_ENABLED", 0)
+        self.wait_for_sporks_same()
+        self.mine_quorum()
+
+        self.log.info("Test old InstantSend")
+        self.test_auto();
+
+        # Generate 6 block to avoid retroactive signing overloading Travis
+        self.nodes[0].generate(6)
+        sync_blocks(self.nodes)
+
+        self.nodes[0].spork("SPORK_20_INSTANTSEND_LLMQ_BASED", 0)
+        self.wait_for_sporks_same()
+
+        self.log.info("Test new InstantSend")
+        self.test_auto(True);
+
+    def test_auto(self, new_is = False):
+        sender = self.nodes[self.sender_idx]
+        receiver = self.nodes[self.receiver_idx]
+        # feed the sender with some balance, make sure there are enough inputs
+        recipients = {}
+        for i in range(0, 30):
+            recipients[sender.getnewaddress()] = 1
+        # use a single transaction to not overload Travis with InstantSend
+        self.nodes[0].sendmany("", recipients)
+
         # make sender funds mature for InstantSend
         for i in range(0, 2):
             set_mocktime(get_mocktime() + 1)
             set_node_times(self.nodes, get_mocktime())
             self.nodes[0].generate(1)
-            
-        self.enforce_masternode_payments()  # required for bip9 activation
-        assert(self.get_autoix_bip9_status() == 'defined')
-        assert(not self.get_autoix_spork_state())
+        self.sync_all()
 
-        assert(self.send_regular_IX())
-        assert(not self.send_simple_tx())
-        assert(not self.send_complex_tx())
+        assert(not self.get_autois_spork_state(self.nodes[0]))
 
-        self.activate_autoix_bip9()
-        self.set_autoix_spork_state(True)
+        assert(self.send_regular_instantsend(sender, receiver, not new_is))
+        assert(self.send_simple_tx(sender, receiver) if new_is else not self.send_simple_tx(sender, receiver))
+        assert(self.send_complex_tx(sender, receiver) if new_is else not self.send_complex_tx(sender, receiver))
 
-        assert(self.get_autoix_bip9_status() == 'active')
-        assert(self.get_autoix_spork_state())
+        self.activate_autois_bip9(self.nodes[0])
+        self.set_autois_spork_state(self.nodes[0], True)
 
-        assert(self.send_regular_IX())
-        assert(self.send_simple_tx())
-        assert(not self.send_complex_tx())
+        assert(self.get_autois_bip9_status(self.nodes[0]) == 'active')
+        assert(self.get_autois_spork_state(self.nodes[0]))
 
-        self.set_autoix_spork_state(False)
-        assert(not self.get_autoix_spork_state())
+        assert(self.send_regular_instantsend(sender, receiver, not new_is))
+        assert(self.send_simple_tx(sender, receiver))
+        assert(self.send_complex_tx(sender, receiver) if new_is else not self.send_complex_tx(sender, receiver))
 
-        assert(self.send_regular_IX())
-        assert(not self.send_simple_tx())
-        assert(not self.send_complex_tx())
+        self.set_autois_spork_state(self.nodes[0], False)
+        assert(not self.get_autois_spork_state(self.nodes[0]))
 
+        assert(self.send_regular_instantsend(sender, receiver, not new_is))
+        assert(self.send_simple_tx(sender, receiver) if new_is else not self.send_simple_tx(sender, receiver))
+        assert(self.send_complex_tx(sender, receiver) if new_is else not self.send_complex_tx(sender, receiver))
+
+        # mine all mempool txes
+        set_mocktime(get_mocktime() + 1)
+        set_node_times(self.nodes, get_mocktime())
+        self.nodes[0].generate(1)
+        self.sync_all()
 
 if __name__ == '__main__':
     AutoInstantSendTest().main()

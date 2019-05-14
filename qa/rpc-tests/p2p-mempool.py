@@ -2,6 +2,11 @@
 # Copyright (c) 2015-2016 The Bitcoin Core developers
 # Distributed under the MIT software license, see the accompanying
 # file COPYING or http://www.opensource.org/licenses/mit-license.php.
+"""Test p2p mempool message.
+
+Test that nodes are disconnected if they send mempool messages when bloom
+filters are not enabled.
+"""
 
 from test_framework.mininode import *
 from test_framework.test_framework import BitcoinTestFramework
@@ -80,7 +85,7 @@ class P2PMempoolTests(BitcoinTestFramework):
     def setup_network(self):
         # Start a node with maxuploadtarget of 200 MB (/24h)
         self.nodes = []
-        self.nodes.append(start_node(0, self.options.tmpdir, ["-debug", "-peerbloomfilters=0"]))
+        self.nodes.append(start_node(0, self.options.tmpdir, ["-peerbloomfilters=0"]))
 
     def run_test(self):
         #connect a mininode

@@ -289,10 +289,24 @@ public:
     {
         return GetMN(proTxHash) != nullptr;
     }
+    bool HasValidMN(const uint256& proTxHash) const
+    {
+        return GetValidMN(proTxHash) != nullptr;
+    }
+    bool HasMNByCollateral(const COutPoint& collateralOutpoint) const
+    {
+        return GetMNByCollateral(collateralOutpoint) != nullptr;
+    }
+    bool HasValidMNByCollateral(const COutPoint& collateralOutpoint) const
+    {
+        return GetValidMNByCollateral(collateralOutpoint) != nullptr;
+    }
     CDeterministicMNCPtr GetMN(const uint256& proTxHash) const;
     CDeterministicMNCPtr GetValidMN(const uint256& proTxHash) const;
     CDeterministicMNCPtr GetMNByOperatorKey(const CBLSPublicKey& pubKey);
     CDeterministicMNCPtr GetMNByCollateral(const COutPoint& collateralOutpoint) const;
+    CDeterministicMNCPtr GetValidMNByCollateral(const COutPoint& collateralOutpoint) const;
+    CDeterministicMNCPtr GetValidMNByService(const CService& service) const;
     CDeterministicMNCPtr GetMNPayee() const;
 
     /**
@@ -466,7 +480,7 @@ private:
 public:
     CDeterministicMNManager(CEvoDB& _evoDb);
 
-    bool ProcessBlock(const CBlock& block, const CBlockIndex* pindex, CValidationState& state);
+    bool ProcessBlock(const CBlock& block, const CBlockIndex* pindex, CValidationState& state, bool fJustCheck);
     bool UndoBlock(const CBlock& block, const CBlockIndex* pindex);
 
     void UpdatedBlockTip(const CBlockIndex* pindex);
@@ -479,17 +493,12 @@ public:
     CDeterministicMNList GetListForBlock(const uint256& blockHash);
     CDeterministicMNList GetListAtChainTip();
 
-    // TODO remove after removal of old non-deterministic lists
-    bool HasValidMNCollateralAtChainTip(const COutPoint& outpoint);
-    bool HasMNCollateralAtChainTip(const COutPoint& outpoint);
-
     // Test if given TX is a ProRegTx which also contains the collateral at index n
     bool IsProTxWithCollateral(const CTransactionRef& tx, uint32_t n);
 
-    bool IsDeterministicMNsSporkActive(int nHeight = -1);
+    bool IsDIP3Enforced(int nHeight = -1);
 
 private:
-    int64_t GetSpork15Value();
     void CleanupCache(int nHeight);
 };
 

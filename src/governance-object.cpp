@@ -1,4 +1,4 @@
-// Copyright (c) 2014-2018 The Dash Core developers
+// Copyright (c) 2014-2019 The Dash Core developers
 // Distributed under the MIT/X11 software license, see the accompanying
 // file COPYING or http://www.opensource.org/licenses/mit-license.php.
 
@@ -9,10 +9,14 @@
 #include "governance-vote.h"
 #include "governance.h"
 #include "instantx.h"
+#include "masternode-meta.h"
 #include "masternode-sync.h"
-#include "masternodeman.h"
 #include "messagesigner.h"
+#include "spork.h"
 #include "util.h"
+#include "validation.h"
+
+#include "llmq/quorums_instantsend.h"
 
 #include <string>
 #include <univalue.h>
@@ -116,14 +120,14 @@ bool CGovernanceObject::ProcessVote(CNode* pfrom,
         return false;
     }
 
-    if (!mnodeman.Has(vote.GetMasternodeOutpoint())) {
+    auto mnList = deterministicMNManager->GetListAtChainTip();
+    auto dmn = mnList.GetValidMNByCollateral(vote.GetMasternodeOutpoint());
+
+    if (!dmn) {
         std::ostringstream ostr;
         ostr << "CGovernanceObject::ProcessVote -- Masternode " << vote.GetMasternodeOutpoint().ToStringShort() << " not found";
         exception = CGovernanceException(ostr.str(), GOVERNANCE_EXCEPTION_WARNING);
         if (cmmapOrphanVotes.Insert(vote.GetMasternodeOutpoint(), vote_time_pair_t(vote, GetAdjustedTime() + GOVERNANCE_ORPHAN_EXPIRATION_TIME))) {
-            if (pfrom) {
-                mnodeman.AskForMN(pfrom, vote.GetMasternodeOutpoint(), connman);
-            }
             LogPrintf("%s\n", ostr.str());
         } else {
             LogPrint("gobject", "%s\n", ostr.str());
@@ -207,7 +211,7 @@ bool CGovernanceObject::ProcessVote(CNode* pfrom,
         return false;
     }
 
-    if (!mnodeman.AddGovernanceVote(vote.GetMasternodeOutpoint(), vote.GetParentHash())) {
+    if (!mmetaman.AddGovernanceVote(dmn->proTxHash, vote.GetParentHash())) {
         std::ostringstream ostr;
         ostr << "CGovernanceObject::ProcessVote -- Unable to add governance vote"
              << ", MN outpoint = " << vote.GetMasternodeOutpoint().ToStringShort()
@@ -227,9 +231,11 @@ void CGovernanceObject::ClearMasternodeVotes()
 {
     LOCK(cs);
 
+    auto mnList = deterministicMNManager->GetListAtChainTip();
+
     vote_m_it it = mapCurrentMNVotes.begin();
     while (it != mapCurrentMNVotes.end()) {
-        if (!mnodeman.Has(it->first)) {
+        if (!mnList.HasValidMNByCollateral(it->first)) {
             fileVotes.RemoveVotesFromMasternode(it->first);
             mapCurrentMNVotes.erase(it++);
         } else {
@@ -238,13 +244,9 @@ void CGovernanceObject::ClearMasternodeVotes()
     }
 }
 
-std::set<uint256> CGovernanceObject::RemoveInvalidProposalVotes(const COutPoint& mnOutpoint)
+std::set<uint256> CGovernanceObject::RemoveInvalidVotes(const COutPoint& mnOutpoint)
 {
     LOCK(cs);
-
-    if (nObjectType != GOVERNANCE_OBJECT_PROPOSAL) {
-        return {};
-    }
 
     auto it = mapCurrentMNVotes.find(mnOutpoint);
     if (it == mapCurrentMNVotes.end()) {
@@ -252,7 +254,7 @@ std::set<uint256> CGovernanceObject::RemoveInvalidProposalVotes(const COutPoint&
         return {};
     }
 
-    auto removedVotes = fileVotes.RemoveInvalidProposalVotes(mnOutpoint);
+    auto removedVotes = fileVotes.RemoveInvalidVotes(mnOutpoint, nObjectType == GOVERNANCE_OBJECT_PROPOSAL);
     if (removedVotes.empty()) {
         return {};
     }
@@ -276,7 +278,7 @@ std::set<uint256> CGovernanceObject::RemoveInvalidProposalVotes(const COutPoint&
         for (auto& h : removedVotes) {
             removedStr += strprintf("  %s\n", h.ToString());
         }
-        LogPrintf("CGovernanceObject::%s -- Removed %d invalid votes for %s from MN %s:\n%s\n", __func__, removedVotes.size(), nParentHash.ToString(), mnOutpoint.ToString(), removedStr);
+        LogPrintf("CGovernanceObject::%s -- Removed %d invalid votes for %s from MN %s:\n%s", __func__, removedVotes.size(), nParentHash.ToString(), mnOutpoint.ToString(), removedStr);
         fDirtyCache = true;
     }
 
@@ -311,8 +313,6 @@ uint256 CGovernanceObject::GetHash() const
     ss << vchSig;
     // fee_tx is left out on purpose
 
-    DBG(printf("CGovernanceObject::GetHash %i %li %s\n", nRevision, nTime, GetDataAsHexString().c_str()););
-
     return ss.GetHash();
 }
 
@@ -324,70 +324,6 @@ uint256 CGovernanceObject::GetSignatureHash() const
 void CGovernanceObject::SetMasternodeOutpoint(const COutPoint& outpoint)
 {
     masternodeOutpoint = outpoint;
-}
-
-bool CGovernanceObject::Sign(const CKey& key, const CKeyID& keyID)
-{
-    std::string strError;
-
-    if (sporkManager.IsSporkActive(SPORK_6_NEW_SIGS)) {
-        uint256 hash = GetSignatureHash();
-
-        if (!CHashSigner::SignHash(hash, key, vchSig)) {
-            LogPrintf("CGovernanceObject::Sign -- SignHash() failed\n");
-            return false;
-        }
-
-        if (!CHashSigner::VerifyHash(hash, keyID, vchSig, strError)) {
-            LogPrintf("CGovernanceObject::Sign -- VerifyHash() failed, error: %s\n", strError);
-            return false;
-        }
-    } else {
-        std::string strMessage = GetSignatureMessage();
-        if (!CMessageSigner::SignMessage(strMessage, vchSig, key)) {
-            LogPrintf("CGovernanceObject::Sign -- SignMessage() failed\n");
-            return false;
-        }
-
-        if (!CMessageSigner::VerifyMessage(keyID, vchSig, strMessage, strError)) {
-            LogPrintf("CGovernanceObject::Sign -- VerifyMessage() failed, error: %s\n", strError);
-            return false;
-        }
-    }
-
-    LogPrint("gobject", "CGovernanceObject::Sign -- pubkey id = %s, masternode = %s\n",
-        keyID.ToString(), masternodeOutpoint.ToStringShort());
-
-    return true;
-}
-
-bool CGovernanceObject::CheckSignature(const CKeyID& keyID) const
-{
-    std::string strError;
-
-    if (sporkManager.IsSporkActive(SPORK_6_NEW_SIGS)) {
-        uint256 hash = GetSignatureHash();
-
-        if (!CHashSigner::VerifyHash(hash, keyID, vchSig, strError)) {
-            // could be an old object
-            std::string strMessage = GetSignatureMessage();
-
-            if (!CMessageSigner::VerifyMessage(keyID, vchSig, strMessage, strError)) {
-                // nope, not in old format either
-                LogPrintf("CGovernance::CheckSignature -- VerifyMessage() failed, error: %s\n", strError);
-                return false;
-            }
-        }
-    } else {
-        std::string strMessage = GetSignatureMessage();
-
-        if (!CMessageSigner::VerifyMessage(keyID, vchSig, strMessage, strError)) {
-            LogPrintf("CGovernance::CheckSignature -- VerifyMessage() failed, error: %s\n", strError);
-            return false;
-        }
-    }
-
-    return true;
 }
 
 bool CGovernanceObject::Sign(const CBLSSecretKey& key)
@@ -447,9 +383,6 @@ UniValue CGovernanceObject::GetJSONObject()
 
 void CGovernanceObject::LoadData()
 {
-    // todo : 12.1 - resolved
-    //return;
-
     if (vchData.empty()) {
         return;
     }
@@ -458,11 +391,7 @@ void CGovernanceObject::LoadData()
         // ATTEMPT TO LOAD JSON STRING FROM VCHDATA
         UniValue objResult(UniValue::VOBJ);
         GetData(objResult);
-
-        DBG(std::cout << "CGovernanceObject::LoadData GetDataAsPlainString = "
-                      << GetDataAsPlainString()
-                      << std::endl;);
-
+        LogPrint("gobject", "CGovernanceObject::LoadData -- GetDataAsPlainString = %s\n", GetDataAsPlainString());
         UniValue obj = GetJSONObject();
         nObjectType = obj["type"].get_int();
     } catch (std::exception& e) {
@@ -470,14 +399,12 @@ void CGovernanceObject::LoadData()
         std::ostringstream ostr;
         ostr << "CGovernanceObject::LoadData Error parsing JSON"
              << ", e.what() = " << e.what();
-        DBG(std::cout << ostr.str() << std::endl;);
         LogPrintf("%s\n", ostr.str());
         return;
     } catch (...) {
         fUnparsable = true;
         std::ostringstream ostr;
         ostr << "CGovernanceObject::LoadData Unknown Error parsing JSON";
-        DBG(std::cout << ostr.str() << std::endl;);
         LogPrintf("%s\n", ostr.str());
         return;
     }
@@ -542,12 +469,8 @@ bool CGovernanceObject::IsValidLocally(std::string& strError, bool& fMissingMast
     }
 
     switch (nObjectType) {
-    case GOVERNANCE_OBJECT_WATCHDOG: {
-        // watchdogs are deprecated
-        return false;
-    }
     case GOVERNANCE_OBJECT_PROPOSAL: {
-        CProposalValidator validator(GetDataAsHexString());
+        CProposalValidator validator(GetDataAsHexString(), true);
         // Note: It's ok to have expired proposals
         // they are going to be cleared by CGovernanceManager::UpdateCachesAndClean()
         // TODO: should they be tagged as "expired" to skip vote downloading?
@@ -567,36 +490,27 @@ bool CGovernanceObject::IsValidLocally(std::string& strError, bool& fMissingMast
             return true;
         }
 
-        std::string strOutpoint = masternodeOutpoint.ToStringShort();
-        masternode_info_t infoMn;
-        if (!mnodeman.GetMasternodeInfo(masternodeOutpoint, infoMn)) {
-            CMasternode::CollateralStatus err = CMasternode::CheckCollateral(masternodeOutpoint, CKeyID());
-            if (err == CMasternode::COLLATERAL_UTXO_NOT_FOUND) {
-                strError = "Failed to find Masternode UTXO, missing masternode=" + strOutpoint + "\n";
-            } else if (err == CMasternode::COLLATERAL_INVALID_AMOUNT) {
-                strError = "Masternode UTXO should have 1000 DASH, missing masternode=" + strOutpoint + "\n";
-            } else if (err == CMasternode::COLLATERAL_INVALID_PUBKEY) {
-                fMissingMasternode = true;
-                strError = "Masternode not found: " + strOutpoint;
-            } else if (err == CMasternode::COLLATERAL_OK) {
-                // this should never happen with CPubKey() as a param
-                strError = "CheckCollateral critical failure! Masternode: " + strOutpoint;
-            }
+        auto mnList = deterministicMNManager->GetListAtChainTip();
 
+        std::string strOutpoint = masternodeOutpoint.ToStringShort();
+        auto dmn = mnList.GetMNByCollateral(masternodeOutpoint);
+        if (!dmn) {
+            strError = "Failed to find Masternode by UTXO, missing masternode=" + strOutpoint;
+            return false;
+        }
+        if (!mnList.IsMNValid(dmn)) {
+            if (mnList.IsMNPoSeBanned(dmn)) {
+                strError = "Masternode is POSE_BANNED, masternode=" + strOutpoint;
+            } else {
+                strError = "Masternode is invalid for unknown reason, masternode=" + strOutpoint;
+            }
             return false;
         }
 
         // Check that we have a valid MN signature
-        if (deterministicMNManager->IsDeterministicMNsSporkActive()) {
-            if (!CheckSignature(infoMn.blsPubKeyOperator)) {
-                strError = "Invalid masternode signature for: " + strOutpoint + ", pubkey id = " + infoMn.blsPubKeyOperator.ToString();
-                return false;
-            }
-        } else {
-            if (!CheckSignature(infoMn.legacyKeyIDOperator)) {
-                strError = "Invalid masternode signature for: " + strOutpoint + ", pubkey id = " + infoMn.legacyKeyIDOperator.ToString();
-                return false;
-            }
+        if (!CheckSignature(dmn->pdmnState->pubKeyOperator)) {
+            strError = "Invalid masternode signature for: " + strOutpoint + ", pubkey = " + dmn->pdmnState->pubKeyOperator.ToString();
+            return false;
         }
 
         return true;
@@ -615,8 +529,6 @@ CAmount CGovernanceObject::GetMinCollateralFee() const
     case GOVERNANCE_OBJECT_PROPOSAL:
         return GOVERNANCE_PROPOSAL_FEE_TX;
     case GOVERNANCE_OBJECT_TRIGGER:
-        return 0;
-    case GOVERNANCE_OBJECT_WATCHDOG:
         return 0;
     default:
         return MAX_MONEY;
@@ -658,29 +570,20 @@ bool CGovernanceObject::IsCollateralValid(std::string& strError, bool& fMissingC
     CScript findScript;
     findScript << OP_RETURN << ToByteVector(nExpectedHash);
 
-    DBG(std::cout << "IsCollateralValid: txCollateral->vout.size() = " << txCollateral->vout.size() << std::endl;);
-
-    DBG(std::cout << "IsCollateralValid: findScript = " << ScriptToAsmStr(findScript, false) << std::endl;);
-
-    DBG(std::cout << "IsCollateralValid: nMinFee = " << nMinFee << std::endl;);
-
+    LogPrint("gobject", "CGovernanceObject::IsCollateralValid -- txCollateral->vout.size() = %s, findScript = %s, nMinFee = %lld\n",
+                txCollateral->vout.size(), ScriptToAsmStr(findScript, false), nMinFee);
 
     bool foundOpReturn = false;
     for (const auto& output : txCollateral->vout) {
-        DBG(std::cout << "IsCollateralValid txout : " << output.ToString()
-                      << ", output.nValue = " << output.nValue
-                      << ", output.scriptPubKey = " << ScriptToAsmStr(output.scriptPubKey, false)
-                      << std::endl;);
+        LogPrint("gobject", "CGovernanceObject::IsCollateralValid -- txout = %s, output.nValue = %lld, output.scriptPubKey = %s\n",
+                    output.ToString(), output.nValue, ScriptToAsmStr(output.scriptPubKey, false));
         if (!output.scriptPubKey.IsPayToPublicKeyHash() && !output.scriptPubKey.IsUnspendable()) {
             strError = strprintf("Invalid Script %s", txCollateral->ToString());
             LogPrintf("CGovernanceObject::IsCollateralValid -- %s\n", strError);
             return false;
         }
         if (output.scriptPubKey == findScript && output.nValue >= nMinFee) {
-            DBG(std::cout << "IsCollateralValid foundOpReturn = true" << std::endl;);
             foundOpReturn = true;
-        } else {
-            DBG(std::cout << "IsCollateralValid No match, continuing" << std::endl;);
         }
     }
 
@@ -705,7 +608,7 @@ bool CGovernanceObject::IsCollateralValid(std::string& strError, bool& fMissingC
     }
 
     if ((nConfirmationsIn < GOVERNANCE_FEE_CONFIRMATIONS) &&
-        (!instantsend.IsLockedInstantSendTransaction(nCollateralHash))) {
+        (!instantsend.IsLockedInstantSendTransaction(nCollateralHash) || llmq::quorumInstantSendManager->IsLocked(nCollateralHash))) {
         strError = strprintf("Collateral requires at least %d confirmations to be relayed throughout the network (it has only %d)", GOVERNANCE_FEE_CONFIRMATIONS, nConfirmationsIn);
         if (nConfirmationsIn >= GOVERNANCE_MIN_RELAY_FEE_CONFIRMATIONS) {
             fMissingConfirmations = true;
@@ -794,7 +697,7 @@ void CGovernanceObject::UpdateSentinelVariables()
 {
     // CALCULATE MINIMUM SUPPORT LEVELS REQUIRED
 
-    int nMnCount = mnodeman.CountEnabled();
+    int nMnCount = (int)deterministicMNManager->GetListAtChainTip().GetValidMNsCount();
     if (nMnCount == 0) return;
 
     // CALCULATE THE MINUMUM VOTE COUNT REQUIRED FOR FULL SIGNAL
@@ -827,6 +730,7 @@ void CGovernanceObject::UpdateSentinelVariables()
 void CGovernanceObject::CheckOrphanVotes(CConnman& connman)
 {
     int64_t nNow = GetAdjustedTime();
+    auto mnList = deterministicMNManager->GetListAtChainTip();
     const vote_cmm_t::list_t& listVotes = cmmapOrphanVotes.GetItemList();
     vote_cmm_t::list_cit it = listVotes.begin();
     while (it != listVotes.end()) {
@@ -836,7 +740,7 @@ void CGovernanceObject::CheckOrphanVotes(CConnman& connman)
         const CGovernanceVote& vote = pairVote.first;
         if (pairVote.second < nNow) {
             fRemove = true;
-        } else if (!mnodeman.Has(vote.GetMasternodeOutpoint())) {
+        } else if (!mnList.HasValidMNByCollateral(vote.GetMasternodeOutpoint())) {
             ++it;
             continue;
         }
@@ -852,42 +756,4 @@ void CGovernanceObject::CheckOrphanVotes(CConnman& connman)
             cmmapOrphanVotes.Erase(key, pairVote);
         }
     }
-}
-
-std::vector<uint256> CGovernanceObject::RemoveOldVotes(unsigned int nMinTime)
-{
-    LOCK(cs);
-
-    // Drop pre-DIP3 votes from vote db
-    auto removed = fileVotes.RemoveOldVotes(nMinTime);
-
-    if (!removed.empty()) {
-        std::string removedStr;
-        for (auto& h : removed) {
-            removedStr += strprintf("  %s\n", h.ToString());
-        }
-        LogPrintf("CGovernanceObject::RemoveOldVotes -- Removed %d old (pre-DIP3) votes for %s:\n%s\n", removed.size(), GetHash().ToString(), removedStr);
-        fDirtyCache = true;
-    }
-
-    // Same for current votes per MN for this specific object
-    auto itMnPair = mapCurrentMNVotes.begin();
-    while (itMnPair != mapCurrentMNVotes.end()) {
-        auto& miRef = itMnPair->second.mapInstances;
-        auto itVotePair = miRef.begin();
-        while (itVotePair != miRef.end()) {
-            if (itVotePair->second.nCreationTime < nMinTime) {
-                miRef.erase(itVotePair++);
-            } else {
-                ++itVotePair;
-            }
-        }
-        if (miRef.empty()) {
-            mapCurrentMNVotes.erase(itMnPair++);
-        } else {
-            ++itMnPair;
-        }
-    }
-
-    return removed;
 }

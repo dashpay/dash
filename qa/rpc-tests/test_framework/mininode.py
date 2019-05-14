@@ -4,27 +4,27 @@
 # Copyright (c) 2010-2016 The Bitcoin Core developers
 # Distributed under the MIT software license, see the accompanying
 # file COPYING or http://www.opensource.org/licenses/mit-license.php.
+"""Dash P2P network half-a-node.
 
-#
-# mininode.py - Dash P2P network half-a-node
-#
-# This python code was modified from ArtForz' public domain  half-a-node, as
-# found in the mini-node branch of http://github.com/jgarzik/pynode.
-#
-# NodeConn: an object which manages p2p connectivity to a dash node
-# NodeConnCB: a base class that describes the interface for receiving
-#             callbacks with network messages from a NodeConn
-# CBlock, CTransaction, CBlockHeader, CTxIn, CTxOut, etc....:
-#     data structures that should map to corresponding structures in
-#     dash/primitives
-# msg_block, msg_tx, msg_headers, etc.:
-#     data structures that represent network messages
-# ser_*, deser_*: functions that handle serialization/deserialization
+This python code was modified from ArtForz' public domain  half-a-node, as
+found in the mini-node branch of http://github.com/jgarzik/pynode.
 
+NodeConn: an object which manages p2p connectivity to a bitcoin node
+NodeConnCB: a base class that describes the interface for receiving
+            callbacks with network messages from a NodeConn
+CBlock, CTransaction, CBlockHeader, CTxIn, CTxOut, etc....:
+    data structures that should map to corresponding structures in
+    bitcoin/primitives
+msg_block, msg_tx, msg_headers, etc.:
+    data structures that represent network messages
+ser_*, deser_*: functions that handle serialization/deserialization
+"""
 
 import struct
 import socket
 import asyncore
+from collections import namedtuple
+
 import time
 import sys
 import random
@@ -41,7 +41,7 @@ from test_framework.siphash import siphash256
 import dash_hash
 
 BIP0031_VERSION = 60000
-MY_VERSION = 70210  # MIN_PEER_PROTO_VERSION
+MY_VERSION = 70214  # MIN_PEER_PROTO_VERSION
 MY_SUBVERSION = b"/python-mininode-tester:0.0.3/"
 MY_RELAY = 1 # from version 70001 onwards, fRelay should be appended to version messages (BIP37)
 
@@ -53,6 +53,8 @@ COIN = 100000000 # 1 btc in satoshis
 NODE_NETWORK = (1 << 0)
 NODE_GETUTXO = (1 << 1)
 NODE_BLOOM = (1 << 2)
+
+logger = logging.getLogger("TestFramework.mininode")
 
 # Keep our own socket map for asyncore, so that we can track disconnects
 # ourselves (to workaround an issue with closing an asyncore socket when
@@ -201,6 +203,34 @@ def ser_int_vector(l):
         r += struct.pack("<i", i)
     return r
 
+
+def deser_dyn_bitset(f, bytes_based):
+    if bytes_based:
+        nb = deser_compact_size(f)
+        n = nb * 8
+    else:
+        n = deser_compact_size(f)
+        nb = int((n + 7) / 8)
+    b = f.read(nb)
+    r = []
+    for i in range(n):
+        r.append((b[int(i / 8)] & (1 << (i % 8))) != 0)
+    return r
+
+
+def ser_dyn_bitset(l, bytes_based):
+    n = len(l)
+    nb = int((n + 7) / 8)
+    r = [0] * nb
+    for i in range(n):
+        r[int(i / 8)] |= (1 if l[i] else 0) << (i % 8)
+    if bytes_based:
+        r = ser_compact_size(nb) + bytes(r)
+    else:
+        r = ser_compact_size(n) + bytes(r)
+    return r
+
+
 # Deserialize from a hex string representation (eg from RPC)
 def FromHex(obj, hex_string):
     obj.deserialize(BytesIO(hex_str_to_bytes(hex_string)))
@@ -211,6 +241,25 @@ def ToHex(obj):
     return bytes_to_hex_str(obj.serialize())
 
 # Objects that map to dashd objects, which can be serialized/deserialized
+
+class CService(object):
+    def __init__(self):
+        self.ip = ""
+        self.port = 0
+
+    def deserialize(self, f):
+        self.ip = socket.inet_ntop(socket.AF_INET6, f.read(16))
+        self.port = struct.unpack(">H", f.read(2))[0]
+
+    def serialize(self):
+        r = b""
+        r += socket.inet_pton(socket.AF_INET6, self.ip)
+        r += struct.pack(">H", self.port)
+        return r
+
+    def __repr__(self):
+        return "CService(ip=%s port=%i)" % (self.ip, self.port)
+
 
 class CAddress(object):
     def __init__(self):
@@ -262,7 +311,7 @@ class CInv(object):
 
     def __repr__(self):
         return "CInv(type=%s hash=%064x)" \
-            % (self.typemap[self.type], self.hash)
+            % (self.typemap.get(self.type, "%d" % self.type), self.hash)
 
 
 class CBlockLocator(object):
@@ -502,7 +551,8 @@ class CBlock(CBlockHeader):
         return r
 
     # Calculate the merkle root given a vector of transaction hashes
-    def get_merkle_root(self, hashes):
+    @staticmethod
+    def get_merkle_root(hashes):
         while len(hashes) > 1:
             newhashes = []
             for i in range(0, len(hashes), 2):
@@ -793,8 +843,49 @@ class BlockTransactions(object):
         return "BlockTransactions(hash=%064x transactions=%s)" % (self.blockhash, repr(self.transactions))
 
 
+class CPartialMerkleTree(object):
+    def __init__(self):
+        self.nTransactions = 0
+        self.vBits = []
+        self.vHash = []
+
+    def deserialize(self, f):
+        self.nTransactions = struct.unpack("<I", f.read(4))[0]
+        self.vHash = deser_uint256_vector(f)
+        self.vBits = deser_dyn_bitset(f, True)
+
+    def serialize(self):
+        r = b""
+        r += struct.pack("<I", self.nTransactions)
+        r += ser_uint256_vector(self.vHash)
+        r += ser_dyn_bitset(self.vBits, True)
+        return r
+
+    def __repr__(self):
+        return "CPartialMerkleTree(nTransactions=%d vBits.size=%d vHash.size=%d)" % (self.nTransactions, len(self.vBits), len(self.vHash))
+
+
+class CMerkleBlock(object):
+    def __init__(self, header=CBlockHeader(), txn=CPartialMerkleTree()):
+        self.header = header
+        self.txn = txn
+
+    def deserialize(self, f):
+        self.header.deserialize(f)
+        self.txn.deserialize(f)
+
+    def serialize(self):
+        r = b""
+        r += self.header.serialize()
+        r += self.txn.serialize()
+        return r
+
+    def __repr__(self):
+        return "CMerkleBlock(header=%s txn=%s)" % (repr(self.header), repr(self.txn))
+
+
 class CCbTx(object):
-    def __init__(self, version=None, height=None, merkleRootMNList=None):
+    def __init__(self, version=None, height=None, merkleRootMNList=None, merkleRootQuorums=None):
         self.set_null()
         if version is not None:
             self.version = version
@@ -802,6 +893,8 @@ class CCbTx(object):
             self.height = height
         if merkleRootMNList is not None:
             self.merkleRootMNList = merkleRootMNList
+        if merkleRootQuorums is not None:
+            self.merkleRootQuorums = merkleRootQuorums
 
     def set_null(self):
         self.version = 0
@@ -812,12 +905,87 @@ class CCbTx(object):
         self.version = struct.unpack("<H", f.read(2))[0]
         self.height = struct.unpack("<i", f.read(4))[0]
         self.merkleRootMNList = deser_uint256(f)
+        if self.version >= 2:
+            self.merkleRootQuorums = deser_uint256(f)
 
     def serialize(self):
         r = b""
         r += struct.pack("<H", self.version)
         r += struct.pack("<i", self.height)
         r += ser_uint256(self.merkleRootMNList)
+        if self.version >= 2:
+            r += ser_uint256(self.merkleRootQuorums)
+        return r
+
+
+class CSimplifiedMNListEntry(object):
+    def __init__(self):
+        self.set_null()
+
+    def set_null(self):
+        self.proRegTxHash = 0
+        self.confirmedHash = 0
+        self.service = CService()
+        self.pubKeyOperator = b'\\x0' * 48
+        self.keyIDVoting = 0
+        self.isValid = False
+
+    def deserialize(self, f):
+        self.proRegTxHash = deser_uint256(f)
+        self.confirmedHash = deser_uint256(f)
+        self.service.deserialize(f)
+        self.pubKeyOperator = f.read(48)
+        self.keyIDVoting = f.read(20)
+        self.isValid = struct.unpack("<?", f.read(1))[0]
+
+    def serialize(self):
+        r = b""
+        r += ser_uint256(self.proRegTxHash)
+        r += ser_uint256(self.confirmedHash)
+        r += self.service.serialize()
+        r += self.pubKeyOperator
+        r += self.keyIDVoting
+        r += struct.pack("<?", self.isValid)
+        return r
+
+
+class CFinalCommitment:
+    def __init__(self):
+        self.set_null()
+
+    def set_null(self):
+        self.nVersion = 0
+        self.llmqType = 0
+        self.quorumHash = 0
+        self.signers = []
+        self.validMembers = []
+        self.quorumPublicKey = b'\\x0' * 48
+        self.quorumVvecHash = 0
+        self.quorumSig = b'\\x0' * 96
+        self.membersSig = b'\\x0' * 96
+
+    def deserialize(self, f):
+        self.nVersion = struct.unpack("<H", f.read(2))[0]
+        self.llmqType = struct.unpack("<B", f.read(1))[0]
+        self.quorumHash = deser_uint256(f)
+        self.signers = deser_dyn_bitset(f, False)
+        self.validMembers = deser_dyn_bitset(f, False)
+        self.quorumPublicKey = f.read(48)
+        self.quorumVvecHash = deser_uint256(f)
+        self.quorumSig = f.read(96)
+        self.membersSig = f.read(96)
+
+    def serialize(self):
+        r = b""
+        r += struct.pack("<H", self.nVersion)
+        r += struct.pack("<B", self.llmqType)
+        r += ser_uint256(self.quorumHash)
+        r += ser_dyn_bitset(self.signers, False)
+        r += ser_dyn_bitset(self.validMembers, False)
+        r += self.quorumPublicKey
+        r += ser_uint256(self.quorumVvecHash)
+        r += self.quorumSig
+        r += self.membersSig
         return r
 
 
@@ -1177,8 +1345,8 @@ class msg_getheaders(object):
 class msg_headers(object):
     command = b"headers"
 
-    def __init__(self):
-        self.headers = []
+    def __init__(self, headers=None):
+        self.headers = headers if headers is not None else []
 
     def deserialize(self, f):
         # comment in dashd indicates these should be deserialized as blocks
@@ -1227,6 +1395,8 @@ class msg_reject(object):
 
 # Helper function
 def wait_until(predicate, *, attempts=float('inf'), timeout=float('inf'), sleep=0.05):
+    if attempts == float('inf') and timeout == float('inf'):
+        timeout = 60
     attempt = 0
     elapsed = 0
 
@@ -1313,6 +1483,118 @@ class msg_blocktxn(object):
     def __repr__(self):
         return "msg_blocktxn(block_transactions=%s)" % (repr(self.block_transactions))
 
+class msg_getmnlistd(object):
+    command = b"getmnlistd"
+
+    def __init__(self, baseBlockHash=0, blockHash=0):
+        self.baseBlockHash = baseBlockHash
+        self.blockHash = blockHash
+
+    def deserialize(self, f):
+        self.baseBlockHash = deser_uint256(f)
+        self.blockHash = deser_uint256(f)
+
+    def serialize(self):
+        r = b""
+        r += ser_uint256(self.baseBlockHash)
+        r += ser_uint256(self.blockHash)
+        return r
+
+    def __repr__(self):
+        return "msg_getmnlistd(baseBlockHash=%064x, blockHash=%064x)" % (self.baseBlockHash, self.blockHash)
+
+QuorumId = namedtuple('QuorumId', ['llmqType', 'quorumHash'])
+
+class msg_mnlistdiff(object):
+    command = b"mnlistdiff"
+
+    def __init__(self):
+        self.baseBlockHash = 0
+        self.blockHash = 0
+        self.merkleProof = CPartialMerkleTree()
+        self.cbTx = None
+        self.deletedMNs = []
+        self.mnList = []
+        self.deletedQuorums = []
+        self.newQuorums = []
+
+    def deserialize(self, f):
+        self.baseBlockHash = deser_uint256(f)
+        self.blockHash = deser_uint256(f)
+        self.merkleProof.deserialize(f)
+        self.cbTx = CTransaction()
+        self.cbTx.deserialize(f)
+        self.cbTx.rehash()
+        self.deletedMNs = deser_uint256_vector(f)
+        self.mnList = []
+        for i in range(deser_compact_size(f)):
+            e = CSimplifiedMNListEntry()
+            e.deserialize(f)
+            self.mnList.append(e)
+
+        self.deletedQuorums = []
+        for i in range(deser_compact_size(f)):
+            llmqType = struct.unpack("<B", f.read(1))[0]
+            quorumHash = deser_uint256(f)
+            self.deletedQuorums.append(QuorumId(llmqType, quorumHash))
+        self.newQuorums = []
+        for i in range(deser_compact_size(f)):
+            qc = CFinalCommitment()
+            qc.deserialize(f)
+            self.newQuorums.append(qc)
+
+    def __repr__(self):
+        return "msg_mnlistdiff(baseBlockHash=%064x, blockHash=%064x)" % (self.baseBlockHash, self.blockHash)
+
+
+class msg_clsig(object):
+    command = b"clsig"
+
+    def __init__(self, height=0, blockHash=0, sig=b'\\x0' * 96):
+        self.height = height
+        self.blockHash = blockHash
+        self.sig = sig
+
+    def deserialize(self, f):
+        self.height = struct.unpack('<i', f.read(4))[0]
+        self.blockHash = deser_uint256(f)
+        self.sig = f.read(96)
+
+    def serialize(self):
+        r = b""
+        r += struct.pack('<i', self.height)
+        r += ser_uint256(self.blockHash)
+        r += self.sig
+        return r
+
+    def __repr__(self):
+        return "msg_clsig(height=%d, blockHash=%064x)" % (self.height, self.blockHash)
+
+
+class msg_islock(object):
+    command = b"islock"
+
+    def __init__(self, inputs=[], txid=0, sig=b'\\x0' * 96):
+        self.inputs = inputs
+        self.txid = txid
+        self.sig = sig
+
+    def deserialize(self, f):
+        self.inputs = deser_vector(f, COutPoint)
+        self.txid = deser_uint256(f)
+        self.sig = f.read(96)
+
+    def serialize(self):
+        r = b""
+        r += ser_vector(self.inputs)
+        r += ser_uint256(self.txid)
+        r += self.sig
+        return r
+
+    def __repr__(self):
+        return "msg_islock(inputs=%s, txid=%064x)" % (repr(self.inputs), self.txid)
+
+
 # This is what a callback should look like for NodeConn
 # Reimplement the on_* functions to provide handling for events
 class NodeConnCB(object):
@@ -1352,8 +1634,7 @@ class NodeConnCB(object):
             try:
                 getattr(self, 'on_' + message.command.decode('ascii'))(conn, message)
             except:
-                print("ERROR delivering %s (%s)" % (repr(message),
-                                                    sys.exc_info()[0]))
+                logger.exception("ERROR delivering %s" % repr(message))
 
     def on_version(self, conn, message):
         if message.nVersion >= 209:
@@ -1397,6 +1678,9 @@ class NodeConnCB(object):
     def on_cmpctblock(self, conn, message): pass
     def on_getblocktxn(self, conn, message): pass
     def on_blocktxn(self, conn, message): pass
+    def on_mnlistdiff(self, conn, message): pass
+    def on_clsig(self, conn, message): pass
+    def on_islock(self, conn, message): pass
 
 # More useful callbacks and functions for NodeConnCB's which have a single NodeConn
 class SingleNodeConnCB(NodeConnCB):
@@ -1453,7 +1737,10 @@ class NodeConn(asyncore.dispatcher):
         b"sendcmpct": msg_sendcmpct,
         b"cmpctblock": msg_cmpctblock,
         b"getblocktxn": msg_getblocktxn,
-        b"blocktxn": msg_blocktxn
+        b"blocktxn": msg_blocktxn,
+        b"mnlistdiff": msg_mnlistdiff,
+        b"clsig": msg_clsig,
+        b"islock": msg_islock
     }
     MAGIC_BYTES = {
         "mainnet": b"\xbf\x0c\x6b\xbd",   # mainnet
@@ -1464,7 +1751,6 @@ class NodeConn(asyncore.dispatcher):
 
     def __init__(self, dstaddr, dstport, rpc, callback, net="regtest", services=NODE_NETWORK, send_version=True):
         asyncore.dispatcher.__init__(self, map=mininode_socket_map)
-        self.log = logging.getLogger("NodeConn(%s:%d)" % (dstaddr, dstport))
         self.dstaddr = dstaddr
         self.dstport = dstport
         self.create_socket(socket.AF_INET, socket.SOCK_STREAM)
@@ -1489,8 +1775,7 @@ class NodeConn(asyncore.dispatcher):
             vt.addrFrom.port = 0
             self.send_message(vt, True)
 
-        print('MiniNode: Connecting to Dash Node IP # ' + dstaddr + ':' \
-            + str(dstport))
+        logger.info('Connecting to Dash Node: %s:%d' % (self.dstaddr, self.dstport))
 
         try:
             self.connect((dstaddr, dstport))
@@ -1498,18 +1783,14 @@ class NodeConn(asyncore.dispatcher):
             self.handle_close()
         self.rpc = rpc
 
-    def show_debug_msg(self, msg):
-        self.log.debug(msg)
-
     def handle_connect(self):
         if self.state != "connected":
-            self.show_debug_msg("MiniNode: Connected & Listening: \n")
+            logger.debug("Connected & Listening: %s:%d" % (self.dstaddr, self.dstport))
             self.state = "connected"
             self.cb.on_open(self)
 
     def handle_close(self):
-        self.show_debug_msg("MiniNode: Closing Connection to %s:%d... "
-                            % (self.dstaddr, self.dstport))
+        logger.debug("Closing connection to: %s:%d" % (self.dstaddr, self.dstport))
         self.state = "closed"
         self.recvbuf = b""
         self.sendbuf = b""
@@ -1591,17 +1872,14 @@ class NodeConn(asyncore.dispatcher):
                     t.deserialize(f)
                     self.got_message(t)
                 else:
-                    self.show_debug_msg("Unknown command: '" + str(command) + "' " +
-                                        repr(msg))
+                    logger.warning("Received unknown command from %s:%d: '%s' %s" % (self.dstaddr, self.dstport, str(command), repr(msg)))
         except Exception as e:
-            print('got_data:', repr(e))
-            # import  traceback
-            # traceback.print_tb(sys.exc_info()[2])
+            logger.exception('got_data:', repr(e))
 
     def send_message(self, message, pushbuf=False):
         if self.state != "connected" and not pushbuf:
             raise IOError('Not connected, no pushbuf')
-        self.show_debug_msg("Send %s" % repr(message))
+        logger.debug("Send message to %s:%d: %s" % (self.dstaddr, self.dstport, repr(message)))
         command = message.command
         data = message.serialize()
         tmsg = self.MAGIC_BYTES[self.network]
@@ -1623,7 +1901,7 @@ class NodeConn(asyncore.dispatcher):
                 self.messagemap[b'ping'] = msg_ping_prebip31
         if self.last_sent + 30 * 60 < time.time():
             self.send_message(self.messagemap[b'ping']())
-        self.show_debug_msg("Recv %s" % repr(message))
+        logger.debug("Received message from %s:%d: %s" % (self.dstaddr, self.dstport, repr(message)))
         self.cb.deliver(self, message)
 
     def disconnect_node(self):

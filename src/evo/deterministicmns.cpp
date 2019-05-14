@@ -1,4 +1,4 @@
-// Copyright (c) 2018 The Dash Core developers
+// Copyright (c) 2018-2019 The Dash Core developers
 // Distributed under the MIT software license, see the accompanying
 // file COPYING or http://www.opensource.org/licenses/mit-license.php.
 
@@ -9,7 +9,7 @@
 #include "chainparams.h"
 #include "core_io.h"
 #include "script/standard.h"
-#include "spork.h"
+#include "ui_interface.h"
 #include "validation.h"
 #include "validationinterface.h"
 
@@ -157,6 +157,20 @@ CDeterministicMNCPtr CDeterministicMNList::GetMNByOperatorKey(const CBLSPublicKe
 CDeterministicMNCPtr CDeterministicMNList::GetMNByCollateral(const COutPoint& collateralOutpoint) const
 {
     return GetUniquePropertyMN(collateralOutpoint);
+}
+
+CDeterministicMNCPtr CDeterministicMNList::GetValidMNByCollateral(const COutPoint& collateralOutpoint) const
+{
+    auto dmn = GetMNByCollateral(collateralOutpoint);
+    if (dmn && !IsMNValid(dmn)) {
+        return nullptr;
+    }
+    return dmn;
+}
+
+CDeterministicMNCPtr CDeterministicMNList::GetValidMNByService(const CService& service) const
+{
+    return GetUniquePropertyMN(service);
 }
 
 static int CompareByLastPaid_GetHeight(const CDeterministicMN& dmn)
@@ -445,44 +459,65 @@ CDeterministicMNManager::CDeterministicMNManager(CEvoDB& _evoDb) :
 {
 }
 
-bool CDeterministicMNManager::ProcessBlock(const CBlock& block, const CBlockIndex* pindex, CValidationState& _state)
+bool CDeterministicMNManager::ProcessBlock(const CBlock& block, const CBlockIndex* pindex, CValidationState& _state, bool fJustCheck)
 {
     AssertLockHeld(cs_main);
 
-    bool fDIP0003Active = VersionBitsState(pindex->pprev, Params().GetConsensus(), Consensus::DEPLOYMENT_DIP0003, versionbitscache) == THRESHOLD_ACTIVE;
+    const auto& consensusParams = Params().GetConsensus();
+    bool fDIP0003Active = pindex->nHeight >= consensusParams.DIP0003Height;
     if (!fDIP0003Active) {
         return true;
     }
 
-    LOCK(cs);
+    CDeterministicMNList oldList, newList;
+    CDeterministicMNListDiff diff;
 
     int nHeight = pindex->nHeight;
 
-    CDeterministicMNList newList;
-    if (!BuildNewListFromBlock(block, pindex->pprev, _state, newList, true)) {
-        return false;
+    {
+        LOCK(cs);
+
+        if (!BuildNewListFromBlock(block, pindex->pprev, _state, newList, true)) {
+            return false;
+        }
+
+        if (fJustCheck) {
+            return true;
+        }
+
+        if (newList.GetHeight() == -1) {
+            newList.SetHeight(nHeight);
+        }
+
+        newList.SetBlockHash(block.GetHash());
+
+        oldList = GetListForBlock(pindex->pprev->GetBlockHash());
+        diff = oldList.BuildDiff(newList);
+
+        evoDb.Write(std::make_pair(DB_LIST_DIFF, diff.blockHash), diff);
+        if ((nHeight % SNAPSHOT_LIST_PERIOD) == 0 || oldList.GetHeight() == -1) {
+            evoDb.Write(std::make_pair(DB_LIST_SNAPSHOT, diff.blockHash), newList);
+            LogPrintf("CDeterministicMNManager::%s -- Wrote snapshot. nHeight=%d, mapCurMNs.allMNsCount=%d\n",
+                __func__, nHeight, newList.GetAllMNsCount());
+        }
     }
 
-    if (newList.GetHeight() == -1) {
-        newList.SetHeight(nHeight);
+    // Don't hold cs while calling signals
+    if (diff.HasChanges()) {
+        GetMainSignals().NotifyMasternodeListChanged(false, oldList, diff);
+        uiInterface.NotifyMasternodeListChanged();
     }
 
-    newList.SetBlockHash(block.GetHash());
-
-    CDeterministicMNList oldList = GetListForBlock(pindex->pprev->GetBlockHash());
-    CDeterministicMNListDiff diff = oldList.BuildDiff(newList);
-
-    evoDb.Write(std::make_pair(DB_LIST_DIFF, diff.blockHash), diff);
-    if ((nHeight % SNAPSHOT_LIST_PERIOD) == 0 || oldList.GetHeight() == -1) {
-        evoDb.Write(std::make_pair(DB_LIST_SNAPSHOT, diff.blockHash), newList);
-        LogPrintf("CDeterministicMNManager::%s -- Wrote snapshot. nHeight=%d, mapCurMNs.allMNsCount=%d\n",
-            __func__, nHeight, newList.GetAllMNsCount());
+    if (nHeight == consensusParams.DIP0003EnforcementHeight) {
+        if (!consensusParams.DIP0003EnforcementHash.IsNull() && consensusParams.DIP0003EnforcementHash != pindex->GetBlockHash()) {
+            LogPrintf("CDeterministicMNManager::%s -- DIP3 enforcement block has wrong hash: hash=%s, expected=%s, nHeight=%d\n", __func__,
+                    pindex->GetBlockHash().ToString(), consensusParams.DIP0003EnforcementHash.ToString(), nHeight);
+            return _state.DoS(100, false, REJECT_INVALID, "bad-dip3-enf-block");
+        }
+        LogPrintf("CDeterministicMNManager::%s -- DIP3 is enforced now. nHeight=%d\n", __func__, nHeight);
     }
 
-    if (nHeight == GetSpork15Value()) {
-        LogPrintf("CDeterministicMNManager::%s -- spork15 is active now. nHeight=%d\n", __func__, nHeight);
-    }
-
+    LOCK(cs);
     CleanupCache(nHeight);
 
     return true;
@@ -490,17 +525,37 @@ bool CDeterministicMNManager::ProcessBlock(const CBlock& block, const CBlockInde
 
 bool CDeterministicMNManager::UndoBlock(const CBlock& block, const CBlockIndex* pindex)
 {
-    LOCK(cs);
-
     int nHeight = pindex->nHeight;
     uint256 blockHash = block.GetHash();
 
-    evoDb.Erase(std::make_pair(DB_LIST_DIFF, blockHash));
-    evoDb.Erase(std::make_pair(DB_LIST_SNAPSHOT, blockHash));
-    mnListsCache.erase(blockHash);
+    CDeterministicMNList curList;
+    CDeterministicMNList prevList;
+    CDeterministicMNListDiff diff;
+    {
+        LOCK(cs);
+        evoDb.Read(std::make_pair(DB_LIST_DIFF, blockHash), diff);
 
-    if (nHeight == GetSpork15Value()) {
-        LogPrintf("CDeterministicMNManager::%s -- spork15 is not active anymore. nHeight=%d\n", __func__, nHeight);
+        if (diff.HasChanges()) {
+            // need to call this before erasing
+            curList = GetListForBlock(blockHash);
+            prevList = GetListForBlock(pindex->pprev->GetBlockHash());
+        }
+
+        evoDb.Erase(std::make_pair(DB_LIST_DIFF, blockHash));
+        evoDb.Erase(std::make_pair(DB_LIST_SNAPSHOT, blockHash));
+
+        mnListsCache.erase(blockHash);
+    }
+
+    if (diff.HasChanges()) {
+        auto inversedDiff = curList.BuildDiff(prevList);
+        GetMainSignals().NotifyMasternodeListChanged(true, curList, inversedDiff);
+        uiInterface.NotifyMasternodeListChanged();
+    }
+
+    const auto& consensusParams = Params().GetConsensus();
+    if (nHeight == consensusParams.DIP0003EnforcementHeight) {
+        LogPrintf("CDeterministicMNManager::%s -- DIP3 is not enforced anymore. nHeight=%d\n", __func__, nHeight);
     }
 
     return true;
@@ -834,25 +889,6 @@ CDeterministicMNList CDeterministicMNManager::GetListAtChainTip()
     return GetListForBlock(tipBlockHash);
 }
 
-bool CDeterministicMNManager::HasValidMNCollateralAtChainTip(const COutPoint& outpoint)
-{
-    auto mnList = GetListAtChainTip();
-    auto dmn = mnList.GetMNByCollateral(outpoint);
-    return dmn && mnList.IsMNValid(dmn);
-}
-
-bool CDeterministicMNManager::HasMNCollateralAtChainTip(const COutPoint& outpoint)
-{
-    auto mnList = GetListAtChainTip();
-    auto dmn = mnList.GetMNByCollateral(outpoint);
-    return dmn != nullptr;
-}
-
-int64_t CDeterministicMNManager::GetSpork15Value()
-{
-    return sporkManager.GetSporkValue(SPORK_15_DETERMINISTIC_MNS_ENABLED);
-}
-
 bool CDeterministicMNManager::IsProTxWithCollateral(const CTransactionRef& tx, uint32_t n)
 {
     if (tx->nVersion != 3 || tx->nType != TRANSACTION_PROVIDER_REGISTER) {
@@ -875,7 +911,7 @@ bool CDeterministicMNManager::IsProTxWithCollateral(const CTransactionRef& tx, u
     return true;
 }
 
-bool CDeterministicMNManager::IsDeterministicMNsSporkActive(int nHeight)
+bool CDeterministicMNManager::IsDIP3Enforced(int nHeight)
 {
     LOCK(cs);
 
@@ -883,8 +919,7 @@ bool CDeterministicMNManager::IsDeterministicMNsSporkActive(int nHeight)
         nHeight = tipHeight;
     }
 
-    int64_t spork15Value = GetSpork15Value();
-    return nHeight >= spork15Value;
+    return nHeight >= Params().GetConsensus().DIP0003EnforcementHeight;
 }
 
 void CDeterministicMNManager::CleanupCache(int nHeight)

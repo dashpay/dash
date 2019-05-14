@@ -2,11 +2,14 @@
 # Copyright (c) 2014-2016 The Bitcoin Core developers
 # Distributed under the MIT software license, see the accompanying
 # file COPYING or http://www.opensource.org/licenses/mit-license.php.
+"""Test RPCs related to blockchainstate.
 
-#
-# Test RPC calls related to blockchain state. Tests correspond to code in
-# rpc/blockchain.cpp.
-#
+Test the following RPCs:
+    - gettxoutsetinfo
+    - verifychain
+
+Tests correspond to code in rpc/blockchain.cpp.
+"""
 
 from decimal import Decimal
 
@@ -23,13 +26,6 @@ from test_framework.util import (
 
 
 class BlockchainTest(BitcoinTestFramework):
-    """
-    Test blockchain-related RPC calls:
-
-        - gettxoutsetinfo
-        - verifychain
-
-    """
 
     def __init__(self):
         super().__init__()
@@ -60,7 +56,7 @@ class BlockchainTest(BitcoinTestFramework):
         assert_equal(len(res['bestblock']), 64)
         assert_equal(len(res['hash_serialized_2']), 64)
 
-        print("Test that gettxoutsetinfo() works for blockchain with just the genesis block")
+        self.log.info("Test that gettxoutsetinfo() works for blockchain with just the genesis block")
         b1hash = node.getblockhash(1)
         node.invalidateblock(b1hash)
 
@@ -72,7 +68,7 @@ class BlockchainTest(BitcoinTestFramework):
         assert_equal(res2['bestblock'], node.getblockhash(0))
         assert_equal(len(res2['hash_serialized_2']), 64)
 
-        print("Test that gettxoutsetinfo() returns the same result after invalidate/reconsider block")
+        self.log.info("Test that gettxoutsetinfo() returns the same result after invalidate/reconsider block")
         node.reconsiderblock(b1hash)
 
         res3 = node.gettxoutsetinfo()

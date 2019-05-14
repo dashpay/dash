@@ -1,11 +1,9 @@
-// Copyright (c) 2014-2018 The Dash Core developers
+// Copyright (c) 2014-2019 The Dash Core developers
 // Distributed under the MIT/X11 software license, see the accompanying
 // file COPYING or http://www.opensource.org/licenses/mit-license.php.
 
 #ifndef GOVERNANCE_OBJECT_H
 #define GOVERNANCE_OBJECT_H
-
-//#define ENABLE_DASH_DEBUG
 
 #include "cachemultimap.h"
 #include "governance-exceptions.h"
@@ -25,7 +23,7 @@ class CGovernanceTriggerManager;
 class CGovernanceObject;
 class CGovernanceVote;
 
-static const int MIN_GOVERNANCE_PEER_PROTO_VERSION = 70210;
+static const int MIN_GOVERNANCE_PEER_PROTO_VERSION = 70213;
 static const int GOVERNANCE_FILTER_PROTO_VERSION = 70206;
 
 static const double GOVERNANCE_FILTER_FP_RATE = 0.001;
@@ -33,7 +31,6 @@ static const double GOVERNANCE_FILTER_FP_RATE = 0.001;
 static const int GOVERNANCE_OBJECT_UNKNOWN = 0;
 static const int GOVERNANCE_OBJECT_PROPOSAL = 1;
 static const int GOVERNANCE_OBJECT_TRIGGER = 2;
-static const int GOVERNANCE_OBJECT_WATCHDOG = 3;
 
 static const CAmount GOVERNANCE_PROPOSAL_FEE_TX = (5.0 * COIN);
 
@@ -259,8 +256,6 @@ public:
     // Signature related functions
 
     void SetMasternodeOutpoint(const COutPoint& outpoint);
-    bool Sign(const CKey& key, const CKeyID& keyID);
-    bool CheckSignature(const CKeyID& keyID) const;
     bool Sign(const CBLSSecretKey& key);
     bool CheckSignature(const CBLSPublicKey& pubKey) const;
 
@@ -349,14 +344,13 @@ private:
     /// Called when MN's which have voted on this object have been removed
     void ClearMasternodeVotes();
 
-    // Revalidate all votes from this MN and delete them if validation fails
-    // This is the case for DIP3 MNs that change voting keys. Returns deleted vote hashes
-    std::set<uint256> RemoveInvalidProposalVotes(const COutPoint& mnOutpoint);
+    // Revalidate all votes from this MN and delete them if validation fails.
+    // This is the case for DIP3 MNs that changed voting or operator keys and
+    // also for MNs that were removed from the list completely.
+    // Returns deleted vote hashes.
+    std::set<uint256> RemoveInvalidVotes(const COutPoint& mnOutpoint);
 
     void CheckOrphanVotes(CConnman& connman);
-
-    // TODO can be removed after DIP3 is fully deployed
-    std::vector<uint256> RemoveOldVotes(unsigned int nMinTime);
 };
 
 
