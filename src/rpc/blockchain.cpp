@@ -90,7 +90,7 @@ static int ComputeNextBlockAndDepth(const CBlockIndex* tip, const CBlockIndex* b
     return blockindex == tip ? 1 : -1;
 }
 
-UniValue blockheaderToJSON(const CBlockIndex* tip, const CBlockIndex* blockindex)
+UniValue blockheaderToJSON(const CBlockIndex* tip, const CBlockIndex* blockindex) LOCKS_EXCLUDED(cs_main)
 {
     // Serialize passed information without accessing chain state of the active chain!
     UniValue result(UniValue::VOBJ);
@@ -116,7 +116,7 @@ UniValue blockheaderToJSON(const CBlockIndex* tip, const CBlockIndex* blockindex
     return result;
 }
 
-UniValue blockToJSON(const CBlock& block, const CBlockIndex* tip, const CBlockIndex* blockindex, bool txDetails = false)
+UniValue blockToJSON(const CBlock& block, const CBlockIndex* tip, const CBlockIndex* blockindex, bool txDetails = false) LOCKS_EXCLUDED(cs_main)
 {
     // Serialize passed information without accessing chain state of the active chain!
     UniValue result(UniValue::VOBJ);
