@@ -1123,49 +1123,47 @@ void CInstantSendManager::UpdatedBlockTip(const CBlockIndex* pindexNew)
 
 void CInstantSendManager::HandleFullyConfirmedBlock(const CBlockIndex* pindex)
 {
+    LOCK(cs);
+
     auto& consensusParams = Params().GetConsensus();
 
-    std::unordered_map<uint256, CInstantSendLockPtr> removeISLocks;
-    {
-        LOCK(cs);
+    auto removeISLocks = db.RemoveConfirmedInstantSendLocks(pindex->nHeight);
 
-        removeISLocks = db.RemoveConfirmedInstantSendLocks(pindex->nHeight);
-        if (pindex->nHeight > 100) {
-            db.RemoveArchivedInstantSendLocks(pindex->nHeight - 100);
-        }
-        for (auto& p : removeISLocks) {
-            auto& islockHash = p.first;
-            auto& islock = p.second;
-            LogPrint(BCLog::INSTANTSEND, "CInstantSendManager::%s -- txid=%s, islock=%s: removed islock as it got fully confirmed\n", __func__,
-                     islock->txid.ToString(), islockHash.ToString());
+    if (pindex->nHeight > 100) {
+        db.RemoveArchivedInstantSendLocks(pindex->nHeight - 100);
+    }
+    for (auto& p : removeISLocks) {
+        auto& islockHash = p.first;
+        auto& islock = p.second;
+        LogPrint(BCLog::INSTANTSEND, "CInstantSendManager::%s -- txid=%s, islock=%s: removed islock as it got fully confirmed\n", __func__,
+                 islock->txid.ToString(), islockHash.ToString());
 
-            for (auto& in : islock->inputs) {
-                auto inputRequestId = ::SerializeHash(std::make_pair(INPUTLOCK_REQUESTID_PREFIX, in));
-                inputRequestIds.erase(inputRequestId);
+        for (auto& in : islock->inputs) {
+            auto inputRequestId = ::SerializeHash(std::make_pair(INPUTLOCK_REQUESTID_PREFIX, in));
+            inputRequestIds.erase(inputRequestId);
 
-                // no need to keep recovered sigs for fully confirmed IS locks, as there is no chance for conflicts
-                // from now on. All inputs are spent now and can't be spend in any other TX.
-                quorumSigningManager->RemoveRecoveredSig(consensusParams.llmqForInstantSend, inputRequestId);
-            }
-
-            // same as in the loop
-            quorumSigningManager->RemoveRecoveredSig(consensusParams.llmqForInstantSend, islock->GetRequestId());
+            // no need to keep recovered sigs for fully confirmed IS locks, as there is no chance for conflicts
+            // from now on. All inputs are spent now and can't be spend in any other TX.
+            quorumSigningManager->RemoveRecoveredSig(consensusParams.llmqForInstantSend, inputRequestId);
         }
 
-        // Find all previously unlocked TXs that got locked by this fully confirmed (ChainLock) block and remove them
-        // from the nonLockedTxs map. Also collect all children of these TXs and mark them for retrying of IS locking.
-        std::vector<uint256> toRemove;
-        for (auto& p : nonLockedTxs) {
-            auto pindexMined = p.second.pindexMined;
+        // same as in the loop
+        quorumSigningManager->RemoveRecoveredSig(consensusParams.llmqForInstantSend, islock->GetRequestId());
+    }
 
-            if (pindexMined && pindex->GetAncestor(pindexMined->nHeight) == pindexMined) {
-                toRemove.emplace_back(p.first);
-            }
+    // Find all previously unlocked TXs that got locked by this fully confirmed (ChainLock) block and remove them
+    // from the nonLockedTxs map. Also collect all children of these TXs and mark them for retrying of IS locking.
+    std::vector<uint256> toRemove;
+    for (auto& p : nonLockedTxs) {
+        auto pindexMined = p.second.pindexMined;
+
+        if (pindexMined && pindex->GetAncestor(pindexMined->nHeight) == pindexMined) {
+            toRemove.emplace_back(p.first);
         }
-        for (auto& txid : toRemove) {
-            // This will also add children to pendingRetryTxs
-            RemoveNonLockedTx(txid, true);
-        }
+    }
+    for (auto& txid : toRemove) {
+        // This will also add children to pendingRetryTxs
+        RemoveNonLockedTx(txid, true);
     }
 }
 
