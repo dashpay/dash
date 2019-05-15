@@ -24,6 +24,7 @@
 
 #include "instantsend.h"
 
+#include "llmq/quorums_chainlocks.h"
 #include "llmq/quorums_instantsend.h"
 
 void zmqError(const char *str);

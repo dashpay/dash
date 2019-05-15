@@ -19,6 +19,7 @@ static const char *MSG_HASHGOBJ      = "hashgovernanceobject";
 static const char *MSG_HASHISCON     = "hashinstantsenddoublespend";
 static const char *MSG_RAWBLOCK      = "rawblock";
 static const char *MSG_RAWCHAINLOCK  = "rawchainlock";
+static const char *MSG_RAWCLSIG      = "rawchainlocksig";
 static const char *MSG_RAWTX         = "rawtx";
 static const char *MSG_RAWTXLOCK     = "rawtxlock";
 static const char *MSG_RAWTXLOCKSIG  = "rawtxlocksig";
@@ -165,7 +166,7 @@ bool CZMQPublishHashBlockNotifier::NotifyBlock(const CBlockIndex *pindex)
     return SendMessage(MSG_HASHBLOCK, data, 32);
 }
 
-bool CZMQPublishHashChainLockNotifier::NotifyChainLock(const CBlockIndex *pindex)
+bool CZMQPublishHashChainLockNotifier::NotifyChainLock(const CBlockIndex *pindex, const llmq::CChainLockSig& clsig)
 {
     uint256 hash = pindex->GetBlockHash();
     LogPrint(BCLog::ZMQ, "zmq: Publish hashchainlock %s\n", hash.GetHex());
@@ -250,7 +251,7 @@ bool CZMQPublishRawBlockNotifier::NotifyBlock(const CBlockIndex *pindex)
     return SendMessage(MSG_RAWBLOCK, &(*ss.begin()), ss.size());
 }
 
-bool CZMQPublishRawChainLockNotifier::NotifyChainLock(const CBlockIndex *pindex)
+bool CZMQPublishRawChainLockNotifier::NotifyChainLock(const CBlockIndex *pindex, const llmq::CChainLockSig& clsig)
 {
     LogPrint(BCLog::ZMQ, "zmq: Publish rawchainlock %s\n", pindex->GetBlockHash().GetHex());
 
@@ -269,6 +270,28 @@ bool CZMQPublishRawChainLockNotifier::NotifyChainLock(const CBlockIndex *pindex)
     }
 
     return SendMessage(MSG_RAWCHAINLOCK, &(*ss.begin()), ss.size());
+}
+
+bool CZMQPublishRawChainLockSigNotifier::NotifyChainLock(const CBlockIndex *pindex, const llmq::CChainLockSig& clsig)
+{
+    LogPrint("zmq", "zmq: Publish rawchainlocksig %s\n", pindex->GetBlockHash().GetHex());
+
+    const Consensus::Params& consensusParams = Params().GetConsensus();
+    CDataStream ss(SER_NETWORK, PROTOCOL_VERSION);
+    {
+        LOCK(cs_main);
+        CBlock block;
+        if(!ReadBlockFromDisk(block, pindex, consensusParams))
+        {
+            zmqError("Can't read block from disk");
+            return false;
+        }
+
+        ss << block;
+        ss << clsig;
+    }
+
+    return SendMessage(MSG_RAWCLSIG, &(*ss.begin()), ss.size());
 }
 
 bool CZMQPublishRawTransactionNotifier::NotifyTransaction(const CTransaction &transaction)

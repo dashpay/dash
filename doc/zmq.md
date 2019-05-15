@@ -65,6 +65,7 @@ Currently, the following notifications are supported:
     -zmqpubhashinstantsenddoublespend=address
     -zmqpubrawblock=address
     -zmqpubrawchainlock=address
+    -zmqpubrawchainlocksig=address
     -zmqpubrawtx=address
     -zmqpubrawtxlock=address
     -zmqpubrawtxlocksig=address

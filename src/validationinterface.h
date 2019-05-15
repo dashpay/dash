@@ -25,6 +25,7 @@ class CDeterministicMNListDiff;
 class uint256;
 
 namespace llmq {
+    class CChainLockSig;
     class CInstantSendLock;
 }
 
@@ -44,7 +45,7 @@ protected:
     virtual void UpdatedBlockTip(const CBlockIndex *pindexNew, const CBlockIndex *pindexFork, bool fInitialDownload) {}
     virtual void SyncTransaction(const CTransaction &tx, const CBlockIndex *pindex, int posInBlock) {}
     virtual void NotifyTransactionLock(const CTransaction &tx, const llmq::CInstantSendLock& islock) {}
-    virtual void NotifyChainLock(const CBlockIndex* pindex) {}
+    virtual void NotifyChainLock(const CBlockIndex* pindex, const llmq::CChainLockSig& clsig) {}
     virtual void NotifyGovernanceVote(const CGovernanceVote &vote) {}
     virtual void NotifyGovernanceObject(const CGovernanceObject &object) {}
     virtual void NotifyInstantSendDoubleSpendAttempt(const CTransaction &currentTx, const CTransaction &previousTx) {}
@@ -83,7 +84,7 @@ struct CMainSignals {
     /** Notifies listeners of an updated transaction lock without new data. */
     boost::signals2::signal<void (const CTransaction &, const llmq::CInstantSendLock& islock)> NotifyTransactionLock;
     /** Notifies listeners of a ChainLock. */
-    boost::signals2::signal<void (const CBlockIndex* pindex)> NotifyChainLock;
+    boost::signals2::signal<void (const CBlockIndex* pindex, const llmq::CChainLockSig& clsig)> NotifyChainLock;
     /** Notifies listeners of a new governance vote. */
     boost::signals2::signal<void (const CGovernanceVote &)> NotifyGovernanceVote;
     /** Notifies listeners of a new governance object. */

@@ -55,6 +55,7 @@ class ZMQHandler():
         self.zmqSubSocket.setsockopt_string(zmq.SUBSCRIBE, "hashinstantsenddoublespend")
         self.zmqSubSocket.setsockopt_string(zmq.SUBSCRIBE, "rawblock")
         self.zmqSubSocket.setsockopt_string(zmq.SUBSCRIBE, "rawchainlock")
+        self.zmqSubSocket.setsockopt_string(zmq.SUBSCRIBE, "rawchainlocksig")
         self.zmqSubSocket.setsockopt_string(zmq.SUBSCRIBE, "rawtx")
         self.zmqSubSocket.setsockopt_string(zmq.SUBSCRIBE, "rawtxlock")
         self.zmqSubSocket.setsockopt_string(zmq.SUBSCRIBE, "rawtxlocksig")
@@ -98,6 +99,9 @@ class ZMQHandler():
             print(binascii.hexlify(body[:80]).decode("utf-8"))
         elif topic == b"rawchainlock":
             print('- RAW CHAINLOCK ('+sequence+') -')
+            print(binascii.hexlify(body[:80]).decode("utf-8"))
+        elif topic == b"rawchainlocksig":
+            print('- RAW CHAINLOCK SIG ('+sequence+') -')
             print(binascii.hexlify(body[:80]).decode("utf-8"))
         elif topic == b"rawtx":
             print('- RAW TX ('+sequence+') -')

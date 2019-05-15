@@ -5329,7 +5329,7 @@ void CWallet::NotifyTransactionLock(const CTransaction &tx, const llmq::CInstant
     }
 }
 
-void CWallet::NotifyChainLock(const CBlockIndex* pindexChainLock)
+void CWallet::NotifyChainLock(const CBlockIndex* pindexChainLock, const llmq::CChainLockSig& clsig)
 {
     NotifyChainLockReceived(pindexChainLock->nHeight);
 }
