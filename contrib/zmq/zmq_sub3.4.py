@@ -57,6 +57,7 @@ class ZMQHandler():
         self.zmqSubSocket.setsockopt_string(zmq.SUBSCRIBE, "rawchainlock")
         self.zmqSubSocket.setsockopt_string(zmq.SUBSCRIBE, "rawtx")
         self.zmqSubSocket.setsockopt_string(zmq.SUBSCRIBE, "rawtxlock")
+        self.zmqSubSocket.setsockopt_string(zmq.SUBSCRIBE, "rawtxlocksig")
         self.zmqSubSocket.setsockopt_string(zmq.SUBSCRIBE, "rawgovernancevote")
         self.zmqSubSocket.setsockopt_string(zmq.SUBSCRIBE, "rawgovernanceobject")
         self.zmqSubSocket.setsockopt_string(zmq.SUBSCRIBE, "rawinstantsenddoublespend")
@@ -103,6 +104,9 @@ class ZMQHandler():
             print(binascii.hexlify(body).decode("utf-8"))
         elif topic == b"rawtxlock":
             print('- RAW TX LOCK ('+sequence+') -')
+            print(binascii.hexlify(body).decode("utf-8"))
+        elif topic == b"rawtxlocksig":
+            print('- RAW TX LOCK SIG ('+sequence+') -')
             print(binascii.hexlify(body).decode("utf-8"))
         elif topic == b"rawgovernancevote":
             print('- RAW GOVERNANCE VOTE ('+sequence+') -')

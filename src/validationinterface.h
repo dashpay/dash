@@ -24,6 +24,10 @@ class CDeterministicMNList;
 class CDeterministicMNListDiff;
 class uint256;
 
+namespace llmq {
+    class CInstantSendLock;
+}
+
 // These functions dispatch to one or all registered wallets
 
 /** Register a wallet to receive updates from core */
@@ -39,7 +43,7 @@ protected:
     virtual void NotifyHeaderTip(const CBlockIndex *pindexNew, bool fInitialDownload) {}
     virtual void UpdatedBlockTip(const CBlockIndex *pindexNew, const CBlockIndex *pindexFork, bool fInitialDownload) {}
     virtual void SyncTransaction(const CTransaction &tx, const CBlockIndex *pindex, int posInBlock) {}
-    virtual void NotifyTransactionLock(const CTransaction &tx) {}
+    virtual void NotifyTransactionLock(const CTransaction &tx, const llmq::CInstantSendLock& islock) {}
     virtual void NotifyChainLock(const CBlockIndex* pindex) {}
     virtual void NotifyGovernanceVote(const CGovernanceVote &vote) {}
     virtual void NotifyGovernanceObject(const CGovernanceObject &object) {}
@@ -77,7 +81,7 @@ struct CMainSignals {
      * disconnected block.*/
     boost::signals2::signal<void (const CTransaction &, const CBlockIndex *pindex, int posInBlock)> SyncTransaction;
     /** Notifies listeners of an updated transaction lock without new data. */
-    boost::signals2::signal<void (const CTransaction &)> NotifyTransactionLock;
+    boost::signals2::signal<void (const CTransaction &, const llmq::CInstantSendLock& islock)> NotifyTransactionLock;
     /** Notifies listeners of a ChainLock. */
     boost::signals2::signal<void (const CBlockIndex* pindex)> NotifyChainLock;
     /** Notifies listeners of a new governance vote. */

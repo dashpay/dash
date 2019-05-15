@@ -51,7 +51,7 @@ public:
 class CZMQPublishHashTransactionLockNotifier : public CZMQAbstractPublishNotifier
 {
 public:
-    bool NotifyTransactionLock(const CTransaction &transaction) override;
+    bool NotifyTransactionLock(const CTransaction &transaction, const llmq::CInstantSendLock& islock) override;
 };
 
 class CZMQPublishHashGovernanceVoteNotifier : public CZMQAbstractPublishNotifier
@@ -93,7 +93,13 @@ public:
 class CZMQPublishRawTransactionLockNotifier : public CZMQAbstractPublishNotifier
 {
 public:
-    bool NotifyTransactionLock(const CTransaction &transaction) override;
+    bool NotifyTransactionLock(const CTransaction &transaction, const llmq::CInstantSendLock& islock) override;
+};
+
+class CZMQPublishRawTransactionLockSigNotifier : public CZMQAbstractPublishNotifier
+{
+public:
+    bool NotifyTransactionLock(const CTransaction &transaction, const llmq::CInstantSendLock& islock) override;
 };
 
 class CZMQPublishRawGovernanceVoteNotifier : public CZMQAbstractPublishNotifier

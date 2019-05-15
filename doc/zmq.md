@@ -67,6 +67,7 @@ Currently, the following notifications are supported:
     -zmqpubrawchainlock=address
     -zmqpubrawtx=address
     -zmqpubrawtxlock=address
+    -zmqpubrawtxlocksig=address
     -zmqpubrawgovernancevote=address
     -zmqpubrawgovernanceobject=address
     -zmqpubrawinstantsenddoublespend=address

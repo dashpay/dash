@@ -944,7 +944,7 @@ void CInstantSendManager::UpdateWalletTransaction(const CTransactionRef& tx, con
     }
 #endif
 
-    GetMainSignals().NotifyTransactionLock(*tx);
+    GetMainSignals().NotifyTransactionLock(*tx, islock);
     // bump mempool counter to make sure newly mined txes are picked up by getblocktemplate
     mempool.AddTransactionsUpdated(1);
 }
