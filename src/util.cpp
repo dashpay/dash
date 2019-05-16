@@ -218,7 +218,6 @@ static boost::once_flag debugPrintInitFlag = BOOST_ONCE_INIT;
 static FILE* fileout = NULL;
 static boost::mutex* mutexDebugLog = NULL;
 static std::list<std::string>* vMsgsBeforeOpenLog;
-static std::atomic<int> logAcceptCategoryCacheCounter(0);
 
 static int FileWriteStr(const std::string &str, FILE *fp)
 {
@@ -335,9 +334,24 @@ std::string ListLogCategories()
     return ret;
 }
 
-void ResetLogAcceptCategoryCache()
+std::string ListActiveLogCategories()
 {
-    logAcceptCategoryCacheCounter++;
+    if (logCategories == BCLog::NONE)
+        return "0";
+    if (logCategories == BCLog::ALL)
+        return "1";
+
+    std::string ret;
+    int outcount = 0;
+    for (unsigned int i = 0; i < ARRAYLEN(LogCategories); i++) {
+        // Omit the special cases.
+        if (LogCategories[i].flag != BCLog::NONE && LogCategories[i].flag != BCLog::ALL && LogAcceptCategory(LogCategories[i].flag)) {
+            if (outcount != 0) ret += ", ";
+            ret += LogCategories[i].category;
+            outcount++;
+        }
+    }
+    return ret;
 }
 
 /**

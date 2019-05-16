@@ -142,11 +142,12 @@ static inline bool LogAcceptCategory(uint64_t category)
 /** Returns a string with the supported log categories */
 std::string ListLogCategories();
 
+/** Returns a string with the list of active log categories */
+std::string ListActiveLogCategories();
+
 /** Return true if str parses as a log category and set the flags in f */
 bool GetLogCategory(uint64_t *f, const std::string *str);
 
-/** Reset internal log category caching (call this when debug categories have changed) */
-void ResetLogAcceptCategoryCache();
 /** Send a string to the log output */
 int LogPrintStr(const std::string &str);
 
