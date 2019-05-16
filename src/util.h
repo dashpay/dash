@@ -76,7 +76,7 @@ extern CTranslationInterface translationInterface;
 extern const char * const BITCOIN_CONF_FILENAME;
 extern const char * const BITCOIN_PID_FILENAME;
 
-extern std::atomic<uint32_t> logCategories;
+extern std::atomic<uint64_t> logCategories;
 
 /**
  * Translation function: Call Translate signal on UI interface, which returns a boost::optional result.
@@ -134,7 +134,7 @@ namespace BCLog {
         ALL         = ~(uint64_t)0,
     };
 }
-static inline bool LogAcceptCategory(uint32_t category)
+static inline bool LogAcceptCategory(uint64_t category)
 {
     return (logCategories.load(std::memory_order_relaxed) & category) != 0;
 }
@@ -143,7 +143,7 @@ static inline bool LogAcceptCategory(uint32_t category)
 std::string ListLogCategories();
 
 /** Return true if str parses as a log category and set the flags in f */
-bool GetLogCategory(uint32_t *f, const std::string *str);
+bool GetLogCategory(uint64_t *f, const std::string *str);
 
 /** Reset internal log category caching (call this when debug categories have changed) */
 void ResetLogAcceptCategoryCache();
