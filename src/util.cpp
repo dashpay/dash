@@ -140,7 +140,7 @@ std::atomic<bool> fReopenDebugLog(false);
 CTranslationInterface translationInterface;
 
 /** Log categories bitfield. Leveldb/libevent need special handling if their flags are changed at runtime. */
-std::atomic<uint32_t> logCategories(0);
+std::atomic<uint64_t> logCategories(0);
 
 /** Init OpenSSL library multithreading support */
 static CCriticalSection** ppmutexOpenSSL;
@@ -256,7 +256,7 @@ void OpenDebugLog()
 
 struct CLogCategoryDesc
 {
-    uint32_t flag;
+    uint64_t flag;
     std::string category;
 };
 
@@ -303,7 +303,7 @@ const CLogCategoryDesc LogCategories[] =
 
 };
 
-bool GetLogCategory(uint32_t *f, const std::string *str)
+bool GetLogCategory(uint64_t *f, const std::string *str)
 {
     if (f && str) {
         if (*str == "") {
