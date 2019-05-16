@@ -86,7 +86,7 @@ killall dashd
 Util tests
 ----------
 
-Util tests can be run locally by running `test/util/dash-util-test.py`.
+Util tests can be run locally by running `test/util/bitcoin-util-test.py`.
 Use the `-v` option for verbose output.
 
 Writing functional tests
