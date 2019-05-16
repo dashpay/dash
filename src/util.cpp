@@ -294,7 +294,6 @@ const CLogCategoryDesc LogCategories[] =
     {BCLog::LLMQ, "llmq"},
     {BCLog::LLMQ_DKG, "llmq-dkg"},
     {BCLog::LLMQ_SIGS, "llmq-sigs"},
-    {BCLog::MASTERNODE, "masternode"},
     {BCLog::MNPAYMENTS, "mnpayments"},
     {BCLog::MNSYNC, "mnsync"},
     {BCLog::SPORK, "spork"},

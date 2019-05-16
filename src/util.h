@@ -124,7 +124,6 @@ namespace BCLog {
         LLMQ        = (1 << 25),
         LLMQ_DKG    = (1 << 26),
         LLMQ_SIGS   = (1 << 27),
-        MASTERNODE  = (1 << 28),
         MNPAYMENTS  = (1 << 29),
         MNSYNC      = (1 << 30),
         SPORK       = (1 << 31),

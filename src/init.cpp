@@ -552,7 +552,7 @@ std::string HelpMessage(HelpMessageMode mode)
         strUsage += HelpMessageOpt("-watchquorums=<n>", strprintf("Watch and validate quorum communication (default: %u)", llmq::DEFAULT_WATCH_QUORUMS));
     }
     std::string debugCategories = "addrman, alert, bench, cmpctblock, coindb, db, http, leveldb, libevent, lock, mempool, mempoolrej, net, proxy, prune, rand, reindex, rpc, selectcoins, tor, zmq, "
-                                  "dash (or specifically: chainlocks, gobject, instantsend, keepass, llmq, llmq-dkg, llmq-sigs, masternode, mnpayments, mnsync, privatesend, spork)"; // Don't translate these and qt below
+                                  "dash (or specifically: chainlocks, gobject, instantsend, keepass, llmq, llmq-dkg, llmq-sigs, mnpayments, mnsync, privatesend, spork)"; // Don't translate these and qt below
     strUsage += HelpMessageOpt("-debug=<category>", strprintf(_("Output debugging information (default: %u, supplying <category> is optional)"), 0) + ". " +
         _("If <category> is not supplied or if <category> = 1, output all debugging information.") + " " + _("<category> can be:") + " " + ListLogCategories() + ".");
     strUsage += HelpMessageOpt("-debugexclude=<category>", strprintf(_("Exclude debugging information for a category. Can be used in conjunction with -debug=1 to output debug logs for all categories except one or more specified categories.")));
