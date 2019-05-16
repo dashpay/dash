@@ -92,7 +92,7 @@ void SetupEnvironment();
 bool SetupNetworking();
 
 namespace BCLog {
-    enum LogFlags : uint32_t {
+    enum LogFlags : uint64_t {
         NONE        = 0,
         NET         = (1 <<  0),
         TOR         = (1 <<  1),
@@ -131,7 +131,7 @@ namespace BCLog {
         PRIVATESEND = (1 << 32),
         //End Dash
 
-        ALL         = ~(uint32_t)0,
+        ALL         = ~(uint64_t)0,
     };
 }
 static inline bool LogAcceptCategory(uint32_t category)
