@@ -732,7 +732,7 @@ bool CNode::ReceiveMsgBytes(const char *pch, unsigned int nBytes, bool& complete
                     // expected to be very small. This protects against attackers filling up memory by sending oversized
                     // VERSION messages while the incoming connection is still protected against eviction
                     if (msg.hdr.nMessageSize > 1024) {
-                        LogPrint("net", "Oversized VERSION/VERACK message from peer=%i, disconnecting\n", GetId());
+                        LogPrint(BCLog::NET, "Oversized VERSION/VERACK message from peer=%i, disconnecting\n", GetId());
                         return false;
                     }
                 }
@@ -1161,7 +1161,7 @@ void CConnman::AcceptConnection(const ListenSocket& hListenSocket) {
 
     // don't accept incoming connections until fully synced
     if(fMasternodeMode && !masternodeSync.IsSynced()) {
-        LogPrint("net", "AcceptConnection -- masternode is not synced yet, skipping inbound connection attempt\n");
+        LogPrint(BCLog::NET, "AcceptConnection -- masternode is not synced yet, skipping inbound connection attempt\n");
         CloseSocket(hSocket);
         return;
     }
@@ -1351,7 +1351,7 @@ void CConnman::ThreadSocketHandler()
 #ifndef WIN32
         // drain the wakeup pipe
         if (FD_ISSET(wakeupPipe[0], &fdsetRecv)) {
-            LogPrint("net", "woke up select()\n");
+            LogPrint(BCLog::NET, "woke up select()\n");
             char buf[128];
             while (true) {
                 int r = read(wakeupPipe[0], buf, sizeof(buf));
@@ -1520,11 +1520,11 @@ void CConnman::WakeSelect()
         return;
     }
 
-    LogPrint("net", "waking up select()\n");
+    LogPrint(BCLog::NET, "waking up select()\n");
 
     char buf[1];
     if (write(wakeupPipe[1], buf, 1) != 1) {
-        LogPrint("net", "write to wakeupPipe failed\n");
+        LogPrint(BCLog::NET, "write to wakeupPipe failed\n");
     }
 #endif
 
@@ -2507,15 +2507,15 @@ bool CConnman::Start(CScheduler& scheduler, std::string& strNodeError, Options c
 #ifndef WIN32
     if (pipe(wakeupPipe) != 0) {
         wakeupPipe[0] = wakeupPipe[1] = -1;
-        LogPrint("net", "pipe() for wakeupPipe failed\n");
+        LogPrint(BCLog::NET, "pipe() for wakeupPipe failed\n");
     } else {
         int fFlags = fcntl(wakeupPipe[0], F_GETFL, 0);
         if (fcntl(wakeupPipe[0], F_SETFL, fFlags | O_NONBLOCK) == -1) {
-            LogPrint("net", "fcntl for O_NONBLOCK on wakeupPipe failed\n");
+            LogPrint(BCLog::NET, "fcntl for O_NONBLOCK on wakeupPipe failed\n");
         }
         fFlags = fcntl(wakeupPipe[1], F_GETFL, 0);
         if (fcntl(wakeupPipe[1], F_SETFL, fFlags | O_NONBLOCK) == -1) {
-            LogPrint("net", "fcntl for O_NONBLOCK on wakeupPipe failed\n");
+            LogPrint(BCLog::NET, "fcntl for O_NONBLOCK on wakeupPipe failed\n");
         }
     }
 #endif
