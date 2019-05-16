@@ -310,6 +310,20 @@ bool GetLogCategory(uint64_t *f, const std::string *str)
             *f = BCLog::ALL;
             return true;
         }
+        if (*str == "dash") {
+            *f = BCLog::CHAINLOCKS
+                | BCLog::GOBJECT
+                | BCLog::INSTANTSEND
+                | BCLog::KEEPASS
+                | BCLog::LLMQ
+                | BCLog::LLMQ_DKG
+                | BCLog::LLMQ_SIGS
+                | BCLog::MNPAYMENTS
+                | BCLog::MNSYNC
+                | BCLog::PRIVATESEND
+                | BCLog::SPORK;
+            return true;
+        }
         for (unsigned int i = 0; i < ARRAYLEN(LogCategories); i++) {
             if (LogCategories[i].category == *str) {
                 *f = LogCategories[i].flag;
