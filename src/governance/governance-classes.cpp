@@ -177,10 +177,7 @@ void CGovernanceTriggerManager::CleanAndRemove()
             LogPrint(BCLog::GOBJECT, "CGovernanceTriggerManager::CleanAndRemove -- Removing trigger object %s\n", strDataAsPlainString);
             // mark corresponding object for deletion
             if (pObj) {
-                pObj->fCachedDelete = true;
-                if (pObj->nDeletionTime == 0) {
-                    pObj->nDeletionTime = GetAdjustedTime();
-                }
+                pObj->PrepareDeletion(GetAdjustedTime());
             }
             // delete the trigger
             mapTrigger.erase(it++);
@@ -690,8 +687,8 @@ bool CSuperblock::IsExpired()
         CGovernanceObject* pgovobj = GetGovernanceObject();
         if (pgovobj) {
             LogPrint(BCLog::GOBJECT, "CSuperblock::IsExpired -- Expiring outdated object: %s\n", pgovobj->GetHash().ToString());
-            pgovobj->fExpired = true;
-            pgovobj->nDeletionTime = GetAdjustedTime();
+            pgovobj->SetExpired();
+            pgovobj->PrepareDeletion(GetAdjustedTime());
         }
     }
 
