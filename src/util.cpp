@@ -296,8 +296,8 @@ const CLogCategoryDesc LogCategories[] =
     {BCLog::LLMQ_SIGS, "llmq-sigs"},
     {BCLog::MNPAYMENTS, "mnpayments"},
     {BCLog::MNSYNC, "mnsync"},
-    {BCLog::SPORK, "spork"},
     {BCLog::PRIVATESEND, "privatesend"},
+    {BCLog::SPORK, "spork"},
     //End Dash
     {BCLog::ALERT, "alert"},
 

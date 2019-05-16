@@ -117,19 +117,19 @@ namespace BCLog {
         LEVELDB     = (1 << 20),
 
         //Start Dash
-        CHAINLOCKS  = (1 << 21),
-        GOBJECT     = (1 << 22),
-        INSTANTSEND = (1 << 23),
-        KEEPASS     = (1 << 24),
-        LLMQ        = (1 << 25),
-        LLMQ_DKG    = (1 << 26),
-        LLMQ_SIGS   = (1 << 27),
-        MNPAYMENTS  = (1 << 29),
-        MNSYNC      = (1 << 30),
-        SPORK       = (1 << 31),
-        PRIVATESEND = (1 << 32),
+        CHAINLOCKS  = ((uint64_t)1 << 32),
+        GOBJECT     = ((uint64_t)1 << 33),
+        INSTANTSEND = ((uint64_t)1 << 34),
+        KEEPASS     = ((uint64_t)1 << 35),
+        LLMQ        = ((uint64_t)1 << 36),
+        LLMQ_DKG    = ((uint64_t)1 << 37),
+        LLMQ_SIGS   = ((uint64_t)1 << 38),
+        MNPAYMENTS  = ((uint64_t)1 << 39),
+        MNSYNC      = ((uint64_t)1 << 40),
+        PRIVATESEND = ((uint64_t)1 << 41),
+        SPORK       = ((uint64_t)1 << 42),
         //End Dash
-        ALERT       = ((uint64_t)1 << 33),
+        ALERT       = ((uint64_t)1 << 43),
 
         ALL         = ~(uint64_t)0,
     };
