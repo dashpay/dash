@@ -130,6 +130,7 @@ namespace BCLog {
         SPORK       = (1 << 31),
         PRIVATESEND = (1 << 32),
         //End Dash
+        ALERT       = ((uint64_t)1 << 33),
 
         ALL         = ~(uint64_t)0,
     };

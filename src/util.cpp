@@ -299,6 +299,8 @@ const CLogCategoryDesc LogCategories[] =
     {BCLog::MNSYNC, "mnsync"},
     {BCLog::SPORK, "spork"},
     {BCLog::PRIVATESEND, "privatesend"},
+    //End Dash
+    {BCLog::ALERT, "alert"},
 
 };
 
