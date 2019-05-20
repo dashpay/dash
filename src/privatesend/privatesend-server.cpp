@@ -171,6 +171,13 @@ void CPrivateSendServer::ProcessMessage(CNode* pfrom, const std::string& strComm
 
         LogPrint(BCLog::PRIVATESEND, "DSVIN -- txCollateral %s", entry.txCollateral->ToString());
 
+        if (entry.vecTxDSIn.size() != entry.vecTxOut.size()) {
+            LogPrintf("DSVIN -- ERROR: inputs vs outputs size mismatch! %d vs %d\n", entry.vecTxDSIn.size(), entry.vecTxOut.size());
+            PushStatus(pfrom, STATUS_REJECTED, ERR_SIZE_MISMATCH, connman);
+            ConsumeCollateral(connman, entry.txCollateral);
+            return;
+        }
+
         if (entry.vecTxDSIn.size() > PRIVATESEND_ENTRY_MAX_SIZE) {
             LogPrintf("DSVIN -- ERROR: too many inputs! %d/%d\n", entry.vecTxDSIn.size(), PRIVATESEND_ENTRY_MAX_SIZE);
             PushStatus(pfrom, STATUS_REJECTED, ERR_MAXIMUM, connman);

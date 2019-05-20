@@ -465,6 +465,8 @@ std::string CPrivateSend::GetMessageByID(PoolMessage nMessageID)
         return _("Transaction created successfully.");
     case MSG_ENTRIES_ADDED:
         return _("Your entries added successfully.");
+    case ERR_SIZE_MISMATCH:
+        return _("Inputs vs outputs size mismatch.");
     default:
         return _("Unknown response.");
     }
