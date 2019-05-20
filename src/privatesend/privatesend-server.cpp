@@ -185,13 +185,6 @@ void CPrivateSendServer::ProcessMessage(CNode* pfrom, const std::string& strComm
             return;
         }
 
-        if (entry.vecTxOut.size() > PRIVATESEND_ENTRY_MAX_SIZE) {
-            LogPrintf("DSVIN -- ERROR: too many outputs! %d/%d\n", entry.vecTxOut.size(), PRIVATESEND_ENTRY_MAX_SIZE);
-            PushStatus(pfrom, STATUS_REJECTED, ERR_MAXIMUM, connman);
-            ConsumeCollateral(connman, entry.txCollateral);
-            return;
-        }
-
         //do we have the same denominations as the current session?
         if (!IsOutputsCompatibleWithSessionDenom(entry.vecTxOut)) {
             LogPrintf("DSVIN -- not compatible with existing transactions!\n");
