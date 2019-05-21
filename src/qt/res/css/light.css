@@ -815,7 +815,9 @@ min-height:30px;
 
 QWidget .QFrame#frame .QLabel#labelWalletStatus { /* Wallet Sync Status */
 qproperty-alignment: 'AlignVCenter | AlignLeft';
-margin-left:3px;
+min-width:0;
+max-width: 0;
+max-height: 0;
 }
 
 QWidget .QFrame#frame .QLabel#labelSpendable { /* Spendable Header */
@@ -950,8 +952,9 @@ min-height:30px;
 /******************************************************************/
 QWidget .QFrame#framePrivateSend .QLabel#labelPrivateSendSyncStatus { /* PrivateSend Sync Status */
 qproperty-alignment: 'AlignVCenter | AlignLeft';
-margin-left:2px;
-padding-right:5px;
+min-width:0;
+max-width: 0;
+max-height: 0;
 }
 
 QWidget .QFrame#framePrivateSend #privateSendFormLayoutWidget {
@@ -1150,11 +1153,9 @@ min-height:30px;
 
 QWidget .QFrame#frame_2 .QLabel#labelTransactionsStatus { /* Recent Transactions Sync Status */
 qproperty-alignment: 'AlignBottom | AlignRight';
-min-width:93px;
-margin-top:83px;
-margin-left:16px;
-margin-right:5px;
-min-height:16px;
+min-width:0;
+max-width: 0;
+max-height: 0;
 }
 
 QWidget .QFrame#frame_2 QListView { /* Transaction List */
