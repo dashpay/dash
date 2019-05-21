@@ -131,6 +131,9 @@ bool CPrivateSendBroadcastTx::IsValidStructure()
     if (tx->vin.size() < CPrivateSend::GetMinPoolParticipants()) {
         return false;
     }
+    if (tx->vin.size() > CPrivateSend::GetMaxPoolParticipants() * PRIVATESEND_ENTRY_MAX_SIZE) {
+        return false;
+    }
     for (const auto& out : tx->vout) {
         if (!CPrivateSend::IsDenominatedAmount(out.nValue)) {
             return false;
