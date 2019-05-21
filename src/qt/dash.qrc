@@ -326,6 +326,7 @@
     <qresource prefix="/images/light">
         <file alias="about">res/images/light/about.png</file>
         <file alias="dash_logo_horizontal">res/images/light/dash_logo_horizontal.png</file>
+        <file alias="dash_logo_toolbar">res/images/light/dash_logo_toolbar.png</file>
         <file alias="unchecked">res/images/light/unchecked.png</file>
         <file alias="checked">res/images/light/checked.png</file>
         <file alias="drkblue_downArrow">res/images/light/drkblue_downArrow.png</file>

@@ -550,6 +550,7 @@ RES_IMAGES = \
   qt/res/images/light/splash.png \
   qt/res/images/light/splash_testnet.png \
   qt/res/images/light/dash_logo_horizontal.png \
+  qt/res/images/light/dash_logo_toolbar.png \
   qt/res/images/light/unchecked.png \
   qt/res/images/light/checked.png \
   qt/res/images/light/drkblue_downArrow.png \

@@ -568,6 +568,16 @@ void BitcoinGUI::createToolBars()
         toolbar->setMovable(false); // remove unused icon in upper left corner
         overviewAction->setChecked(true);
 
+        // Add Dash logo on the right side
+        QWidget* spacer = new QWidget();
+        spacer->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Expanding);
+        toolbar->addWidget(spacer);
+
+        QLabel *logoLabel = new QLabel();
+        QPixmap logoPixmap(":/images/" + GUIUtil::getThemeName() + "/dash_logo_toolbar");
+        logoLabel->setPixmap(logoPixmap);
+        toolbar->addWidget(logoLabel);
+
         /** Create additional container for toolbar and walletFrame and make it the central widget.
             This is a workaround mostly for toolbar styling on Mac OS but should work fine for every other OSes too.
         */
