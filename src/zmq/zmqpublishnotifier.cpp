@@ -274,7 +274,7 @@ bool CZMQPublishRawChainLockNotifier::NotifyChainLock(const CBlockIndex *pindex,
 
 bool CZMQPublishRawChainLockSigNotifier::NotifyChainLock(const CBlockIndex *pindex, const llmq::CChainLockSig& clsig)
 {
-    LogPrint("zmq", "zmq: Publish rawchainlocksig %s\n", pindex->GetBlockHash().GetHex());
+    LogPrint(BCLog::ZMQ, "zmq: Publish rawchainlocksig %s\n", pindex->GetBlockHash().GetHex());
 
     const Consensus::Params& consensusParams = Params().GetConsensus();
     CDataStream ss(SER_NETWORK, PROTOCOL_VERSION);
@@ -315,7 +315,7 @@ bool CZMQPublishRawTransactionLockNotifier::NotifyTransactionLock(const CTransac
 bool CZMQPublishRawTransactionLockSigNotifier::NotifyTransactionLock(const CTransaction &transaction, const llmq::CInstantSendLock& islock)
 {
     uint256 hash = transaction.GetHash();
-    LogPrint("zmq", "zmq: Publish rawtxlocksig %s\n", hash.GetHex());
+    LogPrint(BCLog::ZMQ, "zmq: Publish rawtxlocksig %s\n", hash.GetHex());
     CDataStream ss(SER_NETWORK, PROTOCOL_VERSION);
     ss << transaction;
     ss << islock;
