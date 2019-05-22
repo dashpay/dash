@@ -2157,7 +2157,7 @@ bool static ProcessMessage(CNode* pfrom, const std::string& strCommand, CDataStr
         } else if (nInvType == MSG_DSTX) {
             uint256 hashTx = tx.GetHash();
             if (!dstx.IsValidStructure()) {
-                LogPrint("privatesend", "DSTX -- Invalid DSTX structure: %s\n", hashTx.ToString());
+                LogPrint(BCLog::PRIVATESEND, "DSTX -- Invalid DSTX structure: %s\n", hashTx.ToString());
                 return false;
             }
             if(CPrivateSend::GetDSTX(hashTx)) {

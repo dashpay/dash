@@ -504,10 +504,10 @@ void CPrivateSendServer::ConsumeCollateral(CConnman& connman, const CTransaction
     LOCK(cs_main);
     CValidationState validationState;
     if (!AcceptToMemoryPool(mempool, validationState, txref, false, nullptr)) {
-        LogPrint("privatesend", "%s -- AcceptToMemoryPool failed\n", __func__);
+        LogPrint(BCLog::PRIVATESEND, "%s -- AcceptToMemoryPool failed\n", __func__);
     } else {
         connman.RelayTransaction(*txref);
-        LogPrint("privatesend", "%s -- Collateral was consumed\n", __func__);
+        LogPrint(BCLog::PRIVATESEND, "%s -- Collateral was consumed\n", __func__);
     }
 }
 
