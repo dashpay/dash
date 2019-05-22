@@ -149,7 +149,7 @@ UniValue debug(const JSONRPCRequest& request)
     std::vector<std::string> categories;
     boost::split(categories, strMode, boost::is_any_of("+"));
 
-    if (find(categories.begin(), categories.end(), std::string("0")) == categories.end()) {
+    if (std::find(categories.begin(), categories.end(), std::string("0")) == categories.end()) {
         for (const auto& cat : categories) {
             uint64_t flag;
             if (GetLogCategory(&flag, &cat)) {
