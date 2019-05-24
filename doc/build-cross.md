@@ -59,6 +59,13 @@ $ sudo update-alternatives --set i686-w64-mingw32-gcc /usr/bin/i686-w64-mingw32-
 $ sudo update-alternatives --set i686-w64-mingw32-g++  /usr/bin/i686-w64-mingw32-g++-posix
 ```
 
+When building the dependencies in WSL, as described in [build-generic](build-generic.md), use
+
+```bash
+$ PATH=$(echo "$PATH" | sed -e 's/:\/mnt.*//g') # strip out problematic Windows %PATH% imported var
+$ make HOST=x86_64-w64-mingw32 -j4
+```
+
 When building the dependencies, as described in [build-generic](build-generic.md), use
 
 ```bash
