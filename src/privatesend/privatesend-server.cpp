@@ -305,7 +305,7 @@ void CPrivateSendServer::SetNull()
 {
     // MN side
     vecSessionCollaterals.clear();
-    nSessionMaxParticipants = 0;
+    nSessionStartTime = 0;
 
     CPrivateSendBaseSession::SetNull();
     CPrivateSendBaseManager::SetNull();
@@ -321,7 +321,7 @@ void CPrivateSendServer::CheckPool(CConnman& connman)
     LogPrint(BCLog::PRIVATESEND, "CPrivateSendServer::CheckPool -- entries count %lu\n", GetEntriesCount());
 
     // If entries are full, create finalized transaction
-    if (nState == POOL_STATE_ACCEPTING_ENTRIES && GetEntriesCount() >= nSessionMaxParticipants) {
+    if (nState == POOL_STATE_ACCEPTING_ENTRIES && GetEntriesCount() >= CPrivateSendServer::GetSessionMaxParticipants()) {
         LogPrint(BCLog::PRIVATESEND, "CPrivateSendServer::CheckPool -- FINALIZE TRANSACTIONS\n");
         CreateFinalTransaction(connman);
         return;
@@ -461,10 +461,10 @@ void CPrivateSendServer::ChargeFees(CConnman& connman)
     if (vecOffendersCollaterals.empty()) return;
 
     //mostly offending? Charge sometimes
-    if ((int)vecOffendersCollaterals.size() >= nSessionMaxParticipants - 1 && GetRandInt(100) > 33) return;
+    if ((int)vecOffendersCollaterals.size() >= CPrivateSendServer::GetSessionMaxParticipants() - 1 && GetRandInt(100) > 33) return;
 
     //everyone is an offender? That's not right
-    if ((int)vecOffendersCollaterals.size() >= nSessionMaxParticipants) return;
+    if ((int)vecOffendersCollaterals.size() >= CPrivateSendServer::GetSessionMaxParticipants()) return;
 
     //charge one of the offenders randomly
     std::random_shuffle(vecOffendersCollaterals.begin(), vecOffendersCollaterals.end());
@@ -527,21 +527,16 @@ void CPrivateSendServer::CheckTimeout(CConnman& connman)
     // Too early to do anything
     if (!fTimeout) return;
 
-    // See if we have at least min number of participants, if so - we can still do smth
+    // Allow more time for GetSessionMaxParticipants() to tick down
     if (nState == POOL_STATE_QUEUE && vecSessionCollaterals.size() >= CPrivateSend::GetMinPoolParticipants()) {
-        LogPrint(BCLog::PRIVATESEND, "CPrivateSendServer::CheckTimeout -- Queue for %d participants timed out (%ds) -- falling back to %d participants\n",
-            nSessionMaxParticipants, nTimeout, vecSessionCollaterals.size());
-        nSessionMaxParticipants = vecSessionCollaterals.size();
         return;
     }
 
     if (nState == POOL_STATE_ACCEPTING_ENTRIES && GetEntriesCount() >= CPrivateSend::GetMinPoolParticipants()) {
-        LogPrint(BCLog::PRIVATESEND, "CPrivateSendServer::CheckTimeout -- Accepting entries for %d participants timed out (%ds) -- falling back to %d participants\n",
-            nSessionMaxParticipants, nTimeout, GetEntriesCount());
+        LogPrint(BCLog::PRIVATESEND, "CPrivateSendServer::CheckTimeout -- Accepting entries timed out (%ds)\n",
+            nTimeout, GetEntriesCount());
         // Punish misbehaving participants
         ChargeFees(connman);
-        // Try to complete this session ignoring the misbehaving ones
-        nSessionMaxParticipants = GetEntriesCount();
         CheckPool(connman);
         return;
     }
@@ -635,7 +630,7 @@ bool CPrivateSendServer::AddEntry(const CPrivateSendEntry& entryNew, PoolMessage
         return false;
     }
 
-    if (GetEntriesCount() >= nSessionMaxParticipants) {
+    if (GetEntriesCount() >= CPrivateSendServer::GetSessionMaxParticipants()) {
         LogPrint(BCLog::PRIVATESEND, "CPrivateSendServer::AddEntry -- entries is full!\n");
         nMessageIDRet = ERR_ENTRIES_FULL;
         return false;
@@ -656,7 +651,7 @@ bool CPrivateSendServer::AddEntry(const CPrivateSendEntry& entryNew, PoolMessage
 
     vecEntries.push_back(entryNew);
 
-    LogPrint(BCLog::PRIVATESEND, "CPrivateSendServer::AddEntry -- adding entry %d of %d required\n", GetEntriesCount(), nSessionMaxParticipants);
+    LogPrint(BCLog::PRIVATESEND, "CPrivateSendServer::AddEntry -- adding entry %d of %d currently required\n", GetEntriesCount(), CPrivateSendServer::GetSessionMaxParticipants());
     nMessageIDRet = MSG_ENTRIES_ADDED;
 
     return true;
@@ -763,7 +758,7 @@ bool CPrivateSendServer::CreateNewSession(const CPrivateSendAccept& dsa, PoolMes
     nMessageIDRet = MSG_NOERR;
     nSessionID = GetRandInt(999999) + 1;
     nSessionDenom = dsa.nDenom;
-    nSessionMaxParticipants = CPrivateSend::GetMinPoolParticipants() + GetRandInt(CPrivateSend::GetMaxPoolParticipants() - CPrivateSend::GetMinPoolParticipants() + 1);
+    nSessionStartTime = GetTime();
 
     SetState(POOL_STATE_QUEUE);
 
@@ -777,8 +772,8 @@ bool CPrivateSendServer::CreateNewSession(const CPrivateSendAccept& dsa, PoolMes
     }
 
     vecSessionCollaterals.push_back(MakeTransactionRef(dsa.txCollateral));
-    LogPrintf("CPrivateSendServer::CreateNewSession -- new session created, nSessionID: %d  nSessionDenom: %d (%s)  vecSessionCollaterals.size(): %d  nSessionMaxParticipants: %d\n",
-        nSessionID, nSessionDenom, CPrivateSend::GetDenominationsToString(nSessionDenom), vecSessionCollaterals.size(), nSessionMaxParticipants);
+    LogPrintf("CPrivateSendServer::CreateNewSession -- new session created, nSessionID: %d  nSessionDenom: %d (%s)  vecSessionCollaterals.size(): %d\n",
+        nSessionID, nSessionDenom, CPrivateSend::GetDenominationsToString(nSessionDenom), vecSessionCollaterals.size());
 
     return true;
 }
@@ -810,15 +805,15 @@ bool CPrivateSendServer::AddUserToExistingSession(const CPrivateSendAccept& dsa,
     nMessageIDRet = MSG_NOERR;
     vecSessionCollaterals.push_back(MakeTransactionRef(dsa.txCollateral));
 
-    LogPrintf("CPrivateSendServer::AddUserToExistingSession -- new user accepted, nSessionID: %d  nSessionDenom: %d (%s)  vecSessionCollaterals.size(): %d  nSessionMaxParticipants: %d\n",
-        nSessionID, nSessionDenom, CPrivateSend::GetDenominationsToString(nSessionDenom), vecSessionCollaterals.size(), nSessionMaxParticipants);
+    LogPrintf("CPrivateSendServer::AddUserToExistingSession -- new user accepted, nSessionID: %d  nSessionDenom: %d (%s)  vecSessionCollaterals.size(): %d  GetSessionMaxParticipants(): %d\n",
+        nSessionID, nSessionDenom, CPrivateSend::GetDenominationsToString(nSessionDenom), vecSessionCollaterals.size(), CPrivateSendServer::GetSessionMaxParticipants());
 
     return true;
 }
 
 bool CPrivateSendServer::IsSessionReady()
 {
-    return nSessionMaxParticipants != 0 && (int)vecSessionCollaterals.size() >= nSessionMaxParticipants;
+    return nSessionStartTime && (int)vecSessionCollaterals.size() >= CPrivateSendServer::GetSessionMaxParticipants();
 }
 
 void CPrivateSendServer::RelayFinalTransaction(const CTransaction& txFinal, CConnman& connman)
@@ -916,6 +911,16 @@ void CPrivateSendServer::SetState(PoolState nStateNew)
     LogPrintf("CPrivateSendServer::SetState -- nState: %d, nStateNew: %d\n", nState, nStateNew);
     nTimeLastSuccessfulStep = GetTime();
     nState = nStateNew;
+}
+
+int CPrivateSendServer::GetSessionMaxParticipants()
+{
+    // The percent time remaining until the 'Goal' time is reached.
+    double percentTimeRemaining = 1.0 -
+            ((double)(GetTime() - nSessionStartTime) / (double)PRIVATESEND_QUEUE_GOAL_TIME);
+    int maxParticipants = percentTimeRemaining * CPrivateSend::GetMaxPoolParticipants();
+
+    return std::max(CPrivateSend::GetMinPoolParticipants(), maxParticipants);
 }
 
 void CPrivateSendServer::DoMaintenance(CConnman& connman)

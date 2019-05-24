@@ -25,6 +25,9 @@ private:
     // Maximum number of participants in a certain session, random between min and max.
     int nSessionMaxParticipants;
 
+    //The sessions start time, used for variable participant count
+    int nSessionStartTime;
+
     bool fUnitTest;
 
     /// Add a clients entry to the pool
@@ -58,7 +61,8 @@ private:
     bool IsInputScriptSigValid(const CTxIn& txin);
     /// Are these outputs compatible with other client in the pool?
     bool IsOutputsCompatibleWithSessionDenom(const std::vector<CTxOut>& vecTxOut);
-
+    // Maximum number of participants in a certain session, starts at max and decreases with time based on PRIVATESEND_QUEUE_GOAL_TIME
+    int GetSessionMaxParticipants();
     // Set the 'state' value, with some logging and capturing when the state changed
     void SetState(PoolState nStateNew);
 

@@ -23,6 +23,9 @@ static const int PRIVATESEND_AUTO_TIMEOUT_MAX = 15;
 static const int PRIVATESEND_QUEUE_TIMEOUT = 30;
 static const int PRIVATESEND_SIGNING_TIMEOUT = 15;
 
+// Used to automatically adjust the number of participants in a round.
+static const int PRIVATESEND_QUEUE_GOAL_TIME = 40;
+
 //! minimum peer version accepted by mixing pool
 static const int MIN_PRIVATESEND_PEER_PROTO_VERSION = 70213;
 
