@@ -71,14 +71,18 @@ SendCoinsDialog::SendCoinsDialog(const PlatformStyle *_platformStyle, QWidget *p
     // Dash specific
     QSettings settings;
     //TODO remove Darksend sometime after 0.14.1
-    if (settings.contains("bUseDarkSend"))
+    if (settings.contains("bUseDarkSend")) {
         settings.setValue("bUsePrivateSend", settings.value("bUseDarkSend").toBool());
+        settings.remove("bUseDarkSend");
+    }
     if (!settings.contains("bUsePrivateSend"))
         settings.setValue("bUsePrivateSend", false);
 
     //TODO remove InstantX sometime after 0.14.1
-    if (settings.contains("bUseInstantX"))
+    if (settings.contains("bUseInstantX")) {
         settings.setValue("bUseInstantSend", settings.value("bUseInstantX").toBool());
+        settings.remove("bUseInstantX");
+    }
     if (!settings.contains("bUseInstantSend"))
         settings.setValue("bUseInstantSend", false);
 
