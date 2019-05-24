@@ -813,7 +813,7 @@ bool CPrivateSendServer::AddUserToExistingSession(const CPrivateSendAccept& dsa,
 
 bool CPrivateSendServer::IsSessionReady()
 {
-    return nSessionStartTime && (int)vecSessionCollaterals.size() >= CPrivateSendServer::GetSessionMaxParticipants();
+    return nSessionStartTime > 0 && (int)vecSessionCollaterals.size() >= CPrivateSendServer::GetSessionMaxParticipants();
 }
 
 void CPrivateSendServer::RelayFinalTransaction(const CTransaction& txFinal, CConnman& connman)
