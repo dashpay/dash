@@ -982,7 +982,8 @@ void CInstantSendManager::SyncTransaction(const CTransaction& tx, const CBlockIn
         // update DB about when an IS lock was mined
         if (!islockHash.IsNull() && pindex) {
             if (isDisconnect) {
-                db.RemoveInstantSendLockMined(islockHash, pindex->nHeight);
+                // SyncTransaction is called with pprev
+                db.RemoveInstantSendLockMined(islockHash, pindex->nHeight + 1);
             } else {
                 db.WriteInstantSendLockMined(islockHash, pindex->nHeight);
             }
