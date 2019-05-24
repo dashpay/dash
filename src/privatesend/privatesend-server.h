@@ -22,9 +22,6 @@ private:
     // to behave honestly. If they don't it takes their money.
     std::vector<CTransactionRef> vecSessionCollaterals;
 
-    // Maximum number of participants in a certain session, random between min and max.
-    int nSessionMaxParticipants;
-
     //The sessions start time, used for variable participant count
     int nSessionStartTime;
 
@@ -77,7 +74,7 @@ private:
 public:
     CPrivateSendServer() :
         vecSessionCollaterals(),
-        nSessionMaxParticipants(0),
+        nSessionStartTime(0),
         fUnitTest(false) {}
 
     void ProcessMessage(CNode* pfrom, const std::string& strCommand, CDataStream& vRecv, CConnman& connman);
