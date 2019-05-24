@@ -758,7 +758,8 @@ bool CPrivateSendServer::CreateNewSession(const CPrivateSendAccept& dsa, PoolMes
     nMessageIDRet = MSG_NOERR;
     nSessionID = GetRandInt(999999) + 1;
     nSessionDenom = dsa.nDenom;
-    nSessionStartTime = GetTime();
+    // Add randomness to stop a client from predicting number of participants based on timing
+    nSessionStartTime = GetTime() + GetRandInt(PRIVATESEND_QUEUE_GOAL_TIME / 2);
 
     SetState(POOL_STATE_QUEUE);
 
@@ -918,6 +919,8 @@ int CPrivateSendServer::GetSessionMaxParticipants()
     // The percent time remaining until the 'Goal' time is reached.
     double percentTimeRemaining = 1.0 -
             ((double)(GetTime() - nSessionStartTime) / (double)PRIVATESEND_QUEUE_GOAL_TIME);
+    // due to randomizing nSessionStartTime, check that it is not negative
+    percentTimeRemaining = std::max(0.0, percentTimeRemaining);
     int maxParticipants = percentTimeRemaining * CPrivateSend::GetMaxPoolParticipants();
 
     return std::max(CPrivateSend::GetMinPoolParticipants(), maxParticipants);
