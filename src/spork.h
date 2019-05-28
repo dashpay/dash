@@ -39,7 +39,14 @@ enum SporkId : int32_t {
 };
 template<> struct is_serializable_enum<SporkId> : std::true_type {};
 
-extern std::map<int, int64_t> mapSporkDefaults;
+struct CSporkDef
+{
+    SporkId sporkId{SPORK_INVALID};
+    int64_t defaultValue{0};
+    std::string name;
+};
+
+extern std::vector<CSporkDef> sporkDefs;
 extern CSporkManager sporkManager;
 
 /**
@@ -141,6 +148,9 @@ class CSporkManager
 private:
     static const std::string SERIALIZATION_VERSION_STRING;
 
+    std::unordered_map<SporkId, CSporkDef*> sporkDefsById;
+    std::unordered_map<std::string, CSporkDef*> sporkDefsByName;
+
     mutable CCriticalSection cs;
     std::unordered_map<uint256, CSporkMessage> mapSporksByHash;
     std::unordered_map<SporkId, std::map<CKeyID, CSporkMessage> > mapSporksActive;
@@ -157,7 +167,7 @@ private:
 
 public:
 
-    CSporkManager() {}
+    CSporkManager();
 
     ADD_SERIALIZE_METHODS;
 
