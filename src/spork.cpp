@@ -31,7 +31,7 @@ std::map<int, int64_t> mapSporkDefaults = {
     {SPORK_20_INSTANTSEND_LLMQ_BASED,        4070908800ULL}, // OFF
 };
 
-bool CSporkManager::SporkValueIsActive(int nSporkID, int64_t &nActiveValueRet) const
+bool CSporkManager::SporkValueIsActive(SporkId nSporkID, int64_t &nActiveValueRet) const
 {
     LOCK(cs);
 
@@ -192,7 +192,7 @@ void CSporkManager::ProcessSpork(CNode* pfrom, const std::string& strCommand, CD
 
 }
 
-void CSporkManager::ExecuteSpork(int nSporkID, int nValue)
+void CSporkManager::ExecuteSpork(SporkId nSporkID, int nValue)
 {
     //correct fork via spork technology
     if(nSporkID == SPORK_12_RECONSIDER_BLOCKS && nValue > 0) {
@@ -221,7 +221,7 @@ void CSporkManager::ExecuteSpork(int nSporkID, int nValue)
     }
 }
 
-bool CSporkManager::UpdateSpork(int nSporkID, int64_t nValue, CConnman& connman)
+bool CSporkManager::UpdateSpork(SporkId nSporkID, int64_t nValue, CConnman& connman)
 {
     CSporkMessage spork = CSporkMessage(nSporkID, nValue, GetAdjustedTime());
 
@@ -244,7 +244,7 @@ bool CSporkManager::UpdateSpork(int nSporkID, int64_t nValue, CConnman& connman)
     return false;
 }
 
-bool CSporkManager::IsSporkActive(int nSporkID)
+bool CSporkManager::IsSporkActive(SporkId nSporkID)
 {
     LOCK(cs);
     int64_t nSporkValue = -1;
@@ -261,7 +261,7 @@ bool CSporkManager::IsSporkActive(int nSporkID)
     return false;
 }
 
-int64_t CSporkManager::GetSporkValue(int nSporkID)
+int64_t CSporkManager::GetSporkValue(SporkId nSporkID)
 {
     LOCK(cs);
 
@@ -278,7 +278,7 @@ int64_t CSporkManager::GetSporkValue(int nSporkID)
     return -1;
 }
 
-int CSporkManager::GetSporkIDByName(const std::string& strName)
+SporkId CSporkManager::GetSporkIDByName(const std::string& strName)
 {
     if (strName == "SPORK_2_INSTANTSEND_ENABLED")               return SPORK_2_INSTANTSEND_ENABLED;
     if (strName == "SPORK_3_INSTANTSEND_BLOCK_FILTERING")       return SPORK_3_INSTANTSEND_BLOCK_FILTERING;
@@ -296,7 +296,7 @@ int CSporkManager::GetSporkIDByName(const std::string& strName)
     return -1;
 }
 
-std::string CSporkManager::GetSporkNameByID(int nSporkID)
+std::string CSporkManager::GetSporkNameByID(SporkId nSporkID)
 {
     switch (nSporkID) {
         case SPORK_2_INSTANTSEND_ENABLED:               return "SPORK_2_INSTANTSEND_ENABLED";
