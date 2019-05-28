@@ -255,20 +255,8 @@ bool CSporkManager::UpdateSpork(SporkId nSporkID, int64_t nValue, CConnman& conn
 
 bool CSporkManager::IsSporkActive(SporkId nSporkID)
 {
-    LOCK(cs);
-    int64_t nSporkValue = -1;
-
-    if (SporkValueIsActive(nSporkID, nSporkValue)) {
-        return nSporkValue < GetAdjustedTime();
-    }
-
-    auto it = sporkDefsById.find(nSporkID);
-    if (it != sporkDefsById.end()) {
-        return it->second->defaultValue < GetAdjustedTime();
-    }
-
-    LogPrint(BCLog::SPORK, "CSporkManager::IsSporkActive -- Unknown Spork ID %d\n", nSporkID);
-    return false;
+    int64_t nSporkValue = GetSporkValue(nSporkID);
+    return nSporkValue < GetAdjustedTime();
 }
 
 int64_t CSporkManager::GetSporkValue(SporkId nSporkID)
