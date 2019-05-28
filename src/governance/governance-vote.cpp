@@ -258,7 +258,7 @@ bool CGovernanceVote::IsValid(bool useVotingKey) const
         return false;
     }
 
-    auto dmn = deterministicMNManager->GetListAtChainTip().GetValidMNByCollateral(masternodeOutpoint);
+    auto dmn = deterministicMNManager->GetListAtChainTip().GetMNByCollateral(masternodeOutpoint);
     if (!dmn) {
         LogPrint(BCLog::GOBJECT, "CGovernanceVote::IsValid -- Unknown Masternode - %s\n", masternodeOutpoint.ToStringShort());
         return false;
