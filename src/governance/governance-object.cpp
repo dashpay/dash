@@ -495,6 +495,7 @@ bool CGovernanceObject::IsValidLocally(std::string& strError, bool& fMissingMast
         std::string strOutpoint = masternodeOutpoint.ToStringShort();
         auto dmn = mnList.GetMNByCollateral(masternodeOutpoint);
         if (!dmn) {
+            fMissingMasternode = true;
             strError = "Failed to find Masternode by UTXO, missing masternode=" + strOutpoint;
             return false;
         }
