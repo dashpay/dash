@@ -13,8 +13,6 @@
 
 #include <string>
 
-CSporkManager sporkManager;
-
 const std::string CSporkManager::SERIALIZATION_VERSION_STRING = "CSporkManager-Version-2";
 
 #define MAKE_SPORK_DEF(name, defaultValue) CSporkDef{name, defaultValue, #name}
@@ -31,6 +29,8 @@ std::vector<CSporkDef> sporkDefs = {
     MAKE_SPORK_DEF(SPORK_19_CHAINLOCKS_ENABLED,            4070908800ULL), // OFF
     MAKE_SPORK_DEF(SPORK_20_INSTANTSEND_LLMQ_BASED,        4070908800ULL), // OFF
 };
+
+CSporkManager sporkManager;
 
 CSporkManager::CSporkManager()
 {
