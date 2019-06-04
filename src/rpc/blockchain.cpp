@@ -138,7 +138,9 @@ UniValue blockToJSON(const CBlock& block, const CBlockIndex* blockindex, bool tx
     {
         if(txDetails)
         {
+            std::string strHex = EncodeHexTx(*tx);
             UniValue objTx(UniValue::VOBJ);
+            objTx.push_back(Pair("hex", strHex));
             TxToJSON(*tx, uint256(), objTx);
             txs.push_back(objTx);
         }
