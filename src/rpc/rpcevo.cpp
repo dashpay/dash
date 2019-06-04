@@ -851,6 +851,8 @@ void protx_list_help()
             "If \"detailed\" is not specified, it defaults to \"false\" and only the hashes of the ProTx will be returned.\n"
             "If \"height\" is not specified, it defaults to the current chain-tip.\n"
             "\nAvailable types:\n"
+            "  posescored   - List only ProTx which are registered at the given chain height\n"
+            "                 and have some PoSe penalty.\n"
             "  registered   - List all ProTx which are registered at the given chain height.\n"
             "                 This will also include ProTx which failed PoSe verfication.\n"
             "  valid        - List only ProTx which are active/valid at the given chain height.\n"
@@ -983,7 +985,7 @@ UniValue protx_list(const JSONRPCRequest& request)
             }
         });
 #endif
-    } else if (type == "valid" || type == "registered") {
+    } else if (type == "valid" || type == "registered" || type == "posescored") {
         if (request.params.size() > 4) {
             protx_list_help();
         }
@@ -1000,6 +1002,7 @@ UniValue protx_list(const JSONRPCRequest& request)
         CDeterministicMNList mnList = deterministicMNManager->GetListForBlock(chainActive[height]->GetBlockHash());
         bool onlyValid = type == "valid";
         mnList.ForEachMN(onlyValid, [&](const CDeterministicMNCPtr& dmn) {
+            if (type == "posescored" && dmn->pdmnState->nPoSePenalty == 0) return;
             ret.push_back(BuildDMNListEntry(pwallet, dmn, detailed));
         });
     } else {
