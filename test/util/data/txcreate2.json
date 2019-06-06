@@ -8,6 +8,7 @@
     "vout": [
         {
             "value": 0.00,
+            "valueSat": 0,
             "n": 0,
             "scriptPubKey": {
                 "asm": "",
