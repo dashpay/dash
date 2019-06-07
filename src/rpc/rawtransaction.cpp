@@ -54,57 +54,6 @@ void TxToJSON(const CTransaction& tx, const uint256 hashBlock, UniValue& entry)
     // data into the returned UniValue.
     TxToUniv(tx, uint256(), entry);
 
-    uint256 txid = tx.GetHash();
-
-    if (!tx.vExtraPayload.empty()) {
-        entry.push_back(Pair("extraPayloadSize", (int)tx.vExtraPayload.size()));
-        entry.push_back(Pair("extraPayload", HexStr(tx.vExtraPayload)));
-    }
-
-    if (tx.nType == TRANSACTION_PROVIDER_REGISTER) {
-        CProRegTx proTx;
-        if (GetTxPayload(tx, proTx)) {
-            UniValue obj;
-            proTx.ToJson(obj);
-            entry.push_back(Pair("proRegTx", obj));
-        }
-    } else if (tx.nType == TRANSACTION_PROVIDER_UPDATE_SERVICE) {
-        CProUpServTx proTx;
-        if (GetTxPayload(tx, proTx)) {
-            UniValue obj;
-            proTx.ToJson(obj);
-            entry.push_back(Pair("proUpServTx", obj));
-        }
-    } else if (tx.nType == TRANSACTION_PROVIDER_UPDATE_REGISTRAR) {
-        CProUpRegTx proTx;
-        if (GetTxPayload(tx, proTx)) {
-            UniValue obj;
-            proTx.ToJson(obj);
-            entry.push_back(Pair("proUpRegTx", obj));
-        }
-    } else if (tx.nType == TRANSACTION_PROVIDER_UPDATE_REVOKE) {
-        CProUpRevTx proTx;
-        if (GetTxPayload(tx, proTx)) {
-            UniValue obj;
-            proTx.ToJson(obj);
-            entry.push_back(Pair("proUpRevTx", obj));
-        }
-    } else if (tx.nType == TRANSACTION_COINBASE) {
-        CCbTx cbTx;
-        if (GetTxPayload(tx, cbTx)) {
-            UniValue obj;
-            cbTx.ToJson(obj);
-            entry.push_back(Pair("cbTx", obj));
-        }
-    } else if (tx.nType == TRANSACTION_QUORUM_COMMITMENT) {
-        llmq::CFinalCommitmentTxPayload qcTx;
-        if (GetTxPayload(tx, qcTx)) {
-            UniValue obj;
-            qcTx.ToJson(obj);
-            entry.push_back(Pair("qcTx", obj));
-        }
-    }
-
     bool chainLock = false;
     if (!hashBlock.IsNull()) {
         entry.push_back(Pair("blockhash", hashBlock.GetHex()));
@@ -124,6 +73,8 @@ void TxToJSON(const CTransaction& tx, const uint256 hashBlock, UniValue& entry)
             }
         }
     }
+
+    uint256 txid = tx.GetHash();
     bool fLocked = instantsend.IsLockedInstantSendTransaction(txid);
     bool fLLMQLocked = llmq::quorumInstantSendManager->IsLocked(txid);
     entry.push_back(Pair("instantlock", fLocked || fLLMQLocked || chainLock));
