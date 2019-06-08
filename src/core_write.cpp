@@ -15,6 +15,8 @@
 #include "utilmoneystr.h"
 #include "utilstrencodings.h"
 
+#include "spentindex.h"
+
 #include "evo/cbtx.h"
 #include "evo/providertx.h"
 #include "evo/specialtx.h"
@@ -151,9 +153,10 @@ void ScriptPubKeyToUniv(const CScript& scriptPubKey,
     out.pushKV("addresses", a);
 }
 
-void TxToUniv(const CTransaction& tx, const uint256& hashBlock, UniValue& entry)
+void TxToUniv(const CTransaction& tx, const uint256& hashBlock, UniValue& entry, const CSpentIndexTxInfo* ptxSpentInfo)
 {
-    entry.pushKV("txid", tx.GetHash().GetHex());
+    uint256 txid = tx.GetHash();
+    entry.pushKV("txid", txid.GetHex());
     entry.pushKV("version", tx.nVersion);
     entry.pushKV("size", (int)::GetSerializeSize(tx, SER_NETWORK, PROTOCOL_VERSION));
     entry.pushKV("locktime", (int64_t)tx.nLockTime);
@@ -170,6 +173,23 @@ void TxToUniv(const CTransaction& tx, const uint256& hashBlock, UniValue& entry)
             o.pushKV("asm", ScriptToAsmStr(txin.scriptSig, true));
             o.pushKV("hex", HexStr(txin.scriptSig.begin(), txin.scriptSig.end()));
             in.pushKV("scriptSig", o);
+
+            // Add address and value info if spentindex enabled
+            if (ptxSpentInfo != nullptr) {
+                CSpentIndexKey spentKey(txin.prevout.hash, txin.prevout.n);
+                auto it = ptxSpentInfo->mSpentInfo.find(spentKey);
+                if (it != ptxSpentInfo->mSpentInfo.end()) {
+                    auto spentInfo = it->second;
+                    UniValue outValue(UniValue::VNUM, FormatMoney(spentInfo.satoshis));
+                    in.push_back(Pair("value", outValue));
+                    in.push_back(Pair("valueSat", spentInfo.satoshis));
+                    if (spentInfo.addressType == 1) {
+                        in.push_back(Pair("address", CBitcoinAddress(CKeyID(spentInfo.addressHash)).ToString()));
+                    } else if (spentInfo.addressType == 2) {
+                        in.push_back(Pair("address", CBitcoinAddress(CScriptID(spentInfo.addressHash)).ToString()));
+                    }
+                }
+            }
         }
         in.pushKV("sequence", (int64_t)txin.nSequence);
         vin.push_back(in);
@@ -190,6 +210,18 @@ void TxToUniv(const CTransaction& tx, const uint256& hashBlock, UniValue& entry)
         UniValue o(UniValue::VOBJ);
         ScriptPubKeyToUniv(txout.scriptPubKey, o, true);
         out.pushKV("scriptPubKey", o);
+
+        // Add spent information if spentindex is enabled
+        if (ptxSpentInfo != nullptr) {
+            CSpentIndexKey spentKey(txid, i);
+            auto it = ptxSpentInfo->mSpentInfo.find(spentKey);
+            if (it != ptxSpentInfo->mSpentInfo.end()) {
+                auto spentInfo = it->second;
+                out.push_back(Pair("spentTxId", spentInfo.txid.GetHex()));
+                out.push_back(Pair("spentIndex", (int)spentInfo.inputIndex));
+                out.push_back(Pair("spentHeight", spentInfo.blockHeight));
+            }
+        }
         vout.push_back(out);
     }
     entry.pushKV("vout", vout);
