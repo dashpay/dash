@@ -857,12 +857,14 @@ CDeterministicMNList CDeterministicMNManager::GetListForBlock(const uint256& blo
         }
 
         if (evoDb.Read(std::make_pair(DB_LIST_SNAPSHOT, blockHashTmp), snapshot)) {
+            mnListsCache.emplace(blockHashTmp, snapshot);
             break;
         }
 
         CDeterministicMNListDiff diff;
         if (!evoDb.Read(std::make_pair(DB_LIST_DIFF, blockHashTmp), diff)) {
             snapshot = CDeterministicMNList(blockHashTmp, -1);
+            mnListsCache.emplace(blockHashTmp, snapshot);
             break;
         }
 
@@ -877,9 +879,10 @@ CDeterministicMNList CDeterministicMNManager::GetListForBlock(const uint256& blo
             snapshot.SetBlockHash(diff.blockHash);
             snapshot.SetHeight(diff.nHeight);
         }
+
+        mnListsCache.emplace(diff.blockHash, snapshot);
     }
 
-    mnListsCache.emplace(blockHash, snapshot);
     return snapshot;
 }
 
