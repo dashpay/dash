@@ -322,6 +322,8 @@ private:
     mutable BLSObject obj;
     mutable bool objInitialized{false};
 
+    mutable uint256 hash;
+
 public:
     CBLSLazyWrapper()
     {
@@ -350,6 +352,7 @@ public:
         } else {
             obj.Reset();
         }
+        hash = r.hash;
         return *this;
     }
 
@@ -363,6 +366,7 @@ public:
         if (!bufValid) {
             obj.GetBuf(buf, sizeof(buf));
             bufValid = true;
+            hash = uint256();
         }
         s.write(buf, sizeof(buf));
     }
@@ -374,6 +378,7 @@ public:
         s.read(buf, sizeof(buf));
         bufValid = true;
         objInitialized = false;
+        hash = uint256();
     }
 
     void Set(const BLSObject& _obj)
@@ -382,6 +387,7 @@ public:
         bufValid = false;
         objInitialized = true;
         obj = _obj;
+        hash = uint256();
     }
     const BLSObject& Get() const
     {
@@ -417,6 +423,27 @@ public:
     bool operator!=(const CBLSLazyWrapper& r) const
     {
         return !(*this == r);
+    }
+
+    uint256 GetHash() const
+    {
+        std::unique_lock<std::mutex> l(mutex);
+        if (!bufValid) {
+            obj.GetBuf(buf, sizeof(buf));
+            bufValid = true;
+            hash = uint256();
+        }
+        if (hash.IsNull()) {
+            UpdateHash();
+        }
+        return hash;
+    }
+private:
+    void UpdateHash() const
+    {
+        CHashWriter ss(SER_GETHASH, PROTOCOL_VERSION);
+        ss.write(buf, sizeof(buf));
+        hash = ss.GetHash();
     }
 };
 typedef CBLSLazyWrapper<CBLSSignature> CBLSLazySignature;
