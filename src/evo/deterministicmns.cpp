@@ -217,21 +217,21 @@ CDeterministicMNCPtr CDeterministicMNList::GetMNPayee() const
 
 std::vector<CDeterministicMNCPtr> CDeterministicMNList::GetProjectedMNPayees(int nCount) const
 {
+    if (nCount > GetValidMNsCount()) {
+        nCount = GetValidMNsCount();
+    }
+
     std::vector<CDeterministicMNCPtr> result;
     result.reserve(nCount);
 
-    CDeterministicMNList tmpMNList = *this;
-    for (int h = nHeight; h < nHeight + nCount; h++) {
-        tmpMNList.SetHeight(h);
+    ForEachMN(true, [&](const CDeterministicMNCPtr& dmn) {
+        result.emplace_back(dmn);
+    });
+    std::sort(result.begin(), result.end(), [&](const CDeterministicMNCPtr& a, const CDeterministicMNCPtr& b) {
+        return CompareByLastPaid(a, b);
+    });
 
-        CDeterministicMNCPtr payee = tmpMNList.GetMNPayee();
-        // push the original MN object instead of the one from the temporary list
-        result.push_back(GetMN(payee->proTxHash));
-
-        CDeterministicMNStatePtr newState = std::make_shared<CDeterministicMNState>(*payee->pdmnState);
-        newState->nLastPaidHeight = h;
-        tmpMNList.UpdateMN(payee->proTxHash, newState);
-    }
+    result.resize(nCount);
 
     return result;
 }
