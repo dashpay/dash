@@ -403,6 +403,21 @@ public:
         return obj;
     }
 
+    bool operator==(const CBLSLazyWrapper& r) const
+    {
+        if (bufValid && r.bufValid) {
+            return memcmp(buf, r.buf, sizeof(buf)) == 0;
+        }
+        if (objInitialized && r.objInitialized) {
+            return obj == r.obj;
+        }
+        return Get() == r.Get();
+    }
+
+    bool operator!=(const CBLSLazyWrapper& r) const
+    {
+        return !(*this == r);
+    }
 };
 typedef CBLSLazyWrapper<CBLSSignature> CBLSLazySignature;
 typedef CBLSLazyWrapper<CBLSPublicKey> CBLSLazyPublicKey;
