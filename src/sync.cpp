@@ -61,7 +61,7 @@ struct CLockLocation {
 
     std::string ToString() const
     {
-        return tfm::format(
+        return strprintf(
             "'%s' in %s:%s%s (in thread '%s')",
             mutexName, sourceFile, itostr(sourceLine), (fTry ? " (TRY)" : ""), m_thread_name);
     }
