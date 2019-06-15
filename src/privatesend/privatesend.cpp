@@ -169,7 +169,7 @@ void CPrivateSendBaseManager::CheckQueue()
     if (!lockDS) return; // it's ok to fail here, we run this quite frequently
 
     // check mixing queue objects for timeouts
-    std::vector<CPrivateSendQueue>::iterator it = vecPrivateSendQueue.begin();
+    auto it = vecPrivateSendQueue.begin();
     while (it != vecPrivateSendQueue.end()) {
         if ((*it).IsExpired()) {
             LogPrint(BCLog::PRIVATESEND, "CPrivateSendBaseManager::%s -- Removing expired queue (%s)\n", __func__, (*it).ToString());
@@ -490,7 +490,7 @@ CPrivateSendBroadcastTx CPrivateSend::GetDSTX(const uint256& hash)
 void CPrivateSend::CheckDSTXes(int nHeight)
 {
     LOCK(cs_mapdstx);
-    std::map<uint256, CPrivateSendBroadcastTx>::iterator it = mapDSTX.begin();
+    auto it = mapDSTX.begin();
     while (it != mapDSTX.end()) {
         if (it->second.IsExpired(nHeight)) {
             mapDSTX.erase(it++);
