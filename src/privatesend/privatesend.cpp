@@ -74,8 +74,9 @@ bool CPrivateSendQueue::Relay(CConnman& connman)
 {
     connman.ForEachNode([&connman, this](CNode* pnode) {
         CNetMsgMaker msgMaker(pnode->GetSendVersion());
-        if (pnode->nVersion >= MIN_PRIVATESEND_PEER_PROTO_VERSION && pnode->fSendDSQueue)
+        if (pnode->nVersion >= MIN_PRIVATESEND_PEER_PROTO_VERSION && pnode->fSendDSQueue) {
             connman.PushMessage(pnode, msgMaker.Make(NetMsgType::DSQUEUE, (*this)));
+        }
     });
     return true;
 }
@@ -88,7 +89,6 @@ uint256 CPrivateSendBroadcastTx::GetSignatureHash() const
 bool CPrivateSendBroadcastTx::Sign()
 {
     if (!fMasternodeMode) return false;
-
 
     uint256 hash = GetSignatureHash();
 
@@ -103,7 +103,6 @@ bool CPrivateSendBroadcastTx::Sign()
 
 bool CPrivateSendBroadcastTx::CheckSignature(const CBLSPublicKey& blsPubKey) const
 {
-
     uint256 hash = GetSignatureHash();
 
     CBLSSignature sig;
@@ -175,8 +174,7 @@ void CPrivateSendBaseManager::CheckQueue()
         if ((*it).IsExpired()) {
             LogPrint(BCLog::PRIVATESEND, "CPrivateSendBaseManager::%s -- Removing expired queue (%s)\n", __func__, (*it).ToString());
             it = vecPrivateSendQueue.erase(it);
-        } else
-            ++it;
+        } else ++it;
     }
 }
 
@@ -350,8 +348,9 @@ int CPrivateSend::GetDenominations(const std::vector<CTxOut>& vecTxOut, bool fSi
     std::vector<std::pair<CAmount, int> > vecDenomUsed;
 
     // make a list of denominations, with zero uses
-    for (const auto& nDenomValue : vecStandardDenominations)
+    for (const auto& nDenomValue : vecStandardDenominations) {
         vecDenomUsed.push_back(std::make_pair(nDenomValue, 0));
+    }
 
     // look for denominations and update uses to 1
     for (const auto& txout : vecTxOut) {
@@ -415,9 +414,9 @@ int CPrivateSend::GetDenominationsByAmounts(const std::vector<CAmount>& vecAmoun
 
 bool CPrivateSend::IsDenominatedAmount(CAmount nInputAmount)
 {
-    for (const auto& nDenomValue : vecStandardDenominations)
-        if (nInputAmount == nDenomValue)
-            return true;
+    for (const auto& nDenomValue : vecStandardDenominations) {
+        if (nInputAmount == nDenomValue) return true;
+    }
     return false;
 }
 
@@ -450,8 +449,6 @@ std::string CPrivateSend::GetMessageByID(PoolMessage nMessageID)
         return _("Incompatible mode.");
     case ERR_NON_STANDARD_PUBKEY:
         return _("Non-standard public key detected.");
-    case ERR_NOT_A_MN:
-        return _("This is not a Masternode."); // not used
     case ERR_QUEUE_FULL:
         return _("Masternode queue is full.");
     case ERR_RECENT:
