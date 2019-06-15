@@ -435,7 +435,10 @@ void CPrivateSendServer::ChargeFees(CConnman& connman)
         for (const auto& txCollateral : vecSessionCollaterals) {
             bool fFound = false;
             for (const auto& entry : vecEntries) {
-                if (*entry.txCollateral == *txCollateral) fFound = true;
+                if (*entry.txCollateral == *txCollateral) {
+                    fFound = true;
+                    break;
+                }
             }
 
             // This queue entry didn't send us the promised transaction

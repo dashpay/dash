@@ -43,6 +43,7 @@ enum PoolMessage {
     ERR_MN_LIST,
     ERR_MODE,
     ERR_NON_STANDARD_PUBKEY,
+    ERR_NOT_A_MN, // not used
     ERR_QUEUE_FULL,
     ERR_RECENT,
     ERR_SESSION,

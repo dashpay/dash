@@ -174,7 +174,9 @@ void CPrivateSendBaseManager::CheckQueue()
         if ((*it).IsExpired()) {
             LogPrint(BCLog::PRIVATESEND, "CPrivateSendBaseManager::%s -- Removing expired queue (%s)\n", __func__, (*it).ToString());
             it = vecPrivateSendQueue.erase(it);
-        } else ++it;
+        } else {
+            ++it;
+        }
     }
 }
 
