@@ -20,8 +20,6 @@
 
 #include <boost/test/unit_test.hpp>
 
-static const CBitcoinAddress payoutAddress  ("yRq1Ky1AfFmf597rnotj7QRxsDUKePVWNF");
-
 typedef std::map<COutPoint, std::pair<int, CAmount>> SimpleUTXOMap;
 
 static SimpleUTXOMap BuildSimpleUtxoMap(const std::vector<CTransaction>& txs)
@@ -217,6 +215,7 @@ BOOST_FIXTURE_TEST_CASE(dip3_activation, TestChainDIP3BeforeActivationSetup)
     auto utxos = BuildSimpleUtxoMap(coinbaseTxns);
     CKey ownerKey;
     CBLSSecretKey operatorKey;
+    CBitcoinAddress payoutAddress("yRq1Ky1AfFmf597rnotj7QRxsDUKePVWNF");
     auto tx = CreateProRegTx(utxos, 1, GetScriptForDestination(payoutAddress.Get()), coinbaseKey, ownerKey, operatorKey);
     std::vector<CMutableTransaction> txns = {tx};
 
