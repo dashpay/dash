@@ -707,7 +707,7 @@ bool CPrivateSendServer::AddScriptSig(const CTxIn& txinNew)
 bool CPrivateSendServer::IsSignaturesComplete()
 {
     for (const auto& entry : vecEntries) {
-        for (const auto &txdsin : entry.vecTxDSIn) {
+        for (const auto& txdsin : entry.vecTxDSIn) {
             if (!txdsin.fHasSig) return false;
         }
     }
