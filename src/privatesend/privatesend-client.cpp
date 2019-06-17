@@ -151,6 +151,21 @@ void CPrivateSendClientSession::ProcessMessage(CNode* pfrom, const std::string& 
         CPrivateSendStatusUpdate psssup;
         vRecv >> psssup;
 
+        if (psssup.nState < POOL_STATE_MIN || psssup.nState > POOL_STATE_MAX) {
+            LogPrint(BCLog::PRIVATESEND, "DSSTATUSUPDATE -- psssup.nState is out of bounds: %d\n", psssup.nState);
+            return;
+        }
+
+        if (psssup.nStatusUpdate < STATUS_REJECTED || psssup.nStatusUpdate > STATUS_ACCEPTED) {
+            LogPrint(BCLog::PRIVATESEND, "DSSTATUSUPDATE -- psssup.nStatusUpdate is out of bounds: %d\n", psssup.nStatusUpdate);
+            return;
+        }
+
+        if (psssup.nMessageID < MSG_POOL_MIN || psssup.nMessageID > MSG_POOL_MAX) {
+            LogPrint(BCLog::PRIVATESEND, "DSSTATUSUPDATE -- psssup.nMessageID is out of bounds: %d\n", psssup.nMessageID);
+            return;
+        }
+
         LogPrint(BCLog::PRIVATESEND, "DSSTATUSUPDATE -- psssup.nSessionID %d  psssup.nState: %d  psssup.nStatusUpdate: %d  psssup.nMessageID %d (%s)\n",
             psssup.nSessionID, psssup.nState, psssup.nStatusUpdate, psssup.nMessageID, CPrivateSend::GetMessageByID(psssup.nMessageID));
 
@@ -201,6 +216,11 @@ void CPrivateSendClientSession::ProcessMessage(CNode* pfrom, const std::string& 
         int nMsgSessionID;
         PoolMessage nMsgMessageID;
         vRecv >> nMsgSessionID >> nMsgMessageID;
+
+        if (nMsgMessageID < MSG_POOL_MIN || nMsgMessageID > MSG_POOL_MAX) {
+            LogPrint(BCLog::PRIVATESEND, "DSCOMPLETE -- nMsgMessageID is out of bounds: %d\n", nMsgMessageID);
+            return;
+        }
 
         if (nSessionID != nMsgSessionID) {
             LogPrint(BCLog::PRIVATESEND, "DSCOMPLETE -- message doesn't match current PrivateSend session: nSessionID: %d  nMsgSessionID: %d\n", nSessionID, nMsgSessionID);
