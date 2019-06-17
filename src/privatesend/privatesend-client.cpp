@@ -150,7 +150,7 @@ void CPrivateSendClientSession::ProcessMessage(CNode* pfrom, const std::string& 
 
         int nMsgSessionID;
         int nMsgState;
-        int nMsgEntriesCount;
+        int nMsgEntriesCount; // deprecated, kept for backwards compatibility
         int nMsgStatusUpdate;
         int nMsgMessageID;
         vRecv >> nMsgSessionID >> nMsgState >> nMsgEntriesCount >> nMsgStatusUpdate >> nMsgMessageID;
@@ -170,10 +170,10 @@ void CPrivateSendClientSession::ProcessMessage(CNode* pfrom, const std::string& 
             return;
         }
 
-        LogPrint(BCLog::PRIVATESEND, "DSSTATUSUPDATE -- nMsgSessionID %d  nMsgState: %d  nEntriesCount: %d  nMsgStatusUpdate: %d  nMsgMessageID %d (%s)\n",
-            nMsgSessionID, nMsgState, nEntriesCount, nMsgStatusUpdate, nMsgMessageID, CPrivateSend::GetMessageByID(PoolMessage(nMsgMessageID)));
+        LogPrint(BCLog::PRIVATESEND, "DSSTATUSUPDATE -- nMsgSessionID %d  nMsgState: %d  nMsgStatusUpdate: %d  nMsgMessageID %d (%s)\n",
+            nMsgSessionID, nMsgState, nMsgStatusUpdate, nMsgMessageID, CPrivateSend::GetMessageByID(PoolMessage(nMsgMessageID)));
 
-        if (!CheckPoolStateUpdate(PoolState(nMsgState), nMsgEntriesCount, PoolStatusUpdate(nMsgStatusUpdate), PoolMessage(nMsgMessageID), nMsgSessionID)) {
+        if (!CheckPoolStateUpdate(PoolState(nMsgState), PoolStatusUpdate(nMsgStatusUpdate), PoolMessage(nMsgMessageID), nMsgSessionID)) {
             LogPrint(BCLog::PRIVATESEND, "DSSTATUSUPDATE -- CheckPoolStateUpdate failed\n");
         }
 
@@ -259,8 +259,6 @@ void CPrivateSendClientManager::ResetPool()
 void CPrivateSendClientSession::SetNull()
 {
     // Client side
-    nEntriesCount = 0;
-    fLastEntryAccepted = false;
     mixingMasternode = nullptr;
     pendingDsaRequest = CPendingDsaRequest();
 
@@ -309,26 +307,7 @@ std::string CPrivateSendClientSession::GetStatus(bool fWaitForBlock)
             strSuffix = "...";
         return strprintf(_("Submitted to masternode, waiting in queue %s"), strSuffix);
     case POOL_STATE_ACCEPTING_ENTRIES:
-        if (nEntriesCount == 0) {
-            nStatusMessageProgress = 0;
-            return strAutoDenomResult;
-        } else if (fLastEntryAccepted) {
-            if (nStatusMessageProgress % 10 > 8) {
-                fLastEntryAccepted = false;
-                nStatusMessageProgress = 0;
-            }
-            return _("PrivateSend request complete:") + " " + _("Your transaction was accepted into the pool!");
-        } else {
-            if (nStatusMessageProgress % 70 <= 40)
-                return strprintf(_("Submitted following entries to masternode: %u"), nEntriesCount);
-            else if (nStatusMessageProgress % 70 <= 50)
-                strSuffix = ".";
-            else if (nStatusMessageProgress % 70 <= 60)
-                strSuffix = "..";
-            else if (nStatusMessageProgress % 70 <= 70)
-                strSuffix = "...";
-            return strprintf(_("Submitted to masternode, waiting for more entries ( %u ) %s"), nEntriesCount, strSuffix);
-        }
+        return strAutoDenomResult;
     case POOL_STATE_SIGNING:
         if (nStatusMessageProgress % 70 <= 40)
             return _("Found enough users, signing ...");
@@ -531,7 +510,7 @@ bool CPrivateSendClientSession::SendDenominate(const std::vector<std::pair<CTxDS
 }
 
 // Incoming message from Masternode updating the progress of mixing
-bool CPrivateSendClientSession::CheckPoolStateUpdate(PoolState nStateNew, int nEntriesCountNew, PoolStatusUpdate nStatusUpdate, PoolMessage nMessageID, int nSessionIDNew)
+bool CPrivateSendClientSession::CheckPoolStateUpdate(PoolState nStateNew, PoolStatusUpdate nStatusUpdate, PoolMessage nMessageID, int nSessionIDNew)
 {
     if (fMasternodeMode) return false;
 
@@ -557,12 +536,6 @@ bool CPrivateSendClientSession::CheckPoolStateUpdate(PoolState nStateNew, int nE
             nSessionID = nSessionIDNew;
             nTimeLastSuccessfulStep = GetTime();
             LogPrintf("CPrivateSendClientSession::CheckPoolStateUpdate -- set nSessionID to %d\n", nSessionID);
-            return true;
-        } else if (nStateNew == POOL_STATE_ACCEPTING_ENTRIES && nEntriesCount != nEntriesCountNew) {
-            nEntriesCount = nEntriesCountNew;
-            nTimeLastSuccessfulStep = GetTime();
-            fLastEntryAccepted = true;
-            LogPrintf("CPrivateSendClientSession::CheckPoolStateUpdate -- new entry accepted!\n");
             return true;
         }
     }
