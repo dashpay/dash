@@ -29,7 +29,7 @@ static const int MIN_PRIVATESEND_PEER_PROTO_VERSION = 70213;
 static const size_t PRIVATESEND_ENTRY_MAX_SIZE = 9;
 
 // pool responses
-enum PoolMessage {
+enum PoolMessage : int32_t {
     ERR_ALREADY_HAVE,
     ERR_DENOM,
     ERR_ENTRIES_FULL,
@@ -53,26 +53,63 @@ enum PoolMessage {
     MSG_SUCCESS,
     MSG_ENTRIES_ADDED,
     ERR_SIZE_MISMATCH,
-    MSG_POOL_MIN = ERR_ALREADY_HAVE,
-    MSG_POOL_MAX = ERR_SIZE_MISMATCH
 };
+template<> struct is_serializable_enum<PoolMessage> : std::true_type {};
 
 // pool states
-enum PoolState {
+enum PoolState : int32_t {
     POOL_STATE_IDLE,
     POOL_STATE_QUEUE,
     POOL_STATE_ACCEPTING_ENTRIES,
     POOL_STATE_SIGNING,
     POOL_STATE_ERROR,
-    POOL_STATE_SUCCESS,
-    POOL_STATE_MIN = POOL_STATE_IDLE,
-    POOL_STATE_MAX = POOL_STATE_SUCCESS
+    POOL_STATE_SUCCESS
 };
+template<> struct is_serializable_enum<PoolState> : std::true_type {};
 
 // status update message constants
-enum PoolStatusUpdate {
+enum PoolStatusUpdate : int32_t {
     STATUS_REJECTED,
     STATUS_ACCEPTED
+};
+template<> struct is_serializable_enum<PoolStatusUpdate> : std::true_type {};
+
+class CPrivateSendStatusUpdate
+{
+public:
+    int nSessionID;
+    PoolState nState;
+    int nEntriesCount; // deprecated, kept for backwards compatibility
+    PoolStatusUpdate nStatusUpdate;
+    PoolMessage nMessageID;
+
+    CPrivateSendStatusUpdate() :
+        nSessionID(0),
+        nState(POOL_STATE_IDLE),
+        nEntriesCount(0),
+        nStatusUpdate(STATUS_ACCEPTED),
+        nMessageID(MSG_NOERR) {};
+
+    CPrivateSendStatusUpdate(int nSessionID, PoolState nState, int nEntriesCount, PoolStatusUpdate nStatusUpdate, PoolMessage nMessageID) :
+        nSessionID(nSessionID),
+        nState(nState),
+        nEntriesCount(nEntriesCount),
+        nStatusUpdate(nStatusUpdate),
+        nMessageID(nMessageID) {};
+
+    ADD_SERIALIZE_METHODS;
+
+    template <typename Stream, typename Operation>
+    inline void SerializationOp(Stream& s, Operation ser_action)
+    {
+        READWRITE(nSessionID);
+        READWRITE(nState);
+        if (s.GetVersion() <= 702015) {
+            READWRITE(nEntriesCount);
+        }
+        READWRITE(nStatusUpdate);
+        READWRITE(nMessageID);
+    }
 };
 
 /** Holds an mixing input

@@ -118,7 +118,7 @@ private:
     bool SendDenominate(const std::vector<std::pair<CTxDSIn, CTxOut> >& vecPSInOutPairsIn, CConnman& connman);
 
     /// Get Masternode updates about the progress of mixing
-    bool CheckPoolStateUpdate(PoolState nStateNew, PoolStatusUpdate nStatusUpdate, PoolMessage nMessageID, int nSessionIDNew = 0);
+    bool CheckPoolStateUpdate(CPrivateSendStatusUpdate psssup);
     // Set the 'state' value, with some logging and capturing when the state changed
     void SetState(PoolState nStateNew);
 

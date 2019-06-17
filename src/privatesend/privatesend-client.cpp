@@ -148,32 +148,13 @@ void CPrivateSendClientSession::ProcessMessage(CNode* pfrom, const std::string& 
             return;
         }
 
-        int nMsgSessionID;
-        int nMsgState;
-        int nMsgEntriesCount; // deprecated, kept for backwards compatibility
-        int nMsgStatusUpdate;
-        int nMsgMessageID;
-        vRecv >> nMsgSessionID >> nMsgState >> nMsgEntriesCount >> nMsgStatusUpdate >> nMsgMessageID;
+        CPrivateSendStatusUpdate psssup;
+        vRecv >> psssup;
 
-        if (nMsgState < POOL_STATE_MIN || nMsgState > POOL_STATE_MAX) {
-            LogPrint(BCLog::PRIVATESEND, "DSSTATUSUPDATE -- nMsgState is out of bounds: %d\n", nMsgState);
-            return;
-        }
+        LogPrint(BCLog::PRIVATESEND, "DSSTATUSUPDATE -- psssup.nSessionID %d  psssup.nState: %d  psssup.nStatusUpdate: %d  psssup.nMessageID %d (%s)\n",
+            psssup.nSessionID, psssup.nState, psssup.nStatusUpdate, psssup.nMessageID, CPrivateSend::GetMessageByID(psssup.nMessageID));
 
-        if (nMsgStatusUpdate < STATUS_REJECTED || nMsgStatusUpdate > STATUS_ACCEPTED) {
-            LogPrint(BCLog::PRIVATESEND, "DSSTATUSUPDATE -- nMsgStatusUpdate is out of bounds: %d\n", nMsgStatusUpdate);
-            return;
-        }
-
-        if (nMsgMessageID < MSG_POOL_MIN || nMsgMessageID > MSG_POOL_MAX) {
-            LogPrint(BCLog::PRIVATESEND, "DSSTATUSUPDATE -- nMsgMessageID is out of bounds: %d\n", nMsgMessageID);
-            return;
-        }
-
-        LogPrint(BCLog::PRIVATESEND, "DSSTATUSUPDATE -- nMsgSessionID %d  nMsgState: %d  nMsgStatusUpdate: %d  nMsgMessageID %d (%s)\n",
-            nMsgSessionID, nMsgState, nMsgStatusUpdate, nMsgMessageID, CPrivateSend::GetMessageByID(PoolMessage(nMsgMessageID)));
-
-        if (!CheckPoolStateUpdate(PoolState(nMsgState), PoolStatusUpdate(nMsgStatusUpdate), PoolMessage(nMsgMessageID), nMsgSessionID)) {
+        if (!CheckPoolStateUpdate(psssup)) {
             LogPrint(BCLog::PRIVATESEND, "DSSTATUSUPDATE -- CheckPoolStateUpdate failed\n");
         }
 
@@ -218,22 +199,17 @@ void CPrivateSendClientSession::ProcessMessage(CNode* pfrom, const std::string& 
         }
 
         int nMsgSessionID;
-        int nMsgMessageID;
+        PoolMessage nMsgMessageID;
         vRecv >> nMsgSessionID >> nMsgMessageID;
-
-        if (nMsgMessageID < MSG_POOL_MIN || nMsgMessageID > MSG_POOL_MAX) {
-            LogPrint(BCLog::PRIVATESEND, "DSCOMPLETE -- nMsgMessageID is out of bounds: %d\n", nMsgMessageID);
-            return;
-        }
 
         if (nSessionID != nMsgSessionID) {
             LogPrint(BCLog::PRIVATESEND, "DSCOMPLETE -- message doesn't match current PrivateSend session: nSessionID: %d  nMsgSessionID: %d\n", nSessionID, nMsgSessionID);
             return;
         }
 
-        LogPrint(BCLog::PRIVATESEND, "DSCOMPLETE -- nMsgSessionID %d  nMsgMessageID %d (%s)\n", nMsgSessionID, nMsgMessageID, CPrivateSend::GetMessageByID(PoolMessage(nMsgMessageID)));
+        LogPrint(BCLog::PRIVATESEND, "DSCOMPLETE -- nMsgSessionID %d  nMsgMessageID %d (%s)\n", nMsgSessionID, nMsgMessageID, CPrivateSend::GetMessageByID(nMsgMessageID));
 
-        CompletedTransaction(PoolMessage(nMsgMessageID));
+        CompletedTransaction(nMsgMessageID);
     }
 }
 
@@ -510,30 +486,30 @@ bool CPrivateSendClientSession::SendDenominate(const std::vector<std::pair<CTxDS
 }
 
 // Incoming message from Masternode updating the progress of mixing
-bool CPrivateSendClientSession::CheckPoolStateUpdate(PoolState nStateNew, PoolStatusUpdate nStatusUpdate, PoolMessage nMessageID, int nSessionIDNew)
+bool CPrivateSendClientSession::CheckPoolStateUpdate(CPrivateSendStatusUpdate psssup)
 {
     if (fMasternodeMode) return false;
 
     // do not update state when mixing client state is one of these
     if (nState == POOL_STATE_IDLE || nState == POOL_STATE_ERROR || nState == POOL_STATE_SUCCESS) return false;
 
-    strAutoDenomResult = _("Masternode:") + " " + CPrivateSend::GetMessageByID(nMessageID);
+    strAutoDenomResult = _("Masternode:") + " " + CPrivateSend::GetMessageByID(psssup.nMessageID);
 
     // if rejected at any state
-    if (nStatusUpdate == STATUS_REJECTED) {
+    if (psssup.nStatusUpdate == STATUS_REJECTED) {
         LogPrintf("CPrivateSendClientSession::CheckPoolStateUpdate -- entry is rejected by Masternode\n");
         UnlockCoins();
         keyHolderStorage.ReturnAll();
         SetNull();
         SetState(POOL_STATE_ERROR);
-        strLastMessage = CPrivateSend::GetMessageByID(nMessageID);
+        strLastMessage = CPrivateSend::GetMessageByID(psssup.nMessageID);
         return true;
     }
 
-    if (nStatusUpdate == STATUS_ACCEPTED && nState == nStateNew) {
-        if (nStateNew == POOL_STATE_QUEUE && nSessionID == 0 && nSessionIDNew != 0) {
+    if (psssup.nStatusUpdate == STATUS_ACCEPTED && nState == psssup.nState) {
+        if (psssup.nState == POOL_STATE_QUEUE && nSessionID == 0 && psssup.nSessionID != 0) {
             // new session id should be set only in POOL_STATE_QUEUE state
-            nSessionID = nSessionIDNew;
+            nSessionID = psssup.nSessionID;
             nTimeLastSuccessfulStep = GetTime();
             LogPrintf("CPrivateSendClientSession::CheckPoolStateUpdate -- set nSessionID to %d\n", nSessionID);
             return true;
