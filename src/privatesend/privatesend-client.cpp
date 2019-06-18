@@ -265,7 +265,7 @@ void CPrivateSendClientSession::SetNull()
 //
 void CPrivateSendClientSession::UnlockCoins()
 {
-    if (!pwalletMain) return;
+    if (!privateSendClient.fEnablePrivateSend) return;
 
     while (true) {
         TRY_LOCK(pwalletMain->cs_wallet, lockWallet);
@@ -548,7 +548,7 @@ bool CPrivateSendClientSession::CheckPoolStateUpdate(CPrivateSendStatusUpdate ps
 //
 bool CPrivateSendClientSession::SignFinalTransaction(const CTransaction& finalTransactionNew, CNode* pnode, CConnman& connman)
 {
-    if (!pwalletMain) return false;
+    if (!privateSendClient.fEnablePrivateSend || !privateSendClient.fPrivateSendRunning) return false;
 
     if (fMasternodeMode || pnode == nullptr) return false;
     if (!mixingMasternode) return false;
@@ -699,13 +699,7 @@ bool CPrivateSendClientManager::WaitForAnotherBlock()
 
 bool CPrivateSendClientManager::CheckAutomaticBackup()
 {
-    if (!pwalletMain) {
-        LogPrint(BCLog::PRIVATESEND, "CPrivateSendClientManager::CheckAutomaticBackup -- Wallet is not initialized, no mixing available.\n");
-        strAutoDenomResult = _("Wallet is not initialized") + ", " + _("no mixing available.");
-        fEnablePrivateSend = false;  // no mixing
-        fPrivateSendRunning = false; // no mixing
-        return false;
-    }
+    if (!fEnablePrivateSend || !fPrivateSendRunning) return false;
 
     switch (nWalletBackups) {
     case 0:
@@ -783,10 +777,7 @@ bool CPrivateSendClientSession::DoAutomaticDenominating(CConnman& connman, bool 
         return false;
     }
 
-    if (!pwalletMain) {
-        strAutoDenomResult = _("Wallet is not initialized");
-        return false;
-    }
+    if (!privateSendClient.fEnablePrivateSend || !privateSendClient.fPrivateSendRunning) return false;
 
     CAmount nBalanceNeedsAnonymized;
 
@@ -961,11 +952,6 @@ bool CPrivateSendClientManager::DoAutomaticDenominating(CConnman& connman, bool 
         return false;
     }
 
-    if (!pwalletMain) {
-        strAutoDenomResult = _("Wallet is not initialized");
-        return false;
-    }
-
     if (!fDryRun && pwalletMain->IsLocked(true)) {
         strAutoDenomResult = _("Wallet is locked.");
         return false;
@@ -1049,7 +1035,7 @@ CDeterministicMNCPtr CPrivateSendClientManager::GetRandomNotUsedMasternode()
 
 bool CPrivateSendClientSession::JoinExistingQueue(CAmount nBalanceNeedsAnonymized, CConnman& connman)
 {
-    if (!pwalletMain) return false;
+    if (!privateSendClient.fEnablePrivateSend || !privateSendClient.fPrivateSendRunning) return false;
 
     auto mnList = deterministicMNManager->GetListAtChainTip();
 
@@ -1117,7 +1103,7 @@ bool CPrivateSendClientSession::JoinExistingQueue(CAmount nBalanceNeedsAnonymize
 
 bool CPrivateSendClientSession::StartNewQueue(CAmount nBalanceNeedsAnonymized, CConnman& connman)
 {
-    if (!pwalletMain) return false;
+    if (!privateSendClient.fEnablePrivateSend || !privateSendClient.fPrivateSendRunning) return false;
     if (nBalanceNeedsAnonymized <= 0) return false;
 
     int nTries = 0;
@@ -1284,10 +1270,7 @@ bool CPrivateSendClientSession::SubmitDenominate(CConnman& connman)
 
 bool CPrivateSendClientSession::SelectDenominate(std::string& strErrorRet, std::vector<std::pair<CTxDSIn, CTxOut> >& vecPSInOutPairsRet)
 {
-    if (!pwalletMain) {
-        strErrorRet = "Wallet is not initialized";
-        return false;
-    }
+    if (!privateSendClient.fEnablePrivateSend || !privateSendClient.fPrivateSendRunning) return false;
 
     if (pwalletMain->IsLocked(true)) {
         strErrorRet = "Wallet locked, unable to create transaction!";
@@ -1393,7 +1376,7 @@ bool CPrivateSendClientSession::PrepareDenominate(int nMinRounds, int nMaxRounds
 // Create collaterals by looping through inputs grouped by addresses
 bool CPrivateSendClientSession::MakeCollateralAmounts(CConnman& connman)
 {
-    if (!pwalletMain) return false;
+    if (!privateSendClient.fEnablePrivateSend || !privateSendClient.fPrivateSendRunning) return false;
 
     std::vector<CompactTallyItem> vecTally;
     if (!pwalletMain->SelectCoinsGroupedByAddresses(vecTally, false, false)) {
@@ -1426,7 +1409,7 @@ bool CPrivateSendClientSession::MakeCollateralAmounts(CConnman& connman)
 // Split up large inputs or create fee sized inputs
 bool CPrivateSendClientSession::MakeCollateralAmounts(const CompactTallyItem& tallyItem, bool fTryDenominated, CConnman& connman)
 {
-    if (!pwalletMain) return false;
+    if (!privateSendClient.fEnablePrivateSend || !privateSendClient.fPrivateSendRunning) return false;
 
     LOCK2(cs_main, pwalletMain->cs_wallet);
 
@@ -1502,7 +1485,7 @@ bool CPrivateSendClientSession::MakeCollateralAmounts(const CompactTallyItem& ta
 // Create denominations by looping through inputs grouped by addresses
 bool CPrivateSendClientSession::CreateDenominated(CAmount nBalanceToDenominate, CConnman& connman)
 {
-    if (!pwalletMain) return false;
+    if (!privateSendClient.fEnablePrivateSend || !privateSendClient.fPrivateSendRunning) return false;
 
     LOCK2(cs_main, pwalletMain->cs_wallet);
 
@@ -1535,7 +1518,7 @@ bool CPrivateSendClientSession::CreateDenominated(CAmount nBalanceToDenominate, 
 // Create denominations
 bool CPrivateSendClientSession::CreateDenominated(CAmount nBalanceToDenominate, const CompactTallyItem& tallyItem, bool fCreateMixingCollaterals, CConnman& connman)
 {
-    if (!pwalletMain) return false;
+    if (!privateSendClient.fEnablePrivateSend || !privateSendClient.fPrivateSendRunning) return false;
 
     std::vector<CRecipient> vecSend;
     CKeyHolderStorage keyHolderStorageDenom;
