@@ -96,8 +96,6 @@ static UniValue getpoolinfo(const JSONRPCRequest& request)
 
 static UniValue getcoinjoininfo(const JSONRPCRequest& request)
 {
-    if (request.fHelp || request.params.size() != 0) {
-        throw std::runtime_error(
             RPCHelpMan{"getcoinjoininfo",
                 "Returns an object containing an information about CoinJoin settings and state.\n",
                 {},
@@ -140,7 +138,7 @@ static UniValue getcoinjoininfo(const JSONRPCRequest& request)
                     HelpExampleCli("getcoinjoininfo", "")
             + HelpExampleRpc("getcoinjoininfo", "")
                 },
-            }.ToString());
+            }.Check(request);
     }
 
     UniValue obj(UniValue::VOBJ);

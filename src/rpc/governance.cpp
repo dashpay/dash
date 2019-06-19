@@ -1154,8 +1154,6 @@ static UniValue voteraw(const JSONRPCRequest& request)
 
 static UniValue getgovernanceinfo(const JSONRPCRequest& request)
 {
-    if (request.fHelp || request.params.size() != 0) {
-        throw std::runtime_error(
             RPCHelpMan{"getgovernanceinfo",
                 "Returns an object containing governance parameters.\n",
                 {},
@@ -1172,7 +1170,7 @@ static UniValue getgovernanceinfo(const JSONRPCRequest& request)
                     HelpExampleCli("getgovernanceinfo", "")
             + HelpExampleRpc("getgovernanceinfo", "")
                 },
-            }.ToString());
+            }.Check(request);
     }
 
     int nLastSuperblock = 0, nNextSuperblock = 0;
@@ -1194,8 +1192,6 @@ static UniValue getgovernanceinfo(const JSONRPCRequest& request)
 
 static UniValue getsuperblockbudget(const JSONRPCRequest& request)
 {
-    if (request.fHelp || request.params.size() != 1) {
-        throw std::runtime_error(
             RPCHelpMan{"getsuperblockbudget",
                 "\nReturns the absolute maximum sum of superblock payments allowed.\n",
                 {
@@ -1208,7 +1204,7 @@ static UniValue getsuperblockbudget(const JSONRPCRequest& request)
                     HelpExampleCli("getsuperblockbudget", "1000")
             + HelpExampleRpc("getsuperblockbudget", "1000")
                 },
-            }.ToString());
+            }.Check(request);
     }
 
     int nBlockHeight = request.params[0].get_int();

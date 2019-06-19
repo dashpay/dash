@@ -152,20 +152,17 @@ void CRPCTable::InitPlatformRestrictions()
 
 UniValue help(const JSONRPCRequest& jsonRequest)
 {
-    if (jsonRequest.fHelp || jsonRequest.params.size() > 2)
-        throw std::runtime_error(
-            RPCHelpMan{"help",
-                "\nList all commands, or get help for a specified command.\n",
-                {
-                    {"command", RPCArg::Type::STR, /* default */ "all commands", "The command to get help on"},
-                    {"subcommand", RPCArg::Type::STR, /* default */ "all subcommands", "The subcommand to get help on. Please note that not all subcommands support this at the moment"},
-                },
-                RPCResult{
-                    RPCResult::Type::STR, "", "The help text"
-                },
-                RPCExamples{""},
-            }.ToString()
-        );
+    RPCHelpMan{"help",
+        "\nList all commands, or get help for a specified command.\n",
+        {
+            {"command", RPCArg::Type::STR, /* default */ "all commands", "The command to get help on"},
+            {"subcommand", RPCArg::Type::STR, /* default */ "all subcommands", "The subcommand to get help on. Please note that not all subcommands support this at the moment"},
+        },
+        RPCResult{
+            RPCResult::Type::STR, "", "The help text"
+        },
+        RPCExamples{""},
+    }.Check(jsonRequest);
 
     std::string strCommand, strSubCommand;
     if (jsonRequest.params.size() > 0)
@@ -184,14 +181,12 @@ UniValue stop(const JSONRPCRequest& jsonRequest)
     // Also accept the hidden 'wait' integer argument (milliseconds)
     // For instance, 'stop 1000' makes the call wait 1 second before returning
     // to the client (intended for testing)
-    if (jsonRequest.fHelp || jsonRequest.params.size() > 1)
-        throw std::runtime_error(
-            RPCHelpMan{"stop",
-                "\nStop Dash Core server.",
-                {},
-                RPCResult{RPCResult::Type::STR, "", "A string with the content '" + RESULT + "'"},
-                RPCExamples{""},
-            }.ToString());
+    RPCHelpMan{"stop",
+        "\nStop Dash Core server.",
+        {},
+        RPCResult{RPCResult::Type::STR, "", "A string with the content '" + RESULT + "'"},
+        RPCExamples{""},
+    }.Check(jsonRequest);
     // Event loop will exit after current HTTP requests have been handled, so
     // this reply will get back to the client.
     StartShutdown();
@@ -203,31 +198,27 @@ UniValue stop(const JSONRPCRequest& jsonRequest)
 
 static UniValue uptime(const JSONRPCRequest& jsonRequest)
 {
-    if (jsonRequest.fHelp || jsonRequest.params.size() > 0)
-        throw std::runtime_error(
-            RPCHelpMan{"uptime",
-                "\nReturns the total uptime of the server.\n",
-                            {},
-                            RPCResult{
-                                RPCResult::Type::NUM, "", "The number of seconds that the server has been running"
-                            },
-                RPCExamples{
-                    HelpExampleCli("uptime", "")
-                + HelpExampleRpc("uptime", "")
-                },
-            }.ToString());
+    RPCHelpMan{"uptime",
+        "\nReturns the total uptime of the server.\n",
+                    {},
+                    RPCResult{
+                        RPCResult::Type::NUM, "", "The number of seconds that the server has been running"
+                    },
+        RPCExamples{
+            HelpExampleCli("uptime", "")
+        + HelpExampleRpc("uptime", "")
+        },
+    }.Check(jsonRequest);
 
     return GetTime() - GetStartupTime();
 }
 
 static UniValue getrpcinfo(const JSONRPCRequest& request)
 {
-    if (request.fHelp || request.params.size() > 0) {
-        throw std::runtime_error(
-            RPCHelpMan{"getrpcinfo",
-                       "\nReturns details of the RPC server.\n",
-                       {},
-                RPCResult{
+    RPCHelpMan{"getrpcinfo",
+               "\nReturns details of the RPC server.\n",
+               {},
+               RPCResult{
             "{\n"
             " \"active_commands\" (array) All active commands\n"
             "  [\n"
@@ -237,14 +228,10 @@ static UniValue getrpcinfo(const JSONRPCRequest& request)
             "   },...\n"
             "  ],\n"
             " \"logpath\": \"xxx\" (string) The complete file path to the debug log\n"
-            "}\n"
-                },
-                RPCExamples{
-                    HelpExampleCli("getrpcinfo", "")
+            "}\n"},
+               RPCExamples{HelpExampleCli("getrpcinfo", "")
                 + HelpExampleRpc("getrpcinfo", "")},
-            }.ToString()
-        );
-    }
+    }.Check(request);
 
     LOCK(g_rpc_server_info.mutex);
     UniValue active_commands(UniValue::VARR);
