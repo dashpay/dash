@@ -683,6 +683,11 @@ void CPrivateSendClientManager::AddSkippedDenom(const CAmount& nDenomValue)
     vecDenominationsSkipped.push_back(nDenomValue);
 }
 
+void CPrivateSendClientManager::RemoveSkippedDenom(const CAmount& nDenomValue)
+{
+    std::remove(vecDenominationsSkipped.begin(), vecDenominationsSkipped.end(), nDenomValue);
+}
+
 bool CPrivateSendClientManager::WaitForAnotherBlock()
 {
     if (!masternodeSync.IsBlockchainSynced()) return true;
