@@ -246,9 +246,7 @@ if test "x$enable_stacktraces" = xyes; then
     AC_DEFINE(ENABLE_STACKTRACES, 1, [Define this symbol if stacktraces should be enabled])
 fi
 AX_CHECK_LINK_FLAG([-Wl,-wrap=__cxa_allocate_exception], [LINK_WRAP_SUPPORTED=yes],,,)
-AX_CHECK_COMPILE_FLAG([-rdynamic], [RDYNAMIC_SUPPORTED=yes],,,)
 AM_CONDITIONAL([STACKTRACE_WRAPPED_CXX_ABI],[test x$LINK_WRAP_SUPPORTED = xyes])
-AM_CONDITIONAL([RDYNAMIC_SUPPORTED],[test x$RDYNAMIC_SUPPORTED = xyes])
 
 if test x$LINK_WRAP_SUPPORTED = "xyes"; then
   AC_DEFINE(STACKTRACE_WRAPPED_CXX_ABI, 1, [Define this symbol to use wrapped CXX ABIs for exception stacktraces])],

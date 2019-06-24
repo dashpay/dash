@@ -21,11 +21,6 @@ LDFLAGS_WRAP_EXCEPTIONS += -Wl,-wrap,__assert_fail
 endif
 endif
 
-if RDYNAMIC_SUPPORTED
-# This gives better stacktraces
-AM_CXXFLAGS += -rdynamic
-endif
-
 if TARGET_WINDOWS
 BACKTRACE_LIB = -ldbghelp -lbacktrace
 else
