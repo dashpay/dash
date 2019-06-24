@@ -685,7 +685,7 @@ void CPrivateSendClientManager::AddSkippedDenom(const CAmount& nDenomValue)
 
 void CPrivateSendClientManager::RemoveSkippedDenom(const CAmount& nDenomValue)
 {
-    std::remove(vecDenominationsSkipped.begin(), vecDenominationsSkipped.end(), nDenomValue);
+    vecDenominationsSkipped.erase(std::remove(vecDenominationsSkipped.begin(), vecDenominationsSkipped.end(), nDenomValue), vecDenominationsSkipped.end());
 }
 
 bool CPrivateSendClientManager::WaitForAnotherBlock()
