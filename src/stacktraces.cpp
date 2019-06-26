@@ -220,17 +220,6 @@ static __attribute__((noinline)) std::vector<uintptr_t> GetStackFrames(size_t sk
     return ret;
 }
 #else
-static int my_backtrace_simple_callback(void *data, uintptr_t pc)
-{
-    auto v = (std::vector<uintptr_t>*)data;
-    v->emplace_back(pc);
-    if (v->size() >= 128) {
-        // abort
-        return 1;
-    }
-    return 0;
-}
-
 static __attribute__((noinline)) std::vector<uintptr_t> GetStackFrames(size_t skip, size_t max_frames)
 {
     // FYI, this is not using libbacktrace, but "backtrace()" from <execinfo.h>
