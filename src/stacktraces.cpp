@@ -6,7 +6,9 @@
 #include "fs.h"
 #include "tinyformat.h"
 #include "random.h"
+#include "streams.h"
 #include "util.h"
+#include "utilstrencodings.h"
 
 #include "dash-config.h"
 
@@ -276,6 +278,17 @@ struct stackframe_info {
     std::string filename;
     int lineno{-1};
     std::string function;
+
+    ADD_SERIALIZE_METHODS;
+
+    template <typename Stream, typename Operation>
+    inline void SerializationOp(Stream& s, Operation ser_action)
+    {
+        READWRITE(pc);
+        READWRITE(filename);
+        READWRITE(lineno);
+        READWRITE(function);
+    }
 };
 
 static int my_backtrace_full_callback (void *data, uintptr_t pc, const char *filename, int lineno, const char *function)
@@ -324,6 +337,16 @@ struct crash_info_header
     std::string magic;
     uint16_t version;
     std::string exeFileName;
+
+    ADD_SERIALIZE_METHODS;
+
+    template <typename Stream, typename Operation>
+    inline void SerializationOp(Stream& s, Operation ser_action)
+    {
+        READWRITE(magic);
+        READWRITE(version);
+        READWRITE(exeFileName);
+    }
 };
 
 struct crash_info
@@ -331,6 +354,16 @@ struct crash_info
     std::string crashDescription;
     std::vector<uint64_t> stackframes;
     std::vector<stackframe_info> stackframeInfos;
+
+    ADD_SERIALIZE_METHODS;
+
+    template <typename Stream, typename Operation>
+    inline void SerializationOp(Stream& s, Operation ser_action)
+    {
+        READWRITE(crashDescription);
+        READWRITE(stackframes);
+        READWRITE(stackframeInfos);
+    }
 
     void ConvertAddresses(int64_t offset)
     {
@@ -342,10 +375,31 @@ struct crash_info
         }
     }
 };
+
+static std::string GetCrashInfoStrNoDebugInfo(crash_info ci)
+{
+    static uint64_t basePtr = GetBaseAddress();
+
+    CDataStream ds(SER_DISK, 0);
+
+    crash_info_header hdr;
+    hdr.magic = "DashCrashInfo";
+    hdr.version = 1;
+    hdr.exeFileName = g_exeFileBaseName;
+    ds << hdr;
+
+    ci.ConvertAddresses(-(int64_t)basePtr);
+    ds << ci;
+
+    auto ciStr = EncodeBase32((const unsigned char*)ds.data(), ds.size());
+    return strprintf("No debug information available for stacktrace. You should download debug information from Github and then run:\n"
+                     "%s -printcrashinfo=%s\n", g_exeFileBaseName, ciStr);
+}
+
 static std::string GetCrashInfoStr(const crash_info& ci, size_t spaces)
 {
     if (ci.stackframeInfos.empty()) {
-        return "";
+        return GetCrashInfoStrNoDebugInfo(ci);
     }
 
     std::string sp;
