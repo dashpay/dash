@@ -131,8 +131,6 @@ install:
     - export TRAVIS_COMMIT_LOG=`git log --format=fuller -1`
     - source ./ci/matrix.sh
     - mkdir -p $HOST_CACHE_DIR/docker && mkdir -p $HOST_CACHE_DIR/ccache && mkdir -p $HOST_CACHE_DIR/depends && mkdir -p $HOST_CACHE_DIR/sdk-sources
-    # Keep this as it makes caching related debugging easier
-    - ls -lah $HOST_CACHE_DIR && ls -lah $HOST_CACHE_DIR/depends && ls -lah $HOST_CACHE_DIR/ccache && ls -lah $HOST_CACHE_DIR/docker
     # Load cached builder image
     - if [ -f $HOST_CACHE_DIR/docker/dash-builder-$BUILD_TARGET.tar.gz ]; then zcat $HOST_CACHE_DIR/docker/dash-builder-$BUILD_TARGET.tar.gz | docker load || true; fi
     - travis_retry docker pull ubuntu:bionic
