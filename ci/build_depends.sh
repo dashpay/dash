@@ -30,4 +30,4 @@ if [ -n "$OSX_SDK" ]; then
   fi
 fi
 
-make $MAKEJOBS -C depends HOST=$HOST $DEP_OPTS &> build-depends.log || (tail -n1000 build-depends.log && false)
+make $MAKEJOBS -C depends HOST=$HOST $DEP_OPTS
