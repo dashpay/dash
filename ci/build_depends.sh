@@ -12,8 +12,12 @@ unset DISPLAY
 mkdir -p $CACHE_DIR/depends
 mkdir -p $CACHE_DIR/sdk-sources
 
-ln -s $CACHE_DIR/depends depends/built
-ln -s $CACHE_DIR/sdk-sources depends/sdk-sources
+if [ ! -e depends/built ]; then
+	ln -s $CACHE_DIR/depends depends/built
+fi
+if [ ! -e depends/sdk-sources ]; then
+	ln -s $CACHE_DIR/sdk-sources depends/sdk-sources
+fi
 
 mkdir -p depends/SDKs
 
