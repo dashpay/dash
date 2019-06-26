@@ -51,6 +51,20 @@ UniValue privatesend(const JSONRPCRequest& request)
     if (fMasternodeMode)
         throw JSONRPCError(RPC_INTERNAL_ERROR, "Client-side mixing is not supported on masternodes");
 
+    if (!privateSendClient.fEnablePrivateSend) {
+        if (fLiteMode) {
+            // mixing is disabled by default in lite mode
+            throw JSONRPCError(RPC_INTERNAL_ERROR, "Mixing is disabled in lite mode, use -enableprivatesend command line option to enable mixing again");
+        } else if (!gArgs.GetBoolArg("-enableprivatesend", true)) {
+            // otherwise it's on by default, unless cmd line option says otherwise
+            throw JSONRPCError(RPC_INTERNAL_ERROR, "Mixing is disabled via -enableprivatesend=0 command line option, remove it to enable mixing again");
+        } else {
+            // neither litemode nor enableprivatesend=false casee,
+            // most likely smth bad happened and we disabled it while running the wallet
+            throw JSONRPCError(RPC_INTERNAL_ERROR, "Mixing is disabled due to some internal error");
+        }
+    }
+
     if (request.params[0].get_str() == "start") {
         {
             LOCK(pwallet->cs_wallet);
