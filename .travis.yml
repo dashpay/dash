@@ -96,15 +96,15 @@ jobs:
       env: BUILD_TARGETS="win32 win64"
     # run tests (no tests for arm-linux and mac)
     - <<: *runtests
-      env: BUILD_TARGETS=linux32
+      env: BUILD_TARGETS="linux32"
     - <<: *runtests
-      env: BUILD_TARGETS=linux64
+      env: BUILD_TARGETS="linux64"
     - <<: *runtests
       # We can run all these in one job as they only run unit tests
       env: BUILD_TARGETS="win32 win64 linux64_nowallet linux64_release"
     # build docker
     - <<: *builddocker
-      env: BUILD_TARGET=linux64_release
+      env: BUILD_TARGET="linux64_release"
 
 before_cache:
   # Save builder image
