@@ -31,6 +31,9 @@
 
 #if !WIN32
 #include <dlfcn.h>
+#if !__APPLE__
+#include <link.h>
+#endif
 #endif
 
 #if __APPLE__
@@ -140,6 +143,11 @@ static backtrace_state* GetLibBacktraceState()
 }
 
 #if WIN32
+static uint64_t GetBaseAddress()
+{
+    return 0;
+}
+
 // PC addresses returned by StackWalk64 are in the real mapped space, while libbacktrace expects them to be in the
 // default mapped space starting at 0x400000. This method converts the address.
 // TODO this is probably the same reason libbacktrace is not able to gather the stacktrace on Windows (returns pointers like 0x1 or 0xfffffff)
@@ -229,6 +237,29 @@ static __attribute__((noinline)) std::vector<uint64_t> GetStackFrames(size_t ski
     return ret;
 }
 #else
+
+#if __APPLE__
+static uint64_t GetBaseAddress()
+{
+    return 0;
+}
+#else
+static int dl_iterate_callback(struct dl_phdr_info* info, size_t s, void* data)
+{
+    uint64_t* p = (uint64_t*)data;
+    if (info->dlpi_name == NULL || info->dlpi_name[0] == '\0') {
+        *p = info->dlpi_addr;
+    }
+}
+
+static uint64_t GetBaseAddress()
+{
+    uint64_t basePtr = 0;
+    dl_iterate_phdr(dl_iterate_callback, &basePtr);
+    return basePtr;
+}
+#endif
+
 static __attribute__((noinline)) std::vector<uint64_t> GetStackFrames(size_t skip, size_t max_frames)
 {
     // FYI, this is not using libbacktrace, but "backtrace()" from <execinfo.h>
