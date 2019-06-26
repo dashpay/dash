@@ -45,13 +45,6 @@
 #endif
 #include <string.h>
 
-static void PrintCrashInfo(const std::string& s)
-{
-    LogPrintf("%s", s);
-    fprintf(stderr, "%s", s.c_str());
-    fflush(stderr);
-}
-
 std::string DemangleSymbol(const std::string& name)
 {
 #if __GNUC__ || __clang__
@@ -125,7 +118,6 @@ static std::string g_exeFileBaseName = fs::path(g_exeFileName).filename().string
 static void my_backtrace_error_callback (void *data, const char *msg,
                                   int errnum)
 {
-    PrintCrashInfo(strprintf("libbacktrace error: %d - %s\n", errnum, msg));
 }
 
 static backtrace_state* GetLibBacktraceState()
@@ -280,9 +272,9 @@ static __attribute__((noinline)) std::vector<uint64_t> GetStackFrames(size_t ski
 #endif
 
 struct stackframe_info {
-    uint64_t pc;
+    uint64_t pc{0};
     std::string filename;
-    int lineno;
+    int lineno{-1};
     std::string function;
 };
 
@@ -327,10 +319,33 @@ static std::vector<stackframe_info> GetStackFrameInfos(const std::vector<uint64_
     return infos;
 }
 
-static std::string GetStackFrameInfosStr(const std::vector<stackframe_info>& sis, size_t spaces = 2)
+struct crash_info_header
 {
-    if (sis.empty()) {
-        return "\n";
+    std::string magic;
+    uint16_t version;
+    std::string exeFileName;
+};
+
+struct crash_info
+{
+    std::string crashDescription;
+    std::vector<uint64_t> stackframes;
+    std::vector<stackframe_info> stackframeInfos;
+
+    void ConvertAddresses(int64_t offset)
+    {
+        for (auto& sf : stackframes) {
+            sf += offset;
+        }
+        for (auto& sfi : stackframeInfos) {
+            sfi.pc += offset;
+        }
+    }
+};
+static std::string GetCrashInfoStr(const crash_info& ci, size_t spaces)
+{
+    if (ci.stackframeInfos.empty()) {
+        return "";
     }
 
     std::string sp;
@@ -339,10 +354,10 @@ static std::string GetStackFrameInfosStr(const std::vector<stackframe_info>& sis
     }
 
     std::vector<std::string> lstrs;
-    lstrs.reserve(sis.size());
+    lstrs.reserve(ci.stackframeInfos.size());
 
-    for (size_t i = 0; i < sis.size(); i++) {
-        auto& si = sis[i];
+    for (size_t i = 0; i < ci.stackframeInfos.size(); i++) {
+        auto& si = ci.stackframeInfos[i];
 
         std::string lstr;
         if (!si.filename.empty()) {
@@ -362,9 +377,9 @@ static std::string GetStackFrameInfosStr(const std::vector<stackframe_info>& sis
 
     std::string fmtStr = strprintf("%%2d#: (0x%%08X) %%-%ds - %%s\n", lstrlen);
 
-    std::string s;
-    for (size_t i = 0; i < sis.size(); i++) {
-        auto& si = sis[i];
+    std::string s = ci.crashDescription + "\n";
+    for (size_t i = 0; i < ci.stackframeInfos.size(); i++) {
+        auto& si = ci.stackframeInfos[i];
 
         auto& lstr = lstrs[i];
 
@@ -381,6 +396,14 @@ static std::string GetStackFrameInfosStr(const std::vector<stackframe_info>& sis
         s += s2;
     }
     return s;
+}
+
+static void PrintCrashInfo(const crash_info& ci)
+{
+    auto str = GetCrashInfoStr(ci);
+    LogPrintf("%s", str);
+    fprintf(stderr, "%s", str.c_str());
+    fflush(stderr);
 }
 
 static std::mutex g_stacktraces_mutex;
@@ -459,34 +482,55 @@ extern "C" void __attribute__((noinline)) WRAPPED_NAME(__cxa_free_exception)(voi
     g_stacktraces.erase(thrown_exception);
 }
 
+static __attribute__((noinline)) crash_info GetCrashInfoFromAssertion(const char* assertion, const char* file, int line, const char* function)
+{
+    crash_info ci;
+    ci.stackframes = GetStackFrames(1, 16);
+    ci.crashDescription = "Assertion failure:";
+    if (assertion) {
+        ci.crashDescription += strprintf("\n  assertion: %s", assertion);
+    }
+    if (file) {
+        ci.crashDescription += strprintf("\n  file: %s, line: %d", file, line);
+    }
+    if (function) {
+        ci.crashDescription += strprintf("\n  function: %s", function);
+    }
+    ci.stackframeInfos = GetStackFrameInfos(ci.stackframes);
+    return ci;
+}
+
 #if __clang__
 extern "C" void __attribute__((noinline)) WRAPPED_NAME(__assert_rtn)(const char *function, const char *file, int line, const char *assertion)
 {
-    auto st = GetCurrentStacktraceStr(1);
-    PrintCrashInfo(strprintf("#### assertion failed: %s ####\n%s", assertion, st));
+    auto ci = GetCrashInfoFromAssertion(assertion, file, line, function);
+    PrintCrashInfo(ci);
     skipAbortSignal = true;
     __real___assert_rtn(function, file, line, assertion);
 }
 #elif WIN32
 extern "C" void __attribute__((noinline)) WRAPPED_NAME(_assert)(const char *assertion, const char *file, unsigned int line)
 {
-    auto st = GetCurrentStacktraceStr(1);
-    PrintCrashInfo(strprintf("#### assertion failed: %s ####\n%s", assertion, st));
+    auto ci = GetCrashInfoFromAssertion(assertion, file, line, nullptr);
+    PrintCrashInfo(ci);
     skipAbortSignal = true;
     __real__assert(assertion, file, line);
 }
 extern "C" void __attribute__((noinline)) WRAPPED_NAME(_wassert)(const wchar_t *assertion, const wchar_t *file, unsigned int line)
 {
-    auto st = GetCurrentStacktraceStr(1);
-    PrintCrashInfo(strprintf("#### assertion failed: %s ####\n%s", std::string(assertion, assertion + wcslen(assertion)), st));
+    auto ci = GetCrashInfoFromAssertion(
+            assertion ?  std::string(assertion, assertion + wcslen(assertion)).c_str() : nullptr,
+            file ? std::string(file, file + wcslen(file)).c_str() : nullptr,
+            line, nullptr);
+    PrintCrashInfo(ci);
     skipAbortSignal = true;
     __real__wassert(assertion, file, line);
 }
 #else
 extern "C" void __attribute__((noinline)) WRAPPED_NAME(__assert_fail)(const char *assertion, const char *file, unsigned int line, const char *function)
 {
-    auto st = GetCurrentStacktraceStr(1);
-    PrintCrashInfo(strprintf("#### assertion failed: %s ####\n%s", assertion, st));
+    auto ci = GetCrashInfoFromAssertion(assertion, file, line, function);
+    PrintCrashInfo(ci);
     skipAbortSignal = true;
     __real___assert_fail(assertion, file, line, function);
 }
@@ -505,33 +549,14 @@ static std::shared_ptr<std::vector<uint64_t>> GetExceptionStacktrace(const std::
 }
 #endif //ENABLE_STACKTRACES
 
-std::string GetExceptionStacktraceStr(const std::exception_ptr& e)
+crash_info GetCrashInfoFromException(const std::exception_ptr& e)
 {
-#ifdef ENABLE_STACKTRACES
-    auto stackframes = GetExceptionStacktrace(e);
-    if (stackframes && !stackframes->empty()) {
-        auto infos = GetStackFrameInfos(*stackframes);
-        return GetStackFrameInfosStr(infos);
-    }
-#endif
-    return "<no stacktrace>\n";
-}
+    crash_info ci;
+    ci.crashDescription = "Exception: ";
 
-std::string __attribute__((noinline)) GetCurrentStacktraceStr(size_t skip, size_t max_depth)
-{
-#ifdef ENABLE_STACKTRACES
-    auto stackframes = GetStackFrames(skip + 1, max_depth); // +1 to skip current method
-    auto infos = GetStackFrameInfos(stackframes);
-    return GetStackFrameInfosStr(infos);
-#else
-    return "<no stacktrace>\n";
-#endif
-}
-
-std::string GetPrettyExceptionStr(const std::exception_ptr& e)
-{
     if (!e) {
-        return "<no exception>\n";
+        ci.crashDescription += "<null>";
+        return ci;
     }
 
     std::string type;
@@ -563,35 +588,42 @@ std::string GetPrettyExceptionStr(const std::exception_ptr& e)
         type = DemangleSymbol(type);
     }
 
-    std::string s = strprintf("Exception: type=%s, what=\"%s\"\n", type, what);
+    ci.crashDescription += strprintf("type=%s, what=\"%s\"", type, what);
 
-#if ENABLE_STACKTRACES
-    s += GetExceptionStacktraceStr(e);
-#endif
+    auto stackframes = GetExceptionStacktrace(e);
+    if (stackframes) {
+        ci.stackframes = *stackframes;
+        ci.stackframeInfos = GetStackFrameInfos(ci.stackframes);
+    }
 
-    return s;
+    return ci;
+}
+
+std::string GetPrettyExceptionStr(const std::exception_ptr& e)
+{
+    return GetCrashInfoStr(GetCrashInfoFromException(e));
 }
 
 static void terminate_handler()
 {
     auto exc = std::current_exception();
 
-    std::string s, s2;
-    s += "#### std::terminate() called, aborting ####\n";
+    crash_info ci;
+    ci.crashDescription = "std::terminate() called, aborting";
 
     if (exc) {
-        s += "#### UNCAUGHT EXCEPTION ####\n";
-        s2 = GetPrettyExceptionStr(exc);
+        auto ci2 = GetCrashInfoFromException(exc);
+        ci.crashDescription = strprintf("std::terminate() called due to unhandled exception\n%s", ci2.crashDescription);
+        ci.stackframes = std::move(ci2.stackframes);
+        ci.stackframeInfos = std::move(ci2.stackframeInfos);
     } else {
-        s += "#### UNKNOWN REASON ####\n";
-#ifdef ENABLE_STACKTRACES
-        s2 = GetCurrentStacktraceStr(0);
-#else
-        s2 = "\n";
-#endif
+        ci.crashDescription = "std::terminate() called due unknown reason";
+        ci.stackframes = GetStackFrames(0, 16);
     }
 
-    PrintCrashInfo(strprintf("%s%s", s, s2));
+    ci.stackframeInfos = GetStackFrameInfos(ci.stackframes);
+
+    PrintCrashInfo(ci);
 
     skipAbortSignal = true;
     std::abort();
@@ -609,12 +641,17 @@ static void HandlePosixSignal(int s)
     if (s == SIGABRT && skipAbortSignal) {
         return;
     }
-    std::string st = GetCurrentStacktraceStr(0);
+
     const char* name = strsignal(s);
     if (!name) {
         name = "UNKNOWN";
     }
-    PrintCrashInfo(strprintf("#### signal %s ####\n%s", name, st));
+
+    crash_info ci;
+    ci.crashDescription = strprintf("Posix Signal: %s", name);
+    ci.stackframes = GetStackFrames(0, 16);
+    ci.stackframeInfos = GetStackFrameInfos(ci.stackframes);
+    PrintCrashInfo(ci);
 
     // avoid a signal loop
     skipAbortSignal = true;
@@ -650,11 +687,12 @@ static void DoHandleWindowsException(EXCEPTION_POINTERS * ExceptionInfo)
     default: excType = "UNKNOWN"; break;
     }
 
-    auto stackframes = GetStackFrames(0, 16, ExceptionInfo->ContextRecord);
-    auto infos = GetStackFrameInfos(stackframes);
-    auto infosStr = GetStackFrameInfosStr(infos);
+    crash_info ci;
+    ci.crashDescription = strprintf("Windows Exception: %s", excType);
+    ci.stackframes = GetStackFrames(0, 16, ExceptionInfo->ContextRecord);
+    ci.stackframeInfos = GetStackFrameInfos(ci.stackframes);
 
-    PrintCrashInfo(strprintf("#### Windows Exception %s ####\n%s", excType, infosStr));
+    PrintCrashInfo(ci);
 }
 
 LONG WINAPI HandleWindowsException(EXCEPTION_POINTERS * ExceptionInfo)
