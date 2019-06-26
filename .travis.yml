@@ -75,7 +75,7 @@ jobs:
     # build depends
     - <<: *builddepends
       # These are basically building the same set of packages, so caches allow us to run everything in one job
-      env: BUILD_TARGETS="linux64 linux64_nowallet linux64_release"
+      env: BUILD_TARGETS="linux64 linux64_nowallet"
     - <<: *builddepends
       # arm-linux doesn't build Qt, so it should be fine to build it together with the mac build (we shouldn't hit timeouts)
       env: BUILD_TARGETS="arm-linux mac"
@@ -85,15 +85,23 @@ jobs:
       env: BUILD_TARGETS="win32"
     - <<: *builddepends
       env: BUILD_TARGETS="win64"
+    - <<: *builddepends
+      # Only build depends for linux64_release when building the develop branch
+      if: branch = develop AND type = push
+      env: BUILD_TARGETS="linux64_release"
     # build source
     - <<: *buildsrc
       env: BUILD_TARGETS="arm-linux mac"
     - <<: *buildsrc
-      env: BUILD_TARGETS="linux32 linux64"
+      env: BUILD_TARGETS="linux64 linux64_nowallet"
     - <<: *buildsrc
-      env: BUILD_TARGETS="linux64_nowallet linux64_release"
+      env: BUILD_TARGETS="linux32"
     - <<: *buildsrc
       env: BUILD_TARGETS="win32 win64"
+    - <<: *builddepends
+      # Only build source for linux64_release when building the develop branch
+      if: branch = develop AND type = push
+      env: BUILD_TARGETS="linux64_release"
     # run tests (no tests for arm-linux and mac)
     - <<: *runtests
       env: BUILD_TARGETS="linux32"
