@@ -63,7 +63,7 @@ elif [ "$BUILD_TARGET" = "linux32" ]; then
 elif [ "$BUILD_TARGET" = "linux64" ]; then
   export HOST=x86_64-unknown-linux-gnu
   export PACKAGES="bc python3-zmq"
-  export DEP_OPTS="NO_UPNP=1 DEBUG=1"
+  export DEP_OPTS="DEBUG=1"
   export BITCOIN_CONFIG="--enable-zmq --enable-glibc-back-compat --enable-reduce-exports --enable-stacktraces"
   export CPPFLAGS="-DDEBUG_LOCKORDER -DENABLE_DASH_DEBUG"
   export PYZMQ=true
@@ -72,8 +72,8 @@ elif [ "$BUILD_TARGET" = "linux64" ]; then
 elif [ "$BUILD_TARGET" = "linux64_nowallet" ]; then
   export HOST=x86_64-unknown-linux-gnu
   export PACKAGES="python3"
-  export DEP_OPTS="NO_WALLET=1"
-  export BITCOIN_CONFIG="--enable-glibc-back-compat --enable-reduce-exports"
+  export DEP_OPTS="DEBUG=1"
+  export BITCOIN_CONFIG="--enable-glibc-back-compat --enable-reduce-exports --disable-wallet"
   export RUN_UNITTESTS=true
 elif [ "$BUILD_TARGET" = "linux64_release" ]; then
   export HOST=x86_64-unknown-linux-gnu
