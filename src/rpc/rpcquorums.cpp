@@ -81,6 +81,7 @@ UniValue BuildQuorumInfo(const llmq::CQuorumCPtr& quorum, bool includeMembers, b
     UniValue ret(UniValue::VOBJ);
 
     ret.push_back(Pair("height", quorum->height));
+    ret.push_back(Pair("type", quorum->params.name));
     ret.push_back(Pair("quorumHash", quorum->qc.quorumHash.ToString()));
     ret.push_back(Pair("minedBlock", quorum->minedBlockHash.ToString()));
 
