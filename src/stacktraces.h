@@ -16,6 +16,7 @@
 std::string DemangleSymbol(const std::string& name);
 
 std::string GetPrettyExceptionStr(const std::exception_ptr& e);
+std::string GetCrashInfoStrFromSerializedStr(const std::string& ciStr);
 
 template<typename T>
 std::string GetExceptionWhat(const T& e);

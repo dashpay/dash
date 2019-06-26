@@ -396,6 +396,54 @@ static std::string GetCrashInfoStrNoDebugInfo(crash_info ci)
                      "%s -printcrashinfo=%s\n", g_exeFileBaseName, ciStr);
 }
 
+static std::string GetCrashInfoStr(const crash_info& ci, size_t spaces = 2);
+
+std::string GetCrashInfoStrFromSerializedStr(const std::string& ciStr)
+{
+    static uint64_t basePtr = GetBaseAddress();
+
+    bool dataInvalid = false;
+    auto buf = DecodeBase32(ciStr.c_str(), &dataInvalid);
+    if (buf.empty() || dataInvalid) {
+        return "Error while deserializing crash info";
+    }
+
+    CDataStream ds(buf, SER_DISK, 0);
+
+    crash_info_header hdr;
+    try {
+        ds >> hdr;
+    } catch (...) {
+        return "Error while deserializing crash info header";
+    }
+
+    if (hdr.magic != "DashCrashInfo") {
+        return "Invalid magic string";
+    }
+    if (hdr.version != 1) {
+        return "Unsupported version";
+    }
+    if (hdr.exeFileName != g_exeFileBaseName) {
+        return "Crash info is not for this executable";
+    }
+
+    crash_info ci;
+    try {
+        ds >> ci;
+    } catch (...) {
+        return "Error while deserializing crash info";
+    }
+
+    ci.ConvertAddresses(basePtr);
+
+    if (ci.stackframeInfos.empty()) {
+        std::vector<uint64_t> stackframes(ci.stackframes.begin(), ci.stackframes.end());
+        ci.stackframeInfos = GetStackFrameInfos(stackframes);
+    }
+
+    return GetCrashInfoStr(ci);
+}
+
 static std::string GetCrashInfoStr(const crash_info& ci, size_t spaces)
 {
     if (ci.stackframeInfos.empty()) {
