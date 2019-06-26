@@ -72,7 +72,7 @@ std::string DemangleSymbol(const std::string& name)
 static std::atomic<bool> skipAbortSignal(false);
 
 #ifdef ENABLE_STACKTRACES
-ssize_t GetExeFileNameImpl(char* buf, size_t bufSize)
+static ssize_t GetExeFileNameImpl(char* buf, size_t bufSize)
 {
 #if WIN32
     std::vector<TCHAR> tmp(bufSize);
@@ -101,7 +101,7 @@ ssize_t GetExeFileNameImpl(char* buf, size_t bufSize)
 #endif
 }
 
-std::string GetExeFileName()
+static std::string GetExeFileName()
 {
     std::vector<char> buf(1024);
     while (true) {
@@ -116,6 +116,9 @@ std::string GetExeFileName()
     }
 }
 
+static std::string g_exeFileName = GetExeFileName();
+static std::string g_exeFileBaseName = fs::path(g_exeFileName).filename().string();
+
 static void my_backtrace_error_callback (void *data, const char *msg,
                                   int errnum)
 {
@@ -124,8 +127,7 @@ static void my_backtrace_error_callback (void *data, const char *msg,
 
 static backtrace_state* GetLibBacktraceState()
 {
-    static std::string exeFileName = GetExeFileName();
-    static const char* exeFileNamePtr = exeFileName.empty() ? nullptr : exeFileName.c_str();
+    static const char* exeFileNamePtr = g_exeFileName.empty() ? nullptr : g_exeFileName.c_str();
     static backtrace_state* st = backtrace_create_state(exeFileNamePtr, 1, my_backtrace_error_callback, NULL);
     return st;
 }
