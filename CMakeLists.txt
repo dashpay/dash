@@ -33,6 +33,7 @@ if(DEFINED DEPENDS_PREFIX)
 endif()
 
 add_definitions(
+        -DENABLE_STACKTRACES=1
         -DENABLE_WALLET=1
 )
 
