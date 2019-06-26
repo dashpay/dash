@@ -144,19 +144,19 @@ static backtrace_state* GetLibBacktraceState()
 // default mapped space starting at 0x400000. This method converts the address.
 // TODO this is probably the same reason libbacktrace is not able to gather the stacktrace on Windows (returns pointers like 0x1 or 0xfffffff)
 // If they ever fix this problem, we might end up converting to invalid addresses here
-static uintptr_t ConvertAddress(uintptr_t addr)
+static uint64_t ConvertAddress(uint64_t addr)
 {
     MEMORY_BASIC_INFORMATION mbi;
 
     if (!VirtualQuery((PVOID)addr, &mbi, sizeof(mbi)))
         return 0;
 
-    uintptr_t hMod = (uintptr_t)mbi.AllocationBase;
-    uintptr_t offset = addr - hMod;
+    uint64_t hMod = (uint64_t)mbi.AllocationBase;
+    uint64_t offset = addr - hMod;
     return 0x400000 + offset;
 }
 
-static __attribute__((noinline)) std::vector<uintptr_t> GetStackFrames(size_t skip, size_t max_frames, const CONTEXT* pContext = nullptr)
+static __attribute__((noinline)) std::vector<uint64_t> GetStackFrames(size_t skip, size_t max_frames, const CONTEXT* pContext = nullptr)
 {
     // We can't use libbacktrace for stack unwinding on Windows as it returns invalid addresses (like 0x1 or 0xffffffff)
     static BOOL symInitialized = SymInitialize(GetCurrentProcess(), NULL, TRUE);
@@ -204,7 +204,7 @@ static __attribute__((noinline)) std::vector<uintptr_t> GetStackFrames(size_t sk
 #error unsupported architecture
 #endif
 
-    std::vector<uintptr_t> ret;
+    std::vector<uint64_t> ret;
 
     size_t i = 0;
     while (ret.size() < max_frames) {
@@ -217,7 +217,7 @@ static __attribute__((noinline)) std::vector<uintptr_t> GetStackFrames(size_t sk
             break;
         }
         if (i >= skip) {
-            uintptr_t pc = ConvertAddress(stackframe.AddrPC.Offset);
+            uint64_t pc = ConvertAddress(stackframe.AddrPC.Offset);
             if (pc == 0) {
                 pc = stackframe.AddrPC.Offset;
             }
@@ -229,7 +229,7 @@ static __attribute__((noinline)) std::vector<uintptr_t> GetStackFrames(size_t sk
     return ret;
 }
 #else
-static __attribute__((noinline)) std::vector<uintptr_t> GetStackFrames(size_t skip, size_t max_frames)
+static __attribute__((noinline)) std::vector<uint64_t> GetStackFrames(size_t skip, size_t max_frames)
 {
     // FYI, this is not using libbacktrace, but "backtrace()" from <execinfo.h>
     std::vector<void*> buf(max_frames);
@@ -239,17 +239,17 @@ static __attribute__((noinline)) std::vector<uintptr_t> GetStackFrames(size_t sk
     }
     buf.resize((size_t)count);
 
-    std::vector<uintptr_t> ret;
+    std::vector<uint64_t> ret;
     ret.reserve(count);
     for (size_t i = skip + 1; i < buf.size(); i++) {
-        ret.emplace_back((uintptr_t) buf[i]);
+        ret.emplace_back((uint64_t) buf[i]);
     }
     return ret;
 }
 #endif
 
 struct stackframe_info {
-    uintptr_t pc;
+    uint64_t pc;
     std::string filename;
     int lineno;
     std::string function;
@@ -282,7 +282,7 @@ static int my_backtrace_full_callback (void *data, uintptr_t pc, const char *fil
     return 0;
 }
 
-static std::vector<stackframe_info> GetStackFrameInfos(const std::vector<uintptr_t>& stackframes)
+static std::vector<stackframe_info> GetStackFrameInfos(const std::vector<uint64_t>& stackframes)
 {
     std::vector<stackframe_info> infos;
     infos.reserve(stackframes.size());
@@ -353,7 +353,7 @@ static std::string GetStackFrameInfosStr(const std::vector<stackframe_info>& sis
 }
 
 static std::mutex g_stacktraces_mutex;
-static std::map<void*, std::shared_ptr<std::vector<uintptr_t>>> g_stacktraces;
+static std::map<void*, std::shared_ptr<std::vector<uint64_t>>> g_stacktraces;
 
 #if STACKTRACE_WRAPPED_CXX_ABI
 // These come in through -Wl,-wrap
@@ -411,7 +411,7 @@ extern "C" void* __attribute__((noinline)) WRAPPED_NAME(__cxa_allocate_exception
 
     // WARNING keep this as it is and don't try to optimize it (no std::move, no std::make_shared, ...)
     // trying to optimize this will cause the optimizer to move the GetStackFrames() call deep into the stl libs
-    std::shared_ptr<std::vector<uintptr_t>> st(new std::vector<uintptr_t>(localSt));
+    std::shared_ptr<std::vector<uint64_t>> st(new std::vector<uint64_t>(localSt));
 
     void* p = __real___cxa_allocate_exception(thrown_size);
 
@@ -461,7 +461,7 @@ extern "C" void __attribute__((noinline)) WRAPPED_NAME(__assert_fail)(const char
 }
 #endif
 
-static std::shared_ptr<std::vector<uintptr_t>> GetExceptionStacktrace(const std::exception_ptr& e)
+static std::shared_ptr<std::vector<uint64_t>> GetExceptionStacktrace(const std::exception_ptr& e)
 {
     void* p = *(void**)&e;
 
