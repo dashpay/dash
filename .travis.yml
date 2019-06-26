@@ -74,55 +74,34 @@ jobs:
   include:
     # build depends
     - <<: *builddepends
+      # These are basically building the same set of packages, so caches allow us to run everything in one job
+      env: BUILD_TARGETS="linux64 linux64_nowallet linux64_release"
+    - <<: *builddepends
+      # arm-linux doesn't build Qt, so it should be fine to build it together with the mac build (we shouldn't hit timeouts)
       env: BUILD_TARGETS="arm-linux mac"
     - <<: *builddepends
-      env: BUILD_TARGETS="win32 win64"
-#    - <<: *builddepends
-#      env: BUILD_TARGETS=win32
-#    - <<: *builddepends
-#      env: BUILD_TARGETS=win64
-#    - <<: *builddepends
-#      env: BUILD_TARGETS=linux32
-#    - <<: *builddepends
-#      env: BUILD_TARGETS=linux64
-#    - <<: *builddepends
-#      env: BUILD_TARGETS=linux64_nowallet
-#    - <<: *builddepends
-#      env: BUILD_TARGETS=linux64_release
-#    - <<: *builddepends
-#      env: BUILD_TARGETS=mac
+      env: BUILD_TARGETS="linux32"
+    - <<: *builddepends
+      env: BUILD_TARGETS="win32"
+    - <<: *builddepends
+      env: BUILD_TARGETS="win64"
     # build source
     - <<: *buildsrc
       env: BUILD_TARGETS="arm-linux mac"
     - <<: *buildsrc
+      env: BUILD_TARGETS="linux32 linux64"
+    - <<: *buildsrc
+      env: BUILD_TARGETS="linux64_nowallet linux64_release"
+    - <<: *buildsrc
       env: BUILD_TARGETS="win32 win64"
-#    - <<: *buildsrc
-#      env: BUILD_TARGETS=win32
-#    - <<: *buildsrc
-#      env: BUILD_TARGETS=win64
-#    - <<: *buildsrc
-#      env: BUILD_TARGETS=linux32
-#    - <<: *buildsrc
-#      env: BUILD_TARGETS=linux64
-#    - <<: *buildsrc
-#      env: BUILD_TARGETS=linux64_nowallet
-#    - <<: *buildsrc
-#      env: BUILD_TARGETS=linux64_release
-#    - <<: *buildsrc
-#      env: BUILD_TARGETS=mac
     # run tests (no tests for arm-linux and mac)
     - <<: *runtests
-      env: BUILD_TARGETS="win32 win64"
-#    - <<: *runtests
-#      env: BUILD_TARGETS=win64
-#    - <<: *runtests
-#      env: BUILD_TARGETS=linux32
-#    - <<: *runtests
-#      env: BUILD_TARGETS=linux64
-#    - <<: *runtests
-#      env: BUILD_TARGETS=linux64_nowallet
-#    - <<: *runtests
-#      env: BUILD_TARGETS=linux64_release
+      env: BUILD_TARGETS=linux32
+    - <<: *runtests
+      env: BUILD_TARGETS=linux64
+    - <<: *runtests
+      # We can run all these in one job as they only run unit tests
+      env: BUILD_TARGETS="win32 win64 linux64_nowallet linux64_release"
     # build docker
     - <<: *builddocker
       env: BUILD_TARGET=linux64_release
@@ -157,8 +136,6 @@ install:
         done
         (exit $exit_code)
       }
-    - touch test.bin
-    - travis_retry run_per_target 'if [ -f test.bin ]; then rm test.bin; echo sim err; exit 1; fi'
     - run_per_target 'mkdir -p $HOST_CACHE_DIR/docker && mkdir -p $HOST_CACHE_DIR/ccache && mkdir -p $HOST_CACHE_DIR/depends && mkdir -p $HOST_CACHE_DIR/sdk-sources'
     # Load cached builder image
     - run_per_target 'if [ -f $HOST_CACHE_DIR/docker/dash-builder-$BUILD_TARGET.tar.gz ]; then zcat $HOST_CACHE_DIR/docker/dash-builder-$BUILD_TARGET.tar.gz | docker load || true; fi'
