@@ -73,16 +73,18 @@ builddocker: &builddocker
 jobs:
   include:
     # build depends
-#    - <<: *builddepends
-#      env: BUILD_TARGETS=arm-linux
+    - <<: *builddepends
+      env: BUILD_TARGETS="arm-linux mac"
+    - <<: *builddepends
+      env: BUILD_TARGETS="win32 win64"
 #    - <<: *builddepends
 #      env: BUILD_TARGETS=win32
 #    - <<: *builddepends
 #      env: BUILD_TARGETS=win64
-    - <<: *builddepends
-      env: BUILD_TARGETS=linux32
-    - <<: *builddepends
-      env: BUILD_TARGETS=linux64
+#    - <<: *builddepends
+#      env: BUILD_TARGETS=linux32
+#    - <<: *builddepends
+#      env: BUILD_TARGETS=linux64
 #    - <<: *builddepends
 #      env: BUILD_TARGETS=linux64_nowallet
 #    - <<: *builddepends
@@ -90,16 +92,18 @@ jobs:
 #    - <<: *builddepends
 #      env: BUILD_TARGETS=mac
     # build source
-#    - <<: *buildsrc
-#      env: BUILD_TARGETS=arm-linux
+    - <<: *buildsrc
+      env: BUILD_TARGETS="arm-linux mac"
+    - <<: *buildsrc
+      env: BUILD_TARGETS="win32 win64"
 #    - <<: *buildsrc
 #      env: BUILD_TARGETS=win32
 #    - <<: *buildsrc
 #      env: BUILD_TARGETS=win64
-    - <<: *buildsrc
-      env: BUILD_TARGETS=linux32
-    - <<: *buildsrc
-      env: BUILD_TARGETS=linux64
+#    - <<: *buildsrc
+#      env: BUILD_TARGETS=linux32
+#    - <<: *buildsrc
+#      env: BUILD_TARGETS=linux64
 #    - <<: *buildsrc
 #      env: BUILD_TARGETS=linux64_nowallet
 #    - <<: *buildsrc
@@ -107,14 +111,14 @@ jobs:
 #    - <<: *buildsrc
 #      env: BUILD_TARGETS=mac
     # run tests (no tests for arm-linux and mac)
-#    - <<: *runtests
-#      env: BUILD_TARGETS=win32
+    - <<: *runtests
+      env: BUILD_TARGETS="win32 win64"
 #    - <<: *runtests
 #      env: BUILD_TARGETS=win64
-    - <<: *runtests
-      env: BUILD_TARGETS=linux32
-    - <<: *runtests
-      env: BUILD_TARGETS=linux64
+#    - <<: *runtests
+#      env: BUILD_TARGETS=linux32
+#    - <<: *runtests
+#      env: BUILD_TARGETS=linux64
 #    - <<: *runtests
 #      env: BUILD_TARGETS=linux64_nowallet
 #    - <<: *runtests
@@ -138,19 +142,28 @@ install:
       function run_per_target() {
         cmd="$1"
         for _BUILD_TARGET in $BUILD_TARGETS; do
-        ( # make sure env vars are fresh for every BUILD_TARGET
-          export BUILD_TARGET=$_BUILD_TARGET
-          echo Running commands for $BUILD_TARGET
-          source ./ci/matrix.sh
-          bash -c "set -e; $cmd"
-        )
+          ( # make sure env vars are fresh for every BUILD_TARGET
+            set -e
+            export BUILD_TARGET=$_BUILD_TARGET
+            echo Running commands for $BUILD_TARGET
+            source ./ci/matrix.sh
+            bash -c "set -e; $cmd"
+          )
+          exit_code="$?"
+          if [ "$exit_code" != "0" ]; then
+            echo "Exit Code: $exit_code"
+            break
+          fi
         done
+        (exit $exit_code)
       }
+    - touch test.bin
+    - travis_retry run_per_target 'if [ -f test.bin ]; then rm test.bin; echo sim err; exit 1; fi'
     - run_per_target 'mkdir -p $HOST_CACHE_DIR/docker && mkdir -p $HOST_CACHE_DIR/ccache && mkdir -p $HOST_CACHE_DIR/depends && mkdir -p $HOST_CACHE_DIR/sdk-sources'
     # Load cached builder image
     - run_per_target 'if [ -f $HOST_CACHE_DIR/docker/dash-builder-$BUILD_TARGET.tar.gz ]; then zcat $HOST_CACHE_DIR/docker/dash-builder-$BUILD_TARGET.tar.gz | docker load || true; fi'
     - travis_retry docker pull ubuntu:bionic
-    - run_per_target 'travis_retry docker build -t $BUILDER_IMAGE_NAME --build-arg=USER_ID=$UID --build-arg=GROUP_ID=$UID --build-arg=BUILD_TARGET=$BUILD_TARGET -f ci/Dockerfile.builder ci'
+    - travis_retry run_per_target 'docker build -t $BUILDER_IMAGE_NAME --build-arg=USER_ID=$UID --build-arg=GROUP_ID=$UID --build-arg=BUILD_TARGET=$BUILD_TARGET -f ci/Dockerfile.builder ci'
 before_script:
     # Make sure stdout is in blocking mode. Otherwise builds will fail due to large writes to stdout
     # See https://github.com/travis-ci/travis-ci/issues/4704. If this gets fixed, this line can also be removed.
