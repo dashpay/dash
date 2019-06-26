@@ -249,7 +249,7 @@ AX_CHECK_LINK_FLAG([-Wl,-wrap=__cxa_allocate_exception], [LINK_WRAP_SUPPORTED=ye
 AM_CONDITIONAL([STACKTRACE_WRAPPED_CXX_ABI],[test x$LINK_WRAP_SUPPORTED = xyes])
 
 if test x$LINK_WRAP_SUPPORTED = "xyes"; then
-  AC_DEFINE(STACKTRACE_WRAPPED_CXX_ABI, 1, [Define this symbol to use wrapped CXX ABIs for exception stacktraces])],
+  AC_DEFINE(STACKTRACE_WRAPPED_CXX_ABI, 1, [Define this symbol to use wrapped CXX ABIs for exception stacktraces])
 fi
 
 # Needed for MinGW targets when debug symbols are enabled as compiled objects get very large
