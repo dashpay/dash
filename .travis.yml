@@ -73,52 +73,52 @@ builddocker: &builddocker
 jobs:
   include:
     # build depends
-    - <<: *builddepends
-      env: BUILD_TARGETS=arm-linux
-    - <<: *builddepends
-      env: BUILD_TARGETS=win32
-    - <<: *builddepends
-      env: BUILD_TARGETS=win64
+#    - <<: *builddepends
+#      env: BUILD_TARGETS=arm-linux
+#    - <<: *builddepends
+#      env: BUILD_TARGETS=win32
+#    - <<: *builddepends
+#      env: BUILD_TARGETS=win64
     - <<: *builddepends
       env: BUILD_TARGETS=linux32
     - <<: *builddepends
       env: BUILD_TARGETS=linux64
-    - <<: *builddepends
-      env: BUILD_TARGETS=linux64_nowallet
-    - <<: *builddepends
-      env: BUILD_TARGETS=linux64_release
-    - <<: *builddepends
-      env: BUILD_TARGETS=mac
+#    - <<: *builddepends
+#      env: BUILD_TARGETS=linux64_nowallet
+#    - <<: *builddepends
+#      env: BUILD_TARGETS=linux64_release
+#    - <<: *builddepends
+#      env: BUILD_TARGETS=mac
     # build source
-    - <<: *buildsrc
-      env: BUILD_TARGETS=arm-linux
-    - <<: *buildsrc
-      env: BUILD_TARGETS=win32
-    - <<: *buildsrc
-      env: BUILD_TARGETS=win64
+#    - <<: *buildsrc
+#      env: BUILD_TARGETS=arm-linux
+#    - <<: *buildsrc
+#      env: BUILD_TARGETS=win32
+#    - <<: *buildsrc
+#      env: BUILD_TARGETS=win64
     - <<: *buildsrc
       env: BUILD_TARGETS=linux32
     - <<: *buildsrc
       env: BUILD_TARGETS=linux64
-    - <<: *buildsrc
-      env: BUILD_TARGETS=linux64_nowallet
-    - <<: *buildsrc
-      env: BUILD_TARGETS=linux64_release
-    - <<: *buildsrc
-      env: BUILD_TARGETS=mac
+#    - <<: *buildsrc
+#      env: BUILD_TARGETS=linux64_nowallet
+#    - <<: *buildsrc
+#      env: BUILD_TARGETS=linux64_release
+#    - <<: *buildsrc
+#      env: BUILD_TARGETS=mac
     # run tests (no tests for arm-linux and mac)
-    - <<: *runtests
-      env: BUILD_TARGETS=win32
-    - <<: *runtests
-      env: BUILD_TARGETS=win64
+#    - <<: *runtests
+#      env: BUILD_TARGETS=win32
+#    - <<: *runtests
+#      env: BUILD_TARGETS=win64
     - <<: *runtests
       env: BUILD_TARGETS=linux32
     - <<: *runtests
       env: BUILD_TARGETS=linux64
-    - <<: *runtests
-      env: BUILD_TARGETS=linux64_nowallet
-    - <<: *runtests
-      env: BUILD_TARGETS=linux64_release
+#    - <<: *runtests
+#      env: BUILD_TARGETS=linux64_nowallet
+#    - <<: *runtests
+#      env: BUILD_TARGETS=linux64_release
     # build docker
     - <<: *builddocker
       env: BUILD_TARGET=linux64_release
