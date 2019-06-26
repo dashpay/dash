@@ -43,7 +43,7 @@ stages:
 builddepends: &builddepends
   stage: build depends
   script:
-    - run_per_target '$DOCKER_RUN_IN_BUILDER ./ci/build_depends.sh'
+    - travis_wait 40 run_per_target '$DOCKER_RUN_IN_BUILDER ./ci/build_depends.sh'
 
 buildsrc: &buildsrc
   stage: build src
