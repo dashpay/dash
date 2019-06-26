@@ -189,6 +189,59 @@ UniValue quorum_dkgstatus(const JSONRPCRequest& request)
     return ret;
 }
 
+void quorum_memberof_help()
+{
+    throw std::runtime_error(
+            "quorum memberof \"proTxHash\"\n"
+            "Checks which quorums the given masternode is a member of.\n"
+            "\nArguments:\n"
+            "1. \"proTxHash\"                (string, required) ProTxHash of the masternode.\n"
+    );
+}
+
+UniValue quorum_memberof(const JSONRPCRequest& request)
+{
+    if (request.fHelp || (request.params.size() != 2)) {
+        quorum_memberof_help();
+    }
+
+    uint256 protxHash = ParseHashV(request.params[1], "proTxHash");
+
+    const CBlockIndex* pindexTip;
+    {
+        LOCK(cs_main);
+        pindexTip = chainActive.Tip();
+    }
+
+    auto mnList = deterministicMNManager->GetListForBlock(pindexTip->GetBlockHash());
+    auto dmn = mnList.GetMN(protxHash);
+    if (!dmn) {
+        throw JSONRPCError(RPC_INVALID_PARAMETER, "masternode not found");
+    }
+
+    std::set<std::pair<Consensus::LLMQType, uint256>> quorumHashes;
+    for (const auto& p : Params().GetConsensus().llmqs) {
+        auto& params = p.second;
+        auto quorums = llmq::quorumManager->ScanQuorums(params.type, params.signingActiveQuorumCount);
+        for (auto& quorum : quorums) {
+            for (auto& m : quorum->members) {
+                if (m->proTxHash == dmn->proTxHash) {
+                    quorumHashes.emplace(params.type, quorum->qc.quorumHash);
+                }
+            }
+        }
+    }
+
+    UniValue result(UniValue::VARR);
+    for (auto& p : quorumHashes) {
+        auto quorum = llmq::quorumManager->GetQuorum(p.first, p.second);
+        assert(quorum);
+        result.push_back(BuildQuorumInfo(quorum, false, false));
+    }
+
+    return result;
+}
+
 void quorum_sign_help()
 {
     throw std::runtime_error(
@@ -325,6 +378,7 @@ UniValue quorum_dkgsimerror(const JSONRPCRequest& request)
             "  info              - Return information about a quorum\n"
             "  dkgsimerror       - Simulates DKG errors and malicious behavior.\n"
             "  dkgstatus         - Return the status of the current DKG process\n"
+            "  memberof          - Checks which quorums the given masternode is a member of\n"
             "  sign              - Threshold-sign a message\n"
             "  hasrecsig         - Test if a valid recovered signature is present\n"
             "  getrecsig         - Get a recovered signature\n"
@@ -349,6 +403,8 @@ UniValue quorum(const JSONRPCRequest& request)
         return quorum_info(request);
     } else if (command == "dkgstatus") {
         return quorum_dkgstatus(request);
+    } else if (command == "memberof") {
+        return quorum_memberof(request);
     } else if (command == "sign" || command == "hasrecsig" || command == "getrecsig" || command == "isconflicting") {
         return quorum_sigs_cmd(request);
     } else if (command == "dkgsimerror") {
