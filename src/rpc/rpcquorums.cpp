@@ -76,6 +76,40 @@ void quorum_info_help()
     );
 }
 
+UniValue BuildQuorumInfo(const llmq::CQuorumCPtr& quorum, bool includeMembers, bool includeSkShare)
+{
+    UniValue ret(UniValue::VOBJ);
+
+    ret.push_back(Pair("height", quorum->height));
+    ret.push_back(Pair("quorumHash", quorum->qc.quorumHash.ToString()));
+    ret.push_back(Pair("minedBlock", quorum->minedBlockHash.ToString()));
+
+    if (includeMembers) {
+        UniValue membersArr(UniValue::VARR);
+        for (size_t i = 0; i < quorum->members.size(); i++) {
+            auto& dmn = quorum->members[i];
+            UniValue mo(UniValue::VOBJ);
+            mo.push_back(Pair("proTxHash", dmn->proTxHash.ToString()));
+            mo.push_back(Pair("valid", quorum->qc.validMembers[i]));
+            if (quorum->qc.validMembers[i]) {
+                CBLSPublicKey pubKey = quorum->GetPubKeyShare(i);
+                if (pubKey.IsValid()) {
+                    mo.push_back(Pair("pubKeyShare", pubKey.ToString()));
+                }
+            }
+            membersArr.push_back(mo);
+        }
+
+        ret.push_back(Pair("members", membersArr));
+    }
+    ret.push_back(Pair("quorumPublicKey", quorum->qc.quorumPublicKey.ToString()));
+    CBLSSecretKey skShare = quorum->GetSkShare();
+    if (includeSkShare && skShare.IsValid()) {
+        ret.push_back(Pair("secretKeyShare", skShare.ToString()));
+    }
+    return ret;
+}
+
 UniValue quorum_info(const JSONRPCRequest& request)
 {
     if (request.fHelp || (request.params.size() != 3 && request.params.size() != 4))
@@ -101,35 +135,7 @@ UniValue quorum_info(const JSONRPCRequest& request)
         throw JSONRPCError(RPC_INVALID_PARAMETER, "quorum not found");
     }
 
-    UniValue ret(UniValue::VOBJ);
-
-    ret.push_back(Pair("height", quorum->height));
-    ret.push_back(Pair("quorumHash", quorum->qc.quorumHash.ToString()));
-    ret.push_back(Pair("minedBlock", quorum->minedBlockHash.ToString()));
-
-    UniValue membersArr(UniValue::VARR);
-    for (size_t i = 0; i < quorum->members.size(); i++) {
-        auto& dmn = quorum->members[i];
-        UniValue mo(UniValue::VOBJ);
-        mo.push_back(Pair("proTxHash", dmn->proTxHash.ToString()));
-        mo.push_back(Pair("valid", quorum->qc.validMembers[i]));
-        if (quorum->qc.validMembers[i]) {
-            CBLSPublicKey pubKey = quorum->GetPubKeyShare(i);
-            if (pubKey.IsValid()) {
-                mo.push_back(Pair("pubKeyShare", pubKey.ToString()));
-            }
-        }
-        membersArr.push_back(mo);
-    }
-
-    ret.push_back(Pair("members", membersArr));
-    ret.push_back(Pair("quorumPublicKey", quorum->qc.quorumPublicKey.ToString()));
-    CBLSSecretKey skShare = quorum->GetSkShare();
-    if (includeSkShare && skShare.IsValid()) {
-        ret.push_back(Pair("secretKeyShare", skShare.ToString()));
-    }
-
-    return ret;
+    return BuildQuorumInfo(quorum, true, includeSkShare);
 }
 
 void quorum_dkgstatus_help()
