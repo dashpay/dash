@@ -3,6 +3,7 @@
 // file COPYING or http://www.opensource.org/licenses/mit-license.php.
 
 #include "stacktraces.h"
+#include "fs.h"
 #include "tinyformat.h"
 #include "random.h"
 #include "util.h"
@@ -39,7 +40,6 @@
 #ifdef ENABLE_STACKTRACES
 #include <backtrace.h>
 #endif
-#include <libgen.h> // for basename()
 #include <string.h>
 
 static void PrintCrashInfo(const std::string& s)
@@ -306,9 +306,7 @@ static std::string GetStackFrameInfosStr(const std::vector<stackframe_info>& sis
 
         std::string lstr;
         if (!si.filename.empty()) {
-            std::vector<char> vecFilename(si.filename.size() + 1, '\0');
-            strcpy(vecFilename.data(), si.filename.c_str());
-            lstr += basename(vecFilename.data());
+            lstr += fs::path(si.filename).filename().string();
         } else {
             lstr += "<unknown-file>";
         }
