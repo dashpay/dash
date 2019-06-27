@@ -192,12 +192,12 @@ AC_ARG_ENABLE([debug],
     [enable_debug=$enableval],
     [enable_debug=no])
 
-# Enable exception stacktraces
-AC_ARG_ENABLE([stacktraces],
-    [AS_HELP_STRING([--enable-stacktraces],
-                    [gather and print exception stack traces (default is no)])],
-    [enable_stacktraces=$enableval],
-    [enable_stacktraces=no])
+# Enable crash hooks
+AC_ARG_ENABLE([crash-hooks],
+    [AS_HELP_STRING([--enable-crash-hooks],
+                    [hook into exception/signal/assert handling to gather stack traces (default is no)])],
+    [enable_crashhooks=$enableval],
+    [enable_crashhooks=no])
 
 # Enable in-wallet miner
 AC_ARG_ENABLE([miner],
@@ -229,7 +229,7 @@ if test "x$enable_debug" = xyes; then
     if test "x$GXX" = xyes; then
         CXXFLAGS="$CXXFLAGS -g3 -O0"
     fi
-elif test "x$enable_stacktraces" = xyes; then
+elif test "x$enable_crashhooks" = xyes; then
     # Enable debug information but don't turn off optimization
     # (stacktraces will be suboptimal, but better than nothing)
     if test "x$GCC" = xyes; then
@@ -241,15 +241,15 @@ elif test "x$enable_stacktraces" = xyes; then
     fi
 fi
 
-AM_CONDITIONAL([ENABLE_STACKTRACES], [test x$enable_stacktraces = xyes])
-if test "x$enable_stacktraces" = xyes; then
-    AC_DEFINE(ENABLE_STACKTRACES, 1, [Define this symbol if stacktraces should be enabled])
+AM_CONDITIONAL([ENABLE_CRASH_HOOKS], [test x$enable_crashhooks = xyes])
+if test "x$enable_crashhooks" = xyes; then
+    AC_DEFINE(ENABLE_CRASH_HOOKS, 1, [Define this symbol if crash hooks should be enabled])
 fi
 AX_CHECK_LINK_FLAG([-Wl,-wrap=__cxa_allocate_exception], [LINK_WRAP_SUPPORTED=yes],,,)
-AM_CONDITIONAL([STACKTRACE_WRAPPED_CXX_ABI],[test x$LINK_WRAP_SUPPORTED = xyes])
+AM_CONDITIONAL([CRASH_HOOKS_WRAPPED_CXX_ABI],[test x$LINK_WRAP_SUPPORTED = xyes])
 
 if test x$LINK_WRAP_SUPPORTED = "xyes"; then
-  AC_DEFINE(STACKTRACE_WRAPPED_CXX_ABI, 1, [Define this symbol to use wrapped CXX ABIs for exception stacktraces])
+  AC_DEFINE(CRASH_HOOKS_WRAPPED_CXX_ABI, 1, [Define this symbol to use wrapped CXX ABIs for exception stacktraces])
 fi
 
 # Needed for MinGW targets when debug symbols are enabled as compiled objects get very large
@@ -1275,7 +1275,7 @@ echo "  with test           = $use_tests"
 echo "  with bench          = $use_bench"
 echo "  with upnp           = $use_upnp"
 echo "  debug enabled       = $enable_debug"
-echo "  stacktraces enabled = $enable_stacktraces"
+echo "  crash hooks enabled = $enable_crashhooks"
 echo "  miner enabled       = $enable_miner"
 echo "  werror              = $enable_werror"
 echo 

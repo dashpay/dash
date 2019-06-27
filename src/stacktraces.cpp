@@ -42,9 +42,7 @@
 #include <mach-o/dyld.h>
 #endif
 
-#ifdef ENABLE_STACKTRACES
 #include <backtrace.h>
-#endif
 #include <string.h>
 
 std::string DemangleSymbol(const std::string& name)
@@ -69,7 +67,6 @@ std::string DemangleSymbol(const std::string& name)
 // this is the case when the terminate handler or an assert already handled the exception
 static std::atomic<bool> skipAbortSignal(false);
 
-#ifdef ENABLE_STACKTRACES
 static ssize_t GetExeFileNameImpl(char* buf, size_t bufSize)
 {
 #if WIN32
@@ -508,10 +505,11 @@ static void PrintCrashInfo(const crash_info& ci)
     fflush(stderr);
 }
 
+#ifdef ENABLE_CRASH_HOOKS
 static std::mutex g_stacktraces_mutex;
 static std::map<void*, std::shared_ptr<std::vector<uint64_t>>> g_stacktraces;
 
-#if STACKTRACE_WRAPPED_CXX_ABI
+#if CRASH_HOOKS_WRAPPED_CXX_ABI
 // These come in through -Wl,-wrap
 // It only works on GCC
 extern "C" void* __real___cxa_allocate_exception(size_t thrown_size);
@@ -554,7 +552,7 @@ extern "C" void __real___assert_fail(const char *assertion, const char *file, un
 #endif
 #endif
 
-#if STACKTRACE_WRAPPED_CXX_ABI
+#if CRASH_HOOKS_WRAPPED_CXX_ABI
 #define WRAPPED_NAME(x) __wrap_##x
 #else
 #define WRAPPED_NAME(x) x
@@ -637,9 +635,11 @@ extern "C" void __attribute__((noinline)) WRAPPED_NAME(__assert_fail)(const char
     __real___assert_fail(assertion, file, line, function);
 }
 #endif
+#endif //ENABLE_CRASH_HOOKS
 
 static std::shared_ptr<std::vector<uint64_t>> GetExceptionStacktrace(const std::exception_ptr& e)
 {
+#ifdef ENABLE_CRASH_HOOKS
     void* p = *(void**)&e;
 
     std::lock_guard<std::mutex> l(g_stacktraces_mutex);
@@ -648,8 +648,10 @@ static std::shared_ptr<std::vector<uint64_t>> GetExceptionStacktrace(const std::
         return nullptr;
     }
     return it->second;
+#else
+    return {};
+#endif
 }
-#endif //ENABLE_STACKTRACES
 
 crash_info GetCrashInfoFromException(const std::exception_ptr& e)
 {
@@ -736,7 +738,6 @@ void RegisterPrettyTerminateHander()
     std::set_terminate(terminate_handler);
 }
 
-#ifdef ENABLE_STACKTRACES
 #if !WIN32
 static void HandlePosixSignal(int s)
 {
@@ -759,7 +760,6 @@ static void HandlePosixSignal(int s)
     skipAbortSignal = true;
     std::abort();
 }
-
 #else
 static void DoHandleWindowsException(EXCEPTION_POINTERS * ExceptionInfo)
 {
@@ -812,11 +812,9 @@ LONG WINAPI HandleWindowsException(EXCEPTION_POINTERS * ExceptionInfo)
     return EXCEPTION_CONTINUE_SEARCH;
 }
 #endif
-#endif // ENABLE_STACKTRACES
 
 void RegisterPrettySignalHandlers()
 {
-#if ENABLE_STACKTRACES
 #if WIN32
     SetUnhandledExceptionFilter(HandleWindowsException);
 #else
@@ -845,6 +843,5 @@ void RegisterPrettySignalHandlers()
         sa_segv.sa_flags = 0;
         sigaction(s, &sa_segv, NULL);
     }
-#endif
 #endif
 }

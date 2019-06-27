@@ -10,8 +10,8 @@ AM_CXXFLAGS = $(HARDENED_CXXFLAGS) $(ERROR_CXXFLAGS)
 AM_CPPFLAGS = $(HARDENED_CPPFLAGS)
 EXTRA_LIBRARIES =
 
-if ENABLE_STACKTRACES
-if STACKTRACE_WRAPPED_CXX_ABI
+if ENABLE_CRASH_HOOKS
+if CRASH_HOOKS_WRAPPED_CXX_ABI
 # Wrap internal C++ ABI's so that we can attach stacktraces to exceptions
 LDFLAGS_WRAP_EXCEPTIONS = -Wl,-wrap,__cxa_allocate_exception -Wl,-wrap,__cxa_free_exception
 if TARGET_WINDOWS
@@ -20,12 +20,12 @@ else
 LDFLAGS_WRAP_EXCEPTIONS += -Wl,-wrap,__assert_fail
 endif
 endif
+endif
 
 if TARGET_WINDOWS
 BACKTRACE_LIB = -ldbghelp -lbacktrace
 else
 BACKTRACE_LIB = -lbacktrace
-endif
 endif
 
 if EMBEDDED_UNIVALUE
