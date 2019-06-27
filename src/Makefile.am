@@ -618,6 +618,7 @@ CLEANFILES += univalue/*.gcda univalue/*.gcno
 CLEANFILES += wallet/*.gcda wallet/*.gcno
 CLEANFILES += wallet/test/*.gcda wallet/test/*.gcno
 CLEANFILES += zmq/*.gcda zmq/*.gcno
+CLEANFILES += *.debug qt/*.debug
 
 IMMER_DIST = immer
 
@@ -662,6 +663,10 @@ if HARDEN
 	@echo "Checking binary security..."
 	$(AM_V_at) READELF=$(READELF) OBJDUMP=$(OBJDUMP) $(top_srcdir)/contrib/devtools/security-check.py < $(bin_PROGRAMS)
 endif
+
+
+osx_debug: $(bin_PROGRAMS)
+	for i in $(bin_PROGRAMS); do $(DSYMUTIL_FLAT) -o $$i.debug $$i &> /dev/null ; done
 
 %.pb.cc %.pb.h: %.proto
 	@test -f $(PROTOC)
