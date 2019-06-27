@@ -87,6 +87,7 @@ AC_PATH_PROG(HEXDUMP,hexdump)
 AC_PATH_TOOL(READELF, readelf)
 AC_PATH_TOOL(CPPFILT, c++filt)
 AC_PATH_TOOL(OBJCOPY, objcopy)
+AC_PATH_TOOL(DSYMUTIL, dsymutil)
 
 AC_ARG_VAR(PYTHONPATH, Augments the default search path for python module files)
 
@@ -1140,6 +1141,18 @@ else
   AC_MSG_RESULT([no])
 fi
 
+# When compiled natively on MacOS, we need to specify --flat to avoid producing a dSYM bundle
+# When cross-compiled on linux, we're using a different version of the tool that only supports flat symbol files
+AC_MSG_CHECKING([whether dsymutil needs --flat])
+if test x$DSYMUTIL != x && ($DSYMUTIL --help | grep -q \\--flat); then
+AC_MSG_RESULT([yes])
+	DSYMUTIL_FLAT="$DSYMUTIL --flat"
+else
+	AC_MSG_RESULT([no])
+	DSYMUTIL_FLAT="$DSYMUTIL"
+fi
+AC_MSG_RESULT($dsymutil_needs_flat)
+
 if test x$build_bitcoin_utils$build_bitcoin_libs$build_bitcoind$bitcoin_enable_qt$use_bench$use_tests = xnononononono; then
   AC_MSG_ERROR([No targets! Please specify at least one of: --with-utils --with-libs --with-daemon --with-gui --enable-bench or --enable-tests])
 fi
@@ -1203,6 +1216,7 @@ AC_SUBST(EVENT_PTHREADS_LIBS)
 AC_SUBST(ZMQ_LIBS)
 AC_SUBST(PROTOBUF_LIBS)
 AC_SUBST(QR_LIBS)
+AC_SUBST(DSYMUTIL_FLAT)
 AC_CONFIG_FILES([Makefile src/Makefile doc/man/Makefile share/setup.nsi share/qt/Info.plist test/functional/config.ini])
 AC_CONFIG_FILES([test/util/buildenv.py],[chmod +x test/util/buildenv.py])
 AC_CONFIG_FILES([contrib/devtools/split-debug.sh],[chmod +x contrib/devtools/split-debug.sh])
