@@ -126,6 +126,10 @@ static backtrace_state* GetLibBacktraceState()
     // but luckily we can just specify the .dbg file here as it's a valid PE/XCOFF file
     static std::string debugFileName = g_exeFileName + ".dbg";
     static const char* exeFileNamePtr = fs::exists(debugFileName) ? debugFileName.c_str() : g_exeFileName.c_str();
+#elif __APPLE__
+    // libbacktrace is not able to locate the debug information as it's not in the standard dSYM bundle format
+    static std::string debugFileName = g_exeFileName + ".debug";
+    static const char* exeFileNamePtr = fs::exists(debugFileName) ? debugFileName.c_str() : g_exeFileName.c_str();
 #else
     static const char* exeFileNamePtr = g_exeFileName.empty() ? nullptr : g_exeFileName.c_str();
 #endif
