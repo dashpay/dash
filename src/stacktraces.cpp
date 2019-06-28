@@ -40,6 +40,9 @@
 
 #if __APPLE__
 #include <mach-o/dyld.h>
+#include <mach/mach_init.h>
+#include <sys/sysctl.h>
+#include <mach/mach_vm.h>
 #endif
 
 #include <backtrace.h>
@@ -232,7 +235,25 @@ static __attribute__((noinline)) std::vector<uint64_t> GetStackFrames(size_t ski
 #if __APPLE__
 static uint64_t GetBaseAddress()
 {
-    return 0;
+    mach_port_name_t target_task;
+    vm_map_offset_t vmoffset;
+    vm_map_size_t vmsize;
+    uint32_t nesting_depth = 0;
+    struct vm_region_submap_info_64 vbr;
+    mach_msg_type_number_t vbrcount = 16;
+    kern_return_t kr;
+
+    kr = task_for_pid(mach_task_self(), getpid(), &target_task);
+    if (kr != KERN_SUCCESS) {
+        return 0;
+    }
+
+    kr = mach_vm_region_recurse(target_task, &vmoffset, &vmsize, &nesting_depth, (vm_region_recurse_info_t)&vbr, &vbrcount);
+    if (kr != KERN_SUCCESS) {
+        return 0;
+    }
+
+    return vmoffset;
 }
 #else
 static int dl_iterate_callback(struct dl_phdr_info* info, size_t s, void* data)
