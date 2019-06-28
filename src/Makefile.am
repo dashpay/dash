@@ -618,7 +618,6 @@ CLEANFILES += univalue/*.gcda univalue/*.gcno
 CLEANFILES += wallet/*.gcda wallet/*.gcno
 CLEANFILES += wallet/test/*.gcda wallet/test/*.gcno
 CLEANFILES += zmq/*.gcda zmq/*.gcno
-CLEANFILES += *.debug test/*.debug bench/*.debug qt/*.debug qt/test/*.debug
 
 IMMER_DIST = immer
 
@@ -642,6 +641,7 @@ clean-local:
 	-rm -f leveldb/*/*.gcda leveldb/*/*.gcno leveldb/helpers/memenv/*.gcda leveldb/helpers/memenv/*.gcno
 	-rm -f config.h
 	-rm -rf test/__pycache__
+	-rm -rf *.dSYM test/*.dSYM bench/*.dSYM qt/*.dSYM qt/test/*.dSYM
 
 .rc.o:
 	@test -f $(WINDRES)
@@ -666,7 +666,7 @@ endif
 
 
 osx_debug: $(bin_PROGRAMS)
-	for i in $(bin_PROGRAMS); do $(DSYMUTIL_FLAT) -o $$i.debug $$i &> /dev/null ; done
+	for i in $(bin_PROGRAMS); do mkdir -p $$i.dSYM/Contents/Resources/DWARF && $(DSYMUTIL_FLAT) -o $$i.dSYM/Contents/Resources/DWARF/$$(basename $$i) $$i &> /dev/null ; done
 
 %.pb.cc %.pb.h: %.proto
 	@test -f $(PROTOC)
