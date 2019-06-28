@@ -393,8 +393,10 @@ static std::string GetCrashInfoStrNoDebugInfo(crash_info ci)
     ds << ci;
 
     auto ciStr = EncodeBase32((const unsigned char*)ds.data(), ds.size());
-    return strprintf("No debug information available for stacktrace. You should add debug information and then run:\n"
-                     "%s -printcrashinfo=%s\n", g_exeFileBaseName, ciStr);
+    std::string s = ci.crashDescription + "\n";
+    s += strprintf("No debug information available for stacktrace. You should add debug information and then run:\n"
+                   "%s -printcrashinfo=%s\n", g_exeFileBaseName, ciStr);
+    return s;
 }
 
 static std::string GetCrashInfoStr(const crash_info& ci, size_t spaces = 2);
