@@ -1141,12 +1141,12 @@ else
   AC_MSG_RESULT([no])
 fi
 
-# When compiled natively on MacOS, we need to specify --flat to avoid producing a dSYM bundle
+# When compiled natively on MacOS, we need to specify -flat to avoid producing a dSYM bundle
 # When cross-compiled on linux, we're using a different version of the tool that only supports flat symbol files
-AC_MSG_CHECKING([whether dsymutil needs --flat])
-if test x$DSYMUTIL != x && ($DSYMUTIL --help | grep -q \\--flat); then
+AC_MSG_CHECKING([whether dsymutil needs -flat])
+if test x$DSYMUTIL != x && ($DSYMUTIL --help | grep -q \\-flat); then
 AC_MSG_RESULT([yes])
-	DSYMUTIL_FLAT="$DSYMUTIL --flat"
+	DSYMUTIL_FLAT="$DSYMUTIL -flat"
 else
 	AC_MSG_RESULT([no])
 	DSYMUTIL_FLAT="$DSYMUTIL"

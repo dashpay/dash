@@ -618,7 +618,7 @@ CLEANFILES += univalue/*.gcda univalue/*.gcno
 CLEANFILES += wallet/*.gcda wallet/*.gcno
 CLEANFILES += wallet/test/*.gcda wallet/test/*.gcno
 CLEANFILES += zmq/*.gcda zmq/*.gcno
-CLEANFILES += *.debug qt/*.debug
+CLEANFILES += *.debug test/*.debug bench/*.debug qt/*.debug qt/test/*.debug
 
 IMMER_DIST = immer
 

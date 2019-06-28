@@ -80,8 +80,8 @@ static int AppInitRPC(int argc, char* argv[])
     //
     gArgs.ParseParameters(argc, argv);
 
-    if (gArgs.IsArgSet("-printstacktrace")) {
-        std::cout << GetCrashInfoStrFromSerializedStr(gArgs.GetArg("-printstacktrace", "")) << std::endl;
+    if (gArgs.IsArgSet("-printcrashinfo")) {
+        std::cout << GetCrashInfoStrFromSerializedStr(gArgs.GetArg("-printcrashinfo", "")) << std::endl;
         return true;
     }
 
