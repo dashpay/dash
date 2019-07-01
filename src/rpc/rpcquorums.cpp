@@ -219,24 +219,19 @@ UniValue quorum_memberof(const JSONRPCRequest& request)
         throw JSONRPCError(RPC_INVALID_PARAMETER, "masternode not found");
     }
 
-    std::set<std::pair<Consensus::LLMQType, uint256>> quorumHashes;
+    UniValue result(UniValue::VARR);
+
     for (const auto& p : Params().GetConsensus().llmqs) {
         auto& params = p.second;
         auto quorums = llmq::quorumManager->ScanQuorums(params.type, params.signingActiveQuorumCount);
         for (auto& quorum : quorums) {
-            for (auto& m : quorum->members) {
-                if (m->proTxHash == dmn->proTxHash) {
-                    quorumHashes.emplace(params.type, quorum->qc.quorumHash);
-                }
+            if (quorum->IsMember(dmn->proTxHash)) {
+                auto json = BuildQuorumInfo(quorum, false, false);
+                json.push_back(Pair("isValidMember", quorum->IsValidMember(dmn->proTxHash)));
+                json.push_back(Pair("memberIndex", quorum->GetMemberIndex(dmn->proTxHash)));
+                result.push_back(json);
             }
         }
-    }
-
-    UniValue result(UniValue::VARR);
-    for (auto& p : quorumHashes) {
-        auto quorum = llmq::quorumManager->GetQuorum(p.first, p.second);
-        assert(quorum);
-        result.push_back(BuildQuorumInfo(quorum, false, false));
     }
 
     return result;
