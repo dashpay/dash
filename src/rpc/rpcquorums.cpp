@@ -192,20 +192,29 @@ UniValue quorum_dkgstatus(const JSONRPCRequest& request)
 void quorum_memberof_help()
 {
     throw std::runtime_error(
-            "quorum memberof \"proTxHash\"\n"
+            "quorum memberof \"proTxHash\" (quorumCount)\n"
             "Checks which quorums the given masternode is a member of.\n"
             "\nArguments:\n"
             "1. \"proTxHash\"                (string, required) ProTxHash of the masternode.\n"
+            "2. scanQuorumsCount           (number, optional) Number of quorums to scan for. If not specified,\n"
+            "                              the active quorum count for each specific quorum type is used."
     );
 }
 
 UniValue quorum_memberof(const JSONRPCRequest& request)
 {
-    if (request.fHelp || (request.params.size() != 2)) {
+    if (request.fHelp || (request.params.size() < 2 || request.params.size() > 3)) {
         quorum_memberof_help();
     }
 
     uint256 protxHash = ParseHashV(request.params[1], "proTxHash");
+    int scanQuorumsCount = -1;
+    if (request.params.size() >= 3) {
+        scanQuorumsCount = ParseInt32V(request.params[2], "scanQuorumsCount");
+        if (scanQuorumsCount <= 0) {
+            throw JSONRPCError(RPC_INVALID_PARAMETER, "invalid scanQuorumsCount parameter");
+        }
+    }
 
     const CBlockIndex* pindexTip;
     {
@@ -223,7 +232,11 @@ UniValue quorum_memberof(const JSONRPCRequest& request)
 
     for (const auto& p : Params().GetConsensus().llmqs) {
         auto& params = p.second;
-        auto quorums = llmq::quorumManager->ScanQuorums(params.type, params.signingActiveQuorumCount);
+        size_t count = params.signingActiveQuorumCount;
+        if (scanQuorumsCount != -1) {
+            count = (size_t)scanQuorumsCount;
+        }
+        auto quorums = llmq::quorumManager->ScanQuorums(params.type, count);
         for (auto& quorum : quorums) {
             if (quorum->IsMember(dmn->proTxHash)) {
                 auto json = BuildQuorumInfo(quorum, false, false);
