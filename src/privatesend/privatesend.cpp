@@ -17,6 +17,7 @@
 #include "validation.h"
 
 #include "llmq/quorums_instantsend.h"
+#include "llmq/quorums_chainlocks.h"
 
 #include <string>
 
@@ -115,10 +116,11 @@ bool CPrivateSendBroadcastTx::CheckSignature(const CBLSPublicKey& blsPubKey) con
     return true;
 }
 
-bool CPrivateSendBroadcastTx::IsExpired(int nHeight)
+bool CPrivateSendBroadcastTx::IsExpired(const CBlockIndex* pindex)
 {
-    // expire confirmed DSTXes after ~1h since confirmation
-    return (nConfirmedHeight != -1) && (nHeight - nConfirmedHeight > 24);
+    // expire confirmed DSTXes after ~1h since confirmation or chainlocked confirmation
+    return (nConfirmedHeight != -1) && ((pindex->nHeight - nConfirmedHeight > 24) ||
+            (pindex->nHeight - nConfirmedHeight >= 0 && llmq::chainLocksHandler->HasChainLock(pindex->nHeight, *pindex->phashBlock)));
 }
 
 bool CPrivateSendBroadcastTx::IsValidStructure()
@@ -487,12 +489,12 @@ CPrivateSendBroadcastTx CPrivateSend::GetDSTX(const uint256& hash)
     return (it == mapDSTX.end()) ? CPrivateSendBroadcastTx() : it->second;
 }
 
-void CPrivateSend::CheckDSTXes(int nHeight)
+void CPrivateSend::CheckDSTXes(const CBlockIndex* pindex)
 {
     LOCK(cs_mapdstx);
     auto it = mapDSTX.begin();
     while (it != mapDSTX.end()) {
-        if (it->second.IsExpired(nHeight)) {
+        if (it->second.IsExpired(pindex)) {
             mapDSTX.erase(it++);
         } else {
             ++it;
@@ -504,7 +506,7 @@ void CPrivateSend::CheckDSTXes(int nHeight)
 void CPrivateSend::UpdatedBlockTip(const CBlockIndex* pindex)
 {
     if (pindex && masternodeSync.IsBlockchainSynced()) {
-        CheckDSTXes(pindex->nHeight);
+        CheckDSTXes(pindex);
     }
 }
 
