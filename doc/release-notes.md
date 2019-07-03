@@ -64,7 +64,18 @@ updates. This should be fixed now.
 
 See detailed [set of changes](https://github.com/dashpay/dash/compare/v0.14.0.1...dashpay:v0.14.0.2).
 
-TODO
+- [`d2ff63e8d`](https://github.com/dashpay/dash/commit/d2ff63e8d) Use std::unique_ptr for mnList in CSimplifiedMNList (#3014)
+- [`321bbf5af`](https://github.com/dashpay/dash/commit/321bbf5af) Fix excessive memory use when flushing chainstate and EvoDB (#3008)
+- [`0410259dd`](https://github.com/dashpay/dash/commit/0410259dd) Fix 2 common Travis failures which happen when Travis has network issues (#3003)
+- [`8d763c144`](https://github.com/dashpay/dash/commit/8d763c144) Only load signingActiveQuorumCount + 1 quorums into cache (#3002)
+- [`2dc1b06ec`](https://github.com/dashpay/dash/commit/2dc1b06ec) Remove skipped denom from the list on tx commit (#2997)
+- [`dff2c851d`](https://github.com/dashpay/dash/commit/dff2c851d) Update manpages for 0.14.0.2 (#2999)
+- [`46c4f5844`](https://github.com/dashpay/dash/commit/46c4f5844) Use Travis stages instead of custom timeouts (#2948)
+- [`49c37b82a`](https://github.com/dashpay/dash/commit/49c37b82a) Back off for 1m when connecting to quorum masternodes (#2975)
+- [`c1f756fd9`](https://github.com/dashpay/dash/commit/c1f756fd9) Multiple speed optimizations for deterministic MN list handling (#2972)
+- [`11699f540`](https://github.com/dashpay/dash/commit/11699f540) Process/keep messages/connections from PoSe-banned MNs (#2967)
+- [`c5415e746`](https://github.com/dashpay/dash/commit/c5415e746) Fix UI masternode list (#2966)
+- [`fb6f0e04d`](https://github.com/dashpay/dash/commit/fb6f0e04d) Bump version to 0.14.0.2 and copy release notes (#2991)
 
 Credits
 =======
