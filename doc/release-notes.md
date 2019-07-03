@@ -45,7 +45,7 @@ Notable changes
 Performance improvements
 ------------------------
 Slow startup times were observed in older versions. This was due to sub-optimal handling of old
-deterministic masternode lists which causes loading of too many lists into memory. This should be
+deterministic masternode lists which caused the loading of too many lists into memory. This should be
 fixed now.
 
 Fixed excessive memory use
