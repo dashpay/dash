@@ -119,8 +119,9 @@ bool CPrivateSendBroadcastTx::CheckSignature(const CBLSPublicKey& blsPubKey) con
 bool CPrivateSendBroadcastTx::IsExpired(const CBlockIndex* pindex)
 {
     // expire confirmed DSTXes after ~1h since confirmation or chainlocked confirmation
-    return (nConfirmedHeight != -1) && ((pindex->nHeight - nConfirmedHeight > 24) ||
-            (pindex->nHeight - nConfirmedHeight >= 0 && llmq::chainLocksHandler->HasChainLock(pindex->nHeight, *pindex->phashBlock)));
+    if (nConfirmedHeight == -1 || pindex->nHeight < nConfirmedHeight) return false; // not mined yet
+    if (pindex->nHeight - nConfirmedHeight > 24) return true; // mined more then an hour ago
+    return llmq::chainLocksHandler->HasChainLock(pindex->nHeight, *pindex->phashBlock);
 }
 
 bool CPrivateSendBroadcastTx::IsValidStructure()
