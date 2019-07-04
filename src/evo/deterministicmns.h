@@ -601,6 +601,37 @@ public:
     }
 };
 
+// TODO can be removed in a future version
+class CDeterministicMNListDiff_OldFormat
+{
+public:
+    uint256 prevBlockHash;
+    uint256 blockHash;
+    int nHeight{-1};
+    std::map<uint256, CDeterministicMNCPtr> addedMNs;
+    std::map<uint256, CDeterministicMNStateCPtr> updatedMNs;
+    std::set<uint256> removedMns;
+
+public:
+    template<typename Stream>
+    void Unserialize(Stream& s) {
+        addedMNs.clear();
+        s >> prevBlockHash;
+        s >> blockHash;
+        s >> nHeight;
+        size_t cnt = ReadCompactSize(s);
+        for (size_t i = 0; i < cnt; i++) {
+            uint256 proTxHash;
+            auto dmn = std::make_shared<CDeterministicMN>();
+            s >> proTxHash;
+            dmn->Unserialize(s, true);
+            addedMNs.emplace(proTxHash, dmn);
+        }
+        s >> updatedMNs;
+        s >> removedMns;
+    }
+};
+
 class CDeterministicMNManager
 {
     static const int SNAPSHOT_LIST_PERIOD = 576; // once per day
@@ -636,6 +667,11 @@ public:
     bool IsProTxWithCollateral(const CTransactionRef& tx, uint32_t n);
 
     bool IsDIP3Enforced(int nHeight = -1);
+
+public:
+    // TODO these can all be removed in a future version
+    bool UpgradeDiff(CDBBatch& batch, const CBlockIndex* pindexNext, const CDeterministicMNList& curMNList, CDeterministicMNList& newMNList);
+    void UpgradeDBIfNeeded();
 
 private:
     void CleanupCache(int nHeight);

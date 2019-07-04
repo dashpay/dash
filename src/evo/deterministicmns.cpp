@@ -20,6 +20,7 @@
 
 static const std::string DB_LIST_SNAPSHOT = "dmn_S";
 static const std::string DB_LIST_DIFF = "dmn_D";
+static const std::string DB_DMN_MGR_UPGRADED = "dmn_upgraded";
 
 CDeterministicMNManager* deterministicMNManager;
 
@@ -989,4 +990,101 @@ void CDeterministicMNManager::CleanupCache(int nHeight)
     for (const auto& h : toDelete) {
         mnListsCache.erase(h);
     }
+}
+
+bool CDeterministicMNManager::UpgradeDiff(CDBBatch& batch, const CBlockIndex* pindexNext, const CDeterministicMNList& curMNList, CDeterministicMNList& newMNList)
+{
+    CDataStream oldDiffData(SER_DISK, CLIENT_VERSION);
+    if (!evoDb.GetRawDB().ReadDataStream(std::make_pair(DB_LIST_DIFF, pindexNext->GetBlockHash()), oldDiffData)) {
+        LogPrintf("CDeterministicMNManager::%s -- no diff found for %s\n", __func__, pindexNext->GetBlockHash().ToString());
+        newMNList = curMNList;
+        newMNList.SetBlockHash(pindexNext->GetBlockHash());
+        newMNList.SetHeight(pindexNext->nHeight);
+        return false;
+    }
+
+    CDeterministicMNListDiff_OldFormat oldDiff;
+    oldDiffData >> oldDiff;
+
+    CDeterministicMNListDiff newDiff;
+    newDiff.prevBlockHash = oldDiff.prevBlockHash;
+    newDiff.blockHash = oldDiff.blockHash;
+    newDiff.nHeight = oldDiff.nHeight;
+    size_t addedCount = 0;
+    for (auto& p : oldDiff.addedMNs) {
+        auto dmn = std::make_shared<CDeterministicMN>(*p.second);
+        dmn->internalId = curMNList.GetTotalRegisteredCount() + addedCount;
+        newDiff.addedMNs.emplace_back(dmn);
+
+        addedCount++;
+    }
+    for (auto& p : oldDiff.removedMns) {
+        auto dmn = curMNList.GetMN(p);
+        newDiff.removedMns.emplace(dmn->internalId);
+    }
+
+    // applies added/removed MNs
+    newMNList = curMNList.ApplyDiff(newDiff);
+
+    // manually apply updated MNs and calc new state diffs
+    for (auto& p : oldDiff.updatedMNs) {
+        auto oldMN = newMNList.GetMN(p.first);
+        newMNList.UpdateMN(p.first, p.second);
+        auto newMN = newMNList.GetMN(p.first);
+        assert(oldMN && newMN);
+
+        newDiff.updatedMNs.emplace(std::piecewise_construct,
+                std::forward_as_tuple(oldMN->internalId),
+                std::forward_as_tuple(*oldMN->pdmnState, *newMN->pdmnState));
+    }
+
+    batch.Write(std::make_pair(DB_LIST_DIFF, pindexNext->GetBlockHash()), newDiff);
+
+    return true;
+}
+
+// TODO this can be completely removed in a future version
+void CDeterministicMNManager::UpgradeDBIfNeeded()
+{
+    LOCK(cs_main);
+
+    if (evoDb.GetRawDB().Exists(std::string(DB_DMN_MGR_UPGRADED))) {
+        return;
+    }
+
+    if (chainActive.Height() < Params().GetConsensus().DIP0003Height) {
+        // not reached DIP3 height yet, so no upgrade needed
+        evoDb.GetRawDB().Write(std::string(DB_DMN_MGR_UPGRADED), (uint8_t)1);
+        return;
+    }
+
+    LogPrintf("CDeterministicMNManager::%s -- upgrading DB to use compact diffs\n", __func__);
+
+    CDBBatch batch(evoDb.GetRawDB());
+
+    CDeterministicMNList curMNList;
+    curMNList.SetHeight(Params().GetConsensus().DIP0003Height - 1);
+    curMNList.SetBlockHash(chainActive[Params().GetConsensus().DIP0003Height - 1]->GetBlockHash());
+
+    for (int nHeight = Params().GetConsensus().DIP0003Height; nHeight <= chainActive.Height(); nHeight++) {
+        auto pindex = chainActive[nHeight];
+
+        CDeterministicMNList newMNList;
+        UpgradeDiff(batch, pindex, curMNList, newMNList);
+
+        if ((nHeight % SNAPSHOT_LIST_PERIOD) == 0) {
+            batch.Write(std::make_pair(DB_LIST_SNAPSHOT, pindex->GetBlockHash()), newMNList);
+            evoDb.GetRawDB().WriteBatch(batch);
+            batch.Clear();
+        }
+
+        curMNList = newMNList;
+    }
+
+    evoDb.GetRawDB().WriteBatch(batch);
+
+    LogPrintf("CDeterministicMNManager::%s -- done upgrading\n", __func__);
+
+    evoDb.GetRawDB().Write(std::string(DB_DMN_MGR_UPGRADED), (uint8_t)1);
+    evoDb.GetRawDB().CompactFull();
 }
