@@ -83,8 +83,8 @@ public:
         READWRITE(pubKeyOperator);
         READWRITE(keyIDVoting);
         READWRITE(addr);
-        READWRITE(*(CScriptBase*)(&scriptPayout));
-        READWRITE(*(CScriptBase*)(&scriptOperatorPayout));
+        READWRITE(scriptPayout);
+        READWRITE(scriptOperatorPayout);
     }
 
     void ResetOperatorFields()
