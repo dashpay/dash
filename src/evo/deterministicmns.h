@@ -269,7 +269,6 @@ private:
 
     // map of unique properties like address and keys
     // we keep track of this as checking for duplicates would otherwise be painfully slow
-    // the entries in the map are ref counted as some properties might appear multiple times per MN (e.g. operator/owner keys)
     MnUniquePropertyMap mnUniquePropertyMap;
 
 public:
@@ -280,15 +279,35 @@ public:
     {
     }
 
-    ADD_SERIALIZE_METHODS;
-
     template <typename Stream, typename Operation>
-    inline void SerializationOp(Stream& s, Operation ser_action)
+    inline void SerializationOpBase(Stream& s, Operation ser_action)
     {
         READWRITE(blockHash);
         READWRITE(nHeight);
-        READWRITE(mnMap);
-        READWRITE(mnUniquePropertyMap);
+    }
+
+    template<typename Stream>
+    void Serialize(Stream& s) const
+    {
+        NCONST_PTR(this)->SerializationOpBase(s, CSerActionSerialize());
+        // Serialize the map as a vector
+        WriteCompactSize(s, mnMap.size());
+        for (const auto& p : mnMap) {
+            s << *p.second;
+        }
+    }
+
+    template<typename Stream>
+    void Unserialize(Stream& s) {
+        mnMap = MnMap();
+        mnUniquePropertyMap = MnUniquePropertyMap();
+
+        SerializationOpBase(s, CSerActionUnserialize());
+
+        size_t cnt = ReadCompactSize(s);
+        for (size_t i = 0; i < cnt; i++) {
+            AddMN(std::make_shared<CDeterministicMN>(deserialize, s));
+        }
     }
 
 public:
