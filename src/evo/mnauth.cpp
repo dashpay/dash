@@ -133,7 +133,7 @@ void CMNAuth::NotifyMasternodeListChanged(bool undo, const CDeterministicMNList&
         } else {
             auto it = diff.updatedMNs.find(pnode->verifiedProRegTxHash);
             if (it != diff.updatedMNs.end()) {
-                if (it->second->pubKeyOperator.GetHash() != pnode->verifiedPubKeyHash) {
+                if ((it->second.fields & CDeterministicMNStateDiff::Field_pubKeyOperator) && it->second.state.pubKeyOperator.GetHash() != pnode->verifiedPubKeyHash) {
                     doRemove = true;
                 }
             }

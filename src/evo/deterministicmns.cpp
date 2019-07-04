@@ -357,8 +357,11 @@ CDeterministicMNListDiff CDeterministicMNList::BuildDiff(const CDeterministicMNL
         auto fromPtr = GetMN(toPtr->proTxHash);
         if (fromPtr == nullptr) {
             diffRet.addedMNs.emplace(toPtr->proTxHash, toPtr);
-        } else if (*toPtr->pdmnState != *fromPtr->pdmnState) {
-            diffRet.updatedMNs.emplace(toPtr->proTxHash, toPtr->pdmnState);
+        } else {
+            CDeterministicMNStateDiff stateDiff(*fromPtr->pdmnState, *toPtr->pdmnState);
+            if (stateDiff.fields) {
+                diffRet.updatedMNs.emplace(toPtr->proTxHash, std::move(stateDiff));
+            }
         }
     });
     ForEachMN(false, [&](const CDeterministicMNCPtr& fromPtr) {
@@ -434,18 +437,34 @@ void CDeterministicMNList::AddMN(const CDeterministicMNCPtr& dmn)
     }
 }
 
-void CDeterministicMNList::UpdateMN(const uint256& proTxHash, const CDeterministicMNStateCPtr& pdmnState)
+void CDeterministicMNList::UpdateMN(const CDeterministicMNCPtr& oldDmn, const CDeterministicMNStateCPtr& pdmnState)
 {
-    auto oldDmn = mnMap.find(proTxHash);
     assert(oldDmn != nullptr);
-    auto dmn = std::make_shared<CDeterministicMN>(**oldDmn);
+    auto dmn = std::make_shared<CDeterministicMN>(*oldDmn);
     auto oldState = dmn->pdmnState;
     dmn->pdmnState = pdmnState;
-    mnMap = mnMap.set(proTxHash, dmn);
+    mnMap = mnMap.set(oldDmn->proTxHash, dmn);
 
     UpdateUniqueProperty(dmn, oldState->addr, pdmnState->addr);
     UpdateUniqueProperty(dmn, oldState->keyIDOwner, pdmnState->keyIDOwner);
     UpdateUniqueProperty(dmn, oldState->pubKeyOperator, pdmnState->pubKeyOperator);
+}
+
+void CDeterministicMNList::UpdateMN(const uint256& proTxHash, const CDeterministicMNStateCPtr& pdmnState)
+{
+    auto oldDmn = mnMap.find(proTxHash);
+    assert(oldDmn != nullptr);
+    UpdateMN(*oldDmn, pdmnState);
+}
+
+void CDeterministicMNList::UpdateMN(const uint256& proTxHash, const CDeterministicMNStateDiff& stateDiff)
+{
+    auto oldDmn = mnMap.find(proTxHash);
+    assert(oldDmn != nullptr);
+    auto oldState = (*oldDmn)->pdmnState;
+    auto newState = std::make_shared<CDeterministicMNState>(*oldState);
+    stateDiff.ApplyToState(*newState);
+    UpdateMN(*oldDmn, newState);
 }
 
 void CDeterministicMNList::RemoveMN(const uint256& proTxHash)

@@ -109,35 +109,81 @@ public:
         h.Finalize(confirmedHashWithProRegTxHash.begin());
     }
 
-    bool operator==(const CDeterministicMNState& rhs) const
-    {
-        return nRegisteredHeight == rhs.nRegisteredHeight &&
-               nLastPaidHeight == rhs.nLastPaidHeight &&
-               nPoSePenalty == rhs.nPoSePenalty &&
-               nPoSeRevivedHeight == rhs.nPoSeRevivedHeight &&
-               nPoSeBanHeight == rhs.nPoSeBanHeight &&
-               nRevocationReason == rhs.nRevocationReason &&
-               confirmedHash == rhs.confirmedHash &&
-               confirmedHashWithProRegTxHash == rhs.confirmedHashWithProRegTxHash &&
-               keyIDOwner == rhs.keyIDOwner &&
-               pubKeyOperator == rhs.pubKeyOperator &&
-               keyIDVoting == rhs.keyIDVoting &&
-               addr == rhs.addr &&
-               scriptPayout == rhs.scriptPayout &&
-               scriptOperatorPayout == rhs.scriptOperatorPayout;
-    }
-
-    bool operator!=(const CDeterministicMNState& rhs) const
-    {
-        return !(rhs == *this);
-    }
-
 public:
     std::string ToString() const;
     void ToJson(UniValue& obj) const;
 };
 typedef std::shared_ptr<CDeterministicMNState> CDeterministicMNStatePtr;
 typedef std::shared_ptr<const CDeterministicMNState> CDeterministicMNStateCPtr;
+
+class CDeterministicMNStateDiff
+{
+public:
+    enum Field : uint32_t {
+        Field_nRegisteredHeight                 = 0x0001,
+        Field_nLastPaidHeight                   = 0x0002,
+        Field_nPoSePenalty                      = 0x0004,
+        Field_nPoSeRevivedHeight                = 0x0008,
+        Field_nPoSeBanHeight                    = 0x0010,
+        Field_nRevocationReason                 = 0x0020,
+        Field_confirmedHash                     = 0x0040,
+        Field_confirmedHashWithProRegTxHash     = 0x0080,
+        Field_keyIDOwner                        = 0x0100,
+        Field_pubKeyOperator                    = 0x0200,
+        Field_keyIDVoting                       = 0x0400,
+        Field_addr                              = 0x0800,
+        Field_scriptPayout                      = 0x1000,
+        Field_scriptOperatorPayout              = 0x2000,
+    };
+
+#define DMN_STATE_DIFF_ALL_FIELDS \
+    DMN_STATE_DIFF_LINE(nRegisteredHeight) \
+    DMN_STATE_DIFF_LINE(nLastPaidHeight) \
+    DMN_STATE_DIFF_LINE(nPoSePenalty) \
+    DMN_STATE_DIFF_LINE(nPoSeRevivedHeight) \
+    DMN_STATE_DIFF_LINE(nPoSeBanHeight) \
+    DMN_STATE_DIFF_LINE(nRevocationReason) \
+    DMN_STATE_DIFF_LINE(confirmedHash) \
+    DMN_STATE_DIFF_LINE(confirmedHashWithProRegTxHash) \
+    DMN_STATE_DIFF_LINE(keyIDOwner) \
+    DMN_STATE_DIFF_LINE(pubKeyOperator) \
+    DMN_STATE_DIFF_LINE(keyIDVoting) \
+    DMN_STATE_DIFF_LINE(addr) \
+    DMN_STATE_DIFF_LINE(scriptPayout) \
+    DMN_STATE_DIFF_LINE(scriptOperatorPayout)
+
+public:
+    uint32_t fields{0};
+    // we reuse the state class, but only the members as noted by fields are valid
+    CDeterministicMNState state;
+
+public:
+    CDeterministicMNStateDiff() {}
+    CDeterministicMNStateDiff(const CDeterministicMNState& a, const CDeterministicMNState& b)
+    {
+#define DMN_STATE_DIFF_LINE(f) if (a.f != b.f) { state.f = b.f; fields |= Field_##f; }
+        DMN_STATE_DIFF_ALL_FIELDS
+#undef DMN_STATE_DIFF_LINE
+    }
+
+    ADD_SERIALIZE_METHODS;
+
+    template <typename Stream, typename Operation>
+    inline void SerializationOp(Stream& s, Operation ser_action)
+    {
+        READWRITE(VARINT(fields));
+#define DMN_STATE_DIFF_LINE(f) if (fields & Field_##f) READWRITE(state.f);
+        DMN_STATE_DIFF_ALL_FIELDS
+#undef DMN_STATE_DIFF_LINE
+    }
+
+    void ApplyToState(CDeterministicMNState& target) const
+    {
+#define DMN_STATE_DIFF_LINE(f) if (fields & Field_##f) target.f = state.f;
+        DMN_STATE_DIFF_ALL_FIELDS
+#undef DMN_STATE_DIFF_LINE
+    }
+};
 
 class CDeterministicMN
 {
@@ -375,7 +421,9 @@ public:
     CDeterministicMNList ApplyDiff(const CDeterministicMNListDiff& diff) const;
 
     void AddMN(const CDeterministicMNCPtr& dmn);
+    void UpdateMN(const CDeterministicMNCPtr& oldDmn, const CDeterministicMNStateCPtr& pdmnState);
     void UpdateMN(const uint256& proTxHash, const CDeterministicMNStateCPtr& pdmnState);
+    void UpdateMN(const uint256& proTxHash, const CDeterministicMNStateDiff& stateDiff);
     void RemoveMN(const uint256& proTxHash);
 
     template <typename T>
@@ -449,7 +497,7 @@ public:
     uint256 blockHash;
     int nHeight{-1};
     std::map<uint256, CDeterministicMNCPtr> addedMNs;
-    std::map<uint256, CDeterministicMNStateCPtr> updatedMNs;
+    std::map<uint256, CDeterministicMNStateDiff> updatedMNs;
     std::set<uint256> removedMns;
 
 public:

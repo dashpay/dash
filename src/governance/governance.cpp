@@ -1275,9 +1275,9 @@ void CGovernanceManager::RemoveInvalidVotes()
     std::vector<COutPoint> changedKeyMNs;
     for (const auto& p : diff.updatedMNs) {
         auto oldDmn = lastMNListForVotingKeys.GetMN(p.first);
-        if (p.second->keyIDVoting != oldDmn->pdmnState->keyIDVoting) {
+        if ((p.second.fields & CDeterministicMNStateDiff::Field_keyIDVoting) && p.second.state.keyIDVoting != oldDmn->pdmnState->keyIDVoting) {
             changedKeyMNs.emplace_back(oldDmn->collateralOutpoint);
-        } else if (p.second->pubKeyOperator != oldDmn->pdmnState->pubKeyOperator) {
+        } else if ((p.second.fields & CDeterministicMNStateDiff::Field_pubKeyOperator) && p.second.state.pubKeyOperator != oldDmn->pdmnState->pubKeyOperator) {
             changedKeyMNs.emplace_back(oldDmn->collateralOutpoint);
         }
     }
