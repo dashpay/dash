@@ -366,7 +366,7 @@ CDeterministicMNListDiff CDeterministicMNList::BuildDiff(const CDeterministicMNL
         auto fromPtr = GetMN(toPtr->proTxHash);
         if (fromPtr == nullptr) {
             diffRet.addedMNs.emplace_back(toPtr);
-        } else {
+        } else if (fromPtr != toPtr || fromPtr->pdmnState != toPtr->pdmnState) {
             CDeterministicMNStateDiff stateDiff(*fromPtr->pdmnState, *toPtr->pdmnState);
             if (stateDiff.fields) {
                 diffRet.updatedMNs.emplace(toPtr->internalId, std::move(stateDiff));
@@ -919,7 +919,7 @@ CDeterministicMNList CDeterministicMNManager::GetListForBlock(const uint256& blo
             break;
         }
 
-        listDiff.emplace_front(diff);
+        listDiff.emplace_front(std::move(diff));
         blockHashTmp = diff.prevBlockHash;
     }
 
