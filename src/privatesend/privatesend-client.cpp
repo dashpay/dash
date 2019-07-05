@@ -20,6 +20,11 @@
 
 #include <memory>
 
+#ifdef ENABLE_WALLET
+typedef CWallet* CWalletRef;
+extern std::vector<CWalletRef> vpwallets;
+#endif //ENABLE_WALLET
+
 CPrivateSendClientManager privateSendClient;
 
 void CPrivateSendClientManager::ProcessMessage(CNode* pfrom, const std::string& strCommand, CDataStream& vRecv, CConnman& connman)
