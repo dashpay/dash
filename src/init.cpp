@@ -838,8 +838,8 @@ void ThreadImport(std::vector<fs::path> vImportFiles)
 
 #ifdef ENABLE_WALLET
     // we can't do this before DIP3 is fully initialized
-    if (pwalletMain) {
-        pwalletMain->AutoLockMasternodeCollaterals();
+    for (CWalletRef pwallet : vpwallets) {
+        pwallet->AutoLockMasternodeCollaterals();
     }
 #endif
 
