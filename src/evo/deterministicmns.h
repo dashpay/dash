@@ -471,7 +471,7 @@ public:
     void AddMN(const CDeterministicMNCPtr& dmn);
     void UpdateMN(const CDeterministicMNCPtr& oldDmn, const CDeterministicMNStateCPtr& pdmnState);
     void UpdateMN(const uint256& proTxHash, const CDeterministicMNStateCPtr& pdmnState);
-    void UpdateMN(const uint256& proTxHash, const CDeterministicMNStateDiff& stateDiff);
+    void UpdateMN(const CDeterministicMNCPtr& oldDmn, const CDeterministicMNStateDiff& stateDiff);
     void RemoveMN(const uint256& proTxHash);
 
     template <typename T>
@@ -544,22 +544,54 @@ public:
     uint256 prevBlockHash;
     uint256 blockHash;
     int nHeight{-1};
-    std::map<uint256, CDeterministicMNCPtr> addedMNs;
-    std::map<uint256, CDeterministicMNStateDiff> updatedMNs;
-    std::set<uint256> removedMns;
+    std::vector<CDeterministicMNCPtr> addedMNs;
+    // keys are all relating to the internalId of MNs
+    std::map<uint64_t, CDeterministicMNStateDiff> updatedMNs;
+    std::set<uint64_t> removedMns;
 
 public:
-    ADD_SERIALIZE_METHODS;
-
-    template <typename Stream, typename Operation>
-    inline void SerializationOp(Stream& s, Operation ser_action)
+    template<typename Stream>
+    void Serialize(Stream& s) const
     {
-        READWRITE(prevBlockHash);
-        READWRITE(blockHash);
-        READWRITE(nHeight);
-        READWRITE(addedMNs);
-        READWRITE(updatedMNs);
-        READWRITE(removedMns);
+        s << prevBlockHash;
+        s << blockHash;
+        s << nHeight;
+        s << addedMNs;
+        WriteCompactSize(s, updatedMNs.size());
+        for (const auto& p : updatedMNs) {
+            WriteVarInt(s, p.first);
+            s << p.second;
+        }
+        WriteCompactSize(s, removedMns.size());
+        for (const auto& p : removedMns) {
+            WriteVarInt(s, p);
+        }
+    }
+
+    template<typename Stream>
+    void Unserialize(Stream& s)
+    {
+        updatedMNs.clear();
+        removedMns.clear();
+
+        size_t tmp;
+        uint64_t tmp2;
+        s >> prevBlockHash;
+        s >> blockHash;
+        s >> nHeight;
+        s >> addedMNs;
+        tmp = ReadCompactSize(s);
+        for (size_t i = 0; i < tmp; i++) {
+            CDeterministicMNStateDiff diff;
+            tmp2 = ReadVarInt<Stream, uint64_t>(s);
+            s >> diff;
+            updatedMNs.emplace(tmp2, std::move(diff));
+        }
+        tmp = ReadCompactSize(s);
+        for (size_t i = 0; i < tmp; i++) {
+            tmp2 = ReadVarInt<Stream, uint64_t>(s);
+            removedMns.emplace(tmp2);
+        }
     }
 
 public:

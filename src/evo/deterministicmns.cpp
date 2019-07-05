@@ -365,19 +365,25 @@ CDeterministicMNListDiff CDeterministicMNList::BuildDiff(const CDeterministicMNL
     to.ForEachMN(false, [&](const CDeterministicMNCPtr& toPtr) {
         auto fromPtr = GetMN(toPtr->proTxHash);
         if (fromPtr == nullptr) {
-            diffRet.addedMNs.emplace(toPtr->proTxHash, toPtr);
+            diffRet.addedMNs.emplace_back(toPtr);
         } else {
             CDeterministicMNStateDiff stateDiff(*fromPtr->pdmnState, *toPtr->pdmnState);
             if (stateDiff.fields) {
-                diffRet.updatedMNs.emplace(toPtr->proTxHash, std::move(stateDiff));
+                diffRet.updatedMNs.emplace(toPtr->internalId, std::move(stateDiff));
             }
         }
     });
     ForEachMN(false, [&](const CDeterministicMNCPtr& fromPtr) {
         auto toPtr = to.GetMN(fromPtr->proTxHash);
         if (toPtr == nullptr) {
-            diffRet.removedMns.insert(fromPtr->proTxHash);
+            diffRet.removedMns.emplace(fromPtr->internalId);
         }
+    });
+
+    // added MNs need to be sorted by internalId so that these are added in correct order when the diff is applied later
+    // otherwise internalIds will not match with the original list
+    std::sort(diffRet.addedMNs.begin(), diffRet.addedMNs.end(), [](const CDeterministicMNCPtr& a, const CDeterministicMNCPtr& b) {
+        return a->internalId < b->internalId;
     });
 
     return diffRet;
@@ -419,14 +425,19 @@ CDeterministicMNList CDeterministicMNList::ApplyDiff(const CDeterministicMNListD
     result.blockHash = diff.blockHash;
     result.nHeight = diff.nHeight;
 
-    for (const auto& hash : diff.removedMns) {
-        result.RemoveMN(hash);
+    for (const auto& id : diff.removedMns) {
+        auto dmn = result.GetMNByInternalId(id);
+        assert(dmn);
+        result.RemoveMN(dmn->proTxHash);
     }
-    for (const auto& p : diff.addedMNs) {
-        result.AddMN(p.second);
+    for (const auto& dmn : diff.addedMNs) {
+        assert(dmn->internalId == result.GetTotalRegisteredCount());
+        result.AddMN(dmn);
+        result.SetTotalRegisteredCount(result.GetTotalRegisteredCount() + 1);
     }
     for (const auto& p : diff.updatedMNs) {
-        result.UpdateMN(p.first, p.second);
+        auto dmn = result.GetMNByInternalId(p.first);
+        result.UpdateMN(dmn, p.second);
     }
 
     return result;
@@ -467,14 +478,13 @@ void CDeterministicMNList::UpdateMN(const uint256& proTxHash, const CDeterminist
     UpdateMN(*oldDmn, pdmnState);
 }
 
-void CDeterministicMNList::UpdateMN(const uint256& proTxHash, const CDeterministicMNStateDiff& stateDiff)
+void CDeterministicMNList::UpdateMN(const CDeterministicMNCPtr& oldDmn, const CDeterministicMNStateDiff& stateDiff)
 {
-    auto oldDmn = mnMap.find(proTxHash);
     assert(oldDmn != nullptr);
-    auto oldState = (*oldDmn)->pdmnState;
+    auto oldState = oldDmn->pdmnState;
     auto newState = std::make_shared<CDeterministicMNState>(*oldState);
     stateDiff.ApplyToState(*newState);
-    UpdateMN(*oldDmn, newState);
+    UpdateMN(oldDmn, newState);
 }
 
 void CDeterministicMNList::RemoveMN(const uint256& proTxHash)
