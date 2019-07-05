@@ -747,7 +747,7 @@ bool CInstantSendManager::ProcessPendingInstantSendLocks()
             continue;
         }
 
-        if (!islock.sig.GetSig().IsValid()) {
+        if (!islock.sig.Get().IsValid()) {
             batchVerifier.badSources.emplace(nodeId);
             continue;
         }
@@ -765,7 +765,7 @@ bool CInstantSendManager::ProcessPendingInstantSendLocks()
             return false;
         }
         uint256 signHash = CLLMQUtils::BuildSignHash(llmqType, quorum->qc.quorumHash, id, islock.txid);
-        batchVerifier.PushMessage(nodeId, hash, signHash, islock.sig.GetSig(), quorum->qc.quorumPublicKey);
+        batchVerifier.PushMessage(nodeId, hash, signHash, islock.sig.Get(), quorum->qc.quorumPublicKey);
 
         // We can reconstruct the CRecoveredSig objects from the islock and pass it to the signing manager, which
         // avoids unnecessary double-verification of the signature. We however only do this when verification here
@@ -937,11 +937,12 @@ void CInstantSendManager::SyncTransaction(const CTransaction& tx, const CBlockIn
     }
 
     bool inMempool = mempool.get(tx.GetHash()) != nullptr;
+    bool isDisconnect = pindex && posInBlock == CMainSignals::SYNC_TRANSACTION_NOT_IN_BLOCK;
 
     // Are we called from validation.cpp/MemPoolConflictRemovalTracker?
     // TODO refactor this when we backport the BlockConnected signal from Bitcoin, as it gives better info about
     // conflicted TXs
-    bool isConflictRemoved = !pindex && posInBlock == CMainSignals::SYNC_TRANSACTION_NOT_IN_BLOCK && !inMempool;
+    bool isConflictRemoved = isDisconnect && !inMempool;
 
     if (isConflictRemoved) {
         LOCK(cs);
@@ -956,8 +957,9 @@ void CInstantSendManager::SyncTransaction(const CTransaction& tx, const CBlockIn
 
         // update DB about when an IS lock was mined
         if (!islockHash.IsNull() && pindex) {
-            if (posInBlock == CMainSignals::SYNC_TRANSACTION_NOT_IN_BLOCK) {
-                db.RemoveInstantSendLockMined(islockHash, pindex->nHeight);
+            if (isDisconnect) {
+                // SyncTransaction is called with pprev
+                db.RemoveInstantSendLockMined(islockHash, pindex->nHeight + 1);
             } else {
                 db.WriteInstantSendLockMined(islockHash, pindex->nHeight);
             }
@@ -977,7 +979,7 @@ void CInstantSendManager::SyncTransaction(const CTransaction& tx, const CBlockIn
     if (!chainlocked && islockHash.IsNull()) {
         // TX is not locked, so make sure it is tracked
         AddNonLockedTx(MakeTransactionRef(tx));
-        nonLockedTxs.at(tx.GetHash()).pindexMined = posInBlock != CMainSignals::SYNC_TRANSACTION_NOT_IN_BLOCK ? pindex : nullptr;
+        nonLockedTxs.at(tx.GetHash()).pindexMined = !isDisconnect ? pindex : nullptr;
     } else {
         // TX is locked, so make sure we don't track it anymore
         RemoveNonLockedTx(tx.GetHash(), true);

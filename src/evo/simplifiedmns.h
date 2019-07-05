@@ -27,7 +27,7 @@ public:
     uint256 proRegTxHash;
     uint256 confirmedHash;
     CService service;
-    CBLSPublicKey pubKeyOperator;
+    CBLSLazyPublicKey pubKeyOperator;
     CKeyID keyIDVoting;
     bool isValid;
 
@@ -74,7 +74,7 @@ public:
 class CSimplifiedMNList
 {
 public:
-    std::vector<CSimplifiedMNListEntry> mnList;
+    std::vector<std::unique_ptr<CSimplifiedMNListEntry>> mnList;
 
 public:
     CSimplifiedMNList() {}

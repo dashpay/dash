@@ -66,7 +66,7 @@ void CPrivateSendClientManager::ProcessMessage(CNode* pfrom, const std::string& 
         auto dmn = mnList.GetValidMNByCollateral(dsq.masternodeOutpoint);
         if (!dmn) return;
 
-        if (!dsq.CheckSignature(dmn->pdmnState->pubKeyOperator)) {
+        if (!dsq.CheckSignature(dmn->pdmnState->pubKeyOperator.Get())) {
             LOCK(cs_main);
             Misbehaving(pfrom->id, 10);
             return;
@@ -710,6 +710,11 @@ bool CPrivateSendClientManager::IsDenomSkipped(const CAmount& nDenomValue)
 void CPrivateSendClientManager::AddSkippedDenom(const CAmount& nDenomValue)
 {
     vecDenominationsSkipped.push_back(nDenomValue);
+}
+
+void CPrivateSendClientManager::RemoveSkippedDenom(const CAmount& nDenomValue)
+{
+    vecDenominationsSkipped.erase(std::remove(vecDenominationsSkipped.begin(), vecDenominationsSkipped.end(), nDenomValue), vecDenominationsSkipped.end());
 }
 
 bool CPrivateSendClientManager::WaitForAnotherBlock()

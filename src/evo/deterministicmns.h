@@ -44,7 +44,7 @@ public:
     uint256 confirmedHashWithProRegTxHash;
 
     CKeyID keyIDOwner;
-    CBLSPublicKey pubKeyOperator;
+    CBLSLazyPublicKey pubKeyOperator;
     CKeyID keyIDVoting;
     CService addr;
     CScript scriptPayout;
@@ -55,7 +55,7 @@ public:
     CDeterministicMNState(const CProRegTx& proTx)
     {
         keyIDOwner = proTx.keyIDOwner;
-        pubKeyOperator = proTx.pubKeyOperator;
+        pubKeyOperator.Set(proTx.pubKeyOperator);
         keyIDVoting = proTx.keyIDVoting;
         addr = proTx.addr;
         scriptPayout = proTx.scriptPayout;
@@ -89,7 +89,7 @@ public:
 
     void ResetOperatorFields()
     {
-        pubKeyOperator = CBLSPublicKey();
+        pubKeyOperator.Set(CBLSPublicKey());
         addr = CService();
         scriptOperatorPayout = CScript();
         nRevocationReason = CProUpRevTx::REASON_NOT_SPECIFIED;
@@ -195,6 +195,21 @@ void UnserializeImmerMap(Stream& is, immer::map<K, T, Hash, Equal>& m)
     }
 }
 
+// For some reason the compiler is not able to choose the correct Serialize/Deserialize methods without a specialized
+// version of SerReadWrite. It otherwise always chooses the version that calls a.Serialize()
+template<typename Stream, typename K, typename T, typename Hash, typename Equal>
+inline void SerReadWrite(Stream& s, const immer::map<K, T, Hash, Equal>& m, CSerActionSerialize ser_action)
+{
+    ::SerializeImmerMap(s, m);
+}
+
+template<typename Stream, typename K, typename T, typename Hash, typename Equal>
+inline void SerReadWrite(Stream& s, immer::map<K, T, Hash, Equal>& obj, CSerActionUnserialize ser_action)
+{
+    ::UnserializeImmerMap(s, obj);
+}
+
+
 class CDeterministicMNList
 {
 public:
@@ -226,13 +241,8 @@ public:
     {
         READWRITE(blockHash);
         READWRITE(nHeight);
-        if (ser_action.ForRead()) {
-            UnserializeImmerMap(s, mnMap);
-            UnserializeImmerMap(s, mnUniquePropertyMap);
-        } else {
-            SerializeImmerMap(s, mnMap);
-            SerializeImmerMap(s, mnUniquePropertyMap);
-        }
+        READWRITE(mnMap);
+        READWRITE(mnUniquePropertyMap);
     }
 
 public:
@@ -306,6 +316,7 @@ public:
     CDeterministicMNCPtr GetMNByOperatorKey(const CBLSPublicKey& pubKey);
     CDeterministicMNCPtr GetMNByCollateral(const COutPoint& collateralOutpoint) const;
     CDeterministicMNCPtr GetValidMNByCollateral(const COutPoint& collateralOutpoint) const;
+    CDeterministicMNCPtr GetMNByService(const CService& service) const;
     CDeterministicMNCPtr GetValidMNByService(const CService& service) const;
     CDeterministicMNCPtr GetMNPayee() const;
 
