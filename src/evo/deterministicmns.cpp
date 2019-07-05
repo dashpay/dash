@@ -182,6 +182,15 @@ CDeterministicMNCPtr CDeterministicMNList::GetValidMNByService(const CService& s
     return dmn;
 }
 
+CDeterministicMNCPtr CDeterministicMNList::GetMNByInternalId(uint64_t internalId) const
+{
+    auto proTxHash = mnInternalIdMap.find(internalId);
+    if (!proTxHash) {
+        return nullptr;
+    }
+    return GetMN(*proTxHash);
+}
+
 static int CompareByLastPaid_GetHeight(const CDeterministicMN& dmn)
 {
     int height = dmn.pdmnState->nLastPaidHeight;
@@ -427,6 +436,7 @@ void CDeterministicMNList::AddMN(const CDeterministicMNCPtr& dmn)
 {
     assert(!mnMap.find(dmn->proTxHash));
     mnMap = mnMap.set(dmn->proTxHash, dmn);
+    mnInternalIdMap = mnInternalIdMap.set(dmn->internalId, dmn->proTxHash);
     AddUniqueProperty(dmn, dmn->collateralOutpoint);
     if (dmn->pdmnState->addr != CService()) {
         AddUniqueProperty(dmn, dmn->pdmnState->addr);
@@ -480,6 +490,7 @@ void CDeterministicMNList::RemoveMN(const uint256& proTxHash)
         DeleteUniqueProperty(dmn, dmn->pdmnState->pubKeyOperator);
     }
     mnMap = mnMap.erase(proTxHash);
+    mnInternalIdMap = mnInternalIdMap.erase(dmn->internalId);
 }
 
 CDeterministicMNManager::CDeterministicMNManager(CEvoDB& _evoDb) :
@@ -647,6 +658,8 @@ bool CDeterministicMNManager::BuildNewListFromBlock(const CBlock& block, const C
 
             auto dmn = std::make_shared<CDeterministicMN>();
             dmn->proTxHash = tx.GetHash();
+            dmn->internalId = newList.GetTotalRegisteredCount();
+            newList.SetTotalRegisteredCount(newList.GetTotalRegisteredCount() + 1);
 
             // collateralOutpoint is either pointing to an external collateral or to the ProRegTx itself
             if (proTx.collateralOutpoint.hash.IsNull()) {
@@ -891,7 +904,7 @@ CDeterministicMNList CDeterministicMNManager::GetListForBlock(const uint256& blo
 
         CDeterministicMNListDiff diff;
         if (!evoDb.Read(std::make_pair(DB_LIST_DIFF, blockHashTmp), diff)) {
-            snapshot = CDeterministicMNList(blockHashTmp, -1);
+            snapshot = CDeterministicMNList(blockHashTmp, -1, 0);
             mnListsCache.emplace(blockHashTmp, snapshot);
             break;
         }

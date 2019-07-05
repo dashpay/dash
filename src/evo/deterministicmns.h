@@ -196,20 +196,34 @@ public:
     }
 
     uint256 proTxHash;
+    uint64_t internalId{std::numeric_limits<uint64_t>::max()};
     COutPoint collateralOutpoint;
     uint16_t nOperatorReward;
     CDeterministicMNStateCPtr pdmnState;
 
 public:
-    ADD_SERIALIZE_METHODS;
-
     template <typename Stream, typename Operation>
-    inline void SerializationOp(Stream& s, Operation ser_action)
+    inline void SerializationOp(Stream& s, Operation ser_action, bool oldFormat)
     {
         READWRITE(proTxHash);
+        if (!oldFormat) {
+            READWRITE(VARINT(internalId));
+        }
         READWRITE(collateralOutpoint);
         READWRITE(nOperatorReward);
         READWRITE(pdmnState);
+    }
+
+    template<typename Stream>
+    void Serialize(Stream& s) const
+    {
+        NCONST_PTR(this)->SerializationOp(s, CSerActionSerialize(), false);
+    }
+
+    template<typename Stream>
+    void Unserialize(Stream& s, bool oldFormat = false)
+    {
+        SerializationOp(s, CSerActionUnserialize(), oldFormat);
     }
 
 public:
@@ -260,12 +274,15 @@ class CDeterministicMNList
 {
 public:
     typedef immer::map<uint256, CDeterministicMNCPtr> MnMap;
+    typedef immer::map<uint64_t, uint256> MnInternalIdMap;
     typedef immer::map<uint256, std::pair<uint256, uint32_t> > MnUniquePropertyMap;
 
 private:
     uint256 blockHash;
     int nHeight{-1};
+    uint32_t nTotalRegisteredCount{0};
     MnMap mnMap;
+    MnInternalIdMap mnInternalIdMap;
 
     // map of unique properties like address and keys
     // we keep track of this as checking for duplicates would otherwise be painfully slow
@@ -273,9 +290,10 @@ private:
 
 public:
     CDeterministicMNList() {}
-    explicit CDeterministicMNList(const uint256& _blockHash, int _height) :
+    explicit CDeterministicMNList(const uint256& _blockHash, int _height, uint32_t _totalRegisteredCount) :
         blockHash(_blockHash),
-        nHeight(_height)
+        nHeight(_height),
+        nTotalRegisteredCount(_totalRegisteredCount)
     {
     }
 
@@ -284,6 +302,7 @@ public:
     {
         READWRITE(blockHash);
         READWRITE(nHeight);
+        READWRITE(nTotalRegisteredCount);
     }
 
     template<typename Stream>
@@ -301,6 +320,7 @@ public:
     void Unserialize(Stream& s) {
         mnMap = MnMap();
         mnUniquePropertyMap = MnUniquePropertyMap();
+        mnInternalIdMap = MnInternalIdMap();
 
         SerializationOpBase(s, CSerActionUnserialize());
 
@@ -354,6 +374,14 @@ public:
     {
         nHeight = _height;
     }
+    uint32_t GetTotalRegisteredCount() const
+    {
+        return nTotalRegisteredCount;
+    }
+    void SetTotalRegisteredCount(uint32_t _count)
+    {
+        nTotalRegisteredCount = _count;
+    }
 
     bool IsMNValid(const uint256& proTxHash) const;
     bool IsMNPoSeBanned(const uint256& proTxHash) const;
@@ -383,6 +411,7 @@ public:
     CDeterministicMNCPtr GetValidMNByCollateral(const COutPoint& collateralOutpoint) const;
     CDeterministicMNCPtr GetMNByService(const CService& service) const;
     CDeterministicMNCPtr GetValidMNByService(const CService& service) const;
+    CDeterministicMNCPtr GetMNByInternalId(uint64_t internalId) const;
     CDeterministicMNCPtr GetMNPayee() const;
 
     /**
