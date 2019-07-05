@@ -5012,7 +5012,7 @@ void CWallet::postInitProcess(CScheduler& scheduler)
 
 bool CWallet::ParameterInteraction()
 {
-    SoftSetArg("-wallet", DEFAULT_WALLET_DAT);
+    gArgs.SoftSetArg("-wallet", DEFAULT_WALLET_DAT);
     const bool is_multiwallet = gArgs.GetArgs("-wallet").size() > 1;
 
     if (gArgs.GetBoolArg("-disablewallet", DEFAULT_DISABLE_WALLET))
@@ -5039,7 +5039,7 @@ bool CWallet::ParameterInteraction()
     }
 
     if (is_multiwallet) {
-        if (GetBoolArg("-upgradewallet", false)) {
+        if (gArgs.GetBoolArg("-upgradewallet", false)) {
             return InitError(strprintf("%s is only allowed with a single wallet file", "-upgradewallet"));
         }
     }
