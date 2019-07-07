@@ -176,7 +176,8 @@ void CGovernanceManager::ProcessMessage(CNode* pfrom, const std::string& strComm
         // CHECK OBJECT AGAINST LOCAL BLOCKCHAIN
 
         bool fMissingConfirmations = false;
-        bool fIsValid = govobj.IsValidLocally(strError, fMissingConfirmations, true);
+        bool fOnlyISLocked = false;
+        bool fIsValid = govobj.IsValidLocally(strError, fMissingConfirmations, fOnlyISLocked, true);
 
         if (fRateCheckBypassed && fIsValid) {
             if (!MasternodeRateCheck(govobj, true)) {
@@ -291,7 +292,9 @@ void CGovernanceManager::AddGovernanceObject(CGovernanceObject& govobj, CConnman
 
     // MAKE SURE THIS OBJECT IS OK
 
-    if (!govobj.IsValidLocally(strError, true)) {
+    bool fMissingConfirmations = false;
+    bool fOnlyISLocked = false;
+    if (!govobj.IsValidLocally(strError, fMissingConfirmations, fOnlyISLocked, true)) {
         LogPrintf("CGovernanceManager::AddGovernanceObject -- invalid governance object - %s - (nCachedBlockHeight %d) \n", strError, nCachedBlockHeight);
         return;
     }
@@ -861,7 +864,8 @@ void CGovernanceManager::CheckPostponedObjects(CConnman& connman)
 
         std::string strError;
         bool fMissingConfirmations;
-        if (govobj.IsCollateralValid(strError, fMissingConfirmations)) {
+        bool fOnlyISLocked;
+        if (govobj.IsCollateralValid(strError, fMissingConfirmations, fOnlyISLocked)) {
             if (govobj.IsValidLocally(strError, false)) {
                 AddGovernanceObject(govobj, connman);
             } else {

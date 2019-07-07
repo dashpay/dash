@@ -264,10 +264,10 @@ public:
 
     bool IsValidLocally(std::string& strError, bool fCheckCollateral) const;
 
-    bool IsValidLocally(std::string& strError, bool& fMissingConfirmations, bool fCheckCollateral) const;
+    bool IsValidLocally(std::string& strError, bool& fMissingConfirmations, bool& fOnlyISLocked, bool fCheckCollateral) const;
 
     /// Check the collateral transaction for the budget proposal/finalized budget
-    bool IsCollateralValid(std::string& strError, bool& fMissingConfirmations) const;
+    bool IsCollateralValid(std::string& strError, bool& fMissingConfirmations, bool& fOnlyISLocked) const;
 
     void UpdateLocalValidity();
 

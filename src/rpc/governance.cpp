@@ -309,9 +309,10 @@ UniValue gobject_submit(const JSONRPCRequest& request)
 
     std::string strError = "";
     bool fMissingConfirmations;
+    bool fOnlyISLocked;
     {
         LOCK(cs_main);
-        if (!govobj.IsValidLocally(strError, fMissingConfirmations, true) && !fMissingConfirmations) {
+        if (!govobj.IsValidLocally(strError, fOnlyISLocked, fMissingConfirmations, true) && !fMissingConfirmations) {
             LogPrintf("gobject(submit) -- Object submission rejected because object is not valid - hash = %s, strError = %s\n", strHash, strError);
             throw JSONRPCError(RPC_INTERNAL_ERROR, "Governance object is not valid - " + strHash + " - " + strError);
         }

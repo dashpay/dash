@@ -17,6 +17,7 @@
 #include "validation.h"
 
 #include "llmq/quorums_instantsend.h"
+#include "llmq/quorums_chainlocks.h"
 
 #include <string>
 #include <univalue.h>
@@ -445,13 +446,15 @@ void CGovernanceObject::UpdateLocalValidity()
 bool CGovernanceObject::IsValidLocally(std::string& strError, bool fCheckCollateral) const
 {
     bool fMissingConfirmations = false;
+    bool fOnlyISLocked = false;
 
-    return IsValidLocally(strError, fMissingConfirmations, fCheckCollateral);
+    return IsValidLocally(strError, fMissingConfirmations, fOnlyISLocked, fCheckCollateral);
 }
 
-bool CGovernanceObject::IsValidLocally(std::string& strError, bool& fMissingConfirmations, bool fCheckCollateral) const
+bool CGovernanceObject::IsValidLocally(std::string& strError, bool& fMissingConfirmations, bool& fOnlyISLocked, bool fCheckCollateral) const
 {
     fMissingConfirmations = false;
+    fOnlyISLocked = false;
 
     if (fUnparsable) {
         strError = "Object data unparseable";
@@ -468,7 +471,7 @@ bool CGovernanceObject::IsValidLocally(std::string& strError, bool& fMissingConf
             strError = strprintf("Invalid proposal data, error messages: %s", validator.GetErrorMessages());
             return false;
         }
-        if (fCheckCollateral && !IsCollateralValid(strError, fMissingConfirmations)) {
+        if (fCheckCollateral && !IsCollateralValid(strError, fMissingConfirmations, fOnlyISLocked)) {
             strError = "Invalid proposal collateral";
             return false;
         }
@@ -517,10 +520,12 @@ CAmount CGovernanceObject::GetMinCollateralFee() const
     }
 }
 
-bool CGovernanceObject::IsCollateralValid(std::string& strError, bool& fMissingConfirmations) const
+// TODO fOnlyISLocked can be removed in a future version (when majority has upgraded to proto version 70216)
+bool CGovernanceObject::IsCollateralValid(std::string& strError, bool& fMissingConfirmations, bool& fOnlyISLocked) const
 {
     strError = "";
     fMissingConfirmations = false;
+    fOnlyISLocked = false;
     CAmount nMinFee = GetMinCollateralFee();
     uint256 nExpectedHash = GetHash();
 
@@ -589,18 +594,25 @@ bool CGovernanceObject::IsCollateralValid(std::string& strError, bool& fMissingC
         }
     }
 
-    if ((nConfirmationsIn < GOVERNANCE_FEE_CONFIRMATIONS) &&
-        (!instantsend.IsLockedInstantSendTransaction(nCollateralHash) || llmq::quorumInstantSendManager->IsLocked(nCollateralHash))) {
-        strError = strprintf("Collateral requires at least %d confirmations to be relayed throughout the network (it has only %d)", GOVERNANCE_FEE_CONFIRMATIONS, nConfirmationsIn);
-        if (nConfirmationsIn >= GOVERNANCE_MIN_RELAY_FEE_CONFIRMATIONS) {
-            fMissingConfirmations = true;
-            strError += ", pre-accepted -- waiting for required confirmations";
-        } else {
-            strError += ", rejected -- try again later";
-        }
-        LogPrintf("CGovernanceObject::IsCollateralValid -- %s\n", strError);
+    if (nConfirmationsIn < GOVERNANCE_FEE_CONFIRMATIONS) {
+        bool instantSendLocked =
+                instantsend.IsLockedInstantSendTransaction(nCollateralHash) ||
+                llmq::quorumInstantSendManager->IsLocked(nCollateralHash) ||
+                llmq::chainLocksHandler->HasChainLock(chainActive.Height(), chainActive.Tip()->GetBlockHash());
 
-        return false;
+        if (instantSendLocked) {
+            fOnlyISLocked = true;
+        } else {
+            strError = strprintf("Collateral requires at least %d confirmations to be relayed throughout the network (it has only %d)", GOVERNANCE_FEE_CONFIRMATIONS, nConfirmationsIn);
+            if (nConfirmationsIn >= GOVERNANCE_MIN_RELAY_FEE_CONFIRMATIONS) {
+                fMissingConfirmations = true;
+                strError += ", pre-accepted -- waiting for required confirmations";
+            } else {
+                strError += ", rejected -- try again later";
+            }
+            LogPrintf("CGovernanceObject::IsCollateralValid -- %s\n", strError);
+            return false;
+        }
     }
 
     strError = "valid";
