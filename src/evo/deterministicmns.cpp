@@ -541,7 +541,7 @@ bool CDeterministicMNManager::ProcessBlock(const CBlock& block, const CBlockInde
 
         newList.SetBlockHash(block.GetHash());
 
-        oldList = GetListForBlock(pindex->pprev->GetBlockHash());
+        oldList = GetListForBlock(pindex->pprev);
         diff = oldList.BuildDiff(newList);
 
         evoDb.Write(std::make_pair(DB_LIST_DIFF, diff.blockHash), diff);
@@ -587,8 +587,8 @@ bool CDeterministicMNManager::UndoBlock(const CBlock& block, const CBlockIndex* 
 
         if (diff.HasChanges()) {
             // need to call this before erasing
-            curList = GetListForBlock(blockHash);
-            prevList = GetListForBlock(pindex->pprev->GetBlockHash());
+            curList = GetListForBlock(pindex);
+            prevList = GetListForBlock(pindex->pprev);
         }
 
         evoDb.Erase(std::make_pair(DB_LIST_DIFF, blockHash));
@@ -624,7 +624,7 @@ bool CDeterministicMNManager::BuildNewListFromBlock(const CBlock& block, const C
 
     int nHeight = pindexPrev->nHeight + 1;
 
-    CDeterministicMNList oldList = GetListForBlock(pindexPrev->GetBlockHash());
+    CDeterministicMNList oldList = GetListForBlock(pindexPrev);
     CDeterministicMNList newList = oldList;
     newList.SetBlockHash(uint256()); // we can't know the final block hash, so better not return a (invalid) block hash
     newList.SetHeight(nHeight);
@@ -813,7 +813,15 @@ bool CDeterministicMNManager::BuildNewListFromBlock(const CBlock& block, const C
                 assert(false); // this should have been handled already
             }
             if (!qc.commitment.IsNull()) {
-                HandleQuorumCommitment(qc.commitment, newList, debugLogs);
+                const auto& params = Params().GetConsensus().llmqs.at(qc.commitment.llmqType);
+                int quorumHeight = qc.nHeight - (qc.nHeight % params.dkgInterval);
+                auto quorumIndex = pindexPrev->GetAncestor(quorumHeight);
+                if (!quorumIndex || quorumIndex->GetBlockHash() != qc.commitment.quorumHash) {
+                    // we should actually never get into this case as validation should have catched it...but lets be sure
+                    return _state.DoS(100, false, REJECT_INVALID, "bad-qc-quorum-hash");
+                }
+
+                HandleQuorumCommitment(qc.commitment, quorumIndex, newList, debugLogs);
             }
         }
     }
@@ -849,11 +857,11 @@ bool CDeterministicMNManager::BuildNewListFromBlock(const CBlock& block, const C
     return true;
 }
 
-void CDeterministicMNManager::HandleQuorumCommitment(llmq::CFinalCommitment& qc, CDeterministicMNList& mnList, bool debugLogs)
+void CDeterministicMNManager::HandleQuorumCommitment(llmq::CFinalCommitment& qc, const CBlockIndex* pindexQuorum, CDeterministicMNList& mnList, bool debugLogs)
 {
     // The commitment has already been validated at this point so it's safe to use members of it
 
-    auto members = llmq::CLLMQUtils::GetAllQuorumMembers((Consensus::LLMQType)qc.llmqType, qc.quorumHash);
+    auto members = llmq::CLLMQUtils::GetAllQuorumMembers((Consensus::LLMQType)qc.llmqType, pindexQuorum);
 
     for (size_t i = 0; i < members.size(); i++) {
         if (!mnList.HasMN(members[i]->proTxHash)) {
@@ -886,52 +894,48 @@ void CDeterministicMNManager::DecreasePoSePenalties(CDeterministicMNList& mnList
     }
 }
 
-CDeterministicMNList CDeterministicMNManager::GetListForBlock(const uint256& blockHash)
+CDeterministicMNList CDeterministicMNManager::GetListForBlock(const CBlockIndex* pindex)
 {
     LOCK(cs);
 
-    auto it = mnListsCache.find(blockHash);
-    if (it != mnListsCache.end()) {
-        return it->second;
-    }
-
-    uint256 blockHashTmp = blockHash;
     CDeterministicMNList snapshot;
-    std::list<CDeterministicMNListDiff> listDiff;
+    std::list<std::pair<const CBlockIndex*, CDeterministicMNListDiff>> listDiff;
 
     while (true) {
         // try using cache before reading from disk
-        it = mnListsCache.find(blockHashTmp);
+        auto it = mnListsCache.find(pindex->GetBlockHash());
         if (it != mnListsCache.end()) {
             snapshot = it->second;
             break;
         }
 
-        if (evoDb.Read(std::make_pair(DB_LIST_SNAPSHOT, blockHashTmp), snapshot)) {
-            mnListsCache.emplace(blockHashTmp, snapshot);
+        if (evoDb.Read(std::make_pair(DB_LIST_SNAPSHOT, pindex->GetBlockHash()), snapshot)) {
+            mnListsCache.emplace(pindex->GetBlockHash(), snapshot);
             break;
         }
 
         CDeterministicMNListDiff diff;
-        if (!evoDb.Read(std::make_pair(DB_LIST_DIFF, blockHashTmp), diff)) {
-            snapshot = CDeterministicMNList(blockHashTmp, -1, 0);
-            mnListsCache.emplace(blockHashTmp, snapshot);
+        if (!evoDb.Read(std::make_pair(DB_LIST_DIFF, pindex->GetBlockHash()), diff)) {
+            snapshot = CDeterministicMNList(pindex->GetBlockHash(), -1, 0);
+            mnListsCache.emplace(pindex->GetBlockHash(), snapshot);
             break;
         }
 
-        listDiff.emplace_front(std::move(diff));
-        blockHashTmp = diff.prevBlockHash;
+        listDiff.emplace_front(pindex, std::move(diff));
+        pindex = pindex->pprev;
     }
 
-    for (const auto& diff : listDiff) {
+    for (const auto& p : listDiff) {
+        auto diffIndex = p.first;
+        auto& diff = p.second;
         if (diff.HasChanges()) {
             snapshot = snapshot.ApplyDiff(diff);
         } else {
-            snapshot.SetBlockHash(diff.blockHash);
-            snapshot.SetHeight(diff.nHeight);
+            snapshot.SetBlockHash(diffIndex->GetBlockHash());
+            snapshot.SetHeight(diffIndex->nHeight);
         }
 
-        mnListsCache.emplace(diff.blockHash, snapshot);
+        mnListsCache.emplace(diffIndex->GetBlockHash(), snapshot);
     }
 
     return snapshot;
@@ -943,7 +947,7 @@ CDeterministicMNList CDeterministicMNManager::GetListAtChainTip()
     if (!tipIndex) {
         return {};
     }
-    return GetListForBlock(tipIndex->GetBlockHash());
+    return GetListForBlock(tipIndex);
 }
 
 bool CDeterministicMNManager::IsProTxWithCollateral(const CTransactionRef& tx, uint32_t n)

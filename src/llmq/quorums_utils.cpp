@@ -14,14 +14,9 @@ namespace llmq
 
 std::vector<CDeterministicMNCPtr> CLLMQUtils::GetAllQuorumMembers(Consensus::LLMQType llmqType, const CBlockIndex* pindexQuorum)
 {
-    return GetAllQuorumMembers(llmqType, pindexQuorum->GetBlockHash());
-}
-
-std::vector<CDeterministicMNCPtr> CLLMQUtils::GetAllQuorumMembers(Consensus::LLMQType llmqType, const uint256& blockHash)
-{
     auto& params = Params().GetConsensus().llmqs.at(llmqType);
-    auto allMns = deterministicMNManager->GetListForBlock(blockHash);
-    auto modifier = ::SerializeHash(std::make_pair(llmqType, blockHash));
+    auto allMns = deterministicMNManager->GetListForBlock(pindexQuorum);
+    auto modifier = ::SerializeHash(std::make_pair(llmqType, pindexQuorum->GetBlockHash()));
     return allMns.CalculateQuorum(params.size, modifier);
 }
 
@@ -50,7 +45,7 @@ std::set<uint256> CLLMQUtils::GetQuorumConnections(Consensus::LLMQType llmqType,
 {
     auto& params = Params().GetConsensus().llmqs.at(llmqType);
 
-    auto mns = GetAllQuorumMembers(llmqType, pindexQuorum->GetBlockHash());
+    auto mns = GetAllQuorumMembers(llmqType, pindexQuorum);
     std::set<uint256> result;
     for (size_t i = 0; i < mns.size(); i++) {
         auto& dmn = mns[i];

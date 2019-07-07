@@ -222,7 +222,7 @@ UniValue quorum_memberof(const JSONRPCRequest& request)
         pindexTip = chainActive.Tip();
     }
 
-    auto mnList = deterministicMNManager->GetListForBlock(pindexTip->GetBlockHash());
+    auto mnList = deterministicMNManager->GetListForBlock(pindexTip);
     auto dmn = mnList.GetMN(protxHash);
     if (!dmn) {
         throw JSONRPCError(RPC_INVALID_PARAMETER, "masternode not found");

@@ -217,8 +217,8 @@ bool BuildSimplifiedMNListDiff(const uint256& baseBlockHash, const uint256& bloc
 
     LOCK(deterministicMNManager->cs);
 
-    auto baseDmnList = deterministicMNManager->GetListForBlock(baseBlockHash);
-    auto dmnList = deterministicMNManager->GetListForBlock(blockHash);
+    auto baseDmnList = deterministicMNManager->GetListForBlock(baseBlockIndex);
+    auto dmnList = deterministicMNManager->GetListForBlock(blockIndex);
     mnListDiffRet = baseDmnList.BuildSimplifiedDiff(dmnList);
 
     if (!mnListDiffRet.BuildQuorumsDiff(baseBlockIndex, blockIndex)) {

@@ -656,10 +656,10 @@ public:
 
     // the returned list will not contain the correct block hash (we can't know it yet as the coinbase TX is not updated yet)
     bool BuildNewListFromBlock(const CBlock& block, const CBlockIndex* pindexPrev, CValidationState& state, CDeterministicMNList& mnListRet, bool debugLogs);
-    void HandleQuorumCommitment(llmq::CFinalCommitment& qc, CDeterministicMNList& mnList, bool debugLogs);
+    void HandleQuorumCommitment(llmq::CFinalCommitment& qc, const CBlockIndex* pindexQuorum, CDeterministicMNList& mnList, bool debugLogs);
     void DecreasePoSePenalties(CDeterministicMNList& mnList);
 
-    CDeterministicMNList GetListForBlock(const uint256& blockHash);
+    CDeterministicMNList GetListForBlock(const CBlockIndex* pindex);
     CDeterministicMNList GetListAtChainTip();
 
     // Test if given TX is a ProRegTx which also contains the collateral at index n
