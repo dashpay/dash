@@ -3356,7 +3356,7 @@ bool CWallet::CreateCollateralTransaction(CMutableTransaction& txCollateral, std
     return true;
 }
 
-bool CWallet::GetBudgetSystemCollateralTX(CWalletTx& tx, uint256 hash, CAmount amount, bool fUseInstantSend, const COutPoint& outpoint)
+bool CWallet::GetBudgetSystemCollateralTX(CWalletTx& tx, uint256 hash, CAmount amount, const COutPoint& outpoint)
 {
     // make our change address
     CReserveKey reservekey(this);
@@ -3374,7 +3374,7 @@ bool CWallet::GetBudgetSystemCollateralTX(CWalletTx& tx, uint256 hash, CAmount a
     if (!outpoint.IsNull()) {
         coinControl.Select(outpoint);
     }
-    bool success = CreateTransaction(vecSend, tx, reservekey, nFeeRet, nChangePosRet, strFail, &coinControl, true, ALL_COINS, fUseInstantSend);
+    bool success = CreateTransaction(vecSend, tx, reservekey, nFeeRet, nChangePosRet, strFail, &coinControl, true, ALL_COINS);
     if(!success){
         LogPrintf("CWallet::GetBudgetSystemCollateralTX -- Error: %s\n", strFail);
         return false;

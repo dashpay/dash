@@ -1023,7 +1023,7 @@ public:
     CAmount GetNormalizedAnonymizedBalance() const;
     CAmount GetDenominatedBalance(bool unconfirmed=false) const;
 
-    bool GetBudgetSystemCollateralTX(CWalletTx& tx, uint256 hash, CAmount amount, bool fUseInstantSend, const COutPoint& outpoint=COutPoint()/*defaults null*/);
+    bool GetBudgetSystemCollateralTX(CWalletTx& tx, uint256 hash, CAmount amount, const COutPoint& outpoint=COutPoint()/*defaults null*/);
 
     /**
      * Insert additional inputs into the transaction by
