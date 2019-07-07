@@ -383,7 +383,7 @@ void CInstantSendManager::InterruptWorkerThread()
 
 bool CInstantSendManager::ProcessTx(const CTransaction& tx, const Consensus::Params& params)
 {
-    if (!IsNewInstantSendEnabled()) {
+    if (!IsInstantSendEnabled()) {
         return true;
     }
 
@@ -556,7 +556,7 @@ bool CInstantSendManager::CheckCanLock(const COutPoint& outpoint, bool printDebu
 
 void CInstantSendManager::HandleNewRecoveredSig(const CRecoveredSig& recoveredSig)
 {
-    if (!IsNewInstantSendEnabled()) {
+    if (!IsInstantSendEnabled()) {
         return;
     }
 
@@ -674,7 +674,7 @@ void CInstantSendManager::HandleNewInstantSendLockRecoveredSig(const llmq::CReco
 
 void CInstantSendManager::ProcessMessage(CNode* pfrom, const std::string& strCommand, CDataStream& vRecv, CConnman& connman)
 {
-    if (!IsNewInstantSendEnabled()) {
+    if (!IsInstantSendEnabled()) {
         return;
     }
 
@@ -747,7 +747,7 @@ bool CInstantSendManager::ProcessPendingInstantSendLocks()
         return false;
     }
 
-    if (!IsNewInstantSendEnabled()) {
+    if (!IsInstantSendEnabled()) {
         return false;
     }
 
@@ -936,7 +936,7 @@ void CInstantSendManager::UpdateWalletTransaction(const CTransactionRef& tx, con
 
 void CInstantSendManager::ProcessNewTransaction(const CTransactionRef& tx, const CBlockIndex* pindex)
 {
-    if (!IsNewInstantSendEnabled()) {
+    if (!IsInstantSendEnabled()) {
         return;
     }
 
@@ -985,7 +985,7 @@ void CInstantSendManager::TransactionAddedToMempool(const CTransactionRef& tx)
 
 void CInstantSendManager::BlockConnected(const std::shared_ptr<const CBlock>& pblock, const CBlockIndex* pindex, const std::vector<CTransactionRef>& vtxConflicted)
 {
-    if (!IsNewInstantSendEnabled()) {
+    if (!IsInstantSendEnabled()) {
         return;
     }
 
@@ -1323,7 +1323,7 @@ bool CInstantSendManager::ProcessPendingRetryLockTxs()
         return false;
     }
 
-    if (!IsNewInstantSendEnabled()) {
+    if (!IsInstantSendEnabled()) {
         return false;
     }
 
@@ -1380,7 +1380,7 @@ bool CInstantSendManager::ProcessPendingRetryLockTxs()
 
 bool CInstantSendManager::AlreadyHave(const CInv& inv)
 {
-    if (!IsNewInstantSendEnabled()) {
+    if (!IsInstantSendEnabled()) {
         return true;
     }
 
@@ -1390,7 +1390,7 @@ bool CInstantSendManager::AlreadyHave(const CInv& inv)
 
 bool CInstantSendManager::GetInstantSendLockByHash(const uint256& hash, llmq::CInstantSendLock& ret)
 {
-    if (!IsNewInstantSendEnabled()) {
+    if (!IsInstantSendEnabled()) {
         return false;
     }
 
@@ -1405,7 +1405,7 @@ bool CInstantSendManager::GetInstantSendLockByHash(const uint256& hash, llmq::CI
 
 bool CInstantSendManager::IsLocked(const uint256& txHash)
 {
-    if (!IsNewInstantSendEnabled()) {
+    if (!IsInstantSendEnabled()) {
         return false;
     }
 
@@ -1420,7 +1420,7 @@ bool CInstantSendManager::IsConflicted(const CTransaction& tx)
 
 CInstantSendLockPtr CInstantSendManager::GetConflictingLock(const CTransaction& tx)
 {
-    if (!IsNewInstantSendEnabled()) {
+    if (!IsInstantSendEnabled()) {
         return nullptr;
     }
 
@@ -1462,11 +1462,6 @@ void CInstantSendManager::WorkThreadMain()
 bool IsOldInstantSendEnabled()
 {
     return sporkManager.IsSporkActive(SPORK_2_INSTANTSEND_ENABLED) && !sporkManager.IsSporkActive(SPORK_20_INSTANTSEND_LLMQ_BASED);
-}
-
-bool IsNewInstantSendEnabled()
-{
-    return sporkManager.IsSporkActive(SPORK_2_INSTANTSEND_ENABLED) && sporkManager.IsSporkActive(SPORK_20_INSTANTSEND_LLMQ_BASED);
 }
 
 bool IsInstantSendEnabled()

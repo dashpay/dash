@@ -176,7 +176,6 @@ extern CInstantSendManager* quorumInstantSendManager;
 // TODO When the new system is fully deployed and enabled, we can remove this special handling in a future version
 // and revert to only using SPORK_2_INSTANTSEND_ENABLED.
 bool IsOldInstantSendEnabled();
-bool IsNewInstantSendEnabled();
 bool IsInstantSendEnabled();
 
 }
