@@ -20,7 +20,6 @@
 
 static const std::string DB_LIST_SNAPSHOT = "dmn_S";
 static const std::string DB_LIST_DIFF = "dmn_D";
-static const std::string DB_DMN_MGR_UPGRADED = "dmn_upgraded";
 
 CDeterministicMNManager* deterministicMNManager;
 
@@ -1046,13 +1045,27 @@ void CDeterministicMNManager::UpgradeDBIfNeeded()
 {
     LOCK(cs_main);
 
-    if (evoDb.GetRawDB().Exists(std::string(DB_DMN_MGR_UPGRADED))) {
+    if (chainActive.Tip() == nullptr) {
         return;
     }
 
+    if (evoDb.GetRawDB().Exists(EVODB_BEST_BLOCK)) {
+        return;
+    }
+
+    // Removing the old EVODB_BEST_BLOCK value early results in older version to crash immediately, even if the upgrade
+    // process is cancelled in-between. But if the new version sees that the old EVODB_BEST_BLOCK is already removed,
+    // then we must assume that the upgrade process was already running before but was interrupted.
+    if (chainActive.Height() > 1 && !evoDb.GetRawDB().Exists(std::string("b_b"))) {
+        LogPrintf("CDeterministicMNManager::%s -- ERROR, upgrade process was interrupted and can't be continued. You need to reindex now.\n", __func__);
+    }
+    evoDb.GetRawDB().Erase(std::string("b_b"));
+
     if (chainActive.Height() < Params().GetConsensus().DIP0003Height) {
         // not reached DIP3 height yet, so no upgrade needed
-        evoDb.GetRawDB().Write(std::string(DB_DMN_MGR_UPGRADED), (uint8_t)1);
+        auto dbTx = evoDb.BeginTransaction();
+        evoDb.WriteBestBlock(chainActive.Tip()->GetBlockHash());
+        dbTx->Commit();
         return;
     }
 
@@ -1083,6 +1096,10 @@ void CDeterministicMNManager::UpgradeDBIfNeeded()
 
     LogPrintf("CDeterministicMNManager::%s -- done upgrading\n", __func__);
 
-    evoDb.GetRawDB().Write(std::string(DB_DMN_MGR_UPGRADED), (uint8_t)1);
+    // Writing EVODB_BEST_BLOCK (which is b_b2 now) marks the DB as upgraded
+    auto dbTx = evoDb.BeginTransaction();
+    evoDb.WriteBestBlock(chainActive.Tip()->GetBlockHash());
+    dbTx->Commit();
+
     evoDb.GetRawDB().CompactFull();
 }
