@@ -12,6 +12,11 @@
 namespace llmq
 {
 
+std::vector<CDeterministicMNCPtr> CLLMQUtils::GetAllQuorumMembers(Consensus::LLMQType llmqType, const CBlockIndex* pindexQuorum)
+{
+    return GetAllQuorumMembers(llmqType, pindexQuorum->GetBlockHash());
+}
+
 std::vector<CDeterministicMNCPtr> CLLMQUtils::GetAllQuorumMembers(Consensus::LLMQType llmqType, const uint256& blockHash)
 {
     auto& params = Params().GetConsensus().llmqs.at(llmqType);
@@ -41,11 +46,11 @@ uint256 CLLMQUtils::BuildSignHash(Consensus::LLMQType llmqType, const uint256& q
     return h.GetHash();
 }
 
-std::set<uint256> CLLMQUtils::GetQuorumConnections(Consensus::LLMQType llmqType, const uint256& blockHash, const uint256& forMember)
+std::set<uint256> CLLMQUtils::GetQuorumConnections(Consensus::LLMQType llmqType, const CBlockIndex* pindexQuorum, const uint256& forMember)
 {
     auto& params = Params().GetConsensus().llmqs.at(llmqType);
 
-    auto mns = GetAllQuorumMembers(llmqType, blockHash);
+    auto mns = GetAllQuorumMembers(llmqType, pindexQuorum->GetBlockHash());
     std::set<uint256> result;
     for (size_t i = 0; i < mns.size(); i++) {
         auto& dmn = mns[i];
@@ -73,7 +78,7 @@ std::set<uint256> CLLMQUtils::GetQuorumConnections(Consensus::LLMQType llmqType,
     return result;
 }
 
-std::set<size_t> CLLMQUtils::CalcDeterministicWatchConnections(Consensus::LLMQType llmqType, const uint256& blockHash, size_t memberCount, size_t connectionCount)
+std::set<size_t> CLLMQUtils::CalcDeterministicWatchConnections(Consensus::LLMQType llmqType, const CBlockIndex* pindexQuorum, size_t memberCount, size_t connectionCount)
 {
     static uint256 qwatchConnectionSeed;
     static std::atomic<bool> qwatchConnectionSeedGenerated{false};
@@ -89,7 +94,7 @@ std::set<size_t> CLLMQUtils::CalcDeterministicWatchConnections(Consensus::LLMQTy
     std::set<size_t> result;
     uint256 rnd = qwatchConnectionSeed;
     for (size_t i = 0; i < connectionCount; i++) {
-        rnd = ::SerializeHash(std::make_pair(rnd, std::make_pair(llmqType, blockHash)));
+        rnd = ::SerializeHash(std::make_pair(rnd, std::make_pair(llmqType, pindexQuorum->GetBlockHash())));
         result.emplace(rnd.GetUint64(0) % memberCount);
     }
     return result;
