@@ -228,8 +228,6 @@ public:
     int getDefaultConfirmTarget() const;
     int getNumISLocks() const;
 
-    bool IsOldInstantSendEnabled() const;
-
 private:
     CWallet *wallet;
     bool fHaveWatchOnly;
