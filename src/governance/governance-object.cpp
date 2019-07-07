@@ -675,7 +675,7 @@ bool CGovernanceObject::GetCurrentMNVotes(const COutPoint& mnCollateralOutpoint,
     return true;
 }
 
-void CGovernanceObject::Relay(CConnman& connman)
+void CGovernanceObject::Relay(CConnman& connman, bool fOnlyISLocked)
 {
     // Do not relay until fully synced
     if (!masternodeSync.IsSynced()) {
@@ -683,8 +683,13 @@ void CGovernanceObject::Relay(CConnman& connman)
         return;
     }
 
+    int relayProtoVersion = MIN_GOVERNANCE_PEER_PROTO_VERSION;
+    if (fOnlyISLocked) {
+        relayProtoVersion = GOVERNANCE_RELAY_FIX_PROTO_VERSION;
+    }
+
     CInv inv(MSG_GOVERNANCE_OBJECT, GetHash());
-    connman.RelayInv(inv, MIN_GOVERNANCE_PEER_PROTO_VERSION);
+    connman.RelayInv(inv, relayProtoVersion);
 }
 
 void CGovernanceObject::UpdateSentinelVariables()

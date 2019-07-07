@@ -328,7 +328,12 @@ void CGovernanceManager::AddGovernanceObject(CGovernanceObject& govobj, CConnman
     }
 
     LogPrintf("CGovernanceManager::AddGovernanceObject -- %s new, received from %s\n", strHash, pfrom ? pfrom->GetAddrName() : "nullptr");
-    govobj.Relay(connman);
+    govobj.Relay(connman, fOnlyISLocked);
+
+    // TODO this can be removed in a future version (when majority has upgraded to proto version 70216)
+    if (fOnlyISLocked) {
+        setOnlyISLockedObjects.emplace(nHash);
+    }
 
     // Update the rate buffer
     MasternodeRateUpdate(govobj);
@@ -882,6 +887,33 @@ void CGovernanceManager::CheckPostponedObjects(CConnman& connman)
         mapPostponedObjects.erase(it++);
     }
 
+    // TODO this can be removed in a future version (when majority has upgraded to proto version 70216)
+    // Check all objects that were added while they were not fully confirmed on-chain (only IS locked)
+    for (auto it = setOnlyISLockedObjects.begin(); it != setOnlyISLockedObjects.end(); ) {
+        auto jt = mapObjects.find(*it);
+        if (jt == mapObjects.end()) {
+            it = setOnlyISLockedObjects.erase(it);
+        } else {
+            auto& govobj = jt->second;
+
+            std::string strError;
+            bool fMissingConfirmations;
+            bool fOnlyISLocked;
+            bool fValid = govobj.IsCollateralValid(strError, fMissingConfirmations, fOnlyISLocked);
+            if (fValid && fOnlyISLocked) {
+                // still not fully confirmed on-chain
+                ++it;
+                continue;
+            } else if (fValid && !fOnlyISLocked) {
+                // Relay it again, but this time to older peers as well
+                govobj.Relay(*g_connman, false);
+                it = setOnlyISLockedObjects.erase(it);
+            } else {
+                // should not happen, but lets handle it by removing it from the set
+                it = setOnlyISLockedObjects.erase(it);
+            }
+        }
+    }
 
     // Perform additional relays for triggers
     int64_t nNow = GetAdjustedTime();
@@ -900,7 +932,7 @@ void CGovernanceManager::CheckPostponedObjects(CConnman& connman)
             if (fValid) {
                 if (fReady) {
                     LogPrintf("CGovernanceManager::CheckPostponedObjects -- additional relay: hash = %s\n", govobj.GetHash().ToString());
-                    govobj.Relay(connman);
+                    govobj.Relay(connman, false);
                 } else {
                     it++;
                     continue;

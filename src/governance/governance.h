@@ -242,6 +242,7 @@ private:
     hash_time_m_t mapErasedGovernanceObjects;
 
     object_m_t mapPostponedObjects;
+    hash_s_t setOnlyISLockedObjects;
     hash_s_t setAdditionalRelayObjects;
 
     object_ref_cm_t cmapVoteToObject;
