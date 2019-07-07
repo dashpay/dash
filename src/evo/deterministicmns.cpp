@@ -359,9 +359,6 @@ void CDeterministicMNList::PoSeDecrease(const uint256& proTxHash)
 CDeterministicMNListDiff CDeterministicMNList::BuildDiff(const CDeterministicMNList& to) const
 {
     CDeterministicMNListDiff diffRet;
-    diffRet.prevBlockHash = blockHash;
-    diffRet.blockHash = to.blockHash;
-    diffRet.nHeight = to.nHeight;
 
     to.ForEachMN(false, [&](const CDeterministicMNCPtr& toPtr) {
         auto fromPtr = GetMN(toPtr->proTxHash);
@@ -418,13 +415,11 @@ CSimplifiedMNListDiff CDeterministicMNList::BuildSimplifiedDiff(const CDetermini
     return diffRet;
 }
 
-CDeterministicMNList CDeterministicMNList::ApplyDiff(const CDeterministicMNListDiff& diff) const
+CDeterministicMNList CDeterministicMNList::ApplyDiff(const CBlockIndex* pindex, const CDeterministicMNListDiff& diff) const
 {
-    assert(diff.prevBlockHash == blockHash && diff.nHeight == nHeight + 1);
-
     CDeterministicMNList result = *this;
-    result.blockHash = diff.blockHash;
-    result.nHeight = diff.nHeight;
+    result.blockHash = pindex->GetBlockHash();
+    result.nHeight = pindex->nHeight;
 
     for (const auto& id : diff.removedMns) {
         auto dmn = result.GetMNByInternalId(id);
@@ -544,9 +539,9 @@ bool CDeterministicMNManager::ProcessBlock(const CBlock& block, const CBlockInde
         oldList = GetListForBlock(pindex->pprev);
         diff = oldList.BuildDiff(newList);
 
-        evoDb.Write(std::make_pair(DB_LIST_DIFF, diff.blockHash), diff);
+        evoDb.Write(std::make_pair(DB_LIST_DIFF, newList.GetBlockHash()), diff);
         if ((nHeight % SNAPSHOT_LIST_PERIOD) == 0 || oldList.GetHeight() == -1) {
-            evoDb.Write(std::make_pair(DB_LIST_SNAPSHOT, diff.blockHash), newList);
+            evoDb.Write(std::make_pair(DB_LIST_SNAPSHOT, newList.GetBlockHash()), newList);
             LogPrintf("CDeterministicMNManager::%s -- Wrote snapshot. nHeight=%d, mapCurMNs.allMNsCount=%d\n",
                 __func__, nHeight, newList.GetAllMNsCount());
         }
@@ -929,7 +924,7 @@ CDeterministicMNList CDeterministicMNManager::GetListForBlock(const CBlockIndex*
         auto diffIndex = p.first;
         auto& diff = p.second;
         if (diff.HasChanges()) {
-            snapshot = snapshot.ApplyDiff(diff);
+            snapshot = snapshot.ApplyDiff(diffIndex, diff);
         } else {
             snapshot.SetBlockHash(diffIndex->GetBlockHash());
             snapshot.SetHeight(diffIndex->nHeight);
@@ -1013,9 +1008,6 @@ bool CDeterministicMNManager::UpgradeDiff(CDBBatch& batch, const CBlockIndex* pi
     oldDiffData >> oldDiff;
 
     CDeterministicMNListDiff newDiff;
-    newDiff.prevBlockHash = oldDiff.prevBlockHash;
-    newDiff.blockHash = oldDiff.blockHash;
-    newDiff.nHeight = oldDiff.nHeight;
     size_t addedCount = 0;
     for (auto& p : oldDiff.addedMNs) {
         auto dmn = std::make_shared<CDeterministicMN>(*p.second);
@@ -1030,7 +1022,7 @@ bool CDeterministicMNManager::UpgradeDiff(CDBBatch& batch, const CBlockIndex* pi
     }
 
     // applies added/removed MNs
-    newMNList = curMNList.ApplyDiff(newDiff);
+    newMNList = curMNList.ApplyDiff(pindexNext, newDiff);
 
     // manually apply updated MNs and calc new state diffs
     for (auto& p : oldDiff.updatedMNs) {

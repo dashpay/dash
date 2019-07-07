@@ -466,7 +466,7 @@ public:
 
     CDeterministicMNListDiff BuildDiff(const CDeterministicMNList& to) const;
     CSimplifiedMNListDiff BuildSimplifiedDiff(const CDeterministicMNList& to) const;
-    CDeterministicMNList ApplyDiff(const CDeterministicMNListDiff& diff) const;
+    CDeterministicMNList ApplyDiff(const CBlockIndex* pindex, const CDeterministicMNListDiff& diff) const;
 
     void AddMN(const CDeterministicMNCPtr& dmn);
     void UpdateMN(const CDeterministicMNCPtr& oldDmn, const CDeterministicMNStateCPtr& pdmnState);
@@ -541,9 +541,6 @@ private:
 class CDeterministicMNListDiff
 {
 public:
-    uint256 prevBlockHash;
-    uint256 blockHash;
-    int nHeight{-1};
     std::vector<CDeterministicMNCPtr> addedMNs;
     // keys are all relating to the internalId of MNs
     std::map<uint64_t, CDeterministicMNStateDiff> updatedMNs;
@@ -553,9 +550,6 @@ public:
     template<typename Stream>
     void Serialize(Stream& s) const
     {
-        s << prevBlockHash;
-        s << blockHash;
-        s << nHeight;
         s << addedMNs;
         WriteCompactSize(s, updatedMNs.size());
         for (const auto& p : updatedMNs) {
@@ -576,9 +570,6 @@ public:
 
         size_t tmp;
         uint64_t tmp2;
-        s >> prevBlockHash;
-        s >> blockHash;
-        s >> nHeight;
         s >> addedMNs;
         tmp = ReadCompactSize(s);
         for (size_t i = 0; i < tmp; i++) {
