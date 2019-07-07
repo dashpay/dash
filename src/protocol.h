@@ -239,7 +239,6 @@ extern const char *BLOCKTXN;
 // Dash message types
 // NOTE: do NOT declare non-implmented here, we don't want them to be exposed to the outside
 // TODO: add description
-extern const char *TXLOCKVOTE;
 extern const char *TXLEGACYLOCKREQUEST; // only present for backwards compatibility
 extern const char *SPORK;
 extern const char *GETSPORKS;
@@ -355,8 +354,8 @@ enum GetDataMsg {
     MSG_FILTERED_BLOCK = 3,  //!< Defined in BIP37
     // Dash message types
     // NOTE: declare non-implmented here, we must keep this enum consistent and backwards compatible
-    MSG_TXLOCK_VOTE = 5,
     MSG_LEGACY_TXLOCK_REQUEST = 4,
+    /* MSG_TXLOCK_VOTE = 5, Legacy InstantSend and not used anymore  */
     MSG_SPORK = 6,
     /* 7 - 15 were used in old Dash versions and were mainly budget and MN broadcast/ping related*/
     MSG_DSTX = 16,

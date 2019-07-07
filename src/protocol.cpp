@@ -39,7 +39,6 @@ const char *CMPCTBLOCK="cmpctblock";
 const char *GETBLOCKTXN="getblocktxn";
 const char *BLOCKTXN="blocktxn";
 // Dash message types
-const char *TXLOCKVOTE="txlvote";
 const char *TXLEGACYLOCKREQUEST="ix";
 const char *SPORK="spork";
 const char *GETSPORKS="getsporks";
@@ -107,7 +106,6 @@ const static std::string allNetMessageTypes[] = {
     // Dash message types
     // NOTE: do NOT include non-implmented here, we want them to be "Unknown command" in ProcessMessage()
     NetMsgType::TXLEGACYLOCKREQUEST,
-    NetMsgType::TXLOCKVOTE,
     NetMsgType::SPORK,
     NetMsgType::GETSPORKS,
     NetMsgType::SENDDSQUEUE,
@@ -239,7 +237,6 @@ const char* CInv::GetCommandInternal() const
         case MSG_TX:                            return NetMsgType::TX;
         case MSG_BLOCK:                         return NetMsgType::BLOCK;
         case MSG_FILTERED_BLOCK:                return NetMsgType::MERKLEBLOCK;
-        case MSG_TXLOCK_VOTE:                   return NetMsgType::TXLOCKVOTE;
         case MSG_LEGACY_TXLOCK_REQUEST:         return NetMsgType::TXLEGACYLOCKREQUEST;
         case MSG_CMPCT_BLOCK:                   return NetMsgType::CMPCTBLOCK;
         case MSG_SPORK:                         return NetMsgType::SPORK;

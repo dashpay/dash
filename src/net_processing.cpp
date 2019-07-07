@@ -32,7 +32,6 @@
 
 #include "spork.h"
 #include "governance/governance.h"
-#include "instantsend.h"
 #include "masternode/masternode-payments.h"
 #include "masternode/masternode-sync.h"
 #include "masternode/masternode-meta.h"
@@ -2959,7 +2958,6 @@ bool static ProcessMessage(CNode* pfrom, const std::string& strCommand, CDataStr
             privateSendClient.ProcessMessage(pfrom, strCommand, vRecv, connman);
 #endif // ENABLE_WALLET
             privateSendServer.ProcessMessage(pfrom, strCommand, vRecv, connman);
-            instantsend.ProcessMessage(pfrom, strCommand, vRecv, connman);
             sporkManager.ProcessSpork(pfrom, strCommand, vRecv, connman);
             masternodeSync.ProcessMessage(pfrom, strCommand, vRecv);
             governance.ProcessMessage(pfrom, strCommand, vRecv, connman);
