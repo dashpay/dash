@@ -644,8 +644,7 @@ private:
     CEvoDB& evoDb;
 
     std::map<uint256, CDeterministicMNList> mnListsCache;
-    int tipHeight{-1};
-    uint256 tipBlockHash;
+    const CBlockIndex* tipIndex{nullptr};
 
 public:
     CDeterministicMNManager(CEvoDB& _evoDb);

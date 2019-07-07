@@ -615,8 +615,7 @@ void CDeterministicMNManager::UpdatedBlockTip(const CBlockIndex* pindex)
 {
     LOCK(cs);
 
-    tipHeight = pindex->nHeight;
-    tipBlockHash = pindex->GetBlockHash();
+    tipIndex = pindex;
 }
 
 bool CDeterministicMNManager::BuildNewListFromBlock(const CBlock& block, const CBlockIndex* pindexPrev, CValidationState& _state, CDeterministicMNList& mnListRet, bool debugLogs)
@@ -941,7 +940,10 @@ CDeterministicMNList CDeterministicMNManager::GetListForBlock(const uint256& blo
 CDeterministicMNList CDeterministicMNManager::GetListAtChainTip()
 {
     LOCK(cs);
-    return GetListForBlock(tipBlockHash);
+    if (!tipIndex) {
+        return {};
+    }
+    return GetListForBlock(tipIndex->GetBlockHash());
 }
 
 bool CDeterministicMNManager::IsProTxWithCollateral(const CTransactionRef& tx, uint32_t n)
@@ -971,7 +973,7 @@ bool CDeterministicMNManager::IsDIP3Enforced(int nHeight)
     LOCK(cs);
 
     if (nHeight == -1) {
-        nHeight = tipHeight;
+        nHeight = tipIndex->nHeight;
     }
 
     return nHeight >= Params().GetConsensus().DIP0003EnforcementHeight;
