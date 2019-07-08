@@ -56,7 +56,7 @@ QString TransactionDesc::FormatTxStatus(const CWalletTx& wtx)
         }
 
         if (wtx.IsLockedByInstantSend()) {
-            strTxStatus += " (" + tr("verified via InstantSend") + ")";
+            strTxStatus += " (" + tr("verified via LLMQ based InstantSend") + ")";
         }
 
         return strTxStatus;
