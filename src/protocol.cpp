@@ -259,7 +259,7 @@ const char* CInv::GetCommandInternal() const
 std::string CInv::GetCommand() const
 {
     auto cmd = GetCommandInternal();
-    if (!cmd) {
+    if (cmd == nullptr) {
         throw std::out_of_range(strprintf("CInv::GetCommand(): type=%d unknown type", type));
     }
     return cmd;
