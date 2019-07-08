@@ -221,6 +221,11 @@ bool BuildSimplifiedMNListDiff(const uint256& baseBlockHash, const uint256& bloc
     auto dmnList = deterministicMNManager->GetListForBlock(blockIndex);
     mnListDiffRet = baseDmnList.BuildSimplifiedDiff(dmnList);
 
+    // We need to return the value that was provided by the other peer as it otherwise won't be able to recognize the
+    // response. This will usually be identical to the block found in baseBlockIndex. The only difference is when a
+    // null block hash was provided to get the diff from the genesis block.
+    mnListDiffRet.baseBlockHash = baseBlockHash;
+
     if (!mnListDiffRet.BuildQuorumsDiff(baseBlockIndex, blockIndex)) {
         errorRet = strprintf("failed to build quorums diff");
         return false;
