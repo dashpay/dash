@@ -239,7 +239,7 @@ extern const char *BLOCKTXN;
 // Dash message types
 // NOTE: do NOT declare non-implmented here, we don't want them to be exposed to the outside
 // TODO: add description
-extern const char *TXLEGACYLOCKREQUEST; // only present for backwards compatibility
+extern const char *LEGACYTXLOCKREQUEST; // only present for backwards compatibility
 extern const char *SPORK;
 extern const char *GETSPORKS;
 extern const char *DSACCEPT;

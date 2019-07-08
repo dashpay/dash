@@ -2064,7 +2064,7 @@ bool static ProcessMessage(CNode* pfrom, const std::string& strCommand, CDataStr
     }
 
 
-    else if (strCommand == NetMsgType::TX || strCommand == NetMsgType::DSTX || strCommand == NetMsgType::TXLEGACYLOCKREQUEST)
+    else if (strCommand == NetMsgType::TX || strCommand == NetMsgType::DSTX || strCommand == NetMsgType::LEGACYTXLOCKREQUEST)
     {
         // Stop processing the transaction early if
         // We are in blocks only mode and peer is either not whitelisted or whitelistrelay is off
@@ -2083,7 +2083,7 @@ bool static ProcessMessage(CNode* pfrom, const std::string& strCommand, CDataStr
         // Read data and assign inv type
         if(strCommand == NetMsgType::TX) {
             vRecv >> ptx;
-        } else if(strCommand == NetMsgType::TXLEGACYLOCKREQUEST) {
+        } else if(strCommand == NetMsgType::LEGACYTXLOCKREQUEST) {
             // we keep processing the legacy IX message here but revert to handling it as a regular TX
             vRecv >> ptx;
         } else if (strCommand == NetMsgType::DSTX) {
