@@ -339,6 +339,7 @@ public:
         LOCK(cs);
         std::string strVersion;
         if (ser_action.ForRead()) {
+            Clear();
             READWRITE(strVersion);
             if (strVersion != SERIALIZATION_VERSION_STRING) {
                 return;
