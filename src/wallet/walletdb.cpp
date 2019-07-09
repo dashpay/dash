@@ -881,20 +881,20 @@ bool CWalletDB::WriteHDChain(const CHDChain& chain)
 
 bool CWalletDB::WriteCryptedHDChain(const CHDChain& chain)
 {
-    if (!batch.Write(std::string("chdchain"), chain))
+    if (!WriteIC(std::string("chdchain"), chain))
         return false;
 
-    batch.Erase(std::string("hdchain"));
+    EraseIC(std::string("hdchain"));
 
     return true;
 }
 
 bool CWalletDB::WriteHDPubKey(const CHDPubKey& hdPubKey, const CKeyMetadata& keyMeta)
 {
-    if (!batch.Write(std::make_pair(std::string("keymeta"), hdPubKey.extPubKey.pubkey), keyMeta, false))
+    if (WriteIC(std::make_pair(std::string("keymeta"), hdPubKey.extPubKey.pubkey), keyMeta, false))
         return false;
 
-    return batch.Write(std::make_pair(std::string("hdpubkey"), hdPubKey.extPubKey.pubkey), hdPubKey, false);
+    return WriteIC(std::make_pair(std::string("hdpubkey"), hdPubKey.extPubKey.pubkey), hdPubKey, false);
 }
 
 bool CWalletDB::TxnBegin()
