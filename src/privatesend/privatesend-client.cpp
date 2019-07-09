@@ -20,10 +20,6 @@
 
 #include <memory>
 
-#ifdef ENABLE_WALLET
-#include "wallet/wallet.h"
-#endif //ENABLE_WALLET
-
 CPrivateSendClientManager privateSendClient;
 
 void CPrivateSendClientManager::ProcessMessage(CNode* pfrom, const std::string& strCommand, CDataStream& vRecv, CConnman& connman)
