@@ -16,14 +16,10 @@
 #include "util.h"
 #include "utilmoneystr.h"
 #include "validation.h"
+#include "wallet/wallet.h"
 #include "wallet/coincontrol.h"
 
 #include <memory>
-
-#ifdef ENABLE_WALLET
-typedef CWallet* CWalletRef;
-extern std::vector<CWalletRef> vpwallets;
-#endif //ENABLE_WALLET
 
 CPrivateSendClientManager privateSendClient;
 
