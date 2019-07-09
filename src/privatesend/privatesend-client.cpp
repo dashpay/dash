@@ -16,10 +16,13 @@
 #include "util.h"
 #include "utilmoneystr.h"
 #include "validation.h"
-#include "wallet/wallet.h"
 #include "wallet/coincontrol.h"
 
 #include <memory>
+
+#ifdef ENABLE_WALLET
+#include "wallet/wallet.h"
+#endif //ENABLE_WALLET
 
 CPrivateSendClientManager privateSendClient;
 
