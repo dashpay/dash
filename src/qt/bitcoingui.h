@@ -23,8 +23,6 @@
 #include <qt/macos_appnap.h>
 #endif
 
-#include <memory>
-
 class ClientModel;
 class NetworkStyle;
 class Notificator;
