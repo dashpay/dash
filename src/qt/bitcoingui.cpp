@@ -958,11 +958,15 @@ void BitcoinGUI::setNumBlocks(int count, const QDateTime& blockDate, double nVer
 {
 #ifdef Q_OS_MAC
     // Disabling macOS App Nap on initial sync, disk, reindex operations and mixing.
-    (!masternodeSync.IsSynced()
+    bool disableAppNap = !masternodeSync.IsSynced();
 #ifdef ENABLE_WALLET
-        || privateSendClient.fPrivateSendRunning
+    disableAppNap |= privateSendClient.fPrivateSendRunning;
 #endif // ENABLE_WALLET
-    ) ? m_app_nap_inhibitor->disableAppNap() : m_app_nap_inhibitor->enableAppNap();
+    if (disableAppNap) {
+        m_app_nap_inhibitor->disableAppNap();
+    } else {
+        m_app_nap_inhibitor->enableAppNap();
+    }
 #endif // Q_OS_MAC
 
     if (modalOverlay)
