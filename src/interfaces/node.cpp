@@ -159,6 +159,7 @@ class NodeImpl : public Node
 {
 public:
     NodeImpl() { m_interfaces.chain = MakeChain(); }
+    void initError(const std::string& message) override { InitError(message); }
 
     EVOImpl m_evo;
     LLMQImpl m_llmq;

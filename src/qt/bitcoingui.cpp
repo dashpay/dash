@@ -37,9 +37,6 @@
 #include <util/system.h>
 #include <qt/masternodelist.h>
 
-#include <iostream>
-#include <memory>
-
 #include <QAction>
 #include <QApplication>
 #include <QButtonGroup>
