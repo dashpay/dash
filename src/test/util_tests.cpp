@@ -153,7 +153,7 @@ struct TestArgsManager : public ArgsManager
     void SetupArgs(int argv, const char* args[])
     {
         for (int i = 0; i < argv; ++i) {
-            AddArg(args[i], "", false, OptionsCategory::OPTIONS);
+            AddArg(args[i], "", ArgsManager::ALLOW_ANY, false, OptionsCategory::OPTIONS);
         }
     }
 };

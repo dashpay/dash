@@ -575,7 +575,7 @@ void ArgsManager::ForceSetArg(const std::string& strArg, const std::string& strV
     m_override_args[strArg] = {strValue};
 }
 
-void ArgsManager::AddArg(const std::string& name, const std::string& help, const bool debug_only, const OptionsCategory& cat)
+void ArgsManager::AddArg(const std::string& name, const std::string& help, unsigned int flags, const bool debug_only, const OptionsCategory& cat)
 {
     // Split arg name from its help param
     size_t eq_index = name.find('=');
@@ -592,7 +592,7 @@ void ArgsManager::AddArg(const std::string& name, const std::string& help, const
 void ArgsManager::AddHiddenArgs(const std::vector<std::string>& names)
 {
     for (const std::string& name : names) {
-        AddArg(name, "", false, OptionsCategory::HIDDEN);
+        AddArg(name, "", ArgsManager::ALLOW_ANY, false, OptionsCategory::HIDDEN);
     }
 }
 
