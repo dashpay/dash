@@ -256,6 +256,39 @@ void CRecoveredSigsDb::WriteRecoveredSig(const llmq::CRecoveredSig& recSig)
     }
 }
 
+void CRecoveredSigsDb::RemoveRecoveredSig(CDBBatch& batch, Consensus::LLMQType llmqType, const uint256& id)
+{
+    AssertLockHeld(cs);
+
+    CRecoveredSig recSig;
+    if (!ReadRecoveredSig(llmqType, id, recSig)) {
+        return;
+    }
+
+    auto signHash = CLLMQUtils::BuildSignHash(recSig);
+
+    auto k1 = std::make_tuple(std::string("rs_r"), recSig.llmqType, recSig.id);
+    auto k2 = std::make_tuple(std::string("rs_r"), recSig.llmqType, recSig.id, recSig.msgHash);
+    auto k3 = std::make_tuple(std::string("rs_h"), recSig.GetHash());
+    auto k4 = std::make_tuple(std::string("rs_s"), signHash);
+    batch.Erase(k1);
+    batch.Erase(k2);
+    batch.Erase(k3);
+    batch.Erase(k4);
+
+    hasSigForIdCache.erase(std::make_pair((Consensus::LLMQType)recSig.llmqType, recSig.id));
+    hasSigForSessionCache.erase(signHash);
+    hasSigForHashCache.erase(recSig.GetHash());
+}
+
+void CRecoveredSigsDb::RemoveRecoveredSig(Consensus::LLMQType llmqType, const uint256& id)
+{
+    LOCK(cs);
+    CDBBatch batch(db);
+    RemoveRecoveredSig(batch, llmqType, id);
+    db.WriteBatch(batch);
+}
+
 void CRecoveredSigsDb::CleanupOldRecoveredSigs(int64_t maxAge)
 {
     std::unique_ptr<CDBIterator> pcursor(db.NewIterator());
@@ -292,25 +325,7 @@ void CRecoveredSigsDb::CleanupOldRecoveredSigs(int64_t maxAge)
     {
         LOCK(cs);
         for (auto& e : toDelete) {
-            CRecoveredSig recSig;
-            if (!ReadRecoveredSig(e.first, e.second, recSig)) {
-                continue;
-            }
-
-            auto signHash = CLLMQUtils::BuildSignHash(recSig);
-
-            auto k1 = std::make_tuple(std::string("rs_r"), recSig.llmqType, recSig.id);
-            auto k2 = std::make_tuple(std::string("rs_r"), recSig.llmqType, recSig.id, recSig.msgHash);
-            auto k3 = std::make_tuple(std::string("rs_h"), recSig.GetHash());
-            auto k4 = std::make_tuple(std::string("rs_s"), signHash);
-            batch.Erase(k1);
-            batch.Erase(k2);
-            batch.Erase(k3);
-            batch.Erase(k4);
-
-            hasSigForIdCache.erase(std::make_pair((Consensus::LLMQType)recSig.llmqType, recSig.id));
-            hasSigForSessionCache.erase(signHash);
-            hasSigForHashCache.erase(recSig.GetHash());
+            RemoveRecoveredSig(batch, e.first, e.second);
 
             if (batch.SizeEstimate() >= (1 << 24)) {
                 db.WriteBatch(batch);

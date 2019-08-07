@@ -84,6 +84,7 @@ public:
     bool GetRecoveredSigByHash(const uint256& hash, CRecoveredSig& ret);
     bool GetRecoveredSigById(Consensus::LLMQType llmqType, const uint256& id, CRecoveredSig& ret);
     void WriteRecoveredSig(const CRecoveredSig& recSig);
+    void RemoveRecoveredSig(Consensus::LLMQType llmqType, const uint256& id);
 
     void CleanupOldRecoveredSigs(int64_t maxAge);
 
@@ -96,6 +97,7 @@ public:
 
 private:
     bool ReadRecoveredSig(Consensus::LLMQType llmqType, const uint256& id, CRecoveredSig& ret);
+    void RemoveRecoveredSig(CDBBatch& batch, Consensus::LLMQType llmqType, const uint256& id);
 };
 
 class CRecoveredSigsListener
