@@ -695,6 +695,11 @@ void CSigningManager::PushReconstructedRecoveredSig(const llmq::CRecoveredSig& r
     pendingReconstructedRecoveredSigs.emplace_back(recoveredSig, quorum);
 }
 
+void CSigningManager::RemoveRecoveredSig(Consensus::LLMQType llmqType, const uint256& id)
+{
+    db.RemoveRecoveredSig(llmqType, id);
+}
+
 void CSigningManager::Cleanup()
 {
     int64_t now = GetTimeMillis();
