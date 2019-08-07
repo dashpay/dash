@@ -58,13 +58,6 @@ void CInstantSendDb::WriteNewInstantSendLock(const uint256& hash, const CInstant
     }
 }
 
-void CInstantSendDb::RemoveInstantSendLock(const uint256& hash, CInstantSendLockPtr islock)
-{
-    CDBBatch batch(db);
-    RemoveInstantSendLock(batch, hash, islock);
-    db.WriteBatch(batch);
-}
-
 void CInstantSendDb::RemoveInstantSendLock(CDBBatch& batch, const uint256& hash, CInstantSendLockPtr islock)
 {
     if (!islock) {
