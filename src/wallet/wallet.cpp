@@ -195,11 +195,11 @@ void CWallet::DeriveNewChildKey(CWalletDB &walletdb, const CKeyMetadata& metadat
         throw std::runtime_error(std::string(__func__) + ": SetAccount failed");
 
     if (IsCrypted()) {
-        if (!SetCryptedHDChain(hdChainCurrent, false))
+        if (!SetCryptedHDChain(walletdb, hdChainCurrent, false))
             throw std::runtime_error(std::string(__func__) + ": SetCryptedHDChain failed");
     }
     else {
-        if (!SetHDChain(hdChainCurrent, false))
+        if (!SetHDChain(walletdb, hdChainCurrent, false))
             throw std::runtime_error(std::string(__func__) + ": SetHDChain failed");
     }
 
@@ -825,7 +825,7 @@ bool CWallet::EncryptWallet(const SecureString& strWalletPassphrase)
             assert(hdChainCurrent.GetID() == hdChainCrypted.GetID());
             assert(hdChainCurrent.GetSeedHash() != hdChainCrypted.GetSeedHash());
 
-            assert(SetCryptedHDChain(hdChainCrypted, false));
+            assert(SetCryptedHDChain(*pwalletdbEncryption, hdChainCrypted, false));
         }
 
         // Encryption was introduced in version 0.4.0
@@ -1621,8 +1621,8 @@ void CWallet::GenerateNewHDChain()
     }
     newHdChain.Debug(__func__);
 
-    if (!SetHDChain(newHdChain, false))
-        throw std::runtime_error(std::string(__func__) + ": SetHDChain failed");
+    if (!SetHDChainSingle(newHdChain, false))
+        throw std::runtime_error(std::string(__func__) + ": SetHDChainSingle failed");
 
     // clean up
     gArgs.ForceRemoveArg("-hdseed");
@@ -1630,20 +1630,20 @@ void CWallet::GenerateNewHDChain()
     gArgs.ForceRemoveArg("-mnemonicpassphrase");
 }
 
-bool CWallet::SetHDChain(const CHDChain& chain, bool memonly)
+bool CWallet::SetHDChain(CWalletDB &walletdb, const CHDChain& chain, bool memonly)
 {
     LOCK(cs_wallet);
 
     if (!CCryptoKeyStore::SetHDChain(chain))
         return false;
 
-    if (!memonly && !CWalletDB(*dbw).WriteHDChain(chain))
+    if (!memonly && !walletdb.WriteHDChain(chain))
         throw std::runtime_error(std::string(__func__) + ": WriteHDChain failed");
 
     return true;
 }
 
-bool CWallet::SetCryptedHDChain(const CHDChain& chain, bool memonly)
+bool CWallet::SetCryptedHDChain(CWalletDB &walletdb, const CHDChain& chain, bool memonly)
 {
     LOCK(cs_wallet);
 
@@ -1655,12 +1655,24 @@ bool CWallet::SetCryptedHDChain(const CHDChain& chain, bool memonly)
             if (!pwalletdbEncryption->WriteCryptedHDChain(chain))
                 throw std::runtime_error(std::string(__func__) + ": WriteCryptedHDChain failed");
         } else {
-            if (!CWalletDB(*dbw).WriteCryptedHDChain(chain))
+            if (!walletdb.WriteCryptedHDChain(chain))
                 throw std::runtime_error(std::string(__func__) + ": WriteCryptedHDChain failed");
         }
     }
 
     return true;
+}
+
+bool CWallet::SetHDChainSingle(const CHDChain& chain, bool memonly)
+{
+    CWalletDB walletdb(*dbw);
+    return SetHDChain(walletdb, chain, memonly);
+}
+
+bool CWallet::SetCryptedHDChainSingle(const CHDChain& chain, bool memonly)
+{
+    CWalletDB walletdb(*dbw);
+    return SetCryptedHDChain(walletdb, chain, memonly);
 }
 
 bool CWallet::GetDecryptedHDChain(CHDChain& hdChainRet)

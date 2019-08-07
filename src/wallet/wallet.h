@@ -1233,8 +1233,15 @@ public:
     /* Generates a new HD chain */
     void GenerateNewHDChain();
     /* Set the HD chain model (chain child index counters) */
-    bool SetHDChain(const CHDChain& chain, bool memonly);
-    bool SetCryptedHDChain(const CHDChain& chain, bool memonly);
+    bool SetHDChain(CWalletDB &walletdb, const CHDChain& chain, bool memonly);
+    bool SetCryptedHDChain(CWalletDB &walletdb, const CHDChain& chain, bool memonly);
+    /**
+     * Set the HD chain model (chain child index counters) using temporary wallet db object
+     * which causes db flush every time these methods are used
+     */
+    bool SetHDChainSingle(const CHDChain& chain, bool memonly);
+    bool SetCryptedHDChainSingle(const CHDChain& chain, bool memonly);
+
     bool GetDecryptedHDChain(CHDChain& hdChainRet);
 
     void NotifyTransactionLock(const CTransaction &tx, const llmq::CInstantSendLock& islock) override;
