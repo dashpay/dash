@@ -281,6 +281,7 @@ void CRecoveredSigsDb::RemoveRecoveredSig(CDBBatch& batch, Consensus::LLMQType l
 
     if (deleteTimeKey) {
         CDataStream writeTimeDs(SER_DISK, CLIENT_VERSION);
+        // TODO remove the size() == sizeof(uint32_t) in a future version (when we stop supporting upgrades from < 0.14.1)
         if (db.ReadDataStream(k2, writeTimeDs) && writeTimeDs.size() == sizeof(uint32_t)) {
             uint32_t writeTime;
             writeTimeDs >> writeTime;
