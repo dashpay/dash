@@ -715,8 +715,6 @@ bool CInstantSendManager::PreVerifyInstantSendLock(NodeId nodeId, const llmq::CI
 
 bool CInstantSendManager::ProcessPendingInstantSendLocks()
 {
-    auto llmqType = Params().GetConsensus().llmqForInstantSend;
-
     decltype(pendingInstantSendLocks) pend;
 
     {
@@ -737,6 +735,13 @@ bool CInstantSendManager::ProcessPendingInstantSendLocks()
         LOCK(cs_main);
         tipHeight = chainActive.Height();
     }
+
+    return ProcessPendingInstantSendLocks(tipHeight, pend);
+}
+
+bool CInstantSendManager::ProcessPendingInstantSendLocks(int signHeight, const std::unordered_map<uint256, std::pair<NodeId, CInstantSendLock>>& pend)
+{
+    auto llmqType = Params().GetConsensus().llmqForInstantSend;
 
     CBLSBatchVerifier<NodeId, uint256> batchVerifier(false, true, 8);
     std::unordered_map<uint256, std::pair<CQuorumCPtr, CRecoveredSig>> recSigs;
@@ -762,7 +767,7 @@ bool CInstantSendManager::ProcessPendingInstantSendLocks()
             continue;
         }
 
-        auto quorum = quorumSigningManager->SelectQuorumForSigning(llmqType, tipHeight, id);
+        auto quorum = quorumSigningManager->SelectQuorumForSigning(llmqType, signHeight, id);
         if (!quorum) {
             // should not happen, but if one fails to select, all others will also fail to select
             return false;
