@@ -406,6 +406,14 @@ BOOST_FIXTURE_TEST_CASE(dip3_protx, TestChainDIP3Setup)
     newOperatorKey.MakeNewKey();
     dmn = deterministicMNManager->GetListAtChainTip().GetMN(dmnHashes[0]);
     tx = CreateProUpRegTx(utxos, dmnHashes[0], ownerKeys[dmnHashes[0]], newOperatorKey.GetPublicKey(), ownerKeys[dmnHashes[0]].GetPubKey().GetID(), dmn->pdmnState->scriptPayout, coinbaseKey);
+    // check malleability protection again, but this time by also relying on the signature inside the ProUpRegTx
+    auto tx2 = MalleateProTxPayout<CProUpRegTx>(tx);
+    CValidationState dummyState;
+    BOOST_ASSERT(CheckProUpRegTx(tx, chainActive.Tip(), dummyState));
+    BOOST_ASSERT(!CheckProUpRegTx(tx2, chainActive.Tip(), dummyState));
+    BOOST_ASSERT(CheckTransactionSignature(tx));
+    BOOST_ASSERT(!CheckTransactionSignature(tx2));
+    // now process the block
     CreateAndProcessBlock({tx}, coinbaseKey);
     deterministicMNManager->UpdatedBlockTip(chainActive.Tip());
     BOOST_ASSERT(chainActive.Height() == nHeight + 1);
