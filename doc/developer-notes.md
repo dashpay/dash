@@ -189,9 +189,18 @@ Threads
 
 - ThreadRPCServer : Remote procedure call handler, listens on port 9998 for connections and services them.
 
-- BitcoinMiner : Generates coins (if wallet is enabled).
-
 - Shutdown : Does an orderly shutdown of everything.
+
+- CSigSharesManager::WorkThreadMain
+
+- CInstantSendManager::WorkThreadMain
+
+Thread pools
+------------
+
+- CBLSWorker
+
+- CDKGSessionManager
 
 Ignoring IDE/editor files
 --------------------------
