@@ -3756,7 +3756,7 @@ bool CWallet::CreateTransaction(const std::vector<CRecipient>& vecSend, CWalletT
                     txNew.vin.push_back(txin);
                 }
 
-                if (bBIP69Enabled) {
+                if (nChangePosRequest == -1 && bBIP69Enabled) {
                     std::sort(txNew.vin.begin(), txNew.vin.end(), CompareInputBIP69());
                     std::sort(vecTxDSInTmp.begin(), vecTxDSInTmp.end(), CompareInputBIP69());
                     std::sort(txNew.vout.begin(), txNew.vout.end(), CompareOutputBIP69());
