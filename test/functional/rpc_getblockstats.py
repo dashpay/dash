@@ -10,7 +10,6 @@ from test_framework.test_framework import BitcoinTestFramework
 from test_framework.util import (
     assert_equal,
     assert_raises_jsonrpc,
-    get_mocktime,
 )
 import json
 import os
@@ -55,7 +54,6 @@ class GetblockstatsTest(BitcoinTestFramework):
         return [self.nodes[0].getblockstats(hash_or_height=self.start_height + i) for i in range(self.max_stat_pos+1)]
 
     def generate_test_data(self, filename):
-        mocktime = get_mocktime()
         self.nodes[0].generate(101)
 
         self.nodes[0].sendtoaddress(address=self.nodes[1].getnewaddress(), amount=10, subtractfeefromamount=True)
@@ -81,7 +79,7 @@ class GetblockstatsTest(BitcoinTestFramework):
 
         to_dump = {
             'blocks': blocks,
-            'mocktime': int(mocktime),
+            'mocktime': int(self.mocktime),
             'stats': self.expected_stats,
         }
         with open(filename, 'w') as f:
@@ -91,12 +89,12 @@ class GetblockstatsTest(BitcoinTestFramework):
         with open(filename, 'r') as f:
             d = json.load(f)
             blocks = d['blocks']
-            mocktime = d['mocktime']
+            self.mocktime = d['mocktime']
             self.expected_stats = d['stats']
 
         # Set the timestamps from the file so that the nodes can get out of Initial Block Download
-        self.nodes[0].setmocktime(mocktime)
-        self.nodes[1].setmocktime(mocktime)
+        self.nodes[0].setmocktime(self.mocktime)
+        self.nodes[1].setmocktime(self.mocktime)
 
         for b in blocks:
             self.nodes[0].submitblock(b)
