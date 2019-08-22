@@ -191,16 +191,16 @@ Threads
 
 - Shutdown : Does an orderly shutdown of everything.
 
-- CSigSharesManager::WorkThreadMain
+- CSigSharesManager::WorkThreadMain : Processes pending BLS signature shares.
 
-- CInstantSendManager::WorkThreadMain
+- CInstantSendManager::WorkThreadMain : Processes pending InstantSend locks.
 
 Thread pools
 ------------
 
-- CBLSWorker
+- CBLSWorker : A highly parallelized worker/helper for BLS/DKG calculations.
 
-- CDKGSessionManager
+- CDKGSessionManager : A thread pool for processing LLMQ messages.
 
 Ignoring IDE/editor files
 --------------------------
