@@ -366,9 +366,9 @@ def get_auth_cookie(datadir, chain):
         raise ValueError("No RPC credentials")
     return user, password
 
-def copy_datadir(from_node, to_node, dirname):
-    from_datadir = os.path.join(dirname, "node"+str(from_node), "regtest")
-    to_datadir = os.path.join(dirname, "node"+str(to_node), "regtest")
+def copy_datadir(from_node, to_node, dirname, chain):
+    from_datadir = os.path.join(dirname, "node"+str(from_node), chain)
+    to_datadir = os.path.join(dirname, "node"+str(to_node), chain)
 
     dirs = ["blocks", "chainstate", "evodb", "llmq"]
     for d in dirs:

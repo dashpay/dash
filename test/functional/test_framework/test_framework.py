@@ -645,7 +645,7 @@ class DashTestFramework(BitcoinTestFramework):
 
         start_idx = len(self.nodes)
         for idx in range(0, self.mn_count):
-            copy_datadir(0, idx + start_idx, self.options.tmpdir)
+            copy_datadir(0, idx + start_idx, self.options.tmpdir, self.chain)
 
         # restart faucet node
         self.start_node(0)
