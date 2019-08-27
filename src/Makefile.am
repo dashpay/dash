@@ -207,6 +207,7 @@ BITCOIN_CORE_H = \
   netbase.h \
   netfulfilledman.h \
   netmessagemaker.h \
+  node/coinstats.h \
   noui.h \
   policy/feerate.h \
   policy/fees.h \
@@ -335,6 +336,7 @@ libdash_server_a_SOURCES = \
   net.cpp \
   netfulfilledman.cpp \
   net_processing.cpp \
+  node/coinstats.cpp \
   noui.cpp \
   policy/fees.cpp \
   policy/policy.cpp \
