@@ -232,8 +232,6 @@ public:
     void AddSkippedDenom(const CAmount& nDenomValue);
     void RemoveSkippedDenom(const CAmount& nDenomValue);
 
-    void SetMinBlocksToWait(int nMinBlocksToWaitIn) { nMinBlocksToWait = nMinBlocksToWaitIn; }
-
     void ResetPool();
 
     std::string GetStatuses();
