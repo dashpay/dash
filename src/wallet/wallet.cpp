@@ -4127,6 +4127,11 @@ bool CWallet::CreateTransaction(const std::vector<CRecipient>& vecSend, CWalletT
         return false;
     }
 
+    if (nFeeRet > maxTxFee) {
+        strFailReason = _("Fee exceeds maximum configured by -maxtxfee");
+        return false;
+    }
+
     if (gArgs.GetBoolArg("-walletrejectlongchains", DEFAULT_WALLET_REJECT_LONG_CHAINS)) {
         // Lastly, ensure this tx will pass the mempool's chain limits
         LockPoints lp;
