@@ -207,6 +207,28 @@ UniValue getbestblockhash(const JSONRPCRequest& request)
     return chainActive.Tip()->GetBlockHash().GetHex();
 }
 
+UniValue getbestchainlock(const JSONRPCRequest& request)
+{
+    if (request.fHelp || request.params.size() != 0)
+        throw std::runtime_error(
+            "getbestchainlock\n"
+            "\nReturns the block hash of the best chainlock.\n"
+            "\nResult:\n"
+            "{\n"
+            "  \"blockhash\" : \"hash\",     (string) The block hash hex encoded\n"
+            "  \"height\" : n,          (numeric) The block height or index\n"
+            "}\n"
+            "\nExamples:\n"
+            + HelpExampleCli("getbestchainlock", "")
+            + HelpExampleRpc("getbestchainlock", "")
+        );
+    UniValue result(UniValue::VOBJ);
+    llmq::CChainLockSig clsig = llmq::chainLocksHandler->GetBestChainLock();
+    result.push_back(Pair("blockhash", clsig.blockHash.GetHex()));
+    result.push_back(Pair("height", clsig.nHeight));
+    return result;
+}
+
 void RPCNotifyBlockChange(bool ibd, const CBlockIndex * pindex)
 {
     if(pindex) {
@@ -2184,6 +2206,7 @@ static const CRPCCommand commands[] =
     { "blockchain",         "preciousblock",          &preciousblock,          true,  {"blockhash"} },
 
     /* Not shown in help */
+    { "hidden",             "getbestchainlock",       &getbestchainlock,       true,  {} },
     { "hidden",             "invalidateblock",        &invalidateblock,        true,  {"blockhash"} },
     { "hidden",             "reconsiderblock",        &reconsiderblock,        true,  {"blockhash"} },
     { "hidden",             "waitfornewblock",        &waitfornewblock,        true,  {"timeout"} },

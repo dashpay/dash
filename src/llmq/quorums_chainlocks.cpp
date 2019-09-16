@@ -72,6 +72,12 @@ bool CChainLocksHandler::GetChainLockByHash(const uint256& hash, llmq::CChainLoc
     return true;
 }
 
+CChainLockSig CChainLocksHandler::GetBestChainLock()
+{
+    LOCK(cs);
+    return bestChainLock;
+}
+
 void CChainLocksHandler::ProcessMessage(CNode* pfrom, const std::string& strCommand, CDataStream& vRecv, CConnman& connman)
 {
     if (!sporkManager.IsSporkActive(SPORK_19_CHAINLOCKS_ENABLED)) {
