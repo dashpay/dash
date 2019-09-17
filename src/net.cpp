@@ -655,6 +655,11 @@ void CNode::SetAddrLocal(const CService& addrLocalIn) {
     }
 }
 
+std::string CNode::GetLogString() const
+{
+    return fLogIPs ? addr.ToString() : strprintf("%d", id);
+}
+
 #undef X
 #define X(name) stats.name = name
 void CNode::copyStats(CNodeStats &stats)
