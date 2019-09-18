@@ -215,8 +215,9 @@ UniValue getbestchainlock(const JSONRPCRequest& request)
             "\nReturns the block hash of the best chainlock.\n"
             "\nResult:\n"
             "{\n"
-            "  \"blockhash\" : \"hash\",     (string) The block hash hex encoded\n"
-            "  \"height\" : n,          (numeric) The block height or index\n"
+            "  \"blockhash\" : \"hash\",      (string) The block hash hex encoded\n"
+            "  \"height\" : n,              (numeric) The block height or index\n"
+            "  \"known_block\" : true|false (boolean) True if the block is known by our node\n"
             "}\n"
             "\nExamples:\n"
             + HelpExampleCli("getbestchainlock", "")
@@ -226,6 +227,8 @@ UniValue getbestchainlock(const JSONRPCRequest& request)
     llmq::CChainLockSig clsig = llmq::chainLocksHandler->GetBestChainLock();
     result.push_back(Pair("blockhash", clsig.blockHash.GetHex()));
     result.push_back(Pair("height", clsig.nHeight));
+    LOCK(cs_main);
+    result.push_back(Pair("known_block", mapBlockIndex.count(clsig.blockHash) > 0));
     return result;
 }
 
@@ -2183,6 +2186,7 @@ static const CRPCCommand commands[] =
     { "blockchain",         "getchaintxstats",        &getchaintxstats,        true,  {"nblocks", "blockhash"} },
     { "blockchain",         "getblockstats",          &getblockstats,          true,  {"hash_or_height", "stats"} },
     { "blockchain",         "getbestblockhash",       &getbestblockhash,       true,  {} },
+    { "blockchain",         "getbestchainlock",       &getbestchainlock,       true,  {} },
     { "blockchain",         "getblockcount",          &getblockcount,          true,  {} },
     { "blockchain",         "getblock",               &getblock,               true,  {"blockhash","verbosity|verbose"} },
     { "blockchain",         "getblockhashes",         &getblockhashes,         true,  {"high","low"} },
@@ -2206,7 +2210,6 @@ static const CRPCCommand commands[] =
     { "blockchain",         "preciousblock",          &preciousblock,          true,  {"blockhash"} },
 
     /* Not shown in help */
-    { "hidden",             "getbestchainlock",       &getbestchainlock,       true,  {} },
     { "hidden",             "invalidateblock",        &invalidateblock,        true,  {"blockhash"} },
     { "hidden",             "reconsiderblock",        &reconsiderblock,        true,  {"blockhash"} },
     { "hidden",             "waitfornewblock",        &waitfornewblock,        true,  {"timeout"} },
