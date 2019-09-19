@@ -195,7 +195,9 @@ public:
     // these are just informational and do not have any effect on the revocation
     enum {
         REASON_NOT_SPECIFIED = 0,
-        REASON_CHANGE_OF_KEYS = 1,
+        REASON_TERMINATION_OF_SERVICE = 1,
+        REASON_COMPROMISED_KEYS = 2,
+        REASON_CHANGE_OF_KEYS = 3,
         REASON_LAST = REASON_CHANGE_OF_KEYS
     };
 
