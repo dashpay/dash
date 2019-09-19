@@ -35,18 +35,13 @@ private:
 
 public:
     CMasternodeMetaInfo() {}
+    CMasternodeMetaInfo(const uint256& _proTxHash) : proTxHash(_proTxHash) {}
     CMasternodeMetaInfo(const CMasternodeMetaInfo& ref) :
         proTxHash(ref.proTxHash),
         nLastDsq(ref.nLastDsq),
         nMixingTxCount(ref.nMixingTxCount),
         mapGovernanceObjectsVotedOn(ref.mapGovernanceObjectsVotedOn)
     {
-    }
-
-    template <typename Stream>
-    CMasternodeMetaInfo(deserialize_type, Stream& s)
-    {
-        s >> *this;
     }
 
     ADD_SERIALIZE_METHODS
