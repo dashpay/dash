@@ -257,7 +257,6 @@ public:
     bool Sign(const CBLSSecretKey& key);
     bool CheckSignature(const CBLSPublicKey& pubKey) const;
 
-    std::string GetSignatureMessage() const;
     uint256 GetSignatureHash() const;
 
     // CORE OBJECT FUNCTIONS
