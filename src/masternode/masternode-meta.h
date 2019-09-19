@@ -70,8 +70,6 @@ public:
 
     // KEEP TRACK OF EACH GOVERNANCE ITEM INCASE THIS NODE GOES OFFLINE, SO WE CAN RECALC THEIR STATUS
     void AddGovernanceVote(const uint256& nGovernanceObjectHash);
-    // RECALCULATE CACHED STATUS FLAGS FOR ALL AFFECTED OBJECTS
-    void FlagGovernanceItemsAsDirty();
 
     void RemoveGovernanceObject(const uint256& nGovernanceObjectHash);
 };
@@ -139,7 +137,6 @@ public:
     bool AddGovernanceVote(const uint256& proTxHash, const uint256& nGovernanceObjectHash);
     void RemoveGovernanceObject(const uint256& nGovernanceObjectHash);
 
-    void AddDirtyGovernanceObjectHash(const uint256& nHash);
     std::vector<uint256> GetAndClearDirtyGovernanceObjectHashes();
 
     void Clear();
