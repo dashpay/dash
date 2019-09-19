@@ -736,9 +736,11 @@ AC_COMPILE_IFELSE([AC_LANG_PROGRAM([[#include <sys/types.h>
 )
 
 # ensure backtrace() is found, check -lexecinfo if necessary
-AC_SEARCH_LIBS([backtrace], [execinfo], [], [
-  AC_MSG_ERROR([Unable to find backtrace()])
-])
+if test x$TARGET_OS != xwindows; then
+  AC_SEARCH_LIBS([backtrace], [execinfo], [], [
+    AC_MSG_ERROR([Unable to find backtrace()])
+  ])
+fi
 
 # Check for reduced exports
 if test x$use_reduce_exports = xyes; then
