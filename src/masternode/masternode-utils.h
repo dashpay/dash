@@ -12,12 +12,6 @@ class CConnman;
 class CMasternodeUtils
 {
 public:
-    typedef std::pair<arith_uint256, CDeterministicMNCPtr> score_pair_t;
-    typedef std::vector<score_pair_t> score_pair_vec_t;
-    typedef std::pair<int, const CDeterministicMNCPtr> rank_pair_t;
-    typedef std::vector<rank_pair_t> rank_pair_vec_t;
-
-public:
     static void ProcessMasternodeConnections(CConnman& connman);
     static void DoMaintenance(CConnman &connman);
 };
