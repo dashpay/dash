@@ -18,9 +18,6 @@ public:
     typedef std::vector<rank_pair_t> rank_pair_vec_t;
 
 public:
-    static bool GetMasternodeScores(const uint256& nBlockHash, score_pair_vec_t& vecMasternodeScoresRet);
-    static bool GetMasternodeRank(const COutPoint &outpoint, int& nRankRet, uint256& blockHashRet, int nBlockHeight = -1);
-
     static void ProcessMasternodeConnections(CConnman& connman);
     static void DoMaintenance(CConnman &connman);
 };
