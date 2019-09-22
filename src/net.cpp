@@ -1207,7 +1207,7 @@ void CConnman::AcceptConnection(const ListenSocket& hListenSocket) {
     if (fLogIPs) {
         LogPrint(BCLog::NET, "connection from %s accepted\n", addr.ToString());
     } else {
-        LogPrint(BCLog::NET, "connection accepted\n", addr.ToString());
+        LogPrint(BCLog::NET, "connection accepted\n");
     }
 
     {
