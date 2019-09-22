@@ -24,7 +24,7 @@ class CChainLockSig
 {
 public:
     int32_t nHeight{-1};
-    uint256 blockHash;
+    uint256 blockHash{uint256()};
     CBLSSignature sig;
 
 public:
@@ -38,6 +38,7 @@ public:
         READWRITE(sig);
     }
 
+    bool IsNull() const;
     std::string ToString() const;
 };
 

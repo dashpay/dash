@@ -212,7 +212,7 @@ UniValue getbestchainlock(const JSONRPCRequest& request)
     if (request.fHelp || request.params.size() != 0)
         throw std::runtime_error(
             "getbestchainlock\n"
-            "\nReturns the block hash of the best chainlock.\n"
+            "\nReturns the block hash of the best chainlock. Throws an error if there is no known chainlock yet.\n"
             "\nResult:\n"
             "{\n"
             "  \"blockhash\" : \"hash\",      (string) The block hash hex encoded\n"
@@ -225,6 +225,9 @@ UniValue getbestchainlock(const JSONRPCRequest& request)
         );
     UniValue result(UniValue::VOBJ);
     llmq::CChainLockSig clsig = llmq::chainLocksHandler->GetBestChainLock();
+    if (clsig.IsNull()) {
+        throw JSONRPCError(RPC_INTERNAL_ERROR, "Unable to find any chainlock");
+    }
     result.push_back(Pair("blockhash", clsig.blockHash.GetHex()));
     result.push_back(Pair("height", clsig.nHeight));
     LOCK(cs_main);
