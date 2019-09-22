@@ -1141,22 +1141,22 @@ void CConnman::AcceptConnection(const ListenSocket& hListenSocket) {
         return;
     }
 
-    std::string strDroped;
+    std::string strDropped;
     if (fLogIPs) {
-        strDroped = strprintf("connection from %s dropped", addr.ToString());
+        strDropped = strprintf("connection from %s dropped", addr.ToString());
     } else {
-        strDroped = "connection dropped";
+        strDropped = "connection dropped";
     }
 
     if (!fNetworkActive) {
-        LogPrintf("%s: not accepting new connections\n", strDroped);
+        LogPrintf("%s: not accepting new connections\n", strDropped);
         CloseSocket(hSocket);
         return;
     }
 
     if (!IsSelectableSocket(hSocket))
     {
-        LogPrintf("%s: non-selectable socket\n", strDroped);
+        LogPrintf("%s: non-selectable socket\n", strDropped);
         CloseSocket(hSocket);
         return;
     }
@@ -1167,7 +1167,7 @@ void CConnman::AcceptConnection(const ListenSocket& hListenSocket) {
 
     if (IsBanned(addr) && !whitelisted)
     {
-        LogPrintf("%s (banned)\n", strDroped);
+        LogPrintf("%s (banned)\n", strDropped);
         CloseSocket(hSocket);
         return;
     }
