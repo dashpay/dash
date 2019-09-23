@@ -36,12 +36,14 @@ export RUN_INTEGRATIONTESTS=false
 if [ "$BUILD_TARGET" = "arm-linux" ]; then
   export HOST=arm-linux-gnueabihf
   export PACKAGES="g++-arm-linux-gnueabihf"
+  export DEP_OPTS="NO_QT=1"
   export CHECK_DOC=1
   export BITCOIN_CONFIG="--enable-glibc-back-compat --enable-reduce-exports"
 elif [ "$BUILD_TARGET" = "win32" ]; then
   export HOST=i686-w64-mingw32
   export DPKG_ADD_ARCH="i386"
   export PACKAGES="python3 nsis g++-mingw-w64-i686 wine-stable wine32 bc"
+  export DEP_OPTS="NO_QT=1"
   export BITCOIN_CONFIG="--enable-gui --enable-reduce-exports --disable-miner"
   export DIRECT_WINE_EXEC_TESTS=true
   export RUN_UNITTESTS=true
@@ -49,12 +51,14 @@ elif [ "$BUILD_TARGET" = "win64" ]; then
   export HOST=x86_64-w64-mingw32
   export DPKG_ADD_ARCH="i386"
   export PACKAGES="python3 nsis g++-mingw-w64-x86-64 wine-stable wine64 bc"
+  export DEP_OPTS="NO_QT=1"
   export BITCOIN_CONFIG="--enable-gui --enable-reduce-exports --disable-miner"
   export DIRECT_WINE_EXEC_TESTS=true
   export RUN_UNITTESTS=true
 elif [ "$BUILD_TARGET" = "linux32" ]; then
   export HOST=i686-pc-linux-gnu
   export PACKAGES="g++-multilib bc python3-zmq"
+  export DEP_OPTS="NO_QT=1"
   export BITCOIN_CONFIG="--enable-zmq --enable-glibc-back-compat --enable-reduce-exports --enable-stacktraces LDFLAGS=-static-libstdc++"
   export USE_SHELL="/bin/dash"
   export PYZMQ=true
@@ -62,9 +66,10 @@ elif [ "$BUILD_TARGET" = "linux32" ]; then
   export RUN_INTEGRATIONTESTS=true
 elif [ "$BUILD_TARGET" = "linux64" ]; then
   export HOST=x86_64-unknown-linux-gnu
-  export PACKAGES="bc python3-zmq"
-  export DEP_OPTS="NO_UPNP=1 DEBUG=1"
-  export BITCOIN_CONFIG="--enable-zmq --enable-glibc-back-compat --enable-reduce-exports --enable-stacktraces"
+  # uses qt5 dev package instead of depends Qt to speed up build and avoid timeout
+  export PACKAGES="python3-zmq qtbase5-dev qttools5-dev-tools protobuf-compiler libdbus-1-dev libharfbuzz-dev"
+  export DEP_OPTS="NO_QT=1 NO_UPNP=1 DEBUG=1 ALLOW_HOST_PACKAGES=1"
+  export BITCOIN_CONFIG="--enable-zmq --with-gui=qt5 --enable-glibc-back-compat --enable-reduce-exports --enable-stacktraces"
   export CPPFLAGS="-DDEBUG_LOCKORDER -DENABLE_DASH_DEBUG"
   export PYZMQ=true
   export RUN_UNITTESTS=true
@@ -78,7 +83,7 @@ elif [ "$BUILD_TARGET" = "linux64_nowallet" ]; then
 elif [ "$BUILD_TARGET" = "linux64_release" ]; then
   export HOST=x86_64-unknown-linux-gnu
   export PACKAGES="bc python3-zmq"
-  export DEP_OPTS="NO_UPNP=1"
+  export DEP_OPTS="NO_QT=1 NO_UPNP=1"
   export BITCOIN_CONFIG="--enable-zmq --enable-glibc-back-compat --enable-reduce-exports"
   export PYZMQ=true
   export RUN_UNITTESTS=true
