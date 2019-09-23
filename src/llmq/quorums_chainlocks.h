@@ -24,7 +24,7 @@ class CChainLockSig
 {
 public:
     int32_t nHeight{-1};
-    uint256 blockHash{uint256()};
+    uint256 blockHash;
     CBLSSignature sig;
 
 public:
