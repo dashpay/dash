@@ -113,20 +113,12 @@ class LLMQ_IS_CL_Conflicts(DashTestFramework):
         cl = self.create_chainlock(self.nodes[0].getblockcount() + 1, block.sha256)
         self.test_node.send_clsig(cl)
 
-        self.wait_for_best_chainlock(self.nodes[0], "%064x" % block.sha256)
-        bestchainlock = self.nodes[0].getbestchainlock()
-        assert(bestchainlock["blockhash"] == "%064x" % block.sha256)
-        assert(bestchainlock["known_block"] == test_block_conflict)
+        for node in self.nodes:
+            self.wait_for_best_chainlock(node, "%064x" % block.sha256)
 
-        self.wait_for_best_chainlock(self.nodes[1], "%064x" % block.sha256)
+        sync_blocks(self.nodes)
 
-        # At this point all nodes should have the same "best chainlock"
-
-        if test_block_conflict:
-            # The block should be accepted/conected at node 0, broadcasted to all other nodes
-            # and accepted there as well
-            for node in self.nodes:
-                self.wait_for_chainlock(node, "%064x" % block.sha256)
+        # At this point all nodes should be in sync and have the same "best chainlock"
 
         submit_result = self.nodes[1].submitblock(ToHex(block))
         if test_block_conflict:
