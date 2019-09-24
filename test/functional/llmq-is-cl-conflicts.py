@@ -106,19 +106,34 @@ class LLMQ_IS_CL_Conflicts(DashTestFramework):
 
         block = self.create_block(self.nodes[0], [rawtx2_obj])
         if test_block_conflict:
+            # The block shouldn't be accepted/connected but it should be known to node 0 now
             submit_result = self.nodes[0].submitblock(ToHex(block))
             assert(submit_result == "conflict-tx-lock")
 
         cl = self.create_chainlock(self.nodes[0].getblockcount() + 1, block.sha256)
         self.test_node.send_clsig(cl)
 
+        self.wait_for_best_chainlock(self.nodes[0], "%064x" % block.sha256)
+        bestchainlock = self.nodes[0].getbestchainlock()
+        assert(bestchainlock["blockhash"] == "%064x" % block.sha256)
+        assert(bestchainlock["known_block"] == test_block_conflict)
+
         self.wait_for_best_chainlock(self.nodes[1], "%064x" % block.sha256)
 
-        # The block should get accepted now, and at the same time prune the conflicting ISLOCKs
+        # At this point all nodes should have the same "best chainlock"
+
+        if test_block_conflict:
+            # The block should be accepted/conected at node 0, broadcasted to all other nodes
+            # and accepted there as well
+            for node in self.nodes:
+                self.wait_for_chainlock(node, "%064x" % block.sha256)
+
         submit_result = self.nodes[1].submitblock(ToHex(block))
         if test_block_conflict:
+            # Node 1 should receive the block from node 0 and should not accept it again via submitblock
             assert(submit_result == "duplicate")
         else:
+            # The block should get accepted now, and at the same time prune the conflicting ISLOCKs
             assert(submit_result is None)
 
         for node in self.nodes:
