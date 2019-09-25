@@ -402,11 +402,11 @@ bool CInstantSendManager::ProcessTx(const CTransaction& tx, const Consensus::Par
         g_connman->RelayInvFiltered(inv, tx, LLMQS_PROTO_VERSION);
     }
 
-    if (IsConflicted(tx)) {
+    if (!CheckCanLock(tx, true, params)) {
         return false;
     }
 
-    if (!CheckCanLock(tx, true, params)) {
+    if (IsConflicted(tx)) {
         return false;
     }
 
