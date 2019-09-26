@@ -27,7 +27,7 @@ $ pacman -S base-devel python3 cmake
 
 ##### Alpine Linux:
 ```sh
-$ sudo apk --update --no-cache add autoconf automake cmake curl g++ gcc libexecinfo-dev libexecinfo-static libtool make perl pkgconfig python3
+$ sudo apk --update --no-cache add autoconf automake cmake curl g++ gcc libexecinfo-dev libexecinfo-static libtool make perl pkgconfig python3 patch linux-headers
 ```
 
 ##### FreeBSD/OpenBSD:
