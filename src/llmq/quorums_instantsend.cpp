@@ -557,8 +557,6 @@ void CInstantSendManager::HandleNewRecoveredSig(const CRecoveredSig& recoveredSi
 
 void CInstantSendManager::HandleNewInputLockRecoveredSig(const CRecoveredSig& recoveredSig, const uint256& txid)
 {
-    auto llmqType = Params().GetConsensus().llmqTypeInstantSend;
-
     CTransactionRef tx;
     uint256 hashBlock;
     if (!GetTransaction(txid, tx, Params().GetConsensus(), hashBlock, true)) {
