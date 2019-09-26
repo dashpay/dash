@@ -461,14 +461,11 @@ bool CInstantSendManager::CheckCanLock(const CTransaction& tx, bool printDebug, 
         return false;
     }
 
-    CAmount nValueIn = 0;
     for (const auto& in : tx.vin) {
         CAmount v = 0;
         if (!CheckCanLock(in.prevout, printDebug, tx.GetHash(), &v, params)) {
             return false;
         }
-
-        nValueIn += v;
     }
 
     return true;
