@@ -28,22 +28,19 @@ OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 **/
 
-#include <math.h>
-#include <netdb.h>
-#include <time.h>
-#include <unistd.h>
-#include <stdlib.h>
-#include <string.h>
-#include <stdio.h>
-#include <sys/types.h>
-#include <netinet/in.h>
+#include "compat.h"
+#include "netbase.h"
+#include "random.h"
 #include "statsd_client.h"
 #include "util.h"
-#include <fcntl.h>
+
+#include <math.h>
+#include <time.h>
+#include <stdlib.h>
+#include <stdio.h>
 
 statsd::StatsdClient statsClient;
 
-using namespace std;
 namespace statsd {
 
 inline bool fequal(float a, float b)
@@ -52,6 +49,8 @@ inline bool fequal(float a, float b)
     return ( fabs(a - b) < epsilon );
 }
 
+thread_local FastRandomContext insecure_rand;
+
 inline bool should_send(float sample_rate)
 {
     if ( fequal(sample_rate, 1.0) )
@@ -59,52 +58,45 @@ inline bool should_send(float sample_rate)
         return true;
     }
 
-    float p = ((float)random() / RAND_MAX);
+    float p = ((float)insecure_rand(std::numeric_limits<int>::max()) / std::numeric_limits<int>::max());
     return sample_rate > p;
 }
 
 struct _StatsdClientData {
-    int     sock;
+    SOCKET  sock;
     struct  sockaddr_in server;
 
-    string  ns;
-    string  host;
-    string  nodename;
+    std::string  ns;
+    std::string  host;
+    std::string  nodename;
     short   port;
     bool    init;
 
     char    errmsg[1024];
 };
 
-StatsdClient::StatsdClient(const string& host, int port, const string& ns)
+StatsdClient::StatsdClient(const std::string& host, int port, const std::string& ns)
 {
     d = new _StatsdClientData;
-    d->sock = -1;
+    d->sock = INVALID_SOCKET;
     config(host, port, ns);
-    srandom(time(NULL));
 }
 
 StatsdClient::~StatsdClient()
 {
     // close socket
-    if (d->sock >= 0) {
-        close(d->sock);
-        d->sock = -1;
-        delete d;
-        d = NULL;
-    }
+    CloseSocket(d->sock);
+    delete d;
+    d = NULL;
 }
 
-void StatsdClient::config(const string& host, int port, const string& ns)
+void StatsdClient::config(const std::string& host, int port, const std::string& ns)
 {
     d->ns = ns;
     d->host = host;
     d->port = port;
     d->init = false;
-    if ( d->sock >= 0 ) {
-        close(d->sock);
-    }
-    d->sock = -1;
+    CloseSocket(d->sock);
 }
 
 int StatsdClient::init()
@@ -112,7 +104,7 @@ int StatsdClient::init()
     if ( d->init ) return 0;
 
     d->sock = socket(AF_INET, SOCK_DGRAM, IPPROTO_UDP);
-    if ( d->sock == -1 ) {
+    if ( d->sock == INVALID_SOCKET ) {
         snprintf(d->errmsg, sizeof(d->errmsg), "could not create socket, err=%m");
         return -1;
     }
@@ -121,24 +113,10 @@ int StatsdClient::init()
     d->server.sin_family = AF_INET;
     d->server.sin_port = htons(d->port);
 
-    int ret = inet_aton(d->host.c_str(), &d->server.sin_addr);
-    if ( ret == 0 )
-    {
-        // host must be a domain, get it from internet
-        struct addrinfo hints, *result = NULL;
-        memset(&hints, 0, sizeof(hints));
-        hints.ai_family = AF_INET;
-        hints.ai_socktype = SOCK_DGRAM;
-
-        ret = getaddrinfo(d->host.c_str(), NULL, &hints, &result);
-        if ( ret ) {
-            snprintf(d->errmsg, sizeof(d->errmsg),
-                    "getaddrinfo fail, error=%d, msg=%s", ret, gai_strerror(ret) );
-            return -2;
-        }
-        struct sockaddr_in* host_addr = (struct sockaddr_in*)result->ai_addr;
-        memcpy(&d->server.sin_addr, &host_addr->sin_addr, sizeof(struct in_addr));
-        freeaddrinfo(result);
+    CNetAddr netaddr(d->server.sin_addr);
+    if (!LookupHost(d->host.c_str(), netaddr, true) || !netaddr.GetInAddr(&d->server.sin_addr)) {
+        snprintf(d->errmsg, sizeof(d->errmsg), "LookupHost or GetInAddr failed");
+        return -2;
     }
 
     if (gArgs.IsArgSet("-statshostname")) {
@@ -150,47 +128,47 @@ int StatsdClient::init()
 }
 
 /* will change the original string */
-void StatsdClient::cleanup(string& key)
+void StatsdClient::cleanup(std::string& key)
 {
     size_t pos = key.find_first_of(":|@");
-    while ( pos != string::npos )
+    while ( pos != std::string::npos )
     {
         key[pos] = '_';
         pos = key.find_first_of(":|@");
     }
 }
 
-int StatsdClient::dec(const string& key, float sample_rate)
+int StatsdClient::dec(const std::string& key, float sample_rate)
 {
     return count(key, -1, sample_rate);
 }
 
-int StatsdClient::inc(const string& key, float sample_rate)
+int StatsdClient::inc(const std::string& key, float sample_rate)
 {
     return count(key, 1, sample_rate);
 }
 
-int StatsdClient::count(const string& key, size_t value, float sample_rate)
+int StatsdClient::count(const std::string& key, size_t value, float sample_rate)
 {
     return send(key, value, "c", sample_rate);
 }
 
-int StatsdClient::gauge(const string& key, size_t value, float sample_rate)
+int StatsdClient::gauge(const std::string& key, size_t value, float sample_rate)
 {
     return send(key, value, "g", sample_rate);
 }
 
-int StatsdClient::gaugeDouble(const string& key, double value, float sample_rate)
+int StatsdClient::gaugeDouble(const std::string& key, double value, float sample_rate)
 {
     return sendDouble(key, value, "g", sample_rate);
 }
 
-int StatsdClient::timing(const string& key, size_t ms, float sample_rate)
+int StatsdClient::timing(const std::string& key, size_t ms, float sample_rate)
 {
     return send(key, ms, "ms", sample_rate);
 }
 
-int StatsdClient::send(string key, size_t value, const string &type, float sample_rate)
+int StatsdClient::send(std::string key, size_t value, const std::string& type, float sample_rate)
 {
     if (!should_send(sample_rate)) {
         return 0;
@@ -217,7 +195,7 @@ int StatsdClient::send(string key, size_t value, const string &type, float sampl
     return send(buf);
 }
 
-int StatsdClient::sendDouble(string key, double value, const string &type, float sample_rate)
+int StatsdClient::sendDouble(std::string key, double value, const std::string& type, float sample_rate)
 {
     if (!should_send(sample_rate)) {
         return 0;
@@ -244,7 +222,7 @@ int StatsdClient::sendDouble(string key, double value, const string &type, float
     return send(buf);
 }
 
-int StatsdClient::send(const string &message)
+int StatsdClient::send(const std::string& message)
 {
     int ret = init();
     if ( ret )
@@ -265,4 +243,4 @@ const char* StatsdClient::errmsg()
     return d->errmsg;
 }
 
-}
+} // namespace statsd

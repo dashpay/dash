@@ -2,9 +2,6 @@
 #ifndef STATSD_CLIENT_H
 #define STATSD_CLIENT_H
 
-#include <sys/types.h>
-#include <arpa/inet.h>
-#include <sys/socket.h>
 #include <string>
 
 namespace statsd {
@@ -52,7 +49,7 @@ class StatsdClient {
         struct _StatsdClientData* d;
 };
 
-}; // end namespace
+}; // namespace statsd
 
 extern statsd::StatsdClient statsClient;
 
