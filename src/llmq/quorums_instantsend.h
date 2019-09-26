@@ -121,19 +121,31 @@ public:
      */
     uint256 GetInstantSendLockHashByTxid(const uint256& txid);
     /**
-     * Gets an IS Lock pointer object from the txid given
+     * Gets an IS Lock pointer from the txid given
      * @param txid The txid for which the IS Lock Pointer is being returned
      * @return Returns the IS Lock Pointer assosiated with the txid, returns nullptr if it doesn't exsist
      */
     CInstantSendLockPtr GetInstantSendLockByTxid(const uint256& txid);
     /**
-     *
-     * @param outpoint
-     * @return
+     * Gets an IS Lock pointer from an input given
+     * @param outpoint Since all inputs are really just outpoints that are being spent
+     * @return IS Lock Pointer assosiated with that input.
      */
     CInstantSendLockPtr GetInstantSendLockByInput(const COutPoint& outpoint);
 
+    /**
+     * Gets a vector of IS Lock hashes of the IS Locks which rely on or are children of the parent IS Lock
+     * @param parent The hash of the parent IS Lock
+     * @return Returns a vector of IS Lock hashes
+     */
     std::vector<uint256> GetInstantSendLocksByParent(const uint256& parent);
+    /**
+     * Called when a ChainLock invalidated a IS Lock, removes any chained/children IS Locks and the invalidated IS Lock
+     * @param islockHash IS Lock hash which has been invalidated
+     * @param txid txid assosiated with the islockHash
+     * @param nHeight height of the block which recieved a chainlock and invalidated the IS Lock
+     * @return A vector of all IS Locks removed
+     */
     std::vector<uint256> RemoveChainedInstantSendLocks(const uint256& islockHash, const uint256& txid, int nHeight);
 };
 
