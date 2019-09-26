@@ -52,20 +52,85 @@ private:
 public:
     CInstantSendDb(CDBWrapper& _db) : db(_db) {}
 
+    /**
+     * This method is called when an InstantSend Lock is processed and adds the lock to the database instantsend.dat
+     * @param hash The hash of the InstantSend Lock
+     * @param islock The InstantSend Lock object itself
+     */
     void WriteNewInstantSendLock(const uint256& hash, const CInstantSendLock& islock);
+    /**
+     * This method removes a InstantSend Lock from instantsend.dat and is called when a tx with an IS lock is confirmed and Chainlocked
+     * @param batch Object used to batch many calls together
+     * @param hash The hash of the InstantSend Lock
+     * @param islock The InstantSend Lock object itself
+     */
     void RemoveInstantSendLock(CDBBatch& batch, const uint256& hash, CInstantSendLockPtr islock);
 
+    /**
+     * This method updates a DB entry for an InstantSend Lock from being not included in a block to being included in a block
+     * @param hash The hash of the InstantSend Lock
+     * @param nHeight The height that the transaction was included at
+     */
     void WriteInstantSendLockMined(const uint256& hash, int nHeight);
+    /**
+     * This method is called when a block gets orphaned for every tx in that block. It marks the ISLocked tx as not included in a block
+     * @param hash The hash of the InstantSend Lock
+     * @param nHeight The height of the block being orphaned
+     */
     void RemoveInstantSendLockMined(const uint256& hash, int nHeight);
+    /**
+     * Marks an InstantSend Lock as archived.
+     * @param batch Object used to batch many calls together
+     * @param hash The hash of the InstantSend Lock
+     * @param nHeight The height that the transaction was included at
+     */
     void WriteInstantSendLockArchived(CDBBatch& batch, const uint256& hash, int nHeight);
+    /**
+     * Archives and deletes all IS Locks which were mined into a block before nUntilHeight
+     * @param nUntilHeight Removes all IS Locks confirmed up until nUntilHeight
+     * @return returns an unordered_map of the hash of the IS Locks and a pointer object to the IS Locks for all IS Locks which were removed
+     */
     std::unordered_map<uint256, CInstantSendLockPtr> RemoveConfirmedInstantSendLocks(int nUntilHeight);
+    /**
+     * Removes IS Locks from the archive if the tx was confirmed 100 blocks before nUntilHeight
+     * @param nUntilHeight the height from which to base the remove of archive IS Locks
+     */
     void RemoveArchivedInstantSendLocks(int nUntilHeight);
+    /**
+     * Checks if the archive contains a certain IS Lock Hash
+     * @param islockHash The hash to check for
+     * @return Returns true if that IS Lock hash is present in the archive, otherwise returns false
+     */
     bool HasArchivedInstantSendLock(const uint256& islockHash);
+    /**
+     * Gets the number of IS Locks which have not been confirmed by a block
+     * @return size_t value of the number of IS Locks not confirmed by a block
+     */
     size_t GetInstantSendLockCount();
 
+    /**
+     * Gets a pointer to the IS Lock based on the hash
+     * @param hash The hash of the IS Lock
+     * @return A Pointer object to the IS Lock, returns nullptr if it doesn't exsist
+     */
     CInstantSendLockPtr GetInstantSendLockByHash(const uint256& hash);
+    /**
+     * Gets an IS Lock hash based on the txid the IS Lock is for
+     * @param txid The txid which is being searched for
+     * @return Returns the hash the IS Lock of the specified txid, returns uint256() if it doesn't exsist
+     */
     uint256 GetInstantSendLockHashByTxid(const uint256& txid);
+    /**
+     * Gets an IS Lock pointer object from the txid given
+     * @param txid The txid for which the IS Lock Pointer is being returned
+     * @return Returns the IS Lock Pointer assosiated with the txid, returns nullptr if it doesn't exsist
+     */
     CInstantSendLockPtr GetInstantSendLockByTxid(const uint256& txid);
+    /**
+     *
+     * @param outpoint
+     * @return
+     */
     CInstantSendLockPtr GetInstantSendLockByInput(const COutPoint& outpoint);
 
     std::vector<uint256> GetInstantSendLocksByParent(const uint256& parent);
