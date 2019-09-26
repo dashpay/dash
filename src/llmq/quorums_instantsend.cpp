@@ -953,6 +953,10 @@ void CInstantSendManager::ProcessNewTransaction(const CTransactionRef& tx, const
         return;
     }
 
+    if (!masternodeSync.IsBlockchainSynced()) {
+        return;
+    }
+
     if (tx->IsCoinBase() || tx->vin.empty()) {
         // coinbase and TXs with no inputs can't be locked
         return;
@@ -967,10 +971,6 @@ void CInstantSendManager::ProcessNewTransaction(const CTransactionRef& tx, const
         if (!islockHash.IsNull() && pindex) {
             db.WriteInstantSendLockMined(islockHash, pindex->nHeight);
         }
-    }
-
-    if (!masternodeSync.IsBlockchainSynced()) {
-        return;
     }
 
     bool chainlocked = pindex && chainLocksHandler->HasChainLock(pindex->nHeight, pindex->GetBlockHash());
