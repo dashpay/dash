@@ -958,8 +958,6 @@ void CInstantSendManager::ProcessNewTransaction(const CTransactionRef& tx, const
         return;
     }
 
-    bool inMempool = mempool.get(tx->GetHash()) != nullptr;
-
     uint256 islockHash;
     {
         LOCK(cs);
