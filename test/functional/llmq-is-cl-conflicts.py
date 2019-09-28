@@ -212,39 +212,6 @@ class LLMQ_IS_CL_Conflicts(DashTestFramework):
         assert(self.nodes[0].getbestblockhash() != good_tip)
         assert(self.nodes[1].getbestblockhash() != good_tip)
 
-    def wait_for_chainlocked_tip_all_nodes(self):
-        for node in self.nodes:
-            tip = node.getbestblockhash()
-            self.wait_for_chainlocked_block(node, tip)
-
-    def wait_for_chainlocked_tip(self, node):
-        tip = node.getbestblockhash()
-        self.wait_for_chainlocked_block(node, tip)
-
-    def wait_for_chainlocked_block(self, node, block_hash):
-        t = time.time()
-        while time.time() - t < 15:
-            try:
-                block = node.getblockheader(block_hash)
-                if block["confirmations"] > 0 and block["chainlock"]:
-                    return
-            except:
-                # block might not be on the node yet
-                pass
-            time.sleep(0.1)
-        raise AssertionError("wait_for_chainlocked_block timed out")
-
-    def wait_for_best_chainlock(self, node, block_hash):
-        t = time.time()
-        while time.time() - t < 15:
-            try:
-                if node.getbestchainlock()["blockhash"] == block_hash:
-                    return
-            except:
-                pass
-            time.sleep(0.1)
-        raise AssertionError("wait_for_best_chainlock timed out")
-
     def create_block(self, node, vtx=[]):
         bt = node.getblocktemplate()
         height = bt['height']

@@ -124,28 +124,6 @@ class LLMQChainLocksTest(DashTestFramework):
         reconnect_isolated_node(self.nodes[0], 1)
         self.wait_for_chainlocked_block(self.nodes[0], self.nodes[0].getbestblockhash(), 30)
 
-    def wait_for_chainlocked_tip_all_nodes(self):
-        for node in self.nodes:
-            tip = node.getbestblockhash()
-            self.wait_for_chainlocked_block(node, tip)
-
-    def wait_for_chainlocked_tip(self, node):
-        tip = node.getbestblockhash()
-        self.wait_for_chainlocked_block(node, tip)
-
-    def wait_for_chainlocked_block(self, node, block_hash, timeout=15):
-        t = time.time()
-        while time.time() - t < timeout:
-            try:
-                block = node.getblock(block_hash)
-                if block["confirmations"] > 0 and block["chainlock"]:
-                    return
-            except:
-                # block might not be on the node yet
-                pass
-            time.sleep(0.1)
-        raise AssertionError("wait_for_chainlocked_block timed out")
-
     def create_chained_txs(self, node, amount):
         txid = node.sendtoaddress(node.getnewaddress(), amount)
         tx = node.getrawtransaction(txid, 1)

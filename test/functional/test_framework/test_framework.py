@@ -696,6 +696,39 @@ class DashTestFramework(BitcoinTestFramework):
                 return False
         wait_until(check_instantlock, timeout=10, sleep=0.5)
 
+    def wait_for_chainlocked_block(self, node, block_hash, timeout=15):
+        t = time.time()
+        while time.time() - t < timeout:
+            try:
+                block = node.getblock(block_hash)
+                if block["confirmations"] > 0 and block["chainlock"]:
+                    return
+            except:
+                # block might not be on the node yet
+                pass
+            time.sleep(0.1)
+        raise AssertionError("wait_for_chainlocked_block timed out")
+
+    def wait_for_chainlocked_tip(self, node):
+        tip = node.getbestblockhash()
+        self.wait_for_chainlocked_block(node, tip)
+
+    def wait_for_chainlocked_tip_all_nodes(self):
+        for node in self.nodes:
+            tip = node.getbestblockhash()
+            self.wait_for_chainlocked_block(node, tip)
+
+    def wait_for_best_chainlock(self, node, block_hash):
+        t = time.time()
+        while time.time() - t < 15:
+            try:
+                if node.getbestchainlock()["blockhash"] == block_hash:
+                    return
+            except:
+                pass
+            time.sleep(0.1)
+        raise AssertionError("wait_for_best_chainlock timed out")
+
     def wait_for_sporks_same(self, timeout=30):
         st = time.time()
         while time.time() < st + timeout:
