@@ -340,7 +340,6 @@ void CKeePassIntegrator::doHTTPPost(const std::string& sRequest, int& nStatusRet
 //    evhttp_add_header(output_headers, "Content-Length", itostr(strMsg.size()).c_str());
     evhttp_add_header(output_headers, "Connection", "close");
 
-    // Logging of actual post data disabled as to not write passphrase in debug.log. Only enable temporarily when needed
     LogPrint(BCLog::KEEPASS, "CKeePassIntegrator::doHTTPPost -- send POST data\n");
 
 //    boost::asio::streambuf request;
@@ -450,7 +449,6 @@ std::vector<CKeePassIntegrator::CKeePassEntry> CKeePassIntegrator::rpcGetLogins(
 
     doHTTPPost(request.getJson(), nStatus, strResponse);
 
-    // Logging of actual response data disabled as to not write passphrase in debug.log. Only enable temporarily when needed
     LogPrint(BCLog::KEEPASS, "CKeePassIntegrator::rpcGetLogins -- send result: status: %d\n", nStatus);
 
     if(nStatus != 200)
