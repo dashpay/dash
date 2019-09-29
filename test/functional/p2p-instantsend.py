@@ -9,7 +9,10 @@ from test_framework.util import isolate_node, set_node_times, reconnect_isolated
     assert_raises_jsonrpc
 
 '''
-InstantSendTest -- test InstantSend functionality (prevent doublespend for unconfirmed transactions)
+p2p-instantsend.py
+
+Tests InstantSend functionality (prevent doublespend for unconfirmed transactions)
+
 '''
 
 class InstantSendTest(DashTestFramework):
@@ -40,6 +43,8 @@ class InstantSendTest(DashTestFramework):
         # feed the sender with some balance
         sender_addr = sender.getnewaddress()
         self.nodes[0].sendtoaddress(sender_addr, 1)
+        self.bump_mocktime(1)
+        set_node_times(self.nodes, self.mocktime)
         self.nodes[0].generate(2)
         self.sync_all()
 
@@ -89,6 +94,8 @@ class InstantSendTest(DashTestFramework):
         # feed the sender with some balance
         sender_addr = sender.getnewaddress()
         self.nodes[0].sendtoaddress(sender_addr, 1)
+        self.bump_mocktime(1)
+        set_node_times(self.nodes, self.mocktime)
         self.nodes[0].generate(2)
         self.sync_all()
 
@@ -115,6 +122,11 @@ class InstantSendTest(DashTestFramework):
         # send coins back to the controller node without waiting for confirmations
         receiver.sendtoaddress(self.nodes[0].getnewaddress(), 0.9, "", "", True)
         assert_equal(receiver.getwalletinfo()["balance"], 0)
+        # mine more blocks
+        self.bump_mocktime(1)
+        set_node_times(self.nodes, self.mocktime)
+        self.nodes[0].generate(2)
+        self.sync_all()
 
 if __name__ == '__main__':
     InstantSendTest().main()
