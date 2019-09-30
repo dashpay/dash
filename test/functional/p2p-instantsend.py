@@ -12,7 +12,6 @@ from test_framework.util import isolate_node, set_node_times, reconnect_isolated
 p2p-instantsend.py
 
 Tests InstantSend functionality (prevent doublespend for unconfirmed transactions)
-
 '''
 
 class InstantSendTest(DashTestFramework):
