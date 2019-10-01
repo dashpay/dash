@@ -38,12 +38,12 @@ class LLMQChainLocksTest(DashTestFramework):
 
         self.log.info("Mine single block, wait for chainlock")
         self.nodes[0].generate(1)
-        self.wait_for_chainlocked_tip_all_nodes()
+        self.wait_for_chainlocked_block_all_nodes(self.nodes[0].getbestblockhash())
 
         self.log.info("Mine many blocks, wait for chainlock")
         self.nodes[0].generate(20)
         # We need more time here due to 20 blocks being generated at once
-        self.wait_for_chainlocked_tip_all_nodes(timeout=30)
+        self.wait_for_chainlocked_block_all_nodes(self.nodes[0].getbestblockhash(), timeout=30)
 
         self.log.info("Assert that all blocks up until the tip are chainlocked")
         for h in range(1, self.nodes[0].getblockcount()):

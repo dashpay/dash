@@ -705,13 +705,13 @@ class DashTestFramework(BitcoinTestFramework):
                 return False
         wait_until(check_chainlocked_block, timeout=timeout, sleep=0.1)
 
+    def wait_for_chainlocked_block_all_nodes(self, block_hash, timeout=15):
+        for node in self.nodes:
+            self.wait_for_chainlocked_block(node, block_hash, timeout)
+
     def wait_for_chainlocked_tip(self, node, timeout=15):
         tip = node.getbestblockhash()
         self.wait_for_chainlocked_block(node, tip, timeout)
-
-    def wait_for_chainlocked_tip_all_nodes(self, timeout=15):
-        for node in self.nodes:
-            self.wait_for_chainlocked_tip(node, timeout)
 
     def wait_for_best_chainlock(self, node, block_hash, timeout=15):
         wait_until(lambda: node.getbestchainlock()["blockhash"] == block_hash, timeout=timeout, sleep=0.1)
