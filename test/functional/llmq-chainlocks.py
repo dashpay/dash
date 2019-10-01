@@ -39,7 +39,8 @@ class LLMQChainLocksTest(DashTestFramework):
 
         # mine many blocks, wait for chainlock
         self.nodes[0].generate(20)
-        self.wait_for_chainlocked_tip_all_nodes()
+        # We need more time here due to 20 blocks being generated at once
+        self.wait_for_chainlocked_tip_all_nodes(timeout=30)
 
         # assert that all blocks up until the tip are chainlocked
         for h in range(1, self.nodes[0].getblockcount()):
