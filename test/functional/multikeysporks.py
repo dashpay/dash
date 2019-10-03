@@ -4,9 +4,8 @@
 # file COPYING or http://www.opensource.org/licenses/mit-license.php.
 import time
 
-from test_framework.mininode import *
 from test_framework.test_framework import BitcoinTestFramework
-from test_framework.util import *
+from test_framework.util import connect_nodes, set_node_times, wait_until
 
 '''
 multikeysporks.py
@@ -98,18 +97,6 @@ class MultiKeySporkTest(BitcoinTestFramework):
         # use InstantSend spork for tests
         node.spork('SPORK_2_INSTANTSEND_ENABLED', value)
 
-    def wait_for_test_spork_state(self, node, value):
-        start = time.time()
-        got_state = False
-        while True:
-            if self.get_test_spork_state(node) == value:
-                got_state = True
-                break
-            if time.time() > start + 10:
-                break
-            time.sleep(0.1)
-        return got_state
-
     def run_test(self):
         # check test spork default state
         for node in self.nodes:
@@ -121,14 +108,15 @@ class MultiKeySporkTest(BitcoinTestFramework):
         self.set_test_spork_state(self.nodes[0], 1)
         self.set_test_spork_state(self.nodes[1], 1)
         # spork change requires at least 3 signers
+        time.sleep(10)
         for node in self.nodes:
-            assert(not self.wait_for_test_spork_state(node, 1))
+            assert(self.get_test_spork_state(node) != 1)
 
         # third signer set spork value
         self.set_test_spork_state(self.nodes[2], 1)
         # now spork state is changed
         for node in self.nodes:
-            assert(self.wait_for_test_spork_state(node, 1))
+            wait_until(lambda: self.get_test_spork_state(node) == 1, sleep=0.1, timeout=10)
 
         self.bump_mocktime(1)
         set_node_times(self.nodes, self.mocktime)
@@ -138,7 +126,7 @@ class MultiKeySporkTest(BitcoinTestFramework):
         self.set_test_spork_state(self.nodes[3], 2)
         self.set_test_spork_state(self.nodes[4], 2)
         for node in self.nodes:
-            assert(self.wait_for_test_spork_state(node, 2))
+            wait_until(lambda: self.get_test_spork_state(node) == 2, sleep=0.1, timeout=10)
 
 
 if __name__ == '__main__':
