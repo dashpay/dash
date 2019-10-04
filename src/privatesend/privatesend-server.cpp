@@ -524,9 +524,10 @@ void CPrivateSendServer::ConsumeCollateral(CConnman& connman, const CTransaction
 void CPrivateSendServer::CheckTimeout(CConnman& connman)
 {
     if (!fMasternodeMode) return;
-    if (nState == POOL_STATE_IDLE) return;
 
     CheckQueue();
+
+    if (nState == POOL_STATE_IDLE) return;
 
     int nTimeout = (nState == POOL_STATE_SIGNING) ? PRIVATESEND_SIGNING_TIMEOUT : PRIVATESEND_QUEUE_TIMEOUT;
     bool fTimeout = GetTime() - nTimeLastSuccessfulStep >= nTimeout;
