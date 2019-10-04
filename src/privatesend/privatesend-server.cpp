@@ -118,7 +118,7 @@ void CPrivateSendServer::ProcessMessage(CNode* pfrom, const std::string& strComm
 
         LogPrint(BCLog::PRIVATESEND, "DSQUEUE -- %s new\n", dsq.ToString());
 
-        if (dsq.IsExpired()) return;
+        if (dsq.IsTimeOutOfBounds()) return;
 
         auto mnList = deterministicMNManager->GetListAtChainTip();
         auto dmn = mnList.GetValidMNByCollateral(dsq.masternodeOutpoint);
