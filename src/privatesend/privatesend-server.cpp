@@ -20,6 +20,8 @@
 
 #include "llmq/quorums_instantsend.h"
 
+#include <univalue.h>
+
 CPrivateSendServer privateSendServer;
 
 void CPrivateSendServer::ProcessMessage(CNode* pfrom, const std::string& strCommand, CDataStream& vRecv, CConnman& connman)
@@ -937,4 +939,18 @@ void CPrivateSendServer::DoMaintenance(CConnman& connman)
 
     privateSendServer.CheckTimeout(connman);
     privateSendServer.CheckForCompleteQueue(connman);
+}
+
+void CPrivateSendServer::ToJson(UniValue& obj) const
+{
+    obj.clear();
+    obj.setObject();
+    obj.push_back(Pair("queues",        GetQueueSize()));
+    CAmount amount{0};
+    if (nSessionDenom) {
+        ParseFixedPoint(CPrivateSend::GetDenominationsToString(nSessionDenom), 8, &amount);
+    }
+    obj.push_back(Pair("denomination",  ValueFromAmount(amount)));
+    obj.push_back(Pair("state",         GetStateString()));
+    obj.push_back(Pair("entries",       GetEntriesCount()));
 }

@@ -19,6 +19,7 @@
 #include "wallet/coincontrol.h"
 
 #include <memory>
+#include <univalue.h>
 
 CPrivateSendClientManager privateSendClient;
 
@@ -1668,4 +1669,49 @@ void CPrivateSendClientManager::DoMaintenance(CConnman& connman)
         DoAutomaticDenominating(connman);
         nDoAutoNextRun = nTick + PRIVATESEND_AUTO_TIMEOUT_MIN + GetRandInt(PRIVATESEND_AUTO_TIMEOUT_MAX - PRIVATESEND_AUTO_TIMEOUT_MIN);
     }
+}
+
+void CPrivateSendClientSession::ToJson(UniValue& obj) const
+{
+    obj.clear();
+    obj.setObject();
+    if (mixingMasternode != nullptr) {
+        obj.push_back(Pair("protxhash",  mixingMasternode->proTxHash.ToString()));
+        obj.push_back(Pair("outpoint",  mixingMasternode->collateralOutpoint.ToStringShort()));
+        if (mixingMasternode->pdmnState != nullptr) {
+            obj.push_back(Pair("service",  mixingMasternode->pdmnState->addr.ToString()));
+        }
+    }
+    CAmount amount{0};
+    if (nSessionDenom) {
+        ParseFixedPoint(CPrivateSend::GetDenominationsToString(nSessionDenom), 8, &amount);
+    }
+    obj.push_back(Pair("denomination",  ValueFromAmount(amount)));
+    obj.push_back(Pair("state",         GetStateString()));
+    obj.push_back(Pair("entries",       GetEntriesCount()));
+}
+
+void CPrivateSendClientManager::ToJson(UniValue& obj) const
+{
+    LOCK(cs_deqsessions);
+    obj.clear();
+    obj.setObject();
+    obj.push_back(Pair("enabled",       fEnablePrivateSend));
+    obj.push_back(Pair("running",       fPrivateSendRunning));
+    obj.push_back(Pair("multisession",  fPrivateSendMultiSession));
+    obj.push_back(Pair("max_sessions",  nPrivateSendSessions));
+    obj.push_back(Pair("max_rounds",    nPrivateSendRounds));
+    obj.push_back(Pair("max_amount",    nPrivateSendAmount));
+    obj.push_back(Pair("max_denoms",    nPrivateSendDenoms));
+    obj.push_back(Pair("queues",        GetQueueSize()));
+
+    UniValue arrSessions(UniValue::VARR);
+    for (const auto& session : deqSessions) {
+        if (session.GetState() != POOL_STATE_IDLE) {
+            UniValue objSession(UniValue::VOBJ);
+            session.ToJson(objSession);
+            arrSessions.push_back(objSession);
+        }
+    }
+    obj.push_back(Pair("sessions",  arrSessions));
 }
