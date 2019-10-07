@@ -1676,11 +1676,10 @@ void CPrivateSendClientSession::GetJsonInfo(UniValue& obj) const
     obj.clear();
     obj.setObject();
     if (mixingMasternode != nullptr) {
-        obj.push_back(Pair("protxhash",  mixingMasternode->proTxHash.ToString()));
+        assert(mixingMasternode->pdmnState);
+        obj.push_back(Pair("protxhash", mixingMasternode->proTxHash.ToString()));
         obj.push_back(Pair("outpoint",  mixingMasternode->collateralOutpoint.ToStringShort()));
-        if (mixingMasternode->pdmnState != nullptr) {
-            obj.push_back(Pair("service",  mixingMasternode->pdmnState->addr.ToString()));
-        }
+        obj.push_back(Pair("service",   mixingMasternode->pdmnState->addr.ToString()));
     }
     CAmount amount{0};
     if (nSessionDenom) {
