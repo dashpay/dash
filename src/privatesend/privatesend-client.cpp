@@ -1703,7 +1703,7 @@ void CPrivateSendClientManager::GetJsonInfo(UniValue& obj) const
     obj.push_back(Pair("max_rounds",    nPrivateSendRounds));
     obj.push_back(Pair("max_amount",    nPrivateSendAmount));
     obj.push_back(Pair("max_denoms",    nPrivateSendDenoms));
-    obj.push_back(Pair("queues",        GetQueueSize()));
+    obj.push_back(Pair("queue_size",    GetQueueSize()));
 
     UniValue arrSessions(UniValue::VARR);
     for (const auto& session : deqSessions) {

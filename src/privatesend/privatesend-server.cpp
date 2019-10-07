@@ -945,7 +945,7 @@ void CPrivateSendServer::GetJsonInfo(UniValue& obj) const
 {
     obj.clear();
     obj.setObject();
-    obj.push_back(Pair("queues",        GetQueueSize()));
+    obj.push_back(Pair("queue_size",    GetQueueSize()));
     CAmount amount{0};
     if (nSessionDenom) {
         ParseFixedPoint(CPrivateSend::GetDenominationsToString(nSessionDenom), 8, &amount);
