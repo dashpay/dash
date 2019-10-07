@@ -123,7 +123,7 @@ UniValue getprivatesendinfo(const JSONRPCRequest& request)
             "      \"service\": \"host:port\",        (string) The IP address and port of the masternode\n"
             "      \"denomination\": xxx,           (numeric) The denomination of the mixing session in " + CURRENCY_UNIT + "\n"
             "      \"state\": \"...\",                (string) Current state of the mixing session\n"
-            "      \"entries\": xxx,                (numeric) The number of entries in the mixing session\n"
+            "      \"entries_count\": xxx,          (numeric) The number of entries in the mixing session\n"
             "      }\n"
             "      ,...\n"
             "    ],\n"
@@ -135,7 +135,7 @@ UniValue getprivatesendinfo(const JSONRPCRequest& request)
             "  \"queue_size\": xxx,                 (numeric) How many queues there are currently on the network\n"
             "  \"denomination\": xxx,               (numeric) The denomination of the mixing session in " + CURRENCY_UNIT + "\n"
             "  \"state\": \"...\",                    (string) Current state of the mixing session\n"
-            "  \"entries\": xxx,                    (numeric) The number of entries in the mixing session\n"
+            "  \"entries_count\": xxx,              (numeric) The number of entries in the mixing session\n"
             "}\n"
             "\nExamples:\n"
             + HelpExampleCli("getprivatesendinfo", "")

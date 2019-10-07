@@ -1688,7 +1688,7 @@ void CPrivateSendClientSession::GetJsonInfo(UniValue& obj) const
     }
     obj.push_back(Pair("denomination",  ValueFromAmount(amount)));
     obj.push_back(Pair("state",         GetStateString()));
-    obj.push_back(Pair("entries",       GetEntriesCount()));
+    obj.push_back(Pair("entries_count", GetEntriesCount()));
 }
 
 void CPrivateSendClientManager::GetJsonInfo(UniValue& obj) const
