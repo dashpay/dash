@@ -84,7 +84,7 @@ public:
 
     void DoMaintenance(CConnman& connman);
 
-    void ToJson(UniValue& obj) const;
+    void GetJsonInfo(UniValue& obj) const;
 };
 
 #endif

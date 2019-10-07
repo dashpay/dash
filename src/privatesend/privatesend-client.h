@@ -163,7 +163,7 @@ public:
 
     bool CheckTimeout();
 
-    void ToJson(UniValue& obj) const;
+    void GetJsonInfo(UniValue& obj) const;
 };
 
 /** Used to keep track of current status of mixing pool
@@ -252,7 +252,7 @@ public:
 
     void DoMaintenance(CConnman& connman);
 
-    void ToJson(UniValue& obj) const;
+    void GetJsonInfo(UniValue& obj) const;
 };
 
 #endif

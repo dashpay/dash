@@ -941,7 +941,7 @@ void CPrivateSendServer::DoMaintenance(CConnman& connman)
     privateSendServer.CheckForCompleteQueue(connman);
 }
 
-void CPrivateSendServer::ToJson(UniValue& obj) const
+void CPrivateSendServer::GetJsonInfo(UniValue& obj) const
 {
     obj.clear();
     obj.setObject();

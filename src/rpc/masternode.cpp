@@ -146,13 +146,13 @@ UniValue getprivatesendinfo(const JSONRPCRequest& request)
     UniValue obj(UniValue::VOBJ);
 
     if (fMasternodeMode) {
-        privateSendServer.ToJson(obj);
+        privateSendServer.GetJsonInfo(obj);
         return obj;
     }
 
 
 #ifdef ENABLE_WALLET
-    privateSendClient.ToJson(obj);
+    privateSendClient.GetJsonInfo(obj);
 
     CWallet* const pwallet = GetWalletForJSONRPCRequest(request);
     if (!pwallet) {
