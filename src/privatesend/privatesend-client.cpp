@@ -1684,6 +1684,13 @@ void CPrivateSendClientSession::GetJsonInfo(UniValue& obj) const
     }
     CAmount amount{0};
     if (nSessionDenom) {
+        // TODO: GetDenominationsToString has few issues:
+        // - it returns a string of denomination amounts concatenated via "+" if there are many of them
+        // - it uses FormatMoney which drops trailing zeros
+        // We no longer use multiple denominations in one session and this thing should be refactored
+        // together with other similar functions in CPrivatesend.
+        // For now, we just use a workaround here to convert a string into CAmount and convert it to a
+        // proper format via ValueFromAmount later.
         ParseFixedPoint(CPrivateSend::GetDenominationsToString(nSessionDenom), 8, &amount);
     }
     obj.push_back(Pair("denomination",  ValueFromAmount(amount)));
