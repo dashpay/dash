@@ -45,10 +45,6 @@
         <file alias="key">res/icons/key.png</file>
         <file alias="filesave">res/icons/filesave.png</file>
         <file alias="debugwindow">res/icons/debugwindow.png</file>
-        <file alias="drkblue_editpaste">res/icons/drkblue_editpaste.png</file>
-        <file alias="drkblue_address-book">res/icons/drkblue_address-book.png</file>
-        <file alias="drkblue_editcopy">res/icons/drkblue_editcopy.png</file>
-        <file alias="drkblue_remove">res/icons/drkblue_remove.png</file>
         <file alias="browse">res/icons/browse.png</file>
         <file alias="about">res/icons/about.png</file>
         <file alias="about_qt">res/icons/about_qt.png</file>
@@ -67,17 +63,17 @@
     </qresource>
     <qresource prefix="/images">
         <file alias="about">res/images/about.png</file>
-        <file alias="dash_logo_horizontal">res/images/dash_logo_horizontal.png</file>
-        <file alias="unchecked">res/images/unchecked.png</file>
+        <file alias="arrow_down">res/images/arrow_down.png</file>
+        <file alias="arrow_down_small">res/images/arrow_down_small.png</file>
+        <file alias="arrow_left_small">res/images/arrow_left_small.png</file>
+        <file alias="arrow_right_small">res/images/arrow_right_small.png</file>
+        <file alias="arrow_up_small">res/images/arrow_up_small.png</file>
         <file alias="checked">res/images/checked.png</file>
-        <file alias="drkblue_downArrow">res/images/drkblue_downArrow.png</file>
-        <file alias="drkblue_downArrow_small">res/images/drkblue_downArrow_small.png</file>
-        <file alias="drkblue_upArrow_small">res/images/drkblue_upArrow_small.png</file>
-        <file alias="drkblue_leftArrow_small">res/images/drkblue_leftArrow_small.png</file>
-        <file alias="drkblue_rightArrow_small">res/images/drkblue_rightArrow_small.png</file>
-        <file alias="drkblue_qtreeview_selected">res/images/drkblue_qtreeview_selected.png</file>
-        <file alias="drkblue_walletFrame_bg">res/images/drkblue_walletFrame_bg.png</file>
+        <file alias="dash_logo_horizontal">res/images/dash_logo_horizontal.png</file>
+        <file alias="qtreeview_selected">res/images/qtreeview_selected.png</file>
         <file alias="splash">res/images/splash.png</file>
+        <file alias="unchecked">res/images/unchecked.png</file>
+        <file alias="walletframe_background">res/images/walletframe_background.png</file>
     </qresource>
     <qresource prefix="/movies">
         <file alias="spinner-000">res/movies/spinner-000.png</file>

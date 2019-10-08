@@ -203,10 +203,6 @@ RES_ICONS = \
   qt/res/icons/connect3_16.png \
   qt/res/icons/connect4_16.png \
   qt/res/icons/debugwindow.png \
-  qt/res/icons/drkblue_editpaste.png \
-  qt/res/icons/drkblue_address-book.png \
-  qt/res/icons/drkblue_editcopy.png \
-  qt/res/icons/drkblue_remove.png \
   qt/res/icons/edit.png \
   qt/res/icons/editcopy.png \
   qt/res/icons/editpaste.png \
@@ -310,17 +306,17 @@ endif
 
 RES_IMAGES = \
   qt/res/images/about.png \
-  qt/res/images/splash.png \
-  qt/res/images/dash_logo_horizontal.png \
-  qt/res/images/unchecked.png \
+  qt/res/images/arrow_down.png \
+  qt/res/images/arrow_down_small.png \
+  qt/res/images/arrow_left_small.png \
+  qt/res/images/arrow_right_small.png \
+  qt/res/images/arrow_up_small.png \
   qt/res/images/checked.png \
-  qt/res/images/drkblue_downArrow.png \
-  qt/res/images/drkblue_downArrow_small.png \
-  qt/res/images/drkblue_upArrow_small.png \
-  qt/res/images/drkblue_leftArrow_small.png \
-  qt/res/images/drkblue_rightArrow_small.png \
-  qt/res/images/drkblue_qtreeview_selected.png \
-  qt/res/images/drkblue_walletFrame_bg.png
+  qt/res/images/dash_logo_horizontal.png \
+  qt/res/images/qtreeview_selected.png \
+  qt/res/images/splash.png \
+  qt/res/images/unchecked.png \
+  qt/res/images/walletframe_background.png
 
 RES_CSS = \
   qt/res/css/light.css \
