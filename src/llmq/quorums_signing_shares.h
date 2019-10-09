@@ -104,6 +104,7 @@ public:
     void Init(size_t size);
     bool IsSet(uint16_t quorumMember) const;
     void Set(uint16_t quorumMember, bool v);
+    void SetAll(bool v);
     void Merge(const CSigSharesInv& inv2);
 
     size_t CountSet() const;
@@ -376,6 +377,7 @@ public:
 
     void AsyncSign(const CQuorumCPtr& quorum, const uint256& id, const uint256& msgHash);
     void Sign(const CQuorumCPtr& quorum, const uint256& id, const uint256& msgHash);
+    void ForceReAnnouncement(const CQuorumCPtr& quorum, Consensus::LLMQType llmqType, const uint256& id, const uint256& msgHash);
 
     void HandleNewRecoveredSig(const CRecoveredSig& recoveredSig);
 
