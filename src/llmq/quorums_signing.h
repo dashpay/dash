@@ -147,9 +147,9 @@ public:
     // This is the case for example when a signature appears as part of InstantSend or ChainLocks
     void PushReconstructedRecoveredSig(const CRecoveredSig& recoveredSig, const CQuorumCPtr& quorum);
 
-    // This is called when a recovered signature can be safely removed from the DB. This is only safe when some other
-    // mechanism prevents possible conflicts. As an example, ChainLocks prevent conflicts in confirmed TXs InstantSend votes
-    void RemoveRecoveredSig(Consensus::LLMQType llmqType, const uint256& id);
+    // Same as RemoveRecoveredSig, but leaves the key for recSig hash in the DB, so that AlreadyHave keeps returning true
+    // Cleanup will later remove the remains
+    void TruncateRecoveredSig(Consensus::LLMQType llmqType, const uint256& id);
 
 private:
     void ProcessMessageRecoveredSig(CNode* pfrom, const CRecoveredSig& recoveredSig, CConnman& connman);

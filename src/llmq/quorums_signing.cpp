@@ -672,6 +672,10 @@ void CSigningManager::ProcessRecoveredSig(NodeId nodeId, const CRecoveredSig& re
         connman.RemoveAskFor(recoveredSig.GetHash());
     }
 
+    if (db.HasRecoveredSigForHash(recoveredSig.GetHash())) {
+        return;
+    }
+
     std::vector<CRecoveredSigsListener*> listeners;
     {
         LOCK(cs);
@@ -725,9 +729,9 @@ void CSigningManager::PushReconstructedRecoveredSig(const llmq::CRecoveredSig& r
     pendingReconstructedRecoveredSigs.emplace_back(recoveredSig, quorum);
 }
 
-void CSigningManager::RemoveRecoveredSig(Consensus::LLMQType llmqType, const uint256& id)
+void CSigningManager::TruncateRecoveredSig(Consensus::LLMQType llmqType, const uint256& id)
 {
-    db.RemoveRecoveredSig(llmqType, id);
+    db.TruncateRecoveredSig(llmqType, id);
 }
 
 void CSigningManager::Cleanup()

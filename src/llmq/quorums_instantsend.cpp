@@ -1160,11 +1160,11 @@ void CInstantSendManager::HandleFullyConfirmedBlock(const CBlockIndex* pindex)
 
             // no need to keep recovered sigs for fully confirmed IS locks, as there is no chance for conflicts
             // from now on. All inputs are spent now and can't be spend in any other TX.
-            quorumSigningManager->RemoveRecoveredSig(consensusParams.llmqTypeInstantSend, inputRequestId);
+            quorumSigningManager->TruncateRecoveredSig(consensusParams.llmqTypeInstantSend, inputRequestId);
         }
 
         // same as in the loop
-        quorumSigningManager->RemoveRecoveredSig(consensusParams.llmqTypeInstantSend, islock->GetRequestId());
+        quorumSigningManager->TruncateRecoveredSig(consensusParams.llmqTypeInstantSend, islock->GetRequestId());
     }
 
     // Find all previously unlocked TXs that got locked by this fully confirmed (ChainLock) block and remove them
