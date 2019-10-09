@@ -473,7 +473,8 @@ void CSigningManager::ProcessMessageRecoveredSig(CNode* pfrom, const CRecoveredS
         return;
     }
 
-    LogPrint(BCLog::LLMQ, "CSigningManager::%s -- signHash=%s, node=%d\n", __func__, CLLMQUtils::BuildSignHash(recoveredSig).ToString(), pfrom->GetId());
+    LogPrint(BCLog::LLMQ, "CSigningManager::%s -- signHash=%s, id=%s, msgHash=%s, node=%d\n", __func__,
+            CLLMQUtils::BuildSignHash(recoveredSig).ToString(), recoveredSig.id.ToString(), recoveredSig.msgHash.ToString(), pfrom->GetId());
 
     LOCK(cs);
     pendingRecoveredSigs[pfrom->GetId()].emplace_back(recoveredSig);
