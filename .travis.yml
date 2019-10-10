@@ -114,7 +114,8 @@ before_cache:
   - docker save dash-builder-$BUILD_TARGET-$TRAVIS_JOB_NUMBER $(docker history -q dash-builder-$BUILD_TARGET-$TRAVIS_JOB_NUMBER | grep -v \<missing\>) | gzip -2 > $HOME/cache/docker/dash-builder-$BUILD_TARGET.tar.gz
 
 before_install:
-  - travis_retry travis_apt_get_update
+  - sudo rm -rf "${TRAVIS_ROOT}/var/lib/apt/lists/"*
+  - travis_retry sudo sudo apt-get update 2>&1
   - travis_retry sudo apt-get -yq --no-install-suggests --no-install-recommends install docker-ce realpath
 
 install:
