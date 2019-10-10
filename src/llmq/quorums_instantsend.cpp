@@ -930,6 +930,10 @@ void CInstantSendManager::ProcessInstantSendLock(NodeId from, const uint256& has
 
         // This will also add children TXs to pendingRetryTxs
         RemoveNonLockedTx(islock.txid, true);
+
+        // We don't need the recovered sigs for the inputs anymore. This prevents unnecessary propagation of these sigs.
+        // We only need the ISLOCK from now on to detect conflicts
+        TruncateRecoveredSigsForInputs(islock);
     }
 
     CInv inv(MSG_ISLOCK, hash);
@@ -1114,6 +1118,17 @@ void CInstantSendManager::RemoveConflictedTx(const CTransaction& tx)
     }
 }
 
+void CInstantSendManager::TruncateRecoveredSigsForInputs(const llmq::CInstantSendLock& islock)
+{
+    auto& consensusParams = Params().GetConsensus();
+
+    for (auto& in : islock.inputs) {
+        auto inputRequestId = ::SerializeHash(std::make_pair(INPUTLOCK_REQUESTID_PREFIX, in));
+        inputRequestIds.erase(inputRequestId);
+        quorumSigningManager->TruncateRecoveredSig(consensusParams.llmqTypeInstantSend, inputRequestId);
+    }
+}
+
 void CInstantSendManager::NotifyChainLock(const CBlockIndex* pindexChainLock)
 {
     HandleFullyConfirmedBlock(pindexChainLock);
@@ -1154,16 +1169,12 @@ void CInstantSendManager::HandleFullyConfirmedBlock(const CBlockIndex* pindex)
         LogPrint(BCLog::INSTANTSEND, "CInstantSendManager::%s -- txid=%s, islock=%s: removed islock as it got fully confirmed\n", __func__,
                  islock->txid.ToString(), islockHash.ToString());
 
-        for (auto& in : islock->inputs) {
-            auto inputRequestId = ::SerializeHash(std::make_pair(INPUTLOCK_REQUESTID_PREFIX, in));
-            inputRequestIds.erase(inputRequestId);
+        // No need to keep recovered sigs for fully confirmed IS locks, as there is no chance for conflicts
+        // from now on. All inputs are spent now and can't be spend in any other TX.
+        TruncateRecoveredSigsForInputs(*islock);
 
-            // no need to keep recovered sigs for fully confirmed IS locks, as there is no chance for conflicts
-            // from now on. All inputs are spent now and can't be spend in any other TX.
-            quorumSigningManager->TruncateRecoveredSig(consensusParams.llmqTypeInstantSend, inputRequestId);
-        }
-
-        // same as in the loop
+        // And we don't need the recovered sig for the ISLOCK anymore, as the block in which it got mined is considered
+        // fully confirmed now
         quorumSigningManager->TruncateRecoveredSig(consensusParams.llmqTypeInstantSend, islock->GetRequestId());
     }
 
