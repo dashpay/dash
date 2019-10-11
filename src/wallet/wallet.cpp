@@ -1473,6 +1473,10 @@ void CWallet::BlockConnected(const std::shared_ptr<const CBlock>& pblock, const 
     }
 
     hashPrevBestCoinbase = pblock->vtx[0]->GetHash();
+
+    // reset cache to make sure no longer immature coins are included
+    fAnonymizableTallyCached = false;
+    fAnonymizableTallyCachedNonDenom = false;
 }
 
 void CWallet::BlockDisconnected(const std::shared_ptr<const CBlock>& pblock, const CBlockIndex* pindexDisconnected) {
@@ -1482,6 +1486,10 @@ void CWallet::BlockDisconnected(const std::shared_ptr<const CBlock>& pblock, con
         // NOTE: do NOT pass pindex here
         SyncTransaction(ptx);
     }
+
+    // reset cache to make sure no longer mature coins are excluded
+    fAnonymizableTallyCached = false;
+    fAnonymizableTallyCachedNonDenom = false;
 }
 
 
