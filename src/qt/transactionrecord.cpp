@@ -283,6 +283,7 @@ void TransactionRecord::updateStatus(const CWalletTx &wtx, int numISLocks, int c
     // For generated transactions, determine maturity
     else if(type == TransactionRecord::Generated)
     {
+        status.lockedByChainLocks = wtx.IsChainLocked();
         if (wtx.GetBlocksToMaturity() > 0)
         {
             status.status = TransactionStatus::Immature;
@@ -308,6 +309,7 @@ void TransactionRecord::updateStatus(const CWalletTx &wtx, int numISLocks, int c
     else
     {
         status.lockedByInstantSend = wtx.IsLockedByInstantSend();
+        status.lockedByChainLocks = wtx.IsChainLocked();
         if (status.depth < 0)
         {
             status.status = TransactionStatus::Conflicted;
@@ -322,7 +324,7 @@ void TransactionRecord::updateStatus(const CWalletTx &wtx, int numISLocks, int c
             if (wtx.isAbandoned())
                 status.status = TransactionStatus::Abandoned;
         }
-        else if (status.depth < RecommendedNumConfirmations && !wtx.IsChainLocked())
+        else if (status.depth < RecommendedNumConfirmations && !status.lockedByChainLocks)
         {
             status.status = TransactionStatus::Confirming;
         }
@@ -331,15 +333,23 @@ void TransactionRecord::updateStatus(const CWalletTx &wtx, int numISLocks, int c
             status.status = TransactionStatus::Confirmed;
         }
     }
-
 }
 
 bool TransactionRecord::statusUpdateNeeded(int numISLocks, int chainLockHeight)
 {
     AssertLockHeld(cs_main);
-    return status.cur_num_blocks != chainActive.Height()
-        || status.cachedNumISLocks != numISLocks
-        || status.cachedChainLockHeight != chainLockHeight;
+    bool fNewHeight = status.cur_num_blocks != chainActive.Height();
+    bool fNewISLock = status.cachedNumISLocks != numISLocks;
+    bool fNewCLock = status.cachedChainLockHeight != chainLockHeight;
+    return
+            // new block or chainlock for immature coinbase tx
+            ((fNewHeight || fNewCLock) && type == TransactionRecord::Generated)
+            // new block or chainlock for non-chainlocked non-coinbase tx
+            || ((fNewHeight || fNewCLock) && type != TransactionRecord::Generated && !status.lockedByChainLocks)
+            // potentialy set lockedByInstantSend when islock appears
+            || (fNewISLock && !status.lockedByInstantSend && (status.status == TransactionStatus::Unconfirmed || status.status == TransactionStatus::Confirming))
+            // potentialy reset lockedByInstantSend when islock is gone
+            || ((fNewHeight || fNewCLock) && status.lockedByInstantSend && status.status == TransactionStatus::Confirmed);
 }
 
 QString TransactionRecord::getTxID() const
