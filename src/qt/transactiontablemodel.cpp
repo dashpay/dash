@@ -275,10 +275,12 @@ void TransactionTableModel::updateConfirmations()
 {
     // Blocks came in since last poll.
     // Invalidate status (number of confirmations) and (possibly) description
-    //  for all rows. Qt is smart enough to only actually request the data for the
-    //  visible rows.
-    Q_EMIT dataChanged(index(0, Status), index(priv->size()-1, Status));
-    Q_EMIT dataChanged(index(0, ToAddress), index(priv->size()-1, ToAddress));
+    // for the first 1000 rows. Qt is smart enough to only actually request the data for the
+    // visible rows, but invalidating data for like 100k+ rows slows things down a lot anyway.
+    // Invalildating the first 1000 rows should be enough in most cases.
+    size_t rows = std::min(priv->size(), 1000);
+    Q_EMIT dataChanged(index(0, Status), index(rows - 1, Status));
+    Q_EMIT dataChanged(index(0, ToAddress), index(rows - 1, ToAddress));
 }
 
 void TransactionTableModel::updateNumISLocks(int numISLocks)
