@@ -42,9 +42,10 @@ stages:
         echo "Not touching cache (building develop branch or tag)"
       fi
     # Create missing cache dirs
-    - mkdir -p $CACHE_DIR/ccache && mkdir -p $CACHE_DIR/depends && mkdir -p $CACHE_DIR/sdk-sources
+    - mkdir -p $CACHE_DIR/ccache && mkdir -p $CACHE_DIR/depends && mkdir -p $CACHE_DIR/sdk-sources && mkdir -p $CACHE_DIR/apt
     # Keep this as it makes caching related debugging easier
-    - ls -lah $CACHE_DIR && ls -lah $CACHE_DIR/depends && ls -lah $CACHE_DIR/ccache
+    - ls -lah $CACHE_DIR && ls -lah $CACHE_DIR/depends && ls -lah $CACHE_DIR/ccache && ls -lah $CACHE_DIR/apt
+    - mv $CACHE_DIR/apt/* /var/cache/apt/archives/ || true
 
     # Install base packages
     - apt-get update
@@ -69,6 +70,9 @@ stages:
     - echo PACKAGES=$PACKAGES
     - if [ -n "$DPKG_ADD_ARCH" ]; then dpkg --add-architecture "$DPKG_ADD_ARCH" ; fi
     - if [ -n "$PACKAGES" ]; then apt-get update && apt-get install -y --no-install-recommends --no-upgrade $PACKAGES; fi
+
+    # Move apt packages into cache
+    - mv /var/cache/apt/archives/* $CACHE_DIR/apt/ || true
 
     # Make mingw use correct threading libraries
     - update-alternatives --set i686-w64-mingw32-gcc /usr/bin/i686-w64-mingw32-gcc-posix || true
