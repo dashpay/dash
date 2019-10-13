@@ -57,6 +57,9 @@ stages:
     - apt-get install -y git g++ autotools-dev libtool m4 automake autoconf pkg-config zlib1g-dev libssl1.0-dev curl ccache bsdmainutils cmake
     - apt-get install -y python3 python3-dev python3-pip
 
+    # jinja2 is needed for combine_logs.py
+    - pip3 install jinja2
+
     # Setup some environment variables
     - if [ "$CI_EXTERNAL_PULL_REQUEST_IID" != "" ]; then export PULL_REQUEST="true"; else export PULL_REQUEST="false"; fi
     - export COMMIT_RANGE="$CI_COMMIT_BEFORE_SHA..$CI_COMMIT_SHA"
@@ -94,6 +97,7 @@ stages:
     # stay minimal for PRs and branches (we never need them)
     - |
       mkdir $CI_PROJECT_DIR/cache-artifact
+      mkdir -p $CI_PROJECT_DIR/testlogs
       if [ "$CI_COMMIT_REF_SLUG" = "develop" ]; then
         cp -ra $CACHE_DIR/* $CI_PROJECT_DIR/cache-artifact/
       fi
@@ -106,6 +110,7 @@ stages:
     when: always
     paths:
       - $CI_PROJECT_DIR/cache-artifact
+      - $CI_PROJECT_DIR/testlogs
     expire_in: 3 days
 
 arm-linux:
