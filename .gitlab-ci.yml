@@ -39,7 +39,7 @@ stages:
 
     # Init cache
     - mkdir -p $CACHE_DIR
-    - >
+    - |
       if [ "$CI_COMMIT_REF_SLUG" != "develop" -a "$CI_COMMIT_TAG" == "" ]; then
         if [ ! -d $CACHE_DIR/ccache ]; then
           echo "Downloading cache from develop branch"
@@ -85,7 +85,7 @@ stages:
     - ./ci/test_integrationtests.sh
     # Copy all cache files into cache-artifact so that they get uploaded. We only do this for develop so that artifacts
     # stay minimal for PRs and branches (we never need them)
-    - >
+    - |
       mkdir $CI_PROJECT_DIR/cache-artifact
       if [ "$CI_COMMIT_REF_SLUG" = "develop" ]; then
         cp -ra $CACHE_DIR/* $CI_PROJECT_DIR/cache-artifact/
