@@ -1,4 +1,4 @@
-image: "ablock/dash-gitlabci-builder"
+image: "ubuntu:bionic"
 
 variables:
   DOCKER_DRIVER: overlay2
@@ -21,7 +21,7 @@ stages:
     - echo BUILD_TARGET=$BUILD_TARGET
     - source ./ci/matrix.sh
 
-    # Install base packages (most should be installed already due to the builder image)
+    # Install base packages
     - apt-get update
     - apt-get dist-upgrade -y
     - apt-get install -y git g++ autotools-dev libtool m4 automake autoconf pkg-config zlib1g-dev libssl1.0-dev curl ccache bsdmainutils cmake
@@ -65,7 +65,7 @@ stages:
     - git clone https://github.com/dashpay/dash_hash
     - cd dash_hash && python3 setup.py install
 
-    # Install build target specific packages (most should be installed already due to the builder image)
+    # Install build target specific packages
     - echo PACKAGES=$PACKAGES
     - if [ -n "$DPKG_ADD_ARCH" ]; then dpkg --add-architecture "$DPKG_ADD_ARCH" ; fi
     - if [ -n "$PACKAGES" ]; then apt-get update && apt-get install -y --no-install-recommends --no-upgrade $PACKAGES; fi
