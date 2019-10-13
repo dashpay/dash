@@ -21,6 +21,8 @@ stages:
     - echo BUILD_TARGET=$BUILD_TARGET
     - source ./ci/matrix.sh
 
+    # The ubuntu base image has apt configured to delete caches after each invocation, which is something that is not desirable for us
+    - rm /etc/apt/apt.conf.d/docker-clean
     - apt-get update
     - apt-get install -y wget unzip
 
