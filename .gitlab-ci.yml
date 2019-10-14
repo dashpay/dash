@@ -93,11 +93,13 @@ stages:
     - ./ci/build_src.sh
     - ./ci/test_unittests.sh
     - ./ci/test_integrationtests.sh
+
+  after_script:
     # Copy all cache files into cache-artifact so that they get uploaded. We only do this for develop so that artifacts
     # stay minimal for PRs and branches (we never need them)
+    - mkdir $CI_PROJECT_DIR/cache-artifact
+    - mkdir -p $CI_PROJECT_DIR/testlogs
     - |
-      mkdir $CI_PROJECT_DIR/cache-artifact
-      mkdir -p $CI_PROJECT_DIR/testlogs
       if [ "$CI_COMMIT_REF_SLUG" = "develop" ]; then
         cp -ra $CACHE_DIR/* $CI_PROJECT_DIR/cache-artifact/
       fi
