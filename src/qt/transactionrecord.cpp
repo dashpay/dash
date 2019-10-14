@@ -244,7 +244,7 @@ QList<TransactionRecord> TransactionRecord::decomposeTransaction(const CWallet *
     return parts;
 }
 
-void TransactionRecord::updateStatus(const CWalletTx &wtx, int numISLocks, int chainLockHeight)
+void TransactionRecord::updateStatus(const CWalletTx &wtx)
 {
     AssertLockHeld(cs_main);
     // Determine transaction status
@@ -264,8 +264,6 @@ void TransactionRecord::updateStatus(const CWalletTx &wtx, int numISLocks, int c
     status.countsForBalance = wtx.IsTrusted() && !(wtx.GetBlocksToMaturity() > 0);
     status.depth = wtx.GetDepthInMainChain();
     status.cur_num_blocks = chainActive.Height();
-    status.cachedNumISLocks = numISLocks;
-    status.cachedChainLockHeight = chainLockHeight;
 
     if (!CheckFinalTx(wtx))
     {

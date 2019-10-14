@@ -85,10 +85,6 @@ public:
     QVariant headerData(int section, Qt::Orientation orientation, int role) const;
     QModelIndex index(int row, int column, const QModelIndex & parent = QModelIndex()) const;
     bool processingQueuedTransactions() { return fProcessingQueuedTransactions; }
-    void updateNumISLocks(int numISLocks);
-    void updateChainLockHeight(int chainLockHeight);
-    int getNumISLocks() const;
-    int getChainLockHeight() const;
 
 private:
     CWallet* wallet;
@@ -97,8 +93,6 @@ private:
     TransactionTablePriv *priv;
     bool fProcessingQueuedTransactions;
     const PlatformStyle *platformStyle;
-    int cachedNumISLocks;
-    int cachedChainLockHeight;
 
     void subscribeToCoreSignals();
     void unsubscribeFromCoreSignals();

@@ -199,7 +199,7 @@ public:
 
                     if(mi != wallet->mapWallet.end() && rec->statusUpdateNeeded(mi->second))
                     {
-                        rec->updateStatus(mi->second, parent->getNumISLocks(), parent->getChainLockHeight());
+                        rec->updateStatus(mi->second);
                     }
                 }
             }
@@ -279,27 +279,6 @@ void TransactionTableModel::updateConfirmations()
     //  visible rows.
     Q_EMIT dataChanged(index(0, Status), index(priv->size()-1, Status));
     Q_EMIT dataChanged(index(0, ToAddress), index(priv->size()-1, ToAddress));
-}
-
-void TransactionTableModel::updateNumISLocks(int numISLocks)
-{
-    cachedNumISLocks = numISLocks;
-}
-
-void TransactionTableModel::updateChainLockHeight(int chainLockHeight)
-{
-    cachedChainLockHeight = chainLockHeight;
-    updateConfirmations();
-}
-
-int TransactionTableModel::getNumISLocks() const
-{
-    return cachedNumISLocks;
-}
-
-int TransactionTableModel::getChainLockHeight() const
-{
-    return cachedChainLockHeight;
 }
 
 int TransactionTableModel::rowCount(const QModelIndex &parent) const
