@@ -193,11 +193,11 @@ public:
             if(lockMain)
             {
                 TRY_LOCK(wallet->cs_wallet, lockWallet);
-                if(lockWallet && (rec->statusUpdateNeeded(parent->getNumISLocks(), parent->getChainLockHeight())))
+                if(lockWallet)
                 {
                     std::map<uint256, CWalletTx>::iterator mi = wallet->mapWallet.find(rec->hash);
 
-                    if(mi != wallet->mapWallet.end())
+                    if(mi != wallet->mapWallet.end() && rec->statusUpdateNeeded(mi->second))
                     {
                         rec->updateStatus(mi->second, parent->getNumISLocks(), parent->getChainLockHeight());
                     }

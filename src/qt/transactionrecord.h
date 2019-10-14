@@ -154,7 +154,7 @@ public:
 
     /** Return whether a status update is needed.
      */
-    bool statusUpdateNeeded(int numISLocks, int chainLockHeight);
+    bool statusUpdateNeeded(const CWalletTx &wtx);
 };
 
 #endif // BITCOIN_QT_TRANSACTIONRECORD_H
