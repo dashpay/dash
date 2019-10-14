@@ -22,7 +22,7 @@ public:
     TransactionStatus():
         countsForBalance(false), lockedByInstantSend(false), sortKey(""),
         matures_in(0), status(Offline), depth(0), open_for(0), cur_num_blocks(-1),
-        cachedNumISLocks(-1), cachedChainLockHeight(-1)
+        cachedChainLockHeight(-1)
     { }
 
     enum Status {
@@ -65,8 +65,6 @@ public:
     /** Current number of blocks (to know whether cached status is still valid) */
     int cur_num_blocks;
 
-    //** Know when to update transaction for IS-locks **/
-    int cachedNumISLocks;
     //** Know when to update transaction for chainlocks **/
     int cachedChainLockHeight;
 };
@@ -148,11 +146,11 @@ public:
 
     /** Update status from core wallet tx.
      */
-    void updateStatus(const CWalletTx &wtx, int numISLocks, int chainLockHeight);
+    void updateStatus(const CWalletTx &wtx, int chainLockHeight);
 
     /** Return whether a status update is needed.
      */
-    bool statusUpdateNeeded(int numISLocks, int chainLockHeight);
+    bool statusUpdateNeeded(int chainLockHeight);
 };
 
 #endif // BITCOIN_QT_TRANSACTIONRECORD_H

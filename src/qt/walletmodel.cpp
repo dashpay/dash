@@ -194,8 +194,6 @@ void WalletModel::updateNumISLocks()
 {
     fForceCheckBalanceChanged = true;
     cachedNumISLocks++;
-    if (transactionTableModel)
-        transactionTableModel->updateNumISLocks(cachedNumISLocks);
 }
 
 void WalletModel::updateChainLockHeight(int chainLockHeight)
