@@ -469,7 +469,7 @@ QVariant TransactionTableModel::addressColor(const TransactionRecord *wtx) const
     case TransactionRecord::PrivateSend:
     case TransactionRecord::RecvWithPrivateSend:
         {
-        QString label = walletModel->getAddressTableModel()->labelForAddress(QString::fromStdString(wtx->strAddress));
+        QString label = walletModel->getAddressTableModel()->labelForDestination(wtx->txDest);
         if(label.isEmpty())
             return COLOR_BAREADDRESS;
         } break;
@@ -669,7 +669,7 @@ QVariant TransactionTableModel::data(const QModelIndex &index, int role) const
     case AddressRole:
         return QString::fromStdString(rec->strAddress);
     case LabelRole:
-        return walletModel->getAddressTableModel()->labelForAddress(QString::fromStdString(rec->strAddress));
+        return walletModel->getAddressTableModel()->labelForDestination(rec->txDest);
     case AmountRole:
         return qint64(rec->credit + rec->debit);
     case TxIDRole:
@@ -681,7 +681,7 @@ QVariant TransactionTableModel::data(const QModelIndex &index, int role) const
     case TxPlainTextRole:
         {
             QString details;
-            QString txLabel = walletModel->getAddressTableModel()->labelForAddress(QString::fromStdString(rec->strAddress));
+            QString txLabel = walletModel->getAddressTableModel()->labelForDestination(rec->txDest);
 
             details.append(formatTxDate(rec));
             details.append(" ");
