@@ -290,7 +290,6 @@ void TransactionTableModel::updateConfirmations()
 void TransactionTableModel::updateChainLockHeight(int chainLockHeight)
 {
     cachedChainLockHeight = chainLockHeight;
-    updateConfirmations();
 }
 
 int TransactionTableModel::getChainLockHeight() const
