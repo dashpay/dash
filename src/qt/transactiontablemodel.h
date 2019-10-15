@@ -45,6 +45,8 @@ public:
         TypeRole = Qt::UserRole,
         /** Date and time this transaction was created */
         DateRole,
+        /** Date and time this transaction was created in MSec since epoch */
+        DateRoleInt,
         /** Watch-only boolean */
         WatchonlyRole,
         /** Watch-only icon */

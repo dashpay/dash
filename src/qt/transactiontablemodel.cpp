@@ -654,6 +654,8 @@ QVariant TransactionTableModel::data(const QModelIndex &index, int role) const
         return rec->type;
     case DateRole:
         return QDateTime::fromTime_t(static_cast<uint>(rec->time));
+    case DateRoleInt:
+        return qint64(rec->time);
     case WatchonlyRole:
         return rec->involvesWatchAddress;
     case WatchonlyDecorationRole:
