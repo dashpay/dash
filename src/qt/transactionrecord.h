@@ -20,7 +20,7 @@ class TransactionStatus
 {
 public:
     TransactionStatus():
-        countsForBalance(false), lockedByInstantSend(false), sortKey(""),
+        countsForBalance(false), lockedByInstantSend(false), lockedByChainLocks(false), sortKey(""),
         matures_in(0), status(Offline), depth(0), open_for(0), cur_num_blocks(-1),
         cachedChainLockHeight(-1)
     { }
@@ -45,6 +45,8 @@ public:
     bool countsForBalance;
     /// Transaction was locked via InstantSend
     bool lockedByInstantSend;
+    /// Transaction was locked via ChainLocks
+    bool lockedByChainLocks;
     /// Sorting key based on status
     std::string sortKey;
 

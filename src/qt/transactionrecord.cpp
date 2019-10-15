@@ -266,6 +266,8 @@ void TransactionRecord::updateStatus(const CWalletTx &wtx, int chainLockHeight)
     status.cur_num_blocks = chainActive.Height();
     status.cachedChainLockHeight = chainLockHeight;
 
+    status.lockedByChainLocks = wtx.IsChainLocked();
+
     if (!CheckFinalTx(wtx))
     {
         if (wtx.tx->nLockTime < LOCKTIME_THRESHOLD)
@@ -321,7 +323,7 @@ void TransactionRecord::updateStatus(const CWalletTx &wtx, int chainLockHeight)
             if (wtx.isAbandoned())
                 status.status = TransactionStatus::Abandoned;
         }
-        else if (status.depth < RecommendedNumConfirmations && !wtx.IsChainLocked())
+        else if (status.depth < RecommendedNumConfirmations && !status.lockedByChainLocks)
         {
             status.status = TransactionStatus::Confirming;
         }
@@ -330,7 +332,6 @@ void TransactionRecord::updateStatus(const CWalletTx &wtx, int chainLockHeight)
             status.status = TransactionStatus::Confirmed;
         }
     }
-
 }
 
 bool TransactionRecord::statusUpdateNeeded(int chainLockHeight)
