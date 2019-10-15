@@ -443,15 +443,15 @@ QString TransactionTableModel::formatTxToAddress(const TransactionRecord *wtx, b
     switch(wtx->type)
     {
     case TransactionRecord::RecvFromOther:
-        return QString::fromStdString(wtx->address) + watchAddress;
+        return QString::fromStdString(wtx->strAddress) + watchAddress;
     case TransactionRecord::RecvWithAddress:
     case TransactionRecord::RecvWithPrivateSend:
     case TransactionRecord::SendToAddress:
     case TransactionRecord::Generated:
     case TransactionRecord::PrivateSend:
-        return lookupAddress(wtx->address, tooltip) + watchAddress;
+        return lookupAddress(wtx->strAddress, tooltip) + watchAddress;
     case TransactionRecord::SendToOther:
-        return QString::fromStdString(wtx->address) + watchAddress;
+        return QString::fromStdString(wtx->strAddress) + watchAddress;
     case TransactionRecord::SendToSelf:
     default:
         return tr("(n/a)") + watchAddress;
@@ -469,7 +469,7 @@ QVariant TransactionTableModel::addressColor(const TransactionRecord *wtx) const
     case TransactionRecord::PrivateSend:
     case TransactionRecord::RecvWithPrivateSend:
         {
-        QString label = walletModel->getAddressTableModel()->labelForAddress(QString::fromStdString(wtx->address));
+        QString label = walletModel->getAddressTableModel()->labelForAddress(QString::fromStdString(wtx->strAddress));
         if(label.isEmpty())
             return COLOR_BAREADDRESS;
         } break;
@@ -667,9 +667,9 @@ QVariant TransactionTableModel::data(const QModelIndex &index, int role) const
     case LongDescriptionRole:
         return priv->describe(rec, walletModel->getOptionsModel()->getDisplayUnit());
     case AddressRole:
-        return QString::fromStdString(rec->address);
+        return QString::fromStdString(rec->strAddress);
     case LabelRole:
-        return walletModel->getAddressTableModel()->labelForAddress(QString::fromStdString(rec->address));
+        return walletModel->getAddressTableModel()->labelForAddress(QString::fromStdString(rec->strAddress));
     case AmountRole:
         return qint64(rec->credit + rec->debit);
     case TxIDRole:
@@ -681,7 +681,7 @@ QVariant TransactionTableModel::data(const QModelIndex &index, int role) const
     case TxPlainTextRole:
         {
             QString details;
-            QString txLabel = walletModel->getAddressTableModel()->labelForAddress(QString::fromStdString(rec->address));
+            QString txLabel = walletModel->getAddressTableModel()->labelForAddress(QString::fromStdString(rec->strAddress));
 
             details.append(formatTxDate(rec));
             details.append(" ");
@@ -691,7 +691,7 @@ QVariant TransactionTableModel::data(const QModelIndex &index, int role) const
                 details.append(formatTxType(rec));
                 details.append(" ");
             }
-            if(!rec->address.empty()) {
+            if(!rec->strAddress.empty()) {
                 if(txLabel.isEmpty())
                     details.append(tr("(no label)") + " ");
                 else {
@@ -699,7 +699,7 @@ QVariant TransactionTableModel::data(const QModelIndex &index, int role) const
                     details.append(txLabel);
                     details.append(") ");
                 }
-                details.append(QString::fromStdString(rec->address));
+                details.append(QString::fromStdString(rec->strAddress));
                 details.append(" ");
             }
             details.append(formatTxAmount(rec, false, BitcoinUnits::separatorNever));

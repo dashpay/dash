@@ -58,13 +58,13 @@ QList<TransactionRecord> TransactionRecord::decomposeTransaction(const CWallet *
                 {
                     // Received by Dash Address
                     sub.type = TransactionRecord::RecvWithAddress;
-                    sub.address = CBitcoinAddress(address).ToString();
+                    sub.strAddress = CBitcoinAddress(address).ToString();
                 }
                 else
                 {
                     // Received by IP connection (deprecated features), or a multisignature or other non-simple transaction
                     sub.type = TransactionRecord::RecvFromOther;
-                    sub.address = mapValue["from"];
+                    sub.strAddress = mapValue["from"];
                 }
                 if (wtx.IsCoinBase())
                 {
@@ -72,6 +72,8 @@ QList<TransactionRecord> TransactionRecord::decomposeTransaction(const CWallet *
                     sub.type = TransactionRecord::Generated;
                 }
 
+                sub.address.SetString(sub.strAddress);
+                sub.txDest = sub.address.Get();
                 parts.append(sub);
             }
         }
@@ -119,7 +121,7 @@ QList<TransactionRecord> TransactionRecord::decomposeTransaction(const CWallet *
             TransactionRecord sub(hash, nTime);
             // Payment to self by default
             sub.type = TransactionRecord::SendToSelf;
-            sub.address = "";
+            sub.strAddress = "";
 
             if(mapValue["DS"] == "1")
             {
@@ -128,12 +130,12 @@ QList<TransactionRecord> TransactionRecord::decomposeTransaction(const CWallet *
                 if (ExtractDestination(wtx.tx->vout[0].scriptPubKey, address))
                 {
                     // Sent to Dash Address
-                    sub.address = CBitcoinAddress(address).ToString();
+                    sub.strAddress = CBitcoinAddress(address).ToString();
                 }
                 else
                 {
                     // Sent to IP, or other non-address transaction like OP_EVAL
-                    sub.address = mapValue["to"];
+                    sub.strAddress = mapValue["to"];
                 }
             }
             else
@@ -162,6 +164,8 @@ QList<TransactionRecord> TransactionRecord::decomposeTransaction(const CWallet *
 
             sub.debit = -(nDebit - nChange);
             sub.credit = nCredit - nChange;
+            sub.address.SetString(sub.strAddress);
+            sub.txDest = sub.address.Get();
             parts.append(sub);
             parts.last().involvesWatchAddress = involvesWatchAddress;   // maybe pass to TransactionRecord as constructor argument
         }
@@ -205,13 +209,13 @@ QList<TransactionRecord> TransactionRecord::decomposeTransaction(const CWallet *
                 {
                     // Sent to Dash Address
                     sub.type = TransactionRecord::SendToAddress;
-                    sub.address = CBitcoinAddress(address).ToString();
+                    sub.strAddress = CBitcoinAddress(address).ToString();
                 }
                 else
                 {
                     // Sent to IP, or other non-address transaction like OP_EVAL
                     sub.type = TransactionRecord::SendToOther;
-                    sub.address = mapValue["to"];
+                    sub.strAddress = mapValue["to"];
                 }
 
                 if(mapValue["DS"] == "1")
@@ -227,6 +231,9 @@ QList<TransactionRecord> TransactionRecord::decomposeTransaction(const CWallet *
                     nTxFee = 0;
                 }
                 sub.debit = -nValue;
+
+                sub.address.SetString(sub.strAddress);
+                sub.txDest = sub.address.Get();
 
                 parts.append(sub);
             }

@@ -7,6 +7,7 @@
 
 #include "amount.h"
 #include "uint256.h"
+#include "base58.h"
 
 #include <QList>
 #include <QString>
@@ -100,22 +101,28 @@ public:
     static const int RecommendedNumConfirmations = 6;
 
     TransactionRecord():
-            hash(), time(0), type(Other), address(""), debit(0), credit(0), idx(0)
+            hash(), time(0), type(Other), strAddress(""), debit(0), credit(0), idx(0)
     {
+        address = CBitcoinAddress(strAddress);
+        txDest = address.Get();
     }
 
     TransactionRecord(uint256 _hash, qint64 _time):
-            hash(_hash), time(_time), type(Other), address(""), debit(0),
+            hash(_hash), time(_time), type(Other), strAddress(""), debit(0),
             credit(0), idx(0)
     {
+        address = CBitcoinAddress(strAddress);
+        txDest = address.Get();
     }
 
     TransactionRecord(uint256 _hash, qint64 _time,
                 Type _type, const std::string &_address,
                 const CAmount& _debit, const CAmount& _credit):
-            hash(_hash), time(_time), type(_type), address(_address), debit(_debit), credit(_credit),
+            hash(_hash), time(_time), type(_type), strAddress(_address), debit(_debit), credit(_credit),
             idx(0)
     {
+        address = CBitcoinAddress(strAddress);
+        txDest = address.Get();
     }
 
     /** Decompose CWallet transaction to model transaction records.
@@ -128,7 +135,10 @@ public:
     uint256 hash;
     qint64 time;
     Type type;
-    std::string address;
+    std::string strAddress;
+    CBitcoinAddress address;
+    CTxDestination txDest;
+
     CAmount debit;
     CAmount credit;
     /**@}*/
