@@ -192,7 +192,6 @@ void WalletModel::updateTransaction()
 
 void WalletModel::updateNumISLocks()
 {
-    fForceCheckBalanceChanged = true;
     cachedNumISLocks++;
 }
 
