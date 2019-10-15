@@ -666,7 +666,7 @@ def LegacySignatureHash(script, txTo, inIdx, hashtype):
 
     return (hash, None)
 
-def sign_input(tx, input_index, input_scriptpubkey, privkey, sighash_type=SIGHASH_ALL):
+def sign_input_legacy(tx, input_index, input_scriptpubkey, privkey, sighash_type=SIGHASH_ALL):
     """Add legacy ECDSA signature for a given transaction input. Note that the signature
        is prepended to the scriptSig field, i.e. additional data pushes necessary for more
        complex spends than P2PK (e.g. pubkey for P2PKH) can be already set before."""
