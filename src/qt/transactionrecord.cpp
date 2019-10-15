@@ -338,7 +338,7 @@ bool TransactionRecord::statusUpdateNeeded(int chainLockHeight)
 {
     AssertLockHeld(cs_main);
     return status.cur_num_blocks != chainActive.Height()
-        || status.cachedChainLockHeight != chainLockHeight;
+        || (!status.lockedByChainLocks && status.cachedChainLockHeight != chainLockHeight);
 }
 
 QString TransactionRecord::getTxID() const
