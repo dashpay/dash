@@ -273,7 +273,10 @@ void TransactionRecord::updateStatus(const CWalletTx &wtx, int chainLockHeight)
     status.cur_num_blocks = chainActive.Height();
     status.cachedChainLockHeight = chainLockHeight;
 
-    status.lockedByChainLocks = wtx.IsChainLocked();
+    bool oldLockedByChainLocks = status.lockedByChainLocks;
+    if (!status.lockedByChainLocks) {
+        status.lockedByChainLocks = wtx.IsChainLocked();
+    }
 
     if (!CheckFinalTx(wtx))
     {
@@ -315,7 +318,17 @@ void TransactionRecord::updateStatus(const CWalletTx &wtx, int chainLockHeight)
     }
     else
     {
-        status.lockedByInstantSend = wtx.IsLockedByInstantSend();
+        // The IsLockedByInstantSend call is quite expensive, so we only do it when a state change is actually possible.
+        if (status.lockedByChainLocks) {
+            if (oldLockedByChainLocks != status.lockedByChainLocks) {
+                status.lockedByInstantSend = wtx.IsLockedByInstantSend();
+            } else {
+                status.lockedByInstantSend = false;
+            }
+        } else if (!status.lockedByInstantSend) {
+            status.lockedByInstantSend = wtx.IsLockedByInstantSend();
+        }
+
         if (status.depth < 0)
         {
             status.status = TransactionStatus::Conflicted;
