@@ -254,6 +254,7 @@ QList<TransactionRecord> TransactionRecord::decomposeTransaction(const CWallet *
 void TransactionRecord::updateStatus(const CWalletTx &wtx, int chainLockHeight)
 {
     AssertLockHeld(cs_main);
+    AssertLockHeld(wtx.GetWallet()->cs_wallet);
     // Determine transaction status
 
     // Find the block the tx is in
@@ -276,6 +277,13 @@ void TransactionRecord::updateStatus(const CWalletTx &wtx, int chainLockHeight)
     bool oldLockedByChainLocks = status.lockedByChainLocks;
     if (!status.lockedByChainLocks) {
         status.lockedByChainLocks = wtx.IsChainLocked();
+    }
+
+    auto addrBookIt = wtx.GetWallet()->mapAddressBook.find(this->txDest);
+    if (addrBookIt == wtx.GetWallet()->mapAddressBook.end()) {
+        status.label = "";
+    } else {
+        status.label = QString::fromStdString(addrBookIt->second.name);
     }
 
     if (!CheckFinalTx(wtx))

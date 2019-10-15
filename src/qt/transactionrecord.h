@@ -50,6 +50,8 @@ public:
     bool lockedByChainLocks;
     /// Sorting key based on status
     std::string sortKey;
+    /// Label
+    QString label;
 
     /** @name Generated (mined) transactions
        @{*/
