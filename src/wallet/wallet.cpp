@@ -2438,19 +2438,33 @@ void CWallet::ResendWalletTransactions(int64_t nBestBlockTime, CConnman* connman
  */
 
 
+std::unordered_set<const CWalletTx*, WalletTxHasher> CWallet::GetSpendableTXs() const
+{
+    AssertLockHeld(cs_wallet);
+
+    std::unordered_set<const CWalletTx*, WalletTxHasher> ret;
+    for (auto it = setWalletUTXO.begin(); it != setWalletUTXO.end(); ) {
+        const auto& outpoint = *it;
+        const auto jt = mapWallet.find(outpoint.hash);
+        if (jt != mapWallet.end()) {
+            ret.emplace(&jt->second);
+        }
+
+        // setWalletUTXO is sorted by COutPoint, which means that all UTXOs for the same TX are neighbors
+        // skip entries until we encounter a new TX
+        while (it != setWalletUTXO.end() && it->hash == outpoint.hash) {
+            ++it;
+        }
+    }
+    return ret;
+}
+
 CAmount CWallet::GetBalance() const
 {
     CAmount nTotal = 0;
     {
         LOCK2(cs_main, cs_wallet);
-        std::set<uint256> setWalletTxesCounted;
-        for (const auto& outpoint : setWalletUTXO) {
-            if (!setWalletTxesCounted.emplace(outpoint.hash).second) continue;
-
-            const auto it = mapWallet.find(outpoint.hash);
-            if (it == mapWallet.end()) continue;
-
-            const CWalletTx* pcoin = &(*it).second;
+        for (auto pcoin : GetSpendableTXs()) {
             if (pcoin->IsTrusted())
                 nTotal += pcoin->GetAvailableCredit();
         }
@@ -2489,15 +2503,8 @@ CAmount CWallet::GetAnonymizedBalance() const
 
     LOCK2(cs_main, cs_wallet);
 
-    std::set<uint256> setWalletTxesCounted;
-    for (const auto& outpoint : setWalletUTXO) {
-
-        if (!setWalletTxesCounted.emplace(outpoint.hash).second) continue;
-
-        const auto it = mapWallet.find(outpoint.hash);
-        if (it == mapWallet.end() || !it->second.IsTrusted()) continue;
-
-        nTotal += it->second.GetAnonymizedCredit();
+    for (auto pcoin : GetSpendableTXs()) {
+        nTotal += pcoin->GetAnonymizedCredit();
     }
 
     return nTotal;
@@ -2557,14 +2564,8 @@ CAmount CWallet::GetDenominatedBalance(bool unconfirmed) const
 
     LOCK2(cs_main, cs_wallet);
 
-    std::set<uint256> setWalletTxesCounted;
-    for (const auto& outpoint : setWalletUTXO) {
-        if (!setWalletTxesCounted.emplace(outpoint.hash).second) continue;
-
-        const auto it = mapWallet.find(outpoint.hash);
-        if (it == mapWallet.end()) continue;
-
-        nTotal += it->second.GetDenominatedCredit(unconfirmed);
+    for (auto pcoin : GetSpendableTXs()) {
+        nTotal += pcoin->GetDenominatedCredit(unconfirmed);
     }
 
     return nTotal;
@@ -2575,14 +2576,7 @@ CAmount CWallet::GetUnconfirmedBalance() const
     CAmount nTotal = 0;
     {
         LOCK2(cs_main, cs_wallet);
-        std::set<uint256> setWalletTxesCounted;
-        for (const auto& outpoint : setWalletUTXO) {
-            if (!setWalletTxesCounted.emplace(outpoint.hash).second) continue;
-
-            const auto it = mapWallet.find(outpoint.hash);
-            if (it == mapWallet.end()) continue;
-
-            const CWalletTx* pcoin = &(*it).second;
+        for (auto pcoin : GetSpendableTXs()) {
             if (!pcoin->IsTrusted() && pcoin->GetDepthInMainChain() == 0 && !pcoin->IsLockedByInstantSend() && pcoin->InMempool())
                 nTotal += pcoin->GetAvailableCredit();
         }
@@ -2595,14 +2589,7 @@ CAmount CWallet::GetImmatureBalance() const
     CAmount nTotal = 0;
     {
         LOCK2(cs_main, cs_wallet);
-        std::set<uint256> setWalletTxesCounted;
-        for (const auto& outpoint : setWalletUTXO) {
-            if (!setWalletTxesCounted.emplace(outpoint.hash).second) continue;
-
-            const auto it = mapWallet.find(outpoint.hash);
-            if (it == mapWallet.end()) continue;
-
-            const CWalletTx* pcoin = &(*it).second;
+        for (auto pcoin : GetSpendableTXs()) {
             nTotal += pcoin->GetImmatureCredit();
         }
     }
@@ -2614,14 +2601,7 @@ CAmount CWallet::GetWatchOnlyBalance() const
     CAmount nTotal = 0;
     {
         LOCK2(cs_main, cs_wallet);
-        std::set<uint256> setWalletTxesCounted;
-        for (const auto& outpoint : setWalletUTXO) {
-            if (!setWalletTxesCounted.emplace(outpoint.hash).second) continue;
-
-            const auto it = mapWallet.find(outpoint.hash);
-            if (it == mapWallet.end()) continue;
-
-            const CWalletTx* pcoin = &(*it).second;
+        for (auto pcoin : GetSpendableTXs()) {
             if (pcoin->IsTrusted())
                 nTotal += pcoin->GetAvailableWatchOnlyCredit();
         }
@@ -2635,14 +2615,7 @@ CAmount CWallet::GetUnconfirmedWatchOnlyBalance() const
     CAmount nTotal = 0;
     {
         LOCK2(cs_main, cs_wallet);
-        std::set<uint256> setWalletTxesCounted;
-        for (const auto& outpoint : setWalletUTXO) {
-            if (!setWalletTxesCounted.emplace(outpoint.hash).second) continue;
-
-            const auto it = mapWallet.find(outpoint.hash);
-            if (it == mapWallet.end()) continue;
-
-            const CWalletTx* pcoin = &(*it).second;
+        for (auto pcoin : GetSpendableTXs()) {
             if (!pcoin->IsTrusted() && pcoin->GetDepthInMainChain() == 0 && !pcoin->IsLockedByInstantSend() && pcoin->InMempool())
                 nTotal += pcoin->GetAvailableWatchOnlyCredit();
         }
@@ -2655,14 +2628,7 @@ CAmount CWallet::GetImmatureWatchOnlyBalance() const
     CAmount nTotal = 0;
     {
         LOCK2(cs_main, cs_wallet);
-        std::set<uint256> setWalletTxesCounted;
-        for (const auto& outpoint : setWalletUTXO) {
-            if (!setWalletTxesCounted.emplace(outpoint.hash).second) continue;
-
-            const auto it = mapWallet.find(outpoint.hash);
-            if (it == mapWallet.end()) continue;
-
-            const CWalletTx* pcoin = &(*it).second;
+        for (auto pcoin : GetSpendableTXs()) {
             nTotal += pcoin->GetImmatureWatchOnlyCredit();
         }
     }
@@ -2736,15 +2702,8 @@ void CWallet::AvailableCoins(std::vector<COutput> &vCoins, bool fOnlySafe, const
 
         CAmount nTotal = 0;
 
-        std::set<uint256> setWalletTxesCounted;
-        for (const auto& outpoint : setWalletUTXO) {
-            if (!setWalletTxesCounted.emplace(outpoint.hash).second) continue;
-
-            const auto it = mapWallet.find(outpoint.hash);
-            if (it == mapWallet.end()) continue;
-
-            const uint256& wtxid = it->first;
-            const CWalletTx* pcoin = &(*it).second;
+        for (auto pcoin : GetSpendableTXs()) {
+            const uint256& wtxid = pcoin->GetHash();
 
             if (!CheckFinalTx(*pcoin))
                 continue;
@@ -2787,10 +2746,10 @@ void CWallet::AvailableCoins(std::vector<COutput> &vCoins, bool fOnlySafe, const
                 if (pcoin->tx->vout[i].nValue < nMinimumAmount || pcoin->tx->vout[i].nValue > nMaximumAmount)
                     continue;
 
-                if (coinControl && coinControl->HasSelected() && !coinControl->fAllowOtherInputs && !coinControl->IsSelected(COutPoint((*it).first, i)))
+                if (coinControl && coinControl->HasSelected() && !coinControl->fAllowOtherInputs && !coinControl->IsSelected(COutPoint(wtxid, i)))
                     continue;
 
-                if (IsLockedCoin((*it).first, i) && nCoinType != ONLY_1000)
+                if (IsLockedCoin(wtxid, i) && nCoinType != ONLY_1000)
                     continue;
 
                 if (IsSpent(wtxid, i))
