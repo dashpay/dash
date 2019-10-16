@@ -1447,7 +1447,6 @@ if test x$use_pkgconfig = xyes; then
     [PKG_CHECK_MODULES],
     [
       if test x$use_openssl != xno; then
-        PKG_CHECK_MODULES([SSL], [libssl],, [use_openssl=no])
         PKG_CHECK_MODULES([CRYPTO], [libcrypto],, [use_openssl=no])
       fi
       if test x$enable_bip70 != xno; then
@@ -1478,9 +1477,6 @@ else
   if test x$use_openssl != xno; then
     AC_CHECK_HEADER([openssl/crypto.h],,[use_openssl=no])
     AC_CHECK_LIB([crypto],      [main],CRYPTO_LIBS=-lcrypto, [use_openssl=no])
-
-    AC_CHECK_HEADER([openssl/ssl.h],, [use_openssl=no])
-    AC_CHECK_LIB([ssl],         [main],SSL_LIBS=-lssl, [use_openssl=no])
   fi
 
   if test x$build_bitcoin_cli$build_bitcoind$bitcoin_enable_qt$use_tests != xnononono; then
@@ -1872,7 +1868,6 @@ AC_SUBST(TESTDEFS)
 AC_SUBST(MINIUPNPC_CPPFLAGS)
 AC_SUBST(MINIUPNPC_LIBS)
 AC_SUBST(CRYPTO_LIBS)
-AC_SUBST(SSL_LIBS)
 AC_SUBST(GMP_LIBS)
 AC_SUBST(NATPMP_CPPFLAGS)
 AC_SUBST(NATPMP_LIBS)
