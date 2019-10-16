@@ -315,6 +315,7 @@ int TransactionTableModel::getChainLockHeight() const
 {
     return cachedChainLockHeight;
 }
+
 int TransactionTableModel::rowCount(const QModelIndex &parent) const
 {
     Q_UNUSED(parent);

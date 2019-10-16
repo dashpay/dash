@@ -23,7 +23,7 @@ public:
     TransactionStatus():
         countsForBalance(false), lockedByInstantSend(false), lockedByChainLocks(false), sortKey(""),
         matures_in(0), status(Offline), depth(0), open_for(0), cur_num_blocks(-1),
-        cachedChainLockHeight(-1)
+        cachedChainLockHeight(-1), needsUpdate(false)
     { }
 
     enum Status {
@@ -118,9 +118,9 @@ public:
     }
 
     TransactionRecord(uint256 _hash, qint64 _time,
-                Type _type, const std::string &_address,
+                Type _type, const std::string &_strAddress,
                 const CAmount& _debit, const CAmount& _credit):
-            hash(_hash), time(_time), type(_type), strAddress(_address), debit(_debit), credit(_credit),
+            hash(_hash), time(_time), type(_type), strAddress(_strAddress), debit(_debit), credit(_credit),
             idx(0)
     {
         address = CBitcoinAddress(strAddress);
