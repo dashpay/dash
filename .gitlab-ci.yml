@@ -33,8 +33,8 @@ stages:
       if [ "$CI_COMMIT_REF_SLUG" != "develop" -a "$CI_COMMIT_TAG" == "" ]; then
         if [ ! -d $CACHE_DIR/ccache ]; then
           echo "Downloading cache from develop branch"
-          if wget -O cache-artifact.zip https://gitlab.com/$CI_PROJECT_NAMESPACE/$CI_PROJECT_NAME/-/jobs/artifacts/develop/download?job=$CI_JOB_NAME; then
-            unzip cache-artifact.zip
+          if wget --quiet -O cache-artifact.zip https://gitlab.com/$CI_PROJECT_NAMESPACE/$CI_PROJECT_NAME/-/jobs/artifacts/develop/download?job=$CI_JOB_NAME; then
+            unzip -q cache-artifact.zip
             rm cache-artifact.zip
             mv cache-artifact/* $CACHE_DIR/
           else
