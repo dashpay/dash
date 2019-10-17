@@ -29,6 +29,7 @@ export GOAL="install"
 export SDK_URL=${SDK_URL:-https://bitcoincore.org/depends-sources/sdks}
 export MAKEJOBS="-j4"
 
+
 export RUN_UNITTESTS=false
 export RUN_INTEGRATIONTESTS=false
 
