@@ -183,7 +183,7 @@ public:
         for (auto& rec : cachedWallet) {
             if (rec.strAddress == address2) {
                 rec.status.needsUpdate = true;
-                Q_EMIT parent->dataChanged(parent->index(index, TransactionTableModel::Status), parent->index(index, TransactionTableModel::Status));
+                Q_EMIT parent->dataChanged(parent->index(index, TransactionTableModel::ToAddress), parent->index(index, TransactionTableModel::ToAddress));
             }
             index++;
         }
