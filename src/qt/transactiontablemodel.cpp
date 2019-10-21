@@ -302,7 +302,6 @@ void TransactionTableModel::updateConfirmations()
     //  for all rows. Qt is smart enough to only actually request the data for the
     //  visible rows.
     Q_EMIT dataChanged(index(0, Status), index(priv->size()-1, Status));
-    Q_EMIT dataChanged(index(0, ToAddress), index(priv->size()-1, ToAddress));
 }
 
 
