@@ -15,9 +15,6 @@
 CActiveMasternodeInfo activeMasternodeInfo;
 CActiveMasternodeManager* activeMasternodeManager;
 
-// Would prefer a lambda func instead
-bool detMNInfoChanged(const CDeterministicMNStateCPtr& a, const CDeterministicMNStateCPtr& b);
-
 std::string CActiveMasternodeManager::GetStateString() const
 {
     switch (state) {
@@ -29,8 +26,8 @@ std::string CActiveMasternodeManager::GetStateString() const
         return "REMOVED";
     case MASTERNODE_OPERATOR_KEY_CHANGED:
         return "OPERATOR_KEY_CHANGED";
-    case MASTERNODE_PROTX_INFO_CHANGED:
-        return "PROTX_INFO_CHANGED";
+    case MASTERNODE_PROTX_IP_CHANGED:
+        return "PROTX_IP_CHANGED";
     case MASTERNODE_READY:
         return "READY";
     case MASTERNODE_ERROR:
@@ -51,8 +48,8 @@ std::string CActiveMasternodeManager::GetStatus() const
         return "Masternode removed from list";
     case MASTERNODE_OPERATOR_KEY_CHANGED:
         return "Operator key changed or revoked";
-    case MASTERNODE_PROTX_INFO_CHANGED:
-        return "ProTx information changed";
+    case MASTERNODE_PROTX_IP_CHANGED:
+        return "IP address specified in ProTx changed";
     case MASTERNODE_READY:
         return "Ready";
     case MASTERNODE_ERROR:
@@ -152,8 +149,8 @@ void CActiveMasternodeManager::UpdatedBlockTip(const CBlockIndex* pindexNew, con
             return;
         }
 
-        const auto pDMNState = (mnList.GetMN(mnListEntry->proTxHash)->pdmnState);
-        if (pDMNState->pubKeyOperator != mnListEntry->pdmnState->pubKeyOperator) {
+        auto mnPtr = mnList.GetMN(mnListEntry->proTxHash);
+        if (mnPtr->pdmnState->pubKeyOperator != mnListEntry->pdmnState->pubKeyOperator) {
             // MN operator key changed or revoked
             state = MASTERNODE_OPERATOR_KEY_CHANGED;
             activeMasternodeInfo.proTxHash = uint256();
@@ -163,13 +160,18 @@ void CActiveMasternodeManager::UpdatedBlockTip(const CBlockIndex* pindexNew, con
             return;
         }
 
-        // reset w/status MN Protx info changed
-        if (detMNInfoChanged(pDMNState, mnListEntry->pdmnState)) {
-            // MN protx info changed
-            state = MASTERNODE_PROTX_INFO_CHANGED;
+        if (mnPtr->pdmnState->addr != mnListEntry->pdmnState->addr) {
+            // MN IP changed
+            state = MASTERNODE_PROTX_IP_CHANGED;
             activeMasternodeInfo.proTxHash = uint256();
             activeMasternodeInfo.outpoint.SetNull();
             Init();
+            return;
+        }
+
+        if (*mnPtr->pdmnState != *mnListEntry->pdmnState) {
+            // some non-critical changes in MN state
+            mnListEntry = mnPtr;
             return;
         }
     } else {
@@ -177,17 +179,6 @@ void CActiveMasternodeManager::UpdatedBlockTip(const CBlockIndex* pindexNew, con
         // and figured out our local address
         Init();
     }
-}
-
-bool detMNInfoChanged(const CDeterministicMNStateCPtr& a, const CDeterministicMNStateCPtr& b)
-{
-    return a->pubKeyOperator != b->pubKeyOperator ||
-           a->keyIDOwner != b->keyIDOwner ||
-           a->keyIDVoting != b->keyIDVoting ||
-           a->addr != b->addr ||
-           a->scriptPayout != b->scriptPayout ||
-           a->scriptOperatorPayout != b->scriptOperatorPayout
-    ;
 }
 
 bool CActiveMasternodeManager::GetLocalAddress(CService& addrRet)
