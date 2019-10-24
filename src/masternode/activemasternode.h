@@ -42,6 +42,7 @@ public:
         MASTERNODE_OPERATOR_KEY_CHANGED,
         MASTERNODE_READY,
         MASTERNODE_ERROR,
+        MASTERNODE_PROTX_INFO_CHANGED,
     };
 
 private:
