@@ -112,28 +112,6 @@ public:
 public:
     std::string ToString() const;
     void ToJson(UniValue& obj) const;
-
-    friend bool operator==(const CDeterministicMNState& a, const CDeterministicMNState& b)
-    {
-        return a.nRegisteredHeight == b.nRegisteredHeight
-            && a.nLastPaidHeight == b.nLastPaidHeight
-            && a.nPoSePenalty == b.nPoSePenalty
-            && a.nPoSeRevivedHeight == b.nPoSeRevivedHeight
-            && a.nPoSeBanHeight == b.nPoSeBanHeight
-            && a.nRevocationReason == b.nRevocationReason
-            && a.confirmedHash == b.confirmedHash
-            && a.confirmedHashWithProRegTxHash == b.confirmedHashWithProRegTxHash
-            && a.keyIDOwner == b.keyIDOwner
-            && a.pubKeyOperator == b.pubKeyOperator
-            && a.keyIDVoting == b.keyIDVoting
-            && a.addr == b.addr
-            && a.scriptPayout == b.scriptPayout
-            && a.scriptOperatorPayout == b.scriptOperatorPayout;
-    }
-    friend bool operator!=(const CDeterministicMNState& a, const CDeterministicMNState& b)
-    {
-        return !(a == b);
-    }
 };
 typedef std::shared_ptr<CDeterministicMNState> CDeterministicMNStatePtr;
 typedef std::shared_ptr<const CDeterministicMNState> CDeterministicMNStateCPtr;
