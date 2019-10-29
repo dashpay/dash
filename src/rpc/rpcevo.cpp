@@ -73,7 +73,7 @@ std::string GetHelpString(int nParamNum, std::string strParamName)
         {"operatorPubKey_update",
             "%d. \"operatorPubKey\"           (string, required) The operator BLS public key. The private key does not have to be known.\n"
             "                              It has to match the private key which is later used when operating the masternode.\n"
-            "                              If set to an empty string, the currently operator BLS public key is reused.\n"
+            "                              If set to an empty string, the currently active operator BLS public key is reused.\n"
         },
         {"operatorReward",
             "%d. \"operatorReward\"           (numeric, required) The fraction in %% to share with the operator. The value must be\n"
