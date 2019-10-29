@@ -228,6 +228,7 @@ static Consensus::LLMQParams llmq400_85 = {
  */
 
 
+
 class CMainParams : public CChainParams {
 public:
     CMainParams() {
