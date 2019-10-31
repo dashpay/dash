@@ -2863,6 +2863,7 @@ static void ApproximateBestSubset(const std::vector<CInputCoin>& vValue, const C
 
     vfBest.assign(vValue.size(), true);
     nBest = nTotalLower;
+    int nBestCount = 0;
 
     FastRandomContext insecure_rand;
 
@@ -2870,6 +2871,7 @@ static void ApproximateBestSubset(const std::vector<CInputCoin>& vValue, const C
     {
         vfIncluded.assign(vValue.size(), false);
         CAmount nTotal = 0;
+        int nTotalCount = 0;
         bool fReachedTarget = false;
         for (int nPass = 0; nPass < 2 && !fReachedTarget; nPass++)
         {
@@ -2884,16 +2886,19 @@ static void ApproximateBestSubset(const std::vector<CInputCoin>& vValue, const C
                 if (nPass == 0 ? insecure_rand.randbool() : !vfIncluded[i])
                 {
                     nTotal += vValue[i].txout.nValue;
+                    ++nTotalCount;
                     vfIncluded[i] = true;
                     if (nTotal >= nTargetValue)
                     {
                         fReachedTarget = true;
-                        if (nTotal < nBest)
+                        if (nTotal < nBest || (nTotal == nBest && nTotalCount < nBestCount))
                         {
                             nBest = nTotal;
+                            nBestCount = nTotalCount;
                             vfBest = vfIncluded;
                         }
                         nTotal -= vValue[i].txout.nValue;
+                        --nTotalCount;
                         vfIncluded[i] = false;
                     }
                 }
