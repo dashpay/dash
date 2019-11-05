@@ -1970,7 +1970,21 @@ bool AppInitMain(boost::thread_group& threadGroup, CScheduler& scheduler)
     }
 
     // ********************************************************* Step 10a: Prepare Masternode related stuff
-    fMasternodeMode = gArgs.GetBoolArg("-masternode", false);
+    fMasternodeMode = false;
+    std::string strMasterNodeBLSPrivKey = gArgs.GetArg("-masternodeblsprivkey", "");
+    if (!strMasterNodeBLSPrivKey.empty()) {
+        auto binKey = ParseHex(strMasterNodeBLSPrivKey);
+        CBLSSecretKey keyOperator;
+        keyOperator.SetBuf(binKey);
+        if (!keyOperator.IsValid()) {
+            return InitError(_("Invalid masternodeblsprivkey. Please see documentation."));
+        }
+        fMasternodeMode = true;
+        activeMasternodeInfo.blsKeyOperator = std::make_unique<CBLSSecretKey>(keyOperator);
+        activeMasternodeInfo.blsPubKeyOperator = std::make_unique<CBLSPublicKey>(activeMasternodeInfo.blsKeyOperator->GetPublicKey());
+        LogPrintf("MASTERNODE:\n");
+        LogPrintf("  blsPubKeyOperator: %s\n", keyOperator.GetPublicKey().ToString());
+    }
 
     if(fLiteMode && fMasternodeMode) {
         return InitError(_("You can not start a masternode in lite mode."));
@@ -1982,25 +1996,6 @@ bool AppInitMain(boost::thread_group& threadGroup, CScheduler& scheduler)
             return InitError(_("You can not start a masternode with wallet enabled."));
         }
 #endif //ENABLE_WALLET
-
-        LogPrintf("MASTERNODE:\n");
-
-        std::string strMasterNodeBLSPrivKey = gArgs.GetArg("-masternodeblsprivkey", "");
-        if(!strMasterNodeBLSPrivKey.empty()) {
-            auto binKey = ParseHex(strMasterNodeBLSPrivKey);
-            CBLSSecretKey keyOperator;
-            keyOperator.SetBuf(binKey);
-            if (keyOperator.IsValid()) {
-                activeMasternodeInfo.blsKeyOperator = std::make_unique<CBLSSecretKey>(keyOperator);
-                activeMasternodeInfo.blsPubKeyOperator = std::make_unique<CBLSPublicKey>(activeMasternodeInfo.blsKeyOperator->GetPublicKey());
-                LogPrintf("  blsPubKeyOperator: %s\n", keyOperator.GetPublicKey().ToString());
-            } else {
-                return InitError(_("Invalid masternodeblsprivkey. Please see documentation."));
-            }
-        } else {
-            return InitError(_("You must specify a masternodeblsprivkey in the configuration. Please see documentation for help."));
-        }
-
         // Create and register activeMasternodeManager, will init later in ThreadImport
         activeMasternodeManager = new CActiveMasternodeManager();
         RegisterValidationInterface(activeMasternodeManager);
