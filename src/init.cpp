@@ -907,10 +907,6 @@ void InitParameterInteraction()
             LogPrintf("%s: parameter interaction: -whitebind set -> setting -listen=1\n", __func__);
     }
 
-    if (gArgs.IsArgSet("-masternode")) {
-        InitWarning(_("-masternode option is deprecated and ignored, specifying -masternodeblsprivkey is enough to start this node as a masternode."));
-    }
-
     if (gArgs.IsArgSet("-masternodeblsprivkey")) {
         // masternodes MUST accept connections from outside
         gArgs.ForceSetArg("-listen", "1");
@@ -1436,6 +1432,10 @@ bool AppInitParameterInteraction()
 
     if (gArgs.IsArgSet("-maxorphantx")) {
         InitWarning("-maxorphantx is not supported anymore. Use -maxorphantxsize instead.");
+    }
+
+    if (gArgs.IsArgSet("-masternode")) {
+        InitWarning(_("-masternode option is deprecated and ignored, specifying -masternodeblsprivkey is enough to start this node as a masternode."));
     }
 
     return true;
