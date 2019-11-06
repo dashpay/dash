@@ -165,6 +165,9 @@ void OptionsModel::Init(bool resetSettings)
         settings.setValue("fListen", DEFAULT_LISTEN);
     if (!gArgs.SoftSetBoolArg("-listen", settings.value("fListen").toBool()))
         addOverriddenOption("-listen");
+    // -listenonion should follow -listen unless it is specified explicitly
+    if (!gArgs.SoftSetBoolArg("-listenonion", gArgs.GetBoolArg("-listen", DEFAULT_LISTEN)))
+        addOverriddenOption("-listenonion");
 
     if (!settings.contains("fUseProxy"))
         settings.setValue("fUseProxy", false);
