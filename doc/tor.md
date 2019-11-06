@@ -126,9 +126,8 @@ This means that if Tor is running (and proper authentication has been configured
 Dash Core automatically creates a hidden service to listen on. This will positively 
 affect the number of available .onion nodes.
 
-This new feature is enabled by default if Dash Core is listening (`-listen`), and
-requires a Tor connection to work. It can be explicitly disabled with `-listenonion=0`
-and, if not disabled, configured using the `-torcontrol` and `-torpassword` settings.
+This feature is disabled by default. It can be explicitly enabled with `-listenonion=1`
+and configured using the `-torcontrol` and `-torpassword` settings.
 To show verbose debugging information, pass `-debug=tor`.
 
 Connecting to Tor's control socket API requires one of two authentication methods to be 
