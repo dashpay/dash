@@ -182,22 +182,24 @@ unsigned int GetNextWorkRequiredBTC(const CBlockIndex* pindexLast, const CBlockH
 
 unsigned int GetNextWorkRequired(const CBlockIndex* pindexLast, const CBlockHeader *pblock, const Consensus::Params& params)
 {
+    assert(pindexLast != nullptr);
+    assert(pblock != nullptr);
+    const arith_uint256 bnPowLimit = UintToArith256(params.powLimit);
+
     // this is only active on devnets
     if (pindexLast->nHeight < params.nMinimumDifficultyBlocks) {
-        unsigned int nProofOfWorkLimit = UintToArith256(params.powLimit).GetCompact();
-        return nProofOfWorkLimit;
+        return bnPowLimit.GetCompact();
     }
 
-    // Most recent algo first
-    if (pindexLast->nHeight + 1 >= params.nPowDGWHeight) {
-        return DarkGravityWave(pindexLast, pblock, params);
-    }
-    else if (pindexLast->nHeight + 1 >= params.nPowKGWHeight) {
-        return KimotoGravityWell(pindexLast, params);
-    }
-    else {
+    if (pindexLast->nHeight + 1 < params.nPowKGWHeight) {
         return GetNextWorkRequiredBTC(pindexLast, pblock, params);
     }
+
+    if (pindexLast->nHeight + 1 < params.nPowDGWHeight) {
+        return KimotoGravityWell(pindexLast, params);
+    }
+
+    return DarkGravityWave(pindexLast, pblock, params);
 }
 
 // for DIFF_BTC only!
