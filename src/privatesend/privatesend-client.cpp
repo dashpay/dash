@@ -450,15 +450,6 @@ bool CPrivateSendClientSession::SendDenominate(const std::vector<std::pair<CTxDS
         return false;
     }
 
-    // lock the funds we're going to use
-    for (const auto& txin : txMyCollateral.vin) {
-        vecOutPointLocked.push_back(txin.prevout);
-    }
-
-    for (const auto& pair : vecPSInOutPairsIn) {
-        vecOutPointLocked.push_back(pair.first.prevout);
-    }
-
     // we should already be connected to a Masternode
     if (!nSessionID) {
         LogPrint(BCLog::PRIVATESEND, "CPrivateSendClientSession::SendDenominate -- No Masternode has been selected yet.\n");
@@ -922,6 +913,11 @@ bool CPrivateSendClientSession::DoAutomaticDenominating(CConnman& connman, bool 
                 }
             }
         }
+        // lock the funds we're going to use for our collateral
+        for (const auto& txin : txMyCollateral.vin) {
+            vpwallets[0]->LockCoin(txin.prevout);
+            vecOutPointLocked.push_back(txin.prevout);
+        }
     } // LOCK2(cs_main, vpwallets[0]->cs_wallet);
 
     // Always attempt to join an existing queue
@@ -1357,6 +1353,10 @@ bool CPrivateSendClientSession::PrepareDenominate(int nMinRounds, int nMaxRounds
         keyHolderStorage.ReturnAll();
         strErrorRet = "Can't prepare current denominated outputs";
         return false;
+    }
+
+    for (const auto& pair : vecPSInOutPairsRet) {
+        vecOutPointLocked.push_back(pair.first.prevout);
     }
 
     return true;
