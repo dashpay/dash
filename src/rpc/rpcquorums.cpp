@@ -390,7 +390,7 @@ UniValue quorum_dkgsimerror(const JSONRPCRequest& request)
             "\nAvailable commands:\n"
             "  list              - List of on-chain quorums\n"
             "  info              - Return information about a quorum\n"
-            "  dkgsimerror       - Simulates DKG errors and malicious behavior.\n"
+            "  dkgsimerror       - Simulates DKG errors and malicious behavior\n"
             "  dkgstatus         - Return the status of the current DKG process\n"
             "  memberof          - Checks which quorums the given masternode is a member of\n"
             "  sign              - Threshold-sign a message\n"
