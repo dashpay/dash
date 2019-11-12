@@ -1367,6 +1367,8 @@ bool CPrivateSendClientSession::MakeCollateralAmounts(CConnman& connman)
 {
     if (!privateSendClient.fEnablePrivateSend || !privateSendClient.fPrivateSendRunning) return false;
 
+    LOCK2(cs_main, vpwallets[0]->cs_wallet);
+
     // NOTE: We do not allow txes larger than 100kB, so we have to limit number of inputs here.
     // We still want to consume a lot of inputs to avoid creating only smaller denoms though.
     // Knowing that each CTxIn is at least 148b big, 400 inputs should take 400 x ~148b = ~60kB.
@@ -1403,8 +1405,6 @@ bool CPrivateSendClientSession::MakeCollateralAmounts(CConnman& connman)
 bool CPrivateSendClientSession::MakeCollateralAmounts(const CompactTallyItem& tallyItem, bool fTryDenominated, CConnman& connman)
 {
     if (!privateSendClient.fEnablePrivateSend || !privateSendClient.fPrivateSendRunning) return false;
-
-    LOCK2(cs_main, vpwallets[0]->cs_wallet);
 
     // denominated input is always a single one, so we can check its amount directly and return early
     if (!fTryDenominated && tallyItem.vecOutPoints.size() == 1 && CPrivateSend::IsDenominatedAmount(tallyItem.nAmount)) {
