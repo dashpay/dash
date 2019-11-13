@@ -1404,6 +1404,9 @@ bool CPrivateSendClientSession::MakeCollateralAmounts(CConnman& connman)
 // Split up large inputs or create fee sized inputs
 bool CPrivateSendClientSession::MakeCollateralAmounts(const CompactTallyItem& tallyItem, bool fTryDenominated, CConnman& connman)
 {
+    AssertLockHeld(cs_main);
+    AssertLockHeld(vpwallets[0]->cs_wallet);
+
     if (!privateSendClient.fEnablePrivateSend || !privateSendClient.fPrivateSendRunning) return false;
 
     // denominated input is always a single one, so we can check its amount directly and return early
