@@ -1287,14 +1287,13 @@ bool CPrivateSendClientSession::SelectDenominate(std::string& strErrorRet, std::
 
 bool CPrivateSendClientSession::PrepareDenominate(int nMinRounds, int nMaxRounds, std::string& strErrorRet, const std::vector<std::pair<CTxDSIn, CTxOut> >& vecPSInOutPairsIn, std::vector<std::pair<CTxDSIn, CTxOut> >& vecPSInOutPairsRet, bool fDryRun)
 {
+    AssertLockHeld(cs_main);
+    AssertLockHeld(vpwallets[0]->cs_wallet);
+
     std::vector<int> vecBits;
     if (!CPrivateSend::GetDenominationsBits(nSessionDenom, vecBits)) {
         strErrorRet = "Incorrect session denom";
         return false;
-    }
-
-    for (const auto& pair : vecPSInOutPairsIn) {
-        vpwallets[0]->LockCoin(pair.first.prevout);
     }
 
     // NOTE: No need to randomize order of inputs because they were
@@ -1308,8 +1307,6 @@ bool CPrivateSendClientSession::PrepareDenominate(int nMinRounds, int nMaxRounds
     // Try to add up to PRIVATESEND_ENTRY_MAX_SIZE of every needed denomination
     for (const auto& pair : vecPSInOutPairsIn) {
         if (pair.second.nRounds < nMinRounds || pair.second.nRounds > nMaxRounds) {
-            // unlock unused coins
-            vpwallets[0]->UnlockCoin(pair.first.prevout);
             continue;
         }
         bool fFound = false;
@@ -1339,23 +1336,20 @@ bool CPrivateSendClientSession::PrepareDenominate(int nMinRounds, int nMaxRounds
                 break;
             }
         }
-        if (!fFound || fDryRun) {
-            // unlock unused coins and if we are not going to mix right away
-            vpwallets[0]->UnlockCoin(pair.first.prevout);
-        }
     }
 
     if (nDenomResult != nSessionDenom) {
-        // unlock used coins on failure
-        for (const auto& pair : vecPSInOutPairsRet) {
-            vpwallets[0]->UnlockCoin(pair.first.prevout);
-        }
         keyHolderStorage.ReturnAll();
         strErrorRet = "Can't prepare current denominated outputs";
         return false;
     }
 
+    if (fDryRun) {
+        return true;
+    }
+
     for (const auto& pair : vecPSInOutPairsRet) {
+        vpwallets[0]->LockCoin(pair.first.prevout);
         vecOutPointLocked.push_back(pair.first.prevout);
     }
 
