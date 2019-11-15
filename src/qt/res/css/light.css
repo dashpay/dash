@@ -1,5 +1,5 @@
 WalletFrame {
-border-image: url(':/images/walletframe_background') 0 0 0 0 stretch stretch;
+background-color: #fff;
 border-top:0px solid #000;
 margin:0;
 padding-top:20px;
@@ -1025,7 +1025,7 @@ background-color:transparent;
 }
 
 QWidget#contentWidget { /* The actual content with the text/buttons/etc... */
-border-image: url(':/images/walletframe_background') 0 0 0 0 stretch stretch;
+background-color: #fff;
 border-top:0px solid #000;
 margin:0;
 padding-top:20px;
