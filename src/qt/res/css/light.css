@@ -734,6 +734,7 @@ min-height:30px;
 
 QWidget .QFrame#frame .QLabel#labelWalletStatus { /* Wallet Sync Status */
 qproperty-alignment: 'AlignVCenter | AlignLeft';
+color: red;
 margin-left:3px;
 }
 
@@ -866,6 +867,7 @@ min-height:30px;
 /******************************************************************/
 QWidget .QFrame#framePrivateSend .QLabel#labelPrivateSendSyncStatus { /* PrivateSend Sync Status */
 qproperty-alignment: 'AlignVCenter | AlignLeft';
+color: red;
 margin-left:2px;
 padding-right:5px;
 }
@@ -1012,6 +1014,7 @@ min-height:30px;
 
 QWidget .QFrame#frame_2 .QLabel#labelTransactionsStatus { /* Recent Transactions Sync Status */
 qproperty-alignment: 'AlignBottom | AlignRight';
+color: red;
 min-width:93px;
 margin-top:0;
 margin-left:16px;
@@ -1095,6 +1098,10 @@ QDialog#SendCoinsDialog .QFrame#frameCoinControl .QLabel#labelCoinControlChangeL
 font-weight:normal;
 qproperty-margin:-6;
 margin-right:112px;
+}
+
+QDialog#SendCoinsDialog .QFrame#frameCoinControl .QLabel#labelCoinControlInsuffFunds { /* Insufficient Funds Label */
+color: red;
 }
 
 QDialog#SendCoinsDialog .QScrollArea#scrollArea .QWidget#scrollAreaWidgetContents { /* Send To Widget */
