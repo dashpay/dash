@@ -91,6 +91,8 @@ OptionsDialog::OptionsDialog(QWidget *parent, bool enableWallet) :
     }
     
     /* Theme selector */
+    ui->theme->addItem(QString("Dark"), QVariant("dark"));
+    ui->theme->addItem(QString("Dark-HiRes"), QVariant("dark-hires"));
     ui->theme->addItem(QString("Light"), QVariant("light"));
     ui->theme->addItem(QString("Light-HiRes"), QVariant("light-hires"));
     ui->theme->addItem(QString("Traditional"), QVariant("trad"));
