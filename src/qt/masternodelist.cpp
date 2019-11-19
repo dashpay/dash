@@ -201,17 +201,15 @@ void MasternodeList::updateDIP3List()
         QTableWidgetItem* nextPaymentItem = new QTableWidgetItem(nextPayments.count(dmn->proTxHash) ? QString::number(nextPayments[dmn->proTxHash]) : tr("UNKNOWN"));
 
         CTxDestination payeeDest;
-        QString payeeStr;
+        QString payeeStr = tr("UNKNOWN");
         if (ExtractDestination(dmn->pdmnState->scriptPayout, payeeDest)) {
             payeeStr = QString::fromStdString(CBitcoinAddress(payeeDest).ToString());
-        } else {
-            payeeStr = tr("UNKNOWN");
         }
         QTableWidgetItem* payeeItem = new QTableWidgetItem(payeeStr);
 
-        QString operatorRewardStr;
+        QString operatorRewardStr = tr("NONE");
         if (dmn->nOperatorReward) {
-            operatorRewardStr += QString::number(dmn->nOperatorReward / 100.0, 'f', 2) + "% ";
+            operatorRewardStr = QString::number(dmn->nOperatorReward / 100.0, 'f', 2) + "% ";
 
             if (dmn->pdmnState->scriptOperatorPayout != CScript()) {
                 CTxDestination operatorDest;
@@ -223,8 +221,6 @@ void MasternodeList::updateDIP3List()
             } else {
                 operatorRewardStr += tr("but not claimed");
             }
-        } else {
-            operatorRewardStr = tr("NONE");
         }
         QTableWidgetItem* operatorRewardItem = new QTableWidgetItem(operatorRewardStr);
 
