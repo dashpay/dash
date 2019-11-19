@@ -43,8 +43,45 @@ a reindex or re-sync the whole chain.
 Notable changes
 ===============
 
-TODO
-----
+Fix respends of freshly received InstantSend transactions
+---------------------------------------------------------
+
+A bug caused respends to not work before a received InstantSend transaction was confirmed in at least
+one block. This is fixed in this release, so that InstantSend locked mempool transactions can be
+respent immediately.
+
+Improve orphan transaction limit handling
+-----------------------------------------
+
+Instead of limiting orphan transaction by number of transaction, we limit orphans by total size in bytes
+now. This allows to have thousands of orphan transactions before hitting the limit.
+
+Discrepancies in orphan sets between nodes and handling of those was one of the major limiting factors in
+the stress tests performed by an unknown entity on mainnet.
+
+Improve re-requesting for already known transactions
+----------------------------------------------------
+
+Previously, Dash would re-request old transactions even though they were already known locally. This
+happened when the outputs were respent very shortly after confirmation of the transaction. This lead to
+wrongly handling these transactions as orphans, filling up the orphan set and hitting limits very fast.
+This release fixes this for nodes which have txindex enabled, which is the case for all masternodes. Normal
+nodes (without txindex) can ignore the issue as they are not involved in active InstantSend locking.
+
+Another issue fixed in this release is the re-requesting of transactions after an InstantSend lock invalidated
+a conflicting transaction.
+
+Multiple improvements to PrivateSend
+------------------------------------
+
+Multiple improvements to PrivateSend are introduced in this release, leading to faster mixing and more
+reasonable selection of UTXOs when sending PrivateSend funds.
+
+Fix for CVE-2017-18350
+----------------------
+
+Bitcoin silently implemented a hidden fix for [CVE-2017-18350](https://lists.linuxfoundation.org/pipermail/bitcoin-dev/2019-November/017453.html).
+in Bitcoin v0.15.1. This release of Dash Core includes a backport of this fix.
 
 
 0.14.0.4 Change log
