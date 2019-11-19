@@ -14,9 +14,9 @@
    viewBox="0 0 70.379168 70.379168"
    version="1.1"
    id="svg2176"
-   inkscape:version="0.92.3 (2405546, 2018-03-11)"
-   sodipodi:docname="dash-hicolor-scalable.svg"
-   inkscape:export-filename="dash-hicolor-256.png"
+   inkscape:version="0.92.4 (unknown)"
+   sodipodi:docname="dash-HighContrast-scalable.svg"
+   inkscape:export-filename="dash-HighContrast-256.png"
    inkscape:export-xdpi="92.389999"
    inkscape:export-ydpi="92.389999">
   <defs
@@ -38,17 +38,17 @@
      inkscape:pageopacity="0.0"
      inkscape:pageshadow="2"
      inkscape:zoom="3.2460671"
-     inkscape:cx="142.13222"
-     inkscape:cy="145.16857"
+     inkscape:cx="121.18379"
+     inkscape:cy="143.93631"
      inkscape:document-units="mm"
      inkscape:current-layer="layer1"
      showgrid="false"
      inkscape:pagecheckerboard="true"
      units="px"
      inkscape:window-width="2048"
-     inkscape:window-height="1040"
+     inkscape:window-height="1088"
      inkscape:window-x="0"
-     inkscape:window-y="34"
+     inkscape:window-y="27"
      inkscape:window-maximized="1" />
   <metadata
      id="metadata2173">
@@ -58,7 +58,7 @@
         <dc:format>image/svg+xml</dc:format>
         <dc:type
            rdf:resource="http://purl.org/dc/dcmitype/StillImage" />
-        <dc:title />
+        <dc:title></dc:title>
       </cc:Work>
     </rdf:RDF>
   </metadata>
@@ -68,8 +68,8 @@
      id="layer1"
      transform="translate(0,-226.62082)">
     <path
-       d="m 9.4304422,227.94346 c 0,0 -8.1075887,0 -8.1075887,8.10673 v 51.52042 c 0,0 0,8.10674 8.1075887,8.10674 H 60.949152 c 0,0 8.107161,0 8.107161,-8.10674 v -51.52042 c 0,0 0,-8.10673 -8.107161,-8.10673 z"
-       style="display:inline;fill:#008ce3;fill-opacity:1;fill-rule:nonzero;stroke:none;stroke-width:0.42698485"
+       d="m 9.4304868,227.94346 c 0,0 -8.1076333,0 -8.1076333,8.10673 v 51.52042 c 0,0 0,8.10674 8.1076333,8.10674 H 60.94948 c 0,0 8.107206,0 8.107206,-8.10674 v -51.52042 c 0,0 0,-8.10673 -8.107206,-8.10673 z"
+       style="display:inline;fill:#093251;fill-opacity:1;fill-rule:nonzero;stroke:#ffffff;stroke-width:2.64530444;stroke-miterlimit:4;stroke-dasharray:none;stroke-opacity:1"
        id="path1484"
        inkscape:connector-curvature="0" />
     <g
