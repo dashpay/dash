@@ -1283,10 +1283,10 @@ UniValue getblockchaininfo(const JSONRPCRequest& request)
             "  \"chainwork\": \"xxxx\"     (string) total amount of work in active chain, in hexadecimal\n"
             "  \"pruned\": xx,             (boolean) if the blocks are subject to pruning\n"
             "  \"pruneheight\": xxxxxx,    (numeric) lowest-height complete block stored\n"
-			"  \"initialblockdownload\":   (boolean) Is in initial block download\n"
-			"  \"datareceived\": xxxxxx,   (numeric) Data recieved in bytes\n"
-			"  \"datasent\": xxxxxx,       (numeric) Data sent in bytes\n"
-			"  \"datadir\": xxxxxx,        (string) Current data directory\n"
+            "  \"initialblockdownload\":   (boolean) Is in initial block download\n"
+            "  \"datareceived\": xxxxxx,   (numeric) Data recieved in bytes\n"
+            "  \"datasent\": xxxxxx,       (numeric) Data sent in bytes\n"
+            "  \"datadir\": xxxxxx,        (string) Current data directory\n"
             "  \"softforks\": [            (array) status of softforks in progress\n"
             "     {\n"
             "        \"id\": \"xxxx\",        (string) name of softfork\n"
@@ -1329,10 +1329,10 @@ UniValue getblockchaininfo(const JSONRPCRequest& request)
     obj.push_back(Pair("chainwork",             chainActive.Tip()->nChainWork.GetHex()));
     obj.push_back(Pair("pruned",                fPruneMode));
 	
-	obj.push_back(Pair("initialblockdownload",  IsInitialBlockDownload()));
-	obj.push_back(Pair("datareceived",          bytesReadable(CConnman::GetTotalBytesRecv())));
+    obj.push_back(Pair("initialblockdownload",  IsInitialBlockDownload()));
+    obj.push_back(Pair("datareceived",          bytesReadable(CConnman::GetTotalBytesRecv())));
     obj.push_back(Pair("datasent",              bytesReadable(CConnman::GetTotalBytesSent())));
-	obj.push_back(Pair("datadir",               GetDataDir().string()));
+    obj.push_back(Pair("datadir",               GetDataDir().string()));
 
     const Consensus::Params& consensusParams = Params().GetConsensus();
     CBlockIndex* tip = chainActive.Tip();
