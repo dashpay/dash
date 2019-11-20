@@ -388,6 +388,12 @@ QDialog QWidget { /* Remove Annoying Focus Rectangle */
 outline: 0;
 }
 
+/* SHUTDOWN WINDOW */
+
+QWidget#ShutdownWindow {
+background-color: #F8F6F6;
+}
+
 /*******************************************************/
 /* FILE MENU */
 
