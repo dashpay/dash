@@ -46,9 +46,16 @@ Notable changes
 Fix respends of freshly received InstantSend transactions
 ---------------------------------------------------------
 
-A bug caused respends to not work before a received InstantSend transaction was confirmed in at least
+A bug in Dash Core caused respends to not work before a received InstantSend transaction was confirmed in at least
 one block. This is fixed in this release, so that InstantSend locked mempool transactions can be
-respent immediately.
+respent immediately in Dash Core (other wallets were not affected).
+
+Deprecation of SPORK_16_INSTANTSEND_AUTOLOCKS
+---------------------------------------------
+
+With the activation of SPORK_20_INSTANTSEND_LLMQ_BASED a few month ago, all transactions started to be locked via
+InstantSend, which already partly deprecated SPORK_16_INSTANTSEND_AUTOLOCKS. This release removes the last use
+of SPORK_16_INSTANTSEND_AUTOLOCKS, which caused InstantSend to stop working when the mempool got too large.
 
 Improve orphan transaction limit handling
 -----------------------------------------
