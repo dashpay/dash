@@ -107,6 +107,10 @@ font-size:12px;
 background-color:#f2f2f2;
 }
 
+QWidget { /* override text selection background color for all text widgets */
+selection-background-color: #999;
+}
+
 /*******************************************************/
 
 QPushButton { /* Global Button Style */
