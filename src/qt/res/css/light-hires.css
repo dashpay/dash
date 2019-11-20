@@ -380,6 +380,10 @@ color:#333;
 
 /* DIALOG BOXES */
 
+.QProgressDialog {
+background-color: #F8F6F6;
+}
+
 QDialog QWidget { /* Remove Annoying Focus Rectangle */
 outline: 0;
 }
