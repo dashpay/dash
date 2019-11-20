@@ -155,7 +155,7 @@ void MasternodeList::updateDIP3List()
         return;
     }
 
-    LOCK(cs_dip3list);
+    LOCK2(cs_main, cs_dip3list); // locking cs_main beforehand for GetUTXOCoin to avoid GUI freezes
 
     QString strToFilter;
     ui->countLabelDIP3->setText("Updating...");
