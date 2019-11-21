@@ -156,7 +156,23 @@ void MasternodeList::updateDIP3List()
         return;
     }
 
-    LOCK2(cs_main, cs_dip3list); // locking cs_main beforehand for GetUTXOCoin to avoid GUI freezes
+    auto mnList = clientModel->getMasternodeList();
+    std::map<uint256, CTxDestination> mapCollateralDests;
+
+    {
+        // Get all UTXOs for each MN collateral in one go so that we can reduce locking overhead for cs_main
+        // We also do this outside of the below Qt list update loop to reduce cs_main locking time to a minimum
+        LOCK(cs_main);
+        mnList.ForEachMN(false, [&](const CDeterministicMNCPtr& dmn) {
+            CTxDestination collateralDest;
+            Coin coin;
+            if (GetUTXOCoin(dmn->collateralOutpoint, coin) && ExtractDestination(coin.out.scriptPubKey, collateralDest)) {
+                mapCollateralDests.emplace(dmn->proTxHash, collateralDest);
+            }
+        });
+    }
+
+    LOCK(cs_dip3list);
 
     QString strToFilter;
     ui->countLabelDIP3->setText("Updating...");
@@ -164,7 +180,6 @@ void MasternodeList::updateDIP3List()
     ui->tableWidgetMasternodesDIP3->clearContents();
     ui->tableWidgetMasternodesDIP3->setRowCount(0);
 
-    auto mnList = clientModel->getMasternodeList();
     nTimeUpdatedDIP3 = GetTime();
 
     auto projectedPayees = mnList.GetProjectedMNPayees(mnList.GetValidMNsCount());
@@ -225,11 +240,10 @@ void MasternodeList::updateDIP3List()
         }
         QTableWidgetItem* operatorRewardItem = new QTableWidgetItem(operatorRewardStr);
 
-        CTxDestination collateralDest;
         QString collateralStr = tr("UNKNOWN");
-        Coin coin;
-        if (GetUTXOCoin(dmn->collateralOutpoint, coin) && ExtractDestination(coin.out.scriptPubKey, collateralDest)) {
-            collateralStr = QString::fromStdString(CBitcoinAddress(collateralDest).ToString());
+        auto collateralDestIt = mapCollateralDests.find(dmn->proTxHash);
+        if (collateralDestIt != mapCollateralDests.end()) {
+            collateralStr = QString::fromStdString(CBitcoinAddress(collateralDestIt->second).ToString());
         }
         QTableWidgetItem* collateralItem = new QTableWidgetItem(collateralStr);
 
