@@ -349,10 +349,8 @@ static UniValue getblocktemplate(const JSONRPCRequest& request)
             "      }\n"
             "      ,...\n"
             "  ],\n"
-            "  \"coinbaseaux\" : {                 (json object) data that should be included in the coinbase's scriptSig content\n"
-            "      \"flags\" : \"xx\"                  (string) key name is to be ignored, and value included in scriptSig\n"
-            "  },\n"
-            "  \"coinbasevalue\" : n,              (numeric) maximum allowable input to coinbase transaction, including the generation award and transaction fees (in duffs)\n"
+            "  \"coinbaseaux\" : { ... },            (json object) data that should be included in the coinbase's scriptSig content\n"
+            "  \"coinbasevalue\" : n,              (numeric) maximum allowable input to coinbase transaction, including the generation award and transaction fees (in satoshis)\n"
             "  \"coinbasetxn\" : { ... },          (json object) information for coinbase transaction\n"
             "  \"target\" : \"xxxx\",                (string) The hash target\n"
             "  \"mintime\" : xxx,                  (numeric) The minimum timestamp appropriate for next block time in seconds since epoch (Jan 1 1970 GMT)\n"
@@ -591,7 +589,6 @@ static UniValue getblocktemplate(const JSONRPCRequest& request)
     }
 
     UniValue aux(UniValue::VOBJ);
-    aux.pushKV("flags", HexStr(COINBASE_FLAGS));
 
     arith_uint256 hashTarget = arith_uint256().SetCompact(pblock->nBits);
 
