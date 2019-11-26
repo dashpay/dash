@@ -441,8 +441,6 @@ std::string CPrivateSend::GetMessageByID(PoolMessage nMessageID)
         return _("Entries are full.");
     case ERR_EXISTING_TX:
         return _("Not compatible with existing transactions.");
-    case ERR_FEES:
-        return _("Transaction fees are too high.");
     case ERR_INVALID_COLLATERAL:
         return _("Collateral not valid.");
     case ERR_INVALID_INPUT:
@@ -457,8 +455,6 @@ std::string CPrivateSend::GetMessageByID(PoolMessage nMessageID)
         return _("Not in the Masternode list.");
     case ERR_MODE:
         return _("Incompatible mode.");
-    case ERR_NON_STANDARD_PUBKEY:
-        return _("Non-standard public key detected.");
     case ERR_QUEUE_FULL:
         return _("Masternode queue is full.");
     case ERR_RECENT:
@@ -477,6 +473,9 @@ std::string CPrivateSend::GetMessageByID(PoolMessage nMessageID)
         return _("Your entries added successfully.");
     case ERR_SIZE_MISMATCH:
         return _("Inputs vs outputs size mismatch.");
+    case ERR_FEES:
+    case ERR_NON_STANDARD_PUBKEY:
+    case ERR_NOT_A_MN:
     default:
         return _("Unknown response.");
     }

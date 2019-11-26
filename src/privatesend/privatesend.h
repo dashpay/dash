@@ -34,7 +34,7 @@ enum PoolMessage : int32_t {
     ERR_DENOM,
     ERR_ENTRIES_FULL,
     ERR_EXISTING_TX,
-    ERR_FEES,
+    ERR_FEES, // not used
     ERR_INVALID_COLLATERAL,
     ERR_INVALID_INPUT,
     ERR_INVALID_SCRIPT,
@@ -42,7 +42,7 @@ enum PoolMessage : int32_t {
     ERR_MAXIMUM,
     ERR_MN_LIST,
     ERR_MODE,
-    ERR_NON_STANDARD_PUBKEY,
+    ERR_NON_STANDARD_PUBKEY, // not used
     ERR_NOT_A_MN, // not used
     ERR_QUEUE_FULL,
     ERR_RECENT,
