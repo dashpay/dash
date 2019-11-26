@@ -543,6 +543,16 @@ bool CPrivateSendClientSession::SignFinalTransaction(const CTransaction& finalTr
     finalMutableTransaction = finalTransactionNew;
     LogPrint(BCLog::PRIVATESEND, "CPrivateSendClientSession::SignFinalTransaction -- finalMutableTransaction=%s", finalMutableTransaction.ToString());
 
+    // STEP 1: check final transaction general rules
+
+    if (finalMutableTransaction.vin.size() != finalMutableTransaction.vout.size()) {
+        LogPrint(BCLog::PRIVATESEND, "CPrivateSendClientSession::%s -- ERROR! inputs vs outputs size mismatch! %d vs %d\n", __func__, finalTransactionNew.vin.size(), finalTransactionNew.vout.size());
+        UnlockCoins();
+        keyHolderStorage.ReturnAll();
+        SetNull();
+        return false;
+    }
+
     // Make sure it's BIP69 compliant
     sort(finalMutableTransaction.vin.begin(), finalMutableTransaction.vin.end(), CompareInputBIP69());
     sort(finalMutableTransaction.vout.begin(), finalMutableTransaction.vout.end(), CompareOutputBIP69());
@@ -555,9 +565,71 @@ bool CPrivateSendClientSession::SignFinalTransaction(const CTransaction& finalTr
         return false;
     }
 
+    // Make sure all inputs/outputs are valid
+    std::set<CScript> setScripPubKeys;
+
+    auto checkTxOut = [&](const CTxOut& txout) {
+        std::vector<CTxOut> vecTxOut{txout};
+        int nDenom = CPrivateSend::GetDenominations(vecTxOut);
+        if (nDenom != nSessionDenom) {
+            LogPrint(BCLog::PRIVATESEND, "CPrivateSendClientSession::SignFinalTransaction -- ERROR: incompatible denom %d (%s) != nSessionDenom %d (%s)\n",
+                    nDenom, CPrivateSend::GetDenominationsToString(nDenom), nSessionDenom, CPrivateSend::GetDenominationsToString(nSessionDenom));
+            return false;
+        }
+        if (!txout.scriptPubKey.IsPayToPublicKeyHash()) {
+            LogPrint(BCLog::PRIVATESEND, "CPrivateSendClientSession::SignFinalTransaction -- ERROR: invalid script! scriptPubKey=%s\n", ScriptToAsmStr(txout.scriptPubKey));
+            return false;
+        }
+        if (!setScripPubKeys.insert(txout.scriptPubKey).second) {
+            LogPrint(BCLog::PRIVATESEND, "CPrivateSendClientSession::%s -- ERROR: already have this script! scriptPubKey=%s\n", ScriptToAsmStr(txout.scriptPubKey));
+            return false;
+        }
+        return true;
+    };
+
+    for (const auto& txout : finalMutableTransaction.vout) {
+        if (!checkTxOut(txout)) {
+            return false;
+        }
+    }
+
+    for (const auto& txin : finalMutableTransaction.vin) {
+        LogPrint(BCLog::PRIVATESEND, "CPrivateSendClientSession::%s -- txin=%s\n", __func__, txin.ToString());
+
+        if (txin.prevout.IsNull()) {
+            LogPrint(BCLog::PRIVATESEND, "CPrivateSendClientSession::%s -- ERROR: invalid input!\n", __func__);
+            return false;
+        }
+
+        Coin coin;
+        CScript scriptPubKeyIn;
+        auto mempoolTx = mempool.get(txin.prevout.hash);
+        if (mempoolTx != nullptr) {
+            if (mempool.isSpent(txin.prevout)) {
+                LogPrint(BCLog::PRIVATESEND, "CPrivateSendClientSession::%s -- ERROR: spent mempool input! txin=%s\n", __func__, txin.ToString());
+                return false;
+            }
+            // Note: it's ok-ish to have non-locked input here (unlike on the server side) and to trust masternode in this case
+            // to avoid being punished for not signing.
+            if (!checkTxOut(mempoolTx->vout[txin.prevout.n])) {
+                return false;
+            }
+            scriptPubKeyIn = mempoolTx->vout[txin.prevout.n].scriptPubKey;
+        } else if (GetUTXOCoin(txin.prevout, coin)) {
+            if (!checkTxOut(coin.out)) {
+                return false;
+            }
+            scriptPubKeyIn = coin.out.scriptPubKey;
+        } else {
+            LogPrint(BCLog::PRIVATESEND, "CPrivateSendClientSession::%s -- ERROR: missing input! txin=%s\n", __func__, txin.ToString());
+            return false;
+        }
+    }
+
+    // STEP 2: make sure our own inputs/outputs are present, otherwise refuse to sign
+
     std::vector<CTxIn> sigs;
 
-    //make sure my inputs/outputs are present, otherwise refuse to sign
     for (const auto& entry : vecEntries) {
         for (const auto& txdsin : entry.vecTxDSIn) {
             /* Sign my transaction and all outputs */
