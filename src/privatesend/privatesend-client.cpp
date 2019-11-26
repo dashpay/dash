@@ -632,27 +632,23 @@ bool CPrivateSendClientSession::SignFinalTransaction(const CTransaction& finalTr
 
     for (const auto& entry : vecEntries) {
         // Check that the final transaction has all our outputs
-        int nOutputsCountFinal = 0;
-        int nOuputsCountTarget = entry.vecTxOut.size();
-
         for (const auto& txout : entry.vecTxOut) {
+            bool fFound = false;
             for (const auto& txoutFinal : finalMutableTransaction.vout) {
                 if (txoutFinal == txout) {
-                    nOutputsCountFinal++;
+                    fFound = true;
                     break;
                 }
             }
-        }
-
-        if (nOutputsCountFinal < nOuputsCountTarget) {
-            // In this case, something went wrong and we'll refuse to sign. It's possible we'll be charged collateral. But that's
-            // better then signing if the transaction doesn't look like what we wanted.
-            LogPrint(BCLog::PRIVATESEND, "CPrivateSendClientSession::%s -- some outputs are missing! Refusing to sign: nOutputsCountFinal: %d, nOuputsCountTarget: %d\n",
-                    __func__, nOutputsCountFinal, nOuputsCountTarget);
-            UnlockCoins();
-            keyHolderStorage.ReturnAll();
-            SetNull();
-            return false;
+            if (!fFound) {
+                // Something went wrong and we'll refuse to sign. It's possible we'll be charged collateral. But that's
+                // better then signing if the transaction doesn't look like what we wanted.
+                LogPrint(BCLog::PRIVATESEND, "CPrivateSendClientSession::%s -- an output is missing, refusing to sign! txout=%s\n", txout.ToString());
+                UnlockCoins();
+                keyHolderStorage.ReturnAll();
+                SetNull();
+                return false;
+            }
         }
 
         for (const auto& txdsin : entry.vecTxDSIn) {
