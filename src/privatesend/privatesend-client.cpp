@@ -631,6 +631,30 @@ bool CPrivateSendClientSession::SignFinalTransaction(const CTransaction& finalTr
     std::vector<CTxIn> sigs;
 
     for (const auto& entry : vecEntries) {
+        // Check that the final transaction has all our outputs
+        int nOutputsCountFinal = 0;
+        int nOuputsCountTarget = entry.vecTxOut.size();
+
+        for (const auto& txout : entry.vecTxOut) {
+            for (const auto& txoutFinal : finalMutableTransaction.vout) {
+                if (txoutFinal == txout) {
+                    nOutputsCountFinal++;
+                    break;
+                }
+            }
+        }
+
+        if (nOutputsCountFinal < nOuputsCountTarget) {
+            // In this case, something went wrong and we'll refuse to sign. It's possible we'll be charged collateral. But that's
+            // better then signing if the transaction doesn't look like what we wanted.
+            LogPrint(BCLog::PRIVATESEND, "CPrivateSendClientSession::%s -- some outputs are missing! Refusing to sign: nOutputsCountFinal: %d, nOuputsCountTarget: %d\n",
+                    __func__, nOutputsCountFinal, nOuputsCountTarget);
+            UnlockCoins();
+            keyHolderStorage.ReturnAll();
+            SetNull();
+            return false;
+        }
+
         for (const auto& txdsin : entry.vecTxDSIn) {
             /* Sign my transaction and all outputs */
             int nMyInputIndex = -1;
@@ -645,48 +669,28 @@ bool CPrivateSendClientSession::SignFinalTransaction(const CTransaction& finalTr
                 }
             }
 
-            if (nMyInputIndex >= 0) { //might have to do this one input at a time?
-                int nFoundOutputsCount = 0;
-                CAmount nValue1 = 0;
-                CAmount nValue2 = 0;
-
-                for (const auto& txoutFinal : finalMutableTransaction.vout) {
-                    for (const auto& txout : entry.vecTxOut) {
-                        if (txoutFinal == txout) {
-                            nFoundOutputsCount++;
-                            nValue1 += txoutFinal.nValue;
-                        }
-                    }
-                }
-
-                for (const auto& txout : entry.vecTxOut) {
-                    nValue2 += txout.nValue;
-                }
-
-                int nTargetOuputsCount = entry.vecTxOut.size();
-                if (nFoundOutputsCount < nTargetOuputsCount || nValue1 != nValue2) {
-                    // in this case, something went wrong and we'll refuse to sign. It's possible we'll be charged collateral. But that's
-                    // better then signing if the transaction doesn't look like what we wanted.
-                    LogPrint(BCLog::PRIVATESEND, "CPrivateSendClientSession::SignFinalTransaction -- My entries are not correct! Refusing to sign: nFoundOutputsCount: %d, nTargetOuputsCount: %d\n", nFoundOutputsCount, nTargetOuputsCount);
-                    UnlockCoins();
-                    keyHolderStorage.ReturnAll();
-                    SetNull();
-
-                    return false;
-                }
-
-                const CKeyStore& keystore = *vpwallets[0];
-
-                LogPrint(BCLog::PRIVATESEND, "CPrivateSendClientSession::SignFinalTransaction -- Signing my input %i\n", nMyInputIndex);
-                // TODO we're using amount=0 here but we should use the correct amount. This works because Dash ignores the amount while signing/verifying (only used in Bitcoin/Segwit)
-                if (!SignSignature(keystore, prevPubKey, finalMutableTransaction, nMyInputIndex, 0, int(SIGHASH_ALL | SIGHASH_ANYONECANPAY))) { // changes scriptSig
-                    LogPrint(BCLog::PRIVATESEND, "CPrivateSendClientSession::SignFinalTransaction -- Unable to sign my own transaction!\n");
-                    // not sure what to do here, it will timeout...?
-                }
-
-                sigs.push_back(finalMutableTransaction.vin[nMyInputIndex]);
-                LogPrint(BCLog::PRIVATESEND, "CPrivateSendClientSession::SignFinalTransaction -- nMyInputIndex: %d, sigs.size(): %d, scriptSig=%s\n", nMyInputIndex, (int)sigs.size(), ScriptToAsmStr(finalMutableTransaction.vin[nMyInputIndex].scriptSig));
+            if (nMyInputIndex == -1) {
+                // Can't find one of my own inputs, refuse to sign. It's possible we'll be charged collateral. But that's
+                // better then signing if the transaction doesn't look like what we wanted.
+                LogPrint(BCLog::PRIVATESEND, "CPrivateSendClientSession::%s -- missing input! txdsin=%s\n", __func__, txdsin.ToString());
+                UnlockCoins();
+                keyHolderStorage.ReturnAll();
+                SetNull();
+                return false;
             }
+
+            const CKeyStore& keystore = *vpwallets[0];
+
+            LogPrint(BCLog::PRIVATESEND, "CPrivateSendClientSession::%s -- Signing my input %i\n", __func__, nMyInputIndex);
+            // TODO we're using amount=0 here but we should use the correct amount. This works because Dash ignores the amount while signing/verifying (only used in Bitcoin/Segwit)
+            if (!SignSignature(keystore, prevPubKey, finalMutableTransaction, nMyInputIndex, 0, int(SIGHASH_ALL | SIGHASH_ANYONECANPAY))) { // changes scriptSig
+                LogPrint(BCLog::PRIVATESEND, "CPrivateSendClientSession::%s -- Unable to sign my own transaction!\n", __func__);
+                // not sure what to do here, it will timeout...?
+            }
+
+            sigs.push_back(finalMutableTransaction.vin[nMyInputIndex]);
+            LogPrint(BCLog::PRIVATESEND, "CPrivateSendClientSession::%s -- nMyInputIndex: %d, sigs.size(): %d, scriptSig=%s\n",
+                    __func__, nMyInputIndex, (int)sigs.size(), ScriptToAsmStr(finalMutableTransaction.vin[nMyInputIndex].scriptSig));
         }
     }
 
