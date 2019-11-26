@@ -655,13 +655,12 @@ bool CPrivateSendClientSession::SignFinalTransaction(const CTransaction& finalTr
             /* Sign my transaction and all outputs */
             int nMyInputIndex = -1;
             CScript prevPubKey = CScript();
-            CTxIn txin = CTxIn();
 
             for (unsigned int i = 0; i < finalMutableTransaction.vin.size(); i++) {
                 if (finalMutableTransaction.vin[i] == txdsin) {
                     nMyInputIndex = i;
                     prevPubKey = txdsin.prevPubKey;
-                    txin = txdsin;
+                    break;
                 }
             }
 
