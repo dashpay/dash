@@ -178,100 +178,10 @@ void CPrivateSendServer::ProcessMessage(CNode* pfrom, const std::string& strComm
 
         LogPrint(BCLog::PRIVATESEND, "DSVIN -- txCollateral %s", entry.txCollateral->ToString());
 
-        if (entry.vecTxDSIn.size() != entry.vecTxOut.size()) {
-            LogPrint(BCLog::PRIVATESEND, "DSVIN -- ERROR: inputs vs outputs size mismatch! %d vs %d\n", entry.vecTxDSIn.size(), entry.vecTxOut.size());
-            PushStatus(pfrom, STATUS_REJECTED, ERR_SIZE_MISMATCH, connman);
-            ConsumeCollateral(connman, entry.txCollateral);
-            return;
-        }
-
-        if (entry.vecTxDSIn.size() > PRIVATESEND_ENTRY_MAX_SIZE) {
-            LogPrint(BCLog::PRIVATESEND, "DSVIN -- ERROR: too many inputs! %d/%d\n", entry.vecTxDSIn.size(), PRIVATESEND_ENTRY_MAX_SIZE);
-            PushStatus(pfrom, STATUS_REJECTED, ERR_MAXIMUM, connman);
-            ConsumeCollateral(connman, entry.txCollateral);
-            return;
-        }
-
-        // do we have the same denominations as the current session?
-        if (!IsOutputsCompatibleWithSessionDenom(entry.vecTxOut)) {
-            LogPrint(BCLog::PRIVATESEND, "DSVIN -- not compatible with existing transactions!\n");
-            PushStatus(pfrom, STATUS_REJECTED, ERR_EXISTING_TX, connman);
-            return;
-        }
-
-        // check it like a transaction
-        {
-            CAmount nValueIn = 0;
-            CAmount nValueOut = 0;
-
-            CMutableTransaction tx;
-
-            for (const auto& txout : entry.vecTxOut) {
-                nValueOut += txout.nValue;
-                tx.vout.push_back(txout);
-
-                if (txout.scriptPubKey.size() != 25) {
-                    LogPrint(BCLog::PRIVATESEND, "DSVIN -- non-standard pubkey detected! scriptPubKey=%s\n", ScriptToAsmStr(txout.scriptPubKey));
-                    PushStatus(pfrom, STATUS_REJECTED, ERR_NON_STANDARD_PUBKEY, connman);
-                    ConsumeCollateral(connman, entry.txCollateral);
-                    return;
-                }
-                if (!txout.scriptPubKey.IsPayToPublicKeyHash()) {
-                    LogPrint(BCLog::PRIVATESEND, "DSVIN -- invalid script! scriptPubKey=%s\n", ScriptToAsmStr(txout.scriptPubKey));
-                    PushStatus(pfrom, STATUS_REJECTED, ERR_INVALID_SCRIPT, connman);
-                    ConsumeCollateral(connman, entry.txCollateral);
-                    return;
-                }
-            }
-
-            for (const auto& txin : entry.vecTxDSIn) {
-                tx.vin.push_back(txin);
-
-                LogPrint(BCLog::PRIVATESEND, "DSVIN -- txin=%s\n", txin.ToString());
-
-                Coin coin;
-                auto mempoolTx = mempool.get(txin.prevout.hash);
-                if (mempoolTx != nullptr) {
-                    if (mempool.isSpent(txin.prevout) || !llmq::quorumInstantSendManager->IsLocked(txin.prevout.hash)) {
-                        LogPrint(BCLog::PRIVATESEND, "DSVIN -- spent or non-locked mempool input! txin=%s\n", txin.ToString());
-                        PushStatus(pfrom, STATUS_REJECTED, ERR_MISSING_TX, connman);
-                        return;
-                    }
-                    if (!CPrivateSend::IsDenominatedAmount(mempoolTx->vout[txin.prevout.n].nValue)) {
-                        LogPrintf("DSVIN -- non-denominated mempool input! txin=%s\n", txin.ToString());
-                        PushStatus(pfrom, STATUS_REJECTED, ERR_DENOM, connman);
-                        ConsumeCollateral(connman, entry.txCollateral);
-                        return;
-                    }
-                    nValueIn += mempoolTx->vout[txin.prevout.n].nValue;
-                } else if (GetUTXOCoin(txin.prevout, coin)) {
-                    if (!CPrivateSend::IsDenominatedAmount(coin.out.nValue)) {
-                        LogPrintf("DSVIN -- non-denominated input! txin=%s\n", txin.ToString());
-                        PushStatus(pfrom, STATUS_REJECTED, ERR_DENOM, connman);
-                        ConsumeCollateral(connman, entry.txCollateral);
-                        return;
-                    }
-                    nValueIn += coin.out.nValue;
-                } else {
-                    LogPrint(BCLog::PRIVATESEND, "DSVIN -- missing input! txin=%s\n", txin.ToString());
-                    PushStatus(pfrom, STATUS_REJECTED, ERR_MISSING_TX, connman);
-                    return;
-                }
-            }
-
-            // There should be no fee in mixing tx
-            CAmount nFee = nValueIn - nValueOut;
-            if (nFee != 0) {
-                LogPrint(BCLog::PRIVATESEND, "DSVIN -- there should be no fee in mixing tx! fees: %lld, tx=%s", nFee, tx.ToString());
-                PushStatus(pfrom, STATUS_REJECTED, ERR_FEES, connman);
-                return;
-            }
-        }
-
         PoolMessage nMessageID = MSG_NOERR;
 
         entry.addr = pfrom->addr;
-        if (AddEntry(entry, nMessageID)) {
+        if (AddEntry(connman, entry, nMessageID)) {
             PushStatus(pfrom, STATUS_ACCEPTED, nMessageID, connman);
             CheckPool(connman);
             RelayStatus(STATUS_ACCEPTED, connman);
@@ -628,48 +538,128 @@ bool CPrivateSendServer::IsInputScriptSigValid(const CTxIn& txin)
 }
 
 //
-// Add a clients transaction to the pool
+// Add a client's transaction to the pool
 //
-bool CPrivateSendServer::AddEntry(const CPrivateSendEntry& entryNew, PoolMessage& nMessageIDRet)
+bool CPrivateSendServer::AddEntry(CConnman& connman, const CPrivateSendEntry& entry, PoolMessage& nMessageIDRet)
 {
     if (!fMasternodeMode) return false;
 
-    for (const auto& txin : entryNew.vecTxDSIn) {
-        if (txin.prevout.IsNull()) {
-            LogPrint(BCLog::PRIVATESEND, "CPrivateSendServer::AddEntry -- input not valid!\n");
-            nMessageIDRet = ERR_INVALID_INPUT;
-            return false;
-        }
-    }
-
-    if (!CPrivateSend::IsCollateralValid(*entryNew.txCollateral)) {
-        LogPrint(BCLog::PRIVATESEND, "CPrivateSendServer::AddEntry -- collateral not valid!\n");
-        nMessageIDRet = ERR_INVALID_COLLATERAL;
-        return false;
-    }
-
     if (GetEntriesCount() >= nSessionMaxParticipants) {
-        LogPrint(BCLog::PRIVATESEND, "CPrivateSendServer::AddEntry -- entries is full!\n");
+        LogPrint(BCLog::PRIVATESEND, "CPrivateSendServer::%s -- ERROR: entries is full!\n", __func__);
         nMessageIDRet = ERR_ENTRIES_FULL;
         return false;
     }
 
-    for (const auto& txin : entryNew.vecTxDSIn) {
-        LogPrint(BCLog::PRIVATESEND, "looking for txin -- %s\n", txin.ToString());
+    if (!CPrivateSend::IsCollateralValid(*entry.txCollateral)) {
+        LogPrint(BCLog::PRIVATESEND, "CPrivateSendServer::%s -- ERROR: collateral not valid!\n", __func__);
+        nMessageIDRet = ERR_INVALID_COLLATERAL;
+        return false;
+    }
+
+    if (entry.vecTxDSIn.size() != entry.vecTxOut.size()) {
+        LogPrint(BCLog::PRIVATESEND, "CPrivateSendServer::%s -- ERROR: inputs vs outputs size mismatch! %d vs %d\n", __func__, entry.vecTxDSIn.size(), entry.vecTxOut.size());
+        nMessageIDRet = ERR_SIZE_MISMATCH;
+        ConsumeCollateral(connman, entry.txCollateral);
+        return false;
+    }
+
+    if (entry.vecTxDSIn.size() > PRIVATESEND_ENTRY_MAX_SIZE) {
+        LogPrint(BCLog::PRIVATESEND, "CPrivateSendServer::%s -- ERROR: too many inputs! %d/%d\n", __func__, entry.vecTxDSIn.size(), PRIVATESEND_ENTRY_MAX_SIZE);
+        nMessageIDRet = ERR_MAXIMUM;
+        ConsumeCollateral(connman, entry.txCollateral);
+        return false;
+    }
+
+    std::set<CScript> setScripPubKeys;
+
+    auto checkTxOut = [&](const CTxOut& txout) {
+        std::vector<CTxOut> vecTxOut{txout};
+        int nDenom = CPrivateSend::GetDenominations(vecTxOut);
+        if (nDenom != nSessionDenom) {
+            LogPrint(BCLog::PRIVATESEND, "CPrivateSendServer::AddEntry -- ERROR: incompatible denom %d (%s) != nSessionDenom %d (%s)\n",
+                    nDenom, CPrivateSend::GetDenominationsToString(nDenom), nSessionDenom, CPrivateSend::GetDenominationsToString(nSessionDenom));
+            nMessageIDRet = ERR_DENOM;
+            ConsumeCollateral(connman, entry.txCollateral);
+            return false;
+        }
+        if (!txout.scriptPubKey.IsPayToPublicKeyHash()) {
+            LogPrint(BCLog::PRIVATESEND, "CPrivateSendServer::AddEntry -- ERROR: invalid script! scriptPubKey=%s\n", ScriptToAsmStr(txout.scriptPubKey));
+            nMessageIDRet = ERR_INVALID_SCRIPT;
+            ConsumeCollateral(connman, entry.txCollateral);
+            return false;
+        }
+        if (!setScripPubKeys.insert(txout.scriptPubKey).second) {
+            LogPrint(BCLog::PRIVATESEND, "CPrivateSendServer::AddEntry -- ERROR: already have this script! scriptPubKey=%s\n", ScriptToAsmStr(txout.scriptPubKey));
+            nMessageIDRet = ERR_ALREADY_HAVE;
+            ConsumeCollateral(connman, entry.txCollateral);
+            return false;
+        }
+        // IsPayToPublicKeyHash() above already checks for scriptPubKey size,
+        // no need to double check, hence no usage of ERR_NON_STANDARD_PUBKEY
+        return true;
+    };
+
+    for (const auto& txout : entry.vecTxOut) {
+        if (!checkTxOut(txout)) {
+            return false;
+        }
+    }
+
+    for (const auto& txin : entry.vecTxDSIn) {
+        LogPrint(BCLog::PRIVATESEND, "CPrivateSendServer::%s -- txin=%s\n", __func__, txin.ToString());
+
+        if (txin.prevout.IsNull()) {
+            LogPrint(BCLog::PRIVATESEND, "CPrivateSendServer::%s -- ERROR: invalid input!\n", __func__);
+            nMessageIDRet = ERR_INVALID_INPUT;
+            ConsumeCollateral(connman, entry.txCollateral);
+            return false;
+        }
+
         for (const auto& entry : vecEntries) {
             for (const auto& txdsin : entry.vecTxDSIn) {
                 if (txdsin.prevout == txin.prevout) {
-                    LogPrint(BCLog::PRIVATESEND, "CPrivateSendServer::AddEntry -- found in txin\n");
+                    LogPrint(BCLog::PRIVATESEND, "CPrivateSendServer::%s -- ERROR: already have this txin in entries\n", __func__);
                     nMessageIDRet = ERR_ALREADY_HAVE;
+                    // Two peers sent the same input? Can't really say who is the malicious one here,
+                    // could be that someone is picking someone else's inputs randomly trying to force
+                    // collateral consumption. Do not punish.
                     return false;
                 }
             }
         }
+
+        Coin coin;
+        CScript scriptPubKeyIn;
+        auto mempoolTx = mempool.get(txin.prevout.hash);
+        // We or the other peer could be simply out of sync in all three cases below, do not punish.
+        if (mempoolTx != nullptr) {
+            if (mempool.isSpent(txin.prevout) || !llmq::quorumInstantSendManager->IsLocked(txin.prevout.hash)) {
+                LogPrint(BCLog::PRIVATESEND, "CPrivateSendServer::%s -- ERROR: spent or non-locked mempool input! txin=%s\n", __func__, txin.ToString());
+                nMessageIDRet = ERR_MISSING_TX;
+                return false;
+            }
+            if (!checkTxOut(mempoolTx->vout[txin.prevout.n])) {
+                return false;
+            }
+            scriptPubKeyIn = mempoolTx->vout[txin.prevout.n].scriptPubKey;
+        } else if (GetUTXOCoin(txin.prevout, coin)) {
+            if (!checkTxOut(coin.out)) {
+                return false;
+            }
+            scriptPubKeyIn = coin.out.scriptPubKey;
+        } else {
+            LogPrint(BCLog::PRIVATESEND, "CPrivateSendServer::%s -- ERROR: missing input! txin=%s\n", __func__, txin.ToString());
+            nMessageIDRet = ERR_MISSING_TX;
+            return false;
+        }
+
+        // The same size and denom for inputs and outputs ensures their total value is also the same,
+        // no need to double check, hence no usage of ERR_FEES
     }
 
-    vecEntries.push_back(entryNew);
+    vecEntries.push_back(entry);
 
-    LogPrint(BCLog::PRIVATESEND, "CPrivateSendServer::AddEntry -- adding entry %d of %d required\n", GetEntriesCount(), nSessionMaxParticipants);
+    LogPrint(BCLog::PRIVATESEND, "CPrivateSendServer::%s -- adding entry %d of %d required\n", __func__, GetEntriesCount(), nSessionMaxParticipants);
     nMessageIDRet = MSG_ENTRIES_ADDED;
 
     return true;
@@ -719,19 +709,6 @@ bool CPrivateSendServer::IsSignaturesComplete()
         for (const auto& txdsin : entry.vecTxDSIn) {
             if (!txdsin.fHasSig) return false;
         }
-    }
-
-    return true;
-}
-
-bool CPrivateSendServer::IsOutputsCompatibleWithSessionDenom(const std::vector<CTxOut>& vecTxOut)
-{
-    if (CPrivateSend::GetDenominations(vecTxOut) == 0) return false;
-
-    for (const auto& entry : vecEntries) {
-        LogPrint(BCLog::PRIVATESEND, "CPrivateSendServer::IsOutputsCompatibleWithSessionDenom -- vecTxOut denom %d, entry.vecTxOut denom %d\n",
-            CPrivateSend::GetDenominations(vecTxOut), CPrivateSend::GetDenominations(entry.vecTxOut));
-        if (CPrivateSend::GetDenominations(vecTxOut) != CPrivateSend::GetDenominations(entry.vecTxOut)) return false;
     }
 
     return true;
