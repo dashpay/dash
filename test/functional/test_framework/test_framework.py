@@ -699,7 +699,7 @@ class DashTestFramework(BitcoinTestFramework):
         ret = {**decoded, **ret}
         return ret
 
-    def wait_for_instantlock(self, txid, node, expected=True, timeout=10):
+    def wait_for_instantlock(self, txid, node, expected=True, timeout=15):
         def check_instantlock():
             try:
                 return node.getrawtransaction(txid, True)["instantlock"]
