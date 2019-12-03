@@ -846,6 +846,17 @@ class DashTestFramework(BitcoinTestFramework):
 
         return new_quorum
 
+    def wait_for_mnauth(self, node, count, timeout=10):
+        def test():
+            pi = node.getpeerinfo()
+            c = 0
+            for p in pi:
+                if "verified_proregtx_hash" in p and p["verified_proregtx_hash"] != "":
+                    c += 1
+            return c >= count
+        wait_until(test, timeout=timeout)
+
+
 class ComparisonTestFramework(BitcoinTestFramework):
     """Test framework for doing p2p comparison testing
 
