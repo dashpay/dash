@@ -581,8 +581,8 @@ class DashTestFramework(BitcoinTestFramework):
             force_finish_mnsync(self.mninfo[idx].node)
 
         def do_connect(idx):
-            for i in range(0, idx + 1):
-                connect_nodes(self.nodes[idx + start_idx], i)
+            # Connect to the control node only, masternodes should take care of intra-quorum connections themselves
+            connect_nodes(self.mninfo[idx].node, 0)
 
         jobs = []
 
