@@ -74,16 +74,16 @@ class LLMQ_IS_RetroactiveSigning(DashTestFramework):
         self.wait_for_instantlock(txid, self.nodes[0])
 
         self.log.info("testing retroactive signing with unknown TX")
-        isolate_node(self.nodes[0])
-        txid = self.nodes[0].sendtoaddress(self.nodes[0].getnewaddress(), 1)
-        # Make sure the TX wasn't accepted by nodes 4 and 5
-        self.wait_for_tx(txid, self.nodes[4], False, 5)
-        self.wait_for_tx(txid, self.nodes[5], False, 1)
-        # Make node 0 consider the TX as safe
+        isolate_node(self.nodes[3])
+        rawtx = self.nodes[0].createrawtransaction([], {self.nodes[0].getnewaddress(): 1})
+        rawtx = self.nodes[0].fundrawtransaction(rawtx)['hex']
+        rawtx = self.nodes[0].signrawtransaction(rawtx)['hex']
+        txid = self.nodes[3].sendrawtransaction(rawtx)
+        # Make node 3 consider the TX as safe
         self.bump_mocktime(10 * 60 + 1)
         set_node_times(self.nodes, self.mocktime)
-        block = self.nodes[0].generate(1)[0]
-        reconnect_isolated_node(self.nodes[0], 1)
+        block = self.nodes[3].generatetoaddress(1, self.nodes[0].getnewaddress())[0]
+        reconnect_isolated_node(self.nodes[3], 0)
         self.wait_for_chainlocked_block_all_nodes(block)
         self.nodes[0].setmocktime(self.mocktime)
 
