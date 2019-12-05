@@ -699,6 +699,15 @@ class DashTestFramework(BitcoinTestFramework):
         ret = {**decoded, **ret}
         return ret
 
+    def wait_for_tx(self, txid, node, expected=True, timeout=15):
+        def check_tx():
+            try:
+                return node.getrawtransaction(txid)
+            except:
+                return False
+        if wait_until(check_tx, timeout=timeout, sleep=0.5, do_assert=expected) and not expected:
+            raise AssertionError("waiting unexpectedly succeeded")
+
     def wait_for_instantlock(self, txid, node, expected=True, timeout=15):
         def check_instantlock():
             try:
