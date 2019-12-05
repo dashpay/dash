@@ -632,6 +632,11 @@ class DashTestFramework(BitcoinTestFramework):
         self.prepare_datadirs()
         self.start_masternodes()
 
+        # non-masternodes where disconnected from the control node during prepare_datadirs,
+        # let's reconnect them back to make sure they receive updates
+        for i in range(0, num_simple_nodes):
+            connect_nodes(self.nodes[i+1], 0)
+
         self.bump_mocktime(1)
         set_node_times(self.nodes, self.mocktime)
         self.nodes[0].generate(1)
