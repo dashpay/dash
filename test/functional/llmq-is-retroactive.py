@@ -20,7 +20,8 @@ and by having a higher relay fee on nodes 4 and 5.
 
 class LLMQ_IS_RetroactiveSigning(DashTestFramework):
     def set_test_params(self):
-        self.set_dash_test_params(6, 5, [[], [], [], [], ["-minrelaytxfee=0.001"], ["-minrelaytxfee=0.001"]], fast_dip3_enforcement=True)
+        # -whitelist is needed to avoid the trickling logic on node0
+        self.set_dash_test_params(6, 5, [["-whitelist=127.0.0.1"], [], [], [], ["-minrelaytxfee=0.001"], ["-minrelaytxfee=0.001"]], fast_dip3_enforcement=True)
 
     def run_test(self):
         while self.nodes[0].getblockchaininfo()["bip9_softforks"]["dip0008"]["status"] != "active":
