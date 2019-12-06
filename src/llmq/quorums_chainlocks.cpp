@@ -356,7 +356,7 @@ void CChainLocksHandler::TrySignChainTip()
     quorumSigningManager->AsyncSignIfMember(Params().GetConsensus().llmqTypeChainLocks, requestId, msgHash);
 }
 
-void CChainLocksHandler::TransactionAddedToMempool(const CTransactionRef& tx)
+void CChainLocksHandler::TransactionAddedToMempool(const CTransactionRef& tx, int64_t nAcceptTime)
 {
     if (tx->IsCoinBase() || tx->vin.empty()) {
         return;
@@ -367,8 +367,7 @@ void CChainLocksHandler::TransactionAddedToMempool(const CTransactionRef& tx)
     }
 
     LOCK(cs);
-    int64_t curTime = GetAdjustedTime();
-    txFirstSeenTime.emplace(tx->GetHash(), curTime);
+    txFirstSeenTime.emplace(tx->GetHash(), nAcceptTime);
 }
 
 void CChainLocksHandler::BlockConnected(const std::shared_ptr<const CBlock>& pblock, const CBlockIndex* pindex, const std::vector<CTransactionRef>& vtxConflicted)
