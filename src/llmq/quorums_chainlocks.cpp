@@ -362,10 +362,6 @@ void CChainLocksHandler::TransactionAddedToMempool(const CTransactionRef& tx, in
         return;
     }
 
-    if (!masternodeSync.IsBlockchainSynced()) {
-        return;
-    }
-
     LOCK(cs);
     txFirstSeenTime.emplace(tx->GetHash(), nAcceptTime);
 }
