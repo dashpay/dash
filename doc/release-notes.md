@@ -68,6 +68,7 @@ known in the network. This should cause ChainLocks to succeed in such situations
 
 See detailed [set of changes](https://github.com/dashpay/dash/compare/v0.14.0.4...dashpay:v0.14.0.5).
 
+- [`20d4a27778`](https://github.com/dashpay/dash/commit/dc07a0c5e1) Make sure mempool txes are properly processed by CChainLocksHandler despite node restarts (#3230)
 - [`dc07a0c5e1`](https://github.com/dashpay/dash/commit/dc07a0c5e1) [v0.14.0.x] Bump version and prepare release notes (#3228)
 - [`401da32090`](https://github.com/dashpay/dash/commit/401da32090) More fixes in llmq-is-retroactive tests
 - [`33721eaa11`](https://github.com/dashpay/dash/commit/33721eaa11) Make llmq-is-retroactive test compatible with 0.14.0.x
