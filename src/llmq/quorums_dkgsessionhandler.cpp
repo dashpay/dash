@@ -115,6 +115,7 @@ void CDKGSessionHandler::UpdatedBlockTip(const CBlockIndex* pindexNew)
     int quorumStageInt = pindexNew->nHeight % params.dkgInterval;
     const CBlockIndex* pindexQuorum = pindexNew->GetAncestor(pindexNew->nHeight - quorumStageInt);
 
+    currentHeight = pindexNew->nHeight;
     quorumHeight = pindexQuorum->nHeight;
     quorumHash = pindexQuorum->GetBlockHash();
 
@@ -248,13 +249,31 @@ void CDKGSessionHandler::SleepBeforePhase(QuorumPhase curPhase,
 
     int64_t sleepTime = (int64_t)(adjustedPhaseSleepTimePerMember * curSession->GetMyMemberIndex());
     int64_t endTime = GetTimeMillis() + sleepTime;
+    int heightTmp{-1};
+    int heightStart{-1};
+    {
+        LOCK(cs);
+        heightTmp = heightStart = currentHeight;
+    }
     while (GetTimeMillis() < endTime) {
         if (stopRequested || ShutdownRequested()) {
             throw AbortPhaseException();
         }
-        auto p = GetPhaseAndQuorumHash();
-        if (p.first != curPhase || p.second != expectedQuorumHash) {
-            throw AbortPhaseException();
+        {
+            LOCK(cs);
+            if (currentHeight > heightTmp) {
+                // New block(s) just came in
+                int64_t expectedBlockTime = (currentHeight - heightStart) * Params().GetConsensus().nPowTargetSpacing * 1000;
+                if (expectedBlockTime > sleepTime) {
+                    // Blocks came faster than we expected, jump into the phase func asap
+                    break;
+                }
+                heightTmp = currentHeight;
+            }
+            if (phase != curPhase || quorumHash != expectedQuorumHash) {
+                // Smth went wrong and/or we missed quite a few blocks and it's just too late now
+                throw AbortPhaseException();
+            }
         }
         if (!runWhileWaiting()) {
             MilliSleep(100);
