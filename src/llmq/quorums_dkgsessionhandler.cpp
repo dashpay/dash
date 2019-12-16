@@ -236,14 +236,17 @@ void CDKGSessionHandler::SleepBeforePhase(QuorumPhase curPhase,
         return;
     }
 
-    // expected time for a full phase
-    double phaseTime = (params.dkgPhaseBlocks - 1) * Params().GetConsensus().nPowTargetSpacing * 1000;
-    // expected time per member
-    phaseTime = phaseTime / params.size;
+    // Two blocks can come very close to each other, this happens pretty regularly. We don't want to be
+    // left behind and marked as a bad member. This means that we should not count the last block of the
+    // phase as a safe one to keep sleeping, that's why we calculate the phase sleep time as a time of
+    // the full phase minus one block here.
+    double phaseSleepTime = (params.dkgPhaseBlocks - 1) * Params().GetConsensus().nPowTargetSpacing * 1000;
+    // Expected phase sleep time per member
+    double phaseSleepTimePerMember = phaseSleepTime / params.size;
     // Don't expect perfect block times and thus reduce the phase time to be on the secure side (caller chooses factor)
-    phaseTime *= randomSleepFactor;
+    double adjustedPhaseSleepTimePerMember = phaseSleepTimePerMember * randomSleepFactor;
 
-    int64_t sleepTime = (int64_t)(phaseTime * curSession->GetMyMemberIndex());
+    int64_t sleepTime = (int64_t)(adjustedPhaseSleepTimePerMember * curSession->GetMyMemberIndex());
     int64_t endTime = GetTimeMillis() + sleepTime;
     while (GetTimeMillis() < endTime) {
         if (stopRequested || ShutdownRequested()) {
