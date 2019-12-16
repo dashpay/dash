@@ -237,7 +237,7 @@ void CDKGSessionHandler::SleepBeforePhase(QuorumPhase curPhase,
     }
 
     // expected time for a full phase
-    double phaseTime = params.dkgPhaseBlocks * Params().GetConsensus().nPowTargetSpacing * 1000;
+    double phaseTime = (params.dkgPhaseBlocks - 1) * Params().GetConsensus().nPowTargetSpacing * 1000;
     // expected time per member
     phaseTime = phaseTime / params.size;
     // Don't expect perfect block times and thus reduce the phase time to be on the secure side (caller chooses factor)
