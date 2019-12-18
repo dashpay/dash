@@ -538,7 +538,7 @@ bool CPrivateSendServer::IsInputScriptSigValid(const CTxIn& txin)
 }
 
 //
-// Add a client's transaction to the pool
+// Add a client's transaction inputs/outputs to the pool
 //
 bool CPrivateSendServer::AddEntry(CConnman& connman, const CPrivateSendEntry& entry, PoolMessage& nMessageIDRet)
 {

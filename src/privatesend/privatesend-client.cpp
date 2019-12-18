@@ -642,7 +642,7 @@ bool CPrivateSendClientSession::SignFinalTransaction(const CTransaction& finalTr
             }
             if (!fFound) {
                 // Something went wrong and we'll refuse to sign. It's possible we'll be charged collateral. But that's
-                // better then signing if the transaction doesn't look like what we wanted.
+                // better than signing if the transaction doesn't look like what we wanted.
                 LogPrint(BCLog::PRIVATESEND, "CPrivateSendClientSession::%s -- an output is missing, refusing to sign! txout=%s\n", txout.ToString());
                 UnlockCoins();
                 keyHolderStorage.ReturnAll();
@@ -666,7 +666,7 @@ bool CPrivateSendClientSession::SignFinalTransaction(const CTransaction& finalTr
 
             if (nMyInputIndex == -1) {
                 // Can't find one of my own inputs, refuse to sign. It's possible we'll be charged collateral. But that's
-                // better then signing if the transaction doesn't look like what we wanted.
+                // better than signing if the transaction doesn't look like what we wanted.
                 LogPrint(BCLog::PRIVATESEND, "CPrivateSendClientSession::%s -- missing input! txdsin=%s\n", __func__, txdsin.ToString());
                 UnlockCoins();
                 keyHolderStorage.ReturnAll();
