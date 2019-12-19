@@ -587,10 +587,13 @@ bool CPrivateSendClientSession::SignFinalTransaction(const CTransaction& finalTr
         return true;
     };
 
+    CAmount nFees{0};
+
     for (const auto& txout : finalMutableTransaction.vout) {
         if (!checkTxOut(txout)) {
             return false;
         }
+        nFees -= txout.nValue;
     }
 
     for (const auto& txin : finalMutableTransaction.vin) {
@@ -615,15 +618,22 @@ bool CPrivateSendClientSession::SignFinalTransaction(const CTransaction& finalTr
                 return false;
             }
             scriptPubKeyIn = mempoolTx->vout[txin.prevout.n].scriptPubKey;
+            nFees += mempoolTx->vout[txin.prevout.n].nValue;
         } else if (GetUTXOCoin(txin.prevout, coin)) {
             if (!checkTxOut(coin.out)) {
                 return false;
             }
             scriptPubKeyIn = coin.out.scriptPubKey;
+            nFees += coin.out.nValue;
         } else {
             LogPrint(BCLog::PRIVATESEND, "CPrivateSendClientSession::%s -- ERROR: missing input! txin=%s\n", __func__, txin.ToString());
             return false;
         }
+    }
+
+    if (nFees != 0) {
+        LogPrint(BCLog::PRIVATESEND, "CPrivateSendClientSession::%s -- ERROR: non-zero fees! fees: %lld\n", __func__, nFees);
+        return false;
     }
 
     // STEP 2: make sure our own inputs/outputs are present, otherwise refuse to sign

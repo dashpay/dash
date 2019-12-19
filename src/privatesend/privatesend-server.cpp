@@ -599,10 +599,13 @@ bool CPrivateSendServer::AddEntry(CConnman& connman, const CPrivateSendEntry& en
         return true;
     };
 
+    CAmount nFees{0};
+
     for (const auto& txout : entry.vecTxOut) {
         if (!checkTxOut(txout)) {
             return false;
         }
+        nFees -= txout.nValue;
     }
 
     for (const auto& txin : entry.vecTxDSIn) {
@@ -642,19 +645,26 @@ bool CPrivateSendServer::AddEntry(CConnman& connman, const CPrivateSendEntry& en
                 return false;
             }
             scriptPubKeyIn = mempoolTx->vout[txin.prevout.n].scriptPubKey;
+            nFees += mempoolTx->vout[txin.prevout.n].nValue;
         } else if (GetUTXOCoin(txin.prevout, coin)) {
             if (!checkTxOut(coin.out)) {
                 return false;
             }
             scriptPubKeyIn = coin.out.scriptPubKey;
+            nFees += coin.out.nValue;
         } else {
             LogPrint(BCLog::PRIVATESEND, "CPrivateSendServer::%s -- ERROR: missing input! txin=%s\n", __func__, txin.ToString());
             nMessageIDRet = ERR_MISSING_TX;
             return false;
         }
+    }
 
-        // The same size and denom for inputs and outputs ensures their total value is also the same,
-        // no need to double check, hence no usage of ERR_FEES
+    // The same size and denom for inputs and outputs ensures their total value is also the same,
+    // no need to double check. If not, we are doing smth wrong, bail out.
+    if (nFees != 0) {
+        LogPrint(BCLog::PRIVATESEND, "CPrivateSendServer::%s -- ERROR: non-zero fees! fees: %lld\n", __func__, nFees);
+        nMessageIDRet = ERR_FEES;
+        return false;
     }
 
     vecEntries.push_back(entry);

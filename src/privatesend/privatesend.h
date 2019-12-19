@@ -34,7 +34,7 @@ enum PoolMessage : int32_t {
     ERR_DENOM,
     ERR_ENTRIES_FULL,
     ERR_EXISTING_TX,
-    ERR_FEES, // not used
+    ERR_FEES,
     ERR_INVALID_COLLATERAL,
     ERR_INVALID_INPUT,
     ERR_INVALID_SCRIPT,
