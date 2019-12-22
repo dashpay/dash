@@ -3799,6 +3799,13 @@ bool PeerLogicValidation::SendMessages(CNode* pto, std::atomic<bool>& interruptM
                         connman->PushMessage(pto, msgMaker.Make(NetMsgType::INV, vInv));
                         vInv.clear();
                     }
+                    // Prepare an inv with a corresponding InstantSend lock to be sent later too
+                    uint256 islockHash;
+                    if (llmq::quorumInstantSendManager->GetInstantSendLockHashByTxid(hash, islockHash)) {
+                        LogPrint(BCLog::NET, "SendMessages -- preparing islock %s %s\n", hash.ToString(), islockHash.ToString());
+                        CInv islockInv(MSG_ISLOCK, islockHash);
+                        pto->PushInventory(islockInv);
+                    }
                 }
                 pto->timeLastMempoolReq = GetTime();
             }
