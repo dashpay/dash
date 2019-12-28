@@ -22,7 +22,9 @@
 
 #include "wallet/coincontrol.h"
 #include "wallet/rpcwallet.h"
+#ifdef ENABLE_WALLET
 #include "wallet/wallet.h"
+#endif // ENABLE_WALLET
 
 #include <fstream>
 #include <iomanip>
