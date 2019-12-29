@@ -142,7 +142,7 @@ static const CRPCCommand commands[] =
 #endif // ENABLE_WALLET
         };
 
-void RegisterMasternodeRPCCommands(CRPCTable &t)
+void RegisterPrivateSendRPCCommands(CRPCTable &t)
 {
     for (unsigned int vcidx = 0; vcidx < ARRAYLEN(commands); vcidx++)
         t.appendCommand(commands[vcidx].name, &commands[vcidx]);
