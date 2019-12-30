@@ -74,6 +74,9 @@ stages:
         # which allows us to use Gitlab CI for Github. The following check detects such mirrored branches.
         if [[ $CI_COMMIT_REF_NAME =~ ^pr-[^/]*/[^/]*/[^/]*/[^/]*$ ]]; then
           export PULL_REQUEST="true"
+          # CI_COMMIT_BEFORE_SHA is also invalid until #5667 is implemented, so we need to figure it out by ourself
+          git fetch origin develop
+          export CI_COMMIT_BEFORE_SHA="$(git merge-base origin/develop HEAD)"
         else
           export PULL_REQUEST="false"
         fi
