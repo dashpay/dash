@@ -3799,12 +3799,18 @@ bool PeerLogicValidation::SendMessages(CNode* pto, std::atomic<bool>& interruptM
                         connman->PushMessage(pto, msgMaker.Make(NetMsgType::INV, vInv));
                         vInv.clear();
                     }
-                    // Prepare an inv with a corresponding InstantSend lock to be sent later too
+
                     uint256 islockHash;
-                    if (llmq::quorumInstantSendManager->GetInstantSendLockHashByTxid(hash, islockHash)) {
-                        LogPrint(BCLog::NET, "SendMessages -- preparing islock %s %s\n", hash.ToString(), islockHash.ToString());
-                        CInv islockInv(MSG_ISLOCK, islockHash);
-                        pto->PushInventory(islockInv);
+                    if (!llmq::quorumInstantSendManager->GetInstantSendLockHashByTxid(hash, islockHash)) continue;
+                    CInv islockInv(MSG_ISLOCK, islockHash);
+                    pto->filterInventoryKnown.insert(islockHash);
+
+                    LogPrint(BCLog::NET, "SendMessages -- queued inv: %s  index=%d peer=%d\n", inv.ToString(), vInv.size(), pto->GetId());
+                    vInv.push_back(inv);
+                    if (vInv.size() == MAX_INV_SZ) {
+                        LogPrint(BCLog::NET, "SendMessages -- pushing inv's: count=%d peer=%d\n", vInv.size(), pto->GetId());
+                        connman->PushMessage(pto, msgMaker.Make(NetMsgType::INV, vInv));
+                        vInv.clear();
                     }
                 }
                 pto->timeLastMempoolReq = GetTime();
