@@ -581,7 +581,7 @@ bool CPrivateSendClientSession::SignFinalTransaction(const CTransaction& finalTr
             return false;
         }
         if (!setScripPubKeys.insert(txout.scriptPubKey).second) {
-            LogPrint(BCLog::PRIVATESEND, "CPrivateSendClientSession::%s -- ERROR: already have this script! scriptPubKey=%s\n", ScriptToAsmStr(txout.scriptPubKey));
+            LogPrint(BCLog::PRIVATESEND, "CPrivateSendClientSession::SignFinalTransaction -- ERROR: already have this script! scriptPubKey=%s\n", ScriptToAsmStr(txout.scriptPubKey));
             return false;
         }
         return true;
