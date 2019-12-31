@@ -372,6 +372,8 @@ protected:
 
     void SetNull();
 
+    bool IsValidInOuts(const std::vector<CTxIn>& vin, const std::vector<CTxOut>& vout, PoolMessage& nMessageIDRet, bool* fConsumeCollateralRet) const;
+
 public:
     int nSessionDenom; // Users must submit a denom matching this
 
