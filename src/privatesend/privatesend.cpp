@@ -273,6 +273,8 @@ bool CPrivateSendBaseSession::IsValidInOuts(const std::vector<CTxIn>& vin, const
         nFees -= txout.nValue;
     }
 
+    CCoinsViewMemPool viewMemPool(pcoinsTip, mempool);
+
     for (const auto& txin : vin) {
         LogPrint(BCLog::PRIVATESEND, "CPrivateSendBaseSession::%s -- txin=%s\n", __func__, txin.ToString());
 
@@ -284,31 +286,18 @@ bool CPrivateSendBaseSession::IsValidInOuts(const std::vector<CTxIn>& vin, const
         }
 
         Coin coin;
-        CScript scriptPubKeyIn;
-        auto mempoolTx = mempool.get(txin.prevout.hash);
-        // We or the other peer could be simply out of sync in all three cases below, do not punish.
-        if (mempoolTx != nullptr) {
-            if (mempool.isSpent(txin.prevout) || !llmq::quorumInstantSendManager->IsLocked(txin.prevout.hash)) {
-                LogPrint(BCLog::PRIVATESEND, "CPrivateSendBaseSession::%s -- ERROR: spent or non-locked mempool input! txin=%s\n", __func__, txin.ToString());
-                nMessageIDRet = ERR_MISSING_TX;
-                return false;
-            }
-            if (!checkTxOut(mempoolTx->vout[txin.prevout.n])) {
-                return false;
-            }
-            scriptPubKeyIn = mempoolTx->vout[txin.prevout.n].scriptPubKey;
-            nFees += mempoolTx->vout[txin.prevout.n].nValue;
-        } else if (GetUTXOCoin(txin.prevout, coin)) {
-            if (!checkTxOut(coin.out)) {
-                return false;
-            }
-            scriptPubKeyIn = coin.out.scriptPubKey;
-            nFees += coin.out.nValue;
-        } else {
-            LogPrint(BCLog::PRIVATESEND, "CPrivateSendBaseSession::%s -- ERROR: missing input! txin=%s\n", __func__, txin.ToString());
+        if (!viewMemPool.GetCoin(txin.prevout, coin) || coin.IsSpent() ||
+            (coin.nHeight == MEMPOOL_HEIGHT && !llmq::quorumInstantSendManager->IsLocked(txin.prevout.hash))) {
+            LogPrint(BCLog::PRIVATESEND, "CPrivateSendBaseSession::%s -- ERROR: missing, spent or non-locked mempool input! txin=%s\n", __func__, txin.ToString());
             nMessageIDRet = ERR_MISSING_TX;
             return false;
         }
+
+        if (!checkTxOut(coin.out)) {
+            return false;
+        }
+
+        nFees += coin.out.nValue;
     }
 
     // The same size and denom for inputs and outputs ensures their total value is also the same,
