@@ -579,7 +579,7 @@ bool CPrivateSendServer::AddEntry(CConnman& connman, const CPrivateSendEntry& en
                 }
             }
         }
-        vin.push_back(txin);
+        vin.emplace_back(txin);
     }
 
     bool fConsumeCollateral{false};
