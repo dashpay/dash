@@ -429,7 +429,7 @@ void OverviewPage::updatePrivateSendProgress()
     QString strToolPip = ("<b>" + tr("Overall progress") + ": %1%</b><br/>" +
                           tr("Denominated") + ": %2%<br/>" +
                           tr("Partially mixed") + ": %3%<br/>" +
-                          tr("Fully mixed") + ": %4%<br/>" +
+                          tr("Ready") + ": %4%<br/>" +
                           tr("Denominated inputs have %5 of %n rounds on average", "", privateSendClient.nPrivateSendRounds))
             .arg(progress).arg(denomPart).arg(anonNormPart).arg(anonFullPart)
             .arg(nAverageAnonymizedRounds);

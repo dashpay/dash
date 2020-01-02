@@ -263,7 +263,7 @@
             <string notr="true"/>
            </property>
            <property name="text">
-            <string>Amount of Dash to keep fully mixed</string>
+            <string>The desirable PrivateSend balance</string>
            </property>
           </widget>
          </item>

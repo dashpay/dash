@@ -378,7 +378,7 @@ void SendCoinsDialog::send(QList<SendCoinsRecipient> recipients)
 
 
     if(ctrl.IsUsingPrivateSend()) {
-        questionString.append(tr("using") + " <b>" + tr("fully mixed funds only") + "</b>");
+        questionString.append(tr("using") + " <b>" + tr("PrivateSend funds only") + "</b>");
     } else {
         questionString.append(tr("using") + " <b>" + tr("any available funds") + "</b>");
     }
