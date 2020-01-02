@@ -37,7 +37,7 @@ class DIP3Test(BitcoinTestFramework):
         self.start_node(0, extra_args=self.extra_args)
         for i in range(1, self.num_nodes):
             if i < len(self.nodes) and self.nodes[i] is not None and self.nodes[i].process is not None:
-                connect_nodes_bi(self.nodes, 0, i)
+                connect_nodes(self.nodes[i], 0)
 
     def stop_controller_node(self):
         self.log.info("stopping controller node")
@@ -263,10 +263,8 @@ class DIP3Test(BitcoinTestFramework):
         extra_args = ['-masternodeblsprivkey=%s' % mn.blsMnkey]
         self.start_node(mn.idx, extra_args = self.extra_args + extra_args)
         force_finish_mnsync(self.nodes[mn.idx])
-        for i in range(0, len(self.nodes)):
-            if i < len(self.nodes) and self.nodes[i] is not None and self.nodes[i].process is not None and i != mn.idx:
-                connect_nodes_bi(self.nodes, mn.idx, i)
         mn.node = self.nodes[mn.idx]
+        connect_nodes(mn.node, 0)
         self.sync_all()
 
     def spend_mn_collateral(self, mn, with_dummy_input_output=False):
