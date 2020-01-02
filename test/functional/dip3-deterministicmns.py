@@ -50,7 +50,7 @@ class DIP3Test(BitcoinTestFramework):
     def run_test(self):
         self.log.info("funding controller node")
         while self.nodes[0].getbalance() < (self.num_initial_mn + 3) * 1000:
-            self.nodes[0].generate(1) # generate enough for collaterals
+            self.nodes[0].generate(10) # generate enough for collaterals
         self.log.info("controller node has {} dash".format(self.nodes[0].getbalance()))
 
         # Make sure we're below block 135 (which activates dip3)
@@ -66,8 +66,8 @@ class DIP3Test(BitcoinTestFramework):
         mns.append(before_dip3_mn)
 
         # block 150 starts enforcing DIP3 MN payments
-        while self.nodes[0].getblockcount() < 150:
-            self.nodes[0].generate(1)
+        self.nodes[0].generate(150 - self.nodes[0].getblockcount())
+        assert(self.nodes[0].getblockcount() == 150)
 
         self.log.info("mining final block for DIP3 activation")
         self.nodes[0].generate(1)

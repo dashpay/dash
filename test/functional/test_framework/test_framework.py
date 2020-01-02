@@ -617,7 +617,7 @@ class DashTestFramework(BitcoinTestFramework):
         while self.nodes[0].getbalance() < required_balance:
             self.bump_mocktime(1)
             set_node_times(self.nodes, self.mocktime)
-            self.nodes[0].generate(1)
+            self.nodes[0].generate(10)
         num_simple_nodes = self.num_nodes - self.mn_count - 1
         self.log.info("Creating and starting %s simple nodes", num_simple_nodes)
         for i in range(0, num_simple_nodes):
