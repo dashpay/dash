@@ -263,7 +263,7 @@
             <string notr="true"/>
            </property>
            <property name="text">
-            <string>Amount of Dash to keep mixed</string>
+            <string>Amount of Dash to keep fully mixed</string>
            </property>
           </widget>
          </item>
