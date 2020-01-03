@@ -263,7 +263,7 @@
             <string notr="true"/>
            </property>
            <property name="text">
-            <string>The desirable PrivateSend balance</string>
+            <string>Target PrivateSend balance</string>
            </property>
           </widget>
          </item>
