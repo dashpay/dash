@@ -225,6 +225,23 @@ private:
         }
     }
 
+    void fill(T* dst, const_iterator first, const_iterator last) {
+        ptrdiff_t count = last - first;
+        fill(dst, &*first, count);
+    }
+
+    void fill(T* dst, const T* src, ptrdiff_t count) {
+        if (IS_TRIVIALLY_CONSTRUCTIBLE<T>::value) {
+            ::memmove(dst, src, count * sizeof(T));
+        } else {
+            for (ptrdiff_t i = 0; i < count; i++) {
+                new(static_cast<void*>(dst)) T(*src);
+                ++dst;
+                ++src;
+            }
+        }
+    }
+
 public:
     void assign(size_type n, const T& val) {
         clear();
