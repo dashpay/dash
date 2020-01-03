@@ -500,8 +500,8 @@ class DashTestFramework(BitcoinTestFramework):
                 self.extra_args[i].append("-dip3params=30:50")
 
         # LLMQ default test params (no need to pass -llmqtestparams)
-        self.llmq_size = 5
-        self.llmq_threshold = 3
+        self.llmq_size = 3
+        self.llmq_threshold = 2
 
     def set_dash_dip8_activation(self, activate_after_block):
         window = int((activate_after_block + 2) / 3)

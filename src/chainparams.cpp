@@ -152,9 +152,9 @@ static CBlock FindDevNetGenesisBlock(const Consensus::Params& params, const CBlo
 static Consensus::LLMQParams llmq_test = {
         .type = Consensus::LLMQ_TEST,
         .name = "llmq_test",
-        .size = 5,
-        .minSize = 3,
-        .threshold = 3,
+        .size = 3,
+        .minSize = 2,
+        .threshold = 2,
 
         .dkgInterval = 24, // one DKG per hour
         .dkgPhaseBlocks = 2,
