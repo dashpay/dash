@@ -751,10 +751,10 @@ class DashTestFramework(BitcoinTestFramework):
             all_ok = True
             for mn in self.mninfo:
                 s = mn.node.quorum("dkgstatus")["session"]
-                if "llmq_5_60" not in s:
+                if "llmq_test" not in s:
                     all_ok = False
                     break
-                s = s["llmq_5_60"]
+                s = s["llmq_test"]
                 if "phase" not in s:
                     all_ok = False
                     break
@@ -777,7 +777,7 @@ class DashTestFramework(BitcoinTestFramework):
                     all_ok = False
                     break
                 s = s["minableCommitments"]
-                if "llmq_5_60" not in s:
+                if "llmq_test" not in s:
                     all_ok = False
                     break
             return all_ok
@@ -851,7 +851,7 @@ class DashTestFramework(BitcoinTestFramework):
             set_node_times(self.nodes, self.mocktime)
             self.nodes[0].generate(1)
             sync_blocks(self.nodes)
-        new_quorum = self.nodes[0].quorum("list", 1)["llmq_5_60"][0]
+        new_quorum = self.nodes[0].quorum("list", 1)["llmq_test"][0]
         quorum_info = self.nodes[0].quorum("info", 100, new_quorum)
 
         # Mine 8 (SIGN_HEIGHT_OFFSET) more blocks to make sure that the new quorum gets eligable for signing sessions
