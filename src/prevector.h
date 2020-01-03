@@ -538,7 +538,15 @@ public:
     const value_type* data() const {
         return item_ptr(0);
     }
+
+    template<typename V>
+    static void assign_to(const_iterator b, const_iterator e, V& v) {
+        // We know that internally the iterators are pointing to continues memory, so we can directly use the pointers here
+        // This avoids internal use of std::copy and operator++ on the iterators and instead allows efficient memcpy/memmove
+        v.assign(&*b, &*e);
+    }
 };
+
 #pragma pack(pop)
 
 #endif // BITCOIN_PREVECTOR_H
