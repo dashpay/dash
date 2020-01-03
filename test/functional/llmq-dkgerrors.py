@@ -44,7 +44,7 @@ class LLMQDKGErrors(DashTestFramework):
 
         # Lets lie in the contribution and then omit the justification
         self.mninfo[0].node.quorum('dkgsimerror', 'justify-omit', '1')
-        qh = self.mine_quorum(expected_contributions=2, expected_complaints=2)
+        qh = self.mine_quorum(expected_contributions=3, expected_complaints=2)
         self.assert_member_valid(qh, self.mninfo[0].proTxHash, False)
 
         # Heal some damage (don't get PoSe banned)
@@ -53,7 +53,7 @@ class LLMQDKGErrors(DashTestFramework):
         # Lets lie in the contribution and then also lie in the justification
         self.mninfo[0].node.quorum('dkgsimerror', 'justify-omit', '0')
         self.mninfo[0].node.quorum('dkgsimerror', 'justify-lie', '1')
-        qh = self.mine_quorum(expected_contributions=2, expected_complaints=2, expected_justifications=1)
+        qh = self.mine_quorum(expected_contributions=3, expected_complaints=2, expected_justifications=1)
         self.assert_member_valid(qh, self.mninfo[0].proTxHash, False)
 
         # Lets lie about another MN
