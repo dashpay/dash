@@ -9,7 +9,7 @@ import time
 
 from test_framework.blocktools import create_block, create_coinbase, create_transaction, get_legacy_sigopcount_block
 from test_framework.key import CECKey
-from test_framework.messages import (
+from test_framework.mininode import (
     CBlock,
     COIN,
     COutPoint,
@@ -75,7 +75,7 @@ class FullBlockTest(BitcoinTestFramework):
         self.num_nodes = 1
         self.setup_clean_chain = True
         # Must set '-dip3params=2000:2000' to create pre-dip3 blocks only
-        self.extra_args = [['-whitelist=127.0.0.1', '-dip3params=2000:2000']]
+        self.extra_args = [['-dip3params=2000:2000']]
 
     def run_test(self):
         node = self.nodes[0]  # convenience reference to the node
@@ -174,7 +174,7 @@ class FullBlockTest(BitcoinTestFramework):
         self.log.info("Reject a block where the miner creates too much coinbase reward")
         self.move_tip(6)
         b9 = self.next_block(9, spend=out[4], additional_coinbase_value=1)
-        self.sync_blocks([b9], False, 16, b'bad-cb-amount', reconnect=True)
+        self.sync_blocks([b9], False, 16, b'bad-cb-amount', reconnect=False)
 
         # Create a fork that ends in a block with too much fee (the one that causes the reorg)
         #     genesis -> b1 (0) -> b2 (1) -> b5 (2) -> b6  (3)
@@ -186,7 +186,7 @@ class FullBlockTest(BitcoinTestFramework):
         self.sync_blocks([b10], False)
 
         b11 = self.next_block(11, spend=out[4], additional_coinbase_value=1)
-        self.sync_blocks([b11], False, 16, b'bad-cb-amount', reconnect=True)
+        self.sync_blocks([b11], False, 16, b'bad-cb-amount', reconnect=False)
 
         # Try again, but with a valid fork first
         #     genesis -> b1 (0) -> b2 (1) -> b5 (2) -> b6  (3)
@@ -199,7 +199,7 @@ class FullBlockTest(BitcoinTestFramework):
         b13 = self.next_block(13, spend=out[4])
         self.save_spendable_output()
         b14 = self.next_block(14, spend=out[5], additional_coinbase_value=1)
-        self.sync_blocks([b12, b13, b14], False, 16, b'bad-cb-amount', reconnect=True)
+        self.sync_blocks([b12, b13, b14], False, 16, b'bad-cb-amount', reconnect=False)
 
         # New tip should be b13.
         assert_equal(node.getbestblockhash(), b13.hash)
@@ -294,7 +294,7 @@ class FullBlockTest(BitcoinTestFramework):
         self.sync_blocks([b24], False, 16, b'bad-blk-length', reconnect=True)
 
         b25 = self.next_block(25, spend=out[7])
-        self.sync_blocks([b25], False)
+        self.sync_blocks([b25], False, request_block=False, reconnect=True)
 
         # Create blocks with a coinbase input script size out of range
         #     genesis -> b1 (0) -> b2 (1) -> b5 (2) -> b6  (3)
@@ -906,7 +906,7 @@ class FullBlockTest(BitcoinTestFramework):
         b68 = self.next_block(68, additional_coinbase_value=10)
         tx = self.create_and_sign_transaction(out[20].tx, out[20].n, out[20].tx.vout[0].nValue - 9)
         b68 = self.update_block(68, [tx])
-        self.sync_blocks([b68], False, 16, b'bad-cb-amount', reconnect=True)
+        self.sync_blocks([b68], False, 16, b'bad-cb-amount', reconnect=False)
 
         self.log.info("Accept a block claiming the correct subsidy in the coinbase transaction")
         self.move_tip(65)
