@@ -560,7 +560,15 @@ public:
     static void assign_to(const_iterator b, const_iterator e, V& v) {
         // We know that internally the iterators are pointing to continues memory, so we can directly use the pointers here
         // This avoids internal use of std::copy and operator++ on the iterators and instead allows efficient memcpy/memmove
-        v.assign(&*b, &*e);
+        if (IS_TRIVIALLY_CONSTRUCTIBLE<T>::value) {
+            auto s = e - b;
+            if (v.size() != s) {
+                v.resize(s);
+            }
+            ::memmove(v.data(), &*b, s);
+        } else {
+            v.assign(&*b, &*e);
+        }
     }
 };
 
