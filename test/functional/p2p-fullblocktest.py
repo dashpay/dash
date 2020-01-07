@@ -1184,7 +1184,7 @@ class FullBlockTest(BitcoinTestFramework):
             self.save_spendable_output()
             spend = self.get_spendable_output()
 
-        self.sync_blocks(blocks, True, timeout=180)
+        self.sync_blocks(blocks, True, timeout=960)
         chain1_tip = i
 
         # now create alt chain of same length
@@ -1196,14 +1196,14 @@ class FullBlockTest(BitcoinTestFramework):
 
         # extend alt chain to trigger re-org
         block = self.next_block("alt" + str(chain1_tip + 1))
-        self.sync_blocks([block], True, timeout=180)
+        self.sync_blocks([block], True, timeout=960)
 
         # ... and re-org back to the first chain
         self.move_tip(chain1_tip)
         block = self.next_block(chain1_tip + 1)
         self.sync_blocks([block], False, request_block=False)
         block = self.next_block(chain1_tip + 2)
-        self.sync_blocks([block], True, timeout=180)
+        self.sync_blocks([block], True, timeout=960)
 
     # Helper methods
     ################
