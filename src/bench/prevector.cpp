@@ -88,7 +88,7 @@ static void PrevectorAssign(benchmark::State& state)
     while (state.KeepRunning()) {
         for (int i = 0; i < 1000; ++i) {
             prevec::const_iterator b = t.begin() + 5;
-            prevec::const_iterator e = b + 4;
+            prevec::const_iterator e = b + 20;
             v.assign(b, e);
         }
     }
@@ -102,7 +102,7 @@ static void PrevectorAssignTo(benchmark::State& state)
     while (state.KeepRunning()) {
         for (int i = 0; i < 1000; ++i) {
             prevec::const_iterator b = t.begin() + 5;
-            prevec::const_iterator e = b + 4;
+            prevec::const_iterator e = b + 20;
             t.assign_to(b, e, v);
         }
     }
