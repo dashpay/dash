@@ -80,7 +80,7 @@ PREVECTOR_TEST(Resize, 28900, 90300)
 
 typedef prevector<28, unsigned char> prevec;
 
-static void A_PrevectorAssign1(benchmark::State& state)
+static void PrevectorAssign(benchmark::State& state)
 {
     prevec t;
     t.resize(28);
@@ -94,7 +94,7 @@ static void A_PrevectorAssign1(benchmark::State& state)
     }
 }
 
-static void A_PrevectorAssign2(benchmark::State& state)
+static void PrevectorAssignTo(benchmark::State& state)
 {
     prevec t;
     t.resize(28);
@@ -108,5 +108,5 @@ static void A_PrevectorAssign2(benchmark::State& state)
     }
 }
 
-BENCHMARK(A_PrevectorAssign1)
-BENCHMARK(A_PrevectorAssign2)
+BENCHMARK(PrevectorAssign)
+BENCHMARK(PrevectorAssignTo)
