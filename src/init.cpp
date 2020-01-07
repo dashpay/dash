@@ -2064,12 +2064,12 @@ bool AppInitMain(boost::thread_group& threadGroup, CScheduler& scheduler)
 
     // LOAD SERIALIZED DAT FILES INTO DATA CACHES FOR INTERNAL USE
 
-    bool fIgnoreCacheFiles = fLiteMode || fReindex || fReindexChainState;
+    bool fLoadCacheFiles = !(fLiteMode || fReindex || fReindexChainState);
     {
         LOCK(cs_main);
         // was blocks/chainstate deleted?
         if (chainActive.Tip() == nullptr) {
-            fIgnoreCacheFiles = true;
+            fLoadCacheFiles = false;
         }
     }
     fs::path pathDB = GetDataDir();
@@ -2078,7 +2078,7 @@ bool AppInitMain(boost::thread_group& threadGroup, CScheduler& scheduler)
     strDBName = "mncache.dat";
     uiInterface.InitMessage(_("Loading masternode cache..."));
     CFlatDB<CMasternodeMetaMan> flatdb1(strDBName, "magicMasternodeCache");
-    if (!fIgnoreCacheFiles) {
+    if (fLoadCacheFiles) {
         if(!flatdb1.Load(mmetaman)) {
             return InitError(_("Failed to load masternode cache from") + "\n" + (pathDB / strDBName).string());
         }
@@ -2092,7 +2092,7 @@ bool AppInitMain(boost::thread_group& threadGroup, CScheduler& scheduler)
     strDBName = "governance.dat";
     uiInterface.InitMessage(_("Loading governance cache..."));
     CFlatDB<CGovernanceManager> flatdb3(strDBName, "magicGovernanceCache");
-    if (!fIgnoreCacheFiles) {
+    if (fLoadCacheFiles) {
         if(!flatdb3.Load(governance)) {
             return InitError(_("Failed to load governance cache from") + "\n" + (pathDB / strDBName).string());
         }
@@ -2107,7 +2107,7 @@ bool AppInitMain(boost::thread_group& threadGroup, CScheduler& scheduler)
     strDBName = "netfulfilled.dat";
     uiInterface.InitMessage(_("Loading fulfilled requests cache..."));
     CFlatDB<CNetFulfilledRequestManager> flatdb4(strDBName, "magicFulfilledCache");
-    if (!fIgnoreCacheFiles) {
+    if (fLoadCacheFiles) {
         if(!flatdb4.Load(netfulfilledman)) {
             return InitError(_("Failed to load fulfilled requests cache from") + "\n" + (pathDB / strDBName).string());
         }
