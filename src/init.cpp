@@ -2065,6 +2065,13 @@ bool AppInitMain(boost::thread_group& threadGroup, CScheduler& scheduler)
     // LOAD SERIALIZED DAT FILES INTO DATA CACHES FOR INTERNAL USE
 
     bool fIgnoreCacheFiles = fLiteMode || fReindex || fReindexChainState;
+    {
+        LOCK(cs_main);
+        // was blocks/chainstate deleted?
+        if (chainActive.Tip() == nullptr) {
+            fIgnoreCacheFiles = true;
+        }
+    }
     if (!fIgnoreCacheFiles) {
         fs::path pathDB = GetDataDir();
         std::string strDBName;
