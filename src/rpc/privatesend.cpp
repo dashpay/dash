@@ -44,7 +44,7 @@ UniValue privatesend(const JSONRPCRequest& request)
             throw JSONRPCError(RPC_INTERNAL_ERROR, "Mixing is disabled via -enableprivatesend=0 command line option, remove it to enable mixing again");
         } else {
             // neither litemode nor enableprivatesend=false case,
-            // most likely smth bad happened and we disabled it while running the wallet
+            // most likely something bad happened and we disabled it while running the wallet
             throw JSONRPCError(RPC_INTERNAL_ERROR, "Mixing is disabled due to some internal error");
         }
     }
