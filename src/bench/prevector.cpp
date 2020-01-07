@@ -103,7 +103,7 @@ static void A_PrevectorAssign2(benchmark::State& state)
         for (int i = 0; i < 1000; ++i) {
             prevec::const_iterator b = t.begin() + 5;
             prevec::const_iterator e = b + 4;
-            v.assign(&*b, &*e);
+            t.assign_to(b, e, v);
         }
     }
 }
