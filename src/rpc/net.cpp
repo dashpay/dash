@@ -326,33 +326,35 @@ static UniValue disconnectnode(const JSONRPCRequest& request)
 
 static UniValue getaddednodeinfo(const JSONRPCRequest& request)
 {
-    RPCHelpMan{"getaddednodeinfo",
-        "\nReturns information about the given added node, or all added nodes\n"
-        "(note that onetry addnodes are not listed here)\n",
-        {
-            {"node", RPCArg::Type::STR, /* default */ "all nodes", "If provided, return information about this specific node, otherwise all nodes are returned."},
-        },
-        RPCResult{
-    "[\n"
-    "  {\n"
-    "    \"addednode\" : \"192.168.0.201\",   (string) The node IP address or name (as provided to addnode)\n"
-    "    \"connected\" : true|false,          (boolean) If connected\n"
-    "    \"addresses\" : [                    (list of objects) Only when connected = true\n"
-    "       {\n"
-    "         \"address\" : \"192.168.0.201:9999\",  (string) The dash server IP and port we're connected to\n"
-    "         \"connected\" : \"outbound\"           (string) connection, inbound or outbound\n"
-    "       }\n"
-    "     ]\n"
-    "  }\n"
-    "  ,...\n"
-    "]\n"
-        },
-        RPCExamples{
-            HelpExampleCli("getaddednodeinfo", "")
-            + HelpExampleCli("getaddednodeinfo", "\"192.168.0.201\"")
-    + HelpExampleRpc("getaddednodeinfo", "\"192.168.0.201\"")
-        },
-    }.Check(request);
+            RPCHelpMan{"getaddednodeinfo",
+                "\nReturns information about the given added node, or all added nodes\n"
+                "(note that onetry addnodes are not listed here)\n",
+                {
+                    {"node", RPCArg::Type::STR, /* default */ "all nodes", "If provided, return information about this specific node, otherwise all nodes are returned."},
+                },
+                RPCResult{
+                    RPCResult::Type::ARR, "", "",
+                    {
+                        {RPCResult::Type::OBJ, "", "",
+                        {
+                            {RPCResult::Type::STR, "addednode", "The node IP address or name (as provided to addnode)"},
+                            {RPCResult::Type::BOOL, "connected", "If connected"},
+                            {RPCResult::Type::ARR, "addresses", "Only when connected = true",
+                            {
+                                {RPCResult::Type::OBJ, "", "",
+                                {
+                                    {RPCResult::Type::STR, "address", "The dash server IP and port we're connected to"},
+                                    {RPCResult::Type::STR, "connected", "connection, inbound or outbound"},
+                                }},
+                            }},
+                        }},
+                    }
+                },
+                RPCExamples{
+                    HelpExampleCli("getaddednodeinfo", "\"192.168.0.201\"")
+            + HelpExampleRpc("getaddednodeinfo", "\"192.168.0.201\"")
+                },
+            }.Check(request);
 
     if(!g_rpc_node->connman)
         throw JSONRPCError(RPC_CLIENT_P2P_DISABLED, "Error: Peer-to-peer functionality missing or disabled");
@@ -414,7 +416,7 @@ static UniValue getnettotals(const JSONRPCRequest& request)
                    {RPCResult::Type::NUM, "bytes_left_in_cycle", "Bytes left in current time cycle"},
                    {RPCResult::Type::NUM, "time_left_in_cycle", "Seconds left in current time cycle"},
                 }},
-            }
+                    }
         },
         RPCExamples{
             HelpExampleCli("getnettotals", "")
@@ -463,53 +465,56 @@ static UniValue GetNetworksInfo()
 
 static UniValue getnetworkinfo(const JSONRPCRequest& request)
 {
-    RPCHelpMan{"getnetworkinfo",
-        "Returns an object containing various state info regarding P2P networking.\n",
-        {},
-        RPCResult{
-    "{\n"
-    "  \"version\" : xxxxx,                      (numeric) the server version\n"
-    "  \"buildversion\" : \"x.x.x.x-xxx\",         (string) the server build version including RC info or commit as relevant\n"
-    "  \"subversion\" : \"/Dash Core:x.x.x.x/\",   (string) the server subversion string\n"
-    "  \"protocolversion\" : xxxxx,              (numeric) the protocol version\n"
-    "  \"localservices\" : \"xxxxxxxxxxxxxxxx\", (string) the services we offer to the network\n"
-    "  \"localservicesnames\" : [                (json array) the services we offer to the network, in human-readable form\n"
-    "      \"SERVICE_NAME\",                    (string) the service name\n"
-    "       ...\n"
-    "   ],\n"
-    "  \"localrelay\" : true|false,              (boolean) true if transaction relay is requested from peers\n"
-    "  \"timeoffset\" : xxxxx,                   (numeric) the time offset\n"
-    "  \"connections\" : xxxxx,                  (numeric) the number of connections\n"
-    "  \"networkactive\" : true|false,           (boolean) whether p2p networking is enabled\n"
-    "  \"socketevents\" : \"xxx/\",              (string) the socket events mode, either kqueue, epoll, poll or select\n"
-    "  \"networks\" : [                          (json array) information per network\n"
-    "  {\n"
-    "    \"name\" : \"xxx\",                     (string) network (ipv4, ipv6 or onion)\n"
-    "    \"limited\" : true|false,               (boolean) is the network limited using -onlynet?\n"
-    "    \"reachable\" : true|false,             (boolean) is the network reachable?\n"
-    "    \"proxy\" : \"host:port\"               (string) the proxy that is used for this network, or empty if none\n"
-    "    \"proxy_randomize_credentials\" : true|false,  (string) Whether randomized credentials are used\n"
-    "  }\n"
-    "  ,...\n"
-    "  ],\n"
-    "  \"relayfee\" : x.xxxxxxxx,                (numeric) minimum relay fee for transactions in " + CURRENCY_UNIT + "/kB\n"
-    "  \"incrementalfee\" : x.xxxxxxxx,          (numeric) minimum fee increment for mempool limiting in " + CURRENCY_UNIT + "/kB\n"
-    "  \"localaddresses\" : [                    (json array) list of local addresses\n"
-    "  {\n"
-    "    \"address\" : \"xxxx\",                 (string) network address\n"
-    "    \"port\" : xxx,                         (numeric) network port\n"
-    "    \"score\" : xxx                         (numeric) relative score\n"
-    "  }\n"
-    "  ,...\n"
-    "  ]\n"
-    "  \"warnings\" : \"...\"                    (string) any network and blockchain warnings\n"
-    "}\n"
-        },
-        RPCExamples{
-            HelpExampleCli("getnetworkinfo", "")
-    + HelpExampleRpc("getnetworkinfo", "")
-        },
-    }.Check(request);
+            RPCHelpMan{"getnetworkinfo",
+                "Returns an object containing various state info regarding P2P networking.\n",
+                {},
+                RPCResult{
+                    RPCResult::Type::OBJ, "", "",
+                    {
+                        {RPCResult::Type::NUM, "version", "the server version"},
+                        "  \"buildversion\" : \"x.x.x.x-xxx\",         (string) the server build version including RC info or commit as relevant\n"
+                            {RPCResult::Type::STR, "subversion", "the server subversion string"},
+                        {RPCResult::Type::NUM, "protocolversion", "the protocol version"},
+                        {RPCResult::Type::STR_HEX, "localservices", "the services we offer to the network"},
+                        {RPCResult::Type::ARR, "localservicesnames", "the services we offer to the network, in human-readable form",
+                        {
+                            {RPCResult::Type::STR, "SERVICE_NAME", "the service name"},
+                        }},
+                        {RPCResult::Type::BOOL, "localrelay", "true if transaction relay is requested from peers"},
+                        {RPCResult::Type::NUM, "timeoffset", "the time offset"},
+                        {RPCResult::Type::NUM, "connections", "the number of connections"},
+                        {RPCResult::Type::BOOL, "networkactive", "whether p2p networking is enabled"},
+                        "  \"socketevents\" : \"xxx/\",              (string) the socket events mode, either kqueue, epoll, poll or select\n"
+                        {RPCResult::Type::ARR, "networks", "information per network",
+                        {
+                            {RPCResult::Type::OBJ, "", "",
+                            {
+                                {RPCResult::Type::STR, "name", "network (ipv4, ipv6 or onion)"},
+                                {RPCResult::Type::BOOL, "limited", "is the network limited using -onlynet?"},
+                                {RPCResult::Type::BOOL, "reachable", "is the network reachable?"},
+                                {RPCResult::Type::STR, "proxy", "(\"host:port\") the proxy that is used for this network, or empty if none"},
+                                {RPCResult::Type::BOOL, "proxy_randomize_credentials", "Whether randomized credentials are used"},
+                            }},
+                        }},
+                        {RPCResult::Type::NUM, "relayfee", "minimum relay fee for transactions in " + CURRENCY_UNIT + "/kB"},
+                        {RPCResult::Type::NUM, "incrementalfee", "minimum fee increment for mempool limiting in " + CURRENCY_UNIT + "/kB"},
+                        {RPCResult::Type::ARR, "localaddresses", "list of local addresses",
+                        {
+                            {RPCResult::Type::OBJ, "", "",
+                            {
+                                {RPCResult::Type::STR, "address", "network address"},
+                                {RPCResult::Type::NUM, "port", "network port"},
+                                {RPCResult::Type::NUM, "score", "relative score"},
+                            }},
+                        }},
+                        {RPCResult::Type::STR, "warnings", "any network and blockchain warnings"},
+                    }
+                },
+                RPCExamples{
+                    HelpExampleCli("getnetworkinfo", "")
+            + HelpExampleRpc("getnetworkinfo", "")
+                },
+            }.Check(request);
 
     LOCK(cs_main);
     UniValue obj(UniValue::VOBJ);
@@ -732,27 +737,28 @@ static UniValue setnetworkactive(const JSONRPCRequest& request)
 
 static UniValue getnodeaddresses(const JSONRPCRequest& request)
 {
-    RPCHelpMan{"getnodeaddresses",
-        "\nReturn known addresses which can potentially be used to find new nodes in the network\n",
-        {
-            {"count", RPCArg::Type::NUM, /* default */ "1", "How many addresses to return. Limited to the smaller of " + std::to_string(ADDRMAN_GETADDR_MAX) + " or " + std::to_string(ADDRMAN_GETADDR_MAX_PCT) + "% of all known addresses."},
-        },
-        RPCResult{
-    "[\n"
-    "  {\n"
-    "    \"time\" : ttt,                (numeric) Timestamp in seconds since epoch (Jan 1 1970 GMT) keeping track of when the node was last seen\n"
-    "    \"services\" : n,              (numeric) The services offered\n"
-    "    \"address\" : \"host\",          (string) The address of the node\n"
-    "    \"port\" : n                   (numeric) The port of the node\n"
-    "  }\n"
-    "  ,....\n"
-    "]\n"
-        },
-        RPCExamples{
-            HelpExampleCli("getnodeaddresses", "8")
-    + HelpExampleRpc("getnodeaddresses", "8")
-        },
-    }.Check(request);
+            RPCHelpMan{"getnodeaddresses",
+                "\nReturn known addresses which can potentially be used to find new nodes in the network\n",
+                {
+                    {"count", RPCArg::Type::NUM, /* default */ "1", "How many addresses to return. Limited to the smaller of " + std::to_string(ADDRMAN_GETADDR_MAX) + " or " + std::to_string(ADDRMAN_GETADDR_MAX_PCT) + "% of all known addresses."},
+                },
+                RPCResult{
+                    RPCResult::Type::ARR, "", "",
+                    {
+                        {RPCResult::Type::OBJ, "", "",
+                        {
+                            {RPCResult::Type::NUM_TIME, "time", "Timestamp in seconds since epoch (Jan 1 1970 GMT) keeping track of when the node was last seen"},
+                            {RPCResult::Type::NUM, "services", "The services offered"},
+                            {RPCResult::Type::STR, "address", "The address of the node"},
+                            {RPCResult::Type::NUM, "port", "The port of the node"},
+                        }},
+                    }
+                },
+                RPCExamples{
+                    HelpExampleCli("getnodeaddresses", "8")
+            + HelpExampleRpc("getnodeaddresses", "8")
+                },
+            }.Check(request);
     if (!g_rpc_node->connman) {
         throw JSONRPCError(RPC_CLIENT_P2P_DISABLED, "Error: Peer-to-peer functionality missing or disabled");
     }

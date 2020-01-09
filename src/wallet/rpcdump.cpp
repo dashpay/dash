@@ -898,6 +898,10 @@ UniValue dumpwallet(const JSONRPCRequest& request)
             {"filename", RPCArg::Type::STR, RPCArg::Optional::NO, "The filename with path (either absolute or relative to dashd)"},
         },
         RPCResult{
+                RPCResult::Type::OBJ, "", "",
+                {
+                        {RPCResult::Type::STR, "filename", "The filename with full absolute path"},
+                }
     "{                           (json object)\n"
     "  \"keys\" : {            (numeric) The number of keys contained in the wallet dump\n"
     "  \"filename\" : {        (string) The filename with full absolute path\n"

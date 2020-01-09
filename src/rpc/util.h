@@ -239,7 +239,6 @@ struct RPCResult {
           m_optional{optional},
           m_description{std::move(description)},
           m_cond{std::move(cond)},
-          m_result{},
           m_legacy{false}
     {
         CHECK_NONFATAL(!m_cond.empty());
@@ -263,14 +262,14 @@ struct RPCResult {
     }
 
     RPCResult(std::string result)
-        : m_type{Type::NONE},
-          m_key_name{},
-          m_inner{},
-          m_optional{false},
-          m_description{},
-          m_cond{},
-          m_result{std::move(result)},
-          m_legacy{true}
+            : m_type{Type::NONE},
+              m_key_name{},
+              m_inner{},
+              m_optional{false},
+              m_description{},
+              m_cond{},
+              m_result{std::move(result)},
+              m_legacy{true}
     {
         CHECK_NONFATAL(!m_result.empty());
     }
@@ -296,7 +295,6 @@ struct RPCResult {
           m_optional{optional},
           m_description{std::move(description)},
           m_cond{},
-          m_result{},
           m_legacy{false}
     {
         const bool inner_needed{type == Type::ARR || type == Type::ARR_FIXED || type == Type::OBJ || type == Type::OBJ_DYN};

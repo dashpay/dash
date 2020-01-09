@@ -404,26 +404,26 @@ static UniValue generateblock(const JSONRPCRequest& request)
 
 static UniValue getmininginfo(const JSONRPCRequest& request)
 {
-    RPCHelpMan{"getmininginfo",
-        "\nReturns a json object containing mining-related information.",
-        {},
-        RPCResult{
-            "{\n"
-            "  \"blocks\" : nnn,             (numeric) The current block\n"
-            "  \"currentblocksize\" : nnn,   (numeric, optional) The block size of the last assembled block (only present if a block was ever assembled)\n"
-            "  \"currentblocktx\" : nnn,     (numeric, optional) The number of block transactions of the last assembled block (only present if a block was ever assembled)\n"
-            "  \"difficulty\" : xxx.xxxxx    (numeric) The current difficulty\n"
-            "  \"networkhashps\" : nnn,      (numeric) The network hashes per second\n"
-            "  \"pooledtx\" : n              (numeric) The size of the mempool\n"
-            "  \"chain\" : \"xxxx\",           (string) current network name (main, test, regtest)\n"
-            "  \"warnings\" : \"...\"          (string) any network and blockchain warnings\n"
-            "}\n"
-        },
-        RPCExamples{
-            HelpExampleCli("getmininginfo", "")
-    + HelpExampleRpc("getmininginfo", "")
-        },
-    }.Check(request);
+            RPCHelpMan{"getmininginfo",
+                "\nReturns a json object containing mining-related information.",
+                {},
+                RPCResult{
+                    RPCResult::Type::OBJ, "", "",
+                    {
+                        {RPCResult::Type::NUM, "blocks", "The current block"},
+                        {RPCResult::Type::NUM, "currentblocksize", /* optional */ true, "The block size of the last assembled block (only present if a block was ever assembled)"},
+                        {RPCResult::Type::NUM, "currentblocktx", /* optional */ true, "The number of block transactions of the last assembled block (only present if a block was ever assembled)"},
+                        {RPCResult::Type::NUM, "difficulty", "The current difficulty"},
+                        {RPCResult::Type::NUM, "networkhashps", "The network hashes per second"},
+                        {RPCResult::Type::NUM, "pooledtx", "The size of the mempool"},
+                        {RPCResult::Type::STR, "chain", "current network name (main, test, regtest)"},
+                        {RPCResult::Type::STR, "warnings", "any network and blockchain warnings"},
+                    }},
+                RPCExamples{
+                    HelpExampleCli("getmininginfo", "")
+            + HelpExampleRpc("getmininginfo", "")
+                },
+            }.Check(request);
 
     LOCK(cs_main);
 

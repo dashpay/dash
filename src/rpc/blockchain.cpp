@@ -540,17 +540,16 @@ static UniValue getrawmempool(const JSONRPCRequest& request)
         {
             {"verbose", RPCArg::Type::BOOL, /* default */ "false", "True for a json object, false for array of transaction ids"},
         },
-        RPCResult{"for verbose = false",
-    "[                     (json array of string)\n"
-    "  \"transactionid\"     (string) The transaction id\n"
-    "  ,...\n"
-    "]\n"
-    "\nResult: (for verbose = true):\n"
-    "{                           (json object)\n"
-    "  \"transactionid\" : {       (json object)\n"
-    + EntryDescriptionString()
-    + "  }, ...\n"
-    "}\n"
+        {RPCResult{"for verbose = false",
+    RPCResult::Type::ARR, "", "",
+    {
+                            {RPCResult::Type::STR_HEX, "", "The transaction id"},
+    }},
+    RPCResult{"for verbose = true",
+    RPCResult::Type::OBJ, "", "",
+    {
+    {RPCResult::Type::OBJ_DYN, "transactionid", "", MempoolEntryDescription()},
+    }},
         },
         RPCExamples{
             HelpExampleCli("getrawmempool", "true")
@@ -575,17 +574,11 @@ static UniValue getmempoolancestors(const JSONRPCRequest& request)
         },
         {
             RPCResult{"for verbose = false",
-    "[                       (json array of strings)\n"
-    "  \"transactionid\"           (string) The transaction id of an in-mempool ancestor transaction\n"
-    "  ,...\n"
-    "]\n"
+    RPCResult::Type::ARR, "", "",
+    {{RPCResult::Type::STR_HEX, "", "The transaction id of an in-mempool ancestor transaction"}}
             },
             RPCResult{"for verbose = true",
-    "{                           (json object)\n"
-    "  \"transactionid\" : {       (json object)\n"
-    + EntryDescriptionString()
-    + "  }, ...\n"
-    "}\n"
+    RPCResult::Type::OBJ_DYN, "transactionid", "", MempoolEntryDescription()
             },
         },
         RPCExamples{
@@ -642,18 +635,14 @@ static UniValue getmempooldescendants(const JSONRPCRequest& request)
         },
         {
             RPCResult{"for verbose = false",
-    "[                       (json array of strings)\n"
-    "  \"transactionid\"           (string) The transaction id of an in-mempool descendant transaction\n"
-    "  ,...\n"
-    "]\n"
+    RPCResult::Type::ARR, "", "",
+    {{RPCResult::Type::STR_HEX, "", "The transaction id of an in-mempool descendant transaction"}}
             },
             RPCResult{"for verbose = true",
-    "{                           (json object)\n"
-    "  \"transactionid\" : {       (json object)\n"
-    + EntryDescriptionString()
-    + "  }, ...\n"
-    "}\n"
-            },
+    RPCResult::Type::OBJ, "", "",
+    {
+    {RPCResult::Type::OBJ_DYN, "transactionid", "", MempoolEntryDescription()},
+            }},
         },
         RPCExamples{
             HelpExampleCli("getmempooldescendants", "\"mytxid\"")
@@ -707,9 +696,7 @@ static UniValue getmempoolentry(const JSONRPCRequest& request)
             {"txid", RPCArg::Type::STR_HEX, RPCArg::Optional::NO, "The transaction id (must be in mempool)"},
         },
         RPCResult{
-    "{                           (json object)\n"
-    + EntryDescriptionString()
-    + "}\n"
+    RPCResult::Type::OBJ_DYN, "", "", MempoolEntryDescription()
         },
         RPCExamples{
             HelpExampleCli("getmempoolentry", "\"mytxid\"")
@@ -1062,7 +1049,7 @@ static UniValue getblock(const JSONRPCRequest& request)
                 {
                     RPCResult{"for verbosity = 0",
                 RPCResult::Type::STR_HEX, "", "A string that is serialized, hex-encoded data for block 'hash'"},
-                    RPCResult{"for verbosity = 1",
+                RPCResult{"for verbosity = 1",
             "{\n"
             "  \"hash\" : \"hash\",     (string) the block hash (same as provided)\n"
             "  \"confirmations\" : n,   (numeric) The number of confirmations, or -1 if the block is not on the main chain\n"
@@ -1093,15 +1080,19 @@ static UniValue getblock(const JSONRPCRequest& request)
             "}\n"
                     },
                     RPCResult{"for verbosity = 2",
-            "{\n"
-            "  ...,                     Same output as verbosity = 1.\n"
-            "  \"tx\" : [               (array of Objects) The transactions in the format of the getrawtransaction RPC. Different from verbosity = 1 \"tx\" result.\n"
-            "         ,...\n"
-            "  ],\n"
-            "  ,...                     Same output as verbosity = 1.\n"
-            "}\n"
-                    },
-                },
+                RPCResult::Type::OBJ, "", "",
+                {
+                    {RPCResult::Type::ELISION, "", "Same output as verbosity = 1"},
+                    {RPCResult::Type::ARR, "tx", "",
+                    {
+                        {RPCResult::Type::OBJ, "", "",
+                        {
+                            {RPCResult::Type::ELISION, "", "The transactions in the format of the getrawtransaction RPC. Different from verbosity = 1 \"tx\" result"},
+                        }},
+                    }},
+                    {RPCResult::Type::ELISION, "", "Same output as verbosity = 1"},
+                }},
+        },
                 RPCExamples{
                     HelpExampleCli("getblock", "\"00000000000fd08c2fb661d2fcb0d49abb3a91e5f27082ce64feed3b4dede2e2\"")
             + HelpExampleRpc("getblock", "\"00000000000fd08c2fb661d2fcb0d49abb3a91e5f27082ce64feed3b4dede2e2\"")
@@ -1719,7 +1710,6 @@ static UniValue getmempoolinfo(const JSONRPCRequest& request)
     RPCHelpMan{"getmempoolinfo",
         "\nReturns details on the active state of the TX memory pool.\n",
         {},
-        RPCResult{
     "{\n"
     "  \"loaded\" : true|false         (boolean) True if the mempool is fully loaded\n"
     "  \"size\" : xxxxx,               (numeric) Current tx count\n"
@@ -1857,29 +1847,29 @@ static UniValue reconsiderblock(const JSONRPCRequest& request)
 
 static UniValue getchaintxstats(const JSONRPCRequest& request)
 {
-    RPCHelpMan{"getchaintxstats",
-        "\nCompute statistics about the total number and rate of transactions in the chain.\n",
-        {
-            {"nblocks", RPCArg::Type::NUM, /* default */ "one month", "Size of the window in number of blocks"},
-            {"blockhash", RPCArg::Type::STR_HEX, /* default */ "chain tip", "The hash of the block that ends the window."},
-        },
-        RPCResult{
-    "{\n"
-    "  \"time\" : xxxxx,                         (numeric) The timestamp for the final block in the window in UNIX format.\n"
-    "  \"txcount\" : xxxxx,                      (numeric) The total number of transactions in the chain up to that point.\n"
-    "  \"window_final_block_hash\" : \"...\",      (string) The hash of the final block in the window.\n"
-    "  \"window_final_block_height\" : xxxxx,    (numeric) The height of the final block in the window.\n"
-    "  \"window_block_count\" : xxxxx,           (numeric) Size of the window in number of blocks.\n"
-    "  \"window_tx_count\" : xxxxx,              (numeric) The number of transactions in the window. Only returned if \"window_block_count\" is > 0.\n"
-    "  \"window_interval\" : xxxxx,              (numeric) The elapsed time in the window in seconds. Only returned if \"window_block_count\" is > 0.\n"
-    "  \"txrate\" : x.xx,                        (numeric) The average rate of transactions per second in the window. Only returned if \"window_interval\" is > 0.\n"
-    "}\n"
-        },
-        RPCExamples{
-            HelpExampleCli("getchaintxstats", "")
-    + HelpExampleRpc("getchaintxstats", "2016")
-        },
-    }.Check(request);
+            RPCHelpMan{"getchaintxstats",
+                "\nCompute statistics about the total number and rate of transactions in the chain.\n",
+                {
+                    {"nblocks", RPCArg::Type::NUM, /* default */ "one month", "Size of the window in number of blocks"},
+                    {"blockhash", RPCArg::Type::STR_HEX, /* default */ "chain tip", "The hash of the block that ends the window."},
+                },
+                RPCResult{
+                    RPCResult::Type::OBJ, "", "",
+                    {
+                        {RPCResult::Type::NUM_TIME, "time", "The timestamp for the final block in the window in UNIX format.},
+                        {RPCResult::Type::NUM, "txcount", "The total number of transactions in the chain up to that point"},
+                        {RPCResult::Type::STR_HEX, "window_final_block_hash", "The hash of the final block in the window"},
+                        {RPCResult::Type::NUM, "window_final_block_height", "The height of the final block in the window."},
+                        {RPCResult::Type::NUM, "window_block_count", "Size of the window in number of blocks"},
+                        {RPCResult::Type::NUM, "window_tx_count", "The number of transactions in the window. Only returned if \"window_block_count\" is > 0"},
+                        {RPCResult::Type::NUM, "window_interval", "The elapsed time in the window in seconds. Only returned if \"window_block_count\" is > 0"},
+                        {RPCResult::Type::NUM, "txrate", "The average rate of transactions per second in the window. Only returned if \"window_interval\" is > 0"},
+                    }},
+                RPCExamples{
+                    HelpExampleCli("getchaintxstats", "")
+            + HelpExampleRpc("getchaintxstats", "2016")
+                },
+            }.Check(request);
 
     const CBlockIndex* pindex;
     int blockcount = 30 * 24 * 60 * 60 / Params().GetConsensus().nPowTargetSpacing; // By default: 1 month
@@ -2004,40 +1994,41 @@ static UniValue getblockstats(const JSONRPCRequest& request)
                         "stats"},
                 },
                 RPCResult{
-            "{                           (json object)\n"
-            "  \"avgfee\" : xxxxx,          (numeric) Average fee in the block\n"
-            "  \"avgfeerate\" : xxxxx,      (numeric) Average feerate (in duffs per byte)\n"
-            "  \"avgtxsize\" : xxxxx,       (numeric) Average transaction size\n"
-            "  \"blockhash\" : xxxxx,       (string) The block hash (to check for potential reorgs)\n"
-            "  \"feerate_percentiles\" : [  (array of numeric) Feerates at the 10th, 25th, 50th, 75th, and 90th percentile weight unit (in duffs per byte)\n"
-            "      \"10th_percentile_feerate\",      (numeric) The 10th percentile feerate\n"
-            "      \"25th_percentile_feerate\",      (numeric) The 25th percentile feerate\n"
-            "      \"50th_percentile_feerate\",      (numeric) The 50th percentile feerate\n"
-            "      \"75th_percentile_feerate\",      (numeric) The 75th percentile feerate\n"
-            "      \"90th_percentile_feerate\",      (numeric) The 90th percentile feerate\n"
-            "  ],\n"
-            "  \"height\" : xxxxx,          (numeric) The height of the block\n"
-            "  \"ins\" : xxxxx,             (numeric) The number of inputs (excluding coinbase)\n"
-            "  \"maxfee\" : xxxxx,          (numeric) Maximum fee in the block\n"
-            "  \"maxfeerate\" : xxxxx,      (numeric) Maximum feerate (in duffs per byte)\n"
-            "  \"maxtxsize\" : xxxxx,       (numeric) Maximum transaction size\n"
-            "  \"medianfee\" : xxxxx,       (numeric) Truncated median fee in the block\n"
-            "  \"mediantime\" : xxxxx,      (numeric) The block median time past\n"
-            "  \"mediantxsize\" : xxxxx,    (numeric) Truncated median transaction size\n"
-            "  \"minfee\" : xxxxx,          (numeric) Minimum fee in the block\n"
-            "  \"minfeerate\" : xxxxx,      (numeric) Minimum feerate (in duffs per byte)\n"
-            "  \"mintxsize\" : xxxxx,       (numeric) Minimum transaction size\n"
-            "  \"outs\" : xxxxx,            (numeric) The number of outputs\n"
-            "  \"subsidy\" : xxxxx,         (numeric) The block subsidy\n"
-            "  \"time\" : xxxxx,            (numeric) The block time\n"
-            "  \"total_out\" : xxxxx,       (numeric) Total amount in all outputs (excluding coinbase and thus reward [ie subsidy + totalfee])\n"
-            "  \"total_size\" : xxxxx,      (numeric) Total size of all non-coinbase transactions\n"
-            "  \"totalfee\" : xxxxx,        (numeric) The fee total\n"
-            "  \"txs\" : xxxxx,             (numeric) The number of transactions (excluding coinbase)\n"
-            "  \"utxo_increase\" : xxxxx,   (numeric) The increase/decrease in the number of unspent outputs\n"
-            "  \"utxo_size_inc\" : xxxxx,   (numeric) The increase/decrease in size for the utxo index (not discounting op_return and similar)\n"
-            "}\n"
-                },
+            RPCResult::Type::OBJ, "", "",
+            {
+                {RPCResult::Type::NUM, "avgfee", "Average fee in the block"},
+                {RPCResult::Type::NUM, "avgfeerate", "Average feerate (in satoshis per virtual byte)"},
+                {RPCResult::Type::NUM, "avgtxsize", "Average transaction size"},
+                {RPCResult::Type::STR_HEX, "blockhash", "The block hash (to check for potential reorgs)"},
+                {RPCResult::Type::ARR_FIXED, "feerate_percentiles", "Feerates at the 10th, 25th, 50th, 75th, and 90th percentile weight unit (in duffs per byte)",
+                {
+                    {RPCResult::Type::NUM, "10th_percentile_feerate", "The 10th percentile feerate"},
+                    {RPCResult::Type::NUM, "25th_percentile_feerate", "The 25th percentile feerate"},
+                    {RPCResult::Type::NUM, "50th_percentile_feerate", "The 50th percentile feerate"},
+                    {RPCResult::Type::NUM, "75th_percentile_feerate", "The 75th percentile feerate"},
+                    {RPCResult::Type::NUM, "90th_percentile_feerate", "The 90th percentile feerate"},
+                }},
+                {RPCResult::Type::NUM, "height", "The height of the block"},
+                {RPCResult::Type::NUM, "ins", "The number of inputs (excluding coinbase)"},
+                {RPCResult::Type::NUM, "maxfee", "Maximum fee in the block"},
+                {RPCResult::Type::NUM, "maxfeerate", "Maximum feerate (in satoshis per virtual byte)"},
+                {RPCResult::Type::NUM, "maxtxsize", "Maximum transaction size"},
+                {RPCResult::Type::NUM, "medianfee", "Truncated median fee in the block"},
+                {RPCResult::Type::NUM, "mediantime", "The block median time past"},
+                {RPCResult::Type::NUM, "mediantxsize", "Truncated median transaction size"},
+                {RPCResult::Type::NUM, "minfee", "Minimum fee in the block"},
+                {RPCResult::Type::NUM, "minfeerate", "Minimum feerate (in satoshis per virtual byte)"},
+                {RPCResult::Type::NUM, "mintxsize", "Minimum transaction size"},
+                {RPCResult::Type::NUM, "outs", "The number of outputs"},
+                {RPCResult::Type::NUM, "subsidy", "The block subsidy"},
+                {RPCResult::Type::NUM, "time", "The block time"},
+                {RPCResult::Type::NUM, "total_out", "Total amount in all outputs (excluding coinbase and thus reward [ie subsidy + totalfee])"},
+                {RPCResult::Type::NUM, "total_size", "Total size of all non-coinbase transactions"},
+                {RPCResult::Type::NUM, "totalfee", "The fee total"},
+                {RPCResult::Type::NUM, "txs", "The number of transactions (excluding coinbase)"},
+                {RPCResult::Type::NUM, "utxo_increase", "The increase/decrease in the number of unspent outputs"},
+                {RPCResult::Type::NUM, "utxo_size_inc", "The increase/decrease in size for the utxo index (not discounting op_return and similar)"},
+            }},
                 RPCExamples{
                     HelpExampleCli("getblockstats", R"('"00000000c937983704a73af28acdec37b049d214adbda81d7e2a3dd146f6ed09"' '["minfeerate","avgfeerate"]')") +
                     HelpExampleCli("getblockstats", R"(1000 '["minfeerate","avgfeerate"]')") +
@@ -2610,11 +2601,11 @@ static UniValue getblockfilter(const JSONRPCRequest& request)
             {"filtertype", RPCArg::Type::STR, /* default */ "basic", "The type name of the filter"},
         },
         RPCResult{
-    "{\n"
-    "  \"filter\" : (string) the hex-encoded filter data\n"
-    "  \"header\" : (string) the hex-encoded filter header\n"
-    "}\n"
-        },
+    RPCResult::Type::OBJ, "", "",
+                    {
+    {RPCResult::Type::STR_HEX, "filter", "the hex-encoded filter data"},
+    {RPCResult::Type::STR_HEX, "header", "the hex-encoded filter header"},
+        }},
         RPCExamples{
             HelpExampleCli("getblockfilter", "\"00000000c937983704a73af28acdec37b049d214adbda81d7e2a3dd146f6ed09\" \"basic\"")
         },

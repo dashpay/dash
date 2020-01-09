@@ -1209,28 +1209,28 @@ UniValue combinepsbt(const JSONRPCRequest& request)
 
 UniValue finalizepsbt(const JSONRPCRequest& request)
 {
-    RPCHelpMan{"finalizepsbt",
-        "Finalize the inputs of a PSBT. If the transaction is fully signed, it will produce a\n"
-        "network serialized transaction which can be broadcast with sendrawtransaction. Otherwise a PSBT will be\n"
-        "created which has the final_scriptSig field filled for inputs that are complete.\n"
-        "Implements the Finalizer and Extractor roles.\n",
-        {
-            {"psbt", RPCArg::Type::STR, RPCArg::Optional::NO, "A base64 string of a PSBT"},
-            {"extract", RPCArg::Type::BOOL, /* default */ "true", "If true and the transaction is complete,\n"
-    "                             extract and return the complete transaction in normal network serialization instead of the PSBT."},
-        },
-        RPCResult{
-    "{\n"
-    "  \"psbt\" : \"value\",          (string) The base64-encoded partially signed transaction if not extracted\n"
-    "  \"hex\" : \"value\",           (string) The hex-encoded network transaction if extracted\n"
-    "  \"complete\" : true|false,   (boolean) If the transaction has a complete set of signatures\n"
-    "  ]\n"
-    "}\n"
-        },
-        RPCExamples{
-            HelpExampleCli("finalizepsbt", "\"psbt\"")
-        },
-    }.Check(request);
+            RPCHelpMan{"finalizepsbt",
+                "Finalize the inputs of a PSBT. If the transaction is fully signed, it will produce a\n"
+                "network serialized transaction which can be broadcast with sendrawtransaction. Otherwise a PSBT will be\n"
+                "created which has the final_scriptSig field filled for inputs that are complete.\n"
+                "Implements the Finalizer and Extractor roles.\n",
+                {
+                    {"psbt", RPCArg::Type::STR, RPCArg::Optional::NO, "A base64 string of a PSBT"},
+                    {"extract", RPCArg::Type::BOOL, /* default */ "true", "If true and the transaction is complete,\n"
+            "                             extract and return the complete transaction in normal network serialization instead of the PSBT."},
+                },
+                RPCResult{
+                    RPCResult::Type::OBJ, "", "",
+                    {
+                        {RPCResult::Type::STR, "psbt", "The base64-encoded partially signed transaction if not extracted"},
+                        {RPCResult::Type::STR_HEX, "hex", "The hex-encoded network transaction if extracted"},
+                        {RPCResult::Type::BOOL, "complete", "If the transaction has a complete set of signatures"},
+                    }
+                },
+                RPCExamples{
+                    HelpExampleCli("finalizepsbt", "\"psbt\"")
+                },
+            }.Check(request);
 
     RPCTypeCheck(request.params, {UniValue::VSTR, UniValue::VBOOL}, true);
 
