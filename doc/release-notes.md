@@ -68,7 +68,7 @@ Security level of ChainLocks and LLMQ-based InstantSend made sporks `SPORK_5_INS
 `SPORK_16_INSTANTSEND_AUTOLOCKS` and `SPORK_20_INSTANTSEND_LLMQ_BASED` have no code logic behind them anymore
 because they were used as parts of DIP0003, DIP0008 and DIP0010 activation process which is finished now.
 They are still kept and relayed only to ensure smooth operation of v0.14 clients and will be removed in some
-future verions.
+future versions.
 
 Mempool sync improvements
 -------------------------
