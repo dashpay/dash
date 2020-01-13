@@ -90,10 +90,10 @@ option to disable mixing completely instead. Please note, that specifying this o
 automatically anymore, to make it work that way you should also use the new `--privatesendautostart` option.
 You can always control PrivateSend manually though via `privatesend` RPC.
 
-Thanks to LLMQ-based InstantSend and its ability lock chains of uncinfirmed transactions and not only a single
+Thanks to LLMQ-based InstantSend and its ability lock chains of unconfirmed transactions and not only a single
 one like in the legacy system PrivateSend mixing speed has improved significantly. In such an environment
-Liquidity Provider Mode which was introduced long time ago to support mixing volume is no longer needed and
-it is removed now. As such `--liquidityprovider` option is not available anymore.
+Liquidity Provider Mode which was introduced a long time ago to support mixing volume is no longer needed and
+it is removed now. As such the `--liquidityprovider` option is not available anymore.
 
 Some other improvements were also introduced to speed up mixing e.g. by joining more queues or dropping potential
 malicious mixing participants faster by checking some rules earlier etc. Lots of related code was refactored to
@@ -103,18 +103,18 @@ correctly in other wallets if there is a desire to do so.
 Wallet changes
 --------------
 Wallet internals was optimized to significantly improve performance which should be especially notable for huge
-wallets with tens thousands of transactions or more. GUI for such wallets should be much more responsive too now.
+wallets with tens of thousands of transactions or more. GUI for such wallets should be much more responsive too now.
 
-Runnning Masternodes from local wallets was deprecated long time ago and starting from this version we disable
+Running Masternodes from local wallets was deprecated a long time ago and starting from this version we disable
 wallet functionality on Masternodes completely.
 
 GUI changes
 -----------
 Qt GUI went through a refresh to follow branding color guides and to make it feel lighter. All old themes besides
-the Traditioinal one (the one with a minimal styling) were removed and instead a new Dark theme was added.
+the Traditional one (the one with a minimal styling) were removed and instead a new Dark theme was added.
 
-In this version we made a lot of optimizatioins to remove varioius lags and lockups, GUI in general should feel
-much more smoother now, especially for huge wallets or when navigating through the masternode list. The later has
+In this version we made a lot of optimizations to remove various lags and lockups, GUI in general should feel
+much more smoother now, especially for huge wallets or when navigating through the masternode list. The latter has
 a few new columns (collateral, owner and voting addresses) which give more options to filter and/or sort the list.
 All issues with hi-dpi monitors should also be fixed now.
 
@@ -125,7 +125,7 @@ or higher.
 
 Changes in regtest and devnet p2p/rpc ports
 -------------------------------------------
-Default p2p and rpc ports for devnets and regtest were changed to ensure their consistensy and to avoid
+Default p2p and rpc ports for devnets and regtest were changed to ensure their consistency and to avoid
 any potential interference with bitcoin's regtests. New default p2p/rpc ports for devnet are 19799/19798,
 for regtest - 19899/19898 respectively.
 
@@ -465,4 +465,3 @@ These release are considered obsolete. Old release notes can be found here:
 - [v0.11.0](https://github.com/dashpay/dash/blob/master/doc/release-notes/dash/release-notes-0.11.0.md) released Jan/15/2015
 - [v0.10.x](https://github.com/dashpay/dash/blob/master/doc/release-notes/dash/release-notes-0.10.0.md) released Sep/25/2014
 - [v0.9.x](https://github.com/dashpay/dash/blob/master/doc/release-notes/dash/release-notes-0.9.0.md) released Mar/13/2014
-
