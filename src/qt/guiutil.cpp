@@ -942,23 +942,12 @@ void migrateQtSettings()
 QString loadStyleSheet()
 {
     QSettings settings;
-    bool fValidTheme{false};
-
     QString theme = settings.value("theme", "").toString();
 
-    if (!theme.isEmpty()) {
-        // Make sure settings are pointing to an existent theme
-        QDir themes(":themes");
-        for (const QString &entry : themes.entryList()) {
-            if (entry == theme) {
-                fValidTheme = true;
-                break;
-            }
-        }
-    }
-
+    QDir themes(":themes");
+    // Make sure settings are pointing to an existent theme
     // Set "Light" theme by default if settings are missing or incorrect
-    if(!fValidTheme) {
+    if theme.isEmpty() || !themes.exists(theme) {
         theme = "Light";
         settings.setValue("theme", theme);
     }
