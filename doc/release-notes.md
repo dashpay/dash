@@ -86,9 +86,10 @@ PrivateSend improvements
 This version decouples the so called "Lite Mode" and client-side PrivateSend mixing, which allows client-side mixing
 on pruned nodes running with `--litemode` option. Such nodes will have to also specify the newly redefined
 `--enableprivatesend` option. Non-prunned nodes do not have to do this but they can use `--enableprivatesend`
-option to disable mixing completely instead. Please note that specifying this option only does not start mixing
-automatically anymore, to make it work that way you should also use the new `--privatesendautostart` option.
-You can always control PrivateSend manually though via `privatesend` RPC.
+option to disable mixing completely instead. Please note that specifying this option does not start mixing
+automatically anymore (which was the case in previous versions). To automatically start mixing, use the new
+`--privatesendautostart` option in addition to `--enableprivatesend`. Additionally, PrivateSend can always be
+controlled with the `privatesend` RPC.
 
 Thanks to LLMQ-based InstantSend and its ability to lock chains of unconfirmed transactions (and not only a single
 one like in the legacy system), PrivateSend mixing speed has improved significantly. In such an environment
@@ -197,7 +198,7 @@ Build system
 ------------
 This version always includes stacktraces in binaries now, `--enable-stacktraces` option is no longer available.
 Instead you can choose if you want to hook crash reporting into various types of crashes by using `--enable-crash-hooks`
-option (default is `no`). When using this option on macOS make sure to build binaries with `-C src osx_debug`.
+option (default is `no`). When using this option on macOS make sure to build binaries with `make -C src osx_debug`.
 
 Backports from Bitcoin Core 0.15
 --------------------------------
