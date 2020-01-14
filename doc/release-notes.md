@@ -134,6 +134,22 @@ ZMQ changes
 Added two new messages `rawchainlocksig` and `rawtxlocksig` which return the raw data of the block/transaction
 concatenated with the corresponding `clsig`/`islock` message respectively.
 
+Crash reports and stack traces
+------------------------------
+Binaries built with Gitian (including all official releases) will from now on always have crash reports and
+crash hooks enabled. This means, that all binaries will print some information about the stack trace at the
+time of a crash. If no debug information is present at crash time (which is usually the case), the binaries
+will print a line that looks like this:
+```
+2020-01-06 14:41:08 Windows Exception: EXCEPTION_ACCESS_VIOLATION
+No debug information available for stacktrace. You should add debug information and then run:
+dashd.exe -printcrashinfo=bvcgc43iinzgc43ijfxgm3yba....
+```
+If you encounter such a crash, include these lines when you report the crash and we will be able to debug it
+further. Anyone interested in running the specified `-printcrashinfo` command can do so after copying the debug info
+file from the Gitian build to the same place where the binary is located. This will then print a detailed stack
+trace.
+
 RPC changes
 -----------
 There are a few changes in existing RPC interfaces in this release:
