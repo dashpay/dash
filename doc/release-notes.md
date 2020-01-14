@@ -52,10 +52,10 @@ the `alert` p2p message and `--alert` option. Internal alerts, partition detecti
 
 Removal of the legacy InstantSend system
 ----------------------------------------
-Version 0.14 introduced new LLMQ-based InstantSend system which is designed to be much more scalable
-than the legacy one without sacrificing security and which allowed all transactions to be treated as
-InstantSend transactions. The legacy system was disabled together with succesful ChainLocks deployment
-but we had to support it for a while to ensure smooth transition period. This version finally drops
+Version 0.14 introduced the new LLMQ-based InstantSend system which is designed to be much more scalable
+than the legacy one without sacrificing security. The new system also allows all transactions to be treated as
+InstantSend transactions. The legacy system was disabled together with the successful deployment of ChainLocks,
+but we had to keep supporting the legacy system for a while to ensure a smooth transition period. This version finally drops
 the legacy system completely.
 
 Read more about ChainLocks: https://github.com/dashpay/dips/blob/master/dip-0008.md
@@ -63,62 +63,62 @@ Read more about LLMQ-based InstantSend: https://github.com/dashpay/dips/blob/mas
 
 Sporks
 ------
-Security level of ChainLocks and LLMQ-based InstantSend made sporks `SPORK_5_INSTANTSEND_MAX_VALUE` and
+The security level of ChainLocks and LLMQ-based InstantSend made sporks `SPORK_5_INSTANTSEND_MAX_VALUE` and
 `SPORK_12_RECONSIDER_BLOCKS` obsolete, so they are removed now. Sporks `SPORK_15_DETERMINISTIC_MNS_ENABLED`,
 `SPORK_16_INSTANTSEND_AUTOLOCKS` and `SPORK_20_INSTANTSEND_LLMQ_BASED` have no code logic behind them anymore
-because they were used as parts of DIP0003, DIP0008 and DIP0010 activation process which is finished now.
+because they were used as part of the DIP0003, DIP0008 and DIP0010 activation process which is finished now.
 They are still kept and relayed only to ensure smooth operation of v0.14 clients and will be removed in some
-future versions.
+future version.
 
 Mempool sync improvements
 -------------------------
-Nodes joining the network will now always try to sync mempool from their peers via `mempool` p2p message.
-This behaviour can be disabled via `--syncmempool` option. Nodes serving such requests will now also push
+Nodes joining the network will now always try to sync their mempool from other peers via the `mempool` p2p message.
+This behaviour can be disabled via the new `--syncmempool` option. Nodes serving such requests will now also push
 `inv` p2p messages for InstandSend locks which are held for transactions in their mempool. These two changes
-should help new nodes to quickly catchup on start and detect any potential double-spends as soon as possible.
-This should also help wallets to slightly improve UX by showing correct status of unconfirmed transactions
+should help new nodes to quickly catchup on start and detect any potential double-spend as soon as possible.
+This should also help wallets to slightly improve UX by showing the correct status of unconfirmed transactions
 locked via InstandSend, if they were sent while the receiving wallet was offline. Note that bloom-filters
-still apply to such `inv` messages, just like the do for transactions and locks that are relayed on a
+still apply to such `inv` messages, just like they do for transactions and locks that are relayed on a
 regular basis.
 
 PrivateSend improvements
 ------------------------
-This version decouples so called Lite Mode and client-side PrivateSend mixing which allows client-side mixing
+This version decouples the so called "Lite Mode" and client-side PrivateSend mixing, which allows client-side mixing
 on pruned nodes running with `--litemode` option. Such nodes will have to also specify the newly redefined
 `--enableprivatesend` option. Non-prunned nodes do not have to do this but they can use `--enableprivatesend`
-option to disable mixing completely instead. Please note, that specifying this option only does not start mixing
+option to disable mixing completely instead. Please note that specifying this option only does not start mixing
 automatically anymore, to make it work that way you should also use the new `--privatesendautostart` option.
 You can always control PrivateSend manually though via `privatesend` RPC.
 
-Thanks to LLMQ-based InstantSend and its ability lock chains of unconfirmed transactions and not only a single
-one like in the legacy system PrivateSend mixing speed has improved significantly. In such an environment
-Liquidity Provider Mode which was introduced a long time ago to support mixing volume is no longer needed and
-it is removed now. As such the `--liquidityprovider` option is not available anymore.
+Thanks to LLMQ-based InstantSend and its ability to lock chains of unconfirmed transactions (and not only a single
+one like in the legacy system), PrivateSend mixing speed has improved significantly. In such an environment
+Liquidity Provider Mode, which was introduced a long time ago to support mixing volume, is no longer needed and
+is removed now. As such the `--liquidityprovider` option is not available anymore.
 
-Some other improvements were also introduced to speed up mixing e.g. by joining more queues or dropping potential
+Some other improvements were also introduced to speed up mixing, e.g. by joining more queues or dropping potential
 malicious mixing participants faster by checking some rules earlier etc. Lots of related code was refactored to
-further improve its readability which should hopefully make it easier to someone to re-implement PrivateSend
+further improve its readability, which should make it easier for someone to re-implement PrivateSend
 correctly in other wallets if there is a desire to do so.
 
 Wallet changes
 --------------
-Wallet internals was optimized to significantly improve performance which should be especially notable for huge
-wallets with tens of thousands of transactions or more. GUI for such wallets should be much more responsive too now.
+Wallet internals were optimized to significantly improve performance which should be especially notable for huge
+wallets with tens of thousands of transactions or more. The GUI for such wallets should be much more responsive too now.
 
 Running Masternodes from local wallets was deprecated a long time ago and starting from this version we disable
 wallet functionality on Masternodes completely.
 
 GUI changes
 -----------
-Qt GUI went through a refresh to follow branding color guides and to make it feel lighter. All old themes besides
+The Qt GUI went through a refresh to follow branding color guides and to make it feel lighter. All old themes besides
 the Traditional one (the one with a minimal styling) were removed and instead a new Dark theme was added.
 
-In this version we made a lot of optimizations to remove various lags and lockups, GUI in general should feel
+In this version we made a lot of optimizations to remove various lags and lockups, the GUI in general should feel
 much more smoother now, especially for huge wallets or when navigating through the masternode list. The latter has
 a few new columns (collateral, owner and voting addresses) which give more options to filter and/or sort the list.
 All issues with hi-dpi monitors should also be fixed now.
 
-"Send" popup dialog was slightly tweaked to improve the language and provide a bit more information about inputs
+The "Send" popup dialog was slightly tweaked to improve the language and provide a bit more information about inputs
 included in the transaction, its size and the actual resulting fee rate. It will also show the number of inputs
 a PrivateSend transaction is going to consume and display a warning regarding sender privacy if this number is 10
 or higher.
@@ -149,7 +149,7 @@ There are also new RPC commands:
 - `getmerkleblocks`
 - `getprivatesendinfo`
 
-`getpoolinfo` was deprecated in fav of `getprivatesendinfo` and no longer returns any data.
+`getpoolinfo` was deprecated in favor of `getprivatesendinfo` and no longer returns any data.
 
 Make sure to check Bitcoin Core 0.15 release notes in a [section](#backports-from-bitcoin-core-015) below
 for more RPC changes.
@@ -168,7 +168,7 @@ New cmd-line options:
 
 Few cmd-line options are no longer supported:
 - `--alerts`
-- `--masternode`, deprecated, specifying `--masternodeblsprivkey` option alone is enough to enable the Masternode now
+- `--masternode`, deprecated, specifying `--masternodeblsprivkey` option alone is enough to enable masternode mode now
 - `--liquidityprovider`
 - `--enableinstantsend`, dropped due to removal of the Legacy InstantSend
 
@@ -179,12 +179,16 @@ See `Help -> Command-line options` in Qt wallet or `dashd --help` for more info.
 
 Build system
 ------------
-This version always includes stacktraces in binaries now, `--enable-stacktraces` option is no longer avaiilable.
-Instead you can choose if you want to hook into them or not by using `--enable-crash-hooks` option (default is `no`).
-When using this option on macOS make sure to build binaries with `-C src osx_debug`.
+This version always includes stacktraces in binaries now, `--enable-stacktraces` option is no longer available.
+Instead you can choose if you want to hook crash reporting into various types of crashes by using `--enable-crash-hooks`
+option (default is `no`). When using this option on macOS make sure to build binaries with `-C src osx_debug`.
 
 Backports from Bitcoin Core 0.15
 --------------------------------
+
+Most of the changes between Bitcoin Core 0.14 and Bitcoin Core 0.15 have been backported into Dash Core 0.15.
+We only excluded backports which do not align with Dash, like SegWit or RBF related changes.
+
 You can read about changes brought by backporting from Bitcoin Core 0.15 in following docs:
 - https://github.com/bitcoin/bitcoin/blob/master/doc/release-notes/release-notes-0.15.0.md
 - https://github.com/bitcoin/bitcoin/blob/master/doc/release-notes/release-notes-0.15.1.md
