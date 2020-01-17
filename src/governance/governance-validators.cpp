@@ -153,7 +153,8 @@ bool CProposalValidator::ValidatePaymentAddress()
     }
 
     CBitcoinAddress address(strPaymentAddress);
-    if (!address.IsValid()) {
+    CTxDestination dest = DecodeTransaction(strPaymentAddress);
+    if (!IsValidDestination(dest)) {
         strErrorMessages += "payment_address is invalid;";
         return false;
     }
