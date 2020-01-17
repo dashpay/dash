@@ -391,10 +391,9 @@ std::string CProRegTx::MakeSignString() const
     // We only include the important stuff in the string form...
 
     CTxDestination destPayout;
-    CBitcoinAddress addrPayout;
     std::string strPayout;
-    if (ExtractDestination(scriptPayout, destPayout) && addrPayout.Set(destPayout)) {
-        strPayout = addrPayout.ToString();
+    if (ExtractDestination(scriptPayout, destPayout)) {
+        strPayout = EncodeDestination(destPayout);
     } else {
         strPayout = HexStr(scriptPayout.begin(), scriptPayout.end());
     }
