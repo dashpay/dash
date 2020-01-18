@@ -61,8 +61,9 @@
 #include <walletinitinterface.h>
 
 #include <evo/deterministicmns.h>
-#include <llmq/quorums_init.h>
 #include <llmq/quorums_blockprocessor.h>
+#include <llmq/quorums_init.h>
+#include <llmq/quorums_instantsend.h>
 
 #include <stdint.h>
 #include <stdio.h>
@@ -617,6 +618,7 @@ std::string HelpMessage(HelpMessageMode mode)
 
     strUsage += HelpMessageGroup(_("InstantSend options:"));
     strUsage += HelpMessageOpt("-instantsendnotify=<cmd>", _("Execute command when a wallet InstantSend transaction is successfully locked (%s in cmd is replaced by TxID)"));
+    strUsage += HelpMessageOpt("-rejectconflictingblocks", strprintf(_("Reject blocks containing txes that conflict with ones locked via InstantSend (default: %u)"), DEFAULT_REJECT_CONFLICTING_BLOCKS));
 
 
     strUsage += HelpMessageGroup(_("Node relay options:"));

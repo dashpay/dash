@@ -14,6 +14,8 @@
 #include <unordered_map>
 #include <unordered_set>
 
+static const bool DEFAULT_REJECT_CONFLICTING_BLOCKS = true;
+
 namespace llmq
 {
 
@@ -174,6 +176,7 @@ public:
 extern CInstantSendManager* quorumInstantSendManager;
 
 bool IsInstantSendEnabled();
+bool RejectConflictingBlocks();
 
 } // namespace llmq
 

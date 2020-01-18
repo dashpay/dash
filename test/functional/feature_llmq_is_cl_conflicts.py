@@ -62,7 +62,6 @@ class LLMQ_IS_CL_Conflicts(DashTestFramework):
 
         self.nodes[0].spork("SPORK_17_QUORUM_DKG_ENABLED", 0)
         self.nodes[0].spork("SPORK_2_INSTANTSEND_ENABLED", 0)
-        self.nodes[0].spork("SPORK_3_INSTANTSEND_BLOCK_FILTERING", 0)
         self.wait_for_sporks_same()
 
         self.mine_quorum()

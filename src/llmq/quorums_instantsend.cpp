@@ -1522,4 +1522,9 @@ bool IsInstantSendEnabled()
     return sporkManager.IsSporkActive(SPORK_2_INSTANTSEND_ENABLED);
 }
 
+bool RejectConflictingBlocks()
+{
+    return gArgs.GetBoolArg("-rejectconflictingblocks", DEFAULT_REJECT_CONFLICTING_BLOCKS);
+}
+
 } // namespace llmq
