@@ -233,7 +233,6 @@ public:
 
     CTxDestination Get() const;
     bool GetKeyID(CKeyID &keyID) const;
-    bool IsScript() const;
 };
 
 class CBitcoinAddressVisitor : public boost::static_visitor<bool>
@@ -295,23 +294,6 @@ CTxDestination CBitcoinAddress::Get() const
         return CNoDestination();
 }
 
-bool CBitcoinAddress::GetIndexKey(uint160& hashBytes, int& type) const
-{
-    if (!IsValid()) {
-        return false;
-    } else if (vchVersion == Params().Base58Prefix(CChainParams::PUBKEY_ADDRESS)) {
-        memcpy(&hashBytes, vchData.data(), 20);
-        type = 1;
-        return true;
-    } else if (vchVersion == Params().Base58Prefix(CChainParams::SCRIPT_ADDRESS)) {
-        memcpy(&hashBytes, vchData.data(), 20);
-        type = 2;
-        return true;
-    }
-
-    return false;
-}
-
 bool CBitcoinAddress::GetKeyID(CKeyID& keyID) const
 {
     if (!IsValid() || vchVersion != Params().Base58Prefix(CChainParams::PUBKEY_ADDRESS))
@@ -320,11 +302,6 @@ bool CBitcoinAddress::GetKeyID(CKeyID& keyID) const
     memcpy(&id, vchData.data(), 20);
     keyID = CKeyID(id);
     return true;
-}
-
-bool CBitcoinAddress::IsScript() const
-{
-    return IsValid() && vchVersion == Params().Base58Prefix(CChainParams::SCRIPT_ADDRESS);
 }
 
 void CBitcoinSecret::SetKey(const CKey& vchSecret)
@@ -380,4 +357,18 @@ bool IsValidDestinationString(const std::string& str, const CChainParams& params
 bool IsValidDestinationString(const std::string& str)
 {
     return CBitcoinAddress(str).IsValid();
+}
+
+bool GetIndexKey(const std::string& str, uint160& hashBytes, int& type)
+{
+    CTxDestination dest = DecodeDestination(str);
+    if (!IsValidDestination(dest)) {
+        type = 0;
+        return false;
+    }
+    const CKeyID *keyID = boost::get<CKeyID>(&dest);
+    const CScriptID *scriptID = boost::get<CScriptID>(&dest);
+    type = keyID ? 1 : 2;
+    hashBytes = keyID ? *keyID : *scriptID;
+    return true;
 }

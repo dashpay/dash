@@ -604,7 +604,7 @@ UniValue listaddressbalances(const JSONRPCRequest& request)
     std::map<CTxDestination, CAmount> balances = pwallet->GetAddressBalances();
     for (auto& balance : balances)
         if (balance.second >= nMinAmount)
-            jsonBalances.push_back(Pair(CBitcoinAddress(balance.first).ToString(), ValueFromAmount(balance.second)));
+            jsonBalances.push_back(Pair(EncodeDestination(balance.first), ValueFromAmount(balance.second)));
 
     return jsonBalances;
 }
@@ -1285,7 +1285,7 @@ UniValue ListReceived(CWallet * const pwallet, const UniValue& params, bool fByA
         if (it == mapTally.end() && !fIncludeEmpty)
             continue;
 
-        isminefilter mine = IsMine(*pwallet, address.Get());
+        isminefilter mine = IsMine(*pwallet, dest);
         if(!(mine & filter))
             continue;
 

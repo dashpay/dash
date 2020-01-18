@@ -618,10 +618,10 @@ UniValue importelectrumwallet(const JSONRPCRequest& request)
             assert(key.VerifyPubKey(pubkey));
             CKeyID keyid = pubkey.GetID();
             if (pwallet->HaveKey(keyid)) {
-                LogPrintf("Skipping import of %s (key already present)\n", CBitcoinAddress(keyid).ToString());
+                LogPrintf("Skipping import of %s (key already present)\n", EncodeDestination(keyid));
                 continue;
             }
-            LogPrintf("Importing %s...\n", CBitcoinAddress(keyid).ToString());
+            LogPrintf("Importing %s...\n", EncodeDestination(keyid));
             if (!pwallet->AddKeyPubKey(key, pubkey)) {
                 fGood = false;
                 continue;
@@ -650,10 +650,10 @@ UniValue importelectrumwallet(const JSONRPCRequest& request)
             assert(key.VerifyPubKey(pubkey));
             CKeyID keyid = pubkey.GetID();
             if (pwallet->HaveKey(keyid)) {
-                LogPrintf("Skipping import of %s (key already present)\n", CBitcoinAddress(keyid).ToString());
+                LogPrintf("Skipping import of %s (key already present)\n", EncodeDestination(keyid));
                 continue;
             }
-            LogPrintf("Importing %s...\n", CBitcoinAddress(keyid).ToString());
+            LogPrintf("Importing %s...\n", EncodeDestination(keyid));
             if (!pwallet->AddKeyPubKey(key, pubkey)) {
                 fGood = false;
                 continue;

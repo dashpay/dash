@@ -191,9 +191,9 @@ void TxToUniv(const CTransaction& tx, const uint256& hashBlock, UniValue& entry,
                     in.push_back(Pair("value", ValueFromAmount(spentInfo.satoshis)));
                     in.push_back(Pair("valueSat", spentInfo.satoshis));
                     if (spentInfo.addressType == 1) {
-                        in.push_back(Pair("address", CBitcoinAddress(CKeyID(spentInfo.addressHash)).ToString()));
+                        in.push_back(Pair("address", EncodeDestination(CKeyID(spentInfo.addressHash))));
                     } else if (spentInfo.addressType == 2) {
-                        in.push_back(Pair("address", CBitcoinAddress(CScriptID(spentInfo.addressHash)).ToString()));
+                        in.push_back(Pair("address", EncodeDestination(CScriptID(spentInfo.addressHash))));
                     }
                 }
             }

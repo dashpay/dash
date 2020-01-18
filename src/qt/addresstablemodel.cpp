@@ -422,14 +422,10 @@ bool AddressTableModel::removeRows(int row, int count, const QModelIndex &parent
  */
 QString AddressTableModel::labelForAddress(const QString &address) const
 {
-    CBitcoinAddress address_parsed(address.toStdString());
-    return labelForAddress(address_parsed);
+    CTxDestination dest = DecodeDestination(address.toStdString());
+    return labelForDestination(dest);
 }
 
-QString AddressTableModel::labelForAddress(const CBitcoinAddress &address) const
-{
-    return labelForDestination(address.Get());
-}
 
 QString AddressTableModel::labelForDestination(const CTxDestination &dest) const
 {
