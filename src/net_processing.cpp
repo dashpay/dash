@@ -1012,6 +1012,7 @@ bool static AlreadyHave(const CInv& inv) EXCLUSIVE_LOCKS_REQUIRED(cs_main)
     switch (inv.type)
     {
     case MSG_TX:
+    case MSG_DSTX:
     case MSG_LEGACY_TXLOCK_REQUEST: // we treat legacy IX messages as TX messages
         {
             assert(recentRejects);
@@ -1030,12 +1031,24 @@ bool static AlreadyHave(const CInv& inv) EXCLUSIVE_LOCKS_REQUIRED(cs_main)
                 if (mapOrphanTransactions.count(inv.hash)) return true;
             }
 
-            // When we receive an islock for a previously rejected transaction, we have to
-            // drop the first-seen tx (which such a locked transaction was conflicting with)
-            // and re-request the locked transaction (which did not make it into the mempool
-            // previously due to txn-mempool-conflict rule). This means that we must ignore
-            // recentRejects filter for such locked txes here.
-            return (recentRejects->contains(inv.hash) && !llmq::quorumInstantSendManager->IsLocked(inv.hash)) ||
+            bool fHaveRejected{false};
+            if (recentRejects->contains(inv.hash)) {
+                // When we receive an islock for a previously rejected transaction, we have to
+                // drop the first-seen tx (which such a locked transaction was conflicting with)
+                // and re-request the locked transaction (which did not make it into the mempool
+                // previously due to txn-mempool-conflict rule). This means that we must ignore
+                // recentRejects filter for such locked txes here.
+                // We also ignore recentRejects filter for DSTX-es because a malicious peer  might
+                // relay a valid DSTX as a regular TX first which would skip all the specific checks
+                // but would cause such tx to be rejected by ATMP due to 0 fee. Ignoring it here
+                // should let DSTX to be propagated by honest peer later. Note, that a malicious
+                // masternode would not be able to exploit this to spam the network with specially
+                // crafted invalid DSTX-es and potentially cause high load cheaply, because
+                // corresponding checks in ProcessMessage won't let it to send DSTX-es too often.
+                fHaveRejected = !(llmq::quorumInstantSendManager->IsLocked(inv.hash) || inv.type == MSG_DSTX);
+            }
+            return fHaveRejected ||
+                   (inv.type == MSG_DSTX && static_cast<bool>(CPrivateSend::GetDSTX(inv.hash))) ||
                    mempool.exists(inv.hash) ||
                    pcoinsTip->HaveCoinInCache(COutPoint(inv.hash, 0)) || // Best effort: only try output 0 and 1
                    pcoinsTip->HaveCoinInCache(COutPoint(inv.hash, 1)) ||
@@ -1060,10 +1073,6 @@ bool static AlreadyHave(const CInv& inv) EXCLUSIVE_LOCKS_REQUIRED(cs_main)
             CSporkMessage spork;
             return sporkManager.GetSporkByHash(inv.hash, spork);
         }
-
-    case MSG_DSTX: {
-        return static_cast<bool>(CPrivateSend::GetDSTX(inv.hash));
-    }
 
     case MSG_GOVERNANCE_OBJECT:
     case MSG_GOVERNANCE_OBJECT_VOTE:
