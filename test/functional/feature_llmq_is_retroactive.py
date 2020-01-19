@@ -29,7 +29,6 @@ class LLMQ_IS_RetroactiveSigning(DashTestFramework):
         self.sync_blocks(self.nodes, timeout=60*5)
 
         self.nodes[0].spork("SPORK_17_QUORUM_DKG_ENABLED", 0)
-        self.nodes[0].spork("SPORK_2_INSTANTSEND_ENABLED", 0)
         self.wait_for_sporks_same()
 
         self.mine_quorum()

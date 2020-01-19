@@ -90,12 +90,10 @@ class MultiKeySporkTest(BitcoinTestFramework):
 
     def get_test_spork_value(self, node):
         info = node.spork('show')
-        # use InstantSend spork for tests
-        return info['SPORK_2_INSTANTSEND_ENABLED']
+        return info['SPORK_17_QUORUM_DKG_ENABLED']
 
     def set_test_spork_value(self, node, value):
-        # use InstantSend spork for tests
-        node.spork('SPORK_2_INSTANTSEND_ENABLED', value)
+        node.spork('SPORK_17_QUORUM_DKG_ENABLED', value)
 
     def run_test(self):
         # check test spork default state

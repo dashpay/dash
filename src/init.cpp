@@ -618,6 +618,7 @@ std::string HelpMessage(HelpMessageMode mode)
 
     strUsage += HelpMessageGroup(_("InstantSend options:"));
     strUsage += HelpMessageOpt("-instantsendnotify=<cmd>", _("Execute command when a wallet InstantSend transaction is successfully locked (%s in cmd is replaced by TxID)"));
+    strUsage += HelpMessageOpt("-enableinstantsend", strprintf(_("Enable use of InstantSend (default: %u)"), DEFAULT_ENABLE_INSTANTSEND));
     strUsage += HelpMessageOpt("-rejectconflictingblocks", strprintf(_("Reject blocks containing txes that conflict with ones locked via InstantSend (default: %u)"), DEFAULT_REJECT_CONFLICTING_BLOCKS));
 
 

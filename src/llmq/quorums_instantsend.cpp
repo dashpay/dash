@@ -1519,7 +1519,7 @@ void CInstantSendManager::WorkThreadMain()
 
 bool IsInstantSendEnabled()
 {
-    return sporkManager.IsSporkActive(SPORK_2_INSTANTSEND_ENABLED);
+    return gArgs.GetBoolArg("-enableinstantsend", DEFAULT_ENABLE_INSTANTSEND);
 }
 
 bool RejectConflictingBlocks()

@@ -102,10 +102,6 @@ class LLMQChainLocksTest(DashTestFramework):
         self.wait_for_chainlocked_block(self.nodes[0], self.nodes[1].getbestblockhash())
         assert(self.nodes[0].getbestblockhash() == self.nodes[1].getbestblockhash())
 
-        self.log.info("Enable LLMQ bases InstantSend, which also enables checks for \"safe\" transactions")
-        self.nodes[0].spork("SPORK_2_INSTANTSEND_ENABLED", 0)
-        self.wait_for_sporks_same()
-
         self.log.info("Isolate a node and let it create some transactions which won't get IS locked")
         isolate_node(self.nodes[0])
         txs = []
@@ -119,17 +115,18 @@ class LLMQChainLocksTest(DashTestFramework):
             assert("confirmations" not in tx)
         time.sleep(1)
         assert(not self.nodes[0].getblock(self.nodes[0].getbestblockhash())["chainlock"])
-        self.log.info("Disable LLMQ based InstantSend for a very short time (this never gets propagated to other nodes)")
-        self.nodes[0].spork("SPORK_2_INSTANTSEND_ENABLED", 4070908800)
+        self.log.info("Restart the node with LLMQ based InstantSend disabled")
+        self.restart_node(0, self.extra_args[0] + ['-enableinstantsend=0'])
         self.log.info("Now the TXs should be included")
         self.nodes[0].generate(1)
-        self.nodes[0].spork("SPORK_2_INSTANTSEND_ENABLED", 0)
         self.log.info("Assert that TXs got included now")
         for txid in txs:
             tx = self.nodes[0].getrawtransaction(txid, 1)
             assert("confirmations" in tx and tx["confirmations"] > 0)
         # Enable network on first node again, which will cause the blocks to propagate and IS locks to happen retroactively
         # for the mined TXs, which will then allow the network to create a CLSIG
+        self.log.info("Restart the node with LLMQ based InstantSend enabled")
+        self.restart_node(0, self.extra_args[0])
         self.log.info("Reenable network on first node and wait for chainlock")
         reconnect_isolated_node(self.nodes[0], 1)
         self.wait_for_chainlocked_block(self.nodes[0], self.nodes[0].getbestblockhash(), timeout=30)

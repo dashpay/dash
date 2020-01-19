@@ -14,6 +14,7 @@
 #include <unordered_map>
 #include <unordered_set>
 
+static const bool DEFAULT_ENABLE_INSTANTSEND        = true;
 static const bool DEFAULT_REJECT_CONFLICTING_BLOCKS = true;
 
 namespace llmq

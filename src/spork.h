@@ -21,7 +21,6 @@ class CSporkManager;
     - This would result in old clients getting confused about which spork is for what
 */
 enum SporkId : int32_t {
-    SPORK_2_INSTANTSEND_ENABLED                            = 10001,
     SPORK_9_SUPERBLOCKS_ENABLED                            = 10008,
     SPORK_17_QUORUM_DKG_ENABLED                            = 10016,
     SPORK_19_CHAINLOCKS_ENABLED                            = 10018,

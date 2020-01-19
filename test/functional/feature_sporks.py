@@ -23,16 +23,14 @@ class SporkTest(BitcoinTestFramework):
 
     def get_test_spork_state(self, node):
         info = node.spork('active')
-        # use InstantSend spork for tests
-        return info['SPORK_2_INSTANTSEND_ENABLED']
+        return info['SPORK_17_QUORUM_DKG_ENABLED']
 
     def set_test_spork_state(self, node, state):
         if state:
             value = 0
         else:
             value = 4070908800
-        # use InstantSend spork for tests
-        node.spork('SPORK_2_INSTANTSEND_ENABLED', value)
+        node.spork('SPORK_17_QUORUM_DKG_ENABLED', value)
 
     def run_test(self):
         spork_default_state = self.get_test_spork_state(self.nodes[0])
