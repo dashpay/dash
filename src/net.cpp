@@ -1240,70 +1240,74 @@ void CConnman::AcceptConnection(const ListenSocket& hListenSocket) {
     }
 }
 
+void CConnman::DisconnectAndDeleteNodes(bool fDisconectAll)
+{
+    //
+    // Disconnect nodes
+    //
+    {
+        LOCK(cs_vNodes);
+        std::vector<CNode*> vNodesCopy = vNodes;
+        for (CNode* pnode : vNodesCopy)
+        {
+            if (pnode->fDisconnect || fDisconectAll)
+            {
+                if (fLogIPs) {
+                    LogPrintf("%s -- removing node: peer=%d addr=%s nRefCount=%d fInbound=%d fMasternode=%d\n",
+                          __func__, pnode->GetId(), pnode->addr.ToString(), pnode->GetRefCount(), pnode->fInbound, pnode->fMasternode);
+                } else {
+                    LogPrintf("%s -- removing node: peer=%d nRefCount=%d fInbound=%d fMasternode=%d\n",
+                          __func__, pnode->GetId(), pnode->GetRefCount(), pnode->fInbound, pnode->fMasternode);
+                }
+
+                // remove from vNodes
+                vNodes.erase(remove(vNodes.begin(), vNodes.end(), pnode), vNodes.end());
+
+                // release outbound grant (if any)
+                pnode->grantOutbound.Release();
+                pnode->grantMasternodeOutbound.Release();
+
+                // close socket and cleanup
+                pnode->CloseSocketDisconnect();
+
+                // hold in disconnected pool until all refs are released
+                pnode->Release();
+                vNodesDisconnected.push_back(pnode);
+            }
+        }
+    }
+    // Delete disconnected nodes
+    std::list<CNode*> vNodesDisconnectedCopy = vNodesDisconnected;
+    for (CNode* pnode : vNodesDisconnectedCopy)
+    {
+        // wait until threads are done using it
+        if (pnode->GetRefCount() <= 0) {
+            bool fDelete = false;
+            {
+                TRY_LOCK(pnode->cs_inventory, lockInv);
+                if (lockInv) {
+                    TRY_LOCK(pnode->cs_vSend, lockSend);
+                    if (lockSend) {
+                        fDelete = true;
+                    }
+                }
+            }
+            if (fDelete) {
+                vNodesDisconnected.remove(pnode);
+                DeleteNode(pnode);
+            }
+        }
+    }
+}
+
 void CConnman::ThreadSocketHandler()
 {
     unsigned int nPrevNodeCount = 0;
     while (!interruptNet)
     {
-        //
-        // Disconnect nodes
-        //
-        {
-            LOCK(cs_vNodes);
-            // Disconnect unused nodes
-            std::vector<CNode*> vNodesCopy = vNodes;
-            for (CNode* pnode : vNodesCopy)
-            {
-                if (pnode->fDisconnect)
-                {
-                    if (fLogIPs) {
-                        LogPrintf("ThreadSocketHandler -- removing node: peer=%d addr=%s nRefCount=%d fInbound=%d fMasternode=%d\n",
-                              pnode->GetId(), pnode->addr.ToString(), pnode->GetRefCount(), pnode->fInbound, pnode->fMasternode);
-                    } else {
-                        LogPrintf("ThreadSocketHandler -- removing node: peer=%d nRefCount=%d fInbound=%d fMasternode=%d\n",
-                              pnode->GetId(), pnode->GetRefCount(), pnode->fInbound, pnode->fMasternode);
-                    }
+        // Disconnect unused nodes
+        DisconnectAndDeleteNodes(false);
 
-                    // remove from vNodes
-                    vNodes.erase(remove(vNodes.begin(), vNodes.end(), pnode), vNodes.end());
-
-                    // release outbound grant (if any)
-                    pnode->grantOutbound.Release();
-                    pnode->grantMasternodeOutbound.Release();
-
-                    // close socket and cleanup
-                    pnode->CloseSocketDisconnect();
-
-                    // hold in disconnected pool until all refs are released
-                    pnode->Release();
-                    vNodesDisconnected.push_back(pnode);
-                }
-            }
-        }
-        {
-            // Delete disconnected nodes
-            std::list<CNode*> vNodesDisconnectedCopy = vNodesDisconnected;
-            for (CNode* pnode : vNodesDisconnectedCopy)
-            {
-                // wait until threads are done using it
-                if (pnode->GetRefCount() <= 0) {
-                    bool fDelete = false;
-                    {
-                        TRY_LOCK(pnode->cs_inventory, lockInv);
-                        if (lockInv) {
-                            TRY_LOCK(pnode->cs_vSend, lockSend);
-                            if (lockSend) {
-                                fDelete = true;
-                            }
-                        }
-                    }
-                    if (fDelete) {
-                        vNodesDisconnected.remove(pnode);
-                        DeleteNode(pnode);
-                    }
-                }
-            }
-        }
         size_t vNodesSize;
         {
             LOCK(cs_vNodes);
@@ -2735,21 +2739,24 @@ void CConnman::Stop()
         fAddressesInitialized = false;
     }
 
+    // Try to disconnect and delete all nodes
+    // TODO: it looks like smth is holding nodes sometimes not releasing references properly,
+    // so we only try a few times here (cause otherwise we might end up waiting forever).
+    for (int i = 0; i < 10; ++i) {
+        DisconnectAndDeleteNodes(true);
+        if (vNodesDisconnected.empty()) {
+            // All nodes were disconected and deleted, no need to loop any further
+            break;
+        }
+        MilliSleep(100);
+    }
+
     // Close sockets
-    for (CNode* pnode : vNodes)
-        pnode->CloseSocketDisconnect();
     for (ListenSocket& hListenSocket : vhListenSocket)
         if (hListenSocket.socket != INVALID_SOCKET)
             if (!CloseSocket(hListenSocket.socket))
                 LogPrintf("CloseSocket(hListenSocket) failed with error %s\n", NetworkErrorString(WSAGetLastError()));
 
-    // clean up some globals (to help leak detection)
-    for (CNode *pnode : vNodes) {
-        DeleteNode(pnode);
-    }
-    for (CNode *pnode : vNodesDisconnected) {
-        DeleteNode(pnode);
-    }
     vNodes.clear();
     vNodesDisconnected.clear();
     vhListenSocket.clear();
