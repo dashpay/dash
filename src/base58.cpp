@@ -359,16 +359,3 @@ bool IsValidDestinationString(const std::string& str)
     return CBitcoinAddress(str).IsValid();
 }
 
-bool GetIndexKey(const std::string& str, uint160& hashBytes, int& type)
-{
-    CTxDestination dest = DecodeDestination(str);
-    if (!IsValidDestination(dest)) {
-        type = 0;
-        return false;
-    }
-    const CKeyID *keyID = boost::get<CKeyID>(&dest);
-    const CScriptID *scriptID = boost::get<CScriptID>(&dest);
-    type = keyID ? 1 : 2;
-    hashBytes = keyID ? *keyID : *scriptID;
-    return true;
-}

@@ -148,6 +148,4 @@ CTxDestination DecodeDestination(const std::string& str);
 bool IsValidDestinationString(const std::string& str);
 bool IsValidDestinationString(const std::string& str, const CChainParams& params);
 
-bool GetIndexKey(const std::string& str, uint160& hashBytes, int& type);
-
 #endif // BITCOIN_BASE58_H

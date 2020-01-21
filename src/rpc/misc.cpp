@@ -665,12 +665,26 @@ bool getAddressFromIndex(const int &type, const uint160 &hash, std::string &addr
     return true;
 }
 
+bool getIndexKey(const std::string& str, uint160& hashBytes, int& type)
+{
+    CTxDestination dest = DecodeDestination(str);
+    if (!IsValidDestination(dest)) {
+        type = 0;
+        return false;
+    }
+    const CKeyID *keyID = boost::get<CKeyID>(&dest);
+    const CScriptID *scriptID = boost::get<CScriptID>(&dest);
+    type = keyID ? 1 : 2;
+    hashBytes = keyID ? *keyID : *scriptID;
+    return true;
+}
+
 bool getAddressesFromParams(const UniValue& params, std::vector<std::pair<uint160, int> > &addresses)
 {
     if (params[0].isStr()) {
         uint160 hashBytes;
         int type = 0;
-        if (!GetIndexKey(params[0].get_str(), hashBytes, type)) {
+        if (!getIndexKey(params[0].get_str(), hashBytes, type)) {
             throw JSONRPCError(RPC_INVALID_ADDRESS_OR_KEY, "Invalid address");
         }
         addresses.push_back(std::make_pair(hashBytes, type));
@@ -687,7 +701,7 @@ bool getAddressesFromParams(const UniValue& params, std::vector<std::pair<uint16
 
             uint160 hashBytes;
             int type = 0;
-            if (!GetIndexKey(it->get_str(), hashBytes, type)) {
+            if (!getIndexKey(it->get_str(), hashBytes, type)) {
                 throw JSONRPCError(RPC_INVALID_ADDRESS_OR_KEY, "Invalid address");
             }
             addresses.push_back(std::make_pair(hashBytes, type));
