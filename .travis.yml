@@ -118,6 +118,8 @@ before_install:
   - travis_retry sudo apt-get -yq --no-install-suggests --no-install-recommends install docker-ce realpath
 
 install:
+    # Fix annoying Travis bug: a branch with a single commit has an empty TRAVIS_COMMIT_RANGE sometimes
+    - if [ -z "$TRAVIS_COMMIT_RANGE" ]; then export TRAVIS_COMMIT_RANGE="HEAD~..HEAD"; fi
     # Our scripts try to be Travis agnostic
     - export PULL_REQUEST="$TRAVIS_PULL_REQUEST"
     - export COMMIT_RANGE="$TRAVIS_COMMIT_RANGE"
