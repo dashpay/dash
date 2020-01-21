@@ -72,7 +72,7 @@ void TxToJSON(const CTransaction& tx, const uint256 hashBlock, UniValue& entry)
         }
     }
 
-    TxToUniv(tx, uint256(), entry, true, RPCSerializationFlags(), &txSpentInfo);
+    TxToUniv(tx, uint256(), entry, true, &txSpentInfo);
 
     bool chainLock = false;
     if (!hashBlock.IsNull()) {
@@ -205,7 +205,7 @@ UniValue getrawtransaction(const JSONRPCRequest& request)
             ". Use gettransaction for wallet transactions.");
 
     if (!fVerbose)
-        return EncodeHexTx(*tx, RPCSerializationFlags());
+        return EncodeHexTx(*tx);
 
     UniValue result(UniValue::VOBJ);
     TxToJSON(*tx, hashBlock, result);
