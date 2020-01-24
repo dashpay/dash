@@ -182,8 +182,10 @@ bool CActiveMasternodeManager::GetLocalAddress(CService& addrRet)
     // or added by TorController. Use some random dummy IPv4 peer to prefer the one
     // reachable via IPv4.
     CNetAddr addrDummyPeer;
-    LookupHost("8.8.8.8", addrDummyPeer, false);
-    bool fFoundLocal = GetLocal(addrRet, &addrDummyPeer) && IsValidNetAddr(addrRet);
+    bool fFoundLocal{false};
+    if (LookupHost("8.8.8.8", addrDummyPeer, false)) {
+        fFoundLocal = GetLocal(addrRet, &addrDummyPeer) && IsValidNetAddr(addrRet);
+    }
     if (!fFoundLocal && Params().NetworkIDString() == CBaseChainParams::REGTEST) {
         if (Lookup("127.0.0.1", addrRet, GetListenPort(), false)) {
             fFoundLocal = true;
