@@ -540,7 +540,7 @@ public:
         fAllowMultipleAddressesFromGroup = false;
         fAllowMultiplePorts = true;
 
-        nPoolMinParticipants = 2;
+        nPoolMinParticipants = 3; // TODO drop to 2 with next mandatory upgrade
         nPoolMaxParticipants = 5;
         nFulfilledRequestExpireTime = 5*60; // fulfilled requests expire in 5 minutes
 
@@ -695,7 +695,7 @@ public:
         fAllowMultipleAddressesFromGroup = true;
         fAllowMultiplePorts = true;
 
-        nPoolMinParticipants = 2;
+        nPoolMinParticipants = 3; // same, drop to 2 w/ breaking change
         nPoolMaxParticipants = 5;
         nFulfilledRequestExpireTime = 5*60; // fulfilled requests expire in 5 minutes
 
