@@ -365,7 +365,7 @@ public:
         fAllowMultiplePorts = false;
 
         nPoolMinParticipants = 3;
-        nPoolMaxParticipants = 20;
+        nPoolMaxParticipants = 5; // TODO: bump on next HF / mandatory upgrade
         nFulfilledRequestExpireTime = 60*60; // fulfilled requests expire in 1 hour
 
         vSporkAddresses = {"Xgtyuk76vhuFW2iT7UAiHgNdWXCf3J34wh"};
@@ -541,7 +541,7 @@ public:
         fAllowMultiplePorts = true;
 
         nPoolMinParticipants = 2;
-        nPoolMaxParticipants = 20;
+        nPoolMaxParticipants = 5;
         nFulfilledRequestExpireTime = 5*60; // fulfilled requests expire in 5 minutes
 
         vSporkAddresses = {"yjPtiKh2uwk3bDutTEA2q9mCtXyiZRWn55"};
@@ -696,7 +696,7 @@ public:
         fAllowMultiplePorts = true;
 
         nPoolMinParticipants = 2;
-        nPoolMaxParticipants = 20;
+        nPoolMaxParticipants = 5;
         nFulfilledRequestExpireTime = 5*60; // fulfilled requests expire in 5 minutes
 
         vSporkAddresses = {"yjPtiKh2uwk3bDutTEA2q9mCtXyiZRWn55"};
@@ -807,7 +807,7 @@ public:
 
         nFulfilledRequestExpireTime = 5*60; // fulfilled requests expire in 5 minutes
         nPoolMinParticipants = 2;
-        nPoolMaxParticipants = 20;
+        nPoolMaxParticipants = 5;
 
         // privKey: cP4EKFyJsHT39LDqgdcB43Y3YXjNyjb5Fuas1GQSeAtjnZWmZEQK
         vSporkAddresses = {"yj949n1UH6fDhw6HtVE5VMj2iSTaSWBMcW"};
