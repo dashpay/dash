@@ -454,7 +454,7 @@ bool CPrivateSendServer::HasTimedOut()
 }
 
 //
-// Check for extranious timeout
+// Check for extraneous timeout
 //
 void CPrivateSendServer::CheckTimeout(CConnman& connman)
 {
