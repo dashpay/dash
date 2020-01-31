@@ -206,7 +206,7 @@ bool CCryptoKeyStore::SetCrypted()
 //      !IsLocked(true) && IsLocked()
 // or if they are available for everything:
 //      !IsLocked()
-bool IsLocked(bool fForMixing = false) const
+bool CCryptoKeyStore::IsLocked(bool fForMixing) const
 {
     if (!IsCrypted())
         return false;

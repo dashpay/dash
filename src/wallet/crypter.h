@@ -154,7 +154,7 @@ public:
 
     bool IsCrypted() const { return fUseCrypto; }
     bool IsLocked(bool fForMixing = false) const;
-    bool Lock(bool fForMixing);
+    bool Lock(bool fForMixing = false);
 
     virtual bool AddCryptedKey(const CPubKey &vchPubKey, const std::vector<unsigned char> &vchCryptedSecret);
     bool AddKeyPubKey(const CKey& key, const CPubKey &pubkey) override;
