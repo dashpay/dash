@@ -4086,7 +4086,7 @@ DBErrors CWallet::LoadWallet(bool& fFirstRunRet)
     }
 
     // This wallet is in its first run if all of these are empty
-    fFirstRunRet = mapKeys.empty() && mapCryptedKeys.empty() && mapWatchKeys.empty() && setWatchOnly.empty() && mapScripts.empty();
+    fFirstRunRet = mapKeys.empty() && mapHdPubKeys.empty() && mapCryptedKeys.empty() && mapWatchKeys.empty() && setWatchOnly.empty() && mapScripts.empty();
 
     {
         LOCK2(cs_main, cs_wallet);
