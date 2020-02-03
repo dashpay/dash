@@ -56,6 +56,17 @@ CMasternodeMetaInfoPtr CMasternodeMetaMan::GetMetaInfo(const uint256& proTxHash,
     return it->second;
 }
 
+int64_t CMasternodeMetaMan::GetDsqThreshold(const uint256& proTxHash, int nMnCount)
+{
+    LOCK(cs);
+    auto metaInfo = GetMetaInfo(proTxHash);
+    if (metaInfo == nullptr) {
+        // return a threshold which is slightly above nDsqCount i.e. a no-go
+        return nDsqCount + 1;
+    }
+    return metaInfo->GetLastDsq() + nMnCount / 5;
+}
+
 void CMasternodeMetaMan::AllowMixing(const uint256& proTxHash)
 {
     LOCK(cs);
