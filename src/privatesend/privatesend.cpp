@@ -238,8 +238,7 @@ bool CPrivateSendBaseSession::IsValidInOuts(const std::vector<CTxIn>& vin, const
     }
 
     auto checkTxOut = [&](const CTxOut& txout) {
-        std::vector<CTxOut> vecTxOut{txout};
-        int nDenom = CPrivateSend::GetDenominations(vecTxOut);
+        int nDenom = CPrivateSend::AmountToDenomination(txout.nValue);
         if (nDenom != nSessionDenom) {
             LogPrint(BCLog::PRIVATESEND, "CPrivateSendBaseSession::IsValidInOuts -- ERROR: incompatible denom %d (%s) != nSessionDenom %d (%s)\n",
                     nDenom, CPrivateSend::DenominationToString(nDenom), nSessionDenom, CPrivateSend::DenominationToString(nSessionDenom));
@@ -463,48 +462,6 @@ std::string CPrivateSend::DenominationToString(int nDenom)
     }
 
     return "to-string-error";
-}
-
-/*  Return a bitshifted integer representing the denominations in this list
-    Function returns as follows (for 4 denominations):
-        ( bit on if present )
-        10        - bit 0
-        1         - bit 1
-        .1        - bit 2
-        .01       - bit 3
-        non-denom - 0, all bits off
-*/
-int CPrivateSend::GetDenominations(const std::vector<CTxOut>& vecTxOut, bool fSingleRandomDenom)
-{
-    std::vector<std::pair<CAmount, int> > vecDenomUsed;
-
-    // make a list of denominations, with zero uses
-    for (const auto& nDenomValue : vecStandardDenominations) {
-        vecDenomUsed.push_back(std::make_pair(nDenomValue, 0));
-    }
-
-    // look for denominations and update uses to 1
-    for (const auto& txout : vecTxOut) {
-        bool found = false;
-        for (auto& s : vecDenomUsed) {
-            if (txout.nValue == s.first) {
-                s.second = 1;
-                found = true;
-            }
-        }
-        if (!found) return 0;
-    }
-
-    int nDenom = 0;
-    int c = 0;
-    // if the denomination is used, shift the bit on
-    for (const auto& s : vecDenomUsed) {
-        int bit = (fSingleRandomDenom ? GetRandInt(2) : 1) & s.second;
-        nDenom |= bit << c++;
-        if (fSingleRandomDenom && bit) break; // use just one random denomination
-    }
-
-    return nDenom;
 }
 
 bool CPrivateSend::IsDenominatedAmount(CAmount nInputAmount)
