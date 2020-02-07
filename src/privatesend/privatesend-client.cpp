@@ -1041,7 +1041,6 @@ bool CPrivateSendClientSession::JoinExistingQueue(CAmount nBalanceNeedsAnonymize
 
     auto mnList = deterministicMNManager->GetListAtChainTip();
 
-    std::vector<CAmount> vecStandardDenoms = CPrivateSend::GetStandardDenominations();
     // Look through the queues and see if anything matches
     CPrivateSendQueue dsq;
     while (privateSendClient.GetQueueItemAndTry(dsq)) {
@@ -1058,25 +1057,17 @@ bool CPrivateSendClientSession::JoinExistingQueue(CAmount nBalanceNeedsAnonymize
             continue;
         }
 
-        std::vector<int> vecBits;
-        if (!CPrivateSend::GetDenominationsBits(dsq.nDenom, vecBits)) {
-            // incompatible denom
-            continue;
-        }
-
         // mixing rate limit i.e. nLastDsq check should already pass in DSQUEUE ProcessMessage
         // in order for dsq to get into vecPrivateSendQueue, so we should be safe to mix already,
         // no need for additional verification here
 
-        LogPrint(BCLog::PRIVATESEND, "CPrivateSendClientSession::JoinExistingQueue -- found valid queue: %s\n", dsq.ToString());
+        LogPrint(BCLog::PRIVATESEND, "CPrivateSendClientSession::JoinExistingQueue -- trying queue: %s\n", dsq.ToString());
 
         std::vector<std::pair<CTxDSIn, CTxOut> > vecPSInOutPairsTmp;
-        CAmount nMinAmount = vecStandardDenoms[vecBits.front()];
-        CAmount nMaxAmount = nBalanceNeedsAnonymized;
 
         // Try to match their denominations if possible, select exact number of denominations
-        if (!vpwallets[0]->SelectPSInOutPairsByDenominations(dsq.nDenom, nMinAmount, nMaxAmount, vecPSInOutPairsTmp)) {
-            LogPrint(BCLog::PRIVATESEND, "CPrivateSendClientSession::JoinExistingQueue -- Couldn't match %d denominations %d (%s)\n", vecBits.front(), dsq.nDenom, CPrivateSend::DenominationToString(dsq.nDenom));
+        if (!vpwallets[0]->SelectPSInOutPairsByDenominations(dsq.nDenom, nBalanceNeedsAnonymized, vecPSInOutPairsTmp)) {
+            LogPrint(BCLog::PRIVATESEND, "CPrivateSendClientSession::JoinExistingQueue -- Couldn't match denomination %d (%s)\n", dsq.nDenom, CPrivateSend::DenominationToString(dsq.nDenom));
             continue;
         }
 
@@ -1283,14 +1274,7 @@ bool CPrivateSendClientSession::SelectDenominate(std::string& strErrorRet, std::
 
     vecPSInOutPairsRet.clear();
 
-    std::vector<int> vecBits;
-    if (!CPrivateSend::GetDenominationsBits(nSessionDenom, vecBits)) {
-        strErrorRet = "Incorrect session denom";
-        return false;
-    }
-    std::vector<CAmount> vecStandardDenoms = CPrivateSend::GetStandardDenominations();
-
-    bool fSelected = vpwallets[0]->SelectPSInOutPairsByDenominations(nSessionDenom, vecStandardDenoms[vecBits.front()], CPrivateSend::GetMaxPoolAmount(), vecPSInOutPairsRet);
+    bool fSelected = vpwallets[0]->SelectPSInOutPairsByDenominations(nSessionDenom, CPrivateSend::GetMaxPoolAmount(), vecPSInOutPairsRet);
     if (!fSelected) {
         strErrorRet = "Can't select current denominated inputs";
         return false;

@@ -3189,18 +3189,17 @@ bool CWallet::FundTransaction(CMutableTransaction& tx, CAmount& nFeeRet, int& nC
     return true;
 }
 
-bool CWallet::SelectPSInOutPairsByDenominations(int nDenom, CAmount nValueMin, CAmount nValueMax, std::vector< std::pair<CTxDSIn, CTxOut> >& vecPSInOutPairsRet)
+bool CWallet::SelectPSInOutPairsByDenominations(int nDenom, CAmount nValueMax, std::vector< std::pair<CTxDSIn, CTxOut> >& vecPSInOutPairsRet)
 {
     CAmount nValueTotal{0};
-    int nDenomResult{0};
 
     std::set<uint256> setRecentTxIds;
     std::vector<COutput> vCoins;
 
     vecPSInOutPairsRet.clear();
 
-    std::vector<int> vecBits;
-    if (!CPrivateSend::GetDenominationsBits(nDenom, vecBits)) {
+    CAmount nDenomAmount = CPrivateSend::DenominationToAmount(nDenom);
+    if (nDenomAmount < 0) {
         return false;
     }
 
@@ -3211,10 +3210,9 @@ bool CWallet::SelectPSInOutPairsByDenominations(int nDenom, CAmount nValueMin, C
 
     std::random_shuffle(vCoins.rbegin(), vCoins.rend(), GetRandInt);
 
-    std::vector<CAmount> vecPrivateSendDenominations = CPrivateSend::GetStandardDenominations();
     for (const auto& out : vCoins) {
         uint256 txHash = out.tx->GetHash();
-        int nValue = out.tx->tx->vout[out.i].nValue;
+        CAmount nValue = out.tx->tx->vout[out.i].nValue;
         if (setRecentTxIds.find(txHash) != setRecentTxIds.end()) continue; // no duplicate txids
         if (nValueTotal + nValue > nValueMax) continue;
 
@@ -3223,20 +3221,17 @@ bool CWallet::SelectPSInOutPairsByDenominations(int nDenom, CAmount nValueMin, C
         int nRounds = GetRealOutpointPrivateSendRounds(txin.prevout);
         if (nRounds >= privateSendClient.nPrivateSendRounds) continue;
 
-        for (const auto& nBit : vecBits) {
-            if (nValue != vecPrivateSendDenominations[nBit]) continue;
-            nValueTotal += nValue;
-            vecPSInOutPairsRet.emplace_back(CTxDSIn(txin, scriptPubKey), CTxOut(nValue, scriptPubKey, nRounds));
-            setRecentTxIds.emplace(txHash);
-            nDenomResult |= 1 << nBit;
-            LogPrint(BCLog::PRIVATESEND, "CWallet::%s -- hash: %s, nValue: %d.%08d, nRounds: %d\n",
-                            __func__, txHash.ToString(), nValue / COIN, nValue % COIN, nRounds);
-        }
+        if (nValue != nDenomAmount) continue;
+        nValueTotal += nValue;
+        vecPSInOutPairsRet.emplace_back(CTxDSIn(txin, scriptPubKey), CTxOut(nValue, scriptPubKey, nRounds));
+        setRecentTxIds.emplace(txHash);
+        LogPrint(BCLog::PRIVATESEND, "CWallet::%s -- hash: %s, nValue: %d.%08d, nRounds: %d\n",
+                        __func__, txHash.ToString(), nValue / COIN, nValue % COIN, nRounds);
     }
 
     LogPrint(BCLog::PRIVATESEND, "CWallet::%s -- setRecentTxIds.size(): %d\n", __func__, setRecentTxIds.size());
 
-    return nValueTotal >= nValueMin && nDenom == nDenomResult;
+    return nValueTotal > 0;
 }
 
 bool CWallet::SelectCoinsGroupedByAddresses(std::vector<CompactTallyItem>& vecTallyRet, bool fSkipDenominated, bool fAnonymizable, bool fSkipUnconfirmed, int nMaxOupointsPerAddress) const
