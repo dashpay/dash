@@ -14,6 +14,7 @@
 enum class CoinType
 {
     ALL_COINS,
+    ONLY_PRIVATESEND,
     ONLY_DENOMINATED,
     ONLY_NONDENOMINATED,
     ONLY_1000, // find masternode outputs including locked ones (use with caution)
@@ -95,12 +96,12 @@ public:
 
     void UsePrivateSend(bool fUsePrivateSend)
     {
-        nCoinType = fUsePrivateSend ? CoinType::ONLY_DENOMINATED : CoinType::ALL_COINS;
+        nCoinType = fUsePrivateSend ? CoinType::ONLY_PRIVATESEND : CoinType::ALL_COINS;
     }
 
     bool IsUsingPrivateSend() const
     {
-        return nCoinType == CoinType::ONLY_DENOMINATED;
+        return nCoinType == CoinType::ONLY_PRIVATESEND;
     }
 
 private:
