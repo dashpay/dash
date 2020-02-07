@@ -400,6 +400,20 @@ bool CPrivateSend::IsCollateralAmount(CAmount nInputAmount)
 }
 
 /*
+    Return a bitshifted integer representing a denomination in vecStandardDenominations
+    or 0 if none was found
+*/
+int CPrivateSend::AmountToDenomination(CAmount nInputAmount)
+{
+    for (int i = 0; i < vecStandardDenominations.size(); ++i) {
+        if (nInputAmount == vecStandardDenominations[i]) {
+            return 1 << i;
+        }
+    }
+    return 0;
+}
+
+/*
     Returns:
     - one of standard denominations from vecStandardDenominations based on the provided bitshifted integer
     - 0 for non-initialized sessions (nDenom = 0)
@@ -514,19 +528,6 @@ bool CPrivateSend::GetDenominationsBits(int nDenom, std::vector<int>& vecBitsRet
     }
 
     return !vecBitsRet.empty();
-}
-
-int CPrivateSend::GetDenominationsByAmounts(const std::vector<CAmount>& vecAmount)
-{
-    CScript scriptTmp = CScript();
-    std::vector<CTxOut> vecTxOut;
-
-    for (auto it = vecAmount.rbegin(); it != vecAmount.rend(); ++it) {
-        CTxOut txout((*it), scriptTmp);
-        vecTxOut.push_back(txout);
-    }
-
-    return GetDenominations(vecTxOut, true);
 }
 
 bool CPrivateSend::IsDenominatedAmount(CAmount nInputAmount)

@@ -1111,10 +1111,9 @@ bool CPrivateSendClientSession::StartNewQueue(CAmount nBalanceNeedsAnonymized, C
     int nTries = 0;
     int nMnCount = deterministicMNManager->GetListAtChainTip().GetValidMNsCount();
 
-    // ** find the coins we'll use
-    std::vector<CTxIn> vecTxIn;
-    CAmount nValueInTmp = 0;
-    if (!vpwallets[0]->SelectPrivateCoins(CPrivateSend::GetSmallestDenomination(), nBalanceNeedsAnonymized, vecTxIn, nValueInTmp, 0, privateSendClient.nPrivateSendRounds - 1)) {
+    // find available denominated amounts
+    std::set<CAmount> setAmounts;
+    if (!vpwallets[0]->SelectDenominatedAmounts(nBalanceNeedsAnonymized, setAmounts)) {
         // this should never happen
         LogPrint(BCLog::PRIVATESEND, "CPrivateSendClientSession::StartNewQueue -- Can't mix: no compatible inputs found!\n");
         strAutoDenomResult = _("Can't mix: no compatible inputs found!");
@@ -1158,11 +1157,14 @@ bool CPrivateSendClientSession::StartNewQueue(CAmount nBalanceNeedsAnonymized, C
 
         LogPrint(BCLog::PRIVATESEND, "CPrivateSendClientSession::StartNewQueue -- attempt %d connection to Masternode %s\n", nTries, dmn->pdmnState->addr.ToString());
 
-        std::vector<CAmount> vecAmounts;
-        vpwallets[0]->ConvertList(vecTxIn, vecAmounts);
-        // try to get a single random denom out of vecAmounts
+        // try to get a single random denom out of setAmounts
         while (nSessionDenom == 0) {
-            nSessionDenom = CPrivateSend::GetDenominationsByAmounts(vecAmounts);
+            for (const auto& amount : setAmounts) {
+                nSessionDenom = CPrivateSend::AmountToDenomination(amount);
+                if (nSessionDenom > 0) {
+                    break;
+                }
+            }
         }
 
         mixingMasternode = dmn;
