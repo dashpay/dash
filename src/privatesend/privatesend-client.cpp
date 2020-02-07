@@ -337,7 +337,7 @@ std::string CPrivateSendClientManager::GetSessionDenoms()
     std::string strSessionDenoms;
 
     for (auto& session : deqSessions) {
-        strSessionDenoms += (session.nSessionDenom ? CPrivateSend::GetDenominationsToString(session.nSessionDenom) : "N/A") + "; ";
+        strSessionDenoms += CPrivateSend::DenominationToString(session.nSessionDenom) + "; ";
     }
     return strSessionDenoms.empty() ? "N/A" : strSessionDenoms;
 }
@@ -1076,7 +1076,7 @@ bool CPrivateSendClientSession::JoinExistingQueue(CAmount nBalanceNeedsAnonymize
 
         // Try to match their denominations if possible, select exact number of denominations
         if (!vpwallets[0]->SelectPSInOutPairsByDenominations(dsq.nDenom, nMinAmount, nMaxAmount, vecPSInOutPairsTmp)) {
-            LogPrint(BCLog::PRIVATESEND, "CPrivateSendClientSession::JoinExistingQueue -- Couldn't match %d denominations %d (%s)\n", vecBits.front(), dsq.nDenom, CPrivateSend::GetDenominationsToString(dsq.nDenom));
+            LogPrint(BCLog::PRIVATESEND, "CPrivateSendClientSession::JoinExistingQueue -- Couldn't match %d denominations %d (%s)\n", vecBits.front(), dsq.nDenom, CPrivateSend::DenominationToString(dsq.nDenom));
             continue;
         }
 
@@ -1095,7 +1095,7 @@ bool CPrivateSendClientSession::JoinExistingQueue(CAmount nBalanceNeedsAnonymize
         SetState(POOL_STATE_QUEUE);
         nTimeLastSuccessfulStep = GetTime();
         LogPrint(BCLog::PRIVATESEND, "CPrivateSendClientSession::JoinExistingQueue -- pending connection (from queue): nSessionDenom: %d (%s), addr=%s\n",
-            nSessionDenom, CPrivateSend::GetDenominationsToString(nSessionDenom), dmn->pdmnState->addr.ToString());
+            nSessionDenom, CPrivateSend::DenominationToString(nSessionDenom), dmn->pdmnState->addr.ToString());
         strAutoDenomResult = _("Trying to connect...");
         return true;
     }
@@ -1172,7 +1172,7 @@ bool CPrivateSendClientSession::StartNewQueue(CAmount nBalanceNeedsAnonymized, C
         SetState(POOL_STATE_QUEUE);
         nTimeLastSuccessfulStep = GetTime();
         LogPrint(BCLog::PRIVATESEND, "CPrivateSendClientSession::StartNewQueue -- pending connection, nSessionDenom: %d (%s), addr=%s\n",
-            nSessionDenom, CPrivateSend::GetDenominationsToString(nSessionDenom), dmn->pdmnState->addr.ToString());
+            nSessionDenom, CPrivateSend::DenominationToString(nSessionDenom), dmn->pdmnState->addr.ToString());
         strAutoDenomResult = _("Trying to connect...");
         return true;
     }
@@ -1695,18 +1695,7 @@ void CPrivateSendClientSession::GetJsonInfo(UniValue& obj) const
         obj.push_back(Pair("outpoint",  mixingMasternode->collateralOutpoint.ToStringShort()));
         obj.push_back(Pair("service",   mixingMasternode->pdmnState->addr.ToString()));
     }
-    CAmount amount{0};
-    if (nSessionDenom) {
-        // TODO: GetDenominationsToString has few issues:
-        // - it returns a string of denomination amounts concatenated via "+" if there are many of them
-        // - it uses FormatMoney which drops trailing zeros
-        // We no longer use multiple denominations in one session and this thing should be refactored
-        // together with other similar functions in CPrivatesend.
-        // For now, we just use a workaround here to convert a string into CAmount and convert it to a
-        // proper format via ValueFromAmount later.
-        ParseFixedPoint(CPrivateSend::GetDenominationsToString(nSessionDenom), 8, &amount);
-    }
-    obj.push_back(Pair("denomination",  ValueFromAmount(amount)));
+    obj.push_back(Pair("denomination",  ValueFromAmount(CPrivateSend::DenominationToAmount(nSessionDenom))));
     obj.push_back(Pair("state",         GetStateString()));
     obj.push_back(Pair("entries_count", GetEntriesCount()));
 }

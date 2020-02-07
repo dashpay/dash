@@ -443,7 +443,8 @@ public:
 
     /// Get the denominations for a list of outputs (returns a bitshifted integer)
     static int GetDenominations(const std::vector<CTxOut>& vecTxOut, bool fSingleRandomDenom = false);
-    static std::string GetDenominationsToString(int nDenom);
+    static CAmount DenominationToAmount(int nDenom);
+    static std::string DenominationToString(int nDenom);
     static bool GetDenominationsBits(int nDenom, std::vector<int>& vecBitsRet);
 
     static std::string GetMessageByID(PoolMessage nMessageID);
