@@ -110,7 +110,13 @@ void CActiveMasternodeManager::Init()
     if (Params().NetworkIDString() != CBaseChainParams::REGTEST) {
         // Check socket connectivity
         LogPrintf("CActiveDeterministicMasternodeManager::Init -- Checking inbound connection to '%s'\n", activeMasternodeInfo.service.ToString());
-        SOCKET hSocket;
+        SOCKET hSocket = CreateSocket(activeMasternodeInfo.service);
+        if (hSocket == INVALID_SOCKET) {
+            state = MASTERNODE_ERROR;
+            strError = "Could not create socket to connect to " + activeMasternodeInfo.service.ToString();
+            LogPrintf("CActiveMasternodeManager::Init -- ERROR: %s\n", strError);
+            return;
+        }
         bool fConnected = ConnectSocketDirectly(activeMasternodeInfo.service, hSocket, nConnectTimeout) && IsSelectableSocket(hSocket);
         CloseSocket(hSocket);
 
