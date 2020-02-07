@@ -72,7 +72,7 @@ void CActiveMasternodeManager::Init()
         // listen option is probably overwritten by something else, no good
         state = MASTERNODE_ERROR;
         strError = "Masternode must accept connections from outside. Make sure listen configuration option is not overwritten by some another parameter.";
-        LogPrintf("CActiveDeterministicMasternodeManager::Init -- ERROR: %s\n", strError);
+        LogPrintf("CActiveMasternodeManager::Init -- ERROR: %s\n", strError);
         return;
     }
 
@@ -108,7 +108,7 @@ void CActiveMasternodeManager::Init()
     }
 
     // Check socket connectivity
-    LogPrintf("CActiveDeterministicMasternodeManager::Init -- Checking inbound connection to '%s'\n", activeMasternodeInfo.service.ToString());
+    LogPrintf("CActiveMasternodeManager::Init -- Checking inbound connection to '%s'\n", activeMasternodeInfo.service.ToString());
     SOCKET hSocket = CreateSocket(activeMasternodeInfo.service);
     if (hSocket == INVALID_SOCKET) {
         state = MASTERNODE_ERROR;
@@ -122,7 +122,7 @@ void CActiveMasternodeManager::Init()
     if (!fConnected) {
         state = MASTERNODE_ERROR;
         strError = "Could not connect to " + activeMasternodeInfo.service.ToString();
-        LogPrintf("CActiveDeterministicMasternodeManager::Init -- ERROR: %s\n", strError);
+        LogPrintf("CActiveMasternodeManager::Init -- ERROR: %s\n", strError);
         return;
     }
 
