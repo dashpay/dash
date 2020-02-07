@@ -1288,55 +1288,43 @@ bool CPrivateSendClientSession::PrepareDenominate(int nMinRounds, int nMaxRounds
     AssertLockHeld(cs_main);
     AssertLockHeld(vpwallets[0]->cs_wallet);
 
-    std::vector<int> vecBits;
-    if (!CPrivateSend::GetDenominationsBits(nSessionDenom, vecBits)) {
+    CAmount nDenomAmount = CPrivateSend::DenominationToAmount(nSessionDenom);
+    if (nDenomAmount <= 0) {
         strErrorRet = "Incorrect session denom";
         return false;
     }
 
     // NOTE: No need to randomize order of inputs because they were
     // initially shuffled in CWallet::SelectPSInOutPairsByDenominations already.
-    int nDenomResult{0};
-
-    std::vector<CAmount> vecStandardDenoms = CPrivateSend::GetStandardDenominations();
-    std::vector<int> vecSteps(vecStandardDenoms.size(), 0);
+    int nSteps{0};
     vecPSInOutPairsRet.clear();
 
     // Try to add up to PRIVATESEND_ENTRY_MAX_SIZE of every needed denomination
     for (const auto& pair : vecPSInOutPairsIn) {
-        if (pair.second.nRounds < nMinRounds || pair.second.nRounds > nMaxRounds) {
-            continue;
-        }
-        bool fFound = false;
-        for (const auto& nBit : vecBits) {
-            if (vecSteps[nBit] >= PRIVATESEND_ENTRY_MAX_SIZE) break;
-            CAmount nValueDenom = vecStandardDenoms[nBit];
-            if (pair.second.nValue == nValueDenom) {
-                CScript scriptDenom;
-                if (fDryRun) {
-                    scriptDenom = CScript();
-                } else {
-                    // randomly skip some inputs when we have at least one of the same denom already
-                    // TODO: make it adjustable via options/cmd-line params
-                    if (vecSteps[nBit] >= 1 && GetRandInt(5) == 0) {
-                        // still count it as a step to randomize number of inputs
-                        // if we have more than (or exactly) PRIVATESEND_ENTRY_MAX_SIZE of them
-                        ++vecSteps[nBit];
-                        break;
-                    }
-                    scriptDenom = keyHolderStorage.AddKey(vpwallets[0]);
-                }
-                vecPSInOutPairsRet.emplace_back(pair.first, CTxOut(nValueDenom, scriptDenom));
-                fFound = true;
-                nDenomResult |= 1 << nBit;
-                // step is complete
-                ++vecSteps[nBit];
-                break;
+        if (nSteps >= PRIVATESEND_ENTRY_MAX_SIZE) break;
+        if (pair.second.nRounds < nMinRounds || pair.second.nRounds > nMaxRounds) continue;
+        if (pair.second.nValue != nDenomAmount) continue;
+
+        CScript scriptDenom;
+        if (fDryRun) {
+            scriptDenom = CScript();
+        } else {
+            // randomly skip some inputs when we have at least one of the same denom already
+            // TODO: make it adjustable via options/cmd-line params
+            if (nSteps >= 1 && GetRandInt(5) == 0) {
+                // still count it as a step to randomize number of inputs
+                // if we have more than (or exactly) PRIVATESEND_ENTRY_MAX_SIZE of them
+                ++nSteps;
+                continue;
             }
+            scriptDenom = keyHolderStorage.AddKey(vpwallets[0]);
         }
+        vecPSInOutPairsRet.emplace_back(pair.first, CTxOut(nDenomAmount, scriptDenom));
+        // step is complete
+        ++nSteps;
     }
 
-    if (nDenomResult != nSessionDenom) {
+    if (vecPSInOutPairsRet.empty()) {
         keyHolderStorage.ReturnAll();
         strErrorRet = "Can't prepare current denominated outputs";
         return false;

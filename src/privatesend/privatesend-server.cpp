@@ -650,8 +650,7 @@ bool CPrivateSendServer::IsAcceptableDSA(const CPrivateSendAccept& dsa, PoolMess
     if (!fMasternodeMode) return false;
 
     // is denom even something legit?
-    std::vector<int> vecBits;
-    if (!CPrivateSend::GetDenominationsBits(dsa.nDenom, vecBits)) {
+    if (CPrivateSend::DenominationToAmount(dsa.nDenom) <= 0) {
         LogPrint(BCLog::PRIVATESEND, "CPrivateSendServer::%s -- denom not valid!\n", __func__);
         nMessageIDRet = ERR_DENOM;
         return false;

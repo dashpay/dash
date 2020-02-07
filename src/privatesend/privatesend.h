@@ -443,7 +443,6 @@ public:
     static int AmountToDenomination(CAmount nInputAmount);
     static CAmount DenominationToAmount(int nDenom);
     static std::string DenominationToString(int nDenom);
-    static bool GetDenominationsBits(int nDenom, std::vector<int>& vecBitsRet);
 
     static std::string GetMessageByID(PoolMessage nMessageID);
 
