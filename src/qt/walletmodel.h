@@ -224,6 +224,8 @@ public:
     int getDefaultConfirmTarget() const;
     int getNumISLocks() const;
 
+    int getRealOutpointPrivateSendRounds(const COutPoint& outpoint) const;
+
 private:
     CWallet *wallet;
     bool fHaveWatchOnly;

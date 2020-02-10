@@ -208,6 +208,11 @@ int WalletModel::getNumISLocks() const
     return cachedNumISLocks;
 }
 
+int WalletModel::getRealOutpointPrivateSendRounds(const COutPoint& outpoint) const
+{
+    return wallet->GetRealOutpointPrivateSendRounds(outpoint);
+}
+
 void WalletModel::updateAddressBook(const QString &address, const QString &label,
         bool isMine, const QString &purpose, int status)
 {
