@@ -30,7 +30,7 @@ static const int DEFAULT_PRIVATESEND_AMOUNT = 1000;
 static const int DEFAULT_PRIVATESEND_DENOMS = 300;
 
 static const bool DEFAULT_PRIVATESEND_AUTOSTART = false;
-static const bool DEFAULT_PRIVATESEND_MULTISESSION = false;
+static const bool DEFAULT_PRIVATESEND_MULTISESSION = true;
 
 // Warn user if mixing in gui or try to create backup if mixing in daemon mode
 // when we have only this many keys left
