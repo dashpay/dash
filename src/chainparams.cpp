@@ -167,6 +167,25 @@ static Consensus::LLMQParams llmq_test = {
         .keepOldConnections = 3,
 };
 
+// this one is for devnets only
+static Consensus::LLMQParams llmq_evonet = {
+        .type = Consensus::LLMQ_EVONET,
+        .name = "llmq_evonet",
+        .size = 10,
+        .minSize = 7,
+        .threshold = 6,
+
+        .dkgInterval = 24, // one DKG per hour
+        .dkgPhaseBlocks = 2,
+        .dkgMiningWindowStart = 10, // dkgPhaseBlocks * 5 = after finalization
+        .dkgMiningWindowEnd = 18,
+        .dkgBadVotesThreshold = 7,
+
+        .signingActiveQuorumCount = 3, // just a few ones to allow easier testing
+
+        .keepOldConnections = 4,
+};
+
 static Consensus::LLMQParams llmq50_60 = {
         .type = Consensus::LLMQ_50_60,
         .name = "llmq_50_60",
