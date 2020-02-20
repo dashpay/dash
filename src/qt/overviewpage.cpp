@@ -458,9 +458,9 @@ void OverviewPage::privateSendStatus()
     static int64_t nLastDSProgressBlockTime = 0;
     int nBestHeight = clientModel->getNumBlocks();
 
-    // We are processing more then 1 block per second, we'll just leave
-    if(((nBestHeight - privateSendClient.nCachedNumBlocks) / (GetTimeMillis() - nLastDSProgressBlockTime + 1) > 1)) return;
-    nLastDSProgressBlockTime = GetTimeMillis();
+    // We are processing more than 1 block per second, we'll just leave
+    if(nBestHeight > privateSendClient.nCachedNumBlocks && GetTime() - nLastDSProgressBlockTime <= 1) return;
+    nLastDSProgressBlockTime = GetTime();
 
     QString strKeysLeftText(tr("keys left: %1").arg(vpwallets[0]->nKeysLeftSinceAutoBackup));
     if(vpwallets[0]->nKeysLeftSinceAutoBackup < PRIVATESEND_KEYS_THRESHOLD_WARNING) {
