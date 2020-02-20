@@ -437,6 +437,7 @@ public:
     static CAmount GetSmallestDenomination() { return vecStandardDenominations.back(); }
 
     static bool IsDenominatedAmount(CAmount nInputAmount);
+    static bool IsValidDenomination(int nDenom);
 
     static int AmountToDenomination(CAmount nInputAmount);
     static CAmount DenominationToAmount(int nDenom);

@@ -1288,11 +1288,11 @@ bool CPrivateSendClientSession::PrepareDenominate(int nMinRounds, int nMaxRounds
     AssertLockHeld(cs_main);
     AssertLockHeld(vpwallets[0]->cs_wallet);
 
-    CAmount nDenomAmount = CPrivateSend::DenominationToAmount(nSessionDenom);
-    if (nDenomAmount <= 0) {
+    if (!CPrivateSend::IsValidDenomination(nSessionDenom)) {
         strErrorRet = "Incorrect session denom";
         return false;
     }
+    CAmount nDenomAmount = CPrivateSend::DenominationToAmount(nSessionDenom);
 
     // NOTE: No need to randomize order of inputs because they were
     // initially shuffled in CWallet::SelectPSInOutPairsByDenominations already.

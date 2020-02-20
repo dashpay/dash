@@ -3198,10 +3198,10 @@ bool CWallet::SelectPSInOutPairsByDenominations(int nDenom, CAmount nValueMax, s
 
     vecPSInOutPairsRet.clear();
 
-    CAmount nDenomAmount = CPrivateSend::DenominationToAmount(nDenom);
-    if (nDenomAmount < 0) {
+    if (!CPrivateSend::IsValidDenomination(nDenom)) {
         return false;
     }
+    CAmount nDenomAmount = CPrivateSend::DenominationToAmount(nDenom);
 
     CCoinControl coin_control;
     coin_control.nCoinType = CoinType::ONLY_DENOMINATED;
@@ -3346,11 +3346,13 @@ bool CWallet::SelectDenominatedAmounts(CAmount nValueMax, std::set<CAmount>& set
     CCoinControl coin_control;
     coin_control.nCoinType = CoinType::ONLY_DENOMINATED;
     AvailableCoins(vCoins, true, &coin_control);
+    // larger denoms first
+    std::sort(vCoins.rbegin(), vCoins.rend(), CompareByPriority());
 
     for (const auto& out : vCoins) {
         CAmount nValue = out.tx->tx->vout[out.i].nValue;
         COutPoint outpoint(out.tx->GetHash(), out.i);
-        int nRounds = GetCappedOutpointPrivateSendRounds(outpoint);
+        int nRounds = GetRealOutpointPrivateSendRounds(outpoint);
         if (nRounds < 0 || nRounds >= privateSendClient.nPrivateSendRounds) continue;
         if (nValueTotal + nValue <= nValueMax) {
             nValueTotal += nValue;

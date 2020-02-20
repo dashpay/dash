@@ -404,7 +404,7 @@ bool CPrivateSend::IsCollateralAmount(CAmount nInputAmount)
 */
 int CPrivateSend::AmountToDenomination(CAmount nInputAmount)
 {
-    for (int i = 0; i < vecStandardDenominations.size(); ++i) {
+    for (size_t i = 0; i < vecStandardDenominations.size(); ++i) {
         if (nInputAmount == vecStandardDenominations[i]) {
             return 1 << i;
         }
@@ -421,22 +421,25 @@ int CPrivateSend::AmountToDenomination(CAmount nInputAmount)
 CAmount CPrivateSend::DenominationToAmount(int nDenom)
 {
     if (nDenom == 0) {
+        // not initialized
         return 0;
     }
 
-    int nMaxDenoms = vecStandardDenominations.size();
+    size_t nMaxDenoms = vecStandardDenominations.size();
 
     if (nDenom >= (1 << nMaxDenoms) || nDenom < 0) {
+        // out of bounds
         return -1;
     }
 
     if ((nDenom & (nDenom - 1)) != 0) {
+        // non-denom
         return -2;
     }
 
     CAmount nDenomAmount{-3};
 
-    for (int i = 0; i < nMaxDenoms; ++i) {
+    for (size_t i = 0; i < nMaxDenoms; ++i) {
         if (nDenom & (1 << i)) {
             nDenomAmount = vecStandardDenominations[i];
             break;
@@ -461,15 +464,18 @@ std::string CPrivateSend::DenominationToString(int nDenom)
         default: return ValueFromAmount(nDenomAmount).getValStr();
     }
 
+    // shouldn't happen
     return "to-string-error";
 }
 
 bool CPrivateSend::IsDenominatedAmount(CAmount nInputAmount)
 {
-    for (const auto& nDenomValue : vecStandardDenominations) {
-        if (nInputAmount == nDenomValue) return true;
-    }
-    return false;
+    return AmountToDenomination(nInputAmount) > 0;
+}
+
+bool CPrivateSend::IsValidDenomination(int nDenom)
+{
+    return DenominationToAmount(nDenom) > 0;
 }
 
 std::string CPrivateSend::GetMessageByID(PoolMessage nMessageID)
