@@ -124,6 +124,13 @@ void CChainParams::UpdateLLMQTestParams(int size, int threshold) {
     params.threshold = threshold;
 }
 
+void CChainParams::UpdateLLMQDevnetParams(int size, int threshold) {
+    auto& params = consensus.llmqs.at(Consensus::LLMQ_EVONET);
+    params.size = size;
+    params.minSize = threshold;
+    params.threshold = threshold;
+}
+
 static CBlock FindDevNetGenesisBlock(const Consensus::Params& params, const CBlock &prevBlock, const CAmount& reward)
 {
     std::string devNetName = GetDevNetName();
@@ -928,4 +935,9 @@ void UpdateDevnetLLMQChainLocks(Consensus::LLMQType llmqType)
 void UpdateLLMQTestParams(int size, int threshold)
 {
     globalChainParams->UpdateLLMQTestParams(size, threshold);
+}
+
+void UpdateLLMQDevnetParams(int size, int threshold)
+{
+    globalChainParams->UpdateLLMQDevnetParams(size, threshold);
 }
