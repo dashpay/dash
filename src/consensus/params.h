@@ -52,7 +52,7 @@ enum LLMQType : uint8_t
     LLMQ_TEST = 100, // 3 members, 2 (66%) threshold, one per hour. Params might differ when -llmqtestparams is used
 
     // for devnets only
-    LLMQ_EVONET = 101, // 10 members, 6 (60%) threshold, one per hour. Params might differ when -llmqtestparams is used
+    LLMQ_DEVNET = 101, // 10 members, 6 (60%) threshold, one per hour. Params might differ when -llmqdevnetparams is used
 };
 
 // Configures a LLMQ and its DKG

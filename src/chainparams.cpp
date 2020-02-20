@@ -125,7 +125,7 @@ void CChainParams::UpdateLLMQTestParams(int size, int threshold) {
 }
 
 void CChainParams::UpdateLLMQDevnetParams(int size, int threshold) {
-    auto& params = consensus.llmqs.at(Consensus::LLMQ_EVONET);
+    auto& params = consensus.llmqs.at(Consensus::LLMQ_DEVNET);
     params.size = size;
     params.minSize = threshold;
     params.threshold = threshold;
@@ -175,9 +175,9 @@ static Consensus::LLMQParams llmq_test = {
 };
 
 // this one is for devnets only
-static Consensus::LLMQParams llmq_evonet = {
-        .type = Consensus::LLMQ_EVONET,
-        .name = "llmq_evonet",
+static Consensus::LLMQParams llmq_devnet = {
+        .type = Consensus::LLMQ_DEVNET,
+        .name = "llmq_devnet",
         .size = 10,
         .minSize = 7,
         .threshold = 6,
@@ -714,7 +714,7 @@ public:
         nExtCoinType = 1;
 
         // long living quorum params
-        consensus.llmqs[Consensus::LLMQ_EVONET] = llmq_evonet;
+        consensus.llmqs[Consensus::LLMQ_DEVNET] = llmq_devnet;
         consensus.llmqs[Consensus::LLMQ_50_60] = llmq50_60;
         consensus.llmqs[Consensus::LLMQ_400_60] = llmq400_60;
         consensus.llmqs[Consensus::LLMQ_400_85] = llmq400_85;
