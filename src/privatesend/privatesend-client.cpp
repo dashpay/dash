@@ -1151,10 +1151,9 @@ bool CPrivateSendClientSession::StartNewQueue(CAmount nBalanceNeedsAnonymized, C
         // try to get a single random denom out of setAmounts
         while (nSessionDenom == 0) {
             for (const auto& amount : setAmounts) {
+                if (setAmounts.size() > 1 && GetRandInt(2)) continue;
                 nSessionDenom = CPrivateSend::AmountToDenomination(amount);
-                if (nSessionDenom > 0) {
-                    break;
-                }
+                break;
             }
         }
 
