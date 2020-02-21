@@ -124,7 +124,8 @@ void CChainParams::UpdateLLMQTestParams(int size, int threshold) {
     params.threshold = threshold;
 }
 
-void CChainParams::UpdateLLMQDevnetParams(int size, int threshold) {
+void CChainParams::UpdateLLMQDevnetParams(int size, int threshold) 
+{
     auto& params = consensus.llmqs.at(Consensus::LLMQ_DEVNET);
     params.size = size;
     params.minSize = threshold;
