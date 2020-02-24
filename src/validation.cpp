@@ -4939,7 +4939,7 @@ bool FullDIP0003Mode() {
 
 //! Returns the protocol version based on height
 int InUseProtocol() {
-    const int nProtocolChangeHeight = 550000;
+    const int nProtocolChangeHeight = 552880;
     if (chainActive.Height() >= nProtocolChangeHeight)
         return 70220;
     return 70219;
