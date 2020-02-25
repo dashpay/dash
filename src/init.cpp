@@ -911,6 +911,15 @@ void InitParameterInteraction()
         // masternodes MUST accept connections from outside
         gArgs.ForceSetArg("-listen", "1");
         LogPrintf("%s: parameter interaction: -masternodeblsprivkey=... -> setting -listen=1\n", __func__);
+        // masternodes MUST have transaction index enabled
+        gArgs.ForceSetArg("-txindex", "1");
+        LogPrintf("%s: parameter interaction: -masternodeblsprivkey set -> setting -txindex=1\n", __func__);
+        // masternodes MUST have bloom filters enabled
+        gArgs.ForceSetArg("-peerbloomfilters", "1");
+        LogPrintf("%s: parameter interaction: -masternodeblsprivkey set -> setting -peerbloomfilters=1\n", __func__);
+        // masternodes MUST NOT have any pruning enabled
+        gArgs.ForceSetArg("-prune", "0");
+        LogPrintf("%s: parameter interaction: -masternodeblsprivkey set -> setting -prune=0\n", __func__);
 #ifdef ENABLE_WALLET
         // masternode should not have wallet enabled
         gArgs.ForceSetArg("-disablewallet", "1");
