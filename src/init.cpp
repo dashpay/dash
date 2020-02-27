@@ -975,13 +975,6 @@ void InitParameterInteraction()
         gArgs.ForceSetArg("-checklevel", "4");
         LogPrintf("%s: parameter interaction: additional indexes -> setting -checklevel=4\n", __func__);
     }
-
-    if (gArgs.IsArgSet("-masternodeblsprivkey")) {
-        if (gArgs.SoftSetArg("-maxconnections", itostr(DEFAULT_MAX_PEER_CONNECTIONS))) {
-            LogPrintf("%s: parameter interaction: -masternodeblsprivkey set -> setting -maxconnections=%d\n",
-                    __func__, DEFAULT_MAX_PEER_CONNECTIONS);
-        }
-    }
 }
 
 static std::string ResolveErrMsg(const char * const optname, const std::string& strBind)
