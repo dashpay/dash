@@ -1,5 +1,5 @@
 #include <qt/test/trafficgraphdatatests.h>
-#include <qt/test/../trafficgraphdata.h>
+#include <qt/trafficgraphdata.h>
 #include <algorithm>
 #include <sstream>
 #include <QTime>
