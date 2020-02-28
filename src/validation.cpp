@@ -2474,7 +2474,7 @@ static bool ConnectBlock(const CBlock& block, CValidationState& state, CBlockInd
     const auto& coinbaseTransaction = (pindex->nHeight >= Params().GetConsensus().nLastPoWBlock ? block.vtx[1] : block.vtx[0]);
 
     if (chainActive.Height() > fFullComplianceHeight) {
-    if (!IsBlockPayeeValid(*coinbaseTransaction, pindex->nHeight, expectedReward)) {
+    if (!IsBlockPayeeValid(*coinbaseTransaction, pindex->nHeight, expectedReward, pindex->nMint)) {
         return state.DoS(0, error("ConnectBlock(POLIS): couldn't find masternode or superblock payments"),
                          REJECT_INVALID, "bad-cb-payee");
     }}
