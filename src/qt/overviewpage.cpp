@@ -116,7 +116,7 @@ public:
     const PlatformStyle *platformStyle;
 
 };
-#include <overviewpage.moc>
+#include <qt/overviewpage.moc>
 
 OverviewPage::OverviewPage(const PlatformStyle *platformStyle, QWidget *parent) :
     QWidget(parent),
