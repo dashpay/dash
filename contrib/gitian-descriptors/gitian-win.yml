@@ -1,5 +1,5 @@
 ---
-name: "poliscore-win-1.6.1"
+name: "poliscore-win-1.6.2"
 enable_cache: true
 suites:
   - "bionic"
