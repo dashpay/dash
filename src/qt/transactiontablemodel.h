@@ -121,6 +121,7 @@ public Q_SLOTS:
     void updateAddressBook(const QString &address, const QString &label,
                            bool isMine, const QString &purpose, int status);
     void updateConfirmations();
+    void invalidateWalletCache();
     void updateDisplayUnit();
     /** Updates the column title to "Amount (DisplayUnit)" and emits headerDataChanged() signal for table headers to react. */
     void updateAmountColumnTitle();

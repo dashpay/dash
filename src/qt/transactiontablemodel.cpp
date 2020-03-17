@@ -71,6 +71,7 @@ public:
      * this is sorted by sha256.
      */
     QList<TransactionRecord> cachedWallet;
+    bool fCacheOutdated = true;
 
     /* Query entire wallet anew from core.
      */
@@ -95,9 +96,9 @@ public:
 
     void updateWalletCache()
     {
-	LOCK2( cs_main, wallet->cs_wallet );
+	LOCK2(cs_main, wallet->cs_wallet);
 	// Updating the cache for all transactions
-	for ( TransactionRecord& rec : cachedWallet )
+	for (TransactionRecord& rec : cachedWallet)
 	{
 	    // find the transaction in the wallet
 	    std::map<uint256, CWalletTx>::iterator mi = wallet->mapWallet.find(rec.hash);
@@ -107,6 +108,7 @@ public:
 		rec.updateStatus(mi->second, parent->getChainLockHeight());
 	    }
 	}
+	fCacheOutdated = false;
     }
 
     /* Update our model of the wallet incrementally, to synchronize our model of the wallet
@@ -299,16 +301,21 @@ void TransactionTableModel::updateAddressBook(const QString& address, const QStr
 {
     priv->updateAddressBook(address, label, isMine, purpose, status);
 }
-
+void TransactionTableModel::invalidateWalletCache()
+{
+    priv->fCacheOutdated = true;
+}
 void TransactionTableModel::updateConfirmations()
 {
     // Blocks came in since last poll.
     // Invalidate status (number of confirmations) and (possibly) description
     //  for all rows. Qt is smart enough to only actually request the data for the
     //  visible rows.
-
-    priv->updateWalletCache();
-    Q_EMIT dataChanged(index(0, Status), index(priv->size()-1, Status));
+    if(priv->fCacheOutdated)
+    {
+	priv->updateWalletCache();
+	Q_EMIT dataChanged(index(0, Status), index(priv->size()-1, Status));
+    }
 }
 
 
@@ -840,8 +847,7 @@ static void NotifyTransactionChanged(TransactionTableModel *ttm, CWallet *wallet
 
 static void NotifyBlockConnected( TransactionTableModel *ttm, CWallet *wallet, const std::vector<uint256>& /*txids*/ )
 {
-    // Execute in GUI thread instead of signal-source thread
-    QMetaObject::invokeMethod(ttm, "updateConfirmations", Qt::QueuedConnection );
+    ttm->invalidateWalletCache();
 }
 
 static void NotifyAddressBookChanged(TransactionTableModel *ttm, CWallet *wallet, const CTxDestination &address, const std::string &label, bool isMine, const std::string &purpose, ChangeType status)
@@ -871,7 +877,7 @@ static void ShowProgress(TransactionTableModel *ttm, const std::string &title, i
 
             vQueueNotifications[i].invoke(ttm);
         }
-        std::vector<TransactionNotification >().swap(vQueueNotifications); // clear
+        std::vector<TransactionNotification >().swap(vQueueNotifications); // clear	
     }
 }
 
