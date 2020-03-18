@@ -1478,10 +1478,10 @@ void CWallet::BlockConnected(const std::shared_ptr<const CBlock>& pblock, const 
     fAnonymizableTallyCached = false;
     fAnonymizableTallyCachedNonDenom = false;
 
-    std::vector< uint256 > txids;
-    txids.reserve( pblock->vtx.size() );
-    for( const CTransactionRef& tx : pblock->vtx ){
-      txids.push_back( tx->GetHash() );
+    std::vector<uint256> txids;
+    txids.reserve(pblock->vtx.size());
+    for(const CTransactionRef& tx : pblock->vtx ) {
+      txids.push_back(tx->GetHash());
     }
     NotifyBlockConnected(this, txids);    
 }
