@@ -213,29 +213,29 @@ void CMainSignals::AcceptedBlockHeader(const CBlockIndex *pindexNew) {
 }
 
 void CMainSignals::NotifyHeaderTip(const CBlockIndex *pindexNew, bool fInitialDownload) {
-        m_internals->NotifyHeaderTip(pindexNew, fInitialDownload);
+    m_internals->NotifyHeaderTip(pindexNew, fInitialDownload);
 }
 
 void CMainSignals::NotifyTransactionLock(const CTransaction &tx, const llmq::CInstantSendLock& islock) {
-        m_internals->NotifyTransactionLock(tx, islock);
+    m_internals->NotifyTransactionLock(tx, islock);
 }
 
 void CMainSignals::NotifyChainLock(const CBlockIndex* pindex, const llmq::CChainLockSig& clsig) {
-        m_internals->NotifyChainLock(pindex, clsig);
+    m_internals->NotifyChainLock(pindex, clsig);
 }
 
 void CMainSignals::NotifyGovernanceVote(const CGovernanceVote &vote) {
-        m_internals->NotifyGovernanceVote(vote);
+    m_internals->NotifyGovernanceVote(vote);
 }
 
 void CMainSignals::NotifyGovernanceObject(const CGovernanceObject &object) {
-        m_internals->NotifyGovernanceObject(object);
+    m_internals->NotifyGovernanceObject(object);
 }
 
 void CMainSignals::NotifyInstantSendDoubleSpendAttempt(const CTransaction &currentTx, const CTransaction &previousTx) {
-        m_internals->NotifyInstantSendDoubleSpendAttempt(currentTx, previousTx);
+    m_internals->NotifyInstantSendDoubleSpendAttempt(currentTx, previousTx);
 }
 
 void CMainSignals::NotifyMasternodeListChanged(bool undo, const CDeterministicMNList& oldMNList, const CDeterministicMNListDiff& diff) {
-        m_internals->NotifyMasternodeListChanged(undo, oldMNList, diff);
+    m_internals->NotifyMasternodeListChanged(undo, oldMNList, diff);
 }
