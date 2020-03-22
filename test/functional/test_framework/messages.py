@@ -14,6 +14,7 @@ msg_block, msg_tx, msg_headers, etc.:
 ser_*, deser_*: functions that handle serialization/deserialization."""
 from codecs import encode
 import copy
+from collections import namedtuple
 import hashlib
 from io import BytesIO
 import random

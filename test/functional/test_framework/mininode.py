@@ -16,7 +16,6 @@ P2PDataStore: A p2p interface class that keeps a store of transactions and block
               and can respond correctly to getdata and getheaders messages
 """
 import asyncore
-from collections import namedtuple
 from collections import defaultdict
 from io import BytesIO
 import logging
