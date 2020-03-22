@@ -25,6 +25,8 @@ import time
 from test_framework.siphash import siphash256
 from test_framework.util import hex_str_to_bytes, bytes_to_hex_str, wait_until
 
+import dash_hash
+
 MIN_VERSION_SUPPORTED = 60001
 MY_VERSION = 70214  # MIN_PEER_PROTO_VERSION
 MY_SUBVERSION = b"/python-mininode-tester:0.0.3/"

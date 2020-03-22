@@ -26,7 +26,6 @@ import time
 import threading
 
 from test_framework.messages import *
-import dash_hash
 
 MSG_TX = 1
 MSG_BLOCK = 2
