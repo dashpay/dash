@@ -327,7 +327,7 @@ class NodeConn(asyncore.dispatcher):
                 self.recvbuf = self.recvbuf[4+12+4+4+msglen:]
                 if command not in MESSAGEMAP:
                     raise ValueError("Received unknown command from %s:%d: '%s' %s" % (self.dstaddr, self.dstport, command, repr(msg)))
-                if self.MESSAGEMAP[command] is None:
+                if MESSAGEMAP[command] is None:
                     # Command is known but we don't want/need to handle it
                     continue
                 f = BytesIO(msg)
