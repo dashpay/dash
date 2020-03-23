@@ -293,7 +293,7 @@ class NodeConnCB(NodeConn):
         # The network services received from the peer
         self.nServices = 0
 
-    def peer_connect(self, *args, services=NODE_NETWORK|NODE_WITNESS, send_version=True, **kwargs):
+    def peer_connect(self, *args, services=NODE_NETWORK, send_version=True, **kwargs):
         super().peer_connect(*args, **kwargs)
 
         if send_version:
