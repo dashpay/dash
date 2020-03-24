@@ -60,8 +60,7 @@ builder-image:
       - $CI_PROJECT_DIR/depends/$HOST
       - $CI_PROJECT_DIR/depends/SDKs
 
-.build-template:
-  stage: build
+.base-template:
   image: $CI_REGISTRY_IMAGE:builder-$CI_COMMIT_REF_SLUG
   before_script:
     - export CACHE_DIR=$CI_PROJECT_DIR/cache
@@ -92,6 +91,9 @@ builder-image:
     - echo PULL_REQUEST=$PULL_REQUEST COMMIT_RANGE=$COMMIT_RANGE HOST_SRC_DIR=$HOST_SRC_DIR CACHE_DIR=$CACHE_DIR
     - echo "Commit log:" && git log --format=fuller -1
 
+.build-template:
+  stage: build
+  extends: .base-template
   script:
     - export BUILD_TARGET="$CI_JOB_NAME"
     - cd $CI_PROJECT_DIR
