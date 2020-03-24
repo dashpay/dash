@@ -5,7 +5,7 @@ FROM ubuntu:bionic
 # We split this up into multiple RUN lines as we might need to retry multiple times on Travis. This way we allow better
 # cache usage.
 ENV APT_ARGS="-y --no-install-recommends --no-upgrade"
-RUN apt-get update && apt-get install $APT_ARGS git && rm -rf /var/lib/apt/lists/*
+RUN apt-get update && apt-get install $APT_ARGS git wget unzip && rm -rf /var/lib/apt/lists/*
 RUN apt-get update && apt-get install $APT_ARGS g++ && rm -rf /var/lib/apt/lists/*
 RUN apt-get update && apt-get install $APT_ARGS autotools-dev libtool m4 automake autoconf pkg-config && rm -rf /var/lib/apt/lists/*
 RUN apt-get update && apt-get install $APT_ARGS zlib1g-dev libssl1.0-dev curl ccache bsdmainutils cmake && rm -rf /var/lib/apt/lists/*
