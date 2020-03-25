@@ -64,7 +64,6 @@ builder-image:
   image: $CI_REGISTRY_IMAGE:builder-$CI_COMMIT_REF_SLUG
   before_script:
     - export CACHE_DIR=$CI_PROJECT_DIR/cache
-    - export BUILD_TARGET="$CI_JOB_NAME"
     - echo BUILD_TARGET=$BUILD_TARGET
     - source ./ci/matrix.sh
 
@@ -95,7 +94,6 @@ builder-image:
   stage: build
   extends: .base-template
   script:
-    - export BUILD_TARGET="$CI_JOB_NAME"
     - ./ci/build_src.sh
     - ./ci/test_unittests.sh
     - ./ci/test_integrationtests.sh --extended --exclude pruning,dbcrash
@@ -153,42 +151,58 @@ x86_64-apple-darwin11:
 
 ###
 
-arm-linux:
+arm-linux-build:
   extends: .build-template
   needs:
     - arm-linux-gnueabihf
+  variables:
+    BUILD_TARGET: arm-linux
 
-win32:
+win32-build:
   extends: .build-template
   needs:
     - i686-w64-mingw32
+  variables:
+    BUILD_TARGET: win32
 
-win64:
+win64-build:
   extends: .build-template
   needs:
     - x86_64-w64-mingw32
+  variables:
+    BUILD_TARGET: win64
 
-linux32:
+linux32-build:
   extends: .build-template
   needs:
     - i686-pc-linux-gnu
+  variables:
+    BUILD_TARGET: linux32
 
-linux64:
+linux64-build:
   extends: .build-template
   needs:
     - x86_64-unknown-linux-gnu-debug
+  variables:
+    BUILD_TARGET: linux64
 
-linux64_nowallet:
+linux64_nowallet-build:
   extends: .build-template
   needs:
     - x86_64-unknown-linux-gnu
+  variables:
+    BUILD_TARGET: linux64_nowallet
 
-linux64_release:
+linux64_release-build:
   extends: .build-template
   needs:
     - x86_64-unknown-linux-gnu
+  variables:
+    BUILD_TARGET: linux64_release
 
-mac:
+mac-build:
   extends: .build-template
   needs:
     - x86_64-apple-darwin11
+  variables:
+    BUILD_TARGET: mac
