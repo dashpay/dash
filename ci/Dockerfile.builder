@@ -39,6 +39,12 @@ RUN apt-get update && apt-get install $APT_ARGS wine-stable wine32 wine64 bc nsi
 RUN apt-get update && apt-get install $APT_ARGS python3-zmq && rm -rf /var/lib/apt/lists/*
 RUN apt-get update && apt-get install $APT_ARGS imagemagick libcap-dev librsvg2-bin libz-dev libbz2-dev libtiff-tools && rm -rf /var/lib/apt/lists/*
 
+# This is a hack. It is needed because gcc-multilib and g++-multilib are conflicting with g++-arm-linux-gnueabihf. This is
+# due to gcc-multilib installing the following symbolic link, which is needed for -m32 support. However, this causes
+# arm builds to also have the asm folder implicitely in the include search path. This is kind of ok, because the asm folder
+# for arm has precedence.
+RUN ln -s x86_64-linux-gnu/asm /usr/include/asm
+
 # Make sure std::thread and friends is available
 RUN \
   update-alternatives --set i686-w64-mingw32-gcc /usr/bin/i686-w64-mingw32-gcc-posix; \
