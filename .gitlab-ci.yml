@@ -7,6 +7,7 @@ stages:
   - builder-image
   - build-depends
   - build
+  - test
 
 builder-image:
   stage: builder-image
@@ -95,23 +96,34 @@ builder-image:
   extends: .base-template
   script:
     - ./ci/build_src.sh
-    - ./ci/test_unittests.sh
-    - ./ci/test_integrationtests.sh --extended --exclude pruning,dbcrash
-
-  after_script:
-    - mkdir -p $CI_PROJECT_DIR/testlogs
-
+    - ./ci/test_unittests.sh # Run unit tests in build stage to avoid creating too many parallel jobs
   cache:
     # Let all branches share the same cache, which is ok because ccache is able to handle it
     key: ${CI_JOB_NAME}
     paths:
       - $CI_PROJECT_DIR/cache/ccache
   artifacts:
+    name: binaries
+    when: always
+    paths:
+      - $CI_PROJECT_DIR/build-ci
+    expire_in: 3 days
+
+.test-template:
+  stage: test
+  extends: .base-template
+  script:
+    - ./ci/test_integrationtests.sh --extended --exclude pruning,dbcrash
+  after_script:
+    - mkdir -p $CI_PROJECT_DIR/testlogs
+  artifacts:
     name: testlogs
     when: always
     paths:
       - $CI_PROJECT_DIR/testlogs
     expire_in: 3 days
+
+###
 
 arm-linux-gnueabihf:
   extends: .build-depends-template
@@ -206,3 +218,19 @@ mac-build:
     - x86_64-apple-darwin11
   variables:
     BUILD_TARGET: mac
+
+###
+
+linux32-test:
+  extends: .test-template
+  needs:
+    - linux32-build
+  variables:
+    BUILD_TARGET: linux32
+
+linux64-test:
+  extends: .test-template
+  needs:
+    - linux64-build
+  variables:
+    BUILD_TARGET: linux64
