@@ -96,7 +96,6 @@ builder-image:
   extends: .base-template
   script:
     - export BUILD_TARGET="$CI_JOB_NAME"
-    - cd $CI_PROJECT_DIR
     - ./ci/build_src.sh
     - ./ci/test_unittests.sh
     - ./ci/test_integrationtests.sh --extended --exclude pruning,dbcrash
