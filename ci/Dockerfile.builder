@@ -10,7 +10,7 @@ RUN apt-get update && apt-get install $APT_ARGS g++ && rm -rf /var/lib/apt/lists
 RUN apt-get update && apt-get install $APT_ARGS autotools-dev libtool m4 automake autoconf pkg-config && rm -rf /var/lib/apt/lists/*
 RUN apt-get update && apt-get install $APT_ARGS zlib1g-dev libssl1.0-dev curl ccache bsdmainutils cmake && rm -rf /var/lib/apt/lists/*
 RUN apt-get update && apt-get install $APT_ARGS python3 python3-dev && rm -rf /var/lib/apt/lists/*
-RUN apt-get update && apt-get install $APT_ARGS python3-pip && rm -rf /var/lib/apt/lists/*
+RUN apt-get update && apt-get install $APT_ARGS python3-pip python3-setuptools && rm -rf /var/lib/apt/lists/*
 
 # Python stuff
 RUN pip3 install pyzmq # really needed?
