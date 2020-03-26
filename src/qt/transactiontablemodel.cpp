@@ -71,6 +71,7 @@ public:
      * this is sorted by sha256.
      */
     QList<TransactionRecord> cachedWallet;
+    bool fCacheOutdated = true;
 
     /* Query entire wallet anew from core.
      */
@@ -82,10 +83,30 @@ public:
             LOCK2(cs_main, wallet->cs_wallet);
             for(std::map<uint256, CWalletTx>::iterator it = wallet->mapWallet.begin(); it != wallet->mapWallet.end(); ++it)
             {
-                if(TransactionRecord::showTransaction(it->second))
-                    cachedWallet.append(TransactionRecord::decomposeTransaction(wallet, it->second));
+                if(TransactionRecord::showTransaction(it->second)){
+		    QList<TransactionRecord> toInsert = TransactionRecord::decomposeTransaction(wallet, it->second);
+		    for(TransactionRecord& rec : toInsert)
+			rec.updateStatus(it->second, parent->getChainLockHeight());
+		    
+                    cachedWallet.append(toInsert);
+		}
             }
         }
+    }
+
+    void updateWalletCache()
+    {
+        LOCK2(cs_main, wallet->cs_wallet);
+        // Updating the cache for all transactions
+        for(TransactionRecord& rec : cachedWallet){
+            // find the transaction in the wallet
+            std::map<uint256, CWalletTx>::iterator mi = wallet->mapWallet.find(rec.hash);
+            if(mi != wallet->mapWallet.end()){
+                // update the cached transaction
+                rec.updateStatus(mi->second, parent->getChainLockHeight());
+            }
+        }
+        fCacheOutdated = false;
     }
 
     /* Update our model of the wallet incrementally, to synchronize our model of the wallet
@@ -143,10 +164,10 @@ public:
                 {
                     parent->beginInsertRows(QModelIndex(), lowerIndex, lowerIndex+toInsert.size()-1);
                     int insert_idx = lowerIndex;
-                    for (const TransactionRecord &rec : toInsert)
-                    {
-                        cachedWallet.insert(insert_idx, rec);
-                        insert_idx += 1;
+                    for(TransactionRecord &rec : toInsert){
+			rec.updateStatus(mi->second, parent->getChainLockHeight());
+			cachedWallet.insert(insert_idx, rec);
+			insert_idx += 1;
                     }
                     parent->endInsertRows();
                 }
@@ -166,9 +187,14 @@ public:
         case CT_UPDATED:
             // Miscellaneous updates -- nothing to do, status update will take care of this, and is only computed for
             // visible transactions.
-            for (int i = lowerIndex; i < upperIndex; i++) {
+	    // Updating the cache for changed transactions
+	    LOCK2(cs_main, wallet->cs_wallet);
+            for(int i = lowerIndex; i < upperIndex; i++){
                 TransactionRecord *rec = &cachedWallet[i];
-                rec->status.needsUpdate = true;
+		std::map<uint256, CWalletTx>::iterator mi = wallet->mapWallet.find(rec->hash);
+		if(mi != wallet->mapWallet.end()){
+		    rec->updateStatus(mi->second, parent->getChainLockHeight());
+		}
             }
             Q_EMIT parent->dataChanged(parent->index(lowerIndex, TransactionTableModel::Status), parent->index(upperIndex, TransactionTableModel::Status));
             break;
@@ -195,31 +221,8 @@ public:
 
     TransactionRecord *index(int idx)
     {
-        if(idx >= 0 && idx < cachedWallet.size())
-        {
+        if(idx >= 0 && idx < cachedWallet.size()){
             TransactionRecord *rec = &cachedWallet[idx];
-
-            // Get required locks upfront. This avoids the GUI from getting
-            // stuck if the core is holding the locks for a longer time - for
-            // example, during a wallet rescan.
-            //
-            // If a status update is needed (blocks came in since last check),
-            //  update the status of this transaction from the wallet. Otherwise,
-            // simply re-use the cached status.
-            TRY_LOCK(cs_main, lockMain);
-            if(lockMain)
-            {
-                TRY_LOCK(wallet->cs_wallet, lockWallet);
-                if(lockWallet && (rec->statusUpdateNeeded(parent->getChainLockHeight())))
-                {
-                    std::map<uint256, CWalletTx>::iterator mi = wallet->mapWallet.find(rec->hash);
-
-                    if(mi != wallet->mapWallet.end())
-                    {
-                        rec->updateStatus(mi->second, parent->getChainLockHeight());
-                    }
-                }
-            }
             return rec;
         }
         return 0;
@@ -293,14 +296,20 @@ void TransactionTableModel::updateAddressBook(const QString& address, const QStr
 {
     priv->updateAddressBook(address, label, isMine, purpose, status);
 }
-
+void TransactionTableModel::invalidateWalletCache()
+{
+    priv->fCacheOutdated = true;
+}
 void TransactionTableModel::updateConfirmations()
 {
     // Blocks came in since last poll.
     // Invalidate status (number of confirmations) and (possibly) description
     //  for all rows. Qt is smart enough to only actually request the data for the
     //  visible rows.
-    Q_EMIT dataChanged(index(0, Status), index(priv->size()-1, Status));
+    if(priv->fCacheOutdated){
+	priv->updateWalletCache();
+	Q_EMIT dataChanged(index(0, Status), index(priv->size()-1, Status));
+    }
 }
 
 
@@ -830,6 +839,11 @@ static void NotifyTransactionChanged(TransactionTableModel *ttm, CWallet *wallet
     notification.invoke(ttm);
 }
 
+static void NotifyBlockConnected(TransactionTableModel *ttm, CWallet *wallet, const std::vector<uint256>& /*txids*/)
+{
+    ttm->invalidateWalletCache();
+}
+
 static void NotifyAddressBookChanged(TransactionTableModel *ttm, CWallet *wallet, const CTxDestination &address, const std::string &label, bool isMine, const std::string &purpose, ChangeType status)
 {
     QMetaObject::invokeMethod(ttm, "updateAddressBook", Qt::QueuedConnection,
@@ -857,7 +871,7 @@ static void ShowProgress(TransactionTableModel *ttm, const std::string &title, i
 
             vQueueNotifications[i].invoke(ttm);
         }
-        std::vector<TransactionNotification >().swap(vQueueNotifications); // clear
+        std::vector<TransactionNotification >().swap(vQueueNotifications); // clear	
     }
 }
 
@@ -865,6 +879,7 @@ void TransactionTableModel::subscribeToCoreSignals()
 {
     // Connect signals to wallet
     wallet->NotifyTransactionChanged.connect(boost::bind(NotifyTransactionChanged, this, _1, _2, _3));
+    wallet->NotifyBlockConnected.connect(boost::bind(NotifyBlockConnected, this, _1, _2));
     wallet->NotifyAddressBookChanged.connect(boost::bind(NotifyAddressBookChanged, this, _1, _2, _3, _4, _5, _6));
     wallet->ShowProgress.connect(boost::bind(ShowProgress, this, _1, _2));
 }
@@ -873,6 +888,7 @@ void TransactionTableModel::unsubscribeFromCoreSignals()
 {
     // Disconnect signals from wallet
     wallet->NotifyTransactionChanged.disconnect(boost::bind(NotifyTransactionChanged, this, _1, _2, _3));
+    wallet->NotifyBlockConnected.disconnect(boost::bind(NotifyBlockConnected, this, _1, _2));
     wallet->NotifyAddressBookChanged.disconnect(boost::bind(NotifyAddressBookChanged, this, _1, _2, _3, _4, _5, _6));
     wallet->ShowProgress.disconnect(boost::bind(ShowProgress, this, _1, _2));
 }

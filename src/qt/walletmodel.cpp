@@ -167,8 +167,8 @@ void WalletModel::pollBalanceChanged()
         cachedPrivateSendRounds = privateSendClient.nPrivateSendRounds;
 
         checkBalanceChanged();
-        if(transactionTableModel)
-            transactionTableModel->updateConfirmations();
+	if(transactionTableModel)
+	  transactionTableModel->updateConfirmations();
     }
 }
 

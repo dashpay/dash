@@ -1447,6 +1447,13 @@ void CWallet::BlockConnected(const std::shared_ptr<const CBlock>& pblock, const 
     // reset cache to make sure no longer immature coins are included
     fAnonymizableTallyCached = false;
     fAnonymizableTallyCachedNonDenom = false;
+
+    std::vector<uint256> txids;
+    txids.reserve(pblock->vtx.size());
+    for(const CTransactionRef& tx : pblock->vtx ) {
+      txids.push_back(tx->GetHash());
+    }
+    NotifyBlockConnected(this, txids);    
 }
 
 void CWallet::BlockDisconnected(const std::shared_ptr<const CBlock>& pblock, const CBlockIndex* pindexDisconnected) {
