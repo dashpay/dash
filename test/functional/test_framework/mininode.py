@@ -56,9 +56,11 @@ MESSAGEMAP = {
     b"version": msg_version,
     # Dash Specific
     b"clsig": msg_clsig,
+    b"getmnlistd": msg_getmnlistd,
     b"getsporks": None,
     b"govsync": None,
     b"islock": msg_islock,
+    b"mnlistdiff": msg_mnlistdiff,
     b"notfound": None,
     b"qfcommit": None,
     b"qsendrecsigs": None,
