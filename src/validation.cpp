@@ -184,6 +184,7 @@ public:
     bool ReplayBlocks(const CChainParams& params, CCoinsView* view);
     bool RewindBlockIndex(const CChainParams& params);
     bool LoadGenesisBlock(const CChainParams& chainparams);
+    bool AddGenesisBlock(const CChainParams& chainparams, const CBlock& block, CValidationState& state);
 
     void PruneBlockIndexCandidates();
 
@@ -193,14 +194,14 @@ private:
     bool ActivateBestChainStep(CValidationState& state, const CChainParams& chainparams, CBlockIndex* pindexMostWork, const std::shared_ptr<const CBlock>& pblock, bool& fInvalidFound, ConnectTrace& connectTrace);
     bool ConnectTip(CValidationState& state, const CChainParams& chainparams, CBlockIndex* pindexNew, const std::shared_ptr<const CBlock>& pblock, ConnectTrace& connectTrace, DisconnectedBlockTransactions &disconnectpool);
 
-    CBlockIndex* AddToBlockIndex(const CBlockHeader& block);
+    CBlockIndex* AddToBlockIndex(const CBlockHeader& block, enum BlockStatus nStatus = BLOCK_VALID_TREE);
     /** Create a new block index entry for a given block hash */
     CBlockIndex * InsertBlockIndex(const uint256& hash);
     void CheckBlockIndex(const Consensus::Params& consensusParams);
 
     void InvalidBlockFound(CBlockIndex *pindex, const CValidationState &state);
     CBlockIndex* FindMostWorkChain();
-    bool ReceivedBlockTransactions(const CBlock &block, CValidationState& state, CBlockIndex *pindexNew, const CDiskBlockPos& pos, const Consensus::Params& consensusParams);
+    bool ReceivedBlockTransactions(const CBlock &block, CValidationState& state, CBlockIndex *pindexNew, const CDiskBlockPos& pos);
 
 
     bool RollforwardBlock(const CBlockIndex* pindex, CCoinsViewCache& inputs, const CChainParams& params);
@@ -3162,7 +3163,7 @@ bool ResetBlockFailureFlags(CBlockIndex *pindex) {
     return g_chainstate.ResetBlockFailureFlags(pindex);
 }
 
-CBlockIndex* CChainState::AddToBlockIndex(const CBlockHeader& block, enum BlockStatus nStatus = BLOCK_VALID_TREE)
+CBlockIndex* CChainState::AddToBlockIndex(const CBlockHeader& block, enum BlockStatus nStatus)
 {
     // Check for duplicate
     uint256 hash = block.GetHash();
@@ -3729,7 +3730,7 @@ bool CChainState::AcceptBlock(const std::shared_ptr<const CBlock>& pblock, CVali
             state.Error(strprintf("%s: Failed to find position to write new block to disk", __func__));
             return false;
         }
-        if (!ReceivedBlockTransactions(block, state, pindex, blockPos))
+        if (!g_chainstate.ReceivedBlockTransactions(block, state, pindex, blockPos))
             return error("AcceptBlock(): ReceivedBlockTransactions failed");
     } catch (const std::runtime_error& e) {
         return AbortNode(state, std::string("System error: ") + e.what());
@@ -4452,12 +4453,12 @@ bool LoadBlockIndex(const CChainParams& chainparams)
     return true;
 }
 
-static bool AddGenesisBlock(const CChainParams& chainparams, const CBlock& block, CValidationState& state)
+bool CChainState::AddGenesisBlock(const CChainParams& chainparams, const CBlock& block, CValidationState& state)
 {
     // Start new block file
     unsigned int nBlockSize = ::GetSerializeSize(block, SER_DISK, CLIENT_VERSION);
     CDiskBlockPos blockPos;
-    if (!FindBlockPos(state, blockPos, nBlockSize+8, 0, block.GetBlockTime()))
+    if (!FindBlockPos(blockPos, nBlockSize+8, 0, block.GetBlockTime()))
         return error("%s: FindBlockPos failed", __func__);
     if (!WriteBlockToDisk(block, blockPos, chainparams.MessageStart()))
         return error("%s: writing genesis block to disk failed", __func__);
