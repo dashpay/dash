@@ -43,7 +43,7 @@ class CLazyNode(NodeConnCB):
     def on_headers(self, message): self.bad_message(message)
     def on_getheaders(self, message): self.bad_message(message)
     def on_ping(self, message): self.bad_message(message)
-    def on_mempool(self): self.bad_message(message)
+    def on_mempool(self, message): self.bad_message(message)
     def on_pong(self, message): self.bad_message(message)
     def on_sendheaders(self, message): self.bad_message(message)
     def on_sendcmpct(self, message): self.bad_message(message)

@@ -31,8 +31,6 @@ MSG_TX = 1
 MSG_BLOCK = 2
 MSG_TYPE_MASK = 0xffffffff >> 2
 
-MY_SUBVERSION_DEVNET = b"/python-mininode-tester:0.0.3,devnet=devnet-%s/"
-
 logger = logging.getLogger("TestFramework.mininode")
 
 MESSAGEMAP = {
@@ -306,7 +304,7 @@ class NodeConnCB(NodeConn):
             vt.addrFrom.port = 0
             if self.network == "devnet" and self.devnet_name is not None:
                 vt.strSubVer = MY_SUBVERSION_DEVNET % self.devnet_name.encode()
-        self.send_message(vt, True)
+            self.send_message(vt, True)
 
     # Message receiving methods
 
@@ -501,7 +499,7 @@ class P2PDataStore(NodeConnCB):
         self.tx_store = {}
         self.getdata_requests = []
 
-    def on_getdata(self, conn, message):
+    def on_getdata(self, message):
         """Check for the tx/block in our stores and if found, reply with an inv message."""
         for inv in message.inv:
             self.getdata_requests.append(inv.hash)
@@ -512,7 +510,7 @@ class P2PDataStore(NodeConnCB):
             else:
                 logger.debug('getdata message type {} received.'.format(hex(inv.type)))
 
-    def on_getheaders(self, conn, message):
+    def on_getheaders(self, message):
         """Search back through our block store for the locator, and reply with a headers message if found."""
 
         locator, hash_stop = message.locator, message.hashstop
@@ -544,7 +542,7 @@ class P2PDataStore(NodeConnCB):
         if response is not None:
             self.send_message(response)
 
-    def on_reject(self, conn, message):
+    def on_reject(self, message):
         """Store reject reason and code for testing."""
         self.reject_code_received = message.code
         self.reject_reason_received = message.reason
