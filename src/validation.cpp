@@ -4457,12 +4457,8 @@ bool LoadBlockIndex(const CChainParams& chainparams)
 
 bool CChainState::AddGenesisBlock(const CChainParams& chainparams, const CBlock& block, CValidationState& state)
 {
-    // Start new block file
-    unsigned int nBlockSize = ::GetSerializeSize(block, SER_DISK, CLIENT_VERSION);
-    CDiskBlockPos blockPos;
-    if (!FindBlockPos(blockPos, nBlockSize+8, 0, block.GetBlockTime()))
-        return error("%s: FindBlockPos failed", __func__);
-    if (!WriteBlockToDisk(block, blockPos, chainparams.MessageStart()))
+    CDiskBlockPos blockPos = SaveBlockToDisk(block, 0, chainparams, nullptr);
+    if (blockPos.IsNull())
         return error("%s: writing genesis block to disk failed", __func__);
     CBlockIndex *pindex = AddToBlockIndex(block);
     if (!ReceivedBlockTransactions(block, state, pindex, blockPos))
