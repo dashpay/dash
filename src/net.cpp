@@ -1660,18 +1660,25 @@ void CConnman::SocketHandler()
             }
         }
 
-        InactivityCheck(pnode);
     }
     ReleaseNodeVector(vNodesCopy);
 }
 
 void CConnman::ThreadSocketHandler()
 {
+    int64_t nLastInactivityCheck = 0;
     while (!interruptNet)
     {
         DisconnectNodes();
         NotifyNumConnectionsChanged();
         SocketHandler();
+
+        if (GetTime() - nLastInactivityCheck > 10) {
+            ForEachNode([&](CNode* pnode) {
+                InactivityCheck(pnode);
+            });
+            nLastInactivityCheck = GetTime();
+        }
     }
 }
 
