@@ -1666,10 +1666,15 @@ void CConnman::SocketHandler()
 
 void CConnman::ThreadSocketHandler()
 {
+    int64_t nLastDisconnectNodes = 0;
     int64_t nLastInactivityCheck = 0;
+
     while (!interruptNet)
     {
-        DisconnectNodes();
+        if (GetTime() - nLastDisconnectNodes > 1) {
+            DisconnectNodes();
+            nLastDisconnectNodes = GetTime();
+        }
         NotifyNumConnectionsChanged();
         SocketHandler();
 
