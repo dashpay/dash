@@ -265,7 +265,12 @@ bool CBlockTreeDB::WriteTxIndex(const std::vector<std::pair<uint256, CDiskTxPos>
     CDBBatch batch(*this);
     for (std::vector<std::pair<uint256,CDiskTxPos> >::const_iterator it=vect.begin(); it!=vect.end(); it++)
         batch.Write(std::make_pair(DB_TXINDEX, it->first), it->second);
-    return WriteBatch(batch);
+    bool ret = WriteBatch(batch);
+    LOCK(cs);
+    for (auto& p : vect) {
+        mapHasTxIndexCache.insert_or_update(std::make_pair(p.first, true));
+    }
+    return ret;
 }
 
 bool CBlockTreeDB::ReadSpentIndex(CSpentIndexKey &key, CSpentIndexValue &value) {
