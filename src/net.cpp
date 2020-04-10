@@ -1671,18 +1671,18 @@ void CConnman::ThreadSocketHandler()
 
     while (!interruptNet)
     {
-        if (GetTime() - nLastDisconnectNodes > 1) {
+        if (GetTimeMillis() - nLastDisconnectNodes > 1000) {
             DisconnectNodes();
-            nLastDisconnectNodes = GetTime();
+            nLastDisconnectNodes = GetTimeMillis();
         }
         NotifyNumConnectionsChanged();
         SocketHandler();
 
-        if (GetTime() - nLastInactivityCheck > 10) {
+        if (GetTimeMillis() - nLastInactivityCheck > 10 * 1000) {
             ForEachNode([&](CNode* pnode) {
                 InactivityCheck(pnode);
             });
-            nLastInactivityCheck = GetTime();
+            nLastInactivityCheck = GetTimeMillis();
         }
     }
 }
