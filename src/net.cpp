@@ -1666,24 +1666,19 @@ void CConnman::SocketHandler()
 
 void CConnman::ThreadSocketHandler()
 {
-    int64_t nLastDisconnectNodes = 0;
-    int64_t nLastInactivityCheck = 0;
+    int64_t nLastCleanupNodes = 0;
 
     while (!interruptNet)
     {
-        if (GetTimeMillis() - nLastDisconnectNodes > 1000) {
+        if (GetTimeMillis() - nLastCleanupNodes > 1000) {
+            ForEachNode(AllNodes, [&](CNode* pnode) {
+                InactivityCheck(pnode);
+            });
             DisconnectNodes();
-            nLastDisconnectNodes = GetTimeMillis();
+            nLastCleanupNodes = GetTimeMillis();
         }
         NotifyNumConnectionsChanged();
         SocketHandler();
-
-        if (GetTimeMillis() - nLastInactivityCheck > 10 * 1000) {
-            ForEachNode([&](CNode* pnode) {
-                InactivityCheck(pnode);
-            });
-            nLastInactivityCheck = GetTimeMillis();
-        }
     }
 }
 
