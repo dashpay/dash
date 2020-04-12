@@ -355,7 +355,7 @@ class BitcoinTestFramework():
             if 'wait' not in kwargs:
                 kwargs['wait'] = 0.1
             if 'wait_func' not in kwargs:
-                kwargs['wait_func'] = lambda: self.bump_mocktime(3, True)
+                kwargs['wait_func'] = lambda: self.bump_mocktime(3, True, nodes=nodes)
 
         sync_mempools(nodes or self.nodes, **kwargs)
 
@@ -366,10 +366,10 @@ class BitcoinTestFramework():
     def disable_mocktime(self):
         self.mocktime = 0
 
-    def bump_mocktime(self, t, update_nodes=False):
+    def bump_mocktime(self, t, update_nodes=False, nodes=None):
         self.mocktime += t
         if update_nodes:
-            set_node_times(self.nodes, self.mocktime)
+            set_node_times(nodes or self.nodes, self.mocktime)
 
     def set_cache_mocktime(self):
         # For backwared compatibility of the python scripts
