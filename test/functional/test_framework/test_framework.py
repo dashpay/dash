@@ -351,11 +351,17 @@ class BitcoinTestFramework():
         sync_blocks(nodes or self.nodes, **kwargs)
 
     def sync_mempools(self, nodes=None, **kwargs):
+        if self.mocktime != 0:
+            if 'wait' not in kwargs:
+                kwargs['wait'] = 0.1
+            if 'wait_func' not in kwargs:
+                kwargs['wait_func'] = lambda: self.bump_mocktime(3, True)
+
         sync_mempools(nodes or self.nodes, **kwargs)
 
     def sync_all(self, nodes=None, **kwargs):
         self.sync_blocks(nodes, **kwargs)
-        self.sync_mempools(nodes, wait=0.1, wait_func=lambda: self.bump_mocktime(3, True), **kwargs)
+        self.sync_mempools(nodes, **kwargs)
 
     def disable_mocktime(self):
         self.mocktime = 0
