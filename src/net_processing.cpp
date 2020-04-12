@@ -1496,7 +1496,7 @@ void static ProcessGetBlockData(CNode* pfrom, const CChainParams& chainparams, c
                     connman->PushMessage(pfrom, msgMaker.Make(NetMsgType::CMPCTBLOCK, cmpctblock));
                 }
             } else {
-                connman->PushMessage(pfrom, msgMaker.Make(NetMsgType::BLOCK, *pblock));}
+                connman->PushMessage(pfrom, msgMaker.Make(NetMsgType::BLOCK, *pblock));
             }
         }
 
