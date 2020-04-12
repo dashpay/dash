@@ -1276,6 +1276,7 @@ void CConnman::DisconnectNodes()
 
                 // hold in disconnected pool until all refs are released
                 pnode->Release();
+                LOCK(cs_vNodesDisconnected);
                 vNodesDisconnected.push_back(pnode);
             } else {
                 ++it;
@@ -1283,6 +1284,8 @@ void CConnman::DisconnectNodes()
         }
     }
     {
+        LOCK(cs_vNodesDisconnected);
+
         // Delete disconnected nodes
         std::list<CNode*> vNodesDisconnectedCopy = vNodesDisconnected;
         for (auto it = vNodesDisconnected.begin(); it != vNodesDisconnected.end(); )
@@ -2392,6 +2395,9 @@ void CConnman::OpenNetworkConnection(const CAddress& addrConnect, bool fCountFai
     if (!fNetworkActive) {
         return;
     }
+    // Ensure nodes with fDisconnect==true are actually disconnected and evicted, otherwise we might end up finding that
+    // node here when we're re-connecting, which would cause OpenNetworkConnection to bail out
+    DisconnectNodes();
     if (!pszDest) {
         // banned or exact match?
         if (IsBanned(addrConnect) || FindNode(addrConnect.ToStringIPPort()))
