@@ -198,15 +198,15 @@ class WalletTest(BitcoinTestFramework):
         # EXPECT: nodes[3] should have those transactions in its mempool.
         txid1 = self.nodes[0].sendtoaddress(self.nodes[1].getnewaddress(), 1)
         txid2 = self.nodes[1].sendtoaddress(self.nodes[0].getnewaddress(), 1)
-        sync_mempools(self.nodes[0:2])
+        self.sync_mempools(self.nodes[0:2])
 
         self.start_node(3)
         connect_nodes_bi(self.nodes, 0, 3)
-        sync_blocks(self.nodes)
+        self.sync_blocks()
 
         relayed = self.nodes[0].resendwallettransactions()
         assert_equal(set(relayed), {txid1, txid2})
-        sync_mempools(self.nodes)
+        self.sync_mempools()
 
         assert(txid1 in self.nodes[3].getrawmempool())
 
@@ -277,10 +277,10 @@ class WalletTest(BitcoinTestFramework):
         connect_nodes_bi(self.nodes,0,1)
         connect_nodes_bi(self.nodes,1,2)
         connect_nodes_bi(self.nodes,0,2)
-        sync_blocks(self.nodes[0:3])
+        self.sync_blocks(self.nodes[0:3])
 
         self.nodes[0].generate(1)
-        sync_blocks(self.nodes[0:3])
+        self.sync_blocks(self.nodes[0:3])
         node_2_bal += 2
 
         #tx should be added to balance because after restarting the nodes tx should be broadcastet
