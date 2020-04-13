@@ -717,7 +717,11 @@ UniValue importelectrumwallet(const JSONRPCRequest& request)
     pwallet->UpdateTimeFirstKey(nTimeBegin);
 
     LogPrintf("Rescanning %i blocks\n", chainActive.Height() - nStartHeight + 1);
-    pwallet->ScanForWalletTransactions(chainActive[nStartHeight], nullptr, true);
+    WalletRescanReserver reserver(pwallet);
+    if (!reserver.reserve()) {
+        throw JSONRPCError(RPC_WALLET_ERROR, "Wallet is currently rescanning. Abort existing rescan or wait.");
+    }
+    pwallet->ScanForWalletTransactions(chainActive[nStartHeight], nullptr, reserver, true);
 
     if (!fGood)
         throw JSONRPCError(RPC_WALLET_ERROR, "Error adding some keys to wallet");
