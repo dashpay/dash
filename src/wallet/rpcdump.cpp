@@ -153,7 +153,6 @@ UniValue importprivkey(const JSONRPCRequest& request)
             if (!pwallet->AddKeyPubKey(key, pubkey)) {
                 throw JSONRPCError(RPC_WALLET_ERROR, "Error adding key to wallet");
             }
-            pwallet->LearnAllRelatedScripts(pubkey);
         }
     }
     if (fRescan) {
