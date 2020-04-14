@@ -14,6 +14,8 @@
 #include <wallet/wallet.h>
 #include <wallet/walletutil.h>
 
+#include <privatesend/privatesend-client.h>
+
 std::string WalletInit::GetHelpString(bool showDebug)
 {
     std::string strUsage = HelpMessageGroup(_("Wallet options:"));
@@ -310,6 +312,11 @@ void WalletInit::Start(CScheduler& scheduler)
 
 void WalletInit::Flush()
 {
+    if (privateSendClient.fEnablePrivateSend) {
+        // Stop PrivateSend, release keys
+        privateSendClient.fPrivateSendRunning = false;
+        privateSendClient.ResetPool();
+    }
     for (CWalletRef pwallet : vpwallets) {
         pwallet->Flush(false);
     }
