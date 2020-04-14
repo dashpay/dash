@@ -33,6 +33,8 @@ public:
 
     // Dash Specific WalletInitInterface
     virtual void AutoLockMasternodeCollaterals() = 0;
+    virtual void InitPrivateSendSettings() = 0;
+
 
     virtual ~WalletInitInterface() {}
 };
@@ -50,9 +52,9 @@ public:
     void Stop() override {}
     void Close() override {}
 
-    // Dash Specific WalletInitInterface
+    // Dash Specific WalletInitInterface InitPrivateSendSettings
     void AutoLockMasternodeCollaterals() override {}
-
+    void InitPrivateSendSettings() override {}
 
 };
 

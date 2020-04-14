@@ -44,9 +44,9 @@ public:
     //! Close all wallets.
     void Close() override;
 
-    //! Close all wallets.
+    // Dash Specific Wallet Init
     void AutoLockMasternodeCollaterals() override;
-
+    void InitPrivateSendSettings() override;
 };
 
 #endif // BITCOIN_WALLET_INIT_H
