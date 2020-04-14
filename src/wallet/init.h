@@ -43,6 +43,10 @@ public:
 
     //! Close all wallets.
     void Close() override;
+
+    //! Close all wallets.
+    void AutoLockMasternodeCollaterals() override;
+
 };
 
 #endif // BITCOIN_WALLET_INIT_H

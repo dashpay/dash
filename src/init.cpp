@@ -834,12 +834,7 @@ void ThreadImport(std::vector<fs::path> vImportFiles)
         activeMasternodeManager->Init(pindexTip);
     }
 
-#ifdef ENABLE_WALLET
-    // we can't do this before DIP3 is fully initialized
-    for (CWalletRef pwallet : vpwallets) {
-        pwallet->AutoLockMasternodeCollaterals();
-    }
-#endif
+    g_wallet_init_interface->AutoLockMasternodeCollaterals();
 
     if (gArgs.GetArg("-persistmempool", DEFAULT_PERSIST_MEMPOOL)) {
         LoadMempool();

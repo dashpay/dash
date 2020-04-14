@@ -345,3 +345,11 @@ void WalletInit::Close()
     }
     vpwallets.clear();
 }
+
+void WalletInit::AutoLockMasternodeCollaterals()
+{
+    // we can't do this before DIP3 is fully initialized
+    for (CWalletRef pwallet : vpwallets) {
+        pwallet->AutoLockMasternodeCollaterals();
+    }
+}

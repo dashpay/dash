@@ -31,6 +31,9 @@ public:
     /** Close wallets */
     virtual void Close() = 0;
 
+    // Dash Specific WalletInitInterface
+    virtual void AutoLockMasternodeCollaterals() = 0;
+
     virtual ~WalletInitInterface() {}
 };
 
@@ -46,6 +49,11 @@ public:
     void Flush() override {}
     void Stop() override {}
     void Close() override {}
+
+    // Dash Specific WalletInitInterface
+    void AutoLockMasternodeCollaterals() override {}
+
+
 };
 
 #endif // WALLETINITINTERFACE_H
