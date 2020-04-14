@@ -50,18 +50,12 @@
 #include <dsnotificationinterface.h>
 #include <flat-database.h>
 #include <governance/governance.h>
-#ifdef ENABLE_WALLET
-#include <keepass.h>
-#endif
 #include <masternode/masternode-meta.h>
 #include <masternode/masternode-payments.h>
 #include <masternode/masternode-sync.h>
 #include <masternode/masternode-utils.h>
 #include <messagesigner.h>
 #include <netfulfilledman.h>
-#ifdef ENABLE_WALLET
-#include <privatesend/privatesend-client.h>
-#endif // ENABLE_WALLET
 #include <privatesend/privatesend-server.h>
 #include <spork.h>
 #include <warnings.h>
