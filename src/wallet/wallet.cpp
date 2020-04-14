@@ -44,6 +44,7 @@
 #include <assert.h>
 #include <future>
 
+#include <boost/bind.hpp>
 #include <boost/algorithm/string/replace.hpp>
 #include <boost/thread.hpp>
 
@@ -5200,6 +5201,14 @@ void CWallet::postInitProcess(CScheduler& scheduler)
     // Run a thread to flush wallet periodically
     if (!CWallet::fFlushScheduled.exchange(true)) {
         scheduler.scheduleEvery(MaybeCompactWalletDB, 500);
+    }
+}
+
+void CWallet::schedulePrivateSendClientMaintenance(CScheduler& scheduler)
+{
+    if (privateSendClient.fEnablePrivateSend) {
+        scheduler.scheduleEvery(boost::bind(&CPrivateSendClientManager::DoMaintenance, boost::ref(privateSendClient),
+                                            boost::ref(*g_connman)), 1 * 1000);
     }
 }
 

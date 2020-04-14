@@ -323,6 +323,9 @@ void WalletInit::Start(CScheduler& scheduler)
     for (CWalletRef pwallet : vpwallets) {
         pwallet->postInitProcess(scheduler);
     }
+    // Only do this once
+    vpwallets[0]->schedulePrivateSendClientMaintenance(scheduler);
+
 }
 
 void WalletInit::Flush()
