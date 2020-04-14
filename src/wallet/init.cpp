@@ -387,3 +387,12 @@ void WalletInit::InitPrivateSendSettings()
 
 }
 
+void WalletInit::InitKeePass()
+{
+    keePassInt.init();
+}
+
+bool WalletInit::InitAutoBackup()
+{
+    return CWallet::InitAutoBackup();
+}

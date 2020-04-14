@@ -34,7 +34,8 @@ public:
     // Dash Specific WalletInitInterface
     virtual void AutoLockMasternodeCollaterals() = 0;
     virtual void InitPrivateSendSettings() = 0;
-
+    virtual void InitKeePass() = 0;
+    virtual bool InitAutoBackup() = 0;
 
     virtual ~WalletInitInterface() {}
 };
@@ -55,6 +56,8 @@ public:
     // Dash Specific WalletInitInterface InitPrivateSendSettings
     void AutoLockMasternodeCollaterals() override {}
     void InitPrivateSendSettings() override {}
+    void InitKeePass() override {}
+    bool InitAutoBackup() override {}
 
 };
 

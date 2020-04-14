@@ -47,6 +47,8 @@ public:
     // Dash Specific Wallet Init
     void AutoLockMasternodeCollaterals() override;
     void InitPrivateSendSettings() override;
+    void InitKeePass() override;
+    bool InitAutoBackup() override;
 };
 
 #endif // BITCOIN_WALLET_INIT_H

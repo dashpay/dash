@@ -1594,14 +1594,10 @@ bool AppInitMain()
 
     // ********************************************************* Step 5: Backup wallet and verify wallet database integrity
 
-    // TODO need to remove ENABLE_WALLET here #10762
-#ifdef ENABLE_WALLET
-    if (!CWallet::InitAutoBackup())
-        return false;
+    if(!g_wallet_init_interface->InitAutoBackup()) return false;
 
     // Initialize KeePass Integration
-    keePassInt.init();
-#endif // ENABLE_WALLET
+    g_wallet_init_interface->InitKeePass();
     // ********************************************************* Step 6: network initialization
     // Note that we absolutely cannot open any actual connections
     // until the very end ("start node") as the UTXO/block state
