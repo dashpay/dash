@@ -28,8 +28,8 @@ void CMNAuth::PushMNAUTH(CNode* pnode, CConnman& connman)
         if (pnode->receivedMNAuthChallenge.IsNull()) {
             return;
         }
-        // We include fInbound in signHash to forbid interchanging of challenges by a man in the middle. This way
-        // we protect ourself against MITM in this form:
+        // We include fInbound in signHash to forbid interchanging of challenges by a man in the middle (MITM). This way
+        // we protect ourselves against MITM in this form:
         //   node1 <- Eve -> node2
         // It does not protect against:
         //   node1 -> Eve -> node2
@@ -49,7 +49,7 @@ void CMNAuth::PushMNAUTH(CNode* pnode, CConnman& connman)
 void CMNAuth::ProcessMessage(CNode* pnode, const std::string& strCommand, CDataStream& vRecv, CConnman& connman)
 {
     if (!masternodeSync.IsBlockchainSynced()) {
-        // we can't really verify MNAUTH messages when we don't have the latest MN list
+        // we can't verify MNAUTH messages when we don't have the latest MN list
         return;
     }
 
@@ -70,7 +70,7 @@ void CMNAuth::ProcessMessage(CNode* pnode, const std::string& strCommand, CDataS
         }
 
         if ((~pnode->nServices) & (NODE_NETWORK | NODE_BLOOM)) {
-            // either NODE_NETWORK or NODE_BLOOM bit is missiing in node's services
+            // either NODE_NETWORK or NODE_BLOOM bit is missing in node's services
             LOCK(cs_main);
             Misbehaving(pnode->GetId(), 100, "mnauth from a node with invalid services");
             return;
@@ -117,7 +117,7 @@ void CMNAuth::ProcessMessage(CNode* pnode, const std::string& strCommand, CDataS
         if (!pnode->fInbound) {
             mmetaman.GetMetaInfo(mnauth.proRegTxHash)->SetLastOutboundSuccess(GetAdjustedTime());
             if (pnode->fMasternodeProbe) {
-                LogPrint(BCLog::NET_NETCONN, "CMNAuth::ProcessMessage -- masternode probe successful for %s, disconnecting. peer=%d\n",
+                LogPrint(BCLog::NET_NETCONN, "CMNAuth::ProcessMessage -- Masternode probe successful for %s, disconnecting. peer=%d\n",
                          mnauth.proRegTxHash.ToString(), pnode->GetId());
                 pnode->fDisconnect = true;
                 return;
