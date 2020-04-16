@@ -92,8 +92,8 @@ void CMNAuth::ProcessMessage(CNode* pnode, const std::string& strCommand, CDataS
         auto dmn = mnList.GetMN(mnauth.proRegTxHash);
         if (!dmn) {
             LOCK(cs_main);
-            // in case he was unlucky and not up to date, just let him be connected as a regular node, which gives him
-            // a chance to get up-to-date and thus realize by himself that he's not a MN anymore. We still give him a
+            // in case node was unlucky and not up to date, just let it be connected as a regular node, which gives it
+            // a chance to get up-to-date and thus realize that it's not a MN anymore. We still give it a
             // low DoS score.
             Misbehaving(pnode->GetId(), 10, "missing mnauth masternode");
             return;
@@ -108,8 +108,8 @@ void CMNAuth::ProcessMessage(CNode* pnode, const std::string& strCommand, CDataS
 
         if (!mnauth.sig.VerifyInsecure(dmn->pdmnState->pubKeyOperator.Get(), signHash)) {
             LOCK(cs_main);
-            // Same as above, MN seems to not know about his fate yet, so give him a chance to update. If this is a
-            // malicious actor (DoSing us), we'll ban him soon.
+            // Same as above, MN seems to not know its fate yet, so give it a chance to update. If this is a
+            // malicious node (DoSing us), it'll get banned soon.
             Misbehaving(pnode->GetId(), 10, "mnauth signature verification failed");
             return;
         }
