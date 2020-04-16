@@ -97,6 +97,14 @@ class InvalidTxRequestTest(BitcoinTestFramework):
         self.reconnect_p2p(num_connections=2)
         self.test_orphan_tx_handling(block2.vtx[0].sha256, True)
 
+        # restart node with sending BIP61 messages disabled, check that it disconnects without sending the reject message
+        self.log.info('Test a transaction that is rejected, with BIP61 disabled')
+        self.restart_node(0, ['-enablebip61=0','-persistmempool=0'])
+        self.reconnect_p2p(num_connections=1)
+        node.p2p.send_txs_and_test([tx1], node, success=False, expect_disconnect=True)
+        # send_txs_and_test will have waited for disconnect, so we can safely check that no reject has been received
+        assert_equal(node.p2p.reject_code_received, None)
+
     def test_orphan_tx_handling(self, base_tx, resolve_via_block):
         node = self.nodes[0]  # convenience reference to the node
 
@@ -170,13 +178,6 @@ class InvalidTxRequestTest(BitcoinTestFramework):
         wait_until(lambda: 1 == len(node.getpeerinfo()), timeout=12)  # p2ps[1] is no longer connected
         assert_equal(expected_mempool, set(node.getrawmempool()))
 
-        # restart node with sending BIP61 messages disabled, check that it disconnects without sending the reject message
-        self.log.info('Test a transaction that is rejected, with BIP61 disabled')
-        self.restart_node(0, ['-enablebip61=0','-persistmempool=0'])
-        self.reconnect_p2p(num_connections=1)
-        node.p2p.send_txs_and_test([base_tx], node, success=False, expect_disconnect=True)
-        # send_txs_and_test will have waited for disconnect, so we can safely check that no reject has been received
-        assert_equal(node.p2p.reject_code_received, None)
 
 if __name__ == '__main__':
     InvalidTxRequestTest().main()
