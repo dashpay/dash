@@ -17,7 +17,7 @@
 
 #include <privatesend/privatesend-client.h>
 
-#include <boost/bind.hpp>
+#include <functional>
 
 std::string WalletInit::GetHelpString(bool showDebug)
 {
@@ -327,8 +327,8 @@ void WalletInit::Start(CScheduler& scheduler)
         pwallet->postInitProcess(scheduler);
     }
     if (!fMasternodeMode && privateSendClient.fEnablePrivateSend) {
-        scheduler.scheduleEvery(boost::bind(&CPrivateSendClientManager::DoMaintenance, boost::ref(privateSendClient),
-                                            boost::ref(*g_connman)), 1 * 1000);
+        scheduler.scheduleEvery(std::bind(&CPrivateSendClientManager::DoMaintenance, std::ref(privateSendClient),
+                                            std::ref(*g_connman)), 1 * 1000);
     }
 }
 
