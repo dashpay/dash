@@ -57,7 +57,7 @@ public:
     void AutoLockMasternodeCollaterals() override {}
     void InitPrivateSendSettings() override {}
     void InitKeePass() override {}
-    bool InitAutoBackup() override {}
+    bool InitAutoBackup() override {return true;}
 
 };
 

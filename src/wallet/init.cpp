@@ -7,6 +7,7 @@
 
 #include <keepass.h>
 #include <net.h>
+#include <scheduler.h>
 #include <util.h>
 #include <utilmoneystr.h>
 #include <validation.h>
@@ -15,6 +16,8 @@
 #include <wallet/walletutil.h>
 
 #include <privatesend/privatesend-client.h>
+
+#include <boost/bind.hpp>
 
 std::string WalletInit::GetHelpString(bool showDebug)
 {
@@ -323,9 +326,10 @@ void WalletInit::Start(CScheduler& scheduler)
     for (CWalletRef pwallet : vpwallets) {
         pwallet->postInitProcess(scheduler);
     }
-    // Only do this once
-    vpwallets[0]->schedulePrivateSendClientMaintenance(scheduler);
-
+    if (!fMasternodeMode && privateSendClient.fEnablePrivateSend) {
+        scheduler.scheduleEvery(boost::bind(&CPrivateSendClientManager::DoMaintenance, boost::ref(privateSendClient),
+                                            boost::ref(*g_connman)), 1 * 1000);
+    }
 }
 
 void WalletInit::Flush()

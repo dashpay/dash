@@ -1590,11 +1590,9 @@ bool AppInitMain()
     }
 
     // ********************************************************* Step 5: verify wallet database integrity
-    if (!g_wallet_init_interface->Verify()) return false;
-
-    // ********************************************************* Step 5: Backup wallet and verify wallet database integrity
 
     if(!g_wallet_init_interface->InitAutoBackup()) return false;
+    if (!g_wallet_init_interface->Verify()) return false;
 
     // Initialize KeePass Integration
     g_wallet_init_interface->InitKeePass();
