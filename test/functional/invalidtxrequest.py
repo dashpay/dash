@@ -93,9 +93,6 @@ class InvalidTxRequestTest(BitcoinTestFramework):
 
         self.log.info('Test orphan transaction handling ... ')
         self.test_orphan_tx_handling(block1.vtx[0].sha256, False)
-        node.generate(1) # Clear mempool
-        self.reconnect_p2p(num_connections=2)
-        self.test_orphan_tx_handling(block2.vtx[0].sha256, True)
 
         # restart node with sending BIP61 messages disabled, check that it disconnects without sending the reject message
         self.log.info('Test a transaction that is rejected, with BIP61 disabled')
@@ -104,6 +101,11 @@ class InvalidTxRequestTest(BitcoinTestFramework):
         node.p2p.send_txs_and_test([tx1], node, success=False, expect_disconnect=True)
         # send_txs_and_test will have waited for disconnect, so we can safely check that no reject has been received
         assert_equal(node.p2p.reject_code_received, None)
+
+        self.log.info('Test orphan transaction handling, resolve via block')
+        self.restart_node(0, ['-persistmempool=0'])
+        self.reconnect_p2p(num_connections=2)
+        self.test_orphan_tx_handling(block2.vtx[0].sha256, True)
 
     def test_orphan_tx_handling(self, base_tx, resolve_via_block):
         node = self.nodes[0]  # convenience reference to the node
