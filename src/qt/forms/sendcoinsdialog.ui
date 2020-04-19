@@ -1290,7 +1290,9 @@
    <container>1</container>
   </customwidget>
  </customwidgets>
- <resources/>
+ <resources>
+  <include location="../dash.qrc"/>
+ </resources>
  <connections/>
  <buttongroups>
   <buttongroup name="groupFee"/>
