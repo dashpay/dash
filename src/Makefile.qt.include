@@ -309,6 +309,7 @@ RES_IMAGES = \
   qt/res/images/arrow_right_small.png \
   qt/res/images/arrow_up_small.png \
   qt/res/images/checked.png \
+  qt/res/images/dash_logo_blue.png \
   qt/res/images/dash_logo_horizontal.png \
   qt/res/images/dash_logo_toolbar.png \
   qt/res/images/qtreeview_selected.png \
