@@ -600,9 +600,9 @@ void BitcoinGUI::createToolBars()
         QLabel *logoLabel = new QLabel();
         QString theme = settings.value("theme", "").toString();
         QString logoImage = ":/images/dash_logo_toolbar";
-         if (theme == "Traditional") {
-             logoImage = ":/images/dash_logo_toolbar_blue";
-         }
+        if (theme == "Traditional") {
+            logoImage = ":/images/dash_logo_toolbar_blue";
+        }
 
         QPixmap logoPixmap(logoImage);
         logoLabel->setPixmap(logoPixmap);
