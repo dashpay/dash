@@ -294,7 +294,7 @@ void quorum_sign_help()
             "1. llmqType              (int, required) LLMQ type.\n"
             "2. \"id\"                  (string, required) Request id.\n"
             "3. \"msgHash\"             (string, required) Message hash.\n"
-            "4. \"quorumHash\"          (string, required) The quorum identifier.\n"
+            "4. \"quorumHash\"          (string, optional) The quorum identifier.\n"
     );
 }
 
@@ -339,7 +339,7 @@ UniValue quorum_sigs_cmd(const JSONRPCRequest& request)
     auto cmd = request.params[0].get_str();
     if (request.fHelp || (request.params.size() != 4)) {
         if (cmd == "sign") {
-            if(request.params.size() != 5){
+            if((request.params.size() < 4) || (request.params.size() > 5)){
                 quorum_sign_help();
             }
         } else if (cmd == "hasrecsig") {
@@ -363,13 +363,17 @@ UniValue quorum_sigs_cmd(const JSONRPCRequest& request)
     uint256 msgHash = ParseHashV(request.params[3], "msgHash");
 
     if (cmd == "sign") {
-        uint256 quorumHash = ParseHashV(request.params[4], "quorumHash");
-        auto quorum = llmq::quorumManager->GetQuorum(llmqType, quorumHash);
-        if (!quorum) {
-            throw JSONRPCError(RPC_INVALID_PARAMETER, "quorum not found");
+        if(request.params.size() > 4){
+            uint256 quorumHash = ParseHashV(request.params[4], "quorumHash");
+            auto quorum = llmq::quorumManager->GetQuorum(llmqType, quorumHash);
+            if (!quorum) {
+                throw JSONRPCError(RPC_INVALID_PARAMETER, "quorum not found");
+            }
+            llmq::quorumSigSharesManager->AsyncSign(quorum, id, msgHash);
+            return true;
+        }else{
+            return llmq::quorumSigningManager->AsyncSignIfMember(llmqType, id, msgHash);
         }
-        llmq::quorumSigSharesManager->AsyncSign(quorum, id, msgHash);
-        return true;
     } else if (cmd == "hasrecsig") {
         return llmq::quorumSigningManager->HasRecoveredSig(llmqType, id, msgHash);
     } else if (cmd == "getrecsig") {
