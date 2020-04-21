@@ -339,7 +339,7 @@ UniValue quorum_sigs_cmd(const JSONRPCRequest& request)
     auto cmd = request.params[0].get_str();
     if (request.fHelp || (request.params.size() != 4)) {
         if (cmd == "sign") {
-            if((request.params.size() < 4) || (request.params.size() > 5)){
+            if ((request.params.size() < 4) || (request.params.size() > 5)) {
                 quorum_sign_help();
             }
         } else if (cmd == "hasrecsig") {
