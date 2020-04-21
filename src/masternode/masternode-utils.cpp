@@ -45,6 +45,9 @@ void CMasternodeUtils::ProcessMasternodeConnections(CConnman& connman)
         if (pnode->fInbound) return;
         // we're not disconnecting LLMQ connections
         if (connman.IsMasternodeQuorumNode(pnode)) return;
+        // we're not disconnecting masternode probes for at least a few seconds
+        if (pnode->fMasternodeProbe && GetSystemTimeInSeconds() - pnode->nTimeConnected < 5) return;
+
 #ifdef ENABLE_WALLET
         bool fFound = false;
         for (const auto& dmn : vecDmns) {
