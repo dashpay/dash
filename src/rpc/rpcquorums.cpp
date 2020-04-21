@@ -288,7 +288,7 @@ UniValue quorum_memberof(const JSONRPCRequest& request)
 void quorum_sign_help()
 {
     throw std::runtime_error(
-            "quorum sign llmqType \"id\" \"msgHash\" \"quorumHash\"\n"
+            "quorum sign llmqType \"id\" \"msgHash\" \"( quorumHash )\"\n"
             "Threshold-sign a message\n"
             "\nArguments:\n"
             "1. llmqType              (int, required) LLMQ type.\n"
@@ -363,7 +363,7 @@ UniValue quorum_sigs_cmd(const JSONRPCRequest& request)
     uint256 msgHash = ParseHashV(request.params[3], "msgHash");
 
     if (cmd == "sign") {
-        if(request.params.size() > 4){
+        if (request.params.size() > 4) {
             uint256 quorumHash = ParseHashV(request.params[4], "quorumHash");
             auto quorum = llmq::quorumManager->GetQuorum(llmqType, quorumHash);
             if (!quorum) {
@@ -371,7 +371,7 @@ UniValue quorum_sigs_cmd(const JSONRPCRequest& request)
             }
             llmq::quorumSigSharesManager->AsyncSign(quorum, id, msgHash);
             return true;
-        }else{
+        } else {
             return llmq::quorumSigningManager->AsyncSignIfMember(llmqType, id, msgHash);
         }
     } else if (cmd == "hasrecsig") {
