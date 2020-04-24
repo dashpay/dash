@@ -276,6 +276,28 @@ static bool GetKernelStakeModifier(uint256 hashBlockFrom, unsigned int nTimeTx, 
 {
     return GetKernlStakeModifierV03(hashBlockFrom, nTimeTx, nStakeModifier, nStakeModifierHeight, nStakeModifierTime, fPrintProofOfStake);
 }
+
+bool HasStakeMinDepth(int contextHeight, int utxoFromBlockHeight, int &nDepth)
+{
+    const int minHistoryRequired = Params().GetConsensus().MinStakeHistory();
+    nDepth = contextHeight - utxoFromBlockHeight;
+    return (contextHeight - utxoFromBlockHeight >= minHistoryRequired);
+}
+
+int GetLastHeight(uint256 txHash)
+{
+    uint256 hashBlock;
+    CTransactionRef stakeInput;
+
+    if (!GetTransaction(txHash, stakeInput, Params().GetConsensus(), hashBlock))
+        return 0;
+
+    if (hashBlock == uint256())
+        return 0;
+
+    return mapBlockIndex[hashBlock]->nHeight;
+}
+
 // ppcoin kernel protocol
 // coinstake must meet hash target according to the protocol:
 // kernel (input 0) must meet the formula
@@ -305,6 +327,7 @@ static bool GetKernelStakeModifier(uint256 hashBlockFrom, unsigned int nTimeTx, 
 
 bool CheckStakeKernelHash(unsigned int nBits, const CBlock& blockFrom, unsigned int nTxPrevOffset, const CTransactionRef& txPrev, const COutPoint& prevout, unsigned int nTimeTx, uint256& hashProofOfStake)
 {
+    const CBlockIndex* pindexPrev = chainActive.Tip()->pprev;
 
     auto txPrevTime = blockFrom.GetBlockTime();
     if (nTimeTx < txPrevTime)  // Transaction timestamp violation
@@ -330,6 +353,22 @@ bool CheckStakeKernelHash(unsigned int nBits, const CBlock& blockFrom, unsigned 
     uint64_t nStakeModifier = 0;
     int nStakeModifierHeight = 0;
     int64_t nStakeModifierTime = 0;
+
+    if (blockFrom.nTime > Params().GetConsensus().nPosMitigationSwitchTime && (nValueIn < nMinimumStakeValue))
+        return error("%s - stakeinput value less than minimum required (%llu < %llu), blockhash %s\n", __func__, nValueIn, nMinimumStakeValue, blockFrom.ToString().c_str());
+
+    // Enforce minimum stake depth
+    const int nPreviousBlockHeight = pindexPrev->nHeight;
+    const int nBlockFromHeight = GetLastHeight(prevout.hash);
+
+    // returning zero from GetLastHeight() indicates error
+    if (nBlockFromHeight == 0)
+        return false;
+
+    int nDepth = 0;
+    if (pindexPrev->nHeight + 1 >= Params().GetConsensus().MinStakeHistoryHeight() &&
+        !HasStakeMinDepth(nPreviousBlockHeight+1, nBlockFromHeight, nDepth))
+        return error("%s - min stake depth not met (found %d need %d)", __func__, nDepth, Params().GetConsensus().MinStakeHistory());
 
     if (IsProtocolV03(nTimeTx)){
         if (!GetKernelStakeModifier(blockFrom.GetHash(), nTimeTx, nStakeModifier, nStakeModifierHeight, nStakeModifierTime, false))
@@ -384,8 +423,6 @@ bool CheckProofOfStake(const CBlock &block, uint256& hashProofOfStake)
     if (!GetTransaction(txin.prevout.hash, txPrev, cons, hashBlock, true))
         return ("CheckProofOfStake() : INFO: read txPrev failed");
     CTxOut prevTxOut = txPrev->vout[txin.prevout.n];
-    if (block.nTime > Params().GetConsensus().nPosMitigationSwitchTime && (prevTxOut.nValue < nMinimumStakeValue))
-        return error("CheckProofOfStake() : INFO: stakeinput value less than minimum required (%llu < %llu), blockhash %s\n", prevTxOut.nValue, nMinimumStakeValue, hashBlock.ToString().c_str());
     CBlockIndex* pindex = NULL;
     BlockMap::iterator it = mapBlockIndex.find(hashBlock);
     if (it != mapBlockIndex.end())
