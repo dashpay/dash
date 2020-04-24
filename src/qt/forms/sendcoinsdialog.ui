@@ -1209,7 +1209,7 @@
       <layout class="QHBoxLayout" name="horizontalLayout_2">
        <property name="spacing">
         <number>3</number>
-       </property>       
+       </property>
        <item>
         <widget class="QLabel" name="label">
          <property name="text">
