@@ -35,7 +35,7 @@ When building Dash Core, use
 $ ./configure --prefix=`pwd`/depends/x86_64-apple-darwin11
 ```
 
-Windows 64bit/32bit Cross-compilation
+Windows 64bit Cross-compilation
 -------------------------------
 The steps below can be performed on Ubuntu (including in a VM) or WSL. The depends system
 will also work on other Linux distributions, however the commands for
