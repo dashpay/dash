@@ -1068,7 +1068,7 @@ bool CPrivateSendClientSession::JoinExistingQueue(CAmount nBalanceNeedsAnonymize
         }
 
         // skip next mn payments winners
-        if (mnpayments.IsScheduled(dmn, 0)) {
+        if (dmn->pdmnState->nLastPaidHeight + mnList.GetValidMNsCount() < mnList.GetHeight() + 8) {
             LogPrint(BCLog::PRIVATESEND, "CPrivateSendClientSession::JoinExistingQueue -- skipping winner, masternode=%s\n", dmn->proTxHash.ToString());
             continue;
         }
@@ -1116,7 +1116,8 @@ bool CPrivateSendClientSession::StartNewQueue(CAmount nBalanceNeedsAnonymized, C
     if (nBalanceNeedsAnonymized <= 0) return false;
 
     int nTries = 0;
-    int nMnCount = deterministicMNManager->GetListAtChainTip().GetValidMNsCount();
+    auto mnList = deterministicMNManager->GetListAtChainTip();
+    int nMnCount = mnList.GetValidMNsCount();
 
     // find available denominated amounts
     std::set<CAmount> setAmounts;
@@ -1140,7 +1141,7 @@ bool CPrivateSendClientSession::StartNewQueue(CAmount nBalanceNeedsAnonymized, C
         privateSendClient.AddUsedMasternode(dmn->collateralOutpoint);
 
         // skip next mn payments winners
-        if (mnpayments.IsScheduled(dmn, 0)) {
+        if (dmn->pdmnState->nLastPaidHeight + nMnCount < mnList.GetHeight() + 8) {
             LogPrint(BCLog::PRIVATESEND, "CPrivateSendClientSession::StartNewQueue -- skipping winner, masternode=%s\n", dmn->proTxHash.ToString());
             nTries++;
             continue;
