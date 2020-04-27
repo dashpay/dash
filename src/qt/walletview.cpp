@@ -240,8 +240,9 @@ void WalletView::gotoSendCoinsPage(QString addr)
     sendCoinsPage->setPrivateSend(false);
     setCurrentWidget(sendCoinsPage);
 
-    if (!addr.isEmpty())
+    if (!addr.isEmpty()) {
         sendCoinsPage->setAddress(addr);
+    }
 }
 
 void WalletView::gotoPrivateSendCoinsPage(QString addr)
