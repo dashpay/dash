@@ -363,7 +363,7 @@ UniValue quorum_sigs_cmd(const JSONRPCRequest& request)
     uint256 msgHash = ParseHashV(request.params[3], "msgHash");
 
     if (cmd == "sign") {
-        if (request.params.size() > 4) {
+        if (!request.params[4].isNull()) {
             uint256 quorumHash = ParseHashV(request.params[4], "quorumHash");
             auto quorum = llmq::quorumManager->GetQuorum(llmqType, quorumHash);
             if (!quorum) {
