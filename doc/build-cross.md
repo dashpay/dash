@@ -45,7 +45,7 @@ First, install the general dependencies:
 
     sudo apt update
     sudo apt upgrade
-    sudo apt install build-essential libtool autotools-dev automake pkg-config bsdmainutils curl git python3 cmake     
+    sudo apt install build-essential libtool autotools-dev automake pkg-config bsdmainutils curl git python3 cmake
 
 A host toolchain (`build-essential`) is necessary because some dependency
 packages need to build host utilities that are used in the build process.
@@ -61,7 +61,7 @@ Acquire the source in the usual way:
     git clone https://github.com/dashpay/dash.git
     cd dash
 
-## Building for 64-bit Windows
+### Building for 64-bit Windows
 
 The first step is to install the mingw-w64 cross-compilation tool chain:
 
@@ -87,19 +87,9 @@ Build using:
     CONFIG_SITE=$PWD/depends/x86_64-w64-mingw32/share/config.site ./configure --prefix=/
     make
 
-## Depends system
+### Depends system
 
 For further documentation on the depends system see [README.md](../depends/README.md) in the depends directory.
-
-Footnotes
----------
-
-<a name="footnote1">1</a>: Starting from Ubuntu Xenial 16.04, both the 32 and 64 bit Mingw-w64 packages install two different
-compiler options to allow a choice between either posix or win32 threads. The default option is win32 threads which is the more
-efficient since it will result in binary code that links directly with the Windows kernel32.lib. Unfortunately, the headers
-required to support win32 threads conflict with some of the classes in the C++11 standard library, in particular std::mutex.
-It's not possible to build the Dash Core code using the win32 version of the Mingw-w64 cross compilers (at least not without
-modifying headers in the Dash Core source code).
 
 ARM-Linux Cross-compilation
 -------------------
@@ -120,3 +110,13 @@ When building Dash Core, use
 ```bash
 $ ./configure --prefix=`pwd`/depends/arm-linux-gnueabihf
 ```
+
+Footnotes
+---------
+
+<a name="footnote1">1</a>: Starting from Ubuntu Xenial 16.04, both the 32 and 64 bit Mingw-w64 packages install two different
+compiler options to allow a choice between either posix or win32 threads. The default option is win32 threads which is the more
+efficient since it will result in binary code that links directly with the Windows kernel32.lib. Unfortunately, the headers
+required to support win32 threads conflict with some of the classes in the C++11 standard library, in particular std::mutex.
+It's not possible to build the Dash Core code using the win32 version of the Mingw-w64 cross compilers (at least not without
+modifying headers in the Dash Core source code).
