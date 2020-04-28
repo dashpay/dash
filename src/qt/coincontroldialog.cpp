@@ -427,7 +427,6 @@ void CoinControlDialog::viewItemChanged(QTreeWidgetItem* item, int column)
             item->setCheckState(COLUMN_CHECKBOX, Qt::Unchecked);
         else {
             coinControl()->Select(outpt);
-            int nRounds = item->data(COLUMN_PRIVATESEND_ROUNDS, Qt::UserRole).toLongLong();
         }
 
         // selection changed -> update labels
