@@ -780,14 +780,17 @@ void SendCoinsDialog::updateCoinControlState(CCoinControl& ctrl)
 
 void SendCoinsDialog::setPrivateSend(bool privateSend)
 {
-    fPrivateSend = privateSend;
-    updateDisplayUnit();
-    if (privateSend) {
-        ui->sendButton->setText("PrivateS&end");
-        ui->sendButton->setToolTip("Confirm the PrivateSend action");
-    } else {
-        ui->sendButton->setText("S&end");
-        ui->sendButton->setToolTip("Confirm the send action");
+    if (fPrivateSend != privateSend) {
+        fPrivateSend = privateSend;
+        clear();
+        updateDisplayUnit();
+        if (privateSend) {
+            ui->sendButton->setText("PrivateS&end");
+            ui->sendButton->setToolTip("Confirm the PrivateSend action");
+        } else {
+            ui->sendButton->setText("S&end");
+            ui->sendButton->setToolTip("Confirm the send action");
+        }
     }
 }
 

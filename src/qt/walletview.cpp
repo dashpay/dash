@@ -237,7 +237,6 @@ void WalletView::gotoReceiveCoinsPage()
 
 void WalletView::gotoSendCoinsPage(QString addr)
 {
-    sendCoinsPage->clear();
     sendCoinsPage->setPrivateSend(false);
     setCurrentWidget(sendCoinsPage);
 
@@ -248,7 +247,6 @@ void WalletView::gotoSendCoinsPage(QString addr)
 
 void WalletView::gotoPrivateSendCoinsPage(QString addr)
 {
-    sendCoinsPage->clear();
     sendCoinsPage->setPrivateSend(true);
     setCurrentWidget(sendCoinsPage);
 
