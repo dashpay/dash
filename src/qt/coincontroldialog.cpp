@@ -487,6 +487,8 @@ void CoinControlDialog::updateLabels(WalletModel *model, QDialog* dialog)
     unsigned int nBytesInputs   = 0;
     unsigned int nQuantity      = 0;
     int nQuantityUncompressed   = 0;
+    bool fUnselectedSpent{false};
+    bool fUnselectedNonMixed{false};
 
     std::vector<COutPoint> vCoinControl;
     std::vector<COutput>   vOutputs;
@@ -501,6 +503,7 @@ void CoinControlDialog::updateLabels(WalletModel *model, QDialog* dialog)
         if (model->isSpent(outpt))
         {
             coinControl()->UnSelect(outpt);
+            fUnselectedSpent = true;
             continue;
         }
 
@@ -509,6 +512,7 @@ void CoinControlDialog::updateLabels(WalletModel *model, QDialog* dialog)
             int nRounds = model->getRealOutpointPrivateSendRounds(outpt);
             if (nRounds < privateSendClient.nPrivateSendRounds) {
                 coinControl()->UnSelect(outpt);
+                fUnselectedNonMixed = true;
                 continue;
             }
         }
@@ -645,6 +649,17 @@ void CoinControlDialog::updateLabels(WalletModel *model, QDialog* dialog)
     QLabel *label = dialog->findChild<QLabel *>("labelCoinControlInsuffFunds");
     if (label)
         label->setVisible(nChange < 0);
+
+    // Warn about unselected coins
+    if (fUnselectedSpent) {
+        QMessageBox::warning(dialog, "CoinControl",
+            tr("Some coins were unselected because they were spent."),
+            QMessageBox::Ok, QMessageBox::Ok);
+    } else if (fUnselectedNonMixed) {
+        QMessageBox::warning(dialog, "CoinControl",
+            tr("Some coins were unselected because they do not have enough mixing rounds."),
+            QMessageBox::Ok, QMessageBox::Ok);
+    }
 }
 
 CCoinControl* CoinControlDialog::coinControl()
