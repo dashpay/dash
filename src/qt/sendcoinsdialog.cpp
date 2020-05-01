@@ -782,7 +782,7 @@ void SendCoinsDialog::setPrivateSend(bool privateSend)
 {
     if (fPrivateSend != privateSend) {
         fPrivateSend = privateSend;
-        clear();
+        coinControlUpdateLabels();
         updateDisplayUnit();
         if (privateSend) {
             ui->sendButton->setText("PrivateS&end");
