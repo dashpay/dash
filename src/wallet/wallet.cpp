@@ -3308,7 +3308,6 @@ bool CWallet::SelectPSInOutPairsByDenominations(int nDenom, CAmount nValueMax, s
         CTxIn txin = CTxIn(txHash, out.i);
         CScript scriptPubKey = out.tx->tx->vout[out.i].scriptPubKey;
         int nRounds = GetRealOutpointPrivateSendRounds(txin.prevout);
-        if (nRounds >= privateSendClient.nPrivateSendRounds) continue;
 
         if (nValue != nDenomAmount) continue;
         nValueTotal += nValue;
