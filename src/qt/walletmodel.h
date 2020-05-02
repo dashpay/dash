@@ -5,7 +5,6 @@
 #ifndef BITCOIN_QT_WALLETMODEL_H
 #define BITCOIN_QT_WALLETMODEL_H
 
-#include "paymentrequestplus.h"
 #include "walletmodeltransaction.h"
 
 #ifdef ENABLE_WALLET
@@ -59,8 +58,6 @@ public:
     // If from a payment request, this is used for storing the memo
     QString message;
 
-    // If from a payment request, paymentRequest.IsInitialized() will be true
-    PaymentRequestPlus paymentRequest;
     // Empty if no authentication or invalid signature/cert/etc.
     QString authenticatedMerchant;
 
@@ -76,9 +73,6 @@ public:
         std::string sAddress = address.toStdString();
         std::string sLabel = label.toStdString();
         std::string sMessage = message.toStdString();
-        std::string sPaymentRequest;
-        if (!ser_action.ForRead() && paymentRequest.IsInitialized())
-            paymentRequest.SerializeToString(&sPaymentRequest);
         std::string sAuthenticatedMerchant = authenticatedMerchant.toStdString();
 
         READWRITE(this->nVersion);
