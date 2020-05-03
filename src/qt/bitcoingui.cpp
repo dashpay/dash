@@ -339,7 +339,7 @@ void BitcoinGUI::createActions()
     privateSendCoinsAction = new QAction(tr("&PrivateSend"), this);
     privateSendCoinsAction->setStatusTip(tr("PrivateSend coins to a Dash address"));
     privateSendCoinsAction->setToolTip(privateSendCoinsAction->statusTip());
-    privateSendCoinsAction->setCheckable(true);
+    privateSendCoinsAction->setCheckable(privateSendClient.fEnablePrivateSend);
 #ifdef Q_OS_MAC
     privateSendCoinsAction->setShortcut(QKeySequence(Qt::CTRL + Qt::Key_3));
 #else
@@ -770,7 +770,8 @@ void BitcoinGUI::setWalletActionsEnabled(bool enabled)
     overviewAction->setEnabled(enabled);
     sendCoinsAction->setEnabled(enabled);
     sendCoinsMenuAction->setEnabled(enabled);
-    privateSendCoinsMenuAction->setEnabled(enabled);
+    privateSendCoinsAction->setEnabled(enabled && privateSendClient.fEnablePrivateSend);
+    privateSendCoinsMenuAction->setEnabled(enabled && privateSendClient.fEnablePrivateSend);
     receiveCoinsAction->setEnabled(enabled);
     receiveCoinsMenuAction->setEnabled(enabled);
     historyAction->setEnabled(enabled);

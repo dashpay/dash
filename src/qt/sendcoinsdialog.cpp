@@ -104,10 +104,6 @@ SendCoinsDialog::SendCoinsDialog(const PlatformStyle *_platformStyle, QWidget *p
         settings.remove("bUseInstantSend");
     }
 
-    if (!privateSendClient.fEnablePrivateSend) {
-        CoinControlDialog::coinControl()->UsePrivateSend(false);
-    }
-
     // Coin Control: clipboard actions
     QAction *clipboardQuantityAction = new QAction(tr("Copy quantity"), this);
     QAction *clipboardAmountAction = new QAction(tr("Copy amount"), this);
