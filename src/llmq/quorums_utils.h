@@ -75,7 +75,7 @@ public:
         for (size_t i = 0; i < vBits.size(); i++) {
             vBytes[i / 8] |= vBits[i] << (i % 8);
         }
-        return HexStr(vBytes.rbegin(), vBytes.rend(), false);
+        return HexStr(vBytes);
     }
 };
 
