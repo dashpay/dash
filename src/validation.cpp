@@ -1730,6 +1730,7 @@ DisconnectResult CChainState::DisconnectBlock(const CBlock& block, const CBlockI
 
     // move best block pointer to prevout block
     view.SetBestBlock(pindex->pprev->GetBlockHash());
+    evoDb->WriteBestBlock(pindex->pprev->GetBlockHash());
 
     if (fSpentIndex) {
         if (!pblocktree->UpdateSpentIndex(spentIndex)) {
@@ -1749,7 +1750,6 @@ DisconnectResult CChainState::DisconnectBlock(const CBlock& block, const CBlockI
         }
     }
 
-    evoDb->WriteBestBlock(pindex->pprev->GetBlockHash());
 
     return fClean ? DISCONNECT_OK : DISCONNECT_UNCLEAN;
 }
@@ -4356,6 +4356,10 @@ bool CChainState::ReplayBlocks(const CChainParams& params, CCoinsView* view)
         assert(pindexFork != nullptr);
     }
 
+    auto dbTx = evoDb->BeginTransaction();
+    evoDb->WriteBestBlock(pindexOld->GetBlockHash());
+    dbTx->Commit();
+
     // Rollback along the old branch.
     while (pindexOld != pindexFork) {
         if (pindexOld->nHeight > 0) { // Never disconnect the genesis block.
@@ -4364,7 +4368,9 @@ bool CChainState::ReplayBlocks(const CChainParams& params, CCoinsView* view)
                 return error("RollbackBlock(): ReadBlockFromDisk() failed at %d, hash=%s", pindexOld->nHeight, pindexOld->GetBlockHash().ToString());
             }
             LogPrintf("Rolling back %s (%i)\n", pindexOld->GetBlockHash().ToString(), pindexOld->nHeight);
+            dbTx = evoDb->BeginTransaction();
             DisconnectResult res = DisconnectBlock(block, pindexOld, cache);
+            dbTx->Commit();
             if (res == DISCONNECT_FAILED) {
                 return error("RollbackBlock(): DisconnectBlock failed at %d, hash=%s", pindexOld->nHeight, pindexOld->GetBlockHash().ToString());
             }
@@ -4385,6 +4391,9 @@ bool CChainState::ReplayBlocks(const CChainParams& params, CCoinsView* view)
     }
 
     cache.SetBestBlock(pindexNew->GetBlockHash());
+    dbTx = evoDb->BeginTransaction();
+    evoDb->WriteBestBlock(pindexNew->GetBlockHash());
+    dbTx->Commit();
     cache.Flush();
     uiInterface.ShowProgress("", 100, false);
     return true;
