@@ -4360,6 +4360,9 @@ bool CChainState::ReplayBlocks(const CChainParams& params, CCoinsView* view)
 
     // Rollback along the old branch.
     while (pindexOld != pindexFork) {
+        // TODO: RollforwardBlock should update not only coins but also evodb and additional indexes.
+        // Disable recovery from a crash during a fork until this is implemented.
+        return error("ReplayBlocks(): recovery from a db crash during a fork is not supported yet");
         if (pindexOld->nHeight > 0) { // Never disconnect the genesis block.
             CBlock block;
             if (!ReadBlockFromDisk(block, pindexOld, params.GetConsensus())) {
