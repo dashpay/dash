@@ -1581,16 +1581,13 @@ int CWallet::GetRealOutpointPrivateSendRounds(const COutPoint& outpoint, int nRo
         return *nRoundsRef;
     }
 
-    bool fAllDenoms = true;
     for (const auto& out : wtx->tx->vout) {
-        fAllDenoms = fAllDenoms && CPrivateSend::IsDenominatedAmount(out.nValue);
-    }
-
-    // this one is denominated but there is another non-denominated output found in the same tx
-    if (!fAllDenoms) {
-        *nRoundsRef = 0;
-        LogPrint(BCLog::PRIVATESEND, "%s UPDATED   %-70s %3d\n", __func__, outpoint.ToStringShort(), *nRoundsRef);
-        return *nRoundsRef;
+        if (!CPrivateSend::IsDenominatedAmount(out.nValue)) {
+            // this one is denominated but there is another non-denominated output found in the same tx
+            *nRoundsRef = 0;
+            LogPrint(BCLog::PRIVATESEND, "%s UPDATED   %-70s %3d\n", __func__, outpoint.ToStringShort(), *nRoundsRef);
+            return *nRoundsRef;
+        }
     }
 
     int nShortest = -10; // an initial value, should be no way to get this by calculations
