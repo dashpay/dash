@@ -4357,7 +4357,6 @@ bool CChainState::ReplayBlocks(const CChainParams& params, CCoinsView* view)
     }
 
     auto dbTx = evoDb->BeginTransaction();
-    evoDb->WriteBestBlock(pindexOld->GetBlockHash());
 
     // Rollback along the old branch.
     while (pindexOld != pindexFork) {
@@ -4389,8 +4388,8 @@ bool CChainState::ReplayBlocks(const CChainParams& params, CCoinsView* view)
 
     cache.SetBestBlock(pindexNew->GetBlockHash());
     evoDb->WriteBestBlock(pindexNew->GetBlockHash());
-    bool cached = cache.Flush();
-    assert(cached);
+    bool flushed = cache.Flush();
+    assert(flushed);
     dbTx->Commit();
     uiInterface.ShowProgress("", 100, false);
     return true;
