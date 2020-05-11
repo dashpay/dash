@@ -141,7 +141,7 @@ Tor configuration.
 
 ## 5. Privacy recommendations
 
-- Do not add anything but bitcoin ports to the hidden service created in section 2.
+- Do not add anything but Dash Core ports to the hidden service created in section 2.
   If you run a web service too, create a new hidden service for that.
   Otherwise it is trivial to link them, which may reduce privacy. Hidden
   services created automatically (as in section 3) always have only one port
