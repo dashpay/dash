@@ -80,11 +80,13 @@ void SendCoinsEntry::on_payTo_textChanged(const QString &address)
 {
     SendCoinsRecipient rcp;
     if (GUIUtil::parseBitcoinURI(address, &rcp)) {
+        ui->payTo->blockSignals(true);
         setValue(rcp);
+        ui->payTo->blockSignals(false);
     }
 
     if (rcp.label.isEmpty()) {
-        updateLabel(address);
+        updateLabel(rcp.address);
     }
 }
 
