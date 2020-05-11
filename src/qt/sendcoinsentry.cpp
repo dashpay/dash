@@ -85,9 +85,7 @@ void SendCoinsEntry::on_payTo_textChanged(const QString &address)
         ui->payTo->blockSignals(false);
     }
 
-    if (rcp.label.isEmpty()) {
-        updateLabel(rcp.address);
-    }
+    updateLabel(rcp.address);
 }
 
 void SendCoinsEntry::setModel(WalletModel *_model)
