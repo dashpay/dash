@@ -1900,7 +1900,6 @@ bool AppInitMain()
                 // The on-disk coinsdb is now in a good state, create the cache
                 pcoinsTip.reset(new CCoinsViewCache(pcoinscatcher.get()));
 
-
                 // flush evodb
                 if (!evoDb->CommitRootTransaction()) {
                     strLoadError = _("Failed to commit EvoDB");
