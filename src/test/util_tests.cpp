@@ -1278,24 +1278,24 @@ BOOST_AUTO_TEST_CASE(test_tracked_vector)
     BOOST_CHECK(t3.origin == &t3);
 
     auto v1 = Vector(t1);
-    BOOST_CHECK_EQUAL(v1.size(), 1);
+    BOOST_CHECK_EQUAL(v1.size(), 1U);
     BOOST_CHECK(v1[0].origin == &t1);
     BOOST_CHECK_EQUAL(v1[0].copies, 1);
 
     auto v2 = Vector(std::move(t2));
-    BOOST_CHECK_EQUAL(v2.size(), 1);
+    BOOST_CHECK_EQUAL(v2.size(), 1U);
     BOOST_CHECK(v2[0].origin == &t2);
     BOOST_CHECK_EQUAL(v2[0].copies, 0);
 
     auto v3 = Vector(t1, std::move(t2));
-    BOOST_CHECK_EQUAL(v3.size(), 2);
+    BOOST_CHECK_EQUAL(v3.size(), 2U);
     BOOST_CHECK(v3[0].origin == &t1);
     BOOST_CHECK(v3[1].origin == &t2);
     BOOST_CHECK_EQUAL(v3[0].copies, 1);
     BOOST_CHECK_EQUAL(v3[1].copies, 0);
 
     auto v4 = Vector(std::move(v3[0]), v3[1], std::move(t3));
-    BOOST_CHECK_EQUAL(v4.size(), 3);
+    BOOST_CHECK_EQUAL(v4.size(), 3U);
     BOOST_CHECK(v4[0].origin == &t1);
     BOOST_CHECK(v4[1].origin == &t2);
     BOOST_CHECK(v4[2].origin == &t3);
@@ -1304,7 +1304,7 @@ BOOST_AUTO_TEST_CASE(test_tracked_vector)
     BOOST_CHECK_EQUAL(v4[2].copies, 0);
 
     auto v5 = Cat(v1, v4);
-    BOOST_CHECK_EQUAL(v5.size(), 4);
+    BOOST_CHECK_EQUAL(v5.size(), 4U);
     BOOST_CHECK(v5[0].origin == &t1);
     BOOST_CHECK(v5[1].origin == &t1);
     BOOST_CHECK(v5[2].origin == &t2);
@@ -1315,7 +1315,7 @@ BOOST_AUTO_TEST_CASE(test_tracked_vector)
     BOOST_CHECK_EQUAL(v5[3].copies, 1);
 
     auto v6 = Cat(std::move(v1), v3);
-    BOOST_CHECK_EQUAL(v6.size(), 3);
+    BOOST_CHECK_EQUAL(v6.size(), 3U);
     BOOST_CHECK(v6[0].origin == &t1);
     BOOST_CHECK(v6[1].origin == &t1);
     BOOST_CHECK(v6[2].origin == &t2);
@@ -1324,7 +1324,7 @@ BOOST_AUTO_TEST_CASE(test_tracked_vector)
     BOOST_CHECK_EQUAL(v6[2].copies, 1);
 
     auto v7 = Cat(v2, std::move(v4));
-    BOOST_CHECK_EQUAL(v7.size(), 4);
+    BOOST_CHECK_EQUAL(v7.size(), 4U);
     BOOST_CHECK(v7[0].origin == &t2);
     BOOST_CHECK(v7[1].origin == &t1);
     BOOST_CHECK(v7[2].origin == &t2);
@@ -1335,7 +1335,7 @@ BOOST_AUTO_TEST_CASE(test_tracked_vector)
     BOOST_CHECK_EQUAL(v7[3].copies, 0);
 
     auto v8 = Cat(std::move(v2), std::move(v3));
-    BOOST_CHECK_EQUAL(v8.size(), 3);
+    BOOST_CHECK_EQUAL(v8.size(), 3U);
     BOOST_CHECK(v8[0].origin == &t2);
     BOOST_CHECK(v8[1].origin == &t1);
     BOOST_CHECK(v8[2].origin == &t2);

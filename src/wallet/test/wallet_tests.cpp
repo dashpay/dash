@@ -938,9 +938,9 @@ BOOST_FIXTURE_TEST_CASE(select_coins_grouped_by_addresses, ListCoinsTestingSetup
     {
         LOCK(wallet->cs_wallet);
         const auto& conflicts = wallet->GetConflicts(tx2->GetHash());
-        BOOST_CHECK_EQUAL(conflicts.size(), 2);
-        BOOST_CHECK_EQUAL(conflicts.count(tx1->GetHash()), 1);
-        BOOST_CHECK_EQUAL(conflicts.count(tx2->GetHash()), 1);
+        BOOST_CHECK_EQUAL(conflicts.size(), 2U);
+        BOOST_CHECK_EQUAL(conflicts.count(tx1->GetHash()), 1U);
+        BOOST_CHECK_EQUAL(conflicts.count(tx2->GetHash()), 1U);
     }
 
     // Committed tx is the one that should be marked as "conflicting".
