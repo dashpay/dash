@@ -39,7 +39,7 @@ SendCoinsEntry::SendCoinsEntry(const PlatformStyle *_platformStyle, QWidget *par
     ui->deleteButton_s->setIcon(QIcon(":/icons/remove"));
       
     // normal dash address field
-    GUIUtil::setupAddressWidget(ui->payTo, this);
+    GUIUtil::setupAddressWidget(ui->payTo, this, true);
     // just a label for displaying dash address(es)
     ui->payTo_is->setFont(GUIUtil::fixedPitchFont());
 
@@ -78,7 +78,14 @@ void SendCoinsEntry::on_addressBookButton_clicked()
 
 void SendCoinsEntry::on_payTo_textChanged(const QString &address)
 {
-    updateLabel(address);
+    SendCoinsRecipient rcp;
+    if (GUIUtil::parseBitcoinURI(address, &rcp)) {
+        setValue(rcp);
+    }
+
+    if (rcp.label.isEmpty()) {
+        updateLabel(address);
+    }
 }
 
 void SendCoinsEntry::setModel(WalletModel *_model)
