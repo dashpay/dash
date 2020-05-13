@@ -1538,55 +1538,143 @@ bool CPrivateSendClientSession::CreateDenominated(CAmount nBalanceToDenominate, 
     bool fAddFinal = true;
     std::vector<CAmount> vecStandardDenoms = CPrivateSend::GetStandardDenominations();
 
-    for (auto it = vecStandardDenoms.rbegin(); it != vecStandardDenoms.rend(); ++it) {
-        CAmount nDenomValue = *it;
-
-        // Note: denoms are skipped if there are already nPrivateSendDenoms of them
-        // and there are still larger denoms which can be used for mixing
-
-        // check skipped denoms
-        if (privateSendClient.IsDenomSkipped(nDenomValue)) {
-            strAutoDenomResult = strprintf(_("Too many %f denominations, skipping."), (float)nDenomValue / COIN);
-            LogPrint(BCLog::PRIVATESEND, "CPrivateSendClientSession::CreateDenominated -- %s\n", strAutoDenomResult);
-            continue;
-        }
-
-        // find new denoms to skip if any (ignore the largest one)
-        if (nDenomValue != vecStandardDenoms.front() && GetWallets()[0]->CountInputsWithAmount(nDenomValue) > privateSendClient.nPrivateSendDenoms) {
-            strAutoDenomResult = strprintf(_("Too many %f denominations, removing."), (float)nDenomValue / COIN);
-            LogPrint(BCLog::PRIVATESEND, "CPrivateSendClientSession::CreateDenominated -- %s\n", strAutoDenomResult);
-            privateSendClient.AddSkippedDenom(nDenomValue);
-            continue;
-        }
-
-        int nOutputs = 0;
-
-        auto needMoreOutputs = [&]() {
-            bool fRegular = (nValueLeft >= nDenomValue && nBalanceToDenominate >= nDenomValue);
-            bool fFinal = (fAddFinal
-                && nValueLeft >= nDenomValue
-                && nBalanceToDenominate > 0
-                && nBalanceToDenominate < nDenomValue);
-            fAddFinal = false; // add final denom only once, only the smalest possible one
-            return fRegular || fFinal;
-        };
-
-        // add each output up to 11 times until it can't be added again
-        while (needMoreOutputs() && nOutputs <= 10) {
-            CScript scriptDenom = keyHolderStorageDenom.AddKey(GetWallets()[0]);
-
-            vecSend.push_back((CRecipient){scriptDenom, nDenomValue, false});
-
-            //increment outputs and subtract denomination amount
-            nOutputs++;
-            nValueLeft -= nDenomValue;
-            nBalanceToDenominate -= nDenomValue;
-            LogPrint(BCLog::PRIVATESEND, "CPrivateSendClientSession::CreateDenominated -- 1 - totalOutputs: %d, nOutputsTotal: %d, nOutputs: %d, nValueLeft: %f\n", nOutputsTotal + nOutputs, nOutputsTotal, nOutputs, (float)nValueLeft / COIN);
-        }
-
-        nOutputsTotal += nOutputs;
-        if (nValueLeft == 0 || nBalanceToDenominate <= 0) break;
+    std::map<CAmount, int> mapDenomCount;
+    for (auto nDenomValue : vecStandardDenoms) {
+        mapDenomCount.insert(std::pair<CAmount, int>(nDenomValue, GetWallets()[0]->CountInputsWithAmount(nDenomValue)));
     }
+
+    int debugLoopNum = 0;
+
+    // NOTE: We do not allow txes larger than 100kB, so we have to limit the number of outputs here.
+    // We still want to create a lot of outputs though.
+    // Knowing that each CTxOut is ~35b big, 400 inputs should take 400 x ~35b = ~17.5kb.
+    // More than 500 outputs starts to make qt quite laggy.
+    // Additionally to need all 500 outputs (assuming a max per denom of 50) you'd need to be trying to
+    // create denominations for over 3000 dash!
+
+    // Will generate outputs for the createdenoms up to privatesendmaxdenoms per denom
+
+    // This works in the way creating PS denoms has traditionally worked, assuming enough funds,
+    // it will start with the smallest denom then create 11 of those, then go up to the next biggest denom create 11
+    // and repeat. Previously, once the largest denom was reached, as many would be created were created as possible and
+    // then any remaining was put into a change address and denominations were created in the same manner a block later.
+    // Now, in this system, so long as we don't reach 500 outputs the process repeats in the same transaction,
+    // creating up to privatesenddenoms per denomination in a single transaction.
+    while (nValueLeft >= CPrivateSend::GetSmallestDenomination() && nOutputsTotal <= 500) {
+        assert(debugLoopNum++ < 100);
+        LogPrint(BCLog::PRIVATESEND,
+                 "CPrivateSendClientSession::CreateDenominated -- big loop %d\n",
+                 debugLoopNum);
+
+        for (auto it = vecStandardDenoms.rbegin(); it != vecStandardDenoms.rend(); ++it) {
+            CAmount nDenomValue = *it;
+
+            int nOutputs = 0;
+
+            auto needMoreOutputs = [&]() {
+                bool fRegular = (nValueLeft >= nDenomValue && nBalanceToDenominate >= nDenomValue);
+                bool fFinal = (fAddFinal
+                               && nValueLeft >= nDenomValue
+                               && nBalanceToDenominate > 0
+                               && nBalanceToDenominate < nDenomValue);
+                fAddFinal = false; // add final denom only once, only the smalest possible one
+
+                if (fRegular == false && fFinal == false) {
+                    LogPrint(BCLog::PRIVATESEND,
+                             "CPrivateSendClientSession::CreateDenominated -- fRegular false b/c (nValueLeft %d >= nDenomValue %d && nBalanceToDenominate %d >= nDenomValue %d)\n",
+                             nValueLeft, nDenomValue, nBalanceToDenominate, nDenomValue);
+                    LogPrint(BCLog::PRIVATESEND,
+                             "CPrivateSendClientSession::CreateDenominated -- fFinal false b/c %s  nValueLeft: %d nDenomValue: %d nBalanceToD: %d\n",
+                             fAddFinal ? "true" : "false", nValueLeft, nDenomValue, nBalanceToDenominate);
+                }
+
+                return fRegular || fFinal;
+            };
+
+            // add each output up to 11 times or until it can't be added again or until we reach nPrivateSendDenoms
+            while (needMoreOutputs() && nOutputs <= 10 && mapDenomCount.find(nDenomValue)->second <= privateSendClient.nPrivateSendDenoms) {
+                LogPrint(BCLog::PRIVATESEND,
+                         "CPrivateSendClientSession::CreateDenominated -- CreatedDenom b/c mapDenomCount.find(nDenomValue)->second: %d <= privateSendClient.nPrivateSendDenoms: %d\n",
+                         mapDenomCount.find(nDenomValue)->second, privateSendClient.nPrivateSendDenoms);
+                CScript scriptDenom = keyHolderStorageDenom.AddKey(GetWallets()[0]);
+
+                vecSend.push_back((CRecipient) {scriptDenom, nDenomValue, false});
+
+                // increment outputs and subtract denomination amount
+                nOutputs++;
+                mapDenomCount.find(nDenomValue)->second++;
+                nValueLeft -= nDenomValue;
+                nBalanceToDenominate -= nDenomValue;
+                LogPrint(BCLog::PRIVATESEND,
+                         "CPrivateSendClientSession::CreateDenominated -- 1 - totalOutputs: %d, nOutputsTotal: %d, nOutputs: %d, nValueLeft: %f\n",
+                         nOutputsTotal + nOutputs, nOutputsTotal, nOutputs, (float) nValueLeft / COIN);
+            }
+/*
+            LogPrint(BCLog::PRIVATESEND,
+                     "CPrivateSendClientSession::CreateDenominated -- Stopped CreatedDenom for %d args: %d %s %d %d eval: %s\n",
+                     nDenomValue, needMoreOutputs() ? "true" : "false", nOutputs, mapDenomCount.find(nDenomValue)->second, privateSendClient.nPrivateSendDenoms,
+                     (needMoreOutputs() && nOutputs <= 10 && mapDenomCount.find(nDenomValue)->second <= privateSendClient.nPrivateSendDenoms) ? "true" : "false");
+*/
+            nOutputsTotal += nOutputs;
+            if (nValueLeft == 0 || nBalanceToDenominate <= 0) {
+                LogPrint(BCLog::PRIVATESEND,
+                         "CPrivateSendClientSession::CreateDenominated -- THIS WEIRD BREAK WAS CALLED %d, %d\n",
+                         nValueLeft, nBalanceToDenominate);
+
+                break;
+            }
+        }
+
+        bool finished = true;
+        for (auto it : mapDenomCount) {
+            // Check if this specific denom could use another loop, check that there aren't nPrivateSendDenoms of this
+            // denom and that our nValueLeft/nBalanceToDenominate is enough to create one of these denoms, if so, loop again.
+            if (it.second <= privateSendClient.nPrivateSendDenoms && nValueLeft >= it.first && nBalanceToDenominate >= it.first) {
+                LogPrint(BCLog::PRIVATESEND,
+                         "CPrivateSendClientSession::CreateDenominated -- 1 - decided not finished b/c %d <= %d && %d >= %d\n",
+                         it.second, privateSendClient.nPrivateSendDenoms, nValueLeft, it.first);
+                finished = false;
+                break;
+            }
+            LogPrint(BCLog::PRIVATESEND,
+                     "CPrivateSendClientSession::CreateDenominated -- 1 - Okay to finish b/c %d <= %d && %d >= %d\n",
+                     it.second, privateSendClient.nPrivateSendDenoms, nValueLeft, it.first);
+
+        }
+
+        if (finished) break;
+    }
+
+    // Now that nPrivateSendDenoms worth of each denom have been created, do something with the remainder.
+    while (nValueLeft >= CPrivateSend::GetSmallestDenomination() && nOutputsTotal <= 500) {
+
+        // Go big to small
+        for (long nDenomValue : vecStandardDenoms) {
+            int nOutputs = 0;
+
+            // Number of denoms we can create given our denom and the amount of funds we have left
+            int denomsToCreate = nValueLeft / nDenomValue;
+            for (int i = 0; i < denomsToCreate; i++) {
+                CScript scriptDenom = keyHolderStorageDenom.AddKey(GetWallets()[0]);
+
+                vecSend.push_back((CRecipient) {scriptDenom, nDenomValue, false});
+
+                // increment outputs and subtract denomination amount
+                nOutputs++;
+                mapDenomCount.find(nDenomValue)->second++;
+                nValueLeft -= nDenomValue;
+                nBalanceToDenominate -= nDenomValue;
+                LogPrint(BCLog::PRIVATESEND, "CPrivateSendClientSession::CreateDenominated -- Incremented a denom %d. currentDenomCount: %d\n",
+                         mapDenomCount.find(nDenomValue)->first, mapDenomCount.find(nDenomValue)->second);
+                LogPrint(BCLog::PRIVATESEND,
+                         "CPrivateSendClientSession::CreateDenominated -- 1 - totalOutputs: %d, nOutputsTotal: %d, nOutputs: %d, nValueLeft: %f\n",
+                         nOutputsTotal + nOutputs, nOutputsTotal, nOutputs, (float) nValueLeft / COIN);
+
+            }
+            nOutputsTotal += nOutputs;
+        }
+    }
+
     LogPrint(BCLog::PRIVATESEND, "CPrivateSendClientSession::CreateDenominated -- 2 - nOutputsTotal: %d, nValueLeft: %f\n", nOutputsTotal, (float)nValueLeft / COIN);
 
     // No reasons to create mixing collaterals if we can't create denoms to mix
