@@ -339,7 +339,7 @@ void BitcoinGUI::createActions()
     privateSendCoinsAction = new QAction(tr("&PrivateSend"), this);
     privateSendCoinsAction->setStatusTip(tr("PrivateSend coins to a Dash address"));
     privateSendCoinsAction->setToolTip(privateSendCoinsAction->statusTip());
-    privateSendCoinsAction->setCheckable(privateSendClient.fEnablePrivateSend);
+    privateSendCoinsAction->setCheckable(true);
 #ifdef Q_OS_MAC
     privateSendCoinsAction->setShortcut(QKeySequence(Qt::CTRL + Qt::Key_3));
 #else
@@ -702,13 +702,13 @@ void BitcoinGUI::setClientModel(ClientModel *_clientModel)
         }
 #endif // ENABLE_WALLET
         unitDisplayControl->setOptionsModel(_clientModel->getOptionsModel());
-        
+
         OptionsModel* optionsModel = _clientModel->getOptionsModel();
         if(optionsModel)
         {
             // be aware of the tray icon disable state change reported by the OptionsModel object.
             connect(optionsModel,SIGNAL(hideTrayIconChanged(bool)),this,SLOT(setTrayIconVisible(bool)));
-        
+
             // initialize the disable state of the tray icon with the current value in the model.
             setTrayIconVisible(optionsModel->getHideTrayIcon());
         }
