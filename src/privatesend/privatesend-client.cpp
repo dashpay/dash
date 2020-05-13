@@ -789,7 +789,8 @@ bool CPrivateSendClientSession::DoAutomaticDenominating(CConnman& connman, bool 
             return false;
         }
 
-        if (deterministicMNManager->GetListAtChainTip().GetValidMNsCount() == 0) {
+        if (deterministicMNManager->GetListAtChainTip().GetValidMNsCount() == 0 &&
+            Params().NetworkIDString() != CBaseChainParams::REGTEST) {
             LogPrint(BCLog::PRIVATESEND, "CPrivateSendClientSession::DoAutomaticDenominating -- No Masternodes detected\n");
             strAutoDenomResult = _("No Masternodes detected.");
             return false;
