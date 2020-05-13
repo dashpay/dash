@@ -1653,7 +1653,10 @@ bool CPrivateSendClientSession::CreateDenominated(CAmount nBalanceToDenominate, 
             int nOutputs = 0;
 
             // Number of denoms we can create given our denom and the amount of funds we have left
-            int denomsToCreate = nValueLeft / nDenomValue;
+            int denomsToCreateValue = nValueLeft / nDenomValue;
+            int denomsToCreateBal = nBalanceToDenominate / nDenomValue;
+            // Use the smaller value
+            int denomsToCreate = denomsToCreateValue > denomsToCreateBal ? denomsToCreateBal : denomsToCreateValue;
             for (int i = 0; i < denomsToCreate; i++) {
                 CScript scriptDenom = keyHolderStorageDenom.AddKey(GetWallets()[0]);
 
