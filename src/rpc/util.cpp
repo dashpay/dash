@@ -30,12 +30,12 @@ CPubKey AddrToPubKey(CKeyStore* const keystore, const std::string& addr_in)
     if (!IsValidDestination(dest)) {
         throw JSONRPCError(RPC_INVALID_ADDRESS_OR_KEY, "Invalid address: " + addr_in);
     }
-    CKeyID key = GetKeyForDestination(*keystore, dest);
-    if (key.IsNull()) {
+    const CKeyID *keyID = boost::get<CKeyID>(&dest);
+    if (!keyID) {
         throw JSONRPCError(RPC_INVALID_ADDRESS_OR_KEY, strprintf("%s does not refer to a key", addr_in));
     }
     CPubKey vchPubKey;
-    if (!keystore->GetPubKey(key, vchPubKey)) {
+    if (!keystore->GetPubKey(*keyID, vchPubKey)) {
         throw JSONRPCError(RPC_INVALID_ADDRESS_OR_KEY, strprintf("no full public key for address %s", addr_in));
     }
     if (!vchPubKey.IsFullyValid()) {
