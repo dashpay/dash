@@ -1280,7 +1280,7 @@ UniValue addmultisigaddress(const JSONRPCRequest& request)
     }
 
     UniValue result(UniValue::VOBJ);
-    result.pushKV("address", EncodeDestination(dest));
+    result.pushKV("address", EncodeDestination(innerID));
     result.pushKV("redeemScript", HexStr(inner.begin(), inner.end()));
     return result;
 }
