@@ -2996,6 +2996,7 @@ UniValue listunspent(const JSONRPCRequest& request)
             "      \"maximumAmount\"    (numeric or string, default=unlimited) Maximum value of each UTXO in " + CURRENCY_UNIT + "\n"
             "      \"maximumCount\"     (numeric or string, default=unlimited) Maximum number of UTXOs\n"
             "      \"minimumSumAmount\" (numeric or string, default=unlimited) Minimum sum value of all UTXOs in " + CURRENCY_UNIT + "\n"
+            "      \"coinType\"         (numeric, default=0) Filter coinTypes as followed: 0=ALL_COINS, 1=ONLY_FULLY_MIXED, 2=ONLY_READY_TO_MIX, 3=ONLY_NONDENOMINATED, 4=ONLY_1000, 5=ONLY_PRIVATESEND_COLLATERAL\n"
             "    }\n"
             "\nResult\n"
             "[                   (array of json object)\n"
@@ -3066,6 +3067,8 @@ UniValue listunspent(const JSONRPCRequest& request)
     CAmount nMaximumAmount = MAX_MONEY;
     CAmount nMinimumSumAmount = MAX_MONEY;
     uint64_t nMaximumCount = 0;
+    CCoinControl coinControl;
+    coinControl.nCoinType = CoinType::ALL_COINS;
 
     if (!request.params[4].isNull()) {
         const UniValue& options = request.params[4].get_obj();
@@ -3081,6 +3084,18 @@ UniValue listunspent(const JSONRPCRequest& request)
 
         if (options.exists("maximumCount"))
             nMaximumCount = options["maximumCount"].get_int64();
+
+        if (options.exists("coinType")) {
+
+            int64_t nCoinType = options["coinType"].get_int64();
+
+            if (nCoinType > static_cast<int64_t>(CoinType::MAX_COIN_TYPE)) {
+                throw JSONRPCError(RPC_INVALID_PARAMETER, strprintf("Invalid coinType selected. Available range: %d - %d", static_cast<int64_t>(CoinType::ALL_COINS), static_cast<int64_t>(CoinType::MAX_COIN_TYPE)));
+            }
+
+            coinControl.nCoinType = static_cast<CoinType>(nCoinType);
+        }
+
     }
 
     // Make sure the results are valid at least up to the most recent block
@@ -3091,7 +3106,7 @@ UniValue listunspent(const JSONRPCRequest& request)
     std::vector<COutput> vecOutputs;
     LOCK2(cs_main, pwallet->cs_wallet);
 
-    pwallet->AvailableCoins(vecOutputs, !include_unsafe, nullptr, nMinimumAmount, nMaximumAmount, nMinimumSumAmount, nMaximumCount, nMinDepth, nMaxDepth);
+    pwallet->AvailableCoins(vecOutputs, !include_unsafe, &coinControl, nMinimumAmount, nMaximumAmount, nMinimumSumAmount, nMaximumCount, nMinDepth, nMaxDepth);
     for (const COutput& out : vecOutputs) {
         CTxDestination address;
         const CScript& scriptPubKey = out.tx->tx->vout[out.i].scriptPubKey;
