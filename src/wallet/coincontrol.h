@@ -17,7 +17,7 @@ enum class CoinType
     ONLY_FULLY_MIXED,
     ONLY_READY_TO_MIX,
     ONLY_NONDENOMINATED,
-    ONLY_1000, // find masternode outputs including locked ones (use with caution)
+    ONLY_MASTERNODE_COLLATERAL, // find masternode outputs including locked ones (use with caution)
     ONLY_PRIVATESEND_COLLATERAL,
     MAX_COIN_TYPE = ONLY_PRIVATESEND_COLLATERAL
 };

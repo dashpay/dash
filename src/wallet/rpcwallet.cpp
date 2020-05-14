@@ -2996,7 +2996,7 @@ UniValue listunspent(const JSONRPCRequest& request)
             "      \"maximumAmount\"    (numeric or string, default=unlimited) Maximum value of each UTXO in " + CURRENCY_UNIT + "\n"
             "      \"maximumCount\"     (numeric or string, default=unlimited) Maximum number of UTXOs\n"
             "      \"minimumSumAmount\" (numeric or string, default=unlimited) Minimum sum value of all UTXOs in " + CURRENCY_UNIT + "\n"
-            "      \"coinType\"         (numeric, default=0) Filter coinTypes as followed: 0=ALL_COINS, 1=ONLY_FULLY_MIXED, 2=ONLY_READY_TO_MIX, 3=ONLY_NONDENOMINATED, 4=ONLY_1000, 5=ONLY_PRIVATESEND_COLLATERAL\n"
+            "      \"coinType\"         (numeric, default=0) Filter coinTypes as followed: 0=ALL_COINS, 1=ONLY_FULLY_MIXED, 2=ONLY_READY_TO_MIX, 3=ONLY_NONDENOMINATED, 4=ONLY_MASTERNODE_COLLATERAL, 5=ONLY_PRIVATESEND_COLLATERAL\n"
             "    }\n"
             "\nResult\n"
             "[                   (array of json object)\n"
