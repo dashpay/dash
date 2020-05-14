@@ -1530,7 +1530,7 @@ bool CPrivateSendClientSession::CreateDenominated(CAmount nBalanceToDenominate, 
 
     // NOTE: We do not allow txes larger than 100kB, so we have to limit the number of outputs here.
     // We still want to create a lot of outputs though.
-    // Knowing that each CTxOut is ~35b big, 400 inputs should take 400 x ~35b = ~17.5kb.
+    // Knowing that each CTxOut is ~35b big, 400 outputs should take 400 x ~35b = ~17.5kb.
     // More than 500 outputs starts to make qt quite laggy.
     // Additionally to need all 500 outputs (assuming a max per denom of 50) you'd need to be trying to
     // create denominations for over 3000 dash!
