@@ -19,7 +19,7 @@ enum class CoinType
     ONLY_NONDENOMINATED,
     ONLY_MASTERNODE_COLLATERAL, // find masternode outputs including locked ones (use with caution)
     ONLY_PRIVATESEND_COLLATERAL,
-    MAX_COIN_TYPE = ONLY_PRIVATESEND_COLLATERAL
+    MAX_COIN_TYPE = ONLY_PRIVATESEND_COLLATERAL,
 };
 
 /** Coin Control Features. */
