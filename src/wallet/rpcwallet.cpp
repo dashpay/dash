@@ -3090,8 +3090,8 @@ UniValue listunspent(const JSONRPCRequest& request)
         if (options.exists("coinType")) {
             int64_t nCoinType = options["coinType"].get_int64();
 
-            if (nCoinType > static_cast<int64_t>(CoinType::MAX_COIN_TYPE)) {
-                throw JSONRPCError(RPC_INVALID_PARAMETER, strprintf("Invalid coinType selected. Available range: %d - %d", static_cast<int64_t>(CoinType::ALL_COINS), static_cast<int64_t>(CoinType::MAX_COIN_TYPE)));
+            if (nCoinType < static_cast<int64_t>(CoinType::MIN_COIN_TYPE) || nCoinType > static_cast<int64_t>(CoinType::MAX_COIN_TYPE)) {
+                throw JSONRPCError(RPC_INVALID_PARAMETER, strprintf("Invalid coinType selected. Available range: %d - %d", static_cast<int64_t>(CoinType::MIN_COIN_TYPE), static_cast<int64_t>(CoinType::MAX_COIN_TYPE)));
             }
 
             coinControl.nCoinType = static_cast<CoinType>(nCoinType);
