@@ -518,7 +518,7 @@ void CChainLocksHandler::EnforceBestChainLock()
                 }
                 LogPrintf("CChainLocksHandler::%s -- CLSIG (%s) invalidates block %s\n",
                           __func__, clsig.ToString(), jt->second->GetBlockHash().ToString());
-                DoInvalidateBlock(jt->second, false);
+                DoInvalidateBlock(jt->second);
             }
 
             pindex = pindex->pprev;
@@ -581,27 +581,18 @@ void CChainLocksHandler::HandleNewRecoveredSig(const llmq::CRecoveredSig& recove
 }
 
 // WARNING, do not hold cs while calling this method as we'll otherwise run into a deadlock
-void CChainLocksHandler::DoInvalidateBlock(const CBlockIndex* pindex, bool activateBestChain)
+void CChainLocksHandler::DoInvalidateBlock(const CBlockIndex* pindex)
 {
+    LOCK(cs_main);
+
     auto& params = Params();
 
-    {
-        LOCK(cs_main);
-
-        // get the non-const pointer
-        CBlockIndex* pindex2 = mapBlockIndex[pindex->GetBlockHash()];
-
-        CValidationState state;
-        if (!InvalidateBlock(state, params, pindex2)) {
-            LogPrintf("CChainLocksHandler::%s -- InvalidateBlock failed: %s\n", __func__, FormatStateMessage(state));
-            // This should not have happened and we are in a state were it's not safe to continue anymore
-            assert(false);
-        }
-    }
+    // get the non-const pointer
+    CBlockIndex* pindex2 = mapBlockIndex[pindex->GetBlockHash()];
 
     CValidationState state;
-    if (activateBestChain && !ActivateBestChain(state, params)) {
-        LogPrintf("CChainLocksHandler::%s -- ActivateBestChain failed: %s\n", __func__, FormatStateMessage(state));
+    if (!InvalidateBlock(state, params, pindex2)) {
+        LogPrintf("CChainLocksHandler::%s -- InvalidateBlock failed: %s\n", __func__, FormatStateMessage(state));
         // This should not have happened and we are in a state were it's not safe to continue anymore
         assert(false);
     }
