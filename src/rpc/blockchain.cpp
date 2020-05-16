@@ -239,10 +239,6 @@ UniValue getbestchainlock(const JSONRPCRequest& request)
         );
     UniValue result(UniValue::VOBJ);
 
-    if (fLiteMode) {
-        throw JSONRPCError(RPC_INTERNAL_ERROR, "Chainlock information not available in litemode.");
-    }
-
     llmq::CChainLockSig clsig = llmq::chainLocksHandler->GetBestChainLock();
     if (clsig.IsNull()) {
         throw JSONRPCError(RPC_INTERNAL_ERROR, "Unable to find any chainlock");
