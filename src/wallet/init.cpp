@@ -63,7 +63,8 @@ std::string WalletInit::GetHelpString(bool showDebug)
     strUsage += HelpMessageOpt("-privatesendsessions=<n>", strprintf(_("Use N separate masternodes in parallel to mix funds (%u-%u, default: %u)"), MIN_PRIVATESEND_SESSIONS, MAX_PRIVATESEND_SESSIONS, DEFAULT_PRIVATESEND_SESSIONS));
     strUsage += HelpMessageOpt("-privatesendrounds=<n>", strprintf(_("Use N separate masternodes for each denominated input to mix funds (%u-%u, default: %u)"), MIN_PRIVATESEND_ROUNDS, MAX_PRIVATESEND_ROUNDS, DEFAULT_PRIVATESEND_ROUNDS));
     strUsage += HelpMessageOpt("-privatesendamount=<n>", strprintf(_("Target PrivateSend balance (%u-%u, default: %u)"), MIN_PRIVATESEND_AMOUNT, MAX_PRIVATESEND_AMOUNT, DEFAULT_PRIVATESEND_AMOUNT));
-    strUsage += HelpMessageOpt("-privatesenddenoms=<n>", strprintf(_("Create up to N inputs of each denominated amount (%u-%u, default: %u)"), MIN_PRIVATESEND_DENOMS, MAX_PRIVATESEND_DENOMS, DEFAULT_PRIVATESEND_DENOMS));
+    strUsage += HelpMessageOpt("-privatesenddenomsbatched=<n>", strprintf(_("Try to create at least N inputs of each denominated amount in batches (%u-%u, default: %u)"), MIN_PRIVATESEND_DENOMS_BATCHED, MAX_PRIVATESEND_DENOMS_BATCHED, DEFAULT_PRIVATESEND_DENOMS_BATCHED));
+    strUsage += HelpMessageOpt("-privatesenddenomshardcap=<n>", strprintf(_("Create up to N inputs of each denominated amount (%u-%u, default: %u)"), MIN_PRIVATESEND_DENOMS_HARDCAP, MAX_PRIVATESEND_DENOMS_HARDCAP, DEFAULT_PRIVATESEND_DENOMS_HARDCAP));
 
     if (showDebug)
     {
@@ -220,6 +221,19 @@ bool WalletInit::ParameterInteraction()
         LogPrintf("%s: parameter interaction: can't use -hdseed and -mnemonic/-mnemonicpassphrase together, will prefer -seed\n", __func__);
     }
 
+    if (gArgs.IsArgSet("-privatesenddenoms")) {
+        int nDenomsDeprecated = gArgs.GetArg("-privatesenddenoms", DEFAULT_PRIVATESEND_DENOMS_HARDCAP);
+        InitWarning("Warning: -privatesenddenoms is deprecated, please use -privatesenddenomshardcap instead.\n");
+        if (gArgs.SoftSetArg("-privatesenddenomshardcap", itostr(nDenomsDeprecated))) {
+            LogPrintf("%s: parameter interaction: -privatesenddenoms=%d -> setting -privatesenddenomshardcap=%d\n", __func__, nDenomsDeprecated, nDenomsDeprecated);
+        }
+        gArgs.ForceRemoveArg("-privatesenddenoms");
+    }
+
+    if (gArgs.GetArg("-privatesenddenomshardcap", DEFAULT_PRIVATESEND_DENOMS_HARDCAP) < gArgs.GetArg("-privatesenddenomsbatched", DEFAULT_PRIVATESEND_DENOMS_BATCHED)) {
+        return InitError("-privatesenddenomshardcap can't be lower than -privatesenddenomsbatched");
+    }
+
     return true;
 }
 
@@ -361,14 +375,16 @@ void WalletInit::InitPrivateSendSettings()
     privateSendClient.nPrivateSendSessions = std::min(std::max((int)gArgs.GetArg("-privatesendsessions", DEFAULT_PRIVATESEND_SESSIONS), MIN_PRIVATESEND_SESSIONS), MAX_PRIVATESEND_SESSIONS);
     privateSendClient.nPrivateSendRounds = std::min(std::max((int)gArgs.GetArg("-privatesendrounds", DEFAULT_PRIVATESEND_ROUNDS), MIN_PRIVATESEND_ROUNDS), MAX_PRIVATESEND_ROUNDS);
     privateSendClient.nPrivateSendAmount = std::min(std::max((int)gArgs.GetArg("-privatesendamount", DEFAULT_PRIVATESEND_AMOUNT), MIN_PRIVATESEND_AMOUNT), MAX_PRIVATESEND_AMOUNT);
-    privateSendClient.nPrivateSendDenoms = std::min(std::max((int)gArgs.GetArg("-privatesenddenoms", DEFAULT_PRIVATESEND_DENOMS), MIN_PRIVATESEND_DENOMS), MAX_PRIVATESEND_DENOMS);
+    privateSendClient.nPrivateSendDenomsBatched = std::min(std::max((int)gArgs.GetArg("-privatesenddenomsbatched", DEFAULT_PRIVATESEND_DENOMS_BATCHED), MIN_PRIVATESEND_DENOMS_BATCHED), MAX_PRIVATESEND_DENOMS_BATCHED);
+    privateSendClient.nPrivateSendDenomsHardCap = std::min(std::max((int)gArgs.GetArg("-privatesenddenomshardcap", DEFAULT_PRIVATESEND_DENOMS_HARDCAP), MIN_PRIVATESEND_DENOMS_HARDCAP), MAX_PRIVATESEND_DENOMS_HARDCAP);
 
     if (privateSendClient.fEnablePrivateSend) {
         LogPrintf("PrivateSend: autostart=%d, multisession=%d, "
-                  "sessions=%d, rounds=%d, amount=%d, denoms=%d\n",
+                  "sessions=%d, rounds=%d, amount=%d, denoms_batched=%d, denoms_hardcap=%d\n",
                   privateSendClient.fPrivateSendRunning, privateSendClient.fPrivateSendMultiSession,
                   privateSendClient.nPrivateSendSessions, privateSendClient.nPrivateSendRounds,
-                  privateSendClient.nPrivateSendAmount, privateSendClient.nPrivateSendDenoms);
+                  privateSendClient.nPrivateSendAmount,
+                  privateSendClient.nPrivateSendDenomsBatched, privateSendClient.nPrivateSendDenomsHardCap);
     }
 
 }
