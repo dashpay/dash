@@ -1557,7 +1557,7 @@ bool CPrivateSendClientSession::CreateDenominated(CAmount nBalanceToDenominate, 
             };
 
             // add each output up to 11 times or until it can't be added again or until we reach nPrivateSendDenomsBatched
-            while (needMoreOutputs() && nOutputs <= 10 && currentDenomIt->second <= privateSendClient.nPrivateSendDenomsBatched) {
+            while (needMoreOutputs() && nOutputs <= 10 && currentDenomIt->second < privateSendClient.nPrivateSendDenomsBatched) {
                 CScript scriptDenom = keyHolderStorageDenom.AddKey(GetWallets()[0]);
 
                 vecSend.push_back((CRecipient) {scriptDenom, nDenomValue, false});
@@ -1581,7 +1581,7 @@ bool CPrivateSendClientSession::CreateDenominated(CAmount nBalanceToDenominate, 
         for (auto it : mapDenomCount) {
             // Check if this specific denom could use another loop, check that there aren't nPrivateSendDenomsBatched of this
             // denom and that our nValueLeft/nBalanceToDenominate is enough to create one of these denoms, if so, loop again.
-            if (it.second <= privateSendClient.nPrivateSendDenomsBatched && nValueLeft >= it.first && nBalanceToDenominate >= it.first) {
+            if (it.second < privateSendClient.nPrivateSendDenomsBatched && nValueLeft >= it.first && nBalanceToDenominate >= it.first) {
                 finished = false;
                 break;
             }
