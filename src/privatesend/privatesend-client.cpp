@@ -1603,7 +1603,7 @@ bool CPrivateSendClientSession::CreateDenominated(CAmount nBalanceToDenominate, 
         CAmount nLargestDenomValue = vecStandardDenoms.front();
 
         // Go big to small
-        for (long nDenomValue : vecStandardDenoms) {
+        for (auto nDenomValue : vecStandardDenoms) {
             int nOutputs = 0;
 
             // Number of denoms we can create given our denom and the amount of funds we have left
