@@ -1568,8 +1568,8 @@ bool CPrivateSendClientSession::CreateDenominated(CAmount nBalanceToDenominate, 
                 nValueLeft -= nDenomValue;
                 nBalanceToDenominate -= nDenomValue;
                 LogPrint(BCLog::PRIVATESEND,
-                         "CPrivateSendClientSession::CreateDenominated -- 1 - totalOutputs: %d, nOutputsTotal: %d, nOutputs: %d, nValueLeft: %f\n",
-                         nOutputsTotal + nOutputs, nOutputsTotal, nOutputs, (float) nValueLeft / COIN);
+                         "CPrivateSendClientSession::CreateDenominated -- 1 - nDenomValue: %f, totalOutputs: %d, nOutputsTotal: %d, nOutputs: %d, nValueLeft: %f, nBalanceToDenominate: %f\n",
+                         (float) nDenomValue / COIN, nOutputsTotal + nOutputs, nOutputsTotal, nOutputs, (float) nValueLeft / COIN, (float) nBalanceToDenominate / COIN);
                 if (nOutputs + nOutputsTotal >= MAX_PRIVATESEND_DENOM_OUTPUTS) break;
             }
 
@@ -1578,13 +1578,19 @@ bool CPrivateSendClientSession::CreateDenominated(CAmount nBalanceToDenominate, 
         }
 
         bool finished = true;
-        for (auto it : mapDenomCount) {
+        for (const auto it : mapDenomCount) {
             // Check if this specific denom could use another loop, check that there aren't nPrivateSendDenomsBatched of this
             // denom and that our nValueLeft/nBalanceToDenominate is enough to create one of these denoms, if so, loop again.
             if (it.second < privateSendClient.nPrivateSendDenomsBatched && nValueLeft >= it.first && nBalanceToDenominate >= it.first) {
                 finished = false;
+                LogPrint(BCLog::PRIVATESEND,
+                        "CPrivateSendClientSession::CreateDenominated -- 1 - NOT finished - nDenomValue: %f, count: %d, nValueLeft: %f, nBalanceToDenominate: %f\n",
+                        (float) it.first / COIN, it.second, (float) nValueLeft / COIN, (float) nBalanceToDenominate / COIN);
                 break;
             }
+            LogPrint(BCLog::PRIVATESEND,
+                    "CPrivateSendClientSession::CreateDenominated -- 1 - FINSHED - nDenomValue: %f, count: %d, nValueLeft: %f, nBalanceToDenominate: %f\n",
+                    (float) it.first / COIN, it.second, (float) nValueLeft / COIN, (float) nBalanceToDenominate / COIN);
         }
 
         if (finished) break;
@@ -1619,9 +1625,8 @@ bool CPrivateSendClientSession::CreateDenominated(CAmount nBalanceToDenominate, 
                 nValueLeft -= nDenomValue;
                 nBalanceToDenominate -= nDenomValue;
                 LogPrint(BCLog::PRIVATESEND,
-                         "CPrivateSendClientSession::CreateDenominated -- 1 - totalOutputs: %d, nOutputsTotal: %d, nOutputs: %d, nValueLeft: %f\n",
-                         nOutputsTotal + nOutputs, nOutputsTotal, nOutputs, (float) nValueLeft / COIN);
-
+                         "CPrivateSendClientSession::CreateDenominated -- 2 - nDenomValue: %f, totalOutputs: %d, nOutputsTotal: %d, nOutputs: %d, nValueLeft: %f, nBalanceToDenominate: %f\n",
+                         (float) nDenomValue / COIN, nOutputsTotal + nOutputs, nOutputsTotal, nOutputs, (float) nValueLeft / COIN, (float) nBalanceToDenominate / COIN);
                 if (nOutputs + nOutputsTotal >= MAX_PRIVATESEND_DENOM_OUTPUTS) break;
             }
             nOutputsTotal += nOutputs;
@@ -1629,7 +1634,14 @@ bool CPrivateSendClientSession::CreateDenominated(CAmount nBalanceToDenominate, 
         }
     }
 
-    LogPrint(BCLog::PRIVATESEND, "CPrivateSendClientSession::CreateDenominated -- 2 - nOutputsTotal: %d, nValueLeft: %f\n", nOutputsTotal, (float)nValueLeft / COIN);
+    LogPrint(BCLog::PRIVATESEND, "CPrivateSendClientSession::CreateDenominated -- 3 - nOutputsTotal: %d, nValueLeft: %f, nBalanceToDenominate: %f\n",
+            nOutputsTotal, (float)nValueLeft / COIN, (float)nBalanceToDenominate / COIN);
+
+    for (const auto it : mapDenomCount) {
+        LogPrint(BCLog::PRIVATESEND,
+                "CPrivateSendClientSession::CreateDenominated -- 3 - DONE - nDenomValue: %f, count: %d\n",
+                (float) it.first / COIN, it.second);
+    }
 
     // No reasons to create mixing collaterals if we can't create denoms to mix
     if (nOutputsTotal == 0) return false;
