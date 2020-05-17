@@ -1528,22 +1528,17 @@ bool CPrivateSendClientSession::CreateDenominated(CAmount nBalanceToDenominate, 
         mapDenomCount.insert(std::pair<CAmount, int>(nDenomValue, GetWallets()[0]->CountInputsWithAmount(nDenomValue)));
     }
 
-    // NOTE: We do not allow txes larger than 100kB, so we have to limit the number of outputs here.
-    // We still want to create a lot of outputs though.
-    // Knowing that each CTxOut is ~35b big, 400 outputs should take 400 x ~35b = ~17.5kb.
-    // More than 500 outputs starts to make qt quite laggy.
-    // Additionally to need all 500 outputs (assuming a max per denom of 50) you'd need to be trying to
-    // create denominations for over 3000 dash!
-
     // Will generate outputs for the createdenoms up to privatesendmaxdenoms per denom
 
     // This works in the way creating PS denoms has traditionally worked, assuming enough funds,
     // it will start with the smallest denom then create 11 of those, then go up to the next biggest denom create 11
     // and repeat. Previously, once the largest denom was reached, as many would be created were created as possible and
     // then any remaining was put into a change address and denominations were created in the same manner a block later.
-    // Now, in this system, so long as we don't reach 500 outputs the process repeats in the same transaction,
+    // Now, in this system, so long as we don't reach MAX_PRIVATESEND_DENOM_OUTPUTS outputs the process repeats in the same transaction,
     // creating up to privatesenddenoms per denomination in a single transaction.
-    while (nValueLeft >= CPrivateSend::GetSmallestDenomination() && nOutputsTotal <= 500) {
+
+    while (nValueLeft >= CPrivateSend::GetSmallestDenomination() && nOutputsTotal < MAX_PRIVATESEND_DENOM_OUTPUTS) {
+
         for (auto it = vecStandardDenoms.rbegin(); it != vecStandardDenoms.rend(); ++it) {
             CAmount nDenomValue = *it;
             auto currentDenomIt = mapDenomCount.find(nDenomValue);
@@ -1575,10 +1570,11 @@ bool CPrivateSendClientSession::CreateDenominated(CAmount nBalanceToDenominate, 
                 LogPrint(BCLog::PRIVATESEND,
                          "CPrivateSendClientSession::CreateDenominated -- 1 - totalOutputs: %d, nOutputsTotal: %d, nOutputs: %d, nValueLeft: %f\n",
                          nOutputsTotal + nOutputs, nOutputsTotal, nOutputs, (float) nValueLeft / COIN);
+                if (nOutputs + nOutputsTotal >= MAX_PRIVATESEND_DENOM_OUTPUTS) break;
             }
 
             nOutputsTotal += nOutputs;
-            if (nValueLeft == 0 || nBalanceToDenominate <= 0) break;
+            if (nValueLeft == 0 || nBalanceToDenominate <= 0 || nOutputsTotal >= MAX_PRIVATESEND_DENOM_OUTPUTS) break;
         }
 
         bool finished = true;
@@ -1596,7 +1592,7 @@ bool CPrivateSendClientSession::CreateDenominated(CAmount nBalanceToDenominate, 
 
     // Now that nPrivateSendDenomsBatched worth of each denom have been created or the max number of denoms given the value of the input, do something with the remainder.
     if (nValueLeft >= CPrivateSend::GetSmallestDenomination() && nBalanceToDenominate >= CPrivateSend::GetSmallestDenomination()
-           && nOutputsTotal < 500) {
+           && nOutputsTotal < MAX_PRIVATESEND_DENOM_OUTPUTS) {
 
         CAmount nLargestDenomValue = vecStandardDenoms.front();
 
@@ -1626,8 +1622,10 @@ bool CPrivateSendClientSession::CreateDenominated(CAmount nBalanceToDenominate, 
                          "CPrivateSendClientSession::CreateDenominated -- 1 - totalOutputs: %d, nOutputsTotal: %d, nOutputs: %d, nValueLeft: %f\n",
                          nOutputsTotal + nOutputs, nOutputsTotal, nOutputs, (float) nValueLeft / COIN);
 
+                if (nOutputs + nOutputsTotal >= MAX_PRIVATESEND_DENOM_OUTPUTS) break;
             }
             nOutputsTotal += nOutputs;
+            if (nOutputsTotal >= MAX_PRIVATESEND_DENOM_OUTPUTS) break;
         }
     }
 
