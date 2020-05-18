@@ -223,7 +223,7 @@ bool WalletInit::ParameterInteraction()
 
     if (gArgs.IsArgSet("-privatesenddenoms")) {
         int nDenomsDeprecated = gArgs.GetArg("-privatesenddenoms", DEFAULT_PRIVATESEND_DENOMS_HARDCAP);
-        InitWarning("Warning: -privatesenddenoms is deprecated, please use -privatesenddenomshardcap instead.\n");
+        InitWarning("Warning: -privatesenddenoms is deprecated, please use -privatesenddenomshardcap or -privatesenddenomsgoal.\n");
         if (gArgs.SoftSetArg("-privatesenddenomshardcap", itostr(nDenomsDeprecated))) {
             LogPrintf("%s: parameter interaction: -privatesenddenoms=%d -> setting -privatesenddenomshardcap=%d\n", __func__, nDenomsDeprecated, nDenomsDeprecated);
         }
