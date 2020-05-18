@@ -380,7 +380,7 @@ void WalletInit::InitPrivateSendSettings()
 
     if (privateSendClient.fEnablePrivateSend) {
         LogPrintf("PrivateSend: autostart=%d, multisession=%d, "
-                  "sessions=%d, rounds=%d, amount=%d, denoms_batched=%d, denoms_hardcap=%d\n",
+                  "sessions=%d, rounds=%d, amount=%d, denoms_goal=%d, denoms_hardcap=%d\n",
                   privateSendClient.fPrivateSendRunning, privateSendClient.fPrivateSendMultiSession,
                   privateSendClient.nPrivateSendSessions, privateSendClient.nPrivateSendRounds,
                   privateSendClient.nPrivateSendAmount,
