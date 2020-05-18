@@ -1561,8 +1561,8 @@ bool CPrivateSendClientSession::CreateDenominated(CAmount nBalanceToDenominate, 
                 return fRegular || fFinal;
             };
 
-            // add each output up to 11 times or until it can't be added again or until we reach nPrivateSendDenomsBatched
-            while (needMoreOutputs() && nOutputs <= 10 && currentDenomIt->second < privateSendClient.nPrivateSendDenomsBatched) {
+            // add each output up to 11 times or until it can't be added again or until we reach nPrivateSendDenomsGoal
+            while (needMoreOutputs() && nOutputs <= 10 && currentDenomIt->second < privateSendClient.nPrivateSendDenomsGoal) {
                 CScript scriptDenom = keyHolderStorageDenom.AddKey(GetWallets()[0]);
 
                 vecSend.push_back((CRecipient) {scriptDenom, nDenomValue, false});
@@ -1584,9 +1584,9 @@ bool CPrivateSendClientSession::CreateDenominated(CAmount nBalanceToDenominate, 
 
         bool finished = true;
         for (const auto it : mapDenomCount) {
-            // Check if this specific denom could use another loop, check that there aren't nPrivateSendDenomsBatched of this
+            // Check if this specific denom could use another loop, check that there aren't nPrivateSendDenomsGoal of this
             // denom and that our nValueLeft/nBalanceToDenominate is enough to create one of these denoms, if so, loop again.
-            if (it.second < privateSendClient.nPrivateSendDenomsBatched && nValueLeft >= it.first && nBalanceToDenominate > 0) {
+            if (it.second < privateSendClient.nPrivateSendDenomsGoal && nValueLeft >= it.first && nBalanceToDenominate > 0) {
                 finished = false;
                 LogPrint(BCLog::PRIVATESEND,
                         "CPrivateSendClientSession::CreateDenominated -- 1 - NOT finished - nDenomValue: %f, count: %d, nValueLeft: %f, nBalanceToDenominate: %f\n",
@@ -1601,7 +1601,7 @@ bool CPrivateSendClientSession::CreateDenominated(CAmount nBalanceToDenominate, 
         if (finished) break;
     }
 
-    // Now that nPrivateSendDenomsBatched worth of each denom have been created or the max number of denoms given the value of the input, do something with the remainder.
+    // Now that nPrivateSendDenomsGoal worth of each denom have been created or the max number of denoms given the value of the input, do something with the remainder.
     if (nValueLeft >= CPrivateSend::GetSmallestDenomination() && nBalanceToDenominate >= CPrivateSend::GetSmallestDenomination()
            && nOutputsTotal < MAX_PRIVATESEND_DENOM_OUTPUTS) {
 
@@ -1762,7 +1762,7 @@ void CPrivateSendClientManager::GetJsonInfo(UniValue& obj) const
     obj.push_back(Pair("max_sessions",  nPrivateSendSessions));
     obj.push_back(Pair("max_rounds",    nPrivateSendRounds));
     obj.push_back(Pair("max_amount",    nPrivateSendAmount));
-    obj.push_back(Pair("max_denoms_batched",    nPrivateSendDenomsBatched));
+    obj.push_back(Pair("max_denoms_goal",    nPrivateSendDenomsGoal));
     obj.push_back(Pair("max_denoms_hardcap",    nPrivateSendDenomsHardCap));
     obj.push_back(Pair("queue_size",    GetQueueSize()));
 

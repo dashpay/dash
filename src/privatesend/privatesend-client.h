@@ -19,17 +19,17 @@ class UniValue;
 static const int MIN_PRIVATESEND_SESSIONS = 1;
 static const int MIN_PRIVATESEND_ROUNDS = 2;
 static const int MIN_PRIVATESEND_AMOUNT = 2;
-static const int MIN_PRIVATESEND_DENOMS_BATCHED = 10;
+static const int MIN_PRIVATESEND_DENOMS_GOAL = 10;
 static const int MIN_PRIVATESEND_DENOMS_HARDCAP = 10;
 static const int MAX_PRIVATESEND_SESSIONS = 10;
 static const int MAX_PRIVATESEND_ROUNDS = 16;
-static const int MAX_PRIVATESEND_DENOMS_BATCHED = 100000;
+static const int MAX_PRIVATESEND_DENOMS_GOAL = 100000;
 static const int MAX_PRIVATESEND_DENOMS_HARDCAP = 100000;
 static const int MAX_PRIVATESEND_AMOUNT = MAX_MONEY / COIN;
 static const int DEFAULT_PRIVATESEND_SESSIONS = 4;
 static const int DEFAULT_PRIVATESEND_ROUNDS = 4;
 static const int DEFAULT_PRIVATESEND_AMOUNT = 1000;
-static const int DEFAULT_PRIVATESEND_DENOMS_BATCHED = 50;
+static const int DEFAULT_PRIVATESEND_DENOMS_GOAL = 50;
 static const int DEFAULT_PRIVATESEND_DENOMS_HARDCAP = 300;
 
 static const bool DEFAULT_PRIVATESEND_AUTOSTART = false;
@@ -204,7 +204,7 @@ public:
     int nPrivateSendSessions;
     int nPrivateSendRounds;
     int nPrivateSendAmount;
-    int nPrivateSendDenomsBatched;
+    int nPrivateSendDenomsGoal;
     int nPrivateSendDenomsHardCap;
     bool fEnablePrivateSend;
     bool fPrivateSendRunning;
@@ -222,7 +222,7 @@ public:
         nCachedBlockHeight(0),
         nPrivateSendRounds(DEFAULT_PRIVATESEND_ROUNDS),
         nPrivateSendAmount(DEFAULT_PRIVATESEND_AMOUNT),
-        nPrivateSendDenomsBatched(DEFAULT_PRIVATESEND_DENOMS_BATCHED),
+        nPrivateSendDenomsGoal(DEFAULT_PRIVATESEND_DENOMS_GOAL),
         nPrivateSendDenomsHardCap(DEFAULT_PRIVATESEND_DENOMS_HARDCAP),
         fEnablePrivateSend(false),
         fPrivateSendRunning(false),
