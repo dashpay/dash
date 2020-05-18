@@ -35,14 +35,15 @@ static const int DEFAULT_PRIVATESEND_DENOMS_HARDCAP = 300;
 static const bool DEFAULT_PRIVATESEND_AUTOSTART = false;
 static const bool DEFAULT_PRIVATESEND_MULTISESSION = false;
 
-// How many denom outputs to create in CreateDenominated
+// How many new denom outputs to create before we consider the "goal" loop in CreateDenominated
+// a final one and start creating an actual tx. Same limit applies for the "hard cap" part of the algo.
 // NOTE: We do not allow txes larger than 100kB, so we have to limit the number of outputs here.
 // We still want to create a lot of outputs though.
 // Knowing that each CTxOut is ~35b big, 400 outputs should take 400 x ~35b = ~17.5kb.
 // More than 500 outputs starts to make qt quite laggy.
 // Additionally to need all 500 outputs (assuming a max per denom of 50) you'd need to be trying to
 // create denominations for over 3000 dash!
-static const int MAX_PRIVATESEND_DENOM_OUTPUTS = 500;
+static const int PRIVATESEND_DENOM_OUTPUTS_THRESHOLD = 500;
 
 // Warn user if mixing in gui or try to create backup if mixing in daemon mode
 // when we have only this many keys left
