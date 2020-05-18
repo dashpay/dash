@@ -1551,7 +1551,12 @@ bool CPrivateSendClientSession::CreateDenominated(CAmount nBalanceToDenominate, 
                                && nValueLeft >= nDenomValue
                                && nBalanceToDenominate > 0
                                && nBalanceToDenominate < nDenomValue);
-                fAddFinal = false; // add final denom only once, only the smalest possible one
+                if (fFinal) {
+                    fAddFinal = false; // add final denom only once, only the smalest possible one
+                    LogPrint(BCLog::PRIVATESEND,
+                             "CPrivateSendClientSession::CreateDenominated -- 1 - FINAL - nDenomValue: %f, nValueLeft: %f, nBalanceToDenominate: %f\n",
+                             (float) nDenomValue / COIN, (float) nValueLeft / COIN, (float) nBalanceToDenominate / COIN);
+                }
 
                 return fRegular || fFinal;
             };
@@ -1581,7 +1586,7 @@ bool CPrivateSendClientSession::CreateDenominated(CAmount nBalanceToDenominate, 
         for (const auto it : mapDenomCount) {
             // Check if this specific denom could use another loop, check that there aren't nPrivateSendDenomsBatched of this
             // denom and that our nValueLeft/nBalanceToDenominate is enough to create one of these denoms, if so, loop again.
-            if (it.second < privateSendClient.nPrivateSendDenomsBatched && nValueLeft >= it.first && nBalanceToDenominate >= it.first) {
+            if (it.second < privateSendClient.nPrivateSendDenomsBatched && nValueLeft >= it.first && nBalanceToDenominate > 0) {
                 finished = false;
                 LogPrint(BCLog::PRIVATESEND,
                         "CPrivateSendClientSession::CreateDenominated -- 1 - NOT finished - nDenomValue: %f, count: %d, nValueLeft: %f, nBalanceToDenominate: %f\n",
