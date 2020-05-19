@@ -33,13 +33,17 @@ std::string CChainLockSig::ToString() const
     return strprintf("CChainLockSig(nHeight=%d, blockHash=%s)", nHeight, blockHash.ToString());
 }
 
-CChainLocksHandler::CChainLocksHandler(CScheduler* _scheduler) :
-    scheduler(_scheduler)
+CChainLocksHandler::CChainLocksHandler()
 {
+    scheduler = new CScheduler();
+    CScheduler::Function serviceLoop = boost::bind(&CScheduler::serviceQueue, scheduler);
+    scheduler_thread = new boost::thread(boost::bind(&TraceThread<CScheduler::Function>, "cl-scheduler", serviceLoop));
 }
 
 CChainLocksHandler::~CChainLocksHandler()
 {
+    delete scheduler_thread;
+    delete scheduler;
 }
 
 void CChainLocksHandler::Start()
@@ -56,6 +60,8 @@ void CChainLocksHandler::Start()
 void CChainLocksHandler::Stop()
 {
     quorumSigningManager->UnregisterRecoveredSigsListener(this);
+    scheduler_thread->interrupt();
+    scheduler_thread->join();
 }
 
 bool CChainLocksHandler::AlreadyHave(const CInv& inv)
