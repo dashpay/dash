@@ -1,0 +1,3 @@
+# Add 'RPC' to any changes within 'src/rpc/*'
+RPC:
+  - src/rpc/*
