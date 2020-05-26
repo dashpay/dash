@@ -1324,7 +1324,7 @@ void CInstantSendManager::ResolveBlockConflicts(const uint256& islockHash, const
 
     if (activateBestChain) {
         CValidationState state;
-        if (!ActivateBestChain(state, Params(), std::shared_ptr<const CBlock>(), false /* fSyncQueue */)) {
+        if (!ActivateBestChain(state, Params())) {
             LogPrintf("CChainLocksHandler::%s -- ActivateBestChain failed: %s\n", __func__, FormatStateMessage(state));
             // This should not have happened and we are in a state were it's not safe to continue anymore
             assert(false);

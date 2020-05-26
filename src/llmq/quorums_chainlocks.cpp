@@ -540,13 +540,9 @@ void CChainLocksHandler::EnforceBestChainLock()
         activateNeeded = chainActive.Tip()->GetAncestor(currentBestChainLockBlockIndex->nHeight) != currentBestChainLockBlockIndex;
     }
 
-    if (activateNeeded) {
-        CValidationState state;
-        if (!ActivateBestChain(state, Params(), std::shared_ptr<const CBlock>(), false /* fSyncQueue */)) {
-            LogPrintf("CChainLocksHandler::%s -- ActivateBestChain failed: %s\n", __func__, FormatStateMessage(state));
-            // This should not have happened and we are in a state were it's not safe to continue anymore
-            assert(false);
-        }
+    CValidationState state;
+    if (activateNeeded && !ActivateBestChain(state, Params())) {
+        LogPrintf("CChainLocksHandler::%s -- ActivateBestChain failed: %s\n", __func__, FormatStateMessage(state));
     }
 
     const CBlockIndex* pindexNotify = nullptr;
