@@ -187,6 +187,9 @@ public:
 
 class CDeterministicMN
 {
+private:
+    uint64_t internalId{std::numeric_limits<uint64_t>::max()};
+
 public:
     CDeterministicMN() {}
     template <typename Stream>
@@ -196,7 +199,6 @@ public:
     }
 
     uint256 proTxHash;
-    uint64_t internalId{std::numeric_limits<uint64_t>::max()};
     COutPoint collateralOutpoint;
     uint16_t nOperatorReward;
     CDeterministicMNStateCPtr pdmnState;
@@ -226,7 +228,9 @@ public:
         SerializationOp(s, CSerActionUnserialize(), oldFormat);
     }
 
-public:
+    void SetInternalId(uint64_t _internalId);
+    uint64_t GetInternalId() const;
+
     std::string ToString() const;
     void ToJson(UniValue& obj) const;
 };
