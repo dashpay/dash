@@ -298,6 +298,8 @@ public:
     //! Check whether all prevouts of the transaction are present in the UTXO set represented by this view
     bool HaveInputs(const CTransaction& tx) const;
 
+    std::vector<std::pair<COutPoint, Coin>> GetAllCoins() const;
+
 private:
     CCoinsMap::iterator FetchCoin(const COutPoint &outpoint) const;
 
@@ -305,6 +307,7 @@ private:
      * By making the copy constructor private, we prevent accidentally using it when one intends to create a cache on top of a base cache.
      */
     CCoinsViewCache(const CCoinsViewCache &);
+
 };
 
 //! Utility function to add all of a transaction's outputs to a cache.

@@ -65,6 +65,29 @@ bool CCoinsViewCache::GetCoin(const COutPoint &outpoint, Coin &coin) const {
     return false;
 }
 
+std::vector<std::pair<COutPoint, Coin>> CCoinsViewCache::GetAllCoins() const {
+    std::vector<std::pair<COutPoint, Coin>> coins;
+
+    for (CCoinsViewCursor *iter = base->Cursor(); iter->Valid(); iter->Next()) {
+        COutPoint key;
+        if (!iter->GetKey(key)) {
+            continue;
+        }
+        Coin val;
+        if (!iter->GetValue(val)) {
+            continue;
+        }
+
+        coins.push_back(std::make_pair(key, val));
+    }
+
+    std::sort(coins.begin(), coins.end(), [](const std::pair<COutPoint, Coin>& a, const std::pair<COutPoint, Coin>& b) -> bool {
+        return a.first.hash < b.first.hash || a.first.n < b.first.n;
+    });
+
+    return coins;
+}
+
 void CCoinsViewCache::AddCoin(const COutPoint &outpoint, Coin&& coin, bool possible_overwrite) {
     assert(!coin.IsSpent());
     if (coin.out.scriptPubKey.IsUnspendable()) return;
