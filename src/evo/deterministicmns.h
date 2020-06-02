@@ -191,7 +191,11 @@ private:
     uint64_t internalId{std::numeric_limits<uint64_t>::max()};
 
 public:
-    CDeterministicMN() {}
+    CDeterministicMN(uint64_t internalId = std::numeric_limits<uint64_t>::max()) : internalId(internalId) {}
+    CDeterministicMN(const CDeterministicMN& mn, uint64_t internalId) : CDeterministicMN(mn) {
+        this->internalId = internalId;
+    }
+
     template <typename Stream>
     CDeterministicMN(deserialize_type, Stream& s)
     {
@@ -228,7 +232,6 @@ public:
         SerializationOp(s, CSerActionUnserialize(), oldFormat);
     }
 
-    void SetInternalId(uint64_t _internalId);
     uint64_t GetInternalId() const;
 
     std::string ToString() const;

@@ -65,14 +65,6 @@ void CDeterministicMNState::ToJson(UniValue& obj) const
     }
 }
 
-void CDeterministicMN::SetInternalId(uint64_t _internalId)
-{
-    // can only set it once
-    assert(internalId == std::numeric_limits<uint64_t>::max());
-    // and only to a non-initial value
-    assert(_internalId != std::numeric_limits<uint64_t>::max());
-    internalId = _internalId;
-}
 uint64_t CDeterministicMN::GetInternalId() const
 {
     // can't get it if it wasn't set yet
@@ -695,9 +687,8 @@ bool CDeterministicMNManager::BuildNewListFromBlock(const CBlock& block, const C
                 return _state.DoS(100, false, REJECT_INVALID, "bad-protx-payload");
             }
 
-            auto dmn = std::make_shared<CDeterministicMN>();
+            auto dmn = std::make_shared<CDeterministicMN>(newList.GetTotalRegisteredCount());
             dmn->proTxHash = tx.GetHash();
-            dmn->SetInternalId(newList.GetTotalRegisteredCount());
 
             // collateralOutpoint is either pointing to an external collateral or to the ProRegTx itself
             if (proTx.collateralOutpoint.hash.IsNull()) {
@@ -1043,10 +1034,8 @@ bool CDeterministicMNManager::UpgradeDiff(CDBBatch& batch, const CBlockIndex* pi
     CDeterministicMNListDiff newDiff;
     size_t addedCount = 0;
     for (auto& p : oldDiff.addedMNs) {
-        auto dmn = std::make_shared<CDeterministicMN>(*p.second);
-        dmn->SetInternalId(curMNList.GetTotalRegisteredCount() + addedCount);
+        auto dmn = std::make_shared<CDeterministicMN>(*p.second, curMNList.GetTotalRegisteredCount() + addedCount);
         newDiff.addedMNs.emplace_back(dmn);
-
         addedCount++;
     }
     for (auto& p : oldDiff.removedMns) {
