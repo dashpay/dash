@@ -198,7 +198,7 @@ bool CalcCbTxMerkleRootQuorums(const CBlock& block, const CBlockIndex* pindexPre
         if (tx->nVersion == 3 && tx->nType == TRANSACTION_QUORUM_COMMITMENT) {
             llmq::CFinalCommitmentTxPayload qc;
             if (!GetTxPayload(*tx, qc)) {
-                return state.DoS(100, false, REJECT_INVALID, "bad-protx-payload");
+                return state.DoS(100, false, REJECT_INVALID, "bad-qc-payload");
             }
             if (qc.commitment.IsNull()) {
                 continue;
