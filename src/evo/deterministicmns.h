@@ -191,9 +191,17 @@ private:
     uint64_t internalId{std::numeric_limits<uint64_t>::max()};
 
 public:
-    CDeterministicMN(uint64_t internalId = std::numeric_limits<uint64_t>::max()) : internalId(internalId) {}
-    CDeterministicMN(const CDeterministicMN& mn, uint64_t internalId) : CDeterministicMN(mn) {
-        this->internalId = internalId;
+    CDeterministicMN() = delete; // no default constructor, must specify internalId
+    CDeterministicMN(uint64_t _internalId) : internalId(_internalId)
+    {
+        // only non-initial values
+        assert(_internalId != std::numeric_limits<uint64_t>::max());
+    }
+    // TODO: can be removed in a future version
+    CDeterministicMN(const CDeterministicMN& mn, uint64_t _internalId) : CDeterministicMN(mn) {
+        // only non-initial values
+        assert(_internalId != std::numeric_limits<uint64_t>::max());
+        internalId = _internalId;
     }
 
     template <typename Stream>
@@ -610,7 +618,10 @@ public:
         size_t cnt = ReadCompactSize(s);
         for (size_t i = 0; i < cnt; i++) {
             uint256 proTxHash;
-            auto dmn = std::make_shared<CDeterministicMN>();
+            // NOTE: This is a hack and "0" is just a dummy id. The actual internalId is assigned to a copy
+            // of this dmn via corresponding ctor when we convert the diff format to a new one in UpgradeDiff
+            // thus the logic that we must set internalId before dmn is used in any meaningful way is preserved.
+            auto dmn = std::make_shared<CDeterministicMN>(0);
             s >> proTxHash;
             dmn->Unserialize(s, true);
             addedMNs.emplace(proTxHash, dmn);
