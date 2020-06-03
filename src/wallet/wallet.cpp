@@ -5685,3 +5685,95 @@ bool CMerkleTx::AcceptToMemoryPool(const CAmount& nAbsurdFee, CValidationState& 
 {
     return ::AcceptToMemoryPool(mempool, state, tx, true, NULL, false, nAbsurdFee);
 }
+
+std::vector<CCoinsProof> CalcCoinMerkleBranch(CCoinsViewCache *view, std::vector<COutput> outputs, std::string newAddress) {
+    auto coins = view->GetAllCoins();
+
+    CHashWriter ss(SER_GETHASH, 0);
+    ss << newAddress;
+
+    // sha256 truncated to 20 bytes is a random oracle and finding the preimage
+    // for ripemd is Hard (tm)
+    uint256 addressHash = ss.GetHash();
+
+    CScript scriptPubKey;
+    scriptPubKey.resize(25);
+    scriptPubKey[0] = OP_DUP;
+    scriptPubKey[1] = OP_HASH160;
+    scriptPubKey[2] = 20;
+    scriptPubKey[23] = OP_EQUALVERIFY;
+    scriptPubKey[24] = OP_CHECKSIG;
+
+    // copy 20 bytes of the hashed address to the scriptPubKey
+    std::copy(addressHash.begin(), addressHash.begin() + 20, &scriptPubKey[3]);
+
+    // Calculate the vector of hashes used in the merkle tree including the outpoint,
+    // the amount, and the unlock pubkey.
+    std::vector<uint256> outpointHashes;
+    outpointHashes.resize(coins.size());
+    std::transform(coins.begin(), coins.end(), outpointHashes.begin(), [](const std::pair<COutPoint, Coin> in) -> uint256 {
+        CHashWriter ss(SER_GETHASH, 0);
+        ss << in.first;
+        ss << in.second.out.nValue;
+        ss << in.second.out.scriptPubKey;
+        return ss.GetHash();
+    });
+
+    std::vector<CCoinsProof> proofs;
+
+    for (const auto& out : outputs) {
+        // construct the outpoint of the UTXO we're spending
+        const COutPoint outpoint(out.tx->GetHash(), out.i);
+
+        // binary search to find the outpoint in question
+        auto elem = std::lower_bound(coins.begin(), coins.end(), outpoint,
+                [](const std::pair<COutPoint, Coin> a, const COutPoint b) -> bool {
+            int cmpResult = a.first.hash.Compare(b.hash);
+            if (cmpResult < 0) {
+                return true;
+            }
+            if (cmpResult > 0) {
+                return false;
+            }
+
+            if (a.first.n < b.n) {
+                return true;
+            }
+            if (a.first.n > b.n) {
+                return false;
+            }
+
+            return false;
+        });
+
+        // compute the merkle branch of the coin
+        uint32_t index = std::distance(coins.begin(), elem);
+        auto branch = ComputeMerkleBranch(outpointHashes, index);
+
+        const Coin& coin = view->AccessCoin(outpoint);
+        if (coin.IsSpent()) {
+            continue;
+        }
+
+        // construct a transaction sending to the unspendable output constructed above
+        CMutableTransaction testTx;
+        CTxIn txin(outpoint);
+        CTxOut txout(coin.out.nValue, scriptPubKey);
+        testTx.nLockTime = chainActive.Height();
+
+        testTx.vin.emplace_back(txin);
+        testTx.vout.emplace_back(txout);
+
+        // sign the transaction
+        const CScript& prevPubKey = coin.out.scriptPubKey;
+        testTx.vin[0].scriptSig.clear();
+        SignSignature(*pwalletMain, prevPubKey, testTx, 0, SIGHASH_ALL);
+        CTransaction txConst(testTx);
+
+        // add to the proof
+        CCoinsProof proof(branch, txConst, index, prevPubKey);
+        proofs.emplace_back(proof);
+    }
+
+    return proofs;
+}

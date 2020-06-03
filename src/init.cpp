@@ -90,15 +90,12 @@
 #include <boost/interprocess/sync/file_lock.hpp>
 #include <boost/thread.hpp>
 #include <openssl/crypto.h>
-#include <consensus/merkle.h>
 
 #if ENABLE_ZMQ
 #include "zmq/zmqnotificationinterface.h"
 #endif
 
 extern void ThreadSendAlert(CConnman& connman);
-
-uint256 CalcCoinMerkleRoot(CCoinsViewCache *pCache);
 
 bool fFeeEstimatesInitialized = false;
 static const bool DEFAULT_PROXYRANDOMIZE = true;
@@ -1894,10 +1891,6 @@ bool AppInitMain(boost::thread_group& threadGroup, CScheduler& scheduler)
         }
     }
 
-    auto *pcoinstip = new CCoinsViewCache(pcoinsdbview);
-    uint256 transactionMerkleRoot = CalcCoinMerkleRoot(pcoinstip);
-    LogPrintf("Coin merkle root: %s at %d\n", transactionMerkleRoot.ToString(), chainActive.Height());
-
     // As LoadBlockIndex can take several minutes, it's possible the user
     // requested to kill the GUI during the last operation. If so, exit.
     // As the program has not fully started yet, Shutdown() is possibly overkill.
@@ -2153,20 +2146,4 @@ bool AppInitMain(boost::thread_group& threadGroup, CScheduler& scheduler)
     threadGroup.create_thread(boost::bind(&ThreadSendAlert, boost::ref(connman)));
 
     return !fRequestShutdown;
-}
-
-uint256 CalcCoinMerkleRoot(CCoinsViewCache *pCache) {
-    auto coins = pCache->GetAllCoins();
-
-    std::vector<uint256> outpointHashes;
-    outpointHashes.resize(coins.size());
-
-    std::transform(coins.begin(), coins.end(), outpointHashes.begin(), [](const std::pair<COutPoint, Coin> in) -> uint256 {
-        CHashWriter ss(SER_GETHASH, 0);
-        ss << in.first;
-        ss << in.second;
-        return ss.GetHash();
-    });
-
-    return ComputeMerkleRoot(outpointHashes);
 }

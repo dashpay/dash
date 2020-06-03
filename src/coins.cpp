@@ -78,11 +78,26 @@ std::vector<std::pair<COutPoint, Coin>> CCoinsViewCache::GetAllCoins() const {
             continue;
         }
 
-        coins.push_back(std::make_pair(key, val));
+        coins.emplace_back(key, val);
     }
 
     std::sort(coins.begin(), coins.end(), [](const std::pair<COutPoint, Coin>& a, const std::pair<COutPoint, Coin>& b) -> bool {
-        return a.first.hash < b.first.hash || a.first.n < b.first.n;
+        int cmpResult = a.first.hash.Compare(b.first.hash);
+        if (cmpResult < 0) {
+            return true;
+        }
+        if (cmpResult > 0) {
+            return false;
+        }
+
+        if (a.first.n < b.first.n) {
+            return true;
+        }
+        if (a.first.n > b.first.n) {
+            return false;
+        }
+
+        return false;
     });
 
     return coins;

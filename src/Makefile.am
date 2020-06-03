@@ -199,6 +199,7 @@ BITCOIN_CORE_H = \
   policy/fees.h \
   policy/policy.h \
   pow.h \
+  proof.h \
   protocol.h \
   random.h \
   reverse_iterator.h \
@@ -320,6 +321,7 @@ libpolis_server_a_SOURCES = \
   pow.cpp \
   privatesend.cpp \
   privatesend-server.cpp \
+  proof.cpp \
   rest.cpp \
   rpc/blockchain.cpp \
   rpc/masternode.cpp \
