@@ -2146,14 +2146,13 @@ bool AppInitMain()
 
     // ********************************************************* Step 10c: schedule Dash-specific tasks
 
-    if (!fLiteMode) {
-        scheduler.scheduleEvery(boost::bind(&CNetFulfilledRequestManager::DoMaintenance, boost::ref(netfulfilledman)), 60 * 1000);
-        scheduler.scheduleEvery(boost::bind(&CMasternodeSync::DoMaintenance, boost::ref(masternodeSync), boost::ref(*g_connman)), 1 * 1000);
+    scheduler.scheduleEvery(boost::bind(&CNetFulfilledRequestManager::DoMaintenance, boost::ref(netfulfilledman)), 60 * 1000);
+    scheduler.scheduleEvery(boost::bind(&CMasternodeSync::DoMaintenance, boost::ref(masternodeSync), boost::ref(*g_connman)), 1 * 1000);
+    scheduler.scheduleEvery(boost::bind(&CMasternodeUtils::DoMaintenance, boost::ref(*g_connman)), 1 * 1000);
 
+    if (!fLiteMode) {
         scheduler.scheduleEvery(boost::bind(&CGovernanceManager::DoMaintenance, boost::ref(governance), boost::ref(*g_connman)), 60 * 5 * 1000);
     }
-
-    scheduler.scheduleEvery(boost::bind(&CMasternodeUtils::DoMaintenance, boost::ref(*g_connman)), 1 * 1000);
 
     if (fMasternodeMode) {
         scheduler.scheduleEvery(boost::bind(&CPrivateSendServer::DoMaintenance, boost::ref(privateSendServer), boost::ref(*g_connman)), 1 * 1000);
