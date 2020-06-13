@@ -5436,7 +5436,8 @@ void CWallet::NotifyTransactionLock(const CTransaction &tx, const llmq::CInstant
         std::string strCmd = gArgs.GetArg("-instantsendnotify", "");
         if (!strCmd.empty()) {
             boost::replace_all(strCmd, "%s", txHash.GetHex());
-            boost::thread t(runCommand, strCmd); // thread runs free
+            std::thread t(runCommand, strCmd);
+            t.detach(); // thread runs free
         }
     }
 }
