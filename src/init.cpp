@@ -260,6 +260,8 @@ void PrepareShutdown()
     if (g_connman) g_connman->Stop();
     // if (g_txindex) g_txindex->Stop(); //TODO watch out when backporting bitcoin#13033 (don't accidently put the reset here, as we've already backported bitcoin#13894)
 
+    StopTorControl();
+
     // After everything has been shut down, but before things get flushed, stop the
     // CScheduler/checkqueue threadGroup
     threadGroup.interrupt_all();
@@ -377,8 +379,7 @@ void Shutdown()
     if(!fRequestRestart) {
         PrepareShutdown();
     }
-   // Shutdown part 2: Stop TOR thread and delete wallet instance
-    StopTorControl();
+    // Shutdown part 2: delete wallet instance
     g_wallet_init_interface->Close();
     globalVerifyHandle.reset();
     ECC_Stop();
