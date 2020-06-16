@@ -373,6 +373,7 @@ class P2PInterface(P2PConnection):
     def wait_for_disconnect(self, timeout=60):
         test_function = lambda: self.state != "connected"
         wait_until(test_function, timeout=timeout, lock=mininode_lock)
+        time.sleep(1)
 
     # Message receiving helper methods
 
