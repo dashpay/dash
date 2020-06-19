@@ -1307,25 +1307,31 @@ public:
         m_tx_relay->filterInventoryKnown.insert(hash);
     }
 
-    void PushInventory(const CInv& inv)
+    void PushTxInventory(const uint256& hash)
     {
         if (inv.type == MSG_BLOCK) {
             LogPrint(BCLog::NET, "%s -- adding new inv: %s peer=%d\n", __func__, inv.ToString(), id);
             LOCK(cs_inventory);
-            vInventoryBlockToSend.push_back(inv.hash);
+            vInventoryBlockToSend.push_back(hash);
             return;
         }
+        if (m_tx_relay == nullptr) return;
         LOCK(m_tx_relay->cs_tx_inventory);
-        if (m_tx_relay->filterInventoryKnown.contains(inv.hash)) {
+        if (m_tx_relay->filterInventoryKnown.contains(hash)) {
             LogPrint(BCLog::NET, "%s -- skipping known inv: %s peer=%d\n", __func__, inv.ToString(), id);
             return;
         }
         LogPrint(BCLog::NET, "%s -- adding new inv: %s peer=%d\n", __func__, inv.ToString(), id);
         if (inv.type == MSG_TX || inv.type == MSG_DSTX) {
-            m_tx_relay->setInventoryTxToSend.insert(inv.hash);
+            m_tx_relay->setInventoryTxToSend.insert(hash);
             return;
         }
-        m_tx_relay->vInventoryOtherToSend.push_back(inv);
+    }
+
+    void PushBlockInventory(const uint256& hash)
+    {
+        LOCK(cs_inventory);
+        vInventoryBlockToSend.push_back(hash);
     }
 
     void PushBlockHash(const uint256 &hash)

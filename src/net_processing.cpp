@@ -1873,9 +1873,9 @@ bool PeerManagerImpl::AlreadyHave(const CInv& inv)
 void RelayTransaction(const uint256& txid, const CConnman& connman)
 {
     CInv inv(CCoinJoin::GetDSTX(txid) ? MSG_DSTX : MSG_TX, txid);
-    connman.ForEachNode([&inv](CNode* pnode)
+    connman.ForEachNode([&txid](CNode* pnode)
     {
-        pnode->PushInventory(inv);
+        pnode->PushTxInventory(txid);
     });
 }
 
@@ -2052,7 +2052,7 @@ void PeerManagerImpl::ProcessGetBlockData(CNode& pfrom, const CChainParams& chai
         // Trigger the peer node to send a getblocks request for the next batch of inventory
         if (inv.hash == pfrom.hashContinue)
         {
-            // Bypass PushInventory, this must send even if redundant,
+            // Bypass PushBlockInventory, this must send even if redundant,
             // and we want it right after the last block so they don't
             // wait for other stuff first.
             std::vector<CInv> vInv;
@@ -3354,7 +3354,7 @@ void PeerManagerImpl::ProcessMessage(
                 break;
             }
             if (pfrom.CanRelay()) {
-                pfrom.PushInventory(CInv(MSG_BLOCK, pindex->GetBlockHash()));
+                pfrom.PushBlockInventory(pindex->GetBlockHash());
             }
             if (--nLimit <= 0)
             {
@@ -4889,7 +4889,7 @@ bool PeerManagerImpl::SendMessages(CNode* pto)
 
                     // If the peer's chain has this block, don't inv it back.
                     if (!PeerHasHeader(&state, pindex)) {
-                        pto->PushInventory(CInv(MSG_BLOCK, hashToAnnounce));
+                        pto->PushBlockInventory(hashToAnnounce);
                         LogPrint(BCLog::NET, "%s: sending inv peer=%d hash=%s\n", __func__,
                             pto->GetId(), hashToAnnounce.ToString());
                     }
