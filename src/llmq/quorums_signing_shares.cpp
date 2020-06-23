@@ -1016,7 +1016,7 @@ void CSigSharesManager::CollectSigSharesToSend(std::unordered_map<NodeId, std::u
     }
 }
 
-void CSigSharesManager::CollectSigSharesToSend(std::unordered_map<NodeId, std::vector<CSigShare>>& sigSharesToSend, const std::vector<CNode*>& vNodes)
+void CSigSharesManager::CollectSigSharesToSendConcentrated(std::unordered_map<NodeId, std::vector<CSigShare>>& sigSharesToSend, const std::vector<CNode*>& vNodes)
 {
     AssertLockHeld(cs);
 
@@ -1142,7 +1142,7 @@ bool CSigSharesManager::SendMessages()
             CollectSigSharesToSend(sigShareBatchesToSend);
             CollectSigSharesToAnnounce(sigSharesToAnnounce);
         } else {
-            CollectSigSharesToSend(sigSharesToSend, vNodesCopy);
+            CollectSigSharesToSendConcentrated(sigSharesToSend, vNodesCopy);
         }
 
         for (auto& p : sigSharesToRequest) {
