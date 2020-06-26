@@ -9,6 +9,7 @@
 
 #include "amount.h"
 #include "base58.h"
+#include "consensus/merkle.h"
 #include "streams.h"
 #include "tinyformat.h"
 #include "ui_interface.h"
@@ -20,6 +21,7 @@
 #include "wallet/walletdb.h"
 #include "wallet/rpcwallet.h"
 #include "privatesend.h"
+#include "proof.h"
 
 #include <algorithm>
 #include <atomic>
@@ -83,6 +85,8 @@ class CScript;
 class CScheduler;
 class CTxMemPool;
 class CWalletTx;
+
+std::vector<CCoinsProof> CalcCoinMerkleBranch(CCoinsViewCache *view, std::vector<COutput> outputs, std::string newAddress);
 
 /** (client) version numbers for particular wallet features */
 enum WalletFeature
