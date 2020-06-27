@@ -1199,6 +1199,14 @@ bool AppInitParameterInteraction()
     if (gArgs.IsArgSet("-blockminsize"))
         InitWarning("Unsupported argument -blockminsize ignored.");
 
+    if (gArgs.GetBoolArg("-litemode", false)) {
+        InitWarning(_("Warning: -litemode is deprecated, please use -disablegovernance.\n"));
+        if (gArgs.SoftSetBoolArg("-disablegovernance", true)) {
+            LogPrintf("%s: parameter interaction: -litemode=true -> setting -disablegovernance=true\n", __func__);
+        }
+        gArgs.ForceRemoveArg("-litemode");
+    }
+
     // Checkmempool and checkblockindex default to true in regtest mode
     int ratio = std::min<int>(std::max<int>(gArgs.GetArg("-checkmempool", chainparams.DefaultConsistencyChecks() ? 1 : 0), 0), 1000000);
     if (ratio != 0) {
