@@ -1802,8 +1802,8 @@ bool AppInitMain()
     fDisableGovernance = gArgs.GetBoolArg("-disablegovernance", false);
     LogPrintf("fDisableGovernance %d\n", fDisableGovernance);
 
-    if(fDisableGovernance) {
-        InitWarning(_("You are starting with governance validation disabled."));
+    if (fDisableGovernance) {
+        InitWarning(_("You are starting with governance validation disabled. This is expected if you are running a pruned node."));
     }
 
     uiInterface.InitMessage(_("Loading sporks cache..."));
