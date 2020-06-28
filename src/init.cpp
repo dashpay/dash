@@ -1107,6 +1107,9 @@ bool AppInitParameterInteraction()
     if (gArgs.GetArg("-prune", 0)) {
         if (gArgs.GetBoolArg("-txindex", DEFAULT_TXINDEX))
             return InitError(_("Prune mode is incompatible with -txindex."));
+        if (!gArgs.GetBoolArg("-disablegovernance", false)) {
+            return InitError(_("Prune mode is incompatible with -disablegovernance=false."));
+        }
     }
 
     if (gArgs.IsArgSet("-devnet")) {
