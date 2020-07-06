@@ -1506,9 +1506,9 @@ bool CPrivateSendClientSession::CreateDenominated(CAmount nBalanceToDenominate, 
     CKeyHolderStorage keyHolderStorageDenom;
 
     CCoinControl coinControl;
-    // Every input will regure at least this much fees in duffs
+    // Every input will require at least this much fees in duffs
     const CAmount nInputFee = GetMinimumFee(148, coinControl, ::mempool, ::feeEstimator, nullptr /* feeCalc */);
-    // Every output will regure at least this much fees in duffs
+    // Every output will require at least this much fees in duffs
     const CAmount nOutputFee = GetMinimumFee(34, coinControl, ::mempool, ::feeEstimator, nullptr /* feeCalc */);
 
     CAmount nValueLeft = tallyItem.nAmount;
