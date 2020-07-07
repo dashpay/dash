@@ -1531,7 +1531,7 @@ bool AppInitParameterInteraction()
     LogPrintf("fDisableGovernance %d\n", fDisableGovernance);
 
     if (fDisableGovernance) {
-        InitWarning(_("You are starting with governance validation disabled. This is expected if you are running a pruned node"));
+        InitWarning(_("You are starting with governance validation disabled.") + (fPruneMode ? " " + _("This is expected because you are running a pruned node.") : ""));
     }
 
     return true;
