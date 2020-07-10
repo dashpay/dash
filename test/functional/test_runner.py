@@ -277,6 +277,7 @@ BASE_SCRIPTS = [
     'rpc_getdescriptorinfo.py',
     'rpc_getaddressinfo_labels_purpose_deprecation.py',
     'rpc_getaddressinfo_label_deprecation.py',
+    'rpc_getpeerinfo_banscore_deprecation.py',
     'rpc_help.py',
     'feature_help.py',
     'feature_blockfilterindex_prune.py'
