@@ -450,8 +450,8 @@ public:
                                                  Params().PoolNewMinParticipants() :
                                                  Params().PoolMinParticipants(); }
     static int GetMaxPoolParticipants() { return sporkManager.IsSporkActive(SPORK_22_PS_MORE_PARTICIPANTS) ?
-        Params().PoolNewMaxParticipants() :
-        Params().PoolMaxParticipants(); }
+                                                 Params().PoolNewMaxParticipants() :
+                                                 Params().PoolMaxParticipants(); }
 
     static CAmount GetMaxPoolAmount() { return vecStandardDenominations.empty() ? 0 : PRIVATESEND_ENTRY_MAX_SIZE * vecStandardDenominations.front(); }
 
