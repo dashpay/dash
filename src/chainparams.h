@@ -89,6 +89,7 @@ public:
     void UpdateLLMQTestParams(int size, int threshold);
     void UpdateLLMQDevnetParams(int size, int threshold);
     int PoolMinParticipants() const { return nPoolMinParticipants; }
+    int PoolNewMinParticipants() const { return nPoolNewMinParticipants; }
     int PoolMaxParticipants() const { return nPoolMaxParticipants; }
     int PoolNewMaxParticipants() const { return nPoolNewMaxParticipants; }
     int FulfilledRequestExpireTime() const { return nFulfilledRequestExpireTime; }
@@ -119,6 +120,7 @@ protected:
     CCheckpointData checkpointData;
     ChainTxData chainTxData;
     int nPoolMinParticipants;
+    int nPoolNewMinParticipants;
     int nPoolMaxParticipants;
     int nPoolNewMaxParticipants;
     int nFulfilledRequestExpireTime;
