@@ -29,6 +29,8 @@ static const unsigned int DEFAULT_MAX_ORPHAN_TRANSACTIONS_SIZE = 10; // this all
 static const unsigned int DEFAULT_BLOCK_RECONSTRUCTION_EXTRA_TXN = 100;
 static const bool DEFAULT_PEERBLOOMFILTERS = true;
 static const bool DEFAULT_PEERBLOCKFILTERS = false;
+/** Threshold for marking a node to be discouraged, e.g. disconnected and added to the discouragement filter. */
+static const int DISCOURAGEMENT_THRESHOLD{100};
 
 struct CNodeStateStats {
     int m_misbehavior_score = 0;
