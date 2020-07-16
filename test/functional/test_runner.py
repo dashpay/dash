@@ -149,7 +149,7 @@ BASE_SCRIPTS= [
     'feature_minchainwork.py',
     'p2p_unrequested_blocks.py', # NOTE: needs dash_hash to pass
     'feature_shutdown.py',
-    'feature_privatesend.py',
+    'rpc_privatesend.py',
     'p2p_fingerprint.py',
     'feature_uacomment.py',
     'p2p_unrequested_blocks.py',
