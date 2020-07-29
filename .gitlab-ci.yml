@@ -242,6 +242,8 @@ linux32-test:
     - linux32-build
   variables:
     BUILD_TARGET: linux32
+  tags:
+    - functionaltests
 
 linux64-test:
   extends: .test-template
@@ -249,3 +251,5 @@ linux64-test:
     - linux64-build
   variables:
     BUILD_TARGET: linux64
+  tags:
+    - functionaltests
