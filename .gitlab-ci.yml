@@ -128,6 +128,17 @@ builder-image:
 
 ###
 
+i686-pc-linux-gnu:
+  extends: .build-depends-template
+  variables:
+    HOST: i686-pc-linux-gnu
+
+x86_64-unknown-linux-gnu-debug:
+  extends: .build-depends-template
+  variables:
+    HOST: x86_64-unknown-linux-gnu
+    DEP_OPTS: "DEBUG=1"
+
 arm-linux-gnueabihf:
   extends: .build-depends-template
   variables:
@@ -143,21 +154,10 @@ x86_64-w64-mingw32:
   variables:
     HOST: x86_64-w64-mingw32
 
-i686-pc-linux-gnu:
-  extends: .build-depends-template
-  variables:
-    HOST: i686-pc-linux-gnu
-
 x86_64-unknown-linux-gnu:
   extends: .build-depends-template
   variables:
     HOST: x86_64-unknown-linux-gnu
-
-x86_64-unknown-linux-gnu-debug:
-  extends: .build-depends-template
-  variables:
-    HOST: x86_64-unknown-linux-gnu
-    DEP_OPTS: "DEBUG=1"
 
 x86_64-unknown-linux-gnu-nowalet:
   extends: .build-depends-template
@@ -177,6 +177,20 @@ x86_64-apple-darwin11:
     HOST: x86_64-apple-darwin11
 
 ###
+
+linux32-build:
+  extends: .build-template
+  needs:
+    - i686-pc-linux-gnu
+  variables:
+    BUILD_TARGET: linux32
+
+linux64-build:
+  extends: .build-template
+  needs:
+    - x86_64-unknown-linux-gnu-debug
+  variables:
+    BUILD_TARGET: linux64
 
 arm-linux-build:
   extends: .build-template
@@ -198,20 +212,6 @@ win64-build:
     - x86_64-w64-mingw32
   variables:
     BUILD_TARGET: win64
-
-linux32-build:
-  extends: .build-template
-  needs:
-    - i686-pc-linux-gnu
-  variables:
-    BUILD_TARGET: linux32
-
-linux64-build:
-  extends: .build-template
-  needs:
-    - x86_64-unknown-linux-gnu-debug
-  variables:
-    BUILD_TARGET: linux64
 
 linux64_nowallet-build:
   extends: .build-template
