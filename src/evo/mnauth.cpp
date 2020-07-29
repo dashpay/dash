@@ -38,7 +38,7 @@ void CMNAuth::PushMNAUTH(CNode* pnode, CConnman& connman)
         if (Params().NetworkIDString() != CBaseChainParams::MAIN && gArgs.IsArgSet("-pushversion")) {
             nOurNodeVersion = gArgs.GetArg("-pushversion", PROTOCOL_VERSION);
         }
-        if (pnode->nVersion < MIN_MASTERNODE_PROTO_VERSION || nOurNodeVersion < MIN_MASTERNODE_PROTO_VERSION) {
+        if (pnode->nVersion < MNAUTH_NODE_VER_VERSION || nOurNodeVersion < MNAUTH_NODE_VER_VERSION) {
             signHash = ::SerializeHash(std::make_tuple(*activeMasternodeInfo.blsPubKeyOperator, pnode->receivedMNAuthChallenge, pnode->fInbound));
         } else {
             signHash = ::SerializeHash(std::make_tuple(*activeMasternodeInfo.blsPubKeyOperator, pnode->receivedMNAuthChallenge, pnode->fInbound, nOurNodeVersion));
@@ -115,7 +115,7 @@ void CMNAuth::ProcessMessage(CNode* pnode, const std::string& strCommand, CDataS
                 nOurNodeVersion = gArgs.GetArg("-pushversion", PROTOCOL_VERSION);
             }
             // See comment in PushMNAUTH (fInbound is negated here as we're on the other side of the connection)
-            if (pnode->nVersion < MIN_MASTERNODE_PROTO_VERSION || nOurNodeVersion < MIN_MASTERNODE_PROTO_VERSION) {
+            if (pnode->nVersion < MNAUTH_NODE_VER_VERSION || nOurNodeVersion < MNAUTH_NODE_VER_VERSION) {
                 signHash = ::SerializeHash(std::make_tuple(dmn->pdmnState->pubKeyOperator, pnode->sentMNAuthChallenge, !pnode->fInbound));
             } else {
                 signHash = ::SerializeHash(std::make_tuple(dmn->pdmnState->pubKeyOperator, pnode->sentMNAuthChallenge, !pnode->fInbound, pnode->nVersion.load()));
