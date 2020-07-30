@@ -161,11 +161,6 @@ i686-pc-linux-gnu:
   variables:
     HOST: i686-pc-linux-gnu
 
-x86_64-unknown-linux-gnu:
-  extends: .build-depends-template
-  variables:
-    HOST: x86_64-unknown-linux-gnu
-
 x86_64-unknown-linux-gnu-debug:
   extends: .build-depends-template
   variables:
