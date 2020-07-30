@@ -1567,8 +1567,8 @@ bool CPrivateSendClientSession::CreateDenominated(CAmount nBalanceToDenominate, 
     const CAmount nOutputFee = GetMinimumFee(34, coinControl, ::mempool, ::feeEstimator, nullptr /* feeCalc */);
 
     CAmount nValueLeft = tallyItem.nAmount;
-    // Leave some room for fees, assuming we are going to spend all the outpoints
-    nValueLeft -= tallyItem.vecOutPoints.size() * nInputFee;
+    // Leave some room for fees, we know we are going to spend all the outpoints and there will be one change output maybe
+    nValueLeft -= tallyItem.vecOutPoints.size() * nInputFee + nOutputFee;
 
     LogPrint(BCLog::PRIVATESEND, "CPrivateSendClientSession::CreateDenominated -- 0 - %s nValueLeft: %f\n", EncodeDestination(tallyItem.txdest), (float)nValueLeft / COIN);
 
