@@ -426,7 +426,7 @@ BOOST_FIXTURE_TEST_CASE(dip3_protx, TestChainDIP3Setup)
 
     dmn = deterministicMNManager->GetListAtChainTip().GetMN(dmnHashes[0]);
     BOOST_ASSERT(dmn != nullptr && dmn->pdmnState->addr.GetPort() == 100);
-    BOOST_ASSERT(dmn != nullptr && dmn->pdmnState->nPoSeBanHeight == -1);
+    BOOST_ASSERT(dmn != nullptr && !dmn->pdmnState->IsBanned());
 
     // test that the revived MN gets payments again
     bool foundRevived = false;

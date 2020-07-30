@@ -97,9 +97,19 @@ public:
     }
     void BanIfNotBanned(int height)
     {
-        if (nPoSeBanHeight == -1) {
+        if (!IsBanned()) {
             nPoSeBanHeight = height;
         }
+    }
+    bool IsBanned() const
+    {
+        return nPoSeBanHeight != -1;
+    }
+    void Revive(int nRevivedHeight)
+    {
+        nPoSePenalty = 0;
+        nPoSeBanHeight = -1;
+        nPoSeRevivedHeight = nRevivedHeight;
     }
     void UpdateConfirmedHash(const uint256& _proTxHash, const uint256& _confirmedHash)
     {
