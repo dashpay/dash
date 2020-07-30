@@ -1424,8 +1424,17 @@ bool CPrivateSendClientSession::MakeCollateralAmounts(const CompactTallyItem& ta
 
     if (!CPrivateSendClientOptions::IsEnabled() || !mixingWallet) return false;
 
+    CCoinControl coinControl;
+    // Every input will require at least this much fees in duffs
+    const CAmount nInputFee = GetMinimumFee(148, coinControl, ::mempool, ::feeEstimator, nullptr /* feeCalc */);
+    // Every output will require at least this much fees in duffs
+    const CAmount nOutputFee = GetMinimumFee(34, coinControl, ::mempool, ::feeEstimator, nullptr /* feeCalc */);
+
+    // We know we are going to spend all the outpoints and there should be one collateral output and maybe a change output too
+    CAmount nFees = tallyItem.vecOutPoints.size() * nInputFee + nOutputFee * 2;
+
     // Skip way too tiny amounts
-    if (tallyItem.nAmount < CPrivateSend::GetCollateralAmount()) {
+    if (tallyItem.nAmount < CPrivateSend::GetCollateralAmount() + nFees) {
         return false;
     }
 
@@ -1456,18 +1465,20 @@ bool CPrivateSendClientSession::MakeCollateralAmounts(const CompactTallyItem& ta
     scriptCollateral = GetScriptForDestination(vchPubKey.GetID());
 
     CAmount nCollateralAmount{0};
-    if (tallyItem.nAmount > CPrivateSend::GetMaxCollateralAmount() + CPrivateSend::GetCollateralAmount()*2) {
+    if (tallyItem.nAmount > CPrivateSend::GetMaxCollateralAmount() + CPrivateSend::GetCollateralAmount() + nFees) {
         // Change output will be large enough to be valid as a collateral or a source input for another run
         nCollateralAmount = CPrivateSend::GetMaxCollateralAmount();
-    } else {
+    } else if (tallyItem.nAmount > CPrivateSend::GetMaxCollateralAmount()) {
         // Change output might be too small for another collateral if we try to create the largest collateral
         // here, create a slightly smaller one instead
-        nCollateralAmount = CPrivateSend::GetMaxCollateralAmount() - CPrivateSend::GetCollateralAmount();
+        nCollateralAmount = CPrivateSend::GetMaxCollateralAmount() - CPrivateSend::GetCollateralAmount() - nFees;
+    } else {
+        // No change output, use the tally amount and reduce fees
+        nCollateralAmount = tallyItem.nAmount - (nFees - nOutputFee);
     }
     vecSend.push_back((CRecipient){scriptCollateral, nCollateralAmount, false});
 
     // try to use non-denominated and not mn-like funds first, select them explicitly
-    CCoinControl coinControl;
     coinControl.fAllowOtherInputs = false;
     coinControl.fAllowWatchOnly = false;
     coinControl.nCoinType = CoinType::ONLY_NONDENOMINATED;
