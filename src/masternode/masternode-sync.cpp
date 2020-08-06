@@ -76,9 +76,9 @@ void CMasternodeSync::SwitchToNextAsset(CConnman& connman)
     BumpAssetLastTime("CMasternodeSync::SwitchToNextAsset");
 }
 
-std::string CMasternodeSync::GetSyncStatus()
+std::string CMasternodeSync::GetSyncStatus() const
 {
-    switch (masternodeSync.nCurrentAsset) {
+    switch (nCurrentAsset) {
         case MASTERNODE_SYNC_INITIAL:       return _("Synchronizing blockchain...");
         case MASTERNODE_SYNC_WAITING:       return _("Synchronization pending...");
         case MASTERNODE_SYNC_GOVERNANCE:    return _("Synchronizing governance objects...");
@@ -88,7 +88,7 @@ std::string CMasternodeSync::GetSyncStatus()
     }
 }
 
-void CMasternodeSync::ProcessMessage(CNode* pfrom, const std::string& strCommand, CDataStream& vRecv)
+void CMasternodeSync::ProcessMessage(CNode* pfrom, const std::string& strCommand, CDataStream& vRecv) const
 {
     if (strCommand == NetMsgType::SYNCSTATUSCOUNT) { //Sync status count
 

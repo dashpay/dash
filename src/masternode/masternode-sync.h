@@ -56,12 +56,12 @@ public:
     void BumpAssetLastTime(const std::string& strFuncName);
     int64_t GetAssetStartTime() const { return nTimeAssetSyncStarted; }
     std::string GetAssetName() const;
-    static std::string GetSyncStatus();
+    std::string GetSyncStatus() const;
 
     void Reset();
     void SwitchToNextAsset(CConnman& connman);
 
-    void ProcessMessage(CNode* pfrom, const std::string& strCommand, CDataStream& vRecv);
+    void ProcessMessage(CNode* pfrom, const std::string& strCommand, CDataStream& vRecv) const;
     void ProcessTick(CConnman& connman);
 
     void AcceptedBlockHeader(const CBlockIndex *pindexNew);
