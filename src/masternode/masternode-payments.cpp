@@ -275,7 +275,7 @@ std::map<int, std::string> GetRequiredPaymentsStrings(int nStartHeight, int nEnd
         auto projection = deterministicMNManager->GetListAtChainTip().GetProjectedMNPayees(nEndHeight - nChainTipHeight);
         for (size_t i = 0; i < projection.size(); i++) {
             auto payee = projection[i];
-            uint h = nChainTipHeight + 1 + i;
+            size_t h = nChainTipHeight + 1 + i;
             mapPayments.emplace(h, GetRequiredPaymentsString(h, payee));
         }
     }
