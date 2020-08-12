@@ -862,7 +862,6 @@ bool AcceptToMemoryPoolWorker(CTxMemPool& pool, CValidationState& state, const C
 
         // Check if fee enforcement is on 
         if (sporkManager.IsSporkActive(SPORK_31_MIN_FEE_ENFORCE)) {
-
             // Get the spork value
             // This value is calculate to be a minimum fee per Kb.
             int64_t minFee = sporkManager.GetSporkValue(SPORK_30_MIN_FEE_BYTES);

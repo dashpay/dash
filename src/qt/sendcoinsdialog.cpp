@@ -271,9 +271,8 @@ void SendCoinsDialog::send(QList<SendCoinsRecipient> recipients, QString strFee,
 
     CAmount txFee = currentTransaction.getTransactionFee();
     
-    //if (sporkManager.IsSporkActive(SPORK_31_MIN_FEE_ENFORCE)) {
-        //int64_t minFee = sporkManager.GetSporkValue(SPORK_30_MIN_FEE_BYTES);
-        int64_t minFee = 10000;
+    if (sporkManager.IsSporkActive(SPORK_31_MIN_FEE_ENFORCE)) {
+        int64_t minFee = sporkManager.GetSporkValue(SPORK_30_MIN_FEE_BYTES);
         unsigned int sizeKb = currentTransaction.getTransactionSize() / 1000;
         CAmount expectedFee = minFee * sizeKb;
         if (txFee < expectedFee) {
@@ -282,7 +281,7 @@ void SendCoinsDialog::send(QList<SendCoinsRecipient> recipients, QString strFee,
             return;
         }
 
-    //}
+    }
 
     // Format confirmation message
     QStringList formatted;
@@ -653,12 +652,11 @@ void SendCoinsDialog::updateSmartFeeLabel()
 
     int estimateFoundAtBlocks = 2;
     CFeeRate feeRate = CFeeRate(0);
-    //if (sporkManager.IsSporkActive(SPORK_31_MIN_FEE_ENFORCE)) {
-        //feeRate = CFeeRate(sporkManager.GetSporkValue(SPORK_30_MIN_FEE_BYTES));
-        feeRate = CFeeRate(10000);
-   // } else {
-     //   feeRate = mempool.estimateSmartFee(nBlocksToConfirm, &estimateFoundAtBlocks);
-    //}
+    if (sporkManager.IsSporkActive(SPORK_31_MIN_FEE_ENFORCE)) {
+        feeRate = CFeeRate(sporkManager.GetSporkValue(SPORK_30_MIN_FEE_BYTES));
+    } else {
+        feeRate = mempool.estimateSmartFee(nBlocksToConfirm, &estimateFoundAtBlocks);
+    }
     ui->labelSmartFee->setText(BitcoinUnits::formatWithUnit(model->getOptionsModel()->getDisplayUnit(),
                                                                 std::max(feeRate.GetFeePerK(), CWallet::GetRequiredFee(1000))) + "/kB");
 
