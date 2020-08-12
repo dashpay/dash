@@ -655,7 +655,7 @@ void SendCoinsDialog::updateSmartFeeLabel()
     if (sporkManager.IsSporkActive(SPORK_31_MIN_FEE_ENFORCE)) {
         feeRate = CFeeRate(sporkManager.GetSporkValue(SPORK_30_MIN_FEE_BYTES));
     } else {
-        feeRate = mempool.estimateSmartFee(nBlocksToConfirm, &estimateFoundAtBlocks);
+        feeRate = mempool.estimateSmartFee(2, &estimateFoundAtBlocks);
     }
     ui->labelSmartFee->setText(BitcoinUnits::formatWithUnit(model->getOptionsModel()->getDisplayUnit(),
                                                                 std::max(feeRate.GetFeePerK(), CWallet::GetRequiredFee(1000))) + "/kB");
