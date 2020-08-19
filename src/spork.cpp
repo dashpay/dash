@@ -141,7 +141,9 @@ void CSporkManager::ProcessSpork(CNode* pfrom, const std::string& strCommand, CD
         }
 
         CKeyID keyIDSigner;
-        bool fSpork6IsActive = IsSporkActive(SPORK_6_NEW_SIGS);
+
+        // Harden Spork6 so that it is active on testnet and no other networks
+        bool fSpork6IsActive = Params().NetworkIDString() == CBaseChainParams::TESTNET;
         if (!spork.GetSignerKeyID(keyIDSigner, fSpork6IsActive) || !setSporkPubKeyIDs.count(keyIDSigner)) {
             // Note: unlike for other messages we have to check for new format even with SPORK_6_NEW_SIGS
             // inactive because SPORK_6_NEW_SIGS default is OFF and it is not the first spork to sync
@@ -197,7 +199,8 @@ bool CSporkManager::UpdateSpork(SporkId nSporkID, int64_t nValue, CConnman& conn
 
     LOCK(cs);
 
-    bool fSpork6IsActive = IsSporkActive(SPORK_6_NEW_SIGS);
+    // Harden Spork6 so that it is active on testnet and no other networks
+    bool fSpork6IsActive = Params().NetworkIDString() == CBaseChainParams::TESTNET;
     if (!spork.Sign(sporkPrivKey, fSpork6IsActive)) {
         LogPrintf("CSporkManager::%s -- ERROR: signing failed for spork %d\n", __func__, nSporkID);
         return false;
@@ -314,7 +317,8 @@ bool CSporkManager::SetPrivKey(const std::string& strPrivKey)
     }
 
     CSporkMessage spork;
-    if (!spork.Sign(key, IsSporkActive(SPORK_6_NEW_SIGS))) {
+    // Harden Spork6 so that it is active on testnet and no other networks
+    if (!spork.Sign(key, Params().NetworkIDString() == CBaseChainParams::TESTNET)) {
         LogPrintf("CSporkManager::SetPrivKey -- Test signing failed\n");
         return false;
     }
@@ -389,6 +393,7 @@ bool CSporkMessage::CheckSignature(const CKeyID& pubKeyId, bool fSporkSixActive)
 {
     std::string strError = "";
 
+    // fSporkSixActive will only be true on testnet, it will be false on all other networks
     if (fSporkSixActive) {
         uint256 hash = GetSignatureHash();
 
