@@ -393,6 +393,7 @@ bool CSporkMessage::CheckSignature(const CKeyID& pubKeyId, bool fSporkSixActive)
     std::string strError = "";
 
     // fSporkSixActive will only be true on testnet, it will be false on all other networks
+    if (fSporkSixActive != (Params().NetworkIDString() == CBaseChainParams::TESTNET) return false;
     if (fSporkSixActive) {
         uint256 hash = GetSignatureHash();
 
