@@ -7,6 +7,7 @@
 #include <ui_interface.h>
 #include <util/system.h>
 #include <validation.h>
+#include <serialize.h>
 
 #include <boost/thread.hpp>
 
@@ -39,15 +40,7 @@ struct CDiskTxPos : public FlatFilePos
     }
 };
 
-/**
- * Access to the txindex database (indexes/txindex/)
- *
- * The database stores a block locator of the chain the database is synced to
- * so that the TxIndex can efficiently determine the point it last stopped at.
- * A locator is used instead of a simple hash of the chain tip because blocks
- * and block index entries may not be flushed to disk until after this database
- * is updated.
- */
+/** Access to the txindex database (indexes/txindex/) */
 class TxIndex::DB : public BaseIndex::DB
 {
 public:
