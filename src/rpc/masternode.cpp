@@ -270,6 +270,7 @@ UniValue masternode_status(const JSONRPCRequest& request)
         mnObj.pushKV("proTxHash", dmn->proTxHash.ToString());
         mnObj.pushKV("collateralHash", dmn->collateralOutpoint.hash.ToString());
         mnObj.pushKV("collateralIndex", (int)dmn->collateralOutpoint.n);
+        mnObj.pushKV("blsPublicKey", dmn->pdmnState->pubKeyOperator.Get().ToString());
         UniValue stateObj;
         dmn->pdmnState->ToJson(stateObj);
         mnObj.pushKV("dmnState", stateObj);
