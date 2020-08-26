@@ -749,21 +749,11 @@ bool CInstantSendManager::ProcessPendingInstantSendLocks()
         return false;
     }
 
-    int tipHeight;
-    {
-        LOCK(cs_main);
-        tipHeight = chainActive.Height();
-    }
-
     auto llmqType = Params().GetConsensus().llmqTypeInstantSend;
-
-    // We re-check invalid sigs against the previous active set and only ban nodes when this also fails
     auto dkgInterval = Params().GetConsensus().llmqs.at(llmqType).dkgInterval;
-    auto quorums1 = quorumSigningManager->GetActiveQuorumSet(llmqType, tipHeight);
-    auto quorums2 = quorumSigningManager->GetActiveQuorumSet(llmqType, tipHeight - dkgInterval);
 
     // First check against the current active set and don't ban
-    auto badISLocks = ProcessPendingInstantSendLocks(tipHeight, pend, false);
+    auto badISLocks = ProcessPendingInstantSendLocks(0, pend, false);
     if (!badISLocks.empty()) {
         LogPrintf("CInstantSendManager::%s -- doing verification on old active set\n", __func__);
 
@@ -776,13 +766,13 @@ bool CInstantSendManager::ProcessPendingInstantSendLocks()
             }
         }
         // Now check against the previous active set and perform banning if this fails
-        ProcessPendingInstantSendLocks(tipHeight - dkgInterval, pend, true);
+        ProcessPendingInstantSendLocks(dkgInterval, pend, true);
     }
 
     return true;
 }
 
-std::unordered_set<uint256> CInstantSendManager::ProcessPendingInstantSendLocks(int signHeight, const std::unordered_map<uint256, std::pair<NodeId, CInstantSendLock>, StaticSaltedHasher>& pend, bool ban)
+std::unordered_set<uint256> CInstantSendManager::ProcessPendingInstantSendLocks(int signOffset, const std::unordered_map<uint256, std::pair<NodeId, CInstantSendLock>, StaticSaltedHasher>& pend, bool ban)
 {
     auto llmqType = Params().GetConsensus().llmqTypeInstantSend;
 
@@ -813,7 +803,7 @@ std::unordered_set<uint256> CInstantSendManager::ProcessPendingInstantSendLocks(
             continue;
         }
 
-        auto quorum = quorumSigningManager->SelectQuorumForSigning(llmqType, signHeight, id);
+        auto quorum = quorumSigningManager->SelectQuorumForSigning(llmqType, id, -1, signOffset + CSigningManager::SIGN_HEIGHT_OFFSET);
         if (!quorum) {
             // should not happen, but if one fails to select, all others will also fail to select
             return {};
