@@ -1693,9 +1693,12 @@ bool CWallet::IsFullyMixed(const COutPoint& outpoint) const
     // If we have already mixed N + MaxOffset rounds, don't mix again.
     // Otherwise, we should mix again 50% of the time, this results in an exponential decay
     // N rounds 50% N+1 25% N+2 12.5%... until we reach N + GetRandomRounds() rounds where we stop.
-    uint256 outpointHash = SerializeHash(outpoint);
     if (nRounds < CPrivateSendClientOptions::GetRounds() + CPrivateSendClientOptions::GetRandomRounds()) {
-        if (Hash(outpointHash.begin(), outpointHash.end(), nPrivateSendSalt.begin(), nPrivateSendSalt.end()).GetCheapHash() % 2 == 0) {
+        CDataStream ss(SER_GETHASH, PROTOCOL_VERSION);
+        ss << outpoint << nPrivateSendSalt;
+        uint256 nHash;
+        CSHA256().Write((const unsigned char*)ss.data(), ss.size()).Finalize(nHash.begin());
+        if (nHash.GetCheapHash() % 2 == 0) {
             return false;
         }
     }
