@@ -414,7 +414,7 @@ class A
    a non-negative one, use an assertion or exception instead.
    - *Rationale*: When signed ints are mixed with unsigned ints, the signed int is converted to a unsigned
    int. If the signed int is some negative `N`, it'll become `INT_MAX - N`  which might cause unexpected consequences.
- 
+
 
 Strings and formatting
 ------------------------
