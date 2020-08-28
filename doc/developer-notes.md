@@ -407,7 +407,6 @@ class A
 
   - *Rationale*: Easier to understand what is happening, thus easier to spot mistakes, even for those
   that are not language lawyers
-  
  - Prefer signed ints and do not mix signed and unsigned integers. If an unsigned int is used, it should have a good
    reason. The fact a value will never be negative is not a good reason. The most common reason will be that mod two
    arithmetic is needed, such as in cryptographic primitives. If you need to make sure that some value is always
