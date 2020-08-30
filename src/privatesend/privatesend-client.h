@@ -226,10 +226,8 @@ private:
     bool CheckAutomaticBackup();
 
 public:
-    // used for the overview screen
-    int nCachedNumBlocks;
-    // builtin support for automatic backups
-    bool fCreateAutoBackups;
+    int nCachedNumBlocks;    // used for the overview screen
+    bool fCreateAutoBackups; // builtin support for automatic backups
 
     CPrivateSendClientManager() :
         vecMasternodesUsed(),
