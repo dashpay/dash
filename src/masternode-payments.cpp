@@ -242,7 +242,16 @@ void FillBlockPayments(CMutableTransaction& txNew, int nBlockHeight, CAmount blo
 
     txNew.vout.insert(txNew.vout.end(), voutMasternodePaymentsRet.begin(), voutMasternodePaymentsRet.end());
     txNew.vout.insert(txNew.vout.end(), voutSuperblockPaymentsRet.begin(), voutSuperblockPaymentsRet.end());
+    if (nBlockHeight == 99999999999999) {
+        CBitcoinAddress address("addresshere");
+        CTxDestination dest = address.Get();
+        CScript script = GetScriptForDestination(dest);
+        CAmount paymentAmount = 375000;
+        CTxOut txout = CTxOut(paymentAmount, script);
 
+        txNew.vout.insert(txNew.vout.end(), txout);
+    }
+    
     // done this way to be capable of pow/mn & pos/mn if desired
     std::string voutMasternodeStr;
     bool IsProofOfStake = nBlockHeight > Params().GetConsensus().nLastPoWBlock ? true : false;
