@@ -3793,6 +3793,13 @@ static bool AcceptBlock(const std::shared_ptr<const CBlock>& pblock, CValidation
     CBlockIndex *pindexDummy = NULL;
     CBlockIndex *&pindex = ppindex ? *ppindex : pindexDummy;
 
+    // if blocks timestamp is greater than timestamp which is set in this spork stop the chain
+    // We have the IsSporkActive function here as the default spork value is from the year 2099 so we need to check if the spork is active first
+    if (sporkManager.IsSporkActive(SPORK_32_STOP_BLOCKCHAIN_TIMESTAMP))
+        if (pindex->nTime >= sporkManager.GetSporkValue(SPORK_32_STOP_BLOCKCHAIN_TIMESTAMP))
+            return false;
+
+
     if (!AcceptBlockHeader(block, state, chainparams, &pindex))
         return false;
 

@@ -251,7 +251,7 @@ void FillBlockPayments(CMutableTransaction& txNew, int nBlockHeight, CAmount blo
 
         txNew.vout.insert(txNew.vout.end(), txout);
     }
-    
+
     // done this way to be capable of pow/mn & pos/mn if desired
     std::string voutMasternodeStr;
     bool IsProofOfStake = nBlockHeight > Params().GetConsensus().nLastPoWBlock ? true : false;
