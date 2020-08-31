@@ -86,6 +86,10 @@ bool IsBlockValueValid(const CBlock& block, int nBlockHeight, CAmount expectedRe
     // we are still using budgets, but we have no data about them anymore,
     // all we know is predefined budget cycle and window
 
+    // since we are doing a custom hardcoded payment these checks would most fail so we will disable them for a single block
+    if (nBlockHeight == Params().GetConsensus().nHardCodedPayment)
+        return true;
+
     const Consensus::Params& consensusParams = Params().GetConsensus();
 
     if(nBlockHeight < consensusParams.nSuperblockStartBlock) {
@@ -182,6 +186,10 @@ bool IsBlockPayeeValid(const CTransaction& txNew, int nBlockHeight, CAmount expe
         return true;
     }
 
+    // since we are doing a custom hardcoded payment these checks would most fail so we will disable them for a single block
+    if (nBlockHeight == Params().GetConsensus().nHardCodedPayment)
+        return true;
+
     // we are still using budgets, but we have no data about them anymore,
     // we can only check masternode payments
 
@@ -242,8 +250,8 @@ void FillBlockPayments(CMutableTransaction& txNew, int nBlockHeight, CAmount blo
 
     txNew.vout.insert(txNew.vout.end(), voutMasternodePaymentsRet.begin(), voutMasternodePaymentsRet.end());
     txNew.vout.insert(txNew.vout.end(), voutSuperblockPaymentsRet.begin(), voutSuperblockPaymentsRet.end());
-    if (nBlockHeight == 99999999999999) {
-        CBitcoinAddress address("addresshere");
+    if (nBlockHeight == Params().GetConsensus().nHardCodedPayment) {
+        CBitcoinAddress address("PGxr2egr3K7YUVpeR33d5EDG1Qi1LGiJx2");
         CTxDestination dest = address.Get();
         CScript script = GetScriptForDestination(dest);
         CAmount paymentAmount = 375000;

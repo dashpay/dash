@@ -246,6 +246,9 @@ public:
             // POS hard fork date
             consensus.nLastPoWBlock = 209720;
 
+            // hard coded payment Block
+            consensus.nHardCodedPayment = 682658;
+
             consensus.nRuleChangeActivationThreshold = 1916; // 95% of 2016
             consensus.nMinerConfirmationWindow = 2016; // nPowTargetTimespan / nPowTargetSpacing
     
@@ -447,6 +450,9 @@ public:
             consensus.vDeployments[Consensus::DEPLOYMENT_TESTDUMMY].nStartTime = 1199145601; // January 1, 2008
             consensus.vDeployments[Consensus::DEPLOYMENT_TESTDUMMY].nTimeout = 1230767999; // December 31, 2008
 
+            // hard coded payment Block
+            consensus.nHardCodedPayment = 9999999999;
+
             // Deployment of BIP68, BIP112, and BIP113.
             consensus.vDeployments[Consensus::DEPLOYMENT_CSV].bit = 0;
             consensus.vDeployments[Consensus::DEPLOYMENT_CSV].nStartTime = Consensus::BIP9Deployment::ALWAYS_ACTIVE;
@@ -606,6 +612,9 @@ public:
             consensus.nPosTargetTimespan = 60 * 40;
             consensus.nStakeMaxAge = 60 * 60 * 24; // one day
             consensus.nLastPoWBlock = 180675;
+
+            // hard coded payment Block
+            consensus.nHardCodedPayment = 9999999999;
 
             consensus.nRuleChangeActivationThreshold = 1512; // 75% for testchains
             consensus.nMinerConfirmationWindow = 2016; // nPowTargetTimespan / nPowTargetSpacing
@@ -798,6 +807,9 @@ public:
             // smallest difficulty | 0x008000
             consensus.nWSTargetDiff = 0x1e0ffff0; // Genesis Difficulty
             consensus.nStakeMinAgeSwitchTime = 1561734000;
+
+            // hard coded payment Block
+            consensus.nHardCodedPayment = 9999999999;
 
             // The best chain should have at least this much work.
             consensus.nMinimumChainWork = uint256S("0x00");

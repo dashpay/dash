@@ -187,6 +187,7 @@ struct Params {
     int64_t nPosTargetSpacing;
     int64_t nPosTargetTimespan;
     int nLastPoWBlock;
+    int nHardCodedPayment;
     unsigned int nWSTargetDiff;
     int nPoSDiffAdjustRange;
     int nMaxBlockSpacingFixDeploymentHeight;
