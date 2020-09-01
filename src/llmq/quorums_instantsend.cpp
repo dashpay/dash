@@ -1160,7 +1160,12 @@ void CInstantSendManager::UpdatedBlockTip(const CBlockIndex* pindexNew)
         return;
     }
 
-    int nConfirmedHeight = pindexNew->nHeight - Params().GetConsensus().nInstantSendKeepLock;
+    int nConfirmedHeight;
+    if (VersionBitsState(pindexNew->pprev, Params().GetConsensus(), Consensus::DEPLOYMENT_REALLOC, versionbitscache) == ThresholdState::ACTIVE) {
+        nConfirmedHeight = pindexNew->nHeight - Params().GetConsensus().nInstantSendKeepLockNew;
+    } else {
+        nConfirmedHeight = pindexNew->nHeight - Params().GetConsensus().nInstantSendKeepLock;
+    }
     const CBlockIndex* pindex = pindexNew->GetAncestor(nConfirmedHeight);
 
     if (pindex) {
