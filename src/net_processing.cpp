@@ -1048,7 +1048,7 @@ bool PeerManagerImpl::MarkBlockAsInFlight(NodeId nodeid, const uint256& hash, co
 
 void PeerManagerImpl::MaybeSetPeerAsAnnouncingHeaderAndIDs(NodeId nodeid)
 {
-    AssertLockHeld(cs_main);
+    LockAssertion lock(::cs_main);
 
     // Never request high-bandwidth mode from peers if we're blocks-only. Our
     // mempool will not contain the transactions necessary to reconstruct the
@@ -1084,7 +1084,6 @@ void PeerManagerImpl::MaybeSetPeerAsAnnouncingHeaderAndIDs(NodeId nodeid)
         }
     }
     m_connman.ForNode(nodeid, [this](CNode* pfrom) EXCLUSIVE_LOCKS_REQUIRED(::cs_main) {
-        AssertLockHeld(::cs_main);
         if (lNodesAnnouncingHeaderAndIDs.size() >= 3) {
             // As per BIP152, we only get 3 of our peers to announce
             // blocks using compact encodings.
@@ -1106,7 +1105,7 @@ void PeerManagerImpl::MaybeSetPeerAsAnnouncingHeaderAndIDs(NodeId nodeid)
 
 bool PeerManagerImpl::TipMayBeStale()
 {
-    AssertLockHeld(cs_main);
+    LockAssertion lock(::cs_main);
     const Consensus::Params& consensusParams = m_chainparams.GetConsensus();
     if (m_last_tip_update == 0) {
         m_last_tip_update = GetTime();
@@ -1288,7 +1287,7 @@ void PeerManagerImpl::PushNodeVersion(CNode& pnode, const Peer& peer)
 
 void EraseObjectRequest(CNodeState* nodestate, const CInv& inv) EXCLUSIVE_LOCKS_REQUIRED(cs_main)
 {
-    AssertLockHeld(cs_main);
+    LockAssertion lock(::cs_main);
     LogPrint(BCLog::NET, "%s -- inv=(%s)\n", __func__, inv.ToString());
     g_already_asked_for.erase(inv.hash);
     g_erased_object_requests.insert(std::make_pair(inv.hash, GetTime<std::chrono::microseconds>()));
@@ -1301,7 +1300,7 @@ void EraseObjectRequest(CNodeState* nodestate, const CInv& inv) EXCLUSIVE_LOCKS_
 
 void EraseObjectRequest(NodeId nodeId, const CInv& inv) EXCLUSIVE_LOCKS_REQUIRED(cs_main)
 {
-    AssertLockHeld(cs_main);
+    LockAssertion lock(::cs_main);
     auto* state = State(nodeId);
     if (!state) {
         return;
@@ -1311,7 +1310,7 @@ void EraseObjectRequest(NodeId nodeId, const CInv& inv) EXCLUSIVE_LOCKS_REQUIRED
 
 std::chrono::microseconds GetObjectRequestTime(const CInv& inv) EXCLUSIVE_LOCKS_REQUIRED(cs_main)
 {
-    AssertLockHeld(cs_main);
+    LockAssertion lock(::cs_main);
     auto it = g_already_asked_for.find(inv.hash);
     if (it != g_already_asked_for.end()) {
         return it->second;
@@ -1321,7 +1320,7 @@ std::chrono::microseconds GetObjectRequestTime(const CInv& inv) EXCLUSIVE_LOCKS_
 
 void UpdateObjectRequestTime(const CInv& inv, std::chrono::microseconds request_time) EXCLUSIVE_LOCKS_REQUIRED(cs_main)
 {
-    AssertLockHeld(cs_main);
+    LockAssertion lock(::cs_main);
     auto it = g_already_asked_for.find(inv.hash);
     if (it == g_already_asked_for.end()) {
         g_already_asked_for.insert(std::make_pair(inv.hash, request_time));
@@ -1361,7 +1360,7 @@ std::chrono::microseconds GetObjectRandomDelay(int invType)
 
 std::chrono::microseconds CalculateObjectGetDataTime(const CInv& inv, std::chrono::microseconds current_time, bool is_masternode, bool use_inbound_delay) EXCLUSIVE_LOCKS_REQUIRED(cs_main)
 {
-    AssertLockHeld(cs_main);
+    LockAssertion lock(::cs_main);
     std::chrono::microseconds process_time;
     const auto last_request_time = GetObjectRequestTime(inv);
     // First time requesting this tx
@@ -1381,7 +1380,7 @@ std::chrono::microseconds CalculateObjectGetDataTime(const CInv& inv, std::chron
 
 void RequestObject(CNodeState* state, const CInv& inv, std::chrono::microseconds current_time, bool is_masternode, bool fForce = false) EXCLUSIVE_LOCKS_REQUIRED(cs_main)
 {
-    AssertLockHeld(cs_main);
+    LockAssertion lock(::cs_main);
     CNodeState::ObjectDownloadState& peer_download_state = state->m_object_download;
     if (peer_download_state.m_object_announced.size() >= MAX_PEER_OBJECT_ANNOUNCEMENTS ||
             peer_download_state.m_object_process_time.size() >= MAX_PEER_OBJECT_ANNOUNCEMENTS ||
@@ -1409,7 +1408,7 @@ void RequestObject(CNodeState* state, const CInv& inv, std::chrono::microseconds
 
 void RequestObject(NodeId nodeId, const CInv& inv, std::chrono::microseconds current_time, bool is_masternode, bool fForce) EXCLUSIVE_LOCKS_REQUIRED(cs_main)
 {
-    AssertLockHeld(cs_main);
+    LockAssertion lock(::cs_main);
     auto* state = State(nodeId);
     if (!state) {
         return;
@@ -1419,7 +1418,7 @@ void RequestObject(NodeId nodeId, const CInv& inv, std::chrono::microseconds cur
 
 size_t GetRequestedObjectCount(NodeId nodeId)
 {
-    AssertLockHeld(cs_main);
+    LockAssertion lock(::cs_main);
     auto* state = State(nodeId);
     if (!state) {
         return 0;
@@ -1849,7 +1848,7 @@ bool PeerManagerImpl::MaybePunishNodeForTx(NodeId nodeid, const TxValidationStat
 
 bool PeerManagerImpl::BlockRequestAllowed(const CBlockIndex* pindex)
 {
-    AssertLockHeld(cs_main);
+    LockAssertion lock(::cs_main);
     if (m_chainman.ActiveChain().Contains(pindex)) return true;
     return pindex->IsValid(BLOCK_VALID_SCRIPTS) && (pindexBestHeader != nullptr) &&
         (pindexBestHeader->GetBlockTime() - pindex->GetBlockTime() < STALE_RELAY_AGE_LIMIT) &&
@@ -2954,8 +2953,8 @@ void PeerManagerImpl::ProcessHeadersMessage(CNode& pfrom, const Peer& peer,
  */
 void PeerManagerImpl::ProcessOrphanTx(std::set<uint256>& orphan_work_set)
 {
-    AssertLockHeld(cs_main);
-    AssertLockHeld(g_cs_orphans);
+    LockAssertion lock(::cs_main);
+    LockAssertion lock(::g_cs_orphans);
 
     while (!orphan_work_set.empty()) {
         const uint256 orphanHash = *orphan_work_set.begin();
@@ -5026,7 +5025,7 @@ bool PeerManagerImpl::ProcessMessages(CNode* pfrom, std::atomic<bool>& interrupt
 
 void PeerManagerImpl::ConsiderEviction(CNode& pto, int64_t time_in_seconds)
 {
-    AssertLockHeld(cs_main);
+    LockAssertion lock(::cs_main);
 
     CNodeState &state = *State(pto.GetId());
     const CNetMsgMaker msgMaker(pto.GetCommonVersion());
@@ -5108,7 +5107,7 @@ void PeerManagerImpl::EvictExtraOutboundPeers(int64_t time_in_seconds)
             to_disconnect = next_youngest_peer.first;
         }
         m_connman.ForNode(to_disconnect, [&](CNode* pnode) EXCLUSIVE_LOCKS_REQUIRED(::cs_main) {
-            AssertLockHeld(::cs_main);
+            LockAssertion lock(::cs_main);
             // Make sure we're not getting a block right now, and that
             // we've been connected long enough for this eviction to happen
             // at all.
@@ -5606,7 +5605,7 @@ bool PeerManagerImpl::SendMessages(CNode* pto)
             peer->m_blocks_for_inv_relay.clear();
 
             auto queueAndMaybePushInv = [this, pto, peer, &vInv, &msgMaker](const CInv& invIn) {
-                AssertLockHeld(peer->m_tx_relay->m_tx_inventory_mutex);
+                LockAssertion lock(peer->m_tx_relay->m_tx_inventory_mutex);
                 peer->m_tx_relay->m_tx_inventory_known_filter.insert(invIn.hash);
                 LogPrint(BCLog::NET, "SendMessages -- queued inv: %s  index=%d peer=%d\n", invIn.ToString(), vInv.size(), pto->GetId());
                 // Responses to MEMPOOL requests bypass the m_recently_announced_invs filter.
