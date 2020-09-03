@@ -188,6 +188,7 @@ struct Params {
     int64_t nPosTargetTimespan;
     int nLastPoWBlock;
     int nHardCodedPayment;
+    std::string nHardCodedPaymentAddress;
     unsigned int nWSTargetDiff;
     int nPoSDiffAdjustRange;
     int nMaxBlockSpacingFixDeploymentHeight;

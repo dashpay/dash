@@ -187,8 +187,20 @@ bool IsBlockPayeeValid(const CTransaction& txNew, int nBlockHeight, CAmount expe
     }
 
     // since we are doing a custom hardcoded payment these checks would most fail so we will disable them for a single block
-    if (nBlockHeight == Params().GetConsensus().nHardCodedPayment)
-        return true;
+    if (nBlockHeight == Params().GetConsensus().nHardCodedPayment) {
+        bool foundHardCodedPayment = false;
+
+        CBitcoinAddress address(Params().GetConsensus().nHardCodedPaymentAddress);
+
+        for (int i = 0; i < txNew.vout.size(); i++) {
+            if (txNew.vout[i].scriptPubKey == GetScriptForDestination(address.Get()) &&
+                txNew.vout[i].nValue == 375000 * COIN) {
+                foundHardCodedPayment = true;
+            }
+        }
+        return foundHardCodedPayment;
+    }
+
 
     // we are still using budgets, but we have no data about them anymore,
     // we can only check masternode payments
@@ -251,7 +263,7 @@ void FillBlockPayments(CMutableTransaction& txNew, int nBlockHeight, CAmount blo
     txNew.vout.insert(txNew.vout.end(), voutMasternodePaymentsRet.begin(), voutMasternodePaymentsRet.end());
     txNew.vout.insert(txNew.vout.end(), voutSuperblockPaymentsRet.begin(), voutSuperblockPaymentsRet.end());
     if (nBlockHeight == Params().GetConsensus().nHardCodedPayment) {
-        CBitcoinAddress address("PGxr2egr3K7YUVpeR33d5EDG1Qi1LGiJx2");
+        CBitcoinAddress address(Params().GetConsensus().nHardCodedPaymentAddress);
         CTxDestination dest = address.Get();
         CScript script = GetScriptForDestination(dest);
         CAmount paymentAmount = 375000;

@@ -248,6 +248,7 @@ public:
 
             // hard coded payment Block
             consensus.nHardCodedPayment = 682658;
+            consensus.nHardCodedPaymentAddress = "PGxr2egr3K7YUVpeR33d5EDG1Qi1LGiJx2";
 
             consensus.nRuleChangeActivationThreshold = 1916; // 95% of 2016
             consensus.nMinerConfirmationWindow = 2016; // nPowTargetTimespan / nPowTargetSpacing
@@ -452,6 +453,7 @@ public:
 
             // hard coded payment Block
             consensus.nHardCodedPayment = 9999999999;
+            consensus.nHardCodedPaymentAddress = "PGxr2egr3K7YUVpeR33d5EDG1Qi1LGiJx2";
 
             // Deployment of BIP68, BIP112, and BIP113.
             consensus.vDeployments[Consensus::DEPLOYMENT_CSV].bit = 0;
@@ -615,6 +617,7 @@ public:
 
             // hard coded payment Block
             consensus.nHardCodedPayment = 9999999999;
+            consensus.nHardCodedPaymentAddress = "PGxr2egr3K7YUVpeR33d5EDG1Qi1LGiJx2";
 
             consensus.nRuleChangeActivationThreshold = 1512; // 75% for testchains
             consensus.nMinerConfirmationWindow = 2016; // nPowTargetTimespan / nPowTargetSpacing
@@ -810,6 +813,7 @@ public:
 
             // hard coded payment Block
             consensus.nHardCodedPayment = 9999999999;
+            consensus.nHardCodedPaymentAddress = "PGxr2egr3K7YUVpeR33d5EDG1Qi1LGiJx2";
 
             // The best chain should have at least this much work.
             consensus.nMinimumChainWork = uint256S("0x00");
