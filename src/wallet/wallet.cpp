@@ -4068,7 +4068,16 @@ bool CWallet::AddAccountingEntry(const CAccountingEntry& acentry, CWalletDB *pwa
 
 CAmount CWallet::GetRequiredFee(unsigned int nTxBytes)
 {
-    return std::max(minTxFee.GetFee(nTxBytes), ::minRelayTxFee.GetFee(nTxBytes));
+    // Check if fee enforcement is on
+
+    if (sporkManager.IsSporkActive(SPORK_31_MIN_FEE_ENFORCE)) {
+        CFeeRate feeRate = CFeeRate(0);
+        feeRate = CFeeRate(sporkManager.GetSporkValue(SPORK_30_MIN_FEE_BYTES));
+        return feeRate.GetFee(nTxBytes);
+    } else {
+        return std::max(minTxFee.GetFee(nTxBytes), ::minRelayTxFee.GetFee(nTxBytes));
+
+    }
 }
 
 CAmount CWallet::GetMinimumFee(unsigned int nTxBytes, unsigned int nConfirmTarget, const CTxMemPool& pool)

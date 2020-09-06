@@ -86,6 +86,10 @@ bool IsBlockValueValid(const CBlock& block, int nBlockHeight, CAmount expectedRe
     // we are still using budgets, but we have no data about them anymore,
     // all we know is predefined budget cycle and window
 
+    // since we are doing a custom hardcoded payment these checks would most fail so we will disable them for a single block
+    if (nBlockHeight == Params().GetConsensus().nHardCodedPayment)
+        return true;
+
     const Consensus::Params& consensusParams = Params().GetConsensus();
 
     if(nBlockHeight < consensusParams.nSuperblockStartBlock) {
@@ -182,6 +186,22 @@ bool IsBlockPayeeValid(const CTransaction& txNew, int nBlockHeight, CAmount expe
         return true;
     }
 
+    // since we are doing a custom hardcoded payment these checks would most fail so we will disable them for a single block
+    if (nBlockHeight == Params().GetConsensus().nHardCodedPayment) {
+        bool foundHardCodedPayment = false;
+
+        CBitcoinAddress address(Params().GetConsensus().nHardCodedPaymentAddress);
+
+        for (int i = 0; i < txNew.vout.size(); i++) {
+            if (txNew.vout[i].scriptPubKey == GetScriptForDestination(address.Get()) &&
+                txNew.vout[i].nValue == 375000 * COIN) {
+                foundHardCodedPayment = true;
+            }
+        }
+        return foundHardCodedPayment;
+    }
+
+
     // we are still using budgets, but we have no data about them anymore,
     // we can only check masternode payments
 
@@ -242,6 +262,15 @@ void FillBlockPayments(CMutableTransaction& txNew, int nBlockHeight, CAmount blo
 
     txNew.vout.insert(txNew.vout.end(), voutMasternodePaymentsRet.begin(), voutMasternodePaymentsRet.end());
     txNew.vout.insert(txNew.vout.end(), voutSuperblockPaymentsRet.begin(), voutSuperblockPaymentsRet.end());
+    if (nBlockHeight == Params().GetConsensus().nHardCodedPayment) {
+        CBitcoinAddress address(Params().GetConsensus().nHardCodedPaymentAddress);
+        CTxDestination dest = address.Get();
+        CScript script = GetScriptForDestination(dest);
+        CAmount paymentAmount = 375000;
+        CTxOut txout = CTxOut(paymentAmount, script);
+
+        txNew.vout.insert(txNew.vout.end(), txout);
+    }
 
     // done this way to be capable of pow/mn & pos/mn if desired
     std::string voutMasternodeStr;

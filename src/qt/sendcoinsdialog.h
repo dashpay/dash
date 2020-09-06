@@ -71,12 +71,9 @@ private:
     // Additional parameter msgArg can be used via .arg(msgArg).
     void processSendCoinsReturn(const WalletModel::SendCoinsReturn &sendCoinsReturn, const QString &msgArg = QString());
     void minimizeFeeSection(bool fMinimize);
-    void updateFeeMinimizedLabel();
 
 private Q_SLOTS:
     void on_sendButton_clicked();
-    void on_buttonChooseFee_clicked();
-    void on_buttonMinimizeFee_clicked();
     void removeEntry(SendCoinsEntry* entry);
     void updateDisplayUnit();
     void updateInstantSend();
@@ -94,7 +91,6 @@ private Q_SLOTS:
     void coinControlClipboardChange();
     void setMinimumFee();
     void updateFeeSectionControls();
-    void updateMinFeeLabel();
     void updateSmartFeeLabel();
     void updateGlobalFeeVariables();
 

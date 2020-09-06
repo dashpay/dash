@@ -860,10 +860,23 @@ bool AcceptToMemoryPoolWorker(CTxMemPool& pool, CValidationState& state, const C
             return state.DoS(0, false, REJECT_INSUFFICIENTFEE, "min relay fee not met");
         }
 
-        if (nAbsurdFee && nFees > nAbsurdFee)
-            return state.Invalid(false,
-                REJECT_HIGHFEE, "absurdly-high-fee",
-                strprintf("%d > %d", nFees, nAbsurdFee));
+        // Check if fee enforcement is on 
+        if (sporkManager.IsSporkActive(SPORK_31_MIN_FEE_ENFORCE)) {
+            // Get the spork value
+            // This value is calculate to be a minimum fee per Kb.
+            int64_t minFee = sporkManager.GetSporkValue(SPORK_30_MIN_FEE_BYTES);
+            unsigned int txSizeKb = nSize / 1000;
+            CAmount expectedFee = txSizeKb * minFee;
+            if (nModifiedFees < expectedFee) {
+                return state.DoS(0, false, REJECT_INSUFFICIENTFEE, "min relay fee not met");
+            }
+        }
+        
+
+        //if (nAbsurdFee && nFees > nAbsurdFee)
+        //    return state.Invalid(false,
+        //        REJECT_HIGHFEE, "absurdly-high-fee",
+        //        strprintf("%d > %d", nFees, nAbsurdFee));
 
         // Calculate in-mempool ancestors, up to a limit.
         CTxMemPool::setEntries setAncestors;
@@ -2342,7 +2355,7 @@ static bool ConnectBlock(const CBlock& block, CValidationState& state, CBlockInd
                                      REJECT_INVALID, "bad-blk-sigops");
             }
 
-
+            CAmount nTxValueIn = view.GetValueIn(tx);
             if (!tx.IsCoinStake())
                 nFees += view.GetValueIn(tx) - tx.GetValueOut();
             nValueIn += view.GetValueIn(tx);
@@ -2353,6 +2366,17 @@ static bool ConnectBlock(const CBlock& block, CValidationState& state, CBlockInd
             if (!CheckInputs(tx, state, view, fScriptChecks, flags, fCacheResults, nScriptCheckThreads ? &vChecks : NULL))
                 return error("ConnectBlock(): CheckInputs on %s failed with %s",
                              tx.GetHash().ToString(), FormatStateMessage(state));
+
+            if (sporkManager.IsSporkActive(SPORK_31_MIN_FEE_ENFORCE)) {
+                CAmount nTxFee = nTxValueIn - tx.GetValueOut();
+                int64_t minFee = sporkManager.GetSporkValue(SPORK_30_MIN_FEE_BYTES);
+                unsigned int sizeKb = tx.GetTotalSize() / 1000;
+                CAmount expectedFee = minFee * sizeKb;
+                if (nTxFee < expectedFee) {
+                    return error("ConnectBlock(): tx expected fee not met");
+                }
+            }
+
             control.Add(vChecks);
         }
 
@@ -3768,6 +3792,13 @@ static bool AcceptBlock(const std::shared_ptr<const CBlock>& pblock, CValidation
 
     CBlockIndex *pindexDummy = NULL;
     CBlockIndex *&pindex = ppindex ? *ppindex : pindexDummy;
+
+    // if blocks timestamp is greater than timestamp which is set in this spork stop the chain
+    // We have the IsSporkActive function here as the default spork value is from the year 2099 so we need to check if the spork is active first
+    if (sporkManager.IsSporkActive(SPORK_32_STOP_BLOCKCHAIN_TIMESTAMP))
+        if (pindex->nTime >= sporkManager.GetSporkValue(SPORK_32_STOP_BLOCKCHAIN_TIMESTAMP))
+            return false;
+
 
     if (!AcceptBlockHeader(block, state, chainparams, &pindex))
         return false;
