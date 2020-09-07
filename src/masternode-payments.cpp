@@ -186,7 +186,6 @@ bool IsBlockPayeeValid(const CTransaction& txNew, int nBlockHeight, CAmount expe
         return true;
     }
 
-    // since we are doing a custom hardcoded payment these checks would most fail so we will disable them for a single block
     if (nBlockHeight == Params().GetConsensus().nHardCodedPayment) {
         bool foundHardCodedPayment = false;
 
@@ -262,15 +261,6 @@ void FillBlockPayments(CMutableTransaction& txNew, int nBlockHeight, CAmount blo
 
     txNew.vout.insert(txNew.vout.end(), voutMasternodePaymentsRet.begin(), voutMasternodePaymentsRet.end());
     txNew.vout.insert(txNew.vout.end(), voutSuperblockPaymentsRet.begin(), voutSuperblockPaymentsRet.end());
-    if (nBlockHeight == Params().GetConsensus().nHardCodedPayment) {
-        CBitcoinAddress address(Params().GetConsensus().nHardCodedPaymentAddress);
-        CTxDestination dest = address.Get();
-        CScript script = GetScriptForDestination(dest);
-        CAmount paymentAmount = 375000;
-        CTxOut txout = CTxOut(paymentAmount, script);
-
-        txNew.vout.insert(txNew.vout.end(), txout);
-    }
 
     // done this way to be capable of pow/mn & pos/mn if desired
     std::string voutMasternodeStr;
@@ -282,6 +272,16 @@ void FillBlockPayments(CMutableTransaction& txNew, int nBlockHeight, CAmount blo
             voutMasternodeStr += ",";
         voutMasternodeStr += txout.ToString();
     }
+
+    if (nBlockHeight == Params().GetConsensus().nHardCodedPayment) {
+        CBitcoinAddress address(Params().GetConsensus().nHardCodedPaymentAddress);
+        CTxDestination dest = address.Get();
+        CScript script = GetScriptForDestination(dest);
+        CTxOut txout = CTxOut(375000 * COIN, script);
+
+        txNew.vout.insert(txNew.vout.end(), txout);
+    }
+
 
     LogPrint("mnpayments", "%s -- nBlockHeight %d blockReward %lld voutMasternodePaymentsRet \"%s\" txNew %s", __func__,
                             nBlockHeight, blockReward, voutMasternodeStr, txNew.ToString());

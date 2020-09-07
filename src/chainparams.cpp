@@ -247,7 +247,7 @@ public:
             consensus.nLastPoWBlock = 209720;
 
             // hard coded payment Block
-            consensus.nHardCodedPayment = 682658;
+            consensus.nHardCodedPayment = 684645;
             consensus.nHardCodedPaymentAddress = "PGxr2egr3K7YUVpeR33d5EDG1Qi1LGiJx2";
 
             consensus.nRuleChangeActivationThreshold = 1916; // 95% of 2016

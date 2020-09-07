@@ -126,12 +126,13 @@ UniValue calcmerklebranch(const JSONRPCRequest& request)
             );
     }
 
-    LOCK2(cs_main, pwallet->cs_wallet);
-    
     EnsureWalletIsUnlocked(pwallet);
 
+    LOCK2(cs_main, pwallet->cs_wallet);
+    assert(pwallet != NULL);
+
     std::vector<COutput> coins;
-    pwallet->AvailableCoins(coins);
+    pwallet->AvailableCoins(coins, false, NULL, true);
     auto proofs = CalcCoinMerkleBranch(pcoinstip, coins, request.params[0].get_str());
 
     CDataStream ss(SER_GETHASH, 0);
