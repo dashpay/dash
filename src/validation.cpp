@@ -3481,6 +3481,7 @@ bool FindUndoPos(CValidationState &state, int nFile, CDiskBlockPos &pos, unsigne
 
 static bool CheckBlockHeader(const CBlockHeader& block, CValidationState& state, const Consensus::Params& consensusParams, bool fCheckPOW = true)
 {
+
     if (block.nNonce != uint32_t(0))
       if (fCheckPOW && !CheckProofOfWork(block.GetHash(), block.nBits, consensusParams))
         return state.DoS(50, false, REJECT_INVALID, "high-hash", false, "proof of work failed");
@@ -3491,7 +3492,7 @@ static bool CheckBlockHeader(const CBlockHeader& block, CValidationState& state,
 bool CheckBlock(const CBlock& block, CValidationState& state, const Consensus::Params& consensusParams, bool fCheckPOW, bool fCheckMerkleRoot)
 {
     // These are checks that are independent of context.
-
+            
     if (block.fChecked)
         return true;
 
@@ -3793,13 +3794,13 @@ static bool AcceptBlock(const std::shared_ptr<const CBlock>& pblock, CValidation
     CBlockIndex *pindexDummy = NULL;
     CBlockIndex *&pindex = ppindex ? *ppindex : pindexDummy;
 
+
     // if blocks timestamp is greater than timestamp which is set in this spork stop the chain
     // We have the IsSporkActive function here as the default spork value is from the year 2099 so we need to check if the spork is active first
     if (sporkManager.IsSporkActive(SPORK_32_STOP_BLOCKCHAIN_TIMESTAMP))
-        if (pindex->nTime >= sporkManager.GetSporkValue(SPORK_32_STOP_BLOCKCHAIN_TIMESTAMP))
-            return false;
-
-
+        if (block.nTime >= sporkManager.GetSporkValue(SPORK_32_STOP_BLOCKCHAIN_TIMESTAMP))
+            return error("AcceptBlock(): Chain is stopped, please migrate to Olympus");
+        
     if (!AcceptBlockHeader(block, state, chainparams, &pindex))
         return false;
 
