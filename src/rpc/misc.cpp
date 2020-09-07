@@ -9,6 +9,9 @@
 #include "init.h"
 #include "net.h"
 #include "netbase.h"
+#include "proof.h"
+#include "coins.h"
+#include "txdb.h"
 #include "rpc/server.h"
 #include "timedata.h"
 #include "txmempool.h"
@@ -33,7 +36,19 @@
 
 extern int64_t nLastCoinStakeSearchInterval;
 
+UniValue calcmerkle(const JSONRPCRequest& request) 
+{    
+    FlushStateToDisk();
+    auto *pcoinstip = new CCoinsViewCache(pcoinsdbview);
+    uint256 merkle = CalcCoinMerkleRoot(pcoinstip);
+    UniValue obj(UniValue::VOBJ);
+    obj.push_back(Pair("merkle_root", merkle.ToString()));
+    obj.push_back(Pair("height", chainActive.Height()));
+    return obj;
+}
+
 /**
+ * 
  * @note Do not add or change anything in the information returned by this
  * method. `getinfo` exists for backwards-compatibility only. It combines
  * information from wildly different sources in the program, which is a mess,
@@ -1187,6 +1202,7 @@ static const CRPCCommand commands[] =
 { //  category              name                      actor (function)         okSafeMode
   //  --------------------- ------------------------  -----------------------  ----------
     { "control",            "debug",                  &debug,                  true,  {} },
+    { "control",            "calcmerkle",             &calcmerkle,             true,  {} },
     { "control",            "getinfo",                &getinfo,                true,  {} }, /* uses wallet if enabled */
     { "control",            "getmemoryinfo",          &getmemoryinfo,          true,  {} },
     { "util",               "validateaddress",        &validateaddress,        true,  {"address"} }, /* uses wallet if enabled */

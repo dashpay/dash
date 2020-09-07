@@ -12,6 +12,8 @@
 #include "init.h"
 #include "instantx.h"
 #include "net.h"
+#include "proof.h"
+#include "txdb.h"
 #include "rpc/server.h"
 #include "timedata.h"
 #include "util.h"
@@ -104,6 +106,41 @@ std::string AccountFromValue(const UniValue& value)
     if (strAccount == "*")
         throw JSONRPCError(RPC_WALLET_INVALID_ACCOUNT_NAME, "Invalid account name");
     return strAccount;
+}
+
+UniValue calcmerklebranch(const JSONRPCRequest& request) 
+{
+    FlushStateToDisk();
+    auto *pcoinstip = new CCoinsViewCache(pcoinsdbview);
+
+    CWallet * const pwallet = GetWalletForJSONRPCRequest(request);
+    if (!EnsureWalletIsAvailable(pwallet, request.fHelp)) {
+        return NullUniValue;
+    }
+
+    if (request.fHelp || request.params.size() < 1)
+    {
+        throw std::runtime_error(
+                "calcmerklebranch ( \"account\" )\n"
+                "\nReturns a proof to redeem coins on Olympus\n"
+            );
+    }
+
+    LOCK2(cs_main, pwallet->cs_wallet);
+    
+    EnsureWalletIsUnlocked(pwallet);
+
+    std::vector<COutput> coins;
+    pwallet->AvailableCoins(coins);
+    auto proofs = CalcCoinMerkleBranch(pcoinstip, coins, request.params[0].get_str());
+
+    CDataStream ss(SER_GETHASH, 0);
+    for (const CCoinsProof& proof : proofs) {
+        ss << proof;
+    }
+
+    std::string strHex = HexStr(ss.begin(), ss.end());
+    return strHex;
 }
 
 UniValue getnewaddress(const JSONRPCRequest& request)
@@ -3026,6 +3063,7 @@ static const CRPCCommand commands[] =
     { "wallet",             "getaddressesbyaccount",    &getaddressesbyaccount,    true,   {"account"} },
     { "wallet",             "getbalance",               &getbalance,               false,  {"account","minconf","addlocked","include_watchonly"} },
     { "wallet",             "getnewaddress",            &getnewaddress,            true,   {"account"} },
+    { "wallet",             "calcmerklebranch",         &calcmerklebranch,         true,   {} },
     { "wallet",             "getrawchangeaddress",      &getrawchangeaddress,      true,   {} },
     { "wallet",             "getreceivedbyaccount",     &getreceivedbyaccount,     false,  {"account","minconf","addlocked"} },
     { "wallet",             "getreceivedbyaddress",     &getreceivedbyaddress,     false,  {"address","minconf","addlocked"} },
