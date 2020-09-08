@@ -1,6 +1,7 @@
 packages:=boost libevent gmp chia_bls openssl
 native_packages := native_ccache
-qt_packages = zlib
+qt_native_packages = native_protobuf
+qt_packages = protobuf zlib
 
 qrencode_packages = qrencode
 
