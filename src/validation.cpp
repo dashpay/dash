@@ -1196,23 +1196,33 @@ CAmount GetMasternodePayment(int nHeight, CAmount blockValue, int nReallocActiva
         return ret;
     }
 
+    // Periods used to reallocate the masternode reward from 50% to 60%
+    static std::vector<int> vecPeriods{
+        513, // Period 1:  51.3%
+        526, // Period 2:  52.6%
+        533, // Period 3:  53.3%
+        540, // Period 4:  54%
+        546, // Period 5:  54.6%
+        552, // Period 6:  55.2%
+        557, // Period 7:  55.7%
+        562, // Period 8:  56.2%
+        567, // Period 9:  56.7%
+        572, // Period 10: 57.2%
+        577, // Period 11: 57.7%
+        582, // Period 12: 58.2%
+        585, // Period 13: 58.5%
+        588, // Period 14: 58.8%
+        591, // Period 15: 59.1%
+        594, // Period 16: 59.4%
+        597, // Period 17: 59.7%
+        599, // Period 18: 59.9%
+        600  // Period 19: 60%
+    };
+
     int nReallocCycle = nSuperblockCycle * 3;
-    int nReallocPeriod = (nHeight - nReallocStart) / nReallocCycle;
+    int nCurrentPeriod = std::min<int>((nHeight - nReallocStart) / nReallocCycle, vecPeriods.size() - 1);
 
-    // 2x13+2x7+2x6+6x5+5x3+1x2+1x1 = 100
-    int perc{0};
-    for (int i = 0; i <= nReallocPeriod; ++i) {
-        if      (i <  2) perc += 13;
-        else if (i <  4) perc += 7;
-        else if (i <  6) perc += 6;
-        else if (i < 12) perc += 5;
-        else if (i < 17) perc += 3;
-        else if (i < 18) perc += 2;
-        else if (i < 19) perc += 1;
-    }
-    ret = blockValue * (500 + perc) / 1000;
-
-    return ret;
+    return static_cast<CAmount>(blockValue * vecPeriods[nCurrentPeriod] / 1000);
 }
 
 bool IsInitialBlockDownload()
