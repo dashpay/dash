@@ -20,6 +20,7 @@ class BlockRewardReallocationTest(DashTestFramework):
         self.set_dash_test_params(4, 3, fast_dip3_enforcement=True)
         self.set_dash_dip8_activation(450)
 
+    # 536870912 == 0x20000000, i.e. not signalling for anything
     def create_test_block(self, version=536870912):
         self.bump_mocktime(150)
         bt = self.nodes[0].getblocktemplate()
