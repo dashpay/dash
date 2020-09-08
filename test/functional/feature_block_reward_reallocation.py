@@ -104,9 +104,22 @@ class BlockRewardReallocationTest(DashTestFramework):
         assert_equal(bi['bip9_softforks']['realloc']['statistics']['threshold'], 400)
 
         self.signal(399, False) # 1 block short
-        self.signal(400, True) # just enough to lock in
 
-        self.log.info("Still LOCKED_IN at height = 1498")
+        self.log.info("Still STARTED but new threshold should be lower at height = 999")
+        bi = self.nodes[0].getblockchaininfo()
+        assert_equal(bi['blocks'], 999)
+        assert_equal(bi['bip9_softforks']['realloc']['statistics']['threshold'], 399)
+
+        self.signal(398, False) # 1 block short again
+
+        self.log.info("Still STARTED but new threshold should be even lower at height = 1499")
+        bi = self.nodes[0].getblockchaininfo()
+        assert_equal(bi['blocks'], 1499)
+        assert_equal(bi['bip9_softforks']['realloc']['statistics']['threshold'], 396)
+
+        self.signal(396, True) # just enough to lock in
+
+        self.log.info("Still LOCKED_IN at height = 2498")
         for i in range(49):
             self.bump_mocktime(10)
             self.nodes[0].generate(10)
@@ -114,27 +127,27 @@ class BlockRewardReallocationTest(DashTestFramework):
         self.nodes[0].generate(9)
         self.sync_blocks()
         bi = self.nodes[0].getblockchaininfo()
-        assert_equal(bi['blocks'], 1998)
+        assert_equal(bi['blocks'], 2498)
         assert_equal(bi['bip9_softforks']['realloc']['status'], 'locked_in')
 
-        self.log.info("Advance from LOCKED_IN to ACTIVE at height = 1999")
+        self.log.info("Advance from LOCKED_IN to ACTIVE at height = 2499")
         self.nodes[0].generate(1) # activation
         bi = self.nodes[0].getblockchaininfo()
-        assert_equal(bi['blocks'], 1999)
+        assert_equal(bi['blocks'], 2499)
         assert_equal(bi['bip9_softforks']['realloc']['status'], 'active')
-        assert_equal(bi['bip9_softforks']['realloc']['since'], 2000)
+        assert_equal(bi['bip9_softforks']['realloc']['since'], 2500)
 
         self.log.info("Reward split should stay ~50/50 before the first superblock after activation")
         # This applies even if reallocation was activated right at superblock height like it does here
         bt = self.nodes[0].getblocktemplate()
-        assert_equal(bt['height'], 2000)
-        assert_equal(bt['masternode'][0]['amount'], get_masternode_payment(bt['height'], bt['coinbasevalue'], 2000))
+        assert_equal(bt['height'], 2500)
+        assert_equal(bt['masternode'][0]['amount'], get_masternode_payment(bt['height'], bt['coinbasevalue'], 2500))
         self.nodes[0].generate(9)
         self.sync_blocks()
         bt = self.nodes[0].getblocktemplate()
-        assert_equal(bt['masternode'][0]['amount'], get_masternode_payment(bt['height'], bt['coinbasevalue'], 2000))
-        assert_equal(bt['coinbasevalue'], 17171634268)
-        assert_equal(bt['masternode'][0]['amount'], 8585817128) # 0.4999999997
+        assert_equal(bt['masternode'][0]['amount'], get_masternode_payment(bt['height'], bt['coinbasevalue'], 2500))
+        assert_equal(bt['coinbasevalue'], 13748571607)
+        assert_equal(bt['masternode'][0]['amount'], 6874285801) # 0.4999999998
 
         self.log.info("Reallocation should kick-in with the superblock mined at height = 2010")
         for period in range(19): # there will be 19 adjustments, 3 superblocks long each
@@ -143,11 +156,11 @@ class BlockRewardReallocationTest(DashTestFramework):
                 self.nodes[0].generate(10)
                 self.sync_blocks()
                 bt = self.nodes[0].getblocktemplate()
-                assert_equal(bt['masternode'][0]['amount'], get_masternode_payment(bt['height'], bt['coinbasevalue'], 2000))
+                assert_equal(bt['masternode'][0]['amount'], get_masternode_payment(bt['height'], bt['coinbasevalue'], 2500))
 
         self.log.info("Reward split should reach ~60/40 after reallocation is done")
-        assert_equal(bt['coinbasevalue'], 12766530779)
-        assert_equal(bt['masternode'][0]['amount'], 7659918467) # 0.6
+        assert_equal(bt['coinbasevalue'], 10221599170)
+        assert_equal(bt['masternode'][0]['amount'], 6132959502) # 0.6
 
         self.log.info("Reward split should stay ~60/40 after reallocation is done")
         for period in range(10): # check 10 next superblocks
@@ -155,9 +168,9 @@ class BlockRewardReallocationTest(DashTestFramework):
             self.nodes[0].generate(10)
             self.sync_blocks()
             bt = self.nodes[0].getblocktemplate()
-            assert_equal(bt['masternode'][0]['amount'], get_masternode_payment(bt['height'], bt['coinbasevalue'], 2000))
-        assert_equal(bt['coinbasevalue'], 12766530779)
-        assert_equal(bt['masternode'][0]['amount'], 7659918467) # 0.6
+            assert_equal(bt['masternode'][0]['amount'], get_masternode_payment(bt['height'], bt['coinbasevalue'], 2500))
+        assert_equal(bt['coinbasevalue'], 9491484944)
+        assert_equal(bt['masternode'][0]['amount'], 5694890966) # 0.6
 
 if __name__ == '__main__':
     BlockRewardReallocationTest().main()
