@@ -226,7 +226,7 @@ protected:
         if (params.vDeployments[id].nThresholdMin == 0 || params.vDeployments[id].nFalloffCoeff == 0) {
             return params.vDeployments[id].nThresholdStart;
         }
-        int64_t nThresholdCalc = params.vDeployments[id].nThresholdStart - std::pow(nAttempt, 2) * Period(params) / 100 / params.vDeployments[id].nFalloffCoeff;
+        int64_t nThresholdCalc = params.vDeployments[id].nThresholdStart - nAttempt * nAttempt * Period(params) / 100 / params.vDeployments[id].nFalloffCoeff;
         return std::max(params.vDeployments[id].nThresholdMin, nThresholdCalc);
     }
 
