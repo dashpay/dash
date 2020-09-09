@@ -1,5 +1,5 @@
 linux_CFLAGS=-pipe
-linux_CXXFLAGS=$(linux_CFLAGS) -static-libstdc++
+linux_CXXFLAGS=$(linux_CFLAGS)
 
 linux_release_CFLAGS=-O2
 linux_release_CXXFLAGS=$(linux_release_CFLAGS)
@@ -29,3 +29,4 @@ i686_linux_CXX=$(default_host_CXX) -m32
 x86_64_linux_CC=$(default_host_CC) -m64
 x86_64_linux_CXX=$(default_host_CXX) -m64
 endif
+linux_cmake_system=Linux
