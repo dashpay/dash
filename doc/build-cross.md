@@ -64,8 +64,8 @@ $ sudo apt-get install g++-mingw-w64-i686
 If you're building on Ubuntu 17.04 or later, run these two commands, selecting the 'posix' variant for both,
 to fix linker issues related to std::thread and other threading related standard C++ libraries.
 ```
-sudo update-alternatives --config x86_64-w64-mingw32-g++
-sudo update-alternatives --config x86_64-w64-mingw32-gcc
+sudo update-alternatives --config i686-w64-mingw32-g++
+sudo update-alternatives --config i686-w64-mingw32-gcc
 ```
 
 Before building for Windows 32bit or 64bit, run
