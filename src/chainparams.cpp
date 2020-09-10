@@ -86,7 +86,7 @@ void CChainParams::UpdateVersionBitsParameters(Consensus::DeploymentPos d, int64
     consensus.vDeployments[d].nStartTime = nStartTime;
     consensus.vDeployments[d].nTimeout = nTimeout;
     if (nWindowSize != -1) {
-        consensus.vDeployments[d].nWindowSize = nWindowSize;
+            consensus.vDeployments[d].nWindowSize = nWindowSize;
     }
     if (nThresholdStart != -1) {
         consensus.vDeployments[d].nThresholdStart = nThresholdStart;
