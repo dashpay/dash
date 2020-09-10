@@ -118,14 +118,16 @@ class BlockRewardReallocationTest(DashTestFramework):
         assert_equal(bi['bip9_softforks']['realloc']['statistics']['threshold'], 396)
 
         self.signal(396, True) # just enough to lock in
+        self.log.info("Advanced to LOCKED_IN at height = 1999")
 
-        self.log.info("Still LOCKED_IN at height = 2498")
         for i in range(49):
             self.bump_mocktime(10)
             self.nodes[0].generate(10)
             self.sync_blocks()
         self.nodes[0].generate(9)
         self.sync_blocks()
+
+        self.log.info("Still LOCKED_IN at height = 2498")
         bi = self.nodes[0].getblockchaininfo()
         assert_equal(bi['blocks'], 2498)
         assert_equal(bi['bip9_softforks']['realloc']['status'], 'locked_in')
