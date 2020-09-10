@@ -148,6 +148,6 @@ def get_masternode_payment(nHeight, blockValue, nReallocActivationHeight):
     ]
 
     nReallocCycle = nSuperblockCycle * 3
-    nCurrentPeriod = min(int((nHeight - nReallocStart) / nReallocCycle), len(vecPeriods) - 1);
+    nCurrentPeriod = min(int((nHeight - nReallocStart) / nReallocCycle), len(vecPeriods) - 1)
 
-    return int(blockValue * vecPeriods[nCurrentPeriod] / 1000);
+    return int(blockValue * vecPeriods[nCurrentPeriod] / 1000)
