@@ -73,6 +73,12 @@ class BlockRewardReallocationTest(DashTestFramework):
         else:
             assert_equal(get_bip9_status(self.nodes[0], 'realloc')['status'], 'started')
 
+    def threshold(self, attempt):
+        threshold_calc = 400 - attempt * attempt;
+        if threshold_calc < 300:
+            return 300
+        return threshold_calc
+
     def run_test(self):
         self.log.info("Wait for DIP3 to activate")
         while get_bip9_status(self.nodes[0], 'dip0003')['status'] != 'active':
@@ -101,21 +107,21 @@ class BlockRewardReallocationTest(DashTestFramework):
         bi = self.nodes[0].getblockchaininfo()
         assert_equal(bi['blocks'], 499)
         assert_equal(bi['bip9_softforks']['realloc']['status'], 'started')
-        assert_equal(bi['bip9_softforks']['realloc']['statistics']['threshold'], 400)
+        assert_equal(bi['bip9_softforks']['realloc']['statistics']['threshold'], self.threshold(0))
 
         self.signal(399, False) # 1 block short
 
         self.log.info("Still STARTED but new threshold should be lower at height = 999")
         bi = self.nodes[0].getblockchaininfo()
         assert_equal(bi['blocks'], 999)
-        assert_equal(bi['bip9_softforks']['realloc']['statistics']['threshold'], 399)
+        assert_equal(bi['bip9_softforks']['realloc']['statistics']['threshold'], self.threshold(1))
 
         self.signal(398, False) # 1 block short again
 
         self.log.info("Still STARTED but new threshold should be even lower at height = 1499")
         bi = self.nodes[0].getblockchaininfo()
         assert_equal(bi['blocks'], 1499)
-        assert_equal(bi['bip9_softforks']['realloc']['statistics']['threshold'], 396)
+        assert_equal(bi['bip9_softforks']['realloc']['statistics']['threshold'], self.threshold(2))
 
         self.signal(396, True) # just enough to lock in
         self.log.info("Advanced to LOCKED_IN at height = 1999")
