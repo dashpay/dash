@@ -74,7 +74,7 @@ class BlockRewardReallocationTest(DashTestFramework):
             assert_equal(get_bip9_status(self.nodes[0], 'realloc')['status'], 'started')
 
     def threshold(self, attempt):
-        threshold_calc = 400 - attempt * attempt;
+        threshold_calc = 400 - attempt * attempt
         if threshold_calc < 300:
             return 300
         return threshold_calc
