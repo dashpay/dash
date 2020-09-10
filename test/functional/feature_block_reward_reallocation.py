@@ -122,6 +122,7 @@ class BlockRewardReallocationTest(DashTestFramework):
         bi = self.nodes[0].getblockchaininfo()
         assert_equal(bi['blocks'], 1499)
         assert_equal(bi['bip9_softforks']['realloc']['statistics']['threshold'], self.threshold(2))
+        pre_locked_in_blockhash = bi['bestblockhash']
 
         self.signal(396, True) # just enough to lock in
         self.log.info("Advanced to LOCKED_IN at height = 1999")
@@ -179,6 +180,28 @@ class BlockRewardReallocationTest(DashTestFramework):
             assert_equal(bt['masternode'][0]['amount'], get_masternode_payment(bt['height'], bt['coinbasevalue'], 2500))
         assert_equal(bt['coinbasevalue'], 9491484944)
         assert_equal(bt['masternode'][0]['amount'], 5694890966) # 0.6
+
+        self.log.info("Rollback the chain back to the STARTED state")
+        self.mocktime = self.nodes[0].getblock(pre_locked_in_blockhash, 1)['time']
+        for node in self.nodes:
+            node.invalidateblock(pre_locked_in_blockhash)
+        self.sync_all()
+        # create and send non-signalling block
+        test_block = self.create_test_block()
+        self.nodes[0].p2p.send_blocks_and_test([test_block], self.nodes[0], timeout=5)
+        bi = self.nodes[0].getblockchaininfo()
+        assert_equal(bi['blocks'], 1499)
+        assert_equal(bi['bip9_softforks']['realloc']['status'], 'started')
+        assert_equal(bi['bip9_softforks']['realloc']['statistics']['threshold'], self.threshold(2))
+
+        self.log.info("Check thresholds reach min level and stay there")
+        for i in range(8): # 7 to reach min level and 1 more to check it doesn't go lower than that
+            self.signal(0, False) # no need to signal
+            bi = self.nodes[0].getblockchaininfo()
+            assert_equal(bi['blocks'], 1999 + i * 500)
+            assert_equal(bi['bip9_softforks']['realloc']['status'], 'started')
+            assert_equal(bi['bip9_softforks']['realloc']['statistics']['threshold'], self.threshold(i + 3))
+        assert_equal(bi['bip9_softforks']['realloc']['statistics']['threshold'], 300)
 
 if __name__ == '__main__':
     BlockRewardReallocationTest().main()
