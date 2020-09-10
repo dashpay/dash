@@ -58,16 +58,16 @@ class BlockRewardReallocationTest(DashTestFramework):
             test_block = self.create_test_block()
             self.nodes[0].p2p.send_blocks_and_test([test_block], self.nodes[0], timeout=5)
         # generate at most 10 signaling blocks at a time
-        for i in range((num_blocks - 1) // 10):
-            self.bump_mocktime(10)
-            self.nodes[0].generate(10)
+        if num_blocks > 0:
+            for i in range((num_blocks - 1) // 10):
+                self.bump_mocktime(10)
+                self.nodes[0].generate(10)
+                self.sync_blocks()
+            self.nodes[0].generate((num_blocks - 1) % 10)
             self.sync_blocks()
-        self.nodes[0].generate((num_blocks - 1) % 10)
+            assert_equal(get_bip9_status(self.nodes[0], 'realloc')['status'], 'started')
+            self.nodes[0].generate(1)
         self.sync_blocks()
-        assert_equal(get_bip9_status(self.nodes[0], 'realloc')['status'], 'started')
-        bestblockhash = self.nodes[0].generate(1)[0]
-        self.sync_blocks()
-        self.nodes[0].getblock(bestblockhash, 1)
         if expected_lockin:
             assert_equal(get_bip9_status(self.nodes[0], 'realloc')['status'], 'locked_in')
         else:
