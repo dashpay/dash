@@ -313,13 +313,10 @@ public:
 };
 }
 
-/** Helper for OP_CHECKSIG and OP_CHECKSIGVERIFY
- *
- * A return value of false means the script fails entirely. When true is returned, the
- * fSuccess variable indicates whether the signature check itself succeeded.
- */
-static bool EvalChecksig(const valtype& vchSig, const valtype& vchPubKey, CScript::const_iterator pbegincodehash, CScript::const_iterator pend, unsigned int flags, const BaseSignatureChecker& checker, SigVersion sigversion, ScriptError* serror, bool& fSuccess)
+static bool EvalChecksigPreTapscript(const valtype& vchSig, const valtype& vchPubKey, CScript::const_iterator pbegincodehash, CScript::const_iterator pend, unsigned int flags, const BaseSignatureChecker& checker, SigVersion sigversion, ScriptError* serror, bool& fSuccess)
 {
+    assert(sigversion == SigVersion::BASE);
+
     // Subset of script starting at the most recent codeseparator
     CScript scriptCode(pbegincodehash, pend);
 
@@ -342,6 +339,67 @@ static bool EvalChecksig(const valtype& vchSig, const valtype& vchPubKey, CScrip
     return true;
 }
 
+static bool EvalChecksigTapscript(const valtype& sig, const valtype& pubkey, ScriptExecutionData& execdata, unsigned int flags, const BaseSignatureChecker& checker, SigVersion sigversion, ScriptError* serror, bool& success)
+{
+    assert(sigversion == SigVersion::TAPSCRIPT);
+
+    /*
+     *  The following validation sequence is consensus critical. Please note how --
+     *    upgradable public key versions precede other rules;
+     *    the script execution fails when using empty signature with invalid public key;
+     *    the script execution fails when using non-empty invalid signature.
+     */
+    success = !sig.empty();
+    if (success) {
+        /*
+        // Implement the sigops/witnesssize ratio test.
+        // Passing with an upgradable public key version is also counted.
+        assert(execdata.m_validation_weight_left_init);
+        execdata.m_validation_weight_left -= VALIDATION_WEIGHT_PER_SIGOP_PASSED;
+        if (execdata.m_validation_weight_left < 0) {
+            return set_error(serror, SCRIPT_ERR_TAPSCRIPT_VALIDATION_WEIGHT);
+        }
+        */
+    }
+    if (pubkey.size() == 0) {
+        return set_error(serror, SCRIPT_ERR_PUBKEYTYPE);
+    } else if (pubkey.size() == 32) {
+        if (success && !checker.CheckSchnorrSignature(sig, pubkey, sigversion, execdata, serror)) {
+            return false; // serror is set
+        }
+    } else {
+        /*
+         *  New public key version softforks should be defined before this `else` block.
+         *  Generally, the new code should not do anything but failing the script execution. To avoid
+         *  consensus bugs, it should not modify any existing values (including `success`).
+         */
+        if ((flags & SCRIPT_VERIFY_DISCOURAGE_UPGRADABLE_PUBKEYTYPE) != 0) {
+            return set_error(serror, SCRIPT_ERR_DISCOURAGE_UPGRADABLE_PUBKEYTYPE);
+        }
+    }
+
+    return true;
+}
+
+/** Helper for OP_CHECKSIG, OP_CHECKSIGVERIFY, and (in Tapscript) OP_CHECKSIGADD.
+ *
+ * A return value of false means the script fails entirely. When true is returned, the
+ * success variable indicates whether the signature check itself succeeded.
+ */
+static bool EvalChecksig(const valtype& sig, const valtype& pubkey, CScript::const_iterator pbegincodehash, CScript::const_iterator pend, ScriptExecutionData& execdata, unsigned int flags, const BaseSignatureChecker& checker, SigVersion sigversion, ScriptError* serror, bool& success)
+{
+    switch (sigversion) {
+    case SigVersion::BASE:
+        return EvalChecksigPreTapscript(sig, pubkey, pbegincodehash, pend, flags, checker, sigversion, serror, success);
+    case SigVersion::TAPSCRIPT:
+        return EvalChecksigTapscript(sig, pubkey, execdata, flags, checker, sigversion, serror, success);
+    case SigVersion::TAPROOT:
+        // Key path spending in Taproot has no script, so this is unreachable.
+        break;
+    }
+    assert(false);
+}
+
 bool EvalScript(std::vector<std::vector<unsigned char> >& stack, const CScript& script, unsigned int flags, const BaseSignatureChecker& checker, SigVersion sigversion, ScriptExecutionData& execdata, ScriptError* serror)
 {
     static const CScriptNum bnZero(0);
@@ -352,6 +410,9 @@ bool EvalScript(std::vector<std::vector<unsigned char> >& stack, const CScript& 
     // static const valtype vchZero(0);
     static const valtype vchTrue(1, 1);
 
+    // sigversion cannot be TAPROOT here, as it admits no script execution.
+    assert(sigversion == SigVersion::BASE || sigversion == SigVersion::TAPSCRIPT);
+
     CScript::const_iterator pc = script.begin();
     CScript::const_iterator pend = script.end();
     CScript::const_iterator pbegincodehash = script.begin();
@@ -360,15 +421,18 @@ bool EvalScript(std::vector<std::vector<unsigned char> >& stack, const CScript& 
     ConditionStack vfExec;
     std::vector<valtype> altstack;
     set_error(serror, SCRIPT_ERR_UNKNOWN_ERROR);
-    if (script.size() > MAX_SCRIPT_SIZE)
+    if ((sigversion == SigVersion::BASE) && script.size() > MAX_SCRIPT_SIZE) {
         return set_error(serror, SCRIPT_ERR_SCRIPT_SIZE);
+    }
     int nOpCount = 0;
     bool fRequireMinimal = (flags & SCRIPT_VERIFY_MINIMALDATA) != 0;
+    uint32_t opcode_pos = 0;
+    execdata.m_codeseparator_pos = 0xFFFFFFFFUL;
+    execdata.m_codeseparator_pos_init = true;
 
     try
     {
-        while (pc < pend)
-        {
+        for (; pc < pend; ++opcode_pos) {
             bool fExec = vfExec.all_true();
 
             //
@@ -379,9 +443,12 @@ bool EvalScript(std::vector<std::vector<unsigned char> >& stack, const CScript& 
             if (vchPushValue.size() > MAX_SCRIPT_ELEMENT_SIZE)
                 return set_error(serror, SCRIPT_ERR_PUSH_SIZE);
 
-            // Note how OP_RESERVED does not count towards the opcode limit.
-            if (opcode > OP_16 && ++nOpCount > MAX_OPS_PER_SCRIPT)
-                return set_error(serror, SCRIPT_ERR_OP_COUNT);
+            if (sigversion == SigVersion::BASE) {
+                // Note how OP_RESERVED does not count towards the opcode limit.
+                if (opcode > OP_16 && ++nOpCount > MAX_OPS_PER_SCRIPT) {
+                    return set_error(serror, SCRIPT_ERR_OP_COUNT);
+                }
+            }
 
             if (opcode == OP_INVERT ||
                 opcode == OP_2MUL ||
@@ -1016,6 +1083,7 @@ bool EvalScript(std::vector<std::vector<unsigned char> >& stack, const CScript& 
 
                     // Hash starts after the code separator
                     pbegincodehash = pc;
+                    execdata.m_codeseparator_pos = opcode_pos;
                 }
                 break;
 
@@ -1030,7 +1098,7 @@ bool EvalScript(std::vector<std::vector<unsigned char> >& stack, const CScript& 
                     valtype& vchPubKey = stacktop(-1);
 
                     bool fSuccess = true;
-                    if (!EvalChecksig(vchSig, vchPubKey, pbegincodehash, pend, flags, checker, sigversion, serror, fSuccess)) return false;
+                    if (!EvalChecksig(vchSig, vchPubKey, pbegincodehash, pend, execdata, flags, checker, sigversion, serror, fSuccess)) return false;
                     popstack(stack);
                     popstack(stack);
                     stack.push_back(fSuccess ? vchTrue : vchFalse);
@@ -1083,9 +1151,32 @@ bool EvalScript(std::vector<std::vector<unsigned char> >& stack, const CScript& 
                 }
                 break;
 
+                case OP_CHECKSIGADD:
+                {
+                    // OP_CHECKSIGADD is only available in Tapscript
+                    if (sigversion == SigVersion::BASE) return set_error(serror, SCRIPT_ERR_BAD_OPCODE);
+
+                    // (sig num pubkey -- num)
+                    if (stack.size() < 3) return set_error(serror, SCRIPT_ERR_INVALID_STACK_OPERATION);
+
+                    const valtype& sig = stacktop(-3);
+                    const CScriptNum num(stacktop(-2), fRequireMinimal);
+                    const valtype& pubkey = stacktop(-1);
+
+                    bool success = true;
+                    if (!EvalChecksig(sig, pubkey, pbegincodehash, pend, execdata, flags, checker, sigversion, serror, success)) return false;
+                    popstack(stack);
+                    popstack(stack);
+                    popstack(stack);
+                    stack.push_back((num + (success ? 1 : 0)).getvch());
+                }
+                break;
+
                 case OP_CHECKMULTISIG:
                 case OP_CHECKMULTISIGVERIFY:
                 {
+                    if (sigversion == SigVersion::TAPSCRIPT) return set_error(serror, SCRIPT_ERR_TAPSCRIPT_CHECKMULTISIG);
+
                     // ([sig ...] num_of_signatures [pubkey ...] num_of_pubkeys -- bool)
 
                     int i = 1;
@@ -1564,10 +1655,19 @@ template<typename T>
 bool SignatureHashSchnorr(uint256& hash_out, const ScriptExecutionData& execdata, const T& tx_to, uint32_t in_pos, uint8_t hash_type, SigVersion sigversion, const PrecomputedTransactionData& cache)
 {
     // TODO: either remove attribute or variable ext_flag. It's not used but it kept for backport compatibility
-    [[maybe_unused]] uint8_t ext_flag;
+    [[maybe_unused]] uint8_t ext_flag, key_version;
     switch (sigversion) {
     case SigVersion::TAPROOT:
         ext_flag = 0;
+        // key_version is not used and left uninitialized.
+        break;
+    case SigVersion::TAPSCRIPT:
+        ext_flag = 1;
+        // key_version must be 0 for now, representing the current version of
+        // 32-byte public keys in the tapscript signature opcode execution.
+        // An upgradable public key version (with a size not 32-byte) may
+        // request a different key_version with a new sigversion.
+        key_version = 0;
         break;
     default:
         assert(false);
@@ -1606,6 +1706,15 @@ bool SignatureHashSchnorr(uint256& hash_out, const ScriptExecutionData& execdata
         HashWriter sha_single_output{};
         sha_single_output << tx_to.vout[in_pos];
         ss << sha_single_output.GetSHA256();
+    }
+
+    // Additional data for BIP 342 signatures
+    if (sigversion == SigVersion::TAPSCRIPT) {
+        assert(execdata.m_tapleaf_hash_init);
+        ss << execdata.m_tapleaf_hash;
+        ss << key_version;
+        assert(execdata.m_codeseparator_pos_init);
+        ss << execdata.m_codeseparator_pos;
     }
 
     hash_out = ss.GetSHA256();
@@ -1699,9 +1808,13 @@ bool GenericTransactionSignatureChecker<T>::CheckECDSASignature(const std::vecto
 template <class T>
 bool GenericTransactionSignatureChecker<T>::CheckSchnorrSignature(Span<const unsigned char> sig, Span<const unsigned char> pubkey_in, SigVersion sigversion, const ScriptExecutionData& execdata, ScriptError* serror) const
 {
-    assert(sigversion == SigVersion::TAPROOT);
+    assert(sigversion == SigVersion::TAPROOT || sigversion == SigVersion::TAPSCRIPT);
     // Schnorr signatures have 32-byte public keys. The caller is responsible for enforcing this.
     assert(pubkey_in.size() == 32);
+    // Note that in Tapscript evaluation, empty signatures are treated specially (invalid signature that does not
+    // abort script execution). This is implemented in EvalChecksigTapscript, which won't invoke
+    // CheckSchnorrSignature in that case. In other contexts, they are invalid like every other signature with
+    // size different from 64 or 65.
     if (sig.size() != 64 && sig.size() != 65) return set_error(serror, SCRIPT_ERR_SCHNORR_SIG_SIZE);
 
     XOnlyPubKey pubkey{pubkey_in};
@@ -1810,12 +1923,12 @@ template class GenericTransactionSignatureChecker<CMutableTransaction>;
 
 /*
 // TODO: refactor and use it for TAPROOT verify! Now there's not call of `checker.CheckSchnorrSignature` at all
-static bool VerifyTaprootCommitment(const std::vector<unsigned char>& control, const std::vector<unsigned char>& program, const CScript& script)
+static bool VerifyTaprootCommitment(const std::vector<unsigned char>& control, const std::vector<unsigned char>& program, const CScript& script, uint256& tapleaf_hash)
 {
     const int path_len = (control.size() - TAPROOT_CONTROL_BASE_SIZE) / TAPROOT_CONTROL_NODE_SIZE;
     const XOnlyPubKey p{uint256(std::vector<unsigned char>(control.begin() + 1, control.begin() + TAPROOT_CONTROL_BASE_SIZE))};
     const XOnlyPubKey q{uint256(program)};
-    uint256 tapleaf_hash = (HashWriter(HASHER_TAPLEAF) << uint8_t(control[0] & TAPROOT_LEAF_MASK) << script).GetSHA256();
+    tapleaf_hash = (HashWriter(HASHER_TAPLEAF) << uint8_t(control[0] & TAPROOT_LEAF_MASK) << script).GetSHA256();
     uint256 k = tapleaf_hash;
     for (int i = 0; i < path_len; ++i) {
         HashWriter ss_branch{HASHER_TAPBRANCH};
@@ -1864,8 +1977,15 @@ static bool VerifyWitnessProgram(const CScriptWitness& witness, const std::vecto
             if (control.size() < TAPROOT_CONTROL_BASE_SIZE || control.size() > TAPROOT_CONTROL_MAX_SIZE || ((control.size() - TAPROOT_CONTROL_BASE_SIZE) % TAPROOT_CONTROL_NODE_SIZE) != 0) {
                 return set_error(serror, SCRIPT_ERR_TAPROOT_WRONG_CONTROL_SIZE);
             }
-            if (!VerifyTaprootCommitment(control, program, exec_script)) {
+            if (!VerifyTaprootCommitment(control, program, exec_script, execdata.m_tapleaf_hash)) {
                 return set_error(serror, SCRIPT_ERR_WITNESS_PROGRAM_MISMATCH);
+            }
+            execdata.m_tapleaf_hash_init = true;
+            if ((control[0] & TAPROOT_LEAF_MASK) == TAPROOT_LEAF_TAPSCRIPT) {
+                // Tapscript (leaf version 0xc0)
+                execdata.m_validation_weight_left = ::GetSerializeSize(witness.stack, PROTOCOL_VERSION) + VALIDATION_WEIGHT_OFFSET;
+                execdata.m_validation_weight_left_init = true;
+                return ExecuteWitnessScript(stack, exec_script, flags, SigVersion::TAPSCRIPT, checker, execdata, serror);
             }
             if (flags & SCRIPT_VERIFY_DISCOURAGE_UPGRADABLE_TAPROOT_VERSION) {
                 return set_error(serror, SCRIPT_ERR_DISCOURAGE_UPGRADABLE_TAPROOT_VERSION);
