@@ -1170,6 +1170,8 @@ static std::string RecurseImportData(const CScript& script, ImportData& import_d
     case TxoutType::NULL_DATA:
         return "unspendable script";
     case TxoutType::NONSTANDARD:
+    case TxoutType::TAPROOT:
+    default:
         return "unrecognized script";
     } // no default case, so the compiler can warn about missing cases
     NONFATAL_UNREACHABLE();

@@ -59,6 +59,7 @@ enum class TxoutType
     SCRIPTHASH,
     MULTISIG,
     NULL_DATA, //!< unspendable OP_RETURN script that carries data
+    TAPROOT,
 };
 
 class CNoDestination {
@@ -91,9 +92,10 @@ struct ScriptHash : public BaseHash<uint160>
 /**
  * A txout script template with a specific destination. It is either:
  *  * CNoDestination: no destination set
- *  * CKeyID: TxoutType::PUBKEYHASH destination
- *  * CScriptID: TxoutType::SCRIPTHASH destination
- *  A CTxDestination is the internal data type encoded in a bitcoin address
+ *  * PKHash: TxoutType::PUBKEYHASH destination (P2PKH)
+ *  * ScriptHash: TxoutType::SCRIPTHASH destination (P2SH)
+ *    (taproot outputs do not require their own type as long as no wallet support exists)
+ *  A CTxDestination is the internal data type encoded in a Dash address
  */
 using CTxDestination = std::variant<CNoDestination, PKHash, ScriptHash>;
 
