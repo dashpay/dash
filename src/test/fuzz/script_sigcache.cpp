@@ -41,7 +41,7 @@ FUZZ_TARGET(script_sigcache, .init = initialize_script_sigcache)
     if (pub_key) {
         const std::vector<uint8_t> random_bytes = ConsumeRandomLengthByteVector(fuzzed_data_provider);
         if (!random_bytes.empty()) {
-            (void)caching_transaction_signature_checker.VerifySignature(random_bytes, *pub_key, ConsumeUInt256(fuzzed_data_provider));
+            (void)caching_transaction_signature_checker.VerifyECDSASignature(random_bytes, *pub_key, ConsumeUInt256(fuzzed_data_provider));
         }
     }
 }
