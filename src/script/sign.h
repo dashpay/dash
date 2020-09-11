@@ -12,6 +12,7 @@
 #include <pubkey.h>
 #include <script/interpreter.h>
 #include <script/keyorigin.h>
+#include <span.h>
 
 class CKey;
 class CKeyID;

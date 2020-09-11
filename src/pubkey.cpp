@@ -10,6 +10,7 @@
 #include <secp256k1_extrakeys.h>
 #include <secp256k1_ellswift.h>
 #include <secp256k1_recovery.h>
+#include <secp256k1_schnorrsig.h>
 #include <span.h>
 #include <uint256.h>
 
@@ -177,6 +178,20 @@ int ecdsa_signature_parse_der_lax(secp256k1_ecdsa_signature* sig, const unsigned
         secp256k1_ecdsa_signature_parse_compact(secp256k1_context_static, sig, tmpsig);
     }
     return 1;
+}
+
+XOnlyPubKey::XOnlyPubKey(Span<const unsigned char> bytes)
+{
+    assert(bytes.size() == 32);
+    std::copy(bytes.begin(), bytes.end(), m_keydata.begin());
+}
+
+bool XOnlyPubKey::VerifySchnorr(const uint256& msg, Span<const unsigned char> sigbytes) const
+{
+    assert(sigbytes.size() == 64);
+    secp256k1_xonly_pubkey pubkey;
+    if (!secp256k1_xonly_pubkey_parse(secp256k1_context_static, &pubkey, m_keydata.data())) return false;
+    return secp256k1_schnorrsig_verify(secp256k1_context_static, sigbytes.data(), msg.begin(), 32, &pubkey);
 }
 
 bool CPubKey::Verify(const uint256 &hash, const std::vector<unsigned char>& vchSig) const {

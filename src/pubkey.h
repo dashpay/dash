@@ -9,6 +9,7 @@
 
 #include <hash.h>
 #include <serialize.h>
+#include <span.h>
 #include <uint256.h>
 
 #include <array>
@@ -254,6 +255,25 @@ public:
     {
         return a.m_pubkey != b.m_pubkey;
     }
+};
+
+class XOnlyPubKey
+{
+private:
+    uint256 m_keydata;
+
+public:
+    /** Construct an x-only pubkey from exactly 32 bytes. */
+    XOnlyPubKey(Span<const unsigned char> bytes);
+
+    /** Verify a Schnorr signature against this public key.
+     *
+     * sigbytes must be exactly 64 bytes.
+     */
+    bool VerifySchnorr(const uint256& msg, Span<const unsigned char> sigbytes) const;
+
+    const unsigned char& operator[](int pos) const { return *(m_keydata.begin() + pos); }
+    size_t size() const { return m_keydata.size(); }
 };
 
 struct CExtPubKey {

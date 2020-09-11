@@ -66,6 +66,11 @@ typedef enum ScriptError_t
     /* softfork safeness */
     SCRIPT_ERR_DISCOURAGE_UPGRADABLE_NOPS,
 
+    /* Taproot */
+    SCRIPT_ERR_SCHNORR_SIG_SIZE,
+    SCRIPT_ERR_SCHNORR_SIG_HASHTYPE,
+    SCRIPT_ERR_SCHNORR_SIG,
+
     /* Constant scriptCode */
     SCRIPT_ERR_OP_CODESEPARATOR,
     SCRIPT_ERR_SIG_FINDANDDELETE,

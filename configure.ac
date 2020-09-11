@@ -2064,7 +2064,7 @@ CPPFLAGS="$CPPFLAGS_TEMP"
 
 dnl The ECDH module is required by the wallet's Platform key provider
 dnl (DashPay contact request encryption, wallet/platformkeys.cpp).
-ac_configure_args="${ac_configure_args} --disable-shared --with-pic --enable-benchmark=no --enable-module-recovery --enable-module-ecdh --disable-openssl-tests"
+ac_configure_args="${ac_configure_args} --disable-shared --with-pic --enable-benchmark=no --enable-module-recovery --enable-module-ecdh --disable-openssl-tests --enable-module-schnorrsig"
 AC_CONFIG_SUBDIRS([src/dashbls src/secp256k1])
 
 AC_OUTPUT
