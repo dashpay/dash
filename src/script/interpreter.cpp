@@ -1551,6 +1551,9 @@ template PrecomputedTransactionData::PrecomputedTransactionData(const CMutableTr
 }
 
 static const HashWriter HASHER_TAPSIGHASH = TaggedHash("TapSighash");
+static const HashWriter HASHER_TAPLEAF = TaggedHash("TapLeaf");
+static const HashWriter HASHER_TAPBRANCH = TaggedHash("TapBranch");
+static const HashWriter HASHER_TAPTWEAK = TaggedHash("TapTweak");
 
 template<typename T>
 bool SignatureHashSchnorr(uint256& hash_out, const T& tx_to, uint32_t in_pos, uint8_t hash_type, SigVersion sigversion, const PrecomputedTransactionData& cache)
@@ -1799,6 +1802,75 @@ bool GenericTransactionSignatureChecker<T>::CheckSequence(const CScriptNum& nSeq
 // explicit instantiation
 template class GenericTransactionSignatureChecker<CTransaction>;
 template class GenericTransactionSignatureChecker<CMutableTransaction>;
+
+/*
+// TODO: refactor and use it for TAPROOT verify! Now there's not call of `checker.CheckSchnorrSignature` at all
+static bool VerifyTaprootCommitment(const std::vector<unsigned char>& control, const std::vector<unsigned char>& program, const CScript& script)
+{
+    const int path_len = (control.size() - TAPROOT_CONTROL_BASE_SIZE) / TAPROOT_CONTROL_NODE_SIZE;
+    const XOnlyPubKey p{uint256(std::vector<unsigned char>(control.begin() + 1, control.begin() + TAPROOT_CONTROL_BASE_SIZE))};
+    const XOnlyPubKey q{uint256(program)};
+    uint256 tapleaf_hash = (HashWriter(HASHER_TAPLEAF) << uint8_t(control[0] & TAPROOT_LEAF_MASK) << script).GetSHA256();
+    uint256 k = tapleaf_hash;
+    for (int i = 0; i < path_len; ++i) {
+        HashWriter ss_branch{HASHER_TAPBRANCH};
+        Span<const unsigned char> node(control.data() + TAPROOT_CONTROL_BASE_SIZE + TAPROOT_CONTROL_NODE_SIZE * i, TAPROOT_CONTROL_NODE_SIZE);
+        if (std::lexicographical_compare(k.begin(), k.end(), node.begin(), node.end())) {
+            ss_branch << k << node;
+        } else {
+            ss_branch << node << k;
+        }
+        k = ss_branch.GetSHA256();
+    }
+    k = (HashWriter(HASHER_TAPTWEAK) << MakeSpan(p) << k).GetSHA256();
+    return q.CheckPayToContract(p, k, control[0] & 1);
+}
+
+static bool VerifyWitnessProgram(const CScriptWitness& witness, const std::vector<unsigned char>& program, unsigned int flags, const BaseSignatureChecker& checker, ScriptError* serror)
+{
+    CScript exec_script; //!< Actually executed script (last stack item in P2WSH; implied P2PKH script in P2WPKH; leaf script in P2TR)
+    Span<const valtype> stack{witness.stack};
+
+    if (program.size() == SIG_TAPROOT_SIZE) {
+        // BIP341 Taproot: 32-byte non-P2SH witness v1 program (which encodes a P2C-tweaked pubkey)
+        if (!(flags & SCRIPT_VERIFY_TAPROOT)) return set_success(serror);
+        if (stack.size() == 0) return set_error(serror, SCRIPT_ERR_WITNESS_PROGRAM_WITNESS_EMPTY);
+        if (stack.size() >= 2 && !stack.back().empty() && stack.back()[0] == ANNEX_TAG) {
+            // Drop annex (this is non-standard; see IsWitnessStandard)
+            SpanPopBack(stack);
+        }
+        if (stack.size() == 1) {
+            // Key path spending (stack size is 1 after removing optional annex)
+            if (!checker.CheckSchnorrSignature(stack.front(), program, SigVersion::TAPROOT, serror)) {
+                return false; // serror is set
+            }
+            return set_success(serror);
+        } else {
+            // Script path spending (stack size is >1 after removing optional annex)
+            const valtype& control = SpanPopBack(stack);
+            const valtype& script_bytes = SpanPopBack(stack);
+            exec_script = CScript(script_bytes.begin(), script_bytes.end());
+            if (control.size() < TAPROOT_CONTROL_BASE_SIZE || control.size() > TAPROOT_CONTROL_MAX_SIZE || ((control.size() - TAPROOT_CONTROL_BASE_SIZE) % TAPROOT_CONTROL_NODE_SIZE) != 0) {
+                return set_error(serror, SCRIPT_ERR_TAPROOT_WRONG_CONTROL_SIZE);
+            }
+            if (!VerifyTaprootCommitment(control, program, exec_script)) {
+                return set_error(serror, SCRIPT_ERR_WITNESS_PROGRAM_MISMATCH);
+            }
+            if (flags & SCRIPT_VERIFY_DISCOURAGE_UPGRADABLE_TAPROOT_VERSION) {
+                return set_error(serror, SCRIPT_ERR_DISCOURAGE_UPGRADABLE_TAPROOT_VERSION);
+            }
+            return set_success(serror);
+        }
+    } else {
+        if (flags & SCRIPT_VERIFY_DISCOURAGE_UPGRADABLE_WITNESS_PROGRAM) {
+            return set_error(serror, SCRIPT_ERR_DISCOURAGE_UPGRADABLE_WITNESS_PROGRAM);
+        }
+        // Other version/size/p2sh combinations return true for future softfork compatibility
+        return true;
+    }
+    // There is intentionally no return statement here, to be able to use "control reaches end of non-void function" warnings to detect gaps in the logic above.
+}
+*/
 
 bool VerifyScript(const CScript& scriptSig, const CScript& scriptPubKey, unsigned int flags, const BaseSignatureChecker& checker, ScriptError* serror)
 {
