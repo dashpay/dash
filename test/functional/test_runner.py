@@ -150,6 +150,7 @@ BASE_SCRIPTS = [
     'rpc_verifyislock.py',
     'feature_dip3_deterministicmns.py --descriptors', # NOTE: needs dash_hash to pass
     'feature_notifications.py',
+    'feature_taproot.py',
     # vv Tests less than 60s vv
     'feature_config_args.py',
     'mining_basic.py',

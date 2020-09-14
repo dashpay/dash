@@ -31,7 +31,7 @@ from test_framework.script import (
     OP_RETURN,
     OP_TRUE,
     OP_NOP,
-    sign_input,
+    sign_input_legacy,
 )
 from test_framework.script_util import (
     key_to_p2pk_script,
@@ -160,7 +160,7 @@ class MiniWallet:
             tx.vin[0].scriptSig = b''
             while not len(tx.vin[0].scriptSig) == 73:
                 tx.vin[0].scriptSig = b''
-                sign_input(tx, 0, self._scriptPubKey, self._priv_key)
+                sign_input_legacy(tx, 0, self._scriptPubKey, self._priv_key)
                 if not fixed_length:
                     break
         elif self._mode == MiniWalletMode.RAW_OP_TRUE:
