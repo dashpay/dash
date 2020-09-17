@@ -234,82 +234,73 @@
      <widget class="QWidget" name="pageWallet">
       <layout class="QVBoxLayout" name="verticalLayout_Wallet">
        <item>
-        <widget class="QGroupBox" name="groupBox">
-         <property name="title">
-          <string>Expert</string>
+        <widget class="QCheckBox" name="coinControlFeatures">
+         <property name="toolTip">
+          <string>Whether to show coin control features or not.</string>
          </property>
-         <layout class="QVBoxLayout" name="verticalLayout_2">
-          <item>
-           <widget class="QCheckBox" name="coinControlFeatures">
-            <property name="toolTip">
-             <string>Whether to show coin control features or not.</string>
-            </property>
-            <property name="text">
-             <string>Enable coin &amp;control features</string>
-            </property>
-           </widget>
-          </item>
-          <item>
-           <widget class="QCheckBox" name="showMasternodesTab">
-            <property name="toolTip">
-             <string>Show additional tab listing all your masternodes in first sub-tab&lt;br/&gt;and all masternodes on the network in second sub-tab.</string>
-            </property>
-            <property name="text">
-             <string>Show Masternodes Tab</string>
-            </property>
-           </widget>
-          </item>
-          <item>
-           <widget class="QCheckBox" name="showAdvancedPSUI">
-            <property name="toolTip">
-             <string>Show additional information and buttons for PrivateSend on overview screen.</string>
-            </property>
-            <property name="text">
-             <string>Enable advanced PrivateSend interface</string>
-            </property>
-           </widget>
-          </item>
-          <item>
-           <widget class="QCheckBox" name="showPrivateSendPopups">
-            <property name="toolTip">
-             <string>Show system popups for PrivateSend mixing transactions&lt;br/&gt;just like for all other transaction types.</string>
-            </property>
-            <property name="text">
-             <string>Show popups for PrivateSend transactions</string>
-            </property>
-           </widget>
-          </item>
-          <item>
-           <widget class="QCheckBox" name="lowKeysWarning">
-            <property name="toolTip">
-             <string>Show warning dialog when PrivateSend detects that wallet has very low number of keys left.</string>
-            </property>
-            <property name="text">
-             <string>Warn if PrivateSend is running out of keys</string>
-            </property>
-           </widget>
-          </item>
-          <item>
-           <widget class="QCheckBox" name="privateSendMultiSession">
-            <property name="toolTip">
-             <string>Whether to use experimental PrivateSend mode with multiple mixing sessions per block.&lt;br/&gt;Note: You must use this feature carefully.&lt;br/&gt;Make sure you always have recent wallet (auto)backup in a safe place!</string>
-            </property>
-            <property name="text">
-             <string>Enable PrivateSend &amp;multi-session</string>
-            </property>
-           </widget>
-          </item>
-          <item>
-           <widget class="QCheckBox" name="spendZeroConfChange">
-            <property name="toolTip">
-             <string>If you disable the spending of unconfirmed change, the change from a transaction&lt;br/&gt;cannot be used until that transaction has at least one confirmation.&lt;br/&gt;This also affects how your balance is computed.</string>
-            </property>
-            <property name="text">
-             <string>&amp;Spend unconfirmed change</string>
-            </property>
-           </widget>
-          </item>
-         </layout>
+         <property name="text">
+          <string>Enable coin &amp;control features</string>
+         </property>
+        </widget>
+       </item>
+       <item>
+        <widget class="QCheckBox" name="showMasternodesTab">
+         <property name="toolTip">
+          <string>Show additional tab listing all your masternodes in first sub-tab&lt;br/&gt;and all masternodes on the network in second sub-tab.</string>
+         </property>
+         <property name="text">
+          <string>Show Masternodes Tab</string>
+         </property>
+        </widget>
+       </item>
+       <item>
+        <widget class="QCheckBox" name="showAdvancedPSUI">
+         <property name="toolTip">
+          <string>Show additional information and buttons for PrivateSend on overview screen.</string>
+         </property>
+         <property name="text">
+          <string>Enable advanced PrivateSend interface</string>
+         </property>
+        </widget>
+       </item>
+       <item>
+        <widget class="QCheckBox" name="spendZeroConfChange">
+         <property name="toolTip">
+          <string>If you disable the spending of unconfirmed change, the change from a transaction&lt;br/&gt;cannot be used until that transaction has at least one confirmation.&lt;br/&gt;This also affects how your balance is computed.</string>
+         </property>
+         <property name="text">
+          <string>&amp;Spend unconfirmed change</string>
+         </property>
+        </widget>
+       </item>
+       <item>
+        <widget class="QCheckBox" name="lowKeysWarning">
+         <property name="toolTip">
+          <string>Show warning dialog when PrivateSend detects that wallet has very low number of keys left.</string>
+         </property>
+         <property name="text">
+          <string>Warn if PrivateSend is running out of keys</string>
+         </property>
+        </widget>
+       </item>
+       <item>
+        <widget class="QCheckBox" name="privateSendMultiSession">
+         <property name="toolTip">
+          <string>Whether to use experimental PrivateSend mode with multiple mixing sessions per block.&lt;br/&gt;Note: You must use this feature carefully.&lt;br/&gt;Make sure you always have recent wallet (auto)backup in a safe place!</string>
+         </property>
+         <property name="text">
+          <string>Enable PrivateSend &amp;multi-session</string>
+         </property>
+        </widget>
+       </item>
+       <item>
+        <widget class="QCheckBox" name="showPrivateSendPopups">
+         <property name="toolTip">
+          <string>Show system popups for PrivateSend mixing transactions&lt;br/&gt;just like for all other transaction types.</string>
+         </property>
+         <property name="text">
+          <string>Show popups for PrivateSend transactions</string>
+         </property>
         </widget>
        </item>
        <item>
