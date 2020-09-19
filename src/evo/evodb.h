@@ -98,6 +98,7 @@ public:
 
     bool CommitRootTransaction();
 
+    bool HasSomeBestBlock() { return db.Exists(EVODB_BEST_BLOCK); }
     bool VerifyBestBlock(const uint256& hash);
     void WriteBestBlock(const uint256& hash);
 
