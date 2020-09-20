@@ -2368,13 +2368,19 @@ static bool ConnectBlock(const CBlock& block, CValidationState& state, CBlockInd
                              tx.GetHash().ToString(), FormatStateMessage(state));
 
             if (sporkManager.IsSporkActive(SPORK_31_MIN_FEE_ENFORCE)) {
-                CAmount nTxFee = nTxValueIn - tx.GetValueOut();
-                int64_t minFee = sporkManager.GetSporkValue(SPORK_30_MIN_FEE_BYTES);
-                unsigned int sizeKb = tx.GetTotalSize() / 1000;
-                CAmount expectedFee = minFee * sizeKb;
-                if (nTxFee < expectedFee) {
-                    return error("ConnectBlock(): tx expected fee not met");
+                if (block.nTime > sporkManager.GetSporkValue(SPORK_31_MIN_FEE_ENFORCE)) {
+                    if (!tx.IsCoinStake()) {
+                        CAmount nTxFee = nTxValueIn - tx.GetValueOut();
+                        int64_t minFee = sporkManager.GetSporkValue(SPORK_30_MIN_FEE_BYTES);
+                        unsigned int sizeKb = tx.GetTotalSize() / 1000;
+                        CAmount expectedFee = minFee * sizeKb;
+                        if (nTxFee < expectedFee) {
+                            return error("ConnectBlock(): tx expected fee not met");
+                        }
+                    }
                 }
+                
+                
             }
 
             control.Add(vChecks);
