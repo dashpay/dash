@@ -1127,7 +1127,7 @@ bool CDeterministicMNManager::UpgradeDBIfNeeded()
 
     if (chainActive.Tip() == nullptr) {
         // should have no records
-        return !evoDb.GetRawDB().Exists(std::string("b_b")) && !evoDb.GetRawDB().Exists(EVODB_BEST_BLOCK);
+        return evoDb.IsEmpty();
     }
 
     if (evoDb.GetRawDB().Exists(EVODB_BEST_BLOCK)) {

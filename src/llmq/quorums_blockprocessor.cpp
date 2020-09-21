@@ -274,7 +274,7 @@ bool CQuorumBlockProcessor::UpgradeDB()
 
     if (chainActive.Tip() == nullptr) {
         // should have no records
-        return !evoDb.GetRawDB().Exists(DB_MINED_COMMITMENT) && !evoDb.GetRawDB().Exists(DB_BEST_BLOCK_UPGRADE);
+        return evoDb.IsEmpty();
     }
 
     uint256 bestBlock;
