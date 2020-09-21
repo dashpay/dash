@@ -1982,7 +1982,7 @@ bool AppInitMain()
                     assert(chainActive.Tip() != NULL);
                 }
 
-                if (is_coinsview_empty && evoDb->HasSomeBestBlock()) {
+                if (is_coinsview_empty && !evoDb->IsEmpty()) {
                     // EvoDB processed some blocks earlier but we have no blocks anymore, something is wrong
                     strLoadError = _("Error initializing block database");
                     break;
