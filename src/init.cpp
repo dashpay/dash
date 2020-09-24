@@ -1981,11 +1981,6 @@ bool AppInitMain()
                     assert(chainActive.Tip() != NULL);
                 }
 
-                if (!deterministicMNManager->UpgradeDBIfNeeded()) {
-                    strLoadError = _("Error upgrading evo database");
-                    break;
-                }
-
                 if (!is_coinsview_empty) {
                     uiInterface.InitMessage(_("Verifying blocks..."));
                     if (fHavePruned && gArgs.GetArg("-checkblocks", DEFAULT_CHECKBLOCKS) > MIN_BLOCKS_TO_KEEP) {
