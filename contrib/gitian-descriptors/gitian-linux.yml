@@ -1,5 +1,5 @@
 ---
-name: "poliscore-linux-1.6.5"
+name: "poliscore-linux-1.6.6"
 enable_cache: true
 suites:
   - "bionic"
