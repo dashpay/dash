@@ -163,6 +163,11 @@ class NetTest(DashTestFramework):
 
         # Check dynamically generated networks list in getpeerinfo help output.
         assert "(ipv4, ipv6, onion, i2p, not_publicly_routable)" in self.nodes[0].help("getpeerinfo")
+        assert_equal(peer_info[0][0]['connection_type'], 'inbound')
+        assert_equal(peer_info[0][1]['connection_type'], 'manual')
+
+        assert_equal(peer_info[1][0]['connection_type'], 'manual')
+        assert_equal(peer_info[1][1]['connection_type'], 'inbound')
 
     def test_service_flags(self):
         self.nodes[0].add_p2p_connection(P2PInterface(), services=(1 << 4) | (1 << 63))

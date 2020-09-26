@@ -116,7 +116,9 @@ static UniValue getpeerinfo(const JSONRPCRequest& request)
                     {RPCResult::Type::NUM, "version", "The peer version, such as 70001"},
                     {RPCResult::Type::STR, "subver", "The string version"},
                     {RPCResult::Type::BOOL, "inbound", "Inbound (true) or Outbound (false)"},
-                    {RPCResult::Type::BOOL, "addnode", "Whether connection was due to addnode/-connect or if it was an automatic/inbound connection"},
+                    {RPCResult::Type::BOOL, "addnode", "Whether connection was due to addnode/-connect or if it was an automatic/inbound connection\n"
+                                                               "(DEPRECATED, returned only if the config option -deprecatedrpc=getpeerinfo_addnode is passed)"},
+                    {RPCResult::Type::STR, "connection_type", "Type of connection: \n" + Join(CONNECTION_TYPE_DOC, ",\n") + "."},
                     {RPCResult::Type::BOOL, "masternode", "Whether connection was due to masternode connection attempt"},
                     {RPCResult::Type::NUM, "startingheight", "The starting height (block) of the peer"},
                     {RPCResult::Type::NUM, "banscore", "The ban score (DEPRECATED, returned only if config option -deprecatedrpc=banscore is passed)"},
@@ -203,7 +205,10 @@ static UniValue getpeerinfo(const JSONRPCRequest& request)
         // their ver message.
         obj.pushKV("subver", stats.cleanSubVer);
         obj.pushKV("inbound", stats.fInbound);
-        obj.pushKV("addnode", stats.m_manual_connection);
+        if (IsDeprecatedRPCEnabled("getpeerinfo_addnode")) {
+            // addnode is deprecated in v0.21 for removal in v0.22
+            obj.pushKV("addnode", stats.m_manual_connection);
+        }
         obj.pushKV("masternode", stats.m_masternode_connection);
         obj.pushKV("startingheight", stats.nStartingHeight);
         if (fStateStats) {
@@ -239,6 +244,7 @@ static UniValue getpeerinfo(const JSONRPCRequest& request)
                 recvPerMsgCmd.pushKV(i.first, i.second);
         }
         obj.pushKV("bytesrecv_per_msg", recvPerMsgCmd);
+        obj.pushKV("connection_type", stats.m_conn_type_string);
 
         ret.push_back(obj);
     }
