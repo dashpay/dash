@@ -180,7 +180,7 @@ class BlockRewardReallocationTest(DashTestFramework):
             node.invalidateblock(pre_locked_in_blockhash)
         # create and send non-signalling block
         test_block = self.create_test_block()
-        self.nodes[0].p2p.send_blocks_and_test([test_block], self.nodes[0], timeout=5)
+        self.nodes[0].submitblock(ToHex(test_block))
         bi = self.nodes[0].getblockchaininfo()
         assert_equal(bi['blocks'], 1499)
         assert_equal(bi['bip9_softforks']['realloc']['status'], 'started')
