@@ -173,6 +173,9 @@ class BlockRewardReallocationTest(DashTestFramework):
         assert_equal(bt['coinbasevalue'], 9491484944)
         assert_equal(bt['masternode'][0]['amount'], 5694890966) # 0.6
 
+        # make sure all nodes are still synced
+        self.sync_all()
+
         self.log.info("Rollback the chain back to the STARTED state")
         self.mocktime = self.nodes[0].getblock(pre_locked_in_blockhash, 1)['time']
         for node in self.nodes:
