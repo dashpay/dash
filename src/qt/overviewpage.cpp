@@ -26,8 +26,8 @@
 
 #define ITEM_HEIGHT 54
 #define NUM_ITEMS_DISABLED 5
-#define NUM_ITEMS_ENABLED_NORMAL 7
-#define NUM_ITEMS_ENABLED_ADVANCED 9
+#define NUM_ITEMS_ENABLED_NORMAL 6
+#define NUM_ITEMS_ENABLED_ADVANCED 8
 
 class TxViewDelegate : public QAbstractItemDelegate
 {
