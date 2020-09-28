@@ -157,13 +157,17 @@
     </message>
     <message>
         <source>Font Family:</source>
-        <translation>字体族:</translation>
+        <translation>字体系列:</translation>
     </message>
     <message>
         <source>Theme:</source>
         <translation>主题:</translation>
     </message>
-    </context>
+    <message>
+        <source>Font Weight Bold:</source>
+        <translation>字体粗体:</translation>
+    </message>
+</context>
 <context>
     <name>AskPassphraseDialog</name>
     <message>
@@ -181,6 +185,10 @@
     <message>
         <source>Repeat new passphrase</source>
         <translation>重复新密码</translation>
+    </message>
+    <message>
+        <source>Show password</source>
+        <translation>显示密码</translation>
     </message>
     <message>
         <source>Enter the new passphrase to the wallet.&lt;br/&gt;Please use a passphrase of &lt;b&gt;ten or more random characters&lt;/b&gt;, or &lt;b&gt;eight or more words&lt;/b&gt;.</source>
@@ -292,7 +300,11 @@
 </context>
 <context>
     <name>BitcoinAmountField</name>
-    </context>
+    <message>
+        <source>Amount in %1</source>
+        <translation>金额 %1</translation>
+    </message>
+</context>
 <context>
     <name>BitcoinGUI</name>
     <message>
@@ -378,6 +390,10 @@
     <message>
         <source>&amp;About %1</source>
         <translation>关于 %1</translation>
+    </message>
+    <message>
+        <source>PrivateSend coins to a Dash address</source>
+        <translation>匿名发送金额至一个Dash地址</translation>
     </message>
     <message>
         <source>Modify configuration options for %1</source>
@@ -534,6 +550,10 @@
     <message>
         <source>%1 client</source>
         <translation>%1 客戶</translation>
+    </message>
+    <message>
+        <source>Wallet is &lt;b&gt;unencrypted&lt;/b&gt;</source>
+        <translation>钱包 &lt;b&gt;未加密&lt;/b&gt;</translation>
     </message>
     <message>
         <source>&amp;PrivateSend information</source>
@@ -781,6 +801,10 @@
         <translation>收款地址</translation>
     </message>
     <message>
+        <source>Mixing Rounds</source>
+        <translation>混币循环数</translation>
+    </message>
+    <message>
         <source>Date</source>
         <translation>日期</translation>
     </message>
@@ -865,6 +889,30 @@
         <translation>每笔输入可能会有 +/- %1个duff(s)的偏差.</translation>
     </message>
     <message>
+        <source>Some coins were unselected because they were spent.</source>
+        <translation>一些币被取消选择, 因为它们已经被发送了.</translation>
+    </message>
+    <message>
+        <source>Some coins were unselected because they do not have enough mixing rounds.</source>
+        <translation>一些币被取消选择, 因为它们没有足够的混币循环.</translation>
+    </message>
+    <message>
+        <source>Show all coins</source>
+        <translation>显示所有币</translation>
+    </message>
+    <message>
+        <source>Hide PrivateSend coins</source>
+        <translation>隐藏匿名支付的币</translation>
+    </message>
+    <message>
+        <source>Show all PrivateSend coins</source>
+        <translation>显示所有匿名支付的币</translation>
+    </message>
+    <message>
+        <source>Show spendable coins only</source>
+        <translation>只显示可使用的币</translation>
+    </message>
+    <message>
         <source>(no label)</source>
         <translation>(无标签)</translation>
     </message>
@@ -902,6 +950,10 @@
     <message>
         <source>The address associated with this address list entry. This can only be modified for sending addresses.</source>
         <translation>该地址已与地址列表中的条目关联。只有发送地址才能被修改。</translation>
+    </message>
+    <message>
+        <source>New receiving address</source>
+        <translation>新的收款地址</translation>
     </message>
     <message>
         <source>New sending address</source>
@@ -988,6 +1040,22 @@
     <message>
         <source>Choose data directory on startup (default: %u)</source>
         <translation>在启动时选择目录（默认%u）</translation>
+    </message>
+    <message>
+        <source>Set the font family. Possible values: %1. (default: %2)</source>
+        <translation>设置字体系列. 可能的值: %1. (默认: %2)</translation>
+    </message>
+    <message>
+        <source>Set a scale factor which gets applied to the base font size. Possible range %1 (smallest fonts) to %2 (largest fonts). (default: %3)</source>
+        <translation>设置比例因子, 该比例因子将应用于基本字体的大小. 可能的范围是 %1 (最小字体) 至 %2 (最大字体). (默认: %3)</translation>
+    </message>
+    <message>
+        <source>Set the font weight for bold texts. Possible range %1 to %2 (default: %3)</source>
+        <translation>设置粗体文本的字体粗细. 可能的范围 %1 至 %2 (默认: %3)</translation>
+    </message>
+    <message>
+        <source>Set the font weight for normal texts. Possible range %1 to %2 (default: %3)</source>
+        <translation>设置正常文本的字体粗细. 可能的范围 %1 至 %2 (默认: %3)</translation>
     </message>
     <message>
         <source>Set language, for example "de_DE" (default: system locale)</source>
@@ -1168,6 +1236,10 @@
         <translation>复制保证金输出点</translation>
     </message>
     <message>
+        <source>Updating...</source>
+        <translation>更新中...</translation>
+    </message>
+    <message>
         <source>ENABLED</source>
         <translation>ENABLED</translation>
     </message>
@@ -1194,6 +1266,14 @@
     <message>
         <source>NONE</source>
         <translation>NONE</translation>
+    </message>
+    <message>
+        <source>Filter by any property (e.g. address or protx hash)</source>
+        <translation>按任何属性筛选 (例. 地址或protx hash)</translation>
+    </message>
+    <message>
+        <source>Please wait...</source>
+        <translation>请稍等...</translation>
     </message>
     <message>
         <source>Additional information for DIP3 Masternode %1</source>
@@ -1305,6 +1385,10 @@
         <translation>钱包(&amp;A)</translation>
     </message>
     <message>
+        <source>&amp;Appearance</source>
+        <translation>&amp;外观</translation>
+    </message>
+    <message>
         <source>Show additional tab listing all your masternodes in first sub-tab&lt;br/&gt;and all masternodes on the network in second sub-tab.</source>
         <translation>显示其他标签，在第一个子标签列出所有您的主节点&lt;br/&gt;在第二个子标签列出所有网络上的主节点。</translation>
     </message>
@@ -1357,6 +1441,14 @@
         <translation>自动在路由器打开达世币核心客户端端口。此项只在路由器支持UPnP且开启时有效。</translation>
     </message>
     <message>
+        <source>Accept connections from outside.</source>
+        <translation>接受来自外部的连接.</translation>
+    </message>
+    <message>
+        <source>Allow incomin&amp;g connections</source>
+        <translation>允许连入连接</translation>
+    </message>
+    <message>
         <source>Connect to the Dash network through a SOCKS5 proxy.</source>
         <translation>通过SOCKS5代理连接达世币网络。</translation>
     </message>
@@ -1369,12 +1461,28 @@
         <translation>如果是使用提供的默认SOCKS5代理来连接到节点就加以显示。</translation>
     </message>
     <message>
+        <source>Use separate SOCKS&amp;5 proxy to reach peers via Tor hidden services:</source>
+        <translation>使用独立的SOCK&amp;5代理服务器, 并通过Tor隐藏服务到对等用户群:</translation>
+    </message>
+    <message>
+        <source>Hide the icon from the system tray.</source>
+        <translation>隐藏系统托盘中的图标.</translation>
+    </message>
+    <message>
+        <source>&amp;Hide tray icon</source>
+        <translation>&amp;隐藏托盘图标</translation>
+    </message>
+    <message>
         <source>Minimize instead of exit the application when the window is closed. When this option is enabled, the application will be closed only after selecting Exit in the menu.</source>
         <translation>窗口被关闭时最小化而不是退出应用程序。当此选项启用时，应用程序只会在菜单中选择退出时退出。</translation>
     </message>
     <message>
         <source>Third party URLs (e.g. a block explorer) that appear in the transactions tab as context menu items.&lt;br/&gt;%s in the URL is replaced by transaction hash. Multiple URLs are separated by vertical bar |.</source>
         <translation>出现在交易的选项卡的上下文菜单项的第三方URL（例如，区块链查询网站）。&lt;br/&gt;URL中的 %s被替换为交易哈希。多个URL需用竖线 | 分隔。</translation>
+    </message>
+    <message>
+        <source>&amp;Third party transaction URLs</source>
+        <translation>&amp;第三方交易链接</translation>
     </message>
     <message>
         <source>Whether to show coin control features or not.</source>
@@ -1682,6 +1790,14 @@ https://www.transifex.com/projects/p/dash/</translation>
         <translation><numerusform>%n 次循环</numerusform></translation>
     </message>
     <message>
+        <source>Found enough compatible inputs to mix %1</source>
+        <translation>找到足够兼容的输入进行混币 %1</translation>
+    </message>
+    <message>
+        <source>Not enough compatible inputs to mix &lt;span style='%1'&gt;%2&lt;/span&gt;,&lt;br&gt;will mix &lt;span style='%1'&gt;%3&lt;/span&gt; instead</source>
+        <translation>没有足够兼容的输入进行混币 &lt;span style='%1'&gt;%2&lt;/span&gt;,&lt;br&gt;将混币&lt;span style='%1'&gt;%3&lt;/span&gt;作为代替</translation>
+    </message>
+    <message>
         <source>Overall progress</source>
         <translation>总体进度</translation>
     </message>
@@ -1867,7 +1983,15 @@ https://www.transifex.com/projects/p/dash/</translation>
         <source>Ping</source>
         <translation> Ping</translation>
     </message>
-    </context>
+    <message>
+        <source>Sent</source>
+        <translation>发送</translation>
+    </message>
+    <message>
+        <source>Received</source>
+        <translation>已接收</translation>
+    </message>
+</context>
 <context>
     <name>QObject</name>
     <message>
@@ -1881,6 +2005,18 @@ https://www.transifex.com/projects/p/dash/</translation>
     <message>
         <source>Enter a Dash address (e.g. %1)</source>
         <translation>输入达世币地址(例如 %1)</translation>
+    </message>
+    <message>
+        <source>Appearance Setup</source>
+        <translation>外观设置</translation>
+    </message>
+    <message>
+        <source>Please choose your preferred settings for the appearance of %1</source>
+        <translation>请为%1的外观选择首选设置</translation>
+    </message>
+    <message>
+        <source>This can also be adjusted later in the "Appearance" tab of the preferences.</source>
+        <translation>这也可以在随后的"外观"选项中进行调整.</translation>
     </message>
     <message>
         <source>%1 d</source>
@@ -1939,6 +2075,22 @@ https://www.transifex.com/projects/p/dash/</translation>
         <translation>%1 和 %2</translation>
     </message>
     <message>
+        <source>%1 B</source>
+        <translation>%1 B</translation>
+    </message>
+    <message>
+        <source>%1 KB</source>
+        <translation>%1 KB</translation>
+    </message>
+    <message>
+        <source>%1 MB</source>
+        <translation>%1 MB</translation>
+    </message>
+    <message>
+        <source>%1 GB</source>
+        <translation>%1 GB</translation>
+    </message>
+    <message>
         <source>unknown</source>
         <translation>未知</translation>
     </message>
@@ -1957,7 +2109,35 @@ https://www.transifex.com/projects/p/dash/</translation>
         <source>Error: %1</source>
         <translation>错误：%1</translation>
     </message>
-    </context>
+    <message>
+        <source>Error: Failed to load application fonts.</source>
+        <translation>错误: 加载应用程序字体失败.</translation>
+    </message>
+    <message>
+        <source>Error: Specified font-family invalid. Valid values: %1.</source>
+        <translation>错误: 指定的字体系列无效. 有效值: %1.</translation>
+    </message>
+    <message>
+        <source>Error: Specified font-weight-normal invalid. Valid range %1 to %2.</source>
+        <translation>错误: 指定的字体粗细标准无效. 有效范围%1 至 %2.</translation>
+    </message>
+    <message>
+        <source>Error: Specified font-weight-bold invalid. Valid range %1 to %2.</source>
+        <translation>错误: 指定的字体粗体无效. 有效范围%1 至 %2.</translation>
+    </message>
+    <message>
+        <source>Error: Specified font-scale invalid. Valid range %1 to %2.</source>
+        <translation>错误: 指定的字体大小无效. 有效范围%1 至 %2.</translation>
+    </message>
+    <message>
+        <source>Error: Invalid -custom-css-dir path.</source>
+        <translation>错误: 无效的 -custom-css-dir 路径.</translation>
+    </message>
+    <message>
+        <source>Error: %1 CSS file(s) missing in -custom-css-dir path.</source>
+        <translation>错误: -custom-css-dir 路径下%1 CSS file(s)丢失.</translation>
+    </message>
+</context>
 <context>
     <name>QRDialog</name>
     <message>
@@ -2162,6 +2342,10 @@ https://www.transifex.com/projects/p/dash/</translation>
         <translation>数据目录</translation>
     </message>
     <message>
+        <source>Last block hash</source>
+        <translation>最后区块的哈希值</translation>
+    </message>
+    <message>
         <source>Open the %1 debug log file from the current data directory. This can take a few seconds for large log files.</source>
         <translation>打开当前目录中的%1调试日志文件。日志文件大的话可能要等上几秒钟。</translation>
     </message>
@@ -2318,6 +2502,14 @@ https://www.transifex.com/projects/p/dash/</translation>
         <translation>使用上下方向键浏览历史,  %1清除屏幕。</translation>
     </message>
     <message>
+        <source>Type %1 for an overview of available commands.</source>
+        <translation>输入 %1 以获得可用命令描述.</translation>
+    </message>
+    <message>
+        <source>For more information on using this console type %1.</source>
+        <translation>关于使用此控制台的更多信息, 请输入 %1.</translation>
+    </message>
+    <message>
         <source>WARNING: Scammers have been active, telling users to type commands here, stealing their wallet contents. Do not use this console without fully understanding the ramifications of a command.</source>
         <translation>警告: 骗子总是积极地劝说用户在此输入指令, 以窃取用户钱包中的资金. 在没有完全理解各命令行作用前, 请不要使用控制台。</translation>
     </message>
@@ -2435,6 +2627,14 @@ https://www.transifex.com/projects/p/dash/</translation>
     <message>
         <source>Remove</source>
         <translation>移除</translation>
+    </message>
+    <message>
+        <source>Enter a label to associate with the new receiving address</source>
+        <translation>输入标签以关联一个新的接收地址</translation>
+    </message>
+    <message>
+        <source>Enter a message to attach to the payment request</source>
+        <translation>输入消息以添加到支付请求中</translation>
     </message>
     <message>
         <source>Copy URI</source>
@@ -2738,6 +2938,10 @@ https://www.transifex.com/projects/p/dash/</translation>
         <translation>&lt;b&gt;（在%2中%1个项目显示出来）&lt;/b&gt;</translation>
     </message>
     <message>
+        <source>Confirm the PrivateSend action</source>
+        <translation>确认匿名支付的操作</translation>
+    </message>
+    <message>
         <source>PrivateSend funds only</source>
         <translation>仅支持混币资金</translation>
     </message>
@@ -2889,6 +3093,10 @@ https://www.transifex.com/projects/p/dash/</translation>
         <translation>从金额中减去交易费(&amp;U)</translation>
     </message>
     <message>
+        <source>Use available balance</source>
+        <translation>使用可用余额</translation>
+    </message>
+    <message>
         <source>Message:</source>
         <translation>消息：</translation>
     </message>
@@ -3022,8 +3230,20 @@ https://www.transifex.com/projects/p/dash/</translation>
         <translation>清空所有验证消息栏</translation>
     </message>
     <message>
+        <source>Enter a message to be signed</source>
+        <translation>输入要签名的信息</translation>
+    </message>
+    <message>
         <source>Click "Sign Message" to generate signature</source>
         <translation>单击“签名消息“产生签名。</translation>
+    </message>
+    <message>
+        <source>Enter a message to be verified</source>
+        <translation>输入要验证的信息</translation>
+    </message>
+    <message>
+        <source>Enter a signature for the message to be verified</source>
+        <translation>输入要验证的消息的签名</translation>
     </message>
     <message>
         <source>The entered address is invalid.</source>
@@ -3087,7 +3307,19 @@ https://www.transifex.com/projects/p/dash/</translation>
         <source>KB/s</source>
         <translation>KB/s</translation>
     </message>
-    </context>
+    <message>
+        <source>Totals</source>
+        <translation>总额</translation>
+    </message>
+    <message>
+        <source>Received</source>
+        <translation>已接收</translation>
+    </message>
+    <message>
+        <source>Sent</source>
+        <translation>已发送</translation>
+    </message>
+</context>
 <context>
     <name>TransactionDesc</name>
     <message numerus="yes">
@@ -3125,6 +3357,14 @@ https://www.transifex.com/projects/p/dash/</translation>
     <message>
         <source>%1 confirmations</source>
         <translation>确认%1次</translation>
+    </message>
+    <message>
+        <source>locked via ChainLocks</source>
+        <translation>经链锁锁定</translation>
+    </message>
+    <message>
+        <source>verified via InstantSend</source>
+        <translation>经即时支付验证</translation>
     </message>
     <message>
         <source>Status</source>
@@ -3313,6 +3553,14 @@ https://www.transifex.com/projects/p/dash/</translation>
         <translation>已生成但未被接受</translation>
     </message>
     <message>
+        <source>verified via InstantSend</source>
+        <translation>经即时支付验证</translation>
+    </message>
+    <message>
+        <source>locked via ChainLocks</source>
+        <translation>经链锁锁定</translation>
+    </message>
+    <message>
         <source>Received with</source>
         <translation>接收于</translation>
     </message>
@@ -3458,6 +3706,10 @@ https://www.transifex.com/projects/p/dash/</translation>
     <message>
         <source>Other</source>
         <translation>其他</translation>
+    </message>
+    <message>
+        <source>Enter address, transaction id, or label to search</source>
+        <translation>输入地址, 交易id, 或标签来搜索</translation>
     </message>
     <message>
         <source>Min amount</source>
@@ -3771,12 +4023,32 @@ https://www.transifex.com/projects/p/dash/</translation>
         <translation>即使在没有中继交易发生的情况下仍然接受来自节点白名单的中继交易（预设值：%d）</translation>
     </message>
     <message>
+        <source>Add a node to connect to and attempt to keep the connection open (see the `addnode` RPC command help for more info). This option can be specified multiple times to add multiple nodes.</source>
+        <translation>添加一个要连接的节点并尝试保持与其他为连接状态 (查看 `addnode` RPC命令以获得更多信息). 这个选项可以多次指定添加多个节点.</translation>
+    </message>
+    <message>
         <source>Allow JSON-RPC connections from specified source. Valid for &lt;ip&gt; are a single IP (e.g. 1.2.3.4), a network/netmask (e.g. 1.2.3.4/255.255.255.0) or a network/CIDR (e.g. 1.2.3.4/24). This option can be specified multiple times</source>
         <translation>允许指定来源建立与JSON-RPC的连接。&lt;ip&gt; 的有效值可以是单独IP(例如1.2.3.4)，一个网络/子网掩码(例如 1.2.3.4/255.255.255.0)，或网络/CIDR(例如1.2.3.4/24)。这个选项可以多次设定。</translation>
     </message>
     <message>
         <source>Bind to given address and whitelist peers connecting to it. Use [host]:port notation for IPv6</source>
         <translation>和指定的地址连接，並且将连接的节点放入白名单中。IPv6请用[host]:port格式</translation>
+    </message>
+    <message>
+        <source>Bind to given address to listen for JSON-RPC connections. Do not expose the RPC server to untrusted networks such as the public internet! This option is ignored unless -rpcallowip is also passed. Port is optional and overrides -rpcport. Use [host]:port notation for IPv6. This option can be specified multiple times (default: 127.0.0.1 and ::1 i.e., localhost, or if -rpcallowip has been specified, 0.0.0.0 and :: i.e., all addresses)</source>
+        <translation>绑定到指定地址以监听JSON-RPC连接. 请勿将RPC服务器暴露给不受信任的网络, 例如公共网络! 请忽略此选项, 除非-rpcallowip也被通过. 端口是可选的并且取代-rpcport. IPv6请用[host]:port格式. 此选项可以多次设定 (默认: 127.0.0.1 和 ::1 例如, localhost, 或 如果 -rpcallowip 已经被指定, 0.0.0.0 和 :: 例如, 所有地址)</translation>
+    </message>
+    <message>
+        <source>Cannot provide specific connections and have addrman find outgoing connections at the same.</source>
+        <translation>无法提供特定的连接, 并同时让addrman找到传出的连接.</translation>
+    </message>
+    <message>
+        <source>Connect only to the specified node; -connect=0 disables automatic connections (the rules for this peer are the same as for -addnode). This option can be specified multiple times to connect to multiple nodes.</source>
+        <translation>只连接指定节点; -connect=0 禁用自动连接 (此规则与 -addnode 的规则相同). 这个选项可以多次指定连接多个节点.</translation>
+    </message>
+    <message>
+        <source>Connect to a node to retrieve peer addresses, and disconnect. This option can be specified multiple times to connect to multiple nodes.</source>
+        <translation>连接到节点以检索对等地址, 然后断开连接. 这个选项可以多次指定连接多个节点.</translation>
     </message>
     <message>
         <source>Create new files with system default permissions, instead of umask 077 (only effective with disabled wallet functionality)</source>
@@ -3811,12 +4083,24 @@ https://www.transifex.com/projects/p/dash/</translation>
         <translation>如果在这条链中的区块假设它和它之前的内存块是有效的，并有可能跳过他们的脚本验证（0是验证全部，默认：%s，testnet：%s）</translation>
     </message>
     <message>
+        <source>Invalid -socketevents ('%s') specified. Only these modes are supported: %s</source>
+        <translation>指定的 -socketevents ('%s') 无效. 仅支持以下模式: %s</translation>
+    </message>
+    <message>
         <source>Invalid amount for -maxtxfee=&lt;amount&gt;: '%s' (must be at least the minrelay fee of %s to prevent stuck transactions)</source>
         <translation>设定 -maxtxfee=&lt;金额&gt;  的金额无效&lt;amount&gt;：'%s' (必须大于等于最低转发手续费%s 以避免交易无法被确认)</translation>
     </message>
     <message>
+        <source>Location of the auth cookie. Relative paths will be prefixed by a net-specific datadir location. (default: data dir)</source>
+        <translation>身份验证Cookie的位置. 相关路径将以网络特定的datadir位置为前缀. (默认: data dir)</translation>
+    </message>
+    <message>
         <source>Maintain a full transaction index, used by the getrawtransaction rpc call (default: %u)</source>
         <translation>维护一份完整的交易索引, 用于 getrawtransaction RPC调用 (默认：%u)</translation>
+    </message>
+    <message>
+        <source>Make outgoing connections only through network &lt;net&gt; (ipv4, ipv6 or onion). Incoming connections are not affected by this option. This option can be specified multiple times to allow multiple networks.</source>
+        <translation>仅通过网络 &lt;net&gt; (ipv4, ipv6 或 onion)建立传出连接. 传入连接不受此选项影响. 这个选项可以多次指定允许多个网络.</translation>
     </message>
     <message>
         <source>Maximum size of data in data carrier transactions we relay and mine (default: %u)</source>
@@ -3841,6 +4125,18 @@ https://www.transifex.com/projects/p/dash/</translation>
     <message>
         <source>Reduce storage requirements by enabling pruning (deleting) of old blocks. This allows the pruneblockchain RPC to be called to delete specific blocks, and enables automatic pruning of old blocks if a target size in MiB is provided. This mode is incompatible with -txindex, -rescan and -disablegovernance=false. Warning: Reverting this setting requires re-downloading the entire blockchain. (default: 0 = disable pruning blocks, 1 = allow manual pruning via RPC, &gt;=%u = automatically prune block files to stay under the specified target size in MiB)</source>
         <translation>修剪（删除）掉老旧区块以降低需要的储存空间。这样会增加一个RPC指令pruneblockchain，可以使用它来删除指定的区块；也可以指定目标储存空间大小，以启用对老旧内存块的自动修剪功能。这个模式跟-txindex, -rescan和-disablegovernance=false参数不兼容。警告：还原回不修剪模式会需要重新下载整个区块链。（默认：0表示不修剪内存块，1表示允许使用RPC指令做修剪， &gt;=%u的值表示为区块数据的目标大小，单位是百万字节，MiB）</translation>
+    </message>
+    <message>
+        <source>Send trace/debug info to console (default: 1 when no -daemon. To disable logging to file, set debuglogfile=0)</source>
+        <translation>将跟踪/调试信息发送到控制台 (默认: 1 当没有 -daemon时. 禁用记录到文件, 请设置 debuglogfile=0)</translation>
+    </message>
+    <message>
+        <source>Specify configuration file. Relative paths will be prefixed by datadir location. (default: %s)</source>
+        <translation>指定配置文件. 相关路径将以datadir为前缀. (默认: %s)</translation>
+    </message>
+    <message>
+        <source>Specify directory to hold wallets (default: &lt;datadir&gt;/wallets if it exists, otherwise &lt;datadir&gt;)</source>
+        <translation>指定存放钱包的目录 (默认: &lt;datadir&gt;/wallets 如果已存在, 否则为&lt;datadir&gt;)</translation>
     </message>
     <message>
         <source>Use N separate masternodes in parallel to mix funds (%u-%u, default: %u)</source>
