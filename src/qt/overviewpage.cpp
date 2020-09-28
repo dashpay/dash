@@ -695,6 +695,7 @@ void OverviewPage::SetupTransactionList(int nNumItems)
     }
 
     filter->setLimit(nNumItems);
+    ui->listTransactions->setMinimumHeight(nNumItems * ITEM_HEIGHT);
 }
 
 void OverviewPage::DisablePrivateSendCompletely() {
