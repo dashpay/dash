@@ -133,13 +133,41 @@
     <name>AppearanceWidget</name>
     <message>
         <source>Lighter</source>
-        <translation>Mais leve</translation>
+        <translation>Mais claro</translation>
+    </message>
+    <message>
+        <source>Bolder</source>
+        <translation>Negrito</translation>
+    </message>
+    <message>
+        <source>Font Weight Normal:</source>
+        <translation>Peso da Fonte Normal:</translation>
+    </message>
+    <message>
+        <source>Smaller</source>
+        <translation>Menor</translation>
+    </message>
+    <message>
+        <source>Bigger</source>
+        <translation>Maior</translation>
+    </message>
+    <message>
+        <source>Font Scale:</source>
+        <translation>Escala da Fonte:</translation>
+    </message>
+    <message>
+        <source>Font Family:</source>
+        <translation>Família da Fonte:</translation>
     </message>
     <message>
         <source>Theme:</source>
         <translation>Tema:</translation>
     </message>
-    </context>
+    <message>
+        <source>Font Weight Bold:</source>
+        <translation>Peso da Fonte Negrito:</translation>
+    </message>
+</context>
 <context>
     <name>AskPassphraseDialog</name>
     <message>
@@ -159,6 +187,10 @@
         <translation>Repita a nova frase de segurança</translation>
     </message>
     <message>
+        <source>Show password</source>
+        <translation>Mostrar senha</translation>
+    </message>
+    <message>
         <source>Enter the new passphrase to the wallet.&lt;br/&gt;Please use a passphrase of &lt;b&gt;ten or more random characters&lt;/b&gt;, or &lt;b&gt;eight or more words&lt;/b&gt;.</source>
         <translation>Insira a nova senha para a carteira.&lt;br/&gt;Favor usar uma senha com &lt;b&gt;dez ou mais caracteres aleatórios&lt;/b&gt;, ou &lt;b&gt;oito ou mais palavras&lt;/b&gt;.</translation>
     </message>
@@ -172,7 +204,7 @@
     </message>
     <message>
         <source>Unlock wallet for mixing only</source>
-        <translation>Desbloquear carteira appenas para misturar</translation>
+        <translation>Desbloquear carteira apenas para misturar</translation>
     </message>
     <message>
         <source>Unlock wallet</source>
@@ -268,7 +300,11 @@
 </context>
 <context>
     <name>BitcoinAmountField</name>
-    </context>
+    <message>
+        <source>Amount in %1</source>
+        <translation>Quantidade em %1</translation>
+    </message>
+</context>
 <context>
     <name>BitcoinGUI</name>
     <message>
@@ -354,6 +390,10 @@
     <message>
         <source>&amp;About %1</source>
         <translation>&amp;Sobre %1</translation>
+    </message>
+    <message>
+        <source>PrivateSend coins to a Dash address</source>
+        <translation>EnvioPrivado de moedas para um endereço Dash</translation>
     </message>
     <message>
         <source>Modify configuration options for %1</source>
@@ -510,6 +550,10 @@
     <message>
         <source>%1 client</source>
         <translation>%1 cliente</translation>
+    </message>
+    <message>
+        <source>Wallet is &lt;b&gt;unencrypted&lt;/b&gt;</source>
+        <translation>A carteira &lt;b&gt;não está criptografada&lt;/b&gt;</translation>
     </message>
     <message>
         <source>&amp;PrivateSend information</source>
@@ -757,6 +801,10 @@
         <translation>Recebido com endereço</translation>
     </message>
     <message>
+        <source>Mixing Rounds</source>
+        <translation>Rodadas de Anonimização</translation>
+    </message>
+    <message>
         <source>Date</source>
         <translation>Data</translation>
     </message>
@@ -841,6 +889,30 @@
         <translation>Pode variar +/- %1 duff(s) por entrada.</translation>
     </message>
     <message>
+        <source>Some coins were unselected because they were spent.</source>
+        <translation>Algumas moedas não foram selecionadas porque foram gastas.</translation>
+    </message>
+    <message>
+        <source>Some coins were unselected because they do not have enough mixing rounds.</source>
+        <translation>Algumas moedas não foram selecionadas porque não têm rodadas de anonimização suficientes.</translation>
+    </message>
+    <message>
+        <source>Show all coins</source>
+        <translation>Mostrar todas as moedas</translation>
+    </message>
+    <message>
+        <source>Hide PrivateSend coins</source>
+        <translation>Ocultar moedas de EnvioPrivado</translation>
+    </message>
+    <message>
+        <source>Show all PrivateSend coins</source>
+        <translation>Mostrar todas as moedas de EnvioPrivado</translation>
+    </message>
+    <message>
+        <source>Show spendable coins only</source>
+        <translation>Mostrar apenas moedas gastáveis</translation>
+    </message>
+    <message>
         <source>(no label)</source>
         <translation>(sem rótulo)</translation>
     </message>
@@ -878,6 +950,10 @@
     <message>
         <source>The address associated with this address list entry. This can only be modified for sending addresses.</source>
         <translation>O endereço associado a esta lista de endereços de entrada. Isso só pode ser modificado para o envio de endereços.</translation>
+    </message>
+    <message>
+        <source>New receiving address</source>
+        <translation>Novo endereço de recebimento</translation>
     </message>
     <message>
         <source>New sending address</source>
@@ -964,6 +1040,22 @@
     <message>
         <source>Choose data directory on startup (default: %u)</source>
         <translation>Escolher diretório de dados na inicialização (padrão: %u)</translation>
+    </message>
+    <message>
+        <source>Set the font family. Possible values: %1. (default: %2)</source>
+        <translation>Defina a família da fonte. Valores possíveis: %1. (padrão: %2)</translation>
+    </message>
+    <message>
+        <source>Set a scale factor which gets applied to the base font size. Possible range %1 (smallest fonts) to %2 (largest fonts). (default: %3)</source>
+        <translation>Defina um fator de escala que será aplicado ao tamanho da fonte. Valores possíveis %1 (fontes menores) a %2 (fontes maiores). (padrão: %3)</translation>
+    </message>
+    <message>
+        <source>Set the font weight for bold texts. Possible range %1 to %2 (default: %3)</source>
+        <translation>Defina o peso da fonte para textos em negrito. Intervalo possível %1 a %2 (padrão: %3)</translation>
+    </message>
+    <message>
+        <source>Set the font weight for normal texts. Possible range %1 to %2 (default: %3)</source>
+        <translation>Defina o peso da fonte para textos normais. Intervalo possível %1 a %2 (padrão: %3)</translation>
     </message>
     <message>
         <source>Set language, for example "de_DE" (default: system locale)</source>
@@ -1144,6 +1236,10 @@
         <translation>Copiar Outpoint Collateral</translation>
     </message>
     <message>
+        <source>Updating...</source>
+        <translation>Atualizando...</translation>
+    </message>
+    <message>
         <source>ENABLED</source>
         <translation>HABILITADO </translation>
     </message>
@@ -1170,6 +1266,14 @@
     <message>
         <source>NONE</source>
         <translation>NENHUM</translation>
+    </message>
+    <message>
+        <source>Filter by any property (e.g. address or protx hash)</source>
+        <translation>Filtrar por qualquer propriedade (por exemplo, endereço ou hash protx)</translation>
+    </message>
+    <message>
+        <source>Please wait...</source>
+        <translation>Por favor, aguarde...</translation>
     </message>
     <message>
         <source>Additional information for DIP3 Masternode %1</source>
@@ -1281,6 +1385,10 @@
         <translation>C&amp;arteira</translation>
     </message>
     <message>
+        <source>&amp;Appearance</source>
+        <translation>&amp;Aparência</translation>
+    </message>
+    <message>
         <source>Show additional tab listing all your masternodes in first sub-tab&lt;br/&gt;and all masternodes on the network in second sub-tab.</source>
         <translation>Mostre uma guia adicional listando todos os seus masternodes na primeira subposição &lt;br/&gt; e todos os masternodes na rede na segunda sub-guia.</translation>
     </message>
@@ -1333,6 +1441,14 @@
         <translation>Abre automaticamente a porta para o cliente Dash Core no roteador. Essa função apenas funciona se o seu roteador oferece suporte a UPnP e a opção estiver habilitada.</translation>
     </message>
     <message>
+        <source>Accept connections from outside.</source>
+        <translation>Aceitar conexões externas.</translation>
+    </message>
+    <message>
+        <source>Allow incomin&amp;g connections</source>
+        <translation>Permitir conexões de entrada</translation>
+    </message>
+    <message>
         <source>Connect to the Dash network through a SOCKS5 proxy.</source>
         <translation>Conecta à rede Dash através de um proxy SOCKS5.</translation>
     </message>
@@ -1345,12 +1461,28 @@
         <translation>Mostra se o proxy SOCKS5 padrão fornecido for usado para alcançar pares através deste tipo de rede.</translation>
     </message>
     <message>
+        <source>Use separate SOCKS&amp;5 proxy to reach peers via Tor hidden services:</source>
+        <translation>Use um SOCKS&amp;5 proxy para conectar com nodes através do Tor</translation>
+    </message>
+    <message>
+        <source>Hide the icon from the system tray.</source>
+        <translation>Ocultar o ícone da bandeja do sistema.</translation>
+    </message>
+    <message>
+        <source>&amp;Hide tray icon</source>
+        <translation>&amp;Esconder ícone</translation>
+    </message>
+    <message>
         <source>Minimize instead of exit the application when the window is closed. When this option is enabled, the application will be closed only after selecting Exit in the menu.</source>
         <translation>Minimizar em vez de sair do aplicativo quando a janela for fechada. Quando esta opção está ativada, o aplicativo só será fechado selecionando Sair no menu.</translation>
     </message>
     <message>
         <source>Third party URLs (e.g. a block explorer) that appear in the transactions tab as context menu items.&lt;br/&gt;%s in the URL is replaced by transaction hash. Multiple URLs are separated by vertical bar |.</source>
         <translation>As URLs de terceiros (por exemplo, um explorador de blocos) que aparecem na guia de transações como itens de menu de contexto. &lt;br/&gt;%s na URL são substituídos por hash de transação. Vários URLs são separados pela barra vertical |.</translation>
+    </message>
+    <message>
+        <source>&amp;Third party transaction URLs</source>
+        <translation>&amp;URLs de transações de terceiros</translation>
     </message>
     <message>
         <source>Whether to show coin control features or not.</source>
@@ -1658,6 +1790,14 @@ https://www.transifex.com/projects/p/dash/</translation>
         <translation><numerusform>%n Rodadas</numerusform><numerusform>%n Rodadas</numerusform></translation>
     </message>
     <message>
+        <source>Found enough compatible inputs to mix %1</source>
+        <translation>Encontradas entradas suficientes para misturar %1</translation>
+    </message>
+    <message>
+        <source>Not enough compatible inputs to mix &lt;span style='%1'&gt;%2&lt;/span&gt;,&lt;br&gt;will mix &lt;span style='%1'&gt;%3&lt;/span&gt; instead</source>
+        <translation>Não há entradas compatíveis suficientes para misturar &lt;span style='%1'&gt;%2&lt;/span&gt;,&lt;br&gt;vamos misturar &lt;span style='%1'&gt;%3&lt;/span&gt; como alternativa</translation>
+    </message>
+    <message>
         <source>Overall progress</source>
         <translation>Progresso geral</translation>
     </message>
@@ -1843,7 +1983,15 @@ https://www.transifex.com/projects/p/dash/</translation>
         <source>Ping</source>
         <translation>Ping</translation>
     </message>
-    </context>
+    <message>
+        <source>Sent</source>
+        <translation>Enviado</translation>
+    </message>
+    <message>
+        <source>Received</source>
+        <translation>Recebido</translation>
+    </message>
+</context>
 <context>
     <name>QObject</name>
     <message>
@@ -1857,6 +2005,18 @@ https://www.transifex.com/projects/p/dash/</translation>
     <message>
         <source>Enter a Dash address (e.g. %1)</source>
         <translation>Informe um endereço Dash (ex: %1)</translation>
+    </message>
+    <message>
+        <source>Appearance Setup</source>
+        <translation>Configurações de Aparência</translation>
+    </message>
+    <message>
+        <source>Please choose your preferred settings for the appearance of %1</source>
+        <translation>Por favor, escolha a sua configuração preferida para a aparência de %1</translation>
+    </message>
+    <message>
+        <source>This can also be adjusted later in the "Appearance" tab of the preferences.</source>
+        <translation>Isso também pode ser ajustado posteriormente na aba "Aparência" nas preferências.</translation>
     </message>
     <message>
         <source>%1 d</source>
@@ -1915,6 +2075,22 @@ https://www.transifex.com/projects/p/dash/</translation>
         <translation>%1 e %2</translation>
     </message>
     <message>
+        <source>%1 B</source>
+        <translation>%1 B</translation>
+    </message>
+    <message>
+        <source>%1 KB</source>
+        <translation>%1 KB</translation>
+    </message>
+    <message>
+        <source>%1 MB</source>
+        <translation>%1 MB</translation>
+    </message>
+    <message>
+        <source>%1 GB</source>
+        <translation>%1 GB</translation>
+    </message>
+    <message>
         <source>unknown</source>
         <translation>desconhecido</translation>
     </message>
@@ -1933,7 +2109,35 @@ https://www.transifex.com/projects/p/dash/</translation>
         <source>Error: %1</source>
         <translation>Erro: %1</translation>
     </message>
-    </context>
+    <message>
+        <source>Error: Failed to load application fonts.</source>
+        <translation>Erro: Falha ao carregar as fontes do aplicativo.</translation>
+    </message>
+    <message>
+        <source>Error: Specified font-family invalid. Valid values: %1.</source>
+        <translation>Erro: Família de fontes especificada inválida. Valores válidos: %1.</translation>
+    </message>
+    <message>
+        <source>Error: Specified font-weight-normal invalid. Valid range %1 to %2.</source>
+        <translation>Erro: Peso normal da fonte especificado inválido. Intervalo válido de %1 a %2.</translation>
+    </message>
+    <message>
+        <source>Error: Specified font-weight-bold invalid. Valid range %1 to %2.</source>
+        <translation>Erro: Peso negrito da fonte especificado inválido. Intervalo válido de %1 a %2.</translation>
+    </message>
+    <message>
+        <source>Error: Specified font-scale invalid. Valid range %1 to %2.</source>
+        <translation>Erro: Escala da fonte especificada inválida. Intervalo válido de %1 a %2.</translation>
+    </message>
+    <message>
+        <source>Error: Invalid -custom-css-dir path.</source>
+        <translation>Erro: Caminho -custom-css-dir inválido.</translation>
+    </message>
+    <message>
+        <source>Error: %1 CSS file(s) missing in -custom-css-dir path.</source>
+        <translation>Erro: %1 arquivo(s) CSS ausente(s) no caminho -custom-css-dir.</translation>
+    </message>
+</context>
 <context>
     <name>QRDialog</name>
     <message>
@@ -2138,6 +2342,10 @@ https://www.transifex.com/projects/p/dash/</translation>
         <translation>Datadir</translation>
     </message>
     <message>
+        <source>Last block hash</source>
+        <translation>Último bloco hash</translation>
+    </message>
+    <message>
         <source>Open the %1 debug log file from the current data directory. This can take a few seconds for large log files.</source>
         <translation>Abrir o arquivo de log de depuração do %1 localizado no diretório atual de dados. Isso pode levar alguns segundos para arquivos de log grandes.</translation>
     </message>
@@ -2294,6 +2502,14 @@ https://www.transifex.com/projects/p/dash/</translation>
         <translation>Use as setas para cima e para baixo para navegar pelo histórico, e %1 para limpar a tela.</translation>
     </message>
     <message>
+        <source>Type %1 for an overview of available commands.</source>
+        <translation>Digite %1 para obter uma visão geral dos comandos disponíveis.</translation>
+    </message>
+    <message>
+        <source>For more information on using this console type %1.</source>
+        <translation>Para mais informações sobre como usar este painel, digite %1.</translation>
+    </message>
+    <message>
         <source>WARNING: Scammers have been active, telling users to type commands here, stealing their wallet contents. Do not use this console without fully understanding the ramifications of a command.</source>
         <translation>AVISO: Os golpistas estão ativos, dizendo aos usuários para digitar comandos aqui, roubando o conteúdo da carteira. Não use este console sem compreender totalmente o contexto de um comando.</translation>
     </message>
@@ -2411,6 +2627,14 @@ https://www.transifex.com/projects/p/dash/</translation>
     <message>
         <source>Remove</source>
         <translation>Remover</translation>
+    </message>
+    <message>
+        <source>Enter a label to associate with the new receiving address</source>
+        <translation>Insira um rótulo para associar ao novo endereço de recebimento</translation>
+    </message>
+    <message>
+        <source>Enter a message to attach to the payment request</source>
+        <translation>Insira uma mensagem para anexar à solicitação de pagamento</translation>
     </message>
     <message>
         <source>Copy URI</source>
@@ -2714,6 +2938,10 @@ https://www.transifex.com/projects/p/dash/</translation>
         <translation>&lt;b&gt;(%1 de %2 entradas exibidas)&lt;/b&gt;</translation>
     </message>
     <message>
+        <source>Confirm the PrivateSend action</source>
+        <translation>Confirme a ação de EnvioPrivado</translation>
+    </message>
+    <message>
         <source>PrivateSend funds only</source>
         <translation>Saldo de PrivateSend somente</translation>
     </message>
@@ -2865,6 +3093,10 @@ https://www.transifex.com/projects/p/dash/</translation>
         <translation>&amp;Retirar taxa da quantia</translation>
     </message>
     <message>
+        <source>Use available balance</source>
+        <translation>Use o saldo disponível</translation>
+    </message>
+    <message>
         <source>Message:</source>
         <translation>Mensagem:</translation>
     </message>
@@ -2998,8 +3230,20 @@ https://www.transifex.com/projects/p/dash/</translation>
         <translation>Limpar todos os campos de assinatura da mensagem</translation>
     </message>
     <message>
+        <source>Enter a message to be signed</source>
+        <translation>Insira uma mensagem para ser assinada</translation>
+    </message>
+    <message>
         <source>Click "Sign Message" to generate signature</source>
         <translation>Clique em "Assinar mensagem" para gerar a assinatura</translation>
+    </message>
+    <message>
+        <source>Enter a message to be verified</source>
+        <translation>Insira uma mensagem para ser verificada</translation>
+    </message>
+    <message>
+        <source>Enter a signature for the message to be verified</source>
+        <translation>Insira uma assinatura para a mensagem a ser verificada</translation>
     </message>
     <message>
         <source>The entered address is invalid.</source>
@@ -3063,7 +3307,19 @@ https://www.transifex.com/projects/p/dash/</translation>
         <source>KB/s</source>
         <translation>KB/s</translation>
     </message>
-    </context>
+    <message>
+        <source>Totals</source>
+        <translation>Totais</translation>
+    </message>
+    <message>
+        <source>Received</source>
+        <translation>Recebido</translation>
+    </message>
+    <message>
+        <source>Sent</source>
+        <translation>Enviado</translation>
+    </message>
+</context>
 <context>
     <name>TransactionDesc</name>
     <message numerus="yes">
@@ -3101,6 +3357,14 @@ https://www.transifex.com/projects/p/dash/</translation>
     <message>
         <source>%1 confirmations</source>
         <translation>%1 confirmações</translation>
+    </message>
+    <message>
+        <source>locked via ChainLocks</source>
+        <translation>bloqueado via ChainLocks</translation>
+    </message>
+    <message>
+        <source>verified via InstantSend</source>
+        <translation>verificado via EnvioInstantâneo</translation>
     </message>
     <message>
         <source>Status</source>
@@ -3289,6 +3553,14 @@ https://www.transifex.com/projects/p/dash/</translation>
         <translation>Gerado mas não aceito</translation>
     </message>
     <message>
+        <source>verified via InstantSend</source>
+        <translation>verificado via EnvioInstantâneo</translation>
+    </message>
+    <message>
+        <source>locked via ChainLocks</source>
+        <translation>bloqueado via ChainLocks</translation>
+    </message>
+    <message>
         <source>Received with</source>
         <translation>Recebido</translation>
     </message>
@@ -3434,6 +3706,10 @@ https://www.transifex.com/projects/p/dash/</translation>
     <message>
         <source>Other</source>
         <translation>Outro</translation>
+    </message>
+    <message>
+        <source>Enter address, transaction id, or label to search</source>
+        <translation>Insira um endereço, ID da transação ou rótulo para pesquisar</translation>
     </message>
     <message>
         <source>Min amount</source>
@@ -3747,12 +4023,32 @@ https://www.transifex.com/projects/p/dash/</translation>
         <translation>Aceita transações retransmitidas advindas de pares em lista branca, mesmo quando não estiver retransmitindo transações (padrão: %d)</translation>
     </message>
     <message>
+        <source>Add a node to connect to and attempt to keep the connection open (see the `addnode` RPC command help for more info). This option can be specified multiple times to add multiple nodes.</source>
+        <translation>Adicione um nó para se conectar e tente manter a conexão aberta (veja a ajuda do comando RPC `addnode` para mais informações). Esta opção pode ser especificada várias vezes para adicionar vários nós.</translation>
+    </message>
+    <message>
         <source>Allow JSON-RPC connections from specified source. Valid for &lt;ip&gt; are a single IP (e.g. 1.2.3.4), a network/netmask (e.g. 1.2.3.4/255.255.255.0) or a network/CIDR (e.g. 1.2.3.4/24). This option can be specified multiple times</source>
         <translation>Permitir conexões JSON-RPC de uma fonte específica. Válido para um único ip (ex. 1.2.3.4), até uma rede/máscara (ex. 1.2.3.4/255.255.255.0) ou uma rede/CIDR (ex. 1.2.3.4/24). Esta opção pode ser usada múltiplas vezes</translation>
     </message>
     <message>
         <source>Bind to given address and whitelist peers connecting to it. Use [host]:port notation for IPv6</source>
         <translation>Vincular ao endereço fornecido e sempre escutar nele. Use a notação [host]:port para IPv6</translation>
+    </message>
+    <message>
+        <source>Bind to given address to listen for JSON-RPC connections. Do not expose the RPC server to untrusted networks such as the public internet! This option is ignored unless -rpcallowip is also passed. Port is optional and overrides -rpcport. Use [host]:port notation for IPv6. This option can be specified multiple times (default: 127.0.0.1 and ::1 i.e., localhost, or if -rpcallowip has been specified, 0.0.0.0 and :: i.e., all addresses)</source>
+        <translation>Conecte com um endereço para receber conexões JSON-RPC. Não exponha o servidor RPC para redes não confiáveis como conexões de Internet públicas. Esta opção é ignorada ao menos que -rpcallowip também seja especificado. Definir a porta é opcional e irá sobrescrever -rpcport. Utilize a notação [host]:porta para IPv6. Essa opção pode ser especificada múltiplas vezes (padrão:127.0.0.1 e ::1, localhost, ou se especificado, 0.0.0.0 e ::, todos os endereços)</translation>
+    </message>
+    <message>
+        <source>Cannot provide specific connections and have addrman find outgoing connections at the same.</source>
+        <translation>Não é possível fornecer conexões específicas e fazer com que o addrman encontre conexões de saída ao mesmo tempo.</translation>
+    </message>
+    <message>
+        <source>Connect only to the specified node; -connect=0 disables automatic connections (the rules for this peer are the same as for -addnode). This option can be specified multiple times to connect to multiple nodes.</source>
+        <translation>Conecta apenas ao nó especificado; -connect=0 desabilita conexões automáticas ( as regras para esse node são as mesmas que -addnode). Essa opção pode ser utilizada múltiplas vezes para conectar com vários nós.</translation>
+    </message>
+    <message>
+        <source>Connect to a node to retrieve peer addresses, and disconnect. This option can be specified multiple times to connect to multiple nodes.</source>
+        <translation>Conecte-se a um nó para recuperar endereços de cliente e desconecte-se. Esta opção pode ser especificada várias vezes para se conectar a vários nós.</translation>
     </message>
     <message>
         <source>Create new files with system default permissions, instead of umask 077 (only effective with disabled wallet functionality)</source>
@@ -3787,12 +4083,24 @@ https://www.transifex.com/projects/p/dash/</translation>
         <translation>Se este bloco está no blockchain, assume-se que ele e seus ancestrais são válidos e podem ignorar a verificação de scripts (0 para verificar todos, padrão: %s, testnet: %s)</translation>
     </message>
     <message>
+        <source>Invalid -socketevents ('%s') specified. Only these modes are supported: %s</source>
+        <translation>-socketevents ('%s') inválido. Apenas esses modos são suportados: %s</translation>
+    </message>
+    <message>
         <source>Invalid amount for -maxtxfee=&lt;amount&gt;: '%s' (must be at least the minrelay fee of %s to prevent stuck transactions)</source>
         <translation>Valor inválido para -maxtxfee=&lt;valor&gt;: '%s' (precisa ser pelo menos a taxa mínima de %s para prevenir que a transação nunca seja confirmada)</translation>
     </message>
     <message>
+        <source>Location of the auth cookie. Relative paths will be prefixed by a net-specific datadir location. (default: data dir)</source>
+        <translation>Caminho do auth cookie. Caminhos relativo terão o caminho de rede específico. (padrão: datadir)</translation>
+    </message>
+    <message>
         <source>Maintain a full transaction index, used by the getrawtransaction rpc call (default: %u)</source>
         <translation>Mantém um índice completo de transações, usado pela chamada rpc getrawtransaction (padrão: %u)</translation>
+    </message>
+    <message>
+        <source>Make outgoing connections only through network &lt;net&gt; (ipv4, ipv6 or onion). Incoming connections are not affected by this option. This option can be specified multiple times to allow multiple networks.</source>
+        <translation>As conexões de saída serão apenas pela rede &lt;net&gt; (IPv4, IPv6 ou onion). Conexões de entrada não são afetadas por essa opção. Essa opção pode ser especificada múltiplas vezes para permitir múltiplas redes.</translation>
     </message>
     <message>
         <source>Maximum size of data in data carrier transactions we relay and mine (default: %u)</source>
@@ -3817,6 +4125,34 @@ https://www.transifex.com/projects/p/dash/</translation>
     <message>
         <source>Reduce storage requirements by enabling pruning (deleting) of old blocks. This allows the pruneblockchain RPC to be called to delete specific blocks, and enables automatic pruning of old blocks if a target size in MiB is provided. This mode is incompatible with -txindex, -rescan and -disablegovernance=false. Warning: Reverting this setting requires re-downloading the entire blockchain. (default: 0 = disable pruning blocks, 1 = allow manual pruning via RPC, &gt;=%u = automatically prune block files to stay under the specified target size in MiB)</source>
         <translation>Reduz o requerimente de espaço habiitando a poda (apagando) de blocos antigos. Isso permite chamar o comando pruneblockchain via RPC para apagar blocos específicos, e habiita o poda automático de blocos antigos se o tamanho em MiB for atingido. Esse modo é incompatível com -txindex, -rescan e -disablegovernance=false. Aviso: Reverter essa configuração requer baixar novamente o blockchain inteiro. (padrão: 0 = desabilitado, 1 = permite a poda manual via RPC, &gt;=%u = poda os blocos para ficar abaixo do especificado, em MiB)</translation>
+    </message>
+    <message>
+        <source>Send trace/debug info to console (default: 1 when no -daemon. To disable logging to file, set debuglogfile=0)</source>
+        <translation>Enviar informações de depuração para o painel (padrão: 1 quando não tem -daemon. Para desabilitar o arquivo de log, use debuglogfile=0)</translation>
+    </message>
+    <message>
+        <source>Specify configuration file. Relative paths will be prefixed by datadir location. (default: %s)</source>
+        <translation>Especifique o arquivo de configuração. Caminhos relativos terão o prefixo do datadir. (padrão: %s)</translation>
+    </message>
+    <message>
+        <source>Specify directory to hold wallets (default: &lt;datadir&gt;/wallets if it exists, otherwise &lt;datadir&gt;)</source>
+        <translation>Especifique o diretório para armazenar as carteiras (padrão: &lt;datadir&gt;/wallets se existir, caso contrário &lt;datadir&gt;)</translation>
+    </message>
+    <message>
+        <source>Specify location of debug log file. Relative paths will be prefixed by a net-specific datadir location. (0 to disable; default: %s)</source>
+        <translation>Especifique a localização para o arquivo de log e depuração. Caminhos relativos terão o prefixo do caminho de rede. (0 para desabilitar; padrão: %s)</translation>
+    </message>
+    <message>
+        <source>Specify pid file. Relative paths will be prefixed by a net-specific datadir location. (default: %s)</source>
+        <translation>Especifique o arquivo pid. Caminhos relativos terão o prefixo do caminho de rede. (padrão: %s)</translation>
+    </message>
+    <message>
+        <source>Specify wallet database path. Can be specified multiple times to load multiple wallets. Path is interpreted relative to &lt;walletdir&gt; if it is not absolute, and will be created if it does not exist (as a directory containing a wallet.dat file and log files). For backwards compatibility this will also accept names of existing data files in &lt;walletdir&gt;.)</source>
+        <translation>Especifique o caminho do banco de dados da carteira. Pode ser especificados várias vezes para carregar múltiplas carterias. O caminho será relativo para &lt;walletdir&gt; se não for absoluto, e será criado se não existir (como um diretório conte o arquivo wallet.dat e arquivos de log). Por questões de compatibilidade também serão aceitos nomes de arquivos de dados em &lt;walletdir&gt;.)</translation>
+    </message>
+    <message>
+        <source>Transaction index can't be disabled with governance validation enabled. Either start with -disablegovernance command line switch or enable transaction index.</source>
+        <translation>O índice de transação não pode ser desabilitado com a validação de governança habilitada. Comece com o comando -disablegovernance ou ative o índice de transação.</translation>
     </message>
     <message>
         <source>Use N separate masternodes in parallel to mix funds (%u-%u, default: %u)</source>
@@ -4140,7 +4476,7 @@ https://www.transifex.com/projects/p/dash/</translation>
     </message>
     <message>
         <source>Enable multiple PrivateSend mixing sessions per block, experimental (0-1, default: %u)</source>
-        <translation>Habalitar múltiplas sessões de mistura para EnvioPrivado por bloco, experimental (0-1, padrão: %u)</translation>
+        <translation>Habilitar múltiplas sessões de mistura para EnvioPrivado por bloco, experimental (0-1, padrão: %u)</translation>
     </message>
     <message>
         <source>Execute command when a wallet InstantSend transaction is successfully locked (%s in cmd is replaced by TxID)</source>
@@ -4239,6 +4575,10 @@ https://www.transifex.com/projects/p/dash/</translation>
         <translation>Tenta manter tráfego fora dos limites dentro do alvo especificado (em MiB por 24h), 0 = sem limite (padrão: %d)</translation>
     </message>
     <message>
+        <source>Try to create at least N inputs of each denominated amount (%u-%u, default: %u)</source>
+        <translation>Tente criar pelo menos N entradas de com os valores de denominação (%u-%u, padrão: %u)</translation>
+    </message>
+    <message>
         <source>Unable to locate enough PrivateSend denominated funds for this transaction.</source>
         <translation>Não é possível localizar fundos denominados do PrivateSend suficientes para essa transação.</translation>
     </message>
@@ -4283,6 +4623,10 @@ https://www.transifex.com/projects/p/dash/</translation>
         <translation>(padrão: %u)</translation>
     </message>
     <message>
+        <source>-litemode is deprecated.</source>
+        <translation>-litemode não é mais suportado.</translation>
+    </message>
+    <message>
         <source>-maxmempool must be at least %d MB</source>
         <translation>-maxmempool deve ser pelo menos %d MB</translation>
     </message>
@@ -4301,6 +4645,10 @@ https://www.transifex.com/projects/p/dash/</translation>
     <message>
         <source>Automatically create Tor hidden service (default: %d)</source>
         <translation>Criar automaticamente serviços ocultos do Tor (padrão: %d)</translation>
+    </message>
+    <message>
+        <source>Disable governance validation (0-1, default: %u)</source>
+        <translation>Desativar validação de governança (0-1, padrão: %u)</translation>
     </message>
     <message>
         <source>ERROR! Failed to create automatic backup</source>
@@ -4339,8 +4687,36 @@ https://www.transifex.com/projects/p/dash/</translation>
         <translation>Abilitar a publicação dos dados brutos da transação em &lt;endereço&gt;</translation>
     </message>
     <message>
+        <source>Error upgrading evo database</source>
+        <translation>Erro de upgrade na base de dados evo</translation>
+    </message>
+    <message>
         <source>Error: A fatal internal error occurred, see debug.log for details</source>
         <translation>Erro: Um erro interno fatal ocorreu, veja debug.log para detalhes</translation>
+    </message>
+    <message>
+        <source>Error: failed to add socket to epollfd (epoll_ctl returned error %s)</source>
+        <translation>Erro: falha ao adicionar socket ao epollfd (epoll_ctl retornou erro %s)</translation>
+    </message>
+    <message>
+        <source>Exceeded max tries.</source>
+        <translation>Tentativas máximas excedidas.</translation>
+    </message>
+    <message>
+        <source>Failed to clear fulfilled requests cache at</source>
+        <translation>Falha ao limpar cache de requisições completas em</translation>
+    </message>
+    <message>
+        <source>Failed to clear governance cache at</source>
+        <translation>Falha ao limpar o cache de governança em</translation>
+    </message>
+    <message>
+        <source>Failed to clear masternode cache at</source>
+        <translation>Falha ao limpar cache de masternode em</translation>
+    </message>
+    <message>
+        <source>Failed to commit EvoDB</source>
+        <translation>Falha ao enviar dados para EvoDB</translation>
     </message>
     <message>
         <source>Failed to create backup %s!</source>
@@ -4357,6 +4733,10 @@ https://www.transifex.com/projects/p/dash/</translation>
     <message>
         <source>Failed to load sporks cache from</source>
         <translation>Falha ao carregar o cache de sporks de</translation>
+    </message>
+    <message>
+        <source>Failed to rescan the wallet during initialization</source>
+        <translation>Falha ao verificar novamente a carteira durante a inicialização</translation>
     </message>
     <message>
         <source>Fee (in %s/kB) to add to transactions you send (default: %s)</source>
@@ -4377,6 +4757,14 @@ https://www.transifex.com/projects/p/dash/</translation>
     <message>
         <source>Invalid masternodeblsprivkey. Please see documentation.</source>
         <translation>Masternodeblsprivkey invalido. Por favor, veja a documentação.</translation>
+    </message>
+    <message>
+        <source>It has been replaced by -disablegovernance.</source>
+        <translation>Foi substituído por -disablegovernance.</translation>
+    </message>
+    <message>
+        <source>Its replacement -disablegovernance has been forced instead.</source>
+        <translation>Sua substituição -disablegovernance foi forçada em seu lugar.</translation>
     </message>
     <message>
         <source>Keep the transaction memory pool below &lt;n&gt; megabytes (default: %u)</source>
@@ -4487,6 +4875,10 @@ https://www.transifex.com/projects/p/dash/</translation>
         <translation>O modo prune não pode ser configurado com um valor negativo.</translation>
     </message>
     <message>
+        <source>Prune mode is incompatible with -disablegovernance=false.</source>
+        <translation>O modo prune é incompatível com -disablegovernance=false.</translation>
+    </message>
+    <message>
         <source>Prune mode is incompatible with -txindex.</source>
         <translation>O modo prune é incompatível com -txindex.</translation>
     </message>
@@ -4499,12 +4891,44 @@ https://www.transifex.com/projects/p/dash/</translation>
         <translation>Analise novamente o blockchain para ver se há transações da carteira em falta na inicialização</translation>
     </message>
     <message>
+        <source>Send reject messages per BIP61 (default: %u)</source>
+        <translation>Enviar mensagens de rejeição através do BIP61 (padrão: %u)</translation>
+    </message>
+    <message>
+        <source>Socket events mode, which must be one of: %s (default: %s)</source>
+        <translation>Modo eventos socket, deverá ser: %s (padrão: %s)</translation>
+    </message>
+    <message>
+        <source>Specified -walletdir "%s" does not exist</source>
+        <translation>O diretório especificado -walletdir "%s" não existe</translation>
+    </message>
+    <message>
+        <source>Specified -walletdir "%s" is a relative path</source>
+        <translation>O diretório especificado -walletdir "%s" é um caminho relativo</translation>
+    </message>
+    <message>
+        <source>Specified -walletdir "%s" is not a directory</source>
+        <translation>O diretório especificado -walletdir "%s" não é um diretório</translation>
+    </message>
+    <message>
+        <source>Sync mempool from other nodes on start (default: %u)</source>
+        <translation>Sincronizar mempool de outros nós ao iniciar (padrão: %u)</translation>
+    </message>
+    <message>
         <source>Synchronizing blockchain...</source>
         <translation>Sincronizando o blockchain...</translation>
     </message>
     <message>
+        <source>Target PrivateSend balance (%u-%u, default: %u)</source>
+        <translation>Alvo de saldo PrivateSend (%u-%u, padrão: %u)</translation>
+    </message>
+    <message>
         <source>The wallet will avoid paying less than the minimum relay fee.</source>
         <translation>A carteira irá evitar pagar menos que a taxa mínima de retransmissão.</translation>
+    </message>
+    <message>
+        <source>This is expected because you are running a pruned node.</source>
+        <translation>Isso é esperado porque você está executando um nó comprimido.</translation>
     </message>
     <message>
         <source>This is the minimum transaction fee you pay on every transaction.</source>
@@ -4539,12 +4963,20 @@ https://www.transifex.com/projects/p/dash/</translation>
         <translation>Impossível vincular a %s neste computador. O %s provavelmente já está rodando.</translation>
     </message>
     <message>
+        <source>Unable to generate initial keys</source>
+        <translation>Incapaz de gerar chaves iniciais</translation>
+    </message>
+    <message>
         <source>Upgrading UTXO database</source>
         <translation>Atualizando banco de dados UTXO</translation>
     </message>
     <message>
         <source>Use devnet chain with provided name</source>
         <translation>Use a cadeia devnet com o nome fornecido</translation>
+    </message>
+    <message>
+        <source>Wallet %s resides outside wallet directory %s</source>
+        <translation>A carteira %s encontra-se fora do diretório da carteira %s</translation>
     </message>
     <message>
         <source>Wallet debugging/testing options:</source>
@@ -4981,6 +5413,14 @@ https://www.transifex.com/projects/p/dash/</translation>
     <message>
         <source>Warning</source>
         <translation>Atenção</translation>
+    </message>
+    <message>
+        <source>You are starting with governance validation disabled.</source>
+        <translation>Você está iniciando com a validação de governança desativada.</translation>
+    </message>
+    <message>
+        <source>You can not disable governance validation on a masternode.</source>
+        <translation>Você não pode desabilitar a validação de governança em um masternode.</translation>
     </message>
     <message>
         <source>Your entries added successfully.</source>
