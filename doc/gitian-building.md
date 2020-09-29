@@ -185,5 +185,6 @@ This will take quite a while! You can add `-j X` for X threads, and `-m XXXX` fo
 
 In order to create a new pull request run below and then click on the link / navigate to the address as given in the console
 `
+git push origin $VERSION
 echo "https://github.com/dashpay/gitian.sigs/compare/master...$NAME:$VERSION?expand=1"
 `
