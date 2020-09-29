@@ -60,13 +60,41 @@ formation of masternodes and was voted in by the network. The resulting allocati
 will split all non-proposal block rewards 40% toward miners and 60% toward
 masternodes in the end-state once the transition period is complete.
 
-The reallocation will take place gradually over 4.5 years to avoid market volatility
-and transition toward the new end-state allocation with minimal network disruption.
-The proposed changes will occur every three superblock cycles until the reallocation
-is complete, or approximately once per quarter.
+The reallocation will take place gradually over 4.5 years with a total of 18
+reallocation periods between the start and end-state to avoid market volatility
+and transition toward the new allocation with minimal network disruption.
 
 Note that this is a hardfork which must be activated by miners. To do this they
 should start creating blocks signalling bit 5 in `version` field of the block header.
+
+### Reallocation periods
+
+Each reallocation period will last three superblock cycles (approximately one
+quarter). The following table shows the split of the non-proposal block rewards during 
+each period.
+
+|Event|Miner|Masternode|
+|--|-----|-----|
+|Now|50.0%|50.0%|
+|1 |48.7%|51.3%|
+|2 |47.4%|52.6%|
+|3 |46.7%|53.3%|
+|4 |46.0%|54.0%|
+|5 |45.4%|54.6%|
+|6 |44.8%|55.2%|
+|7 |44.3%|55.7%|
+|8 |43.8%|56.2%|
+|9 |43.3%|56.7%|
+|10|42.8%|57.2%|
+|11|42.3%|57.7%|
+|12|41.8%|58.2%|
+|13|41.5%|58.5%|
+|14|41.2%|58.8%|
+|15|40.9%|59.1%|
+|16|40.6%|59.4%|
+|17|40.3%|59.7%|
+|18|40.1%|59.9%|
+|End|40.0%|60.0%|
 
 Dynamic Activation Thresholds
 -----------------------------
