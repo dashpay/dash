@@ -110,8 +110,6 @@ git commit -S -a -m "Add $NAME $VERSION non-code signed signatures"
 git push --set-upstream $NAME $VERSION-not-codesigned
 ```
 
-You can also mail the files to Wladimir (laanwj@gmail.com) and he will commit them.
-
 ```bash
     gpg --detach-sign ${VERSION}-linux/${NAME}/dashcore-linux-*-build.assert
     gpg --detach-sign ${VERSION}-win-unsigned/${NAME}/dashcore-win-*-build.assert
