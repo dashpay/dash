@@ -125,3 +125,65 @@ Gitian build.
  `./gitian-build.py --detach-sign -s $NAME $VERSION --nocommit`
 
 Make another pull request for these.
+
+Simplified Guide
+-----------------------------
+
+Prerequesites: 
+ 1) have a Github Account
+ 2) have a known PGP key, like on keybase
+ 3) be running ubuntu or similar
+ 4) have some command line experience
+
+Step 1: 
+Go to https://github.com/dashpay/gitian.sigs and hit "Fork" in the upper left, and wait for github to finish forking the repository
+
+Step 2:
+Open a command line and create a new directory to house all of the gitian building and then cd into it. This can be
+wherever you'd like but I placed it in my home directory, something like:
+`
+cd ~
+mkdir gitian
+cd gitian
+`
+
+enter below, where "githubusername" is your github username and "0.16.0.0" is the version you are building for
+`
+export NAME=githubusername
+export VERSION=0.16.0.0
+`
+
+Then, you need to get the gitian-build.py script.
+`
+wget https://raw.githubusercontent.com/dashpay/dash/v${VERSION}/contrib/gitian-build.py
+chmod +x gitian-build.py
+`
+
+At this point if you don't have python3 and git installed, install it
+`
+sudo apt install python3 git
+`
+
+Clone your gitian.sigs repo
+`
+git clone https://github.com/$NAME/gitian.sigs
+`
+
+Now, run gitian-build.py script in setup mode. You may get asked to enter your password. 
+`
+./gitian-build.py -V lxc --setup $NAME $VERSION
+`
+
+You now need to reboot your computer.
+
+Now that everything is setup, you can build it. You may get asked to enter your password.
+
+This will take quite a while! You can add `-j X` for X threads, and `-m XXXX` for XXXX MB of RAM usage
+`
+./gitian-build.py -V lxc -B $NAME $VERSION
+`
+
+In order to create a new pull request run below and then click on the link / navigate to the address as given in the console
+`
+echo "https://github.com/dashpay/gitian.sigs/compare/master...$NAME:$VERSION?expand=1"
+`
