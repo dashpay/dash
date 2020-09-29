@@ -102,7 +102,7 @@ gpg --output ${VERSION}-win-unsigned/$NAME/dashcore-win-${VERSION%\.*}-build.ass
 ```
 
 Make a PR (both the `.assert` and `.assert.sig` files) to the
-[dashpau/gitian.sigs](https://github.com/dashpay/gitian.sigs/) repository:
+[dashpay/gitian.sigs](https://github.com/dashpay/gitian.sigs/) repository:
 
 ```
 git checkout -b ${VERSION}-not-codesigned
