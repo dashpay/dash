@@ -97,10 +97,10 @@ so that this node can recover the signature and propagate the recovered signatur
 This way only the recovered signature needs to be propagated and verified by all
 members. Each member, after sending their share to this node, waits for some
 timeout and then sends their share to another deterministically selected member.
-This process is  repeated until a recovered signature is finally created and propagated.
+This process is repeated until a recovered signature is finally created and propagated.
 
 This timeout begins at two seconds and increases exponentially up to ten seconds
-(ie. `2,4,8,10,10`) for  each node that times out. This is in order to minimize the time
+(ie. `2,4,8,10,10`) for each node that times out. This is in order to minimize the time
 taken to generate a signature in the case that the recovery node is down, while also
 minimizing the traffic generated when the network is under stress.
 
