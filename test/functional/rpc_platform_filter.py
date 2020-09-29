@@ -7,10 +7,10 @@
 from test_framework.test_framework import BitcoinTestFramework
 from test_framework.util import str_to_b64str, assert_equal
 
-import os
 import http.client
+import json
+import os
 import urllib.parse
-
 
 class HTTPBasicsTest(BitcoinTestFramework):
     def set_test_params(self):
@@ -37,53 +37,33 @@ class HTTPBasicsTest(BitcoinTestFramework):
 
         url = urllib.parse.urlparse(self.nodes[0].url)
 
+        def test_command(method, params, auth, expexted_status):
+            conn = http.client.HTTPConnection(url.hostname, url.port)
+            conn.connect()
+            body = {}
+            body["method"] = method
+            if len(params):
+                body["params"] = params
+            conn.request('POST', '/', json.dumps(body), {"Authorization": "Basic " + str_to_b64str(auth)})
+            resp = conn.getresponse()
+            assert_equal(resp.status, expexted_status)
+            conn.close()
+
+        rpcuser_authpair_platform = "platform-user:password123"
+        rpcuser_authpair_operator = "operator:otherpassword"
+        rpcuser_authpair_wrong = "platform-user:rpcpasswordwrong"
+
         self.log.info('Try using a incorrect password for platform-user...')
-        rpcuserauthpairwrong = "platform-user:rpcpasswordwrong"
-
-        headers = {"Authorization": "Basic " + str_to_b64str(rpcuserauthpairwrong)}
-
-        conn = http.client.HTTPConnection(url.hostname, url.port)
-        conn.connect()
-        conn.request('POST', '/', '{"method": "getbestblockhash"}', headers)
-        resp = conn.getresponse()
-        assert_equal(resp.status, 401)
-        conn.close()
+        test_command("getbestblockhash", [], rpcuser_authpair_wrong, 401)
 
         self.log.info('Try using a correct password for platform-user and running a whitelisted command...')
-        rpcuserauthpairplatform = "platform-user:password123"
-        rpcuserauthpairoperator = "operator:otherpassword"
-
-        headers = {"Authorization": "Basic " + str_to_b64str(rpcuserauthpairplatform)}
-
-        conn = http.client.HTTPConnection(url.hostname, url.port)
-        conn.connect()
-        conn.request('POST', '/', '{"method": "getbestblockhash"}', headers)
-        resp = conn.getresponse()
-        assert_equal(resp.status, 200)
-        conn.close()
+        test_command("getbestblockhash", [], rpcuser_authpair_platform, 200)
 
         self.log.info('Try running a not whitelisted command...')
-
-        headers = {"Authorization": "Basic " + str_to_b64str(rpcuserauthpairplatform)}
-
-        conn = http.client.HTTPConnection(url.hostname, url.port)
-        conn.connect()
-        conn.request('POST', '/', '{"method": "stop"}', headers)
-        resp = conn.getresponse()
-        assert_equal(resp.status, 403)
-        conn.close()
+        test_command("stop", [], rpcuser_authpair_platform, 403)
 
         self.log.info('Try running a not whitelisted command as the operator...')
-
-        headers = {"Authorization": "Basic " + str_to_b64str(rpcuserauthpairoperator)}
-
-        conn = http.client.HTTPConnection(url.hostname, url.port)
-        conn.connect()
-        conn.request('POST', '/', '{"method": "stop"}', headers)
-        resp = conn.getresponse()
-        assert_equal(resp.status, 200)
-        conn.close()
-
+        test_command("stop", [], rpcuser_authpair_operator, 200)
 
 if __name__ == '__main__':
     HTTPBasicsTest().main()
