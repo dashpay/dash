@@ -205,9 +205,9 @@ enough to break PrivateSend privacy, it could still provide some additional
 information for other methods like cluster analysis and help to narrow results.
 
 With Random Round Mixing, an input will be mixed to N rounds like prior. However,
-at this point, SHA256(input, salt) will be calculated and roughly a half of inputs
-will be mixed for one more round and this rule will be applied to newly created
-inputs again and so on. This results in an exponential decay where if you mix a set
+at this point, a salted hash of each input is used to pick ~50% of inputs to
+be mixed for another round. This rule is then executed again on the new inputs.
+This results in an exponential decay where if you mix a set
 of inputs, half of those inputs will be mixed for N rounds, 1/4 will be mixed N+1,
 1/8 will be mixed N+2, etc. Current implementation caps it at N+3 which results
 in mixing an average of N+0.875 rounds and sounds like a reasonable compromise
