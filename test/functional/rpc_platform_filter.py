@@ -56,8 +56,11 @@ class HTTPBasicsTest(BitcoinTestFramework):
         self.log.info('Try using a incorrect password for platform-user...')
         test_command("getbestblockhash", [], rpcuser_authpair_wrong, 401)
 
-        self.log.info('Try using a correct password for platform-user and running a whitelisted command...')
+        self.log.info('Try using a correct password for platform-user and running all whitelisted commands...')
         test_command("getbestblockhash", [], rpcuser_authpair_platform, 200)
+        test_command("getblockhash", [0], rpcuser_authpair_platform, 200)
+        test_command("getblockcount", [], rpcuser_authpair_platform, 200)
+        test_command("getbestchainlock", [], rpcuser_authpair_platform, 500)
 
         self.log.info('Try running a not whitelisted command...')
         test_command("stop", [], rpcuser_authpair_platform, 403)
