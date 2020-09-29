@@ -195,8 +195,8 @@ The `--wallet=<path>` option now accepts full paths instead of requiring
 wallets to be located in the `-walletdir` directory.
 
 If `--wallet=<path>` is specified with a path that does not exist, it will now
-create a wallet directory at the specified location (containing a wallet.dat
-data file, a db.log file, and database/log.?????????? files) instead of just
+create a wallet directory at the specified location (containing a `wallet.dat`
+data file, a `db.log` file, and `database/log.??????????` files) instead of just
 creating a data file at the path and storing log files in the parent
 directory. This should make backing up wallets more straightforward than
 before because the specified wallet path can just be directly archived without
