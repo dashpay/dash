@@ -192,7 +192,7 @@ related connections do less work than full/normal p2p connections.
 Wallet files
 ------------
 The `--wallet=<path>` option now accepts full paths instead of requiring
-wallets to be located in the -walletdir directory.
+wallets to be located in the `-walletdir` directory.
 
 If `--wallet=<path>` is specified with a path that does not exist, it will now
 create a wallet directory at the specified location (containing a wallet.dat
