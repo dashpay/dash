@@ -244,20 +244,21 @@ given the privacy gains.
 
 GUI changes
 -----------
-Many dialogs, tabs, icons, colors and various interface elements were reworked
-to improve user experience and to make wallet look more consistent. The wallet
-GUI is also much more flexible now. For regular users there is a new "Appearance"
-dialog and a corresponding tab in the options which allows them to pick a theme and
-to tweak various font parameters. This feature specifically should help users
-who had issues on some systems previously.
+All dialogs, tabs, icons, colors and interface elements were reworked to improve 
+user experience, let the wallet look more consistent and to make the GUI more
+flexible. There is a new "Appearance setup" dialog that will show up on the first start
+of this version and a corresponding tab has been added to the options which allows the 
+user to pick a theme and to tweak the font family, the font weight and the font size.
+This feature specifically should help users who had font size/scaling issues previously.
 
-For advanced users and developers there is a new way to control wallet look
-by specifying a path to css files via `--custom-css-dir`. Adding `--debug-ui`
-will force it to reload these css files and to apply all changes live.
+For advanced users and developers there is a new way to control the wallet's look
+by specifying a path to custom css files via `--custom-css-dir`. Additionally, the new
+`--debug-ui` will force Dash Core to reload the custom css files as soon as they get updated
+which makes it possible to see and debug all css adjustments live in the running GUI.
 
-The "Pay To" field on "Send" and "PrivateSend" tabs accepts not only plain
-Dash addresses but also Dash URIs now. The Dash address and the amount from
-the URI are assigned to corresponding fields automatically.
+From now on the "Pay To" field in "Send" and "PrivateSend" tabs also accepts Dash URIs.
+The Dash address and the amount from the URI are assigned to corresponding fields automatically
+if a Dash URI gets pasted into the field.
 
 Sporks
 ------
