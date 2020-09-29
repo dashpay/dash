@@ -5,7 +5,6 @@
 from test_framework.blocktools import create_block, create_coinbase, get_masternode_payment
 from test_framework.mininode import P2PDataStore, network_thread_start
 from test_framework.messages import CTxOut, FromHex, CCbTx, CTransaction, ToHex
-
 from test_framework.script import CScript
 from test_framework.test_framework import DashTestFramework
 from test_framework.util import assert_equal, get_bip9_status, hex_str_to_bytes
