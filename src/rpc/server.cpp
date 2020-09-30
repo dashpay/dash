@@ -558,10 +558,17 @@ UniValue CRPCTable::execute(const JSONRPCRequest &request) const
 
     // Before executing the RPC Command, filter commands from platform rpc user
     if (fMasternodeMode && request.authUser == gArgs.GetArg("-platform-user", defaultPlatformUser)) {
+
         auto it = platformAllowedCommands.find(request.strMethod);
-        // Throw an error if the requested command or the request's first parameter are not whitelisted.
-        if (it == platformAllowedCommands.end() || (it->second.size() > 0 && request.params.size() > 0 && it->second.count(request.params[0].getValStr()) == 0)) {
-            throw JSONRPCError(RPC_PROTECTED_COMMAND, "Method prohibited for platform user");
+        // If the requested method is not available in platformAllowedCommands
+        if (it == platformAllowedCommands.end()) {
+            throw JSONRPCError(RPC_PROTECTED_COMMAND, strprintf("Method \"%s\" prohibited", request.strMethod));
+        }
+
+        const std::string strFirstParam = request.params.size() > 0 ? request.params[0].getValStr() : "";
+        // If there are any parameter restrictions for the requested method make sure the first paramter is allowed
+        if (it->second.size() > 0 && it->second.count(strFirstParam) == 0) {
+            throw JSONRPCError(RPC_PROTECTED_COMMAND, strprintf("Parameter \"%s\" prohibited for method \"%s\"", strFirstParam, request.strMethod));
         }
     }
 
