@@ -37,11 +37,11 @@ static std::map<std::string, std::unique_ptr<RPCTimerBase> > deadlineTimers;
 // Any commands submitted by this user will have their commands filtered based on the platformAllowedCommands
 static const std::string defaultPlatformUser = "platform-user";
 
-static const std::vector<std::pair<std::string /*command*/, std::string /*subcommand*/>> platformAllowedCommands = {
-        {"getbestblockhash", ""},
-        {"getblockhash", ""},
-        {"getblockcount", ""},
-        {"getbestchainlock", ""},
+static const std::map<std::string, std::set<std::string>> platformAllowedCommands{
+    {"getbestblockhash", {}},
+    {"getblockhash", {}},
+    {"getblockcount", {}},
+    {"getbestchainlock", {}},
 };
 
 static struct CRPCSignals
@@ -558,15 +558,9 @@ UniValue CRPCTable::execute(const JSONRPCRequest &request) const
 
     // Before executing the RPC Command, filter commands from platform rpc user
     if (fMasternodeMode && request.authUser == gArgs.GetArg("-platform-user", defaultPlatformUser)) {
-        auto it = find_if(platformAllowedCommands.begin(), platformAllowedCommands.end(), [request](const std::pair<std::string /*command*/, std::string /*subcommand*/>& cmd) {
-            // Check if this request matches a valid platform allowed rpc command
-            return (request.strMethod == cmd.first) &&
-                // and there is no subcommand
-                (cmd.second.empty() ||
-                // or a subcommand was needed and it matches too
-                (request.params[0].isStr() && request.params[0].getValStr() == cmd.second));
-        });
-        if (it == platformAllowedCommands.end()) {
+        auto it = platformAllowedCommands.find(request.strMethod);
+        // Throw an error if the requested command or the request's first parameter are not whitelisted.
+        if (it == platformAllowedCommands.end() || (it->second.size() > 0 && request.params.size() > 0 && it->second.count(request.params[0].getValStr()) == 0)) {
             throw JSONRPCError(RPC_PROTECTED_COMMAND, "Method prohibited for platform user");
         }
     }
