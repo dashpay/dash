@@ -562,13 +562,13 @@ UniValue CRPCTable::execute(const JSONRPCRequest &request) const
         auto it = platformAllowedCommands.find(request.strMethod);
         // If the requested method is not available in platformAllowedCommands
         if (it == platformAllowedCommands.end()) {
-            throw JSONRPCError(RPC_PROTECTED_COMMAND, strprintf("Method \"%s\" prohibited", request.strMethod));
+            throw JSONRPCError(RPC_PLATFORM_RESTRICTION, strprintf("Method \"%s\" prohibited", request.strMethod));
         }
 
         const std::string strFirstParam = request.params.size() > 0 ? request.params[0].getValStr() : "";
         // If there are any parameter restrictions for the requested method make sure the first paramter is allowed
         if (it->second.size() > 0 && it->second.count(strFirstParam) == 0) {
-            throw JSONRPCError(RPC_PROTECTED_COMMAND, strprintf("Parameter \"%s\" prohibited for method \"%s\"", strFirstParam, request.strMethod));
+            throw JSONRPCError(RPC_PLATFORM_RESTRICTION, strprintf("Parameter \"%s\" prohibited for method \"%s\"", strFirstParam, request.strMethod));
         }
     }
 
