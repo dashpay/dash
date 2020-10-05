@@ -370,99 +370,26 @@ void BitcoinGUI::stopConnectingAnimation()
 
 void BitcoinGUI::createActions()
 {
-    tabGroup = new QButtonGroup(this);
-
-    overviewButton = new QToolButton(this);
-    overviewButton->setText(tr("&Overview"));
-    overviewButton->setStatusTip(tr("Show general overview of wallet"));
-    overviewButton->setToolTip(overviewButton->statusTip());
-    overviewButton->setCheckable(true);
-    tabGroup->addButton(overviewButton);
-
-    sendCoinsButton = new QToolButton(this);
-    sendCoinsButton->setText(tr("&Send"));
-    sendCoinsButton->setStatusTip(tr("Send coins to a Dash address"));
-    sendCoinsButton->setToolTip(sendCoinsButton->statusTip());
-    sendCoinsButton->setCheckable(true);
-    tabGroup->addButton(sendCoinsButton);
-
-    sendCoinsMenuAction = new QAction(sendCoinsButton->text(), this);
-    sendCoinsMenuAction->setStatusTip(sendCoinsButton->statusTip());
+    sendCoinsMenuAction = new QAction(tr("&Send"), this);
+    sendCoinsMenuAction->setStatusTip(tr("Send coins to a Dash address"));
     sendCoinsMenuAction->setToolTip(sendCoinsMenuAction->statusTip());
 
-    privateSendCoinsButton = new QToolButton(this);
-    privateSendCoinsButton->setText("&PrivateSend");
-    privateSendCoinsButton->setStatusTip(tr("PrivateSend coins to a Dash address"));
-    privateSendCoinsButton->setToolTip(privateSendCoinsButton->statusTip());
-    privateSendCoinsButton->setCheckable(true);
-    tabGroup->addButton(privateSendCoinsButton);
-
-    privateSendCoinsMenuAction = new QAction(privateSendCoinsButton->text(), this);
-    privateSendCoinsMenuAction->setStatusTip(privateSendCoinsButton->statusTip());
+    privateSendCoinsMenuAction = new QAction("&PrivateSend", this);
+    privateSendCoinsMenuAction->setStatusTip(tr("PrivateSend coins to a Dash address"));
     privateSendCoinsMenuAction->setToolTip(privateSendCoinsMenuAction->statusTip());
 
-    receiveCoinsButton = new QToolButton(this);
-    receiveCoinsButton->setText(tr("&Receive"));
-    receiveCoinsButton->setStatusTip(tr("Request payments (generates QR codes and dash: URIs)"));
-    receiveCoinsButton->setToolTip(receiveCoinsButton->statusTip());
-    receiveCoinsButton->setCheckable(true);
-    tabGroup->addButton(receiveCoinsButton);
-
-    receiveCoinsMenuAction = new QAction(receiveCoinsButton->text(), this);
-    receiveCoinsMenuAction->setStatusTip(receiveCoinsButton->statusTip());
+    receiveCoinsMenuAction = new QAction(tr("&Receive"), this);
+    receiveCoinsMenuAction->setStatusTip(tr("Request payments (generates QR codes and dash: URIs)"));
     receiveCoinsMenuAction->setToolTip(receiveCoinsMenuAction->statusTip());
-
-    historyButton = new QToolButton(this);
-    historyButton->setText(tr("&Transactions"));
-    historyButton->setStatusTip(tr("Browse transaction history"));
-    historyButton->setToolTip(historyButton->statusTip());
-    historyButton->setCheckable(true);
-    tabGroup->addButton(historyButton);
-
-#ifdef ENABLE_WALLET
-    QSettings settings;
-    if (settings.value("fShowMasternodesTab").toBool()) {
-        masternodeButton = new QToolButton(this);
-        masternodeButton->setText(tr("&Masternodes"));
-        masternodeButton->setStatusTip(tr("Browse masternodes"));
-        masternodeButton->setToolTip(masternodeButton->statusTip());
-        masternodeButton->setCheckable(true);
-        tabGroup->addButton(masternodeButton);
-        connect(masternodeButton, SIGNAL(clicked()), this, SLOT(showNormalIfMinimized()));
-        connect(masternodeButton, SIGNAL(clicked()), this, SLOT(gotoMasternodePage()));
-    }
-#endif // ENABLE_WALLET
 
     // These showNormalIfMinimized are needed because Send Coins and Receive Coins
     // can be triggered from the tray menu, and need to show the GUI to be useful.
-    connect(overviewButton, SIGNAL(clicked()), this, SLOT(showNormalIfMinimized()));
-    connect(overviewButton, SIGNAL(clicked()), this, SLOT(gotoOverviewPage()));
-    connect(sendCoinsButton, SIGNAL(clicked()), this, SLOT(showNormalIfMinimized()));
-    connect(sendCoinsButton, SIGNAL(clicked()), this, SLOT(gotoSendCoinsPage()));
     connect(sendCoinsMenuAction, SIGNAL(triggered()), this, SLOT(showNormalIfMinimized()));
     connect(sendCoinsMenuAction, SIGNAL(triggered()), this, SLOT(gotoSendCoinsPage()));
-    connect(privateSendCoinsButton, SIGNAL(clicked()), this, SLOT(showNormalIfMinimized()));
-    connect(privateSendCoinsButton, SIGNAL(clicked()), this, SLOT(gotoPrivateSendCoinsPage()));
     connect(privateSendCoinsMenuAction, SIGNAL(triggered()), this, SLOT(showNormalIfMinimized()));
     connect(privateSendCoinsMenuAction, SIGNAL(triggered()), this, SLOT(gotoPrivateSendCoinsPage()));
-    connect(receiveCoinsButton, SIGNAL(clicked()), this, SLOT(showNormalIfMinimized()));
-    connect(receiveCoinsButton, SIGNAL(clicked()), this, SLOT(gotoReceiveCoinsPage()));
     connect(receiveCoinsMenuAction, SIGNAL(triggered()), this, SLOT(showNormalIfMinimized()));
     connect(receiveCoinsMenuAction, SIGNAL(triggered()), this, SLOT(gotoReceiveCoinsPage()));
-    connect(historyButton, SIGNAL(clicked()), this, SLOT(showNormalIfMinimized()));
-    connect(historyButton, SIGNAL(clicked()), this, SLOT(gotoHistoryPage()));
-
-    for (auto button : tabGroup->buttons()) {
-        GUIUtil::setFont({button}, GUIUtil::FontWeight::Normal, 16);
-        if (walletFrame == nullptr) {
-            // hide buttons when there is no wallet
-            button->setVisible(false);
-        }
-    }
-    GUIUtil::updateFonts();
-
-    // Give the selected tab button a bolder font.
-    connect(tabGroup, SIGNAL(buttonToggled(QAbstractButton *, bool)), this, SLOT(highlightTabButton(QAbstractButton *, bool)));
 
     quitAction = new QAction(tr("E&xit"), this);
     quitAction->setStatusTip(tr("Quit application"));
@@ -652,26 +579,63 @@ void BitcoinGUI::createToolBars()
         toolbar->setContextMenuPolicy(Qt::PreventContextMenu);
         toolbar->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Preferred);
         toolbar->setToolButtonStyle(Qt::ToolButtonTextOnly);
+        toolbar->setMovable(false); // remove unused icon in upper left corner
 
-        overviewButton->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Preferred);
-        sendCoinsButton->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Preferred);
-        privateSendCoinsButton->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Preferred);
-        receiveCoinsButton->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Preferred);
-        historyButton->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Preferred);
+        tabGroup = new QButtonGroup(this);
 
-        toolbar->addWidget(overviewButton);
-        toolbar->addWidget(sendCoinsButton);
-        toolbar->addWidget(privateSendCoinsButton);
-        toolbar->addWidget(receiveCoinsButton);
-        toolbar->addWidget(historyButton);
+        overviewButton = new QToolButton(this);
+        overviewButton->setText(tr("&Overview"));
+        overviewButton->setStatusTip(tr("Show general overview of wallet"));
+        tabGroup->addButton(overviewButton);
+
+        sendCoinsButton = new QToolButton(this);
+        sendCoinsButton->setText(sendCoinsMenuAction->text());
+        sendCoinsButton->setStatusTip(sendCoinsMenuAction->statusTip());
+        tabGroup->addButton(sendCoinsButton);
+
+        privateSendCoinsButton = new QToolButton(this);
+        privateSendCoinsButton->setText(privateSendCoinsMenuAction->text());
+        privateSendCoinsButton->setStatusTip(privateSendCoinsMenuAction->statusTip());
+        tabGroup->addButton(privateSendCoinsButton);
+
+        receiveCoinsButton = new QToolButton(this);
+        receiveCoinsButton->setText(receiveCoinsMenuAction->text());
+        receiveCoinsButton->setStatusTip(receiveCoinsMenuAction->statusTip());
+        tabGroup->addButton(receiveCoinsButton);
+
+        historyButton = new QToolButton(this);
+        historyButton->setText(tr("&Transactions"));
+        historyButton->setStatusTip(tr("Browse transaction history"));
+        tabGroup->addButton(historyButton);
 
         QSettings settings;
-        if (settings.value("fShowMasternodesTab").toBool() && masternodeButton) {
-            masternodeButton->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Preferred);
-            toolbar->addWidget(masternodeButton);
+        if (settings.value("fShowMasternodesTab").toBool()) {
+            masternodeButton = new QToolButton(this);
+            masternodeButton->setText(tr("&Masternodes"));
+            masternodeButton->setStatusTip(tr("Browse masternodes"));
+            tabGroup->addButton(masternodeButton);
+            connect(masternodeButton, SIGNAL(clicked()), this, SLOT(gotoMasternodePage()));
         }
-        toolbar->setMovable(false); // remove unused icon in upper left corner
+
+        connect(overviewButton, SIGNAL(clicked()), this, SLOT(gotoOverviewPage()));
+        connect(sendCoinsButton, SIGNAL(clicked()), this, SLOT(gotoSendCoinsPage()));
+        connect(privateSendCoinsButton, SIGNAL(clicked()), this, SLOT(gotoPrivateSendCoinsPage()));
+        connect(receiveCoinsButton, SIGNAL(clicked()), this, SLOT(gotoReceiveCoinsPage()));
+        connect(historyButton, SIGNAL(clicked()), this, SLOT(gotoHistoryPage()));
+
+        // Give the selected tab button a bolder font.
+        connect(tabGroup, SIGNAL(buttonToggled(QAbstractButton *, bool)), this, SLOT(highlightTabButton(QAbstractButton *, bool)));
+
+        for (auto button : tabGroup->buttons()) {
+            GUIUtil::setFont({button}, GUIUtil::FontWeight::Normal, 16);
+            button->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Preferred);
+            button->setToolTip(button->statusTip());
+            button->setCheckable(true);
+            toolbar->addWidget(button);
+        }
+
         overviewButton->setChecked(true);
+        GUIUtil::updateFonts();
 
 #ifdef ENABLE_WALLET
         m_wallet_selector = new QComboBox(this);
@@ -842,23 +806,28 @@ void BitcoinGUI::removeAllWallets()
 
 void BitcoinGUI::setWalletActionsEnabled(bool enabled)
 {
-    overviewButton->setEnabled(enabled);
-    sendCoinsButton->setEnabled(enabled);
+#ifdef ENABLE_WALLET
+    if (walletFrame != nullptr) {
+        overviewButton->setEnabled(enabled);
+        sendCoinsButton->setEnabled(enabled);
+        privateSendCoinsButton->setEnabled(enabled && clientModel->privateSendOptions().isEnabled());
+        receiveCoinsButton->setEnabled(enabled);
+        historyButton->setEnabled(enabled);
+        if (masternodeButton != nullptr) {
+            QSettings settings;
+            masternodeButton->setEnabled(enabled && settings.value("fShowMasternodesTab").toBool());
+        }
+    }
+#endif // ENABLE_WALLET
+
     sendCoinsMenuAction->setEnabled(enabled);
 #ifdef ENABLE_WALLET
-    privateSendCoinsButton->setEnabled(enabled && clientModel->privateSendOptions().isEnabled());
     privateSendCoinsMenuAction->setEnabled(enabled && clientModel->privateSendOptions().isEnabled());
 #else
-    privateSendCoinsButton->setEnabled(enabled);
     privateSendCoinsMenuAction->setEnabled(enabled);
 #endif // ENABLE_WALLET
-    receiveCoinsButton->setEnabled(enabled);
     receiveCoinsMenuAction->setEnabled(enabled);
-    historyButton->setEnabled(enabled);
-    QSettings settings;
-    if (settings.value("fShowMasternodesTab").toBool() && masternodeButton) {
-        masternodeButton->setEnabled(enabled);
-    }
+
     encryptWalletAction->setEnabled(enabled);
     backupWalletAction->setEnabled(enabled);
     changePassphraseAction->setEnabled(enabled);
