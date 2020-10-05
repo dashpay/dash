@@ -1149,9 +1149,11 @@ void BitcoinGUI::updatePrivateSendVisibility()
     bool fEnabled = false;
 #endif
     // PrivateSend button is the third QToolButton, show/hide the underlying QAction
-    // Hiding the QToolButton itself doesn't work.
+    // Hiding the QToolButton itself doesn't work for the GUI part
+    // but is still needed for shortcuts to work properly.
     if (appToolBar != nullptr) {
         appToolBar->actions()[2]->setVisible(fEnabled);
+        privateSendCoinsButton->setVisible(fEnabled);
     }
     privateSendCoinsMenuAction->setVisible(fEnabled);
     showPrivateSendHelpAction->setVisible(fEnabled);
@@ -1195,11 +1197,11 @@ void BitcoinGUI::updateToolBarShortcuts()
     auto modifier = Qt::ALT;
 #endif
     int nKey = 0;
-    for (int i = 0; i < tabGroup->buttons().size(); ++i) {
-        if (appToolBar->actions()[i]->isVisible()) {
-            tabGroup->buttons()[i]->setShortcut(QKeySequence(modifier + Qt::Key_1 + nKey++));
+    for (auto button : tabGroup->buttons()) {
+        if (button->isVisible()) {
+            button->setShortcut(QKeySequence(modifier + Qt::Key_1 + nKey++));
         } else {
-            tabGroup->buttons()[i]->setShortcut(QKeySequence());
+            button->setShortcut(QKeySequence());
         }
     }
 }
@@ -1506,7 +1508,7 @@ void BitcoinGUI::showEvent(QShowEvent *event)
     optionsAction->setEnabled(true);
 
     if (!event->spontaneous()) {
-        updateWidth();
+        updatePrivateSendVisibility();
     }
 }
 
