@@ -1271,6 +1271,8 @@ void RPCConsole::showEvent(QShowEvent *event)
 {
     QWidget::showEvent(event);
 
+    GUIUtil::updateButtonGroupShortcuts(pageButtons);
+
     if (!clientModel || !clientModel->getPeerTableModel())
         return;
 

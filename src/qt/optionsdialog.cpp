@@ -441,6 +441,7 @@ void OptionsDialog::updatePrivateSendVisibility()
     bool fEnabled = false;
 #endif
     ui->btnPrivateSend->setVisible(fEnabled);
+    GUIUtil::updateButtonGroupShortcuts(pageButtons);
 }
 
 void OptionsDialog::updateWidth()
@@ -465,6 +466,7 @@ void OptionsDialog::showEvent(QShowEvent* event)
 {
     if (!event->spontaneous()) {
         updateWidth();
+        GUIUtil::updateButtonGroupShortcuts(pageButtons);
     }
     QDialog::showEvent(event);
 }

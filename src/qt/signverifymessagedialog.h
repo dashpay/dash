@@ -40,6 +40,8 @@ private:
     WalletModel *model;
     QButtonGroup* pageButtons;
 
+    void showEvent(QShowEvent* event) override;
+
 private Q_SLOTS:
     /** custom tab buttons clicked */
     void showPage(int index);

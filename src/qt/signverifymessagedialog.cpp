@@ -302,3 +302,11 @@ bool SignVerifyMessageDialog::eventFilter(QObject *object, QEvent *event)
     }
     return QDialog::eventFilter(object, event);
 }
+
+void SignVerifyMessageDialog::showEvent(QShowEvent* event)
+{
+    if (!event->spontaneous()) {
+        GUIUtil::updateButtonGroupShortcuts(pageButtons);
+    }
+    QDialog::showEvent(event);
+}
