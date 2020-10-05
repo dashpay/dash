@@ -44,6 +44,7 @@ class Node;
 
 QT_BEGIN_NAMESPACE
 class QAction;
+class QButtonGroup;
 class QComboBox;
 class QProgressBar;
 class QProgressDialog;
