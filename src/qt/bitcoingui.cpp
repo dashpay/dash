@@ -1193,7 +1193,7 @@ void BitcoinGUI::updatePrivateSendVisibility()
 
 void BitcoinGUI::updateWidth()
 {
-    if (!walletFrame) return;
+    if (walletFrame == nullptr) return;
     if (windowState() & (Qt::WindowMaximized | Qt::WindowFullScreen)) {
         return;
     }
@@ -1216,7 +1216,7 @@ void BitcoinGUI::updateWidth()
 
 void BitcoinGUI::updateToolBarShortcuts()
 {
-    if (!walletFrame) return;
+    if (walletFrame == nullptr) return;
 #ifdef Q_OS_MAC
     auto modifier = Qt::CTRL;
 #else
