@@ -466,7 +466,9 @@ RPCConsole::RPCConsole(interfaces::Node& node, QWidget* parent) :
                       ui->banHeading
                      }, GUIUtil::FontWeight::Bold, 16);
 
-    GUIUtil::loadTheme(this, false);
+    GUIUtil::updateFonts();
+
+    GUIUtil::disableMacFocusRect(this);
 
     QSettings settings;
     if (!restoreGeometry(settings.value("RPCConsoleWindowGeometry").toByteArray())) {
