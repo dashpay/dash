@@ -134,7 +134,7 @@ static QFont::Weight fontWeightNormal = defaultFontWeightNormal;
 static QFont::Weight fontWeightBold = defaultFontWeightBold;
 
 // Contains all widgets and its font attributes (weight, italic, size) with font changes due to GUIUtil::setFont
-static std::map<QPointer<QWidget>, std::tuple<FontWeight, bool, int>> mapNormalFontUpdates;
+static std::map<QPointer<QWidget>, std::tuple<FontWeight, bool, int>> mapFontUpdates;
 // Contains a list of supported font weights for all members of GUIUtil::FontFamily
 static std::map<FontFamily, std::vector<QFont::Weight>> mapSupportedWeights;
 
@@ -1530,7 +1530,7 @@ void setFont(const std::vector<QWidget*>& vecWidgets, FontWeight weight, int nPo
 {
     for (auto it : vecWidgets) {
         auto fontAttributes = std::make_tuple(weight, fItalic, nPointSize);
-        auto itFontUpdate = mapNormalFontUpdates.emplace(std::make_pair(it, fontAttributes));
+        auto itFontUpdate = mapFontUpdates.emplace(std::make_pair(it, fontAttributes));
         if (!itFontUpdate.second) {
             itFontUpdate.first->second = fontAttributes;
         }
@@ -1548,7 +1548,7 @@ void updateFonts()
     static std::map<QString, int> mapClassDefaultFontSizes;
 
     // QPointer becomes nullptr for objects that were deleted.
-    // Remove them from mapDefaultFontSize and mapNormalFontUpdates
+    // Remove them from mapDefaultFontSize and mapFontUpdates
     // before proceeding any further.
     size_t nMapSize = mapWidgetDefaultFontSizes.size();
     auto itd = mapWidgetDefaultFontSizes.begin();
@@ -1564,18 +1564,18 @@ void updateFonts()
                  << "nullptr items from mapWidgetDefaultFontSizes";
     }
 
-    nMapSize = mapNormalFontUpdates.size();
-    auto itn = mapNormalFontUpdates.begin();
-    while (itn != mapNormalFontUpdates.end()) {
+    nMapSize = mapFontUpdates.size();
+    auto itn = mapFontUpdates.begin();
+    while (itn != mapFontUpdates.end()) {
         if (itn->first.isNull()) {
-            itn = mapNormalFontUpdates.erase(itn);
+            itn = mapFontUpdates.erase(itn);
         } else {
             ++itn;
         }
     }
-    if (nMapSize - mapNormalFontUpdates.size() > 0) {
-        qDebug() << __func__ << ": removed" << nMapSize - mapNormalFontUpdates.size()
-                 << "nullptr items from mapNormalFontUpdates";
+    if (nMapSize - mapFontUpdates.size() > 0) {
+        qDebug() << __func__ << ": removed" << nMapSize - mapFontUpdates.size()
+                 << "nullptr items from mapFontUpdates";
     }
 
     size_t nUpdatable{0}, nUpdated{0};
@@ -1602,8 +1602,8 @@ void updateFonts()
         int pointSizeStored = mapWidgetDefaultFontSizes.at(w);
         font.setPointSizeF(getScaledFontSize(pointSizeStored));
 
-        auto it = mapNormalFontUpdates.find(w);
-        if (it != mapNormalFontUpdates.end()) {
+        auto it = mapFontUpdates.find(w);
+        if (it != mapFontUpdates.end()) {
             int nSize = std::get<2>(it->second);
             if (nSize == -1) {
                 nSize = pointSizeStored;
