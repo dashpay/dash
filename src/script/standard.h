@@ -59,6 +59,7 @@ enum class TxoutType
     SCRIPTHASH,
     MULTISIG,
     NULL_DATA, //!< unspendable OP_RETURN script that carries data
+    TAPROOT,
 };
 
 class CNoDestination {
