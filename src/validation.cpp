@@ -2457,6 +2457,11 @@ bool CChainState::ConnectBlock(const CBlock& block, CValidationState& state, CBl
     boost::posix_time::ptime finish = boost::posix_time::microsec_clock::local_time();
     boost::posix_time::time_duration diff = finish - start;
     statsClient.timing("ConnectBlock_ms", diff.total_milliseconds(), 1.0f);
+    statsClient.gauge("blocks.tip.SizeBytes", ::GetSerializeSize(block, PROTOCOL_VERSION), 1.0f);
+    statsClient.gauge("blocks.tip.Height", chainActive.Height(), 1.0f);
+    statsClient.gauge("blocks.tip.Version", block.nVersion, 1.0f);
+    statsClient.gauge("blocks.tip.NumTransactions", block.vtx.size(), 1.0f);
+    statsClient.gauge("blocks.tip.SigOps", nSigOps, 1.0f);
 
     return true;
 }
@@ -3568,11 +3573,6 @@ bool CheckBlock(const CBlock& block, CValidationState& state, const Consensus::P
     boost::posix_time::ptime finish = boost::posix_time::microsec_clock::local_time();
     boost::posix_time::time_duration diff = finish - start;
     statsClient.timing("CheckBlock_us", diff.total_microseconds(), 1.0f);
-    statsClient.gauge("blocks.currentSizeBytes", ::GetSerializeSize(block, PROTOCOL_VERSION), 1.0f);
-    statsClient.gauge("blocks.currentHeight", chainActive.Height(), 1.0f);
-    statsClient.gauge("blocks.currentVersion", block.nVersion, 1.0f);
-    statsClient.gauge("blocks.currentNumTransactions", block.vtx.size(), 1.0f);
-    statsClient.gauge("blocks.currentSigOps", nSigOps, 1.0f);
 
     return true;
 }
