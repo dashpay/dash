@@ -1280,25 +1280,6 @@ static CScript ScriptFromHex(const std::string& str)
     return CScript(data.begin(), data.end());
 }
 
-static CMutableTransaction TxFromHex(const std::string& str)
-{
-    CMutableTransaction tx;
-    SpanReader{SER_DISK, 0, ParseHex(str)} >> tx;
-    return tx;
-}
-
-static std::vector<CTxOut> TxOutsFromJSON(const UniValue& univalue)
-{
-    assert(univalue.isArray());
-    std::vector<CTxOut> prevouts;
-    for (size_t i = 0; i < univalue.size(); ++i) {
-        CTxOut txout;
-        SpanReader{SER_DISK, 0, ParseHex(univalue[i].get_str())} >> txout;
-        prevouts.push_back(std::move(txout));
-    }
-    return prevouts;
-}
-
 BOOST_AUTO_TEST_CASE(script_FindAndDelete)
 {
     // Exercise the FindAndDelete functionality
@@ -1423,6 +1404,25 @@ BOOST_AUTO_TEST_CASE(script_HasValidOps)
 }
 
 #if defined(HAVE_CONSENSUS_LIB)
+
+static CMutableTransaction TxFromHex(const std::string& str)
+{
+    CMutableTransaction tx;
+    SpanReader{SER_DISK, 0, ParseHex(str)} >> tx;
+    return tx;
+}
+
+static std::vector<CTxOut> TxOutsFromJSON(const UniValue& univalue)
+{
+    assert(univalue.isArray());
+    std::vector<CTxOut> prevouts;
+    for (size_t i = 0; i < univalue.size(); ++i) {
+        CTxOut txout;
+        SpanReader{SER_DISK, 0, ParseHex(univalue[i].get_str())} >> txout;
+        prevouts.push_back(std::move(txout));
+    }
+    return prevouts;
+}
 
 /* Test simple (successful) usage of dashconsensus_verify_script */
 BOOST_AUTO_TEST_CASE(dashconsensus_verify_script_returns_true)
