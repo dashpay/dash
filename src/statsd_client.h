@@ -1,6 +1,5 @@
-
-#ifndef STATSD_CLIENT_H
-#define STATSD_CLIENT_H
+#ifndef BITCOIN_STATSD_CLIENT_H
+#define BITCOIN_STATSD_CLIENT_H
 
 #include <string>
 
@@ -53,4 +52,4 @@ class StatsdClient {
 
 extern statsd::StatsdClient statsClient;
 
-#endif
+#endif // BITCOIN_STATSD_CLIENT_H
