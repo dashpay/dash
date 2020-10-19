@@ -28,11 +28,12 @@ OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 **/
 
-#include "compat.h"
-#include "netbase.h"
-#include "random.h"
-#include "statsd_client.h"
-#include "util.h"
+#include <statsd_client.h>
+
+#include <compat.h>
+#include <netbase.h>
+#include <random.h>
+#include <util.h>
 
 #include <math.h>
 #include <time.h>

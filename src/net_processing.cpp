@@ -54,7 +54,7 @@
 #include <llmq/quorums_signing.h>
 #include <llmq/quorums_signing_shares.h>
 
-#include "statsd_client.h"
+#include <statsd_client.h>
 
 #if defined(NDEBUG)
 # error "Dash Core cannot be compiled without assertions."
