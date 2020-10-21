@@ -1592,15 +1592,14 @@ void updateFonts()
 
         // Set the font size based on the widgets default font size + the font scale
         int pointSize = font.pointSize() > 0 ? font.pointSize() : defaultFontSize;
-        mapWidgetDefaultFontSizes.emplace(std::make_pair(w, pointSize));
-        int pointSizeStored = mapWidgetDefaultFontSizes.at(w);
-        font.setPointSizeF(getScaledFontSize(pointSizeStored));
+        auto itDefault = mapWidgetDefaultFontSizes.emplace(std::make_pair(w, pointSize));
+        font.setPointSizeF(getScaledFontSize(itDefault.first->second));
 
         auto it = mapFontUpdates.find(w);
         if (it != mapFontUpdates.end()) {
             int nSize = std::get<2>(it->second);
             if (nSize == -1) {
-                nSize = pointSizeStored;
+                nSize = itDefault.first->second;
             }
             QFont&& fontUpd = getFont(std::get<0>(it->second), std::get<1>(it->second), nSize);
             if (w->font() != fontUpd) {
