@@ -26,13 +26,13 @@ class LLMQSimplePoSeTest(DashTestFramework):
         self.wait_for_sporks_same()
 
         # check if mining quorums with all nodes being online succeeds without punishment/banning
-        self.test_no_banning()
+        self.test_no_banning(expected_connections=2)
 
         # Now lets isolate MNs one by one and verify that punishment/banning happens
         def isolate_mn(mn):
             mn.node.setnetworkactive(False)
             wait_until(lambda: mn.node.getconnectioncount() == 0)
-        self.test_banning(isolate_mn, True)
+        self.test_banning(isolate_mn, 1, True)
 
         self.repair_masternodes(False)
 
@@ -54,7 +54,7 @@ class LLMQSimplePoSeTest(DashTestFramework):
                 if mn2 is not mn:
                     connect_nodes(mn.node, mn2.node.index)
             self.reset_probe_timeouts()
-        self.test_banning(close_mn_port, False)
+        self.test_banning(close_mn_port, 3, False)
 
         self.repair_masternodes(True)
         self.reset_probe_timeouts()
@@ -64,15 +64,15 @@ class LLMQSimplePoSeTest(DashTestFramework):
             self.start_masternode(mn, ["-pushversion=70216"])
             connect_nodes(mn.node, 0)
             self.reset_probe_timeouts()
-        self.test_banning(force_old_mn_proto, False)
+        self.test_banning(force_old_mn_proto, 3, False)
 
-    def test_no_banning(self, expected_connections=1):
+    def test_no_banning(self, expected_connections):
         for i in range(3):
             self.mine_quorum(expected_connections=expected_connections)
         for mn in self.mninfo:
             assert(not self.check_punished(mn) and not self.check_banned(mn))
 
-    def test_banning(self, invalidate_proc, expect_contribution_to_fail):
+    def test_banning(self, invalidate_proc, expected_connections, expect_contribution_to_fail):
         online_mninfos = self.mninfo.copy()
         for i in range(2):
             mn = online_mninfos[len(online_mninfos) - 1]
@@ -86,7 +86,7 @@ class LLMQSimplePoSeTest(DashTestFramework):
                     expected_contributors -= 1
                 # Make sure we do fresh probes
                 self.bump_mocktime(50 * 60 + 1)
-                self.mine_quorum(expected_connections=1, expected_members=len(online_mninfos), expected_contributions=expected_contributors, expected_complaints=expected_contributors-1, expected_commitments=expected_contributors, mninfos=online_mninfos)
+                self.mine_quorum(expected_connections=expected_connections, expected_members=len(online_mninfos), expected_contributions=expected_contributors, expected_complaints=expected_contributors-1, expected_commitments=expected_contributors, mninfos=online_mninfos)
 
             assert(self.check_punished(mn) and self.check_banned(mn))
 
