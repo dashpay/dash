@@ -1550,32 +1550,26 @@ void updateFonts()
     // QPointer becomes nullptr for objects that were deleted.
     // Remove them from mapDefaultFontSize and mapFontUpdates
     // before proceeding any further.
-    size_t nMapSize = mapWidgetDefaultFontSizes.size();
+    size_t nRemovedDefaultFonts{0};
     auto itd = mapWidgetDefaultFontSizes.begin();
     while (itd != mapWidgetDefaultFontSizes.end()) {
         if (itd->first.isNull()) {
             itd = mapWidgetDefaultFontSizes.erase(itd);
+            ++nRemovedDefaultFonts;
         } else {
             ++itd;
         }
     }
-    if (nMapSize - mapWidgetDefaultFontSizes.size() > 0) {
-        qDebug() << __func__ << ": removed" << nMapSize - mapWidgetDefaultFontSizes.size()
-                 << "nullptr items from mapWidgetDefaultFontSizes";
-    }
 
-    nMapSize = mapFontUpdates.size();
+    size_t nRemovedFontUpdates{0};
     auto itn = mapFontUpdates.begin();
     while (itn != mapFontUpdates.end()) {
         if (itn->first.isNull()) {
             itn = mapFontUpdates.erase(itn);
+            ++nRemovedFontUpdates;
         } else {
             ++itn;
         }
-    }
-    if (nMapSize - mapFontUpdates.size() > 0) {
-        qDebug() << __func__ << ": removed" << nMapSize - mapFontUpdates.size()
-                 << "nullptr items from mapFontUpdates";
     }
 
     size_t nUpdatable{0}, nUpdated{0};
@@ -1618,8 +1612,8 @@ void updateFonts()
             ++nUpdated;
         }
     }
-    qDebug() << __func__ << ": updated:" << nUpdated << "/" << nUpdatable
-             << ": total:" << qApp->allWidgets().size();
+    qDebug().nospace() << __func__ << " - widget counts: updated/updatable/total(" << nUpdated << "/" << nUpdatable << "/" << qApp->allWidgets().size() << ")"
+             << ", removed items: mapWidgetDefaultFontSizes/mapFontUpdates(" << nRemovedDefaultFonts << "/" << nRemovedFontUpdates << ")";
 
     // Scale the global font for QToolTip labels, QMenu and QMessageBox instances
     QFont fontToolTip = qApp->font("QTipLabel");
