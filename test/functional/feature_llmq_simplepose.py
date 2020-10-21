@@ -86,6 +86,8 @@ class LLMQSimplePoSeTest(DashTestFramework):
                     expected_contributors -= 1
                 # Make sure we do fresh probes
                 self.bump_mocktime(50 * 60 + 1)
+                # Sleep a couple of seconds to let mn sync tick to happen
+                time.sleep(2)
                 self.mine_quorum(expected_connections=expected_connections, expected_members=len(online_mninfos), expected_contributions=expected_contributors, expected_complaints=expected_contributors-1, expected_commitments=expected_contributors, mninfos=online_mninfos)
 
             assert(self.check_punished(mn) and self.check_banned(mn))
@@ -119,6 +121,8 @@ class LLMQSimplePoSeTest(DashTestFramework):
     def reset_probe_timeouts(self):
         # Make sure all masternodes will reconnect/re-probe
         self.bump_mocktime(50 * 60 + 1)
+        # Sleep a couple of seconds to let mn sync tick to happen
+        time.sleep(2)
         self.sync_all()
 
     def check_punished(self, mn):
