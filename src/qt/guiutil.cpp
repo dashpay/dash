@@ -1594,8 +1594,7 @@ void updateFonts()
         font.setStyle(qApp->font().style());
 
         // Insert/Get the default font size of the widget
-        int pointSize = font.pointSize() > 0 ? font.pointSize() : defaultFontSize;
-        auto itDefault = mapWidgetDefaultFontSizes.emplace(std::make_pair(w, pointSize));
+        auto itDefault = mapWidgetDefaultFontSizes.emplace(w, font.pointSize());
 
         auto it = mapFontUpdates.find(w);
         if (it != mapFontUpdates.end()) {
