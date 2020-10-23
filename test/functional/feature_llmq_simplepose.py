@@ -29,7 +29,7 @@ class LLMQSimplePoSeTest(DashTestFramework):
         self.test_no_banning(expected_connections=2)
 
         # Now lets isolate MNs one by one and verify that punishment/banning happens
-        self.test_banning(self.isolate_mn, 1, True)
+        self.test_banning(self.isolate_mn, 1)
 
         self.repair_masternodes(False)
 
@@ -42,16 +42,17 @@ class LLMQSimplePoSeTest(DashTestFramework):
         self.test_no_banning(expected_connections=4)
 
         # Lets restart masternodes with closed ports and verify that they get banned even though they are connected to other MNs (via outbound connections)
-        self.test_banning(self.close_mn_port, 3, False)
+        self.test_banning(self.close_mn_port, 3)
 
         self.repair_masternodes(True)
         self.reset_probe_timeouts()
 
-        self.test_banning(self.force_old_mn_proto, 3, False)
+        self.test_banning(self.force_old_mn_proto, 3)
 
     def isolate_mn(self, mn):
         mn.node.setnetworkactive(False)
         wait_until(lambda: mn.node.getconnectioncount() == 0)
+        return True
 
     def close_mn_port(self, mn):
         self.stop_node(mn.node.index)
@@ -62,12 +63,14 @@ class LLMQSimplePoSeTest(DashTestFramework):
             if mn2 is not mn:
                 connect_nodes(mn.node, mn2.node.index)
         self.reset_probe_timeouts()
+        return False
 
     def force_old_mn_proto(self, mn):
         self.stop_node(mn.node.index)
         self.start_masternode(mn, ["-pushversion=70216"])
         connect_nodes(mn.node, 0)
         self.reset_probe_timeouts()
+        return False
 
     def test_no_banning(self, expected_connections):
         for i in range(3):
@@ -75,12 +78,12 @@ class LLMQSimplePoSeTest(DashTestFramework):
         for mn in self.mninfo:
             assert(not self.check_punished(mn) and not self.check_banned(mn))
 
-    def test_banning(self, invalidate_proc, expected_connections, expect_contribution_to_fail):
+    def test_banning(self, invalidate_proc, expected_connections):
         online_mninfos = self.mninfo.copy()
         for i in range(2):
             mn = online_mninfos[len(online_mninfos) - 1]
             online_mninfos.remove(mn)
-            invalidate_proc(mn)
+            expect_contribution_to_fail = invalidate_proc(mn)
 
             t = time.time()
             while (not self.check_punished(mn) or not self.check_banned(mn)) and (time.time() - t) < 120:
