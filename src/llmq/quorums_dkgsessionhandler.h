@@ -131,8 +131,6 @@ public:
 private:
     bool InitNewQuorum(const CBlockIndex* pindexQuorum);
 
-    std::pair<QuorumPhase, uint256> GetPhaseAndQuorumHash() const;
-
     typedef std::function<void()> StartPhaseFunc;
     typedef std::function<bool()> WhileWaitFunc;
     void WaitForNextPhase(QuorumPhase curPhase, QuorumPhase nextPhase, const uint256& expectedQuorumHash, const WhileWaitFunc& runWhileWaiting);
