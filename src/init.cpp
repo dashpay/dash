@@ -659,12 +659,12 @@ std::string HelpMessage(HelpMessageMode mode)
     strUsage += HelpMessageOpt("-server", _("Accept command line and JSON-RPC commands"));
 
     strUsage += HelpMessageGroup(_("Statsd options:"));
-    strUsage += HelpMessageOpt("-statsenabled", strprintf(_("Publish internal stats to statsd (0-1, default: %u)"), 0));
-    strUsage += HelpMessageOpt("-statshost=<ip>", strprintf(_("Specify statsd host (default: %s)"), "127.0.0.1"));
-    strUsage += HelpMessageOpt("-statshostname=<ip>", strprintf(_("Specify statsd host name (default: %s)"), ""));
-    strUsage += HelpMessageOpt("-statsport=<port>", strprintf(_("Specify statsd port (default: %u)"), 8125));
-    strUsage += HelpMessageOpt("-statsns=<ns>", strprintf(_("Specify additional namespace prefix (default: %s)"), ""));
-    strUsage += HelpMessageOpt("-statsperiod=<seconds>", strprintf(_("Specify the number of seconds between periodic measurements (default: %d)"), 60));
+    strUsage += HelpMessageOpt("-statsenabled", strprintf(_("Publish internal stats to statsd (default: %u)"), DEFAULT_STATSD_ENABLE));
+    strUsage += HelpMessageOpt("-statshost=<ip>", strprintf(_("Specify statsd host (default: %s)"), DEFAULT_STATSD_HOST));
+    strUsage += HelpMessageOpt("-statshostname=<ip>", strprintf(_("Specify statsd host name (default: %s)"), DEFAULT_STATSD_HOSTNAME));
+    strUsage += HelpMessageOpt("-statsport=<port>", strprintf(_("Specify statsd port (default: %u)"), DEFAULT_STATSD_PORT));
+    strUsage += HelpMessageOpt("-statsns=<ns>", strprintf(_("Specify additional namespace prefix (default: %s)"), DEFAULT_STATSD_NAMESPACE));
+    strUsage += HelpMessageOpt("-statsperiod=<seconds>", strprintf(_("Specify the number of seconds between periodic measurements (default: %d)"), DEFAULT_STATSD_PERIOD));
 
     return strUsage;
 }
@@ -2271,9 +2271,8 @@ bool AppInitMain()
         scheduler.scheduleEvery(boost::bind(&CPrivateSendServer::DoMaintenance, boost::ref(privateSendServer), boost::ref(*g_connman)), 1 * 1000);
     }
 
-    if (gArgs.GetBoolArg("-statsenabled", false)) {
-        // schedule periodic measurements, in seconds: default - 1 minute, min - 5 sec, max - 1h.
-        int nStatsPeriod = std::min(std::max((int)gArgs.GetArg("-statsperiod", 60), 5), 60 * 60);
+    if (gArgs.GetBoolArg("-statsenabled", DEFAULT_STATSD_ENABLE)) {
+        int nStatsPeriod = std::min(std::max((int)gArgs.GetArg("-statsperiod", DEFAULT_STATSD_PERIOD), MIN_STATSD_PERIOD), MAX_STATSD_PERIOD);
         scheduler.scheduleEvery(PeriodicStats, nStatsPeriod * 1000);
     }
 

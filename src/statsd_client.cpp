@@ -102,12 +102,12 @@ void StatsdClient::config(const std::string& host, int port, const std::string& 
 
 int StatsdClient::init()
 {
-    static bool fEnabled = gArgs.GetBoolArg("-statsenabled", false);
+    static bool fEnabled = gArgs.GetBoolArg("-statsenabled", DEFAULT_STATSD_ENABLE);
     if (!fEnabled) return -3;
 
     if ( d->init ) return 0;
 
-    config(gArgs.GetArg("-statshost", "127.0.0.1"), gArgs.GetArg("-statsport", 8125), gArgs.GetArg("-statsns", ""));
+    config(gArgs.GetArg("-statshost", DEFAULT_STATSD_HOST), gArgs.GetArg("-statsport", DEFAULT_STATSD_PORT), gArgs.GetArg("-statsns", DEFAULT_STATSD_NAMESPACE));
 
     d->sock = socket(AF_INET, SOCK_DGRAM, IPPROTO_UDP);
     if ( d->sock == INVALID_SOCKET ) {
@@ -126,7 +126,7 @@ int StatsdClient::init()
     }
 
     if (gArgs.IsArgSet("-statshostname")) {
-        d->nodename = gArgs.GetArg("-statshostname", "");
+        d->nodename = gArgs.GetArg("-statshostname", DEFAULT_STATSD_HOSTNAME);
     }
 
     d->init = true;

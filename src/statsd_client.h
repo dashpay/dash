@@ -3,18 +3,29 @@
 
 #include <string>
 
+static const bool DEFAULT_STATSD_ENABLE = false;
+static const int DEFAULT_STATSD_PORT = 8125;
+static const std::string DEFAULT_STATSD_HOST = "127.0.0.1";
+static const std::string DEFAULT_STATSD_HOSTNAME = "";
+static const std::string DEFAULT_STATSD_NAMESPACE = "";
+
+// schedule periodic measurements, in seconds: default - 1 minute, min - 5 sec, max - 1h.
+static const int DEFAULT_STATSD_PERIOD = 60;
+static const int MIN_STATSD_PERIOD = 5;
+static const int MAX_STATSD_PERIOD = 60 * 60;
+
 namespace statsd {
 
 struct _StatsdClientData;
 
 class StatsdClient {
     public:
-        StatsdClient(const std::string& host="127.0.0.1", int port=8125, const std::string& ns = "");
+        StatsdClient(const std::string& host = DEFAULT_STATSD_HOST, int port = DEFAULT_STATSD_PORT, const std::string& ns = DEFAULT_STATSD_NAMESPACE);
         ~StatsdClient();
 
     public:
         // you can config at anytime; client will use new address (useful for Singleton)
-        void config(const std::string& host, int port, const std::string& ns = "");
+        void config(const std::string& host, int port, const std::string& ns = DEFAULT_STATSD_NAMESPACE);
         const char* errmsg();
 
     public:
