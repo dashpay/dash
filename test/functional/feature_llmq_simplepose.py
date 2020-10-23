@@ -86,7 +86,7 @@ class LLMQSimplePoSeTest(DashTestFramework):
             expect_contribution_to_fail = invalidate_proc(mn)
 
             t = time.time()
-            while (not self.check_punished(mn) or not self.check_banned(mn)) and (time.time() - t) < 120:
+            while (not self.check_banned(mn)) and (time.time() - t) < 120:
                 expected_contributors = len(online_mninfos) + 1
                 if expect_contribution_to_fail:
                     expected_contributors -= 1
@@ -96,7 +96,7 @@ class LLMQSimplePoSeTest(DashTestFramework):
                 time.sleep(2)
                 self.mine_quorum(expected_connections=expected_connections, expected_members=len(online_mninfos), expected_contributions=expected_contributors, expected_complaints=expected_contributors-1, expected_commitments=expected_contributors, mninfos=online_mninfos)
 
-            assert(self.check_punished(mn) and self.check_banned(mn))
+            assert(self.check_banned(mn))
 
     def repair_masternodes(self, restart):
         # Repair all nodes
