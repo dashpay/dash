@@ -79,24 +79,29 @@ class LLMQSimplePoSeTest(DashTestFramework):
             assert(not self.check_punished(mn) and not self.check_banned(mn))
 
     def test_banning(self, invalidate_proc, expected_connections):
-        online_mninfos = self.mninfo.copy()
+        mninfos_online = self.mninfo.copy()
+        mninfos_valid = self.mninfo.copy()
+        expected_contributors = len(mninfos_online)
         for i in range(2):
-            mn = online_mninfos[len(online_mninfos) - 1]
-            online_mninfos.remove(mn)
-            expect_contribution_to_fail = invalidate_proc(mn)
+            mn = mninfos_valid.pop()
+            went_offline = invalidate_proc(mn)
+            if went_offline:
+                mninfos_online.remove(mn)
+                expected_contributors -= 1
 
             t = time.time()
             while (not self.check_banned(mn)) and (time.time() - t) < 120:
-                expected_contributors = len(online_mninfos) + 1
-                if expect_contribution_to_fail:
-                    expected_contributors -= 1
                 # Make sure we do fresh probes
                 self.bump_mocktime(50 * 60 + 1)
                 # Sleep a couple of seconds to let mn sync tick to happen
                 time.sleep(2)
-                self.mine_quorum(expected_connections=expected_connections, expected_members=len(online_mninfos), expected_contributions=expected_contributors, expected_complaints=expected_contributors-1, expected_commitments=expected_contributors, mninfos=online_mninfos)
+                self.mine_quorum(expected_connections=expected_connections, expected_members=expected_contributors, expected_contributions=expected_contributors, expected_complaints=expected_contributors-1, expected_commitments=expected_contributors, mninfos_online=mninfos_online, mninfos_valid=mninfos_valid)
 
             assert(self.check_banned(mn))
+
+            if not went_offline:
+                # we do not include PoSe banned mns in quorums, so the next one should have 1 contributor less
+                expected_contributors -= 1
 
     def repair_masternodes(self, restart):
         # Repair all nodes
