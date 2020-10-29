@@ -21,7 +21,6 @@ FUZZ_TARGET(script_flags)
     DataStream ds{buffer};
     try {
         const CTransaction tx(deserialize, ds);
-        const PrecomputedTransactionData txdata(tx);
 
         unsigned int verify_flags;
         ds >> verify_flags;
@@ -31,6 +30,7 @@ FUZZ_TARGET(script_flags)
         unsigned int fuzzed_flags;
         ds >> fuzzed_flags;
 
+        std::vector<CTxOut> spent_outputs;
         for (unsigned i = 0; i < tx.vin.size(); ++i) {
             CTxOut prevout;
             ds >> prevout;
@@ -38,7 +38,13 @@ FUZZ_TARGET(script_flags)
                 // prevouts should be consensus-valid
                 prevout.nValue = 1;
             }
+            spent_outputs.push_back(prevout);
+        }
+        PrecomputedTransactionData txdata;
+        txdata.Init(tx, std::move(spent_outputs));
 
+        for (unsigned i = 0; i < tx.vin.size(); ++i) {
+            const CTxOut& prevout = txdata.m_spent_outputs.at(i);
             const TransactionSignatureChecker checker{&tx, i, prevout.nValue, txdata, MissingDataBehavior::ASSERT_FAIL};
 
             ScriptError serror;
