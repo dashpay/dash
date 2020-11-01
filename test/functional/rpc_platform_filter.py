@@ -12,6 +12,7 @@ import json
 import os
 import urllib.parse
 
+
 class HTTPBasicsTest(BitcoinTestFramework):
     def set_test_params(self):
         self.num_nodes = 1
@@ -40,8 +41,7 @@ class HTTPBasicsTest(BitcoinTestFramework):
         def test_command(method, params, auth, expexted_status):
             conn = http.client.HTTPConnection(url.hostname, url.port)
             conn.connect()
-            body = {}
-            body["method"] = method
+            body = {"method": method}
             if len(params):
                 body["params"] = params
             conn.request('POST', '/', json.dumps(body), {"Authorization": "Basic " + str_to_b64str(auth)})
@@ -64,6 +64,7 @@ class HTTPBasicsTest(BitcoinTestFramework):
 
         self.log.info('Try running a not whitelisted command as the operator...')
         test_command("stop", [], rpcuser_authpair_operator, 200)
+
 
 if __name__ == '__main__':
     HTTPBasicsTest().main()
