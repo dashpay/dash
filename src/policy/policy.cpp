@@ -167,7 +167,7 @@ bool IsStandardTx(const CTransaction& tx, const std::optional<unsigned>& max_dat
  * expensive-to-check-upon-redemption script like:
  *   DUP CHECKSIG DROP ... repeated 100 times... OP_1
  */
-bool AreInputsStandard(const CTransaction& tx, const CCoinsViewCache& mapInputs)
+bool AreInputsStandard(const CTransaction& tx, const CCoinsViewCache& mapInputs, bool taproot_active)
 {
     if (tx.IsCoinBase())
         return true; // Coinbases don't use vin normally
@@ -198,6 +198,9 @@ bool AreInputsStandard(const CTransaction& tx, const CCoinsViewCache& mapInputs)
             if (subscript.GetSigOpCount(true) > MAX_P2SH_SIGOPS) {
                 return false;
             }
+        } else if (whichType == TxoutType::TAPROOT) {
+            // Don't allow Taproot spends unless Taproot is active.
+            if (!taproot_active) return false;
         }
     }
 
