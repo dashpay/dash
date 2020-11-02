@@ -1031,7 +1031,8 @@ bool MemPoolAccept::PreChecks(ATMPArgs& args, Workspace& ws)
         }
     }
 
-    if (m_pool.m_require_standard && !AreInputsStandard(tx, m_view)) {
+    bool taproot_state = DeploymentActiveAfter(m_active_chainstate.m_chain.Tip(), m_active_chainstate.m_chainman, Consensus::DEPLOYMENT_V24);
+    if (m_pool.m_require_standard && !AreInputsStandard(tx, m_view, taproot_state)) {
         return state.Invalid(TxValidationResult::TX_INPUTS_NOT_STANDARD, "bad-txns-nonstandard-inputs");
     }
 
