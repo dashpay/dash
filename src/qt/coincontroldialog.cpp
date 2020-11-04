@@ -40,7 +40,7 @@ bool CCoinControlWidgetItem::operator<(const QTreeWidgetItem &other) const {
     return QTreeWidgetItem::operator<(other);
 }
 
-CoinControlDialog::CoinControlDialog(CCoinControl& coin_control, WalletModel* _model, QWidget *parent) :
+CoinControlDialog::CoinControlDialog(CCoinControl& coin_control, WalletModel* _model, QWidget* parent) :
     QDialog(parent),
     ui(new Ui::CoinControlDialog),
     m_coin_control(coin_control),
