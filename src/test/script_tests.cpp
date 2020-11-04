@@ -1403,8 +1403,6 @@ BOOST_AUTO_TEST_CASE(script_HasValidOps)
     BOOST_CHECK(!script.HasValidOps());
 }
 
-#if defined(HAVE_CONSENSUS_LIB)
-
 static CMutableTransaction TxFromHex(const std::string& str)
 {
     CMutableTransaction tx;
@@ -1423,6 +1421,8 @@ static std::vector<CTxOut> TxOutsFromJSON(const UniValue& univalue)
     }
     return prevouts;
 }
+
+#if defined(HAVE_CONSENSUS_LIB)
 
 /* Test simple (successful) usage of dashconsensus_verify_script */
 BOOST_AUTO_TEST_CASE(dashconsensus_verify_script_returns_true)
@@ -1534,6 +1534,8 @@ BOOST_AUTO_TEST_CASE(dashconsensus_verify_script_invalid_flags)
     BOOST_CHECK_EQUAL(err, dashconsensus_ERR_INVALID_FLAGS);
 }
 
+#endif // defined(HAVE_CONSENSUS_LIB)
+
 static std::vector<unsigned int> AllConsensusFlags()
 {
     std::vector<unsigned int> ret;
@@ -1631,5 +1633,4 @@ BOOST_AUTO_TEST_CASE(script_assets_test)
     file.close();
 }
 
-#endif
 BOOST_AUTO_TEST_SUITE_END()
