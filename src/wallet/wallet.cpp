@@ -1247,9 +1247,10 @@ bool CWallet::AddToWalletIfInvolvingMe(const CTransactionRef& ptx, const CBlockI
              * the mostly recently created transactions from newer versions of the wallet.
              */
 
+            WalletBatch batch(*database);
             // loop though all outputs
             for (const CTxOut& txout: tx.vout) {
-                // extract addresses and check if they match with an unused keypool key
+                // extract addresses, check if they match with an unused keypool key, update metadata if needed
                 std::vector<CKeyID> vAffected;
                 CAffectedKeysVisitor(*this, vAffected).Process(txout.scriptPubKey);
                 for (const CKeyID &keyid : vAffected) {
@@ -1261,6 +1262,15 @@ bool CWallet::AddToWalletIfInvolvingMe(const CTransactionRef& ptx, const CBlockI
                         if (!TopUpKeyPool()) {
                             LogPrintf("%s: Topping up keypool failed (locked wallet)\n", __func__);
                         }
+                    }
+                    if (mapKeyMetadata[keyid].nCreateTime > pIndex->nTime) {
+                        LogPrintf("%s: Found a key which appears to be used earlier than we expected, updating metadata\n", __func__);
+                        CPubKey vchPubKey;
+                        bool res = GetPubKey(keyid, vchPubKey);
+                        assert(res); // this should never fail
+                        mapKeyMetadata[keyid].nCreateTime = pIndex->nTime;
+                        batch.WriteKeyMeta(vchPubKey, mapKeyMetadata[keyid]);
+                        UpdateTimeFirstKey(pIndex->nTime);
                     }
                 }
             }
