@@ -1269,7 +1269,7 @@ bool CWallet::AddToWalletIfInvolvingMe(const CTransactionRef& ptx, const CBlockI
                             LogPrintf("%s: Topping up keypool failed (locked wallet)\n", __func__);
                         }
                     }
-                    if (mapKeyMetadata[keyid].nCreateTime > pIndex->nTime) {
+                    if (pIndex != nullptr && mapKeyMetadata[keyid].nCreateTime > pIndex->nTime) {
                         LogPrintf("%s: Found a key which appears to be used earlier than we expected, updating metadata\n", __func__);
                         CPubKey vchPubKey;
                         bool res = GetPubKey(keyid, vchPubKey);
