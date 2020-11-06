@@ -463,6 +463,12 @@ void CWallet::UpdateTimeFirstKey(int64_t nCreateTime)
     }
 }
 
+int64_t CWallet::GetTimeFirstKey() const
+{
+    AssertLockHeld(cs_wallet);
+    return nTimeFirstKey;
+}
+
 bool CWallet::AddCScript(const CScript& redeemScript)
 {
     if (!CCryptoKeyStore::AddCScript(redeemScript))
@@ -5328,6 +5334,7 @@ CWallet* CWallet::CreateWalletFromFile(const std::string& name, const fs::path& 
         LogPrintf("setInternalKeyPool.size() = %u\n",   walletInstance->KeypoolCountInternalKeys());
         LogPrintf("mapWallet.size() = %u\n",            walletInstance->mapWallet.size());
         LogPrintf("mapAddressBook.size() = %u\n",       walletInstance->mapAddressBook.size());
+        LogPrintf("nTimeFirstKey = %u\n",               walletInstance->nTimeFirstKey);
     }
 
     return walletInstance;
