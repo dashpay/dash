@@ -5271,8 +5271,11 @@ CWallet* CWallet::CreateWalletFromFile(const std::string& name, const fs::path& 
 
         // No need to read and scan block if block was created before
         // our wallet birthday (as adjusted for block time variability)
-        while (pindexRescan && walletInstance->nTimeFirstKey && (pindexRescan->GetBlockTime() < (walletInstance->nTimeFirstKey - TIMESTAMP_WINDOW))) {
-            pindexRescan = chainActive.Next(pindexRescan);
+        // unless a full rescan was requested
+        if (gArgs.GetArg("-rescan", 0) != 2) {
+            while (pindexRescan && walletInstance->nTimeFirstKey && (pindexRescan->GetBlockTime() < (walletInstance->nTimeFirstKey - TIMESTAMP_WINDOW))) {
+                pindexRescan = chainActive.Next(pindexRescan);
+            }
         }
 
         nStart = GetTimeMillis();
