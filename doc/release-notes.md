@@ -58,11 +58,15 @@ p2p message. Some other internal optimizations were made to the way object reque
 
 GUI changes
 -----------
-Fixed an issue when wallet would refuse to load if no valid GUI theme was found in settings.
-This was happenning for some users who had pre-v0.14 wallets installed previousely.
-Few other GUI issues like fonts acting strange sometimes, window size not updating correctly,
-a couple of crashes which could occur when a node is compiled or started with wallets disabled etc.
-were found and fixed.
+Fixes for the following GUI related issues
+- The wallet did refuse to load if no valid GUI theme was found in settings.
+This happened for users upgrading from versions prior to v0.14.
+- There were randomly occurring font size scaling issues like abnormal font sizes.
+- Open and close the settings while the application was in fullscreen/maximised
+window mode lead to fragmented GUI layouts.
+- There was an unexpected checkmark in the "Encrypt wallet" menu item on linux/windows
+- Starting Dash Core compiled without wallet support or with `-disablewallet` command line
+parameter lead to an application crash.
 
 RPC changes
 -----------
