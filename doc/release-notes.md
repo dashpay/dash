@@ -7,8 +7,6 @@ Release is now available from:
 
 This is a new minor version release, bringing various bugfixes and improvements.
 
-This release is mandatory for all nodes.
-
 Please report bugs using the issue tracker at github:
 
   <https://github.com/dashpay/dash/issues>
@@ -53,7 +51,7 @@ Notable changes
 
 Network changes
 ---------------
-InstantSend locks were not relayed correctly when another node was requesting updates via `mempool`
+InstantSend locks were not relayed correctly when another node was requesting updates via the `mempool`
 p2p message. Some other internal optimizations were made to the way object requests are handled.
 
 GUI changes
