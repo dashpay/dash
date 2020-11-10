@@ -257,5 +257,5 @@ bool CalcCbTxMerkleRootQuorums(const CBlock& block, const CBlockIndex* pindexPre
 std::string CCbTx::ToString() const
 {
     return strprintf("CCbTx(nHeight=%d, nVersion=%d, merkleRootMNList=%s, merkleRootQuorums=%s)",
-        nVersion, nHeight, merkleRootMNList.ToString(), merkleRootQuorums.ToString());
+        nHeight, nVersion, merkleRootMNList.ToString(), merkleRootQuorums.ToString());
 }
