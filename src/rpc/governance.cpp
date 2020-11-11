@@ -161,6 +161,8 @@ UniValue gobject_prepare(const JSONRPCRequest& request)
     std::string strTime = request.params[3].get_str();
     int nRevision = atoi(strRevision);
     int64_t nTime = atoi64(strTime);
+    // Round the timestamp down to the nearest minute. This should make it easier to brute force if need be.
+    nTime = nTime - (nTime % 60000);
     std::string strDataHex = request.params[4].get_str();
 
     // CREATE A NEW COLLATERAL TRANSACTION FOR THIS SPECIFIC OBJECT
@@ -280,6 +282,8 @@ UniValue gobject_submit(const JSONRPCRequest& request)
     std::string strTime = request.params[3].get_str();
     int nRevision = atoi(strRevision);
     int64_t nTime = atoi64(strTime);
+    // Round the timestamp down to the nearest minute. This should make it easier to brute force if need be.
+    nTime = nTime - (nTime % 60000);
     std::string strDataHex = request.params[4].get_str();
 
     CGovernanceObject govobj(hashParent, nRevision, nTime, txidFee, strDataHex);
