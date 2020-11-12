@@ -57,12 +57,12 @@ p2p message. Some other internal optimizations were made to the way object reque
 GUI changes
 -----------
 Fixes for the following GUI related issues
-- The wallet did refuse to load if no valid GUI theme was found in settings.
+- The wallet crashed if no valid GUI theme was found in settings.
 This happened for users upgrading from versions prior to v0.14.
-- There were randomly occurring font size scaling issues like abnormal font sizes.
-- Open and close the settings while the application was in fullscreen/maximised
+- There were randomly occurring font size scaling issues.
+- Opening or closing the settings while the application was in full-screen/maximized
 window mode lead to fragmented GUI layouts.
-- There was an unexpected checkmark in the "Encrypt wallet" menu item on linux/windows
+- There was an unexpected checkmark in the "Encrypt wallet" menu item on Linux and Windows
 - Starting Dash Core compiled without wallet support or with `-disablewallet` command line
 parameter lead to an application crash.
 
