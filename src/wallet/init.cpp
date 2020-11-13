@@ -177,6 +177,13 @@ bool WalletInit::ParameterInteraction()
         }
     }
 
+    int rescan_mode = gArgs.GetArg("-rescan", 0);
+    if (rescan_mode < 0 || rescan_mode > 2) {
+        LogPrintf("%s: Warning: incorrect -rescan mode, falling back to default value.\n", __func__);
+        InitWarning(_("Incorrect -rescan mode, falling back to default value"));
+        gArgs.ForceRemoveArg("-rescan");
+    }
+
     if (is_multiwallet) {
         if (gArgs.GetBoolArg("-upgradewallet", false)) {
             return InitError(strprintf("%s is only allowed with a single wallet file", "-upgradewallet"));
