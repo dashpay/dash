@@ -1407,58 +1407,68 @@ void CConnman::NotifyNumConnectionsChanged()
         nPrevNodeCount = vNodesSize;
         if(clientInterface)
             clientInterface->NotifyNumConnectionsChanged(vNodesSize);
-        // count various node attributes for statsD
-        int fullNodes = 0;
-        int spvNodes = 0;
-        int inboundNodes = 0;
-        int outboundNodes = 0;
-        int ipv4Nodes = 0;
-        int ipv6Nodes = 0;
-        int torNodes = 0;
-        mapMsgCmdSize mapRecvBytesMsgStats;
-        mapMsgCmdSize mapSentBytesMsgStats;
-        for (const std::string &msg : getAllNetMessageTypes()) {
-            mapRecvBytesMsgStats[msg] = 0;
-            mapSentBytesMsgStats[msg] = 0;
-        }
-        mapRecvBytesMsgStats[NET_MESSAGE_COMMAND_OTHER] = 0;
-        mapSentBytesMsgStats[NET_MESSAGE_COMMAND_OTHER] = 0;
-        LOCK(cs_vNodes);
-        for (const CNode* pnode : vNodes) {
-            for (const mapMsgCmdSize::value_type &i : pnode->mapRecvBytesPerMsgCmd)
-                mapRecvBytesMsgStats[i.first] += i.second;
-            for (const mapMsgCmdSize::value_type &i : pnode->mapSendBytesPerMsgCmd)
-                mapSentBytesMsgStats[i.first] += i.second;
-            if(pnode->fClient)
-                spvNodes++;
-            else
-                fullNodes++;
-            if(pnode->fInbound)
-                inboundNodes++;
-            else
-                outboundNodes++;
-            if(pnode->addr.IsIPv4())
-                ipv4Nodes++;
-            if(pnode->addr.IsIPv6())
-                ipv6Nodes++;
-            if(pnode->addr.IsTor())
-                torNodes++;
-            if(pnode->nPingUsecTime > 0)
-                statsClient.timing("peers.ping_us", pnode->nPingUsecTime, 1.0f);
-        }
-        for (const std::string &msg : getAllNetMessageTypes()) {
-            statsClient.gauge("bandwidth.message." + msg + ".totalBytesReceived", mapRecvBytesMsgStats[msg], 1.0f);
-            statsClient.gauge("bandwidth.message." + msg + ".totalBytesSent", mapSentBytesMsgStats[msg], 1.0f);
-        }
-        statsClient.gauge("peers.totalConnections", nPrevNodeCount, 1.0f);
-        statsClient.gauge("peers.spvNodeConnections", spvNodes, 1.0f);
-        statsClient.gauge("peers.fullNodeConnections", fullNodes, 1.0f);
-        statsClient.gauge("peers.inboundConnections", inboundNodes, 1.0f);
-        statsClient.gauge("peers.outboundConnections", outboundNodes, 1.0f);
-        statsClient.gauge("peers.ipv4Connections", ipv4Nodes, 1.0f);
-        statsClient.gauge("peers.ipv6Connections", ipv6Nodes, 1.0f);
-        statsClient.gauge("peers.torConnections", torNodes, 1.0f);
+
+        CalculateNumConnectionsChangedStats();
     }
+}
+
+void CConnman::CalculateNumConnectionsChangedStats()
+{
+    if (!gArgs.GetBoolArg("-statsenabled", DEFAULT_STATSD_ENABLE)) {
+        return;
+    }
+
+    // count various node attributes for statsD
+    int fullNodes = 0;
+    int spvNodes = 0;
+    int inboundNodes = 0;
+    int outboundNodes = 0;
+    int ipv4Nodes = 0;
+    int ipv6Nodes = 0;
+    int torNodes = 0;
+    mapMsgCmdSize mapRecvBytesMsgStats;
+    mapMsgCmdSize mapSentBytesMsgStats;
+    for (const std::string &msg : getAllNetMessageTypes()) {
+        mapRecvBytesMsgStats[msg] = 0;
+        mapSentBytesMsgStats[msg] = 0;
+    }
+    mapRecvBytesMsgStats[NET_MESSAGE_COMMAND_OTHER] = 0;
+    mapSentBytesMsgStats[NET_MESSAGE_COMMAND_OTHER] = 0;
+    LOCK(cs_vNodes);
+    for (const CNode* pnode : vNodes) {
+        for (const mapMsgCmdSize::value_type &i : pnode->mapRecvBytesPerMsgCmd)
+            mapRecvBytesMsgStats[i.first] += i.second;
+        for (const mapMsgCmdSize::value_type &i : pnode->mapSendBytesPerMsgCmd)
+            mapSentBytesMsgStats[i.first] += i.second;
+        if(pnode->fClient)
+            spvNodes++;
+        else
+            fullNodes++;
+        if(pnode->fInbound)
+            inboundNodes++;
+        else
+            outboundNodes++;
+        if(pnode->addr.IsIPv4())
+            ipv4Nodes++;
+        if(pnode->addr.IsIPv6())
+            ipv6Nodes++;
+        if(pnode->addr.IsTor())
+            torNodes++;
+        if(pnode->nPingUsecTime > 0)
+            statsClient.timing("peers.ping_us", pnode->nPingUsecTime, 1.0f);
+    }
+    for (const std::string &msg : getAllNetMessageTypes()) {
+        statsClient.gauge("bandwidth.message." + msg + ".totalBytesReceived", mapRecvBytesMsgStats[msg], 1.0f);
+        statsClient.gauge("bandwidth.message." + msg + ".totalBytesSent", mapSentBytesMsgStats[msg], 1.0f);
+    }
+    statsClient.gauge("peers.totalConnections", nPrevNodeCount, 1.0f);
+    statsClient.gauge("peers.spvNodeConnections", spvNodes, 1.0f);
+    statsClient.gauge("peers.fullNodeConnections", fullNodes, 1.0f);
+    statsClient.gauge("peers.inboundConnections", inboundNodes, 1.0f);
+    statsClient.gauge("peers.outboundConnections", outboundNodes, 1.0f);
+    statsClient.gauge("peers.ipv4Connections", ipv4Nodes, 1.0f);
+    statsClient.gauge("peers.ipv6Connections", ipv6Nodes, 1.0f);
+    statsClient.gauge("peers.torConnections", torNodes, 1.0f);
 }
 
 void CConnman::InactivityCheck(CNode *pnode)
