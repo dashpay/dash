@@ -888,14 +888,9 @@ static bool AcceptToMemoryPoolWorker(const CChainParams& chainparams, CTxMemPool
     boost::posix_time::ptime finish = boost::posix_time::microsec_clock::local_time();
     boost::posix_time::time_duration diff = finish - start;
     statsClient.timing("AcceptToMemoryPool_ms", diff.total_milliseconds(), 1.0f);
-    statsClient.gauge("transactions.txInMemoryPool", pool.size(), 0.1f);
     statsClient.inc("transactions.accepted", 1.0f);
     statsClient.count("transactions.inputs", tx.vin.size(), 1.0f);
     statsClient.count("transactions.outputs", tx.vout.size(), 1.0f);
-    statsClient.gauge("transactions.mempool.totalTransactions", pool.size(), 0.1f);
-    statsClient.gauge("transactions.mempool.totalTxBytes", (int64_t) pool.GetTotalTxSize(), 0.1f);
-    statsClient.gauge("transactions.mempool.memoryUsageBytes", (int64_t) pool.DynamicMemoryUsage(), 0.1f);
-    statsClient.gauge("transactions.mempool.minFeePerKb", pool.GetMinFee(gArgs.GetArg("-maxmempool", DEFAULT_MAX_MEMPOOL_SIZE) * 1000000).GetFeePerK(), 0.1f);
 
     return true;
 }
@@ -1415,7 +1410,6 @@ void UpdateCoins(const CTransaction& tx, CCoinsViewCache& inputs, CTxUndo &txund
         }
     }
     // add outputs
-    statsClient.gauge("transactions.txCacheSize", inputs.GetCacheSize(), 0.1f);
     AddCoins(inputs, tx, nHeight);
 }
 
@@ -1840,7 +1834,6 @@ DisconnectResult CChainState::DisconnectBlock(const CBlock& block, const CBlockI
     boost::posix_time::ptime finish = boost::posix_time::microsec_clock::local_time();
     boost::posix_time::time_duration diff = finish - start;
     statsClient.timing("DisconnectBlock_ms", diff.total_milliseconds(), 1.0f);
-    statsClient.gauge("transactions.txCacheSize", view.GetCacheSize(), 1.0f);
 
     return fClean ? DISCONNECT_OK : DISCONNECT_UNCLEAN;
 }
@@ -2451,7 +2444,6 @@ bool CChainState::ConnectBlock(const CBlock& block, CValidationState& state, CBl
 
     assert(pindex->phashBlock);
     // add this block to the view's block chain
-    statsClient.gauge("transactions.txCacheSize", view.GetCacheSize(), 1.0f);
     view.SetBestBlock(pindex->GetBlockHash());
 
     int64_t nTime6 = GetTimeMicros(); nTimeIndex += nTime6 - nTime5;

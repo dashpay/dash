@@ -231,10 +231,6 @@ UniValue getmininginfo(const JSONRPCRequest& request)
     obj.pushKV("pooledtx",         (uint64_t)mempool.size());
     obj.pushKV("chain",            Params().NetworkIDString());
     obj.pushKV("warnings",         GetWarnings("statusbar"));
-
-    statsClient.gauge("network.exahashesPerSecond", getnetworkhashps(request).get_real() / 1e18);
-    statsClient.gauge("network.difficulty", (double)GetDifficulty(chainActive.Tip()));
-
     return obj;
 }
 

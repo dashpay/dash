@@ -1166,11 +1166,6 @@ UniValue gettxoutsetinfo(const JSONRPCRequest& request)
         ret.pushKV("hash_serialized_2", stats.hashSerialized.GetHex());
         ret.pushKV("disk_size", stats.nDiskSize);
         ret.pushKV("total_amount", ValueFromAmount(stats.nTotalAmount));
-        statsClient.gauge("utxoset.tx", stats.nTransactions, 1.0f);
-        statsClient.gauge("utxoset.txOutputs", stats.nTransactionOutputs, 1.0f);
-        statsClient.gauge("utxoset.dbSizeBytes", stats.nDiskSize, 1.0f);
-        statsClient.gauge("utxoset.blockHeight", stats.nHeight, 1.0f);
-        statsClient.gauge("utxoset.totalBTCAmount", (double)stats.nTotalAmount / (double)COIN, 1.0f);
     } else {
         throw JSONRPCError(RPC_INTERNAL_ERROR, "Unable to read UTXO set");
     }
