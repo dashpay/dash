@@ -2369,7 +2369,7 @@ static bool ConnectBlock(const CBlock& block, CValidationState& state, CBlockInd
             if (sporkManager.IsSporkActive(SPORK_31_MIN_FEE_ENFORCE)) 
             {
                 if (block.nTime > sporkManager.GetSporkValue(SPORK_31_MIN_FEE_ENFORCE)) {
-                    if (!tx.IsCoinStake()) {
+                    if (!tx.IsCoinStake() && tx.nType == TRANSACTION_NORMAL) {
                         CAmount nTxFee = nTxValueIn - tx.GetValueOut();
                         int64_t minFee = sporkManager.GetSporkValue(SPORK_30_MIN_FEE_BYTES);
                         CAmount expectedFee = minFee * tx.GetTotalSize() / 1000;
