@@ -1,5 +1,5 @@
 ---
-name: "poliscore-osx-1.6.6"
+name: "poliscore-osx-1.6.7"
 enable_cache: true
 suites:
   - "bionic"
