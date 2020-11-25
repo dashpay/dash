@@ -2374,7 +2374,7 @@ static bool ConnectBlock(const CBlock& block, CValidationState& state, CBlockInd
                         int64_t minFee = sporkManager.GetSporkValue(SPORK_30_MIN_FEE_BYTES);
                         CAmount expectedFee = minFee * tx.GetTotalSize() / 1000;
                         if (nTxFee < expectedFee) {
-                            return error("ConnectBlock(): tx expected fee not met");
+                            return state.DoS(100, false, REJECT_INVALID, "ConnectBlock(): tx expected fee not met");
                         }
                     }
                 }
