@@ -526,7 +526,7 @@ RPCConsole::RPCConsole(interfaces::Node& node, QWidget* parent, Qt::WindowFlags 
 
     ui->peerHeading->setText(tr("Select a peer to view detailed information."));
 
-    consoleFontSize = settings.value(fontSizeSettingsKey, QFontInfo(QFontDatabase::systemFont(QFontDatabase::FixedFont)).pointSize()).toInt();
+    setFontSize(settings.value(fontSizeSettingsKey, QFontInfo(QFontDatabase::systemFont(QFontDatabase::FixedFont)).pointSize()).toInt());
 
     pageButtons = new QButtonGroup(this);
     pageButtons->addButton(ui->btnInfo, pageButtons->buttons().size());
@@ -777,9 +777,7 @@ void RPCConsole::setFontSize(int newSize)
 {
     QSettings settings;
 
-    //don't allow an insane font size
-    if (newSize < FONT_RANGE.width() || newSize > FONT_RANGE.height())
-        return;
+    newSize = std::min(std::max(newSize, FONT_RANGE.width()), FONT_RANGE.height());
 
     // temp. store the console content
     QString str = ui->messagesWidget->toHtml();
