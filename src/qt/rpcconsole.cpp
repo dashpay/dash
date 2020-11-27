@@ -526,7 +526,7 @@ RPCConsole::RPCConsole(interfaces::Node& node, QWidget* parent, Qt::WindowFlags 
 
     ui->peerHeading->setText(tr("Select a peer to view detailed information."));
 
-    consoleFontSize = settings.value(fontSizeSettingsKey, QFontInfo(GUIUtil::getFontNormal()).pointSize()).toInt();
+    consoleFontSize = settings.value(fontSizeSettingsKey, QFontInfo(QFontDatabase::systemFont(QFontDatabase::FixedFont)).pointSize()).toInt();
 
     pageButtons = new QButtonGroup(this);
     pageButtons->addButton(ui->btnInfo, pageButtons->buttons().size());
