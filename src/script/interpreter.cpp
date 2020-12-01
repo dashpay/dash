@@ -1926,8 +1926,11 @@ template class GenericTransactionSignatureChecker<CMutableTransaction>;
 static bool VerifyTaprootCommitment(const std::vector<unsigned char>& control, const std::vector<unsigned char>& program, const CScript& script, uint256& tapleaf_hash)
 {
     const int path_len = (control.size() - TAPROOT_CONTROL_BASE_SIZE) / TAPROOT_CONTROL_NODE_SIZE;
+    //! The inner pubkey (x-only, so no Y coordinate parity).
     const XOnlyPubKey p{uint256(std::vector<unsigned char>(control.begin() + 1, control.begin() + TAPROOT_CONTROL_BASE_SIZE))};
+    //! The output pubkey (taken from the scriptPubKey).
     const XOnlyPubKey q{uint256(program)};
+    // Compute the tapleaf hash.
     tapleaf_hash = (HashWriter(HASHER_TAPLEAF) << uint8_t(control[0] & TAPROOT_LEAF_MASK) << script).GetSHA256();
     uint256 k = tapleaf_hash;
     for (int i = 0; i < path_len; ++i) {
@@ -1940,7 +1943,9 @@ static bool VerifyTaprootCommitment(const std::vector<unsigned char>& control, c
         }
         k = ss_branch.GetSHA256();
     }
+    // Compute the tweak from the Merkle root and the inner pubkey.
     k = (HashWriter(HASHER_TAPTWEAK) << MakeSpan(p) << k).GetSHA256();
+    // Verify that the output pubkey matches the tweaked inner pubkey, after correcting for parity.
     return q.CheckPayToContract(p, k, control[0] & 1);
 }
 
