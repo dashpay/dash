@@ -40,6 +40,8 @@ typedef std::pair<CGovernanceObject, ExpirationInfo> object_info_pair_t;
 
 static const int RATE_BUFFER_SIZE = 5;
 
+static const bool DEFAULT_ENABLE_SUPERBLOCKS = true;
+
 class CRateCheckBuffer
 {
 private:
@@ -431,5 +433,7 @@ private:
     void RemoveInvalidVotes();
 
 };
+
+bool AreSuperblocksEnabled();
 
 #endif // BITCOIN_GOVERNANCE_GOVERNANCE_H

@@ -586,7 +586,6 @@ std::string HelpMessage(HelpMessageMode mode)
     strUsage += HelpMessageOpt("-debug=<category>", strprintf(_("Output debugging information (default: %u, supplying <category> is optional)"), 0) + ". " +
         _("If <category> is not supplied or if <category> = 1, output all debugging information.") + " " + _("<category> can be:") + " " + ListLogCategories() + ".");
     strUsage += HelpMessageOpt("-debugexclude=<category>", strprintf(_("Exclude debugging information for a category. Can be used in conjunction with -debug=1 to output debug logs for all categories except one or more specified categories.")));
-    strUsage += HelpMessageOpt("-disablegovernance", strprintf(_("Disable governance validation (0-1, default: %u)"), 0));
     strUsage += HelpMessageOpt("-help-debug", _("Show all debugging options (usage: --help -help-debug)"));
     strUsage += HelpMessageOpt("-logips", strprintf(_("Include IP addresses in debug output (default: %u)"), DEFAULT_LOGIPS));
     if (showDebug)
@@ -621,6 +620,9 @@ std::string HelpMessage(HelpMessageMode mode)
     strUsage += HelpMessageOpt("-enableinstantsend", strprintf(_("Enable use of InstantSend (default: %u)"), DEFAULT_ENABLE_INSTANTSEND));
     strUsage += HelpMessageOpt("-rejectconflictingblocks", strprintf(_("Reject blocks containing txes that conflict with ones locked via InstantSend (default: %u)"), DEFAULT_REJECT_CONFLICTING_BLOCKS));
 
+    strUsage += HelpMessageGroup(_("Goverenance options:"));
+    strUsage += HelpMessageOpt("-enablesuperblocks", strprintf(_("Allow Superblocks to be produced at predefined intervals (default: %u)"), DEFAULT_ENABLE_SUPERBLOCKS));
+    strUsage += HelpMessageOpt("-disablegovernance", strprintf(_("Disable governance validation (0-1, default: %u)"), 0));
 
     strUsage += HelpMessageGroup(_("Node relay options:"));
     if (showDebug) {

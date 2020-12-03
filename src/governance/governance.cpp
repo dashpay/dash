@@ -1303,3 +1303,8 @@ void CGovernanceManager::RemoveInvalidVotes()
     // store current MN list for the next run so that we can determine which keys changed
     lastMNListForVotingKeys = curMNList;
 }
+
+bool AreSuperblocksEnabled()
+{
+    return gArgs.GetBoolArg("-enablesuperblocks", DEFAULT_ENABLE_SUPERBLOCKS);
+}
