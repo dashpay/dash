@@ -6,14 +6,14 @@ from test_framework.test_framework import BitcoinTestFramework
 from test_framework.util import assert_equal, get_bip9_status
 
 '''
-feature_platform_quorums.py
+feature_new_quorum_type_activation.py
 
-Checks block reward reallocation correctness
+Tests the activation of a new quorum type in v17 via a bip9-like hardfork
 
 '''
 
 
-class PlatformQuorumActivationTest(BitcoinTestFramework):
+class NewQuorumTypeActivationTest(BitcoinTestFramework):
     def set_test_params(self):
         self.num_nodes = 1
 
@@ -31,4 +31,4 @@ class PlatformQuorumActivationTest(BitcoinTestFramework):
 
 
 if __name__ == '__main__':
-    PlatformQuorumActivationTest().main()
+    NewQuorumTypeActivationTest().main()
