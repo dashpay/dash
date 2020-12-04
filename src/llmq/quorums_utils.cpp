@@ -17,7 +17,7 @@ namespace llmq
 
 std::vector<CDeterministicMNCPtr> CLLMQUtils::GetAllQuorumMembers(Consensus::LLMQType llmqType, const CBlockIndex* pindexQuorum)
 {
-    if (!IsQuorumTypeEnabledAtBlock(llmqType, pindexQuorum->pprev)) {
+    if (!IsQuorumTypeEnabled(llmqType, pindexQuorum->pprev)) {
         return {};
     }
     auto& params = Params().GetConsensus().llmqs.at(llmqType);
@@ -257,7 +257,7 @@ bool CLLMQUtils::IsQuorumActive(Consensus::LLMQType llmqType, const uint256& quo
     return false;
 }
 
-bool CLLMQUtils::IsQuorumTypeEnabledAtBlock(Consensus::LLMQType llmqType, const CBlockIndex* pindex)
+bool CLLMQUtils::IsQuorumTypeEnabled(Consensus::LLMQType llmqType, const CBlockIndex* pindex)
 {
     const Consensus::Params& consensusParams = Params().GetConsensus();
     bool f_v17_Active =  VersionBitsState(pindex, consensusParams, Consensus::DEPLOYMENT_V17, versionbitscache) == ThresholdState::ACTIVE;
@@ -288,7 +288,7 @@ std::map<Consensus::LLMQType, Consensus::LLMQParams> CLLMQUtils::GetEnabledQuoru
 {
     std::map<Consensus::LLMQType, Consensus::LLMQParams> ret;
     for (const auto& pair : Params().GetConsensus().llmqs) {
-        if (IsQuorumTypeEnabledAtBlock(pair.first, pindex)) {
+        if (IsQuorumTypeEnabled(pair.first, pindex)) {
             ret.emplace(pair);
         }
     }
