@@ -185,9 +185,9 @@ static Consensus::LLMQParams llmq_test = {
 };
 
 // this one is for testing only
-static Consensus::LLMQParams llmq_test_new = {
+static Consensus::LLMQParams llmq_test_v17 = {
         .type = Consensus::LLMQ_TEST_NEW,
-        .name = "llmq_test_new",
+        .name = "llmq_test_v17",
         .size = 3,
         .minSize = 2,
         .threshold = 2,
@@ -1018,7 +1018,7 @@ public:
 
         // long living quorum params
         consensus.llmqs[Consensus::LLMQ_TEST] = llmq_test;
-        consensus.llmqs[Consensus::LLMQ_TEST_NEW] = llmq_test_new;
+        consensus.llmqs[Consensus::LLMQ_TEST_NEW] = llmq_test_v17;
         consensus.llmqTypeChainLocks = Consensus::LLMQ_TEST;
         consensus.llmqTypeInstantSend = Consensus::LLMQ_TEST;
         consensus.llmqTypePlatform = Consensus::LLMQ_TEST;

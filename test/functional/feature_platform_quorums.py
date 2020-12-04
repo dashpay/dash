@@ -21,13 +21,13 @@ class PlatformQuorumActivationTest(BitcoinTestFramework):
         assert_equal(get_bip9_status(self.nodes[0], 'v17')['status'], 'locked_in')
         ql = self.nodes[0].quorum("list")
         assert_equal(len(ql), 1)
-        assert("llmq_test_new" not in ql)
+        assert("llmq_test_v17" not in ql)
         self.nodes[0].generate(99)
         assert_equal(get_bip9_status(self.nodes[0], 'v17')['status'], 'active')
         self.nodes[0].generate(1)
         ql = self.nodes[0].quorum("list")
         assert_equal(len(ql), 2)
-        assert("llmq_test_new" in ql)
+        assert("llmq_test_v17" in ql)
 
 
 if __name__ == '__main__':
