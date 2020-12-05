@@ -133,13 +133,11 @@ bool CQuorumBlockProcessor::ProcessBlock(const CBlock& block, const CBlockIndex*
     // until the first non-null commitment has been mined. After the non-null commitment, no other commitments are
     // allowed, including null commitments.
     // Note: must only check quorums that were enabled at the _previous_ block height to match mining logic
-    for (const auto& p : CLLMQUtils::GetEnabledQuorumTypes(pindex->pprev)) {
+    for (const auto& type : CLLMQUtils::GetEnabledQuorumTypes(pindex->pprev)) {
         // skip these checks when replaying blocks after the crash
         if (!chainActive.Tip()) {
             break;
         }
-
-        auto type = p.first;
 
         // does the currently processed block contain a (possibly null) commitment for the current session?
         bool hasCommitmentInNewBlock = qcs.count(type) != 0;

@@ -284,15 +284,20 @@ bool CLLMQUtils::IsQuorumTypeEnabled(Consensus::LLMQType llmqType, const CBlockI
     return true;
 }
 
-std::map<Consensus::LLMQType, Consensus::LLMQParams> CLLMQUtils::GetEnabledQuorumTypes(const CBlockIndex* pindex)
+std::vector<Consensus::LLMQType> CLLMQUtils::GetEnabledQuorumTypes(const CBlockIndex* pindex)
 {
-    std::map<Consensus::LLMQType, Consensus::LLMQParams> ret;
-    for (const auto& pair : Params().GetConsensus().llmqs) {
-        if (IsQuorumTypeEnabled(pair.first, pindex)) {
-            ret.emplace(pair);
+    std::vector<Consensus::LLMQType> ret;
+    for (const auto& p : Params().GetConsensus().llmqs) {
+        if (IsQuorumTypeEnabled(p.first, pindex)) {
+            ret.push_back(p.first);
         }
     }
     return ret;
+}
+
+Consensus::LLMQParams CLLMQUtils::GetLLMQParams(Consensus::LLMQType llmqType)
+{
+    return Params().GetConsensus().llmqs.at(llmqType);
 }
 
 } // namespace llmq

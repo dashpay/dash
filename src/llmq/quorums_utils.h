@@ -42,7 +42,8 @@ public:
 
     static bool IsQuorumActive(Consensus::LLMQType llmqType, const uint256& quorumHash);
     static bool IsQuorumTypeEnabled(Consensus::LLMQType llmqType, const CBlockIndex* pindex);
-    static std::map<Consensus::LLMQType, Consensus::LLMQParams> GetEnabledQuorumTypes(const CBlockIndex* pindex);
+    static std::vector<Consensus::LLMQType> GetEnabledQuorumTypes(const CBlockIndex* pindex);
+    static Consensus::LLMQParams GetLLMQParams(const Consensus::LLMQType llmqType);
 
     template<typename NodesContainer, typename Continue, typename Callback>
     static void IterateNodesRandom(NodesContainer& nodeStates, Continue&& cont, Callback&& callback, FastRandomContext& rnd)
