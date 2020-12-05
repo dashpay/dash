@@ -23,6 +23,9 @@ class LLMQSimplePoSeTest(DashTestFramework):
     def run_test(self):
 
         self.nodes[0].spork("SPORK_17_QUORUM_DKG_ENABLED", 0)
+        # Have to disable ChainLocks for this test because we have too many
+        # failing masternodes here and quorums will fail to sign blocks.
+        self.nodes[0].spork("SPORK_19_CHAINLOCKS_ENABLED", 4070908800)
         self.wait_for_sporks_same()
 
         # check if mining quorums with all nodes being online succeeds without punishment/banning
