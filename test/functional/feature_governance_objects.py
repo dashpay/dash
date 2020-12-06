@@ -22,7 +22,7 @@ def validate_object(prepared, rpc_prepared):
 
 class DashGovernanceTest (DashTestFramework):
     def set_test_params(self):
-        self.set_dash_test_params(2, 1)
+        self.set_dash_test_params(2, 1, fast_dip3_enforcement=True)
 
     def prepare_object(self, object_type, parent_hash, creation_time, revision, name, amount):
         proposal_rev = revision

@@ -19,6 +19,8 @@
 class CBlockIndex;
 class CScheduler;
 
+static const bool DEFAULT_ENABLE_CHAINLOCKS = true;
+
 namespace llmq
 {
 

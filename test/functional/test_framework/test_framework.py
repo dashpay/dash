@@ -699,9 +699,6 @@ class DashTestFramework(BitcoinTestFramework):
         self.nodes[0].generate(1)
         # sync nodes
         self.sync_all()
-        # Enable ChainLocks by default
-        self.nodes[0].spork("SPORK_19_CHAINLOCKS_ENABLED", 0)
-        self.wait_for_sporks_same()
         self.bump_mocktime(1)
 
         mn_info = self.nodes[0].masternodelist("status")

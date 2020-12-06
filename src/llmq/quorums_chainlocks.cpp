@@ -729,7 +729,7 @@ void CChainLocksHandler::Cleanup()
 
 bool AreChainLocksEnabled()
 {
-    return sporkManager.IsSporkActive(SPORK_19_CHAINLOCKS_ENABLED);
+    return gArgs.GetBoolArg("-enablechainlocks", DEFAULT_ENABLE_CHAINLOCKS);
 }
 
 } // namespace llmq
