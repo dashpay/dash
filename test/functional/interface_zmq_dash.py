@@ -284,9 +284,7 @@ class DashZMQTest (DashTestFramework):
             # this is expected
             pass
         # Now send the tx itself
-        tx = FromHex(CTransaction(), rpc_raw_tx_3['hex'])
-        tx.rehash()
-        self.test_node.send_tx(msg_tx(tx))
+        self.test_node.send_tx(FromHex(msg_tx(), rpc_raw_tx_3['hex']))
         self.wait_for_instantlock(rpc_raw_tx_3['txid'], self.nodes[0])
         # Validate hashtxlock
         zmq_tx_lock_hash = bytes_to_hex_str(self.receive(ZMQPublisher.hash_tx_lock).read(32))
