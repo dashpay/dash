@@ -15,10 +15,10 @@ import zmq
 
 from test_framework.test_framework import DashTestFramework, SkipTest
 from test_framework.mininode import P2PInterface, network_thread_start
-from test_framework.util import assert_equal, assert_raises_rpc_error, bytes_to_hex_str, hex_str_to_bytes
+from test_framework.util import assert_equal, assert_raises_rpc_error, bytes_to_hex_str
 from test_framework.messages import (CBlock, CGovernanceObject, CGovernanceVote, CInv, COutPoint, CRecoveredSig, CTransaction,
                                     msg_clsig, msg_inv, msg_islock, msg_tx,
-                                    FromHex, hash256, ser_compact_size, ser_string, uint256_from_str, uint256_to_string)
+                                    FromHex, hash256, ser_string, uint256_from_str, uint256_to_string)
 
 
 class ZMQPublisher(Enum):
@@ -131,25 +131,6 @@ class DashZMQTest (DashTestFramework):
         # Topic should match the publisher value
         assert_equal(topic.decode(), publisher.value)
         return io.BytesIO(body)
-
-    def create_islock(self, hextx):
-        tx = FromHex(CTransaction(), hextx)
-        tx.rehash()
-
-        request_id_buf = ser_string(b"islock") + ser_compact_size(len(tx.vin))
-        inputs = []
-        for txin in tx.vin:
-            request_id_buf += txin.prevout.serialize()
-            inputs.append(txin.prevout)
-        request_id = hash256(request_id_buf)[::-1].hex()
-        message_hash = tx.hash
-
-        for mn in self.mninfo:
-            mn.node.quorum('sign', 100, request_id, message_hash)
-
-        recSig = self.get_recovered_sig(request_id, message_hash)
-        islock = msg_islock(inputs, tx.sha256, hex_str_to_bytes(recSig['sig']))
-        return islock
 
     def test_recovered_signature_publishers(self):
 
