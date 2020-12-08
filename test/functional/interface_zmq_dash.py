@@ -16,9 +16,24 @@ import zmq
 from test_framework.test_framework import DashTestFramework, SkipTest
 from test_framework.mininode import P2PInterface, network_thread_start
 from test_framework.util import assert_equal, assert_raises_rpc_error, bytes_to_hex_str
-from test_framework.messages import (CBlock, CGovernanceObject, CGovernanceVote, CInv, COutPoint, CRecoveredSig, CTransaction,
-                                    msg_clsig, msg_inv, msg_islock, msg_tx,
-                                    FromHex, hash256, ser_string, uint256_from_str, uint256_to_string)
+from test_framework.messages import (
+    CBlock,
+    CGovernanceObject,
+    CGovernanceVote,
+    CInv,
+    COutPoint,
+    CRecoveredSig,
+    CTransaction,
+    FromHex,
+    hash256,
+    msg_clsig,
+    msg_inv,
+    msg_islock,
+    msg_tx,
+    ser_string,
+    uint256_from_str,
+    uint256_to_string
+)
 
 
 class ZMQPublisher(Enum):
@@ -36,6 +51,7 @@ class ZMQPublisher(Enum):
     raw_governance_object = "rawgovernanceobject"
     raw_instantsend_doublespend = "rawinstantsenddoublespend"
     raw_recovered_sig = "rawrecoveredsig"
+
 
 class TestP2PConn(P2PInterface):
     def __init__(self):
@@ -63,6 +79,7 @@ class TestP2PConn(P2PInterface):
                 self.send_message(self.islocks[inv.hash])
             if inv.hash in self.txes:
                 self.send_message(self.txes[inv.hash])
+
 
 class DashZMQTest (DashTestFramework):
     def set_test_params(self):
