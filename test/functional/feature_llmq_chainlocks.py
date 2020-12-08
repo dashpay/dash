@@ -102,11 +102,6 @@ class LLMQChainLocksTest(DashTestFramework):
         self.wait_for_chainlocked_block(self.nodes[0], self.nodes[1].getbestblockhash())
         assert(self.nodes[0].getbestblockhash() == self.nodes[1].getbestblockhash())
 
-        self.log.info("Enable LLMQ bases InstantSend, which also enables checks for \"safe\" transactions")
-        self.nodes[0].spork("SPORK_2_INSTANTSEND_ENABLED", 0)
-        self.nodes[0].spork("SPORK_3_INSTANTSEND_BLOCK_FILTERING", 0)
-        self.wait_for_sporks_same()
-
         self.log.info("Isolate a node and let it create some transactions which won't get IS locked")
         isolate_node(self.nodes[0])
         txs = []

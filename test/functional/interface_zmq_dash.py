@@ -64,7 +64,6 @@ class DashZMQTest (DashTestFramework):
             while self.nodes[0].getblockchaininfo()["bip9_softforks"]["dip0008"]["status"] != "active":
                 self.nodes[0].generate(10)
             self.sync_blocks()
-            self.nodes[0].spork("SPORK_2_INSTANTSEND_ENABLED", 0)
             self.nodes[0].spork("SPORK_17_QUORUM_DKG_ENABLED", 0)
             self.wait_for_sporks_same()
             # Create an LLMQ for testing
