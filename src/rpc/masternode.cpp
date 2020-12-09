@@ -179,6 +179,10 @@ UniValue GetNextMasternodeForPayment(int heightShift)
 
 void masternode_winner_help()
 {
+    if (!IsDeprecatedRPCEnabled("masternode_winner")) {
+        throw std::runtime_error("DEPRECATED: set -deprecatedrpc=masternode_winner to enable it");
+    }
+
     throw std::runtime_error(
             "masternode winner\n"
             "Print info on next masternode winner to vote for\n"
@@ -187,7 +191,7 @@ void masternode_winner_help()
 
 UniValue masternode_winner(const JSONRPCRequest& request)
 {
-    if (request.fHelp)
+    if (request.fHelp || !IsDeprecatedRPCEnabled("masternode_winner"))
         masternode_winner_help();
 
     return GetNextMasternodeForPayment(10);
@@ -195,6 +199,10 @@ UniValue masternode_winner(const JSONRPCRequest& request)
 
 void masternode_current_help()
 {
+    if (!IsDeprecatedRPCEnabled("masternode_current")) {
+        throw std::runtime_error("DEPRECATED: set -deprecatedrpc=masternode_current to enable it");
+    }
+
     throw std::runtime_error(
             "masternode current\n"
             "Print info on current masternode winner to be paid the next block (calculated locally)\n"
@@ -203,7 +211,7 @@ void masternode_current_help()
 
 UniValue masternode_current(const JSONRPCRequest& request)
 {
-    if (request.fHelp)
+    if (request.fHelp || !IsDeprecatedRPCEnabled("masternode_current"))
         masternode_current_help();
 
     return GetNextMasternodeForPayment(1);
@@ -523,14 +531,14 @@ UniValue masternode_payments(const JSONRPCRequest& request)
         "1. \"command\"        (string or set of strings, required) The command to execute\n"
         "\nAvailable commands:\n"
         "  count        - Get information about number of masternodes (DEPRECATED options: 'total', 'ps', 'enabled', 'qualify', 'all')\n"
-        "  current      - Print info on current masternode winner to be paid the next block (calculated locally)\n"
+        "  current      - DEPRECATED Print info on current masternode winner to be paid the next block (calculated locally)\n"
 #ifdef ENABLE_WALLET
         "  outputs      - Print masternode compatible outputs\n"
 #endif // ENABLE_WALLET
         "  status       - Print masternode status information\n"
         "  list         - Print list of all known masternodes (see masternodelist for more info)\n"
         "  payments     - Return information about masternode payments in a mined block\n"
-        "  winner       - Print info on next masternode winner to vote for\n"
+        "  winner       - DEPRECATED Print info on next masternode winner to vote for\n"
         "  winners      - Print list of masternode winners\n"
         );
 }
