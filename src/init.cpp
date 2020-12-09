@@ -882,6 +882,7 @@ void ThreadImport(std::vector<fs::path> vImportFiles)
 
 void PeriodicStats()
 {
+    assert(gArgs.GetBoolArg("-statsenabled", DEFAULT_STATSD_ENABLE));
     CCoinsStats stats;
     FlushStateToDisk();
     if (GetUTXOStats(pcoinsdbview.get(), stats)) {
