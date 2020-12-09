@@ -287,7 +287,7 @@ static Consensus::LLMQParams llmq100_67 = {
         .type = Consensus::LLMQ_100_67,
         .name = "llmq_100_67",
         .size = 100,
-        .minSize = 90,
+        .minSize = 80,
         .threshold = 67,
 
         .dkgInterval = 24, // one DKG per hour
