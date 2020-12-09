@@ -383,14 +383,16 @@ void masternode_payments_help()
             "    {\n"
             "       \"height\" : n,                 (numeric) The height of the block\n"
             "       \"blockhash\" : \"hash\",         (string) The hash of the block\n"
+            "       \"amount\": n                   (numeric) Amount received in this block by all masternodes\n"
             "       masternodes: [                (array) Masternodes that received payments in this block\n"
             "          {\n"
             "             \"proTxHash\": \"xxxx\",    (string) The hash of the corresponding ProRegTx\n"
+            "             \"amount\": n             (numeric) Amount received by this masternode\n"
             "             \"payees\": [             (array) Payees who received a share of this payment\n"
             "                {\n"
             "                  \"address\" : \"xxx\", (string) Payee address\n"
             "                  \"script\" : \"xxx\",  (string) Payee scriptPubKey\n"
-            "                  \"amount\": n        (numeric) Amount received\n"
+            "                  \"amount\": n        (numeric) Amount received by this payee\n"
             "                },...\n"
             "             ]\n"
             "          },...\n"
@@ -457,9 +459,12 @@ UniValue masternode_payments(const JSONRPCRequest& request)
         FillBlockPayments(dummyTx, pindex->nHeight, blockReward, voutMasternodePayments, voutDummy);
 
         UniValue blockObj(UniValue::VOBJ);
+        CAmount payedPerBlock{0};
+
         UniValue masternodeArr(UniValue::VARR);
         UniValue protxObj(UniValue::VOBJ);
         UniValue payeesArr(UniValue::VARR);
+        CAmount payedPerMasternode{0};
 
         for (const auto& txout : voutMasternodePayments) {
             UniValue obj(UniValue::VOBJ);
@@ -468,15 +473,20 @@ UniValue masternode_payments(const JSONRPCRequest& request)
             obj.pushKV("address", EncodeDestination(dest));
             obj.pushKV("script", HexStr(txout.scriptPubKey));
             obj.pushKV("amount", txout.nValue);
+            payedPerMasternode += txout.nValue;
             payeesArr.push_back(obj);
         }
 
         const auto dmnPayee = deterministicMNManager->GetListForBlock(pindex).GetMNPayee();
         protxObj.pushKV("proTxHash", dmnPayee == nullptr ? "" : dmnPayee->proTxHash.ToString());
+        protxObj.pushKV("amount", payedPerMasternode);
         protxObj.pushKV("payees", payeesArr);
+        payedPerBlock += payedPerMasternode;
         masternodeArr.push_back(protxObj);
+
         blockObj.pushKV("height", pindex->nHeight);
         blockObj.pushKV("blockhash", pindex->GetBlockHash().ToString());
+        blockObj.pushKV("amount", payedPerBlock);
         blockObj.pushKV("masternodes", masternodeArr);
         vecPayments.push_back(blockObj);
 
