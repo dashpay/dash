@@ -516,7 +516,7 @@ UniValue masternode_payments(const JSONRPCRequest& request)
 #endif // ENABLE_WALLET
         "  status       - Print masternode status information\n"
         "  list         - Print list of all known masternodes (see masternodelist for more info)\n"
-        "  payments     - Return information about masternode payments in the mined block\n"
+        "  payments     - Return information about masternode payments in a mined block\n"
         "  winner       - Print info on next masternode winner to vote for\n"
         "  winners      - Print list of masternode winners\n"
         );
