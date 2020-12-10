@@ -351,7 +351,7 @@ UniValue masternode_winners(const JSONRPCRequest& request)
     int nChainTipHeight = pindexTip->nHeight;
     int nStartHeight = std::max(nChainTipHeight - nCount, 1);
 
-    for(int h = nStartHeight; h <= nChainTipHeight; h++) {
+    for (int h = nStartHeight; h <= nChainTipHeight; h++) {
         auto payee = deterministicMNManager->GetListForBlock(pindexTip->GetAncestor(h - 1)).GetMNPayee();
         std::string strPayments = GetRequiredPaymentsString(h, payee);
         if (strFilter != "" && strPayments.find(strFilter) == std::string::npos) continue;
