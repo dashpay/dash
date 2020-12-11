@@ -424,12 +424,11 @@ UniValue masternode_payments(const JSONRPCRequest& request)
     }
 
     int64_t nCount = request.params.size() > 2 ? ParseInt64V(request.params[2], "count") : 1;
-    int nStepsLeft = std::abs(nCount);
 
     // A temporary vector which is used to sort results properly (there is no "reverse" in/for UniValue)
     std::vector<UniValue> vecPayments;
 
-    while (nStepsLeft != 0 && pindex != nullptr) {
+    while (vecPayments.size() < std::abs(nCount) != 0 && pindex != nullptr) {
 
         CBlock block;
         if(!ReadBlockFromDisk(block, pindex, Params().GetConsensus())) {
@@ -496,7 +495,6 @@ UniValue masternode_payments(const JSONRPCRequest& request)
         } else {
             pindex = pindex->pprev;
         }
-        --nStepsLeft;
     }
 
     if (nCount < 0) {
