@@ -415,7 +415,7 @@ UniValue masternode_payments(const JSONRPCRequest& request)
         pindex = chainActive.Tip();
     } else {
         LOCK(cs_main);
-        uint256 blockHash = ParseHashV(request.params[1], "blockHash");
+        uint256 blockHash = ParseHashV(request.params[1], "blockhash");
         auto it = mapBlockIndex.find(blockHash);
         if (it == mapBlockIndex.end()) {
             throw JSONRPCError(RPC_INVALID_ADDRESS_OR_KEY, "Block not found");
