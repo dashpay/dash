@@ -498,7 +498,7 @@ UniValue masternode_payments(const JSONRPCRequest& request)
     }
 
     if (nCount < 0) {
-        std::reverse(std::begin(vecPayments), std::end(vecPayments));
+        std::reverse(vecPayments.begin(), vecPayments.end());
     }
 
     UniValue paymentsArr(UniValue::VARR);
