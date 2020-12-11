@@ -384,7 +384,7 @@ void masternode_payments_help()
             "       \"height\" : n,                 (numeric) The height of the block\n"
             "       \"blockhash\" : \"hash\",         (string) The hash of the block\n"
             "       \"amount\": n                   (numeric) Amount received in this block by all masternodes\n"
-            "       masternodes: [                (array) Masternodes that received payments in this block\n"
+            "       \"masternodes\": [              (array) Masternodes that received payments in this block\n"
             "          {\n"
             "             \"proTxHash\": \"xxxx\",    (string) The hash of the corresponding ProRegTx\n"
             "             \"amount\": n             (numeric) Amount received by this masternode\n"
