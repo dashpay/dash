@@ -431,11 +431,11 @@ UniValue masternode_payments(const JSONRPCRequest& request)
     while (vecPayments.size() < std::abs(nCount) != 0 && pindex != nullptr) {
 
         CBlock block;
-        if(!ReadBlockFromDisk(block, pindex, Params().GetConsensus())) {
+        if (!ReadBlockFromDisk(block, pindex, Params().GetConsensus())) {
             throw JSONRPCError(RPC_INTERNAL_ERROR, "Can't read block from disk");
         }
 
-        // Note: we have to actually calculate block reward from scratch instead of simply quering coinbase vout
+        // Note: we have to actually calculate block reward from scratch instead of simply querying coinbase vout
         // because miners might collect less coins than they potentially could and this would break our calculations.
         CAmount nBlockFees{0};
         for (const auto& tx : block.vtx) {
