@@ -3043,23 +3043,23 @@ struct CompareByPriority
     }
 };
 
-bool CWallet::OutputEligibleForSpending(const COutput& output, const CoinEligibilityFilter& eligibilty_filter) const
+bool CWallet::OutputEligibleForSpending(const COutput& output, const CoinEligibilityFilter& eligibility_filter) const
 {
     if (!output.fSpendable)
         return false;
 
     bool fLockedByIS = output.tx->IsLockedByInstantSend();
 
-    if ((output.nDepth < (output.tx->IsFromMe(ISMINE_ALL) ? eligibilty_filter.conf_mine : eligibilty_filter.conf_theirs)) && !fLockedByIS)
+    if ((output.nDepth < (output.tx->IsFromMe(ISMINE_ALL) ? eligibility_filter.conf_mine : eligibility_filter.conf_theirs)) && !fLockedByIS)
         return false;
 
-    if (!mempool.TransactionWithinChainLimit(output.tx->GetHash(), eligibilty_filter.max_ancestors))
+    if (!mempool.TransactionWithinChainLimit(output.tx->GetHash(), eligibility_filter.max_ancestors))
         return false;
 
     return true;
 }
 
-bool CWallet::SelectCoinsMinConf(const CAmount& nTargetValue, const CoinEligibilityFilter& eligibilty_filter, std::vector<COutput> vCoins,
+bool CWallet::SelectCoinsMinConf(const CAmount& nTargetValue, const CoinEligibilityFilter& eligibility_filter, std::vector<COutput> vCoins,
                                  std::set<CInputCoin>& setCoinsRet, CAmount& nValueRet, const CoinSelectionParams& coin_selection_params, bool& bnb_used, CoinType nCoinType) const
 {
     setCoinsRet.clear();
@@ -3080,7 +3080,7 @@ bool CWallet::SelectCoinsMinConf(const CAmount& nTargetValue, const CoinEligibil
         // Filter by the min conf specs and add to utxo_pool and calculate effective value
         for (const COutput &output : vCoins)
         {
-            if (!OutputEligibleForSpending(output, eligibilty_filter))
+            if (!OutputEligibleForSpending(output, eligibility_filter))
                 continue;
 
             CInputCoin coin(output.tx->tx, output.i);
@@ -3100,7 +3100,7 @@ bool CWallet::SelectCoinsMinConf(const CAmount& nTargetValue, const CoinEligibil
         // Filter by the min conf specs and add to utxo_pool
         for (const COutput &output : vCoins)
         {
-            if (!OutputEligibleForSpending(output, eligibilty_filter))
+            if (!OutputEligibleForSpending(output, eligibility_filter))
                 continue;
 
             CInputCoin coin = CInputCoin(output.tx->tx, output.i);
