@@ -14,7 +14,6 @@ def validate_object(prepared, rpc_prepared):
     assert_equal(prepared["collateralHash"], rpc_prepared["collateralHash"])
     assert_equal(prepared["createdAt"], rpc_prepared["createdAt"])
     assert_equal(prepared["revision"], rpc_prepared["revision"])
-    assert_equal(prepared["type"], rpc_prepared["type"])
     assert_equal(prepared["hex"], rpc_prepared["data"]["hex"])
     del rpc_prepared["data"]["hex"]
     assert_equal(prepared["data"], rpc_prepared["data"])
