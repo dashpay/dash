@@ -42,7 +42,6 @@ class DashGovernanceTest (DashTestFramework):
             "collateralHash": collateral_hash,
             "createdAt": proposal_time,
             "revision": proposal_rev,
-            "type": object_type,
             "hex": proposal_hex,
             "data": proposal_template,
         }
