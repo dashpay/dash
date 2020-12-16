@@ -117,15 +117,6 @@ const uint256 CMerkleTx::ABANDON_HASH(uint256S("00000000000000000000000000000000
  * @{
  */
 
-struct CompareValueOnly
-{
-    bool operator()(const CInputCoin& t1,
-                    const CInputCoin& t2) const
-    {
-        return t1.txout.nValue < t2.txout.nValue;
-    }
-};
-
 std::string COutput::ToString() const
 {
     return strprintf("COutput(%s, %d, %d) [%s]", tx->GetHash().ToString(), i, nDepth, FormatMoney(tx->tx->vout[i].nValue));
@@ -3043,57 +3034,6 @@ void CWallet::InitPrivateSendSalt()
     }
 }
 
-static void ApproximateBestSubset(const std::vector<CInputCoin>& vValue, const CAmount& nTotalLower, const CAmount& nTargetValue,
-                                  std::vector<char>& vfBest, CAmount& nBest, int iterations = 1000)
-{
-    std::vector<char> vfIncluded;
-
-    vfBest.assign(vValue.size(), true);
-    nBest = nTotalLower;
-    int nBestInputCount = 0;
-
-    FastRandomContext insecure_rand;
-
-    for (int nRep = 0; nRep < iterations && nBest != nTargetValue; nRep++)
-    {
-        vfIncluded.assign(vValue.size(), false);
-        CAmount nTotal = 0;
-        int nTotalInputCount = 0;
-        bool fReachedTarget = false;
-        for (int nPass = 0; nPass < 2 && !fReachedTarget; nPass++)
-        {
-            for (unsigned int i = 0; i < vValue.size(); i++)
-            {
-                //The solver here uses a randomized algorithm,
-                //the randomness serves no real security purpose but is just
-                //needed to prevent degenerate behavior and it is important
-                //that the rng is fast. We do not use a constant random sequence,
-                //because there may be some privacy improvement by making
-                //the selection random.
-                if (nPass == 0 ? insecure_rand.randbool() : !vfIncluded[i])
-                {
-                    nTotal += vValue[i].txout.nValue;
-                    ++nTotalInputCount;
-                    vfIncluded[i] = true;
-                    if (nTotal >= nTargetValue)
-                    {
-                        fReachedTarget = true;
-                        if (nTotal < nBest || (nTotal == nBest && nTotalInputCount < nBestInputCount))
-                        {
-                            nBest = nTotal;
-                            nBestInputCount = nTotalInputCount;
-                            vfBest = vfIncluded;
-                        }
-                        nTotal -= vValue[i].txout.nValue;
-                        --nTotalInputCount;
-                        vfIncluded[i] = false;
-                    }
-                }
-            }
-        }
-    }
-}
-
 struct CompareByPriority
 {
     bool operator()(const COutput& t1,
@@ -3102,22 +3042,6 @@ struct CompareByPriority
         return t1.Priority() > t2.Priority();
     }
 };
-
-// move denoms down
-bool less_then_denom (const COutput& out1, const COutput& out2)
-{
-    const CWalletTx *pcoin1 = out1.tx;
-    const CWalletTx *pcoin2 = out2.tx;
-
-    bool found1 = false;
-    bool found2 = false;
-    for (const auto& d : CPrivateSend::GetStandardDenominations()) // loop through predefined denoms
-    {
-        if(pcoin1->tx->vout[out1.i].nValue == d) found1 = true;
-        if(pcoin2->tx->vout[out2.i].nValue == d) found2 = true;
-    }
-    return (!found1 && found2);
-}
 
 bool CWallet::OutputEligibleForSpending(const COutput& output, const CoinEligibilityFilter& eligibilty_filter) const
 {
@@ -3141,128 +3065,16 @@ bool CWallet::SelectCoinsMinConf(const CAmount& nTargetValue, const CoinEligibil
     setCoinsRet.clear();
     nValueRet = 0;
 
-    // List of values less than target
-    boost::optional<CInputCoin> coinLowestLarger;
-    std::vector<CInputCoin> vValue;
-    CAmount nTotalLower = 0;
-
-    random_shuffle(vCoins.begin(), vCoins.end(), GetRandInt);
-
-    int tryDenomStart = 0;
-    CAmount nMinChange = MIN_CHANGE;
-
-    if (nCoinType == CoinType::ONLY_FULLY_MIXED) {
-        // larger denoms first
-        std::sort(vCoins.rbegin(), vCoins.rend(), CompareByPriority());
-        // we actually want denoms only, so let's skip "non-denom only" step
-        tryDenomStart = 1;
-        // no change is allowed
-        nMinChange = 0;
-    } else {
-        // move denoms down on the list
-        // try not to use denominated coins when not needed, save denoms for privatesend
-        std::sort(vCoins.begin(), vCoins.end(), less_then_denom);
-    }
-
-    // try to find nondenom first to prevent unneeded spending of mixed coins
-    for (unsigned int tryDenom = tryDenomStart; tryDenom < 2; tryDenom++)
+    std::vector<CInputCoin> utxo_pool;
+    for (const COutput &output : vCoins)
     {
-        LogPrint(BCLog::SELECTCOINS, "tryDenom: %d\n", tryDenom);
-        vValue.clear();
-        nTotalLower = 0;
-        for (const COutput &output : vCoins)
-        {
-            if (!OutputEligibleForSpending(output, eligibilty_filter))
-                continue;
+        if (!OutputEligibleForSpending(output, eligibilty_filter))
+            continue;
 
-            CInputCoin coin = CInputCoin(output.tx->tx, output.i);
-
-            if (tryDenom == 0 && CPrivateSend::IsDenominatedAmount(coin.txout.nValue)) continue; // we don't want denom values on first run
-
-            if (coin.txout.nValue == nTargetValue)
-            {
-                setCoinsRet.insert(coin);
-                nValueRet += coin.txout.nValue;
-                return true;
-            }
-            else if (coin.txout.nValue < nTargetValue + nMinChange)
-            {
-                vValue.push_back(coin);
-                nTotalLower += coin.txout.nValue;
-            }
-            else if (!coinLowestLarger || coin.txout.nValue < coinLowestLarger->txout.nValue)
-            {
-                coinLowestLarger = coin;
-            }
-        }
-
-        if (nTotalLower == nTargetValue)
-        {
-            for (const auto& input : vValue)
-            {
-                setCoinsRet.insert(input);
-                nValueRet += input.txout.nValue;
-            }
-            return true;
-        }
-
-        if (nTotalLower < nTargetValue)
-        {
-            if (!coinLowestLarger) // there is no input larger than nTargetValue
-            {
-                if (tryDenom == 0)
-                    // we didn't look at denom yet, let's do it
-                    continue;
-                else
-                    // we looked at everything possible and didn't find anything, no luck
-                    return false;
-            }
-            setCoinsRet.insert(coinLowestLarger.get());
-            nValueRet += coinLowestLarger->txout.nValue;
-            // There is no change in PS, so we know the fee beforehand,
-            // can see if we exceeded the max fee and thus fail quickly.
-            return (nCoinType == CoinType::ONLY_FULLY_MIXED) ? (nValueRet - nTargetValue <= maxTxFee) : true;
-        }
-
-        // nTotalLower > nTargetValue
-        break;
+        CInputCoin coin = CInputCoin(output.tx->tx, output.i);
+        utxo_pool.push_back(coin);
     }
-
-    // Solve subset sum by stochastic approximation
-    std::sort(vValue.begin(), vValue.end(), CompareValueOnly());
-    std::reverse(vValue.begin(), vValue.end());
-    std::vector<char> vfBest;
-    CAmount nBest;
-
-    ApproximateBestSubset(vValue, nTotalLower, nTargetValue, vfBest, nBest);
-    if (nBest != nTargetValue && nMinChange != 0 && nTotalLower >= nTargetValue + nMinChange)
-        ApproximateBestSubset(vValue, nTotalLower, nTargetValue + nMinChange, vfBest, nBest);
-
-    // If we have a bigger coin and (either the stochastic approximation didn't find a good solution,
-    //                                   or the next bigger coin is closer), return the bigger coin
-    if (coinLowestLarger &&
-        ((nBest != nTargetValue && nBest < nTargetValue + nMinChange) || coinLowestLarger->txout.nValue <= nBest))
-    {
-        setCoinsRet.insert(coinLowestLarger.get());
-        nValueRet += coinLowestLarger->txout.nValue;
-    }
-    else {
-        std::string s = "CWallet::SelectCoinsMinConf best subset: ";
-        for (unsigned int i = 0; i < vValue.size(); i++)
-        {
-            if (vfBest[i])
-            {
-                setCoinsRet.insert(vValue[i]);
-                nValueRet += vValue[i].txout.nValue;
-                s += FormatMoney(vValue[i].txout.nValue) + " ";
-            }
-        }
-        LogPrint(BCLog::SELECTCOINS, "%s - total %s\n", s, FormatMoney(nBest));
-    }
-
-    // There is no change in PS, so we know the fee beforehand,
-    // can see if we exceeded the max fee and thus fail quickly.
-    return (nCoinType == CoinType::ONLY_FULLY_MIXED) ? (nValueRet - nTargetValue <= maxTxFee) : true;
+    return KnapsackSolver(nTargetValue, utxo_pool, setCoinsRet, nValueRet, nCoinType == CoinType::ONLY_FULLY_MIXED, maxTxFee);
 }
 
 bool CWallet::SelectCoins(const std::vector<COutput>& vAvailableCoins, const CAmount& nTargetValue, std::set<CInputCoin>& setCoinsRet, CAmount& nValueRet, const CCoinControl* coinControl) const
