@@ -312,8 +312,20 @@ public:
             assert(consensus.hashGenesisBlock == uint256S("0x000009701eb781a8113b1af1d814e2f060f6408a2c990db291bc5108a1345c1e"));
             assert(genesis.hashMerkleRoot == uint256S("0x5dc9bcf5d1e4802dad0045a88849e3ad97d07a5b8aaee1114ed5ae03b98c4bfc"));
 
-            vSeeds.push_back(CDNSSeedData("dnsseed.poliscentral.org", "dnsseed.poliscentral.org"));
-            vSeeds.push_back(CDNSSeedData("dnsseed.polispay.org", "dnsseed.polispay.org"));
+            vSeeds.push_back(CDNSSeedData("159.203.119.39","159.203.119.39"));
+            vSeeds.push_back(CDNSSeedData("206.189.79.85", "206.189.79.85"));
+            vSeeds.push_back(CDNSSeedData("116.203.90.57", "116.203.90.57"));
+            vSeeds.push_back(CDNSSeedData("173.212.199.71", "173.212.199.71"));
+            vSeeds.push_back(CDNSSeedData("80.86.87.29", "80.86.87.29"));
+            vSeeds.push_back(CDNSSeedData("80.211.37.200", "80.211.37.200"));
+            vSeeds.push_back(CDNSSeedData("51.83.85.168", "51.83.85.168"));
+            vSeeds.push_back(CDNSSeedData("206.189.78.156", "206.189.78.156"));
+            vSeeds.push_back(CDNSSeedData("167.86.113.143", "167.86.113.143"));
+            vSeeds.push_back(CDNSSeedData("85.25.110.16", "85.25.110.16"));
+            vSeeds.push_back(CDNSSeedData("188.40.251.194", "188.40.251.194"));
+            vSeeds.push_back(CDNSSeedData("188.165.57.177", "188.165.57.177"));
+            vSeeds.push_back(CDNSSeedData("51.83.85.170", "51.83.85.170"));
+            vSeeds.push_back(CDNSSeedData("188.166.96.128", "188.166.96.128"));
 
             // polis addresses start with 'P'
             base58Prefixes[PUBKEY_ADDRESS] = std::vector<unsigned char>(1,55);
