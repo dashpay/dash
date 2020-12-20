@@ -13,7 +13,7 @@
  */
 
 
-static const int PROTOCOL_VERSION = 70220;
+static const int PROTOCOL_VERSION = 70221;
 
 static const int LLMQS_PROTO_VERSION = PROTOCOL_VERSION;
 
