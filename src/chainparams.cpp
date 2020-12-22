@@ -312,20 +312,16 @@ public:
             assert(consensus.hashGenesisBlock == uint256S("0x000009701eb781a8113b1af1d814e2f060f6408a2c990db291bc5108a1345c1e"));
             assert(genesis.hashMerkleRoot == uint256S("0x5dc9bcf5d1e4802dad0045a88849e3ad97d07a5b8aaee1114ed5ae03b98c4bfc"));
 
-            vSeeds.push_back(CDNSSeedData("159.203.119.39","159.203.119.39"));
-            vSeeds.push_back(CDNSSeedData("206.189.79.85", "206.189.79.85"));
-            vSeeds.push_back(CDNSSeedData("116.203.90.57", "116.203.90.57"));
-            vSeeds.push_back(CDNSSeedData("173.212.199.71", "173.212.199.71"));
-            vSeeds.push_back(CDNSSeedData("80.86.87.29", "80.86.87.29"));
-            vSeeds.push_back(CDNSSeedData("80.211.37.200", "80.211.37.200"));
-            vSeeds.push_back(CDNSSeedData("51.83.85.168", "51.83.85.168"));
-            vSeeds.push_back(CDNSSeedData("206.189.78.156", "206.189.78.156"));
-            vSeeds.push_back(CDNSSeedData("167.86.113.143", "167.86.113.143"));
-            vSeeds.push_back(CDNSSeedData("85.25.110.16", "85.25.110.16"));
-            vSeeds.push_back(CDNSSeedData("188.40.251.194", "188.40.251.194"));
-            vSeeds.push_back(CDNSSeedData("188.165.57.177", "188.165.57.177"));
-            vSeeds.push_back(CDNSSeedData("51.83.85.170", "51.83.85.170"));
-            vSeeds.push_back(CDNSSeedData("188.166.96.128", "188.166.96.128"));
+            vSeeds.push_back(CDNSSeedData("167.172.143.204","167.172.143.204"));
+            vSeeds.push_back(CDNSSeedData("165.22.82.200", "165.22.82.200"));
+            vSeeds.push_back(CDNSSeedData("46.101.145.29", "46.101.145.29"));
+            vSeeds.push_back(CDNSSeedData("178.128.7.220", "178.128.7.220"));
+            vSeeds.push_back(CDNSSeedData("165.227.140.247", "165.227.140.247"));
+            vSeeds.push_back(CDNSSeedData("45.32.184.252", "45.32.184.252"));
+            vSeeds.push_back(CDNSSeedData("95.111.237.31", "95.111.237.31"));
+            vSeeds.push_back(CDNSSeedData("161.97.112.31", "161.97.112.31"));
+            vSeeds.push_back(CDNSSeedData("167.71.3.168", "167.71.3.168"));
+            vSeeds.push_back(CDNSSeedData("64.227.44.5", "64.227.44.5"));
 
             // polis addresses start with 'P'
             base58Prefixes[PUBKEY_ADDRESS] = std::vector<unsigned char>(1,55);
@@ -397,10 +393,11 @@ public:
                         ( 336284, uint256S("0xd3dbdedff4c5b1f6e47ab43d2b0dc1f9a5a011035b4b936284a5b8725d405a78"))
                         ( 379624, uint256S("0x58b38dde8562a110d53bae6cc5326678615a9f461095bcc189b6de6d0f7e65cc"))
                         ( 453700, uint256S("0xaebf0dde0fde68ffba89b515f3e7d8f64e15ccf309f8fe60302e4df482c34555"))
+                        ( 750669, uint256S("0x8db94d662b88ef32cab70c2b2e117c885defbd30da68fcde5fa64f6aaa89c292"))
             };
         chainTxData = ChainTxData{
-                1570809074, // * UNIX timestamp of last checkpoint block
-                1111606,    // * total number of transactions between genesis and last checkpoint
+                1608655984, // * UNIX timestamp of last checkpoint block
+                2388905,    // * total number of transactions between genesis and last checkpoint
                 //   (the tx=... number in the SetBestChain debug.log lines)
                 0.1        // * estimated number of transactions per day after checkpoint
 
