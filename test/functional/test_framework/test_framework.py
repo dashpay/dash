@@ -551,7 +551,7 @@ class DashTestFramework(BitcoinTestFramework):
         self.log.info("Wait for dip0008 activation")
         while self.nodes[0].getblockcount() < self.dip8_activation_height:
             self.nodes[0].generate(10)
-            self.sync_blocks(self.nodes)
+        self.sync_blocks(self.nodes)
 
     def set_dash_llmq_test_params(self, llmq_size, llmq_threshold):
         self.llmq_size = llmq_size
