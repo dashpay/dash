@@ -414,17 +414,14 @@ UniValue quorum_sigs_cmd(const JSONRPCRequest& request)
                 // Then check against the previous active set in case it changed recently
                 auto signOffset = Params().GetConsensus().llmqs.at(llmqType).dkgInterval;
                 quorum = llmq::quorumSigningManager->SelectQuorumForSigning(llmqType, id, signHeight, signOffset);
-                if (!quorum) {
-                    // None of the above
-                    throw JSONRPCError(RPC_INVALID_PARAMETER, "quorum not found");
-                }
             }
         } else {
             uint256 quorumHash = ParseHashV(request.params[5], "quorumHash");
             quorum = llmq::quorumManager->GetQuorum(llmqType, quorumHash);
-            if (!quorum) {
-                throw JSONRPCError(RPC_INVALID_PARAMETER, "quorum not found");
-            }
+        }
+
+        if (!quorum) {
+            throw JSONRPCError(RPC_INVALID_PARAMETER, "quorum not found");
         }
 
         uint256 signHash = llmq::CLLMQUtils::BuildSignHash(llmqType, quorum->qc.quorumHash, id, msgHash);
