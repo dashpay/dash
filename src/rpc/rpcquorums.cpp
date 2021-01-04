@@ -303,7 +303,7 @@ void quorum_verify_help()
 {
     throw std::runtime_error(
             "quorum verify llmqType \"id\" \"msgHash\" \"signature\" ( \"quorumHash\" signHeight )\n"
-            "Test if a quorum signature is valid for a message\n"
+            "Test if a quorum signature is valid for a request id and a message hash\n"
             "\nArguments:\n"
             "1. llmqType              (int, required) LLMQ type.\n"
             "2. \"id\"                  (string, required) Request id.\n"
@@ -534,7 +534,7 @@ UniValue quorum_dkgsimerror(const JSONRPCRequest& request)
             "  dkgstatus         - Return the status of the current DKG process\n"
             "  memberof          - Checks which quorums the given masternode is a member of\n"
             "  sign              - Threshold-sign a message\n"
-            "  verify            - Test if a quorum signature is valid for a message\n"
+            "  verify            - Test if a quorum signature is valid for a request id and a message hash\n"
             "  hasrecsig         - Test if a valid recovered signature is present\n"
             "  getrecsig         - Get a recovered signature\n"
             "  isconflicting     - Test if a conflict exists\n"
