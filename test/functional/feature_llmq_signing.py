@@ -70,6 +70,7 @@ class LLMQSigningTest(DashTestFramework):
         # Find quorum automatically
         height = node.getblockcount()
         height_bad = node.getblockheader(recsig["quorumHash"])["height"]
+        hash_bad = node.getblockhash(0)
         assert(node.quorum("verify", 100, id, msgHash, recsig["sig"]))
         assert(node.quorum("verify", 100, id, msgHash, recsig["sig"], "", height))
         assert(not node.quorum("verify", 100, id, msgHashConflict, recsig["sig"]))
@@ -77,6 +78,7 @@ class LLMQSigningTest(DashTestFramework):
         # Use specifc quorum
         assert(node.quorum("verify", 100, id, msgHash, recsig["sig"], recsig["quorumHash"]))
         assert(not node.quorum("verify", 100, id, msgHashConflict, recsig["sig"], recsig["quorumHash"]))
+        assert_raises_rpc_error(-8, "quorum not found", node.quorum, "verify", 100, id, msgHash, recsig["sig"], hash_bad)
 
         recsig_time = self.mocktime
 
