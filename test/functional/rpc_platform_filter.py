@@ -86,7 +86,7 @@ class HTTPBasicsTest(BitcoinTestFramework):
                 test_command(command, [], rpcuser_authpair_operator, 403, True)
 
         self.log.info('Try running a not whitelisted command as the operator...')
-        test_command("stop", [], rpcuser_authpair_operator, 200)
+        test_command("debug", ["1"], rpcuser_authpair_operator, 200)
 
 
 if __name__ == '__main__':
