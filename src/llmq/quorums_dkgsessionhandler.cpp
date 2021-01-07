@@ -429,9 +429,7 @@ bool ProcessPendingMessageBatch(CDKGSession& session, CDKGPendingMessages& pendi
         return false;
     }
 
-    std::vector<uint256> hashes;
     std::vector<std::pair<NodeId, std::shared_ptr<Message>>> preverifiedMessages;
-    hashes.reserve(msgs.size());
     preverifiedMessages.reserve(msgs.size());
 
     for (const auto& p : msgs) {
@@ -457,7 +455,6 @@ bool ProcessPendingMessageBatch(CDKGSession& session, CDKGPendingMessages& pendi
             LogPrint(BCLog::LLMQ_DKG, "%s -- skipping message due to failed preverification, peer=%d\n", __func__, p.first);
             continue;
         }
-        hashes.emplace_back(::SerializeHash(msg));
         preverifiedMessages.emplace_back(p);
     }
     if (preverifiedMessages.empty()) {
@@ -480,7 +477,7 @@ bool ProcessPendingMessageBatch(CDKGSession& session, CDKGPendingMessages& pendi
         }
         const auto& msg = *preverifiedMessages[i].second;
         bool ban = false;
-        session.ReceiveMessage(hashes[i], msg, ban);
+        session.ReceiveMessage(msg, ban);
         if (ban) {
             LogPrint(BCLog::LLMQ_DKG, "%s -- banning node after ReceiveMessage failed, peer=%d\n", __func__, nodeId);
             LOCK(cs_main);
