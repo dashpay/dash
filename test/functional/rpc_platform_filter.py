@@ -63,7 +63,7 @@ class HTTPBasicsTest(BitcoinTestFramework):
             if line and not line.startswith('='):
                 command = line.split()[0]
                 if not command in whitelisted:
-                    nonwhitelisted.add(line.split()[0])
+                    nonwhitelisted.add(command)
 
         rpcuser_authpair_platform = "platform-user:password123"
         rpcuser_authpair_operator = "operator:otherpassword"
@@ -81,7 +81,7 @@ class HTTPBasicsTest(BitcoinTestFramework):
         self.log.info('Try running all non-whitelisted commands as each user...')
         for command in nonwhitelisted:
             test_command(command, [], rpcuser_authpair_platform, 403)
-            if command != "stop": # avoid stoping the node while testing
+            if command != "stop":  # avoid stoping the node while testing
                 # we don't care about the exact status here, should simply be anything else but 403
                 test_command(command, [], rpcuser_authpair_operator, 403, True)
 
