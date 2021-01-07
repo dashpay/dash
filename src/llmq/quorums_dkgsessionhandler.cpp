@@ -433,26 +433,25 @@ bool ProcessPendingMessageBatch(CDKGSession& session, CDKGPendingMessages& pendi
     preverifiedMessages.reserve(msgs.size());
 
     for (const auto& p : msgs) {
+        const NodeId &nodeId = p.first;
         if (!p.second) {
-            LogPrint(BCLog::LLMQ_DKG, "%s -- failed to deserialize message, peer=%d\n", __func__, p.first);
+            LogPrint(BCLog::LLMQ_DKG, "%s -- failed to deserialize message, peer=%d\n", __func__, nodeId);
             {
                 LOCK(cs_main);
-                Misbehaving(p.first, 100);
+                Misbehaving(nodeId, 100);
             }
             continue;
         }
-        const auto& msg = *p.second;
-
         bool ban = false;
-        if (!session.PreVerifyMessage(msg, ban)) {
+        if (!session.PreVerifyMessage(*p.second, ban)) {
             if (ban) {
-                LogPrint(BCLog::LLMQ_DKG, "%s -- banning node due to failed preverification, peer=%d\n", __func__, p.first);
+                LogPrint(BCLog::LLMQ_DKG, "%s -- banning node due to failed preverification, peer=%d\n", __func__, nodeId);
                 {
                     LOCK(cs_main);
-                    Misbehaving(p.first, 100);
+                    Misbehaving(nodeId, 100);
                 }
             }
-            LogPrint(BCLog::LLMQ_DKG, "%s -- skipping message due to failed preverification, peer=%d\n", __func__, p.first);
+            LogPrint(BCLog::LLMQ_DKG, "%s -- skipping message due to failed preverification, peer=%d\n", __func__, nodeId);
             continue;
         }
         preverifiedMessages.emplace_back(p);
@@ -470,14 +469,13 @@ bool ProcessPendingMessageBatch(CDKGSession& session, CDKGPendingMessages& pendi
         }
     }
 
-    for (size_t i = 0; i < preverifiedMessages.size(); i++) {
-        NodeId nodeId = preverifiedMessages[i].first;
+    for (const auto& p : preverifiedMessages) {
+        const NodeId &nodeId = p.first;
         if (badNodes.count(nodeId)) {
             continue;
         }
-        const auto& msg = *preverifiedMessages[i].second;
         bool ban = false;
-        session.ReceiveMessage(msg, ban);
+        session.ReceiveMessage(*p.second, ban);
         if (ban) {
             LogPrint(BCLog::LLMQ_DKG, "%s -- banning node after ReceiveMessage failed, peer=%d\n", __func__, nodeId);
             LOCK(cs_main);
