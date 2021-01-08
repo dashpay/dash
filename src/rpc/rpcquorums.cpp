@@ -412,7 +412,7 @@ UniValue quorum_sigs_cmd(const JSONRPCRequest& request)
             quorum = llmq::quorumSigningManager->SelectQuorumForSigning(llmqType, id, signHeight, 0);
             if (!quorum) {
                 // Then check against the previous active set in case it changed recently
-                auto signOffset = Params().GetConsensus().llmqs.at(llmqType).dkgInterval;
+                int signOffset = Params().GetConsensus().llmqs.at(llmqType).dkgInterval;
                 quorum = llmq::quorumSigningManager->SelectQuorumForSigning(llmqType, id, signHeight, signOffset);
             }
         } else {
