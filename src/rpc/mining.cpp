@@ -194,6 +194,11 @@ UniValue generatetoaddress(const JSONRPCRequest& request)
 
     return generateBlocks(coinbaseScript, nGenerate, nMaxTries, false);
 }
+#else
+UniValue generatetoaddress(const JSONRPCRequest& request)
+{
+    throw std::runtime_error("Error RPC miner isn't compiled");
+}
 #endif // ENABLE_MINER
 
 UniValue getmininginfo(const JSONRPCRequest& request)
@@ -966,6 +971,8 @@ static const CRPCCommand commands[] =
 
 #if ENABLE_MINER
     { "generating",         "generatetoaddress",      &generatetoaddress,      {"nblocks","address","maxtries"} },
+#else
+    { "hidden",             "generatetoaddress",      &generatetoaddress,      {"nblocks","address","maxtries"} }, // Hidden as it isn't functional, just an error to let people know if miner isn't compiled
 #endif // ENABLE_MINER
 
     { "hidden",             "estimatefee",            &estimatefee,            {} },
