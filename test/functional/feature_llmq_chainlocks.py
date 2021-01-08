@@ -78,7 +78,7 @@ class LLMQChainLocksTest(DashTestFramework):
 
         self.log.info("Keep node connected and let it try to reorg the chain")
         good_tip = self.nodes[0].getbestblockhash()
-        self.log.info("Restart it so that it forgets all the chainlocks from the past")
+        self.log.info("Restart it so that it forgets all the chainlocks messages from the past")
         self.stop_node(0)
         self.start_node(0)
         connect_nodes(self.nodes[0], 1)
