@@ -3740,7 +3740,7 @@ UniValue generate(const JSONRPCRequest& request)
 #else
 UniValue generate(const JSONRPCRequest& request)
 {
-    throw std::runtime_error("Error RPC miner isn't compiled");
+    throw JSONRPCError(RPC_METHOD_NOT_FOUND, "This call is not available because RPC miner isn't compiled");
 }
 #endif //ENABLE_MINING
 
