@@ -63,7 +63,7 @@ public:
         if (rndNodes.empty()) {
             return;
         }
-        std::random_shuffle(rndNodes.begin(), rndNodes.end(), rnd);
+        Shuffle(rndNodes.begin(), rndNodes.end(), FastRandomContext());
 
         size_t idx = 0;
         while (!rndNodes.empty() && cont()) {
