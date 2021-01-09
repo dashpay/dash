@@ -35,7 +35,7 @@ static void BuildTestVectors(size_t count, size_t invalidCount,
     for (size_t i = 0; i < invalidCount; i++) {
         invalid[i] = true;
     }
-    std::random_shuffle(invalid.begin(), invalid.end());
+    std::shuffle(invalid.begin(), invalid.end());
 
     for (size_t i = 0; i < count; i++) {
         secKeys[i].MakeNewKey();
