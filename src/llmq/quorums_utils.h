@@ -63,7 +63,7 @@ public:
         if (rndNodes.empty()) {
             return;
         }
-        Shuffle(rndNodes.begin(), rndNodes.end(), FastRandomContext());
+        Shuffle(rndNodes.begin(), rndNodes.end(), rnd);
 
         size_t idx = 0;
         while (!rndNodes.empty() && cont()) {
