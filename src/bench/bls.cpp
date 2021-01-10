@@ -35,7 +35,6 @@ static void BuildTestVectors(size_t count, size_t invalidCount,
     for (size_t i = 0; i < invalidCount; i++) {
         invalid[i] = true;
     }
-    
     Shuffle(invalid.begin(), invalid.end(), FastRandomContext());
 
     for (size_t i = 0; i < count; i++) {
