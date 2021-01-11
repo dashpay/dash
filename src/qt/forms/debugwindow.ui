@@ -828,7 +828,7 @@
           <item row="1" column="0">
            <widget class="QLabel" name="label_51">
             <property name="text">
-             <string>PoSe score</string>
+             <string>PoSe Score</string>
             </property>
            </widget>
           </item>
