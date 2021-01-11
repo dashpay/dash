@@ -32,7 +32,7 @@ void CMasternodeUtils::ProcessMasternodeConnections(CConnman& connman)
     // Don't disconnect masternode connections when we have less then the desired amount of outbound nodes
     int nonMasternodeCount = 0;
     connman.ForEachNode(CConnman::AllNodes, [&](CNode* pnode) {
-        if (!pnode->fInbound && !pnode->fFeeler && !pnode->m_manual_connection && !pnode->fMasternode && !pnode->fMasternodeProbe) {
+        if (!pnode->fInbound && !pnode->fFeeler && !pnode->m_manual_connection && !pnode->m_masternode_connection && !pnode->fMasternodeProbe) {
             nonMasternodeCount++;
         }
     });
@@ -41,8 +41,8 @@ void CMasternodeUtils::ProcessMasternodeConnections(CConnman& connman)
     }
 
     connman.ForEachNode(CConnman::AllNodes, [&](CNode* pnode) {
-        // we're only disconnecting fMasternode connections
-        if (!pnode->fMasternode) return;
+        // we're only disconnecting m_masternode_connection connections
+        if (!pnode->m_masternode_connection) return;
         // we're only disconnecting outbound connections
         if (pnode->fInbound) return;
         // we're not disconnecting LLMQ connections
