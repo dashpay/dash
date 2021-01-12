@@ -99,7 +99,9 @@ enum WalletFeature
     FEATURE_HD = 120200,    // Hierarchical key derivation after BIP32 (HD Wallet), BIP44 (multi-coin), BIP39 (mnemonic)
                             // which uses on-the-fly private key derivation
 
-    FEATURE_LATEST = FEATURE_HD
+    FEATURE_PRE_SPLIT_KEYPOOL = 169900, // Upgraded to HD SPLIT and can have a pre-split keypool
+
+    FEATURE_LATEST = FEATURE_PRE_SPLIT_KEYPOOL
 };
 
 struct CompactTallyItem
@@ -120,6 +122,7 @@ public:
     int64_t nTime;
     CPubKey vchPubKey;
     bool fInternal; // for change outputs
+    bool m_pre_split; // For keys generated before keypool split upgrade
 
     CKeyPool();
     CKeyPool(const CPubKey& vchPubKeyIn, bool fInternalIn);
@@ -142,9 +145,18 @@ public:
                    (this will be the case for any wallet before the HD chain split version) */
                 fInternal = false;
             }
+            try {
+                READWRITE(m_pre_split);
+            }
+            catch (std::ios_base::failure&) {
+                /* flag as postsplit address if we can't read the m_pre_split boolean
+                   (this will be the case for any wallet that upgrades to HD chain split)*/
+                m_pre_split = false;
+            }
         }
         else {
             READWRITE(fInternal);
+            READWRITE(m_pre_split);
         }
     }
 };
@@ -772,6 +784,7 @@ private:
 
     std::set<int64_t> setInternalKeyPool;
     std::set<int64_t> setExternalKeyPool;
+    std::set<int64_t> set_pre_split_keypool;
     int64_t m_max_keypool_index = 0;
     std::map<CKeyID, int64_t> m_pool_key_to_index;
 
@@ -848,6 +861,7 @@ public:
     const std::string& GetName() const { return m_name; }
 
     void LoadKeyPool(int64_t nIndex, const CKeyPool &keypool) EXCLUSIVE_LOCKS_REQUIRED(cs_wallet);
+    void MarkPreSplitKeys();
 
     // Map from Key ID to key metadata.
     std::map<CKeyID, CKeyMetadata> mapKeyMetadata;
@@ -1235,9 +1249,10 @@ public:
     /* Returns true if HD is enabled */
     bool IsHDEnabled() const;
     /* Generates a new HD chain */
-    void GenerateNewHDChain();
+    void GenerateNewHDChain(const SecureString& words = SecureString(), const SecureString& secureMnemonicPassphrase = SecureString(), const SecureString& strWalletPassphrase = SecureString());
     /* Set the HD chain model (chain child index counters) */
     bool SetHDChain(WalletBatch &batch, const CHDChain& chain, bool memonly);
+    bool UpgradeHdChainEncrypted(const SecureString& strWalletPassphrase, const CHDChain& chain);
     bool SetCryptedHDChain(WalletBatch &batch, const CHDChain& chain, bool memonly);
     /**
      * Set the HD chain model (chain child index counters) using temporary wallet db object

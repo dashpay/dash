@@ -519,6 +519,51 @@ bool CWallet::LoadWatchOnly(const CScript &dest)
     return CCryptoKeyStore::AddWatchOnly(dest);
 }
 
+bool CWallet::UpgradeHdChainEncrypted(const SecureString& strWalletPassphrase, const CHDChain& chain)
+{
+    SecureString strWalletPassphraseFinal;
+
+    strWalletPassphraseFinal = strWalletPassphrase;
+
+    // must get current HD chain before EncryptKeys
+    CHDChain hdChainCurrent;
+    hdChainCurrent = chain;
+
+    CCrypter crypter;
+    CKeyingMaterial vMasterKey;
+
+    {
+        LOCK(cs_wallet);
+        for (const MasterKeyMap::value_type& pMasterKey : mapMasterKeys) {
+            if (!crypter.SetKeyFromPassphrase(strWalletPassphraseFinal, pMasterKey.second.vchSalt, pMasterKey.second.nDeriveIterations, pMasterKey.second.nDerivationMethod))
+                return false;
+            //get VMasterKey to encrypt new hdChain
+            if (!crypter.Decrypt(pMasterKey.second.vchCryptedKey, vMasterKey)) {
+                continue; // try another master key
+            }
+
+            assert(EncryptHDChain(vMasterKey, hdChainCurrent));
+
+            CHDChain hdChainCrypted;
+            assert(GetHDChain(hdChainCrypted));
+
+            DBG(
+                printf("EncryptWallet -- current seed: '%s'\n", HexStr(hdChainCurrent.GetSeed()).c_str());
+                printf("EncryptWallet -- crypted seed: '%s'\n", HexStr(hdChainCrypted.GetSeed()).c_str());
+            );
+
+            // ids should match, seed hashes should not
+            assert(hdChainCurrent.GetID() == hdChainCrypted.GetID());
+            assert(hdChainCurrent.GetSeedHash() != hdChainCrypted.GetSeedHash());
+
+            if (SetCryptedHDChainSingle(hdChainCrypted, false)) {
+                return true;
+            }
+        }
+    }
+    return false;
+}
+
 bool CWallet::Unlock(const SecureString& strWalletPassphrase, bool fForMixingOnly)
 {
     SecureString strWalletPassphraseFinal;
@@ -1752,7 +1797,7 @@ CAmount CWallet::GetChange(const CTxOut& txout) const
     return (IsChange(txout) ? txout.nValue : 0);
 }
 
-void CWallet::GenerateNewHDChain()
+void CWallet::GenerateNewHDChain(const SecureString& words, const SecureString& secureMnemonicPassphrase, const SecureString& strWalletPassphrase)
 {
     CHDChain newHdChain;
 
@@ -1767,21 +1812,32 @@ void CWallet::GenerateNewHDChain()
         if (gArgs.IsArgSet("-hdseed") && !IsHex(strSeed))
             LogPrintf("CWallet::GenerateNewHDChain -- Incorrect seed, generating random one instead\n");
 
-        // NOTE: empty mnemonic means "generate a new one for me"
-        std::string strMnemonic = gArgs.GetArg("-mnemonic", "");
-        // NOTE: default mnemonic passphrase is an empty string
-        std::string strMnemonicPassphrase = gArgs.GetArg("-mnemonicpassphrase", "");
+        if (words.size() != 0) {
+            //This passes in SecureStrings instead of Vectors
+            if (!newHdChain.SetMnemonic(words, secureMnemonicPassphrase, true))
+                throw std::runtime_error(std::string(__func__) + ": SetMnemonic failed");
+        } else {
+            // NOTE: empty mnemonic means "generate a new one for me"
+            std::string strMnemonic = gArgs.GetArg("-mnemonic", "");
+            // NOTE: default mnemonic passphrase is an empty string
+            std::string strMnemonicPassphrase = gArgs.GetArg("-mnemonicpassphrase", "");
 
-        SecureVector vchMnemonic(strMnemonic.begin(), strMnemonic.end());
-        SecureVector vchMnemonicPassphrase(strMnemonicPassphrase.begin(), strMnemonicPassphrase.end());
+            SecureVector vchMnemonic(strMnemonic.begin(), strMnemonic.end());
+            SecureVector vchMnemonicPassphrase(strMnemonicPassphrase.begin(), strMnemonicPassphrase.end());
 
-        if (!newHdChain.SetMnemonic(vchMnemonic, vchMnemonicPassphrase, true))
-            throw std::runtime_error(std::string(__func__) + ": SetMnemonic failed");
+            if (!newHdChain.SetMnemonic(vchMnemonic, vchMnemonicPassphrase, true))
+                throw std::runtime_error(std::string(__func__) + ": SetMnemonic failed");
+        }
     }
     newHdChain.Debug(__func__);
 
-    if (!SetHDChainSingle(newHdChain, false))
-        throw std::runtime_error(std::string(__func__) + ": SetHDChainSingle failed");
+    if (IsCrypted()) {
+        if (!UpgradeHdChainEncrypted(strWalletPassphrase, newHdChain))
+            throw std::runtime_error(std::string(__func__) + ": SetCryptedHDChain failed");
+    } else {
+        if (!SetHDChainSingle(newHdChain, false))
+            throw std::runtime_error(std::string(__func__) + ": SetHDChainSingle failed");
+    }
 
     // clean up
     gArgs.ForceRemoveArg("-hdseed");
@@ -4289,6 +4345,11 @@ bool CWallet::NewKeyPool()
 
         m_pool_key_to_index.clear();
 
+        for (int64_t nIndex : set_pre_split_keypool) {
+            batch.ErasePool(nIndex);
+        }
+        set_pre_split_keypool.clear();
+
         if (!TopUpKeyPool())
             return false;
 
@@ -4300,7 +4361,7 @@ bool CWallet::NewKeyPool()
 size_t CWallet::KeypoolCountExternalKeys()
 {
     AssertLockHeld(cs_wallet); // setExternalKeyPool
-    return setExternalKeyPool.size();
+    return setExternalKeyPool.size() + set_pre_split_keypool.size();
 }
 
 void CWallet::LoadKeyPool(int64_t nIndex, const CKeyPool &keypool)
@@ -4384,7 +4445,7 @@ bool CWallet::TopUpKeyPool(unsigned int kpSize)
             if (missingInternal + missingExternal > 0) {
                 LogPrintf("keypool added %d keys (%d internal), size=%u (%u internal)\n",
                           missingInternal + missingExternal, missingInternal,
-                          setInternalKeyPool.size() + setExternalKeyPool.size(), setInternalKeyPool.size());
+                          setInternalKeyPool.size() + setExternalKeyPool.size() + set_pre_split_keypool.size(), setInternalKeyPool.size());
             }
 
             double dProgress = 100.f * index / (nTargetSize + 1);
@@ -4406,7 +4467,7 @@ void CWallet::ReserveKeyFromKeyPool(int64_t& nIndex, CKeyPool& keypool, bool fIn
             TopUpKeyPool();
 
         fInternal = fInternal && IsHDEnabled();
-        std::set<int64_t>& setKeyPool = fInternal ? setInternalKeyPool : setExternalKeyPool;
+        std::set<int64_t>& setKeyPool = set_pre_split_keypool.empty() ? (fInternal ? setInternalKeyPool : setExternalKeyPool) : set_pre_split_keypool;
 
         // Get the oldest key
         if(setKeyPool.empty())
@@ -4422,7 +4483,8 @@ void CWallet::ReserveKeyFromKeyPool(int64_t& nIndex, CKeyPool& keypool, bool fIn
         if (!HaveKey(keypool.vchPubKey.GetID())) {
             throw std::runtime_error(std::string(__func__) + ": unknown key in key pool");
         }
-        if (keypool.fInternal != fInternal) {
+        // If the key was pre-split keypool, we don't care about what type it is
+        if (set_pre_split_keypool.size() == 0 && keypool.fInternal != fInternal) {
             throw std::runtime_error(std::string(__func__) + ": keypool entry misclassified");
         }
 
@@ -4450,6 +4512,8 @@ void CWallet::ReturnKey(int64_t nIndex, bool fInternal, const CPubKey& pubkey)
         LOCK(cs_wallet);
         if (fInternal) {
             setInternalKeyPool.insert(nIndex);
+        } else if (!set_pre_split_keypool.empty()) {
+            set_pre_split_keypool.insert(nIndex);
         } else {
             setExternalKeyPool.insert(nIndex);
         }
@@ -4504,6 +4568,9 @@ int64_t CWallet::GetOldestKeyPoolTime()
     // load oldest key from keypool, get time and return
     if (!setInternalKeyPool.empty()) {
         oldestKey = std::max(GetOldestKeyInPool(setInternalKeyPool, batch), oldestKey);
+        if (!set_pre_split_keypool.empty()) {
+            oldestKey = std::max(GetOldestKeyInPool(set_pre_split_keypool, batch), oldestKey);
+        }
     }
     if (!setExternalKeyPool.empty()) {
         oldestKey = std::max(GetOldestKeyInPool(setExternalKeyPool, batch), oldestKey);
@@ -5018,6 +5085,24 @@ bool CWallet::Verify(std::string wallet_file, bool salvage_wallet, std::string& 
     return WalletBatch::VerifyDatabaseFile(wallet_path, warning_string, error_string);
 }
 
+void CWallet::MarkPreSplitKeys()
+{
+    WalletBatch batch(*database);
+    for (auto it = setExternalKeyPool.begin(); it != setExternalKeyPool.end();) {
+        int64_t index = *it;
+        CKeyPool keypool;
+        if (!batch.ReadPool(index, keypool)) {
+            throw std::runtime_error(std::string(__func__) + ": read keypool entry failed");
+        }
+        keypool.m_pre_split = true;
+        if (!batch.WritePool(index, keypool)) {
+            throw std::runtime_error(std::string(__func__) + ": writing modified keypool entry failed");
+        }
+        set_pre_split_keypool.insert(index);
+        it = setExternalKeyPool.erase(it);
+    }
+}
+
 CWallet* CWallet::CreateWalletFromFile(const std::string& name, const fs::path& path)
 {
     const std::string& walletFile = name;
@@ -5452,6 +5537,7 @@ CKeyPool::CKeyPool()
 {
     nTime = GetTime();
     fInternal = false;
+    m_pre_split = false;
 }
 
 CKeyPool::CKeyPool(const CPubKey& vchPubKeyIn, bool fInternalIn)
@@ -5459,6 +5545,7 @@ CKeyPool::CKeyPool(const CPubKey& vchPubKeyIn, bool fInternalIn)
     nTime = GetTime();
     vchPubKey = vchPubKeyIn;
     fInternal = fInternalIn;
+    m_pre_split = false;
 }
 
 CWalletKey::CWalletKey(int64_t nExpires)

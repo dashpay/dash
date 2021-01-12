@@ -408,9 +408,15 @@ bool CCryptoKeyStore::EncryptKeys(CKeyingMaterial& vMasterKeyIn)
     return true;
 }
 
-bool CCryptoKeyStore::EncryptHDChain(const CKeyingMaterial& vMasterKeyIn)
+bool CCryptoKeyStore::EncryptHDChain(const CKeyingMaterial& vMasterKeyIn, const CHDChain& chain)
 {
     LOCK(cs_KeyStore);
+
+    // If you are upgrading an already encrypted wallet you pass in new HDChain to be encrypted here SetHDChain() Won't let us pass it in through there if wallet is encrypted.
+    if (!chain.IsNull()) {
+        hdChain = chain;
+    }
+
     // should call EncryptKeys first
     if (!IsCrypted())
         return false;

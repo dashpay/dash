@@ -77,4 +77,7 @@ public:
     virtual bool GetHDChain(CHDChain& hdChainRet) const;
 };
 
+/** Checks if a CKey is in the given CKeyStore compressed or otherwise*/
+bool HaveKey(const CKeyStore& store, const CKey& key);
+
 #endif // BITCOIN_KEYSTORE_H

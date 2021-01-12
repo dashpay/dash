@@ -5,6 +5,7 @@
 // file COPYING or http://www.opensource.org/licenses/mit-license.php.
 
 #include <amount.h>
+#include <bip39.h>
 #include <chain.h>
 #include <consensus/validation.h>
 #include <core_io.h>
@@ -3059,6 +3060,142 @@ UniValue listwallets(const JSONRPCRequest& request)
     return obj;
 }
 
+UniValue upgradetohd(const JSONRPCRequest& request)
+{
+    CWallet * const pwallet = GetWalletForJSONRPCRequest(request);
+    if (!EnsureWalletIsAvailable(pwallet, request.fHelp)) {
+        return NullUniValue;
+    }
+
+    if (request.fHelp || request.params.size() < 1)
+        throw std::runtime_error(
+                "\nNon-HD wallets will be upgraded to a HD wallet.\n"
+                "\nNote that you will need to MAKE A NEW BACKUP of your wallet after setting the HD wallet mnemonic.\n"
+                "\nArguments:\n"
+                "1. \"generatenewseedwords\"   (boolean) If this is set to true it will generate new mnemonic phrase, if it is false it will import phrase\n"
+                "2. \"words\"                (string, optional) Put your mnemonic seed words here\n"
+                "3. \"passphrase\"             (string, optional) If your wallet is encrypted you must have your passphrase here\n"
+                "4. \"mnemonicpassphrase\"   (string, optional) Optional mnemonicpassphrase\n"
+
+                "\nExamples:\n"
+                + HelpExampleCli("upgradetohd", "True")
+                + HelpExampleCli("upgradetohd", "\"mnemonicwords\" \"mnemonicwords\"")
+                + HelpExampleCli("upgradetohd", "\"mnemonicwords\" \"mnemonicwords\" \"passphrase\"")
+                + HelpExampleCli("upgradetohd", "\"mnemonicwords\" \"mnemonicwords\" \"passphrase\" \"mnemonicpassphrase\""));
+
+    if (IsInitialBlockDownload()) {
+        throw JSONRPCError(RPC_CLIENT_IN_INITIAL_DOWNLOAD, "Cannot set a new HD seed while still in Initial Block Download");
+    }
+
+    if ((request.params.size() == 2 && pwallet->IsLocked()) || (request.params[0].get_bool() == true && pwallet->IsLocked())) {
+        throw JSONRPCError(RPC_WALLET_ERROR, "Cannot upgrade a encrypted wallet to hd without the password");
+    }
+
+    LOCK2(cs_main, pwallet->cs_wallet);
+
+    // Do not do anything to HD wallets
+    if (pwallet->IsHDEnabled()) {
+        throw JSONRPCError(RPC_WALLET_ERROR, "Cannot upgrade a wallet to hd if It is already upgraded to hd.");
+    }
+
+    bool generateNewWords = request.params[0].get_bool();
+
+    SecureString words;
+    if (generateNewWords) {
+        words = CMnemonic::Generate(256);
+    } else {
+        words = request.params[1].get_str().c_str();
+    }
+
+    SecureString secureMnemonicPassphrase;
+    if (request.params.size() < 4) {
+        secureMnemonicPassphrase = SecureString();
+    } else {
+        secureMnemonicPassphrase = request.params[3].get_str().c_str();
+    }
+
+    int prev_version = pwallet->GetVersion();
+    int nMaxVersion = gArgs.GetArg("-upgradewallet", 0);
+    if (nMaxVersion == 0) // the -upgradewallet without argument case
+    {
+        LogPrintf("Performing wallet upgrade to %i\n", FEATURE_LATEST);
+        nMaxVersion = CLIENT_VERSION;
+        pwallet->SetMinVersion(FEATURE_LATEST); // permanently upgrade the wallet immediately
+    } else
+        LogPrintf("Allowing wallet upgrade up to %i\n", nMaxVersion);
+    if (nMaxVersion < pwallet->GetVersion()) {
+        throw JSONRPCError(RPC_WALLET_ERROR, "Cannot downgrade wallet");
+    }
+
+    pwallet->SetMaxVersion(nMaxVersion);
+
+    // Do not upgrade versions to any version between HD_SPLIT and FEATURE_PRE_SPLIT_KEYPOOL unless already supporting HD_SPLIT
+    int max_version = pwallet->GetVersion();
+    if (!pwallet->CanSupportFeature(FEATURE_HD) && max_version >=FEATURE_HD && max_version < FEATURE_PRE_SPLIT_KEYPOOL) {
+        throw JSONRPCError(RPC_WALLET_ERROR, "Cannot upgrade a non HD split wallet without upgrading to support pre split keypool. Please use -upgradewallet=169900 or -upgradewallet with no version specified.");
+    }
+
+    bool hd_upgrade = false;
+    bool split_upgrade = false;
+    // generate a new master key
+    SecureString strWalletPass;
+    strWalletPass.reserve(100);
+    if (pwallet->CanSupportFeature(FEATURE_HD) && !pwallet->IsHDEnabled()) {
+        LogPrintf("Upgrading wallet to HD\n");
+        pwallet->SetMinVersion(FEATURE_HD);
+
+        // TODO: get rid of this .c_str() by implementing SecureString::operator=(std::string)
+        // Alternately, find a way to make request.params[0] mlock()'d to begin with.
+        if (request.params.size() < 3) {
+            strWalletPass = SecureString();
+        } else {
+            strWalletPass = request.params[2].get_str().c_str();
+        }
+
+        pwallet->GenerateNewHDChain(words, secureMnemonicPassphrase, strWalletPass);
+
+        hd_upgrade = true;
+    }
+
+    // Upgrade to HD chain split if necessary
+    if (pwallet->CanSupportFeature(FEATURE_HD)) {
+        LogPrintf("Upgrading wallet to use HD chain split\n");
+        pwallet->SetMinVersion(FEATURE_PRE_SPLIT_KEYPOOL);
+        split_upgrade = FEATURE_HD > prev_version;
+    }
+
+    // Mark all keys currently in the keypool as pre-split
+    if (split_upgrade) {
+        pwallet->MarkPreSplitKeys();
+    }
+
+    //unlocked wallet if it is locked so that we can top up keypool with new HD keys
+    if (pwallet->IsLocked()) {
+        if (!pwallet->Unlock(strWalletPass, false))
+            throw JSONRPCError(RPC_WALLET_PASSPHRASE_INCORRECT, "Error: The wallet passphrase entered was incorrect.");
+    }
+
+    // Regenerate the keypool if upgraded to HD
+    if (hd_upgrade) {
+        if (!pwallet->TopUpKeyPool()) {
+            throw JSONRPCError(RPC_WALLET_ERROR, "Unable to generate keys\n");
+        }
+    }
+
+    // If you are generating new seed words it is assumed that the addresses have never gotten a transaction before, so you don't need to rescan for transactions
+    if (generateNewWords) {
+        return std::string(words.data(), words.size());
+    } else {
+        WalletRescanReserver reserver(pwallet);
+        if (!reserver.reserve()) {
+            throw JSONRPCError(RPC_WALLET_ERROR, "Wallet is currently rescanning. Abort existing rescan or wait.");
+        }
+        pwallet->ScanForWalletTransactions(chainActive.Genesis(), nullptr, reserver, true);
+    }
+
+    return NullUniValue;
+}
+
 UniValue keepass(const JSONRPCRequest& request)
 {
     CWallet* const pwallet = GetWalletForJSONRPCRequest(request);
@@ -4158,6 +4295,7 @@ static const CRPCCommand commands[] =
     { "wallet",             "setprivatesendamount",     &setprivatesendamount,     {"amount"} },
     { "wallet",             "signmessage",                      &signmessage,                   {"address","message"} },
     { "wallet",             "signrawtransactionwithwallet",     &signrawtransactionwithwallet,  {"hexstring","prevtxs","sighashtype"} },
+    { "wallet",             "upgradetohd",                      &upgradetohd,                   {"generatenewseedwords", "words", "passphrase", "mnemonicpassphrase"} },
     { "wallet",             "walletlock",                       &walletlock,                    {} },
     { "wallet",             "walletpassphrasechange",           &walletpassphrasechange,        {"oldpassphrase","newpassphrase"} },
     { "wallet",             "walletpassphrase",                 &walletpassphrase,              {"passphrase","timeout","mixingonly"} },

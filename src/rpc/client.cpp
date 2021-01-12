@@ -158,6 +158,7 @@ static const CRPCConvertParam vRPCConvertParams[] =
     { "setprivatesendamount", 0, "amount" },
     { "getmempoolancestors", 1, "verbose" },
     { "getmempooldescendants", 1, "verbose" },
+    { "upgradetohd", 0, "generatenewseedwords" },
     { "logging", 0, "include" },
     { "logging", 1, "exclude" },
     { "spork", 1, "value" },
