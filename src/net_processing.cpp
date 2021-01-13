@@ -2344,7 +2344,7 @@ bool static ProcessMessage(CNode* pfrom, const std::string& strCommand, CDataStr
                       (fLogIPs ? strprintf(", peeraddr=%s", pfrom->addr.ToString()) : ""));
         }
 
-        if (pfrom->nVersion >= LLMQS_PROTO_VERSION && !pfrom->m_probe_connection) {
+        if (pfrom->nVersion >= LLMQS_PROTO_VERSION && !pfrom->m_masternode_probe_connection) {
             CMNAuth::PushMNAUTH(pfrom, *connman);
         }
 
@@ -2403,7 +2403,7 @@ bool static ProcessMessage(CNode* pfrom, const std::string& strCommand, CDataStr
         pfrom->fFirstMessageIsMNAUTH = strCommand == NetMsgType::MNAUTH;
         // Note: do not break the flow here
 
-        if (pfrom->m_probe_connection && !pfrom->fFirstMessageIsMNAUTH) {
+        if (pfrom->m_masternode_probe_connection && !pfrom->fFirstMessageIsMNAUTH) {
             LogPrint(BCLog::NET, "connection is a masternode probe but first received message is not MNAUTH, peer=%d\n", pfrom->GetId());
             pfrom->fDisconnect = true;
             return false;
