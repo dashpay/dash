@@ -1765,41 +1765,25 @@ CAmount CWallet::GetChange(const CTxOut& txout) const
     return (IsChange(txout) ? txout.nValue : 0);
 }
 
-void CWallet::GenerateNewHDChain()
+void CWallet::GenerateNewHDChain(const SecureString& secureMnemonic, const SecureString& secureMnemonicPassphrase)
 {
     CHDChain newHdChain;
 
-    std::string strSeed = gArgs.GetArg("-hdseed", "not hex");
-
-    if(gArgs.IsArgSet("-hdseed") && IsHex(strSeed)) {
-        std::vector<unsigned char> vchSeed = ParseHex(strSeed);
-        if (!newHdChain.SetSeed(SecureVector(vchSeed.begin(), vchSeed.end()), true))
-            throw std::runtime_error(std::string(__func__) + ": SetSeed failed");
+    // NOTE: an empty mnemonic means "generate a new one for me"
+    // NOTE: default mnemonic passphrase is an empty string
+    if (!newHdChain.SetMnemonic(secureMnemonic, secureMnemonicPassphrase, true)) {
+        throw std::runtime_error(std::string(__func__) + ": SetMnemonic failed");
     }
-    else {
-        if (gArgs.IsArgSet("-hdseed") && !IsHex(strSeed))
-            LogPrintf("CWallet::GenerateNewHDChain -- Incorrect seed, generating random one instead\n");
 
-        // NOTE: empty mnemonic means "generate a new one for me"
-        std::string strMnemonic = gArgs.GetArg("-mnemonic", "");
-        // NOTE: default mnemonic passphrase is an empty string
-        std::string strMnemonicPassphrase = gArgs.GetArg("-mnemonicpassphrase", "");
-
-        SecureVector vchMnemonic(strMnemonic.begin(), strMnemonic.end());
-        SecureVector vchMnemonicPassphrase(strMnemonicPassphrase.begin(), strMnemonicPassphrase.end());
-
-        if (!newHdChain.SetMnemonic(vchMnemonic, vchMnemonicPassphrase, true))
-            throw std::runtime_error(std::string(__func__) + ": SetMnemonic failed");
-    }
     newHdChain.Debug(__func__);
 
-    if (!SetHDChainSingle(newHdChain, false))
+    if (!SetHDChainSingle(newHdChain, false)) {
         throw std::runtime_error(std::string(__func__) + ": SetHDChainSingle failed");
+    }
 
-    // clean up
-    gArgs.ForceRemoveArg("-hdseed");
-    gArgs.ForceRemoveArg("-mnemonic");
-    gArgs.ForceRemoveArg("-mnemonicpassphrase");
+    if (!NewKeyPool()) {
+        throw std::runtime_error(std::string(__func__) + ": NewKeyPool failed");
+    }
 }
 
 bool CWallet::SetHDChain(WalletBatch &batch, const CHDChain& chain, bool memonly)
@@ -5051,11 +5035,35 @@ CWallet* CWallet::CreateWalletFromFile(const std::string& name, const fs::path& 
     {
         // Create new keyUser and set as default key
         if (gArgs.GetBoolArg("-usehd", DEFAULT_USE_HD_WALLET) && !walletInstance->IsHDEnabled()) {
-            // generate a new master key
-            walletInstance->GenerateNewHDChain();
+            std::string strSeed = gArgs.GetArg("-hdseed", "not hex");
+
+            if(gArgs.IsArgSet("-hdseed") && IsHex(strSeed)) {
+                CHDChain newHdChain;
+                std::vector<unsigned char> vchSeed = ParseHex(strSeed);
+                if (!newHdChain.SetSeed(SecureVector(vchSeed.begin(), vchSeed.end()), true)) {
+                    throw std::runtime_error(std::string(__func__) + ": SetSeed failed");
+                }
+                if (!walletInstance->SetHDChainSingle(newHdChain, false)) {
+                    throw std::runtime_error(std::string(__func__) + ": SetHDChainSingle failed");
+                }
+                newHdChain.Debug(__func__);
+            } else {
+                if (gArgs.IsArgSet("-hdseed") && !IsHex(strSeed)) {
+                    LogPrintf("%s -- Incorrect seed, generating a random mnemonic instead\n", __func__);
+                }
+                SecureString secureMnemonic = gArgs.GetArg("-mnemonic", "").c_str();
+                SecureString secureMnemonicPassphrase = gArgs.GetArg("-mnemonicpassphrase", "").c_str();
+                walletInstance->GenerateNewHDChain(secureMnemonic, secureMnemonicPassphrase);
+            }
 
             // ensure this wallet.dat can only be opened by clients supporting HD
+            LogPrintf("Upgrading wallet to HD\n");
             walletInstance->SetMinVersion(FEATURE_HD);
+
+            // clean up
+            gArgs.ForceRemoveArg("-hdseed");
+            gArgs.ForceRemoveArg("-mnemonic");
+            gArgs.ForceRemoveArg("-mnemonicpassphrase");
         }
 
         // Top up the keypool
