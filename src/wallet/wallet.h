@@ -1235,7 +1235,7 @@ public:
     /* Returns true if HD is enabled */
     bool IsHDEnabled() const;
     /* Generates a new HD chain */
-    void GenerateNewHDChain();
+    void GenerateNewHDChain(const SecureString& secureMnemonic, const SecureString& secureMnemonicPassphrase);
     /* Set the HD chain model (chain child index counters) */
     bool SetHDChain(WalletBatch &batch, const CHDChain& chain, bool memonly);
     bool SetCryptedHDChain(WalletBatch &batch, const CHDChain& chain, bool memonly);
