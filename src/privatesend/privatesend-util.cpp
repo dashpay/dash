@@ -119,8 +119,8 @@ CTransactionBuilder::CTransactionBuilder(CWallet* pwalletIn, const CompactTallyI
     // Only allow tallyItems inputs for tx creation
     coinControl.fAllowOtherInputs = false;
     // Select all tallyItem outputs in the coinControl so that CreateTransaction knows what to use
-    for (const auto& outpoint : tallyItem.vecOutPoints) {
-        coinControl.Select(outpoint);
+    for (const auto& coin : tallyItem.vecInputCoins) {
+        coinControl.Select(coin.outpoint);
     }
     // Create dummy tx to calculate the exact required fees upfront for accurate amount and fee calculations
     CMutableTransaction dummyTx;
@@ -137,8 +137,8 @@ CTransactionBuilder::CTransactionBuilder(CWallet* pwalletIn, const CompactTallyI
     // Create dummy signatures for all inputs
     SignatureData dummySignature;
     ProduceSignature(DummySignatureCreator(pwallet), dummyScript, dummySignature);
-    for (auto out : tallyItem.vecOutPoints) {
-        dummyTx.vin.emplace_back(out, dummySignature.scriptSig);
+    for (const auto& coin : tallyItem.vecInputCoins) {
+        dummyTx.vin.emplace_back(coin.outpoint, dummySignature.scriptSig);
     }
     // Calculate required bytes for the dummy tx with tallyItem's inputs only
     nBytesBase = ::GetSerializeSize(dummyTx, SER_NETWORK, PROTOCOL_VERSION);
