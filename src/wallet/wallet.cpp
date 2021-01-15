@@ -2904,9 +2904,6 @@ bool CWallet::SelectStakeCoins(StakeCoinsSet &setCoins, CAmount nTargetAmount, c
         //check that it is matured
         if (out.nDepth < (out.tx->tx->IsCoinStake() ? COINBASE_MATURITY : 10))
             continue;
-        // test for min depth
-        if (out.nDepth < Params().GetConsensus().MinStakeHistory())
-            continue;
         //  LogPrintf("maturity is good\n");
         if (out.tx->tx->vout[out.i].nValue < nMinimumStakeValue)
 	    continue;

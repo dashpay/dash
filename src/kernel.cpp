@@ -277,12 +277,6 @@ static bool GetKernelStakeModifier(uint256 hashBlockFrom, unsigned int nTimeTx, 
     return GetKernlStakeModifierV03(hashBlockFrom, nTimeTx, nStakeModifier, nStakeModifierHeight, nStakeModifierTime, fPrintProofOfStake);
 }
 
-bool HasStakeMinDepth(int contextHeight, int utxoFromBlockHeight, int &nDepth)
-{
-    const int minHistoryRequired = Params().GetConsensus().MinStakeHistory();
-    nDepth = contextHeight - utxoFromBlockHeight;
-    return (contextHeight - utxoFromBlockHeight >= minHistoryRequired);
-}
 
 int GetLastHeight(uint256 txHash)
 {
@@ -364,11 +358,6 @@ bool CheckStakeKernelHash(unsigned int nBits, const CBlock& blockFrom, unsigned 
     // returning zero from GetLastHeight() indicates error
     if (nBlockFromHeight == 0)
         return false;
-
-    int nDepth = 0;
-    if (pindexPrev->nHeight + 1 >= Params().GetConsensus().MinStakeHistoryHeight() &&
-        !HasStakeMinDepth(nPreviousBlockHeight+1, nBlockFromHeight, nDepth))
-        return error("%s - min stake depth not met (found %d need %d)", __func__, nDepth, Params().GetConsensus().MinStakeHistory());
 
     if (IsProtocolV03(nTimeTx)){
         if (!GetKernelStakeModifier(blockFrom.GetHash(), nTimeTx, nStakeModifier, nStakeModifierHeight, nStakeModifierTime, false))

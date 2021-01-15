@@ -240,8 +240,6 @@ public:
             consensus.nStakeMaxAge = 60 * 60 * 24; // one day
             consensus.nWSTargetDiff = 0x1e0ffff0; // Genesis Difficulty
             consensus.nPoSDiffAdjustRange = 5;
-            consensus.nMinStakeHistory = 120; // Minimum depth in chain required for valid stake
-            consensus.nMinStakeHistoryHeight = 598000; // Activation height of MinDepth rule
 
             // POS hard fork date
             consensus.nLastPoWBlock = 209720;

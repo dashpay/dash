@@ -194,10 +194,6 @@ struct Params {
     int nMaxBlockSpacingFixDeploymentHeight;
     int nStakeMinAgeSwitchTime;
     int nPosMitigationSwitchTime;
-    int nMinStakeHistory;
-    int MinStakeHistory() const { return nMinStakeHistory; }
-    int nMinStakeHistoryHeight;
-    int MinStakeHistoryHeight() const { return nMinStakeHistoryHeight; }
 
     /** these parameters are only used on devnet and can be configured from the outside */
     int nMinimumDifficultyBlocks{0};
