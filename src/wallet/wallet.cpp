@@ -1797,7 +1797,7 @@ bool CWallet::GenerateNewHDChainEncrypted(const SecureString& secureMnemonic, co
         if (!crypter.SetKeyFromPassphrase(secureWalletPassphrase, pMasterKey.second.vchSalt, pMasterKey.second.nDeriveIterations, pMasterKey.second.nDerivationMethod)) {
             return false;
         }
-        //get VMasterKey to encrypt new hdChain
+        // get vMasterKey to encrypt new hdChain
         if (!crypter.Decrypt(pMasterKey.second.vchCryptedKey, vMasterKey)) {
             continue; // try another master key
         }
@@ -5152,7 +5152,7 @@ CWallet* CWallet::CreateWalletFromFile(const std::string& name, const fs::path& 
         if (gArgs.GetBoolArg("-usehd", DEFAULT_USE_HD_WALLET) && !walletInstance->IsHDEnabled()) {
             std::string strSeed = gArgs.GetArg("-hdseed", "not hex");
 
-            if(gArgs.IsArgSet("-hdseed") && IsHex(strSeed)) {
+            if (gArgs.IsArgSet("-hdseed") && IsHex(strSeed)) {
                 CHDChain newHdChain;
                 std::vector<unsigned char> vchSeed = ParseHex(strSeed);
                 if (!newHdChain.SetSeed(SecureVector(vchSeed.begin(), vchSeed.end()), true)) {
