@@ -96,16 +96,34 @@ class LLMQChainLocksTest(DashTestFramework):
         self.nodes[0].generate(2)
         time.sleep(6)
         assert(self.nodes[1].getbestblockhash() == good_tip)
-        self.nodes[0].generate(2)
+        bad_tip = self.nodes[0].generate(2)[-1]
         time.sleep(6)
         assert(self.nodes[1].getbestblockhash() == good_tip)
 
         self.log.info("Now let the node which is on the wrong chain reorg back to the locked chain")
         self.nodes[0].reconsiderblock(good_tip)
         assert(self.nodes[0].getbestblockhash() != good_tip)
-        self.nodes[1].generatetoaddress(1, node0_mining_addr)
-        self.wait_for_chainlocked_block(self.nodes[0], self.nodes[1].getbestblockhash())
-        assert(self.nodes[0].getbestblockhash() == self.nodes[1].getbestblockhash())
+        good_fork = good_tip
+        good_tip = self.nodes[1].generatetoaddress(1, node0_mining_addr)[-1]  # this should mark bad_tip as conflicting
+        self.wait_for_chainlocked_block(self.nodes[0], good_tip)
+        assert(self.nodes[0].getbestblockhash() == good_tip)
+        found = False
+        for tip in self.nodes[0].getchaintips(2):
+            if tip["hash"] == bad_tip:
+                assert(tip["status"] == "conflicting")
+                found = True
+                break
+        assert(found)
+
+        self.log.info("Should switch to the best non-conflicting tip (not to the most work chain) on restart")
+        assert(int(self.nodes[0].getblock(bad_tip)["chainwork"], 16) > int(self.nodes[1].getblock(good_tip)["chainwork"], 16))
+        self.stop_node(0)
+        self.start_node(0)
+        self.nodes[0].invalidateblock(good_fork)
+        self.stop_node(0)
+        self.start_node(0)
+        time.sleep(1)
+        assert(self.nodes[0].getbestblockhash() == good_tip)
 
         self.log.info("Isolate a node and let it create some transactions which won't get IS locked")
         isolate_node(self.nodes[0])
