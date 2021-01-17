@@ -218,7 +218,7 @@ int64_t CSporkManager::GetSporkValue(SporkId nSporkID)
 {
     LOCK(cs);
 
-    int64_t nSporkValue = -1;
+    int64_t nSporkValue;
     if (SporkValueIsActive(nSporkID, nSporkValue)) {
         return nSporkValue;
     }
