@@ -3103,10 +3103,13 @@ UniValue upgradetohd(const JSONRPCRequest& request)
     // Alternately, find a way to make request.params[0] mlock()'d to begin with.
     if (request.params[2].isNull()) {
         if (prev_encrypted) {
-            throw JSONRPCError(RPC_WALLET_ERROR, "Cannot upgrade encrypted wallet to HD without the wallet passphrase");
+            throw JSONRPCError(RPC_WALLET_PASSPHRASE_INCORRECT, "Cannot upgrade encrypted wallet to HD without the wallet passphrase");
         }
     } else {
         secureWalletPassphrase = request.params[2].get_str().c_str();
+        if (!pwallet->Unlock(secureWalletPassphrase)) {
+            throw JSONRPCError(RPC_WALLET_PASSPHRASE_INCORRECT, "The wallet passphrase entered was incorrect");
+        }
     }
 
     bool generate_mnemonic = request.params[0].isNull() || request.params[0].get_str().empty();
