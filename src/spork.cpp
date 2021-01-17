@@ -88,8 +88,7 @@ void CSporkManager::CheckAndRemove()
             ++itSignerPair;
         }
         if (itActive->second.empty()) {
-            mapSporksActive.erase(itActive++);
-            continue;
+            mapSporksActive.erase(itActive);
         }
         ++itActive;
     }
