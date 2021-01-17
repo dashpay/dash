@@ -1096,6 +1096,7 @@ void CWallet::MarkDirty()
 bool CWallet::AddToWallet(const CWalletTx& wtxIn, bool fFlushOnClose)
 {
     LOCK(cs_wallet);
+    AssertLockHeld(cs_main); // make sure we won't cause a deadlock by GetListAtChainTip below
 
     WalletBatch batch(*database, "r+", fFlushOnClose);
 
@@ -1148,6 +1149,17 @@ bool CWallet::AddToWallet(const CWalletTx& wtxIn, bool fFlushOnClose)
         {
             wtx.fFromMe = wtxIn.fFromMe;
             fUpdated = true;
+        }
+
+        auto mnList = deterministicMNManager->GetListAtChainTip();
+        for(unsigned int i = 0; i < wtx.tx->vout.size(); ++i) {
+            if (IsMine(wtx.tx->vout[i]) && !IsSpent(hash, i)) {
+                bool new_utxo = setWalletUTXO.insert(COutPoint(hash, i)).second;
+                if (new_utxo && (deterministicMNManager->IsProTxWithCollateral(wtx.tx, i) || mnList.HasMNByCollateral(COutPoint(hash, i)))) {
+                    LockCoin(COutPoint(hash, i));
+                }
+                fUpdated |= new_utxo;
+            }
         }
     }
 
