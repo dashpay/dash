@@ -48,13 +48,14 @@ class MultiKeySporkTest(BitcoinTestFramework):
 
         self.add_nodes(5)
 
-        self.start_node(0, ["-sporkkey=931wyuRNVYvhg18Uu9bky5Qg1z4QbxaJ7fefNBzjBPiLRqcd33F",
+        self.node0_extra_args = ["-sporkkey=931wyuRNVYvhg18Uu9bky5Qg1z4QbxaJ7fefNBzjBPiLRqcd33F",
                             "-sporkaddr=ygcG5S2pQz2U1UAaHvU6EznKZW7yapKMA7",
                             "-sporkaddr=yfLSXFfipnkgYioD6L8aUNyfRgEBuJv48h",
                             "-sporkaddr=yNsMZhEhYqv14TgdYb1NS2UmNZjE8FSJxa",
                             "-sporkaddr=ycbRQWbovrhQMTuxg9p4LAuW5SCMAKqPrn",
                             "-sporkaddr=yc5TGfcHYoLCrcbVy4umsiDjsYUn39vLui",
-                            "-minsporkkeys=3"])
+                            "-minsporkkeys=3"]
+        self.start_node(0, self.node0_extra_args)
         self.start_node(1, ["-sporkkey=91vbXGMSWKGHom62986XtL1q2mQDA12ngcuUNNe5NfMSj44j7g3",
                             "-sporkaddr=ygcG5S2pQz2U1UAaHvU6EznKZW7yapKMA7",
                             "-sporkaddr=yfLSXFfipnkgYioD6L8aUNyfRgEBuJv48h",
@@ -89,6 +90,7 @@ class MultiKeySporkTest(BitcoinTestFramework):
                 connect_nodes(self.nodes[i], j)
 
     def get_test_spork_value(self, node):
+        self.bump_mocktime(5)  # advance ProcessTick
         info = node.spork('show')
         # use InstantSend spork for tests
         return info['SPORK_2_INSTANTSEND_ENABLED']
@@ -111,11 +113,31 @@ class MultiKeySporkTest(BitcoinTestFramework):
         for node in self.nodes:
             assert(self.get_test_spork_value(node) != 1)
 
+        # restart with no extra args to trigger CheckAndRemove
+        self.restart_node(0)
+        assert(self.get_test_spork_value(self.nodes[0]) != 1)
+
+        # restart again with corect_params, should resync spork parts from other nodes
+        self.restart_node(0, self.node0_extra_args)
+        for i in range(1, 5):
+            connect_nodes(self.nodes[0], i)
+
         # third signer set spork value
         self.set_test_spork_value(self.nodes[2], 1)
         # now spork state is changed
         for node in self.nodes:
             wait_until(lambda: self.get_test_spork_value(node) == 1, sleep=0.1, timeout=10)
+
+        # restart with no extra args to trigger CheckAndRemove, should reset the spork back to its default
+        self.restart_node(0)
+        assert(self.get_test_spork_value(self.nodes[0]) == 4070908800)
+
+        # restart again with corect_params, should resync sporks from other nodes
+        self.restart_node(0, self.node0_extra_args)
+        for i in range(1, 5):
+            connect_nodes(self.nodes[0], i)
+
+        wait_until(lambda: self.get_test_spork_value(self.nodes[0]) == 1, sleep=0.1, timeout=10)
 
         self.bump_mocktime(1)
         # now set the spork again with other signers to test
