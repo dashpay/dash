@@ -26,6 +26,7 @@ from .util import (
     rpc_url,
     wait_until,
     p2p_port,
+    get_chain_folder,
 )
 
 # For Python 3.4 compatibility
@@ -209,7 +210,8 @@ class TestNode():
 
     @contextlib.contextmanager
     def assert_debug_log(self, expected_msgs):
-        debug_log = os.path.join(self.datadir, self.chain, 'debug.log')
+        chain = get_chain_folder(self.datadir, self.chain)
+        debug_log = os.path.join(self.datadir, chain, 'debug.log')
         with open(debug_log, encoding='utf-8') as dl:
             dl.seek(0, 2)
             prev_size = dl.tell()
@@ -279,7 +281,7 @@ class TestNode():
         if 'dstaddr' not in kwargs:
             kwargs['dstaddr'] = '127.0.0.1'
 
-        p2p_conn.peer_connect(*args, **kwargs)
+        p2p_conn.peer_connect(*args, **kwargs, net=self.chain)
         self.p2ps.append(p2p_conn)
 
         return p2p_conn

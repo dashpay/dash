@@ -49,6 +49,7 @@ from .util import (
     sync_blocks,
     sync_mempools,
     wait_until,
+    get_chain_folder,
 )
 
 class TestStatus(Enum):
@@ -482,7 +483,8 @@ class BitcoinTestFramework():
             self.disable_mocktime()
 
             def cache_path(n, *paths):
-                return os.path.join(get_datadir_path(self.options.cachedir, n), self.chain, *paths)
+                chain = get_chain_folder(get_datadir_path(self.options.cachedir, n), self.chain)
+                return os.path.join(get_datadir_path(self.options.cachedir, n), chain, *paths)
 
             for i in range(MAX_NODES):
                 for entry in os.listdir(cache_path(i)):
