@@ -2437,10 +2437,15 @@ static bool ConnectBlock(const CBlock& block, CValidationState& state, CBlockInd
 
     bool isPoSV3 = Params().GetConsensus().nPoSUpdgradeHFHeight < pindex->nHeight;
 
+    CAmount reward = nValueOut - nValueIn;
+    if (reward > 1152000000) {
+        return state.DoS(10, error("ConnectBlock(POLIS): block reward is too much"),
+                                     REJECT_INVALID, "bad-cb-amount");
+    }
+    
     // ppcoin: track money supply and mint amount info
     CAmount nMoneySupplyPrev = pindex->pprev ? pindex->pprev->nMoneySupply : 0;
-    int newFee = pindex->IsProofOfStake(isPoSV3) ? nFees : 0;
-    pindex->nMoneySupply = nMoneySupplyPrev + (nValueOut - nValueIn + newFee);
+    pindex->nMoneySupply = nMoneySupplyPrev + (nValueOut - nValueIn);
     pindex->nMint = pindex->nMoneySupply - nMoneySupplyPrev;
 
     int64_t nTime3 = GetTimeMicros(); nTimeConnect += nTime3 - nTime2;
