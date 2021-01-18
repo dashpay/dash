@@ -89,33 +89,29 @@ class MultiKeySporkTest(BitcoinTestFramework):
             for j in range(i, 5):
                 connect_nodes(self.nodes[i], j)
 
-    def get_test_spork_value(self, node):
+    def get_test_spork_value(self, node, spork_name):
         self.bump_mocktime(5)  # advance ProcessTick
         info = node.spork('show')
         # use InstantSend spork for tests
-        return info['SPORK_2_INSTANTSEND_ENABLED']
+        return info[spork_name]
 
-    def set_test_spork_value(self, node, value):
-        # use InstantSend spork for tests
-        node.spork('SPORK_2_INSTANTSEND_ENABLED', value)
-
-    def run_test(self):
+    def test_spork(self, spork_name, final_value):
         # check test spork default state
         for node in self.nodes:
-            assert(self.get_test_spork_value(node) == 4070908800)
+            assert(self.get_test_spork_value(node, spork_name) == 4070908800)
 
         self.bump_mocktime(1)
         # first and second signers set spork value
-        self.set_test_spork_value(self.nodes[0], 1)
-        self.set_test_spork_value(self.nodes[1], 1)
+        self.nodes[0].spork(spork_name, 1)
+        self.nodes[1].spork(spork_name, 1)
         # spork change requires at least 3 signers
         time.sleep(10)
         for node in self.nodes:
-            assert(self.get_test_spork_value(node) != 1)
+            assert(self.get_test_spork_value(node, spork_name) != 1)
 
         # restart with no extra args to trigger CheckAndRemove
         self.restart_node(0)
-        assert(self.get_test_spork_value(self.nodes[0]) != 1)
+        assert(self.get_test_spork_value(self.nodes[0], spork_name) != 1)
 
         # restart again with corect_params, should resync spork parts from other nodes
         self.restart_node(0, self.node0_extra_args)
@@ -123,30 +119,37 @@ class MultiKeySporkTest(BitcoinTestFramework):
             connect_nodes(self.nodes[0], i)
 
         # third signer set spork value
-        self.set_test_spork_value(self.nodes[2], 1)
+        self.nodes[2].spork(spork_name, 1)
         # now spork state is changed
         for node in self.nodes:
-            wait_until(lambda: self.get_test_spork_value(node) == 1, sleep=0.1, timeout=10)
+            wait_until(lambda: self.get_test_spork_value(node, spork_name) == 1, sleep=0.1, timeout=10)
 
         # restart with no extra args to trigger CheckAndRemove, should reset the spork back to its default
         self.restart_node(0)
-        assert(self.get_test_spork_value(self.nodes[0]) == 4070908800)
+        assert(self.get_test_spork_value(self.nodes[0], spork_name) == 4070908800)
 
         # restart again with corect_params, should resync sporks from other nodes
         self.restart_node(0, self.node0_extra_args)
         for i in range(1, 5):
             connect_nodes(self.nodes[0], i)
 
-        wait_until(lambda: self.get_test_spork_value(self.nodes[0]) == 1, sleep=0.1, timeout=10)
+        wait_until(lambda: self.get_test_spork_value(self.nodes[0], spork_name) == 1, sleep=0.1, timeout=10)
 
         self.bump_mocktime(1)
         # now set the spork again with other signers to test
         # old and new spork messages interaction
-        self.set_test_spork_value(self.nodes[2], 2)
-        self.set_test_spork_value(self.nodes[3], 2)
-        self.set_test_spork_value(self.nodes[4], 2)
+        self.nodes[2].spork(spork_name, final_value)
+        self.nodes[3].spork(spork_name, final_value)
+        self.nodes[4].spork(spork_name, final_value)
         for node in self.nodes:
-            wait_until(lambda: self.get_test_spork_value(node) == 2, sleep=0.1, timeout=10)
+            wait_until(lambda: self.get_test_spork_value(node, spork_name) == final_value, sleep=0.1, timeout=10)
+
+    def run_test(self):
+        self.test_spork('SPORK_2_INSTANTSEND_ENABLED', 2)
+        self.test_spork('SPORK_3_INSTANTSEND_BLOCK_FILTERING', 3)
+        for node in self.nodes:
+            assert(self.get_test_spork_value(node, 'SPORK_2_INSTANTSEND_ENABLED') == 2)
+            assert(self.get_test_spork_value(node, 'SPORK_3_INSTANTSEND_BLOCK_FILTERING') == 3)
 
 
 if __name__ == '__main__':
