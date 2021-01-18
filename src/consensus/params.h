@@ -194,6 +194,7 @@ struct Params {
     int nMaxBlockSpacingFixDeploymentHeight;
     int nStakeMinAgeSwitchTime;
     int nPosMitigationSwitchTime;
+    int nPoSUpdgradeHFHeight;
 
     /** these parameters are only used on devnet and can be configured from the outside */
     int nMinimumDifficultyBlocks{0};

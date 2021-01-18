@@ -729,9 +729,9 @@ private:
     void DeriveNewChildKey(const CKeyMetadata& metadata, CKey& secretRet, uint32_t nAccountIndex, bool fInternal /*= false*/);
 
     bool CreateCoinStakeKernel(CScript &kernelScript, const CScript &stakeScript,
-                               unsigned int nBits, const CBlock& blockFrom,
-                               unsigned int nTxPrevOffset, const CTransactionRef &txPrev,
-                               const COutPoint& prevout, unsigned int &nTimeTx, bool fPrintProofOfStake) const;
+                               unsigned int nTxPrevOffset, CBlockIndex *pindex,
+                               unsigned int nBits, const CBlock& blockFrom, const CTransactionRef &txPrev,
+                               const COutPoint& prevout, unsigned int &nTimeTx) const;
     void FillCoinStakePayments(CMutableTransaction &transaction,
                                const CScript &kernelScript,
                                const COutPoint &stakePrevout, CAmount blockReward) const;

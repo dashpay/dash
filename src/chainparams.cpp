@@ -240,6 +240,7 @@ public:
             consensus.nStakeMaxAge = 60 * 60 * 24; // one day
             consensus.nWSTargetDiff = 0x1e0ffff0; // Genesis Difficulty
             consensus.nPoSDiffAdjustRange = 5;
+            consensus.nPoSUpdgradeHFHeight = 769293;
 
             // POS hard fork date
             consensus.nLastPoWBlock = 209720;

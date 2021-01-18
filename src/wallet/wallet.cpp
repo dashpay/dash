@@ -211,24 +211,23 @@ CAmount GetStakeReward(CAmount blockReward, unsigned int percentage)
 {
     return (blockReward / 100) * percentage;
 }
-bool CWallet::CreateCoinStakeKernel(CScript &kernelScript, const CScript &stakeScript,
-                                    unsigned int nBits, const CBlock &blockFrom,
-                                    unsigned int nTxPrevOffset, const CTransactionRef &txPrev,
-                                    const COutPoint &prevout, unsigned int &nTimeTx, bool fPrintProofOfStake) const
+bool CWallet::CreateCoinStakeKernel(CScript &kernelScript, const CScript &stakeScript, unsigned int nTxPrevOffset, CBlockIndex *pindex,
+                                    unsigned int nBits, const CBlock &blockFrom, const CTransactionRef &txPrev,
+                                    const COutPoint &prevout, unsigned int &nTimeTx) const
 {
     unsigned int nTryTime = 0;
     uint256 hashProofOfStake;
 
     auto nStakeMinAge = CurrentMinStakeAge(blockFrom.GetBlockTime());
 
-    if (blockFrom.GetBlockTime() + nStakeMinAge + nHashDrift > nTimeTx) // Min age requirement
-        return false;
+  bool isProofOfStakeV3 = Params().GetConsensus().nPoSUpdgradeHFHeight < pindex->nHeight;
+
+    auto blockFromHash = blockFrom.GetHash();
+    auto blockFromTime = blockFrom.GetBlockTime();
     for(unsigned int i = 0; i < nHashDrift; ++i)
     {
         nTryTime = nTimeTx + nHashDrift - i;
-        bool fValid = CheckStakeKernelHash(nBits, blockFrom, nTxPrevOffset, txPrev, prevout, nTryTime, hashProofOfStake);
-        if (fDebug)
-            LogPrintf("%04x %s\n", i, hashProofOfStake.ToString().c_str());
+        bool fValid = CheckStakeKernelHash(pindex, nBits, nTxPrevOffset, blockFromHash, blockFromTime, txPrev, prevout, nTryTime, hashProofOfStake, isProofOfStakeV3);
         if (fValid) {
             //Double check that this will pass time requirements
             if (nTryTime <= chainActive.Tip()->GetMedianTimePast()) {
@@ -3984,9 +3983,10 @@ bool CWallet::CreateCoinStake(unsigned int nBits,
         //iterates each utxo inside of CheckStakeKernelHash()
         CScript kernelScript;
         auto stakeScript = pcoin.first->tx->vout[pcoin.second].scriptPubKey;
-        fKernelFound = CreateCoinStakeKernel(kernelScript, stakeScript, nBits,
-                                             block, sizeof(CBlock), pcoin.first->tx,
-                                             prevoutStake, nTxNewTime, false);
+        fKernelFound = CreateCoinStakeKernel(kernelScript, stakeScript,
+                                             sizeof(CBlock), chainActive.Tip(), nBits,
+                                             block, pcoin.first->tx,
+                                             prevoutStake, nTxNewTime);
         if(fKernelFound)
         {
             FillCoinStakePayments(txNew, kernelScript, prevoutStake, blockReward);

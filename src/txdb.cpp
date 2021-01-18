@@ -381,6 +381,7 @@ bool CBlockTreeDB::LoadBlockIndexGuts(boost::function<CBlockIndex*(const uint256
                 pindexNew->prevoutStake     = diskindex.prevoutStake;
                 pindexNew->nStakeTime       = diskindex.nStakeTime;
                 pindexNew->hashProofOfStake = diskindex.hashProofOfStake;
+                pindexNew->hashStakeModifierV3 = diskindex.hashStakeModifierV3;
                 if(pindexNew->nHeight <= Params().GetConsensus().nLastPoWBlock)
                 {
                     if (!CheckProofOfWork(pindexNew->GetBlockHash(), pindexNew->nBits, Params().GetConsensus()))

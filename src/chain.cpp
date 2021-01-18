@@ -173,7 +173,7 @@ arith_uint256 CBlockIndex::GetBlockTrust() const
     if (bnTarget <= 0)
         return 0;
 
-    if (IsProofOfStake()) {
+    if (IsProofOfStake(false)) {
         // Return trust score as usual
         return (arith_uint256(1) << 256) / (bnTarget + 1);
     } else {
