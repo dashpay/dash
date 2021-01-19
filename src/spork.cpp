@@ -36,7 +36,7 @@ CSporkManager::CSporkManager()
     }
 }
 
-bool CSporkManager::SporkValueIsActive(SporkId nSporkID, int64_t &nActiveValueRet)
+bool CSporkManager::SporkValueIsActive(SporkId nSporkID, int64_t &nActiveValueRet) const
 {
     LOCK(cs);
 

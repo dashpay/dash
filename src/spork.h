@@ -157,7 +157,7 @@ private:
     std::unordered_map<std::string, CSporkDef*> sporkDefsByName;
 
     std::unordered_map<SporkId, bool> mapSporksCachedActive;
-    std::unordered_map<SporkId, int64_t> mapSporksCachedValues;
+    mutable std::unordered_map<SporkId, int64_t> mapSporksCachedValues;
 
     mutable CCriticalSection cs;
     std::unordered_map<uint256, CSporkMessage> mapSporksByHash;
@@ -171,7 +171,7 @@ private:
      * SporkValueIsActive is used to get the value agreed upon by the majority
      * of signed spork messages for a given Spork ID.
      */
-    bool SporkValueIsActive(SporkId nSporkID, int64_t& nActiveValueRet);
+    bool SporkValueIsActive(SporkId nSporkID, int64_t& nActiveValueRet) const;
 
 public:
 
