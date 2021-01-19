@@ -13,6 +13,11 @@
 #include <util.h>
 #include <validation.h>
 
+#include <governance/governance-vote.h>
+#include <governance/governance-object.h>
+#include <llmq/quorums_chainlocks.h>
+#include <llmq/quorums_instantsend.h>
+
 #include <list>
 #include <atomic>
 #include <future>
@@ -232,27 +237,39 @@ void CMainSignals::NotifyHeaderTip(const CBlockIndex *pindexNew, bool fInitialDo
 }
 
 void CMainSignals::NotifyTransactionLock(const CTransaction &tx, const llmq::CInstantSendLock& islock) {
-    m_internals->NotifyTransactionLock(tx, islock);
+    m_internals->m_schedulerClient.AddToProcessQueue([tx, islock, this] {
+        m_internals->NotifyTransactionLock(tx, islock);
+    });
 }
 
 void CMainSignals::NotifyChainLock(const CBlockIndex* pindex, const llmq::CChainLockSig& clsig) {
-    m_internals->NotifyChainLock(pindex, clsig);
+    m_internals->m_schedulerClient.AddToProcessQueue([pindex, clsig, this] {
+        m_internals->NotifyChainLock(pindex, clsig);
+    });
 }
 
 void CMainSignals::NotifyGovernanceVote(const CGovernanceVote &vote) {
-    m_internals->NotifyGovernanceVote(vote);
+    m_internals->m_schedulerClient.AddToProcessQueue([vote, this] {
+        m_internals->NotifyGovernanceVote(vote);
+    });
 }
 
 void CMainSignals::NotifyGovernanceObject(const CGovernanceObject &object) {
-    m_internals->NotifyGovernanceObject(object);
+    m_internals->m_schedulerClient.AddToProcessQueue([object, this] {
+        m_internals->NotifyGovernanceObject(object);
+    });
 }
 
 void CMainSignals::NotifyInstantSendDoubleSpendAttempt(const CTransaction &currentTx, const CTransaction &previousTx) {
-    m_internals->NotifyInstantSendDoubleSpendAttempt(currentTx, previousTx);
+    m_internals->m_schedulerClient.AddToProcessQueue([currentTx, previousTx, this] {
+        m_internals->NotifyInstantSendDoubleSpendAttempt(currentTx, previousTx);
+    });
 }
 
 void CMainSignals::NotifyRecoveredSig(const llmq::CRecoveredSig& sig) {
-    m_internals->NotifyRecoveredSig(sig);
+    m_internals->m_schedulerClient.AddToProcessQueue([sig, this] {
+        m_internals->NotifyRecoveredSig(sig);
+    });
 }
 
 void CMainSignals::NotifyMasternodeListChanged(bool undo, const CDeterministicMNList& oldMNList, const CDeterministicMNListDiff& diff) {
