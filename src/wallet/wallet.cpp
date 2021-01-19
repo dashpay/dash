@@ -3497,55 +3497,6 @@ bool CWallet::HasCollateralInputs(bool fOnlyConfirmed) const
     return !vCoins.empty();
 }
 
-bool CWallet::CreatePrivateSendCollateralTransaction(CMutableTransaction& txCollateral, std::string& strReason)
-{
-    LOCK2(cs_main, cs_wallet);
-
-    std::vector<COutput> vCoins;
-    CCoinControl coin_control;
-    coin_control.nCoinType = CoinType::ONLY_PRIVATESEND_COLLATERAL;
-
-    AvailableCoins(vCoins, true, &coin_control);
-
-    if (vCoins.empty()) {
-        strReason = "PrivateSend requires a collateral transaction and could not locate an acceptable input!";
-        return false;
-    }
-
-    const auto& output = vCoins.at(GetRandInt(vCoins.size()));
-    const CTxOut txout = output.tx->tx->vout[output.i];
-
-    txCollateral.vin.clear();
-    txCollateral.vin.emplace_back(output.tx->GetHash(), output.i);
-    txCollateral.vout.clear();
-
-    // pay collateral charge in fees
-    // NOTE: no need for protobump patch here,
-    // CPrivateSend::IsCollateralAmount in GetCollateralTxDSIn should already take care of this
-    if (txout.nValue >= CPrivateSend::GetCollateralAmount() * 2) {
-        // make our change address
-        CScript scriptChange;
-        CPubKey vchPubKey;
-        CReserveKey reservekey(this);
-        bool success = reservekey.GetReservedKey(vchPubKey, true);
-        assert(success); // should never fail, as we just unlocked
-        scriptChange = GetScriptForDestination(vchPubKey.GetID());
-        reservekey.KeepKey();
-        // return change
-        txCollateral.vout.push_back(CTxOut(txout.nValue - CPrivateSend::GetCollateralAmount(), scriptChange));
-    } else { // txout.nValue < CPrivateSend::GetCollateralAmount() * 2
-        // create dummy data output only and pay everything as a fee
-        txCollateral.vout.push_back(CTxOut(0, CScript() << OP_RETURN));
-    }
-
-    if (!SignSignature(*this, txout.scriptPubKey, txCollateral, 0, txout.nValue, SIGHASH_ALL)) {
-        strReason = "Unable to sign collateral transaction!";
-        return false;
-    }
-
-    return true;
-}
-
 bool CWallet::GetBudgetSystemCollateralTX(CTransactionRef& tx, uint256 hash, CAmount amount, const COutPoint& outpoint)
 {
     // make our change address

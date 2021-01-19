@@ -127,6 +127,8 @@ private:
     bool MakeCollateralAmounts();
     bool MakeCollateralAmounts(const CompactTallyItem& tallyItem, bool fTryDenominated);
 
+    bool CreateCollateralTransaction(CMutableTransaction& txCollateral, std::string& strReason);
+
     bool JoinExistingQueue(CAmount nBalanceNeedsAnonymized, CConnman& connman);
     bool StartNewQueue(CAmount nBalanceNeedsAnonymized, CConnman& connman);
 

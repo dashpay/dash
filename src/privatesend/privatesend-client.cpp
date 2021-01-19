@@ -913,14 +913,14 @@ bool CPrivateSendClientSession::DoAutomaticDenominating(CConnman& connman, bool 
         //check our collateral and create new if needed
         std::string strReason;
         if (txMyCollateral == CMutableTransaction()) {
-            if (!mixingWallet.CreatePrivateSendCollateralTransaction(txMyCollateral, strReason)) {
+            if (!CreateCollateralTransaction(txMyCollateral, strReason)) {
                 LogPrint(BCLog::PRIVATESEND, "CPrivateSendClientSession::DoAutomaticDenominating -- create collateral error:%s\n", strReason);
                 return false;
             }
         } else {
             if (!CPrivateSend::IsCollateralValid(txMyCollateral)) {
                 LogPrint(BCLog::PRIVATESEND, "CPrivateSendClientSession::DoAutomaticDenominating -- invalid collateral, recreating...\n");
-                if (!mixingWallet.CreatePrivateSendCollateralTransaction(txMyCollateral, strReason)) {
+                if (!CreateCollateralTransaction(txMyCollateral, strReason)) {
                     LogPrint(BCLog::PRIVATESEND, "CPrivateSendClientSession::DoAutomaticDenominating -- create collateral error: %s\n", strReason);
                     return false;
                 }
@@ -1506,6 +1506,55 @@ bool CPrivateSendClientSession::MakeCollateralAmounts(const CompactTallyItem& ta
     privateSendClientManagers.at(mixingWallet.GetName())->UpdatedSuccessBlock();
 
     LogPrint(BCLog::PRIVATESEND, "CPrivateSendClientSession::%s -- txid: %s\n", __func__, strResult);
+
+    return true;
+}
+
+bool CPrivateSendClientSession::CreateCollateralTransaction(CMutableTransaction& txCollateral, std::string& strReason)
+{
+    LOCK2(cs_main, mixingWallet.cs_wallet);
+
+    std::vector<COutput> vCoins;
+    CCoinControl coin_control;
+    coin_control.nCoinType = CoinType::ONLY_PRIVATESEND_COLLATERAL;
+
+    mixingWallet.AvailableCoins(vCoins, true, &coin_control);
+
+    if (vCoins.empty()) {
+        strReason = "PrivateSend requires a collateral transaction and could not locate an acceptable input!";
+        return false;
+    }
+
+    const auto& output = vCoins.at(GetRandInt(vCoins.size()));
+    const CTxOut txout = output.tx->tx->vout[output.i];
+
+    txCollateral.vin.clear();
+    txCollateral.vin.emplace_back(output.tx->GetHash(), output.i);
+    txCollateral.vout.clear();
+
+    // pay collateral charge in fees
+    // NOTE: no need for protobump patch here,
+    // CPrivateSend::IsCollateralAmount in GetCollateralTxDSIn should already take care of this
+    if (txout.nValue >= CPrivateSend::GetCollateralAmount() * 2) {
+        // make our change address
+        CScript scriptChange;
+        CPubKey vchPubKey;
+        CReserveKey reservekey(&mixingWallet);
+        bool success = reservekey.GetReservedKey(vchPubKey, true);
+        assert(success); // should never fail, as we just unlocked
+        scriptChange = GetScriptForDestination(vchPubKey.GetID());
+        reservekey.KeepKey();
+        // return change
+        txCollateral.vout.push_back(CTxOut(txout.nValue - CPrivateSend::GetCollateralAmount(), scriptChange));
+    } else { // txout.nValue < CPrivateSend::GetCollateralAmount() * 2
+        // create dummy data output only and pay everything as a fee
+        txCollateral.vout.push_back(CTxOut(0, CScript() << OP_RETURN));
+    }
+
+    if (!SignSignature(mixingWallet, txout.scriptPubKey, txCollateral, 0, txout.nValue, SIGHASH_ALL)) {
+        strReason = "Unable to sign collateral transaction!";
+        return false;
+    }
 
     return true;
 }
