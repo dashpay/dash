@@ -224,6 +224,7 @@ bool CSporkManager::UpdateSpork(SporkId nSporkID, int64_t nValue, CConnman& conn
 
 bool CSporkManager::IsSporkActive(SporkId nSporkID)
 {
+    LOCK(cs);
     // If nSporkID is cached, and the cached value is true, then return early true
     auto it = mapSporksCachedActive.find(nSporkID);
     if (it != mapSporksCachedActive.end() && it->second) {
