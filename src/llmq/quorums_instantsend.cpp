@@ -957,7 +957,7 @@ void CInstantSendManager::ProcessInstantSendLock(NodeId from, const uint256& has
 
     if (tx != nullptr) {
         LogPrint(BCLog::INSTANTSEND, "CInstantSendManager::%s -- notify about an in-time lock for tx %s\n", __func__, tx->GetHash().ToString());
-        GetMainSignals().NotifyTransactionLock(*tx, islock);
+        GetMainSignals().NotifyTransactionLock(tx, std::make_shared<const CInstantSendLock>(islock));
         // bump mempool counter to make sure newly locked txes are picked up by getblocktemplate
         mempool.AddTransactionsUpdated(1);
     }
@@ -1022,7 +1022,7 @@ void CInstantSendManager::TransactionAddedToMempool(const CTransactionRef& tx)
         // If the islock was received before the TX, we know we were not able to send
         // the notification at that time, we need to do it now.
         LogPrint(BCLog::INSTANTSEND, "CInstantSendManager::%s -- notify about an earlier received lock for tx %s\n", __func__, tx->GetHash().ToString());
-        GetMainSignals().NotifyTransactionLock(*tx, *islock);
+        GetMainSignals().NotifyTransactionLock(tx, islock);
     }
 }
 

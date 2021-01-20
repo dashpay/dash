@@ -735,7 +735,7 @@ void CSigningManager::ProcessRecoveredSig(const CRecoveredSig& recoveredSig)
         l->HandleNewRecoveredSig(recoveredSig);
     }
 
-    GetMainSignals().NotifyRecoveredSig(recoveredSig);
+    GetMainSignals().NotifyRecoveredSig(std::make_shared<const CRecoveredSig>(recoveredSig));
 }
 
 void CSigningManager::PushReconstructedRecoveredSig(const llmq::CRecoveredSig& recoveredSig)

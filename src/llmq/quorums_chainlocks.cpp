@@ -562,7 +562,7 @@ void CChainLocksHandler::EnforceBestChainLock()
     }
 
     if (pindexNotify) {
-        GetMainSignals().NotifyChainLock(pindexNotify, clsig);
+        GetMainSignals().NotifyChainLock(pindexNotify, std::make_shared<const CChainLockSig>(clsig));
     }
 }
 
