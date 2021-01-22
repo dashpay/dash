@@ -279,7 +279,7 @@ public:
 
     CGovernanceManager();
 
-    virtual ~CGovernanceManager() {}
+    virtual ~CGovernanceManager() = default;
 
     /**
      * This is called by AlreadyHave in net_processing.cpp as part of the inventory
