@@ -105,7 +105,7 @@ public:
 
     int GetCount()
     {
-        int nCount = 0;
+        int nCount;
         if (fBufferEmpty) {
             return 0;
         }
