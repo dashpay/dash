@@ -28,16 +28,6 @@ class CGovernanceVote;
 
 extern CGovernanceManager governance;
 
-struct ExpirationInfo {
-    ExpirationInfo(int64_t _nExpirationTime, int _idFrom) :
-        nExpirationTime(_nExpirationTime), idFrom(_idFrom) {}
-
-    int64_t nExpirationTime;
-    NodeId idFrom;
-};
-
-typedef std::pair<CGovernanceObject, ExpirationInfo> object_info_pair_t;
-
 static const int RATE_BUFFER_SIZE = 5;
 
 class CRateCheckBuffer
