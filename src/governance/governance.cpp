@@ -287,7 +287,7 @@ void CGovernanceManager::AddGovernanceObject(CGovernanceObject& govobj, CConnman
     uint256 nHash = govobj.GetHash();
     std::string strHash = nHash.ToString();
 
-    // UPDATE CACHED VARIABLES FOR THIS OBJECT AND ADD IT TO OUR MANANGED DATA
+    // UPDATE CACHED VARIABLES FOR THIS OBJECT AND ADD IT TO OUR MANAGED DATA
 
     govobj.UpdateSentinelVariables(); //this sets local vars in object
 
@@ -312,7 +312,7 @@ void CGovernanceManager::AddGovernanceObject(CGovernanceObject& govobj, CConnman
         return;
     }
 
-    // SHOULD WE ADD THIS OBJECT TO ANY OTHER MANANGERS?
+    // SHOULD WE ADD THIS OBJECT TO ANY OTHER MANAGERS?
 
     LogPrint(BCLog::GOBJECT, "CGovernanceManager::AddGovernanceObject -- Before trigger block, GetDataAsPlainString = %s, nObjectType = %d\n",
                 govobj.GetDataAsPlainString(), govobj.GetObjectType());
@@ -486,7 +486,7 @@ std::vector<CGovernanceVote> CGovernanceManager::GetCurrentVotes(const uint256& 
         }
     }
 
-    // Loop thru each MN collateral outpoint and get the votes for the `nParentHash` governance object
+    // Loop through each MN collateral outpoint and get the votes for the `nParentHash` governance object
     for (const auto& mnpair : mapMasternodes) {
         // get a vote_rec_t from the govobj
         vote_rec_t voteRecord;
