@@ -74,7 +74,7 @@ public:
         strMessage = ostr.str();
     }
 
-    ~CGovernanceException() noexcept override {}
+    ~CGovernanceException() noexcept override = default;
 
     const char* what() const noexcept override
     {
