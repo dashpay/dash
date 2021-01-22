@@ -102,7 +102,7 @@ public:
         }
     }
 
-    bool IsValid() { return fValid; }
+    bool IsValid() const { return fValid; }
 };
 
 
