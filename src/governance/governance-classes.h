@@ -142,7 +142,7 @@ public:
     static void GetNearestSuperblocksHeights(int nBlockHeight, int& nLastSuperblockRet, int& nNextSuperblockRet);
     static CAmount GetPaymentsLimit(int nBlockHeight);
 
-    int GetStatus() { return nStatus; }
+    int GetStatus() const { return nStatus; }
     void SetStatus(int nStatusIn) { nStatus = nStatusIn; }
 
     // TELL THE ENGINE WE EXECUTED THIS EVENT
