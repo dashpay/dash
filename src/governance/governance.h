@@ -174,23 +174,15 @@ public: // Types
     };
 
 
-    typedef std::map<uint256, CGovernanceObject> object_m_t;
-
     typedef CacheMap<uint256, CGovernanceObject*> object_ref_cm_t;
 
     typedef std::map<uint256, CGovernanceVote> vote_m_t;
-
-    typedef CacheMap<uint256, CGovernanceVote> vote_cm_t;
 
     typedef CacheMultiMap<uint256, vote_time_pair_t> vote_cmm_t;
 
     typedef std::map<COutPoint, last_object_rec> txout_m_t;
 
     typedef std::set<uint256> hash_s_t;
-
-    typedef std::map<uint256, object_info_pair_t> object_info_m_t;
-
-    typedef std::map<uint256, int64_t> hash_time_m_t;
 
 private:
     static const int MAX_CACHE_SIZE = 1000000;
@@ -206,19 +198,19 @@ private:
     int nCachedBlockHeight;
 
     // keep track of the scanning errors
-    object_m_t mapObjects;
+    std::map<uint256, CGovernanceObject> mapObjects;
 
     // mapErasedGovernanceObjects contains key-value pairs, where
     //   key   - governance object's hash
     //   value - expiration time for deleted objects
-    hash_time_m_t mapErasedGovernanceObjects;
+    std::map<uint256, int64_t> mapErasedGovernanceObjects;
 
-    object_m_t mapPostponedObjects;
+    std::map<uint256, CGovernanceObject> mapPostponedObjects;
     hash_s_t setAdditionalRelayObjects;
 
     object_ref_cm_t cmapVoteToObject;
 
-    vote_cm_t cmapInvalidVotes;
+    CacheMap<uint256, CGovernanceVote> cmapInvalidVotes;
 
     vote_cmm_t cmmapOrphanVotes;
 
