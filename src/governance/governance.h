@@ -95,17 +95,14 @@ public:
 
     int GetCount() const
     {
-        int nCount;
         if (fBufferEmpty) {
             return 0;
         }
         if (nDataEnd > nDataStart) {
-            nCount = nDataEnd - nDataStart;
+            return nDataEnd - nDataStart;
         } else {
-            nCount = RATE_BUFFER_SIZE - nDataStart + nDataEnd;
+            return RATE_BUFFER_SIZE - nDataStart + nDataEnd;
         }
-
-        return nCount;
     }
 
     double GetRate()
