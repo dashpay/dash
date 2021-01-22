@@ -62,7 +62,7 @@ private:
     int nNodePenalty;
 
 public:
-    CGovernanceException(const std::string& strMessageIn = "",
+    explicit CGovernanceException(const std::string& strMessageIn = "",
         governance_exception_type_enum_t eTypeIn = GOVERNANCE_EXCEPTION_NONE,
         int nNodePenaltyIn = 0) :
         strMessage(),
