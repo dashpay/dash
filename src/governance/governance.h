@@ -103,7 +103,7 @@ public:
         return nMax;
     }
 
-    int GetCount()
+    int GetCount() const
     {
         int nCount;
         if (fBufferEmpty) {
