@@ -55,7 +55,7 @@ public:
      */
     bool SerializeVoteToStream(const uint256& nHash, CDataStream& ss) const;
 
-    int GetVoteCount()
+    int GetVoteCount() const
     {
         return nMemoryVotes;
     }
