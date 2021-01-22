@@ -76,7 +76,7 @@ public:
 
     virtual ~CGovernanceException() noexcept {}
 
-    virtual const char* what() const noexcept override
+    const char* what() const noexcept override
     {
         return strMessage.c_str();
     }
