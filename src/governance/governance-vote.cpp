@@ -6,7 +6,6 @@
 #include <governance/governance-object.h>
 #include <masternode/masternode-sync.h>
 #include <messagesigner.h>
-#include <spork.h>
 #include <util.h>
 
 #include <evo/deterministicmns.h>
