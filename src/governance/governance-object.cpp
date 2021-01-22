@@ -4,7 +4,6 @@
 
 #include <governance/governance-object.h>
 #include <core_io.h>
-#include <governance/governance-classes.h>
 #include <governance/governance-validators.h>
 #include <governance/governance.h>
 #include <masternode/masternode-meta.h>
