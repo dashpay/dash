@@ -59,7 +59,7 @@ struct vote_instance_t {
     int64_t nTime;
     int64_t nCreationTime;
 
-    vote_instance_t(vote_outcome_enum_t eOutcomeIn = VOTE_OUTCOME_NONE, int64_t nTimeIn = 0, int64_t nCreationTimeIn = 0) :
+    explicit vote_instance_t(vote_outcome_enum_t eOutcomeIn = VOTE_OUTCOME_NONE, int64_t nTimeIn = 0, int64_t nCreationTimeIn = 0) :
         eOutcome(eOutcomeIn),
         nTime(nTimeIn),
         nCreationTime(nCreationTimeIn)
