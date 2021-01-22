@@ -184,8 +184,6 @@ public: // Types
 
     typedef CacheMultiMap<uint256, vote_time_pair_t> vote_cmm_t;
 
-    typedef object_m_t::size_type size_type;
-
     typedef std::map<COutPoint, last_object_rec> txout_m_t;
 
     typedef std::set<uint256> hash_s_t;
