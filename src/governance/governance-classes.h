@@ -155,7 +155,7 @@ public:
         return pObj;
     }
 
-    int GetBlockHeight()
+    int GetBlockHeight() const
     {
         return nBlockHeight;
     }
