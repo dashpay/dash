@@ -84,14 +84,13 @@ public:
     {
     }
 
-    CGovernancePayment(CTxDestination destIn, CAmount nAmountIn) :
+    CGovernancePayment(const CTxDestination& destIn, CAmount nAmountIn) :
         fValid(false),
         script(),
         nAmount(0)
     {
         try {
-            CTxDestination dest = destIn;
-            script = GetScriptForDestination(dest);
+            script = GetScriptForDestination(destIn);
             nAmount = nAmountIn;
             fValid = true;
         } catch (std::exception& e) {
