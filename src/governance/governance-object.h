@@ -105,8 +105,6 @@ class CGovernanceObject
 public: // Types
     typedef std::map<COutPoint, vote_rec_t> vote_m_t;
 
-    typedef CacheMultiMap<COutPoint, vote_time_pair_t> vote_cmm_t;
-
 private:
     /// critical section to protect the inner data structures
     mutable CCriticalSection cs;
