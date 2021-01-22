@@ -442,7 +442,7 @@ void CGovernanceObject::UpdateLocalValidity()
     LOCK(cs_main);
     // THIS DOES NOT CHECK COLLATERAL, THIS IS CHECKED UPON ORIGINAL ARRIVAL
     fCachedLocalValidity = IsValidLocally(strLocalValidityError, false);
-};
+}
 
 
 bool CGovernanceObject::IsValidLocally(std::string& strError, bool fCheckCollateral) const
