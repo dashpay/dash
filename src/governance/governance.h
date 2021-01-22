@@ -166,8 +166,6 @@ public: // Types
 
     typedef CacheMap<uint256, CGovernanceObject*> object_ref_cm_t;
 
-    typedef std::map<uint256, CGovernanceVote> vote_m_t;
-
     typedef CacheMultiMap<uint256, vote_time_pair_t> vote_cmm_t;
 
     typedef std::map<COutPoint, last_object_rec> txout_m_t;
