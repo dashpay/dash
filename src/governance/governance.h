@@ -176,17 +176,9 @@ public: // Types
 
     typedef std::map<uint256, CGovernanceObject> object_m_t;
 
-    typedef object_m_t::iterator object_m_it;
-
-    typedef object_m_t::const_iterator object_m_cit;
-
     typedef CacheMap<uint256, CGovernanceObject*> object_ref_cm_t;
 
     typedef std::map<uint256, CGovernanceVote> vote_m_t;
-
-    typedef vote_m_t::iterator vote_m_it;
-
-    typedef vote_m_t::const_iterator vote_m_cit;
 
     typedef CacheMap<uint256, CGovernanceVote> vote_cm_t;
 
@@ -196,21 +188,11 @@ public: // Types
 
     typedef std::map<COutPoint, last_object_rec> txout_m_t;
 
-    typedef txout_m_t::iterator txout_m_it;
-
     typedef std::set<uint256> hash_s_t;
-
-    typedef hash_s_t::iterator hash_s_it;
-
-    typedef hash_s_t::const_iterator hash_s_cit;
 
     typedef std::map<uint256, object_info_pair_t> object_info_m_t;
 
-    typedef object_info_m_t::iterator object_info_m_it;
-
     typedef std::map<uint256, int64_t> hash_time_m_t;
-
-    typedef hash_time_m_t::iterator hash_time_m_it;
 
 private:
     static const int MAX_CACHE_SIZE = 1000000;
