@@ -3070,7 +3070,7 @@ UniValue upgradetohd(const JSONRPCRequest& request)
         throw std::runtime_error(
                 "upgradetohd\n"
                 "\nUpgrades non-HD wallets to HD.\n"
-                "\Warning: You will need to make a new backup of your wallet after setting the HD wallet mnemonic.\n"
+                "\nWarning: You will need to make a new backup of your wallet after setting the HD wallet mnemonic.\n"
                 "\nArguments:\n"
                 "1. \"mnemonic\"             (string, optional, default=\"\") Mnemonic as defined in BIP39 to use for the new HD wallet."
                 "                          Use an empty string \"\" to generate a new random mnemonic.\n"
@@ -3159,7 +3159,7 @@ UniValue upgradetohd(const JSONRPCRequest& request)
         // slack space in .dat files; that is bad if the old data is
         // unencrypted private keys. So:
         StartShutdown();
-        return "Wallet successfully upgraded and encrypted, Dash Core server is stopping. Remember to make a backup before restarting."
+        return "Wallet successfully upgraded and encrypted, Dash Core server is stopping. Remember to make a backup before restarting.";
     }
 
     return true;
