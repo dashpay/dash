@@ -45,9 +45,9 @@ class CInstantSendDb
 private:
     CDBWrapper& db;
 
-    mutable unordered_lru_cache<uint256, CInstantSendLockPtr, StaticSaltedHasher, 10000> islockCache;
-    mutable unordered_lru_cache<uint256, uint256, StaticSaltedHasher, 10000> txidCache;
-    mutable unordered_lru_cache<COutPoint, uint256, SaltedOutpointHasher, 10000> outpointCache;
+    mutable unordered_lru_cache<uint256, CInstantSendLockPtr, StaticSaltedHasher, 100000> islockCache;
+    mutable unordered_lru_cache<uint256, uint256, StaticSaltedHasher, 100000> txidCache;
+    mutable unordered_lru_cache<COutPoint, uint256, SaltedOutpointHasher, 100000> outpointCache;
 
 public:
     explicit CInstantSendDb(CDBWrapper& _db) : db(_db) {}
