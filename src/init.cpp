@@ -1943,6 +1943,7 @@ bool AppInitMain()
     LogPrintf("* Using %.1fMiB for in-memory UTXO set (plus up to %.1fMiB of unused mempool space)\n", nCoinCacheUsage * (1.0 / 1024 / 1024), nMempoolSizeMax * (1.0 / 1024 / 1024));
 
     bool fLoaded = false;
+    bool fReconsiderInvalidTip{false};
     int64_t nStart = GetTimeMillis();
 
     while (!fLoaded && !fRequestShutdown) {
@@ -2117,7 +2118,7 @@ bool AppInitMain()
                         break;
                     }
 
-                    ResetBlockFailureFlags(nullptr);
+                    fReconsiderInvalidTip = ResetBlockFailureFlags(nullptr);
                 }
             } catch (const std::exception& e) {
                 LogPrintf("%s\n", e.what());
@@ -2156,6 +2157,23 @@ bool AppInitMain()
     {
         LogPrintf("Shutdown requested. Exiting.\n");
         return false;
+    }
+
+    if (fReconsiderInvalidTip) {
+        // Do this outside of ThreadImport to avoid exposing rpc while we are still reconsidering the chain
+        uiInterface.InitMessage(_("Trying to activate a better chain which was marked invalid previousely..."));
+        CValidationState state;
+        if (!ActivateBestChain(state, chainparams)) {
+            LogPrintf("Failed to connect best block (%s), exiting\n", FormatStateMessage(state));
+            StartShutdown();
+            return false;
+        }
+
+        // ActivateBestChain can be a heavy one, see if the user requested to kill the GUI
+        if (fRequestShutdown) {
+            LogPrintf("Shutdown requested. Exiting.\n");
+            return false;
+        }
     }
 
     fs::path est_path = GetDataDir() / FEE_ESTIMATES_FILENAME;

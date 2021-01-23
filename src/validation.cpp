@@ -3379,11 +3379,13 @@ bool CChainState::ResetBlockFailureFlags(CBlockIndex *pindex) {
 
     if (!pindex) {
         if (pindexBestInvalid && pindexBestInvalid->GetAncestor(chainActive.Height()) == chainActive.Tip()) {
-            LogPrintf("%s: the best known invalid block (%s) is ahead of our tip, reconsidering\n",
-                    __func__, pindexBestInvalid->GetBlockHash().ToString());
+            LogPrintf("%s: the best known invalid block (hash=%s, height=%d) is ahead of our tip (hash=%s, height=%d), reconsidering\n", __func__,
+                    pindexBestInvalid->GetBlockHash().ToString(), pindexBestInvalid->nHeight,
+                    chainActive.Tip()->GetBlockHash().ToString(), chainActive.Height());
             pindex = pindexBestInvalid;
         } else {
-            return true;
+            // nothing to do
+            return false;
         }
     }
 
