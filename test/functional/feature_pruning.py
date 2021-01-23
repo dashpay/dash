@@ -146,12 +146,14 @@ class PruneTest(BitcoinTestFramework):
         assert(self.nodes[1].getblockcount() == invalidheight - 1)
         self.log.info("New best height: %d" % self.nodes[1].getblockcount())
 
+        # Mine one block to avoid automatic recovery from forks on restart
+        self.nodes[1].generate(1)
         # Reboot node1 to clear those giant tx's from mempool
         self.stop_node(1)
         self.start_node(1, extra_args=["-dip3params=2000:2000", "-dip8params=2000", "-maxreceivebuffer=20000","-blockmaxsize=5000", "-checkblocks=5"])
 
         self.log.info("Generating new longer chain of 300 more blocks")
-        self.nodes[1].generate(300)
+        self.nodes[1].generate(299)
 
         self.log.info("Reconnect nodes")
         connect_nodes(self.nodes[0], 1)
