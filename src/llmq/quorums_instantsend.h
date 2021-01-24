@@ -53,7 +53,7 @@ public:
     explicit CInstantSendDb(CDBWrapper& _db) : db(_db) {}
 
     void WriteNewInstantSendLock(const uint256& hash, const CInstantSendLock& islock);
-    void RemoveInstantSendLock(CDBBatch& batch, const uint256& hash, CInstantSendLockPtr islock);
+    void RemoveInstantSendLock(CDBBatch& batch, const uint256& hash, CInstantSendLockPtr islock, bool keep_cache = true);
 
     void WriteInstantSendLockMined(const uint256& hash, int nHeight);
     void RemoveInstantSendLockMined(const uint256& hash, int nHeight);
@@ -63,7 +63,7 @@ public:
     bool HasArchivedInstantSendLock(const uint256& islockHash) const;
     size_t GetInstantSendLockCount() const;
 
-    CInstantSendLockPtr GetInstantSendLockByHash(const uint256& hash) const;
+    CInstantSendLockPtr GetInstantSendLockByHash(const uint256& hash, bool use_cache = true) const;
     uint256 GetInstantSendLockHashByTxid(const uint256& txid) const;
     CInstantSendLockPtr GetInstantSendLockByTxid(const uint256& txid) const;
     CInstantSendLockPtr GetInstantSendLockByInput(const COutPoint& outpoint) const;

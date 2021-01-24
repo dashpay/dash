@@ -65,10 +65,10 @@ void CInstantSendDb::WriteNewInstantSendLock(const uint256& hash, const CInstant
     }
 }
 
-void CInstantSendDb::RemoveInstantSendLock(CDBBatch& batch, const uint256& hash, CInstantSendLockPtr islock)
+void CInstantSendDb::RemoveInstantSendLock(CDBBatch& batch, const uint256& hash, CInstantSendLockPtr islock, bool keep_cache)
 {
     if (!islock) {
-        islock = GetInstantSendLockByHash(hash);
+        islock = GetInstantSendLockByHash(hash, false);
         if (!islock) {
             return;
         }
@@ -80,10 +80,12 @@ void CInstantSendDb::RemoveInstantSendLock(CDBBatch& batch, const uint256& hash,
         batch.Erase(std::make_tuple(std::string(DB_HASH_BY_OUTPOINT), in));
     }
 
-    islockCache.erase(hash);
-    txidCache.erase(islock->txid);
-    for (auto& in : islock->inputs) {
-        outpointCache.erase(in);
+    if (!keep_cache) {
+        islockCache.erase(hash);
+        txidCache.erase(islock->txid);
+        for (auto& in : islock->inputs) {
+            outpointCache.erase(in);
+        }
     }
 }
 
@@ -129,7 +131,7 @@ std::unordered_map<uint256, CInstantSendLockPtr> CInstantSendDb::RemoveConfirmed
         }
 
         auto& islockHash = std::get<2>(curKey);
-        auto islock = GetInstantSendLockByHash(islockHash);
+        auto islock = GetInstantSendLockByHash(islockHash, false);
         if (islock) {
             RemoveInstantSendLock(batch, islockHash, islock);
             ret.emplace(islockHash, islock);
@@ -204,10 +206,10 @@ size_t CInstantSendDb::GetInstantSendLockCount() const
     return cnt;
 }
 
-CInstantSendLockPtr CInstantSendDb::GetInstantSendLockByHash(const uint256& hash) const
+CInstantSendLockPtr CInstantSendDb::GetInstantSendLockByHash(const uint256& hash, bool use_cache) const
 {
     CInstantSendLockPtr ret;
-    if (islockCache.get(hash, ret)) {
+    if (use_cache && islockCache.get(hash, ret)) {
         return ret;
     }
 
@@ -311,12 +313,12 @@ std::vector<uint256> CInstantSendDb::RemoveChainedInstantSendLocks(const uint256
         stack.pop_back();
 
         for (auto& childIslockHash : children) {
-            auto childIsLock = GetInstantSendLockByHash(childIslockHash);
+            auto childIsLock = GetInstantSendLockByHash(childIslockHash, false);
             if (!childIsLock) {
                 continue;
             }
 
-            RemoveInstantSendLock(batch, childIslockHash, childIsLock);
+            RemoveInstantSendLock(batch, childIslockHash, childIsLock, false);
             WriteInstantSendLockArchived(batch, childIslockHash, nHeight);
             result.emplace_back(childIslockHash);
 
@@ -326,7 +328,7 @@ std::vector<uint256> CInstantSendDb::RemoveChainedInstantSendLocks(const uint256
         }
     }
 
-    RemoveInstantSendLock(batch, islockHash, nullptr);
+    RemoveInstantSendLock(batch, islockHash, nullptr, false);
     WriteInstantSendLockArchived(batch, islockHash, nHeight);
     result.emplace_back(islockHash);
 
