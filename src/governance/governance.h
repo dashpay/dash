@@ -100,9 +100,8 @@ public:
         }
         if (nDataEnd > nDataStart) {
             return nDataEnd - nDataStart;
-        } else {
-            return RATE_BUFFER_SIZE - nDataStart + nDataEnd;
         }
+        return RATE_BUFFER_SIZE - nDataStart + nDataEnd;
     }
 
     double GetRate()
