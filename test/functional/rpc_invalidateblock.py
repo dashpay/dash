@@ -83,7 +83,8 @@ class InvalidateTest(BitcoinTestFramework):
 
         assert_equal(self.nodes[1].getblockcount(), newheight)
         self.restart_node(1, extra_args=["-checkblocks=5"])
-        assert_equal(self.nodes[1].getblockcount(), newheight + 20)
+        wait_until(lambda: self.nodes[1].getblockcount() == newheight + 20)
+        assert_equal(tip, self.nodes[1].getbestblockhash())
 
 
 if __name__ == '__main__':
