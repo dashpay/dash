@@ -185,9 +185,9 @@ void CInstantSendDb::RemoveArchivedInstantSendLocks(int nUntilHeight)
     db.WriteBatch(batch);
 }
 
-bool CInstantSendDb::HasArchivedInstantSendLock(const uint256& islockHash) const
+bool CInstantSendDb::KnownInstantSendLock(const uint256& islockHash) const
 {
-    return db.Exists(std::make_tuple(std::string(DB_ARCHIVED_BY_HASH), islockHash));
+    return GetInstantSendLockByHash(islockHash) != nullptr || db.Exists(std::make_tuple(std::string(DB_ARCHIVED_BY_HASH), islockHash));
 }
 
 size_t CInstantSendDb::GetInstantSendLockCount() const
@@ -682,10 +682,7 @@ void CInstantSendManager::ProcessMessageInstantSendLock(CNode* pfrom, const llmq
     }
 
     LOCK(cs);
-    if (db.GetInstantSendLockByHash(hash) != nullptr) {
-        return;
-    }
-    if (pendingInstantSendLocks.count(hash)) {
+    if (pendingInstantSendLocks.count(hash) || db.KnownInstantSendLock(hash)) {
         return;
     }
 
@@ -905,7 +902,7 @@ void CInstantSendManager::ProcessInstantSendLock(NodeId from, const uint256& has
         txToCreatingInstantSendLocks.erase(islock->txid);
 
         CInstantSendLockPtr otherIsLock;
-        if (db.GetInstantSendLockByHash(hash)) {
+        if (pendingInstantSendLocks.count(hash) || db.KnownInstantSendLock(hash)) {
             return;
         }
         otherIsLock = db.GetInstantSendLockByTxid(islock->txid);
@@ -1417,7 +1414,7 @@ bool CInstantSendManager::AlreadyHave(const CInv& inv) const
     }
 
     LOCK(cs);
-    return db.GetInstantSendLockByHash(inv.hash) != nullptr || pendingInstantSendLocks.count(inv.hash) != 0 || db.HasArchivedInstantSendLock(inv.hash);
+    return pendingInstantSendLocks.count(inv.hash) != 0 || db.KnownInstantSendLock(inv.hash);
 }
 
 bool CInstantSendManager::GetInstantSendLockByHash(const uint256& hash, llmq::CInstantSendLock& ret) const
@@ -1463,7 +1460,7 @@ bool CInstantSendManager::IsLocked(const uint256& txHash) const
     }
 
     LOCK(cs);
-    return db.GetInstantSendLockByTxid(txHash) != nullptr;
+    return db.KnownInstantSendLock(db.GetInstantSendLockHashByTxid(txHash));
 }
 
 bool CInstantSendManager::IsConflicted(const CTransaction& tx) const
