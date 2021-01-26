@@ -965,62 +965,29 @@ void CInstantSendManager::ProcessInstantSendLock(NodeId from, const uint256& has
     }
 }
 
-void CInstantSendManager::ProcessNewTransaction(const CTransactionRef& tx, const CBlockIndex* pindex, bool allowReSigning)
-{
-    if (!IsInstantSendEnabled()) {
-        return;
-    }
-
-    if (tx->IsCoinBase() || tx->vin.empty()) {
-        // coinbase and TXs with no inputs can't be locked
-        return;
-    }
-
-    uint256 islockHash;
-    {
-        LOCK(cs);
-        islockHash = db.GetInstantSendLockHashByTxid(tx->GetHash());
-
-        // update DB about when an IS lock was mined
-        if (!islockHash.IsNull() && pindex) {
-            db.WriteInstantSendLockMined(islockHash, pindex->nHeight);
-        }
-    }
-
-    if (!masternodeSync.IsBlockchainSynced()) {
-        return;
-    }
-
-    bool chainlocked = pindex && chainLocksHandler->HasChainLock(pindex->nHeight, pindex->GetBlockHash());
-    if (islockHash.IsNull() && !chainlocked) {
-        ProcessTx(*tx, allowReSigning, Params().GetConsensus());
-    }
-
-    LOCK(cs);
-    if (!chainlocked && islockHash.IsNull()) {
-        // TX is not locked, so make sure it is tracked
-        AddNonLockedTx(tx, pindex);
-    } else {
-        // TX is locked, so make sure we don't track it anymore
-        RemoveNonLockedTx(tx->GetHash(), true);
-    }
-}
-
 void CInstantSendManager::TransactionAddedToMempool(const CTransactionRef& tx)
 {
-    if (!IsInstantSendEnabled()) {
+    if (!IsInstantSendEnabled() || !masternodeSync.IsBlockchainSynced() || tx->vin.empty()) {
         return;
     }
 
-    CInstantSendLockPtr islock{nullptr};
+    CInstantSendLockPtr islock;
     {
         LOCK(cs);
         islock = db.GetInstantSendLockByTxid(tx->GetHash());
     }
 
-    ProcessNewTransaction(tx, nullptr, false);
-
-    if (islock != nullptr) {
+    if (islock == nullptr) {
+        ProcessTx(*tx, false, Params().GetConsensus());
+        // TX is not locked, so make sure it is tracked
+        LOCK(cs);
+        AddNonLockedTx(tx, nullptr);
+    } else {
+        {
+            // TX is locked, so make sure we don't track it anymore
+            LOCK(cs);
+            RemoveNonLockedTx(tx->GetHash(), true);
+        }
         // If the islock was received before the TX, we know we were not able to send
         // the notification at that time, we need to do it now.
         LogPrint(BCLog::INSTANTSEND, "CInstantSendManager::%s -- notify about an earlier received lock for tx %s\n", __func__, tx->GetHash().ToString());
@@ -1042,7 +1009,37 @@ void CInstantSendManager::BlockConnected(const std::shared_ptr<const CBlock>& pb
     }
 
     for (const auto& tx : pblock->vtx) {
-        ProcessNewTransaction(tx, pindex, true);
+        if (tx->IsCoinBase() || tx->vin.empty()) {
+            // coinbase and TXs with no inputs can't be locked
+            continue;
+        }
+
+        uint256 islockHash;
+        {
+            LOCK(cs);
+            islockHash = db.GetInstantSendLockHashByTxid(tx->GetHash());
+
+            // update DB about when an IS lock was mined
+            if (!islockHash.IsNull()) {
+                db.WriteInstantSendLockMined(islockHash, pindex->nHeight);
+            }
+        }
+
+        if (!masternodeSync.IsBlockchainSynced()) {
+            continue;
+        }
+
+        bool non_locked = islockHash.IsNull() && !chainLocksHandler->HasChainLock(pindex->nHeight, pindex->GetBlockHash());
+        if (non_locked) {
+            ProcessTx(*tx, true, Params().GetConsensus());
+            // TX is not locked, so make sure it is tracked
+            LOCK(cs);
+            AddNonLockedTx(tx, pindex);
+        } else {
+            // TX is locked, so make sure we don't track it anymore
+            LOCK(cs);
+            RemoveNonLockedTx(tx->GetHash(), true);
+        }
     }
 }
 
