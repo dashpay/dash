@@ -49,6 +49,9 @@ private:
     mutable unordered_lru_cache<uint256, uint256, StaticSaltedHasher, 100000> txidCache;
     mutable unordered_lru_cache<COutPoint, uint256, SaltedOutpointHasher, 100000> outpointCache;
 
+    void WriteInstantSendLockMined(CDBBatch& batch, const uint256& hash, int nHeight);
+    void RemoveInstantSendLockMined(CDBBatch& batch, const uint256& hash, int nHeight);
+
 public:
     explicit CInstantSendDb(CDBWrapper& _db) : db(_db) {}
 
@@ -56,10 +59,12 @@ public:
     void RemoveInstantSendLock(CDBBatch& batch, const uint256& hash, CInstantSendLockPtr islock, bool keep_cache = true);
 
     void WriteInstantSendLockMined(const uint256& hash, int nHeight);
-    void RemoveInstantSendLockMined(const uint256& hash, int nHeight);
     static void WriteInstantSendLockArchived(CDBBatch& batch, const uint256& hash, int nHeight);
     std::unordered_map<uint256, CInstantSendLockPtr> RemoveConfirmedInstantSendLocks(int nUntilHeight);
     void RemoveArchivedInstantSendLocks(int nUntilHeight);
+
+    void WriteBlockInstantSendLocks(const std::shared_ptr<const CBlock>& pblock, const CBlockIndex* pindexConnected);
+    void RemoveBlockInstantSendLocks(const std::shared_ptr<const CBlock>& pblock, const CBlockIndex* pindexDisconnected);
 
     bool KnownInstantSendLock(const uint256& islockHash) const;
     size_t GetInstantSendLockCount() const;
