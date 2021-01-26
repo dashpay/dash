@@ -140,7 +140,6 @@ public:
     std::unordered_set<uint256> ProcessPendingInstantSendLocks(int signOffset, const std::unordered_map<uint256, std::pair<NodeId, CInstantSendLockPtr>, StaticSaltedHasher>& pend, bool ban);
     void ProcessInstantSendLock(NodeId from, const uint256& hash, const CInstantSendLockPtr& islock);
 
-    void ProcessNewTransaction(const CTransactionRef& tx, const CBlockIndex* pindex, bool allowReSigning);
     void TransactionAddedToMempool(const CTransactionRef& tx);
     void BlockConnected(const std::shared_ptr<const CBlock>& pblock, const CBlockIndex* pindex, const std::vector<CTransactionRef>& vtxConflicted);
     void BlockDisconnected(const std::shared_ptr<const CBlock>& pblock, const CBlockIndex* pindexDisconnected);
