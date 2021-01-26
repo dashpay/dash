@@ -248,6 +248,10 @@ size_t CInstantSendDb::GetInstantSendLockCount() const
 
 CInstantSendLockPtr CInstantSendDb::GetInstantSendLockByHash(const uint256& hash, bool use_cache) const
 {
+    if (!IsInstantSendEnabled()) {
+        return nullptr;
+    }
+
     CInstantSendLockPtr ret;
     if (use_cache && islockCache.get(hash, ret)) {
         return ret;
@@ -264,6 +268,9 @@ CInstantSendLockPtr CInstantSendDb::GetInstantSendLockByHash(const uint256& hash
 
 uint256 CInstantSendDb::GetInstantSendLockHashByTxid(const uint256& txid) const
 {
+    if (!IsInstantSendEnabled()) {
+        return {};
+    }
     uint256 islockHash;
 
     bool found = txidCache.get(txid, islockHash);
@@ -293,6 +300,9 @@ CInstantSendLockPtr CInstantSendDb::GetInstantSendLockByTxid(const uint256& txid
 
 CInstantSendLockPtr CInstantSendDb::GetInstantSendLockByInput(const COutPoint& outpoint) const
 {
+    if (!IsInstantSendEnabled()) {
+        return nullptr;
+    }
     uint256 islockHash;
     bool found = outpointCache.get(outpoint, islockHash);
     if (found && islockHash.IsNull()) {
@@ -1189,6 +1199,10 @@ void CInstantSendManager::UpdatedBlockTip(const CBlockIndex* pindexNew)
 
 void CInstantSendManager::HandleFullyConfirmedBlock(const CBlockIndex* pindex)
 {
+    if (!IsInstantSendEnabled()) {
+        return;
+    }
+
     LOCK(cs);
 
     auto& consensusParams = Params().GetConsensus();
