@@ -882,27 +882,6 @@ std::unordered_set<uint256> CInstantSendManager::ProcessPendingInstantSendLocks(
 
 void CInstantSendManager::ProcessInstantSendLock(NodeId from, const uint256& hash, const CInstantSendLockPtr& islock)
 {
-    CTransactionRef tx;
-    uint256 hashBlock;
-    const CBlockIndex* pindexMined = nullptr;
-    // we ignore failure here as we must be able to propagate the lock even if we don't have the TX locally
-    if (GetTransaction(islock->txid, tx, Params().GetConsensus(), hashBlock)) {
-        if (!hashBlock.IsNull()) {
-            {
-                LOCK(cs_main);
-                pindexMined = LookupBlockIndex(hashBlock);
-            }
-
-            // Let's see if the TX that was locked by this islock is already mined in a ChainLocked block. If yes,
-            // we can simply ignore the islock, as the ChainLock implies locking of all TXs in that chain
-            if (llmq::chainLocksHandler->HasChainLock(pindexMined->nHeight, pindexMined->GetBlockHash())) {
-                LogPrint(BCLog::INSTANTSEND, "CInstantSendManager::%s -- txlock=%s, islock=%s: dropping islock as it already got a ChainLock in block %s, peer=%d\n", __func__,
-                         islock->txid.ToString(), hash.ToString(), hashBlock.ToString(), from);
-                return;
-            }
-        }
-    }
-
     {
         LOCK(cs);
 
@@ -930,9 +909,6 @@ void CInstantSendManager::ProcessInstantSendLock(NodeId from, const uint256& has
         }
 
         db.WriteNewInstantSendLock(hash, *islock);
-        if (pindexMined) {
-            db.WriteInstantSendLockMined(hash, pindexMined->nHeight);
-        }
 
         // This will also add children TXs to pendingRetryTxs
         RemoveNonLockedTx(islock->txid, true);
@@ -940,6 +916,32 @@ void CInstantSendManager::ProcessInstantSendLock(NodeId from, const uint256& has
         // We don't need the recovered sigs for the inputs anymore. This prevents unnecessary propagation of these sigs.
         // We only need the ISLOCK from now on to detect conflicts
         TruncateRecoveredSigsForInputs(*islock);
+    }
+
+    CTransactionRef tx;
+    uint256 hashBlock;
+    // we ignore failure here as we must be able to propagate the lock even if we don't have the TX locally
+    if (GetTransaction(islock->txid, tx, Params().GetConsensus(), hashBlock)) {
+        if (!hashBlock.IsNull()) {
+            const CBlockIndex* pindexMined = nullptr;
+            {
+                LOCK(cs_main);
+                pindexMined = LookupBlockIndex(hashBlock);
+            }
+
+            {
+                LOCK(cs);
+                db.WriteInstantSendLockMined(hash, pindexMined->nHeight);
+            }
+
+            // Let's see if the TX that was locked by this islock is already mined in a ChainLocked block. If yes,
+            // we can simply ignore the islock, as the ChainLock implies locking of all TXs in that chain
+            if (llmq::chainLocksHandler->HasChainLock(pindexMined->nHeight, pindexMined->GetBlockHash())) {
+                LogPrint(BCLog::INSTANTSEND, "CInstantSendManager::%s -- txlock=%s, islock=%s: dropping islock as it already got a ChainLock in block %s, peer=%d\n", __func__,
+                         islock->txid.ToString(), hash.ToString(), hashBlock.ToString(), from);
+                return;
+            }
+        }
     }
 
     CInv inv(MSG_ISLOCK, hash);
