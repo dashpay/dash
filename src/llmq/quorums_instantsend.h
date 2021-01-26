@@ -60,7 +60,8 @@ public:
     static void WriteInstantSendLockArchived(CDBBatch& batch, const uint256& hash, int nHeight);
     std::unordered_map<uint256, CInstantSendLockPtr> RemoveConfirmedInstantSendLocks(int nUntilHeight);
     void RemoveArchivedInstantSendLocks(int nUntilHeight);
-    bool HasArchivedInstantSendLock(const uint256& islockHash) const;
+
+    bool KnownInstantSendLock(const uint256& islockHash) const;
     size_t GetInstantSendLockCount() const;
 
     CInstantSendLockPtr GetInstantSendLockByHash(const uint256& hash, bool use_cache = true) const;
