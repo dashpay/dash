@@ -119,6 +119,10 @@ void CInstantSendDb::WriteInstantSendLockArchived(CDBBatch& batch, const uint256
 
 std::unordered_map<uint256, CInstantSendLockPtr> CInstantSendDb::RemoveConfirmedInstantSendLocks(int nUntilHeight)
 {
+    if (nUntilHeight <= 0) {
+        return {};
+    }
+
     auto it = std::unique_ptr<CDBIterator>(db.NewIterator());
 
     auto firstKey = BuildInversedISLockKey(DB_MINED_BY_HEIGHT_AND_HASH, nUntilHeight, uint256());
@@ -159,6 +163,10 @@ std::unordered_map<uint256, CInstantSendLockPtr> CInstantSendDb::RemoveConfirmed
 
 void CInstantSendDb::RemoveArchivedInstantSendLocks(int nUntilHeight)
 {
+    if (nUntilHeight <= 0) {
+        return;
+    }
+
     auto it = std::unique_ptr<CDBIterator>(db.NewIterator());
 
     auto firstKey = BuildInversedISLockKey(DB_ARCHIVED_BY_HEIGHT_AND_HASH, nUntilHeight, uint256());
@@ -1183,12 +1191,8 @@ void CInstantSendManager::HandleFullyConfirmedBlock(const CBlockIndex* pindex)
     LOCK(cs);
 
     auto& consensusParams = Params().GetConsensus();
-
     auto removeISLocks = db.RemoveConfirmedInstantSendLocks(pindex->nHeight);
 
-    if (pindex->nHeight > 100) {
-        db.RemoveArchivedInstantSendLocks(pindex->nHeight - 100);
-    }
     for (auto& p : removeISLocks) {
         auto& islockHash = p.first;
         auto& islock = p.second;
@@ -1203,6 +1207,8 @@ void CInstantSendManager::HandleFullyConfirmedBlock(const CBlockIndex* pindex)
         // fully confirmed now
         quorumSigningManager->TruncateRecoveredSig(consensusParams.llmqTypeInstantSend, islock->GetRequestId());
     }
+
+    db.RemoveArchivedInstantSendLocks(pindex->nHeight - 100);
 
     // Find all previously unlocked TXs that got locked by this fully confirmed (ChainLock) block and remove them
     // from the nonLockedTxs map. Also collect all children of these TXs and mark them for retrying of IS locking.
