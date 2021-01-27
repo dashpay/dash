@@ -206,6 +206,10 @@ size_t CInstantSendDb::GetInstantSendLockCount() const
 
 CInstantSendLockPtr CInstantSendDb::GetInstantSendLockByHash(const uint256& hash) const
 {
+    if (hash.IsNull()) {
+        return nullptr;
+    }
+
     CInstantSendLockPtr ret;
     if (islockCache.get(hash, ret)) {
         return ret;
@@ -223,47 +227,24 @@ CInstantSendLockPtr CInstantSendDb::GetInstantSendLockByHash(const uint256& hash
 uint256 CInstantSendDb::GetInstantSendLockHashByTxid(const uint256& txid) const
 {
     uint256 islockHash;
-
-    bool found = txidCache.get(txid, islockHash);
-    if (found && islockHash.IsNull()) {
-        return {};
-    }
-
-    if (!found) {
-        found = db.Read(std::make_tuple(std::string(DB_HASH_BY_TXID), txid), islockHash);
+    if (!txidCache.get(txid, islockHash)) {
+        db.Read(std::make_tuple(std::string(DB_HASH_BY_TXID), txid), islockHash);
         txidCache.insert(txid, islockHash);
-    }
-
-    if (!found) {
-        return {};
     }
     return islockHash;
 }
 
 CInstantSendLockPtr CInstantSendDb::GetInstantSendLockByTxid(const uint256& txid) const
 {
-    uint256 islockHash = GetInstantSendLockHashByTxid(txid);
-    if (islockHash.IsNull()) {
-        return nullptr;
-    }
-    return GetInstantSendLockByHash(islockHash);
+    return GetInstantSendLockByHash(GetInstantSendLockHashByTxid(txid));
 }
 
 CInstantSendLockPtr CInstantSendDb::GetInstantSendLockByInput(const COutPoint& outpoint) const
 {
     uint256 islockHash;
-    bool found = outpointCache.get(outpoint, islockHash);
-    if (found && islockHash.IsNull()) {
-        return nullptr;
-    }
-
-    if (!found) {
-        found = db.Read(std::make_tuple(std::string(DB_HASH_BY_OUTPOINT), outpoint), islockHash);
+    if (!outpointCache.get(outpoint, islockHash)) {
+        db.Read(std::make_tuple(std::string(DB_HASH_BY_OUTPOINT), outpoint), islockHash);
         outpointCache.insert(outpoint, islockHash);
-    }
-
-    if (!found) {
-        return nullptr;
     }
     return GetInstantSendLockByHash(islockHash);
 }
