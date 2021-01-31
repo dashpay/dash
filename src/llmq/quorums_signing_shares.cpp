@@ -704,7 +704,7 @@ bool CSigSharesManager::ProcessPendingSigShares(CConnman& connman)
         ProcessPendingSigShares(v, quorums, connman);
     }
 
-    return true;
+    return verifyCount >= 32;
 }
 
 // It's ensured that no duplicates are passed to this method
@@ -1501,12 +1501,12 @@ void CSigSharesManager::WorkThreadMain()
             continue;
         }
 
-        bool didWork = false;
+        bool more_work = false;
 
         RemoveBannedNodeStates();
-        didWork |= quorumSigningManager->ProcessPendingRecoveredSigs();
-        didWork |= ProcessPendingSigShares(*g_connman);
-        didWork |= SignPendingSigShares();
+        more_work |= quorumSigningManager->ProcessPendingRecoveredSigs();
+        more_work |= ProcessPendingSigShares(*g_connman);
+        SignPendingSigShares();
 
         if (GetTimeMillis() - lastSendTime > 100) {
             SendMessages();
@@ -1517,10 +1517,8 @@ void CSigSharesManager::WorkThreadMain()
         quorumSigningManager->Cleanup();
 
         // TODO Wakeup when pending signing is needed?
-        if (!didWork) {
-            if (!workInterrupt.sleep_for(std::chrono::milliseconds(100))) {
-                return;
-            }
+        if (!more_work && !workInterrupt.sleep_for(std::chrono::milliseconds(100))) {
+            return;
         }
     }
 }
@@ -1531,7 +1529,7 @@ void CSigSharesManager::AsyncSign(const CQuorumCPtr& quorum, const uint256& id, 
     pendingSigns.emplace_back(quorum, id, msgHash);
 }
 
-bool CSigSharesManager::SignPendingSigShares()
+void CSigSharesManager::SignPendingSigShares()
 {
     std::vector<std::tuple<const CQuorumCPtr, uint256, uint256>> v;
     {
@@ -1557,8 +1555,6 @@ bool CSigSharesManager::SignPendingSigShares()
             }
         }
     }
-
-    return !v.empty();
 }
 
 CSigShare CSigSharesManager::CreateSigShare(const CQuorumCPtr& quorum, const uint256& id, const uint256& msgHash)

@@ -765,6 +765,7 @@ bool CInstantSendManager::PreVerifyInstantSendLock(const llmq::CInstantSendLock&
 bool CInstantSendManager::ProcessPendingInstantSendLocks()
 {
     decltype(pendingInstantSendLocks) pend;
+    bool more_work{false};
 
     {
         LOCK(cs);
@@ -779,6 +780,7 @@ bool CInstantSendManager::ProcessPendingInstantSendLocks()
                 pend.emplace(it->first, std::move(it->second));
                 pendingInstantSendLocks.erase(it);
             }
+            more_work = true;
         }
     }
 
@@ -810,7 +812,7 @@ bool CInstantSendManager::ProcessPendingInstantSendLocks()
         ProcessPendingInstantSendLocks(dkgInterval, pend, true);
     }
 
-    return true;
+    return more_work;
 }
 
 std::unordered_set<uint256> CInstantSendManager::ProcessPendingInstantSendLocks(int signOffset, const std::unordered_map<uint256, std::pair<NodeId, CInstantSendLockPtr>, StaticSaltedHasher>& pend, bool ban)
@@ -1382,7 +1384,7 @@ void CInstantSendManager::AskNodesForLockedTx(const uint256& txid)
     }
 }
 
-bool CInstantSendManager::ProcessPendingRetryLockTxs()
+void CInstantSendManager::ProcessPendingRetryLockTxs()
 {
     decltype(pendingRetryTxs) retryTxs;
     {
@@ -1391,11 +1393,11 @@ bool CInstantSendManager::ProcessPendingRetryLockTxs()
     }
 
     if (retryTxs.empty()) {
-        return false;
+        return;
     }
 
     if (!IsInstantSendEnabled()) {
-        return false;
+        return;
     }
 
     int retryCount = 0;
@@ -1445,8 +1447,6 @@ bool CInstantSendManager::ProcessPendingRetryLockTxs()
         LogPrint(BCLog::INSTANTSEND, "CInstantSendManager::%s -- retried %d TXs. nonLockedTxs.size=%d\n", __func__,
                  retryCount, nonLockedTxs.size());
     }
-
-    return retryCount != 0;
 }
 
 bool CInstantSendManager::AlreadyHave(const CInv& inv) const
@@ -1538,15 +1538,11 @@ size_t CInstantSendManager::GetInstantSendLockCount() const
 void CInstantSendManager::WorkThreadMain()
 {
     while (!workInterrupt) {
-        bool didWork = false;
+        bool more_work = ProcessPendingInstantSendLocks();
+        ProcessPendingRetryLockTxs();
 
-        didWork |= ProcessPendingInstantSendLocks();
-        didWork |= ProcessPendingRetryLockTxs();
-
-        if (!didWork) {
-            if (!workInterrupt.sleep_for(std::chrono::milliseconds(100))) {
-                return;
-            }
+        if (!more_work && !workInterrupt.sleep_for(std::chrono::milliseconds(100))) {
+            return;
         }
     }
 }

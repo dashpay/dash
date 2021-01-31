@@ -675,7 +675,7 @@ bool CSigningManager::ProcessPendingRecoveredSigs()
         }
     }
 
-    return true;
+    return verifyCount >= 32;
 }
 
 // signature must be verified already
