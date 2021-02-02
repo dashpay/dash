@@ -1,13 +1,19 @@
 // Copyright (c) 2012-2016 The Bitcoin Core developers
 // Distributed under the MIT software license, see the accompanying
 // file COPYING or http://www.opensource.org/licenses/mit-license.php.
-#include <boost/test/unit_test.hpp>
 #include <cuckoocache.h>
 #include <script/sigcache.h>
 #include <test/test_dash.h>
 #include <random.h>
+
+#include <boost/test/unit_test.hpp>
+
+#include <deque>
+#include <mutex>
+#include <shared_mutex>
 #include <thread>
 #include <deque>
+#include <vector>
 
 /** Test Suite for CuckooCache
  *
@@ -216,11 +222,11 @@ static void test_cache_erase_parallel(size_t megabytes)
      * "future proofed".
      */
     std::vector<uint256> hashes_insert_copy = hashes;
-    boost::shared_mutex mtx;
+    std::shared_mutex mtx;
 
     {
         /** Grab lock to make sure we release inserts */
-        boost::unique_lock<boost::shared_mutex> l(mtx);
+        std::unique_lock<std::shared_mutex> l(mtx);
         /** Insert the first half */
         for (uint32_t i = 0; i < (n_insert / 2); ++i)
             set.insert(hashes_insert_copy[i]);
@@ -234,7 +240,7 @@ static void test_cache_erase_parallel(size_t megabytes)
         /** Each thread is emplaced with x copy-by-value
         */
         threads.emplace_back([&, x] {
-            boost::shared_lock<boost::shared_mutex> l(mtx);
+            std::shared_lock<std::shared_mutex> l(mtx);
             size_t ntodo = (n_insert/4)/3;
             size_t start = ntodo*x;
             size_t end = ntodo*(x+1);
@@ -247,7 +253,7 @@ static void test_cache_erase_parallel(size_t megabytes)
     for (std::thread& t : threads)
         t.join();
     /** Grab lock to make sure we observe erases */
-    boost::unique_lock<boost::shared_mutex> l(mtx);
+    std::unique_lock<std::shared_mutex> l(mtx);
     /** Insert the second half */
     for (uint32_t i = (n_insert / 2); i < n_insert; ++i)
         set.insert(hashes_insert_copy[i]);
