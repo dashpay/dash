@@ -119,7 +119,7 @@ void CChainLocksHandler::ProcessNewChainLock(const NodeId from, const llmq::CCha
             return;
         }
 
-        if (!bestChainLock.IsNull() && clsig.nHeight <= bestChainLock.nHeight) {
+        if (!bestChainLockWithKnownBlock.IsNull() && clsig.nHeight <= bestChainLockWithKnownBlock.nHeight) {
             // no need to process/relay older CLSIGs
             return;
         }
@@ -272,7 +272,7 @@ void CChainLocksHandler::TrySignChainTip()
             return;
         }
 
-        if (bestChainLock.nHeight >= pindex->nHeight) {
+        if (bestChainLockWithKnownBlock.nHeight >= pindex->nHeight) {
             // already got the same CLSIG or a better one
             return;
         }
@@ -337,7 +337,7 @@ void CChainLocksHandler::TrySignChainTip()
 
     {
         LOCK(cs);
-        if (bestChainLock.nHeight >= pindex->nHeight) {
+        if (bestChainLockWithKnownBlock.nHeight >= pindex->nHeight) {
             // might have happened while we didn't hold cs
             return;
         }
@@ -571,7 +571,7 @@ void CChainLocksHandler::HandleNewRecoveredSig(const llmq::CRecoveredSig& recove
             // this is not what we signed, so lets not create a CLSIG for it
             return;
         }
-        if (bestChainLock.nHeight >= lastSignedHeight) {
+        if (bestChainLockWithKnownBlock.nHeight >= lastSignedHeight) {
             // already got the same or a better CLSIG through the CLSIG message
             return;
         }
