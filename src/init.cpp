@@ -598,6 +598,11 @@ std::string HelpMessage(HelpMessageMode mode)
     strUsage += HelpMessageOpt("-debugexclude=<category>", strprintf(_("Exclude debugging information for a category. Can be used in conjunction with -debug=1 to output debug logs for all categories except one or more specified categories.")));
     strUsage += HelpMessageOpt("-disablegovernance", strprintf(_("Disable governance validation (0-1, default: %u)"), 0));
     strUsage += HelpMessageOpt("-help-debug", _("Show all debugging options (usage: --help -help-debug)"));
+    strUsage += HelpMessageOpt("-highsubsidyblocks=<n>", strprintf(_("The number of blocks with a higher than normal subsidy to mine at the start of a devnet (default: 0)")));
+    strUsage += HelpMessageOpt("-highsubsidyfactor=<n>", strprintf(_("The factor to multiply the normal block subsidy by while in the highsubsidyblocks window of a devnet (default: 1)")));
+    strUsage += HelpMessageOpt("-llmqchainlocks=<quorum name>", strprintf(_("Override the default LLMQ type used for ChainLocks on a devnet. Allows using ChainLocks with smaller LLMQs. (default: llmq50_60)")));
+    strUsage += HelpMessageOpt("-llmqdevnetparams=<size:threshold>", strprintf(_("Override the default LLMQ size for the LLMQ_DEVNET quorum (default: 10:6)")));
+    strUsage += HelpMessageOpt("-llmqinstantsend=<quorum name>", strprintf(_("Override the default LLMQ type used for InstantSend on a devnet. Allows using InstantSend with smaller LLMQs. (default: llmq50_60)")));
     strUsage += HelpMessageOpt("-logips", strprintf(_("Include IP addresses in debug output (default: %u)"), DEFAULT_LOGIPS));
     if (showDebug)
     {
@@ -610,6 +615,7 @@ std::string HelpMessage(HelpMessageMode mode)
     strUsage += HelpMessageOpt("-logtimestamps", strprintf(_("Prepend debug output with timestamp (default: %u)"), DEFAULT_LOGTIMESTAMPS));
     strUsage += HelpMessageOpt("-maxtxfee=<amt>", strprintf(_("Maximum total fees (in %s) to use in a single wallet transaction or raw transaction; setting this too low may abort large transactions (default: %s)"),
         CURRENCY_UNIT, FormatMoney(DEFAULT_TRANSACTION_MAXFEE)));
+    strUsage += HelpMessageOpt("-minimumdifficultyblocks=<n>", strprintf(_("The number of blocks that can be mined with the minimum difficulty at the start of a devnet (default: 0)")));
     strUsage += HelpMessageOpt("-minsporkkeys=<n>", strprintf(_("Overrides minimum spork signers to change spork value. Only useful for regtest and devnet. Using this on mainnet or testnet will ban you.")));
     if (showDebug)
     {
