@@ -603,6 +603,7 @@ std::string HelpMessage(HelpMessageMode mode)
     strUsage += HelpMessageOpt("-llmqchainlocks=<quorum name>", strprintf(_("Override the default LLMQ type used for ChainLocks on a devnet. Allows using ChainLocks with smaller LLMQs. (default: llmq50_60)")));
     strUsage += HelpMessageOpt("-llmqdevnetparams=<size:threshold>", strprintf(_("Override the default LLMQ size for the LLMQ_DEVNET quorum (default: 10:6)")));
     strUsage += HelpMessageOpt("-llmqinstantsend=<quorum name>", strprintf(_("Override the default LLMQ type used for InstantSend on a devnet. Allows using InstantSend with smaller LLMQs. (default: llmq50_60)")));
+    strUsage += HelpMessageOpt("-llmqtestparams=<size:threshold>", strprintf(_("Override the default LLMQ size for the LLMQ_TEST quorum (default: 3:2)")));
     strUsage += HelpMessageOpt("-logips", strprintf(_("Include IP addresses in debug output (default: %u)"), DEFAULT_LOGIPS));
     if (showDebug)
     {
