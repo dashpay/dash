@@ -4,7 +4,6 @@
 
 #include <qt/transactiontablemodel.h>
 
-#include <qt/addresstablemodel.h>
 #include <qt/guiutil.h>
 #include <qt/optionsmodel.h>
 #include <qt/transactiondesc.h>
@@ -460,9 +459,9 @@ QVariant TransactionTableModel::addressColor(const TransactionRecord *wtx) const
     case TransactionRecord::PrivateSend:
     case TransactionRecord::RecvWithPrivateSend:
         {
-        QString label = walletModel->getAddressTableModel()->labelForDestination(wtx->txDest);
-        if(label.isEmpty())
+        if (wtx->status.label.isEmpty()) {
             return GUIUtil::getThemedQColor(GUIUtil::ThemedColor::BAREADDRESS);
+        }
         } break;
     case TransactionRecord::SendToSelf:
     case TransactionRecord::PrivateSendCreateDenominations:
