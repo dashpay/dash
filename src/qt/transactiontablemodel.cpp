@@ -205,6 +205,15 @@ public:
             int64_t adjustedTime;
             if (rec->statusUpdateNeeded(numBlocks, parent->getChainLockHeight()) && wallet.tryGetTxStatus(rec->hash, wtx, adjustedTime)) {
                 rec->updateStatus(wtx, numBlocks, adjustedTime, parent->getChainLockHeight());
+                // Update label
+                if (IsValidDestination(rec->txDest)) {
+                    std::string name;
+                    if (wallet.getAddress(rec->txDest, &name)) {
+                        rec->status.label = QString::fromStdString(name);
+                    } else{
+                        rec->status.label = "";
+                    }
+                }
             }
             return rec;
         }
