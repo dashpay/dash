@@ -633,7 +633,7 @@ std::string HelpMessage(HelpMessageMode mode)
     AppendParamsHelpMessages(strUsage, showDebug);
 
     strUsage += HelpMessageGroup(_("Masternode options:"));
-    strUsage += HelpMessageOpt("-llmq-data-recovery=<n>", _("Enable automated quorum data recovery (default: 1)"));
+    strUsage += HelpMessageOpt("-llmq-data-recovery=<n>", strprintf(_("Enable automated quorum data recovery (default: %u)"), llmq::DEFAULT_ENABLE_QUORUM_DATA_RECOVERY));
     strUsage += HelpMessageOpt("-llmq-qvvec-sync=<quorum name>", _("Defines from which LLMQ type the masternode should sync quorum verification vectors. Can be used multiple times with different LLMQ types."));
     strUsage += HelpMessageOpt("-masternodeblsprivkey=<hex>", _("Set the masternode BLS private key and enable the client to act as a masternode"));
     strUsage += HelpMessageOpt("-platform-user=<user>", _("Set the username for the \"platform user\", a restricted user intended to be used by Dash Platform, to the specified username."));
