@@ -209,7 +209,7 @@ public:
                     std::string name;
                     if (wallet.getAddress(rec->txDest, &name)) {
                         rec->status.label = QString::fromStdString(name);
-                    } else{
+                    } else {
                         rec->status.label = "";
                     }
                 }
