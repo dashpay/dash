@@ -1016,8 +1016,7 @@ void CInstantSendManager::BlockConnected(const std::shared_ptr<const CBlock>& pb
             continue;
         }
 
-        bool non_locked = islockHash.IsNull() && !chainLocksHandler->HasChainLock(pindex->nHeight, pindex->GetBlockHash());
-        if (non_locked) {
+        if (islockHash.IsNull() && !chainLocksHandler->HasChainLock(pindex->nHeight, pindex->GetBlockHash())) {
             ProcessTx(*tx, true, Params().GetConsensus());
             // TX is not locked, so make sure it is tracked
             LOCK(cs);
