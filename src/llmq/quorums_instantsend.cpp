@@ -731,7 +731,7 @@ bool CInstantSendManager::PreVerifyInstantSendLock(const llmq::CInstantSendLock&
 bool CInstantSendManager::ProcessPendingInstantSendLocks()
 {
     decltype(pendingInstantSendLocks) pend;
-    bool more_work{false};
+    bool fMoreWork{false};
 
     {
         LOCK(cs);
@@ -746,7 +746,7 @@ bool CInstantSendManager::ProcessPendingInstantSendLocks()
                 pend.emplace(it->first, std::move(it->second));
                 pendingInstantSendLocks.erase(it);
             }
-            more_work = true;
+            fMoreWork = true;
         }
     }
 
@@ -778,7 +778,7 @@ bool CInstantSendManager::ProcessPendingInstantSendLocks()
         ProcessPendingInstantSendLocks(dkgInterval, pend, true);
     }
 
-    return more_work;
+    return fMoreWork;
 }
 
 std::unordered_set<uint256> CInstantSendManager::ProcessPendingInstantSendLocks(int signOffset, const std::unordered_map<uint256, std::pair<NodeId, CInstantSendLockPtr>, StaticSaltedHasher>& pend, bool ban)
@@ -1521,10 +1521,10 @@ size_t CInstantSendManager::GetInstantSendLockCount()
 void CInstantSendManager::WorkThreadMain()
 {
     while (!workInterrupt) {
-        bool more_work = ProcessPendingInstantSendLocks();
+        bool fMoreWork = ProcessPendingInstantSendLocks();
         ProcessPendingRetryLockTxs();
 
-        if (!more_work && !workInterrupt.sleep_for(std::chrono::milliseconds(100))) {
+        if (!fMoreWork && !workInterrupt.sleep_for(std::chrono::milliseconds(100))) {
             return;
         }
     }

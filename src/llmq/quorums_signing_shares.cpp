@@ -1502,11 +1502,11 @@ void CSigSharesManager::WorkThreadMain()
             continue;
         }
 
-        bool more_work = false;
+        bool fMoreWork = false;
 
         RemoveBannedNodeStates();
-        more_work |= quorumSigningManager->ProcessPendingRecoveredSigs();
-        more_work |= ProcessPendingSigShares(*g_connman);
+        fMoreWork |= quorumSigningManager->ProcessPendingRecoveredSigs();
+        fMoreWork |= ProcessPendingSigShares(*g_connman);
         SignPendingSigShares();
 
         if (GetTimeMillis() - lastSendTime > 100) {
@@ -1518,7 +1518,7 @@ void CSigSharesManager::WorkThreadMain()
         quorumSigningManager->Cleanup();
 
         // TODO Wakeup when pending signing is needed?
-        if (!more_work && !workInterrupt.sleep_for(std::chrono::milliseconds(100))) {
+        if (!fMoreWork && !workInterrupt.sleep_for(std::chrono::milliseconds(100))) {
             return;
         }
     }
