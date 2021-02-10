@@ -639,7 +639,8 @@ bool CSigSharesManager::ProcessPendingSigShares(CConnman& connman)
     std::unordered_map<NodeId, std::vector<CSigShare>> sigSharesByNodes;
     std::unordered_map<std::pair<Consensus::LLMQType, uint256>, CQuorumCPtr, StaticSaltedHasher> quorums;
 
-    CollectPendingSigSharesToVerify(32, sigSharesByNodes, quorums);
+    const size_t nMaxBatchSize{32};
+    CollectPendingSigSharesToVerify(nMaxBatchSize, sigSharesByNodes, quorums);
     if (sigSharesByNodes.empty()) {
         return false;
     }
@@ -704,7 +705,7 @@ bool CSigSharesManager::ProcessPendingSigShares(CConnman& connman)
         ProcessPendingSigShares(v, quorums, connman);
     }
 
-    return verifyCount >= 32;
+    return verifyCount >= nMaxBatchSize;
 }
 
 // It's ensured that no duplicates are passed to this method
