@@ -705,7 +705,7 @@ bool CSigSharesManager::ProcessPendingSigShares(CConnman& connman)
         ProcessPendingSigShares(v, quorums, connman);
     }
 
-    return verifyCount >= nMaxBatchSize;
+    return sigSharesByNodes.size() >= nMaxBatchSize;
 }
 
 // It's ensured that no duplicates are passed to this method

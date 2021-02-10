@@ -676,7 +676,7 @@ bool CSigningManager::ProcessPendingRecoveredSigs()
         }
     }
 
-    return verifyCount >= nMaxBatchSize;
+    return recSigsByNode.size() >= nMaxBatchSize;
 }
 
 // signature must be verified already
