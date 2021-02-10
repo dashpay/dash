@@ -1502,7 +1502,7 @@ void CSigSharesManager::WorkThreadMain()
             continue;
         }
 
-        bool fMoreWork = false;
+        bool fMoreWork{false};
 
         RemoveBannedNodeStates();
         fMoreWork |= quorumSigningManager->ProcessPendingRecoveredSigs();
