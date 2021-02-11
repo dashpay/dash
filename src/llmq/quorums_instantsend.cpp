@@ -958,7 +958,7 @@ void CInstantSendManager::TransactionAddedToMempool(const CTransactionRef& tx)
         return;
     }
 
-    CInstantSendLockPtr islock;
+    CInstantSendLockPtr islock{nullptr};
     {
         LOCK(cs);
         islock = db.GetInstantSendLockByTxid(tx->GetHash());
