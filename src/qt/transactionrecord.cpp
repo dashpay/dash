@@ -339,7 +339,7 @@ void TransactionRecord::updateLabel(interfaces::Wallet& wallet)
         std::string name;
         if (wallet.getAddress(txDest, &name)) {
             label = QString::fromStdString(name);
-        } else{
+        } else {
             label = "";
         }
     }
