@@ -657,9 +657,7 @@ void CChainLocksHandler::Cleanup()
         }
     }
 
-    // need mempool.cs due to GetTransaction calls
-    LOCK2(cs_main, mempool.cs);
-    LOCK(cs);
+    LOCK2(cs_main, cs);
 
     for (auto it = seenChainLocks.begin(); it != seenChainLocks.end(); ) {
         if (GetTimeMillis() - it->second >= CLEANUP_SEEN_TIMEOUT) {
@@ -682,6 +680,9 @@ void CChainLocksHandler::Cleanup()
             ++it;
         }
     }
+
+    // need mempool.cs due to GetTransaction calls
+    LOCK(mempool.cs);
     for (auto it = txFirstSeenTime.begin(); it != txFirstSeenTime.end(); ) {
         CTransactionRef tx;
         uint256 hashBlock;
