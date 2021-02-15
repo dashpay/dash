@@ -880,7 +880,7 @@ void CInstantSendManager::ProcessInstantSendLock(NodeId from, const uint256& has
         creatingInstantSendLocks.erase(islock->GetRequestId());
         txToCreatingInstantSendLocks.erase(islock->txid);
 
-        if (pendingInstantSendLocks.count(hash) || db.KnownInstantSendLock(hash)) {
+        if (db.KnownInstantSendLock(hash)) {
             return;
         }
     }
