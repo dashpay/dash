@@ -906,8 +906,7 @@ void CInstantSendManager::ProcessInstantSendLock(NodeId from, const uint256& has
 
     {
         LOCK(cs);
-        CInstantSendLockPtr otherIsLock;
-        otherIsLock = db.GetInstantSendLockByTxid(islock->txid);
+        CInstantSendLockPtr otherIsLock = db.GetInstantSendLockByTxid(islock->txid);
         if (otherIsLock != nullptr) {
             LogPrintf("CInstantSendManager::%s -- txid=%s, islock=%s: duplicate islock, other islock=%s, peer=%d\n", __func__,
                      islock->txid.ToString(), hash.ToString(), ::SerializeHash(*otherIsLock).ToString(), from);
