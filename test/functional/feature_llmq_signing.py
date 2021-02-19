@@ -129,6 +129,10 @@ class LLMQSigningTest(DashTestFramework):
         self.mine_quorum()
         assert_sigs_nochange(True, False, True, 3)
 
+        # Mine 2 more quorums, so that we have a full set
+        self.mine_quorum()
+        self.mine_quorum()
+
         # Create a recovered sig for the oldest quorum i.e. the active quorum which will be moved
         # out of the active set when a new quorum appears
         request_id = 2

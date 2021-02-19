@@ -187,9 +187,9 @@ static Consensus::LLMQParams llmq_test = {
         .dkgMiningWindowEnd = 18,
         .dkgBadVotesThreshold = 2,
 
-        .signingActiveQuorumCount = 2, // just a few ones to allow easier testing
+        .signingActiveQuorumCount = 4, // just a few ones to allow easier testing
 
-        .keepOldConnections = 3,
+        .keepOldConnections = 5,
         .recoveryMembers = 3,
 };
 
