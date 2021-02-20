@@ -96,12 +96,19 @@ static std::tuple<std::string, uint32_t, uint256> BuildInversedISLockKey(const s
 
 void CInstantSendDb::WriteInstantSendLockMined(const uint256& hash, int nHeight)
 {
-    db.Write(BuildInversedISLockKey(DB_MINED_BY_HEIGHT_AND_HASH, nHeight, hash), true);
+    CDBBatch batch(db);
+    WriteInstantSendLockMined(batch, hash, nHeight);
+    db.WriteBatch(batch);
 }
 
-void CInstantSendDb::RemoveInstantSendLockMined(const uint256& hash, int nHeight)
+void CInstantSendDb::WriteInstantSendLockMined(CDBBatch& batch, const uint256& hash, int nHeight)
 {
-    db.Erase(BuildInversedISLockKey(DB_MINED_BY_HEIGHT_AND_HASH, nHeight, hash));
+    batch.Write(BuildInversedISLockKey(DB_MINED_BY_HEIGHT_AND_HASH, nHeight, hash), true);
+}
+
+void CInstantSendDb::RemoveInstantSendLockMined(CDBBatch& batch, const uint256& hash, int nHeight)
+{
+    batch.Erase(BuildInversedISLockKey(DB_MINED_BY_HEIGHT_AND_HASH, nHeight, hash));
 }
 
 void CInstantSendDb::WriteInstantSendLockArchived(CDBBatch& batch, const uint256& hash, int nHeight)
@@ -184,6 +191,39 @@ void CInstantSendDb::RemoveArchivedInstantSendLocks(int nUntilHeight)
         it->Next();
     }
 
+    db.WriteBatch(batch);
+}
+
+void CInstantSendDb::WriteBlockInstantSendLocks(const std::shared_ptr<const CBlock>& pblock, const CBlockIndex* pindexConnected)
+{
+    CDBBatch batch(db);
+    for (const auto& tx : pblock->vtx) {
+        if (tx->IsCoinBase() || tx->vin.empty()) {
+            // coinbase and TXs with no inputs can't be locked
+            continue;
+        }
+        uint256 islockHash = GetInstantSendLockHashByTxid(tx->GetHash());
+        // update DB about when an IS lock was mined
+        if (!islockHash.IsNull()) {
+            WriteInstantSendLockMined(batch, islockHash, pindexConnected->nHeight);
+        }
+    }
+    db.WriteBatch(batch);
+}
+
+void CInstantSendDb::RemoveBlockInstantSendLocks(const std::shared_ptr<const CBlock>& pblock, const CBlockIndex* pindexDisconnected)
+{
+    CDBBatch batch(db);
+    for (const auto& tx : pblock->vtx) {
+        if (tx->IsCoinBase() || tx->vin.empty()) {
+            // coinbase and TXs with no inputs can't be locked
+            continue;
+        }
+        uint256 islockHash = GetInstantSendLockHashByTxid(tx->GetHash());
+        if (!islockHash.IsNull()) {
+            RemoveInstantSendLockMined(batch, islockHash, pindexDisconnected->nHeight);
+        }
+    }
     db.WriteBatch(batch);
 }
 
@@ -997,49 +1037,34 @@ void CInstantSendManager::BlockConnected(const std::shared_ptr<const CBlock>& pb
         }
     }
 
-    for (const auto& tx : pblock->vtx) {
-        if (tx->IsCoinBase() || tx->vin.empty()) {
-            // coinbase and TXs with no inputs can't be locked
-            continue;
-        }
+    if (masternodeSync.IsBlockchainSynced()) {
+        for (const auto& tx : pblock->vtx) {
+            if (tx->IsCoinBase() || tx->vin.empty()) {
+                // coinbase and TXs with no inputs can't be locked
+                continue;
+            }
 
-        uint256 islockHash;
-        {
-            LOCK(cs);
-            islockHash = db.GetInstantSendLockHashByTxid(tx->GetHash());
-
-            // update DB about when an IS lock was mined
-            if (!islockHash.IsNull()) {
-                db.WriteInstantSendLockMined(islockHash, pindex->nHeight);
+            if (!IsLocked(tx->GetHash()) && !chainLocksHandler->HasChainLock(pindex->nHeight, pindex->GetBlockHash())) {
+                ProcessTx(*tx, true, Params().GetConsensus());
+                // TX is not locked, so make sure it is tracked
+                LOCK(cs);
+                AddNonLockedTx(tx, pindex);
+            } else {
+                // TX is locked, so make sure we don't track it anymore
+                LOCK(cs);
+                RemoveNonLockedTx(tx->GetHash(), true);
             }
         }
-
-        if (!masternodeSync.IsBlockchainSynced()) {
-            continue;
-        }
-
-        if (islockHash.IsNull() && !chainLocksHandler->HasChainLock(pindex->nHeight, pindex->GetBlockHash())) {
-            ProcessTx(*tx, true, Params().GetConsensus());
-            // TX is not locked, so make sure it is tracked
-            LOCK(cs);
-            AddNonLockedTx(tx, pindex);
-        } else {
-            // TX is locked, so make sure we don't track it anymore
-            LOCK(cs);
-            RemoveNonLockedTx(tx->GetHash(), true);
-        }
     }
+
+    LOCK(cs);
+    db.WriteBlockInstantSendLocks(pblock, pindex);
 }
 
 void CInstantSendManager::BlockDisconnected(const std::shared_ptr<const CBlock>& pblock, const CBlockIndex* pindexDisconnected)
 {
     LOCK(cs);
-    for (auto& tx : pblock->vtx) {
-        auto islockHash = db.GetInstantSendLockHashByTxid(tx->GetHash());
-        if (!islockHash.IsNull()) {
-            db.RemoveInstantSendLockMined(islockHash, pindexDisconnected->nHeight);
-        }
-    }
+    db.RemoveBlockInstantSendLocks(pblock, pindexDisconnected);
 }
 
 void CInstantSendManager::AddNonLockedTx(const CTransactionRef& tx, const CBlockIndex* pindexMined)
