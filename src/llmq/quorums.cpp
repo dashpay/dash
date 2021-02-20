@@ -735,15 +735,14 @@ void CQuorumManager::StartCachePopulatorThread(const CQuorumCPtr pQuorum) const
     LogPrint(BCLog::LLMQ, "CQuorumManager::StartCachePopulatorThread -- start\n");
 
     // when then later some other thread tries to get keys, it will be much faster
-    auto f = [pQuorum, t, this](int threadId) {
+    workerPool.push([pQuorum, t, this](int threadId) {
         for (size_t i = 0; i < pQuorum->members.size() && !quorumThreadInterrupt; i++) {
             if (pQuorum->qc.validMembers[i]) {
                 pQuorum->GetPubKeyShare(i);
             }
         }
         LogPrint(BCLog::LLMQ, "CQuorumManager::StartCachePopulatorThread -- done. time=%d\n", t.count());
-    };
-    workerPool.push(f);
+    });
 }
 
 void CQuorumManager::StartQuorumDataRecoveryThread(const CQuorumCPtr pQuorum, const CBlockIndex* pIndex, uint16_t nDataMaskIn) const
@@ -754,7 +753,7 @@ void CQuorumManager::StartQuorumDataRecoveryThread(const CQuorumCPtr pQuorum, co
     }
     pQuorum->fQuorumDataRecoveryThreadRunning = true;
 
-    auto f = [pQuorum, pIndex, nDataMaskIn, this](int threadId) {
+    workerPool.push([pQuorum, pIndex, nDataMaskIn, this](int threadId) {
         size_t nTries{0};
         uint16_t nDataMask{nDataMaskIn};
         int64_t nTimeLastSuccess{0};
@@ -860,8 +859,7 @@ void CQuorumManager::StartQuorumDataRecoveryThread(const CQuorumCPtr pQuorum, co
         }
         pQuorum->fQuorumDataRecoveryThreadRunning = false;
         printLog("Done");
-    };
-    workerPool.push(f);
+    });
 }
 
 } // namespace llmq
