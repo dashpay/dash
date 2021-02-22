@@ -61,8 +61,7 @@ static void BLS_PubKeyAggregate_Normal(benchmark::State& state)
 
     // Benchmark.
     while (state.KeepRunning()) {
-        CBLSPublicKey k(pubKey1);
-        k.AggregateInsecure(pubKey2);
+        pubKey1.AggregateInsecure(pubKey2);
     }
 }
 
@@ -71,13 +70,10 @@ static void BLS_SecKeyAggregate_Normal(benchmark::State& state)
     CBLSSecretKey secKey1, secKey2;
     secKey1.MakeNewKey();
     secKey2.MakeNewKey();
-    CBLSPublicKey pubKey1 = secKey1.GetPublicKey();
-    CBLSPublicKey pubKey2 = secKey2.GetPublicKey();
 
     // Benchmark.
     while (state.KeepRunning()) {
-        CBLSSecretKey k(secKey1);
-        k.AggregateInsecure(secKey2);
+        secKey1.AggregateInsecure(secKey2);
     }
 }
 
