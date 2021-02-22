@@ -147,14 +147,14 @@ static void BLS_Verify_LargeBlock(size_t txCount, benchmark::State& state)
     }
 }
 
+static void BLS_Verify_LargeBlock100(benchmark::State& state)
+{
+    BLS_Verify_LargeBlock(100, state);
+}
+
 static void BLS_Verify_LargeBlock1000(benchmark::State& state)
 {
     BLS_Verify_LargeBlock(1000, state);
-}
-
-static void BLS_Verify_LargeBlock10000(benchmark::State& state)
-{
-    BLS_Verify_LargeBlock(10000, state);
 }
 
 static void BLS_Verify_LargeBlockSelfAggregated(size_t txCount, benchmark::State& state)
@@ -173,14 +173,14 @@ static void BLS_Verify_LargeBlockSelfAggregated(size_t txCount, benchmark::State
     }
 }
 
+static void BLS_Verify_LargeBlockSelfAggregated100(benchmark::State& state)
+{
+    BLS_Verify_LargeBlockSelfAggregated(100, state);
+}
+
 static void BLS_Verify_LargeBlockSelfAggregated1000(benchmark::State& state)
 {
     BLS_Verify_LargeBlockSelfAggregated(1000, state);
-}
-
-static void BLS_Verify_LargeBlockSelfAggregated10000(benchmark::State& state)
-{
-    BLS_Verify_LargeBlockSelfAggregated(10000, state);
 }
 
 static void BLS_Verify_LargeAggregatedBlock(size_t txCount, benchmark::State& state)
@@ -200,14 +200,14 @@ static void BLS_Verify_LargeAggregatedBlock(size_t txCount, benchmark::State& st
     }
 }
 
+static void BLS_Verify_LargeAggregatedBlock100(benchmark::State& state)
+{
+    BLS_Verify_LargeAggregatedBlock(100, state);
+}
+
 static void BLS_Verify_LargeAggregatedBlock1000(benchmark::State& state)
 {
     BLS_Verify_LargeAggregatedBlock(1000, state);
-}
-
-static void BLS_Verify_LargeAggregatedBlock10000(benchmark::State& state)
-{
-    BLS_Verify_LargeAggregatedBlock(10000, state);
 }
 
 static void BLS_Verify_LargeAggregatedBlock1000PreVerified(benchmark::State& state)
@@ -364,11 +364,12 @@ BENCHMARK(BLS_SecKeyAggregate_Normal, 800 * 1000)
 BENCHMARK(BLS_SignatureAggregate_Normal, 100 * 1000)
 BENCHMARK(BLS_Sign_Normal, 600)
 BENCHMARK(BLS_Verify_Normal, 350)
+BENCHMARK(BLS_Verify_LargeBlock100, 3)
 BENCHMARK(BLS_Verify_LargeBlock1000, 1)
+BENCHMARK(BLS_Verify_LargeBlockSelfAggregated100, 7)
 BENCHMARK(BLS_Verify_LargeBlockSelfAggregated1000, 1)
-BENCHMARK(BLS_Verify_LargeBlockSelfAggregated10000, 1)
+BENCHMARK(BLS_Verify_LargeAggregatedBlock100, 7)
 BENCHMARK(BLS_Verify_LargeAggregatedBlock1000, 1)
-BENCHMARK(BLS_Verify_LargeAggregatedBlock10000, 1)
 BENCHMARK(BLS_Verify_LargeAggregatedBlock1000PreVerified, 5)
 BENCHMARK(BLS_Verify_Batched, 500)
 BENCHMARK(BLS_Verify_BatchedParallel, 1000)
