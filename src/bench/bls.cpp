@@ -81,6 +81,21 @@ static void BLS_SecKeyAggregate_Normal(benchmark::State& state)
     }
 }
 
+static void BLS_SignatureAggregate_Normal(benchmark::State& state)
+{
+    uint256 hash = GetRandHash();
+    CBLSSecretKey secKey1, secKey2;
+    secKey1.MakeNewKey();
+    secKey2.MakeNewKey();
+    CBLSSignature sig1 = secKey1.Sign(hash);
+    CBLSSignature sig2 = secKey2.Sign(hash);
+
+    // Benchmark.
+    while (state.KeepRunning()) {
+        sig1.AggregateInsecure(sig2);
+    }
+}
+
 static void BLS_Sign_Normal(benchmark::State& state)
 {
     CBLSSecretKey secKey;
@@ -350,6 +365,7 @@ static void BLS_Verify_BatchedParallel(benchmark::State& state)
 
 BENCHMARK(BLS_PubKeyAggregate_Normal, 300 * 1000)
 BENCHMARK(BLS_SecKeyAggregate_Normal, 700 * 1000)
+BENCHMARK(BLS_SignatureAggregate_Normal, 100 * 1000)
 BENCHMARK(BLS_Sign_Normal, 600)
 BENCHMARK(BLS_Verify_Normal, 350)
 BENCHMARK(BLS_Verify_LargeBlock1000, 1)
