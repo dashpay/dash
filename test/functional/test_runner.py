@@ -142,6 +142,7 @@ BASE_SCRIPTS = [
     'feature_governance_cl.py --descriptors',
     'rpc_verifyislock.py',
     'feature_notifications.py',
+    'wallet_signer.py --descriptors',
     # vv Tests less than 60s vv
     'p2p_sendheaders.py', # NOTE: needs dash_hash to pass
     'p2p_sendheaders_compressed.py', # NOTE: needs dash_hash to pass
