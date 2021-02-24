@@ -117,6 +117,21 @@ const CChainLockSig CChainLocksHandler::GetBestChainLock()
     return bestChainLockWithKnownBlock;
 }
 
+const std::map<CQuorumCPtr, CChainLockSigCPtr> CChainLocksHandler::GetBestChainLockShares()
+{
+    if (!AreMultiQuorumChainLocksEnabled()) {
+        return {};
+    }
+
+    LOCK(cs);
+    auto it = bestChainLockShares.find(bestChainLockWithKnownBlock.nHeight);
+    if (it == bestChainLockShares.end()) {
+        return {};
+    }
+
+    return it->second;
+}
+
 bool CChainLocksHandler::TryUpdateBestChainLock(const CBlockIndex* pindex)
 {
     AssertLockHeld(cs);

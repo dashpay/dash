@@ -105,6 +105,7 @@ public:
     bool GetChainLockByHash(const uint256& hash, CChainLockSig& ret);
     const CChainLockSig GetMostRecentChainLock();
     const CChainLockSig GetBestChainLock();
+    const std::map<CQuorumCPtr, CChainLockSigCPtr> GetBestChainLockShares();
 
     void ProcessMessage(CNode* pfrom, const std::string& strCommand, CDataStream& vRecv);
     void ProcessNewChainLock(NodeId from, CChainLockSig& clsig, const uint256& hash, const uint256& idIn = uint256());
