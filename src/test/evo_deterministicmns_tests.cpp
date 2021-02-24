@@ -292,8 +292,8 @@ BOOST_FIXTURE_TEST_CASE(dip3_protx, TestChainDIP3Setup)
         auto tx2 = MalleateProTxPayout<CProRegTx>(tx);
         CValidationState dummyState;
         // Technically, the payload is still valid...
-        BOOST_ASSERT(CheckProRegTx(tx, chainActive.Tip(), dummyState));
-        BOOST_ASSERT(CheckProRegTx(tx2, chainActive.Tip(), dummyState));
+        BOOST_ASSERT(CheckProRegTx(tx, chainActive.Tip(), dummyState, *pcoinsTip.get()));
+        BOOST_ASSERT(CheckProRegTx(tx2, chainActive.Tip(), dummyState, *pcoinsTip.get()));
         // But the signature should not verify anymore
         BOOST_ASSERT(CheckTransactionSignature(tx));
         BOOST_ASSERT(!CheckTransactionSignature(tx2));
@@ -395,8 +395,8 @@ BOOST_FIXTURE_TEST_CASE(dip3_protx, TestChainDIP3Setup)
     // check malleability protection again, but this time by also relying on the signature inside the ProUpRegTx
     auto tx2 = MalleateProTxPayout<CProUpRegTx>(tx);
     CValidationState dummyState;
-    BOOST_ASSERT(CheckProUpRegTx(tx, chainActive.Tip(), dummyState));
-    BOOST_ASSERT(!CheckProUpRegTx(tx2, chainActive.Tip(), dummyState));
+    BOOST_ASSERT(CheckProUpRegTx(tx, chainActive.Tip(), dummyState, *pcoinsTip.get()));
+    BOOST_ASSERT(!CheckProUpRegTx(tx2, chainActive.Tip(), dummyState, *pcoinsTip.get()));
     BOOST_ASSERT(CheckTransactionSignature(tx));
     BOOST_ASSERT(!CheckTransactionSignature(tx2));
     // now process the block
