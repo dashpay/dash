@@ -199,7 +199,7 @@ class DashZMQTest (DashTestFramework):
         # Generate ChainLock
         generated_hash = self.nodes[0].generate(1)[0]
         self.wait_for_chainlocked_block_all_nodes(generated_hash)
-        rpc_best_chain_lock = self.nodes[0].getbestchainlock()
+        rpc_best_chain_lock = self.nodes[0].getchainlocks()["recent_chainlock"]
         rpc_best_chain_lock_hash = rpc_best_chain_lock["blockhash"]
         rpc_best_chain_lock_sig = rpc_best_chain_lock["signature"]
         assert_equal(generated_hash, rpc_best_chain_lock_hash)

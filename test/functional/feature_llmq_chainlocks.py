@@ -205,7 +205,7 @@ class LLMQChainLocksTest(DashTestFramework):
         fake_clsig1, fake_block_hash1 = self.create_fake_clsig(1, multi_quorum)
         p2p_node.send_clsig(fake_clsig1)
         for node in self.nodes:
-            self.wait_for_best_chainlock(node, fake_block_hash1, timeout=5)
+            self.wait_for_most_recent_chainlock(node, fake_block_hash1, timeout=5)
         tip = self.nodes[0].generate(1)[-1]
         if multi_quorum:
             # Honest nodes win
@@ -230,7 +230,7 @@ class LLMQChainLocksTest(DashTestFramework):
         fake_clsig3, fake_block_hash3 = self.create_fake_clsig(SIGN_HEIGHT_OFFSET, multi_quorum)
         p2p_node.send_clsig(fake_clsig3)
         for node in self.nodes:
-            self.wait_for_best_chainlock(node, fake_block_hash3, timeout=5)
+            self.wait_for_most_recent_chainlock(node, fake_block_hash3, timeout=5)
         tip = self.nodes[0].generate(1)[-1]
         self.wait_for_chainlocked_block_all_nodes(tip, timeout=5)
         self.nodes[0].disconnect_p2ps()

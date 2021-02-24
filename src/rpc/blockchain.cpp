@@ -217,7 +217,7 @@ UniValue getbestchainlock(const JSONRPCRequest& request)
     if (request.fHelp || request.params.size() != 0)
         throw std::runtime_error(
             "getbestchainlock\n"
-            "\nReturns information about the best chainlock. Throws an error if there is no known chainlock yet."
+            "\nDEPRECATED. Returns information about the best chainlock. Throws an error if there is no known chainlock yet."
             "\nResult:\n"
             "{\n"
             "  \"blockhash\" : \"hash\",      (string) The block hash hex encoded\n"
@@ -229,6 +229,13 @@ UniValue getbestchainlock(const JSONRPCRequest& request)
             + HelpExampleCli("getbestchainlock", "")
             + HelpExampleRpc("getbestchainlock", "")
         );
+
+    if (!IsDeprecatedRPCEnabled("getbestchainlock")) {
+        throw JSONRPCError(RPC_METHOD_DEPRECATED, "getbestchainlock is deprecated and will be fully removed in v0.18. "
+            "To use getbestchainlock in v0.17, restart dashd with -deprecatedrpc=getbestchainlock.\n"
+            "Projects should transition to using getchainlocks before upgrading to v0.18");
+    }
+
     UniValue result(UniValue::VOBJ);
 
     llmq::CChainLockSig clsig = llmq::chainLocksHandler->GetMostRecentChainLock();

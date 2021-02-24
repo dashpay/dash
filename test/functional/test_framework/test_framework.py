@@ -846,8 +846,8 @@ class DashTestFramework(BitcoinTestFramework):
         for node in self.nodes:
             self.wait_for_chainlocked_block(node, block_hash, timeout=timeout)
 
-    def wait_for_best_chainlock(self, node, block_hash, timeout=15):
-        wait_until(lambda: node.getbestchainlock()["blockhash"] == block_hash, timeout=timeout, sleep=0.1)
+    def wait_for_most_recent_chainlock(self, node, block_hash, timeout=15):
+        wait_until(lambda: node.getchainlocks()["recent_chainlock"]["blockhash"] == block_hash, timeout=timeout, sleep=0.1)
 
     def wait_for_sporks_same(self, timeout=30):
         def check_sporks_same():

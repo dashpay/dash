@@ -115,7 +115,7 @@ class LLMQ_IS_CL_Conflicts(DashTestFramework):
         self.test_node.send_clsig(cl)
 
         for node in self.nodes:
-            self.wait_for_best_chainlock(node, block.hash)
+            self.wait_for_most_recent_chainlock(node, block.hash)
 
         self.sync_blocks()
 

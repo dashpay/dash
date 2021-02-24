@@ -28,7 +28,7 @@ class RPCVerifyChainLockTest(DashTestFramework):
         self.wait_for_sporks_same()
         self.mine_quorum()
         self.wait_for_chainlocked_block(node0, node0.generate(1)[0])
-        chainlock = node0.getbestchainlock()
+        chainlock = node0.getchainlocks()["recent_chainlock"]
         block_hash = chainlock["blockhash"]
         height = chainlock["height"]
         chainlock_signature = chainlock["signature"]
@@ -45,8 +45,8 @@ class RPCVerifyChainLockTest(DashTestFramework):
         node1.setnetworkactive(False)
         node0.generate(1)
         self.wait_for_chainlocked_block(node0, node0.generate(1)[0])
-        chainlock = node0.getbestchainlock()
-        assert chainlock != node1.getbestchainlock()
+        chainlock = node0.getchainlocks()["recent_chainlock"]
+        assert chainlock != node1.getchainlocks()["recent_chainlock"]
         block_hash = chainlock["blockhash"]
         height = chainlock["height"]
         chainlock_signature = chainlock["signature"]
