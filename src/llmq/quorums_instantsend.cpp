@@ -549,8 +549,7 @@ bool CInstantSendManager::CheckCanLock(const CTransaction& tx, bool printDebug, 
     }
 
     for (const auto& in : tx.vin) {
-        CAmount v = 0;
-        if (!CheckCanLock(in.prevout, printDebug, tx.GetHash(), &v, params)) {
+        if (!CheckCanLock(in.prevout, printDebug, tx.GetHash(), params)) {
             return false;
         }
     }
@@ -558,7 +557,7 @@ bool CInstantSendManager::CheckCanLock(const CTransaction& tx, bool printDebug, 
     return true;
 }
 
-bool CInstantSendManager::CheckCanLock(const COutPoint& outpoint, bool printDebug, const uint256& txHash, CAmount* retValue, const Consensus::Params& params) const
+bool CInstantSendManager::CheckCanLock(const COutPoint& outpoint, bool printDebug, const uint256& txHash, const Consensus::Params& params) const
 {
     int nInstantSendConfirmationsRequired = params.nInstantSendConfirmationsRequired;
 
@@ -603,10 +602,6 @@ bool CInstantSendManager::CheckCanLock(const COutPoint& outpoint, bool printDebu
             }
             return false;
         }
-    }
-
-    if (retValue) {
-        *retValue = tx->vout[outpoint.n].nValue;
     }
 
     return true;

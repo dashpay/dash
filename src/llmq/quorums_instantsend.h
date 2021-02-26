@@ -128,7 +128,7 @@ public:
 public:
     void ProcessTx(const CTransaction& tx, bool fRetroactive, const Consensus::Params& params);
     bool CheckCanLock(const CTransaction& tx, bool printDebug, const Consensus::Params& params) const;
-    bool CheckCanLock(const COutPoint& outpoint, bool printDebug, const uint256& txHash, CAmount* retValue, const Consensus::Params& params) const;
+    bool CheckCanLock(const COutPoint& outpoint, bool printDebug, const uint256& txHash, const Consensus::Params& params) const;
     bool IsLocked(const uint256& txHash) const;
     bool IsConflicted(const CTransaction& tx) const;
     CInstantSendLockPtr GetConflictingLock(const CTransaction& tx) const;
