@@ -868,7 +868,7 @@ std::unordered_set<uint256> CInstantSendManager::ProcessPendingInstantSendLocks(
             continue;
         }
 
-        auto quorum = quorumSigningManager->SelectQuorumForSigning(llmqType, id, -1, signOffset);
+        auto quorum = llmq::CSigningManager::SelectQuorumForSigning(llmqType, id, -1, signOffset);
         if (!quorum) {
             // should not happen, but if one fails to select, all others will also fail to select
             return {};
