@@ -22,6 +22,12 @@ static const int MIN_PEER_PROTO_VERSION = 70213;
 //! minimum proto version of masternode to accept in DKGs
 static const int MIN_MASTERNODE_PROTO_VERSION = 70219;
 
+//! minimum proto version for governance sync and messages
+static const int MIN_GOVERNANCE_PEER_PROTO_VERSION = 70213;
+
+//! minimum proto version to broadcast governance messages from banned masternodes
+static const int GOVERNANCE_POSE_BANNED_VOTES_VERSION = 70215;
+
 //! nTime field added to CAddress, starting with this version;
 //! if possible, avoid requesting addresses nodes older than this
 static const int CADDR_TIME_VERSION = 31402;
