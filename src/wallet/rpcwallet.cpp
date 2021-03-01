@@ -590,7 +590,7 @@ static UniValue signmessage(const JSONRPCRequest& request)
 
     CTxDestination dest = DecodeDestination(strAddress);
     if (!IsValidDestination(dest)) {
-        throw JSONRPCError(RPC_TYPE_ERROR, "Invalid address");
+        throw JSONRPCError(RPC_INVALID_ADDRESS_OR_KEY, "Invalid address");
     }
 
     const CKeyID *keyID = std::get_if<CKeyID>(&dest);
