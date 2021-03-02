@@ -174,6 +174,7 @@ public:
 extern CInstantSendManager* quorumInstantSendManager;
 
 bool IsInstantSendEnabled();
+bool IsInstantSendSigningEnabled();
 bool RejectConflictingBlocks();
 
 } // namespace llmq

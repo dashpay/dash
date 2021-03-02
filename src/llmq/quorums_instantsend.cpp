@@ -410,6 +410,11 @@ bool CInstantSendManager::ProcessTx(const CTransaction& tx, bool allowReSigning,
         return false;
     }
 
+    // Only sign for inlocks or islocks if IS Signing is enabled
+    // However, if we are resigning txes, b/c they were included in a block we should sign.
+    // This allows a ChainLock to happen on this block after we retroactively islock
+    if (!IsInstantSendSigningEnabled() && !allowReSigning) return true;
+
     if (!TrySignInputLocks(tx, allowReSigning, llmqType)) return false;
 
     // We might have received all input locks before we got the corresponding TX. In this case, we have to sign the
@@ -1519,6 +1524,11 @@ void CInstantSendManager::WorkThreadMain()
 bool IsInstantSendEnabled()
 {
     return !fReindex && !fImporting && sporkManager.IsSporkActive(SPORK_2_INSTANTSEND_ENABLED);
+}
+
+bool IsInstantSendSigningEnabled()
+{
+    return !fReindex && !fImporting && sporkManager.IsSporkActive(SPORK_24_INSTANTSEND_SIGNING_ENABLED) && IsInstantSendEnabled();
 }
 
 bool RejectConflictingBlocks()

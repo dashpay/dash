@@ -28,6 +28,7 @@ enum SporkId : int32_t {
     SPORK_19_CHAINLOCKS_ENABLED                            = 10018,
     SPORK_21_QUORUM_ALL_CONNECTED                          = 10020,
     SPORK_23_QUORUM_POSE                                   = 10022,
+    SPORK_24_INSTANTSEND_SIGNING_ENABLED                   = 10023,
 
     SPORK_INVALID                                          = -1,
 };
