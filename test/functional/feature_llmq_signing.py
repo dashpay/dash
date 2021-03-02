@@ -88,8 +88,8 @@ class LLMQSigningTest(DashTestFramework):
             sig_share.id = int(sig_share_rpc_1["id"], 16)
             sig_share.msgHash = int(sig_share_rpc_1["msgHash"], 16)
             sig_share.sigShare = hex_str_to_bytes(sig_share_rpc_1["signature"])
-            for i in range(len(self.mninfo)):
-                assert self.mninfo[i].node.getconnectioncount() == 5
+            for mn in self.mninfo:
+                assert mn.node.getconnectioncount() == 5
             # Get the current recovery member of the quorum
             q = self.nodes[0].quorum('selectquorum', 100, id)
             mn = self.get_mninfo(q['recoveryMembers'][0])
