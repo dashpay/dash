@@ -1068,7 +1068,7 @@ class DashTestFramework(BitcoinTestFramework):
         return new_quorum
 
     def get_recovered_sig(self, rec_sig_id, rec_sig_msg_hash, llmq_type=100, node=None):
-        # Note: recsigs aren't relayed no regular nodes by default,
+        # Note: recsigs aren't relayed to regular nodes by default,
         # make sure to pick a mn as a node to query for recsigs.
         node = self.mninfo[0].node if node is None else node
         time_start = time.time()
