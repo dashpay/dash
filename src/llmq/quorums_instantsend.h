@@ -120,7 +120,7 @@ public:
     void InterruptWorkerThread();
 
 public:
-    bool ProcessTx(const CTransaction& tx, bool allowReSigning, const Consensus::Params& params);
+    bool ProcessTx(const CTransaction& tx, bool fRetroactive, const Consensus::Params& params);
     bool CheckCanLock(const CTransaction& tx, bool printDebug, const Consensus::Params& params) const;
     bool CheckCanLock(const COutPoint& outpoint, bool printDebug, const uint256& txHash, CAmount* retValue, const Consensus::Params& params) const;
     bool IsLocked(const uint256& txHash) const;

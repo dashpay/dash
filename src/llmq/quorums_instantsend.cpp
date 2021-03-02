@@ -365,7 +365,7 @@ void CInstantSendManager::InterruptWorkerThread()
     workInterrupt();
 }
 
-bool CInstantSendManager::ProcessTx(const CTransaction& tx, bool allowReSigning, const Consensus::Params& params)
+bool CInstantSendManager::ProcessTx(const CTransaction& tx, bool fRetroactive, const Consensus::Params& params)
 {
     if (!IsInstantSendEnabled()) {
         return true;
@@ -413,9 +413,9 @@ bool CInstantSendManager::ProcessTx(const CTransaction& tx, bool allowReSigning,
     // Only sign for inlocks or islocks if IS Signing is enabled
     // However, if we are resigning txes, b/c they were included in a block we should sign.
     // This allows a ChainLock to happen on this block after we retroactively islock
-    if (!IsInstantSendSigningEnabled() && !allowReSigning) return true;
+    if (!IsInstantSendSigningEnabled() && !fRetroactive) return true;
 
-    if (!TrySignInputLocks(tx, allowReSigning, llmqType)) return false;
+    if (!TrySignInputLocks(tx, fRetroactive, llmqType)) return false;
 
     // We might have received all input locks before we got the corresponding TX. In this case, we have to sign the
     // islock now instead of waiting for the input locks.
@@ -424,7 +424,7 @@ bool CInstantSendManager::ProcessTx(const CTransaction& tx, bool allowReSigning,
     return true;
 }
 
-bool CInstantSendManager::TrySignInputLocks(const CTransaction& tx, bool allowReSigning, Consensus::LLMQType llmqType)
+bool CInstantSendManager::TrySignInputLocks(const CTransaction& tx, bool fRetroactive, Consensus::LLMQType llmqType)
 {
     std::vector<uint256> ids;
     ids.reserve(tx.vin.size());
@@ -451,7 +451,7 @@ bool CInstantSendManager::TrySignInputLocks(const CTransaction& tx, bool allowRe
             return false;
         }
     }
-    if (!allowReSigning && alreadyVotedCount == ids.size()) {
+    if (!fRetroactive && alreadyVotedCount == ids.size()) {
         LogPrint(BCLog::INSTANTSEND, "CInstantSendManager::%s -- txid=%s: already voted on all inputs, bailing out\n", __func__,
                  tx.GetHash().ToString());
         return true;
@@ -467,9 +467,9 @@ bool CInstantSendManager::TrySignInputLocks(const CTransaction& tx, bool allowRe
             LOCK(cs);
             inputRequestIds.emplace(id);
         }
-        LogPrint(BCLog::INSTANTSEND, "CInstantSendManager::%s -- txid=%s: trying to vote on input %s with id %s. allowReSigning=%d\n", __func__,
-                 tx.GetHash().ToString(), in.prevout.ToStringShort(), id.ToString(), allowReSigning);
-        if (quorumSigningManager->AsyncSignIfMember(llmqType, id, tx.GetHash(), {}, allowReSigning)) {
+        LogPrint(BCLog::INSTANTSEND, "CInstantSendManager::%s -- txid=%s: trying to vote on input %s with id %s. fRetroactive=%d\n", __func__,
+                 tx.GetHash().ToString(), in.prevout.ToStringShort(), id.ToString(), fRetroactive);
+        if (quorumSigningManager->AsyncSignIfMember(llmqType, id, tx.GetHash(), {}, fRetroactive)) {
             LogPrint(BCLog::INSTANTSEND, "CInstantSendManager::%s -- txid=%s: voted on input %s with id %s\n", __func__,
                      tx.GetHash().ToString(), in.prevout.ToStringShort(), id.ToString());
         }
