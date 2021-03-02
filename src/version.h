@@ -11,7 +11,7 @@
  */
 
 
-static const int PROTOCOL_VERSION = 70219;
+static const int PROTOCOL_VERSION = 70220;
 
 //! initial proto version, to be increased after version/verack negotiation
 static const int INIT_PROTO_VERSION = 209;
@@ -20,7 +20,7 @@ static const int INIT_PROTO_VERSION = 209;
 static const int MIN_PEER_PROTO_VERSION = 70213;
 
 //! minimum proto version of masternode to accept in DKGs
-static const int MIN_MASTERNODE_PROTO_VERSION = 70219;
+static const int MIN_MASTERNODE_PROTO_VERSION = 70220;
 
 //! minimum proto version for governance sync and messages
 static const int MIN_GOVERNANCE_PEER_PROTO_VERSION = 70213;
