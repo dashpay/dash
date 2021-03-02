@@ -131,6 +131,7 @@ public:
     void HandleNewInputLockRecoveredSig(const CRecoveredSig& recoveredSig, const uint256& txid);
     void HandleNewInstantSendLockRecoveredSig(const CRecoveredSig& recoveredSig);
 
+    bool TrySignInputLocks(const CTransaction& tx, bool allowResigning, Consensus::LLMQType llmqType);
     void TrySignInstantSendLock(const CTransaction& tx);
 
     void ProcessMessage(CNode* pfrom, const std::string& strCommand, CDataStream& vRecv);

@@ -410,6 +410,17 @@ bool CInstantSendManager::ProcessTx(const CTransaction& tx, bool allowReSigning,
         return false;
     }
 
+    if (!TrySignInputLocks(tx, allowReSigning, llmqType)) return false;
+
+    // We might have received all input locks before we got the corresponding TX. In this case, we have to sign the
+    // islock now instead of waiting for the input locks.
+    TrySignInstantSendLock(tx);
+
+    return true;
+}
+
+bool CInstantSendManager::TrySignInputLocks(const CTransaction& tx, bool allowReSigning, Consensus::LLMQType llmqType)
+{
     std::vector<uint256> ids;
     ids.reserve(tx.vin.size());
 
@@ -422,7 +433,7 @@ bool CInstantSendManager::ProcessTx(const CTransaction& tx, bool allowReSigning,
         if (quorumSigningManager->GetVoteForId(llmqType, id, otherTxHash)) {
             if (otherTxHash != tx.GetHash()) {
                 LogPrintf("CInstantSendManager::%s -- txid=%s: input %s is conflicting with previous vote for tx %s\n", __func__,
-                         tx.GetHash().ToString(), in.prevout.ToStringShort(), otherTxHash.ToString());
+                          tx.GetHash().ToString(), in.prevout.ToStringShort(), otherTxHash.ToString());
                 return false;
             }
             alreadyVotedCount++;
@@ -431,7 +442,7 @@ bool CInstantSendManager::ProcessTx(const CTransaction& tx, bool allowReSigning,
         // don't even try the actual signing if any input is conflicting
         if (quorumSigningManager->IsConflicting(llmqType, id, tx.GetHash())) {
             LogPrintf("CInstantSendManager::%s -- txid=%s: quorumSigningManager->IsConflicting returned true. id=%s\n", __func__,
-                     tx.GetHash().ToString(), id.ToString());
+                      tx.GetHash().ToString(), id.ToString());
             return false;
         }
     }
@@ -455,15 +466,10 @@ bool CInstantSendManager::ProcessTx(const CTransaction& tx, bool allowReSigning,
                  tx.GetHash().ToString(), in.prevout.ToStringShort(), id.ToString(), allowReSigning);
         if (quorumSigningManager->AsyncSignIfMember(llmqType, id, tx.GetHash(), {}, allowReSigning)) {
             LogPrint(BCLog::INSTANTSEND, "CInstantSendManager::%s -- txid=%s: voted on input %s with id %s\n", __func__,
-                      tx.GetHash().ToString(), in.prevout.ToStringShort(), id.ToString());
+                     tx.GetHash().ToString(), in.prevout.ToStringShort(), id.ToString());
         }
     }
 
-    // We might have received all input locks before we got the corresponding TX. In this case, we have to sign the
-    // islock now instead of waiting for the input locks.
-    TrySignInstantSendLock(tx);
-
-    return true;
 }
 
 bool CInstantSendManager::CheckCanLock(const CTransaction& tx, bool printDebug, const Consensus::Params& params) const
