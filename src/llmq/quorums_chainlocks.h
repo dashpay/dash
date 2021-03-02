@@ -29,6 +29,7 @@ public:
     int32_t nHeight{-1};
     uint256 blockHash;
     CBLSSignature sig;
+    std::vector<bool> signers;
 
 public:
     ADD_SERIALIZE_METHODS
@@ -39,6 +40,9 @@ public:
         READWRITE(nHeight);
         READWRITE(blockHash);
         READWRITE(sig);
+        if (!(s.GetType() & SER_GETHASH) && (s.GetVersion() >= MULTI_QUORUM_CHAINLOCKS_VERSION)) {
+            READWRITE(DYNBITSET(signers));
+        }
     }
 
     bool IsNull() const;
@@ -76,6 +80,7 @@ private:
     const CBlockIndex* lastNotifyChainLockBlockIndex GUARDED_BY(cs) {nullptr};
 
     // Keep best chainlock shares and candidates, sorted by height (highest heght first).
+    std::map<int, std::map<CQuorumCPtr, CChainLockSigCPtr>, ReverseHeightComparator> bestChainLockShares GUARDED_BY(cs);
     std::map<int, CChainLockSigCPtr, ReverseHeightComparator> bestChainLockCandidates GUARDED_BY(cs);
 
     std::map<uint256, std::pair<int, uint256> > mapSignedRequestIds GUARDED_BY(cs);
@@ -102,7 +107,7 @@ public:
     const CChainLockSig GetBestChainLock();
 
     void ProcessMessage(CNode* pfrom, const std::string& strCommand, CDataStream& vRecv);
-    void ProcessNewChainLock(NodeId from, const CChainLockSig& clsig, const uint256& hash);
+    void ProcessNewChainLock(NodeId from, CChainLockSig& clsig, const uint256& hash, const uint256& idIn = uint256());
     void AcceptedBlockHeader(const CBlockIndex* pindexNew);
     void UpdatedBlockTip(const CBlockIndex* pindexNew);
     void TransactionAddedToMempool(const CTransactionRef& tx, int64_t nAcceptTime);
@@ -125,7 +130,9 @@ private:
 
     BlockTxs::mapped_type GetBlockTxs(const uint256& blockHash);
 
-    void TryUpdateBestChainLock(const CBlockIndex* pindex);
+    bool TryUpdateBestChainLock(const CBlockIndex* pindex);
+    bool VerifyChainLockShare(const CChainLockSig& clsig, const CBlockIndex* pindexScan, const uint256& idIn, std::pair<int, CQuorumCPtr>& ret);
+    bool VerifyAggregatedChainLock(const CChainLockSig& clsig, const CBlockIndex* pindexScan);
 
     void Cleanup();
 };
@@ -133,6 +140,7 @@ private:
 extern CChainLocksHandler* chainLocksHandler;
 
 bool AreChainLocksEnabled();
+bool AreMultiQuorumChainLocksEnabled();
 
 } // namespace llmq
 

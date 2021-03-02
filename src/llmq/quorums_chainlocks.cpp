@@ -29,7 +29,9 @@ bool CChainLockSig::IsNull() const
 
 std::string CChainLockSig::ToString() const
 {
-    return strprintf("CChainLockSig(nHeight=%d, blockHash=%s)", nHeight, blockHash.ToString());
+    return strprintf("CChainLockSig(nHeight=%d, blockHash=%s, signers: hex=%s size=%d count=%d)",
+                nHeight, blockHash.ToString(), CLLMQUtils::ToHexStr(signers), signers.size(),
+                std::count(signers.begin(), signers.end(), true));
 }
 
 CChainLocksHandler::CChainLocksHandler()
@@ -91,6 +93,15 @@ bool CChainLocksHandler::GetChainLockByHash(const uint256& hash, llmq::CChainLoc
         }
     }
 
+    for (const auto& pair : bestChainLockShares) {
+        for (const auto& pair2 : pair.second) {
+            if (::SerializeHash(*pair2.second) == hash) {
+                ret = *pair2.second;
+                return true;
+            }
+        }
+    }
+
     return false;
 }
 
@@ -106,12 +117,12 @@ const CChainLockSig CChainLocksHandler::GetBestChainLock()
     return bestChainLockWithKnownBlock;
 }
 
-void CChainLocksHandler::TryUpdateBestChainLock(const CBlockIndex* pindex)
+bool CChainLocksHandler::TryUpdateBestChainLock(const CBlockIndex* pindex)
 {
     AssertLockHeld(cs);
 
     if (pindex == nullptr || pindex->nHeight <= bestChainLockWithKnownBlock.nHeight) {
-        return;
+        return false;
     }
 
     auto it1 = bestChainLockCandidates.find(pindex->nHeight);
@@ -119,8 +130,135 @@ void CChainLocksHandler::TryUpdateBestChainLock(const CBlockIndex* pindex)
         bestChainLockWithKnownBlock = *it1->second;
         bestChainLockBlockIndex = pindex;
         LogPrint(BCLog::CHAINLOCKS, "CChainLocksHandler::%s -- CLSIG from candidates (%s)\n", __func__, bestChainLockWithKnownBlock.ToString());
-        return;
+        return true;
     }
+
+    auto it2 = bestChainLockShares.find(pindex->nHeight);
+    if (it2 == bestChainLockShares.end()) {
+        return false;
+    }
+
+    const auto llmqType = Params().GetConsensus().llmqTypeChainLocks;
+    const size_t threshold = GetLLMQParams(llmqType).signingActiveQuorumCount / 2 + 1;
+
+    std::vector<CBLSSignature> sigs;
+    CChainLockSig clsigAgg;
+
+    for (const auto& pair : it2->second) {
+        if (pair.second->blockHash == pindex->GetBlockHash()) {
+            assert(std::count(pair.second->signers.begin(), pair.second->signers.end(), true) <= 1);
+            sigs.emplace_back(pair.second->sig);
+            if (clsigAgg.IsNull()) {
+                clsigAgg = *pair.second;
+            } else {
+                assert(clsigAgg.signers.size() == pair.second->signers.size());
+                std::transform(clsigAgg.signers.begin(), clsigAgg.signers.end(), pair.second->signers.begin(), clsigAgg.signers.begin(), std::logical_or<bool>());
+            }
+            if (sigs.size() >= threshold) {
+                // all sigs should be validated already
+                clsigAgg.sig = CBLSSignature::AggregateInsecure(sigs);
+                bestChainLockWithKnownBlock = clsigAgg;
+                bestChainLockBlockIndex = pindex;
+                bestChainLockCandidates[clsigAgg.nHeight] = std::make_shared<const CChainLockSig>(clsigAgg);
+                LogPrint(BCLog::CHAINLOCKS, "CChainLocksHandler::%s -- CLSIG aggregated (%s)\n", __func__, bestChainLockWithKnownBlock.ToString());
+                return true;
+            }
+        }
+    }
+    return false;
+}
+
+bool CChainLocksHandler::VerifyChainLockShare(const CChainLockSig& clsig, const CBlockIndex* pindexScan, const uint256& idIn, std::pair<int, CQuorumCPtr>& ret)
+{
+    AssertLockNotHeld(cs);
+
+    const auto llmqType = Params().GetConsensus().llmqTypeChainLocks;
+    const auto signingActiveQuorumCount = GetLLMQParams(llmqType).signingActiveQuorumCount;
+
+    if (!AreMultiQuorumChainLocksEnabled()) {
+        return false;
+    }
+
+    if (clsig.signers.size() != signingActiveQuorumCount) {
+        return false;
+    }
+
+    if (std::count(clsig.signers.begin(), clsig.signers.end(), true) > 1) {
+        // too may signers
+        return false;
+    }
+    bool fHaveSigner{std::count(clsig.signers.begin(), clsig.signers.end(), true) > 0};
+
+    const auto quorums_scanned = llmq::quorumManager->ScanQuorums(llmqType, pindexScan, signingActiveQuorumCount);
+
+    for (size_t i = 0; i < quorums_scanned.size(); ++i) {
+        const CQuorumCPtr& quorum = quorums_scanned[i];
+        if (quorum == nullptr) {
+            return false;
+        }
+        uint256 requestId = ::SerializeHash(std::make_tuple(CLSIG_REQUESTID_PREFIX, clsig.nHeight, quorum->qc.quorumHash));
+        if ((!idIn.IsNull() && idIn != requestId)) {
+            continue;
+        }
+        if (fHaveSigner && !clsig.signers[i]) {
+            continue;
+        }
+        uint256 signHash = CLLMQUtils::BuildSignHash(llmqType, quorum->qc.quorumHash, requestId, clsig.blockHash);
+        LogPrint(BCLog::CHAINLOCKS, "CChainLocksHandler::%s -- CLSIG (%s) requestId=%s, signHash=%s\n",
+                __func__, clsig.ToString(), requestId.ToString(), signHash.ToString());
+
+        if (clsig.sig.VerifyInsecure(quorum->qc.quorumPublicKey, signHash)) {
+            ret = std::make_pair(i, quorum);
+            return true;
+        }
+        if (!idIn.IsNull() || fHaveSigner) {
+            return false;
+        }
+    }
+    return false;
+}
+
+bool CChainLocksHandler::VerifyAggregatedChainLock(const CChainLockSig& clsig, const CBlockIndex* pindexScan)
+{
+    AssertLockNotHeld(cs);
+
+    const auto llmqType = Params().GetConsensus().llmqTypeChainLocks;
+    const auto signingActiveQuorumCount = GetLLMQParams(llmqType).signingActiveQuorumCount;
+
+    std::vector<uint256> hashes;
+    std::vector<CBLSPublicKey> quorumPublicKeys;
+
+    if (!AreMultiQuorumChainLocksEnabled()) {
+        return false;
+    }
+
+    if (clsig.signers.size() != signingActiveQuorumCount) {
+        return false;
+    }
+
+    if (std::count(clsig.signers.begin(), clsig.signers.end(), true) < (signingActiveQuorumCount / 2 + 1)) {
+        // not enough signers
+        return false;
+    }
+
+    const auto quorums_scanned = llmq::quorumManager->ScanQuorums(llmqType, pindexScan, signingActiveQuorumCount);
+
+    for (size_t i = 0; i < quorums_scanned.size(); ++i) {
+        const CQuorumCPtr& quorum = quorums_scanned[i];
+        if (quorum == nullptr) {
+            return false;
+        }
+        if (!clsig.signers[i]) {
+            continue;
+        }
+        quorumPublicKeys.emplace_back(quorum->qc.quorumPublicKey);
+        uint256 requestId = ::SerializeHash(std::make_tuple(CLSIG_REQUESTID_PREFIX, clsig.nHeight, quorum->qc.quorumHash));
+        uint256 signHash = CLLMQUtils::BuildSignHash(llmqType, quorum->qc.quorumHash, requestId, clsig.blockHash);
+        hashes.emplace_back(signHash);
+        LogPrint(BCLog::CHAINLOCKS, "CChainLocksHandler::%s -- CLSIG (%s) requestId=%s, signHash=%s\n",
+                __func__, clsig.ToString(), requestId.ToString(), signHash.ToString());
+    }
+    return clsig.sig.VerifyInsecureAggregated(quorumPublicKeys, hashes);
 }
 
 void CChainLocksHandler::ProcessMessage(CNode* pfrom, const std::string& strCommand, CDataStream& vRecv)
@@ -139,8 +277,10 @@ void CChainLocksHandler::ProcessMessage(CNode* pfrom, const std::string& strComm
     }
 }
 
-void CChainLocksHandler::ProcessNewChainLock(const NodeId from, const llmq::CChainLockSig& clsig, const uint256& hash)
+void CChainLocksHandler::ProcessNewChainLock(const NodeId from, CChainLockSig& clsig, const uint256& hash, const uint256& idIn)
 {
+    assert((from == -1) ^ idIn.IsNull());
+
     CheckActiveState();
 
     CInv clsigInv(MSG_CLSIG, hash);
@@ -173,8 +313,14 @@ void CChainLocksHandler::ProcessNewChainLock(const NodeId from, const llmq::CCha
         }
         pindexSig = pindexScan = LookupBlockIndex(clsig.blockHash);
         if (pindexScan == nullptr) {
-            // we don't know the block/header for this CLSIG yet, try scanning quorums at chain tip
-            pindexScan = chainActive.Tip();
+            // we don't know the block/header for this CLSIG yet
+            if (clsig.nHeight <= chainActive.Height()) {
+                // could be a parallel fork at the same height, try scanning quorums at the same height
+                pindexScan = chainActive.Tip()->GetAncestor(clsig.nHeight);
+            } else {
+                // no idea what kind of block it is, try scanning quorums at chain tip
+                pindexScan = chainActive.Tip();
+            }
         }
         if (pindexSig != nullptr && pindexSig->nHeight != clsig.nHeight) {
             // Should not happen
@@ -185,34 +331,113 @@ void CChainLocksHandler::ProcessNewChainLock(const NodeId from, const llmq::CCha
     }
 
     const auto llmqType = Params().GetConsensus().llmqTypeChainLocks;
+    const auto signingActiveQuorumCount = GetLLMQParams(llmqType).signingActiveQuorumCount;
 
-    uint256 requestId = ::SerializeHash(std::make_pair(CLSIG_REQUESTID_PREFIX, clsig.nHeight));
-    auto quorum = CSigningManager::SelectQuorumForSigning(llmqType, requestId, clsig.nHeight);
-    if (quorum == nullptr) {
-        return;
-    }
-    uint256 signHash = CLLMQUtils::BuildSignHash(llmqType, quorum->qc.quorumHash, requestId, clsig.blockHash);
-    LogPrint(BCLog::CHAINLOCKS, "CChainLocksHandler::%s -- CLSIG (%s) requestId=%s, signHash=%s, peer=%d\n",
-            __func__, clsig.ToString(), requestId.ToString(), signHash.ToString(), from);
-
-    if (!clsig.sig.VerifyInsecure(quorum->qc.quorumPublicKey, signHash)) {
-        LogPrint(BCLog::CHAINLOCKS, "CChainLocksHandler::%s -- invalid CLSIG (%s), peer=%d\n", __func__, clsig.ToString(), from);
-        if (from != -1) {
-            LOCK(cs_main);
-            Misbehaving(from, 10);
+    if (AreMultiQuorumChainLocksEnabled()) {
+        if (clsig.signers.empty() || std::count(clsig.signers.begin(), clsig.signers.end(), true) <= 1) {
+            // A part of a multi-quorum CLSIG signed by a single quorum
+            std::pair<int, CQuorumCPtr> ret;
+            clsig.signers.resize(signingActiveQuorumCount, false);
+            if (!VerifyChainLockShare(clsig, pindexScan, idIn, ret)) {
+                LogPrint(BCLog::CHAINLOCKS, "CChainLocksHandler::%s -- invalid CLSIG (%s), peer=%d\n", __func__, clsig.ToString(), from);
+                if (from != -1) {
+                    LOCK(cs_main);
+                    Misbehaving(from, 10);
+                }
+                return;
+            }
+            CInv clsigAggInv;
+            {
+                LOCK(cs);
+                clsig.signers[ret.first] = true;
+                if (std::count(clsig.signers.begin(), clsig.signers.end(), true) > 1) {
+                    // this shouldn never happen
+                    LogPrint(BCLog::CHAINLOCKS, "CChainLocksHandler::%s -- ERROR in VerifyChainLockShare, CLSIG (%s), peer=%d\n", __func__, clsig.ToString(), from);
+                    return;
+                }
+                auto it = bestChainLockShares.find(clsig.nHeight);
+                if (it == bestChainLockShares.end()) {
+                    bestChainLockShares[clsig.nHeight].emplace(ret.second, std::make_shared<const CChainLockSig>(clsig));
+                } else {
+                    it->second.emplace(ret.second, std::make_shared<const CChainLockSig>(clsig));
+                }
+                mostRecentChainLockShare = clsig;
+                if (TryUpdateBestChainLock(pindexSig)) {
+                    clsigAggInv = CInv(MSG_CLSIG, ::SerializeHash(bestChainLockWithKnownBlock));
+                }
+            }
+            // Note: do not hold cs while calling RelayInv
+            AssertLockNotHeld(cs);
+            if (clsigAggInv.type == MSG_CLSIG) {
+                // We just created an aggregated CLSIG, relay it
+                g_connman->RelayInv(clsigAggInv, MULTI_QUORUM_CHAINLOCKS_VERSION);
+            } else {
+                // Relay partial CLSIGs to full nodes only, SPV wallets should wait for the aggregated CLSIG.
+                g_connman->ForEachNode([&](CNode* pnode) {
+                    bool fSPV{false};
+                    {
+                        LOCK(pnode->cs_filter);
+                        fSPV = pnode->pfilter != nullptr;
+                    }
+                    if (pnode->nVersion >= MULTI_QUORUM_CHAINLOCKS_VERSION && !fSPV && !pnode->m_masternode_connection) {
+                        pnode->PushInventory(clsigInv);
+                    }
+                });
+            }
+        } else {
+            // An aggregated CLSIG
+            if (!VerifyAggregatedChainLock(clsig, pindexScan)) {
+                LogPrint(BCLog::CHAINLOCKS, "CChainLocksHandler::%s -- invalid CLSIG (%s), peer=%d\n", __func__, clsig.ToString(), from);
+                if (from != -1) {
+                    LOCK(cs_main);
+                    Misbehaving(from, 10);
+                }
+                return;
+            }
+            {
+                LOCK(cs);
+                bestChainLockCandidates[clsig.nHeight] = std::make_shared<const CChainLockSig>(clsig);
+                mostRecentChainLockShare = clsig;
+                TryUpdateBestChainLock(pindexSig);
+            }
+            // Note: do not hold cs while calling RelayInv
+            AssertLockNotHeld(cs);
+            g_connman->RelayInv(clsigInv, MULTI_QUORUM_CHAINLOCKS_VERSION);
         }
-        return;
-    }
+    } else {
+        uint256 requestId = ::SerializeHash(std::make_pair(CLSIG_REQUESTID_PREFIX, clsig.nHeight));
+        if (!idIn.IsNull() && idIn != requestId) {
+            // this should never happen
+            LogPrint(BCLog::CHAINLOCKS, "CChainLocksHandler::%s -- invalid CLSIG (%s), peer=%d\n", __func__, clsig.ToString(), from);
+            return;
+        }
+        auto quorum = CSigningManager::SelectQuorumForSigning(llmqType, requestId, clsig.nHeight);
+        if (quorum == nullptr) {
+            return;
+        }
+        uint256 signHash = CLLMQUtils::BuildSignHash(llmqType, quorum->qc.quorumHash, requestId, clsig.blockHash);
+        LogPrint(BCLog::CHAINLOCKS, "CChainLocksHandler::%s -- CLSIG (%s) requestId=%s, signHash=%s, peer=%d\n",
+                __func__, clsig.ToString(), requestId.ToString(), signHash.ToString(), from);
 
-    {
-        LOCK(cs);
-        bestChainLockCandidates[clsig.nHeight] = std::make_shared<const CChainLockSig>(clsig);
-        mostRecentChainLockShare = clsig;
-        TryUpdateBestChainLock(pindexSig);
+        if (!clsig.sig.VerifyInsecure(quorum->qc.quorumPublicKey, signHash)) {
+            LogPrint(BCLog::CHAINLOCKS, "CChainLocksHandler::%s -- invalid CLSIG (%s), peer=%d\n", __func__, clsig.ToString(), from);
+            if (from != -1) {
+                LOCK(cs_main);
+                Misbehaving(from, 10);
+            }
+            return;
+        }
+
+        {
+            LOCK(cs);
+            bestChainLockCandidates[clsig.nHeight] = std::make_shared<const CChainLockSig>(clsig);
+            mostRecentChainLockShare = clsig;
+            TryUpdateBestChainLock(pindexSig);
+        }
+        // Note: do not hold cs while calling RelayInv
+        AssertLockNotHeld(cs);
+        g_connman->RelayInv(clsigInv, LLMQS_PROTO_VERSION);
     }
-    // Note: do not hold cs while calling RelayInv
-    AssertLockNotHeld(cs);
-    g_connman->RelayInv(clsigInv, LLMQS_PROTO_VERSION);
 
     if (pindexSig == nullptr) {
         // we don't know the block/header for this CLSIG yet, so bail out for now
@@ -287,6 +512,7 @@ void CChainLocksHandler::CheckActiveState()
         mostRecentChainLockShare = bestChainLockWithKnownBlock = CChainLockSig();
         bestChainLockBlockIndex = lastNotifyChainLockBlockIndex = nullptr;
         bestChainLockCandidates.clear();
+        bestChainLockShares.clear();
     }
 }
 
@@ -313,11 +539,6 @@ void CChainLocksHandler::TrySignChainTip()
     if (!pindex->pprev) {
         return;
     }
-
-    // DIP8 defines a process called "Signing attempts" which should run before the CLSIG is finalized
-    // To simplify the initial implementation, we skip this process and directly try to create a CLSIG
-    // This will fail when multiple blocks compete, but we accept this for the initial implementation.
-    // Later, we'll add the multiple attempts process.
 
     {
         LOCK(cs);
@@ -392,19 +613,43 @@ void CChainLocksHandler::TrySignChainTip()
     }
 
     const auto llmqType = Params().GetConsensus().llmqTypeChainLocks;
+    const auto signingActiveQuorumCount = GetLLMQParams(llmqType).signingActiveQuorumCount;
     mapSignedRequestIds.clear();
 
-    uint256 requestId = ::SerializeHash(std::make_pair(CLSIG_REQUESTID_PREFIX, pindex->nHeight));
-    {
-        LOCK(cs);
-        if (bestChainLockWithKnownBlock.nHeight >= pindex->nHeight) {
-            // might have happened while we didn't hold cs
-            return;
+    if (AreMultiQuorumChainLocksEnabled()) {
+        // Use multiple ChainLocks quorums
+        const auto quorums_scanned = llmq::quorumManager->ScanQuorums(llmqType, pindex, signingActiveQuorumCount);
+        for (size_t i = 0; i < quorums_scanned.size(); ++i) {
+            const CQuorumCPtr& quorum = quorums_scanned[i];
+            if (quorum == nullptr) {
+                return;
+            }
+            uint256 requestId = ::SerializeHash(std::make_tuple(CLSIG_REQUESTID_PREFIX, pindex->nHeight, quorum->qc.quorumHash));
+            {
+                LOCK(cs);
+                if (bestChainLockWithKnownBlock.nHeight >= pindex->nHeight) {
+                    // might have happened while we didn't hold cs
+                    return;
+                }
+                mapSignedRequestIds.emplace(requestId, std::make_pair(pindex->nHeight, pindex->GetBlockHash()));
+            }
+            quorumSigningManager->AsyncSignIfMember(llmqType, requestId, pindex->GetBlockHash(), quorum->qc.quorumHash);
+            lastSignedHeight = pindex->nHeight;
         }
-        mapSignedRequestIds.emplace(requestId, std::make_pair(pindex->nHeight, pindex->GetBlockHash()));
+    } else {
+        // Use single ChainLocks quorum
+        uint256 requestId = ::SerializeHash(std::make_pair(CLSIG_REQUESTID_PREFIX, pindex->nHeight));
+        {
+            LOCK(cs);
+            if (bestChainLockWithKnownBlock.nHeight >= pindex->nHeight) {
+                // might have happened while we didn't hold cs
+                return;
+            }
+            mapSignedRequestIds.emplace(requestId, std::make_pair(pindex->nHeight, pindex->GetBlockHash()));
+        }
+        quorumSigningManager->AsyncSignIfMember(llmqType, requestId, pindex->GetBlockHash());
+        lastSignedHeight = pindex->nHeight;
     }
-    quorumSigningManager->AsyncSignIfMember(llmqType, requestId, pindex->GetBlockHash());
-    lastSignedHeight = pindex->nHeight;
 }
 
 void CChainLocksHandler::TransactionAddedToMempool(const CTransactionRef& tx, int64_t nAcceptTime)
@@ -640,7 +885,7 @@ void CChainLocksHandler::HandleNewRecoveredSig(const llmq::CRecoveredSig& recove
         clsig.sig = recoveredSig.sig.Get();
         mapSignedRequestIds.erase(recoveredSig.id);
     }
-    ProcessNewChainLock(-1, clsig, ::SerializeHash(clsig));
+    ProcessNewChainLock(-1, clsig, ::SerializeHash(clsig), recoveredSig.id);
 }
 
 bool CChainLocksHandler::HasChainLock(int nHeight, const uint256& blockHash)
@@ -769,6 +1014,13 @@ void CChainLocksHandler::Cleanup()
                 ++it;
             }
         }
+        for (auto it = bestChainLockShares.begin(); it != bestChainLockShares.end(); ) {
+            if (it->first == bestChainLockBlockIndex->nHeight) {
+                it = bestChainLockShares.erase(++it, bestChainLockShares.end());
+            } else {
+                ++it;
+            }
+        }
     }
 
     lastCleanupTime = GetTimeMillis();
@@ -777,6 +1029,11 @@ void CChainLocksHandler::Cleanup()
 bool AreChainLocksEnabled()
 {
     return sporkManager.IsSporkActive(SPORK_19_CHAINLOCKS_ENABLED);
+}
+
+bool AreMultiQuorumChainLocksEnabled()
+{
+    return sporkManager.GetSporkValue(SPORK_19_CHAINLOCKS_ENABLED) == 1;
 }
 
 } // namespace llmq
