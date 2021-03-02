@@ -231,7 +231,7 @@ UniValue getbestchainlock(const JSONRPCRequest& request)
         );
     UniValue result(UniValue::VOBJ);
 
-    llmq::CChainLockSig clsig = llmq::chainLocksHandler->GetBestChainLock();
+    llmq::CChainLockSig clsig = llmq::chainLocksHandler->GetMostRecentChainLock();
     if (clsig.IsNull()) {
         throw JSONRPCError(RPC_INTERNAL_ERROR, "Unable to find any chainlock");
     }

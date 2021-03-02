@@ -45,6 +45,15 @@ public:
     std::string ToString() const;
 };
 
+typedef std::shared_ptr<const CChainLockSig> CChainLockSigCPtr;
+
+struct ReverseHeightComparator
+{
+    bool operator()(const int h1, const int h2) const {
+        return h1 > h2;
+    }
+};
+
 class CChainLocksHandler : public CRecoveredSigsListener
 {
     static const int64_t CLEANUP_INTERVAL = 1000 * 30;
@@ -61,16 +70,15 @@ private:
     bool isEnabled GUARDED_BY(cs) {false};
     bool isEnforced GUARDED_BY(cs) {false};
 
-    uint256 bestChainLockHash GUARDED_BY(cs);
-    CChainLockSig bestChainLock GUARDED_BY(cs);
-
+    CChainLockSig mostRecentChainLockShare GUARDED_BY(cs);
     CChainLockSig bestChainLockWithKnownBlock GUARDED_BY(cs);
     const CBlockIndex* bestChainLockBlockIndex GUARDED_BY(cs) {nullptr};
     const CBlockIndex* lastNotifyChainLockBlockIndex GUARDED_BY(cs) {nullptr};
 
-    int32_t lastSignedHeight GUARDED_BY(cs) {-1};
-    uint256 lastSignedRequestId GUARDED_BY(cs);
-    uint256 lastSignedMsgHash GUARDED_BY(cs);
+    // Keep best chainlock shares and candidates, sorted by height (highest heght first).
+    std::map<int, CChainLockSigCPtr, ReverseHeightComparator> bestChainLockCandidates GUARDED_BY(cs);
+
+    std::map<uint256, std::pair<int, uint256> > mapSignedRequestIds GUARDED_BY(cs);
 
     // We keep track of txids from recently received blocks so that we can check if all TXs got islocked
     typedef std::unordered_map<uint256, std::shared_ptr<std::unordered_set<uint256, StaticSaltedHasher>>> BlockTxs;
@@ -90,7 +98,8 @@ public:
 
     bool AlreadyHave(const CInv& inv);
     bool GetChainLockByHash(const uint256& hash, CChainLockSig& ret);
-    CChainLockSig GetBestChainLock();
+    const CChainLockSig GetMostRecentChainLock();
+    const CChainLockSig GetBestChainLock();
 
     void ProcessMessage(CNode* pfrom, const std::string& strCommand, CDataStream& vRecv);
     void ProcessNewChainLock(NodeId from, const CChainLockSig& clsig, const uint256& hash);
@@ -115,6 +124,8 @@ private:
     bool InternalHasConflictingChainLock(int nHeight, const uint256& blockHash);
 
     BlockTxs::mapped_type GetBlockTxs(const uint256& blockHash);
+
+    void TryUpdateBestChainLock(const CBlockIndex* pindex);
 
     void Cleanup();
 };
