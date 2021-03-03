@@ -1451,47 +1451,51 @@ if test "x$use_natpmp" != xno; then
 fi
 
 if test x$build_bitcoin_wallet$build_bitcoin_cli$build_bitcoin_tx$build_bitcoind$bitcoin_enable_qt$use_tests$use_bench = xnonononononono; then
-    use_boost=no
+  use_boost=no
 else
-    use_boost=yes
+  use_boost=yes
 fi
 
 if test x$use_boost = xyes; then
 
-dnl Check for Boost headers
-AX_BOOST_BASE([1.73.0],[],[AC_MSG_ERROR([Boost is not available!])])
-if test x$want_boost = xno; then
-    AC_MSG_ERROR([[only libdashconsensus can be built without boost]])
-fi
+  dnl Check for Boost headers
+  AX_BOOST_BASE([1.73.0],[],[AC_MSG_ERROR([Boost is not available!])])
+  if test x$want_boost = xno; then
+      AC_MSG_ERROR([[only libdashconsensus can be built without boost]])
+  fi
 
   dnl we don't use multi_index serialization
   BOOST_CPPFLAGS="$BOOST_CPPFLAGS -DBOOST_MULTI_INDEX_DISABLE_SERIALIZATION"
 
-dnl Prevent use of std::unary_function, which was removed in C++17,
-dnl and will generate warnings with newer compilers for Boost
-dnl older than 1.80.
-dnl See: https://github.com/boostorg/config/pull/430.
-AX_CHECK_PREPROC_FLAG([-DBOOST_NO_CXX98_FUNCTION_BASE], [BOOST_CPPFLAGS="$BOOST_CPPFLAGS -DBOOST_NO_CXX98_FUNCTION_BASE"], [], [$CXXFLAG_WERROR],
-                      [AC_LANG_PROGRAM([[#include <boost/config.hpp>]])])
+  dnl Prevent use of std::unary_function, which was removed in C++17,
+  dnl and will generate warnings with newer compilers for Boost
+  dnl older than 1.80.
+  dnl See: https://github.com/boostorg/config/pull/430.
+  AX_CHECK_PREPROC_FLAG([-DBOOST_NO_CXX98_FUNCTION_BASE], [BOOST_CPPFLAGS="$BOOST_CPPFLAGS -DBOOST_NO_CXX98_FUNCTION_BASE"], [], [$CXXFLAG_WERROR],
+                        [AC_LANG_PROGRAM([[#include <boost/config.hpp>]])])
 
-dnl Opt-in to Boost Process if external signer support is requested
-if test "x$use_external_signer" != xno; then
-AC_MSG_CHECKING(for Boost Process)
-AC_COMPILE_IFELSE([AC_LANG_PROGRAM([[#include <boost/process.hpp>]],
- [[ boost::process::child* child = new boost::process::child; delete child; ]])],
- [ AC_MSG_RESULT(yes)
- AC_DEFINE([ENABLE_EXTERNAL_SIGNER],,[define if external signer support is enabled])
- ],
- [ AC_MSG_ERROR([Boost::Process is required for external signer support, but not available!])]
-)
+  dnl Opt-in to Boost Process if external signer support is requested
+  if test "x$use_external_signer" != xno; then
+    AC_MSG_CHECKING(for Boost Process)
+    AC_COMPILE_IFELSE([AC_LANG_PROGRAM([[#include <boost/process.hpp>]],
+     [[ boost::process::child* child = new boost::process::child; delete child; ]])],
+     [ AC_MSG_RESULT(yes)
+     AC_DEFINE([ENABLE_EXTERNAL_SIGNER],,[define if external signer support is enabled])
+     ],
+     [ AC_MSG_ERROR([Boost::Process is required for external signer support, but not available!])]
+    )
+  fi
+
+
+  if test x$suppress_external_warnings != xno; then
+      BOOST_CPPFLAGS=SUPPRESS_WARNINGS($BOOST_CPPFLAGS)
+    fi
+
+    BOOST_LIBS="$BOOST_LDFLAGS $BOOST_SYSTEM_LIB $BOOST_FILESYSTEM_LIB"
+  fi
 fi
 
 AM_CONDITIONAL([ENABLE_EXTERNAL_SIGNER], [test "x$use_external_signer" = "xyes"])
-
-if test x$suppress_external_warnings != xno; then
-    BOOST_CPPFLAGS=SUPPRESS_WARNINGS($BOOST_CPPFLAGS)
-fi
-fi
 
 dnl Check for reduced exports
 if test x$use_reduce_exports = xyes; then
