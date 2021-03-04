@@ -1529,7 +1529,7 @@ bool IsInstantSendEnabled()
 
 bool IsInstantSendSigningEnabled()
 {
-    return !fReindex && !fImporting && sporkManager.IsSporkActive(SPORK_24_INSTANTSEND_SIGNING_ENABLED) && IsInstantSendEnabled();
+    return !fReindex && !fImporting && sporkManager.GetSporkValue(SPORK_2_INSTANTSEND_ENABLED) == 1;
 }
 
 bool RejectConflictingBlocks()
