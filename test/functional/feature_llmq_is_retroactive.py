@@ -42,11 +42,15 @@ class LLMQ_IS_RetroactiveSigning(DashTestFramework):
         # 3 nodes should be enough to create an IS lock even if nodes 4 and 5 (which have no tx itself)
         # are the only "neighbours" in intra-quorum connections for one of them.
         self.wait_for_instantlock(txid, self.nodes[0], False, 5)
-        self.bump_mocktime(1)
+        # Have to disable ChainLocks to avoid signing a block with a "safe" tx too early
+        self.nodes[0].spork("SPORK_19_CHAINLOCKS_ENABLED", 4000000000)
+        self.wait_for_sporks_same()
         # We have to wait in order to include tx in block
         self.bump_mocktime(10 * 60 + 1)
         block = self.nodes[0].generate(1)[0]
         self.wait_for_instantlock(txid, self.nodes[0])
+        self.nodes[0].spork("SPORK_19_CHAINLOCKS_ENABLED", 0)
+        self.wait_for_sporks_same()
         self.wait_for_chainlocked_block_all_nodes(block)
 
         self.log.info("Enabling Spork 24 for IS signing")
