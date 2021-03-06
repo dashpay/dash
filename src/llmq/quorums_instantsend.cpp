@@ -410,10 +410,10 @@ bool CInstantSendManager::ProcessTx(const CTransaction& tx, bool fRetroactive, c
         return false;
     }
 
-    // Only sign for inlocks or islocks if IS Signing is enabled
-    // However, if we are signing a tx, b/c it was included in a block we should
-    // sign even if spork disabled. This allows a ChainLock to happen on this
-    // block after we retroactively islock
+    // Only sign for inlocks or islocks if mempool IS signing is enabled.
+    // However, if we are processing a tx because it was included in a block we should
+    // sign even if mempool IS signing is disabled. This allows a ChainLock to happen on this
+    // block after we retroactively locked all transactions.
     if (!IsInstantSendSigningEnabled() && !fRetroactive) return true;
 
     if (!TrySignInputLocks(tx, fRetroactive, llmqType)) return false;
