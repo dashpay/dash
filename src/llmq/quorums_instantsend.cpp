@@ -414,7 +414,7 @@ bool CInstantSendManager::ProcessTx(const CTransaction& tx, bool fRetroactive, c
     // However, if we are processing a tx because it was included in a block we should
     // sign even if mempool IS signing is disabled. This allows a ChainLock to happen on this
     // block after we retroactively locked all transactions.
-    if (!IsInstantSendSigningEnabled() && !fRetroactive) return true;
+    if (!IsInstantSendMempoolSigningEnabled() && !fRetroactive) return true;
 
     if (!TrySignInputLocks(tx, fRetroactive, llmqType)) return false;
 
@@ -1527,7 +1527,7 @@ bool IsInstantSendEnabled()
     return !fReindex && !fImporting && sporkManager.IsSporkActive(SPORK_2_INSTANTSEND_ENABLED);
 }
 
-bool IsInstantSendSigningEnabled()
+bool IsInstantSendMempoolSigningEnabled()
 {
     return !fReindex && !fImporting && sporkManager.GetSporkValue(SPORK_2_INSTANTSEND_ENABLED) == 0;
 }

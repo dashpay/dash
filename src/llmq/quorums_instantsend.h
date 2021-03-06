@@ -179,7 +179,7 @@ bool IsInstantSendEnabled();
  * transactions in mempool, but should sign txes included in a block. This
  * allows ChainLocks to continue even while this spork is disabled.
  */
-bool IsInstantSendSigningEnabled();
+bool IsInstantSendMempoolSigningEnabled();
 bool RejectConflictingBlocks();
 
 } // namespace llmq
