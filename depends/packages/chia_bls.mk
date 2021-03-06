@@ -1,15 +1,9 @@
 package=chia_bls
-$(package)_version=v20181101
-# It's actually from https://github.com/Chia-Network/bls-signatures, but we have so many patches atm that it's forked
+$(package)_version=1.0.0
 $(package)_download_path=https://github.com/dashpay/bls-signatures/archive
 $(package)_file_name=$($(package)_version).tar.gz
-$(package)_sha256_hash=b3ec74a77a7b6795f84b05e051a0824ef8d9e05b04b2993f01040f35689aa87c
+$(package)_sha256_hash=ecbc51457dd3de153af27333038f149ba585e16fe46351b763938cb6ef0f2d9a
 $(package)_dependencies=gmp cmake
-#$(package)_patches=...TODO (when we switch back to https://github.com/Chia-Network/bls-signatures)
-
-#define $(package)_preprocess_cmds
-#  for i in $($(package)_patches); do patch -N -p1 < $($(package)_patch_dir)/$$$$i; done
-#endef
 
 define $(package)_set_vars
   $(package)_config_opts=-DCMAKE_INSTALL_PREFIX=$($(package)_staging_dir)/$(host_prefix)
