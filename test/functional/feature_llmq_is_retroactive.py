@@ -27,8 +27,8 @@ class LLMQ_IS_RetroactiveSigning(DashTestFramework):
         self.activate_dip8()
 
         self.nodes[0].spork("SPORK_17_QUORUM_DKG_ENABLED", 0)
-        # Turn IS signing spork off
-        self.nodes[0].spork("SPORK_24_INSTANTSEND_SIGNING_ENABLED", 4000000000)
+        # Turn mempool IS signing off
+        self.nodes[0].spork("SPORK_2_INSTANTSEND_ENABLED", 1)
         self.wait_for_sporks_same()
 
         self.mine_quorum()
@@ -53,8 +53,8 @@ class LLMQ_IS_RetroactiveSigning(DashTestFramework):
         self.wait_for_sporks_same()
         self.wait_for_chainlocked_block_all_nodes(block)
 
-        self.log.info("Enabling Spork 24 for IS signing")
-        self.nodes[0].spork("SPORK_24_INSTANTSEND_SIGNING_ENABLED", 0)
+        self.log.info("Enable mempool IS signing")
+        self.nodes[0].spork("SPORK_2_INSTANTSEND_ENABLED", 0)
         self.wait_for_sporks_same()
 
         self.log.info("trying normal IS lock")
