@@ -208,6 +208,19 @@ bool CChainLocksHandler::VerifyChainLockShare(const CChainLockSig& clsig, const 
                 __func__, clsig.ToString(), requestId.ToString(), signHash.ToString());
 
         if (clsig.sig.VerifyInsecure(quorum->qc.quorumPublicKey, signHash)) {
+            if (idIn.IsNull() && !quorumSigningManager->HasRecoveredSigForId(llmqType, requestId)) {
+                // We can reconstruct the CRecoveredSig from the clsig and pass it to the signing manager, which
+                // avoids unnecessary double-verification of the signature. We can do this here because we just
+                // verified the sig.
+                std::shared_ptr<CRecoveredSig> rs = std::make_shared<CRecoveredSig>();
+                rs->llmqType = llmqType;
+                rs->quorumHash = quorum->qc.quorumHash;
+                rs->id = requestId;
+                rs->msgHash = clsig.blockHash;
+                rs->sig.Set(clsig.sig);
+                rs->UpdateHash();
+                quorumSigningManager->PushReconstructedRecoveredSig(rs);
+            }
             ret = std::make_pair(i, quorum);
             return true;
         }
@@ -426,6 +439,20 @@ void CChainLocksHandler::ProcessNewChainLock(const NodeId from, CChainLockSig& c
                 Misbehaving(from, 10);
             }
             return;
+        }
+
+        if (idIn.IsNull() && !quorumSigningManager->HasRecoveredSigForId(llmqType, requestId)) {
+            // We can reconstruct the CRecoveredSig from the clsig and pass it to the signing manager, which
+            // avoids unnecessary double-verification of the signature. We can do this here because we just
+            // verified the sig.
+            std::shared_ptr<CRecoveredSig> rs = std::make_shared<CRecoveredSig>();
+            rs->llmqType = llmqType;
+            rs->quorumHash = quorum->qc.quorumHash;
+            rs->id = requestId;
+            rs->msgHash = clsig.blockHash;
+            rs->sig.Set(clsig.sig);
+            rs->UpdateHash();
+            quorumSigningManager->PushReconstructedRecoveredSig(rs);
         }
 
         {
