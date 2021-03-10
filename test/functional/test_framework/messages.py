@@ -27,7 +27,7 @@ from test_framework.util import hex_str_to_bytes, bytes_to_hex_str
 import dash_hash
 
 MIN_VERSION_SUPPORTED = 60001
-MY_VERSION = 70219  # LLMQ_DATA_MESSAGES_VERSION
+MY_VERSION = 70220  # MULTI_QUORUM_CHAINLOCKS_VERSION
 MY_SUBVERSION = b"/python-mininode-tester:0.0.3%s/"
 MY_RELAY = 1 # from version 70001 onwards, fRelay should be appended to version messages (BIP37)
 
@@ -1536,21 +1536,24 @@ class msg_mnlistdiff():
 class msg_clsig():
     command = b"clsig"
 
-    def __init__(self, height=0, blockHash=0, sig=b'\\x0' * 96):
+    def __init__(self, height=0, blockHash=0, sig=b'\\x0' * 96, signers=[]):
         self.height = height
         self.blockHash = blockHash
         self.sig = sig
+        self.signers = signers
 
     def deserialize(self, f):
         self.height = struct.unpack('<i', f.read(4))[0]
         self.blockHash = deser_uint256(f)
         self.sig = f.read(96)
+        self.signers = deser_dyn_bitset(f, False)
 
     def serialize(self):
         r = b""
         r += struct.pack('<i', self.height)
         r += ser_uint256(self.blockHash)
         r += self.sig
+        r += ser_dyn_bitset(self.signers, False)
         return r
 
     def __repr__(self):
