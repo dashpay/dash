@@ -471,6 +471,7 @@ void CDKGSession::VerifyConnectionAndMinProtoVersions()
         protoMap.emplace(pnode->verifiedProRegTxHash, pnode->nVersion);
     });
 
+    bool fShouldAllMembersBeConnected = CLLMQUtils::IsAllMembersConnectedEnabled(params.type);
     for (auto& m : members) {
         if (m->dmn->proTxHash == myProTxHash) {
             continue;
@@ -478,7 +479,7 @@ void CDKGSession::VerifyConnectionAndMinProtoVersions()
 
         auto it = protoMap.find(m->dmn->proTxHash);
         if (it == protoMap.end()) {
-            m->badConnection = true;
+            m->badConnection = fShouldAllMembersBeConnected;
             logger.Batch("%s is not connected to us", m->dmn->proTxHash.ToString());
         } else if (it != protoMap.end() && it->second < MIN_MASTERNODE_PROTO_VERSION) {
             m->badConnection = true;
