@@ -1,4 +1,4 @@
-package=chia_bls
+package=bls-dash
 $(package)_version=1.0.0
 $(package)_download_path=https://github.com/dashpay/bls-signatures/archive
 $(package)_file_name=$($(package)_version).tar.gz
