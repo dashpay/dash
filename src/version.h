@@ -39,6 +39,9 @@ static const int LLMQS_PROTO_VERSION = 70214;
 //! TODO we can remove this in 0.15.0.0
 static const int SENDDSQUEUE_PROTO_VERSION = 70214;
 
+//! minimum peer version accepted by mixing pool
+static const int MIN_COINJOIN_PEER_PROTO_VERSION = 70213;
+
 //! protocol version is included in MNAUTH starting with this version
 static const int MNAUTH_NODE_VER_VERSION = 70218;
 
