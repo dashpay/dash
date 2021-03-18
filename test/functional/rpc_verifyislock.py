@@ -5,7 +5,7 @@
 
 from test_framework.messages import CTransaction, FromHex, hash256, ser_compact_size, ser_string
 from test_framework.test_framework import DashTestFramework
-from test_framework.util import assert_raises_rpc_error, wait_until
+from test_framework.util import wait_until
 
 '''
 rpc_verifyislock.py
@@ -43,11 +43,11 @@ class RPCVerifyISLockTest(DashTestFramework):
         rec_sig = node.quorum("getrecsig", 100, request_id, txid)['sig']
         assert(node.verifyislock(request_id, txid, rec_sig))
         # Not mined, should use maxHeight
-        assert_raises_rpc_error(-8, "quorum not found", node.verifyislock, request_id, txid, rec_sig, 1)
+        assert not node.verifyislock(request_id, txid, rec_sig, 1)
         node.generate(1)
         assert(txid not in node.getrawmempool())
         # Mined but at higher height, should use maxHeight
-        assert_raises_rpc_error(-8, "quorum not found", node.verifyislock, request_id, txid, rec_sig, 1)
+        assert not node.verifyislock(request_id, txid, rec_sig, 1)
         # Mined, should ignore higher maxHeight
         assert(node.verifyislock(request_id, txid, rec_sig, node.getblockcount() + 100))
 

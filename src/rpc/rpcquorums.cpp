@@ -710,21 +710,12 @@ UniValue verifyislock(const JSONRPCRequest& request)
         signHeight = pindexMined->nHeight;
     }
 
-    // First check against the current active set
     auto llmqType = Params().GetConsensus().llmqTypeInstantSend;
-    auto quorum = llmq::quorumSigningManager->SelectQuorumForSigning(llmqType, id, signHeight, 0);
-    if (!quorum) {
-        // Then check against the previous active set in case it changed recently
-        int signOffset = Params().GetConsensus().llmqs.at(llmqType).dkgInterval;
-        quorum = llmq::quorumSigningManager->SelectQuorumForSigning(llmqType, id, signHeight, signOffset);
-        if (!quorum) {
-            // None of the above
-            throw JSONRPCError(RPC_INVALID_PARAMETER, "quorum not found");
-        }
-    }
 
-    uint256 signHash = llmq::CLLMQUtils::BuildSignHash(llmqType, quorum->qc.quorumHash, id, txid);
-    return sig.VerifyInsecure(quorum->qc.quorumPublicKey, signHash);
+    // First check against the current active set, if it fails check against the last active set
+    int signOffset{Params().GetConsensus().llmqs.at(llmqType).dkgInterval};
+    return llmq::quorumSigningManager->VerifyRecoveredSig(llmqType, signHeight, id, txid, sig, 0) ||
+           llmq::quorumSigningManager->VerifyRecoveredSig(llmqType, signHeight, id, txid, sig, signOffset);
 }
 
 static const CRPCCommand commands[] =
