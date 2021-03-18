@@ -119,7 +119,7 @@ class LLMQSigningTest(DashTestFramework):
         assert(node.quorum("verify", 100, id, msgHash, recsig["sig"]))
         assert(node.quorum("verify", 100, id, msgHash, recsig["sig"], "", height))
         assert(not node.quorum("verify", 100, id, msgHashConflict, recsig["sig"]))
-        assert_raises_rpc_error(-8, "quorum not found", node.quorum, "verify", 100, id, msgHash, recsig["sig"], "", height_bad)
+        assert not node.quorum("verify", 100, id, msgHash, recsig["sig"], "", height_bad)
         # Use specifc quorum
         assert(node.quorum("verify", 100, id, msgHash, recsig["sig"], recsig["quorumHash"]))
         assert(not node.quorum("verify", 100, id, msgHashConflict, recsig["sig"], recsig["quorumHash"]))
