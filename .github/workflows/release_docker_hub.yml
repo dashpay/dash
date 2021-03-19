@@ -33,6 +33,15 @@ jobs:
         username: ${{ secrets.DOCKERHUB_USERNAME }}
         password: ${{ secrets.DOCKERHUB_TOKEN }}
 
+    - name: Docker meta
+      id: docker_meta
+      uses: crazy-max/ghaction-docker-meta@v1
+      with:
+        images: strophy/dashd
+        tag-semver: |
+            {{version}}
+            {{major}}.{{minor}}
+
     - name: Docker build metadata
       id: metadata
       shell: bash
@@ -46,7 +55,8 @@ jobs:
         context: ./docker
         file: ./docker/Dockerfile.GitHubActions
         push: true
-        tags: strophy/dash:latest
+        tags: ${{ steps.docker_meta.outputs.tags }}
+        labels: ${{ steps.docker_meta.outputs.labels }}
         build-args: TAG=${{ env.tag }}
         cache-from: type=local,src=/tmp/.buildx-cache
         cache-to: type=local,dest=/tmp/.buildx-cache-new
