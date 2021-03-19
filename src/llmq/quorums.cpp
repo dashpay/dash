@@ -276,11 +276,9 @@ void CQuorumManager::EnsureQuorumConnections(Consensus::LLMQType llmqType, const
 
     bool allowWatch = gArgs.GetBoolArg("-watchquorums", DEFAULT_WATCH_QUORUMS);
     for (auto& quorum : lastQuorums) {
-        if (!quorum->IsMember(myProTxHash) && !allowWatch) {
+        if (!CLLMQUtils::EnsureQuorumConnections(llmqType, quorum->pindexQuorum, myProTxHash, allowWatch)) {
             continue;
         }
-
-        CLLMQUtils::EnsureQuorumConnections(llmqType, quorum->pindexQuorum, myProTxHash, allowWatch);
 
         connmanQuorumsToDelete.erase(quorum->qc.quorumHash);
     }
