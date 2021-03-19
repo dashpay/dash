@@ -36,8 +36,12 @@ jobs:
     - name: Output vars
       shell: bash
       run: |
+        echo "uname:"
+        echo $(uname -m)
         echo "Github ref:"
         echo $GITHUB_REF
+        echo "Github ref trim:"
+        echo ${GITHUB_REF:11}
         echo "Github sha"
         echo $GITHUB_SHA
         echo "Github head ref"
@@ -51,7 +55,7 @@ jobs:
         file: ./docker/Dockerfile.GitHubActions
         push: true
         tags: strophy/dash:latest
-        build-args: TAG=${$GITHUB_REF:1}
+        build-args: TAG=${GITHUB_REF:11}
         cache-from: type=local,src=/tmp/.buildx-cache
         cache-to: type=local,dest=/tmp/.buildx-cache-new
         # platforms: linux/amd64,linux/arm64,linux/arm/v7
