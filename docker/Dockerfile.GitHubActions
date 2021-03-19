@@ -19,6 +19,7 @@ RUN groupadd -g ${GROUP_ID} dash && \
 RUN apt-get update && \
     apt-get -y install --no-install-recommends \
     wget \
+    ca-certificates \
     && rm -rf /var/lib/apt/lists/*
 
 RUN echo ${TAG}
