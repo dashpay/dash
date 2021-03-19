@@ -25,7 +25,6 @@ RUN tar -xvf /tmp/dashcore-*.tar.gz -C /tmp/ \
       && cp /tmp/dashcore*/bin/*  /usr/local/bin \
       && rm -rf /tmp/dashcore*
 
-ADD ./bin /usr/local/bin
 RUN chmod a+x /usr/local/bin/*
 
 USER dash
