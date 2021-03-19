@@ -1,0 +1,34 @@
+FROM ubuntu:bionic
+LABEL maintainer="Dash Developers <dev@dash.org>"
+LABEL description="Dockerised DashCore"
+
+ARG USER_ID
+ARG GROUP_ID
+ARG TAG
+
+ENV HOME /dash
+
+# add user with specified (or default) user/group ids
+ENV USER_ID ${USER_ID:-1000}
+ENV GROUP_ID ${GROUP_ID:-1000}
+RUN groupadd -g ${GROUP_ID} dash && \
+    useradd -u ${USER_ID} -g dash -s /bin/bash -m -d /dash dash  && \
+    mkdir /dash/.dashcore && \
+    chown dash:dash -R /dash
+
+ADD https://github.com/dashpay/dash/releases/download/v${TAG}/dashcore-${TAG}-x86_64-linux-gnu.tar.gz /tmp/
+
+RUN tar -xvf /tmp/dashcore-*.tar.gz -C /tmp/ && \
+    cp /tmp/dashcore*/bin/*  /usr/local/bin && \
+    rm -rf /tmp/dashcore*
+
+ADD ./bin /usr/local/bin
+RUN chmod a+x /usr/local/bin/*
+
+USER dash
+
+VOLUME ["/dash"]
+
+EXPOSE 9998 9999 19998 19999
+
+WORKDIR /dash
