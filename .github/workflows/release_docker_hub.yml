@@ -33,6 +33,16 @@ jobs:
         username: ${{ secrets.DOCKERHUB_USERNAME }}
         password: ${{ secrets.DOCKERHUB_TOKEN }}
 
+    - name: Output vars
+      shell: bash
+      run: |
+        echo "Github ref:"
+        echo $GITHUB_REF
+        echo "Github sha"
+        echo $GITHUB_SHA
+        echo "Github head ref"
+        echo $GITHUB_HEAD_REF
+
     - name: Build and push
       id: docker_build
       uses: docker/build-push-action@v2
