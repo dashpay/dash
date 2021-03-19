@@ -33,14 +33,11 @@ jobs:
         username: ${{ secrets.DOCKERHUB_USERNAME }}
         password: ${{ secrets.DOCKERHUB_TOKEN }}
 
-    - name: Output vars
+    - name: Docker build metadata
+      id: metadata
       shell: bash
       run: |
         echo "tag=${GITHUB_REF:11}" >> $GITHUB_ENV
-
-    - name: Echo tag
-      shell: bash
-      run: echo $tag
 
     - name: Build and push
       id: docker_build
@@ -50,7 +47,7 @@ jobs:
         file: ./docker/Dockerfile.GitHubActions
         push: true
         tags: strophy/dash:latest
-        build-args: TAG=$tag
+        build-args: TAG=${{ env.tag }}
         cache-from: type=local,src=/tmp/.buildx-cache
         cache-to: type=local,dest=/tmp/.buildx-cache-new
         # platforms: linux/amd64,linux/arm64,linux/arm/v7
