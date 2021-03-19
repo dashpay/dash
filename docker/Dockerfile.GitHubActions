@@ -4,6 +4,7 @@ LABEL description="Dockerised DashCore"
 
 ARG USER_ID
 ARG GROUP_ID
+ARG TAG
 
 ENV HOME /dash
 
@@ -15,8 +16,13 @@ RUN groupadd -g ${GROUP_ID} dash && \
     mkdir /dash/.dashcore && \
     chown dash:dash -R /dash
 
-COPY bin/* /usr/local/bin/
+ADD https://github.com/dashpay/dash/releases/download/v${TAG}/dashcore-${TAG}-x86_64-linux-gnu.tar.gz /tmp/
 
+RUN tar -xvf /tmp/dashcore-*.tar.gz -C /tmp/ && \
+    cp /tmp/dashcore*/bin/*  /usr/local/bin && \
+    rm -rf /tmp/dashcore*
+
+ADD ./bin /usr/local/bin
 RUN chmod a+x /usr/local/bin/*
 
 USER dash
