@@ -39,8 +39,8 @@ jobs:
       with:
         images: strophy/dashd
         tag-semver: |
-            v{{version}}
-            v{{major}}.{{minor}}
+            {{version}}
+            {{major}}.{{minor}}
 
     - name: Docker build metadata
       id: metadata
