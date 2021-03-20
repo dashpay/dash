@@ -3,7 +3,6 @@ name: Release to Docker Hub
 on:
   release:
     types: [published]
-  workflow_dispatch:
 
 jobs:
   release:
@@ -37,7 +36,7 @@ jobs:
       id: docker_meta
       uses: crazy-max/ghaction-docker-meta@v1
       with:
-        images: strophy/dashd
+        images: dashpay/dashd
         tag-match: v(.*)
         tag-match-group: 1
 
