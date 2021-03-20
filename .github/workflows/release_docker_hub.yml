@@ -39,6 +39,7 @@ jobs:
       with:
         images: strophy/dashd
         tag-match: v(.*)
+        tag-match-group: 1
 
     - name: Build and push
       id: docker_build
