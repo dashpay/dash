@@ -92,7 +92,7 @@ public:
         RecvFromOther,
         SendToSelf,
         RecvWithCoinJoin,
-        CoinJoinDenominate,
+        CoinJoinMixing,
         CoinJoinCollateralPayment,
         CoinJoinMakeCollaterals,
         CoinJoinCreateDenominations,

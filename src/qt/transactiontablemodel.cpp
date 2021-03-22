@@ -389,8 +389,8 @@ QString TransactionTableModel::formatTxType(const TransactionRecord *wtx) const
     case TransactionRecord::Generated:
         return tr("Mined");
 
-    case TransactionRecord::CoinJoinDenominate:
-        return tr("CoinJoin Denominate");
+    case TransactionRecord::CoinJoinMixing:
+        return tr("CoinJoin Mixing");
     case TransactionRecord::CoinJoinCollateralPayment:
         return tr("CoinJoin Collateral Payment");
     case TransactionRecord::CoinJoinMakeCollaterals:
@@ -456,7 +456,7 @@ QVariant TransactionTableModel::addressColor(const TransactionRecord *wtx) const
         } break;
     case TransactionRecord::SendToSelf:
     case TransactionRecord::CoinJoinCreateDenominations:
-    case TransactionRecord::CoinJoinDenominate:
+    case TransactionRecord::CoinJoinMixing:
     case TransactionRecord::CoinJoinMakeCollaterals:
     case TransactionRecord::CoinJoinCollateralPayment:
         return GUIUtil::getThemedQColor(GUIUtil::ThemedColor::BAREADDRESS);
@@ -493,7 +493,7 @@ QVariant TransactionTableModel::amountColor(const TransactionRecord *rec) const
     case TransactionRecord::Other:
         return GUIUtil::getThemedQColor(GUIUtil::ThemedColor::RED);
     case TransactionRecord::SendToSelf:
-    case TransactionRecord::CoinJoinDenominate:
+    case TransactionRecord::CoinJoinMixing:
     case TransactionRecord::CoinJoinCollateralPayment:
     case TransactionRecord::CoinJoinMakeCollaterals:
     case TransactionRecord::CoinJoinCreateDenominations:

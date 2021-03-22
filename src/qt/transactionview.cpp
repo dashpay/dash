@@ -86,7 +86,7 @@ TransactionView::TransactionView(QWidget* parent) :
     typeWidget->addItem("CoinJoin", TransactionFilterProxy::TYPE(TransactionRecord::CoinJoin));
     typeWidget->addItem(tr("CoinJoin Make Collateral Inputs"), TransactionFilterProxy::TYPE(TransactionRecord::CoinJoinMakeCollaterals));
     typeWidget->addItem(tr("CoinJoin Create Denominations"), TransactionFilterProxy::TYPE(TransactionRecord::CoinJoinCreateDenominations));
-    typeWidget->addItem(tr("CoinJoin Denominate"), TransactionFilterProxy::TYPE(TransactionRecord::CoinJoinDenominate));
+    typeWidget->addItem(tr("CoinJoin Mixing"), TransactionFilterProxy::TYPE(TransactionRecord::CoinJoinMixing));
     typeWidget->addItem(tr("CoinJoin Collateral Payment"), TransactionFilterProxy::TYPE(TransactionRecord::CoinJoinCollateralPayment));
     typeWidget->addItem(tr("To yourself"), TransactionFilterProxy::TYPE(TransactionRecord::SendToSelf));
     typeWidget->addItem(tr("Mined"), TransactionFilterProxy::TYPE(TransactionRecord::Generated));

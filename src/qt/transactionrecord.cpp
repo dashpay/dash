@@ -96,7 +96,7 @@ QList<TransactionRecord> TransactionRecord::decomposeTransaction(interfaces::Wal
         }
 
         if(wtx.is_denominate) {
-            parts.append(TransactionRecord(hash, nTime, TransactionRecord::CoinJoinDenominate, "", -nDebit, nCredit));
+            parts.append(TransactionRecord(hash, nTime, TransactionRecord::CoinJoinMixing, "", -nDebit, nCredit));
             parts.last().involvesWatchAddress = false;   // maybe pass to TransactionRecord as constructor argument
         }
         else if (fAllFromMe && fAllToMe)
