@@ -116,7 +116,7 @@ EXPECTED_CIRCULAR_DEPENDENCIES=(
     "coinjoin/coinjoin -> masternode/activemasternode -> net -> coinjoin/coinjoin"
     "evo/deterministicmns -> validationinterface -> txmempool -> evo/deterministicmns"
     "llmq/quorums -> validation -> llmq/quorums_chainlocks -> llmq/quorums"
-    "llmq/quorums_chainlocks -> llmq/quorums_instantsend -> validation -> llmq/quorums_chainlocks"
+    "llmq/quorums_chainlocks -> llmq/quorums_commitment -> validation -> llmq/quorums_chainlocks"
     "evo/deterministicmns -> evo/simplifiedmns -> llmq/quorums_blockprocessor -> net_processing -> masternode/masternode-payments -> evo/deterministicmns"
     "core_io -> evo/cbtx -> llmq/quorums_blockprocessor -> net_processing -> masternode/masternode-payments -> governance/governance-classes -> core_io"
     "evo/deterministicmns -> evo/simplifiedmns -> llmq/quorums_blockprocessor -> net_processing -> masternode/masternode-payments -> masternode/activemasternode -> evo/deterministicmns"
