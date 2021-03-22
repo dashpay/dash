@@ -380,7 +380,7 @@ QString TransactionTableModel::formatTxType(const TransactionRecord *wtx) const
     case TransactionRecord::RecvFromOther:
         return tr("Received from");
     case TransactionRecord::RecvWithCoinJoin:
-        return tr("Received via CoinJoin");
+        return tr("Received via %1").arg("CoinJoin");
     case TransactionRecord::SendToAddress:
     case TransactionRecord::SendToOther:
         return tr("Sent to");
@@ -390,15 +390,15 @@ QString TransactionTableModel::formatTxType(const TransactionRecord *wtx) const
         return tr("Mined");
 
     case TransactionRecord::CoinJoinMixing:
-        return tr("CoinJoin Mixing");
+        return tr("%1 Mixing").arg("CoinJoin");
     case TransactionRecord::CoinJoinCollateralPayment:
-        return tr("CoinJoin Collateral Payment");
+        return tr("%1 Collateral Payment").arg("CoinJoin");
     case TransactionRecord::CoinJoinMakeCollaterals:
-        return tr("CoinJoin Make Collateral Inputs");
+        return tr("%1 Make Collateral Inputs").arg("CoinJoin");
     case TransactionRecord::CoinJoinCreateDenominations:
-        return tr("CoinJoin Create Denominations");
+        return tr("%1 Create Denominations").arg("CoinJoin");
     case TransactionRecord::CoinJoinSend:
-        return tr("CoinJoin Send");
+        return tr("%1 Send").arg("CoinJoin");
 
     default:
         return QString();
