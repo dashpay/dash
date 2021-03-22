@@ -1278,19 +1278,20 @@ std::vector<CFinalCommitment> CDKGSession::FinalizeCommitments()
             logger.Batch("failed to recover quorum sig");
             continue;
         }
+        t2.stop();
 
+        cxxtimer::Timer t3(true);
         if (!fqc.Verify(pindexQuorum, true)) {
             logger.Batch("failed to verify final commitment");
             continue;
         }
-
-        t2.stop();
+        t3.stop();
 
         finalCommitments.emplace_back(fqc);
 
-        logger.Batch("final commitment: validMembers=%d, signers=%d, quorumPublicKey=%s, time1=%d, time2=%d",
+        logger.Batch("final commitment: validMembers=%d, signers=%d, quorumPublicKey=%s, time1=%d, time2=%d, time3=%d",
                         fqc.CountValidMembers(), fqc.CountSigners(), fqc.quorumPublicKey.ToString(),
-                        t1.count(), t2.count());
+                        t1.count(), t2.count(), t3.count());
     }
 
     logger.Flush();
