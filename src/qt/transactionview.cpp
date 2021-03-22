@@ -83,7 +83,7 @@ TransactionView::TransactionView(QWidget* parent) :
                                         TransactionFilterProxy::TYPE(TransactionRecord::RecvFromOther));
     typeWidget->addItem(tr("Sent to"), TransactionFilterProxy::TYPE(TransactionRecord::SendToAddress) |
                                   TransactionFilterProxy::TYPE(TransactionRecord::SendToOther));
-    typeWidget->addItem("CoinJoin", TransactionFilterProxy::TYPE(TransactionRecord::CoinJoin));
+    typeWidget->addItem(tr("CoinJoin Send"), TransactionFilterProxy::TYPE(TransactionRecord::CoinJoinSend));
     typeWidget->addItem(tr("CoinJoin Make Collateral Inputs"), TransactionFilterProxy::TYPE(TransactionRecord::CoinJoinMakeCollaterals));
     typeWidget->addItem(tr("CoinJoin Create Denominations"), TransactionFilterProxy::TYPE(TransactionRecord::CoinJoinCreateDenominations));
     typeWidget->addItem(tr("CoinJoin Mixing"), TransactionFilterProxy::TYPE(TransactionRecord::CoinJoinMixing));

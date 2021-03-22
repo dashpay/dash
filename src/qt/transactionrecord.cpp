@@ -112,7 +112,7 @@ QList<TransactionRecord> TransactionRecord::decomposeTransaction(interfaces::Wal
 
             if(mapValue["DS"] == "1")
             {
-                sub.type = TransactionRecord::CoinJoin;
+                sub.type = TransactionRecord::CoinJoinSend;
                 CTxDestination address;
                 if (ExtractDestination(wtx.tx->vout[0].scriptPubKey, address))
                 {
@@ -224,7 +224,7 @@ QList<TransactionRecord> TransactionRecord::decomposeTransaction(interfaces::Wal
 
                 if(mapValue["DS"] == "1")
                 {
-                    sub.type = TransactionRecord::CoinJoin;
+                    sub.type = TransactionRecord::CoinJoinSend;
                 }
 
                 CAmount nValue = txout.nValue;

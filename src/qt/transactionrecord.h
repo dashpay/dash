@@ -96,7 +96,7 @@ public:
         CoinJoinCollateralPayment,
         CoinJoinMakeCollaterals,
         CoinJoinCreateDenominations,
-        CoinJoin
+        CoinJoinSend
     };
 
     /** Number of confirmation recommended for accepting a transaction */
