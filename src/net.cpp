@@ -25,7 +25,6 @@
 
 #include <masternode/masternode-meta.h>
 #include <masternode/masternode-sync.h>
-#include <coinjoin/coinjoin.h>
 #include <evo/deterministicmns.h>
 
 #include <statsd_client.h>
@@ -3680,13 +3679,10 @@ bool CConnman::DisconnectNode(NodeId id)
     return false;
 }
 
-void CConnman::RelayTransaction(const CTransaction& tx)
+void CConnman::RelayTransaction(const CTransaction& tx, bool dstx)
 {
     uint256 hash = tx.GetHash();
-    int nInv = MSG_TX;
-    if (CCoinJoin::GetDSTX(hash)) {
-        nInv = MSG_DSTX;
-    }
+    int nInv = dstx ? MSG_DSTX : MSG_TX;
     CInv inv(nInv, hash);
     LOCK(cs_vNodes);
     for (CNode* pnode : vNodes)
