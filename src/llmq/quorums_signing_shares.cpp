@@ -1421,10 +1421,13 @@ void CSigSharesManager::Cleanup()
 
     // Now delete these node states
     LOCK(cs);
-    for (auto nodeId : nodeStatesToDelete) {
-        auto& nodeState = nodeStates[nodeId];
+    for (const auto& nodeId : nodeStatesToDelete) {
+        auto it = nodeStates.find(nodeId);
+        if (it == nodeStates.end()) {
+            continue;
+        }
         // remove global requested state to force a re-request from another node
-        nodeState.requestedSigShares.ForEach([&](const SigShareKey& k, bool) {
+        it->second.requestedSigShares.ForEach([&](const SigShareKey& k, bool) {
             sigSharesRequested.Erase(k);
         });
         nodeStates.erase(nodeId);
