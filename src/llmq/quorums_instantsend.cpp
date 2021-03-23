@@ -6,9 +6,11 @@
 #include <llmq/quorums.h>
 #include <llmq/quorums_instantsend.h>
 #include <llmq/quorums_utils.h>
+#include <llmq/quorums_commitment.h>
 
 #include <bls/bls_batchverifier.h>
 #include <chainparams.h>
+#include <consensus/validation.h>
 #include <txmempool.h>
 #include <masternode/masternode-sync.h>
 #include <net_processing.h>
@@ -845,8 +847,8 @@ std::unordered_set<uint256> CInstantSendManager::ProcessPendingInstantSendLocks(
             // should not happen, but if one fails to select, all others will also fail to select
             return {};
         }
-        uint256 signHash = CLLMQUtils::BuildSignHash(llmqType, quorum->qc.quorumHash, id, islock->txid);
-        batchVerifier.PushMessage(nodeId, hash, signHash, islock->sig.Get(), quorum->qc.quorumPublicKey);
+        uint256 signHash = CLLMQUtils::BuildSignHash(llmqType, quorum->qc->quorumHash, id, islock->txid);
+        batchVerifier.PushMessage(nodeId, hash, signHash, islock->sig.Get(), quorum->qc->quorumPublicKey);
         verifyCount++;
 
         // We can reconstruct the CRecoveredSig objects from the islock and pass it to the signing manager, which
@@ -855,7 +857,7 @@ std::unordered_set<uint256> CInstantSendManager::ProcessPendingInstantSendLocks(
         if (!quorumSigningManager->HasRecoveredSigForId(llmqType, id)) {
             CRecoveredSig recSig;
             recSig.llmqType = llmqType;
-            recSig.quorumHash = quorum->qc.quorumHash;
+            recSig.quorumHash = quorum->qc->quorumHash;
             recSig.id = id;
             recSig.msgHash = islock->txid;
             recSig.sig = islock->sig;
