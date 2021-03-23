@@ -1123,6 +1123,7 @@ bool CSigSharesManager::SendMessages()
     std::unordered_map<NodeId, std::vector<CSigSesAnn>> sigSessionAnnouncements;
 
     auto addSigSesAnnIfNeeded = [&](NodeId nodeId, const uint256& signHash) {
+        AssertLockHeld(cs);
         auto& nodeState = nodeStates[nodeId];
         auto session = nodeState.GetSessionBySignHash(signHash);
         assert(session);
@@ -1438,6 +1439,8 @@ void CSigSharesManager::Cleanup()
 
 void CSigSharesManager::RemoveSigSharesForSession(const uint256& signHash)
 {
+    AssertLockHeld(cs);
+
     for (auto& p : nodeStates) {
         auto& ns = p.second;
         ns.RemoveSession(signHash);
