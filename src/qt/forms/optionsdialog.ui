@@ -278,7 +278,7 @@
           <item>
            <widget class="QCheckBox" name="coinJoinEnabled">
             <property name="toolTip">
-             <string>Show mixing interface on Overview screen and reveal additional screen which allows to spend fully mixed coins only.&lt;br/&gt;A new tab with more settings will also appear in this dialog, please make sure to check them before mixing your coins.</string>
+             <string>Show mixing interface on Overview screen and reveal an additional screen which allows to spend fully mixed coins only.&lt;br/&gt;A new tab with more settings will also appear in this dialog, please make sure to check them before mixing your coins.</string>
             </property>
             <property name="text">
              <string notr="true">Enable CoinJoin features</string>
@@ -327,10 +327,10 @@
        <item>
         <widget class="QCheckBox" name="lowKeysWarning">
          <property name="toolTip">
-          <string>Show warning dialog when wallet has very low number of keys left.</string>
+          <string>Show warning dialog when the wallet has very low number of keys left.</string>
          </property>
          <property name="text">
-          <string>Warn if wallet is running out of keys</string>
+          <string>Warn if the wallet is running out of keys</string>
          </property>
         </widget>
        </item>
@@ -352,7 +352,7 @@
             <string>This setting determines the amount of individual masternodes that an input will be mixed through.&lt;br/&gt;More rounds of mixing gives a higher degree of privacy, but also costs more in fees.</string>
            </property>
            <property name="text">
-            <string>Rounds to use</string>
+            <string>Mixing rounds</string>
            </property>
           </widget>
          </item>
