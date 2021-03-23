@@ -1409,8 +1409,11 @@ void CSigSharesManager::Cleanup()
 
     // Find node states for peers that disappeared from CConnman
     std::unordered_set<NodeId> nodeStatesToDelete;
-    for (auto& p : nodeStates) {
-        nodeStatesToDelete.emplace(p.first);
+    {
+        LOCK(cs);
+        for (const auto& p : nodeStates) {
+            nodeStatesToDelete.emplace(p.first);
+        }
     }
     g_connman->ForEachNode([&](CNode* pnode) {
         nodeStatesToDelete.erase(pnode->GetId());
