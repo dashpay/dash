@@ -107,52 +107,24 @@ UniValue masternode_connect(const JSONRPCRequest& request)
 void masternode_count_help()
 {
     throw std::runtime_error(
-            "masternode count (\"mode\")\n"
-            "  Get information about number of masternodes. Mode\n"
-            "  usage is depricated, call without mode params returns\n"
-            "  all values in JSON format.\n"
-            "\nArguments:\n"
-            "1. \"mode\"      (string, optional, DEPRICATED) Option to get number of masternodes in different states\n"
-            "\nAvailable modes:\n"
-            "  total         - total number of masternodes"
-            "  cj            - number of CoinJoin compatible masternodes"
-            "  enabled       - number of enabled masternodes"
-            "  qualify       - number of qualified masternodes"
-            "  all           - all above in one string"
+            "masternode count\n"
+            "Get information about number of masternodes.\n"
         );
 }
 
 UniValue masternode_count(const JSONRPCRequest& request)
 {
-    if (request.fHelp || request.params.size() > 2)
+    if (request.fHelp || request.params.size() > 1)
         masternode_count_help();
 
     auto mnList = deterministicMNManager->GetListAtChainTip();
     int total = mnList.GetAllMNsCount();
     int enabled = mnList.GetValidMNsCount();
 
-    if (request.params.size() == 1) {
-        UniValue obj(UniValue::VOBJ);
-
-        obj.pushKV("total", total);
-        obj.pushKV("enabled", enabled);
-
-        return obj;
-    }
-
-    std::string strMode = request.params[1].get_str();
-
-    if (strMode == "total")
-        return total;
-
-    if (strMode == "enabled")
-        return enabled;
-
-    if (strMode == "all")
-        return strprintf("Total: %d (Enabled: %d)",
-            total, enabled);
-
-    throw JSONRPCError(RPC_INVALID_PARAMETER, "Unknown mode value");
+    UniValue obj(UniValue::VOBJ);
+    obj.pushKV("total", total);
+    obj.pushKV("enabled", enabled);
+    return obj;
 }
 
 UniValue GetNextMasternodeForPayment(int heightShift)
@@ -530,7 +502,7 @@ UniValue masternode_payments(const JSONRPCRequest& request)
         "\nArguments:\n"
         "1. \"command\"        (string or set of strings, required) The command to execute\n"
         "\nAvailable commands:\n"
-        "  count        - Get information about number of masternodes (DEPRECATED options: 'total', 'ps', 'enabled', 'qualify', 'all')\n"
+        "  count        - Get information about number of masternodes\n"
         "  current      - DEPRECATED Print info on current masternode winner to be paid the next block (calculated locally)\n"
 #ifdef ENABLE_WALLET
         "  outputs      - Print masternode compatible outputs\n"
