@@ -357,9 +357,9 @@ void protx_register_prepare_help()
 {
     throw std::runtime_error(
             "protx register_prepare \"collateralHash\" collateralIndex \"ipAndPort\" \"ownerAddress\" \"operatorPubKey\" \"votingAddress\" operatorReward \"payoutAddress\" ( \"feeSourceAddress\" )\n"
-            "\nCreates an unsigned ProTx and returns it. The ProTx must be signed externally with the collateral\n"
-            "key and then passed to \"protx register_submit\". The prepared transaction will also contain inputs\n"
-            "and outputs to cover fees.\n"
+            "\nCreates an unsigned ProTx and a message that must be signed externally\n"
+            "with the private key that corresponds to collateralAddress to prove collateral ownership.\n"
+            "The prepared transaction will also contain inputs and outputs to cover fees.\n"
             "\nArguments:\n"
             + GetHelpString(1, "collateralHash")
             + GetHelpString(2, "collateralIndex")
@@ -372,7 +372,7 @@ void protx_register_prepare_help()
             + GetHelpString(9, "feeSourceAddress") +
             "\nResult:\n"
             "{                             (json object)\n"
-            "  \"tx\" :                      (string) The serialized ProTx in hex format.\n"
+            "  \"tx\" :                      (string) The serialized unsigned ProTx in hex format.\n"
             "  \"collateralAddress\" :       (string) The collateral address.\n"
             "  \"signMessage\" :             (string) The string message that needs to be signed with\n"
             "                              the collateral key.\n"
