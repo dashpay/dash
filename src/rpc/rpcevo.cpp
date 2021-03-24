@@ -386,11 +386,12 @@ void protx_register_submit_help(CWallet* const pwallet)
 {
     throw std::runtime_error(
             "protx register_submit \"tx\" \"sig\"\n"
-            "\nSubmits the specified ProTx to the network. This command will also sign the inputs of the transaction\n"
-            "which were previously added by \"protx register_prepare\" to cover transaction fees\n"
+            "\nCombines the unsigned ProTx and a signature of the signMessage, signs all inputs\n"
+            "which were added to cover fees and submits the resulting transaction to the network.\n"
+            "Note: See \"help protx register_prepare\" for more info about creating a ProTx and a message to sign.\n"
             + HelpRequiringPassphrase(pwallet) + "\n"
             "\nArguments:\n"
-            "1. \"tx\"                 (string, required) The serialized transaction previously returned by \"protx register_prepare\"\n"
+            "1. \"tx\"                 (string, required) The serialized unsigned ProTx in hex format.\n"
             "2. \"sig\"                (string, required) The signature signed with the collateral key. Must be in base64 format.\n"
             "\nResult:\n"
             "\"txid\"                  (string) The transaction id.\n"
