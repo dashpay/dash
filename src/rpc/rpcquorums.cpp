@@ -616,6 +616,7 @@ UniValue quorum_getdata(const JSONRPCRequest& request)
             "  getrecsig         - Get a recovered signature\n"
             "  isconflicting     - Test if a conflict exists\n"
             "  selectquorum      - Return the quorum that would/should sign a request\n"
+            "  getdata           - Request quorum data from other masternodes in the quorum\n"
     );
 }
 
