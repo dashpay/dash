@@ -8,9 +8,6 @@
 #include <amount.h>
 #include <sync.h>
 
-class CCoinJoinClientOptions;
-
-class CConnman;
 class UniValue;
 
 static const int MIN_COINJOIN_SESSIONS = 1;

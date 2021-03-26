@@ -9,7 +9,6 @@
 #include <coinjoin/coinjoin.h>
 #include <evo/deterministicmns.h>
 
-class CCoinJoinClientOptions;
 class CCoinJoinClientManager;
 class CCoinJoinClientQueueManager;
 
