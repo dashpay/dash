@@ -276,16 +276,13 @@ void CQuorumManager::EnsureQuorumConnections(Consensus::LLMQType llmqType, const
 
     bool allowWatch = gArgs.GetBoolArg("-watchquorums", DEFAULT_WATCH_QUORUMS);
     for (auto& quorum : lastQuorums) {
-        if (!CLLMQUtils::EnsureQuorumConnections(llmqType, quorum->pindexQuorum, myProTxHash, allowWatch)) {
+        if (CLLMQUtils::EnsureQuorumConnections(llmqType, quorum->pindexQuorum, myProTxHash, allowWatch)) {
             continue;
         }
-
-        connmanQuorumsToDelete.erase(quorum->qc.quorumHash);
-    }
-
-    for (auto& qh : connmanQuorumsToDelete) {
-        LogPrint(BCLog::LLMQ, "CQuorumManager::%s -- removing masternodes quorum connections for quorum %s:\n", __func__, qh.ToString());
-        g_connman->RemoveMasternodeQuorumNodes(llmqType, qh);
+        if (connmanQuorumsToDelete.count(quorum->qc.quorumHash) > 0) {
+            LogPrint(BCLog::LLMQ, "CQuorumManager::%s -- removing masternodes quorum connections for quorum %s:\n", __func__, quorum->qc.quorumHash.ToString());
+            g_connman->RemoveMasternodeQuorumNodes(llmqType, quorum->qc.quorumHash);
+        }
     }
 }
 
