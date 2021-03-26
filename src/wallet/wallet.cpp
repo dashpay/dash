@@ -3476,38 +3476,6 @@ bool CWallet::SelectDenominatedAmounts(CAmount nValueMax, std::set<CAmount>& set
     return nValueTotal >= CCoinJoin::GetSmallestDenomination();
 }
 
-bool CWallet::GetMasternodeOutpointAndKeys(COutPoint& outpointRet, CPubKey& pubKeyRet, CKey& keyRet, const std::string& strTxHash, const std::string& strOutputIndex)
-{
-    LOCK2(cs_main, cs_wallet);
-
-    // wait for reindex and/or import to finish
-    if (fImporting || fReindex) return false;
-
-    // Find possible candidates
-    std::vector<COutput> vPossibleCoins;
-    CCoinControl coin_control;
-    coin_control.nCoinType = CoinType::ONLY_MASTERNODE_COLLATERAL;
-    AvailableCoins(vPossibleCoins, true, &coin_control);
-    if(vPossibleCoins.empty()) {
-        LogPrintf("CWallet::GetMasternodeOutpointAndKeys -- Could not locate any valid masternode vin\n");
-        return false;
-    }
-
-    if(strTxHash.empty()) // No output specified, select the first one
-        return GetOutpointAndKeysFromOutput(vPossibleCoins[0], outpointRet, pubKeyRet, keyRet);
-
-    // Find specific outpoint
-    uint256 txHash = uint256S(strTxHash);
-    int nOutputIndex = atoi(strOutputIndex);
-
-    for (const auto& out : vPossibleCoins)
-        if(out.tx->GetHash() == txHash && out.i == nOutputIndex) // found it!
-            return GetOutpointAndKeysFromOutput(out, outpointRet, pubKeyRet, keyRet);
-
-    LogPrintf("CWallet::GetMasternodeOutpointAndKeys -- Could not locate specified masternode vin\n");
-    return false;
-}
-
 bool CWallet::GetOutpointAndKeysFromOutput(const COutput& out, COutPoint& outpointRet, CPubKey& pubKeyRet, CKey& keyRet)
 {
     // wait for reindex and/or import to finish
