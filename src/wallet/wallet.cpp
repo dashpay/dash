@@ -2496,7 +2496,7 @@ CAmount CWalletTx::GetAnonymizedCredit(const CCoinControl* coinControl) const
 
 CAmount CWalletTx::GetDenominatedCredit(bool unconfirmed, bool fUseCache) const
 {
-    if (pwallet == 0)
+    if (pwallet == nullptr)
         return 0;
 
     // Must wait until coinbase is safely deep enough in the chain before valuing it
