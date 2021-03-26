@@ -2350,12 +2350,7 @@ bool static ProcessMessage(CNode* pfrom, const std::string& strCommand, CDataStr
                       (fLogIPs ? strprintf(", peeraddr=%s", pfrom->addr.ToString()) : ""));
         }
 
-        if (pfrom->m_masternode_probe_connection) {
-            pfrom->fSuccessfullyConnected = true;
-            return true;
-        }
-
-        if (pfrom->nVersion >= LLMQS_PROTO_VERSION) {
+        if (pfrom->nVersion >= LLMQS_PROTO_VERSION && !pfrom->m_masternode_probe_connection) {
             CMNAuth::PushMNAUTH(pfrom, *connman);
         }
 
@@ -2365,14 +2360,16 @@ bool static ProcessMessage(CNode* pfrom, const std::string& strCommand, CDataStr
         // nodes)
         connman->PushMessage(pfrom, msgMaker.Make(NetMsgType::SENDHEADERS));
 
-        // Tell our peer we are willing to provide version-1 cmpctblocks
-        // However, we do not request new block announcements using
-        // cmpctblock messages.
-        // We send this to non-NODE NETWORK peers as well, because
-        // they may wish to request compact blocks from us
-        bool fAnnounceUsingCMPCTBLOCK = false;
-        uint64_t nCMPCTBLOCKVersion = 1;
-        connman->PushMessage(pfrom, msgMaker.Make(NetMsgType::SENDCMPCT, fAnnounceUsingCMPCTBLOCK, nCMPCTBLOCKVersion));
+        if (pfrom->CanRelay()) {
+            // Tell our peer we are willing to provide version-1 cmpctblocks
+            // However, we do not request new block announcements using
+            // cmpctblock messages.
+            // We send this to non-NODE NETWORK peers as well, because
+            // they may wish to request compact blocks from us
+            bool fAnnounceUsingCMPCTBLOCK = false;
+            uint64_t nCMPCTBLOCKVersion = 1;
+            connman->PushMessage(pfrom, msgMaker.Make(NetMsgType::SENDCMPCT, fAnnounceUsingCMPCTBLOCK, nCMPCTBLOCKVersion));
+        }
 
         if (pfrom->nVersion >= SENDDSQUEUE_PROTO_VERSION) {
             // Tell our peer that he should send us CoinJoin queue messages
