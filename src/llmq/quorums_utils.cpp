@@ -325,6 +325,12 @@ bool CLLMQUtils::QuorumDataRecoveryEnabled()
     return gArgs.GetBoolArg("-llmq-data-recovery", DEFAULT_ENABLE_QUORUM_DATA_RECOVERY);
 }
 
+bool CLLMQUtils::IsWatchQuorumsEnabled()
+{
+    static bool fIsWatchQuroumsEnabled = gArgs.GetBoolArg("-watchquorums", DEFAULT_WATCH_QUORUMS);
+    return fIsWatchQuroumsEnabled;
+}
+
 std::map<Consensus::LLMQType, QvvecSyncMode> CLLMQUtils::GetEnabledQuorumVvecSyncEntries()
 {
     std::map<Consensus::LLMQType, QvvecSyncMode> mapQuorumVvecSyncEntries;

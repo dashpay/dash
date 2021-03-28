@@ -63,6 +63,9 @@ public:
     /// Returns the state of `-llmq-data-recovery`
     static bool QuorumDataRecoveryEnabled();
 
+    /// Returns the state of `-watchquorums`
+    static bool IsWatchQuorumsEnabled();
+
     /// Returns the parsed entries given by `-llmq-qvvec-sync`
     static std::map<Consensus::LLMQType, QvvecSyncMode> GetEnabledQuorumVvecSyncEntries();
 
