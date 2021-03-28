@@ -275,7 +275,7 @@ void CQuorumManager::EnsureQuorumConnections(Consensus::LLMQType llmqType, const
     connmanQuorumsToDelete.erase(curDkgBlock);
 
     for (auto& quorum : lastQuorums) {
-        if (CLLMQUtils::EnsureQuorumConnections(llmqType, quorum->pindexQuorum, myProTxHash, CLLMQUtils::IsWatchQuorumsEnabled())) {
+        if (CLLMQUtils::EnsureQuorumConnections(llmqType, quorum->pindexQuorum, myProTxHash)) {
             continue;
         }
         if (connmanQuorumsToDelete.count(quorum->qc.quorumHash) > 0) {
