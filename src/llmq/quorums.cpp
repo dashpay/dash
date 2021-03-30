@@ -14,6 +14,7 @@
 #include <chainparams.h>
 #include <init.h>
 #include <masternode/masternode-sync.h>
+#include <net.h>
 #include <net_processing.h>
 #include <netmessagemaker.h>
 #include <univalue.h>
