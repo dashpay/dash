@@ -529,7 +529,7 @@ CDeterministicMNManager::CDeterministicMNManager(CEvoDB& _evoDb) :
 {
 }
 
-bool CDeterministicMNManager::ProcessBlock(const CBlock& block, const CBlockIndex* pindex, CValidationState& _state, CCoinsViewCache& view, bool fJustCheck)
+bool CDeterministicMNManager::ProcessBlock(const CBlock& block, const CBlockIndex* pindex, CValidationState& _state, const CCoinsViewCache& view, bool fJustCheck)
 {
     AssertLockHeld(cs_main);
 
@@ -644,7 +644,7 @@ void CDeterministicMNManager::UpdatedBlockTip(const CBlockIndex* pindex)
     tipIndex = pindex;
 }
 
-bool CDeterministicMNManager::BuildNewListFromBlock(const CBlock& block, const CBlockIndex* pindexPrev, CValidationState& _state, CCoinsViewCache& view, CDeterministicMNList& mnListRet, bool debugLogs)
+bool CDeterministicMNManager::BuildNewListFromBlock(const CBlock& block, const CBlockIndex* pindexPrev, CValidationState& _state, const CCoinsViewCache& view, CDeterministicMNList& mnListRet, bool debugLogs)
 {
     AssertLockHeld(cs);
 

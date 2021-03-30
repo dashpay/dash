@@ -15,7 +15,7 @@
 #include <llmq/quorums_commitment.h>
 #include <llmq/quorums_blockprocessor.h>
 
-bool CheckSpecialTx(const CTransaction& tx, const CBlockIndex* pindexPrev, CValidationState& state, CCoinsViewCache& view)
+bool CheckSpecialTx(const CTransaction& tx, const CBlockIndex* pindexPrev, CValidationState& state, const CCoinsViewCache& view)
 {
     if (tx.nVersion != 3 || tx.nType == TRANSACTION_NORMAL)
         return true;
@@ -89,7 +89,7 @@ bool UndoSpecialTx(const CTransaction& tx, const CBlockIndex* pindex)
     return false;
 }
 
-bool ProcessSpecialTxsInBlock(const CBlock& block, const CBlockIndex* pindex, CValidationState& state, CCoinsViewCache& view, bool fJustCheck, bool fCheckCbTxMerleRoots)
+bool ProcessSpecialTxsInBlock(const CBlock& block, const CBlockIndex* pindex, CValidationState& state, const CCoinsViewCache& view, bool fJustCheck, bool fCheckCbTxMerleRoots)
 {
     static int64_t nTimeLoop = 0;
     static int64_t nTimeQuorum = 0;

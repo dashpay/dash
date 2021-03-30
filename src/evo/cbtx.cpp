@@ -47,7 +47,7 @@ bool CheckCbTx(const CTransaction& tx, const CBlockIndex* pindexPrev, CValidatio
 }
 
 // This can only be done after the block has been fully processed, as otherwise we won't have the finished MN list
-bool CheckCbTxMerkleRoots(const CBlock& block, const CBlockIndex* pindex, CValidationState& state, CCoinsViewCache& view)
+bool CheckCbTxMerkleRoots(const CBlock& block, const CBlockIndex* pindex, CValidationState& state, const CCoinsViewCache& view)
 {
     if (block.vtx[0]->nType != TRANSACTION_COINBASE) {
         return true;
@@ -98,7 +98,7 @@ bool CheckCbTxMerkleRoots(const CBlock& block, const CBlockIndex* pindex, CValid
     return true;
 }
 
-bool CalcCbTxMerkleRootMNList(const CBlock& block, const CBlockIndex* pindexPrev, uint256& merkleRootRet, CValidationState& state, CCoinsViewCache& view)
+bool CalcCbTxMerkleRootMNList(const CBlock& block, const CBlockIndex* pindexPrev, uint256& merkleRootRet, CValidationState& state, const CCoinsViewCache& view)
 {
     LOCK(deterministicMNManager->cs);
 
