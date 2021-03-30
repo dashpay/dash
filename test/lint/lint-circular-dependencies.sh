@@ -131,7 +131,6 @@ EXPECTED_CIRCULAR_DEPENDENCIES=(
     "evo/providertx -> evo/specialtx -> llmq/quorums_blockprocessor -> net_processing -> txmempool -> evo/providertx"
     "governance/governance -> init -> llmq/quorums_init -> llmq/quorums_instantsend -> wallet/wallet -> governance/governance"
 
-    "init -> llmq/quorums_init -> llmq/quorums -> init"
     "llmq/quorums -> llmq/quorums_dkgsessionmgr -> llmq/quorums_dkgsessionhandler -> llmq/quorums"
 )
 
