@@ -132,7 +132,6 @@ EXPECTED_CIRCULAR_DEPENDENCIES=(
     "governance/governance -> init -> llmq/quorums_init -> llmq/quorums_instantsend -> wallet/wallet -> governance/governance"
 
     "init -> llmq/quorums_init -> llmq/quorums -> init"
-    "llmq/quorums -> validationinterface -> llmq/quorums_chainlocks -> llmq/quorums"
     "llmq/quorums -> llmq/quorums_dkgsessionmgr -> llmq/quorums_dkgsessionhandler -> llmq/quorums"
 )
 
