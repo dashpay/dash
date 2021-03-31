@@ -40,7 +40,13 @@ public:
         READWRITE(nHeight);
         READWRITE(blockHash);
         READWRITE(sig);
-        if (!(s.GetType() & SER_GETHASH) && (s.GetVersion() >= MULTI_QUORUM_CHAINLOCKS_VERSION)) {
+        if (s.GetVersion() >= MULTI_QUORUM_CHAINLOCKS_VERSION) {
+            if ((s.GetType() & SER_GETHASH) && !ser_action.ForRead()) {
+                size_t signers_count = std::count(signers.begin(), signers.end(), true);
+                if (signers.empty() || signers_count == 0) {
+                    return;
+                }
+            }
             READWRITE(DYNBITSET(signers));
         }
     }

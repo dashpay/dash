@@ -363,7 +363,14 @@ void CChainLocksHandler::ProcessNewChainLock(const NodeId from, CChainLockSig& c
     const auto signingActiveQuorumCount = GetLLMQParams(llmqType).signingActiveQuorumCount;
 
     if (AreMultiQuorumChainLocksEnabled()) {
-        if (clsig.signers.empty() || std::count(clsig.signers.begin(), clsig.signers.end(), true) <= 1) {
+        size_t signers_count = std::count(clsig.signers.begin(), clsig.signers.end(), true);
+        if (from != -1 && (clsig.signers.empty() || signers_count == 0)) {
+            LogPrint(BCLog::CHAINLOCKS, "CChainLocksHandler::%s -- invalid signers count (%d) for CLSIG (%s), peer=%d\n", __func__, signers_count, clsig.ToString(), from);
+            LOCK(cs_main);
+            Misbehaving(from, 10);
+            return;
+        }
+        if (from == -1 || signers_count == 1) {
             // A part of a multi-quorum CLSIG signed by a single quorum
             std::pair<int, CQuorumCPtr> ret;
             clsig.signers.resize(signingActiveQuorumCount, false);
@@ -434,6 +441,14 @@ void CChainLocksHandler::ProcessNewChainLock(const NodeId from, CChainLockSig& c
             g_connman->RelayInv(clsigInv, MULTI_QUORUM_CHAINLOCKS_VERSION);
         }
     } else {
+        if (!clsig.signers.empty()) {
+            LogPrint(BCLog::CHAINLOCKS, "CChainLocksHandler::%s -- non-empty signers for CLSIG (%s), peer=%d\n", __func__, clsig.ToString(), from);
+            if (from != -1) {
+                LOCK(cs_main);
+                Misbehaving(from, 10);
+            }
+            return;
+        }
         uint256 requestId = ::SerializeHash(std::make_pair(CLSIG_REQUESTID_PREFIX, clsig.nHeight));
         if (!idIn.IsNull() && idIn != requestId) {
             // this should never happen
