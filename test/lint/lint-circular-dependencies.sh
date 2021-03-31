@@ -39,7 +39,6 @@ EXPECTED_CIRCULAR_DEPENDENCIES=(
     # Dash
     "coinjoin/coinjoin-server -> init -> coinjoin/coinjoin-server"
     "coinjoin/coinjoin-server -> net_processing -> coinjoin/coinjoin-server"
-    "coinjoin/coinjoin -> llmq/quorums_chainlocks -> net -> coinjoin/coinjoin"
     "coinjoin/coinjoin-client -> init -> dsnotificationinterface -> coinjoin/coinjoin-client"
     "coinjoin/coinjoin-client -> init -> masternode/masternode-utils -> coinjoin/coinjoin-client"
     "coinjoin/coinjoin-client -> init -> net_processing -> coinjoin/coinjoin-client"
