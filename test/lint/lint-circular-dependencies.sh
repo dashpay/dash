@@ -135,6 +135,7 @@ EXPECTED_CIRCULAR_DEPENDENCIES=(
     "init -> llmq/quorums_init -> llmq/quorums -> init"
     "llmq/quorums -> validationinterface -> llmq/quorums_chainlocks -> llmq/quorums"
     "llmq/quorums -> llmq/quorums_dkgsessionmgr -> llmq/quorums_dkgsessionhandler -> llmq/quorums"
+    "evo/deterministicmns -> evo/simplifiedmns -> llmq/quorums_blockprocessor -> net -> evo/deterministicmns"
 )
 
 EXIT_CODE=0
