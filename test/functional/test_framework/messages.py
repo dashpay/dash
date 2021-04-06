@@ -1536,13 +1536,39 @@ class msg_mnlistdiff():
 class msg_clsig():
     command = b"clsig"
 
-    def __init__(self, height=0, blockHash=0, sig=b'\\x0' * 96, signers=[]):
+    def __init__(self, height=0, blockHash=0, sig=b'\\x0' * 96):
+        self.height = height
+        self.blockHash = blockHash
+        self.sig = sig
+
+    def deserialize(self, f):
+        self.height = struct.unpack('<i', f.read(4))[0]
+        self.blockHash = deser_uint256(f)
+        self.sig = f.read(96)
+
+    def serialize(self):
+        r = b""
+        r += struct.pack('<i', self.height)
+        r += ser_uint256(self.blockHash)
+        r += self.sig
+        return r
+
+    def __repr__(self):
+        return "msg_clsig(height=%d, blockHash=%064x)" % (self.height, self.blockHash)
+
+
+class msg_clsigmq():
+    command = b"clsigmq"
+
+    def __init__(self, nVersion=0, height=0, blockHash=0, sig=b'\\x0' * 96, signers=[]):
+        self.nVersion = nVersion
         self.height = height
         self.blockHash = blockHash
         self.sig = sig
         self.signers = signers
 
     def deserialize(self, f):
+        self.nVersion = struct.unpack("<B", f.read(1))[0]
         self.height = struct.unpack('<i', f.read(4))[0]
         self.blockHash = deser_uint256(f)
         self.sig = f.read(96)
@@ -1550,6 +1576,7 @@ class msg_clsig():
 
     def serialize(self):
         r = b""
+        r += struct.pack("<B", self.nVersion)
         r += struct.pack('<i', self.height)
         r += ser_uint256(self.blockHash)
         r += self.sig
@@ -1557,7 +1584,7 @@ class msg_clsig():
         return r
 
     def __repr__(self):
-        return "msg_clsig(height=%d, blockHash=%064x)" % (self.height, self.blockHash)
+        return "msg_clsigmq(nVersion=%d, height=%d, blockHash=%064x)" % (self.nVersion, self.height, self.blockHash)
 
 
 class msg_islock():

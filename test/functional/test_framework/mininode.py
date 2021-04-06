@@ -55,6 +55,7 @@ MESSAGEMAP = {
     b"version": msg_version,
     # Dash Specific
     b"clsig": msg_clsig,
+    b"clsigmq": msg_clsigmq,
     b"getmnlistd": msg_getmnlistd,
     b"getsporks": None,
     b"govsync": None,
@@ -375,6 +376,7 @@ class P2PInterface(P2PConnection):
 
     def on_mnlistdiff(self, message): pass
     def on_clsig(self, message): pass
+    def on_clsigmq(self, message): pass
     def on_islock(self, message): pass
 
     def on_qgetdata(self, message): pass

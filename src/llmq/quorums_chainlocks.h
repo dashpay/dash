@@ -26,27 +26,27 @@ extern const std::string CLSIG_REQUESTID_PREFIX;
 class CChainLockSig
 {
 public:
+    uint8_t nVersion{0}; // 0 == old format
     int32_t nHeight{-1};
     uint256 blockHash;
     CBLSSignature sig;
     std::vector<bool> signers;
 
-public:
+    CChainLockSig() = default;
+    CChainLockSig(uint8_t nVersionIn) : nVersion(nVersionIn) {}
+
     ADD_SERIALIZE_METHODS
 
     template<typename Stream, typename Operation>
     inline void SerializationOp(Stream& s, Operation ser_action)
     {
+        if (s.GetVersion() >= MULTI_QUORUM_CHAINLOCKS_VERSION && this->nVersion > 0) {
+            READWRITE(this->nVersion);
+        }
         READWRITE(nHeight);
         READWRITE(blockHash);
         READWRITE(sig);
-        if (s.GetVersion() >= MULTI_QUORUM_CHAINLOCKS_VERSION) {
-            if ((s.GetType() & SER_GETHASH) && !ser_action.ForRead()) {
-                size_t signers_count = std::count(signers.begin(), signers.end(), true);
-                if (signers.empty() || signers_count == 0) {
-                    return;
-                }
-            }
+        if (s.GetVersion() >= MULTI_QUORUM_CHAINLOCKS_VERSION && this->nVersion > 0) {
             READWRITE(DYNBITSET(signers));
         }
     }

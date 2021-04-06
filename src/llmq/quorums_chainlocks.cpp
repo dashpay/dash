@@ -30,8 +30,8 @@ bool CChainLockSig::IsNull() const
 
 std::string CChainLockSig::ToString() const
 {
-    return strprintf("CChainLockSig(nHeight=%d, blockHash=%s, signers: hex=%s size=%d count=%d)",
-                nHeight, blockHash.ToString(), CLLMQUtils::ToHexStr(signers), signers.size(),
+    return strprintf("CChainLockSig(nVersion=%d, nHeight=%d, blockHash=%s, signers: hex=%s size=%d count=%d)",
+                nVersion, nHeight, blockHash.ToString(), CLLMQUtils::ToHexStr(signers), signers.size(),
                 std::count(signers.begin(), signers.end(), true));
 }
 
@@ -158,7 +158,7 @@ bool CChainLocksHandler::TryUpdateBestChainLock(const CBlockIndex* pindex)
     const size_t threshold = GetLLMQParams(llmqType).signingActiveQuorumCount / 2 + 1;
 
     std::vector<CBLSSignature> sigs;
-    CChainLockSig clsigAgg;
+    CChainLockSig clsigAgg(1);
 
     for (const auto& pair : it2->second) {
         if (pair.second->blockHash == pindex->GetBlockHash()) {
@@ -296,8 +296,8 @@ void CChainLocksHandler::ProcessMessage(CNode* pfrom, const std::string& strComm
         return;
     }
 
-    if (strCommand == NetMsgType::CLSIG) {
-        CChainLockSig clsig;
+    if (strCommand == NetMsgType::CLSIG || strCommand == NetMsgType::CLSIGMQ) {
+        CChainLockSig clsig(strCommand == NetMsgType::CLSIGMQ ? 1 : 0);
         vRecv >> clsig;
 
         auto hash = ::SerializeHash(clsig);
@@ -312,7 +312,7 @@ void CChainLocksHandler::ProcessNewChainLock(const NodeId from, CChainLockSig& c
 
     CheckActiveState();
 
-    CInv clsigInv(MSG_CLSIG, hash);
+    CInv clsigInv(clsig.nVersion == 1 ? MSG_CLSIGMQ : MSG_CLSIG, hash);
 
     if (from != -1) {
         LOCK(cs_main);
@@ -399,12 +399,12 @@ void CChainLocksHandler::ProcessNewChainLock(const NodeId from, CChainLockSig& c
                 }
                 mostRecentChainLockShare = clsig;
                 if (TryUpdateBestChainLock(pindexSig)) {
-                    clsigAggInv = CInv(MSG_CLSIG, ::SerializeHash(bestChainLockWithKnownBlock));
+                    clsigAggInv = CInv(MSG_CLSIGMQ, ::SerializeHash(bestChainLockWithKnownBlock));
                 }
             }
             // Note: do not hold cs while calling RelayInv
             AssertLockNotHeld(cs);
-            if (clsigAggInv.type == MSG_CLSIG) {
+            if (clsigAggInv.type == MSG_CLSIGMQ) {
                 // We just created an aggregated CLSIG, relay it
                 g_connman->RelayInv(clsigAggInv, MULTI_QUORUM_CHAINLOCKS_VERSION);
             } else {
@@ -986,7 +986,7 @@ void CChainLocksHandler::EnforceBestChainLock()
 
 void CChainLocksHandler::HandleNewRecoveredSig(const llmq::CRecoveredSig& recoveredSig)
 {
-    CChainLockSig clsig;
+    CChainLockSig clsig(AreMultiQuorumChainLocksEnabled() ? 1 : 0);
     {
         LOCK(cs);
 

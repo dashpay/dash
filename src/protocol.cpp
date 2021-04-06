@@ -75,6 +75,7 @@ const char *QSIGSHARE="qsigshare";
 const char* QGETDATA = "qgetdata";
 const char* QDATA = "qdata";
 const char *CLSIG="clsig";
+const char *CLSIGMQ="clsigmq";
 const char *ISLOCK="islock";
 const char *MNAUTH="mnauth";
 }; // namespace NetMsgType
@@ -144,6 +145,7 @@ const static std::string allNetMessageTypes[] = {
     NetMsgType::QGETDATA,
     NetMsgType::QDATA,
     NetMsgType::CLSIG,
+    NetMsgType::CLSIGMQ,
     NetMsgType::ISLOCK,
     NetMsgType::MNAUTH,
 };
@@ -269,6 +271,7 @@ const char* CInv::GetCommandInternal() const
         case MSG_QUORUM_PREMATURE_COMMITMENT:   return NetMsgType::QPCOMMITMENT;
         case MSG_QUORUM_RECOVERED_SIG:          return NetMsgType::QSIGREC;
         case MSG_CLSIG:                         return NetMsgType::CLSIG;
+        case MSG_CLSIGMQ:                       return NetMsgType::CLSIGMQ;
         case MSG_ISLOCK:                        return NetMsgType::ISLOCK;
         default:
             return nullptr;

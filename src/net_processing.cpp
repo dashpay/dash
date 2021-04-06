@@ -750,6 +750,7 @@ std::chrono::microseconds GetObjectInterval(int invType)
         case MSG_QUORUM_RECOVERED_SIG:
             return std::chrono::seconds{15};
         case MSG_CLSIG:
+        case MSG_CLSIGMQ:
             return std::chrono::seconds{5};
         case MSG_ISLOCK:
             return std::chrono::seconds{10};
@@ -1387,6 +1388,7 @@ bool static AlreadyHave(const CInv& inv) EXCLUSIVE_LOCKS_REQUIRED(cs_main)
     case MSG_QUORUM_RECOVERED_SIG:
         return llmq::quorumSigningManager->AlreadyHave(inv);
     case MSG_CLSIG:
+    case MSG_CLSIGMQ:
         return llmq::chainLocksHandler->AlreadyHave(inv);
     case MSG_ISLOCK:
         return llmq::quorumInstantSendManager->AlreadyHave(inv);
@@ -1719,8 +1721,16 @@ void static ProcessGetData(CNode* pfrom, const CChainParams& chainparams, CConnm
 
             if (!push && (inv.type == MSG_CLSIG)) {
                 llmq::CChainLockSig o;
-                if (llmq::chainLocksHandler->GetChainLockByHash(inv.hash, o)) {
+                if (llmq::chainLocksHandler->GetChainLockByHash(inv.hash, o) && o.nVersion == 0) {
                     connman->PushMessage(pfrom, msgMaker.Make(NetMsgType::CLSIG, o));
+                    push = true;
+                }
+            }
+
+            if (!push && (inv.type == MSG_CLSIGMQ)) {
+                llmq::CChainLockSig o;
+                if (llmq::chainLocksHandler->GetChainLockByHash(inv.hash, o) && o.nVersion == 1) {
+                    connman->PushMessage(pfrom, msgMaker.Make(NetMsgType::CLSIGMQ, o));
                     push = true;
                 }
             }
@@ -4243,8 +4253,13 @@ bool PeerLogicValidation::SendMessages(CNode* pto)
                 // Send an inv for the best ChainLock we have
                 const auto& clsig = llmq::chainLocksHandler->GetBestChainLock();
                 if (!clsig.IsNull()) {
-                    uint256 chainlockHash = ::SerializeHash(clsig);
-                    queueAndMaybePushInv(CInv(MSG_CLSIG, chainlockHash));
+                    if (pto->nVersion > LLMQS_PROTO_VERSION) {
+                        if (clsig.nVersion == 0) {
+                            queueAndMaybePushInv(CInv(MSG_CLSIG, ::SerializeHash(clsig)));
+                        } else if (pto->nVersion >= MULTI_QUORUM_CHAINLOCKS_VERSION) {
+                            queueAndMaybePushInv(CInv(MSG_CLSIGMQ, ::SerializeHash(clsig)));
+                        }
+                    }
                 }
 
                 pto->timeLastMempoolReq = GetTime();

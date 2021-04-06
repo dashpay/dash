@@ -265,12 +265,14 @@ UniValue getchainlocks(const JSONRPCRequest& request)
             "\nResult:\n"
             "{\n"
             "  \"recent_chainlock\" : {       (object)\n"
+            "    \"version\" : n,             (numeric) The chainlock's version\n"
             "    \"blockhash\" : \"hash\",      (string) The block hash hex encoded\n"
             "    \"height\" : n,              (numeric) The block height or index\n"
             "    \"signature\" : \"hash\",      (string) The chainlock's BLS signature.\n"
             "    \"known_block\" : true|false (boolean) True if the block is known by our node\n"
             "  },\n"
             "  \"active_chainlock\" : {       (object) Only shown when Multi-Quorum ChainLocks are enabled\n"
+            "    \"version\" : n,             (numeric) The chainlock's version\n"
             "    \"blockhash\" : \"hash\",      (string) The block hash hex encoded\n"
             "    \"height\" : n,              (numeric) The block height or index\n"
             "    \"signers\" : \"hex\",         (string) The hex representation of a combined signer index\n"
@@ -299,6 +301,7 @@ UniValue getchainlocks(const JSONRPCRequest& request)
     if (clsig.IsNull()) {
         throw JSONRPCError(RPC_INTERNAL_ERROR, "Unable to find any chainlock");
     }
+    recentChainlock.pushKV("version", clsig.nVersion);
     recentChainlock.pushKV("blockhash", clsig.blockHash.GetHex());
     recentChainlock.pushKV("height", clsig.nHeight);
     recentChainlock.pushKV("signature", clsig.sig.ToString());
@@ -317,6 +320,7 @@ UniValue getchainlocks(const JSONRPCRequest& request)
         return result;
     }
 
+    activeChainlock.pushKV("version", clsig.nVersion);
     activeChainlock.pushKV("blockhash", clsig.blockHash.GetHex());
     activeChainlock.pushKV("height", clsig.nHeight);
     activeChainlock.pushKV("signers", llmq::CLLMQUtils::ToHexStr(clsig.signers));

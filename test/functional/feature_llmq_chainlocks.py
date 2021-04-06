@@ -7,7 +7,7 @@ import struct
 import time
 
 from test_framework.blocktools import (create_block, create_coinbase)
-from test_framework.messages import CInv, hash256, msg_clsig, msg_inv, ser_string, uint256_from_str
+from test_framework.messages import CInv, hash256, msg_clsig, msg_clsigmq, msg_inv, ser_string, uint256_from_str
 from test_framework.mininode import P2PInterface, network_thread_join, network_thread_start
 from test_framework.test_framework import DashTestFramework
 from test_framework.util import connect_nodes, hex_str_to_bytes, isolate_node, reconnect_isolated_node
@@ -29,7 +29,7 @@ class TestP2PConn(P2PInterface):
         clhash = uint256_from_str(hash256(clsig.serialize()))
         self.clsigs[clhash] = clsig
 
-        inv = msg_inv([CInv(29, clhash)])
+        inv = msg_inv([CInv(29 if clsig.command == b"clsig" else 31, clhash)])
         self.send_message(inv)
 
     def on_getdata(self, message):
@@ -249,7 +249,11 @@ class LLMQChainLocksTest(DashTestFramework):
         for mn in self.mninfo:
             mn.node.quorum('sign', 100, request_id, fake_block.hash, quorum_hash if multi_quorum else None)
         rec_sig = self.get_recovered_sig(request_id, fake_block.hash)
-        fake_clsig = msg_clsig(height, fake_block.sha256, hex_str_to_bytes(rec_sig['sig']), [1,0,0,0] if multi_quorum else [])
+        fake_clsig = None
+        if multi_quorum:
+            fake_clsig = msg_clsigmq(1, height, fake_block.sha256, hex_str_to_bytes(rec_sig['sig']), [1,0,0,0])
+        else:
+            fake_clsig = msg_clsig(height, fake_block.sha256, hex_str_to_bytes(rec_sig['sig']))
         return fake_clsig, fake_block.hash
 
     def create_chained_txs(self, node, amount):
