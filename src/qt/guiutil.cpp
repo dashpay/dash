@@ -1703,7 +1703,11 @@ int supportedWeightToIndex(QFont::Weight weight)
 QString getActiveTheme()
 {
     QSettings settings;
-    return settings.value("theme", defaultTheme).toString();
+    QString theme = settings.value("theme", defaultTheme).toString();
+    if (!isValidTheme(theme)) {
+        return defaultTheme;
+    }
+    return theme;
 }
 
 bool dashThemeActive()
