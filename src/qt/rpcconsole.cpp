@@ -541,7 +541,7 @@ RPCConsole::RPCConsole(interfaces::Node& node, QWidget* parent, Qt::WindowFlags 
 
     showPage(TAB_INFO);
 
-    clear();
+    reloadThemedWidgets();
 }
 
 RPCConsole::~RPCConsole()
@@ -1293,6 +1293,14 @@ void RPCConsole::setButtonIcons()
     GUIUtil::setIcon(ui->fontSmallerButton, "fontsmaller", GUIUtil::ThemedColor::BLUE, consoleButtonsSize);
 }
 
+void RPCConsole::reloadThemedWidgets()
+{
+    clear();
+    ui->promptLabel->setHidden(GUIUtil::dashThemeActive());
+    // Adjust button icon colors on theme changes
+    setButtonIcons();
+}
+
 void RPCConsole::resizeEvent(QResizeEvent *event)
 {
     QWidget::resizeEvent(event);
@@ -1325,10 +1333,7 @@ void RPCConsole::hideEvent(QHideEvent *event)
 void RPCConsole::changeEvent(QEvent* e)
 {
     if (e->type() == QEvent::StyleChange) {
-        clear();
-        ui->promptLabel->setHidden(GUIUtil::dashThemeActive());
-        // Adjust button icon colors on theme changes
-        setButtonIcons();
+        reloadThemedWidgets();
     }
 
     QWidget::changeEvent(e);
