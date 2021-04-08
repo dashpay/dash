@@ -409,8 +409,8 @@ public:
 
         // Deployment of v17 Hard Fork
         consensus.vDeployments[Consensus::DEPLOYMENT_V17].bit = 6;
-        consensus.vDeployments[Consensus::DEPLOYMENT_V17].nStartTime = 1612137600; // February 1st, 2021
-        consensus.vDeployments[Consensus::DEPLOYMENT_V17].nTimeout = 1643673600; // February 1st, 2022
+        consensus.vDeployments[Consensus::DEPLOYMENT_V17].nStartTime = 1625097600; // July 1st, 2021
+        consensus.vDeployments[Consensus::DEPLOYMENT_V17].nTimeout = 1656633600; // July 1st, 2022
         consensus.vDeployments[Consensus::DEPLOYMENT_V17].nWindowSize = 4032;
         consensus.vDeployments[Consensus::DEPLOYMENT_V17].nThresholdStart = 3226; // 80% of 4032
         consensus.vDeployments[Consensus::DEPLOYMENT_V17].nThresholdMin = 2420; // 60% of 4032
