@@ -1082,18 +1082,21 @@ const bool isValidTheme(const QString& strTheme)
     return strTheme == defaultTheme || strTheme == darkThemePrefix || strTheme == traditionalTheme;
 }
 
-void loadStyleSheet(interfaces::Node& node, QWidget* widget, bool fForceUpdate)
+void loadStyleSheet(interfaces::Node& node, bool fForceUpdate)
 {
     AssertLockNotHeld(cs_css);
     LOCK(cs_css);
 
     static std::unique_ptr<QString> stylesheet;
-    static std::set<QWidget*> setWidgets;
 
     bool fDebugCustomStyleSheets = gArgs.GetBoolArg("-debug-ui", false) && isStyleSheetDirectoryCustom();
     bool fStyleSheetChanged = false;
 
-    if (stylesheet == nullptr || fForceUpdate || fDebugCustomStyleSheets) {
+    if (stylesheet == nullptr) {
+        fForceUpdate = true;
+    }
+
+    if (fForceUpdate || fDebugCustomStyleSheets) {
         auto hasModified = [](const std::vector<QString>& vecFiles) -> bool {
             static std::map<const QString, QDateTime> mapLastModified;
 
@@ -1177,22 +1180,8 @@ void loadStyleSheet(interfaces::Node& node, QWidget* widget, bool fForceUpdate)
 
     bool fUpdateStyleSheet = fForceUpdate || (fDebugCustomStyleSheets && fStyleSheetChanged);
 
-    if (widget) {
-        setWidgets.insert(widget);
-        widget->setStyleSheet(*stylesheet);
-    }
-
-    QWidgetList allWidgets = QApplication::allWidgets();
-    auto it = setWidgets.begin();
-    while (it != setWidgets.end()) {
-        if (!allWidgets.contains(*it)) {
-            it = setWidgets.erase(it);
-            continue;
-        }
-        if (fUpdateStyleSheet && *it != widget) {
-            (*it)->setStyleSheet(*stylesheet);
-        }
-        ++it;
+    if (fUpdateStyleSheet && stylesheet != nullptr) {
+        qApp->setStyleSheet(*stylesheet);
     }
 
     if (!node.shutdownRequested() && fDebugCustomStyleSheets && !fForceUpdate) {
@@ -1712,9 +1701,9 @@ bool dashThemeActive()
     return theme != traditionalTheme;
 }
 
-void loadTheme(interfaces::Node& node, QWidget* widget, bool fForce)
+void loadTheme(interfaces::Node& node, bool fForce)
 {
-    loadStyleSheet(node, widget, fForce);
+    loadStyleSheet(node, fForce);
     updateFonts();
     updateMacFocusRects();
 }

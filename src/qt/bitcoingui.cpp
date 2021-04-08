@@ -124,6 +124,8 @@ BitcoinGUI::BitcoinGUI(interfaces::Node& node, const NetworkStyle* networkStyle,
     timerConnecting(0),
     timerSpinner(0)
 {
+    GUIUtil::loadTheme(node, true);
+
     QSettings settings;
     if (!restoreGeometry(settings.value("MainWindowGeometry").toByteArray())) {
         // Restore failed (perhaps missing setting), center the window
