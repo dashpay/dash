@@ -1082,7 +1082,7 @@ const bool isValidTheme(const QString& strTheme)
     return strTheme == defaultTheme || strTheme == darkThemePrefix || strTheme == traditionalTheme;
 }
 
-void loadStyleSheet(interfaces::Node& node, bool fForceUpdate)
+void loadStyleSheet(bool fForceUpdate)
 {
     AssertLockNotHeld(cs_css);
     LOCK(cs_css);
@@ -1092,11 +1092,7 @@ void loadStyleSheet(interfaces::Node& node, bool fForceUpdate)
     bool fDebugCustomStyleSheets = gArgs.GetBoolArg("-debug-ui", false) && isStyleSheetDirectoryCustom();
     bool fStyleSheetChanged = false;
 
-    if (stylesheet == nullptr) {
-        fForceUpdate = true;
-    }
-
-    if (fForceUpdate || fDebugCustomStyleSheets) {
+    if (stylesheet == nullptr || fForceUpdate || fDebugCustomStyleSheets) {
         auto hasModified = [](const std::vector<QString>& vecFiles) -> bool {
             static std::map<const QString, QDateTime> mapLastModified;
 
@@ -1182,10 +1178,6 @@ void loadStyleSheet(interfaces::Node& node, bool fForceUpdate)
 
     if (fUpdateStyleSheet && stylesheet != nullptr) {
         qApp->setStyleSheet(*stylesheet);
-    }
-
-    if (!node.shutdownRequested() && fDebugCustomStyleSheets && !fForceUpdate) {
-        QTimer::singleShot(200, [&] { loadStyleSheet(node); });
     }
 }
 
@@ -1701,9 +1693,9 @@ bool dashThemeActive()
     return theme != traditionalTheme;
 }
 
-void loadTheme(interfaces::Node& node, bool fForce)
+void loadTheme(bool fForce)
 {
-    loadStyleSheet(node, fForce);
+    loadStyleSheet(fForce);
     updateFonts();
     updateMacFocusRects();
 }
