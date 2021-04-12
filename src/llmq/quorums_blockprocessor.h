@@ -5,23 +5,21 @@
 #ifndef BITCOIN_LLMQ_QUORUMS_BLOCKPROCESSOR_H
 #define BITCOIN_LLMQ_QUORUMS_BLOCKPROCESSOR_H
 
-#include <llmq/quorums_commitment.h>
 #include <llmq/quorums_utils.h>
 
-#include <consensus/params.h>
-#include <primitives/transaction.h>
-#include <saltedhasher.h>
-#include <sync.h>
-
-#include <map>
 #include <unordered_map>
 #include <unordered_lru_cache.h>
+#include <saltedhasher.h>
 
 class CNode;
 class CConnman;
+class CValidationState;
+class CEvoDB;
 
 namespace llmq
 {
+
+class CFinalCommitment;
 
 class CQuorumBlockProcessor
 {

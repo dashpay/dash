@@ -3,6 +3,7 @@
 // file COPYING or http://www.opensource.org/licenses/mit-license.php.
 
 #include <masternode/masternode-utils.h>
+#include <evo/deterministicmns.h>
 
 #ifdef ENABLE_WALLET
 #include <coinjoin/coinjoin-client.h>

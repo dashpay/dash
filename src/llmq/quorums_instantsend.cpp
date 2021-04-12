@@ -3,6 +3,7 @@
 // file COPYING or http://www.opensource.org/licenses/mit-license.php.
 
 #include <llmq/quorums_chainlocks.h>
+#include <llmq/quorums.h>
 #include <llmq/quorums_instantsend.h>
 #include <llmq/quorums_utils.h>
 

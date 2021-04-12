@@ -2,6 +2,7 @@
 // Distributed under the MIT software license, see the accompanying
 // file COPYING or http://www.opensource.org/licenses/mit-license.php.
 
+#include <bls/bls.h>
 #include <evo/cbtx.h>
 #include <core_io.h>
 #include <evo/deterministicmns.h>
@@ -9,6 +10,10 @@
 #include <llmq/quorums_commitment.h>
 #include <evo/simplifiedmns.h>
 #include <evo/specialtx.h>
+
+#include <pubkey.h>
+#include <serialize.h>
+#include <version.h>
 
 #include <base58.h>
 #include <chainparams.h>

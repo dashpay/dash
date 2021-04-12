@@ -3,17 +3,25 @@
 // file COPYING or http://www.opensource.org/licenses/mit-license.php.
 
 #include <llmq/quorums_blockprocessor.h>
+#include <llmq/quorums_commitment.h>
 #include <llmq/quorums_debug.h>
 
+#include <evo/evodb.h>
 #include <evo/specialtx.h>
 
 #include <chain.h>
 #include <chainparams.h>
+#include <consensus/params.h>
 #include <consensus/validation.h>
 #include <net.h>
 #include <net_processing.h>
 #include <primitives/block.h>
+#include <primitives/transaction.h>
 #include <validation.h>
+#include <saltedhasher.h>
+#include <sync.h>
+
+#include <map>
 
 namespace llmq
 {

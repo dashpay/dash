@@ -8,6 +8,7 @@
 #include <llmq/quorums_commitment.h>
 #include <evo/simplifiedmns.h>
 #include <evo/specialtx.h>
+#include <consensus/validation.h>
 
 #include <chain.h>
 #include <chainparams.h>
