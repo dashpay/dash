@@ -13,5 +13,5 @@ export PACKAGES="python3 nsis g++-mingw-w64-x86-64-posix wine-binfmt wine64 wine
 export RUN_FUNCTIONAL_TESTS=false
 export RUN_SECURITY_TESTS="false"
 export GOAL="deploy"
-export BITCOIN_CONFIG="--enable-gui --enable-reduce-exports --disable-miner --without-boost-process"
+export BITCOIN_CONFIG="--enable-gui --enable-reduce-exports --disable-miner --disable-external-signer"
 export DIRECT_WINE_EXEC_TESTS=true

@@ -195,6 +195,7 @@ BITCOIN_CORE_H = \
   evo/simplifiedmns.h \
   evo/specialtx.h \
   evo/specialtxman.h \
+  external_signer.h \
   dsnotificationinterface.h \
   governance/governance.h \
   governance/classes.h \
@@ -397,14 +398,12 @@ BITCOIN_CORE_H = \
   wallet/crypter.h \
   wallet/db.h \
   wallet/dump.h \
-  wallet/external_signer.h \
   wallet/external_signer_scriptpubkeyman.h \
   wallet/fees.h \
   wallet/hdchain.h \
   wallet/ismine.h \
   wallet/load.h \
   wallet/receive.h \
-  wallet/rpcsigner.h \
   wallet/rpcwallet.h \
   wallet/rpc/util.h \
   wallet/salvage.h \
@@ -600,7 +599,6 @@ libbitcoin_wallet_a_SOURCES = \
   wallet/db.cpp \
   wallet/dump.cpp \
   wallet/external_signer_scriptpubkeyman.cpp \
-  wallet/external_signer.cpp \
   wallet/fees.cpp \
   wallet/hdchain.cpp \
   wallet/interfaces.cpp \
@@ -609,7 +607,6 @@ libbitcoin_wallet_a_SOURCES = \
   wallet/rpc/signmessage.cpp \
   wallet/rpc/util.cpp \
   wallet/rpcdump.cpp \
-  wallet/rpcsigner.cpp \
   wallet/rpcwallet.cpp \
   wallet/scriptpubkeyman.cpp \
   wallet/spend.cpp \
@@ -779,6 +776,7 @@ libbitcoin_common_a_SOURCES = \
   core_read.cpp \
   core_write.cpp \
   deploymentinfo.cpp \
+  external_signer.cpp \
   governance/common.cpp \
   init/common.cpp \
   key.cpp \
@@ -794,6 +792,7 @@ libbitcoin_common_a_SOURCES = \
   protocol.cpp \
   psbt.cpp \
   rpc/rawtransaction_util.cpp \
+  rpc/external_signer.cpp \
   rpc/util.cpp \
   saltedhasher.cpp \
   scheduler.cpp \
