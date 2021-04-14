@@ -840,7 +840,7 @@ void CBLSWorker::AsyncSign(const CBLSSecretKey& secKey, const uint256& msgHash, 
 std::future<CBLSSignature> CBLSWorker::AsyncSign(const CBLSSecretKey& secKey, const uint256& msgHash)
 {
     auto p = BuildFutureDoneCallback<CBLSSignature>();
-    AsyncSign(secKey, msgHash, std::move(p.first));
+    AsyncSign(secKey, msgHash, p.first);
     return std::move(p.second);
 }
 
