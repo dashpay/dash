@@ -8,7 +8,6 @@
 #include <llmq/quorums_dkgsession.h>
 #include <llmq/quorums_dkgsessionmgr.h>
 #include <llmq/quorums_utils.h>
-#include <llmq/quorums_commitment.h>
 
 #include <evo/specialtx.h>
 #include <evo/deterministicmns.h>
