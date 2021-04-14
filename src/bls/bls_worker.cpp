@@ -656,7 +656,7 @@ void CBLSWorker::AsyncAggregateSecretKeys(const BLSSecretKeyVector& secKeys,
                                           size_t start, size_t count, bool parallel,
                                           std::function<void(const CBLSSecretKey&)> doneCallback)
 {
-    AsyncAggregateHelper(workerPool, secKeys, start, count, parallel, doneCallback);
+    AsyncAggregateHelper(workerPool, secKeys, start, count, parallel, std::move(doneCallback));
 }
 
 std::future<CBLSSecretKey> CBLSWorker::AsyncAggregateSecretKeys(const BLSSecretKeyVector& secKeys,
@@ -677,7 +677,7 @@ void CBLSWorker::AsyncAggregatePublicKeys(const BLSPublicKeyVector& pubKeys,
                                           size_t start, size_t count, bool parallel,
                                           std::function<void(const CBLSPublicKey&)> doneCallback)
 {
-    AsyncAggregateHelper(workerPool, pubKeys, start, count, parallel, doneCallback);
+    AsyncAggregateHelper(workerPool, pubKeys, start, count, parallel, std::move(doneCallback));
 }
 
 std::future<CBLSPublicKey> CBLSWorker::AsyncAggregatePublicKeys(const BLSPublicKeyVector& pubKeys,
@@ -698,7 +698,7 @@ void CBLSWorker::AsyncAggregateSigs(const BLSSignatureVector& sigs,
                                     size_t start, size_t count, bool parallel,
                                     std::function<void(const CBLSSignature&)> doneCallback)
 {
-    AsyncAggregateHelper(workerPool, sigs, start, count, parallel, doneCallback);
+    AsyncAggregateHelper(workerPool, sigs, start, count, parallel, std::move(doneCallback));
 }
 
 std::future<CBLSSignature> CBLSWorker::AsyncAggregateSigs(const BLSSignatureVector& sigs,
@@ -877,7 +877,7 @@ void CBLSWorker::AsyncVerifySig(const CBLSSignature& sig, const CBLSPublicKey& p
 std::future<bool> CBLSWorker::AsyncVerifySig(const CBLSSignature& sig, const CBLSPublicKey& pubKey, const uint256& msgHash, CancelCond cancelCond)
 {
     auto p = BuildFutureDoneCallback2<bool>();
-    AsyncVerifySig(sig, pubKey, msgHash, std::move(p.first), cancelCond);
+    AsyncVerifySig(sig, pubKey, msgHash, std::move(p.first), std::move(cancelCond));
     return std::move(p.second);
 }
 
