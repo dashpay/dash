@@ -590,7 +590,7 @@ struct ContributionVerifier {
     void PushOrDoWork(Callable&& f)
     {
         if (parallel) {
-            workerPool.push(std::move(f));
+            workerPool.push(std::forward<Callable>(f));
         } else {
             f(0);
         }
