@@ -5,7 +5,6 @@
 #include <bls/bls.h>
 
 #include <random.h>
-#include <tinyformat.h>
 
 #ifndef BUILD_BITCOIN_INTERNAL
 #include <support/allocators/mt_pooled_secure.h>
