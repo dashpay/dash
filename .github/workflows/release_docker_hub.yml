@@ -45,9 +45,9 @@ jobs:
         images: strophy/dashd
         tags: |
           type=semver,pattern={{version}}
-          type=match,pattern=v(\d+.\d+),group=1,enable=${{ !contains(github.event.release.tag_name, '-rc') }}
-          type=match,pattern=v(\d+.\d+.\d+),group=1,enable=${{ !contains(github.event.release.tag_name, '-rc') }}
           type=match,pattern=v(\d+.\d+.\d+.\d+),group=1,enable=${{ !contains(github.event.release.tag_name, '-rc') }}
+          type=match,pattern=v(\d+.\d+.\d+),group=1,enable=${{ !contains(github.event.release.tag_name, '-rc') }}
+          type=match,pattern=v(\d+.\d+),group=1,enable=${{ !contains(github.event.release.tag_name, '-rc') }}
           type=match,pattern=v(.*),group=1,suffix=${{ steps.suffix.outputs.result }},enable=${{ contains(github.event.release.tag_name, '-rc') }}
 
 #    - name: Build and push
