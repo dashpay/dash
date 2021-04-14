@@ -142,11 +142,10 @@ void CMasternodeSync::ProcessTick(CConnman& connman)
     {
         CNetMsgMaker msgMaker(pnode->GetSendVersion());
 
-        // Don't try to sync any data from outbound "masternode" connections -
-        // they are temporary and should be considered unreliable for a sync process.
+        // Don't try to sync any data from outbound non-relay "masternode" connections.
         // Inbound connection this early is most likely a "masternode" connection
         // initiated from another node, so skip it too.
-        if(pnode->m_masternode_connection || (fMasternodeMode && pnode->fInbound)) continue;
+        if (!pnode->CanRelay() || (fMasternodeMode && pnode->fInbound)) continue;
 
         // QUICK MODE (REGTEST ONLY!)
         if(Params().NetworkIDString() == CBaseChainParams::REGTEST)
@@ -292,15 +291,10 @@ void CMasternodeSync::SendGovernanceSyncRequest(CNode* pnode, CConnman& connman)
 {
     CNetMsgMaker msgMaker(pnode->GetSendVersion());
 
-    if(pnode->nVersion >= GOVERNANCE_FILTER_PROTO_VERSION) {
-        CBloomFilter filter;
-        filter.clear();
+    CBloomFilter filter;
+    filter.clear();
 
-        connman.PushMessage(pnode, msgMaker.Make(NetMsgType::MNGOVERNANCESYNC, uint256(), filter));
-    }
-    else {
-        connman.PushMessage(pnode, msgMaker.Make(NetMsgType::MNGOVERNANCESYNC, uint256()));
-    }
+    connman.PushMessage(pnode, msgMaker.Make(NetMsgType::MNGOVERNANCESYNC, uint256(), filter));
 }
 
 void CMasternodeSync::AcceptedBlockHeader(const CBlockIndex *pindexNew)

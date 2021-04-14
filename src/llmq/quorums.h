@@ -9,18 +9,24 @@
 #include <evo/deterministicmns.h>
 #include <llmq/quorums_commitment.h>
 
-#include <validationinterface.h>
+#include <chain.h>
 #include <consensus/params.h>
 #include <saltedhasher.h>
 #include <unordered_lru_cache.h>
+#include <threadinterrupt.h>
 
 #include <bls/bls.h>
 #include <bls/bls_worker.h>
 
 #include <ctpl.h>
 
+class CNode;
+
 namespace llmq
 {
+
+// If true, we will connect to all new quorums and watch their communication
+static const bool DEFAULT_WATCH_QUORUMS = false;
 
 class CDKGSessionManager;
 

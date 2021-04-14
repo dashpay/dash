@@ -45,7 +45,7 @@ BITCOIN_INCLUDES=-I$(builddir) $(BDB_CPPFLAGS) $(BOOST_CPPFLAGS) $(LEVELDB_CPPFL
 BITCOIN_INCLUDES += -I$(srcdir)/secp256k1/include
 BITCOIN_INCLUDES += $(UNIVALUE_CFLAGS)
 
-BLS_LIBS=-lchiabls -lgmp
+BLS_LIBS=-lbls-dash -lgmp
 
 LIBBITCOIN_SERVER=libdash_server.a
 LIBBITCOIN_COMMON=libdash_common.a
@@ -117,6 +117,7 @@ BITCOIN_CORE_H = \
   addressindex.h \
   spentindex.h \
   addrman.h \
+  attributes.h \
   base58.h \
   batchedlogger.h \
   bech32.h \
@@ -136,6 +137,7 @@ BITCOIN_CORE_H = \
   clientversion.h \
   coinjoin/coinjoin.h \
   coinjoin/coinjoin-client.h \
+  coinjoin/coinjoin-client-options.h \
   coinjoin/coinjoin-server.h \
   coinjoin/coinjoin-util.h \
   coins.h \
@@ -392,6 +394,7 @@ libdash_wallet_a_CPPFLAGS = $(AM_CPPFLAGS) $(BITCOIN_INCLUDES)
 libdash_wallet_a_CXXFLAGS = $(AM_CXXFLAGS) $(PIE_FLAGS)
 libdash_wallet_a_SOURCES = \
   coinjoin/coinjoin-client.cpp \
+  coinjoin/coinjoin-client-options.cpp \
   coinjoin/coinjoin-util.cpp \
   interfaces/wallet.cpp \
   keepass.cpp \

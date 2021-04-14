@@ -28,12 +28,11 @@
 #include <txmempool.h>
 #include <utilmoneystr.h>
 #include <wallet/fees.h>
-#include <wallet/walletutil.h>
 
 #include <coinjoin/coinjoin-client.h>
+#include <coinjoin/coinjoin-client-options.h>
 #include <governance/governance.h>
 #include <keepass.h>
-#include <spork.h>
 
 #include <evo/providertx.h>
 
@@ -46,24 +45,24 @@
 #include <boost/algorithm/string/replace.hpp>
 
 static CCriticalSection cs_wallets;
-static std::vector<CWallet*> vpwallets GUARDED_BY(cs_wallets);
+static std::vector<std::shared_ptr<CWallet>> vpwallets GUARDED_BY(cs_wallets);
 
-bool AddWallet(CWallet* wallet)
+bool AddWallet(const std::shared_ptr<CWallet>& wallet)
 {
     LOCK(cs_wallets);
     assert(wallet);
-    std::vector<CWallet*>::const_iterator i = std::find(vpwallets.begin(), vpwallets.end(), wallet);
+    std::vector<std::shared_ptr<CWallet>>::const_iterator i = std::find(vpwallets.begin(), vpwallets.end(), wallet);
     if (i != vpwallets.end()) return false;
     coinJoinClientManagers.emplace(std::make_pair(wallet->GetName(), std::make_shared<CCoinJoinClientManager>(*wallet)));
     vpwallets.push_back(wallet);
     return true;
 }
 
-bool RemoveWallet(CWallet* wallet)
+bool RemoveWallet(const std::shared_ptr<CWallet>& wallet)
 {
     LOCK(cs_wallets);
     assert(wallet);
-    std::vector<CWallet*>::iterator i = std::find(vpwallets.begin(), vpwallets.end(), wallet);
+    std::vector<std::shared_ptr<CWallet>>::iterator i = std::find(vpwallets.begin(), vpwallets.end(), wallet);
     if (i == vpwallets.end()) return false;
     vpwallets.erase(i);
     auto it = coinJoinClientManagers.find(wallet->GetName());
@@ -77,16 +76,16 @@ bool HasWallets()
     return !vpwallets.empty();
 }
 
-std::vector<CWallet*> GetWallets()
+std::vector<std::shared_ptr<CWallet>> GetWallets()
 {
     LOCK(cs_wallets);
     return vpwallets;
 }
 
-CWallet* GetWallet(const std::string& name)
+std::shared_ptr<CWallet> GetWallet(const std::string& name)
 {
     LOCK(cs_wallets);
-    for (CWallet* wallet : vpwallets) {
+    for (const std::shared_ptr<CWallet>& wallet : vpwallets) {
         if (wallet->GetName() == name) return wallet;
     }
     return nullptr;
@@ -110,6 +109,15 @@ CFeeRate CWallet::minTxFee = CFeeRate(DEFAULT_TRANSACTION_MINFEE);
 CFeeRate CWallet::fallbackFee = CFeeRate(DEFAULT_FALLBACK_FEE);
 
 CFeeRate CWallet::m_discard_rate = CFeeRate(DEFAULT_DISCARD_FEE);
+
+// Custom deleter for shared_ptr<CWallet>.
+static void ReleaseWallet(CWallet* wallet)
+{
+    LogPrintf("Releasing wallet %s\n", wallet->GetName());
+    wallet->BlockUntilSyncedToCurrentChain();
+    wallet->Flush();
+    delete wallet;
+}
 
 const uint256 CMerkleTx::ABANDON_HASH(uint256S("0000000000000000000000000000000000000000000000000000000000000001"));
 
@@ -222,7 +230,7 @@ void CWallet::DeriveNewChildKey(WalletBatch &batch, const CKeyMetadata& metadata
     }
 
     if (!DecryptHDChain(hdChainTmp))
-        throw std::runtime_error(std::string(__func__) + ": DecryptHDChainSeed failed");
+        throw std::runtime_error(std::string(__func__) + ": DecryptHDChain failed");
     // make sure seed matches this chain
     if (hdChainTmp.GetID() != hdChainTmp.GetSeedHash())
         throw std::runtime_error(std::string(__func__) + ": Wrong HD chain!");
@@ -301,7 +309,7 @@ bool CWallet::GetKey(const CKeyID &address, CKey& keyOut) const
         if (!GetHDChain(hdChainCurrent))
             throw std::runtime_error(std::string(__func__) + ": GetHDChain failed");
         if (!DecryptHDChain(hdChainCurrent))
-            throw std::runtime_error(std::string(__func__) + ": DecryptHDChainSeed failed");
+            throw std::runtime_error(std::string(__func__) + ": DecryptHDChain failed");
         // make sure seed matches this chain
         if (hdChainCurrent.GetID() != hdChainCurrent.GetSeedHash())
             throw std::runtime_error(std::string(__func__) + ": Wrong HD chain!");
@@ -912,6 +920,11 @@ bool CWallet::EncryptWallet(const SecureString& strWalletPassphrase)
                 LogPrintf("CWallet::EncryptWallet -- could not update passphrase in KeePass: Error: %s\n", e.what());
             }
         }
+
+        // BDB seems to have a bad habit of writing old data into
+        // slack space in .dat files; that is bad if the old data is
+        // unencrypted private keys. So:
+        database->ReloadDbEnv();
 
     }
     NotifyStatusChanged(this);
@@ -1551,7 +1564,7 @@ void CWallet::BlockUntilSyncedToCurrentChain() {
         LOCK(cs_main);
         const CBlockIndex* initialChainTip = chainActive.Tip();
 
-        if (m_last_block_processed->GetAncestor(initialChainTip->nHeight) == initialChainTip) {
+        if (m_last_block_processed && m_last_block_processed->GetAncestor(initialChainTip->nHeight) == initialChainTip) {
             return;
         }
     }
@@ -2496,7 +2509,7 @@ CAmount CWalletTx::GetAnonymizedCredit(const CCoinControl* coinControl) const
 
 CAmount CWalletTx::GetDenominatedCredit(bool unconfirmed, bool fUseCache) const
 {
-    if (pwallet == 0)
+    if (pwallet == nullptr)
         return 0;
 
     // Must wait until coinbase is safely deep enough in the chain before valuing it
@@ -3476,66 +3489,6 @@ bool CWallet::SelectDenominatedAmounts(CAmount nValueMax, std::set<CAmount>& set
     return nValueTotal >= CCoinJoin::GetSmallestDenomination();
 }
 
-bool CWallet::GetMasternodeOutpointAndKeys(COutPoint& outpointRet, CPubKey& pubKeyRet, CKey& keyRet, const std::string& strTxHash, const std::string& strOutputIndex)
-{
-    LOCK2(cs_main, cs_wallet);
-
-    // wait for reindex and/or import to finish
-    if (fImporting || fReindex) return false;
-
-    // Find possible candidates
-    std::vector<COutput> vPossibleCoins;
-    CCoinControl coin_control;
-    coin_control.nCoinType = CoinType::ONLY_MASTERNODE_COLLATERAL;
-    AvailableCoins(vPossibleCoins, true, &coin_control);
-    if(vPossibleCoins.empty()) {
-        LogPrintf("CWallet::GetMasternodeOutpointAndKeys -- Could not locate any valid masternode vin\n");
-        return false;
-    }
-
-    if(strTxHash.empty()) // No output specified, select the first one
-        return GetOutpointAndKeysFromOutput(vPossibleCoins[0], outpointRet, pubKeyRet, keyRet);
-
-    // Find specific outpoint
-    uint256 txHash = uint256S(strTxHash);
-    int nOutputIndex = atoi(strOutputIndex);
-
-    for (const auto& out : vPossibleCoins)
-        if(out.tx->GetHash() == txHash && out.i == nOutputIndex) // found it!
-            return GetOutpointAndKeysFromOutput(out, outpointRet, pubKeyRet, keyRet);
-
-    LogPrintf("CWallet::GetMasternodeOutpointAndKeys -- Could not locate specified masternode vin\n");
-    return false;
-}
-
-bool CWallet::GetOutpointAndKeysFromOutput(const COutput& out, COutPoint& outpointRet, CPubKey& pubKeyRet, CKey& keyRet)
-{
-    // wait for reindex and/or import to finish
-    if (fImporting || fReindex) return false;
-
-    CScript pubScript;
-
-    outpointRet = COutPoint(out.tx->GetHash(), out.i);
-    pubScript = out.tx->tx->vout[out.i].scriptPubKey; // the inputs PubKey
-
-    CTxDestination dest;
-    ExtractDestination(pubScript, dest);
-
-    const CKeyID *keyID = boost::get<CKeyID>(&dest);
-    if (!keyID) {
-        LogPrintf("CWallet::GetOutpointAndKeysFromOutput -- Address does not refer to a key\n");
-        return false;
-    }
-
-    if (!GetKey(*keyID, keyRet)) {
-        LogPrintf ("CWallet::GetOutpointAndKeysFromOutput -- Private key for address is not known\n");
-        return false;
-    }
-
-    pubKeyRet = keyRet.GetPubKey();
-    return true;
-}
-
 int CWallet::CountInputsWithAmount(CAmount nInputAmount) const
 {
     CAmount nTotal = 0;
@@ -3758,10 +3711,10 @@ bool CWallet::CreateTransaction(const std::vector<CRecipient>& vecSend, CTransac
                     std::set<CInputCoin> setCoinsTmp;
                     if (!SelectCoins(vAvailableCoins, nValueToSelect, setCoinsTmp, nValueIn, coin_control, coin_selection_params, bnb_used)) {
                         if (coin_control.nCoinType == CoinType::ONLY_NONDENOMINATED) {
-                            strFailReason = _("Unable to locate enough CoinJoin non-denominated funds for this transaction.");
+                            strFailReason = _("Unable to locate enough non-denominated funds for this transaction.");
                         } else if (coin_control.nCoinType == CoinType::ONLY_FULLY_MIXED) {
-                            strFailReason = _("Unable to locate enough CoinJoin denominated funds for this transaction.");
-                            strFailReason += " " + _("CoinJoin uses exact denominated amounts to send funds, you might simply need to mix some more coins.");
+                            strFailReason = _("Unable to locate enough mixed funds for this transaction.");
+                            strFailReason += " " + strprintf(_("%s uses exact denominated amounts to send funds, you might simply need to mix some more coins."), "CoinJoin");
                         } else if (nValueIn < nValueToSelect) {
                             strFailReason = _("Insufficient funds.");
                         }
@@ -4034,7 +3987,7 @@ bool CWallet::CommitTransaction(CTransactionRef tx, mapValue_t mapValue, std::ve
         wtxNew.fTimeReceivedIsTxTime = true;
         wtxNew.fFromMe = true;
 
-        LogPrintf("CommitTransaction:\n%s\n", wtxNew.tx->ToString());
+        LogPrintf("CommitTransaction:\n%s", wtxNew.tx->ToString()); /* Continued */
         {
             // Take key pair from key pool so it won't be used again
             reservekey.KeepKey();
@@ -4973,7 +4926,7 @@ std::vector<std::string> CWallet::GetDestValues(const std::string& prefix) const
     return values;
 }
 
-bool CWallet::Verify(std::string wallet_file, bool salvage_wallet, std::string& error_string, std::string& warning_string)
+bool CWallet::Verify(const WalletLocation& location, bool salvage_wallet, std::string& error_string, std::string& warning_string)
 {
     // Do some checking on wallet path. It should be either a:
     //
@@ -4982,25 +4935,23 @@ bool CWallet::Verify(std::string wallet_file, bool salvage_wallet, std::string& 
     // 3. Path to a symlink to a directory.
     // 4. For backwards compatibility, the name of a data file in -walletdir.
     LOCK(cs_wallets);
-    fs::path wallet_path = fs::absolute(wallet_file, GetWalletDir());
+    const fs::path& wallet_path = location.GetPath();
     fs::file_type path_type = fs::symlink_status(wallet_path).type();
     if (!(path_type == fs::file_not_found || path_type == fs::directory_file ||
           (path_type == fs::symlink_file && fs::is_directory(wallet_path)) ||
-          (path_type == fs::regular_file && fs::path(wallet_file).filename() == wallet_file))) {
+          (path_type == fs::regular_file && fs::path(location.GetName()).filename() == location.GetName()))) {
         error_string =strprintf(
                 "Invalid -wallet path '%s'. -wallet path should point to a directory where wallet.dat and "
                   "database/log.?????????? files can be stored, a location where such a directory could be created, "
                   "or (for backwards compatibility) the name of an existing data file in -walletdir (%s)",
-                wallet_file, GetWalletDir());
+                location.GetName(), GetWalletDir());
         return false;
     }
 
     // Make sure that the wallet path doesn't clash with an existing wallet path
-    for (auto wallet : GetWallets()) {
-        if (fs::absolute(wallet->GetName(), GetWalletDir()) == wallet_path) {
-            error_string = strprintf("Error loading wallet %s. Duplicate -wallet filename specified.", wallet_file);
-            return false;
-        }
+    if (IsWalletLoaded(wallet_path)) {
+        error_string = strprintf("Error loading wallet %s. Duplicate -wallet filename specified.", location.GetName());
+        return false;
     }
 
     try {
@@ -5008,18 +4959,18 @@ bool CWallet::Verify(std::string wallet_file, bool salvage_wallet, std::string& 
             return false;
         }
     } catch (const fs::filesystem_error& e) {
-        error_string = strprintf("Error loading wallet %s. %s", wallet_file, e.what());
+        error_string = strprintf("Error loading wallet %s. %s", location.GetName(), e.what());
         return false;
     }
 
-    std::unique_ptr<CWallet> tempWallet = MakeUnique<CWallet>(wallet_file, WalletDatabase::Create(wallet_path));
+    std::unique_ptr<CWallet> tempWallet = MakeUnique<CWallet>(location, WalletDatabase::Create(wallet_path));
     if (!tempWallet->AutoBackupWallet(wallet_path, warning_string, error_string) && !error_string.empty()) {
         return false;
     }
 
     if (salvage_wallet) {
         // Recover readable keypairs:
-        CWallet dummyWallet("dummy", WalletDatabase::CreateDummy());
+        CWallet dummyWallet(WalletLocation(), WalletDatabase::CreateDummy());
         std::string backup_filename;
         if (!WalletBatch::Recover(wallet_path, (void *)&dummyWallet, WalletBatch::RecoverKeysOnlyFilter, backup_filename)) {
             return false;
@@ -5029,9 +4980,9 @@ bool CWallet::Verify(std::string wallet_file, bool salvage_wallet, std::string& 
     return WalletBatch::VerifyDatabaseFile(wallet_path, warning_string, error_string);
 }
 
-CWallet* CWallet::CreateWalletFromFile(const std::string& name, const fs::path& path)
+std::shared_ptr<CWallet> CWallet::CreateWalletFromFile(const WalletLocation& location)
 {
-    const std::string& walletFile = name;
+    const std::string& walletFile = location.GetName();
 
     // needed to restore wallet transaction meta data after -zapwallettxes
     std::vector<CWalletTx> vWtx;
@@ -5039,7 +4990,7 @@ CWallet* CWallet::CreateWalletFromFile(const std::string& name, const fs::path& 
     if (gArgs.GetBoolArg("-zapwallettxes", false)) {
         uiInterface.InitMessage(_("Zapping all transactions from wallet..."));
 
-        std::unique_ptr<CWallet> tempWallet = MakeUnique<CWallet>(name, WalletDatabase::Create(path));
+        std::unique_ptr<CWallet> tempWallet = MakeUnique<CWallet>(location, WalletDatabase::Create(location.GetPath()));
         DBErrors nZapWalletRet = tempWallet->ZapWalletTx(vWtx);
         if (nZapWalletRet != DBErrors::LOAD_OK) {
             InitError(strprintf(_("Error loading %s: Wallet corrupted"), walletFile));
@@ -5051,10 +5002,9 @@ CWallet* CWallet::CreateWalletFromFile(const std::string& name, const fs::path& 
 
     int64_t nStart = GetTimeMillis();
     bool fFirstRun = true;
-    // Make a temporary wallet unique pointer so memory doesn't get leaked if
-    // wallet creation fails.
-    auto temp_wallet = MakeUnique<CWallet>(name, WalletDatabase::Create(path));
-    CWallet *walletInstance = temp_wallet.get();
+    // TODO: Can't use std::make_shared because we need a custom deleter but
+    // should be possible to use std::allocate_shared.
+    std::shared_ptr<CWallet> walletInstance(new CWallet(location, WalletDatabase::Create(location.GetPath())), ReleaseWallet);
     AddWallet(walletInstance);
     auto error = [&](const std::string& strError) {
         RemoveWallet(walletInstance);
@@ -5119,10 +5069,10 @@ CWallet* CWallet::CreateWalletFromFile(const std::string& name, const fs::path& 
                 CHDChain newHdChain;
                 std::vector<unsigned char> vchSeed = ParseHex(strSeed);
                 if (!newHdChain.SetSeed(SecureVector(vchSeed.begin(), vchSeed.end()), true)) {
-                    throw std::runtime_error(std::string(__func__) + ": SetSeed failed");
+                    return error(_("SetSeed failed"));
                 }
                 if (!walletInstance->SetHDChainSingle(newHdChain, false)) {
-                    throw std::runtime_error(std::string(__func__) + ": SetHDChainSingle failed");
+                    return error(_("SetHDChainSingle failed"));
                 }
                 newHdChain.Debug(__func__);
             } else {
@@ -5229,7 +5179,7 @@ CWallet* CWallet::CreateWalletFromFile(const std::string& name, const fs::path& 
 
         nStart = GetTimeMillis();
         {
-            WalletRescanReserver reserver(walletInstance);
+            WalletRescanReserver reserver(walletInstance.get());
             if (!reserver.reserve()) {
                 return error(_("Failed to rescan the wallet during initialization"));
             }
@@ -5268,7 +5218,7 @@ CWallet* CWallet::CreateWalletFromFile(const std::string& name, const fs::path& 
     uiInterface.LoadWallet(walletInstance);
 
     // Register with the validation interface. It's ok to do this after rescan since we're still holding cs_main.
-    RegisterValidationInterface(temp_wallet.release());
+    RegisterValidationInterface(walletInstance.get());
 
     walletInstance->SetBroadcastTransactions(gArgs.GetBoolArg("-walletbroadcast", DEFAULT_WALLETBROADCAST));
 
@@ -5312,7 +5262,10 @@ bool CWallet::BackupWallet(const std::string& strDest)
 bool CWallet::AutoBackupWallet(const fs::path& wallet_path, std::string& strBackupWarningRet, std::string& strBackupErrorRet)
 {
     strBackupWarningRet = strBackupErrorRet = "";
-    std::string strWalletName = m_name.empty() ? "wallet.dat" : m_name;
+    std::string strWalletName = GetName();
+    if (strWalletName.empty()) {
+        strWalletName = "wallet.dat";
+    }
 
     if (nWalletBackups <= 0) {
         LogPrintf("Automatic wallet backups are disabled!\n");

@@ -695,12 +695,12 @@ void CSigningManager::ProcessRecoveredSig(const std::shared_ptr<const CRecovered
         auto signHash = CLLMQUtils::BuildSignHash(*recoveredSig);
 
         LogPrint(BCLog::LLMQ, "CSigningManager::%s -- valid recSig. signHash=%s, id=%s, msgHash=%s\n", __func__,
-                signHash.ToString(), recoveredSig->id   .ToString(), recoveredSig->msgHash.ToString());
+                signHash.ToString(), recoveredSig->id.ToString(), recoveredSig->msgHash.ToString());
 
         if (db.HasRecoveredSigForId(llmqType, recoveredSig->id)) {
             CRecoveredSig otherRecoveredSig;
             if (db.GetRecoveredSigById(llmqType, recoveredSig->id, otherRecoveredSig)) {
-                auto otherSignHash = CLLMQUtils::BuildSignHash(*recoveredSig);
+                auto otherSignHash = CLLMQUtils::BuildSignHash(otherRecoveredSig);
                 if (signHash != otherSignHash) {
                     // this should really not happen, as each masternode is participating in only one vote,
                     // even if it's a member of multiple quorums. so a majority is only possible on one quorum and one msgHash per id
@@ -912,7 +912,7 @@ CQuorumCPtr CSigningManager::SelectQuorumForSigning(Consensus::LLMQType llmqType
         pindexStart = chainActive[startBlockHeight];
     }
 
-    auto quorums =  quorumManager->ScanQuorums(llmqType, pindexStart, poolSize);
+    auto quorums = quorumManager->ScanQuorums(llmqType, pindexStart, poolSize);
     if (quorums.empty()) {
         return nullptr;
     }
@@ -930,9 +930,9 @@ CQuorumCPtr CSigningManager::SelectQuorumForSigning(Consensus::LLMQType llmqType
     return quorums[scores.front().second];
 }
 
-bool CSigningManager::VerifyRecoveredSig(Consensus::LLMQType llmqType, int signedAtHeight, const uint256& id, const uint256& msgHash, const CBLSSignature& sig)
+bool CSigningManager::VerifyRecoveredSig(Consensus::LLMQType llmqType, int signedAtHeight, const uint256& id, const uint256& msgHash, const CBLSSignature& sig, const int signOffset)
 {
-    auto quorum = SelectQuorumForSigning(llmqType, id, signedAtHeight);
+    auto quorum = SelectQuorumForSigning(llmqType, id, signedAtHeight, signOffset);
     if (!quorum) {
         return false;
     }

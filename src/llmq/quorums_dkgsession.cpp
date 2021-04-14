@@ -471,6 +471,7 @@ void CDKGSession::VerifyConnectionAndMinProtoVersions()
         protoMap.emplace(pnode->verifiedProRegTxHash, pnode->nVersion);
     });
 
+    bool fShouldAllMembersBeConnected = CLLMQUtils::IsAllMembersConnectedEnabled(params.type);
     for (auto& m : members) {
         if (m->dmn->proTxHash == myProTxHash) {
             continue;
@@ -478,8 +479,8 @@ void CDKGSession::VerifyConnectionAndMinProtoVersions()
 
         auto it = protoMap.find(m->dmn->proTxHash);
         if (it == protoMap.end()) {
-            m->badConnection = true;
-            logger.Batch("%s is not connected to us", m->dmn->proTxHash.ToString());
+            m->badConnection = fShouldAllMembersBeConnected;
+            logger.Batch("%s is not connected to us, badConnection=%b", m->dmn->proTxHash.ToString(), m->badConnection);
         } else if (it != protoMap.end() && it->second < MIN_MASTERNODE_PROTO_VERSION) {
             m->badConnection = true;
             logger.Batch("%s does not have min proto version %d (has %d)", m->dmn->proTxHash.ToString(), MIN_MASTERNODE_PROTO_VERSION, it->second);
@@ -1280,11 +1281,18 @@ std::vector<CFinalCommitment> CDKGSession::FinalizeCommitments()
         }
         t2.stop();
 
+        cxxtimer::Timer t3(true);
+        if (!fqc.Verify(pindexQuorum, true)) {
+            logger.Batch("failed to verify final commitment");
+            continue;
+        }
+        t3.stop();
+
         finalCommitments.emplace_back(fqc);
 
-        logger.Batch("final commitment: validMembers=%d, signers=%d, quorumPublicKey=%s, time1=%d, time2=%d",
+        logger.Batch("final commitment: validMembers=%d, signers=%d, quorumPublicKey=%s, time1=%d, time2=%d, time3=%d",
                         fqc.CountValidMembers(), fqc.CountSigners(), fqc.quorumPublicKey.ToString(),
-                        t1.count(), t2.count());
+                        t1.count(), t2.count(), t3.count());
     }
 
     logger.Flush();

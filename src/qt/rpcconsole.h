@@ -49,6 +49,7 @@ public:
 
     void setClientModel(ClientModel *model);
     void addWallet(WalletModel * const walletModel);
+    void removeWallet(WalletModel* const walletModel);
 
     enum MessageClass {
         MC_ERROR,
@@ -156,6 +157,8 @@ private:
     void updateNodeDetail(const CNodeCombinedStats *stats);
     /** Set required icons for buttons inside the dialog */
     void setButtonIcons();
+    /** Reload some themes related widgets */
+    void reloadThemedWidgets();
 
     enum ColumnWidths
     {

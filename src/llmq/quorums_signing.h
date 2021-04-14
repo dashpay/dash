@@ -7,13 +7,14 @@
 
 #include <llmq/quorums.h>
 
-#include <net.h>
 #include <chainparams.h>
 #include <saltedhasher.h>
 #include <univalue.h>
 #include <unordered_lru_cache.h>
 
 #include <unordered_map>
+
+typedef int64_t NodeId;
 
 namespace llmq
 {
@@ -186,7 +187,7 @@ public:
     static CQuorumCPtr SelectQuorumForSigning(Consensus::LLMQType llmqType, const uint256& selectionHash, int signHeight = -1 /*chain tip*/, int signOffset = SIGN_HEIGHT_OFFSET);
 
     // Verifies a recovered sig that was signed while the chain tip was at signedAtTip
-    static bool VerifyRecoveredSig(Consensus::LLMQType llmqType, int signedAtHeight, const uint256& id, const uint256& msgHash, const CBLSSignature& sig);
+    static bool VerifyRecoveredSig(Consensus::LLMQType llmqType, int signedAtHeight, const uint256& id, const uint256& msgHash, const CBLSSignature& sig, int signOffset = SIGN_HEIGHT_OFFSET);
 };
 
 extern CSigningManager* quorumSigningManager;

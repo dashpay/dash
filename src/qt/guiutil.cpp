@@ -95,12 +95,14 @@ static const QString traditionalTheme = "Traditional";
 static const QString defaultTheme = "Light";
 // The prefix a theme name should have if we want to apply dark colors and styles to it
 static const QString darkThemePrefix = "Dark";
-// Mapping css file => theme.
-static const std::map<QString, QString> mapStyleToTheme{
-    {"general.css", ""},
-    {"dark.css", "Dark"},
-    {"light.css", "Light"},
-    {"traditional.css", "Traditional"}
+// The theme to set as a base one for non-traditional themes
+static const QString generalTheme = "general";
+// Mapping theme => css file
+static const std::map<QString, QString> mapThemeToStyle{
+    {generalTheme, "general.css"},
+    {"Dark", "dark.css"},
+    {"Light", "light.css"},
+    {"Traditional", "traditional.css"},
 };
 
 /** loadFonts stores the SystemDefault font in osDefaultFont to be able to reference it later again */
@@ -1055,8 +1057,8 @@ bool isStyleSheetDirectoryCustom()
 const std::vector<QString> listStyleSheets()
 {
     std::vector<QString> vecStylesheets;
-    for (const auto& it : mapStyleToTheme) {
-        vecStylesheets.push_back(it.first);
+    for (const auto& it : mapThemeToStyle) {
+        vecStylesheets.push_back(it.second);
     }
     return vecStylesheets;
 }
@@ -1064,10 +1066,9 @@ const std::vector<QString> listStyleSheets()
 const std::vector<QString> listThemes()
 {
     std::vector<QString> vecThemes;
-    for (const auto& it : mapStyleToTheme) {
-        if (!it.second.isEmpty()) {
-            vecThemes.push_back(it.second);
-        }
+    for (const auto& it : mapThemeToStyle) {
+        if (it.first == generalTheme) continue;
+        vecThemes.push_back(it.first);
     }
     return vecThemes;
 }
@@ -1082,13 +1083,12 @@ const bool isValidTheme(const QString& strTheme)
     return strTheme == defaultTheme || strTheme == darkThemePrefix || strTheme == traditionalTheme;
 }
 
-void loadStyleSheet(QWidget* widget, bool fForceUpdate)
+void loadStyleSheet(bool fForceUpdate)
 {
     AssertLockNotHeld(cs_css);
     LOCK(cs_css);
 
     static std::unique_ptr<QString> stylesheet;
-    static std::set<QWidget*> setWidgets;
 
     bool fDebugCustomStyleSheets = gArgs.GetBoolArg("-debug-ui", false) && isStyleSheetDirectoryCustom();
     bool fStyleSheetChanged = false;
@@ -1161,14 +1161,14 @@ void loadStyleSheet(QWidget* widget, bool fForceUpdate)
             return true;
         };
 
-        auto pathToFile = [&](const QString& file) -> QString {
-            return stylesheetDirectory + "/" + file + (isStyleSheetDirectoryCustom() ? ".css" : "");
+        auto pathToFile = [&](const QString& theme) -> QString {
+            return stylesheetDirectory + "/" + (isStyleSheetDirectoryCustom() ? mapThemeToStyle.at(theme) : theme);
         };
 
         std::vector<QString> vecFiles;
         // If light/dark theme is used load general styles first
         if (dashThemeActive()) {
-            vecFiles.push_back(pathToFile("general"));
+            vecFiles.push_back(pathToFile(generalTheme));
         }
         vecFiles.push_back(pathToFile(getActiveTheme()));
 
@@ -1177,26 +1177,8 @@ void loadStyleSheet(QWidget* widget, bool fForceUpdate)
 
     bool fUpdateStyleSheet = fForceUpdate || (fDebugCustomStyleSheets && fStyleSheetChanged);
 
-    if (widget) {
-        setWidgets.insert(widget);
-        widget->setStyleSheet(*stylesheet);
-    }
-
-    QWidgetList allWidgets = QApplication::allWidgets();
-    auto it = setWidgets.begin();
-    while (it != setWidgets.end()) {
-        if (!allWidgets.contains(*it)) {
-            it = setWidgets.erase(it);
-            continue;
-        }
-        if (fUpdateStyleSheet && *it != widget) {
-            (*it)->setStyleSheet(*stylesheet);
-        }
-        ++it;
-    }
-
-    if (!ShutdownRequested() && fDebugCustomStyleSheets && !fForceUpdate) {
-        QTimer::singleShot(200, [] { loadStyleSheet(); });
+    if (fUpdateStyleSheet && stylesheet != nullptr) {
+        qApp->setStyleSheet(*stylesheet);
     }
 }
 
@@ -1702,19 +1684,23 @@ int supportedWeightToIndex(QFont::Weight weight)
 QString getActiveTheme()
 {
     QSettings settings;
-    return settings.value("theme", defaultTheme).toString();
+    QString theme = settings.value("theme", defaultTheme).toString();
+    if (!isValidTheme(theme)) {
+        return defaultTheme;
+    }
+    return theme;
 }
 
 bool dashThemeActive()
 {
     QSettings settings;
-    QString theme = settings.value("theme", "").toString();
+    QString theme = settings.value("theme", defaultTheme).toString();
     return theme != traditionalTheme;
 }
 
-void loadTheme(QWidget* widget, bool fForce)
+void loadTheme(bool fForce)
 {
-    loadStyleSheet(widget, fForce);
+    loadStyleSheet(fForce);
     updateFonts();
     updateMacFocusRects();
 }

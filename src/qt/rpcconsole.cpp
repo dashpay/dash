@@ -541,7 +541,7 @@ RPCConsole::RPCConsole(interfaces::Node& node, QWidget* parent, Qt::WindowFlags 
 
     showPage(TAB_INFO);
 
-    clear();
+    reloadThemedWidgets();
 }
 
 RPCConsole::~RPCConsole()
@@ -723,7 +723,6 @@ void RPCConsole::setClientModel(ClientModel *model)
         autoCompleter = new QCompleter(wordList, this);
         autoCompleter->popup()->setItemDelegate(new QStyledItemDelegate(this));
         autoCompleter->popup()->setObjectName("rpcAutoCompleter");
-        GUIUtil::loadStyleSheet(autoCompleter->popup());
         autoCompleter->setModelSorting(QCompleter::CaseSensitivelySortedModel);
         ui->lineEdit->setCompleter(autoCompleter);
         autoCompleter->popup()->installEventFilter(this);
@@ -743,7 +742,8 @@ void RPCConsole::addWallet(WalletModel * const walletModel)
 {
     const QString name = walletModel->getWalletName();
     // use name for text and internal data object (to allow to move to a wallet id later)
-    ui->WalletSelector->addItem(name, name);
+    QString display_name = name.isEmpty() ? "["+tr("default wallet")+"]" : name;
+    ui->WalletSelector->addItem(display_name, name);
     if (ui->WalletSelector->count() == 2 && !isVisible()) {
         // First wallet added, set to default so long as the window isn't presently visible (and potentially in use)
         ui->WalletSelector->setCurrentIndex(1);
@@ -751,6 +751,16 @@ void RPCConsole::addWallet(WalletModel * const walletModel)
     if (ui->WalletSelector->count() > 2) {
         ui->WalletSelector->setVisible(true);
         ui->WalletSelectorLabel->setVisible(true);
+    }
+}
+
+void RPCConsole::removeWallet(WalletModel * const walletModel)
+{
+    const QString name = walletModel->getWalletName();
+    ui->WalletSelector->removeItem(ui->WalletSelector->findData(name));
+    if (ui->WalletSelector->count() == 2) {
+        ui->WalletSelector->setVisible(false);
+        ui->WalletSelectorLabel->setVisible(false);
     }
 }
 #endif
@@ -1283,6 +1293,14 @@ void RPCConsole::setButtonIcons()
     GUIUtil::setIcon(ui->fontSmallerButton, "fontsmaller", GUIUtil::ThemedColor::BLUE, consoleButtonsSize);
 }
 
+void RPCConsole::reloadThemedWidgets()
+{
+    clear();
+    ui->promptLabel->setHidden(GUIUtil::dashThemeActive());
+    // Adjust button icon colors on theme changes
+    setButtonIcons();
+}
+
 void RPCConsole::resizeEvent(QResizeEvent *event)
 {
     QWidget::resizeEvent(event);
@@ -1315,10 +1333,7 @@ void RPCConsole::hideEvent(QHideEvent *event)
 void RPCConsole::changeEvent(QEvent* e)
 {
     if (e->type() == QEvent::StyleChange) {
-        clear();
-        ui->promptLabel->setHidden(GUIUtil::dashThemeActive());
-        // Adjust button icon colors on theme changes
-        setButtonIcons();
+        reloadThemedWidgets();
     }
 
     QWidget::changeEvent(e);

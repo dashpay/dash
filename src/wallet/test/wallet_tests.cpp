@@ -49,7 +49,7 @@ BOOST_FIXTURE_TEST_CASE(rescan, TestChain100Setup)
     // Verify ScanForWalletTransactions picks up transactions in both the old
     // and new block files.
     {
-        CWallet wallet("dummy", WalletDatabase::CreateDummy());
+        CWallet wallet(WalletLocation(), WalletDatabase::CreateDummy());
         AddKey(wallet, coinbaseKey);
         WalletRescanReserver reserver(&wallet);
         reserver.reserve();
@@ -64,7 +64,7 @@ BOOST_FIXTURE_TEST_CASE(rescan, TestChain100Setup)
     // Verify ScanForWalletTransactions only picks transactions in the new block
     // file.
     {
-        CWallet wallet("dummy", WalletDatabase::CreateDummy());
+        CWallet wallet(WalletLocation(), WalletDatabase::CreateDummy());
         AddKey(wallet, coinbaseKey);
         WalletRescanReserver reserver(&wallet);
         reserver.reserve();
@@ -76,8 +76,8 @@ BOOST_FIXTURE_TEST_CASE(rescan, TestChain100Setup)
     // before the missing block, and success for a key whose creation time is
     // after.
     {
-        CWallet wallet("dummy", WalletDatabase::CreateDummy());
-        AddWallet(&wallet);
+        std::shared_ptr<CWallet> wallet = std::make_shared<CWallet>(WalletLocation(), WalletDatabase::CreateDummy());
+        AddWallet(wallet);
         UniValue keys;
         keys.setArray();
         UniValue key;
@@ -108,7 +108,7 @@ BOOST_FIXTURE_TEST_CASE(rescan, TestChain100Setup)
                       "downloading and rescanning the relevant blocks (see -reindex and -rescan "
                       "options).\"}},{\"success\":true}]",
                               0, oldTip->GetBlockTimeMax(), TIMESTAMP_WINDOW));
-        RemoveWallet(&wallet);
+        RemoveWallet(wallet);
     }
 }
 
@@ -137,36 +137,36 @@ BOOST_FIXTURE_TEST_CASE(importwallet_rescan, TestChain100Setup)
 
     // Import key into wallet and call dumpwallet to create backup file.
     {
-        CWallet wallet("dummy", WalletDatabase::CreateDummy());
-        LOCK(wallet.cs_wallet);
-        wallet.mapKeyMetadata[coinbaseKey.GetPubKey().GetID()].nCreateTime = KEY_TIME;
-        wallet.AddKeyPubKey(coinbaseKey, coinbaseKey.GetPubKey());
+        std::shared_ptr<CWallet> wallet = std::make_shared<CWallet>(WalletLocation(), WalletDatabase::CreateDummy());
+        LOCK(wallet->cs_wallet);
+        wallet->mapKeyMetadata[coinbaseKey.GetPubKey().GetID()].nCreateTime = KEY_TIME;
+        wallet->AddKeyPubKey(coinbaseKey, coinbaseKey.GetPubKey());
 
         JSONRPCRequest request;
         request.params.setArray();
         request.params.push_back(backup_file);
-        AddWallet(&wallet);
+        AddWallet(wallet);
         ::dumpwallet(request);
-        RemoveWallet(&wallet);
+        RemoveWallet(wallet);
     }
 
     // Call importwallet RPC and verify all blocks with timestamps >= BLOCK_TIME
     // were scanned, and no prior blocks were scanned.
     {
-        CWallet wallet("dummy", WalletDatabase::CreateDummy());
+        std::shared_ptr<CWallet> wallet = std::make_shared<CWallet>(WalletLocation(), WalletDatabase::CreateDummy());
 
         JSONRPCRequest request;
         request.params.setArray();
         request.params.push_back(backup_file);
-        AddWallet(&wallet);
+        AddWallet(wallet);
         ::importwallet(request);
-        RemoveWallet(&wallet);
+        RemoveWallet(wallet);
 
-        LOCK(wallet.cs_wallet);
-        BOOST_CHECK_EQUAL(wallet.mapWallet.size(), 3);
+        LOCK(wallet->cs_wallet);
+        BOOST_CHECK_EQUAL(wallet->mapWallet.size(), 3);
         BOOST_CHECK_EQUAL(coinbaseTxns.size(), 103);
         for (size_t i = 0; i < coinbaseTxns.size(); ++i) {
-            bool found = wallet.GetWalletTx(coinbaseTxns[i].GetHash());
+            bool found = wallet->GetWalletTx(coinbaseTxns[i].GetHash());
             bool expected = i >= 100;
             BOOST_CHECK_EQUAL(found, expected);
         }
@@ -183,7 +183,7 @@ BOOST_FIXTURE_TEST_CASE(importwallet_rescan, TestChain100Setup)
 // debit functions.
 BOOST_FIXTURE_TEST_CASE(coin_mark_dirty_immature_credit, TestChain100Setup)
 {
-    CWallet wallet("dummy", WalletDatabase::CreateDummy());
+    CWallet wallet(WalletLocation(), WalletDatabase::CreateDummy());
     CWalletTx wtx(&wallet, MakeTransactionRef(coinbaseTxns.back()));
     LOCK2(cs_main, wallet.cs_wallet);
     wtx.hashBlock = chainActive.Tip()->GetBlockHash();
@@ -276,7 +276,7 @@ public:
     ListCoinsTestingSetup()
     {
         CreateAndProcessBlock({}, GetScriptForRawPubKey(coinbaseKey.GetPubKey()));
-        wallet = MakeUnique<CWallet>("mock", WalletDatabase::CreateMock());
+        wallet = MakeUnique<CWallet>(WalletLocation(), WalletDatabase::CreateMock());
         bool firstRun;
         wallet->LoadWallet(firstRun);
         AddKey(*wallet, coinbaseKey);
@@ -385,8 +385,8 @@ public:
     const std::string strTooSmallToPayFee = "The transaction amount is too small to pay the fee";
     const std::string strTooSmallAfterFee = "The transaction amount is too small to send after the fee has been deducted";
     const std::string strTooSmall = "Transaction amount too small";
-    const std::string strUnableToLocateCoinJoin1 = "Unable to locate enough CoinJoin non-denominated funds for this transaction.";
-    const std::string strUnableToLocateCoinJoin2 = "Unable to locate enough CoinJoin denominated funds for this transaction. CoinJoin uses exact denominated amounts to send funds, you might simply need to mix some more coins.";
+    const std::string strUnableToLocateCoinJoin1 = "Unable to locate enough non-denominated funds for this transaction.";
+    const std::string strUnableToLocateCoinJoin2 = "Unable to locate enough mixed funds for this transaction. CoinJoin uses exact denominated amounts to send funds, you might simply need to mix some more coins.";
     const std::string strTransactionTooLarge = "Transaction too large";
     const std::string strTransactionTooLargeForFeePolicy = "Transaction too large for fee policy";
     const std::string strChangeIndexOutOfRange = "Change index out of range";
@@ -395,10 +395,10 @@ public:
     CreateTransactionTestSetup()
     {
         CreateAndProcessBlock({}, GetScriptForRawPubKey(coinbaseKey.GetPubKey()));
-        wallet = MakeUnique<CWallet>("mock", WalletDatabase::CreateMock());
+        wallet = MakeUnique<CWallet>(WalletLocation(), WalletDatabase::CreateMock());
         bool firstRun;
         wallet->LoadWallet(firstRun);
-        AddWallet(wallet.get());
+        AddWallet(wallet);
         AddKey(*wallet, coinbaseKey);
         WalletRescanReserver reserver(wallet.get());
         reserver.reserve();
@@ -407,10 +407,10 @@ public:
 
     ~CreateTransactionTestSetup()
     {
-        RemoveWallet(wallet.get());
+        RemoveWallet(wallet);
     }
 
-    std::unique_ptr<CWallet> wallet;
+    std::shared_ptr<CWallet> wallet;
     CCoinControl coinControl;
 
     template <typename T>

@@ -35,7 +35,7 @@
 #include <config/dash-config.h>
 #endif
 #ifdef ENABLE_WALLET
-#include <coinjoin/coinjoin-client.h>
+#include <coinjoin/coinjoin-client-options.h>
 #include <wallet/fees.h>
 #include <wallet/wallet.h>
 #define CHECK_WALLET(x) x
@@ -195,7 +195,7 @@ class NodeImpl : public Node
             StopMapPort();
         }
     }
-    std::string helpMessage(HelpMessageMode mode) override { return HelpMessage(mode); }
+    void setupServerArgs() override { return SetupServerArgs(); }
     bool getProxy(Network net, proxyType& proxy_info) override { return GetProxy(net, proxy_info); }
     size_t getNodeCount(CConnman::NumConnections flags) override
     {
@@ -356,8 +356,8 @@ class NodeImpl : public Node
     {
 #ifdef ENABLE_WALLET
         std::vector<std::unique_ptr<Wallet>> wallets;
-        for (CWalletRef wallet : GetWallets()) {
-            wallets.emplace_back(MakeWallet(*wallet));
+        for (const std::shared_ptr<CWallet>& wallet : GetWallets()) {
+            wallets.emplace_back(MakeWallet(wallet));
         }
         return wallets;
 #else
@@ -390,7 +390,7 @@ class NodeImpl : public Node
     std::unique_ptr<Handler> handleLoadWallet(LoadWalletFn fn) override
     {
         CHECK_WALLET(
-            return MakeHandler(::uiInterface.LoadWallet.connect([fn](CWallet* wallet) { fn(MakeWallet(*wallet)); })));
+            return MakeHandler(::uiInterface.LoadWallet.connect([fn](std::shared_ptr<CWallet> wallet) { fn(MakeWallet(wallet)); })));
     }
     std::unique_ptr<Handler> handleNotifyNumConnectionsChanged(NotifyNumConnectionsChangedFn fn) override
     {

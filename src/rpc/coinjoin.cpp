@@ -5,16 +5,20 @@
 #include <validation.h>
 #ifdef ENABLE_WALLET
 #include <coinjoin/coinjoin-client.h>
+#include <coinjoin/coinjoin-client-options.h>
+#include <wallet/rpcwallet.h>
 #endif // ENABLE_WALLET
 #include <coinjoin/coinjoin-server.h>
 #include <rpc/server.h>
+#include <version.h>
 
 #include <univalue.h>
 
 #ifdef ENABLE_WALLET
 UniValue coinjoin(const JSONRPCRequest& request)
 {
-    CWallet* const pwallet = GetWalletForJSONRPCRequest(request);
+    std::shared_ptr<CWallet> const wallet = GetWalletForJSONRPCRequest(request);
+    CWallet* const pwallet = wallet.get();
     if (!EnsureWalletIsAvailable(pwallet, request.fHelp))
         return NullUniValue;
 
@@ -141,7 +145,8 @@ UniValue getcoinjoininfo(const JSONRPCRequest& request)
 
     obj.pushKV("queue_size", coinJoinClientQueueManager.GetQueueSize());
 
-    CWallet* const pwallet = GetWalletForJSONRPCRequest(request);
+    std::shared_ptr<CWallet> const wallet = GetWalletForJSONRPCRequest(request);
+    CWallet* const pwallet = wallet.get();
     if (!pwallet) {
         return obj;
     }
@@ -149,8 +154,8 @@ UniValue getcoinjoininfo(const JSONRPCRequest& request)
     coinJoinClientManagers.at(pwallet->GetName())->GetJsonInfo(obj);
 
     obj.pushKV("keys_left",     pwallet->nKeysLeftSinceAutoBackup);
-    obj.push_back(Pair("warnings",      pwallet->nKeysLeftSinceAutoBackup < COINJOIN_KEYS_THRESHOLD_WARNING
-                                        ? "WARNING: keypool is almost depleted!" : ""));
+    obj.pushKV("warnings",      pwallet->nKeysLeftSinceAutoBackup < COINJOIN_KEYS_THRESHOLD_WARNING
+                                        ? "WARNING: keypool is almost depleted!" : "");
 #endif // ENABLE_WALLET
 
     return obj;
