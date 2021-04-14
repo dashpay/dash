@@ -41,7 +41,7 @@ jobs:
           type=match,pattern=v(\d+.\d+.\d+),group=1,enable=${{ !contains(github.event.release.tag_name, '-rc') }}
           type=match,pattern=v(\d+.\d+),group=1,enable=${{ !contains(github.event.release.tag_name, '-rc') }}
           type=match,pattern=v(.*),group=1,latest=false,,enable=${{ contains(github.event.release.tag_name, '-rc') }}
-          type=match,pattern=v(.*),group=1,latest=true,suffix=-dev,enable=${{ contains(github.event.release.tag_name, '-rc') }}
+          type=raw,value=latest-dev,enable=${{ contains(github.event.release.tag_name, '-rc') }}
 
 #    - name: Build and push
 #      id: docker_build
