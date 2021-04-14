@@ -31,24 +31,16 @@ jobs:
         username: ${{ secrets.DOCKERHUB_USERNAME }}
         password: ${{ secrets.DOCKERHUB_TOKEN }}
 
-    - name: Set suffix to Docker tags
-      uses: actions/github-script@v3
-      id: suffix
-      with:
-        result-encoding: string
-        script: "return (context.payload.release.tag_name.includes('-rc') ? '-dev' : '');"
-
     - name: Docker meta
       id: docker_meta
       uses: crazy-max/ghaction-docker-meta@v2
       with:
         images: strophy/dashd
         tags: |
-          type=semver,pattern={{version}}
           type=match,pattern=v(\d+.\d+.\d+.\d+),group=1,enable=${{ !contains(github.event.release.tag_name, '-rc') }}
           type=match,pattern=v(\d+.\d+.\d+),group=1,enable=${{ !contains(github.event.release.tag_name, '-rc') }}
           type=match,pattern=v(\d+.\d+),group=1,enable=${{ !contains(github.event.release.tag_name, '-rc') }}
-          type=match,pattern=v(.*),group=1,suffix=${{ steps.suffix.outputs.result }},enable=${{ contains(github.event.release.tag_name, '-rc') }}
+          type=match,pattern=v(.*),group=1,suffix=-dev,enable=${{ contains(github.event.release.tag_name, '-rc') }}
 
 #    - name: Build and push
 #      id: docker_build
