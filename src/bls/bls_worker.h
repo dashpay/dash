@@ -69,7 +69,7 @@ public:
     // The result is in the following form:
     //   [ a1+a2+a3+a4, b1+b2+b3+b4, c1+c2+c3+c4, d1+d2+d3+d4]
     // Multiple things can be parallelized here. For example, all 4 entries in the result vector can be calculated in parallel
-    // Also, each individual vector can be split into multiple batches and aggregating the batches can also be paralellized.
+    // Also, each individual vector can be split into multiple batches and aggregating the batches can also be parallelized.
     void AsyncBuildQuorumVerificationVector(const std::vector<BLSVerificationVectorPtr>& vvecs,
                                             size_t start, size_t count, bool parallel,
                                             std::function<void(const BLSVerificationVectorPtr&)> doneCallback);
@@ -82,7 +82,7 @@ public:
     // Inputs are in the following form:
     //   [a, b, c, d],
     // The result is simply a+b+c+d
-    // Aggregation is paralellized by splitting up the input vector into multiple batches and then aggregating the individual batch results
+    // Aggregation is parallelized by splitting up the input vector into multiple batches and then aggregating the individual batch results
     void AsyncAggregateSecretKeys(const BLSSecretKeyVector& secKeys,
                                   size_t start, size_t count, bool parallel,
                                   std::function<void(const CBLSSecretKey&)> doneCallback);
@@ -123,7 +123,7 @@ public:
 
     std::future<bool> AsyncVerifyContributionShare(const CBLSId& forId, const BLSVerificationVectorPtr& vvec, const CBLSSecretKey& skContribution);
 
-    // Non paralellized verification of a single contribution
+    // Non parallelized verification of a single contribution
     bool VerifyContributionShare(const CBLSId& forId, const BLSVerificationVectorPtr& vvec, const CBLSSecretKey& skContribution);
 
     // Simple verification of vectors. Checks x.IsValid() for every entry and checks for duplicate entries
