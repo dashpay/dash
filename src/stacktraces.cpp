@@ -21,6 +21,7 @@
 #if WIN32
 #include <windows.h>
 #include <dbghelp.h>
+#include <thread>
 #else
 #ifdef ENABLE_STACKTRACES
 #include <execinfo.h>
