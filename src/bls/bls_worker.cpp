@@ -575,7 +575,7 @@ struct ContributionVerifier {
         }
     }
 
-    bool Verify(const BLSVerificationVectorPtr& vvec, const CBLSSecretKey& skShare)
+    bool Verify(const BLSVerificationVectorPtr& vvec, const CBLSSecretKey& skShare) const
     {
         CBLSPublicKey pk1;
         if (!pk1.PublicKeyShare(*vvec, forId)) {
