@@ -830,7 +830,7 @@ bool CBLSWorker::VerifySignatureVector(const BLSSignatureVector& sigs, size_t st
     return VerifyVectorHelper(sigs, start, count);
 }
 
-void CBLSWorker::AsyncSign(const CBLSSecretKey& secKey, const uint256& msgHash, CBLSWorker::SignDoneCallback doneCallback)
+void CBLSWorker::AsyncSign(const CBLSSecretKey& secKey, const uint256& msgHash, const CBLSWorker::SignDoneCallback& doneCallback)
 {
     workerPool.push([secKey, msgHash, doneCallback](int threadId) {
         doneCallback(secKey.Sign(msgHash));
@@ -890,7 +890,7 @@ bool CBLSWorker::IsAsyncVerifyInProgress()
 // sigVerifyMutex must be held while calling
 void CBLSWorker::PushSigVerifyBatch()
 {
-    auto f = [this](int threadId, std::shared_ptr<std::vector<SigVerifyJob> > _jobs) {
+    auto f = [this](int threadId, const std::shared_ptr<std::vector<SigVerifyJob> >& _jobs) {
         auto& jobs = *_jobs;
         if (jobs.size() == 1) {
             auto& job = jobs[0];
