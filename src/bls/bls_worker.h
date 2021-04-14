@@ -174,7 +174,7 @@ public:
     CBLSPublicKey BuildPubKeyShare(const uint256& cacheKey, const BLSVerificationVectorPtr& vvec, const CBLSId& id)
     {
         return GetOrBuild(cacheKey, publicKeyShareCache, [&]() {
-            return worker.BuildPubKeyShare(vvec, id);
+            return CBLSWorker::BuildPubKeyShare(vvec, id);
         });
     }
 
