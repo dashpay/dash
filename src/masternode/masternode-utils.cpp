@@ -10,6 +10,7 @@
 #endif
 #include <init.h>
 #include <masternode/masternode-sync.h>
+#include <net.h>
 #include <validation.h>
 
 
