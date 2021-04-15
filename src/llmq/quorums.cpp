@@ -292,10 +292,10 @@ CQuorumPtr CQuorumManager::BuildQuorumFromCommitment(const Consensus::LLMQType l
     AssertLockHeld(quorumsCacheCs);
     assert(pindexQuorum);
 
-    CFinalCommitmentPtr qc;
     const uint256& quorumHash{pindexQuorum->GetBlockHash()};
     uint256 minedBlockHash;
-    if (!quorumBlockProcessor->GetMinedCommitment(llmqType, quorumHash, *qc, minedBlockHash)) {
+    CFinalCommitmentPtr qc = quorumBlockProcessor->GetMinedCommitment(llmqType, quorumHash, minedBlockHash);
+    if (qc == nullptr) {
         return nullptr;
     }
     assert(qc->quorumHash == pindexQuorum->GetBlockHash());

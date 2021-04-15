@@ -426,16 +426,15 @@ bool CQuorumBlockProcessor::HasMinedCommitment(Consensus::LLMQType llmqType, con
     return fExists;
 }
 
-bool CQuorumBlockProcessor::GetMinedCommitment(Consensus::LLMQType llmqType, const uint256& quorumHash, CFinalCommitment& retQc, uint256& retMinedBlockHash)
+CFinalCommitmentPtr CQuorumBlockProcessor::GetMinedCommitment(Consensus::LLMQType llmqType, const uint256& quorumHash, uint256& retMinedBlockHash)
 {
     auto key = std::make_pair(DB_MINED_COMMITMENT, std::make_pair(llmqType, quorumHash));
     std::pair<CFinalCommitment, uint256> p;
     if (!evoDb.Read(key, p)) {
-        return false;
+        return nullptr;
     }
-    retQc = std::move(p.first);
     retMinedBlockHash = p.second;
-    return true;
+    return std::make_shared<CFinalCommitment>(p.first);
 }
 
 // The returned quorums are in reversed order, so the most recent one is at index 0

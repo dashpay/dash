@@ -20,6 +20,7 @@ namespace llmq
 {
 
 class CFinalCommitment;
+typedef std::shared_ptr<CFinalCommitment> CFinalCommitmentPtr;
 
 class CQuorumBlockProcessor
 {
@@ -50,7 +51,7 @@ public:
     bool GetMinableCommitmentTx(Consensus::LLMQType llmqType, int nHeight, CTransactionRef& ret);
 
     bool HasMinedCommitment(Consensus::LLMQType llmqType, const uint256& quorumHash);
-    bool GetMinedCommitment(Consensus::LLMQType llmqType, const uint256& quorumHash, CFinalCommitment& ret, uint256& retMinedBlockHash);
+    CFinalCommitmentPtr GetMinedCommitment(Consensus::LLMQType llmqType, const uint256& quorumHash, uint256& retMinedBlockHash);
 
     std::vector<const CBlockIndex*> GetMinedCommitmentsUntilBlock(Consensus::LLMQType llmqType, const CBlockIndex* pindex, size_t maxCount);
     std::map<Consensus::LLMQType, std::vector<const CBlockIndex*>> GetMinedAndActiveCommitmentsUntilBlock(const CBlockIndex* pindex);
