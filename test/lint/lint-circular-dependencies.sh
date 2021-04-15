@@ -116,7 +116,6 @@ EXPECTED_CIRCULAR_DEPENDENCIES=(
     "governance/governance-vote -> masternode/masternode-sync -> validation -> validationinterface -> governance/governance-vote"
     "evo/providertx -> evo/specialtx -> llmq/quorums_blockprocessor -> net_processing -> txmempool -> evo/providertx"
 
-    "llmq/quorums -> llmq/quorums_dkgsessionmgr -> llmq/quorums_dkgsessionhandler -> llmq/quorums"
     "evo/deterministicmns -> evo/simplifiedmns -> llmq/quorums_blockprocessor -> net -> evo/deterministicmns"
     "coinjoin/coinjoin-client -> net_processing -> coinjoin/coinjoin-client"
     "llmq/quorums -> net_processing -> llmq/quorums"

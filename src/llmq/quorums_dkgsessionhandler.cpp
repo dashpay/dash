@@ -4,7 +4,6 @@
 
 #include <llmq/quorums_dkgsessionhandler.h>
 
-#include <llmq/quorums.h>
 #include <llmq/quorums_commitment.h>
 #include <llmq/quorums_dkgsession.h>
 #include <llmq/quorums_blockprocessor.h>
