@@ -37,6 +37,7 @@ CGovernanceManager::CGovernanceManager() :
     mapLastMasternodeObject(),
     setRequestedObjects(),
     fRateChecksEnabled(true),
+    lastMNListForVotingKeys(std::make_shared<CDeterministicMNList>()),
     cs()
 {
 }
