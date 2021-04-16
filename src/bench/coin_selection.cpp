@@ -1,4 +1,4 @@
-// Copyright (c) 2012-2015 The Bitcoin Core developers
+// Copyright (c) 2012-2016 The Bitcoin Core developers
 // Distributed under the MIT software license, see the accompanying
 // file COPYING or http://www.opensource.org/licenses/mit-license.php.
 
@@ -32,7 +32,7 @@ static void addCoin(const CAmount& nValue, const CWallet& wallet, std::vector<CO
 // (https://github.com/bitcoin/bitcoin/issues/7883#issuecomment-224807484)
 static void CoinSelection(benchmark::State& state)
 {
-    const CWallet wallet("dummy", WalletDatabase::CreateDummy());
+    const CWallet wallet;
     std::vector<COutput> vCoins;
     LOCK(wallet.cs_wallet);
 
@@ -56,4 +56,4 @@ static void CoinSelection(benchmark::State& state)
     }
 }
 
-BENCHMARK(CoinSelection);
+BENCHMARK(CoinSelection, 650);

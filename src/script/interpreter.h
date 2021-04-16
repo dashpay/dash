@@ -1,5 +1,5 @@
 // Copyright (c) 2009-2010 Satoshi Nakamoto
-// Copyright (c) 2009-2015 The Bitcoin Core developers
+// Copyright (c) 2009-2017 The Bitcoin Core developers
 // Distributed under the MIT software license, see the accompanying
 // file COPYING or http://www.opensource.org/licenses/mit-license.php.
 
@@ -79,7 +79,7 @@ enum
     // "At least one stack element must remain, and when interpreted as a boolean, it must be true" to
     // "Exactly one stack element must remain, and when interpreted as a boolean, it must be true".
     // (BIP62 rule 6)
-    // Note: CLEANSTACK should never be used without P2SH.
+    // Note: CLEANSTACK should never be used without P2SH or WITNESS.
     SCRIPT_VERIFY_CLEANSTACK = (1U << 8),
 
     // Verify CHECKLOCKTIMEVERIFY
@@ -92,9 +92,29 @@ enum
     // See BIP112 for details
     SCRIPT_VERIFY_CHECKSEQUENCEVERIFY = (1U << 10),
 
+    // Support segregated witness
+    //
+    SCRIPT_VERIFY_WITNESS = (1U << 11),
+
+    // Making v1-v16 witness program non-standard
+    //
+    SCRIPT_VERIFY_DISCOURAGE_UPGRADABLE_WITNESS_PROGRAM = (1U << 12),
+
+    // Segwit script only: Require the argument of OP_IF/NOTIF to be exactly 0x01 or empty vector
+    //
+    SCRIPT_VERIFY_MINIMALIF = (1U << 13),
+
     // Signature(s) must be empty vector if an CHECK(MULTI)SIG operation failed
     //
     SCRIPT_VERIFY_NULLFAIL = (1U << 14),
+
+    // Public keys in segregated witness scripts must be compressed
+    //
+    SCRIPT_VERIFY_WITNESS_PUBKEYTYPE = (1U << 15),
+
+    // Making OP_CODESEPARATOR and FindAndDelete fail any non-segwit scripts
+    //
+    SCRIPT_VERIFY_CONST_SCRIPTCODE = (1U << 16),
 };
 
 bool CheckSignatureEncoding(const std::vector<unsigned char> &vchSig, unsigned int flags, ScriptError* serror);
@@ -102,6 +122,7 @@ bool CheckSignatureEncoding(const std::vector<unsigned char> &vchSig, unsigned i
 struct PrecomputedTransactionData
 {
     uint256 hashPrevouts, hashSequence, hashOutputs;
+    bool ready = false;
 
     explicit PrecomputedTransactionData(const CTransaction& tx);
 };
@@ -109,6 +130,7 @@ struct PrecomputedTransactionData
 enum SigVersion
 {
     SIGVERSION_BASE = 0,
+    SIGVERSION_WITNESS_V0 = 1,
 };
 
 uint256 SignatureHash(const CScript &scriptCode, const CTransaction& txTo, unsigned int nIn, int nHashType, const CAmount& amount, SigVersion sigversion, const PrecomputedTransactionData* cache = nullptr);
@@ -147,7 +169,7 @@ protected:
 
 public:
     TransactionSignatureChecker(const CTransaction* txToIn, unsigned int nInIn, const CAmount& amountIn) : txTo(txToIn), nIn(nInIn), amount(amountIn), txdata(nullptr) {}
-	TransactionSignatureChecker(const CTransaction* txToIn, unsigned int nInIn, const CAmount& amountIn, const PrecomputedTransactionData& txdataIn) : txTo(txToIn), nIn(nInIn), amount(amountIn), txdata(&txdataIn) {}
+    TransactionSignatureChecker(const CTransaction* txToIn, unsigned int nInIn, const CAmount& amountIn, const PrecomputedTransactionData& txdataIn) : txTo(txToIn), nIn(nInIn), amount(amountIn), txdata(&txdataIn) {}
     bool CheckSig(const std::vector<unsigned char>& scriptSig, const std::vector<unsigned char>& vchPubKey, const CScript& scriptCode, SigVersion sigversion) const override;
     bool CheckLockTime(const CScriptNum& nLockTime) const override;
     bool CheckSequence(const CScriptNum& nSequence) const override;
@@ -159,10 +181,12 @@ private:
     const CTransaction txTo;
 
 public:
-    MutableTransactionSignatureChecker(const CMutableTransaction* txToIn, unsigned int nInIn, const CAmount& amount) : TransactionSignatureChecker(&txTo, nInIn, amount), txTo(*txToIn) {}
+    MutableTransactionSignatureChecker(const CMutableTransaction* txToIn, unsigned int nInIn, const CAmount& amountIn) : TransactionSignatureChecker(&txTo, nInIn, amountIn), txTo(*txToIn) {}
 };
 
 bool EvalScript(std::vector<std::vector<unsigned char> >& stack, const CScript& script, unsigned int flags, const BaseSignatureChecker& checker, SigVersion sigversion, ScriptError* error = nullptr);
-bool VerifyScript(const CScript& scriptSig, const CScript& scriptPubKey, unsigned int flags, const BaseSignatureChecker& checker, ScriptError* error = nullptr);
+bool VerifyScript(const CScript& scriptSig, const CScript& scriptPubKey, const CScriptWitness* witness, unsigned int flags, const BaseSignatureChecker& checker, ScriptError* serror = nullptr);
+
+size_t CountWitnessSigOps(const CScript& scriptSig, const CScript& scriptPubKey, const CScriptWitness* witness, unsigned int flags);
 
 #endif // BITCOIN_SCRIPT_INTERPRETER_H

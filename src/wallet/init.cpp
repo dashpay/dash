@@ -3,65 +3,16 @@
 // Distributed under the MIT software license, see the accompanying
 // file COPYING or http://www.opensource.org/licenses/mit-license.php.
 
-#include <init.h>
-#include <keepass.h>
-#include <net.h>
-#include <scheduler.h>
-#include <util.h>
-#include <utilmoneystr.h>
-#include <validation.h>
-#include <walletinitinterface.h>
-#include <wallet/rpcwallet.h>
-#include <wallet/wallet.h>
-#include <wallet/walletutil.h>
+#include "wallet/init.h"
 
-#include <privatesend/privatesend-client.h>
+#include "net.h"
+#include "util.h"
+#include "utilmoneystr.h"
+#include "validation.h"
+#include "wallet/wallet.h"
+#include "wallet/rpcwallet.h"
 
-#include <functional>
-
-class WalletInit : public WalletInitInterface {
-public:
-
-    //! Return the wallets help message.
-    std::string GetHelpString(bool showDebug) override;
-
-    //! Wallets parameter interaction
-    bool ParameterInteraction() override;
-
-    //! Register wallet RPCs.
-    void RegisterRPC(CRPCTable &tableRPC) override;
-
-    //! Responsible for reading and validating the -wallet arguments and verifying the wallet database.
-    //  This function will perform salvage on the wallet if requested, as long as only one wallet is
-    //  being loaded (WalletParameterInteraction forbids -salvagewallet, -zapwallettxes or -upgradewallet with multiwallet).
-    bool Verify() override;
-
-    //! Load wallet databases.
-    bool Open() override;
-
-    //! Complete startup of wallets.
-    void Start(CScheduler& scheduler) override;
-
-    //! Flush all wallets in preparation for shutdown.
-    void Flush() override;
-
-    //! Stop all wallets. Wallets will be flushed first.
-    void Stop() override;
-
-    //! Close all wallets.
-    void Close() override;
-
-    // Dash Specific Wallet Init
-    void AutoLockMasternodeCollaterals() override;
-    void InitPrivateSendSettings() override;
-    void InitKeePass() override;
-    bool InitAutoBackup() override;
-};
-
-static WalletInit g_wallet_init;
-WalletInitInterface* const g_wallet_init_interface = &g_wallet_init;
-
-std::string WalletInit::GetHelpString(bool showDebug)
+std::string GetWalletHelpString(bool showDebug)
 {
     std::string strUsage = HelpMessageGroup(_("Wallet options:"));
     strUsage += HelpMessageOpt("-disablewallet", _("Do not load the wallet and disable wallet RPC calls"));
@@ -79,34 +30,13 @@ std::string WalletInit::GetHelpString(bool showDebug)
     strUsage += HelpMessageOpt("-salvagewallet", _("Attempt to recover private keys from a corrupt wallet on startup"));
     strUsage += HelpMessageOpt("-spendzeroconfchange", strprintf(_("Spend unconfirmed change when sending transactions (default: %u)"), DEFAULT_SPEND_ZEROCONF_CHANGE));
     strUsage += HelpMessageOpt("-txconfirmtarget=<n>", strprintf(_("If paytxfee is not set, include enough fee so transactions begin confirmation on average within n blocks (default: %u)"), DEFAULT_TX_CONFIRM_TARGET));
-    strUsage += HelpMessageOpt("-usehd", _("Use hierarchical deterministic key generation (HD) after BIP39/BIP44. Only has effect during wallet creation/first start") + " " + strprintf(_("(default: %u)"), DEFAULT_USE_HD_WALLET));
-    strUsage += HelpMessageOpt("-mnemonic=<text>", _("User defined mnemonic for HD wallet (bip39). Only has effect during wallet creation/first start (default: randomly generated)"));
-    strUsage += HelpMessageOpt("-mnemonicpassphrase=<text>", _("User defined mnemonic passphrase for HD wallet (BIP39). Only has effect during wallet creation/first start (default: empty string)"));
-    strUsage += HelpMessageOpt("-hdseed=<hex>", _("User defined seed for HD wallet (should be in hex). Only has effect during wallet creation/first start (default: randomly generated)"));
+    strUsage += HelpMessageOpt("-walletrbf", strprintf(_("Send transactions with full-RBF opt-in enabled (default: %u)"), DEFAULT_WALLET_RBF));
     strUsage += HelpMessageOpt("-upgradewallet", _("Upgrade wallet to latest format on startup"));
-    strUsage += HelpMessageOpt("-wallet=<path>", _("Specify wallet database path. Can be specified multiple times to load multiple wallets. Path is interpreted relative to <walletdir> if it is not absolute, and will be created if it does not exist (as a directory containing a wallet.dat file and log files). For backwards compatibility this will also accept names of existing data files in <walletdir>.)"));
+    strUsage += HelpMessageOpt("-wallet=<file>", _("Specify wallet file (within data directory)") + " " + strprintf(_("(default: %s)"), DEFAULT_WALLET_DAT));
     strUsage += HelpMessageOpt("-walletbroadcast", _("Make the wallet broadcast transactions") + " " + strprintf(_("(default: %u)"), DEFAULT_WALLETBROADCAST));
-    strUsage += HelpMessageOpt("-walletdir=<dir>", _("Specify directory to hold wallets (default: <datadir>/wallets if it exists, otherwise <datadir>)"));
     strUsage += HelpMessageOpt("-walletnotify=<cmd>", _("Execute command when a wallet transaction changes (%s in cmd is replaced by TxID)"));
     strUsage += HelpMessageOpt("-zapwallettxes=<mode>", _("Delete all wallet transactions and only recover those parts of the blockchain through -rescan on startup") +
-                                                        " " + _("(1 = keep tx meta data e.g. account owner and payment request information, 2 = drop tx meta data)"));
-    strUsage += HelpMessageOpt("-createwalletbackups=<n>", strprintf(_("Number of automatic wallet backups (default: %u)"), nWalletBackups));
-    strUsage += HelpMessageOpt("-walletbackupsdir=<dir>", _("Specify full path to directory for automatic wallet backups (must exist)"));
-    strUsage += HelpMessageOpt("-keepass", strprintf(_("Use KeePass 2 integration using KeePassHttp plugin (default: %u)"), 0));
-    strUsage += HelpMessageOpt("-keepassport=<port>", strprintf(_("Connect to KeePassHttp on port <port> (default: %u)"), DEFAULT_KEEPASS_HTTP_PORT));
-    strUsage += HelpMessageOpt("-keepasskey=<key>", _("KeePassHttp key for AES encrypted communication with KeePass"));
-    strUsage += HelpMessageOpt("-keepassid=<id>", _("KeePassHttp id for the established association"));
-    strUsage += HelpMessageOpt("-keepassname=<name>", _("Name to construct url for KeePass entry that stores the wallet passphrase"));
-
-    strUsage += HelpMessageGroup(_("PrivateSend options:"));
-    strUsage += HelpMessageOpt("-enableprivatesend", strprintf(_("Enable use of PrivateSend for funds stored in this wallet (0-1, default: %u)"), 0));
-    strUsage += HelpMessageOpt("-privatesendautostart", strprintf(_("Start PrivateSend automatically (0-1, default: %u)"), DEFAULT_PRIVATESEND_AUTOSTART));
-    strUsage += HelpMessageOpt("-privatesendmultisession", strprintf(_("Enable multiple PrivateSend mixing sessions per block, experimental (0-1, default: %u)"), DEFAULT_PRIVATESEND_MULTISESSION));
-    strUsage += HelpMessageOpt("-privatesendsessions=<n>", strprintf(_("Use N separate masternodes in parallel to mix funds (%u-%u, default: %u)"), MIN_PRIVATESEND_SESSIONS, MAX_PRIVATESEND_SESSIONS, DEFAULT_PRIVATESEND_SESSIONS));
-    strUsage += HelpMessageOpt("-privatesendrounds=<n>", strprintf(_("Use N separate masternodes for each denominated input to mix funds (%u-%u, default: %u)"), MIN_PRIVATESEND_ROUNDS, MAX_PRIVATESEND_ROUNDS, DEFAULT_PRIVATESEND_ROUNDS));
-    strUsage += HelpMessageOpt("-privatesendamount=<n>", strprintf(_("Target PrivateSend balance (%u-%u, default: %u)"), MIN_PRIVATESEND_AMOUNT, MAX_PRIVATESEND_AMOUNT, DEFAULT_PRIVATESEND_AMOUNT));
-    strUsage += HelpMessageOpt("-privatesenddenomsgoal=<n>", strprintf(_("Try to create at least N inputs of each denominated amount (%u-%u, default: %u)"), MIN_PRIVATESEND_DENOMS_GOAL, MAX_PRIVATESEND_DENOMS_GOAL, DEFAULT_PRIVATESEND_DENOMS_GOAL));
-    strUsage += HelpMessageOpt("-privatesenddenomshardcap=<n>", strprintf(_("Create up to N inputs of each denominated amount (%u-%u, default: %u)"), MIN_PRIVATESEND_DENOMS_HARDCAP, MAX_PRIVATESEND_DENOMS_HARDCAP, DEFAULT_PRIVATESEND_DENOMS_HARDCAP));
+                               " " + _("(1 = keep tx meta data e.g. account owner and payment request information, 2 = drop tx meta data)"));
 
     if (showDebug)
     {
@@ -121,24 +51,13 @@ std::string WalletInit::GetHelpString(bool showDebug)
     return strUsage;
 }
 
-bool WalletInit::ParameterInteraction()
+bool WalletParameterInteraction()
 {
-    if (gArgs.IsArgSet("-masternodeblsprivkey") && gArgs.SoftSetBoolArg("-disablewallet", true)) {
-        LogPrintf("%s: parameter interaction: -masternodeblsprivkey set -> setting -disablewallet=1\n", __func__);
-    }
-
-    if (gArgs.GetBoolArg("-disablewallet", DEFAULT_DISABLE_WALLET)) {
-        for (const std::string& wallet : gArgs.GetArgs("-wallet")) {
-            LogPrintf("%s: parameter interaction: -disablewallet -> ignoring -wallet=%s\n", __func__, wallet);
-        }
-
-        return true;
-    } else if (gArgs.IsArgSet("-masternodeblsprivkey")) {
-        return InitError(_("You can not start a masternode with wallet enabled."));
-    }
-
-    gArgs.SoftSetArg("-wallet", "");
+    gArgs.SoftSetArg("-wallet", DEFAULT_WALLET_DAT);
     const bool is_multiwallet = gArgs.GetArgs("-wallet").size() > 1;
+
+    if (gArgs.GetBoolArg("-disablewallet", DEFAULT_DISABLE_WALLET))
+        return true;
 
     if (gArgs.GetBoolArg("-blocksonly", DEFAULT_BLOCKSONLY) && gArgs.SoftSetBoolArg("-walletbroadcast", false)) {
         LogPrintf("%s: parameter interaction: -blocksonly=1 -> setting -walletbroadcast=0\n", __func__);
@@ -247,97 +166,76 @@ bool WalletInit::ParameterInteraction()
     }
     nTxConfirmTarget = gArgs.GetArg("-txconfirmtarget", DEFAULT_TX_CONFIRM_TARGET);
     bSpendZeroConfChange = gArgs.GetBoolArg("-spendzeroconfchange", DEFAULT_SPEND_ZEROCONF_CHANGE);
-
-    if (gArgs.IsArgSet("-walletbackupsdir")) {
-        if (!fs::is_directory(gArgs.GetArg("-walletbackupsdir", ""))) {
-            LogPrintf("%s: Warning: incorrect parameter -walletbackupsdir, path must exist! Using default path.\n", __func__);
-            InitWarning("Warning: incorrect parameter -walletbackupsdir, path must exist! Using default path.\n");
-
-            gArgs.ForceRemoveArg("-walletbackupsdir");
-        }
-    }
-
-    if (gArgs.IsArgSet("-hdseed") && IsHex(gArgs.GetArg("-hdseed", "not hex")) && (gArgs.IsArgSet("-mnemonic") || gArgs.IsArgSet("-mnemonicpassphrase"))) {
-        gArgs.ForceRemoveArg("-mnemonic");
-        gArgs.ForceRemoveArg("-mnemonicpassphrase");
-        LogPrintf("%s: parameter interaction: can't use -hdseed and -mnemonic/-mnemonicpassphrase together, will prefer -seed\n", __func__);
-    }
-
-    if (gArgs.IsArgSet("-privatesenddenoms")) {
-        int nDenomsDeprecated = gArgs.GetArg("-privatesenddenoms", DEFAULT_PRIVATESEND_DENOMS_HARDCAP);
-        InitWarning("Warning: -privatesenddenoms is deprecated, please use -privatesenddenomshardcap or -privatesenddenomsgoal.\n");
-        if (gArgs.SoftSetArg("-privatesenddenomshardcap", itostr(nDenomsDeprecated))) {
-            LogPrintf("%s: parameter interaction: -privatesenddenoms=%d -> setting -privatesenddenomshardcap=%d\n", __func__, nDenomsDeprecated, nDenomsDeprecated);
-        }
-        gArgs.ForceRemoveArg("-privatesenddenoms");
-    }
-
-    if (gArgs.GetArg("-privatesenddenomshardcap", DEFAULT_PRIVATESEND_DENOMS_HARDCAP) < gArgs.GetArg("-privatesenddenomsgoal", DEFAULT_PRIVATESEND_DENOMS_GOAL)) {
-        return InitError("-privatesenddenomshardcap can't be lower than -privatesenddenomsgoal");
-    }
+    fWalletRbf = gArgs.GetBoolArg("-walletrbf", DEFAULT_WALLET_RBF);
 
     return true;
 }
 
-void WalletInit::RegisterRPC(CRPCTable &t)
+void RegisterWalletRPC(CRPCTable &t)
 {
-    if (gArgs.GetBoolArg("-disablewallet", DEFAULT_DISABLE_WALLET)) {
-        return;
-    }
+    if (gArgs.GetBoolArg("-disablewallet", false)) return;
 
     RegisterWalletRPCCommands(t);
 }
 
-bool WalletInit::Verify()
+bool VerifyWallets()
 {
-    if (gArgs.GetBoolArg("-disablewallet", DEFAULT_DISABLE_WALLET)) {
+    if (gArgs.GetBoolArg("-disablewallet", DEFAULT_DISABLE_WALLET))
         return true;
-    }
-
-    if (gArgs.IsArgSet("-walletdir")) {
-        fs::path wallet_dir = gArgs.GetArg("-walletdir", "");
-        if (!fs::exists(wallet_dir)) {
-            return InitError(strprintf(_("Specified -walletdir \"%s\" does not exist"), wallet_dir.string()));
-        } else if (!fs::is_directory(wallet_dir)) {
-            return InitError(strprintf(_("Specified -walletdir \"%s\" is not a directory"), wallet_dir.string()));
-        } else if (!wallet_dir.is_absolute()) {
-            return InitError(strprintf(_("Specified -walletdir \"%s\" is a relative path"), wallet_dir.string()));
-        }
-    }
-
-    LogPrintf("Using wallet directory %s\n", GetWalletDir().string());
 
     uiInterface.InitMessage(_("Verifying wallet(s)..."));
-
-    std::vector<std::string> wallet_files = gArgs.GetArgs("-wallet");
-
-    // Parameter interaction code should have thrown an error if -salvagewallet
-    // was enabled with more than wallet file, so the wallet_files size check
-    // here should have no effect.
-    bool salvage_wallet = gArgs.GetBoolArg("-salvagewallet", false) && wallet_files.size() <= 1;
 
     // Keep track of each wallet absolute path to detect duplicates.
     std::set<fs::path> wallet_paths;
 
-    for (const auto wallet_file : wallet_files) {
-        fs::path wallet_path = fs::absolute(wallet_file, GetWalletDir());
-
-        if (!wallet_paths.insert(wallet_path).second) {
-            return InitError(strprintf(_("Error loading wallet %s. Duplicate -wallet filename specified."), wallet_file));
+    for (const std::string& walletFile : gArgs.GetArgs("-wallet")) {
+        if (boost::filesystem::path(walletFile).filename() != walletFile) {
+            return InitError(strprintf(_("Error loading wallet %s. -wallet parameter must only specify a filename (not a path)."), walletFile));
         }
 
-        std::string error_string;
-        std::string warning_string;
-        bool verify_success = CWallet::Verify(wallet_file, salvage_wallet, error_string, warning_string);
-        if (!error_string.empty()) InitError(error_string);
-        if (!warning_string.empty()) InitWarning(warning_string);
-        if (!verify_success) return false;
+        if (SanitizeString(walletFile, SAFE_CHARS_FILENAME) != walletFile) {
+            return InitError(strprintf(_("Error loading wallet %s. Invalid characters in -wallet filename."), walletFile));
+        }
+
+        fs::path wallet_path = fs::absolute(walletFile, GetDataDir());
+
+        if (fs::exists(wallet_path) && (!fs::is_regular_file(wallet_path) || fs::is_symlink(wallet_path))) {
+            return InitError(strprintf(_("Error loading wallet %s. -wallet filename must be a regular file."), walletFile));
+        }
+
+        if (!wallet_paths.insert(wallet_path).second) {
+            return InitError(strprintf(_("Error loading wallet %s. Duplicate -wallet filename specified."), walletFile));
+        }
+
+        std::string strError;
+        if (!CWalletDB::VerifyEnvironment(walletFile, GetDataDir().string(), strError)) {
+            return InitError(strError);
+        }
+
+        if (gArgs.GetBoolArg("-salvagewallet", false)) {
+            // Recover readable keypairs:
+            CWallet dummyWallet;
+            std::string backup_filename;
+            if (!CWalletDB::Recover(walletFile, (void *)&dummyWallet, CWalletDB::RecoverKeysOnlyFilter, backup_filename)) {
+                return false;
+            }
+        }
+
+        std::string strWarning;
+        bool dbV = CWalletDB::VerifyDatabaseFile(walletFile, GetDataDir().string(), strWarning, strError);
+        if (!strWarning.empty()) {
+            InitWarning(strWarning);
+        }
+        if (!dbV) {
+            InitError(strError);
+            return false;
+        }
     }
 
     return true;
 }
 
-bool WalletInit::Open()
+bool OpenWallets()
 {
     if (gArgs.GetBoolArg("-disablewallet", DEFAULT_DISABLE_WALLET)) {
         LogPrintf("Wallet disabled!\n");
@@ -345,98 +243,37 @@ bool WalletInit::Open()
     }
 
     for (const std::string& walletFile : gArgs.GetArgs("-wallet")) {
-        CWallet * const pwallet = CWallet::CreateWalletFromFile(walletFile, fs::absolute(walletFile, GetWalletDir()));
+        CWallet * const pwallet = CWallet::CreateWalletFromFile(walletFile);
         if (!pwallet) {
             return false;
         }
-        AddWallet(pwallet);
+        vpwallets.push_back(pwallet);
     }
 
     return true;
 }
 
-void WalletInit::Start(CScheduler& scheduler)
-{
-    for (CWallet* pwallet : GetWallets()) {
-        pwallet->postInitProcess();
-    }
-
-    // Run a thread to flush wallet periodically
-    scheduler.scheduleEvery(MaybeCompactWalletDB, 500);
-
-    if (!fMasternodeMode && privateSendClient.fEnablePrivateSend) {
-        scheduler.scheduleEvery(std::bind(&CPrivateSendClientManager::DoMaintenance, std::ref(privateSendClient),
-                                            std::ref(*g_connman)), 1 * 1000);
+void StartWallets(CScheduler& scheduler) {
+    for (CWalletRef pwallet : vpwallets) {
+        pwallet->postInitProcess(scheduler);
     }
 }
 
-void WalletInit::Flush()
-{
-    if (privateSendClient.fEnablePrivateSend) {
-        // Stop PrivateSend, release keys
-        privateSendClient.fPrivateSendRunning = false;
-        privateSendClient.ResetPool();
-    }
-    for (CWallet* pwallet : GetWallets()) {
+void FlushWallets() {
+    for (CWalletRef pwallet : vpwallets) {
         pwallet->Flush(false);
     }
 }
 
-void WalletInit::Stop()
-{
-    for (CWallet* pwallet : GetWallets()) {
+void StopWallets() {
+    for (CWalletRef pwallet : vpwallets) {
         pwallet->Flush(true);
     }
 }
 
-void WalletInit::Close()
-{
-    for (CWallet* pwallet : GetWallets()) {
-        RemoveWallet(pwallet);
+void CloseWallets() {
+    for (CWalletRef pwallet : vpwallets) {
         delete pwallet;
     }
-}
-
-void WalletInit::AutoLockMasternodeCollaterals()
-{
-    // we can't do this before DIP3 is fully initialized
-    for (CWallet* pwallet : GetWallets()) {
-        pwallet->AutoLockMasternodeCollaterals();
-    }
-}
-
-void WalletInit::InitPrivateSendSettings()
-{
-    if (!HasWallets()) {
-        privateSendClient.fEnablePrivateSend = privateSendClient.fPrivateSendRunning = false;
-    } else {
-        privateSendClient.fEnablePrivateSend = gArgs.GetBoolArg("-enableprivatesend", true);
-        privateSendClient.fPrivateSendRunning = GetWallets()[0]->IsLocked() ? false : gArgs.GetBoolArg("-privatesendautostart", DEFAULT_PRIVATESEND_AUTOSTART);
-    }
-    privateSendClient.fPrivateSendMultiSession = gArgs.GetBoolArg("-privatesendmultisession", DEFAULT_PRIVATESEND_MULTISESSION);
-    privateSendClient.nPrivateSendSessions = std::min(std::max((int)gArgs.GetArg("-privatesendsessions", DEFAULT_PRIVATESEND_SESSIONS), MIN_PRIVATESEND_SESSIONS), MAX_PRIVATESEND_SESSIONS);
-    privateSendClient.nPrivateSendRounds = std::min(std::max((int)gArgs.GetArg("-privatesendrounds", DEFAULT_PRIVATESEND_ROUNDS), MIN_PRIVATESEND_ROUNDS), MAX_PRIVATESEND_ROUNDS);
-    privateSendClient.nPrivateSendAmount = std::min(std::max((int)gArgs.GetArg("-privatesendamount", DEFAULT_PRIVATESEND_AMOUNT), MIN_PRIVATESEND_AMOUNT), MAX_PRIVATESEND_AMOUNT);
-    privateSendClient.nPrivateSendDenomsGoal = std::min(std::max((int)gArgs.GetArg("-privatesenddenomsgoal", DEFAULT_PRIVATESEND_DENOMS_GOAL), MIN_PRIVATESEND_DENOMS_GOAL), MAX_PRIVATESEND_DENOMS_GOAL);
-    privateSendClient.nPrivateSendDenomsHardCap = std::min(std::max((int)gArgs.GetArg("-privatesenddenomshardcap", DEFAULT_PRIVATESEND_DENOMS_HARDCAP), MIN_PRIVATESEND_DENOMS_HARDCAP), MAX_PRIVATESEND_DENOMS_HARDCAP);
-
-    if (privateSendClient.fEnablePrivateSend) {
-        LogPrintf("PrivateSend: autostart=%d, multisession=%d," /* Continued */
-                  "sessions=%d, rounds=%d, amount=%d, denoms_goal=%d, denoms_hardcap=%d\n",
-                  privateSendClient.fPrivateSendRunning, privateSendClient.fPrivateSendMultiSession,
-                  privateSendClient.nPrivateSendSessions, privateSendClient.nPrivateSendRounds,
-                  privateSendClient.nPrivateSendAmount,
-                  privateSendClient.nPrivateSendDenomsGoal, privateSendClient.nPrivateSendDenomsHardCap);
-    }
-
-}
-
-void WalletInit::InitKeePass()
-{
-    keePassInt.init();
-}
-
-bool WalletInit::InitAutoBackup()
-{
-    return CWallet::InitAutoBackup();
+    vpwallets.clear();
 }

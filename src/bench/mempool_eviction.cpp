@@ -1,4 +1,4 @@
-// Copyright (c) 2011-2015 The Bitcoin Core developers
+// Copyright (c) 2011-2016 The Bitcoin Core developers
 // Distributed under the MIT software license, see the accompanying
 // file COPYING or http://www.opensource.org/licenses/mit-license.php.
 
@@ -107,8 +107,8 @@ static void MempoolEviction(benchmark::State& state)
         AddTx(tx6, 1100LL, pool);
         AddTx(tx7, 9000LL, pool);
         pool.TrimToSize(pool.DynamicMemoryUsage() * 3 / 4);
-        pool.TrimToSize(::GetSerializeSize(tx1, SER_NETWORK, PROTOCOL_VERSION));
+        pool.TrimToSize(GetVirtualTransactionSize(tx1));
     }
 }
 
-BENCHMARK(MempoolEviction);
+BENCHMARK(MempoolEviction, 41000);

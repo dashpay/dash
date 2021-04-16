@@ -1,5 +1,5 @@
 // Copyright (c) 2009-2010 Satoshi Nakamoto
-// Copyright (c) 2009-2015 The Bitcoin Core developers
+// Copyright (c) 2009-2017 The Bitcoin Core developers
 // Distributed under the MIT software license, see the accompanying
 // file COPYING or http://www.opensource.org/licenses/mit-license.php.
 
@@ -14,23 +14,15 @@
 class CBlock;
 class CBlockIndex;
 struct CBlockLocator;
+class CBlockIndex;
 class CConnman;
 class CReserveScript;
 class CValidationInterface;
 class CValidationState;
-class CGovernanceVote;
-class CGovernanceObject;
-class CDeterministicMNList;
-class CDeterministicMNListDiff;
 class uint256;
 class CScheduler;
 class CTxMemPool;
 enum class MemPoolRemovalReason;
-
-namespace llmq {
-    class CChainLockSig;
-    class CInstantSendLock;
-} // namespace llmq
 
 // These functions dispatch to one or all registered wallets
 
@@ -63,24 +55,22 @@ void SyncWithValidationInterfaceQueue();
 
 class CValidationInterface {
 protected:
-    virtual void AcceptedBlockHeader(const CBlockIndex *pindexNew) {}
-    virtual void NotifyHeaderTip(const CBlockIndex *pindexNew, bool fInitialDownload) {}
     /**
-     * Notifies listeners of updated block chain tip
+     * Notifies listeners when the block chain tip advances.
+     *
+     * When multiple blocks are connected at once, UpdatedBlockTip will be called on the final tip
+     * but may not be called on every intermediate tip. If the latter behavior is desired,
+     * subscribe to BlockConnected() instead.
      *
      * Called on a background thread.
      */
     virtual void UpdatedBlockTip(const CBlockIndex *pindexNew, const CBlockIndex *pindexFork, bool fInitialDownload) {}
     /**
-     * Same as UpdatedBlockTip, but called from the caller's thread
-     */
-    virtual void SynchronousUpdatedBlockTip(const CBlockIndex *pindexNew, const CBlockIndex *pindexFork, bool fInitialDownload) {}
-    /**
      * Notifies listeners of a transaction having been added to mempool.
      *
      * Called on a background thread.
      */
-    virtual void TransactionAddedToMempool(const CTransactionRef &ptxn, int64_t nAcceptTime) {}
+    virtual void TransactionAddedToMempool(const CTransactionRef &ptxn) {}
     /**
      * Notifies listeners of a transaction leaving mempool.
      *
@@ -104,19 +94,19 @@ protected:
      *
      * Called on a background thread.
      */
-    virtual void BlockDisconnected(const std::shared_ptr<const CBlock> &block, const CBlockIndex *pindexDisconnected) {}
-    virtual void NotifyTransactionLock(const CTransaction &tx, const llmq::CInstantSendLock& islock) {}
-    virtual void NotifyChainLock(const CBlockIndex* pindex, const llmq::CChainLockSig& clsig) {}
-    virtual void NotifyGovernanceVote(const CGovernanceVote &vote) {}
-    virtual void NotifyGovernanceObject(const CGovernanceObject &object) {}
-    virtual void NotifyInstantSendDoubleSpendAttempt(const CTransaction &currentTx, const CTransaction &previousTx) {}
-    virtual void NotifyMasternodeListChanged(bool undo, const CDeterministicMNList& oldMNList, const CDeterministicMNListDiff& diff) {}
+    virtual void BlockDisconnected(const std::shared_ptr<const CBlock> &block) {}
     /**
      * Notifies listeners of the new active block chain on-disk.
      *
      * Called on a background thread.
      */
     virtual void SetBestChain(const CBlockLocator &locator) {}
+    /**
+     * Notifies listeners about an inventory item being seen on the network.
+     *
+     * Called on a background thread.
+     */
+    virtual void Inventory(const uint256 &hash) {}
     /** Tells listeners to broadcast their data. */
     virtual void ResendWalletTransactions(int64_t nBestBlockTime, CConnman* connman) {}
     /**
@@ -162,20 +152,12 @@ public:
     /** Unregister with mempool */
     void UnregisterWithMempoolSignals(CTxMemPool& pool);
 
-    void AcceptedBlockHeader(const CBlockIndex *pindexNew);
-    void NotifyHeaderTip(const CBlockIndex *pindexNew, bool fInitialDownload);
     void UpdatedBlockTip(const CBlockIndex *, const CBlockIndex *, bool fInitialDownload);
-    void SynchronousUpdatedBlockTip(const CBlockIndex *, const CBlockIndex *, bool fInitialDownload);
-    void TransactionAddedToMempool(const CTransactionRef &, int64_t);
+    void TransactionAddedToMempool(const CTransactionRef &);
     void BlockConnected(const std::shared_ptr<const CBlock> &, const CBlockIndex *pindex, const std::shared_ptr<const std::vector<CTransactionRef>> &);
-    void BlockDisconnected(const std::shared_ptr<const CBlock> &, const CBlockIndex* pindexDisconnected);
-    void NotifyTransactionLock(const CTransaction &tx, const llmq::CInstantSendLock& islock);
-    void NotifyChainLock(const CBlockIndex* pindex, const llmq::CChainLockSig& clsig);
-    void NotifyGovernanceVote(const CGovernanceVote &vote);
-    void NotifyGovernanceObject(const CGovernanceObject &object);
-    void NotifyInstantSendDoubleSpendAttempt(const CTransaction &currentTx, const CTransaction &previousTx);
-    void NotifyMasternodeListChanged(bool undo, const CDeterministicMNList& oldMNList, const CDeterministicMNListDiff& diff);
+    void BlockDisconnected(const std::shared_ptr<const CBlock> &);
     void SetBestChain(const CBlockLocator &);
+    void Inventory(const uint256 &);
     void Broadcast(int64_t nBestBlockTime, CConnman* connman);
     void BlockChecked(const CBlock&, const CValidationState&);
     void NewPoWValidBlock(const CBlockIndex *, const std::shared_ptr<const CBlock>&);
