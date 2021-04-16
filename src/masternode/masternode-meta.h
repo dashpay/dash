@@ -97,6 +97,8 @@ private:
 
     // keep track of dsq count to prevent masternodes from gaming coinjoin queue
     int64_t nDsqCount = 0;
+    int nCurrentVersion = 0;
+    int64_t nCurrentVersionStarted = 0;
 
 public:
     ADD_SERIALIZE_METHODS
@@ -134,6 +136,24 @@ public:
         }
 
         READWRITE(nDsqCount);
+
+        if (ser_action.ForRead()) {
+            READWRITE(nCurrentVersion);
+            READWRITE(nCurrentVersionStarted);
+            if (nCurrentVersion != MIN_MASTERNODE_PROTO_VERSION) {
+                // serialized by previous version
+                nCurrentVersion = MIN_MASTERNODE_PROTO_VERSION;
+                nCurrentVersionStarted = GetTime();
+            }
+        } else {
+            if (nCurrentVersion == 0 && nCurrentVersionStarted == 0) {
+                // first time serialization
+                nCurrentVersion = MIN_MASTERNODE_PROTO_VERSION;
+                nCurrentVersionStarted = GetTime();
+            }
+            READWRITE(nCurrentVersion);
+            READWRITE(nCurrentVersionStarted);
+        }
     }
 
 public:
