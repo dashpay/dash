@@ -5,6 +5,7 @@
 #include <masternode/masternode-meta.h>
 
 #include <timedata.h>
+#include <tinyformat.h>
 
 CMasternodeMetaMan mmetaman;
 
@@ -128,9 +129,6 @@ void CMasternodeMetaMan::CheckAndRemove()
 
 std::string CMasternodeMetaMan::ToString() const
 {
-    std::ostringstream info;
-
-    info << "Masternodes: meta infos object count: " << (int)metaInfos.size() <<
-         ", nDsqCount: " << (int)nDsqCount;
-    return info.str();
+    return strprintf("Masternodes: meta infos object count: %ld, nDsqCount: %d, nCurrentVersion: %d, nCurrentVersionStarted: %d",
+            metaInfos.size(), nDsqCount, nCurrentVersion, nCurrentVersionStarted);
 }
