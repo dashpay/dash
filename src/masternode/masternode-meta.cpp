@@ -120,6 +120,7 @@ void CMasternodeMetaMan::Clear()
     LOCK(cs);
     metaInfos.clear();
     vecDirtyGovernanceObjectHashes.clear();
+    nCurrentVersionStarted = GetTime();
 }
 
 void CMasternodeMetaMan::CheckAndRemove()
@@ -129,6 +130,6 @@ void CMasternodeMetaMan::CheckAndRemove()
 
 std::string CMasternodeMetaMan::ToString() const
 {
-    return strprintf("Masternodes: meta infos object count: %ld, nDsqCount: %d, nCurrentVersion: %d, nCurrentVersionStarted: %d",
-            metaInfos.size(), nDsqCount, nCurrentVersion, nCurrentVersionStarted);
+    return strprintf("Masternodes: meta infos object count: %ld, nDsqCount: %d, MIN_MASTERNODE_PROTO_VERSION: %d, nCurrentVersionStarted: %d",
+            metaInfos.size(), nDsqCount, MIN_MASTERNODE_PROTO_VERSION, nCurrentVersionStarted);
 }

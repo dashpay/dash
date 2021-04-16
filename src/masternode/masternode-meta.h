@@ -97,10 +97,13 @@ private:
 
     // keep track of dsq count to prevent masternodes from gaming coinjoin queue
     int64_t nDsqCount = 0;
-    int nCurrentVersion = 0;
-    int64_t nCurrentVersionStarted = 0;
+
+    // the time we first started with current MIN_MASTERNODE_PROTO_VERSION version
+    int64_t nCurrentVersionStarted{0};
 
 public:
+    CMasternodeMetaMan() : nCurrentVersionStarted(GetTime()) {}
+
     ADD_SERIALIZE_METHODS
 
     template <typename Stream, typename Operation>
@@ -138,20 +141,15 @@ public:
         READWRITE(nDsqCount);
 
         if (ser_action.ForRead()) {
+            int nCurrentVersion{MIN_MASTERNODE_PROTO_VERSION};
             READWRITE(nCurrentVersion);
             READWRITE(nCurrentVersionStarted);
             if (nCurrentVersion != MIN_MASTERNODE_PROTO_VERSION) {
-                // serialized by previous version
-                nCurrentVersion = MIN_MASTERNODE_PROTO_VERSION;
+                // serialized by some another version
                 nCurrentVersionStarted = GetTime();
             }
         } else {
-            if (nCurrentVersion == 0 && nCurrentVersionStarted == 0) {
-                // first time serialization
-                nCurrentVersion = MIN_MASTERNODE_PROTO_VERSION;
-                nCurrentVersionStarted = GetTime();
-            }
-            READWRITE(nCurrentVersion);
+            s << MIN_MASTERNODE_PROTO_VERSION;
             READWRITE(nCurrentVersionStarted);
         }
     }

@@ -2245,6 +2245,7 @@ bool AppInitMain()
     uiInterface.InitMessage(_("Loading masternode cache..."));
     CFlatDB<CMasternodeMetaMan> flatdb1(strDBName, "magicMasternodeCache");
     if (fLoadCacheFiles) {
+        mmetaman.Clear();
         if(!flatdb1.Load(mmetaman)) {
             return InitError(_("Failed to load masternode cache from") + "\n" + (pathDB / strDBName).string());
         }
