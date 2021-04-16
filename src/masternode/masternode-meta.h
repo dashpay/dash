@@ -161,6 +161,7 @@ public:
 
     int64_t GetDsqCount() { LOCK(cs); return nDsqCount; }
     int64_t GetDsqThreshold(const uint256& proTxHash, int nMnCount);
+    int64_t GetCurrentVersionStarted() { LOCK(cs); return nCurrentVersionStarted; }
 
     void AllowMixing(const uint256& proTxHash);
     void DisallowMixing(const uint256& proTxHash);
