@@ -8,6 +8,7 @@
 
 #include <util.h>
 #include <memory>
+#include <utility>
 
 template <typename T>
 bool VerifyVectorHelper(const std::vector<T>& vec, size_t start, size_t count)
@@ -432,11 +433,11 @@ struct ContributionVerifier {
     std::atomic<size_t> verifyDoneCount{0};
     std::function<void(const std::vector<bool>&)> doneCallback;
 
-    ContributionVerifier(const CBLSId& _forId, const std::vector<BLSVerificationVectorPtr>& _vvecs,
+    ContributionVerifier(CBLSId _forId, const std::vector<BLSVerificationVectorPtr>& _vvecs,
                          const BLSSecretKeyVector& _skShares, size_t _batchSize,
                          bool _parallel, bool _aggregated, ctpl::thread_pool& _workerPool,
                          std::function<void(const std::vector<bool>&)> _doneCallback) :
-        forId(_forId),
+        forId(std::move(_forId)),
         vvecs(_vvecs),
         skShares(_skShares),
         batchSize(_batchSize),
