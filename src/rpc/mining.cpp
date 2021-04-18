@@ -29,12 +29,9 @@
 
 #include <governance/governance-classes.h>
 #include <governance/governance.h>
-#include <masternode/masternode-payments.h>
 #include <masternode/masternode-sync.h>
 
 #include <evo/deterministicmns.h>
-#include <evo/specialtx.h>
-#include <evo/cbtx.h>
 
 #include <memory>
 #include <stdint.h>

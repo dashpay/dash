@@ -10,14 +10,12 @@
 #include <governance/governance-classes.h>
 #include <governance/governance-validators.h>
 #include <evo/deterministicmns.h>
-#include <init.h>
 #include <txmempool.h>
 #include <validation.h>
 #include <masternode/masternode-sync.h>
 #include <messagesigner.h>
 #include <rpc/server.h>
 #include <util.h>
-#include <utilmoneystr.h>
 #include <wallet/rpcwallet.h>
 #include <net.h>
 #ifdef ENABLE_WALLET

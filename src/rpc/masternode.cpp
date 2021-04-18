@@ -3,23 +3,15 @@
 // file COPYING or http://www.opensource.org/licenses/mit-license.php.
 
 #include <masternode/activemasternode.h>
-#include <base58.h>
-#include <clientversion.h>
-#include <init.h>
 #include <netbase.h>
 #include <validation.h>
-#include <util.h>
-#include <utilmoneystr.h>
-#include <txmempool.h>
 #include <net.h>
 
-#include <evo/specialtx.h>
 #include <evo/deterministicmns.h>
 
 #include <governance/governance-classes.h>
 
 #include <masternode/masternode-payments.h>
-#include <masternode/masternode-sync.h>
 
 #include <rpc/server.h>
 
