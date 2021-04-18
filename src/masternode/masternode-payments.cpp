@@ -3,6 +3,7 @@
 // file COPYING or http://www.opensource.org/licenses/mit-license.php.
 
 #include <masternode/activemasternode.h>
+#include <governance/governance.h>
 #include <governance/governance-classes.h>
 #include <masternode/masternode-payments.h>
 #include <masternode/masternode-sync.h>

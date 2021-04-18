@@ -11,6 +11,7 @@
 #include <util.h>
 #include <utilmoneystr.h>
 #include <txmempool.h>
+#include <net.h>
 
 #include <evo/specialtx.h>
 #include <evo/deterministicmns.h>

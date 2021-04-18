@@ -19,6 +19,7 @@
 #include <util.h>
 #include <utilmoneystr.h>
 #include <wallet/rpcwallet.h>
+#include <net.h>
 #ifdef ENABLE_WALLET
 #include <wallet/wallet.h>
 #endif // ENABLE_WALLET

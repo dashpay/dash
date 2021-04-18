@@ -5,19 +5,13 @@
 #ifndef BITCOIN_GOVERNANCE_GOVERNANCE_H
 #define BITCOIN_GOVERNANCE_GOVERNANCE_H
 
-#include <bloom.h>
 #include <cachemap.h>
 #include <cachemultimap.h>
-#include <chain.h>
-#include <governance/governance-exceptions.h>
 #include <governance/governance-object.h>
-#include <governance/governance-vote.h>
-#include <net.h>
-#include <sync.h>
-#include <timedata.h>
-#include <util.h>
 
-#include <univalue.h>
+class CBloomFilter;
+class CBlockIndex;
+class CInv;
 
 class CGovernanceManager;
 class CGovernanceTriggerManager;

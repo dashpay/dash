@@ -6,15 +6,16 @@
 #include <consensus/validation.h>
 #include <governance/governance-classes.h>
 #include <governance/governance-validators.h>
+#include <bloom.h>
+#include <chain.h>
 #include <init.h>
 #include <masternode/masternode-meta.h>
 #include <masternode/masternode-sync.h>
-#include <messagesigner.h>
 #include <net_processing.h>
 #include <netfulfilledman.h>
 #include <netmessagemaker.h>
 #include <spork.h>
-#include <validation.h>
+#include <protocol.h>
 
 #include <evo/deterministicmns.h>
 

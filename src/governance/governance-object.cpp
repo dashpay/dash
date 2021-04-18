@@ -10,9 +10,9 @@
 #include <masternode/masternode-sync.h>
 #include <evo/deterministicmns.h>
 #include <messagesigner.h>
-#include <spork.h>
 #include <validation.h>
 #include <validationinterface.h>
+#include <net.h>
 
 #include <string>
 
