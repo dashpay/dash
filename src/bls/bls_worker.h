@@ -34,7 +34,7 @@ private:
         CBLSSignature sig;
         CBLSPublicKey pubKey;
         uint256 msgHash;
-        SigVerifyJob(SigVerifyDoneCallback&& _doneCallback, CancelCond&& _cancelCond, const CBLSSignature& _sig, CBLSPublicKey  _pubKey, const uint256& _msgHash) :
+        SigVerifyJob(SigVerifyDoneCallback&& _doneCallback, CancelCond&& _cancelCond, const CBLSSignature& _sig, CBLSPublicKey _pubKey, const uint256& _msgHash) :
             doneCallback(_doneCallback),
             cancelCond(_cancelCond),
             sig(_sig),
