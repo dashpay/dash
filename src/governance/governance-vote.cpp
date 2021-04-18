@@ -4,6 +4,8 @@
 
 #include <governance/governance-vote.h>
 #include <governance/governance-object.h>
+#include <key.h>
+#include <bls/bls.h>
 #include <masternode/masternode-sync.h>
 #include <messagesigner.h>
 #include <util.h>
