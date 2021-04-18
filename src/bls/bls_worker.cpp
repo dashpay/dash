@@ -7,6 +7,7 @@
 #include <serialize.h>
 
 #include <util.h>
+#include <memory>
 
 template <typename T>
 bool VerifyVectorHelper(const std::vector<T>& vec, size_t start, size_t count)
@@ -461,7 +462,7 @@ struct ContributionVerifier {
         for (size_t i = 0; i < batchCount; i++) {
             auto& batchState = batchStates[i];
 
-            batchState.aggDone.reset(new std::atomic<int>(0));
+            batchState.aggDone = std::make_unique<std::atomic<int>>(0);
             batchState.start = i * batchSize;
             batchState.count = std::min(batchSize, vvecs.size() - batchState.start);
             batchState.verifyResults.assign(batchState.count, 0);
