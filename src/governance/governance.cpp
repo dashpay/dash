@@ -256,7 +256,7 @@ void CGovernanceManager::ProcessMessage(CNode* pfrom, const std::string& strComm
     }
 }
 
-void CGovernanceManager::CheckOrphanVotes(CGovernanceObject& govobj, CGovernanceException& exception, CConnman& connman)
+void CGovernanceManager::CheckOrphanVotes(CGovernanceObject& govobj, CConnman& connman)
 {
     uint256 nHash = govobj.GetHash();
     std::vector<vote_time_pair_t> vecVotePairs;
@@ -268,10 +268,10 @@ void CGovernanceManager::CheckOrphanVotes(CGovernanceObject& govobj, CGovernance
     for (auto& pairVote : vecVotePairs) {
         bool fRemove = false;
         CGovernanceVote& vote = pairVote.first;
-        CGovernanceException exception;
+        CGovernanceException e;
         if (pairVote.second < nNow) {
             fRemove = true;
-        } else if (govobj.ProcessVote(nullptr, vote, exception, connman)) {
+        } else if (govobj.ProcessVote(nullptr, vote, e, connman)) {
             vote.Relay(connman);
             fRemove = true;
         }
@@ -334,8 +334,7 @@ void CGovernanceManager::AddGovernanceObject(CGovernanceObject& govobj, CConnman
 
     // WE MIGHT HAVE PENDING/ORPHAN VOTES FOR THIS OBJECT
 
-    CGovernanceException exception;
-    CheckOrphanVotes(govobj, exception, connman);
+    CheckOrphanVotes(govobj, connman);
 
     // SEND NOTIFICATION TO SCRIPT/ZMQ
     GetMainSignals().NotifyGovernanceObject(std::make_shared<const CGovernanceObject>(govobj));
