@@ -94,7 +94,8 @@ bool CLLMQUtils::IsQuorumPoseEnabled(Consensus::LLMQType llmqType)
         return true;
     }
 
-    // It takes 1 payment cycle (in seconds) since the latest local protocol update to start applying PoSe logic
+    // It takes the "number of registered MNs" blocks (in seconds) since the latest local protocol update to start applying PoSe logic.
+    // It means that new nodes won't try to PoSe-punish old nodes right after the update and will let them fully recover first (if needed).
     const int64_t nPoSeCooldown = deterministicMNManager->GetListAtChainTip().GetAllMNsCount() * Params().GetConsensus().nPowTargetSpacing;
     fPoSeCooldownPassed = GetTime() - mmetaman.GetCurrentVersionStarted() > nPoSeCooldown;
     return fPoSeCooldownPassed;
