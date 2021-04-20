@@ -3,14 +3,15 @@
 // file COPYING or http://www.opensource.org/licenses/mit-license.php.
 
 #include <governance/governance-classes.h>
-#include <governance/governance.h>
+
 #include <core_io.h>
-#include <utilstrencodings.h>
-#include <validation.h>
+#include <governance/governance.h>
+#include <key_io.h>
 #include <primitives/transaction.h>
 #include <script/standard.h>
-#include <key_io.h>
 #include <timedata.h>
+#include <utilstrencodings.h>
+#include <validation.h>
 
 #include <boost/algorithm/string.hpp>
 

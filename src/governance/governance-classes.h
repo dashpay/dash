@@ -4,11 +4,11 @@
 #ifndef BITCOIN_GOVERNANCE_GOVERNANCE_CLASSES_H
 #define BITCOIN_GOVERNANCE_GOVERNANCE_CLASSES_H
 
-#include <uint256.h>
 #include <amount.h>
-#include <script/script.h>
 #include <governance/governance-object.h>
+#include <script/script.h>
 #include <script/standard.h>
+#include <uint256.h>
 
 class CTxOut;
 class CTransaction;

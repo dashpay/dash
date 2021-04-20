@@ -8,8 +8,8 @@
 #include <governance/governance-exceptions.h>
 #include <governance/governance-vote.h>
 #include <governance/governance-votedb.h>
-#include <sync.h>
 #include <logging.h>
+#include <sync.h>
 
 #include <univalue.h>
 

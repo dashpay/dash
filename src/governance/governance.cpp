@@ -3,19 +3,20 @@
 // file COPYING or http://www.opensource.org/licenses/mit-license.php.
 
 #include <governance/governance.h>
+
+#include <bloom.h>
+#include <chain.h>
 #include <consensus/validation.h>
 #include <governance/governance-classes.h>
 #include <governance/governance-validators.h>
-#include <bloom.h>
-#include <chain.h>
 #include <init.h>
 #include <masternode/masternode-meta.h>
 #include <masternode/masternode-sync.h>
 #include <net_processing.h>
 #include <netfulfilledman.h>
 #include <netmessagemaker.h>
-#include <spork.h>
 #include <protocol.h>
+#include <spork.h>
 
 #include <evo/deterministicmns.h>
 
