@@ -58,7 +58,7 @@ BOOST_AUTO_TEST_CASE(bls_key_agg_tests)
     CBLSSecretKey ag_sk = sk1;
     ag_sk.AggregateInsecure(sk2);
 
-    BOOST_CHECK_EQUAL(apk.ToString(), ag_sk.GetPublicKey().ToString());
+    BOOST_CHECK(ag_pk == ag_sk.GetPublicKey());
 
     uint256 msgHash1 = uint256S("0000000000000000000000000000000000000000000000000000000000000001");
     uint256 msgHash2 = uint256S("0000000000000000000000000000000000000000000000000000000000000002");
