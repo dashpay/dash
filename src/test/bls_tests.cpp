@@ -4,6 +4,7 @@
 
 #include <bls/bls.h>
 #include <bls/bls_batchverifier.h>
+#include <random.h>
 #include <test/test_dash.h>
 
 #include <boost/test/unit_test.hpp>
@@ -124,8 +125,7 @@ BOOST_AUTO_TEST_CASE(bls_sig_agg_sub_tests)
     for (int i = 0; i < count; i++) {
         sk.MakeNewKey();
         vec_pks.push_back(sk.GetPublicKey());
-        // Get a random "hash"
-        rand_bytes(reinterpret_cast<uint8_t *>(&hash), 256 / 8);
+        hash = GetRandHash();
         vec_hashes.push_back(hash);
         CBLSSignature sig_i = sk.Sign(hash);
         vec_sigs.push_back(sig_i);
@@ -164,8 +164,7 @@ BOOST_AUTO_TEST_CASE(bls_sig_agg_secure_tests)
 {
     int count = 10;
 
-    uint256 hash;
-    rand_bytes(reinterpret_cast<uint8_t *>(&hash), 256 / 8);
+    uint256 hash = GetRandHash();
 
     std::vector<CBLSSignature> vec_sigs;
     std::vector<CBLSPublicKey> vec_pks;
