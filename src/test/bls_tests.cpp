@@ -129,9 +129,11 @@ BOOST_AUTO_TEST_CASE(bls_sig_agg_sub_tests)
         vec_hashes.push_back(hash);
         CBLSSignature sig_i = sk.Sign(hash);
         vec_sigs.push_back(sig_i);
-        if (!sig.IsValid()) {
+        if (i == 0) {
+            // first sig is assigned directly
             sig = sig_i;
         } else {
+            // all other sigs are aggregated into the previously computed/stored sig
             sig.AggregateInsecure(sig_i);
         }
         BOOST_CHECK(sig.VerifyInsecureAggregated(vec_pks, vec_hashes));
