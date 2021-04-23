@@ -48,13 +48,14 @@ BOOST_AUTO_TEST_CASE(bls_sig_tests)
 
 BOOST_AUTO_TEST_CASE(bls_key_agg_tests)
 {
-    CBLSSecretKey ag_sk, sk2;
-    ag_sk.MakeNewKey();
+    CBLSSecretKey sk1, sk2;
+    sk1.MakeNewKey();
     sk2.MakeNewKey();
 
-    CBLSPublicKey apk = ag_sk.GetPublicKey();
-    apk.AggregateInsecure(sk2.GetPublicKey());
+    CBLSPublicKey ag_pk = sk1.GetPublicKey();
+    ag_pk.AggregateInsecure(sk2.GetPublicKey());
 
+    CBLSSecretKey ag_sk = sk1;
     ag_sk.AggregateInsecure(sk2);
 
     BOOST_CHECK_EQUAL(apk.ToString(), ag_sk.GetPublicKey().ToString());
@@ -63,8 +64,8 @@ BOOST_AUTO_TEST_CASE(bls_key_agg_tests)
     uint256 msgHash2 = uint256S("0000000000000000000000000000000000000000000000000000000000000002");
 
     auto sig = ag_sk.Sign(msgHash1);
-    BOOST_CHECK(sig.VerifyInsecure(apk, msgHash1));
-    BOOST_CHECK(!sig.VerifyInsecure(apk, msgHash2));
+    BOOST_CHECK(sig.VerifyInsecure(ag_pk, msgHash1));
+    BOOST_CHECK(!sig.VerifyInsecure(ag_pk, msgHash2));
 }
 
 BOOST_AUTO_TEST_CASE(bls_key_agg_vec_tests)
