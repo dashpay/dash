@@ -324,6 +324,7 @@ void CMasternodeSync::UpdatedBlockTip(const CBlockIndex *pindexNew, bool fInitia
 {
     LogPrint(BCLog::MNSYNC, "CMasternodeSync::UpdatedBlockTip -- pindexNew->nHeight: %d fInitialDownload=%d\n", pindexNew->nHeight, fInitialDownload);
 
+    LOCK(cs);
     nTimeLastUpdateBlockTip = GetAdjustedTime();
 
     if (IsSynced() || !pindexBestHeader)

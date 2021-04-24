@@ -4,6 +4,8 @@
 #ifndef BITCOIN_MASTERNODE_MASTERNODE_SYNC_H
 #define BITCOIN_MASTERNODE_MASTERNODE_SYNC_H
 
+#include <sync.h>
+
 class CMasternodeSync;
 class CBlockIndex;
 class CConnman;
@@ -29,6 +31,8 @@ extern CMasternodeSync masternodeSync;
 class CMasternodeSync
 {
 private:
+    CCriticalSection cs;
+
     // Keep track of current asset
     int nCurrentAsset;
     // Count peers we've requested the asset from
