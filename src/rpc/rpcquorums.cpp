@@ -188,7 +188,7 @@ UniValue quorum_dkgstatus(const JSONRPCRequest& request)
 
     UniValue minableCommitments(UniValue::VOBJ);
     UniValue quorumConnections(UniValue::VOBJ);
-    for (const auto& type : llmq::CLLMQUtils::GetEnabledQuorumTypes(chainActive.Tip())) {
+    for (const auto& type : llmq::CLLMQUtils::GetEnabledQuorumTypes(pindexTip)) {
         const auto& params = llmq::GetLLMQParams(type);
 
         if (fMasternodeMode) {
@@ -221,6 +221,7 @@ UniValue quorum_dkgstatus(const JSONRPCRequest& request)
             quorumConnections.pushKV(params.name, arr);
         }
 
+        LOCK(cs_main);
         llmq::CFinalCommitment fqc;
         if (llmq::quorumBlockProcessor->GetMineableCommitment(params.type,
                                                               tipHeight, fqc)) {
