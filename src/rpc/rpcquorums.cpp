@@ -662,7 +662,7 @@ UniValue quorum(const JSONRPCRequest& request)
 void verifychainlock_help()
 {
     throw std::runtime_error(
-            "verifychainlock \"blockHash\" \"blockHeight\" \"signature\"\n"
+            "verifychainlock \"blockHash\" \"signature\" ( blockHeight )\n"
             "Test if a quorum signature is valid for a ChainLock.\n"
             "\nArguments:\n"
             "1. \"blockHash\"           (string, required) The block hash of the ChainLock.\n"
