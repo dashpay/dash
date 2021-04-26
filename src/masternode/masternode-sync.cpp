@@ -316,9 +316,11 @@ void CMasternodeSync::AcceptedBlockHeader(const CBlockIndex *pindexNew)
 
 void CMasternodeSync::NotifyHeaderTip(const CBlockIndex *pindexNew, bool fInitialDownload, CConnman& connman)
 {
+    if (pindexNew == nullptr) {
+        return;
+    }
     LogPrint(BCLog::MNSYNC, "CMasternodeSync::NotifyHeaderTip -- pindexNew->nHeight: %d fInitialDownload=%d\n", pindexNew->nHeight, fInitialDownload);
-
-    if (IsSynced() || !pindexBestHeader)
+    if (IsSynced())
         return;
 
     if (!IsBlockchainSynced()) {
