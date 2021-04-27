@@ -42,6 +42,9 @@ class LLMQSimplePoSeTest(DashTestFramework):
         # Make sure no banning happens with spork21 enabled
         self.test_no_banning()
 
+        # Test PoSe cooldown
+        self.test_pose_cooldown()
+
         # Lets restart masternodes with closed ports and verify that they get banned even though they are connected to other MNs (via outbound connections)
         self.test_banning(self.close_mn_port, 3)
 
@@ -84,6 +87,37 @@ class LLMQSimplePoSeTest(DashTestFramework):
         connect_nodes(mn.node, 0)
         self.reset_probe_timeouts()
         return False
+
+    def test_pose_cooldown(self):
+        # Pretend that we are still in PoSe cooldown mode
+        one_year = 365 * 24 * 60 * 60
+        extra_args = ["-vbparams=v17:%s:%s" % (self.mocktime, self.mocktime + one_year)]
+        old_mocktime = self.mocktime
+        for mn in self.mninfo:
+            self.stop_node(mn.node.index)
+            os.remove(os.path.join(mn.node.datadir, self.chain, 'mncache.dat'))
+            self.start_masternode(mn, extra_args + (["-pushversion=70216"] if mn.node.index == 1 else []))
+            connect_nodes(mn.node, 0)
+        self.sync_all()
+        self.mine_quorum(have_probes=False)  # We do not probe other masternodes while in PoSe cooldown mode
+        assert self.mocktime < old_mocktime + int(len(self.mninfo) * 2.5 * 60)
+        for mn in self.mninfo:
+            assert(not self.check_punished(mn) and not self.check_banned(mn))
+
+        # 1 second too late
+        three_months_plus_1 = 3 * 30 * 24 * 60 * 60 + 1
+        extra_args = ["-vbparams=v17:%s:%s" % (self.mocktime - three_months_plus_1, self.mocktime - three_months_plus_1 + one_year)]
+        for mn in self.mninfo:
+            self.stop_node(mn.node.index)
+            os.remove(os.path.join(mn.node.datadir, self.chain, 'mncache.dat'))
+            self.start_masternode(mn, extra_args)
+            connect_nodes(mn.node, 0)
+        self.sync_all()
+        self.test_banning(self.force_old_mn_proto, 3)
+
+        # repair_masternodes will restart with default params which will also disable PoSe cooldown
+        self.repair_masternodes(True)
+        self.reset_probe_timeouts()
 
     def test_no_banning(self, expected_connections=None):
         for i in range(3):
