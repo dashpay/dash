@@ -94,7 +94,7 @@ bool CLLMQUtils::IsQuorumPoseEnabled(Consensus::LLMQType llmqType)
         return true;
     }
 
-    // Stop applying PoSe cooldown after the first three months since the start of the most resent major upgrade
+    // Stop applying PoSe cooldown after the first three months since the start of the most recent major upgrade
     const int64_t nStartTime = Consensus::MAX_VERSION_BITS_DEPLOYMENTS > 0 ? Params().GetConsensus().vDeployments[Consensus::MAX_VERSION_BITS_DEPLOYMENTS - 1].nStartTime : 0;
     if (GetTime() - nStartTime > 3 * 30 * 24 * 60 * 60 /* three months */) {
         fPoSeCooldownPassed = true;
