@@ -230,7 +230,7 @@ namespace ctpl {
                         return;  // if the queue is empty and this->isDone == true or *flag then return
                 }
             };
-            this->threads[i].reset(new std::thread(f)); // compiler may not support std::make_unique()
+            this->threads[i] = std::make_unique<std::thread>(f);
         }
 
         void init() { this->nWaiting = 0; this->isStop = false; this->isDone = false; }
