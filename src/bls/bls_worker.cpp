@@ -10,6 +10,7 @@
 
 #include <memory>
 #include <utility>
+#include <boost/lockfree/queue.hpp>
 
 template <typename T>
 bool VerifyVectorHelper(const std::vector<T>& vec, size_t start, size_t count)
