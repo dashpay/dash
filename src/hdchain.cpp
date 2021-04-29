@@ -19,8 +19,6 @@ bool CHDChain::SetNull()
     vchMnemonic.clear();
     vchMnemonicPassphrase.clear();
     mapAccounts.clear();
-    // default blank account
-    mapAccounts.insert(std::pair<uint32_t, CHDAccount>(0, CHDAccount()));
     return IsNull();
 }
 

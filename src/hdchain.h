@@ -31,11 +31,11 @@ private:
     mutable CCriticalSection cs;
 
     static const int CURRENT_VERSION = 1;
-    int nVersion GUARDED_BY(cs);
+    int nVersion GUARDED_BY(cs) {CURRENT_VERSION};
 
     uint256 id GUARDED_BY(cs);
 
-    bool fCrypted GUARDED_BY(cs);
+    bool fCrypted GUARDED_BY(cs) {false};
 
     SecureVector vchSeed GUARDED_BY(cs);
     SecureVector vchMnemonic GUARDED_BY(cs);
@@ -45,7 +45,7 @@ private:
 
 public:
 
-    CHDChain() { SetNull(); }
+    CHDChain() = default;
     CHDChain(const CHDChain& other) :
         nVersion(other.nVersion),
         id(other.id),
