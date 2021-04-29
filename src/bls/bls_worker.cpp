@@ -10,7 +10,6 @@
 
 #include <memory>
 #include <utility>
-#include <boost/lockfree/queue.hpp>
 
 template <typename T>
 bool VerifyVectorHelper(const std::vector<T>& vec, size_t start, size_t count)
@@ -143,7 +142,7 @@ struct Aggregator {
     std::mutex m;
     // items in the queue are all intermediate aggregation results of finished batches.
     // The intermediate results must be deleted by us again (which we do in SyncAggregateAndPushAggQueue)
-    boost::lockfree::queue<T*> aggQueue;
+    ctpl::detail::Queue<T*> aggQueue;
     std::atomic<size_t> aggQueueSize{0};
 
     // keeps track of currently queued/in-progress batches. If it reaches 0, we are done
@@ -161,7 +160,6 @@ struct Aggregator {
                DoneCallback _doneCallback) :
             workerPool(_workerPool),
             parallel(_parallel),
-            aggQueue(0),
             doneCallback(std::move(_doneCallback))
     {
         inputVec = std::make_shared<std::vector<const T*> >(count);

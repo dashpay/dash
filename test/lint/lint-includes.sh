@@ -60,7 +60,6 @@ EXPECTED_BOOST_INCLUDES=(
     boost/function.hpp
     boost/interprocess/sync/file_lock.hpp
     boost/lexical_cast.hpp
-    boost/lockfree/queue.hpp
     boost/multi_index/hashed_index.hpp
     boost/multi_index/ordered_index.hpp
     boost/multi_index/sequenced_index.hpp
