@@ -1414,21 +1414,9 @@ void CConnman::DisconnectNodes()
         {
             CNode* pnode = *it;
             // wait until threads are done using it
-            bool fDelete = false;
             if (pnode->GetRefCount() <= 0) {
-                {
-                    TRY_LOCK(pnode->cs_vSend, lockSend);
-                    if (lockSend) {
-                        fDelete = true;
-                    }
-                }
-                if (fDelete) {
-                    it = vNodesDisconnected.erase(it);
-                    DeleteNode(pnode);
-                }
-            }
-            if (!fDelete) {
-                ++it;
+                it = vNodesDisconnected.erase(it);
+                DeleteNode(pnode);
             }
         }
     }
