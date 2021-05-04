@@ -1254,7 +1254,7 @@ QFont::Weight toQFontWeight(FontWeight weight)
 QFont::Weight getFontWeightNormal()
 {
     if (!mapWeights.count(fontFamily)) {
-        throw std::runtime_error(strprintf("%s: Font family not loaded: %s", __func__, fontFamilyToString(fontFamily).toStdString()));
+        return defaultFontWeightNormal;
     }
     return mapWeights[fontFamily].first;
 }
@@ -1276,7 +1276,7 @@ QFont::Weight getFontWeightBoldDefault()
 QFont::Weight getFontWeightBold()
 {
     if (!mapWeights.count(fontFamily)) {
-        throw std::runtime_error(strprintf("%s: Font family not loaded: %s", __func__, fontFamilyToString(fontFamily).toStdString()));
+        return defaultFontWeightBold;
     }
     return mapWeights[fontFamily].second;
 }
@@ -1439,8 +1439,17 @@ bool loadFonts()
     return true;
 }
 
+bool fontsLoaded()
+{
+    return osDefaultFont != nullptr;
+}
+
 void setApplicationFont()
 {
+    if (!fontsLoaded()) {
+        return;
+    }
+
     std::unique_ptr<QFont> font;
 
     if (fontFamily == FontFamily::Montserrat) {
@@ -1589,6 +1598,9 @@ void updateFonts()
 QFont getFont(FontFamily family, QFont::Weight qWeight, bool fItalic, int nPointSize)
 {
     QFont font;
+    if (!fontsLoaded()) {
+        return font;
+    }
 
     if (family == FontFamily::Montserrat) {
         static std::map<QFont::Weight, QString> mapMontserratMapping{

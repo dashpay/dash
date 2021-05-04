@@ -324,6 +324,8 @@ namespace GUIUtil
 
     /** Load dash specific appliciation fonts */
     bool loadFonts();
+    /** Check if the fonts have been loaded successfully */
+    bool fontsLoaded();
 
     /** Set an application wide default font, depends on the selected theme */
     void setApplicationFont();
