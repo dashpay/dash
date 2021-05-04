@@ -85,6 +85,8 @@ void OptionsModel::Init(bool resetSettings)
 
     if (!settings.contains("fontFamily"))
         settings.setValue("fontFamily", GUIUtil::fontFamilyToString(GUIUtil::getFontFamilyDefault()));
+    if (!m_node.softSetArg("-font-family", settings.value("fontFamily").toString().toStdString()))
+        addOverriddenOption("-font-family");
 
     if (!settings.contains("fontScale"))
         settings.setValue("fontScale", GUIUtil::getFontScaleDefault());
