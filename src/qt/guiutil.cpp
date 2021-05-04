@@ -1661,6 +1661,11 @@ int supportedWeightToIndex(QFont::Weight weight)
     return -1;
 }
 
+bool isSupportedWeight(const QFont::Weight weight)
+{
+    return supportedWeightToIndex(weight) != -1;
+}
+
 QString getActiveTheme()
 {
     QSettings settings;

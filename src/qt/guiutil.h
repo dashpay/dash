@@ -354,6 +354,8 @@ namespace GUIUtil
     QFont::Weight supportedWeightFromIndex(int nIndex);
     /** Convert a weight to an index in the supported weights vector */
     int supportedWeightToIndex(QFont::Weight weight);
+    /** Check if a weight is supported by the current font family */
+    bool isSupportedWeight(QFont::Weight weight);
 
     /** Return the name of the currently active theme.*/
     QString getActiveTheme();
