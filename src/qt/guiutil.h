@@ -348,6 +348,10 @@ namespace GUIUtil
     /** Get the default bold QFont */
     QFont getFontBold();
 
+    /** Return supported normal default for the current font family */
+    QFont::Weight getSupportedFontWeightNormalDefault();
+    /** Return supported bold default for the current font family */
+    QFont::Weight getSupportedFontWeightBoldDefault();
     /** Return supported weights for the current font family */
     std::vector<QFont::Weight> getSupportedWeights();
     /** Convert an index to a weight in the supported weights vector */
