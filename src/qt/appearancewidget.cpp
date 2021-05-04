@@ -158,11 +158,9 @@ void AppearanceWidget::updateWeightSlider()
     ui->fontWeightBoldSlider->setMinimum(0);
     ui->fontWeightBoldSlider->setMaximum(nMaximum);
 
-    if (nMaximum < 4) {
-        updateFontWeightNormal(0, true);
-        updateFontWeightBold(nMaximum, true);
-    } else {
-        updateFontWeightNormal(1, true);
-        updateFontWeightBold(4, true);
-    }
+    int nIndexNormal = GUIUtil::supportedWeightToIndex(GUIUtil::getSupportedFontWeightNormalDefault());
+    int nIndexBold = GUIUtil::supportedWeightToIndex(GUIUtil::getSupportedFontWeightBoldDefault());
+    assert(nIndexNormal != -1 && nIndexBold != -1);
+    updateFontWeightNormal(nIndexNormal, true);
+    updateFontWeightBold(nIndexBold, true);
 }
