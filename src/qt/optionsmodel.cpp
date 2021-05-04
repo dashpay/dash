@@ -104,6 +104,11 @@ void OptionsModel::Init(bool resetSettings)
     if (m_node.softSetArg("-font-weight-normal", settings.value("fontWeightNormal").toString().toStdString())) {
         QFont::Weight weight;
         GUIUtil::weightFromArg(settings.value("fontWeightNormal").toInt(), weight);
+        if (!GUIUtil::isSupportedWeight(weight)) {
+            // If the currently selected weight is not supported fallback to the lightest weight for normal font.
+            weight = GUIUtil::getSupportedWeights().front();
+            settings.setValue("fontWeightNormal", GUIUtil::weightToArg(weight));
+        }
         GUIUtil::setFontWeightNormal(weight);
     } else {
         addOverriddenOption("-font-weight-normal");
@@ -114,6 +119,13 @@ void OptionsModel::Init(bool resetSettings)
     if (m_node.softSetArg("-font-weight-bold", settings.value("fontWeightBold").toString().toStdString())) {
         QFont::Weight weight;
         GUIUtil::weightFromArg(settings.value("fontWeightBold").toInt(), weight);
+        if (!GUIUtil::isSupportedWeight(weight)) {
+            // If the currently selected weight is not supported fallback to the second lightest weight for bold font
+            // or the lightest if there is only one.
+            auto vecSupported = GUIUtil::getSupportedWeights();
+            weight = vecSupported[vecSupported.size() > 1 ? 1 : 0];
+            settings.setValue("fontWeightBold", GUIUtil::weightToArg(weight));
+        }
         GUIUtil::setFontWeightBold(weight);
     } else {
         addOverriddenOption("-font-weight-bold");
