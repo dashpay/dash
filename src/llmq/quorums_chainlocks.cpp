@@ -415,7 +415,7 @@ void CChainLocksHandler::ProcessNewChainLock(const NodeId from, CChainLockSig& c
                         LOCK(pnode->cs_filter);
                         fSPV = pnode->pfilter != nullptr;
                     }
-                    if (pnode->nVersion >= MULTI_QUORUM_CHAINLOCKS_VERSION && !fSPV && !pnode->m_masternode_connection) {
+                    if (pnode->nVersion >= MULTI_QUORUM_CHAINLOCKS_VERSION && !fSPV && pnode->CanRelay()) {
                         pnode->PushInventory(clsigInv);
                     }
                 });
