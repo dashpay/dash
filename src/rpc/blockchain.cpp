@@ -32,8 +32,12 @@
 #include <evo/specialtx.h>
 #include <evo/cbtx.h>
 
+#include <llmq/quorums.h>
 #include <llmq/quorums_chainlocks.h>
+#include <llmq/quorums_commitment.h>
 #include <llmq/quorums_instantsend.h>
+#include <llmq/quorums_signing.h>
+#include <llmq/quorums_utils.h>
 
 #include <stdint.h>
 
@@ -335,7 +339,7 @@ UniValue getchainlocks(const JSONRPCRequest& request)
 
     for (const auto& pair : clsigsShares) {
         UniValue sig(UniValue::VOBJ);
-        sig.pushKV("quorumHash", pair.first->qc.quorumHash.GetHex());
+        sig.pushKV("quorumHash", pair.first->qc->quorumHash.GetHex());
         sig.pushKV("signers", llmq::CLLMQUtils::ToHexStr(pair.second->signers));
         sig.pushKV("signature", pair.second->sig.ToString());
         activeChainlockShares.push_back(sig);
