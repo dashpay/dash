@@ -515,7 +515,9 @@ private:
     NODISCARD bool AddUniqueProperty(const CDeterministicMNCPtr& dmn, const T& v)
     {
         static const T nullValue;
-        assert(v != nullValue);
+        if (v == nullValue) {
+            return false;
+        }
 
         auto hash = ::SerializeHash(v);
         auto oldEntry = mnUniquePropertyMap.find(hash);
@@ -533,7 +535,9 @@ private:
     NODISCARD bool DeleteUniqueProperty(const CDeterministicMNCPtr& dmn, const T& oldValue)
     {
         static const T nullValue;
-        assert(oldValue != nullValue);
+        if (oldValue == nullValue) {
+            return false;
+        }
 
         auto oldHash = ::SerializeHash(oldValue);
         auto p = mnUniquePropertyMap.find(oldHash);
