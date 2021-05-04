@@ -406,12 +406,16 @@ QVariant OptionsModel::data(const QModelIndex & index, int role) const
         case FontWeightNormal: {
             QFont::Weight weight;
             GUIUtil::weightFromArg(settings.value("fontWeightNormal").toInt(), weight);
-            return GUIUtil::supportedWeightToIndex(weight);
+            int nIndex = GUIUtil::supportedWeightToIndex(weight);
+            assert(nIndex != -1);
+            return nIndex;
         }
         case FontWeightBold: {
             QFont::Weight weight;
             GUIUtil::weightFromArg(settings.value("fontWeightBold").toInt(), weight);
-            return GUIUtil::supportedWeightToIndex(weight);
+            int nIndex = GUIUtil::supportedWeightToIndex(weight);
+            assert(nIndex != -1);
+            return nIndex;
         }
         case Language:
             return settings.value("language");

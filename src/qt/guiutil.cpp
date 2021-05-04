@@ -1658,7 +1658,7 @@ int supportedWeightToIndex(QFont::Weight weight)
             return index;
         }
     }
-    assert(false);
+    return -1;
 }
 
 QString getActiveTheme()
