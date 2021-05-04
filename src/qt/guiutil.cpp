@@ -1379,26 +1379,6 @@ bool loadFonts()
         }
     }
 
-    // Load font related settings
-    QSettings settings;
-    QFont::Weight weight;
-
-    if (!gArgs.IsArgSet("-font-family")) {
-        fontFamily = fontFamilyFromString(settings.value("fontFamily").toString());
-    }
-
-    if (!gArgs.IsArgSet("-font-scale")) {
-        fontScale = settings.value("fontScale").toInt();
-    }
-
-    if (!gArgs.IsArgSet("-font-weight-normal") && weightFromArg(settings.value("fontWeightNormal").toInt(), weight)) {
-        fontWeightNormal = weight;
-    }
-
-    if (!gArgs.IsArgSet("-font-weight-bold") && weightFromArg(settings.value("fontWeightBold").toInt(), weight)) {
-        fontWeightBold = weight;
-    }
-
     setApplicationFont();
 
     // Initialize supported font weights for all available fonts
