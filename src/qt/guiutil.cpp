@@ -1410,7 +1410,7 @@ bool loadFonts()
         };
         std::vector<QFont::Weight> vecWeights{QFont::Thin, QFont::ExtraLight, QFont::Light,
                                               QFont::Normal, QFont::Medium, QFont::DemiBold,
-                                              QFont::Bold, QFont::Black};
+                                              QFont::Bold, QFont::ExtraBold, QFont::Black};
         std::vector<QFont::Weight> vecSupported;
         QFont::Weight prevWeight = vecWeights.front();
         for (auto weight = vecWeights.begin() + 1; weight != vecWeights.end(); ++weight) {
