@@ -579,6 +579,8 @@ void CChainLocksHandler::CheckActiveState()
 
 void CChainLocksHandler::TrySignChainTip()
 {
+    const static int attempt_start{-2}; // let a couple of extra attempts to wait for busy/slow quorums
+    static int attempt{attempt_start};
     static int lastSignedHeight{-1};
 
     Cleanup();
@@ -614,7 +616,9 @@ void CChainLocksHandler::TrySignChainTip()
         }
 
         if (bestChainLockWithKnownBlock.nHeight >= pindex->nHeight) {
-            // already got the same CLSIG or a better one
+            // already got the same CLSIG or a better one, reset and bail out
+            lastSignedHeight = bestChainLockWithKnownBlock.nHeight;
+            attempt = attempt_start;
             return;
         }
 
@@ -688,8 +692,6 @@ void CChainLocksHandler::TrySignChainTip()
                 mapSharesAtTip = it->second;
             }
         }
-        const static int attempt_start{-2}; // let a couple of extra attempts to wait for busy/slow quorums
-        static int attempt{attempt_start};
         bool fMemberOfSomeQuorum{false};
         ++attempt;
         for (size_t i = 0; i < quorums_scanned.size(); ++i) {
