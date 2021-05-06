@@ -37,7 +37,7 @@ void InitLLMQSystem(CEvoDB& evoDb, bool unitTests, bool fWipe)
     quorumSigSharesManager = new CSigSharesManager();
     quorumSigningManager = new CSigningManager(*llmqDb, unitTests);
     chainLocksHandler = new CChainLocksHandler();
-    quorumInstantSendManager = new CInstantSendManager(*llmqDb);
+    quorumInstantSendManager = new CInstantSendManager(unitTests, fWipe);
 }
 
 void DestroyLLMQSystem()
