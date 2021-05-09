@@ -985,8 +985,8 @@ void CInstantSendManager::ProcessInstantSendLock(NodeId from, const uint256& has
         g_connman->RelayInvFiltered(inv, islock->txid, LLMQS_PROTO_VERSION);
     }
 
-    RemoveMempoolConflictsForLock(hash, *islock);
     ResolveBlockConflicts(hash, *islock);
+    RemoveMempoolConflictsForLock(hash, *islock);
 
     if (tx != nullptr) {
         LogPrint(BCLog::INSTANTSEND, "CInstantSendManager::%s -- notify about an in-time lock for tx %s\n", __func__, tx->GetHash().ToString());
