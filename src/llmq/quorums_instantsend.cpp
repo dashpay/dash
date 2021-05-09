@@ -34,6 +34,8 @@ static const std::string DB_MINED_BY_HEIGHT_AND_HASH = "is_m";
 static const std::string DB_ARCHIVED_BY_HEIGHT_AND_HASH = "is_a1";
 static const std::string DB_ARCHIVED_BY_HASH = "is_a2";
 
+static const std::string DB_VERSION = "is_v";
+
 CInstantSendManager* quorumInstantSendManager;
 
 uint256 CInstantSendLock::GetRequestId() const
@@ -45,6 +47,46 @@ uint256 CInstantSendLock::GetRequestId() const
 }
 
 ////////////////
+
+CInstantSendDb::CInstantSendDb(CDBWrapper& _db) : db(_db)
+{
+    Upgrade();
+}
+
+void CInstantSendDb::Upgrade()
+{
+    int v{0};
+    if (!db.Read(DB_VERSION, v) || v < 1) {
+        CDBBatch batch(db);
+        CInstantSendLock islock;
+        CTransactionRef tx;
+        uint256 hashBlock;
+
+        auto it = std::unique_ptr<CDBIterator>(db.NewIterator());
+        auto firstKey = std::make_tuple(DB_ISLOCK_BY_HASH, uint256());
+        it->Seek(firstKey);
+        decltype(firstKey) curKey;
+
+        while (it->Valid()) {
+            if (!it->GetKey(curKey) || std::get<0>(curKey) != DB_ISLOCK_BY_HASH) {
+                break;
+            }
+            if (it->GetValue(islock)) {
+                if (!GetTransaction(islock.txid, tx, Params().GetConsensus(), hashBlock)) {
+                    // Drop locks for unknown txes
+                    batch.Erase(std::make_tuple(DB_HASH_BY_TXID, islock.txid));
+                    for (auto& in : islock.inputs) {
+                        batch.Erase(std::make_tuple(DB_HASH_BY_OUTPOINT, in));
+                    }
+                    batch.Erase(curKey);
+                }
+            }
+            it->Next();
+        }
+        batch.Write(DB_VERSION, 1);
+        db.WriteBatch(batch);
+    }
+}
 
 void CInstantSendDb::WriteNewInstantSendLock(const uint256& hash, const CInstantSendLock& islock)
 {

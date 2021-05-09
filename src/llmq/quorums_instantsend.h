@@ -53,8 +53,10 @@ private:
     void WriteInstantSendLockMined(CDBBatch& batch, const uint256& hash, int nHeight);
     void RemoveInstantSendLockMined(CDBBatch& batch, const uint256& hash, int nHeight);
 
+    void Upgrade();
+
 public:
-    explicit CInstantSendDb(CDBWrapper& _db) : db(_db) {}
+    explicit CInstantSendDb(CDBWrapper& _db);
 
     void WriteNewInstantSendLock(const uint256& hash, const CInstantSendLock& islock);
     void RemoveInstantSendLock(CDBBatch& batch, const uint256& hash, CInstantSendLockPtr islock, bool keep_cache = true);
