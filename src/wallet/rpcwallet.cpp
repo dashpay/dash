@@ -509,7 +509,7 @@ static RPCHelpMan listaddressgroupings()
             {
                 {RPCResult::Type::ARR, "", "",
                 {
-                    {RPCResult::Type::ARR, "", "",
+                    {RPCResult::Type::ARR_FIXED, "", "",
                     {
                         {RPCResult::Type::STR, "address", "The Dash address"},
                         {RPCResult::Type::STR_AMOUNT, "amount", "The amount in " + CURRENCY_UNIT},
