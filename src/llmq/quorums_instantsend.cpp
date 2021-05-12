@@ -1026,6 +1026,23 @@ void CInstantSendManager::TransactionAddedToMempool(const CTransactionRef& tx)
     }
 }
 
+void CInstantSendManager::TransactionRemovedFromMempool(const CTransactionRef& tx)
+{
+    if (!IsInstantSendEnabled() || !masternodeSync.IsBlockchainSynced() || tx->vin.empty()) {
+        return;
+    }
+
+    LOCK(cs);
+    CInstantSendLockPtr islock = db.GetInstantSendLockByTxid(tx->GetHash());
+
+    if (islock == nullptr) {
+        return;
+    }
+
+    LogPrint(BCLog::INSTANTSEND, "CInstantSendManager::%s -- transaction %s was removed from mempool\n", __func__, tx->GetHash().ToString());
+    RemoveConflictingLock(::SerializeHash(*islock), *islock);
+}
+
 void CInstantSendManager::BlockConnected(const std::shared_ptr<const CBlock>& pblock, const CBlockIndex* pindex, const std::vector<CTransactionRef>& vtxConflicted)
 {
     if (!IsInstantSendEnabled()) {
@@ -1294,6 +1311,8 @@ void CInstantSendManager::ResolveBlockConflicts(const uint256& islockHash, const
     // when large parts of the masternode network are controlled by an attacker. In this case we must still find consensus
     // and its better to sacrifice individual ISLOCKs then to sacrifice whole ChainLocks.
     if (hasChainLockedConflict) {
+        LogPrintf("CInstantSendManager::%s -- txid=%s, islock=%s: at least one conflicted TX already got a ChainLock\n", __func__,
+                  islock.txid.ToString(), islockHash.ToString());
         RemoveConflictingLock(islockHash, islock);
         return;
     }
@@ -1335,7 +1354,7 @@ void CInstantSendManager::ResolveBlockConflicts(const uint256& islockHash, const
 
 void CInstantSendManager::RemoveConflictingLock(const uint256& islockHash, const llmq::CInstantSendLock& islock)
 {
-    LogPrintf("CInstantSendManager::%s -- txid=%s, islock=%s: at least one conflicted TX already got a ChainLock. Removing ISLOCK and its chained children.\n", __func__,
+    LogPrintf("CInstantSendManager::%s -- txid=%s, islock=%s: Removing ISLOCK and its chained children\n", __func__,
               islock.txid.ToString(), islockHash.ToString());
     int tipHeight;
     {
