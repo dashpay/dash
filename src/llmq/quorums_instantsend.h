@@ -162,7 +162,7 @@ public:
 
     void RemoveMempoolConflictsForLock(const uint256& hash, const CInstantSendLock& islock);
     void ResolveBlockConflicts(const uint256& islockHash, const CInstantSendLock& islock);
-    void RemoveChainLockConflictingLock(const uint256& islockHash, const CInstantSendLock& islock);
+    void RemoveConflictingLock(const uint256& islockHash, const CInstantSendLock& islock);
     static void AskNodesForLockedTx(const uint256& txid);
     void ProcessPendingRetryLockTxs();
 

@@ -1294,7 +1294,7 @@ void CInstantSendManager::ResolveBlockConflicts(const uint256& islockHash, const
     // when large parts of the masternode network are controlled by an attacker. In this case we must still find consensus
     // and its better to sacrifice individual ISLOCKs then to sacrifice whole ChainLocks.
     if (hasChainLockedConflict) {
-        RemoveChainLockConflictingLock(islockHash, islock);
+        RemoveConflictingLock(islockHash, islock);
         return;
     }
 
@@ -1333,7 +1333,7 @@ void CInstantSendManager::ResolveBlockConflicts(const uint256& islockHash, const
     }
 }
 
-void CInstantSendManager::RemoveChainLockConflictingLock(const uint256& islockHash, const llmq::CInstantSendLock& islock)
+void CInstantSendManager::RemoveConflictingLock(const uint256& islockHash, const llmq::CInstantSendLock& islock)
 {
     LogPrintf("CInstantSendManager::%s -- txid=%s, islock=%s: at least one conflicted TX already got a ChainLock. Removing ISLOCK and its chained children.\n", __func__,
               islock.txid.ToString(), islockHash.ToString());
