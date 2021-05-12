@@ -798,6 +798,23 @@ void CTxMemPool::removeConflicts(const CTransaction &tx)
             const CTransaction &txConflict = *it->second;
             if (txConflict != tx)
             {
+                if (txConflict.nType == TRANSACTION_PROVIDER_REGISTER) {
+                    // Remove all other protxes which refer to this protx
+                    // NOTE: Can't use equal_range here as every call to removeRecursive might invalidate iterators
+                    while (true) {
+                        auto itPro = mapProTxRefs.find(txConflict.GetHash());
+                        if (itPro == mapProTxRefs.end()) {
+                            break;
+                        }
+                        auto txit = mapTx.find(itPro->second);
+                        if (txit != mapTx.end()) {
+                            ClearPrioritisation(txit->GetTx().GetHash());
+                            removeRecursive(txit->GetTx(), MemPoolRemovalReason::CONFLICT);
+                        } else {
+                            mapProTxRefs.erase(itPro);
+                        }
+                    }
+                }
                 ClearPrioritisation(txConflict.GetHash());
                 removeRecursive(txConflict, MemPoolRemovalReason::CONFLICT);
             }
