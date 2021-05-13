@@ -124,12 +124,6 @@ trasactions at a specific point in time.
 
 Also, enabling wallet encryption no longer requires a wallet restart.
 
-PrivateSend rename
-------------------
-PrivateSend has been renamed to CoinJoin to better reflect the functionality
-it provides and align with industry standard terminology. The renaming only
-applies to the UI and RPCs but does not change functionality.
-
 Sporks
 ------
 Several spork changes have been made to streamline code and improve system
@@ -141,6 +135,12 @@ so that masternode quorum connectivity and quorum Proof of Service (PoSe) can
 be controlled independently. Finally, `SPORK_2_INSTANTSEND_ENABLED` has a new
 mode (value: 1) that enables a smooth transition in case InstantSend needs to
 be disabled.
+
+PrivateSend rename
+------------------
+PrivateSend has been renamed to CoinJoin to better reflect the functionality
+it provides and align with industry standard terminology. The renaming only
+applies to the UI and RPCs but does not change functionality.
 
 Build system
 ------------
