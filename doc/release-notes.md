@@ -45,7 +45,7 @@ you must either reindex or re-sync the whole chain.
 
 ### Downgrade of masternodes to < 0.17
 
-Starting with 0.16 release, masternodes verify the protocol version of other
+Starting with the 0.16 release, masternodes verify the protocol version of other
 masternodes. This results in PoSe punishment/banning for outdated masternodes,
 so downgrading is not recommended.
 
