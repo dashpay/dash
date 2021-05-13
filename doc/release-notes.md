@@ -117,12 +117,12 @@ take advantage of HD wallet features. Upgrades can be done via either the debug
 console or command line and a new backup must be made when this upgrade is
 performed.
 
-Users can now load and unload wallet dynamically via RPC and GUI console.
-It's now possible to have multiple wallets loaded at the asme time, however only
+Users can now load and unload wallets dynamically via RPC and GUI console.
+It's now possible to have multiple wallets loaded at the same time, however only
 one of them is going to be active and receive updates or be used for sending
 trasactions at a specific point in time.
 
-Also, no wallet restart is required on wallet encryption anymore.
+Also, enabling wallet encryption no longer requires a wallet restart.
 
 PrivateSend rename
 ------------------
@@ -163,7 +163,7 @@ RPC changes
 -----------
 There are six new RPC commands which are Dash specific and seven new RPC
 commands introduced through Bitcoin backports. One previously deprecated RPC,
-estimatefee, was removed and several RPCs have been deprecated.
+`estimatefee`, was removed and several RPCs have been deprecated.
 
 The new RPCs are:
 - `createwallet`
@@ -199,14 +199,14 @@ The deprecated RPCs are:
 - `sendfrom`
 - `setaccount`
 
-`protx register` and `protx register_fund` rpcs now accept additional param
-`submit` which allows to produce and print ProRegTx-es without relaying them
+`protx register` and `protx register_fund` RPCs now accept an additional `submit` param
+which allows producing and printing ProRegTx-es without relaying them
 to the network.
 
 Also, please note that all mixing-related RPCs have been renamed to replace
 “PrivateSend” with “CoinJoin” (e.g. `setprivatesendrounds` -> `setcoinjoinrounds`).
 
-Please check `help <command>` in rpc for more information.
+Please check `help <command>` for more detailed information on specific RPCs.
 
 Command-line options
 --------------------
