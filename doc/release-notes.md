@@ -136,6 +136,15 @@ be controlled independently. Finally, `SPORK_2_INSTANTSEND_ENABLED` has a new
 mode (value: 1) that enables a smooth transition in case InstantSend needs to
 be disabled.
 
+Statoshi backport
+------------------
+This version includes a [backport](https://github.com/dashpay/dash/pull/2515)
+of [Statoshi functionality](https://github.com/jlopp/statoshi) which allows
+nodes to emit metrics to a StatsD instance. This can help node operators to
+learn more about node performance and network state in general. We added
+several command line options to give node operators more control, see options
+starting with `-stats` prefix.
+
 PrivateSend rename
 ------------------
 PrivateSend has been renamed to CoinJoin to better reflect the functionality
