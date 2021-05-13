@@ -313,10 +313,9 @@ void CChainLocksHandler::ProcessNewChainLock(const NodeId from, CChainLockSig& c
 
     CheckActiveState();
 
-    CInv clsigInv(clsig.nVersion == 1 ? MSG_CLSIGMQ : MSG_CLSIG, hash);
-
     if (from != -1) {
         LOCK(cs_main);
+        CInv clsigInv(clsig.nVersion == 1 ? MSG_CLSIGMQ : MSG_CLSIG, hash);
         EraseObjectRequest(from, clsigInv);
     }
 
@@ -410,6 +409,7 @@ void CChainLocksHandler::ProcessNewChainLock(const NodeId from, CChainLockSig& c
                 g_connman->RelayInv(clsigAggInv, MULTI_QUORUM_CHAINLOCKS_VERSION);
             } else {
                 // Relay partial CLSIGs to full nodes only, SPV wallets should wait for the aggregated CLSIG.
+                CInv clsigInv(MSG_CLSIGMQ, ::SerializeHash(clsig));
                 g_connman->ForEachNode([&](CNode* pnode) {
                     bool fSPV{false};
                     {
@@ -441,6 +441,7 @@ void CChainLocksHandler::ProcessNewChainLock(const NodeId from, CChainLockSig& c
             }
             // Note: do not hold cs while calling RelayInv
             AssertLockNotHeld(cs);
+            CInv clsigInv(MSG_CLSIGMQ, hash);
             g_connman->RelayInv(clsigInv, MULTI_QUORUM_CHAINLOCKS_VERSION);
         }
     } else {
@@ -497,6 +498,7 @@ void CChainLocksHandler::ProcessNewChainLock(const NodeId from, CChainLockSig& c
         }
         // Note: do not hold cs while calling RelayInv
         AssertLockNotHeld(cs);
+        CInv clsigInv(MSG_CLSIG, hash);
         g_connman->RelayInv(clsigInv, LLMQS_PROTO_VERSION);
     }
 
