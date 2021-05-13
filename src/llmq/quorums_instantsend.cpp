@@ -36,6 +36,8 @@ static const std::string DB_ARCHIVED_BY_HASH = "is_a2";
 
 static const std::string DB_VERSION = "is_v";
 
+const int CInstantSendDb::CURRENT_VERSION;
+
 CInstantSendManager* quorumInstantSendManager;
 
 uint256 CInstantSendLock::GetRequestId() const
@@ -56,7 +58,7 @@ CInstantSendDb::CInstantSendDb(CDBWrapper& _db) : db(_db)
 void CInstantSendDb::Upgrade()
 {
     int v{0};
-    if (!db.Read(DB_VERSION, v) || v < 1) {
+    if (!db.Read(DB_VERSION, v) || v < CInstantSendDb::CURRENT_VERSION) {
         CDBBatch batch(db);
         CInstantSendLock islock;
         CTransactionRef tx;
@@ -83,7 +85,7 @@ void CInstantSendDb::Upgrade()
             }
             it->Next();
         }
-        batch.Write(DB_VERSION, 1);
+        batch.Write(DB_VERSION, CInstantSendDb::CURRENT_VERSION);
         db.WriteBatch(batch);
     }
 }

@@ -44,6 +44,8 @@ typedef std::shared_ptr<CInstantSendLock> CInstantSendLockPtr;
 class CInstantSendDb
 {
 private:
+    static const int CURRENT_VERSION = 1;
+
     CDBWrapper& db;
 
     mutable unordered_lru_cache<uint256, CInstantSendLockPtr, StaticSaltedHasher, 10000> islockCache;
