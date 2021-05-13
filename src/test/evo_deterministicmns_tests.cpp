@@ -515,6 +515,62 @@ BOOST_FIXTURE_TEST_CASE(dip3_test_mempool_reorg, TestChainDIP3Setup)
     BOOST_CHECK_EQUAL(testPool.size(), 0U);
 }
 
+BOOST_FIXTURE_TEST_CASE(dip3_test_mempool_dual_proregtx, TestChainDIP3Setup)
+{
+    int nHeight = chainActive.Height();
+    auto utxos = BuildSimpleUtxoMap(m_coinbase_txns);
+
+    // Create a MN
+    CKey ownerKey1;
+    CBLSSecretKey operatorKey1;
+    auto tx_reg1 = CreateProRegTx(utxos, 1, GenerateRandomAddress(), coinbaseKey, ownerKey1, operatorKey1);
+
+    // Create a MN with an external collateral that references tx_reg1
+    CKey ownerKey;
+    CKey payoutKey;
+    CKey collateralKey;
+    CBLSSecretKey operatorKey;
+
+    ownerKey.MakeNewKey(true);
+    payoutKey.MakeNewKey(true);
+    collateralKey.MakeNewKey(true);
+    operatorKey.MakeNewKey();
+
+    auto scriptPayout = GetScriptForDestination(payoutKey.GetPubKey().GetID());
+    auto scriptCollateral = GetScriptForDestination(collateralKey.GetPubKey().GetID());
+
+    CProRegTx payload;
+    payload.addr = LookupNumeric("1.1.1.1", 2);
+    payload.keyIDOwner = ownerKey.GetPubKey().GetID();
+    payload.pubKeyOperator = operatorKey.GetPublicKey();
+    payload.keyIDVoting = ownerKey.GetPubKey().GetID();
+    payload.scriptPayout = scriptPayout;
+
+    for (size_t i = 0; i < tx_reg1.vout.size(); ++i) {
+        if (tx_reg1.vout[i].nValue == 1000 * COIN) {
+            payload.collateralOutpoint = COutPoint(tx_reg1.GetHash(), i);
+            break;
+        }
+    }
+
+    CMutableTransaction tx_reg2;
+    tx_reg2.nVersion = 3;
+    tx_reg2.nType = TRANSACTION_PROVIDER_REGISTER;
+    FundTransaction(tx_reg2, utxos, scriptPayout, 1000 * COIN, coinbaseKey);
+    payload.inputsHash = CalcTxInputsHash(tx_reg2);
+    CMessageSigner::SignMessage(payload.MakeSignString(), payload.vchSig, collateralKey);
+    SetTxPayload(tx_reg2, payload);
+    SignTransaction(tx_reg2, coinbaseKey);
+
+    CTxMemPool testPool;
+    TestMemPoolEntryHelper entry;
+    LOCK(testPool.cs);
+
+    testPool.addUnchecked(tx_reg1.GetHash(), entry.FromTx(tx_reg1));
+    BOOST_CHECK_EQUAL(testPool.size(), 1U);
+    BOOST_CHECK(testPool.existsProviderTxConflict(tx_reg2));
+}
+
 BOOST_FIXTURE_TEST_CASE(dip3_verify_db, TestChainDIP3Setup)
 {
     int nHeight = chainActive.Height();
