@@ -47,7 +47,8 @@ you must either reindex or re-sync the whole chain.
 
 Starting with the 0.16 release, masternodes verify the protocol version of other
 masternodes. This results in PoSe punishment/banning for outdated masternodes,
-so downgrading is not recommended.
+so downgrading even prior to the activation of the introduced hard-fork changes
+is not recommended.
 
 Notable changes
 ===============
@@ -59,7 +60,10 @@ of the system and enable developers to build new solutions. These opcodes are
 a combination of previously disabled ones that have been found to be safe and
 new ones previously introduced by Bitcoin Cash. Details of the opcodes are
 provided in [DIP-0020](https://github.com/dashpay/dips/blob/master/dip-0020.md).
-These opcodes are activated via bit 6.
+
+These opcodes are activated via a BIP9 style hard fork that will begin
+signalling on July 1st using bit 6. Any nodes that do not upgrade by the time
+this feature is activated will diverge from the rest of the network.
 
 DKG Data Sharing
 ----------------
@@ -83,7 +87,8 @@ to a subset of allowed RPCs, specifically:
 - `verifyislock`
 
 These changes provide necessary Platform capabilities while maximizing the
-isolation between Core and Platform.
+isolation between Core and Platform. New quorum type will be activated using
+the same bit 6 introduced to activate new opcodes.
 
 BLS update
 ----------
