@@ -170,7 +170,7 @@ Minimum supported macOS version was bumped to 10.10.
 
 RPC changes
 -----------
-There are six new RPC commands which are Dash specific and seven new RPC
+There are seven new RPC commands which are Dash specific and seven new RPC
 commands introduced through Bitcoin backports. One previously deprecated RPC,
 `estimatefee`, was removed and several RPCs have been deprecated.
 
@@ -187,6 +187,7 @@ The new RPCs are:
 - `signrawtransactionwithkey`
 - `signrawtransactionwithwallet`
 - `unloadwallet`
+- `verifychainlock`
 - `verifyislock`
 - `upgradetohd`
 
@@ -208,7 +209,7 @@ The deprecated RPCs are:
 - `sendfrom`
 - `setaccount`
 
-`protx register` and `protx register_fund` RPCs now accept an additional `submit` param
+`protx register` and `protx register_fund` RPCs now accept an additional `submit` parameter
 which allows producing and printing ProRegTx-es without relaying them
 to the network.
 
