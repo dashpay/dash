@@ -2937,8 +2937,8 @@ bool static ProcessMessage(CNode* pfrom, const std::string& strCommand, CDataStr
                 // We will continue to reject this tx since it has rejected
                 // parents so avoid re-requesting it from other peers.
                 recentRejects->insert(tx.GetHash());
+                llmq::quorumInstantSendManager->TransactionRemovedFromMempool(ptx);
             }
-            llmq::quorumInstantSendManager->TransactionRemovedFromMempool(ptx);
         } else {
             if (!state.CorruptionPossible()) {
                 assert(recentRejects);
