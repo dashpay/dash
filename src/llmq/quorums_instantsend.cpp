@@ -1072,7 +1072,7 @@ void CInstantSendManager::TransactionAddedToMempool(const CTransactionRef& tx)
 
 void CInstantSendManager::TransactionRemovedFromMempool(const CTransactionRef& tx)
 {
-    if (!IsInstantSendEnabled() || !masternodeSync.IsBlockchainSynced() || tx->vin.empty()) {
+    if (tx->vin.empty()) {
         return;
     }
 
