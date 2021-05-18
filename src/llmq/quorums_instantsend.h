@@ -87,6 +87,8 @@ private:
     mutable CCriticalSection cs;
     CInstantSendDb db;
 
+    bool fUpgradedDB GUARDED_BY(cs) {false};
+
     std::thread workThread;
     CThreadInterrupt workInterrupt;
 

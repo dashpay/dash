@@ -1071,18 +1071,15 @@ void CInstantSendManager::TransactionAddedToMempool(const CTransactionRef& tx)
 
 void CInstantSendManager::TransactionRemovedFromMempool(const CTransactionRef& tx)
 {
-    {
-        LOCK(cs_main);
-        if (VersionBitsTipState(Params().GetConsensus(), Consensus::DEPLOYMENT_DIP0020) != ThresholdState::ACTIVE) {
-            return;
-        }
-    }
-
     if (tx->vin.empty()) {
         return;
     }
 
     LOCK(cs);
+    if (!fUpgradedDB) {
+        return;
+    }
+
     CInstantSendLockPtr islock = db.GetInstantSendLockByTxid(tx->GetHash());
 
     if (islock == nullptr) {
@@ -1223,15 +1220,15 @@ void CInstantSendManager::NotifyChainLock(const CBlockIndex* pindexChainLock)
 
 void CInstantSendManager::UpdatedBlockTip(const CBlockIndex* pindexNew)
 {
-    bool f_dip0020_Active{false};
     {
-        LOCK(cs_llmq_vbc);
-        f_dip0020_Active = VersionBitsState(pindexNew, Params().GetConsensus(), Consensus::DEPLOYMENT_DIP0020, llmq_versionbitscache) == ThresholdState::ACTIVE;
-    }
-
-    if (f_dip0020_Active) {
         LOCK(cs);
-        db.Upgrade();
+        if (!fUpgradedDB) {
+            LOCK(cs_llmq_vbc);
+            if (VersionBitsState(pindexNew, Params().GetConsensus(), Consensus::DEPLOYMENT_DIP0020, llmq_versionbitscache) == ThresholdState::ACTIVE) {
+                db.Upgrade();
+                fUpgradedDB = true;
+            }
+        }
     }
 
     bool fDIP0008Active = pindexNew->pprev && pindexNew->pprev->nHeight >= Params().GetConsensus().DIP0008Height;
