@@ -52,7 +52,6 @@ uint256 CInstantSendLock::GetRequestId() const
 
 CInstantSendDb::CInstantSendDb(CDBWrapper& _db) : db(_db)
 {
-    Upgrade();
 }
 
 void CInstantSendDb::Upgrade()
@@ -1217,6 +1216,17 @@ void CInstantSendManager::NotifyChainLock(const CBlockIndex* pindexChainLock)
 
 void CInstantSendManager::UpdatedBlockTip(const CBlockIndex* pindexNew)
 {
+    bool f_dip0020_Active{false};
+    {
+        LOCK(cs_llmq_vbc);
+        f_dip0020_Active = VersionBitsState(pindexNew, Params().GetConsensus(), Consensus::DEPLOYMENT_DIP0020, llmq_versionbitscache) == ThresholdState::ACTIVE;
+    }
+
+    if (f_dip0020_Active) {
+        LOCK(cs);
+        db.Upgrade();
+    }
+
     bool fDIP0008Active = pindexNew->pprev && pindexNew->pprev->nHeight >= Params().GetConsensus().DIP0008Height;
 
     if (AreChainLocksEnabled() && fDIP0008Active) {
