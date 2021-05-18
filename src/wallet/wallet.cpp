@@ -1498,12 +1498,12 @@ void CWallet::BlockConnected(const std::shared_ptr<const CBlock>& pblock, const 
 
     for (const CTransactionRef& ptx : vtxConflicted) {
         SyncTransaction(ptx);
-        // UNKNONW because it's a manual removal, not using mempool logic
+        // UNKNOWN because it's a manual removal, not using mempool logic
         TransactionRemovedFromMempool(ptx, MemPoolRemovalReason::UNKNOWN);
     }
     for (size_t i = 0; i < pblock->vtx.size(); i++) {
         SyncTransaction(pblock->vtx[i], pindex, i);
-        // UNKNONW because it's a manual removal, not using mempool logic
+        // UNKNOWN because it's a manual removal, not using mempool logic
         TransactionRemovedFromMempool(pblock->vtx[i], MemPoolRemovalReason::UNKNOWN);
     }
 
