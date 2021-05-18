@@ -1217,8 +1217,8 @@ void CInstantSendManager::NotifyChainLock(const CBlockIndex* pindexChainLock)
 void CInstantSendManager::UpdatedBlockTip(const CBlockIndex* pindexNew)
 {
     if (!fUpgradedDB) {
-        LOCK(cs_llmq_vbc);
-        if (VersionBitsState(pindexNew, Params().GetConsensus(), Consensus::DEPLOYMENT_DIP0020, llmq_versionbitscache) == ThresholdState::ACTIVE) {
+        LOCK(cs_main);
+        if (VersionBitsState(pindexNew, Params().GetConsensus(), Consensus::DEPLOYMENT_DIP0020, versionbitscache) == ThresholdState::ACTIVE) {
             db.Upgrade();
             fUpgradedDB = true;
         }
