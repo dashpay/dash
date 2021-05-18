@@ -1071,14 +1071,11 @@ void CInstantSendManager::TransactionAddedToMempool(const CTransactionRef& tx)
 
 void CInstantSendManager::TransactionRemovedFromMempool(const CTransactionRef& tx)
 {
-    if (tx->vin.empty()) {
+    if (tx->vin.empty() || !fUpgradedDB) {
         return;
     }
 
     LOCK(cs);
-    if (!fUpgradedDB) {
-        return;
-    }
 
     CInstantSendLockPtr islock = db.GetInstantSendLockByTxid(tx->GetHash());
 
@@ -1220,14 +1217,11 @@ void CInstantSendManager::NotifyChainLock(const CBlockIndex* pindexChainLock)
 
 void CInstantSendManager::UpdatedBlockTip(const CBlockIndex* pindexNew)
 {
-    {
-        LOCK(cs);
-        if (!fUpgradedDB) {
-            LOCK(cs_llmq_vbc);
-            if (VersionBitsState(pindexNew, Params().GetConsensus(), Consensus::DEPLOYMENT_DIP0020, llmq_versionbitscache) == ThresholdState::ACTIVE) {
-                db.Upgrade();
-                fUpgradedDB = true;
-            }
+    if (!fUpgradedDB) {
+        LOCK(cs_llmq_vbc);
+        if (VersionBitsState(pindexNew, Params().GetConsensus(), Consensus::DEPLOYMENT_DIP0020, llmq_versionbitscache) == ThresholdState::ACTIVE) {
+            db.Upgrade();
+            fUpgradedDB = true;
         }
     }
 
