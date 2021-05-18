@@ -1071,6 +1071,13 @@ void CInstantSendManager::TransactionAddedToMempool(const CTransactionRef& tx)
 
 void CInstantSendManager::TransactionRemovedFromMempool(const CTransactionRef& tx)
 {
+    {
+        LOCK(cs_main);
+        if (VersionBitsTipState(Params().GetConsensus(), Consensus::DEPLOYMENT_DIP0020) != ThresholdState::ACTIVE) {
+            return;
+        }
+    }
+
     if (tx->vin.empty()) {
         return;
     }
