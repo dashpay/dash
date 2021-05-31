@@ -10,6 +10,7 @@ if [[ "$1" == "dashd" ]]; then
     echo "Added "proxy=$TOR_IP:$TOR_PROXY_PORT" to $HOME/.dashcore/dash.conf"
     echo "torcontrol=$TOR_IP:$TOR_CONTROL_PORT" >> "$HOME/.dashcore/dash.conf"
     echo "Added "torcontrol=$TOR_IP:$TOR_CONTROL_PORT" to $HOME/.dashcore/dash.conf"
+    echo -e "\n"
   else
     echo "Tor control credentials not provided"
   fi
