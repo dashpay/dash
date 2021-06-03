@@ -292,6 +292,14 @@ public:
         obj.pushKV("isscript", true);
         return obj;
     }
+
+    UniValue operator()(const WitnessV1Taproot& tap) const
+    {
+        UniValue obj(UniValue::VOBJ);
+        obj.pushKV("isscript", true);
+        obj.pushKV("output_key", HexStr(tap));
+        return obj;
+    }
 };
 
 UniValue DescribeAddress(const CTxDestination& dest)

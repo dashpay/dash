@@ -36,6 +36,14 @@ public:
         return EncodeBase58Check(data);
     }
 
+    std::string operator()(const WitnessV1Taproot& tap) const
+    {
+        std::vector<unsigned char> data = {1};
+        data.reserve(53);
+        ConvertBits<8, 5, true>([&](unsigned char c) { data.push_back(c); }, tap.begin(), tap.end());
+        return bech32::Encode(bech32::Encoding::BECH32M, m_params.Bech32HRP(), data);
+    }
+
     std::string operator()(const CNoDestination& no) const { return {}; }
 };
 
@@ -44,6 +52,33 @@ CTxDestination DecodeDestination(const std::string& str, const CChainParams& par
     std::vector<unsigned char> data;
     uint160 hash;
     error_str = "";
+
+    // Taproot destinations are Bech32m strings with the L1 HRP: a version 1 symbol
+    // followed by the 32-byte output key (BIP 350 style)
+    const std::string& taproot_hrp = params.Bech32HRP();
+    if (ToLower(str.substr(0, taproot_hrp.size() + 1)) == taproot_hrp + "1") {
+        const auto dec = bech32::Decode(str);
+        if (dec.encoding == bech32::Encoding::BECH32M && dec.hrp == taproot_hrp && dec.data.size() > 0) {
+            if (dec.data[0] != 1) {
+                error_str = "Invalid taproot address version";
+                return CNoDestination();
+            }
+            data.reserve(((dec.data.size() - 1) * 5) / 8);
+            if (ConvertBits<5, 8, false>([&](unsigned char c) { data.push_back(c); }, dec.data.begin() + 1, dec.data.end()) &&
+                data.size() == WitnessV1Taproot::size()) {
+                WitnessV1Taproot tap;
+                std::copy(data.begin(), data.end(), tap.begin());
+                return tap;
+            }
+            error_str = "Invalid taproot address data size";
+            return CNoDestination();
+        }
+        auto res = bech32::LocateErrors(str);
+        error_str = res.first;
+        if (error_locations) *error_locations = std::move(res.second);
+        if (error_str.empty()) error_str = "Taproot address must use Bech32m checksum";
+        return CNoDestination();
+    }
 
     // Note this will be false if it is a valid Bech32 address for a different network
     bool is_bech32 = (ToLower(str.substr(0, params.Bech32PlatformHRP().size())) == params.Bech32PlatformHRP());

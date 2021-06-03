@@ -402,6 +402,8 @@ public:
         }
         return obj;
     }
+
+    UniValue operator()(const WitnessV1Taproot& id) const { return UniValue(UniValue::VOBJ); }
 };
 
 static UniValue DescribeWalletAddress(const CWallet& wallet, const CTxDestination& dest)
@@ -439,6 +441,7 @@ RPCHelpMan getaddressinfo()
                         {RPCResult::Type::STR, "desc", /*optional=*/true, "A descriptor for spending coins sent to this address (only when solvable)."},
                         {RPCResult::Type::STR, "parent_desc", /*optional=*/true, "The descriptor used to derive this address if this is a descriptor wallet"},
                         {RPCResult::Type::BOOL, "isscript", "If the key is a script."},
+                        {RPCResult::Type::STR_HEX, "output_key", /*optional=*/true, "The taproot output key (only for taproot addresses)"},
                         {RPCResult::Type::BOOL, "ischange", "If the address was used for change output."},
                         {RPCResult::Type::STR, "script", /*optional=*/true, "The output script type. Only if isscript is true and the redeemscript is known. Possible types: nonstandard, pubkey, pubkeyhash, scripthash, multisig, nulldata"},
                         {RPCResult::Type::STR_HEX, "hex", /*optional=*/true, "The redeemscript for the p2sh address."},

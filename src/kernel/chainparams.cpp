@@ -283,6 +283,7 @@ public:
         base58Prefixes[EXT_SECRET_KEY] = {0x04, 0x88, 0xAD, 0xE4};
 
         // DIP-18 Dash Platform address HRP (bech32m)
+        bech32_hrp = "dc";
         bech32_platform_hrp = "dash";
 
         // Dash BIP44 coin type is '5'
@@ -489,6 +490,7 @@ public:
         base58Prefixes[EXT_SECRET_KEY] = {0x04, 0x35, 0x83, 0x94};
 
         // DIP-18 Dash Platform address HRP (bech32m)
+        bech32_hrp = "tdc";
         bech32_platform_hrp = "tdash";
 
         // Testnet Dash BIP44 coin type is '1' (All coin's testnet default)
@@ -674,6 +676,7 @@ public:
         base58Prefixes[EXT_SECRET_KEY] = {0x04, 0x35, 0x83, 0x94};
 
         // DIP-18 Dash Platform address HRP (bech32m)
+        bech32_hrp = "tdc";
         bech32_platform_hrp = "tdash";
 
         // Testnet Dash BIP44 coin type is '1' (All coin's testnet default)
@@ -1008,6 +1011,7 @@ public:
         base58Prefixes[EXT_SECRET_KEY] = {0x04, 0x35, 0x83, 0x94};
 
         // DIP-18 Dash Platform address HRP (bech32m)
+        bech32_hrp = "tdc";
         bech32_platform_hrp = "tdash";
 
         // Regtest Dash BIP44 coin type is '1' (All coin's testnet default)
