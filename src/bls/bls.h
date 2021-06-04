@@ -54,10 +54,10 @@ protected:
 public:
     static const size_t SerSize = _SerSize;
 
-    CBLSWrapper(const bool fLegacyIn = fLegacyDefault) : fLegacy(fLegacyIn)
+    explicit CBLSWrapper(const bool fLegacyIn = fLegacyDefault) : fLegacy(fLegacyIn)
     {
     }
-    CBLSWrapper(const std::vector<unsigned char>& vecBytes, const bool fLegacyIn = fLegacyDefault) : CBLSWrapper<ImplType, _SerSize, C>(fLegacyIn)
+    explicit CBLSWrapper(const std::vector<unsigned char>& vecBytes, const bool fLegacyIn = fLegacyDefault) : CBLSWrapper<ImplType, _SerSize, C>(fLegacyIn)
     {
         SetByteVector(vecBytes);
     }
@@ -219,7 +219,7 @@ public:
     using CBLSWrapper::CBLSWrapper;
 
     CBLSId() = default;
-    CBLSId(const uint256& nHash);
+    explicit CBLSId(const uint256& nHash);
 };
 
 class CBLSSecretKey : public CBLSWrapper<bls::PrivateKey, BLS_CURVE_SECKEY_SIZE, CBLSSecretKey>
