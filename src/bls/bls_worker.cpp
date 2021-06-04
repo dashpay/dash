@@ -443,7 +443,9 @@ struct ContributionVerifier {
         parallel(_parallel),
         aggregated(_aggregated),
         workerPool(_workerPool),
-        doneCallback(std::move(_doneCallback))
+        doneCallback(std::move(_doneCallback)),
+        batchCount(1),
+        verifyCount(_vvecs.size())
     {
     }
 
@@ -452,11 +454,9 @@ struct ContributionVerifier {
         if (!aggregated) {
             // treat all inputs as one large batch
             batchSize = vvecs.size();
-            batchCount = 1;
         } else {
             batchCount = (vvecs.size() + batchSize - 1) / batchSize;
         }
-        verifyCount = vvecs.size();
 
         batchStates.resize(batchCount);
         for (size_t i = 0; i < batchCount; i++) {
