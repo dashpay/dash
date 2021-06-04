@@ -689,7 +689,7 @@ std::future<CBLSPublicKey> CBLSWorker::AsyncAggregatePublicKeys(const BLSPublicK
     return std::move(p.second);
 }
 
-CBLSPublicKey CBLSWorker::AggregatePublicKeys(const BLSPublicKeyVector& pubKeys,
+__attribute__((unused)) CBLSPublicKey CBLSWorker::AggregatePublicKeys(const BLSPublicKeyVector& pubKeys,
                                               size_t start, size_t count, bool parallel)
 {
     return AsyncAggregatePublicKeys(pubKeys, start, count, parallel).get();
@@ -710,7 +710,7 @@ std::future<CBLSSignature> CBLSWorker::AsyncAggregateSigs(const BLSSignatureVect
     return std::move(p.second);
 }
 
-CBLSSignature CBLSWorker::AggregateSigs(const BLSSignatureVector& sigs,
+__attribute__((unused)) CBLSSignature CBLSWorker::AggregateSigs(const BLSSignatureVector& sigs,
                                         size_t start, size_t count, bool parallel)
 {
     return AsyncAggregateSigs(sigs, start, count, parallel).get();
@@ -774,7 +774,7 @@ std::future<bool> CBLSWorker::AsyncVerifyContributionShare(const CBLSId& forId,
     return workerPool.push(f);
 }
 
-bool CBLSWorker::VerifyContributionShare(const CBLSId& forId, const BLSVerificationVectorPtr& vvec,
+__attribute__((unused)) bool CBLSWorker::VerifyContributionShare(const CBLSId& forId, const BLSVerificationVectorPtr& vvec,
                                          const CBLSSecretKey& skContribution)
 {
     CBLSPublicKey pk1;
@@ -821,12 +821,12 @@ bool CBLSWorker::VerifyVerificationVectors(const std::vector<BLSVerificationVect
     return true;
 }
 
-bool CBLSWorker::VerifySecretKeyVector(const BLSSecretKeyVector& secKeys, size_t start, size_t count)
+__attribute__((unused)) bool CBLSWorker::VerifySecretKeyVector(const BLSSecretKeyVector& secKeys, size_t start, size_t count)
 {
     return VerifyVectorHelper(secKeys, start, count);
 }
 
-bool CBLSWorker::VerifySignatureVector(const BLSSignatureVector& sigs, size_t start, size_t count)
+__attribute__((unused)) bool CBLSWorker::VerifySignatureVector(const BLSSignatureVector& sigs, size_t start, size_t count)
 {
     return VerifyVectorHelper(sigs, start, count);
 }
@@ -838,7 +838,7 @@ void CBLSWorker::AsyncSign(const CBLSSecretKey& secKey, const uint256& msgHash, 
     });
 }
 
-std::future<CBLSSignature> CBLSWorker::AsyncSign(const CBLSSecretKey& secKey, const uint256& msgHash)
+__attribute__((unused)) std::future<CBLSSignature> CBLSWorker::AsyncSign(const CBLSSecretKey& secKey, const uint256& msgHash)
 {
     auto p = BuildFutureDoneCallback<CBLSSignature>();
     AsyncSign(secKey, msgHash, p.first);
