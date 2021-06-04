@@ -762,7 +762,7 @@ std::future<bool> CBLSWorker::AsyncVerifyContributionShare(const CBLSId& forId,
         return std::move(p.second);
     }
 
-    auto f = [this, &forId, &vvec, &skContribution](int threadId) {
+    auto f = [&forId, &vvec, &skContribution](int threadId) {
         CBLSPublicKey pk1;
         if (!pk1.PublicKeyShare(*vvec, forId)) {
             return false;
