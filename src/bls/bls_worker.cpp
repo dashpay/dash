@@ -359,12 +359,12 @@ struct VectorAggregator {
             start(_start),
             count(_count),
             workerPool(_workerPool),
-            doneCallback(std::move(_doneCallback))
+            doneCallback(std::move(_doneCallback)),
+            doneCount(0)
     {
         assert(!vecs.empty());
         vecSize = vecs[0]->size();
         result = std::make_shared<VectorType>(vecSize);
-        doneCount = 0;
     }
 
     void Start()
