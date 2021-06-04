@@ -193,7 +193,7 @@ public:
 
 struct CBLSIdImplicit : public uint256
 {
-    CBLSIdImplicit() {}
+    CBLSIdImplicit() = default;
     CBLSIdImplicit(const uint256& id)
     {
         memcpy(begin(), id.begin(), sizeof(uint256));
@@ -218,7 +218,7 @@ public:
     using CBLSWrapper::operator!=;
     using CBLSWrapper::CBLSWrapper;
 
-    CBLSId() {}
+    CBLSId() = default;
     CBLSId(const uint256& nHash);
 };
 
@@ -230,7 +230,7 @@ public:
     using CBLSWrapper::operator!=;
     using CBLSWrapper::CBLSWrapper;
 
-    CBLSSecretKey() {}
+    CBLSSecretKey() = default;
     CBLSSecretKey(const CBLSSecretKey&) = default;
     CBLSSecretKey& operator=(const CBLSSecretKey&) = default;
 
@@ -257,7 +257,7 @@ public:
     using CBLSWrapper::operator!=;
     using CBLSWrapper::CBLSWrapper;
 
-    CBLSPublicKey() {}
+    CBLSPublicKey() = default;
 
     void AggregateInsecure(const CBLSPublicKey& o);
     static CBLSPublicKey AggregateInsecure(const std::vector<CBLSPublicKey>& pks, bool fLegacy = fLegacyDefault);
@@ -276,7 +276,7 @@ public:
     using CBLSWrapper::operator!=;
     using CBLSWrapper::CBLSWrapper;
 
-    CBLSSignature() {}
+    CBLSSignature() = default;
     CBLSSignature(const CBLSSignature&) = default;
     CBLSSignature& operator=(const CBLSSignature&) = default;
 
