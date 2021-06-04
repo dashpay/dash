@@ -522,7 +522,7 @@ struct ContributionVerifier {
         }
     }
 
-    void HandleVerifyDone(size_t batchIdx, size_t count)
+    void HandleVerifyDone(size_t count)
     {
         size_t c = verifyDoneCount += count;
         if (c == verifyCount) {
@@ -538,7 +538,7 @@ struct ContributionVerifier {
             // something went wrong while aggregating and there is nothing we can do now except mark the whole batch as failed
             // this can only happen if inputs were invalid in some way
             batchState.verifyResults.assign(batchState.count, 0);
-            HandleVerifyDone(batchIdx, batchState.count);
+            HandleVerifyDone(batchState.count);
             return;
         }
 
@@ -553,7 +553,7 @@ struct ContributionVerifier {
             if (result) {
                 // whole batch is valid
                 batchState.verifyResults.assign(batchState.count, 1);
-                HandleVerifyDone(batchIdx, batchState.count);
+                HandleVerifyDone(batchState.count);
             } else {
                 // at least one entry in the batch is invalid, revert to per-contribution verification (but parallelized)
                 AsyncVerifyBatchOneByOne(batchIdx);
@@ -570,7 +570,7 @@ struct ContributionVerifier {
             auto f = [this, i, batchIdx](int threadId) {
                 auto& batchState = batchStates[batchIdx];
                 batchState.verifyResults[i] = Verify(vvecs[batchState.start + i], skShares[batchState.start + i]);
-                HandleVerifyDone(batchIdx, 1);
+                HandleVerifyDone(1);
             };
             PushOrDoWork(std::move(f));
         }
