@@ -513,7 +513,7 @@ void CSuperblock::ParsePaymentSchedule(const std::string& strPaymentAddresses, c
         throw std::runtime_error(ostr.str());
     }
 
-    if (vecParsed1.size() == 0) {
+    if (vecParsed1.empty()) {
         std::ostringstream ostr;
         ostr << "CSuperblock::ParsePaymentSchedule -- Error no payments";
         LogPrintf("%s\n", ostr.str());
