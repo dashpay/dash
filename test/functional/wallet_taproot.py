@@ -7,7 +7,7 @@
 import random
 
 from test_framework.test_framework import BitcoinTestFramework
-from test_framework.util import assert_equal
+from test_framework.util import assert_equal, softfork_active
 from test_framework.descriptors import descsum_create
 from test_framework.script import (CScript, OP_CHECKSIG, taproot_construct)
 from test_framework.address import output_key_to_p2tr
@@ -175,9 +175,11 @@ class WalletTaprootTest(BitcoinTestFramework):
         self.add_wallet_options(parser, legacy=False)
 
     def set_test_params(self):
-        self.num_nodes = 2
+        self.num_nodes = 3
         self.setup_clean_chain = True
-        self.extra_args = [['-keypool=100'], ['-keypool=100']]
+        # Nodes 0 and 1 activate v24 (taproot) through plain BIP9 signalling, node 2 never does
+        v24_active = "-vbparams=v24:0:999999999999:0:10:8:6:5:0"
+        self.extra_args = [['-keypool=100', v24_active], ['-keypool=100', v24_active], ["-vbparams=v24:1:1"]]
         self.supports_cli = False
 
     def skip_test_if_missing_module(self):
@@ -233,12 +235,39 @@ class WalletTaprootTest(BitcoinTestFramework):
                 addr_r = self.make_addr(treefn, keys, i)
                 assert_equal(addr_g, addr_r)
 
+        # tr descriptors cannot be imported when Taproot is not active
+        result = self.privs_tr_enabled.importdescriptors([{"desc": desc, "timestamp": "now"}])
+        assert(result[0]["success"])
+        result = self.privs_tr_disabled.importdescriptors([{"desc": desc, "timestamp": "now"}])
+        assert(not result[0]["success"])
+        assert_equal(result[0]["error"]["code"], -4)
+        assert_equal(result[0]["error"]["message"], "Cannot import tr() descriptor when Taproot is not active")
+        result = self.pubs_tr_enabled.importdescriptors([{"desc": desc_pub, "timestamp": "now"}])
+        assert(result[0]["success"])
+        result = self.pubs_tr_disabled.importdescriptors([{"desc": desc_pub, "timestamp": "now"}])
+        assert(not result[0]["success"])
+        assert_equal(result[0]["error"]["code"], -4)
+        assert_equal(result[0]["error"]["message"], "Cannot import tr() descriptor when Taproot is not active")
+
     def do_test(self, comment, pattern, privmap, treefn, nkeys):
         keys = self.rand_keys(nkeys)
         self.do_test_addr(comment, pattern, privmap, treefn, keys)
 
     def run_test(self):
+        self.log.info("Activating v24 on the taproot-enabled nodes...")
+        for node in self.nodes[:2]:
+            while not softfork_active(node, "v24"):
+                self.generate(node, 10, sync_fun=self.no_op)
+
         self.log.info("Creating wallets...")
+        self.nodes[0].createwallet(wallet_name="privs_tr_enabled", descriptors=True, blank=True)
+        self.privs_tr_enabled = self.nodes[0].get_wallet_rpc("privs_tr_enabled")
+        self.nodes[2].createwallet(wallet_name="privs_tr_disabled", descriptors=True, blank=True)
+        self.privs_tr_disabled=self.nodes[2].get_wallet_rpc("privs_tr_disabled")
+        self.nodes[0].createwallet(wallet_name="pubs_tr_enabled", descriptors=True, blank=True, disable_private_keys=True)
+        self.pubs_tr_enabled = self.nodes[0].get_wallet_rpc("pubs_tr_enabled")
+        self.nodes[2].createwallet(wallet_name="pubs_tr_disabled", descriptors=True, blank=True, disable_private_keys=True)
+        self.pubs_tr_disabled=self.nodes[2].get_wallet_rpc("pubs_tr_disabled")
         self.nodes[0].createwallet(wallet_name="addr_gen", descriptors=True, disable_private_keys=True, blank=True)
         self.addr_gen = self.nodes[0].get_wallet_rpc("addr_gen")
 
