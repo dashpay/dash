@@ -618,7 +618,6 @@ void CInstantSendManager::HandleNewRecoveredSig(const CRecoveredSig& recoveredSi
     if (llmqType == Consensus::LLMQ_NONE) {
         return;
     }
-    auto& params = Params().GetConsensus().llmqs.at(llmqType);
 
     uint256 txid;
     bool isInstantSendLock = false;
