@@ -732,7 +732,7 @@ void CInstantSendManager::ProcessMessage(CNode* pfrom, const std::string& strCom
     }
 
     if (strCommand == NetMsgType::ISLOCK) {
-        CInstantSendLockPtr islock = std::make_shared<CInstantSendLock>();
+        auto islock = std::make_shared<CInstantSendLock>();
         vRecv >> *islock;
         ProcessMessageInstantSendLock(pfrom, islock);
     }
@@ -928,7 +928,7 @@ std::unordered_set<uint256> CInstantSendManager::ProcessPendingInstantSendLocks(
         // double-verification of the sig.
         auto it = recSigs.find(hash);
         if (it != recSigs.end()) {
-            std::shared_ptr<CRecoveredSig> recSig = std::make_shared<CRecoveredSig>(std::move(it->second));
+            auto recSig = std::make_shared<CRecoveredSig>(std::move(it->second));
             if (!quorumSigningManager->HasRecoveredSigForId(llmqType, recSig->id)) {
                 recSig->UpdateHash();
                 LogPrint(BCLog::INSTANTSEND, "CInstantSendManager::%s -- txid=%s, islock=%s: passing reconstructed recSig to signing mgr, peer=%d\n", __func__,
