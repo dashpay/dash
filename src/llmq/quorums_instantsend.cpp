@@ -73,15 +73,13 @@ void CInstantSendDb::Upgrade()
             if (!it->GetKey(curKey) || std::get<0>(curKey) != DB_ISLOCK_BY_HASH) {
                 break;
             }
-            if (it->GetValue(islock)) {
-                if (!GetTransaction(islock.txid, tx, Params().GetConsensus(), hashBlock)) {
-                    // Drop locks for unknown txes
-                    batch.Erase(std::make_tuple(DB_HASH_BY_TXID, islock.txid));
-                    for (auto& in : islock.inputs) {
-                        batch.Erase(std::make_tuple(DB_HASH_BY_OUTPOINT, in));
-                    }
-                    batch.Erase(curKey);
+            if (it->GetValue(islock) && !GetTransaction(islock.txid, tx, Params().GetConsensus(), hashBlock)) {
+                // Drop locks for unknown txes
+                batch.Erase(std::make_tuple(DB_HASH_BY_TXID, islock.txid));
+                for (auto& in : islock.inputs) {
+                    batch.Erase(std::make_tuple(DB_HASH_BY_OUTPOINT, in));
                 }
+                batch.Erase(curKey);
             }
             it->Next();
         }
