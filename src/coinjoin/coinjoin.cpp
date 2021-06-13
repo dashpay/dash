@@ -123,7 +123,7 @@ bool CCoinJoinBroadcastTx::IsExpired(const CBlockIndex* pindex) const
     return llmq::chainLocksHandler->HasChainLock(pindex->nHeight, *pindex->phashBlock);
 }
 
-bool CCoinJoinBroadcastTx::IsValidStructure()
+bool CCoinJoinBroadcastTx::IsValidStructure() const
 {
     // some trivial checks only
     if (tx->vin.size() != tx->vout.size()) {

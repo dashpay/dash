@@ -326,7 +326,7 @@ public:
 
     void SetConfirmedHeight(int nConfirmedHeightIn) { nConfirmedHeight = nConfirmedHeightIn; }
     bool IsExpired(const CBlockIndex* pindex) const;
-    bool IsValidStructure();
+    bool IsValidStructure() const;
 };
 
 // base class
