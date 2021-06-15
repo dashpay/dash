@@ -258,9 +258,9 @@ public:
 
     CAmount GetMinCollateralFee() const;
 
-    UniValue GetJSONObject();
+    UniValue GetJSONObject() const;
 
-    void Relay(CConnman& connman);
+    void Relay(CConnman& connman) const;
 
     uint256 GetHash() const;
 
@@ -312,12 +312,12 @@ public:
 
     // FUNCTIONS FOR DEALING WITH DATA STRING
     void LoadData();
-    void GetData(UniValue& objResult);
+    void GetData(UniValue& objResult) const;
 
-    bool ProcessVote(CNode* pfrom,
+    bool ProcessVote(const CNode* pfrom,
         const CGovernanceVote& vote,
         CGovernanceException& exception,
-        CConnman& connman);
+        const CConnman& connman);
 
     /// Called when MN's which have voted on this object have been removed
     void ClearMasternodeVotes();
