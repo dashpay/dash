@@ -44,6 +44,11 @@ bool HidingSigningProvider::GetKeyOrigin(const CKeyID& keyid, KeyOriginInfo& inf
     return m_provider->GetKeyOrigin(keyid, info);
 }
 
+bool HidingSigningProvider::GetTaprootSpendData(const XOnlyPubKey& output_key, TaprootSpendData& spenddata) const
+{
+    return m_provider->GetTaprootSpendData(output_key, spenddata);
+}
+
 bool FlatSigningProvider::GetCScript(const CScriptID& scriptid, CScript& script) const { return LookupHelper(scripts, scriptid, script); }
 bool FlatSigningProvider::GetPubKey(const CKeyID& keyid, CPubKey& pubkey) const { return LookupHelper(pubkeys, keyid, pubkey); }
 bool FlatSigningProvider::GetKeyOrigin(const CKeyID& keyid, KeyOriginInfo& info) const
@@ -54,6 +59,10 @@ bool FlatSigningProvider::GetKeyOrigin(const CKeyID& keyid, KeyOriginInfo& info)
     return ret;
 }
 bool FlatSigningProvider::GetKey(const CKeyID& keyid, CKey& key) const { return LookupHelper(keys, keyid, key); }
+bool FlatSigningProvider::GetTaprootSpendData(const XOnlyPubKey& output_key, TaprootSpendData& spenddata) const
+{
+    return LookupHelper(tr_spenddata, output_key, spenddata);
+}
 
 FlatSigningProvider& FlatSigningProvider::Merge(FlatSigningProvider&& b)
 {
@@ -61,6 +70,9 @@ FlatSigningProvider& FlatSigningProvider::Merge(FlatSigningProvider&& b)
     pubkeys.merge(b.pubkeys);
     keys.merge(b.keys);
     origins.merge(b.origins);
+    for (auto& [output_key, spenddata] : b.tr_spenddata) {
+        tr_spenddata[output_key].Merge(std::move(spenddata));
+    }
     return *this;
 }
 
