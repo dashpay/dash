@@ -1372,9 +1372,9 @@ void RenameThreadPool(ctpl::thread_pool& tp, const char* baseName)
     }
 }
 
-#ifdef ENABLE_EXTERNAL_SIGNER
 UniValue RunCommandParseJSON(const std::string& str_command, const std::string& str_std_in)
 {
+#ifdef ENABLE_EXTERNAL_SIGNER
     namespace bp = boost::process;
 
     UniValue result_json;
@@ -1406,8 +1406,10 @@ UniValue RunCommandParseJSON(const std::string& str_command, const std::string& 
     if (!result_json.read(result)) throw std::runtime_error("Unable to parse JSON: " + result);
 
     return result_json;
-}
+#else
+    throw std::runtime_error("Compiled without external signing support (required for external signing).");
 #endif // ENABLE_EXTERNAL_SIGNER
+}
 
 void SetupEnvironment()
 {
