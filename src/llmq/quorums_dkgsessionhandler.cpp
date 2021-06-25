@@ -186,7 +186,7 @@ class AbortPhaseException : public std::exception {
 void CDKGSessionHandler::WaitForNextPhase(QuorumPhase curPhase,
                                           QuorumPhase nextPhase,
                                           const uint256& expectedQuorumHash,
-                                          const WhileWaitFunc& runWhileWaiting)
+                                          const WhileWaitFunc& runWhileWaiting) const
 {
     LogPrint(BCLog::LLMQ_DKG, "CDKGSessionManager::%s -- %s - starting, curPhase=%d, nextPhase=%d\n", __func__, params.name, curPhase, nextPhase);
 
