@@ -67,7 +67,7 @@ std::list<CDKGPendingMessages::BinaryMessage> CDKGPendingMessages::PopPendingMes
         pendingMessages.pop_front();
     }
 
-    return std::move(ret);
+    return ret;
 }
 
 bool CDKGPendingMessages::HasSeen(const uint256& hash) const
