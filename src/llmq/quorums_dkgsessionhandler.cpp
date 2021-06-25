@@ -225,7 +225,7 @@ void CDKGSessionHandler::WaitForNextPhase(QuorumPhase curPhase,
     }
 }
 
-void CDKGSessionHandler::WaitForNewQuorum(const uint256& oldQuorumHash)
+void CDKGSessionHandler::WaitForNewQuorum(const uint256& oldQuorumHash) const
 {
     LogPrint(BCLog::LLMQ_DKG, "CDKGSessionManager::%s -- %s - starting\n", __func__, params.name);
 
