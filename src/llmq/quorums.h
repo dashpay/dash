@@ -95,13 +95,13 @@ public:
         }
     }
 
-    const Consensus::LLMQType GetLLMQType() const { return llmqType; }
+    Consensus::LLMQType GetLLMQType() const { return llmqType; }
     const uint256& GetQuorumHash() const { return quorumHash; }
-    const uint16_t GetDataMask() const { return nDataMask; }
+    uint16_t GetDataMask() const { return nDataMask; }
     const uint256& GetProTxHash() const { return proTxHash; }
 
     void SetError(Errors nErrorIn) { nError = nErrorIn; }
-    const Errors GetError() const { return nError; }
+    Errors GetError() const { return nError; }
 
     bool IsExpired() const
     {
