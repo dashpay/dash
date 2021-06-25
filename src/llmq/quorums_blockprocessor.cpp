@@ -167,8 +167,8 @@ bool CQuorumBlockProcessor::ProcessBlock(const CBlock& block, const CBlockIndex*
 
     auto blockHash = block.GetHash();
 
-    for (auto& p : qcs) {
-        auto& qc = p.second;
+    for (const auto& p : qcs) {
+        const auto& qc = p.second;
         if (!ProcessCommitment(pindex->nHeight, blockHash, qc, state, fJustCheck)) {
             return false;
         }
