@@ -96,10 +96,7 @@ CGovernanceObject::CGovernanceObject(const CGovernanceObject& other) :
 {
 }
 
-bool CGovernanceObject::ProcessVote(const CNode* pfrom,
-    const CGovernanceVote& vote,
-    CGovernanceException& exception,
-    const CConnman& connman)
+bool CGovernanceObject::ProcessVote(const CGovernanceVote& vote, CGovernanceException& exception)
 {
     LOCK(cs);
 

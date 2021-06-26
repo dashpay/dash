@@ -314,10 +314,7 @@ public:
     void LoadData();
     void GetData(UniValue& objResult) const;
 
-    bool ProcessVote(const CNode* pfrom,
-        const CGovernanceVote& vote,
-        CGovernanceException& exception,
-        const CConnman& connman);
+    bool ProcessVote(const CGovernanceVote& vote, CGovernanceException& exception);
 
     /// Called when MN's which have voted on this object have been removed
     void ClearMasternodeVotes();
