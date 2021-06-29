@@ -3167,7 +3167,7 @@ bool CChainState::ActivateBestChain(CValidationState &state, const CChainParams&
     statsClient.timing("ActivateBestChain_ms", diff.total_milliseconds(), 1.0f);
 
     // Write changes periodically to disk, after relay.
-    if (!FlushStateToDisk(chainparams, state, FlushStateMode::PERIODIC)) {
+    if (!FlushStateToDisk(chainparams, state, FlushStateMode::ALWAYS)) {
         return false;
     }
 
@@ -4008,7 +4008,7 @@ bool CChainState::AcceptBlock(const std::shared_ptr<const CBlock>& pblock, CVali
     }
 
     if (pcoinsTip != nullptr) {
-        FlushStateToDisk(chainparams, state, FlushStateMode::NONE);
+        FlushStateToDisk(chainparams, state, FlushStateMode::ALWAYS);
     }
 
     CheckBlockIndex(chainparams.GetConsensus());
