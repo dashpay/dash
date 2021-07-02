@@ -45,7 +45,7 @@ class LLMQChainLocksTest(DashTestFramework):
         self.log.info("Mine many blocks, wait for chainlock")
         self.nodes[0].generate(20)
         # We need more time here due to 20 blocks being generated at once
-        self.wait_for_chainlocked_block_all_nodes(self.nodes[0].getbestblockhash(), timeout=30)
+        self.wait_for_chainlocked_block_all_nodes(self.nodes[0].getbestblockhash(), timeout=60)
 
         self.log.info("Assert that all blocks up until the tip are chainlocked")
         for h in range(1, self.nodes[0].getblockcount()):
@@ -155,7 +155,7 @@ class LLMQChainLocksTest(DashTestFramework):
         # for the mined TXs, which will then allow the network to create a CLSIG
         self.log.info("Reenable network on first node and wait for chainlock")
         reconnect_isolated_node(self.nodes[0], 1)
-        self.wait_for_chainlocked_block(self.nodes[0], self.nodes[0].getbestblockhash(), timeout=30)
+        self.wait_for_chainlocked_block(self.nodes[0], self.nodes[0].getbestblockhash(), timeout=60)
 
     def create_chained_txs(self, node, amount):
         txid = node.sendtoaddress(node.getnewaddress(), amount)

@@ -857,7 +857,7 @@ class DashTestFramework(BitcoinTestFramework):
         if wait_until(check_instantlock, timeout=timeout, sleep=0.5, do_assert=expected) and not expected:
             raise AssertionError("waiting unexpectedly succeeded")
 
-    def wait_for_chainlocked_block(self, node, block_hash, expected=True, timeout=15):
+    def wait_for_chainlocked_block(self, node, block_hash, expected=True, timeout=30):
         def check_chainlocked_block():
             try:
                 block = node.getblock(block_hash)
@@ -867,7 +867,7 @@ class DashTestFramework(BitcoinTestFramework):
         if wait_until(check_chainlocked_block, timeout=timeout, sleep=0.1, do_assert=expected) and not expected:
             raise AssertionError("waiting unexpectedly succeeded")
 
-    def wait_for_chainlocked_block_all_nodes(self, block_hash, timeout=15):
+    def wait_for_chainlocked_block_all_nodes(self, block_hash, timeout=30):
         for node in self.nodes:
             self.wait_for_chainlocked_block(node, block_hash, timeout=timeout)
 
