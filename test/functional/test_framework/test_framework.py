@@ -906,7 +906,7 @@ class DashTestFramework(BitcoinTestFramework):
             return all_ok
         wait_until(check_quorum_connections, timeout=timeout, sleep=1)
 
-    def wait_for_masternode_probes(self, mninfos, timeout = 30, wait_proc=None):
+    def wait_for_masternode_probes(self, mninfos, timeout=60, wait_proc=None):
         def check_probes():
             def ret():
                 if wait_proc is not None:
