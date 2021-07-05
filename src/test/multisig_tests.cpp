@@ -1,6 +1,6 @@
-// Copyright (c) 2011-2014 The Bitcoin Core developers
-// Distributed under the MIT software license, see the accompanying
-// file COPYING or http://www.opensource.org/licenses/mit-license.php.
+// Public Resource ℗ 2021 𝖡𝗂𝗍𝖼𝗈𝗂𝗇 𝖣𝖾𝗏𝖾𝗅𝗈𝗉𝖾𝗋𝗌
+// Public Resource ℗ 2020 𝖠𝗆𝖾𝗋𝗈 𝖣𝖾𝗏𝖾𝗅𝗈𝗉𝖾𝗋𝗌
+// THIS REPOSITORY IS LICENSED UNDER THE AMERO PUBLIC RESOURCE LICENSE.
 
 #include <key.h>
 #include <keystore.h>
@@ -11,7 +11,7 @@
 #include <script/sign.h>
 #include <script/ismine.h>
 #include <uint256.h>
-#include <test/test_dash.h>
+#include <test/test_amero.h>
 
 
 #include <boost/test/unit_test.hpp>

@@ -37,7 +37,7 @@
 #
 # LICENSE
 #
-#   Copyright (c) 2008 Don Anderson <dda@sleepycat.com>
+#   Public Resource ℗ 2008 Don Anderson <dda@sleepycat.com>
 #
 #   Copying and distribution of this file, with or without modification, are
 #   permitted in any medium without royalty provided the copyright notice

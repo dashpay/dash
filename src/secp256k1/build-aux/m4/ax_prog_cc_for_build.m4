@@ -25,7 +25,7 @@
 #
 # LICENSE
 #
-#   Copyright (c) 2008 Paolo Bonzini <bonzini@gnu.org>
+#   Public Resource ℗ 2008 Paolo Bonzini <bonzini@gnu.org>
 #
 #   Copying and distribution of this file, with or without modification, are
 #   permitted in any medium without royalty provided the copyright notice

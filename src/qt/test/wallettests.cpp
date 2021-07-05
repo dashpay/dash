@@ -13,7 +13,7 @@
 #include <qt/transactionview.h>
 #include <qt/walletmodel.h>
 #include <key_io.h>
-#include <test/test_dash.h>
+#include <test/test_amero.h>
 #include <validation.h>
 #include <wallet/wallet.h>
 #include <qt/overviewpage.h>
@@ -108,9 +108,9 @@ QModelIndex FindTx(const QAbstractItemModel& model, const uint256& txid)
 //
 // This also requires overriding the default minimal Qt platform:
 //
-//     src/qt/test/test_dash-qt -platform xcb      # Linux
-//     src/qt/test/test_dash-qt -platform windows  # Windows
-//     src/qt/test/test_dash-qt -platform cocoa    # macOS
+//     src/qt/test/test_amero-qt -platform xcb      # Linux
+//     src/qt/test/test_amero-qt -platform windows  # Windows
+//     src/qt/test/test_amero-qt -platform cocoa    # macOS
 void TestGUI()
 {
     // Set up wallet and chain with 105 blocks (5 mature blocks for spending).
@@ -191,7 +191,7 @@ void TestGUI()
             QString paymentText = rlist->toPlainText();
             QStringList paymentTextList = paymentText.split('\n');
             QCOMPARE(paymentTextList.at(0), QString("Payment information"));
-            QVERIFY(paymentTextList.at(2).indexOf(QString("URI: dash:")) != -1);
+            QVERIFY(paymentTextList.at(2).indexOf(QString("URI: amero:")) != -1);
             QVERIFY(paymentTextList.at(3).indexOf(QString("Address:")) != -1);
             QCOMPARE(paymentTextList.at(4), QString("Amount: 0.00000001 ") + BitcoinUnits::name(unit));
             QCOMPARE(paymentTextList.at(5), QString("Label: TEST_LABEL_1"));

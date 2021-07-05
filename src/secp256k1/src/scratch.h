@@ -1,7 +1,7 @@
 /**********************************************************************
- * Copyright (c) 2017 Andrew Poelstra	                              *
- * Distributed under the MIT software license, see the accompanying   *
- * file COPYING or http://www.opensource.org/licenses/mit-license.php.*
+ * Public Resource ℗ 2017 Andrew Poelstra	                              *
+ * Public Resource ℗ 2020 𝖠𝗆𝖾𝗋𝗈 𝖣𝖾𝗏𝖾𝗅𝗈𝗉𝖾𝗋𝗌   *
+ * THIS REPOSITORY IS LICENSED UNDER THE AMERO PUBLIC RESOURCE LICENSE.*
  **********************************************************************/
 
 #ifndef _SECP256K1_SCRATCH_

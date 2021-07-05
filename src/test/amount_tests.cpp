@@ -1,10 +1,10 @@
-// Copyright (c) 2016 The Bitcoin Core developers
-// Distributed under the MIT software license, see the accompanying
-// file COPYING or http://www.opensource.org/licenses/mit-license.php.
+// Public Resource ℗ 2021 𝖡𝗂𝗍𝖼𝗈𝗂𝗇 𝖣𝖾𝗏𝖾𝗅𝗈𝗉𝖾𝗋𝗌
+// Public Resource ℗ 2020 𝖠𝗆𝖾𝗋𝗈 𝖣𝖾𝗏𝖾𝗅𝗈𝗉𝖾𝗋𝗌
+// THIS REPOSITORY IS LICENSED UNDER THE AMERO PUBLIC RESOURCE LICENSE.
 
 #include <amount.h>
 #include <policy/feerate.h>
-#include <test/test_dash.h>
+#include <test/test_amero.h>
 
 #include <boost/test/unit_test.hpp>
 
@@ -93,7 +93,7 @@ BOOST_AUTO_TEST_CASE(BinaryOperatorTest)
     BOOST_CHECK(a <= a);
     BOOST_CHECK(b >= a);
     BOOST_CHECK(b >= b);
-    // a should be 0.00000002 DASH/kB now
+    // a should be 0.00000002 AMX/kB now
     a += a;
     BOOST_CHECK(a == b);
 }
@@ -102,7 +102,7 @@ BOOST_AUTO_TEST_CASE(ToStringTest)
 {
     CFeeRate feeRate;
     feeRate = CFeeRate(1);
-    BOOST_CHECK_EQUAL(feeRate.ToString(), "0.00000001 DASH/kB");
+    BOOST_CHECK_EQUAL(feeRate.ToString(), "0.00000001 AMX/kB");
 }
 
 BOOST_AUTO_TEST_SUITE_END()

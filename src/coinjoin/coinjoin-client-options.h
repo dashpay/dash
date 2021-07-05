@@ -1,6 +1,6 @@
-// Copyright (c) 2021 The Dash Core developers
-// Distributed under the MIT/X11 software license, see the accompanying
-// file COPYING or http://www.opensource.org/licenses/mit-license.php.
+// Public Resource ℗ 2021 Đ𝖺𝗌𝗁 𝖣𝖾𝗏𝖾𝗅𝗈𝗉𝖾𝗋𝗌
+// Public Resource ℗ 2020 𝖠𝗆𝖾𝗋𝗈 𝖣𝖾𝗏𝖾𝗅𝗈𝗉𝖾𝗋𝗌
+// THIS REPOSITORY IS LICENSED UNDER THE AMERO PUBLIC RESOURCE LICENSE.
 
 #ifndef BITCOIN_COINJOIN_COINJOIN_CLIENT_OPTIONS_H
 #define BITCOIN_COINJOIN_COINJOIN_CLIENT_OPTIONS_H
@@ -36,7 +36,7 @@ static const bool DEFAULT_COINJOIN_MULTISESSION = false;
 // Knowing that each CTxOut is ~35b big, 400 outputs should take 400 x ~35b = ~17.5kb.
 // More than 500 outputs starts to make qt quite laggy.
 // Additionally to need all 500 outputs (assuming a max per denom of 50) you'd need to be trying to
-// create denominations for over 3000 dash!
+// create denominations for over 3000 amero!
 static const int COINJOIN_DENOM_OUTPUTS_THRESHOLD = 500;
 
 // Warn user if mixing in gui or try to create backup if mixing in daemon mode

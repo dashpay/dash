@@ -1,10 +1,10 @@
 // Copyright (c) 2011-2015 The Bitcoin Core developers
-// Copyright (c) 2014-2021 The Dash Core developers
+// Copyright (c) 2014-2021 The Amero Core developers
 // Distributed under the MIT software license, see the accompanying
 // file COPYING or http://www.opensource.org/licenses/mit-license.php.
 
 #if defined(HAVE_CONFIG_H)
-#include <config/dash-config.h>
+#include <config/amero-config.h>
 #endif
 
 #include <qt/rpcconsole.h>
@@ -1296,7 +1296,7 @@ void RPCConsole::setButtonIcons()
 void RPCConsole::reloadThemedWidgets()
 {
     clear();
-    ui->promptLabel->setHidden(GUIUtil::dashThemeActive());
+    ui->promptLabel->setHidden(GUIUtil::ameroThemeActive());
     // Adjust button icon colors on theme changes
     setButtonIcons();
 }

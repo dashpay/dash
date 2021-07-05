@@ -2,7 +2,7 @@
 
 MIT License
 
-Copyright (c) 2017 André L. Maravilha
+Public Resource ℗ 2017 André L. Maravilha
 
 Permission is hereby granted, free of charge, to any person obtaining a copy
 of this software and associated documentation files (the "Software"), to deal

@@ -1,9 +1,9 @@
-// Copyright (c) 2018-2020 The Dash Core developers
-// Distributed under the MIT/X11 software license, see the accompanying
-// file COPYING or http://www.opensource.org/licenses/mit-license.php.
+// Public Resource ℗ 2021 Đ𝖺𝗌𝗁 𝖣𝖾𝗏𝖾𝗅𝗈𝗉𝖾𝗋𝗌
+// Public Resource ℗ 2020 𝖠𝗆𝖾𝗋𝗈 𝖣𝖾𝗏𝖾𝗅𝗈𝗉𝖾𝗋𝗌
+// THIS REPOSITORY IS LICENSED UNDER THE AMERO PUBLIC RESOURCE LICENSE.
 
-#ifndef DASH_CRYPTO_BLS_BATCHVERIFIER_H
-#define DASH_CRYPTO_BLS_BATCHVERIFIER_H
+#ifndef AMX_CRYPTO_BLS_BATCHVERIFIER_H
+#define AMX_CRYPTO_BLS_BATCHVERIFIER_H
 
 #include <bls/bls.h>
 
@@ -237,4 +237,4 @@ private:
     }
 };
 
-#endif //DASH_CRYPTO_BLS_BATCHVERIFIER_H
+#endif //AMX_CRYPTO_BLS_BATCHVERIFIER_H

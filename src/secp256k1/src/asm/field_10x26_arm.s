@@ -1,8 +1,8 @@
 @ vim: set tabstop=8 softtabstop=8 shiftwidth=8 noexpandtab syntax=armasm:
 /**********************************************************************
- * Copyright (c) 2014 Wladimir J. van der Laan                        *
- * Distributed under the MIT software license, see the accompanying   *
- * file COPYING or http://www.opensource.org/licenses/mit-license.php.*
+ * Public Resource ℗ 2014 Wladimir J. van der Laan                        *
+ * Public Resource ℗ 2020 𝖠𝗆𝖾𝗋𝗈 𝖣𝖾𝗏𝖾𝗅𝗈𝗉𝖾𝗋𝗌   *
+ * THIS REPOSITORY IS LICENSED UNDER THE AMERO PUBLIC RESOURCE LICENSE.*
  **********************************************************************/
 /*
 ARM implementation of field_10x26 inner loops.

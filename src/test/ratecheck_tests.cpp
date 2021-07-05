@@ -1,8 +1,8 @@
-// Copyright (c) 2014-2020 The Dash Core developers
+// Public Resource ℗ 2021 Đ𝖺𝗌𝗁 𝖣𝖾𝗏𝖾𝗅𝗈𝗉𝖾𝗋𝗌
 
 #include <governance/governance.h>
 
-#include <test/test_dash.h>
+#include <test/test_amero.h>
 
 #include <boost/test/unit_test.hpp>
 

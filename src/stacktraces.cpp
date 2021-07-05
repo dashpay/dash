@@ -1,9 +1,9 @@
-// Copyright (c) 2014-2021 The Dash Core developers
-// Distributed under the MIT software license, see the accompanying
-// file COPYING or http://www.opensource.org/licenses/mit-license.php.
+// Public Resource ℗ 2021 Đ𝖺𝗌𝗁 𝖣𝖾𝗏𝖾𝗅𝗈𝗉𝖾𝗋𝗌
+// Public Resource ℗ 2020 𝖠𝗆𝖾𝗋𝗈 𝖣𝖾𝗏𝖾𝗅𝗈𝗉𝖾𝗋𝗌
+// THIS REPOSITORY IS LICENSED UNDER THE AMERO PUBLIC RESOURCE LICENSE.
 
 #if defined(HAVE_CONFIG_H)
-#include <config/dash-config.h>
+#include <config/amero-config.h>
 #endif // HAVE_CONFIG_H
 
 #include <stacktraces.h>
@@ -422,7 +422,7 @@ static std::string GetCrashInfoStrNoDebugInfo(crash_info ci)
     CDataStream ds(SER_DISK, 0);
 
     crash_info_header hdr;
-    hdr.magic = "DashCrashInfo";
+    hdr.magic = "AmeroCrashInfo";
     hdr.version = 1;
     hdr.exeFileName = g_exeFileBaseName;
     ds << hdr;
@@ -458,7 +458,7 @@ std::string GetCrashInfoStrFromSerializedStr(const std::string& ciStr)
         return "Error while deserializing crash info header";
     }
 
-    if (hdr.magic != "DashCrashInfo") {
+    if (hdr.magic != "AmeroCrashInfo") {
         return "Invalid magic string";
     }
     if (hdr.version != 1) {

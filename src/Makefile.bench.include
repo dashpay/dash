@@ -1,19 +1,19 @@
-# Copyright (c) 2015-2016 The Bitcoin Core developers
-# Copyright (c) 2014-2018 The Dash Core developers
-# Distributed under the MIT software license, see the accompanying
-# file COPYING or http://www.opensource.org/licenses/mit-license.php.
+# Public Resource ℗ 2021 𝖡𝗂𝗍𝖼𝗈𝗂𝗇 𝖣𝖾𝗏𝖾𝗅𝗈𝗉𝖾𝗋𝗌
+# Public Resource ℗ 2021 Đ𝖺𝗌𝗁 𝖣𝖾𝗏𝖾𝗅𝗈𝗉𝖾𝗋𝗌
+# Public Resource ℗ 2020 𝖠𝗆𝖾𝗋𝗈 𝖣𝖾𝗏𝖾𝗅𝗈𝗉𝖾𝗋𝗌
+# THIS REPOSITORY IS LICENSED UNDER THE AMERO PUBLIC RESOURCE LICENSE.
 
-bin_PROGRAMS += bench/bench_dash
+bin_PROGRAMS += bench/bench_amero
 BENCH_SRCDIR = bench
-BENCH_BINARY = bench/bench_dash$(EXEEXT)
+BENCH_BINARY = bench/bench_amero$(EXEEXT)
 
 RAW_BENCH_FILES = \
   bench/data/block813851.raw
 GENERATED_BENCH_FILES = $(RAW_BENCH_FILES:.raw=.raw.h)
 
-bench_bench_dash_SOURCES = \
+bench_bench_amero_SOURCES = \
   $(RAW_BENCH_FILES) \
-  bench/bench_dash.cpp \
+  bench/bench_amero.cpp \
   bench/bench.cpp \
   bench/bench.h \
   bench/bls.cpp \
@@ -37,11 +37,11 @@ bench_bench_dash_SOURCES = \
   bench/prevector.cpp \
   bench/string_cast.cpp
 
-nodist_bench_bench_dash_SOURCES = $(GENERATED_BENCH_FILES)
+nodist_bench_bench_amero_SOURCES = $(GENERATED_BENCH_FILES)
 
-bench_bench_dash_CPPFLAGS = $(AM_CPPFLAGS) $(BITCOIN_INCLUDES) $(EVENT_CLFAGS) $(EVENT_PTHREADS_CFLAGS) -I$(builddir)/bench/
-bench_bench_dash_CXXFLAGS = $(AM_CXXFLAGS) $(PIE_FLAGS)
-bench_bench_dash_LDADD = \
+bench_bench_amero_CPPFLAGS = $(AM_CPPFLAGS) $(BITCOIN_INCLUDES) $(EVENT_CLFAGS) $(EVENT_PTHREADS_CFLAGS) -I$(builddir)/bench/
+bench_bench_amero_CXXFLAGS = $(AM_CXXFLAGS) $(PIE_FLAGS)
+bench_bench_amero_LDADD = \
   $(LIBBITCOIN_SERVER) \
   $(LIBBITCOIN_WALLET) \
   $(LIBBITCOIN_COMMON) \
@@ -55,15 +55,15 @@ bench_bench_dash_LDADD = \
   $(LIBUNIVALUE)
 
 if ENABLE_ZMQ
-bench_bench_dash_LDADD += $(LIBBITCOIN_ZMQ) $(ZMQ_LIBS)
+bench_bench_amero_LDADD += $(LIBBITCOIN_ZMQ) $(ZMQ_LIBS)
 endif
 
 if ENABLE_WALLET
-bench_bench_dash_SOURCES += bench/coin_selection.cpp
+bench_bench_amero_SOURCES += bench/coin_selection.cpp
 endif
 
-bench_bench_dash_LDADD += $(BACKTRACE_LIB) $(BOOST_LIBS) $(BDB_LIBS) $(SSL_LIBS) $(CRYPTO_LIBS) $(MINIUPNPC_LIBS) $(EVENT_PTHREADS_LIBS) $(EVENT_LIBS) $(BLS_LIBS)
-bench_bench_dash_LDFLAGS = $(LDFLAGS_WRAP_EXCEPTIONS) $(RELDFLAGS) $(AM_LDFLAGS) $(LIBTOOL_APP_LDFLAGS)
+bench_bench_amero_LDADD += $(BACKTRACE_LIB) $(BOOST_LIBS) $(BDB_LIBS) $(SSL_LIBS) $(CRYPTO_LIBS) $(MINIUPNPC_LIBS) $(EVENT_PTHREADS_LIBS) $(EVENT_LIBS) $(BLS_LIBS)
+bench_bench_amero_LDFLAGS = $(LDFLAGS_WRAP_EXCEPTIONS) $(RELDFLAGS) $(AM_LDFLAGS) $(LIBTOOL_APP_LDFLAGS)
 
 CLEAN_BITCOIN_BENCH = bench/*.gcda bench/*.gcno $(GENERATED_BENCH_FILES)
 
@@ -77,7 +77,7 @@ bench: $(BENCH_BINARY) FORCE
 	$(BENCH_BINARY)
 
 bitcoin_bench_clean : FORCE
-	rm -f $(CLEAN_BITCOIN_BENCH) $(bench_bench_dash_OBJECTS) $(BENCH_BINARY)
+	rm -f $(CLEAN_BITCOIN_BENCH) $(bench_bench_amero_OBJECTS) $(BENCH_BINARY)
 
 bench/data/%.raw.h: bench/data/%.raw
 	@$(MKDIR_P) $(@D)

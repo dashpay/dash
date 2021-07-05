@@ -129,7 +129,7 @@
   </layout>
  </widget>
  <resources>
-  <include location="../dash.qrc"/>
+  <include location="../amero.qrc"/>
  </resources>
  <connections>
   <connection>
