@@ -6,11 +6,11 @@ on:
 permissions:
   contents: read
   pull-requests: write
+  issues: read
   # Enforce other not needed permissions are off
   actions: none
   checks: none
   deployments: none
-  issues: none
   packages: none
   repository-projects: none
   security-events: none
