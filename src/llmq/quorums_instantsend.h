@@ -59,13 +59,13 @@ public:
     void Upgrade();
 
     /**
-     * This method is called when an InstantSend Lock is processed and adds the lock to the database instantsend.dat
+     * This method is called when an InstantSend Lock is processed and adds the lock to the database
      * @param hash The hash of the InstantSend Lock
      * @param islock The InstantSend Lock object itself
      */
     void WriteNewInstantSendLock(const uint256& hash, const CInstantSendLock& islock);
     /**
-     * This method removes a InstantSend Lock from instantsend.dat and is called when a tx with an IS lock is confirmed and Chainlocked
+     * This method removes a InstantSend Lock from the database and is called when a tx with an IS lock is confirmed and Chainlocked
      * @param batch Object used to batch many calls together
      * @param hash The hash of the InstantSend Lock
      * @param islock The InstantSend Lock object itself
