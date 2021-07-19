@@ -60,9 +60,9 @@ The Dash Core repo's [root README](/README.md) contains relevant information on 
 - [Benchmarking](benchmarking.md)
 
 ### Resources
-* Discuss on the [Dash Forum](https://dash.org/forum), in the Development & Technical Discussion board.
 * See the [Dash Developer Documentation](https://dashcore.readme.io/)
   for technical specifications and implementation details.
+* Discuss on the [Dash Forum](https://dash.org/forum), in the Development & Technical Discussion board.
 * Discuss on [Dash Discord](http://staydashy.com)
 * Discuss on [Dash Developers Discord](http://chat.dashdevs.org/)
 
