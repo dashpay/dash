@@ -218,6 +218,7 @@ BITCOIN_CORE_H = \
   netfulfilledman.h \
   netmessagemaker.h \
   node/coinstats.h \
+  node/transaction.h \
   noui.h \
   policy/feerate.h \
   policy/fees.h \
@@ -268,10 +269,12 @@ BITCOIN_CORE_H = \
   util/fees.h \
   util/system.h \
   util/asmap.h \
+  util/getuniquepath.h \
   util/macros.h \
   util/memory.h \
   util/moneystr.h \
   util/serfloat.h \
+  util/sock.h \
   util/string.h \
   util/time.h \
   util/threadnames.h \
@@ -367,6 +370,7 @@ libdash_server_a_SOURCES = \
   netfulfilledman.cpp \
   net_processing.cpp \
   node/coinstats.cpp \
+  node/transaction.cpp \
   noui.cpp \
   policy/fees.cpp \
   policy/policy.cpp \
@@ -606,6 +610,8 @@ libdash_util_a_SOURCES = \
   util/bytevectorhash.cpp \
   util/error.cpp \
   util/fees.cpp \
+  util/sock.cpp \
+  util/getuniquepath.cpp \
   util/system.cpp \
   util/asmap.cpp \
   util/moneystr.cpp \

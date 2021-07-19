@@ -5,9 +5,10 @@
 
 #include <chainparams.h>
 #include <torcontrol.h>
-#include <util/strencodings.h>
 #include <netbase.h>
 #include <net.h>
+#include <util/time.h>
+#include <util/strencodings.h>
 #include <util/system.h>
 #include <crypto/hmac_sha256.h>
 

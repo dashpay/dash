@@ -21,7 +21,13 @@ NOT_FINAL_ERROR = "non-BIP68-final (code 64)"
 class BIP68Test(BitcoinTestFramework):
     def set_test_params(self):
         self.num_nodes = 2
-        self.extra_args = [[], ["-acceptnonstdtxn=0"]]
+        self.extra_args = [
+            [
+                "-acceptnonstdtxn=1",
+                "-peertimeout=9999",  # bump because mocktime might cause a disconnect otherwise
+            ],
+            ["-acceptnonstdtxn=0"],
+        ]
 
     def run_test(self):
         self.relayfee = self.nodes[0].getnetworkinfo()["relayfee"]

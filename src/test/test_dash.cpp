@@ -51,8 +51,7 @@ void CConnmanTest::ClearNodes()
     g_connman->mapNodesWithDataToSend.clear();
 }
 
-uint256 insecure_rand_seed = GetRandHash();
-FastRandomContext insecure_rand_ctx(insecure_rand_seed);
+FastRandomContext insecure_rand_ctx;
 
 extern bool fPrintToConsole;
 extern void noui_connect();
@@ -174,7 +173,7 @@ TestChainSetup::TestChainSetup(int blockCount) : TestingSetup(CBaseChainParams::
     int64_t time_start = GetTimeMillis();
     while (!g_txindex->BlockUntilSyncedToCurrentChain()) {
         assert(time_start + timeout_ms > GetTimeMillis());
-        MilliSleep(100);
+        UninterruptibleSleep(std::chrono::milliseconds{100});
     }
 }
 
