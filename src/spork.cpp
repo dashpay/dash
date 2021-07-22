@@ -93,8 +93,7 @@ void CSporkManager::CheckAndRemove()
             ++itSignerPair;
         }
         if (itActive->second.empty()) {
-            mapSporksActive.erase(itActive++);
-            continue;
+            mapSporksActive.erase(itActive);
         }
         ++itActive;
     }
@@ -243,7 +242,7 @@ int64_t CSporkManager::GetSporkValue(SporkId nSporkID) const
 {
     LOCK(cs);
 
-    int64_t nSporkValue = -1;
+    int64_t nSporkValue;
     if (SporkValueIsActive(nSporkID, nSporkValue)) {
         return nSporkValue;
     }
