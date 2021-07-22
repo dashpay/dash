@@ -28,7 +28,8 @@ static const int GOVERNANCE_OBJECT_UNKNOWN = 0;
 static const int GOVERNANCE_OBJECT_PROPOSAL = 1;
 static const int GOVERNANCE_OBJECT_TRIGGER = 2;
 
-static const CAmount GOVERNANCE_PROPOSAL_FEE_TX = (5.0 * COIN);
+static const CAmount GOVERNANCE_PROPOSAL_FEE_TX = (1 * COIN);
+static const CAmount GOVERNANCE_PROPOSAL_FEE_TX_OLD = (5 * COIN);
 
 static const int64_t GOVERNANCE_FEE_CONFIRMATIONS = 6;
 static const int64_t GOVERNANCE_MIN_RELAY_FEE_CONFIRMATIONS = 1;
@@ -256,7 +257,7 @@ public:
         }
     }
 
-    CAmount GetMinCollateralFee() const;
+    CAmount GetMinCollateralFee(bool fork_active) const;
 
     UniValue GetJSONObject() const;
 
