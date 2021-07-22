@@ -91,6 +91,14 @@ OptionsDialog::OptionsDialog(QWidget *parent, bool enableWallet) :
     connect(ui->connectSocksTor, SIGNAL(toggled(bool)), ui->proxyPortTor, SLOT(setEnabled(bool)));
     connect(ui->connectSocksTor, SIGNAL(toggled(bool)), this, SLOT(updateProxyValidationState()));
 
+    /* Window elements init */
+#ifdef Q_OS_MAC
+    /* hide launch at startup option on macOS */
+    ui->bitcoinAtStartup->setVisible(false);
+    ui->verticalLayout_Main->removeWidget(ui->bitcoinAtStartup);
+    ui->verticalLayout_Main->removeItem(ui->horizontalSpacer_0_Main);
+#endif
+
     pageButtons = new QButtonGroup(this);
     pageButtons->addButton(ui->btnMain, pageButtons->buttons().size());
     /* Remove Wallet/CoinJoin tabs in case of -disablewallet */

@@ -19,12 +19,26 @@ How to Upgrade
 --------------
 
 If you are running an older version, shut it down. Wait until it has completely
-shut down (which might take a few minutes for older versions), then run the
-installer (on Windows) or just copy over /Applications/Dash-Qt (on Mac) or
-dashd/dash-qt (on Linux). If you upgrade after DIP0003 activation and you were
-using version < 0.13 you will have to reindex (start with -reindex-chainstate
+shut down (which might take a few minutes in some cases), then run the
+installer (on Windows) or just copy over `/Applications/Dash-Qt` (on Mac)
+or `dashd`/`dash-qt` (on Linux).
+
+Upgrading directly from a version of Dash Core that has reached its EOL is
+possible, but it might take some time if the data directory needs to be migrated. Old
+wallet versions of Dash Core are generally supported. If you upgrade after DIP0003 activation
+and you were using version < 0.13 you will have to reindex (start with -reindex-chainstate
 or -reindex) to make sure your wallet has all the new data synced. Upgrading
 from version 0.13 should not require any additional actions.
+
+Compatibility
+==============
+
+Dash Core is supported and extensively tested on operating systems
+using the Linux kernel, macOS 10.14+, and Windows 7 and newer.  Dash
+Core should also work on most other Unix-like systems but is not as
+frequently tested on them.  It is not recommended to use Dash Core on
+unsupported systems. Additionally, Dash Core does not yet change appearance
+when macOS "dark mode" is activated.
 
 When upgrading from a version prior to 0.14.0.3, the
 first startup of Dash Core will run a migration process which can take a few
