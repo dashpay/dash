@@ -614,6 +614,9 @@ void RPCConsole::setClientModel(ClientModel *model)
         connect(model, SIGNAL(masternodeListChanged()), this, SLOT(updateMasternodeCount()));
         clientModel->refreshMasternodeList();
 
+        connect(model, SIGNAL(ChainLockHashChanged(std::string)), this, SLOT(setBestChainLockHash(std::string)));
+        connect(model, SIGNAL(ChainLockHeightChanged(int32_t)), this, SLOT(setBestChainLockHeight(int32_t)));
+
         connect(model, SIGNAL(mempoolSizeChanged(long,size_t)), this, SLOT(setMempoolSize(long,size_t)));
         connect(model, SIGNAL(islockCountChanged(size_t)), this, SLOT(setInstantSendLockCount(size_t)));
 
@@ -978,6 +981,16 @@ void RPCConsole::updateMasternodeCount()
         .arg(QString::number(mnList.GetAllMNsCount()))
         .arg(QString::number(mnList.GetValidMNsCount()));
     ui->masternodeCount->setText(strMasternodeCount);
+}
+
+void RPCConsole::setBestChainLockHash(std::string blockHash)
+{
+    ui->BestChainLockHash->setText(QString::fromStdString(blockHash));
+}
+
+void RPCConsole::setBestChainLockHeight(int32_t nHeight)
+{
+    ui->BestChainLockHeight->setText(QString::number(nHeight));
 }
 
 void RPCConsole::setMempoolSize(long numberOfTxs, size_t dynUsage)

@@ -46,6 +46,8 @@ class LLMQ
 {
 public:
     virtual ~LLMQ() {}
+    virtual std::string GetBestChainLockHash() = 0;
+    virtual int32_t GetBestChainLockHeight() = 0;
     virtual size_t getInstantSentLockCount() = 0;
 };
 

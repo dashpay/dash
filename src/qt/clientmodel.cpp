@@ -127,6 +127,8 @@ void ClientModel::updateTimer()
 {
     // no locking required at this point
     // the following calls will acquire the required lock
+    Q_EMIT ChainLockHashChanged(m_node.llmq().GetBestChainLockHash());
+    Q_EMIT ChainLockHeightChanged(m_node.llmq().GetBestChainLockHeight());
     Q_EMIT mempoolSizeChanged(m_node.getMempoolSize(), m_node.getMempoolDynamicUsage());
     Q_EMIT islockCountChanged(m_node.llmq().getInstantSentLockCount());
 }

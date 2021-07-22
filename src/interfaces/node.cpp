@@ -13,6 +13,7 @@
 #include <init.h>
 #include <interfaces/handler.h>
 #include <interfaces/wallet.h>
+#include <llmq/quorums_chainlocks.h>
 #include <llmq/quorums_instantsend.h>
 #include <masternode/masternode-sync.h>
 #include <net.h>
@@ -64,6 +65,20 @@ public:
 class LLMQImpl : public LLMQ
 {
 public:
+    std::string GetBestChainLockHash() override
+    {
+        if (!llmq::chainLocksHandler) {
+            return 0;
+        }
+        return llmq::chainLocksHandler->GetBestChainLockHash();
+    }
+    int32_t GetBestChainLockHeight() override
+    {
+        if (!llmq::chainLocksHandler) {
+            return 0;
+        }
+        return llmq::chainLocksHandler->GetBestChainLockHeight();
+    }
     size_t getInstantSentLockCount() override
     {
         if (!llmq::quorumInstantSendManager) {

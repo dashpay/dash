@@ -85,6 +85,8 @@ public:
     bool AlreadyHave(const CInv& inv);
     bool GetChainLockByHash(const uint256& hash, CChainLockSig& ret);
     CChainLockSig GetBestChainLock();
+    std::string GetBestChainLockHash();
+    int32_t GetBestChainLockHeight();
 
     void ProcessMessage(CNode* pfrom, const std::string& strCommand, CDataStream& vRecv);
     void ProcessNewChainLock(NodeId from, const CChainLockSig& clsig, const uint256& hash);

@@ -117,6 +117,8 @@ Q_SIGNALS:
     void masternodeListChanged() const;
     void numBlocksChanged(int count, const QDateTime& blockDate, const QString& blockHash, double nVerificationProgress, bool header);
     void additionalDataSyncProgressChanged(double nSyncProgress);
+    void ChainLockHashChanged(std::string);
+    void ChainLockHeightChanged(int32_t);
     void mempoolSizeChanged(long count, size_t mempoolSizeInBytes);
     void islockCountChanged(size_t count);
     void networkActiveChanged(bool networkActive);

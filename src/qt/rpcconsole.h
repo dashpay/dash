@@ -118,6 +118,10 @@ public Q_SLOTS:
     void updateMasternodeCount();
     /** Set number of blocks, last block date and last block hash shown in the UI */
     void setNumBlocks(int count, const QDateTime& blockDate, const QString& blockHash, double nVerificationProgress, bool headers);
+    /** Set hash of latest ChainLocked block */
+    void setBestChainLockHash(std::string blockHash);
+    /** Set height of latest ChainLocked block */
+    void setBestChainLockHeight(int32_t nHeight);
     /** Set size (number of transactions and memory usage) of the mempool in the UI */
     void setMempoolSize(long numberOfTxs, size_t dynUsage);
     /** Set number of InstantSend locks */
