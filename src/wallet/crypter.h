@@ -129,6 +129,7 @@ private:
 
 protected:
     using CryptedKeyMap = std::map<CKeyID, std::pair<CPubKey, std::vector<unsigned char>>>;
+    using bCryptedKeyMap = std::map<CKeyID, std::pair<CBLSPublicKey, std::vector<unsigned char>>>;
 
     bool SetCrypted();
 
@@ -142,6 +143,7 @@ protected:
 
     bool Unlock(const CKeyingMaterial& vMasterKeyIn, bool fForMixingOnly = false);
     CryptedKeyMap mapCryptedKeys GUARDED_BY(cs_KeyStore);
+    bCryptedKeyMap mapBCryptedKeys GUARDED_BY(cs_KeyStore);
 
 public:
     CCryptoKeyStore() : fUseCrypto(false), fDecryptionThoroughlyChecked(false), fOnlyMixingAllowed(false)
@@ -157,6 +159,12 @@ public:
     bool HaveKey(const CKeyID &address) const override;
     bool GetKey(const CKeyID &address, CKey& keyOut) const override;
     bool GetPubKey(const CKeyID &address, CPubKey& vchPubKeyOut) const override;
+
+    virtual bool AddCryptedKey(const CBLSPublicKey &vchPubKey, const std::vector<unsigned char> &vchCryptedSecret);
+    bool AddKeyPubKey(const CBLSSecretKey& key, const CBLSPublicKey &pubkey) override;
+    bool GetKey(const CKeyID &address, CBLSSecretKey& keyOut) const override;
+    bool GetPubKey(const CKeyID &address, CBLSPublicKey& vchPubKeyOut) const override;
+
     std::set<CKeyID> GetKeys() const override;
 
     virtual bool GetHDChain(CHDChain& hdChainRet) const override;

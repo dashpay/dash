@@ -5,6 +5,7 @@
 
 #include <script/sigcache.h>
 
+#include <bls/bls.h>
 #include <memusage.h>
 #include <pubkey.h>
 #include <random.h>
@@ -39,6 +40,12 @@ public:
     ComputeEntry(uint256& entry, const uint256 &hash, const std::vector<unsigned char>& vchSig, const CPubKey& pubkey)
     {
         CSHA256().Write(nonce.begin(), 32).Write(hash.begin(), 32).Write(&pubkey[0], pubkey.size()).Write(&vchSig[0], vchSig.size()).Finalize(entry.begin());
+    }
+
+    void
+    ComputeEntry(uint256& entry, const uint256 &hash, const std::vector<unsigned char>& vchSig, const CBLSPublicKey& pubkey)
+    {
+        CSHA256().Write(nonce.begin(), 32).Write(hash.begin(), 32).Write(pubkey.ToByteVector().data(), pubkey.ToByteVector().size()).Write(&vchSig[0], vchSig.size()).Finalize(entry.begin());
     }
 
     bool
@@ -81,6 +88,19 @@ void InitSignatureCache()
 }
 
 bool CachingTransactionSignatureChecker::VerifySignature(const std::vector<unsigned char>& vchSig, const CPubKey& pubkey, const uint256& sighash) const
+{
+    uint256 entry;
+    signatureCache.ComputeEntry(entry, sighash, vchSig, pubkey);
+    if (signatureCache.Get(entry, !store))
+        return true;
+    if (!TransactionSignatureChecker::VerifySignature(vchSig, pubkey, sighash))
+        return false;
+    if (store)
+        signatureCache.Set(entry);
+    return true;
+}
+
+bool CachingTransactionSignatureChecker::VerifySignature(const std::vector<unsigned char>& vchSig, const CBLSPublicKey& pubkey, const uint256& sighash) const
 {
     uint256 entry;
     signatureCache.ComputeEntry(entry, sighash, vchSig, pubkey);

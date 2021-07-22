@@ -142,6 +142,8 @@ const char* GetOpName(opcodetype opcode)
 
     case OP_CHECKDATASIG           : return "OP_CHECKDATASIG";
     case OP_CHECKDATASIGVERIFY     : return "OP_CHECKDATASIGVERIFY";
+    case OP_BLS_CHECKSIG           : return "OP_BLS_CHECKSIG";
+    case OP_BLS_CHECKSIGVERIFY     : return "OP_BLS_CHECKSIGVERIFY";
 
     case OP_INVALIDOPCODE          : return "OP_INVALIDOPCODE";
 
@@ -160,7 +162,7 @@ unsigned int CScript::GetSigOpCount(bool fAccurate) const
         opcodetype opcode;
         if (!GetOp(pc, opcode))
             break;
-        if (opcode == OP_CHECKSIG || opcode == OP_CHECKSIGVERIFY)
+        if (opcode == OP_CHECKSIG || opcode == OP_CHECKSIGVERIFY || opcode == OP_BLS_CHECKSIG || opcode == OP_BLS_CHECKSIGVERIFY)
             n++;
         else if (opcode == OP_CHECKMULTISIG || opcode == OP_CHECKMULTISIGVERIFY)
         {

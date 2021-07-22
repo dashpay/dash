@@ -68,6 +68,10 @@ typedef enum ScriptError_t
     SCRIPT_ERR_OP_CODESEPARATOR,
     SCRIPT_ERR_SIG_FINDANDDELETE,
 
+    /* BLS transaction support */
+    SCRIPT_ERR_BLS_INVALIDLEN,
+    SCRIPT_ERR_BLS_PUBKEYLEN,
+
     SCRIPT_ERR_ERROR_COUNT
 } ScriptError;
 

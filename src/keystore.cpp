@@ -106,7 +106,7 @@ static bool ExtractPubKey(const CScript &dest, CPubKey& pubKeyOut)
     pubKeyOut = CPubKey(vch);
     if (!pubKeyOut.IsFullyValid())
         return false;
-    if (!dest.GetOp(pc, opcode, vch) || opcode != OP_CHECKSIG || dest.GetOp(pc, opcode, vch))
+    if (!dest.GetOp(pc, opcode, vch) || opcode != OP_CHECKSIG || opcode != OP_BLS_CHECKSIG || dest.GetOp(pc, opcode, vch))
         return false;
     return true;
 }

@@ -6,6 +6,7 @@
 #ifndef BITCOIN_KEYSTORE_H
 #define BITCOIN_KEYSTORE_H
 
+#include <bls/bls.h>
 #include <hdchain.h>
 #include <key.h>
 #include <pubkey.h>
@@ -20,8 +21,10 @@
 class CKeyStore : public SigningProvider
 {
 public:
-    //! Add a key to the store.
+    //! Add a secp256k1 key to the store.
     virtual bool AddKeyPubKey(const CKey &key, const CPubKey &pubkey) =0;
+    //! Add a BLS12-381 key to the store.
+    virtual bool AddKeyPubKey(const CBLSSecretKey &key, const CBLSPublicKey &pubkey) =0;
 
     //! Check whether a key corresponding to a given address is present in the store.
     virtual bool HaveKey(const CKeyID &address) const =0;
@@ -49,8 +52,10 @@ protected:
     using WatchKeyMap = std::map<CKeyID, CPubKey>;
     using ScriptMap = std::map<CScriptID, CScript>;
     using WatchOnlySet = std::set<CScript>;
+    using bKeyMap = std::map<CKeyID, CBLSSecretKey>;
 
     KeyMap mapKeys GUARDED_BY(cs_KeyStore);
+    bKeyMap mapBKeys GUARDED_BY(cs_KeyStore);
     WatchKeyMap mapWatchKeys GUARDED_BY(cs_KeyStore);
     ScriptMap mapScripts GUARDED_BY(cs_KeyStore);
     WatchOnlySet setWatchOnly GUARDED_BY(cs_KeyStore);
@@ -62,8 +67,15 @@ public:
     bool AddKey(const CKey &key) { return AddKeyPubKey(key, key.GetPubKey()); }
     bool GetPubKey(const CKeyID &address, CPubKey& vchPubKeyOut) const override;
     bool HaveKey(const CKeyID &address) const override;
+
+    bool AddKeyPubKey(const CBLSSecretKey& key, const CBLSPublicKey &pubkey) override;
+    bool AddKey(const CBLSSecretKey &key) { return AddKeyPubKey(key, key.GetPublicKey()); }
+    bool GetPubKey(const CKeyID &address, CBLSPublicKey& vchPubKeyOut) const override;
+    bool GetKey(const CKeyID &address, CBLSSecretKey &keyOut) const override;
+
     std::set<CKeyID> GetKeys() const override;
     bool GetKey(const CKeyID &address, CKey &keyOut) const override;
+
     bool AddCScript(const CScript& redeemScript) override;
     bool HaveCScript(const CScriptID &hash) const override;
     std::set<CScriptID> GetCScripts() const override;

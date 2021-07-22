@@ -90,6 +90,10 @@ const char* ScriptErrorString(const ScriptError serror)
             return "Using OP_CODESEPARATOR";
         case SCRIPT_ERR_SIG_FINDANDDELETE:
             return "Signature is found in scriptCode";
+        case SCRIPT_ERR_BLS_INVALIDLEN:
+            return "Signature length not 96 bytes";
+        case SCRIPT_ERR_BLS_PUBKEYLEN:
+            return "Public key length not 48 bytes";
         case SCRIPT_ERR_UNKNOWN_ERROR:
         case SCRIPT_ERR_ERROR_COUNT:
         default: break;

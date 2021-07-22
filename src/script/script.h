@@ -186,12 +186,14 @@ enum opcodetype
     // More crypto
     OP_CHECKDATASIG = 0xba,
     OP_CHECKDATASIGVERIFY = 0xbb,
+    OP_BLS_CHECKSIG = 0xbc,
+    OP_BLS_CHECKSIGVERIFY = 0xbd,
 
     OP_INVALIDOPCODE = 0xff,
 };
 
 // Maximum value that an opcode can be
-static const unsigned int MAX_OPCODE = OP_CHECKDATASIGVERIFY;
+static const unsigned int MAX_OPCODE = OP_BLS_CHECKSIGVERIFY;
 
 const char* GetOpName(opcodetype opcode);
 

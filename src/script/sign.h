@@ -17,6 +17,8 @@ class CKeyID;
 class CScript;
 class CScriptID;
 class CTransaction;
+class CBLSPublicKey;
+class CBLSSecretKey;
 
 struct CMutableTransaction;
 
@@ -33,7 +35,9 @@ public:
     virtual ~SigningProvider() {}
     virtual bool GetCScript(const CScriptID &scriptid, CScript& script) const { return false; }
     virtual bool GetPubKey(const CKeyID &address, CPubKey& pubkey) const { return false; }
+    virtual bool GetPubKey(const CKeyID &address, CBLSPublicKey& pubkey) const { return false; }
     virtual bool GetKey(const CKeyID &address, CKey& key) const { return false; }
+    virtual bool GetKey(const CKeyID &address, CBLSSecretKey& key) const { return false; }
     virtual bool GetKeyOrigin(const CKeyID& id, KeyOriginInfo& info) const { return false; }
 };
 

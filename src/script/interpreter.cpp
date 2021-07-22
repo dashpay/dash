@@ -5,6 +5,7 @@
 
 #include <script/interpreter.h>
 
+#include <bls/bls.h>
 #include <crypto/ripemd160.h>
 #include <crypto/sha1.h>
 #include <crypto/sha256.h>
@@ -197,26 +198,34 @@ bool static IsDefinedHashtypeSignature(const valtype &vchSig) {
     return true;
 }
 
-bool CheckSignatureEncoding(const std::vector<unsigned char> &vchSig, unsigned int flags, ScriptError* serror) {
+bool CheckSignatureEncoding(const std::vector<unsigned char> &vchSig, unsigned int flags, ScriptError* serror, bool isECDSA) {
     // Empty signature. Not strictly DER encoded, but allowed to provide a
     // compact way to provide an invalid signature for use with CHECK(MULTI)SIG
     if (vchSig.size() == 0) {
         return true;
     }
-    if ((flags & (SCRIPT_VERIFY_DERSIG | SCRIPT_VERIFY_LOW_S | SCRIPT_VERIFY_STRICTENC)) != 0 && !IsValidSignatureEncoding(vchSig)) {
-        return set_error(serror, SCRIPT_ERR_SIG_DER);
-    } else if ((flags & SCRIPT_VERIFY_LOW_S) != 0 && !IsLowDERSignature(vchSig, serror)) {
-        // serror is set
-        return false;
-    } else if ((flags & SCRIPT_VERIFY_STRICTENC) != 0 && !IsDefinedHashtypeSignature(vchSig)) {
-        return set_error(serror, SCRIPT_ERR_SIG_HASHTYPE);
+    if (isECDSA) {
+        if ((flags & (SCRIPT_VERIFY_DERSIG | SCRIPT_VERIFY_LOW_S | SCRIPT_VERIFY_STRICTENC)) != 0 && !IsValidSignatureEncoding(vchSig)) {
+            return set_error(serror, SCRIPT_ERR_SIG_DER);
+        } else if ((flags & SCRIPT_VERIFY_LOW_S) != 0 && !IsLowDERSignature(vchSig, serror)) {
+            // serror is set
+            return false;
+        } else if ((flags & SCRIPT_VERIFY_STRICTENC) != 0 && !IsDefinedHashtypeSignature(vchSig)) {
+            return set_error(serror, SCRIPT_ERR_SIG_HASHTYPE);
+        }
+    } else {
+        if (vchSig.size() != BLS_CURVE_SIG_SIZE) {
+            return set_error(serror, SCRIPT_ERR_BLS_INVALIDLEN);
+        }
     }
     return true;
 }
 
-bool static CheckPubKeyEncoding(const valtype &vchPubKey, unsigned int flags, const SigVersion &sigversion, ScriptError* serror) {
-    if ((flags & SCRIPT_VERIFY_STRICTENC) != 0 && !IsCompressedOrUncompressedPubKey(vchPubKey)) {
+bool static CheckPubKeyEncoding(const valtype &vchPubKey, unsigned int flags, const SigVersion &sigversion, ScriptError* serror, bool isECDSA = true) {
+    if ((flags & SCRIPT_VERIFY_STRICTENC) != 0 && !IsCompressedOrUncompressedPubKey(vchPubKey) && isECDSA) {
         return set_error(serror, SCRIPT_ERR_PUBKEYTYPE);
+    } else if (vchPubKey.size() != BLS_CURVE_PUBKEY_SIZE && !isECDSA) {
+        return set_error(serror, SCRIPT_ERR_BLS_PUBKEYLEN);
     }
     return true;
 }
@@ -970,6 +979,8 @@ bool EvalScript(std::vector<std::vector<unsigned char> >& stack, const CScript& 
 
                 case OP_CHECKSIG:
                 case OP_CHECKSIGVERIFY:
+                case OP_BLS_CHECKSIG:
+                case OP_BLS_CHECKSIGVERIFY:
                 {
                     // (sig pubkey -- bool)
                     if (stack.size() < 2)
@@ -988,11 +999,18 @@ bool EvalScript(std::vector<std::vector<unsigned char> >& stack, const CScript& 
                             return set_error(serror, SCRIPT_ERR_SIG_FINDANDDELETE);
                     }
 
-                    if (!CheckSignatureEncoding(vchSig, flags, serror) || !CheckPubKeyEncoding(vchPubKey, flags, sigversion, serror)) {
+                    bool isECDSA = !(opcode == OP_BLS_CHECKSIG || opcode == OP_BLS_CHECKSIGVERIFY);
+                    if (!CheckSignatureEncoding(vchSig, flags, serror, isECDSA) || !CheckPubKeyEncoding(vchPubKey, flags, sigversion, serror, isECDSA)) {
                         //serror is set
                         return false;
                     }
-                    bool fSuccess = checker.CheckSig(vchSig, vchPubKey, scriptCode, sigversion);
+                    bool fSuccess;
+                    if (isECDSA) {
+                        fSuccess = checker.CheckSig(vchSig, vchPubKey, scriptCode, sigversion);
+                    } else {
+                        CBLSPublicKey pk(vchPubKey, false);
+                        fSuccess = CBLSSignature(vchSig, false).VerifyInsecure(pk, uint256(ToByteVector(scriptCode)));
+                    }
 
                     if (!fSuccess && (flags & SCRIPT_VERIFY_NULLFAIL) && vchSig.size())
                         return set_error(serror, SCRIPT_ERR_SIG_NULLFAIL);
@@ -1000,7 +1018,7 @@ bool EvalScript(std::vector<std::vector<unsigned char> >& stack, const CScript& 
                     popstack(stack);
                     popstack(stack);
                     stack.push_back(fSuccess ? vchTrue : vchFalse);
-                    if (opcode == OP_CHECKSIGVERIFY)
+                    if (opcode == OP_CHECKSIGVERIFY || opcode == OP_BLS_CHECKSIGVERIFY)
                     {
                         if (fSuccess)
                             popstack(stack);
@@ -1476,6 +1494,12 @@ template <class T>
 bool GenericTransactionSignatureChecker<T>::VerifySignature(const std::vector<unsigned char>& vchSig, const CPubKey& pubkey, const uint256& sighash) const
 {
     return pubkey.Verify(sighash, vchSig);
+}
+
+template <class T>
+bool GenericTransactionSignatureChecker<T>::VerifySignature(const std::vector<unsigned char>& vchSig, const CBLSPublicKey& pubkey, const uint256& sighash) const
+{
+    return CBLSSignature(vchSig, false).VerifyInsecure(pubkey, sighash);
 }
 
 template <class T>
