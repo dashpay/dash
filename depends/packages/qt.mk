@@ -21,9 +21,10 @@ $(package)_extra_sources += $($(package)_qttools_file_name)
 
 define $(package)_set_vars
 $(package)_config_opts_release = -release
+$(package)_config_opts_release += -silent
 $(package)_config_opts_debug = -debug
 $(package)_config_opts += -bindir $(build_prefix)/bin
-$(package)_config_opts += -c++std c++11
+$(package)_config_opts += -c++std c++1z
 $(package)_config_opts += -confirm-license
 $(package)_config_opts += -dbus-runtime
 $(package)_config_opts += -hostprefix $(build_prefix)
@@ -67,7 +68,6 @@ $(package)_config_opts += -qt-pcre
 $(package)_config_opts += -qt-harfbuzz
 $(package)_config_opts += -system-zlib
 $(package)_config_opts += -static
-$(package)_config_opts += -silent
 $(package)_config_opts += -v
 $(package)_config_opts += -no-feature-printer
 $(package)_config_opts += -no-feature-printdialog
