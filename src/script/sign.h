@@ -263,6 +263,7 @@ struct PSBTInput
     template <typename Stream>
     inline void Unserialize(Stream& s) {
         // Read loop
+        bool found_sep = false;
         while(!s.empty()) {
             // Read
             std::vector<unsigned char> key;
@@ -270,7 +271,10 @@ struct PSBTInput
 
             // the key is empty if that was actually a separator byte
             // This is a special case for key lengths 0 as those are not allowed (except for separator)
-            if (key.empty()) return;
+            if (key.empty()) {
+                found_sep = true;
+                break;
+            }
 
             // First byte of key is the type
             unsigned char type = key[0];
@@ -353,6 +357,10 @@ struct PSBTInput
                     break;
             }
         }
+
+        if (!found_sep) {
+            throw std::ios_base::failure("Separator is missing at the end of an input map");
+        }
     }
 
     template <typename Stream>
@@ -399,6 +407,7 @@ struct PSBTOutput
     template <typename Stream>
     inline void Unserialize(Stream& s) {
         // Read loop
+        bool found_sep = false;
         while(!s.empty()) {
             // Read
             std::vector<unsigned char> key;
@@ -406,7 +415,10 @@ struct PSBTOutput
 
             // the key is empty if that was actually a separator byte
             // This is a special case for key lengths 0 as those are not allowed (except for separator)
-            if (key.empty()) return;
+            if (key.empty()) {
+                found_sep = true;
+                break;
+            }
 
             // First byte of key is the type
             unsigned char type = key[0];
@@ -440,6 +452,10 @@ struct PSBTOutput
                     break;
                 }
             }
+        }
+
+        if (!found_sep) {
+            throw std::ios_base::failure("Separator is missing at the end of an output map");
         }
     }
 
@@ -515,6 +531,7 @@ struct PartiallySignedTransaction
         }
 
         // Read global data
+        bool found_sep = false;
         while(!s.empty()) {
             // Read
             std::vector<unsigned char> key;
@@ -522,7 +539,10 @@ struct PartiallySignedTransaction
 
             // the key is empty if that was actually a separator byte
             // This is a special case for key lengths 0 as those are not allowed (except for separator)
-            if (key.empty()) break;
+            if (key.empty()) {
+                found_sep = true;
+                break;
+            }
 
             // First byte of key is the type
             unsigned char type = key[0];
@@ -558,6 +578,10 @@ struct PartiallySignedTransaction
                     unknown.emplace(std::move(key), std::move(val_bytes));
                 }
             }
+        }
+
+        if (!found_sep) {
+            throw std::ios_base::failure("Separator is missing at the end of the global map");
         }
 
         // Make sure that we got an unsigned tx
