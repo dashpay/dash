@@ -48,6 +48,7 @@ Optional dependencies:
  libqrencode | QR codes in GUI  | Optional for generating QR codes (only needed when GUI enabled)
  libzmq3     | ZMQ notification | Optional, allows generating ZMQ notifications (requires ZMQ version >= 4.0.0)
  sqlite3     | SQLite DB        | Wallet storage (only needed when wallet enabled)
+ systemtap   | Tracing (USDT)   | Optional, statically defined tracepoints
 
 For the versions used, see [dependencies.md](dependencies.md)
 
@@ -99,9 +100,15 @@ ZMQ dependencies (provides ZMQ API):
 
     sudo apt-get install libzmq3-dev
 
+<<<<<<< HEAD
 GMP dependencies (provides platform-optimized routines):
 
    sudo apt-get install libgmp-dev
+=======
+User-Space, Statically Defined Tracing (USDT) dependencies:
+
+    sudo apt install systemtap-sdt-dev
+>>>>>>> 61cefde7a7 (Merge bitcoin/bitcoin#22006: tracing: first tracepoints and documentation on User-Space, Statically Defined Tracing (USDT))
 
 GUI dependencies:
 
@@ -162,9 +169,15 @@ ZMQ dependencies (provides ZMQ API):
 
     sudo dnf install zeromq-devel
 
+<<<<<<< HEAD
 GMP dependencies (provides platform-optimized routines):
 
     sudo dnf install gmp-devel
+=======
+User-Space, Statically Defined Tracing (USDT) dependencies:
+
+    sudo dnf install systemtap
+>>>>>>> 61cefde7a7 (Merge bitcoin/bitcoin#22006: tracing: first tracepoints and documentation on User-Space, Statically Defined Tracing (USDT))
 
 GUI dependencies:
 
