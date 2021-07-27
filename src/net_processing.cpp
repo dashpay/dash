@@ -30,6 +30,7 @@
 #include <txmempool.h>
 #include <util/check.h> // For NDEBUG compile time check
 #include <util/system.h>
+#include <util/trace.h>
 #include <util/strencodings.h>
 
 #include <list>
@@ -4443,6 +4444,15 @@ bool PeerManagerImpl::ProcessMessages(CNode* pfrom, std::atomic<bool>& interrupt
         fMoreWork = !pfrom->vProcessMsg.empty();
     }
     CNetMessage& msg(msgs.front());
+
+    TRACE6(net, inbound_message,
+        pfrom->GetId(),
+        pfrom->GetAddrName().c_str(),
+        pfrom->ConnectionTypeAsString().c_str(),
+        msg.m_command.c_str(),
+        msg.m_recv.size(),
+        msg.m_recv.data()
+    );
 
     msg.SetVersion(pfrom->GetRecvVersion());
     const std::string& msg_type = msg.m_command;

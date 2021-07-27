@@ -27,6 +27,7 @@
 #include <util/strencodings.h>
 #include <util/thread.h>
 #include <util/time.h>
+#include <util/trace.h>
 #include <util/translation.h>
 #include <validation.h>
 
@@ -3942,7 +3943,16 @@ bool CConnman::NodeFullyConnected(const CNode* pnode)
 void CConnman::PushMessage(CNode* pnode, CSerializedNetMsg&& msg)
 {
     size_t nMessageSize = msg.data.size();
-    LogPrint(BCLog::NET, "sending %s (%d bytes) peer=%d\n", SanitizeString(msg.command), nMessageSize, pnode->GetId());
+    LogPrint(BCLog::NET, "sending %s (%d bytes) peer=%d\n",msg.command, nMessageSize, pnode->GetId());
+
+    TRACE6(net, outbound_message,
+        pnode->GetId(),
+        pnode->GetAddrName().c_str(),
+        pnode->ConnectionTypeAsString().c_str(),
+        msg.m_type.c_str(),
+        msg.data.size(),
+        msg.data.data()
+    );
 
     // make sure we use the appropriate network transport format
     std::vector<unsigned char> serializedHeader;
