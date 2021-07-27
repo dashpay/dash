@@ -466,7 +466,7 @@ void CGovernanceManager::UpdateCachesAndClean()
         }
     }
 
-    LogPrintf("CGovernanceManager::UpdateCachesAndClean -- %s\n", ToString());
+    LogPrint("gobject", "CGovernanceManager::UpdateCachesAndClean -- %s\n", ToString());
 }
 
 CGovernanceObject* CGovernanceManager::FindGovernanceObject(const uint256& nHash)

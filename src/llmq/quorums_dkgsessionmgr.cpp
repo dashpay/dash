@@ -34,7 +34,7 @@ CDKGSessionManager::~CDKGSessionManager()
 bool CDKGSessionManager::IsDIP6Enforced(int nHeight) const {
     LOCK(sessionManagerCs);
 
-    if (nHeight == -1) {
+    if (nHeight == -1 && tipIndex != nullptr) { // if the tipIndex is not set then this node cannot enforce DIP6, happens if in initial block download or lite mode
         nHeight = tipIndex->nHeight;
     }
 
