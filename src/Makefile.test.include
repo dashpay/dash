@@ -181,6 +181,7 @@ if ENABLE_WALLET
 BITCOIN_TESTS += \
   wallet/test/coinjoin_tests.cpp \
   wallet/test/psbt_wallet_tests.cpp \
+  wallet/test/spend_tests.cpp \
   wallet/test/wallet_tests.cpp \
   wallet/test/wallet_crypto_tests.cpp \
   wallet/test/coinselector_tests.cpp \
@@ -199,6 +200,8 @@ endif
 
 
 BITCOIN_TEST_SUITE += \
+  wallet/test/util.cpp \
+  wallet/test/util.h \
   wallet/test/wallet_test_fixture.cpp \
   wallet/test/wallet_test_fixture.h \
   wallet/test/init_test_fixture.cpp \
