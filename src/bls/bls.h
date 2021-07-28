@@ -79,7 +79,9 @@ public:
         std::swap(fLegacy, ref.fLegacy);
         return *this;
     }
-
+    
+    virtual ~CBLSWrapper() {}
+    
     bool operator==(const C& r) const
     {
         return fValid == r.fValid && impl == r.impl;
@@ -319,6 +321,8 @@ public:
     {
         *this = r;
     }
+    
+    virtual ~CBLSLazyWrapper() {}
 
     CBLSLazyWrapper& operator=(const CBLSLazyWrapper& r)
     {
