@@ -133,9 +133,9 @@ UniValue debug(const JSONRPCRequest& request)
             "\nArguments:\n"
             "1. \"category\"        (string, required) The name of the debug category to turn on. Can be one of the following:\n"
             "                       addrman, alert, bench, cmpctblock, coindb, db, http, leveldb, libevent, lock, mempool,\n"
-            "                       mempoolrej, net, proxy, prune, qt, rand, reindex, rpc, selectcoins, tor, zmq, dash\n"
+            "                       mempoolrej, net, proxy, prune, qt, rand, reindex, rpc, selectcoins, tor, zmq, alterdot\n"
             "                       (or specifically: chainlocks, gobject, instantsend, keepass, llmq, llmq-dkg, llmq-sigs,\n"
-            "                       masternode, mnpayments, mnsync, privatesend, spork).\n"
+            "                       masternode, mnpayments, mnsync, privatesend, spork, bdns).\n"
             "                       Can also use \"1\" to turn all categories on at once and \"0\" to turn them off.\n"
             "                       Note: If specified category doesn't match any of the above, no error is thrown.\n"
             "\nResult:\n"
@@ -1151,6 +1151,7 @@ UniValue getmemoryinfo(const JSONRPCRequest& request)
     return obj;
 }
 
+#ifdef ENABLE_WALLET
 UniValue registerdomain(const JSONRPCRequest& request)
 {
     if (request.fHelp || request.params.size() < 2 || request.params.size() > 3)
@@ -1171,7 +1172,6 @@ UniValue registerdomain(const JSONRPCRequest& request)
             "registerdomain \"ipfs.org\" \"QmYwAPJzv5CZsnA625s3Xf2nemtYgPpHdWEz79ojWnPbdG\" \"CXAMcudgejBnG5P5z6ENNGtQxdKD1sZRAo\""
         );
 
-#ifdef ENABLE_WALLET
     LOCK2(cs_main, pwalletMain ? &pwalletMain->cs_wallet : NULL);
 
     if (request.params[0].isNull() || request.params[1].isNull())
@@ -1274,9 +1274,6 @@ UniValue registerdomain(const JSONRPCRequest& request)
     sendRequest.params.setArray();
     sendRequest.params.push_back(signResult["hex"].get_str());
     return sendrawtransaction(sendRequest);
-#else
-    throw JSONRPCError(RPC_INTERNAL_ERROR, "Registering blockchain domain names is not possible without enabling the wallet.");
-#endif
 }
 
 UniValue updatedomain(const JSONRPCRequest& request)
@@ -1297,7 +1294,6 @@ UniValue updatedomain(const JSONRPCRequest& request)
             "updatedomain \"ipfs.org\" \"QmYwAPJzv5CZsnA625s3Xf2nemtYgPpHdWEz79ojWnPbdG\""
         );
 
-#ifdef ENABLE_WALLET
     LOCK2(cs_main, pwalletMain ? &pwalletMain->cs_wallet : NULL);
 
     if (request.params[0].isNull() || request.params[1].isNull())
@@ -1325,7 +1321,7 @@ UniValue updatedomain(const JSONRPCRequest& request)
     CBlockIndex* pblockindex = chainActive[bdnsRecord.regBlockHeight];
 
     if (fHavePruned && !(pblockindex->nStatus & BLOCK_HAVE_DATA) && pblockindex->nTx > 0)
-        throw JSONRPCError(RPC_INTERNAL_ERROR, "Block not available (pruned data).");
+        throw JSONRPCError(RPC_MISC_ERROR, "Block not available (pruned data).");
 
     CBlock block;
 
@@ -1401,10 +1397,8 @@ UniValue updatedomain(const JSONRPCRequest& request)
     sendRequest.params.setArray();
     sendRequest.params.push_back(signResult["hex"].get_str());
     return sendrawtransaction(sendRequest);
-#else
-    throw JSONRPCError(RPC_INTERNAL_ERROR, "Updating blockchain domain names is not possible without enabling the wallet.");
-#endif
 }
+#endif // ENABLE_WALLET
 
 UniValue resolvedomain(const JSONRPCRequest& request) {
     if (request.fHelp || request.params.size() != 1)
@@ -1423,7 +1417,7 @@ UniValue resolvedomain(const JSONRPCRequest& request) {
         throw JSONRPCError(RPC_INVALID_PARAMETER, "Invalid parameter, argument 1 must be non-null.");
 
     if (chainActive.Height() + 1 < Params().GetConsensus().nHardForkEight)
-        throw JSONRPCError(RPC_INTERNAL_ERROR, "The BDNS becomes active starting with block: " + std::to_string(Params().GetConsensus().nHardForkEight));
+        throw JSONRPCError(RPC_MISC_ERROR, "The BDNS becomes active starting with block: " + std::to_string(Params().GetConsensus().nHardForkEight));
 
     std::string ipfsHash;
 
@@ -1466,11 +1460,13 @@ static const CRPCCommand commands[] =
     { "addressindex",       "getaddressbalance",      &getaddressbalance,      false, {"addresses"} },
 
     /* Alterdot features */
-    { "alterdot",               "mnsync",               &mnsync,               true,  {} },
-    { "alterdot",               "spork",                &spork,                true,  {"value"} },
-    { "alterdot",               "registerdomain",       &registerdomain,       true,  {"name","hash","address"} },
-    { "alterdot",               "updatedomain",         &updatedomain,         true,  {"name","hash"} },
-    { "alterdot",               "resolvedomain",        &resolvedomain,        true,  {"name"} },
+    { "alterdot",           "mnsync",                 &mnsync,                 true,  {} },
+    { "alterdot",           "spork",                  &spork,                  true,  {"value"} },
+#ifdef ENABLE_WALLET
+    { "alterdot",           "registerdomain",         &registerdomain,         true,  {"name","hash","address"} },
+    { "alterdot",           "updatedomain",           &updatedomain,           true,  {"name","hash"} },
+#endif
+    { "alterdot",           "resolvedomain",          &resolvedomain,          true,  {"name"} },  
 
     /* Not shown in help */
     { "hidden",             "setmocktime",            &setmocktime,            true,  {"timestamp"}},

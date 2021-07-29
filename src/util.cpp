@@ -298,6 +298,7 @@ bool LogAcceptCategory(const char* category)
                     ptrCategory->insert(std::string("mnsync"));
                     ptrCategory->insert(std::string("spork"));
                     ptrCategory->insert(std::string("privatesend"));
+                    ptrCategory->insert(std::string("bdns"));
                 }
             } else {
                 ptrCategory.reset(new std::set<std::string>());
