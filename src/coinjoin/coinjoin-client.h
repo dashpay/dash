@@ -50,8 +50,8 @@ public:
     {
     }
 
-    CService GetAddr() { return addr; }
-    CCoinJoinAccept GetDSA() { return dsa; }
+    CService GetAddr() const { return addr; }
+    CCoinJoinAccept GetDSA() const { return dsa; }
     bool IsExpired() const { return GetTime() - nTimeCreated > TIMEOUT; }
 
     friend bool operator==(const CPendingDsaRequest& a, const CPendingDsaRequest& b)
@@ -114,12 +114,12 @@ private:
     /// As a client, check and sign the final transaction
     bool SignFinalTransaction(const CTransaction& finalTransactionNew, CNode* pnode, CConnman& connman);
 
-    void RelayIn(const CCoinJoinEntry& entry, CConnman& connman);
+    void RelayIn(const CCoinJoinEntry& entry, CConnman& connman) const;
 
     void SetNull();
 
 public:
-    CCoinJoinClientSession(CWallet& pwallet) :
+    explicit CCoinJoinClientSession(CWallet& pwallet) :
         vecOutPointLocked(),
         strLastMessage(),
         strAutoDenomResult(),
@@ -137,7 +137,7 @@ public:
 
     void ResetPool();
 
-    std::string GetStatus(bool fWaitForBlock);
+    std::string GetStatus(bool fWaitForBlock) const;
 
     bool GetMixingMasternodeInfo(CDeterministicMNCPtr& ret) const;
 
@@ -200,7 +200,7 @@ public:
     int nCachedNumBlocks;    // used for the overview screen
     bool fCreateAutoBackups; // builtin support for automatic backups
 
-    CCoinJoinClientManager(CWallet& wallet) :
+    explicit CCoinJoinClientManager(CWallet& wallet) :
         vecMasternodesUsed(),
         deqSessions(),
         nCachedLastSuccessBlock(0),

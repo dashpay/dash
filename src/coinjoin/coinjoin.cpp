@@ -9,7 +9,6 @@
 #include <chain.h>
 #include <messagesigner.h>
 #include <netmessagemaker.h>
-#include <script/sign.h>
 #include <txmempool.h>
 #include <util/system.h>
 #include <util/moneystr.h>
