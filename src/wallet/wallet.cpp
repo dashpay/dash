@@ -4280,6 +4280,54 @@ std::map<CTxDestination, CAmount> CWallet::GetAddressBalances()
     return balances;
 }
 
+std::map<std::string, std::tuple<CTxDestination, std::string, int>> CWallet::GetOwnedDomains()
+{
+    std::map<std::string, std::tuple<CTxDestination, std::string, int>> ownedDomains;
+
+    {
+        LOCK(cs_wallet);
+        BOOST_FOREACH(PAIRTYPE(uint256, CWalletTx) walletEntry, mapWallet)
+        {
+            CWalletTx *pcoin = &walletEntry.second;
+            const CTransaction& checkedTx = *pcoin->tx;
+            std::string bdnsName, ipfsHash;
+
+            if (!pcoin->IsTrusted() || pcoin->IsCoinBase())
+                continue;
+            
+            int nDepth = pcoin->GetDepthInMainChain();
+
+            // unconfirmed
+            if ((nDepth < (pcoin->IsFromMe(ISMINE_ALL) ? 0 : 1)) && !pcoin->IsLockedByInstantSend())
+                continue;
+            
+            // expired
+            if ((nDepth > Params().GetConsensus().nBlocksPerYear))
+                continue;
+            
+            // format check
+            if (!(checkedTx.nType == TRANSACTION_NORMAL && checkedTx.vin.size() == 1 && checkedTx.vout.size() == 2 && checkedTx.vout[0].scriptPubKey.Find(OP_RETURN)))
+                continue;
+
+            // check if the necessary amount was paid
+            if (!(GetDebit(checkedTx.vin[0], ISMINE_ALL) >= GetCredit(checkedTx.vout[1], ISMINE_ALL) + 20 * CENT))
+                continue;
+            
+            CTxDestination ownerAddr;
+            if(!ExtractDestination(checkedTx.vout[1].scriptPubKey, ownerAddr))
+                continue;
+            
+            if (!ExtractBdnsIpfsFromScript(checkedTx.vout[0].scriptPubKey, bdnsName, ipfsHash))
+                continue;
+            else { // all checks passed, this is surely a valid domain name registration transaction created by this wallet that hasn't expired yet
+                ownedDomains[bdnsName] = std::make_tuple(ownerAddr, ipfsHash, Params().GetConsensus().nBlocksPerYear - nDepth);
+            }
+        }
+    }
+
+    return ownedDomains;
+}
+
 std::set< std::set<CTxDestination> > CWallet::GetAddressGroupings()
 {
     AssertLockHeld(cs_wallet); // mapWallet

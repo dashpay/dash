@@ -621,6 +621,35 @@ UniValue listaddressbalances(const JSONRPCRequest& request)
     return jsonBalances;
 }
 
+UniValue listowneddomains(const JSONRPCRequest& request)
+{
+    CWallet* const pwallet = GetWalletForJSONRPCRequest(request);
+    if (!EnsureWalletIsAvailable(pwallet, request.fHelp))
+        return NullUniValue;
+
+    if (request.fHelp || request.params.size() > 1)
+        throw std::runtime_error(
+            "listowneddomains\n"
+            "\nLists the blockchain domains owned by this wallet."
+        );
+
+    LOCK2(cs_main, pwallet->cs_wallet);
+
+    UniValue jsonDomains(UniValue::VOBJ);
+    std::map<std::string, std::tuple<CTxDestination, std::string, int>> ownedDomains = pwallet->GetOwnedDomains();
+
+    for (auto& domain : ownedDomains) {
+        UniValue entry(UniValue::VOBJ);
+        entry.push_back(Pair("owner", CBitcoinAddress(std::get<0>(domain.second)).ToString()));
+        entry.push_back(Pair("content", std::get<1>(domain.second)));
+        entry.push_back(Pair("blocksLeft", std::get<2>(domain.second)));
+
+        jsonDomains.push_back(Pair(domain.first, entry));
+    }
+
+    return jsonDomains;
+}
+
 UniValue signmessage(const JSONRPCRequest& request)
 {
     CWallet * const pwallet = GetWalletForJSONRPCRequest(request);
@@ -3022,6 +3051,7 @@ static const CRPCCommand commands[] =
     { "wallet",             "listaccounts",             &listaccounts,             false,  {"minconf","addlocked","include_watchonly"} },
     { "wallet",             "listaddressgroupings",     &listaddressgroupings,     false,  {} },
     { "wallet",             "listaddressbalances",      &listaddressbalances,      false,  {"minamount"} },
+    { "wallet",             "listowneddomains",         &listowneddomains,         false,  {} },
     { "wallet",             "listlockunspent",          &listlockunspent,          false,  {} },
     { "wallet",             "listreceivedbyaccount",    &listreceivedbyaccount,    false,  {"minconf","addlocked","include_empty","include_watchonly"} },
     { "wallet",             "listreceivedbyaddress",    &listreceivedbyaddress,    false,  {"minconf","addlocked","include_empty","include_watchonly"} },
