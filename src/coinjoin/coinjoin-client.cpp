@@ -636,7 +636,7 @@ bool CCoinJoinClientSession::SignFinalTransaction(const CTransaction& finalTrans
             // TODO we're using amount=0 here but we should use the correct amount. This works because Dash ignores the amount while signing/verifying (only used in Bitcoin/Segwit)
             if (!SignSignature(mixingWallet, prevPubKey, finalMutableTransaction, nMyInputIndex, 0, int(SIGHASH_ALL | SIGHASH_ANYONECANPAY))) { // changes scriptSig
                 LogPrint(BCLog::COINJOIN, "CCoinJoinClientSession::%s -- Unable to sign my own transaction!\n", __func__);
-                // not sure what to do here, it will timeout...?
+                // not sure what to do here, it will time out...?
             }
 
             sigs.push_back(finalMutableTransaction.vin[nMyInputIndex]);
@@ -710,14 +710,14 @@ bool CCoinJoinClientManager::CheckAutomaticBackup()
         return false;
     case -1:
         // Automatic backup failed, nothing else we can do until user fixes the issue manually.
-        // There is no way to bring user attention in daemon mode so we just update status and
+        // There is no way to bring user attention in daemon mode, so we just update status and
         // keep spamming if debug is on.
         LogPrint(BCLog::COINJOIN, "CCoinJoinClientManager::CheckAutomaticBackup -- ERROR! Failed to create automatic backup.\n");
         strAutoDenomResult = _("ERROR! Failed to create automatic backup") + ", " + _("see debug.log for details.");
         return false;
     case -2:
         // We were able to create automatic backup but keypool was not replenished because wallet is locked.
-        // There is no way to bring user attention in daemon mode so we just update status and
+        // There is no way to bring user attention in daemon mode, so we just update status and
         // keep spamming if debug is on.
         LogPrint(BCLog::COINJOIN, "CCoinJoinClientManager::CheckAutomaticBackup -- WARNING! Failed to create replenish keypool, please unlock your wallet to do so.\n");
         strAutoDenomResult = _("WARNING! Failed to replenish keypool, please unlock your wallet to do so.") + ", " + _("see debug.log for details.");
@@ -732,7 +732,7 @@ bool CCoinJoinClientManager::CheckAutomaticBackup()
         StopMixing();
         return false;
     } else if (mixingWallet.nKeysLeftSinceAutoBackup < COINJOIN_KEYS_THRESHOLD_WARNING) {
-        // Low number of keys left but it's still more or less safe to continue
+        // Low number of keys left, but it's still more or less safe to continue
         LogPrint(BCLog::COINJOIN, "CCoinJoinClientManager::CheckAutomaticBackup -- Very low number of keys left: %d\n", mixingWallet.nKeysLeftSinceAutoBackup);
         strAutoDenomResult = strprintf(_("Very low number of keys left: %d"), mixingWallet.nKeysLeftSinceAutoBackup);
 
@@ -1260,7 +1260,7 @@ bool CCoinJoinClientSession::SubmitDenominate(CConnman& connman)
         }
     }
 
-    // more inputs first, for equal input count prefer the one with less rounds
+    // more inputs first, for equal input count prefer the one with fewer rounds
     std::sort(vecInputsByRounds.begin(), vecInputsByRounds.end(), [](const auto& a, const auto& b) {
         return a.second > b.second || (a.second == b.second && a.first < b.first);
     });
@@ -1384,9 +1384,9 @@ bool CCoinJoinClientSession::MakeCollateralAmounts()
     LOCK2(cs_main, mempool.cs);
     LOCK(mixingWallet.cs_wallet);
 
-    // NOTE: We do not allow txes larger than 100kB, so we have to limit number of inputs here.
+    // NOTE: We do not allow txes larger than 100 kB, so we have to limit number of inputs here.
     // We still want to consume a lot of inputs to avoid creating only smaller denoms though.
-    // Knowing that each CTxIn is at least 148b big, 400 inputs should take 400 x ~148b = ~60kB.
+    // Knowing that each CTxIn is at least 148 B big, 400 inputs should take 400 x ~148 B = ~60 kB.
     // This still leaves more than enough room for another data of typical MakeCollateralAmounts tx.
     std::vector<CompactTallyItem> vecTally;
     if (!mixingWallet.SelectCoinsGroupedByAddresses(vecTally, false, false, true, 400)) {
@@ -1394,7 +1394,7 @@ bool CCoinJoinClientSession::MakeCollateralAmounts()
         return false;
     }
 
-    // Start from smallest balances first to consume tiny amounts and cleanup UTXO a bit
+    // Start from the smallest balances first to consume tiny amounts and cleanup UTXO a bit
     std::sort(vecTally.begin(), vecTally.end(), [](const CompactTallyItem& a, const CompactTallyItem& b) {
         return a.nAmount < b.nAmount;
     });
@@ -1568,9 +1568,9 @@ bool CCoinJoinClientSession::CreateDenominated(CAmount nBalanceToDenominate)
     LOCK2(cs_main, mempool.cs);
     LOCK(mixingWallet.cs_wallet);
 
-    // NOTE: We do not allow txes larger than 100kB, so we have to limit number of inputs here.
+    // NOTE: We do not allow txes larger than 100 kB, so we have to limit number of inputs here.
     // We still want to consume a lot of inputs to avoid creating only smaller denoms though.
-    // Knowing that each CTxIn is at least 148b big, 400 inputs should take 400 x ~148b = ~60kB.
+    // Knowing that each CTxIn is at least 148 B big, 400 inputs should take 400 x ~148 B = ~60 kB.
     // This still leaves more than enough room for another data of typical CreateDenominated tx.
     std::vector<CompactTallyItem> vecTally;
     if (!mixingWallet.SelectCoinsGroupedByAddresses(vecTally, true, true, true, 400)) {
@@ -1578,7 +1578,7 @@ bool CCoinJoinClientSession::CreateDenominated(CAmount nBalanceToDenominate)
         return false;
     }
 
-    // Start from largest balances first to speed things up by creating txes with larger/largest denoms included
+    // Start from the largest balances first to speed things up by creating txes with larger/largest denoms included
     std::sort(vecTally.begin(), vecTally.end(), [](const CompactTallyItem& a, const CompactTallyItem& b) {
         return a.nAmount > b.nAmount;
     });
@@ -1713,10 +1713,10 @@ bool CCoinJoinClientSession::CreateDenominated(CAmount nBalanceToDenominate, con
         auto countPossibleOutputs = [&](CAmount nAmount) -> int {
             std::vector<CAmount> vecOutputs;
             while (true) {
-                // Create an potential output
+                // Create a potential output
                 vecOutputs.push_back(nAmount);
                 if (!txBuilder.CouldAddOutputs(vecOutputs) || txBuilder.CountOutputs() + vecOutputs.size() > COINJOIN_DENOM_OUTPUTS_THRESHOLD) {
-                    // If its not possible to add it due to insufficient amount left or total number of outputs exceeds
+                    // If it's not possible to add it due to insufficient amount left or total number of outputs exceeds
                     // COINJOIN_DENOM_OUTPUTS_THRESHOLD drop the output again and stop trying.
                     vecOutputs.pop_back();
                     break;
@@ -1735,7 +1735,7 @@ bool CCoinJoinClientSession::CreateDenominated(CAmount nBalanceToDenominate, con
             // accurate approximation by many smaller denoms. This is ok because when we get here we
             // should have nCoinJoinDenomsGoal of each smaller denom already. Also, without `+1`
             // we can end up in a situation when there is already nCoinJoinDenomsHardCap of smaller
-            // denoms yet we can't mix the remaining nBalanceToDenominate because it's smaller than
+            // denoms, yet we can't mix the remaining nBalanceToDenominate because it's smaller than
             // nDenomValue (and thus denomsToCreateBal == 0), so the target would never get reached
             // even when there is enough funds for that.
             int denomsToCreateBal = (nBalanceToDenominate / nDenomValue) + 1;

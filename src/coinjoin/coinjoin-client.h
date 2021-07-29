@@ -8,6 +8,8 @@
 #include <coinjoin/coinjoin-util.h>
 #include <coinjoin/coinjoin.h>
 
+#include <utility>
+
 class CDeterministicMN;
 typedef std::shared_ptr<const CDeterministicMN> CDeterministicMNCPtr;
 
@@ -43,9 +45,9 @@ public:
     {
     }
 
-    CPendingDsaRequest(const CService& addr_, const CCoinJoinAccept& dsa_) :
-        addr(addr_),
-        dsa(dsa_),
+    CPendingDsaRequest(CService addr_, CCoinJoinAccept dsa_) :
+        addr(std::move(addr_)),
+        dsa(std::move(dsa_)),
         nTimeCreated(GetTime())
     {
     }
@@ -169,10 +171,6 @@ public:
 class CCoinJoinClientManager
 {
 private:
-    CCoinJoinClientManager() = delete;
-    CCoinJoinClientManager(CCoinJoinClientManager const&) = delete;
-    CCoinJoinClientManager& operator=(CCoinJoinClientManager const&) = delete;
-
     // Keep track of the used Masternodes
     std::vector<COutPoint> vecMasternodesUsed;
 
@@ -183,7 +181,7 @@ private:
     bool fMixing{false};
 
     int nCachedLastSuccessBlock;
-    int nMinBlocksToWait; // how many blocks to wait after one successful mixing tx in non-multisession mode
+    int nMinBlocksToWait; // how many blocks to wait for after one successful mixing tx in non-multisession mode
     std::string strAutoDenomResult;
 
     CWallet& mixingWallet;
@@ -199,6 +197,10 @@ private:
 public:
     int nCachedNumBlocks;    // used for the overview screen
     bool fCreateAutoBackups; // builtin support for automatic backups
+
+    CCoinJoinClientManager() = delete;
+    CCoinJoinClientManager(CCoinJoinClientManager const&) = delete;
+    CCoinJoinClientManager& operator=(CCoinJoinClientManager const&) = delete;
 
     explicit CCoinJoinClientManager(CWallet& wallet) :
         vecMasternodesUsed(),

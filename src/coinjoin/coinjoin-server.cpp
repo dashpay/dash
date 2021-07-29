@@ -290,7 +290,7 @@ void CCoinJoinServer::CheckPool(CConnman& connman)
         return;
     }
 
-    // If we have all of the signatures, try to compile the transaction
+    // If we have all the signatures, try to compile the transaction
     if (nState == POOL_STATE_SIGNING && IsSignaturesComplete()) {
         LogPrint(BCLog::COINJOIN, "CCoinJoinServer::CheckPool -- SIGNING\n");
         CommitFinalTransaction(connman);
@@ -378,7 +378,7 @@ void CCoinJoinServer::CommitFinalTransaction(CConnman& connman)
 //
 // Why bother? CoinJoin uses collateral to ensure abuse to the process is kept to a minimum.
 // The submission and signing stages are completely separate. In the cases where
-// a client submits a transaction then refused to sign, there must be a cost. Otherwise they
+// a client submits a transaction then refused to sign, there must be a cost. Otherwise, they
 // would be able to do this over and over again and bring the mixing to a halt.
 //
 // How does this work? Messages to Masternodes come in via NetMsgType::DSVIN, these require a valid collateral
@@ -450,7 +450,7 @@ void CCoinJoinServer::ChargeFees(CConnman& connman) const
     Collateral Fee Charges:
 
     Being that mixing has "no fees" we need to have some kind of cost associated
-    with using it to stop abuse. Otherwise it could serve as an attack vector and
+    with using it to stop abuse. Otherwise, it could serve as an attack vector and
     allow endless transaction that would bloat Dash and make it unusable. To
     stop these kinds of attacks 1 in 10 successful transactions are charged. This
     adds up to a cost of 0.001DRK per transaction on average.
