@@ -44,8 +44,6 @@ public:
     // only in-memory
     uint256 hash;
 
-public:
-
     SERIALIZE_METHODS(CRecoveredSig, obj)
     {
         READWRITE(obj.llmqType, obj.quorumHash, obj.id, obj.msgHash, obj.sig);
