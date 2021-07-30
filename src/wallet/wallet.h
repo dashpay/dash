@@ -25,8 +25,6 @@
 
 #include <governance/governance-object.h>
 
-class CTxDSIn;
-
 #include <algorithm>
 #include <atomic>
 #include <deque>
@@ -76,6 +74,7 @@ class CKey;
 class COutput;
 class CReserveKey;
 class CScript;
+class CTxDSIn;
 class CTxMemPool;
 class CBlockPolicyEstimator;
 class CWalletTx;
