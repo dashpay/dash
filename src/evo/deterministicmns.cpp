@@ -945,7 +945,8 @@ void CDeterministicMNManager::DecreasePoSePenalties(CDeterministicMNList& mnList
     // only iterate and decrease for valid ones (not PoSe banned yet)
     // if a MN ever reaches the maximum, it stays in PoSe banned state until revived
     mnList.ForEachMN(true, [&](const CDeterministicMNCPtr& dmn) {
-        if (dmn->pdmnState->nPoSePenalty > 0 && !dmn->pdmnState->IsBanned()) {
+        // There is no reason to check if this MN is banned here since onlyValid=true will only run on non-banned MNs
+        if (dmn->pdmnState->nPoSePenalty > 0) {
             toDecrease.emplace_back(dmn->proTxHash);
         }
     });
