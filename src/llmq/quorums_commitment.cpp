@@ -7,8 +7,8 @@
 #include <evo/deterministicmns.h>
 #include <evo/specialtx.h>
 
-#include <consensus/validation.h>
 #include <chainparams.h>
+#include <consensus/validation.h>
 #include <logging.h>
 #include <validation.h>
 

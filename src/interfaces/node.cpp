@@ -10,12 +10,12 @@
 #include <chain.h>
 #include <chainparams.h>
 #include <evo/deterministicmns.h>
+#include <governance/governance-object.h>
 #include <init.h>
 #include <interfaces/handler.h>
 #include <interfaces/wallet.h>
 #include <llmq/quorums_instantsend.h>
 #include <masternode/masternode-sync.h>
-#include <governance/governance-object.h>
 #include <net.h>
 #include <net_processing.h>
 #include <netaddress.h>
@@ -38,8 +38,8 @@
 #include <config/dash-config.h>
 #endif
 #ifdef ENABLE_WALLET
-#include <coinjoin/coinjoin-client-options.h>
 #include <coinjoin/coinjoin.h>
+#include <coinjoin/coinjoin-client-options.h>
 #include <wallet/fees.h>
 #include <wallet/wallet.h>
 #define CHECK_WALLET(x) x

@@ -5,12 +5,12 @@
 #include <evo/deterministicmns.h>
 #include <evo/providertx.h>
 #include <evo/specialtx.h>
+#include <messagesigner.h>
 
 #include <chainparams.h>
-#include <consensus/validation.h>
 #include <coins.h>
+#include <consensus/validation.h>
 #include <hash.h>
-#include <messagesigner.h>
 #include <script/standard.h>
 #include <validation.h>
 

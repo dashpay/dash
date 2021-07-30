@@ -6,17 +6,16 @@
 #define BITCOIN_LLMQ_QUORUMS_SIGNING_H
 
 #include <bls/bls.h>
-
-#include <consensus/params.h>
-#include <saltedhasher.h>
-#include <univalue.h>
 #include <unordered_lru_cache.h>
 
+#include <consensus/params.h>
 #include <dbwrapper.h>
+#include <random.h>
+#include <saltedhasher.h>
+#include <sync.h>
+#include <univalue.h>
 
 #include <unordered_map>
-#include <sync.h>
-#include <random.h>
 
 typedef int64_t NodeId;
 class CInv;

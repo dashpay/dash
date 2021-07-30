@@ -23,7 +23,6 @@
 #include <evo/specialtx.h>
 #include <evo/providertx.h>
 #include <evo/deterministicmns.h>
-
 #include <llmq/quorums_instantsend.h>
 
 CTxMemPoolEntry::CTxMemPoolEntry(const CTransactionRef& _tx, const CAmount& _nFee,

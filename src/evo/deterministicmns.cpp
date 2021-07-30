@@ -5,18 +5,17 @@
 #include <evo/deterministicmns.h>
 #include <evo/specialtx.h>
 #include <evo/simplifiedmns.h>
+#include <llmq/quorums_commitment.h>
+#include <llmq/quorums_utils.h>
 
 #include <base58.h>
 #include <chainparams.h>
-#include <core_io.h>
 #include <consensus/validation.h>
+#include <core_io.h>
 #include <script/standard.h>
 #include <ui_interface.h>
 #include <validation.h>
 #include <validationinterface.h>
-
-#include <llmq/quorums_commitment.h>
-#include <llmq/quorums_utils.h>
 
 #include <univalue.h>
 

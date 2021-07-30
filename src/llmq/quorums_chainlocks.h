@@ -6,8 +6,9 @@
 #define BITCOIN_LLMQ_QUORUMS_CHAINLOCKS_H
 
 #include <bls/bls.h>
-#include <chainparams.h>
 #include <llmq/quorums_signing.h>
+
+#include <chainparams.h>
 #include <net.h>
 #include <saltedhasher.h>
 #include <streams.h>

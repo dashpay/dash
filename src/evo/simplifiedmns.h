@@ -5,9 +5,10 @@
 #ifndef BITCOIN_EVO_SIMPLIFIEDMNS_H
 #define BITCOIN_EVO_SIMPLIFIEDMNS_H
 
+#include <bls/bls.h>
+
 #include <merkleblock.h>
 #include <pubkey.h>
-#include <bls/bls.h>
 
 class UniValue;
 class CDeterministicMNList;
