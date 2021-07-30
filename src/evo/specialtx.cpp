@@ -92,6 +92,7 @@ bool ProcessSpecialTxsInBlock(const CBlock& block, const CBlockIndex* pindex, CV
     static int64_t nTimeQuorum = 0;
     static int64_t nTimeDMN = 0;
     static int64_t nTimeMerkle = 0;
+    static int64_t nTimeBDNS = 0;
 
     int64_t nTime1 = GetTimeMicros();
 
@@ -129,6 +130,16 @@ bool ProcessSpecialTxsInBlock(const CBlock& block, const CBlockIndex* pindex, CV
     int64_t nTime5 = GetTimeMicros(); nTimeMerkle += nTime5 - nTime4;
     LogPrint("bench", "        - CheckCbTxMerkleRoots: %.2fms [%.2fs]\n", 0.001 * (nTime5 - nTime4), nTimeMerkle * 0.000001);
 
+    // TODO_ADOT_COMMENT the BDNS reindexing process will get a lock on cs_main on the last scanned blocks such that we won't have conflicting processing
+    // usually pindex->nHeight = chainActive.Height() + 1 as this is an incoming new block in most cases
+    if (!fReindexingBdns && pindex->nHeight >= Params().GetConsensus().nHardForkEight) {
+        ProcessBdnsTransactions(block, *pindex);
+        ProcessExpiredBdnsRecords(pindex->GetAncestor(pindex->nHeight - Params().GetConsensus().nBlocksPerYear));
+    }
+
+    int64_t nTime6 = GetTimeMicros(); nTimeBDNS += nTime6 - nTime5;
+    LogPrint("bench", "        - BlockchainDNS processing: %.2fms [%.2fs]\n", 0.001 * (nTime6 - nTime5), nTimeBDNS * 0.000001);
+
     return true;
 }
 
@@ -148,6 +159,9 @@ bool UndoSpecialTxsInBlock(const CBlock& block, const CBlockIndex* pindex)
     if (!llmq::quorumBlockProcessor->UndoBlock(block, pindex)) {
         return false;
     }
+
+    // the indexing of the BDNS doesn't currently handle chain re-organizations
+    fPossibleBdnsCorruption = true;
 
     return true;
 }

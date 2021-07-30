@@ -166,6 +166,8 @@ extern const std::string strMessageMagic;
 extern CWaitableCriticalSection csBestBlock;
 extern CConditionVariable cvBlockChange;
 extern std::atomic_bool fImporting;
+extern bool fPossibleBdnsCorruption;
+extern bool fReindexingBdns;
 extern bool fReindex;
 extern int nScriptCheckThreads;
 extern bool fTxIndex;
@@ -288,6 +290,8 @@ bool IsInitialBlockDownload();
 std::string GetWarnings(const std::string& strFor);
 /** Retrieve a transaction (from memory pool, or from disk, if possible) */
 bool GetTransaction(const uint256 &hash, CTransactionRef &tx, const Consensus::Params& params, uint256 &hashBlock, bool fAllowSlow = false);
+/** Retrieve a transaction (from the given block or from disk, used by the BlockchainDNS indexing) */
+bool GetTransaction(const uint256 &hash, CTransactionRef &tx, const Consensus::Params& params, const CBlock& block);
 /** Find the best known block, and make it the tip of the block chain */
 bool ActivateBestChain(CValidationState& state, const CChainParams& chainparams, std::shared_ptr<const CBlock> pblock = std::shared_ptr<const CBlock>());
 
@@ -500,13 +504,15 @@ void ReprocessBlocks(int nBlocks);
 bool CheckBlockHeader(const CBlockHeader& block, CValidationState& state, const Consensus::Params& consensusParams, bool fCheckPOW = true);
 bool CheckBlock(const CBlock& block, CValidationState& state, const Consensus::Params& consensusParams, bool fCheckPOW = true, bool fCheckMerkleRoot = true);
 
-/** Processing of BDNS-IPFS registrations*/
+/** Processing of BDNS-IPFS transactions*/
 bool ExtractBdnsIpfsFromScript(const CScript& scriptPubKey, std::string& dtpAddress, std::string& ipfsHash);
 bool ExtractBdnsBanFromScript(const CScript& scriptPubKey, std::string& bdnsName);
 void ProcessPossibleBdnsIpfsRegistration(const CScript& scriptPubKey, const int& nHeight, const int& nTxIndex);
 void ProcessPossibleBdnsIpfsUpdate(const CTransaction& updateTx, const CTransaction& inputTx, const CBlockIndex& pindex);
 void ProcessPossibleBdnsIpfsBan(const CScript& scriptPubKey);
-void ProcessExpiredBdnsRecords(CBlockIndex* pblockindex);
+void ProcessExpiredBdnsRecords(const CBlockIndex* pblockindex);
+void ProcessBdnsActiveHeight(const int& nHeight, const Consensus::Params& consensusParams);
+void ReindexBdnsTransactions();
 
 /** Context-dependent validity checks.
  *  By "context", we mean only the previous block headers, but not the UTXO

@@ -811,6 +811,8 @@ void ThreadImport(std::vector<boost::filesystem::path> vImportFiles)
         StartShutdown();
     }
 
+    ReindexBdnsTransactions(); // the BlockchainDNS has to be reindexed seperately afterwards
+
     if (GetBoolArg("-stopafterblockimport", DEFAULT_STOPAFTERBLOCKIMPORT)) {
         LogPrintf("Stopping after block import\n");
         StartShutdown();

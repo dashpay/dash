@@ -1174,6 +1174,12 @@ UniValue registerdomain(const JSONRPCRequest& request)
 
     LOCK2(cs_main, pwalletMain ? &pwalletMain->cs_wallet : NULL);
 
+    if (fReindexingBdns)
+        throw JSONRPCError(RPC_INTERNAL_ERROR, "A reindexing of the BlockchainDNS is taking place, you have to wait for it to finish first.");
+
+    if (fPossibleBdnsCorruption)
+        throw JSONRPCError(RPC_INTERNAL_ERROR, "The inventory of the BlockchainDNS might be corrupted, in order to safely execute related transactions run a reindexing of the BDNS first by running \"reindexbdns start\".");
+
     if (request.params[0].isNull() || request.params[1].isNull())
         throw JSONRPCError(RPC_INVALID_PARAMETER, "Invalid parameter, arguments 1 and 2 must be non-null.");
 
@@ -1295,6 +1301,12 @@ UniValue updatedomain(const JSONRPCRequest& request)
         );
 
     LOCK2(cs_main, pwalletMain ? &pwalletMain->cs_wallet : NULL);
+
+    if (fReindexingBdns)
+        throw JSONRPCError(RPC_INTERNAL_ERROR, "A reindexing of the BlockchainDNS is taking place, you have to wait for it to finish first.");
+
+    if (fPossibleBdnsCorruption)
+        throw JSONRPCError(RPC_INTERNAL_ERROR, "The inventory of the BlockchainDNS might be corrupted, in order to safely execute related transactions run a reindexing of the BDNS first by running \"reindexbdns start\".");
 
     if (request.params[0].isNull() || request.params[1].isNull())
         throw JSONRPCError(RPC_INVALID_PARAMETER, "Invalid parameter, arguments 1 and 2 must be non-null.");
@@ -1440,6 +1452,45 @@ UniValue echo(const JSONRPCRequest& request)
     return request.params;
 }
 
+UniValue reindexbdns(const JSONRPCRequest& request)
+{
+    if (request.fHelp || request.params.size() != 1)
+        throw std::runtime_error(
+            "reindexbdns \"action\"\n"
+            "\nReindexes the BlockchainDNS from its beginning.\n"
+            "\nOnce the reindexing has started, it has to finish otherwise it will lead to an even greater corruption of the BlockchainDNS inventory.\n"
+            "If something exceptional happened and a shutdown of the wallet took place you can safely run the reindexing again next time.\n"
+            "\nArguments:\n"
+            "1. \"action\" (string, required) This action can be either:\n"
+            "\"start\" which triggers the reindexing starting with block 1,037,000 (the start block of the BlockchainDNS)\n"
+            "\"state\n returns the state of the reindexing, can be either \"running\" or \"not running\"\n"
+            "\"check\" returns whether or not the BlockchainDNS might be corrupted"
+            "\nResult:\n"
+            "\n (string) The state of the reindexing operation.\n"
+            "\nExample:\n"
+            "reindexbdns \"start\"\n"
+            "reindexbdns \"check\"\n"
+        );
+
+    if (request.params[0].isNull()) {
+        throw JSONRPCError(RPC_INVALID_PARAMETER, "The first parameter cannot be null.");
+    }
+
+    if (request.params[0].get_str() == "start") {
+        if (fReindexingBdns)
+            throw JSONRPCError(RPC_MISC_ERROR, "Reindexing of the BlockchainDNS is already taking place!");
+
+        std::thread reindexThread(ReindexBdnsTransactions);
+        reindexThread.detach();
+        return "The reindexing is now running. Do not shut down the wallet until it has finished! Check its state by using the command \"reindexbdns state\". It has finished when \"not running\" is returned.";
+    } else if (request.params[0].get_str() == "state") {
+        return fReindexingBdns ? "running" : "not running";
+    } else if (request.params[0].get_str() == "check") {
+        return fPossibleBdnsCorruption ? "possible corruption" : "clean";
+    } else
+        throw JSONRPCError(RPC_INVALID_PARAMETER, "The first parameter must be either \"start\" or \"stop\".");
+}
+
 static const CRPCCommand commands[] =
 { //  category              name                      actor (function)         okSafeMode
   //  --------------------- ------------------------  -----------------------  ----------
@@ -1466,7 +1517,8 @@ static const CRPCCommand commands[] =
     { "alterdot",           "registerdomain",         &registerdomain,         true,  {"name","hash","address"} },
     { "alterdot",           "updatedomain",           &updatedomain,           true,  {"name","hash"} },
 #endif
-    { "alterdot",           "resolvedomain",          &resolvedomain,          true,  {"name"} },  
+    { "alterdot",           "resolvedomain",          &resolvedomain,          true,  {"name"} },
+    { "alterdot",           "reindexbdns",            &reindexbdns,            true,  {"action"} },    
 
     /* Not shown in help */
     { "hidden",             "setmocktime",            &setmocktime,            true,  {"timestamp"}},
