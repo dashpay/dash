@@ -6,6 +6,9 @@
 #define BITCOIN_UNORDERED_LRU_CACHE_H
 
 #include <unordered_map>
+#include <vector>
+#include <cassert>
+#include <algorithm>
 
 template<typename Key, typename Value, typename Hasher, size_t MaxSize = 0, size_t TruncateThreshold = 0>
 class unordered_lru_cache

@@ -8,6 +8,7 @@
 #include <llmq/quorums_signing.h>
 
 #include <coins.h>
+#include <dbwrapper.h>
 #include <unordered_lru_cache.h>
 #include <primitives/transaction.h>
 #include <threadinterrupt.h>

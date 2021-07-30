@@ -19,6 +19,7 @@
 #include <util/time.h>
 #include <hash.h>
 
+#include <bls/bls.h>
 #include <evo/specialtx.h>
 #include <evo/providertx.h>
 #include <evo/deterministicmns.h>

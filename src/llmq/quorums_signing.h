@@ -12,7 +12,7 @@
 #include <univalue.h>
 #include <unordered_lru_cache.h>
 
-#include <evo/evodb.h>
+#include <dbwrapper.h>
 
 #include <unordered_map>
 #include <sync.h>

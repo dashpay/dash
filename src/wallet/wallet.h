@@ -23,8 +23,9 @@
 #include <wallet/walletdb.h>
 #include <wallet/walletutil.h>
 
-#include <coinjoin/coinjoin.h>
 #include <governance/governance-object.h>
+
+class CTxDSIn;
 
 #include <algorithm>
 #include <atomic>

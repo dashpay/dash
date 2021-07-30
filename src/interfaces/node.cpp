@@ -15,6 +15,7 @@
 #include <interfaces/wallet.h>
 #include <llmq/quorums_instantsend.h>
 #include <masternode/masternode-sync.h>
+#include <governance/governance-object.h>
 #include <net.h>
 #include <net_processing.h>
 #include <netaddress.h>
@@ -38,6 +39,7 @@
 #endif
 #ifdef ENABLE_WALLET
 #include <coinjoin/coinjoin-client-options.h>
+#include <coinjoin/coinjoin.h>
 #include <wallet/fees.h>
 #include <wallet/wallet.h>
 #define CHECK_WALLET(x) x

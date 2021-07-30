@@ -36,6 +36,7 @@
 
 #include <llmq/quorums_blockprocessor.h>
 #include <llmq/quorums_chainlocks.h>
+#include <llmq/quorums_utils.h>
 
 #include <algorithm>
 #include <queue>

@@ -7,6 +7,7 @@
 
 #include <merkleblock.h>
 #include <pubkey.h>
+#include <bls/bls.h>
 
 class UniValue;
 class CDeterministicMNList;
