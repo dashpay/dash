@@ -48,8 +48,8 @@ class CChainLocksHandler : public CRecoveredSigsListener
     static const int64_t WAIT_FOR_ISLOCK_TIMEOUT = 10 * 60;
 
 private:
-    CScheduler* scheduler;
-    boost::thread* scheduler_thread;
+    std::unique_ptr<CScheduler> scheduler;
+    std::unique_ptr<std::thread> scheduler_thread;
     CCriticalSection cs;
     bool tryLockChainTipScheduled GUARDED_BY(cs) {false};
     bool isEnabled GUARDED_BY(cs) {false};
@@ -96,7 +96,7 @@ public:
     void CheckActiveState();
     void TrySignChainTip();
     void EnforceBestChainLock();
-    virtual void HandleNewRecoveredSig(const CRecoveredSig& recoveredSig);
+    void HandleNewRecoveredSig(const CRecoveredSig& recoveredSig) override;
 
     bool HasChainLock(int nHeight, const uint256& blockHash);
     bool HasConflictingChainLock(int nHeight, const uint256& blockHash);
