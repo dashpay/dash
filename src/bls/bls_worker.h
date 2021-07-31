@@ -94,15 +94,12 @@ public:
                                   std::function<void(const CBLSPublicKey&)> doneCallback);
     std::future<CBLSPublicKey> AsyncAggregatePublicKeys(const BLSPublicKeyVector& pubKeys,
                                                         size_t start, size_t count, bool parallel);
-    __attribute__((unused)) CBLSPublicKey AggregatePublicKeys(const BLSPublicKeyVector& pubKeys, size_t start = 0, size_t count = 0, bool parallel = true);
 
     void AsyncAggregateSigs(const BLSSignatureVector& sigs,
                             size_t start, size_t count, bool parallel,
                             std::function<void(const CBLSSignature&)> doneCallback);
     std::future<CBLSSignature> AsyncAggregateSigs(const BLSSignatureVector& sigs,
                                                         size_t start, size_t count, bool parallel);
-    __attribute__((unused)) CBLSSignature AggregateSigs(const BLSSignatureVector& sigs, size_t start = 0, size_t count = 0, bool parallel = true);
-
 
     // Calculate public key share from public key vector and id. Not parallelized
     static CBLSPublicKey BuildPubKeyShare(const BLSVerificationVectorPtr& vvec, const CBLSId& id);
@@ -122,18 +119,12 @@ public:
 
     std::future<bool> AsyncVerifyContributionShare(const CBLSId& forId, const BLSVerificationVectorPtr& vvec, const CBLSSecretKey& skContribution);
 
-    // Non parallelized verification of a single contribution
-    __attribute__((unused)) static bool VerifyContributionShare(const CBLSId& forId, const BLSVerificationVectorPtr& vvec, const CBLSSecretKey& skContribution);
-
     // Simple verification of vectors. Checks x.IsValid() for every entry and checks for duplicate entries
     static bool VerifyVerificationVector(const BLSVerificationVector& vvec, size_t start = 0, size_t count = 0);
     static bool VerifyVerificationVectors(const std::vector<BLSVerificationVectorPtr>& vvecs, size_t start = 0, size_t count = 0);
-    static bool VerifySecretKeyVector(const BLSSecretKeyVector& secKeys, size_t start = 0, size_t count = 0);
-    static bool VerifySignatureVector(const BLSSignatureVector& sigs, size_t start = 0, size_t count = 0);
 
     // Internally batched signature signing and verification
     void AsyncSign(const CBLSSecretKey& secKey, const uint256& msgHash, const SignDoneCallback& doneCallback);
-    __attribute__((unused)) std::future<CBLSSignature> AsyncSign(const CBLSSecretKey& secKey, const uint256& msgHash);
     void AsyncVerifySig(const CBLSSignature& sig, const CBLSPublicKey& pubKey, const uint256& msgHash, SigVerifyDoneCallback doneCallback, CancelCond cancelCond = [] { return false; });
     std::future<bool> AsyncVerifySig(const CBLSSignature& sig, const CBLSPublicKey& pubKey, const uint256& msgHash, CancelCond cancelCond = [] { return false; });
     bool IsAsyncVerifyInProgress();

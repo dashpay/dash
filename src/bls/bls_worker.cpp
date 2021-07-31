@@ -685,12 +685,6 @@ std::future<CBLSPublicKey> CBLSWorker::AsyncAggregatePublicKeys(const BLSPublicK
     return std::move(p.second);
 }
 
-__attribute__((unused)) CBLSPublicKey CBLSWorker::AggregatePublicKeys(const BLSPublicKeyVector& pubKeys,
-                                              size_t start, size_t count, bool parallel)
-{
-    return AsyncAggregatePublicKeys(pubKeys, start, count, parallel).get();
-}
-
 void CBLSWorker::AsyncAggregateSigs(const BLSSignatureVector& sigs,
                                     size_t start, size_t count, bool parallel,
                                     std::function<void(const CBLSSignature&)> doneCallback)
@@ -705,13 +699,6 @@ std::future<CBLSSignature> CBLSWorker::AsyncAggregateSigs(const BLSSignatureVect
     AsyncAggregateSigs(sigs, start, count, parallel, std::move(p.first));
     return std::move(p.second);
 }
-
-__attribute__((unused)) __attribute__((unused)) CBLSSignature CBLSWorker::AggregateSigs(const BLSSignatureVector& sigs,
-                                        size_t start, size_t count, bool parallel)
-{
-    return AsyncAggregateSigs(sigs, start, count, parallel).get();
-}
-
 
 CBLSPublicKey CBLSWorker::BuildPubKeyShare(const BLSVerificationVectorPtr& vvec, const CBLSId& id)
 {
@@ -770,18 +757,6 @@ std::future<bool> CBLSWorker::AsyncVerifyContributionShare(const CBLSId& forId,
     return workerPool.push(f);
 }
 
-__attribute__((unused)) __attribute__((unused)) bool CBLSWorker::VerifyContributionShare(const CBLSId& forId, const BLSVerificationVectorPtr& vvec,
-                                         const CBLSSecretKey& skContribution)
-{
-    CBLSPublicKey pk1;
-    if (!pk1.PublicKeyShare(*vvec, forId)) {
-        return false;
-    }
-
-    CBLSPublicKey pk2 = skContribution.GetPublicKey();
-    return pk1 == pk2;
-}
-
 bool CBLSWorker::VerifyVerificationVector(const BLSVerificationVector& vvec, size_t start, size_t count)
 {
     return VerifyVectorHelper(vvec, start, count);
@@ -817,28 +792,11 @@ bool CBLSWorker::VerifyVerificationVectors(const std::vector<BLSVerificationVect
     return true;
 }
 
-__attribute__((unused)) bool CBLSWorker::VerifySecretKeyVector(const BLSSecretKeyVector& secKeys, size_t start, size_t count)
-{
-    return VerifyVectorHelper(secKeys, start, count);
-}
-
-__attribute__((unused)) bool CBLSWorker::VerifySignatureVector(const BLSSignatureVector& sigs, size_t start, size_t count)
-{
-    return VerifyVectorHelper(sigs, start, count);
-}
-
 void CBLSWorker::AsyncSign(const CBLSSecretKey& secKey, const uint256& msgHash, const CBLSWorker::SignDoneCallback& doneCallback)
 {
     workerPool.push([secKey, msgHash, doneCallback](int threadId) {
         doneCallback(secKey.Sign(msgHash));
     });
-}
-
-__attribute__((unused)) __attribute__((unused)) std::future<CBLSSignature> CBLSWorker::AsyncSign(const CBLSSecretKey& secKey, const uint256& msgHash)
-{
-    auto p = BuildFutureDoneCallback<CBLSSignature>();
-    AsyncSign(secKey, msgHash, p.first);
-    return std::move(p.second);
 }
 
 void CBLSWorker::AsyncVerifySig(const CBLSSignature& sig, const CBLSPublicKey& pubKey, const uint256& msgHash,
