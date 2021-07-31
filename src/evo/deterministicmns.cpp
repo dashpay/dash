@@ -1061,7 +1061,12 @@ bool CDeterministicMNManager::IsDIP3Enforced(int nHeight)
     LOCK(cs);
 
     if (nHeight == -1) {
-        nHeight = tipIndex->nHeight;
+        if (tipIndex == nullptr) {
+            // Since EnforcementHeight can be set to block 1, we shouldn't just return false here
+            nHeight = 1;
+        } else {
+            nHeight = tipIndex->nHeight;
+        }
     }
 
     return nHeight >= Params().GetConsensus().DIP0003EnforcementHeight;
