@@ -516,16 +516,17 @@ void BitcoinGUI::createMenuBar()
     }
     settings->addAction(optionsAction);
 
-    if(walletFrame)
-    {
-        QMenu *tools = appMenuBar->addMenu(tr("&Tools"));
-        tools->addAction(openInfoAction);
-        tools->addAction(openRPCConsoleAction);
-        tools->addAction(openGraphAction);
-        tools->addAction(openPeersAction);
+    QMenu *tools = appMenuBar->addMenu(tr("&Tools"));
+    tools->addAction(openInfoAction);
+    tools->addAction(openRPCConsoleAction);
+    tools->addAction(openGraphAction);
+    tools->addAction(openPeersAction);
+    if(walletFrame) {
         tools->addAction(openRepairAction);
-        tools->addSeparator();
-        tools->addAction(openConfEditorAction);
+    }
+    tools->addSeparator();
+    tools->addAction(openConfEditorAction);
+    if(walletFrame) {
         tools->addAction(showBackupsAction);
     }
 
