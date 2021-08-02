@@ -753,6 +753,7 @@ void CleanupBlockRevFiles()
 void ThreadImport(std::vector<boost::filesystem::path> vImportFiles)
 {
     const CChainParams& chainparams = Params();
+    bool fReindexBdns = false;
     RenameThread("alterdot-loadblk");
 
     {
@@ -774,6 +775,7 @@ void ThreadImport(std::vector<boost::filesystem::path> vImportFiles)
         }
         pblocktree->WriteReindexing(false);
         fReindex = false;
+        fReindexBdns = true;
         LogPrintf("Reindexing finished\n");
         // To avoid ending up in a situation without genesis block, re-try initializing (no-op if reindexing worked):
         InitBlockIndex(chainparams);
@@ -787,6 +789,7 @@ void ThreadImport(std::vector<boost::filesystem::path> vImportFiles)
             boost::filesystem::path pathBootstrapOld = GetDataDir() / "bootstrap.dat.old";
             LogPrintf("Importing bootstrap.dat...\n");
             LoadExternalBlockFile(chainparams, file);
+            fReindexingBdns = true;
             RenameOver(pathBootstrap, pathBootstrapOld);
         } else {
             LogPrintf("Warning: Could not open bootstrap file %s\n", pathBootstrap.string());
@@ -799,6 +802,7 @@ void ThreadImport(std::vector<boost::filesystem::path> vImportFiles)
         if (file) {
             LogPrintf("Importing blocks file %s...\n", path.string());
             LoadExternalBlockFile(chainparams, file);
+            fReindexingBdns = true;
         } else {
             LogPrintf("Warning: Could not open blocks file %s\n", path.string());
         }
@@ -811,7 +815,10 @@ void ThreadImport(std::vector<boost::filesystem::path> vImportFiles)
         StartShutdown();
     }
 
-    ReindexBdnsTransactions(); // the BlockchainDNS has to be reindexed seperately afterwards
+    // the BlockchainDNS has to be reindexed after importing blocks from a file
+    // if CheckVersion returns false that means a different version of the BDNS is present and has to be rebuilt
+    if (fReindexBdns || !pbdnsdb->CheckVersion())
+        ReindexBdnsTransactions(); 
 
     if (GetBoolArg("-stopafterblockimport", DEFAULT_STOPAFTERBLOCKIMPORT)) {
         LogPrintf("Stopping after block import\n");

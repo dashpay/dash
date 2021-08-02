@@ -4290,7 +4290,7 @@ std::map<std::string, std::tuple<CTxDestination, std::string, int>> CWallet::Get
         {
             CWalletTx *pcoin = &walletEntry.second;
             const CTransaction& checkedTx = *pcoin->tx;
-            std::string bdnsName, ipfsHash;
+            std::string bdnsName, content;
 
             if (!pcoin->IsTrusted() || pcoin->IsCoinBase())
                 continue;
@@ -4317,11 +4317,26 @@ std::map<std::string, std::tuple<CTxDestination, std::string, int>> CWallet::Get
             if(!ExtractDestination(checkedTx.vout[1].scriptPubKey, ownerAddr))
                 continue;
             
-            if (!ExtractBdnsIpfsFromScript(checkedTx.vout[0].scriptPubKey, bdnsName, ipfsHash))
+            if (!ExtractBdnsIpfsFromScript(checkedTx.vout[0].scriptPubKey, bdnsName, content))
                 continue;
-            else { // all checks passed, this is surely a valid domain name registration transaction created by this wallet that hasn't expired yet
-                ownedDomains[bdnsName] = std::make_tuple(ownerAddr, ipfsHash, Params().GetConsensus().nBlocksPerYear - nDepth);
+            
+            // all checks passed, this is a domain name registration transaction with a valid format created by this wallet that hasn't expired yet
+            // last check is whether or not it is recorded in the BlockchainDNS index
+            // users might create invalid registrations so we only take into consideration valid (recorded) ones
+            BDNSRecord bdnsRecord;
+
+            if (!pbdnsdb->ReadBDNSRecord(bdnsName, bdnsRecord)) {
+                LogPrint("bdns", "BlockchainDNS -- %s: failed to read domain %s\n", __func__, bdnsName);
+                continue;
             }
+
+            if (bdnsRecord.regTxid != checkedTx.GetHash())
+                continue;
+
+            // fetch the latest content found at the BDNS record
+            pbdnsdb->GetContentFromBDNSRecord(bdnsName, content);
+            
+            ownedDomains[bdnsName] = std::make_tuple(ownerAddr, content, Params().GetConsensus().nBlocksPerYear - nDepth);
         }
     }
 

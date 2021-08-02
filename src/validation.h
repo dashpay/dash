@@ -292,6 +292,8 @@ std::string GetWarnings(const std::string& strFor);
 bool GetTransaction(const uint256 &hash, CTransactionRef &tx, const Consensus::Params& params, uint256 &hashBlock, bool fAllowSlow = false);
 /** Retrieve a transaction (from the given block or from disk, used by the BlockchainDNS indexing) */
 bool GetTransaction(const uint256 &hash, CTransactionRef &tx, const Consensus::Params& params, const CBlock& block);
+/** Retrieve a transaction (from disk, used by the BlockchainDNS indexing) */
+bool GetTransaction(const uint256 &hash, CTransactionRef &tx, const Consensus::Params& params);
 /** Find the best known block, and make it the tip of the block chain */
 bool ActivateBestChain(CValidationState& state, const CChainParams& chainparams, std::shared_ptr<const CBlock> pblock = std::shared_ptr<const CBlock>());
 
@@ -505,9 +507,9 @@ bool CheckBlockHeader(const CBlockHeader& block, CValidationState& state, const 
 bool CheckBlock(const CBlock& block, CValidationState& state, const Consensus::Params& consensusParams, bool fCheckPOW = true, bool fCheckMerkleRoot = true);
 
 /** Processing of BDNS-IPFS transactions*/
-bool ExtractBdnsIpfsFromScript(const CScript& scriptPubKey, std::string& dtpAddress, std::string& ipfsHash);
+bool ExtractBdnsIpfsFromScript(const CScript& scriptPubKey, std::string& dtpAddress, std::string& content);
 bool ExtractBdnsBanFromScript(const CScript& scriptPubKey, std::string& bdnsName);
-void ProcessPossibleBdnsIpfsRegistration(const CScript& scriptPubKey, const int& nHeight, const int& nTxIndex);
+void ProcessPossibleBdnsIpfsRegistration(const CScript& scriptPubKey, const uint256& regTxid);
 void ProcessPossibleBdnsIpfsUpdate(const CTransaction& updateTx, const CTransaction& inputTx, const CBlockIndex& pindex);
 void ProcessPossibleBdnsIpfsBan(const CScript& scriptPubKey);
 void ProcessExpiredBdnsRecords(const CBlockIndex* pblockindex);

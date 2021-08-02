@@ -1193,7 +1193,7 @@ UniValue registerdomain(const JSONRPCRequest& request)
         throw JSONRPCError(RPC_INTERNAL_ERROR, "BDNS registrations become active starting with block: " + std::to_string(Params().GetConsensus().nHardForkEight));
 
     std::string bdnsName = request.params[0].get_str();
-    std::string ipfsHash = request.params[1].get_str();
+    std::string content = request.params[1].get_str();
 
     if (pbdnsdb->Exists(bdnsName))
         throw JSONRPCError(RPC_INVALID_PARAMETER, "Blockchain domain name already registered!");
@@ -1259,7 +1259,7 @@ UniValue registerdomain(const JSONRPCRequest& request)
 
     // if CTxIn exists only then we can register
     if (rawTx.vin.size() == 1) {
-        std::string hexToRegister = HexStr("bdns/" + bdnsName + std::string("/ipfs/") + ipfsHash);
+        std::string hexToRegister = HexStr("bdns/" + bdnsName + std::string("/ipfs/") + content);
         CTxOut outRegister(10 * CENT, CScript() << OP_RETURN << ParseHex(hexToRegister));
 
         rawTx.vout.push_back(outRegister);
@@ -1321,33 +1321,21 @@ UniValue updatedomain(const JSONRPCRequest& request)
         throw JSONRPCError(RPC_INTERNAL_ERROR, "BDNS updates become active starting with block: " + std::to_string(Params().GetConsensus().nHardForkEight));
 
     std::string bdnsName = request.params[0].get_str();
-    std::string newIpfsHash = request.params[1].get_str();
+    std::string newContent = request.params[1].get_str();
     BDNSRecord bdnsRecord;
 
     if (!pbdnsdb->ReadBDNSRecord(bdnsName, bdnsRecord))
-        throw JSONRPCError(RPC_INVALID_PARAMETER, "The blockchain domain name is not registered");
+        throw JSONRPCError(RPC_INVALID_PARAMETER, "The blockchain domain name is not registered.");
 
-    if (chainActive.Height() < bdnsRecord.regBlockHeight)
-        throw JSONRPCError(RPC_INTERNAL_ERROR, "Registration block height not found.");
+    CTransactionRef regTx;
 
-    CBlockIndex* pblockindex = chainActive[bdnsRecord.regBlockHeight];
-
-    if (fHavePruned && !(pblockindex->nStatus & BLOCK_HAVE_DATA) && pblockindex->nTx > 0)
-        throw JSONRPCError(RPC_MISC_ERROR, "Block not available (pruned data).");
-
-    CBlock block;
-
-    if (!ReadBlockFromDisk(block, pblockindex, Params().GetConsensus()))
-        throw JSONRPCError(RPC_INTERNAL_ERROR, "Can't read block from disk.");
+    if (!GetTransaction(bdnsRecord.regTxid, regTx, Params().GetConsensus()))
+        throw JSONRPCError(RPC_INTERNAL_ERROR, "The registration transaction cannot be located.");;
 
     CTxDestination regAddress;
 
-    if (block.vtx.size() - 1 < bdnsRecord.regTxIndex)
-        throw JSONRPCError(RPC_INTERNAL_ERROR, "Registration transaction not found in block, invalid tx index.");
-
-    if (!ExtractDestination((*block.vtx[bdnsRecord.regTxIndex]).vout[1].scriptPubKey, regAddress))
-        throw JSONRPCError(RPC_INTERNAL_ERROR, "Can't extract Alterdot address from registration transaction." + std::to_string(bdnsRecord.regBlockHeight) + " txI " + std::to_string(bdnsRecord.regTxIndex) +
-            " prevPubKey " + HexStr((*block.vtx[bdnsRecord.regTxIndex]).vout[1].scriptPubKey));
+    if (!ExtractDestination((*regTx).vout[1].scriptPubKey, regAddress))
+        throw JSONRPCError(RPC_INTERNAL_ERROR, "Can't extract Alterdot address from registration transaction with hash:" + bdnsRecord.regTxid.ToString());
 
     assert(pwalletMain != NULL);
 
@@ -1388,7 +1376,7 @@ UniValue updatedomain(const JSONRPCRequest& request)
 
     // if CTxIn exists only then we can register
     if (rawTx.vin.size() == 1) {
-        std::string hexToRegister = HexStr("bdns/" + bdnsName + std::string("/ipfs/") + newIpfsHash);
+        std::string hexToRegister = HexStr("bdns/" + bdnsName + std::string("/ipfs/") + newContent);
         CTxOut outUpdate(0.5 * CENT, CScript() << OP_RETURN << ParseHex(hexToRegister));
 
         rawTx.vout.push_back(outUpdate);
@@ -1431,10 +1419,10 @@ UniValue resolvedomain(const JSONRPCRequest& request) {
     if (chainActive.Height() + 1 < Params().GetConsensus().nHardForkEight)
         throw JSONRPCError(RPC_MISC_ERROR, "The BDNS becomes active starting with block: " + std::to_string(Params().GetConsensus().nHardForkEight));
 
-    std::string ipfsHash;
+    std::string content;
 
-    if (pbdnsdb->GetIPFSFromBDNSRecord(request.params[0].get_str(), ipfsHash))
-        return ipfsHash;
+    if (pbdnsdb->GetContentFromBDNSRecord(request.params[0].get_str(), content))
+        return content;
 
     return "Blockchain domain name not found!";
 }
