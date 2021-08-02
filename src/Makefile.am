@@ -743,11 +743,7 @@ CLEANFILES += wallet/test/*.gcda wallet/test/*.gcno
 CLEANFILES += zmq/*.gcda zmq/*.gcno
 CLEANFILES += obj/build.h
 
-IMMER_DIST = immer
-
 EXTRA_DIST = $(CTAES_DIST)
-EXTRA_DIST += $(IMMER_DIST)
-
 
 config/dash-config.h: config/stamp-h1
 	@$(MAKE) -C $(top_builddir) $(subdir)/$(@)
