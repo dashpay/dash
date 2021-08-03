@@ -381,7 +381,11 @@ bool CQuorumManager::HasQuorum(Consensus::LLMQType llmqType, const uint256& quor
 
 bool CQuorumManager::RequestQuorumData(CNode* pFrom, Consensus::LLMQType llmqType, const CBlockIndex* pQuorumIndex, uint16_t nDataMask, const uint256& proTxHash) const
 {
-    if (pFrom == nullptr || pFrom->nVersion < LLMQ_DATA_MESSAGES_VERSION) {
+    if (pFrom == nullptr) {
+        LogPrint(BCLog::LLMQ, "CQuorumManager::%s -- Invalid pFrom: nullptr\n", __func__);
+        return false;
+    }
+    if (pFrom->nVersion < LLMQ_DATA_MESSAGES_VERSION) {
         LogPrint(BCLog::LLMQ, "CQuorumManager::%s -- Version must be %d or greater.\n", __func__, LLMQ_DATA_MESSAGES_VERSION);
         return false;
     }
