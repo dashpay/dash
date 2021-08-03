@@ -33,6 +33,9 @@ struct BDNSRecord {
 /** Access to the BDNS database (bdns/) */
 class CBDNSDB : public CDBWrapper
 {
+private:
+    bool WriteVersion();
+    
 public:
     CBDNSDB(size_t nCacheSize, bool fMemory = false, bool fWipe = false);
 
@@ -43,9 +46,8 @@ public:
     bool UpdateBDNSRecord(const std::string &bdnsName, const std::string &content, const uint256 &updateTxid);
     bool EraseBDNSRecord(const std::string &bdnsName);
     
-    bool ClearRecords();
+    bool CleanDatabase();
     bool CheckVersion();
-    bool WriteVersion();
 };
 
 #endif // ADOT_BDNSDB_H

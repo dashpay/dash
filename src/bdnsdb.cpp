@@ -54,7 +54,7 @@ bool CBDNSDB::EraseBDNSRecord(const std::string &bdnsName) {
 }
 
 // clears all records in the database, old and new format and writes the DB version
-bool CBDNSDB::ClearRecords() {
+bool CBDNSDB::CleanDatabase() {
     std::unique_ptr<CDBIterator> pcursor(NewIterator());
     size_t batch_size = 1 << 20;
     CDBBatch batch(*this);

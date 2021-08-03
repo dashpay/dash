@@ -1175,10 +1175,10 @@ UniValue registerdomain(const JSONRPCRequest& request)
     LOCK2(cs_main, pwalletMain ? &pwalletMain->cs_wallet : NULL);
 
     if (fReindexingBdns)
-        throw JSONRPCError(RPC_INTERNAL_ERROR, "A reindexing of the BlockchainDNS is taking place, you have to wait for it to finish first.");
+        throw JSONRPCError(RPC_INTERNAL_ERROR, "A reindexing of the BlockchainDNS is taking place, first you have to wait for it to finish.");
 
     if (fPossibleBdnsCorruption)
-        throw JSONRPCError(RPC_INTERNAL_ERROR, "The inventory of the BlockchainDNS might be corrupted, in order to safely execute related transactions run a reindexing of the BDNS first by running \"reindexbdns start\".");
+        throw JSONRPCError(RPC_INTERNAL_ERROR, "The inventory of the BlockchainDNS might be corrupted, in order to safely execute related transactions run a reindexing of the BDNS first by using the command \"reindexbdns start\".");
 
     if (request.params[0].isNull() || request.params[1].isNull())
         throw JSONRPCError(RPC_INVALID_PARAMETER, "Invalid parameter, arguments 1 and 2 must be non-null.");
@@ -1303,10 +1303,10 @@ UniValue updatedomain(const JSONRPCRequest& request)
     LOCK2(cs_main, pwalletMain ? &pwalletMain->cs_wallet : NULL);
 
     if (fReindexingBdns)
-        throw JSONRPCError(RPC_INTERNAL_ERROR, "A reindexing of the BlockchainDNS is taking place, you have to wait for it to finish first.");
+        throw JSONRPCError(RPC_INTERNAL_ERROR, "A reindexing of the BlockchainDNS is taking place, first you have to wait for it to finish.");
 
     if (fPossibleBdnsCorruption)
-        throw JSONRPCError(RPC_INTERNAL_ERROR, "The inventory of the BlockchainDNS might be corrupted, in order to safely execute related transactions run a reindexing of the BDNS first by running \"reindexbdns start\".");
+        throw JSONRPCError(RPC_INTERNAL_ERROR, "The inventory of the BlockchainDNS might be corrupted, in order to safely execute related transactions run a reindexing of the BDNS first by using the command \"reindexbdns start\".");
 
     if (request.params[0].isNull() || request.params[1].isNull())
         throw JSONRPCError(RPC_INVALID_PARAMETER, "Invalid parameter, arguments 1 and 2 must be non-null.");
@@ -1413,6 +1413,12 @@ UniValue resolvedomain(const JSONRPCRequest& request) {
             "resolvedomain \"ipfs.org\""
         );
 
+    if (fReindexingBdns)
+        throw JSONRPCError(RPC_INTERNAL_ERROR, "A reindexing of the BlockchainDNS is taking place, first you have to wait for it to finish.");
+
+    if (fPossibleBdnsCorruption)
+        throw JSONRPCError(RPC_INTERNAL_ERROR, "The inventory of the BlockchainDNS might be corrupted, in order to correctly resolve Alterdot domains run a reindexing of the BDNS first by using the command \"reindexbdns start\".");
+
     if (request.params[0].isNull())
         throw JSONRPCError(RPC_INVALID_PARAMETER, "Invalid parameter, argument 1 must be non-null.");
 
@@ -1445,14 +1451,13 @@ UniValue reindexbdns(const JSONRPCRequest& request)
     if (request.fHelp || request.params.size() != 1)
         throw std::runtime_error(
             "reindexbdns \"action\"\n"
-            "\nReindexes the BlockchainDNS from its beginning.\n"
+            "\nReindexes the BlockchainDNS starting with its activation block height. This can take between several minutes and up to half an hour on slow machines. As the blockchain grows, this operation will gradually take longer to finish.\n"
             "\nOnce the reindexing has started, it has to finish otherwise it will lead to an even greater corruption of the BlockchainDNS inventory.\n"
             "If something exceptional happened and a shutdown of the wallet took place you can safely run the reindexing again next time.\n"
             "\nArguments:\n"
             "1. \"action\" (string, required) This action can be either:\n"
-            "\"start\" which triggers the reindexing starting with block 1,037,000 (the start block of the BlockchainDNS)\n"
-            "\"state\n returns the state of the reindexing, can be either \"running\" or \"not running\"\n"
-            "\"check\" returns whether or not the BlockchainDNS might be corrupted"
+            "\"start\" which triggers the reindexing starting with block 1,037,000 (the activation block height of the BDNS)\n"
+            "\"check\" returns the state of the BlockchainDNS, it can be either \"reindexing\", \"possible corruption\" or \"clean\"\n"
             "\nResult:\n"
             "\n (string) The state of the reindexing operation.\n"
             "\nExample:\n"
@@ -1468,15 +1473,17 @@ UniValue reindexbdns(const JSONRPCRequest& request)
         if (fReindexingBdns)
             throw JSONRPCError(RPC_MISC_ERROR, "Reindexing of the BlockchainDNS is already taking place!");
 
-        std::thread reindexThread(ReindexBdnsTransactions);
+        std::thread reindexThread(ReindexBdnsRecords);
         reindexThread.detach();
-        return "The reindexing is now running. Do not shut down the wallet until it has finished! Check its state by using the command \"reindexbdns state\". It has finished when \"not running\" is returned.";
-    } else if (request.params[0].get_str() == "state") {
-        return fReindexingBdns ? "running" : "not running";
+
+        return "The reindexing is now running. Do not shut down the wallet until it has finished! You can check that by using the command \"reindexbdns check\". It has finished when \"reindexing\" is no longer returned. This can take between several minutes and up to half an hour on slow machines.";
     } else if (request.params[0].get_str() == "check") {
+        if (fReindexingBdns) 
+            return "reindexing";
+        
         return fPossibleBdnsCorruption ? "possible corruption" : "clean";
     } else
-        throw JSONRPCError(RPC_INVALID_PARAMETER, "The first parameter must be either \"start\" or \"stop\".");
+        throw JSONRPCError(RPC_INVALID_PARAMETER, "The first parameter must be either \"start\" or \"check\".");
 }
 
 static const CRPCCommand commands[] =

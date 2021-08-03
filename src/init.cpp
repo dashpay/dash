@@ -789,7 +789,7 @@ void ThreadImport(std::vector<boost::filesystem::path> vImportFiles)
             boost::filesystem::path pathBootstrapOld = GetDataDir() / "bootstrap.dat.old";
             LogPrintf("Importing bootstrap.dat...\n");
             LoadExternalBlockFile(chainparams, file);
-            fReindexingBdns = true;
+            fReindexBdns = true;
             RenameOver(pathBootstrap, pathBootstrapOld);
         } else {
             LogPrintf("Warning: Could not open bootstrap file %s\n", pathBootstrap.string());
@@ -802,7 +802,7 @@ void ThreadImport(std::vector<boost::filesystem::path> vImportFiles)
         if (file) {
             LogPrintf("Importing blocks file %s...\n", path.string());
             LoadExternalBlockFile(chainparams, file);
-            fReindexingBdns = true;
+            fReindexBdns = true;
         } else {
             LogPrintf("Warning: Could not open blocks file %s\n", path.string());
         }
@@ -816,9 +816,9 @@ void ThreadImport(std::vector<boost::filesystem::path> vImportFiles)
     }
 
     // the BlockchainDNS has to be reindexed after importing blocks from a file
-    // if CheckVersion returns false that means a different version of the BDNS is present and has to be rebuilt
+    // if CheckVersion returns false that means a different version of the BDNS is present and it has to be rebuilt
     if (fReindexBdns || !pbdnsdb->CheckVersion())
-        ReindexBdnsTransactions(); 
+        ReindexBdnsRecords(); 
 
     if (GetBoolArg("-stopafterblockimport", DEFAULT_STOPAFTERBLOCKIMPORT)) {
         LogPrintf("Stopping after block import\n");

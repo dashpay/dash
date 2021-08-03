@@ -224,9 +224,6 @@ static const unsigned int DEFAULT_CHECKLEVEL = 3;
 // Setting the target to > than 945MB will make it likely we can respect the target.
 static const uint64_t MIN_DISK_SPACE_FOR_BLOCK_FILES = 945 * 1024 * 1024;
 
-// processes BDNS records after accepting an incoming block ranging from registrations and updates to bans and expirations
-void ProcessBdnsTransactions(const CBlock& block, const CBlockIndex& pindex);
-
 /** 
  * Process an incoming block. This only returns after the best known valid
  * block is made active. Note that it does not, however, guarantee that the
@@ -509,12 +506,14 @@ bool CheckBlock(const CBlock& block, CValidationState& state, const Consensus::P
 /** Processing of BDNS-IPFS transactions*/
 bool ExtractBdnsIpfsFromScript(const CScript& scriptPubKey, std::string& dtpAddress, std::string& content);
 bool ExtractBdnsBanFromScript(const CScript& scriptPubKey, std::string& bdnsName);
+// processes BDNS records from the given block ranging from registrations and updates to bans and expirations
+void ProcessBdnsTransactions(const CBlock& block, const CBlockIndex& pindex);
 void ProcessPossibleBdnsIpfsRegistration(const CScript& scriptPubKey, const uint256& regTxid);
 void ProcessPossibleBdnsIpfsUpdate(const CTransaction& updateTx, const CTransaction& inputTx, const CBlockIndex& pindex);
 void ProcessPossibleBdnsIpfsBan(const CScript& scriptPubKey);
 void ProcessExpiredBdnsRecords(const CBlockIndex* pblockindex);
-void ProcessBdnsActiveHeight(const int& nHeight, const Consensus::Params& consensusParams);
-void ReindexBdnsTransactions();
+bool ProcessBdnsActiveHeight(const int& nHeight, const Consensus::Params& consensusParams);
+void ReindexBdnsRecords();
 
 /** Context-dependent validity checks.
  *  By "context", we mean only the previous block headers, but not the UTXO
