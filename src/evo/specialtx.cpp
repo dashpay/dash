@@ -130,12 +130,12 @@ bool ProcessSpecialTxsInBlock(const CBlock& block, const CBlockIndex* pindex, CV
     int64_t nTime5 = GetTimeMicros(); nTimeMerkle += nTime5 - nTime4;
     LogPrint("bench", "        - CheckCbTxMerkleRoots: %.2fms [%.2fs]\n", 0.001 * (nTime5 - nTime4), nTimeMerkle * 0.000001);
 
+    const Consensus::Params& consensusParams = Params().GetConsensus();
+
     // TODO_ADOT_COMMENT the BDNS reindexing process will get a lock on cs_main on the last scanned blocks such that we won't have conflicting processing
     // usually pindex->nHeight = chainActive.Height() + 1 as this is an incoming new block in most cases
-    if (!fReindexingBdns && pindex->nHeight >= Params().GetConsensus().nHardForkEight) {
-        ProcessBdnsTransactions(block, *pindex);
-        ProcessExpiredBdnsRecords(pindex->GetAncestor(pindex->nHeight - Params().GetConsensus().nBlocksPerYear));
-    }
+    if (!pbdnsdb->IsReindexing() && pindex->nHeight >= consensusParams.nHardForkEight)
+        ProcessBdnsTransactions(block, *pindex, consensusParams);
 
     int64_t nTime6 = GetTimeMicros(); nTimeBDNS += nTime6 - nTime5;
     LogPrint("bench", "        - BlockchainDNS processing: %.2fms [%.2fs]\n", 0.001 * (nTime6 - nTime5), nTimeBDNS * 0.000001);
@@ -160,8 +160,9 @@ bool UndoSpecialTxsInBlock(const CBlock& block, const CBlockIndex* pindex)
         return false;
     }
 
-    // the indexing of the BDNS doesn't currently handle chain re-organizations
-    fPossibleBdnsCorruption = true;
+    // the indexing of the BDNS doesn't currently handle chain re-organizations so we have to set the new height and let the index set its flags accordingly
+    if (!pbdnsdb->SetHeight(chainActive.Height() - 1))
+        LogPrintf("BlockchainDNS -- %s: failed to set the BDNS height\n", __func__);
 
     return true;
 }

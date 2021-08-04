@@ -1174,10 +1174,10 @@ UniValue registerdomain(const JSONRPCRequest& request)
 
     LOCK2(cs_main, pwalletMain ? &pwalletMain->cs_wallet : NULL);
 
-    if (fReindexingBdns)
+    if (pbdnsdb->IsReindexing())
         throw JSONRPCError(RPC_INTERNAL_ERROR, "A reindexing of the BlockchainDNS is taking place, first you have to wait for it to finish.");
 
-    if (fPossibleBdnsCorruption)
+    if (pbdnsdb->PossibleCorruption())
         throw JSONRPCError(RPC_INTERNAL_ERROR, "The inventory of the BlockchainDNS might be corrupted, in order to safely execute related transactions run a reindexing of the BDNS first by using the command \"reindexbdns start\".");
 
     if (request.params[0].isNull() || request.params[1].isNull())
@@ -1302,10 +1302,10 @@ UniValue updatedomain(const JSONRPCRequest& request)
 
     LOCK2(cs_main, pwalletMain ? &pwalletMain->cs_wallet : NULL);
 
-    if (fReindexingBdns)
+    if (pbdnsdb->IsReindexing())
         throw JSONRPCError(RPC_INTERNAL_ERROR, "A reindexing of the BlockchainDNS is taking place, first you have to wait for it to finish.");
 
-    if (fPossibleBdnsCorruption)
+    if (pbdnsdb->PossibleCorruption())
         throw JSONRPCError(RPC_INTERNAL_ERROR, "The inventory of the BlockchainDNS might be corrupted, in order to safely execute related transactions run a reindexing of the BDNS first by using the command \"reindexbdns start\".");
 
     if (request.params[0].isNull() || request.params[1].isNull())
@@ -1413,10 +1413,10 @@ UniValue resolvedomain(const JSONRPCRequest& request) {
             "resolvedomain \"ipfs.org\""
         );
 
-    if (fReindexingBdns)
+    if (pbdnsdb->IsReindexing())
         throw JSONRPCError(RPC_INTERNAL_ERROR, "A reindexing of the BlockchainDNS is taking place, first you have to wait for it to finish.");
 
-    if (fPossibleBdnsCorruption)
+    if (pbdnsdb->PossibleCorruption())
         throw JSONRPCError(RPC_INTERNAL_ERROR, "The inventory of the BlockchainDNS might be corrupted, in order to correctly resolve Alterdot domains run a reindexing of the BDNS first by using the command \"reindexbdns start\".");
 
     if (request.params[0].isNull())
@@ -1453,7 +1453,7 @@ UniValue reindexbdns(const JSONRPCRequest& request)
             "reindexbdns \"action\"\n"
             "\nReindexes the BlockchainDNS starting with its activation block height. This can take between several minutes and up to half an hour on slow machines. As the blockchain grows, this operation will gradually take longer to finish.\n"
             "\nOnce the reindexing has started, it has to finish otherwise it will lead to an even greater corruption of the BlockchainDNS inventory.\n"
-            "If something exceptional happened and a shutdown of the wallet took place you can safely run the reindexing again next time.\n"
+            "If something exceptional happened and a shutdown of the wallet took place reindexing will restart with the next wallet startup.\n"
             "\nArguments:\n"
             "1. \"action\" (string, required) This action can be either:\n"
             "\"start\" which triggers the reindexing starting with block 1,037,000 (the activation block height of the BDNS)\n"
@@ -1470,7 +1470,7 @@ UniValue reindexbdns(const JSONRPCRequest& request)
     }
 
     if (request.params[0].get_str() == "start") {
-        if (fReindexingBdns)
+        if (pbdnsdb->IsReindexing())
             throw JSONRPCError(RPC_MISC_ERROR, "Reindexing of the BlockchainDNS is already taking place!");
 
         std::thread reindexThread(ReindexBdnsRecords);
@@ -1478,10 +1478,10 @@ UniValue reindexbdns(const JSONRPCRequest& request)
 
         return "The reindexing is now running. Do not shut down the wallet until it has finished! You can check that by using the command \"reindexbdns check\". It has finished when \"reindexing\" is no longer returned. This can take between several minutes and up to half an hour on slow machines.";
     } else if (request.params[0].get_str() == "check") {
-        if (fReindexingBdns) 
+        if (pbdnsdb->IsReindexing()) 
             return "reindexing";
         
-        return fPossibleBdnsCorruption ? "possible corruption" : "clean";
+        return pbdnsdb->PossibleCorruption() ? "possible corruption" : "clean";
     } else
         throw JSONRPCError(RPC_INVALID_PARAMETER, "The first parameter must be either \"start\" or \"check\".");
 }

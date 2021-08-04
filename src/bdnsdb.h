@@ -35,7 +35,9 @@ class CBDNSDB : public CDBWrapper
 {
 private:
     bool WriteVersion();
-    
+    int GetLastChangeHeight();
+    bool SetLastChangeHeight();
+
 public:
     CBDNSDB(size_t nCacheSize, bool fMemory = false, bool fWipe = false);
 
@@ -48,6 +50,14 @@ public:
     
     bool CleanDatabase();
     bool CheckVersion();
+
+    bool SetHeight(const int &nHeight);
+
+    bool WriteReindexing(bool fReindexing);
+    bool IsReindexing();
+
+    bool WriteCorruptionState(bool fPossibleCorruption);
+    bool PossibleCorruption();
 };
 
 #endif // ADOT_BDNSDB_H

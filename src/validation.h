@@ -166,8 +166,6 @@ extern const std::string strMessageMagic;
 extern CWaitableCriticalSection csBestBlock;
 extern CConditionVariable cvBlockChange;
 extern std::atomic_bool fImporting;
-extern bool fPossibleBdnsCorruption;
-extern bool fReindexingBdns;
 extern bool fReindex;
 extern int nScriptCheckThreads;
 extern bool fTxIndex;
@@ -507,11 +505,11 @@ bool CheckBlock(const CBlock& block, CValidationState& state, const Consensus::P
 bool ExtractBdnsIpfsFromScript(const CScript& scriptPubKey, std::string& dtpAddress, std::string& content);
 bool ExtractBdnsBanFromScript(const CScript& scriptPubKey, std::string& bdnsName);
 // processes BDNS records from the given block ranging from registrations and updates to bans and expirations
-void ProcessBdnsTransactions(const CBlock& block, const CBlockIndex& pindex);
+void ProcessBdnsTransactions(const CBlock& block, const CBlockIndex& pindex, const Consensus::Params& consensusParams);
 void ProcessPossibleBdnsIpfsRegistration(const CScript& scriptPubKey, const uint256& regTxid);
-void ProcessPossibleBdnsIpfsUpdate(const CTransaction& updateTx, const CTransaction& inputTx, const CBlockIndex& pindex);
+void ProcessPossibleBdnsIpfsUpdate(const CTransaction& updateTx, const CTransaction& inputTx);
 void ProcessPossibleBdnsIpfsBan(const CScript& scriptPubKey);
-void ProcessExpiredBdnsRecords(const CBlockIndex* pblockindex);
+void ProcessExpiredBdnsRecords(const CBlockIndex* pblockindex, const Consensus::Params& consensusParams);
 bool ProcessBdnsActiveHeight(const int& nHeight, const Consensus::Params& consensusParams);
 void ReindexBdnsRecords();
 

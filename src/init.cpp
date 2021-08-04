@@ -817,7 +817,7 @@ void ThreadImport(std::vector<boost::filesystem::path> vImportFiles)
 
     // the BlockchainDNS has to be reindexed after importing blocks from a file
     // if CheckVersion returns false that means a different version of the BDNS is present and it has to be rebuilt
-    if (fReindexBdns || !pbdnsdb->CheckVersion())
+    if (fReindexBdns || !pbdnsdb->CheckVersion() || pbdnsdb->IsReindexing())
         ReindexBdnsRecords(); 
 
     if (GetBoolArg("-stopafterblockimport", DEFAULT_STOPAFTERBLOCKIMPORT)) {

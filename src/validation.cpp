@@ -79,8 +79,6 @@ CWaitableCriticalSection csBestBlock;
 CConditionVariable cvBlockChange;
 int nScriptCheckThreads = 0;
 std::atomic_bool fImporting(false);
-bool fPossibleBdnsCorruption = false;
-bool fReindexingBdns = false;
 bool fReindex = false;
 bool fTxIndex = true;
 bool fAddressIndex = false;
@@ -3662,12 +3660,12 @@ void ProcessPossibleBdnsIpfsRegistration(const CScript& scriptPubKey, const uint
     }
 
     if (!pbdnsdb->WriteBDNSRecord(bdnsName, BDNSRecord{content, regTxid, uint256()})) {
-        fPossibleBdnsCorruption = true;
+        pbdnsdb->WriteCorruptionState(true);
         LogPrint("bdns", "BlockchainDNS -- %s: failed to save domain %s\n", __func__, bdnsName);
     }
 }
 
-void ProcessPossibleBdnsIpfsUpdate(const CTransaction& updateTx, const CTransaction& inputTx, const CBlockIndex& pindex) {
+void ProcessPossibleBdnsIpfsUpdate(const CTransaction& updateTx, const CTransaction& inputTx) {
     std::string bdnsName, newContent;
 
     if (!ExtractBdnsIpfsFromScript(updateTx.vout[0].scriptPubKey, bdnsName, newContent))
@@ -3685,7 +3683,7 @@ void ProcessPossibleBdnsIpfsUpdate(const CTransaction& updateTx, const CTransact
     CTransactionRef regTx;
 
     if (!GetTransaction(bdnsRecord.regTxid, regTx, Params().GetConsensus())) {
-        fPossibleBdnsCorruption = true;
+        pbdnsdb->WriteCorruptionState(true);
         LogPrint("bdns", "BlockchainDNS -- %s: No information available about registration transaction %s\n", __func__, bdnsRecord.regTxid.ToString());
         return;
     }
@@ -3702,7 +3700,7 @@ void ProcessPossibleBdnsIpfsUpdate(const CTransaction& updateTx, const CTransact
         if (pbdnsdb->UpdateBDNSRecord(bdnsName, newContent, updateTx.GetHash()))
             LogPrint("bdns", "BlockchainDNS -- %s: successfully updated domain name %s with content %s\n", __func__, bdnsName, newContent);
         else {
-            fPossibleBdnsCorruption = true;
+            pbdnsdb->WriteCorruptionState(true);
             LogPrint("bdns", "BlockchainDNS -- %s: failed to update domain name %s with content %s\n", __func__, bdnsName, newContent);
         }
     } else
@@ -3720,16 +3718,19 @@ void ProcessPossibleBdnsIpfsBan(const CScript& scriptPubKey) {
     pbdnsdb->EraseBDNSRecord(bdnsName);
 
     if (pbdnsdb->HasBDNSRecord(bdnsName)) {
-        fPossibleBdnsCorruption = true;
+        pbdnsdb->WriteCorruptionState(true);
         LogPrint("bdns", "BlockchainDNS -- %s: banned registration under domain name %s still exists\n", __func__, bdnsName);
     }
 }
 
-void ProcessBdnsTransactions(const CBlock& block, const CBlockIndex& pindex)
+void ProcessBdnsTransactions(const CBlock& block, const CBlockIndex& pindex, const Consensus::Params& consensusParams)
 {
-    // check for BDNS-IPFS registrations
+    if (!pbdnsdb->SetHeight(pindex.nHeight))
+        LogPrintf("BlockchainDNS -- %s: failed to set the BDNS height\n", __func__);
+
     CTransactionRef inputTx;
     uint256 txHash;
+
     for (unsigned int i = 1; i < block.vtx.size(); i++) {
         const CTransaction& tx = *block.vtx[i];
 
@@ -3737,8 +3738,8 @@ void ProcessBdnsTransactions(const CBlock& block, const CBlockIndex& pindex)
             if (tx.vout[0].nValue == 10 * CENT) {
                 txHash = tx.vin[0].prevout.hash;
 
-                if (!GetTransaction(txHash, inputTx, Params().GetConsensus(), block)) { // used to check that miners are paid enough
-                    fPossibleBdnsCorruption = true;
+                if (!GetTransaction(txHash, inputTx, consensusParams, block)) { // used to check that miners are paid enough
+                    pbdnsdb->WriteCorruptionState(true);
                     LogPrint("bdns", "BlockchainDNS -- %s: Register -- No information available about transaction %s\n", __func__, txHash.ToString());
                 } else if ((*inputTx).vout[tx.vin[0].prevout.n].nValue >= tx.vout[1].nValue + 20 * CENT)
                     ProcessPossibleBdnsIpfsRegistration(tx.vout[0].scriptPubKey, tx.GetHash());
@@ -3747,18 +3748,18 @@ void ProcessBdnsTransactions(const CBlock& block, const CBlockIndex& pindex)
             } else if (tx.vout[0].nValue == 0.5 * CENT) {
                 txHash = tx.vin[0].prevout.hash;
 
-                if (!GetTransaction(txHash, inputTx, Params().GetConsensus(), block)) {
-                    fPossibleBdnsCorruption = true;
+                if (!GetTransaction(txHash, inputTx, consensusParams, block)) {
+                    pbdnsdb->WriteCorruptionState(true);
                     LogPrint("bdns", "BlockchainDNS -- %s: Update -- No information available about transaction %s\n", __func__, txHash.ToString());
                 } else if ((*inputTx).vout[tx.vin[0].prevout.n].nValue >= tx.vout[1].nValue + 1 * CENT) {
-                    ProcessPossibleBdnsIpfsUpdate(tx, *inputTx, pindex);
+                    ProcessPossibleBdnsIpfsUpdate(tx, *inputTx);
                 } else
                     LogPrint("bdns", "BlockchainDNS -- %s: Update -- Miners were not paid enough for the BDNS-IPFS update in transaction %s\n", __func__, tx.GetHash().ToString());
             } else if (tx.vout[0].nValue == 0.25 * CENT) {
                 txHash = tx.vin[0].prevout.hash;
 
-                if (!GetTransaction(txHash, inputTx, Params().GetConsensus(), block)) {
-                    fPossibleBdnsCorruption = true;
+                if (!GetTransaction(txHash, inputTx, consensusParams, block)) {
+                    pbdnsdb->WriteCorruptionState(true);
                     LogPrint("bdns", "BlockchainDNS -- %s: Ban -- No information available about transaction %s\n", __func__, txHash.ToString());
                 } else if ((*inputTx).vout[tx.vin[0].prevout.n].nValue >= tx.vout[1].nValue + 0.5 * CENT) {
                     CTxDestination banningAddress;
@@ -3771,13 +3772,15 @@ void ProcessBdnsTransactions(const CBlock& block, const CBlockIndex& pindex)
             }
         }
     }
+
+    ProcessExpiredBdnsRecords(pindex.GetAncestor(pindex.nHeight - consensusParams.nBlocksPerYear), consensusParams);
 }
 
-void ProcessExpiredBdnsRecords(const CBlockIndex* pblockindex) {
+void ProcessExpiredBdnsRecords(const CBlockIndex* pblockindex, const Consensus::Params& consensusParams) {
     CBlock block;
 
-    if (!ReadBlockFromDisk(block, pblockindex->GetBlockPos(), Params().GetConsensus())) {
-        fPossibleBdnsCorruption = true;
+    if (!ReadBlockFromDisk(block, pblockindex->GetBlockPos(), consensusParams)) {
+        pbdnsdb->WriteCorruptionState(true);
         LogPrint("bdns", "BlockchainDNS -- %s: failed to read block from disk\n", __func__);
         return;
     }
@@ -3792,8 +3795,8 @@ void ProcessExpiredBdnsRecords(const CBlockIndex* pblockindex) {
         if (tx.nType == TRANSACTION_NORMAL && tx.vin.size() == 1 && tx.vout.size() == 2 && tx.vout[0].scriptPubKey.Find(OP_RETURN) && tx.vout[0].nValue == 10 * CENT) {
             txHash = tx.vin[0].prevout.hash;
 
-            if (!GetTransaction(txHash, inputTx, Params().GetConsensus(), block)) { // used to check that miners are paid enough
-                fPossibleBdnsCorruption = true;
+            if (!GetTransaction(txHash, inputTx, consensusParams, block)) { // used to check that miners are paid enough
+                pbdnsdb->WriteCorruptionState(true);
                 LogPrint("bdns", "BlockchainDNS -- %s: No information available about transaction %s\n",  __func__, txHash.ToString());
             } else if ((*inputTx).vout[tx.vin[0].prevout.n].nValue >= tx.vout[1].nValue + 20 * CENT) {
                 if (!ExtractBdnsIpfsFromScript(tx.vout[0].scriptPubKey, bdnsName, content))
@@ -3805,7 +3808,7 @@ void ProcessExpiredBdnsRecords(const CBlockIndex* pblockindex) {
                     LogPrint("bdns", "BlockchainDNS -- %s: failed to delete expired registration under domain name %s\n", __func__, bdnsName);
 
                 if (pbdnsdb->HasBDNSRecord(bdnsName)) {
-                    fPossibleBdnsCorruption = true;
+                    pbdnsdb->WriteCorruptionState(true);
                     LogPrint("bdns", "BlockchainDNS -- %s: expired registration under domain name %s still exists\n", __func__, bdnsName);
                 }
             }
@@ -3819,40 +3822,41 @@ bool ProcessBdnsActiveHeight(const int& nHeight, const Consensus::Params& consen
 
     // TODO_ADOT_FUTURE checking the header is a very expensive operation in ReadBlockFromDisk due to Argon2d16k
     if (!ReadBlockFromDisk(block, pindex->GetBlockPos(), consensusParams)) {
-        fPossibleBdnsCorruption = true;
+        pbdnsdb->WriteCorruptionState(true);
         LogPrint("bdns", "BlockchainDNS -- %s: failed to read block from disk\n", __func__);
-        return !fPossibleBdnsCorruption;
+        return false;
     }
 
-    ProcessBdnsTransactions(block, *pindex);
-    ProcessExpiredBdnsRecords(pindex->GetAncestor(nHeight - consensusParams.nBlocksPerYear));
+    ProcessBdnsTransactions(block, *pindex, consensusParams);
 
-    return !fPossibleBdnsCorruption;
+    return !pbdnsdb->PossibleCorruption();
 }
 
 void ReindexBdnsRecords() {
-    fReindexingBdns = true;
+    if (!pbdnsdb->WriteReindexing(true))
+        LogPrintf("BlockchainDNS -- %s: failed to write reindexing state\n", __func__);
 
     pbdnsdb->CleanDatabase();
 
-    const auto& consensus = Params().GetConsensus();
+    const Consensus::Params& consensusParams = Params().GetConsensus();
 
     {
         LOCK(cs_main);
         // make sure that we're not canceling the indexation of a block that's getting processed at the same time
-        if (chainActive.Height() < consensus.nHardForkEight) {
-            fReindexingBdns = false;
+        if (chainActive.Height() < consensusParams.nHardForkEight) {
+            if (!pbdnsdb->WriteReindexing(false))
+                LogPrintf("BlockchainDNS -- %s: failed to write reindexing state\n", __func__);
             return;
         }
     }
 
-    int lastProcessedHeight = std::max(consensus.nHardForkEight, chainActive.Height() - 2);
+    int lastProcessedHeight = std::max(consensusParams.nHardForkEight, chainActive.Height() - 2);
     CBlockIndex* startTip = chainActive.Tip();
-    fPossibleBdnsCorruption = false;
 
-    for (int i = consensus.nHardForkEight; i < lastProcessedHeight; i++)
-        if (!ProcessBdnsActiveHeight(i, consensus)) {
-            fReindexingBdns = false;
+    for (int i = consensusParams.nHardForkEight; i < lastProcessedHeight; i++)
+        if (!ProcessBdnsActiveHeight(i, consensusParams)) {
+            if (!pbdnsdb->WriteReindexing(false))
+                LogPrintf("BlockchainDNS -- %s: failed to write reindexing state\n", __func__);
             return;
         }
 
@@ -3860,16 +3864,18 @@ void ReindexBdnsRecords() {
         LOCK(cs_main);
         // in case a new block was connected in the meantime we must take a lock for safe processing of the BDNS
         for (int i = lastProcessedHeight; i <= chainActive.Height(); i++)
-            if (!ProcessBdnsActiveHeight(i, consensus)) {
-                fReindexingBdns = false;
+            if (!ProcessBdnsActiveHeight(i, consensusParams)) {
+                if (!pbdnsdb->WriteReindexing(false))
+                    LogPrintf("BlockchainDNS -- %s: failed to write reindexing state\n", __func__);
                 return;
             }
 
-        fReindexingBdns = false;
+        if (!pbdnsdb->WriteReindexing(false))
+            LogPrintf("BlockchainDNS -- %s: failed to write reindexing state\n", __func__);
 
         // if the tip of the active chain from the start of the reindexing is no longer present in the chain then corruption is still possible
         if (!chainActive.Contains(startTip))
-            fPossibleBdnsCorruption = true;
+            pbdnsdb->WriteCorruptionState(true);
     }
 }
 
@@ -4468,6 +4474,7 @@ bool CVerifyDB::VerifyDB(const CChainParams& chainparams, CCoinsView *coinsview,
     int nGoodTransactions = 0;
     CValidationState state;
     int reportDone = 0;
+    bool fPossibleCorruption = pbdnsdb->PossibleCorruption(); // record initial corruption state of BDNS
     LogPrintf("[0%%]...");
     for (CBlockIndex* pindex = chainActive.Tip(); pindex && pindex->pprev; pindex = pindex->pprev)
     {
@@ -4538,7 +4545,8 @@ bool CVerifyDB::VerifyDB(const CChainParams& chainparams, CCoinsView *coinsview,
         }
     }
 
-    fPossibleBdnsCorruption = false;
+    // if all checks went well then the BDNS should have the same state as before the checks
+    pbdnsdb->WriteCorruptionState(fPossibleCorruption);
     LogPrintf("[DONE].\n");
     LogPrintf("No coin database inconsistencies in last %i blocks (%i transactions)\n", chainActive.Height() - pindexState->nHeight, nGoodTransactions);
 
