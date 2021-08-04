@@ -197,6 +197,6 @@ bool CBDNSDB::WriteReindexing(bool fReindexing) {
         return Erase(std::make_pair(DB_INTERNAL, db_reindexing));
 }
 
-bool CBDNSDB::IsReindexing() {
+bool CBDNSDB::AwaitsReindexing() {
     return Exists(std::make_pair(DB_INTERNAL, db_reindexing));
 }

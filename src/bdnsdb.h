@@ -54,7 +54,7 @@ public:
     bool SetHeight(const int &nHeight);
 
     bool WriteReindexing(bool fReindexing);
-    bool IsReindexing();
+    bool AwaitsReindexing();
 
     bool WriteCorruptionState(bool fPossibleCorruption);
     bool PossibleCorruption();

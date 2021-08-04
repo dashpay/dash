@@ -635,6 +635,16 @@ UniValue listowneddomains(const JSONRPCRequest& request)
 
     LOCK2(cs_main, pwallet->cs_wallet);
 
+    if (pbdnsdb->AwaitsReindexing()) {
+        if (fReindexingBdns)
+            throw JSONRPCError(RPC_MISC_ERROR, "The wallet is reindexing the BlockchainDNS, you have to wait for it to finish.");
+        else
+            throw JSONRPCError(RPC_MISC_ERROR, "The wallet is awaiting a restart in order to begin reindexing the BlockchainDNS. Proceed with the restart and reindexing in order to use related functionalities.");
+    }
+
+    if (pbdnsdb->PossibleCorruption())
+        throw JSONRPCError(RPC_INTERNAL_ERROR, "The inventory of the BlockchainDNS might be corrupted, in order to correctly display the owned domains run a reindexing of the BDNS first by using the command \"bdns reindex\".");
+
     UniValue jsonDomains(UniValue::VOBJ);
     std::map<std::string, std::tuple<CTxDestination, std::string, int>> ownedDomains = pwallet->GetOwnedDomains();
 

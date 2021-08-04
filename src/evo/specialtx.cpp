@@ -134,7 +134,7 @@ bool ProcessSpecialTxsInBlock(const CBlock& block, const CBlockIndex* pindex, CV
 
     // TODO_ADOT_COMMENT the BDNS reindexing process will get a lock on cs_main on the last scanned blocks such that we won't have conflicting processing
     // usually pindex->nHeight = chainActive.Height() + 1 as this is an incoming new block in most cases
-    if (!pbdnsdb->IsReindexing() && pindex->nHeight >= consensusParams.nHardForkEight)
+    if (!pbdnsdb->AwaitsReindexing() && pindex->nHeight >= consensusParams.nHardForkEight)
         ProcessBdnsTransactions(block, *pindex, consensusParams);
 
     int64_t nTime6 = GetTimeMicros(); nTimeBDNS += nTime6 - nTime5;
