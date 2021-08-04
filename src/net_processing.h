@@ -57,7 +57,7 @@ class PeerManager : public CValidationInterface, public NetEventsInterface
 {
 public:
     static std::unique_ptr<PeerManager> make(const CChainParams& chainparams, CConnman& connman, AddrMan& addrman,
-                                             BanMan* banman, CScheduler &scheduler, ChainstateManager& chainman,
+                                             BanMan* banman, ChainstateManager& chainman,
                                              CTxMemPool& pool, CMasternodeMetaMan& mn_metaman, CMasternodeSync& mn_sync,
                                              CGovernanceManager& govman, CSporkManager& sporkman,
                                              const CActiveMasternodeManager* const mn_activeman,
@@ -65,6 +65,9 @@ public:
                                              const std::unique_ptr<CJContext>& cj_ctx,
                                              const std::unique_ptr<LLMQContext>& llmq_ctx, bool ignore_incoming_txs);
     virtual ~PeerManager() { }
+
+    /** Begin running background tasks, should only be called once */
+    virtual void StartScheduledTasks(CScheduler& scheduler) = 0;
 
     /** Get statistics from node state */
     virtual bool GetNodeStateStats(NodeId nodeid, CNodeStateStats& stats) const = 0;
