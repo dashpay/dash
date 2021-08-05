@@ -59,8 +59,6 @@ bool CBDNSDB::UpdateBDNSRecord(const std::string &bdnsName, const std::string &c
             SetLastChangeHeight();
             return true;
         }
-
-        return false;
     }
 
     return false;
@@ -163,7 +161,7 @@ bool CBDNSDB::SetHeight(const int &nHeight) {
     int prevHeight;
 
     if (Read(std::make_pair(DB_INTERNAL, db_height), prevHeight)) {
-        // SetHeight should be used incrementally with every block, if a certain height was skipped that implies a possible corruption
+        // if certain heights were skipped that implies a possible corruption
         if (prevHeight != db_default_height && nHeight != db_default_height && !(nHeight == (prevHeight + 1) || nHeight == (prevHeight - 1)))
             WriteCorruptionState(true);
     }

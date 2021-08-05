@@ -133,7 +133,6 @@ bool ProcessSpecialTxsInBlock(const CBlock& block, const CBlockIndex* pindex, CV
     const Consensus::Params& consensusParams = Params().GetConsensus();
 
     // TODO_ADOT_COMMENT the BDNS reindexing process will get a lock on cs_main on the last scanned blocks such that we won't have conflicting processing
-    // usually pindex->nHeight = chainActive.Height() + 1 as this is an incoming new block in most cases
     if (!pbdnsdb->AwaitsReindexing() && pindex->nHeight >= consensusParams.nHardForkEight)
         ProcessBdnsTransactions(block, *pindex, consensusParams);
 
@@ -161,8 +160,9 @@ bool UndoSpecialTxsInBlock(const CBlock& block, const CBlockIndex* pindex)
     }
 
     // the indexing of the BDNS doesn't currently handle chain re-organizations so we have to set the new height and let the index set its flags accordingly
-    if (!pbdnsdb->SetHeight(chainActive.Height() - 1))
+    if (!pbdnsdb->SetHeight(pindex->nHeight - 1))
         LogPrintf("BlockchainDNS -- %s: failed to set the BDNS height\n", __func__);
+    LogPrintf("mega got here 2\n");
 
     return true;
 }

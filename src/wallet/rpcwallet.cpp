@@ -627,10 +627,21 @@ UniValue listowneddomains(const JSONRPCRequest& request)
     if (!EnsureWalletIsAvailable(pwallet, request.fHelp))
         return NullUniValue;
 
-    if (request.fHelp || request.params.size() > 1)
+    if (request.fHelp || request.params.size() != 0)
         throw std::runtime_error(
             "listowneddomains\n"
-            "\nLists the blockchain domains owned by this wallet."
+            "\nResult:\n"
+            "{  (json object)\n"
+            "  \"domainname\" : {,          (string) domain name and its corresponding information\n"
+            "     \"owner\" : \"address\"   (string) Alterdot address that owns the domain\n"
+            "     \"content\" : \"content\" (string) content registered under the domain\n"
+            "     \"blocksLeft\" : xxxxx    (number) number of blocks left until expiration\n"
+            "  }\n"
+            "  ,...\n"
+            "}\n"
+            "\nExamples:\n"
+            + HelpExampleCli("listowneddomains", "")
+            + HelpExampleRpc("listowneddomains", "")
         );
 
     LOCK2(cs_main, pwallet->cs_wallet);

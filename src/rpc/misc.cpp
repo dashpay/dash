@@ -1157,19 +1157,22 @@ UniValue registerdomain(const JSONRPCRequest& request)
     if (request.fHelp || request.params.size() < 2 || request.params.size() > 3)
         throw std::runtime_error(
             "registerdomain \"name\" \"hash\" \"address\"\n"
-            "\nRegisters a BDNS address with a corresponding IPFS or IPNS hash and pays for it with the required amount (0.2).\n"
+            "\nRegisters an IPFS/IPNS hash or other content under a new blockchain domain name and pays for it with the required amount (0.2).\n"
             "The specified Alterdot address will be used to pay for the transaction otherwise an available address that holds the required amount will be used.\n"
-            "It creates the BDNS-IPFS register transaction, signs it and then sends it to the network.\n"
-            "The wallet must be unlocked by passphrase before registering.\n"
+            "It creates the BDNS register transaction, signs it and then relays it to the network.\n"
+            "The wallet must be unlocked by its passphrase before registering.\n"
             "Returns the hex-encoded hash of the registration transaction if it was completed successfully.\n"
             "\nArguments:\n"
             "1. \"name\" (string, required) The blockchain domain name that will be registered. It must not contain \"/\" character.\n"
-            "2. \"hash\" (string, required) The IPFS/IPNS hash where the BDNS name will point to.\n"
+            "2. \"content\" (string, required) The IPFS/IPNS hash or other content to be saved under the BDNS name.\n"
             "3. \"address\" (string, optional) The Alterdot address used to pay for the registration.\n"
             "\nResult:\n"
             "\"hex\" (string) The hex-encoded hash of the registration transaction.\n"
-            "\nExample:\n"
-            "registerdomain \"ipfs.org\" \"QmYwAPJzv5CZsnA625s3Xf2nemtYgPpHdWEz79ojWnPbdG\" \"CXAMcudgejBnG5P5z6ENNGtQxdKD1sZRAo\""
+            "\nExamples:\n"
+            + HelpExampleCli("registerdomain", "\"domainname\" \"content\"")
+            + HelpExampleCli("registerdomain", "\"domainname\" \"content\" \"address\"")
+            + HelpExampleRpc("registerdomain", "\"domainname\" \"content\"")
+            + HelpExampleRpc("registerdomain", "\"domainname\" \"content\" \"address\"")
         );
 
     LOCK2(cs_main, pwalletMain ? &pwalletMain->cs_wallet : NULL);
@@ -1291,17 +1294,18 @@ UniValue updatedomain(const JSONRPCRequest& request)
     if (request.fHelp || request.params.size() != 2)
         throw std::runtime_error(
             "updatedomain \"name\" \"hash\"\n"
-            "\nUpdate the corresponding IPFS or IPNS hash of a BDNS address and pay for it with the required amount (0.01).\n"
-            "It creates the BDNS-IPFS update transaction, signs it and then sends it to the network.\n"
-            "The wallet must be unlocked by passphrase before updating.\n"
+            "\nUpdates the IPFS/IPNS hash or other content residing under a BDNS domain and pays for it with the required amount (0.01).\n"
+            "It creates the BDNS update transaction, signs it and then sends it to the network.\n"
+            "The wallet must be unlocked by its passphrase before updating.\n"
             "Returns the hex-encoded hash of the update transaction if it was completed successfully.\n"
             "\nArguments:\n"
             "1. \"name\" (string, required) The BDNS domain name that will be updated.\n"
-            "2. \"hash\" (string, required) The IPFS/IPNS hash where the BDNS name will point to.\n"
+            "2. \"content\" (string, required) The IPFS/IPNS hash or other content to be saved under the BDNS name.\n"
             "\nResult:\n"
             "\"hex\" (string) The hex-encoded hash of the update transaction.\n"
-            "\nExample:\n"
-            "updatedomain \"ipfs.org\" \"QmYwAPJzv5CZsnA625s3Xf2nemtYgPpHdWEz79ojWnPbdG\""
+            "\nExamples:\n"
+            + HelpExampleCli("updatedomain", "\"domainname\" \"content\"")
+            + HelpExampleRpc("updatedomain", "\"domainname\" \"content\"")
         );
 
     LOCK2(cs_main, pwalletMain ? &pwalletMain->cs_wallet : NULL);
@@ -1338,12 +1342,12 @@ UniValue updatedomain(const JSONRPCRequest& request)
     CTransactionRef regTx;
 
     if (!GetTransaction(bdnsRecord.regTxid, regTx, Params().GetConsensus()))
-        throw JSONRPCError(RPC_INTERNAL_ERROR, "The registration transaction cannot be located.");;
+        throw JSONRPCError(RPC_INTERNAL_ERROR, "The registration transaction cannot be located.");
 
     CTxDestination regAddress;
 
     if (!ExtractDestination((*regTx).vout[1].scriptPubKey, regAddress))
-        throw JSONRPCError(RPC_INTERNAL_ERROR, "Can't extract Alterdot address from registration transaction with hash:" + bdnsRecord.regTxid.ToString());
+        throw JSONRPCError(RPC_INTERNAL_ERROR, "Can't extract Alterdot address from registration transaction with hash: " + bdnsRecord.regTxid.ToString());
 
     assert(pwalletMain != NULL);
 
@@ -1412,13 +1416,14 @@ UniValue resolvedomain(const JSONRPCRequest& request) {
     if (request.fHelp || request.params.size() != 1)
         throw std::runtime_error(
             "resolvedomain \"name\"\n"
-            "\nGet the corresponding IPFS or IPNS hash of a registered BDNS address.\n"
+            "\nReturns the corresponding content of a registered BDNS name.\n"
             "\nArguments:\n"
             "1. \"name\" (string, required) The blockchain domain name.\n"
             "\nResult:\n"
-            "\n (string) The IPFS or IPNS hash of the registered domain.\n"
-            "\nExample:\n"
-            "resolvedomain \"ipfs.org\""
+            "\n (string) The content that is registered under the domain name.\n"
+            "\nExamples:\n"
+            + HelpExampleCli("resolvedomain", "\"domainname\"")
+            + HelpExampleRpc("resolvedomain", "\"domainname\"")
         );
 
     if (pbdnsdb->AwaitsReindexing()) {
@@ -1464,17 +1469,19 @@ UniValue bdns(const JSONRPCRequest& request)
         throw std::runtime_error(
             "bdns \"action\"\n"
             "\nBlockchainDNS operations.\n"
-            "\nNotes: Reindexing can take between several minutes and up to half an hour on slow machines. As the blockchain grows, this operation will gradually take longer to finish.\n"
-            "If something exceptional happened and a shutdown of the wallet took place before the reindexing operation has finished, reindexing will restart with the next wallet startup.\n"
+            "\nReindexing can take between several minutes and up to half an hour on slow machines. As the blockchain grows, this operation will gradually take longer to finish.\n"
+            "If a wallet shutdown took place before the reindexing operation had finished, reindexing will restart with the next wallet startup.\n"
             "\nArguments:\n"
             "1. \"action\" (string, required) This action can be either:\n"
             "\"reindex\" which triggers the reindexing of the BDNS starting with block 1,037,000 (the activation block height of the BDNS)\n"
             "\"check\" returns the state of the BlockchainDNS, it can be either \"awaits reindexing\", \"reindexing\", \"possible corruption\" or \"clean\"\n"
             "\nResult:\n"
-            "\n (string) The state of the reindexing operation.\n"
-            "\nExample:\n"
-            "reindexbdns \"start\"\n"
-            "reindexbdns \"check\"\n"
+            "\n (string) The state of the BlockchainDNS or related information.\n"
+            "\nExamples:\n"
+            + HelpExampleCli("bdns", "reindex")
+            + HelpExampleCli("bdns", "check")
+            + HelpExampleRpc("bdns", "reindex")
+            + HelpExampleRpc("bdns", "check")
         );
 
     if (request.params[0].isNull()) {
@@ -1503,7 +1510,7 @@ UniValue bdns(const JSONRPCRequest& request)
         
         return pbdnsdb->PossibleCorruption() ? "possible corruption" : "clean";
     } else
-        throw JSONRPCError(RPC_INVALID_PARAMETER, "The first parameter must be either \"start\" or \"check\".");
+        throw JSONRPCError(RPC_INVALID_PARAMETER, "The first parameter must be either \"reindex\" or \"check\".");
 }
 
 static const CRPCCommand commands[] =

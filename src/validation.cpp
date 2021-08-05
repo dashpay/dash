@@ -1049,7 +1049,7 @@ bool GetTransaction(const uint256 &hash, CTransactionRef &txOut, const Consensus
     return false;
 }
 
-/** Return transaction in txOut, created for locating the inputTx of a BlockchainDNS transaction */
+/** Return transaction in txOut, created for locating BlockchainDNS transactions */
 bool GetTransaction(const uint256 &hash, CTransactionRef &txOut, const Consensus::Params& consensusParams, const CBlock& block)
 {
     // first look for the transaction in the received block, in the BDNS we only care for transactions confirmed in blocks
@@ -1063,7 +1063,7 @@ bool GetTransaction(const uint256 &hash, CTransactionRef &txOut, const Consensus
     return GetTransaction(hash, txOut, consensusParams);
 }
 
-/** Return transaction in txOut, created for locating the inputTx of a BlockchainDNS transaction */
+/** Return transaction in txOut, created for locating BlockchainDNS transactions, removes the expensive block hash computation */
 bool GetTransaction(const uint256 &hash, CTransactionRef &txOut, const Consensus::Params& consensusParams)
 {
     CBlockIndex *pindexSlow = NULL;
@@ -3645,7 +3645,7 @@ bool ExtractBdnsBanFromScript(const CScript& scriptPubKey, std::string& bdnsName
 
     bdnsName = decodedData.substr(posRegistration + 9);
 
-    LogPrint("bdns", "BlockchainDNS -- %s: banned bdnsName = %s \n", __func__, bdnsName);
+    LogPrint("bdns", "BlockchainDNS -- %s: banned bdnsName = %s\n", __func__, bdnsName);
     return true;
 }
 
@@ -4553,6 +4553,7 @@ bool CVerifyDB::VerifyDB(const CChainParams& chainparams, CCoinsView *coinsview,
     }
 
     // if all checks went well then the BDNS should have the same state as before the checks
+    pbdnsdb->SetHeight(chainActive.Height());
     pbdnsdb->WriteCorruptionState(fPossibleCorruption);
     LogPrintf("[DONE].\n");
     LogPrintf("No coin database inconsistencies in last %i blocks (%i transactions)\n", chainActive.Height() - pindexState->nHeight, nGoodTransactions);
