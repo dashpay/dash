@@ -1468,7 +1468,7 @@ UniValue bdns(const JSONRPCRequest& request)
     if (request.fHelp || request.params.size() != 1)
         throw std::runtime_error(
             "bdns \"action\"\n"
-            "\nBlockchainDNS operations.\n"
+            "\nBlockchainDNS operations and maintenance\n"
             "\nReindexing can take between several minutes and up to half an hour on slow machines. As the blockchain grows, this operation will gradually take longer to finish.\n"
             "If a wallet shutdown took place before the reindexing operation had finished, reindexing will restart with the next wallet startup.\n"
             "\nArguments:\n"

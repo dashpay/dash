@@ -4333,7 +4333,7 @@ std::map<std::string, std::tuple<CTxDestination, std::string, int>> CWallet::Get
             if (bdnsRecord.regTxid != checkedTx.GetHash())
                 continue;
 
-            // fetch the latest content found at the BDNS record
+            // fetch the latest content residing under the BDNS domain
             pbdnsdb->GetContentFromBDNSRecord(bdnsName, content);
             
             ownedDomains[bdnsName] = std::make_tuple(ownerAddr, content, Params().GetConsensus().nBlocksPerYear - nDepth);

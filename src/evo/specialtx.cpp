@@ -162,7 +162,6 @@ bool UndoSpecialTxsInBlock(const CBlock& block, const CBlockIndex* pindex)
     // the indexing of the BDNS doesn't currently handle chain re-organizations so we have to set the new height and let the index set its flags accordingly
     if (!pbdnsdb->SetHeight(pindex->nHeight - 1))
         LogPrintf("BlockchainDNS -- %s: failed to set the BDNS height\n", __func__);
-    LogPrintf("mega got here 2\n");
 
     return true;
 }
