@@ -8,6 +8,7 @@
 #include <random.h>
 #include <test/util/setup_common.h>
 #include <validation.h>
+#include <util/translation.h>
 #include <wallet/coincontrol.h>
 #include <wallet/coinselection.h>
 #include <wallet/test/wallet_test_fixture.h>
@@ -64,7 +65,7 @@ static void add_coin(CWallet& wallet, const CAmount& nValue, int nAge = 6*24, bo
     tx.vout[nInput].nValue = nValue;
     if (spendable) {
         CTxDestination dest;
-        std::string error;
+        bilingual_str error;
         const bool destination_ok = wallet.GetNewDestination("", dest, error);
         assert(destination_ok);
         tx.vout[nInput].scriptPubKey = GetScriptForDestination(dest);
