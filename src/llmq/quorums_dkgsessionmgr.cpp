@@ -26,6 +26,7 @@ CDKGSessionManager::CDKGSessionManager(CBLSWorker& _blsWorker, bool unitTests, b
     blsWorker(_blsWorker)
 {
     db = std::make_unique<CDBWrapper>(unitTests ? "" : (GetDataDir() / "llmq/dkgdb"), 1 << 20, unitTests, fWipe);
+    MigrateDKG();
 
     for (const auto& qt : Params().GetConsensus().llmqs) {
         dkgSessionHandlers.emplace(std::piecewise_construct,
@@ -35,6 +36,95 @@ CDKGSessionManager::CDKGSessionManager(CBLSWorker& _blsWorker, bool unitTests, b
 }
 
 CDKGSessionManager::~CDKGSessionManager() = default;
+
+void CDKGSessionManager::MigrateDKG()
+{
+    if (!db->IsEmpty()) return;
+
+    LogPrint(BCLog::LLMQ, "CDKGSessionManager::%d -- start\n", __func__);
+
+    CDBBatch batch(*db);
+    auto oldDb = std::make_unique<CDBWrapper>(GetDataDir() / "llmq", 8 << 20);
+    std::unique_ptr<CDBIterator> pcursor(oldDb->NewIterator());
+
+    auto start_vvec = std::make_tuple(DB_VVEC, (Consensus::LLMQType)0, uint256(), uint256());
+    pcursor->Seek(start_vvec);
+
+    while (pcursor->Valid()) {
+        decltype(start_vvec) k;
+        BLSVerificationVector v;
+
+        if (!pcursor->GetKey(k) || std::get<0>(k) != DB_VVEC) {
+            break;
+        }
+        if (!pcursor->GetValue(v)) {
+            break;
+        }
+
+        batch.Write(k, v);
+
+        if (batch.SizeEstimate() >= (1 << 24)) {
+            db->WriteBatch(batch);
+            batch.Clear();
+        }
+
+        pcursor->Next();
+    }
+
+    auto start_contrib = std::make_tuple(DB_SKCONTRIB, (Consensus::LLMQType)0, uint256(), uint256());
+    pcursor->Seek(start_contrib);
+
+    while (pcursor->Valid()) {
+        decltype(start_contrib) k;
+        CBLSSecretKey v;
+
+        if (!pcursor->GetKey(k) || std::get<0>(k) != DB_SKCONTRIB) {
+            break;
+        }
+        if (!pcursor->GetValue(v)) {
+            break;
+        }
+
+        batch.Write(k, v);
+
+        if (batch.SizeEstimate() >= (1 << 24)) {
+            db->WriteBatch(batch);
+            batch.Clear();
+        }
+
+        pcursor->Next();
+    }
+
+    auto start_enc_contrib = std::make_tuple(DB_ENC_CONTRIB, (Consensus::LLMQType)0, uint256(), uint256());
+    pcursor->Seek(start_enc_contrib);
+
+    while (pcursor->Valid()) {
+        decltype(start_enc_contrib) k;
+        CBLSIESMultiRecipientObjects<CBLSSecretKey> v;
+
+        if (!pcursor->GetKey(k) || std::get<0>(k) != DB_ENC_CONTRIB) {
+            break;
+        }
+        if (!pcursor->GetValue(v)) {
+            break;
+        }
+
+        batch.Write(k, v);
+
+        if (batch.SizeEstimate() >= (1 << 24)) {
+            db->WriteBatch(batch);
+            batch.Clear();
+        }
+
+        pcursor->Next();
+    }
+
+    db->WriteBatch(batch);
+    pcursor.reset();
+    oldDb.reset();
+
+    LogPrint(BCLog::LLMQ, "CDKGSessionManager::%d -- done\n", __func__);
+}
 
 void CDKGSessionManager::StartThreads()
 {

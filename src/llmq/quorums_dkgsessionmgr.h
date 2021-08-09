@@ -71,6 +71,7 @@ public:
     bool GetEncryptedContributions(Consensus::LLMQType llmqType, const CBlockIndex* pindexQuorum, const std::vector<bool>& validMembers, const uint256& proTxHash, std::vector<CBLSIESEncryptedObject<CBLSSecretKey>>& vecRet) const;
 
 private:
+    void MigrateDKG();
     void CleanupCache();
 };
 
