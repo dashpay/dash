@@ -3842,6 +3842,8 @@ void ReindexBdnsRecords() {
     pbdnsdb->CleanDatabase();
 
     const Consensus::Params& consensusParams = Params().GetConsensus();
+    CBlockIndex* lastProcessedIndex;
+    int lastProcessedHeight;
 
     {
         LOCK(cs_main);
@@ -3850,10 +3852,10 @@ void ReindexBdnsRecords() {
             if (!pbdnsdb->WriteReindexing(false))
                 LogPrintf("BlockchainDNS -- %s: failed to write reindexing state\n", __func__);
             return;
+        } else {
+            lastProcessedIndex = chainActive.Tip()->pprev->pprev;
+            lastProcessedHeight = std::max(consensusParams.nHardForkEight, lastProcessedIndex->nHeight);
         }
-
-        CBlockIndex* lastProcessedIndex = chainActive.Tip()->pprev->pprev;
-        int lastProcessedHeight = std::max(consensusParams.nHardForkEight, lastProcessedIndex->nHeight);
     }
 
     // blocks are getting indexed without a lock until getting very close to the tip, if any corruption is detected the indexing stops
