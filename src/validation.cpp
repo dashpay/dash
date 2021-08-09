@@ -3834,6 +3834,9 @@ bool ProcessBdnsActiveHeight(const int& nHeight, const Consensus::Params& consen
 }
 
 void ReindexBdnsRecords() {
+    if (!pbdnsdb->AwaitsReindexing())
+        return;
+
     fReindexingBdns = true;
 
     pbdnsdb->CleanDatabase();
@@ -3842,18 +3845,18 @@ void ReindexBdnsRecords() {
 
     {
         LOCK(cs_main);
-        // make sure that we're not canceling the indexation of a block that's getting processed at the same time
         if (chainActive.Height() < consensusParams.nHardForkEight) {
             fReindexingBdns = false;
             if (!pbdnsdb->WriteReindexing(false))
                 LogPrintf("BlockchainDNS -- %s: failed to write reindexing state\n", __func__);
             return;
         }
+
+        CBlockIndex* lastProcessedIndex = chainActive.Tip()->pprev->pprev;
+        int lastProcessedHeight = std::max(consensusParams.nHardForkEight, lastProcessedIndex->nHeight);
     }
 
-    int lastProcessedHeight = std::max(consensusParams.nHardForkEight, chainActive.Height() - 2);
-    CBlockIndex* startTip = chainActive.Tip();
-
+    // blocks are getting indexed without a lock until getting very close to the tip, if any corruption is detected the indexing stops
     for (int i = consensusParams.nHardForkEight; i < lastProcessedHeight; i++) {
         boost::this_thread::interruption_point();
 
@@ -3866,23 +3869,23 @@ void ReindexBdnsRecords() {
     }
 
     {
+        // the active chain might suffer changes while we scan its last blocks so we must take a lock for safe processing of the BDNS
         LOCK(cs_main);
-        // in case a new block was connected in the meantime we must take a lock for safe processing of the BDNS
-        for (int i = lastProcessedHeight; i <= chainActive.Height(); i++)
-            if (!ProcessBdnsActiveHeight(i, consensusParams)) {
-                fReindexingBdns = false;
-                if (!pbdnsdb->WriteReindexing(false))
-                    LogPrintf("BlockchainDNS -- %s: failed to write reindexing state\n", __func__);
-                return;
-            }
+        // if the last processed block is no longer present in the chain then corruption is still possible   
+        if (chainActive.Contains(lastProcessedIndex)) {
+            for (int i = lastProcessedHeight; i <= chainActive.Height(); i++)
+                if (!ProcessBdnsActiveHeight(i, consensusParams)) {
+                    fReindexingBdns = false;
+                    if (!pbdnsdb->WriteReindexing(false))
+                        LogPrintf("BlockchainDNS -- %s: failed to write reindexing state\n", __func__);
+                    return;
+                }
+        } else
+            pbdnsdb->WriteCorruptionState(true);
 
         fReindexingBdns = false;
         if (!pbdnsdb->WriteReindexing(false))
             LogPrintf("BlockchainDNS -- %s: failed to write reindexing state\n", __func__);
-
-        // if the tip of the active chain from the start of the reindexing is no longer present in the chain then corruption is still possible
-        if (!chainActive.Contains(startTip))
-            pbdnsdb->WriteCorruptionState(true);
     }
 }
 
