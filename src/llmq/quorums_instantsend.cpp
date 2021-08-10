@@ -523,7 +523,7 @@ bool CInstantSendManager::CheckCanLock(const COutPoint& outpoint, bool printDebu
     }
 
     CTransactionRef tx;
-    uint256 hashBlock;
+    uint256 hashBlock; // TODO_ADOT_FUTURE Masternodes rely on the presence of TxIndex for speed, might apply the same requirement for the BDNS
     // this relies on enabled txindex and won't work if we ever try to remove the requirement for txindex for masternodes
     if (!GetTransaction(outpoint.hash, tx, params, hashBlock, false)) {
         if (printDebug) {

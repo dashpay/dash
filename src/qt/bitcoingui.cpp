@@ -1003,6 +1003,9 @@ void BitcoinGUI::setNumBlocks(int count, const QDateTime& blockDate, double nVer
                 progressBarLabel->setText(tr("Processing blocks on disk..."));
             }
             break;
+        case REINDEXING_BDNS:
+            progressBarLabel->setText(tr("Reindexing BlockchainDNS..."));
+            break;
         case BLOCK_SOURCE_REINDEX:
             progressBarLabel->setText(tr("Reindexing blocks on disk..."));
             break;

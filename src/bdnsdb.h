@@ -5,41 +5,59 @@
 #ifndef ADOT_BDNSDB_H
 #define ADOT_BDNSDB_H
 
+#include "uint256.h"
 #include "dbwrapper.h"
 
 #include <string>
 #include <utility>
 
 struct BDNSRecord {
-    std::string ipfsHash;
-    int regBlockHeight, regTxIndex;
+    std::string content;
+    uint256 regTxid, lastUpdateTxid;
     
     template<typename Stream>
     void Serialize(Stream &s) const {
-        s << ipfsHash;
-        s << regBlockHeight;
-        s << regTxIndex;
+        s << content;
+        s << regTxid;
+        s << lastUpdateTxid;
     }
 
     template<typename Stream>
     void Unserialize(Stream& s) {
-        s >> ipfsHash;
-        s >> regBlockHeight;
-        s >> regTxIndex;
+        s >> content;
+        s >> regTxid;
+        s >> lastUpdateTxid;
     }
 };
 
 /** Access to the BDNS database (bdns/) */
 class CBDNSDB : public CDBWrapper
 {
+private:
+    bool WriteVersion();
+    int GetLastChangeHeight();
+    bool SetLastChangeHeight();
+
 public:
     CBDNSDB(size_t nCacheSize, bool fMemory = false, bool fWipe = false);
 
-    bool GetIPFSFromBDNSRecord(const std::string &bdnsName, std::string &ipfsHash);
+    bool GetContentFromBDNSRecord(const std::string &bdnsName, std::string &content);
+    bool HasBDNSRecord(const std::string &bdnsName);
     bool ReadBDNSRecord(const std::string &bdnsName, BDNSRecord &bdnsRecord);
     bool WriteBDNSRecord(const std::string &bdnsName, const BDNSRecord &bdnsRecord);
-    bool UpdateBDNSRecord(const std::string &bdnsName, const std::string &ipfsHash);
+    bool UpdateBDNSRecord(const std::string &bdnsName, const std::string &content, const uint256 &updateTxid);
     bool EraseBDNSRecord(const std::string &bdnsName);
+    
+    bool CleanDatabase();
+    bool CheckVersion();
+
+    bool SetHeight(const int &nHeight);
+
+    bool WriteReindexing(bool fReindexing);
+    bool AwaitsReindexing();
+
+    bool WriteCorruptionState(bool fPossibleCorruption);
+    bool PossibleCorruption();
 };
 
 #endif // ADOT_BDNSDB_H

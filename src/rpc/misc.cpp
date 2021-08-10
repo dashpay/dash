@@ -133,9 +133,9 @@ UniValue debug(const JSONRPCRequest& request)
             "\nArguments:\n"
             "1. \"category\"        (string, required) The name of the debug category to turn on. Can be one of the following:\n"
             "                       addrman, alert, bench, cmpctblock, coindb, db, http, leveldb, libevent, lock, mempool,\n"
-            "                       mempoolrej, net, proxy, prune, qt, rand, reindex, rpc, selectcoins, tor, zmq, dash\n"
+            "                       mempoolrej, net, proxy, prune, qt, rand, reindex, rpc, selectcoins, tor, zmq, alterdot\n"
             "                       (or specifically: chainlocks, gobject, instantsend, keepass, llmq, llmq-dkg, llmq-sigs,\n"
-            "                       masternode, mnpayments, mnsync, privatesend, spork).\n"
+            "                       masternode, mnpayments, mnsync, privatesend, spork, bdns).\n"
             "                       Can also use \"1\" to turn all categories on at once and \"0\" to turn them off.\n"
             "                       Note: If specified category doesn't match any of the above, no error is thrown.\n"
             "\nResult:\n"
@@ -1151,28 +1151,41 @@ UniValue getmemoryinfo(const JSONRPCRequest& request)
     return obj;
 }
 
+#ifdef ENABLE_WALLET
 UniValue registerdomain(const JSONRPCRequest& request)
 {
     if (request.fHelp || request.params.size() < 2 || request.params.size() > 3)
         throw std::runtime_error(
             "registerdomain \"name\" \"hash\" \"address\"\n"
-            "\nRegisters a BDNS address with a corresponding IPFS or IPNS hash and pays for it with the required amount (0.2).\n"
+            "\nRegisters an IPFS/IPNS hash or other content under a new blockchain domain name and pays for it with the required amount (0.2).\n"
             "The specified Alterdot address will be used to pay for the transaction otherwise an available address that holds the required amount will be used.\n"
-            "It creates the BDNS-IPFS register transaction, signs it and then sends it to the network.\n"
-            "The wallet must be unlocked by passphrase before registering.\n"
+            "It creates the BDNS register transaction, signs it and then relays it to the network.\n"
+            "The wallet must be unlocked by its passphrase before registering.\n"
             "Returns the hex-encoded hash of the registration transaction if it was completed successfully.\n"
             "\nArguments:\n"
             "1. \"name\" (string, required) The blockchain domain name that will be registered. It must not contain \"/\" character.\n"
-            "2. \"hash\" (string, required) The IPFS/IPNS hash where the BDNS name will point to.\n"
+            "2. \"content\" (string, required) The IPFS/IPNS hash or other content to be saved under the BDNS name.\n"
             "3. \"address\" (string, optional) The Alterdot address used to pay for the registration.\n"
             "\nResult:\n"
             "\"hex\" (string) The hex-encoded hash of the registration transaction.\n"
-            "\nExample:\n"
-            "registerdomain \"ipfs.org\" \"QmYwAPJzv5CZsnA625s3Xf2nemtYgPpHdWEz79ojWnPbdG\" \"CXAMcudgejBnG5P5z6ENNGtQxdKD1sZRAo\""
+            "\nExamples:\n"
+            + HelpExampleCli("registerdomain", "\"domainname\" \"content\"")
+            + HelpExampleCli("registerdomain", "\"domainname\" \"content\" \"address\"")
+            + HelpExampleRpc("registerdomain", "\"domainname\" \"content\"")
+            + HelpExampleRpc("registerdomain", "\"domainname\" \"content\" \"address\"")
         );
 
-#ifdef ENABLE_WALLET
     LOCK2(cs_main, pwalletMain ? &pwalletMain->cs_wallet : NULL);
+
+    if (pbdnsdb->AwaitsReindexing()) {
+        if (fReindexingBdns)
+            throw JSONRPCError(RPC_MISC_ERROR, "The wallet is reindexing the BlockchainDNS, you have to wait for it to finish.");
+        else
+            throw JSONRPCError(RPC_MISC_ERROR, "The wallet is awaiting a restart in order to begin reindexing the BlockchainDNS. Proceed with the restart and reindexing in order to use related functionalities.");
+    }
+
+    if (pbdnsdb->PossibleCorruption())
+        throw JSONRPCError(RPC_INTERNAL_ERROR, "The inventory of the BlockchainDNS might be corrupted, in order to safely execute related transactions run a reindexing of the BDNS first by using the command \"bdns reindex\".");
 
     if (request.params[0].isNull() || request.params[1].isNull())
         throw JSONRPCError(RPC_INVALID_PARAMETER, "Invalid parameter, arguments 1 and 2 must be non-null.");
@@ -1187,7 +1200,7 @@ UniValue registerdomain(const JSONRPCRequest& request)
         throw JSONRPCError(RPC_INTERNAL_ERROR, "BDNS registrations become active starting with block: " + std::to_string(Params().GetConsensus().nHardForkEight));
 
     std::string bdnsName = request.params[0].get_str();
-    std::string ipfsHash = request.params[1].get_str();
+    std::string content = request.params[1].get_str();
 
     if (pbdnsdb->Exists(bdnsName))
         throw JSONRPCError(RPC_INVALID_PARAMETER, "Blockchain domain name already registered!");
@@ -1253,7 +1266,7 @@ UniValue registerdomain(const JSONRPCRequest& request)
 
     // if CTxIn exists only then we can register
     if (rawTx.vin.size() == 1) {
-        std::string hexToRegister = HexStr("bdns/" + bdnsName + std::string("/ipfs/") + ipfsHash);
+        std::string hexToRegister = HexStr("bdns/" + bdnsName + std::string("/ipfs/") + content);
         CTxOut outRegister(10 * CENT, CScript() << OP_RETURN << ParseHex(hexToRegister));
 
         rawTx.vout.push_back(outRegister);
@@ -1274,9 +1287,6 @@ UniValue registerdomain(const JSONRPCRequest& request)
     sendRequest.params.setArray();
     sendRequest.params.push_back(signResult["hex"].get_str());
     return sendrawtransaction(sendRequest);
-#else
-    throw JSONRPCError(RPC_INTERNAL_ERROR, "Registering blockchain domain names is not possible without enabling the wallet.");
-#endif
 }
 
 UniValue updatedomain(const JSONRPCRequest& request)
@@ -1284,21 +1294,31 @@ UniValue updatedomain(const JSONRPCRequest& request)
     if (request.fHelp || request.params.size() != 2)
         throw std::runtime_error(
             "updatedomain \"name\" \"hash\"\n"
-            "\nUpdate the corresponding IPFS or IPNS hash of a BDNS address and pay for it with the required amount (0.01).\n"
-            "It creates the BDNS-IPFS update transaction, signs it and then sends it to the network.\n"
-            "The wallet must be unlocked by passphrase before updating.\n"
+            "\nUpdates the IPFS/IPNS hash or other content residing under a BDNS domain and pays for it with the required amount (0.01).\n"
+            "It creates the BDNS update transaction, signs it and then sends it to the network.\n"
+            "The wallet must be unlocked by its passphrase before updating.\n"
             "Returns the hex-encoded hash of the update transaction if it was completed successfully.\n"
             "\nArguments:\n"
             "1. \"name\" (string, required) The BDNS domain name that will be updated.\n"
-            "2. \"hash\" (string, required) The IPFS/IPNS hash where the BDNS name will point to.\n"
+            "2. \"content\" (string, required) The IPFS/IPNS hash or other content to be saved under the BDNS name.\n"
             "\nResult:\n"
             "\"hex\" (string) The hex-encoded hash of the update transaction.\n"
-            "\nExample:\n"
-            "updatedomain \"ipfs.org\" \"QmYwAPJzv5CZsnA625s3Xf2nemtYgPpHdWEz79ojWnPbdG\""
+            "\nExamples:\n"
+            + HelpExampleCli("updatedomain", "\"domainname\" \"content\"")
+            + HelpExampleRpc("updatedomain", "\"domainname\" \"content\"")
         );
 
-#ifdef ENABLE_WALLET
     LOCK2(cs_main, pwalletMain ? &pwalletMain->cs_wallet : NULL);
+
+    if (pbdnsdb->AwaitsReindexing()) {
+        if (fReindexingBdns)
+            throw JSONRPCError(RPC_MISC_ERROR, "The wallet is reindexing the BlockchainDNS, you have to wait for it to finish.");
+        else
+            throw JSONRPCError(RPC_MISC_ERROR, "The wallet is awaiting a restart in order to begin reindexing the BlockchainDNS. Proceed with the restart and reindexing in order to use related functionalities.");
+    }
+
+    if (pbdnsdb->PossibleCorruption())
+        throw JSONRPCError(RPC_INTERNAL_ERROR, "The inventory of the BlockchainDNS might be corrupted, in order to safely execute related transactions run a reindexing of the BDNS first by using the command \"bdns reindex\".");
 
     if (request.params[0].isNull() || request.params[1].isNull())
         throw JSONRPCError(RPC_INVALID_PARAMETER, "Invalid parameter, arguments 1 and 2 must be non-null.");
@@ -1313,33 +1333,21 @@ UniValue updatedomain(const JSONRPCRequest& request)
         throw JSONRPCError(RPC_INTERNAL_ERROR, "BDNS updates become active starting with block: " + std::to_string(Params().GetConsensus().nHardForkEight));
 
     std::string bdnsName = request.params[0].get_str();
-    std::string newIpfsHash = request.params[1].get_str();
+    std::string newContent = request.params[1].get_str();
     BDNSRecord bdnsRecord;
 
     if (!pbdnsdb->ReadBDNSRecord(bdnsName, bdnsRecord))
-        throw JSONRPCError(RPC_INVALID_PARAMETER, "The blockchain domain name is not registered");
+        throw JSONRPCError(RPC_INVALID_PARAMETER, "The blockchain domain name is not registered.");
 
-    if (chainActive.Height() < bdnsRecord.regBlockHeight)
-        throw JSONRPCError(RPC_INTERNAL_ERROR, "Registration block height not found.");
+    CTransactionRef regTx;
 
-    CBlockIndex* pblockindex = chainActive[bdnsRecord.regBlockHeight];
-
-    if (fHavePruned && !(pblockindex->nStatus & BLOCK_HAVE_DATA) && pblockindex->nTx > 0)
-        throw JSONRPCError(RPC_INTERNAL_ERROR, "Block not available (pruned data).");
-
-    CBlock block;
-
-    if (!ReadBlockFromDisk(block, pblockindex, Params().GetConsensus()))
-        throw JSONRPCError(RPC_INTERNAL_ERROR, "Can't read block from disk.");
+    if (!GetTransaction(bdnsRecord.regTxid, regTx, Params().GetConsensus()))
+        throw JSONRPCError(RPC_INTERNAL_ERROR, "The registration transaction cannot be located.");
 
     CTxDestination regAddress;
 
-    if (block.vtx.size() - 1 < bdnsRecord.regTxIndex)
-        throw JSONRPCError(RPC_INTERNAL_ERROR, "Registration transaction not found in block, invalid tx index.");
-
-    if (!ExtractDestination((*block.vtx[bdnsRecord.regTxIndex]).vout[1].scriptPubKey, regAddress))
-        throw JSONRPCError(RPC_INTERNAL_ERROR, "Can't extract Alterdot address from registration transaction." + std::to_string(bdnsRecord.regBlockHeight) + " txI " + std::to_string(bdnsRecord.regTxIndex) +
-            " prevPubKey " + HexStr((*block.vtx[bdnsRecord.regTxIndex]).vout[1].scriptPubKey));
+    if (!ExtractDestination((*regTx).vout[1].scriptPubKey, regAddress))
+        throw JSONRPCError(RPC_INTERNAL_ERROR, "Can't extract Alterdot address from registration transaction with hash: " + bdnsRecord.regTxid.ToString());
 
     assert(pwalletMain != NULL);
 
@@ -1380,7 +1388,7 @@ UniValue updatedomain(const JSONRPCRequest& request)
 
     // if CTxIn exists only then we can register
     if (rawTx.vin.size() == 1) {
-        std::string hexToRegister = HexStr("bdns/" + bdnsName + std::string("/ipfs/") + newIpfsHash);
+        std::string hexToRegister = HexStr("bdns/" + bdnsName + std::string("/ipfs/") + newContent);
         CTxOut outUpdate(0.5 * CENT, CScript() << OP_RETURN << ParseHex(hexToRegister));
 
         rawTx.vout.push_back(outUpdate);
@@ -1401,34 +1409,43 @@ UniValue updatedomain(const JSONRPCRequest& request)
     sendRequest.params.setArray();
     sendRequest.params.push_back(signResult["hex"].get_str());
     return sendrawtransaction(sendRequest);
-#else
-    throw JSONRPCError(RPC_INTERNAL_ERROR, "Updating blockchain domain names is not possible without enabling the wallet.");
-#endif
 }
+#endif // ENABLE_WALLET
 
 UniValue resolvedomain(const JSONRPCRequest& request) {
     if (request.fHelp || request.params.size() != 1)
         throw std::runtime_error(
             "resolvedomain \"name\"\n"
-            "\nGet the corresponding IPFS or IPNS hash of a registered BDNS address.\n"
+            "\nReturns the corresponding content of a registered BDNS name.\n"
             "\nArguments:\n"
             "1. \"name\" (string, required) The blockchain domain name.\n"
             "\nResult:\n"
-            "\n (string) The IPFS or IPNS hash of the registered domain.\n"
-            "\nExample:\n"
-            "resolvedomain \"ipfs.org\""
+            "\n (string) The content that is registered under the domain name.\n"
+            "\nExamples:\n"
+            + HelpExampleCli("resolvedomain", "\"domainname\"")
+            + HelpExampleRpc("resolvedomain", "\"domainname\"")
         );
+
+    if (pbdnsdb->AwaitsReindexing()) {
+        if (fReindexingBdns)
+            throw JSONRPCError(RPC_MISC_ERROR, "The wallet is reindexing the BlockchainDNS, you have to wait for it to finish.");
+        else
+            throw JSONRPCError(RPC_MISC_ERROR, "The wallet is awaiting a restart in order to begin reindexing the BlockchainDNS. Proceed with the restart and reindexing in order to use related functionalities.");
+    }
+
+    if (pbdnsdb->PossibleCorruption())
+        throw JSONRPCError(RPC_INTERNAL_ERROR, "The inventory of the BlockchainDNS might be corrupted, in order to correctly resolve Alterdot domains run a reindexing of the BDNS first by using the command \"bdns reindex\".");
 
     if (request.params[0].isNull())
         throw JSONRPCError(RPC_INVALID_PARAMETER, "Invalid parameter, argument 1 must be non-null.");
 
     if (chainActive.Height() + 1 < Params().GetConsensus().nHardForkEight)
-        throw JSONRPCError(RPC_INTERNAL_ERROR, "The BDNS becomes active starting with block: " + std::to_string(Params().GetConsensus().nHardForkEight));
+        throw JSONRPCError(RPC_MISC_ERROR, "The BDNS becomes active starting with block: " + std::to_string(Params().GetConsensus().nHardForkEight));
 
-    std::string ipfsHash;
+    std::string content;
 
-    if (pbdnsdb->GetIPFSFromBDNSRecord(request.params[0].get_str(), ipfsHash))
-        return ipfsHash;
+    if (pbdnsdb->GetContentFromBDNSRecord(request.params[0].get_str(), content))
+        return content;
 
     return "Blockchain domain name not found!";
 }
@@ -1444,6 +1461,56 @@ UniValue echo(const JSONRPCRequest& request)
         );
 
     return request.params;
+}
+
+UniValue bdns(const JSONRPCRequest& request)
+{
+    if (request.fHelp || request.params.size() != 1)
+        throw std::runtime_error(
+            "bdns \"action\"\n"
+            "\nBlockchainDNS operations and maintenance\n"
+            "\nReindexing can take between several minutes and up to half an hour on slow machines. As the blockchain grows, this operation will gradually take longer to finish.\n"
+            "If a wallet shutdown took place before the reindexing operation had finished, reindexing will restart with the next wallet startup.\n"
+            "\nArguments:\n"
+            "1. \"action\" (string, required) This action can be either:\n"
+            "\"reindex\" which triggers the reindexing of the BDNS starting with block 1,037,000 (the activation block height of the BDNS)\n"
+            "\"check\" returns the state of the BlockchainDNS, it can be either \"awaits reindexing\", \"reindexing\", \"possible corruption\" or \"clean\"\n"
+            "\nResult:\n"
+            "\n (string) The state of the BlockchainDNS or related information.\n"
+            "\nExamples:\n"
+            + HelpExampleCli("bdns", "reindex")
+            + HelpExampleCli("bdns", "check")
+            + HelpExampleRpc("bdns", "reindex")
+            + HelpExampleRpc("bdns", "check")
+        );
+
+    if (request.params[0].isNull()) {
+        throw JSONRPCError(RPC_INVALID_PARAMETER, "The first parameter cannot be null.");
+    }
+
+    if (request.params[0].get_str() == "reindex") {
+        if (pbdnsdb->AwaitsReindexing()) {
+            if (fReindexingBdns)
+                throw JSONRPCError(RPC_MISC_ERROR, "The wallet is already reindexing the BlockchainDNS!");
+            else
+                throw JSONRPCError(RPC_MISC_ERROR, "The wallet is awaiting a restart in order to begin reindexing the BlockchainDNS. Proceed with the restart and reindexing in order to use related functionalities.");
+        }
+
+        if (!pbdnsdb->WriteReindexing(true)) // shouldn't really happen as it is just setting a flag
+            throw JSONRPCError(RPC_INTERNAL_ERROR, "The reindexing system has encountered a problem, retry the command! If the problem persists report it to the Alterdot developers.");
+
+        return "Reindexing will commence with the next wallet startup, restart it now in order to proceed.\n\nThe reindexing has finished when the message \"Reindexing BlockchainDNS...\" is no longer displayed near the loading bar. You can also check its state by running the command \"bdns check\". When \"reindexing\" is no longer returned that means it is done. This operation can take between several minutes and up to half an hour on slow machines.";
+    } else if (request.params[0].get_str() == "check") {
+        if (pbdnsdb->AwaitsReindexing()) {
+            if (fReindexingBdns)
+                return "reindexing";
+            else
+                return "awaits reindexing";
+        }
+        
+        return pbdnsdb->PossibleCorruption() ? "possible corruption" : "clean";
+    } else
+        throw JSONRPCError(RPC_INVALID_PARAMETER, "The first parameter must be either \"reindex\" or \"check\".");
 }
 
 static const CRPCCommand commands[] =
@@ -1466,11 +1533,14 @@ static const CRPCCommand commands[] =
     { "addressindex",       "getaddressbalance",      &getaddressbalance,      false, {"addresses"} },
 
     /* Alterdot features */
-    { "alterdot",               "mnsync",               &mnsync,               true,  {} },
-    { "alterdot",               "spork",                &spork,                true,  {"value"} },
-    { "alterdot",               "registerdomain",       &registerdomain,       true,  {"name","hash","address"} },
-    { "alterdot",               "updatedomain",         &updatedomain,         true,  {"name","hash"} },
-    { "alterdot",               "resolvedomain",        &resolvedomain,        true,  {"name"} },
+    { "alterdot",           "mnsync",                 &mnsync,                 true,  {} },
+    { "alterdot",           "spork",                  &spork,                  true,  {"value"} },
+#ifdef ENABLE_WALLET
+    { "alterdot",           "registerdomain",         &registerdomain,         true,  {"name","hash","address"} },
+    { "alterdot",           "updatedomain",           &updatedomain,           true,  {"name","hash"} },
+#endif
+    { "alterdot",           "resolvedomain",          &resolvedomain,          true,  {"name"} },
+    { "alterdot",           "bdns",                   &bdns,                   true,  {"action"} },    
 
     /* Not shown in help */
     { "hidden",             "setmocktime",            &setmocktime,            true,  {"timestamp"}},

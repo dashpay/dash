@@ -621,6 +621,56 @@ UniValue listaddressbalances(const JSONRPCRequest& request)
     return jsonBalances;
 }
 
+UniValue listowneddomains(const JSONRPCRequest& request)
+{
+    CWallet* const pwallet = GetWalletForJSONRPCRequest(request);
+    if (!EnsureWalletIsAvailable(pwallet, request.fHelp))
+        return NullUniValue;
+
+    if (request.fHelp || request.params.size() != 0)
+        throw std::runtime_error(
+            "listowneddomains\n"
+            "\nResult:\n"
+            "{  (json object)\n"
+            "  \"domainname\" : {,          (string) domain name and its corresponding information\n"
+            "     \"owner\" : \"address\"   (string) Alterdot address that owns the domain\n"
+            "     \"content\" : \"content\" (string) content registered under the domain\n"
+            "     \"blocksLeft\" : xxxxx    (number) number of blocks left until expiration\n"
+            "  }\n"
+            "  ,...\n"
+            "}\n"
+            "\nExamples:\n"
+            + HelpExampleCli("listowneddomains", "")
+            + HelpExampleRpc("listowneddomains", "")
+        );
+
+    LOCK2(cs_main, pwallet->cs_wallet);
+
+    if (pbdnsdb->AwaitsReindexing()) {
+        if (fReindexingBdns)
+            throw JSONRPCError(RPC_MISC_ERROR, "The wallet is reindexing the BlockchainDNS, you have to wait for it to finish.");
+        else
+            throw JSONRPCError(RPC_MISC_ERROR, "The wallet is awaiting a restart in order to begin reindexing the BlockchainDNS. Proceed with the restart and reindexing in order to use related functionalities.");
+    }
+
+    if (pbdnsdb->PossibleCorruption())
+        throw JSONRPCError(RPC_INTERNAL_ERROR, "The inventory of the BlockchainDNS might be corrupted, in order to correctly display the owned domains run a reindexing of the BDNS first by using the command \"bdns reindex\".");
+
+    UniValue jsonDomains(UniValue::VOBJ);
+    std::map<std::string, std::tuple<CTxDestination, std::string, int>> ownedDomains = pwallet->GetOwnedDomains();
+
+    for (auto& domain : ownedDomains) {
+        UniValue entry(UniValue::VOBJ);
+        entry.push_back(Pair("owner", CBitcoinAddress(std::get<0>(domain.second)).ToString()));
+        entry.push_back(Pair("content", std::get<1>(domain.second)));
+        entry.push_back(Pair("blocksLeft", std::get<2>(domain.second)));
+
+        jsonDomains.push_back(Pair(domain.first, entry));
+    }
+
+    return jsonDomains;
+}
+
 UniValue signmessage(const JSONRPCRequest& request)
 {
     CWallet * const pwallet = GetWalletForJSONRPCRequest(request);
@@ -3022,6 +3072,7 @@ static const CRPCCommand commands[] =
     { "wallet",             "listaccounts",             &listaccounts,             false,  {"minconf","addlocked","include_watchonly"} },
     { "wallet",             "listaddressgroupings",     &listaddressgroupings,     false,  {} },
     { "wallet",             "listaddressbalances",      &listaddressbalances,      false,  {"minamount"} },
+    { "wallet",             "listowneddomains",         &listowneddomains,         false,  {} },
     { "wallet",             "listlockunspent",          &listlockunspent,          false,  {} },
     { "wallet",             "listreceivedbyaccount",    &listreceivedbyaccount,    false,  {"minconf","addlocked","include_empty","include_watchonly"} },
     { "wallet",             "listreceivedbyaddress",    &listreceivedbyaddress,    false,  {"minconf","addlocked","include_empty","include_watchonly"} },

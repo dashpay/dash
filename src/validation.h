@@ -166,6 +166,7 @@ extern const std::string strMessageMagic;
 extern CWaitableCriticalSection csBestBlock;
 extern CConditionVariable cvBlockChange;
 extern std::atomic_bool fImporting;
+extern bool fReindexingBdns;
 extern bool fReindex;
 extern int nScriptCheckThreads;
 extern bool fTxIndex;
@@ -221,9 +222,6 @@ static const unsigned int DEFAULT_CHECKLEVEL = 3;
 // one 128MB block file + added 15% undo data = 147MB greater for a total of 941MB
 // Setting the target to > than 945MB will make it likely we can respect the target.
 static const uint64_t MIN_DISK_SPACE_FOR_BLOCK_FILES = 945 * 1024 * 1024;
-
-// processes BDNS records after accepting an incoming block ranging from registrations and updates to bans and expirations
-void ProcessBdnsTransactions(const CBlock& block, const CBlockIndex& pindex);
 
 /** 
  * Process an incoming block. This only returns after the best known valid
@@ -288,6 +286,10 @@ bool IsInitialBlockDownload();
 std::string GetWarnings(const std::string& strFor);
 /** Retrieve a transaction (from memory pool, or from disk, if possible) */
 bool GetTransaction(const uint256 &hash, CTransactionRef &tx, const Consensus::Params& params, uint256 &hashBlock, bool fAllowSlow = false);
+/** Retrieve a transaction (from the given block or from disk, used by the BlockchainDNS indexing) */
+bool GetTransaction(const uint256 &hash, CTransactionRef &tx, const Consensus::Params& params, const CBlock& block);
+/** Retrieve a transaction (from disk, used by the BlockchainDNS indexing) */
+bool GetTransaction(const uint256 &hash, CTransactionRef &tx, const Consensus::Params& params);
 /** Find the best known block, and make it the tip of the block chain */
 bool ActivateBestChain(CValidationState& state, const CChainParams& chainparams, std::shared_ptr<const CBlock> pblock = std::shared_ptr<const CBlock>());
 
@@ -500,13 +502,17 @@ void ReprocessBlocks(int nBlocks);
 bool CheckBlockHeader(const CBlockHeader& block, CValidationState& state, const Consensus::Params& consensusParams, bool fCheckPOW = true);
 bool CheckBlock(const CBlock& block, CValidationState& state, const Consensus::Params& consensusParams, bool fCheckPOW = true, bool fCheckMerkleRoot = true);
 
-/** Processing of BDNS-IPFS registrations*/
-bool ExtractBdnsIpfsFromScript(const CScript& scriptPubKey, std::string& dtpAddress, std::string& ipfsHash);
+/** Processing of BDNS-IPFS transactions*/
+bool ExtractBdnsIpfsFromScript(const CScript& scriptPubKey, std::string& dtpAddress, std::string& content);
 bool ExtractBdnsBanFromScript(const CScript& scriptPubKey, std::string& bdnsName);
-void ProcessPossibleBdnsIpfsRegistration(const CScript& scriptPubKey, const int& nHeight, const int& nTxIndex);
-void ProcessPossibleBdnsIpfsUpdate(const CTransaction& updateTx, const CTransaction& inputTx, const CBlockIndex& pindex);
+// processes BDNS records from the given block ranging from registrations and updates to bans and expirations
+void ProcessBdnsTransactions(const CBlock& block, const CBlockIndex& pindex, const Consensus::Params& consensusParams);
+void ProcessPossibleBdnsIpfsRegistration(const CScript& scriptPubKey, const uint256& regTxid);
+void ProcessPossibleBdnsIpfsUpdate(const CTransaction& updateTx, const CTransaction& inputTx);
 void ProcessPossibleBdnsIpfsBan(const CScript& scriptPubKey);
-void ProcessExpiredBdnsRecords(CBlockIndex* pblockindex);
+void ProcessExpiredBdnsRecords(const CBlockIndex* pblockindex, const Consensus::Params& consensusParams);
+bool ProcessBdnsActiveHeight(const int& nHeight, const Consensus::Params& consensusParams);
+void ReindexBdnsRecords();
 
 /** Context-dependent validity checks.
  *  By "context", we mean only the previous block headers, but not the UTXO

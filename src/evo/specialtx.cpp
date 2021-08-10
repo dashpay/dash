@@ -92,6 +92,7 @@ bool ProcessSpecialTxsInBlock(const CBlock& block, const CBlockIndex* pindex, CV
     static int64_t nTimeQuorum = 0;
     static int64_t nTimeDMN = 0;
     static int64_t nTimeMerkle = 0;
+    static int64_t nTimeBDNS = 0;
 
     int64_t nTime1 = GetTimeMicros();
 
@@ -129,6 +130,16 @@ bool ProcessSpecialTxsInBlock(const CBlock& block, const CBlockIndex* pindex, CV
     int64_t nTime5 = GetTimeMicros(); nTimeMerkle += nTime5 - nTime4;
     LogPrint("bench", "        - CheckCbTxMerkleRoots: %.2fms [%.2fs]\n", 0.001 * (nTime5 - nTime4), nTimeMerkle * 0.000001);
 
+    const Consensus::Params& consensusParams = Params().GetConsensus();
+
+    // TODO_ADOT_COMMENT BDNS transactions from incoming blocks get processed only when pbdnsdb doesn't have the Reindexing flag set
+    // the unindexed transactions from these new blocks are covered in the last section of ReindexBdnsRecords in validation.cpp
+    if (!pbdnsdb->AwaitsReindexing() && pindex->nHeight >= consensusParams.nHardForkEight)
+        ProcessBdnsTransactions(block, *pindex, consensusParams);
+
+    int64_t nTime6 = GetTimeMicros(); nTimeBDNS += nTime6 - nTime5;
+    LogPrint("bench", "        - BlockchainDNS processing: %.2fms [%.2fs]\n", 0.001 * (nTime6 - nTime5), nTimeBDNS * 0.000001);
+
     return true;
 }
 
@@ -148,6 +159,10 @@ bool UndoSpecialTxsInBlock(const CBlock& block, const CBlockIndex* pindex)
     if (!llmq::quorumBlockProcessor->UndoBlock(block, pindex)) {
         return false;
     }
+
+    // the indexing of the BDNS doesn't currently handle chain re-organizations so we have to set the new height and let the index set its flags accordingly
+    if (!pbdnsdb->SetHeight(pindex->nHeight - 1))
+        LogPrintf("BlockchainDNS -- %s: failed to set the BDNS height\n", __func__);
 
     return true;
 }

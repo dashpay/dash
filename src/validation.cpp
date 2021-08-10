@@ -79,6 +79,7 @@ CWaitableCriticalSection csBestBlock;
 CConditionVariable cvBlockChange;
 int nScriptCheckThreads = 0;
 std::atomic_bool fImporting(false);
+bool fReindexingBdns = false;
 bool fReindex = false;
 bool fTxIndex = true;
 bool fAddressIndex = false;
@@ -1016,8 +1017,7 @@ bool GetTransaction(const uint256 &hash, CTransactionRef &txOut, const Consensus
                 return error("%s: Deserialize or I/O error - %s", __func__, e.what());
             }
 
-            if (hashBlock != hash) // TODO_ADOT_LOW maybe use a different approach
-                hashBlock = header.GetHash();
+            hashBlock = header.GetHash();
 
             if (txOut->GetHash() != hash)
                 return error("%s: txid mismatch", __func__);
@@ -1039,8 +1039,7 @@ bool GetTransaction(const uint256 &hash, CTransactionRef &txOut, const Consensus
             for (const auto& tx : block.vtx) {
                 if (tx->GetHash() == hash) {
                     txOut = tx;
-                    if (hashBlock != hash) // TODO_ADOT_LOW maybe use a different approach
-                        hashBlock = pindexSlow->GetBlockHash();
+                    hashBlock = pindexSlow->GetBlockHash();
                     return true;
                 }
             }
@@ -1050,6 +1049,72 @@ bool GetTransaction(const uint256 &hash, CTransactionRef &txOut, const Consensus
     return false;
 }
 
+/** Return transaction in txOut, created for locating BlockchainDNS transactions */
+bool GetTransaction(const uint256 &hash, CTransactionRef &txOut, const Consensus::Params& consensusParams, const CBlock& block)
+{
+    // first look for the transaction in the received block, in the BDNS we only care for transactions confirmed in blocks
+    for (const auto& tx : block.vtx) {
+        if (tx->GetHash() == hash) {
+            txOut = tx;
+            return true;
+        }
+    }
+
+    return GetTransaction(hash, txOut, consensusParams);
+}
+
+/** Return transaction in txOut, created for locating BlockchainDNS transactions, removes the expensive block hash computation */
+bool GetTransaction(const uint256 &hash, CTransactionRef &txOut, const Consensus::Params& consensusParams)
+{
+    CBlockIndex *pindexSlow = NULL;
+
+    LOCK(cs_main);
+    
+    // look it up using the TxIndex
+    if (fTxIndex) {
+        CDiskTxPos postx;
+        if (pblocktree->ReadTxIndex(hash, postx)) {
+            CAutoFile file(OpenBlockFile(postx, true), SER_DISK, CLIENT_VERSION);
+            if (file.IsNull())
+                return error("%s: OpenBlockFile failed", __func__);
+            CBlockHeader header;
+            try {
+                file >> header;
+                fseek(file.Get(), postx.nTxOffset, SEEK_CUR);
+                file >> txOut;
+            } catch (const std::exception& e) {
+                return error("%s: Deserialize or I/O error - %s", __func__, e.what());
+            }
+
+            if (txOut->GetHash() != hash)
+                return error("%s: txid mismatch", __func__);
+            return true;
+        }
+
+        // transaction not found in index, nothing more can be done
+        return false;
+    }
+
+    // TODO_ADOT_FUTURE might remove the no TxIndex option due to being too expensive, no TxIndex, no BlockchainDNS
+    // no TxIndex so we must locate the transaction with a slower process
+    // use coin database to locate block that contains transaction, and scan it
+    const Coin& coin = AccessByTxid(*pcoinsTip, hash);
+    if (!coin.IsSpent()) pindexSlow = chainActive[coin.nHeight];
+
+    if (pindexSlow) {
+        CBlock block;
+        if (ReadBlockFromDisk(block, pindexSlow, consensusParams)) {
+            for (const auto& tx : block.vtx) {
+                if (tx->GetHash() == hash) {
+                    txOut = tx;
+                    return true;
+                }
+            }
+        }
+    }
+
+    return false;
+}
 
 
 
@@ -2302,7 +2367,7 @@ static bool ConnectBlock(const CBlock& block, CValidationState& state, CBlockInd
     int64_t nTime5_1 = GetTimeMicros(); nTimeISFilter += nTime5_1 - nTime4;
     LogPrint("bench", "      - IS filter: %.2fms [%.2fs]\n", 0.001 * (nTime5_1 - nTime4), nTimeISFilter * 0.000001);
 
-    // ADOT : MODIFIED TO CHECK MASTERNODE PAYMENTS AND SUPERBLOCKS
+    // ADOT : MODIFIED TO CHECK MASTERNODE PAYMENTS AND SUPERBLOCKS AND BDNS
 
     // TODO: resync data (both ways?) and try to reprocess this block later.
     CAmount nExpectedBlockValue;
@@ -2652,7 +2717,8 @@ bool static DisconnectTip(CValidationState& state, const CChainParams& chainpara
     // Let wallets know transactions went from 1-confirmed to
     // 0-confirmed or conflicted:
     for (const auto& tx : block.vtx) {
-        GetMainSignals().SyncTransaction(*tx, pindexDelete->pprev, CMainSignals::SYNC_TRANSACTION_NOT_IN_BLOCK);
+        GetMainSignals().SyncTransaction(*tx, pindexDelete->pprev, CMainSignals::SYNC_TRANSACTION_NOT_IN_BLOCK); // TODO_ADOT_FUTURE use this mechanism in BlockchainDNS
+        // TODO_ADOT_FUTURE reverse BlockchainDNS transactions
     }
     return true;
 }
@@ -3521,10 +3587,10 @@ bool ContextualCheckBlock(const CBlock& block, CValidationState& state, const Co
     return true;
 }
 
-bool ExtractBdnsIpfsFromScript(const CScript& scriptPubKey, std::string& bdnsName, std::string& ipfsHash) {
+bool ExtractBdnsIpfsFromScript(const CScript& scriptPubKey, std::string& bdnsName, std::string& content) {
     std::string hexString = HexStr(scriptPubKey);
 
-    LogPrint("bdns", "in %s scriptPubKey in hexadecimal: %s\n", __func__, hexString);
+    LogPrint("bdns", "BlockchainDNS -- %s: scriptPubKey in hexadecimal: %s\n", __func__, hexString);
 
     std::string byte, decodedData;
     char chr;
@@ -3538,28 +3604,28 @@ bool ExtractBdnsIpfsFromScript(const CScript& scriptPubKey, std::string& bdnsNam
     std::size_t posRegistration = decodedData.find("bdns/");
 
     if (posRegistration == std::string::npos) {
-        LogPrint("bdns", "in %s the start of the BDNS-IPFS association was not found\n", __func__);
+        LogPrint("bdns", "BlockchainDNS -- %s: the start of the BDNS transaction was not found\n", __func__);
         return false;
     }
 
     std::size_t posSeparator = decodedData.find("/ipfs/", posRegistration + 5);
 
     if (posSeparator == std::string::npos) {
-        LogPrint("bdns", "in %s the separator inside the BDNS-IPFS association was not found\n", __func__);
+        LogPrint("bdns", "BlockchainDNS -- %s: the separator inside the BDNS transaction was not found\n", __func__);
         return false;
     }
 
     bdnsName = decodedData.substr(posRegistration + 5, posSeparator - posRegistration - 5);
-    ipfsHash = decodedData.substr(posSeparator + 6);
+    content = decodedData.substr(posSeparator + 6);
 
-    LogPrint("bdns", "in %s bdnsName = %s and ipfsHash = %s\n", __func__, bdnsName, ipfsHash);
+    LogPrint("bdns", "BlockchainDNS -- %s: domainName = %s and content = %s\n", __func__, bdnsName, content);
     return true;
 }
 
 bool ExtractBdnsBanFromScript(const CScript& scriptPubKey, std::string& bdnsName) {
     std::string hexString = HexStr(scriptPubKey);
 
-    LogPrint("bdns", "in %s scriptPubKey in hexadecimal: %s\n", __func__, hexString);
+    LogPrint("bdns", "BlockchainDNS -- %s: scriptPubKey in hexadecimal: %s\n", __func__, hexString);
 
     std::string byte, decodedData;
     char chr;
@@ -3573,64 +3639,73 @@ bool ExtractBdnsBanFromScript(const CScript& scriptPubKey, std::string& bdnsName
     std::size_t posRegistration = decodedData.find("bdns/ban/");
 
     if (posRegistration == std::string::npos) {
-        LogPrint("bdns", "in %s the start of the BDNS-IPFS ban was not found\n", __func__);
+        LogPrint("bdns", "BlockchainDNS -- %s: the start of the BDNS ban was not found\n", __func__);
         return false;
     }
 
     bdnsName = decodedData.substr(posRegistration + 9);
 
-    LogPrint("bdns", "in %s banned bdnsName = %s \n", __func__, bdnsName);
+    LogPrint("bdns", "BlockchainDNS -- %s: banned bdnsName = %s\n", __func__, bdnsName);
     return true;
 }
 
-void ProcessPossibleBdnsIpfsRegistration(const CScript& scriptPubKey, const int& nHeight, const int& nTxIndex) {
-    std::string bdnsName, ipfsHash;
+void ProcessPossibleBdnsIpfsRegistration(const CScript& scriptPubKey, const uint256& regTxid) {
+    std::string bdnsName, content;
 
-    if (!ExtractBdnsIpfsFromScript(scriptPubKey, bdnsName, ipfsHash))
+    if (!ExtractBdnsIpfsFromScript(scriptPubKey, bdnsName, content))
         return;
 
-    if (pbdnsdb->Exists(bdnsName)) // checks if the domain already exists
+    if (pbdnsdb->HasBDNSRecord(bdnsName)) {
+        LogPrint("bdns", "BlockchainDNS -- %s: domain %s already exists\n", __func__, bdnsName);
         return;
+    }
 
-    pbdnsdb->WriteBDNSRecord(bdnsName, BDNSRecord{ipfsHash, nHeight, nTxIndex});
-
-    return;
+    if (!pbdnsdb->WriteBDNSRecord(bdnsName, BDNSRecord{content, regTxid, uint256()})) {
+        pbdnsdb->WriteCorruptionState(true);
+        LogPrint("bdns", "BlockchainDNS -- %s: failed to save domain %s\n", __func__, bdnsName);
+    }
 }
 
-void ProcessPossibleBdnsIpfsUpdate(const CTransaction& updateTx, const CTransaction& inputTx, const CBlockIndex& pindex) {
-    std::string bdnsName, newIpfsHash;
+void ProcessPossibleBdnsIpfsUpdate(const CTransaction& updateTx, const CTransaction& inputTx) {
+    std::string bdnsName, newContent;
 
-    if (!ExtractBdnsIpfsFromScript(updateTx.vout[0].scriptPubKey, bdnsName, newIpfsHash))
+    if (!ExtractBdnsIpfsFromScript(updateTx.vout[0].scriptPubKey, bdnsName, newContent))
         return;
 
     BDNSRecord bdnsRecord;
 
-    if (!pbdnsdb->ReadBDNSRecord(bdnsName, bdnsRecord))
+    if (!pbdnsdb->ReadBDNSRecord(bdnsName, bdnsRecord)) {
+        LogPrint("bdns", "BlockchainDNS -- %s: failed to read domain %s\n", __func__, bdnsName);
         return;
+    }
 
-    LogPrint("bdns", "in %s oldIpfsHash = %s, regBlockHeight = %d, regTxIndex = %d\n", __func__, bdnsRecord.ipfsHash, bdnsRecord.regBlockHeight, bdnsRecord.regTxIndex);
+    LogPrint("bdns", "BlockchainDNS -- %s: oldContent = %s, regTxid = %s, lastUpdateTxid = %s\n", __func__, bdnsRecord.content, bdnsRecord.regTxid.ToString(), bdnsRecord.lastUpdateTxid.ToString());
 
-    CBlock block;
-    const CBlockIndex* pblockindex = pindex.GetAncestor(bdnsRecord.regBlockHeight);
+    CTransactionRef regTx;
 
-    if (!ReadBlockFromDisk(block, pblockindex->GetBlockPos(), Params().GetConsensus(), false)) // ~1 millisecond cost
-        LogPrint("bdns", "in %s can't read block from disk\n", __func__);
+    if (!GetTransaction(bdnsRecord.regTxid, regTx, Params().GetConsensus())) {
+        pbdnsdb->WriteCorruptionState(true);
+        LogPrint("bdns", "BlockchainDNS -- %s: No information available about registration transaction %s\n", __func__, bdnsRecord.regTxid.ToString());
+        return;
+    }
 
     CTxDestination updateDest, regDest;
 
     // we get the scriptPubKey that pays for the update from the used output
     ExtractDestination(inputTx.vout[updateTx.vin[0].prevout.n].scriptPubKey, updateDest);
-    ExtractDestination((*block.vtx[bdnsRecord.regTxIndex]).vout[1].scriptPubKey, regDest);
+    ExtractDestination((*regTx).vout[1].scriptPubKey, regDest);
 
-    LogPrint("bdns", "in %s updDest and regDest were the same: %s\n", __func__, (updateDest == regDest) ? "true" : "false");
+    LogPrint("bdns", "BlockchainDNS -- %s: updateDest and regDest were the same: %s\n", __func__, (updateDest == regDest) ? "true" : "false");
 
     if (updateDest == regDest) {
-        if (pbdnsdb->UpdateBDNSRecord(bdnsName, newIpfsHash))
-            LogPrint("bdns", "successfully updated domain name %s with IPFS hash %s\n", bdnsName, newIpfsHash);
-        else
-            LogPrint("bdns", "failed to update domain name %s with IPFS hash %s\n", bdnsName, newIpfsHash);
+        if (pbdnsdb->UpdateBDNSRecord(bdnsName, newContent, updateTx.GetHash()))
+            LogPrint("bdns", "BlockchainDNS -- %s: successfully updated domain name %s with content %s\n", __func__, bdnsName, newContent);
+        else {
+            pbdnsdb->WriteCorruptionState(true);
+            LogPrint("bdns", "BlockchainDNS -- %s: failed to update domain name %s with content %s\n", __func__, bdnsName, newContent);
+        }
     } else
-        LogPrint("bdns", "the address used for updating the domain name is not the same as the one used for registration\n");
+        LogPrint("bdns", "BlockchainDNS -- %s: the address used for updating the domain name is not the same as the one used for registration\n", __func__);
 
     return;
 }
@@ -3643,36 +3718,176 @@ void ProcessPossibleBdnsIpfsBan(const CScript& scriptPubKey) {
 
     pbdnsdb->EraseBDNSRecord(bdnsName);
 
-    return;
+    if (pbdnsdb->HasBDNSRecord(bdnsName)) {
+        pbdnsdb->WriteCorruptionState(true);
+        LogPrint("bdns", "BlockchainDNS -- %s: banned registration under domain name %s still exists\n", __func__, bdnsName);
+    }
 }
 
-void ProcessExpiredBdnsRecords(CBlockIndex* pblockindex) {
-    CBlock block;
-
-    if (!ReadBlockFromDisk(block, pblockindex->GetBlockPos(), Params().GetConsensus(), false))
-        LogPrint("bdns", "in %s can't read block from disk\n", __func__);
+void ProcessBdnsTransactions(const CBlock& block, const CBlockIndex& pindex, const Consensus::Params& consensusParams)
+{
+    if (!pbdnsdb->SetHeight(pindex.nHeight))
+        LogPrintf("BlockchainDNS -- %s: failed to set the BDNS height\n", __func__);
 
     CTransactionRef inputTx;
     uint256 txHash;
-    std::string bdnsName, ipfsHash;
+
+    for (unsigned int i = 1; i < block.vtx.size(); i++) {
+        const CTransaction& tx = *block.vtx[i];
+
+        if (tx.nType == TRANSACTION_NORMAL && tx.vin.size() == 1 && tx.vout.size() == 2 && tx.vout[0].scriptPubKey.Find(OP_RETURN)) {
+            if (tx.vout[0].nValue == 10 * CENT) {
+                txHash = tx.vin[0].prevout.hash;
+
+                if (!GetTransaction(txHash, inputTx, consensusParams, block)) { // used to check that miners are paid enough
+                    pbdnsdb->WriteCorruptionState(true);
+                    LogPrint("bdns", "BlockchainDNS -- %s: Register -- No information available about transaction %s\n", __func__, txHash.ToString());
+                } else if ((*inputTx).vout[tx.vin[0].prevout.n].nValue >= tx.vout[1].nValue + 20 * CENT)
+                    ProcessPossibleBdnsIpfsRegistration(tx.vout[0].scriptPubKey, tx.GetHash());
+                else
+                    LogPrint("bdns", "BlockchainDNS -- %s: Register -- Miners were not paid enough for the BDNS-IPFS registration in transaction %s\n", __func__, tx.GetHash().ToString());
+            } else if (tx.vout[0].nValue == 0.5 * CENT) {
+                txHash = tx.vin[0].prevout.hash;
+
+                if (!GetTransaction(txHash, inputTx, consensusParams, block)) {
+                    pbdnsdb->WriteCorruptionState(true);
+                    LogPrint("bdns", "BlockchainDNS -- %s: Update -- No information available about transaction %s\n", __func__, txHash.ToString());
+                } else if ((*inputTx).vout[tx.vin[0].prevout.n].nValue >= tx.vout[1].nValue + 1 * CENT) {
+                    ProcessPossibleBdnsIpfsUpdate(tx, *inputTx);
+                } else
+                    LogPrint("bdns", "BlockchainDNS -- %s: Update -- Miners were not paid enough for the BDNS-IPFS update in transaction %s\n", __func__, tx.GetHash().ToString());
+            } else if (tx.vout[0].nValue == 0.25 * CENT) {
+                txHash = tx.vin[0].prevout.hash;
+
+                if (!GetTransaction(txHash, inputTx, consensusParams, block)) {
+                    pbdnsdb->WriteCorruptionState(true);
+                    LogPrint("bdns", "BlockchainDNS -- %s: Ban -- No information available about transaction %s\n", __func__, txHash.ToString());
+                } else if ((*inputTx).vout[tx.vin[0].prevout.n].nValue >= tx.vout[1].nValue + 0.5 * CENT) {
+                    CTxDestination banningAddress;
+
+                    if (ExtractDestination((*inputTx).vout[tx.vin[0].prevout.n].scriptPubKey, banningAddress) &&
+                        CBitcoinAddress(banningAddress) == CBitcoinAddress("CTQfyA4XDRpCZECo2sxaJFdJDLgeVmxoZC"))
+                            ProcessPossibleBdnsIpfsBan(tx.vout[0].scriptPubKey);
+                } else
+                    LogPrint("bdns", "BlockchainDNS -- %s: Ban -- Miners were not paid enough for the BDNS-IPFS ban in transaction %s\n", __func__, tx.GetHash().ToString());
+            }
+        }
+    }
+
+    ProcessExpiredBdnsRecords(pindex.GetAncestor(pindex.nHeight - consensusParams.nBlocksPerYear), consensusParams);
+}
+
+void ProcessExpiredBdnsRecords(const CBlockIndex* pblockindex, const Consensus::Params& consensusParams) {
+    CBlock block;
+
+    if (!ReadBlockFromDisk(block, pblockindex->GetBlockPos(), consensusParams)) {
+        pbdnsdb->WriteCorruptionState(true);
+        LogPrint("bdns", "BlockchainDNS -- %s: failed to read block from disk\n", __func__);
+        return;
+    }
+
+    CTransactionRef inputTx;
+    uint256 txHash;
+    std::string bdnsName, content;
 
     for (unsigned int i = 1; i < block.vtx.size(); i++) {
         const CTransaction& tx = *block.vtx[i];
 
         if (tx.nType == TRANSACTION_NORMAL && tx.vin.size() == 1 && tx.vout.size() == 2 && tx.vout[0].scriptPubKey.Find(OP_RETURN) && tx.vout[0].nValue == 10 * CENT) {
             txHash = tx.vin[0].prevout.hash;
-            
-            if (!GetTransaction(txHash, inputTx, Params().GetConsensus(), txHash, true)) // used to check that miners are paid enough
-                LogPrint("bdns", "No information available about transaction %s\n", txHash.ToString());
-            else if ((*inputTx).vout[tx.vin[0].prevout.n].nValue >= tx.vout[1].nValue + 20 * CENT) {
-                ExtractBdnsIpfsFromScript(tx.vout[0].scriptPubKey, bdnsName, ipfsHash);
+
+            if (!GetTransaction(txHash, inputTx, consensusParams, block)) { // used to check that miners are paid enough
+                pbdnsdb->WriteCorruptionState(true);
+                LogPrint("bdns", "BlockchainDNS -- %s: No information available about transaction %s\n",  __func__, txHash.ToString());
+            } else if ((*inputTx).vout[tx.vin[0].prevout.n].nValue >= tx.vout[1].nValue + 20 * CENT) {
+                if (!ExtractBdnsIpfsFromScript(tx.vout[0].scriptPubKey, bdnsName, content))
+                    continue;
 
                 if (pbdnsdb->EraseBDNSRecord(bdnsName))
-                    LogPrint("bdns", "successfully deleted expired registration under domain name %s\n", bdnsName);
+                    LogPrint("bdns", "BlockchainDNS -- %s: successfully deleted expired registration under domain name %s\n", __func__, bdnsName);
                 else
-                    LogPrint("bdns", "failed to delete expired registration under domain name %s\n", bdnsName);
+                    LogPrint("bdns", "BlockchainDNS -- %s: failed to delete expired registration under domain name %s\n", __func__, bdnsName);
+
+                if (pbdnsdb->HasBDNSRecord(bdnsName)) {
+                    pbdnsdb->WriteCorruptionState(true);
+                    LogPrint("bdns", "BlockchainDNS -- %s: expired registration under domain name %s still exists\n", __func__, bdnsName);
+                }
             }
         }
+    }
+}
+
+bool ProcessBdnsActiveHeight(const int& nHeight, const Consensus::Params& consensusParams) {
+    CBlockIndex* pindex = chainActive[nHeight];
+    CBlock block;
+
+    // TODO_ADOT_FUTURE checking the header is a very expensive operation in ReadBlockFromDisk due to Argon2d16k
+    if (!ReadBlockFromDisk(block, pindex->GetBlockPos(), consensusParams)) {
+        pbdnsdb->WriteCorruptionState(true);
+        LogPrint("bdns", "BlockchainDNS -- %s: failed to read block from disk\n", __func__);
+        return false;
+    }
+
+    ProcessBdnsTransactions(block, *pindex, consensusParams);
+
+    return !pbdnsdb->PossibleCorruption();
+}
+
+void ReindexBdnsRecords() {
+    if (!pbdnsdb->AwaitsReindexing())
+        return;
+
+    fReindexingBdns = true;
+
+    pbdnsdb->CleanDatabase();
+
+    const Consensus::Params& consensusParams = Params().GetConsensus();
+    CBlockIndex* lastProcessedIndex;
+    int lastProcessedHeight;
+
+    {
+        LOCK(cs_main);
+        if (chainActive.Height() < consensusParams.nHardForkEight) {
+            fReindexingBdns = false;
+            if (!pbdnsdb->WriteReindexing(false))
+                LogPrintf("BlockchainDNS -- %s: failed to write reindexing state\n", __func__);
+            return;
+        } else {
+            lastProcessedIndex = chainActive.Tip()->pprev->pprev;
+            lastProcessedHeight = std::max(consensusParams.nHardForkEight, lastProcessedIndex->nHeight);
+        }
+    }
+
+    // blocks are getting indexed without a lock until getting very close to the tip, if any corruption is detected the indexing stops
+    for (int i = consensusParams.nHardForkEight; i < lastProcessedHeight; i++) {
+        boost::this_thread::interruption_point();
+
+        if (!ProcessBdnsActiveHeight(i, consensusParams)) {
+            fReindexingBdns = false;
+            if (!pbdnsdb->WriteReindexing(false))
+                LogPrintf("BlockchainDNS -- %s: failed to write reindexing state\n", __func__);
+            return;
+        }
+    }
+
+    {
+        // the active chain might suffer changes while we scan its last blocks so we must take a lock for safe processing of the BDNS
+        LOCK(cs_main);
+        // if the last processed block is no longer present in the chain then corruption is still possible   
+        if (chainActive.Contains(lastProcessedIndex)) {
+            for (int i = lastProcessedHeight; i <= chainActive.Height(); i++)
+                if (!ProcessBdnsActiveHeight(i, consensusParams)) {
+                    fReindexingBdns = false;
+                    if (!pbdnsdb->WriteReindexing(false))
+                        LogPrintf("BlockchainDNS -- %s: failed to write reindexing state\n", __func__);
+                    return;
+                }
+        } else
+            pbdnsdb->WriteCorruptionState(true);
+
+        fReindexingBdns = false;
+        if (!pbdnsdb->WriteReindexing(false))
+            LogPrintf("BlockchainDNS -- %s: failed to write reindexing state\n", __func__);
     }
 }
 
@@ -3831,10 +4046,6 @@ static bool AcceptBlock(const std::shared_ptr<const CBlock>& pblock, CValidation
                 AbortNode(state, "Failed to write block");
         if (!ReceivedBlockTransactions(block, state, pindex, blockPos))
             return error("AcceptBlock(): ReceivedBlockTransactions failed");
-        if (nHeight >= chainparams.GetConsensus().nHardForkEight) {
-            ProcessBdnsTransactions(block, *pindex);
-            ProcessExpiredBdnsRecords(pindex->GetAncestor(nHeight - Params().GetConsensus().nBlocksPerYear)); // nHeight = chainActive.Height() + 1
-        }
     } catch (const std::runtime_error& e) {
         return AbortNode(state, std::string("System error: ") + e.what());
     }
@@ -3843,51 +4054,6 @@ static bool AcceptBlock(const std::shared_ptr<const CBlock>& pblock, CValidation
         FlushStateToDisk(state, FLUSH_STATE_NONE); // we just allocated more disk space for block files
 
     return true;
-}
-
-void ProcessBdnsTransactions(const CBlock& block, const CBlockIndex& pindex)
-{
-    // check for BDNS-IPFS registrations
-    CTransactionRef inputTx;
-    uint256 txHash;
-    for (unsigned int i = 1; i < block.vtx.size(); i++) {
-        const CTransaction& tx = *block.vtx[i];
-
-        if (tx.nType == TRANSACTION_NORMAL && tx.vin.size() == 1 && tx.vout.size() == 2 && tx.vout[0].scriptPubKey.Find(OP_RETURN)) {
-            if (tx.vout[0].nValue == 10 * CENT) {
-                txHash = tx.vin[0].prevout.hash;
-
-                if (!GetTransaction(txHash, inputTx, Params().GetConsensus(), txHash, true)) // used to check that miners are paid enough
-                    LogPrint("bdns", "No information available about transaction %s\n", txHash.ToString());
-                else if ((*inputTx).vout[tx.vin[0].prevout.n].nValue >= tx.vout[1].nValue + 20 * CENT)
-                    ProcessPossibleBdnsIpfsRegistration(tx.vout[0].scriptPubKey, pindex.nHeight, i);
-                else
-                    LogPrint("bdns", "Miners were not paid enough for the BDNS-IPFS registration in transaction %s\n", tx.GetHash().ToString());
-            } else if (tx.vout[0].nValue == 0.5 * CENT) {
-                txHash = tx.vin[0].prevout.hash;
-
-                if (!GetTransaction(txHash, inputTx, Params().GetConsensus(), txHash, true))
-                    LogPrint("bdns", "No information available about transaction %s\n", txHash.ToString());
-                else if ((*inputTx).vout[tx.vin[0].prevout.n].nValue >= tx.vout[1].nValue + 1 * CENT) {
-                    ProcessPossibleBdnsIpfsUpdate(tx, *inputTx, pindex);
-                } else
-                    LogPrint("bdns", "Miners were not paid enough for the BDNS-IPFS update in transaction %s\n", tx.GetHash().ToString());
-            } else if (tx.vout[0].nValue == 0.25 * CENT) {
-                txHash = tx.vin[0].prevout.hash;
-
-                if (!GetTransaction(txHash, inputTx, Params().GetConsensus(), txHash, true))
-                    LogPrint("bdns", "No information available about transaction %s\n", txHash.ToString());
-                else if ((*inputTx).vout[tx.vin[0].prevout.n].nValue >= tx.vout[1].nValue + 0.5 * CENT) {
-                    CTxDestination banningAddress;
-
-                    if (ExtractDestination((*inputTx).vout[tx.vin[0].prevout.n].scriptPubKey, banningAddress) &&
-                        CBitcoinAddress(banningAddress) == CBitcoinAddress("CTQfyA4XDRpCZECo2sxaJFdJDLgeVmxoZC"))
-                            ProcessPossibleBdnsIpfsBan(tx.vout[0].scriptPubKey);
-                } else
-                    LogPrint("bdns", "Miners were not paid enough for the BDNS-IPFS ban in transaction %s\n", tx.GetHash().ToString());
-            }
-        }
-    }
 }
 
 bool ProcessNewBlock(const CChainParams& chainparams, const std::shared_ptr<const CBlock> pblock, bool fForceProcessing, bool *fNewBlock)
@@ -4320,6 +4486,7 @@ bool CVerifyDB::VerifyDB(const CChainParams& chainparams, CCoinsView *coinsview,
     int nGoodTransactions = 0;
     CValidationState state;
     int reportDone = 0;
+    bool fPossibleCorruption = pbdnsdb->PossibleCorruption(); // record initial corruption state of BDNS
     LogPrintf("[0%%]...");
     for (CBlockIndex* pindex = chainActive.Tip(); pindex && pindex->pprev; pindex = pindex->pprev)
     {
@@ -4390,6 +4557,9 @@ bool CVerifyDB::VerifyDB(const CChainParams& chainparams, CCoinsView *coinsview,
         }
     }
 
+    // if all checks went well then the BDNS should have the same state as before the checks
+    pbdnsdb->SetHeight(chainActive.Height());
+    pbdnsdb->WriteCorruptionState(fPossibleCorruption);
     LogPrintf("[DONE].\n");
     LogPrintf("No coin database inconsistencies in last %i blocks (%i transactions)\n", chainActive.Height() - pindexState->nHeight, nGoodTransactions);
 

@@ -4280,6 +4280,69 @@ std::map<CTxDestination, CAmount> CWallet::GetAddressBalances()
     return balances;
 }
 
+std::map<std::string, std::tuple<CTxDestination, std::string, int>> CWallet::GetOwnedDomains()
+{
+    std::map<std::string, std::tuple<CTxDestination, std::string, int>> ownedDomains;
+
+    {
+        LOCK(cs_wallet);
+        BOOST_FOREACH(PAIRTYPE(uint256, CWalletTx) walletEntry, mapWallet)
+        {
+            CWalletTx *pcoin = &walletEntry.second;
+            const CTransaction& checkedTx = *pcoin->tx;
+            std::string bdnsName, content;
+
+            if (!pcoin->IsTrusted() || pcoin->IsCoinBase())
+                continue;
+            
+            int nDepth = pcoin->GetDepthInMainChain();
+
+            // unconfirmed
+            if ((nDepth < (pcoin->IsFromMe(ISMINE_ALL) ? 0 : 1)) && !pcoin->IsLockedByInstantSend())
+                continue;
+            
+            // expired
+            if ((nDepth > Params().GetConsensus().nBlocksPerYear))
+                continue;
+            
+            // format check
+            if (!(checkedTx.nType == TRANSACTION_NORMAL && checkedTx.vin.size() == 1 && checkedTx.vout.size() == 2 && checkedTx.vout[0].scriptPubKey.Find(OP_RETURN)))
+                continue;
+
+            // check if the necessary amount was paid
+            if (!(GetDebit(checkedTx.vin[0], ISMINE_ALL) >= GetCredit(checkedTx.vout[1], ISMINE_ALL) + 20 * CENT))
+                continue;
+            
+            CTxDestination ownerAddr;
+            if(!ExtractDestination(checkedTx.vout[1].scriptPubKey, ownerAddr))
+                continue;
+            
+            if (!ExtractBdnsIpfsFromScript(checkedTx.vout[0].scriptPubKey, bdnsName, content))
+                continue;
+            
+            // all checks passed, this is a domain name registration transaction with a valid format created by this wallet that hasn't expired yet
+            // last check is whether or not it is recorded in the BlockchainDNS index
+            // users might create invalid registrations so we only take into consideration valid (recorded) ones
+            BDNSRecord bdnsRecord;
+
+            if (!pbdnsdb->ReadBDNSRecord(bdnsName, bdnsRecord)) {
+                LogPrint("bdns", "BlockchainDNS -- %s: failed to read domain %s\n", __func__, bdnsName);
+                continue;
+            }
+
+            if (bdnsRecord.regTxid != checkedTx.GetHash())
+                continue;
+
+            // fetch the latest content residing under the BDNS domain
+            pbdnsdb->GetContentFromBDNSRecord(bdnsName, content);
+            
+            ownedDomains[bdnsName] = std::make_tuple(ownerAddr, content, Params().GetConsensus().nBlocksPerYear - nDepth);
+        }
+    }
+
+    return ownedDomains;
+}
+
 std::set< std::set<CTxDestination> > CWallet::GetAddressGroupings()
 {
     AssertLockHeld(cs_wallet); // mapWallet
