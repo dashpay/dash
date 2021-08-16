@@ -786,6 +786,27 @@ UniValue getblocktemplate(const JSONRPCRequest& request)
     result.push_back(Pair("masternode_payments_started", pindexPrev->nHeight + 1 > consensusParams.nMasternodePaymentsStartBlock));
     result.push_back(Pair("masternode_payments_enforced", true));
 
+    if (nNextHeight > consensusParams.nHardForkTwo && nNextHeight < consensusParams.nHardForkSeven || nNextHeight >= consensusParams.nHardForkEight) {
+        std::string strDevAddress; 
+        CAmount fundReward = GetDevelopmentFundPayment(nNextHeight);
+
+        if (nNextHeight <= consensusParams.nHardForkThree)
+            strDevAddress = "53NTdWeAxEfVjXufpBqU2YKopyZYmN9P1V";
+        else if (nNextHeight > consensusParams.nHardForkThree && nNextHeight < consensusParams.nHardForkSeven)
+            strDevAddress = "CPhPudPYNC8uXZPCHovyTyY98Q6fJzjJLm";
+        else // the Dev Fund won't be paid until nHardForkEight is reached
+            strDevAddress = "CKNvCGE3g3v1299oNraXnEUDBe3zwMj8E9";
+
+        UniValue fundRewardObj(UniValue::VOBJ);
+        CScript devScriptPubKey = GetScriptForDestination(CBitcoinAddress(strDevAddress.c_str()).Get());
+
+        fundRewardObj.push_back(Pair("payee", strDevAddress.c_str()));
+        fundRewardObj.push_back(Pair("script", HexStr(devScriptPubKey.begin(), devScriptPubKey.end())));
+        fundRewardObj.push_back(Pair("amount", fundReward));
+
+        result.push_back(Pair("fundreward", fundRewardObj));
+    }
+
     UniValue superblockObjArray(UniValue::VARR);
     if(pblocktemplate->voutSuperblockPayments.size()) {
         for (const auto& txout : pblocktemplate->voutSuperblockPayments) {
