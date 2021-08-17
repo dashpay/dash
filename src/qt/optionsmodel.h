@@ -61,6 +61,7 @@ public:
         DatabaseCache,          // int
         SpendZeroConfChange,    // bool
         ShowMasternodesTab,     // bool
+        ShowGovernanceTab,      // bool
         CoinJoinEnabled,     // bool
         ShowAdvancedCJUI,       // bool
         ShowCoinJoinPopups,  // bool
