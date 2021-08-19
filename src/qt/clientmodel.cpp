@@ -16,6 +16,7 @@
 #include <chainparams.h>
 #include <checkpoints.h>
 #include <clientversion.h>
+#include <governance/object.h>
 #include <interfaces/handler.h>
 #include <interfaces/node.h>
 #include <validation.h>
@@ -122,6 +123,12 @@ int64_t ClientModel::getHeaderTipTime() const
     }
     return cachedBestHeaderTime;
 }
+
+std::vector<const CGovernanceObject*> ClientModel::getAllGovernanceObjects()
+{
+    return m_node.gov().getAllNewerThan(0);
+}
+
 
 void ClientModel::updateTimer()
 {
