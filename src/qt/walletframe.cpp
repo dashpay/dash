@@ -6,6 +6,7 @@
 #include <qt/walletmodel.h>
 
 #include <qt/bitcoingui.h>
+#include <qt/governancelist.h>
 #include <qt/masternodelist.h>
 #include <qt/walletview.h>
 
@@ -32,6 +33,10 @@ WalletFrame::WalletFrame(BitcoinGUI* _gui) :
 
     masternodeListPage = new MasternodeList();
     walletStack->addWidget(masternodeListPage);
+
+    governanceListPage = new GovernanceList();
+    walletStack->addWidget(governanceListPage);
+
 }
 
 WalletFrame::~WalletFrame()
@@ -119,6 +124,20 @@ void WalletFrame::showOutOfSyncWarning(bool fShow)
     for (i = mapWalletViews.constBegin(); i != mapWalletViews.constEnd(); ++i)
         i.value()->showOutOfSyncWarning(fShow);
 }
+
+void WalletFrame::gotoGovernancePage()
+{
+    QMap<WalletModel*, WalletView*>::const_iterator i;
+
+    if (mapWalletViews.empty()) {
+        walletStack->setCurrentWidget(governanceListPage);
+        return;
+    }
+
+    for (i = mapWalletViews.constBegin(); i != mapWalletViews.constEnd(); ++i)
+        i.value()->gotoGovernancePage();
+}
+
 
 void WalletFrame::gotoOverviewPage()
 {
