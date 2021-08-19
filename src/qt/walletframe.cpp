@@ -48,6 +48,7 @@ void WalletFrame::setClientModel(ClientModel *_clientModel)
     this->clientModel = _clientModel;
 
     masternodeListPage->setClientModel(_clientModel);
+    governanceListPage->setClientModel(_clientModel);
 
     for (auto i = mapWalletViews.constBegin(); i != mapWalletViews.constEnd(); ++i) {
         i.value()->setClientModel(_clientModel);

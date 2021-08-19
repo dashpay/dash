@@ -160,6 +160,9 @@ void WalletView::setClientModel(ClientModel *_clientModel)
     if (settings.value("fShowMasternodesTab").toBool()) {
         masternodeListPage->setClientModel(_clientModel);
     }
+    if (settings.value("fShowGovernanceTab").toBool()) {
+        governanceListPage->setClientModel(_clientModel);
+    }
 }
 
 void WalletView::setWalletModel(WalletModel *_walletModel)
