@@ -372,6 +372,8 @@ QVariant OptionsModel::data(const QModelIndex & index, int role) const
             return settings.value("bSpendZeroConfChange");
         case ShowMasternodesTab:
             return settings.value("fShowMasternodesTab");
+        case ShowGovernanceTab:
+            return settings.value("fShowGovernanceTab");
         case CoinJoinEnabled:
             return settings.value("fCoinJoinEnabled");
         case ShowAdvancedCJUI:
@@ -526,6 +528,12 @@ bool OptionsModel::setData(const QModelIndex & index, const QVariant & value, in
         case ShowMasternodesTab:
             if (settings.value("fShowMasternodesTab") != value) {
                 settings.setValue("fShowMasternodesTab", value);
+                setRestartRequired(true);
+            }
+            break;
+        case ShowGovernanceTab:
+            if (settings.value("fShowGovernanceTab") != value) {
+                settings.setValue("fShowGovernanceTab", value);
                 setRestartRequired(true);
             }
             break;

@@ -8,6 +8,7 @@
 
 #include <evo/deterministicmns.h>
 #include <interfaces/node.h>
+#include <governance/governance.h>
 #include <sync.h>
 
 #include <QObject>
@@ -67,6 +68,9 @@ public:
     CDeterministicMNList getMasternodeList() const;
     void refreshMasternodeList();
 
+    void setGovernanceList(std::vector<const CGovernanceObject*> list);
+    std::vector<const CGovernanceObject*> getGovernanceList();
+
     //! Returns enum BlockSource of the current importing/syncing state
     enum BlockSource getBlockSource() const;
     //! Return warnings to be displayed in status bar
@@ -92,6 +96,7 @@ private:
     std::unique_ptr<interfaces::Handler> m_handler_notify_block_tip;
     std::unique_ptr<interfaces::Handler> m_handler_notify_header_tip;
     std::unique_ptr<interfaces::Handler> m_handler_notify_masternodelist_changed;
+    std::unique_ptr<interfaces::Handler> m_handler_notify_governancelist_changed;
     std::unique_ptr<interfaces::Handler> m_handler_notify_additional_data_sync_progess_changed;
     OptionsModel *optionsModel;
     PeerTableModel *peerTableModel;
@@ -104,6 +109,7 @@ private:
     // representation of the list in UI during initial sync/reindex, so we cache it here too.
     mutable CCriticalSection cs_mnlinst; // protects mnListCached
     CDeterministicMNList mnListCached;
+    std::vector<const CGovernanceObject*> govListCached;
 
     void subscribeToCoreSignals();
     void unsubscribeFromCoreSignals();
@@ -111,6 +117,7 @@ private:
 Q_SIGNALS:
     void numConnectionsChanged(int count);
     void masternodeListChanged() const;
+    void governanceListChanged() const;
     void numBlocksChanged(int count, const QDateTime& blockDate, const QString& blockHash, double nVerificationProgress, bool header);
     void additionalDataSyncProgressChanged(double nSyncProgress);
     void mempoolSizeChanged(long count, size_t mempoolSizeInBytes);

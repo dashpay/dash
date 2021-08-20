@@ -16,6 +16,7 @@
 class CWallet;
 class CBlockIndex;
 class CDeterministicMNList;
+class CGovernanceObject;
 
 /** General change type (added, updated, removed). */
 enum ChangeType
@@ -110,6 +111,9 @@ public:
 
     /** Masternode list has changed */
     boost::signals2::signal<void (const CDeterministicMNList&)> NotifyMasternodeListChanged;
+
+    /** Governance list has changed */
+    boost::signals2::signal<void (std::vector<const CGovernanceObject*>)> NotifyGovernanceListChanged;
 
     /** Additional data sync progress changed */
     boost::signals2::signal<void (double nSyncProgress)> NotifyAdditionalDataSyncProgressChanged;
