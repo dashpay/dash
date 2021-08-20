@@ -116,32 +116,47 @@
          </attribute>
          <column>
           <property name="text">
-           <string>No</string>
+           <string>Hash</string>
           </property>
          </column>
          <column>
           <property name="text">
-           <string>Title</string>
+           <string>Name</string>
           </property>
          </column>
          <column>
           <property name="text">
-           <string>Owner</string>
+           <string>Creation</string>
           </property>
          </column>
          <column>
           <property name="text">
-           <string>Status</string>
+           <string>Start</string>
           </property>
          </column>
          <column>
           <property name="text">
-           <string>Active</string>
+           <string>End</string>
           </property>
          </column>
          <column>
           <property name="text">
            <string>Budget</string>
+          </property>
+         </column>
+         <column>
+          <property name="text">
+           <string>url</string>
+          </property>
+         </column>
+         <column>
+          <property name="text">
+           <string>Type</string>
+          </property>
+         </column>
+         <column>
+          <property name="text">
+           <string>Active</string>
           </property>
          </column>
         </widget>

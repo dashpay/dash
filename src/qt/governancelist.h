@@ -9,8 +9,9 @@
 #include <QTimer>
 #include <QWidget>
 
-#define GOVERNANCELIST_UPDATE_SECONDS 3
+#define GOVERNANCELIST_UPDATE_SECONDS 10
 #define GOVERNANCELIST_FILTER_COOLDOWN_SECONDS 3
+#define GOVERNANCELIST_DATEFMT "yyyy-MM-dd hh:mm"
 
 namespace Ui
 {
@@ -29,12 +30,15 @@ public:
     ~GovernanceList();
 
     enum {
-        COLUMN_NO,
-        COLUMN_TITLE,
-        COLUMN_OWNER,
-        COLUMN_STATUS,
+        COLUMN_HASH,
+        COLUMN_NAME,
+        COLUMN_CREATION,
+        COLUMN_START,
+        COLUMN_END,
+        COLUMN_AMOUNT,
+        COLUMN_URL,
+        COLUMN_TYPE,
         COLUMN_ACTIVE,
-        COLUMN_BUDGET,
     };
 
     void setClientModel(ClientModel* clientModel);
