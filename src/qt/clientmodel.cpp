@@ -52,6 +52,7 @@ ClientModel::ClientModel(interfaces::Node& node, OptionsModel *_optionsModel, QO
     mnListCached = std::make_shared<CDeterministicMNList>();
 
     subscribeToCoreSignals();
+
 }
 
 ClientModel::~ClientModel()
@@ -75,6 +76,7 @@ int ClientModel::getNumConnections(unsigned int flags) const
 
 void ClientModel::setMasternodeList(const CDeterministicMNList& mnList)
 {
+
     LOCK(cs_mnlinst);
     if (mnListCached->GetBlockHash() == mnList.GetBlockHash()) {
         return;
@@ -82,6 +84,7 @@ void ClientModel::setMasternodeList(const CDeterministicMNList& mnList)
     mnListCached = std::make_shared<CDeterministicMNList>(mnList);
     Q_EMIT masternodeListChanged();
 }
+
 
 CDeterministicMNList ClientModel::getMasternodeList() const
 {
@@ -94,6 +97,25 @@ void ClientModel::refreshMasternodeList()
     LOCK(cs_mnlinst);
     setMasternodeList(m_node.evo().getListAtChainTip());
 }
+
+
+void ClientModel::setGovernanceList(std::vector<const CGovernanceObject*> list)
+{
+
+    govListCached = list;
+    Q_EMIT governanceListChanged();
+}
+
+
+std::vector<const CGovernanceObject*> ClientModel::getGovernanceList()
+{
+   // right now gets all the list. This may change
+    govListCached = governance.GetAllNewerThan(0);
+    std::cout << "list: " << govListCached.size();
+
+    return govListCached;
+}
+
 
 int ClientModel::getHeaderTipHeight() const
 {
@@ -289,6 +311,11 @@ static void NotifyMasternodeListChanged(ClientModel *clientmodel, const CDetermi
     clientmodel->setMasternodeList(newList);
 }
 
+static void NotifyGovernanceListChanged(ClientModel *clientmodel, std::vector<const CGovernanceObject*> newList)
+{
+    clientmodel->setGovernanceList(newList);
+}
+
 static void NotifyAdditionalDataSyncProgressChanged(ClientModel *clientmodel, double nSyncProgress)
 {
     QMetaObject::invokeMethod(clientmodel, "additionalDataSyncProgressChanged", Qt::QueuedConnection,
@@ -298,16 +325,17 @@ static void NotifyAdditionalDataSyncProgressChanged(ClientModel *clientmodel, do
 void ClientModel::subscribeToCoreSignals()
 {
     // Connect signals to client
-    m_handler_show_progress = m_node.handleShowProgress(std::bind(ShowProgress, this, std::placeholders::_1, std::placeholders::_2));
-    m_handler_notify_num_connections_changed = m_node.handleNotifyNumConnectionsChanged(std::bind(NotifyNumConnectionsChanged, this, std::placeholders::_1));
-    m_handler_notify_network_active_changed = m_node.handleNotifyNetworkActiveChanged(std::bind(NotifyNetworkActiveChanged, this, std::placeholders::_1));
-    m_handler_notify_alert_changed = m_node.handleNotifyAlertChanged(std::bind(NotifyAlertChanged, this));
-    m_handler_banned_list_changed = m_node.handleBannedListChanged(std::bind(BannedListChanged, this));
-    m_handler_notify_block_tip = m_node.handleNotifyBlockTip(std::bind(BlockTipChanged, this, std::placeholders::_1, std::placeholders::_2, std::placeholders::_3, std::placeholders::_4, std::placeholders::_5, false));
-    m_handler_notify_chainlock = m_node.handleNotifyChainLock(std::bind(NotifyChainLock, this, std::placeholders::_1, std::placeholders::_2));
-    m_handler_notify_header_tip = m_node.handleNotifyHeaderTip(std::bind(BlockTipChanged, this, std::placeholders::_1, std::placeholders::_2, std::placeholders::_3, std::placeholders::_4, std::placeholders::_5, true));
-    m_handler_notify_masternodelist_changed = m_node.handleNotifyMasternodeListChanged(std::bind(NotifyMasternodeListChanged, this, std::placeholders::_1));
-    m_handler_notify_additional_data_sync_progess_changed = m_node.handleNotifyAdditionalDataSyncProgressChanged(std::bind(NotifyAdditionalDataSyncProgressChanged, this, std::placeholders::_1));
+    m_handler_show_progress = m_node.handleShowProgress(boost::bind(ShowProgress, this, _1, _2));
+    m_handler_notify_num_connections_changed = m_node.handleNotifyNumConnectionsChanged(boost::bind(NotifyNumConnectionsChanged, this, _1));
+    m_handler_notify_network_active_changed = m_node.handleNotifyNetworkActiveChanged(boost::bind(NotifyNetworkActiveChanged, this, _1));
+    m_handler_notify_alert_changed = m_node.handleNotifyAlertChanged(boost::bind(NotifyAlertChanged, this));
+    m_handler_banned_list_changed = m_node.handleBannedListChanged(boost::bind(BannedListChanged, this));
+    m_handler_notify_block_tip = m_node.handleNotifyBlockTip(boost::bind(BlockTipChanged, this, _1, _2,_3, _4, _5, false));
+    m_handler_notify_chainlock = m_node.handleNotifyChainLock(boost::bind(NotifyChainLock, this, _1, _2));
+    m_handler_notify_header_tip = m_node.handleNotifyHeaderTip(boost::bind(BlockTipChanged, this, _1, _2, _3, _4, _5, true));
+    m_handler_notify_masternodelist_changed = m_node.handleNotifyMasternodeListChanged(boost::bind(NotifyMasternodeListChanged, this, _1));
+    m_handler_notify_governancelist_changed = m_node.handleNotifyGovernanceListChanged(boost::bind(NotifyGovernanceListChanged, this, _1));
+    m_handler_notify_additional_data_sync_progess_changed = m_node.handleNotifyAdditionalDataSyncProgressChanged(boost::bind(NotifyAdditionalDataSyncProgressChanged, this, _1));
 }
 
 void ClientModel::unsubscribeFromCoreSignals()

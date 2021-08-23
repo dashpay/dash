@@ -246,9 +246,9 @@ void OptionsDialog::setModel(OptionsModel *_model)
     connect(ui->databaseCache, static_cast<void (QSpinBox::*)(int)>(&QSpinBox::valueChanged), this, &OptionsDialog::showRestartWarning);
     connect(ui->threadsScriptVerif, static_cast<void (QSpinBox::*)(int)>(&QSpinBox::valueChanged), this, &OptionsDialog::showRestartWarning);
     /* Wallet */
-    connect(ui->showMasternodesTab, &QCheckBox::clicked, this, &OptionsDialog::showRestartWarning);
-    connect(ui->spendZeroConfChange, &QCheckBox::clicked, this, &OptionsDialog::showRestartWarning);
-    connect(ui->spendZeroConfChange, &QCheckBox::clicked, this, &OptionsDialog::showRestartWarning);
+    connect(ui->showMasternodesTab, SIGNAL(clicked(bool)), this, SLOT(showRestartWarning()));
+    connect(ui->showGovernanceTab, SIGNAL(clicked(bool)), this, SLOT(showRestartWarning()));
+    connect(ui->spendZeroConfChange, SIGNAL(clicked(bool)), this, SLOT(showRestartWarning()));
     /* Network */
     connect(ui->allowIncoming, &QCheckBox::clicked, this, &OptionsDialog::showRestartWarning);
     connect(ui->connectSocks, &QCheckBox::clicked, this, &OptionsDialog::showRestartWarning);
@@ -302,6 +302,7 @@ void OptionsDialog::setMapper()
     /* Wallet */
     mapper->addMapping(ui->coinControlFeatures, OptionsModel::CoinControlFeatures);
     mapper->addMapping(ui->showMasternodesTab, OptionsModel::ShowMasternodesTab);
+    mapper->addMapping(ui->showGovernanceTab, OptionsModel::ShowGovernanceTab);
     mapper->addMapping(ui->showAdvancedCJUI, OptionsModel::ShowAdvancedCJUI);
     mapper->addMapping(ui->showCoinJoinPopups, OptionsModel::ShowCoinJoinPopups);
     mapper->addMapping(ui->lowKeysWarning, OptionsModel::LowKeysWarning);

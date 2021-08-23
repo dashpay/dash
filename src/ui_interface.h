@@ -10,10 +10,12 @@
 #include <memory>
 #include <stdint.h>
 #include <string>
+#include <vector>
 
 class CWallet;
 class CBlockIndex;
 class CDeterministicMNList;
+class CGovernanceObject;
 namespace boost {
 namespace signals2 {
 class connection;
@@ -122,6 +124,9 @@ public:
 
     /** Masternode list has changed */
     ADD_SIGNALS_DECL_WRAPPER(NotifyMasternodeListChanged, void, const CDeterministicMNList&);
+
+    /** Governance list has changed */
+    ADD_SIGNALS_DECL_WRAPPER(NotifyGovernanceListChanged, void, std::vector<const CGovernanceObject*>);
 
     /** Additional data sync progress changed */
     ADD_SIGNALS_DECL_WRAPPER(NotifyAdditionalDataSyncProgressChanged, void, double nSyncProgress);

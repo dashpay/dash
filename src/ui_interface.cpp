@@ -23,6 +23,7 @@ struct UISignals {
     boost::signals2::signal<CClientUIInterface::NotifyChainLockSig> NotifyChainLock;
     boost::signals2::signal<CClientUIInterface::NotifyHeaderTipSig> NotifyHeaderTip;
     boost::signals2::signal<CClientUIInterface::NotifyMasternodeListChangedSig> NotifyMasternodeListChanged;
+    boost::signals2::signal<CClientUIInterface::NotifyGovernanceListChangedSig> NotifyGovernanceListChanged;
     boost::signals2::signal<CClientUIInterface::NotifyAdditionalDataSyncProgressChangedSig> NotifyAdditionalDataSyncProgressChanged;
     boost::signals2::signal<CClientUIInterface::BannedListChangedSig> BannedListChanged;
 } g_ui_signals;
@@ -49,6 +50,7 @@ ADD_SIGNALS_IMPL_WRAPPER(NotifyBlockTip);
 ADD_SIGNALS_IMPL_WRAPPER(NotifyChainLock);
 ADD_SIGNALS_IMPL_WRAPPER(NotifyHeaderTip);
 ADD_SIGNALS_IMPL_WRAPPER(NotifyMasternodeListChanged);
+ADD_SIGNALS_IMPL_WRAPPER(NotifyGovernanceListChanged);
 ADD_SIGNALS_IMPL_WRAPPER(NotifyAdditionalDataSyncProgressChanged);
 ADD_SIGNALS_IMPL_WRAPPER(BannedListChanged);
 
@@ -64,6 +66,7 @@ void CClientUIInterface::NotifyBlockTip(bool b, const CBlockIndex* i) { return g
 void CClientUIInterface::NotifyChainLock(const std::string& bestChainLockHash, int bestChainLockHeight) { return g_ui_signals.NotifyChainLock(bestChainLockHash, bestChainLockHeight); }
 void CClientUIInterface::NotifyHeaderTip(bool b, const CBlockIndex* i) { return g_ui_signals.NotifyHeaderTip(b, i); }
 void CClientUIInterface::NotifyMasternodeListChanged(const CDeterministicMNList& list) { return g_ui_signals.NotifyMasternodeListChanged(list); }
+void CClientUIInterface::NotifyGovernanceListChanged(std::vector<const CGovernanceObject*> list) { return g_ui_signals.NotifyGovernanceListChanged(list); }
 void CClientUIInterface::NotifyAdditionalDataSyncProgressChanged(double nSyncProgress) { return g_ui_signals.NotifyAdditionalDataSyncProgressChanged(nSyncProgress); }
 void CClientUIInterface::BannedListChanged() { return g_ui_signals.BannedListChanged(); }
 

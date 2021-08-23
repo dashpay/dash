@@ -162,6 +162,18 @@ public:
 
     // Public Getter methods
 
+    int64_t GetPaymentStartTime();
+
+    int64_t GetPaymentEndTime();
+
+    int64_t GetPaymentAmount();
+
+    int64_t GetCycles();
+
+    int64_t GetCurrentCycle();
+
+    std::string GetURL();
+
     int64_t GetCreationTime() const
     {
         return nTime;

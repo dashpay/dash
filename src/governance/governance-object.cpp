@@ -17,6 +17,8 @@
 
 #include <string>
 
+#define SECONDS_IN_ONE_MONTH 2629743
+
 CGovernanceObject::CGovernanceObject() :
     cs(),
     nObjectType(GOVERNANCE_OBJECT_UNKNOWN),
@@ -623,6 +625,80 @@ int CGovernanceObject::CountMatchingVotes(vote_signal_enum_t eVoteSignalIn, vote
 /**
 *   Get specific vote counts for each outcome (funding, validity, etc)
 */
+
+int64_t CGovernanceObject::GetPaymentStartTime()
+{
+    UniValue data;
+    GetData(data);
+    std::vector<UniValue> vals = data.getValues();
+
+    if(vals.size() > 4){
+        if(vals[4].isNum())
+            return vals[4].get_int();
+    }
+
+    return -1;
+}
+
+int64_t CGovernanceObject::GetPaymentEndTime()
+{
+    UniValue data;
+    GetData(data);
+    std::vector<UniValue> vals = data.getValues();
+
+    if(vals.size() > 0){
+        if(vals[0].isNum())
+            return vals[0].get_int();
+    }
+
+    return -1;
+}
+
+int64_t CGovernanceObject::GetCycles()
+{
+    int diffInSeconds = GetPaymentEndTime() - GetPaymentStartTime();
+    int cycle = std::round((float)((float)diffInSeconds / (float)SECONDS_IN_ONE_MONTH));
+
+    return cycle;
+}
+
+
+int64_t CGovernanceObject::GetCurrentCycle()
+{
+    int diffInSeconds = GetTime() - GetPaymentStartTime();
+    int cycle = std::round((float)((float)diffInSeconds / (float)SECONDS_IN_ONE_MONTH));
+
+    return cycle;
+}
+
+
+std::string CGovernanceObject::GetURL()
+{
+    UniValue data;
+    GetData(data);
+    std::vector<UniValue> vals = data.getValues();
+
+    if(vals.size() > 6){
+        if(vals[6].isStr())
+            return vals[6].get_str();
+    }
+
+    return "not a valid url";
+}
+
+int64_t CGovernanceObject::GetPaymentAmount()
+{
+    UniValue data;
+    GetData(data);
+    std::vector<UniValue> vals = data.getValues();
+
+    if(vals.size() > 3){
+        if(vals[3].isNum())
+            return vals[3].get_int();
+    }
+
+    return -1;
+}
 
 int CGovernanceObject::GetAbsoluteYesCount(vote_signal_enum_t eVoteSignalIn) const
 {

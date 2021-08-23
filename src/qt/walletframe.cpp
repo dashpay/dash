@@ -162,6 +162,14 @@ void WalletFrame::gotoMasternodePage()
         i.value()->gotoMasternodePage();
 }
 
+
+void WalletFrame::gotoGovernancePage()
+{
+    QMap<WalletModel*, WalletView*>::const_iterator i;
+    for (i = mapWalletViews.constBegin(); i != mapWalletViews.constEnd(); ++i)
+        i.value()->gotoGovernancePage();
+}
+
 void WalletFrame::gotoReceiveCoinsPage()
 {
     QMap<WalletModel*, WalletView*>::const_iterator i;

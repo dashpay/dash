@@ -34,6 +34,7 @@
 #include <ui_interface.h>
 #include <util/system.h>
 #include <qt/masternodelist.h>
+#include <qt/governancelist.h>
 
 #include <iostream>
 
@@ -73,8 +74,58 @@ const std::string BitcoinGUI::DEFAULT_UIPLATFORM =
 
 BitcoinGUI::BitcoinGUI(interfaces::Node& node, const NetworkStyle* networkStyle, QWidget* parent) :
     QMainWindow(parent),
+
+    enableWallet(false),
     m_node(node),
-    m_network_style(networkStyle)
+    clientModel(0),
+    walletFrame(0),
+    unitDisplayControl(0),
+    labelWalletEncryptionIcon(0),
+    labelWalletHDStatusIcon(0),
+    labelConnectionsIcon(0),
+    labelBlocksIcon(0),
+    progressBarLabel(0),
+    progressBar(0),
+    progressDialog(0),
+    appMenuBar(0),
+    appToolBar(0),
+    appToolBarLogoAction(0),
+    overviewButton(0),
+    historyButton(0),
+    masternodeButton(0),
+    governanceButton(0),
+    quitAction(0),
+    sendCoinsButton(0),
+    coinJoinCoinsButton(0),
+    sendCoinsMenuAction(0),
+    coinJoinCoinsMenuAction(0),
+    usedSendingAddressesAction(0),
+    usedReceivingAddressesAction(0),
+    signMessageAction(0),
+    verifyMessageAction(0),
+    aboutAction(0),
+    receiveCoinsButton(0),
+    receiveCoinsMenuAction(0),
+    optionsAction(0),
+    toggleHideAction(0),
+    encryptWalletAction(0),
+    backupWalletAction(0),
+    changePassphraseAction(0),
+    aboutQtAction(0),
+    openRPCConsoleAction(0),
+    openAction(0),
+    showHelpMessageAction(0),
+    showCoinJoinHelpAction(0),
+    trayIcon(0),
+    trayIconMenu(0),
+    dockIconMenu(0),
+    notificator(0),
+    rpcConsole(0),
+    helpMessageDialog(0),
+    modalOverlay(0),
+    tabGroup(0),
+    timerConnecting(0),
+    timerSpinner(0)
 {
     GUIUtil::loadTheme(true);
 
@@ -583,11 +634,18 @@ void BitcoinGUI::createToolBars()
             masternodeButton->setEnabled(true);
         }
 
-        connect(overviewButton, &QToolButton::clicked, this, &BitcoinGUI::gotoOverviewPage);
-        connect(sendCoinsButton, &QToolButton::clicked, [this]{ gotoSendCoinsPage(); });
-        connect(coinJoinCoinsButton, &QToolButton::clicked, [this]{ gotoCoinJoinCoinsPage(); });
-        connect(receiveCoinsButton, &QToolButton::clicked, this, &BitcoinGUI::gotoReceiveCoinsPage);
-        connect(historyButton, &QToolButton::clicked, this, &BitcoinGUI::gotoHistoryPage);
+        if (settings.value("fShowGovernanceTab").toBool()) {
+            governanceButton = new QToolButton(this);
+            governanceButton->setText(tr("&Governance"));
+            governanceButton->setStatusTip(tr("Browse governance"));
+            tabGroup->addButton(governanceButton);
+            connect(governanceButton, SIGNAL(clicked()), this, SLOT(gotoGovernancePage()));
+        }
+        connect(overviewButton, SIGNAL(clicked()), this, SLOT(gotoOverviewPage()));
+        connect(sendCoinsButton, SIGNAL(clicked()), this, SLOT(gotoSendCoinsPage()));
+        connect(coinJoinCoinsButton, SIGNAL(clicked()), this, SLOT(gotoCoinJoinCoinsPage()));
+        connect(receiveCoinsButton, SIGNAL(clicked()), this, SLOT(gotoReceiveCoinsPage()));
+        connect(historyButton, SIGNAL(clicked()), this, SLOT(gotoHistoryPage()));
 
         // Give the selected tab button a bolder font.
         connect(tabGroup, static_cast<void (QButtonGroup::*)(QAbstractButton *, bool)>(&QButtonGroup::buttonToggled), this, &BitcoinGUI::highlightTabButton);
@@ -638,6 +696,13 @@ void BitcoinGUI::createToolBars()
         QWidget *containerWidget = new QWidget();
         containerWidget->setLayout(layout);
         setCentralWidget(containerWidget);
+
+/*
+        governanceButton = new QToolButton(this);
+        governanceButton->setText(tr("&governances"));
+        governanceButton->setStatusTip(tr("Browse governances"));
+        tabGroup->addButton(governanceButton);
+        connect(governanceButton, SIGNAL(clicked()), this, SLOT(gotogovernancePage()));*/
     }
 #endif // ENABLE_WALLET
 }
@@ -804,6 +869,15 @@ void BitcoinGUI::setWalletActionsEnabled(bool enabled)
         coinJoinCoinsButton->setEnabled(enabled && clientModel->coinJoinOptions().isEnabled());
         receiveCoinsButton->setEnabled(enabled);
         historyButton->setEnabled(enabled);
+
+        if (masternodeButton != nullptr) {
+            QSettings settings;
+            masternodeButton->setEnabled(enabled && settings.value("fShowMasternodesTab").toBool());
+        }
+        if (governanceButton != nullptr) {
+            QSettings settings;
+            governanceButton->setEnabled(enabled && settings.value("fShowGovernanceTab").toBool());
+        }
     }
 #endif // ENABLE_WALLET
 
@@ -1003,6 +1077,15 @@ void BitcoinGUI::gotoMasternodePage()
     if (settings.value("fShowMasternodesTab").toBool() && masternodeButton) {
         masternodeButton->setChecked(true);
         if (walletFrame) walletFrame->gotoMasternodePage();
+    }
+}
+
+void BitcoinGUI::gotoGovernancePage()
+{
+    QSettings settings;
+    if (settings.value("fShowGovernanceTab").toBool() && governanceButton) {
+        governanceButton->setChecked(true);
+        if (walletFrame) walletFrame->gotoGovernancePage();
     }
 }
 

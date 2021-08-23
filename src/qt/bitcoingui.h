@@ -124,6 +124,7 @@ private:
     QToolButton* receiveCoinsButton = nullptr;
     QToolButton* historyButton = nullptr;
     QToolButton* masternodeButton = nullptr;
+    QToolButton* governanceButton = nullptr;
     QAction* appToolBarLogoAction = nullptr;
     QAction* quitAction = nullptr;
     QAction* sendCoinsMenuAction = nullptr;
@@ -293,6 +294,8 @@ public Q_SLOTS:
     void gotoHistoryPage();
     /** Switch to masternode page */
     void gotoMasternodePage();
+    /** Switch to governance page */
+    void gotoGovernancePage();
     /** Switch to receive coins page */
     void gotoReceiveCoinsPage();
     /** Switch to send coins page */

@@ -6,8 +6,8 @@
    <rect>
     <x>0</x>
     <y>0</y>
-    <width>583</width>
-    <height>420</height>
+    <width>595</width>
+    <height>461</height>
    </rect>
   </property>
   <property name="sizePolicy">
@@ -102,7 +102,7 @@
       </size>
      </property>
      <property name="currentIndex">
-      <number>5</number>
+      <number>1</number>
      </property>
      <widget class="QWidget" name="pageMain">
       <layout class="QVBoxLayout" name="verticalLayout_Main">
@@ -307,48 +307,55 @@
      <widget class="QWidget" name="pageWallet">
       <layout class="QVBoxLayout" name="verticalLayout_Wallet">
        <item>
-         <layout class="QVBoxLayout" name="verticalLayout_2">
-          <item>
-           <widget class="QCheckBox" name="coinControlFeatures">
-            <property name="toolTip">
-             <string>Whether to show coin control features or not.</string>
-            </property>
-            <property name="text">
-             <string>Enable coin &amp;control features</string>
-            </property>
-           </widget>
-          </item>
-          <item>
-           <widget class="QCheckBox" name="showMasternodesTab">
-            <property name="toolTip">
-             <string>Show additional tab listing all your masternodes in first sub-tab&lt;br/&gt;and all masternodes on the network in second sub-tab.</string>
-            </property>
-            <property name="text">
-             <string>Show Masternodes Tab</string>
-            </property>
-           </widget>
-          </item>
-          <item>
-           <widget class="QCheckBox" name="spendZeroConfChange">
-            <property name="toolTip">
-             <string>If you disable the spending of unconfirmed change, the change from a transaction&lt;br/&gt;cannot be used until that transaction has at least one confirmation.&lt;br/&gt;This also affects how your balance is computed.</string>
-            </property>
-            <property name="text">
-             <string>&amp;Spend unconfirmed change</string>
-            </property>
-           </widget>
-          </item>
-          <item>
-           <widget class="QCheckBox" name="coinJoinEnabled">
-            <property name="toolTip">
-             <string>Show mixing interface on Overview screen and reveal an additional screen which allows to spend fully mixed coins only.&lt;br/&gt;A new tab with more settings will also appear in this dialog, please make sure to check them before mixing your coins.</string>
-            </property>
-            <property name="text">
-             <string notr="true">Enable CoinJoin features</string>
-            </property>
-           </widget>
-          </item>
-         </layout>
+        <layout class="QVBoxLayout" name="verticalLayout_2">
+         <item>
+          <widget class="QCheckBox" name="coinControlFeatures">
+           <property name="toolTip">
+            <string>Whether to show coin control features or not.</string>
+           </property>
+           <property name="text">
+            <string>Enable coin &amp;control features</string>
+           </property>
+          </widget>
+         </item>
+         <item>
+          <widget class="QCheckBox" name="showMasternodesTab">
+           <property name="toolTip">
+            <string>Show additional tab listing all your masternodes in first sub-tab&lt;br/&gt;and all masternodes on the network in second sub-tab.</string>
+           </property>
+           <property name="text">
+            <string>Show Masternodes Tab</string>
+           </property>
+          </widget>
+         </item>
+         <item>
+          <widget class="QCheckBox" name="showGovernanceTab">
+           <property name="text">
+            <string>Show Governance Tab</string>
+           </property>
+          </widget>
+         </item>
+         <item>
+          <widget class="QCheckBox" name="spendZeroConfChange">
+           <property name="toolTip">
+            <string>If you disable the spending of unconfirmed change, the change from a transaction&lt;br/&gt;cannot be used until that transaction has at least one confirmation.&lt;br/&gt;This also affects how your balance is computed.</string>
+           </property>
+           <property name="text">
+            <string>&amp;Spend unconfirmed change</string>
+           </property>
+          </widget>
+         </item>
+         <item>
+          <widget class="QCheckBox" name="coinJoinEnabled">
+           <property name="toolTip">
+            <string>Show mixing interface on Overview screen and reveal an additional screen which allows to spend fully mixed coins only.&lt;br/&gt;A new tab with more settings will also appear in this dialog, please make sure to check them before mixing your coins.</string>
+           </property>
+           <property name="text">
+            <string notr="true">Enable CoinJoin features</string>
+           </property>
+          </widget>
+         </item>
+        </layout>
        </item>
        <item>
         <spacer name="verticalSpacer_Wallet">

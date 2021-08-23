@@ -443,6 +443,14 @@ class NodeImpl : public Node
                 fn(newList);
             }));
     }
+
+    std::unique_ptr<Handler> handleNotifyGovernanceListChanged(NotifyGovernanceListChangedFn fn) override
+    {
+        return MakeHandler(
+            ::uiInterface.NotifyGovernanceListChanged_connect([fn](std::vector<const CGovernanceObject*> newList) {
+                fn(newList);
+            }));
+    }
     std::unique_ptr<Handler> handleNotifyAdditionalDataSyncProgressChanged(NotifyAdditionalDataSyncProgressChangedFn fn) override
     {
         return MakeHandler(

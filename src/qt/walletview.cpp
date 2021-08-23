@@ -90,6 +90,11 @@ WalletView::WalletView(QWidget* parent) :
         addWidget(masternodeListPage);
     }
 
+    if (settings.value("fShowGovernanceTab").toBool()) {
+        governanceListPage = new GovernanceList();
+        addWidget(governanceListPage);
+    }
+
     // Clicking on a transaction on the overview pre-selects the transaction on the transaction history page
     connect(overviewPage, &OverviewPage::transactionClicked, transactionView, static_cast<void (TransactionView::*)(const QModelIndex&)>(&TransactionView::focusTransaction));
     connect(overviewPage, &OverviewPage::outOfSyncWarningClicked, this, &WalletView::requestedSyncWarningInfo);
@@ -156,6 +161,9 @@ void WalletView::setClientModel(ClientModel *_clientModel)
     if (settings.value("fShowMasternodesTab").toBool()) {
         masternodeListPage->setClientModel(_clientModel);
     }
+    if (settings.value("fShowGovernanceTab").toBool()) {
+        governanceListPage->setClientModel(_clientModel);
+    }
 }
 
 void WalletView::setWalletModel(WalletModel *_walletModel)
@@ -168,6 +176,9 @@ void WalletView::setWalletModel(WalletModel *_walletModel)
     QSettings settings;
     if (settings.value("fShowMasternodesTab").toBool()) {
         masternodeListPage->setWalletModel(_walletModel);
+    }
+    if (settings.value("fShowGovernanceTab").toBool()) {
+        governanceListPage->setWalletModel(_walletModel);
     }
     receiveCoinsPage->setModel(_walletModel);
     sendCoinsPage->setModel(_walletModel);
@@ -242,6 +253,15 @@ void WalletView::gotoMasternodePage()
     QSettings settings;
     if (settings.value("fShowMasternodesTab").toBool()) {
         setCurrentWidget(masternodeListPage);
+    }
+}
+
+
+void WalletView::gotoGovernancePage()
+{
+    QSettings settings;
+    if (settings.value("fShowGovernanceTab").toBool()) {
+        setCurrentWidget(governanceListPage);
     }
 }
 

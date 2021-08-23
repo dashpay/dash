@@ -28,6 +28,7 @@ class RPCTimerInterface;
 class UniValue;
 class proxyType;
 struct CNodeStateStats;
+struct CGovernanceObject;
 
 namespace interfaces {
 class Handler;
@@ -324,6 +325,12 @@ public:
     using NotifyMasternodeListChangedFn =
         std::function<void(const CDeterministicMNList& newList)>;
     virtual std::unique_ptr<Handler> handleNotifyMasternodeListChanged(NotifyMasternodeListChangedFn fn) = 0;
+
+    //! Register handler for governance list update messages.
+    using NotifyGovernanceListChangedFn =
+        std::function<void(std::vector<const CGovernanceObject*> newList)>;
+    virtual std::unique_ptr<Handler> handleNotifyGovernanceListChanged(NotifyGovernanceListChangedFn fn) = 0;
+
 
     //! Register handler for additional data sync progress update messages.
     using NotifyAdditionalDataSyncProgressChangedFn =
