@@ -155,6 +155,8 @@ static CBlock FindDevNetGenesisBlock(const CBlock &prevBlock, const CAmount& rew
     // iteration of the above loop will give a result already
     error("FindDevNetGenesisBlock: could not find devnet genesis block for %s", devNetName);
     assert(false);
+}
+
 // this one is for testing only
 static Consensus::LLMQParams llmq_test = {
         .type = Consensus::LLMQ_TEST,
@@ -1051,14 +1053,14 @@ void CRegTestParams::UpdateVersionBitsParametersFromArgs(const ArgsManager& args
     }
 }
 
-static std::unique_ptr<const CChainParams> globalChainParams;
+static std::unique_ptr<CChainParams> globalChainParams;
 
 const CChainParams &Params() {
     assert(globalChainParams);
     return *globalChainParams;
 }
 
-std::unique_ptr<const CChainParams> CreateChainParams(const std::string& chain, bool fHelpOnly)
+std::unique_ptr<CChainParams> CreateChainParams(const std::string& chain, bool fHelpOnly)
 {
     if (chain == CBaseChainParams::MAIN)
         return std::unique_ptr<CChainParams>(new CMainParams());
@@ -1076,8 +1078,6 @@ void SelectParams(const std::string& network)
 {
     SelectBaseParams(network);
     globalChainParams = CreateChainParams(network);
-}
-
 }
 
 void UpdateDIP3Parameters(int nActivationHeight, int nEnforcementHeight)
@@ -1118,3 +1118,4 @@ void UpdateLLMQTestParams(int size, int threshold)
 void UpdateLLMQDevnetParams(int size, int threshold)
 {
     globalChainParams->UpdateLLMQDevnetParams(size, threshold);
+}

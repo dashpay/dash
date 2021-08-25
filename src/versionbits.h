@@ -30,8 +30,6 @@ enum class ThresholdState {
 // will either be nullptr or a block with (height + 1) % Period() == 0.
 typedef std::map<const CBlockIndex*, ThresholdState> ThresholdConditionCache;
 
-    /** Whether to check current MN protocol or not */
-    bool check_mn_protocol;
 struct BIP9Stats {
     int period;
     int threshold;
