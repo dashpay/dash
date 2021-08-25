@@ -629,13 +629,11 @@ int CGovernanceObject::CountMatchingVotes(vote_signal_enum_t eVoteSignalIn, vote
 int64_t CGovernanceObject::GetPaymentStartTime()
 {
     UniValue data;
-    GetData(data);
-    std::vector<UniValue> vals = data.getValues();
+    data.read(this->GetDataAsPlainString());
+    UniValue paymentStartData = find_value(data, "start_epoch");
 
-    if(vals.size() > 4){
-        if(vals[4].isNum())
-            return vals[4].get_int();
-    }
+    if(paymentStartData.isNum())
+        return paymentStartData.get_int();
 
     return -1;
 }
@@ -643,13 +641,10 @@ int64_t CGovernanceObject::GetPaymentStartTime()
 int64_t CGovernanceObject::GetPaymentEndTime()
 {
     UniValue data;
-    GetData(data);
-    std::vector<UniValue> vals = data.getValues();
-
-    if(vals.size() > 0){
-        if(vals[0].isNum())
-            return vals[0].get_int();
-    }
+    data.read(this->GetDataAsPlainString());
+    UniValue paymentEndData = find_value(data, "end_epoch");
+    if(paymentEndData.isNum())
+        return paymentEndData.get_int();
 
     return -1;
 }
@@ -666,7 +661,7 @@ int64_t CGovernanceObject::GetCycles()
 int64_t CGovernanceObject::GetCurrentCycle()
 {
     int diffInSeconds = GetTime() - GetPaymentStartTime();
-    int cycle = std::round((float)((float)diffInSeconds / (float)SECONDS_IN_ONE_MONTH));
+    int cycle = std::ceil((float)((float)diffInSeconds / (float)SECONDS_IN_ONE_MONTH));
 
     return cycle;
 }
@@ -675,13 +670,11 @@ int64_t CGovernanceObject::GetCurrentCycle()
 std::string CGovernanceObject::GetURL()
 {
     UniValue data;
-    GetData(data);
-    std::vector<UniValue> vals = data.getValues();
+    data.read(this->GetDataAsPlainString());
+    UniValue urlData = find_value(data, "end_epoch");
 
-    if(vals.size() > 6){
-        if(vals[6].isStr())
-            return vals[6].get_str();
-    }
+    if(urlData.isStr())
+        return urlData.get_str();
 
     return "not a valid url";
 }
@@ -689,13 +682,10 @@ std::string CGovernanceObject::GetURL()
 int64_t CGovernanceObject::GetPaymentAmount()
 {
     UniValue data;
-    GetData(data);
-    std::vector<UniValue> vals = data.getValues();
-
-    if(vals.size() > 3){
-        if(vals[3].isNum())
-            return vals[3].get_int();
-    }
+    data.read(this->GetDataAsPlainString());
+    UniValue paymentAmount = find_value(data, "payment_amount");
+    if(paymentAmount.isNum())
+        return paymentAmount.get_int();
 
     return -1;
 }
