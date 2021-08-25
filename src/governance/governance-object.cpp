@@ -17,7 +17,7 @@
 
 #include <string>
 
-#define SECONDS_IN_ONE_MONTH 2629743
+static constexpr int64_t SECONDS_IN_ONE_MONTH = 60*60*24*30;
 
 CGovernanceObject::CGovernanceObject() :
     cs(),

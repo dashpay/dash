@@ -30,7 +30,6 @@ QT_TS = \
   qt/locale/dash_zh_CN.ts \
   qt/locale/dash_zh_TW.ts
 
-
 QT_FORMS_UI = \
   qt/forms/addressbookpage.ui \
   qt/forms/appearancewidget.ui \
@@ -488,3 +487,4 @@ moc_%.cpp: %.h
 	@test -f $(LRELEASE)
 	@$(MKDIR_P) $(@D)
 	$(AM_V_GEN) QT_SELECT=$(QT_SELECT) $(LRELEASE) -silent $< -qm $@
+	
