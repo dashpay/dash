@@ -18,6 +18,7 @@ namespace Ui
 class GovernanceList;
 }
 
+class CDeterministicMNList;
 class ClientModel;
 
 /** Governance Manager page widget */
@@ -31,14 +32,13 @@ public:
 
     enum {
         COLUMN_HASH,
-        COLUMN_NAME,
+        COLUMN_TITLE,
         COLUMN_CREATION,
         COLUMN_START,
         COLUMN_END,
         COLUMN_AMOUNT,
-        COLUMN_URL,
-        COLUMN_TYPE,
         COLUMN_ACTIVE,
+        COLUMN_STATUS,
     };
 
     void setClientModel(ClientModel* clientModel);

@@ -121,7 +121,7 @@
          </column>
          <column>
           <property name="text">
-           <string>Name</string>
+           <string>Title</string>
           </property>
          </column>
          <column>
@@ -146,17 +146,12 @@
          </column>
          <column>
           <property name="text">
-           <string>url</string>
-          </property>
-         </column>
-         <column>
-          <property name="text">
-           <string>Type</string>
-          </property>
-         </column>
-         <column>
-          <property name="text">
            <string>Active</string>
+          </property>
+         </column>
+         <column>
+          <property name="text">
+           <string>Voting Status</string>
           </property>
          </column>
         </widget>

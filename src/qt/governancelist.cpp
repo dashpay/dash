@@ -1,6 +1,8 @@
 #include <qt/governancelist.h>
 #include <qt/forms/ui_governancelist.h>
 
+#include <chainparams.h>
+#include <evo/deterministicmns.h>
 #include <qt/clientmodel.h>
 #include <clientversion.h>
 #include <coins.h>
@@ -47,30 +49,27 @@ GovernanceList::GovernanceList(QWidget* parent) :
     GUIUtil::setFont({ui->label_filter_2}, GUIUtil::FontWeight::Normal, 15);
 
     int columnHashWidth = 80;
-    int columnNameWidth = 220;
+    int columnTitleWidth = 220;
     int columnCreationWidth = 110;
     int columnStartWidth = 110;
     int columnEndWidth = 110;
     int columnAmountWidth = 80;
-    int columnUrlWidth = 200;
-    int columnTypeWidth = 50;
     int columnActiveWidth = 50;
+    int columnStatusWidth = 220;
 
     ui->tableWidgetGovernances->setColumnWidth(COLUMN_HASH, columnHashWidth);
-    ui->tableWidgetGovernances->setColumnWidth(COLUMN_NAME, columnNameWidth);
+    ui->tableWidgetGovernances->setColumnWidth(COLUMN_TITLE, columnTitleWidth);
     ui->tableWidgetGovernances->setColumnWidth(COLUMN_CREATION, columnCreationWidth);
     ui->tableWidgetGovernances->setColumnWidth(COLUMN_START, columnStartWidth);
     ui->tableWidgetGovernances->setColumnWidth(COLUMN_END, columnEndWidth);
     ui->tableWidgetGovernances->setColumnWidth(COLUMN_AMOUNT, columnAmountWidth);
-    ui->tableWidgetGovernances->setColumnWidth(COLUMN_URL, columnUrlWidth);
-    ui->tableWidgetGovernances->setColumnWidth(COLUMN_TYPE, columnTypeWidth);
     ui->tableWidgetGovernances->setColumnWidth(COLUMN_ACTIVE, columnActiveWidth);
+    ui->tableWidgetGovernances->setColumnWidth(COLUMN_STATUS, columnStatusWidth);
 
     ui->tableWidgetGovernances->setContextMenuPolicy(Qt::CustomContextMenu);
     ui->tableWidgetGovernances->sortItems(COLUMN_CREATION, Qt::DescendingOrder);
 
-
-    ui->filterLineEdit->setPlaceholderText(tr("Filter by Name"));
+    ui->filterLineEdit->setPlaceholderText(tr("Filter by Title"));
 
     timer = new QTimer(this);
     connect(timer, SIGNAL(timeout()), this, SLOT(updateGovernanceListScheduled()));
@@ -141,14 +140,25 @@ void GovernanceList::updateGovernanceList()
     ui->tableWidgetGovernances->clearContents();
     ui->tableWidgetGovernances->setRowCount(0);
 
+    // A propsal is considered passing if (YES votes - NO votes) > (Total Number of Masternodes / 10),
+    // count total valid (ENABLED) masternodes to determine passing threshold.
+    int nMnCount = clientModel->getMasternodeList().GetValidMNsCount();
+    int nAbsVoteReq = std::max(Params().GetConsensus().nGovernanceMinQuorum, nMnCount / 10);
+
     // TODO: implement filtering...
 
     nTimeGovernanceUpdated = GetTime();
     for (const auto pGovObj: govObjList) {
+
+        auto govObjType = pGovObj->GetObjectType();
+        if (govObjType != GOVERNANCE_OBJECT_PROPOSAL) {
+            continue; // Skip triggers.
+        }
+
         QString qHashString = QString::fromStdString(pGovObj->GetHash().ToString());
         QTableWidgetItem* hashItem = new QTableWidgetItem(qHashString);
 
-        QString qNameString = QString::fromStdString("UNKNOWN");
+        QString qTitleString = QString::fromStdString("UNKNOWN");
         QString qPaymentStartString = QString::fromStdString("UNKNOWN");
         QString qPaymentEndString = QString::fromStdString("UNKNOWN");
         QString qAmountString = QString::fromStdString("UNKNOWN");
@@ -156,8 +166,8 @@ void GovernanceList::updateGovernanceList()
 
         UniValue prop_data;
         if (prop_data.read(pGovObj->GetDataAsPlainString())) {
-            UniValue nameValue = find_value(prop_data, "name");
-            if (nameValue.isStr()) qNameString = QString::fromStdString(nameValue.get_str());
+            UniValue titleValue = find_value(prop_data, "name");
+            if (titleValue.isStr()) qTitleString = QString::fromStdString(titleValue.get_str());
 
             UniValue paymentStartValue = find_value(prop_data, "start_epoch");
             if (paymentStartValue.isNum()) qPaymentStartString = QDateTime::fromSecsSinceEpoch(paymentStartValue.get_int()).toString(GOVERNANCELIST_DATEFMT);
@@ -172,20 +182,10 @@ void GovernanceList::updateGovernanceList()
             if (urlValue.isStr()) qUrlString = QString::fromStdString(urlValue.get_str());
         }
 
-        QTableWidgetItem* nameItem = new QTableWidgetItem(qNameString);
+        QTableWidgetItem* titleItem = new QTableWidgetItem(qTitleString);
         QTableWidgetItem* paymentStartItem = new QTableWidgetItem(qPaymentStartString);
         QTableWidgetItem* paymentEndItem = new QTableWidgetItem(qPaymentEndString);
         QTableWidgetItem* amountItem = new QTableWidgetItem(qAmountString);
-        QTableWidgetItem* urlItem = new QTableWidgetItem(qUrlString);
-
-        QString qTypeString = QString::fromStdString("UNKNOWN");
-        auto govObjType = pGovObj->GetObjectType();
-        if (govObjType == GOVERNANCE_OBJECT_PROPOSAL) {
-            qTypeString = "proposal";
-        } else if (govObjType == GOVERNANCE_OBJECT_TRIGGER) {
-            qTypeString = "trigger";
-        }
-        QTableWidgetItem* typeItem = new QTableWidgetItem(qTypeString);
 
         QString qCreationString = QDateTime::fromSecsSinceEpoch(pGovObj->GetCreationTime()).toString(GOVERNANCELIST_DATEFMT);
         QTableWidgetItem* creationItem = new QTableWidgetItem(qCreationString);
@@ -199,17 +199,29 @@ void GovernanceList::updateGovernanceList()
         }
         QTableWidgetItem* activeItem = new QTableWidgetItem(qActiveString);
 
+        // Voting status...
+        // TODO: determine if voting is in progress vs. funded or not funded for past proposals.
+        // see CSuperblock::GetNearestSuperblocksHeights(nBlockHeight, nLastSuperblock, nNextSuperblock); 
+        int absYesCount = pGovObj->GetAbsoluteYesCount(VOTE_SIGNAL_FUNDING);
+        QString qStatusString;
+        if (absYesCount > nAbsVoteReq) {
+            // Could use pGovObj->IsSetCachedFunding here, but need nAbsVoteReq to display numbers anyway.
+            qStatusString = QString("Passing +%1 (%2 of %3 needed)").arg(absYesCount - nAbsVoteReq).arg(absYesCount).arg(nAbsVoteReq);
+        } else {
+            qStatusString = QString("Needs additional %1 votes").arg(nAbsVoteReq - absYesCount);
+        }
+        QTableWidgetItem* statusItem = new QTableWidgetItem(qStatusString);
 
         ui->tableWidgetGovernances->insertRow(0);
         ui->tableWidgetGovernances->setItem(0, COLUMN_HASH, hashItem);
-        ui->tableWidgetGovernances->setItem(0, COLUMN_NAME, nameItem);
+        ui->tableWidgetGovernances->setItem(0, COLUMN_TITLE, titleItem);
         ui->tableWidgetGovernances->setItem(0, COLUMN_CREATION, creationItem);
         ui->tableWidgetGovernances->setItem(0, COLUMN_START, paymentStartItem);
         ui->tableWidgetGovernances->setItem(0, COLUMN_END, paymentEndItem);
         ui->tableWidgetGovernances->setItem(0, COLUMN_AMOUNT, amountItem);
-        ui->tableWidgetGovernances->setItem(0, COLUMN_URL, urlItem);
-        ui->tableWidgetGovernances->setItem(0, COLUMN_TYPE, typeItem);
         ui->tableWidgetGovernances->setItem(0, COLUMN_ACTIVE, activeItem);
+        ui->tableWidgetGovernances->setItem(0, COLUMN_STATUS, statusItem);
+
 
     }
     ui->countLabel->setText(QString::number(ui->tableWidgetGovernances->rowCount()));
