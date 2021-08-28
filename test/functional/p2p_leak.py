@@ -106,6 +106,10 @@ class P2PLeakTest(BitcoinTestFramework):
         self.num_nodes = 1
         self.extra_args = [['-banscore=' + str(banscore)]]
 
+    def setup_network(self):
+        self.disable_mocktime()
+        self.setup_nodes()
+
     def run_test(self):
         no_version_bannode = self.nodes[0].add_p2p_connection(CNodeNoVersionBan(), send_version=False, wait_for_verack=False)
         no_version_idlenode = self.nodes[0].add_p2p_connection(CNodeNoVersionIdle(), send_version=False, wait_for_verack=False)
