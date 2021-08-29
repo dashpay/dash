@@ -3721,7 +3721,7 @@ CNode::CNode(NodeId idIn, ServiceFlags nLocalServicesIn, int nMyStartingHeightIn
 {
     hSocket = hSocketIn;
     addrName = addrNameIn == "" ? addr.ToStringIPPort() : addrNameIn;
-    strSubVer = "";
+    cs_SubVer = "";
     hashContinue = uint256();
     filterInventoryKnown.reset();
     pfilter = MakeUnique<CBloomFilter>();
