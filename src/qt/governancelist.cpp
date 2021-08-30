@@ -48,15 +48,11 @@ GovernanceList::GovernanceList(QWidget* parent) :
     ui->label_filter_2->hide();
     ui->filterLineEditDIP3->hide();
 
-
-    int columnLieWidth = 60;
     int columnStatusWidth = 80;
-    int columnVotingStatusWidth = 280;
     int columnAmountWidth = 80;
     int columnCyclesWidth = 130;
     int columnCurrentCycleWidth = 100;
     int columnAbsYesCountWidth = 130;
-    int columnYesCountWidth = 80;
     int columnNoCountWidth = 80;
     int columnAbsteinCountWidth = 130;
     int columnPaymentStartWidth = 160;
