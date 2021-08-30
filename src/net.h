@@ -859,8 +859,8 @@ public:
     const int64_t nTimeConnected;
     std::atomic<int64_t> nTimeOffset{0};
     std::atomic<int64_t> nLastWarningTime{0};
-    std::atomic<int64_t> nTimeFirstMessageReceived;
-    std::atomic<bool> fFirstMessageIsMNAUTH;
+    std::atomic<int64_t> nTimeFirstMessageReceived{0};
+    std::atomic<bool> fFirstMessageIsMNAUTH{false};
     // Address of this peer
     const CAddress addr;
     // Bind address of our side of the connection
