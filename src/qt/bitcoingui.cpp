@@ -696,13 +696,6 @@ void BitcoinGUI::createToolBars()
         QWidget *containerWidget = new QWidget();
         containerWidget->setLayout(layout);
         setCentralWidget(containerWidget);
-
-/*
-        governanceButton = new QToolButton(this);
-        governanceButton->setText(tr("&governances"));
-        governanceButton->setStatusTip(tr("Browse governances"));
-        tabGroup->addButton(governanceButton);
-        connect(governanceButton, SIGNAL(clicked()), this, SLOT(gotogovernancePage()));*/
     }
 #endif // ENABLE_WALLET
 }
