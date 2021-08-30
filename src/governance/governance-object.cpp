@@ -671,7 +671,7 @@ std::string CGovernanceObject::GetURL()
 {
     UniValue data;
     data.read(this->GetDataAsPlainString());
-    UniValue urlData = find_value(data, "end_epoch");
+    UniValue urlData = find_value(data, "url");
 
     if(urlData.isStr())
         return urlData.get_str();
