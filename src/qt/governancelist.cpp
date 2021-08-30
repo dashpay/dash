@@ -102,7 +102,7 @@ void GovernanceList::setClientModel(ClientModel* model)
     this->clientModel = model;
     if (model) {
         // try to update list when masternode count changes
-        connect(clientModel, SIGNAL(governanceListChanged()), this, SLOT(handleGovernanceListChanged()));
+        connect(clientModel, &ClientModel::governanceListChanged, this, &GovernanceList::handleGovernanceListChanged);
     }
 }
 
