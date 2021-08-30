@@ -350,7 +350,7 @@ static UniValue getblocktemplate(const JSONRPCRequest& request)
             "      ,...\n"
             "  ],\n"
             "  \"coinbaseaux\" : { ... },            (json object) data that should be included in the coinbase's scriptSig content\n"
-            "  \"coinbasevalue\" : n,              (numeric) maximum allowable input to coinbase transaction, including the generation award and transaction fees (in satoshis)\n"
+            "  \"coinbasevalue\" : n,              (numeric) maximum allowable input to coinbase transaction, including the generation award and transaction fees (in duffs)\n"
             "  \"coinbasetxn\" : { ... },          (json object) information for coinbase transaction\n"
             "  \"target\" : \"xxxx\",                (string) The hash target\n"
             "  \"mintime\" : xxx,                  (numeric) The minimum timestamp appropriate for next block time in seconds since epoch (Jan 1 1970 GMT)\n"
