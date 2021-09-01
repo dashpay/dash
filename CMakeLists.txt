@@ -89,4 +89,3 @@ file(GLOB SOURCE_FILES
         )
 
 add_executable(dash ${SOURCE_FILES})
-
