@@ -630,10 +630,9 @@ int64_t CGovernanceObject::GetPaymentStartTime()
 {
     UniValue data;
     data.read(this->GetDataAsPlainString());
-    UniValue paymentStartData = find_value(data, "start_epoch");
+    UniValue payment_start_data = find_value(data, "start_epoch");
 
-    if(paymentStartData.isNum())
-        return paymentStartData.get_int();
+    if (payment_start_data.isNum()) return payment_start_data.get_int();
 
     return -1;
 }
@@ -642,9 +641,8 @@ int64_t CGovernanceObject::GetPaymentEndTime()
 {
     UniValue data;
     data.read(this->GetDataAsPlainString());
-    UniValue paymentEndData = find_value(data, "end_epoch");
-    if(paymentEndData.isNum())
-        return paymentEndData.get_int();
+    UniValue payment_end_data = find_value(data, "end_epoch");
+    if (payment_end_data.isNum()) return payment_end_data.get_int();
 
     return -1;
 }
@@ -671,10 +669,9 @@ std::string CGovernanceObject::GetURL()
 {
     UniValue data;
     data.read(this->GetDataAsPlainString());
-    UniValue urlData = find_value(data, "url");
+    UniValue url_data = find_value(data, "url");
 
-    if(urlData.isStr())
-        return urlData.get_str();
+    if( url_data.isStr()) return url_data.get_str();
 
     return "not a valid url";
 }
@@ -683,9 +680,8 @@ int64_t CGovernanceObject::GetPaymentAmount()
 {
     UniValue data;
     data.read(this->GetDataAsPlainString());
-    UniValue paymentAmount = find_value(data, "payment_amount");
-    if(paymentAmount.isNum())
-        return paymentAmount.get_int();
+    UniValue payment_amount = find_value(data, "payment_amount");
+    if (payment_amount.isNum()) return payment_amount.get_int();
 
     return -1;
 }

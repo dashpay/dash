@@ -63,7 +63,6 @@ ClientModel::~ClientModel()
 int ClientModel::getNumConnections(unsigned int flags) const
 {
     CConnman::NumConnections connections = CConnman::CONNECTIONS_NONE;
-
     if(flags == CONNECTIONS_IN)
         connections = CConnman::CONNECTIONS_IN;
     else if (flags == CONNECTIONS_OUT)

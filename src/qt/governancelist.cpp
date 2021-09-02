@@ -134,17 +134,17 @@ void GovernanceList::updateDIP3ListScheduled()
         return;
     }
 
-    // To prevent high cpu usage update only once in MASTERNODELIST_FILTER_COOLDOWN_SECONDS seconds
+    // To prevent high cpu usage update only once in GOVERNANCELIST_FILTER_COOLDOWN_SECONDS seconds
     // after filter was last changed unless we want to force the update.
     if (fFilterUpdatedDIP3) {
-        int64_t nSecondsToWait = nTimeFilterUpdatedDIP3 - GetTime() + MASTERNODELIST_FILTER_COOLDOWN_SECONDS;
+        int64_t nSecondsToWait = nTimeFilterUpdatedDIP3 - GetTime() + GOVERNANCELIST_FILTER_COOLDOWN_SECONDS;
 
         if (nSecondsToWait <= 0) {
             updateDIP3List();
             fFilterUpdatedDIP3 = false;
         }
     } else if (mnListChanged) {
-        int64_t nMnListUpdateSecods = clientModel->masternodeSync().isBlockchainSynced() ? MASTERNODELIST_UPDATE_SECONDS : MASTERNODELIST_UPDATE_SECONDS * 10;
+        int64_t nMnListUpdateSecods = clientModel->masternodeSync().isBlockchainSynced() ? GOVERNANCELIST_UPDATE_SECONDS : GOVERNANCELIST_UPDATE_SECONDS * 10;
         int64_t nSecondsToWait = nTimeUpdatedDIP3 - GetTime() + nMnListUpdateSecods;
 
         if (nSecondsToWait <= 0) {
@@ -167,12 +167,50 @@ void GovernanceList::updateDIP3List()
 
     QString strToFilter;
     ui->tableWidgetProposalsDIP3->setSortingEnabled(false);
+
+    //deletes prev. items in the table
+    for (int i = 0; i < ui->tableWidgetProposalsDIP3->rowCount(); i++){
+        QTableWidgetItem* status_item = ui->tableWidgetProposalsDIP3->item(i, COLUMN_STATUS);
+        if (status_item != nullptr) delete status_item;
+
+        QTableWidgetItem* amount_item = ui->tableWidgetProposalsDIP3->item(i, COLUMN_AMOUNT);
+        if (status_item != nullptr) delete amount_item;
+
+        QTableWidgetItem*  cycles_item = ui->tableWidgetProposalsDIP3->item(i, COLUMN_CYCLES);
+        if (status_item != nullptr) delete cycles_item;
+
+        QTableWidgetItem* curr_cycles_item = ui->tableWidgetProposalsDIP3->item(i, COLUMN_CURRENT_CYCLE);
+        if (status_item != nullptr) delete curr_cycles_item;
+
+        QTableWidgetItem* abs_yes_item = ui->tableWidgetProposalsDIP3->item(i, COLUMN_ABS_YES_COUNT);
+        if (status_item != nullptr) delete abs_yes_item;
+
+        QTableWidgetItem* yes_item = ui->tableWidgetProposalsDIP3->item(i, COLUMN_YES_COUNT);
+        if (status_item != nullptr) delete yes_item;
+
+        QTableWidgetItem* no_item = ui->tableWidgetProposalsDIP3->item(i, COLUMN_NO_COUNT);
+        if (status_item != nullptr) delete no_item;
+
+        QTableWidgetItem* abstain_yes_item = ui->tableWidgetProposalsDIP3->item(i, COLUMN_ABSTAIN_COUNT);
+        if (status_item != nullptr) delete abstain_yes_item;
+
+        QTableWidgetItem* payment_start_item = ui->tableWidgetProposalsDIP3->item(i, COLUMN_PAYMENT_START);
+        if (status_item != nullptr) delete payment_start_item;
+
+        QTableWidgetItem* payment_end_item = ui->tableWidgetProposalsDIP3->item(i, COLUMN_PAYMENT_END);
+        if (status_item != nullptr) delete payment_end_item;
+
+        QTableWidgetItem* creation_item = ui->tableWidgetProposalsDIP3->item(i, COLUMN_CREATION_TIME);
+        if (status_item != nullptr) delete creation_item;
+
+    }
+
     ui->tableWidgetProposalsDIP3->clearContents();
     ui->tableWidgetProposalsDIP3->setRowCount(0);
 
     nTimeUpdatedDIP3 = GetTime();
 
-    for(int i = 0; i < governanceList.size(); i++){
+    for (int i = 0; i < governanceList.size(); i++){
         CGovernanceObject *obj = (CGovernanceObject*)governanceList.at(i);
 
         QString isActiveStr = "";
