@@ -74,8 +74,9 @@ const std::string BitcoinGUI::DEFAULT_UIPLATFORM =
 
 BitcoinGUI::BitcoinGUI(interfaces::Node& node, const NetworkStyle* networkStyle, QWidget* parent) :
     QMainWindow(parent),
-    m_node(node),
+
     enableWallet(false),
+    m_node(node),
     clientModel(0),
     walletFrame(0),
     unitDisplayControl(0),

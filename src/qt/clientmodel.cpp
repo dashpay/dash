@@ -52,6 +52,7 @@ ClientModel::ClientModel(interfaces::Node& node, OptionsModel *_optionsModel, QO
     mnListCached = std::make_shared<CDeterministicMNList>();
 
     subscribeToCoreSignals();
+
 }
 
 ClientModel::~ClientModel()
@@ -82,6 +83,7 @@ void ClientModel::setMasternodeList(const CDeterministicMNList& mnList)
     mnListCached = std::make_shared<CDeterministicMNList>(mnList);
     Q_EMIT masternodeListChanged();
 }
+
 
 CDeterministicMNList ClientModel::getMasternodeList() const
 {
@@ -322,6 +324,7 @@ static void NotifyAdditionalDataSyncProgressChanged(ClientModel *clientmodel, do
 void ClientModel::subscribeToCoreSignals()
 {
     // Connect signals to client
+
     m_handler_show_progress = m_node.handleShowProgress(std::bind(ShowProgress, this, std::placeholders::_1, std::placeholders::_2));
     m_handler_notify_num_connections_changed = m_node.handleNotifyNumConnectionsChanged(std::bind(NotifyNumConnectionsChanged, this, std::placeholders::_1));
     m_handler_notify_network_active_changed = m_node.handleNotifyNetworkActiveChanged(std::bind(NotifyNetworkActiveChanged, this, std::placeholders::_1));
