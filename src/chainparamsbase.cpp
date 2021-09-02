@@ -33,8 +33,8 @@ void SetupChainParamsBaseOptions()
                                    "This is intended for regression testing tools and app development.", true, OptionsCategory::CHAINPARAMS);
     gArgs.AddArg("-testnet", "Use the test chain", false, OptionsCategory::CHAINPARAMS);
     gArgs.AddArg("-vbparams=<deployment>:<start>:<end>(:<window>:<threshold/thresholdstart>(:<thresholdmin>:<falloffcoeff>))",
-                    "Use given start/end times for specified version bits deployment (regtest-only). "
-                    "Specifying window, threshold/thresholdstart, thresholdmin and falloffcoeff is optional.", true, OptionsCategory::CHAINPARAMS);
+                 "Use given start/end times for specified version bits deployment (regtest-only). "
+                 "Specifying window, threshold/thresholdstart, thresholdmin and falloffcoeff is optional.", true, OptionsCategory::CHAINPARAMS);
 
 }
 

@@ -1118,7 +1118,7 @@ void CRegTestParams::UpdateVersionBitsParametersFromArgs(const ArgsManager& args
                 UpdateVersionBitsParameters(Consensus::DeploymentPos(j), nStartTime, nTimeout, nWindowSize, nThresholdStart, nThresholdMin, nFalloffCoeff);
                 found = true;
                 LogPrintf("Setting version bits activation parameters for %s to start=%ld, timeout=%ld, window=%ld, thresholdstart=%ld, thresholdmin=%ld, falloffcoeff=%ld\n",
-                        vDeploymentParams[0], nStartTime, nTimeout, nWindowSize, nThresholdStart, nThresholdMin, nFalloffCoeff);
+                          vDeploymentParams[0], nStartTime, nTimeout, nWindowSize, nThresholdStart, nThresholdMin, nFalloffCoeff);
                 break;
             }
         }
@@ -1296,7 +1296,7 @@ std::unique_ptr<const CChainParams> CreateChainParams(const std::string& chain)
     else if (chain == CBaseChainParams::DEVNET) {
         return std::unique_ptr<CChainParams>(new CDevNetParams(gArgs));
     } else if (chain == CBaseChainParams::REGTEST)
-         return std::unique_ptr<CChainParams>(new CRegTestParams(gArgs));
+        return std::unique_ptr<CChainParams>(new CRegTestParams(gArgs));
 
     throw std::runtime_error(strprintf("%s: Unknown chain %s.", __func__, chain));
 }
