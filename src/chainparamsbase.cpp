@@ -30,7 +30,7 @@ void SetupChainParamsBaseOptions()
     gArgs.AddArg("-llmqtestparams=<size>:<threshold>", "Override the default LLMQ size for the LLMQ_TEST quorum (default: 10:6, regtest-only)", true, OptionsCategory::CHAINPARAMS);
     gArgs.AddArg("-minimumdifficultyblocks=<n>", "The number of blocks that can be mined with the minimum difficulty at the start of a chain (default: 0, devnet-only)", false, OptionsCategory::CHAINPARAMS);
     gArgs.AddArg("-regtest", "Enter regression test mode, which uses a special chain in which blocks can be solved instantly. "
-                                    "This is intended for regression testing tools and app development.", true, OptionsCategory::CHAINPARAMS);
+                                   "This is intended for regression testing tools and app development.", true, OptionsCategory::CHAINPARAMS);
     gArgs.AddArg("-testnet", "Use the test chain", false, OptionsCategory::CHAINPARAMS);
     gArgs.AddArg("-vbparams=<deployment>:<start>:<end>(:<window>:<threshold/thresholdstart>(:<thresholdmin>:<falloffcoeff>))",
                     "Use given start/end times for specified version bits deployment (regtest-only). "

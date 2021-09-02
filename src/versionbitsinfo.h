@@ -10,7 +10,7 @@ struct VBDeploymentInfo {
     const char *name;
     /** Whether GBT clients can safely ignore this rule in simplified usage */
     bool gbt_force;
-      /** Whether to check current MN protocol or not */
+    /** Whether to check current MN protocol or not */
     bool check_mn_protocol;
 };
 

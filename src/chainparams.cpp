@@ -743,7 +743,6 @@ public:
         nPruneAfterHeight = 1000;
 
         UpdateDevnetSubsidyAndDiffParametersFromArgs(args);
-        
         genesis = CreateGenesisBlock(1417713337, 1096447, 0x207fffff, 1, 50 * COIN);
         consensus.hashGenesisBlock = genesis.GetHash();
         assert(consensus.hashGenesisBlock == uint256S("0x000008ca1832a4baf228eb1553c03d3a2c8e02399550dd6ea8d65cec3ef23d2e"));
@@ -815,7 +814,7 @@ public:
         };
     }
 
- /**
+    /**
      * Allows modifying the subsidy and difficulty devnet parameters.
      */
     void UpdateDevnetSubsidyAndDiffParameters(int nMinimumDifficultyBlocks, int nHighSubsidyBlocks, int nHighSubsidyFactor)
@@ -1018,7 +1017,7 @@ public:
     {
         consensus.vDeployments[d].nStartTime = nStartTime;
         consensus.vDeployments[d].nTimeout = nTimeout;
-               if (nWindowSize != -1) {
+        if (nWindowSize != -1) {
             consensus.vDeployments[d].nWindowSize = nWindowSize;
         }
         if (nThresholdStart != -1) {
@@ -1084,7 +1083,7 @@ void CRegTestParams::UpdateVersionBitsParametersFromArgs(const ArgsManager& args
     for (const std::string& strDeployment : args.GetArgs("-vbparams")) {
         std::vector<std::string> vDeploymentParams;
         boost::split(vDeploymentParams, strDeployment, boost::is_any_of(":"));
-       if (vDeploymentParams.size() != 3 && vDeploymentParams.size() != 5 && vDeploymentParams.size() != 7) {
+        if (vDeploymentParams.size() != 3 && vDeploymentParams.size() != 5 && vDeploymentParams.size() != 7) {
             throw std::runtime_error("Version bits parameters malformed, expecting "
                     "<deployment>:<start>:<end> or "
                     "<deployment>:<start>:<end>:<window>:<threshold> or "
@@ -1152,7 +1151,7 @@ void CRegTestParams::UpdateDIP3ParametersFromArgs(const ArgsManager& args)
 
 void CRegTestParams::UpdateDIP8ParametersFromArgs(const ArgsManager& args)
 {
-if (!args.IsArgSet("-dip8params")) return;
+    if (!args.IsArgSet("-dip8params")) return;
 
 std::string strParams = args.GetArg("-dip8params", "");
     std::vector<std::string> vParams;
