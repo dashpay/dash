@@ -477,11 +477,6 @@ void SetupServerArgs()
     const auto defaultChainParams = CreateChainParams(CBaseChainParams::MAIN);
     const auto testnetChainParams = CreateChainParams(CBaseChainParams::TESTNET);
 
-    Consensus::Params devnetConsensus = CreateChainParams(CBaseChainParams::DEVNET, true)->GetConsensus();
-    Consensus::LLMQParams devnetLLMQ = devnetConsensus.llmqs.at(Consensus::LLMQ_DEVNET);
-
-    const auto regtestLLMQ = CreateChainParams(CBaseChainParams::REGTEST)->GetConsensus().llmqs.at(Consensus::LLMQ_TEST);
-
     // Hidden Options
     std::vector<std::string> hidden_args = {"-rpcssl", "-benchmark", "-h", "-help", "-socks", "-tor", "-debugnet", "-whitelistalwaysrelay",
         "-blockminsize", "-dbcrashratio", "-forcecompactdb",
@@ -647,20 +642,11 @@ void SetupServerArgs()
     gArgs.AddArg("-watchquorums=<n>", strprintf("Watch and validate quorum communication (default: %u)", llmq::DEFAULT_WATCH_QUORUMS), true, OptionsCategory::DEBUG_TEST);
     gArgs.AddArg("-addrmantest", "Allows to test address relay on localhost", true, OptionsCategory::DEBUG_TEST);
 
-    gArgs.AddArg("-budgetparams=<masternode>:<budget>:<superblock>", "Override masternode, budget and superblock start heights", false, OptionsCategory::DEBUG_TEST);
     gArgs.AddArg("-debug=<category>", "Output debugging information (default: -nodebug, supplying <category> is optional). "
         "If <category> is not supplied or if <category> = 1, output all debugging information. <category> can be: " + ListLogCategories() + ".", false, OptionsCategory::DEBUG_TEST);
     gArgs.AddArg("-debugexclude=<category>", strprintf("Exclude debugging information for a category. Can be used in conjunction with -debug=1 to output debug logs for all categories except one or more specified categories."), false, OptionsCategory::DEBUG_TEST);
-    gArgs.AddArg("-dip3params=<activation>:<enforcement>", "Override DIP3 activation and enforcement heights", false, OptionsCategory::DEBUG_TEST);
-    gArgs.AddArg("-dip8params=<activation>", "Override DIP8 activation height", false, OptionsCategory::DEBUG_TEST);
     gArgs.AddArg("-disablegovernance", strprintf("Disable governance validation (0-1, default: %u)", 0), false, OptionsCategory::DEBUG_TEST);
     gArgs.AddArg("-help-debug", "Print help message with debugging options and exit", false, OptionsCategory::DEBUG_TEST);
-    gArgs.AddArg("-highsubsidyblocks=<n>", strprintf("The number of blocks with a higher than normal subsidy to mine at the start of a devnet (default: %u)", devnetConsensus.nHighSubsidyBlocks), false, OptionsCategory::DEBUG_TEST);
-    gArgs.AddArg("-highsubsidyfactor=<n>", strprintf("The factor to multiply the normal block subsidy by while in the highsubsidyblocks window of a devnet (default: %u)", devnetConsensus.nHighSubsidyFactor), false, OptionsCategory::DEBUG_TEST);
-    gArgs.AddArg("-llmqchainlocks=<quorum name>", strprintf("Override the default LLMQ type used for ChainLocks on a devnet. Allows using ChainLocks with smaller LLMQs. (default: %s)", devnetConsensus.llmqs.at(devnetConsensus.llmqTypeChainLocks).name), false, OptionsCategory::DEBUG_TEST);
-    gArgs.AddArg("-llmqdevnetparams=<size:threshold>", strprintf("Override the default LLMQ size for the LLMQ_DEVNET quorum (default: %u:%u)", devnetLLMQ.size, devnetLLMQ.threshold), false, OptionsCategory::DEBUG_TEST);
-    gArgs.AddArg("-llmqinstantsend=<quorum name>", strprintf("Override the default LLMQ type used for InstantSend on a devnet. Allows using InstantSend with smaller LLMQs. (default: %s)", devnetConsensus.llmqs.at(devnetConsensus.llmqTypeInstantSend).name), false, OptionsCategory::DEBUG_TEST);
-    gArgs.AddArg("-llmqtestparams=<size:threshold>", strprintf("Override the default LLMQ size for the LLMQ_TEST quorum (default: %u:%u)", regtestLLMQ.size, regtestLLMQ.threshold), false, OptionsCategory::DEBUG_TEST);
     gArgs.AddArg("-logips", strprintf("Include IP addresses in debug output (default: %u)", DEFAULT_LOGIPS), false, OptionsCategory::DEBUG_TEST);
     gArgs.AddArg("-logtimemicros", strprintf("Add microsecond precision to debug timestamps (default: %u)", DEFAULT_LOGTIMEMICROS), true, OptionsCategory::DEBUG_TEST);
     gArgs.AddArg("-logtimestamps", strprintf("Prepend debug output with timestamp (default: %u)", DEFAULT_LOGTIMESTAMPS), false, OptionsCategory::DEBUG_TEST);
@@ -670,7 +656,6 @@ void SetupServerArgs()
     gArgs.AddArg("-mocktime=<n>", "Replace actual time with <n> seconds since epoch (default: 0)", true, OptionsCategory::DEBUG_TEST);
     gArgs.AddArg("-maxtxfee=<amt>", strprintf("Maximum total fees (in %s) to use in a single wallet transaction or raw transaction; setting this too low may abort large transactions (default: %s)",
         CURRENCY_UNIT, FormatMoney(DEFAULT_TRANSACTION_MAXFEE)), false, OptionsCategory::DEBUG_TEST);
-    gArgs.AddArg("-minimumdifficultyblocks=<n>", strprintf("The number of blocks that can be mined with the minimum difficulty at the start of a devnet (default: %u)", devnetConsensus.nMinimumDifficultyBlocks), false, OptionsCategory::DEBUG_TEST);
     gArgs.AddArg("-minsporkkeys=<n>", "Overrides minimum spork signers to change spork value. Only useful for regtest and devnet. Using this on mainnet or testnet will ban you.", false, OptionsCategory::DEBUG_TEST);
     gArgs.AddArg("-printpriority", strprintf("Log transaction fee per kB when mining blocks (default: %u)", DEFAULT_PRINTPRIORITY), true, OptionsCategory::DEBUG_TEST);
     gArgs.AddArg("-printtoconsole", "Send trace/debug info to console (default: 1 when no -daemon. To disable logging to file, set -nodebuglogfile)", false, OptionsCategory::DEBUG_TEST);
@@ -1479,127 +1464,6 @@ bool AppInitParameterInteraction()
         nLocalServices = ServiceFlags(nLocalServices | NODE_BLOOM);
 
     nMaxTipAge = gArgs.GetArg("-maxtipage", DEFAULT_MAX_TIP_AGE);
-
-
-    if (gArgs.IsArgSet("-dip3params")) {
-        // Allow overriding dip3 parameters for testing
-        if (!chainparams.MineBlocksOnDemand()) {
-            return InitError("DIP3 parameters may only be overridden on regtest.");
-        }
-        std::string strDIP3Params = gArgs.GetArg("-dip3params", "");
-        std::vector<std::string> vDIP3Params;
-        boost::split(vDIP3Params, strDIP3Params, boost::is_any_of(":"));
-        if (vDIP3Params.size() != 2) {
-            return InitError("DIP3 parameters malformed, expecting DIP3ActivationHeight:DIP3EnforcementHeight");
-        }
-        int nDIP3ActivationHeight, nDIP3EnforcementHeight;
-        if (!ParseInt32(vDIP3Params[0], &nDIP3ActivationHeight)) {
-            return InitError(strprintf("Invalid nDIP3ActivationHeight (%s)", vDIP3Params[0]));
-        }
-        if (!ParseInt32(vDIP3Params[1], &nDIP3EnforcementHeight)) {
-            return InitError(strprintf("Invalid nDIP3EnforcementHeight (%s)", vDIP3Params[1]));
-        }
-        UpdateDIP3Parameters(nDIP3ActivationHeight, nDIP3EnforcementHeight);
-    }
-
-    if (gArgs.IsArgSet("-dip8params")) {
-        // Allow overriding dip8 activation height for testing
-        if (!chainparams.MineBlocksOnDemand()) {
-            return InitError("DIP8 activation height may only be overridden on regtest.");
-        }
-        UpdateDIP8Parameters(gArgs.GetArg("-dip8params", Params().GetConsensus().DIP0008Height));
-    }
-
-    if (gArgs.IsArgSet("-budgetparams")) {
-        // Allow overriding budget parameters for testing
-        if (!chainparams.MineBlocksOnDemand()) {
-            return InitError("Budget parameters may only be overridden on regtest.");
-        }
-
-        std::string strBudgetParams = gArgs.GetArg("-budgetparams", "");
-        std::vector<std::string> vBudgetParams;
-        boost::split(vBudgetParams, strBudgetParams, boost::is_any_of(":"));
-        if (vBudgetParams.size() != 3) {
-            return InitError("Budget parameters malformed, expecting masternodePaymentsStartBlock:budgetPaymentsStartBlock:superblockStartBlock");
-        }
-        int nMasternodePaymentsStartBlock, nBudgetPaymentsStartBlock, nSuperblockStartBlock;
-        if (!ParseInt32(vBudgetParams[0], &nMasternodePaymentsStartBlock)) {
-            return InitError(strprintf("Invalid nMasternodePaymentsStartBlock (%s)", vBudgetParams[0]));
-        }
-        if (!ParseInt32(vBudgetParams[1], &nBudgetPaymentsStartBlock)) {
-            return InitError(strprintf("Invalid nBudgetPaymentsStartBlock (%s)", vBudgetParams[1]));
-        }
-        if (!ParseInt32(vBudgetParams[2], &nSuperblockStartBlock)) {
-            return InitError(strprintf("Invalid nSuperblockStartBlock (%s)", vBudgetParams[2]));
-        }
-        UpdateBudgetParameters(nMasternodePaymentsStartBlock, nBudgetPaymentsStartBlock, nSuperblockStartBlock);
-    }
-
-    if (chainparams.NetworkIDString() == CBaseChainParams::DEVNET) {
-        int nMinimumDifficultyBlocks = gArgs.GetArg("-minimumdifficultyblocks", chainparams.GetConsensus().nMinimumDifficultyBlocks);
-        int nHighSubsidyBlocks = gArgs.GetArg("-highsubsidyblocks", chainparams.GetConsensus().nHighSubsidyBlocks);
-        int nHighSubsidyFactor = gArgs.GetArg("-highsubsidyfactor", chainparams.GetConsensus().nHighSubsidyFactor);
-        UpdateDevnetSubsidyAndDiffParams(nMinimumDifficultyBlocks, nHighSubsidyBlocks, nHighSubsidyFactor);
-    } else if (gArgs.IsArgSet("-minimumdifficultyblocks") || gArgs.IsArgSet("-highsubsidyblocks") || gArgs.IsArgSet("-highsubsidyfactor")) {
-        return InitError("Difficulty and subsidy parameters may only be overridden on devnet.");
-    }
-
-    if (chainparams.NetworkIDString() == CBaseChainParams::DEVNET) {
-        std::string strLLMQTypeChainLocks = gArgs.GetArg("-llmqchainlocks", llmq::GetLLMQParams(Params().GetConsensus().llmqTypeChainLocks).name);
-        std::string strLLMQTypeInstantSend = gArgs.GetArg("-llmqinstantsend", llmq::GetLLMQParams(Params().GetConsensus().llmqTypeInstantSend).name);
-        Consensus::LLMQType llmqTypeChainLocks = Consensus::LLMQ_NONE;
-        Consensus::LLMQType llmqTypeInstantSend = Consensus::LLMQ_NONE;
-        for (const auto& p : Params().GetConsensus().llmqs) {
-            if (p.second.name == strLLMQTypeChainLocks) {
-                llmqTypeChainLocks = p.first;
-            }
-            if (p.second.name == strLLMQTypeInstantSend) {
-                llmqTypeInstantSend = p.first;
-            }
-        }
-        if (llmqTypeChainLocks == Consensus::LLMQ_NONE) {
-            return InitError("Invalid LLMQ type specified for -llmqchainlocks.");
-        }
-        if (llmqTypeInstantSend == Consensus::LLMQ_NONE) {
-            return InitError("Invalid LLMQ type specified for -llmqinstantsend.");
-        }
-        UpdateDevnetLLMQChainLocks(llmqTypeChainLocks);
-        UpdateDevnetLLMQInstantSend(llmqTypeInstantSend);
-    } else if (gArgs.IsArgSet("-llmqchainlocks")) {
-        return InitError("LLMQ type for ChainLocks can only be overridden on devnet.");
-    } else if (gArgs.IsArgSet("-llmqinstantsend")) {
-        return InitError("LLMQ type for InstantSend can only be overridden on devnet.");
-    }
-
-    if (chainparams.NetworkIDString() == CBaseChainParams::DEVNET) {
-        if (gArgs.IsArgSet("-llmqdevnetparams")) {
-            std::string s = gArgs.GetArg("-llmqdevnetparams", "");
-            std::vector<std::string> v;
-            boost::split(v, s, boost::is_any_of(":"));
-            int size, threshold;
-            if (v.size() != 2 || !ParseInt32(v[0], &size) || !ParseInt32(v[1], &threshold)) {
-                return InitError("Invalid -llmqdevnetparams specified");
-            }
-            UpdateLLMQDevnetParams(size, threshold);
-        }
-    } else if (gArgs.IsArgSet("-llmqdevnetparams")) {
-        return InitError("LLMQ devnet params can only be overridden on devnet.");
-    }
-
-    if (chainparams.NetworkIDString() == CBaseChainParams::REGTEST) {
-        if (gArgs.IsArgSet("-llmqtestparams")) {
-            std::string s = gArgs.GetArg("-llmqtestparams", "");
-            std::vector<std::string> v;
-            boost::split(v, s, boost::is_any_of(":"));
-            int size, threshold;
-            if (v.size() != 2 || !ParseInt32(v[0], &size) || !ParseInt32(v[1], &threshold)) {
-                return InitError("Invalid -llmqtestparams specified");
-            }
-            UpdateLLMQTestParams(size, threshold);
-        }
-    } else if (gArgs.IsArgSet("-llmqtestparams")) {
-        return InitError("LLMQ test params can only be overridden on regtest.");
-    }
 
     try {
         const bool fRecoveryEnabled{llmq::CLLMQUtils::QuorumDataRecoveryEnabled()};

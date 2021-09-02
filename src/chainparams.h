@@ -137,7 +137,7 @@ protected:
  * @returns a CChainParams* of the chosen chain.
  * @throws a std::runtime_error if the chain is not supported.
  */
-std::unique_ptr<CChainParams> CreateChainParams(const std::string& chain, bool fHelpOnly = false);
+std::unique_ptr<const CChainParams> CreateChainParams(const std::string& chain);
 
 /**
  * Return the currently selected parameters. This won't change after app
@@ -151,44 +151,4 @@ const CChainParams &Params();
  */
 void SelectParams(const std::string& chain);
 
-
-/**
- * Allows modifying the DIP3 activation and enforcement height
- */
-void UpdateDIP3Parameters(int nActivationHeight, int nEnforcementHeight);
-
-/**
- * Allows modifying the DIP8 activation height
- */
-void UpdateDIP8Parameters(int nActivationHeight);
-
-/**
- * Allows modifying the budget regtest parameters.
- */
-void UpdateBudgetParameters(int nMasternodePaymentsStartBlock, int nBudgetPaymentsStartBlock, int nSuperblockStartBlock);
-
-/**
- * Allows modifying the subsidy and difficulty devnet parameters.
- */
-void UpdateDevnetSubsidyAndDiffParams(int nMinimumDifficultyBlocks, int nHighSubsidyBlocks, int nHighSubsidyFactor);
-
-/**
- * Allows modifying the LLMQ type for ChainLocks.
- */
-void UpdateDevnetLLMQChainLocks(Consensus::LLMQType llmqType);
-
-/**
- * Allows modifying the LLMQ type for InstantSend.
- */
-void UpdateDevnetLLMQInstantSend(Consensus::LLMQType llmqType);
-
-/**
- * Allows modifying parameters of the test LLMQ
- */
-void UpdateLLMQTestParams(int size, int threshold);
-
-/**
- * Allows modifying parameters of the devnet LLMQ
- */
-void UpdateLLMQDevnetParams(int size, int threshold);
 #endif // BITCOIN_CHAINPARAMS_H
