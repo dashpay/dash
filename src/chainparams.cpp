@@ -640,7 +640,7 @@ public:
  */
 class CDevNetParams : public CChainParams {
 public:
-    CDevNetParams(const ArgsManager& args) {
+    explicit CDevNetParams(const ArgsManager& args) {
         strNetworkID = "devnet";
         consensus.nSubsidyHalvingInterval = 210240;
         consensus.nMasternodePaymentsStartBlock = 4010; // not true, but it's ok as long as it's less then nMasternodePaymentsIncreaseBlock
