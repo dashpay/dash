@@ -1153,7 +1153,7 @@ void CRegTestParams::UpdateDIP8ParametersFromArgs(const ArgsManager& args)
 {
     if (!args.IsArgSet("-dip8params")) return;
 
-std::string strParams = args.GetArg("-dip8params", "");
+    std::string strParams = args.GetArg("-dip8params", "");
     std::vector<std::string> vParams;
     boost::split(vParams, strParams, boost::is_any_of(":"));
     if (vParams.size() != 1) {
