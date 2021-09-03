@@ -12,6 +12,7 @@
 #include <validation.h>
 #include <wallet/coincontrol.h>
 #include <wallet/coinselection.h>
+#include <wallet/spend.h>
 #include <wallet/test/wallet_test_fixture.h>
 #include <wallet/wallet.h>
 
@@ -80,7 +81,7 @@ static void add_coin(std::vector<COutput>& coins, CWallet& wallet, const CAmount
         wtx->m_amounts[CWalletTx::DEBIT].Set(ISMINE_SPENDABLE, 1);
         wtx->m_is_cache_empty = false;
     }
-    COutput output(wtx, nInput, nAge, true /* spendable */, true /* solvable */, true /* safe */);
+    COutput output(wallet, *wtx, nInput, nAge, true /* spendable */, true /* solvable */, true /* safe */);
     coins.push_back(output);
 }
 
@@ -302,7 +303,7 @@ BOOST_AUTO_TEST_CASE(bnb_search_test)
         coin_control.fAllowOtherInputs = true;
         coin_control.Select(COutPoint(coins.at(0).tx->GetHash(), coins.at(0).i));
         coin_selection_params_bnb.m_effective_feerate = CFeeRate(0);
-        BOOST_CHECK(wallet->SelectCoins(coins, 10 * CENT, setCoinsRet, nValueRet, coin_control, coin_selection_params_bnb, bnb_used));
+        BOOST_CHECK(SelectCoins(*wallet, coins, 10 * CENT, setCoinsRet, nValueRet, coin_control, coin_selection_params_bnb, bnb_used));
         BOOST_CHECK(bnb_used);
         BOOST_CHECK(coin_selection_params_bnb.use_bnb);
     }
@@ -656,8 +657,8 @@ BOOST_AUTO_TEST_CASE(SelectCoins_test)
         CoinSet out_set;
         CAmount out_value = 0;
         bool bnb_used = false;
-        BOOST_CHECK(wallet->AttemptSelection(target, filter_standard, coins, out_set, out_value, coin_selection_params_bnb, bnb_used) ||
-                    wallet->AttemptSelection(target, filter_standard, coins, out_set, out_value, coin_selection_params_knapsack, bnb_used));
+        BOOST_CHECK(AttemptSelection(wallet, target, filter_standard, coins, out_set, out_value, coin_selection_params_bnb, bnb_used) ||
+                    AttemptSelection(wallet, target, filter_standard, coins, out_set, out_value, coin_selection_params_knapsack, bnb_used));
         BOOST_CHECK_GE(out_value, target);
     }
 }
