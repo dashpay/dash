@@ -212,7 +212,7 @@ public:
         return internalMap.empty();
     }
 
-    const std::unordered_map<uint16_t, T>* GetAllForSignHash(const uint256& signHash)
+    const std::unordered_map<uint16_t, T>* GetAllForSignHash(const uint256& signHash) const
     {
         auto it = internalMap.find(signHash);
         if (it == internalMap.end()) {
