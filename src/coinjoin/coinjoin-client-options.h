@@ -11,16 +11,19 @@
 class UniValue;
 
 static const int MIN_COINJOIN_SESSIONS = 1;
+static const int MIN_COINJOIN_WINNERS = 1;
 static const int MIN_COINJOIN_ROUNDS = 2;
 static const int MIN_COINJOIN_AMOUNT = 2;
 static const int MIN_COINJOIN_DENOMS_GOAL = 10;
 static const int MIN_COINJOIN_DENOMS_HARDCAP = 10;
 static const int MAX_COINJOIN_SESSIONS = 10;
+static const int MAX_COINJOIN_WINNERS = 576;
 static const int MAX_COINJOIN_ROUNDS = 16;
 static const int MAX_COINJOIN_DENOMS_GOAL = 100000;
 static const int MAX_COINJOIN_DENOMS_HARDCAP = 100000;
 static const int MAX_COINJOIN_AMOUNT = MAX_MONEY / COIN;
 static const int DEFAULT_COINJOIN_SESSIONS = 4;
+static const int DEFAULT_COINJOIN_WINNERS = 8;
 static const int DEFAULT_COINJOIN_ROUNDS = 4;
 static const int DEFAULT_COINJOIN_AMOUNT = 1000;
 static const int DEFAULT_COINJOIN_DENOMS_GOAL = 50;
@@ -52,6 +55,7 @@ class CCoinJoinClientOptions
 {
 public:
     static int GetSessions() { return CCoinJoinClientOptions::Get().nCoinJoinSessions; }
+    static int GetWinners() { return CCoinJoinClientOptions::Get().nCoinJoinWinners; }
     static int GetRounds() { return CCoinJoinClientOptions::Get().nCoinJoinRounds; }
     static int GetRandomRounds() { return CCoinJoinClientOptions::Get().nCoinJoinRandomRounds; }
     static int GetAmount() { return CCoinJoinClientOptions::Get().nCoinJoinAmount; }
@@ -74,6 +78,7 @@ private:
 
     CCriticalSection cs_cj_options;
     int nCoinJoinSessions;
+    int nCoinJoinWinners{DEFAULT_COINJOIN_WINNERS};
     int nCoinJoinRounds;
     int nCoinJoinRandomRounds;
     int nCoinJoinAmount;

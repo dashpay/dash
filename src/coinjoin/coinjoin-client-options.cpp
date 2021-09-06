@@ -54,6 +54,7 @@ void CCoinJoinClientOptions::Init()
     LOCK(instance.cs_cj_options);
     instance.fCoinJoinMultiSession = gArgs.GetBoolArg("-coinjoinmultisession", DEFAULT_COINJOIN_MULTISESSION);
     instance.nCoinJoinSessions = std::min(std::max((int)gArgs.GetArg("-coinjoinsessions", DEFAULT_COINJOIN_SESSIONS), MIN_COINJOIN_SESSIONS), MAX_COINJOIN_SESSIONS);
+    instance.nCoinJoinWinners = std::min(std::max((int)gArgs.GetArg("-coinjoinwinners", DEFAULT_COINJOIN_WINNERS), MIN_COINJOIN_WINNERS), MAX_COINJOIN_WINNERS);
     instance.nCoinJoinRounds = std::min(std::max((int)gArgs.GetArg("-coinjoinrounds", DEFAULT_COINJOIN_ROUNDS), MIN_COINJOIN_ROUNDS), MAX_COINJOIN_ROUNDS);
     instance.nCoinJoinAmount = std::min(std::max((int)gArgs.GetArg("-coinjoinamount", DEFAULT_COINJOIN_AMOUNT), MIN_COINJOIN_AMOUNT), MAX_COINJOIN_AMOUNT);
     instance.nCoinJoinDenomsGoal = std::min(std::max((int)gArgs.GetArg("-coinjoindenomsgoal", DEFAULT_COINJOIN_DENOMS_GOAL), MIN_COINJOIN_DENOMS_GOAL), MAX_COINJOIN_DENOMS_GOAL);
