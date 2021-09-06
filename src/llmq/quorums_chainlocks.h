@@ -110,8 +110,8 @@ public:
 
 private:
     // these require locks to be held already
-    bool InternalHasChainLock(int nHeight, const uint256& blockHash) const;
-    bool InternalHasConflictingChainLock(int nHeight, const uint256& blockHash) const;
+    bool InternalHasChainLock(int nHeight, const uint256& blockHash) const EXCLUSIVE_LOCKS_REQUIRED(cs);
+    bool InternalHasConflictingChainLock(int nHeight, const uint256& blockHash) const EXCLUSIVE_LOCKS_REQUIRED(cs);
 
     BlockTxs::mapped_type GetBlockTxs(const uint256& blockHash);
 

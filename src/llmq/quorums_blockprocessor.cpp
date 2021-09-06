@@ -187,6 +187,8 @@ static std::tuple<std::string, Consensus::LLMQType, uint32_t> BuildInversedHeigh
 
 bool CQuorumBlockProcessor::ProcessCommitment(int nHeight, const uint256& blockHash, const CFinalCommitment& qc, CValidationState& state, bool fJustCheck)
 {
+    AssertLockHeld(cs_main);
+
     const auto& llmq_params = GetLLMQParams(qc.llmqType);
 
     uint256 quorumHash = GetQuorumBlockHash(qc.llmqType, nHeight);
@@ -377,6 +379,8 @@ bool CQuorumBlockProcessor::IsMiningPhase(Consensus::LLMQType llmqType, int nHei
 
 bool CQuorumBlockProcessor::IsCommitmentRequired(Consensus::LLMQType llmqType, int nHeight) const
 {
+    AssertLockHeld(cs_main);
+
     uint256 quorumHash = GetQuorumBlockHash(llmqType, nHeight);
 
     // perform extra check for quorumHash.IsNull as the quorum hash is unknown for the first block of a session
