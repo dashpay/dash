@@ -84,8 +84,22 @@ The option to set the PUB socket's outbound message high water mark
 
     -zmqpubhashtxhwm=n
     -zmqpubhashblockhwm=n
+    -zmqpubhashchainlockhwm=n
+    -zmqpubhashtxlockhwm=n
+    -zmqpubhashgovernancevotehwm=n
+    -zmqpubhashgovernanceobjecthwm=n
+    -zmqpubhashinstantsenddoublespendhwm=n
+    -zmqpubhashrecoveredsighwm=n
     -zmqpubrawblockhwm=n
     -zmqpubrawtxhwm=n
+    -zmqpubrawchainlockhwm=n
+    -zmqpubrawchainlocksighwm=n
+    -zmqpubrawtxlockhwm=n
+    -zmqpubrawtxlocksighwm=n
+    -zmqpubrawgovernancevotehwm=n
+    -zmqpubrawgovernanceobjecthwm=n
+    -zmqpubrawinstantsenddoublespendhwm=n
+    -zmqpubrawrecoveredsighwm=n
 
 The high water mark value must be an integer greater than or equal to 0.
 
