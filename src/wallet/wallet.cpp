@@ -4319,7 +4319,7 @@ std::set< std::set<CTxDestination> > CWallet::GetAddressGroupings() const
 
 std::set<CTxDestination> CWallet::GetLabelAddresses(const std::string& label) const
 {
-    LOCK(cs_wallet);
+    AssertLockHeld(cs_wallet);
     std::set<CTxDestination> result;
     for (const std::pair<const CTxDestination, CAddressBookData>& item : m_address_book)
     {
@@ -5846,12 +5846,13 @@ DescriptorScriptPubKeyMan* CWallet::GetDescriptorScriptPubKeyMan(const WalletDes
 
 ScriptPubKeyMan* CWallet::AddWalletDescriptor(WalletDescriptor& desc, const FlatSigningProvider& signing_provider, const std::string& label, bool internal)
 {
+    AssertLockHeld(cs_wallet);
+
     if (!IsWalletFlagSet(WALLET_FLAG_DESCRIPTORS)) {
         WalletLogPrintf("Cannot add WalletDescriptor to a non-descriptor wallet\n");
         return nullptr;
     }
 
-    LOCK(cs_wallet);
     auto spk_man = GetDescriptorScriptPubKeyMan(desc);
     if (spk_man) {
         WalletLogPrintf("Update existing descriptor: %s\n", desc.descriptor->ToString());
