@@ -444,6 +444,12 @@ public:
      * @return
      */
     std::vector<CDeterministicMNCPtr> CalculateQuorum(size_t maxSize, const uint256& modifier) const;
+
+    /**
+     * Calculate scores for each quorum based on the modifier.
+     * @param modifier
+     * @return
+     */
     std::vector<std::pair<arith_uint256, CDeterministicMNCPtr>> CalculateScores(const uint256& modifier) const;
 
     /**
@@ -479,14 +485,65 @@ public:
      */
     void PoSeDecrease(const uint256& proTxHash);
 
+    /**
+     * Builds the diff between the given list of MN
+     * @param to
+     * @return
+     */
     CDeterministicMNListDiff BuildDiff(const CDeterministicMNList& to) const;
+
+    /**
+     * Builds the simplified diff between the given list of MN
+     * @param to
+     * @return
+     */
     CSimplifiedMNListDiff BuildSimplifiedDiff(const CDeterministicMNList& to) const;
+
+    /**
+     * Applying the given MN list diff to the specific block index
+     * @param pindex
+     * @param diff
+     * @return
+     */
     CDeterministicMNList ApplyDiff(const CBlockIndex* pindex, const CDeterministicMNListDiff& diff) const;
 
+    /**
+    * Add given quorum of MN to the list by updating or not the total counter
+    * @param dmn
+    * @param fBumpTotalCount
+    * @return
+    */
     void AddMN(const CDeterministicMNCPtr& dmn, bool fBumpTotalCount = true);
+
+    /**
+    * Update MN quorum state
+    * @param oldDmn
+    * @param pdmnState
+    * @return
+    */
     void UpdateMN(const CDeterministicMNCPtr& oldDmn, const CDeterministicMNStateCPtr& pdmnState);
+
+    /**
+    * Update MN quorum state by using his hash
+    * @param proTxHash
+    * @param pdmnState
+    * @return
+    */
     void UpdateMN(const uint256& proTxHash, const CDeterministicMNStateCPtr& pdmnState);
+
+    /**
+    * Update MN quorum state by using the diff state
+    * @param proTxHash
+    * @param pdmnState
+    * @return
+    */
     void UpdateMN(const CDeterministicMNCPtr& oldDmn, const CDeterministicMNStateDiff& stateDiff);
+
+    /**
+    * Removes a MN using his hash
+    * @param proTxHash
+    * @return
+    */
     void RemoveMN(const uint256& proTxHash);
 
     template <typename T>
