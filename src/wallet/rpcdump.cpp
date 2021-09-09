@@ -1284,7 +1284,8 @@ static UniValue ProcessImport(CWallet * const pwallet, const UniValue& data, con
                 }
 
                 // add to address book or update label
-                if (IsValidDestination(dest)) {
+                if(!internal) {
+                    assert(IsValidDestination(dest));
                     pwallet->SetAddressBook(dest, label, "receive");
                 }
 
