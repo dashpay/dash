@@ -66,6 +66,11 @@ if ! command -v yq > /dev/null; then
     exit $EXIT_CODE
 fi
 
+if ! command -v jq > /dev/null; then
+    echo "Skipping Gitian descriptor scripts checking since jq is not installed."
+    exit $EXIT_CODE
+fi
+
 EXCLUDE_GITIAN=${EXCLUDE}",$(IFS=','; echo "${disabled_gitian[*]}")"
 for descriptor in $(git ls-files -- 'contrib/gitian-descriptors/*.yml')
 do
