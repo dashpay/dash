@@ -89,6 +89,11 @@ public:
                 );
     }
 
+    /**
+     * Resets operator fields
+     * @param
+     * @return
+     */
     void ResetOperatorFields()
     {
         pubKeyOperator.Set(CBLSPublicKey());
@@ -96,26 +101,57 @@ public:
         scriptOperatorPayout = CScript();
         nRevocationReason = CProUpRevTx::REASON_NOT_SPECIFIED;
     }
+
+    /**
+     * Ban MN at given height if not already banned
+     * @param height
+     * @return
+     */
     void BanIfNotBanned(int height)
     {
         if (!IsBanned()) {
             nPoSeBanHeight = height;
         }
     }
+
+    /**
+     * Get height where MN was banned
+     * @param
+     * @return
+     */
     int GetBannedHeight() const
     {
         return nPoSeBanHeight;
     }
+
+    /**
+     * Checks if MN is banned
+     * @param
+     * @return
+     */
     bool IsBanned() const
     {
         return nPoSeBanHeight != -1;
     }
+
+    /**
+     * Revives MN at given height
+     * @param nRevivedHeight
+     * @return
+     */
     void Revive(int nRevivedHeight)
     {
         nPoSePenalty = 0;
         nPoSeBanHeight = -1;
         nPoSeRevivedHeight = nRevivedHeight;
     }
+
+    /**
+    * Updates confirmed hash
+    * @param _proTxHash
+    * @param _confirmedHash
+    * @return
+    */
     void UpdateConfirmedHash(const uint256& _proTxHash, const uint256& _confirmedHash)
     {
         confirmedHash = _confirmedHash;
@@ -356,11 +392,21 @@ public:
         }
     }
 
+    /**
+     * Get number of MN quorums
+     * @param
+     * @return
+     */
     size_t GetAllMNsCount() const
     {
         return mnMap.size();
     }
 
+    /**
+     * Get number of valid MN quorums
+     * @param
+     * @return
+     */
     size_t GetValidMNsCount() const
     {
         size_t count = 0;
@@ -382,51 +428,168 @@ public:
         }
     }
 
+    /**
+     * Get current block hash
+     * @param
+     * @return
+     */
     const uint256& GetBlockHash() const
     {
         return blockHash;
     }
+
+    /**
+     * Set block hash
+     * @param _blockHash
+     * @return
+     */
     void SetBlockHash(const uint256& _blockHash)
     {
         blockHash = _blockHash;
     }
+
+    /**
+     * Get current height
+     * @param
+     * @return
+     */
     int GetHeight() const
     {
         return nHeight;
     }
+
+    /**
+     * Set height
+     * @param _height
+     * @return
+     */
     void SetHeight(int _height)
     {
         nHeight = _height;
     }
+
+    /**
+     * Get total registrered
+     * @param
+     * @return
+     */
     uint32_t GetTotalRegisteredCount() const
     {
         return nTotalRegisteredCount;
     }
 
+    /**
+     * Checks by hash id if quorum MN is valid
+     * @param proTxHash
+     * @return
+     */
     bool IsMNValid(const uint256& proTxHash) const;
+
+    /**
+     * Checks by hash id if quorum MN is banned
+     * @param proTxHash
+     * @return
+     */
     bool IsMNPoSeBanned(const uint256& proTxHash) const;
+
+    /**
+     * Checks if quorum MN is valid
+     * @param dmn
+     * @return
+     */
     static bool IsMNValid(const CDeterministicMNCPtr& dmn);
+
+    /**
+     * Checks if quorum MN is banned
+     * @param dmn
+     * @return
+     */
     static bool IsMNPoSeBanned(const CDeterministicMNCPtr& dmn);
 
+    /**
+     * Checks by hash id if quorum MN is present in the list
+     * @param proTxHash
+     * @return
+     */
     bool HasMN(const uint256& proTxHash) const
     {
         return GetMN(proTxHash) != nullptr;
     }
+
+    /**
+     * Checks by collateral outpoint if quorum MN is present in the list
+     * @param collateralOutpoint
+     * @return
+     */
     bool HasMNByCollateral(const COutPoint& collateralOutpoint) const
     {
         return GetMNByCollateral(collateralOutpoint) != nullptr;
     }
+
+    /**
+     * Checks by collateral outpoint if quorum MN is present and valid
+     * @param collateralOutpoint
+     * @return
+     */
     bool HasValidMNByCollateral(const COutPoint& collateralOutpoint) const
     {
         return GetValidMNByCollateral(collateralOutpoint) != nullptr;
     }
+
+    /**
+     * Get quorum MN by hash id
+     * @param proTxHash
+     * @return
+     */
     CDeterministicMNCPtr GetMN(const uint256& proTxHash) const;
+
+    /**
+     * Get quorum MN by hash id only if valid
+     * @param proTxHash
+     * @return
+     */
     CDeterministicMNCPtr GetValidMN(const uint256& proTxHash) const;
+
+    /**
+     * Get quorum MN by operator public key
+     * @param pubKey
+     * @return
+     */
     CDeterministicMNCPtr GetMNByOperatorKey(const CBLSPublicKey& pubKey) const;
+
+    /**
+     * Get quorum MN by collateral outpoint
+     * @param collateralOutpoint
+     * @return
+     */
     CDeterministicMNCPtr GetMNByCollateral(const COutPoint& collateralOutpoint) const;
+
+    /**
+     * Get quorum MN by collateral outpoint only if valid
+     * @param collateralOutpoint
+     * @return
+     */
     CDeterministicMNCPtr GetValidMNByCollateral(const COutPoint& collateralOutpoint) const;
+
+    /**
+     * Get quorum MN by service (A combination of a network address (CNetAddr) and a (TCP) port)
+     * @param service
+     * @return
+     */
     CDeterministicMNCPtr GetMNByService(const CService& service) const;
+
+    /**
+     * Get quorum MN by internal id
+     * @param internalId
+     * @return
+     */
     CDeterministicMNCPtr GetMNByInternalId(uint64_t internalId) const;
+
+    /**
+     * Get the last payee quorum MN
+     * @param proTxHash
+     * @return
+     */
     CDeterministicMNCPtr GetMNPayee() const;
 
     /**
