@@ -1,11 +1,11 @@
-#include <qt/governancelist.h>
 #include <qt/forms/ui_governancelist.h>
+#include <qt/governancelist.h>
 
-#include <qt/clientmodel.h>
 #include <clientversion.h>
 #include <coins.h>
 #include <qt/guiutil.h>
 #include <netbase.h>
+#include <qt/clientmodel.h>
 #include <qt/walletmodel.h>
 
 #include <univalue.h>
@@ -169,14 +169,14 @@ void GovernanceList::updateDIP3List()
     ui->tableWidgetProposalsDIP3->setSortingEnabled(false);
 
     //deletes prev. items in the table
-    for (int i = 0; i < ui->tableWidgetProposalsDIP3->rowCount(); i++){
+    for (int i = 0; i < ui->tableWidgetProposalsDIP3->rowCount(); i++) {
         QTableWidgetItem* status_item = ui->tableWidgetProposalsDIP3->item(i, COLUMN_STATUS);
         if (status_item != nullptr) delete status_item;
 
         QTableWidgetItem* amount_item = ui->tableWidgetProposalsDIP3->item(i, COLUMN_AMOUNT);
         if (status_item != nullptr) delete amount_item;
 
-        QTableWidgetItem*  cycles_item = ui->tableWidgetProposalsDIP3->item(i, COLUMN_CYCLES);
+        QTableWidgetItem* cycles_item = ui->tableWidgetProposalsDIP3->item(i, COLUMN_CYCLES);
         if (status_item != nullptr) delete cycles_item;
 
         QTableWidgetItem* curr_cycles_item = ui->tableWidgetProposalsDIP3->item(i, COLUMN_CURRENT_CYCLE);
@@ -202,7 +202,6 @@ void GovernanceList::updateDIP3List()
 
         QTableWidgetItem* creation_item = ui->tableWidgetProposalsDIP3->item(i, COLUMN_CREATION_TIME);
         if (status_item != nullptr) delete creation_item;
-
     }
 
     ui->tableWidgetProposalsDIP3->clearContents();
@@ -210,8 +209,8 @@ void GovernanceList::updateDIP3List()
 
     nTimeUpdatedDIP3 = GetTime();
 
-    for (int i = 0; i < governanceList.size(); i++){
-        CGovernanceObject *obj = (CGovernanceObject*)governanceList.at(i);
+    for (int i = 0; i < governanceList.size(); i++) {
+        CGovernanceObject* obj = (CGovernanceObject*)governanceList.at(i);
 
         QString isActiveStr = "";
         std::string err = "";
@@ -239,7 +238,7 @@ void GovernanceList::updateDIP3List()
         QString paymentEndStr = "-";
         QString creationTimeStr = "-";
 
-        if(obj->GetObjectType() == GOVERNANCE_OBJECT_PROPOSAL){
+        if (obj->GetObjectType() == GOVERNANCE_OBJECT_PROPOSAL) {
             paymentAmountStr = QString::number(paymentAmount);
             cyclesStr = QString::number(cycles);
             currentCycleStr = QString::number(currentCycle);
@@ -247,17 +246,17 @@ void GovernanceList::updateDIP3List()
             paymentEndStr = paymentEndTime.toString("dd.MM.yyyy HH.mm");
             creationTimeStr = creationTime.toString("dd.MM.yyyy HH.mm");
         }
-        QTableWidgetItem *statusItem = new QTableWidgetItem(isActiveStr);
-        QTableWidgetItem *amountItem = new QTableWidgetItem(paymentAmountStr);
-        QTableWidgetItem *cyclesItem = new QTableWidgetItem(cyclesStr);
-        QTableWidgetItem *currentCycleItem = new QTableWidgetItem(currentCycleStr);
-        QTableWidgetItem *absuluteYesCountItem = new QTableWidgetItem(QString::number(absYesCount));
-        QTableWidgetItem *yesCountItem = new QTableWidgetItem(QString::number(yesCount));
-        QTableWidgetItem *noCountItem = new QTableWidgetItem(QString::number(noCount));
-        QTableWidgetItem *abstainCountItem = new QTableWidgetItem(QString::number(abstainCount));
-        QTableWidgetItem *paymentStartItem = new QTableWidgetItem(paymentStartStr);
-        QTableWidgetItem *paymentEndItem = new QTableWidgetItem(paymentEndStr);
-        QTableWidgetItem *creationTimeItem = new QTableWidgetItem(creationTimeStr);
+        QTableWidgetItem* statusItem = new QTableWidgetItem(isActiveStr);
+        QTableWidgetItem* amountItem = new QTableWidgetItem(paymentAmountStr);
+        QTableWidgetItem* cyclesItem = new QTableWidgetItem(cyclesStr);
+        QTableWidgetItem* currentCycleItem = new QTableWidgetItem(currentCycleStr);
+        QTableWidgetItem* absuluteYesCountItem = new QTableWidgetItem(QString::number(absYesCount));
+        QTableWidgetItem* yesCountItem = new QTableWidgetItem(QString::number(yesCount));
+        QTableWidgetItem* noCountItem = new QTableWidgetItem(QString::number(noCount));
+        QTableWidgetItem* abstainCountItem = new QTableWidgetItem(QString::number(abstainCount));
+        QTableWidgetItem* paymentStartItem = new QTableWidgetItem(paymentStartStr);
+        QTableWidgetItem* paymentEndItem = new QTableWidgetItem(paymentEndStr);
+        QTableWidgetItem* creationTimeItem = new QTableWidgetItem(creationTimeStr);
 
         //hash is embedding to COLUMN_STATUS/UserRole to use on row selection
         statusItem->setData(Qt::UserRole, QString::fromStdString(governanceList[i]->GetHash().ToString()));
@@ -275,7 +274,6 @@ void GovernanceList::updateDIP3List()
         ui->tableWidgetProposalsDIP3->setItem(0, COLUMN_PAYMENT_START, paymentStartItem);
         ui->tableWidgetProposalsDIP3->setItem(0, COLUMN_PAYMENT_END, paymentEndItem);
         ui->tableWidgetProposalsDIP3->setItem(0, COLUMN_CREATION_TIME, creationTimeItem);
-
     }
 
     ui->tableWidgetProposalsDIP3->setSortingEnabled(true);
@@ -312,10 +310,10 @@ CGovernanceObject* GovernanceList::GetSelectedDIP3GOV()
     proTxHash.SetHex(strProTxHash);
 
     std::vector<const CGovernanceObject*> list = clientModel->getGovernanceList();
-    for(int i = 0; i < list.size(); i++){
-        const CGovernanceObject *obj = list[i];
+    for (int i = 0; i < list.size(); i++) {
+        const CGovernanceObject* obj = list[i];
 
-        if(proTxHash == obj->GetHash()){
+        if (proTxHash == obj->GetHash()) {
             return (CGovernanceObject*)obj;
         }
     }
@@ -324,7 +322,7 @@ CGovernanceObject* GovernanceList::GetSelectedDIP3GOV()
 
 void GovernanceList::extraInfoDIP3_clicked()
 {
-    CGovernanceObject *gov = GetSelectedDIP3GOV();
+    CGovernanceObject* gov = GetSelectedDIP3GOV();
     if (gov == nullptr) {
         return;
     }
@@ -341,7 +339,7 @@ void GovernanceList::extraInfoDIP3_clicked()
 
 void GovernanceList::openProLink_clicked()
 {
-    CGovernanceObject *gov = GetSelectedDIP3GOV();
+    CGovernanceObject* gov = GetSelectedDIP3GOV();
     if (gov == nullptr) {
         return;
     }
@@ -349,7 +347,6 @@ void GovernanceList::openProLink_clicked()
     std::string url = gov->GetURL();
     QDesktopServices::openUrl(QUrl(QString::fromStdString(url)));
 }
-
 
 
 //For future use. Maybe to show details in a some area on UI
@@ -363,7 +360,3 @@ void GovernanceList::tableWidgetRow_clicked()
     */
 
 }
-
-
-
-

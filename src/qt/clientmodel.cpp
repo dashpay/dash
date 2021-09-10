@@ -52,7 +52,6 @@ ClientModel::ClientModel(interfaces::Node& node, OptionsModel *_optionsModel, QO
     mnListCached = std::make_shared<CDeterministicMNList>();
 
     subscribeToCoreSignals();
-
 }
 
 ClientModel::~ClientModel()
@@ -75,7 +74,6 @@ int ClientModel::getNumConnections(unsigned int flags) const
 
 void ClientModel::setMasternodeList(const CDeterministicMNList& mnList)
 {
-
     LOCK(cs_mnlinst);
     if (mnListCached->GetBlockHash() == mnList.GetBlockHash()) {
         return;
@@ -100,7 +98,6 @@ void ClientModel::refreshMasternodeList()
 
 void ClientModel::setGovernanceList(std::vector<const CGovernanceObject*> list)
 {
-
     govListCached = list;
     Q_EMIT governanceListChanged();
 }
@@ -108,9 +105,8 @@ void ClientModel::setGovernanceList(std::vector<const CGovernanceObject*> list)
 
 std::vector<const CGovernanceObject*> ClientModel::getGovernanceList()
 {
-   // right now gets all the list. This may change
+    // right now gets all the list. This may change
     govListCached = governance.GetAllNewerThan(0);
-    std::cout << "list: " << govListCached.size();
 
     return govListCached;
 }
@@ -315,7 +311,7 @@ static void NotifyGovernanceListChanged(ClientModel *clientmodel, std::vector<co
     clientmodel->setGovernanceList(newList);
 }
 
-static void NotifyAdditionalDataSyncProgressChanged(ClientModel *clientmodel, double nSyncProgress)
+static void NotifyAdditionalDataSyncProgressChanged(ClientModel* clientmodel, double nSyncProgress)
 {
     QMetaObject::invokeMethod(clientmodel, "additionalDataSyncProgressChanged", Qt::QueuedConnection,
                               Q_ARG(double, nSyncProgress));

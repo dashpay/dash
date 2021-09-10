@@ -6,19 +6,18 @@
 
 #include <governance/governance-classes.h>
 
-#include <QMenu>
-#include <QTimer>
-#include <QWidget>
 #include <QDesktopServices>
-#include <QUrl>
+#include <QMenu>
 #include <QNetworkAccessManager>
 #include <QNetworkReply>
+#include <QTimer>
+#include <QUrl>
+#include <QWidget>
 
 #define GOVERNANCELIST_UPDATE_SECONDS 3
 #define GOVERNANCELIST_FILTER_COOLDOWN_SECONDS 3
 
-namespace Ui
-{
+namespace Ui {
 class GovernanceList;
 }
 
@@ -75,7 +74,7 @@ private:
 
     bool mnListChanged;
 
-    CGovernanceObject *GetSelectedDIP3GOV();
+    CGovernanceObject* GetSelectedDIP3GOV();
 
     void updateDIP3List();
 

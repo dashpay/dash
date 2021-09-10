@@ -31,10 +31,11 @@
 #include <chainparams.h>
 #include <interfaces/handler.h>
 #include <interfaces/node.h>
-#include <ui_interface.h>
-#include <util/system.h>
 #include <qt/masternodelist.h>
 #include <qt/governancelist.h>
+#include <ui_interface.h>
+#include <util/system.h>
+
 
 #include <iostream>
 
@@ -642,8 +643,8 @@ void BitcoinGUI::createToolBars()
             connect(governanceButton, &QToolButton::clicked, this, &BitcoinGUI::gotoGovernancePage);
         }
         connect(overviewButton, &QToolButton::clicked, this, &BitcoinGUI::gotoOverviewPage);
-        connect(sendCoinsButton, &QToolButton::clicked, [this]{ gotoSendCoinsPage(); });
-        connect(coinJoinCoinsButton, &QToolButton::clicked, this, [this]{ gotoCoinJoinCoinsPage(); });
+        connect(sendCoinsButton, &QToolButton::clicked, [this] { gotoSendCoinsPage(); });
+        connect(coinJoinCoinsButton, &QToolButton::clicked, this, [this] { gotoCoinJoinCoinsPage(); });
         connect(receiveCoinsButton, &QToolButton::clicked, this, &BitcoinGUI::gotoReceiveCoinsPage);
         connect(historyButton, &QToolButton::clicked, this, &BitcoinGUI::gotoHistoryPage);
 

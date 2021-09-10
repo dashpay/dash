@@ -14,10 +14,9 @@
 #include <net.h>
 #include <validation.h>
 #include <validationinterface.h>
-
 #include <string>
 
-static constexpr int64_t SECONDS_IN_ONE_MONTH = 60*60*24*30;
+static constexpr int64_t SECONDS_IN_ONE_MONTH = 60 * 60 * 24 * 30;
 
 CGovernanceObject::CGovernanceObject() :
     cs(),
@@ -671,7 +670,7 @@ std::string CGovernanceObject::GetURL()
     data.read(this->GetDataAsPlainString());
     UniValue url_data = find_value(data, "url");
 
-    if( url_data.isStr()) return url_data.get_str();
+    if (url_data.isStr()) return url_data.get_str();
 
     return "not a valid url";
 }

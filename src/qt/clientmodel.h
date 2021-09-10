@@ -6,8 +6,8 @@
 #ifndef BITCOIN_QT_CLIENTMODEL_H
 #define BITCOIN_QT_CLIENTMODEL_H
 
-#include <interfaces/node.h>
 #include <governance/governance.h>
+#include <interfaces/node.h>
 #include <sync.h>
 
 #include <QObject>
