@@ -65,6 +65,7 @@ SEQ_RANDOM_HIGH_BIT = 1 << 25
 SEQ_TYPE_FLAG = 1 << 22
 SEQ_RANDOM_LOW_BIT = 1 << 18
 
+
 def relative_locktime(sdf, srhb, stf, srlb):
     """Returns a locktime with certain bits set."""
 
@@ -78,6 +79,7 @@ def relative_locktime(sdf, srhb, stf, srlb):
     if srlb:
         locktime |= SEQ_RANDOM_LOW_BIT
     return locktime
+
 
 def all_rlt_txs(txs):
     return [tx['tx'] for tx in txs]
@@ -150,6 +152,7 @@ class BIP68_112_113Test(BitcoinTestFramework):
         # Must also set '-maxtipage=600100' to allow syncing from very old blocks
         # and '-dip3params=2000:2000' to create pre-dip3 blocks only
         self.extra_args = [[
+            '-peertimeout=999999',  # bump because mocktime might cause a disconnect otherwise
             '-whitelist=noban@127.0.0.1',
             '-maxtipage=600100', '-dip3params=2000:2000',
             '-par=1',  # Use only one script thread to get the exact reject reason for testing
@@ -201,7 +204,7 @@ class BIP68_112_113Test(BitcoinTestFramework):
         self.nodeaddress = self.nodes[0].getnewaddress()
 
         # Activation height is hardcoded
-        test_blocks = self.generate_blocks(CSV_ACTIVATION_HEIGHT-5 - COINBASE_BLOCK_COUNT)
+        test_blocks = self.generate_blocks(CSV_ACTIVATION_HEIGHT - 5 - COINBASE_BLOCK_COUNT)
         #test_blocks = self.generate_blocks(345)
         self.send_blocks(test_blocks)
         assert not softfork_active(self.nodes[0], 'csv')
@@ -480,6 +483,7 @@ class BIP68_112_113Test(BitcoinTestFramework):
 
         self.send_blocks([self.create_test_block(time_txs)])
         self.nodes[0].invalidateblock(self.nodes[0].getbestblockhash())
+
 
 if __name__ == '__main__':
     BIP68_112_113Test().main()
