@@ -137,7 +137,6 @@ class ImportMultiTest(BitcoinTestFramework):
         assert_equal(address_assert['ismine'], False)
         assert_equal(address_assert['timestamp'], timestamp)
 
-
         # Nonstandard scriptPubKey + Public key + !internal
         self.log.info("Should not import a nonstandard scriptPubKey without internal and with public key")
         address = self.nodes[0].getaddressinfo(self.nodes[0].getnewaddress())
