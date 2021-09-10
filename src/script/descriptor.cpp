@@ -173,6 +173,7 @@ public:
     AddressDescriptor(CTxDestination destination) : m_destination(std::move(destination)) {}
 
     bool IsRange() const override { return false; }
+    bool IsSolvable() const override { return false; }
     std::string ToString() const override { return "addr(" + EncodeDestination(m_destination) + ")"; }
     bool ToPrivateString(const SigningProvider& arg, std::string& out) const override { out = ToString(); return true; }
     bool Expand(int pos, const SigningProvider& arg, std::vector<CScript>& output_scripts, FlatSigningProvider& out) const override
@@ -191,6 +192,7 @@ public:
     RawDescriptor(CScript script) : m_script(std::move(script)) {}
 
     bool IsRange() const override { return false; }
+    bool IsSolvable() const override { return false; }
     std::string ToString() const override { return "raw(" + HexStr(m_script) + ")"; }
     bool ToPrivateString(const SigningProvider& arg, std::string& out) const override { out = ToString(); return true; }
     bool Expand(int pos, const SigningProvider& arg, std::vector<CScript>& output_scripts, FlatSigningProvider& out) const override
@@ -211,6 +213,7 @@ public:
     SingleKeyDescriptor(std::unique_ptr<PubkeyProvider> prov, const std::function<CScript(const CPubKey&)>& fn, const std::string& name) : m_script_fn(fn), m_fn_name(name), m_provider(std::move(prov)) {}
 
     bool IsRange() const override { return m_provider->IsRange(); }
+    bool IsSolvable() const override { return true; }
     std::string ToString() const override { return m_fn_name + "(" + m_provider->ToString() + ")"; }
     bool ToPrivateString(const SigningProvider& arg, std::string& out) const override
     {
@@ -249,6 +252,8 @@ public:
         }
         return false;
     }
+
+    bool IsSolvable() const override { return true; }
 
     std::string ToString() const override
     {
@@ -299,6 +304,7 @@ public:
     ConvertorDescriptor(std::unique_ptr<Descriptor> descriptor, const std::function<CScript(const CScript&)>& fn, const std::string& name) : m_convert_fn(fn), m_fn_name(name), m_descriptor(std::move(descriptor)) {}
 
     bool IsRange() const override { return m_descriptor->IsRange(); }
+    bool IsSolvable() const override { return m_descriptor->IsSolvable(); }
     std::string ToString() const override { return m_fn_name + "(" + m_descriptor->ToString() + ")"; }
     bool ToPrivateString(const SigningProvider& arg, std::string& out) const override
     {
@@ -332,6 +338,7 @@ public:
     ComboDescriptor(std::unique_ptr<PubkeyProvider> provider) : m_provider(std::move(provider)) {}
 
     bool IsRange() const override { return m_provider->IsRange(); }
+    bool IsSolvable() const override { return true; }
     std::string ToString() const override { return "combo(" + m_provider->ToString() + ")"; }
     bool ToPrivateString(const SigningProvider& arg, std::string& out) const override
     {
@@ -536,6 +543,65 @@ std::unique_ptr<Descriptor> ParseScript(Span<const char>& sp, ParseScriptContext
     return nullptr;
 }
 
+
+std::unique_ptr<PubkeyProvider> InferPubkey(const CPubKey& pubkey, ParseScriptContext, const SigningProvider& provider)
+{
+    std::unique_ptr<PubkeyProvider> key_provider = MakeUnique<ConstPubkeyProvider>(pubkey);
+    return key_provider;
+}
+
+
+std::unique_ptr<Descriptor> InferScript(const CScript& script, ParseScriptContext ctx, const SigningProvider& provider)
+{
+    std::vector<std::vector<unsigned char>> data;
+    txnouttype txntype;
+
+    if(!Solver(script, txntype, data))
+        return MakeUnique<RawDescriptor>(script);
+
+    if (txntype == TX_PUBKEY) {
+        CPubKey pubkey(data[0].begin(), data[0].end());
+        if (pubkey.IsValid()) {
+            return MakeUnique<SingleKeyDescriptor>(InferPubkey(pubkey, ctx, provider), P2PKGetScript, "pk");
+        }
+    }
+    if (txntype == TX_PUBKEYHASH) {
+        uint160 hash(data[0]);
+        CKeyID keyid(hash);
+        CPubKey pubkey;
+        if (provider.GetPubKey(keyid, pubkey)) {
+            return MakeUnique<SingleKeyDescriptor>(InferPubkey(pubkey, ctx, provider), P2PKHGetScript, "pkh");
+        }
+    }
+    if (txntype == TX_MULTISIG) {
+        std::vector<std::unique_ptr<PubkeyProvider>> providers;
+        for (size_t i = 1; i + 1 < data.size(); ++i) {
+            CPubKey pubkey(data[i].begin(), data[i].end());
+            providers.push_back(InferPubkey(pubkey, ctx, provider));
+        }
+        return MakeUnique<MultisigDescriptor>((int)data[0][0], std::move(providers));
+    }
+    if (txntype == TX_SCRIPTHASH && ctx == ParseScriptContext::TOP) {
+        uint160 hash(data[0]);
+        CScriptID scriptid(hash);
+        CScript subscript;
+        if (provider.GetCScript(scriptid, subscript)) {
+            auto sub = InferScript(subscript, ParseScriptContext::P2SH, provider);
+            if (sub) return MakeUnique<ConvertorDescriptor>(std::move(sub), ConvertP2SH, "sh");
+        }
+    }
+
+    CTxDestination dest;
+    if (ExtractDestination(script, dest)) {
+        if (GetScriptForDestination(dest) == script) {
+            return MakeUnique<AddressDescriptor>(std::move(dest));
+        }
+    }
+
+    return MakeUnique<RawDescriptor>(script);
+}
+
+
 } // namespace
 
 std::unique_ptr<Descriptor> Parse(const std::string& descriptor, FlatSigningProvider& out)
@@ -544,4 +610,9 @@ std::unique_ptr<Descriptor> Parse(const std::string& descriptor, FlatSigningProv
     auto ret = ParseScript(sp, ParseScriptContext::TOP, out);
     if (sp.size() == 0 && ret) return ret;
     return nullptr;
+}
+
+std::unique_ptr<Descriptor> InferDescriptor(const CScript& script, const SigningProvider& provider)
+{
+    return InferScript(script, ParseScriptContext::TOP, provider);
 }
