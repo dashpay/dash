@@ -3287,7 +3287,8 @@ static UniValue upgradetohd(const JSONRPCRequest& request)
         if (!reserver.reserve()) {
             throw JSONRPCError(RPC_WALLET_ERROR, "Wallet is currently rescanning. Abort existing rescan or wait.");
         }
-        pwallet->ScanForWalletTransactions(chainActive.Genesis(), nullptr, reserver, true);
+        const CBlockIndex *stop_block, *failed_block;
+        pwallet->ScanForWalletTransactions(chainActive.Genesis(), nullptr, reserver, failed_block, stop_block, true);
     }
 
     return true;
