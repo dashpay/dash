@@ -543,22 +543,21 @@ std::unique_ptr<Descriptor> ParseScript(Span<const char>& sp, ParseScriptContext
     return nullptr;
 }
 
-
 std::unique_ptr<PubkeyProvider> InferPubkey(const CPubKey& pubkey, ParseScriptContext, const SigningProvider& provider)
 {
     std::unique_ptr<PubkeyProvider> key_provider = MakeUnique<ConstPubkeyProvider>(pubkey);
     return key_provider;
 }
 
-
 std::unique_ptr<Descriptor> InferScript(const CScript& script, ParseScriptContext ctx, const SigningProvider& provider)
 {
     std::vector<std::vector<unsigned char>> data;
     txnouttype txntype;
 
-    if(!Solver(script, txntype, data))
+    if (!Solver(script, txntype, data)) {
         return MakeUnique<RawDescriptor>(script);
-
+    }
+    
     if (txntype == TX_PUBKEY) {
         CPubKey pubkey(data[0].begin(), data[0].end());
         if (pubkey.IsValid()) {
