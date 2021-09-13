@@ -557,7 +557,6 @@ std::unique_ptr<Descriptor> InferScript(const CScript& script, ParseScriptContex
     if (!Solver(script, txntype, data)) {
         return MakeUnique<RawDescriptor>(script);
     }
-    
     if (txntype == TX_PUBKEY) {
         CPubKey pubkey(data[0].begin(), data[0].end());
         if (pubkey.IsValid()) {
