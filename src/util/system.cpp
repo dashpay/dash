@@ -66,7 +66,6 @@
 #include <codecvt>
 
 #include <io.h> /* for _commit */
-#include <shellapi.h>
 #include <shlobj.h>
 #endif
 
@@ -74,6 +73,9 @@
 #include <malloc.h>
 #endif
 
+#include <openssl/crypto.h>
+#include <openssl/rand.h>
+#include <openssl/conf.h>
 #include <thread>
 
 // Application startup time (used for uptime calculation)
@@ -96,6 +98,54 @@ int nWalletBackups = 10;
 const char * const BITCOIN_CONF_FILENAME = "dash.conf";
 
 ArgsManager gArgs;
+
+/** Init OpenSSL library multithreading support */
+static std::unique_ptr<CCriticalSection[]> ppmutexOpenSSL;
+void locking_callback(int mode, int i, const char* file, int line) NO_THREAD_SAFETY_ANALYSIS
+{
+    if (mode & CRYPTO_LOCK) {
+        ENTER_CRITICAL_SECTION(ppmutexOpenSSL[i]);
+    } else {
+        LEAVE_CRITICAL_SECTION(ppmutexOpenSSL[i]);
+    }
+}
+
+// Singleton for wrapping OpenSSL setup/teardown.
+class CInit
+{
+public:
+    CInit()
+    {
+        // Init OpenSSL library multithreading support
+        ppmutexOpenSSL.reset(new CCriticalSection[CRYPTO_num_locks()]);
+        CRYPTO_set_locking_callback(locking_callback);
+
+        // OpenSSL can optionally load a config file which lists optional loadable modules and engines.
+        // We don't use them so we don't require the config. However some of our libs may call functions
+        // which attempt to load the config file, possibly resulting in an exit() or crash if it is missing
+        // or corrupt. Explicitly tell OpenSSL not to try to load the file. The result for our libs will be
+        // that the config appears to have been loaded and there are no modules/engines available.
+        OPENSSL_no_config();
+
+#ifdef WIN32
+        // Seed OpenSSL PRNG with current contents of the screen
+        RAND_screen();
+#endif
+
+        // Seed OpenSSL PRNG with performance counter
+        RandAddSeed();
+    }
+    ~CInit()
+    {
+        // Securely erase the memory used by the PRNG
+        RAND_cleanup();
+        // Shutdown OpenSSL library multithreading support
+        CRYPTO_set_locking_callback(nullptr);
+        // Clear the set of locks now to maintain symmetry with the constructor.
+        ppmutexOpenSSL.reset();
+    }
+}
+instance_of_cinit;
 
 /** Mutex to protect dir_locks. */
 static Mutex cs_dir_locks;
@@ -389,8 +439,7 @@ const std::set<std::string> ArgsManager::GetUnrecognizedSections() const
     static const std::set<std::string> available_sections{
         CBaseChainParams::REGTEST,
         CBaseChainParams::TESTNET,
-        CBaseChainParams::MAIN,
-        CBaseChainParams::DEVNET
+        CBaseChainParams::MAIN
     };
     std::set<std::string> diff;
 
@@ -431,7 +480,7 @@ bool ArgsManager::ParseParameters(int argc, const char* const argv[], std::strin
             key.erase(is_index);
         }
 #ifdef WIN32
-        std::transform(key.begin(), key.end(), key.begin(), ToLower);
+        std::transform(key.begin(), key.end(), key.begin(), ::tolower);
         if (key[0] == '/')
             key[0] = '-';
 #endif
@@ -1277,10 +1326,6 @@ void SetupEnvironment()
     } catch (const std::runtime_error&) {
         setenv("LC_ALL", "C.UTF-8", 1);
     }
-#elif defined(WIN32)
-    // Set the default input/output charset is utf-8
-    SetConsoleCP(CP_UTF8);
-    SetConsoleOutputCP(CP_UTF8);
 #endif
     // The path locale is lazy initialized and to avoid deinitialization errors
     // in multithreading environments, it is set explicitly by the main thread.
@@ -1350,30 +1395,3 @@ int ScheduleBatchPriority()
     return 1;
 #endif
 }
-
-namespace util {
-#ifdef WIN32
-WinCmdLineArgs::WinCmdLineArgs()
-{
-    wchar_t** wargv = CommandLineToArgvW(GetCommandLineW(), &argc);
-    std::wstring_convert<std::codecvt_utf8_utf16<wchar_t>, wchar_t> utf8_cvt;
-    argv = new char*[argc];
-    args.resize(argc);
-    for (int i = 0; i < argc; i++) {
-        args[i] = utf8_cvt.to_bytes(wargv[i]);
-        argv[i] = &*args[i].begin();
-    }
-    LocalFree(wargv);
-}
-
-WinCmdLineArgs::~WinCmdLineArgs()
-{
-    delete[] argv;
-}
-
-std::pair<int, char**> WinCmdLineArgs::get()
-{
-    return std::make_pair(argc, argv);
-}
-#endif
-} // namespace util

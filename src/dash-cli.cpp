@@ -19,7 +19,6 @@
 
 #include <memory>
 #include <stdio.h>
-#include <tuple>
 
 #include <event2/buffer.h>
 #include <event2/keyvalq_struct.h>
@@ -541,10 +540,6 @@ int main(int argc, char* argv[])
     RegisterPrettyTerminateHander();
     RegisterPrettySignalHandlers();
 
-#ifdef WIN32
-    util::WinCmdLineArgs winArgs;
-    std::tie(argc, argv) = winArgs.get();
-#endif
     SetupEnvironment();
     if (!SetupNetworking()) {
         fprintf(stderr, "Error: Initializing networking failed\n");

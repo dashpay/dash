@@ -199,10 +199,6 @@ int main(int argc, char* argv[])
     RegisterPrettyTerminateHander();
     RegisterPrettySignalHandlers();
 
-#ifdef WIN32
-    util::WinCmdLineArgs winArgs;
-    std::tie(argc, argv) = winArgs.get();
-#endif
     SetupEnvironment();
 
     // Connect dashd signal handlers
