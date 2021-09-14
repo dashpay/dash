@@ -4,7 +4,6 @@
 
 #include <wallet/walletutil.h>
 
-#include <logging.h>
 #include <util/system.h>
 
 fs::path GetWalletDir()
@@ -34,11 +33,9 @@ static bool IsBerkeleyBtree(const fs::path& path)
     // A Berkeley DB Btree file has at least 4K.
     // This check also prevents opening lock files.
     boost::system::error_code ec;
-    auto size = fs::file_size(path, ec);
-    if (ec) LogPrintf("%s: %s %s\n", __func__, ec.message(), path.string());
-    if (size < 4096) return false;
+    if (fs::file_size(path, ec) < 4096) return false;
 
-    fsbridge::ifstream file(path, std::ios::binary);
+    fs::ifstream file(path.string(), std::ios::binary);
     if (!file.is_open()) return false;
 
     file.seekg(12, std::ios::beg); // Magic bytes start at offset 12
@@ -57,14 +54,8 @@ std::vector<fs::path> ListWalletDir()
     const fs::path wallet_dir = GetWalletDir();
     const size_t offset = wallet_dir.string().size() + 1;
     std::vector<fs::path> paths;
-    boost::system::error_code ec;
 
-    for (auto it = fs::recursive_directory_iterator(wallet_dir, ec); it != fs::recursive_directory_iterator(); it.increment(ec)) {
-        if (ec) {
-            LogPrintf("%s: %s %s\n", __func__, ec.message(), it->path().string());
-            continue;
-        }
-
+    for (auto it = fs::recursive_directory_iterator(wallet_dir); it != fs::recursive_directory_iterator(); ++it) {
         // Get wallet path relative to walletdir by removing walletdir from the wallet path.
         // This can be replaced by boost::filesystem::lexically_relative once boost is bumped to 1.60.
         const fs::path path = it->path().string().substr(offset);
