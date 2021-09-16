@@ -12,6 +12,7 @@
 #endif
 
 #include <amount.h>
+#include <arith_uint256.h>
 #include <attributes.h>
 #include <chain.h>
 #include <fs.h>
@@ -23,6 +24,7 @@
 #include <txdb.h>
 #include <txmempool.h> // For CTxMemPool::cs
 #include <serialize.h>
+#include <uint256.h>
 #include <util/check.h>
 #include <util/hasher.h>
 #include <util/translation.h>
@@ -46,7 +48,6 @@ class CInstantSendManager;
 class CEvoDB;
 
 class CChainState;
-class CBlockIndex;
 class CBlockTreeDB;
 class CChainParams;
 class CMNHFManager;
