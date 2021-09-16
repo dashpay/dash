@@ -436,6 +436,14 @@ public:
     CDeterministicMNCPtr GetValidMNByCollateral(const COutPoint& collateralOutpoint) const;
     CDeterministicMNCPtr GetMNByService(const CService& service) const;
     CDeterministicMNCPtr GetMNByInternalId(uint64_t internalId) const;
+
+    /**
+     * Get the payee MN of current block using deterministic approach. 
+     * MN with the older last payment, revival or registration height is selected. 
+     * In case of similar heigh, MN with the smaller hash is selected.
+     * @param
+     * @return
+     */
     CDeterministicMNCPtr GetMNPayee() const;
 
     /**
@@ -453,6 +461,12 @@ public:
      * @return
      */
     std::vector<CDeterministicMNCPtr> CalculateQuorum(size_t maxSize, const uint256& modifier) const;
+
+    /**
+     * Calculate score based on the modifier for each confirmed MN.
+     * @param modifier
+     * @return
+     */
     std::vector<std::pair<arith_uint256, CDeterministicMNCPtr>> CalculateScores(const uint256& modifier) const;
 
     /**
@@ -488,8 +502,29 @@ public:
      */
     void PoSeDecrease(const uint256& proTxHash);
 
+    /**
+     * Builds a diff with given MN list containing removed, updated and new added MN.
+     * Note that added MNs are stored sorted by internalId so that these are added in correct order when the diff is applied later 
+     * (otherwise internalIds will not match with the original list)
+     * @param to
+     * @return
+     */
     CDeterministicMNListDiff BuildDiff(const CDeterministicMNList& to) const;
+
+    /**
+     * Builds a simplified diff with given MN list containing removed, updated and new added MN.
+     * Note that added and updated MNs are together as stored together
+     * @param to
+     * @return
+     */
     CSimplifiedMNListDiff BuildSimplifiedDiff(const CDeterministicMNList& to) const;
+
+    /**
+     * Constructs a MN list by applying a given diff to current MN at given block index
+     * @param pindex
+     * @param diff
+     * @return
+     */
     CDeterministicMNList ApplyDiff(const CBlockIndex* pindex, const CDeterministicMNListDiff& diff) const;
 
     void AddMN(const CDeterministicMNCPtr& dmn, bool fBumpTotalCount = true);
@@ -621,6 +656,11 @@ public:
         }
     }
 
+    /**
+     * Checks if no MN addition, update or removal of MN were made
+     * @param
+     * @return
+     */
     bool HasChanges() const
     {
         return !addedMNs.empty() || !updatedMNs.empty() || !removedMns.empty();
