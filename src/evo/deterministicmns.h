@@ -728,13 +728,36 @@ public:
     // the returned list will not contain the correct block hash (we can't know it yet as the coinbase TX is not updated yet)
     bool BuildNewListFromBlock(const CBlock& block, const CBlockIndex* pindexPrev, CValidationState& state, const CCoinsViewCache& view,
                                CDeterministicMNList& mnListRet, bool debugLogs) EXCLUSIVE_LOCKS_REQUIRED(cs);
+    /**
+     * Punishes MN for misbehaviour during the DKG participations.
+     * Only MN members of the quorum and present in the given list will be punished.
+     * MN who fail 2 DKG sessions with only a few blocks in-between are immediately banned.
+     * If there were enough blocks between misbehaviours (failures), the MN has a chance to recover as he reduces his penalty by 1 for every block
+     * If it however fails 3 times in the timespan of a single payment cycle, it should definitely get banned
+     * @param qc
+     * @param pQuorumBaseBlockIndex
+     * @param mnList
+     * @param debugLogs
+     */
     static void HandleQuorumCommitment(const llmq::CFinalCommitment& qc, const CBlockIndex* pQuorumBaseBlockIndex, CDeterministicMNList& mnList, bool debugLogs);
+    
+    /**
+     * Decrease penalty score of all MN in the list by 1.
+     * Applied only to valid and non-banned MNs.
+     * @param mnList
+     * @return
+     */
     static void DecreasePoSePenalties(CDeterministicMNList& mnList);
 
     CDeterministicMNList GetListForBlock(const CBlockIndex* pindex);
     CDeterministicMNList GetListAtChainTip();
 
-    // Test if given TX is a ProRegTx which also contains the collateral at index n
+    /**
+     * Checks if given TX is a ProRegTx which also contains the collateral at index n
+     * @param tx
+     * @param n
+     * @return
+     */
     static bool IsProTxWithCollateral(const CTransactionRef& tx, uint32_t n);
 
     bool IsDIP3Enforced(int nHeight = -1);
