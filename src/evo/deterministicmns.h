@@ -438,8 +438,8 @@ public:
     CDeterministicMNCPtr GetMNByInternalId(uint64_t internalId) const;
 
     /**
-     * Get the payee MN of current block using deterministic approach. 
-     * MN with the older last payment, revival or registration height is selected. 
+     * Get the payee MN of current block using deterministic approach.
+     * MN with the older last payment, revival or registration height is selected.
      * In case of similar heigh, MN with the smaller hash is selected.
      * @param
      * @return
@@ -504,7 +504,7 @@ public:
 
     /**
      * Builds a diff with given MN list containing removed, updated and new added MN.
-     * Note that added MNs are stored sorted by internalId so that these are added in correct order when the diff is applied later 
+     * Note that added MNs are stored sorted by internalId so that these are added in correct order when the diff is applied later
      * (otherwise internalIds will not match with the original list)
      * @param to
      * @return
