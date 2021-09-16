@@ -740,7 +740,7 @@ public:
      * @param debugLogs
      */
     static void HandleQuorumCommitment(const llmq::CFinalCommitment& qc, const CBlockIndex* pQuorumBaseBlockIndex, CDeterministicMNList& mnList, bool debugLogs);
-    
+
     /**
      * Decrease penalty score of all MN in the list by 1.
      * Applied only to valid and non-banned MNs.
