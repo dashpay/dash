@@ -1121,7 +1121,7 @@ static UniValue ProcessImport(CWallet * const pwallet, const UniValue& data, con
             ExtractDestination(script, dest);
         }
 
-        // (P2SH-)P2PK/P2PKH/P2WPKH
+        // (P2SH-)P2PK/P2PKH
         if (dest.type() == typeid(CKeyID)) {
             if (keys.size() > 1 || pubKeys.size() > 1) {
                 throw JSONRPCError(RPC_INVALID_PARAMETER, "More than one key given for one single-key address");
@@ -1145,6 +1145,12 @@ static UniValue ProcessImport(CWallet * const pwallet, const UniValue& data, con
             if (pubkey.size() > 0) {
                 if (!pubkey.IsFullyValid()) {
                     throw JSONRPCError(RPC_INVALID_ADDRESS_OR_KEY, "Pubkey is not a valid public key");
+                }
+
+                // Check the key corresponds to the destination given
+                CTxDestination pubkey_dest = pubkey.GetID();
+                if (!(pubkey_dest == dest)) {
+                    throw JSONRPCError(RPC_INVALID_ADDRESS_OR_KEY, "Key does not match address destination");
                 }
 
                 // This is necessary to force the wallet to import the pubKey
@@ -1177,8 +1183,9 @@ static UniValue ProcessImport(CWallet * const pwallet, const UniValue& data, con
             throw JSONRPCError(RPC_WALLET_ERROR, "Error adding scriptPubKey script to wallet");
         }
 
-        // add to address book or update label
-        if (IsValidDestination(scriptpubkey_dest)) {
+        // if not internal add to address book or update label
+        if (!internal) {
+            assert(IsValidDestination(scriptpubkey_dest));
             pwallet->SetAddressBook(scriptpubkey_dest, label, "receive");
         }
 
