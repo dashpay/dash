@@ -1047,11 +1047,7 @@ void CInstantSendManager::TransactionAddedToMempool(const CTransactionRef& tx)
         return;
     }
 
-    CInstantSendLockPtr islock{nullptr};
-    {
-        LOCK(cs);
-        islock = db.GetInstantSendLockByTxid(tx->GetHash());
-    }
+    CInstantSendLockPtr islock = db.GetInstantSendLockByTxid(tx->GetHash());
 
     if (islock == nullptr) {
         ProcessTx(*tx, false, Params().GetConsensus());
@@ -1124,13 +1120,11 @@ void CInstantSendManager::BlockConnected(const std::shared_ptr<const CBlock>& pb
         }
     }
 
-    LOCK(cs);
     db.WriteBlockInstantSendLocks(pblock, pindex);
 }
 
 void CInstantSendManager::BlockDisconnected(const std::shared_ptr<const CBlock>& pblock, const CBlockIndex* pindexDisconnected)
 {
-    LOCK(cs);
     db.RemoveBlockInstantSendLocks(pblock, pindexDisconnected);
 }
 
@@ -1534,7 +1528,6 @@ bool CInstantSendManager::GetInstantSendLockByHash(const uint256& hash, llmq::CI
         return false;
     }
 
-    LOCK(cs);
     auto islock = db.GetInstantSendLockByHash(hash);
     if (!islock) {
         return false;
@@ -1549,7 +1542,6 @@ CInstantSendLockPtr CInstantSendManager::GetInstantSendLockByTxid(const uint256&
         return nullptr;
     }
 
-    LOCK(cs);
     return db.GetInstantSendLockByTxid(txid);
 }
 
@@ -1559,7 +1551,6 @@ bool CInstantSendManager::GetInstantSendLockHashByTxid(const uint256& txid, uint
         return false;
     }
 
-    LOCK(cs);
     ret = db.GetInstantSendLockHashByTxid(txid);
     return !ret.IsNull();
 }
@@ -1570,7 +1561,6 @@ bool CInstantSendManager::IsLocked(const uint256& txHash) const
         return false;
     }
 
-    LOCK(cs);
     return db.KnownInstantSendLock(db.GetInstantSendLockHashByTxid(txHash));
 }
 
@@ -1585,7 +1575,6 @@ CInstantSendLockPtr CInstantSendManager::GetConflictingLock(const CTransaction& 
         return nullptr;
     }
 
-    LOCK(cs);
     for (const auto& in : tx.vin) {
         auto otherIsLock = db.GetInstantSendLockByInput(in.prevout);
         if (!otherIsLock) {
