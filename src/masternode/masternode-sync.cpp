@@ -366,11 +366,7 @@ void CMasternodeSync::UpdatedBlockTip(const CBlockIndex *pindexNew, bool fInitia
         nTimeLastUpdateBlockTip = GetAdjustedTime();
     }
 
-    CBlockIndex* pindexTip;
-    {
-        LOCK(cs_main);
-        pindexTip = pindexBestHeader;
-    }
+    CBlockIndex* pindexTip = WITH_LOCK(cs_main, return pindexBestHeader);
 
     if (IsSynced() || !pindexTip)
         return;
