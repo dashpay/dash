@@ -830,11 +830,8 @@ static UniValue gobject_get(const JSONRPCRequest& request)
     }
 
     // FIND THE GOVERNANCE OBJECT THE USER IS LOOKING FOR
-    CGovernanceObject* pGovObj;
-    {
-        LOCK2(cs_main, governance.cs);
-        pGovObj = governance.FindGovernanceObject(hash);
-    }
+    LOCK2(cs_main, governance.cs);
+    CGovernanceObject* pGovObj = governance.FindGovernanceObject(hash);
 
     if (pGovObj == nullptr) {
         throw JSONRPCError(RPC_INVALID_PARAMETER, "Unknown governance object");
