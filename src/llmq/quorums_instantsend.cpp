@@ -551,10 +551,7 @@ bool CInstantSendManager::TrySignInputLocks(const CTransaction& tx, bool fRetroa
     for (size_t i = 0; i < tx.vin.size(); i++) {
         auto& in = tx.vin[i];
         auto& id = ids[i];
-        {
-            LOCK(cs);
-            inputRequestIds.emplace(id);
-        }
+        WITH_LOCK(cs, inputRequestIds.emplace(id));
         LogPrint(BCLog::INSTANTSEND, "CInstantSendManager::%s -- txid=%s: trying to vote on input %s with id %s. fRetroactive=%d\n", __func__,
                  tx.GetHash().ToString(), in.prevout.ToStringShort(), id.ToString(), fRetroactive);
         if (quorumSigningManager->AsyncSignIfMember(llmqType, id, tx.GetHash(), {}, fRetroactive)) {
@@ -1462,11 +1459,7 @@ void CInstantSendManager::AskNodesForLockedTx(const uint256& txid)
 
 void CInstantSendManager::ProcessPendingRetryLockTxs()
 {
-    decltype(pendingRetryTxs) retryTxs;
-    {
-        LOCK(cs);
-        retryTxs = std::move(pendingRetryTxs);
-    }
+    decltype(pendingRetryTxs) retryTxs = WITH_LOCK(cs, return std::move(pendingRetryTxs));
 
     if (retryTxs.empty()) {
         return;
