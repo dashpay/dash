@@ -242,7 +242,7 @@ public:
     bool IsValidLocally(std::string& strError, bool& fMissingConfirmations, bool fCheckCollateral) const;
 
     /// Check the collateral transaction for the budget proposal/finalized budget
-    bool IsCollateralValid(std::string& strError, bool& fMissingConfirmations) const;
+    bool IsCollateralValid(std::string& strError, bool& fMissingConfirmations) const EXCLUSIVE_LOCKS_REQUIRED(cs_main);
 
     void UpdateLocalValidity();
 
