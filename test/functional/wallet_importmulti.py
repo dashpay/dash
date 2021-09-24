@@ -10,14 +10,7 @@ from test_framework.util import (
     assert_equal,
     assert_greater_than,
     assert_raises_rpc_error,
-    hex_str_to_bytes
 )
-from test_framework.script import (
-    CScript,
-    OP_0,
-    hash160
-)
-from test_framework.messages import sha256
 
 class ImportMultiTest(BitcoinTestFramework):
     def set_test_params(self):
