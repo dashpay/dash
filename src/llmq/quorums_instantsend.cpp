@@ -979,18 +979,15 @@ std::unordered_set<uint256> CInstantSendManager::ProcessPendingInstantSendLocks(
 
 void CInstantSendManager::ProcessInstantSendLock(NodeId from, const uint256& hash, const CInstantSendLockPtr& islock)
 {
+    LogPrint(BCLog::INSTANTSEND, "CInstantSendManager::%s -- txid=%s, islock=%s: processing islock, peer=%d\n", __func__,
+             islock->txid.ToString(), hash.ToString(), from);
     {
         LOCK(cs);
-
-        LogPrint(BCLog::INSTANTSEND, "CInstantSendManager::%s -- txid=%s, islock=%s: processing islock, peer=%d\n", __func__,
-                 islock->txid.ToString(), hash.ToString(), from);
-
         creatingInstantSendLocks.erase(islock->GetRequestId());
         txToCreatingInstantSendLocks.erase(islock->txid);
-
-        if (db.KnownInstantSendLock(hash)) {
-            return;
-        }
+    }
+    if (db.KnownInstantSendLock(hash)) {
+        return;
     }
 
     CTransactionRef tx;
@@ -1012,29 +1009,28 @@ void CInstantSendManager::ProcessInstantSendLock(NodeId from, const uint256& has
         }
     }
 
+    CInstantSendLockPtr otherIsLock = db.GetInstantSendLockByTxid(islock->txid);
+    if (otherIsLock != nullptr) {
+        LogPrintf("CInstantSendManager::%s -- txid=%s, islock=%s: duplicate islock, other islock=%s, peer=%d\n", __func__,
+                  islock->txid.ToString(), hash.ToString(), ::SerializeHash(*otherIsLock).ToString(), from);
+    }
+    for (const auto& in : islock->inputs) {
+        otherIsLock = db.GetInstantSendLockByInput(in);
+        if (otherIsLock != nullptr) {
+            LogPrintf("CInstantSendManager::%s -- txid=%s, islock=%s: conflicting input in islock. input=%s, other islock=%s, peer=%d\n", __func__,
+                      islock->txid.ToString(), hash.ToString(), in.ToStringShort(), ::SerializeHash(*otherIsLock).ToString(), from);
+        }
+    }
+
+    db.WriteNewInstantSendLock(hash, *islock);
+    if (pindexMined) {
+        db.WriteInstantSendLockMined(hash, pindexMined->nHeight);
+    }
     {
         LOCK(cs);
-        CInstantSendLockPtr otherIsLock = db.GetInstantSendLockByTxid(islock->txid);
-        if (otherIsLock != nullptr) {
-            LogPrintf("CInstantSendManager::%s -- txid=%s, islock=%s: duplicate islock, other islock=%s, peer=%d\n", __func__,
-                     islock->txid.ToString(), hash.ToString(), ::SerializeHash(*otherIsLock).ToString(), from);
-        }
-        for (const auto& in : islock->inputs) {
-            otherIsLock = db.GetInstantSendLockByInput(in);
-            if (otherIsLock != nullptr) {
-                LogPrintf("CInstantSendManager::%s -- txid=%s, islock=%s: conflicting input in islock. input=%s, other islock=%s, peer=%d\n", __func__,
-                         islock->txid.ToString(), hash.ToString(), in.ToStringShort(), ::SerializeHash(*otherIsLock).ToString(), from);
-            }
-        }
-
-        db.WriteNewInstantSendLock(hash, *islock);
-        if (pindexMined) {
-            db.WriteInstantSendLockMined(hash, pindexMined->nHeight);
-        }
 
         // This will also add children TXs to pendingRetryTxs
         RemoveNonLockedTx(islock->txid, true);
-
         // We don't need the recovered sigs for the inputs anymore. This prevents unnecessary propagation of these sigs.
         // We only need the ISLOCK from now on to detect conflicts
         TruncateRecoveredSigsForInputs(*islock);
@@ -1096,7 +1092,7 @@ void CInstantSendManager::TransactionRemovedFromMempool(const CTransactionRef& t
         return;
     }
 
-    CInstantSendLockPtr islock = WITH_LOCK(cs, return db.GetInstantSendLockByTxid(tx->GetHash()));
+    CInstantSendLockPtr islock = db.GetInstantSendLockByTxid(tx->GetHash());
 
     if (islock == nullptr) {
         return;
@@ -1263,11 +1259,10 @@ void CInstantSendManager::HandleFullyConfirmedBlock(const CBlockIndex* pindex)
         return;
     }
 
-    LOCK(cs);
-
     auto& consensusParams = Params().GetConsensus();
     auto removeISLocks = db.RemoveConfirmedInstantSendLocks(pindex->nHeight);
 
+    LOCK(cs);
     for (const auto& p : removeISLocks) {
         auto& islockHash = p.first;
         auto& islock = p.second;
@@ -1433,7 +1428,6 @@ void CInstantSendManager::RemoveConflictingLock(const uint256& islockHash, const
         tipHeight = chainActive.Height();
     }
 
-    LOCK(cs);
     auto removedIslocks = db.RemoveChainedInstantSendLocks(islockHash, islock.txid, tipHeight);
     for (const auto& h : removedIslocks) {
         LogPrintf("CInstantSendManager::%s -- txid=%s, islock=%s: removed (child) ISLOCK %s\n", __func__,
