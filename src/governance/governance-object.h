@@ -239,9 +239,9 @@ public:
 
     // CORE OBJECT FUNCTIONS
 
-    bool IsValidLocally(std::string& strError, bool fCheckCollateral) const;
+    bool IsValidLocally(std::string& strError, bool fCheckCollateral) const EXCLUSIVE_LOCKS_REQUIRED(cs_main);
 
-    bool IsValidLocally(std::string& strError, bool& fMissingConfirmations, bool fCheckCollateral) const;
+    bool IsValidLocally(std::string& strError, bool& fMissingConfirmations, bool fCheckCollateral) const EXCLUSIVE_LOCKS_REQUIRED(cs_main);
 
     /// Check the collateral transaction for the budget proposal/finalized budget
     bool IsCollateralValid(std::string& strError, bool& fMissingConfirmations) const EXCLUSIVE_LOCKS_REQUIRED(cs_main);
