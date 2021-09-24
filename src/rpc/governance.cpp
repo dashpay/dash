@@ -693,13 +693,10 @@ static UniValue ListObjects(const std::string& strCachedSignal, const std::strin
         g_txindex->BlockUntilSyncedToCurrentChain();
     }
 
+    LOCK2(cs_main, governance.cs);
 
-    std::vector<const CGovernanceObject*> objs;
-    {
-        LOCK2(cs_main, governance.cs);
-        objs = governance.GetAllNewerThan(nStartTime);
-        governance.UpdateLastDiffTime(GetTime());
-    }
+    std::vector<const CGovernanceObject*> objs = governance.GetAllNewerThan(nStartTime);
+    governance.UpdateLastDiffTime(GetTime());
     // CREATE RESULTS FOR USER
 
     for (const auto& pGovObj : objs) {
