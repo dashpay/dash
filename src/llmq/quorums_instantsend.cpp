@@ -618,14 +618,12 @@ bool CInstantSendManager::CheckCanLock(const COutPoint& outpoint, bool printDebu
         nTxAge = chainActive.Height() - pindexMined->nHeight + 1;
     }
 
-    if (nTxAge < nInstantSendConfirmationsRequired) {
-        if (!llmq::chainLocksHandler->HasChainLock(pindexMined->nHeight, pindexMined->GetBlockHash())) {
-            if (printDebug) {
-                LogPrint(BCLog::INSTANTSEND, "CInstantSendManager::%s -- txid=%s: outpoint %s too new and not ChainLocked. nTxAge=%d, nInstantSendConfirmationsRequired=%d\n", __func__,
-                         txHash.ToString(), outpoint.ToStringShort(), nTxAge, nInstantSendConfirmationsRequired);
-            }
-            return false;
+    if (nTxAge < nInstantSendConfirmationsRequired && !llmq::chainLocksHandler->HasChainLock(pindexMined->nHeight, pindexMined->GetBlockHash())) {
+        if (printDebug) {
+            LogPrint(BCLog::INSTANTSEND, "CInstantSendManager::%s -- txid=%s: outpoint %s too new and not ChainLocked. nTxAge=%d, nInstantSendConfirmationsRequired=%d\n", __func__,
+                     txHash.ToString(), outpoint.ToStringShort(), nTxAge, nInstantSendConfirmationsRequired);
         }
+        return false;
     }
 
     return true;
