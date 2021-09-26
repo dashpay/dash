@@ -98,7 +98,6 @@ CTransactionBuilderOutput::CTransactionBuilderOutput(CTransactionBuilder* pTxBui
 
 bool CTransactionBuilderOutput::UpdateAmount(const CAmount nNewAmount)
 {
-    LOCK(pTxBuilder->cs_outputs);
     if (nNewAmount <= 0 || nNewAmount - nAmount > pTxBuilder->GetAmountLeft()) {
         return false;
     }

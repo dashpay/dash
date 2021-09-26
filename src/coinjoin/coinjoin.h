@@ -339,10 +339,10 @@ protected:
 
     std::vector<CCoinJoinEntry> vecEntries GUARDED_BY(cs_coinjoin); // Masternode/clients entries
 
-    PoolState nState;                // should be one of the POOL_STATE_XXX values
-    int64_t nTimeLastSuccessfulStep; // the time when last successful mixing step was performed
+    std::atomic<PoolState> nState; // should be one of the POOL_STATE_XXX values
+    std::atomic<int64_t> nTimeLastSuccessfulStep; // the time when last successful mixing step was performed
 
-    int nSessionID; // 0 if no mixing session is active
+    std::atomic<int> nSessionID; // 0 if no mixing session is active
 
     CMutableTransaction finalMutableTransaction GUARDED_BY(cs_coinjoin); // the finalized transaction ready for signing
 
