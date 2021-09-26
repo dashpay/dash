@@ -28,8 +28,8 @@ public:
 class CKeyHolderStorage
 {
 private:
-    std::vector<std::unique_ptr<CKeyHolder> > storage;
     mutable CCriticalSection cs_storage;
+    std::vector<std::unique_ptr<CKeyHolder> > storage GUARDED_BY(cs_storage);
 
 public:
     CScript AddKey(CWallet* pwalletIn);
@@ -94,7 +94,7 @@ class CTransactionBuilder
     /// Protect vecOutputs
     mutable CCriticalSection cs_outputs;
     /// Contains all outputs already added to the transaction
-    std::vector<std::unique_ptr<CTransactionBuilderOutput>> vecOutputs;
+    std::vector<std::unique_ptr<CTransactionBuilderOutput>> vecOutputs GUARDED_BY(cs_outputs);
     /// Needed by CTransactionBuilderOutput::UpdateAmount to lock cs_outputs
     friend class CTransactionBuilderOutput;
 
