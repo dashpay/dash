@@ -199,8 +199,8 @@ bool CTransactionBuilder::CouldAddOutputs(const std::vector<CAmount>& vecOutputA
 
 CTransactionBuilderOutput* CTransactionBuilder::AddOutput(CAmount nAmountOutput)
 {
-    LOCK(cs_outputs);
     if (CouldAddOutput(nAmountOutput)) {
+        LOCK(cs_outputs);
         vecOutputs.push_back(std::make_unique<CTransactionBuilderOutput>(this, pwallet, nAmountOutput));
         return vecOutputs.back().get();
     }
