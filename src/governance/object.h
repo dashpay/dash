@@ -98,62 +98,62 @@ private:
     mutable CCriticalSection cs;
 
     /// Object typecode
-    int nObjectType;
+    int nObjectType GUARDED_BY(cs) {GOVERNANCE_OBJECT_UNKNOWN};
 
     /// parent object, 0 is root
-    uint256 nHashParent;
+    uint256 nHashParent GUARDED_BY(cs);
 
     /// object revision in the system
-    int nRevision;
+    int nRevision GUARDED_BY(cs) {0};
 
     /// time this object was created
-    int64_t nTime;
+    int64_t nTime GUARDED_BY(cs) {0};
 
     /// time this object was marked for deletion
-    int64_t nDeletionTime;
+    int64_t nDeletionTime GUARDED_BY(cs) {0};
 
     /// fee-tx
-    uint256 nCollateralHash;
+    uint256 nCollateralHash GUARDED_BY(cs);
 
     /// Data field - can be used for anything
-    std::vector<unsigned char> vchData;
+    std::vector<unsigned char> vchData GUARDED_BY(cs);
 
     /// Masternode info for signed objects
-    COutPoint masternodeOutpoint;
-    std::vector<unsigned char> vchSig;
+    COutPoint masternodeOutpoint GUARDED_BY(cs);
+    std::vector<unsigned char> vchSig GUARDED_BY(cs);
 
     /// is valid by blockchain
-    bool fCachedLocalValidity;
-    std::string strLocalValidityError;
+    bool fCachedLocalValidity GUARDED_BY(cs) {false};
+    std::string strLocalValidityError GUARDED_BY(cs);
 
     // VARIOUS FLAGS FOR OBJECT / SET VIA MASTERNODE VOTING
 
     /// true == minimum network support has been reached for this object to be funded (doesn't mean it will for sure though)
-    bool fCachedFunding;
+    bool fCachedFunding GUARDED_BY(cs) {false};
 
     /// true == minimum network has been reached flagging this object as a valid and understood governance object (e.g, the serialized data is correct format, etc)
-    bool fCachedValid;
+    bool fCachedValid GUARDED_BY(cs) {true};
 
     /// true == minimum network support has been reached saying this object should be deleted from the system entirely
-    bool fCachedDelete;
+    bool fCachedDelete GUARDED_BY(cs) {false};
 
     /** true == minimum network support has been reached flagging this object as endorsed by an elected representative body
      * (e.g. business review board / technical review board /etc)
      */
-    bool fCachedEndorsed;
+    bool fCachedEndorsed GUARDED_BY(cs) {false};
 
     /// object was updated and cached values should be updated soon
-    bool fDirtyCache;
+    bool fDirtyCache GUARDED_BY(cs) {false};
 
     /// Object is no longer of interest
-    bool fExpired;
+    bool fExpired GUARDED_BY(cs) {false};
 
     /// Failed to parse object data
-    bool fUnparsable;
+    bool fUnparsable GUARDED_BY(cs) {false};
 
-    vote_m_t mapCurrentMNVotes;
+    vote_m_t mapCurrentMNVotes GUARDED_BY(cs);
 
-    CGovernanceObjectVoteFile fileVotes;
+    CGovernanceObjectVoteFile fileVotes GUARDED_BY(cs);
 
 public:
     CGovernanceObject();

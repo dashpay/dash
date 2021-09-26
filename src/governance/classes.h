@@ -37,9 +37,9 @@ class CGovernanceTriggerManager
 private:
     std::map<uint256, CSuperblock_sptr> mapTrigger;
 
-    std::vector<CSuperblock_sptr> GetActiveTriggers();
-    bool AddNewTrigger(uint256 nHash);
-    void CleanAndRemove();
+    std::vector<CSuperblock_sptr> GetActiveTriggers() EXCLUSIVE_LOCKS_REQUIRED(governance.cs);
+    bool AddNewTrigger(uint256 nHash) EXCLUSIVE_LOCKS_REQUIRED(governance.cs);
+    void CleanAndRemove() EXCLUSIVE_LOCKS_REQUIRED(governance.cs);
 
 public:
     CGovernanceTriggerManager() :
@@ -55,7 +55,7 @@ public:
 class CSuperblockManager
 {
 private:
-    static bool GetBestSuperblock(CSuperblock_sptr& pSuperblockRet, int nBlockHeight);
+    static bool GetBestSuperblock(CSuperblock_sptr& pSuperblockRet, int nBlockHeight) EXCLUSIVE_LOCKS_REQUIRED(governance.cs);
 
 public:
     static bool IsSuperblockTriggered(int nBlockHeight);
@@ -135,7 +135,7 @@ public:
     // TELL THE ENGINE WE EXECUTED THIS EVENT
     void SetExecuted() { nStatus = SEEN_OBJECT_EXECUTED; }
 
-    CGovernanceObject* GetGovernanceObject();
+    CGovernanceObject* GetGovernanceObject() EXCLUSIVE_LOCKS_REQUIRED(governance.cs);
 
     int GetBlockHeight() const
     {

@@ -28,22 +28,6 @@ const std::string CGovernanceManager::SERIALIZATION_VERSION_STRING = "CGovernanc
 const int CGovernanceManager::MAX_TIME_FUTURE_DEVIATION = 60 * 60;
 const int CGovernanceManager::RELIABLE_PROPAGATION_TIME = 60;
 
-CGovernanceManager::CGovernanceManager() :
-    nTimeLastDiff(0),
-    nCachedBlockHeight(0),
-    mapObjects(),
-    mapErasedGovernanceObjects(),
-    cmapVoteToObject(MAX_CACHE_SIZE),
-    cmapInvalidVotes(MAX_CACHE_SIZE),
-    cmmapOrphanVotes(MAX_CACHE_SIZE),
-    mapLastMasternodeObject(),
-    setRequestedObjects(),
-    fRateChecksEnabled(true),
-    lastMNListForVotingKeys(std::make_shared<CDeterministicMNList>()),
-    cs()
-{
-}
-
 // Accessors for thread-safe access to maps
 bool CGovernanceManager::HaveObjectForHash(const uint256& nHash) const
 {

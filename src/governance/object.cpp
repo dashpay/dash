@@ -17,62 +17,24 @@
 
 #include <string>
 
-CGovernanceObject::CGovernanceObject() :
-    cs(),
-    nObjectType(GOVERNANCE_OBJECT_UNKNOWN),
-    nHashParent(),
-    nRevision(0),
-    nTime(0),
-    nDeletionTime(0),
-    nCollateralHash(),
-    vchData(),
-    masternodeOutpoint(),
-    vchSig(),
-    fCachedLocalValidity(false),
-    strLocalValidityError(),
-    fCachedFunding(false),
-    fCachedValid(true),
-    fCachedDelete(false),
-    fCachedEndorsed(false),
-    fDirtyCache(true),
-    fExpired(false),
-    fUnparsable(false),
-    mapCurrentMNVotes(),
-    fileVotes()
+CGovernanceObject::CGovernanceObject()
 {
     // PARSE JSON DATA STORAGE (VCHDATA)
     LoadData();
 }
 
 CGovernanceObject::CGovernanceObject(const uint256& nHashParentIn, int nRevisionIn, int64_t nTimeIn, const uint256& nCollateralHashIn, const std::string& strDataHexIn) :
-    cs(),
-    nObjectType(GOVERNANCE_OBJECT_UNKNOWN),
     nHashParent(nHashParentIn),
     nRevision(nRevisionIn),
     nTime(nTimeIn),
-    nDeletionTime(0),
     nCollateralHash(nCollateralHashIn),
-    vchData(ParseHex(strDataHexIn)),
-    masternodeOutpoint(),
-    vchSig(),
-    fCachedLocalValidity(false),
-    strLocalValidityError(),
-    fCachedFunding(false),
-    fCachedValid(true),
-    fCachedDelete(false),
-    fCachedEndorsed(false),
-    fDirtyCache(true),
-    fExpired(false),
-    fUnparsable(false),
-    mapCurrentMNVotes(),
-    fileVotes()
+    vchData(ParseHex(strDataHexIn))
 {
     // PARSE JSON DATA STORAGE (VCHDATA)
     LoadData();
 }
 
 CGovernanceObject::CGovernanceObject(const CGovernanceObject& other) :
-    cs(),
     nObjectType(other.nObjectType),
     nHashParent(other.nHashParent),
     nRevision(other.nRevision),
