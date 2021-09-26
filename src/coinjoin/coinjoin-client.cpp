@@ -265,9 +265,9 @@ void CCoinJoinClientSession::ResetPool()
 
 void CCoinJoinClientManager::ResetPool()
 {
-    LOCK(cs_deqsessions);
     nCachedLastSuccessBlock = 0;
     vecMasternodesUsed.clear();
+    LOCK(cs_deqsessions);
     for (auto& session : deqSessions) {
         session.ResetPool();
     }
@@ -346,10 +346,10 @@ std::string CCoinJoinClientSession::GetStatus(bool fWaitForBlock) const
 
 std::string CCoinJoinClientManager::GetStatuses()
 {
-    LOCK(cs_deqsessions);
     std::string strStatus;
     bool fWaitForBlock = WaitForAnotherBlock();
 
+    LOCK(cs_deqsessions);
     for (const auto& session : deqSessions) {
         strStatus += session.GetStatus(fWaitForBlock) + "; ";
     }
@@ -358,9 +358,9 @@ std::string CCoinJoinClientManager::GetStatuses()
 
 std::string CCoinJoinClientManager::GetSessionDenoms()
 {
-    LOCK(cs_deqsessions);
     std::string strSessionDenoms;
 
+    LOCK(cs_deqsessions);
     for (const auto& session : deqSessions) {
         strSessionDenoms += CCoinJoin::DenominationToString(session.nSessionDenom) + "; ";
     }
@@ -973,8 +973,8 @@ bool CCoinJoinClientManager::DoAutomaticDenominating(CConnman& connman, bool fDr
         LogPrint(BCLog::COINJOIN, "  vecMasternodesUsed: new size: %d, threshold: %d\n", (int)vecMasternodesUsed.size(), nThreshold_high);
     }
 
-    LOCK(cs_deqsessions);
     bool fResult = true;
+    LOCK(cs_deqsessions);
     if ((int)deqSessions.size() < CCoinJoinClientOptions::GetSessions()) {
         deqSessions.emplace_back(mixingWallet);
     }
@@ -1865,11 +1865,11 @@ void CCoinJoinClientSession::GetJsonInfo(UniValue& obj) const
 
 void CCoinJoinClientManager::GetJsonInfo(UniValue& obj) const
 {
-    LOCK(cs_deqsessions);
     assert(obj.isObject());
     obj.pushKV("running",       IsMixing());
 
     UniValue arrSessions(UniValue::VARR);
+    LOCK(cs_deqsessions);
     for (const auto& session : deqSessions) {
         if (session.GetState() != POOL_STATE_IDLE) {
             UniValue objSession(UniValue::VOBJ);
