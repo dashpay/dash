@@ -1064,7 +1064,6 @@ void CInstantSendManager::TransactionAddedToMempool(const CTransactionRef& tx)
     if (islock == nullptr) {
         ProcessTx(*tx, false, Params().GetConsensus());
         // TX is not locked, so make sure it is tracked
-        LOCK(cs);
         AddNonLockedTx(tx, nullptr);
     } else {
         {
@@ -1122,7 +1121,6 @@ void CInstantSendManager::BlockConnected(const std::shared_ptr<const CBlock>& pb
             if (!IsLocked(tx->GetHash()) && !chainLocksHandler->HasChainLock(pindex->nHeight, pindex->GetBlockHash())) {
                 ProcessTx(*tx, true, Params().GetConsensus());
                 // TX is not locked, so make sure it is tracked
-                LOCK(cs);
                 AddNonLockedTx(tx, pindex);
             } else {
                 // TX is locked, so make sure we don't track it anymore
@@ -1142,7 +1140,7 @@ void CInstantSendManager::BlockDisconnected(const std::shared_ptr<const CBlock>&
 
 void CInstantSendManager::AddNonLockedTx(const CTransactionRef& tx, const CBlockIndex* pindexMined)
 {
-    AssertLockHeld(cs);
+    LOCK(cs);
     auto res = nonLockedTxs.emplace(tx->GetHash(), NonLockedTxInfo());
     auto& info = res.first->second;
     info.pindexMined = pindexMined;
