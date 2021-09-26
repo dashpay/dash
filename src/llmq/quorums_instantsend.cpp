@@ -822,6 +822,10 @@ bool CInstantSendManager::ProcessPendingInstantSendLocks()
     decltype(pendingInstantSendLocks) pend;
     bool fMoreWork{false};
 
+    if (!IsInstantSendEnabled()) {
+        return false;
+    }
+
     {
         LOCK(cs);
         // only process a max 32 locks at a time to avoid duplicate verification of recovered signatures which have been
@@ -840,10 +844,6 @@ bool CInstantSendManager::ProcessPendingInstantSendLocks()
     }
 
     if (pend.empty()) {
-        return false;
-    }
-
-    if (!IsInstantSendEnabled()) {
         return false;
     }
 
