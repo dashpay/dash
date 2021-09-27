@@ -165,7 +165,7 @@ private:
      * SporkValueIsActive is used to get the value agreed upon by the majority
      * of signed spork messages for a given Spork ID.
      */
-    bool SporkValueIsActive(SporkId nSporkID, int64_t& nActiveValueRet) const;
+    bool SporkValueIsActive(SporkId nSporkID, int64_t& nActiveValueRet) const EXCLUSIVE_LOCKS_REQUIRED(cs);
 
 public:
 
