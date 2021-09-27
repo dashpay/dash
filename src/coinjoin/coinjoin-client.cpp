@@ -490,6 +490,7 @@ bool CCoinJoinClientSession::SendDenominate(const std::vector<std::pair<CTxDSIn,
     LogPrint(BCLog::COINJOIN, "CCoinJoinClientSession::SendDenominate -- Submitting partial tx %s", tx.ToString()); /* Continued */
 
     // store our entry for later use
+    LOCK(cs_coinjoin);
     vecEntries.emplace_back(vecTxDSInTmp, vecTxOutTmp, txMyCollateral);
     RelayIn(vecEntries.back(), connman);
     nTimeLastSuccessfulStep = GetTime();
@@ -557,6 +558,8 @@ bool CCoinJoinClientSession::SignFinalTransaction(const CTransaction& finalTrans
     if (fMasternodeMode || pnode == nullptr) return false;
     if (!mixingMasternode) return false;
 
+    LOCK(cs_coinjoin);
+
     finalMutableTransaction = CMutableTransaction{finalTransactionNew};
     LogPrint(BCLog::COINJOIN, "CCoinJoinClientSession::%s -- finalMutableTransaction=%s", __func__, finalMutableTransaction.ToString()); /* Continued */
 
@@ -588,11 +591,11 @@ bool CCoinJoinClientSession::SignFinalTransaction(const CTransaction& finalTrans
 
     std::vector<CTxIn> sigs;
 
-    for (const auto& entry : vecEntries) {
+    for (const auto &entry: vecEntries) {
         // Check that the final transaction has all our outputs
-        for (const auto& txout : entry.vecTxOut) {
+        for (const auto &txout: entry.vecTxOut) {
             bool fFound = false;
-            for (const auto& txoutFinal : finalMutableTransaction.vout) {
+            for (const auto &txoutFinal: finalMutableTransaction.vout) {
                 if (txoutFinal == txout) {
                     fFound = true;
                     break;
@@ -641,7 +644,7 @@ bool CCoinJoinClientSession::SignFinalTransaction(const CTransaction& finalTrans
 
             sigs.push_back(finalMutableTransaction.vin[nMyInputIndex]);
             LogPrint(BCLog::COINJOIN, "CCoinJoinClientSession::%s -- nMyInputIndex: %d, sigs.size(): %d, scriptSig=%s\n",
-                    __func__, nMyInputIndex, (int)sigs.size(), ScriptToAsmStr(finalMutableTransaction.vin[nMyInputIndex].scriptSig));
+                     __func__, nMyInputIndex, (int) sigs.size(),ScriptToAsmStr(finalMutableTransaction.vin[nMyInputIndex].scriptSig));
         }
     }
 

@@ -366,7 +366,7 @@ public:
     int GetState() const { return nState; }
     std::string GetStateString() const;
 
-    int GetEntriesCount() const { return vecEntries.size(); }
+    int GetEntriesCount() const { LOCK(cs_coinjoin); return vecEntries.size(); }
 };
 
 // base class
@@ -385,7 +385,7 @@ public:
     CCoinJoinBaseManager() :
         vecCoinJoinQueue() {}
 
-    int GetQueueSize() const { return vecCoinJoinQueue.size(); }
+    int GetQueueSize() const { LOCK(cs_vecqueue); return vecCoinJoinQueue.size(); }
     bool GetQueueItemAndTry(CCoinJoinQueue& dsqRet);
 };
 
