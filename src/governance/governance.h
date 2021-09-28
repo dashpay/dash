@@ -7,6 +7,7 @@
 
 #include <cachemap.h>
 #include <cachemultimap.h>
+#include <evo/deterministicmns.h>
 #include <governance/object.h>
 
 class CBloomFilter;
@@ -18,12 +19,14 @@ class CGovernanceTriggerManager;
 class CGovernanceObject;
 class CGovernanceVote;
 
+using CDeterministicMNListPtr = std::shared_ptr<CDeterministicMNList>;
+
 extern CGovernanceManager governance;
 
 static const int RATE_BUFFER_SIZE = 5;
 
 class CDeterministicMNList;
-using CDeterministicMNListPtr = std::shared_ptr<CDeterministicMNList>;
+typedef std::shared_ptr<CDeterministicMNList> CDeterministicMNListPtr;
 
 class CRateCheckBuffer
 {
@@ -192,7 +195,7 @@ private:
     bool fRateChecksEnabled GUARDED_BY(cs) {true};
 
     // used to check for changed voting keys
-    CDeterministicMNListPtr lastMNListForVotingKeys GUARDED_BY(cs);
+    CDeterministicMNListPtr lastMNListForVotingKeys GUARDED_BY(cs) {std::make_shared<CDeterministicMNList>()};
 
     class ScopedLockBool
     {
