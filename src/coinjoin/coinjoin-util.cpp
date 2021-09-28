@@ -209,6 +209,7 @@ CTransactionBuilderOutput* CTransactionBuilder::AddOutput(CAmount nAmountOutput)
 
 unsigned int CTransactionBuilder::GetBytesTotal() const
 {
+    LOCK(cs_outputs);
     // Adding other outputs can change the serialized size of the vout size hence + GetSizeOfCompactSizeDiff()
     return nBytesBase + vecOutputs.size() * nBytesOutput + ::GetSizeOfCompactSizeDiff(0, vecOutputs.size());
 }
@@ -221,6 +222,7 @@ CAmount CTransactionBuilder::GetAmountLeft(const CAmount nAmountInitial, const C
 CAmount CTransactionBuilder::GetAmountUsed() const
 {
     CAmount nAmountUsed{0};
+    LOCK(cs_outputs);
     for (const auto& out : vecOutputs) {
         nAmountUsed += out->GetAmount();
     }
@@ -242,7 +244,7 @@ CAmount CTransactionBuilder::GetFee(unsigned int nBytes) const
 
 int CTransactionBuilder::GetSizeOfCompactSizeDiff(size_t nAdd) const
 {
-    size_t nSize = vecOutputs.size();
+    size_t nSize = WITH_LOCK(cs_outputs, return vecOutputs.size());
     unsigned int ret = ::GetSizeOfCompactSizeDiff(nSize, nSize + nAdd);
     assert(ret <= INT_MAX);
     return (int)ret;
