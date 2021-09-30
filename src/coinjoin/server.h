@@ -26,7 +26,7 @@ private:
     bool fUnitTest;
 
     /// Add a clients entry to the pool
-    bool AddEntry(CConnman& connman, const CCoinJoinEntry& entry, PoolMessage& nMessageIDRet);
+    std::pair<bool, PoolMessage> AddEntry(CConnman& connman, const CCoinJoinEntry& entry);
     /// Add signature to a txin
     bool AddScriptSig(const CTxIn& txin);
 
@@ -43,10 +43,14 @@ private:
     void CreateFinalTransaction(CConnman& connman);
     void CommitFinalTransaction(CConnman& connman);
 
-    /// Is this nDenom and txCollateral acceptable?
-    bool IsAcceptableDSA(const CCoinJoinAccept& dsa, PoolMessage& nMessageIDRet) const;
-    bool CreateNewSession(const CCoinJoinAccept& dsa, PoolMessage& nMessageIDRet, CConnman& connman);
-    bool AddUserToExistingSession(const CCoinJoinAccept& dsa, PoolMessage& nMessageIDRet);
+    /**
+     * Is this nDenom and txCollateral acceptable?
+     * @param dsa input to check validity on
+     * @return PoolMessage if there was an error or not
+     */
+    std::pair<bool, PoolMessage> IsAcceptableDSA(const CCoinJoinAccept& dsa) const;
+    std::pair<bool, PoolMessage> CreateNewSession(const CCoinJoinAccept& dsa, CConnman& connman);
+    std::pair<bool, PoolMessage> AddUserToExistingSession(const CCoinJoinAccept& dsa);
     /// Do we have enough users to take entries?
     bool IsSessionReady() const;
 

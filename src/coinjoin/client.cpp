@@ -368,22 +368,21 @@ std::string CCoinJoinClientManager::GetSessionDenoms()
     return strSessionDenoms.empty() ? "N/A" : strSessionDenoms;
 }
 
-bool CCoinJoinClientSession::GetMixingMasternodeInfo(CDeterministicMNCPtr& ret) const
+std::optional<CDeterministicMNCPtr> CCoinJoinClientSession::GetMixingMasternodeInfo() const
 {
-    ret = mixingMasternode;
-    return ret != nullptr;
+    return mixingMasternode ? std::optional<CDeterministicMNCPtr>{mixingMasternode} : std::nullopt;
 }
 
-bool CCoinJoinClientManager::GetMixingMasternodesInfo(std::vector<CDeterministicMNCPtr>& vecDmnsRet) const
+std::vector<CDeterministicMNCPtr> CCoinJoinClientManager::GetMixingMasternodesInfo() const
 {
     LOCK(cs_deqsessions);
+    std::vector<CDeterministicMNCPtr> vecDmnsRet;
     for (const auto& session : deqSessions) {
-        CDeterministicMNCPtr dmn;
-        if (session.GetMixingMasternodeInfo(dmn)) {
-            vecDmnsRet.push_back(dmn);
+        if (auto dmn = session.GetMixingMasternodeInfo()) {
+            vecDmnsRet.push_back(*dmn);
         }
     }
-    return !vecDmnsRet.empty();
+    return vecDmnsRet;
 }
 
 //
@@ -581,8 +580,8 @@ bool CCoinJoinClientSession::SignFinalTransaction(const CTransaction& finalTrans
     }
 
     // Make sure all inputs/outputs are valid
-    PoolMessage nMessageID{MSG_NOERR};
-    if (!IsValidInOuts(finalMutableTransaction.vin, finalMutableTransaction.vout, nMessageID, nullptr)) {
+    auto [success, _, nMessageID] = IsValidInOuts(finalMutableTransaction.vin, finalMutableTransaction.vout);
+    if (!success) {
         LogPrint(BCLog::COINJOIN, "CCoinJoinClientSession::%s -- ERROR! IsValidInOuts() failed: %s\n", __func__, CCoinJoin::GetMessageByID(nMessageID));
         UnlockCoins();
         keyHolderStorage.ReturnAll();
@@ -1057,8 +1056,8 @@ bool CCoinJoinClientSession::JoinExistingQueue(CAmount nBalanceNeedsAnonymized, 
     }
 
     // Look through the queues and see if anything matches
-    CCoinJoinQueue dsq;
-    while (coinJoinClientQueueManager.GetQueueItemAndTry(dsq)) {
+    while (auto opt_dsq = coinJoinClientQueueManager.GetQueueItemAndTry()) {
+        auto dsq = *opt_dsq;
         auto dmn = mnList.GetValidMNByCollateral(dsq.masternodeOutpoint);
 
         if (!dmn) {
@@ -1078,10 +1077,8 @@ bool CCoinJoinClientSession::JoinExistingQueue(CAmount nBalanceNeedsAnonymized, 
 
         LogPrint(BCLog::COINJOIN, "CCoinJoinClientSession::JoinExistingQueue -- trying queue: %s\n", dsq.ToString());
 
-        std::vector<CTxDSIn> vecTxDSInTmp;
-
         // Try to match their denominations if possible, select exact number of denominations
-        if (!mixingWallet.SelectTxDSInsByDenomination(dsq.nDenom, nBalanceNeedsAnonymized, vecTxDSInTmp)) {
+        if (!mixingWallet.SelectTxDSInsByDenomination(dsq.nDenom, nBalanceNeedsAnonymized)) {
             LogPrint(BCLog::COINJOIN, "CCoinJoinClientSession::JoinExistingQueue -- Couldn't match denomination %d (%s)\n", dsq.nDenom, CCoinJoin::DenominationToString(dsq.nDenom));
             continue;
         }
@@ -1227,10 +1224,11 @@ bool CCoinJoinClientManager::TrySubmitDenominate(const CService& mnAddr, CConnma
 {
     LOCK(cs_deqsessions);
     for (auto& session : deqSessions) {
-        CDeterministicMNCPtr mnMixing;
-        if (session.GetMixingMasternodeInfo(mnMixing) && mnMixing->pdmnState->addr == mnAddr && session.GetState() == POOL_STATE_QUEUE) {
-            session.SubmitDenominate(connman);
-            return true;
+        if (auto mnMixing = session.GetMixingMasternodeInfo()) {
+            if (mnMixing->get()->pdmnState->addr == mnAddr && session.GetState() == POOL_STATE_QUEUE) {
+                session.SubmitDenominate(connman);
+                return true;
+            }
         }
     }
     return false;
@@ -1240,10 +1238,11 @@ bool CCoinJoinClientManager::MarkAlreadyJoinedQueueAsTried(CCoinJoinQueue& dsq) 
 {
     LOCK(cs_deqsessions);
     for (const auto& session : deqSessions) {
-        CDeterministicMNCPtr mnMixing;
-        if (session.GetMixingMasternodeInfo(mnMixing) && mnMixing->collateralOutpoint == dsq.masternodeOutpoint) {
-            dsq.fTried = true;
-            return true;
+        if (auto mnMixing = session.GetMixingMasternodeInfo()) {
+            if (mnMixing->get()->collateralOutpoint == dsq.masternodeOutpoint) {
+                dsq.fTried = true;
+                return true;
+            }
         }
     }
     return false;
@@ -1254,11 +1253,9 @@ bool CCoinJoinClientSession::SubmitDenominate(CConnman& connman)
     LOCK2(cs_main, mempool.cs);
     LOCK(mixingWallet.cs_wallet);
 
-    std::string strError;
-    std::vector<CTxDSIn> vecTxDSIn;
-    std::vector<std::pair<CTxDSIn, CTxOut> > vecPSInOutPairsTmp;
+    auto [optVecTxDSIn, strError] = SelectDenominate();
 
-    if (!SelectDenominate(strError, vecTxDSIn)) {
+    if (!optVecTxDSIn) {
         LogPrint(BCLog::COINJOIN, "CCoinJoinClientSession::SubmitDenominate -- SelectDenominate failed, error: %s\n", strError);
         return false;
     }
@@ -1266,9 +1263,9 @@ bool CCoinJoinClientSession::SubmitDenominate(CConnman& connman)
     std::vector<std::pair<int, size_t> > vecInputsByRounds;
 
     for (int i = 0; i < CCoinJoinClientOptions::GetRounds() + CCoinJoinClientOptions::GetRandomRounds(); i++) {
-        if (PrepareDenominate(i, i, strError, vecTxDSIn, vecPSInOutPairsTmp, true)) {
+        if (auto vecPSInOutPairs = PrepareDenominate(i, i, strError, *optVecTxDSIn, true)) {
             LogPrint(BCLog::COINJOIN, "CCoinJoinClientSession::SubmitDenominate -- Running CoinJoin denominate for %d rounds, success\n", i);
-            vecInputsByRounds.emplace_back(i, vecPSInOutPairsTmp.size());
+            vecInputsByRounds.emplace_back(i, (*vecPSInOutPairs).size());
         } else {
             LogPrint(BCLog::COINJOIN, "CCoinJoinClientSession::SubmitDenominate -- Running CoinJoin denominate for %d rounds, error: %s\n", i, strError);
         }
@@ -1280,20 +1277,20 @@ bool CCoinJoinClientSession::SubmitDenominate(CConnman& connman)
     });
 
     LogPrint(BCLog::COINJOIN, "vecInputsByRounds for denom %d\n", nSessionDenom);
-    for (const auto& pair : vecInputsByRounds) {
-        LogPrint(BCLog::COINJOIN, "vecInputsByRounds: rounds: %d, inputs: %d\n", pair.first, pair.second);
+    for (const auto [rounds, inputs] : vecInputsByRounds) {
+        LogPrint(BCLog::COINJOIN, "vecInputsByRounds: rounds: %d, inputs: %d\n", rounds, inputs);
     }
 
     int nRounds = vecInputsByRounds.begin()->first;
-    if (PrepareDenominate(nRounds, nRounds, strError, vecTxDSIn, vecPSInOutPairsTmp)) {
+    if (auto vecPSInOutPairs = PrepareDenominate(nRounds, nRounds, strError, *optVecTxDSIn)) {
         LogPrint(BCLog::COINJOIN, "CCoinJoinClientSession::SubmitDenominate -- Running CoinJoin denominate for %d rounds, success\n", nRounds);
-        return SendDenominate(vecPSInOutPairsTmp, connman);
+        return SendDenominate(*vecPSInOutPairs, connman);
     }
 
     // We failed? That's strange but let's just make final attempt and try to mix everything
-    if (PrepareDenominate(0, CCoinJoinClientOptions::GetRounds() - 1, strError, vecTxDSIn, vecPSInOutPairsTmp)) {
+    if (auto vecPSInOutPairs = PrepareDenominate(0, CCoinJoinClientOptions::GetRounds() - 1, strError, *optVecTxDSIn)) {
         LogPrint(BCLog::COINJOIN, "CCoinJoinClientSession::SubmitDenominate -- Running CoinJoin denominate for all rounds, success\n");
-        return SendDenominate(vecPSInOutPairsTmp, connman);
+        return SendDenominate(*vecPSInOutPairs, connman);
     }
 
     // Should never actually get here but just in case
@@ -1302,46 +1299,41 @@ bool CCoinJoinClientSession::SubmitDenominate(CConnman& connman)
     return false;
 }
 
-bool CCoinJoinClientSession::SelectDenominate(std::string& strErrorRet, std::vector<CTxDSIn>& vecTxDSInRet)
+std::pair<std::optional<std::vector<CTxDSIn>>, std::string> CCoinJoinClientSession::SelectDenominate()
 {
-    if (!CCoinJoinClientOptions::IsEnabled()) return false;
+    if (!CCoinJoinClientOptions::IsEnabled()) return {std::nullopt, "Coinjoin is disabled"};
 
     if (mixingWallet.IsLocked(true)) {
-        strErrorRet = "Wallet locked, unable to create transaction!";
-        return false;
+        return {std::nullopt, "Wallet locked, unable to create transaction!"};
     }
 
     if (GetEntriesCount() > 0) {
-        strErrorRet = "Already have pending entries in the CoinJoin pool";
-        return false;
+        return {std::nullopt, "Already have pending entries in the CoinJoin pool"};
     }
 
-    vecTxDSInRet.clear();
-
-    bool fSelected = mixingWallet.SelectTxDSInsByDenomination(nSessionDenom, CCoinJoin::GetMaxPoolAmount(), vecTxDSInRet);
-    if (!fSelected) {
-        strErrorRet = "Can't select current denominated inputs";
-        return false;
+    auto selected_denoms = mixingWallet.SelectTxDSInsByDenomination(nSessionDenom, CCoinJoin::GetMaxPoolAmount());
+    if (!selected_denoms) {
+        return {std::nullopt, "Can't select current denominated inputs"};
     }
 
-    return true;
+    return {selected_denoms, ""};
 }
 
-bool CCoinJoinClientSession::PrepareDenominate(int nMinRounds, int nMaxRounds, std::string& strErrorRet, const std::vector<CTxDSIn>& vecTxDSIn, std::vector<std::pair<CTxDSIn, CTxOut> >& vecPSInOutPairsRet, bool fDryRun)
+std::optional<std::vector<std::pair<CTxDSIn, CTxOut>>> CCoinJoinClientSession::PrepareDenominate(int nMinRounds, int nMaxRounds, std::string& strErrorRet, const std::vector<CTxDSIn>& vecTxDSIn, bool fDryRun)
 {
     AssertLockHeld(cs_main);
     AssertLockHeld(mixingWallet.cs_wallet);
 
     if (!CCoinJoin::IsValidDenomination(nSessionDenom)) {
         strErrorRet = "Incorrect session denom";
-        return false;
+        return std::nullopt;
     }
     CAmount nDenomAmount = CCoinJoin::DenominationToAmount(nSessionDenom);
 
     // NOTE: No need to randomize order of inputs because they were
     // initially shuffled in CWallet::SelectTxDSInsByDenomination already.
     int nSteps{0};
-    vecPSInOutPairsRet.clear();
+    std::vector<std::pair<CTxDSIn, CTxOut>> vecPSInOutPairsRet;
 
     // Try to add up to COINJOIN_ENTRY_MAX_SIZE of every needed denomination
     for (const auto& entry : vecTxDSIn) {
@@ -1363,7 +1355,7 @@ bool CCoinJoinClientSession::PrepareDenominate(int nMinRounds, int nMaxRounds, s
             const auto pwallet = GetWallet(mixingWallet.GetName());
             if (!pwallet) {
                 strErrorRet ="Couldn't get wallet pointer";
-                return false;
+                return std::nullopt;
             }
             scriptDenom = keyHolderStorage.AddKey(pwallet.get());
         }
@@ -1375,19 +1367,17 @@ bool CCoinJoinClientSession::PrepareDenominate(int nMinRounds, int nMaxRounds, s
     if (vecPSInOutPairsRet.empty()) {
         keyHolderStorage.ReturnAll();
         strErrorRet = "Can't prepare current denominated outputs";
-        return false;
+        return std::nullopt;
     }
 
-    if (fDryRun) {
-        return true;
+    if (!fDryRun) {
+        for (const auto& pair : vecPSInOutPairsRet) {
+            mixingWallet.LockCoin(pair.first.prevout);
+            vecOutPointLocked.push_back(pair.first.prevout);
+        }
     }
 
-    for (const auto& pair : vecPSInOutPairsRet) {
-        mixingWallet.LockCoin(pair.first.prevout);
-        vecOutPointLocked.push_back(pair.first.prevout);
-    }
-
-    return true;
+    return {vecPSInOutPairsRet};
 }
 
 // Create collaterals by looping through inputs grouped by addresses

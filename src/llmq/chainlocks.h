@@ -91,7 +91,7 @@ public:
     void Stop();
 
     bool AlreadyHave(const CInv& inv) const;
-    bool GetChainLockByHash(const uint256& hash, CChainLockSig& ret) const;
+    std::optional<CChainLockSig> GetChainLockByHash(const uint256& hash) const;
     CChainLockSig GetBestChainLock() const;
 
     void ProcessMessage(CNode* pfrom, const std::string& strCommand, CDataStream& vRecv);

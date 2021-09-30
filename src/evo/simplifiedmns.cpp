@@ -101,16 +101,16 @@ bool CSimplifiedMNListDiff::BuildQuorumsDiff(const CBlockIndex* baseBlockIndex, 
     auto baseQuorums = llmq::quorumBlockProcessor->GetMinedAndActiveCommitmentsUntilBlock(baseBlockIndex);
     auto quorums = llmq::quorumBlockProcessor->GetMinedAndActiveCommitmentsUntilBlock(blockIndex);
 
-    std::set<std::pair<Consensus::LLMQType, uint256>> baseQuorumHashes;
+    std::unordered_map<Consensus::LLMQType, uint256> baseQuorumHashes;
     std::set<std::pair<Consensus::LLMQType, uint256>> quorumHashes;
-    for (const auto& p : baseQuorums) {
-        for (const auto& p2 : p.second) {
-            baseQuorumHashes.emplace(p.first, p2->GetBlockHash());
+    for (const auto& [llmqType, vecBlockIndex] : baseQuorums) {
+        for (const auto& blockindex : vecBlockIndex) {
+            baseQuorumHashes.emplace(llmqType, blockindex->GetBlockHash());
         }
     }
-    for (const auto& p : quorums) {
-        for (const auto& p2 : p.second) {
-            quorumHashes.emplace(p.first, p2->GetBlockHash());
+    for (const auto& [llmqType, vecBlockIndex] : quorums) {
+        for (const auto& blockindex : vecBlockIndex) {
+            quorumHashes.emplace(llmqType, blockindex->GetBlockHash());
         }
     }
 
@@ -119,14 +119,13 @@ bool CSimplifiedMNListDiff::BuildQuorumsDiff(const CBlockIndex* baseBlockIndex, 
             deletedQuorums.emplace_back((uint8_t)p.first, p.second);
         }
     }
-    for (auto& p : quorumHashes) {
-        if (!baseQuorumHashes.count(p)) {
-            uint256 minedBlockHash;
-            llmq::CFinalCommitmentPtr qc = llmq::quorumBlockProcessor->GetMinedCommitment(p.first, p.second, minedBlockHash);
-            if (qc == nullptr) {
+    for (auto& [llmqType, hash] : quorumHashes) {
+        if (!baseQuorumHashes.count(llmqType)) {
+            auto optPairCommitmentBlockHash = llmq::quorumBlockProcessor->GetMinedCommitment(llmqType, hash);
+            if (!optPairCommitmentBlockHash) {
                 return false;
             }
-            newQuorums.emplace_back(*qc);
+            newQuorums.emplace_back(*optPairCommitmentBlockHash->first);
         }
     }
     return true;
@@ -185,40 +184,35 @@ void CSimplifiedMNListDiff::ToJson(UniValue& obj) const
     }
 }
 
-bool BuildSimplifiedMNListDiff(const uint256& baseBlockHash, const uint256& blockHash, CSimplifiedMNListDiff& mnListDiffRet, std::string& errorRet)
+std::pair<std::optional<CSimplifiedMNListDiff>, std::string> BuildSimplifiedMNListDiff(const uint256& baseBlockHash, const uint256& blockHash)
 {
     AssertLockHeld(cs_main);
-    mnListDiffRet = CSimplifiedMNListDiff();
 
     const CBlockIndex* baseBlockIndex = ::ChainActive().Genesis();
     if (!baseBlockHash.IsNull()) {
         baseBlockIndex = LookupBlockIndex(baseBlockHash);
         if (!baseBlockIndex) {
-            errorRet = strprintf("block %s not found", baseBlockHash.ToString());
-            return false;
+            return {std::nullopt, strprintf("block %s not found", baseBlockHash.ToString())};
         }
     }
 
     const CBlockIndex* blockIndex = LookupBlockIndex(blockHash);
     if (!blockIndex) {
-        errorRet = strprintf("block %s not found", blockHash.ToString());
-        return false;
+        return {std::nullopt, strprintf("block %s not found", blockHash.ToString())};
     }
 
     if (!::ChainActive().Contains(baseBlockIndex) || !::ChainActive().Contains(blockIndex)) {
-        errorRet = strprintf("block %s and %s are not in the same chain", baseBlockHash.ToString(), blockHash.ToString());
-        return false;
+        return {std::nullopt, strprintf("block %s and %s are not in the same chain", baseBlockHash.ToString(), blockHash.ToString())};
     }
     if (baseBlockIndex->nHeight > blockIndex->nHeight) {
-        errorRet = strprintf("base block %s is higher then block %s", baseBlockHash.ToString(), blockHash.ToString());
-        return false;
+        return {std::nullopt, strprintf("base block %s is higher then block %s", baseBlockHash.ToString(), blockHash.ToString())};
     }
 
     LOCK(deterministicMNManager->cs);
 
     auto baseDmnList = deterministicMNManager->GetListForBlock(baseBlockIndex);
     auto dmnList = deterministicMNManager->GetListForBlock(blockIndex);
-    mnListDiffRet = baseDmnList.BuildSimplifiedDiff(dmnList);
+    auto mnListDiffRet = baseDmnList.BuildSimplifiedDiff(dmnList);
 
     // We need to return the value that was provided by the other peer as it otherwise won't be able to recognize the
     // response. This will usually be identical to the block found in baseBlockIndex. The only difference is when a
@@ -226,15 +220,13 @@ bool BuildSimplifiedMNListDiff(const uint256& baseBlockHash, const uint256& bloc
     mnListDiffRet.baseBlockHash = baseBlockHash;
 
     if (!mnListDiffRet.BuildQuorumsDiff(baseBlockIndex, blockIndex)) {
-        errorRet = strprintf("failed to build quorums diff");
-        return false;
+        return {std::nullopt, "failed to build quorums diff"};
     }
 
     // TODO store coinbase TX in CBlockIndex
     CBlock block;
     if (!ReadBlockFromDisk(block, blockIndex, Params().GetConsensus())) {
-        errorRet = strprintf("failed to read block %s from disk", blockHash.ToString());
-        return false;
+        return {std::nullopt, strprintf("failed to read block %s from disk", blockHash.ToString())};
     }
 
     mnListDiffRet.cbTx = block.vtx[0];
@@ -247,5 +239,5 @@ bool BuildSimplifiedMNListDiff(const uint256& baseBlockHash, const uint256& bloc
     vMatch[0] = true; // only coinbase matches
     mnListDiffRet.cbTxMerkleTree = CPartialMerkleTree(vHashes, vMatch);
 
-    return true;
+    return {mnListDiffRet, ""};
 }

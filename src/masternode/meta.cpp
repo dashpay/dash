@@ -31,8 +31,8 @@ void CMasternodeMetaInfo::AddGovernanceVote(const uint256& nGovernanceObjectHash
     LOCK(cs);
     // Insert a zero value, or not. Then increment the value regardless. This
     // ensures the value is in the map.
-    const auto& pair = mapGovernanceObjectsVotedOn.emplace(nGovernanceObjectHash, 0);
-    pair.first->second++;
+    const auto& [govObjHashCountPair, _] = mapGovernanceObjectsVotedOn.emplace(nGovernanceObjectHash, 0);
+    govObjHashCountPair->second++;
 }
 
 void CMasternodeMetaInfo::RemoveGovernanceObject(const uint256& nGovernanceObjectHash)
@@ -94,8 +94,8 @@ bool CMasternodeMetaMan::AddGovernanceVote(const uint256& proTxHash, const uint2
 void CMasternodeMetaMan::RemoveGovernanceObject(const uint256& nGovernanceObjectHash)
 {
     LOCK(cs);
-    for(const auto& p : metaInfos) {
-        p.second->RemoveGovernanceObject(nGovernanceObjectHash);
+    for(const auto& [_, mn_ptr] : metaInfos) {
+        mn_ptr->RemoveGovernanceObject(nGovernanceObjectHash);
     }
 }
 

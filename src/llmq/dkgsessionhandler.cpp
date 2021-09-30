@@ -433,8 +433,7 @@ bool ProcessPendingMessageBatch(CDKGSession& session, CDKGPendingMessages& pendi
             }
             continue;
         }
-        bool ban = false;
-        if (!session.PreVerifyMessage(*p.second, ban)) {
+        if (auto [success, ban] = session.PreVerifyMessage(*p.second); !success) {
             if (ban) {
                 LogPrint(BCLog::LLMQ_DKG, "%s -- banning node due to failed preverification, peer=%d\n", __func__, nodeId);
                 {
@@ -460,19 +459,11 @@ bool ProcessPendingMessageBatch(CDKGSession& session, CDKGPendingMessages& pendi
         }
     }
 
-    for (const auto& p : preverifiedMessages) {
-        const NodeId &nodeId = p.first;
+    for (const auto& [nodeId, ptrMessage] : preverifiedMessages) {
         if (badNodes.count(nodeId)) {
             continue;
         }
-        bool ban = false;
-        session.ReceiveMessage(*p.second, ban);
-        if (ban) {
-            LogPrint(BCLog::LLMQ_DKG, "%s -- banning node after ReceiveMessage failed, peer=%d\n", __func__, nodeId);
-            LOCK(cs_main);
-            Misbehaving(nodeId, 100);
-            badNodes.emplace(nodeId);
-        }
+        session.ReceiveMessage(*ptrMessage);
     }
 
     return true;

@@ -297,31 +297,33 @@ public:
      *    responsible for further verification of validity (e.g. validate vvecs and SK contributions).
      */
 
+    struct success_ban { bool success; bool ban; };
+
     // Phase 1: contribution
     void Contribute(CDKGPendingMessages& pendingMessages);
     void SendContributions(CDKGPendingMessages& pendingMessages);
-    bool PreVerifyMessage(const CDKGContribution& qc, bool& retBan) const;
-    void ReceiveMessage(const CDKGContribution& qc, bool& retBan);
+    success_ban PreVerifyMessage(const CDKGContribution& qc) const;
+    void ReceiveMessage(const CDKGContribution& qc);
     void VerifyPendingContributions() EXCLUSIVE_LOCKS_REQUIRED(cs_pending);
 
     // Phase 2: complaint
     void VerifyAndComplain(CDKGPendingMessages& pendingMessages);
     void VerifyConnectionAndMinProtoVersions() const;
     void SendComplaint(CDKGPendingMessages& pendingMessages);
-    bool PreVerifyMessage(const CDKGComplaint& qc, bool& retBan) const;
-    void ReceiveMessage(const CDKGComplaint& qc, bool& retBan);
+    success_ban PreVerifyMessage(const CDKGComplaint& qc) const;
+    void ReceiveMessage(const CDKGComplaint& qc);
 
     // Phase 3: justification
     void VerifyAndJustify(CDKGPendingMessages& pendingMessages);
     void SendJustification(CDKGPendingMessages& pendingMessages, const std::set<uint256>& forMembers);
-    bool PreVerifyMessage(const CDKGJustification& qj, bool& retBan) const;
-    void ReceiveMessage(const CDKGJustification& qj, bool& retBan);
+    success_ban PreVerifyMessage(const CDKGJustification& qj) const;
+    void ReceiveMessage(const CDKGJustification& qj);
 
     // Phase 4: commit
     void VerifyAndCommit(CDKGPendingMessages& pendingMessages);
     void SendCommitment(CDKGPendingMessages& pendingMessages);
-    bool PreVerifyMessage(const CDKGPrematureCommitment& qc, bool& retBan) const;
-    void ReceiveMessage(const CDKGPrematureCommitment& qc, bool& retBan);
+    success_ban PreVerifyMessage(const CDKGPrematureCommitment& qc) const;
+    void ReceiveMessage(const CDKGPrematureCommitment& qc);
 
     // Phase 5: aggregate/finalize
     std::vector<CFinalCommitment> FinalizeCommitments();

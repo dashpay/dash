@@ -9,6 +9,7 @@
 #include <coinjoin/coinjoin.h>
 
 #include <utility>
+#include <optional>
 
 class CDeterministicMN;
 using CDeterministicMNCPtr = std::shared_ptr<const CDeterministicMN>;
@@ -99,10 +100,15 @@ private:
     bool JoinExistingQueue(CAmount nBalanceNeedsAnonymized, CConnman& connman);
     bool StartNewQueue(CAmount nBalanceNeedsAnonymized, CConnman& connman);
 
-    /// step 0: select denominated inputs and txouts
-    bool SelectDenominate(std::string& strErrorRet, std::vector<CTxDSIn>& vecTxDSInRet);
+    /**
+     * step 0: select denominated inputs and txouts
+     * @return pair containing optional vector of selected inputs (CTxDSIn), and an error string which is only set
+     *         if returned vector is nullopt
+     */
+    std::pair<std::optional<std::vector<CTxDSIn>>, std::string> SelectDenominate();
     /// step 1: prepare denominated inputs and outputs
-    bool PrepareDenominate(int nMinRounds, int nMaxRounds, std::string& strErrorRet, const std::vector<CTxDSIn>& vecTxDSIn, std::vector<std::pair<CTxDSIn, CTxOut> >& vecPSInOutPairsRet, bool fDryRun = false);
+    // TODO factor out strErrorRet
+    std::optional<std::vector<std::pair<CTxDSIn, CTxOut>>> PrepareDenominate(int nMinRounds, int nMaxRounds, std::string& strErrorRet, const std::vector<CTxDSIn>& vecTxDSIn, bool fDryRun = false);
     /// step 2: send denominated inputs and outputs prepared in step 1
     bool SendDenominate(const std::vector<std::pair<CTxDSIn, CTxOut> >& vecPSInOutPairsIn, CConnman& connman);
 
@@ -141,7 +147,7 @@ public:
 
     std::string GetStatus(bool fWaitForBlock) const;
 
-    bool GetMixingMasternodeInfo(CDeterministicMNCPtr& ret) const;
+    std::optional<CDeterministicMNCPtr> GetMixingMasternodeInfo() const;
 
     /// Passively run mixing in the background according to the configuration in settings
     bool DoAutomaticDenominating(CConnman& connman, bool fDryRun = false);
@@ -215,7 +221,7 @@ public:
     std::string GetStatuses();
     std::string GetSessionDenoms();
 
-    bool GetMixingMasternodesInfo(std::vector<CDeterministicMNCPtr>& vecDmnsRet) const;
+    std::vector<CDeterministicMNCPtr> GetMixingMasternodesInfo() const;
 
     /// Passively run mixing in the background according to the configuration in settings
     bool DoAutomaticDenominating(CConnman& connman, bool fDryRun = false);

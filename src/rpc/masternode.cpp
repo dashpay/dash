@@ -463,10 +463,9 @@ static UniValue masternode_payments(const JSONRPCRequest& request)
             nBlockFees += nValueIn - tx->GetValueOut();
         }
 
-        std::vector<CTxOut> voutMasternodePayments, voutDummy;
         CMutableTransaction dummyTx;
         CAmount blockReward = nBlockFees + GetBlockSubsidy(pindex->pprev->nBits, pindex->pprev->nHeight, Params().GetConsensus());
-        FillBlockPayments(dummyTx, pindex->nHeight, blockReward, voutMasternodePayments, voutDummy);
+        auto [voutMasternodePayments, _] = FillBlockPayments(dummyTx, pindex->nHeight, blockReward);
 
         UniValue blockObj(UniValue::VOBJ);
         CAmount payedPerBlock{0};

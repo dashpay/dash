@@ -219,10 +219,14 @@ CBlock TestChainSetup::CreateBlock(const std::vector<CMutableTransaction>& txns,
             BOOST_ASSERT(false);
         }
         CValidationState state;
-        if (!CalcCbTxMerkleRootMNList(block, ::ChainActive().Tip(), cbTx.merkleRootMNList, state, ::ChainstateActive().CoinsTip())) {
+        if (auto optMerkleRoot = CalcCbTxMerkleRootMNList(block, ::ChainActive().Tip(), state, ::ChainstateActive().CoinsTip())) {
+            cbTx.merkleRootMNList = *optMerkleRoot;
+        } else {
             BOOST_ASSERT(false);
         }
-        if (!CalcCbTxMerkleRootQuorums(block, ::ChainActive().Tip(), cbTx.merkleRootQuorums, state)) {
+        if (auto optMerkleRoot = CalcCbTxMerkleRootQuorums(block, ::ChainActive().Tip(), state)) {
+            cbTx.merkleRootQuorums = *optMerkleRoot;
+        } else {
             BOOST_ASSERT(false);
         }
         CMutableTransaction tmpTx{*block.vtx[0]};

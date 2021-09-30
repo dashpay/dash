@@ -3218,7 +3218,7 @@ bool CWallet::FundTransaction(CMutableTransaction& tx, CAmount& nFeeRet, int& nC
     return true;
 }
 
-bool CWallet::SelectTxDSInsByDenomination(int nDenom, CAmount nValueMax, std::vector<CTxDSIn>& vecTxDSInRet)
+std::optional<std::vector<CTxDSIn>> CWallet::SelectTxDSInsByDenomination(int nDenom, CAmount nValueMax)
 {
     auto locked_chain = chain().lock();
     LOCK(cs_wallet);
@@ -3227,11 +3227,10 @@ bool CWallet::SelectTxDSInsByDenomination(int nDenom, CAmount nValueMax, std::ve
 
     std::set<uint256> setRecentTxIds;
     std::vector<COutput> vCoins;
-
-    vecTxDSInRet.clear();
+    std::vector<CTxDSIn> vecTxDSInRet;
 
     if (!CCoinJoin::IsValidDenomination(nDenom)) {
-        return false;
+        return std::nullopt;
     }
     CAmount nDenomAmount = CCoinJoin::DenominationToAmount(nDenom);
 
@@ -3262,7 +3261,7 @@ bool CWallet::SelectTxDSInsByDenomination(int nDenom, CAmount nValueMax, std::ve
 
     LogPrint(BCLog::COINJOIN, "CWallet::%s -- setRecentTxIds.size(): %d\n", __func__, setRecentTxIds.size());
 
-    return nValueTotal > 0;
+    return {vecTxDSInRet};
 }
 
 static bool IsCurrentForAntiFeeSniping(interfaces::Chain& chain, interfaces::Chain::Lock& locked_chain)

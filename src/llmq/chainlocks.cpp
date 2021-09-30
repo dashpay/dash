@@ -71,17 +71,16 @@ bool CChainLocksHandler::AlreadyHave(const CInv& inv) const
     return seenChainLocks.count(inv.hash) != 0;
 }
 
-bool CChainLocksHandler::GetChainLockByHash(const uint256& hash, llmq::CChainLockSig& ret) const
+std::optional<llmq::CChainLockSig> CChainLocksHandler::GetChainLockByHash(const uint256& hash) const
 {
     LOCK(cs);
 
     if (hash != bestChainLockHash) {
         // we only propagate the best one and ditch all the old ones
-        return false;
+        return std::nullopt;
     }
 
-    ret = bestChainLock;
-    return true;
+    return {bestChainLock};
 }
 
 CChainLockSig CChainLocksHandler::GetBestChainLock() const

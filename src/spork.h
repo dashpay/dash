@@ -54,10 +54,12 @@ namespace std
     };
 }
 
+typedef int64_t SporkValue;
+
 struct CSporkDef
 {
     SporkId sporkId{SPORK_INVALID};
-    int64_t defaultValue{0};
+    SporkValue defaultValue{0};
     std::string_view name;
 };
 
@@ -99,10 +101,10 @@ private:
 
 public:
     SporkId nSporkID;
-    int64_t nValue;
+    SporkValue nValue;
     int64_t nTimeSigned;
 
-    CSporkMessage(SporkId nSporkID, int64_t nValue, int64_t nTimeSigned) :
+    CSporkMessage(SporkId nSporkID, SporkValue nValue, int64_t nTimeSigned) :
         nSporkID(nSporkID),
         nValue(nValue),
         nTimeSigned(nTimeSigned)
@@ -172,7 +174,7 @@ private:
 
     mutable std::unordered_map<const SporkId, bool> mapSporksCachedActive GUARDED_BY(cs);
 
-    mutable std::unordered_map<SporkId, int64_t> mapSporksCachedValues GUARDED_BY(cs);
+    mutable std::unordered_map<SporkId, SporkValue> mapSporksCachedValues GUARDED_BY(cs);
     std::unordered_map<uint256, CSporkMessage, StaticSaltedHasher> mapSporksByHash GUARDED_BY(cs);
     std::unordered_map<SporkId, std::map<CKeyID, CSporkMessage> > mapSporksActive GUARDED_BY(cs);
 
@@ -184,7 +186,7 @@ private:
      * SporkValueIsActive is used to get the value agreed upon by the majority
      * of signed spork messages for a given Spork ID.
      */
-    bool SporkValueIsActive(SporkId nSporkID, int64_t& nActiveValueRet) const EXCLUSIVE_LOCKS_REQUIRED(cs);
+    std::optional<SporkValue> SporkValueIsActive(SporkId nSporkID) const EXCLUSIVE_LOCKS_REQUIRED(cs);
 
 public:
 
@@ -244,7 +246,7 @@ public:
      * UpdateSpork is used by the spork RPC command to set a new spork value, sign
      * and broadcast the spork message.
      */
-    bool UpdateSpork(SporkId nSporkID, int64_t nValue, CConnman& connman);
+    bool UpdateSpork(SporkId nSporkID, SporkValue nValue, CConnman& connman);
 
     /**
      * IsSporkActive returns a bool for time-based sporks, and should be used
@@ -261,7 +263,7 @@ public:
      * GetSporkValue returns the spork value given a Spork ID. If no active spork
      * message has yet been received by the node, it returns the default value.
      */
-    int64_t GetSporkValue(SporkId nSporkID) const;
+    SporkValue GetSporkValue(SporkId nSporkID) const;
 
     /**
      * GetSporkIDByName returns the internal Spork ID given the spork name.

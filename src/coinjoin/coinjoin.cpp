@@ -175,20 +175,19 @@ void CCoinJoinBaseManager::CheckQueue()
     }
 }
 
-bool CCoinJoinBaseManager::GetQueueItemAndTry(CCoinJoinQueue& dsqRet)
+std::optional<CCoinJoinQueue> CCoinJoinBaseManager::GetQueueItemAndTry()
 {
     TRY_LOCK(cs_vecqueue, lockDS);
-    if (!lockDS) return false; // it's ok to fail here, we run this quite frequently
+    if (!lockDS) return std::nullopt; // it's ok to fail here, we run this quite frequently
 
     for (auto& dsq : vecCoinJoinQueue) {
         // only try each queue once
         if (dsq.fTried || dsq.IsTimeOutOfBounds()) continue;
         dsq.fTried = true;
-        dsqRet = dsq;
-        return true;
+        return {dsq};
     }
 
-    return false;
+    return std::nullopt;
 }
 
 std::string CCoinJoinBaseSession::GetStateString() const
@@ -209,52 +208,46 @@ std::string CCoinJoinBaseSession::GetStateString() const
     }
 }
 
-bool CCoinJoinBaseSession::IsValidInOuts(const std::vector<CTxIn>& vin, const std::vector<CTxOut>& vout, PoolMessage& nMessageIDRet, bool* fConsumeCollateralRet) const
+std::tuple<bool /*success*/, bool /*eat_fee*/, PoolMessage> CCoinJoinBaseSession::IsValidInOuts(const std::vector<CTxIn>& vin, const std::vector<CTxOut>& vout) const
 {
     AssertLockHeld(cs_main);
 
     std::set<CScript> setScripPubKeys;
-    nMessageIDRet = MSG_NOERR;
-    if (fConsumeCollateralRet) *fConsumeCollateralRet = false;
+    PoolMessage nMessageIDRet = MSG_NOERR;
+    bool fConsumeCollateralRet = false;
 
     if (vin.size() != vout.size()) {
         LogPrint(BCLog::COINJOIN, "CCoinJoinBaseSession::%s -- ERROR: inputs vs outputs size mismatch! %d vs %d\n", __func__, vin.size(), vout.size());
-        nMessageIDRet = ERR_SIZE_MISMATCH;
-        if (fConsumeCollateralRet) *fConsumeCollateralRet = true;
-        return false;
+        return {false, true, ERR_SIZE_MISMATCH};
     }
 
-    auto checkTxOut = [&](const CTxOut& txout) {
+    // Any checkTxOut failure will result in collateral consumption
+    auto checkTxOut = [&](const CTxOut& txout) -> std::pair<bool, PoolMessage> {
         int nDenom = CCoinJoin::AmountToDenomination(txout.nValue);
         if (nDenom != nSessionDenom) {
             LogPrint(BCLog::COINJOIN, "CCoinJoinBaseSession::IsValidInOuts -- ERROR: incompatible denom %d (%s) != nSessionDenom %d (%s)\n",
                     nDenom, CCoinJoin::DenominationToString(nDenom), nSessionDenom, CCoinJoin::DenominationToString(nSessionDenom));
-            nMessageIDRet = ERR_DENOM;
-            if (fConsumeCollateralRet) *fConsumeCollateralRet = true;
-            return false;
+            return {false, ERR_DENOM};
         }
         if (!txout.scriptPubKey.IsPayToPublicKeyHash()) {
             LogPrint(BCLog::COINJOIN, "CCoinJoinBaseSession::IsValidInOuts -- ERROR: invalid script! scriptPubKey=%s\n", ScriptToAsmStr(txout.scriptPubKey));
-            nMessageIDRet = ERR_INVALID_SCRIPT;
-            if (fConsumeCollateralRet) *fConsumeCollateralRet = true;
-            return false;
+            return {false, ERR_INVALID_SCRIPT};
         }
         if (!setScripPubKeys.insert(txout.scriptPubKey).second) {
             LogPrint(BCLog::COINJOIN, "CCoinJoinBaseSession::IsValidInOuts -- ERROR: already have this script! scriptPubKey=%s\n", ScriptToAsmStr(txout.scriptPubKey));
-            nMessageIDRet = ERR_ALREADY_HAVE;
-            if (fConsumeCollateralRet) *fConsumeCollateralRet = true;
-            return false;
+            return {false, ERR_ALREADY_HAVE};
         }
         // IsPayToPublicKeyHash() above already checks for scriptPubKey size,
         // no need to double-check, hence no usage of ERR_NON_STANDARD_PUBKEY
-        return true;
+        return {true, MSG_NOERR};
     };
 
     CAmount nFees{0};
 
     for (const auto& txout : vout) {
-        if (!checkTxOut(txout)) {
-            return false;
+        auto [success, poolMessage] = checkTxOut(txout);
+        if (!success) {
+            return {false, true, poolMessage};
         }
         nFees -= txout.nValue;
     }
@@ -266,21 +259,19 @@ bool CCoinJoinBaseSession::IsValidInOuts(const std::vector<CTxIn>& vin, const st
 
         if (txin.prevout.IsNull()) {
             LogPrint(BCLog::COINJOIN, "CCoinJoinBaseSession::%s -- ERROR: invalid input!\n", __func__);
-            nMessageIDRet = ERR_INVALID_INPUT;
-            if (fConsumeCollateralRet) *fConsumeCollateralRet = true;
-            return false;
+            return {false, true, ERR_INVALID_INPUT};
         }
 
         Coin coin;
         if (!viewMemPool.GetCoin(txin.prevout, coin) || coin.IsSpent() ||
             (coin.nHeight == MEMPOOL_HEIGHT && !llmq::quorumInstantSendManager->IsLocked(txin.prevout.hash))) {
             LogPrint(BCLog::COINJOIN, "CCoinJoinBaseSession::%s -- ERROR: missing, spent or non-locked mempool input! txin=%s\n", __func__, txin.ToString());
-            nMessageIDRet = ERR_MISSING_TX;
-            return false;
+            return {false, false, ERR_MISSING_TX};
         }
 
-        if (!checkTxOut(coin.out)) {
-            return false;
+        auto [success, poolMessage] = checkTxOut(coin.out);
+        if (!success) {
+            return {false, true, poolMessage};
         }
 
         nFees += coin.out.nValue;
@@ -291,10 +282,10 @@ bool CCoinJoinBaseSession::IsValidInOuts(const std::vector<CTxIn>& vin, const st
     if (nFees != 0) {
         LogPrint(BCLog::COINJOIN, "CCoinJoinBaseSession::%s -- ERROR: non-zero fees! fees: %lld\n", __func__, nFees);
         nMessageIDRet = ERR_FEES;
-        return false;
+        return {false, false, ERR_FEES};
     }
 
-    return true;
+    return {false, false, MSG_NOERR};
 }
 
 // Definitions for static data members

@@ -95,7 +95,7 @@ private:
 public:
     CDKGDebugManager();
 
-    void GetLocalDebugStatus(CDKGDebugStatus& ret) const;
+    CDKGDebugStatus GetLocalDebugStatus() const;
 
     void ResetLocalSessionStatus(Consensus::LLMQType llmqType);
     void InitLocalSessionStatus(const Consensus::LLMQParams& llmqParams, const uint256& quorumHash, int quorumHeight);

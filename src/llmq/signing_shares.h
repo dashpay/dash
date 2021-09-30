@@ -275,7 +275,7 @@ public:
     // Used to avoid holding locks too long
     struct SessionInfo
     {
-        Consensus::LLMQType llmqType;
+        Consensus::LLMQType llmqType{Consensus::LLMQ_NONE};
         uint256 quorumHash;
         uint256 id;
         uint256 msgHash;

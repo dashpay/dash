@@ -185,8 +185,7 @@ static UniValue quorum_dkgstatus(const JSONRPCRequest& request)
         }
     }
 
-    llmq::CDKGDebugStatus status;
-    llmq::quorumDKGDebugManager->GetLocalDebugStatus(status);
+    llmq::CDKGDebugStatus status = llmq::quorumDKGDebugManager->GetLocalDebugStatus();
 
     auto ret = status.ToJson(detailLevel);
 
@@ -227,10 +226,9 @@ static UniValue quorum_dkgstatus(const JSONRPCRequest& request)
         }
 
         LOCK(cs_main);
-        llmq::CFinalCommitment fqc;
-        if (llmq::quorumBlockProcessor->GetMineableCommitment(llmq_params, tipHeight, fqc)) {
+        if (auto opt_fqc = llmq::quorumBlockProcessor->GetMineableCommitment(llmq_params, tipHeight)) {
             UniValue obj(UniValue::VOBJ);
-            fqc.ToJson(obj);
+            opt_fqc.value().ToJson(obj);
             minableCommitments.pushKV(std::string(llmq_params.name), obj);
         }
     }

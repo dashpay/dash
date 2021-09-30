@@ -304,11 +304,12 @@ CQuorumPtr CQuorumManager::BuildQuorumFromCommitment(const Consensus::LLMQType l
     assert(pQuorumBaseBlockIndex);
 
     const uint256& quorumHash{pQuorumBaseBlockIndex->GetBlockHash()};
-    uint256 minedBlockHash;
-    CFinalCommitmentPtr qc = quorumBlockProcessor->GetMinedCommitment(llmqType, quorumHash, minedBlockHash);
-    if (qc == nullptr) {
+    auto optQcBlockHash = quorumBlockProcessor->GetMinedCommitment(llmqType, quorumHash);
+    if (!optQcBlockHash) {
         return nullptr;
     }
+    const auto& [qc, minedBlockHash] = *optQcBlockHash;
+
     assert(qc->quorumHash == pQuorumBaseBlockIndex->GetBlockHash());
 
     const auto& llmqParams = llmq::GetLLMQParams(llmqType);
@@ -343,12 +344,11 @@ CQuorumPtr CQuorumManager::BuildQuorumFromCommitment(const Consensus::LLMQType l
 
 bool CQuorumManager::BuildQuorumContributions(const CFinalCommitmentPtr& fqc, const std::shared_ptr<CQuorum>& quorum) const
 {
-    std::vector<uint16_t> memberIndexes;
-    std::vector<BLSVerificationVectorPtr> vvecs;
-    BLSSecretKeyVector skContributions;
-    if (!dkgManager.GetVerifiedContributions((Consensus::LLMQType)fqc->llmqType, quorum->m_quorum_base_block_index, fqc->validMembers, memberIndexes, vvecs, skContributions)) {
+    auto optContributions = dkgManager.GetVerifiedContributions(fqc->llmqType, quorum->m_quorum_base_block_index, fqc->validMembers);
+    if (!optContributions) {
         return false;
     }
+    const auto& [memberIndexes, vvecs, skContributions] = *optContributions;
 
     cxxtimer::Timer t2(true);
     LOCK(quorum->cs);

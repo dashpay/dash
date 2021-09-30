@@ -123,6 +123,6 @@ public:
     void ToJson(UniValue& obj) const;
 };
 
-bool BuildSimplifiedMNListDiff(const uint256& baseBlockHash, const uint256& blockHash, CSimplifiedMNListDiff& mnListDiffRet, std::string& errorRet);
+std::pair<std::optional<CSimplifiedMNListDiff>, std::string> BuildSimplifiedMNListDiff(const uint256& baseBlockHash, const uint256& blockHash);
 
 #endif // BITCOIN_EVO_SIMPLIFIEDMNS_H

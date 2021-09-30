@@ -212,39 +212,33 @@ void CDKGSession::SendContributions(CDKGPendingMessages& pendingMessages)
 }
 
 // only performs cheap verifications, but not the signature of the message. this is checked with batched verification
-bool CDKGSession::PreVerifyMessage(const CDKGContribution& qc, bool& retBan) const
+CDKGSession::success_ban CDKGSession::PreVerifyMessage(const CDKGContribution& qc) const
 {
     CDKGLogger logger(*this, __func__);
 
-    retBan = false;
-
     if (qc.quorumHash != m_quorum_base_block_index->GetBlockHash()) {
         logger.Batch("contribution for wrong quorum, rejecting");
-        return false;
+        return {false, false};
     }
 
     auto member = GetMember(qc.proTxHash);
     if (!member) {
         logger.Batch("contributor not a member of this quorum, rejecting contribution");
-        retBan = true;
-        return false;
+        return {false, true};
     }
 
     if (qc.contributions->blobs.size() != members.size()) {
         logger.Batch("invalid contributions count");
-        retBan = true;
-        return false;
+        return {false, true};
     }
     if (qc.vvec->size() != params.threshold) {
         logger.Batch("invalid verification vector length");
-        retBan = true;
-        return false;
+        return {false, true};
     }
 
     if (!CBLSWorker::VerifyVerificationVector(*qc.vvec)) {
         logger.Batch("invalid verification vector");
-        retBan = true;
-        return false;
+        return {false, true};
     }
 
     if (member->contributions.size() >= 2) {
@@ -252,19 +246,17 @@ bool CDKGSession::PreVerifyMessage(const CDKGContribution& qc, bool& retBan) con
         // this is a DoS protection against members sending multiple contributions with valid signatures to us
         // we must bail out before any expensive BLS verification happens
         logger.Batch("dropping contribution from %s as we already got %d contributions", member->dmn->proTxHash.ToString(), member->contributions.size());
-        return false;
+        return {false, false};
     }
 
-    return true;
+    return {true, false};
 }
 
-void CDKGSession::ReceiveMessage(const CDKGContribution& qc, bool& retBan)
+void CDKGSession::ReceiveMessage(const CDKGContribution& qc)
 {
     LOCK(cs_pending);
 
     CDKGLogger logger(*this, __func__);
-
-    retBan = false;
 
     auto member = GetMember(qc.proTxHash);
 
@@ -536,34 +528,29 @@ void CDKGSession::SendComplaint(CDKGPendingMessages& pendingMessages)
 }
 
 // only performs cheap verifications, but not the signature of the message. this is checked with batched verification
-bool CDKGSession::PreVerifyMessage(const CDKGComplaint& qc, bool& retBan) const
+CDKGSession::success_ban CDKGSession::PreVerifyMessage(const CDKGComplaint& qc) const
 {
     CDKGLogger logger(*this, __func__);
 
-    retBan = false;
-
     if (qc.quorumHash != m_quorum_base_block_index->GetBlockHash()) {
         logger.Batch("complaint for wrong quorum, rejecting");
-        return false;
+        return {false, false};
     }
 
     auto member = GetMember(qc.proTxHash);
     if (!member) {
         logger.Batch("complainer not a member of this quorum, rejecting complaint");
-        retBan = true;
-        return false;
+        return {false, true};
     }
 
     if (qc.badMembers.size() != (size_t)params.size) {
         logger.Batch("invalid badMembers bitset size");
-        retBan = true;
-        return false;
+        return {false, true};
     }
 
     if (qc.complainForMembers.size() != (size_t)params.size) {
         logger.Batch("invalid complainForMembers bitset size");
-        retBan = true;
-        return false;
+        return {false, true};
     }
 
     if (member->complaints.size() >= 2) {
@@ -572,17 +559,15 @@ bool CDKGSession::PreVerifyMessage(const CDKGComplaint& qc, bool& retBan) const
         // we must bail out before any expensive BLS verification happens
         logger.Batch("dropping complaint from %s as we already got %d complaints",
                       member->dmn->proTxHash.ToString(), member->complaints.size());
-        return false;
+        return {false, false};
     }
 
-    return true;
+    return {true, false};
 }
 
-void CDKGSession::ReceiveMessage(const CDKGComplaint& qc, bool& retBan)
+void CDKGSession::ReceiveMessage(const CDKGComplaint& qc)
 {
     CDKGLogger logger(*this, __func__);
-
-    retBan = false;
 
     logger.Batch("received complaint from %s", qc.proTxHash.ToString());
 
@@ -730,49 +715,41 @@ void CDKGSession::SendJustification(CDKGPendingMessages& pendingMessages, const 
 }
 
 // only performs cheap verifications, but not the signature of the message. this is checked with batched verification
-bool CDKGSession::PreVerifyMessage(const CDKGJustification& qj, bool& retBan) const
+CDKGSession::success_ban CDKGSession::PreVerifyMessage(const CDKGJustification& qj) const
 {
     CDKGLogger logger(*this, __func__);
 
-    retBan = false;
-
     if (qj.quorumHash != m_quorum_base_block_index->GetBlockHash()) {
         logger.Batch("justification for wrong quorum, rejecting");
-        return false;
+        return {false, false};
     }
 
     auto member = GetMember(qj.proTxHash);
     if (!member) {
         logger.Batch("justifier not a member of this quorum, rejecting justification");
-        retBan = true;
-        return false;
+        return {false, true};
     }
 
     if (qj.contributions.empty()) {
         logger.Batch("justification with no contributions");
-        retBan = true;
-        return false;
+        return {false, true};
     }
 
     std::set<size_t> contributionsSet;
-    for (const auto& p : qj.contributions) {
-        if (p.first > members.size()) {
+    for (const auto& [index, skShare] : qj.contributions) {
+        if (index > members.size()) {
             logger.Batch("invalid contribution index");
-            retBan = true;
-            return false;
+            return {false, true};
         }
 
-        if (!contributionsSet.emplace(p.first).second) {
+        if (!contributionsSet.emplace(index).second) {
             logger.Batch("duplicate contribution index");
-            retBan = true;
-            return false;
+            return {false, true};
         }
 
-        auto& skShare = p.second;
         if (!skShare.IsValid()) {
             logger.Batch("invalid contribution");
-            retBan = true;
-            return false;
+            return {false, true};
         }
     }
 
@@ -782,17 +759,15 @@ bool CDKGSession::PreVerifyMessage(const CDKGJustification& qj, bool& retBan) co
         // we must bail out before any expensive BLS verification happens
         logger.Batch("dropping justification from %s as we already got %d justifications",
                       member->dmn->proTxHash.ToString(), member->justifications.size());
-        return false;
+        return {false, false};
     }
 
-    return true;
+    return {true, false};
 }
 
-void CDKGSession::ReceiveMessage(const CDKGJustification& qj, bool& retBan)
+void CDKGSession::ReceiveMessage(const CDKGJustification& qj)
 {
     CDKGLogger logger(*this, __func__);
-
-    retBan = false;
 
     logger.Batch("received justification from %s", qj.proTxHash.ToString());
 
@@ -962,13 +937,12 @@ void CDKGSession::SendCommitment(CDKGPendingMessages& pendingMessages)
     cxxtimer::Timer timerTotal(true);
 
     cxxtimer::Timer t1(true);
-    std::vector<uint16_t> memberIndexes;
-    std::vector<BLSVerificationVectorPtr> vvecs;
-    BLSSecretKeyVector skContributions;
-    if (!dkgManager.GetVerifiedContributions(params.type, m_quorum_base_block_index, qc.validMembers, memberIndexes, vvecs, skContributions)) {
+    auto optContrib = dkgManager.GetVerifiedContributions(params.type, m_quorum_base_block_index, qc.validMembers);
+    if (!optContrib) {
         logger.Batch("failed to get valid contributions");
         return;
     }
+    const auto& [memberIndexes, vvecs, skContributions] = *optContrib;
 
     BLSVerificationVectorPtr vvec = cache.BuildQuorumVerificationVector(::SerializeHash(memberIndexes), vvecs);
     if (vvec == nullptr) {
@@ -1042,51 +1016,43 @@ void CDKGSession::SendCommitment(CDKGPendingMessages& pendingMessages)
 }
 
 // only performs cheap verifications, but not the signature of the message. this is checked with batched verification
-bool CDKGSession::PreVerifyMessage(const CDKGPrematureCommitment& qc, bool& retBan) const
+CDKGSession::success_ban CDKGSession::PreVerifyMessage(const CDKGPrematureCommitment& qc) const
 {
     CDKGLogger logger(*this, __func__);
 
-    retBan = false;
-
     if (qc.quorumHash != m_quorum_base_block_index->GetBlockHash()) {
         logger.Batch("commitment for wrong quorum, rejecting");
-        return false;
+        return {false, false};
     }
 
     auto member = GetMember(qc.proTxHash);
     if (!member) {
         logger.Batch("committer not a member of this quorum, rejecting premature commitment");
-        retBan = true;
-        return false;
+        return {false, true};
     }
 
     if (qc.validMembers.size() != (size_t)params.size) {
         logger.Batch("invalid validMembers bitset size");
-        retBan = true;
-        return false;
+        return {false, true};
     }
 
     if (qc.CountValidMembers() < params.minSize) {
         logger.Batch("invalid validMembers count. validMembersCount=%d", qc.CountValidMembers());
-        retBan = true;
-        return false;
+        return {false, true};
     }
     if (!qc.sig.IsValid()) {
         logger.Batch("invalid membersSig");
-        retBan = true;
-        return false;
+        return {false, true};
     }
     if (!qc.quorumSig.IsValid()) {
         logger.Batch("invalid quorumSig");
-        retBan = true;
-        return false;
+        return {false, true};
     }
 
     for (size_t i = members.size(); i < params.size; i++) {
         if (qc.validMembers[i]) {
-            retBan = true;
             logger.Batch("invalid validMembers bitset. bit %d should not be set", i);
-            return false;
+            return {false, true};
         }
     }
 
@@ -1096,17 +1062,15 @@ bool CDKGSession::PreVerifyMessage(const CDKGPrematureCommitment& qc, bool& retB
         // we must bail out before any expensive BLS verification happens
         logger.Batch("dropping commitment from %s as we already got %d commitments",
                       member->dmn->proTxHash.ToString(), member->prematureCommitments.size());
-        return false;
+        return {false, false};
     }
 
-    return true;
+    return {true, false};
 }
 
-void CDKGSession::ReceiveMessage(const CDKGPrematureCommitment& qc, bool& retBan)
+void CDKGSession::ReceiveMessage(const CDKGPrematureCommitment& qc)
 {
     CDKGLogger logger(*this, __func__);
-
-    retBan = false;
 
     cxxtimer::Timer t1(true);
 
@@ -1125,11 +1089,10 @@ void CDKGSession::ReceiveMessage(const CDKGPrematureCommitment& qc, bool& retBan
     }
 
     std::vector<uint16_t> memberIndexes;
-    std::vector<BLSVerificationVectorPtr> vvecs;
-    BLSSecretKeyVector skContributions;
     BLSVerificationVectorPtr quorumVvec;
-    if (dkgManager.GetVerifiedContributions(params.type, m_quorum_base_block_index, qc.validMembers, memberIndexes, vvecs, skContributions)) {
-        quorumVvec = cache.BuildQuorumVerificationVector(::SerializeHash(memberIndexes), vvecs);
+    if (auto optContributions = dkgManager.GetVerifiedContributions(params.type, m_quorum_base_block_index, qc.validMembers)) {
+        memberIndexes = optContributions->memberIndexes;
+        quorumVvec = cache.BuildQuorumVerificationVector(::SerializeHash(memberIndexes), optContributions->vvecs);
     }
 
     if (quorumVvec == nullptr) {
@@ -1146,8 +1109,7 @@ void CDKGSession::ReceiveMessage(const CDKGPrematureCommitment& qc, bool& retBan
             logger.Batch("calculated quorum public key does not match");
             return;
         }
-        uint256 vvecHash = ::SerializeHash(*quorumVvec);
-        if (qc.quorumVvecHash != vvecHash) {
+        if (auto vvecHash = ::SerializeHash(*quorumVvec); qc.quorumVvecHash != vvecHash) {
             logger.Batch("calculated quorum vvec hash does not match");
             return;
         }

@@ -1169,14 +1169,13 @@ static UniValue protx_diff(const JSONRPCRequest& request)
     uint256 baseBlockHash = ParseBlock(request.params[1], "baseBlock");
     uint256 blockHash = ParseBlock(request.params[2], "block");
 
-    CSimplifiedMNListDiff mnListDiff;
-    std::string strError;
-    if (!BuildSimplifiedMNListDiff(baseBlockHash, blockHash, mnListDiff, strError)) {
+    auto [mnListDiff, strError] = BuildSimplifiedMNListDiff(baseBlockHash, blockHash);
+    if (!mnListDiff) {
         throw std::runtime_error(strError);
     }
 
     UniValue ret;
-    mnListDiff.ToJson(ret);
+    mnListDiff.value().ToJson(ret);
     return ret;
 }
 

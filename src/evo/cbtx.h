@@ -51,7 +51,7 @@ public:
 bool CheckCbTx(const CTransaction& tx, const CBlockIndex* pindexPrev, CValidationState& state);
 
 bool CheckCbTxMerkleRoots(const CBlock& block, const CBlockIndex* pindex, CValidationState& state, const CCoinsViewCache& view);
-bool CalcCbTxMerkleRootMNList(const CBlock& block, const CBlockIndex* pindexPrev, uint256& merkleRootRet, CValidationState& state, const CCoinsViewCache& view);
-bool CalcCbTxMerkleRootQuorums(const CBlock& block, const CBlockIndex* pindexPrev, uint256& merkleRootRet, CValidationState& state);
+std::optional<uint256> CalcCbTxMerkleRootMNList(const CBlock& block, const CBlockIndex* pindexPrev, CValidationState& state, const CCoinsViewCache& view);
+std::optional<uint256> CalcCbTxMerkleRootQuorums(const CBlock& block, const CBlockIndex* pindexPrev, CValidationState& state);
 
 #endif // BITCOIN_EVO_CBTX_H

@@ -24,32 +24,29 @@ const std::string CSporkManager::SERIALIZATION_VERSION_STRING = "CSporkManager-V
 
 CSporkManager sporkManager;
 
-bool CSporkManager::SporkValueIsActive(SporkId nSporkID, int64_t &nActiveValueRet) const
+std::optional<SporkValue> CSporkManager::SporkValueIsActive(SporkId nSporkID, int64_t &nActiveValueRet) const
 {
     AssertLockHeld(cs);
 
     if (!mapSporksActive.count(nSporkID)) return false;
 
-    auto it = mapSporksCachedValues.find(nSporkID);
-    if (it != mapSporksCachedValues.end()) {
-        nActiveValueRet = it->second;
-        return true;
+    if (auto it = mapSporksCachedValues.find(nSporkID); it != mapSporksCachedValues.end()) {
+        return {it->second};
     }
 
     // calc how many values we have and how many signers vote for every value
-    std::unordered_map<int64_t, int> mapValueCounts;
-    for (const auto& pair: mapSporksActive.at(nSporkID)) {
-        mapValueCounts[pair.second.nValue]++;
-        if (mapValueCounts.at(pair.second.nValue) >= nMinSporkKeys) {
+    std::unordered_map<SporkValue, int> mapValueCounts;
+    for (const auto& [key, sporkMessage]: mapSporksActive.at(nSporkID)) {
+        mapValueCounts[sporkMessage.nValue]++;
+        if (mapValueCounts.at(sporkMessage.nValue) >= nMinSporkKeys) {
             // nMinSporkKeys is always more than the half of the max spork keys number,
             // so there is only one such value and we can stop here
-            nActiveValueRet = pair.second.nValue;
-            mapSporksCachedValues[nSporkID] = nActiveValueRet;
-            return true;
+            mapSporksCachedValues[nSporkID] = sporkMessage.nValue;
+            return {sporkMessage.nValue};
         }
     }
 
-    return false;
+    return std::nullopt;
 }
 
 void CSporkManager::Clear()
@@ -170,15 +167,15 @@ void CSporkManager::ProcessSpork(CNode* pfrom, const std::string& strCommand, CD
     } else if (strCommand == NetMsgType::GETSPORKS) {
         LOCK(cs); // make sure to not lock this together with cs_main
         for (const auto& pair : mapSporksActive) {
-            for (const auto& signerSporkPair: pair.second) {
-                connman.PushMessage(pfrom, CNetMsgMaker(pfrom->GetSendVersion()).Make(NetMsgType::SPORK, signerSporkPair.second));
+            for (const auto& [key, sporkMessage]: pair.second) {
+                connman.PushMessage(pfrom, CNetMsgMaker(pfrom->GetSendVersion()).Make(NetMsgType::SPORK, sporkMessage));
             }
         }
     }
 
 }
 
-bool CSporkManager::UpdateSpork(SporkId nSporkID, int64_t nValue, CConnman& connman)
+bool CSporkManager::UpdateSpork(SporkId nSporkID, SporkValue nValue, CConnman& connman)
 {
     CSporkMessage spork = CSporkMessage(nSporkID, nValue, GetAdjustedTime());
 
@@ -213,12 +210,11 @@ bool CSporkManager::IsSporkActive(SporkId nSporkID) const
 {
     LOCK(cs);
     // If nSporkID is cached, and the cached value is true, then return early true
-    auto it = mapSporksCachedActive.find(nSporkID);
-    if (it != mapSporksCachedActive.end() && it->second) {
+    if (auto it = mapSporksCachedActive.find(nSporkID); it != mapSporksCachedActive.end() && it->second) {
         return true;
     }
 
-    int64_t nSporkValue = GetSporkValue(nSporkID);
+    SporkValue nSporkValue = GetSporkValue(nSporkID);
     // Get time is somewhat costly it looks like
     bool ret = nSporkValue < GetAdjustedTime();
     // Only cache true values
@@ -228,13 +224,12 @@ bool CSporkManager::IsSporkActive(SporkId nSporkID) const
     return ret;
 }
 
-int64_t CSporkManager::GetSporkValue(SporkId nSporkID) const
+SporkValue CSporkManager::GetSporkValue(SporkId nSporkID) const
 {
     LOCK(cs);
 
-    int64_t nSporkValue = -1;
-    if (SporkValueIsActive(nSporkID, nSporkValue)) {
-        return nSporkValue;
+    if (auto optSporkVal = SporkValueIsActive(nSporkID)) {
+        return *optSporkVal;
     }
 
     for (const auto& sporkDef : sporkDefs) {
@@ -244,7 +239,7 @@ int64_t CSporkManager::GetSporkValue(SporkId nSporkID) const
     }
 
     LogPrint(BCLog::SPORK, "CSporkManager::GetSporkValue -- Unknown Spork ID %d\n", nSporkID);
-    return -1;
+    return -1; // TODO use std::optional
 }
 
 SporkId CSporkManager::GetSporkIDByName(const std::string& strName)

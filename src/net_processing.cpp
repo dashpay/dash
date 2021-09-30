@@ -1728,39 +1728,33 @@ void static ProcessGetData(CNode* pfrom, const CChainParams& chainparams, CConnm
             }
 
             if (!push && (inv.type == MSG_QUORUM_FINAL_COMMITMENT)) {
-                llmq::CFinalCommitment o;
-                if (llmq::quorumBlockProcessor->GetMineableCommitmentByHash(
-                        inv.hash, o)) {
-                    connman->PushMessage(pfrom, msgMaker.Make(NetMsgType::QFCOMMITMENT, o));
+                if (auto finalCommit = llmq::quorumBlockProcessor->GetMineableCommitmentByHash(inv.hash)) {
+                    connman->PushMessage(pfrom, msgMaker.Make(NetMsgType::QFCOMMITMENT, *finalCommit));
                     push = true;
                 }
             }
 
             if (!push && (inv.type == MSG_QUORUM_CONTRIB)) {
-                llmq::CDKGContribution o;
-                if (llmq::quorumDKGSessionManager->GetContribution(inv.hash, o)) {
-                    connman->PushMessage(pfrom, msgMaker.Make(NetMsgType::QCONTRIB, o));
+                if (auto optDKGContribution = llmq::quorumDKGSessionManager->GetContribution(inv.hash)) {
+                    connman->PushMessage(pfrom, msgMaker.Make(NetMsgType::QCONTRIB, *optDKGContribution));
                     push = true;
                 }
             }
             if (!push && (inv.type == MSG_QUORUM_COMPLAINT)) {
-                llmq::CDKGComplaint o;
-                if (llmq::quorumDKGSessionManager->GetComplaint(inv.hash, o)) {
-                    connman->PushMessage(pfrom, msgMaker.Make(NetMsgType::QCOMPLAINT, o));
+                if (auto optDKGComplaint = llmq::quorumDKGSessionManager->GetComplaint(inv.hash)) {
+                    connman->PushMessage(pfrom, msgMaker.Make(NetMsgType::QCOMPLAINT, *optDKGComplaint));
                     push = true;
                 }
             }
             if (!push && (inv.type == MSG_QUORUM_JUSTIFICATION)) {
-                llmq::CDKGJustification o;
-                if (llmq::quorumDKGSessionManager->GetJustification(inv.hash, o)) {
-                    connman->PushMessage(pfrom, msgMaker.Make(NetMsgType::QJUSTIFICATION, o));
+                if (auto optDKGJustif = llmq::quorumDKGSessionManager->GetJustification(inv.hash)) {
+                    connman->PushMessage(pfrom, msgMaker.Make(NetMsgType::QJUSTIFICATION, *optDKGJustif));
                     push = true;
                 }
             }
             if (!push && (inv.type == MSG_QUORUM_PREMATURE_COMMITMENT)) {
-                llmq::CDKGPrematureCommitment o;
-                if (llmq::quorumDKGSessionManager->GetPrematureCommitment(inv.hash, o)) {
-                    connman->PushMessage(pfrom, msgMaker.Make(NetMsgType::QPCOMMITMENT, o));
+                if (auto optDKGPremCom = llmq::quorumDKGSessionManager->GetPrematureCommitment(inv.hash)) {
+                    connman->PushMessage(pfrom, msgMaker.Make(NetMsgType::QPCOMMITMENT, *optDKGPremCom));
                     push = true;
                 }
             }
@@ -1773,9 +1767,8 @@ void static ProcessGetData(CNode* pfrom, const CChainParams& chainparams, CConnm
             }
 
             if (!push && (inv.type == MSG_CLSIG)) {
-                llmq::CChainLockSig o;
-                if (llmq::chainLocksHandler->GetChainLockByHash(inv.hash, o)) {
-                    connman->PushMessage(pfrom, msgMaker.Make(NetMsgType::CLSIG, o));
+                if (auto optClSig = llmq::chainLocksHandler->GetChainLockByHash(inv.hash)) {
+                    connman->PushMessage(pfrom, msgMaker.Make(NetMsgType::CLSIG, *optClSig));
                     push = true;
                 }
             }
@@ -3858,10 +3851,8 @@ bool static ProcessMessage(CNode* pfrom, const std::string& strCommand, CDataStr
 
         LOCK(cs_main);
 
-        CSimplifiedMNListDiff mnListDiff;
-        std::string strError;
-        if (BuildSimplifiedMNListDiff(cmd.baseBlockHash, cmd.blockHash, mnListDiff, strError)) {
-            connman->PushMessage(pfrom, msgMaker.Make(NetMsgType::MNLISTDIFF, mnListDiff));
+        if (auto [mnListDiff, strError] = BuildSimplifiedMNListDiff(cmd.baseBlockHash, cmd.blockHash); mnListDiff) {
+            connman->PushMessage(pfrom, msgMaker.Make(NetMsgType::MNLISTDIFF, *mnListDiff));
         } else {
             strError = strprintf("getmnlistdiff failed for baseBlockHash=%s, blockHash=%s. error=%s", cmd.baseBlockHash.ToString(), cmd.blockHash.ToString(), strError);
             Misbehaving(pfrom->GetId(), 1, strError);

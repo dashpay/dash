@@ -70,12 +70,12 @@ bool CheckCbTxMerkleRoots(const CBlock& block, const CBlockIndex* pindex, CValid
         static int64_t nTimeMerkleMNL = 0;
         static int64_t nTimeMerkleQuorum = 0;
 
-        uint256 calculatedMerkleRoot;
-        if (!CalcCbTxMerkleRootMNList(block, pindex->pprev, calculatedMerkleRoot, state, view)) {
+        auto optCalculatedMerkleRootList = CalcCbTxMerkleRootMNList(block, pindex->pprev, state, view);
+        if (!optCalculatedMerkleRootList) {
             // pass the state returned by the function above
             return false;
         }
-        if (calculatedMerkleRoot != cbTx.merkleRootMNList) {
+        if (*optCalculatedMerkleRootList != cbTx.merkleRootMNList) {
             return state.DoS(100, false, REJECT_INVALID, "bad-cbtx-mnmerkleroot");
         }
 
@@ -83,11 +83,12 @@ bool CheckCbTxMerkleRoots(const CBlock& block, const CBlockIndex* pindex, CValid
         LogPrint(BCLog::BENCHMARK, "          - CalcCbTxMerkleRootMNList: %.2fms [%.2fs]\n", 0.001 * (nTime3 - nTime2), nTimeMerkleMNL * 0.000001);
 
         if (cbTx.nVersion >= 2) {
-            if (!CalcCbTxMerkleRootQuorums(block, pindex->pprev, calculatedMerkleRoot, state)) {
+            auto optCalculatedMerkleRoot = CalcCbTxMerkleRootQuorums(block, pindex->pprev, state);
+            if (!optCalculatedMerkleRoot) {
                 // pass the state returned by the function above
                 return false;
             }
-            if (calculatedMerkleRoot != cbTx.merkleRootQuorums) {
+            if (*optCalculatedMerkleRoot != cbTx.merkleRootQuorums) {
                 return state.DoS(100, false, REJECT_INVALID, "bad-cbtx-quorummerkleroot");
             }
         }
@@ -100,7 +101,7 @@ bool CheckCbTxMerkleRoots(const CBlock& block, const CBlockIndex* pindex, CValid
     return true;
 }
 
-bool CalcCbTxMerkleRootMNList(const CBlock& block, const CBlockIndex* pindexPrev, uint256& merkleRootRet, CValidationState& state, const CCoinsViewCache& view)
+std::optional<uint256> CalcCbTxMerkleRootMNList(const CBlock& block, const CBlockIndex* pindexPrev, CValidationState& state, const CCoinsViewCache& view)
 {
     LOCK(deterministicMNManager->cs);
 
@@ -111,16 +112,16 @@ bool CalcCbTxMerkleRootMNList(const CBlock& block, const CBlockIndex* pindexPrev
 
         int64_t nTime1 = GetTimeMicros();
 
-        CDeterministicMNList tmpMNList;
-        if (!deterministicMNManager->BuildNewListFromBlock(block, pindexPrev, state, view, tmpMNList, false)) {
+        auto optTmpMNList = deterministicMNManager->BuildNewListFromBlock(block, pindexPrev, state, view, false);
+        if (!optTmpMNList) {
             // pass the state returned by the function above
-            return false;
+            return std::nullopt;
         }
 
         int64_t nTime2 = GetTimeMicros(); nTimeDMN += nTime2 - nTime1;
         LogPrint(BCLog::BENCHMARK, "            - BuildNewListFromBlock: %.2fms [%.2fs]\n", 0.001 * (nTime2 - nTime1), nTimeDMN * 0.000001);
 
-        CSimplifiedMNList sml(tmpMNList);
+        CSimplifiedMNList sml(*optTmpMNList);
 
         int64_t nTime3 = GetTimeMicros(); nTimeSMNL += nTime3 - nTime2;
         LogPrint(BCLog::BENCHMARK, "            - CSimplifiedMNList: %.2fms [%.2fs]\n", 0.001 * (nTime3 - nTime2), nTimeSMNL * 0.000001);
@@ -130,15 +131,15 @@ bool CalcCbTxMerkleRootMNList(const CBlock& block, const CBlockIndex* pindexPrev
         static bool mutatedCached{false};
 
         if (sml.mnList == smlCached.mnList) {
-            merkleRootRet = merkleRootCached;
             if (mutatedCached) {
-                return state.DoS(100, false, REJECT_INVALID, "mutated-cached-calc-cb-mnmerkleroot");
+                state.DoS(100, false, REJECT_INVALID, "mutated-cached-calc-cb-mnmerkleroot");
+                return std::nullopt;
             }
-            return true;
+            return {merkleRootCached};
         }
 
         bool mutated = false;
-        merkleRootRet = sml.CalcMerkleRoot(&mutated);
+        auto merkleRootRet = sml.CalcMerkleRoot(&mutated);
 
         int64_t nTime4 = GetTimeMicros(); nTimeMerkle += nTime4 - nTime3;
         LogPrint(BCLog::BENCHMARK, "            - CalcMerkleRoot: %.2fms [%.2fs]\n", 0.001 * (nTime4 - nTime3), nTimeMerkle * 0.000001);
@@ -148,17 +149,19 @@ bool CalcCbTxMerkleRootMNList(const CBlock& block, const CBlockIndex* pindexPrev
         mutatedCached = mutated;
 
         if (mutated) {
-            return state.DoS(100, false, REJECT_INVALID, "mutated-calc-cb-mnmerkleroot");
+            state.DoS(100, false, REJECT_INVALID, "mutated-calc-cb-mnmerkleroot");
+            return std::nullopt;
         }
 
-        return true;
+        return {merkleRootRet};
     } catch (const std::exception& e) {
         LogPrintf("%s -- failed: %s\n", __func__, e.what());
-        return state.DoS(100, false, REJECT_INVALID, "failed-calc-cb-mnmerkleroot");
+        state.DoS(100, false, REJECT_INVALID, "failed-calc-cb-mnmerkleroot");
+        return std::nullopt;
     }
 }
 
-bool CalcCbTxMerkleRootQuorums(const CBlock& block, const CBlockIndex* pindexPrev, uint256& merkleRootRet, CValidationState& state)
+std::optional<uint256> CalcCbTxMerkleRootQuorums(const CBlock& block, const CBlockIndex* pindexPrev, CValidationState& state)
 {
     static int64_t nTimeMinedAndActive = 0;
     static int64_t nTimeMined = 0;
@@ -186,9 +189,12 @@ bool CalcCbTxMerkleRootQuorums(const CBlock& block, const CBlockIndex* pindexPre
             v.reserve(p.second.size());
             for (const auto& p2 : p.second) {
                 uint256 minedBlockHash;
-                llmq::CFinalCommitmentPtr qc = llmq::quorumBlockProcessor->GetMinedCommitment(p.first, p2->GetBlockHash(), minedBlockHash);
-                if (qc == nullptr) return state.DoS(100, false, REJECT_INVALID, "commitment-not-found");
-                v.emplace_back(::SerializeHash(*qc));
+                auto optQuorumCommitBlockhash = llmq::quorumBlockProcessor->GetMinedCommitment(p.first, p2->GetBlockHash());
+                if (!optQuorumCommitBlockhash) {
+                    state.DoS(100, false, REJECT_INVALID, "commitment-not-found");
+                    return std::nullopt;
+                }
+                v.emplace_back(::SerializeHash(optQuorumCommitBlockhash->first));
                 hashCount++;
             }
         }
@@ -207,7 +213,8 @@ bool CalcCbTxMerkleRootQuorums(const CBlock& block, const CBlockIndex* pindexPre
         if (tx->nVersion == 3 && tx->nType == TRANSACTION_QUORUM_COMMITMENT) {
             llmq::CFinalCommitmentTxPayload qc;
             if (!GetTxPayload(*tx, qc)) {
-                return state.DoS(100, false, REJECT_INVALID, "bad-qc-payload-calc-cbtx-quorummerkleroot");
+                state.DoS(100, false, REJECT_INVALID, "bad-qc-payload-calc-cbtx-quorummerkleroot");
+                return std::nullopt;
             }
             if (qc.commitment.IsNull()) {
                 continue;
@@ -224,7 +231,8 @@ bool CalcCbTxMerkleRootQuorums(const CBlock& block, const CBlockIndex* pindexPre
             v.emplace_back(qcHash);
             hashCount++;
             if (v.size() > llmq_params.signingActiveQuorumCount) {
-                return state.DoS(100, false, REJECT_INVALID, "excess-quorums-calc-cbtx-quorummerkleroot");
+                state.DoS(100, false, REJECT_INVALID, "excess-quorums-calc-cbtx-quorummerkleroot");
+                return std::nullopt;
             }
         }
     }
@@ -242,16 +250,17 @@ bool CalcCbTxMerkleRootQuorums(const CBlock& block, const CBlockIndex* pindexPre
     LogPrint(BCLog::BENCHMARK, "            - Loop: %.2fms [%.2fs]\n", 0.001 * (nTime4 - nTime3), nTimeLoop * 0.000001);
 
     bool mutated = false;
-    merkleRootRet = ComputeMerkleRoot(qcHashesVec, &mutated);
+    auto merkleRootRet = ComputeMerkleRoot(qcHashesVec, &mutated);
 
     int64_t nTime5 = GetTimeMicros(); nTimeMerkle += nTime5 - nTime4;
     LogPrint(BCLog::BENCHMARK, "            - ComputeMerkleRoot: %.2fms [%.2fs]\n", 0.001 * (nTime5 - nTime4), nTimeMerkle * 0.000001);
 
     if (mutated) {
-        return state.DoS(100, false, REJECT_INVALID, "mutated-calc-cbtx-quorummerkleroot");
+        state.DoS(100, false, REJECT_INVALID, "mutated-calc-cbtx-quorummerkleroot");
+        return std::nullopt;
     }
 
-    return true;
+    return {merkleRootRet};
 }
 
 std::string CCbTx::ToString() const

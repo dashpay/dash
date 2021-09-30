@@ -148,14 +148,11 @@ std::unique_ptr<CBlockTemplate> BlockAssembler::CreateNewBlock(const CScript& sc
 
     if (fDIP0003Active_context) {
         for (const Consensus::LLMQParams& params : llmq::CLLMQUtils::GetEnabledQuorumParams(pindexPrev)) {
-            CTransactionRef qcTx;
-            if (llmq::quorumBlockProcessor->GetMineableCommitmentTx(params,
-                                                                    nHeight,
-                                                                    qcTx)) {
-                pblock->vtx.emplace_back(qcTx);
+            if (auto optQcTx = llmq::quorumBlockProcessor->GetMineableCommitmentTx(params, nHeight)) {
+                pblock->vtx.emplace_back(*optQcTx);
                 pblocktemplate->vTxFees.emplace_back(0);
                 pblocktemplate->vTxSigOps.emplace_back(0);
-                nBlockSize += qcTx->GetTotalSize();
+                nBlockSize += (*optQcTx)->GetTotalSize();
                 ++nBlockTx;
             }
         }
@@ -203,11 +200,15 @@ std::unique_ptr<CBlockTemplate> BlockAssembler::CreateNewBlock(const CScript& sc
         cbTx.nHeight = nHeight;
 
         CValidationState state;
-        if (!CalcCbTxMerkleRootMNList(*pblock, pindexPrev, cbTx.merkleRootMNList, state, ::ChainstateActive().CoinsTip())) {
+        if (auto optMerkleRootMNList = CalcCbTxMerkleRootMNList(*pblock, pindexPrev, state, ::ChainstateActive().CoinsTip())) {
+            cbTx.merkleRootMNList = *optMerkleRootMNList;
+        } else {
             throw std::runtime_error(strprintf("%s: CalcCbTxMerkleRootMNList failed: %s", __func__, FormatStateMessage(state)));
         }
         if (fDIP0008Active_context) {
-            if (!CalcCbTxMerkleRootQuorums(*pblock, pindexPrev, cbTx.merkleRootQuorums, state)) {
+            if (auto optMerkleRootQuorums = CalcCbTxMerkleRootQuorums(*pblock, pindexPrev, state)) {
+                cbTx.merkleRootQuorums = *optMerkleRootQuorums;
+            } else {
                 throw std::runtime_error(strprintf("%s: CalcCbTxMerkleRootQuorums failed: %s", __func__, FormatStateMessage(state)));
             }
         }
@@ -217,7 +218,9 @@ std::unique_ptr<CBlockTemplate> BlockAssembler::CreateNewBlock(const CScript& sc
 
     // Update coinbase transaction with additional info about masternode and governance payments,
     // get some info back to pass to getblocktemplate
-    FillBlockPayments(coinbaseTx, nHeight, blockReward, pblocktemplate->voutMasternodePayments, pblocktemplate->voutSuperblockPayments);
+    auto masternode_superblock_payments = FillBlockPayments(coinbaseTx, nHeight, blockReward);
+    pblocktemplate->voutMasternodePayments = masternode_superblock_payments.vMasternodePayments;
+    pblocktemplate->voutSuperblockPayments = masternode_superblock_payments.vSuperblockPayments;
 
     pblock->vtx[0] = MakeTransactionRef(std::move(coinbaseTx));
     pblocktemplate->vTxFees[0] = -nFees;

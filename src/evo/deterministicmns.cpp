@@ -590,10 +590,12 @@ bool CDeterministicMNManager::ProcessBlock(const CBlock& block, const CBlockInde
     try {
         LOCK(cs);
 
-        if (!BuildNewListFromBlock(block, pindex->pprev, _state, view, newList, true)) {
+        auto optNewList = BuildNewListFromBlock(block, pindex->pprev, _state, view, true);
+        if (!optNewList) {
             // pass the state returned by the function above
             return false;
         }
+        newList = *optNewList;
 
         if (fJustCheck) {
             return true;
@@ -687,7 +689,7 @@ void CDeterministicMNManager::UpdatedBlockTip(const CBlockIndex* pindex)
     tipIndex = pindex;
 }
 
-bool CDeterministicMNManager::BuildNewListFromBlock(const CBlock& block, const CBlockIndex* pindexPrev, CValidationState& _state, const CCoinsViewCache& view, CDeterministicMNList& mnListRet, bool debugLogs)
+std::optional<CDeterministicMNList> CDeterministicMNManager::BuildNewListFromBlock(const CBlock& block, const CBlockIndex* pindexPrev, CValidationState& _state, const CCoinsViewCache& view, bool debugLogs)
 {
     AssertLockHeld(cs);
 
@@ -732,7 +734,8 @@ bool CDeterministicMNManager::BuildNewListFromBlock(const CBlock& block, const C
         if (tx.nType == TRANSACTION_PROVIDER_REGISTER) {
             CProRegTx proTx;
             if (!GetTxPayload(tx, proTx)) {
-                return _state.DoS(100, false, REJECT_INVALID, "bad-protx-payload");
+                _state.DoS(100, false, REJECT_INVALID, "bad-protx-payload");
+                return std::nullopt;
             }
 
             auto dmn = std::make_shared<CDeterministicMN>(newList.GetTotalRegisteredCount());
@@ -749,7 +752,8 @@ bool CDeterministicMNManager::BuildNewListFromBlock(const CBlock& block, const C
             if (!proTx.collateralOutpoint.hash.IsNull() && (!view.GetCoin(dmn->collateralOutpoint, coin) || coin.IsSpent() || coin.out.nValue != 1000 * COIN)) {
                 // should actually never get to this point as CheckProRegTx should have handled this case.
                 // We do this additional check nevertheless to be 100% sure
-                return _state.DoS(100, false, REJECT_INVALID, "bad-protx-collateral");
+                _state.DoS(100, false, REJECT_INVALID, "bad-protx-collateral");
+                return std::nullopt;
             }
 
             auto replacedDmn = newList.GetMNByCollateral(dmn->collateralOutpoint);
@@ -765,10 +769,12 @@ bool CDeterministicMNManager::BuildNewListFromBlock(const CBlock& block, const C
             }
 
             if (newList.HasUniqueProperty(proTx.addr)) {
-                return _state.DoS(100, false, REJECT_DUPLICATE, "bad-protx-dup-addr");
+                _state.DoS(100, false, REJECT_DUPLICATE, "bad-protx-dup-addr");
+                return std::nullopt;
             }
             if (newList.HasUniqueProperty(proTx.keyIDOwner) || newList.HasUniqueProperty(proTx.pubKeyOperator)) {
-                return _state.DoS(100, false, REJECT_DUPLICATE, "bad-protx-dup-key");
+                _state.DoS(100, false, REJECT_DUPLICATE, "bad-protx-dup-key");
+                return std::nullopt;
             }
 
             dmn->nOperatorReward = proTx.nOperatorReward;
@@ -790,16 +796,19 @@ bool CDeterministicMNManager::BuildNewListFromBlock(const CBlock& block, const C
         } else if (tx.nType == TRANSACTION_PROVIDER_UPDATE_SERVICE) {
             CProUpServTx proTx;
             if (!GetTxPayload(tx, proTx)) {
-                return _state.DoS(100, false, REJECT_INVALID, "bad-protx-payload");
+                _state.DoS(100, false, REJECT_INVALID, "bad-protx-payload");
+                return std::nullopt;
             }
 
             if (newList.HasUniqueProperty(proTx.addr) && newList.GetUniquePropertyMN(proTx.addr)->proTxHash != proTx.proTxHash) {
-                return _state.DoS(100, false, REJECT_DUPLICATE, "bad-protx-dup-addr");
+                _state.DoS(100, false, REJECT_DUPLICATE, "bad-protx-dup-addr");
+                return std::nullopt;
             }
 
             CDeterministicMNCPtr dmn = newList.GetMN(proTx.proTxHash);
             if (!dmn) {
-                return _state.DoS(100, false, REJECT_INVALID, "bad-protx-hash");
+                _state.DoS(100, false, REJECT_INVALID, "bad-protx-hash");
+                return std::nullopt;
             }
             auto newState = std::make_shared<CDeterministicMNState>(*dmn->pdmnState);
             newState->addr = proTx.addr;
@@ -824,12 +833,14 @@ bool CDeterministicMNManager::BuildNewListFromBlock(const CBlock& block, const C
         } else if (tx.nType == TRANSACTION_PROVIDER_UPDATE_REGISTRAR) {
             CProUpRegTx proTx;
             if (!GetTxPayload(tx, proTx)) {
-                return _state.DoS(100, false, REJECT_INVALID, "bad-protx-payload");
+                _state.DoS(100, false, REJECT_INVALID, "bad-protx-payload");
+                return std::nullopt;
             }
 
             CDeterministicMNCPtr dmn = newList.GetMN(proTx.proTxHash);
             if (!dmn) {
-                return _state.DoS(100, false, REJECT_INVALID, "bad-protx-hash");
+                _state.DoS(100, false, REJECT_INVALID, "bad-protx-hash");
+                return std::nullopt;
             }
             auto newState = std::make_shared<CDeterministicMNState>(*dmn->pdmnState);
             if (newState->pubKeyOperator.Get() != proTx.pubKeyOperator) {
@@ -850,12 +861,14 @@ bool CDeterministicMNManager::BuildNewListFromBlock(const CBlock& block, const C
         } else if (tx.nType == TRANSACTION_PROVIDER_UPDATE_REVOKE) {
             CProUpRevTx proTx;
             if (!GetTxPayload(tx, proTx)) {
-                return _state.DoS(100, false, REJECT_INVALID, "bad-protx-payload");
+                _state.DoS(100, false, REJECT_INVALID, "bad-protx-payload");
+                return std::nullopt;
             }
 
             CDeterministicMNCPtr dmn = newList.GetMN(proTx.proTxHash);
             if (!dmn) {
-                return _state.DoS(100, false, REJECT_INVALID, "bad-protx-hash");
+                _state.DoS(100, false, REJECT_INVALID, "bad-protx-hash");
+                return std::nullopt;
             }
             auto newState = std::make_shared<CDeterministicMNState>(*dmn->pdmnState);
             newState->ResetOperatorFields();
@@ -871,7 +884,8 @@ bool CDeterministicMNManager::BuildNewListFromBlock(const CBlock& block, const C
         } else if (tx.nType == TRANSACTION_QUORUM_COMMITMENT) {
             llmq::CFinalCommitmentTxPayload qc;
             if (!GetTxPayload(tx, qc)) {
-                return _state.DoS(100, false, REJECT_INVALID, "bad-qc-payload");
+                _state.DoS(100, false, REJECT_INVALID, "bad-qc-payload");
+                return std::nullopt;
             }
             if (!qc.commitment.IsNull()) {
                 const auto& llmq_params = llmq::GetLLMQParams(qc.commitment.llmqType);
@@ -879,7 +893,8 @@ bool CDeterministicMNManager::BuildNewListFromBlock(const CBlock& block, const C
                 auto pQuorumBaseBlockIndex = pindexPrev->GetAncestor(quorumHeight);
                 if (!pQuorumBaseBlockIndex || pQuorumBaseBlockIndex->GetBlockHash() != qc.commitment.quorumHash) {
                     // we should actually never get into this case as validation should have caught it...but let's be sure
-                    return _state.DoS(100, false, REJECT_INVALID, "bad-qc-quorum-hash");
+                    _state.DoS(100, false, REJECT_INVALID, "bad-qc-quorum-hash");
+                    return std::nullopt;
                 }
 
                 HandleQuorumCommitment(qc.commitment, pQuorumBaseBlockIndex, newList, debugLogs);
@@ -913,9 +928,7 @@ bool CDeterministicMNManager::BuildNewListFromBlock(const CBlock& block, const C
         newList.UpdateMN(payee->proTxHash, newState);
     }
 
-    mnListRet = std::move(newList);
-
-    return true;
+    return {newList};
 }
 
 void CDeterministicMNManager::HandleQuorumCommitment(const llmq::CFinalCommitment& qc, const CBlockIndex* pQuorumBaseBlockIndex, CDeterministicMNList& mnList, bool debugLogs)

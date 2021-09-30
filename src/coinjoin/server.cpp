@@ -103,10 +103,8 @@ void CCoinJoinServer::ProcessDSACCEPT(CNode* pfrom, const std::string& strComman
         }
     }
 
-    PoolMessage nMessageID = MSG_NOERR;
-
-    bool fResult = nSessionID == 0 ? CreateNewSession(dsa, nMessageID, connman)
-            : AddUserToExistingSession(dsa, nMessageID);
+    auto [fResult, nMessageID] = nSessionID == 0 ? CreateNewSession(dsa, connman)
+            : AddUserToExistingSession(dsa);
     if (fResult) {
         LogPrint(BCLog::COINJOIN, "DSACCEPT -- is compatible, please submit!\n");
         PushStatus(pfrom, STATUS_ACCEPTED, nMessageID, connman);
@@ -209,10 +207,10 @@ void CCoinJoinServer::ProcessDSVIN(CNode* pfrom, const std::string& strCommand, 
 
     LogPrint(BCLog::COINJOIN, "DSVIN -- txCollateral %s", entry.txCollateral->ToString()); /* Continued */
 
-    PoolMessage nMessageID = MSG_NOERR;
 
     entry.addr = pfrom->addr;
-    if (AddEntry(connman, entry, nMessageID)) {
+    auto [success, nMessageID] = AddEntry(connman, entry);
+    if (success) {
         PushStatus(pfrom, STATUS_ACCEPTED, nMessageID, connman);
         CheckPool(connman);
         RelayStatus(STATUS_ACCEPTED, connman);
@@ -579,27 +577,24 @@ bool CCoinJoinServer::IsInputScriptSigValid(const CTxIn& txin) const
 //
 // Add a client's transaction inputs/outputs to the pool
 //
-bool CCoinJoinServer::AddEntry(CConnman& connman, const CCoinJoinEntry& entry, PoolMessage& nMessageIDRet)
+std::pair<bool, PoolMessage> CCoinJoinServer::AddEntry(CConnman& connman, const CCoinJoinEntry& entry)
 {
-    if (!fMasternodeMode) return false;
+    if (!fMasternodeMode) return {false, MSG_NOERR};
 
     if (GetEntriesCount() >= vecSessionCollaterals.size()) {
         LogPrint(BCLog::COINJOIN, "CCoinJoinServer::%s -- ERROR: entries is full!\n", __func__);
-        nMessageIDRet = ERR_ENTRIES_FULL;
-        return false;
+        return {false, ERR_ENTRIES_FULL};
     }
 
     if (!CCoinJoin::IsCollateralValid(*entry.txCollateral)) {
         LogPrint(BCLog::COINJOIN, "CCoinJoinServer::%s -- ERROR: collateral not valid!\n", __func__);
-        nMessageIDRet = ERR_INVALID_COLLATERAL;
-        return false;
+        return {false, ERR_INVALID_COLLATERAL};
     }
 
     if (entry.vecTxDSIn.size() > COINJOIN_ENTRY_MAX_SIZE) {
         LogPrint(BCLog::COINJOIN, "CCoinJoinServer::%s -- ERROR: too many inputs! %d/%d\n", __func__, entry.vecTxDSIn.size(), COINJOIN_ENTRY_MAX_SIZE);
-        nMessageIDRet = ERR_MAXIMUM;
         ConsumeCollateral(connman, entry.txCollateral);
-        return false;
+        return {false, ERR_MAXIMUM};
     }
 
     std::vector<CTxIn> vin;
@@ -610,11 +605,10 @@ bool CCoinJoinServer::AddEntry(CConnman& connman, const CCoinJoinEntry& entry, P
             for (const auto& txdsin : inner_entry.vecTxDSIn) {
                 if (txdsin.prevout == txin.prevout) {
                     LogPrint(BCLog::COINJOIN, "CCoinJoinServer::%s -- ERROR: already have this txin in entries\n", __func__);
-                    nMessageIDRet = ERR_ALREADY_HAVE;
                     // Two peers sent the same input? Can't really say who is the malicious one here,
                     // could be that someone is picking someone else's inputs randomly trying to force
                     // collateral consumption. Do not punish.
-                    return false;
+                    return {false, ERR_ALREADY_HAVE};
                 }
             }
         }
@@ -623,21 +617,20 @@ bool CCoinJoinServer::AddEntry(CConnman& connman, const CCoinJoinEntry& entry, P
 
     LOCK(cs_main);
 
-    bool fConsumeCollateral{false};
-    if (!IsValidInOuts(vin, entry.vecTxOut, nMessageIDRet, &fConsumeCollateral)) {
-        LogPrint(BCLog::COINJOIN, "CCoinJoinServer::%s -- ERROR! IsValidInOuts() failed: %s\n", __func__, CCoinJoin::GetMessageByID(nMessageIDRet));
-        if (fConsumeCollateral) {
+    auto [success, consumeCollateral, nMessageID] = IsValidInOuts(vin, entry.vecTxOut);
+    if (!success) {
+        LogPrint(BCLog::COINJOIN, "CCoinJoinServer::%s -- ERROR! IsValidInOuts() failed: %s\n", __func__, CCoinJoin::GetMessageByID(nMessageID));
+        if (consumeCollateral) {
             ConsumeCollateral(connman, entry.txCollateral);
         }
-        return false;
+        return {false, nMessageID};
     }
 
     WITH_LOCK(cs_coinjoin, vecEntries.push_back(entry));
 
     LogPrint(BCLog::COINJOIN, "CCoinJoinServer::%s -- adding entry %d of %d required\n", __func__, GetEntriesCount(), CCoinJoin::GetMaxPoolParticipants());
-    nMessageIDRet = MSG_ENTRIES_ADDED;
 
-    return true;
+    return {true, MSG_ENTRIES_ADDED};
 }
 
 bool CCoinJoinServer::AddScriptSig(const CTxIn& txinNew)
@@ -691,44 +684,38 @@ bool CCoinJoinServer::IsSignaturesComplete() const
     return true;
 }
 
-bool CCoinJoinServer::IsAcceptableDSA(const CCoinJoinAccept& dsa, PoolMessage& nMessageIDRet) const
+std::pair<bool, PoolMessage> CCoinJoinServer::IsAcceptableDSA(const CCoinJoinAccept& dsa) const
 {
-    if (!fMasternodeMode) return false;
-
     // is denom even something legit?
     if (!CCoinJoin::IsValidDenomination(dsa.nDenom)) {
         LogPrint(BCLog::COINJOIN, "CCoinJoinServer::%s -- denom not valid!\n", __func__);
-        nMessageIDRet = ERR_DENOM;
-        return false;
+        return {false, ERR_DENOM};
     }
 
     // check collateral
     if (!fUnitTest && !CCoinJoin::IsCollateralValid(CTransaction(dsa.txCollateral))) {
         LogPrint(BCLog::COINJOIN, "CCoinJoinServer::%s -- collateral not valid!\n", __func__);
-        nMessageIDRet = ERR_INVALID_COLLATERAL;
-        return false;
+        return {false, ERR_INVALID_COLLATERAL};
     }
 
-    return true;
+    return {true, MSG_NOERR};
 }
 
-bool CCoinJoinServer::CreateNewSession(const CCoinJoinAccept& dsa, PoolMessage& nMessageIDRet, CConnman& connman)
+std::pair<bool, PoolMessage> CCoinJoinServer::CreateNewSession(const CCoinJoinAccept& dsa, CConnman& connman)
 {
-    if (!fMasternodeMode || nSessionID != 0) return false;
+    if (!fMasternodeMode || nSessionID != 0) return {false, MSG_NOERR}; // THIS WAS UNDEF
 
     // new session can only be started in idle mode
     if (nState != POOL_STATE_IDLE) {
-        nMessageIDRet = ERR_MODE;
         LogPrint(BCLog::COINJOIN, "CCoinJoinServer::CreateNewSession -- incompatible mode: nState=%d\n", nState);
-        return false;
+        return {false, ERR_MODE};
     }
 
-    if (!IsAcceptableDSA(dsa, nMessageIDRet)) {
-        return false;
+    if (auto [success, messageIdError] = IsAcceptableDSA(dsa); !success) {
+        return {false, messageIdError};
     }
 
     // start new session
-    nMessageIDRet = MSG_NOERR;
     nSessionID = GetRandInt(999999) + 1;
     nSessionDenom = dsa.nDenom;
 
@@ -748,40 +735,37 @@ bool CCoinJoinServer::CreateNewSession(const CCoinJoinAccept& dsa, PoolMessage& 
     LogPrint(BCLog::COINJOIN, "CCoinJoinServer::CreateNewSession -- new session created, nSessionID: %d  nSessionDenom: %d (%s)  vecSessionCollaterals.size(): %d  CCoinJoin::GetMaxPoolParticipants(): %d\n",
         nSessionID, nSessionDenom, CCoinJoin::DenominationToString(nSessionDenom), vecSessionCollaterals.size(), CCoinJoin::GetMaxPoolParticipants());
 
-    return true;
+    return {true, MSG_NOERR};
 }
 
-bool CCoinJoinServer::AddUserToExistingSession(const CCoinJoinAccept& dsa, PoolMessage& nMessageIDRet)
+std::pair<bool, PoolMessage> CCoinJoinServer::AddUserToExistingSession(const CCoinJoinAccept& dsa)
 {
-    if (!fMasternodeMode || nSessionID == 0 || IsSessionReady()) return false;
+    if (!fMasternodeMode || nSessionID == 0 || IsSessionReady()) return {false, MSG_NOERR}; // WAS UNDEFINED
 
-    if (!IsAcceptableDSA(dsa, nMessageIDRet)) {
-        return false;
+    if (auto [success, messageIdError] = IsAcceptableDSA(dsa); !success) {
+        return {false, messageIdError};
     }
 
     // we only add new users to an existing session when we are in queue mode
     if (nState != POOL_STATE_QUEUE) {
-        nMessageIDRet = ERR_MODE;
         LogPrint(BCLog::COINJOIN, "CCoinJoinServer::AddUserToExistingSession -- incompatible mode: nState=%d\n", nState);
-        return false;
+        return {false, ERR_MODE};
     }
 
     if (dsa.nDenom != nSessionDenom) {
         LogPrint(BCLog::COINJOIN, "CCoinJoinServer::AddUserToExistingSession -- incompatible denom %d (%s) != nSessionDenom %d (%s)\n",
             dsa.nDenom, CCoinJoin::DenominationToString(dsa.nDenom), nSessionDenom, CCoinJoin::DenominationToString(nSessionDenom));
-        nMessageIDRet = ERR_DENOM;
-        return false;
+        return {false, ERR_DENOM};
     }
 
     // count new user as accepted to an existing session
 
-    nMessageIDRet = MSG_NOERR;
     vecSessionCollaterals.push_back(MakeTransactionRef(dsa.txCollateral));
 
     LogPrint(BCLog::COINJOIN, "CCoinJoinServer::AddUserToExistingSession -- new user accepted, nSessionID: %d  nSessionDenom: %d (%s)  vecSessionCollaterals.size(): %d  CCoinJoin::GetMaxPoolParticipants(): %d\n",
         nSessionID, nSessionDenom, CCoinJoin::DenominationToString(nSessionDenom), vecSessionCollaterals.size(), CCoinJoin::GetMaxPoolParticipants());
 
-    return true;
+    return {true, MSG_NOERR};
 }
 
 // Returns true if either max size has been reached or if the mix timed out and min size was reached

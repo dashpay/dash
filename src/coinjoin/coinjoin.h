@@ -351,7 +351,7 @@ protected:
 
     void SetNull();
 
-    bool IsValidInOuts(const std::vector<CTxIn>& vin, const std::vector<CTxOut>& vout, PoolMessage& nMessageIDRet, bool* fConsumeCollateralRet) const EXCLUSIVE_LOCKS_REQUIRED(cs_main);
+    std::tuple<bool /*success*/, bool /*eat_fee*/, PoolMessage> IsValidInOuts(const std::vector<CTxIn>& vin, const std::vector<CTxOut>& vout) const EXCLUSIVE_LOCKS_REQUIRED(cs_main);
 
 public:
     int nSessionDenom; // Users must submit a denom matching this
@@ -389,7 +389,7 @@ public:
         vecCoinJoinQueue() {}
 
     int GetQueueSize() const { LOCK(cs_vecqueue); return vecCoinJoinQueue.size(); }
-    bool GetQueueItemAndTry(CCoinJoinQueue& dsqRet);
+    std::optional<CCoinJoinQueue> GetQueueItemAndTry();
 };
 
 // helper class
