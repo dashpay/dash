@@ -56,11 +56,11 @@ public:
         LOCK(obj.cs);
         READWRITE(
                 obj.proTxHash,
-                obj.nLastDsq.load(),
-                obj.nMixingTxCount.load(),
+                obj.nLastDsq,
+                obj.nMixingTxCount,
                 obj.mapGovernanceObjectsVotedOn,
-                obj.lastOutboundAttempt.load(),
-                obj.lastOutboundSuccess.load()
+                obj.lastOutboundAttempt,
+                obj.lastOutboundSuccess
                 );
     }
 
@@ -107,7 +107,7 @@ public:
         for (auto& p : metaInfos) {
             tmpMetaInfo.emplace_back(*p.second);
         }
-        s << SERIALIZATION_VERSION_STRING << tmpMetaInfo << nDsqCount.load();
+        s << SERIALIZATION_VERSION_STRING << tmpMetaInfo << nDsqCount;
     }
 
     template<typename Stream>
@@ -121,7 +121,7 @@ public:
             return;
         }
         std::vector<CMasternodeMetaInfo> tmpMetaInfo;
-        s >> tmpMetaInfo >> nDsqCount.load();
+        s >> tmpMetaInfo >> nDsqCount;
         metaInfos.clear();
         for (auto& mm : tmpMetaInfo) {
             metaInfos.emplace(mm.GetProTxHash(), std::make_shared<CMasternodeMetaInfo>(std::move(mm)));
