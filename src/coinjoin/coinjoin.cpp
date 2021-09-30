@@ -213,8 +213,6 @@ std::tuple<bool /*success*/, bool /*eat_fee*/, PoolMessage> CCoinJoinBaseSession
     AssertLockHeld(cs_main);
 
     std::set<CScript> setScripPubKeys;
-    PoolMessage nMessageIDRet = MSG_NOERR;
-    bool fConsumeCollateralRet = false;
 
     if (vin.size() != vout.size()) {
         LogPrint(BCLog::COINJOIN, "CCoinJoinBaseSession::%s -- ERROR: inputs vs outputs size mismatch! %d vs %d\n", __func__, vin.size(), vout.size());
@@ -281,7 +279,6 @@ std::tuple<bool /*success*/, bool /*eat_fee*/, PoolMessage> CCoinJoinBaseSession
     // no need to double-check. If not, we are doing something wrong, bail out.
     if (nFees != 0) {
         LogPrint(BCLog::COINJOIN, "CCoinJoinBaseSession::%s -- ERROR: non-zero fees! fees: %lld\n", __func__, nFees);
-        nMessageIDRet = ERR_FEES;
         return {false, false, ERR_FEES};
     }
 
