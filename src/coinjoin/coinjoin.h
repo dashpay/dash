@@ -388,7 +388,7 @@ public:
     CCoinJoinBaseManager() :
         vecCoinJoinQueue() {}
 
-    size_t GetQueueSize() const { LOCK(cs_vecqueue); return vecCoinJoinQueue.size(); }
+    uint64_t GetQueueSize() const { LOCK(cs_vecqueue); return vecCoinJoinQueue.size(); }
     std::optional<CCoinJoinQueue> GetQueueItemAndTry();
 };
 
