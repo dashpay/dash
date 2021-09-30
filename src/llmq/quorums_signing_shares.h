@@ -61,7 +61,7 @@ public:
 class CSigSesAnn
 {
 public:
-    uint32_t sessionId{(uint32_t)-1};
+    uint32_t sessionId{std::numeric_limits<uint32_t>::max()};
     Consensus::LLMQType llmqType;
     uint256 quorumHash;
     uint256 id;
@@ -278,8 +278,8 @@ public:
     };
 
     struct Session {
-        uint32_t recvSessionId{(uint32_t)-1};
-        uint32_t sendSessionId{(uint32_t)-1};
+        uint32_t recvSessionId{std::numeric_limits<uint32_t>::max()};
+        uint32_t sendSessionId{std::numeric_limits<uint32_t>::max()};
 
         Consensus::LLMQType llmqType;
         uint256 quorumHash;
