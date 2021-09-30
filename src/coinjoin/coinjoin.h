@@ -240,7 +240,7 @@ public:
         }
     }
 
-    uint256 GetSignatureHash() const;
+    [[nodiscard]] uint256 GetSignatureHash() const;
     /** Sign this mixing transaction
      *  return true if all conditions are met:
      *     1) we have an active Masternode,
