@@ -7,6 +7,7 @@
 #include <llmq/commitment.h>
 #include <llmq/quorums.h>
 #include <llmq/snapshot.h>
+#include <llmq/utils.h>
 
 #include <bls/bls.h>
 #include <chainparams.h>
@@ -52,6 +53,93 @@ std::vector<CDeterministicMNCPtr> CLLMQUtils::GetAllQuorumMembers(const Consensu
     LOCK(cs_members);
     mapQuorumMembers[llmqParams.type].insert(pQuorumBaseBlockIndex->GetBlockHash(), quorumMembers);
     return quorumMembers;
+}
+
+std::vector<CDeterministicMNCPtr> CLLMQUtils::GetAllQuorumMembersByQuarterRotation(Consensus::LLMQType llmqType, const CBlockIndex* pindexQuorum)
+{
+    std::vector<CDeterministicMNCPtr> quorumMembers;
+
+    CQuorumSnapshot quorumSnapshot;
+
+    auto quarterMembersH_C = CLLMQUtils::GetPreviousQuorumQuarterMembers(llmqType, quorumSnapshot.mnListDiffH_C.blockHash, quorumSnapshot.activeQuorumMembersH_C);
+    auto quarterMembersH_2C = CLLMQUtils::GetPreviousQuorumQuarterMembers(llmqType, quorumSnapshot.mnListDiffH_2C.blockHash, quorumSnapshot.activeQuorumMembersH_2C);
+    auto quarterMembersH_3C = CLLMQUtils::GetPreviousQuorumQuarterMembers(llmqType, quorumSnapshot.mnListDiffH_3C.blockHash, quorumSnapshot.activeQuorumMembersH_3C);
+
+    auto allMns = deterministicMNManager->GetListForBlock(pindexQuorum);
+    auto modifier = ::SerializeHash(std::make_pair(llmqType, pindexQuorum->GetBlockHash()));
+
+    auto DmnsNonUsedInAnyQuarter = CDeterministicMNList();
+    auto DmnsUsedInPreviousQuarter = CDeterministicMNList();
+
+    for (const auto mn : quarterMembersH_C) {
+        DmnsUsedInPreviousQuarter.AddMN(mn);
+    }
+    for (const auto mn : quarterMembersH_2C) {
+        DmnsUsedInPreviousQuarter.AddMN(mn);
+    }
+    for (const auto mn : quarterMembersH_3C) {
+        DmnsUsedInPreviousQuarter.AddMN(mn);
+    }
+
+    allMns.ForEachMN(false, [&DmnsUsedInPreviousQuarter, &DmnsNonUsedInAnyQuarter](const CDeterministicMNCPtr& dmn) {
+        if (!DmnsUsedInPreviousQuarter.ContainsMN(dmn->proTxHash)) {
+            DmnsNonUsedInAnyQuarter.AddMN(dmn);
+        }
+    });
+
+    auto sortedDmnsNonUsedInAnyQuarter = DmnsNonUsedInAnyQuarter.CalculateQuorum(DmnsNonUsedInAnyQuarter.GetAllMNsCount(), modifier);
+    auto sortedDmnsUsedInPreviousQuarter = DmnsUsedInPreviousQuarter.CalculateQuorum(DmnsUsedInPreviousQuarter.GetAllMNsCount(), modifier);
+
+    auto sortedCombinedDmnsList = std::vector<CDeterministicMNCPtr>();
+    std::copy(sortedDmnsNonUsedInAnyQuarter.begin(),
+              sortedDmnsNonUsedInAnyQuarter.end(),
+              std::back_inserter(sortedCombinedDmnsList));
+    std::copy(sortedDmnsUsedInPreviousQuarter.begin(),
+              sortedDmnsUsedInPreviousQuarter.end(),
+              std::back_inserter(sortedCombinedDmnsList));
+
+    //TODO Take QuarterSize entries from the list by skipping over entries that correspond to previous members for tha same index
+
+    return quorumMembers;
+}
+
+std::vector<CDeterministicMNCPtr> CLLMQUtils::GetPreviousQuorumQuarterMembers(Consensus::LLMQType llmqType, const uint256& cycleBlockHash, const std::vector<bool>& activeCycleQM)
+{
+    //TODO added cache for Quorum quarters
+    const CBlockIndex* pCyclelockindex = LookupBlockIndex(cycleBlockHash);
+    if (!pCyclelockindex) {
+        return {};
+    }
+
+    if (!IsQuorumTypeEnabled(llmqType, pCyclelockindex->pprev)) {
+        return {};
+    }
+
+    std::vector<CDeterministicMNCPtr> quarterQuorumMembers;
+
+
+    auto modifier = ::SerializeHash(std::make_pair(llmqType, pCyclelockindex->GetBlockHash()));
+
+    auto CMns = deterministicMNManager->GetListForBlock(pCyclelockindex);
+
+    //TODO handle Skiplist Mode 1 and/or 2
+
+    auto DmnsNonUsedAtH = CDeterministicMNList();
+    auto DmnsUsedAtH = CDeterministicMNList();
+
+    size_t index = {};
+    CMns.ForEachMN(false, [&index, &activeCycleQM, &DmnsNonUsedAtH, &DmnsUsedAtH](const CDeterministicMNCPtr& dmn) {
+        if (activeCycleQM.at(index)) {
+            DmnsNonUsedAtH.AddMN(dmn);
+        } else {
+            DmnsUsedAtH.AddMN(dmn);
+        }
+        index++;
+    });
+
+    quarterQuorumMembers = DmnsNonUsedAtH.CalculateQuorum(GetLLMQParams(llmqType).size / 4, modifier);
+
+    return quarterQuorumMembers;
 }
 
 uint256 CLLMQUtils::BuildCommitmentHash(Consensus::LLMQType llmqType, const uint256& blockHash, const std::vector<bool>& validMembers, const CBLSPublicKey& pubKey, const uint256& vvecHash)
