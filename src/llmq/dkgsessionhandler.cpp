@@ -140,7 +140,14 @@ bool CDKGSessionHandler::InitNewQuorum(const CBlockIndex* pQuorumBaseBlockIndex)
         return false;
     }
 
-    auto mns = CLLMQUtils::GetAllQuorumMembers(params, pQuorumBaseBlockIndex);
+    std::vector<CDeterministicMNCPtr> mns = std::vector<CDeterministicMNCPtr>();
+    if (params.type == Params().GetConsensus().llmqTypeInstantSend) {
+        //Need to perform Quorum rotation for InstantSend LLMQ Type
+        mns = CLLMQUtils::GetAllQuorumMembersByQuarterRotation(params.type, pQuorumBaseBlockIndex);
+    } else {
+        //In all other cases, no Quorum rotation needs to be performed
+        mns = CLLMQUtils::GetAllQuorumMembers(params.type, pQuorumBaseBlockIndex);
+    }
 
     if (!curSession->Init(pQuorumBaseBlockIndex, mns, WITH_LOCK(activeMasternodeInfoCs, return activeMasternodeInfo.proTxHash))) {
         LogPrintf("CDKGSessionManager::%s -- quorum initialization failed for %s\n", __func__, curSession->params.name);
