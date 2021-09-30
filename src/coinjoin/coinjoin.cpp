@@ -220,9 +220,8 @@ std::tuple<bool /*success*/, bool /*eat_fee*/, PoolMessage> CCoinJoinBaseSession
     }
 
     // Any checkTxOut failure will result in collateral consumption
-    auto checkTxOut = [&](const CTxOut& txout) -> std::pair<bool, PoolMessage> {
-        int nDenom = CCoinJoin::AmountToDenomination(txout.nValue);
-        if (nDenom != nSessionDenom) {
+    auto checkTxOut = [&](const CTxOut& txout) -> std::pair<bool /*success*/, PoolMessage> {
+        if (int nDenom = CCoinJoin::AmountToDenomination(txout.nValue); nDenom != nSessionDenom) {
             LogPrint(BCLog::COINJOIN, "CCoinJoinBaseSession::IsValidInOuts -- ERROR: incompatible denom %d (%s) != nSessionDenom %d (%s)\n",
                     nDenom, CCoinJoin::DenominationToString(nDenom), nSessionDenom, CCoinJoin::DenominationToString(nSessionDenom));
             return {false, ERR_DENOM};
@@ -445,9 +444,7 @@ CAmount CCoinJoin::DenominationToAmount(int nDenom)
 */
 std::string CCoinJoin::DenominationToString(int nDenom)
 {
-    CAmount nDenomAmount = DenominationToAmount(nDenom);
-
-    switch (nDenomAmount) {
+    switch (CAmount nDenomAmount = DenominationToAmount(nDenom)) {
         case  0: return "N/A";
         case -1: return "out-of-bounds";
         case -2: return "non-denom";
