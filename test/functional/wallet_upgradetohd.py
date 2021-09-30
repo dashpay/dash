@@ -182,9 +182,7 @@ class WalletUpgradeToHDTest(BitcoinTestFramework):
         self.log.info("Same mnemonic, same mnemonic passphrase, encrypt wallet on upgrade, should recover all coins after rescan")
         walletpass = "111pass222"
         assert node.upgradetohd(mnemonic[0], "", walletpass)
-        node.stop()
-        node.wait_until_stopped()
-        self.start_node(0, extra_args=['-rescan'])
+        self.nodes[0].rescanblockchain()
         assert_raises_rpc_error(-13, "Error: Please enter the wallet passphrase with walletpassphrase first.", node.dumphdinfo)
         node.walletpassphrase(walletpass, 100)
         assert_equal(mnemonic, get_mnemonic(node))
@@ -205,9 +203,7 @@ class WalletUpgradeToHDTest(BitcoinTestFramework):
         # Null characters are allowed in wallet passphrases since v23
         walletpass = "111\0pass222"
         node.encryptwallet(walletpass)
-        node.stop()
-        node.wait_until_stopped()
-        self.start_node(0, extra_args=['-rescan'])
+        self.nodes[0].rescanblockchain()
         assert_raises_rpc_error(-13, "Error: Wallet encrypted but passphrase not supplied to RPC.", node.upgradetohd, mnemonic[0])
         assert_raises_rpc_error(-14, "Error: The wallet passphrase entered was incorrect", node.upgradetohd, mnemonic[0], "", "111")
         assert node.upgradetohd(mnemonic[0], "", walletpass)

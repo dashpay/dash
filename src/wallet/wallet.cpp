@@ -1900,7 +1900,7 @@ CWallet::ScanResult CWallet::ScanForWalletTransactions(const uint256& start_bloc
     WalletLogPrintf("Rescan started from block %s... (%s)\n", start_block.ToString(),
                     fast_rescan_filter ? "fast variant using block filters" : "slow variant inspecting all blocks");
 
-    ShowProgress(strprintf("%s " + _("Rescanning…").translated, GetDisplayName()), 0); // show rescan progress in GUI as dialog or on splashscreen, if -rescan on startup
+    ShowProgress(strprintf("%s " + _("Rescanning…").translated, GetDisplayName()), 0); // show rescan progress in GUI as dialog or on splashscreen, if rescan required on startup (e.g. due to corruption)
     uint256 tip_hash = WITH_LOCK(cs_wallet, return GetLastBlockHash());
     uint256 end_hash = tip_hash;
     if (max_height) chain().findAncestorByHeight(tip_hash, *max_height, FoundBlock().hash(end_hash));
@@ -2405,15 +2405,12 @@ DBErrors CWallet::LoadWallet()
         }
     }
 
-    if (nLoadWalletRet != DBErrors::LOAD_OK)
-        return nLoadWalletRet;
-
     /* If the CoinJoin salt is not set, try to set a new random hash as the salt */
     if (GetCoinJoinSalt().IsNull() && !SetCoinJoinSalt(GetRandHash())) {
         return DBErrors::LOAD_FAIL;
     }
 
-    return DBErrors::LOAD_OK;
+    return nLoadWalletRet;
 }
 
 // Goes through all wallet transactions and checks if they are masternode collaterals, in which case these are locked
@@ -3014,6 +3011,7 @@ std::shared_ptr<CWallet> CWallet::Create(WalletContext& context, const std::stri
     if (!walletInstance->AutoBackupWallet(fs::PathFromString(walletFile), error, warnings) && !error.original.empty()) {
         return nullptr;
     }
+    bool rescan_required = false;
     DBErrors nLoadWalletRet = walletInstance->LoadWallet();
     if (nLoadWalletRet != DBErrors::LOAD_OK)
     {
@@ -3039,6 +3037,10 @@ std::shared_ptr<CWallet> CWallet::Create(WalletContext& context, const std::stri
         {
             error = strprintf(_("Wallet needed to be rewritten: restart %s to complete"), PACKAGE_NAME);
             return nullptr;
+        } else if (nLoadWalletRet == DBErrors::RESCAN_REQUIRED) {
+            warnings.push_back(strprintf(_("Error reading %s! Transaction data may be missing or incorrect."
+                                           " Rescanning wallet."), walletFile));
+            rescan_required = true;
         }
         else {
             error = strprintf(_("Error loading %s"), walletFile);
@@ -3282,7 +3284,7 @@ std::shared_ptr<CWallet> CWallet::Create(WalletContext& context, const std::stri
     // Try to top up keypool. No-op if the wallet is locked.
     walletInstance->TopUpKeyPool();
 
-    if (chain && !AttachChain(walletInstance, *chain, error, warnings)) {
+    if (chain && !AttachChain(walletInstance, *chain, rescan_required, error, warnings)) {
         walletInstance->m_chain_notifications_handler.reset(); // Reset this pointer so that the wallet will actually be unloaded
         return nullptr;
     }
@@ -3306,7 +3308,7 @@ std::shared_ptr<CWallet> CWallet::Create(WalletContext& context, const std::stri
     return walletInstance;
 }
 
-bool CWallet::AttachChain(const std::shared_ptr<CWallet>& walletInstance, interfaces::Chain& chain, bilingual_str& error, std::vector<bilingual_str>& warnings)
+bool CWallet::AttachChain(const std::shared_ptr<CWallet>& walletInstance, interfaces::Chain& chain, const bool rescan_required, bilingual_str& error, std::vector<bilingual_str>& warnings)
 {
     LOCK(walletInstance->cs_wallet);
     // allow setting the chain if it hasn't been set already but prevent changing it
@@ -3340,8 +3342,9 @@ bool CWallet::AttachChain(const std::shared_ptr<CWallet>& walletInstance, interf
     walletInstance->m_attaching_chain = true; //ignores chainStateFlushed notifications
     walletInstance->m_chain_notifications_handler = walletInstance->chain().handleNotifications(walletInstance);
 
+    // If rescan_required = true, rescan_height remains equal to 0
     int rescan_height = 0;
-    if (!gArgs.GetBoolArg("-rescan", false))
+    if (!rescan_required)
     {
         WalletBatch batch(walletInstance->GetDatabase());
         CBlockLocator locator;
