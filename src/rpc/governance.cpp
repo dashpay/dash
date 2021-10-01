@@ -6,9 +6,9 @@
 #include <core_io.h>
 #include <evo/deterministicmns.h>
 #include <governance/governance.h>
-#include <governance/governance-vote.h>
-#include <governance/governance-classes.h>
-#include <governance/governance-validators.h>
+#include <governance/vote.h>
+#include <governance/classes.h>
+#include <governance/validators.h>
 #include <index/txindex.h>
 #include <txmempool.h>
 #include <masternode/activemasternode.h>

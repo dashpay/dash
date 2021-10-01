@@ -3,7 +3,7 @@
 // file COPYING or http://www.opensource.org/licenses/mit-license.php.
 
 #include <evo/deterministicmns.h>
-#include <governance/governance-classes.h>
+#include <governance/classes.h>
 #include <index/txindex.h>
 #include <masternode/activemasternode.h>
 #include <masternode/masternode-payments.h>

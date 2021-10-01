@@ -10,7 +10,7 @@
 #include <chain.h>
 #include <chainparams.h>
 #include <evo/deterministicmns.h>
-#include <governance/governance-object.h>
+#include <governance/object.h>
 #include <init.h>
 #include <interfaces/handler.h>
 #include <interfaces/wallet.h>

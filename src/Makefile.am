@@ -164,12 +164,12 @@ BITCOIN_CORE_H = \
   evo/specialtx.h \
   dsnotificationinterface.h \
   governance/governance.h \
-  governance/governance-classes.h \
-  governance/governance-exceptions.h \
-  governance/governance-object.h \
-  governance/governance-validators.h \
-  governance/governance-vote.h \
-  governance/governance-votedb.h \
+  governance/classes.h \
+  governance/exceptions.h \
+  governance/object.h \
+  governance/validators.h \
+  governance/vote.h \
+  governance/votedb.h \
   flat-database.h \
   hdchain.h \
   flatfile.h \
@@ -351,11 +351,11 @@ libdash_server_a_SOURCES = \
   init.cpp \
   dbwrapper.cpp \
   governance/governance.cpp \
-  governance/governance-classes.cpp \
-  governance/governance-object.cpp \
-  governance/governance-validators.cpp \
-  governance/governance-vote.cpp \
-  governance/governance-votedb.cpp \
+  governance/classes.cpp \
+  governance/object.cpp \
+  governance/validators.cpp \
+  governance/vote.cpp \
+  governance/votedb.cpp \
   llmq/quorums.cpp \
   llmq/quorums_blockprocessor.cpp \
   llmq/quorums_commitment.cpp \

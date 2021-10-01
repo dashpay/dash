@@ -31,7 +31,7 @@
 #include <versionbitsinfo.h>
 #include <warnings.h>
 
-#include <governance/governance-classes.h>
+#include <governance/classes.h>
 #include <governance/governance.h>
 #include <masternode/masternode-sync.h>
 

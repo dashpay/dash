@@ -7,8 +7,8 @@
 #include <bloom.h>
 #include <chain.h>
 #include <consensus/validation.h>
-#include <governance/governance-classes.h>
-#include <governance/governance-validators.h>
+#include <governance/classes.h>
+#include <governance/validators.h>
 #include <masternode/masternode-meta.h>
 #include <masternode/masternode-sync.h>
 #include <net_processing.h>
