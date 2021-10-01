@@ -9,71 +9,57 @@
 #include <qt/guiutil.h>
 #include <netbase.h>
 #include <qt/walletmodel.h>
-#include <governance/governance-object.h>
 
 #include <univalue.h>
 
+#include <QAbstractItemView>
+#include <QDesktopServices>
 #include <QMessageBox>
 #include <QTableWidgetItem>
+#include <QUrl>
 #include <QtGui/QClipboard>
 
-
-template <typename T>
-class CGovernanceListWidgetItem : public QTableWidgetItem
-{
-    T itemData;
-
-public:
-    explicit CGovernanceListWidgetItem(const QString& text, const T& data, int type = Type) :
-        QTableWidgetItem(text, type),
-        itemData(data) {}
-
-    bool operator<(const QTableWidgetItem& other) const
-    {
-        return itemData < ((CGovernanceListWidgetItem*)&other)->itemData;
-    }
-};
 
 GovernanceList::GovernanceList(QWidget* parent) :
     QWidget(parent),
     ui(new Ui::GovernanceList),
     clientModel(0),
-    fGovernanceFilterUpdated(true),
-    nTimeGovernanceFilterUpdated(0),
-    nTimeGovernanceUpdated(0),
-    governanceListChanged(true)
+    proposalModel(new ProposalModel(this)),
+    proposalModelProxy(new QSortFilterProxyModel(this)),
+    proposalContextMenu(new QMenu(this)),
+    timer(new QTimer(this))
 {
     ui->setupUi(this);
 
     GUIUtil::setFont({ui->label_count_2, ui->countLabel}, GUIUtil::FontWeight::Bold, 14);
     GUIUtil::setFont({ui->label_filter_2}, GUIUtil::FontWeight::Normal, 15);
 
-    int columnHashWidth = 80;
-    int columnTitleWidth = 220;
-    int columnCreationWidth = 110;
-    int columnStartWidth = 110;
-    int columnEndWidth = 110;
-    int columnAmountWidth = 80;
-    int columnActiveWidth = 50;
-    int columnStatusWidth = 220;
+    proposalModelProxy->setSourceModel(proposalModel);
+    ui->govTableView->setModel(proposalModelProxy);
+    ui->govTableView->setSelectionBehavior(QAbstractItemView::SelectRows);
+    ui->govTableView->horizontalHeader()->setStretchLastSection(true);
+    //ui->govTableView->sortItems(2, Qt::DescendingOrder); // sort on created... 
 
-    ui->tableWidgetGovernances->setColumnWidth(COLUMN_HASH, columnHashWidth);
-    ui->tableWidgetGovernances->setColumnWidth(COLUMN_TITLE, columnTitleWidth);
-    ui->tableWidgetGovernances->setColumnWidth(COLUMN_CREATION, columnCreationWidth);
-    ui->tableWidgetGovernances->setColumnWidth(COLUMN_START, columnStartWidth);
-    ui->tableWidgetGovernances->setColumnWidth(COLUMN_END, columnEndWidth);
-    ui->tableWidgetGovernances->setColumnWidth(COLUMN_AMOUNT, columnAmountWidth);
-    ui->tableWidgetGovernances->setColumnWidth(COLUMN_ACTIVE, columnActiveWidth);
-    ui->tableWidgetGovernances->setColumnWidth(COLUMN_STATUS, columnStatusWidth);
+    for (int i = 0; i < proposalModel->columnCount(); ++i) {
+       ui->govTableView->setColumnWidth(i, proposalModel->columnWidth(i)); 
+    }
 
-    ui->tableWidgetGovernances->setContextMenuPolicy(Qt::CustomContextMenu);
-    ui->tableWidgetGovernances->sortItems(COLUMN_CREATION, Qt::DescendingOrder);
-
+    // Set up filtering.
+    proposalModelProxy->setFilterKeyColumn(1);  // filter by title column...
     ui->filterLineEdit->setPlaceholderText(tr("Filter by Title"));
+    connect(ui->filterLineEdit, &QLineEdit::textChanged, proposalModelProxy, &QSortFilterProxyModel::setFilterFixedString);
 
-    timer = new QTimer(this);
-    connect(timer, SIGNAL(timeout()), this, SLOT(updateGovernanceListScheduled()));
-    timer->start(1000);
+    // Changes to number of rows should update proposal count display.
+    connect(proposalModelProxy, &QSortFilterProxyModel::rowsInserted, this, &GovernanceList::updateProposalCount);
+    connect(proposalModelProxy, &QSortFilterProxyModel::rowsRemoved, this, &GovernanceList::updateProposalCount);
+    connect(proposalModelProxy, &QSortFilterProxyModel::layoutChanged, this, &GovernanceList::updateProposalCount);
+
+    // Enable CustomContextMenu on the table to make the view emit customContextMenuRequested signal.
+    ui->govTableView->setContextMenuPolicy(Qt::CustomContextMenu);
+    connect(ui->govTableView, &QTableView::customContextMenuRequested, this, &GovernanceList::showProposalContextMenu);
+
+    //connect(&timer, &QTimer::timeout, this, &GovernanceList::updateProposal);
+    //timer.start(1000);
 
     GUIUtil::updateFonts();
 }
@@ -86,155 +72,201 @@ GovernanceList::~GovernanceList()
 void GovernanceList::setClientModel(ClientModel* model)
 {
     this->clientModel = model;
-}
 
-void GovernanceList::handleGovernanceListChanged()
-{
-    LOCK(cs_proposalList);
-    governanceListChanged = true;
-}
-
-void GovernanceList::updateGovernanceListScheduled()
-{
-    if (timer->remainingTime() < 10 *  GOVERNANCELIST_UPDATE_SECONDS) {
-        timer->start(1000 * GOVERNANCELIST_UPDATE_SECONDS);
-    }
-
-    TRY_LOCK(cs_proposalList, fLockAcquired);
-    if (!fLockAcquired) return;
-
-    if (!clientModel || clientModel->node().shutdownRequested()) {
-        return;
-    }
-
-    // To prevent high cpu usage update only once in GOVERNANCELIST_FILTER_COOLDOWN_SECONDS seconds
-    // after filter was last changed unless we want to force the update.
-    int64_t nSecondsToWait = GOVERNANCELIST_UPDATE_SECONDS;
-    if (fGovernanceFilterUpdated) {
-        nSecondsToWait = nTimeGovernanceFilterUpdated - GetTime() + GOVERNANCELIST_FILTER_COOLDOWN_SECONDS;
-        ui->countLabel->setText(tr("Please wait...") + " " + QString::number(nSecondsToWait));
-
-    } else if (governanceListChanged) {
-        int64_t nUpdateSecods = clientModel->masternodeSync().isBlockchainSynced() ? GOVERNANCELIST_UPDATE_SECONDS : GOVERNANCELIST_UPDATE_SECONDS * 10;
-        nSecondsToWait = nTimeGovernanceUpdated - GetTime() + nUpdateSecods;
-    }
-
-    if (nSecondsToWait <= 0) {
-        updateGovernanceList();
-        fGovernanceFilterUpdated = false;
-    }
-
-}
-
-void GovernanceList::updateGovernanceList()
-{
-    if (!clientModel || clientModel->node().shutdownRequested()) {
+    if (!model) {
         return;
     }
 
     std::vector<const CGovernanceObject*> govObjList = clientModel->getAllGovernanceObjects();
-    LOCK(cs_proposalList);
-
-    ui->countLabel->setText(tr("Updating..."));
-    ui->tableWidgetGovernances->setSortingEnabled(false);
-    ui->tableWidgetGovernances->clearContents();
-    ui->tableWidgetGovernances->setRowCount(0);
-
-    // A propsal is considered passing if (YES votes - NO votes) > (Total Number of Masternodes / 10),
-    // count total valid (ENABLED) masternodes to determine passing threshold.
-    int nMnCount = clientModel->getMasternodeList().GetValidMNsCount();
-    int nAbsVoteReq = std::max(Params().GetConsensus().nGovernanceMinQuorum, nMnCount / 10);
-
-    // TODO: implement filtering...
-
-    nTimeGovernanceUpdated = GetTime();
     for (const auto pGovObj: govObjList) {
 
         auto govObjType = pGovObj->GetObjectType();
         if (govObjType != GOVERNANCE_OBJECT_PROPOSAL) {
             continue; // Skip triggers.
         }
-
-        QString qHashString = QString::fromStdString(pGovObj->GetHash().ToString());
-        QTableWidgetItem* hashItem = new QTableWidgetItem(qHashString);
-
-        QString qTitleString = QString::fromStdString("UNKNOWN");
-        QString qPaymentStartString = QString::fromStdString("UNKNOWN");
-        QString qPaymentEndString = QString::fromStdString("UNKNOWN");
-        QString qAmountString = QString::fromStdString("UNKNOWN");
-        QString qUrlString = QString::fromStdString("UNKNOWN");
-
-        UniValue prop_data;
-        if (prop_data.read(pGovObj->GetDataAsPlainString())) {
-            UniValue titleValue = find_value(prop_data, "name");
-            if (titleValue.isStr()) qTitleString = QString::fromStdString(titleValue.get_str());
-
-            UniValue paymentStartValue = find_value(prop_data, "start_epoch");
-            if (paymentStartValue.isNum()) qPaymentStartString = QDateTime::fromSecsSinceEpoch(paymentStartValue.get_int()).toString(GOVERNANCELIST_DATEFMT);
-
-            UniValue paymentEndValue = find_value(prop_data, "end_epoch");
-            if (paymentEndValue.isNum()) qPaymentEndString = QDateTime::fromSecsSinceEpoch(paymentEndValue.get_int()).toString(GOVERNANCELIST_DATEFMT);
-
-            UniValue amountValue = find_value(prop_data, "payment_amount");
-            if (amountValue.isNum()) qAmountString = QString::fromStdString(std::to_string(amountValue.get_int()));
-
-            UniValue urlValue = find_value(prop_data, "url");
-            if (urlValue.isStr()) qUrlString = QString::fromStdString(urlValue.get_str());
-        }
-
-        QTableWidgetItem* titleItem = new QTableWidgetItem(qTitleString);
-        QTableWidgetItem* paymentStartItem = new QTableWidgetItem(qPaymentStartString);
-        QTableWidgetItem* paymentEndItem = new QTableWidgetItem(qPaymentEndString);
-        QTableWidgetItem* amountItem = new QTableWidgetItem(qAmountString);
-
-        QString qCreationString = QDateTime::fromSecsSinceEpoch(pGovObj->GetCreationTime()).toString(GOVERNANCELIST_DATEFMT);
-        QTableWidgetItem* creationItem = new QTableWidgetItem(qCreationString);
-
-        QString qActiveString = QString::fromStdString("-");
-        std::string strError = "";
-        if (pGovObj->IsValidLocally(strError, false)) {
-            qActiveString = "Y";
-        } else {
-            qActiveString = "N";
-        }
-        QTableWidgetItem* activeItem = new QTableWidgetItem(qActiveString);
-
-        // Voting status...
-        // TODO: determine if voting is in progress vs. funded or not funded for past proposals.
-        // see CSuperblock::GetNearestSuperblocksHeights(nBlockHeight, nLastSuperblock, nNextSuperblock); 
-        int absYesCount = pGovObj->GetAbsoluteYesCount(VOTE_SIGNAL_FUNDING);
-        QString qStatusString;
-        if (absYesCount > nAbsVoteReq) {
-            // Could use pGovObj->IsSetCachedFunding here, but need nAbsVoteReq to display numbers anyway.
-            qStatusString = QString("Passing +%1 (%2 of %3 needed)").arg(absYesCount - nAbsVoteReq).arg(absYesCount).arg(nAbsVoteReq);
-        } else {
-            qStatusString = QString("Needs additional %1 votes").arg(nAbsVoteReq - absYesCount);
-        }
-        QTableWidgetItem* statusItem = new QTableWidgetItem(qStatusString);
-
-        ui->tableWidgetGovernances->insertRow(0);
-        ui->tableWidgetGovernances->setItem(0, COLUMN_HASH, hashItem);
-        ui->tableWidgetGovernances->setItem(0, COLUMN_TITLE, titleItem);
-        ui->tableWidgetGovernances->setItem(0, COLUMN_CREATION, creationItem);
-        ui->tableWidgetGovernances->setItem(0, COLUMN_START, paymentStartItem);
-        ui->tableWidgetGovernances->setItem(0, COLUMN_END, paymentEndItem);
-        ui->tableWidgetGovernances->setItem(0, COLUMN_AMOUNT, amountItem);
-        ui->tableWidgetGovernances->setItem(0, COLUMN_ACTIVE, activeItem);
-        ui->tableWidgetGovernances->setItem(0, COLUMN_STATUS, statusItem);
-
+        
+        proposalModel->append(new Proposal(pGovObj, proposalModel));
 
     }
-    ui->countLabel->setText(QString::number(ui->tableWidgetGovernances->rowCount()));
-    ui->tableWidgetGovernances->setSortingEnabled(true);
 
 }
 
-void GovernanceList::on_filterLineEdit_textChanged(const QString& strFilterIn)
+void GovernanceList::updateProposalCount()
 {
-    strCurrentFilter = strFilterIn;
-    nTimeGovernanceFilterUpdated = GetTime();
-    fGovernanceFilterUpdated = true;
-    ui->countLabel->setText(tr("Please wait...") + " " + QString::number(GOVERNANCELIST_FILTER_COOLDOWN_SECONDS));
+    ui->countLabel->setText(QString::number(proposalModelProxy->rowCount()));
 }
 
+void GovernanceList::showProposalContextMenu(const QPoint& pos)
+{
+    const auto index = ui->govTableView->indexAt(pos);
 
+    if (!index.isValid()) {
+        return;
+    }
+    
+    const auto proposal = proposalModel->getProposalAt(index);
+
+    // right click menu with option to open proposal url
+    QAction* openProposalUrl = new QAction(tr("Open url"), this);
+    proposalContextMenu->addAction(openProposalUrl);
+    connect(openProposalUrl, &QAction::triggered, proposal, &Proposal::openUrl);
+    proposalContextMenu->exec(QCursor::pos());
+}
+
+///
+/// Proposal wrapper
+///
+
+Proposal::Proposal(const CGovernanceObject *p, QObject *parent) :
+    QObject(parent), 
+    pGovObj(p)
+{
+    UniValue prop_data;
+    if (prop_data.read(pGovObj->GetDataAsPlainString())) {
+        UniValue titleValue = find_value(prop_data, "name");
+        if (titleValue.isStr()) {
+            m_title = QString::fromStdString(titleValue.get_str());
+        }
+
+        UniValue paymentStartValue = find_value(prop_data, "start_epoch");
+        if (paymentStartValue.isNum()) {
+            m_startDate = QDateTime::fromSecsSinceEpoch(paymentStartValue.get_int());
+        }
+
+        UniValue paymentEndValue = find_value(prop_data, "end_epoch");
+        if (paymentEndValue.isNum()) {
+            m_endDate = QDateTime::fromSecsSinceEpoch(paymentEndValue.get_int());
+        }
+
+        UniValue amountValue = find_value(prop_data, "payment_amount");
+        if (amountValue.isNum()) {
+            m_paymentAmount = amountValue.get_int();
+        }
+
+        UniValue urlValue = find_value(prop_data, "url");
+        if (urlValue.isStr()) {
+            m_url = QString::fromStdString(urlValue.get_str());
+        }
+    }
+};
+
+QString Proposal::title() const { return m_title; }
+
+QString Proposal::hash() const { return QString::fromStdString(pGovObj->GetHash().ToString()); }
+
+QDateTime Proposal::startDate() const { return m_startDate; }
+
+QDateTime Proposal::endDate() const { return m_endDate; }
+
+float Proposal::paymentAmount() const { return m_paymentAmount; }
+
+QString Proposal::url() const { return m_url; }
+
+bool Proposal::isActive() const 
+{
+    std::string strError = "";
+    return pGovObj->IsValidLocally(strError, false);
+}
+
+QString Proposal::status() const
+{
+    // Voting status...
+
+
+    // A propsal is considered passing if (YES votes - NO votes) > (Total Number of Masternodes / 10),
+    // count total valid (ENABLED) masternodes to determine passing threshold.
+    // int nMnCount = clientModel->getMasternodeList().GetValidMNsCount();
+    // int nAbsVoteReq = std::max(Params().GetConsensus().nGovernanceMinQuorum, nMnCount / 10);
+
+    // TODO: determine if voting is in progress vs. funded or not funded for past proposals.
+    // see CSuperblock::GetNearestSuperblocksHeights(nBlockHeight, nLastSuperblock, nNextSuperblock); 
+    /*
+    int absYesCount = pGovObj->GetAbsoluteYesCount(VOTE_SIGNAL_FUNDING);
+    QString qStatusString;
+    if (absYesCount > nAbsVoteReq) {
+        // Could use pGovObj->IsSetCachedFunding here, but need nAbsVoteReq to display numbers anyway.
+        qStatusString = QString("Passing +%1 (%2 of %3 needed)").arg(absYesCount - nAbsVoteReq).arg(absYesCount).arg(nAbsVoteReq);
+    } else {
+        qStatusString = QString("Needs additional %1 votes").arg(nAbsVoteReq - absYesCount);
+    }
+    */
+    return QString::fromStdString("TODO");
+}
+
+void Proposal::openUrl() const
+{
+    QDesktopServices::openUrl(QUrl(m_url)); 
+}
+
+///
+/// Proposal Model
+///
+
+ProposalModel::ProposalModel(QObject *parent) : QAbstractTableModel(parent) {}
+
+int ProposalModel::rowCount(const QModelIndex &index) const
+{
+    return m_data.count();
+}
+
+int ProposalModel::columnCount(const QModelIndex &index) const
+{
+    return 8;
+}
+
+QVariant ProposalModel::data(const QModelIndex &index, int role) const
+{
+    if (role != Qt::DisplayRole && role != Qt::EditRole) return {};
+    const auto proposal = m_data[index.row()];
+    switch (index.column()) {
+        case 0: return proposal->hash();
+        case 1: return proposal->title();
+        case 2: return proposal->startDate();
+        case 3: return proposal->endDate();
+        case 4: return proposal->paymentAmount();
+        case 5: return proposal->isActive() ? "Y" : "N";
+        case 6: return proposal->status();
+        default: return {};
+    };
+}
+    
+
+
+QVariant ProposalModel::headerData(int section, Qt::Orientation orientation, int role) const
+{
+    if (orientation != Qt::Horizontal || role != Qt::DisplayRole) return {};
+    switch (section) {
+        case 0: return "Hash";
+        case 1: return "Title";
+        case 2: return "Start";
+        case 3: return "End";
+        case 4: return "Amount";
+        case 5: return "Active";
+        case 6: return "Status";
+        default: return {};
+    }
+}
+
+int ProposalModel::columnWidth(int section) const {
+    switch (section) {
+        case 0: return 80;
+        case 1: return 220;
+        case 2: return 110;
+        case 3: return 110;
+        case 4: return 110;
+        case 5: return 80;
+        case 6: return 220;
+        default: return 80;
+    }
+}
+
+void ProposalModel::append(const Proposal* proposal)
+{
+    beginInsertRows({}, m_data.count(), m_data.count());
+    m_data.append(proposal);
+    endInsertRows();
+}
+
+const Proposal* ProposalModel::getProposalAt(const QModelIndex &index) const {
+    return m_data[index.row()];
+}
