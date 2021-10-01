@@ -35,92 +35,91 @@ void CCoinJoinClientQueueManager::ProcessMessage(CNode* pfrom, const std::string
     if (fMasternodeMode) return;
     if (!CCoinJoinClientOptions::IsEnabled()) return;
     if (!masternodeSync.IsBlockchainSynced()) return;
+    if (strCommand != NetMsgType::DSQUEUE) return;
 
     if (!CheckDiskSpace(GetDataDir())) {
         LogPrint(BCLog::COINJOIN, "CCoinJoinClientQueueManager::ProcessMessage -- Not enough disk space, disabling CoinJoin.\n");
         return;
     }
 
-    if (strCommand == NetMsgType::DSQUEUE) {
-        if (pfrom->nVersion < MIN_COINJOIN_PEER_PROTO_VERSION) {
-            LogPrint(BCLog::COINJOIN, "DSQUEUE -- peer=%d using obsolete version %i\n", pfrom->GetId(), pfrom->nVersion);
-            if (enable_bip61) {
-                connman.PushMessage(pfrom, CNetMsgMaker(pfrom->GetSendVersion()).Make(NetMsgType::REJECT, strCommand,
-                                                                                      REJECT_OBSOLETE, strprintf(
-                                "Version must be %d or greater", MIN_COINJOIN_PEER_PROTO_VERSION)));
-            }
-            return;
+    if (pfrom->nVersion < MIN_COINJOIN_PEER_PROTO_VERSION) {
+        LogPrint(BCLog::COINJOIN, "DSQUEUE -- peer=%d using obsolete version %i\n", pfrom->GetId(), pfrom->nVersion);
+        if (enable_bip61) {
+            connman.PushMessage(pfrom, CNetMsgMaker(pfrom->GetSendVersion()).Make(NetMsgType::REJECT, strCommand,
+                                                                                  REJECT_OBSOLETE, strprintf(
+                            "Version must be %d or greater", MIN_COINJOIN_PEER_PROTO_VERSION)));
         }
+        return;
+    }
 
-        CCoinJoinQueue dsq;
-        vRecv >> dsq;
+    CCoinJoinQueue dsq;
+    vRecv >> dsq;
 
-        {
-            TRY_LOCK(cs_vecqueue, lockRecv);
-            if (!lockRecv) return;
+    {
+        TRY_LOCK(cs_vecqueue, lockRecv);
+        if (!lockRecv) return;
 
-            // process every dsq only once
-            for (const auto& q : vecCoinJoinQueue) {
-                if (q == dsq) {
-                    return;
-                }
-                if (q.fReady == dsq.fReady && q.masternodeOutpoint == dsq.masternodeOutpoint) {
-                    // no way the same mn can send another dsq with the same readiness this soon
-                    LogPrint(BCLog::COINJOIN, "DSQUEUE -- Peer %s is sending WAY too many dsq messages for a masternode with collateral %s\n", pfrom->GetLogString(), dsq.masternodeOutpoint.ToStringShort());
-                    return;
-                }
-            }
-        } // cs_vecqueue
-
-        LogPrint(BCLog::COINJOIN, "DSQUEUE -- %s new\n", dsq.ToString());
-
-        if (dsq.IsTimeOutOfBounds()) return;
-
-        auto mnList = deterministicMNManager->GetListAtChainTip();
-        auto dmn = mnList.GetValidMNByCollateral(dsq.masternodeOutpoint);
-        if (!dmn) return;
-
-        if (!dsq.CheckSignature(dmn->pdmnState->pubKeyOperator.Get())) {
-            LOCK(cs_main);
-            Misbehaving(pfrom->GetId(), 10);
-            return;
-        }
-
-        // if the queue is ready, submit if we can
-        if (dsq.fReady) {
-            for (const auto& pair : coinJoinClientManagers) {
-                if (pair.second->TrySubmitDenominate(dmn->pdmnState->addr, connman)) {
-                    LogPrint(BCLog::COINJOIN, "DSQUEUE -- CoinJoin queue (%s) is ready on masternode %s\n", dsq.ToString(), dmn->pdmnState->addr.ToString());
-                    return;
-                }
-            }
-        } else {
-            int64_t nLastDsq = mmetaman.GetMetaInfo(dmn->proTxHash)->GetLastDsq();
-            int64_t nDsqThreshold = mmetaman.GetDsqThreshold(dmn->proTxHash, mnList.GetValidMNsCount());
-            LogPrint(BCLog::COINJOIN, "DSQUEUE -- nLastDsq: %d  nDsqThreshold: %d  nDsqCount: %d\n", nLastDsq, nDsqThreshold, mmetaman.GetDsqCount());
-            // don't allow a few nodes to dominate the queuing process
-            if (nLastDsq != 0 && nDsqThreshold > mmetaman.GetDsqCount()) {
-                LogPrint(BCLog::COINJOIN, "DSQUEUE -- Masternode %s is sending too many dsq messages\n", dmn->proTxHash.ToString());
+        // process every dsq only once
+        for (const auto& q : vecCoinJoinQueue) {
+            if (q == dsq) {
                 return;
             }
-
-            mmetaman.AllowMixing(dmn->proTxHash);
-
-            LogPrint(BCLog::COINJOIN, "DSQUEUE -- new CoinJoin queue (%s) from masternode %s\n", dsq.ToString(), dmn->pdmnState->addr.ToString());
-
-            for (const auto& pair : coinJoinClientManagers) {
-                if (pair.second->MarkAlreadyJoinedQueueAsTried(dsq)) {
-                    break;
-                }
+            if (q.fReady == dsq.fReady && q.masternodeOutpoint == dsq.masternodeOutpoint) {
+                // no way the same mn can send another dsq with the same readiness this soon
+                LogPrint(BCLog::COINJOIN, "DSQUEUE -- Peer %s is sending WAY too many dsq messages for a masternode with collateral %s\n", pfrom->GetLogString(), dsq.masternodeOutpoint.ToStringShort());
+                return;
             }
+        }
+    } // cs_vecqueue
 
-            TRY_LOCK(cs_vecqueue, lockRecv);
-            if (!lockRecv) return;
-            vecCoinJoinQueue.push_back(dsq);
-            dsq.Relay(connman);
+    LogPrint(BCLog::COINJOIN, "DSQUEUE -- %s new\n", dsq.ToString());
+
+    if (dsq.IsTimeOutOfBounds()) return;
+
+    auto mnList = deterministicMNManager->GetListAtChainTip();
+    auto dmn = mnList.GetValidMNByCollateral(dsq.masternodeOutpoint);
+    if (!dmn) return;
+
+    if (!dsq.CheckSignature(dmn->pdmnState->pubKeyOperator.Get())) {
+        LOCK(cs_main);
+        Misbehaving(pfrom->GetId(), 10);
+        return;
+    }
+
+    // if the queue is ready, submit if we can
+    if (dsq.fReady) {
+        for (const auto& [_, coinJoinMan] : coinJoinClientManagers) {
+            if (coinJoinMan->TrySubmitDenominate(dmn->pdmnState->addr, connman)) {
+                LogPrint(BCLog::COINJOIN, "DSQUEUE -- CoinJoin queue (%s) is ready on masternode %s\n", dsq.ToString(), dmn->pdmnState->addr.ToString());
+                return;
+            }
+        }
+    } else {
+        int64_t nLastDsq = mmetaman.GetMetaInfo(dmn->proTxHash)->GetLastDsq();
+        int64_t nDsqThreshold = mmetaman.GetDsqThreshold(dmn->proTxHash, mnList.GetValidMNsCount());
+        LogPrint(BCLog::COINJOIN, "DSQUEUE -- nLastDsq: %d  nDsqThreshold: %d  nDsqCount: %d\n", nLastDsq, nDsqThreshold, mmetaman.GetDsqCount());
+        // don't allow a few nodes to dominate the queuing process
+        if (nLastDsq != 0 && nDsqThreshold > mmetaman.GetDsqCount()) {
+            LogPrint(BCLog::COINJOIN, "DSQUEUE -- Masternode %s is sending too many dsq messages\n", dmn->proTxHash.ToString());
+            return;
         }
 
+        mmetaman.AllowMixing(dmn->proTxHash);
+
+        LogPrint(BCLog::COINJOIN, "DSQUEUE -- new CoinJoin queue (%s) from masternode %s\n", dsq.ToString(), dmn->pdmnState->addr.ToString());
+
+        for (const auto& [_, coinJoinMan] : coinJoinClientManagers) {
+            if (coinJoinMan->MarkAlreadyJoinedQueueAsTried(dsq)) {
+                break;
+            }
+        }
+
+        TRY_LOCK(cs_vecqueue, lockRecv);
+        if (!lockRecv) return;
+        vecCoinJoinQueue.push_back(dsq);
+        dsq.Relay(connman);
     }
+
 }
 
 void CCoinJoinClientManager::ProcessMessage(CNode* pfrom, const std::string& strCommand, CDataStream& vRecv, CConnman& connman, bool enable_bip61)
@@ -480,11 +479,11 @@ bool CCoinJoinClientSession::SendDenominate(const std::vector<std::pair<CTxDSIn,
     std::vector<CTxDSIn> vecTxDSInTmp;
     std::vector<CTxOut> vecTxOutTmp;
 
-    for (const auto& pair : vecPSInOutPairsIn) {
-        vecTxDSInTmp.emplace_back(pair.first);
-        vecTxOutTmp.emplace_back(pair.second);
-        tx.vin.emplace_back(pair.first);
-        tx.vout.emplace_back(pair.second);
+    for (const auto& [txDsIn, txOut] : vecPSInOutPairsIn) {
+        vecTxDSInTmp.emplace_back(txDsIn);
+        vecTxOutTmp.emplace_back(txOut);
+        tx.vin.emplace_back(txDsIn);
+        tx.vout.emplace_back(txOut);
     }
 
     LogPrint(BCLog::COINJOIN, "CCoinJoinClientSession::SendDenominate -- Submitting partial tx %s", tx.ToString()); /* Continued */
@@ -1057,7 +1056,7 @@ bool CCoinJoinClientSession::JoinExistingQueue(CAmount nBalanceNeedsAnonymized, 
 
     // Look through the queues and see if anything matches
     while (auto opt_dsq = coinJoinClientQueueManager.GetQueueItemAndTry()) {
-        auto dsq = *opt_dsq;
+        const auto& dsq = *opt_dsq;
         auto dmn = mnList.GetValidMNByCollateral(dsq.masternodeOutpoint);
 
         if (!dmn) {
@@ -1371,9 +1370,9 @@ std::optional<std::vector<std::pair<CTxDSIn, CTxOut>>> CCoinJoinClientSession::P
     }
 
     if (!fDryRun) {
-        for (const auto& pair : vecPSInOutPairsRet) {
-            mixingWallet.LockCoin(pair.first.prevout);
-            vecOutPointLocked.push_back(pair.first.prevout);
+        for (const auto& [txDsIn, _] : vecPSInOutPairsRet) {
+            mixingWallet.LockCoin(txDsIn.prevout);
+            vecOutPointLocked.push_back(txDsIn.prevout);
         }
     }
 
@@ -1546,7 +1545,7 @@ bool CCoinJoinClientSession::CreateCollateralTransaction(CMutableTransaction& tx
         CScript scriptChange;
         CPubKey vchPubKey;
         CReserveKey reservekey(&mixingWallet);
-        bool success = reservekey.GetReservedKey(vchPubKey, true);
+        [[maybe_unused]] bool success = reservekey.GetReservedKey(vchPubKey, true);
         assert(success); // should never fail, as we just unlocked
         scriptChange = GetScriptForDestination(vchPubKey.GetID());
         reservekey.KeepKey();
@@ -1693,17 +1692,17 @@ bool CCoinJoinClientSession::CreateDenominated(CAmount nBalanceToDenominate, con
         }
 
         bool finished = true;
-        for (const auto it : mapDenomCount) {
+        for (const auto [denom, count] : mapDenomCount) {
             // Check if this specific denom could use another loop, check that there aren't nCoinJoinDenomsGoal of this
             // denom and that our nValueLeft/nBalanceToDenominate is enough to create one of these denoms, if so, loop again.
-            if (it.second < CCoinJoinClientOptions::GetDenomsGoal() && txBuilder.CouldAddOutput(it.first) && nBalanceToDenominate > 0) {
+            if (count < CCoinJoinClientOptions::GetDenomsGoal() && txBuilder.CouldAddOutput(denom) && nBalanceToDenominate > 0) {
                 finished = false;
                 LogPrint(BCLog::COINJOIN, "CCoinJoinClientSession::%s -- 1 - NOT finished - nDenomValue: %f, count: %d, nBalanceToDenominate: %f, %s\n",
-                                             __func__, (float) it.first / COIN, it.second, (float) nBalanceToDenominate / COIN, txBuilder.ToString());
+                                             __func__, (float) denom / COIN, count, (float) nBalanceToDenominate / COIN, txBuilder.ToString());
                 break;
             }
             LogPrint(BCLog::COINJOIN, "CCoinJoinClientSession::%s -- 1 - FINISHED - nDenomValue: %f, count: %d, nBalanceToDenominate: %f, %s\n",
-                                         __func__, (float) it.first / COIN, it.second, (float) nBalanceToDenominate / COIN, txBuilder.ToString());
+                                         __func__, (float) denom / COIN, count, (float) nBalanceToDenominate / COIN, txBuilder.ToString());
         }
 
         if (finished) break;
@@ -1772,8 +1771,8 @@ bool CCoinJoinClientSession::CreateDenominated(CAmount nBalanceToDenominate, con
 
     LogPrint(BCLog::COINJOIN, "CCoinJoinClientSession::%s -- 3 - nBalanceToDenominate: %f, %s\n", __func__, (float) nBalanceToDenominate / COIN, txBuilder.ToString());
 
-    for (const auto it : mapDenomCount) {
-        LogPrint(BCLog::COINJOIN, "CCoinJoinClientSession::%s -- 3 - DONE - nDenomValue: %f, count: %d\n", __func__, (float) it.first / COIN, it.second);
+    for (const auto [denom, count] : mapDenomCount) {
+        LogPrint(BCLog::COINJOIN, "CCoinJoinClientSession::%s -- 3 - DONE - nDenomValue: %f, count: %d\n", __func__, (float) denom / COIN, count);
     }
 
     // No reasons to create mixing collaterals if we can't create denoms to mix
@@ -1882,8 +1881,8 @@ void CCoinJoinClientManager::GetJsonInfo(UniValue& obj) const
 void DoCoinJoinMaintenance(CConnman& connman)
 {
     coinJoinClientQueueManager.DoMaintenance();
-    for (const auto& pair : coinJoinClientManagers) {
-        pair.second->DoMaintenance(connman);
+    for (const auto& [_, coinJoinMan] : coinJoinClientManagers) {
+        coinJoinMan->DoMaintenance(connman);
     }
 }
 
