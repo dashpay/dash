@@ -179,13 +179,15 @@ public:
         return nObjectType;
     }
 
-    const uint256& GetCollateralHash() const
+    uint256 GetCollateralHash() const
     {
+        LOCK(cs);
         return nCollateralHash;
     }
 
-    const COutPoint& GetMasternodeOutpoint() const
+    COutPoint GetMasternodeOutpoint() const
     {
+        LOCK(cs);
         return masternodeOutpoint;
     }
 
@@ -224,8 +226,12 @@ public:
         fExpired = true;
     }
 
-    const CGovernanceObjectVoteFile& GetVoteFile() const
+    /* TODO we are returning an expensive copy here. Refactor this code to avoid copy, while retaining saftey.
+     * Likely this will include making CGovernanceObjectVoteFile internally safe and returning a ptr or ref
+    */
+    CGovernanceObjectVoteFile GetVoteFile() const
     {
+        LOCK(cs);
         return fileVotes;
     }
 
