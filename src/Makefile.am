@@ -206,11 +206,11 @@ BITCOIN_CORE_H = \
   llmq/quorums_utils.h \
   logging.h \
   logging/timer.h \
-  masternode/activemasternode.h \
-  masternode/masternode-meta.h \
-  masternode/masternode-payments.h \
-  masternode/masternode-sync.h \
-  masternode/masternode-utils.h \
+  masternode/node.h \
+  masternode/meta.h \
+  masternode/payments.h \
+  masternode/sync.h \
+  masternode/utils.h \
   memusage.h \
   merkleblock.h \
   messagesigner.h \
@@ -369,11 +369,11 @@ libdash_server_a_SOURCES = \
   llmq/quorums_signing.cpp \
   llmq/quorums_signing_shares.cpp \
   llmq/quorums_utils.cpp \
-  masternode/activemasternode.cpp \
-  masternode/masternode-meta.cpp \
-  masternode/masternode-payments.cpp \
-  masternode/masternode-sync.cpp \
-  masternode/masternode-utils.cpp \
+  masternode/node.cpp \
+  masternode/meta.cpp \
+  masternode/payments.cpp \
+  masternode/sync.cpp \
+  masternode/utils.cpp \
   merkleblock.cpp \
   messagesigner.cpp \
   miner.cpp \

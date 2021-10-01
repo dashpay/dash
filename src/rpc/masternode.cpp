@@ -5,8 +5,8 @@
 #include <evo/deterministicmns.h>
 #include <governance/classes.h>
 #include <index/txindex.h>
-#include <masternode/activemasternode.h>
-#include <masternode/masternode-payments.h>
+#include <masternode/node.h>
+#include <masternode/payments.h>
 #include <net.h>
 #include <netbase.h>
 #include <rpc/server.h>

@@ -4,12 +4,12 @@
 
 #include <coinjoin/server.h>
 
-#include <masternode/activemasternode.h>
+#include <masternode/node.h>
 #include <evo/deterministicmns.h>
 #include <consensus/validation.h>
 #include <core_io.h>
-#include <masternode/masternode-meta.h>
-#include <masternode/masternode-sync.h>
+#include <masternode/meta.h>
+#include <masternode/sync.h>
 #include <net_processing.h>
 #include <netmessagemaker.h>
 #include <script/interpreter.h>

@@ -8,8 +8,8 @@
 #include <consensus/validation.h>
 #include <core_io.h>
 #include <evo/deterministicmns.h>
-#include <masternode/masternode-sync.h>
-#include <masternode/masternode-meta.h>
+#include <masternode/sync.h>
+#include <masternode/meta.h>
 #include <netmessagemaker.h>
 #include <net_processing.h>
 #include <script/sign.h>

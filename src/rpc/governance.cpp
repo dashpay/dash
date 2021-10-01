@@ -11,8 +11,8 @@
 #include <governance/validators.h>
 #include <index/txindex.h>
 #include <txmempool.h>
-#include <masternode/activemasternode.h>
-#include <masternode/masternode-sync.h>
+#include <masternode/node.h>
+#include <masternode/sync.h>
 #include <messagesigner.h>
 #include <net.h>
 #include <rpc/server.h>

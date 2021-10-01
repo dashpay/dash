@@ -9,7 +9,7 @@
 #endif // ENABLE_WALLET
 #include <dsnotificationinterface.h>
 #include <governance/governance.h>
-#include <masternode/masternode-sync.h>
+#include <masternode/sync.h>
 #include <validation.h>
 
 #include <evo/deterministicmns.h>

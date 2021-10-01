@@ -33,7 +33,7 @@
 
 #include <governance/classes.h>
 #include <governance/governance.h>
-#include <masternode/masternode-sync.h>
+#include <masternode/sync.h>
 
 #include <evo/deterministicmns.h>
 

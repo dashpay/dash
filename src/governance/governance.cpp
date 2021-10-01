@@ -9,8 +9,8 @@
 #include <consensus/validation.h>
 #include <governance/classes.h>
 #include <governance/validators.h>
-#include <masternode/masternode-meta.h>
-#include <masternode/masternode-sync.h>
+#include <masternode/meta.h>
+#include <masternode/sync.h>
 #include <net_processing.h>
 #include <netfulfilledman.h>
 #include <netmessagemaker.h>

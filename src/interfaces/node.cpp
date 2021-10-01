@@ -15,7 +15,7 @@
 #include <interfaces/handler.h>
 #include <interfaces/wallet.h>
 #include <llmq/quorums_instantsend.h>
-#include <masternode/masternode-sync.h>
+#include <masternode/sync.h>
 #include <net.h>
 #include <net_processing.h>
 #include <netaddress.h>

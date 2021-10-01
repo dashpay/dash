@@ -6,7 +6,7 @@
 
 #include <bls/bls.h>
 #include <key.h>
-#include <masternode/masternode-sync.h>
+#include <masternode/sync.h>
 #include <messagesigner.h>
 #include <net.h>
 #include <util/system.h>

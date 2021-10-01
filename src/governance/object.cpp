@@ -8,8 +8,8 @@
 #include <evo/deterministicmns.h>
 #include <governance/validators.h>
 #include <governance/governance.h>
-#include <masternode/masternode-meta.h>
-#include <masternode/masternode-sync.h>
+#include <masternode/meta.h>
+#include <masternode/sync.h>
 #include <messagesigner.h>
 #include <net.h>
 #include <validation.h>
