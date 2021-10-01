@@ -36,7 +36,7 @@ EXPECTED_CIRCULAR_DEPENDENCIES=(
     "qt/addressbookpage -> qt/bitcoingui -> qt/walletview -> qt/signverifymessagedialog -> qt/addressbookpage"
     "qt/addressbookpage -> qt/bitcoingui -> qt/walletview -> qt/sendcoinsdialog -> qt/sendcoinsentry -> qt/addressbookpage"
     # Dash
-    "coinjoin/coinjoin-server -> net_processing -> coinjoin/coinjoin-server"
+    "coinjoin/server -> net_processing -> coinjoin/server"
     "evo/cbtx -> evo/simplifiedmns -> evo/cbtx"
     "evo/cbtx -> evo/specialtx -> evo/cbtx"
     "evo/deterministicmns -> evo/providertx -> evo/deterministicmns"
@@ -82,7 +82,7 @@ EXPECTED_CIRCULAR_DEPENDENCIES=(
     "logging -> util/system -> random -> logging"
     "logging -> util/system -> sync -> logging"
     "logging -> util/system -> stacktraces -> logging"
-    "coinjoin/coinjoin-client -> coinjoin/coinjoin-util -> wallet/wallet -> coinjoin/coinjoin-client"
+    "coinjoin/client -> coinjoin/util -> wallet/wallet -> coinjoin/client"
     "qt/appearancewidget -> qt/guiutil -> qt/optionsdialog -> qt/appearancewidget"
     "qt/bitcoinaddressvalidator -> qt/guiutil -> qt/qvalidatedlineedit -> qt/bitcoinaddressvalidator"
     "qt/guiutil -> qt/optionsdialog -> qt/optionsmodel -> qt/guiutil"
@@ -93,7 +93,7 @@ EXPECTED_CIRCULAR_DEPENDENCIES=(
     "evo/specialtx -> llmq/quorums_blockprocessor -> net_processing -> txmempool -> evo/specialtx"
     "evo/providertx -> evo/specialtx -> llmq/quorums_blockprocessor -> net_processing -> txmempool -> evo/providertx"
 
-    "coinjoin/coinjoin-client -> net_processing -> coinjoin/coinjoin-client"
+    "coinjoin/client -> net_processing -> coinjoin/client"
     "llmq/quorums -> net_processing -> llmq/quorums"
     "llmq/quorums_commitment -> llmq/quorums_utils -> llmq/quorums_commitment"
     "llmq/quorums_dkgsession -> llmq/quorums_dkgsessionmgr -> llmq/quorums_dkgsession"

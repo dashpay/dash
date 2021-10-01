@@ -137,10 +137,10 @@ BITCOIN_CORE_H = \
   checkqueue.h \
   clientversion.h \
   coinjoin/coinjoin.h \
-  coinjoin/coinjoin-client.h \
-  coinjoin/coinjoin-client-options.h \
-  coinjoin/coinjoin-server.h \
-  coinjoin/coinjoin-util.h \
+  coinjoin/client.h \
+  coinjoin/options.h \
+  coinjoin/server.h \
+  coinjoin/util.h \
   coins.h \
   compat.h \
   compat/assumptions.h \
@@ -329,8 +329,8 @@ libdash_server_a_SOURCES = \
   chain.cpp \
   checkpoints.cpp \
   coinjoin/coinjoin.cpp \
-  coinjoin/coinjoin-client-options.cpp \
-  coinjoin/coinjoin-server.cpp \
+  coinjoin/options.cpp \
+  coinjoin/server.cpp \
   consensus/tx_verify.cpp \
   dsnotificationinterface.cpp \
   evo/cbtx.cpp \
@@ -437,9 +437,9 @@ endif
 libdash_wallet_a_CPPFLAGS = $(AM_CPPFLAGS) $(BITCOIN_INCLUDES)
 libdash_wallet_a_CXXFLAGS = $(AM_CXXFLAGS) $(PIE_FLAGS)
 libdash_wallet_a_SOURCES = \
-  coinjoin/coinjoin-client.cpp \
-  coinjoin/coinjoin-client-options.cpp \
-  coinjoin/coinjoin-util.cpp \
+  coinjoin/client.cpp \
+  coinjoin/options.cpp \
+  coinjoin/util.cpp \
   interfaces/wallet.cpp \
   keepass.cpp \
   wallet/coincontrol.cpp \

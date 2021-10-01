@@ -58,7 +58,7 @@
 #include <validationinterface.h>
 
 #include <masternode/activemasternode.h>
-#include <coinjoin/coinjoin-server.h>
+#include <coinjoin/server.h>
 #include <dsnotificationinterface.h>
 #include <flat-database.h>
 #include <governance/governance.h>

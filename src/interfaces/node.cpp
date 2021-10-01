@@ -39,7 +39,7 @@
 #endif
 
 #include <coinjoin/coinjoin.h>
-#include <coinjoin/coinjoin-client-options.h>
+#include <coinjoin/options.h>
 
 #include <atomic>
 #include <univalue.h>

@@ -6,7 +6,7 @@
 #include <evo/deterministicmns.h>
 
 #ifdef ENABLE_WALLET
-#include <coinjoin/coinjoin-client.h>
+#include <coinjoin/client.h>
 #endif
 #include <masternode/masternode-sync.h>
 #include <net.h>

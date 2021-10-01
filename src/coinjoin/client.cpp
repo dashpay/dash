@@ -2,8 +2,8 @@
 // Distributed under the MIT/X11 software license, see the accompanying
 // file COPYING or http://www.opensource.org/licenses/mit-license.php.
 
-#include <coinjoin/coinjoin-client.h>
-#include <coinjoin/coinjoin-client-options.h>
+#include <coinjoin/client.h>
+#include <coinjoin/options.h>
 
 #include <consensus/validation.h>
 #include <core_io.h>
