@@ -7,6 +7,7 @@
 
 #pragma GCC diagnostic push
 #pragma GCC diagnostic ignored "-Wdeprecated-declarations"
+#pragma GCC diagnostic ignored "-Wsuggest-override"
 #include <qt/paymentrequest.pb.h>
 #pragma GCC diagnostic pop
 
