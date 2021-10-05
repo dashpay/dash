@@ -5,11 +5,15 @@
 #ifndef BITCOIN_QT_PAYMENTREQUESTPLUS_H
 #define BITCOIN_QT_PAYMENTREQUESTPLUS_H
 
+#if defined(__GNUC__) && !defined(__clang__)
 #pragma GCC diagnostic push
 #pragma GCC diagnostic ignored "-Wdeprecated-declarations"
 #pragma GCC diagnostic ignored "-Wsuggest-override"
+#endif
 #include <qt/paymentrequest.pb.h>
+#if defined(__GNUC__) && !defined(__clang__)
 #pragma GCC diagnostic pop
+#endif
 
 #include <amount.h>
 #include <script/script.h>
