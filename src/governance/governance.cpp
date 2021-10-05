@@ -1175,7 +1175,7 @@ void CGovernanceManager::UpdatedBlockTip(const CBlockIndex* pindex, CConnman& co
     }
 
     nCachedBlockHeight = pindex->nHeight;
-    LogPrint(BCLog::GOBJECT, "CGovernanceManager::UpdatedBlockTip -- nCachedBlockHeight: %d\n", nCachedBlockHeight);
+    LogPrint(BCLog::GOBJECT, "CGovernanceManager::UpdatedBlockTip -- nCachedBlockHeight: %d\n", pindex->nHeight);
 
     if (deterministicMNManager->IsDIP3Enforced(pindex->nHeight)) {
         RemoveInvalidVotes();

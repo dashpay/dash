@@ -164,10 +164,10 @@ private:
     static const int MAX_TIME_FUTURE_DEVIATION;
     static const int RELIABLE_PROPAGATION_TIME;
 
-    int64_t nTimeLastDiff GUARDED_BY(cs);
+    std::atomic<int64_t> nTimeLastDiff;
 
     // keep track of current block height
-    int nCachedBlockHeight GUARDED_BY(cs);
+    std::atomic<int> nCachedBlockHeight;
 
     // keep track of the scanning errors
     std::map<uint256, CGovernanceObject> mapObjects GUARDED_BY(cs);
@@ -356,6 +356,7 @@ private:
 
     void AddInvalidVote(const CGovernanceVote& vote)
     {
+        LOCK(cs);
         cmapInvalidVotes.Insert(vote.GetHash(), vote);
     }
 
