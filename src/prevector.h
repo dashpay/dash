@@ -555,7 +555,7 @@ public:
         // We know that internally the iterators are pointing to continues memory, so we can directly use the pointers here
         // This avoids internal use of std::copy and operator++ on the iterators and instead allows efficient memcpy/memmove
         if (std::is_trivially_constructible<T>::value) {
-            auto s = e - b;
+            size_t s = e - b;
             if (v.size() != s) {
                 v.resize(s);
             }

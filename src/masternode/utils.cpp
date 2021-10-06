@@ -24,7 +24,7 @@ void CMasternodeUtils::ProcessMasternodeConnections(CConnman& connman)
 #endif // ENABLE_WALLET
 
     // Don't disconnect masternode connections when we have less then the desired amount of outbound nodes
-    int nonMasternodeCount = 0;
+    size_t nonMasternodeCount = 0;
     connman.ForEachNode(CConnman::AllNodes, [&](CNode* pnode) {
         if (!pnode->fInbound && !pnode->fFeeler && !pnode->m_manual_connection && !pnode->m_masternode_connection && !pnode->m_masternode_probe_connection) {
             nonMasternodeCount++;

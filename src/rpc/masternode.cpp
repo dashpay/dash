@@ -439,7 +439,7 @@ static UniValue masternode_payments(const JSONRPCRequest& request)
     // A temporary vector which is used to sort results properly (there is no "reverse" in/for UniValue)
     std::vector<UniValue> vecPayments;
 
-    while (vecPayments.size() < std::abs(nCount) && pindex != nullptr) {
+    while (vecPayments.size() < static_cast<size_t>(std::abs(nCount)) && pindex != nullptr) {
 
         CBlock block;
         if (!ReadBlockFromDisk(block, pindex, Params().GetConsensus())) {

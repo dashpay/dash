@@ -682,7 +682,7 @@ void CGovernanceObject::UpdateSentinelVariables()
 {
     // CALCULATE MINIMUM SUPPORT LEVELS REQUIRED
 
-    int nMnCount = (int)deterministicMNManager->GetListAtChainTip().GetValidMNsCount();
+    int nMnCount = deterministicMNManager->GetListAtChainTip().GetValidMNsCount();
     if (nMnCount == 0) return;
 
     // CALCULATE THE MINIMUM VOTE COUNT REQUIRED FOR FULL SIGNAL

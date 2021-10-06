@@ -369,7 +369,7 @@ public:
     int GetState() const { return nState; }
     std::string GetStateString() const;
 
-    int GetEntriesCount() const { LOCK(cs_coinjoin); return vecEntries.size(); }
+    size_t GetEntriesCount() const { LOCK(cs_coinjoin); return vecEntries.size(); }
 };
 
 // base class

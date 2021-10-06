@@ -509,12 +509,12 @@ void ReadFixedVarIntsBitSet(Stream& s, std::vector<bool>& vec, size_t size)
 
     int32_t last = -1;
     while(true) {
-        uint32_t offset = ReadVarInt<Stream, VarIntMode::DEFAULT, uint32_t>(s);
+        const int32_t offset = ReadVarInt<Stream, VarIntMode::DEFAULT, uint32_t>(s);
         if (offset == 0) {
             break;
         }
-        int32_t idx = last + offset;
-        if (idx >= size) {
+        const int32_t idx = last + offset;
+        if (static_cast<size_t>(idx) >= size) {
             throw std::ios_base::failure("out of bounds index");
         }
         if (last != -1 && idx <= last) {

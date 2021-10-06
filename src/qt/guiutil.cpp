@@ -1624,7 +1624,7 @@ std::vector<QFont::Weight> getSupportedWeights()
     return mapSupportedWeights[fontFamily];
 }
 
-QFont::Weight supportedWeightFromIndex(int nIndex)
+QFont::Weight supportedWeightFromIndex(size_t nIndex)
 {
     auto vecWeights = getSupportedWeights();
     assert(vecWeights.size() > nIndex);
@@ -1634,7 +1634,7 @@ QFont::Weight supportedWeightFromIndex(int nIndex)
 int supportedWeightToIndex(QFont::Weight weight)
 {
     auto vecWeights = getSupportedWeights();
-    for (int index = 0; index < vecWeights.size(); ++index) {
+    for (size_t index = 0; index < vecWeights.size(); ++index) {
         if (weight == vecWeights[index]) {
             return index;
         }

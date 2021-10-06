@@ -282,7 +282,7 @@ void CCoinJoinServer::CheckPool(CConnman& connman)
     // Check for Time Out
     // If we timed out while accepting entries, then if we have more than minimum, create final tx
     if (nState == POOL_STATE_ACCEPTING_ENTRIES && CCoinJoinServer::HasTimedOut()
-            && GetEntriesCount() >= CCoinJoin::GetMinPoolParticipants()) {
+            && GetEntriesCount() >= static_cast<size_t>(CCoinJoin::GetMinPoolParticipants())) {
         // Punish misbehaving participants
         ChargeFees(connman);
         // Try to complete this session ignoring the misbehaving ones
@@ -307,7 +307,7 @@ void CCoinJoinServer::CreateFinalTransaction(CConnman& connman)
     CMutableTransaction txNew;
 
     // make our new transaction
-    for (int i = 0; i < GetEntriesCount(); i++) {
+    for (size_t i = 0; i < GetEntriesCount(); i++) {
         for (const auto& txout : vecEntries[i].vecTxOut) {
             txNew.vout.push_back(txout);
         }
@@ -432,10 +432,10 @@ void CCoinJoinServer::ChargeFees(CConnman& connman) const
     if (vecOffendersCollaterals.empty()) return;
 
     //mostly offending? Charge sometimes
-    if ((int)vecOffendersCollaterals.size() >= vecSessionCollaterals.size() - 1 && GetRandInt(100) > 33) return;
+    if (vecOffendersCollaterals.size() >= vecSessionCollaterals.size() - 1 && GetRandInt(100) > 33) return;
 
     //everyone is an offender? That's not right
-    if ((int)vecOffendersCollaterals.size() >= vecSessionCollaterals.size()) return;
+    if (vecOffendersCollaterals.size() >= vecSessionCollaterals.size()) return;
 
     //charge one of the offenders randomly
     Shuffle(vecOffendersCollaterals.begin(), vecOffendersCollaterals.end(), FastRandomContext());
@@ -667,7 +667,7 @@ bool CCoinJoinServer::AddScriptSig(const CTxIn& txinNew)
             LogPrint(BCLog::COINJOIN, "CCoinJoinServer::AddScriptSig -- adding to finalMutableTransaction, scriptSig=%s\n", ScriptToAsmStr(txinNew.scriptSig).substr(0, 24));
         }
     }
-    for (int i = 0; i < GetEntriesCount(); i++) {
+    for (size_t i = 0; i < GetEntriesCount(); i++) {
         if (vecEntries[i].AddScriptSig(txinNew)) {
             LogPrint(BCLog::COINJOIN, "CCoinJoinServer::AddScriptSig -- adding to entries, scriptSig=%s\n", ScriptToAsmStr(txinNew.scriptSig).substr(0, 24));
             return true;

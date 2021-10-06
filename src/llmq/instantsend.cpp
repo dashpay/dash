@@ -192,7 +192,7 @@ std::unordered_map<uint256, CInstantSendLockPtr, StaticSaltedHasher> CInstantSen
         if (!it->GetKey(curKey) || std::get<0>(curKey) != DB_MINED_BY_HEIGHT_AND_HASH) {
             break;
         }
-        uint32_t nHeight = std::numeric_limits<uint32_t>::max() - be32toh(std::get<1>(curKey));
+        int32_t nHeight = std::numeric_limits<int32_t>::max() - be32toh(std::get<1>(curKey));
         if (nHeight > nUntilHeight) {
             break;
         }
@@ -236,7 +236,7 @@ void CInstantSendDb::RemoveArchivedInstantSendLocks(int nUntilHeight)
         if (!it->GetKey(curKey) || std::get<0>(curKey) != DB_ARCHIVED_BY_HEIGHT_AND_HASH) {
             break;
         }
-        uint32_t nHeight = std::numeric_limits<uint32_t>::max() - be32toh(std::get<1>(curKey));
+        int32_t nHeight = std::numeric_limits<int32_t>::max() - be32toh(std::get<1>(curKey));
         if (nHeight > nUntilHeight) {
             break;
         }

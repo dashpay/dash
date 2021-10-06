@@ -1010,8 +1010,8 @@ CDeterministicMNCPtr CCoinJoinClientManager::GetRandomNotUsedMasternode()
 {
     auto mnList = deterministicMNManager->GetListAtChainTip();
 
-    size_t nCountEnabled = mnList.GetValidMNsCount();
-    size_t nCountNotExcluded = nCountEnabled - vecMasternodesUsed.size();
+    int nCountEnabled = mnList.GetValidMNsCount();
+    int nCountNotExcluded = nCountEnabled - vecMasternodesUsed.size();
 
     LogPrint(BCLog::COINJOIN, "CCoinJoinClientManager::%s -- %d enabled masternodes, %d masternodes to choose from\n", __func__, nCountEnabled, nCountNotExcluded);
     if (nCountNotExcluded < 1) {
@@ -1340,7 +1340,7 @@ bool CCoinJoinClientSession::PrepareDenominate(int nMinRounds, int nMaxRounds, s
 
     // NOTE: No need to randomize order of inputs because they were
     // initially shuffled in CWallet::SelectTxDSInsByDenomination already.
-    int nSteps{0};
+    uint64_t nSteps{0};
     vecPSInOutPairsRet.clear();
 
     // Try to add up to COINJOIN_ENTRY_MAX_SIZE of every needed denomination

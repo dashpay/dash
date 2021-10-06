@@ -370,9 +370,9 @@ public:
         return mnMap.size();
     }
 
-    size_t GetValidMNsCount() const
+    int GetValidMNsCount() const
     {
-        size_t count = 0;
+        int count = 0;
         for (const auto& p : mnMap) {
             if (IsMNValid(p.second)) {
                 count++;

@@ -592,9 +592,8 @@ public:
         it->second.SetMerkleBranch(::ChainActive().Tip()->GetBlockHash(), 1);
 
         std::vector<COutPoint> vecOutpoints;
-        size_t n;
-        for (n = 0; n < tx->vout.size(); ++n) {
-            if (nChangePosRet != -1 && n == nChangePosRet) {
+        for (size_t n = 0; n < tx->vout.size(); ++n) {
+            if (nChangePosRet != -1 && static_cast<int>(n) == nChangePosRet) {
                 // Skip the change output to only return the requested coins
                 continue;
             }
@@ -628,7 +627,7 @@ BOOST_FIXTURE_TEST_CASE(CreateTransactionTest, CreateTransactionTestSetup)
             {13, {{100001, true}}}
         };
         assert(mapTestCases.size() == mapExpected.size());
-        for (int i = 0; i < mapTestCases.size(); ++i) {
+        for (size_t i = 0; i < mapTestCases.size(); ++i) {
             if (!CreateTransaction(mapTestCases.at(i), mapExpected.at(i).first, mapExpected.at(i).second)) {
                 std::cout << strprintf("CreateTransactionTest failed at: %d - %d\n", nTestId, i) << std::endl;
             }
@@ -853,12 +852,12 @@ BOOST_FIXTURE_TEST_CASE(CreateTransactionTest, CreateTransactionTestSetup)
 
         // Just to create nCount output recipes to use in tests below
         std::vector<std::pair<CAmount, bool>> vecOutputEntries{{5000, false}};
-        auto createOutputEntries = [&](int nCount) {
+        auto createOutputEntries = [&](size_t nCount) {
             while (vecOutputEntries.size() <= nCount) {
                 vecOutputEntries.push_back(vecOutputEntries.back());
             }
             if (vecOutputEntries.size() > nCount) {
-                int nDiff = vecOutputEntries.size() - nCount;
+                size_t nDiff = vecOutputEntries.size() - nCount;
                 vecOutputEntries.erase(vecOutputEntries.begin(), vecOutputEntries.begin() + nDiff);
             }
         };

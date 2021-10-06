@@ -73,13 +73,13 @@ void CBLSWorker::Stop()
     workerPool.stop(true);
 }
 
-bool CBLSWorker::GenerateContributions(int quorumThreshold, const BLSIdVector& ids, BLSVerificationVectorPtr& vvecRet, BLSSecretKeyVector& skSharesRet)
+bool CBLSWorker::GenerateContributions(uint32_t quorumThreshold, const BLSIdVector& ids, BLSVerificationVectorPtr& vvecRet, BLSSecretKeyVector& skSharesRet)
 {
     auto svec = BLSSecretKeyVector((size_t)quorumThreshold);
     vvecRet = std::make_shared<BLSVerificationVector>((size_t)quorumThreshold);
     skSharesRet.resize(ids.size());
 
-    for (int i = 0; i < quorumThreshold; i++) {
+    for (uint32_t i = 0; i < quorumThreshold; i++) {
         svec[i].MakeNewKey();
     }
     size_t batchSize = 8;

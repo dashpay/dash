@@ -375,7 +375,7 @@ namespace GUIUtil
     /** Return supported weights for the current font family */
     std::vector<QFont::Weight> getSupportedWeights();
     /** Convert an index to a weight in the supported weights vector */
-    QFont::Weight supportedWeightFromIndex(int nIndex);
+    QFont::Weight supportedWeightFromIndex(size_t nIndex);
     /** Convert a weight to an index in the supported weights vector */
     int supportedWeightToIndex(QFont::Weight weight);
     /** Check if a weight is supported by the current font family */

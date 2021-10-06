@@ -146,7 +146,7 @@ bool fPruneMode = false;
 bool fRequireStandard = true;
 bool fCheckBlockIndex = false;
 bool fCheckpointsEnabled = DEFAULT_CHECKPOINTS_ENABLED;
-size_t nCoinCacheUsage = 5000 * 300;
+int64_t nCoinCacheUsage = 5000 * 300;
 uint64_t nPruneTarget = 0;
 int64_t nMaxTipAge = DEFAULT_MAX_TIP_AGE;
 
@@ -4653,7 +4653,7 @@ bool CVerifyDB::VerifyDB(const CChainParams& chainparams, CCoinsView *coinsview,
             }
         }
         // check level 3: check for inconsistencies during memory-only disconnect of tip blocks
-        if (nCheckLevel >= 3 && (coins.DynamicMemoryUsage() + ::ChainstateActive().CoinsTip().DynamicMemoryUsage()) <= nCoinCacheUsage) {
+        if (nCheckLevel >= 3 && (coins.DynamicMemoryUsage() + ::ChainstateActive().CoinsTip().DynamicMemoryUsage()) <= static_cast<size_t>(nCoinCacheUsage)) {
             assert(coins.GetBestBlock() == pindex->GetBlockHash());
             DisconnectResult res = ::ChainstateActive().DisconnectBlock(block, pindex, coins);
             if (res == DISCONNECT_FAILED) {

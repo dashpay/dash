@@ -347,7 +347,7 @@ bool CSigSharesManager::ProcessMessageSigSesAnn(const CNode* pfrom, const CSigSe
 
 bool CSigSharesManager::VerifySigSharesInv(Consensus::LLMQType llmqType, const CSigSharesInv& inv)
 {
-    return inv.inv.size() == GetLLMQParams(llmqType).size;
+    return inv.inv.size() == static_cast<size_t>(GetLLMQParams(llmqType).size);
 }
 
 bool CSigSharesManager::ProcessMessageSigSharesInv(const CNode* pfrom, const CSigSharesInv& inv)
@@ -748,7 +748,7 @@ void CSigSharesManager::ProcessSigShare(const CSigShare& sigShare, const CConnma
         }
 
         size_t sigShareCount = sigShares.CountForSignHash(sigShare.GetSignHash());
-        if (sigShareCount >= quorum->params.threshold) {
+        if (sigShareCount >= static_cast<size_t>(quorum->params.threshold)) {
             canTryRecovery = true;
         }
     }
@@ -777,14 +777,14 @@ void CSigSharesManager::TryRecoverSig(const CQuorumCPtr& quorum, const uint256& 
 
         sigSharesForRecovery.reserve((size_t) quorum->params.threshold);
         idsForRecovery.reserve((size_t) quorum->params.threshold);
-        for (auto it = sigSharesForSignHash->begin(); it != sigSharesForSignHash->end() && sigSharesForRecovery.size() < quorum->params.threshold; ++it) {
+        for (auto it = sigSharesForSignHash->begin(); it != sigSharesForSignHash->end() && sigSharesForRecovery.size() < static_cast<size_t>(quorum->params.threshold); ++it) {
             auto& sigShare = it->second;
             sigSharesForRecovery.emplace_back(sigShare.sigShare.Get());
             idsForRecovery.emplace_back(quorum->members[sigShare.quorumMember]->proTxHash);
         }
 
         // check if we can recover the final signature
-        if (sigSharesForRecovery.size() < quorum->params.threshold) {
+        if (sigSharesForRecovery.size() < static_cast<size_t>(quorum->params.threshold)) {
             return;
         }
     }
@@ -822,7 +822,7 @@ void CSigSharesManager::TryRecoverSig(const CQuorumCPtr& quorum, const uint256& 
 
 CDeterministicMNCPtr CSigSharesManager::SelectMemberForRecovery(const CQuorumCPtr& quorum, const uint256 &id, int attempt)
 {
-    assert(attempt < quorum->members.size());
+    assert(static_cast<size_t>(attempt) < quorum->members.size());
 
     std::vector<std::pair<uint256, CDeterministicMNCPtr>> v;
     v.reserve(quorum->members.size());
