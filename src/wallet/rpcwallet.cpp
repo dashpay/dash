@@ -513,8 +513,12 @@ static UniValue listaddressbalances(const JSONRPCRequest& request)
 
     if (request.fHelp || request.params.size() > 1)
         throw std::runtime_error(
-            "listaddressbalances ( minamount )\n"
-            "\nLists addresses of this wallet and their balances\n"
+            RPCHelpMan{"listaddressbalances",
+                "\nLists addresses of this wallet and their balances\n",
+                {
+                    {"minamount", RPCArg::Type::NUM, true},
+                }}
+                .ToString() +
             "\nArguments:\n"
             "1. minamount               (numeric, optional, default=0) Minimum balance in " + CURRENCY_UNIT + " an address should have to be shown in the list\n"
             "\nResult:\n"
@@ -1046,13 +1050,24 @@ static UniValue addmultisigaddress(const JSONRPCRequest& request)
 
     if (request.fHelp || request.params.size() < 2 || request.params.size() > 3)
     {
-        std::string msg = "addmultisigaddress nrequired [\"key\",...] ( \"label\" )\n"
-            "\nAdd a nrequired-to-sign multisignature address to the wallet. Requires a new wallet backup.\n"
-            "Each key is a Dash address or hex-encoded public key.\n"
-            "This functionality is only intended for use with non-watchonly addresses.\n"
-            "See `importaddress` for watchonly p2sh address support.\n"
-            "If 'label' is specified, assign address to that label.\n"
+        std::string msg =
+            RPCHelpMan{"addmultisigaddress",
+                "\nAdd a nrequired-to-sign multisignature address to the wallet. Requires a new wallet backup.\n"
+                "Each key is a Dash address or hex-encoded public key.\n"
+                "This functionality is only intended for use with non-watchonly addresses.\n"
+                "See `importaddress` for watchonly p2sh address support.\n"
+                "If 'label' is specified, assign address to that label.\n",
+                {
+                    {"nrequired", RPCArg::Type::NUM, false},
+                    {"inputs", RPCArg::Type::ARR,
+                        {
+                            {"address", RPCArg::Type::STR, false},
 
+                        },
+                    false},
+                    {"label", RPCArg::Type::STR, true},
+                }}
+                .ToString() +
             "\nArguments:\n"
             "1. nrequired                      (numeric, required) The number of required signatures out of the n keys or addresses.\n"
             "2. \"keys\"                         (string, required) A json array of dash addresses or hex-encoded public keys\n"
@@ -2507,6 +2522,12 @@ static UniValue setcoinjoinrounds(const JSONRPCRequest& request)
 
     if (request.fHelp || request.params.size() != 1)
         throw std::runtime_error(
+            RPCHelpMan{"setcoinjoinrounds",
+                "\nSet the number of rounds for CoinJoin.\n",
+                {
+                    {"rounds", RPCArg::Type::NUM, false},
+                }}
+                .ToString() +
             "setcoinjoinrounds rounds\n"
             "\nSet the number of rounds for CoinJoin.\n"
             "\nArguments:\n"
@@ -2536,8 +2557,12 @@ static UniValue setcoinjoinamount(const JSONRPCRequest& request)
 
     if (request.fHelp || request.params.size() != 1)
         throw std::runtime_error(
-            "setcoinjoinamount amount\n"
-            "\nSet the goal amount in " + CURRENCY_UNIT + " for CoinJoin.\n"
+            RPCHelpMan{"setcoinjoinamount",
+                "\nSet the goal amount in " + CURRENCY_UNIT + " for CoinJoin.\n",
+                {
+                    {"amount", RPCArg::Type::NUM, false},
+                }}
+                .ToString() +
             "\nArguments:\n"
             "1. amount         (numeric, required) The default amount is " + std::to_string(DEFAULT_COINJOIN_AMOUNT) +
             " Cannot be more than " + std::to_string(MAX_COINJOIN_AMOUNT) + " nor less than " + std::to_string(MIN_COINJOIN_AMOUNT) +
@@ -2743,21 +2768,27 @@ static UniValue upgradetohd(const JSONRPCRequest& request)
 
     if (request.fHelp)
         throw std::runtime_error(
-                "upgradetohd ( \"mnemonic\" \"mnemonicpassphrase\" \"walletpassphrase\" )\n"
+            RPCHelpMan{"upgradetohd",
                 "\nUpgrades non-HD wallets to HD.\n"
-                "\nWarning: You will need to make a new backup of your wallet after setting the HD wallet mnemonic.\n"
-                "\nArguments:\n"
-                "1. \"mnemonic\"             (string, optional, default=\"\") Mnemonic as defined in BIP39 to use for the new HD wallet.\n"
-                "                          Use an empty string \"\" to generate a new random mnemonic.\n"
-                "2. \"mnemonicpassphrase\"   (string, optional, default=\"\") Optional mnemonic passphrase as defined in BIP39\n"
-                "3. \"walletpassphrase\"     (string, optional) If your wallet is encrypted you must have your wallet passphrase here.\n"
-                "                          If your wallet is not encrypted specifying wallet passphrase will trigger wallet encryption.\n"
+                "\nWarning: You will need to make a new backup of your wallet after setting the HD wallet mnemonic.\n",
+                {
+                    {"mnemonic", RPCArg::Type::STR, true},
+                    {"mnemonicpassphrase", RPCArg::Type::STR, true},
+                    {"walletpassphrase", RPCArg::Type::STR, true},
+                }}
+                .ToString() +
+            "\nArguments:\n"
+            "1. \"mnemonic\"             (string, optional, default=\"\") Mnemonic as defined in BIP39 to use for the new HD wallet.\n"
+            "                          Use an empty string \"\" to generate a new random mnemonic.\n"
+            "2. \"mnemonicpassphrase\"   (string, optional, default=\"\") Optional mnemonic passphrase as defined in BIP39\n"
+            "3. \"walletpassphrase\"     (string, optional) If your wallet is encrypted you must have your wallet passphrase here.\n"
+            "                          If your wallet is not encrypted specifying wallet passphrase will trigger wallet encryption.\n"
 
-                "\nExamples:\n"
-                + HelpExampleCli("upgradetohd", "")
-                + HelpExampleCli("upgradetohd", "\"mnemonicword1 ... mnemonicwordN\"")
-                + HelpExampleCli("upgradetohd", "\"mnemonicword1 ... mnemonicwordN\" \"mnemonicpassphrase\"")
-                + HelpExampleCli("upgradetohd", "\"mnemonicword1 ... mnemonicwordN\" \"mnemonicpassphrase\" \"walletpassphrase\""));
+            "\nExamples:\n"
+            + HelpExampleCli("upgradetohd", "")
+            + HelpExampleCli("upgradetohd", "\"mnemonicword1 ... mnemonicwordN\"")
+            + HelpExampleCli("upgradetohd", "\"mnemonicword1 ... mnemonicwordN\" \"mnemonicpassphrase\"")
+            + HelpExampleCli("upgradetohd", "\"mnemonicword1 ... mnemonicwordN\" \"mnemonicpassphrase\" \"walletpassphrase\""));
 
     LOCK2(cs_main, pwallet->cs_wallet);
 

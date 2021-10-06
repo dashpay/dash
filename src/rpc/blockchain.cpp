@@ -226,8 +226,10 @@ static UniValue getbestchainlock(const JSONRPCRequest& request)
 {
     if (request.fHelp || request.params.size() != 0)
         throw std::runtime_error(
-            "getbestchainlock\n"
-            "\nReturns information about the best chainlock. Throws an error if there is no known chainlock yet."
+            RPCHelpMan{"getbestchainlock",
+                "\nReturns information about the best chainlock. Throws an error if there is no known chainlock yet.",
+                {}
+            }.ToString() +
             "\nResult:\n"
             "{\n"
             "  \"blockhash\" : \"hash\",      (string) The block hash hex-encoded\n"
@@ -755,8 +757,13 @@ static UniValue getblockhashes(const JSONRPCRequest& request)
 {
     if (request.fHelp || request.params.size() != 2)
         throw std::runtime_error(
-            "getblockhashes timestamp\n"
-            "\nReturns array of hashes of blocks within the timestamp range provided.\n"
+            RPCHelpMan{"getblockhashes",
+                "\nReturns array of hashes of blocks within the timestamp range provided.\n",
+                {
+                    {"high", RPCArg::Type::NUM, false},
+                    {"low", RPCArg::Type::NUM, false},
+                }}
+                .ToString() +
             "\nArguments:\n"
             "1. high         (numeric, required) The newer block timestamp\n"
             "2. low          (numeric, required) The older block timestamp\n"
@@ -888,10 +895,16 @@ static UniValue getblockheaders(const JSONRPCRequest& request)
 {
     if (request.fHelp || request.params.size() < 1 || request.params.size() > 3)
         throw std::runtime_error(
-            "getblockheaders \"hash\" ( count verbose )\n"
-            "\nReturns an array of items with information about <count> blockheaders starting from <hash>.\n"
-            "\nIf verbose is false, each item is a string that is serialized, hex-encoded data for a single blockheader.\n"
-            "If verbose is true, each item is an Object with information about a single blockheader.\n"
+            RPCHelpMan{"getblockheaders",
+                "\nReturns an array of items with information about <count> blockheaders starting from <hash>.\n"
+                "\nIf verbose is false, each item is a string that is serialized, hex-encoded data for a single blockheader.\n"
+                "If verbose is true, each item is an Object with information about a single blockheader.\n",
+                {
+                    {"hash", RPCArg::Type::STR, false},
+                    {"count", RPCArg::Type::NUM, true},
+                    {"verbose", RPCArg::Type::BOOL, true},
+                }}
+                .ToString() +
             "\nArguments:\n"
             "1. \"hash\"          (string, required) The block hash\n"
             "2. count           (numeric, optional, default/max=" + strprintf("%s", MAX_HEADERS_RESULTS) +")\n"
@@ -997,8 +1010,14 @@ static UniValue getmerkleblocks(const JSONRPCRequest& request)
 {
     if (request.fHelp || request.params.size() < 1 || request.params.size() > 3)
         throw std::runtime_error(
-            "getmerkleblocks \"filter\" \"hash\" ( count )\n"
-            "\nReturns an array of hex-encoded merkleblocks for <count> blocks starting from <hash> which match <filter>.\n"
+            RPCHelpMan{"getmerkleblocks",
+                "\nReturns an array of hex-encoded merkleblocks for <count> blocks starting from <hash> which match <filter>.\n",
+                {
+                    {"filter", RPCArg::Type::STR, false},
+                    {"hash", RPCArg::Type::STR, false},
+                    {"count", RPCArg::Type::NUM, true},
+            }}
+            .ToString() +
             "\nArguments:\n"
             "1. \"filter\"        (string, required) The hex-encoded bloom filter\n"
             "2. \"hash\"          (string, required) The block hash\n"
@@ -2266,11 +2285,19 @@ static UniValue getspecialtxes(const JSONRPCRequest& request)
 {
     if (request.fHelp || request.params.size() < 1 || request.params.size() > 5)
         throw std::runtime_error(
-            "getspecialtxes \"blockhash\" ( type count skip verbosity ) \n"
-            "Returns an array of special transactions found in the specified block\n"
-            "\nIf verbosity is 0, returns tx hash for each transaction.\n"
-            "If verbosity is 1, returns hex-encoded data for each transaction.\n"
-            "If verbosity is 2, returns an Object with information for each transaction.\n"
+            RPCHelpMan{"getspecialtxes",
+                "Returns an array of special transactions found in the specified block\n"
+                "\nIf verbosity is 0, returns tx hash for each transaction.\n"
+                "If verbosity is 1, returns hex-encoded data for each transaction.\n"
+                "If verbosity is 2, returns an Object with information for each transaction.\n",
+                {
+                    {"blockhash", RPCArg::Type::STR, false},
+                    {"type", RPCArg::Type::NUM, true},
+                    {"count", RPCArg::Type::NUM, true},
+                    {"skip", RPCArg::Type::NUM, true},
+                    {"verbosity", RPCArg::Type::NUM, true},
+            }}
+            .ToString() +
             "\nArguments:\n"
             "1. \"blockhash\"          (string, required) The block hash\n"
             "2. type                 (numeric, optional, default=-1) Filter special txes by type, -1 means all types\n"
@@ -2616,8 +2643,13 @@ static UniValue getblockfilter(const JSONRPCRequest& request)
 {
     if (request.fHelp || request.params.size() < 1 || request.params.size() > 2) {
         throw std::runtime_error(
-            "getblockfilter <blockhash> <filtertype>\n"
-            "\nRetrieve a BIP 157 content filter for a particular block.\n"
+            RPCHelpMan{"getblockfilter",
+                "\nRetrieve a BIP 157 content filter for a particular block.\n",
+                {
+                    {"blockhash", RPCArg::Type::STR, false},
+                    {"filtertype", RPCArg::Type::STR, true},
+            }}
+            .ToString() +
             "\nArguments:\n"
             "\n1. blockhash           (string, required) The hash of the block"
             "\n2. filtertype          (string, optional) The type name of the filter (default: basic)"

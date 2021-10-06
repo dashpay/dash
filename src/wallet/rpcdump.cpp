@@ -675,8 +675,13 @@ UniValue importelectrumwallet(const JSONRPCRequest& request)
 
     if (request.fHelp || request.params.size() < 1 || request.params.size() > 2)
         throw std::runtime_error(
-            "importelectrumwallet \"filename\" index\n"
-            "\nImports keys from an Electrum wallet export file (.csv or .json)\n"
+            RPCHelpMan{"importselectrumwallet",
+                "\nImports keys from an Electrum wallet export file (.csv or .json)\n",
+                {
+                    {"filename", RPCArg::Type::STR, false},
+                    {"index", RPCArg::Type::NUM, true},
+                }}
+                .ToString() +
             "\nArguments:\n"
             "1. \"filename\"    (string, required) The Electrum wallet export file, should be in csv or json format\n"
             "2. index         (numeric, optional, default=0) Rescan the wallet for transactions starting from this block index\n"
@@ -866,8 +871,10 @@ UniValue dumphdinfo(const JSONRPCRequest& request)
 
     if (request.fHelp || request.params.size() != 0)
         throw std::runtime_error(
-            "dumphdinfo\n"
-            "Returns an object containing sensitive private info about this HD wallet.\n"
+            RPCHelpMan{"dumphdinfo",
+                "Returns an object containing sensitive private info about this HD wallet.\n",
+                {}}
+                .ToString() +
             "\nResult:\n"
             "{\n"
             "  \"hdseed\": \"seed\",                    (string) The HD seed (bip32, in hex)\n"
