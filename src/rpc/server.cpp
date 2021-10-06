@@ -564,8 +564,10 @@ UniValue CRPCTable::execute(const JSONRPCRequest &request) const
 
     // Before executing the RPC Command, filter commands from platform rpc user
     if (fMasternodeMode && request.authUser == gArgs.GetArg("-platform-user", defaultPlatformUser)) {
-
-        const auto& [allowed_begin, allowed_end] = mapPlatformRestrictions.equal_range(request.strMethod);
+        // replace this with structured binding in c++20
+        const auto& it = mapPlatformRestrictions.equal_range(request.strMethod);
+        const auto& allowed_begin = it.first;
+        const auto& allowed_end = it.second;
         /**
          * allowed_begin and allowed_end are iterators that represent a range of [method_name, vec_params]
          * For example, assume allowed = `quorum sign platformLlmqType`, `quorum verify` and `verifyislock`
@@ -587,36 +589,36 @@ UniValue CRPCTable::execute(const JSONRPCRequest &request) const
             throw JSONRPCError(RPC_PLATFORM_RESTRICTION, strprintf("Method \"%s\" prohibited", request.strMethod));
         }
 
-        bool fValidRequest{false};
+        auto isValidRequest = [&request, &allowed_begin, &allowed_end]() {
+            for (auto itRequest = allowed_begin; itRequest != allowed_end; ++itRequest) {
+                // This is an individual group of parameters that is valid
+                // This will look something like `["sign", platformLlmqType]` from above.
+                const auto& vecAllowedParam = itRequest->second;
+                // An empty vector of allowed parameters represents that any parameter is allowed.
+                if (vecAllowedParam.empty()) {
+                    return true;
+                }
+                if (request.params.empty()) {
+                    throw JSONRPCError(RPC_PLATFORM_RESTRICTION, strprintf("Method \"%s\" has parameter restrictions.", request.strMethod));
+                }
+
+                if (request.params.size() < vecAllowedParam.size()) {
+                    continue;
+                }
+
+                if (std::equal(vecAllowedParam.begin(), vecAllowedParam.end(),
+                               request.params.getValues().begin(),
+                               [](const UniValue& left, const UniValue& right) {
+                                   return left.type() == right.type() && left.getValStr() == right.getValStr();
+                               })) {
+                    return true;
+                }
+            }
+            return false;
+        };
+
         // Try if any of the mapPlatformRestrictions entries matches the current request
-        for (auto itRequest = allowed_begin; itRequest != allowed_end; ++itRequest) {
-            // This is an individual group of parameters that is valid
-            // This will look something like `["sign", platformLlmqType]` from above.
-            const auto& vecAllowedParam = itRequest->second;
-            // An empty vector of allowed parameters represents that any parameter is allowed.
-            if (vecAllowedParam.empty()) {
-                fValidRequest = true;
-                break;
-            }
-            if (request.params.empty()) {
-                throw JSONRPCError(RPC_PLATFORM_RESTRICTION, strprintf("Method \"%s\" has parameter restrictions.", request.strMethod));
-            }
-
-            if (request.params.size() < vecAllowedParam.size()) {
-                continue;
-            }
-
-            if (std::equal(vecAllowedParam.begin(), vecAllowedParam.end(),
-                           request.params.getValues().begin(),
-                           [](const UniValue& left, const UniValue& right) {
-                        return left.type() == right.type() && left.getValStr() == right.getValStr();
-                    })) {
-                fValidRequest = true;
-                break;
-            }
-        }
-
-        if (!fValidRequest) {
+        if (!isValidRequest()) {
             throw JSONRPCError(RPC_PLATFORM_RESTRICTION, "Request doesn't comply with the parameter restrictions.");
         }
     }
