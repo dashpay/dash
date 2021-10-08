@@ -78,6 +78,7 @@ bool CBDNSDB::CleanDatabase() {
     std::unique_ptr<CDBIterator> pcursor(NewIterator());
     size_t batch_size = 1 << 20;
     CDBBatch batch(*this);
+    bool ret = true;
 
     pcursor->SeekToFirst();
 
@@ -89,7 +90,7 @@ bool CBDNSDB::CleanDatabase() {
                 batch.Erase(oldKey);
             
             if (batch.SizeEstimate() > batch_size) {
-                WriteBatch(batch);
+                ret = ret && WriteBatch(batch);
                 batch.Clear();
             }
 
@@ -103,7 +104,7 @@ bool CBDNSDB::CleanDatabase() {
                 batch.Erase(newKey);
             
             if (batch.SizeEstimate() > batch_size) {
-                WriteBatch(batch);
+                ret = ret && WriteBatch(batch);
                 batch.Clear();
             }
 
@@ -111,13 +112,10 @@ bool CBDNSDB::CleanDatabase() {
         }
     }
 
-    WriteBatch(batch);
+    ret = ret && WriteBatch(batch);
     CompactFull();
 
-    WriteVersion();
-    SetHeight(db_default_height); // -10
-    SetLastChangeHeight(); // -10
-    WriteCorruptionState(false);
+    return ret && WriteVersion() && SetHeight(db_default_height) && SetLastChangeHeight() && WriteCorruptionState(false);
 }
 
 bool CBDNSDB::CheckVersion() {

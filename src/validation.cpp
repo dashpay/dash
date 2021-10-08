@@ -3839,7 +3839,17 @@ void ReindexBdnsRecords() {
 
     fReindexingBdns = true;
 
-    pbdnsdb->CleanDatabase();
+    {
+        LOCK(cs_main);
+        // if the initial database cleanup fails then we stop reindexing and the corruption flag gets set to true
+        if (!pbdnsdb->CleanDatabase()) {
+            fReindexingBdns = false;
+            pbdnsdb->WriteReindexing(false);
+            pbdnsdb->WriteCorruptionState(true);
+            return;
+        } else
+            LogPrint("bdns", "BlockchainDNS -- %s: database cleanup successful\n", __func__);
+    }
 
     const Consensus::Params& consensusParams = Params().GetConsensus();
     CBlockIndex* lastProcessedIndex;
@@ -3849,8 +3859,7 @@ void ReindexBdnsRecords() {
         LOCK(cs_main);
         if (chainActive.Height() < consensusParams.nHardForkEight) {
             fReindexingBdns = false;
-            if (!pbdnsdb->WriteReindexing(false))
-                LogPrintf("BlockchainDNS -- %s: failed to write reindexing state\n", __func__);
+            pbdnsdb->WriteReindexing(false);
             return;
         } else {
             lastProcessedIndex = chainActive.Tip()->pprev->pprev;
@@ -3864,8 +3873,7 @@ void ReindexBdnsRecords() {
 
         if (!ProcessBdnsActiveHeight(i, consensusParams)) {
             fReindexingBdns = false;
-            if (!pbdnsdb->WriteReindexing(false))
-                LogPrintf("BlockchainDNS -- %s: failed to write reindexing state\n", __func__);
+            pbdnsdb->WriteReindexing(false);
             return;
         }
     }
@@ -3878,16 +3886,14 @@ void ReindexBdnsRecords() {
             for (int i = lastProcessedHeight; i <= chainActive.Height(); i++)
                 if (!ProcessBdnsActiveHeight(i, consensusParams)) {
                     fReindexingBdns = false;
-                    if (!pbdnsdb->WriteReindexing(false))
-                        LogPrintf("BlockchainDNS -- %s: failed to write reindexing state\n", __func__);
+                    pbdnsdb->WriteReindexing(false);
                     return;
                 }
         } else
             pbdnsdb->WriteCorruptionState(true);
 
         fReindexingBdns = false;
-        if (!pbdnsdb->WriteReindexing(false))
-            LogPrintf("BlockchainDNS -- %s: failed to write reindexing state\n", __func__);
+        pbdnsdb->WriteReindexing(false);
     }
 }
 
