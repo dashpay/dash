@@ -395,7 +395,7 @@ public:
 
         // Alterdot LLMQs
         consensus.llmqs[Consensus::LLMQ_10_60] = llmq10_60;
-        consensus.llmqs[Consensus::LLMQ_20_60] = llmq20_60;
+        //consensus.llmqs[Consensus::LLMQ_20_60] = llmq20_60;
         consensus.llmqs[Consensus::LLMQ_30_80] = llmq30_80;
         
         consensus.llmqChainLocks = Consensus::LLMQ_30_80;
