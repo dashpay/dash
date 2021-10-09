@@ -51,7 +51,7 @@ enum LLMQType : uint8_t
 
     // Alterdot LLMQs
     LLMQ_10_60 = 4, // 10 members, 6 (60%) threshold, one every 2 hours
-    LLMQ_20_60 = 5, // 20 members, 12 (60%) threshold, one every 8 hours
+    //LLMQ_20_60 = 5, // 20 members, 12 (60%) threshold, one every 8 hours
     LLMQ_30_80 = 6, // 30 members, 24 (80%) threshold, one every 16 hours
 
     // for testing only

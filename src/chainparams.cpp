@@ -199,7 +199,7 @@ static Consensus::LLMQParams llmq10_60 = {
 
         .keepOldConnections = 5,
 };
-
+/*
 static Consensus::LLMQParams llmq20_60 = {
         .type = Consensus::LLMQ_20_60,
         .name = "llmq_20_60",
@@ -217,7 +217,7 @@ static Consensus::LLMQParams llmq20_60 = {
 
         .keepOldConnections = 3,
 };
-
+*/
 static Consensus::LLMQParams llmq30_80 = {
         .type = Consensus::LLMQ_30_80,
         .name = "llmq_30_80",
@@ -432,6 +432,7 @@ public:
             (  864000, uint256S("0x00000005bd946074721c9ce99039cb702dfc6ff4291e875d4a91152c61dfd119"))
             ( 1001000, uint256S("0x0000048d4c8d0a5d15984aff57b27a67499457d27d6bef47199ace612643eb29"))
             ( 1042000, uint256S("0x000008552f7ecb43e963b811e86bfec4636ac1aafb43b9dd4ae9b4e39a42d037"))
+            ( 1062000, uint256S("0x000007899bd1c7c36b7b93b90969b826a255d87943c014847d3ef2e0094916c6"))
         };
 
         chainTxData = ChainTxData {
