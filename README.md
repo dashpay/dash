@@ -1,4 +1,4 @@
-# **Alterdot (ADOT) v1.9.1.0**
+# **Alterdot (ADOT) v1.9.1.1**
 
 <table>
  <tr>
@@ -26,15 +26,11 @@
  </tr>
 </table>
 
+**[alterdot.network](https://alterdot.network)**
+
 **Copyright (c) 2017-2021 Alterdot Developers**
 
 **Project previously known as [Bitcreds](https://github.com/Bitcreds/Bitcreds).**
-
-**Note for v1.9.1**: This version contains several important changes for the BlockchainDNS, the format of the BDNS record used in the indexing system has been updated and two new commands have been added that improve the experience and usability of the BDNS. These commands are "listowneddomains" which returns the list of domains registered by the current wallet and "bdns" which can be used to check the state of the BDNS and also to trigger its reindexing in case there is a possible corruption. It is a mandatory update for BlockchainDNS users since it also fixes a previous issue regarding domains not being recorded correctly in the local database and that in turn could lead to invalid registrations and wasted coins.
-
-**Note for v1.9.0**: This is a major update for the Alterdot network as this version brings with it a new batch of upgrades from Dash, including the implementation of ChainLocks and LLMQ-based InstantSend which will be activated at a later point in time when our Masternode network has grown and matured to an acceptable level. Until then, these features will stay inactive, but the code is here and ready, do keep in mind that we do not use sporks so another voluntary upgrade across the network will be required at the time.
-
-Even though our main focus is the development of the BlockchainDNS-IPFS ecosystem, features such as ChainLocks are very important for the security of our network as they can protect us from 51% attacks which can be a threat especially to small blockchain networks. This version ties together the latest effort we put into bringing our network to a safer codebase on which we can build powerful and innovative features for the decentralized web.
 
 What is Alterdot?
 ----------------
