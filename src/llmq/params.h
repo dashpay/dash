@@ -296,4 +296,9 @@ static const std::map<LLMQType, LLMQParams> available_llmqs = {
 
 }
 
+// This must be outside of all namespaces. We must also duplicate the forward declaration of is_serializable_enum to
+// avoid inclusion of serialize.h here.
+template<typename T> struct is_serializable_enum;
+template<> struct is_serializable_enum<Consensus::LLMQType> : std::true_type {};
+
 #endif // BITCOIN_LLMQ_PARAMS_H
