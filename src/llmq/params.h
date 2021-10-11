@@ -294,7 +294,7 @@ static const std::map<LLMQType, LLMQParams> available_llmqs = {
 
 }; // available_llmqs
 
-}
+} // namespace Consensus
 
 // This must be outside of all namespaces. We must also duplicate the forward declaration of is_serializable_enum to
 // avoid inclusion of serialize.h here.
