@@ -266,7 +266,7 @@ void CRPCTable::InitPlatformRestrictions()
         {"getblockhash", {}},
         {"getblockcount", {}},
         {"getbestchainlock", {}},
-        {"quorum", {"sign", Params().GetConsensus().llmqTypePlatform}},
+        {"quorum", {"sign", (uint8_t)Params().GetConsensus().llmqTypePlatform}},
         {"quorum", {"verify"}},
         {"verifyislock", {}},
     };

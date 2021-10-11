@@ -10,7 +10,7 @@
 
 namespace Consensus {
 
-enum LLMQType : uint8_t
+enum class LLMQType : uint8_t
 {
     LLMQ_NONE = 0xff,
 
@@ -100,7 +100,7 @@ struct LLMQParams {
  *
  */
 static constexpr LLMQParams llmq_test = {
-        .type = LLMQ_TEST,
+        .type = LLMQType::LLMQ_TEST,
         .name = "llmq_test",
         .size = 3,
         .minSize = 2,
@@ -124,7 +124,7 @@ static constexpr LLMQParams llmq_test = {
  *
  */
 static constexpr LLMQParams llmq_test_v17 = {
-        .type = LLMQ_TEST_V17,
+        .type = LLMQType::LLMQ_TEST_V17,
         .name = "llmq_test_v17",
         .size = 3,
         .minSize = 2,
@@ -148,7 +148,7 @@ static constexpr LLMQParams llmq_test_v17 = {
  *
  */
 static constexpr LLMQParams llmq_devnet = {
-        .type = LLMQ_DEVNET,
+        .type = LLMQType::LLMQ_DEVNET,
         .name = "llmq_devnet",
         .size = 10,
         .minSize = 7,
@@ -173,7 +173,7 @@ static constexpr LLMQParams llmq_devnet = {
  *
  */
 static constexpr LLMQParams llmq50_60 = {
-        .type = LLMQ_50_60,
+        .type = LLMQType::LLMQ_50_60,
         .name = "llmq_50_60",
         .size = 50,
         .minSize = 40,
@@ -198,7 +198,7 @@ static constexpr LLMQParams llmq50_60 = {
  *
  */
 static constexpr LLMQParams llmq400_60 = {
-        .type = LLMQ_400_60,
+        .type = LLMQType::LLMQ_400_60,
         .name = "llmq_400_60",
         .size = 400,
         .minSize = 300,
@@ -224,7 +224,7 @@ static constexpr LLMQParams llmq400_60 = {
  * Used for deployment and min-proto-version signalling
  */
 static constexpr LLMQParams llmq400_85 = {
-        .type = LLMQ_400_85,
+        .type = LLMQType::LLMQ_400_85,
         .name = "llmq_400_85",
         .size = 400,
         .minSize = 350,
@@ -250,7 +250,7 @@ static constexpr LLMQParams llmq400_85 = {
  * Used by Dash Platform
  */
 static constexpr LLMQParams llmq100_67 = {
-        .type = LLMQ_100_67,
+        .type = LLMQType::LLMQ_100_67,
         .name = "llmq_100_67",
         .size = 100,
         .minSize = 80,

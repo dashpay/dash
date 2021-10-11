@@ -113,8 +113,8 @@ struct Params {
 
     std::map<LLMQType, LLMQParams> llmqs;
     LLMQType llmqTypeChainLocks;
-    LLMQType llmqTypeInstantSend{LLMQ_NONE};
-    LLMQType llmqTypePlatform{LLMQ_NONE};
+    LLMQType llmqTypeInstantSend{LLMQType::LLMQ_NONE};
+    LLMQType llmqTypePlatform{LLMQType::LLMQ_NONE};
 };
 } // namespace Consensus
 
