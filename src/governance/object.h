@@ -93,9 +93,9 @@ class CGovernanceObject
 public: // Types
     using vote_m_t = std::map<COutPoint, vote_rec_t>;
 
-private:
     /// critical section to protect the inner data structures
     mutable CCriticalSection cs;
+private:
 
     /// Object typecode
     std::atomic<int> nObjectType{GOVERNANCE_OBJECT_UNKNOWN};

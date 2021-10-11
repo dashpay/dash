@@ -164,7 +164,7 @@ void CGovernanceManager::ProcessMessage(CNode* pfrom, const std::string& strComm
         // CHECK OBJECT AGAINST LOCAL BLOCKCHAIN
 
         bool fMissingConfirmations = false;
-        bool fIsValid = govobj.IsValidLocally(strError, fMissingConfirmations, true);
+        bool fIsValid = WITH_LOCK(govobj.cs, return govobj.IsValidLocally(strError, fMissingConfirmations, true));
 
         if (fRateCheckBypassed && fIsValid && !MasternodeRateCheck(govobj, true)) {
             LogPrint(BCLog::GOBJECT, "MNGOVERNANCEOBJECT -- masternode rate check failed (after signature verification) - %s - (current block height %d)\n", strHash, nCachedBlockHeight);
@@ -244,6 +244,7 @@ void CGovernanceManager::CheckOrphanVotes(CGovernanceObject& govobj, CConnman& c
 {
     uint256 nHash = govobj.GetHash();
     std::vector<vote_time_pair_t> vecVotePairs;
+    LOCK(cs);
     cmmapOrphanVotes.GetAll(nHash, vecVotePairs);
 
     ScopedLockBool guard(cs, fRateChecksEnabled, false);
@@ -279,7 +280,7 @@ void CGovernanceManager::AddGovernanceObject(CGovernanceObject& govobj, CConnman
 
     // MAKE SURE THIS OBJECT IS OK
 
-    if (!govobj.IsValidLocally(strError, true)) {
+    if (!WITH_LOCK(govobj.cs, return govobj.IsValidLocally(strError, true))) {
         LogPrint(BCLog::GOBJECT, "CGovernanceManager::AddGovernanceObject -- invalid governance object - %s - (nCachedBlockHeight %d) \n", strError, nCachedBlockHeight);
         return;
     }
@@ -300,7 +301,7 @@ void CGovernanceManager::AddGovernanceObject(CGovernanceObject& govobj, CConnman
     LogPrint(BCLog::GOBJECT, "CGovernanceManager::AddGovernanceObject -- Before trigger block, GetDataAsPlainString = %s, nObjectType = %d\n",
                 govobj.GetDataAsPlainString(), govobj.GetObjectType());
 
-    if (govobj.GetObjectType() == GOVERNANCE_OBJECT_TRIGGER && !triggerman.AddNewTrigger(nHash)) {
+    if (govobj.GetObjectType() == GOVERNANCE_OBJECT_TRIGGER && !WITH_LOCK(governance.cs, return triggerman.AddNewTrigger(nHash))) {
         LogPrint(BCLog::GOBJECT, "CGovernanceManager::AddGovernanceObject -- undo adding invalid trigger object: hash = %s\n", nHash.ToString());
         objpair.first->second.PrepareDeletion(GetAdjustedTime());
         return;
@@ -687,6 +688,7 @@ void CGovernanceManager::MasternodeRateUpdate(const CGovernanceObject& govobj)
     if (govobj.GetObjectType() != GOVERNANCE_OBJECT_TRIGGER) return;
 
     const COutPoint& masternodeOutpoint = govobj.GetMasternodeOutpoint();
+    LOCK(cs);
     auto it = mapLastMasternodeObject.find(masternodeOutpoint);
 
     if (it == mapLastMasternodeObject.end()) {
@@ -843,6 +845,7 @@ void CGovernanceManager::CheckPostponedObjects(CConnman& connman)
 
         std::string strError;
         bool fMissingConfirmations;
+        LOCK(govobj.cs);
         if (govobj.IsCollateralValid(strError, fMissingConfirmations)) {
             if (govobj.IsValidLocally(strError, false)) {
                 AddGovernanceObject(govobj, connman);

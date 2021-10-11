@@ -192,7 +192,7 @@ private:
 
     hash_s_t setRequestedVotes GUARDED_BY(cs);
 
-    bool fRateChecksEnabled GUARDED_BY(cs) {true};
+    bool fRateChecksEnabled{true};
 
     // used to check for changed voting keys
     CDeterministicMNListPtr lastMNListForVotingKeys GUARDED_BY(cs) {std::make_shared<CDeterministicMNList>()};
