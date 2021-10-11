@@ -63,7 +63,7 @@ void CMNAuth::ProcessMessage(CNode* pnode, const std::string& strCommand, CDataS
     vRecv >> mnauth;
 
     // only one MNAUTH allowed
-    if (bool fAlreadyHaveMNAUTH = !pnode->GetVerifiedProRegTxHash().IsNull(); fAlreadyHaveMNAUTH) {
+    if (!pnode->GetVerifiedProRegTxHash().IsNull()) {
         LOCK(cs_main);
         Misbehaving(pnode->GetId(), 100, "duplicate mnauth");
         return;
