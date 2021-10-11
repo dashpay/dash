@@ -168,7 +168,7 @@ static UniValue spork(const JSONRPCRequest& request)
             + HelpExampleRpc("spork", "\"show\""));
     } else {
         // advanced mode, update spork values
-        SporkId nSporkID = sporkManager.GetSporkIDByName(request.params[0].get_str());
+        SporkId nSporkID = CSporkManager::GetSporkIDByName(request.params[0].get_str());
         if(nSporkID == SPORK_INVALID)
             throw JSONRPCError(RPC_INVALID_PARAMETER, "Invalid spork name");
 
