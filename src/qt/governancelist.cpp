@@ -58,8 +58,7 @@ GovernanceList::GovernanceList(QWidget* parent) :
     ui->govTableView->setContextMenuPolicy(Qt::CustomContextMenu);
     connect(ui->govTableView, &QTableView::customContextMenuRequested, this, &GovernanceList::showProposalContextMenu);
 
-    //connect(&timer, &QTimer::timeout, this, &GovernanceList::updateProposal);
-    //timer.start(1000);
+    connect(timer, &QTimer::timeout, this, &GovernanceList::updateProposalList);
 
     GUIUtil::updateFonts();
 }
@@ -72,22 +71,29 @@ GovernanceList::~GovernanceList()
 void GovernanceList::setClientModel(ClientModel* model)
 {
     this->clientModel = model;
+    updateProposalList();
+}
 
-    if (!model) {
-        return;
-    }
+void GovernanceList::updateProposalList()
+{
+    if (this->clientModel) {
+        std::vector<const CGovernanceObject*> govObjList = clientModel->getAllGovernanceObjects();
+        std::vector<const Proposal*> newProposals;
+        for (const auto pGovObj: govObjList) {
 
-    std::vector<const CGovernanceObject*> govObjList = clientModel->getAllGovernanceObjects();
-    for (const auto pGovObj: govObjList) {
+            auto govObjType = pGovObj->GetObjectType();
+            if (govObjType != GOVERNANCE_OBJECT_PROPOSAL) {
+                continue; // Skip triggers.
+            }
+            
+            newProposals.push_back(new Proposal(pGovObj, proposalModel));
 
-        auto govObjType = pGovObj->GetObjectType();
-        if (govObjType != GOVERNANCE_OBJECT_PROPOSAL) {
-            continue; // Skip triggers.
         }
-        
-        proposalModel->append(new Proposal(pGovObj, proposalModel));
-
+        proposalModel->reconcile(newProposals);
     }
+
+    // Schedule next update.
+    timer->start(GOVERNANCELIST_UPDATE_SECONDS * 1000);
 
 }
 
@@ -267,6 +273,37 @@ void ProposalModel::append(const Proposal* proposal)
     endInsertRows();
 }
 
-const Proposal* ProposalModel::getProposalAt(const QModelIndex &index) const {
+void ProposalModel::remove(int row)
+{
+    beginRemoveRows({}, row, row);
+    m_data.removeAt(row);
+    endRemoveRows();
+}
+
+void ProposalModel::reconcile(const std::vector<const Proposal*> &proposals)
+{
+    std::vector<bool> keep_index(m_data.count(), false);
+    for (const auto proposal : proposals) {
+        bool found = false;
+        for (unsigned int i = 0; i < m_data.count(); ++i) {
+            if (m_data.at(i)->hash() == proposal->hash()) {
+                found = true;
+                keep_index.at(i) = true;
+                break;
+            }
+        }
+        if (!found) {
+            append(proposal);
+        }
+    }
+    for (unsigned int i = keep_index.size(); i > 0; --i) {
+        if (!keep_index.at(i-1)) {
+            remove(i-1);
+        }
+    }
+}
+
+const Proposal* ProposalModel::getProposalAt(const QModelIndex &index) const
+{
     return m_data[index.row()];
 }

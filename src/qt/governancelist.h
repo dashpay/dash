@@ -14,7 +14,6 @@
 #include <QDateTime>
 
 #define GOVERNANCELIST_UPDATE_SECONDS 10
-#define GOVERNANCELIST_FILTER_COOLDOWN_SECONDS 3
 #define GOVERNANCELIST_DATEFMT "yyyy-MM-dd hh:mm"
 
 namespace Ui
@@ -62,6 +61,8 @@ public:
 	QVariant headerData(int section, Qt::Orientation orientation, int role) const override;
     int columnWidth(int section) const;
 	void append(const Proposal* proposal);
+    void remove(int row);
+    void reconcile(const std::vector<const Proposal*> &proposals);
 
     const Proposal* getProposalAt(const QModelIndex &index) const;
 };
@@ -86,6 +87,7 @@ private:
     QMenu* proposalContextMenu;
     QTimer* timer;
 
+    void updateProposalList();
     void updateProposalCount();
 
 Q_SIGNALS:
