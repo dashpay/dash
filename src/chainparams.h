@@ -136,6 +136,8 @@ protected:
     std::vector<std::string> vSporkAddresses;
     int nMinSporkKeys;
     bool fBIP9CheckMasternodesUpgraded;
+
+    void AddLLMQ(Consensus::LLMQType llmqType);
 };
 
 /**
