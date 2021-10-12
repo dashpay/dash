@@ -83,6 +83,10 @@ struct Params {
     /** Block height at which DIP0003 becomes enforced */
     int DIP0003EnforcementHeight;
     uint256 DIP0003EnforcementHash;
+    /** Block height at which DIP00XX becomes active */
+    int DIPQuorumRotationHeight;
+    /** Block height at which DIP00XX becomes enforced */
+    int DIPQuorumRotationEnforcementHeight;
     /** Block height at which DIP0008 becomes active */
     int DIP0008Height;
     /** Block height at which BRR becomes active */
