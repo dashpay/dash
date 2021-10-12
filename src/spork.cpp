@@ -24,7 +24,7 @@ const std::string CSporkManager::SERIALIZATION_VERSION_STRING = "CSporkManager-V
 
 CSporkManager sporkManager;
 
-std::optional<SporkValue> CSporkManager::SporkValueIsActive(SporkId nSporkID, int64_t &nActiveValueRet) const
+std::optional<SporkValue> CSporkManager::SporkValueIsActive(SporkId nSporkID) const
 {
     AssertLockHeld(cs);
 
