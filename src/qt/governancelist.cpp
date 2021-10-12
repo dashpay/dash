@@ -57,6 +57,7 @@ GovernanceList::GovernanceList(QWidget* parent) :
     // Enable CustomContextMenu on the table to make the view emit customContextMenuRequested signal.
     ui->govTableView->setContextMenuPolicy(Qt::CustomContextMenu);
     connect(ui->govTableView, &QTableView::customContextMenuRequested, this, &GovernanceList::showProposalContextMenu);
+    connect(ui->govTableView, &QTableView::doubleClicked, this, &GovernanceList::showAdditionalInfo);
 
     connect(timer, &QTimer::timeout, this, &GovernanceList::updateProposalList);
 
@@ -127,6 +128,20 @@ void GovernanceList::showProposalContextMenu(const QPoint& pos)
     proposalContextMenu->addAction(openProposalUrl);
     connect(openProposalUrl, &QAction::triggered, proposal, &Proposal::openUrl);
     proposalContextMenu->exec(QCursor::pos());
+}
+
+void GovernanceList::showAdditionalInfo(const QModelIndex &index)
+{
+    if (!index.isValid()) {
+        return;
+    }
+
+    const auto proposal = proposalModel->getProposalAt(index);
+    const auto windowTitle = tr("Proposal Info: %1").arg(proposal->title());
+    const auto json = proposal->toJson();
+
+    QMessageBox::information(this, windowTitle, json);
+    
 }
 
 ///
@@ -203,6 +218,12 @@ QString Proposal::votingStatus(int nMnCount, int nAbsVoteReq) const
 void Proposal::openUrl() const
 {
     QDesktopServices::openUrl(QUrl(m_url)); 
+}
+
+QString Proposal::toJson() const
+{
+    const auto json = pGovObj->ToJson();
+    return QString::fromStdString(json.write(2));
 }
 
 ///

@@ -14,7 +14,6 @@
 #include <QDateTime>
 
 #define GOVERNANCELIST_UPDATE_SECONDS 10
-#define GOVERNANCELIST_DATEFMT "yyyy-MM-dd hh:mm"
 
 namespace Ui
 {
@@ -35,6 +34,7 @@ private:
 	QDateTime m_endDate;
 	float m_paymentAmount;
 	QString m_url;
+
 public:
 	Proposal(const CGovernanceObject *p, QObject *parent = nullptr);
 	QString title() const;
@@ -47,6 +47,8 @@ public:
     QString votingStatus(int nMnCount, int nAbsVoteReq) const;
 
     void openUrl() const;
+
+    QString toJson() const;
 };
 
 class ProposalModel : public QAbstractTableModel 
@@ -93,11 +95,9 @@ private:
     void updateProposalList();
     void updateProposalCount();
 
-Q_SIGNALS:
-    void doubleClicked(const QModelIndex&);
-
 private Q_SLOTS:
     void showProposalContextMenu(const QPoint& pos);
+    void showAdditionalInfo(const QModelIndex &index);
 };
 
 
