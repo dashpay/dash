@@ -125,14 +125,14 @@ public:
     /**
      * GetHash returns the double-sha256 hash of the serialized spork message.
      */
-    uint256 GetHash() const;
+    [[nodiscard]] uint256 GetHash() const;
 
     /**
      * GetSignatureHash returns the hash of the serialized spork message
      * without the signature included. The intent of this method is to get the
      * hash to be signed.
      */
-    uint256 GetSignatureHash() const;
+    [[nodiscard]] uint256 GetSignatureHash() const;
 
     /**
      * Sign will sign the spork message with the given key.
@@ -143,7 +143,7 @@ public:
      * CheckSignature will ensure the spork signature matches the provided public
      * key hash.
      */
-    bool CheckSignature(const CKeyID& pubKeyId) const;
+    [[nodiscard]] bool CheckSignature(const CKeyID& pubKeyId) const;
 
     /**
      * GetSignerKeyID is used to recover the spork address of the key used to
