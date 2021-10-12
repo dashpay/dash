@@ -92,10 +92,9 @@ private:
     QMenu* proposalContextMenu;
     QTimer* timer;
 
+private Q_SLOTS:
     void updateProposalList();
     void updateProposalCount();
-
-private Q_SLOTS:
     void showProposalContextMenu(const QPoint& pos);
     void showAdditionalInfo(const QModelIndex &index);
 };

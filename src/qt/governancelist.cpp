@@ -19,137 +19,12 @@
 #include <QUrl>
 #include <QtGui/QClipboard>
 
-
-GovernanceList::GovernanceList(QWidget* parent) :
-    QWidget(parent),
-    ui(new Ui::GovernanceList),
-    clientModel(0),
-    proposalModel(new ProposalModel(this)),
-    proposalModelProxy(new QSortFilterProxyModel(this)),
-    proposalContextMenu(new QMenu(this)),
-    timer(new QTimer(this))
-{
-    ui->setupUi(this);
-
-    GUIUtil::setFont({ui->label_count_2, ui->countLabel}, GUIUtil::FontWeight::Bold, 14);
-    GUIUtil::setFont({ui->label_filter_2}, GUIUtil::FontWeight::Normal, 15);
-
-    proposalModelProxy->setSourceModel(proposalModel);
-    ui->govTableView->setModel(proposalModelProxy);
-    ui->govTableView->setSelectionBehavior(QAbstractItemView::SelectRows);
-    ui->govTableView->horizontalHeader()->setStretchLastSection(true);
-    //ui->govTableView->sortItems(2, Qt::DescendingOrder); // sort on created... 
-
-    for (int i = 0; i < proposalModel->columnCount(); ++i) {
-       ui->govTableView->setColumnWidth(i, proposalModel->columnWidth(i)); 
-    }
-
-    // Set up filtering.
-    proposalModelProxy->setFilterKeyColumn(1);  // filter by title column...
-    ui->filterLineEdit->setPlaceholderText(tr("Filter by Title"));
-    connect(ui->filterLineEdit, &QLineEdit::textChanged, proposalModelProxy, &QSortFilterProxyModel::setFilterFixedString);
-
-    // Changes to number of rows should update proposal count display.
-    connect(proposalModelProxy, &QSortFilterProxyModel::rowsInserted, this, &GovernanceList::updateProposalCount);
-    connect(proposalModelProxy, &QSortFilterProxyModel::rowsRemoved, this, &GovernanceList::updateProposalCount);
-    connect(proposalModelProxy, &QSortFilterProxyModel::layoutChanged, this, &GovernanceList::updateProposalCount);
-
-    // Enable CustomContextMenu on the table to make the view emit customContextMenuRequested signal.
-    ui->govTableView->setContextMenuPolicy(Qt::CustomContextMenu);
-    connect(ui->govTableView, &QTableView::customContextMenuRequested, this, &GovernanceList::showProposalContextMenu);
-    connect(ui->govTableView, &QTableView::doubleClicked, this, &GovernanceList::showAdditionalInfo);
-
-    connect(timer, &QTimer::timeout, this, &GovernanceList::updateProposalList);
-
-    GUIUtil::updateFonts();
-}
-
-GovernanceList::~GovernanceList()
-{
-    delete ui;
-}
-
-void GovernanceList::setClientModel(ClientModel* model)
-{
-    this->clientModel = model;
-    updateProposalList();
-}
-
-void GovernanceList::updateProposalList()
-{
-
-
-    if (this->clientModel) {
-
-        // A propsal is considered passing if (YES votes - NO votes) > (Total Number of Masternodes / 10),
-        // count total valid (ENABLED) masternodes to determine passing threshold.
-        // Need to query number of masternodes here with access to clientModel.
-        int nMnCount = clientModel->getMasternodeList().GetValidMNsCount();
-        int nAbsVoteReq = std::max(Params().GetConsensus().nGovernanceMinQuorum, nMnCount / 10);
-        proposalModel->setVotingParams(nMnCount, nAbsVoteReq);
-
-        std::vector<const CGovernanceObject*> govObjList = clientModel->getAllGovernanceObjects();
-        std::vector<const Proposal*> newProposals;
-        for (const auto pGovObj: govObjList) {
-
-            auto govObjType = pGovObj->GetObjectType();
-            if (govObjType != GOVERNANCE_OBJECT_PROPOSAL) {
-                continue; // Skip triggers.
-            }
-            
-            newProposals.push_back(new Proposal(pGovObj, proposalModel));
-
-        }
-        proposalModel->reconcile(newProposals);
-    }
-    
-    // Schedule next update.
-    timer->start(GOVERNANCELIST_UPDATE_SECONDS * 1000);
-
-}
-
-void GovernanceList::updateProposalCount()
-{
-    ui->countLabel->setText(QString::number(proposalModelProxy->rowCount()));
-}
-
-void GovernanceList::showProposalContextMenu(const QPoint& pos)
-{
-    const auto index = ui->govTableView->indexAt(pos);
-
-    if (!index.isValid()) {
-        return;
-    }
-    
-    const auto proposal = proposalModel->getProposalAt(index);
-
-    // right click menu with option to open proposal url
-    QAction* openProposalUrl = new QAction(tr("Open url"), this);
-    proposalContextMenu->addAction(openProposalUrl);
-    connect(openProposalUrl, &QAction::triggered, proposal, &Proposal::openUrl);
-    proposalContextMenu->exec(QCursor::pos());
-}
-
-void GovernanceList::showAdditionalInfo(const QModelIndex &index)
-{
-    if (!index.isValid()) {
-        return;
-    }
-
-    const auto proposal = proposalModel->getProposalAt(index);
-    const auto windowTitle = tr("Proposal Info: %1").arg(proposal->title());
-    const auto json = proposal->toJson();
-
-    QMessageBox::information(this, windowTitle, json);
-    
-}
-
 ///
 /// Proposal wrapper
 ///
 
 Proposal::Proposal(const CGovernanceObject *p, QObject *parent) :
-    QObject(parent), 
+    QObject(parent),
     pGovObj(p)
 {
     UniValue prop_data;
@@ -193,7 +68,7 @@ float Proposal::paymentAmount() const { return m_paymentAmount; }
 
 QString Proposal::url() const { return m_url; }
 
-bool Proposal::isActive() const 
+bool Proposal::isActive() const
 {
     std::string strError = "";
     return pGovObj->IsValidLocally(strError, false);
@@ -202,9 +77,8 @@ bool Proposal::isActive() const
 QString Proposal::votingStatus(int nMnCount, int nAbsVoteReq) const
 {
     // Voting status...
-
     // TODO: determine if voting is in progress vs. funded or not funded for past proposals.
-    // see CSuperblock::GetNearestSuperblocksHeights(nBlockHeight, nLastSuperblock, nNextSuperblock); 
+    // see CSuperblock::GetNearestSuperblocksHeights(nBlockHeight, nLastSuperblock, nNextSuperblock);
     int absYesCount = pGovObj->GetAbsoluteYesCount(VOTE_SIGNAL_FUNDING);
     QString qStatusString;
     if (absYesCount > nAbsVoteReq) {
@@ -217,7 +91,7 @@ QString Proposal::votingStatus(int nMnCount, int nAbsVoteReq) const
 
 void Proposal::openUrl() const
 {
-    QDesktopServices::openUrl(QUrl(m_url)); 
+    QDesktopServices::openUrl(QUrl(m_url));
 }
 
 QString Proposal::toJson() const
@@ -332,10 +206,138 @@ void ProposalModel::setVotingParams(int nMnCount, int nAbsVoteReq)
        // Changing either of the voting params may change the voting status
        // column. Emit signal to force recalc.
        Q_EMIT dataChanged(createIndex(0, 6), createIndex(columnCount(), 6));
-    }       
+    }
 }
 
 const Proposal* ProposalModel::getProposalAt(const QModelIndex &index) const
 {
     return m_data[index.row()];
 }
+
+//
+// Governance Tab main widget.
+//
+
+GovernanceList::GovernanceList(QWidget* parent) :
+    QWidget(parent),
+    ui(new Ui::GovernanceList),
+    clientModel(0),
+    proposalModel(new ProposalModel(this)),
+    proposalModelProxy(new QSortFilterProxyModel(this)),
+    proposalContextMenu(new QMenu(this)),
+    timer(new QTimer(this))
+{
+    ui->setupUi(this);
+
+    GUIUtil::setFont({ui->label_count_2, ui->countLabel}, GUIUtil::FontWeight::Bold, 14);
+    GUIUtil::setFont({ui->label_filter_2}, GUIUtil::FontWeight::Normal, 15);
+
+    proposalModelProxy->setSourceModel(proposalModel);
+    ui->govTableView->setModel(proposalModelProxy);
+    ui->govTableView->setSelectionBehavior(QAbstractItemView::SelectRows);
+    ui->govTableView->horizontalHeader()->setStretchLastSection(true);
+
+    for (int i = 0; i < proposalModel->columnCount(); ++i) {
+       ui->govTableView->setColumnWidth(i, proposalModel->columnWidth(i));
+    }
+
+    // Set up filtering.
+    proposalModelProxy->setFilterKeyColumn(1);  // filter by title column...
+    ui->filterLineEdit->setPlaceholderText(tr("Filter by Title"));
+    connect(ui->filterLineEdit, &QLineEdit::textChanged, proposalModelProxy, &QSortFilterProxyModel::setFilterFixedString);
+
+    // Changes to number of rows should update proposal count display.
+    connect(proposalModelProxy, &QSortFilterProxyModel::rowsInserted, this, &GovernanceList::updateProposalCount);
+    connect(proposalModelProxy, &QSortFilterProxyModel::rowsRemoved, this, &GovernanceList::updateProposalCount);
+    connect(proposalModelProxy, &QSortFilterProxyModel::layoutChanged, this, &GovernanceList::updateProposalCount);
+
+    // Enable CustomContextMenu on the table to make the view emit customContextMenuRequested signal.
+    ui->govTableView->setContextMenuPolicy(Qt::CustomContextMenu);
+    connect(ui->govTableView, &QTableView::customContextMenuRequested, this, &GovernanceList::showProposalContextMenu);
+    connect(ui->govTableView, &QTableView::doubleClicked, this, &GovernanceList::showAdditionalInfo);
+
+    connect(timer, &QTimer::timeout, this, &GovernanceList::updateProposalList);
+
+    GUIUtil::updateFonts();
+}
+
+GovernanceList::~GovernanceList()
+{
+    delete ui;
+}
+
+void GovernanceList::setClientModel(ClientModel* model)
+{
+    this->clientModel = model;
+    updateProposalList();
+}
+
+void GovernanceList::updateProposalList()
+{
+
+
+    if (this->clientModel) {
+
+        // A propsal is considered passing if (YES votes - NO votes) > (Total Number of Masternodes / 10),
+        // count total valid (ENABLED) masternodes to determine passing threshold.
+        // Need to query number of masternodes here with access to clientModel.
+        int nMnCount = clientModel->getMasternodeList().GetValidMNsCount();
+        int nAbsVoteReq = std::max(Params().GetConsensus().nGovernanceMinQuorum, nMnCount / 10);
+        proposalModel->setVotingParams(nMnCount, nAbsVoteReq);
+
+        std::vector<const CGovernanceObject*> govObjList = clientModel->getAllGovernanceObjects();
+        std::vector<const Proposal*> newProposals;
+        for (const auto pGovObj: govObjList) {
+
+            auto govObjType = pGovObj->GetObjectType();
+            if (govObjType != GOVERNANCE_OBJECT_PROPOSAL) {
+                continue; // Skip triggers.
+            }
+
+            newProposals.push_back(new Proposal(pGovObj, proposalModel));
+
+        }
+        proposalModel->reconcile(newProposals);
+    }
+
+    // Schedule next update.
+    timer->start(GOVERNANCELIST_UPDATE_SECONDS * 1000);
+
+}
+
+void GovernanceList::updateProposalCount()
+{
+    ui->countLabel->setText(QString::number(proposalModelProxy->rowCount()));
+}
+
+void GovernanceList::showProposalContextMenu(const QPoint& pos)
+{
+    const auto index = ui->govTableView->indexAt(pos);
+
+    if (!index.isValid()) {
+        return;
+    }
+
+    const auto proposal = proposalModel->getProposalAt(index);
+
+    // right click menu with option to open proposal url
+    QAction* openProposalUrl = new QAction(tr("Open url"), this);
+    proposalContextMenu->addAction(openProposalUrl);
+    connect(openProposalUrl, &QAction::triggered, proposal, &Proposal::openUrl);
+    proposalContextMenu->exec(QCursor::pos());
+}
+
+void GovernanceList::showAdditionalInfo(const QModelIndex &index)
+{
+    if (!index.isValid()) {
+        return;
+    }
+
+    const auto proposal = proposalModel->getProposalAt(index);
+    const auto windowTitle = tr("Proposal Info: %1").arg(proposal->title());
+    const auto json = proposal->toJson();
+
+    QMessageBox::information(this, windowTitle, json);
+
+}
+
