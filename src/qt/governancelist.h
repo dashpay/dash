@@ -44,7 +44,7 @@ public:
 	float paymentAmount() const;
 	QString url() const;
 	bool isActive() const;
-    QString status() const;
+    QString votingStatus(int nMnCount, int nAbsVoteReq) const;
 
     void openUrl() const;
 };
@@ -53,6 +53,8 @@ class ProposalModel : public QAbstractTableModel
 {
 private:
 	QList<const Proposal*> m_data;
+    int nMnCount;
+    int nAbsVoteReq;
 public:
 	ProposalModel(QObject* parent = nullptr);
 	int rowCount(const QModelIndex &parent = QModelIndex()) const override;
@@ -63,6 +65,7 @@ public:
 	void append(const Proposal* proposal);
     void remove(int row);
     void reconcile(const std::vector<const Proposal*> &proposals);
+    void setVotingParams(int nMnCount, int nAbsVoteReq);
 
     const Proposal* getProposalAt(const QModelIndex &index) const;
 };
