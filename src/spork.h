@@ -54,7 +54,7 @@ namespace std
     };
 }
 
-typedef int64_t SporkValue;
+using SporkValue = int64_t;
 
 struct CSporkDef
 {
