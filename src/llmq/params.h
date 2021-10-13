@@ -33,6 +33,9 @@ enum class LLMQType : uint8_t
 // Configures a LLMQ and its DKG
 // See https://github.com/dashpay/dips/blob/master/dip-0006.md for more details
 struct LLMQParams {
+//
+//    LLMQParams() = delete;
+//
     LLMQType type;
 
     // not consensus critical, only used in logging, RPC and UI
@@ -95,16 +98,14 @@ struct LLMQParams {
 };
 
 
-static const std::map<LLMQType, LLMQParams> available_llmqs = {
+static constexpr std::array<LLMQParams, 7> available_llmqs = {{
 
 /**
  * llmq_test
  * This quorum is only used for testing
  *
  */
-{
-    LLMQType::LLMQ_TEST,
-    {
+LLMQParams{
         .type = LLMQType::LLMQ_TEST,
         .name = "llmq_test",
         .size = 3,
@@ -121,7 +122,6 @@ static const std::map<LLMQType, LLMQParams> available_llmqs = {
 
         .keepOldConnections = 3,
         .recoveryMembers = 3,
-    }
 },
 
 /**
@@ -129,9 +129,7 @@ static const std::map<LLMQType, LLMQParams> available_llmqs = {
  * This quorum is only used for testing
  *
  */
-{
-    LLMQType::LLMQ_TEST_V17,
-    {
+LLMQParams{
         .type = LLMQType::LLMQ_TEST_V17,
         .name = "llmq_test_v17",
         .size = 3,
@@ -148,7 +146,6 @@ static const std::map<LLMQType, LLMQParams> available_llmqs = {
 
         .keepOldConnections = 3,
         .recoveryMembers = 3,
-    }
 },
 
 /**
@@ -156,9 +153,7 @@ static const std::map<LLMQType, LLMQParams> available_llmqs = {
  * This quorum is only used for testing on devnets
  *
  */
-{
-    LLMQType::LLMQ_DEVNET,
-    {
+LLMQParams{
         .type = LLMQType::LLMQ_DEVNET,
         .name = "llmq_devnet",
         .size = 10,
@@ -175,7 +170,6 @@ static const std::map<LLMQType, LLMQParams> available_llmqs = {
 
         .keepOldConnections = 4,
         .recoveryMembers = 6,
-    }
 },
 
 /**
@@ -184,9 +178,7 @@ static const std::map<LLMQType, LLMQParams> available_llmqs = {
  * 40 - 50 participants
  *
  */
-{
-    LLMQType::LLMQ_50_60,
-    {
+LLMQParams{
         .type = LLMQType::LLMQ_50_60,
         .name = "llmq_50_60",
         .size = 50,
@@ -200,10 +192,8 @@ static const std::map<LLMQType, LLMQParams> available_llmqs = {
         .dkgBadVotesThreshold = 40,
 
         .signingActiveQuorumCount = 24, // a full day worth of LLMQs
-
         .keepOldConnections = 25,
         .recoveryMembers = 25,
-    }
 },
 
 /**
@@ -212,9 +202,7 @@ static const std::map<LLMQType, LLMQParams> available_llmqs = {
  * 300 - 400 participants
  *
  */
-{
-    LLMQType::LLMQ_400_60,
-    {
+LLMQParams{
         .type = LLMQType::LLMQ_400_60,
         .name = "llmq_400_60",
         .size = 400,
@@ -231,7 +219,6 @@ static const std::map<LLMQType, LLMQParams> available_llmqs = {
 
         .keepOldConnections = 5,
         .recoveryMembers = 100,
-    }
 },
 
 /**
@@ -241,9 +228,7 @@ static const std::map<LLMQType, LLMQParams> available_llmqs = {
  *
  * Used for deployment and min-proto-version signalling
  */
-{
-    LLMQType::LLMQ_400_85,
-    {
+LLMQParams{
         .type = LLMQType::LLMQ_400_85,
         .name = "llmq_400_85",
         .size = 400,
@@ -260,7 +245,6 @@ static const std::map<LLMQType, LLMQParams> available_llmqs = {
 
         .keepOldConnections = 5,
         .recoveryMembers = 100,
-    }
 },
 
 /**
@@ -270,9 +254,7 @@ static const std::map<LLMQType, LLMQParams> available_llmqs = {
  *
  * Used by Dash Platform
  */
-{
-    LLMQType::LLMQ_100_67,
-    {
+LLMQParams{
         .type = LLMQType::LLMQ_100_67,
         .name = "llmq_100_67",
         .size = 100,
@@ -289,10 +271,9 @@ static const std::map<LLMQType, LLMQParams> available_llmqs = {
 
         .keepOldConnections = 25,
         .recoveryMembers = 50,
-    }
 },
 
-}; // available_llmqs
+}}; // available_llmqs
 
 } // namespace Consensus
 

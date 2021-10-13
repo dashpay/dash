@@ -111,7 +111,12 @@ static CBlock FindDevNetGenesisBlock(const CBlock &prevBlock, const CAmount& rew
 void CChainParams::AddLLMQ(Consensus::LLMQType llmqType)
 {
     assert(consensus.llmqs.count(llmqType) == 0);
-    consensus.llmqs[llmqType] = Consensus::available_llmqs.at(llmqType);
+    for (const auto& llmq_param : Consensus::available_llmqs) {
+        if (llmq_param.type == llmqType) {
+            consensus.llmqs[llmqType] = llmq_param;
+        }
+    }
+    assert(false);
 }
 
 /**
