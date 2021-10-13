@@ -1113,7 +1113,7 @@ void CDevNetParams::UpdateDevnetLLMQChainLocksFromArgs(const ArgsManager& args)
     if (llmqType == Consensus::LLMQType::LLMQ_NONE) {
         throw std::runtime_error("Invalid LLMQ type specified for -llmqchainlocks.");
     }
-    LogPrintf("Setting llmqchainlocks to size=%ld\n", (uint8_t)llmqType);
+    LogPrintf("Setting llmqchainlocks to size=%ld\n", static_cast<uint8_t>(llmqType));
     UpdateDevnetLLMQChainLocks(llmqType);
 }
 
@@ -1131,7 +1131,7 @@ void CDevNetParams::UpdateDevnetLLMQInstantSendFromArgs(const ArgsManager& args)
     if (llmqType == Consensus::LLMQType::LLMQ_NONE) {
         throw std::runtime_error("Invalid LLMQ type specified for -llmqinstantsend.");
     }
-    LogPrintf("Setting llmqinstantsend to size=%ld\n", (uint8_t)llmqType);
+    LogPrintf("Setting llmqinstantsend to size=%ld\n", static_cast<uint8_t>(llmqType));
     UpdateDevnetLLMQInstantSend(llmqType);
 }
 

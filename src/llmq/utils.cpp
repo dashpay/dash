@@ -320,7 +320,7 @@ bool CLLMQUtils::IsQuorumTypeEnabled(Consensus::LLMQType llmqType, const CBlockI
         case Consensus::LLMQType::LLMQ_DEVNET:
             break;
         default:
-            throw std::runtime_error(strprintf("%s: Unknown LLMQ type %d", __func__, (uint8_t)llmqType));
+            throw std::runtime_error(strprintf("%s: Unknown LLMQ type %d", __func__, static_cast<uint8_t>(llmqType)));
     }
 
     return true;
