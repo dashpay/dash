@@ -70,6 +70,7 @@ QString Proposal::url() const { return m_url; }
 
 bool Proposal::isActive() const
 {
+    LOCK(cs_main);
     std::string strError = "";
     return pGovObj->IsValidLocally(strError, false);
 }
