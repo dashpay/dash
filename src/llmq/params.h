@@ -5,8 +5,8 @@
 #ifndef BITCOIN_LLMQ_PARAMS_H
 #define BITCOIN_LLMQ_PARAMS_H
 
+#include <array>
 #include <cstdint>
-#include <map>
 #include <string_view>
 
 namespace Consensus {
@@ -33,9 +33,6 @@ enum class LLMQType : uint8_t
 // Configures a LLMQ and its DKG
 // See https://github.com/dashpay/dips/blob/master/dip-0006.md for more details
 struct LLMQParams {
-//
-//    LLMQParams() = delete;
-//
     LLMQType type;
 
     // not consensus critical, only used in logging, RPC and UI
@@ -98,14 +95,14 @@ struct LLMQParams {
 };
 
 
-static constexpr std::array<LLMQParams, 7> available_llmqs = {{
+static constexpr std::array<LLMQParams, 7> available_llmqs = {
 
-/**
- * llmq_test
- * This quorum is only used for testing
- *
- */
-LLMQParams{
+    /**
+     * llmq_test
+     * This quorum is only used for testing
+     *
+     */
+    LLMQParams{
         .type = LLMQType::LLMQ_TEST,
         .name = "llmq_test",
         .size = 3,
@@ -122,14 +119,14 @@ LLMQParams{
 
         .keepOldConnections = 3,
         .recoveryMembers = 3,
-},
+    },
 
-/**
- * llmq_test (Dash Core 0.17) aka llmq_test_v17
- * This quorum is only used for testing
- *
- */
-LLMQParams{
+    /**
+     * llmq_test (Dash Core 0.17) aka llmq_test_v17
+     * This quorum is only used for testing
+     *
+     */
+    LLMQParams{
         .type = LLMQType::LLMQ_TEST_V17,
         .name = "llmq_test_v17",
         .size = 3,
@@ -146,14 +143,14 @@ LLMQParams{
 
         .keepOldConnections = 3,
         .recoveryMembers = 3,
-},
+    },
 
-/**
- * llmq_devnet
- * This quorum is only used for testing on devnets
- *
- */
-LLMQParams{
+    /**
+     * llmq_devnet
+     * This quorum is only used for testing on devnets
+     *
+     */
+    LLMQParams{
         .type = LLMQType::LLMQ_DEVNET,
         .name = "llmq_devnet",
         .size = 10,
@@ -170,15 +167,15 @@ LLMQParams{
 
         .keepOldConnections = 4,
         .recoveryMembers = 6,
-},
+    },
 
 /**
- * llmq_50_60
- * This quorum is deployed on mainnet and requires
- * 40 - 50 participants
- *
- */
-LLMQParams{
+     * llmq_50_60
+     * This quorum is deployed on mainnet and requires
+     * 40 - 50 participants
+     *
+     */
+    LLMQParams{
         .type = LLMQType::LLMQ_50_60,
         .name = "llmq_50_60",
         .size = 50,
@@ -194,15 +191,15 @@ LLMQParams{
         .signingActiveQuorumCount = 24, // a full day worth of LLMQs
         .keepOldConnections = 25,
         .recoveryMembers = 25,
-},
+    },
 
-/**
- * llmq_400_60
- * This quorum is deployed on mainnet and requires
- * 300 - 400 participants
- *
- */
-LLMQParams{
+    /**
+     * llmq_400_60
+     * This quorum is deployed on mainnet and requires
+     * 300 - 400 participants
+     *
+     */
+    LLMQParams{
         .type = LLMQType::LLMQ_400_60,
         .name = "llmq_400_60",
         .size = 400,
@@ -219,16 +216,16 @@ LLMQParams{
 
         .keepOldConnections = 5,
         .recoveryMembers = 100,
-},
+    },
 
-/**
- * llmq_400_85
- * This quorum is deployed on mainnet and requires
- * 300 - 400 participants _with_ a supermajority
- *
- * Used for deployment and min-proto-version signalling
- */
-LLMQParams{
+    /**
+     * llmq_400_85
+     * This quorum is deployed on mainnet and requires
+     * 300 - 400 participants _with_ a supermajority
+     *
+     * Used for deployment and min-proto-version signalling
+     */
+    LLMQParams{
         .type = LLMQType::LLMQ_400_85,
         .name = "llmq_400_85",
         .size = 400,
@@ -245,16 +242,16 @@ LLMQParams{
 
         .keepOldConnections = 5,
         .recoveryMembers = 100,
-},
+    },
 
-/**
- * llmq_100_67
- * This quorum is deployed on mainnet and requires
- * 80 - 100 participants
- *
- * Used by Dash Platform
- */
-LLMQParams{
+    /**
+     * llmq_100_67
+     * This quorum is deployed on mainnet and requires
+     * 80 - 100 participants
+     *
+     * Used by Dash Platform
+     */
+    LLMQParams{
         .type = LLMQType::LLMQ_100_67,
         .name = "llmq_100_67",
         .size = 100,
@@ -271,9 +268,9 @@ LLMQParams{
 
         .keepOldConnections = 25,
         .recoveryMembers = 50,
-},
+    },
 
-}}; // available_llmqs
+}; // available_llmqs
 
 } // namespace Consensus
 

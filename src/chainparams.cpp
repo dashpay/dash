@@ -114,8 +114,10 @@ void CChainParams::AddLLMQ(Consensus::LLMQType llmqType)
     for (const auto& llmq_param : Consensus::available_llmqs) {
         if (llmq_param.type == llmqType) {
             consensus.llmqs[llmqType] = llmq_param;
+            return;
         }
     }
+    error("CChainParams::%s: unknown LLMQ type %d", __func__, static_cast<uint8_t>(llmqType));
     assert(false);
 }
 
