@@ -104,8 +104,8 @@ static UniValue BuildQuorumInfo(const llmq::CQuorumCPtr& quorum, bool includeMem
 {
     UniValue ret(UniValue::VOBJ);
 
-    ret.pushKV("height", quorum->pindexQuorum->nHeight);
-    ret.pushKV("type", std::string(quorum->params.name));
+    ret.pushKV("height", quorum->pquorumBaseBlockIndex->nHeight);
+    ret.pushKV("type", quorum->params.name);
     ret.pushKV("quorumHash", quorum->qc->quorumHash.ToString());
     ret.pushKV("minedBlock", quorum->minedBlockHash.ToString());
 
@@ -205,9 +205,13 @@ static UniValue quorum_dkgstatus(const JSONRPCRequest& request)
         const auto& llmq_params = llmq::GetLLMQParams(type);
 
         if (fMasternodeMode) {
-            const CBlockIndex* pindexQuorum = WITH_LOCK(cs_main, return chainActive[tipHeight - (tipHeight % llmq_params.dkgInterval)]);
-            auto allConnections = llmq::CLLMQUtils::GetQuorumConnections(llmq_params.type, pindexQuorum, proTxHash, false);
-            auto outboundConnections = llmq::CLLMQUtils::GetQuorumConnections(llmq_params.type, pindexQuorum, proTxHash, true);
+            const CBlockIndex* pquorumBaseBlockIndex;
+            {
+                LOCK(cs_main);
+                pquorumBaseBlockIndex = chainActive[tipHeight - (tipHeight % llmq_params.dkgInterval)];
+            }
+            auto allConnections = llmq::CLLMQUtils::GetQuorumConnections(llmq_params.type, pquorumBaseBlockIndex, proTxHash, false);
+            auto outboundConnections = llmq::CLLMQUtils::GetQuorumConnections(llmq_params.type, pquorumBaseBlockIndex, proTxHash, true);
             std::map<uint256, CAddress> foundConnections;
             g_connman->ForEachNode([&](const CNode* pnode) {
                 auto verifiedProRegTxHash = pnode->GetVerifiedProRegTxHash();
@@ -662,9 +666,13 @@ static UniValue quorum_getdata(const JSONRPCRequest& request)
         }
     }
 
-    const CBlockIndex* pQuorumIndex = WITH_LOCK(cs_main, return LookupBlockIndex(quorumHash));
+    const CBlockIndex* pquorumBaseBlockIndex{nullptr};
+    {
+        LOCK(cs_main);
+        pquorumBaseBlockIndex = LookupBlockIndex(quorumHash);
+    }
     return g_connman->ForNode(nodeId, [&](CNode* pNode) {
-        return llmq::quorumManager->RequestQuorumData(pNode, llmqType, pQuorumIndex, nDataMask, proTxHash);
+        return llmq::quorumManager->RequestQuorumData(pNode, llmqType, pquorumBaseBlockIndex, nDataMask, proTxHash);
     });
 }
 
