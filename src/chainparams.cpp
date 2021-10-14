@@ -199,7 +199,7 @@ static Consensus::LLMQParams llmq10_60 = {
 
         .keepOldConnections = 5,
 };
-/*
+/* for future usage, commented now it order to not trigger unncessary initializations
 static Consensus::LLMQParams llmq20_60 = {
         .type = Consensus::LLMQ_20_60,
         .name = "llmq_20_60",
@@ -292,11 +292,11 @@ public:
         consensus.LLMQSwitchHeight = 1050000; // switch from Dash LLMQs to Alterdot LLMQs, will probably be used for future switches
 
         consensus.DIP0006EnforcementHeight = 1051000;
-        //consensus.DIP0006EnforcementHash = uint256S("000000000000002d1734087b4c5afc3133e4e1c3e1a89218f62bcd9bb3d17f81"); // TODO_ADOT_FUTURE to be mined
+        //consensus.DIP0006EnforcementHash = uint256S("000000000000002d1734087b4c5afc3133e4e1c3e1a89218f62bcd9bb3d17f81"); // TODO_ADOT_LOW
 
-        consensus.DIP0008Height = 2000000; // corresponds to ChainLocks activation TODO_ADOT_FUTURE
-        //consensus.DIP0008EnforcementHeight = 1100000; TODO_ADOT_FUTURE to be implemented
-        //consensus.DIP0008EnforcementHash = uint256S("000000000000002d1734087b4c5afc3133e4e1c3e1a89218f62bcd9bb3d17f81"); // TODO_ADOT_FUTURE
+        consensus.DIP0008Height = 1072000; // corresponds to ChainLocks context activation, version two of quorum commitments, hard fork block
+        consensus.DIP0008EnforcementHeight = 1072200; // enforcement of ChainLocks
+        //consensus.DIP0008EnforcementHash = uint256S("000000000000002d1734087b4c5afc3133e4e1c3e1a89218f62bcd9bb3d17f81"); // TODO_ADOT_FUTURE to be mined
         
         //consensus.nPowTargetTimespan = 24 * 60 * 60; // Alterdot: 1 day, not used in Alterdot
         consensus.nDifficultyAdjustmentInterval = 576; // biggest time frame used by the DELTA retargeting algo, we switched to LWMA but this is used for older blocks

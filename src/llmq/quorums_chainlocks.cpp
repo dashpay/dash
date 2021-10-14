@@ -74,7 +74,7 @@ bool CChainLocksHandler::GetChainLockByHash(const uint256& hash, llmq::CChainLoc
 
 void CChainLocksHandler::ProcessMessage(CNode* pfrom, const std::string& strCommand, CDataStream& vRecv, CConnman& connman)
 {
-    if (!sporkManager.IsSporkActive(SPORK_19_CHAINLOCKS_ENABLED)) {
+    if (!isDIP0008Enforced) {
         return;
     }
 
@@ -214,10 +214,10 @@ void CChainLocksHandler::CheckActiveState()
 
     LOCK(cs);
     bool oldIsEnforced = isEnforced;
-    isSporkActive = sporkManager.IsSporkActive(SPORK_19_CHAINLOCKS_ENABLED); // TODO_ADOT_FUTURE DIP0008 Enforcement
+    isDIP0008Enforced = chainActive.Tip()->nHeight >= Params().GetConsensus().DIP0008EnforcementHeight;
     // TODO remove this after DIP8 is active
     bool fEnforcedBySpork = (Params().NetworkIDString() == CBaseChainParams::TESTNET) && (sporkManager.GetSporkValue(SPORK_19_CHAINLOCKS_ENABLED) == 1);
-    isEnforced = (fDIP0008Active_context && isSporkActive) || fEnforcedBySpork;
+    isEnforced = (fDIP0008Active_context && isDIP0008Enforced) || fEnforcedBySpork;
 
     if (!oldIsEnforced && isEnforced) {
         // ChainLocks got activated just recently, but it's possible that it was already running before, leaving
@@ -244,7 +244,7 @@ void CChainLocksHandler::TrySignChainTip()
     const CBlockIndex* pindex;
     {
         LOCK(cs_main);
-        pindex = chainActive.Tip();
+        pindex = chainActive[chainActive.Height() - 10];
     }
 
     if (!pindex->pprev) {
@@ -259,7 +259,7 @@ void CChainLocksHandler::TrySignChainTip()
     {
         LOCK(cs);
 
-        if (!isSporkActive) {
+        if (!isDIP0008Enforced) {
             return;
         }
 
@@ -448,7 +448,7 @@ bool CChainLocksHandler::IsTxSafeForMining(const uint256& txid)
     int64_t txAge = 0;
     {
         LOCK(cs);
-        if (!isSporkActive) {
+        if (!isDIP0008Enforced) {
             return true;
         }
         auto it = txFirstSeenTime.find(txid);
@@ -544,7 +544,7 @@ void CChainLocksHandler::HandleNewRecoveredSig(const llmq::CRecoveredSig& recove
     {
         LOCK(cs);
 
-        if (!isSporkActive) {
+        if (!isDIP0008Enforced) {
             return;
         }
 
