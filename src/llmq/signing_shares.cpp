@@ -878,7 +878,7 @@ void CSigSharesManager::CollectSigSharesToRequest(std::unordered_map<NodeId, std
             continue;
         }
 
-        nodeState.requestedSigShares.EraseIf([&](const SigShareKey& k, int64_t t) {
+        nodeState.requestedSigShares.EraseIf([&now, &nodeId](const SigShareKey& k, int64_t t) {
             if (now - t >= SIG_SHARE_REQUEST_TIMEOUT) {
                 // timeout while waiting for this one, so retry it with another node
                 LogPrint(BCLog::LLMQ_SIGS, "CSigSharesManager::CollectSigSharesToRequest -- timeout while waiting for %s-%d, node=%d\n",
@@ -1059,7 +1059,7 @@ void CSigSharesManager::CollectSigSharesToAnnounce(std::unordered_map<NodeId, st
 
     std::unordered_map<std::pair<Consensus::LLMQType, uint256>, std::unordered_set<NodeId>, StaticSaltedHasher> quorumNodesMap;
 
-    sigSharesQueuedToAnnounce.ForEach([&](const SigShareKey& sigShareKey, bool) {
+    sigSharesQueuedToAnnounce.ForEach([this, &quorumNodesMap, &sigSharesToAnnounce](const SigShareKey& sigShareKey, bool) {
         AssertLockHeld(cs);
         const auto& signHash = sigShareKey.first;
         auto quorumMember = sigShareKey.second;
@@ -1310,7 +1310,7 @@ void CSigSharesManager::Cleanup()
 
     {
         LOCK(cs);
-        sigShares.ForEach([&](const SigShareKey& k, const CSigShare& sigShare) {
+        sigShares.ForEach([&quorums](const SigShareKey&, const CSigShare& sigShare) {
             quorums.emplace(std::make_pair(sigShare.llmqType, sigShare.quorumHash), nullptr);
         });
     }
@@ -1329,7 +1329,7 @@ void CSigSharesManager::Cleanup()
         // Now delete sessions which are for inactive quorums
         LOCK(cs);
         std::unordered_set<uint256, StaticSaltedHasher> inactiveQuorumSessions;
-        sigShares.ForEach([&](const SigShareKey& k, const CSigShare& sigShare) {
+        sigShares.ForEach([&quorums, &inactiveQuorumSessions](const SigShareKey&, const CSigShare& sigShare) {
             if (!quorums.count(std::make_pair(sigShare.llmqType, sigShare.quorumHash))) {
                 inactiveQuorumSessions.emplace(sigShare.GetSignHash());
             }
@@ -1344,7 +1344,7 @@ void CSigSharesManager::Cleanup()
 
         // Remove sessions which were successfully recovered
         std::unordered_set<uint256, StaticSaltedHasher> doneSessions;
-        sigShares.ForEach([&](const SigShareKey& k, const CSigShare& sigShare) {
+        sigShares.ForEach([&doneSessions](const SigShareKey&, const CSigShare& sigShare) {
             if (doneSessions.count(sigShare.GetSignHash())) {
                 return;
             }
@@ -1407,7 +1407,7 @@ void CSigSharesManager::Cleanup()
             nodeStatesToDelete.emplace(p.first);
         }
     }
-    g_connman->ForEachNode([&](CNode* pnode) {
+    g_connman->ForEachNode([&nodeStatesToDelete](CNode* pnode) {
         nodeStatesToDelete.erase(pnode->GetId());
     });
 
@@ -1419,7 +1419,7 @@ void CSigSharesManager::Cleanup()
             continue;
         }
         // remove global requested state to force a re-request from another node
-        it->second.requestedSigShares.ForEach([&](const SigShareKey& k, bool) {
+        it->second.requestedSigShares.ForEach([this](const SigShareKey& k, bool) {
             AssertLockHeld(cs);
             sigSharesRequested.Erase(k);
         });
@@ -1453,7 +1453,7 @@ void CSigSharesManager::RemoveBannedNodeStates()
     for (auto it = nodeStates.begin(); it != nodeStates.end();) {
         if (IsBanned(it->first)) {
             // re-request sigshares from other nodes
-            it->second.requestedSigShares.ForEach([&](const SigShareKey& k, int64_t) {
+            it->second.requestedSigShares.ForEach([this](const SigShareKey& k, int64_t) {
                 AssertLockHeld(cs);
                 sigSharesRequested.Erase(k);
             });
@@ -1483,7 +1483,7 @@ void CSigSharesManager::BanNode(NodeId nodeId)
     auto& nodeState = it->second;
 
     // Whatever we requested from him, let's request it from someone else now
-    nodeState.requestedSigShares.ForEach([&](const SigShareKey& k, int64_t) {
+    nodeState.requestedSigShares.ForEach([this](const SigShareKey& k, int64_t) {
         AssertLockHeld(cs);
         sigSharesRequested.Erase(k);
     });
