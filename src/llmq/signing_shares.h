@@ -384,7 +384,7 @@ public:
     void InterruptWorkerThread();
 
 public:
-    void ProcessMessage(CNode* pnode, const std::string& strCommand, CDataStream& vRecv);
+    void ProcessMessage(const CNode* pnode, const std::string& strCommand, CDataStream& vRecv);
 
     void AsyncSign(const CQuorumCPtr& quorum, const uint256& id, const uint256& msgHash);
     CSigShare CreateSigShare(const CQuorumCPtr& quorum, const uint256& id, const uint256& msgHash) const;
@@ -396,10 +396,10 @@ public:
 
 private:
     // all of these return false when the currently processed message should be aborted (as each message actually contains multiple messages)
-    bool ProcessMessageSigSesAnn(CNode* pfrom, const CSigSesAnn& ann);
-    bool ProcessMessageSigSharesInv(CNode* pfrom, const CSigSharesInv& inv);
-    bool ProcessMessageGetSigShares(CNode* pfrom, const CSigSharesInv& inv);
-    bool ProcessMessageBatchedSigShares(CNode* pfrom, const CBatchedSigShares& batchedSigShares);
+    bool ProcessMessageSigSesAnn(const CNode* pfrom, const CSigSesAnn& ann);
+    bool ProcessMessageSigSharesInv(const CNode* pfrom, const CSigSharesInv& inv);
+    bool ProcessMessageGetSigShares(const CNode* pfrom, const CSigSharesInv& inv);
+    bool ProcessMessageBatchedSigShares(const CNode* pfrom, const CBatchedSigShares& batchedSigShares);
     void ProcessMessageSigShare(NodeId fromId, const CSigShare& sigShare);
 
     static bool VerifySigSharesInv(Consensus::LLMQType llmqType, const CSigSharesInv& inv);
