@@ -15,7 +15,6 @@
 #include <net_processing.h>
 #include <netmessagemaker.h>
 #include <spork.h>
-#include <validation.h>
 
 #include <cxxtimer.hpp>
 
