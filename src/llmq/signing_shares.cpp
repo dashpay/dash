@@ -1534,15 +1534,14 @@ void CSigSharesManager::AsyncSign(const CQuorumCPtr& quorum, const uint256& id, 
 
 void CSigSharesManager::SignPendingSigShares()
 {
-    std::vector<std::tuple<const CQuorumCPtr, uint256, uint256>> v;
+    std::vector<PendingSignatureData> v;
     {
         LOCK(cs);
         v = std::move(pendingSigns);
     }
 
-    for (auto& t : v) {
-        const CQuorumCPtr pQuorum = std::get<0>(t);
-        CSigShare sigShare = CreateSigShare(pQuorum, std::get<1>(t), std::get<2>(t));
+    for (const auto& [pQuorum, id, msgHash] : v) {
+        CSigShare sigShare = CreateSigShare(pQuorum, id, msgHash);
 
         if (sigShare.sigShare.Get().IsValid()) {
 

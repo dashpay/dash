@@ -15,6 +15,7 @@
 
 #include <thread>
 #include <unordered_map>
+#include <utility>
 
 class CEvoDB;
 class CScheduler;
@@ -357,7 +358,15 @@ private:
     SigShareMap<std::pair<NodeId, int64_t>> sigSharesRequested GUARDED_BY(cs);
     SigShareMap<bool> sigSharesQueuedToAnnounce GUARDED_BY(cs);
 
-    std::vector<std::tuple<const CQuorumCPtr, uint256, uint256>> pendingSigns GUARDED_BY(cs);
+    struct PendingSignatureData {
+        const CQuorumCPtr quorum;
+        const uint256 id;
+        const uint256 msgHash;
+
+        PendingSignatureData(CQuorumCPtr quorum, const uint256& id, const uint256& msgHash) : quorum(std::move(quorum)), id(id), msgHash(msgHash){}
+    };
+
+    std::vector<PendingSignatureData> pendingSigns GUARDED_BY(cs);
 
     FastRandomContext rnd GUARDED_BY(cs);
 
