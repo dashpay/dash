@@ -69,7 +69,7 @@ private:
     AddressBookPage *usedSendingAddressesPage;
     AddressBookPage *usedReceivingAddressesPage;
     MasternodeList *masternodeListPage;
-    GovernanceList *governanceListPage;
+    GovernanceList* governanceListPage;
 
     TransactionView *transactionView;
 

@@ -36,7 +36,6 @@ WalletFrame::WalletFrame(BitcoinGUI* _gui) :
 
     governanceListPage = new GovernanceList();
     walletStack->addWidget(governanceListPage);
-
 }
 
 WalletFrame::~WalletFrame()

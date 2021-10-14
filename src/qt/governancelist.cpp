@@ -1,13 +1,13 @@
-#include <qt/governancelist.h>
 #include <qt/forms/ui_governancelist.h>
+#include <qt/governancelist.h>
 
 #include <chainparams.h>
-#include <evo/deterministicmns.h>
-#include <qt/clientmodel.h>
 #include <clientversion.h>
 #include <coins.h>
-#include <qt/guiutil.h>
+#include <evo/deterministicmns.h>
 #include <netbase.h>
+#include <qt/clientmodel.h>
+#include <qt/guiutil.h>
 #include <qt/walletmodel.h>
 
 #include <univalue.h>
@@ -23,7 +23,7 @@
 /// Proposal wrapper
 ///
 
-Proposal::Proposal(const CGovernanceObject *p, QObject *parent) :
+Proposal::Proposal(const CGovernanceObject* p, QObject* parent) :
     QObject(parent),
     pGovObj(p)
 {
@@ -105,31 +105,40 @@ QString Proposal::toJson() const
 /// Proposal Model
 ///
 
-ProposalModel::ProposalModel(QObject *parent) : QAbstractTableModel(parent) {}
+ProposalModel::ProposalModel(QObject* parent) :
+    QAbstractTableModel(parent) {}
 
-int ProposalModel::rowCount(const QModelIndex &index) const
+int ProposalModel::rowCount(const QModelIndex& index) const
 {
     return m_data.count();
 }
 
-int ProposalModel::columnCount(const QModelIndex &index) const
+int ProposalModel::columnCount(const QModelIndex& index) const
 {
     return 8;
 }
 
-QVariant ProposalModel::data(const QModelIndex &index, int role) const
+QVariant ProposalModel::data(const QModelIndex& index, int role) const
 {
     if (role != Qt::DisplayRole && role != Qt::EditRole) return {};
     const auto proposal = m_data[index.row()];
     switch (index.column()) {
-        case 0: return proposal->hash();
-        case 1: return proposal->title();
-        case 2: return proposal->startDate();
-        case 3: return proposal->endDate();
-        case 4: return proposal->paymentAmount();
-        case 5: return proposal->isActive() ? "Y" : "N";
-        case 6: return proposal->votingStatus(nMnCount, nAbsVoteReq);
-        default: return {};
+    case 0:
+        return proposal->hash();
+    case 1:
+        return proposal->title();
+    case 2:
+        return proposal->startDate();
+    case 3:
+        return proposal->endDate();
+    case 4:
+        return proposal->paymentAmount();
+    case 5:
+        return proposal->isActive() ? "Y" : "N";
+    case 6:
+        return proposal->votingStatus(nMnCount, nAbsVoteReq);
+    default:
+        return {};
     };
 }
 
@@ -137,27 +146,44 @@ QVariant ProposalModel::headerData(int section, Qt::Orientation orientation, int
 {
     if (orientation != Qt::Horizontal || role != Qt::DisplayRole) return {};
     switch (section) {
-        case 0: return "Hash";
-        case 1: return "Title";
-        case 2: return "Start";
-        case 3: return "End";
-        case 4: return "Amount";
-        case 5: return "Active";
-        case 6: return "Status";
-        default: return {};
+    case 0:
+        return "Hash";
+    case 1:
+        return "Title";
+    case 2:
+        return "Start";
+    case 3:
+        return "End";
+    case 4:
+        return "Amount";
+    case 5:
+        return "Active";
+    case 6:
+        return "Status";
+    default:
+        return {};
     }
 }
 
-int ProposalModel::columnWidth(int section) const {
+int ProposalModel::columnWidth(int section) const
+{
     switch (section) {
-        case 0: return 80;
-        case 1: return 220;
-        case 2: return 110;
-        case 3: return 110;
-        case 4: return 110;
-        case 5: return 80;
-        case 6: return 220;
-        default: return 80;
+    case 0:
+        return 80;
+    case 1:
+        return 220;
+    case 2:
+        return 110;
+    case 3:
+        return 110;
+    case 4:
+        return 110;
+    case 5:
+        return 80;
+    case 6:
+        return 220;
+    default:
+        return 80;
     }
 }
 
@@ -175,7 +201,7 @@ void ProposalModel::remove(int row)
     endRemoveRows();
 }
 
-void ProposalModel::reconcile(const std::vector<const Proposal*> &proposals)
+void ProposalModel::reconcile(const std::vector<const Proposal*>& proposals)
 {
     std::vector<bool> keep_index(m_data.count(), false);
     for (const auto proposal : proposals) {
@@ -192,8 +218,8 @@ void ProposalModel::reconcile(const std::vector<const Proposal*> &proposals)
         }
     }
     for (unsigned int i = keep_index.size(); i > 0; --i) {
-        if (!keep_index.at(i-1)) {
-            remove(i-1);
+        if (!keep_index.at(i - 1)) {
+            remove(i - 1);
         }
     }
 }
@@ -201,16 +227,16 @@ void ProposalModel::reconcile(const std::vector<const Proposal*> &proposals)
 
 void ProposalModel::setVotingParams(int nMnCount, int nAbsVoteReq)
 {
-   if (this->nMnCount != nMnCount || this->nAbsVoteReq != nAbsVoteReq) {
-       this->nMnCount = nMnCount;
-       this->nAbsVoteReq = nAbsVoteReq;
-       // Changing either of the voting params may change the voting status
-       // column. Emit signal to force recalc.
-       Q_EMIT dataChanged(createIndex(0, 6), createIndex(columnCount(), 6));
+    if (this->nMnCount != nMnCount || this->nAbsVoteReq != nAbsVoteReq) {
+        this->nMnCount = nMnCount;
+        this->nAbsVoteReq = nAbsVoteReq;
+        // Changing either of the voting params may change the voting status
+        // column. Emit signal to force recalc.
+        Q_EMIT dataChanged(createIndex(0, 6), createIndex(columnCount(), 6));
     }
 }
 
-const Proposal* ProposalModel::getProposalAt(const QModelIndex &index) const
+const Proposal* ProposalModel::getProposalAt(const QModelIndex& index) const
 {
     return m_data[index.row()];
 }
@@ -239,11 +265,11 @@ GovernanceList::GovernanceList(QWidget* parent) :
     ui->govTableView->horizontalHeader()->setStretchLastSection(true);
 
     for (int i = 0; i < proposalModel->columnCount(); ++i) {
-       ui->govTableView->setColumnWidth(i, proposalModel->columnWidth(i));
+        ui->govTableView->setColumnWidth(i, proposalModel->columnWidth(i));
     }
 
     // Set up filtering.
-    proposalModelProxy->setFilterKeyColumn(1);  // filter by title column...
+    proposalModelProxy->setFilterKeyColumn(1); // filter by title column...
     ui->filterLineEdit->setPlaceholderText(tr("Filter by Title"));
     connect(ui->filterLineEdit, &QLineEdit::textChanged, proposalModelProxy, &QSortFilterProxyModel::setFilterFixedString);
 
@@ -275,10 +301,7 @@ void GovernanceList::setClientModel(ClientModel* model)
 
 void GovernanceList::updateProposalList()
 {
-
-
     if (this->clientModel) {
-
         // A propsal is considered passing if (YES votes - NO votes) > (Total Number of Masternodes / 10),
         // count total valid (ENABLED) masternodes to determine passing threshold.
         // Need to query number of masternodes here with access to clientModel.
@@ -288,22 +311,19 @@ void GovernanceList::updateProposalList()
 
         std::vector<const CGovernanceObject*> govObjList = clientModel->getAllGovernanceObjects();
         std::vector<const Proposal*> newProposals;
-        for (const auto pGovObj: govObjList) {
-
+        for (const auto pGovObj : govObjList) {
             auto govObjType = pGovObj->GetObjectType();
             if (govObjType != GOVERNANCE_OBJECT_PROPOSAL) {
                 continue; // Skip triggers.
             }
 
             newProposals.push_back(new Proposal(pGovObj, proposalModel));
-
         }
         proposalModel->reconcile(newProposals);
     }
 
     // Schedule next update.
     timer->start(GOVERNANCELIST_UPDATE_SECONDS * 1000);
-
 }
 
 void GovernanceList::updateProposalCount()
@@ -328,7 +348,7 @@ void GovernanceList::showProposalContextMenu(const QPoint& pos)
     proposalContextMenu->exec(QCursor::pos());
 }
 
-void GovernanceList::showAdditionalInfo(const QModelIndex &index)
+void GovernanceList::showAdditionalInfo(const QModelIndex& index)
 {
     if (!index.isValid()) {
         return;
@@ -339,6 +359,4 @@ void GovernanceList::showAdditionalInfo(const QModelIndex &index)
     const auto json = proposal->toJson();
 
     QMessageBox::information(this, windowTitle, json);
-
 }
-

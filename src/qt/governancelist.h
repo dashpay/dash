@@ -1,22 +1,21 @@
 #ifndef BITCOIN_QT_GOVERNANCELIST_H
 #define BITCOIN_QT_GOVERNANCELIST_H
 
+#include <governance/object.h>
 #include <primitives/transaction.h>
 #include <sync.h>
 #include <util/system.h>
-#include <governance/object.h>
 
 #include <QAbstractTableModel>
+#include <QDateTime>
 #include <QMenu>
 #include <QSortFilterProxyModel>
 #include <QTimer>
 #include <QWidget>
-#include <QDateTime>
 
 #define GOVERNANCELIST_UPDATE_SECONDS 10
 
-namespace Ui
-{
+namespace Ui {
 class GovernanceList;
 }
 
@@ -36,7 +35,7 @@ private:
     QString m_url;
 
 public:
-    Proposal(const CGovernanceObject *p, QObject *parent = nullptr);
+    Proposal(const CGovernanceObject* p, QObject* parent = nullptr);
     QString title() const;
     QString hash() const;
     QDateTime startDate() const;
@@ -57,19 +56,20 @@ private:
     QList<const Proposal*> m_data;
     int nMnCount;
     int nAbsVoteReq;
+
 public:
     ProposalModel(QObject* parent = nullptr);
-    int rowCount(const QModelIndex &parent = QModelIndex()) const override;
-    int columnCount(const QModelIndex &parent = QModelIndex()) const override;
-    QVariant data(const QModelIndex &index, int role) const override;
+    int rowCount(const QModelIndex& parent = QModelIndex()) const override;
+    int columnCount(const QModelIndex& parent = QModelIndex()) const override;
+    QVariant data(const QModelIndex& index, int role) const override;
     QVariant headerData(int section, Qt::Orientation orientation, int role) const override;
     int columnWidth(int section) const;
     void append(const Proposal* proposal);
     void remove(int row);
-    void reconcile(const std::vector<const Proposal*> &proposals);
+    void reconcile(const std::vector<const Proposal*>& proposals);
     void setVotingParams(int nMnCount, int nAbsVoteReq);
 
-    const Proposal* getProposalAt(const QModelIndex &index) const;
+    const Proposal* getProposalAt(const QModelIndex& index) const;
 };
 
 /** Governance Manager page widget */
@@ -96,7 +96,7 @@ private Q_SLOTS:
     void updateProposalList();
     void updateProposalCount();
     void showProposalContextMenu(const QPoint& pos);
-    void showAdditionalInfo(const QModelIndex &index);
+    void showAdditionalInfo(const QModelIndex& index);
 };
 
 

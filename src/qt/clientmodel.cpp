@@ -19,12 +19,12 @@
 #include <governance/object.h>
 #include <interfaces/handler.h>
 #include <interfaces/node.h>
-#include <validation.h>
 #include <net.h>
 #include <netbase.h>
 #include <txmempool.h>
 #include <ui_interface.h>
 #include <util/system.h>
+#include <validation.h>
 #include <warnings.h>
 
 #include <stdint.h>

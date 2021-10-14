@@ -32,10 +32,10 @@
 #include <chainparams.h>
 #include <interfaces/handler.h>
 #include <interfaces/node.h>
-#include <ui_interface.h>
-#include <util/system.h>
 #include <qt/governancelist.h>
 #include <qt/masternodelist.h>
+#include <ui_interface.h>
+#include <util/system.h>
 
 #include <iostream>
 

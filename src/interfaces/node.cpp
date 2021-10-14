@@ -10,8 +10,8 @@
 #include <chain.h>
 #include <chainparams.h>
 #include <evo/deterministicmns.h>
-#include <governance/object.h>
 #include <governance/governance.h>
+#include <governance/object.h>
 #include <init.h>
 #include <interfaces/handler.h>
 #include <interfaces/wallet.h>
@@ -68,7 +68,8 @@ public:
 class GOVImpl : public GOV
 {
 public:
-    std::vector<const CGovernanceObject*> getAllNewerThan(int64_t nMoreThanTime) override {
+    std::vector<const CGovernanceObject*> getAllNewerThan(int64_t nMoreThanTime) override
+    {
         return governance.GetAllNewerThan(nMoreThanTime);
     }
 };
