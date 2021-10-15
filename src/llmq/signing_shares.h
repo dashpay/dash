@@ -409,7 +409,7 @@ private:
             std::unordered_map<std::pair<Consensus::LLMQType, uint256>, CQuorumCPtr, StaticSaltedHasher>& retQuorums);
     bool ProcessPendingSigShares(const CConnman& connman);
 
-    void ProcessPendingSigShares(const std::vector<CSigShare>& sigShares,
+    void ProcessPendingSigShares(const std::vector<CSigShare>& sigSharesToProcess,
             const std::unordered_map<std::pair<Consensus::LLMQType, uint256>, CQuorumCPtr, StaticSaltedHasher>& quorums,
             const CConnman& connman);
 
