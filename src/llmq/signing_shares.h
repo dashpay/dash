@@ -75,7 +75,7 @@ public:
         READWRITE(VARINT(obj.sessionId), obj.llmqType, obj.quorumHash, obj.id, obj.msgHash);
     }
 
-    std::string ToString() const;
+    [[nodiscard]] std::string ToString() const;
 };
 
 class CSigSharesInv
@@ -95,13 +95,13 @@ public:
     }
 
     void Init(size_t size);
-    bool IsSet(uint16_t quorumMember) const;
+    [[nodiscard]] bool IsSet(uint16_t quorumMember) const;
     void Set(uint16_t quorumMember, bool v);
     void SetAll(bool v);
     void Merge(const CSigSharesInv& inv2);
 
-    size_t CountSet() const;
-    std::string ToString() const;
+    [[nodiscard]] size_t CountSet() const;
+    [[nodiscard]] std::string ToString() const;
 };
 
 // sent through the message QBSIGSHARES as a vector of multiple batches
@@ -117,7 +117,7 @@ public:
         READWRITE(VARINT(obj.sessionId), obj.sigShares);
     }
 
-    std::string ToInvString() const;
+    [[nodiscard]] std::string ToInvString() const;
 };
 
 template<typename T>
@@ -150,7 +150,7 @@ public:
         internalMap.clear();
     }
 
-    bool Has(const SigShareKey& k) const
+    [[nodiscard]] bool Has(const SigShareKey& k) const
     {
         auto it = internalMap.find(k.first);
         if (it == internalMap.end()) {
@@ -192,7 +192,7 @@ public:
         return &internalMap.begin()->second.begin()->second;
     }
 
-    size_t Size() const
+    [[nodiscard]] size_t Size() const
     {
         size_t s = 0;
         for (auto& p : internalMap) {
@@ -201,7 +201,7 @@ public:
         return s;
     }
 
-    size_t CountForSignHash(const uint256& signHash) const
+    [[nodiscard]] size_t CountForSignHash(const uint256& signHash) const
     {
         auto it = internalMap.find(signHash);
         if (it == internalMap.end()) {
@@ -210,7 +210,7 @@ public:
         return it->second.size();
     }
 
-    bool Empty() const
+    [[nodiscard]] bool Empty() const
     {
         return internalMap.empty();
     }
