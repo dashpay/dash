@@ -328,6 +328,7 @@ public:
 
 class CSigSharesManager : public CRecoveredSigsListener
 {
+private:
     static constexpr int64_t SESSION_NEW_SHARES_TIMEOUT{60};
     static constexpr int64_t SIG_SHARE_REQUEST_TIMEOUT{5};
 
@@ -342,7 +343,6 @@ class CSigSharesManager : public CRecoveredSigsListener
     static constexpr int64_t MAX_SEND_FOR_RECOVERY_TIMEOUT{10000};
     static constexpr size_t MAX_MSGS_SIG_SHARES{32};
 
-private:
     CCriticalSection cs;
 
     std::thread workThread;
@@ -383,7 +383,6 @@ public:
     void UnregisterAsRecoveredSigsListener();
     void InterruptWorkerThread();
 
-public:
     void ProcessMessage(const CNode* pnode, const std::string& strCommand, CDataStream& vRecv);
 
     void AsyncSign(const CQuorumCPtr& quorum, const uint256& id, const uint256& msgHash);
@@ -417,7 +416,6 @@ private:
     void ProcessSigShare(const CSigShare& sigShare, const CConnman& connman, const CQuorumCPtr& quorum);
     void TryRecoverSig(const CQuorumCPtr& quorum, const uint256& id, const uint256& msgHash);
 
-private:
     bool GetSessionInfoByRecvId(NodeId nodeId, uint32_t sessionId, CSigSharesNodeState::SessionInfo& retInfo);
     static CSigShare RebuildSigShare(const CSigSharesNodeState::SessionInfo& session, const CBatchedSigShares& batchedSigShares, size_t idx);
 
