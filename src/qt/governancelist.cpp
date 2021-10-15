@@ -8,7 +8,6 @@
 #include <netbase.h>
 #include <qt/clientmodel.h>
 #include <qt/guiutil.h>
-#include <qt/walletmodel.h>
 
 #include <univalue.h>
 
@@ -36,17 +35,17 @@ Proposal::Proposal(const CGovernanceObject* p, QObject* parent) :
 
         UniValue paymentStartValue = find_value(prop_data, "start_epoch");
         if (paymentStartValue.isNum()) {
-            m_startDate = QDateTime::fromSecsSinceEpoch(paymentStartValue.get_int());
+            m_startDate = QDateTime::fromSecsSinceEpoch(paymentStartValue.get_int64());
         }
 
         UniValue paymentEndValue = find_value(prop_data, "end_epoch");
         if (paymentEndValue.isNum()) {
-            m_endDate = QDateTime::fromSecsSinceEpoch(paymentEndValue.get_int());
+            m_endDate = QDateTime::fromSecsSinceEpoch(paymentEndValue.get_int64());
         }
 
         UniValue amountValue = find_value(prop_data, "payment_amount");
         if (amountValue.isNum()) {
-            m_paymentAmount = amountValue.get_int();
+            m_paymentAmount = amountValue.get_real();
         }
 
         UniValue urlValue = find_value(prop_data, "url");
@@ -84,9 +83,9 @@ QString Proposal::votingStatus(int nMnCount, int nAbsVoteReq) const
     QString qStatusString;
     if (absYesCount > nAbsVoteReq) {
         // Could use pGovObj->IsSetCachedFunding here, but need nAbsVoteReq to display numbers anyway.
-        return QString("Passing +%1 (%2 of %3 needed)").arg(absYesCount - nAbsVoteReq).arg(absYesCount).arg(nAbsVoteReq);
+        return tr("Passing +%1").arg(absYesCount - nAbsVoteReq);
     } else {
-        return QString("Needs additional %1 votes").arg(nAbsVoteReq - absYesCount);
+        return tr("Needs additional %1 votes").arg(nAbsVoteReq - absYesCount);
     }
 }
 
@@ -128,9 +127,9 @@ QVariant ProposalModel::data(const QModelIndex& index, int role) const
     case 1:
         return proposal->title();
     case 2:
-        return proposal->startDate();
+        return proposal->startDate().date();
     case 3:
-        return proposal->endDate();
+        return proposal->endDate().date();
     case 4:
         return proposal->paymentAmount();
     case 5:
