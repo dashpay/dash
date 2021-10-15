@@ -1582,9 +1582,9 @@ void CSigSharesManager::ForceReAnnouncement(const CQuorumCPtr& quorum, Consensus
     LOCK(cs);
     auto signHash = CLLMQUtils::BuildSignHash(llmqType, quorum->qc->quorumHash, id, msgHash);
     if (const auto sigs = sigShares.GetAllForSignHash(signHash)) {
-        for (const auto& [bad_name, _] : *sigs) {
+        for (const auto& [quorumMemberIndex, _] : *sigs) {
             // re-announce every sigshare to every node
-            sigSharesQueuedToAnnounce.Add(std::make_pair(signHash, bad_name), true);
+            sigSharesQueuedToAnnounce.Add(std::make_pair(signHash, quorumMemberIndex), true);
         }
     }
     for (auto& [_, nodeState] : nodeStates) {
