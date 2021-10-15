@@ -375,7 +375,7 @@ private:
 
 public:
     CSigSharesManager();
-    ~CSigSharesManager();
+    ~CSigSharesManager() override;
 
     void StartWorkerThread();
     void StopWorkerThread();
