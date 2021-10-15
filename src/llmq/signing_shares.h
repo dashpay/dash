@@ -65,7 +65,7 @@ class CSigSesAnn
 {
 public:
     uint32_t sessionId{UNINITIALIZED_SESSION_ID};
-    Consensus::LLMQType llmqType;
+    Consensus::LLMQType llmqType{Consensus::LLMQType::LLMQ_NONE};
     uint256 quorumHash;
     uint256 id;
     uint256 msgHash;
