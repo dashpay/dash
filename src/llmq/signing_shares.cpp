@@ -341,7 +341,7 @@ bool CSigSharesManager::ProcessMessageSigSesAnn(const CNode* pfrom, const CSigSe
     nodeState.sessionByRecvId.erase(ann.sessionId);
     session.recvSessionId = ann.sessionId;
     session.quorum = quorum;
-    nodeState.sessionByRecvId.emplace(ann.sessionId, &session);
+    nodeState.sessionByRecvId.try_emplace(ann.sessionId, &session);
 
     return true;
 }
@@ -617,7 +617,7 @@ void CSigSharesManager::CollectPendingSigSharesToVerify(
 
             CQuorumCPtr quorum = quorumManager->GetQuorum(llmqType, sigShare.quorumHash);
             assert(quorum != nullptr);
-            retQuorums.emplace(k, quorum);
+            retQuorums.try_emplace(k, quorum);
         }
     }
 }
@@ -981,7 +981,7 @@ void CSigSharesManager::CollectSigSharesToSend(std::unordered_map<NodeId, std::u
                     // only create the map if we actually add a batched sig
                     sigSharesToSend2 = &sigSharesToSend[nodeId];
                 }
-                (*sigSharesToSend2).emplace(signHash, std::move(batchedSigShares));
+                (*sigSharesToSend2).try_emplace(signHash, std::move(batchedSigShares));
             }
         }
     }
@@ -997,7 +997,7 @@ void CSigSharesManager::CollectSigSharesToSendConcentrated(std::unordered_map<No
         if (verifiedProRegTxHash.IsNull()) {
             continue;
         }
-        proTxToNode.emplace(verifiedProRegTxHash, pnode);
+        proTxToNode.try_emplace(verifiedProRegTxHash, pnode);
     }
 
     auto curTime = GetTime<std::chrono::milliseconds>().count();
@@ -1286,7 +1286,7 @@ void CSigSharesManager::Cleanup()
     {
         LOCK(cs);
         sigShares.ForEach([&quorums](const SigShareKey&, const CSigShare& sigShare) {
-            quorums.emplace(std::make_pair(sigShare.llmqType, sigShare.quorumHash), nullptr);
+            quorums.try_emplace(std::make_pair(sigShare.llmqType, sigShare.quorumHash), nullptr);
         });
     }
 
