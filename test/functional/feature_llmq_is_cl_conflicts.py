@@ -240,14 +240,13 @@ class LLMQ_IS_CL_Conflicts(DashTestFramework):
 
         # Send the actual transaction and mine it
         self.nodes[0].sendrawtransaction(rawtx2)
-        self.nodes[0].generate(1)
+        islock_tip = self.nodes[0].generate(1)[0]
         self.sync_all()
 
         for node in self.nodes:
             self.wait_for_instantlock(rawtx2_txid, node)
-            assert node.getrawtransaction(rawtx2_txid, True)['confirmations'] > 0
-            assert node.getrawtransaction(rawtx2_txid, True)['instantlock']
-            assert node.getbestblockhash() != good_tip
+            assert_equal(node.getrawtransaction(rawtx2_txid, True)['confirmations'], 1)
+            assert_equal(node.getbestblockhash(), islock_tip)
 
         # Check that the CL-ed block overrides the one with islocks
         self.nodes[0].spork("SPORK_19_CHAINLOCKS_ENABLED", 0)  # Re-enable ChainLocks to accept clsig
@@ -255,6 +254,8 @@ class LLMQ_IS_CL_Conflicts(DashTestFramework):
         self.wait_for_sporks_same()
         for node in self.nodes:
             self.wait_for_chainlocked_block(node, cl_block.hash)
+            # Previous tip should be marked as conflicting now
+            assert_equal(node.getchaintips(2)[1]["status"], "conflicting")
 
     def create_block(self, node, vtx=[]):
         bt = node.getblocktemplate()
