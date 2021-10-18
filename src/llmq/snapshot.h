@@ -6,11 +6,11 @@
 #define BITCOIN_LLMQ_SNAPSHOT_H
 
 #include <evo/simplifiedmns.h>
+#include <serialize.h>
 
 class CQuorumSnapshot
 {
 public:
-    //TODO investigate replacement of std::vector<bool> with CFixedBitSet
     std::vector<bool> activeQuorumMembers;
     int mnSkipListMode;
     std::vector<int> mnSkipList;
@@ -35,9 +35,7 @@ public:
         const_cast<CQuorumSnapshot*>(this)->SerializationOpBase(s, CSerActionSerialize());
 
         WriteCompactSize(s, activeQuorumMembers.size());
-        for (const auto& obj : activeQuorumMembers) {
-            s << static_cast<int>(obj);
-        }
+        WriteFixedBitSet(s, activeQuorumMembers, activeQuorumMembers.size());
         WriteCompactSize(s, mnSkipList.size());
         for (const auto& obj : mnSkipList) {
             s << obj;
@@ -51,13 +49,7 @@ public:
 
         size_t cnt = {};
         cnt = ReadCompactSize(s);
-        activeQuorumMembers.resize(cnt);
-        for (size_t i = 0; i < cnt; i++) {
-            int obj;
-            s >> obj;
-            activeQuorumMembers.push_back(static_cast<bool>(obj));
-        }
-
+        ReadFixedBitSet(s, activeQuorumMembers, cnt);
         cnt = ReadCompactSize(s);
         for (size_t i = 0; i < cnt; i++) {
             int obj;
