@@ -165,6 +165,8 @@ CQuorumManager::CQuorumManager(CEvoDB& _evoDb, CBLSWorker& _blsWorker, CDKGSessi
 {
     CLLMQUtils::InitQuorumsCache(mapQuorumsCache);
     CLLMQUtils::InitQuorumsCache(scanQuorumsCache);
+    CLLMQUtils::InitQuorumsCache(indexedQuorumsCache);
+
     quorumThreadInterrupt.reset();
 }
 
@@ -321,7 +323,11 @@ CQuorumPtr CQuorumManager::BuildQuorumFromCommitment(const Consensus::LLMQType l
         StartCachePopulatorThread(quorum);
     }
 
-    mapQuorumsCache[llmqType].insert(quorumHash, quorum);
+    if (llmqType == Params().GetConsensus().llmqTypeInstantSend && chainActive.Tip()->nHeight >= Params().GetConsensus().DIPQuorumRotationHeight) {
+        indexedQuorumsCache[llmqType].insert(std::make_pair(quorumHash, quorum));
+    } else {
+        mapQuorumsCache[llmqType].insert(quorumHash, quorum);
+    }
 
     return quorum;
 }
@@ -469,6 +475,24 @@ std::vector<CQuorumCPtr> CQuorumManager::ScanQuorums(Consensus::LLMQType llmqTyp
     size_t nResultEndIndex = std::min(nCountResult, nCountRequested);
     const std::vector<CQuorumCPtr>& ret = {vecResultQuorums.begin(), vecResultQuorums.begin() + nResultEndIndex};
     return ret;
+}
+
+std::vector<CQuorumCPtr> CQuorumManager::ScanIndexedQuorums(Consensus::LLMQType llmqType, const CBlockIndex* pindexStart, size_t nCountRequested) const
+{
+    std::vector<CQuorumCPtr> vecResultQuorums;
+
+    LOCK(quorumsCacheCs);
+
+    auto& cache = indexedQuorumsCache[llmqType];
+
+    std::vector<std::pair<uint256, CQuorumPtr>> vec;
+    cache.get(vec);
+
+    std::for_each(vec.cbegin(), vec.cend(), [&vecResultQuorums](std::pair<uint256, CQuorumPtr> pair) {
+        vecResultQuorums.push_back(pair.second);
+    });
+
+    return vecResultQuorums;
 }
 
 CQuorumCPtr CQuorumManager::GetQuorum(Consensus::LLMQType llmqType, const uint256& quorumHash) const
