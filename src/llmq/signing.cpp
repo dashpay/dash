@@ -1012,22 +1012,35 @@ CQuorumCPtr CSigningManager::SelectQuorumForSigning(Consensus::LLMQType llmqType
         pindexStart = ::ChainActive()[startBlockHeight];
     }
 
-    auto quorums = quorumManager->ScanQuorums(llmqType, pindexStart, poolSize);
-    if (quorums.empty()) {
-        return nullptr;
-    }
+    if (llmqType == Params().GetConsensus().llmqTypeInstantSend && chainActive.Tip()->nHeight >= Params().GetConsensus().DIPQuorumRotationHeight) {
+        auto quorums = quorumManager->ScanIndexedQuorums(llmqType, pindexStart, poolSize);
+        if (quorums.empty()) {
+            return nullptr;
+        }
+        int n = std::log2(GetLLMQParams(llmqType).signingActiveQuorumCount);
+        size_t selectedIndex = static_cast<size_t>(selectionHash.GetUint64(3) >> n);
+        if (selectedIndex > quorums.size()) {
+            return nullptr;
+        }
+        return quorums[selectedIndex];
+    } else {
+        auto quorums = quorumManager->ScanQuorums(llmqType, pindexStart, poolSize);
+        if (quorums.empty()) {
+            return nullptr;
+        }
 
-    std::vector<std::pair<uint256, size_t>> scores;
-    scores.reserve(quorums.size());
-    for (size_t i = 0; i < quorums.size(); i++) {
-        CHashWriter h(SER_NETWORK, 0);
-        h << llmqType;
-        h << quorums[i]->qc->quorumHash;
-        h << selectionHash;
-        scores.emplace_back(h.GetHash(), i);
+        std::vector<std::pair<uint256, size_t>> scores;
+        scores.reserve(quorums.size());
+        for (size_t i = 0; i < quorums.size(); i++) {
+            CHashWriter h(SER_NETWORK, 0);
+            h << llmqType;
+            h << quorums[i]->qc->quorumHash;
+            h << selectionHash;
+            scores.emplace_back(h.GetHash(), i);
+        }
+        std::sort(scores.begin(), scores.end());
+        return quorums[scores.front().second];
     }
-    std::sort(scores.begin(), scores.end());
-    return quorums[scores.front().second];
 }
 
 bool CSigningManager::VerifyRecoveredSig(Consensus::LLMQType llmqType, int signedAtHeight, const uint256& id, const uint256& msgHash, const CBLSSignature& sig, const int signOffset)
