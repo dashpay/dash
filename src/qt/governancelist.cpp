@@ -337,7 +337,7 @@ void GovernanceList::showProposalContextMenu(const QPoint& pos)
     }
 
     // right click menu with option to open proposal url
-    QAction* openProposalUrl = new QAction(tr("Open url"), this);
+    QAction* openProposalUrl = new QAction(proposal->url(), this);
     proposalContextMenu->clear();
     proposalContextMenu->addAction(openProposalUrl);
     connect(openProposalUrl, &QAction::triggered, proposal, &Proposal::openUrl);
