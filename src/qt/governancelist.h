@@ -60,8 +60,8 @@ public:
     explicit ProposalModel(QObject* parent = nullptr) :
         QAbstractTableModel(parent){};
 
-    enum ColumnNames {
-        HASH,
+    enum Column : int {
+        HASH = 0,
         TITLE,
         START_DATE,
         END_DATE,

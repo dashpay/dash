@@ -115,19 +115,19 @@ QVariant ProposalModel::data(const QModelIndex& index, int role) const
     if (role != Qt::DisplayRole && role != Qt::EditRole) return {};
     const auto proposal = m_data[index.row()];
     switch (index.column()) {
-    case HASH:
+    case Column::HASH:
         return proposal->hash();
-    case TITLE:
+    case Column::TITLE:
         return proposal->title();
-    case START_DATE:
+    case Column::START_DATE:
         return proposal->startDate().date();
-    case END_DATE:
+    case Column::END_DATE:
         return proposal->endDate().date();
-    case PAYMENT_AMOUNT:
+    case Column::PAYMENT_AMOUNT:
         return proposal->paymentAmount();
-    case IS_ACTIVE:
+    case Column::IS_ACTIVE:
         return proposal->isActive() ? "Y" : "N";
-    case VOTING_STATUS:
+    case Column::VOTING_STATUS:
         return proposal->votingStatus(nAbsVoteReq);
     default:
         return {};
@@ -138,19 +138,19 @@ QVariant ProposalModel::headerData(int section, Qt::Orientation orientation, int
 {
     if (orientation != Qt::Horizontal || role != Qt::DisplayRole) return {};
     switch (section) {
-    case HASH:
+    case Column::HASH:
         return "Hash";
-    case TITLE:
+    case Column::TITLE:
         return "Title";
-    case START_DATE:
+    case Column::START_DATE:
         return "Start";
-    case END_DATE:
+    case Column::END_DATE:
         return "End";
-    case PAYMENT_AMOUNT:
+    case Column::PAYMENT_AMOUNT:
         return "Amount";
-    case IS_ACTIVE:
+    case Column::IS_ACTIVE:
         return "Active";
-    case VOTING_STATUS:
+    case Column::VOTING_STATUS:
         return "Status";
     default:
         return {};
@@ -160,17 +160,17 @@ QVariant ProposalModel::headerData(int section, Qt::Orientation orientation, int
 int ProposalModel::columnWidth(int section)
 {
     switch (section) {
-    case HASH:
+    case Column::HASH:
         return 80;
-    case TITLE:
+    case Column::TITLE:
         return 220;
-    case START_DATE:
-    case END_DATE:
-    case PAYMENT_AMOUNT:
+    case Column::START_DATE:
+    case Column::END_DATE:
+    case Column::PAYMENT_AMOUNT:
         return 110;
-    case IS_ACTIVE:
+    case Column::IS_ACTIVE:
         return 80;
-    case VOTING_STATUS:
+    case Column::VOTING_STATUS:
         return 220;
     default:
         return 80;
@@ -262,7 +262,7 @@ GovernanceList::GovernanceList(QWidget* parent) :
     }
 
     // Set up filtering.
-    proposalModelProxy->setFilterKeyColumn(ProposalModel::ColumnNames::TITLE); // filter by title column...
+    proposalModelProxy->setFilterKeyColumn(ProposalModel::Column::TITLE); // filter by title column...
     ui->filterLineEdit->setPlaceholderText(tr("Filter by Title"));
     connect(ui->filterLineEdit, &QLineEdit::textChanged, proposalModelProxy, &QSortFilterProxyModel::setFilterFixedString);
 
