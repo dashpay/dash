@@ -201,7 +201,7 @@ void ScriptPubKeyToUniv(const CScript& scriptPubKey,
     }
 }
 
-void TxToUniv(const CTransaction& tx, const uint256& hashBlock, bool include_addresses, UniValue& entry, bool include_hex, const CTxUndo* txundo, const CSpentIndexTxInfo* ptxSpentInfo)
+void TxToUniv(const CTransaction& tx, const uint256& hashBlock, bool include_addresses, UniValue& entry, bool include_hex, const CTxUndo* txundo, TxVerbosity verbosity, const CSpentIndexTxInfo* ptxSpentInfo)
 {
     uint256 txid = tx.GetHash();
     entry.pushKV("txid", txid.GetHex());
@@ -216,7 +216,7 @@ void TxToUniv(const CTransaction& tx, const uint256& hashBlock, bool include_add
 
     // If available, use Undo data to calculate the fee. Note that txundo == nullptr
     // for coinbase transactions and for transactions where undo data is unavailable.
-    const bool calculate_fee = txundo != nullptr;
+    const bool have_undo = txundo != nullptr;
     CAmount amt_total_in = 0;
     CAmount amt_total_out = 0;
 
@@ -249,9 +249,28 @@ void TxToUniv(const CTransaction& tx, const uint256& hashBlock, bool include_add
                 }
             }
         }
-        if (calculate_fee) {
-            const CTxOut& prev_txout = txundo->vprevout[i].out;
+        if (have_undo) {
+            const Coin& prev_coin = txundo->vprevout[i];
+            const CTxOut& prev_txout = prev_coin.out;
+
             amt_total_in += prev_txout.nValue;
+            switch (verbosity) {
+                case TxVerbosity::SHOW_TXID:
+                case TxVerbosity::SHOW_DETAILS:
+                    break;
+
+                case TxVerbosity::SHOW_DETAILS_AND_PREVOUT:
+                    UniValue o_script_pub_key(UniValue::VOBJ);
+                    ScriptPubKeyToUniv(prev_txout.scriptPubKey, o_script_pub_key, /* includeHex */ true, /*include_address=*/true);
+
+                    UniValue p(UniValue::VOBJ);
+                    p.pushKV("generated", bool(prev_coin.fCoinBase));
+                    p.pushKV("height", uint64_t(prev_coin.nHeight));
+                    p.pushKV("value", ValueFromAmount(prev_txout.nValue));
+                    p.pushKV("scriptPubKey", o_script_pub_key);
+                    in.pushKV("prevout", p);
+                    break;
+            }
         }
         in.pushKV("sequence", (int64_t)txin.nSequence);
         vin.push_back(in);
@@ -285,7 +304,7 @@ void TxToUniv(const CTransaction& tx, const uint256& hashBlock, bool include_add
         }
         vout.push_back(out);
 
-        if (calculate_fee) {
+        if (have_undo) {
             amt_total_out += txout.nValue;
         }
     }
@@ -334,7 +353,7 @@ void TxToUniv(const CTransaction& tx, const uint256& hashBlock, bool include_add
         }
     }
 
-    if (calculate_fee) {
+    if (have_undo) {
         CAmount fee = amt_total_in - amt_total_out;
         if (tx.IsPlatformTransfer()) {
             auto payload = GetTxPayload<CAssetUnlockPayload>(tx);
