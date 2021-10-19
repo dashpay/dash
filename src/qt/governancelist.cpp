@@ -256,6 +256,8 @@ GovernanceList::GovernanceList(QWidget* parent) :
     ui->govTableView->setModel(proposalModelProxy);
     ui->govTableView->setSelectionBehavior(QAbstractItemView::SelectRows);
     ui->govTableView->horizontalHeader()->setStretchLastSection(true);
+    ui->govTableView->setSortingEnabled(true);
+    ui->govTableView->sortByColumn(ProposalModel::Column::START_DATE, Qt::DescendingOrder);
 
     for (int i = 0; i < proposalModel->columnCount(); ++i) {
         ui->govTableView->setColumnWidth(i, proposalModel->columnWidth(i));
