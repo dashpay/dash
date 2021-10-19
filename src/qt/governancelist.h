@@ -13,7 +13,7 @@
 #include <QTimer>
 #include <QWidget>
 
-#define GOVERNANCELIST_UPDATE_SECONDS 10
+inline constexpr int GOVERNANCELIST_UPDATE_SECONDS = 10;
 
 namespace Ui {
 class GovernanceList;
@@ -43,7 +43,7 @@ public:
     float paymentAmount() const;
     QString url() const;
     bool isActive() const;
-    QString votingStatus(int nMnCount, int nAbsVoteReq) const;
+    QString votingStatus(const int nAbsVoteReq) const;
 
     void openUrl() const;
 
@@ -54,20 +54,20 @@ class ProposalModel : public QAbstractTableModel
 {
 private:
     QList<const Proposal*> m_data;
-    int nMnCount;
-    int nAbsVoteReq;
+    int nAbsVoteReq = 0;
 
 public:
-    ProposalModel(QObject* parent = nullptr);
+    explicit ProposalModel(QObject* parent = nullptr) :
+        QAbstractTableModel(parent){};
     int rowCount(const QModelIndex& parent = QModelIndex()) const override;
     int columnCount(const QModelIndex& parent = QModelIndex()) const override;
     QVariant data(const QModelIndex& index, int role) const override;
     QVariant headerData(int section, Qt::Orientation orientation, int role) const override;
-    int columnWidth(int section) const;
+    static int columnWidth(int section);
     void append(const Proposal* proposal);
     void remove(int row);
     void reconcile(const std::vector<const Proposal*>& proposals);
-    void setVotingParams(int nMnCount, int nAbsVoteReq);
+    void setVotingParams(int nAbsVoteReq);
 
     const Proposal* getProposalAt(const QModelIndex& index) const;
 };
@@ -79,7 +79,7 @@ class GovernanceList : public QWidget
 
 public:
     explicit GovernanceList(QWidget* parent = nullptr);
-    ~GovernanceList();
+    ~GovernanceList() override;
     void setClientModel(ClientModel* clientModel);
 
 private:
@@ -94,7 +94,7 @@ private:
 
 private Q_SLOTS:
     void updateProposalList();
-    void updateProposalCount();
+    void updateProposalCount() const;
     void showProposalContextMenu(const QPoint& pos);
     void showAdditionalInfo(const QModelIndex& index);
 };

@@ -134,8 +134,9 @@ void WalletFrame::gotoGovernancePage()
         return;
     }
 
-    for (i = mapWalletViews.constBegin(); i != mapWalletViews.constEnd(); ++i)
+    for (i = mapWalletViews.constBegin(); i != mapWalletViews.constEnd(); ++i) {
         i.value()->gotoGovernancePage();
+    }
 }
 
 
