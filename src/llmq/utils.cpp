@@ -96,19 +96,19 @@ std::vector<CDeterministicMNCPtr> CLLMQUtils::GetAllQuorumMembersByQuarterRotati
     CQuorumSnapshot quSnapshotHMinusC;
     CQuorumSnapshot quSnapshotHMinus2C;
     CQuorumSnapshot quSnapshotHMinus3C;
-    if (!quorumSnapshotManager->GetSnapshotForBlock(llmqType, pBlockHMinusCIndex, quSnapshotHMinusC)) {
-        return {};
-    }
-    if (!quorumSnapshotManager->GetSnapshotForBlock(llmqType, pBlockHMinus2CIndex, quSnapshotHMinus2C)) {
-        return {};
-    }
-    if (!quorumSnapshotManager->GetSnapshotForBlock(llmqType, pBlockHMinus3CIndex, quSnapshotHMinus3C)) {
-        return {};
-    }
+    std::vector<CDeterministicMNCPtr> quarterHMinusC;
+    std::vector<CDeterministicMNCPtr> quarterHMinus2C;
+    std::vector<CDeterministicMNCPtr> quarterHMinus3C;
 
-    auto quarterHMinusC = CLLMQUtils::GetQuorumQuarterMembersBySnapshot(llmqType, pBlockHMinusCIndex, quSnapshotHMinusC);
-    auto quarterHMinus2C = CLLMQUtils::GetQuorumQuarterMembersBySnapshot(llmqType, pBlockHMinus2CIndex, quSnapshotHMinus2C);
-    auto quarterHMinus3C = CLLMQUtils::GetQuorumQuarterMembersBySnapshot(llmqType, pBlockHMinus3CIndex, quSnapshotHMinus3C);
+    if (quorumSnapshotManager->GetSnapshotForBlock(llmqType, pBlockHMinusCIndex, quSnapshotHMinusC)) {
+        quarterHMinusC = CLLMQUtils::GetQuorumQuarterMembersBySnapshot(llmqType, pBlockHMinusCIndex, quSnapshotHMinusC);
+    }
+    if (quorumSnapshotManager->GetSnapshotForBlock(llmqType, pBlockHMinus2CIndex, quSnapshotHMinus2C)) {
+        quarterHMinus2C = CLLMQUtils::GetQuorumQuarterMembersBySnapshot(llmqType, pBlockHMinus2CIndex, quSnapshotHMinus2C);
+    }
+    if (quorumSnapshotManager->GetSnapshotForBlock(llmqType, pBlockHMinus3CIndex, quSnapshotHMinus3C)) {
+        quarterHMinus3C = CLLMQUtils::GetQuorumQuarterMembersBySnapshot(llmqType, pBlockHMinus3CIndex, quSnapshotHMinus3C);
+    }
 
     //TODO Add handling when build of new quorum quarter fails (newQuarterMembers is empty)
     auto newQuarterMembers = CLLMQUtils::BuildNewQuorumQuarterMembers(llmqType, pquorumBaseBlockIndex, quarterHMinusC, quarterHMinus2C, quarterHMinus3C);
@@ -136,7 +136,6 @@ std::vector<CDeterministicMNCPtr> CLLMQUtils::BuildNewQuorumQuarterMembers(Conse
 {
     std::vector<CDeterministicMNCPtr> quarterQuorumMembers;
 
-    //TODO Add handling cases where previous quarters are empty
     auto modifier = ::SerializeHash(std::make_pair(llmqType, pquorumBaseBlockIndex->GetBlockHash()));
     auto Mns = deterministicMNManager->GetListForBlock(pquorumBaseBlockIndex);
 
