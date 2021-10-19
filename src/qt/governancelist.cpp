@@ -332,6 +332,9 @@ void GovernanceList::showProposalContextMenu(const QPoint& pos)
     }
 
     const auto proposal = proposalModel->getProposalAt(index);
+    if (proposal == nullptr) {
+        return;
+    }
 
     // right click menu with option to open proposal url
     QAction* openProposalUrl = new QAction(tr("Open url"), this);
@@ -348,6 +351,10 @@ void GovernanceList::showAdditionalInfo(const QModelIndex& index)
     }
 
     const auto proposal = proposalModel->getProposalAt(index);
+    if (proposal == nullptr) {
+        return;
+    }
+
     const auto windowTitle = tr("Proposal Info: %1").arg(proposal->title());
     const auto json = proposal->toJson();
 
