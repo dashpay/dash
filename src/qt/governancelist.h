@@ -67,7 +67,8 @@ public:
         END_DATE,
         PAYMENT_AMOUNT,
         IS_ACTIVE,
-        VOTING_STATUS
+        VOTING_STATUS,
+        _COUNT // for internal use only
     };
 
     int rowCount(const QModelIndex& parent = QModelIndex()) const override;

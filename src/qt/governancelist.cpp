@@ -107,7 +107,7 @@ int ProposalModel::rowCount(const QModelIndex& index) const
 
 int ProposalModel::columnCount(const QModelIndex& index) const
 {
-    return 8;
+    return Column::_COUNT;
 }
 
 QVariant ProposalModel::data(const QModelIndex& index, int role) const
