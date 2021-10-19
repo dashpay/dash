@@ -115,19 +115,19 @@ QVariant ProposalModel::data(const QModelIndex& index, int role) const
     if (role != Qt::DisplayRole && role != Qt::EditRole) return {};
     const auto proposal = m_data[index.row()];
     switch (index.column()) {
-    case 0:
+    case HASH:
         return proposal->hash();
-    case 1:
+    case TITLE:
         return proposal->title();
-    case 2:
+    case START_DATE:
         return proposal->startDate().date();
-    case 3:
+    case END_DATE:
         return proposal->endDate().date();
-    case 4:
+    case PAYMENT_AMOUNT:
         return proposal->paymentAmount();
-    case 5:
+    case IS_ACTIVE:
         return proposal->isActive() ? "Y" : "N";
-    case 6:
+    case VOTING_STATUS:
         return proposal->votingStatus(nAbsVoteReq);
     default:
         return {};
@@ -138,19 +138,19 @@ QVariant ProposalModel::headerData(int section, Qt::Orientation orientation, int
 {
     if (orientation != Qt::Horizontal || role != Qt::DisplayRole) return {};
     switch (section) {
-    case 0:
+    case HASH:
         return "Hash";
-    case 1:
+    case TITLE:
         return "Title";
-    case 2:
+    case START_DATE:
         return "Start";
-    case 3:
+    case END_DATE:
         return "End";
-    case 4:
+    case PAYMENT_AMOUNT:
         return "Amount";
-    case 5:
+    case IS_ACTIVE:
         return "Active";
-    case 6:
+    case VOTING_STATUS:
         return "Status";
     default:
         return {};
@@ -160,17 +160,17 @@ QVariant ProposalModel::headerData(int section, Qt::Orientation orientation, int
 int ProposalModel::columnWidth(int section)
 {
     switch (section) {
-    case 0:
+    case HASH:
         return 80;
-    case 1:
+    case TITLE:
         return 220;
-    case 2:
-    case 3:
-    case 4:
+    case START_DATE:
+    case END_DATE:
+    case PAYMENT_AMOUNT:
         return 110;
-    case 5:
+    case IS_ACTIVE:
         return 80;
-    case 6:
+    case VOTING_STATUS:
         return 220;
     default:
         return 80;
@@ -225,7 +225,7 @@ void ProposalModel::setVotingParams(int newAbsVoteReq)
         this->nAbsVoteReq = newAbsVoteReq;
         // Changing either of the voting params may change the voting status
         // column. Emit signal to force recalculation.
-        Q_EMIT dataChanged(createIndex(0, 6), createIndex(columnCount(), 6));
+        Q_EMIT dataChanged(createIndex(0, VOTING_STATUS), createIndex(columnCount(), VOTING_STATUS));
     }
 }
 
@@ -262,7 +262,7 @@ GovernanceList::GovernanceList(QWidget* parent) :
     }
 
     // Set up filtering.
-    proposalModelProxy->setFilterKeyColumn(1); // filter by title column...
+    proposalModelProxy->setFilterKeyColumn(ProposalModel::ColumnNames::TITLE); // filter by title column...
     ui->filterLineEdit->setPlaceholderText(tr("Filter by Title"));
     connect(ui->filterLineEdit, &QLineEdit::textChanged, proposalModelProxy, &QSortFilterProxyModel::setFilterFixedString);
 

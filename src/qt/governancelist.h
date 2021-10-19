@@ -59,6 +59,17 @@ private:
 public:
     explicit ProposalModel(QObject* parent = nullptr) :
         QAbstractTableModel(parent){};
+
+    enum ColumnNames {
+        HASH,
+        TITLE,
+        START_DATE,
+        END_DATE,
+        PAYMENT_AMOUNT,
+        IS_ACTIVE,
+        VOTING_STATUS
+    };
+
     int rowCount(const QModelIndex& parent = QModelIndex()) const override;
     int columnCount(const QModelIndex& parent = QModelIndex()) const override;
     QVariant data(const QModelIndex& index, int role) const override;
