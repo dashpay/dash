@@ -32,6 +32,7 @@
 #include <util/strencodings.h>
 #include <validation.h>
 #include <validationinterface.h>
+#include <chainparams.h>
 
 #include <evo/specialtx.h>
 #include <evo/providertx.h>

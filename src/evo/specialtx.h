@@ -9,6 +9,7 @@
 #include <sync.h>
 #include <threadsafety.h>
 #include <version.h>
+#include <primitives/transaction.h>
 
 class CBlock;
 class CBlockIndex;

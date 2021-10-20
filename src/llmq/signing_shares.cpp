@@ -2,13 +2,15 @@
 // Distributed under the MIT/X11 software license, see the accompanying
 // file COPYING or http://www.opensource.org/licenses/mit-license.php.
 
+#include <llmq/signing_shares.h>
+
 #include <llmq/quorums.h>
 #include <llmq/commitment.h>
 #include <llmq/signing.h>
-#include <llmq/signing_shares.h>
 #include <llmq/utils.h>
 
 
+#include <chainparams.h>
 #include <evo/deterministicmns.h>
 #include <masternode/node.h>
 #include <bls/bls_batchverifier.h>

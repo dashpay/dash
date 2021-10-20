@@ -13,6 +13,7 @@
 #include <util/moneystr.h>
 #include <util/validation.h>
 #include <validation.h>
+#include <chainparams.h>
 
 #ifdef ENABLE_WALLET
 #include <wallet/coincontrol.h>

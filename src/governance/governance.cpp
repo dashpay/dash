@@ -6,6 +6,7 @@
 
 #include <bloom.h>
 #include <chain.h>
+#include <chainparams.h>
 #include <consensus/validation.h>
 #include <governance/classes.h>
 #include <governance/validators.h>
@@ -17,7 +18,6 @@
 #include <protocol.h>
 #include <shutdown.h>
 #include <spork.h>
-
 #include <evo/deterministicmns.h>
 
 CGovernanceManager governance;

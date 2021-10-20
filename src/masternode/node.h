@@ -5,9 +5,9 @@
 #ifndef BITCOIN_MASTERNODE_NODE_H
 #define BITCOIN_MASTERNODE_NODE_H
 
-#include <chainparams.h>
 #include <primitives/transaction.h>
 #include <validationinterface.h>
+#include <netaddress.h>
 
 class CBLSPublicKey;
 class CBLSSecretKey;

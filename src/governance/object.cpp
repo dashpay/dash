@@ -4,6 +4,7 @@
 
 #include <governance/object.h>
 
+#include <chainparams.h>
 #include <core_io.h>
 #include <evo/deterministicmns.h>
 #include <governance/validators.h>

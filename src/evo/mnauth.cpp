@@ -4,6 +4,7 @@
 
 #include <evo/mnauth.h>
 
+#include <chainparams.h>
 #include <evo/deterministicmns.h>
 #include <llmq/utils.h>
 #include <masternode/node.h>

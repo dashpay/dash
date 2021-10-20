@@ -9,8 +9,10 @@
 
 #include <merkleblock.h>
 #include <pubkey.h>
+#include <netaddress.h>
 
 class UniValue;
+class CBlockIndex;
 class CDeterministicMNList;
 class CDeterministicMN;
 

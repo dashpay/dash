@@ -5,6 +5,7 @@
 #include <coinjoin/client.h>
 #include <coinjoin/options.h>
 
+#include <chainparams.h>
 #include <consensus/validation.h>
 #include <core_io.h>
 #include <evo/deterministicmns.h>

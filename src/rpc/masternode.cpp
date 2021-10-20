@@ -2,6 +2,7 @@
 // Distributed under the MIT/X11 software license, see the accompanying
 // file COPYING or http://www.opensource.org/licenses/mit-license.php.
 
+#include <chainparams.h>
 #include <evo/deterministicmns.h>
 #include <governance/classes.h>
 #include <index/txindex.h>

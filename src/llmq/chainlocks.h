@@ -8,12 +8,13 @@
 #include <bls/bls.h>
 #include <llmq/signing.h>
 
-#include <chainparams.h>
 #include <crypto/common.h>
 #include <net.h>
 #include <saltedhasher.h>
 #include <streams.h>
 #include <sync.h>
+#include <primitives/transaction.h>
+#include <primitives/block.h>
 
 #include <atomic>
 #include <unordered_set>

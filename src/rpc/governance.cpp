@@ -20,6 +20,7 @@
 #include <util/system.h>
 #include <validation.h>
 #include <wallet/rpcwallet.h>
+#include <chainparams.h>
 #ifdef ENABLE_WALLET
 #include <wallet/wallet.h>
 #endif // ENABLE_WALLET

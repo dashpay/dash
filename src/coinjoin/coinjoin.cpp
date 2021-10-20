@@ -4,6 +4,7 @@
 
 #include <coinjoin/coinjoin.h>
 
+#include <chainparams.h>
 #include <core_io.h>
 #include <consensus/validation.h>
 #include <chain.h>
@@ -612,3 +613,6 @@ void CCoinJoin::BlockDisconnected(const std::shared_ptr<const CBlock>& pblock, c
         UpdateDSTXConfirmedHeight(tx, -1);
     }
 }
+
+int CCoinJoin::GetMinPoolParticipants() { return Params().PoolMinParticipants(); }
+int CCoinJoin::GetMaxPoolParticipants() { return Params().PoolMaxParticipants(); }
