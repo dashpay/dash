@@ -347,8 +347,10 @@ void CGovernanceManager::UpdateCachesAndClean()
     ScopedLockBool guard(cs, fRateChecksEnabled, false);
 
     // Clean up any expired or invalid triggers
-    triggerman.CleanAndRemove();
-
+    {
+        LOCK(governance.cs);
+        triggerman.CleanAndRemove();
+    }
     auto it = mapObjects.begin();
     int64_t nNow = GetAdjustedTime();
 
@@ -1089,7 +1091,7 @@ void CGovernanceManager::AddCachedTriggers()
             continue;
         }
 
-        if (!triggerman.AddNewTrigger(govobj.GetHash())) {
+        if (!WITH_LOCK(governance.cs, return triggerman.AddNewTrigger(govobj.GetHash()))) {
             govobj.PrepareDeletion(GetAdjustedTime());
         }
     }
