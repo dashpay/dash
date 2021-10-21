@@ -545,6 +545,7 @@ bool CSigSharesManager::PreVerifyBatchedSigShares(const CSigSharesNodeState::Ses
     std::unordered_set<uint16_t> dupMembers;
 
     for (const auto& [quorumMember, _] : batchedSigShares.sigShares) {
+        (void)_;
         if (!dupMembers.emplace(quorumMember).second) {
             retBan = true;
             return false;
@@ -607,6 +608,7 @@ void CSigSharesManager::CollectPendingSigSharesToVerify(
     // For the convenience of the caller, also build a map of quorumHash -> quorum
 
     for (const auto& [_, vecSigShares] : retSigShares) {
+        (void)_;
         for (const auto& sigShare : vecSigShares) {
             auto llmqType = sigShare.llmqType;
 
@@ -1003,6 +1005,7 @@ void CSigSharesManager::CollectSigSharesToSendConcentrated(std::unordered_map<No
     auto curTime = GetTime<std::chrono::milliseconds>().count();
 
     for (auto& [_, signedSession] : signedSessions) {
+        (void)_;
         if (!CLLMQUtils::IsAllMembersConnectedEnabled(signedSession.quorum->params.type)) {
             continue;
         }
@@ -1374,6 +1377,7 @@ void CSigSharesManager::Cleanup()
     {
         LOCK(cs);
         for (const auto& [nodeId, _] : nodeStates) {
+            (void)_;
             nodeStatesToDelete.emplace(nodeId);
         }
     }
@@ -1404,6 +1408,7 @@ void CSigSharesManager::RemoveSigSharesForSession(const uint256& signHash)
     AssertLockHeld(cs);
 
     for (auto& [_, nodeState] : nodeStates) {
+        (void)_;
         nodeState.RemoveSession(signHash);
     }
 
@@ -1583,11 +1588,13 @@ void CSigSharesManager::ForceReAnnouncement(const CQuorumCPtr& quorum, Consensus
     auto signHash = CLLMQUtils::BuildSignHash(llmqType, quorum->qc->quorumHash, id, msgHash);
     if (const auto sigs = sigShares.GetAllForSignHash(signHash)) {
         for (const auto& [quorumMemberIndex, _] : *sigs) {
+            (void)_;
             // re-announce every sigshare to every node
             sigSharesQueuedToAnnounce.Add(std::make_pair(signHash, quorumMemberIndex), true);
         }
     }
     for (auto& [_, nodeState] : nodeStates) {
+        (void)_;
         auto session = nodeState.GetSessionBySignHash(signHash);
         if (!session) {
             continue;
