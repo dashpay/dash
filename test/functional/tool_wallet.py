@@ -32,8 +32,8 @@ class ToolWalletTest(BitcoinTestFramework):
 
     def dash_wallet_process(self, *args):
         default_args = ['-datadir={}'.format(self.nodes[0].datadir), '-chain=%s' % self.chain]
-        if self.options.descriptors and 'create' in args:
-            default_args.append('-descriptors')
+        if not self.options.descriptors and 'create' in args:
+            default_args.append('-legacy')
 
         return subprocess.Popen([self.options.bitcoinwallet] + default_args + list(args), stdin=subprocess.PIPE, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
 
