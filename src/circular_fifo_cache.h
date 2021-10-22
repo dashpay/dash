@@ -5,21 +5,22 @@
 #ifndef BITCOIN_CIRCULAR_FIFO_CACHE_H
 #define BITCOIN_CIRCULAR_FIFO_CACHE_H
 
-template <typename T, size_t MaxSize = 0, size_t TruncateThreshold = 0>
+template <typename T, size_t MaxSize = 0>
 class circular_fifo_cache
 {
 private:
     std::vector<T> internalCache;
     const size_t maxSize;
+    const size_t truncateThreshold;
 
 public:
-    explicit circular_fifo_cache(size_t _maxSize = MaxSize, size_t _truncateThreshold = TruncateThreshold) :
-        maxSize(_maxSize)
+    explicit circular_fifo_cache(size_t _maxSize = MaxSize) :
+        maxSize(_maxSize), truncateThreshold(_maxSize * 2)
     {
         // either specify maxSize through template arguments or the constructor and fail otherwise
         assert(_maxSize != 0);
 
-        internalCache.reserve(maxSize + 1);
+        internalCache.reserve(truncateThreshold);
     }
 
     size_t max_size() const { return maxSize; }
@@ -44,18 +45,32 @@ public:
 
     void get(std::vector<T>& v)
     {
-        std::copy(internalCache.begin(),
-                  internalCache.end(),
-                  std::back_inserter(v));
+        //Get always at most maxSize last inserted items
+        if (internalCache.size() < maxSize) {
+            std::copy(internalCache.begin(),
+                      internalCache.end(),
+                      std::back_inserter(v));
+        } else {
+            std::copy(internalCache.begin() + (internalCache.size() - maxSize),
+                      internalCache.end(),
+                      std::back_inserter(v));
+        }
+    }
+
+    bool back(T& value)
+    {
+        if (internalCache.empty())
+            return false;
+        value = internalCache.back();
+        return true;
     }
 
 private:
     void truncate_if_needed()
     {
-        if (internalCache.size() > maxSize) {
-            auto itThreshold = internalCache.begin() + maxSize;
-            std::rotate(internalCache.begin(), internalCache.begin() + 1, internalCache.end());
-            internalCache.erase(itThreshold, internalCache.end());
+        if (internalCache.size() == truncateThreshold) {
+            std::rotate(internalCache.begin(), internalCache.begin() + (internalCache.size() - maxSize), internalCache.end());
+            internalCache.erase(internalCache.begin() + maxSize, internalCache.end());
         }
     }
 };
