@@ -7,13 +7,13 @@
 
 #include <hash.h>
 #include <net.h>
-#include <util/strencodings.h>
 #include <key.h>
 #include <pubkey.h>
 #include <saltedhasher.h>
 #include <sync.h>
 #include <uint256.h>
 
+#include <array>
 #include <string>
 #include <string_view>
 #include <unordered_map>
