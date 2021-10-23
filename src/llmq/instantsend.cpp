@@ -1089,7 +1089,7 @@ void CInstantSendManager::ProcessInstantSendLock(NodeId from, const uint256& has
     if (tx == nullptr) {
         // put it in a separate pending map and try again later
         LOCK(cs);
-        pendingNoTxInstantSendLocks.emplace(hash, std::make_pair(from, islock));
+        pendingNoTxInstantSendLocks.try_emplace(hash, std::make_pair(from, islock));
     } else {
         db.WriteNewInstantSendLock(hash, *islock);
         if (pindexMined) {
@@ -1147,7 +1147,7 @@ void CInstantSendManager::TransactionAddedToMempool(const CTransactionRef& tx)
                 LogPrint(BCLog::INSTANTSEND, "CInstantSendManager::%s -- txid=%s, islock=%s\n", __func__,
                          tx->GetHash().ToString(), it->first.ToString());
                 islock = it->second.second;
-                pendingInstantSendLocks.emplace(*it);
+                pendingInstantSendLocks.try_emplace(it->first, it->second);
                 pendingNoTxInstantSendLocks.erase(it);
                 break;
             }
@@ -1241,7 +1241,7 @@ void CInstantSendManager::AddNonLockedTx(const CTransactionRef& tx, const CBlock
             // we received an islock ealier, let's put it back into pending and verify/lock
             LogPrint(BCLog::INSTANTSEND, "CInstantSendManager::%s -- txid=%s, islock=%s\n", __func__,
                      tx->GetHash().ToString(), it->first.ToString());
-            pendingInstantSendLocks.emplace(*it);
+            pendingInstantSendLocks.try_emplace(it->first, it->second);
             pendingNoTxInstantSendLocks.erase(it);
             break;
         }
