@@ -95,6 +95,8 @@ BOOST_FIXTURE_TEST_CASE(scan_for_wallet_transactions, TestChain100Setup)
         BOOST_CHECK_EQUAL(wallet.GetBalance().m_mine_immature, 500 * COIN);
     }
 
+    LockAnnotation lock(::cs_main);
+
     // Prune the remaining block file.
     PruneOneBlockFile(newTip->GetBlockPos().nFile);
     UnlinkPrunedFiles({newTip->GetBlockPos().nFile});
