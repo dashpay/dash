@@ -5,13 +5,13 @@
 #include <masternode/sync.h>
 
 #include <chainparams.h>
+#include <evo/deterministicmns.h>
 #include <governance/governance.h>
-#include <validation.h>
 #include <netfulfilledman.h>
 #include <netmessagemaker.h>
 #include <shutdown.h>
 #include <ui_interface.h>
-#include <evo/deterministicmns.h>
+#include <validation.h>
 
 class CMasternodeSync;
 CMasternodeSync masternodeSync;

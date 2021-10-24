@@ -5,12 +5,12 @@
 #ifndef BITCOIN_COINJOIN_COINJOIN_H
 #define BITCOIN_COINJOIN_COINJOIN_H
 
+#include <netaddress.h>
+#include <primitives/block.h>
 #include <primitives/transaction.h>
 #include <sync.h>
 #include <timedata.h>
 #include <tinyformat.h>
-#include <netaddress.h>
-#include <primitives/block.h>
 
 #include <utility>
 

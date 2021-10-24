@@ -8,6 +8,7 @@
 #include <chain.h>
 #include <chainparams.h>
 #include <consensus/validation.h>
+#include <evo/deterministicmns.h>
 #include <governance/classes.h>
 #include <governance/validators.h>
 #include <masternode/meta.h>
@@ -18,7 +19,6 @@
 #include <protocol.h>
 #include <shutdown.h>
 #include <spork.h>
-#include <evo/deterministicmns.h>
 
 CGovernanceManager governance;
 

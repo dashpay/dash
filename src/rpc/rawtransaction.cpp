@@ -5,6 +5,7 @@
 // file COPYING or http://www.opensource.org/licenses/mit-license.php.
 
 #include <chain.h>
+#include <chainparams.h>
 #include <coins.h>
 #include <compat/byteswap.h>
 #include <consensus/validation.h>
@@ -32,7 +33,6 @@
 #include <util/strencodings.h>
 #include <validation.h>
 #include <validationinterface.h>
-#include <chainparams.h>
 
 #include <evo/specialtx.h>
 #include <evo/providertx.h>

@@ -5,11 +5,11 @@
 #ifndef BITCOIN_EVO_SPECIALTX_H
 #define BITCOIN_EVO_SPECIALTX_H
 
+#include <primitives/transaction.h>
 #include <streams.h>
 #include <sync.h>
 #include <threadsafety.h>
 #include <version.h>
-#include <primitives/transaction.h>
 
 class CBlock;
 class CBlockIndex;

@@ -10,8 +10,9 @@
 #include <masternode/payments.h>
 #include <net.h>
 #include <netbase.h>
-#include <rpc/util.h>
 #include <rpc/server.h>
+#include <rpc/util.h>
+#include <univalue.h>
 #include <validation.h>
 #include <wallet/coincontrol.h>
 #include <wallet/rpcwallet.h>
@@ -21,7 +22,6 @@
 
 #include <fstream>
 #include <iomanip>
-#include <univalue.h>
 
 static UniValue masternodelist(const JSONRPCRequest& request);
 

@@ -4,13 +4,13 @@
 
 #include <evo/providertx.h>
 
-#include <evo/deterministicmns.h>
-#include <evo/specialtx.h>
-#include <messagesigner.h>
 #include <chainparams.h>
 #include <coins.h>
 #include <consensus/validation.h>
+#include <evo/deterministicmns.h>
+#include <evo/specialtx.h>
 #include <hash.h>
+#include <messagesigner.h>
 #include <script/standard.h>
 #include <validation.h>
 

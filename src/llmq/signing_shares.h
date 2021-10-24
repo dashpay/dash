@@ -5,14 +5,14 @@
 #ifndef BITCOIN_LLMQ_SIGNING_SHARES_H
 #define BITCOIN_LLMQ_SIGNING_SHARES_H
 
+#include <bls/bls.h>
+#include <llmq/signing.h>
 #include <net.h>
 #include <random.h>
 #include <saltedhasher.h>
 #include <serialize.h>
 #include <sync.h>
 #include <uint256.h>
-#include <bls/bls.h>
-#include <llmq/signing.h>
 
 #include <thread>
 #include <unordered_map>

@@ -6,15 +6,14 @@
 #define BITCOIN_LLMQ_CHAINLOCKS_H
 
 #include <bls/bls.h>
-#include <llmq/signing.h>
-
 #include <crypto/common.h>
+#include <llmq/signing.h>
 #include <net.h>
+#include <primitives/block.h>
+#include <primitives/transaction.h>
 #include <saltedhasher.h>
 #include <streams.h>
 #include <sync.h>
-#include <primitives/transaction.h>
-#include <primitives/block.h>
 
 #include <atomic>
 #include <unordered_set>

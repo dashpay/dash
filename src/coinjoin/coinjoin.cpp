@@ -4,22 +4,21 @@
 
 #include <coinjoin/coinjoin.h>
 
-#include <chainparams.h>
-#include <core_io.h>
-#include <consensus/validation.h>
+#include <bls/bls.h>
 #include <chain.h>
+#include <chainparams.h>
+#include <consensus/validation.h>
+#include <core_io.h>
+#include <llmq/chainlocks.h>
+#include <llmq/instantsend.h>
+#include <masternode/node.h>
+#include <masternode/sync.h>
 #include <messagesigner.h>
 #include <netmessagemaker.h>
 #include <txmempool.h>
-#include <util/system.h>
 #include <util/moneystr.h>
+#include <util/system.h>
 #include <validation.h>
-#include <bls/bls.h>
-#include <masternode/node.h>
-#include <masternode/sync.h>
-
-#include <llmq/instantsend.h>
-#include <llmq/chainlocks.h>
 
 #include <string>
 

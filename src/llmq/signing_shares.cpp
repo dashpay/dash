@@ -9,11 +9,10 @@
 #include <llmq/signing.h>
 #include <llmq/utils.h>
 
-
+#include <bls/bls_batchverifier.h>
 #include <chainparams.h>
 #include <evo/deterministicmns.h>
 #include <masternode/node.h>
-#include <bls/bls_batchverifier.h>
 #include <net_processing.h>
 #include <netmessagemaker.h>
 #include <spork.h>
