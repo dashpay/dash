@@ -95,8 +95,6 @@ BOOST_FIXTURE_TEST_CASE(scan_for_wallet_transactions, TestChain100Setup)
         BOOST_CHECK_EQUAL(wallet.GetBalance().m_mine_immature, 500 * COIN);
     }
 
-    LockAnnotation lock(::cs_main);
-
     // Prune the remaining block file.
     PruneOneBlockFile(newTip->GetBlockPos().nFile);
     UnlinkPrunedFiles({newTip->GetBlockPos().nFile});
@@ -125,6 +123,7 @@ BOOST_FIXTURE_TEST_CASE(importmulti_rescan, TestChain100Setup)
     CreateAndProcessBlock({}, GetScriptForRawPubKey(coinbaseKey.GetPubKey()));
     CBlockIndex* newTip = ::ChainActive().Tip();
 
+    LockAnnotation lock(::cs_main);
     auto locked_chain = chain->lock();
 
     // Prune the older block file.
