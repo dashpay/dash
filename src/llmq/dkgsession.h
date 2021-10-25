@@ -278,7 +278,7 @@ public:
     CDKGSession(const Consensus::LLMQParams& _params, CBLSWorker& _blsWorker, CDKGSessionManager& _dkgManager) :
         params(_params), blsWorker(_blsWorker), cache(_blsWorker), dkgManager(_dkgManager) {}
 
-    bool Init(const CBlockIndex* pQuorumBaseBlockIndex, const std::vector<CDeterministicMNCPtr>& mns, const uint256& _myProTxHash, const uint32_t _quorumIndex = 0);
+    bool Init(const CBlockIndex* pQuorumBaseBlockIndex, const std::vector<CDeterministicMNCPtr>& mns, const uint256& _myProTxHash, uint32_t _quorumIndex = 0);
 
     std::optional<size_t> GetMyMemberIndex() const { return myIdx; }
 

@@ -68,7 +68,7 @@ CDKGMember::CDKGMember(const CDeterministicMNCPtr& _dmn, size_t _idx) :
 
 }
 
-bool CDKGSession::Init(const CBlockIndex* _pQuorumBaseBlockIndex, const std::vector<CDeterministicMNCPtr>& mns, const uint256& _myProTxHash)
+bool CDKGSession::Init(const CBlockIndex* _pQuorumBaseBlockIndex, const std::vector<CDeterministicMNCPtr>& mns, const uint256& _myProTxHash, uint32_t _quorumIndex)
 {
     m_quorum_base_block_index = _pQuorumBaseBlockIndex;
     quorumIndex = _quorumIndex;
