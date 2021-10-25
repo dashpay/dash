@@ -300,9 +300,8 @@ CQuorumPtr CQuorumManager::BuildQuorumFromCommitment(const Consensus::LLMQType l
     //This won't work with latest changes
     //assert(qc->quorumHash == pQuorumBaseBlockIndex->GetBlockHash());
 
-    const auto& llmqParams = llmq::GetLLMQParams(llmqType);
-    auto quorum = std::make_shared<CQuorum>(llmqParams, blsWorker);
-    auto members = CLLMQUtils::GetAllQuorumMembers(llmqParams, pQuorumBaseBlockIndex);
+    auto quorum = std::make_shared<CQuorum>(llmq::GetLLMQParams(llmqType), blsWorker);
+    auto members = CLLMQUtils::GetAllQuorumMembers(qc->llmqType, pQuorumBaseBlockIndex);
 
     quorum->Init(std::move(qc), pQuorumBaseBlockIndex, minedBlockHash, members);
 
@@ -480,9 +479,9 @@ std::vector<CQuorumCPtr> CQuorumManager::ScanQuorums(Consensus::LLMQType llmqTyp
     return ret;
 }
 
-std::vector<std::pair<uint32_t, CQuorumPtr>> CQuorumManager::ScanIndexedQuorums(Consensus::LLMQType llmqType, const CBlockIndex* pindexStart, size_t nCountRequested) const
+std::vector<CIndexedQuorum> CQuorumManager::ScanIndexedQuorums(Consensus::LLMQType llmqType, const CBlockIndex* pindexStart, size_t nCountRequested) const
 {
-    std::vector<std::pair<uint32_t, CQuorumPtr>> vecResultQuorums;
+    std::vector<CIndexedQuorum> vecResultQuorums;
 
     LOCK(quorumsCacheCs);
 
@@ -498,7 +497,7 @@ uint32_t CQuorumManager::GetNextQuorumIndex(Consensus::LLMQType llmqType) const
     LOCK(quorumsCacheCs);
 
     auto& cache = indexedQuorumsCache[llmqType];
-    std::pair<uint32_t, CQuorumPtr> data;
+    CIndexedQuorum data;
     if (cache.back(data)) {
         return (data.first + 1) % static_cast<uint32_t>(GetLLMQParams(llmqType).signingActiveQuorumCount);
     } else {

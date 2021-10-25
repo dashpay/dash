@@ -3944,12 +3944,12 @@ bool static ProcessMessage(CNode* pfrom, const std::string& strCommand, CDataStr
     }
 
     if (strCommand == NetMsgType::GETQUORUMROTATIONINFO) {
-        CGetQuorumRotationInfo cmd;
+        llmq::CGetQuorumRotationInfo cmd;
         vRecv >> cmd;
 
         LOCK(cs_main);
 
-        CQuorumRotationInfo quorumRotationInfoRet;
+        llmq::CQuorumRotationInfo quorumRotationInfoRet;
         std::string strError;
         if (BuildQuorumRotationInfo(cmd, quorumRotationInfoRet, strError)) {
             connman->PushMessage(pfrom, msgMaker.Make(NetMsgType::QUORUMROTATIONINFO, quorumRotationInfoRet));
