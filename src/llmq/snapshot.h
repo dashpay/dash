@@ -1,12 +1,16 @@
-// Copyright (c) 2017-2021 The Dash Core developers
+// Copyright (c) 2021 The Dash Core developers
 // Distributed under the MIT software license, see the accompanying
 // file COPYING or http://www.opensource.org/licenses/mit-license.php.
 
 #ifndef BITCOIN_LLMQ_SNAPSHOT_H
 #define BITCOIN_LLMQ_SNAPSHOT_H
 
+#include <evo/evodb.h>
 #include <evo/simplifiedmns.h>
+#include <saltedhasher.h>
 #include <serialize.h>
+
+namespace llmq {
 
 class CQuorumSnapshot
 {
@@ -16,10 +20,10 @@ public:
     std::vector<int> mnSkipList;
 
     CQuorumSnapshot() = default;
-    explicit CQuorumSnapshot(const std::vector<bool>& _activeQuorumMembers, int _mnSkipListMode, const std::vector<int>& _mnSkipList) :
-        activeQuorumMembers(_activeQuorumMembers),
+    explicit CQuorumSnapshot(std::vector<bool> _activeQuorumMembers, int _mnSkipListMode, std::vector<int> _mnSkipList) :
+        activeQuorumMembers(std::move(_activeQuorumMembers)),
         mnSkipListMode(_mnSkipListMode),
-        mnSkipList(_mnSkipList)
+        mnSkipList(std::move(_mnSkipList))
     {
     }
 
@@ -128,5 +132,7 @@ public:
 };
 
 extern std::unique_ptr<CQuorumSnapshotManager> quorumSnapshotManager;
+
+} // namespace llmq
 
 #endif //BITCOIN_LLMQ_SNAPSHOT_H

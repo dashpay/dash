@@ -1024,7 +1024,7 @@ CQuorumCPtr CSigningManager::SelectQuorumForSigning(Consensus::LLMQType llmqType
         }
         auto itQuorum = std::find_if(quorums.begin(),
                                      quorums.end(),
-                                     [selectedIndex](const std::pair<uint32_t, CQuorumPtr>& obj) {
+                                     [selectedIndex](const CIndexedQuorum& obj) {
                                          return obj.first == selectedIndex;
                                      });
         if (itQuorum == quorums.end()) {
