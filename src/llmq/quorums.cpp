@@ -507,11 +507,7 @@ uint32_t CQuorumManager::GetNextQuorumIndex(Consensus::LLMQType llmqType) const
 
 CQuorumCPtr CQuorumManager::GetQuorum(Consensus::LLMQType llmqType, const uint256& quorumHash) const
 {
-    CBlockIndex* pQuorumBaseBlockIndex = WITH_LOCK(cs_main, return LookupBlockIndex(quorumHash));
-    if (!pQuorumBaseBlockIndex) {
-        LogPrint(BCLog::LLMQ, "CQuorumManager::%s -- block %s not found\n", __func__, quorumHash.ToString());
-        return nullptr;
-    }
+    const CBlockIndex* pQuorumBaseBlockIndex = WITH_LOCK(cs_main, return LookupBlockIndex(quorumHash));
     return GetQuorum(llmqType, pQuorumBaseBlockIndex);
 }
 
