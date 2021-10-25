@@ -108,7 +108,6 @@ void CQuorumBlockProcessor::ProcessMessage(CNode* pfrom, const std::string& strC
         }
 
         if (!qc.Verify(pQuorumBaseBlockIndex, true)) {
-            LOCK(cs_main);
             LogPrint(BCLog::LLMQ, "CQuorumBlockProcessor::%s -- commitment for quorum %s:%d is not valid, peer=%d\n", __func__,
                       qc.quorumHash.ToString(), static_cast<uint8_t>(qc.llmqType), pfrom->GetId());
             LOCK(cs_main);
