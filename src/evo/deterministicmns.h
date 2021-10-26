@@ -441,8 +441,7 @@ public:
      * Get the payee MN of current block using deterministic approach.
      * MN with the older last payment, revival or registration height is selected.
      * In case of similar heigh, MN with the smaller hash is selected.
-     * @param
-     * @return
+     * @return Pointer of Deterministic MasterNode
      */
     CDeterministicMNCPtr GetMNPayee() const;
 
@@ -450,53 +449,54 @@ public:
      * Calculates the projected MN payees for the next *count* blocks. The result is not guaranteed to be correct
      * as PoSe banning might occur later
      * @param count
-     * @return
+     * @return Vector of Pointers of Deterministic MasterNodes
      */
     std::vector<CDeterministicMNCPtr> GetProjectedMNPayees(int nCount) const;
 
     /**
-     * Calculate a quorum based on the modifier. The resulting list is deterministically sorted by score
+     * Calculate a quorum based on the *modifier*. The resulting list of *maxSize* is deterministically sorted by score
      * @param maxSize
      * @param modifier
-     * @return
+     * @return Vector of Pointers of Deterministic MasterNodes
      */
     std::vector<CDeterministicMNCPtr> CalculateQuorum(size_t maxSize, const uint256& modifier) const;
 
     /**
-     * Calculate score based on the modifier for each confirmed MN.
+     * Calculate score based on the *modifier* for each confirmed MN.
      * @param modifier
-     * @return
+     * @return Vector of pairs of Pointers of Deterministic MasterNodes and their calculated *score*
      */
     std::vector<std::pair<arith_uint256, CDeterministicMNCPtr>> CalculateScores(const uint256& modifier) const;
 
     /**
-     * Calculates the maximum penalty which is allowed at the height of this MN list. It is dynamic and might change
+     * Calculates the maximum *penalty* which is allowed at the height of this MN list. It is dynamic and might change
      * for every block.
-     * @return
+     * @return Penalty
      */
     int CalcMaxPoSePenalty() const;
 
     /**
-     * Returns a the given percentage from the max penalty for this MN list. Always use this method to calculate the
+     * Returns a the given *percentage* from the max penalty for this MN list. Always use this method to calculate the
      * value later passed to PoSePunish. The percentage should be high enough to take per-block penalty decreasing for MNs
      * into account. This means, if you want to accept 2 failures per payment cycle, you should choose a percentage that
      * is higher then 50%, e.g. 66%.
      * @param percent
-     * @return
+     * @return Penalty
      */
     int CalcPenalty(int percent) const;
 
     /**
-     * Punishes a MN for misbehavior. If the resulting penalty score of the MN reaches the max penalty, it is banned.
+     * Punishes a MN given a *proTxHash* with a *penalty* score for misbehavior. If the resulting penalty score of the MN reaches the max penalty, it is banned.
      * Penalty scores are only increased when the MN is not already banned, which means that after banning the penalty
      * might appear lower then the current max penalty, while the MN is still banned.
      * @param proTxHash
      * @param penalty
+     * @param debugLogs
      */
     void PoSePunish(const uint256& proTxHash, int penalty, bool debugLogs);
 
     /**
-     * Decrease penalty score of MN by 1.
+     * Decrease penalty score of MN given a *proTxHash* by 1.
      * Only allowed on non-banned MNs.
      * @param proTxHash
      */
@@ -507,7 +507,7 @@ public:
      * Note that added MNs are stored sorted by internalId so that these are added in correct order when the diff is applied later
      * (otherwise internalIds will not match with the original list)
      * @param to
-     * @return
+     * @return Deterministic Master Node list Diff
      */
     CDeterministicMNListDiff BuildDiff(const CDeterministicMNList& to) const;
 
@@ -515,15 +515,15 @@ public:
      * Builds a simplified diff with given MN list containing removed, updated and new added MN.
      * Note that added and updated MNs are together as stored together
      * @param to
-     * @return
+     * @return Simplified Deterministic Master Node list Diff
      */
     CSimplifiedMNListDiff BuildSimplifiedDiff(const CDeterministicMNList& to) const;
 
     /**
-     * Constructs a MN list by applying a given diff to current MN at given block index
+     * Constructs a MN list by applying a given *diff* to current MN at given block *index*
      * @param pindex
      * @param diff
-     * @return
+     * @return Deterministic Master Node list
      */
     CDeterministicMNList ApplyDiff(const CBlockIndex* pindex, const CDeterministicMNListDiff& diff) const;
 
@@ -658,8 +658,7 @@ public:
 
     /**
      * Checks if no MN addition, update or removal of MN were made
-     * @param
-     * @return
+     * @return true/false
      */
     bool HasChanges() const
     {
@@ -745,7 +744,6 @@ public:
      * Decrease penalty score of all MN in the list by 1.
      * Applied only to valid and non-banned MNs.
      * @param mnList
-     * @return
      */
     static void DecreasePoSePenalties(CDeterministicMNList& mnList);
 
@@ -753,10 +751,10 @@ public:
     CDeterministicMNList GetListAtChainTip();
 
     /**
-     * Checks if given TX is a ProRegTx which also contains the collateral at index n
+     * Checks if given *TX* is a ProRegTx which also contains the collateral at index *n*
      * @param tx
      * @param n
-     * @return
+     * @return true/false
      */
     static bool IsProTxWithCollateral(const CTransactionRef& tx, uint32_t n);
 
