@@ -327,6 +327,7 @@ CQuorumPtr CQuorumManager::BuildQuorumFromCommitment(const Consensus::LLMQType l
     if (llmqType == Params().GetConsensus().llmqTypeInstantSend && fQuorumRotationActive) {
         uint32_t quorumIndex = GetNextQuorumIndex(llmqType);
         indexedQuorumsCache[llmqType].insert(std::make_pair(quorumIndex, quorum));
+        mapQuorumsCache[llmqType].insert(quorumHash, quorum);
     } else {
         mapQuorumsCache[llmqType].insert(quorumHash, quorum);
     }
