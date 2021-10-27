@@ -75,19 +75,19 @@ std::vector<CDeterministicMNCPtr> CLLMQUtils::GetAllQuorumMembersByQuarterRotati
         }
     }
 
-    auto quorums = llmq::quorumBlockProcessor->GetMinedAndActiveCommitmentsUntilBlock(pQuorumBaseBlockIndex);
-    auto quorumIt = quorums.find(llmqType);
-    if (quorumIt == quorums.end()) {
+    auto minedCommitments = llmq::quorumBlockProcessor->GetMinedAndActiveCommitmentsUntilBlock(pQuorumBaseBlockIndex);
+    auto llmqTypeIt = minedCommitments.find(llmqType);
+    if (llmqTypeIt == minedCommitments.end()) {
         return {};
     }
-    if (quorumIt->second.empty()) {
+    if (llmqTypeIt->second.empty()) {
         return {};
     }
 
     // Since the returned quorums are in reversed order, the most recent one is at index 0
-    const CBlockIndex* pBlockHMinusCIndex = LookupBlockIndex(quorumIt->second.at(0)->GetBlockHash());
-    const CBlockIndex* pBlockHMinus2CIndex = LookupBlockIndex(quorumIt->second.at(1)->GetBlockHash());
-    const CBlockIndex* pBlockHMinus3CIndex = LookupBlockIndex(quorumIt->second.at(2)->GetBlockHash());
+    const CBlockIndex* pBlockHMinusCIndex = LookupBlockIndex(llmqTypeIt->second.at(0)->GetBlockHash());
+    const CBlockIndex* pBlockHMinus2CIndex = LookupBlockIndex(llmqTypeIt->second.at(1)->GetBlockHash());
+    const CBlockIndex* pBlockHMinus3CIndex = LookupBlockIndex(llmqTypeIt->second.at(2)->GetBlockHash());
 
     if (!pBlockHMinusCIndex || !pBlockHMinus2CIndex || !pBlockHMinus3CIndex) {
         return {};
