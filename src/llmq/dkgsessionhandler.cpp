@@ -145,7 +145,9 @@ bool CDKGSessionHandler::InitNewQuorum(const CBlockIndex* pQuorumBaseBlockIndex)
     bool fQuorumRotationActive = (VersionBitsTipState(Params().GetConsensus(), Consensus::DEPLOYMENT_DIP0024) == ThresholdState::ACTIVE);
     if (params.type == Params().GetConsensus().llmqTypeInstantSend && fQuorumRotationActive) {
         //Need to perform Quorum rotation for InstantSend LLMQ Type
-        mns = CLLMQUtils::GetAllQuorumMembersByQuarterRotation(params.type, pQuorumBaseBlockIndex, quorumIndex);
+        auto iMns = CLLMQUtils::GetAllQuorumMembersByQuarterRotation(params.type, pQuorumBaseBlockIndex);
+        quorumIndex = iMns.first;
+        mns = std::move(iMns.second);
     } else {
         //In all other cases, no Quorum rotation needs to be performed
         mns = CLLMQUtils::GetAllQuorumMembers(params.type, pQuorumBaseBlockIndex);

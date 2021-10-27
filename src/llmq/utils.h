@@ -33,6 +33,9 @@ extern VersionBitsCache llmq_versionbitscache GUARDED_BY(cs_llmq_vbc);
 
 static const bool DEFAULT_ENABLE_QUORUM_DATA_RECOVERY = true;
 
+//CIndexedQuorumMembers = [quorumIndex, quorumMembers]
+using CIndexedQuorumMembers = std::pair<uint32_t, std::vector<CDeterministicMNCPtr>>;
+
 enum class QvvecSyncMode {
     Invalid = -1,
     Always = 0,
@@ -44,7 +47,7 @@ class CLLMQUtils
 public:
     // includes members which failed DKG
     static std::vector<CDeterministicMNCPtr> GetAllQuorumMembers(Consensus::LLMQType llmqType, const CBlockIndex* pQuorumBaseBlockIndex);
-    static std::vector<CDeterministicMNCPtr> GetAllQuorumMembersByQuarterRotation(Consensus::LLMQType llmqType, const CBlockIndex* pQuorumBaseBlockIndex, uint32_t& quorumIndex);
+    static CIndexedQuorumMembers GetAllQuorumMembersByQuarterRotation(Consensus::LLMQType llmqType, const CBlockIndex* pQuorumBaseBlockIndex);
     static std::vector<CDeterministicMNCPtr> GetQuorumQuarterMembersBySnapshot(Consensus::LLMQType llmqType, const CBlockIndex* pQuorumBaseBlockIndex, const llmq::CQuorumSnapshot& snapshot);
     static std::vector<CDeterministicMNCPtr> BuildNewQuorumQuarterMembers(Consensus::LLMQType llmqType, const CBlockIndex* pQuorumBaseBlockIndex, const std::vector<CDeterministicMNCPtr>& quartersMembersMinusC, const std::vector<CDeterministicMNCPtr>& quartersMembersMinus2C, const std::vector<CDeterministicMNCPtr>& quartersMembersMinus3C);
 

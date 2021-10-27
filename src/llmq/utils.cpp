@@ -56,22 +56,22 @@ std::vector<CDeterministicMNCPtr> CLLMQUtils::GetAllQuorumMembers(Consensus::LLM
     return quorumMembers;
 }
 
-std::vector<CDeterministicMNCPtr> CLLMQUtils::GetAllQuorumMembersByQuarterRotation(Consensus::LLMQType llmqType, const CBlockIndex* pQuorumBaseBlockIndex, uint32_t& quorumIndex)
+CIndexedQuorumMembers CLLMQUtils::GetAllQuorumMembersByQuarterRotation(Consensus::LLMQType llmqType, const CBlockIndex* pQuorumBaseBlockIndex)
 {
     static CCriticalSection cs_members;
-    static std::map<Consensus::LLMQType, unordered_lru_cache<uint256, std::vector<CDeterministicMNCPtr>, StaticSaltedHasher>> mapQuorumMembers;
+    static std::map<Consensus::LLMQType, unordered_lru_cache<uint256, CIndexedQuorumMembers, StaticSaltedHasher>> mapIndexedQuorumMembers;
 
     if (!IsQuorumTypeEnabled(llmqType, pQuorumBaseBlockIndex->pprev)) {
         return {};
     }
-    std::vector<CDeterministicMNCPtr> quorumMembers;
+    CIndexedQuorumMembers indexedQuorumMembers;
     {
         LOCK(cs_members);
-        if (mapQuorumMembers.empty()) {
-            InitQuorumsCache(mapQuorumMembers);
+        if (mapIndexedQuorumMembers.empty()) {
+            InitQuorumsCache(mapIndexedQuorumMembers);
         }
-        if (mapQuorumMembers[llmqType].get(pQuorumBaseBlockIndex->GetBlockHash(), quorumMembers)) {
-            return quorumMembers;
+        if (mapIndexedQuorumMembers[llmqType].get(pQuorumBaseBlockIndex->GetBlockHash(), indexedQuorumMembers)) {
+            return indexedQuorumMembers;
         }
     }
 
@@ -115,6 +115,8 @@ std::vector<CDeterministicMNCPtr> CLLMQUtils::GetAllQuorumMembersByQuarterRotati
 
 
     //TODO Add handling when build of new quorum quarter fails (newQuarterMembers is empty)
+    std::vector<CDeterministicMNCPtr> quorumMembers;
+
     auto newQuarterMembers = CLLMQUtils::BuildNewQuorumQuarterMembers(llmqType, pQuorumBaseBlockIndex, quarterHMinusC, quarterHMinus2C, quarterHMinus3C);
 
     std::copy(quarterHMinus3C.begin(),
@@ -131,9 +133,10 @@ std::vector<CDeterministicMNCPtr> CLLMQUtils::GetAllQuorumMembersByQuarterRotati
               std::back_inserter(quorumMembers));
 
     LOCK(cs_members);
-    mapQuorumMembers[llmqType].insert(pQuorumBaseBlockIndex->GetBlockHash(), quorumMembers);
-    quorumIndex = quorumManager->GetNextQuorumIndex(llmqType);
-    return quorumMembers;
+    indexedQuorumMembers.first = quorumManager->GetNextQuorumIndex(llmqType);
+    indexedQuorumMembers.second = std::move(quorumMembers);
+    mapIndexedQuorumMembers[llmqType].insert(pQuorumBaseBlockIndex->GetBlockHash(), indexedQuorumMembers);
+    return indexedQuorumMembers;
 }
 
 std::vector<CDeterministicMNCPtr> CLLMQUtils::BuildNewQuorumQuarterMembers(Consensus::LLMQType llmqType, const CBlockIndex* pQuorumBaseBlockIndex, const std::vector<CDeterministicMNCPtr>& quartersMembersMinusC, const std::vector<CDeterministicMNCPtr>& quartersMembersMinus2C, const std::vector<CDeterministicMNCPtr>& quartersMembersMinus3C)
