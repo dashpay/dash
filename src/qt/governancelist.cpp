@@ -225,7 +225,7 @@ void ProposalModel::setVotingParams(int newAbsVoteReq)
         this->nAbsVoteReq = newAbsVoteReq;
         // Changing either of the voting params may change the voting status
         // column. Emit signal to force recalculation.
-        Q_EMIT dataChanged(createIndex(0, VOTING_STATUS), createIndex(columnCount(), VOTING_STATUS));
+        Q_EMIT dataChanged(createIndex(0, Column::VOTING_STATUS), createIndex(columnCount(), Column::VOTING_STATUS));
     }
 }
 
