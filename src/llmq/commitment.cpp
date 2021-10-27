@@ -15,9 +15,10 @@
 namespace llmq
 {
 
-CFinalCommitment::CFinalCommitment(const Consensus::LLMQParams& params, const uint256& _quorumHash, uint32_t _quorumIndex) :
+CFinalCommitment::CFinalCommitment(const Consensus::LLMQParams& params, const uint256& _quorumHash, uint16_t _nVersion, uint32_t _quorumIndex) :
         llmqType(params.type),
         quorumHash(_quorumHash),
+        nVersion(_nVersion),
         quorumIndex(_quorumIndex),
         signers(params.size),
         validMembers(params.size)
@@ -30,7 +31,7 @@ CFinalCommitment::CFinalCommitment(const Consensus::LLMQParams& params, const ui
 
 bool CFinalCommitment::Verify(const CBlockIndex* pQuorumBaseBlockIndex, bool checkSigs) const
 {
-    if (nVersion == 0 || nVersion > CURRENT_VERSION) {
+    if (nVersion == 0 || nVersion > QUORUM_INDEXED_VERSION) {
         return false;
     }
 

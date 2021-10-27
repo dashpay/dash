@@ -909,10 +909,12 @@ void CDKGSession::SendCommitment(CDKGPendingMessages& pendingMessages)
 
     logger.Batch("sending commitment");
 
+    //if(params)
     CDKGPrematureCommitment qc(params);
     qc.llmqType = params.type;
     qc.quorumHash = m_quorum_base_block_index->GetBlockHash();
     qc.proTxHash = myProTxHash;
+    qc.quorumIndex = quorumIndex;
 
     for (size_t i = 0; i < members.size(); i++) {
         const auto& m = members[i];
@@ -977,7 +979,12 @@ void CDKGSession::SendCommitment(CDKGPendingMessages& pendingMessages)
         (*qc.quorumVvecHash.begin())++;
     }
 
-    uint256 commitmentHash = CLLMQUtils::BuildCommitmentHash(qc.llmqType, qc.quorumHash, qc.validMembers, qc.quorumPublicKey, qc.quorumVvecHash);
+    uint16_t nVersion = CFinalCommitment::CURRENT_VERSION;
+    bool fQuorumRotationActive = (VersionBitsTipState(Params().GetConsensus(), Consensus::DEPLOYMENT_DIP0024) == ThresholdState::ACTIVE);
+    if (params.type == Params().GetConsensus().llmqTypeInstantSend && fQuorumRotationActive) {
+        nVersion = CFinalCommitment::QUORUM_INDEXED_VERSION;
+    }
+    uint256 commitmentHash = CLLMQUtils::BuildCommitmentHash(qc.llmqType, qc.quorumHash, qc.validMembers, qc.quorumPublicKey, qc.quorumVvecHash, nVersion, qc.quorumIndex);
 
     if (lieType == 2) {
         (*commitmentHash.begin())++;
@@ -1130,7 +1137,12 @@ void CDKGSession::ReceiveMessage(const CDKGPrematureCommitment& qc, bool& retBan
             return;
         }
 
-        if (!qc.quorumSig.VerifyInsecure(pubKeyShare, qc.GetSignHash())) {
+        uint16_t nVersion = CFinalCommitment::CURRENT_VERSION;
+        bool fQuorumRotationActive = (VersionBitsTipState(Params().GetConsensus(), Consensus::DEPLOYMENT_DIP0024) == ThresholdState::ACTIVE);
+        if (params.type == Params().GetConsensus().llmqTypeInstantSend && fQuorumRotationActive) {
+            nVersion = CFinalCommitment::QUORUM_INDEXED_VERSION;
+        }
+        if (!qc.quorumSig.VerifyInsecure(pubKeyShare, qc.GetSignHash(nVersion))) {
             logger.Batch("failed to verify quorumSig");
             return;
         }
@@ -1185,6 +1197,12 @@ std::vector<CFinalCommitment> CDKGSession::FinalizeCommitments()
         }
     }
 
+    uint16_t nVersion = CFinalCommitment::CURRENT_VERSION;
+    bool fQuorumRotationActive = (VersionBitsTipState(Params().GetConsensus(), Consensus::DEPLOYMENT_DIP0024) == ThresholdState::ACTIVE);
+    if (params.type == Params().GetConsensus().llmqTypeInstantSend && fQuorumRotationActive) {
+        nVersion = CFinalCommitment::QUORUM_INDEXED_VERSION;
+    }
+
     std::vector<CFinalCommitment> finalCommitments;
     for (const auto& p : commitmentsMap) {
         auto& cvec = p.second;
@@ -1198,12 +1216,12 @@ std::vector<CFinalCommitment> CDKGSession::FinalizeCommitments()
 
         auto& first = cvec[0];
 
-        CFinalCommitment fqc(params, first.quorumHash, quorumIndex);
+        CFinalCommitment fqc(params, first.quorumHash, nVersion, quorumIndex);
         fqc.validMembers = first.validMembers;
         fqc.quorumPublicKey = first.quorumPublicKey;
         fqc.quorumVvecHash = first.quorumVvecHash;
 
-        uint256 commitmentHash = CLLMQUtils::BuildCommitmentHash(fqc.llmqType, fqc.quorumHash, fqc.validMembers, fqc.quorumPublicKey, fqc.quorumVvecHash, quorumIndex);
+        uint256 commitmentHash = CLLMQUtils::BuildCommitmentHash(fqc.llmqType, fqc.quorumHash, fqc.validMembers, fqc.quorumPublicKey, fqc.quorumVvecHash, nVersion, quorumIndex);
 
         std::vector<CBLSSignature> aggSigs;
         std::vector<CBLSPublicKey> aggPks;
