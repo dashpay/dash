@@ -292,13 +292,11 @@ CQuorumPtr CQuorumManager::BuildQuorumFromCommitment(const Consensus::LLMQType l
 
     const uint256& quorumHash{pQuorumBaseBlockIndex->GetBlockHash()};
     uint256 minedBlockHash;
-    //TODO investigate if quorumHash here should include quorumIndex as well
     CFinalCommitmentPtr qc = quorumBlockProcessor->GetMinedCommitment(llmqType, quorumHash, minedBlockHash);
     if (qc == nullptr) {
         return nullptr;
     }
-    //This won't work with latest changes
-    //assert(qc->quorumHash == pQuorumBaseBlockIndex->GetBlockHash());
+    assert(qc->quorumHash == pQuorumBaseBlockIndex->GetBlockHash());
 
     auto quorum = std::make_shared<CQuorum>(llmq::GetLLMQParams(llmqType), blsWorker);
     auto members = CLLMQUtils::GetAllQuorumMembers(qc->llmqType, pQuorumBaseBlockIndex);
@@ -325,8 +323,7 @@ CQuorumPtr CQuorumManager::BuildQuorumFromCommitment(const Consensus::LLMQType l
     }
     bool fQuorumRotationActive = (VersionBitsTipState(Params().GetConsensus(), Consensus::DEPLOYMENT_DIP0024) == ThresholdState::ACTIVE);
     if (llmqType == Params().GetConsensus().llmqTypeInstantSend && fQuorumRotationActive) {
-        uint32_t quorumIndex = GetNextQuorumIndex(llmqType);
-        indexedQuorumsCache[llmqType].insert(std::make_pair(quorumIndex, quorum));
+        indexedQuorumsCache[llmqType].insert(std::make_pair(qc->quorumIndex, quorum));
         mapQuorumsCache[llmqType].insert(quorumHash, quorum);
     } else {
         mapQuorumsCache[llmqType].insert(quorumHash, quorum);
