@@ -371,12 +371,13 @@ void CLLMQUtils::BuildQuorumSnapshotSkipList(Consensus::LLMQType llmqType, const
     }
 }
 
-uint256 CLLMQUtils::BuildCommitmentHash(Consensus::LLMQType llmqType, const uint256& blockHash, const std::vector<bool>& validMembers, const CBLSPublicKey& pubKey, const uint256& vvecHash, const uint32_t quorumIndex)
+uint256 CLLMQUtils::BuildCommitmentHash(Consensus::LLMQType llmqType, const uint256& blockHash, const std::vector<bool>& validMembers, const CBLSPublicKey& pubKey, const uint256& vvecHash, uint16_t nVersion, uint32_t quorumIndex)
 {
     CHashWriter hw(SER_NETWORK, 0);
     hw << llmqType;
     hw << blockHash;
-    hw << quorumIndex;
+    if (nVersion == llmq::CFinalCommitment::QUORUM_INDEXED_VERSION)
+        hw << quorumIndex;
     hw << DYNBITSET(validMembers);
     hw << pubKey;
     hw << vvecHash;

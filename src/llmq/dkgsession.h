@@ -10,6 +10,7 @@
 #include <bls/bls_ies.h>
 #include <bls/bls_worker.h>
 
+#include <llmq/commitment.h>
 #include <llmq/utils.h>
 
 #include <optional>
@@ -181,9 +182,9 @@ public:
                 );
     }
 
-    uint256 GetSignHash() const
+    uint256 GetSignHash(uint16_t nVersion = CFinalCommitment::CURRENT_VERSION) const
     {
-        return CLLMQUtils::BuildCommitmentHash(llmqType, quorumHash, validMembers, quorumPublicKey, quorumVvecHash);
+        return CLLMQUtils::BuildCommitmentHash(llmqType, quorumHash, validMembers, quorumPublicKey, quorumVvecHash, nVersion, quorumIndex);
     }
 };
 
