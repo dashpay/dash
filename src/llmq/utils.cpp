@@ -77,21 +77,19 @@ CIndexedQuorumMembers CLLMQUtils::GetAllQuorumMembersByQuarterRotation(Consensus
 
     auto minedCommitments = llmq::quorumBlockProcessor->GetMinedAndActiveCommitmentsUntilBlock(pQuorumBaseBlockIndex);
     auto llmqTypeIt = minedCommitments.find(llmqType);
-    if (llmqTypeIt == minedCommitments.end()) {
-        return {};
-    }
-    if (llmqTypeIt->second.empty()) {
-        return {};
-    }
+
+    assert(llmqTypeIt != minedCommitments.end());
+    assert(!llmqTypeIt->second.empty());
 
     // Since the returned quorums are in reversed order, the most recent one is at index 0
-    const CBlockIndex* pBlockHMinusCIndex = LookupBlockIndex(llmqTypeIt->second.at(0)->GetBlockHash());
-    const CBlockIndex* pBlockHMinus2CIndex = LookupBlockIndex(llmqTypeIt->second.at(1)->GetBlockHash());
-    const CBlockIndex* pBlockHMinus3CIndex = LookupBlockIndex(llmqTypeIt->second.at(2)->GetBlockHash());
+    //TODO is locking here required ?
+    const CBlockIndex* pBlockHMinusCIndex = WITH_LOCK(cs_main, return LookupBlockIndex(llmqTypeIt->second.at(0)->GetBlockHash()));
+    const CBlockIndex* pBlockHMinus2CIndex = WITH_LOCK(cs_main, return LookupBlockIndex(llmqTypeIt->second.at(1)->GetBlockHash()));
+    const CBlockIndex* pBlockHMinus3CIndex = WITH_LOCK(cs_main, return LookupBlockIndex(llmqTypeIt->second.at(2)->GetBlockHash()));
 
-    if (!pBlockHMinusCIndex || !pBlockHMinus2CIndex || !pBlockHMinus3CIndex) {
-        return {};
-    }
+    assert(pBlockHMinusCIndex);
+    assert(pBlockHMinus2CIndex);
+    assert(pBlockHMinus3CIndex);
 
     llmq::CQuorumSnapshot quSnapshotHMinusC;
     llmq::CQuorumSnapshot quSnapshotHMinus2C;
@@ -118,6 +116,7 @@ CIndexedQuorumMembers CLLMQUtils::GetAllQuorumMembersByQuarterRotation(Consensus
     std::vector<CDeterministicMNCPtr> quorumMembers;
 
     auto newQuarterMembers = CLLMQUtils::BuildNewQuorumQuarterMembers(llmqType, pQuorumBaseBlockIndex, quarterHMinusC, quarterHMinus2C, quarterHMinus3C);
+    assert(!newQuarterMembers.empty());
 
     std::copy(quarterHMinus3C.begin(),
               quarterHMinus3C.end(),
