@@ -40,7 +40,6 @@ class CLLMQUtils
 public:
     // includes members which failed DKG
     static std::vector<CDeterministicMNCPtr> GetAllQuorumMembers(const Consensus::LLMQParams& llmqParams, const CBlockIndex* pindexQuorum);
-    static std::vector<CDeterministicMNCPtr> GetAllQuorumMembers(Consensus::LLMQType llmqType, const CBlockIndex* pQuorumBaseBlockIndex);
 
     static uint256 BuildCommitmentHash(Consensus::LLMQType llmqType, const uint256& blockHash, const std::vector<bool>& validMembers, const CBLSPublicKey& pubKey, const uint256& vvecHash);
     static uint256 BuildSignHash(Consensus::LLMQType llmqType, const uint256& quorumHash, const uint256& id, const uint256& msgHash);

@@ -52,11 +52,6 @@ std::vector<CDeterministicMNCPtr> CLLMQUtils::GetAllQuorumMembers(const Consensu
     return quorumMembers;
 }
 
-std::vector<CDeterministicMNCPtr> CLLMQUtils::GetAllQuorumMembers(Consensus::LLMQType llmqType, const CBlockIndex* pindexQuorum)
-{
-    return GetAllQuorumMembers(llmq::GetLLMQParams(llmqType), pindexQuorum);
-}
-
 uint256 CLLMQUtils::BuildCommitmentHash(Consensus::LLMQType llmqType, const uint256& blockHash, const std::vector<bool>& validMembers, const CBLSPublicKey& pubKey, const uint256& vvecHash)
 {
     CHashWriter hw(SER_NETWORK, 0);
