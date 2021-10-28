@@ -345,7 +345,9 @@ uint256 CInstantSendDb::GetInstantSendLockHashByTxid(const uint256& txid) const
     LOCK(cs_db);
     uint256 islockHash;
     if (!txidCache.get(txid, islockHash)) {
-        db->Read(std::make_tuple(DB_HASH_BY_TXID, txid), islockHash);
+        if (!db->Read(std::make_tuple(DB_HASH_BY_TXID, txid), islockHash)) {
+            return {};
+        }
         txidCache.insert(txid, islockHash);
     }
     return islockHash;
@@ -362,7 +364,9 @@ CInstantSendLockPtr CInstantSendDb::GetInstantSendLockByInput(const COutPoint& o
     LOCK(cs_db);
     uint256 islockHash;
     if (!outpointCache.get(outpoint, islockHash)) {
-        db->Read(std::make_tuple(DB_HASH_BY_OUTPOINT, outpoint), islockHash);
+        if (!db->Read(std::make_tuple(DB_HASH_BY_OUTPOINT, outpoint), islockHash)) {
+            return nullptr;
+        }
         outpointCache.insert(outpoint, islockHash);
     }
     return GetInstantSendLockByHash(islockHash);
