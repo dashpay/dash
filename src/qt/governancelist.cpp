@@ -371,7 +371,7 @@ void GovernanceList::showProposalContextMenu(const QPoint& pos)
         return;
     }
 
-    const auto proposal = proposalModel->getProposalAt(index);
+    const auto proposal = proposalModel->getProposalAt(proposalModelProxy->mapToSource(index));
     if (proposal == nullptr) {
         return;
     }
@@ -390,7 +390,7 @@ void GovernanceList::showAdditionalInfo(const QModelIndex& index)
         return;
     }
 
-    const auto proposal = proposalModel->getProposalAt(index);
+    const auto proposal = proposalModel->getProposalAt(proposalModelProxy->mapToSource(index));
     if (proposal == nullptr) {
         return;
     }
