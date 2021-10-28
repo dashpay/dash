@@ -60,6 +60,7 @@ CInstantSendDb::CInstantSendDb(bool unitTests, bool fWipe)
 
 void CInstantSendDb::Upgrade()
 {
+    LOCK2(cs_main, ::mempool.cs);
     LOCK(cs_db);
     int v{0};
     if (!db->Read(DB_VERSION, v) || v < CInstantSendDb::CURRENT_VERSION) {
