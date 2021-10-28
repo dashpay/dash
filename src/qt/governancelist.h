@@ -44,6 +44,7 @@ public:
     QString url() const;
     bool isActive() const;
     QString votingStatus(const int nAbsVoteReq) const;
+    int GetAbsoluteYesCount() const;
 
     void openUrl() const;
 

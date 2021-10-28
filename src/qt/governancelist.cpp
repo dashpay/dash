@@ -84,6 +84,11 @@ QString Proposal::votingStatus(const int nAbsVoteReq) const
     }
 }
 
+int Proposal::GetAbsoluteYesCount() const
+{
+    return pGovObj->GetAbsoluteYesCount(VOTE_SIGNAL_FUNDING);
+}
+
 void Proposal::openUrl() const
 {
     QDesktopServices::openUrl(QUrl(m_url));
@@ -114,24 +119,54 @@ QVariant ProposalModel::data(const QModelIndex& index, int role) const
 {
     if (role != Qt::DisplayRole && role != Qt::EditRole) return {};
     const auto proposal = m_data[index.row()];
-    switch (index.column()) {
-    case Column::HASH:
-        return proposal->hash();
-    case Column::TITLE:
-        return proposal->title();
-    case Column::START_DATE:
-        return proposal->startDate().date();
-    case Column::END_DATE:
-        return proposal->endDate().date();
-    case Column::PAYMENT_AMOUNT:
-        return proposal->paymentAmount();
-    case Column::IS_ACTIVE:
-        return proposal->isActive() ? "Y" : "N";
-    case Column::VOTING_STATUS:
-        return proposal->votingStatus(nAbsVoteReq);
-    default:
-        return {};
+    switch(role) {
+    case Qt::DisplayRole:
+    {
+        switch (index.column()) {
+        case Column::HASH:
+            return proposal->hash();
+        case Column::TITLE:
+            return proposal->title();
+        case Column::START_DATE:
+            return proposal->startDate().date();
+        case Column::END_DATE:
+            return proposal->endDate().date();
+        case Column::PAYMENT_AMOUNT:
+            return proposal->paymentAmount();
+        case Column::IS_ACTIVE:
+            return proposal->isActive() ? "Y" : "N";
+        case Column::VOTING_STATUS:
+            return proposal->votingStatus(nAbsVoteReq);
+        default:
+            return {};
+        };
+        break;
+    }
+    case Qt::EditRole:
+    {
+        // Edit role is used for sorting, so return the raw values where possible
+        switch (index.column()) {
+        case Column::HASH:
+            return proposal->hash();
+        case Column::TITLE:
+            return proposal->title();
+        case Column::START_DATE:
+            return proposal->startDate();
+        case Column::END_DATE:
+            return proposal->endDate();
+        case Column::PAYMENT_AMOUNT:
+            return proposal->paymentAmount();
+        case Column::IS_ACTIVE:
+            return proposal->isActive();
+        case Column::VOTING_STATUS:
+            return proposal->GetAbsoluteYesCount();
+        default:
+            return {};
+        };
+        break;
+    }
     };
+    return {};
 }
 
 QVariant ProposalModel::headerData(int section, Qt::Orientation orientation, int role) const
@@ -256,12 +291,15 @@ GovernanceList::GovernanceList(QWidget* parent) :
     ui->govTableView->setModel(proposalModelProxy);
     ui->govTableView->setSelectionBehavior(QAbstractItemView::SelectRows);
     ui->govTableView->horizontalHeader()->setStretchLastSection(true);
-    ui->govTableView->setSortingEnabled(true);
-    ui->govTableView->sortByColumn(ProposalModel::Column::START_DATE, Qt::DescendingOrder);
 
     for (int i = 0; i < proposalModel->columnCount(); ++i) {
         ui->govTableView->setColumnWidth(i, proposalModel->columnWidth(i));
     }
+
+    // Set up sorting.
+    proposalModelProxy->setSortRole(Qt::EditRole);
+    ui->govTableView->setSortingEnabled(true);
+    ui->govTableView->sortByColumn(ProposalModel::Column::START_DATE, Qt::DescendingOrder);
 
     // Set up filtering.
     proposalModelProxy->setFilterKeyColumn(ProposalModel::Column::TITLE); // filter by title column...
