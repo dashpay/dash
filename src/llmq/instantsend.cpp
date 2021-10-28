@@ -1662,7 +1662,14 @@ bool IsInstantSendMempoolSigningEnabled()
 
 bool RejectConflictingBlocks()
 {
-    return !fReindex && !fImporting && sporkManager.IsSporkActive(SPORK_3_INSTANTSEND_BLOCK_FILTERING);
+    if (!masternodeSync.IsBlockchainSynced()) {
+        return false;
+    }
+    if (!sporkManager.IsSporkActive(SPORK_3_INSTANTSEND_BLOCK_FILTERING)) {
+        LogPrint(BCLog::INSTANTSEND, "%s: spork3 is off, skipping transaction locking checks\n", __func__);
+        return false;
+    }
+    return true;
 }
 
 } // namespace llmq
