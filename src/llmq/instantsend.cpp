@@ -58,11 +58,8 @@ CInstantSendDb::CInstantSendDb(bool unitTests, bool fWipe)
     db = std::make_unique<CDBWrapper>(unitTests ? "" : (GetDataDir() / "llmq/isdb"), 32 << 20, unitTests, fWipe);
 }
 
-void CInstantSendDb::Upgrade() EXCLUSIVE_LOCKS_REQUIRED(cs_main, ::mempool.cs)
+void CInstantSendDb::Upgrade()
 {
-    AssertLockHeld(cs_main);
-    AssertLockHeld(::mempool.cs);
-
     LOCK(cs_db);
     int v{0};
     if (!db->Read(DB_VERSION, v) || v < CInstantSendDb::CURRENT_VERSION) {
@@ -1271,7 +1268,6 @@ void CInstantSendManager::UpdatedBlockTip(const CBlockIndex* pindexNew)
 {
     if (!fUpgradedDB) {
         if (WITH_LOCK(cs_llmq_vbc, return VersionBitsState(pindexNew, Params().GetConsensus(), Consensus::DEPLOYMENT_DIP0020, llmq_versionbitscache) == ThresholdState::ACTIVE)) {
-            LOCK2(cs_main, ::mempool.cs);  // for GetTransaction in Upgrade
             db.Upgrade();
             fUpgradedDB = true;
         }
