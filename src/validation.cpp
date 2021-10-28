@@ -351,12 +351,12 @@ static bool ContextualCheckTransaction(const CTransaction& tx, TxValidationState
 // Returns the script flags which should be checked for a given block
 static unsigned int GetBlockScriptFlags(const CBlockIndex* pindex, const ChainstateManager& chainman);
 
-static void LimitMempoolSize(CTxMemPool& pool, CCoinsViewCache& coins_cache, std::chrono::seconds age)
+static void LimitMempoolSize(CTxMemPool& pool, CCoinsViewCache& coins_cache)
     EXCLUSIVE_LOCKS_REQUIRED(::cs_main, pool.cs)
 {
     AssertLockHeld(::cs_main);
     AssertLockHeld(pool.cs);
-    int expired = pool.Expire(GetTime<std::chrono::seconds>() - age);
+    int expired = pool.Expire(GetTime<std::chrono::seconds>() - pool.m_expiry);
     if (expired != 0) {
         LogPrint(BCLog::MEMPOOL, "Expired %i transactions from the memory pool\n", expired);
     }
@@ -473,10 +473,7 @@ void CChainState::MaybeUpdateMempoolForReorg(
     // We also need to remove any now-immature transactions
     m_mempool->removeForReorg(m_chain, filter_final_and_mature);
     // Re-limit mempool size, in case we added any transactions
-    LimitMempoolSize(
-        *m_mempool,
-        this->CoinsTip(),
-        std::chrono::hours{gArgs.GetIntArg("-mempoolexpiry", DEFAULT_MEMPOOL_EXPIRY)});
+    LimitMempoolSize(*m_mempool, this->CoinsTip());
 }
 
 /**
@@ -1074,7 +1071,7 @@ bool MemPoolAccept::Finalize(const ATMPArgs& args, Workspace& ws)
     // in the package. LimitMempoolSize() should be called at the very end to make sure the mempool
     // is still within limits and package submission happens atomically.
     if (!args.m_package_submission && !bypass_limits) {
-        LimitMempoolSize(m_pool, m_active_chainstate.CoinsTip(), std::chrono::hours{gArgs.GetIntArg("-mempoolexpiry", DEFAULT_MEMPOOL_EXPIRY)});
+        LimitMempoolSize(m_pool, m_active_chainstate.CoinsTip());
         if (!m_pool.exists(hash))
             return state.Invalid(TxValidationResult::TX_MEMPOOL_POLICY, "mempool full");
     }
@@ -1138,8 +1135,7 @@ bool MemPoolAccept::SubmitPackage(const ATMPArgs& args, std::vector<Workspace>& 
 
     // It may or may not be the case that all the transactions made it into the mempool. Regardless,
     // make sure we haven't exceeded max mempool size.
-    LimitMempoolSize(m_pool, m_active_chainstate.CoinsTip(),
-                     std::chrono::hours{gArgs.GetIntArg("-mempoolexpiry", DEFAULT_MEMPOOL_EXPIRY)});
+    LimitMempoolSize(m_pool, m_active_chainstate.CoinsTip());
 
     // Find the wtxids of the transactions that made it into the mempool. Allow partial submission,
     // but don't report success unless they all made it into the mempool.
@@ -5485,7 +5481,7 @@ static const uint64_t MEMPOOL_DUMP_VERSION = 1;
 
 bool LoadMempool(CTxMemPool& pool, CChainState& active_chainstate, FopenFn mockable_fopen_function)
 {
-    int64_t nExpiryTimeout = gArgs.GetIntArg("-mempoolexpiry", DEFAULT_MEMPOOL_EXPIRY) * 60 * 60;
+    int64_t nExpiryTimeout = std::chrono::seconds{pool.m_expiry}.count();
     FILE* filestr{mockable_fopen_function(gArgs.GetDataDirNet() / "mempool.dat", "rb")};
     AutoFile file{filestr};
     if (file.IsNull()) {
