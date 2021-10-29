@@ -980,8 +980,7 @@ void CDKGSession::SendCommitment(CDKGPendingMessages& pendingMessages)
     }
 
     uint16_t nVersion = CFinalCommitment::CURRENT_VERSION;
-    bool fQuorumRotationActive = (VersionBitsTipState(Params().GetConsensus(), Consensus::DEPLOYMENT_DIP0024) == ThresholdState::ACTIVE);
-    if (params.type == Params().GetConsensus().llmqTypeInstantSend && fQuorumRotationActive) {
+    if (CLLMQUtils::IsQuorumRotationEnabled(params.type)) {
         nVersion = CFinalCommitment::QUORUM_INDEXED_VERSION;
     }
     uint256 commitmentHash = CLLMQUtils::BuildCommitmentHash(qc.llmqType, qc.quorumHash, qc.validMembers, qc.quorumPublicKey, qc.quorumVvecHash, nVersion, qc.quorumIndex);
@@ -1138,8 +1137,7 @@ void CDKGSession::ReceiveMessage(const CDKGPrematureCommitment& qc, bool& retBan
         }
 
         uint16_t nVersion = CFinalCommitment::CURRENT_VERSION;
-        bool fQuorumRotationActive = (VersionBitsTipState(Params().GetConsensus(), Consensus::DEPLOYMENT_DIP0024) == ThresholdState::ACTIVE);
-        if (params.type == Params().GetConsensus().llmqTypeInstantSend && fQuorumRotationActive) {
+        if (CLLMQUtils::IsQuorumRotationEnabled(params.type)) {
             nVersion = CFinalCommitment::QUORUM_INDEXED_VERSION;
         }
         if (!qc.quorumSig.VerifyInsecure(pubKeyShare, qc.GetSignHash(nVersion))) {
@@ -1198,8 +1196,7 @@ std::vector<CFinalCommitment> CDKGSession::FinalizeCommitments()
     }
 
     uint16_t nVersion = CFinalCommitment::CURRENT_VERSION;
-    bool fQuorumRotationActive = (VersionBitsTipState(Params().GetConsensus(), Consensus::DEPLOYMENT_DIP0024) == ThresholdState::ACTIVE);
-    if (params.type == Params().GetConsensus().llmqTypeInstantSend && fQuorumRotationActive) {
+    if (CLLMQUtils::IsQuorumRotationEnabled(params.type)) {
         nVersion = CFinalCommitment::QUORUM_INDEXED_VERSION;
     }
 
