@@ -417,6 +417,15 @@ bool CLLMQUtils::IsQuorumPoseEnabled(Consensus::LLMQType llmqType)
     return EvalSpork(llmqType, sporkManager.GetSporkValue(SPORK_23_QUORUM_POSE));
 }
 
+bool CLLMQUtils::IsQuorumRotationEnabled(Consensus::LLMQType llmqType)
+{
+    bool fQuorumRotationActive = (VersionBitsTipState(Params().GetConsensus(), Consensus::DEPLOYMENT_DIP0024) == ThresholdState::ACTIVE);
+    if (llmqType == Params().GetConsensus().llmqTypeInstantSend && fQuorumRotationActive) {
+        return true;
+    }
+    return false;
+}
+
 uint256 CLLMQUtils::DeterministicOutboundConnection(const uint256& proTxHash1, const uint256& proTxHash2)
 {
     // We need to deterministically select who is going to initiate the connection. The naive way would be to simply
