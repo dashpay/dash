@@ -10,7 +10,6 @@
 #include <consensus/merkle.h>
 #include <llmq/params.h>
 #include <tinyformat.h>
-#include <util/time.h>
 #include <util/system.h>
 #include <util/strencodings.h>
 #include <versionbitsinfo.h>
@@ -219,8 +218,8 @@ public:
 
         // Deployment of decreased proposal fee
         consensus.vDeployments[Consensus::DEPLOYMENT_GOV_FEE].bit = 7;
-        consensus.vDeployments[Consensus::DEPLOYMENT_GOV_FEE].nStartTime = calculate_timestamp(2021, MONTH::DEC, 1);
-        consensus.vDeployments[Consensus::DEPLOYMENT_GOV_FEE].nTimeout = calculate_timestamp(2022, MONTH::DEC, 1);
+        consensus.vDeployments[Consensus::DEPLOYMENT_GOV_FEE].nStartTime = 1638360000; // Dec 1st, 2021
+        consensus.vDeployments[Consensus::DEPLOYMENT_GOV_FEE].nTimeout = 1669896000; // Dec 1st, 2022
         consensus.vDeployments[Consensus::DEPLOYMENT_GOV_FEE].nWindowSize = 4032;
         consensus.vDeployments[Consensus::DEPLOYMENT_GOV_FEE].nThresholdStart = 3226; // 80% of 4032
         consensus.vDeployments[Consensus::DEPLOYMENT_GOV_FEE].nThresholdMin = 2420; // 60% of 4032
@@ -629,7 +628,7 @@ public:
 
         // Deployment of decreased proposal fee
         consensus.vDeployments[Consensus::DEPLOYMENT_GOV_FEE].bit = 7;
-        consensus.vDeployments[Consensus::DEPLOYMENT_GOV_FEE].nStartTime = calculate_timestamp(2021, MONTH::OCT, 1);
+        consensus.vDeployments[Consensus::DEPLOYMENT_GOV_FEE].nStartTime = 1635768000; // Nov 1st, 2021
         consensus.vDeployments[Consensus::DEPLOYMENT_GOV_FEE].nTimeout = 999999999999ULL;
         consensus.vDeployments[Consensus::DEPLOYMENT_GOV_FEE].nWindowSize = 4032;
         consensus.vDeployments[Consensus::DEPLOYMENT_GOV_FEE].nThresholdStart = 3226; // 80% of 4032
