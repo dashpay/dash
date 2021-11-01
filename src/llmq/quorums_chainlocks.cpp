@@ -44,7 +44,7 @@ void CChainLocksHandler::Start()
         CheckActiveState();
         EnforceBestChainLock();
         // regularly retry signing the current chaintip as it might have failed before due to missing ixlocks
-        TrySignChainTip();
+        TrySignChain();
     }, 5000);
 }
 
@@ -187,8 +187,8 @@ void CChainLocksHandler::AcceptedBlockHeader(const CBlockIndex* pindexNew)
 
 void CChainLocksHandler::UpdatedBlockTip(const CBlockIndex* pindexNew)
 {
-    // don't call TrySignChainTip directly but instead let the scheduler call it. This way we ensure that cs_main is
-    // never locked and TrySignChainTip is not called twice in parallel. Also avoids recursive calls due to
+    // don't call TrySignChain directly but instead let the scheduler call it. This way we ensure that cs_main is
+    // never locked and TrySignChain is not called twice in parallel. Also avoids recursive calls due to
     // EnforceBestChainLock switching chains.
     LOCK(cs);
     if (tryLockChainTipScheduled) {
@@ -198,7 +198,7 @@ void CChainLocksHandler::UpdatedBlockTip(const CBlockIndex* pindexNew)
     scheduler->scheduleFromNow([&]() {
         CheckActiveState();
         EnforceBestChainLock();
-        TrySignChainTip();
+        TrySignChain();
         LOCK(cs);
         tryLockChainTipScheduled = false;
     }, 0);
@@ -229,7 +229,8 @@ void CChainLocksHandler::CheckActiveState()
     }
 }
 
-void CChainLocksHandler::TrySignChainTip()
+// in Dash this was TrySignChainTip
+void CChainLocksHandler::TrySignChain()
 {
     Cleanup();
 
@@ -244,7 +245,7 @@ void CChainLocksHandler::TrySignChainTip()
     const CBlockIndex* pindex;
     {
         LOCK(cs_main);
-        pindex = chainActive[chainActive.Height() - 10];
+        pindex = chainActive[chainActive.Height() - 6]; // 7 confirmations
     }
 
     if (!pindex->pprev) {

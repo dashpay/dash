@@ -784,7 +784,7 @@ bool CSigningManager::AsyncSignIfMember(Consensus::LLMQType llmqType, const uint
     int signHeight;
     {
         LOCK(cs_main);
-        signHeight = chainActive.Height() - 10; // TODO_ADOT_COMMENT this works as an extra offset for all quorum singing, if Dash-style ChainLocks and Automatic InstantSend are activated this should be changed
+        signHeight = chainActive.Height();
     }
 
     // This might end up giving different results on different members

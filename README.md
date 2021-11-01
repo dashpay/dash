@@ -1,4 +1,4 @@
-# **Alterdot (ADOT) v1.9.1.1**
+# **Alterdot (ADOT) v1.9.2.0**
 
 <table>
  <tr>
@@ -32,6 +32,8 @@
 
 **Project previously known as [Bitcreds](https://github.com/Bitcreds/Bitcreds).**
 
+**Note for v1.9.2**: This version of Alterdot activates ChainLocks at height 1,078,000. This mechanism will protect our blockchain against significant 51% attacks. All blocks that are situated 6 blocks behind the active chain tip get signed upon by a Masternode Quorum (LLMQ_30_80) and get locked in place, no longer allowing for chain reorganizations before that block. This means that effectively all transactions with 8 or more confirmations can no longer be cancelled out by a 51% attack.
+
 What is Alterdot?
 ----------------
 * Coin Suffix: ADOT
@@ -39,8 +41,8 @@ What is Alterdot?
 * PoW Difficulty Algorithm: DELTA until block 1,034,000; LWMA afterwards
 * PoW Target Spacing: 128 Seconds until block 1,000,000; 360 Seconds afterwards
 * PoW Reward per Block: See Below
-* Maturity: 10 Blocks
 * PoW Blocks: ~675 per day until block 1,000,000; ~240 per day afterwards
+* Coinbase Maturity: 10 Blocks
 * Masternode Collateral Amount: 10,000 ADOT
 * Masternode Min Confirmation: 16 Blocks
 * Masternode Reward: See Below

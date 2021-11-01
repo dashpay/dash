@@ -1440,15 +1440,18 @@ bool static ProcessMessage(CNode* pfrom, const std::string& strCommand, CDataStr
         return true;
     }
 
-    bool fLLMQSwitch; // TODO_ADOT_FUTURE next LLMQ set switches
+    bool fLLMQSwitch, fDIP0008Active_context; // TODO_ADOT_FUTURE next LLMQ set switches and hard forks
     {
         LOCK(cs_main);
-        fLLMQSwitch = chainActive.Height() >= Params().GetConsensus().LLMQSwitchHeight;
+        fLLMQSwitch = chainActive.Height() >= chainparams.GetConsensus().LLMQSwitchHeight;
+        fDIP0008Active_context = chainActive.Height() >= chainparams.GetConsensus().DIP0008Height;
     }
 
     int nMinPeerProtoVersion = MIN_PEER_PROTO_VERSION;
 
-    if (fLLMQSwitch) {
+    if (fDIP0008Active_context) {
+        nMinPeerProtoVersion = MIN_PEER_PROTO_VERSION_DIP0008;
+    } else if (fLLMQSwitch) {
         nMinPeerProtoVersion = MIN_PEER_PROTO_VERSION_LLMQ_SWITCH;
     }
 

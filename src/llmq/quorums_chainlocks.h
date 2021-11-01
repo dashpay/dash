@@ -92,7 +92,7 @@ public:
     void UpdatedBlockTip(const CBlockIndex* pindexNew);
     void SyncTransaction(const CTransaction &tx, const CBlockIndex *pindex, int posInBlock);
     void CheckActiveState();
-    void TrySignChainTip();
+    void TrySignChain();
     void EnforceBestChainLock();
     virtual void HandleNewRecoveredSig(const CRecoveredSig& recoveredSig);
 
