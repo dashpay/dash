@@ -476,7 +476,7 @@ std::vector<CQuorumCPtr> CQuorumManager::ScanQuorums(Consensus::LLMQType llmqTyp
     return ret;
 }
 
-std::vector<CIndexedQuorum> CQuorumManager::ScanIndexedQuorums(Consensus::LLMQType llmqType, const CBlockIndex* pindexStart, size_t nCountRequested) const
+std::vector<CIndexedQuorum> CQuorumManager::ScanIndexedQuorums(Consensus::LLMQType llmqType) const
 {
     std::vector<CIndexedQuorum> vecResultQuorums;
 

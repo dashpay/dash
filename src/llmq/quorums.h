@@ -226,7 +226,7 @@ public:
     // this one is cs_main-free
     std::vector<CQuorumCPtr> ScanQuorums(Consensus::LLMQType llmqType, const CBlockIndex* pindexStart, size_t nCountRequested) const;
 
-    std::vector<CIndexedQuorum> ScanIndexedQuorums(Consensus::LLMQType llmqType, const CBlockIndex* pindexStart, size_t nCountRequested) const;
+    std::vector<CIndexedQuorum> ScanIndexedQuorums(Consensus::LLMQType llmqType) const;
     uint32_t GetNextQuorumIndex(Consensus::LLMQType llmqType) const;
 
 private:
