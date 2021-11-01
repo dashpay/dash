@@ -75,40 +75,66 @@ CIndexedQuorumMembers CLLMQUtils::GetAllQuorumMembersByQuarterRotation(Consensus
         }
     }
 
-    auto minedCommitments = llmq::quorumBlockProcessor->GetMinedAndActiveCommitmentsUntilBlock(pQuorumBaseBlockIndex);
-    auto llmqTypeIt = minedCommitments.find(llmqType);
+    std::vector<CIndexedQuorum> quorums = llmq::quorumManager->ScanIndexedQuorums(llmqType);
 
-    assert(llmqTypeIt != minedCommitments.end());
-    assert(!llmqTypeIt->second.empty());
+    if (!quorums.empty()) {
+        if (!llmq::quorumBlockProcessor->HasMinedCommitment(llmqType, quorums.back().second->m_quorum_base_block_index->GetBlockHash())) {
+            //Last quorum DKG has failed. Returning and caching the last quorum members
+            LOCK(cs_members);
+            indexedQuorumMembers.first = quorums.back().first;
+            indexedQuorumMembers.second = quorums.back().second->members;
+            mapIndexedQuorumMembers[llmqType].insert(pQuorumBaseBlockIndex->GetBlockHash(), indexedQuorumMembers);
+            return indexedQuorumMembers;
+        }
+    }
 
-    // Since the returned quorums are in reversed order, the most recent one is at index 0
-    //TODO is locking here required ?
-    const CBlockIndex* pBlockHMinusCIndex = WITH_LOCK(cs_main, return LookupBlockIndex(llmqTypeIt->second.at(0)->GetBlockHash()));
-    const CBlockIndex* pBlockHMinus2CIndex = WITH_LOCK(cs_main, return LookupBlockIndex(llmqTypeIt->second.at(1)->GetBlockHash()));
-    const CBlockIndex* pBlockHMinus3CIndex = WITH_LOCK(cs_main, return LookupBlockIndex(llmqTypeIt->second.at(2)->GetBlockHash()));
-
-    assert(pBlockHMinusCIndex);
-    assert(pBlockHMinus2CIndex);
-    assert(pBlockHMinus3CIndex);
-
-    llmq::CQuorumSnapshot quSnapshotHMinusC;
-    llmq::CQuorumSnapshot quSnapshotHMinus2C;
-    llmq::CQuorumSnapshot quSnapshotHMinus3C;
     std::vector<CDeterministicMNCPtr> quarterHMinusC;
     std::vector<CDeterministicMNCPtr> quarterHMinus2C;
     std::vector<CDeterministicMNCPtr> quarterHMinus3C;
 
-    if (quorumSnapshotManager->GetSnapshotForBlock(llmqType, pBlockHMinusCIndex, quSnapshotHMinusC)) {
-        quarterHMinusC = CLLMQUtils::GetQuorumQuarterMembersBySnapshot(llmqType, pBlockHMinusCIndex, quSnapshotHMinusC);
-        assert(!quarterHMinusC.empty());
-    }
-    if (quorumSnapshotManager->GetSnapshotForBlock(llmqType, pBlockHMinus2CIndex, quSnapshotHMinus2C)) {
-        quarterHMinus2C = CLLMQUtils::GetQuorumQuarterMembersBySnapshot(llmqType, pBlockHMinus2CIndex, quSnapshotHMinus2C);
-        assert(!quarterHMinus2C.empty());
-    }
-    if (quorumSnapshotManager->GetSnapshotForBlock(llmqType, pBlockHMinus3CIndex, quSnapshotHMinus3C)) {
-        quarterHMinus3C = CLLMQUtils::GetQuorumQuarterMembersBySnapshot(llmqType, pBlockHMinus3CIndex, quSnapshotHMinus3C);
-        assert(!quarterHMinus3C.empty());
+    if (quorums.size() >= 1) {
+        auto itQuorum = std::prev(quorums.end());
+
+        uint256 blockHashAtHMinusC = itQuorum->second->m_quorum_base_block_index->GetBlockHash();
+        //Is locking here required ?
+        const CBlockIndex* pBlockHMinusCIndex = WITH_LOCK(cs_main, return LookupBlockIndex(blockHashAtHMinusC));
+        assert(pBlockHMinusCIndex);
+
+        llmq::CQuorumSnapshot quSnapshotHMinusC;
+        if (quorumSnapshotManager->GetSnapshotForBlock(llmqType, pBlockHMinusCIndex, quSnapshotHMinusC)) {
+            quarterHMinusC = CLLMQUtils::GetQuorumQuarterMembersBySnapshot(llmqType, pBlockHMinusCIndex, quSnapshotHMinusC);
+            assert(!quarterHMinusC.empty());
+        }
+
+        if (quorums.size() >= 2) {
+            itQuorum = std::prev(itQuorum);
+
+            uint256 blockHashAtHMinus2C = itQuorum->second->m_quorum_base_block_index->GetBlockHash();
+            //Is locking here required ?
+            const CBlockIndex* pBlockHMinus2CIndex = WITH_LOCK(cs_main, return LookupBlockIndex(blockHashAtHMinus2C));
+            assert(pBlockHMinus2CIndex);
+
+            llmq::CQuorumSnapshot quSnapshotHMinus2C;
+            if (quorumSnapshotManager->GetSnapshotForBlock(llmqType, pBlockHMinus2CIndex, quSnapshotHMinus2C)) {
+                quarterHMinus2C = CLLMQUtils::GetQuorumQuarterMembersBySnapshot(llmqType, pBlockHMinus2CIndex, quSnapshotHMinus2C);
+                assert(!quarterHMinus2C.empty());
+            }
+
+            if (quorums.size() >= 3) {
+                itQuorum = std::prev(itQuorum);
+
+                uint256 blockHashAtHMinus3C = itQuorum->second->m_quorum_base_block_index->GetBlockHash();
+                //Is locking here required ?
+                const CBlockIndex* pBlockHMinus3CIndex = WITH_LOCK(cs_main, return LookupBlockIndex(blockHashAtHMinus3C));
+                assert(pBlockHMinus3CIndex);
+
+                llmq::CQuorumSnapshot quSnapshotHMinus3C;
+                if (quorumSnapshotManager->GetSnapshotForBlock(llmqType, pBlockHMinus3CIndex, quSnapshotHMinus3C)) {
+                    quarterHMinus3C = CLLMQUtils::GetQuorumQuarterMembersBySnapshot(llmqType, pBlockHMinus3CIndex, quSnapshotHMinus3C);
+                    assert(!quarterHMinus3C.empty());
+                }
+            }
+        }
     }
 
 
