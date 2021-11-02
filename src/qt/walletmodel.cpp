@@ -24,7 +24,6 @@
 #include "wallet/walletdb.h" // for BackupWallet
 
 #include "instantx.h"
-#include "spork.h"
 #include "privatesend-client.h"
 #include "llmq/quorums_instantsend.h"
 
@@ -319,8 +318,8 @@ WalletModel::SendCoinsReturn WalletModel::prepareTransaction(WalletModelTransact
         return AmountExceedsBalance;
     }
 
-    if(recipients[0].fUseInstantSend && IsOldInstantSendEnabled() && total > sporkManager.GetSporkValue(SPORK_5_INSTANTSEND_MAX_VALUE) * COIN) {
-        Q_EMIT message(tr("Send Coins"), tr("InstantSend doesn't support sending values that high yet. Transactions are currently limited to %1 ADOT.").arg(sporkManager.GetSporkValue(SPORK_5_INSTANTSEND_MAX_VALUE)),
+    if(recipients[0].fUseInstantSend && IsOldInstantSendEnabled() && total > instantsend.GetInputMaxValue() * COIN) {
+        Q_EMIT message(tr("Send Coins"), tr("InstantSend doesn't support sending values that high yet. Transactions are currently limited to %1 ADOT.").arg(instantsend.GetInputMaxValue()),
                      CClientUIInterface::MSG_ERROR);
         return TransactionCreationFailed;
     }
@@ -350,13 +349,13 @@ WalletModel::SendCoinsReturn WalletModel::prepareTransaction(WalletModelTransact
     }
 
     if(recipients[0].fUseInstantSend && IsOldInstantSendEnabled()) {
-        if(nValueOut > sporkManager.GetSporkValue(SPORK_5_INSTANTSEND_MAX_VALUE)*COIN) {
-            Q_EMIT message(tr("Send Coins"), tr("InstantSend doesn't support sending values that high yet. Transactions are currently limited to %1 ADOT.").arg(sporkManager.GetSporkValue(SPORK_5_INSTANTSEND_MAX_VALUE)),
+        if(nValueOut > instantsend.GetInputMaxValue() * COIN) {
+            Q_EMIT message(tr("Send Coins"), tr("InstantSend doesn't support sending values that high yet. Transactions are currently limited to %1 ADOT.").arg(instantsend.GetInputMaxValue()),
                          CClientUIInterface::MSG_ERROR);
             return TransactionCreationFailed;
         }
         if(nVinSize > CTxLockRequest::WARN_MANY_INPUTS) {
-            Q_EMIT message(tr("Send Coins"), tr("Used way too many inputs (>%1) for this InstantSend transaction, fees could be huge.").arg(CTxLockRequest::WARN_MANY_INPUTS),
+            Q_EMIT message(tr("Send Coins"), tr("Many inputs (>%1) are used for this InstantSend transaction, fees could be very high.").arg(CTxLockRequest::WARN_MANY_INPUTS),
                          CClientUIInterface::MSG_WARNING);
         }
     }
