@@ -334,7 +334,11 @@ void CLLMQUtils::BuildQuorumSnapshot(Consensus::LLMQType llmqType, const CDeterm
 
 void CLLMQUtils::BuildQuorumSnapshotSkipList(Consensus::LLMQType llmqType, const CDeterministicMNList& mnUsedAtH, const std::vector<CDeterministicMNCPtr>& sortedCombinedMns, std::vector<CDeterministicMNCPtr>& quarterMembers, CQuorumSnapshot& quorumSnapshot)
 {
-    auto quarterSize = GetLLMQParams(llmqType).size / 4;
+    auto quorumSize = static_cast<size_t>(GetLLMQParams(llmqType).size);
+    auto quarterSize = quorumSize / 4;
+    auto alreadyQuorumMembers = mnUsedAtH.GetAllMNsCount();
+    //For the first 3 cycles after Quorum Rotation has been enabled, we need to build quarter with more members than usual
+    auto membersNeeded = std::max(quorumSize - alreadyQuorumMembers, quarterSize);
 
     quarterMembers.clear();
 
@@ -350,7 +354,7 @@ void CLLMQUtils::BuildQuorumSnapshotSkipList(Consensus::LLMQType llmqType, const
         quorumSnapshot.mnSkipList.clear();
 
         std::copy_n(sortedCombinedMns.begin(),
-                    quarterSize,
+                    membersNeeded,
                     std::back_inserter(quarterMembers));
     } else if (nMnsUsed < sortedCombinedMns.size() / 2) {
         //Mode 1: Skipping entries
@@ -358,7 +362,7 @@ void CLLMQUtils::BuildQuorumSnapshotSkipList(Consensus::LLMQType llmqType, const
 
         size_t first_entry_index = {};
         size_t i = {};
-        while (quarterMembers.size() < quarterSize && i < sortedCombinedMns.size()) {
+        while (quarterMembers.size() < membersNeeded && i < sortedCombinedMns.size()) {
             if (mnUsedAtH.ContainsMN(sortedCombinedMns.at(i)->proTxHash)) {
                 if (first_entry_index == 0) {
                     first_entry_index = i;
@@ -377,7 +381,7 @@ void CLLMQUtils::BuildQuorumSnapshotSkipList(Consensus::LLMQType llmqType, const
 
         size_t first_entry_index = {};
         size_t i = {};
-        while (quarterMembers.size() < quarterSize && i < sortedCombinedMns.size()) {
+        while (quarterMembers.size() < membersNeeded && i < sortedCombinedMns.size()) {
             if (!mnUsedAtH.ContainsMN(sortedCombinedMns.at(i)->proTxHash)) {
                 if (first_entry_index == 0) {
                     first_entry_index = i;
