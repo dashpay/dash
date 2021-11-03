@@ -11,14 +11,14 @@
 
 namespace Consensus {
 
-enum class LLMQType : uint8_t
-{
+enum class LLMQType : uint8_t {
     LLMQ_NONE = 0xff,
 
-    LLMQ_50_60 = 1, // 50 members, 30 (60%) threshold, one per hour
+    LLMQ_50_60 = 1,  // 50 members, 30 (60%) threshold, one per hour
     LLMQ_400_60 = 2, // 400 members, 240 (60%) threshold, one every 12 hours
     LLMQ_400_85 = 3, // 400 members, 340 (85%) threshold, one every 24 hours
     LLMQ_100_67 = 4, // 100 members, 67 (67%) threshold, one per hour
+    LLMQ_60_75 = 5,  // 60 members, 45 (75%) threshold, one every 12 hours
 
     // for testing only
     LLMQ_TEST = 100, // 3 members, 2 (66%) threshold, one per hour. Params might differ when -llmqtestparams is used
@@ -95,7 +95,7 @@ struct LLMQParams {
 };
 
 
-static constexpr std::array<LLMQParams, 7> available_llmqs = {
+static constexpr std::array<LLMQParams, 8> available_llmqs = {
 
     /**
      * llmq_test
@@ -169,7 +169,7 @@ static constexpr std::array<LLMQParams, 7> available_llmqs = {
         .recoveryMembers = 6,
     },
 
-/**
+    /**
      * llmq_50_60
      * This quorum is deployed on mainnet and requires
      * 40 - 50 participants
@@ -190,6 +190,30 @@ static constexpr std::array<LLMQParams, 7> available_llmqs = {
 
         .signingActiveQuorumCount = 24, // a full day worth of LLMQs
         .keepOldConnections = 25,
+        .recoveryMembers = 25,
+    },
+
+    /**
+     * llmq_60_75
+     * This quorum is deployed on mainnet and requires
+     * 50 - 60 participants
+     *
+     */
+    LLMQParams{
+        .type = LLMQType::LLMQ_60_75,
+        .name = "llmq_60_75",
+        .size = 60,
+        .minSize = 50,
+        .threshold = 45,
+
+        .dkgInterval = 24 * 12, // one DKG every 12 hours
+        .dkgPhaseBlocks = 2,
+        .dkgMiningWindowStart = 10, // dkgPhaseBlocks * 5 = after finalization
+        .dkgMiningWindowEnd = 18,
+        .dkgBadVotesThreshold = 40,
+
+        .signingActiveQuorumCount = 64,
+        .keepOldConnections = 33,
         .recoveryMembers = 25,
     },
 
