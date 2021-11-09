@@ -44,7 +44,7 @@ void CChainLocksHandler::Start()
         CheckActiveState();
         EnforceBestChainLock();
         // regularly retry signing the current chaintip as it might have failed before due to missing ixlocks
-        TrySignChainTip();
+        TrySignChain();
     }, 5000);
 }
 
@@ -74,7 +74,7 @@ bool CChainLocksHandler::GetChainLockByHash(const uint256& hash, llmq::CChainLoc
 
 void CChainLocksHandler::ProcessMessage(CNode* pfrom, const std::string& strCommand, CDataStream& vRecv, CConnman& connman)
 {
-    if (!sporkManager.IsSporkActive(SPORK_19_CHAINLOCKS_ENABLED)) {
+    if (!isDIP0008Enforced) {
         return;
     }
 
@@ -187,8 +187,8 @@ void CChainLocksHandler::AcceptedBlockHeader(const CBlockIndex* pindexNew)
 
 void CChainLocksHandler::UpdatedBlockTip(const CBlockIndex* pindexNew)
 {
-    // don't call TrySignChainTip directly but instead let the scheduler call it. This way we ensure that cs_main is
-    // never locked and TrySignChainTip is not called twice in parallel. Also avoids recursive calls due to
+    // don't call TrySignChain directly but instead let the scheduler call it. This way we ensure that cs_main is
+    // never locked and TrySignChain is not called twice in parallel. Also avoids recursive calls due to
     // EnforceBestChainLock switching chains.
     LOCK(cs);
     if (tryLockChainTipScheduled) {
@@ -198,7 +198,7 @@ void CChainLocksHandler::UpdatedBlockTip(const CBlockIndex* pindexNew)
     scheduler->scheduleFromNow([&]() {
         CheckActiveState();
         EnforceBestChainLock();
-        TrySignChainTip();
+        TrySignChain();
         LOCK(cs);
         tryLockChainTipScheduled = false;
     }, 0);
@@ -214,10 +214,10 @@ void CChainLocksHandler::CheckActiveState()
 
     LOCK(cs);
     bool oldIsEnforced = isEnforced;
-    isSporkActive = sporkManager.IsSporkActive(SPORK_19_CHAINLOCKS_ENABLED); // TODO_ADOT_FUTURE DIP0008 Enforcement
+    isDIP0008Enforced = chainActive.Tip()->nHeight >= Params().GetConsensus().DIP0008EnforcementHeight;
     // TODO remove this after DIP8 is active
     bool fEnforcedBySpork = (Params().NetworkIDString() == CBaseChainParams::TESTNET) && (sporkManager.GetSporkValue(SPORK_19_CHAINLOCKS_ENABLED) == 1);
-    isEnforced = (fDIP0008Active_context && isSporkActive) || fEnforcedBySpork;
+    isEnforced = (fDIP0008Active_context && isDIP0008Enforced) || fEnforcedBySpork;
 
     if (!oldIsEnforced && isEnforced) {
         // ChainLocks got activated just recently, but it's possible that it was already running before, leaving
@@ -229,7 +229,8 @@ void CChainLocksHandler::CheckActiveState()
     }
 }
 
-void CChainLocksHandler::TrySignChainTip()
+// in Dash this was TrySignChainTip
+void CChainLocksHandler::TrySignChain()
 {
     Cleanup();
 
@@ -244,7 +245,7 @@ void CChainLocksHandler::TrySignChainTip()
     const CBlockIndex* pindex;
     {
         LOCK(cs_main);
-        pindex = chainActive.Tip();
+        pindex = chainActive[chainActive.Height() - 6]; // 7 confirmations
     }
 
     if (!pindex->pprev) {
@@ -259,7 +260,7 @@ void CChainLocksHandler::TrySignChainTip()
     {
         LOCK(cs);
 
-        if (!isSporkActive) {
+        if (!isDIP0008Enforced) {
             return;
         }
 
@@ -448,7 +449,7 @@ bool CChainLocksHandler::IsTxSafeForMining(const uint256& txid)
     int64_t txAge = 0;
     {
         LOCK(cs);
-        if (!isSporkActive) {
+        if (!isDIP0008Enforced) {
             return true;
         }
         auto it = txFirstSeenTime.find(txid);
@@ -544,7 +545,7 @@ void CChainLocksHandler::HandleNewRecoveredSig(const llmq::CRecoveredSig& recove
     {
         LOCK(cs);
 
-        if (!isSporkActive) {
+        if (!isDIP0008Enforced) {
             return;
         }
 

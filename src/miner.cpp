@@ -175,6 +175,10 @@ std::unique_ptr<CBlockTemplate> BlockAssembler::CreateNewBlock(const CScript& sc
             usedLLMQs.insert(usedLLMQs.end(), { Consensus::LLMQ_50_60, Consensus::LLMQ_400_60, Consensus::LLMQ_400_85 });
         } else {
             usedLLMQs.insert(usedLLMQs.end(), { Consensus::LLMQ_10_60 });
+            
+            if (fDIP0008Active_context) {
+                usedLLMQs.insert(usedLLMQs.end(), { Consensus::LLMQ_30_80 });
+            }
         }
 
         for (auto llmqType : usedLLMQs) {

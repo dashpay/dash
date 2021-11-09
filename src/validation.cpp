@@ -1882,6 +1882,7 @@ static DisconnectResult DisconnectBlock(const CBlock& block, CValidationState& s
     // make sure the flag is reset in case of a chain reorg
     // (we reused the DIP3 deployment)
     instantsend.isAutoLockBip9Active = pindex->nHeight >= Params().GetConsensus().DIP0003Height;
+    instantsend.isChangeActive = pindex->nHeight >= Params().GetConsensus().DIP0008Height;
 
     evoDb->WriteBestBlock(pindex->pprev->GetBlockHash());
 

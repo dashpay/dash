@@ -38,6 +38,8 @@ extern CTxMemPool mempool;
 bool fEnableInstantSend = true;
 
 std::atomic<bool> CInstantSend::isAutoLockBip9Active{false};
+std::atomic<bool> CInstantSend::isChangeActive{false};
+
 const double CInstantSend::AUTO_IX_MEMPOOL_THRESHOLD = 0.1;
 
 CInstantSend instantsend;
@@ -952,6 +954,14 @@ bool CInstantSend::CanAutoLock()
     return (mempool.UsedMemoryShare() < AUTO_IX_MEMPOOL_THRESHOLD);
 }
 
+CAmount CInstantSend::GetInputMaxValue()
+{
+    if (isChangeActive)
+        return 20000;
+    
+    return 1000;
+}
+
 //
 // CTxLockRequest
 //
@@ -996,7 +1006,7 @@ bool CTxLockRequest::IsValid() const
         nValueIn += coin.out.nValue;
     }
 
-    if (nValueIn > sporkManager.GetSporkValue(SPORK_5_INSTANTSEND_MAX_VALUE)*COIN) {
+    if (nValueIn > CInstantSend::GetInputMaxValue() * COIN) {
         LogPrint("instantsend", "CTxLockRequest::IsValid -- Transaction value too high: nValueIn=%d, tx=%s", nValueIn, ToString());
         return false;
     }
@@ -1016,7 +1026,13 @@ CAmount CTxLockRequest::GetMinFee(bool fForceMinFee) const
     if (!fForceMinFee && CInstantSend::CanAutoLock() && IsSimple()) {
         return CAmount();
     }
-    CAmount nMinFee = MIN_FEE;
+
+    CAmount nMinFee = OLD_MIN_FEE;
+
+    if (CInstantSend::isChangeActive) {
+        nMinFee = NEW_MIN_FEE;
+    }
+
     return std::max(nMinFee, CAmount(tx->vin.size() * nMinFee));
 }
 

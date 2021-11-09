@@ -121,6 +121,7 @@ bool CQuorumBlockProcessor::ProcessBlock(const CBlock& block, const CBlockIndex*
     AssertLockHeld(cs_main);
 
     bool fDIP0003Active_context = pindex->nHeight >= Params().GetConsensus().DIP0003Height;
+    bool fDIP0008Active_context = pindex->nHeight >= Params().GetConsensus().DIP0008Height;
     bool fLLMQSwitch = pindex->nHeight >= Params().GetConsensus().LLMQSwitchHeight;
 
     if (!fDIP0003Active_context) {
@@ -134,6 +135,10 @@ bool CQuorumBlockProcessor::ProcessBlock(const CBlock& block, const CBlockIndex*
         usedLLMQs.insert(usedLLMQs.end(), { Consensus::LLMQ_50_60, Consensus::LLMQ_400_60, Consensus::LLMQ_400_85 });
     } else {
         usedLLMQs.insert(usedLLMQs.end(), { Consensus::LLMQ_10_60 });
+        
+        if (fDIP0008Active_context) {
+            usedLLMQs.insert(usedLLMQs.end(), { Consensus::LLMQ_30_80 });
+        }
     }
 
     std::map<Consensus::LLMQType, CFinalCommitment> qcs;
