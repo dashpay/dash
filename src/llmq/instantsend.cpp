@@ -446,7 +446,7 @@ void CInstantSendDb::RemoveAndArchiveInstantSendLock(const CInstantSendLockPtr& 
     LOCK(cs_db);
 
     CDBBatch batch(*db);
-    auto hash = ::SerializeHash(*islock);
+    const auto hash = ::SerializeHash(*islock);
     RemoveInstantSendLock(batch, hash, islock, false);
     WriteInstantSendLockArchived(batch, hash, nHeight);
     db->WriteBatch(batch);
@@ -1062,7 +1062,7 @@ void CInstantSendManager::ProcessInstantSendLock(NodeId from, const uint256& has
         }
     }
 
-    auto sameTxIsLock = db.GetInstantSendLockByTxid(islock->txid);
+    const auto sameTxIsLock = db.GetInstantSendLockByTxid(islock->txid);
     if (sameTxIsLock != nullptr) {
         if (sameTxIsLock->IsDeterministic() == islock->IsDeterministic()) {
             // shouldn't happen, investigate
@@ -1078,7 +1078,7 @@ void CInstantSendManager::ProcessInstantSendLock(NodeId from, const uint256& has
         }
     } else {
         for (const auto& in : islock->inputs) {
-            auto sameOutpointIsLock = db.GetInstantSendLockByInput(in);
+            const auto sameOutpointIsLock = db.GetInstantSendLockByInput(in);
             if (sameOutpointIsLock != nullptr) {
                 LogPrintf("CInstantSendManager::%s -- txid=%s, islock=%s: conflicting outpoint in islock. input=%s, other islock=%s, peer=%d\n", __func__,
                           islock->txid.ToString(), hash.ToString(), in.ToStringShort(), ::SerializeHash(*sameOutpointIsLock).ToString(), from);
