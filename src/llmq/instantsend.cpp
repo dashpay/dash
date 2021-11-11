@@ -1497,6 +1497,7 @@ void CInstantSendManager::ResolveBlockConflicts(const uint256& islockHash, const
             activateBestChain = true;
         } else {
             LogPrintf("CInstantSendManager::%s -- resetting block %s\n", __func__, pindex2->GetBlockHash().ToString());
+            LOCK(cs_main);
             ResetBlockFailureFlags(pindex2);
         }
     }
