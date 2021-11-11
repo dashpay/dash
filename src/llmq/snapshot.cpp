@@ -127,6 +127,7 @@ bool BuildQuorumRotationInfo(const CGetQuorumRotationInfo& request, CQuorumRotat
         errorRet = strprintf("block not found");
         return false;
     }
+
     auto quorums = llmq::quorumBlockProcessor->GetMinedAndActiveCommitmentsUntilBlock(blockIndex);
     auto itQuorums = quorums.find(llmqType);
     if (itQuorums == quorums.end()) {
@@ -156,10 +157,13 @@ bool BuildQuorumRotationInfo(const CGetQuorumRotationInfo& request, CQuorumRotat
     if (!BuildSimplifiedMNListDiff(GetLastBaseBlockHash(baseBlockIndexes, hcBlockIndex), hcBlockIndex->GetBlockHash(), response.mnListDiffAtHMinusC, errorRet)) {
         return false;
     }
-    if (!quorumSnapshotManager->GetSnapshotForBlock(Params().GetConsensus().llmqTypeInstantSend, hcBlockIndex, response.quorumSnaphotAtHMinusC)) {
+
+    auto snapshotHMinusC = quorumSnapshotManager->GetSnapshotForBlock(Params().GetConsensus().llmqTypeInstantSend, hcBlockIndex);
+    if (!snapshotHMinusC.has_value()) {
         errorRet = strprintf("Can not find quorum snapshot at H-C");
         return false;
     }
+    response.quorumSnaphotAtHMinusC = std::move(snapshotHMinusC.value());
 
     // H-2C
     const CBlockIndex* h2cBlockIndex = LookupBlockIndex(itQuorums->second.at(2)->GetBlockHash());
@@ -170,10 +174,13 @@ bool BuildQuorumRotationInfo(const CGetQuorumRotationInfo& request, CQuorumRotat
     if (!BuildSimplifiedMNListDiff(GetLastBaseBlockHash(baseBlockIndexes, h2cBlockIndex), h2cBlockIndex->GetBlockHash(), response.mnListDiffAtHMinus2C, errorRet)) {
         return false;
     }
-    if (!quorumSnapshotManager->GetSnapshotForBlock(Params().GetConsensus().llmqTypeInstantSend, h2cBlockIndex, response.quorumSnaphotAtHMinus2C)) {
-        errorRet = strprintf("Can not find quorum snapshot at H-2C");
+
+    auto snapshotHMinus2C = quorumSnapshotManager->GetSnapshotForBlock(Params().GetConsensus().llmqTypeInstantSend, hcBlockIndex);
+    if (!snapshotHMinus2C.has_value()) {
+        errorRet = strprintf("Can not find quorum snapshot at H-C");
         return false;
     }
+    response.quorumSnaphotAtHMinus2C = std::move(snapshotHMinus2C.value());
 
     // H-3C
     const CBlockIndex* h3cBlockIndex = LookupBlockIndex(itQuorums->second.at(3)->GetBlockHash());
@@ -184,10 +191,14 @@ bool BuildQuorumRotationInfo(const CGetQuorumRotationInfo& request, CQuorumRotat
     if (!BuildSimplifiedMNListDiff(GetLastBaseBlockHash(baseBlockIndexes, h3cBlockIndex), h3cBlockIndex->GetBlockHash(), response.mnListDiffAtHMinus3C, errorRet)) {
         return false;
     }
-    if (!quorumSnapshotManager->GetSnapshotForBlock(Params().GetConsensus().llmqTypeInstantSend, h3cBlockIndex, response.quorumSnaphotAtHMinus3C)) {
-        errorRet = strprintf("Can not find quorum snapshot at H-3C");
+
+    auto snapshotHMinus3C = quorumSnapshotManager->GetSnapshotForBlock(Params().GetConsensus().llmqTypeInstantSend, h3cBlockIndex);
+    if (!snapshotHMinus3C.has_value()) {
+        errorRet = strprintf("Can not find quorum snapshot at H-C");
         return false;
     }
+    response.quorumSnaphotAtHMinus3C = std::move(snapshotHMinus3C.value());
+
 
     return true;
 }
@@ -208,9 +219,11 @@ CQuorumSnapshotManager::CQuorumSnapshotManager(CEvoDB& _evoDb) :
 {
 }
 
-bool CQuorumSnapshotManager::GetSnapshotForBlock(const Consensus::LLMQType llmqType, const CBlockIndex* pindex, CQuorumSnapshot& snapshot)
+std::optional<CQuorumSnapshot> CQuorumSnapshotManager::GetSnapshotForBlock(const Consensus::LLMQType llmqType, const CBlockIndex* pindex)
 {
     LOCK(cs);
+
+    CQuorumSnapshot snapshot = {};
 
     auto snapshotHash = ::SerializeHash(std::make_pair(llmqType, pindex->GetBlockHash()));
 
@@ -218,15 +231,15 @@ bool CQuorumSnapshotManager::GetSnapshotForBlock(const Consensus::LLMQType llmqT
     auto it = quorumSnapshotCache.find(snapshotHash);
     if (it != quorumSnapshotCache.end()) {
         snapshot = it->second;
-        return true;
+        return snapshot;
     }
 
     if (evoDb.Read(std::make_pair(DB_QUORUM_SNAPSHOT, snapshotHash), snapshot)) {
         quorumSnapshotCache.emplace(snapshotHash, snapshot);
-        return true;
+        return snapshot;
     }
 
-    return false;
+    return std::nullopt;
 }
 
 void CQuorumSnapshotManager::StoreSnapshotForBlock(const Consensus::LLMQType llmqType, const CBlockIndex* pindex, const CQuorumSnapshot& snapshot)

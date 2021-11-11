@@ -24,7 +24,7 @@ def intersection(lst1, lst2):
 
 class LLMQQuorumRotationTest(DashTestFramework):
     def set_test_params(self):
-        self.set_dash_test_params(11, 10, fast_dip3_enforcement=True)
+        self.set_dash_test_params(21, 20, fast_dip3_enforcement=True)
         self.set_dash_llmq_test_params(4, 4)
         self.set_dash_dip24_activation(220)
 
@@ -53,7 +53,7 @@ class LLMQQuorumRotationTest(DashTestFramework):
         self.log.info("Cycle H+2C height:" + str(self.nodes[0].getblockcount()))
         self.move_to_next_cycle()
         self.log.info("Cycle H+3C height:" + str(self.nodes[0].getblockcount()))
-
+        #check for timeout
         self.mine_quorum()
         quorum_members_0 = self.extract_quorum_members()
         self.log.info("Quorum #0 members: " + str(quorum_members_0))
@@ -80,14 +80,14 @@ class LLMQQuorumRotationTest(DashTestFramework):
         quorum_common_members_2_3 = intersection(quorum_members_2, quorum_members_3)
 
         #We test with greater_than_or_equal instead of only equal because with few MNs available, sometimes MNs are re-selected
-        assert_greater_than_or_equal (len(quorum_common_members_0_1), 3)
+        assert_equal (len(quorum_common_members_0_1), 3)
         assert_greater_than_or_equal (len(quorum_common_members_0_2), 2)
         assert_greater_than_or_equal (len(quorum_common_members_0_3), 1)
 
-        assert_greater_than_or_equal (len(quorum_common_members_1_2), 3)
+        assert_equal (len(quorum_common_members_1_2), 3)
         assert_greater_than_or_equal (len(quorum_common_members_1_3), 2)
 
-        assert_greater_than_or_equal (len(quorum_common_members_2_3), 3)
+        assert_equal (len(quorum_common_members_2_3), 3)
 
     def move_to_next_cycle(self):
         mninfos_online = self.mninfo.copy()
