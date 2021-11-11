@@ -1012,24 +1012,24 @@ CQuorumCPtr CSigningManager::SelectQuorumForSigning(Consensus::LLMQType llmqType
         pindexStart = ::ChainActive()[startBlockHeight];
     }
     if (CLLMQUtils::IsQuorumRotationEnabled(llmqType)) {
-        auto quorums = quorumManager->ScanIndexedQuorums(llmqType);
-        if (quorums.empty()) {
+        auto indexedQuorums = quorumManager->ScanIndexedQuorums(llmqType);
+        if (indexedQuorums.empty()) {
             return nullptr;
         }
+        //log2 int
         int n = std::log2(GetLLMQParams(llmqType).signingActiveQuorumCount);
         uint32_t selectedIndex = static_cast<uint32_t>(selectionHash.GetUint64(3) >> n);
-        if (selectedIndex > quorums.size()) {
+        if (selectedIndex > indexedQuorums.size()) {
             return nullptr;
         }
-        auto itQuorum = std::find_if(quorums.begin(),
-                                     quorums.end(),
+        auto itQuorum = std::find_if(indexedQuorums.begin(),
+                                     indexedQuorums.end(),
                                      [selectedIndex](const CIndexedQuorum& obj) {
                                          return obj.first == selectedIndex;
                                      });
-        if (itQuorum == quorums.end()) {
+        if (itQuorum == indexedQuorums.end()) {
             return nullptr;
         }
-
         return quorumManager->GetQuorum(llmqType, itQuorum->second);
     } else {
         auto quorums = quorumManager->ScanQuorums(llmqType, pindexStart, poolSize);
