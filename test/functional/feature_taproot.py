@@ -18,11 +18,17 @@ from test_framework.messages import (
 )
 from test_framework.script import (
     ANNEX_TAG,
+    BIP341_sha_amounts,
+    BIP341_sha_outputs,
+    BIP341_sha_prevouts,
+    BIP341_sha_scriptpubkeys,
+    BIP341_sha_sequences,
     CScript,
     CScriptNum,
     CScriptOp,
+    hash256,
     LEAF_VERSION_TAPSCRIPT,
-    LegacySignatureHash,
+    LegacySignatureMsg,
     LOCKTIME_THRESHOLD,
     MAX_SCRIPT_ELEMENT_SIZE,
     OP_0,
@@ -67,7 +73,8 @@ from test_framework.script import (
     SIGHASH_NONE,
     SIGHASH_SINGLE,
     SIGHASH_ANYONECANPAY,
-    TaprootSignatureHash,
+    TaggedHash,
+    TaprootSignatureMsg,
     is_op_success,
     taproot_construct,
 )
@@ -83,6 +90,8 @@ import json
 import hashlib
 import os
 import random
+
+# Whether or not to output generated test vectors, in JSON format.
 
 # === Framework for building spending transactions. ===
 #
@@ -183,8 +192,8 @@ def default_controlblock(ctx):
     """Default expression for "controlblock": combine leafversion, negflag, pubkey_internal, merklebranch."""
     return bytes([get(ctx, "leafversion") + get(ctx, "negflag")]) + get(ctx, "pubkey_internal") + get(ctx, "merklebranch")
 
-def default_sighash(ctx):
-    """Default expression for "sighash": depending on mode, compute BIP341, BIP143, or legacy sighash."""
+def default_sigmsg(ctx):
+    """Default expression for "sigmsg": depending on mode, compute BIP341, BIP143, or legacy sigmsg."""
     tx = get(ctx, "tx")
     idx = get(ctx, "idx")
     hashtype = get(ctx, "hashtype_actual")
@@ -197,13 +206,25 @@ def default_sighash(ctx):
             codeseppos = get(ctx, "codeseppos")
             leaf_ver = get(ctx, "leafversion")
             script = get(ctx, "script_taproot")
-            return TaprootSignatureHash(tx, utxos, hashtype, idx, scriptpath=True, script=script, leaf_ver=leaf_ver, codeseparator_pos=codeseppos, annex=annex)
+            return TaprootSignatureMsg(tx, utxos, hashtype, idx, scriptpath=True, script=script, leaf_ver=leaf_ver, codeseparator_pos=codeseppos, annex=annex)
         else:
-            return TaprootSignatureHash(tx, utxos, hashtype, idx, scriptpath=False, annex=annex)
+            return TaprootSignatureMsg(tx, utxos, hashtype, idx, scriptpath=False, annex=annex)
     else:
         # Legacy signature hash
         scriptcode = get(ctx, "scriptcode")
-        return LegacySignatureHash(scriptcode, tx, idx, hashtype)[0]
+        return LegacySignatureMsg(scriptcode, tx, idx, hashtype)[0]
+
+def default_sighash(ctx):
+    """Default expression for "sighash": depending on mode, compute tagged hash or dsha256 of sigmsg."""
+    msg = get(ctx, "sigmsg")
+    mode = get(ctx, "mode")
+    if mode == "taproot":
+        return TaggedHash("TapSighash", msg)
+    else:
+        if msg is None:
+            return (1).to_bytes(32, 'little')
+        else:
+            return hash256(msg)
 
 def default_tweak(ctx):
     """Default expression for "tweak": None if a leaf is specified, tap[0] otherwise."""
@@ -223,14 +244,18 @@ def default_key_tweaked(ctx):
 def default_signature(ctx):
     """Default expression for "signature": BIP340 signature or ECDSA signature depending on mode."""
     sighash = get(ctx, "sighash")
+    deterministic = get(ctx, "deterministic")
     if get(ctx, "mode") == "taproot":
         key = get(ctx, "key_tweaked")
         flip_r = get(ctx, "flag_flip_r")
         flip_p = get(ctx, "flag_flip_p")
-        return sign_schnorr(key, sighash, flip_r=flip_r, flip_p=flip_p)
+        aux = bytes([0] * 32)
+        if not deterministic:
+            aux = random.getrandbits(256).to_bytes(32, 'big')
+        return sign_schnorr(key, sighash, flip_r=flip_r, flip_p=flip_p, aux=aux)
     else:
         key = get(ctx, "key")
-        return key.sign_ecdsa(sighash)
+        return key.sign_ecdsa(sighash, rfc6979=deterministic)
 
 def default_hashtype_actual(ctx):
     """Default expression for "hashtype_actual": hashtype, unless mismatching SIGHASH_SINGLE in taproot."""
@@ -303,6 +328,8 @@ DEFAULT_CONTEXT = {
     "key_tweaked": default_key_tweaked,
     # The tweak to use (None for script path spends, the actual tweak for key path spends).
     "tweak": default_tweak,
+    # The sigmsg value (preimage of sighash)
+    "sigmsg": default_sigmsg,
     # The sighash value (32 bytes)
     "sighash": default_sighash,
     # The information about the chosen script path spend (TaprootLeafInfo object).
@@ -337,6 +364,8 @@ DEFAULT_CONTEXT = {
     "leaf": None,
     # The input arguments to provide to the executed script
     "inputs": [],
+    # Use deterministic signing nonces
+    "deterministic": False,
 
     # == Parameters to be set before evaluation: ==
     # - mode: what spending style to use ("taproot" or "legacy").
@@ -356,6 +385,7 @@ def flatten(lst):
         else:
             ret.append(elem)
     return ret
+
 
 def spend(tx, idx, utxos, **kwargs):
     """Sign transaction input idx of tx, provided utxos is the list of outputs being spent.
@@ -1192,6 +1222,14 @@ class TaprootTest(BitcoinTestFramework):
         else:
             assert node.getbestblockhash() == self.lastblockhash, "Failed to reject: " + msg
 
+    def init_blockinfo(self, node):
+        # Initialize variables used by block_submit().
+        self.lastblockhash = node.getbestblockhash()
+        self.tip = int(self.lastblockhash, 16)
+        block = node.getblock(self.lastblockhash)
+        self.lastblockheight = block['height']
+        self.lastblocktime = block['time']
+
     def test_spenders(self, node, spenders, input_counts):
         """Run randomized tests with a number of "spenders".
 
@@ -1218,12 +1256,7 @@ class TaprootTest(BitcoinTestFramework):
             host_spks.append(spk)
             host_pubkeys.append(bytes.fromhex(info['pubkey']))
 
-        # Initialize variables used by block_submit().
-        self.lastblockhash = node.getbestblockhash()
-        self.tip = int(self.lastblockhash, 16)
-        block = node.getblock(self.lastblockhash)
-        self.lastblockheight = block['height']
-        self.lastblocktime = block['time']
+        self.init_blockinfo(node)
 
         # Create transactions spending up to 50 of the wallet's inputs, with one output for each spender, and
         # one change output at the end. The transaction is constructed on the Python side to enable
