@@ -8,6 +8,7 @@
 #include <pubkey.h>
 #include <rpc/util.h>
 #include <tinyformat.h>
+#include <util/system.h>
 #include <util/strencodings.h>
 
 InitInterfaces* g_rpc_interfaces = nullptr;
