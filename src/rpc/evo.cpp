@@ -1267,7 +1267,7 @@ static bool CheckWalletOwnsScript(CWallet* pwallet, const CScript& script) {
 }
 #endif
 
-static UniValue BuildDMNListEntry(CWallet* pwallet, const CDeterministicMN& dmn, bool detailed)
+static UniValue BuildDMNListEntry(CWallet* pwallet, const CDeterministicMN& dmn, bool detailed, const CBlockIndex* pindex = nullptr)
 {
     if (!detailed) {
         return dmn.proTxHash.ToString();
@@ -1275,7 +1275,21 @@ static UniValue BuildDMNListEntry(CWallet* pwallet, const CDeterministicMN& dmn,
 
     UniValue o = dmn.ToJson();
 
+    CTransactionRef collateralTx{nullptr};
     int confirmations = GetUTXOConfirmations(dmn.collateralOutpoint);
+
+    if (pindex != nullptr) {
+        if (confirmations > -1) {
+            confirmations -= WITH_LOCK(cs_main, return ::ChainActive().Height()) - pindex->nHeight;
+        } else {
+            uint256 minedBlockHash;
+            collateralTx = GetTransaction(/* pindex */ nullptr, /* mempool */ nullptr, dmn.collateralOutpoint.hash, Params().GetConsensus(), minedBlockHash);
+            const CBlockIndex* const pindexMined = WITH_LOCK(cs_main, return g_chainman.m_blockman.LookupBlockIndex(minedBlockHash));
+            CHECK_NONFATAL(pindexMined != nullptr);
+            CHECK_NONFATAL(pindex->nHeight >= pindexMined->nHeight);
+            confirmations = pindex->nHeight - pindexMined->nHeight + 1;
+        }
+    }
     o.pushKV("confirmations", confirmations);
 
 #ifdef ENABLE_WALLET
@@ -1283,9 +1297,9 @@ static UniValue BuildDMNListEntry(CWallet* pwallet, const CDeterministicMN& dmn,
     bool hasVotingKey = CheckWalletOwnsKey(pwallet, dmn.pdmnState->keyIDVoting);
 
     bool ownsCollateral = false;
-    uint256 tmpHashBlock;
-    CTransactionRef collateralTx = GetTransaction(/* block_index */ nullptr,  /* mempool */ nullptr, dmn.collateralOutpoint.hash, Params().GetConsensus(), tmpHashBlock);
-    if (collateralTx) {
+    if (Coin coin; GetUTXOCoin(dmn.collateralOutpoint, coin)) {
+        ownsCollateral = CheckWalletOwnsScript(pwallet, coin.out.scriptPubKey);
+    } else if (collateralTx != nullptr) {
         ownsCollateral = CheckWalletOwnsScript(pwallet, collateralTx->vout[dmn.collateralOutpoint.n].scriptPubKey);
     }
 
@@ -1401,6 +1415,7 @@ static void protx_info_help(const JSONRPCRequest& request)
         "\nReturns detailed information about a deterministic masternode.\n",
         {
             GetRpcArg("proTxHash"),
+            {"blockHash", RPCArg::Type::STR_HEX, /* default*/ "(chain tip)", "The hash of the block to get deterministic masternode state at"},
         },
         RPCResult{
             RPCResult::Type::OBJ, "", "Details about a specific deterministic masternode",
@@ -1430,13 +1445,28 @@ static UniValue protx_info(const JSONRPCRequest& request)
         g_txindex->BlockUntilSyncedToCurrentChain();
     }
 
+    CBlockIndex* pindex{nullptr};
+
     uint256 proTxHash(ParseHashV(request.params[0], "proTxHash"));
-    auto mnList = deterministicMNManager->GetListAtChainTip();
+
+    if (request.params[1].isNull()) {
+        LOCK(cs_main);
+        pindex = ::ChainActive().Tip();
+    } else {
+        LOCK(cs_main);
+        uint256 blockHash(ParseHashV(request.params[1], "blockHash"));
+        pindex = g_chainman.m_blockman.LookupBlockIndex(blockHash);
+        if (pindex == nullptr) {
+            throw JSONRPCError(RPC_INVALID_ADDRESS_OR_KEY, "Block not found");
+        }
+    }
+
+    auto mnList = deterministicMNManager->GetListForBlock(pindex);
     auto dmn = mnList.GetMN(proTxHash);
     if (!dmn) {
         throw JSONRPCError(RPC_INVALID_PARAMETER, strprintf("%s not found", proTxHash.ToString()));
     }
-    return BuildDMNListEntry(wallet.get(), *dmn, true);
+    return BuildDMNListEntry(wallet.get(), *dmn, true, pindex);
 }
 
 static void protx_diff_help(const JSONRPCRequest& request)
