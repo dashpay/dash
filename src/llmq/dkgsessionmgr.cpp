@@ -189,13 +189,7 @@ void CDKGSessionManager::ProcessMessage(CNode* pfrom, const std::string& strComm
     vRecv.Rewind(sizeof(uint256));
     vRecv.Rewind(sizeof(uint8_t));
 
-    int quorumIndex;
-    auto q = quorumManager->GetQuorumIndexByQuorumHash(llmqType, quorumHash);
-    if (q.has_value()) {
-        quorumIndex = q.value();
-    } else {
-        quorumIndex = 0;
-    }
+    int quorumIndex = quorumManager->GetQuorumIndexByQuorumHash(llmqType, quorumHash);
 
     if (!dkgSessionHandlers.count(std::make_pair(llmqType, quorumIndex))) {
         LOCK(cs_main);

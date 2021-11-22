@@ -224,7 +224,7 @@ public:
     std::vector<CQuorumCPtr> ScanQuorums(Consensus::LLMQType llmqType, const CBlockIndex* pindexStart, size_t nCountRequested) const;
 
     void SetQuorumIndexQuorumHash(Consensus::LLMQType llmqType, const uint256& quorumHash, int quorumIndex);
-    std::optional<int> GetQuorumIndexByQuorumHash(Consensus::LLMQType llmqType, const uint256& quorumHash);
+    int GetQuorumIndexByQuorumHash(Consensus::LLMQType llmqType, const uint256& quorumHash);
 
 private:
     // all private methods here are cs_main-free
