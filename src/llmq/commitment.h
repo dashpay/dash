@@ -27,6 +27,7 @@ public:
     uint16_t nVersion{CURRENT_VERSION};
     Consensus::LLMQType llmqType{Consensus::LLMQType::LLMQ_NONE};
     uint256 quorumHash;
+    int quorumIndex;
     std::vector<bool> signers;
     std::vector<bool> validMembers;
 
@@ -60,6 +61,7 @@ public:
             obj.nVersion,
             obj.llmqType,
             obj.quorumHash,
+            obj.quorumIndex,
             DYNBITSET(obj.signers),
             DYNBITSET(obj.validMembers),
             obj.quorumPublicKey,
@@ -90,6 +92,7 @@ public:
         obj.pushKV("version", (int)nVersion);
         obj.pushKV("llmqType", (int)llmqType);
         obj.pushKV("quorumHash", quorumHash.ToString());
+        obj.pushKV("quorumIndex", quorumIndex);
         obj.pushKV("signersCount", CountSigners());
         obj.pushKV("signers", CLLMQUtils::ToHexStr(signers));
         obj.pushKV("validMembersCount", CountValidMembers());
