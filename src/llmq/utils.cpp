@@ -58,26 +58,43 @@ std::vector<CDeterministicMNCPtr> CLLMQUtils::GetAllQuorumMembers(Consensus::LLM
             InitQuorumsCache(mapIndexedQuorumMembers);
         }
 
+        /*
+         * Quorums created with rotation are now created in a different way. All signingActiveQuorumCount are created during the period of dkgInterval.
+         * But they are not created exactly in the same block, they are spreaded overtime: one quorum in each block until all signingActiveQuorumCount are created.
+         * The new concept of quorumIndex is introduced in order to identify them.
+         * In every dkgInterval blocks (also called CycleQuorumBaseBlock), the spreaded quorum creation starts like this:
+         * For quorumIndex = 0 : signingActiveQuorumCount
+         * Quorum Q with quorumIndex is created at height CycleQuorumBaseBlock + quorumIndex
+         */
+
         int quorumIndex = pQuorumBaseBlockIndex->nHeight % GetLLMQParams(llmqType).dkgInterval;
         int cycleQuorumBaseHeight = pQuorumBaseBlockIndex->nHeight - quorumIndex;
         const CBlockIndex* pCycleQuorumBaseBlockIndex = pQuorumBaseBlockIndex->GetAncestor(cycleQuorumBaseHeight);
 
+        /*
+         * Since mapQuorumMembers stores Quorum members per block hash, and we don't know yet the block hashes of blocks for all quorumIndexes (since these blocks are not created yet)
+         * We store them in a second cache mapIndexedQuorumMembers wich stores them by {CycleQuorumBaseBlockHash, quorumIndex}
+         */
         if (mapIndexedQuorumMembers[llmqType].get(std::pair(pCycleQuorumBaseBlockIndex->GetBlockHash(), quorumIndex), quorumMembers)) {
             mapQuorumMembers[llmqType].insert(pQuorumBaseBlockIndex->GetBlockHash(), quorumMembers);
+
+            /*
+            * We also need to store which quorum block hash corresponds to which quorumIndex
+            */
             quorumManager->SetQuorumIndexQuorumHash(llmqType, pQuorumBaseBlockIndex->GetBlockHash(), quorumIndex);
             return quorumMembers;
         }
 
         auto q = ComputeQuorumMembersByQuarterRotation(llmqType, pCycleQuorumBaseBlockIndex);
-        {
-            for (int i : boost::irange(0, static_cast<int>(q.size()))) {
-                mapIndexedQuorumMembers[llmqType].insert(std::make_pair(pCycleQuorumBaseBlockIndex->GetBlockHash(), i), q[i]);
-            }
+        for (int i : boost::irange(0, static_cast<int>(q.size()))) {
+            mapIndexedQuorumMembers[llmqType].insert(std::make_pair(pCycleQuorumBaseBlockIndex->GetBlockHash(), i), q[i]);
         }
 
-        mapQuorumMembers[llmqType].insert(pQuorumBaseBlockIndex->GetBlockHash(), q[0]);
+        quorumMembers = q[0];
+        mapQuorumMembers[llmqType].insert(pQuorumBaseBlockIndex->GetBlockHash(), quorumMembers);
         quorumManager->SetQuorumIndexQuorumHash(llmqType, pQuorumBaseBlockIndex->GetBlockHash(), 0);
-        return q.at(0);
+
+        return quorumMembers;
     } else {
         quorumMembers = ComputeQuorumMembers(llmqType, pQuorumBaseBlockIndex);
         LOCK(cs_members);
@@ -107,12 +124,12 @@ std::vector<std::vector<CDeterministicMNCPtr>> CLLMQUtils::ComputeQuorumMembersB
     PreviousQuorumQuarters previousQuarters = GetPreviousQuorumQuarterMembers(llmqParams, pBlockHMinusCIndex, pBlockHMinus2CIndex, pBlockHMinus3CIndex);
     /*
     for (int i : boost::irange(0, GetLLMQParams(llmqType).signingActiveQuorumCount)) {
-        LogPrintf("[ODY] NOW[%d], llmqType[%d], quorumIndex[%d] H-C[%d]:%d, H-2C[%d]:%d, H-3C[%d]:%d\n", pQuorumBaseBlockIndex->nHeight, static_cast<int>(llmqType), i,
+        LogPrintf("GetPreviousQuorumQuarterMembers llmqType[%d], NOW[%d], quorumIndex[%d] H-C[%d]:%d, H-2C[%d]:%d, H-3C[%d]:%d\n", static_cast<int>(llmqType), pQuorumBaseBlockIndex->nHeight,  i,
                   pBlockHMinusCIndex->nHeight, previousQuarters.quarterHMinusC[i].size(),
                   pBlockHMinus2CIndex->nHeight, previousQuarters.quarterHMinus2C[i].size(),
                   pBlockHMinus3CIndex->nHeight, previousQuarters.quarterHMinus3C[i].size());
     }
-    */
+*/
     //TODO Rewrite this part
     //Last quorum DKG has failed. Returning and caching the last quorum members
     /*
@@ -144,9 +161,7 @@ std::vector<std::vector<CDeterministicMNCPtr>> CLLMQUtils::ComputeQuorumMembersB
             quorumMembers[i].push_back(std::move(m));
         }
     }
-    /*for (int i : boost::irange(0, static_cast<int>(quorumMembers.size()))) {
-        LogPrintf("[ODY] NOW[%d], llmqType[%d] quorumIndex[%d], Creating Quorum Members[%d]\n", pQuorumBaseBlockIndex->nHeight, static_cast<int>(llmqParams.type), i, quorumMembers[i].size());
-    }*/
+
     return quorumMembers;
 }
 
@@ -158,19 +173,19 @@ PreviousQuorumQuarters CLLMQUtils::GetPreviousQuorumQuarterMembers(const Consens
     quarters.quarterHMinus2C.resize(llmqParams.signingActiveQuorumCount);
     quarters.quarterHMinus3C.resize(llmqParams.signingActiveQuorumCount);
 
-    std::optional<llmq::CQuorumSnapshot> quSnapshotHMinusC = quorumSnapshotManager->GetSnapshotForBlock(Params().GetConsensus().llmqTypeInstantSend, pBlockHMinusCIndex);
+    std::optional<llmq::CQuorumSnapshot> quSnapshotHMinusC = quorumSnapshotManager->GetSnapshotForBlock(llmqParams.type, pBlockHMinusCIndex);
     if (quSnapshotHMinusC.has_value()) {
         quarters.quarterHMinusC = CLLMQUtils::GetQuorumQuarterMembersBySnapshot(llmqParams, pBlockHMinusCIndex, quSnapshotHMinusC.value());
         //TODO Check if it is triggered from outside (P2P, block validation). Throwing an exception is probably a wiser choice
         //assert (!quarterHMinusC.empty());
 
-        std::optional<llmq::CQuorumSnapshot> quSnapshotHMinus2C = quorumSnapshotManager->GetSnapshotForBlock(Params().GetConsensus().llmqTypeInstantSend, pBlockHMinus2CIndex);
+        std::optional<llmq::CQuorumSnapshot> quSnapshotHMinus2C = quorumSnapshotManager->GetSnapshotForBlock(llmqParams.type, pBlockHMinus2CIndex);
         if (quSnapshotHMinus2C.has_value()) {
             quarters.quarterHMinus2C = CLLMQUtils::GetQuorumQuarterMembersBySnapshot(llmqParams, pBlockHMinus2CIndex, quSnapshotHMinus2C.value());
             //TODO Check if it is triggered from outside (P2P, block validation). Throwing an exception is probably a wiser choice
             //assert (!quarterHMinusC.empty());
 
-            std::optional<llmq::CQuorumSnapshot> quSnapshotHMinus3C = quorumSnapshotManager->GetSnapshotForBlock(Params().GetConsensus().llmqTypeInstantSend, pBlockHMinus3CIndex);
+            std::optional<llmq::CQuorumSnapshot> quSnapshotHMinus3C = quorumSnapshotManager->GetSnapshotForBlock(llmqParams.type, pBlockHMinus3CIndex);
             if (quSnapshotHMinus3C.has_value()) {
                 quarters.quarterHMinus3C = CLLMQUtils::GetQuorumQuarterMembersBySnapshot(llmqParams, pBlockHMinus3CIndex, quSnapshotHMinus3C.value());
                 //TODO Check if it is triggered from outside (P2P, block validation). Throwing an exception is probably a wiser choice

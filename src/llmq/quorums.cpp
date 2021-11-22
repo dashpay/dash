@@ -322,7 +322,6 @@ CQuorumPtr CQuorumManager::BuildQuorumFromCommitment(const Consensus::LLMQType l
         StartCachePopulatorThread(quorum);
     }
     mapQuorumsCache[llmqType].insert(quorumHash, quorum);
-
     return quorum;
 }
 
@@ -484,7 +483,7 @@ void CQuorumManager::SetQuorumIndexQuorumHash(Consensus::LLMQType llmqType, cons
     }
 }
 
-std::optional<int> CQuorumManager::GetQuorumIndexByQuorumHash(Consensus::LLMQType llmqType, const uint256& quorumHash)
+int CQuorumManager::GetQuorumIndexByQuorumHash(Consensus::LLMQType llmqType, const uint256& quorumHash)
 {
     LOCK(quorumsCacheCs);
 
@@ -493,10 +492,10 @@ std::optional<int> CQuorumManager::GetQuorumIndexByQuorumHash(Consensus::LLMQTyp
     int value;
 
     if (mapCache.get(quorumHash, value)) {
-        return std::make_optional(value);
+        return value;
     }
 
-    return std::nullopt;
+    return 0;
 }
 
 CQuorumCPtr CQuorumManager::GetQuorum(Consensus::LLMQType llmqType, const uint256& quorumHash) const
