@@ -11,7 +11,7 @@ from decimal import Decimal
 from test_framework.address import output_key_to_p2tr
 from test_framework.key import H_POINT
 from test_framework.test_framework import BitcoinTestFramework
-from test_framework.util import assert_equal, softfork_active
+from test_framework.util import assert_equal, assert_raises_rpc_error, softfork_active
 from test_framework.descriptors import descsum_create
 from test_framework.script import (
     CScript,
@@ -419,6 +419,27 @@ class WalletTaprootTest(BitcoinTestFramework):
 
         self.nodes[0].createwallet(wallet_name="boring", descriptors=True)
         self.boring = self.nodes[0].get_wallet_rpc("boring")
+
+        self.log.info("A wallet created where v24 is active derives tr() descriptors next to pkh()")
+        descs = self.boring.listdescriptors()["descriptors"]
+        tr_descs = [d for d in descs if d["desc"].startswith("tr(")]
+        assert_equal(len(descs), 5)
+        assert_equal(len(tr_descs), 2)
+        assert all(d["active"] for d in tr_descs)
+        assert_equal(sorted(d.get("internal", False) for d in tr_descs), [False, True])
+        tr_info = self.boring.getaddressinfo(self.boring.getnewaddress(address_type="taproot"))
+        assert_equal(tr_info["ismine"], True)
+        assert_equal(tr_info["hdkeypath"], "m/86h/1h/0h/0/0")
+        assert tr_info["desc"].startswith("tr(")
+        legacy_info = self.boring.getaddressinfo(self.boring.getnewaddress())
+        assert_equal(legacy_info["hdkeypath"], "m/44h/1h/0h/0/0")
+
+        self.log.info("A wallet created where v24 is inactive gets no tr() descriptors")
+        self.nodes[2].createwallet(wallet_name="inactive_default", descriptors=True)
+        inactive = self.nodes[2].get_wallet_rpc("inactive_default")
+        assert_equal(len(inactive.listdescriptors()["descriptors"]), 3)
+        assert_raises_rpc_error(-12, "No taproot addresses available", inactive.getnewaddress, address_type="taproot")
+        inactive.unloadwallet()
 
         self.log.info("Mining blocks...")
         gen_addr = self.boring.getnewaddress()

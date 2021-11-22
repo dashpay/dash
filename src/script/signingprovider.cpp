@@ -173,10 +173,19 @@ bool FillableSigningProvider::GetCScript(const CScriptID &hash, CScript& redeemS
 
 CKeyID GetKeyForDestination(const SigningProvider& store, const CTxDestination& dest)
 {
-    // Only supports destinations which map to single public keys, i.e. P2PKH
-    const PKHash *pkhash = std::get_if<PKHash>(&dest);
-
-    if (pkhash != nullptr) return ToKeyID(*pkhash);
-
+    // Only supports destinations which map to single public keys: P2PKH, P2TR
+    if (auto id = std::get_if<PKHash>(&dest)) {
+        return ToKeyID(*id);
+    }
+    if (auto output_key = std::get_if<TaprootDestination>(&dest)) {
+        TaprootSpendData spenddata;
+        CPubKey pub;
+        if (store.GetTaprootSpendData(*output_key, spenddata)
+            && !spenddata.internal_key.IsNull()
+            && spenddata.merkle_root.IsNull()
+            && store.GetPubKeyByXOnly(spenddata.internal_key, pub)) {
+            return pub.GetID();
+        }
+    }
     return CKeyID();
 }

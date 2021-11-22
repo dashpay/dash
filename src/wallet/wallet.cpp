@@ -4642,8 +4642,12 @@ void CWallet::SetupDescriptorScriptPubKeyMans(const CExtKey& master_key, const S
 {
     AssertLockHeld(cs_wallet);
 
+    // Taproot outputs are anyone-can-spend until v24 activates, so a wallet
+    // created before that only gets its tr() descriptors through importdescriptors
+    const bool taproot_active = HaveChain() && chain().isV24Active();
     for (auto type : {PathDerivationType::BIP44_External, PathDerivationType::BIP44_Internal, PathDerivationType::DIP0009_CoinJoin}) {
-        { // OUTPUT_TYPE is only one: LEGACY
+        for (OutputType addr_type : OUTPUT_TYPES) {
+            if (addr_type == OutputType::TAPROOT && (!taproot_active || type == PathDerivationType::DIP0009_CoinJoin)) continue;
             auto spk_manager = std::unique_ptr<DescriptorScriptPubKeyMan>(new DescriptorScriptPubKeyMan(*this, m_keypool_size));
             if (IsCrypted()) {
                 if (IsLocked()) {
@@ -4653,11 +4657,11 @@ void CWallet::SetupDescriptorScriptPubKeyMans(const CExtKey& master_key, const S
                     throw std::runtime_error(std::string(__func__) + ": Could not encrypt new descriptors");
                 }
             }
-            spk_manager->SetupDescriptorGeneration(master_key, mnemonic, mnemonic_passphrase, type);
+            spk_manager->SetupDescriptorGeneration(master_key, mnemonic, mnemonic_passphrase, type, addr_type);
             uint256 id = spk_manager->GetID();
             AddScriptPubKeyMan(id, std::move(spk_manager));
             if (type != PathDerivationType::DIP0009_CoinJoin) {
-                AddActiveScriptPubKeyMan(id, OutputType::LEGACY, type == PathDerivationType::BIP44_Internal);
+                AddActiveScriptPubKeyMan(id, addr_type, type == PathDerivationType::BIP44_Internal);
             }
         }
     }

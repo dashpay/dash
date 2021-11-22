@@ -2508,7 +2508,7 @@ bool DescriptorScriptPubKeyMan::AddDescriptorKeyWithDB(WalletBatch& batch, const
     }
 }
 
-bool DescriptorScriptPubKeyMan::SetupDescriptorGeneration(const CExtKey& master_key, const SecureString& secure_mnemonic, const SecureString& secure_mnemonic_passphrase, PathDerivationType type)
+bool DescriptorScriptPubKeyMan::SetupDescriptorGeneration(const CExtKey& master_key, const SecureString& secure_mnemonic, const SecureString& secure_mnemonic_passphrase, PathDerivationType type, OutputType addr_type)
 {
     LOCK(cs_desc_man);
     assert(m_storage.IsWalletFlagSet(WALLET_FLAG_DESCRIPTORS));
@@ -2533,7 +2533,10 @@ bool DescriptorScriptPubKeyMan::SetupDescriptorGeneration(const CExtKey& master_
     std::string xpub = EncodeExtPubKey(master_key.Neuter());
 
     // Build descriptor string
-    std::string desc_prefix = strprintf("pkh(%s/%dh/%dh", xpub, type == PathDerivationType::DIP0009_CoinJoin ? BIP32_PURPOSE_FEATURE : BIP32_PURPOSE_STANDARD, Params().ExtCoinType());
+    const bool taproot = addr_type == OutputType::TAPROOT;
+    assert(!taproot || type != PathDerivationType::DIP0009_CoinJoin);
+    const uint8_t purpose = type == PathDerivationType::DIP0009_CoinJoin ? BIP32_PURPOSE_FEATURE : taproot ? BIP32_PURPOSE_TAPROOT : BIP32_PURPOSE_STANDARD;
+    std::string desc_prefix = strprintf("%s(%s/%dh/%dh", taproot ? "tr" : "pkh", xpub, purpose, Params().ExtCoinType());
     if (type == PathDerivationType::DIP0009_CoinJoin) {
         desc_prefix += "/4h";
     }
