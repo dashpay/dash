@@ -1217,6 +1217,12 @@ class DashTestFramework(BitcoinTestFramework):
             return False
         wait_until(wait_func, timeout=timeout, sleep=sleep)
 
+    def move_blocks(self, nodes, num_blocks):
+        time.sleep(2)
+        self.bump_mocktime(1, nodes=nodes)
+        self.nodes[0].generate(num_blocks)
+        sync_blocks(nodes)
+
     def mine_quorum(self, expected_connections=None, expected_members=None, expected_contributions=None, expected_complaints=0, expected_justifications=0, expected_commitments=None, mninfos_online=None, mninfos_valid=None):
         spork21_active = self.nodes[0].spork('show')['SPORK_21_QUORUM_ALL_CONNECTED'] <= 1
         spork23_active = self.nodes[0].spork('show')['SPORK_23_QUORUM_POSE'] <= 1
@@ -1248,39 +1254,34 @@ class DashTestFramework(BitcoinTestFramework):
         sync_blocks(nodes)
 
         q = self.nodes[0].getbestblockhash()
-
+        self.log.info("Expected quorum_hash:"+str(q))
         self.log.info("Waiting for phase 1 (init)")
         self.wait_for_quorum_phase(q, 1, expected_members, None, 0, mninfos_online)
-        self.wait_for_quorum_connections(expected_connections, nodes, wait_proc=lambda: self.bump_mocktime(1, nodes=nodes))
+        self.wait_for_quorum_connections(q, expected_connections, nodes, wait_proc=lambda: self.bump_mocktime(1, nodes=nodes))
         if spork23_active:
             self.wait_for_masternode_probes(mninfos_valid, wait_proc=lambda: self.bump_mocktime(1, nodes=nodes))
-        self.bump_mocktime(1, nodes=nodes)
-        self.nodes[0].generate(2)
-        sync_blocks(nodes)
+
+        self.move_blocks(nodes, 2)
 
         self.log.info("Waiting for phase 2 (contribute)")
         self.wait_for_quorum_phase(q, 2, expected_members, "receivedContributions", expected_contributions, mninfos_online)
-        self.bump_mocktime(1, nodes=nodes)
-        self.nodes[0].generate(2)
-        sync_blocks(nodes)
+
+        self.move_blocks(nodes, 2)
 
         self.log.info("Waiting for phase 3 (complain)")
         self.wait_for_quorum_phase(q, 3, expected_members, "receivedComplaints", expected_complaints, mninfos_online)
-        self.bump_mocktime(1, nodes=nodes)
-        self.nodes[0].generate(2)
-        sync_blocks(nodes)
+
+        self.move_blocks(nodes, 2)
 
         self.log.info("Waiting for phase 4 (justify)")
         self.wait_for_quorum_phase(q, 4, expected_members, "receivedJustifications", expected_justifications, mninfos_online)
-        self.bump_mocktime(1, nodes=nodes)
-        self.nodes[0].generate(2)
-        sync_blocks(nodes)
+
+        self.move_blocks(nodes, 2)
 
         self.log.info("Waiting for phase 5 (commit)")
         self.wait_for_quorum_phase(q, 5, expected_members, "receivedPrematureCommitments", expected_commitments, mninfos_online)
-        self.bump_mocktime(1, nodes=nodes)
-        self.nodes[0].generate(2)
-        sync_blocks(nodes)
+
+        self.move_blocks(nodes, 2)
 
         self.log.info("Waiting for phase 6 (mining)")
         self.wait_for_quorum_phase(q, 6, expected_members, None, 0, mninfos_online)
@@ -1309,12 +1310,6 @@ class DashTestFramework(BitcoinTestFramework):
         self.log.info("New quorum: height=%d, quorumHash=%s, quorumIndex=%d, minedBlock=%s" % (quorum_info["height"], new_quorum, quorum_info["quorumIndex"], quorum_info["minedBlock"]))
 
         return new_quorum
-
-    def move_blocks(self, nodes, num_blocks):
-        time.sleep(1)
-        self.bump_mocktime(1, nodes=nodes)
-        self.nodes[0].generate(1)
-        sync_blocks(nodes)
 
     def mine_cycle_quorum(self, expected_connections=None, expected_members=None, expected_contributions=None, expected_complaints=0, expected_justifications=0, expected_commitments=None, mninfos_online=None, mninfos_valid=None):
         spork21_active = self.nodes[0].spork('show')['SPORK_21_QUORUM_ALL_CONNECTED'] <= 1
