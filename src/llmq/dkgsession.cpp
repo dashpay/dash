@@ -1319,14 +1319,8 @@ void CDKGSession::MarkBadMember(size_t idx)
 void CDKGSession::RelayInvToParticipants(const CInv& inv) const
 {
     g_connman->ForEachNode([&](CNode* pnode) {
-        bool relay = false;
-        auto verifiedProRegTxHash = pnode->GetVerifiedProRegTxHash();
-        if (pnode->qwatch) {
-            relay = true;
-        } else if (!verifiedProRegTxHash.IsNull() && relayMembers.count(verifiedProRegTxHash)) {
-            relay = true;
-        }
-        if (relay) {
+        if (pnode->qwatch ||
+                (!pnode->GetVerifiedProRegTxHash().IsNull() && relayMembers.count(pnode->GetVerifiedProRegTxHash()))) {
             pnode->PushInventory(inv);
         }
     });
