@@ -256,7 +256,7 @@ private:
 
     uint256 myProTxHash;
     CBLSId myId;
-    size_t myIdx{(size_t)-1};
+    std::optional<size_t> myIdx;
 
     // all indexed by msg hash
     // we expect to only receive a single vvec and contribution per member, but we must also be able to relay
@@ -280,7 +280,7 @@ public:
 
     bool Init(const CBlockIndex* pQuorumBaseBlockIndex, const std::vector<CDeterministicMNCPtr>& mns, const uint256& _myProTxHash);
 
-    size_t GetMyMemberIndex() const { return myIdx; }
+    std::optional<size_t> GetMyMemberIndex() const { return myIdx; }
 
     /**
      * The following sets of methods are for the first 4 phases handled in the session. The flow of message calls

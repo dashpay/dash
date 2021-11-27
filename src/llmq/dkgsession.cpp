@@ -321,7 +321,7 @@ void CDKGSession::ReceiveMessage(const CDKGContribution& qc, bool& retBan)
 
     bool complain = false;
     CBLSSecretKey skContribution;
-    if (!qc.contributions->Decrypt(myIdx, WITH_LOCK(activeMasternodeInfoCs, return *activeMasternodeInfo.blsKeyOperator), skContribution, PROTOCOL_VERSION)) {
+    if (!qc.contributions->Decrypt(*myIdx, WITH_LOCK(activeMasternodeInfoCs, return *activeMasternodeInfo.blsKeyOperator), skContribution, PROTOCOL_VERSION)) {
         logger.Batch("contribution from %s could not be decrypted", member->dmn->proTxHash.ToString());
         complain = true;
     } else if (member->idx != myIdx && ShouldSimulateError("complain-lie")) {
@@ -670,7 +670,7 @@ void CDKGSession::VerifyAndJustify(CDKGPendingMessages& pendingMessages)
         }
 
         const auto& qc = WITH_LOCK(invCs, return std::move(complaints.at(*m->complaints.begin())));
-        if (qc.complainForMembers[myIdx]) {
+        if (qc.complainForMembers[*myIdx]) {
             justifyFor.emplace(qc.proTxHash);
         }
     }
