@@ -190,7 +190,7 @@ public:
 class CDKGMember
 {
 public:
-    CDKGMember(CDeterministicMNCPtr _dmn, size_t _idx);
+    CDKGMember(const CDeterministicMNCPtr& _dmn, size_t _idx);
 
     CDeterministicMNCPtr dmn;
     size_t idx;
