@@ -22,6 +22,7 @@ class CFinalCommitment
 {
 public:
     static constexpr uint16_t CURRENT_VERSION = 1;
+    static constexpr uint16_t INDEXED_QUORUM_VERSION = 2;
 
 public:
     uint16_t nVersion{CURRENT_VERSION};
@@ -55,19 +56,54 @@ public:
     bool VerifySizes(const Consensus::LLMQParams& params) const;
 
 public:
-    SERIALIZE_METHODS(CFinalCommitment, obj)
+    template <typename Stream, typename Operation>
+    inline void SerializationOpBase(Stream& s, Operation ser_action)
     {
-        READWRITE(
-            obj.nVersion,
-            obj.llmqType,
-            obj.quorumHash,
-            obj.quorumIndex,
-            DYNBITSET(obj.signers),
-            DYNBITSET(obj.validMembers),
-            obj.quorumPublicKey,
-            obj.quorumVvecHash,
-            obj.quorumSig,
-            obj.membersSig);
+        READWRITE(nVersion);
+    }
+
+    template <typename Stream>
+    void Serialize(Stream& s) const
+    {
+        const_cast<CFinalCommitment*>(this)->SerializationOpBase(s, CSerActionSerialize());
+
+        ::Serialize(s, llmqType);
+        ::Serialize(s, quorumHash);
+
+        if (nVersion == CFinalCommitment::INDEXED_QUORUM_VERSION)
+            ::Serialize(s, quorumIndex);
+
+        DynamicBitSetFormatter dyn;
+        dyn.Ser(s, signers);
+        dyn.Ser(s, validMembers);
+
+        ::Serialize(s, quorumPublicKey);
+        ::Serialize(s, quorumVvecHash);
+        ::Serialize(s, quorumSig);
+        ::Serialize(s, membersSig);
+    }
+
+    template <typename Stream>
+    void Unserialize(Stream& s)
+    {
+        SerializationOpBase(s, CSerActionUnserialize());
+
+        ::Unserialize(s, llmqType);
+        ::Unserialize(s, quorumHash);
+
+        if (nVersion == CFinalCommitment::INDEXED_QUORUM_VERSION)
+            ::Unserialize(s, quorumIndex);
+        else
+            quorumIndex = 0;
+
+        DynamicBitSetFormatter dyn;
+        dyn.Unser(s, signers);
+        dyn.Unser(s, validMembers);
+
+        ::Unserialize(s, quorumPublicKey);
+        ::Unserialize(s, quorumVvecHash);
+        ::Unserialize(s, quorumSig);
+        ::Unserialize(s, membersSig);
     }
 
 public:

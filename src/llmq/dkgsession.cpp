@@ -1202,7 +1202,14 @@ std::vector<CFinalCommitment> CDKGSession::FinalizeCommitments()
         fqc.validMembers = first.validMembers;
         fqc.quorumPublicKey = first.quorumPublicKey;
         fqc.quorumVvecHash = first.quorumVvecHash;
-        fqc.quorumIndex = quorumIndex;
+
+        if (CLLMQUtils::IsQuorumRotationEnabled(fqc.llmqType)) {
+            fqc.nVersion = CFinalCommitment::INDEXED_QUORUM_VERSION;
+            fqc.quorumIndex = quorumIndex;
+        } else {
+            fqc.quorumIndex = 0;
+        }
+
 
         uint256 commitmentHash = CLLMQUtils::BuildCommitmentHash(fqc.llmqType, fqc.quorumHash, fqc.validMembers, fqc.quorumPublicKey, fqc.quorumVvecHash);
 
