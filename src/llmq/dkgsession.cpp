@@ -893,7 +893,9 @@ void CDKGSession::VerifyAndCommit(CDKGPendingMessages& pendingMessages)
     CDKGLogger logger(*this, __func__);
 
     std::vector<size_t> badMembers;
+    badMembers.reserve(members.size());
     std::vector<size_t> openComplaintMembers;
+    openComplaintMembers.reserve(members.size());
 
     for (const auto& m : members) {
         if (m->bad) {
