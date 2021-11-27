@@ -461,10 +461,14 @@ bool CChainLocksHandler::IsTxSafeForMining(const uint256& txid) const
     if (!RejectConflictingBlocks()) {
         return true;
     }
+    if (!isEnabled || !isEnforced) {
+        return true;
+    }
+
     if (!IsInstantSendEnabled()) {
         return true;
     }
-    if (!isEnabled || !isEnforced) {
+    if (quorumInstantSendManager->IsLocked(txid)) {
         return true;
     }
 
@@ -477,10 +481,7 @@ bool CChainLocksHandler::IsTxSafeForMining(const uint256& txid) const
         }
     }
 
-    if (txAge < WAIT_FOR_ISLOCK_TIMEOUT && !quorumInstantSendManager->IsLocked(txid)) {
-        return false;
-    }
-    return true;
+    return txAge >= WAIT_FOR_ISLOCK_TIMEOUT;
 }
 
 // WARNING: cs_main and cs should not be held!
