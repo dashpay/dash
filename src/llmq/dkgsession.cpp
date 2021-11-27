@@ -874,18 +874,12 @@ void CDKGSession::ReceiveMessage(const CDKGJustification& qj, bool& retBan)
         }
     }
 
-    int receivedCount = 0;
-    int expectedCount = 0;
-
-    for (const auto& m : members) {
-        if (!m->justifications.empty()) {
-            receivedCount++;
-        }
-
-        if (m->someoneComplain) {
-            expectedCount++;
-        }
-    }
+    auto receivedCount = std::count_if(members.cbegin(), members.cend(), [](const auto& m){
+        return !m->justifications.empty();
+    });
+    auto expectedCount = std::count_if(members.cbegin(), members.cend(), [](const auto& m){
+        return m->someoneComplain;
+    });
 
     logger.Batch("verified justification: received=%d/%d time=%d", receivedCount, expectedCount, t1.count());
 }
