@@ -312,7 +312,7 @@ CQuorumPtr CQuorumManager::BuildQuorumFromCommitment(const Consensus::LLMQType l
             quorum->WriteContributions(evoDb);
             hasValidVvec = true;
         } else {
-            LogPrint(BCLog::LLMQ, "CQuorumManager::%s -- llmqType[%d] quorumIndex[%d] quorum.ReadContributions and BuildQuorumContributions for quorumHash[%s] failed\n", __func__, static_cast<uint8_t>(llmqType), qc->quorumIndex, qc->quorumHash.ToString());
+            LogPrint(BCLog::LLMQ, "CQuorumManager::%s -- llmqType[%d] quorumIndex[%d] quorum.ReadContributions and BuildQuorumContributions for quorumHash[%s] failed\n", __func__, static_cast<uint8_t>(llmqType), quorum->qc->quorumIndex, quorum->qc->quorumHash.ToString());
         }
     }
 
