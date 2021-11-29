@@ -73,7 +73,7 @@ elif [ "$BUILD_TARGET" = "linux64_nowallet" ]; then
 elif [ "$BUILD_TARGET" = "linux64_release" ]; then
   export HOST=x86_64-unknown-linux-gnu
   export DEP_OPTS="NO_UPNP=1"
-  export BITCOIN_CONFIG="--enable-zmq --enable-glibc-back-compat --enable-reduce-exports"
+  export BITCOIN_CONFIG="--enable-zmq --enable-glibc-back-compat --enable-reduce-exports LDFLAGS=-static-libstdc++"
   export PYZMQ=true
 elif [ "$BUILD_TARGET" = "mac" ]; then
   export HOST=x86_64-apple-darwin19
