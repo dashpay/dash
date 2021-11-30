@@ -88,9 +88,7 @@ void CSigSharesInv::Set(uint16_t quorumMember, bool v)
 
 void CSigSharesInv::SetAll(bool v)
 {
-    for (size_t i = 0; i < inv.size(); i++) {
-        inv[i] = v;
-    }
+    std::fill(inv.begin(), inv.end(), v);
 }
 
 std::string CBatchedSigShares::ToInvString() const
