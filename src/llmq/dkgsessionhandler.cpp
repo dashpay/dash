@@ -379,8 +379,7 @@ std::set<NodeId> BatchVerifyMessageSigs(CDKGSession& session, const std::vector<
         messageHashes.emplace_back(msgHash);
     }
     if (!revertToSingleVerification) {
-        bool valid = aggSig.VerifyInsecureAggregated(pubKeys, messageHashes);
-        if (valid) {
+        if (aggSig.VerifyInsecureAggregated(pubKeys, messageHashes)) {
             // all good
             return ret;
         }
