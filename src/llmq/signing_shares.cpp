@@ -96,8 +96,8 @@ std::string CBatchedSigShares::ToInvString() const
     CSigSharesInv inv;
     // we use 400 here no matter what the real size is. We don't really care about that size as we just want to call ToString()
     inv.Init(400);
-    for (size_t i = 0; i < sigShares.size(); i++) {
-        inv.inv[sigShares[i].first] = true;
+    for (const auto& sigShare : sigShares) {
+        inv.inv[sigShare.first] = true;
     }
     return inv.ToString();
 }
@@ -435,8 +435,8 @@ bool CSigSharesManager::ProcessMessageBatchedSigShares(const CNode* pfrom, const
         LOCK(cs);
         auto& nodeState = nodeStates[pfrom->GetId()];
 
-        for (size_t i = 0; i < batchedSigShares.sigShares.size(); i++) {
-            CSigShare sigShare = RebuildSigShare(sessionInfo, batchedSigShares, i);
+        for (const auto& sigSharetmp : batchedSigShares.sigShares) {
+            CSigShare sigShare = RebuildSigShare(sessionInfo, sigSharetmp);
             nodeState.requestedSigShares.Erase(sigShare.GetKey());
 
             // TODO track invalid sig shares received for PoSe?
@@ -1248,10 +1248,9 @@ bool CSigSharesManager::GetSessionInfoByRecvId(NodeId nodeId, uint32_t sessionId
     return nodeStates[nodeId].GetSessionInfoByRecvId(sessionId, retInfo);
 }
 
-CSigShare CSigSharesManager::RebuildSigShare(const CSigSharesNodeState::SessionInfo& session, const CBatchedSigShares& batchedSigShares, size_t idx)
+CSigShare CSigSharesManager::RebuildSigShare(const CSigSharesNodeState::SessionInfo& session, const std::pair<uint16_t, CBLSLazySignature>& in)
 {
-    assert(idx < batchedSigShares.sigShares.size());
-    const auto& [member, sig] = batchedSigShares.sigShares[idx];
+    const auto& [member, sig] = in;
     CSigShare sigShare;
     sigShare.llmqType = session.llmqType;
     sigShare.quorumHash = session.quorumHash;
