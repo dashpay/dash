@@ -18,7 +18,6 @@ EXPECTED_CIRCULAR_DEPENDENCIES=(
     "qt/addresstablemodel -> qt/walletmodel -> qt/addresstablemodel"
     "qt/recentrequeststablemodel -> qt/walletmodel -> qt/recentrequeststablemodel"
     "qt/transactiontablemodel -> qt/walletmodel -> qt/transactiontablemodel"
-    "txmempool -> validation -> txmempool"
     "wallet/fees -> wallet/wallet -> wallet/fees"
     "wallet/wallet -> wallet/walletdb -> wallet/wallet"
     "node/coinstats -> validation -> node/coinstats"
