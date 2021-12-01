@@ -417,7 +417,7 @@ struct ContributionVerifier : public std::enable_shared_from_this<ContributionVe
 
     ctpl::thread_pool& workerPool;
 
-    size_t batchCount;
+    size_t batchCount{1};
     size_t verifyCount;
 
     std::vector<BatchState> batchStates;
@@ -435,9 +435,8 @@ struct ContributionVerifier : public std::enable_shared_from_this<ContributionVe
         parallel(_parallel),
         aggregated(_aggregated),
         workerPool(_workerPool),
-        doneCallback(std::move(_doneCallback)),
-        batchCount(1),
-        verifyCount(_vvecs.size())
+        verifyCount(_vvecs.size()),
+        doneCallback(std::move(_doneCallback))
     {
     }
 
