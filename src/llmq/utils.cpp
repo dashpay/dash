@@ -513,8 +513,8 @@ bool CLLMQUtils::IsQuorumPoseEnabled(Consensus::LLMQType llmqType)
 
 bool CLLMQUtils::IsQuorumRotationEnabled(Consensus::LLMQType llmqType)
 {
-    LOCK(cs_main);
-    bool fQuorumRotationActive = (VersionBitsTipState(Params().GetConsensus(), Consensus::DEPLOYMENT_DIP0024) == ThresholdState::ACTIVE);
+    LOCK(cs_llmq_vbc);
+    bool fQuorumRotationActive = (VersionBitsState(::ChainActive().Tip(), Params().GetConsensus(), Consensus::DEPLOYMENT_DIP0024, llmq_versionbitscache) == ThresholdState::ACTIVE);
     return llmqType == Params().GetConsensus().llmqTypeInstantSend && fQuorumRotationActive;
 }
 
