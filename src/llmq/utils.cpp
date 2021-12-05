@@ -298,10 +298,11 @@ void CLLMQUtils::BuildQuorumSnapshotSkipList(const Consensus::LLMQParams& llmqPa
         //Iterate over the first quarterSize elements
         for (auto i : boost::irange(0, llmqParams.signingActiveQuorumCount)) {
             //Iterate over the first quarterSize elements
-            for (auto&& m : sortedCombinedMns | boost::adaptors::sliced(0, quarterSize)) {
+            auto slimit = std::min(sortedCombinedMns.size(), quarterSize);
+            for (auto&& m : sortedCombinedMns | boost::adaptors::sliced(0, slimit)) {
                 quarterMembers[i].push_back(std::move(m));
             }
-            sortedCombinedMns.erase(sortedCombinedMns.begin(), sortedCombinedMns.begin() + quarterSize);
+            sortedCombinedMns.erase(sortedCombinedMns.begin(), sortedCombinedMns.begin() + slimit);
         }
     } else if (mnUsedAtH.GetAllMNsCount() < sortedCombinedMns.size() / 2) {
         //Mode 1: Skipping entries
@@ -316,7 +317,7 @@ void CLLMQUtils::BuildQuorumSnapshotSkipList(const Consensus::LLMQParams& llmqPa
                         first_entry_index = index;
                         quorumSnapshot.mnSkipList.push_back(static_cast<int>(index));
                     } else
-                        quorumSnapshot.mnSkipList.push_back(static_cast<int>(first_entry_index - index));
+                        quorumSnapshot.mnSkipList.push_back(static_cast<int>(index - first_entry_index));
                 } else
                     quarterMembers[i].push_back(sortedCombinedMns[index]);
                 index++;
@@ -335,7 +336,7 @@ void CLLMQUtils::BuildQuorumSnapshotSkipList(const Consensus::LLMQParams& llmqPa
                         first_entry_index = index;
                         quorumSnapshot.mnSkipList.push_back(static_cast<int>(index));
                     } else
-                        quorumSnapshot.mnSkipList.push_back(static_cast<int>(first_entry_index - index));
+                        quorumSnapshot.mnSkipList.push_back(static_cast<int>(index - first_entry_index));
                 } else
                     quarterMembers[i].push_back(sortedCombinedMns[index]);
                 index++;
@@ -374,11 +375,13 @@ std::vector<std::vector<CDeterministicMNCPtr>> CLLMQUtils::GetQuorumQuarterMembe
     if (snapshot.mnSkipListMode == SnapshotSkipMode::MODE_NO_SKIPPING) {
         for (auto i : boost::irange(0, llmqParams.signingActiveQuorumCount)) {
             //Iterate over the first quarterSize elements
-            for (auto&& m : sortedCombinedMnsList | boost::adaptors::sliced(0, quarterSize)) {
+            auto slimit = std::min(sortedCombinedMnsList.size(), quarterSize);
+            for (auto&& m : sortedCombinedMnsList | boost::adaptors::sliced(0, slimit)) {
                 quarterQuorumMembers[i].push_back(std::move(m));
             }
-            sortedCombinedMnsList.erase(sortedCombinedMnsList.begin(), sortedCombinedMnsList.begin() + quarterSize);
+            sortedCombinedMnsList.erase(sortedCombinedMnsList.begin(), sortedCombinedMnsList.begin() + slimit);
         }
+
     }
     //Mode 1: List holds entries to be skipped
     else if (snapshot.mnSkipListMode == SnapshotSkipMode::MODE_SKIPPING_ENTRIES) {
@@ -403,10 +406,11 @@ std::vector<std::vector<CDeterministicMNCPtr>> CLLMQUtils::GetQuorumQuarterMembe
 
         for (auto i : boost::irange(0, llmqParams.signingActiveQuorumCount)) {
             //Iterate over the first quarterSize elements
-            for (auto&& m : sortedCombinedMnsList | boost::adaptors::sliced(0, quarterSize)) {
+            auto slimit = std::min(sortedCombinedMnsList.size(), quarterSize);
+            for (auto&& m : sortedCombinedMnsList | boost::adaptors::sliced(0, slimit)) {
                 quarterQuorumMembers[i].push_back(std::move(m));
             }
-            sortedCombinedMnsList.erase(sortedCombinedMnsList.begin(), sortedCombinedMnsList.begin() + quarterSize);
+            sortedCombinedMnsList.erase(sortedCombinedMnsList.begin(), sortedCombinedMnsList.begin() + slimit);
         }
     }
     //Mode 2: List holds entries to be kept
@@ -429,13 +433,13 @@ std::vector<std::vector<CDeterministicMNCPtr>> CLLMQUtils::GetQuorumQuarterMembe
                               [&mnProTxHashToKeep](const CDeterministicMNCPtr& dmn) {
                                   return mnProTxHashToKeep.find(dmn->proTxHash) != mnProTxHashToKeep.end();
                               });
-
         for (auto i : boost::irange(0, llmqParams.signingActiveQuorumCount)) {
             //Iterate over the first quarterSize elements
-            for (auto&& m : sortedCombinedMnsList | boost::adaptors::sliced(0, quarterSize)) {
+            auto slimit = std::min(sortedCombinedMnsList.size(), quarterSize);
+            for (auto&& m : sortedCombinedMnsList | boost::adaptors::sliced(0, slimit)) {
                 quarterQuorumMembers[i].push_back(std::move(m));
             }
-            sortedCombinedMnsList.erase(sortedCombinedMnsList.begin(), sortedCombinedMnsList.begin() + quarterSize);
+            sortedCombinedMnsList.erase(sortedCombinedMnsList.begin(), sortedCombinedMnsList.begin() + slimit);
         }
     }
     //Mode 3: Every node was skipped. Returning empty quarterQuorumMembers
