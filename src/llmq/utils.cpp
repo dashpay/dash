@@ -302,7 +302,8 @@ void CLLMQUtils::BuildQuorumSnapshotSkipList(const Consensus::LLMQParams& llmqPa
             for (auto&& m : sortedCombinedMns | boost::adaptors::sliced(0, slimit)) {
                 quarterMembers[i].push_back(std::move(m));
             }
-            sortedCombinedMns.erase(sortedCombinedMns.begin(), sortedCombinedMns.begin() + slimit);
+            //sortedCombinedMns.erase(sortedCombinedMns.begin(), sortedCombinedMns.begin() + slimit);
+            std::rotate(sortedCombinedMns.begin(), sortedCombinedMns.begin() + slimit, sortedCombinedMns.end());
         }
     } else if (mnUsedAtH.GetAllMNsCount() < sortedCombinedMns.size() / 2) {
         //Mode 1: Skipping entries
@@ -379,7 +380,8 @@ std::vector<std::vector<CDeterministicMNCPtr>> CLLMQUtils::GetQuorumQuarterMembe
             for (auto&& m : sortedCombinedMnsList | boost::adaptors::sliced(0, slimit)) {
                 quarterQuorumMembers[i].push_back(std::move(m));
             }
-            sortedCombinedMnsList.erase(sortedCombinedMnsList.begin(), sortedCombinedMnsList.begin() + slimit);
+            //sortedCombinedMnsList.erase(sortedCombinedMnsList.begin(), sortedCombinedMnsList.begin() + slimit);
+            std::rotate(sortedCombinedMnsList.begin(), sortedCombinedMnsList.begin() + slimit, sortedCombinedMnsList.end());
         }
 
     }
@@ -410,7 +412,8 @@ std::vector<std::vector<CDeterministicMNCPtr>> CLLMQUtils::GetQuorumQuarterMembe
             for (auto&& m : sortedCombinedMnsList | boost::adaptors::sliced(0, slimit)) {
                 quarterQuorumMembers[i].push_back(std::move(m));
             }
-            sortedCombinedMnsList.erase(sortedCombinedMnsList.begin(), sortedCombinedMnsList.begin() + slimit);
+            //sortedCombinedMnsList.erase(sortedCombinedMnsList.begin(), sortedCombinedMnsList.begin() + slimit);
+            std::rotate(sortedCombinedMnsList.begin(), sortedCombinedMnsList.begin() + slimit, sortedCombinedMnsList.end());
         }
     }
     //Mode 2: List holds entries to be kept
@@ -439,7 +442,8 @@ std::vector<std::vector<CDeterministicMNCPtr>> CLLMQUtils::GetQuorumQuarterMembe
             for (auto&& m : sortedCombinedMnsList | boost::adaptors::sliced(0, slimit)) {
                 quarterQuorumMembers[i].push_back(std::move(m));
             }
-            sortedCombinedMnsList.erase(sortedCombinedMnsList.begin(), sortedCombinedMnsList.begin() + slimit);
+            //sortedCombinedMnsList.erase(sortedCombinedMnsList.begin(), sortedCombinedMnsList.begin() + slimit);
+            std::rotate(sortedCombinedMnsList.begin(), sortedCombinedMnsList.begin() + slimit, sortedCombinedMnsList.end());
         }
     }
     //Mode 3: Every node was skipped. Returning empty quarterQuorumMembers
