@@ -4,7 +4,6 @@
 
 #include <test/setup_common.h>
 
-#include <base58.h>
 #include <chainparams.h>
 #include <consensus/validation.h>
 #include <keystore.h>
@@ -21,6 +20,9 @@
 #include <evo/deterministicmns.h>
 
 #include <boost/test/unit_test.hpp>
+
+#include <map>
+#include <vector>
 
 using SimpleUTXOMap = std::map<COutPoint, std::pair<int, CAmount>>;
 
