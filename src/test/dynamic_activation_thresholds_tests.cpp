@@ -114,26 +114,22 @@ struct TestChainDATSetup : public TestChainSetup
 
 BOOST_AUTO_TEST_SUITE(dynamic_activation_thresholds_tests)
 
-BOOST_FIXTURE_TEST_CASE(activate_at_min_level, TestChainDATSetup)
-{
-    test(12, true);
-}
-
-#define TEST(INDEX)  BOOST_FIXTURE_TEST_CASE(activate_at_##INDEX##_level, TestChainDATSetup) \
+#define TEST(INDEX, activate_at_min_level)  BOOST_FIXTURE_TEST_CASE(activate_at_##INDEX##_level, TestChainDATSetup) \
 { \
-    test(INDEX, false); \
+    test(INDEX, activate_at_min_level); \
 }
 
-TEST(1)
-TEST(2)
-TEST(3)
-TEST(4)
-TEST(5)
-TEST(6)
-TEST(7)
-TEST(8)
-TEST(9)
-TEST(10)
-TEST(11)
+TEST(1, false)
+TEST(2, false)
+TEST(3, false)
+TEST(4, false)
+TEST(5, false)
+TEST(6, false)
+TEST(7, false)
+TEST(8, false)
+TEST(9, false)
+TEST(10, true)
+TEST(11, true)
+TEST(12, true)
 
 BOOST_AUTO_TEST_SUITE_END()
