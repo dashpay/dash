@@ -136,7 +136,7 @@ static CScript GenerateRandomAddress()
     return GetScriptForDestination(key.GetPubKey().GetID());
 }
 
-static int threshold(int attempt)
+static constexpr int threshold(int attempt)
 {
     // An implementation of VersionBitsConditionChecker::Threshold()
     int threshold_calc = th_start - attempt * attempt * window / 100 / 5;
@@ -144,7 +144,7 @@ static int threshold(int attempt)
         return th_end;
     }
     return threshold_calc;
-};
+}
 
 BOOST_AUTO_TEST_SUITE(block_reward_reallocation_tests)
 
