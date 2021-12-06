@@ -207,8 +207,8 @@ BOOST_FIXTURE_TEST_CASE(block_reward_reallocation, TestChainBRRBeforeActivationS
         BOOST_CHECK_EQUAL(VersionBitsTipStatistics(consensus_params, deployment_id).threshold, threshold(0));
         // Next block should be signaling by default
         const auto pblocktemplate = BlockAssembler(Params()).CreateNewBlock(coinbasePubKey);
-        BOOST_ASSERT(::ChainActive().Tip()->nVersion = 536870912);
-        BOOST_ASSERT(pblocktemplate->block.nVersion != 536870912);
+        BOOST_CHECK_EQUAL(::ChainActive().Tip()->nVersion, 536870912);
+        BOOST_CHECK(pblocktemplate->block.nVersion != 536870912);
     }
 
     signal(threshold(0) - 1, false); // 1 block short
