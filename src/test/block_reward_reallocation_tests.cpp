@@ -11,7 +11,6 @@
 #include <messagesigner.h>
 #include <miner.h>
 #include <netbase.h>
-#include <policy/policy.h>
 #include <script/interpreter.h>
 #include <script/sign.h>
 #include <script/standard.h>

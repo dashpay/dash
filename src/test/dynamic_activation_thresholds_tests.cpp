@@ -4,13 +4,10 @@
 
 #include <test/setup_common.h>
 
-#include <base58.h>
 #include <chainparams.h>
 #include <consensus/validation.h>
 #include <miner.h>
-#include <policy/policy.h>
 #include <script/interpreter.h>
-#include <script/standard.h>
 #include <validation.h>
 
 #include <boost/test/unit_test.hpp>
