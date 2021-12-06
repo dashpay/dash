@@ -44,7 +44,7 @@ static SimpleUTXOMap BuildSimpleUtxoMap(const std::vector<CTransactionRef>& txs)
     for (size_t i = 0; i < txs.size(); i++) {
         auto& tx = txs[i];
         for (size_t j = 0; j < tx->vout.size(); j++) {
-            utxos.emplace(COutPoint(tx->GetHash(), j), std::make_pair((int)i + 1, tx->vout[j].nValue));
+            utxos.try_emplace(COutPoint(tx->GetHash(), j), std::make_pair((int)i + 1, tx->vout[j].nValue));
         }
     }
     return utxos;
@@ -84,11 +84,11 @@ static void FundTransaction(CMutableTransaction& tx, SimpleUTXOMap& utoxs, const
     CAmount change;
     auto inputs = SelectUTXOs(utoxs, amount, change);
     for (size_t i = 0; i < inputs.size(); i++) {
-        tx.vin.emplace_back(CTxIn(inputs[i]));
+        tx.vin.emplace_back(inputs[i]);
     }
-    tx.vout.emplace_back(CTxOut(amount, scriptPayout));
+    tx.vout.emplace_back(amount, scriptPayout);
     if (change != 0) {
-        tx.vout.emplace_back(CTxOut(change, scriptPayout));
+        tx.vout.emplace_back(change, scriptPayout);
     }
 }
 
