@@ -81,12 +81,12 @@ static std::vector<COutPoint> SelectUTXOs(SimpleUTXOMap& utoxs, CAmount amount, 
     return selectedUtxos;
 }
 
-static void FundTransaction(CMutableTransaction& tx, SimpleUTXOMap& utoxs, const CScript& scriptPayout, CAmount amount, const CKey& coinbaseKey)
+static void FundTransaction(CMutableTransaction& tx, SimpleUTXOMap& utoxs, const CScript& scriptPayout, CAmount amount)
 {
     CAmount change;
     auto inputs = SelectUTXOs(utoxs, amount, change);
-    for (size_t i = 0; i < inputs.size(); i++) {
-        tx.vin.emplace_back(inputs[i]);
+    for (const auto& input : inputs) {
+        tx.vin.emplace_back(input);
     }
     tx.vout.emplace_back(amount, scriptPayout);
     if (change != 0) {
@@ -123,7 +123,7 @@ static CMutableTransaction CreateProRegTx(SimpleUTXOMap& utxos, int port, const 
     CMutableTransaction tx;
     tx.nVersion = 3;
     tx.nType = TRANSACTION_PROVIDER_REGISTER;
-    FundTransaction(tx, utxos, scriptPayout, 1000 * COIN, coinbaseKey);
+    FundTransaction(tx, utxos, scriptPayout, 1000 * COIN);
     proTx.inputsHash = CalcTxInputsHash(CTransaction(tx));
     SetTxPayload(tx, proTx);
     SignTransaction(tx, coinbaseKey);
