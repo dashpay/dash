@@ -25,9 +25,9 @@ static constexpr int threshold(int attempt)
     return threshold_calc;
 }
 
-struct TestChain98Setup : public TestChainSetup
+struct TestChainDATSetup : public TestChainSetup
 {
-    TestChain98Setup() : TestChainSetup(98) {}
+    TestChainDATSetup() : TestChainSetup(window - 2) {}
 
     void signal(int num_blocks, bool expected_lockin)
     {
@@ -59,7 +59,7 @@ struct TestChain98Setup : public TestChainSetup
 
         {
             LOCK(cs_main);
-            BOOST_CHECK_EQUAL(::ChainActive().Height(), 98);
+            BOOST_CHECK_EQUAL(::ChainActive().Height(), window - 2);
             BOOST_CHECK_EQUAL(VersionBitsTipState(consensus_params, deployment_id), ThresholdState::DEFINED);
         }
 
@@ -67,8 +67,8 @@ struct TestChain98Setup : public TestChainSetup
 
         {
             LOCK(cs_main);
-            // Advance from DEFINED to STARTED at height = 99
-            BOOST_CHECK_EQUAL(::ChainActive().Height(), 99);
+            // Advance from DEFINED to STARTED at height = window - 1
+            BOOST_CHECK_EQUAL(::ChainActive().Height(), window - 1);
             BOOST_CHECK_EQUAL(VersionBitsTipState(consensus_params, deployment_id), ThresholdState::STARTED);
             BOOST_CHECK_EQUAL(VersionBitsTipStatistics(consensus_params, deployment_id).threshold, threshold(0));
             // Next block should be signaling by default
@@ -77,7 +77,7 @@ struct TestChain98Setup : public TestChainSetup
             BOOST_CHECK(pblocktemplate->block.nVersion != 536870912);
         }
 
-        // Reach min level + 1 more to check it doesn't go lower than that
+        // Reach activation_index level
         for (int i = 0; i < activation_index; ++i) {
             signal(threshold(i) - 1, false); // 1 block short
 
@@ -114,12 +114,12 @@ struct TestChain98Setup : public TestChainSetup
 
 BOOST_AUTO_TEST_SUITE(dynamic_activation_thresholds_tests)
 
-BOOST_FIXTURE_TEST_CASE(activate_at_min_level, TestChain98Setup)
+BOOST_FIXTURE_TEST_CASE(activate_at_min_level, TestChainDATSetup)
 {
     test(12, true);
 }
 
-#define TEST(INDEX)  BOOST_FIXTURE_TEST_CASE(activate_at_##INDEX##_level, TestChain98Setup) \
+#define TEST(INDEX)  BOOST_FIXTURE_TEST_CASE(activate_at_##INDEX##_level, TestChainDATSetup) \
 { \
     test(INDEX, false); \
 }
