@@ -13,14 +13,14 @@
 #include <boost/test/unit_test.hpp>
 
 const auto deployment_id = Consensus::DEPLOYMENT_DIP0020;
-const int window{100}, th_start{80}, th_end{60};
+constexpr int window{100}, th_start{80}, th_end{60};
 
 struct TestChain98Setup : public TestChainSetup
 {
     TestChain98Setup() : TestChainSetup(98) {}
 };
 
-static int threshold(int attempt)
+static constexpr int threshold(int attempt)
 {
     // An implementation of VersionBitsConditionChecker::Threshold()
     int threshold_calc = th_start - attempt * attempt * window / 100 / 5;
@@ -28,7 +28,7 @@ static int threshold(int attempt)
         return th_end;
     }
     return threshold_calc;
-};
+}
 
 BOOST_AUTO_TEST_SUITE(dynamic_activation_thresholds_tests)
 
