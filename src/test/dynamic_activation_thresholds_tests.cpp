@@ -75,8 +75,8 @@ BOOST_FIXTURE_TEST_CASE(activate_at_min_level, TestChain98Setup)
         BOOST_CHECK_EQUAL(VersionBitsTipStatistics(consensus_params, deployment_id).threshold, threshold(0));
         // Next block should be signaling by default
         const auto pblocktemplate = BlockAssembler(Params()).CreateNewBlock(coinbasePubKey);
-        BOOST_ASSERT(::ChainActive().Tip()->nVersion = 536870912);
-        BOOST_ASSERT(pblocktemplate->block.nVersion != 536870912);
+        BOOST_CHECK_EQUAL(::ChainActive().Tip()->nVersion, 536870912);
+        BOOST_CHECK(pblocktemplate->block.nVersion != 536870912);
     }
 
     // Reach min level + 1 more to check it doesn't go lower than that
@@ -151,8 +151,8 @@ BOOST_FIXTURE_TEST_CASE(activate_at_mid_level, TestChain98Setup)
         BOOST_CHECK_EQUAL(VersionBitsTipStatistics(consensus_params, deployment_id).threshold, threshold(0));
         // Next block should be signaling by default
         const auto pblocktemplate = BlockAssembler(Params()).CreateNewBlock(coinbasePubKey);
-        BOOST_ASSERT(::ChainActive().Tip()->nVersion = 536870912);
-        BOOST_ASSERT(pblocktemplate->block.nVersion != 536870912);
+        BOOST_CHECK_EQUAL(::ChainActive().Tip()->nVersion, 536870912);
+        BOOST_CHECK(pblocktemplate->block.nVersion != 536870912);
     }
 
     // Reach mid level
