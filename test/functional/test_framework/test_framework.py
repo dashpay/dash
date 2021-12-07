@@ -1058,33 +1058,6 @@ class DashTestFramework(BitcoinTestFramework):
         wait_until(check_sporks_same, timeout=timeout, sleep=0.5)
 
     def wait_for_quorum_connections(self, quorum_hash, expected_connections, nodes, timeout = 60, wait_proc=None):
-        def check_quorum_connections_old():
-            all_ok = True
-            m = 0
-            for node in nodes:
-                s = node.quorum("dkgstatus")
-                m = m + 1
-            for node in nodes:
-                s = node.quorum("dkgstatus")
-                if 'llmq_test' not in s["session"]:
-                    continue
-                if "quorumConnections" not in s:
-                    all_ok = False
-                    break
-                s = s["quorumConnections"]
-                if "llmq_test" not in s:
-                    all_ok = False
-                    break
-                cnt = 0
-                for c in s["llmq_test"]:
-                    if c["connected"]:
-                        cnt += 1
-                if cnt < expected_connections:
-                    all_ok = False
-                    break
-            if not all_ok and wait_proc is not None:
-                wait_proc()
-            return False
         def check_quorum_connections():
             all_ok = True
             for node in nodes:
@@ -1163,8 +1136,6 @@ class DashTestFramework(BitcoinTestFramework):
                         continue
                     qstatus = qs["status"]
                     if qstatus["quorumHash"] != quorum_hash:
-                        mn_ok = False
-                        #break
                         continue
                     member_count += 1
                     if "phase" not in qstatus:
@@ -1344,9 +1315,10 @@ class DashTestFramework(BitcoinTestFramework):
         q_0 = self.nodes[0].getbestblockhash()
         self.log.info("Expected quorum_0 at:" + str(self.nodes[0].getblockcount()))
         self.log.info("Exepcted quorum_0 hash:" + str(q_0))
-
+        #time.sleep(2)
         self.log.info("quorumIndex 0: Waiting for phase 1 (init)")
         self.wait_for_quorum_phase(q_0, 1, expected_members, None, 0, mninfos_online)
+        self.log.info("quorumIndex 0: Waiting for quorum connections (init)")
         self.wait_for_quorum_connections(q_0, expected_connections, nodes, wait_proc=lambda: self.bump_mocktime(1, nodes=nodes))
         if spork23_active:
             self.wait_for_masternode_probes(mninfos_valid, wait_proc=lambda: self.bump_mocktime(1, nodes=nodes))
@@ -1356,9 +1328,10 @@ class DashTestFramework(BitcoinTestFramework):
         q_1 = self.nodes[0].getbestblockhash()
         self.log.info("Expected quorum_1 at:" + str(self.nodes[0].getblockcount()))
         self.log.info("Exepcted quorum_1 hash:" + str(q_1))
-
+        #time.sleep(2)
         self.log.info("quorumIndex 1: Waiting for phase 1 (init)")
         self.wait_for_quorum_phase(q_1, 1, expected_members, None, 0, mninfos_online)
+        self.log.info("quorumIndex 1: Waiting for quorum connections (init)")
         self.wait_for_quorum_connections(q_1, expected_connections, nodes, wait_proc=lambda: self.bump_mocktime(1, nodes=nodes))
 
         self.move_blocks(nodes, 1)
