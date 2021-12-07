@@ -154,7 +154,7 @@ static constexpr std::array<LLMQParams, 8> available_llmqs = {
         .type = LLMQType::LLMQ_DEVNET,
         .name = "llmq_devnet",
         .size = 12,
-        .minSize = 12,
+        .minSize = 7,
         .threshold = 6,
 
         .dkgInterval = 24, // one DKG per hour
@@ -163,7 +163,7 @@ static constexpr std::array<LLMQParams, 8> available_llmqs = {
         .dkgMiningWindowEnd = 18,
         .dkgBadVotesThreshold = 7,
 
-        .signingActiveQuorumCount = 3, // just a few ones to allow easier testing
+        .signingActiveQuorumCount = 4, // just a few ones to allow easier testing
 
         .keepOldConnections = 4,
         .recoveryMembers = 6,
