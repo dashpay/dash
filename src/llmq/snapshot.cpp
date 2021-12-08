@@ -49,14 +49,14 @@ void CQuorumRotationInfo::ToJson(UniValue& obj) const
     obj.setObject();
     obj.pushKV("creationHeight", creationHeight);
     CDataStream ss(SER_NETWORK, PROTOCOL_VERSION);
-    ss << quorumSnaphotAtHMinusC;
-    obj.pushKV("quorumSnaphotAtHMinusC", HexStr(ss));
+    ss << quorumSnapshotAtHMinusC;
+    obj.pushKV("quorumSnapshotAtHMinusC", HexStr(ss));
     ss.clear();
-    ss << quorumSnaphotAtHMinus2C;
-    obj.pushKV("quorumSnaphotAtHMinus2C", HexStr(ss));
+    ss << quorumSnapshotAtHMinus2C;
+    obj.pushKV("quorumSnapshotAtHMinus2C", HexStr(ss));
     ss.clear();
-    ss << quorumSnaphotAtHMinus3C;
-    obj.pushKV("quorumSnaphotAtHMinus3C", HexStr(ss));
+    ss << quorumSnapshotAtHMinus3C;
+    obj.pushKV("quorumSnapshotAtHMinus3C", HexStr(ss));
     ss.clear();
     ss << mnListDiffTip;
     obj.pushKV("mnListDiffTip", HexStr(ss));
@@ -147,57 +147,61 @@ bool BuildQuorumRotationInfo(const CGetQuorumRotationInfo& request, CQuorumRotat
     }
     response.creationHeight = hBlockIndex->nHeight;
 
+    const Consensus::LLMQParams& llmqParams = GetLLMQParams(llmqType);
+    const int cycleLength = llmqParams.dkgInterval;
+
+    const CBlockIndex* pBlockHMinusCIndex = tipBlockIndex->GetAncestor(tipBlockIndex->nHeight - (tipBlockIndex->nHeight % cycleLength));
+    const CBlockIndex* pBlockHMinus2CIndex = pBlockHMinusCIndex->GetAncestor(pBlockHMinusCIndex->nHeight - cycleLength);
+    const CBlockIndex* pBlockHMinus3CIndex = pBlockHMinusCIndex->GetAncestor(pBlockHMinusCIndex->nHeight - 2 * cycleLength);
+
     // H-C
-    const CBlockIndex* hcBlockIndex = LookupBlockIndex(itQuorums->second.at(1)->GetBlockHash());
-    if (!hcBlockIndex) {
+    if (!pBlockHMinusCIndex) {
         errorRet = strprintf("Can not find block H-C");
         return false;
     }
 
-    if (!BuildSimplifiedMNListDiff(GetLastBaseBlockHash(baseBlockIndexes, hcBlockIndex), hcBlockIndex->GetBlockHash(), response.mnListDiffAtHMinusC, errorRet)) {
+    if (!BuildSimplifiedMNListDiff(GetLastBaseBlockHash(baseBlockIndexes, pBlockHMinusCIndex), pBlockHMinusCIndex->GetBlockHash(), response.mnListDiffAtHMinusC, errorRet)) {
         return false;
     }
 
-    auto snapshotHMinusC = quorumSnapshotManager->GetSnapshotForBlock(Params().GetConsensus().llmqTypeInstantSend, hcBlockIndex);
+    auto snapshotHMinusC = quorumSnapshotManager->GetSnapshotForBlock(llmqType, pBlockHMinusCIndex);
     if (!snapshotHMinusC.has_value()) {
         errorRet = strprintf("Can not find quorum snapshot at H-C");
         return false;
     }
-    response.quorumSnaphotAtHMinusC = std::move(snapshotHMinusC.value());
+    response.quorumSnapshotAtHMinusC = std::move(snapshotHMinusC.value());
 
     // H-2C
-    const CBlockIndex* h2cBlockIndex = LookupBlockIndex(itQuorums->second.at(2)->GetBlockHash());
-    if (!h2cBlockIndex) {
+    if (!pBlockHMinus2CIndex) {
         errorRet = strprintf("Can not find block H-2C");
         return false;
     }
-    if (!BuildSimplifiedMNListDiff(GetLastBaseBlockHash(baseBlockIndexes, h2cBlockIndex), h2cBlockIndex->GetBlockHash(), response.mnListDiffAtHMinus2C, errorRet)) {
+    if (!BuildSimplifiedMNListDiff(GetLastBaseBlockHash(baseBlockIndexes, pBlockHMinus2CIndex), pBlockHMinus2CIndex->GetBlockHash(), response.mnListDiffAtHMinus2C, errorRet)) {
         return false;
     }
 
-    auto snapshotHMinus2C = quorumSnapshotManager->GetSnapshotForBlock(Params().GetConsensus().llmqTypeInstantSend, hcBlockIndex);
+    auto snapshotHMinus2C = quorumSnapshotManager->GetSnapshotForBlock(llmqType, pBlockHMinus2CIndex);
     if (!snapshotHMinus2C.has_value()) {
         errorRet = strprintf("Can not find quorum snapshot at H-C");
         return false;
     }
-    response.quorumSnaphotAtHMinus2C = std::move(snapshotHMinus2C.value());
+    response.quorumSnapshotAtHMinus2C = std::move(snapshotHMinus2C.value());
 
     // H-3C
-    const CBlockIndex* h3cBlockIndex = LookupBlockIndex(itQuorums->second.at(3)->GetBlockHash());
-    if (!h3cBlockIndex) {
+    if (!pBlockHMinus3CIndex) {
         errorRet = strprintf("Can not find block H-3C");
         return false;
     }
-    if (!BuildSimplifiedMNListDiff(GetLastBaseBlockHash(baseBlockIndexes, h3cBlockIndex), h3cBlockIndex->GetBlockHash(), response.mnListDiffAtHMinus3C, errorRet)) {
+    if (!BuildSimplifiedMNListDiff(GetLastBaseBlockHash(baseBlockIndexes, pBlockHMinus3CIndex), pBlockHMinus3CIndex->GetBlockHash(), response.mnListDiffAtHMinus3C, errorRet)) {
         return false;
     }
 
-    auto snapshotHMinus3C = quorumSnapshotManager->GetSnapshotForBlock(Params().GetConsensus().llmqTypeInstantSend, h3cBlockIndex);
+    auto snapshotHMinus3C = quorumSnapshotManager->GetSnapshotForBlock(llmqType, pBlockHMinus3CIndex);
     if (!snapshotHMinus3C.has_value()) {
         errorRet = strprintf("Can not find quorum snapshot at H-C");
         return false;
     }
-    response.quorumSnaphotAtHMinus3C = std::move(snapshotHMinus3C.value());
+    response.quorumSnapshotAtHMinus3C = std::move(snapshotHMinus3C.value());
 
 
     return true;
