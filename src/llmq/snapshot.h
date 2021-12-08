@@ -100,9 +100,9 @@ class CQuorumRotationInfo
 {
 public:
     int creationHeight = 0;
-    CQuorumSnapshot quorumSnaphotAtHMinusC;
-    CQuorumSnapshot quorumSnaphotAtHMinus2C;
-    CQuorumSnapshot quorumSnaphotAtHMinus3C;
+    CQuorumSnapshot quorumSnapshotAtHMinusC;
+    CQuorumSnapshot quorumSnapshotAtHMinus2C;
+    CQuorumSnapshot quorumSnapshotAtHMinus3C;
     CSimplifiedMNListDiff mnListDiffTip;
     CSimplifiedMNListDiff mnListDiffAtHMinusC;
     CSimplifiedMNListDiff mnListDiffAtHMinus2C;
@@ -111,9 +111,9 @@ public:
     SERIALIZE_METHODS(CQuorumRotationInfo, obj)
     {
         READWRITE(obj.creationHeight,
-                  obj.quorumSnaphotAtHMinusC,
-                  obj.quorumSnaphotAtHMinus2C,
-                  obj.quorumSnaphotAtHMinus3C,
+                  obj.quorumSnapshotAtHMinusC,
+                  obj.quorumSnapshotAtHMinus2C,
+                  obj.quorumSnapshotAtHMinus3C,
                   obj.mnListDiffTip,
                   obj.mnListDiffAtHMinusC,
                   obj.mnListDiffAtHMinus2C,
