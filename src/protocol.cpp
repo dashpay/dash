@@ -10,6 +10,10 @@
 
 static std::atomic<bool> g_initial_block_download_completed(false);
 
+#define MAKE_MSG(var_name, p2p_name_str)   \
+        const char* var_name=p2p_name_str; \
+        static_assert(strlen(p2p_name_str) <= COMMAND_SIZE, "p2p_name_str cannot be greater than COMMAND_SIZE");
+
 namespace NetMsgType {
 const char *VERSION="version";
 const char *VERACK="verack";
@@ -45,43 +49,43 @@ const char *CFHEADERS="cfheaders";
 const char *GETCFCHECKPT="getcfcheckpt";
 const char *CFCHECKPT="cfcheckpt";
 // Dash message types
-const char *LEGACYTXLOCKREQUEST="ix";
-const char *SPORK="spork";
-const char *GETSPORKS="getsporks";
-const char *DSACCEPT="dsa";
-const char *DSVIN="dsi";
-const char *DSFINALTX="dsf";
-const char *DSSIGNFINALTX="dss";
-const char *DSCOMPLETE="dsc";
-const char *DSSTATUSUPDATE="dssu";
-const char *DSTX="dstx";
-const char *DSQUEUE="dsq";
-const char *SENDDSQUEUE="senddsq";
-const char *SYNCSTATUSCOUNT="ssc";
-const char *MNGOVERNANCESYNC="govsync";
-const char *MNGOVERNANCEOBJECT="govobj";
-const char *MNGOVERNANCEOBJECTVOTE="govobjvote";
-const char *GETMNLISTDIFF="getmnlistd";
-const char *MNLISTDIFF="mnlistdiff";
-const char *QSENDRECSIGS="qsendrecsigs";
-const char *QFCOMMITMENT="qfcommit";
-const char *QCONTRIB="qcontrib";
-const char *QCOMPLAINT="qcomplaint";
-const char *QJUSTIFICATION="qjustify";
-const char *QPCOMMITMENT="qpcommit";
-const char *QWATCH="qwatch";
-const char *QSIGSESANN="qsigsesann";
-const char *QSIGSHARESINV="qsigsinv";
-const char *QGETSIGSHARES="qgetsigs";
-const char *QBSIGSHARES="qbsigs";
-const char *QSIGREC="qsigrec";
-const char *QSIGSHARE="qsigshare";
-const char* QGETDATA = "qgetdata";
-const char* QDATA = "qdata";
-const char *CLSIG="clsig";
-const char *ISLOCK="islock";
-const char *ISDLOCK="isdlock";
-const char *MNAUTH="mnauth";
+MAKE_MSG(LEGACYTXLOCKREQUEST, "ix");
+MAKE_MSG(SPORK, "spork");
+MAKE_MSG(GETSPORKS, "getsporks");
+MAKE_MSG(DSACCEPT, "dsa");
+MAKE_MSG(DSVIN, "dsi");
+MAKE_MSG(DSFINALTX, "dsf");
+MAKE_MSG(DSSIGNFINALTX, "dss");
+MAKE_MSG(DSCOMPLETE, "dsc");
+MAKE_MSG(DSSTATUSUPDATE, "dssu");
+MAKE_MSG(DSTX, "dstx");
+MAKE_MSG(DSQUEUE, "dsq");
+MAKE_MSG(SENDDSQUEUE, "senddsq");
+MAKE_MSG(SYNCSTATUSCOUNT, "ssc");
+MAKE_MSG(MNGOVERNANCESYNC, "govsync");
+MAKE_MSG(MNGOVERNANCEOBJECT, "govobj");
+MAKE_MSG(MNGOVERNANCEOBJECTVOTE, "govobjvote");
+MAKE_MSG(GETMNLISTDIFF, "getmnlistd");
+MAKE_MSG(MNLISTDIFF, "mnlistdiff");
+MAKE_MSG(QSENDRECSIGS, "qsendrecsigs");
+MAKE_MSG(QFCOMMITMENT, "qfcommit");
+MAKE_MSG(QCONTRIB, "qcontrib");
+MAKE_MSG(QCOMPLAINT, "qcomplaint");
+MAKE_MSG(QJUSTIFICATION, "qjustify");
+MAKE_MSG(QPCOMMITMENT, "qpcommit");
+MAKE_MSG(QWATCH, "qwatch");
+MAKE_MSG(QSIGSESANN, "qsigsesann");
+MAKE_MSG(QSIGSHARESINV, "qsigsinv");
+MAKE_MSG(QGETSIGSHARES, "qgetsigs");
+MAKE_MSG(QBSIGSHARES, "qbsigs");
+MAKE_MSG(QSIGREC, "qsigrec");
+MAKE_MSG(QSIGSHARE, "qsigshare");
+MAKE_MSG(QGETDATA, "qgetdata");
+MAKE_MSG(QDATA, "qdata");
+MAKE_MSG(CLSIG, "clsig");
+MAKE_MSG(ISLOCK, "islock");
+MAKE_MSG(ISDLOCK, "isdlock");
+MAKE_MSG(MNAUTH, "mnauth");
 }; // namespace NetMsgType
 
 /** All known message types. Keep this in the same order as the list of
