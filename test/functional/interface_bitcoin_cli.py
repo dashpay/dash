@@ -149,7 +149,7 @@ class TestBitcoinCli(BitcoinTestFramework):
 
         if self.is_wallet_compiled():
             self.log.info("Test -getinfo and dash-cli getwalletinfo return expected wallet info")
-            # Explicitely set the output type in order to have constintent tx vsize / fees
+            # Explicitly set the output type in order to have consistent tx vsize / fees
             self.restart_node(0, extra_args=["-addresstype=bech32", "-changetype=bech32"])
             assert_equal(Decimal(cli_get_info['Balance']), BALANCE)
             assert 'Balances' not in cli_get_info_string
