@@ -12,7 +12,7 @@ static std::atomic<bool> g_initial_block_download_completed(false);
 
 #define MAKE_MSG(var_name, p2p_name_str)   \
         const char* var_name=p2p_name_str; \
-        static_assert(strlen(p2p_name_str) <= CMessageHeader::COMMAND_SIZE, "p2p_name_str cannot be greater than COMMAND_SIZE");
+        static_assert(std::size(p2p_name_str) <= CMessageHeader::COMMAND_SIZE + 1, "p2p_name_str cannot be greater than COMMAND_SIZE"); // Includes +1 for null termination character.
 
 namespace NetMsgType {
 MAKE_MSG(VERSION, "version");
