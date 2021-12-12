@@ -194,7 +194,7 @@ std::optional<uint256> CalcCbTxMerkleRootQuorums(const CBlock& block, const CBlo
                     state.DoS(100, false, REJECT_INVALID, "commitment-not-found");
                     return std::nullopt;
                 }
-                v.emplace_back(::SerializeHash(optQuorumCommitBlockhash->first));
+                v.emplace_back(::SerializeHash(optQuorumCommitBlockhash->first.get()));
                 hashCount++;
             }
         }

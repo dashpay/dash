@@ -51,7 +51,7 @@ CQuorum::CQuorum(const Consensus::LLMQParams& _params, CBLSWorker& _blsWorker) :
 
 CQuorum::~CQuorum() = default;
 
-void CQuorum::Init(CFinalCommitmentPtr _qc, const CBlockIndex* _pQuorumBaseBlockIndex, const uint256& _minedBlockHash, const std::vector<CDeterministicMNCPtr>& _members)
+void CQuorum::Init(CFinalCommitmentPtr&& _qc, const CBlockIndex* _pQuorumBaseBlockIndex, const uint256& _minedBlockHash, const std::vector<CDeterministicMNCPtr>& _members)
 {
     qc = std::move(_qc);
     m_quorum_base_block_index = _pQuorumBaseBlockIndex;
@@ -308,7 +308,7 @@ CQuorumPtr CQuorumManager::BuildQuorumFromCommitment(const Consensus::LLMQType l
     if (!optQcBlockHash) {
         return nullptr;
     }
-    const auto& [qc, minedBlockHash] = *optQcBlockHash;
+    auto& [qc, minedBlockHash] = *optQcBlockHash;
 
     assert(qc->quorumHash == pQuorumBaseBlockIndex->GetBlockHash());
 

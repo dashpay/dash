@@ -7,6 +7,7 @@
 
 #include <amount.h>
 
+#include <optional>
 #include <string>
 #include <vector>
 
