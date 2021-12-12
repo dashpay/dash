@@ -1,8 +1,8 @@
 package=cmake
-$(package)_version=3.14.7
-$(package)_download_path=https://cmake.org/files/v3.14/
+$(package)_version=3.22.1
+$(package)_download_path=https://cmake.org/files/v3.22/
 $(package)_file_name=$(package)-$($(package)_version).tar.gz
-$(package)_sha256_hash=9221993e0af3e6d10124d840ff24f5b2f3b884416fca04d3312cb0388dec1385
+$(package)_sha256_hash=0e998229549d7b3f368703d20e248e7ee1f853910d42704aa87918c213ea82c0
 
 define $(package)_config_cmds
   export CC="" && \
