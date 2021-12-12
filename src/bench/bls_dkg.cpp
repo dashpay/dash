@@ -106,7 +106,8 @@ public:
     }
 };
 
-static void BLS_GenerateContributions(benchmark::Bench& bench, uint32_t epoch_iters, int quorumSize) {
+static void BLSDKG_GenerateContributions(benchmark::Bench& bench, uint32_t epoch_iters, int quorumSize)
+{
     CBLSWorker blsWorker;
     blsWorker.Start();
     std::vector<CBLSId> ids;
@@ -126,13 +127,14 @@ static void BLS_GenerateContributions(benchmark::Bench& bench, uint32_t epoch_it
 }
 
 #define BENCH_GenerateContributions(name, quorumSize, epoch_iters) \
-    static void BLS_GenerateContributions_##name##_##quorumSize(benchmark::Bench& bench) \
+    static void BLSDKG_GenerateContributions_##name##_##quorumSize(benchmark::Bench& bench) \
     {                                                \
         BLSDKG_InitDKG(bench, epoch_iters, quorumSize); \
     } \
-    BENCHMARK(BLS_GenerateContributions_##name##_##quorumSize)
+    BENCHMARK(BLSDKG_GenerateContributions_##name##_##quorumSize)
 
-static void BLSDKG_InitDKG(benchmark::Bench& bench, uint32_t epoch_iters, int quorumSize) {
+static void BLSDKG_InitDKG(benchmark::Bench& bench, uint32_t epoch_iters, int quorumSize)
+{
     bench.minEpochIterations(epoch_iters).run([&] {
         DKG d(quorumSize);
     });
