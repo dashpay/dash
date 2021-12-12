@@ -57,12 +57,7 @@ endef
 
 define $(package)_preprocess_cmds
   sed -i.old "s|GIT_REPOSITORY https://github.com/relic-toolkit/relic.git|URL \"../../relic-toolkit-$($(package)_relic_version).tar.gz\"|" src/CMakeLists.txt && \
-  sed -i.old "s|GIT_TAG        .*RELIC_GIT_TAG.*||" src/CMakeLists.txt && \
-  tar xzf relic-toolkit-$($(package)_relic_version).tar.gz relic-$($(package)_relic_version)/src/md/blake2.h && \
-  patch -p1 relic-$($(package)_relic_version)/src/md/blake2.h < $($(package)_patch_dir)/gcc_alignment_cast.patch && \
-  gunzip relic-toolkit-$($(package)_relic_version).tar.gz && \
-  tar rf relic-toolkit-$($(package)_relic_version).tar relic-$($(package)_relic_version)/src/md/blake2.h && \
-  gzip relic-toolkit-$($(package)_relic_version).tar
+  sed -i.old "s|GIT_TAG        .*RELIC_GIT_TAG.*||" src/CMakeLists.txt
 endef
 
 define $(package)_config_cmds
