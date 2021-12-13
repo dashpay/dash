@@ -645,31 +645,80 @@ static UniValue quorum_getdata(const JSONRPCRequest& request)
     });
 }
 
+static void quorum_getrotationinfo_help()
+{
+    throw std::runtime_error(
+        RPCHelpMan{
+            "quorum rotationinfo",
+            "Get quorum rotation information\n",
+            {{"blockRequestHash", RPCArg::Type::STR_HEX, RPCArg::Optional::NO, "The blockHash of the request."},
+             {"baseBlockHashesNb", RPCArg::Type::NUM, RPCArg::Optional::NO,
+              "Number of baseBlockHashes"}},
+            RPCResults{},
+            RPCExamples{""},
+        }
+            .ToString());
+}
+
+static UniValue quorum_getrotationdata(const JSONRPCRequest& request)
+{
+    if (request.fHelp || (request.params.size() < 2)) {
+        quorum_getrotationinfo_help();
+    }
+
+    llmq::CGetQuorumRotationInfo cmd;
+    llmq::CQuorumRotationInfo quorumRotationInfoRet;
+    std::string strError;
+
+    cmd.blockRequestHash = ParseHashV(request.params[1], "blockRequestHash");
+    cmd.baseBlockHashesNb = static_cast<uint32_t>(ParseInt32V(request.params[2], "baseBlockHashesNb"));
+
+    /*if (request.params.size() - 2 != cmd.baseBlockHashesNb) {
+        quorum_getrotationinfo_help();
+    }*/
+
+    for (auto i = 0; i < cmd.baseBlockHashesNb; i++) {
+        cmd.baseBlockHashes.push_back(ParseHashV(request.params[2 + i], "quorumHash"));
+    }
+    LOCK(cs_main);
+    if (!BuildQuorumRotationInfo(cmd, quorumRotationInfoRet, strError)) {
+        throw JSONRPCError(RPC_INVALID_REQUEST, strError);
+    }
+
+    UniValue ret(UniValue::VOBJ);
+    quorumRotationInfoRet.ToJson(ret);
+    return ret;
+}
+
 
 [[ noreturn ]] static void quorum_help()
 {
-    RPCHelpMan{"quorum",
-        "Set of commands for quorums/LLMQs.\n"
-        "To get help on individual commands, use \"help quorum command\".\n"
-        "\nAvailable commands:\n"
-        "  list              - List of on-chain quorums\n"
-        "  info              - Return information about a quorum\n"
-        "  dkgsimerror       - Simulates DKG errors and malicious behavior\n"
-        "  dkgstatus         - Return the status of the current DKG process\n"
-        "  memberof          - Checks which quorums the given masternode is a member of\n"
-        "  sign              - Threshold-sign a message\n"
-        "  verify            - Test if a quorum signature is valid for a request id and a message hash\n"
-        "  hasrecsig         - Test if a valid recovered signature is present\n"
-        "  getrecsig         - Get a recovered signature\n"
-        "  isconflicting     - Test if a conflict exists\n"
-        "  selectquorum      - Return the quorum that would/should sign a request\n"
-        "  getdata           - Request quorum data from other masternodes in the quorum\n",
-        {
-            {"command", RPCArg::Type::STR, RPCArg::Optional::NO, "The command to execute"},
-        },
-        RPCResults{},
-        RPCExamples{""},
-    }.Throw();
+    throw std::runtime_error(
+        RPCHelpMan{
+            "quorum",
+            "Set of commands for quorums/LLMQs.\n"
+            "To get help on individual commands, use \"help quorum command\".\n"
+            "\nAvailable commands:\n"
+            "  list              - List of on-chain quorums\n"
+            "  info              - Return information about a quorum\n"
+            "  dkgsimerror       - Simulates DKG errors and malicious behavior\n"
+            "  dkgstatus         - Return the status of the current DKG process\n"
+            "  memberof          - Checks which quorums the given masternode is a member of\n"
+            "  sign              - Threshold-sign a message\n"
+            "  verify            - Test if a quorum signature is valid for a request id and a message hash\n"
+            "  hasrecsig         - Test if a valid recovered signature is present\n"
+            "  getrecsig         - Get a recovered signature\n"
+            "  isconflicting     - Test if a conflict exists\n"
+            "  selectquorum      - Return the quorum that would/should sign a request\n"
+            "  getdata           - Request quorum data from other masternodes in the quorum\n"
+            "  rotationinfo      - Request quorum rotation information\n",
+            {
+                {"command", RPCArg::Type::STR, RPCArg::Optional::NO, "The command to execute"},
+            },
+            RPCResults{},
+            RPCExamples{""},
+        }
+            .ToString());
 }
 
 static UniValue _quorum(const JSONRPCRequest& request)
@@ -699,6 +748,8 @@ static UniValue _quorum(const JSONRPCRequest& request)
         return quorum_dkgsimerror(request);
     } else if (command == "getdata") {
         return quorum_getdata(request);
+    } else if (command == "rotationinfo") {
+        return quorum_getrotationdata(request);
     } else {
         quorum_help();
     }
