@@ -28,8 +28,7 @@ bool CSporkManager::SporkValueIsActive(SporkId nSporkID, int64_t &nActiveValueRe
 
     if (!mapSporksActive.count(nSporkID)) return false;
 
-    auto it = mapSporksCachedValues.find(nSporkID);
-    if (it != mapSporksCachedValues.end()) {
+    if (auto it = mapSporksCachedValues.find(nSporkID); it != mapSporksCachedValues.end()) {
         nActiveValueRet = it->second;
         return true;
     }
@@ -221,8 +220,7 @@ bool CSporkManager::IsSporkActive(SporkId nSporkID) const
 {
     LOCK(cs);
     // If nSporkID is cached, and the cached value is true, then return early true
-    auto it = mapSporksCachedActive.find(nSporkID);
-    if (it != mapSporksCachedActive.end() && it->second) {
+    if (auto it = mapSporksCachedActive.find(nSporkID); it != mapSporksCachedActive.end() && it->second) {
         return true;
     }
 
@@ -240,8 +238,7 @@ int64_t CSporkManager::GetSporkValue(SporkId nSporkID) const
 {
     LOCK(cs);
 
-    int64_t nSporkValue = -1;
-    if (SporkValueIsActive(nSporkID, nSporkValue)) {
+    if (int64_t nSporkValue = -1; SporkValueIsActive(nSporkID, nSporkValue)) {
         return nSporkValue;
     }
 
@@ -296,8 +293,7 @@ bool CSporkManager::SetSporkAddress(const std::string& strAddress) {
 bool CSporkManager::SetMinSporkKeys(int minSporkKeys)
 {
     LOCK(cs);
-    int maxKeysNumber = setSporkPubKeyIDs.size();
-    if ((minSporkKeys <= maxKeysNumber / 2) || (minSporkKeys > maxKeysNumber)) {
+    if (int maxKeysNumber = setSporkPubKeyIDs.size(); (minSporkKeys <= maxKeysNumber / 2) || (minSporkKeys > maxKeysNumber)) {
         LogPrintf("CSporkManager::SetMinSporkKeys -- Invalid min spork signers number: %d\n", minSporkKeys);
         return false;
     }
@@ -320,8 +316,7 @@ bool CSporkManager::SetPrivKey(const std::string& strPrivKey)
         return false;
     }
 
-    CSporkMessage spork;
-    if (!spork.Sign(key)) {
+    if (CSporkMessage spork; !spork.Sign(key)) {
         LogPrintf("CSporkManager::SetPrivKey -- Test signing failed\n");
         return false;
     }
