@@ -35,12 +35,12 @@ bool CSporkManager::SporkValueIsActive(SporkId nSporkID, int64_t &nActiveValueRe
 
     // calc how many values we have and how many signers vote for every value
     std::unordered_map<int64_t, int> mapValueCounts;
-    for (const auto& pair: mapSporksActive.at(nSporkID)) {
-        mapValueCounts[pair.second.nValue]++;
-        if (mapValueCounts.at(pair.second.nValue) >= nMinSporkKeys) {
+    for (const auto& [_, spork]: mapSporksActive.at(nSporkID)) {
+        mapValueCounts[spork.nValue]++;
+        if (mapValueCounts.at(spork.nValue) >= nMinSporkKeys) {
             // nMinSporkKeys is always more than the half of the max spork keys number,
             // so there is only one such value and we can stop here
-            nActiveValueRet = pair.second.nValue;
+            nActiveValueRet = spork.nValue;
             mapSporksCachedValues[nSporkID] = nActiveValueRet;
             return true;
         }
