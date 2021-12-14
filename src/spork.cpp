@@ -187,7 +187,7 @@ void CSporkManager::ProcessGetSporks(CNode* pfrom, std::string_view strCommand, 
 
 bool CSporkManager::UpdateSpork(SporkId nSporkID, int64_t nValue, CConnman& connman)
 {
-    CSporkMessage spork = CSporkMessage(nSporkID, nValue, GetAdjustedTime());
+    CSporkMessage spork(nSporkID, nValue, GetAdjustedTime());
 
     {
         LOCK(cs);
