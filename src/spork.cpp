@@ -104,10 +104,10 @@ void CSporkManager::CheckAndRemove()
 void CSporkManager::ProcessSporkMessages(CNode* pfrom, std::string_view strCommand, CDataStream& vRecv, CConnman& connman)
 {
     ProcessSpork(pfrom, strCommand, vRecv, connman);
-    ProcessGetSporks(pfrom, strCommand, vRecv, connman);
+    ProcessGetSporks(pfrom, strCommand, connman);
 }
 
-void CSporkManager::ProcessSpork(CNode* pfrom, std::string_view strCommand, CDataStream& vRecv, CConnman& connman)
+void CSporkManager::ProcessSpork(const CNode* pfrom, std::string_view strCommand, CDataStream& vRecv, CConnman& connman)
 {
     if (strCommand != NetMsgType::SPORK) return;
 
@@ -172,7 +172,7 @@ void CSporkManager::ProcessSpork(CNode* pfrom, std::string_view strCommand, CDat
 
 }
 
-void CSporkManager::ProcessGetSporks(CNode* pfrom, std::string_view strCommand, CDataStream& vRecv, CConnman& connman)
+void CSporkManager::ProcessGetSporks(CNode* pfrom, std::string_view strCommand, CConnman& connman)
 {
     if (strCommand != NetMsgType::GETSPORKS) return;
 

@@ -236,7 +236,7 @@ public:
      * For 'spork', it validates the spork and adds it to the internal spork storage and
      * performs any necessary processing.
      */
-    void ProcessSpork(CNode* pfrom, std::string_view strCommand, CDataStream& vRecv, CConnman& connman);
+    void ProcessSpork(const CNode* pfrom, std::string_view strCommand, CDataStream& vRecv, CConnman& connman);
 
 
     /**
@@ -244,7 +244,7 @@ public:
      *
      * For 'getsporks', it sends active sporks to the requesting peer.
      */
-    void ProcessGetSporks(CNode* pfrom, std::string_view strCommand, CDataStream& vRecv, CConnman& connman);
+    void ProcessGetSporks(CNode* pfrom, std::string_view strCommand, CConnman& connman);
 
     /**
      * UpdateSpork is used by the spork RPC command to set a new spork value, sign
