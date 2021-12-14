@@ -312,7 +312,7 @@ bool CSporkManager::SetPrivKey(const std::string& strPrivKey)
         return false;
     }
 
-    if (CSporkMessage spork; !spork.Sign(key)) {
+    if (!CSporkMessage().Sign(key)) {
         LogPrintf("CSporkManager::SetPrivKey -- Test signing failed\n");
         return false;
     }
