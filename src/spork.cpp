@@ -20,8 +20,6 @@
 
 #include <string>
 
-const std::string CSporkManager::SERIALIZATION_VERSION_STRING = "CSporkManager-Version-2";
-
 CSporkManager sporkManager;
 
 bool CSporkManager::SporkValueIsActive(SporkId nSporkID, int64_t &nActiveValueRet) const
@@ -104,7 +102,7 @@ void CSporkManager::CheckAndRemove()
     }
 }
 
-void CSporkManager::ProcessSpork(CNode* pfrom, const std::string& strCommand, CDataStream& vRecv, CConnman& connman)
+void CSporkManager::ProcessSpork(CNode* pfrom, std::string_view strCommand, CDataStream& vRecv, CConnman& connman)
 {
 
     if (strCommand == NetMsgType::SPORK) {
@@ -247,7 +245,7 @@ int64_t CSporkManager::GetSporkValue(SporkId nSporkID) const
     return -1;
 }
 
-SporkId CSporkManager::GetSporkIDByName(const std::string& strName)
+SporkId CSporkManager::GetSporkIDByName(std::string_view strName)
 {
     for (const auto& sporkDef : sporkDefs) {
         if (sporkDef.name == strName) {
