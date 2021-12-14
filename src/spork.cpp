@@ -61,11 +61,9 @@ void CSporkManager::Clear()
 void CSporkManager::CheckAndRemove()
 {
     LOCK(cs);
-    bool fSporkAddressIsSet = !setSporkPubKeyIDs.empty();
-    assert(fSporkAddressIsSet);
+    assert(!setSporkPubKeyIDs.empty());
 
-    auto itActive = mapSporksActive.begin();
-    while (itActive != mapSporksActive.end()) {
+    for (auto itActive = mapSporksActive.begin(); itActive != mapSporksActive.end();) {
         auto itSignerPair = itActive->second.begin();
         while (itSignerPair != itActive->second.end()) {
             bool fHasValidSig = setSporkPubKeyIDs.find(itSignerPair->first) != setSporkPubKeyIDs.end() &&
@@ -84,8 +82,7 @@ void CSporkManager::CheckAndRemove()
         ++itActive;
     }
 
-    auto itByHash = mapSporksByHash.begin();
-    while (itByHash != mapSporksByHash.end()) {
+    for (auto itByHash = mapSporksByHash.begin(); itByHash != mapSporksByHash.end();) {
         bool found = false;
         for (const auto& signer: setSporkPubKeyIDs) {
             if (itByHash->second.CheckSignature(signer)) {
