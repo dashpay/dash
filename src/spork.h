@@ -226,13 +226,25 @@ public:
     void CheckAndRemove();
 
     /**
-     * ProcessSpork is used to handle the 'getsporks' and 'spork' p2p messages.
+     * ProcessSporkMessages is used to call ProcessSpork and ProcessGetSporks. See below
+     */
+    void ProcessSporkMessages(CNode* pfrom, std::string_view strCommand, CDataStream& vRecv, CConnman& connman);
+
+    /**
+     * ProcessSpork is used to handle the 'spork' p2p message.
      *
-     * For 'getsporks', it sends active sporks to the requesting peer. For 'spork',
-     * it validates the spork and adds it to the internal spork storage and
+     * For 'spork', it validates the spork and adds it to the internal spork storage and
      * performs any necessary processing.
      */
     void ProcessSpork(CNode* pfrom, std::string_view strCommand, CDataStream& vRecv, CConnman& connman);
+
+
+    /**
+     * ProcessGetSporks is used to handle the 'getsporks' p2p message.
+     *
+     * For 'getsporks', it sends active sporks to the requesting peer.
+     */
+    void ProcessGetSporks(CNode* pfrom, std::string_view strCommand, CDataStream& vRecv, CConnman& connman);
 
     /**
      * UpdateSpork is used by the spork RPC command to set a new spork value, sign
