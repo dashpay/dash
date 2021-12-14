@@ -22,7 +22,7 @@
 
 CSporkManager sporkManager;
 
-bool CSporkManager::SporkValueIsActive(SporkId nSporkID, int64_t &nActiveValueRet) const
+bool CSporkManager::SporkValueIsActive(SporkId nSporkID, int64_t& nActiveValueRet) const
 {
     AssertLockHeld(cs);
 
@@ -35,7 +35,7 @@ bool CSporkManager::SporkValueIsActive(SporkId nSporkID, int64_t &nActiveValueRe
 
     // calc how many values we have and how many signers vote for every value
     std::unordered_map<int64_t, int> mapValueCounts;
-    for (const auto& [_, spork]: mapSporksActive.at(nSporkID)) {
+    for (const auto& [_, spork] : mapSporksActive.at(nSporkID)) {
         mapValueCounts[spork.nValue]++;
         if (mapValueCounts.at(spork.nValue) >= nMinSporkKeys) {
             // nMinSporkKeys is always more than the half of the max spork keys number,
@@ -84,7 +84,7 @@ void CSporkManager::CheckAndRemove()
 
     for (auto itByHash = mapSporksByHash.begin(); itByHash != mapSporksByHash.end();) {
         bool found = false;
-        for (const auto& signer: setSporkPubKeyIDs) {
+        for (const auto& signer : setSporkPubKeyIDs) {
             if (itByHash->second.CheckSignature(signer)) {
                 found = true;
                 break;
@@ -117,7 +117,7 @@ void CSporkManager::ProcessSpork(const CNode* pfrom, std::string_view strCommand
     {
         LOCK(cs_main);
         EraseObjectRequest(pfrom->GetId(), CInv(MSG_SPORK, hash));
-        if(!::ChainActive().Tip()) return;
+        if (!::ChainActive().Tip()) return;
         strLogMsg = strprintf("SPORK -- hash: %s id: %d value: %10d bestHeight: %d peer=%d", hash.ToString(), spork.nSporkID, spork.nValue, ::ChainActive().Height(), pfrom->GetId());
     }
 
@@ -165,8 +165,6 @@ void CSporkManager::ProcessSpork(const CNode* pfrom, std::string_view strCommand
         mapSporksCachedValues.erase(spork.nSporkID);
     }
     spork.Relay(connman);
-
-
 }
 
 void CSporkManager::ProcessGetSporks(CNode* pfrom, std::string_view strCommand, CConnman& connman)
@@ -175,7 +173,7 @@ void CSporkManager::ProcessGetSporks(CNode* pfrom, std::string_view strCommand, 
 
     LOCK(cs); // make sure to not lock this together with cs_main
     for (const auto& pair : mapSporksActive) {
-        for (const auto& signerSporkPair: pair.second) {
+        for (const auto& signerSporkPair : pair.second) {
             connman.PushMessage(pfrom, CNetMsgMaker(pfrom->GetSendVersion()).Make(NetMsgType::SPORK, signerSporkPair.second));
         }
     }
@@ -261,7 +259,7 @@ SporkId CSporkManager::GetSporkIDByName(std::string_view strName)
     return SPORK_INVALID;
 }
 
-bool CSporkManager::GetSporkByHash(const uint256& hash, CSporkMessage &sporkRet) const
+bool CSporkManager::GetSporkByHash(const uint256& hash, CSporkMessage& sporkRet) const
 {
     LOCK(cs);
 
@@ -275,10 +273,11 @@ bool CSporkManager::GetSporkByHash(const uint256& hash, CSporkMessage &sporkRet)
     return true;
 }
 
-bool CSporkManager::SetSporkAddress(const std::string& strAddress) {
+bool CSporkManager::SetSporkAddress(const std::string& strAddress)
+{
     LOCK(cs);
     CTxDestination dest = DecodeDestination(strAddress);
-    const CKeyID *keyID = boost::get<CKeyID>(&dest);
+    const CKeyID* keyID = boost::get<CKeyID>(&dest);
     if (!keyID) {
         LogPrintf("CSporkManager::SetSporkAddress -- Failed to parse spork address\n");
         return false;
@@ -302,7 +301,7 @@ bool CSporkManager::SetPrivKey(const std::string& strPrivKey)
 {
     CKey key;
     CPubKey pubKey;
-    if(!CMessageSigner::GetKeysFromSecret(strPrivKey, key, pubKey)) {
+    if (!CMessageSigner::GetKeysFromSecret(strPrivKey, key, pubKey)) {
         LogPrintf("CSporkManager::SetPrivKey -- Failed to parse private key\n");
         return false;
     }
@@ -357,7 +356,7 @@ bool CSporkMessage::Sign(const CKey& key)
     if (std::string strError; Params().NetworkIDString() == CBaseChainParams::TESTNET) {
         uint256 hash = GetSignatureHash();
 
-        if(!CHashSigner::SignHash(hash, key, vchSig)) {
+        if (!CHashSigner::SignHash(hash, key, vchSig)) {
             LogPrintf("CSporkMessage::Sign -- SignHash() failed\n");
             return false;
         }
@@ -369,12 +368,12 @@ bool CSporkMessage::Sign(const CKey& key)
     } else {
         std::string strMessage = std::to_string(nSporkID) + std::to_string(nValue) + std::to_string(nTimeSigned);
 
-        if(!CMessageSigner::SignMessage(strMessage, vchSig, key)) {
+        if (!CMessageSigner::SignMessage(strMessage, vchSig, key)) {
             LogPrintf("CSporkMessage::Sign -- SignMessage() failed\n");
             return false;
         }
 
-        if(!CMessageSigner::VerifyMessage(pubKeyId, vchSig, strMessage, strError)) {
+        if (!CMessageSigner::VerifyMessage(pubKeyId, vchSig, strMessage, strError)) {
             LogPrintf("CSporkMessage::Sign -- VerifyMessage() failed, error: %s\n", strError);
             return false;
         }
@@ -396,7 +395,7 @@ bool CSporkMessage::CheckSignature(const CKeyID& pubKeyId) const
     } else {
         std::string strMessage = std::to_string(nSporkID) + std::to_string(nValue) + std::to_string(nTimeSigned);
 
-        if (!CMessageSigner::VerifyMessage(pubKeyId, vchSig, strMessage, strError)){
+        if (!CMessageSigner::VerifyMessage(pubKeyId, vchSig, strMessage, strError)) {
             LogPrint(BCLog::SPORK, "CSporkMessage::CheckSignature -- VerifyMessage() failed, error: %s\n", strError);
             return false;
         }
@@ -405,7 +404,7 @@ bool CSporkMessage::CheckSignature(const CKeyID& pubKeyId) const
     return true;
 }
 
-bool CSporkMessage::GetSignerKeyID(CKeyID &retKeyidSporkSigner) const
+bool CSporkMessage::GetSignerKeyID(CKeyID& retKeyidSporkSigner) const
 {
     CPubKey pubkeyFromSig;
     // Harden Spork6 so that it is active on testnet and no other networks
