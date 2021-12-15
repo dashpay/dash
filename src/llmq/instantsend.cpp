@@ -14,6 +14,7 @@
 #include <consensus/validation.h>
 #include <index/txindex.h>
 #include <txmempool.h>
+#include <util/ranges.h>
 #include <masternode/sync.h>
 #include <net_processing.h>
 #include <spork.h>
@@ -21,7 +22,6 @@
 #include <util/validation.h>
 
 #include <cxxtimer.hpp>
-#include "util/ranges.h"
 
 namespace llmq
 {

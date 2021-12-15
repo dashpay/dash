@@ -12,10 +12,10 @@
 //#else
 
 #define MK_RANGE(FUN) \
-template <typename X, typename Z> \
-    inline auto FUN(const X& ds, const Z& fn) { \
-        return std::FUN(cbegin(ds), cend(ds), fn); \
-    }
+template <typename X, typename Z>               \
+inline auto FUN(const X& ds, const Z& fn) {     \
+    return std::FUN(cbegin(ds), cend(ds), fn);  \
+}
 
 namespace ranges {
     MK_RANGE(all_of)

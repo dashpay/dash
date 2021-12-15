@@ -16,11 +16,11 @@
 #include <primitives/block.h>
 #include <script/standard.h>
 #include <tinyformat.h>
+#include <util/ranges.h>
 #include <util/system.h>
 #include <validation.h>
 
 #include <string>
-#include "util/ranges.h"
 
 CMasternodePayments mnpayments;
 

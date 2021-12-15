@@ -16,9 +16,9 @@
 #include <random.h>
 #include <spork.h>
 #include <timedata.h>
+#include <util/ranges.h>
 #include <validation.h>
 #include <versionbits.h>
-#include "util/ranges.h"
 
 namespace llmq
 {

@@ -112,7 +112,7 @@ bool CBLSWorker::GenerateContributions(int quorumThreshold, const BLSIdVector& i
         };
         futures.emplace_back(workerPool.push(f));
     }
-    return std::all_of(futures.begin(), futures.end(), [](auto& f){
+    return ranges::all_of(futures, [](auto& f){
         return f.get();
     });
 }

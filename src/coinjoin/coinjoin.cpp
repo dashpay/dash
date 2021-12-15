@@ -136,7 +136,7 @@ bool CCoinJoinBroadcastTx::IsValidStructure() const
     if (tx->vin.size() > CCoinJoin::GetMaxPoolParticipants() * COINJOIN_ENTRY_MAX_SIZE) {
         return false;
     }
-    return std::all_of(tx->vout.cbegin(), tx->vout.cend(), [] (const auto& txOut){
+    return ranges::all_of(tx->vout, [] (const auto& txOut){
         return CCoinJoin::IsDenominatedAmount(txOut.nValue) && txOut.scriptPubKey.IsPayToPublicKeyHash();
     });
 }
