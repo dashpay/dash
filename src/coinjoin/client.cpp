@@ -17,6 +17,7 @@
 #include <shutdown.h>
 #include <txmempool.h>
 #include <util/moneystr.h>
+#include <util/ranges.h>
 #include <util/system.h>
 #include <validation.h>
 #include <version.h>
@@ -107,6 +108,12 @@ void CCoinJoinClientQueueManager::ProcessMessage(CNode* pfrom, const std::string
             mmetaman.AllowMixing(dmn->proTxHash);
 
             LogPrint(BCLog::COINJOIN, "DSQUEUE -- new CoinJoin queue (%s) from masternode %s\n", dsq.ToString(), dmn->pdmnState->addr.ToString());
+
+//            if (std::any_of(coinJoinClientManagers.cbegin(),
+//                            coinJoinClientManagers.cend(),
+//                            [&dsq](const auto& pair){return pair.second->MarkAlreadyJoinedQueueAsTried(dsq);})) {
+//                break;
+//            }
 
             for (const auto& pair : coinJoinClientManagers) {
                 if (pair.second->MarkAlreadyJoinedQueueAsTried(dsq)) {
@@ -597,13 +604,9 @@ bool CCoinJoinClientSession::SignFinalTransaction(const CTransaction& finalTrans
     for (const auto &entry: vecEntries) {
         // Check that the final transaction has all our outputs
         for (const auto &txout: entry.vecTxOut) {
-            bool fFound = false;
-            for (const auto &txoutFinal: finalMutableTransaction.vout) {
-                if (txoutFinal == txout) {
-                    fFound = true;
-                    break;
-                }
-            }
+            bool fFound = ranges::any_of(finalMutableTransaction.vout, [&txout](const auto& txoutFinal){
+                return txoutFinal == txout;
+            });
             if (!fFound) {
                 // Something went wrong and we'll refuse to sign. It's possible we'll be charged collateral. But that's
                 // better than signing if the transaction doesn't look like what we wanted.

@@ -18,6 +18,7 @@
 #include <timedata.h>
 #include <validation.h>
 #include <versionbits.h>
+#include "util/ranges.h"
 
 namespace llmq
 {
@@ -291,12 +292,7 @@ bool CLLMQUtils::IsQuorumActive(Consensus::LLMQType llmqType, const uint256& quo
     // we allow one more active quorum as specified in consensus, as otherwise there is a small window where things could
     // fail while we are on the brink of a new quorum
     auto quorums = quorumManager->ScanQuorums(llmqType, GetLLMQParams(llmqType).signingActiveQuorumCount + 1);
-    for (const auto& q : quorums) {
-        if (q->qc->quorumHash == quorumHash) {
-            return true;
-        }
-    }
-    return false;
+    return ranges::any_of(quorums, [&quorumHash](const auto& q){ return q->qc->quorumHash == quorumHash; });
 }
 
 bool CLLMQUtils::IsQuorumTypeEnabled(Consensus::LLMQType llmqType, const CBlockIndex* pindex)

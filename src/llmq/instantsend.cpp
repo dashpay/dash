@@ -21,6 +21,7 @@
 #include <util/validation.h>
 
 #include <cxxtimer.hpp>
+#include "util/ranges.h"
 
 namespace llmq
 {
@@ -591,13 +592,8 @@ bool CInstantSendManager::CheckCanLock(const CTransaction& tx, bool printDebug, 
         return false;
     }
 
-    for (const auto& in : tx.vin) {
-        if (!CheckCanLock(in.prevout, printDebug, tx.GetHash(), params)) {
-            return false;
-        }
-    }
-
-    return true;
+    return ranges::all_of(tx.vin,
+                          [&](const auto& in) { return CheckCanLock(in.prevout, printDebug, tx.GetHash(), params); });
 }
 
 bool CInstantSendManager::CheckCanLock(const COutPoint& outpoint, bool printDebug, const uint256& txHash, const Consensus::Params& params) const
