@@ -16,6 +16,14 @@ if [[ "$1" == "dashd" ]]; then
   else
     echo "Tor control credentials not provided"
   fi
+  
+  # If an masternode private key is provided (length of $CORE_MASTERNODE_OPERATOR_PRIVATE_KEY is nonzero) then dashd should be run as a masternode. Then we add masternodeblsprivkey to config.
+  if [[ -z $CORE_MASTERNODE_OPERATOR_PRIVATE_KEY ]]; then
+    echo "No CORE_MASTERNODE_OPERATOR_PRIVATE_KEY provided, this node is a regular wallet node."
+  else
+    echo "masternodeblsprivkey=$CORE_MASTERNODE_OPERATOR_PRIVATE_KEY" >> "$HOME/.dashcore/dash.conf"
+    echo "Added "masternodeblsprivkey=$CORE_MASTERNODE_OPERATOR_PRIVATE_KEY" to $HOME/.dashcore/dash.conf"
+  fi
 fi
 
 exec "$@"
