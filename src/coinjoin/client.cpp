@@ -109,12 +109,6 @@ void CCoinJoinClientQueueManager::ProcessMessage(CNode* pfrom, const std::string
 
             LogPrint(BCLog::COINJOIN, "DSQUEUE -- new CoinJoin queue (%s) from masternode %s\n", dsq.ToString(), dmn->pdmnState->addr.ToString());
 
-//            if (std::any_of(coinJoinClientManagers.cbegin(),
-//                            coinJoinClientManagers.cend(),
-//                            [&dsq](const auto& pair){return pair.second->MarkAlreadyJoinedQueueAsTried(dsq);})) {
-//                break;
-//            }
-
             for (const auto& pair : coinJoinClientManagers) {
                 if (pair.second->MarkAlreadyJoinedQueueAsTried(dsq)) {
                     break;
