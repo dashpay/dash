@@ -370,13 +370,11 @@ std::map<Consensus::LLMQType, QvvecSyncMode> CLLMQUtils::GetEnabledQuorumVvecSyn
         if (!fLLMQTypePresent || !fModePresent || fTooManyEntries) {
             throw std::invalid_argument(strprintf("Invalid format in -llmq-qvvec-sync: %s", strEntry));
         }
-        for (const auto& p : Params().GetConsensus().llmqs) {
-            if (p.second.name == strLLMQType) {
-                llmqType = p.first;
-                break;
-            }
-        }
-        if (llmqType == Consensus::LLMQType::LLMQ_NONE) {
+
+        if (auto optLLMQParams = ranges::find_if_opt(Params().GetConsensus().llmqs,
+                                                     [&strLLMQType](const auto& p){return p.second.name == strLLMQType;})) {
+            llmqType = optLLMQParams->first;
+        } else {
             throw std::invalid_argument(strprintf("Invalid llmqType in -llmq-qvvec-sync: %s", strEntry));
         }
         if (mapQuorumVvecSyncEntries.count(llmqType) > 0) {

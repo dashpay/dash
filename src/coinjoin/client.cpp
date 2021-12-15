@@ -88,13 +88,10 @@ void CCoinJoinClientQueueManager::ProcessMessage(CNode* pfrom, const std::string
         }
 
         // if the queue is ready, submit if we can
-        if (dsq.fReady) {
-            for (const auto& pair : coinJoinClientManagers) {
-                if (pair.second->TrySubmitDenominate(dmn->pdmnState->addr, connman)) {
-                    LogPrint(BCLog::COINJOIN, "DSQUEUE -- CoinJoin queue (%s) is ready on masternode %s\n", dsq.ToString(), dmn->pdmnState->addr.ToString());
-                    return;
-                }
-            }
+        if (dsq.fReady && ranges::any_of(coinJoinClientManagers,
+                                         [&dmn, &connman](const auto& pair){ return pair.second->TrySubmitDenominate(dmn->pdmnState->addr, connman); })) {
+            LogPrint(BCLog::COINJOIN, "DSQUEUE -- CoinJoin queue (%s) is ready on masternode %s\n", dsq.ToString(), dmn->pdmnState->addr.ToString());
+            return;
         } else {
             int64_t nLastDsq = mmetaman.GetMetaInfo(dmn->proTxHash)->GetLastDsq();
             int64_t nDsqThreshold = mmetaman.GetDsqThreshold(dmn->proTxHash, mnList.GetValidMNsCount());
@@ -109,11 +106,8 @@ void CCoinJoinClientQueueManager::ProcessMessage(CNode* pfrom, const std::string
 
             LogPrint(BCLog::COINJOIN, "DSQUEUE -- new CoinJoin queue (%s) from masternode %s\n", dsq.ToString(), dmn->pdmnState->addr.ToString());
 
-            for (const auto& pair : coinJoinClientManagers) {
-                if (pair.second->MarkAlreadyJoinedQueueAsTried(dsq)) {
-                    break;
-                }
-            }
+            ranges::any_of(coinJoinClientManagers,
+                           [&dsq](const auto& pair){ return pair.second->MarkAlreadyJoinedQueueAsTried(dsq); });
 
             TRY_LOCK(cs_vecqueue, lockRecv);
             if (!lockRecv) return;
