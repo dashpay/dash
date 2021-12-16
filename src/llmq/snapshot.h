@@ -65,8 +65,7 @@ public:
     {
         SerializationOpBase(s, CSerActionUnserialize());
 
-        size_t cnt = {};
-        cnt = ReadCompactSize(s);
+        size_t cnt = ReadCompactSize(s);
         ReadFixedBitSet(s, activeQuorumMembers, cnt);
         cnt = ReadCompactSize(s);
         for (size_t i = 0; i < cnt; i++) {
