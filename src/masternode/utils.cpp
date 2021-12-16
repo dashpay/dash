@@ -12,7 +12,7 @@
 #include <net.h>
 #include <shutdown.h>
 #include <validation.h>
-#include "util/ranges.h"
+#include <util/ranges.h>
 
 
 void CMasternodeUtils::ProcessMasternodeConnections(CConnman& connman)
