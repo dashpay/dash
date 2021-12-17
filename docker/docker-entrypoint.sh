@@ -22,7 +22,7 @@ if [[ "$1" == "dashd" ]]; then
     echo "No CORE_MASTERNODE_OPERATOR_PRIVATE_KEY provided, this node is a regular wallet node."
   else
     echo "masternodeblsprivkey=$CORE_MASTERNODE_OPERATOR_PRIVATE_KEY" >> "$HOME/.dashcore/dash.conf"
-    echo "Added "masternodeblsprivkey=$CORE_MASTERNODE_OPERATOR_PRIVATE_KEY" to $HOME/.dashcore/dash.conf"
+    echo "Added masternodeblsprivkey to $HOME/.dashcore/dash.conf"
   fi
 fi
 
