@@ -47,13 +47,12 @@ RUN apt-get update && apt-get install $APT_ARGS gawk jq && rm -rf /var/lib/apt/l
 RUN apt-get update && apt-get install $APT_ARGS imagemagick libcap-dev librsvg2-bin libz-dev libbz2-dev libtiff-tools && rm -rf /var/lib/apt/lists/*
 
 RUN apt-get update && apt-get install $APT_ARGS cmake && rm -rf /var/lib/apt/lists/*
-ARG CPPCHECK_VERSION=2.6
+ARG CPPCHECK_VERSION=2.4
 RUN curl -sL "https://github.com/danmar/cppcheck/archive/${CPPCHECK_VERSION}.tar.gz" | tar -xvzf - --directory /tmp/
 RUN cd /tmp/cppcheck-${CPPCHECK_VERSION} && mkdir build && cd build && cmake .. && cmake --build . -j 8
-#RUN cp bin/cppcheck
 ENV PATH "/tmp/cppcheck-${CPPCHECK_VERSION}/build/bin:${PATH}"
 RUN apt-get update && apt-get remove $APT_ARGS cmake && rm -rf /var/lib/apt/lists/*
-RUN mkdir /usr/local/share/Cppcheck && ln -s /tmp/cppcheck-2.6/cfg/ /usr/local/share/Cppcheck/cfg
+RUN mkdir /usr/local/share/Cppcheck && ln -s /tmp/cppcheck-${CPPCHECK_VERSION}/cfg/ /usr/local/share/Cppcheck/cfg
 
 ARG SHELLCHECK_VERSION=v0.7.1
 RUN curl -sL "https://github.com/koalaman/shellcheck/releases/download/${SHELLCHECK_VERSION}/shellcheck-${SHELLCHECK_VERSION}.linux.x86_64.tar.xz" | tar --xz -xf - --directory /tmp/
