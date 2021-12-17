@@ -51,7 +51,6 @@ ARG CPPCHECK_VERSION=2.4
 RUN curl -sL "https://github.com/danmar/cppcheck/archive/${CPPCHECK_VERSION}.tar.gz" | tar -xvzf - --directory /tmp/
 RUN cd /tmp/cppcheck-${CPPCHECK_VERSION} && mkdir build && cd build && cmake .. && cmake --build . -j 8
 ENV PATH "/tmp/cppcheck-${CPPCHECK_VERSION}/build/bin:${PATH}"
-RUN apt-get update && apt-get remove $APT_ARGS cmake && rm -rf /var/lib/apt/lists/*
 RUN mkdir /usr/local/share/Cppcheck && ln -s /tmp/cppcheck-${CPPCHECK_VERSION}/cfg/ /usr/local/share/Cppcheck/cfg
 
 ARG SHELLCHECK_VERSION=v0.7.1
