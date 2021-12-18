@@ -49,17 +49,47 @@ IGNORED_WARNINGS=(
 )
 
 # We should attempt to update this with all dash specific code
-FILES=$(git ls-files -- "src/bench/bls*.cpp" "src/bls/*.cpp" "src/bls/*.h" "src/coinjoin/*.cpp" "src/coinjoin/*.h" "src/evo/*.cpp" \
-                        "src/evo/*.h" "src/governance/*.cpp" "src/governance/*.h" "src/llmq/*.cpp" "src/llmq/*.h" \
-                        "src/masternode/*.cpp" "src/masternode/*.h" "src/qt/governancelist.*" "src/qt/masternodelist.*" \
-                        "src/rpc/coinjoin.cpp" "src/rpc/governance.cpp" \
-                        "src/rpc/masternode.cpp" "src/rpc/rpcevo.cpp" "src/rpc/rpcquorums.cpp" \
-                        "src/test/block_reward_reallocation_tests.cpp" "src/test/bls_tests.cpp" \
-                        "src/test/dip0020opcodes_tests.cpp" "src/test/dynamic_activation*.cpp" "src/test/evo*.cpp" \
-                        "src/test/governance*.cpp" "src/dsnotificationinterface.*" "src/spork.*" "src/batchedlogger.*" \
-                        "src/cachemap.h" "src/cachemultimap.h" "src/ctpl_stl.h" "src/cxxtimer.hpp" "src/hdchain.*" \
-                        "src/keepass.*" "src/messagesigner.*" "src/netfulfilledman.*" "src/saltedhasher.*" \
-                        "src/stacktraces.*" "src/statsd_client.*" "src/unordered_lru_cache.h")
+FILES=$(git ls-files -- "src/batchedlogger.*" \
+                        "src/bench/bls*.cpp" \
+                        "src/bls/*.cpp" \
+                        "src/bls/*.h" \
+                        "src/cachemap.h" \
+                        "src/cachemultimap.h" \
+                        "src/coinjoin/*.cpp" \
+                        "src/coinjoin/*.h" \
+                        "src/ctpl_stl.h" \
+                        "src/cxxtimer.hpp" \
+                        "src/dsnotificationinterface.*" \
+                        "src/evo/*.cpp" \
+                        "src/evo/*.h" \
+                        "src/governance/*.cpp" \
+                        "src/governance/*.h" \
+                        "src/hdchain.*" \
+                        "src/keepass.*" \
+                        "src/llmq/*.cpp" \
+                        "src/llmq/*.h" \
+                        "src/masternode/*.cpp" \
+                        "src/masternode/*.h" \
+                        "src/messagesigner.*" \
+                        "src/netfulfilledman.*" \
+                        "src/qt/governancelist.*" \
+                        "src/qt/masternodelist.*" \
+                        "src/rpc/coinjoin.cpp" \
+                        "src/rpc/governance.cpp" \
+                        "src/rpc/masternode.cpp" \
+                        "src/rpc/rpcevo.cpp" \
+                        "src/rpc/rpcquorums.cpp" \
+                        "src/spork.*" \
+                        "src/saltedhasher.*" \
+                        "src/stacktraces.*" \
+                        "src/statsd_client.*" \
+                        "src/test/block_reward_reallocation_tests.cpp" \
+                        "src/test/bls_tests.cpp" \
+                        "src/test/dip0020opcodes_tests.cpp" \
+                        "src/test/dynamic_activation*.cpp" \
+                        "src/test/evo*.cpp" \
+                        "src/test/governance*.cpp" \
+                        "src/unordered_lru_cache.h")
 
 
 if ! command -v cppcheck > /dev/null; then
