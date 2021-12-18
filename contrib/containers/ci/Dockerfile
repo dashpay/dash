@@ -46,7 +46,6 @@ RUN apt-get update && apt-get install $APT_ARGS python3-zmq && rm -rf /var/lib/a
 RUN apt-get update && apt-get install $APT_ARGS gawk jq && rm -rf /var/lib/apt/lists/*
 RUN apt-get update && apt-get install $APT_ARGS imagemagick libcap-dev librsvg2-bin libz-dev libbz2-dev libtiff-tools && rm -rf /var/lib/apt/lists/*
 
-RUN apt-get update && apt-get install $APT_ARGS cmake && rm -rf /var/lib/apt/lists/*
 ARG CPPCHECK_VERSION=2.4
 RUN curl -sL "https://github.com/danmar/cppcheck/archive/${CPPCHECK_VERSION}.tar.gz" | tar -xvzf - --directory /tmp/
 RUN cd /tmp/cppcheck-${CPPCHECK_VERSION} && mkdir build && cd build && cmake .. && cmake --build . -j 8
