@@ -66,7 +66,6 @@ int Proposal::paymentRemaining() const
     float remainingCycle = remainingInDays / CYCLE_IN_DAYS;
     int remainingBlocks = remainingCycle * numOfBlocks;
     return remainingBlocks;
-
 }
 
 float Proposal::paymentAmount() const { return m_paymentAmount; }
