@@ -1978,7 +1978,10 @@ bool CChainState::ConnectBlock(const CBlock& block, CValidationState& state, CBl
 
     AssertLockHeld(cs_main);
     assert(pindex);
-    assert(*pindex->phashBlock == block.GetHash());
+
+    uint256 block_hash{block.GetHash()};
+    assert(*pindex->phashBlock == block_hash);
+
     assert(m_clhandler);
     assert(m_isman);
     assert(m_quorum_block_processor);
@@ -2026,7 +2029,7 @@ bool CChainState::ConnectBlock(const CBlock& block, CValidationState& state, CBl
 
     // Special case for the genesis block, skipping connection of its transactions
     // (its coinbase is unspendable)
-    if (block.GetHash() == chainparams.GetConsensus().hashGenesisBlock) {
+    if (block_hash == chainparams.GetConsensus().hashGenesisBlock) {
         if (!fJustCheck)
             view.SetBestBlock(pindex->GetBlockHash());
         return true;
