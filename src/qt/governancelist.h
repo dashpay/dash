@@ -14,6 +14,7 @@
 #include <QWidget>
 
 inline constexpr int GOVERNANCELIST_UPDATE_SECONDS = 10;
+inline constexpr float CYCLE_IN_DAYS = 30.29;
 
 namespace Ui {
 class GovernanceList;
@@ -40,11 +41,15 @@ public:
     QString hash() const;
     QDateTime startDate() const;
     QDateTime endDate() const;
+    int paymentRemaining() const;
     float paymentAmount() const;
     QString url() const;
     bool isActive() const;
     QString votingStatus(int nAbsVoteReq) const;
     int GetAbsoluteYesCount() const;
+    int GetYesCount() const;
+    int GetNoCount() const;
+    int GetAbstainCount() const;
 
     void openUrl() const;
 
@@ -62,13 +67,16 @@ public:
         QAbstractTableModel(parent){};
 
     enum Column : int {
-        HASH = 0,
-        TITLE,
-        START_DATE,
-        END_DATE,
+        TITLE = 0,
+        PAYMENTS_REMAINING,
         PAYMENT_AMOUNT,
         IS_ACTIVE,
+        YES_COUNT,
+        NO_COUNT,
+        ABSTEIN_COUNT,
+        ABSOLUTE_YES,
         VOTING_STATUS,
+        URL,
         _COUNT // for internal use only
     };
 
@@ -110,6 +118,7 @@ private Q_SLOTS:
     void updateProposalCount() const;
     void showProposalContextMenu(const QPoint& pos);
     void showAdditionalInfo(const QModelIndex& index);
+    void openUrl();
 };
 
 
