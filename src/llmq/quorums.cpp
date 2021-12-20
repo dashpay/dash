@@ -391,14 +391,14 @@ bool CQuorumManager::RequestQuorumData(CNode* pFrom, Consensus::LLMQType llmqTyp
 
     LOCK(cs_data_requests);
     auto key = std::make_pair(pFrom->GetVerifiedProRegTxHash(), true);
-    auto it = mapQuorumDataRequests.try_emplace(key, CQuorumDataRequest(llmqType, pQuorumBaseBlockIndex->GetBlockHash(), nDataMask, proTxHash));
-    if (!it.second && !it.first->second.IsExpired()) {
+    auto [insertedIt, success] = mapQuorumDataRequests.try_emplace(key, CQuorumDataRequest(llmqType, pQuorumBaseBlockIndex->GetBlockHash(), nDataMask, proTxHash));
+    if (!success && !insertedIt->second.IsExpired()) {
         LogPrint(BCLog::LLMQ, "CQuorumManager::%s -- Already requested\n", __func__);
         return false;
     }
 
     CNetMsgMaker msgMaker(pFrom->GetSendVersion());
-    g_connman->PushMessage(pFrom, msgMaker.Make(NetMsgType::QGETDATA, it.first->second));
+    g_connman->PushMessage(pFrom, msgMaker.Make(NetMsgType::QGETDATA, insertedIt->second));
 
     return true;
 }
