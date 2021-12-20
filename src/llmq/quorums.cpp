@@ -392,7 +392,7 @@ bool CQuorumManager::RequestQuorumData(CNode* pFrom, Consensus::LLMQType llmqTyp
 
     LOCK(cs_data_requests);
     auto key = std::make_pair(pFrom->GetVerifiedProRegTxHash(), true);
-    auto it = mapQuorumDataRequests.emplace(key, CQuorumDataRequest(llmqType, pQuorumBaseBlockIndex->GetBlockHash(), nDataMask, proTxHash));
+    auto it = mapQuorumDataRequests.try_emplace(key, CQuorumDataRequest(llmqType, pQuorumBaseBlockIndex->GetBlockHash(), nDataMask, proTxHash));
     if (!it.second && !it.first->second.IsExpired()) {
         LogPrint(BCLog::LLMQ, "CQuorumManager::%s -- Already requested\n", __func__);
         return false;
@@ -557,7 +557,7 @@ void CQuorumManager::ProcessMessage(CNode* pFrom, const std::string& strCommand,
             auto key = std::make_pair(pFrom->GetVerifiedProRegTxHash(), false);
             auto it = mapQuorumDataRequests.find(key);
             if (it == mapQuorumDataRequests.end()) {
-                it = mapQuorumDataRequests.emplace(key, request).first;
+                it = mapQuorumDataRequests.try_emplace(key, request).first;
             } else if(it->second.IsExpired()) {
                 it->second = request;
             } else {
