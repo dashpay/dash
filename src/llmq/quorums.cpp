@@ -507,7 +507,7 @@ size_t CQuorumManager::GetQuorumRecoveryStartOffset(const CQuorumCPtr pQuorum, c
     auto mns = deterministicMNManager->GetListForBlock(pIndex);
     std::vector<uint256> vecProTxHashes;
     vecProTxHashes.reserve(mns.GetValidMNsCount());
-    mns.ForEachMN(true, [&](auto& pMasternode) {
+    mns.ForEachMN(true, [&vecProTxHashes](auto& pMasternode) {
         vecProTxHashes.emplace_back(pMasternode.proTxHash);
     });
     std::sort(vecProTxHashes.begin(), vecProTxHashes.end());
@@ -746,7 +746,7 @@ void CQuorumManager::StartQuorumDataRecoveryThread(const CQuorumCPtr pQuorum, co
         const size_t nMyStartOffset{GetQuorumRecoveryStartOffset(pQuorum, pIndex)};
         const int64_t nRequestTimeout{10};
 
-        auto printLog = [&](const std::string& strMessage) {
+        auto printLog = [&pCurrentMemberHash, &pQuorum, &nDataMask, &nDataMaskIn, &nTries](const std::string& strMessage) {
             const std::string strMember{pCurrentMemberHash == nullptr ? "nullptr" : pCurrentMemberHash->ToString()};
             LogPrint(BCLog::LLMQ, "CQuorumManager::StartQuorumDataRecoveryThread -- %s - for llmqType %d, quorumHash %s, nDataMask (%d/%d), pCurrentMemberHash %s, nTries %d\n",
                 strMessage, static_cast<uint8_t>(pQuorum->qc->llmqType), pQuorum->qc->quorumHash.ToString(), nDataMask, nDataMaskIn, strMember, nTries);
