@@ -45,8 +45,7 @@ void SetSimulatedDKGErrorRate(const std::string& type, double rate)
 static double GetSimulatedErrorRate(const std::string& type)
 {
     LOCK(cs_simDkgError);
-    auto it = simDkgErrorMap.find(type);
-    if (it != simDkgErrorMap.end()) {
+    if (auto it = simDkgErrorMap.find(type); it != simDkgErrorMap.end()) {
         return it->second;
     }
     return 0;
@@ -1117,8 +1116,7 @@ void CDKGSession::ReceiveMessage(const CDKGPrematureCommitment& qc, bool& retBan
             logger.Batch("calculated quorum public key does not match");
             return;
         }
-        uint256 vvecHash = ::SerializeHash(*quorumVvec);
-        if (qc.quorumVvecHash != vvecHash) {
+        if (uint256 vvecHash = ::SerializeHash(*quorumVvec); qc.quorumVvecHash != vvecHash) {
             logger.Batch("calculated quorum vvec hash does not match");
             return;
         }
