@@ -140,9 +140,8 @@ bool CDKGSessionHandler::InitNewQuorum(const CBlockIndex* pQuorumBaseBlockIndex)
         return false;
     }
 
-    auto mns = CLLMQUtils::GetAllQuorumMembers(params, pQuorumBaseBlockIndex);
-
-    if (!curSession->Init(pQuorumBaseBlockIndex, mns, WITH_LOCK(activeMasternodeInfoCs, return activeMasternodeInfo.proTxHash))) {
+    if (auto mns = CLLMQUtils::GetAllQuorumMembers(params, pQuorumBaseBlockIndex);
+            !curSession->Init(pQuorumBaseBlockIndex, mns, WITH_LOCK(activeMasternodeInfoCs, return activeMasternodeInfo.proTxHash))) {
         LogPrintf("CDKGSessionManager::%s -- quorum initialization failed for %s\n", __func__, curSession->params.name);
         return false;
     }
@@ -210,8 +209,7 @@ void CDKGSessionHandler::WaitForNewQuorum(const uint256& oldQuorumHash) const
             LogPrint(BCLog::LLMQ_DKG, "CDKGSessionManager::%s -- %s - aborting due to stop/shutdown requested\n", __func__, params.name);
             throw AbortPhaseException();
         }
-        auto p = GetPhaseAndQuorumHash();
-        if (p.second != oldQuorumHash) {
+        if (auto p = GetPhaseAndQuorumHash(); p.second != oldQuorumHash) {
             break;
         }
         UninterruptibleSleep(std::chrono::milliseconds{100});
@@ -267,8 +265,8 @@ void CDKGSessionHandler::SleepBeforePhase(QuorumPhase curPhase,
             LOCK(cs);
             if (currentHeight > heightTmp) {
                 // New block(s) just came in
-                int64_t expectedBlockTime = (currentHeight - heightStart) * Params().GetConsensus().nPowTargetSpacing * 1000;
-                if (expectedBlockTime > sleepTime) {
+                if (int64_t expectedBlockTime = (currentHeight - heightStart) * Params().GetConsensus().nPowTargetSpacing * 1000;
+                        expectedBlockTime > sleepTime) {
                     // Blocks came faster than we expected, jump into the phase func asap
                     break;
                 }
@@ -409,8 +407,7 @@ bool ProcessPendingMessageBatch(CDKGSession& session, CDKGPendingMessages& pendi
             }
             continue;
         }
-        bool ban = false;
-        if (!session.PreVerifyMessage(*p.second, ban)) {
+        if (bool ban = false; !session.PreVerifyMessage(*p.second, ban)) {
             if (ban) {
                 LogPrint(BCLog::LLMQ_DKG, "%s -- banning node due to failed preverification, peer=%d\n", __func__, nodeId);
                 {
