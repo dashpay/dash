@@ -711,11 +711,11 @@ void CInstantSendManager::TrySignInstantSendLock(const CTransaction& tx)
 
     {
         LOCK(cs);
-        auto e = creatingInstantSendLocks.try_emplace(id, std::move(islock));
-        if (!e.second) {
+        auto [insertedIt, success] = creatingInstantSendLocks.try_emplace(id, std::move(islock));
+        if (!success) {
             return;
         }
-        txToCreatingInstantSendLocks.try_emplace(tx.GetHash(), &e.first->second);
+        txToCreatingInstantSendLocks.try_emplace(tx.GetHash(), &insertedIt->second);
     }
 
     quorumSigningManager->AsyncSignIfMember(llmqType, id, tx.GetHash());
@@ -894,10 +894,8 @@ std::unordered_set<uint256, StaticSaltedHasher> CInstantSendManager::ProcessPend
 
     size_t verifyCount = 0;
     size_t alreadyVerified = 0;
-    for (const auto& p : pend) {
-        auto& hash = p.first;
-        auto nodeId = p.second.first;
-        auto& islock = p.second.second;
+    for (const auto& [hash, second] : pend) {
+        const auto& [nodeId, islock] = second;
 
         if (batchVerifier.badSources.count(nodeId)) {
             continue;
@@ -966,10 +964,8 @@ std::unordered_set<uint256, StaticSaltedHasher> CInstantSendManager::ProcessPend
             Misbehaving(nodeId, 20);
         }
     }
-    for (const auto& p : pend) {
-        auto& hash = p.first;
-        auto nodeId = p.second.first;
-        auto& islock = p.second.second;
+    for (const auto& [hash, second] : pend) {
+        const auto& [nodeId, islock] = second;
 
         if (batchVerifier.badMessages.count(hash)) {
             LogPrint(BCLog::INSTANTSEND, "CInstantSendManager::%s -- txid=%s, islock=%s: invalid sig in islock, peer=%d\n", __func__,
@@ -1185,11 +1181,11 @@ void CInstantSendManager::BlockDisconnected(const std::shared_ptr<const CBlock>&
 void CInstantSendManager::AddNonLockedTx(const CTransactionRef& tx, const CBlockIndex* pindexMined)
 {
     LOCK(cs);
-    auto res = nonLockedTxs.try_emplace(tx->GetHash(), NonLockedTxInfo());
-    auto& info = res.first->second;
+    auto [insertedIt, success] = nonLockedTxs.try_emplace(tx->GetHash(), NonLockedTxInfo());
+    auto& info = insertedIt->second;
     info.pindexMined = pindexMined;
 
-    if (res.second) {
+    if (success) {
         info.tx = tx;
         for (const auto& in : tx->vin) {
             nonLockedTxs[in.prevout.hash].children.emplace(tx->GetHash());
@@ -1312,9 +1308,7 @@ void CInstantSendManager::HandleFullyConfirmedBlock(const CBlockIndex* pindex)
     auto removeISLocks = db.RemoveConfirmedInstantSendLocks(pindex->nHeight);
 
     LOCK(cs);
-    for (const auto& p : removeISLocks) {
-        auto& islockHash = p.first;
-        auto& islock = p.second;
+    for (const auto& [islockHash, islock] : removeISLocks) {
         LogPrint(BCLog::INSTANTSEND, "CInstantSendManager::%s -- txid=%s, islock=%s: removed islock as it got fully confirmed\n", __func__,
                  islock->txid.ToString(), islockHash.ToString());
 
@@ -1332,11 +1326,11 @@ void CInstantSendManager::HandleFullyConfirmedBlock(const CBlockIndex* pindex)
     // Find all previously unlocked TXs that got locked by this fully confirmed (ChainLock) block and remove them
     // from the nonLockedTxs map. Also collect all children of these TXs and mark them for retrying of IS locking.
     std::vector<uint256> toRemove;
-    for (const auto& p : nonLockedTxs) {
-        auto pindexMined = p.second.pindexMined;
+    for (const auto& [hash, nonLockedTx] : nonLockedTxs) {
+        auto pindexMined = nonLockedTx.pindexMined;
 
         if (pindexMined && pindex->GetAncestor(pindexMined->nHeight) == pindexMined) {
-            toRemove.emplace_back(p.first);
+            toRemove.emplace_back(hash);
         }
     }
     for (const auto& txid : toRemove) {
@@ -1365,16 +1359,16 @@ void CInstantSendManager::RemoveMempoolConflictsForLock(const uint256& hash, con
             }
         }
 
-        for (const auto& p : toDelete) {
-            mempool.removeRecursive(*p.second, MemPoolRemovalReason::CONFLICT);
+        for (const auto& [_, ptrTx] : toDelete) {
+            mempool.removeRecursive(*ptrTx, MemPoolRemovalReason::CONFLICT);
         }
     }
 
     if (!toDelete.empty()) {
         {
             LOCK(cs);
-            for (const auto& p : toDelete) {
-                RemoveConflictedTx(*p.second);
+            for (const auto& [_, ptrTx] : toDelete) {
+                RemoveConflictedTx(*ptrTx);
             }
         }
         AskNodesForLockedTx(islock.txid);
@@ -1411,8 +1405,7 @@ void CInstantSendManager::ResolveBlockConflicts(const uint256& islockHash, const
 
     // Lets see if any of the conflicts was already mined into a ChainLocked block
     bool hasChainLockedConflict = false;
-    for (const auto& p : conflicts) {
-        auto pindex = p.first;
+    for (const auto& [pindex, _] : conflicts) {
         if (chainLocksHandler->HasChainLock(pindex->nHeight, pindex->GetBlockHash())) {
             hasChainLockedConflict = true;
             break;
@@ -1437,9 +1430,8 @@ void CInstantSendManager::ResolveBlockConflicts(const uint256& islockHash, const
         auto pindex = p.first;
         {
             LOCK(cs);
-            for (auto& p2 : p.second) {
-                const auto& tx = *p2.second;
-                RemoveConflictedTx(tx);
+            for (auto& [_, ptrTx] : p.second) {
+                RemoveConflictedTx(*ptrTx);
             }
         }
 
