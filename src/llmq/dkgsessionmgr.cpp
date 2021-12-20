@@ -125,15 +125,15 @@ void CDKGSessionManager::MigrateDKG()
 
 void CDKGSessionManager::StartThreads()
 {
-    for (auto& it : dkgSessionHandlers) {
-        it.second.StartThread();
+    for (auto& [_, dkgSession] : dkgSessionHandlers) {
+        dkgSession.StartThread();
     }
 }
 
 void CDKGSessionManager::StopThreads()
 {
-    for (auto& it : dkgSessionHandlers) {
-        it.second.StopThread();
+    for (auto& [_, dkgSession] : dkgSessionHandlers) {
+        dkgSession.StopThread();
     }
 }
 
@@ -148,8 +148,8 @@ void CDKGSessionManager::UpdatedBlockTip(const CBlockIndex* pindexNew, bool fIni
     if (!IsQuorumDKGEnabled())
         return;
 
-    for (auto& qt : dkgSessionHandlers) {
-        qt.second.UpdatedBlockTip(pindexNew);
+    for (auto& [_, dkgSession] : dkgSessionHandlers) {
+        dkgSession.UpdatedBlockTip(pindexNew);
     }
 }
 
@@ -193,8 +193,7 @@ bool CDKGSessionManager::AlreadyHave(const CInv& inv) const
     if (!IsQuorumDKGEnabled())
         return false;
 
-    for (const auto& p : dkgSessionHandlers) {
-        auto& dkgType = p.second;
+    for (const auto& [_, dkgType] : dkgSessionHandlers) {
         if (dkgType.pendingContributions.HasSeen(inv.hash)
             || dkgType.pendingComplaints.HasSeen(inv.hash)
             || dkgType.pendingJustifications.HasSeen(inv.hash)
@@ -210,8 +209,7 @@ bool CDKGSessionManager::GetContribution(const uint256& hash, CDKGContribution& 
     if (!IsQuorumDKGEnabled())
         return false;
 
-    for (const auto& p : dkgSessionHandlers) {
-        auto& dkgType = p.second;
+    for (const auto& [_, dkgType] : dkgSessionHandlers) {
         LOCK(dkgType.cs);
         if (dkgType.phase < QuorumPhase_Initialized || dkgType.phase > QuorumPhase_Contribute) {
             continue;
@@ -231,8 +229,7 @@ bool CDKGSessionManager::GetComplaint(const uint256& hash, CDKGComplaint& ret) c
     if (!IsQuorumDKGEnabled())
         return false;
 
-    for (const auto& p : dkgSessionHandlers) {
-        auto& dkgType = p.second;
+    for (const auto& [_, dkgType] : dkgSessionHandlers) {
         LOCK(dkgType.cs);
         if (dkgType.phase < QuorumPhase_Contribute || dkgType.phase > QuorumPhase_Complain) {
             continue;
@@ -252,8 +249,7 @@ bool CDKGSessionManager::GetJustification(const uint256& hash, CDKGJustification
     if (!IsQuorumDKGEnabled())
         return false;
 
-    for (const auto& p : dkgSessionHandlers) {
-        auto& dkgType = p.second;
+    for (const auto& [_, dkgType] : dkgSessionHandlers) {
         LOCK(dkgType.cs);
         if (dkgType.phase < QuorumPhase_Complain || dkgType.phase > QuorumPhase_Justify) {
             continue;
@@ -273,8 +269,7 @@ bool CDKGSessionManager::GetPrematureCommitment(const uint256& hash, CDKGPrematu
     if (!IsQuorumDKGEnabled())
         return false;
 
-    for (const auto& p : dkgSessionHandlers) {
-        auto& dkgType = p.second;
+    for (const auto& [_, dkgType] : dkgSessionHandlers) {
         LOCK(dkgType.cs);
         if (dkgType.phase < QuorumPhase_Justify || dkgType.phase > QuorumPhase_Commit) {
             continue;
