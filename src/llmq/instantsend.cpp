@@ -198,7 +198,7 @@ std::unordered_map<uint256, CInstantSendLockPtr, StaticSaltedHasher> CInstantSen
         auto islock = GetInstantSendLockByHash(islockHash, false);
         if (islock) {
             RemoveInstantSendLock(batch, islockHash, islock);
-            ret.emplace(islockHash, islock);
+            ret.try_emplace(islockHash, islock);
         }
 
         // archive the islock hash, so that we're still able to check if we've seen the islock in the past
@@ -720,11 +720,11 @@ void CInstantSendManager::TrySignInstantSendLock(const CTransaction& tx)
 
     {
         LOCK(cs);
-        auto e = creatingInstantSendLocks.emplace(id, std::move(islock));
+        auto e = creatingInstantSendLocks.try_emplace(id, std::move(islock));
         if (!e.second) {
             return;
         }
-        txToCreatingInstantSendLocks.emplace(tx.GetHash(), &e.first->second);
+        txToCreatingInstantSendLocks.try_emplace(tx.GetHash(), &e.first->second);
     }
 
     quorumSigningManager->AsyncSignIfMember(llmqType, id, tx.GetHash());
@@ -759,7 +759,7 @@ void CInstantSendManager::HandleNewInstantSendLockRecoveredSig(const llmq::CReco
     if (pendingInstantSendLocks.count(hash) || db.KnownInstantSendLock(hash)) {
         return;
     }
-    pendingInstantSendLocks.emplace(hash, std::make_pair(-1, islock));
+    pendingInstantSendLocks.try_emplace(hash, std::make_pair(-1, islock));
 }
 
 void CInstantSendManager::ProcessMessage(CNode* pfrom, const std::string& strCommand, CDataStream& vRecv)
@@ -816,7 +816,7 @@ void CInstantSendManager::ProcessMessageInstantSendLock(const CNode* pfrom, cons
     LogPrint(BCLog::INSTANTSEND, "CInstantSendManager::%s -- txid=%s, islock=%s: received islock, peer=%d\n", __func__,
             islock->txid.ToString(), hash.ToString(), pfrom->GetId());
 
-    pendingInstantSendLocks.emplace(hash, std::make_pair(pfrom->GetId(), islock));
+    pendingInstantSendLocks.try_emplace(hash, std::make_pair(pfrom->GetId(), islock));
 }
 
 /**
@@ -860,7 +860,7 @@ bool CInstantSendManager::ProcessPendingInstantSendLocks()
         } else {
             while (pend.size() < maxCount) {
                 auto it = pendingInstantSendLocks.begin();
-                pend.emplace(it->first, std::move(it->second));
+                pend.try_emplace(it->first, std::move(it->second));
                 pendingInstantSendLocks.erase(it);
             }
             fMoreWork = true;
@@ -1195,7 +1195,7 @@ void CInstantSendManager::BlockDisconnected(const std::shared_ptr<const CBlock>&
 void CInstantSendManager::AddNonLockedTx(const CTransactionRef& tx, const CBlockIndex* pindexMined)
 {
     LOCK(cs);
-    auto res = nonLockedTxs.emplace(tx->GetHash(), NonLockedTxInfo());
+    auto res = nonLockedTxs.try_emplace(tx->GetHash(), NonLockedTxInfo());
     auto& info = res.first->second;
     info.pindexMined = pindexMined;
 
@@ -1203,7 +1203,7 @@ void CInstantSendManager::AddNonLockedTx(const CTransactionRef& tx, const CBlock
         info.tx = tx;
         for (const auto& in : tx->vin) {
             nonLockedTxs[in.prevout.hash].children.emplace(tx->GetHash());
-            nonLockedTxsByOutpoints.emplace(in.prevout, tx->GetHash());
+            nonLockedTxsByOutpoints.try_emplace(in.prevout, tx->GetHash());
         }
     }
 
@@ -1370,7 +1370,7 @@ void CInstantSendManager::RemoveMempoolConflictsForLock(const uint256& hash, con
                 continue;
             }
             if (it->second->GetHash() != islock.txid) {
-                toDelete.emplace(it->second->GetHash(), mempool.get(it->second->GetHash()));
+                toDelete.try_emplace(it->second->GetHash(), mempool.get(it->second->GetHash()));
 
                 LogPrintf("CInstantSendManager::%s -- txid=%s, islock=%s: mempool TX %s with input %s conflicts with islock\n", __func__,
                          islock.txid.ToString(), hash.ToString(), it->second->GetHash().ToString(), in.ToStringShort());
@@ -1416,7 +1416,7 @@ void CInstantSendManager::ResolveBlockConflicts(const uint256& islockHash, const
                 }
                 LogPrintf("CInstantSendManager::%s -- txid=%s, islock=%s: mined TX %s with input %s and mined in block %s conflicts with islock\n", __func__,
                           islock.txid.ToString(), islockHash.ToString(), conflictTxid.ToString(), in.ToStringShort(), info.pindexMined->GetBlockHash().ToString());
-                conflicts[info.pindexMined].emplace(conflictTxid, info.tx);
+                conflicts[info.pindexMined].try_emplace(conflictTxid, info.tx);
             }
         }
     }
