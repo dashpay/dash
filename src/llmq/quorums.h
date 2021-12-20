@@ -69,7 +69,7 @@ private:
 
 public:
 
-    CQuorumDataRequest() : nTime(GetTime()) {}
+    CQuorumDataRequest() = default;
     CQuorumDataRequest(const Consensus::LLMQType llmqTypeIn, const uint256& quorumHashIn, const uint16_t nDataMaskIn, const uint256& proTxHashIn = uint256()) :
         llmqType(llmqTypeIn),
         quorumHash(quorumHashIn),
