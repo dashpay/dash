@@ -161,7 +161,7 @@ public:
 
     int CountValidMembers() const
     {
-        return (int)std::count(validMembers.begin(), validMembers.end(), true);
+        return int(std::count(validMembers.begin(), validMembers.end(), true));
     }
 
 public:
