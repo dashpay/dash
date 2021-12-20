@@ -194,7 +194,7 @@ std::unordered_map<uint256, CInstantSendLockPtr, StaticSaltedHasher> CInstantSen
             break;
         }
 
-        auto& islockHash = std::get<2>(curKey);
+        const auto& islockHash = std::get<2>(curKey);
         if (auto islock = GetInstantSendLockByHash(islockHash, false)) {
             RemoveInstantSendLock(batch, islockHash, islock);
             ret.try_emplace(islockHash, islock);
@@ -1390,7 +1390,7 @@ void CInstantSendManager::ResolveBlockConflicts(const uint256& islockHash, const
         for (auto& in : islock.inputs) {
             auto it = nonLockedTxsByOutpoints.find(in);
             if (it != nonLockedTxsByOutpoints.end()) {
-                auto& conflictTxid = it->second;
+                const auto& conflictTxid = it->second;
                 if (conflictTxid == islock.txid) {
                     continue;
                 }
