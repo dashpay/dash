@@ -138,7 +138,7 @@ void CChainLocksHandler::ProcessNewChainLock(const NodeId from, const llmq::CCha
         return;
     }
 
-    CBlockIndex* pindex = WITH_LOCK(cs_main, return LookupBlockIndex(clsig.blockHash));
+    const CBlockIndex* pindex = WITH_LOCK(cs_main, return LookupBlockIndex(clsig.blockHash));
 
     {
         LOCK(cs);
@@ -437,7 +437,7 @@ CChainLocksHandler::BlockTxs::mapped_type CChainLocksHandler::GetBlockTxs(const 
             }
 
             ret = std::make_shared<std::unordered_set<uint256, StaticSaltedHasher>>();
-            for (auto& tx : block.vtx) {
+            for (const auto& tx : block.vtx) {
                 if (tx->IsCoinBase() || tx->vin.empty()) {
                     continue;
                 }
