@@ -192,7 +192,7 @@ void CDKGSessionHandler::WaitForNextPhase(QuorumPhase curPhase,
     if (nextPhase == QuorumPhase_Initialized) {
         quorumDKGDebugManager->ResetLocalSessionStatus(params.type);
     } else {
-        quorumDKGDebugManager->UpdateLocalSessionStatus(params.type, [&](CDKGDebugSessionStatus& status) {
+        quorumDKGDebugManager->UpdateLocalSessionStatus(params.type, [&nextPhase](CDKGDebugSessionStatus& status) {
             bool changed = status.phase != uint8_t(nextPhase);
             status.phase = uint8_t(nextPhase);
             return changed;
@@ -474,7 +474,7 @@ void CDKGSessionHandler::HandleDKGRound()
         throw AbortPhaseException();
     }
 
-    quorumDKGDebugManager->UpdateLocalSessionStatus(params.type, [&](CDKGDebugSessionStatus& status) {
+    quorumDKGDebugManager->UpdateLocalSessionStatus(params.type, [](CDKGDebugSessionStatus& status) {
         bool changed = status.phase != uint8_t(QuorumPhase_Initialized);
         status.phase = uint8_t(QuorumPhase_Initialized);
         return changed;
@@ -536,7 +536,7 @@ void CDKGSessionHandler::PhaseHandlerThread()
             LogPrint(BCLog::LLMQ_DKG, "CDKGSessionHandler::%s -- %s - starting HandleDKGRound\n", __func__, params.name);
             HandleDKGRound();
         } catch (const AbortPhaseException&) {
-            quorumDKGDebugManager->UpdateLocalSessionStatus(params.type, [&](CDKGDebugSessionStatus& status) {
+            quorumDKGDebugManager->UpdateLocalSessionStatus(params.type, [](CDKGDebugSessionStatus& status) {
                 status.aborted = true;
                 return true;
             });
