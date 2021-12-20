@@ -44,7 +44,7 @@ void CDKGSessionManager::MigrateDKG()
     auto oldDb = std::make_unique<CDBWrapper>(GetDataDir() / "llmq", 8 << 20);
     std::unique_ptr<CDBIterator> pcursor(oldDb->NewIterator());
 
-    auto start_vvec = std::make_tuple(DB_VVEC, (Consensus::LLMQType)0, uint256(), uint256());
+    auto start_vvec = std::make_tuple(DB_VVEC, Consensus::LLMQType{0}, uint256(), uint256());
     pcursor->Seek(start_vvec);
 
     while (pcursor->Valid()) {
@@ -68,7 +68,7 @@ void CDKGSessionManager::MigrateDKG()
         pcursor->Next();
     }
 
-    auto start_contrib = std::make_tuple(DB_SKCONTRIB, (Consensus::LLMQType)0, uint256(), uint256());
+    auto start_contrib = std::make_tuple(DB_SKCONTRIB, Consensus::LLMQType{0}, uint256(), uint256());
     pcursor->Seek(start_contrib);
 
     while (pcursor->Valid()) {
@@ -92,7 +92,7 @@ void CDKGSessionManager::MigrateDKG()
         pcursor->Next();
     }
 
-    auto start_enc_contrib = std::make_tuple(DB_ENC_CONTRIB, (Consensus::LLMQType)0, uint256(), uint256());
+    auto start_enc_contrib = std::make_tuple(DB_ENC_CONTRIB, Consensus::LLMQType{0}, uint256(), uint256());
     pcursor->Seek(start_enc_contrib);
 
     while (pcursor->Valid()) {
@@ -178,7 +178,7 @@ void CDKGSessionManager::ProcessMessage(CNode* pfrom, const std::string& strComm
     }
 
     // peek into the message and see which LLMQType it is. First byte of all messages is always the LLMQType
-    Consensus::LLMQType llmqType = (Consensus::LLMQType)*vRecv.begin();
+    auto llmqType = Consensus::LLMQType(*vRecv.begin());
     if (!dkgSessionHandlers.count(llmqType)) {
         LOCK(cs_main);
         Misbehaving(pfrom->GetId(), 100);
