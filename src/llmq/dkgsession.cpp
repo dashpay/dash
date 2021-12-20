@@ -80,7 +80,7 @@ bool CDKGSession::Init(const CBlockIndex* _pQuorumBaseBlockIndex, const std::vec
 
     for (size_t i = 0; i < mns.size(); i++) {
         members[i] = std::make_unique<CDKGMember>(mns[i], i);
-        membersMap.emplace(members[i]->dmn->proTxHash, i);
+        membersMap.try_emplace(members[i]->dmn->proTxHash, i);
         memberIds[i] = members[i]->id;
     }
 
@@ -440,7 +440,7 @@ void CDKGSession::VerifyConnectionAndMinProtoVersions() const
         if (verifiedProRegTxHash.IsNull()) {
             return;
         }
-        protoMap.emplace(verifiedProRegTxHash, pnode->nVersion);
+        protoMap.try_emplace(verifiedProRegTxHash, pnode->nVersion);
     });
 
     bool fShouldAllMembersBeConnected = CLLMQUtils::IsAllMembersConnectedEnabled(params.type);
@@ -565,7 +565,7 @@ void CDKGSession::ReceiveMessage(const CDKGComplaint& qc, bool& retBan)
     }
 
     const uint256 hash = ::SerializeHash(qc);
-    WITH_LOCK(invCs, complaints.emplace(hash, qc));
+    WITH_LOCK(invCs, complaints.try_emplace(hash, qc));
     member->complaints.emplace(hash);
 
     CInv inv(MSG_QUORUM_COMPLAINT, hash);
@@ -1091,7 +1091,7 @@ void CDKGSession::ReceiveMessage(const CDKGPrematureCommitment& qc, bool& retBan
 
         // keep track of ALL commitments but only relay valid ones (or if we couldn't build the vvec)
         // relaying is done further down
-        prematureCommitments.emplace(hash, qc);
+        prematureCommitments.try_emplace(hash, qc);
         member->prematureCommitments.emplace(hash);
     }
 
@@ -1177,7 +1177,7 @@ std::vector<CFinalCommitment> CDKGSession::FinalizeCommitments()
 
             auto it = commitmentsMap.find(qc.validMembers);
             if (it == commitmentsMap.end()) {
-                it = commitmentsMap.emplace(qc.validMembers, std::vector<CDKGPrematureCommitment>()).first;
+                it = commitmentsMap.try_emplace(qc.validMembers, std::vector<CDKGPrematureCommitment>()).first;
             }
 
             it->second.emplace_back(qc);
