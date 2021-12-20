@@ -51,7 +51,7 @@ CChainLocksHandler::~CChainLocksHandler()
 void CChainLocksHandler::Start()
 {
     quorumSigningManager->RegisterRecoveredSigsListener(this);
-    scheduler->scheduleEvery([&]() {
+    scheduler->scheduleEvery([this]() {
         CheckActiveState();
         EnforceBestChainLock();
         // regularly retry signing the current chaintip as it might have failed before due to missing islocks
@@ -171,7 +171,7 @@ void CChainLocksHandler::ProcessNewChainLock(const NodeId from, const llmq::CCha
         return;
     }
 
-    scheduler->scheduleFromNow([&]() {
+    scheduler->scheduleFromNow([this]() {
         CheckActiveState();
         EnforceBestChainLock();
     }, 0);
@@ -209,7 +209,7 @@ void CChainLocksHandler::UpdatedBlockTip()
     // EnforceBestChainLock switching chains.
     // atomic[If tryLockChainTipScheduled is false, do (set it to true] and schedule signing).
     if (bool expected = false; tryLockChainTipScheduled.compare_exchange_strong(expected, true)) {
-        scheduler->scheduleFromNow([&]() {
+        scheduler->scheduleFromNow([this]() {
             CheckActiveState();
             EnforceBestChainLock();
             TrySignChainTip();
