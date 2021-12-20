@@ -404,6 +404,12 @@ class WalletTaprootTest(BitcoinTestFramework):
         psbt_online.unloadwallet()
         psbt_offline.unloadwallet()
 
+    def change_output_type(self, wallet, recipient):
+        tx = self.nodes[0].decoderawtransaction(wallet.send(outputs={recipient: 1}, options={"add_to_wallet": False})["hex"])
+        change = [out for out in tx["vout"] if out["scriptPubKey"].get("address") != recipient]
+        assert_equal(len(change), 1)
+        return change[0]["scriptPubKey"]["type"]
+
     def do_test(self, comment, pattern, privmap, treefn):
         nkeys = len(privmap)
         keys = random.sample(KEYS, nkeys * 4)
@@ -444,6 +450,10 @@ class WalletTaprootTest(BitcoinTestFramework):
         self.log.info("Mining blocks...")
         gen_addr = self.boring.getnewaddress()
         self.generatetoaddress(self.nodes[0], 101, gen_addr, sync_fun=self.no_op)
+
+        self.log.info("A wallet whose default address type is legacy always takes legacy change")
+        for recipient in [self.boring.getnewaddress(address_type="taproot"), self.boring.getnewaddress()]:
+            assert_equal(self.change_output_type(self.boring, recipient), "pubkeyhash")
 
         self.do_test(
             "tr(XPRV)",
@@ -558,6 +568,9 @@ class WalletTaprootTest(BitcoinTestFramework):
         boring = self.nodes[0].get_wallet_rpc("boring")
         assert boring.getaddressinfo(boring.getnewaddress())["desc"].startswith("tr(")
         assert boring.getaddressinfo(boring.getrawchangeaddress())["desc"].startswith("tr(")
+        self.log.info("Otherwise the change type follows the recipients")
+        assert_equal(self.change_output_type(boring, boring.getnewaddress(address_type="taproot")), "taproot")
+        assert_equal(self.change_output_type(boring, boring.getnewaddress(address_type="legacy")), "pubkeyhash")
         self.stop_node(0)
         self.nodes[0].assert_start_raises_init_error(self.extra_args[0] + ["-addresstype=bogus"], "Error: Unknown address type 'bogus'")
         self.start_node(0)
