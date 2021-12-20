@@ -125,8 +125,7 @@ bool CQuorumBlockProcessor::ProcessBlock(const CBlock& block, const CBlockIndex*
 {
     AssertLockHeld(cs_main);
 
-    bool fDIP0003Active = pindex->nHeight >= Params().GetConsensus().DIP0003Height;
-    if (!fDIP0003Active) {
+    if (bool fDIP0003Active = pindex->nHeight >= Params().GetConsensus().DIP0003Height; !fDIP0003Active) {
         evoDb.Write(DB_BEST_BLOCK_UPGRADE, block.GetHash());
         return true;
     }
@@ -254,8 +253,7 @@ bool CQuorumBlockProcessor::UndoBlock(const CBlock& block, const CBlockIndex* pi
     AssertLockHeld(cs_main);
 
     std::map<Consensus::LLMQType, CFinalCommitment> qcs;
-    CValidationState dummy;
-    if (!GetCommitmentsFromBlock(block, pindex, qcs, dummy)) {
+    if (CValidationState dummy; !GetCommitmentsFromBlock(block, pindex, qcs, dummy)) {
         return false;
     }
 
@@ -291,8 +289,7 @@ bool CQuorumBlockProcessor::UpgradeDB()
         return evoDb.IsEmpty();
     }
 
-    uint256 bestBlock;
-    if (evoDb.GetRawDB().Read(DB_BEST_BLOCK_UPGRADE, bestBlock) && bestBlock == ::ChainActive().Tip()->GetBlockHash()) {
+    if (uint256 bestBlock; evoDb.GetRawDB().Read(DB_BEST_BLOCK_UPGRADE, bestBlock) && bestBlock == ::ChainActive().Tip()->GetBlockHash()) {
         return true;
     }
 
@@ -369,10 +366,7 @@ bool CQuorumBlockProcessor::GetCommitmentsFromBlock(const CBlock& block, const C
 bool CQuorumBlockProcessor::IsMiningPhase(const Consensus::LLMQParams& llmqParams, int nHeight)
 {
     int phaseIndex = nHeight % llmqParams.dkgInterval;
-    if (phaseIndex >= llmqParams.dkgMiningWindowStart && phaseIndex <= llmqParams.dkgMiningWindowEnd) {
-        return true;
-    }
-    return false;
+    return (phaseIndex >= llmqParams.dkgMiningWindowStart && phaseIndex <= llmqParams.dkgMiningWindowEnd);
 }
 
 bool CQuorumBlockProcessor::IsCommitmentRequired(const Consensus::LLMQParams& llmqParams, int nHeight) const
@@ -458,8 +452,7 @@ std::vector<const CBlockIndex*> CQuorumBlockProcessor::GetMinedCommitmentsUntilB
             break;
         }
 
-        uint32_t nMinedHeight = std::numeric_limits<uint32_t>::max() - be32toh(std::get<2>(curKey));
-        if (nMinedHeight > pindex->nHeight) {
+        if (uint32_t nMinedHeight = std::numeric_limits<uint32_t>::max() - be32toh(std::get<2>(curKey)); nMinedHeight > pindex->nHeight) {
             break;
         }
 
