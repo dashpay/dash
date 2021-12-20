@@ -117,7 +117,7 @@ void CChainLocksHandler::ProcessNewChainLock(const NodeId from, const llmq::CCha
 
     {
         LOCK(cs);
-        if (!seenChainLocks.emplace(hash, GetTimeMillis()).second) {
+        if (!seenChainLocks.try_emplace(hash, GetTimeMillis()).second) {
             return;
         }
 
@@ -364,7 +364,7 @@ void CChainLocksHandler::TransactionAddedToMempool(const CTransactionRef& tx, in
     }
 
     LOCK(cs);
-    txFirstSeenTime.emplace(tx->GetHash(), nAcceptTime);
+    txFirstSeenTime.try_emplace(tx->GetHash(), nAcceptTime);
 }
 
 void CChainLocksHandler::BlockConnected(const std::shared_ptr<const CBlock>& pblock, const CBlockIndex* pindex, const std::vector<CTransactionRef>& vtxConflicted)
@@ -383,7 +383,7 @@ void CChainLocksHandler::BlockConnected(const std::shared_ptr<const CBlock>& pbl
     if (it == blockTxs.end()) {
         // we must create this entry even if there are no lockable transactions in the block, so that TrySignChainTip
         // later knows about this block
-        it = blockTxs.emplace(pindex->GetBlockHash(), std::make_shared<std::unordered_set<uint256, StaticSaltedHasher>>()).first;
+        it = blockTxs.try_emplace(pindex->GetBlockHash(), std::make_shared<std::unordered_set<uint256, StaticSaltedHasher>>()).first;
     }
     auto& txids = *it->second;
 
@@ -395,7 +395,7 @@ void CChainLocksHandler::BlockConnected(const std::shared_ptr<const CBlock>& pbl
         }
 
         txids.emplace(tx->GetHash());
-        txFirstSeenTime.emplace(tx->GetHash(), curTime);
+        txFirstSeenTime.try_emplace(tx->GetHash(), curTime);
     }
 
 }
@@ -447,9 +447,9 @@ CChainLocksHandler::BlockTxs::mapped_type CChainLocksHandler::GetBlockTxs(const 
         }
 
         LOCK(cs);
-        blockTxs.emplace(blockHash, ret);
+        blockTxs.try_emplace(blockHash, ret);
         for (auto& txid : *ret) {
-            txFirstSeenTime.emplace(txid, blockTime);
+            txFirstSeenTime.try_emplace(txid, blockTime);
         }
     }
     return ret;
