@@ -163,8 +163,7 @@ bool CQuorumBlockProcessor::ProcessBlock(const CBlock& block, const CBlockIndex*
 
     auto blockHash = block.GetHash();
 
-    for (const auto& p : qcs) {
-        const auto& qc = p.second;
+    for (const auto& [_, qc] : qcs) {
         if (!ProcessCommitment(pindex->nHeight, blockHash, qc, state, fJustCheck)) {
             return false;
         }
@@ -257,8 +256,7 @@ bool CQuorumBlockProcessor::UndoBlock(const CBlock& block, const CBlockIndex* pi
         return false;
     }
 
-    for (auto& p : qcs) {
-        auto& qc = p.second;
+    for (auto& [_, qc] : qcs) {
         if (qc.IsNull()) {
             continue;
         }
@@ -310,8 +308,7 @@ bool CQuorumBlockProcessor::UpgradeDB()
             CValidationState dummyState;
             GetCommitmentsFromBlock(block, pindex, qcs, dummyState);
 
-            for (const auto& p : qcs) {
-                const auto& qc = p.second;
+            for (const auto& [_, qc] : qcs) {
                 if (qc.IsNull()) {
                     continue;
                 }
@@ -500,16 +497,16 @@ void CQuorumBlockProcessor::AddMineableCommitment(const CFinalCommitment& fqc)
         LOCK(minableCommitmentsCs);
 
         auto k = std::make_pair(fqc.llmqType, fqc.quorumHash);
-        auto ins = minableCommitmentsByQuorum.try_emplace(k, commitmentHash);
-        if (ins.second) {
+        auto [inserted_it, success] = minableCommitmentsByQuorum.try_emplace(k, commitmentHash);
+        if (success) {
             minableCommitments.try_emplace(commitmentHash, fqc);
             relay = true;
         } else {
-            const auto& oldFqc = minableCommitments.at(ins.first->second);
+            const auto& oldFqc = minableCommitments.at(inserted_it->second);
             if (fqc.CountSigners() > oldFqc.CountSigners()) {
                 // new commitment has more signers, so override the known one
-                ins.first->second = commitmentHash;
-                minableCommitments.erase(ins.first->second);
+                inserted_it->second = commitmentHash;
+                minableCommitments.erase(inserted_it->second);
                 minableCommitments.try_emplace(commitmentHash, fqc);
                 relay = true;
             }
