@@ -121,7 +121,7 @@ int CQuorum::GetMemberIndex(const uint256& proTxHash) const
 {
     for (size_t i = 0; i < members.size(); i++) {
         if (members[i]->proTxHash == proTxHash) {
-            return (int)i;
+            return int(i);
         }
     }
     return -1;
@@ -263,7 +263,7 @@ void CQuorumManager::UpdatedBlockTip(const CBlockIndex* pindexNew, bool fInitial
 
 void CQuorumManager::EnsureQuorumConnections(const Consensus::LLMQParams& llmqParams, const CBlockIndex* pindexNew) const
 {
-    auto lastQuorums = ScanQuorums(llmqParams.type, pindexNew, (size_t)llmqParams.keepOldConnections);
+    auto lastQuorums = ScanQuorums(llmqParams.type, pindexNew, size_t(llmqParams.keepOldConnections));
 
     auto connmanQuorumsToDelete = g_connman->GetMasternodeQuorums(llmqParams.type);
 
@@ -331,7 +331,7 @@ bool CQuorumManager::BuildQuorumContributions(const CFinalCommitmentPtr& fqc, co
     std::vector<uint16_t> memberIndexes;
     std::vector<BLSVerificationVectorPtr> vvecs;
     BLSSecretKeyVector skContributions;
-    if (!dkgManager.GetVerifiedContributions((Consensus::LLMQType)fqc->llmqType, quorum->m_quorum_base_block_index, fqc->validMembers, memberIndexes, vvecs, skContributions)) {
+    if (!dkgManager.GetVerifiedContributions(fqc->llmqType, quorum->m_quorum_base_block_index, fqc->validMembers, memberIndexes, vvecs, skContributions)) {
         return false;
     }
 
