@@ -437,7 +437,7 @@ std::vector<CQuorumCPtr> CQuorumManager::ScanQuorums(Consensus::LLMQType llmqTyp
             }
             // If we have cached quorums but not enough, subtract what we have from the count and the set correct index where to start
             // scanning for the rests
-            if(vecResultQuorums.size() > 0) {
+            if (!vecResultQuorums.empty()) {
                 nScanCommitments -= vecResultQuorums.size();
                 pIndexScanCommitments = reinterpret_cast<void*>(vecResultQuorums.back()->m_quorum_base_block_index->pprev);
             }
