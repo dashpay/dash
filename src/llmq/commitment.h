@@ -42,11 +42,11 @@ public:
 
     int CountSigners() const
     {
-        return (int)std::count(signers.begin(), signers.end(), true);
+        return int(std::count(signers.begin(), signers.end(), true));
     }
     int CountValidMembers() const
     {
-        return (int)std::count(validMembers.begin(), validMembers.end(), true);
+        return int(std::count(validMembers.begin(), validMembers.end(), true));
     }
 
     bool Verify(const CBlockIndex* pQuorumBaseBlockIndex, bool checkSigs) const;
@@ -88,8 +88,8 @@ public:
     void ToJson(UniValue& obj) const
     {
         obj.setObject();
-        obj.pushKV("version", (int)nVersion);
-        obj.pushKV("llmqType", (int)llmqType);
+        obj.pushKV("version", int{nVersion});
+        obj.pushKV("llmqType", int(llmqType));
         obj.pushKV("quorumHash", quorumHash.ToString());
         obj.pushKV("signersCount", CountSigners());
         obj.pushKV("signers", CLLMQUtils::ToHexStr(signers));
@@ -110,7 +110,7 @@ public:
 
 public:
     uint16_t nVersion{CURRENT_VERSION};
-    uint32_t nHeight{(uint32_t)-1};
+    uint32_t nHeight{std::numeric_limits<uint32_t>::max()};
     CFinalCommitment commitment;
 
 public:
@@ -122,8 +122,8 @@ public:
     void ToJson(UniValue& obj) const
     {
         obj.setObject();
-        obj.pushKV("version", (int)nVersion);
-        obj.pushKV("height", (int)nHeight);
+        obj.pushKV("version", int{nVersion});
+        obj.pushKV("height", int(nHeight));
 
         UniValue qcObj;
         commitment.ToJson(qcObj);
