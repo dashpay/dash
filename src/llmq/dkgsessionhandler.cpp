@@ -170,15 +170,15 @@ void CDKGSessionHandler::WaitForNextPhase(QuorumPhase curPhase,
             LogPrint(BCLog::LLMQ_DKG, "CDKGSessionManager::%s -- %s - aborting due to stop/shutdown requested\n", __func__, params.name);
             throw AbortPhaseException();
         }
-        auto p = GetPhaseAndQuorumHash();
-        if (!expectedQuorumHash.IsNull() && p.second != expectedQuorumHash) {
+        const auto& [phase, quorumHash] = GetPhaseAndQuorumHash();
+        if (!expectedQuorumHash.IsNull() && quorumHash != expectedQuorumHash) {
             LogPrint(BCLog::LLMQ_DKG, "CDKGSessionManager::%s -- %s - aborting due unexpected expectedQuorumHash change\n", __func__, params.name);
             throw AbortPhaseException();
         }
-        if (p.first == nextPhase) {
+        if (phase == nextPhase) {
             break;
         }
-        if (curPhase != QuorumPhase_None && p.first != curPhase) {
+        if (curPhase != QuorumPhase_None && phase != curPhase) {
             LogPrint(BCLog::LLMQ_DKG, "CDKGSessionManager::%s -- %s - aborting due unexpected phase change\n", __func__, params.name);
             throw AbortPhaseException();
         }
@@ -209,7 +209,7 @@ void CDKGSessionHandler::WaitForNewQuorum(const uint256& oldQuorumHash) const
             LogPrint(BCLog::LLMQ_DKG, "CDKGSessionManager::%s -- %s - aborting due to stop/shutdown requested\n", __func__, params.name);
             throw AbortPhaseException();
         }
-        if (auto p = GetPhaseAndQuorumHash(); p.second != oldQuorumHash) {
+        if (auto [_, quorumHash] = GetPhaseAndQuorumHash(); quorumHash != oldQuorumHash) {
             break;
         }
         UninterruptibleSleep(std::chrono::milliseconds{100});
