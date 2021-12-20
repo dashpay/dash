@@ -180,7 +180,7 @@ void CDKGSession::SendContributions(CDKGPendingMessages& pendingMessages)
 
     logger.Flush();
 
-    quorumDKGDebugManager->UpdateLocalSessionStatus(params.type, [&](CDKGDebugSessionStatus& status) {
+    quorumDKGDebugManager->UpdateLocalSessionStatus(params.type, [](CDKGDebugSessionStatus& status) {
         status.sentContributions = true;
         return true;
     });
@@ -263,7 +263,7 @@ void CDKGSession::ReceiveMessage(const CDKGContribution& qc, bool& retBan)
     CInv inv(MSG_QUORUM_CONTRIB, hash);
     RelayInvToParticipants(inv);
 
-    quorumDKGDebugManager->UpdateLocalMemberStatus(params.type, member->idx, [&](CDKGDebugMemberStatus& status) {
+    quorumDKGDebugManager->UpdateLocalMemberStatus(params.type, member->idx, [](CDKGDebugMemberStatus& status) {
         status.receivedContribution = true;
         return true;
     });
@@ -303,7 +303,7 @@ void CDKGSession::ReceiveMessage(const CDKGContribution& qc, bool& retBan)
 
     if (complain) {
         member->weComplain = true;
-        quorumDKGDebugManager->UpdateLocalMemberStatus(params.type, member->idx, [&](CDKGDebugMemberStatus& status) {
+        quorumDKGDebugManager->UpdateLocalMemberStatus(params.type, member->idx, [](CDKGDebugMemberStatus& status) {
             status.weComplain = true;
             return true;
         });
@@ -371,7 +371,7 @@ void CDKGSession::VerifyPendingContributions()
             const auto& m = members[memberIndexes[i]];
             logger.Batch("invalid contribution from %s. will complain later", m->dmn->proTxHash.ToString());
             m->weComplain = true;
-            quorumDKGDebugManager->UpdateLocalMemberStatus(params.type, m->idx, [&](CDKGDebugMemberStatus& status) {
+            quorumDKGDebugManager->UpdateLocalMemberStatus(params.type, m->idx, [](CDKGDebugMemberStatus& status) {
                 status.weComplain = true;
                 return true;
             });
@@ -434,7 +434,7 @@ void CDKGSession::VerifyConnectionAndMinProtoVersions() const
     CDKGLogger logger(*this, __func__);
 
     std::unordered_map<uint256, int, StaticSaltedHasher> protoMap;
-    g_connman->ForEachNode([&](const CNode* pnode) {
+    g_connman->ForEachNode([&protoMap](const CNode* pnode) {
         auto verifiedProRegTxHash = pnode->GetVerifiedProRegTxHash();
         if (verifiedProRegTxHash.IsNull()) {
             return;
@@ -497,7 +497,7 @@ void CDKGSession::SendComplaint(CDKGPendingMessages& pendingMessages)
 
     logger.Flush();
 
-    quorumDKGDebugManager->UpdateLocalSessionStatus(params.type, [&](CDKGDebugSessionStatus& status) {
+    quorumDKGDebugManager->UpdateLocalSessionStatus(params.type, [](CDKGDebugSessionStatus& status) {
         status.sentComplaint = true;
         return true;
     });
@@ -570,7 +570,7 @@ void CDKGSession::ReceiveMessage(const CDKGComplaint& qc, bool& retBan)
     CInv inv(MSG_QUORUM_COMPLAINT, hash);
     RelayInvToParticipants(inv);
 
-    quorumDKGDebugManager->UpdateLocalMemberStatus(params.type, member->idx, [&](CDKGDebugMemberStatus& status) {
+    quorumDKGDebugManager->UpdateLocalMemberStatus(params.type, member->idx, [](CDKGDebugMemberStatus& status) {
         status.receivedComplaint = true;
         return true;
     });
@@ -596,7 +596,7 @@ void CDKGSession::ReceiveMessage(const CDKGComplaint& qc, bool& retBan)
         if (qc.complainForMembers[i]) {
             m->complaintsFromOthers.emplace(qc.proTxHash);
             m->someoneComplain = true;
-            quorumDKGDebugManager->UpdateLocalMemberStatus(params.type, m->idx, [&](CDKGDebugMemberStatus& status) {
+            quorumDKGDebugManager->UpdateLocalMemberStatus(params.type, m->idx, [&member](CDKGDebugMemberStatus& status) {
                 return status.complaintsFromMembers.emplace(member->idx).second;
             });
             if (AreWeMember() && i == myIdx) {
@@ -691,7 +691,7 @@ void CDKGSession::SendJustification(CDKGPendingMessages& pendingMessages, const 
 
     logger.Flush();
 
-    quorumDKGDebugManager->UpdateLocalSessionStatus(params.type, [&](CDKGDebugSessionStatus& status) {
+    quorumDKGDebugManager->UpdateLocalSessionStatus(params.type, [](CDKGDebugSessionStatus& status) {
         status.sentJustification = true;
         return true;
     });
@@ -781,7 +781,7 @@ void CDKGSession::ReceiveMessage(const CDKGJustification& qj, bool& retBan)
     CInv inv(MSG_QUORUM_JUSTIFICATION, hash);
     RelayInvToParticipants(inv);
 
-    quorumDKGDebugManager->UpdateLocalMemberStatus(params.type, member->idx, [&](CDKGDebugMemberStatus& status) {
+    quorumDKGDebugManager->UpdateLocalMemberStatus(params.type, member->idx, [](CDKGDebugMemberStatus& status) {
         status.receivedJustification = true;
         return true;
     });
@@ -1003,7 +1003,7 @@ void CDKGSession::SendCommitment(CDKGPendingMessages& pendingMessages)
 
     logger.Flush();
 
-    quorumDKGDebugManager->UpdateLocalSessionStatus(params.type, [&](CDKGDebugSessionStatus& status) {
+    quorumDKGDebugManager->UpdateLocalSessionStatus(params.type, [](CDKGDebugSessionStatus& status) {
         status.sentPrematureCommitment = true;
         return true;
     });
@@ -1138,7 +1138,7 @@ void CDKGSession::ReceiveMessage(const CDKGPrematureCommitment& qc, bool& retBan
     CInv inv(MSG_QUORUM_PREMATURE_COMMITMENT, hash);
     RelayInvToParticipants(inv);
 
-    quorumDKGDebugManager->UpdateLocalMemberStatus(params.type, member->idx, [&](CDKGDebugMemberStatus& status) {
+    quorumDKGDebugManager->UpdateLocalMemberStatus(params.type, member->idx, [](CDKGDebugMemberStatus& status) {
         status.receivedPrematureCommitment = true;
         return true;
     });
@@ -1269,7 +1269,7 @@ void CDKGSession::MarkBadMember(size_t idx)
     if (member->bad) {
         return;
     }
-    quorumDKGDebugManager->UpdateLocalMemberStatus(params.type, idx, [&](CDKGDebugMemberStatus& status) {
+    quorumDKGDebugManager->UpdateLocalMemberStatus(params.type, idx, [](CDKGDebugMemberStatus& status) {
         status.bad = true;
         return true;
     });
@@ -1278,7 +1278,7 @@ void CDKGSession::MarkBadMember(size_t idx)
 
 void CDKGSession::RelayInvToParticipants(const CInv& inv) const
 {
-    g_connman->ForEachNode([&](CNode* pnode) {
+    g_connman->ForEachNode([this, &inv](CNode* pnode) {
         if (pnode->qwatch ||
                 (!pnode->GetVerifiedProRegTxHash().IsNull() && relayMembers.count(pnode->GetVerifiedProRegTxHash()))) {
             pnode->PushInventory(inv);
