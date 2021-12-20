@@ -525,13 +525,13 @@ bool CDKGSession::PreVerifyMessage(const CDKGComplaint& qc, bool& retBan) const
         return false;
     }
 
-    if (qc.badMembers.size() != (size_t)params.size) {
+    if (qc.badMembers.size() != size_t(params.size)) {
         logger.Batch("invalid badMembers bitset size");
         retBan = true;
         return false;
     }
 
-    if (qc.complainForMembers.size() != (size_t)params.size) {
+    if (qc.complainForMembers.size() != size_t(params.size)) {
         logger.Batch("invalid complainForMembers bitset size");
         retBan = true;
         return false;
@@ -1031,7 +1031,7 @@ bool CDKGSession::PreVerifyMessage(const CDKGPrematureCommitment& qc, bool& retB
         return false;
     }
 
-    if (qc.validMembers.size() != (size_t)params.size) {
+    if (qc.validMembers.size() != size_t(params.size)) {
         logger.Batch("invalid validMembers bitset size");
         retBan = true;
         return false;
