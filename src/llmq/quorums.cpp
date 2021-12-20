@@ -417,7 +417,7 @@ std::vector<CQuorumCPtr> CQuorumManager::ScanQuorums(Consensus::LLMQType llmqTyp
     }
 
     bool fCacheExists{false};
-    void* pIndexScanCommitments{(void*)pindexStart};
+    void* pIndexScanCommitments{reinterpret_cast<void*>(const_cast<CBlockIndex*>(pindexStart))};
     size_t nScanCommitments{nCountRequested};
     std::vector<CQuorumCPtr> vecResultQuorums;
 
@@ -439,7 +439,7 @@ std::vector<CQuorumCPtr> CQuorumManager::ScanQuorums(Consensus::LLMQType llmqTyp
             // scanning for the rests
             if(vecResultQuorums.size() > 0) {
                 nScanCommitments -= vecResultQuorums.size();
-                pIndexScanCommitments = (void*)vecResultQuorums.back()->m_quorum_base_block_index->pprev;
+                pIndexScanCommitments = reinterpret_cast<void*>(vecResultQuorums.back()->m_quorum_base_block_index->pprev);
             }
         } else {
             // If there is nothing in cache request at least cache.max_size() because this gets cached then later
