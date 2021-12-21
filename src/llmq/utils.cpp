@@ -152,7 +152,7 @@ std::set<uint256> CLLMQUtils::GetQuorumRelayMembers(const Consensus::LLMQParams&
         //   n: size of the quorum/ring
         std::set<uint256> r;
         int gap = 1;
-        int gap_max = (int)mns.size() - 1;
+        int gap_max = int(mns.size()) - 1;
         int k = 0;
         while ((gap_max >>= 1) || k <= 1) {
             size_t idx = (i + gap) % mns.size();
@@ -383,10 +383,10 @@ std::map<Consensus::LLMQType, QvvecSyncMode> CLLMQUtils::GetEnabledQuorumVvecSyn
         int32_t nMode;
         if (ParseInt32(strMode, &nMode)) {
             switch (nMode) {
-            case (int32_t)QvvecSyncMode::Always:
+            case int32_t(QvvecSyncMode::Always):
                 mode = QvvecSyncMode::Always;
                 break;
-            case (int32_t)QvvecSyncMode::OnlyIfTypeMember:
+            case int32_t(QvvecSyncMode::OnlyIfTypeMember):
                 mode = QvvecSyncMode::OnlyIfTypeMember;
                 break;
             default:

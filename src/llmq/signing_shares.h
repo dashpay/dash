@@ -93,7 +93,7 @@ public:
     {
         uint64_t invSize = obj.inv.size();
         READWRITE(VARINT(obj.sessionId), COMPACTSIZE(invSize));
-        autobitset_t bitset = std::make_pair(obj.inv, (size_t)invSize);
+        autobitset_t bitset = std::make_pair(obj.inv, size_t{invSize});
         READWRITE(AUTOBITSET(bitset));
         SER_READ(obj, obj.inv = bitset.first);
     }
