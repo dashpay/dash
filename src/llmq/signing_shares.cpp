@@ -96,8 +96,8 @@ std::string CBatchedSigShares::ToInvString() const
     CSigSharesInv inv;
     // we use 400 here no matter what the real size is. We don't really care about that size as we just want to call ToString()
     inv.Init(400);
-    for (const auto& sigShare : sigShares) {
-        inv.inv[sigShare.first] = true;
+    for (const auto& [index, _] : sigShares) {
+        inv.inv[index] = true;
     }
     return inv.ToString();
 }
