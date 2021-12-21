@@ -584,8 +584,7 @@ void CSigningManager::ProcessMessageRecoveredSig(CNode* pfrom, const std::shared
         EraseObjectRequest(pfrom->GetId(), CInv(MSG_QUORUM_RECOVERED_SIG, recoveredSig->GetHash()));
     }
 
-    bool ban = false;
-    if (!PreVerifyRecoveredSig(*recoveredSig, ban)) {
+    if (bool ban{false}; !PreVerifyRecoveredSig(*recoveredSig, ban)) {
         if (ban) {
             LOCK(cs_main);
             Misbehaving(pfrom->GetId(), 100);
@@ -656,8 +655,7 @@ void CSigningManager::CollectPendingRecoveredSigsToVerify(
             }
             auto& recSig = *ns.begin();
 
-            bool alreadyHave = db.HasRecoveredSigForHash(recSig->GetHash());
-            if (!alreadyHave) {
+            if (bool alreadyHave = db.HasRecoveredSigForHash(recSig->GetHash()); !alreadyHave) {
                 uniqueSignHashes.emplace(nodeId, CLLMQUtils::BuildSignHash(*recSig));
                 retSigShares[nodeId].emplace_back(recSig);
             }
@@ -678,8 +676,7 @@ void CSigningManager::CollectPendingRecoveredSigsToVerify(
             const auto& recSig = *it;
 
             auto llmqType = recSig->llmqType;
-            auto quorumKey = std::make_pair(recSig->llmqType, recSig->quorumHash);
-            if (!retQuorums.count(quorumKey)) {
+            if (auto quorumKey = std::make_pair(recSig->llmqType, recSig->quorumHash); !retQuorums.count(quorumKey)) {
                 CQuorumCPtr quorum = quorumManager->GetQuorum(llmqType, recSig->quorumHash);
                 if (!quorum) {
                     LogPrint(BCLog::LLMQ, "CSigningManager::%s -- quorum %s not found, node=%d\n", __func__,
@@ -801,8 +798,8 @@ void CSigningManager::ProcessRecoveredSig(const std::shared_ptr<const CRecovered
         if (db.HasRecoveredSigForId(llmqType, recoveredSig->id)) {
             CRecoveredSig otherRecoveredSig;
             if (db.GetRecoveredSigById(llmqType, recoveredSig->id, otherRecoveredSig)) {
-                auto otherSignHash = CLLMQUtils::BuildSignHash(otherRecoveredSig);
-                if (signHash != otherSignHash) {
+                if (auto otherSignHash = CLLMQUtils::BuildSignHash(otherRecoveredSig);
+                        signHash != otherSignHash) {
                     // this should really not happen, as each masternode is participating in only one vote,
                     // even if it's a member of multiple quorums. so a majority is only possible on one quorum and one msgHash per id
                     LogPrintf("CSigningManager::%s -- conflicting recoveredSig for signHash=%s, id=%s, msgHash=%s, otherSignHash=%s\n", __func__,
@@ -854,8 +851,7 @@ void CSigningManager::TruncateRecoveredSig(Consensus::LLMQType llmqType, const u
 
 void CSigningManager::Cleanup()
 {
-    int64_t now = GetTimeMillis();
-    if (now - lastCleanupTime < 5000) {
+    if (int64_t now = GetTimeMillis(); now - lastCleanupTime < 5000) {
         return;
     }
 
