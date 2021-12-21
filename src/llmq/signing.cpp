@@ -677,8 +677,8 @@ void CSigningManager::ProcessPendingReconstructedRecoveredSigs()
         LOCK(cs);
         m = std::move(pendingReconstructedRecoveredSigs);
     }
-    for (const auto& p : m) {
-        ProcessRecoveredSig(p.second);
+    for (const auto& [_, recSig] : m) {
+        ProcessRecoveredSig(recSig);
     }
 }
 
