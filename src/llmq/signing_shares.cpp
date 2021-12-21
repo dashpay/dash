@@ -47,7 +47,7 @@ void CSigSharesInv::Merge(const CSigSharesInv& inv2)
 
 size_t CSigSharesInv::CountSet() const
 {
-    return (size_t)std::count(inv.begin(), inv.end(), true);
+    return size_t(std::count(inv.begin(), inv.end(), true));
 }
 
 std::string CSigSharesInv::ToString() const
@@ -105,16 +105,16 @@ std::string CBatchedSigShares::ToInvString() const
 template<typename T>
 static void InitSession(CSigSharesNodeState::Session& s, const uint256& signHash, T& from)
 {
-    const auto& llmq_params = GetLLMQParams((Consensus::LLMQType)from.llmqType);
+    const auto& llmq_params = GetLLMQParams(Consensus::LLMQType(from.llmqType));
 
-    s.llmqType = (Consensus::LLMQType)from.llmqType;
+    s.llmqType = Consensus::LLMQType(from.llmqType);
     s.quorumHash = from.quorumHash;
     s.id = from.id;
     s.msgHash = from.msgHash;
     s.signHash = signHash;
-    s.announced.Init((size_t)llmq_params.size);
-    s.requested.Init((size_t)llmq_params.size);
-    s.knows.Init((size_t)llmq_params.size);
+    s.announced.Init(size_t(llmq_params.size));
+    s.requested.Init(size_t(llmq_params.size));
+    s.knows.Init(size_t(llmq_params.size));
 }
 
 CSigSharesNodeState::Session& CSigSharesNodeState::GetOrCreateSessionFromShare(const llmq::CSigShare& sigShare)
@@ -764,8 +764,8 @@ void CSigSharesManager::TryRecoverSig(const CQuorumCPtr& quorum, const uint256& 
             return;
         }
 
-        sigSharesForRecovery.reserve((size_t) quorum->params.threshold);
-        idsForRecovery.reserve((size_t) quorum->params.threshold);
+        sigSharesForRecovery.reserve(size_t(quorum->params.threshold));
+        idsForRecovery.reserve(size_t(quorum->params.threshold));
         for (auto it = sigSharesForSignHash->begin(); it != sigSharesForSignHash->end() && sigSharesForRecovery.size() < quorum->params.threshold; ++it) {
             auto& sigShare = it->second;
             sigSharesForRecovery.emplace_back(sigShare.sigShare.Get());
@@ -874,7 +874,7 @@ void CSigSharesManager::CollectSigSharesToRequest(std::unordered_map<NodeId, std
                 if (!session.announced.inv[i]) {
                     continue;
                 }
-                auto k = std::make_pair(signHash, (uint16_t) i);
+                auto k = std::make_pair(signHash, uint16_t(i));
                 if (sigShares.Has(k)) {
                     // we already have it
                     session.announced.inv[i] = false;
@@ -947,7 +947,7 @@ void CSigSharesManager::CollectSigSharesToSend(std::unordered_map<NodeId, std::u
                 }
                 session.requested.inv[i] = false;
 
-                auto k = std::make_pair(signHash, (uint16_t)i);
+                auto k = std::make_pair(signHash, uint16_t(i));
                 const CSigShare* sigShare = sigShares.Get(k);
                 if (!sigShare) {
                     // he requested something we don't have
@@ -955,7 +955,7 @@ void CSigSharesManager::CollectSigSharesToSend(std::unordered_map<NodeId, std::u
                     continue;
                 }
 
-                batchedSigShares.sigShares.emplace_back((uint16_t)i, sigShare->sigShare);
+                batchedSigShares.sigShares.emplace_back(uint16_t(i), sigShare->sigShare);
             }
 
             if (!batchedSigShares.sigShares.empty()) {
@@ -1332,7 +1332,7 @@ void CSigSharesManager::Cleanup()
                     if (const auto quorumIt = quorums.find(std::make_pair(oneSigShare.llmqType, oneSigShare.quorumHash)); quorumIt != quorums.end()) {
                         const auto& quorum = quorumIt->second;
                         for (size_t i = 0; i < quorum->members.size(); i++) {
-                            if (!m->count((uint16_t)i)) {
+                            if (!m->count(uint16_t(i))) {
                                 auto& dmn = quorum->members[i];
                                 strMissingMembers += strprintf("\n  %s", dmn->proTxHash.ToString());
                             }
@@ -1535,7 +1535,7 @@ CSigShare CSigSharesManager::CreateSigShare(const CQuorumCPtr& quorum, const uin
     sigShare.quorumHash = quorum->qc->quorumHash;
     sigShare.id = id;
     sigShare.msgHash = msgHash;
-    sigShare.quorumMember = (uint16_t)memberIdx;
+    sigShare.quorumMember = uint16_t(memberIdx);
     uint256 signHash = CLLMQUtils::BuildSignHash(sigShare);
 
     sigShare.sigShare.Set(skShare.Sign(signHash));
