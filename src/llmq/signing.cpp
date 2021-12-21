@@ -620,9 +620,9 @@ void CSigningManager::CollectPendingRecoveredSigsToVerify(
         }
 
         std::unordered_set<std::pair<NodeId, uint256>, StaticSaltedHasher> uniqueSignHashes;
-        CLLMQUtils::IterateNodesRandom(pendingRecoveredSigs, [&]() {
+        CLLMQUtils::IterateNodesRandom(pendingRecoveredSigs, [&uniqueSignHashes, &maxUniqueSessions]() {
             return uniqueSignHashes.size() < maxUniqueSessions;
-        }, [&](NodeId nodeId, std::list<std::shared_ptr<const CRecoveredSig>>& ns) {
+        }, [this, &uniqueSignHashes, &retSigShares](NodeId nodeId, std::list<std::shared_ptr<const CRecoveredSig>>& ns) {
             if (ns.empty()) {
                 return false;
             }
@@ -789,7 +789,7 @@ void CSigningManager::ProcessRecoveredSig(const std::shared_ptr<const CRecovered
 
     if (fMasternodeMode) {
         CInv inv(MSG_QUORUM_RECOVERED_SIG, recoveredSig->GetHash());
-        g_connman->ForEachNode([&](CNode* pnode) {
+        g_connman->ForEachNode([&inv](CNode* pnode) {
             if (pnode->nVersion >= LLMQS_PROTO_VERSION && pnode->fSendRecSigs) {
                 pnode->PushInventory(inv);
             }
