@@ -126,6 +126,7 @@ public:
 
 class CSigningManager
 {
+private:
     friend class CSigSharesManager;
 
     // when selecting a quorum for signing and verification, we use CQuorumManager::SelectQuorum with this offset as
@@ -133,7 +134,6 @@ class CSigningManager
     // which are not 100% at the chain tip.
     static constexpr int SIGN_HEIGHT_OFFSET{8};
 
-private:
     mutable CCriticalSection cs;
 
     CRecoveredSigsDb db;
