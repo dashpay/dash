@@ -56,10 +56,7 @@ void CRecoveredSigsDb::MigrateRecoveredSigs()
         decltype(start_h) k;
         std::pair<Consensus::LLMQType, uint256> v;
 
-        if (!pcursor->GetKey(k) || std::get<0>(k) != "rs_h") {
-            break;
-        }
-        if (!pcursor->GetValue(v)) {
+        if (!pcursor->GetKey(k) || std::get<0>(k) != "rs_h" || !pcursor->GetValue(v)) {
             break;
         }
 
@@ -80,10 +77,7 @@ void CRecoveredSigsDb::MigrateRecoveredSigs()
         decltype(start_r1) k;
         CRecoveredSig v;
 
-        if (!pcursor->GetKey(k) || std::get<0>(k) != "rs_r") {
-            break;
-        }
-        if (!pcursor->GetValue(v)) {
+        if (!pcursor->GetKey(k) || std::get<0>(k) != "rs_r" || !pcursor->GetValue(v)) {
             break;
         }
 
@@ -104,10 +98,7 @@ void CRecoveredSigsDb::MigrateRecoveredSigs()
         decltype(start_r2) k;
         uint32_t v;
 
-        if (!pcursor->GetKey(k) || std::get<0>(k) != "rs_r") {
-            break;
-        }
-        if (!pcursor->GetValue(v)) {
+        if (!pcursor->GetKey(k) || std::get<0>(k) != "rs_r" || !pcursor->GetValue(v)) {
             break;
         }
 
@@ -128,10 +119,7 @@ void CRecoveredSigsDb::MigrateRecoveredSigs()
         decltype(start_s) k;
         uint8_t v;
 
-        if (!pcursor->GetKey(k) || std::get<0>(k) != "rs_s") {
-            break;
-        }
-        if (!pcursor->GetValue(v)) {
+        if (!pcursor->GetKey(k) || std::get<0>(k) != "rs_s" || !pcursor->GetValue(v)) {
             break;
         }
 
@@ -152,10 +140,7 @@ void CRecoveredSigsDb::MigrateRecoveredSigs()
         decltype(start_t) k;
         uint8_t v;
 
-        if (!pcursor->GetKey(k) || std::get<0>(k) != "rs_t") {
-            break;
-        }
-        if (!pcursor->GetValue(v)) {
+        if (!pcursor->GetKey(k) || std::get<0>(k) != "rs_t" || !pcursor->GetValue(v)) {
             break;
         }
 
@@ -176,10 +161,7 @@ void CRecoveredSigsDb::MigrateRecoveredSigs()
         decltype(start_v) k;
         uint256 v;
 
-        if (!pcursor->GetKey(k) || std::get<0>(k) != "rs_v") {
-            break;
-        }
-        if (!pcursor->GetValue(v)) {
+        if (!pcursor->GetKey(k) || std::get<0>(k) != "rs_v" || !pcursor->GetValue(v)) {
             break;
         }
 
@@ -200,10 +182,7 @@ void CRecoveredSigsDb::MigrateRecoveredSigs()
         decltype(start_vt) k;
         uint8_t v;
 
-        if (!pcursor->GetKey(k) || std::get<0>(k) != "rs_vt") {
-            break;
-        }
-        if (!pcursor->GetValue(v)) {
+        if (!pcursor->GetKey(k) || std::get<0>(k) != "rs_vt" || !pcursor->GetValue(v)) {
             break;
         }
 
@@ -429,10 +408,7 @@ void CRecoveredSigsDb::CleanupOldRecoveredSigs(int64_t maxAge)
     while (pcursor->Valid()) {
         decltype(start) k;
 
-        if (!pcursor->GetKey(k) || std::get<0>(k) != "rs_t") {
-            break;
-        }
-        if (be32toh(std::get<1>(k)) >= endTime) {
+        if (!pcursor->GetKey(k) || std::get<0>(k) != "rs_t" || be32toh(std::get<1>(k)) >= endTime) {
             break;
         }
 
@@ -506,10 +482,7 @@ void CRecoveredSigsDb::CleanupOldVotes(int64_t maxAge)
     while (pcursor->Valid()) {
         decltype(start) k;
 
-        if (!pcursor->GetKey(k) || std::get<0>(k) != "rs_vt") {
-            break;
-        }
-        if (be32toh(std::get<1>(k)) >= endTime) {
+        if (!pcursor->GetKey(k) || std::get<0>(k) != "rs_vt" || be32toh(std::get<1>(k)) >= endTime) {
             break;
         }
 
