@@ -570,9 +570,9 @@ void CSigSharesManager::CollectPendingSigSharesToVerify(
         // the whole verification process
 
         std::unordered_set<std::pair<NodeId, uint256>, StaticSaltedHasher> uniqueSignHashes;
-        CLLMQUtils::IterateNodesRandom(nodeStates, [&]() {
+        CLLMQUtils::IterateNodesRandom(nodeStates, [&uniqueSignHashes, &maxUniqueSessions]() {
             return uniqueSignHashes.size() < maxUniqueSessions;
-        }, [&](NodeId nodeId, CSigSharesNodeState& ns) {
+        }, [this, &uniqueSignHashes, &retSigShares](NodeId nodeId, CSigSharesNodeState& ns) {
             if (ns.pendingIncomingSigShares.Empty()) {
                 return false;
             }
