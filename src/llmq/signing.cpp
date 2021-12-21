@@ -694,7 +694,7 @@ void CSigningManager::CollectPendingRecoveredSigsToVerify(
                     continue;
                 }
 
-                retQuorums.emplace(quorumKey, quorum);
+                retQuorums.try_emplace(quorumKey, quorum);
             }
 
             ++it;
