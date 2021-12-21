@@ -298,7 +298,7 @@ bool CRecoveredSigsDb::ReadRecoveredSig(Consensus::LLMQType llmqType, const uint
     try {
         ret.Unserialize(ds);
         return true;
-    } catch (std::exception&) {
+    } catch (const std::exception&) {
         return false;
     }
 }
@@ -987,7 +987,7 @@ CQuorumCPtr CSigningManager::SelectQuorumForSigning(Consensus::LLMQType llmqType
 {
     size_t poolSize = GetLLMQParams(llmqType).signingActiveQuorumCount;
 
-    CBlockIndex* pindexStart;
+    const CBlockIndex* pindexStart;
     {
         LOCK(cs_main);
         if (signHeight == -1) {
