@@ -365,8 +365,8 @@ std::map<Consensus::LLMQType, QvvecSyncMode> CLLMQUtils::GetEnabledQuorumVvecSyn
         std::string strLLMQType, strMode, strTest;
         const bool fLLMQTypePresent = std::getline(ssEntry, strLLMQType, ':') && strLLMQType != "";
         const bool fModePresent = std::getline(ssEntry, strMode, ':') && strMode != "";
-        const bool fTooManyEntries = static_cast<bool>(std::getline(ssEntry, strTest, ':'));
-        if (!fLLMQTypePresent || !fModePresent || fTooManyEntries) {
+        if (const bool fTooManyEntries = static_cast<bool>(std::getline(ssEntry, strTest, ':'));
+                !fLLMQTypePresent || !fModePresent || fTooManyEntries) {
             throw std::invalid_argument(strprintf("Invalid format in -llmq-qvvec-sync: %s", strEntry));
         }
 
@@ -380,8 +380,7 @@ std::map<Consensus::LLMQType, QvvecSyncMode> CLLMQUtils::GetEnabledQuorumVvecSyn
             throw std::invalid_argument(strprintf("Duplicated llmqType in -llmq-qvvec-sync: %s", strEntry));
         }
 
-        int32_t nMode;
-        if (ParseInt32(strMode, &nMode)) {
+        if (int32_t nMode; ParseInt32(strMode, &nMode)) {
             switch (nMode) {
             case int32_t(QvvecSyncMode::Always):
                 mode = QvvecSyncMode::Always;
