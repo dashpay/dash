@@ -450,8 +450,8 @@ void CRecoveredSigsDb::CleanupOldRecoveredSigs(int64_t maxAge)
     CDBBatch batch(*db);
     {
         LOCK(cs);
-        for (const auto& e : toDelete) {
-            RemoveRecoveredSig(batch, e.first, e.second, true, false);
+        for (const auto& [type, hash] : toDelete) {
+            RemoveRecoveredSig(batch, type, hash, true, false);
 
             if (batch.SizeEstimate() >= (1 << 24)) {
                 db->WriteBatch(batch);
@@ -668,9 +668,7 @@ void CSigningManager::CollectPendingRecoveredSigsToVerify(
         }
     }
 
-    for (auto& p : retSigShares) {
-        NodeId nodeId = p.first;
-        auto& v = p.second;
+    for (auto& [nodeId, v] : retSigShares) {
 
         for (auto it = v.begin(); it != v.end();) {
             const auto& recSig = *it;
@@ -729,10 +727,7 @@ bool CSigningManager::ProcessPendingRecoveredSigs()
     CBLSBatchVerifier<NodeId, uint256> batchVerifier(false, false);
 
     size_t verifyCount = 0;
-    for (const auto& p : recSigsByNode) {
-        NodeId nodeId = p.first;
-        const auto& v = p.second;
-
+    for (const auto& [nodeId, v] : recSigsByNode) {
         for (const auto& recSig : v) {
             // we didn't verify the lazy signature until now
             if (!recSig->sig.Get().IsValid()) {
@@ -753,10 +748,7 @@ bool CSigningManager::ProcessPendingRecoveredSigs()
     LogPrint(BCLog::LLMQ, "CSigningManager::%s -- verified recovered sig(s). count=%d, vt=%d, nodes=%d\n", __func__, verifyCount, verifyTimer.count(), recSigsByNode.size());
 
     std::unordered_set<uint256, StaticSaltedHasher> processed;
-    for (const auto& p : recSigsByNode) {
-        NodeId nodeId = p.first;
-        const auto& v = p.second;
-
+    for (const auto& [nodeId, v] : recSigsByNode) {
         if (batchVerifier.badSources.count(nodeId)) {
             LogPrint(BCLog::LLMQ, "CSigningManager::%s -- invalid recSig from other node, banning peer=%d\n", __func__, nodeId);
             LOCK(cs_main);
