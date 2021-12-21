@@ -48,7 +48,7 @@ public:
     template<typename T>
     static uint256 BuildSignHash(const T& s)
     {
-        return BuildSignHash((Consensus::LLMQType)s.llmqType, s.quorumHash, s.id, s.msgHash);
+        return BuildSignHash(Consensus::LLMQType{s.llmqType}, s.quorumHash, s.id, s.msgHash);
     }
 
     static bool IsAllMembersConnectedEnabled(Consensus::LLMQType llmqType);
