@@ -295,6 +295,7 @@ CQuorumPtr CQuorumManager::BuildQuorumFromCommitment(const Consensus::LLMQType l
     uint256 minedBlockHash;
     CFinalCommitmentPtr qc = quorumBlockProcessor->GetMinedCommitment(llmqType, quorumHash, minedBlockHash);
     if (qc == nullptr) {
+        LogPrint(BCLog::LLMQ, "CQuorumManager::%s -- No mined commitment for llmqType[%d] nHeight[%d] quorumHash[%s]\n", __func__, static_cast<uint8_t>(llmqType), pQuorumBaseBlockIndex->nHeight, pQuorumBaseBlockIndex->GetBlockHash().ToString());
         return nullptr;
     }
     assert(qc->quorumHash == pQuorumBaseBlockIndex->GetBlockHash());
@@ -488,14 +489,20 @@ int CQuorumManager::GetQuorumIndexByQuorumHash(Consensus::LLMQType llmqType, con
 {
     LOCK(indexedQuorumsCacheCs);
 
+    const CBlockIndex* pQuorumBaseBlockIndex = WITH_LOCK(cs_main, return LookupBlockIndex(quorumHash));
+    assert(pQuorumBaseBlockIndex);
+    int expectedQuorumIndex = pQuorumBaseBlockIndex->nHeight % GetLLMQParams(llmqType).dkgInterval;
+
     auto& mapCache = indexedQuorumsCache[llmqType];
 
     int value;
 
     if (mapCache.get(quorumHash, value)) {
+        if (value != expectedQuorumIndex)
+            LogPrintf("GetQuorumIndexByQuorumHash h[%d] CACHED v[%d] expected[%d]\n", pQuorumBaseBlockIndex->nHeight, value, expectedQuorumIndex);
         return value;
     }
-
+    LogPrintf("GetQuorumIndexByQuorumHash h[%d] NOT FOUND->0 expected[%d]\n", pQuorumBaseBlockIndex->nHeight, expectedQuorumIndex);
     return 0;
 }
 

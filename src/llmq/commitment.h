@@ -154,9 +154,33 @@ public:
     CFinalCommitment commitment;
 
 public:
-    SERIALIZE_METHODS(CFinalCommitmentTxPayload, obj)
+    /*SERIALIZE_METHODS(CFinalCommitmentTxPayload, obj)
     {
         READWRITE(obj.nVersion, obj.nHeight, obj.commitment);
+    }*/
+
+    template <typename Stream, typename Operation>
+    inline void SerializationOpBase(Stream& s, Operation ser_action)
+    {
+        READWRITE(nVersion);
+    }
+
+    template <typename Stream>
+    void Serialize(Stream& s) const
+    {
+        const_cast<CFinalCommitmentTxPayload*>(this)->SerializationOpBase(s, CSerActionSerialize());
+
+        ::Serialize(s, nHeight);
+        ::Serialize(s, commitment);
+    }
+
+    template <typename Stream>
+    void Unserialize(Stream& s)
+    {
+        SerializationOpBase(s, CSerActionUnserialize());
+
+        ::Unserialize(s, nHeight);
+        ::Unserialize(s, commitment);
     }
 
     void ToJson(UniValue& obj) const
