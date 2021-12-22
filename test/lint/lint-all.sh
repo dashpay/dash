@@ -18,6 +18,16 @@ LINTALL=$(basename "${BASH_SOURCE[0]}")
 
 EXIT_CODE=0
 
+SCRIPTS=()
+
+for f in "${SCRIPTDIR}"/lint-*.sh; do
+  if [ "$(basename "$f")" != "$LINTALL" ]; then
+    SCRIPTS+=("$f")
+  fi
+done
+
+
+if ! parallel --help > /dev/null; then
 for f in "${SCRIPTDIR}"/lint-*.sh; do
   if [ "$(basename "$f")" != "$LINTALL" ]; then
     if ! "$f"; then
@@ -26,5 +36,9 @@ for f in "${SCRIPTDIR}"/lint-*.sh; do
     fi
   fi
 done
+elif ! parallel --jobs 100% bash ::: ${SCRIPTS[*]}; then
+    echo "^---- failure generated"
+    EXIT_CODE=1
+fi
 
 exit ${EXIT_CODE}
