@@ -240,6 +240,11 @@ public:
     }
     int64_t getKeysLeftSinceAutoBackup() override { return m_wallet->nKeysLeftSinceAutoBackup; }
     std::string getWalletName() override { return m_wallet->GetName(); }
+    util::Result<CTxDestination> getNewDestination(const OutputType type, const std::string& label) override
+    {
+        LOCK(m_wallet->cs_wallet);
+        return m_wallet->GetNewDestination(type, label);
+    }
     util::Result<CTxDestination> getNewDestination(const std::string& label) override
     {
         LOCK(m_wallet->cs_wallet);
@@ -813,6 +818,12 @@ public:
     bool canGetAddresses() override { return m_wallet->CanGetAddresses(); }
     bool hasExternalSigner() override { return m_wallet->IsWalletFlagSet(WALLET_FLAG_EXTERNAL_SIGNER); }
     bool privateKeysDisabled() override { return m_wallet->IsWalletFlagSet(WALLET_FLAG_DISABLE_PRIVATE_KEYS); }
+    bool taprootEnabled() override {
+        if (m_wallet->IsLegacy()) return false;
+        auto spk_man = m_wallet->GetScriptPubKeyMan(OutputType::TAPROOT, /*internal=*/false);
+        return spk_man != nullptr;
+    }
+    OutputType getDefaultAddressType() override { return m_wallet->m_default_address_type; }
     CAmount getDefaultMaxTxFee() override { return m_wallet->m_default_max_tx_fee; }
     void remove() override
     {

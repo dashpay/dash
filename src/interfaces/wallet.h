@@ -8,6 +8,7 @@
 #include <consensus/amount.h>          // For CAmount
 #include <governance/common.h>
 #include <interfaces/chain.h>          // For ChainClient
+#include <outputtype.h>
 #include <pubkey.h>                    // For CKeyID and CScriptID (definitions needed in CTxDestination instantiation)
 #include <script/standard.h>           // For CTxDestination
 #include <support/allocators/secure.h> // For SecureString
@@ -137,6 +138,7 @@ public:
 
     // Get a new address.
     virtual util::Result<CTxDestination> getNewDestination(const std::string& label) = 0;
+    virtual util::Result<CTxDestination> getNewDestination(const OutputType type, const std::string& label) = 0;
 
     //! Get public key.
     virtual bool getPubKey(const CScript& script, const CKeyID& address, CPubKey& pub_key) = 0;
@@ -389,6 +391,12 @@ public:
 
     // Return whether private keys enabled.
     virtual bool privateKeysDisabled() = 0;
+
+    // Return whether the wallet contains a Taproot scriptPubKeyMan
+    virtual bool taprootEnabled() = 0;
+
+    // Return the address type the wallet hands out by default
+    virtual OutputType getDefaultAddressType() = 0;
 
     // Return whether wallet uses an external signer.
     virtual bool hasExternalSigner() = 0;
