@@ -127,7 +127,10 @@ std::vector<std::vector<CDeterministicMNCPtr>> CLLMQUtils::ComputeQuorumMembersB
     const CBlockIndex* pBlockHMinus2CIndex = pQuorumBaseBlockIndex->GetAncestor(pQuorumBaseBlockIndex->nHeight - 2 * cycleLength);
     const CBlockIndex* pBlockHMinus3CIndex = pQuorumBaseBlockIndex->GetAncestor(pQuorumBaseBlockIndex->nHeight - 3 * cycleLength);
 
+    LogPrintf("CLLMQUtils::ComputeQuorumMembersByQuarterRotation llmqType[%d] nHeight[%d]\n", static_cast<int>(llmqType), pQuorumBaseBlockIndex->nHeight);
+
     PreviousQuorumQuarters previousQuarters = GetPreviousQuorumQuarterMembers(llmqParams, pBlockHMinusCIndex, pBlockHMinus2CIndex, pBlockHMinus3CIndex, pQuorumBaseBlockIndex->nHeight);
+
 
     //TODO Rewrite this part
     //Last quorum DKG has failed. Returning and caching the last quorum members
@@ -147,6 +150,29 @@ std::vector<std::vector<CDeterministicMNCPtr>> CLLMQUtils::ComputeQuorumMembersB
     //assert (!newQuarterMembers.empty());
 
     for (auto i : boost::irange(0, llmqParams.signingActiveQuorumCount)) {
+        std::stringstream ss;
+
+        ss << " 3Cmns[";
+        for (auto& m : previousQuarters.quarterHMinus3C[i]) {
+            ss << m->proTxHash.ToString().substr(0, 4) << " | ";
+        }
+        ss << " ] 2Cmns[";
+        for (auto& m : previousQuarters.quarterHMinus2C[i]) {
+            ss << m->proTxHash.ToString().substr(0, 4) << " | ";
+        }
+        ss << " ] 2Cmns[";
+        for (auto& m : previousQuarters.quarterHMinusC[i]) {
+            ss << m->proTxHash.ToString().substr(0, 4) << " | ";
+        }
+        ss << " ] mew[";
+        for (auto& m : newQuarterMembers[i]) {
+            ss << m->proTxHash.ToString().substr(0, 4) << " | ";
+        }
+        ss << " ]";
+        LogPrintf("QuarterComposition h[%d] i[%d]:%s\n", pQuorumBaseBlockIndex->nHeight, i, ss.str());
+    }
+
+    for (auto i : boost::irange(0, llmqParams.signingActiveQuorumCount)) {
         for (auto& m : previousQuarters.quarterHMinus3C[i]) {
             quorumMembers[i].push_back(std::move(m));
         }
@@ -159,6 +185,14 @@ std::vector<std::vector<CDeterministicMNCPtr>> CLLMQUtils::ComputeQuorumMembersB
         for (auto& m : newQuarterMembers[i]) {
             quorumMembers[i].push_back(std::move(m));
         }
+
+        std::stringstream ss;
+        ss << " [";
+        for (auto& m : quorumMembers[i]) {
+            ss << m->proTxHash.ToString().substr(0, 4) << " | ";
+        }
+        ss << "]";
+        LogPrintf("QuorumComposition h[%d] i[%d]:%s\n", pQuorumBaseBlockIndex->nHeight, i, ss.str());
     }
 
     return quorumMembers;

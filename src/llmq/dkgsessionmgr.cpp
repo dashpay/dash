@@ -193,6 +193,7 @@ void CDKGSessionManager::ProcessMessage(CNode* pfrom, const std::string& strComm
 
     if (!dkgSessionHandlers.count(std::make_pair(llmqType, quorumIndex))) {
         LOCK(cs_main);
+        LogPrintf("CDKGSessionManager dkgSessionHandlers NOT FOUND qi[%d]\n", quorumIndex);
         Misbehaving(pfrom->GetId(), 100);
         return;
     }
