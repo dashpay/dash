@@ -2307,9 +2307,12 @@ bool CChainState::ConnectBlock(const CBlock& block, CValidationState& state, CBl
                 continue;
             }
             if (llmq::chainLocksHandler->HasChainLock(pindex->nHeight, pindex->GetBlockHash())) {
-                LogPrint(BCLog::ALL, "ConnectBlock(DASH): chain-locked transaction %s overrides islock %s\n", tx->GetHash().ToString(), ::SerializeHash(*conflictLock).ToString());
-                llmq::quorumInstantSendManager->RemoveConflictingLock(::SerializeHash(*conflictLock), *conflictLock);
-                assert(llmq::quorumInstantSendManager->GetConflictingLock(*tx) == nullptr);
+                // There might be multiple conflicting locks, drop them all
+                do {
+                    LogPrint(BCLog::ALL, "ConnectBlock(DASH): chain-locked transaction %s overrides islock %s\n", tx->GetHash().ToString(), ::SerializeHash(*conflictLock).ToString());
+                    llmq::quorumInstantSendManager->RemoveConflictingLock(::SerializeHash(*conflictLock), *conflictLock);
+                    conflictLock = llmq::quorumInstantSendManager->GetConflictingLock(*tx);
+                } while (conflictLock);
             } else {
                 // The node which relayed this should switch to correct chain.
                 // TODO: relay instantsend data/proof.
