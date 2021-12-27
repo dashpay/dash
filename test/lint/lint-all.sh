@@ -36,10 +36,11 @@ else
     fi
   done
 
-  if ! parallel --jobs 100% bash ::: "${SCRIPTS[@]}"; then
+  if ! parallel --jobs 100% --will-cite --joblog parallel_out.log bash ::: "${SCRIPTS[@]}"; then
     echo "^---- failure generated"
     EXIT_CODE=1
   fi
+  column -t parallel_out.log && rm parallel_out.log
 fi
 
 exit ${EXIT_CODE}
