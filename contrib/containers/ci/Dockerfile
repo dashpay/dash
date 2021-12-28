@@ -5,26 +5,17 @@ ENV DEBIAN_FRONTEND="noninteractive" TZ="Europe/London"
 
 # Build and base stuff
 # (zlib1g-dev and libssl-dev are needed for the Qt host binary builds, but should not be used by target binaries)
-# We split this up into multiple RUN lines as we might need to retry multiple times on Travis. This way we allow better
-# cache usage.
 ENV APT_ARGS="-y --no-install-recommends --no-upgrade"
-RUN apt-get update && apt-get install $APT_ARGS build-essential git wget unzip && rm -rf /var/lib/apt/lists/*
-RUN apt-get update && apt-get install $APT_ARGS g++ && rm -rf /var/lib/apt/lists/*
-RUN apt-get update && apt-get install $APT_ARGS autotools-dev libtool m4 automake autoconf pkg-config && rm -rf /var/lib/apt/lists/*
-RUN apt-get update && apt-get install $APT_ARGS zlib1g-dev libssl-dev curl ccache bsdmainutils cmake && rm -rf /var/lib/apt/lists/*
-RUN apt-get update && apt-get install $APT_ARGS python3 python3-dev && rm -rf /var/lib/apt/lists/*
-RUN apt-get update && apt-get install $APT_ARGS python3-pip python3-setuptools && rm -rf /var/lib/apt/lists/*
+RUN dpkg --add-architecture i386
+RUN apt-get update && apt-get install $APT_ARGS build-essential git wget unzip g++ autotools-dev libtool m4 automake \
+                                                autoconf pkg-config zlib1g-dev libssl-dev curl ccache bsdmainutils   \
+                                                cmake python3 python3-dev python3-pip python3-setuptools;
 
 # Python stuff
-RUN pip3 install pyzmq # really needed?
-RUN pip3 install jinja2
-RUN pip3 install flake8==3.8.3
-RUN pip3 install codespell==1.17.1
-RUN pip3 install vulture==2.3
-RUN pip3 install yq
+RUN pip3 install pyzmq jinja2 flake8==3.8.3 codespell==1.17.1 vulture==2.3 yq # really needed?
 
 # dash_hash
-RUN git clone https://github.com/dashpay/dash_hash
+RUN git clone --depth 1 --no-tags https://github.com/dashpay/dash_hash
 RUN cd dash_hash && python3 setup.py install
 
 ARG USER_ID=1000
@@ -37,14 +28,11 @@ RUN groupadd -g ${GROUP_ID} dash
 RUN useradd -u ${USER_ID} -g dash -s /bin/bash -m -d /dash dash
 
 # Packages needed for all target builds
-RUN dpkg --add-architecture i386
-RUN apt-get update && apt-get install $APT_ARGS g++-9-multilib && rm -rf /var/lib/apt/lists/*
-RUN apt-get update && apt-get install $APT_ARGS g++-arm-linux-gnueabihf && rm -rf /var/lib/apt/lists/*
-RUN apt-get update && apt-get install $APT_ARGS g++-mingw-w64-x86-64 && rm -rf /var/lib/apt/lists/*
-RUN apt-get update && apt-get install $APT_ARGS wine-stable wine32 wine64 bc nsis xorriso libncurses5 && rm -rf /var/lib/apt/lists/*
-RUN apt-get update && apt-get install $APT_ARGS python3-zmq && rm -rf /var/lib/apt/lists/*
-RUN apt-get update && apt-get install $APT_ARGS gawk jq parallel && rm -rf /var/lib/apt/lists/*
-RUN apt-get update && apt-get install $APT_ARGS imagemagick libcap-dev librsvg2-bin libz-dev libbz2-dev libtiff-tools && rm -rf /var/lib/apt/lists/*
+RUN apt-get update && apt-get install $APT_ARGS g++-9-multilib g++-arm-linux-gnueabihf g++-mingw-w64-x86-64       \
+                                                wine-stable wine32 wine64 bc nsis xorriso libncurses5 python3-zmq \
+                                                gawk jq parallel imagemagick libcap-dev librsvg2-bin libz-dev libbz2-dev   \
+                                                libtiff-tools                                                     \
+    && rm -rf /var/lib/apt/lists/*;
 
 ARG CPPCHECK_VERSION=2.4
 RUN curl -sL "https://github.com/danmar/cppcheck/archive/${CPPCHECK_VERSION}.tar.gz" | tar -xvzf - --directory /tmp/
