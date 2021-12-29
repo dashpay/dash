@@ -9,7 +9,6 @@ permissions:
   checks: none
   deployments: none
   issues: none
-  #metadata: read
   packages: none
   repository-projects: none
   security-events: none
