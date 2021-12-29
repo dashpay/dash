@@ -12,7 +12,7 @@ RUN apt-get update && apt-get install $APT_ARGS build-essential git wget unzip g
                                                 cmake python3 python3-dev python3-pip python3-setuptools;
 
 # Python stuff
-RUN pip3 install pyzmq jinja2 flake8==3.8.3 codespell==1.17.1 vulture==2.3 yq # really needed?
+RUN pip3 install pyzmq jinja2 flake8==3.8.3 codespell==1.17.1 vulture==2.3 yq
 
 # dash_hash
 RUN git clone --depth 1 --no-tags https://github.com/dashpay/dash_hash
