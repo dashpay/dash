@@ -84,10 +84,11 @@ public:
     uint32_t baseBlockHashesNb;
     std::vector<uint256> baseBlockHashes;
     uint256 blockRequestHash;
+    bool extraShare;
 
     SERIALIZE_METHODS(CGetQuorumRotationInfo, obj)
     {
-        READWRITE(obj.baseBlockHashesNb, obj.baseBlockHashes, obj.blockRequestHash);
+        READWRITE(obj.baseBlockHashesNb, obj.baseBlockHashes, obj.blockRequestHash, obj.extraShare);
     }
 };
 
@@ -102,21 +103,98 @@ public:
     CQuorumSnapshot quorumSnapshotAtHMinusC;
     CQuorumSnapshot quorumSnapshotAtHMinus2C;
     CQuorumSnapshot quorumSnapshotAtHMinus3C;
+
     CSimplifiedMNListDiff mnListDiffTip;
+    CSimplifiedMNListDiff mnListDiffH;
     CSimplifiedMNListDiff mnListDiffAtHMinusC;
     CSimplifiedMNListDiff mnListDiffAtHMinus2C;
     CSimplifiedMNListDiff mnListDiffAtHMinus3C;
 
-    SERIALIZE_METHODS(CQuorumRotationInfo, obj)
+    bool extraShare;
+    std::optional<CQuorumSnapshot> quorumSnapshotAtHMinus4C;
+    std::optional<CSimplifiedMNListDiff> mnListDiffAtHMinus4C;
+
+    std::vector<uint256> blockHashList;
+    std::vector<CQuorumSnapshot> quorumSnapshotList;
+    std::vector<CSimplifiedMNListDiff> mnListDiffList;
+
+    template <typename Stream, typename Operation>
+    inline void SerializationOpBase(Stream& s, Operation ser_action)
     {
-        READWRITE(obj.creationHeight,
-                  obj.quorumSnapshotAtHMinusC,
-                  obj.quorumSnapshotAtHMinus2C,
-                  obj.quorumSnapshotAtHMinus3C,
-                  obj.mnListDiffTip,
-                  obj.mnListDiffAtHMinusC,
-                  obj.mnListDiffAtHMinus2C,
-                  obj.mnListDiffAtHMinus3C);
+        READWRITE(creationHeight,
+                  quorumSnapshotAtHMinusC,
+                  quorumSnapshotAtHMinus2C,
+                  quorumSnapshotAtHMinus3C,
+                  mnListDiffTip,
+                  mnListDiffH,
+                  mnListDiffAtHMinusC,
+                  mnListDiffAtHMinus2C,
+                  mnListDiffAtHMinus3C,
+                  extraShare);
+    }
+
+    template <typename Stream>
+    void Serialize(Stream& s) const
+    {
+        const_cast<CQuorumRotationInfo*>(this)->SerializationOpBase(s, CSerActionSerialize());
+
+        if (extraShare && quorumSnapshotAtHMinus4C.has_value()) {
+            ::Serialize(s, quorumSnapshotAtHMinus4C.value());
+        }
+
+        if (extraShare && mnListDiffAtHMinus4C.has_value()) {
+            ::Serialize(s, mnListDiffAtHMinus4C.value());
+        }
+
+        WriteCompactSize(s, blockHashList.size());
+        for (const auto& obj : blockHashList) {
+            ::Serialize(s, obj);
+        }
+
+        WriteCompactSize(s, quorumSnapshotList.size());
+        for (const auto& obj : quorumSnapshotList) {
+            ::Serialize(s, obj);
+        }
+
+        WriteCompactSize(s, mnListDiffList.size());
+        for (const auto& obj : mnListDiffList) {
+            ::Serialize(s, obj);
+        }
+    }
+
+    template <typename Stream>
+    void Unserialize(Stream& s)
+    {
+        SerializationOpBase(s, CSerActionUnserialize());
+
+        if (extraShare && quorumSnapshotAtHMinus4C.has_value()) {
+            ::Unserialize(s, quorumSnapshotAtHMinus4C.value());
+        }
+
+        if (extraShare && mnListDiffAtHMinus4C.has_value()) {
+            ::Unserialize(s, mnListDiffAtHMinus4C.value());
+        }
+
+        size_t cnt = ReadCompactSize(s);
+        for (size_t i = 0; i < cnt; i++) {
+            uint256 hash;
+            ::Unserialize(s, hash);
+            blockHashList.push_back(std::move(hash));
+        }
+
+        cnt = ReadCompactSize(s);
+        for (size_t i = 0; i < cnt; i++) {
+            CQuorumSnapshot snap;
+            ::Unserialize(s, snap);
+            quorumSnapshotList.push_back(std::move(snap));
+        }
+
+        cnt = ReadCompactSize(s);
+        for (size_t i = 0; i < cnt; i++) {
+            CSimplifiedMNListDiff mnlist;
+            ::Unserialize(s, mnlist);
+            mnListDiffList.push_back(std::move(mnlist));
+        }
     }
 
     CQuorumRotationInfo() = default;

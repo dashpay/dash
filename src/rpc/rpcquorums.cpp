@@ -653,7 +653,8 @@ static void quorum_getrotationinfo_help()
             "Get quorum rotation information\n",
             {{"blockRequestHash", RPCArg::Type::STR_HEX, RPCArg::Optional::NO, "The blockHash of the request."},
              {"baseBlockHashesNb", RPCArg::Type::NUM, RPCArg::Optional::NO,
-              "Number of baseBlockHashes"}},
+              "Number of baseBlockHashes"},
+             {"extraShare", RPCArg::Type::BOOL, RPCArg::Optional::NO, "Extra share"}},
             RPCResults{},
             RPCExamples{""},
         }
@@ -672,13 +673,14 @@ static UniValue quorum_getrotationdata(const JSONRPCRequest& request)
 
     cmd.blockRequestHash = ParseHashV(request.params[1], "blockRequestHash");
     cmd.baseBlockHashesNb = static_cast<uint32_t>(ParseInt32V(request.params[2], "baseBlockHashesNb"));
+    cmd.extraShare = ParseBoolV(request.params[3], "extraShare");
 
     /*if (request.params.size() - 2 != cmd.baseBlockHashesNb) {
         quorum_getrotationinfo_help();
     }*/
 
     for (auto i = 0; i < cmd.baseBlockHashesNb; i++) {
-        cmd.baseBlockHashes.push_back(ParseHashV(request.params[2 + i], "quorumHash"));
+        cmd.baseBlockHashes.push_back(ParseHashV(request.params[3 + i], "quorumHash"));
     }
     LOCK(cs_main);
     if (!BuildQuorumRotationInfo(cmd, quorumRotationInfoRet, strError)) {
