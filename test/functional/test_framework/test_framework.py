@@ -1376,21 +1376,13 @@ class DashTestFramework(BitcoinTestFramework):
 
         self.move_blocks(nodes, 1)
 
-        self.log.info("quorumIndex 0: Waiting for phase 6 (mining)")
+        self.log.info("quorumIndex 0: Waiting for phase 6 (finalization)")
         self.wait_for_quorum_phase(q_0, 6, expected_members, None, 0, mninfos_online)
-        #time.sleep(2)
-        self.log.info("quorumIndex 0: Waiting final commitment")
-        #time.sleep(2)
-        self.wait_for_quorum_commitment(q_0, nodes)
 
         self.move_blocks(nodes, 1)
 
-        self.log.info("quorumIndex 1: Waiting for phase 6 (mining)")
+        self.log.info("quorumIndex 1: Waiting for phase 6 (finalization)")
         self.wait_for_quorum_phase(q_1, 6, expected_members, None, 0, mninfos_online)
-        #time.sleep(2)
-        self.log.info("quorumIndex 1: Waiting final commitment")
-        #time.sleep(2)
-        self.wait_for_quorum_commitment(q_1, nodes)
 
         self.log.info("Mining final commitments")
         self.bump_mocktime(1, nodes=nodes)
@@ -1399,13 +1391,13 @@ class DashTestFramework(BitcoinTestFramework):
         sync_blocks(nodes)
 
         self.log.info("Waiting for quorum(s) to appear in the list")
+        time.sleep(2)
         self.wait_for_quorum_list(q_0, nodes)
         self.wait_for_quorum_list(q_1, nodes)
 
         new_quorum_0 = self.nodes[0].quorum("list")["llmq_test"][1]
         new_quorum_1 = self.nodes[0].quorum("list")["llmq_test"][0]
-        assert_equal(q_0, new_quorum_0)
-        assert_equal(q_1, new_quorum_1)
+
         quorum_info_0 = self.nodes[0].quorum("info", 100, new_quorum_0)
         quorum_info_1 = self.nodes[0].quorum("info", 100, new_quorum_1)
         # Mine 8 (SIGN_HEIGHT_OFFSET) more blocks to make sure that the new quorum gets eligible for signing sessions
@@ -1414,6 +1406,9 @@ class DashTestFramework(BitcoinTestFramework):
         sync_blocks(nodes)
         self.log.info("New quorum: height=%d, quorumHash=%s, quorumIndex=%d, minedBlock=%s" % (quorum_info_0["height"], new_quorum_0, quorum_info_0["quorumIndex"], quorum_info_0["minedBlock"]))
         self.log.info("New quorum: height=%d, quorumHash=%s, quorumIndex=%d, minedBlock=%s" % (quorum_info_1["height"], new_quorum_1, quorum_info_1["quorumIndex"], quorum_info_1["minedBlock"]))
+
+        self.log.info("quorum_info_0:"+str(quorum_info_0))
+        self.log.info("quorum_info_1:"+str(quorum_info_1))
 
         return (quorum_info_0, quorum_info_1)
 

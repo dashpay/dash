@@ -46,6 +46,7 @@ void CQuorumSnapshot::ToJson(UniValue& obj) const
 void CQuorumRotationInfo::ToJson(UniValue& obj) const
 {
     obj.setObject();
+    obj.pushKV("extraShare", extraShare);
     obj.pushKV("creationHeight", creationHeight);
 
     UniValue objc;
@@ -60,9 +61,19 @@ void CQuorumRotationInfo::ToJson(UniValue& obj) const
     quorumSnapshotAtHMinus3C.ToJson(obj3c);
     obj.pushKV("quorumSnapshotAtHMinus3C", obj3c);
 
+    if (extraShare && quorumSnapshotAtHMinus4C.has_value()) {
+        UniValue obj4c;
+        quorumSnapshotAtHMinus4C.value().ToJson(obj4c);
+        obj.pushKV("quorumSnapshotAtHMinus4C", obj4c);
+    }
+
     UniValue objdifftip;
     mnListDiffTip.ToJson(objdifftip);
     obj.pushKV("mnListDiffTip", objdifftip);
+
+    UniValue objdiffh;
+    mnListDiffH.ToJson(objdiffh);
+    obj.pushKV("mnListDiffH", objdiffh);
 
     UniValue objdiffc;
     mnListDiffAtHMinusC.ToJson(objdiffc);
@@ -75,6 +86,36 @@ void CQuorumRotationInfo::ToJson(UniValue& obj) const
     UniValue objdiff3c;
     mnListDiffAtHMinus3C.ToJson(objdiff3c);
     obj.pushKV("mnListDiffAtHMinus3C", objdiff3c);
+
+    if (extraShare && mnListDiffAtHMinus4C.has_value()) {
+        UniValue objdiff4c;
+        mnListDiffAtHMinus4C.value().ToJson(objdiff4c);
+        obj.pushKV("mnListDiffAtHMinus4C", objdiff4c);
+    }
+
+    UniValue hlists(UniValue::VARR);
+    for (const auto& h : blockHashList) {
+        hlists.push_back(h.ToString());
+    }
+    obj.pushKV("blockHashList", hlists);
+
+    UniValue snapshotlist(UniValue::VARR);
+    for (const auto& snap : quorumSnapshotList) {
+        UniValue o;
+        o.setObject();
+        snap.ToJson(o);
+        snapshotlist.push_back(o);
+    }
+    obj.pushKV("quorumSnapshotList", snapshotlist);
+
+    UniValue mnlistdifflist(UniValue::VARR);
+    for (const auto& mnlist : mnListDiffList) {
+        UniValue o;
+        o.setObject();
+        mnlist.ToJson(o);
+        mnlistdifflist.push_back(o);
+    }
+    obj.pushKV("mnListDiffList", mnlistdifflist);
 }
 
 bool BuildQuorumRotationInfo(const CGetQuorumRotationInfo& request, CQuorumRotationInfo& response, std::string& errorRet)
@@ -142,6 +183,11 @@ bool BuildQuorumRotationInfo(const CGetQuorumRotationInfo& request, CQuorumRotat
         errorRet = strprintf("Can not find block H");
         return false;
     }
+
+    //Build MN list Diff always with highest baseblock
+    if (!BuildSimplifiedMNListDiff(GetLastBaseBlockHash(baseBlockIndexes, hBlockIndex), hBlockIndex->GetBlockHash(), response.mnListDiffH, errorRet)) {
+        return false;
+    }
     response.creationHeight = hBlockIndex->nHeight;
 
     const CBlockIndex* pBlockHMinusCIndex = tipBlockIndex->GetAncestor(hBlockIndex->nHeight - cycleLength);
@@ -160,6 +206,9 @@ bool BuildQuorumRotationInfo(const CGetQuorumRotationInfo& request, CQuorumRotat
         errorRet = strprintf("Can not find block H-3C");
         return false;
     }
+
+    const CBlockIndex* pBlockHMinus4CIndex = pBlockHMinusCIndex->GetAncestor(hBlockIndex->nHeight - 4 * cycleLength);
+    //Checked later if extraShare is on
 
     if (!BuildSimplifiedMNListDiff(GetLastBaseBlockHash(baseBlockIndexes, pBlockHMinusCIndex), pBlockHMinusCIndex->GetBlockHash(), response.mnListDiffAtHMinusC, errorRet)) {
         return false;
@@ -195,6 +244,76 @@ bool BuildQuorumRotationInfo(const CGetQuorumRotationInfo& request, CQuorumRotat
         return false;
     } else {
         response.quorumSnapshotAtHMinus3C = std::move(snapshotHMinus3C.value());
+    }
+
+    if (request.extraShare) {
+        response.extraShare = true;
+
+        if (!pBlockHMinus4CIndex) {
+            errorRet = strprintf("Can not find block H-4C");
+            return false;
+        }
+
+        auto snapshotHMinus4C = quorumSnapshotManager->GetSnapshotForBlock(llmqType, pBlockHMinus4CIndex);
+        if (!snapshotHMinus4C.has_value()) {
+            errorRet = strprintf("Can not find quorum snapshot at H-4C");
+            return false;
+        } else {
+            response.quorumSnapshotAtHMinus4C = std::move(snapshotHMinus4C);
+        }
+
+        CSimplifiedMNListDiff mn4c;
+        if (!BuildSimplifiedMNListDiff(GetLastBaseBlockHash(baseBlockIndexes, pBlockHMinus4CIndex), pBlockHMinus4CIndex->GetBlockHash(), mn4c, errorRet)) {
+            return false;
+        }
+
+        response.mnListDiffAtHMinus4C = std::move(mn4c);
+    } else {
+        response.extraShare = false;
+        response.quorumSnapshotAtHMinus4C = std::nullopt;
+        response.mnListDiffAtHMinus4C = std::nullopt;
+    }
+
+    std::set<int> snapshotHeightsNeeded;
+
+    std::vector<std::pair<int, const CBlockIndex*>> qdata = quorumBlockProcessor->GetLastMinedCommitmentsPerQuorumIndexUntilBlock(llmqType, blockIndex, 0);
+
+    for (const auto& obj : qdata) {
+        response.blockHashList.push_back(obj.second->GetBlockHash());
+
+        int quorumCycleStartHeight = obj.second->nHeight - (obj.second->nHeight % llmqParams.dkgInterval);
+        snapshotHeightsNeeded.insert(quorumCycleStartHeight - cycleLength);
+        snapshotHeightsNeeded.insert(quorumCycleStartHeight - 2 * cycleLength);
+        snapshotHeightsNeeded.insert(quorumCycleStartHeight - 3 * cycleLength);
+    }
+
+    snapshotHeightsNeeded.erase(pBlockHMinusCIndex->nHeight);
+    snapshotHeightsNeeded.erase(pBlockHMinus2CIndex->nHeight);
+    snapshotHeightsNeeded.erase(pBlockHMinus3CIndex->nHeight);
+    if (request.extraShare)
+        snapshotHeightsNeeded.erase(pBlockHMinus4CIndex->nHeight);
+
+    for (const auto& h : snapshotHeightsNeeded) {
+        const CBlockIndex* hNeededBlockIndex = tipBlockIndex->GetAncestor(h);
+        if (!hNeededBlockIndex) {
+            errorRet = strprintf("Can not find needed block H(%d)", h);
+            return false;
+        }
+
+        auto snapshotNeededH = quorumSnapshotManager->GetSnapshotForBlock(llmqType, hNeededBlockIndex);
+        if (!snapshotNeededH.has_value()) {
+            errorRet = strprintf("Can not find quorum snapshot at H(%d)", h);
+            return false;
+        } else {
+            response.quorumSnapshotList.push_back(snapshotNeededH.value());
+        }
+
+        CSimplifiedMNListDiff mnhneeded;
+        if (!BuildSimplifiedMNListDiff(GetLastBaseBlockHash(baseBlockIndexes, hNeededBlockIndex), hNeededBlockIndex->GetBlockHash(), mnhneeded, errorRet)) {
+            return false;
+        }
+
+        response.mnListDiffList.push_back(mnhneeded);
     }
 
     return true;
