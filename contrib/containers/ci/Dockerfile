@@ -7,36 +7,37 @@ ENV DEBIAN_FRONTEND="noninteractive" TZ="Europe/London"
 # (zlib1g-dev and libssl-dev are needed for the Qt host binary builds, but should not be used by target binaries)
 ENV APT_ARGS="-y --no-install-recommends --no-upgrade"
 RUN dpkg --add-architecture i386
-RUN apt-get update && apt-get install $APT_ARGS 
-    build-essential \
-    git \
-    wget \
-    unzip \
-    g++ \
+RUN apt-get update && apt-get install $APT_ARGS \
     autotools-dev \
-    libtool \
-    m4 \
     automake \
     autoconf \
-    pkg-config \
-    zlib1g-dev \
-    libssl-dev \
+    build-essential \
+    bsdmainutils \
     curl \
     ccache \
-    bsdmainutils \
     cmake \
+    git \
+    g++ \
+    wget \
+    unzip \
+    libtool \
+    libssl-dev \
+    m4 \
+    pkg-config \
     python3 \
     python3-dev \
     python3-pip \
-    python3-setuptools
+    python3-setuptools \
+    zlib1g-dev
 
 # Python stuff
 RUN pip3 install \
-    pyzmq \
-    jinja2 \
-    flake8==3.8.3 \
     codespell==1.17.1 \
-    vulture==2.3 yq
+    flake8==3.8.3 \
+    jinja2 \
+    pyzmq \
+    vulture==2.3 \
+    yq
 
 # dash_hash
 RUN git clone --depth 1 --no-tags https://github.com/dashpay/dash_hash
@@ -53,26 +54,26 @@ RUN useradd -u ${USER_ID} -g dash -s /bin/bash -m -d /dash dash
 
 # Packages needed for all target builds
 RUN apt-get update && apt-get install $APT_ARGS \
+    bc \
+    gawk \
     g++-9-multilib \
     g++-arm-linux-gnueabihf \
     g++-mingw-w64-x86-64 \
-    wine-stable \
-    wine32 \
-    wine64 \
-    bc \
-    nsis \
-    xorriso \
-    libncurses5 \
-    python3-zmq \
-    gawk \
-    jq \
-    parallel \
     imagemagick \
+    jq \
     libcap-dev \
     librsvg2-bin \
     libz-dev \
     libbz2-dev \
     libtiff-tools \
+    libncurses5 \
+    nsis \
+    python3-zmq \
+    parallel \
+    wine-stable \
+    wine32 \
+    wine64 \
+    xorriso \
     && rm -rf /var/lib/apt/lists/*
 
 ARG CPPCHECK_VERSION=2.4
