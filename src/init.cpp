@@ -2264,7 +2264,6 @@ bool AppInitMain(InitInterfaces& interfaces)
     // ********************************************************* Step 10b: setup CoinJoin
 
     g_wallet_init_interface.InitCoinJoinSettings();
-    CCoinJoin::InitStandardDenominations();
 
     // ********************************************************* Step 10b: Load cache data
 
