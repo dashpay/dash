@@ -421,12 +421,11 @@ private:
     static void CheckDSTXes(const CBlockIndex* pindex);
 
 public:
-    static void InitStandardDenominations();
     static constexpr std::array<CAmount, 5> GetStandardDenominations() { return vecStandardDenominations; }
     static constexpr CAmount GetSmallestDenomination() { return vecStandardDenominations.back(); }
 
     static constexpr bool IsDenominatedAmount(CAmount nInputAmount) { return AmountToDenomination(nInputAmount) > 0; }
-    static constexpr bool IsValidDenomination(int nDenom) { return DenominationToAmount(nDenom) > 0; };
+    static constexpr bool IsValidDenomination(int nDenom) { return DenominationToAmount(nDenom) > 0; }
 
     /*
         Return a bitshifted integer representing a denomination in vecStandardDenominations
@@ -440,7 +439,7 @@ public:
             }
         }
         return 0;
-    };
+    }
 
     /*
         Returns:

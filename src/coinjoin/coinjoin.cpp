@@ -302,10 +302,6 @@ bool CCoinJoinBaseSession::IsValidInOuts(const std::vector<CTxIn>& vin, const st
 CCriticalSection CCoinJoin::cs_mapdstx;
 std::map<uint256, CCoinJoinBroadcastTx> CCoinJoin::mapDSTX GUARDED_BY(CCoinJoin::cs_mapdstx);
 
-void CCoinJoin::InitStandardDenominations()
-{
-}
-
 // check to make sure the collateral provided by the client is valid
 bool CCoinJoin::IsCollateralValid(const CTransaction& txCollateral)
 {
