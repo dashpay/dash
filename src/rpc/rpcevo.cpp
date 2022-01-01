@@ -1049,7 +1049,7 @@ static UniValue protx_list(const JSONRPCRequest& request)
         }
 
         CDeterministicMNList mnList = deterministicMNManager->GetListForBlock(::ChainActive()[height]);
-        mnList.ForEachMN(false, [&](auto& dmn) {
+        mnList.ForEachMN(false, [&](const auto& dmn) {
             if (setOutpts.count(dmn.collateralOutpoint) ||
                 CheckWalletOwnsKey(pwallet, dmn.pdmnState->keyIDOwner) ||
                 CheckWalletOwnsKey(pwallet, dmn.pdmnState->keyIDVoting) ||
@@ -1075,7 +1075,7 @@ static UniValue protx_list(const JSONRPCRequest& request)
 
         CDeterministicMNList mnList = deterministicMNManager->GetListForBlock(::ChainActive()[height]);
         bool onlyValid = type == "valid";
-        mnList.ForEachMN(onlyValid, [&](auto& dmn) {
+        mnList.ForEachMN(onlyValid, [&](const auto& dmn) {
             ret.push_back(BuildDMNListEntry(pwallet, dmn, detailed));
         });
     } else {
