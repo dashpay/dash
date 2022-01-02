@@ -26,6 +26,9 @@ Proposal::Proposal(const CGovernanceObject* p, QObject* parent) :
     QObject(parent),
     pGovObj(p)
 {
+    //current date is handled with attribute for making tests possible
+    m_currentDate = QDateTime::currentDateTime();
+
     UniValue prop_data;
     if (prop_data.read(pGovObj->GetDataAsPlainString())) {
         if (UniValue titleValue = find_value(prop_data, "name"); titleValue.isStr()) {
@@ -58,14 +61,14 @@ QDateTime Proposal::startDate() const { return m_startDate; }
 
 QDateTime Proposal::endDate() const { return m_endDate; }
 
+QDateTime Proposal::currentDate() const { return m_currentDate; }
+
 int Proposal::paymentRemaining() const
 {
-    int numOfBlocks = Params().GetConsensus().nSuperblockCycle;
     long remainingInSecs = endDate().toSecsSinceEpoch() - QDateTime::currentSecsSinceEpoch();
     int remainingInDays = remainingInSecs / Params().GetConsensus().nPowTargetTimespan;
     float remainingCycle = remainingInDays / CYCLE_IN_DAYS;
-    int remainingBlocks = remainingCycle * numOfBlocks;
-    return remainingBlocks;
+    return round(remainingCycle);
 }
 
 float Proposal::paymentAmount() const { return m_paymentAmount; }

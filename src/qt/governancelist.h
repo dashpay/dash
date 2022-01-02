@@ -27,11 +27,13 @@ class Proposal : public QObject
 {
 private:
     Q_OBJECT
+    friend class ProposalTests;
 
     const CGovernanceObject* pGovObj;
     QString m_title;
     QDateTime m_startDate;
     QDateTime m_endDate;
+    QDateTime m_currentDate;
     float m_paymentAmount;
     QString m_url;
 
@@ -41,6 +43,7 @@ public:
     QString hash() const;
     QDateTime startDate() const;
     QDateTime endDate() const;
+    QDateTime currentDate() const;
     int paymentRemaining() const;
     float paymentAmount() const;
     QString url() const;
