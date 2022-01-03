@@ -99,7 +99,6 @@ public:
 class CQuorumRotationInfo
 {
 public:
-    int creationHeight = 0;
     CQuorumSnapshot quorumSnapshotAtHMinusC;
     CQuorumSnapshot quorumSnapshotAtHMinus2C;
     CQuorumSnapshot quorumSnapshotAtHMinus3C;
@@ -121,8 +120,7 @@ public:
     template <typename Stream, typename Operation>
     inline void SerializationOpBase(Stream& s, Operation ser_action)
     {
-        READWRITE(creationHeight,
-                  quorumSnapshotAtHMinusC,
+        READWRITE(quorumSnapshotAtHMinusC,
                   quorumSnapshotAtHMinus2C,
                   quorumSnapshotAtHMinus3C,
                   mnListDiffTip,
