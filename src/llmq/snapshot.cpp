@@ -47,7 +47,6 @@ void CQuorumRotationInfo::ToJson(UniValue& obj) const
 {
     obj.setObject();
     obj.pushKV("extraShare", extraShare);
-    obj.pushKV("creationHeight", creationHeight);
 
     UniValue objc;
     quorumSnapshotAtHMinusC.ToJson(objc);
@@ -188,7 +187,6 @@ bool BuildQuorumRotationInfo(const CGetQuorumRotationInfo& request, CQuorumRotat
     if (!BuildSimplifiedMNListDiff(GetLastBaseBlockHash(baseBlockIndexes, hBlockIndex), hBlockIndex->GetBlockHash(), response.mnListDiffH, errorRet)) {
         return false;
     }
-    response.creationHeight = hBlockIndex->nHeight;
 
     const CBlockIndex* pBlockHMinusCIndex = tipBlockIndex->GetAncestor(hBlockIndex->nHeight - cycleLength);
     if (!pBlockHMinusCIndex) {
