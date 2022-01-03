@@ -25,5 +25,5 @@ jobs:
       run: |
         ./autogen.sh
         ./configure --prefix=`pwd`/depends/x86_64-pc-linux-gnu
-        make
+        make -j8
 
