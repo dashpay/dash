@@ -18,5 +18,12 @@ jobs:
     - name: Build depends
       run: |
         cd depends
-        make -j2
+        make -j8
         cd ..
+
+    - name: Build Dash
+      run: |
+        ./autogen.sh
+        ./configure --prefix=`pwd`/depends/x86_64-pc-linux-gnu
+        make
+
