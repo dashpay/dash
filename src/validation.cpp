@@ -2312,6 +2312,7 @@ bool CChainState::ConnectBlock(const CBlock& block, CValidationState& state, CBl
                     // TODO: relay instantsend data/proof.
                     return state.DoS(10, error("ConnectBlock(DASH): transaction %s conflicts with transaction lock %s",
                             tx->GetHash().ToString(), conflictLock->txid.ToString()), REJECT_INVALID, "conflict-tx-lock");
+                }
             }
         }
     }
