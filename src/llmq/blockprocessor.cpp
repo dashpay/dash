@@ -151,67 +151,32 @@ bool CQuorumBlockProcessor::ProcessBlock(const CBlock& block, const CBlockIndex*
             break;
         }
 
+        bool isCommitmentRequired = IsCommitmentRequired(params, pindex->nHeight);
+        const auto numCommitmentsInNewBlock = qcs.count(params.type);
+
+        if (!isCommitmentRequired && numCommitmentsInNewBlock > 0) {
+            return state.DoS(100, false, REJECT_INVALID, "bad-qc-not-allowed");
+        }
+
+        if (isCommitmentRequired && numCommitmentsInNewBlock == 0) {
+            return state.DoS(100, false, REJECT_INVALID, "bad-qc-missing");
+        }
         if (llmq::CLLMQUtils::IsQuorumRotationEnabled(params.type)) {
-            // does the currently processed block contain a (possibly null) commitment for the current session?
-            const auto numCommitmentsInNewBlock = qcs.count(params.type);
-
-            LogPrintf("[ProcessBlock] h[%d] llmqType[%d] numCommitmentsInNewBlock[%d]\n", pindex->nHeight, static_cast<int>(params.type), numCommitmentsInNewBlock);
-
-            for (const auto& p : qcs) {
-                if (p.first != params.type)
-                    continue;
-                const auto& qc = p.second;
-
-                //Skipping old version commitments once rotation has been enabled
-                if (qc.nVersion == CFinalCommitment::CURRENT_VERSION)
-                    continue;
-
-                const bool isCommitmentRequired = IsCommitmentRequired(params, pindex->nHeight, qc.quorumIndex);
-
-                if (numCommitmentsInNewBlock > 0 && !isCommitmentRequired) {
-                    // If we're either not in the mining phase or a non-null commitment was mined already, reject the block
-                    LogPrintf("[ProcessBlock] bad-qc-not-allowed h[%d] llmqType[%d]\n", pindex->nHeight, static_cast<int>(params.type));
-                    return state.DoS(100, false, REJECT_INVALID, "bad-qc-not-allowed");
-                }
-
-                if (numCommitmentsInNewBlock == 0 && isCommitmentRequired) {
-                    // If we're either not in the mining phase or a non-null commitment was mined already, reject the block
-                    //return state.DoS(100, false, REJECT_INVALID, "bad-qc-not-allowed");
-                    LogPrintf("[ProcessBlock] bad-qc-missing h[%d] llmqType[%d]\n", pindex->nHeight, static_cast<int>(params.type));
-                    return state.DoS(100, false, REJECT_INVALID, "bad-qc-missing");
-                }
-
-                if (!ProcessCommitment(pindex->nHeight, blockHash, qc, state, fJustCheck)) {
-                    LogPrintf("[ProcessBlock] rotation ProcessCommitment failed h[%d] llmqType[%d] version[%d] quorumIndex[%d] quorumHash[%s]\n", pindex->nHeight, static_cast<int>(params.type), qc.nVersion, qc.quorumIndex, qc.quorumHash.ToString());
-                    return false;
-                }
-            }
-        } else {
-            const bool hasCommitmentInNewBlock = qcs.count(params.type) != 0;
-            const bool isCommitmentRequired = IsCommitmentRequired(params, pindex->nHeight, 0);
-
-            if (hasCommitmentInNewBlock && !isCommitmentRequired) {
-                // If we're either not in the mining phase or a non-null commitment was mined already, reject the block
-                return state.DoS(100, false, REJECT_INVALID, "bad-qc-not-allowed");
+            if (isCommitmentRequired && numCommitmentsInNewBlock != params.signingActiveQuorumCount) {
+                LogPrintf("[ProcessBlock] h[%d] isCommitmentRequired[%d] numCommitmentsInNewBlock[%d] ###\n", pindex->nHeight, isCommitmentRequired, numCommitmentsInNewBlock);
             }
 
-            if (!hasCommitmentInNewBlock && isCommitmentRequired) {
-                // If no non-null commitment was mined for the mining phase yet and the new block does not include
-                // a (possibly null) commitment, the block should be rejected.
-                return state.DoS(100, false, REJECT_INVALID, "bad-qc-missing");
+            LogPrintf("[ProcessBlock] h[%d] isCommitmentRequired[%d] numCommitmentsInNewBlock[%d]\n", pindex->nHeight, isCommitmentRequired, numCommitmentsInNewBlock);
+        }
             }
 
             for (const auto& p : qcs) {
-                if (p.first != params.type)
-                    continue;
                 const auto& qc = p.second;
                 if (!ProcessCommitment(pindex->nHeight, blockHash, qc, state, fJustCheck, fBLSChecks)) {
-                    LogPrintf("[ProcessBlock] non-rotation ProcessCommitment failed h[%d] llmqType[%d] version[%d] quorumIndex[%d] quorumHash[%s]\n", pindex->nHeight, static_cast<int>(params.type), qc.nVersion, qc.quorumIndex, qc.quorumHash.ToString());
+                    LogPrintf("[ProcessBlock] failed h[%d] llmqType[%d] version[%d] quorumIndex[%d] quorumHash[%s]\n", pindex->nHeight, static_cast<int>(qc.llmqType), qc.nVersion, qc.quorumIndex, qc.quorumHash.ToString());
                     return false;
                 }
             }
-        }
-    }
 
     evoDb.Write(DB_BEST_BLOCK_UPGRADE, blockHash);
 
@@ -434,7 +399,7 @@ bool CQuorumBlockProcessor::GetCommitmentsFromBlock(const CBlock& block, const C
     return true;
 }
 
-bool CQuorumBlockProcessor::IsMiningPhase(const Consensus::LLMQParams& llmqParams, int nHeight /*, int quorumIndex*/)
+bool CQuorumBlockProcessor::IsMiningPhase(const Consensus::LLMQParams& llmqParams, int nHeight)
 {
     if (CLLMQUtils::IsQuorumRotationEnabled(llmqParams.type)) {
         int quorumCycleStartHeight = nHeight - (nHeight % llmqParams.dkgInterval);
@@ -455,28 +420,23 @@ bool CQuorumBlockProcessor::IsMiningPhase(const Consensus::LLMQParams& llmqParam
     return false;
 }
 
-bool CQuorumBlockProcessor::IsCommitmentRequired(const Consensus::LLMQParams& llmqParams, int nHeight, int quorumIndex) const
+bool CQuorumBlockProcessor::IsCommitmentRequired(const Consensus::LLMQParams& llmqParams, int nHeight) const
 {
     AssertLockHeld(cs_main);
 
-    uint256 quorumHash = GetQuorumBlockHash(llmqParams, nHeight, quorumIndex);
+    if (!IsMiningPhase(llmqParams, nHeight))
+        return false;
 
-    bool isQuorumHashNull = quorumHash.IsNull();
-
-    // perform extra check for quorumHash.IsNull as the quorum hash is unknown for the first block of a session
-    // this is because the currently processed block's hash will be the quorumHash of this session
-    bool isMiningPhase = !quorumHash.IsNull() && IsMiningPhase(llmqParams, nHeight /*, quorumIndex*/);
-
-    // did we already mine a non-null commitment for this session?
-    bool hasMinedCommitment = !quorumHash.IsNull() && HasMinedCommitment(llmqParams.type, quorumHash);
-
-    if (CLLMQUtils::IsQuorumRotationEnabled(llmqParams.type)) {
-        LogPrintf("[IsCommitmentRequired] nHeight[%d] quorumIndex[%d] -- isMiningPhase[%d] hasMinedCommitment[%d] isQuorumHashNull[%d]\n", nHeight, quorumIndex, isMiningPhase, hasMinedCommitment, isQuorumHashNull);
-    } else {
-        LogPrintf("[IsCommitmentRequired] nHeight[%d] llmqType[%d] quorumIndex[%d] -- isMiningPhase[%d] hasMinedCommitment[%d] isQuorumHashNull[%d]\n", nHeight, static_cast<int>(llmqParams.type), quorumIndex, isMiningPhase, hasMinedCommitment, isQuorumHashNull);
+    for (int quorumIndex : boost::irange(0, CLLMQUtils::IsQuorumRotationEnabled(llmqParams.type) ? llmqParams.signingActiveQuorumCount : 1)) {
+        uint256 quorumHash = GetQuorumBlockHash(llmqParams, nHeight, quorumIndex);
+        if (quorumHash.IsNull())
+            return false;
+        if (HasMinedCommitment(llmqParams.type, quorumHash))
+            return false;
     }
-
-    return isMiningPhase && !hasMinedCommitment;
+    if (CLLMQUtils::IsQuorumRotationEnabled(llmqParams.type))
+        LogPrintf("[IsCommitmentRequired] nHeight[%d] true\n", nHeight);
+    return true;
 }
 
 // WARNING: This method returns uint256() on the first block of the DKG interval (because the block hash is not known yet)
@@ -485,7 +445,6 @@ uint256 CQuorumBlockProcessor::GetQuorumBlockHash(const Consensus::LLMQParams& l
     AssertLockHeld(cs_main);
 
     int quorumStartHeight = nHeight - (nHeight % llmqParams.dkgInterval) + quorumIndex;
-
 
     uint256 quorumBlockHash;
     if (!GetBlockHash(quorumBlockHash, quorumStartHeight)) {
@@ -734,16 +693,18 @@ std::optional<std::vector<CFinalCommitment>> CQuorumBlockProcessor::GetMineableC
 
     std::vector<CFinalCommitment> ret;
 
+    if (!IsCommitmentRequired(llmqParams, nHeight /*, 0*/)) {
+        // no commitment required
+        return std::nullopt;
+    }
+
+    std::stringstream ss;
     for (int quorumIndex : boost::irange(0, CLLMQUtils::IsQuorumRotationEnabled(llmqParams.type) ? llmqParams.signingActiveQuorumCount : 1)) {
         CFinalCommitment cf;
-        if (!IsCommitmentRequired(llmqParams, nHeight, quorumIndex)) {
-            // no commitment required
-            continue;
-        }
 
         uint256 quorumHash = GetQuorumBlockHash(llmqParams, nHeight, quorumIndex);
         if (quorumHash.IsNull()) {
-            continue;
+            break;
         }
 
         LOCK(minableCommitmentsCs);
@@ -754,12 +715,20 @@ std::optional<std::vector<CFinalCommitment>> CQuorumBlockProcessor::GetMineableC
             // null commitment required
             cf = CFinalCommitment(llmqParams, quorumHash);
             cf.quorumIndex = quorumIndex;
+            if (CLLMQUtils::IsQuorumRotationEnabled(llmqParams.type))
+                cf.nVersion = CFinalCommitment::INDEXED_QUORUM_VERSION;
+            ss << "{ created nversion[" << cf.nVersion << "] quorumIndex[" << cf.quorumIndex << "] }";
         } else {
             cf = minableCommitments.at(it->second);
+
+            ss << "{ cached nversion[" << cf.nVersion << "] quorumIndex[" << cf.quorumIndex << "] }";
         }
+
 
         ret.push_back(std::move(cf));
     }
+
+    LogPrintf("GetMineableCommitments cf height[%d] content: %s\n", nHeight, ss.str());
 
     if (ret.empty())
         return std::nullopt;
