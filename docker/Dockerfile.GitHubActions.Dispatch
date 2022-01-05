@@ -1,3 +1,26 @@
+# syntax=docker/dockerfile:1.3
+
+FROM ubuntu:focal as builder
+RUN apt-get update && \
+    apt-get -y install --no-install-recommends \
+    automake \
+    autotools-dev \
+    bsdmainutils \
+    build-essential \
+    ca-certificates \
+    curl \
+    libtool \
+    pkg-config \
+    python3 \
+    wget \
+    && rm -rf /var/lib/apt/lists/*
+
+WORKDIR /dash
+
+COPY . .
+
+RUN make -C depends -j`grep processor /proc/cpuinfo | wc -l`
+
 FROM ubuntu:focal
 LABEL maintainer="Dash Developers <dev@dash.org>"
 LABEL description="Dockerised DashCore"
@@ -22,13 +45,13 @@ RUN apt-get update && \
     ca-certificates \
     && rm -rf /var/lib/apt/lists/*
 
-COPY ../depends/x86_64-pc-linux-gnu/bin/dash* /usr/local/bin
+COPY --from=builder /dash/depends/x86_64-pc-linux-gnu/bin/dash* /usr/local/bin
 
 USER dash
 
 VOLUME ["/dash"]
 
-COPY docker-entrypoint.sh /docker-entrypoint.sh
+COPY docker/docker-entrypoint.sh /docker-entrypoint.sh
 ENTRYPOINT ["/docker-entrypoint.sh"]
 
 EXPOSE 9998 9999 19998 19999
