@@ -3,7 +3,7 @@ name: Build alpha release for Docker Hub
 on:
   workflow_dispatch:
     inputs:
-      name:
+      tag:
         description: 'Docker tag'
         required: true
 
@@ -27,3 +27,33 @@ jobs:
         ./configure --prefix=`pwd`/depends/x86_64-pc-linux-gnu
         make -j8
 
+    - name: Login to DockerHub
+      uses: docker/login-action@v1
+      with:
+        username: ${{ secrets.DOCKERHUB_USERNAME }}
+        password: ${{ secrets.DOCKERHUB_TOKEN }}
+
+    - name: Docker meta
+      id: docker_meta
+      uses: docker/metadata-action@v3
+      with:
+        images: strophy/dashd
+        tags: |
+          type=semver,pattern={{version}},value={{github.event.workflow_dispatch.tag}}
+          type=raw,value=latest-dev
+        flavor: |
+          latest=false
+
+    - name: Build and push Docker image
+      id: docker_build
+      uses: docker/build-push-action@v2
+      with:
+        context: ./docker
+        file: ./docker/Dockerfile.GitHubActions.Dispatch
+        push: true
+        tags: ${{ steps.docker_meta.outputs.tags }}
+        labels: ${{ steps.docker_meta.outputs.labels }}
+        build-args: TAG=${{ steps.docker_meta.outputs.version }}
+        cache-from: type=gha
+        cache-to: type=gha,mode=max
+        platforms: linux/amd64,linux/arm64
