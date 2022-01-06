@@ -19,7 +19,11 @@ WORKDIR /dash
 
 COPY . .
 
-RUN make -C depends -j`grep processor /proc/cpuinfo | wc -l`
+RUN make -C depends -j`grep processor /proc/cpuinfo | wc -l` && \
+    ./autogen.sh && \
+    ./configure --prefix=`pwd`/depends/x86_64-pc-linux-gnu && \
+    make -j`grep processor /proc/cpuinfo | wc -l` && \
+    make install
 
 FROM ubuntu:focal
 LABEL maintainer="Dash Developers <dev@dash.org>"
