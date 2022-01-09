@@ -1099,7 +1099,7 @@ void CInstantSendManager::ProcessInstantSendLock(NodeId from, const uint256& has
         // bump mempool counter to make sure newly locked txes are picked up by getblocktemplate
         mempool.AddTransactionsUpdated(1);
     } else {
-        AskNodesForLockedTx(islock->txid);
+        AskNodesForLockedTx(islock->txid, connman);
     }
 }
 
@@ -1389,7 +1389,7 @@ void CInstantSendManager::RemoveMempoolConflictsForLock(const uint256& hash, con
                 RemoveConflictedTx(*p.second);
             }
         }
-        AskNodesForLockedTx(islock.txid);
+        AskNodesForLockedTx(islock.txid, connman);
     }
 }
 
@@ -1499,7 +1499,7 @@ void CInstantSendManager::RemoveConflictingLock(const uint256& islockHash, const
     }
 }
 
-void CInstantSendManager::AskNodesForLockedTx(const uint256& txid)
+void CInstantSendManager::AskNodesForLockedTx(const uint256& txid, const CConnman& connman)
 {
     std::vector<CNode*> nodesToAskFor;
     nodesToAskFor.reserve(4);
