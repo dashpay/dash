@@ -149,6 +149,11 @@ void OptionsModel::Init(bool resetSettings)
         settings.setValue("fCoinControlFeatures", false);
     fCoinControlFeatures = settings.value("fCoinControlFeatures", false).toBool();
 
+    if (!settings.contains("enable_psbt_controls")) {
+        settings.setValue("enable_psbt_controls", false);
+    }
+    m_enable_psbt_controls = settings.value("enable_psbt_controls", false).toBool();
+
     if (!settings.contains("fKeepChangeAddress"))
         settings.setValue("fKeepChangeAddress", false);
     fKeepChangeAddress = settings.value("fKeepChangeAddress", false).toBool();
@@ -552,6 +557,8 @@ QVariant OptionsModel::data(const QModelIndex & index, int role) const
 #ifdef ENABLE_WALLET
         case CoinControlFeatures:
             return fCoinControlFeatures;
+        case EnablePSBTControls:
+            return settings.value("enable_psbt_controls");
         case KeepChangeAddress:
             return fKeepChangeAddress;
 #endif // ENABLE_WALLET
@@ -807,6 +814,9 @@ bool OptionsModel::setData(const QModelIndex & index, const QVariant & value, in
             settings.setValue("fCoinControlFeatures", fCoinControlFeatures);
             Q_EMIT coinControlFeaturesChanged(fCoinControlFeatures);
             break;
+        case EnablePSBTControls:
+            m_enable_psbt_controls = value.toBool();
+            settings.setValue("enable_psbt_controls", m_enable_psbt_controls);
         case KeepChangeAddress:
             fKeepChangeAddress = value.toBool();
             settings.setValue("fKeepChangeAddress", fKeepChangeAddress);
