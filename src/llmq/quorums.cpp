@@ -266,7 +266,7 @@ void CQuorumManager::EnsureQuorumConnections(const Consensus::LLMQParams& llmqPa
 {
     auto lastQuorums = ScanQuorums(llmqParams.type, pindexNew, (size_t)llmqParams.keepOldConnections);
 
-    auto connmanQuorumsToDelete = g_connman->GetMasternodeQuorums(llmqParams.type);
+    auto connmanQuorumsToDelete = connman.GetMasternodeQuorums(llmqParams.type);
 
     // don't remove connections for the currently in-progress DKG round
     int curDkgHeight = pindexNew->nHeight - (pindexNew->nHeight % llmqParams.dkgInterval);
@@ -279,7 +279,7 @@ void CQuorumManager::EnsureQuorumConnections(const Consensus::LLMQParams& llmqPa
         }
         if (connmanQuorumsToDelete.count(quorum->qc->quorumHash) > 0) {
             LogPrint(BCLog::LLMQ, "CQuorumManager::%s -- removing masternodes quorum connections for quorum %s:\n", __func__, quorum->qc->quorumHash.ToString());
-            g_connman->RemoveMasternodeQuorumNodes(llmqParams.type, quorum->qc->quorumHash);
+            connman.RemoveMasternodeQuorumNodes(llmqParams.type, quorum->qc->quorumHash);
         }
     }
 }
@@ -400,7 +400,7 @@ bool CQuorumManager::RequestQuorumData(CNode* pFrom, Consensus::LLMQType llmqTyp
     }
 
     CNetMsgMaker msgMaker(pFrom->GetSendVersion());
-    g_connman->PushMessage(pFrom, msgMaker.Make(NetMsgType::QGETDATA, it.first->second));
+    connman.PushMessage(pFrom, msgMaker.Make(NetMsgType::QGETDATA, it.first->second));
 
     return true;
 }
@@ -550,7 +550,7 @@ void CQuorumManager::ProcessMessage(CNode* pFrom, const std::string& strCommand,
                              const CDataStream& body = CDataStream(SER_NETWORK, PROTOCOL_VERSION)) {
             request.SetError(nError);
             CDataStream ssResponse(SER_NETWORK, pFrom->GetSendVersion(), request, body);
-            g_connman->PushMessage(pFrom, CNetMsgMaker(pFrom->GetSendVersion()).Make(NetMsgType::QDATA, ssResponse));
+            connman.PushMessage(pFrom, CNetMsgMaker(pFrom->GetSendVersion()).Make(NetMsgType::QDATA, ssResponse));
         };
 
         {
@@ -809,12 +809,12 @@ void CQuorumManager::StartQuorumDataRecoveryThread(const CQuorumCPtr pQuorum, co
                 // Sleep a bit depending on the start offset to balance out multiple requests to same masternode
                 quorumThreadInterrupt.sleep_for(std::chrono::milliseconds(nMyStartOffset * 100));
                 nTimeLastSuccess = GetAdjustedTime();
-                g_connman->AddPendingMasternode(*pCurrentMemberHash);
+                connman.AddPendingMasternode(*pCurrentMemberHash);
                 printLog("Connect");
             }
 
             auto proTxHash = WITH_LOCK(activeMasternodeInfoCs, return activeMasternodeInfo.proTxHash);
-            g_connman->ForEachNode([&](CNode* pNode) {
+            connman.ForEachNode([&](CNode* pNode) {
                 auto verifiedProRegTxHash = pNode->GetVerifiedProRegTxHash();
                 if (pCurrentMemberHash == nullptr || verifiedProRegTxHash != *pCurrentMemberHash) {
                     return;
