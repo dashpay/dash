@@ -5,7 +5,7 @@ import requests
 import hjson
 
 '''Looks like'''
-input = '''{ pull_number: 26, 
+'''{ pull_number: 26, 
     conflictPrs: 
         [ { number: 25, 
             files: [ '.github/workflows/testfile' ], 
