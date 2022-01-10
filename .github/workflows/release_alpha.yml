@@ -31,7 +31,7 @@ jobs:
 
     - name: Debug builder
       run: |
-        ls /home/ubuntu/.docker/buildx/instances/
+        ls /home/ubuntu/.docker/buildx/instances/ -lha
         cat /home/ubuntu/.docker/buildx/instances/multiarch
 
     - name: Build and push Docker image
