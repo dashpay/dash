@@ -29,6 +29,11 @@ jobs:
         flavor: |
           latest=false
 
+    - name: Debug builder
+      run: |
+        ls /home/ubuntu/.docker/buildx/instances/
+        cat /home/ubuntu/.docker/buildx/instances/multiarch
+
     - name: Build and push Docker image
       id: docker_build
       uses: docker/build-push-action@v2
