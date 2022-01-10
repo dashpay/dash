@@ -10,6 +10,7 @@
 #include <consensus/merkle.h>
 #include <llmq/params.h>
 #include <tinyformat.h>
+#include <util/ranges.h>
 #include <util/system.h>
 #include <util/strencodings.h>
 #include <versionbitsinfo.h>
