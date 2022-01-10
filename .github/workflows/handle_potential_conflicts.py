@@ -39,7 +39,7 @@ def main():
             good.append(this_pr_num)
         elif "Can’t automatically merge" in r.text:
             bad.append(this_pr_num)
-        else: 
+        else:
             raise Exception("not mergeable or unmergable!")
 
     print("Not conflicting PRs: ", good)
