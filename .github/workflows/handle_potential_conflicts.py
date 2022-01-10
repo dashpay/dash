@@ -32,9 +32,9 @@ def main():
         this_pr_num = conflict['number']
         print(this_pr_num)
 
-        r = requests.get(f'https://api.github.com/repos/PastaPastaPasta/dash/pulls/{conflict["number"]}')
+        r = requests.get(f'https://api.github.com/repos/dashpay/dash/pulls/{conflict["number"]}')
         print(r.json()['head']['label'])
-        r = requests.get(f'https://github.com/PastaPastaPasta/dash/branches/pre_mergeable/{our_pr_label}...{get_label(this_pr_num)}')
+        r = requests.get(f'https://github.com/dashpay/dash/branches/pre_mergeable/{our_pr_label}...{get_label(this_pr_num)}')
         if "These branches can be automatically merged." in r.text:
             good.append(this_pr_num)
         elif "Can’t automatically merge" in r.text:
@@ -51,7 +51,7 @@ def main():
 
 
 def get_label(pr_num):
-    return requests.get(f'https://api.github.com/repos/PastaPastaPasta/dash/pulls/{pr_num}').json()['head']['label']
+    return requests.get(f'https://api.github.com/repos/dashpay/dash/pulls/{pr_num}').json()['head']['label']
 
 
 if __name__ == "__main__":
