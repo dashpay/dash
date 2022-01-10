@@ -35,6 +35,7 @@ jobs:
       with:
         file: ./docker/Dockerfile.GitHubActions.Dispatch
         push: true
+        builder: multiarch
         tags: ${{ steps.docker_meta.outputs.tags }}
         labels: ${{ steps.docker_meta.outputs.labels }}
         build-args: TAG=${{ steps.docker_meta.outputs.version }}
