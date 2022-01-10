@@ -337,11 +337,10 @@ std::vector<std::reference_wrapper<const Consensus::LLMQParams>> CLLMQUtils::Get
 {
     std::vector<std::reference_wrapper<const Consensus::LLMQParams>> ret;
     ret.reserve(Params().GetConsensus().llmqs.size());
-    for (const auto& params : Params().GetConsensus().llmqs) {
-        if (IsQuorumTypeEnabled(params.type, pindex)) {
-            ret.emplace_back(params);
-        }
-    }
+
+    std::copy_if(Params().GetConsensus().llmqs.begin(), Params().GetConsensus().llmqs.end(), std::back_inserter(ret),
+                 [&pindex](const auto& params){return IsQuorumTypeEnabled(params.type, pindex);});
+
     return ret;
 }
 
