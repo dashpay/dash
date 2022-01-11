@@ -5,13 +5,13 @@ import requests
 import hjson
 
 '''Looks like'''
-'''{ pull_number: 26, 
-    conflictPrs: 
-        [ { number: 25, 
-            files: [ '.github/workflows/testfile' ], 
+'''{ pull_number: 26,
+    conflictPrs:
+        [ { number: 25,
+            files: [ '.github/workflows/testfile' ],
             conflicts: [ '.github/workflows/testfile' ] }
-        { number: 24, 
-            files: [ '.github/workflows/testfile' ], 
+        { number: 24,
+            files: [ '.github/workflows/testfile' ],
             conflicts: [ '.github/workflows/testfile' ] } ] }'''
 
 def main():
