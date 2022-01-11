@@ -236,6 +236,8 @@ static RPCHelpMan sporkupdate()
     };
 }
 
+using node::NodeContext;
+
 static RPCHelpMan validateaddress()
 {
     return RPCHelpMan{

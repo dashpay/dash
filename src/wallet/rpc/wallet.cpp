@@ -34,7 +34,7 @@
 
 #include <univalue.h>
 
-/** Checks if a CKey is in the given CWallet compressed or otherwise*/
+namespace wallet {
 bool HaveKey(const SigningProvider& wallet, const CKey& key)
 {
     CKey key2;
@@ -1052,3 +1052,4 @@ static const CRPCCommand commands[] =
 // clang-format on
     return commands;
 }
+} // namespace wallet

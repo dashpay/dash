@@ -28,6 +28,12 @@
 #include <QLatin1String>
 
 QString TransactionDesc::FormatTxStatus(const interfaces::WalletTxStatus& status, bool inMempool)
+using wallet::ISMINE_ALL;
+using wallet::ISMINE_SPENDABLE;
+using wallet::ISMINE_WATCH_ONLY;
+using wallet::isminetype;
+
+QString TransactionDesc::FormatTxStatus(const interfaces::WalletTx& wtx, const interfaces::WalletTxStatus& status, bool inMempool, int numBlocks)
 {
     int depth = status.depth_in_main_chain;
     if (depth < 0) return tr("conflicted");

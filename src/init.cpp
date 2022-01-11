@@ -137,8 +137,23 @@
 static constexpr bool DEFAULT_PROXYRANDOMIZE{true};
 static constexpr bool DEFAULT_REST_ENABLE{false};
 static constexpr bool DEFAULT_I2P_ACCEPT_INCOMING{true};
+using node::CacheSizes;
+using node::CalculateCacheSizes;
+using node::ChainstateLoadVerifyError;
+using node::ChainstateLoadingError;
+using node::CleanupBlockRevFiles;
+using node::DEFAULT_PRINTPRIORITY;
+using node::DEFAULT_STOPAFTERBLOCKIMPORT;
+using node::LoadChainstate;
+using node::NodeContext;
+using node::ThreadImport;
+using node::VerifyLoadedChainstate;
+using node::fHavePruned;
+using node::fPruneMode;
+using node::fReindex;
+using node::nPruneTarget;
 
-#ifdef WIN32
+
 // Win32 LevelDB doesn't use filedescriptors, and the ones used for
 // accessing block files don't count towards the fd_set size limit
 // anyway.

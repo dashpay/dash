@@ -13,6 +13,7 @@
 
 #include <univalue.h>
 
+namespace wallet {
 RPCHelpMan getnewaddress()
 {
     return RPCHelpMan{"getnewaddress",
@@ -641,3 +642,4 @@ RPCHelpMan listlabels()
     };
 }
 
+} // namespace wallet
