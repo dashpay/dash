@@ -23,28 +23,23 @@ COPY . .
 ARG TARGETPLATFORM
 
 RUN case "$TARGETPLATFORM" in \
-  "linux/arm64") make HOST=arm-linux-gnueabihf -C depends -j`grep processor /proc/cpuinfo | wc -l` ;; \
-  "linux/amd64") make HOST=x86_64-pc-linux-gnu -C depends -j`grep processor /proc/cpuinfo | wc -l` ;; \
+  "linux/arm64") make HOST=arm-linux-gnueabihf -C depends -j`nproc | awk '{x=$1/2; print x}'` ;; \
+  "linux/amd64") make HOST=x86_64-pc-linux-gnu -C depends -j`nproc | awk '{x=$1/2; print x}'` ;; \
   *) exit 1 ;; \
 esac
 
-RUN ./autogen.sh
-
-RUN case "$TARGETPLATFORM" in \
+RUN ./autogen.sh && \
+  case "$TARGETPLATFORM" in \
   "linux/arm64") ./configure --prefix=`pwd`/depends/arm-linux-gnueabihf ;; \
   "linux/amd64") ./configure --prefix=`pwd`/depends/x86_64-pc-linux-gnu ;; \
-  *) exit 1 ;; \
 esac
 
-RUN make -j`grep processor /proc/cpuinfo | wc -l`
-RUN make install
+RUN make -j`nproc | awk '{x=$1/2; print x}'` && make install
 
-RUN mkdir built-target
-
-RUN case "$TARGETPLATFORM" in \
+RUN mkdir built-target && \
+  case "$TARGETPLATFORM" in \
   "linux/arm64") cp depends/arm-linux-gnueabihf/bin/dash* /dash/built-target ;; \
   "linux/amd64") cp depends/x86_64-pc-linux-gnu/bin/dash* /dash/built-target ;; \
-  *) exit 1 ;; \
 esac
 
 FROM ubuntu:focal
