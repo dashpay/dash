@@ -27,6 +27,9 @@ jobs:
         username: ${{ secrets.DOCKERHUB_USERNAME }}
         password: ${{ secrets.DOCKERHUB_TOKEN }}
 
+    - name: Dump context
+      uses: crazy-max/ghaction-dump-context@v1
+
     - name: Debug event 
       run: |
         echo {{github.event}}
