@@ -27,28 +27,13 @@ jobs:
         username: ${{ secrets.DOCKERHUB_USERNAME }}
         password: ${{ secrets.DOCKERHUB_TOKEN }}
 
-    - name: Dump context
-      uses: crazy-max/ghaction-dump-context@v1
-
-    - name: Debug event 
-      run: |
-        echo {{github.event}}
-
-    - name: Debug workflow dispatch
-      run: |
-        echo {{github.event.workflow_dispatch}}
-
-    - name: Debug tag
-      run: |
-        echo {{github.event.workflow_dispatch.tag}}
-
     - name: Docker meta
       id: docker_meta
       uses: docker/metadata-action@v3
       with:
         images: strophy/dashd
         tags: |
-          type=semver,pattern={{version}},value={{github.event.workflow_dispatch.tag}}
+          type=semver,pattern={{version}},value={{github.event.inputs.tag}}
           type=raw,value=latest-dev
         flavor: |
           latest=false
