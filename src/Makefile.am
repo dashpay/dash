@@ -279,6 +279,7 @@ BITCOIN_CORE_H = \
   interfaces/node.h \
   interfaces/wallet.h \
   kernel/blockmanager_opts.h \
+  kernel/chain.h \
   kernel/chainstatemanager_opts.h \
   kernel/checks.h \
   kernel/coinstats.h \
@@ -562,6 +563,7 @@ libbitcoin_node_a_SOURCES = \
   instantsend/lock.cpp \
   instantsend/net_instantsend.cpp \
   instantsend/signing.cpp \
+  kernel/chain.cpp \
   kernel/checks.cpp \
   kernel/coinstats.cpp \
   kernel/context.cpp \

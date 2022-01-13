@@ -20,6 +20,7 @@
 class ArgsManager;
 class CBlock;
 class CConnman;
+class CBlockUndo;
 class CFeeRate;
 class CRPCCommand;
 class CScheduler;
@@ -77,6 +78,19 @@ public:
     const FoundBlock* m_next_block = nullptr;
     CBlock* m_data = nullptr;
     mutable bool found = false;
+};
+
+//! Block data sent with blockConnected, blockDisconnected notifications.
+struct BlockInfo {
+    const uint256& hash;
+    const uint256* prev_hash = nullptr;
+    int height = -1;
+    int file_number = -1;
+    unsigned data_pos = 0;
+    const CBlock* data = nullptr;
+    const CBlockUndo* undo_data = nullptr;
+
+    BlockInfo(const uint256& hash LIFETIMEBOUND) : hash(hash) {}
 };
 
 //! Interface giving clients (wallet processes, maybe other analysis tools in
@@ -272,8 +286,8 @@ public:
         virtual ~Notifications() {}
         virtual void transactionAddedToMempool(const CTransactionRef& tx, int64_t nAcceptTime) {}
         virtual void transactionRemovedFromMempool(const CTransactionRef& tx, MemPoolRemovalReason reason) {}
-        virtual void blockConnected(const CBlock& block, int height) {}
-        virtual void blockDisconnected(const CBlock& block, int height) {}
+        virtual void blockConnected(const BlockInfo& block) {}
+        virtual void blockDisconnected(const BlockInfo& block) {}
         virtual void updatedBlockTip() {}
         virtual void chainStateFlushed(const CBlockLocator& locator) {}
         virtual void notifyChainLock(const CBlockIndex* pindexChainLock, const std::shared_ptr<const chainlock::ChainLockSig>& clsig) {}

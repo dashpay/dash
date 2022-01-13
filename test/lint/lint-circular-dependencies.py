@@ -24,6 +24,7 @@ EXPECTED_CIRCULAR_DEPENDENCIES = (
     "kernel/mempool_persist -> validation -> kernel/mempool_persist",
     # Dash
     "banman -> common/bloom -> evo/assetlocktx -> llmq/quorumsman -> llmq/blockprocessor -> net -> banman",
+    "blockfilter -> evo/specialtx_filter -> evo/providertx -> validation -> kernel/chain -> interfaces/chain.h -> blockfilter",
     "coinjoin/client -> coinjoin/util -> wallet/wallet -> psbt -> node/transaction -> net_processing -> coinjoin/walletman -> coinjoin/client",
     "common/bloom -> evo/assetlocktx -> llmq/commitment -> evo/deterministicmns -> evo/simplifiedmns -> merkleblock -> common/bloom",
     "common/bloom -> evo/assetlocktx -> llmq/quorumsman -> llmq/blockprocessor -> net -> common/bloom",
