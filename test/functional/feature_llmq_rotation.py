@@ -9,7 +9,7 @@ feature_llmq_rotation.py
 Checks LLMQs Quorum Rotation
 
 '''
-
+import time
 from test_framework.test_framework import DashTestFramework
 from test_framework.util import connect_nodes, isolate_node, reconnect_isolated_node, sync_blocks, assert_equal, \
     assert_greater_than_or_equal, wait_until
@@ -99,6 +99,7 @@ class LLMQQuorumRotationTest(DashTestFramework):
             self.bump_mocktime(1, nodes=nodes)
             self.nodes[0].generate(skip_count)
         sync_blocks(nodes)
+        time.sleep(1)
         self.log.info('Moved from block %d to %d' % (cur_block, self.nodes[0].getblockcount()))
 
 

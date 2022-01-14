@@ -1310,12 +1310,14 @@ class DashTestFramework(BitcoinTestFramework):
         if skip_count != 0:
             self.bump_mocktime(1, nodes=nodes)
             self.nodes[0].generate(skip_count)
+            time.sleep(4)
         sync_blocks(nodes)
 
         q_0 = self.nodes[0].getbestblockhash()
         self.log.info("Expected quorum_0 at:" + str(self.nodes[0].getblockcount()))
+        time.sleep(4)
         self.log.info("Exepcted quorum_0 hash:" + str(q_0))
-        #time.sleep(2)
+        time.sleep(4)
         self.log.info("quorumIndex 0: Waiting for phase 1 (init)")
         self.wait_for_quorum_phase(q_0, 1, expected_members, None, 0, mninfos_online)
         self.log.info("quorumIndex 0: Waiting for quorum connections (init)")
@@ -1327,8 +1329,9 @@ class DashTestFramework(BitcoinTestFramework):
 
         q_1 = self.nodes[0].getbestblockhash()
         self.log.info("Expected quorum_1 at:" + str(self.nodes[0].getblockcount()))
+        time.sleep(2)
         self.log.info("Exepcted quorum_1 hash:" + str(q_1))
-        #time.sleep(2)
+        time.sleep(2)
         self.log.info("quorumIndex 1: Waiting for phase 1 (init)")
         self.wait_for_quorum_phase(q_1, 1, expected_members, None, 0, mninfos_online)
         self.log.info("quorumIndex 1: Waiting for quorum connections (init)")
