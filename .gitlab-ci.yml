@@ -328,3 +328,4 @@ linux64_tsan-test:
     - linux64_tsan-build
   variables:
     BUILD_TARGET: linux64_tsan
+  retry: 2
