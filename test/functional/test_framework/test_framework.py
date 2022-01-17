@@ -1188,8 +1188,20 @@ class DashTestFramework(BitcoinTestFramework):
             return False
         wait_until(wait_func, timeout=timeout, sleep=sleep)
 
+    def wait_for_quorums_list(self, quorum_hash_0, quorum_hash_1, nodes, timeout=15, sleep=2):
+        def wait_func():
+            self.log.info("h("+str(self.nodes[0].getblockcount())+") quorums: " + str(self.nodes[0].quorum("list")))
+            if quorum_hash_0 in self.nodes[0].quorum("list")["llmq_test"]:
+                if quorum_hash_1 in self.nodes[0].quorum("list")["llmq_test"]:
+                    return True
+            self.bump_mocktime(sleep, nodes=nodes)
+            self.nodes[0].generate(1)
+            sync_blocks(nodes)
+            return False
+        wait_until(wait_func, timeout=timeout, sleep=sleep)
+
     def move_blocks(self, nodes, num_blocks):
-        time.sleep(2)
+        time.sleep(4)
         self.bump_mocktime(1, nodes=nodes)
         self.nodes[0].generate(num_blocks)
         sync_blocks(nodes)
@@ -1386,32 +1398,33 @@ class DashTestFramework(BitcoinTestFramework):
 
         self.log.info("quorumIndex 1: Waiting for phase 6 (finalization)")
         self.wait_for_quorum_phase(q_1, 6, expected_members, None, 0, mninfos_online)
-
+        time.sleep(6)
         self.log.info("Mining final commitments")
         self.bump_mocktime(1, nodes=nodes)
         self.nodes[0].getblocktemplate() # this calls CreateNewBlock
         self.nodes[0].generate(1)
         sync_blocks(nodes)
 
+        time.sleep(6)
         self.log.info("Waiting for quorum(s) to appear in the list")
-        time.sleep(2)
-        self.wait_for_quorum_list(q_0, nodes)
-        self.wait_for_quorum_list(q_1, nodes)
+        self.wait_for_quorums_list(q_0, q_1, nodes)
 
-        new_quorum_0 = self.nodes[0].quorum("list")["llmq_test"][1]
-        new_quorum_1 = self.nodes[0].quorum("list")["llmq_test"][0]
-
-        quorum_info_0 = self.nodes[0].quorum("info", 100, new_quorum_0)
-        quorum_info_1 = self.nodes[0].quorum("info", 100, new_quorum_1)
+        quorum_info_0 = self.nodes[0].quorum("info", 100, q_0)
+        quorum_info_1 = self.nodes[0].quorum("info", 100, q_1)
         # Mine 8 (SIGN_HEIGHT_OFFSET) more blocks to make sure that the new quorum gets eligible for signing sessions
         self.nodes[0].generate(8)
 
         sync_blocks(nodes)
-        self.log.info("New quorum: height=%d, quorumHash=%s, quorumIndex=%d, minedBlock=%s" % (quorum_info_0["height"], new_quorum_0, quorum_info_0["quorumIndex"], quorum_info_0["minedBlock"]))
-        self.log.info("New quorum: height=%d, quorumHash=%s, quorumIndex=%d, minedBlock=%s" % (quorum_info_1["height"], new_quorum_1, quorum_info_1["quorumIndex"], quorum_info_1["minedBlock"]))
+        self.log.info("New quorum: height=%d, quorumHash=%s, quorumIndex=%d, minedBlock=%s" % (quorum_info_0["height"], q_0, quorum_info_0["quorumIndex"], quorum_info_0["minedBlock"]))
+        self.log.info("New quorum: height=%d, quorumHash=%s, quorumIndex=%d, minedBlock=%s" % (quorum_info_1["height"], q_1, quorum_info_1["quorumIndex"], quorum_info_1["minedBlock"]))
 
         self.log.info("quorum_info_0:"+str(quorum_info_0))
         self.log.info("quorum_info_1:"+str(quorum_info_1))
+
+        best_block_hash = self.nodes[0].getbestblockhash()
+        block_height = self.nodes[0].getblockcount()
+        quorum_rotation_info = self.nodes[0].quorum("rotationinfo", best_block_hash, 0, False)
+        self.log.info("h("+str(block_height)+"):"+str(quorum_rotation_info))
 
         return (quorum_info_0, quorum_info_1)
 
