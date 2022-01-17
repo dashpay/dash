@@ -1202,7 +1202,7 @@ UniValue registerdomain(const JSONRPCRequest& request)
     std::string bdnsName = request.params[0].get_str();
     std::string content = request.params[1].get_str();
 
-    if (pbdnsdb->Exists(bdnsName))
+    if (pbdnsdb->HasBDNSRecord(bdnsName))
         throw JSONRPCError(RPC_INVALID_PARAMETER, "Blockchain domain name already registered!");
 
     CBitcoinAddress payingAddress;
