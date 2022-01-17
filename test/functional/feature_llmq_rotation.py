@@ -78,6 +78,11 @@ class LLMQQuorumRotationTest(DashTestFramework):
         #assert_equal(len(intersection(quorum_members_2_0, quorum_members_2_1)), 0)
         self.log.info("Quorum #2_0 members: " + str(quorum_members_2_0))
         self.log.info("Quorum #2_1 members: " + str(quorum_members_2_1))
+        mninfos_online = self.mninfo.copy()
+        nodes = [self.nodes[0]] + [mn.node for mn in mninfos_online]
+        sync_blocks(nodes)
+        quorum_list = self.nodes[0].quorum("list", 100)
+        self.log.info("h("+str(self.nodes[0].getblockcount())+") quorum_list:"+str(quorum_list))
 
         #assert_greater_than_or_equal(len(intersection(quorum_members_0_0, quorum_members_1_0)), 3)
         #assert_greater_than_or_equal(len(intersection(quorum_members_0_1, quorum_members_1_1)), 3)
