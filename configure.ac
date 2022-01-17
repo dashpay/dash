@@ -177,21 +177,27 @@ AC_ARG_ENABLE([zmq],
   [use_zmq=$enableval],
   [use_zmq=yes])
 
+AC_ARG_ENABLE([sse2],
+  [AS_HELP_STRING([--enable-sse2],
+  [enable SSE2 optimizations (default is no)])],
+  [have_sse2=${enableval}],
+  [have_sse2=no])
+
 AC_ARG_ENABLE([ssse3],
   [AS_HELP_STRING([--enable-ssse3],
-  [enable SSE3 optimizations (defaults is no)])],
+  [enable SSSE3 optimizations (default is no)])],
   [have_ssse3=${enableval}],
   [have_ssse3=no])
 
 AC_ARG_ENABLE([avx2],
   [AS_HELP_STRING([--enable-avx2],
-  [enable AVX2 optimizations (defaults is no)])],
+  [enable AVX2 optimizations (default is no)])],
   [have_avx2=${enableval}],
   [have_avx2=no])
 
 AC_ARG_ENABLE([avx512f],
   [AS_HELP_STRING([--enable-avx512f],
-  [enable AVX512F optimizations (defaults is no)])],
+  [enable AVX512F optimizations (default is no)])],
   [have_avx512f=${enableval}],
   [have_avx512f=no])
 
@@ -1048,6 +1054,10 @@ dnl set windres CPP flags before setting processor-specific instructions like -m
 dnl these instructions are not recognized by windres
 WINDRES_CPPFLAGS="$CPPFLAGS"
 
+if test "$have_sse2" = "yes"; then
+    AX_CHECK_COMPILE_FLAG([-msse2],[CFLAGS="$CFLAGS -msse2"])
+fi
+
 if test "$have_ssse3" = "yes"; then
     AX_CHECK_COMPILE_FLAG([-mssse3],[CFLAGS="$CFLAGS -mssse3"])
 fi
@@ -1060,7 +1070,11 @@ if test "$have_avx512f" = "yes"; then
     AX_CHECK_COMPILE_FLAG([-mavx512f],[CFLAGS="$CFLAGS -mavx512f" && CPPFLAGS="$CPPFLAGS -mavx512f"])
 fi
 
-AX_CHECK_COMPILE_FLAG([-msse2],[CFLAGS="$CFLAGS -msse2"])
+AM_CONDITIONAL([ARGON2D_NO_OPT],[
+  test x$have_sse2 = xno &&
+  test x$have_ssse3 = xno &&
+  test x$have_avx2 = xno &&
+  test x$have_avx512f = xno])
 
 dnl enable wallet
 AC_MSG_CHECKING([if wallet should be enabled])
