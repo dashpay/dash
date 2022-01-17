@@ -28,7 +28,7 @@
 
 **[alterdot.network](https://alterdot.network)**
 
-**Copyright (c) 2017-2021 Alterdot Developers**
+**Copyright (c) 2017-2022 Alterdot developers**
 
 **Project previously known as [Bitcreds](https://github.com/Bitcreds/Bitcreds).**
 
