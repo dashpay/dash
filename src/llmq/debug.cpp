@@ -118,7 +118,7 @@ UniValue CDKGDebugStatus::ToJson(int detailLevel) const
     // TODO Support array of sessions
     UniValue sessionsArrJson(UniValue::VARR);
     for (const auto& p : sessions) {
-        if (!Params().GetConsensus().llmqs.count(p.first.first)) {
+        if (!Params().HasLLMQ(p.first.first)) {
             continue;
         }
         UniValue s(UniValue::VOBJ);
