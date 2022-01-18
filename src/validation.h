@@ -153,7 +153,7 @@ double ConvertBitsToDouble(unsigned int nBits);
 CAmount GetBlockSubsidyInner(int nPrevBits, int nPrevHeight, const Consensus::Params& consensusParams,
                              std::optional<bool> is_v20_active_override = std::nullopt);
 CAmount GetSuperblockSubsidyInner(int nPrevBits, int nPrevHeight, const Consensus::Params& consensusParams);
-CAmount GetBlockSubsidy(const CBlockIndex* const pindex, const Consensus::Params& consensusParams);
+CAmount GetBlockSubsidy(int nHeight, int nPrevBits, const Consensus::Params& consensusParams);
 CAmount GetMasternodePayment(int nHeight, CAmount blockValue, const Consensus::Params& consensus_params);
 
 bool AbortNode(BlockValidationState& state, const std::string& strMessage, const bilingual_str& userMessage = bilingual_str{});

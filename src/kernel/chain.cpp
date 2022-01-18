@@ -15,6 +15,7 @@ interfaces::BlockInfo MakeBlockInfo(const CBlockIndex* index, const CBlock* data
     interfaces::BlockInfo info{index ? *index->phashBlock : uint256::ZERO};
     if (index) {
         info.prev_hash = index->pprev ? index->pprev->phashBlock : nullptr;
+        info.prev_bits = index->pprev ? index->pprev->nBits : 0;
         info.height = index->nHeight;
         LOCK(::cs_main);
         info.file_number = index->nFile;

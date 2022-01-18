@@ -417,7 +417,7 @@ static RPCHelpMan masternode_payments()
 
         std::vector<CTxOut> voutMasternodePayments, voutDummy;
         CMutableTransaction dummyTx;
-        CAmount blockSubsidy = GetBlockSubsidy(pindex, Params().GetConsensus());
+        CAmount blockSubsidy = GetBlockSubsidy(pindex->nHeight, pindex->pprev->nBits, Params().GetConsensus());
         node.chain_helper->mn_payments->FillBlockPayments(dummyTx, pindex->pprev, blockSubsidy, nBlockFees, voutMasternodePayments, voutDummy);
 
         UniValue blockObj(UniValue::VOBJ);

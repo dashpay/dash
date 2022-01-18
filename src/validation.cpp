@@ -1544,10 +1544,10 @@ CAmount GetBlockSubsidyInner(int nPrevBits, int nPrevHeight, const Consensus::Pa
     return nSubsidy;
 }
 
-CAmount GetBlockSubsidy(const CBlockIndex* const pindex, const Consensus::Params& consensusParams)
+CAmount GetBlockSubsidy(int nHeight, int nPrevBits, const Consensus::Params& consensusParams)
 {
-    if (pindex->pprev == nullptr) return Params().GenesisBlock().vtx[0]->GetValueOut();
-    return GetBlockSubsidyInner(pindex->pprev->nBits, pindex->pprev->nHeight, consensusParams);
+    if (nHeight == 0) return Params().GenesisBlock().vtx[0]->GetValueOut();
+    return GetBlockSubsidyInner(nPrevBits, /*nPrevHeight=*/nHeight - 1, consensusParams);
 }
 
 CAmount GetMasternodePayment(int nHeight, CAmount blockValue, const Consensus::Params& consensus_params)
@@ -2619,7 +2619,7 @@ bool CChainState::ConnectBlock(const CBlock& block, BlockValidationState& state,
     // DASH : MODIFIED TO CHECK MASTERNODE PAYMENTS AND SUPERBLOCKS
 
     // TODO: resync data (both ways?) and try to reprocess this block later.
-    CAmount blockSubsidy = GetBlockSubsidy(pindex, m_params.GetConsensus());
+    CAmount blockSubsidy = GetBlockSubsidy(pindex->nHeight, pindex->pprev->nBits, m_params.GetConsensus());
     CAmount feeReward = nFees;
     std::string strError;
 

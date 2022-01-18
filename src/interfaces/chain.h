@@ -89,6 +89,7 @@ public:
 struct BlockInfo {
     const uint256& hash;
     const uint256* prev_hash = nullptr;
+    int prev_bits = 0;
     int height = -1;
     int file_number = -1;
     unsigned data_pos = 0;
