@@ -1276,9 +1276,9 @@ std::unique_ptr<const CChainParams> CreateChainParams(const std::string& chain)
         return std::make_unique<CMainParams>();
     else if (chain == CBaseChainParams::TESTNET)
         return std::make_unique<CTestNetParams>();
-    else if (chain == CBaseChainParams::DEVNET) {
+    else if (chain == CBaseChainParams::DEVNET)
         return std::make_unique<CDevNetParams>(gArgs);
-    } else if (chain == CBaseChainParams::REGTEST)
+    else if (chain == CBaseChainParams::REGTEST)
         return std::make_unique<CRegTestParams>(gArgs);
 
     throw std::runtime_error(strprintf("%s: Unknown chain %s.", __func__, chain));
