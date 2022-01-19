@@ -27,6 +27,37 @@ jobs:
         username: ${{ secrets.DOCKERHUB_USERNAME }}
         password: ${{ secrets.DOCKERHUB_TOKEN }}
 
+    - name: Checkout
+      uses: actions/checkout@v2
+      with:
+        path: dash
+    
+    - name: Checkout tools repo
+      uses: actions/checkout@v2
+      with:
+        repository: devrandom/gitian-builder
+        path: gitian-builder
+
+    - name: Checkout tools repo
+      uses: actions/checkout@v2
+      with:
+        repository: dashpay/dash-detached-sigs
+        path: dash-detached-sigs
+
+    - name: Checkout tools repo
+      uses: actions/checkout@v2
+      with:
+        repository: dashpay/gitian.sigs
+        path: gitian.sigs
+
+    - name: Clone macOS SDK
+      run: |
+        mkdir gitian-builder/inputs
+        wget -q -O gitian-builder/inputs/MacOSX10.11.sdk.tar.gz https://bitcoincore.org/depends-sources/sdks/MacOSX10.11.sdk.tar.gz
+
+    - name: Import GPG key
+      run: echo ${{GPG_PRIVATE_KEY}} | gpg --import
+
     - name: Docker meta
       id: docker_meta
       uses: docker/metadata-action@v3
@@ -38,15 +69,25 @@ jobs:
         flavor: |
           latest=false
 
-    - name: Build and push Docker image
-      id: docker_build
-      uses: docker/build-push-action@v2
-      with:
-        file: ./docker/Dockerfile.GitHubActions.Dispatch
-        push: true
-        tags: ${{ steps.docker_meta.outputs.tags }}
-        labels: ${{ steps.docker_meta.outputs.labels }}
-        build-args: TAG=${{ steps.docker_meta.outputs.version }}
-        cache-from: type=gha
-        cache-to: type=gha,mode=max
-        platforms: linux/amd64,linux/arm64
+    - name: Prepare Gitian
+      run: dash/contrib/gitian-build.py --setup "Leon White" "${{steps.docker_meta.outputs.tags}}"
+
+    - name: Run Gitian build
+      run: dash/contrib/gitian-build.py -b -n -j $(nproc) -m `awk '/^Mem/ {print $7}' <(free -m)` "Leon White" "${{steps.docker_meta.outputs.tags}}"
+
+    - name: Setup tmate session
+      uses: mxschmitt/action-tmate@v3
+
+
+    # - name: Build and push Docker image
+    #   id: docker_build
+    #   uses: docker/build-push-action@v2
+    #   with:
+    #     file: ./docker/Dockerfile.GitHubActions.Dispatch
+    #     push: true
+    #     tags: ${{ steps.docker_meta.outputs.tags }}
+    #     labels: ${{ steps.docker_meta.outputs.labels }}
+    #     build-args: TAG=${{ steps.docker_meta.outputs.version }}
+    #     cache-from: type=gha
+    #     cache-to: type=gha,mode=max
+    #     platforms: linux/amd64,linux/arm64
