@@ -1175,7 +1175,18 @@ void CDevNetParams::UpdateDevnetLLMQChainLocksFromArgs(const ArgsManager& args)
 {
     if (!args.IsArgSet("-llmqchainlocks")) return;
 
-    std::string strLLMQType = gArgs.GetArg("-llmqchainlocks", std::string(Params().GetLLMQ(consensus.llmqTypeChainLocks).name));
+    std::string s = "";
+    for (const auto& llmq_param : consensus.llmqs) {
+        if (llmq_param.type == consensus.llmqTypeChainLocks) {
+            s = std::string(llmq_param.name);
+        }
+    }
+    if (s.empty()) {
+        error("CChainParams::%s: unknown LLMQ type %d", __func__, static_cast<uint8_t>(consensus.llmqTypeChainLocks));
+        assert(false);
+    }
+    std::string strLLMQType = gArgs.GetArg("-llmqchainlocks", s);
+
     Consensus::LLMQType llmqType = Consensus::LLMQType::LLMQ_NONE;
     for (const auto& params : consensus.llmqs) {
         if (params.name == strLLMQType) {
@@ -1193,7 +1204,18 @@ void CDevNetParams::UpdateDevnetLLMQInstantSendFromArgs(const ArgsManager& args)
 {
     if (!args.IsArgSet("-llmqinstantsend")) return;
 
-    std::string strLLMQType = gArgs.GetArg("-llmqinstantsend", std::string(Params().GetLLMQ(consensus.llmqTypeInstantSend).name));
+    std::string s = "";
+    for (const auto& llmq_param : consensus.llmqs) {
+        if (llmq_param.type == consensus.llmqTypeInstantSend) {
+            s = std::string(llmq_param.name);
+        }
+    }
+    if (s.empty()) {
+        error("CChainParams::%s: unknown LLMQ type %d", __func__, static_cast<uint8_t>(consensus.llmqTypeInstantSend));
+        assert(false);
+    }
+    std::string strLLMQType = gArgs.GetArg("-llmqinstantsend", s);
+
     Consensus::LLMQType llmqType = Consensus::LLMQType::LLMQ_NONE;
     for (const auto& params : consensus.llmqs) {
         if (params.name == strLLMQType) {
@@ -1241,9 +1263,9 @@ std::unique_ptr<const CChainParams> CreateChainParams(const std::string& chain)
         return std::make_unique<CMainParams>();
     else if (chain == CBaseChainParams::TESTNET)
         return std::make_unique<CTestNetParams>();
-    else if (chain == CBaseChainParams::DEVNET) {
+    else if (chain == CBaseChainParams::DEVNET)
         return std::make_unique<CDevNetParams>(gArgs);
-    } else if (chain == CBaseChainParams::REGTEST)
+    else if (chain == CBaseChainParams::REGTEST)
         return std::make_unique<CRegTestParams>(gArgs);
 
     throw std::runtime_error(strprintf("%s: Unknown chain %s.", __func__, chain));
