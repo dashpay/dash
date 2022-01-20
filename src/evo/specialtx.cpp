@@ -4,8 +4,8 @@
 
 #include <evo/specialtx.h>
 
-#include <hash.h>
 #include <clientversion.h>
+#include <hash.h>
 
 uint256 CalcTxInputsHash(const CTransaction& tx)
 {

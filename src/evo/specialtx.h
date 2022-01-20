@@ -5,11 +5,11 @@
 #ifndef BITCOIN_EVO_SPECIALTX_H
 #define BITCOIN_EVO_SPECIALTX_H
 
-#include <uint256.h>
-#include <version.h>
+#include <primitives/transaction.h>
 #include <serialize.h>
 #include <streams.h>
-#include <primitives/transaction.h>
+#include <uint256.h>
+#include <version.h>
 
 #include <vector>
 
