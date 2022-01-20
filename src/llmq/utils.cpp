@@ -40,6 +40,7 @@ std::vector<CDeterministicMNCPtr> CLLMQUtils::GetAllQuorumMembers(Consensus::LLM
     if (!IsQuorumTypeEnabled(llmqType, pQuorumBaseBlockIndex->pprev)) {
         return {};
     }
+    LogPrintf("[TAKIS] h[%d] llmqType[%d]\n", pQuorumBaseBlockIndex->nHeight, static_cast<int>(llmqType));
     std::vector<CDeterministicMNCPtr> quorumMembers;
     {
         LOCK(cs_members);
@@ -126,8 +127,10 @@ std::vector<std::vector<CDeterministicMNCPtr>> CLLMQUtils::ComputeQuorumMembersB
     const CBlockIndex* pBlockHMinusCIndex = pQuorumBaseBlockIndex->GetAncestor(pQuorumBaseBlockIndex->nHeight - cycleLength);
     const CBlockIndex* pBlockHMinus2CIndex = pQuorumBaseBlockIndex->GetAncestor(pQuorumBaseBlockIndex->nHeight - 2 * cycleLength);
     const CBlockIndex* pBlockHMinus3CIndex = pQuorumBaseBlockIndex->GetAncestor(pQuorumBaseBlockIndex->nHeight - 3 * cycleLength);
-
-    LogPrintf("CLLMQUtils::ComputeQuorumMembersByQuarterRotation llmqType[%d] nHeight[%d]\n", static_cast<int>(llmqType), pQuorumBaseBlockIndex->nHeight);
+    LOCK(deterministicMNManager->cs);
+    const CBlockIndex* pWorkBlockIndex = pQuorumBaseBlockIndex->GetAncestor(pQuorumBaseBlockIndex->nHeight - 8);
+    auto allMns = deterministicMNManager->GetListForBlock(pWorkBlockIndex);
+    LogPrintf("CLLMQUtils::ComputeQuorumMembersByQuarterRotation llmqType[%d] nHeight[%d] allMns[%d]\n", static_cast<int>(llmqType), pQuorumBaseBlockIndex->nHeight, allMns.GetValidMNsCount());
 
     PreviousQuorumQuarters previousQuarters = GetPreviousQuorumQuarterMembers(llmqParams, pBlockHMinusCIndex, pBlockHMinus2CIndex, pBlockHMinus3CIndex, pQuorumBaseBlockIndex->nHeight);
 
@@ -239,6 +242,7 @@ std::vector<std::vector<CDeterministicMNCPtr>> CLLMQUtils::BuildNewQuorumQuarter
     auto quorumSize = static_cast<size_t>(llmqParams.size);
     auto quarterSize = quorumSize / 4;
     auto modifier = ::SerializeHash(std::make_pair(llmqParams.type, pQuorumBaseBlockIndex->GetBlockHash()));
+    LOCK(deterministicMNManager->cs);
     auto allMns = deterministicMNManager->GetListForBlock(pQuorumBaseBlockIndex);
 
     quarterQuorumMembers.resize(nQuorums);
@@ -365,6 +369,7 @@ std::vector<std::vector<CDeterministicMNCPtr>> CLLMQUtils::GetQuorumQuarterMembe
     quarterQuorumMembers.resize(numQuorums);
 
     auto modifier = ::SerializeHash(std::make_pair(llmqParams.type, pQuorumBaseBlockIndex->GetBlockHash()));
+    LOCK(deterministicMNManager->cs);
     auto Mns = deterministicMNManager->GetListForBlock(pQuorumBaseBlockIndex);
 
     auto [MnsUsedAtH, MnsNotUsedAtH] = CLLMQUtils::GetMNUsageBySnapshot(llmqParams.type, pQuorumBaseBlockIndex, snapshot, nHeight);
@@ -427,7 +432,7 @@ std::pair<CDeterministicMNList, CDeterministicMNList> CLLMQUtils::GetMNUsageBySn
 {
     CDeterministicMNList usedMNs;
     CDeterministicMNList nonUsedMNs;
-
+    LOCK(deterministicMNManager->cs);
     auto Mns = deterministicMNManager->GetListForBlock(pQuorumBaseBlockIndex);
     auto sortedAllMns = Mns.CalculateQuorum(Mns.GetAllMNsCount(), pQuorumBaseBlockIndex->GetBlockHash());
 
@@ -496,6 +501,9 @@ bool CLLMQUtils::IsQuorumRotationEnabled(Consensus::LLMQType llmqType)
 {
     LOCK(cs_llmq_vbc);
     bool fQuorumRotationActive = (VersionBitsState(::ChainActive().Tip(), Params().GetConsensus(), Consensus::DEPLOYMENT_DIP0024, llmq_versionbitscache) == ThresholdState::ACTIVE);
+    if (fQuorumRotationActive) {
+        LogPrintf("[DIP24_ACTIVE] h[%d]\n", ::ChainActive().Tip()->nHeight);
+    }
     return llmqType == Params().GetConsensus().llmqTypeInstantSend && fQuorumRotationActive;
 }
 
