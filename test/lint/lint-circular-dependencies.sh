@@ -71,7 +71,6 @@ EXPECTED_CIRCULAR_DEPENDENCIES=(
     "coinjoin/client -> coinjoin/util -> wallet/wallet -> coinjoin/client"
     "qt/appearancewidget -> qt/guiutil -> qt/optionsdialog -> qt/appearancewidget"
     "qt/guiutil -> qt/optionsdialog -> qt/optionsmodel -> qt/guiutil"
-    "evo/deterministicmns -> evo/simplifiedmns -> llmq/blockprocessor -> llmq/debug -> evo/deterministicmns"
     "evo/deterministicmns -> evo/simplifiedmns -> llmq/blockprocessor -> net_processing -> evo/deterministicmns"
 
     "coinjoin/client -> net_processing -> coinjoin/client"
