@@ -292,7 +292,7 @@ static std::string SignAndSendSpecialTx(const CMutableTransaction& tx, bool fSub
     LOCK(cs_main);
 
     CValidationState state;
-    if (!WITH_LOCK(cs_main, return CheckSpecialTx(CTransaction(tx), ::ChainActive().Tip(), state, ::ChainstateActive().CoinsTip()))) {
+    if (!CheckSpecialTx(CTransaction(tx), ::ChainActive().Tip(), state, ::ChainstateActive().CoinsTip())) {
         throw std::runtime_error(FormatStateMessage(state));
     }
     } // cs_main
