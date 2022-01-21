@@ -9,6 +9,7 @@
 #include <evo/cbtx.h>
 #include <evo/deterministicmns.h>
 #include <evo/mnhftx.h>
+#include <evo/providertx.h>
 #include <hash.h>
 #include <llmq/blockprocessor.h>
 #include <llmq/commitment.h>
