@@ -3,6 +3,7 @@ jobs:
   build:
     machine:
       image: ubuntu-2004:202104-01
+    resource_class: large
     steps:
       - checkout
       - run:
@@ -13,7 +14,7 @@ jobs:
           command: sudo apt-get install curl build-essential libtool autotools-dev automake pkg-config python3 bsdmainutils cmake git
       - run:
           name: "Build depends"
-          command: cd depends && make -j 2 && cd ..
+          command: cd depends && make -j 4 && cd ..
       - run:
           name: "Build"
-          command: ./autogen.sh && ./configure --prefix `pwd`/depends/x86_64-pc-linux-gnu --enable-avx2 --with-gui && make
+          command: ./autogen.sh && ./configure --prefix `pwd`/depends/x86_64-pc-linux-gnu --enable-avx2 --with-gui && make -j 4

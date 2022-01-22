@@ -1,5 +1,5 @@
-Alterdot 1.9.0
-=====================
+Alterdot
+========
 
 This is the official reference wallet for Alterdot digital currency and comprises the backbone of the Alterdot peer-to-peer network. You can [download Alterdot](https://www.alterdot.org/downloads/) or [build it yourself](#building) using the guides below.
 

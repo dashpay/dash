@@ -1,6 +1,7 @@
 // Copyright (c) 2010 Satoshi Nakamoto
 // Copyright (c) 2009-2015 The Bitcoin Core developers
 // Copyright (c) 2014-2019 The Dash Core developers
+// Copyright (c) 2021-2022 Alterdot developers
 // Distributed under the MIT software license, see the accompanying
 // file COPYING or http://www.opensource.org/licenses/mit-license.php.
 
@@ -1202,7 +1203,7 @@ UniValue registerdomain(const JSONRPCRequest& request)
     std::string bdnsName = request.params[0].get_str();
     std::string content = request.params[1].get_str();
 
-    if (pbdnsdb->Exists(bdnsName))
+    if (pbdnsdb->HasBDNSRecord(bdnsName))
         throw JSONRPCError(RPC_INVALID_PARAMETER, "Blockchain domain name already registered!");
 
     CBitcoinAddress payingAddress;

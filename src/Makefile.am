@@ -1,5 +1,5 @@
 # Copyright (c) 2013-2016 The Bitcoin Core developers
-# Copyright (c) 2014-2018 The Alterdot developers
+# Copyright (c) 2014-2018 The Dash Core developers
 # Distributed under the MIT software license, see the accompanying
 # file COPYING or http://www.opensource.org/licenses/mit-license.php.
 
@@ -397,8 +397,15 @@ crypto_libalterdot_crypto_a_SOURCES += \
   crypto/argon2d/argon2.c \
   crypto/argon2d/core.c \
   crypto/argon2d/encoding.c \
-  crypto/argon2d/thread.c \
-  crypto/argon2d/opt.c \
+  crypto/argon2d/thread.c
+
+if ARGON2D_NO_OPT
+crypto_libalterdot_crypto_a_SOURCES += crypto/argon2d/ref.c
+else
+crypto_libalterdot_crypto_a_SOURCES += crypto/argon2d/opt.c
+endif
+
+crypto_libalterdot_crypto_a_SOURCES += \
   crypto/blake2/blake2b.c \
   crypto/blake2/blake2-impl.h \
   crypto/blake2/blake2.h \

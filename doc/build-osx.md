@@ -56,7 +56,7 @@ Other commands:
 
 Using Qt Creator as IDE
 ------------------------
-You can use Qt Creator as an IDE, for alterdot development.
+You can use Qt Creator as an IDE, for Alterdot development.
 Download and install the community edition of [Qt Creator](https://www.qt.io/download/).
 Uncheck everything except Qt Creator during the installation process.
 
