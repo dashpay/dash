@@ -776,38 +776,49 @@ class DashTestFramework(BitcoinTestFramework):
 
     def prepare_masternodes(self):
         self.log.info("Preparing %d masternodes" % self.mn_count)
-        for idx in range(0, self.mn_count):
-            self.prepare_masternode(idx)
+        rewardsAddr = self.nodes[0].getnewaddress()
 
-    def prepare_masternode(self, idx):
+        for idx in range(0, self.mn_count):
+            self.prepare_masternode(idx, rewardsAddr)
+        import sys
+        sys.exit(0)
+
+    def prepare_masternode(self, idx, rewardsAddr=None):
+
+        register_fund = (idx % 2) == 0
+
         bls = self.nodes[0].bls('generate')
         address = self.nodes[0].getnewaddress()
-        txid = self.nodes[0].sendtoaddress(address, MASTERNODE_COLLATERAL)
 
-        txraw = self.nodes[0].getrawtransaction(txid, True)
+        txid = None
+        txid = self.nodes[0].sendtoaddress(address, MASTERNODE_COLLATERAL)
         collateral_vout = 0
-        for vout_idx in range(0, len(txraw["vout"])):
-            vout = txraw["vout"][vout_idx]
-            if vout["value"] == MASTERNODE_COLLATERAL:
-                collateral_vout = vout_idx
-        self.nodes[0].lockunspent(False, [{'txid': txid, 'vout': collateral_vout}])
+        if not register_fund:
+            txraw = self.nodes[0].getrawtransaction(txid, True)
+            for vout_idx in range(0, len(txraw["vout"])):
+                vout = txraw["vout"][vout_idx]
+                if vout["value"] == MASTERNODE_COLLATERAL:
+                    collateral_vout = vout_idx
+            self.nodes[0].lockunspent(False, [{'txid': txid, 'vout': collateral_vout}])
 
         # send to same address to reserve some funds for fees
         self.nodes[0].sendtoaddress(address, 0.001)
 
         ownerAddr = self.nodes[0].getnewaddress()
-        votingAddr = self.nodes[0].getnewaddress()
-        rewardsAddr = self.nodes[0].getnewaddress()
+        # votingAddr = self.nodes[0].getnewaddress()
+        if rewardsAddr is None:
+            rewardsAddr = self.nodes[0].getnewaddress()
+        votingAddr = ownerAddr
+        # rewardsAddr = ownerAddr
 
         port = p2p_port(len(self.nodes) + idx)
         ipAndPort = '127.0.0.1:%d' % port
         operatorReward = idx
-        operatorPayoutAddress = self.nodes[0].getnewaddress()
 
         submit = (idx % 4) < 2
 
-        if (idx % 2) == 0 :
-            self.nodes[0].lockunspent(True, [{'txid': txid, 'vout': collateral_vout}])
+        if register_fund:
+            # self.nodes[0].lockunspent(True, [{'txid': txid, 'vout': collateral_vout}])
             protx_result = self.nodes[0].protx('register_fund', address, ipAndPort, ownerAddr, bls['public'], votingAddr, operatorReward, rewardsAddr, address, submit)
         else:
             self.nodes[0].generate(1)
@@ -818,13 +829,14 @@ class DashTestFramework(BitcoinTestFramework):
         else:
             proTxHash = self.nodes[0].sendrawtransaction(protx_result)
 
-        self.nodes[0].generate(1)
 
         if operatorReward > 0:
+            self.nodes[0].generate(1)
+            operatorPayoutAddress = self.nodes[0].getnewaddress()
             self.nodes[0].protx('update_service', proTxHash, ipAndPort, bls['secret'], operatorPayoutAddress, address)
 
         self.mninfo.append(MasternodeInfo(proTxHash, ownerAddr, votingAddr, bls['public'], bls['secret'], address, txid, collateral_vout))
-        self.sync_all()
+        # self.sync_all()
 
         self.log.info("Prepared masternode %d: collateral_txid=%s, collateral_vout=%d, protxHash=%s" % (idx, txid, collateral_vout, proTxHash))
 
