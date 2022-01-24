@@ -7,6 +7,7 @@
 
 #include <cachemap.h>
 #include <cachemultimap.h>
+#include <evo/deterministicmns.h>
 #include <governance/object.h>
 
 class CBloomFilter;
@@ -18,12 +19,14 @@ class CGovernanceTriggerManager;
 class CGovernanceObject;
 class CGovernanceVote;
 
+using CDeterministicMNListPtr = std::shared_ptr<CDeterministicMNList>;
+
 extern CGovernanceManager governance;
 
 static constexpr int RATE_BUFFER_SIZE = 5;
 
 class CDeterministicMNList;
-using CDeterministicMNListPtr = std::shared_ptr<CDeterministicMNList>;
+typedef std::shared_ptr<CDeterministicMNList> CDeterministicMNListPtr;
 
 class CRateCheckBuffer
 {
@@ -161,38 +164,38 @@ private:
     static const int MAX_TIME_FUTURE_DEVIATION;
     static const int RELIABLE_PROPAGATION_TIME;
 
-    int64_t nTimeLastDiff;
+    std::atomic<int64_t> nTimeLastDiff;
 
     // keep track of current block height
-    int nCachedBlockHeight;
+    std::atomic<int> nCachedBlockHeight;
 
     // keep track of the scanning errors
-    std::map<uint256, CGovernanceObject> mapObjects;
+    std::map<uint256, CGovernanceObject> mapObjects GUARDED_BY(cs);
 
     // mapErasedGovernanceObjects contains key-value pairs, where
     //   key   - governance object's hash
     //   value - expiration time for deleted objects
-    std::map<uint256, int64_t> mapErasedGovernanceObjects;
+    std::map<uint256, int64_t> mapErasedGovernanceObjects GUARDED_BY(cs);
 
-    std::map<uint256, CGovernanceObject> mapPostponedObjects;
-    hash_s_t setAdditionalRelayObjects;
+    std::map<uint256, CGovernanceObject> mapPostponedObjects GUARDED_BY(cs);
+    hash_s_t setAdditionalRelayObjects GUARDED_BY(cs);
 
-    object_ref_cm_t cmapVoteToObject;
+    object_ref_cm_t cmapVoteToObject GUARDED_BY(cs) {MAX_CACHE_SIZE};
 
-    CacheMap<uint256, CGovernanceVote> cmapInvalidVotes;
+    CacheMap<uint256, CGovernanceVote> cmapInvalidVotes GUARDED_BY(cs) {MAX_CACHE_SIZE};
 
-    vote_cmm_t cmmapOrphanVotes;
+    vote_cmm_t cmmapOrphanVotes GUARDED_BY(cs) {MAX_CACHE_SIZE};
 
-    txout_m_t mapLastMasternodeObject;
+    txout_m_t mapLastMasternodeObject GUARDED_BY(cs);
 
-    hash_s_t setRequestedObjects;
+    hash_s_t setRequestedObjects GUARDED_BY(cs);
 
-    hash_s_t setRequestedVotes;
+    hash_s_t setRequestedVotes GUARDED_BY(cs);
 
-    bool fRateChecksEnabled;
+    bool fRateChecksEnabled{true};
 
     // used to check for changed voting keys
-    CDeterministicMNListPtr lastMNListForVotingKeys;
+    CDeterministicMNListPtr lastMNListForVotingKeys GUARDED_BY(cs) {std::make_shared<CDeterministicMNList>()};
 
     class ScopedLockBool
     {
@@ -218,7 +221,7 @@ public:
     // critical section to protect the inner data structures
     mutable CCriticalSection cs;
 
-    CGovernanceManager();
+    CGovernanceManager() = default;
 
     virtual ~CGovernanceManager() = default;
 
@@ -353,6 +356,7 @@ private:
 
     void AddInvalidVote(const CGovernanceVote& vote)
     {
+        LOCK(cs);
         cmapInvalidVotes.Insert(vote.GetHash(), vote);
     }
 

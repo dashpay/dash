@@ -19,80 +19,42 @@
 
 #include <string>
 
-CGovernanceObject::CGovernanceObject() :
-    cs(),
-    nObjectType(GOVERNANCE_OBJECT_UNKNOWN),
-    nHashParent(),
-    nRevision(0),
-    nTime(0),
-    nDeletionTime(0),
-    nCollateralHash(),
-    vchData(),
-    masternodeOutpoint(),
-    vchSig(),
-    fCachedLocalValidity(false),
-    strLocalValidityError(),
-    fCachedFunding(false),
-    fCachedValid(true),
-    fCachedDelete(false),
-    fCachedEndorsed(false),
-    fDirtyCache(true),
-    fExpired(false),
-    fUnparsable(false),
-    mapCurrentMNVotes(),
-    fileVotes()
+CGovernanceObject::CGovernanceObject()
 {
     // PARSE JSON DATA STORAGE (VCHDATA)
     LoadData();
 }
 
 CGovernanceObject::CGovernanceObject(const uint256& nHashParentIn, int nRevisionIn, int64_t nTimeIn, const uint256& nCollateralHashIn, const std::string& strDataHexIn) :
-    cs(),
-    nObjectType(GOVERNANCE_OBJECT_UNKNOWN),
     nHashParent(nHashParentIn),
     nRevision(nRevisionIn),
     nTime(nTimeIn),
-    nDeletionTime(0),
     nCollateralHash(nCollateralHashIn),
-    vchData(ParseHex(strDataHexIn)),
-    masternodeOutpoint(),
-    vchSig(),
-    fCachedLocalValidity(false),
-    strLocalValidityError(),
-    fCachedFunding(false),
-    fCachedValid(true),
-    fCachedDelete(false),
-    fCachedEndorsed(false),
-    fDirtyCache(true),
-    fExpired(false),
-    fUnparsable(false),
-    mapCurrentMNVotes(),
-    fileVotes()
+    vchData(ParseHex(strDataHexIn))
 {
     // PARSE JSON DATA STORAGE (VCHDATA)
     LoadData();
 }
 
 CGovernanceObject::CGovernanceObject(const CGovernanceObject& other) :
-    cs(),
-    nObjectType(other.nObjectType),
+    nObjectType(other.nObjectType.load()),
     nHashParent(other.nHashParent),
-    nRevision(other.nRevision),
-    nTime(other.nTime),
-    nDeletionTime(other.nDeletionTime),
+    nRevision(other.nRevision.load()),
+    nTime(other.nTime.load()),
+    nDeletionTime(other.nDeletionTime.load()),
     nCollateralHash(other.nCollateralHash),
     vchData(other.vchData),
     masternodeOutpoint(other.masternodeOutpoint),
     vchSig(other.vchSig),
-    fCachedLocalValidity(other.fCachedLocalValidity),
+    fCachedLocalValidity(other.fCachedLocalValidity.load()),
     strLocalValidityError(other.strLocalValidityError),
-    fCachedFunding(other.fCachedFunding),
-    fCachedValid(other.fCachedValid),
-    fCachedDelete(other.fCachedDelete),
-    fCachedEndorsed(other.fCachedEndorsed),
-    fDirtyCache(other.fDirtyCache),
-    fExpired(other.fExpired),
-    fUnparsable(other.fUnparsable),
+    fCachedFunding(other.fCachedFunding.load()),
+    fCachedValid(other.fCachedValid.load()),
+    fCachedDelete(other.fCachedDelete.load()),
+    fCachedEndorsed(other.fCachedEndorsed.load()),
+    fDirtyCache(other.fDirtyCache.load()),
+    fExpired(other.fExpired.load()),
+    fUnparsable(other.fUnparsable.load()),
     mapCurrentMNVotes(other.mapCurrentMNVotes),
     fileVotes(other.fileVotes)
 {
@@ -279,6 +241,8 @@ uint256 CGovernanceObject::GetHash() const
 
     // CREATE HASH OF ALL IMPORTANT PIECES OF DATA
 
+    LOCK(cs);
+
     CHashWriter ss(SER_GETHASH, PROTOCOL_VERSION);
     ss << nHashParent;
     ss << nRevision;
@@ -298,6 +262,7 @@ uint256 CGovernanceObject::GetSignatureHash() const
 
 void CGovernanceObject::SetMasternodeOutpoint(const COutPoint& outpoint)
 {
+    LOCK(cs);
     masternodeOutpoint = outpoint;
 }
 
@@ -307,12 +272,14 @@ bool CGovernanceObject::Sign(const CBLSSecretKey& key)
     if (!sig.IsValid()) {
         return false;
     }
+    LOCK(cs);
     vchSig = sig.ToByteVector();
     return true;
 }
 
 bool CGovernanceObject::CheckSignature(const CBLSPublicKey& pubKey) const
 {
+    LOCK(cs);
     if (!CBLSSignature(vchSig).VerifyInsecure(pubKey, GetSignatureHash())) {
         LogPrintf("CGovernanceObject::CheckSignature -- VerifyInsecure() failed\n");
         return false;
@@ -328,7 +295,7 @@ bool CGovernanceObject::CheckSignature(const CBLSPublicKey& pubKey) const
 UniValue CGovernanceObject::GetJSONObject() const
 {
     UniValue obj(UniValue::VOBJ);
-    if (vchData.empty()) {
+    if (LOCK(cs); vchData.empty()) {
         return obj;
     }
 
@@ -356,7 +323,7 @@ UniValue CGovernanceObject::GetJSONObject() const
 
 void CGovernanceObject::LoadData()
 {
-    if (vchData.empty()) {
+    if (LOCK(cs); vchData.empty()) {
         return;
     }
 
@@ -407,16 +374,19 @@ void CGovernanceObject::GetData(UniValue& objResult) const
 
 std::string CGovernanceObject::GetDataAsHexString() const
 {
+    LOCK(cs);
     return HexStr(vchData);
 }
 
 std::string CGovernanceObject::GetDataAsPlainString() const
 {
+    LOCK(cs);
     return std::string(vchData.begin(), vchData.end());
 }
 
 UniValue CGovernanceObject::ToJson() const
 {
+    LOCK(cs);
     UniValue obj(UniValue::VOBJ);
     obj.pushKV("objectHash", GetHash().ToString());
     obj.pushKV("parentHash", nHashParent.ToString());
@@ -438,7 +408,7 @@ UniValue CGovernanceObject::ToJson() const
 
 void CGovernanceObject::UpdateLocalValidity()
 {
-    LOCK(cs_main);
+    LOCK(cs);
     // THIS DOES NOT CHECK COLLATERAL, THIS IS CHECKED UPON ORIGINAL ARRIVAL
     fCachedLocalValidity = IsValidLocally(strLocalValidityError, false);
 }
@@ -453,6 +423,7 @@ bool CGovernanceObject::IsValidLocally(std::string& strError, bool fCheckCollate
 
 bool CGovernanceObject::IsValidLocally(std::string& strError, bool& fMissingConfirmations, bool fCheckCollateral) const
 {
+    AssertLockHeld(cs);
     fMissingConfirmations = false;
 
     if (fUnparsable) {
@@ -470,7 +441,7 @@ bool CGovernanceObject::IsValidLocally(std::string& strError, bool& fMissingConf
             strError = strprintf("Invalid proposal data, error messages: %s", validator.GetErrorMessages());
             return false;
         }
-        if (fCheckCollateral && !IsCollateralValid(strError, fMissingConfirmations)) {
+        if (fCheckCollateral && !WITH_LOCK(cs_main, return IsCollateralValid(strError, fMissingConfirmations))) {
             strError = "Invalid proposal collateral";
             return false;
         }
@@ -531,7 +502,7 @@ bool CGovernanceObject::IsCollateralValid(std::string& strError, bool& fMissingC
 
     // RETRIEVE TRANSACTION IN QUESTION
 
-    if (!GetTransaction(nCollateralHash, txCollateral, Params().GetConsensus(), nBlockHash)) {
+    if (LOCK(cs); !GetTransaction(nCollateralHash, txCollateral, Params().GetConsensus(), nBlockHash)) {
         strError = strprintf("Can't find collateral tx %s", nCollateralHash.ToString());
         LogPrintf("CGovernanceObject::IsCollateralValid -- %s\n", strError);
         return false;

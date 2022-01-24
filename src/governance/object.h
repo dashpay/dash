@@ -94,67 +94,67 @@ class CGovernanceObject
 public: // Types
     using vote_m_t = std::map<COutPoint, vote_rec_t>;
 
-private:
     /// critical section to protect the inner data structures
     mutable CCriticalSection cs;
+private:
 
     /// Object typecode
-    int nObjectType;
+    std::atomic<int> nObjectType{GOVERNANCE_OBJECT_UNKNOWN};
 
     /// parent object, 0 is root
-    uint256 nHashParent;
+    uint256 nHashParent GUARDED_BY(cs);
 
     /// object revision in the system
-    int nRevision;
+    std::atomic<int> nRevision{0};
 
     /// time this object was created
-    int64_t nTime;
+    std::atomic<int64_t> nTime{0};
 
     /// time this object was marked for deletion
-    int64_t nDeletionTime;
+    std::atomic<int64_t> nDeletionTime{0};
 
     /// fee-tx
-    uint256 nCollateralHash;
+    uint256 nCollateralHash GUARDED_BY(cs);
 
     /// Data field - can be used for anything
-    std::vector<unsigned char> vchData;
+    std::vector<unsigned char> vchData GUARDED_BY(cs);
 
     /// Masternode info for signed objects
-    COutPoint masternodeOutpoint;
-    std::vector<unsigned char> vchSig;
+    COutPoint masternodeOutpoint GUARDED_BY(cs);
+    std::vector<unsigned char> vchSig GUARDED_BY(cs);
 
     /// is valid by blockchain
-    bool fCachedLocalValidity;
-    std::string strLocalValidityError;
+    std::atomic<bool> fCachedLocalValidity{false};
+    std::string strLocalValidityError GUARDED_BY(cs);
 
     // VARIOUS FLAGS FOR OBJECT / SET VIA MASTERNODE VOTING
 
     /// true == minimum network support has been reached for this object to be funded (doesn't mean it will for sure though)
-    bool fCachedFunding;
+    std::atomic<bool> fCachedFunding{false};
 
     /// true == minimum network has been reached flagging this object as a valid and understood governance object (e.g, the serialized data is correct format, etc)
-    bool fCachedValid;
+    std::atomic<bool> fCachedValid{true};
 
     /// true == minimum network support has been reached saying this object should be deleted from the system entirely
-    bool fCachedDelete;
+    std::atomic<bool> fCachedDelete{false};
 
     /** true == minimum network support has been reached flagging this object as endorsed by an elected representative body
      * (e.g. business review board / technical review board /etc)
      */
-    bool fCachedEndorsed;
+    std::atomic<bool> fCachedEndorsed{false};
 
     /// object was updated and cached values should be updated soon
-    bool fDirtyCache;
+    std::atomic<bool> fDirtyCache{false};
 
     /// Object is no longer of interest
-    bool fExpired;
+    std::atomic<bool> fExpired{false};
 
     /// Failed to parse object data
-    bool fUnparsable;
+    std::atomic<bool> fUnparsable{false};
 
-    vote_m_t mapCurrentMNVotes;
+    vote_m_t mapCurrentMNVotes GUARDED_BY(cs);
 
-    CGovernanceObjectVoteFile fileVotes;
+    CGovernanceObjectVoteFile fileVotes GUARDED_BY(cs);
 
 public:
     CGovernanceObject();
@@ -180,13 +180,15 @@ public:
         return nObjectType;
     }
 
-    const uint256& GetCollateralHash() const
+    uint256 GetCollateralHash() const
     {
+        LOCK(cs);
         return nCollateralHash;
     }
 
-    const COutPoint& GetMasternodeOutpoint() const
+    COutPoint GetMasternodeOutpoint() const
     {
+        LOCK(cs);
         return masternodeOutpoint;
     }
 
@@ -225,8 +227,12 @@ public:
         fExpired = true;
     }
 
-    const CGovernanceObjectVoteFile& GetVoteFile() const
+    /* TODO we are returning an expensive copy here. Refactor this code to avoid copy, while retaining saftey.
+     * Likely this will include making CGovernanceObjectVoteFile internally safe and returning a ptr or ref
+    */
+    CGovernanceObjectVoteFile GetVoteFile() const
     {
+        LOCK(cs);
         return fileVotes;
     }
 
@@ -240,12 +246,12 @@ public:
 
     // CORE OBJECT FUNCTIONS
 
-    bool IsValidLocally(std::string& strError, bool fCheckCollateral) const EXCLUSIVE_LOCKS_REQUIRED(cs_main);
+    bool IsValidLocally(std::string& strError, bool fCheckCollateral) const EXCLUSIVE_LOCKS_REQUIRED(cs);
 
-    bool IsValidLocally(std::string& strError, bool& fMissingConfirmations, bool fCheckCollateral) const EXCLUSIVE_LOCKS_REQUIRED(cs_main);
+    bool IsValidLocally(std::string& strError, bool& fMissingConfirmations, bool fCheckCollateral) const EXCLUSIVE_LOCKS_REQUIRED(cs);
 
     /// Check the collateral transaction for the budget proposal/finalized budget
-    bool IsCollateralValid(std::string& strError, bool& fMissingConfirmations) const EXCLUSIVE_LOCKS_REQUIRED(cs_main);
+    bool IsCollateralValid(std::string& strError, bool& fMissingConfirmations) const EXCLUSIVE_LOCKS_REQUIRED(cs, cs_main);
 
     void UpdateLocalValidity();
 
@@ -289,6 +295,7 @@ public:
     SERIALIZE_METHODS(CGovernanceObject, obj)
     {
         // SERIALIZE DATA FOR SAVING/LOADING OR NETWORK FUNCTIONS
+        LOCK(obj.cs);
         READWRITE(
                 obj.nHashParent,
                 obj.nRevision,
