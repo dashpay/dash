@@ -134,11 +134,7 @@ bool CQuorumBlockProcessor::ProcessBlock(const CBlock& block, const CBlockIndex*
         return true;
     }
 
-    for (const Consensus::LLMQParams& params : CLLMQUtils::GetEnabledQuorumParams(pindex->pprev)) {
-        if (pindex->nHeight % params.dkgInterval == 0) {
-            auto mns = CLLMQUtils::GetAllQuorumMembers(params.type, pindex);
-        }
-    }
+    llmq::CLLMQUtils::PreComputeQuorumMembers(pindex);
 
     std::multimap<Consensus::LLMQType, CFinalCommitment> qcs;
     if (!GetCommitmentsFromBlock(block, pindex, qcs, state)) {

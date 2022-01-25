@@ -31,6 +31,15 @@ namespace llmq
 CCriticalSection cs_llmq_vbc;
 VersionBitsCache llmq_versionbitscache;
 
+void CLLMQUtils::PreComputeQuorumMembers(const CBlockIndex* pQuorumBaseBlockIndex)
+{
+    for (const Consensus::LLMQParams& params : CLLMQUtils::GetEnabledQuorumParams(pQuorumBaseBlockIndex->pprev)) {
+        if (llmq::CLLMQUtils::IsQuorumRotationEnabled(params.type) && (pQuorumBaseBlockIndex->nHeight % params.dkgInterval == 0)) {
+            auto mns = CLLMQUtils::GetAllQuorumMembers(params.type, pQuorumBaseBlockIndex);
+        }
+    }
+}
+
 std::vector<CDeterministicMNCPtr> CLLMQUtils::GetAllQuorumMembers(Consensus::LLMQType llmqType, const CBlockIndex* pQuorumBaseBlockIndex)
 {
     static CCriticalSection cs_members;
@@ -40,7 +49,6 @@ std::vector<CDeterministicMNCPtr> CLLMQUtils::GetAllQuorumMembers(Consensus::LLM
     if (!IsQuorumTypeEnabled(llmqType, pQuorumBaseBlockIndex->pprev)) {
         return {};
     }
-    LogPrintf("[TAKIS] h[%d] llmqType[%d]\n", pQuorumBaseBlockIndex->nHeight, static_cast<int>(llmqType));
     std::vector<CDeterministicMNCPtr> quorumMembers;
     {
         LOCK(cs_members);
@@ -163,11 +171,11 @@ std::vector<std::vector<CDeterministicMNCPtr>> CLLMQUtils::ComputeQuorumMembersB
         for (auto& m : previousQuarters.quarterHMinus2C[i]) {
             ss << m->proTxHash.ToString().substr(0, 4) << " | ";
         }
-        ss << " ] 2Cmns[";
+        ss << " ] Cmns[";
         for (auto& m : previousQuarters.quarterHMinusC[i]) {
             ss << m->proTxHash.ToString().substr(0, 4) << " | ";
         }
-        ss << " ] mew[";
+        ss << " ] new[";
         for (auto& m : newQuarterMembers[i]) {
             ss << m->proTxHash.ToString().substr(0, 4) << " | ";
         }
@@ -303,6 +311,14 @@ std::vector<std::vector<CDeterministicMNCPtr>> CLLMQUtils::BuildNewQuorumQuarter
     for (auto& m : sortedMnsUsedAtHM) {
         sortedCombinedMnsList.push_back(std::move(m));
     }
+
+    std::stringstream ss;
+    ss << " [";
+    for (auto& m : sortedCombinedMnsList) {
+        ss << m->proTxHash.ToString().substr(0, 4) << " | ";
+    }
+    ss << "]";
+    LogPrintf("BuildNewQuorumQuarterMembers h[%d] sortedCombinedMnsList:%s\n", pQuorumBaseBlockIndex->nHeight, ss.str());
 
     std::vector<int> skipList;
     int firstSkippedIndex = 0;
@@ -501,9 +517,6 @@ bool CLLMQUtils::IsQuorumRotationEnabled(Consensus::LLMQType llmqType)
 {
     LOCK(cs_llmq_vbc);
     bool fQuorumRotationActive = (VersionBitsState(::ChainActive().Tip(), Params().GetConsensus(), Consensus::DEPLOYMENT_DIP0024, llmq_versionbitscache) == ThresholdState::ACTIVE);
-    if (fQuorumRotationActive) {
-        LogPrintf("[DIP24_ACTIVE] h[%d]\n", ::ChainActive().Tip()->nHeight);
-    }
     return llmqType == Params().GetConsensus().llmqTypeInstantSend && fQuorumRotationActive;
 }
 

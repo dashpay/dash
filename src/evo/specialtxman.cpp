@@ -125,11 +125,6 @@ bool ProcessSpecialTxsInBlock(const CBlock& block, const CBlockIndex* pindex, CV
         nTimeLoop += nTime2 - nTime1;
         LogPrint(BCLog::BENCHMARK, "        - Loop: %.2fms [%.2fs]\n", 0.001 * (nTime2 - nTime1), nTimeLoop * 0.000001);
 
-        if (!deterministicMNManager->ProcessBlock(block, pindex, state, view, fJustCheck)) {
-            // pass the state returned by the function above
-            return false;
-        }
-
         if (!llmq::quorumBlockProcessor->ProcessBlock(block, pindex, state, fJustCheck, fCheckCbTxMerleRoots)) {
             // pass the state returned by the function above
             return false;
@@ -139,10 +134,10 @@ bool ProcessSpecialTxsInBlock(const CBlock& block, const CBlockIndex* pindex, CV
         nTimeQuorum += nTime3 - nTime2;
         LogPrint(BCLog::BENCHMARK, "        - quorumBlockProcessor: %.2fms [%.2fs]\n", 0.001 * (nTime3 - nTime2), nTimeQuorum * 0.000001);
 
-        /*if (!deterministicMNManager->ProcessBlock(block, pindex, state, view, fJustCheck)) {
+        if (!deterministicMNManager->ProcessBlock(block, pindex, state, view, fJustCheck)) {
             // pass the state returned by the function above
             return false;
-        }*/
+        }
 
         int64_t nTime4 = GetTimeMicros();
         nTimeDMN += nTime4 - nTime3;
