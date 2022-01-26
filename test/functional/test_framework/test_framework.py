@@ -755,10 +755,23 @@ class DashTestFramework(BitcoinTestFramework):
                 self.sync_blocks()
         self.sync_blocks()
 
-    def activate_dip24(self, slow_mode=False):
+    def activate_dip24(self, slow_mode=False, expected_activation_height=None):
         self.log.info("Wait for dip0024 activation")
+
+        if expected_activation_height is not None:
+            height = self.nodes[0].getblockcount()
+            batch_size = 100
+            while height - expected_activation_height > batch_size:
+                self.nodes[0].generate(batch_size)
+                height += batch_size
+            assert height - expected_activation_height < batch_size
+            self.nodes[0].generate(height - expected_activation_height - 1)
+            assert self.nodes[0].getblockchaininfo()['bip9_softforks']['dip0024']['status'] != 'active'
+
         while self.nodes[0].getblockchaininfo()['bip9_softforks']['dip0024']['status'] != 'active':
-            self.nodes[0].generate(1)
+            self.nodes[0].generate(10)
+            if slow_mode:
+                self.sync_blocks()
         self.sync_blocks()
 
     def set_dash_llmq_test_params(self, llmq_size, llmq_threshold):
@@ -780,8 +793,7 @@ class DashTestFramework(BitcoinTestFramework):
 
         for idx in range(0, self.mn_count):
             self.prepare_masternode(idx, rewardsAddr)
-        import sys
-        sys.exit(0)
+        self.sync_all()
 
     def prepare_masternode(self, idx, rewardsAddr=None):
 
@@ -1213,16 +1225,16 @@ class DashTestFramework(BitcoinTestFramework):
         wait_until(wait_func, timeout=timeout, sleep=sleep)
 
     def move_blocks(self, nodes, num_blocks):
-        time.sleep(4)
+        time.sleep(1)
         self.bump_mocktime(1, nodes=nodes)
         self.nodes[0].generate(num_blocks)
         sync_blocks(nodes)
 
     def mine_quorum(self, expected_connections=None, expected_members=None, expected_contributions=None, expected_complaints=0, expected_justifications=0, expected_commitments=None, mninfos_online=None, mninfos_valid=None):
-        spork21_active = self.nodes[0].spork('show')['SPORK_21_QUORUM_ALL_CONNECTED'] <= 1
         spork23_active = self.nodes[0].spork('show')['SPORK_23_QUORUM_POSE'] <= 1
 
         if expected_connections is None:
+            spork21_active = self.nodes[0].spork('show')['SPORK_21_QUORUM_ALL_CONNECTED'] <= 1
             expected_connections = (self.llmq_size - 1) if spork21_active else 2
         if expected_members is None:
             expected_members = self.llmq_size
@@ -1331,17 +1343,20 @@ class DashTestFramework(BitcoinTestFramework):
 
         # move forward to next DKG
         skip_count = 24 - (self.nodes[0].getblockcount() % 24)
-        if skip_count != 0:
-            self.bump_mocktime(1, nodes=nodes)
-            self.nodes[0].generate(skip_count)
-            time.sleep(4)
-        sync_blocks(nodes)
+
+        # if skip_count != 0:
+        #     self.bump_mocktime(1, nodes=nodes)
+        #     self.nodes[0].generate(skip_count)
+        #     time.sleep(4)
+        # sync_blocks(nodes)
+
+        self.move_blocks(nodes, skip_count)
 
         q_0 = self.nodes[0].getbestblockhash()
         self.log.info("Expected quorum_0 at:" + str(self.nodes[0].getblockcount()))
-        time.sleep(4)
+        # time.sleep(4)
         self.log.info("Exepcted quorum_0 hash:" + str(q_0))
-        time.sleep(4)
+        # time.sleep(4)
         self.log.info("quorumIndex 0: Waiting for phase 1 (init)")
         self.wait_for_quorum_phase(q_0, 1, expected_members, None, 0, mninfos_online)
         self.log.info("quorumIndex 0: Waiting for quorum connections (init)")
@@ -1353,9 +1368,9 @@ class DashTestFramework(BitcoinTestFramework):
 
         q_1 = self.nodes[0].getbestblockhash()
         self.log.info("Expected quorum_1 at:" + str(self.nodes[0].getblockcount()))
-        time.sleep(2)
+        # time.sleep(2)
         self.log.info("Exepcted quorum_1 hash:" + str(q_1))
-        time.sleep(2)
+        # time.sleep(2)
         self.log.info("quorumIndex 1: Waiting for phase 1 (init)")
         self.wait_for_quorum_phase(q_1, 1, expected_members, None, 0, mninfos_online)
         self.log.info("quorumIndex 1: Waiting for quorum connections (init)")

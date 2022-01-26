@@ -44,7 +44,7 @@ class LLMQQuorumRotationTest(DashTestFramework):
         self.nodes[0].spork("SPORK_17_QUORUM_DKG_ENABLED", 0)
         self.wait_for_sporks_same()
 
-        self.activate_dip24()
+        self.activate_dip24(expected_activation_height=902)
         self.log.info("Activated DIP24 at height:" + str(self.nodes[0].getblockcount()))
 
         cycle_length = 24
