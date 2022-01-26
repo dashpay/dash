@@ -464,7 +464,7 @@ bool CGovernanceObject::IsValidLocally(std::string& strError, bool& fMissingConf
 
     switch (nObjectType) {
     case GOVERNANCE_OBJECT_PROPOSAL: {
-        bool fAllowScript = (VersionBitsTipState(Params().GetConsensus(), Consensus::DEPLOYMENT_GOVSCRIPT) == ThresholdState::ACTIVE);
+        bool fAllowScript = (VersionBitsTipState(Params().GetConsensus(), Consensus::DEPLOYMENT_GOV_FEE) == ThresholdState::ACTIVE);
         bool fAllowLegacyFormat = !fAllowScript; // reusing the same bit to stop accepting proposals in legacy format
         CProposalValidator validator(GetDataAsHexString(), fAllowLegacyFormat, fAllowScript);
         // Note: It's ok to have expired proposals
@@ -683,7 +683,7 @@ void CGovernanceObject::Relay(CConnman& connman) const
         // But we don't want to relay it to pre-GOVSCRIPT_PROTO_VERSION peers if payment_address is p2sh
         // because they won't accept it anyway and will simply ban us eventually.
         LOCK(cs_main);
-        bool fAllowScript = (VersionBitsTipState(Params().GetConsensus(), Consensus::DEPLOYMENT_GOVSCRIPT) == ThresholdState::ACTIVE);
+        bool fAllowScript = (VersionBitsTipState(Params().GetConsensus(), Consensus::DEPLOYMENT_GOV_FEE) == ThresholdState::ACTIVE);
         if (fAllowScript) {
             CProposalValidator validator(GetDataAsHexString(), false /* no legacy format */, false /* but also no script */);
             if (!validator.Validate(false /* ignore expiration */)) {
