@@ -61,37 +61,54 @@ class LLMQQuorumRotationTest(DashTestFramework):
         (quorum_info_0_0, quorum_info_0_1) = self.mine_cycle_quorum()
         quorum_members_0_0 = extract_quorum_members(quorum_info_0_0)
         quorum_members_0_1 = extract_quorum_members(quorum_info_0_1)
-        #assert_equal(len(intersection(quorum_members_0_0, quorum_members_0_1)), 0)
+        assert_equal(len(intersection(quorum_members_0_0, quorum_members_0_1)), 0)
         self.log.info("Quorum #0_0 members: " + str(quorum_members_0_0))
         self.log.info("Quorum #0_1 members: " + str(quorum_members_0_1))
 
         (quorum_info_1_0, quorum_info_1_1) = self.mine_cycle_quorum()
         quorum_members_1_0 = extract_quorum_members(quorum_info_1_0)
         quorum_members_1_1 = extract_quorum_members(quorum_info_1_1)
-        #assert_equal(len(intersection(quorum_members_1_0, quorum_members_1_1)), 0)
+        assert_equal(len(intersection(quorum_members_1_0, quorum_members_1_1)), 0)
         self.log.info("Quorum #1_0 members: " + str(quorum_members_1_0))
         self.log.info("Quorum #1_1 members: " + str(quorum_members_1_1))
 
         (quorum_info_2_0, quorum_info_2_1) = self.mine_cycle_quorum()
         quorum_members_2_0 = extract_quorum_members(quorum_info_2_0)
         quorum_members_2_1 = extract_quorum_members(quorum_info_2_1)
-        #assert_equal(len(intersection(quorum_members_2_0, quorum_members_2_1)), 0)
+        assert_equal(len(intersection(quorum_members_2_0, quorum_members_2_1)), 0)
         self.log.info("Quorum #2_0 members: " + str(quorum_members_2_0))
         self.log.info("Quorum #2_1 members: " + str(quorum_members_2_1))
         mninfos_online = self.mninfo.copy()
         nodes = [self.nodes[0]] + [mn.node for mn in mninfos_online]
         sync_blocks(nodes)
         quorum_list = self.nodes[0].quorum("list", 100)
+        self.nodes[0].generate(1)
+        fallback_blockhash = self.nodes[0].getbestblockhash()
         self.log.info("h("+str(self.nodes[0].getblockcount())+") quorum_list:"+str(quorum_list))
 
-        #assert_greater_than_or_equal(len(intersection(quorum_members_0_0, quorum_members_1_0)), 3)
-        #assert_greater_than_or_equal(len(intersection(quorum_members_0_1, quorum_members_1_1)), 3)
+        assert_greater_than_or_equal(len(intersection(quorum_members_0_0, quorum_members_1_0)), 3)
+        assert_greater_than_or_equal(len(intersection(quorum_members_0_1, quorum_members_1_1)), 3)
 
-        #assert_greater_than_or_equal(len(intersection(quorum_members_0_0, quorum_members_2_0)), 2)
-        #assert_greater_than_or_equal(len(intersection(quorum_members_0_1, quorum_members_2_1)), 2)
+        assert_greater_than_or_equal(len(intersection(quorum_members_0_0, quorum_members_2_0)), 2)
+        assert_greater_than_or_equal(len(intersection(quorum_members_0_1, quorum_members_2_1)), 2)
 
-        #assert_greater_than_or_equal(len(intersection(quorum_members_1_0, quorum_members_2_0)), 3)
-        #assert_greater_than_or_equal(len(intersection(quorum_members_1_1, quorum_members_2_1)), 3)
+        assert_greater_than_or_equal(len(intersection(quorum_members_1_0, quorum_members_2_0)), 3)
+        assert_greater_than_or_equal(len(intersection(quorum_members_1_1, quorum_members_2_1)), 3)
+
+        self.log.info("mine a quorum to invalidate")
+        (quorum_info_3_0, quorum_info_3_1) = self.mine_cycle_quorum()
+
+        new_quorum_list = self.nodes[0].quorum("list", 100)
+        assert new_quorum_list != quorum_list
+
+        self.log.info("invalidate the quorum")
+        self.nodes[0].invalidateblock(fallback_blockhash)
+        assert self.nodes[0].quorum("list", 100) == quorum_list
+        # self.nodes[0].reconsiderblock(fallback_blockhash)
+        # time.sleep(5)
+        # assert self.nodes[0].quorum("list", 100) == new_quorum_list
+
+
 
     def move_to_next_cycle(self, cycle_length):
         mninfos_online = self.mninfo.copy()
