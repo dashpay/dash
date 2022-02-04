@@ -1,0 +1,32 @@
+name: "Mirror and run GitLab CI"
+
+on: [push]
+
+permissions:
+  contents: read
+  pull-requests: read
+  checks: write
+  statuses: write
+  # Enforce other not needed permissions are off
+  actions: none
+  deployments: none
+  issues: none
+  packages: none
+  repository-projects: none
+  security-events: none
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v1
+    - name: Mirror + trigger CI
+      uses: SvanBoxel/gitlab-mirror-and-ci-action@master
+      with:
+        args: "https://gitlab.com/dashpay/dash"
+      env:
+        GITLAB_HOSTNAME: "gitlab.com"
+        GITLAB_USERNAME: "UdjinM6"
+        GITLAB_PASSWORD: ${{ secrets.GITLAB_TOKEN }} // Generate here: https://gitlab.com/profile/personal_access_tokens
+        GITLAB_PROJECT_ID: "19857400" // https://gitlab.com/<namespace>/<repository>/edit
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }} // https://docs.github.com/en/actions/reference/authentication-in-a-workflow#about-the-github_token-secret
