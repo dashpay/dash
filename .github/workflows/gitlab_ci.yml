@@ -23,7 +23,7 @@ jobs:
     - name: Mirror + trigger CI
       uses: SvanBoxel/gitlab-mirror-and-ci-action@master
       with:
-        args: "https://gitlab.com/dashpay/dash"
+        args: "https://gitlab.com/udjinm6/dash"
       env:
         GITLAB_HOSTNAME: "gitlab.com"
         GITLAB_USERNAME: "UdjinM6"
