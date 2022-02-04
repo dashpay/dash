@@ -15,7 +15,6 @@
 class CBlockIndex;
 class CDeterministicMN;
 class CDeterministicMNList;
-using CDeterministicMNCPtr = std::shared_ptr<const CDeterministicMN>;
 
 namespace llmq {
 

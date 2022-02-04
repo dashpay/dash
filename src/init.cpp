@@ -321,8 +321,8 @@ void PrepareShutdown(InitInterfaces& interfaces)
         }
         pblocktree.reset();
         llmq::DestroyLLMQSystem();
-        deterministicMNManager.reset();
         llmq::quorumSnapshotManager.reset();
+        deterministicMNManager.reset();
         evoDb.reset();
     }
     for (const auto& client : interfaces.chain_clients) {
