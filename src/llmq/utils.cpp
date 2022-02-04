@@ -294,7 +294,7 @@ std::vector<std::vector<CDeterministicMNCPtr>> CLLMQUtils::BuildNewQuorumQuarter
     }
 
     allMns.ForEachMNShared(true, [&MnsUsedAtH, &MnsNotUsedAtH](const CDeterministicMNCPtr& dmn) {
-        if (!MnsUsedAtH.ContainsMN(dmn->proTxHash)) {
+        if (!MnsUsedAtH.HasMN(dmn->proTxHash)) {
             try {
                 MnsNotUsedAtH.AddMN(dmn);
             } catch (std::runtime_error& e) {
@@ -322,7 +322,7 @@ std::vector<std::vector<CDeterministicMNCPtr>> CLLMQUtils::BuildNewQuorumQuarter
     auto idx = 0;
     for (auto i = 0; i < llmqParams.signingActiveQuorumCount; ++i) {
         while (quarterQuorumMembers[i].size() < quarterSize) {
-            if (!MnsUsedAtHIndexed[i].ContainsMN(sortedCombinedMnsList[idx]->proTxHash)) {
+            if (!MnsUsedAtHIndexed[i].HasMN(sortedCombinedMnsList[idx]->proTxHash)) {
                 quarterQuorumMembers[i].push_back(sortedCombinedMnsList[idx]);
             } else {
                 if (firstSkippedIndex == 0) {
@@ -356,7 +356,7 @@ void CLLMQUtils::BuildQuorumSnapshot(const Consensus::LLMQParams& llmqParams, co
               false);
     size_t index = {};
     for (const auto& dmn : sortedAllMns) {
-        if (mnUsedAtH.ContainsMN(dmn->proTxHash)) {
+        if (mnUsedAtH.HasMN(dmn->proTxHash)) {
             quorumSnapshot.activeQuorumMembers[index] = true;
         }
         index++;
