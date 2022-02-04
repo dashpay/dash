@@ -22,9 +22,6 @@
 #include <validation.h>
 #include <versionbits.h>
 
-#include <boost/range/adaptor/sliced.hpp>
-#include <boost/range/irange.hpp>
-
 namespace llmq
 {
 
@@ -100,7 +97,7 @@ std::vector<CDeterministicMNCPtr> CLLMQUtils::GetAllQuorumMembers(Consensus::LLM
 
         auto q = ComputeQuorumMembersByQuarterRotation(llmqType, pCycleQuorumBaseBlockIndex);
         LOCK(cs_indexed_members);
-        for (int i : boost::irange(0, static_cast<int>(q.size()))) {
+        for (int i = 0; i < static_cast<int>(q.size()); ++i) {
             mapIndexedQuorumMembers[llmqType].insert(std::make_pair(pCycleQuorumBaseBlockIndex->GetBlockHash(), i), q[i]);
         }
 
@@ -160,7 +157,7 @@ std::vector<std::vector<CDeterministicMNCPtr>> CLLMQUtils::ComputeQuorumMembersB
     //TODO Check if it is triggered from outside (P2P, block validation). Throwing an exception is probably a wiser choice
     //assert (!newQuarterMembers.empty());
 
-    for (auto i : boost::irange(0, llmqParams.signingActiveQuorumCount)) {
+    for (auto i = 0; i < llmqParams.signingActiveQuorumCount; ++i) {
         std::stringstream ss;
 
         ss << " 3Cmns[";
@@ -183,7 +180,7 @@ std::vector<std::vector<CDeterministicMNCPtr>> CLLMQUtils::ComputeQuorumMembersB
         LogPrintf("QuarterComposition h[%d] i[%d]:%s\n", pQuorumBaseBlockIndex->nHeight, i, ss.str());
     }
 
-    for (auto i : boost::irange(0, llmqParams.signingActiveQuorumCount)) {
+    for (auto i = 0; i < llmqParams.signingActiveQuorumCount; ++i) {
         for (auto& m : previousQuarters.quarterHMinus3C[i]) {
             quorumMembers[i].push_back(std::move(m));
         }
@@ -263,7 +260,7 @@ std::vector<std::vector<CDeterministicMNCPtr>> CLLMQUtils::BuildNewQuorumQuarter
     std::vector<CDeterministicMNList> MnsUsedAtHIndexed;
     MnsUsedAtHIndexed.resize(llmqParams.signingActiveQuorumCount);
 
-    for (auto i : boost::irange(0, llmqParams.signingActiveQuorumCount)) {
+    for (auto i = 0; i < llmqParams.signingActiveQuorumCount; ++i) {
         for (const auto& mn : previousQuarters.quarterHMinusC[i]) {
             try {
                 MnsUsedAtH.AddMN(mn);
@@ -323,7 +320,7 @@ std::vector<std::vector<CDeterministicMNCPtr>> CLLMQUtils::BuildNewQuorumQuarter
     std::vector<int> skipList;
     int firstSkippedIndex = 0;
     auto idx = 0;
-    for (auto i : boost::irange(0, llmqParams.signingActiveQuorumCount)) {
+    for (auto i = 0; i < llmqParams.signingActiveQuorumCount; ++i) {
         while (quarterQuorumMembers[i].size() < quarterSize) {
             if (!MnsUsedAtHIndexed[i].ContainsMN(sortedCombinedMnsList[idx]->proTxHash)) {
                 quarterQuorumMembers[i].push_back(sortedCombinedMnsList[idx]);
@@ -400,7 +397,7 @@ std::vector<std::vector<CDeterministicMNCPtr>> CLLMQUtils::GetQuorumQuarterMembe
     //Mode 0: No skipping
     if (snapshot.mnSkipListMode == SnapshotSkipMode::MODE_NO_SKIPPING) {
         auto itm = sortedCombinedMns.begin();
-        for (auto i : boost::irange(0, llmqParams.signingActiveQuorumCount)) {
+        for (auto i = 0; i < llmqParams.signingActiveQuorumCount; ++i) {
             while (quarterQuorumMembers[i].size() < quarterSize) {
                 quarterQuorumMembers[i].push_back(*itm);
                 itm++;
@@ -423,7 +420,7 @@ std::vector<std::vector<CDeterministicMNCPtr>> CLLMQUtils::GetQuorumQuarterMembe
 
         auto idx = 0;
         auto itsk = processesdSkipList.begin();
-        for (auto i : boost::irange(0, llmqParams.signingActiveQuorumCount)) {
+        for (auto i = 0; i < llmqParams.signingActiveQuorumCount; ++i) {
             while (quarterQuorumMembers[i].size() < quarterSize) {
                 if (itsk != processesdSkipList.end() && idx == *itsk)
                     itsk++;

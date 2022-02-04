@@ -19,8 +19,6 @@
 #include <llmq/signing.h>
 #include <llmq/signing_shares.h>
 
-#include <boost/range/irange.hpp>
-
 namespace llmq {
 extern const std::string CLSIG_REQUESTID_PREFIX;
 }
@@ -200,7 +198,7 @@ static UniValue quorum_dkgstatus(const JSONRPCRequest& request)
     for (const auto& type : llmq::CLLMQUtils::GetEnabledQuorumTypes(pindexTip)) {
         const auto& llmq_params = llmq::GetLLMQParams(type);
 
-        for (int quorumIndex : boost::irange(0, llmq::CLLMQUtils::IsQuorumRotationEnabled(type) ? llmq_params.signingActiveQuorumCount : 1)) {
+        for (int quorumIndex = 0; quorumIndex < llmq_params.signingActiveQuorumCount; ++quorumIndex) {
             UniValue obj(UniValue::VOBJ);
             obj.pushKV("llmqType", std::string(llmq_params.name));
             obj.pushKV("quorumIndex", quorumIndex);
@@ -242,6 +240,9 @@ static UniValue quorum_dkgstatus(const JSONRPCRequest& request)
                 }
             }
             quorumArrConnections.push_back(obj);
+            if (!llmq::CLLMQUtils::IsQuorumRotationEnabled(type)) {
+                break;
+            }
         }
 
         LOCK(cs_main);

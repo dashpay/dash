@@ -20,7 +20,6 @@
 #include <saltedhasher.h>
 #include <sync.h>
 
-#include <boost/range/irange.hpp>
 #include <map>
 
 namespace llmq
@@ -429,12 +428,15 @@ bool CQuorumBlockProcessor::IsCommitmentRequired(const Consensus::LLMQParams& ll
     if (!IsMiningPhase(llmqParams, nHeight))
         return false;
 
-    for (int quorumIndex : boost::irange(0, CLLMQUtils::IsQuorumRotationEnabled(llmqParams.type) ? llmqParams.signingActiveQuorumCount : 1)) {
+    for (int quorumIndex = 0; quorumIndex < llmqParams.signingActiveQuorumCount; ++quorumIndex) {
         uint256 quorumHash = GetQuorumBlockHash(llmqParams, nHeight, quorumIndex);
         if (quorumHash.IsNull())
             return false;
         if (HasMinedCommitment(llmqParams.type, quorumHash))
             return false;
+        if (!CLLMQUtils::IsQuorumRotationEnabled(llmqParams.type)) {
+            break;
+        }
     }
     if (CLLMQUtils::IsQuorumRotationEnabled(llmqParams.type))
         LogPrintf("[IsCommitmentRequired] nHeight[%d] true\n", nHeight);
@@ -582,7 +584,7 @@ std::vector<std::pair<int, const CBlockIndex*>> CQuorumBlockProcessor::GetLastMi
     const Consensus::LLMQParams& llmqParams = GetLLMQParams(llmqType);
     std::vector<std::pair<int, const CBlockIndex*>> ret;
 
-    for (int quorumIndex : boost::irange(0, llmqParams.signingActiveQuorumCount)) {
+    for (int quorumIndex = 0; quorumIndex < llmqParams.signingActiveQuorumCount; ++quorumIndex) {
         std::optional<const CBlockIndex*> q = GetLastMinedCommitmentsByQuorumIndexUntilBlock(llmqType, pindex, quorumIndex, cycle);
         if (q.has_value()) {
             ret.push_back(std::make_pair(quorumIndex, q.value()));
@@ -705,7 +707,7 @@ std::optional<std::vector<CFinalCommitment>> CQuorumBlockProcessor::GetMineableC
     }
 
     std::stringstream ss;
-    for (int quorumIndex : boost::irange(0, CLLMQUtils::IsQuorumRotationEnabled(llmqParams.type) ? llmqParams.signingActiveQuorumCount : 1)) {
+    for (int quorumIndex = 0; quorumIndex < llmqParams.signingActiveQuorumCount; ++quorumIndex) {
         CFinalCommitment cf;
 
         uint256 quorumHash = GetQuorumBlockHash(llmqParams, nHeight, quorumIndex);
@@ -730,6 +732,9 @@ std::optional<std::vector<CFinalCommitment>> CQuorumBlockProcessor::GetMineableC
         }
 
         ret.push_back(std::move(cf));
+        if (!CLLMQUtils::IsQuorumRotationEnabled(llmqParams.type)) {
+            break;
+        }
     }
 
     LogPrintf("GetMineableCommitments cf height[%d] content: %s\n", nHeight, ss.str());
