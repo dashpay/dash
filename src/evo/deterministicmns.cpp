@@ -401,11 +401,6 @@ CDeterministicMNList CDeterministicMNList::ApplyDiff(const CBlockIndex* pindex, 
     return result;
 }
 
-bool CDeterministicMNList::ContainsMN(const uint256& proTxHash) const
-{
-    return mnMap.find(proTxHash);
-}
-
 void CDeterministicMNList::AddMN(const CDeterministicMNCPtr& dmn, bool fBumpTotalCount)
 {
     assert(dmn != nullptr);
