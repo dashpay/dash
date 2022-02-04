@@ -23,10 +23,10 @@ jobs:
     - name: Mirror + trigger CI
       uses: SvanBoxel/gitlab-mirror-and-ci-action@master
       with:
-        args: "https://gitlab.com/udjinm6/dash"
+        args: "https://gitlab.com/dashpay/dash"
       env:
         GITLAB_HOSTNAME: "gitlab.com"
-        GITLAB_USERNAME: "UdjinM6"
+        GITLAB_USERNAME: "ab752ec1aff4b9ecec531987a58229b37c29f2b6069093309f03e9cc5f5fb55b"
         GITLAB_PASSWORD: ${{ secrets.GITLAB_TOKEN }}
-        GITLAB_PROJECT_ID: "19857400"
+        GITLAB_PROJECT_ID: "2977980"
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
