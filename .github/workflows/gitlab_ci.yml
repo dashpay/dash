@@ -27,6 +27,6 @@ jobs:
       env:
         GITLAB_HOSTNAME: "gitlab.com"
         GITLAB_USERNAME: "UdjinM6"
-        GITLAB_PASSWORD: ${{ secrets.GITLAB_TOKEN }} // Generate here: https://gitlab.com/profile/personal_access_tokens
-        GITLAB_PROJECT_ID: "19857400" // https://gitlab.com/<namespace>/<repository>/edit
-        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }} // https://docs.github.com/en/actions/reference/authentication-in-a-workflow#about-the-github_token-secret
+        GITLAB_PASSWORD: ${{ secrets.GITLAB_TOKEN }}
+        GITLAB_PROJECT_ID: "19857400"
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
