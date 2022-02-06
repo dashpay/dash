@@ -21,7 +21,7 @@ Pre-Built Binary
 ----------------
 
 For more information, as well as an immediately useable, binary version of
-the Dash Core software, see https://www.dash.org/get-dash/.
+the Dash Core software, see https://www.dash.org/downloads/.
 
 License
 -------
