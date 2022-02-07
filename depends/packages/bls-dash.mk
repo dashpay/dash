@@ -1,10 +1,10 @@
 package=bls-dash
-$(package)_version=1.1.0
+$(package)_version=1.2.0
 $(package)_download_path=https://github.com/dashpay/bls-signatures/archive
 $(package)_download_file=$($(package)_version).tar.gz
 $(package)_file_name=$(package)-$($(package)_download_file)
 $(package)_build_subdir=build
-$(package)_sha256_hash=276c8573104e5f18bb5b9fd3ffd49585dda5ba5f6de2de74759dda8ca5a9deac
+$(package)_sha256_hash=94e49f3eaa29bc1f354cd569c00f4f4314d1c8ab4758527c248b67da9686135a
 $(package)_dependencies=gmp cmake
 $(package)_patches=gcc_alignment_cast.patch
 $(package)_darwin_triplet=x86_64-apple-darwin19
@@ -56,8 +56,8 @@ define $(package)_set_vars
 endef
 
 define $(package)_preprocess_cmds
-  sed -i.old "s|GIT_REPOSITORY https://github.com/relic-toolkit/relic.git|URL \"../../relic-toolkit-$($(package)_relic_version).tar.gz\"|" src/CMakeLists.txt && \
-  sed -i.old "s|GIT_TAG        .*RELIC_GIT_TAG.*||" src/CMakeLists.txt && \
+  sed -i.old "s|GIT_REPOSITORY https://github.com/Chia-Network/relic.git|URL \"../../relic-toolkit-$($(package)_relic_version).tar.gz\"|" CMakeLists.txt && \
+  sed -i.old "s|RELIC_GIT_TAG \".*\"|RELIC_GIT_TAG \"\"|" CMakeLists.txt && \
   tar xzf relic-toolkit-$($(package)_relic_version).tar.gz relic-$($(package)_relic_version)/src/md/blake2.h && \
   patch -p1 relic-$($(package)_relic_version)/src/md/blake2.h < $($(package)_patch_dir)/gcc_alignment_cast.patch && \
   gunzip relic-toolkit-$($(package)_relic_version).tar.gz && \
