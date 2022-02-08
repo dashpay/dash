@@ -11,8 +11,13 @@ Checks LLMQs Quorum Rotation
 '''
 import time
 from test_framework.test_framework import DashTestFramework
-from test_framework.util import connect_nodes, isolate_node, reconnect_isolated_node, sync_blocks, assert_equal, \
-    assert_greater_than_or_equal, wait_until
+from test_framework.util import (
+    assert_equal,
+    assert_greater_than_or_equal,
+    connect_nodes,
+    sync_blocks,
+    wait_until,
+)
 
 
 def intersection(lst1, lst2):
@@ -82,8 +87,8 @@ class LLMQQuorumRotationTest(DashTestFramework):
         nodes = [self.nodes[0]] + [mn.node for mn in mninfos_online]
         sync_blocks(nodes)
         quorum_list = self.nodes[0].quorum("list", 100)
-        self.nodes[0].generate(1)
-        fallback_blockhash = self.nodes[0].getbestblockhash()
+        quorum_blockhash = self.nodes[0].getbestblockhash()
+        fallback_blockhash = self.nodes[0].generate(1)[0]
         self.log.info("h("+str(self.nodes[0].getblockcount())+") quorum_list:"+str(quorum_list))
 
         assert_greater_than_or_equal(len(intersection(quorum_members_0_0, quorum_members_1_0)), 3)
@@ -99,16 +104,27 @@ class LLMQQuorumRotationTest(DashTestFramework):
         (quorum_info_3_0, quorum_info_3_1) = self.mine_cycle_quorum()
 
         new_quorum_list = self.nodes[0].quorum("list", 100)
+        assert_equal(len(new_quorum_list["llmq_test"]), len(quorum_list["llmq_test"]) + 2)
+        new_quorum_blockhash = self.nodes[0].getbestblockhash()
+        self.log.info("h("+str(self.nodes[0].getblockcount())+") new_quorum_blockhash:"+new_quorum_blockhash)
+        self.log.info("h("+str(self.nodes[0].getblockcount())+") new_quorum_list:"+str(new_quorum_list))
         assert new_quorum_list != quorum_list
 
-        self.log.info("invalidate the quorum")
+        self.log.info("Invalidate the quorum")
+        self.bump_mocktime(5)
+        self.nodes[0].spork("SPORK_19_CHAINLOCKS_ENABLED", 4070908800)
+        self.wait_for_sporks_same()
         self.nodes[0].invalidateblock(fallback_blockhash)
-        assert self.nodes[0].quorum("list", 100) == quorum_list
-        # self.nodes[0].reconsiderblock(fallback_blockhash)
-        # time.sleep(5)
-        # assert self.nodes[0].quorum("list", 100) == new_quorum_list
+        assert_equal(self.nodes[0].getbestblockhash(), quorum_blockhash)
+        assert_equal(self.nodes[0].quorum("list", 100), quorum_list)
 
-
+        self.log.info("Reconsider the quorum")
+        self.bump_mocktime(5)
+        self.nodes[0].spork("SPORK_19_CHAINLOCKS_ENABLED", 0)
+        self.wait_for_sporks_same()
+        self.nodes[0].reconsiderblock(fallback_blockhash)
+        wait_until(lambda: self.nodes[0].getbestblockhash() == new_quorum_blockhash, sleep=1)
+        assert_equal(self.nodes[0].quorum("list", 100), new_quorum_list)
 
     def move_to_next_cycle(self, cycle_length):
         mninfos_online = self.mninfo.copy()
