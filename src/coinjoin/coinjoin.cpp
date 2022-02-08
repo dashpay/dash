@@ -168,8 +168,8 @@ void CCoinJoinBaseManager::CheckQueue()
     // check mixing queue objects for timeouts
     auto it = vecCoinJoinQueue.begin();
     while (it != vecCoinJoinQueue.end()) {
-        if ((*it).IsTimeOutOfBounds()) {
-            LogPrint(BCLog::COINJOIN, "CCoinJoinBaseManager::%s -- Removing a queue (%s)\n", __func__, (*it).ToString());
+        if (it->IsTimeOutOfBounds()) {
+            LogPrint(BCLog::COINJOIN, "CCoinJoinBaseManager::%s -- Removing a queue (%s)\n", __func__, it->ToString());
             it = vecCoinJoinQueue.erase(it);
         } else {
             ++it;
