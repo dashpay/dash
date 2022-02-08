@@ -41,6 +41,16 @@ bool CFinalCommitment::Verify(const CBlockIndex* pQuorumBaseBlockIndex, bool che
     }
     const auto& llmq_params = GetLLMQParams(llmqType);
 
+    if (pQuorumBaseBlockIndex->GetBlockHash() != quorumHash) {
+        LogPrintfFinalCommitment("q[%s] invalid quorumHash\n", quorumHash.ToString());
+        return false;
+    }
+
+    if ((pQuorumBaseBlockIndex->nHeight % llmq_params.dkgInterval) != quorumIndex) {
+        LogPrintfFinalCommitment("q[%s] invalid quorumIndex=%d\n", quorumHash.ToString(), quorumIndex);
+        return false;
+    }
+
     if (!VerifySizes(llmq_params)) {
         return false;
     }
