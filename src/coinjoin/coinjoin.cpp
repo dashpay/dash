@@ -80,9 +80,10 @@ bool CCoinJoinQueue::Relay(CConnman& connman)
     return true;
 }
 
-bool CCoinJoinQueue::IsTimeOutOfBounds() const
+bool CCoinJoinQueue::IsTimeOutOfBounds(int64_t current_time) const
 {
-    return GetAdjustedTime() - nTime > COINJOIN_QUEUE_TIMEOUT || nTime - GetAdjustedTime() > COINJOIN_QUEUE_TIMEOUT;
+    return current_time - nTime > COINJOIN_QUEUE_TIMEOUT ||
+           nTime - current_time > COINJOIN_QUEUE_TIMEOUT;
 }
 
 uint256 CCoinJoinBroadcastTx::GetSignatureHash() const
