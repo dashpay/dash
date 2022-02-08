@@ -162,7 +162,7 @@ bool CQuorumBlockProcessor::ProcessBlock(const CBlock& block, const CBlockIndex*
         if (isCommitmentRequired && numCommitmentsInNewBlock == 0) {
             return state.DoS(100, false, REJECT_INVALID, "bad-qc-missing");
         }
-        if (llmq::CLLMQUtils::IsQuorumRotationEnabled(params.type)) {
+        if (llmq::CLLMQUtils::IsQuorumRotationEnabled(params.type, pindex)) {
             LogPrintf("[ProcessBlock] h[%d] isCommitmentRequired[%d] numCommitmentsInNewBlock[%d]\n", pindex->nHeight, isCommitmentRequired, numCommitmentsInNewBlock);
         }
             }
@@ -244,7 +244,7 @@ bool CQuorumBlockProcessor::ProcessCommitment(int nHeight, const uint256& blockH
         return true;
     }
 
-    if (llmq::CLLMQUtils::IsQuorumRotationEnabled(llmq_params.type)) {
+    if (llmq::CLLMQUtils::IsQuorumRotationEnabled(llmq_params.type, pQuorumBaseBlockIndex)) {
         LogPrintf("[ProcessCommitment] height[%d] pQuorumBaseBlockIndex[%d] quorumIndex[%d] qversion[%d] Built\n",
                   nHeight, pQuorumBaseBlockIndex->nHeight, qc.quorumIndex, qc.nVersion);
     }
@@ -253,7 +253,7 @@ bool CQuorumBlockProcessor::ProcessCommitment(int nHeight, const uint256& blockH
     auto cacheKey = std::make_pair(llmq_params.type, quorumHash);
     evoDb.Write(std::make_pair(DB_MINED_COMMITMENT, cacheKey), std::make_pair(qc, blockHash));
 
-    if (llmq::CLLMQUtils::IsQuorumRotationEnabled(llmq_params.type)) {
+    if (llmq::CLLMQUtils::IsQuorumRotationEnabled(llmq_params.type, pQuorumBaseBlockIndex)) {
         evoDb.Write(BuildInversedHeightKeyIndexed(llmq_params.type, nHeight, qc.quorumIndex), pQuorumBaseBlockIndex->nHeight);
     } else {
         evoDb.Write(BuildInversedHeightKey(llmq_params.type, nHeight), pQuorumBaseBlockIndex->nHeight);
@@ -290,7 +290,7 @@ bool CQuorumBlockProcessor::UndoBlock(const CBlock& block, const CBlockIndex* pi
 
         evoDb.Erase(std::make_pair(DB_MINED_COMMITMENT, std::make_pair(qc.llmqType, qc.quorumHash)));
 
-        if (llmq::CLLMQUtils::IsQuorumRotationEnabled(qc.llmqType)) {
+        if (llmq::CLLMQUtils::IsQuorumRotationEnabled(qc.llmqType, pindex)) {
             evoDb.Erase(BuildInversedHeightKeyIndexed(qc.llmqType, pindex->nHeight, qc.quorumIndex));
         } else {
             evoDb.Erase(BuildInversedHeightKey(qc.llmqType, pindex->nHeight));
@@ -349,7 +349,7 @@ bool CQuorumBlockProcessor::UpgradeDB()
                 }
                 auto pQuorumBaseBlockIndex = LookupBlockIndex(qc.quorumHash);
                 evoDb.GetRawDB().Write(std::make_pair(DB_MINED_COMMITMENT, std::make_pair(qc.llmqType, qc.quorumHash)), std::make_pair(qc, pindex->GetBlockHash()));
-                if (llmq::CLLMQUtils::IsQuorumRotationEnabled(qc.llmqType)) {
+                if (llmq::CLLMQUtils::IsQuorumRotationEnabled(qc.llmqType, pQuorumBaseBlockIndex)) {
                     evoDb.GetRawDB().Write(BuildInversedHeightKeyIndexed(qc.llmqType, pindex->nHeight, qc.quorumIndex), pQuorumBaseBlockIndex->nHeight);
                 } else {
                     evoDb.GetRawDB().Write(BuildInversedHeightKey(qc.llmqType, pindex->nHeight), pQuorumBaseBlockIndex->nHeight);
@@ -384,11 +384,11 @@ bool CQuorumBlockProcessor::GetCommitmentsFromBlock(const CBlock& block, const C
             }
 
             // only allow one commitment per type and per block (This was changed with rotation)
-            /*
-            if (ret.count(qc.commitment.llmqType)) {
-                return state.DoS(100, false, REJECT_INVALID, "bad-qc-dup");
+            if (!CLLMQUtils::IsQuorumRotationEnabled(qc.commitment.llmqType, pindex)) {
+                if (ret.count(qc.commitment.llmqType)) {
+                    return state.DoS(100, false, REJECT_INVALID, "bad-qc-dup");
+                }
             }
-            */
             ret.emplace(qc.commitment.llmqType, std::move(qc.commitment));
         }
     }
@@ -400,9 +400,15 @@ bool CQuorumBlockProcessor::GetCommitmentsFromBlock(const CBlock& block, const C
     return true;
 }
 
-bool CQuorumBlockProcessor::IsMiningPhase(const Consensus::LLMQParams& llmqParams, int nHeight)
+bool CQuorumBlockProcessor::IsMiningPhase(const Consensus::LLMQParams& llmqParams, int nHeight) const
 {
-    if (CLLMQUtils::IsQuorumRotationEnabled(llmqParams.type)) {
+    AssertLockHeld(cs_main);
+
+    // Note: This function can called for new blocks
+    assert(nHeight <= ::ChainActive().Height() + 1);
+    const auto pindex = ::ChainActive().Height() < nHeight ? ::ChainActive().Tip() : ::ChainActive().Tip()->GetAncestor(nHeight);
+
+    if (CLLMQUtils::IsQuorumRotationEnabled(llmqParams.type, pindex)) {
         int quorumCycleStartHeight = nHeight - (nHeight % llmqParams.dkgInterval);
         int quorumCycleMiningStartHeight = quorumCycleStartHeight + llmqParams.signingActiveQuorumCount + (5 * llmqParams.dkgPhaseBlocks) + 1;
         int quorumCycleMiningEndHeight = quorumCycleMiningStartHeight + (llmqParams.dkgMiningWindowEnd - llmqParams.dkgMiningWindowStart);
@@ -428,18 +434,23 @@ bool CQuorumBlockProcessor::IsCommitmentRequired(const Consensus::LLMQParams& ll
     if (!IsMiningPhase(llmqParams, nHeight))
         return false;
 
+    // Note: This function can called for new blocks
+    assert(nHeight <= ::ChainActive().Height() + 1);
+    const auto pindex = ::ChainActive().Height() < nHeight ? ::ChainActive().Tip() : ::ChainActive().Tip()->GetAncestor(nHeight);
+
     for (int quorumIndex = 0; quorumIndex < llmqParams.signingActiveQuorumCount; ++quorumIndex) {
         uint256 quorumHash = GetQuorumBlockHash(llmqParams, nHeight, quorumIndex);
         if (quorumHash.IsNull())
             return false;
         if (HasMinedCommitment(llmqParams.type, quorumHash))
             return false;
-        if (!CLLMQUtils::IsQuorumRotationEnabled(llmqParams.type)) {
+        if (!CLLMQUtils::IsQuorumRotationEnabled(llmqParams.type, pindex)) {
             break;
         }
     }
-    if (CLLMQUtils::IsQuorumRotationEnabled(llmqParams.type))
+    if (CLLMQUtils::IsQuorumRotationEnabled(llmqParams.type, pindex)) {
         LogPrintf("[IsCommitmentRequired] nHeight[%d] true\n", nHeight);
+    }
     return true;
 }
 
@@ -631,7 +642,7 @@ std::map<Consensus::LLMQType, std::vector<const CBlockIndex*>> CQuorumBlockProce
     for (const auto& p : Params().GetConsensus().llmqs) {
         auto& v = ret[p.type];
         v.reserve(p.signingActiveQuorumCount);
-        if (CLLMQUtils::IsQuorumRotationEnabled(p.type)) {
+        if (CLLMQUtils::IsQuorumRotationEnabled(p.type, pindex)) {
             std::vector<std::pair<int, const CBlockIndex*>> commitments = GetLastMinedCommitmentsPerQuorumIndexUntilBlock(p.type, pindex, 0);
             std::transform(commitments.begin(), commitments.end(), std::back_inserter(v),
                            [](const std::pair<int, const CBlockIndex*>& p) { return p.second; });
@@ -706,6 +717,10 @@ std::optional<std::vector<CFinalCommitment>> CQuorumBlockProcessor::GetMineableC
         return std::nullopt;
     }
 
+    // Note: This function can called for new blocks
+    assert(nHeight <= ::ChainActive().Height() + 1);
+    const auto pindex = ::ChainActive().Height() < nHeight ? ::ChainActive().Tip() : ::ChainActive().Tip()->GetAncestor(nHeight);
+
     std::stringstream ss;
     for (int quorumIndex = 0; quorumIndex < llmqParams.signingActiveQuorumCount; ++quorumIndex) {
         CFinalCommitment cf;
@@ -723,8 +738,9 @@ std::optional<std::vector<CFinalCommitment>> CQuorumBlockProcessor::GetMineableC
             // null commitment required
             cf = CFinalCommitment(llmqParams, quorumHash);
             cf.quorumIndex = quorumIndex;
-            if (CLLMQUtils::IsQuorumRotationEnabled(llmqParams.type))
+            if (CLLMQUtils::IsQuorumRotationEnabled(llmqParams.type, pindex)) {
                 cf.nVersion = CFinalCommitment::INDEXED_QUORUM_VERSION;
+            }
             ss << "{ created nversion[" << cf.nVersion << "] quorumIndex[" << cf.quorumIndex << "] }";
         } else {
             cf = minableCommitments.at(it->second);
@@ -732,7 +748,7 @@ std::optional<std::vector<CFinalCommitment>> CQuorumBlockProcessor::GetMineableC
         }
 
         ret.push_back(std::move(cf));
-        if (!CLLMQUtils::IsQuorumRotationEnabled(llmqParams.type)) {
+        if (!CLLMQUtils::IsQuorumRotationEnabled(llmqParams.type, pindex)) {
             break;
         }
     }

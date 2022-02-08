@@ -89,7 +89,7 @@ public:
     static std::vector<Consensus::LLMQType> GetEnabledQuorumTypes(const CBlockIndex* pindex);
     static std::vector<std::reference_wrapper<const Consensus::LLMQParams>> GetEnabledQuorumParams(const CBlockIndex* pindex);
 
-    static bool IsQuorumRotationEnabled(Consensus::LLMQType llmqType);
+    static bool IsQuorumRotationEnabled(Consensus::LLMQType llmqType, const CBlockIndex* pindex);
 
     /// Returns the state of `-llmq-data-recovery`
     static bool QuorumDataRecoveryEnabled();

@@ -57,7 +57,7 @@ std::vector<CDeterministicMNCPtr> CLLMQUtils::GetAllQuorumMembers(Consensus::LLM
         }
     }
 
-    if (CLLMQUtils::IsQuorumRotationEnabled(llmqType)) {
+    if (CLLMQUtils::IsQuorumRotationEnabled(llmqType, pQuorumBaseBlockIndex)) {
         {
             LOCK(cs_indexed_members);
             if (mapIndexedQuorumMembers.empty()) {
@@ -510,11 +510,20 @@ bool CLLMQUtils::IsQuorumPoseEnabled(Consensus::LLMQType llmqType)
     return EvalSpork(llmqType, sporkManager.GetSporkValue(SPORK_23_QUORUM_POSE));
 }
 
-bool CLLMQUtils::IsQuorumRotationEnabled(Consensus::LLMQType llmqType)
+bool CLLMQUtils::IsQuorumRotationEnabled(Consensus::LLMQType llmqType, const CBlockIndex* pindex)
 {
+    assert(pindex);
+
+    if (llmqType != Params().GetConsensus().llmqTypeInstantSend) {
+        return false;
+    }
     LOCK(cs_llmq_vbc);
-    bool fQuorumRotationActive = (VersionBitsState(::ChainActive().Tip(), Params().GetConsensus(), Consensus::DEPLOYMENT_DIP0024, llmq_versionbitscache) == ThresholdState::ACTIVE);
-    return llmqType == Params().GetConsensus().llmqTypeInstantSend && fQuorumRotationActive;
+    int cycleQuorumBaseHeight = pindex->nHeight - (pindex->nHeight % GetLLMQParams(llmqType).dkgInterval);
+    if (cycleQuorumBaseHeight < 1) {
+        return false;
+    }
+    // It should activate at least 1 block prior to the cycle start
+    return VersionBitsState(pindex->GetAncestor(cycleQuorumBaseHeight - 1), Params().GetConsensus(), Consensus::DEPLOYMENT_DIP0024, llmq_versionbitscache) == ThresholdState::ACTIVE;
 }
 
 uint256 CLLMQUtils::DeterministicOutboundConnection(const uint256& proTxHash1, const uint256& proTxHash2)
