@@ -31,11 +31,12 @@
 
 #include <bls/bls.h>
 #include <coinjoin/coinjoin.h>
-#include <evo/specialtx.h>
+#include <evo/cbtx.h>
 #include <evo/deterministicmns.h>
 #include <evo/evodb.h>
-#include <evo/cbtx.h>
+#include <evo/specialtx.h>
 #include <llmq/init.h>
+#include <llmq/snapshot.h>
 
 const std::function<std::string(const char*)> G_TRANSLATION_FUN = nullptr;
 
@@ -90,6 +91,7 @@ BasicTestingSetup::BasicTestingSetup(const std::string& chainName)
     fCheckBlockIndex = true;
     evoDb.reset(new CEvoDB(1 << 20, true, true));
     deterministicMNManager.reset(new CDeterministicMNManager(*evoDb));
+    llmq::quorumSnapshotManager.reset(new llmq::CQuorumSnapshotManager(*evoDb));
     static bool noui_connected = false;
     if (!noui_connected) {
         noui_connect();
@@ -99,6 +101,7 @@ BasicTestingSetup::BasicTestingSetup(const std::string& chainName)
 
 BasicTestingSetup::~BasicTestingSetup()
 {
+    llmq::quorumSnapshotManager.reset();
     deterministicMNManager.reset();
     evoDb.reset();
 
