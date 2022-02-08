@@ -425,12 +425,17 @@ std::vector<CQuorumCPtr> CQuorumManager::ScanQuorums(Consensus::LLMQType llmqTyp
     // TODO implement caching, see [pre-rotation caching](https://github.com/dashpay/dash/blob/e84bf45cefbcf9ee89ca3d706fd8abffdbcc8a84/src/llmq/quorums.cpp#L424-L448)
     //  for inspiration
 
-    std::vector<const CBlockIndex*> pQuorumBaseBlockIndexes;
     // Get the block indexes of the mined commitments to build the required quorums from
-    if (llmq::CLLMQUtils::IsQuorumRotationEnabled(llmqType)) {
-        pQuorumBaseBlockIndexes = quorumBlockProcessor->GetMinedCommitmentsIndexedUntilBlock(llmqType, static_cast<const CBlockIndex*>(pIndexScanCommitments), nScanCommitments);
-    } else {
-        pQuorumBaseBlockIndexes = quorumBlockProcessor->GetMinedCommitmentsUntilBlock(llmqType, static_cast<const CBlockIndex*>(pIndexScanCommitments), nScanCommitments);
+    auto pQuorumBaseBlockIndexes = quorumBlockProcessor->GetMinedCommitmentsIndexedUntilBlock(llmqType, static_cast<const CBlockIndex*>(pIndexScanCommitments), nScanCommitments);
+    if (pQuorumBaseBlockIndexes.size() < nScanCommitments) {
+        if (!pQuorumBaseBlockIndexes.empty()) {
+            nScanCommitments -= pQuorumBaseBlockIndexes.size();
+            if (pQuorumBaseBlockIndexes.back()->pprev) {
+                pIndexScanCommitments = (void*)pQuorumBaseBlockIndexes.back()->pprev;
+            }
+        }
+        auto pQuorumBaseBlockIndexesLegacy = quorumBlockProcessor->GetMinedCommitmentsUntilBlock(llmqType, static_cast<const CBlockIndex*>(pIndexScanCommitments), nScanCommitments);
+        pQuorumBaseBlockIndexes.insert(pQuorumBaseBlockIndexes.end(), pQuorumBaseBlockIndexesLegacy.begin(), pQuorumBaseBlockIndexesLegacy.end());
     }
     vecResultQuorums.reserve(vecResultQuorums.size() + pQuorumBaseBlockIndexes.size());
 
