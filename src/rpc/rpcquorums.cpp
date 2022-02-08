@@ -240,7 +240,7 @@ static UniValue quorum_dkgstatus(const JSONRPCRequest& request)
                 }
             }
             quorumArrConnections.push_back(obj);
-            if (!llmq::CLLMQUtils::IsQuorumRotationEnabled(type)) {
+            if (!llmq::CLLMQUtils::IsQuorumRotationEnabled(type, pindexTip)) {
                 break;
             }
         }
