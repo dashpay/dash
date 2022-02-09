@@ -1626,14 +1626,14 @@ std::vector<QFont::Weight> getSupportedWeights()
 QFont::Weight supportedWeightFromIndex(int nIndex)
 {
     auto vecWeights = getSupportedWeights();
-    assert(vecWeights.size() > nIndex);
+    assert(vecWeights.size() > uint64_t(nIndex));
     return vecWeights[nIndex];
 }
 
 int supportedWeightToIndex(QFont::Weight weight)
 {
     auto vecWeights = getSupportedWeights();
-    for (int index = 0; index < vecWeights.size(); ++index) {
+    for (uint64_t index = 0; index < vecWeights.size(); ++index) {
         if (weight == vecWeights[index]) {
             return index;
         }

@@ -1055,7 +1055,7 @@ bool CCoinJoinClientSession::JoinExistingQueue(CAmount nBalanceNeedsAnonymized, 
         }
 
         // skip next mn payments winners
-        if (dmn->pdmnState->nLastPaidHeight + mnList.GetValidMNsCount() < mnList.GetHeight() + winners_to_skip) {
+        if (dmn->pdmnState->nLastPaidHeight + int(mnList.GetValidMNsCount()) < mnList.GetHeight() + winners_to_skip) {
             LogPrint(BCLog::COINJOIN, "CCoinJoinClientSession::JoinExistingQueue -- skipping winner, masternode=%s\n", dmn->proTxHash.ToString());
             continue;
         }
@@ -1332,7 +1332,7 @@ bool CCoinJoinClientSession::PrepareDenominate(int nMinRounds, int nMaxRounds, s
 
     // Try to add up to COINJOIN_ENTRY_MAX_SIZE of every needed denomination
     for (const auto& entry : vecTxDSIn) {
-        if (nSteps >= COINJOIN_ENTRY_MAX_SIZE) break;
+        if (nSteps >= int{COINJOIN_ENTRY_MAX_SIZE}) break;
         if (entry.nRounds < nMinRounds || entry.nRounds > nMaxRounds) continue;
 
         CScript scriptDenom;
