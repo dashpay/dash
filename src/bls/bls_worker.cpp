@@ -87,7 +87,7 @@ bool CBLSWorker::GenerateContributions(int quorumThreshold, const BLSIdVector& i
     std::vector<std::future<bool>> futures;
     futures.reserve((quorumThreshold / batchSize + ids.size() / batchSize) + 2);
 
-    for (size_t i = 0; i < quorumThreshold; i += batchSize) {
+    for (size_t i = 0; i < size_t(quorumThreshold); i += batchSize) {
         size_t start = i;
         size_t count = std::min(batchSize, quorumThreshold - start);
         auto f = [&, start, count](int threadId) {

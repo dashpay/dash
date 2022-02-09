@@ -130,7 +130,7 @@ bool CCoinJoinBroadcastTx::IsValidStructure() const
     if (tx->vin.size() != tx->vout.size()) {
         return false;
     }
-    if (tx->vin.size() < CCoinJoin::GetMinPoolParticipants()) {
+    if (tx->vin.size() < size_t(CCoinJoin::GetMinPoolParticipants())) {
         return false;
     }
     if (tx->vin.size() > CCoinJoin::GetMaxPoolParticipants() * COINJOIN_ENTRY_MAX_SIZE) {
