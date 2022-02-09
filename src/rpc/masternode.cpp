@@ -454,7 +454,7 @@ static UniValue masternode_payments(const JSONRPCRequest& request)
                 continue;
             }
             CAmount nValueIn{0};
-            for (const auto txin : tx->vin) {
+            for (const auto& txin : tx->vin) {
                 CTransactionRef txPrev;
                 uint256 blockHashTmp;
                 GetTransaction(txin.prevout.hash, txPrev, Params().GetConsensus(), blockHashTmp);
