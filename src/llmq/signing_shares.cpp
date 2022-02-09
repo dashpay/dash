@@ -811,7 +811,8 @@ void CSigSharesManager::TryRecoverSig(const CQuorumCPtr& quorum, const uint256& 
 
 CDeterministicMNCPtr CSigSharesManager::SelectMemberForRecovery(const CQuorumCPtr& quorum, const uint256 &id, int attempt)
 {
-    assert(attempt < quorum->members.size());
+    assert(attempt >= 0);
+    assert(size_t(attempt) < quorum->members.size());
 
     std::vector<std::pair<uint256, CDeterministicMNCPtr>> v;
     v.reserve(quorum->members.size());
