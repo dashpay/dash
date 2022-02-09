@@ -112,12 +112,9 @@ enum WalletFeature
 struct CompactTallyItem
 {
     CTxDestination txdest;
-    CAmount nAmount;
+    CAmount nAmount{0};
     std::vector<CInputCoin> vecInputCoins;
-    CompactTallyItem()
-    {
-        nAmount = 0;
-    }
+    CompactTallyItem() = default;
 };
 
 enum WalletFlags : uint64_t {
