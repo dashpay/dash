@@ -979,7 +979,7 @@ const QString getDefaultTheme()
     return defaultTheme;
 }
 
-const bool isValidTheme(const QString& strTheme)
+bool isValidTheme(const QString& strTheme)
 {
     return strTheme == defaultTheme || strTheme == darkThemePrefix || strTheme == traditionalTheme;
 }
