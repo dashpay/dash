@@ -44,7 +44,7 @@
 #include <cpuid.h>
 #endif
 
-#if ENABLE_BIP70
+#if USE_OPENSSL
 #include <openssl/rand.h>
 #include <openssl/conf.h>
 #endif
@@ -402,7 +402,7 @@ void GetOSRand(unsigned char *ent32)
 #endif
 }
 
-#if ENABLE_BIP70
+#if USE_OPENSSL
 void LockingCallbackOpenSSL(int mode, int i, const char* file, int line);
 #endif
 
@@ -428,7 +428,7 @@ public:
     {
         InitHardwareRand();
 
-#if ENABLE_BIP70
+#if USE_OPENSSL
         // Init OpenSSL library multithreading support
         m_mutex_openssl.reset(new Mutex[CRYPTO_num_locks()]);
         CRYPTO_set_locking_callback(LockingCallbackOpenSSL);
@@ -444,7 +444,7 @@ public:
 
     ~RNGState()
     {
-#if ENABLE_BIP70
+#if USE_OPENSSL
         // Securely erase the memory used by the OpenSSL PRNG
         RAND_cleanup();
         // Shutdown OpenSSL library multithreading support
@@ -486,7 +486,7 @@ public:
         return ret;
     }
 
-#if ENABLE_BIP70
+#if USE_OPENSSL
     Mutex& GetOpenSSLMutex(int i) { return m_mutex_openssl[i]; }
 #endif
 };
@@ -500,7 +500,7 @@ RNGState& GetRNGState() noexcept
 }
 }
 
-#if ENABLE_BIP70
+#if USE_OPENSSL
 void LockingCallbackOpenSSL(int mode, int i, const char* file, int line) NO_THREAD_SAFETY_ANALYSIS
 {
     RNGState& rng = GetRNGState();
@@ -550,7 +550,7 @@ static void SeedSlow(CSHA512& hasher) noexcept
     GetOSRand(buffer);
     hasher.Write(buffer, sizeof(buffer));
 
-#if ENABLE_BIP70
+#if USE_OPENSSL
     // OpenSSL RNG (for now)
     RAND_bytes(buffer, sizeof(buffer));
     hasher.Write(buffer, sizeof(buffer));
@@ -649,7 +649,7 @@ static void ProcRand(unsigned char* out, int num, RNGLevel level)
         rng.MixExtract(out, num, std::move(startup_hasher), true);
     }
 
-#if ENABLE_BIP70
+#if USE_OPENSSL
     // For anything but the 'fast' level, feed the resulting RNG output (after an additional hashing step) back into OpenSSL.
     if (level != RNGLevel::FAST) {
         unsigned char buf[64];
