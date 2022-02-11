@@ -2774,7 +2774,7 @@ CAmount CWallet::GetAnonymizableBalance(bool fSkipDenominated, bool fSkipUnconfi
     if (!CCoinJoinClientOptions::IsEnabled()) return 0;
 
     std::vector<CompactTallyItem> vecTally = SelectCoinsGroupedByAddresses(fSkipDenominated, true, fSkipUnconfirmed);
-    if (vecTally.size() == 0) return 0;
+    if (vecTally.empty()) return 0;
 
     CAmount nTotal = 0;
 

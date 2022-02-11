@@ -1327,12 +1327,12 @@ bool CCoinJoinClientSession::PrepareDenominate(int nMinRounds, int nMaxRounds, s
 
     // NOTE: No need to randomize order of inputs because they were
     // initially shuffled in CWallet::SelectTxDSInsByDenomination already.
-    int nSteps{0};
+    size_t nSteps{0};
     vecPSInOutPairsRet.clear();
 
     // Try to add up to COINJOIN_ENTRY_MAX_SIZE of every needed denomination
     for (const auto& entry : vecTxDSIn) {
-        if (nSteps >= int{COINJOIN_ENTRY_MAX_SIZE}) break;
+        if (nSteps >= COINJOIN_ENTRY_MAX_SIZE) break;
         if (entry.nRounds < nMinRounds || entry.nRounds > nMaxRounds) continue;
 
         CScript scriptDenom;
