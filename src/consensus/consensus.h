@@ -20,8 +20,6 @@ inline unsigned int MaxBlockSigOps(bool fDIP0001Active = true)
 }
 /** The maximum allowed size of version 3 extra payload */
 static const unsigned int MAX_TX_EXTRA_PAYLOAD = 10000;
-/** Coinbase transaction outputs can only be spent after this number of new blocks (network rule) */
-static const int COINBASE_MATURITY = 100;
 
 /** Flags for nSequence and nLockTime locks */
 /** Interpret sequence numbers as relative lock-time constraints. */

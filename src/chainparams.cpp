@@ -254,6 +254,8 @@ public:
         // By default assume that the signatures in ancestors of this block are valid.
         consensus.defaultAssumeValid = uint256S("0x00000000000000105cfae44a995332d8ec256850ea33a1f7b700474e3dad82bc"); // 1450000
 
+        consensus.nCoinbaseMaturity = 100;
+
         /**
          * The message start string is designed to be unlikely to occur in normal data.
          * The characters are rarely used upper ASCII, not valid as UTF-8, and produce
@@ -474,6 +476,8 @@ public:
         // By default assume that the signatures in ancestors of this block are valid.
         consensus.defaultAssumeValid = uint256S("0x0000009303aeadf8cf3812f5c869691dbd4cb118ad20e9bf553be434bafe6a52"); // 470000
 
+        consensus.nCoinbaseMaturity = 100;
+
         pchMessageStart[0] = 0xce;
         pchMessageStart[1] = 0xe2;
         pchMessageStart[2] = 0xca;
@@ -666,6 +670,8 @@ public:
 
         // By default assume that the signatures in ancestors of this block are valid.
         consensus.defaultAssumeValid = uint256S("0x000000000000000000000000000000000000000000000000000000000000000");
+
+        consensus.nCoinbaseMaturity = 100;
 
         pchMessageStart[0] = 0xe2;
         pchMessageStart[1] = 0xca;
@@ -879,6 +885,8 @@ public:
 
         // By default assume that the signatures in ancestors of this block are valid.
         consensus.defaultAssumeValid = uint256S("0x00");
+
+        consensus.nCoinbaseMaturity = 5;
 
         pchMessageStart[0] = 0xfc;
         pchMessageStart[1] = 0xc1;
@@ -1233,6 +1241,10 @@ static std::unique_ptr<const CChainParams> globalChainParams;
 const CChainParams &Params() {
     assert(globalChainParams);
     return *globalChainParams;
+}
+
+const CChainParams& GetChainParams(){
+    return Params();
 }
 
 std::unique_ptr<const CChainParams> CreateChainParams(const std::string& chain)

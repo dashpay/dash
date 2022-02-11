@@ -936,7 +936,7 @@ static UniValue getaddressbalance(const JSONRPCRequest& request)
         if (it->second > 0) {
             received += it->second;
         }
-        if (it->first.txindex == 0 && nHeight - it->first.blockHeight < COINBASE_MATURITY) {
+        if (it->first.txindex == 0 && nHeight - it->first.blockHeight < Params().GetConsensus().nCoinbaseMaturity) {
             balance_immature += it->second;
         } else {
             balance_spendable += it->second;
