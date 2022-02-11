@@ -706,7 +706,7 @@ class DashTestFramework(BitcoinTestFramework):
         """Tests must override this method to define test logic"""
         raise NotImplementedError
 
-    def set_dash_test_params(self, num_nodes, masterodes_count, extra_args=None, fast_dip3_enforcement=False):
+    def set_dash_test_params(self, num_nodes, masterodes_count, extra_args=None, fast_dip3_enforcement=False, fast_dip8_enforcement=True):
         self.mn_count = masterodes_count
         self.num_nodes = num_nodes
         self.mninfo = []
@@ -720,10 +720,10 @@ class DashTestFramework(BitcoinTestFramework):
         self.fast_dip3_enforcement = fast_dip3_enforcement
         if fast_dip3_enforcement:
             for i in range(0, num_nodes):
-                self.extra_args[i].append("-dip3params=30:50")
+                self.extra_args[i].append("-dip3params=3:5")
 
         # make sure to activate dip8 after prepare_masternodes has finished its job already
-        self.set_dash_dip8_activation(200)
+        self.set_dash_dip8_activation(200 if not fast_dip8_enforcement else 10)
 
         # LLMQ default test params (no need to pass -llmqtestparams)
         self.llmq_size = 3
@@ -889,9 +889,11 @@ class DashTestFramework(BitcoinTestFramework):
         self.start_node(0)
         required_balance = MASTERNODE_COLLATERAL * self.mn_count + 1
         self.log.info("Generating %d coins" % required_balance)
-        while self.nodes[0].getbalance() < required_balance:
-            self.bump_mocktime(1)
-            self.nodes[0].generate(10)
+        self.nodes[0].generate(6)
+        per = self.nodes[0].getbalance()
+        self.nodes[0].generate(int((required_balance) / per))
+        assert self.nodes[0].getbalance() > required_balance
+
         num_simple_nodes = self.num_nodes - self.mn_count - 1
         self.log.info("Creating and starting %s simple nodes", num_simple_nodes)
         for i in range(0, num_simple_nodes):
@@ -1044,7 +1046,7 @@ class DashTestFramework(BitcoinTestFramework):
         def check_sporks_same():
             sporks = self.nodes[0].spork('show')
             return all(node.spork('show') == sporks for node in self.nodes[1:])
-        wait_until(check_sporks_same, timeout=timeout, sleep=0.5)
+        wait_until(check_sporks_same, timeout=timeout, sleep=0.1)
 
     def wait_for_quorum_connections(self, expected_connections, nodes, timeout = 60, wait_proc=None):
         def check_quorum_connections():
@@ -1072,7 +1074,7 @@ class DashTestFramework(BitcoinTestFramework):
             return all_ok
         wait_until(check_quorum_connections, timeout=timeout, sleep=1)
 
-    def wait_for_masternode_probes(self, mninfos, timeout = 30, wait_proc=None):
+    def wait_for_masternode_probes(self, mninfos, timeout=30, wait_proc=None):
         def check_probes():
             def ret():
                 if wait_proc is not None:
@@ -1106,7 +1108,7 @@ class DashTestFramework(BitcoinTestFramework):
                                 return ret()
 
             return True
-        wait_until(check_probes, timeout=timeout, sleep=1)
+        wait_until(check_probes, timeout=timeout, sleep=0.1)
 
     def wait_for_quorum_phase(self, quorum_hash, phase, expected_member_count, check_received_messages, check_received_messages_count, mninfos, timeout=30, sleep=0.1):
         def check_dkg_session():
@@ -1166,10 +1168,10 @@ class DashTestFramework(BitcoinTestFramework):
         wait_until(wait_func, timeout=timeout, sleep=sleep)
 
     def mine_quorum(self, expected_connections=None, expected_members=None, expected_contributions=None, expected_complaints=0, expected_justifications=0, expected_commitments=None, mninfos_online=None, mninfos_valid=None):
-        spork21_active = self.nodes[0].spork('show')['SPORK_21_QUORUM_ALL_CONNECTED'] <= 1
         spork23_active = self.nodes[0].spork('show')['SPORK_23_QUORUM_POSE'] <= 1
 
         if expected_connections is None:
+            spork21_active = self.nodes[0].spork('show')['SPORK_21_QUORUM_ALL_CONNECTED'] <= 1
             expected_connections = (self.llmq_size - 1) if spork21_active else 2
         if expected_members is None:
             expected_members = self.llmq_size
@@ -1182,10 +1184,9 @@ class DashTestFramework(BitcoinTestFramework):
         if mninfos_valid is None:
             mninfos_valid = self.mninfo.copy()
 
-        self.log.info("Mining quorum: expected_members=%d, expected_connections=%d, expected_contributions=%d, expected_complaints=%d, expected_justifications=%d, "
-                      "expected_commitments=%d" % (expected_members, expected_connections, expected_contributions, expected_complaints,
-                                                   expected_justifications, expected_commitments))
-
+        self.log.info(f'Mining quorum: expected_members={expected_members}, expected_connections={expected_connections},'
+                      f' expected_contributions={expected_contributions}, expected_complaints={expected_complaints},'
+                      f' expected_justifications={expected_justifications}, expected_commitments={expected_commitments}')
         nodes = [self.nodes[0]] + [mn.node for mn in mninfos_online]
 
         # move forward to next DKG
@@ -1193,7 +1194,7 @@ class DashTestFramework(BitcoinTestFramework):
         if skip_count != 0:
             self.bump_mocktime(1, nodes=nodes)
             self.nodes[0].generate(skip_count)
-        sync_blocks(nodes)
+        sync_blocks(nodes, wait=.1)
 
         q = self.nodes[0].getbestblockhash()
 
@@ -1204,31 +1205,31 @@ class DashTestFramework(BitcoinTestFramework):
             self.wait_for_masternode_probes(mninfos_valid, wait_proc=lambda: self.bump_mocktime(1, nodes=nodes))
         self.bump_mocktime(1, nodes=nodes)
         self.nodes[0].generate(2)
-        sync_blocks(nodes)
+        sync_blocks(nodes, wait=.1)
 
         self.log.info("Waiting for phase 2 (contribute)")
         self.wait_for_quorum_phase(q, 2, expected_members, "receivedContributions", expected_contributions, mninfos_online)
         self.bump_mocktime(1, nodes=nodes)
         self.nodes[0].generate(2)
-        sync_blocks(nodes)
+        sync_blocks(nodes, wait=.1)
 
         self.log.info("Waiting for phase 3 (complain)")
         self.wait_for_quorum_phase(q, 3, expected_members, "receivedComplaints", expected_complaints, mninfos_online)
         self.bump_mocktime(1, nodes=nodes)
         self.nodes[0].generate(2)
-        sync_blocks(nodes)
+        sync_blocks(nodes, wait=.1)
 
         self.log.info("Waiting for phase 4 (justify)")
         self.wait_for_quorum_phase(q, 4, expected_members, "receivedJustifications", expected_justifications, mninfos_online)
         self.bump_mocktime(1, nodes=nodes)
         self.nodes[0].generate(2)
-        sync_blocks(nodes)
+        sync_blocks(nodes, wait=.1)
 
         self.log.info("Waiting for phase 5 (commit)")
         self.wait_for_quorum_phase(q, 5, expected_members, "receivedPrematureCommitments", expected_commitments, mninfos_online)
         self.bump_mocktime(1, nodes=nodes)
         self.nodes[0].generate(2)
-        sync_blocks(nodes)
+        sync_blocks(nodes, wait=.1)
 
         self.log.info("Waiting for phase 6 (mining)")
         self.wait_for_quorum_phase(q, 6, expected_members, None, 0, mninfos_online)
@@ -1240,7 +1241,7 @@ class DashTestFramework(BitcoinTestFramework):
         self.bump_mocktime(1, nodes=nodes)
         self.nodes[0].getblocktemplate() # this calls CreateNewBlock
         self.nodes[0].generate(1)
-        sync_blocks(nodes)
+        sync_blocks(nodes, wait=.1)
 
         self.log.info("Waiting for quorum to appear in the list")
         self.wait_for_quorum_list(q, nodes)
@@ -1252,9 +1253,9 @@ class DashTestFramework(BitcoinTestFramework):
         # Mine 8 (SIGN_HEIGHT_OFFSET) more blocks to make sure that the new quorum gets eligible for signing sessions
         self.nodes[0].generate(8)
 
-        sync_blocks(nodes)
+        sync_blocks(nodes, wait=.1)
 
-        self.log.info("New quorum: height=%d, quorumHash=%s, minedBlock=%s" % (quorum_info["height"], new_quorum, quorum_info["minedBlock"]))
+        self.log.info(f'New quorum: height={quorum_info["height"]}, quorumHash={new_quorum}, minedBlock={quorum_info["minedBlock"]}')
 
         return new_quorum
 
