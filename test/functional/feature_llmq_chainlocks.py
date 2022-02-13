@@ -13,7 +13,7 @@ Checks LLMQs based ChainLocks
 import time
 
 from test_framework.test_framework import DashTestFramework
-from test_framework.util import connect_nodes, force_finish_mnsync, isolate_node, reconnect_isolated_node
+from test_framework.util import connect_nodes, force_finish_mnsync, isolate_node, reconnect_isolated_node, wait_until
 
 
 class LLMQChainLocksTest(DashTestFramework):
@@ -34,8 +34,8 @@ class LLMQChainLocksTest(DashTestFramework):
         self.nodes[0].spork("SPORK_17_QUORUM_DKG_ENABLED", 0)
         self.wait_for_sporks_same()
 
-        self.log.info("Mining 4 quorums")
-        for i in range(4):
+        self.log.info("Mining 1 quorums")
+        for i in range(1):
             self.mine_quorum()
 
         self.log.info("Mine single block, wait for chainlock")
@@ -95,12 +95,9 @@ class LLMQChainLocksTest(DashTestFramework):
         self.nodes[0].invalidateblock(good_tip)
         self.log.info("Now try to reorg the chain")
         self.nodes[0].generate(2)
-        time.sleep(6)
-        assert self.nodes[1].getbestblockhash() == good_tip
+        wait_until(lambda: self.nodes[1].getbestblockhash() == good_tip, timeout=6)
         bad_tip = self.nodes[0].generate(2)[-1]
-        time.sleep(6)
-        assert self.nodes[0].getbestblockhash() == bad_tip
-        assert self.nodes[1].getbestblockhash() == good_tip
+        wait_until(lambda: self.nodes[0].getbestblockhash() == bad_tip and self.nodes[1].getbestblockhash() == good_tip, timeout=6)
 
         self.log.info("Now let the node which is on the wrong chain reorg back to the locked chain")
         self.nodes[0].reconsiderblock(good_tip)
@@ -124,8 +121,7 @@ class LLMQChainLocksTest(DashTestFramework):
         self.nodes[0].invalidateblock(good_fork)
         self.stop_node(0)
         self.start_node(0)
-        time.sleep(1)
-        assert self.nodes[0].getbestblockhash() == good_tip
+        wait_until(lambda: self.nodes[0].getbestblockhash() == good_tip, timeout=1)
 
         self.log.info("Isolate a node and let it create some transactions which won't get IS locked")
         force_finish_mnsync(self.nodes[0])
@@ -139,10 +135,10 @@ class LLMQChainLocksTest(DashTestFramework):
         for txid in txs:
             tx = self.nodes[0].getrawtransaction(txid, 1)
             assert "confirmations" not in tx
-        time.sleep(1)
-        node0_tip_block = self.nodes[0].getblock(node0_tip)
-        assert not node0_tip_block["chainlock"]
-        assert node0_tip_block["previousblockhash"] == good_tip
+        def test():
+            node0_tip_block = self.nodes[0].getblock(node0_tip)
+            return not node0_tip_block["chainlock"] and node0_tip_block["previousblockhash"] == good_tip
+        wait_until(test, timeout=1)
         self.log.info("Disable LLMQ based InstantSend for a very short time (this never gets propagated to other nodes)")
         self.nodes[0].spork("SPORK_2_INSTANTSEND_ENABLED", 4070908800)
         self.log.info("Now the TXs should be included")

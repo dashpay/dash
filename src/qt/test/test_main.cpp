@@ -28,7 +28,9 @@
 #include <QObject>
 #include <QTest>
 
+#ifdef ENABLE_BIP70
 #include <openssl/ssl.h>
+#endif
 
 #if defined(QT_STATICPLUGIN)
 #include <QtPlugin>
@@ -75,7 +77,9 @@ int main(int argc, char *argv[])
     BitcoinApplication app(*node);
     app.setApplicationName("Dash-Qt-test");
 
+#ifdef ENABLE_BIP70
     SSL_library_init();
+#endif
 
     AppTests app_tests(app);
     if (QTest::qExec(&app_tests) != 0) {

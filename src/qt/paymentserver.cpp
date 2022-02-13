@@ -24,7 +24,9 @@
 #include <cstdlib>
 #include <memory>
 
+#ifdef ENABLE_BIP70
 #include <openssl/x509_vfy.h>
+#endif
 
 #include <QApplication>
 #include <QByteArray>
