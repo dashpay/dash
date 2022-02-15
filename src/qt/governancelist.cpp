@@ -26,6 +26,9 @@ Proposal::Proposal(const CGovernanceObject _govObj, QObject* parent) :
     QObject(parent),
     govObj(_govObj)
 {
+    //current date is handled with attribute for making tests possible
+    m_currentDate = QDateTime::currentDateTime();
+
     UniValue prop_data;
     if (prop_data.read(govObj.GetDataAsPlainString())) {
         if (UniValue titleValue = find_value(prop_data, "name"); titleValue.isStr()) {
@@ -58,6 +61,16 @@ QDateTime Proposal::startDate() const { return m_startDate; }
 
 QDateTime Proposal::endDate() const { return m_endDate; }
 
+QDateTime Proposal::currentDate() const { return m_currentDate; }
+
+int Proposal::paymentRemaining() const
+{
+    long remainingInSecs = endDate().toSecsSinceEpoch() - QDateTime::currentSecsSinceEpoch();
+    int remainingInDays = remainingInSecs / Params().GetConsensus().nPowTargetTimespan;
+    float remainingCycle = remainingInDays / CYCLE_IN_DAYS;
+    return round(remainingCycle);
+}
+
 float Proposal::paymentAmount() const { return m_paymentAmount; }
 
 QString Proposal::url() const { return m_url; }
@@ -89,6 +102,21 @@ int Proposal::GetAbsoluteYesCount() const
     return govObj.GetAbsoluteYesCount(VOTE_SIGNAL_FUNDING);
 }
 
+int Proposal::GetYesCount() const
+{
+    return pGovObj->GetYesCount(VOTE_SIGNAL_FUNDING);
+}
+
+int Proposal::GetNoCount() const
+{
+    return pGovObj->GetNoCount(VOTE_SIGNAL_FUNDING);
+}
+
+int Proposal::GetAbstainCount() const
+{
+    return pGovObj->GetAbstainCount(VOTE_SIGNAL_FUNDING);
+}
+
 void Proposal::openUrl() const
 {
     QDesktopServices::openUrl(QUrl(m_url));
@@ -117,26 +145,32 @@ int ProposalModel::columnCount(const QModelIndex& index) const
 
 QVariant ProposalModel::data(const QModelIndex& index, int role) const
 {
-    if (role != Qt::DisplayRole && role != Qt::EditRole) return {};
+    if (role != Qt::DisplayRole && role != Qt::EditRole && role != Qt::TextAlignmentRole) return {};
     const auto proposal = m_data[index.row()];
     switch(role) {
     case Qt::DisplayRole:
     {
         switch (index.column()) {
-        case Column::HASH:
-            return proposal->hash();
         case Column::TITLE:
             return proposal->title();
-        case Column::START_DATE:
-            return proposal->startDate().date();
-        case Column::END_DATE:
-            return proposal->endDate().date();
         case Column::PAYMENT_AMOUNT:
             return proposal->paymentAmount();
+        case Column::PAYMENTS_REMAINING:
+            return proposal->paymentRemaining();
+        case Column::YES_COUNT:
+            return proposal->GetYesCount();
+        case Column::NO_COUNT:
+            return proposal->GetNoCount();
+        case Column::ABSOLUTE_YES:
+            return proposal->GetAbsoluteYesCount();
+        case Column::ABSTEIN_COUNT:
+            return proposal->GetAbstainCount();
         case Column::IS_ACTIVE:
             return proposal->isActive() ? "Y" : "N";
         case Column::VOTING_STATUS:
             return proposal->votingStatus(nAbsVoteReq);
+        case Column::URL:
+            return proposal->url();
         default:
             return {};
         };
@@ -146,25 +180,61 @@ QVariant ProposalModel::data(const QModelIndex& index, int role) const
     {
         // Edit role is used for sorting, so return the raw values where possible
         switch (index.column()) {
-        case Column::HASH:
-            return proposal->hash();
         case Column::TITLE:
             return proposal->title();
-        case Column::START_DATE:
-            return proposal->startDate();
-        case Column::END_DATE:
-            return proposal->endDate();
         case Column::PAYMENT_AMOUNT:
             return proposal->paymentAmount();
+        case Column::PAYMENTS_REMAINING:
+            return proposal->paymentRemaining();
+        case Column::YES_COUNT:
+            return proposal->GetYesCount();
+        case Column::NO_COUNT:
+            return proposal->GetNoCount();
+        case Column::ABSOLUTE_YES:
+            return proposal->GetAbsoluteYesCount();
+        case Column::ABSTEIN_COUNT:
+            return proposal->GetAbstainCount();
         case Column::IS_ACTIVE:
             return proposal->isActive();
         case Column::VOTING_STATUS:
             return proposal->GetAbsoluteYesCount();
+        case Column::URL:
+            return proposal->url();
         default:
             return {};
         };
         break;
     }
+    case Qt::TextAlignmentRole:
+    {
+        // Edit role is used for sorting, so return the raw values where possible
+        switch (index.column()) {
+        case Column::TITLE:
+             return Qt::AlignLeft;
+        case Column::PAYMENT_AMOUNT:
+            return Qt::AlignCenter;
+        case Column::PAYMENTS_REMAINING:
+            return Qt::AlignCenter;
+        case Column::YES_COUNT:
+            return Qt::AlignCenter;
+        case Column::NO_COUNT:
+            return Qt::AlignCenter;
+        case Column::ABSOLUTE_YES:
+            return Qt::AlignCenter;
+        case Column::ABSTEIN_COUNT:
+            return Qt::AlignCenter;
+        case Column::IS_ACTIVE:
+            return Qt::AlignCenter;
+        case Column::VOTING_STATUS:
+            return Qt::AlignLeft;
+        case Column::URL:
+            return Qt::AlignLeft;
+        default:
+            return Qt::AlignLeft;
+        };
+        break;
+    }
+
     };
     return {};
 }
@@ -173,20 +243,26 @@ QVariant ProposalModel::headerData(int section, Qt::Orientation orientation, int
 {
     if (orientation != Qt::Horizontal || role != Qt::DisplayRole) return {};
     switch (section) {
-    case Column::HASH:
-        return "Hash";
     case Column::TITLE:
         return "Title";
-    case Column::START_DATE:
-        return "Start";
-    case Column::END_DATE:
-        return "End";
+    case Column::PAYMENTS_REMAINING:
+        return "Payments Remaining";
     case Column::PAYMENT_AMOUNT:
         return "Amount";
+    case Column::YES_COUNT:
+        return "Yes";
+    case Column::NO_COUNT:
+        return "No";
+    case Column::ABSOLUTE_YES:
+        return "Absolute Yes";
+    case Column::ABSTEIN_COUNT:
+        return "Abstein";
     case Column::IS_ACTIVE:
         return "Active";
     case Column::VOTING_STATUS:
         return "Status";
+    case Column::URL:
+        return "URL";
     default:
         return {};
     }
@@ -195,16 +271,19 @@ QVariant ProposalModel::headerData(int section, Qt::Orientation orientation, int
 int ProposalModel::columnWidth(int section)
 {
     switch (section) {
-    case Column::HASH:
-        return 80;
     case Column::TITLE:
         return 220;
-    case Column::START_DATE:
-    case Column::END_DATE:
+    case Column::ABSOLUTE_YES:
+        return 180;
+    case Column::YES_COUNT:
+    case Column::NO_COUNT:
+    case Column::ABSTEIN_COUNT:
     case Column::PAYMENT_AMOUNT:
         return 110;
     case Column::IS_ACTIVE:
         return 80;
+    case Column::URL:
+    case Column::PAYMENTS_REMAINING:
     case Column::VOTING_STATUS:
         return 220;
     default:
@@ -308,7 +387,7 @@ GovernanceList::GovernanceList(QWidget* parent) :
     // Set up sorting.
     proposalModelProxy->setSortRole(Qt::EditRole);
     ui->govTableView->setSortingEnabled(true);
-    ui->govTableView->sortByColumn(ProposalModel::Column::START_DATE, Qt::DescendingOrder);
+    ui->govTableView->sortByColumn(ProposalModel::Column::PAYMENTS_REMAINING, Qt::AscendingOrder);
 
     // Set up filtering.
     proposalModelProxy->setFilterKeyColumn(ProposalModel::Column::TITLE); // filter by title column...
@@ -386,7 +465,7 @@ void GovernanceList::showProposalContextMenu(const QPoint& pos)
     QAction* openProposalUrl = new QAction(proposal->url(), this);
     proposalContextMenu->clear();
     proposalContextMenu->addAction(openProposalUrl);
-    connect(openProposalUrl, &QAction::triggered, proposal, &Proposal::openUrl);
+    connect(openProposalUrl, &QAction::triggered, this, &GovernanceList::openUrl);
     proposalContextMenu->exec(QCursor::pos());
 }
 
@@ -405,4 +484,26 @@ void GovernanceList::showAdditionalInfo(const QModelIndex& index)
     const auto json = proposal->toJson();
 
     QMessageBox::information(this, windowTitle, json);
+}
+
+void GovernanceList::openUrl()
+{
+    QAction *openProposalUrl = qobject_cast<QAction*>(sender());
+    QString urlString = openProposalUrl->text();
+    QUrl url(urlString);
+    if (!url.isValid()) {
+        QMessageBox::critical(this, "Invalid URL", "URL is not valid: " + urlString);
+        return;
+    }
+
+    QMessageBox urlWarning;
+    urlWarning.setWindowTitle("Warning");
+    urlWarning.setText("Do you want to open the url? " + urlString);
+    urlWarning.setStandardButtons(QMessageBox::Yes);
+    urlWarning.addButton(QMessageBox::No);
+    if (urlWarning.exec() == QMessageBox::Yes) {
+        QDesktopServices::openUrl(QUrl(url));
+    } else {
+        return;
+    }
 }

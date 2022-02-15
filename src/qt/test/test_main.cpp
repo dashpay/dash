@@ -14,6 +14,7 @@
 #include <qt/test/uritests.h>
 #include <qt/test/compattests.h>
 #include <qt/test/trafficgraphdatatests.h>
+#include <qt/test/proposaltests.h>
 #include <test/setup_common.h>
 
 #ifdef ENABLE_WALLET
@@ -117,5 +118,10 @@ int main(int argc, char *argv[])
     TrafficGraphDataTests test7;
     if (QTest::qExec(&test7) != 0)
         fInvalid = true;
+
+    ProposalTests test8;
+    if (QTest::qExec(&test8) != 0)
+        fInvalid = true;
+
     return fInvalid;
 }
