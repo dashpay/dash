@@ -81,6 +81,8 @@ public:
 
 class ProposalModel : public QAbstractTableModel
 {
+    Q_OBJECT
+
 private:
     QList<const Proposal*> m_data;
     int nAbsVoteReq = 0;
