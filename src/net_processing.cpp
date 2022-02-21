@@ -3954,7 +3954,7 @@ bool static ProcessMessage(CNode* pfrom, const std::string& strCommand, CDataStr
         if (BuildQuorumRotationInfo(cmd, quorumRotationInfoRet, strError)) {
             connman->PushMessage(pfrom, msgMaker.Make(NetMsgType::QUORUMROTATIONINFO, quorumRotationInfoRet));
         } else {
-            strError = strprintf("getquorumrotationinfo failed for baseBlockHashesNb=%llu, size(baseBlockHashes)=%d, blockRequestHash=%s. error=%s", cmd.baseBlockHashesNb, cmd.baseBlockHashes.size(), cmd.blockRequestHash.ToString(), strError);
+            strError = strprintf("getquorumrotationinfo failed for size(baseBlockHashes)=%d, blockRequestHash=%s. error=%s", cmd.baseBlockHashes.size(), cmd.blockRequestHash.ToString(), strError);
             Misbehaving(pfrom->GetId(), 1, strError);
         }
         return true;

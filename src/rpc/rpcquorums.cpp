@@ -673,14 +673,14 @@ static UniValue quorum_getrotationdata(const JSONRPCRequest& request)
     std::string strError;
 
     cmd.blockRequestHash = ParseHashV(request.params[1], "blockRequestHash");
-    cmd.baseBlockHashesNb = static_cast<uint32_t>(ParseInt32V(request.params[2], "baseBlockHashesNb"));
+    size_t baseBlockHashesNb = static_cast<uint32_t>(ParseInt32V(request.params[2], "baseBlockHashesNb"));
     cmd.extraShare = ParseBoolV(request.params[3], "extraShare");
 
     /*if (request.params.size() - 2 != cmd.baseBlockHashesNb) {
         quorum_getrotationinfo_help();
     }*/
 
-    for (auto i = 0; i < cmd.baseBlockHashesNb; i++) {
+    for (auto i = 0; i < baseBlockHashesNb; i++) {
         cmd.baseBlockHashes.push_back(ParseHashV(request.params[3 + i], "quorumHash"));
     }
     LOCK(cs_main);
