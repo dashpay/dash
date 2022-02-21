@@ -121,18 +121,13 @@ bool BuildQuorumRotationInfo(const CGetQuorumRotationInfo& request, CQuorumRotat
 {
     AssertLockHeld(cs_main);
 
-    if (request.baseBlockHashesNb != request.baseBlockHashes.size()) {
-        errorRet = strprintf("missmatch requested baseBlockHashesNb and size(baseBlockHashes)");
-        return false;
-    }
-
     LOCK(deterministicMNManager->cs);
 
     //Quorum rotation is enabled only for InstantSend atm.
     Consensus::LLMQType llmqType = Params().GetConsensus().llmqTypeInstantSend;
 
     std::vector<const CBlockIndex*> baseBlockIndexes;
-    if (request.baseBlockHashesNb == 0) {
+    if (request.baseBlockHashes.size() == 0) {
         const CBlockIndex* blockIndex = ::ChainActive().Genesis();
         if (!blockIndex) {
             errorRet = strprintf("genesis block not found");

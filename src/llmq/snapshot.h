@@ -80,14 +80,13 @@ public:
 class CGetQuorumRotationInfo
 {
 public:
-    uint32_t baseBlockHashesNb;
     std::vector<uint256> baseBlockHashes;
     uint256 blockRequestHash;
     bool extraShare;
 
     SERIALIZE_METHODS(CGetQuorumRotationInfo, obj)
     {
-        READWRITE(obj.baseBlockHashesNb, obj.baseBlockHashes, obj.blockRequestHash, obj.extraShare);
+        READWRITE(obj.baseBlockHashes, obj.blockRequestHash, obj.extraShare);
     }
 };
 
