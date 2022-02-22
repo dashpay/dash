@@ -672,11 +672,7 @@ void CGovernanceManager::SyncObjects(CNode* pnode, CConnman& connman) const
 
     LogPrint(BCLog::GOBJECT, "CGovernanceManager::%s -- syncing all objects to peer=%d\n", __func__, pnode->GetId());
 
-    bool fAllowScript{false};
-    {
-        LOCK(cs_main);
-        fAllowScript = (VersionBitsTipState(Params().GetConsensus(), Consensus::DEPLOYMENT_GOV_FEE) == ThresholdState::ACTIVE);
-    }
+    bool fAllowScript = WITH_LOCK(cs_main, return VersionBitsTipState(Params().GetConsensus(), Consensus::DEPLOYMENT_GOV_FEE) == ThresholdState::ACTIVE);
 
     LOCK(cs);
 
