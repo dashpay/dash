@@ -171,6 +171,7 @@ bool BuildQuorumRotationInfo(const CGetQuorumRotationInfo& request, CQuorumRotat
     // Since the returned quorums are in reversed order, the most recent one is at index 0
     const Consensus::LLMQParams& llmqParams = GetLLMQParams(llmqType);
     const int cycleLength = llmqParams.dkgInterval;
+    constexpr int workDiff = 8;
 
     const CBlockIndex* hBlockIndex = blockIndex->GetAncestor(blockIndex->nHeight - (blockIndex->nHeight % cycleLength));
     if (!hBlockIndex) {
@@ -178,8 +179,14 @@ bool BuildQuorumRotationInfo(const CGetQuorumRotationInfo& request, CQuorumRotat
         return false;
     }
 
+    const CBlockIndex* pWorkBlockIndex = hBlockIndex->GetAncestor(hBlockIndex->nHeight - workDiff);
+    if (!pWorkBlockIndex) {
+        errorRet = strprintf("Can not find work block H");
+        return false;
+    }
+
     //Build MN list Diff always with highest baseblock
-    if (!BuildSimplifiedMNListDiff(GetLastBaseBlockHash(baseBlockIndexes, hBlockIndex), hBlockIndex->GetBlockHash(), response.mnListDiffH, errorRet)) {
+    if (!BuildSimplifiedMNListDiff(GetLastBaseBlockHash(baseBlockIndexes, pWorkBlockIndex), pWorkBlockIndex->GetBlockHash(), response.mnListDiffH, errorRet)) {
         return false;
     }
 
@@ -188,22 +195,39 @@ bool BuildQuorumRotationInfo(const CGetQuorumRotationInfo& request, CQuorumRotat
         errorRet = strprintf("Can not find block H-C");
         return false;
     }
+    const CBlockIndex* pWorkBlockHMinusCIndex = pBlockHMinusCIndex->GetAncestor(pBlockHMinusCIndex->nHeight - workDiff);
+    if (!pWorkBlockHMinusCIndex) {
+        errorRet = strprintf("Can not find work block H-C");
+        return false;
+    }
 
     const CBlockIndex* pBlockHMinus2CIndex = pBlockHMinusCIndex->GetAncestor(hBlockIndex->nHeight - 2 * cycleLength);
     if (!pBlockHMinus2CIndex) {
         errorRet = strprintf("Can not find block H-2C");
         return false;
     }
+    const CBlockIndex* pWorkBlockHMinus2CIndex = pBlockHMinus2CIndex->GetAncestor(pBlockHMinus2CIndex->nHeight - workDiff);
+    if (!pWorkBlockHMinus2CIndex) {
+        errorRet = strprintf("Can not find work block H-2C");
+        return false;
+    }
+
     const CBlockIndex* pBlockHMinus3CIndex = pBlockHMinusCIndex->GetAncestor(hBlockIndex->nHeight - 3 * cycleLength);
     if (!pBlockHMinus3CIndex) {
         errorRet = strprintf("Can not find block H-3C");
         return false;
     }
+    const CBlockIndex* pWorkBlockHMinus3CIndex = pBlockHMinus3CIndex->GetAncestor(pBlockHMinus3CIndex->nHeight - workDiff);
+    if (!pWorkBlockHMinus3CIndex) {
+        errorRet = strprintf("Can not find work block H-3C");
+        return false;
+    }
 
     const CBlockIndex* pBlockHMinus4CIndex = pBlockHMinusCIndex->GetAncestor(hBlockIndex->nHeight - 4 * cycleLength);
+    const CBlockIndex* pWorkBlockHMinus4CIndex = pBlockHMinus4CIndex->GetAncestor(pBlockHMinus4CIndex->nHeight - workDiff);
     //Checked later if extraShare is on
 
-    if (!BuildSimplifiedMNListDiff(GetLastBaseBlockHash(baseBlockIndexes, pBlockHMinusCIndex), pBlockHMinusCIndex->GetBlockHash(), response.mnListDiffAtHMinusC, errorRet)) {
+    if (!BuildSimplifiedMNListDiff(GetLastBaseBlockHash(baseBlockIndexes, pWorkBlockHMinusCIndex), pWorkBlockHMinusCIndex->GetBlockHash(), response.mnListDiffAtHMinusC, errorRet)) {
         return false;
     }
 
@@ -215,7 +239,7 @@ bool BuildQuorumRotationInfo(const CGetQuorumRotationInfo& request, CQuorumRotat
         response.quorumSnapshotAtHMinusC = std::move(snapshotHMinusC.value());
     }
 
-    if (!BuildSimplifiedMNListDiff(GetLastBaseBlockHash(baseBlockIndexes, pBlockHMinus2CIndex), pBlockHMinus2CIndex->GetBlockHash(), response.mnListDiffAtHMinus2C, errorRet)) {
+    if (!BuildSimplifiedMNListDiff(GetLastBaseBlockHash(baseBlockIndexes, pWorkBlockHMinus2CIndex), pWorkBlockHMinus2CIndex->GetBlockHash(), response.mnListDiffAtHMinus2C, errorRet)) {
         return false;
     }
 
@@ -227,7 +251,7 @@ bool BuildQuorumRotationInfo(const CGetQuorumRotationInfo& request, CQuorumRotat
         response.quorumSnapshotAtHMinus2C = std::move(snapshotHMinus2C.value());
     }
 
-    if (!BuildSimplifiedMNListDiff(GetLastBaseBlockHash(baseBlockIndexes, pBlockHMinus3CIndex), pBlockHMinus3CIndex->GetBlockHash(), response.mnListDiffAtHMinus3C, errorRet)) {
+    if (!BuildSimplifiedMNListDiff(GetLastBaseBlockHash(baseBlockIndexes, pWorkBlockHMinus3CIndex), pWorkBlockHMinus3CIndex->GetBlockHash(), response.mnListDiffAtHMinus3C, errorRet)) {
         return false;
     }
 
@@ -246,6 +270,10 @@ bool BuildQuorumRotationInfo(const CGetQuorumRotationInfo& request, CQuorumRotat
             errorRet = strprintf("Can not find block H-4C");
             return false;
         }
+        if (!pWorkBlockHMinus4CIndex) {
+            errorRet = strprintf("Can not find work block H-4C");
+            return false;
+        }
 
         auto snapshotHMinus4C = quorumSnapshotManager->GetSnapshotForBlock(llmqType, pBlockHMinus4CIndex);
         if (!snapshotHMinus4C.has_value()) {
@@ -256,7 +284,7 @@ bool BuildQuorumRotationInfo(const CGetQuorumRotationInfo& request, CQuorumRotat
         }
 
         CSimplifiedMNListDiff mn4c;
-        if (!BuildSimplifiedMNListDiff(GetLastBaseBlockHash(baseBlockIndexes, pBlockHMinus4CIndex), pBlockHMinus4CIndex->GetBlockHash(), mn4c, errorRet)) {
+        if (!BuildSimplifiedMNListDiff(GetLastBaseBlockHash(baseBlockIndexes, pWorkBlockHMinus4CIndex), pWorkBlockHMinus4CIndex->GetBlockHash(), mn4c, errorRet)) {
             return false;
         }
 
@@ -287,13 +315,18 @@ bool BuildQuorumRotationInfo(const CGetQuorumRotationInfo& request, CQuorumRotat
         snapshotHeightsNeeded.erase(pBlockHMinus4CIndex->nHeight);
 
     for (const auto& h : snapshotHeightsNeeded) {
-        const CBlockIndex* hNeededBlockIndex = tipBlockIndex->GetAncestor(h);
-        if (!hNeededBlockIndex) {
+        const CBlockIndex* pNeededBlockIndex = tipBlockIndex->GetAncestor(h);
+        if (!pNeededBlockIndex) {
             errorRet = strprintf("Can not find needed block H(%d)", h);
             return false;
         }
+        const CBlockIndex* pNeededWorkBlockIndex = pNeededBlockIndex->GetAncestor(pNeededBlockIndex->nHeight - workDiff);
+        if (!pNeededWorkBlockIndex) {
+            errorRet = strprintf("Can not find needed work block H(%d)", h);
+            return false;
+        }
 
-        auto snapshotNeededH = quorumSnapshotManager->GetSnapshotForBlock(llmqType, hNeededBlockIndex);
+        auto snapshotNeededH = quorumSnapshotManager->GetSnapshotForBlock(llmqType, pNeededBlockIndex);
         if (!snapshotNeededH.has_value()) {
             errorRet = strprintf("Can not find quorum snapshot at H(%d)", h);
             return false;
@@ -302,7 +335,7 @@ bool BuildQuorumRotationInfo(const CGetQuorumRotationInfo& request, CQuorumRotat
         }
 
         CSimplifiedMNListDiff mnhneeded;
-        if (!BuildSimplifiedMNListDiff(GetLastBaseBlockHash(baseBlockIndexes, hNeededBlockIndex), hNeededBlockIndex->GetBlockHash(), mnhneeded, errorRet)) {
+        if (!BuildSimplifiedMNListDiff(GetLastBaseBlockHash(baseBlockIndexes, pNeededWorkBlockIndex), pNeededWorkBlockIndex->GetBlockHash(), mnhneeded, errorRet)) {
             return false;
         }
 
