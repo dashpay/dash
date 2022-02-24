@@ -1468,8 +1468,7 @@ bool CheckProUpRegTx(const CTransaction& tx, const CBlockIndex* pindexPrev, CVal
         }
 
         if (auto maybe_err = CheckInputsHash(tx, ptx); maybe_err.did_err) {
-            // pass the state returned by the function above
-            return false;
+            return state.DoS(maybe_err.ban_amount, false, REJECT_INVALID, std::string(maybe_err.error_str));
         }
         if (!CheckHashSig(ptx, dmn->pdmnState->keyIDOwner, state)) {
             // pass the state returned by the function above
@@ -1502,8 +1501,7 @@ bool CheckProUpRevTx(const CTransaction& tx, const CBlockIndex* pindexPrev, CVal
             return state.DoS(100, false, REJECT_INVALID, "bad-protx-hash");
 
         if (auto maybe_err = CheckInputsHash(tx, ptx); maybe_err.did_err) {
-            // pass the state returned by the function above
-            return false;
+            return state.DoS(maybe_err.ban_amount, false, REJECT_INVALID, std::string(maybe_err.error_str));
         }
         if (!CheckHashSig(ptx, dmn->pdmnState->pubKeyOperator.Get(), state)) {
             // pass the state returned by the function above
