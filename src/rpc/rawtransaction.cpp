@@ -28,9 +28,10 @@
 #include <script/standard.h>
 #include <txmempool.h>
 #include <uint256.h>
+#include <util/bip32.h>
 #include <util/moneystr.h>
-#include <util/validation.h>
 #include <util/strencodings.h>
+#include <util/validation.h>
 #include <validation.h>
 #include <validationinterface.h>
 
@@ -771,7 +772,10 @@ static UniValue signrawtransactionwithkey(const JSONRPCRequest& request)
 
 UniValue sendrawtransaction(const JSONRPCRequest& request)
 {
-    const RPCHelpMan help{"sendrawtransaction",                "\nSubmits raw transaction (serialized, hex-encoded) to local node and network.\n"
+    const RPCHelpMan help{"sendrawtransaction",                "\nSubmit a raw transaction (serialized, hex-encoded) to local node and network.\n"
+                "\nNote that the transaction will be sent unconditionally to all peers, so using this\n"
+                "for manual rebroadcast may degrade privacy by leaking the transaction's origin, as\n"
+                "nodes will normally not rebroadcast non-wallet transactions already in their mempool.\n"
                 "\nAlso see createrawtransaction and signrawtransactionwithkey calls.\n",
                 {
                     {"hexstring", RPCArg::Type::STR_HEX, RPCArg::Optional::NO, "The hex string of the raw transaction"},

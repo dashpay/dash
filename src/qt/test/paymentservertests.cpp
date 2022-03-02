@@ -13,11 +13,13 @@
 #include <random.h>
 #include <script/script.h>
 #include <script/standard.h>
-#include <test/setup_common.h>
+#include <test/util/setup_common.h>
 #include <util/strencodings.h>
 
+#if USE_OPENSSL
 #include <openssl/x509.h>
 #include <openssl/x509_vfy.h>
+#endif
 
 #include <QFileOpenEvent>
 #include <QTemporaryFile>

@@ -14,7 +14,7 @@
 #include <key_io.h>
 #include <policy/policy.h>
 #include <rpc/server.h>
-#include <test/setup_common.h>
+#include <test/util/setup_common.h>
 #include <validation.h>
 #include <wallet/coincontrol.h>
 #include <wallet/test/wallet_test_fixture.h>
@@ -478,9 +478,9 @@ public:
     const std::string strUnableToLocateCoinJoin1 = "Unable to locate enough non-denominated funds for this transaction.";
     const std::string strUnableToLocateCoinJoin2 = "Unable to locate enough mixed funds for this transaction. CoinJoin uses exact denominated amounts to send funds, you might simply need to mix some more coins.";
     const std::string strTransactionTooLarge = "Transaction too large";
-    const std::string strTransactionTooLargeForFeePolicy = "Transaction too large for fee policy";
     const std::string strChangeIndexOutOfRange = "Change index out of range";
     const std::string strExceededMaxTries = "Exceeded max tries.";
+    const std::string strMaxFeeExceeded = "Fee exceeds maximum configured by -maxtxfee";
 
     CreateTransactionTestSetup()
     {
@@ -598,7 +598,7 @@ public:
         std::vector<COutPoint> vecOutpoints;
         size_t n;
         for (n = 0; n < tx->vout.size(); ++n) {
-            if (nChangePosRet != -1 && n == nChangePosRet) {
+            if (nChangePosRet != -1 && int(n) == nChangePosRet) {
                 // Skip the change output to only return the requested coins
                 continue;
             }
@@ -632,7 +632,7 @@ BOOST_FIXTURE_TEST_CASE(CreateTransactionTest, CreateTransactionTestSetup)
             {13, {{100001, true}}}
         };
         assert(mapTestCases.size() == mapExpected.size());
-        for (int i = 0; i < mapTestCases.size(); ++i) {
+        for (size_t i = 0; i < mapTestCases.size(); ++i) {
             if (!CreateTransaction(mapTestCases.at(i), mapExpected.at(i).first, mapExpected.at(i).second)) {
                 std::cout << strprintf("CreateTransactionTest failed at: %d - %d\n", nTestId, i) << std::endl;
             }
@@ -858,10 +858,10 @@ BOOST_FIXTURE_TEST_CASE(CreateTransactionTest, CreateTransactionTestSetup)
         // Just to create nCount output recipes to use in tests below
         std::vector<std::pair<CAmount, bool>> vecOutputEntries{{5000, false}};
         auto createOutputEntries = [&](int nCount) {
-            while (vecOutputEntries.size() <= nCount) {
+            while (vecOutputEntries.size() <= size_t(nCount)) {
                 vecOutputEntries.push_back(vecOutputEntries.back());
             }
-            if (vecOutputEntries.size() > nCount) {
+            if (vecOutputEntries.size() > size_t(nCount)) {
                 int nDiff = vecOutputEntries.size() - nCount;
                 vecOutputEntries.erase(vecOutputEntries.begin(), vecOutputEntries.begin() + nDiff);
             }
@@ -886,13 +886,9 @@ BOOST_FIXTURE_TEST_CASE(CreateTransactionTest, CreateTransactionTestSetup)
         createOutputEntries(2935);
         BOOST_CHECK(CreateTransaction(vecOutputEntries, strTransactionTooLarge, false));
 
-        auto prevRate = minRelayTxFee;
-        coinControl.m_feerate = prevRate;
-        coinControl.fOverrideFeeRate = true;
-        minRelayTxFee = CFeeRate(prevRate.GetFeePerK() * 10);
-        BOOST_CHECK(CreateTransaction({{5000, false}}, strTransactionTooLargeForFeePolicy, false));
-        coinControl.m_feerate.reset();
-        minRelayTxFee = prevRate;
+        wallet->m_default_max_tx_fee = 0;
+        BOOST_CHECK(CreateTransaction({{5000, false}}, strMaxFeeExceeded, false));
+        wallet->m_default_max_tx_fee = DEFAULT_TRANSACTION_MAXFEE;
 
         BOOST_CHECK(CreateTransaction({{5000, false}, {5000, false}, {5000, false}}, strChangeIndexOutOfRange, 4, false));
     }
@@ -904,13 +900,15 @@ BOOST_FIXTURE_TEST_CASE(select_coins_grouped_by_addresses, ListCoinsTestingSetup
     // Check initial balance from one mature coinbase transaction.
     BOOST_CHECK_EQUAL(wallet->GetAvailableBalance(), 500 * COIN);
 
-    std::vector<CompactTallyItem> vecTally;
-    BOOST_CHECK(wallet->SelectCoinsGroupedByAddresses(vecTally, false /*fSkipDenominated*/, false /*fAnonymizable*/,
-                                                                false /*fSkipUnconfirmed*/, 100/*nMaxOupointsPerAddress*/));
-    BOOST_CHECK_EQUAL(vecTally.size(), 1);
-    BOOST_CHECK_EQUAL(vecTally.at(0).nAmount, 500 * COIN);
-    BOOST_CHECK_EQUAL(vecTally.at(0).vecInputCoins.size(), 1);
-    vecTally.clear();
+    {
+        std::vector<CompactTallyItem> vecTally = wallet->SelectCoinsGroupedByAddresses(/*fSkipDenominated=*/false,
+                /*fAnonymizable=*/false,
+                /*fSkipUnconfirmed=*/false,
+                /*nMaxOupointsPerAddress=*/100);
+        BOOST_CHECK_EQUAL(vecTally.size(), 1);
+        BOOST_CHECK_EQUAL(vecTally.at(0).nAmount, 500 * COIN);
+        BOOST_CHECK_EQUAL(vecTally.at(0).vecInputCoins.size(), 1);
+    }
 
     // Create two conflicting transactions, add one to the wallet and mine the other one.
     CTransactionRef tx1;
@@ -946,14 +944,15 @@ BOOST_FIXTURE_TEST_CASE(select_coins_grouped_by_addresses, ListCoinsTestingSetup
 
     // Committed tx is the one that should be marked as "conflicting".
     // Make sure that available balance and SelectCoinsGroupedByAddresses results match.
-    BOOST_CHECK(wallet->SelectCoinsGroupedByAddresses(vecTally, false /*fSkipDenominated*/, false /*fAnonymizable*/,
-                                                                false /*fSkipUnconfirmed*/, 100/*nMaxOupointsPerAddress*/));
+    const auto vecTally = wallet->SelectCoinsGroupedByAddresses(/*fSkipDenominated=*/false,
+            /*fAnonymizable=*/false,
+            /*fSkipUnconfirmed=*/false,
+            /*nMaxOupointsPerAddress=*/100);
     BOOST_CHECK_EQUAL(vecTally.size(), 2);
     BOOST_CHECK_EQUAL(vecTally.at(0).vecInputCoins.size(), 1);
     BOOST_CHECK_EQUAL(vecTally.at(1).vecInputCoins.size(), 1);
     BOOST_CHECK_EQUAL(vecTally.at(0).nAmount + vecTally.at(1).nAmount, (500 + 499) * COIN);
     BOOST_CHECK_EQUAL(wallet->GetAvailableBalance(), (500 + 499) * COIN);
-    vecTally.clear();
 }
 
 BOOST_FIXTURE_TEST_CASE(wallet_disableprivkeys, TestChain100Setup)

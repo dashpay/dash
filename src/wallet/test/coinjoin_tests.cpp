@@ -2,7 +2,7 @@
 // Distributed under the MIT software license, see the accompanying
 // file COPYING or http://www.opensource.org/licenses/mit-license.php.
 
-#include <test/setup_common.h>
+#include <test/util/setup_common.h>
 
 #include <amount.h>
 #include <coinjoin/util.h>
@@ -97,7 +97,7 @@ public:
             BOOST_CHECK(wallet->CommitTransaction(tx, {}, {}, state));
             AddTxToChain(tx->GetHash());
             for (size_t n = 0; n < tx->vout.size(); ++n) {
-                if (nChangePosRet != -1 && n == nChangePosRet) {
+                if (nChangePosRet != -1 && int(n) == nChangePosRet) {
                     // Skip the change output to only return the requested coins
                     continue;
                 }

@@ -3,6 +3,7 @@
 // Distributed under the MIT software license, see the accompanying
 // file COPYING or http://www.opensource.org/licenses/mit-license.php.
 
+#include <chainparams.h>
 #include <init.h>
 #include <interfaces/chain.h>
 #include <net.h>
@@ -255,7 +256,7 @@ void WalletInit::Construct(InitInterfaces& interfaces) const
 void WalletInit::AutoLockMasternodeCollaterals() const
 {
     // we can't do this before DIP3 is fully initialized
-    for (const auto pwallet : GetWallets()) {
+    for (const auto& pwallet : GetWallets()) {
         pwallet->AutoLockMasternodeCollaterals();
     }
 }

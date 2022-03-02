@@ -45,7 +45,7 @@ BITCOIN_INCLUDES=-I$(builddir) $(BDB_CPPFLAGS) $(BOOST_CPPFLAGS) $(LEVELDB_CPPFL
 BITCOIN_INCLUDES += -I$(srcdir)/secp256k1/include
 BITCOIN_INCLUDES += $(UNIVALUE_CFLAGS)
 
-BLS_LIBS=-lbls-dash
+BLS_LIBS=-lbls-dash -lrelic_s
 
 LIBBITCOIN_SERVER=libdash_server.a
 LIBBITCOIN_COMMON=libdash_common.a
@@ -167,12 +167,14 @@ BITCOIN_CORE_H = \
   cxxtimer.hpp \
   evo/cbtx.h \
   evo/deterministicmns.h \
+  evo/dmnstate.h \
   evo/evodb.h \
   evo/mnauth.h \
   evo/mnhftx.h \
   evo/providertx.h \
   evo/simplifiedmns.h \
   evo/specialtx.h \
+  evo/specialtxman.h \
   dsnotificationinterface.h \
   governance/governance.h \
   governance/classes.h \
@@ -206,6 +208,7 @@ BITCOIN_CORE_H = \
   llmq/blockprocessor.h \
   llmq/commitment.h \
   llmq/chainlocks.h \
+  llmq/clsig.h \
   llmq/debug.h \
   llmq/dkgsessionhandler.h \
   llmq/dkgsessionmgr.h \
@@ -285,6 +288,7 @@ BITCOIN_CORE_H = \
   ui_interface.h \
   undo.h \
   unordered_lru_cache.h \
+  util/bip32.h \
   util/bytevectorhash.h \
   util/error.h \
   util/fees.h \
@@ -355,12 +359,14 @@ libdash_server_a_SOURCES = \
   dsnotificationinterface.cpp \
   evo/cbtx.cpp \
   evo/deterministicmns.cpp \
+  evo/dmnstate.cpp \
   evo/evodb.cpp \
   evo/mnauth.cpp \
   evo/mnhftx.cpp \
   evo/providertx.cpp \
   evo/simplifiedmns.cpp \
   evo/specialtx.cpp \
+  evo/specialtxman.cpp \
   flatfile.cpp \
   httprpc.cpp \
   httpserver.cpp \
@@ -381,6 +387,7 @@ libdash_server_a_SOURCES = \
   llmq/blockprocessor.cpp \
   llmq/commitment.cpp \
   llmq/chainlocks.cpp \
+  llmq/clsig.cpp \
   llmq/debug.cpp \
   llmq/dkgsessionhandler.cpp \
   llmq/dkgsessionmgr.cpp \
@@ -442,7 +449,7 @@ libdash_server_a_SOURCES += dummywallet.cpp
 endif
 
 if ENABLE_ZMQ
-libdash_zmq_a_CPPFLAGS = $(BITCOIN_INCLUDES) $(ZMQ_CFLAGS)
+libdash_zmq_a_CPPFLAGS = $(AM_CPPFLAGS) $(BITCOIN_INCLUDES) $(ZMQ_CFLAGS)
 libdash_zmq_a_CXXFLAGS = $(AM_CXXFLAGS) $(PIE_FLAGS)
 libdash_zmq_a_SOURCES = \
   zmq/zmqabstractnotifier.cpp \
@@ -501,6 +508,8 @@ crypto_libdash_crypto_base_a_SOURCES = \
   crypto/hmac_sha512.h \
   crypto/poly1305.h \
   crypto/poly1305.cpp \
+  crypto/pkcs5_pbkdf2_hmac_sha512.cpp \
+  crypto/pkcs5_pbkdf2_hmac_sha512.h \
   crypto/ripemd160.cpp \
   crypto/aes_helper.c \
   crypto/ripemd160.h \
@@ -667,6 +676,7 @@ libdash_util_a_SOURCES = \
   support/cleanse.cpp \
   sync.cpp \
   threadinterrupt.cpp \
+  util/bip32.cpp \
   util/bytevectorhash.cpp \
   util/error.cpp \
   util/fees.cpp \
@@ -894,6 +904,8 @@ if EMBEDDED_LEVELDB
 include Makefile.crc32c.include
 include Makefile.leveldb.include
 endif
+
+include Makefile.test_util.include
 
 if ENABLE_TESTS
 include Makefile.test.include

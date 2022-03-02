@@ -35,7 +35,6 @@
 
 #include <spork.h>
 #include <governance/governance.h>
-#include <masternode/payments.h>
 #include <masternode/sync.h>
 #include <masternode/meta.h>
 #ifdef ENABLE_WALLET
@@ -3920,7 +3919,7 @@ bool static ProcessMessage(CNode* pfrom, const std::string& strCommand, CDataStr
 
     bool found = false;
     const std::vector<std::string> &allMessages = getAllNetMessageTypes();
-    for (const std::string msg : allMessages) {
+    for (const std::string& msg : allMessages) {
         if(msg == strCommand) {
             found = true;
             break;

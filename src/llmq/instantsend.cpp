@@ -190,7 +190,7 @@ std::unordered_map<uint256, CInstantSendLockPtr, StaticSaltedHasher> CInstantSen
             break;
         }
         uint32_t nHeight = std::numeric_limits<uint32_t>::max() - be32toh(std::get<1>(curKey));
-        if (nHeight > nUntilHeight) {
+        if (nHeight > uint32_t(nUntilHeight)) {
             break;
         }
 
@@ -234,7 +234,7 @@ void CInstantSendDb::RemoveArchivedInstantSendLocks(int nUntilHeight)
             break;
         }
         uint32_t nHeight = std::numeric_limits<uint32_t>::max() - be32toh(std::get<1>(curKey));
-        if (nHeight > nUntilHeight) {
+        if (nHeight > uint32_t(nUntilHeight)) {
             break;
         }
 
@@ -326,10 +326,10 @@ CInstantSendLockPtr CInstantSendDb::GetInstantSendLockByHash(const uint256& hash
 
     ret = std::make_shared<CInstantSendLock>(CInstantSendLock::isdlock_version);
     bool exists = db->Read(std::make_tuple(DB_ISLOCK_BY_HASH, hash), *ret);
-    if (!exists) {
+    if (!exists || (::SerializeHash(*ret) != hash)) {
         ret = std::make_shared<CInstantSendLock>();
         exists = db->Read(std::make_tuple(DB_ISLOCK_BY_HASH, hash), *ret);
-        if (!exists) {
+        if (!exists || (::SerializeHash(*ret) != hash)) {
             ret = nullptr;
         }
     }
@@ -1502,12 +1502,26 @@ void CInstantSendManager::RemoveConflictingLock(const uint256& islockHash, const
 void CInstantSendManager::AskNodesForLockedTx(const uint256& txid)
 {
     std::vector<CNode*> nodesToAskFor;
-    g_connman->ForEachNode([&](CNode* pnode) {
+    nodesToAskFor.reserve(4);
+
+    auto maybe_add_to_nodesToAskFor = [&nodesToAskFor, &txid](CNode* pnode) {
+        if (nodesToAskFor.size() >= 4) {
+            return;
+        }
         LOCK(pnode->cs_inventory);
         if (pnode->filterInventoryKnown.contains(txid)) {
             pnode->AddRef();
             nodesToAskFor.emplace_back(pnode);
         }
+    };
+
+    g_connman->ForEachNode([&](CNode* pnode) {
+        // Check masternodes first
+        if (pnode->m_masternode_connection) maybe_add_to_nodesToAskFor(pnode);
+    });
+    g_connman->ForEachNode([&](CNode* pnode) {
+        // Check non-masternodes next
+        if (!pnode->m_masternode_connection) maybe_add_to_nodesToAskFor(pnode);
     });
     {
         LOCK(cs_main);
