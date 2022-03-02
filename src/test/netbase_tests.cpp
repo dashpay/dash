@@ -575,4 +575,24 @@ BOOST_AUTO_TEST_CASE(netbase_dont_resolve_strings_with_embedded_nul_characters)
     BOOST_CHECK(!LookupSubNet("pg6mmjiyjmcrsslvykfwnntlaru7p5svn6y2ymmju6nubxndf4pscryd.onion\0example.com\0"s, ret));
 }
 
+BOOST_AUTO_TEST_CASE(isbadport)
+{
+    BOOST_CHECK(IsBadPort(1));
+    BOOST_CHECK(IsBadPort(22));
+    BOOST_CHECK(IsBadPort(6000));
+
+    BOOST_CHECK(!IsBadPort(80));
+    BOOST_CHECK(!IsBadPort(443));
+    BOOST_CHECK(!IsBadPort(8333));
+
+    // Check all ports, there must be 80 bad ports in total.
+    size_t total_bad_ports{0};
+    for (uint16_t port = std::numeric_limits<uint16_t>::max(); port > 0; --port) {
+        if (IsBadPort(port)) {
+            ++total_bad_ports;
+        }
+    }
+    BOOST_CHECK_EQUAL(total_bad_ports, 80);
+}
+
 BOOST_AUTO_TEST_SUITE_END()
