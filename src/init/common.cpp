@@ -6,15 +6,10 @@
 #include <config/bitcoin-config.h>
 #endif
 
-#include <bls/bls.h>
 #include <clientversion.h>
-#include <crypto/sha256.h>
-#include <crypto/x11/dispatch.h>
 #include <fs.h>
-#include <key.h>
 #include <logging.h>
 #include <node/interface_ui.h>
-#include <random.h>
 #include <tinyformat.h>
 #include <util/time.h>
 #include <util/string.h>
@@ -26,34 +21,6 @@
 #include <vector>
 
 namespace init {
-void SetGlobals()
-{
-    SapphireAutoDetect();
-    std::string sha256_algo = SHA256AutoDetect();
-    LogPrintf("Using the '%s' SHA256 implementation\n", sha256_algo);
-    RandomInit();
-    ECC_Start();
-    BLSInit();
-}
-
-void UnsetGlobals()
-{
-    ECC_Stop();
-}
-
-bool SanityChecks()
-{
-    if (!ECC_InitSanityCheck()) {
-        return InitError(Untranslated("Elliptic curve cryptography sanity check failure. Aborting."));
-    }
-
-    if (!Random_SanityCheck()) {
-        return InitError(Untranslated("OS cryptographic RNG sanity check failure. Aborting."));
-    }
-
-    return true;
-}
-
 void AddLoggingArgs(ArgsManager& argsman)
 {
     argsman.AddArg("-debuglogfile=<file>", strprintf("Specify location of debug log file. Relative paths will be prefixed by a net-specific datadir location. (-nodebuglogfile to disable; default: %s)", DEFAULT_DEBUGLOGFILE), ArgsManager::ALLOW_ANY, OptionsCategory::OPTIONS);
