@@ -856,8 +856,13 @@ void RPCConsole::walletReindex()
 void RPCConsole::buildParameterlist(QString arg)
 {
     // Get command-line arguments and remove the application name
-    QStringList args = QApplication::arguments();
-    args.removeFirst();
+    QStringList args;
+
+    for (const auto& key_pair : gArgs.GetCommandLineArgs()) {
+        for (const auto& value : key_pair.second) {
+            args << QString::fromStdString(key_pair.first + "=" + value);
+        }
+    }
 
     // Remove existing repair-options
     args.removeAll(SALVAGEWALLET);
