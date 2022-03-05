@@ -860,7 +860,11 @@ void RPCConsole::buildParameterlist(QString arg)
 
     for (const auto& [key, values] : gArgs.GetCommandLineArgs()) {
         for (const auto& value : values) {
-            args << QString::fromStdString(key + "=" + value);
+            if (value.empty()) {
+                args << QString::fromStdString(key);
+            } else {
+                args << QString::fromStdString(key + "=" + value);
+            }
         }
     }
 
