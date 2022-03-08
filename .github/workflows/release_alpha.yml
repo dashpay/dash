@@ -72,10 +72,10 @@ jobs:
         repository: dashpay/gitian.sigs
         path: gitian.sigs
 
-    - name: Clone macOS SDK
-      run: |
-        mkdir gitian-builder/inputs
-        wget -q -O gitian-builder/inputs/MacOSX10.11.sdk.tar.gz https://bitcoincore.org/depends-sources/sdks/MacOSX10.11.sdk.tar.gz
+    # - name: Clone macOS SDK
+    #   run: |
+    #     mkdir gitian-builder/inputs
+    #     wget -q -O gitian-builder/inputs/MacOSX10.11.sdk.tar.gz https://bitcoincore.org/depends-sources/sdks/MacOSX10.11.sdk.tar.gz
 
     - name: Import GPG key
       run: echo ${{GPG_PRIVATE_KEY}} | gpg --import
