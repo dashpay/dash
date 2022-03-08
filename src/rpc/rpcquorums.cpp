@@ -856,7 +856,12 @@ static UniValue verifyislock(const JSONRPCRequest& request)
         signHeight = pindexMined->nHeight;
     }
 
-    auto llmqType = Params().GetConsensus().llmqTypeInstantSend;
+    CBlockIndex* pBlockIndex;
+    {
+        LOCK(cs_main);
+        pBlockIndex = ::ChainActive()[signHeight];
+    }
+    auto llmqType = llmq::CLLMQUtils::GetInstantSendLLMQType(pBlockIndex);
 
     // First check against the current active set, if it fails check against the last active set
     int signOffset{llmq::GetLLMQParams(llmqType).dkgInterval};

@@ -123,9 +123,6 @@ bool BuildQuorumRotationInfo(const CGetQuorumRotationInfo& request, CQuorumRotat
 
     LOCK(deterministicMNManager->cs);
 
-    //Quorum rotation is enabled only for InstantSend atm.
-    Consensus::LLMQType llmqType = Params().GetConsensus().llmqTypeInstantSend;
-
     std::vector<const CBlockIndex*> baseBlockIndexes;
     if (request.baseBlockHashes.size() == 0) {
         const CBlockIndex* blockIndex = ::ChainActive().Genesis();
@@ -167,6 +164,9 @@ bool BuildQuorumRotationInfo(const CGetQuorumRotationInfo& request, CQuorumRotat
         errorRet = strprintf("block not found");
         return false;
     }
+
+    //Quorum rotation is enabled only for InstantSend atm.
+    Consensus::LLMQType llmqType = CLLMQUtils::GetInstantSendLLMQType(blockIndex);
 
     // Since the returned quorums are in reversed order, the most recent one is at index 0
     const Consensus::LLMQParams& llmqParams = GetLLMQParams(llmqType);
