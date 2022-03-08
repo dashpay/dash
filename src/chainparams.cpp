@@ -722,6 +722,7 @@ public:
 
         UpdateDevnetLLMQChainLocksFromArgs(args);
         UpdateDevnetLLMQInstantSendFromArgs(args);
+        UpdateDevnetLLMQInstantSendDIP24FromArgs(args);
         UpdateLLMQDevnetParametersFromArgs(args);
         UpdateDevnetPowTargetSpacingFromArgs(args);
 
@@ -785,6 +786,14 @@ public:
     }
 
     /**
+     * Allows modifying the LLMQ type for InstantSend (DIP24).
+     */
+    void UpdateDevnetLLMQDIP24InstantSend(Consensus::LLMQType llmqType)
+    {
+        consensus.llmqTypeDIP24InstantSend = llmqType;
+    }
+
+    /**
      * Allows modifying PowTargetSpacing
      */
     void UpdateDevnetPowTargetSpacing(int64_t nPowTargetSpacing)
@@ -806,6 +815,7 @@ public:
     }
     void UpdateLLMQDevnetParametersFromArgs(const ArgsManager& args);
     void UpdateDevnetLLMQInstantSendFromArgs(const ArgsManager& args);
+    void UpdateDevnetLLMQInstantSendDIP24FromArgs(const ArgsManager& args);
     void UpdateDevnetPowTargetSpacingFromArgs(const ArgsManager& args);
 };
 
@@ -1246,6 +1256,25 @@ void CDevNetParams::UpdateDevnetPowTargetSpacingFromArgs(const ArgsManager& args
 
     LogPrintf("Setting powTargetSpacing to %ld\n", powTargetSpacing);
     UpdateDevnetPowTargetSpacing(powTargetSpacing);
+}
+
+void CDevNetParams::UpdateDevnetLLMQInstantSendDIP24FromArgs(const ArgsManager& args)
+{
+    if (!args.IsArgSet("-llmqinstantsenddip24")) return;
+
+    std::string strLLMQType = gArgs.GetArg("-llmqinstantsenddip24", std::string(GetLLMQ(consensus.llmqTypeDIP24InstantSend).name));
+
+    Consensus::LLMQType llmqType = Consensus::LLMQType::LLMQ_NONE;
+    for (const auto& params : consensus.llmqs) {
+        if (params.name == strLLMQType) {
+            llmqType = params.type;
+        }
+    }
+    if (llmqType == Consensus::LLMQType::LLMQ_NONE) {
+        throw std::runtime_error("Invalid LLMQ type specified for -llmqinstantsenddip24.");
+    }
+    LogPrintf("Setting llmqinstantsenddip24 to size=%ld\n", static_cast<uint8_t>(llmqType));
+    UpdateDevnetLLMQDIP24InstantSend(llmqType);
 }
 
 void CDevNetParams::UpdateLLMQDevnetParametersFromArgs(const ArgsManager& args)

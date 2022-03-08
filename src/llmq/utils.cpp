@@ -521,16 +521,19 @@ bool CLLMQUtils::IsQuorumRotationEnabled(Consensus::LLMQType llmqType, const CBl
 {
     assert(pindex);
 
-    if (llmqType != Params().GetConsensus().llmqTypeInstantSend) {
-        return false;
-    }
     LOCK(cs_llmq_vbc);
     int cycleQuorumBaseHeight = pindex->nHeight - (pindex->nHeight % GetLLMQParams(llmqType).dkgInterval);
     if (cycleQuorumBaseHeight < 1) {
         return false;
     }
     // It should activate at least 1 block prior to the cycle start
-    return VersionBitsState(pindex->GetAncestor(cycleQuorumBaseHeight - 1), Params().GetConsensus(), Consensus::DEPLOYMENT_DIP0024, llmq_versionbitscache) == ThresholdState::ACTIVE;
+    bool fDIP24Active = VersionBitsState(pindex->GetAncestor(cycleQuorumBaseHeight - 1), Params().GetConsensus(), Consensus::DEPLOYMENT_DIP0024, llmq_versionbitscache) == ThresholdState::ACTIVE;
+
+    if (fDIP24Active && llmqType == Params().GetConsensus().llmqTypeDIP24InstantSend) {
+        return true;
+    }
+
+    return false;
 }
 
 Consensus::LLMQType CLLMQUtils::GetInstantSendLLMQType(const CBlockIndex* pindex)
@@ -539,9 +542,9 @@ Consensus::LLMQType CLLMQUtils::GetInstantSendLLMQType(const CBlockIndex* pindex
     bool fDIP24Active = VersionBitsState(pindex, Params().GetConsensus(), Consensus::DEPLOYMENT_DIP0024, llmq_versionbitscache) == ThresholdState::ACTIVE;
 
     if (fDIP24Active)
-        return Params().GetConsensus().llmqTypeInstantSend;
-    else
         return Params().GetConsensus().llmqTypeDIP24InstantSend;
+    else
+        return Params().GetConsensus().llmqTypeInstantSend;
 }
 
 uint256 CLLMQUtils::DeterministicOutboundConnection(const uint256& proTxHash1, const uint256& proTxHash2)
