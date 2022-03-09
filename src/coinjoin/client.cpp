@@ -44,70 +44,82 @@ void CCoinJoinClientQueueManager::ProcessMessage(CNode* pfrom, const std::string
     }
 
     if (msg_type == NetMsgType::DSQUEUE) {
-        CCoinJoinQueue dsq;
-        vRecv >> dsq;
+        CCoinJoinClientQueueManager::ProcessDSQueue(pfrom, msg_type, vRecv, connman, enable_bip61);
+    }
+}
 
-        {
-            TRY_LOCK(cs_vecqueue, lockRecv);
-            if (!lockRecv) return;
-
-            // process every dsq only once
-            for (const auto& q : vecCoinJoinQueue) {
-                if (q == dsq) {
-                    return;
-                }
-                if (q.fReady == dsq.fReady && q.masternodeOutpoint == dsq.masternodeOutpoint) {
-                    // no way the same mn can send another dsq with the same readiness this soon
-                    LogPrint(BCLog::COINJOIN, "DSQUEUE -- Peer %s is sending WAY too many dsq messages for a masternode with collateral %s\n", pfrom->GetLogString(), dsq.masternodeOutpoint.ToStringShort());
-                    return;
-                }
-            }
-        } // cs_vecqueue
-
-        LogPrint(BCLog::COINJOIN, "DSQUEUE -- %s new\n", dsq.ToString());
-
-        if (dsq.IsTimeOutOfBounds()) return;
-
-        auto mnList = deterministicMNManager->GetListAtChainTip();
-        auto dmn = mnList.GetValidMNByCollateral(dsq.masternodeOutpoint);
-        if (!dmn) return;
-
-        if (!dsq.CheckSignature(dmn->pdmnState->pubKeyOperator.Get())) {
-            LOCK(cs_main);
-            Misbehaving(pfrom->GetId(), 10);
-            return;
+void CCoinJoinClientQueueManager::ProcessDSQueue(CNode* pfrom, const std::string& strCommand, CDataStream& vRecv, CConnman& connman, bool enable_bip61)
+{
+    if (pfrom->nVersion < MIN_PEER_PROTO_VERSION) {
+        LogPrint(BCLog::COINJOIN, "DSQUEUE -- peer=%d using obsolete version %i\n", pfrom->GetId(), pfrom->nVersion);
+        if (enable_bip61) {
+            connman.PushMessage(pfrom, CNetMsgMaker(pfrom->GetSendVersion()).Make(NetMsgType::REJECT, strCommand,
+                                                                                  REJECT_OBSOLETE, strprintf(
+                            "Version must be %d or greater", MIN_PEER_PROTO_VERSION)));
         }
+        return;
+    }
 
-        // if the queue is ready, submit if we can
-        if (dsq.fReady && ranges::any_of(coinJoinClientManagers,
-                                         [&dmn, &connman](const auto& pair){ return pair.second->TrySubmitDenominate(dmn->pdmnState->addr, connman); })) {
-            LogPrint(BCLog::COINJOIN, "DSQUEUE -- CoinJoin queue (%s) is ready on masternode %s\n", dsq.ToString(), dmn->pdmnState->addr.ToString());
-            return;
-        } else {
-            int64_t nLastDsq = mmetaman.GetMetaInfo(dmn->proTxHash)->GetLastDsq();
-            int64_t nDsqThreshold = mmetaman.GetDsqThreshold(dmn->proTxHash, mnList.GetValidMNsCount());
-            LogPrint(BCLog::COINJOIN, "DSQUEUE -- nLastDsq: %d  nDsqThreshold: %d  nDsqCount: %d\n", nLastDsq, nDsqThreshold, mmetaman.GetDsqCount());
-            // don't allow a few nodes to dominate the queuing process
-            if (nLastDsq != 0 && nDsqThreshold > mmetaman.GetDsqCount()) {
-                LogPrint(BCLog::COINJOIN, "DSQUEUE -- Masternode %s is sending too many dsq messages\n", dmn->proTxHash.ToString());
+    CCoinJoinQueue dsq;
+    vRecv >> dsq;
+
+    {
+        TRY_LOCK(cs_vecqueue, lockRecv);
+        if (!lockRecv) return;
+
+        // process every dsq only once
+        for (const auto& q : vecCoinJoinQueue) {
+            if (q == dsq) {
                 return;
             }
-
-            mmetaman.AllowMixing(dmn->proTxHash);
-
-            LogPrint(BCLog::COINJOIN, "DSQUEUE -- new CoinJoin queue (%s) from masternode %s\n", dsq.ToString(), dmn->pdmnState->addr.ToString());
-
-            ranges::any_of(coinJoinClientManagers,
-                           [&dsq](const auto& pair){ return pair.second->MarkAlreadyJoinedQueueAsTried(dsq); });
-
-            {
-                TRY_LOCK(cs_vecqueue, lockRecv);
-                if (!lockRecv) return;
-                vecCoinJoinQueue.push_back(dsq);
+            if (q.fReady == dsq.fReady && q.masternodeOutpoint == dsq.masternodeOutpoint) {
+                // no way the same mn can send another dsq with the same readiness this soon
+                LogPrint(BCLog::COINJOIN, "DSQUEUE -- Peer %s is sending WAY too many dsq messages for a masternode with collateral %s\n", pfrom->GetLogString(), dsq.masternodeOutpoint.ToStringShort());
+                return;
             }
-            dsq.Relay(connman);
+        }
+    } // cs_vecqueue
+
+    LogPrint(BCLog::COINJOIN, "DSQUEUE -- %s new\n", dsq.ToString());
+
+    if (dsq.IsTimeOutOfBounds()) return;
+
+    auto mnList = deterministicMNManager->GetListAtChainTip();
+    auto dmn = mnList.GetValidMNByCollateral(dsq.masternodeOutpoint);
+    if (!dmn) return;
+
+    if (!dsq.CheckSignature(dmn->pdmnState->pubKeyOperator.Get())) {
+        LOCK(cs_main);
+        Misbehaving(pfrom->GetId(), 10);
+        return;
+    }
+
+    // if the queue is ready, submit if we can
+    if (dsq.fReady && ranges::any_of(coinJoinClientManagers,
+                                     [&dmn, &connman](const auto& pair){ return pair.second->TrySubmitDenominate(dmn->pdmnState->addr, connman); })) {
+        LogPrint(BCLog::COINJOIN, "DSQUEUE -- CoinJoin queue (%s) is ready on masternode %s\n", dsq.ToString(), dmn->pdmnState->addr.ToString());
+        return;
+    } else {
+        int64_t nLastDsq = mmetaman.GetMetaInfo(dmn->proTxHash)->GetLastDsq();
+        int64_t nDsqThreshold = mmetaman.GetDsqThreshold(dmn->proTxHash, mnList.GetValidMNsCount());
+        LogPrint(BCLog::COINJOIN, "DSQUEUE -- nLastDsq: %d  nDsqThreshold: %d  nDsqCount: %d\n", nLastDsq, nDsqThreshold, mmetaman.GetDsqCount());
+        // don't allow a few nodes to dominate the queuing process
+        if (nLastDsq != 0 && nDsqThreshold > mmetaman.GetDsqCount()) {
+            LogPrint(BCLog::COINJOIN, "DSQUEUE -- Masternode %s is sending too many dsq messages\n", dmn->proTxHash.ToString());
+            return;
         }
 
+        mmetaman.AllowMixing(dmn->proTxHash);
+
+        LogPrint(BCLog::COINJOIN, "DSQUEUE -- new CoinJoin queue (%s) from masternode %s\n", dsq.ToString(), dmn->pdmnState->addr.ToString());
+
+        ranges::any_of(coinJoinClientManagers,
+                       [&dsq](const auto& pair){ return pair.second->MarkAlreadyJoinedQueueAsTried(dsq); });
+
+        {TRY_LOCK(cs_vecqueue, lockRecv);
+        if (!lockRecv) return;
+        vecCoinJoinQueue.push_back(dsq);}
+        dsq.Relay(connman);
     }
 }
 
@@ -140,6 +152,19 @@ void CCoinJoinClientSession::ProcessMessage(CNode* pfrom, const std::string& msg
     if (fMasternodeMode) return;
     if (!CCoinJoinClientOptions::IsEnabled()) return;
     if (!masternodeSync.IsBlockchainSynced()) return;
+
+    auto checkProtoVersion = [&pfrom, &msg_type, &connman, &enable_bip61](const auto& long_name){
+        if (pfrom->nVersion < MIN_PEER_PROTO_VERSION) {
+            LogPrint(BCLog::COINJOIN, "%s -- peer=%d using obsolete version %i\n", long_name, pfrom->GetId(), pfrom->nVersion);
+            if (enable_bip61) {
+                connman.PushMessage(pfrom, CNetMsgMaker(pfrom->GetSendVersion()).Make(NetMsgType::REJECT, msg_type,
+                                                                                      REJECT_OBSOLETE, strprintf(
+                                "Version must be %d or greater", MIN_PEER_PROTO_VERSION)));
+            }
+            return false;
+        }
+        return true;
+    };
 
     if (msg_type == NetMsgType::DSSTATUSUPDATE) {
         if (!mixingMasternode) return;
