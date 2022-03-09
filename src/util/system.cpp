@@ -46,11 +46,6 @@
 #pragma warning(disable:4717)
 #endif
 
-#ifdef _WIN32_WINNT
-#undef _WIN32_WINNT
-#endif
-#define _WIN32_WINNT 0x0501
-
 #ifdef _WIN32_IE
 #undef _WIN32_IE
 #endif
@@ -401,6 +396,7 @@ bool ArgsManager::ParseParameters(int argc, const char* const argv[], std::strin
 {
     LOCK(cs_args);
     m_override_args.clear();
+    m_command_line_args.clear();
 
     for (int i = 1; i < argc; i++) {
         std::string key(argv[i]);
@@ -438,6 +434,7 @@ bool ArgsManager::ParseParameters(int argc, const char* const argv[], std::strin
             if (!InterpretOption(key, val, flags, m_override_args, error)) {
                 return false;
             }
+            m_command_line_args[key].push_back(val);
         } else {
             error = strprintf("Invalid parameter %s", key.c_str());
             return false;
@@ -455,6 +452,12 @@ bool ArgsManager::ParseParameters(int argc, const char* const argv[], std::strin
         }
     }
     return true;
+}
+
+const std::map<std::string, std::vector<std::string>> ArgsManager::GetCommandLineArgs() const
+{
+    LOCK(cs_args);
+    return m_command_line_args;
 }
 
 unsigned int ArgsManager::FlagsOfKnownArg(const std::string& key) const

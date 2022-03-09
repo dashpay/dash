@@ -168,11 +168,6 @@ UniValue getnewaddress(const JSONRPCRequest& request)
                 },
             }.ToString());
 
-    // Belt and suspenders check for disabled private keys
-    if (pwallet->IsWalletFlagSet(WALLET_FLAG_DISABLE_PRIVATE_KEYS)) {
-        throw JSONRPCError(RPC_WALLET_ERROR, "Error: Private keys are disabled for this wallet");
-    }
-
     LOCK(pwallet->cs_wallet);
 
     if (!pwallet->CanGetAddresses()) {
@@ -223,11 +218,6 @@ static UniValue getrawchangeaddress(const JSONRPCRequest& request)
             + HelpExampleRpc("getrawchangeaddress", "")
                 },
             }.ToString());
-
-    // Belt and suspenders check for disabled private keys
-    if (pwallet->IsWalletFlagSet(WALLET_FLAG_DISABLE_PRIVATE_KEYS)) {
-        throw JSONRPCError(RPC_WALLET_ERROR, "Error: Private keys are disabled for this wallet");
-    }
 
     LOCK(pwallet->cs_wallet);
 
@@ -318,7 +308,7 @@ static CTransactionRef SendMoney(interfaces::Chain::Lock& locked_chain, CWallet 
     CScript scriptPubKey = GetScriptForDestination(address);
 
     // Create and send the transaction
-    CAmount nFeeRequired;
+    CAmount nFeeRequired = 0;
     std::string strError;
     std::vector<CRecipient> vecSend;
     int nChangePosRet = -1;
@@ -2591,9 +2581,7 @@ static UniValue getwalletinfo(const JSONRPCRequest& request)
     obj.pushKV("timefirstkey", pwallet->GetTimeFirstKey());
     obj.pushKV("keypoololdest", pwallet->GetOldestKeyPoolTime());
     obj.pushKV("keypoolsize",   (int64_t)pwallet->KeypoolCountExternalKeys());
-    if (fHDEnabled) {
-        obj.pushKV("keypoolsize_hd_internal",   (int64_t)(pwallet->KeypoolCountInternalKeys()));
-    }
+    obj.pushKV("keypoolsize_hd_internal",   (int64_t)(pwallet->KeypoolCountInternalKeys()));
     obj.pushKV("keys_left",     pwallet->nKeysLeftSinceAutoBackup);
     if (pwallet->IsCrypted())
         obj.pushKV("unlocked_until", pwallet->nRelockTime);
@@ -2909,7 +2897,7 @@ static UniValue createwallet(const JSONRPCRequest& request)
     }
 
     // Wallet::Verify will check if we're trying to create a wallet with a duplication name.
-    if (!CWallet::Verify(*g_rpc_interfaces->chain, location, false, error, warning)) {
+    if (!CWallet::Verify(*g_rpc_interfaces->chain, location, error, warning)) {
         throw JSONRPCError(RPC_WALLET_ERROR, "Wallet file verification failed: " + error);
     }
 
@@ -4047,7 +4035,7 @@ UniValue walletcreatefundedpsbt(const JSONRPCRequest& request)
                                 {
                                     {"txid", RPCArg::Type::STR_HEX, RPCArg::Optional::NO, "The transaction id"},
                                     {"vout", RPCArg::Type::NUM, RPCArg::Optional::NO, "The output number"},
-                                    {"sequence", RPCArg::Type::NUM, RPCArg::Optional::NO, "The sequence number"},
+                                    {"sequence", RPCArg::Type::NUM, /* default */ "depends on the value of the 'locktime' argument", "The sequence number"},
                                 },
                             },
                         },

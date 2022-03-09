@@ -150,7 +150,7 @@ void UnloadWallet(std::shared_ptr<CWallet>&& wallet)
 
 std::shared_ptr<CWallet> LoadWallet(interfaces::Chain& chain, const WalletLocation& location, std::string& error, std::string& warning)
 {
-    if (!CWallet::Verify(chain, location, false, error, warning)) {
+    if (!CWallet::Verify(chain, location, error, warning)) {
         error = "Wallet file verification failed: " + error;
         return nullptr;
     }
@@ -811,9 +811,14 @@ std::set<uint256> CWallet::GetConflicts(const uint256& txid) const
     return result;
 }
 
-void CWallet::Flush(bool shutdown)
+void CWallet::Flush()
 {
-    database->Flush(shutdown);
+    database->Flush();
+}
+
+void CWallet::Close()
+{
+    database->Close();
 }
 
 void CWallet::SyncMetaData(std::pair<TxSpends::iterator, TxSpends::iterator> range)
@@ -2121,17 +2126,25 @@ bool CWallet::ImportPrivKeys(const std::map<CKeyID, CKey>& privkey_map, const in
     return true;
 }
 
-bool CWallet::ImportPubKeys(const std::map<CKeyID, CPubKey>& pubkey_map, const int64_t timestamp, const std::map<CKeyID, std::pair<CPubKey, KeyOriginInfo>>& key_origins)
+bool CWallet::ImportPubKeys(const std::vector<CKeyID>& ordered_pubkeys, const std::map<CKeyID, CPubKey>& pubkey_map, const std::map<CKeyID, std::pair<CPubKey, KeyOriginInfo>>& key_origins, const bool add_keypool, const bool internal, const int64_t timestamp)
 {
     WalletBatch batch(*database);
-    for (const auto& entry : pubkey_map) {
-        const CKeyID& id = entry.first;
-        const CPubKey& pubkey = entry.second;
+    for (const CKeyID& id : ordered_pubkeys) {
+        auto entry = pubkey_map.find(id);
+        if (entry == pubkey_map.end()) {
+            continue;
+        }
+        const CPubKey& pubkey = entry->second;
         CPubKey temp;
         if (!GetPubKey(id, temp) && !AddWatchOnlyWithDB(batch, GetScriptForRawPubKey(pubkey), timestamp)) {
             return false;
         }
         mapKeyMetadata[id].nCreateTime = timestamp;
+        // Add to keypool only works with pubkeys
+        if (add_keypool) {
+            AddKeypoolPubkeyWithDB(pubkey, internal, batch);
+            NotifyCanGetAddressesChanged();
+        }
     }
     for (const auto& entry : key_origins) {
         AddKeyOrigin(entry.second.first, entry.second.second);
@@ -3659,8 +3672,8 @@ bool CWallet::CreateTransaction(interfaces::Chain::Lock& locked_chain, const std
                 //  post-backup change.
 
                 // Reserve a new key pair from key pool
-                if (IsWalletFlagSet(WALLET_FLAG_DISABLE_PRIVATE_KEYS)) {
-                    strFailReason = _("Can't generate a change-address key. Private keys are disabled for this wallet.");
+                if (!CanGetAddresses(true)) {
+                    strFailReason = _("Can't generate a change-address key. No keys in the internal keypool and can't generate any keys.");
                     return false;
                 }
                 CPubKey vchPubKey;
@@ -4314,35 +4327,46 @@ bool CWallet::TopUpKeyPool(unsigned int kpSize)
                 fInternal = true;
             }
 
-            assert(m_max_keypool_index < std::numeric_limits<int64_t>::max()); // How in the hell did you use so many keys?
-            int64_t index = ++m_max_keypool_index;
-
             // TODO: implement keypools for all accounts?
             CPubKey pubkey(GenerateNewKey(batch, 0, fInternal));
-            if (!batch.WritePool(index, CKeyPool(pubkey, fInternal))) {
-                throw std::runtime_error(std::string(__func__) + ": writing generated key failed");
-            }
+            AddKeypoolPubkeyWithDB(pubkey, fInternal, batch);
 
-            if (fInternal) {
-                setInternalKeyPool.insert(index);
-            } else {
-                setExternalKeyPool.insert(index);
-            }
-
-            m_pool_key_to_index[pubkey.GetID()] = index;
             if (missingInternal + missingExternal > 0) {
                 WalletLogPrintf("keypool added %d keys (%d internal), size=%u (%u internal)\n",
                           missingInternal + missingExternal, missingInternal,
                           setInternalKeyPool.size() + setExternalKeyPool.size(), setInternalKeyPool.size());
             }
 
-            double dProgress = 100.f * index / (nTargetSize + 1);
+            double dProgress = 100.f * m_max_keypool_index / (nTargetSize + 1);
             std::string strMsg = strprintf(_("Loading wallet... (%3.2f %%)"), dProgress);
             uiInterface.InitMessage(strMsg);
         }
     }
     NotifyCanGetAddressesChanged();
     return true;
+}
+
+void CWallet::AddKeypoolPubkey(const CPubKey& pubkey, const bool internal)
+{
+    WalletBatch batch(*database);
+    AddKeypoolPubkeyWithDB(pubkey, internal, batch);
+    NotifyCanGetAddressesChanged();
+}
+
+void CWallet::AddKeypoolPubkeyWithDB(const CPubKey& pubkey, const bool internal, WalletBatch& batch)
+{
+    LOCK(cs_wallet);
+    assert(m_max_keypool_index < std::numeric_limits<int64_t>::max()); // How in the hell did you use so many keys?
+    int64_t index = ++m_max_keypool_index;
+    if (!batch.WritePool(index, CKeyPool(pubkey, internal))) {
+        throw std::runtime_error(std::string(__func__) + ": writing imported pubkey failed");
+    }
+    if (internal) {
+        setInternalKeyPool.insert(index);
+    } else {
+        setExternalKeyPool.insert(index);
+    }
+    m_pool_key_to_index[pubkey.GetID()] = index;
 }
 
 bool CWallet::ReserveKeyFromKeyPool(int64_t& nIndex, CKeyPool& keypool, bool fRequestedInternal)
@@ -4354,7 +4378,8 @@ bool CWallet::ReserveKeyFromKeyPool(int64_t& nIndex, CKeyPool& keypool, bool fRe
 
         TopUpKeyPool();
 
-        bool fReturningInternal = IsHDEnabled() && fRequestedInternal;
+        bool fReturningInternal = fRequestedInternal;
+        fReturningInternal &= IsHDEnabled() || IsWalletFlagSet(WALLET_FLAG_DISABLE_PRIVATE_KEYS);
         std::set<int64_t>& setKeyPool = fReturningInternal ? setInternalKeyPool : setExternalKeyPool;
 
         // Get the oldest key
@@ -4369,7 +4394,8 @@ bool CWallet::ReserveKeyFromKeyPool(int64_t& nIndex, CKeyPool& keypool, bool fRe
         if (!batch.ReadPool(nIndex, keypool)) {
             throw std::runtime_error(std::string(__func__) + ": read failed");
         }
-        if (!HaveKey(keypool.vchPubKey.GetID())) {
+        CPubKey pk;
+        if (!GetPubKey(keypool.vchPubKey.GetID(), pk)) {
             throw std::runtime_error(std::string(__func__) + ": unknown key in key pool");
         }
         if (keypool.fInternal != fReturningInternal) {
@@ -4426,10 +4452,9 @@ bool CWallet::GetKeyFromPool(CPubKey& result, bool internal)
     {
         LOCK(cs_wallet);
         int64_t nIndex;
-        if (!ReserveKeyFromKeyPool(nIndex, keypool, internal)) {
+        if (!ReserveKeyFromKeyPool(nIndex, keypool, internal) && !IsWalletFlagSet(WALLET_FLAG_DISABLE_PRIVATE_KEYS)) {
             if (IsLocked(true)) return false;
             // TODO: implement keypool for all accouts?
-
             WalletBatch batch(*database);
             result = GenerateNewKey(batch, 0, internal);
             return true;
@@ -4916,7 +4941,7 @@ std::vector<std::string> CWallet::GetDestValues(const std::string& prefix) const
     return values;
 }
 
-bool CWallet::Verify(interfaces::Chain& chain, const WalletLocation& location, bool salvage_wallet, std::string& error_string, std::string& warning_string)
+bool CWallet::Verify(interfaces::Chain& chain, const WalletLocation& location, std::string& error_string, std::string& warning_string)
 {
     // Do some checking on wallet path. It should be either a:
     //
@@ -4945,32 +4970,20 @@ bool CWallet::Verify(interfaces::Chain& chain, const WalletLocation& location, b
     }
 
     // Keep same database environment instance across Verify/Recover calls below.
-    // Let tempWallet hold the pointer to the corresponding wallet database.
-    std::unique_ptr<CWallet> tempWallet = MakeUnique<CWallet>(chain, location, WalletDatabase::Create(wallet_path));
+    std::unique_ptr<WalletDatabase> database = CreateWalletDatabase(wallet_path);
 
     try {
-        if (!WalletBatch::VerifyEnvironment(wallet_path, error_string)) {
-            return false;
-        }
+        return database->Verify(error_string);
     } catch (const fs::filesystem_error& e) {
         error_string = strprintf("Error loading wallet %s. %s", location.GetName(), fsbridge::get_filesystem_error_message(e));
         return false;
     }
 
+    // Let tempWallet hold the pointer to the corresponding wallet database.
+    std::unique_ptr<CWallet> tempWallet = MakeUnique<CWallet>(chain, location, std::move(database));
     if (!tempWallet->AutoBackupWallet(wallet_path, warning_string, error_string) && !error_string.empty()) {
         return false;
     }
-
-    if (salvage_wallet) {
-        // Recover readable keypairs:
-        CWallet dummyWallet(chain, WalletLocation(), WalletDatabase::CreateDummy());
-        std::string backup_filename;
-        if (!WalletBatch::Recover(wallet_path, (void *)&dummyWallet, WalletBatch::RecoverKeysOnlyFilter, backup_filename)) {
-            return false;
-        }
-    }
-
-    return WalletBatch::VerifyDatabaseFile(wallet_path, warning_string, error_string);
 }
 
 std::shared_ptr<CWallet> CWallet::CreateWalletFromFile(interfaces::Chain& chain, const WalletLocation& location, uint64_t wallet_creation_flags)
@@ -4983,7 +4996,7 @@ std::shared_ptr<CWallet> CWallet::CreateWalletFromFile(interfaces::Chain& chain,
     if (gArgs.GetBoolArg("-zapwallettxes", false)) {
         chain.initMessage(_("Zapping all transactions from wallet..."));
 
-        std::unique_ptr<CWallet> tempWallet = MakeUnique<CWallet>(chain, location, WalletDatabase::Create(location.GetPath()));
+        std::unique_ptr<CWallet> tempWallet = MakeUnique<CWallet>(chain, location, CreateWalletDatabase(location.GetPath()));
         DBErrors nZapWalletRet = tempWallet->ZapWalletTx(vWtx);
         if (nZapWalletRet != DBErrors::LOAD_OK) {
             chain.initError(strprintf(_("Error loading %s: Wallet corrupted"), walletFile));
@@ -4997,7 +5010,7 @@ std::shared_ptr<CWallet> CWallet::CreateWalletFromFile(interfaces::Chain& chain,
     bool fFirstRun = true;
     // TODO: Can't use std::make_shared because we need a custom deleter but
     // should be possible to use std::allocate_shared.
-    std::shared_ptr<CWallet> walletInstance(new CWallet(chain, location, WalletDatabase::Create(location.GetPath())), ReleaseWallet);
+    std::shared_ptr<CWallet> walletInstance(new CWallet(chain, location, CreateWalletDatabase(location.GetPath())), ReleaseWallet);
     AddWallet(walletInstance);
     auto error = [&](const std::string& strError) {
         RemoveWallet(walletInstance);

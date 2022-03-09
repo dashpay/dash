@@ -221,6 +221,7 @@ BITCOIN_CORE_H = \
   llmq/params.h \
   logging.h \
   logging/timer.h \
+  mapport.h \
   masternode/node.h \
   masternode/meta.h \
   masternode/payments.h \
@@ -233,6 +234,7 @@ BITCOIN_CORE_H = \
   net.h \
   net_permissions.h \
   net_processing.h \
+  net_types.h \
   netaddress.h \
   netbase.h \
   netfulfilledman.h \
@@ -312,6 +314,7 @@ BITCOIN_CORE_H = \
   versionbits.h \
   versionbitsinfo.h \
   walletinitinterface.h \
+  wallet/bdb.h \
   wallet/coincontrol.h \
   wallet/crypter.h \
   wallet/db.h \
@@ -319,6 +322,7 @@ BITCOIN_CORE_H = \
   wallet/load.h \
   wallet/psbtwallet.h \
   wallet/rpcwallet.h \
+  wallet/salvage.h \
   wallet/wallet.h \
   wallet/walletdb.h \
   wallet/wallettool.h \
@@ -342,7 +346,7 @@ libdash_util_a-clientversion.$(OBJEXT): obj/build.h
 # Contains code accessing mempool and chain state that is meant to be separated
 # from wallet and gui code (see node/README.md). Shared code should go in
 # libdash_common or libdash_util libraries, instead.
-libdash_server_a_CPPFLAGS = $(AM_CPPFLAGS) $(BITCOIN_INCLUDES) $(MINIUPNPC_CPPFLAGS) $(EVENT_CFLAGS) $(EVENT_PTHREADS_CFLAGS)
+libdash_server_a_CPPFLAGS = $(AM_CPPFLAGS) $(BITCOIN_INCLUDES) $(MINIUPNPC_CPPFLAGS) $(NATPMP_CPPFLAGS) $(EVENT_CFLAGS) $(EVENT_PTHREADS_CFLAGS)
 libdash_server_a_CXXFLAGS = $(AM_CXXFLAGS) $(PIE_FLAGS)
 libdash_server_a_SOURCES = \
   addrdb.cpp \
@@ -356,6 +360,7 @@ libdash_server_a_SOURCES = \
   coinjoin/options.cpp \
   coinjoin/server.cpp \
   consensus/tx_verify.cpp \
+  dbwrapper.cpp \
   dsnotificationinterface.cpp \
   evo/cbtx.cpp \
   evo/deterministicmns.cpp \
@@ -376,7 +381,6 @@ libdash_server_a_SOURCES = \
   interfaces/chain.cpp \
   interfaces/node.cpp \
   init.cpp \
-  dbwrapper.cpp \
   governance/governance.cpp \
   governance/classes.cpp \
   governance/object.cpp \
@@ -397,6 +401,7 @@ libdash_server_a_SOURCES = \
   llmq/signing.cpp \
   llmq/signing_shares.cpp \
   llmq/utils.cpp \
+  mapport.cpp \
   masternode/node.cpp \
   masternode/meta.cpp \
   masternode/payments.cpp \
@@ -469,6 +474,7 @@ libdash_wallet_a_SOURCES = \
   coinjoin/options.cpp \
   coinjoin/util.cpp \
   interfaces/wallet.cpp \
+  wallet/bdb.cpp \
   wallet/coincontrol.cpp \
   wallet/crypter.cpp \
   wallet/db.cpp \
@@ -477,6 +483,7 @@ libdash_wallet_a_SOURCES = \
   wallet/psbtwallet.cpp \
   wallet/rpcdump.cpp \
   wallet/rpcwallet.cpp \
+  wallet/salvage.cpp \
   wallet/wallet.cpp \
   wallet/walletdb.cpp \
   wallet/walletutil.cpp \
@@ -738,7 +745,7 @@ dashd_LDADD = \
   $(LIBMEMENV) \
   $(LIBSECP256K1)
 
-dashd_LDADD += $(BACKTRACE_LIB) $(BOOST_LIBS) $(BDB_LIBS) $(SSL_LIBS) $(CRYPTO_LIBS) $(MINIUPNPC_LIBS) $(EVENT_PTHREADS_LIBS) $(EVENT_LIBS) $(ZMQ_LIBS) $(BLS_LIBS) $(GMP_LIBS)
+dashd_LDADD += $(BACKTRACE_LIB) $(BOOST_LIBS) $(BDB_LIBS) $(SSL_LIBS) $(CRYPTO_LIBS) $(MINIUPNPC_LIBS) $(NATPMP_LIBS) $(EVENT_PTHREADS_LIBS) $(EVENT_LIBS) $(ZMQ_LIBS) $(BLS_LIBS) $(GMP_LIBS)
 
 # dash-cli binary #
 dash_cli_SOURCES = dash-cli.cpp
@@ -807,7 +814,7 @@ dash_wallet_LDADD = \
   $(LIBSECP256K1) \
   $(LIBUNIVALUE)
 
-dash_wallet_LDADD += $(BACKTRACE_LIB) $(BOOST_LIBS) $(BDB_LIBS) $(CRYPTO_LIBS) $(EVENT_PTHREADS_LIBS) $(EVENT_LIBS) $(MINIUPNPC_LIBS) $(ZMQ_LIBS) $(BLS_LIBS) $(GMP_LIBS)
+dash_wallet_LDADD += $(BACKTRACE_LIB) $(BOOST_LIBS) $(BDB_LIBS) $(CRYPTO_LIBS) $(EVENT_PTHREADS_LIBS) $(EVENT_LIBS) $(MINIUPNPC_LIBS) $(NATPMP_LIBS) $(ZMQ_LIBS) $(BLS_LIBS) $(GMP_LIBS)
 #
 
 # dashconsensus library #

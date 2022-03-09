@@ -5,9 +5,9 @@
 #ifndef BITCOIN_INTERFACES_NODE_H
 #define BITCOIN_INTERFACES_NODE_H
 
-#include <addrdb.h>     // For banmap_t
 #include <amount.h>     // For CAmount
 #include <net.h>        // For CConnman::NumConnections
+#include <net_types.h>  // For banmap_t
 #include <netaddress.h> // For Network
 
 #include <functional>
@@ -160,7 +160,7 @@ public:
     virtual void setupServerArgs() = 0;
 
     //! Map port.
-    virtual void mapPort(bool use_upnp) = 0;
+    virtual void mapPort(bool use_upnp, bool use_natpmp) = 0;
 
     //! Get proxy.
     virtual bool getProxy(Network net, proxyType& proxy_info) = 0;
