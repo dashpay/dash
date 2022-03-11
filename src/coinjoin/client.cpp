@@ -167,6 +167,8 @@ void CCoinJoinClientSession::ProcessMessage(CNode* pfrom, const std::string& msg
     };
 
     if (msg_type == NetMsgType::DSSTATUSUPDATE) {
+        if (!checkProtoVersion("DSSTATUSUPDATE")) return;
+
         if (!mixingMasternode) return;
         if (mixingMasternode->pdmnState->addr != pfrom->addr) {
             return;
@@ -178,6 +180,8 @@ void CCoinJoinClientSession::ProcessMessage(CNode* pfrom, const std::string& msg
         ProcessPoolStateUpdate(psssup);
 
     } else if (msg_type == NetMsgType::DSFINALTX) {
+        if (!checkProtoVersion("DSFINALTX")) return;
+
         if (!mixingMasternode) return;
         if (mixingMasternode->pdmnState->addr != pfrom->addr) {
             return;
@@ -198,6 +202,8 @@ void CCoinJoinClientSession::ProcessMessage(CNode* pfrom, const std::string& msg
         SignFinalTransaction(txNew, pfrom, connman);
 
     } else if (msg_type == NetMsgType::DSCOMPLETE) {
+        if (!checkProtoVersion("DSCOMPLETE")) return;
+
         if (!mixingMasternode) return;
         if (mixingMasternode->pdmnState->addr != pfrom->addr) {
             LogPrint(BCLog::COINJOIN, "DSCOMPLETE -- message doesn't match current Masternode: infoMixingMasternode=%s  addr=%s\n", mixingMasternode->pdmnState->addr.ToString(), pfrom->addr.ToString());
