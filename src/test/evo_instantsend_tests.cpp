@@ -8,7 +8,7 @@
 
 #include <boost/test/unit_test.hpp>
 
-BOOST_FIXTURE_TEST_SUITE(instantsend_tests, BasicTestingSetup)
+BOOST_FIXTURE_TEST_SUITE(evo_instantsend_tests, BasicTestingSetup)
 
 BOOST_AUTO_TEST_CASE(instantsend_CInstantSendLock_tests)
 {
