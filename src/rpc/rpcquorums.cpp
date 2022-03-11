@@ -859,10 +859,12 @@ static UniValue verifyislock(const JSONRPCRequest& request)
     CBlockIndex* pBlockIndex;
     {
         LOCK(cs_main);
-        pBlockIndex = ::ChainActive()[signHeight];
+        if (signHeight == -1)
+            pBlockIndex = ::ChainActive().Tip();
+        else
+            pBlockIndex = ::ChainActive()[signHeight];
     }
     auto llmqType = llmq::CLLMQUtils::GetInstantSendLLMQType(pBlockIndex);
-
     // First check against the current active set, if it fails check against the last active set
     int signOffset{llmq::GetLLMQParams(llmqType).dkgInterval};
     return llmq::quorumSigningManager->VerifyRecoveredSig(llmqType, signHeight, id, txid, sig, 0) ||

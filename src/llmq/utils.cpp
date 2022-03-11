@@ -547,6 +547,20 @@ Consensus::LLMQType CLLMQUtils::GetInstantSendLLMQType(const CBlockIndex* pindex
         return Params().GetConsensus().llmqTypeInstantSend;
 }
 
+bool CLLMQUtils::ShouldISLockBeDeterministic(const CBlockIndex* pindex)
+{
+    assert(pindex);
+
+    LOCK(cs_llmq_vbc);
+    bool fDIP24Active = VersionBitsState(pindex, Params().GetConsensus(), Consensus::DEPLOYMENT_DIP0024, llmq_versionbitscache) == ThresholdState::ACTIVE;
+
+    if (fDIP24Active)
+        return true;
+    else
+        return false;
+}
+
+
 uint256 CLLMQUtils::DeterministicOutboundConnection(const uint256& proTxHash1, const uint256& proTxHash2)
 {
     // We need to deterministically select who is going to initiate the connection. The naive way would be to simply
@@ -760,6 +774,11 @@ bool CLLMQUtils::IsQuorumTypeEnabled(Consensus::LLMQType llmqType, const CBlockI
         case Consensus::LLMQType::LLMQ_100_67:
         case Consensus::LLMQType::LLMQ_TEST_V17:
             if (LOCK(cs_llmq_vbc); VersionBitsState(pindex, consensusParams, Consensus::DEPLOYMENT_DIP0020, llmq_versionbitscache) != ThresholdState::ACTIVE) {
+                return false;
+            }
+            break;
+        case Consensus::LLMQType::LLMQ_60_75:
+            if (LOCK(cs_llmq_vbc); VersionBitsState(pindex, consensusParams, Consensus::DEPLOYMENT_DIP0024, llmq_versionbitscache) != ThresholdState::ACTIVE) {
                 return false;
             }
             break;
