@@ -1105,11 +1105,10 @@ private:
     mutable CCriticalSection cs_addrLocal;
 
     // Challenge sent in VERSION to be answered with MNAUTH (only happens between MNs)
-    mutable CCriticalSection cs_mnauth;
-    uint256 sentMNAuthChallenge GUARDED_BY(cs_mnauth);
-    uint256 receivedMNAuthChallenge GUARDED_BY(cs_mnauth);
-    uint256 verifiedProRegTxHash GUARDED_BY(cs_mnauth);
-    uint256 verifiedPubKeyHash GUARDED_BY(cs_mnauth);
+    std::atomic<uint256> sentMNAuthChallenge;
+    std::atomic<uint256> receivedMNAuthChallenge;
+    std::atomic<uint256> verifiedProRegTxHash;
+    std::atomic<uint256> verifiedPubKeyHash;
 
 public:
 
@@ -1246,42 +1245,34 @@ public:
     bool CanRelay() const { return !m_masternode_connection || m_masternode_iqr_connection; }
 
     uint256 GetSentMNAuthChallenge() const {
-        LOCK(cs_mnauth);
         return sentMNAuthChallenge;
     }
 
     uint256 GetReceivedMNAuthChallenge() const {
-        LOCK(cs_mnauth);
         return receivedMNAuthChallenge;
     }
 
     uint256 GetVerifiedProRegTxHash() const {
-        LOCK(cs_mnauth);
         return verifiedProRegTxHash;
     }
 
     uint256 GetVerifiedPubKeyHash() const {
-        LOCK(cs_mnauth);
         return verifiedPubKeyHash;
     }
 
     void SetSentMNAuthChallenge(const uint256& newSentMNAuthChallenge) {
-        LOCK(cs_mnauth);
         sentMNAuthChallenge = newSentMNAuthChallenge;
     }
 
     void SetReceivedMNAuthChallenge(const uint256& newReceivedMNAuthChallenge) {
-        LOCK(cs_mnauth);
         receivedMNAuthChallenge = newReceivedMNAuthChallenge;
     }
 
     void SetVerifiedProRegTxHash(const uint256& newVerifiedProRegTxHash) {
-        LOCK(cs_mnauth);
         verifiedProRegTxHash = newVerifiedProRegTxHash;
     }
 
     void SetVerifiedPubKeyHash(const uint256& newVerifiedPubKeyHash) {
-        LOCK(cs_mnauth);
         verifiedPubKeyHash = newVerifiedPubKeyHash;
     }
 };
