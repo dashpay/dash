@@ -500,7 +500,7 @@ int GuiMain(int argc, char* argv[])
     if (gArgs.IsArgSet("-printcrashinfo")) {
         auto crashInfo = GetCrashInfoStrFromSerializedStr(gArgs.GetArg("-printcrashinfo", ""));
         std::cout << crashInfo << std::endl;
-        QMessageBox::critical(0, QObject::tr(PACKAGE_NAME), QString::fromStdString(crashInfo));
+        QMessageBox::critical(0, PACKAGE_NAME, QString::fromStdString(crashInfo));
         return EXIT_SUCCESS;
     }
 
@@ -589,7 +589,7 @@ int GuiMain(int argc, char* argv[])
     app.parameterSetup();
     // Load custom application fonts and setup font management
     if (!GUIUtil::loadFonts()) {
-        QMessageBox::critical(0, QObject::tr(PACKAGE_NAME),
+        QMessageBox::critical(0, PACKAGE_NAME,
                               QObject::tr("Error: Failed to load application fonts."));
         return EXIT_FAILURE;
     }
@@ -602,7 +602,7 @@ int GuiMain(int argc, char* argv[])
         try {
             family = GUIUtil::fontFamilyFromString(strFamily);
         } catch (const std::exception& e) {
-            QMessageBox::critical(0, QObject::tr(PACKAGE_NAME),
+            QMessageBox::critical(0, PACKAGE_NAME,
                                   QObject::tr("Error: Specified font-family invalid. Valid values: %1.").arg("SystemDefault, Montserrat"));
             return EXIT_FAILURE;
         }
@@ -612,7 +612,7 @@ int GuiMain(int argc, char* argv[])
     if (gArgs.IsArgSet("-font-weight-normal")) {
         QFont::Weight weight;
         if (!GUIUtil::weightFromArg(gArgs.GetArg("-font-weight-normal", GUIUtil::weightToArg(GUIUtil::getFontWeightNormal())), weight)) {
-            QMessageBox::critical(0, QObject::tr(PACKAGE_NAME),
+            QMessageBox::critical(0, PACKAGE_NAME,
                                   QObject::tr("Error: Specified font-weight-normal invalid. Valid range %1 to %2.").arg(0).arg(8));
             return EXIT_FAILURE;
         }
@@ -622,7 +622,7 @@ int GuiMain(int argc, char* argv[])
     if (gArgs.IsArgSet("-font-weight-bold")) {
         QFont::Weight weight;
         if (!GUIUtil::weightFromArg(gArgs.GetArg("-font-weight-bold", GUIUtil::weightToArg(GUIUtil::getFontWeightBold())), weight)) {
-            QMessageBox::critical(0, QObject::tr(PACKAGE_NAME),
+            QMessageBox::critical(0, PACKAGE_NAME,
                                   QObject::tr("Error: Specified font-weight-bold invalid. Valid range %1 to %2.").arg(0).arg(8));
             return EXIT_FAILURE;
         }
@@ -633,7 +633,7 @@ int GuiMain(int argc, char* argv[])
         const int nScaleMin = -100, nScaleMax = 100;
         int nScale = gArgs.GetArg("-font-scale", GUIUtil::getFontScale());
         if (nScale < nScaleMin || nScale > nScaleMax) {
-            QMessageBox::critical(0, QObject::tr(PACKAGE_NAME),
+            QMessageBox::critical(0, PACKAGE_NAME,
                                   QObject::tr("Error: Specified font-scale invalid. Valid range %1 to %2.").arg(nScaleMin).arg(nScaleMax));
             return EXIT_FAILURE;
         }
@@ -647,7 +647,7 @@ int GuiMain(int argc, char* argv[])
         QString strFile;
 
         if (!fs::is_directory(customDir)) {
-            QMessageBox::critical(0, QObject::tr(PACKAGE_NAME),
+            QMessageBox::critical(0, PACKAGE_NAME,
                                   QObject::tr("Error: Invalid -custom-css-dir path.") + "\n\n" + strCustomDir);
             return EXIT_FAILURE;
         }
@@ -667,7 +667,7 @@ int GuiMain(int argc, char* argv[])
             for (const auto& strMissingFile : vecRequiredFiles) {
                 strMissingFiles += strMissingFile + "\n";
             }
-            QMessageBox::critical(0, QObject::tr(PACKAGE_NAME),
+            QMessageBox::critical(0, PACKAGE_NAME,
                                   QObject::tr("Error: %1 CSS file(s) missing in -custom-css-dir path.").arg(vecRequiredFiles.size()) + "\n\n" + strMissingFiles);
             return EXIT_FAILURE;
         }
@@ -676,7 +676,7 @@ int GuiMain(int argc, char* argv[])
     }
     // Validate -debug-ui
     if (gArgs.GetBoolArg("-debug-ui", false)) {
-        QMessageBox::warning(0, QObject::tr(PACKAGE_NAME),
+        QMessageBox::warning(0, PACKAGE_NAME,
                                 "Warning: UI debug mode (-debug-ui) enabled" + QString(gArgs.IsArgSet("-custom-css-dir") ? "." : " without a custom css directory set with -custom-css-dir."));
     }
 
