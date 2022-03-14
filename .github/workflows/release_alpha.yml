@@ -49,37 +49,6 @@ jobs:
         echo "name:        ${{ steps.import_gpg.outputs.name }}"
         echo "email:       ${{ steps.import_gpg.outputs.email }}"
 
-    - name: Checkout
-      uses: actions/checkout@v2
-      with:
-        path: dash
-    
-    - name: Checkout tools repo
-      uses: actions/checkout@v2
-      with:
-        repository: devrandom/gitian-builder
-        path: gitian-builder
-
-    - name: Checkout tools repo
-      uses: actions/checkout@v2
-      with:
-        repository: dashpay/dash-detached-sigs
-        path: dash-detached-sigs
-
-    - name: Checkout tools repo
-      uses: actions/checkout@v2
-      with:
-        repository: dashpay/gitian.sigs
-        path: gitian.sigs
-
-    # - name: Clone macOS SDK
-    #   run: |
-    #     mkdir gitian-builder/inputs
-    #     wget -q -O gitian-builder/inputs/MacOSX10.11.sdk.tar.gz https://bitcoincore.org/depends-sources/sdks/MacOSX10.11.sdk.tar.gz
-
-    - name: Import GPG key
-      run: echo ${{GPG_PRIVATE_KEY}} | gpg --import
-
     - name: Docker meta
       id: docker_meta
       uses: docker/metadata-action@v3
