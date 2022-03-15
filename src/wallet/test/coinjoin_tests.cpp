@@ -99,6 +99,14 @@ BOOST_AUTO_TEST_CASE(coinjoin_dstxin_tests)
     BOOST_CHECK_EQUAL(custom_txin.nRounds, -9);
 }
 
+BOOST_AUTO_TEST_CASE(coinjoin_accept_tests)
+{
+    CCoinJoinAccept cja;
+    BOOST_CHECK_EQUAL(cja.nDenom, 0);
+    BOOST_CHECK_EQUAL(cja.txCollateral.GetHash(), CMutableTransaction().GetHash());
+    // CMutableTransaction custom_cmt()
+}
+
 class CTransactionBuilderTestSetup : public TestChain100Setup
 {
 public:
