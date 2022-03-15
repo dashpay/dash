@@ -87,6 +87,18 @@ BOOST_AUTO_TEST_CASE(coinjoin_pending_dsa_request_tests)
     BOOST_CHECK(custom_request);
 }
 
+BOOST_AUTO_TEST_CASE(coinjoin_dstxin_tests)
+{
+    CTxDSIn txin;
+    BOOST_CHECK(txin.prevPubKey == CScript());
+    BOOST_CHECK_EQUAL(txin.fHasSig, false);
+    BOOST_CHECK_EQUAL(txin.nRounds, -10);
+    CTxDSIn custom_txin(txin, CScript(4), -9);
+    BOOST_CHECK(custom_txin.prevPubKey == CScript(4));
+    BOOST_CHECK_EQUAL(custom_txin.fHasSig, false);
+    BOOST_CHECK_EQUAL(custom_txin.nRounds, -9);
+}
+
 class CTransactionBuilderTestSetup : public TestChain100Setup
 {
 public:
