@@ -5,7 +5,6 @@ LABEL description="Dockerised DashCore"
 
 ARG USER_ID
 ARG GROUP_ID
-ARG TAG
 ARG BRANCH
 
 ENV HOME /dash
@@ -31,7 +30,7 @@ RUN mach=$(uname -m) \
       && cd /dash \
       && tar xvzf dashcore*$arch.tar.gz \
       && echo $(ls -1 /dash) \
-      && cp dashcore-0.17.0/bin/* /usr/local/bin \
+      && cp dashcore-*/bin/* /usr/local/bin \
       && rm -rf dash*
 
 USER dash
