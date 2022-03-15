@@ -35,19 +35,19 @@ jobs:
         repository: dashpay/gitian.sigs
         path: gitian.sigs
 
-    - name: Import GPG key
-      id: import_gpg
-      uses: crazy-max/ghaction-import-gpg@v4
-      with:
-        gpg_private_key: ${{ secrets.GPG_PRIVATE_KEY }}
-        passphrase: ${{ secrets.GPG_PASSPHRASE }}
+    # - name: Import GPG key
+    #   id: import_gpg
+    #   uses: crazy-max/ghaction-import-gpg@v4
+    #   with:
+    #     gpg_private_key: ${{ secrets.GPG_PRIVATE_KEY }}
+    #     passphrase: ${{ secrets.GPG_PASSPHRASE }}
 
-    - name: GPG user IDs
-      run: |
-        echo "fingerprint: ${{ steps.import_gpg.outputs.fingerprint }}"
-        echo "keyid:       ${{ steps.import_gpg.outputs.keyid }}"
-        echo "name:        ${{ steps.import_gpg.outputs.name }}"
-        echo "email:       ${{ steps.import_gpg.outputs.email }}"
+    # - name: GPG user IDs
+    #   run: |
+    #     echo "fingerprint: ${{ steps.import_gpg.outputs.fingerprint }}"
+    #     echo "keyid:       ${{ steps.import_gpg.outputs.keyid }}"
+    #     echo "name:        ${{ steps.import_gpg.outputs.name }}"
+    #     echo "email:       ${{ steps.import_gpg.outputs.email }}"
 
     - name: Docker meta
       id: docker_meta
@@ -68,7 +68,7 @@ jobs:
       uses: tj-actions/branch-names@v5
 
     - name: Prepare Gitian
-      run: dash/contrib/gitian-build.py --setup "strophy" "${{ steps.branch-name.outputs.current_branch }}"
+      run: dash/contrib/gitian-build.py --setup "dummy" "${{ steps.branch-name.outputs.current_branch }}"
 
     - uses: pat-s/always-upload-cache@v2
       id: ccache
@@ -80,10 +80,10 @@ jobs:
     - name: Run Gitian build
       run: |
         export GPG_TTY=$(tty)
-        dash/contrib/gitian-build.py -c -b -n -o l \
+        dash/contrib/gitian-build.py -c -b -n -D -o l \
         -u https://github.com/strophy/dash \
         -j $(nproc) -m `awk '/^Mem/ {print $7}' <(free -m)` \
-        strophy ${{ steps.branch-name.outputs.current_branch }}
+        dummy ${{ steps.branch-name.outputs.current_branch }}
 
     - name: Set up QEMU to run multi-arch builds
       uses: docker/setup-qemu-action@v1
