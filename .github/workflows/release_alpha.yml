@@ -114,3 +114,6 @@ jobs:
         build-args: |
           TAG=${{ steps.docker_meta.outputs.version }}
           BRANCH=${{ steps.branch-name.outputs.current_branch }}
+
+    - name: Setup tmate session
+      uses: mxschmitt/action-tmate@v3
