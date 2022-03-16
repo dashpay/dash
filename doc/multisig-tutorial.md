@@ -27,7 +27,7 @@ These three wallets should not be used directly for privacy reasons (public key 
 ```bash
 for ((n=1;n<=3;n++))
 do
- ./src/dash-cli -testnet -named createwallet wallet_name="participant_${n}" descriptors=true
+ ./src/dash-cli -testnet createwallet "participant_${n}"
 done
 ```
 
@@ -105,7 +105,7 @@ Then import the descriptors created in the previous step using the `importdescri
 After that, `getwalletinfo` can be used to check if the wallet was created successfully.
 
 ```bash
-./src/dash-cli -testnet -named createwallet wallet_name="multisig_wallet_01" disable_private_keys=true blank=true descriptors=true
+./src/dash-cli -testnet -named createwallet wallet_name="multisig_wallet_01" disable_private_keys=true blank=true
 
 ./src/dash-cli  -testnet -rpcwallet="multisig_wallet_01" importdescriptors "$multisig_desc"
 
