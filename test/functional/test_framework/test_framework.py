@@ -1081,7 +1081,7 @@ class DashTestFramework(BitcoinTestFramework):
             return all(node.spork('show') == sporks for node in self.nodes[1:])
         wait_until(check_sporks_same, timeout=timeout, sleep=0.5)
 
-    def wait_for_quorum_connections(self, quorum_hash, expected_connections, nodes, timeout = 60, wait_proc=None):
+    def wait_for_quorum_connections(self, quorum_hash, expected_connections, nodes, llmq_type_name="llmq_test", timeout = 60, wait_proc=None):
         def check_quorum_connections():
             all_ok = True
             for node in nodes:
@@ -1090,7 +1090,7 @@ class DashTestFramework(BitcoinTestFramework):
                 for qs in s:
                     if "llmqType" not in qs:
                         continue
-                    if qs["llmqType"] != "llmq_test":
+                    if qs["llmqType"] != llmq_type_name:
                         continue
                     if "quorumConnections" not in qs:
                         continue
@@ -1148,7 +1148,7 @@ class DashTestFramework(BitcoinTestFramework):
             return True
         wait_until(check_probes, timeout=timeout, sleep=1)
 
-    def wait_for_quorum_phase(self, quorum_hash, phase, expected_member_count, check_received_messages, check_received_messages_count, mninfos, timeout=30, sleep=0.1):
+    def wait_for_quorum_phase(self, quorum_hash, phase, expected_member_count, check_received_messages, check_received_messages_count, mninfos, llmq_type_name="llmq_test", timeout=30, sleep=0.1):
         def check_dkg_session():
             all_ok = True
             member_count = 0
@@ -1156,7 +1156,7 @@ class DashTestFramework(BitcoinTestFramework):
                 s = mn.node.quorum("dkgstatus")["session"]
                 mn_ok = True
                 for qs in s:
-                    if qs["llmqType"] != "llmq_test":
+                    if qs["llmqType"] != llmq_type_name:
                         continue
                     qstatus = qs["status"]
                     if qstatus["quorumHash"] != quorum_hash:
@@ -1179,7 +1179,7 @@ class DashTestFramework(BitcoinTestFramework):
             return all_ok
         wait_until(check_dkg_session, timeout=timeout, sleep=sleep)
 
-    def wait_for_quorum_commitment(self, quorum_hash, nodes, timeout = 15):
+    def wait_for_quorum_commitment(self, quorum_hash, nodes, llmq_type=100, timeout=15):
         def check_dkg_comitments():
             time.sleep(2)
             all_ok = True
@@ -1191,7 +1191,7 @@ class DashTestFramework(BitcoinTestFramework):
                 commits = s["minableCommitments"]
                 c_ok = False
                 for c in commits:
-                    if c["llmqType"] != 100:
+                    if c["llmqType"] != llmq_type:
                         continue
                     if c["quorumHash"] != quorum_hash:
                         continue
@@ -1212,11 +1212,11 @@ class DashTestFramework(BitcoinTestFramework):
             return False
         wait_until(wait_func, timeout=timeout, sleep=sleep)
 
-    def wait_for_quorums_list(self, quorum_hash_0, quorum_hash_1, nodes, timeout=15, sleep=2):
+    def wait_for_quorums_list(self, quorum_hash_0, quorum_hash_1, nodes, llmq_type_name="llmq_test",  timeout=15, sleep=2):
         def wait_func():
             self.log.info("h("+str(self.nodes[0].getblockcount())+") quorums: " + str(self.nodes[0].quorum("list")))
-            if quorum_hash_0 in self.nodes[0].quorum("list")["llmq_test"]:
-                if quorum_hash_1 in self.nodes[0].quorum("list")["llmq_test"]:
+            if quorum_hash_0 in self.nodes[0].quorum("list")[llmq_type_name]:
+                if quorum_hash_1 in self.nodes[0].quorum("list")[llmq_type_name]:
                     return True
             self.bump_mocktime(sleep, nodes=nodes)
             self.nodes[0].generate(1)
@@ -1318,7 +1318,7 @@ class DashTestFramework(BitcoinTestFramework):
 
         return new_quorum
 
-    def mine_cycle_quorum(self, expected_connections=None, expected_members=None, expected_contributions=None, expected_complaints=0, expected_justifications=0, expected_commitments=None, mninfos_online=None, mninfos_valid=None):
+    def mine_cycle_quorum(self, llmq_type_name="llmq_test", llmq_type=100,  expected_connections=None, expected_members=None, expected_contributions=None, expected_complaints=0, expected_justifications=0, expected_commitments=None, mninfos_online=None, mninfos_valid=None):
         spork21_active = self.nodes[0].spork('show')['SPORK_21_QUORUM_ALL_CONNECTED'] <= 1
         spork23_active = self.nodes[0].spork('show')['SPORK_23_QUORUM_POSE'] <= 1
 
@@ -1358,9 +1358,9 @@ class DashTestFramework(BitcoinTestFramework):
         self.log.info("Expected quorum_0 hash:" + str(q_0))
         # time.sleep(4)
         self.log.info("quorumIndex 0: Waiting for phase 1 (init)")
-        self.wait_for_quorum_phase(q_0, 1, expected_members, None, 0, mninfos_online)
+        self.wait_for_quorum_phase(q_0, 1, expected_members, None, 0, mninfos_online, llmq_type_name)
         self.log.info("quorumIndex 0: Waiting for quorum connections (init)")
-        self.wait_for_quorum_connections(q_0, expected_connections, nodes, wait_proc=lambda: self.bump_mocktime(1, nodes=nodes))
+        self.wait_for_quorum_connections(q_0, expected_connections, nodes, llmq_type_name, wait_proc=lambda: self.bump_mocktime(1, nodes=nodes))
         if spork23_active:
             self.wait_for_masternode_probes(mninfos_valid, wait_proc=lambda: self.bump_mocktime(1, nodes=nodes))
 
@@ -1372,59 +1372,59 @@ class DashTestFramework(BitcoinTestFramework):
         self.log.info("Expected quorum_1 hash:" + str(q_1))
         # time.sleep(2)
         self.log.info("quorumIndex 1: Waiting for phase 1 (init)")
-        self.wait_for_quorum_phase(q_1, 1, expected_members, None, 0, mninfos_online)
+        self.wait_for_quorum_phase(q_1, 1, expected_members, None, 0, mninfos_online, llmq_type_name)
         self.log.info("quorumIndex 1: Waiting for quorum connections (init)")
-        self.wait_for_quorum_connections(q_1, expected_connections, nodes, wait_proc=lambda: self.bump_mocktime(1, nodes=nodes))
+        self.wait_for_quorum_connections(q_1, expected_connections, nodes, llmq_type_name, wait_proc=lambda: self.bump_mocktime(1, nodes=nodes))
 
         self.move_blocks(nodes, 1)
 
         self.log.info("quorumIndex 0: Waiting for phase 2 (contribute)")
-        self.wait_for_quorum_phase(q_0, 2, expected_members, "receivedContributions", expected_contributions, mninfos_online)
+        self.wait_for_quorum_phase(q_0, 2, expected_members, "receivedContributions", expected_contributions, mninfos_online, llmq_type_name)
 
         self.move_blocks(nodes, 1)
 
         self.log.info("quorumIndex 1: Waiting for phase 2 (contribute)")
-        self.wait_for_quorum_phase(q_1, 2, expected_members, "receivedContributions", expected_contributions, mninfos_online)
+        self.wait_for_quorum_phase(q_1, 2, expected_members, "receivedContributions", expected_contributions, mninfos_online, llmq_type_name)
 
         self.move_blocks(nodes, 1)
 
         self.log.info("quorumIndex 0: Waiting for phase 3 (complain)")
-        self.wait_for_quorum_phase(q_0, 3, expected_members, "receivedComplaints", expected_complaints, mninfos_online)
+        self.wait_for_quorum_phase(q_0, 3, expected_members, "receivedComplaints", expected_complaints, mninfos_online, llmq_type_name)
 
         self.move_blocks(nodes, 1)
 
         self.log.info("quorumIndex 1: Waiting for phase 3 (complain)")
-        self.wait_for_quorum_phase(q_1, 3, expected_members, "receivedComplaints", expected_complaints, mninfos_online)
+        self.wait_for_quorum_phase(q_1, 3, expected_members, "receivedComplaints", expected_complaints, mninfos_online, llmq_type_name)
 
         self.move_blocks(nodes, 1)
 
         self.log.info("quorumIndex 0: Waiting for phase 4 (justify)")
-        self.wait_for_quorum_phase(q_0, 4, expected_members, "receivedJustifications", expected_justifications, mninfos_online)
+        self.wait_for_quorum_phase(q_0, 4, expected_members, "receivedJustifications", expected_justifications, mninfos_online, llmq_type_name)
 
         self.move_blocks(nodes, 1)
 
         self.log.info("quorumIndex 1: Waiting for phase 4 (justify)")
-        self.wait_for_quorum_phase(q_1, 4, expected_members, "receivedJustifications", expected_justifications, mninfos_online)
+        self.wait_for_quorum_phase(q_1, 4, expected_members, "receivedJustifications", expected_justifications, mninfos_online, llmq_type_name)
 
         self.move_blocks(nodes, 1)
 
         self.log.info("quorumIndex 0: Waiting for phase 5 (commit)")
-        self.wait_for_quorum_phase(q_0, 5, expected_members, "receivedPrematureCommitments", expected_commitments, mninfos_online)
+        self.wait_for_quorum_phase(q_0, 5, expected_members, "receivedPrematureCommitments", expected_commitments, mninfos_online, llmq_type_name)
 
         self.move_blocks(nodes, 1)
 
         self.log.info("quorumIndex 1: Waiting for phase 5 (commit)")
-        self.wait_for_quorum_phase(q_1, 5, expected_members, "receivedPrematureCommitments", expected_commitments, mninfos_online)
+        self.wait_for_quorum_phase(q_1, 5, expected_members, "receivedPrematureCommitments", expected_commitments, mninfos_online, llmq_type_name)
 
         self.move_blocks(nodes, 1)
 
         self.log.info("quorumIndex 0: Waiting for phase 6 (finalization)")
-        self.wait_for_quorum_phase(q_0, 6, expected_members, None, 0, mninfos_online)
+        self.wait_for_quorum_phase(q_0, 6, expected_members, None, 0, mninfos_online, llmq_type_name)
 
         self.move_blocks(nodes, 1)
 
         self.log.info("quorumIndex 1: Waiting for phase 6 (finalization)")
-        self.wait_for_quorum_phase(q_1, 6, expected_members, None, 0, mninfos_online)
+        self.wait_for_quorum_phase(q_1, 6, expected_members, None, 0, mninfos_online, llmq_type_name)
         time.sleep(6)
         self.log.info("Mining final commitments")
         self.bump_mocktime(1, nodes=nodes)
@@ -1434,10 +1434,10 @@ class DashTestFramework(BitcoinTestFramework):
 
         time.sleep(6)
         self.log.info("Waiting for quorum(s) to appear in the list")
-        self.wait_for_quorums_list(q_0, q_1, nodes)
+        self.wait_for_quorums_list(q_0, q_1, nodes, llmq_type_name)
 
-        quorum_info_0 = self.nodes[0].quorum("info", 100, q_0)
-        quorum_info_1 = self.nodes[0].quorum("info", 100, q_1)
+        quorum_info_0 = self.nodes[0].quorum("info", llmq_type, q_0)
+        quorum_info_1 = self.nodes[0].quorum("info", llmq_type, q_1)
         # Mine 8 (SIGN_HEIGHT_OFFSET) more blocks to make sure that the new quorum gets eligible for signing sessions
         self.nodes[0].generate(8)
 
