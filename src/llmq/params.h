@@ -28,6 +28,8 @@ enum class LLMQType : uint8_t {
 
     // for testing activation of new quorums only
     LLMQ_TEST_V17 = 102, // 3 members, 2 (66%) threshold, one per hour. Params might differ when -llmqtestparams is used
+
+    LLMQ_TEST_2 = 103, // 4 members, 2 (66%) threshold, one per hour. Params might differ when -llmqtestparams is used
 };
 
 // Configures a LLMQ and its DKG
@@ -95,7 +97,7 @@ struct LLMQParams {
 };
 
 
-static constexpr std::array<LLMQParams, 8> available_llmqs = {
+static constexpr std::array<LLMQParams, 9> available_llmqs = {
 
     /**
      * llmq_test
@@ -131,6 +133,30 @@ static constexpr std::array<LLMQParams, 8> available_llmqs = {
         .name = "llmq_test_v17",
         .size = 3,
         .minSize = 2,
+        .threshold = 2,
+
+        .dkgInterval = 24, // one DKG per hour
+        .dkgPhaseBlocks = 2,
+        .dkgMiningWindowStart = 10, // dkgPhaseBlocks * 5 = after finalization
+        .dkgMiningWindowEnd = 18,
+        .dkgBadVotesThreshold = 2,
+
+        .signingActiveQuorumCount = 2, // just a few ones to allow easier testing
+
+        .keepOldConnections = 3,
+        .recoveryMembers = 3,
+    },
+
+    /**
+     * llmq_test_2
+     * This quorum is only used for testing
+     *
+     */
+    LLMQParams{
+        .type = LLMQType::LLMQ_TEST_2,
+        .name = "llmq_test_2",
+        .size = 4,
+        .minSize = 3,
         .threshold = 2,
 
         .dkgInterval = 24, // one DKG per hour

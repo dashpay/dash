@@ -783,6 +783,7 @@ bool CLLMQUtils::IsQuorumTypeEnabled(Consensus::LLMQType llmqType, const CBlockI
             }
             break;
         case Consensus::LLMQType::LLMQ_TEST:
+        case Consensus::LLMQType::LLMQ_TEST_2:
         case Consensus::LLMQType::LLMQ_DEVNET:
             break;
         default:
