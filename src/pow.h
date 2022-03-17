@@ -35,12 +35,12 @@ class uint256;
 #define BIGINT_DIVIDE(x, y) x / y
 #define BIGINT_GREATER_THAN(x, y) (x > y)
 
-unsigned int GetNextWorkRequired(const CBlockIndex* pindexLast, const CBlockHeader *pblock, const Consensus::Params&);
-unsigned int CalculateNextWorkRequired(const CBlockIndex* pindexLast, int64_t nFirstBlockTime, const Consensus::Params&);
-unsigned int DeriveNextWorkRequiredLWMA(const INDEX_TYPE pindexLast, const BLOCK_TYPE block, const Consensus::Params&);
-unsigned int DeriveNextWorkRequiredDELTA(const INDEX_TYPE pindexLast, const BLOCK_TYPE block, const Consensus::Params&);
+unsigned int GetNextWorkRequired(const CBlockIndex *pindexLast, const CBlockHeader *pblock,
+        const Consensus::Params &params, int algo);
+unsigned int DeriveNextWorkRequiredLWMA(const CBlockIndex *pindexLast, const Consensus::Params &params);
+unsigned int DeriveNextWorkRequiredDELTA(const INDEX_TYPE pindexLast, const BLOCK_TYPE block, const Consensus::Params &params);
 
 /** Check whether a block hash satisfies the proof-of-work requirement specified by nBits */
-bool CheckProofOfWork(uint256 hash, unsigned int nBits, const Consensus::Params&);
+bool CheckProofOfWork(uint256 hash, unsigned int nBits, const Consensus::Params &params);
 
 #endif // BITCOIN_POW_H

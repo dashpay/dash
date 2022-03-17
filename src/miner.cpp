@@ -78,7 +78,7 @@ int64_t UpdateTime(CBlockHeader* pblock, const Consensus::Params& consensusParam
 
     // Updating time can change work required on testnet:
     if (consensusParams.fPowAllowMinDifficultyBlocks)
-        pblock->nBits = GetNextWorkRequired(pindexPrev, pblock, consensusParams);
+        pblock->nBits = GetNextWorkRequired(pindexPrev, pblock, consensusParams, 0);
 
     return nNewTime - nOldTime;
 }
@@ -259,7 +259,7 @@ std::unique_ptr<CBlockTemplate> BlockAssembler::CreateNewBlock(const CScript& sc
     // Fill in header
     pblock->hashPrevBlock  = pindexPrev->GetBlockHash();
     UpdateTime(pblock, chainparams.GetConsensus(), pindexPrev);
-    pblock->nBits          = GetNextWorkRequired(pindexPrev, pblock, chainparams.GetConsensus());
+    pblock->nBits          = GetNextWorkRequired(pindexPrev, pblock, chainparams.GetConsensus(), 0);
     pblock->nNonce         = 0;
     pblocktemplate->nPrevBits = pindexPrev->nBits;
     pblocktemplate->vTxSigOps[0] = GetLegacySigOpCount(*pblock->vtx[0]);
@@ -752,7 +752,7 @@ void static AlterdotMiner(const CChainParams& chainparams)
                                // so that we can use the correct time.
 
                     // Update nBits and hashTarget in accordance with the latest DELTA difficulty retarget.
-                    pblock->nBits = GetNextWorkRequired(pindexPrev, pblock, chainparams.GetConsensus());
+                    pblock->nBits = GetNextWorkRequired(pindexPrev, pblock, chainparams.GetConsensus(), 0);
                     hashTarget.SetCompact(pblock->nBits);
                 }
             }
