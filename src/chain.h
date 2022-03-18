@@ -299,6 +299,12 @@ public:
         return *phashBlock;
     }
 
+    int GetAlgo() const
+    {
+        CBlockHeader block = GetBlockHeader();
+        return block.GetAlgo();
+    }
+
     int64_t GetBlockTime() const
     {
         return (int64_t)nTime;

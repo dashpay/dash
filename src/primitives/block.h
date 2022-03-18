@@ -14,6 +14,43 @@
 
 const uint32_t nTimeOfAlgorithmChange = 1612029600;
 
+enum {
+    ALGO_UNKNOWN = -1,
+    ALGO_ARGON2D  = 0,
+    ALGO_RANDOMX   = 1,
+    NUM_ALGOS_IMPL };
+
+const int NUM_ALGOS = 2;
+
+enum {
+    // primary version
+    BLOCK_VERSION_DEFAULT        = 2,
+
+    // algo
+    BLOCK_VERSION_ALGO           = (15 << 8),
+    BLOCK_VERSION_ARDON2D        = (0 << 8),
+    BLOCK_VERSION_RANDOMX        = (2 << 8),
+};
+
+std::string GetAlgoName(int Algo);
+
+int GetAlgoByName(std::string strAlgo, int fallback);
+
+inline int GetVersionForAlgo(int algo)
+{
+    switch(algo)
+    {
+        case ALGO_ARGON2D:
+            return BLOCK_VERSION_ARDON2D;
+        case ALGO_RANDOMX:
+            return BLOCK_VERSION_RANDOMX;
+        default:
+            assert(false);
+            return 0;
+    }
+}
+
+
 /** Nodes collect new transactions into a block, hash them into a hash tree,
  * and scan through nonce values to make the block's hash satisfy proof-of-work
  * requirements.  When they solve the proof-of-work, they broadcast the block
@@ -63,6 +100,14 @@ public:
     {
         return (nBits == 0);
     }
+
+    // Set Algo to use
+    inline void SetAlgo(int algo)
+    {
+        nVersion |= GetVersionForAlgo(algo);
+    }
+
+    int GetAlgo() const;
 
     uint256 GetHash() const
     {

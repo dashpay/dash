@@ -252,6 +252,8 @@ class CMainParams : public CChainParams {
 public:
     CMainParams() {
         strNetworkID = "main";
+
+        //Alterdot forks
         consensus.nHardForkOne = 250000; // block
         consensus.nHardForkTwo = 375000; // block
         consensus.nHardForkThree = 550000; // block
@@ -260,6 +262,11 @@ public:
         consensus.nHardForkSix = 1000000; // block
         consensus.nHardForkSeven = 1034000; // block core-mode network, LWMA switch
         consensus.nHardForkEight = 1037000; // block Alterdot-rebase in effect, Bitcreds rejected
+
+        // For T=600, 300, 150 use approximately nAveragingIntervalLength=60, 90, 120
+        consensus.nAveragingIntervalLengthBeforeMultiChain = 80;
+        consensus.nAveragingIntervalLength = 50;
+
         consensus.nTempDevFundIncreaseEnd = 625000; // block
         consensus.nMasternodePaymentsStartBlock = 100; // Masternode Payments begin on block 100
         consensus.nInstantSendConfirmationsRequired = 6;

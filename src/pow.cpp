@@ -14,49 +14,139 @@
 
 #include <math.h>
 #include <algorithm>
+#include <stack>
+
+const CBlockIndex *GetLastBlockIndexForAlgo(const CBlockIndex *pindex, const Consensus::Params &params, int algo) {
+    for (; pindex; pindex = pindex->pprev) {
+        if (pindex->GetAlgo() != algo)
+            continue;
+        // ignore special min-difficulty testnet blocks
+        if (params.fPowAllowMinDifficultyBlocks &&
+            pindex->pprev &&
+            pindex->nTime > pindex->pprev->nTime + params.nTargetSpacing * 2) {
+            continue;
+        }
+        return pindex;
+    }
+    return nullptr;
+}
+
+
+unsigned int GetNextWorkRequiredV4(const CBlockIndex *pindexLast, const Consensus::Params &params, int algo) {
+
+
+    const CBlockIndex *pindexPrevAlgo = GetLastBlockIndexForAlgo(pindexLast, params, algo);
+    if (pindexPrevAlgo == nullptr) {
+        return InitialDifficulty(params, algo);
+    }
+
+    // Limit adjustment step
+    // Use medians to prevent time-warp attacks
+    int64_t nActualTimespan = pindexLast->GetMedianTimePast() - pindexFirst->GetMedianTimePast();
+    nActualTimespan = params.nAveragingTargetTimespanV4 + (nActualTimespan - params.nAveragingTargetTimespanV4) / 4;
+
+    if (nActualTimespan < params.nMinActualTimespanV4)
+        nActualTimespan = params.nMinActualTimespanV4;
+    if (nActualTimespan > params.nMaxActualTimespanV4)
+        nActualTimespan = params.nMaxActualTimespanV4;
+
+    //Global retarget
+    arith_uint256 bnNew;
+    bnNew.SetCompact(pindexPrevAlgo->nBits);
+
+    bnNew *= nActualTimespan;
+    bnNew /= params.nAveragingTargetTimespanV4;
+
+    //Per-algo retarget
+    int nAdjustments = pindexPrevAlgo->nHeight + NUM_ALGOS - 1 - pindexLast->nHeight;
+    if (nAdjustments > 0) {
+        for (int i = 0; i < nAdjustments; i++) {
+            bnNew *= 100;
+            bnNew /= (100 + params.nLocalTargetAdjustment);
+        }
+    } else if (nAdjustments < 0)//make it easier
+    {
+        for (int i = 0; i < -nAdjustments; i++) {
+            bnNew *= (100 + params.nLocalTargetAdjustment);
+            bnNew /= 100;
+        }
+    }
+
+    if (bnNew > UintToArith256(params.powLimit)) {
+        bnNew = UintToArith256(params.powLimit);
+    }
+
+    return bnNew.GetCompact();
+}
+
+std::stack<const CBlockIndex *> GetIntervalBlocks(const CBlockIndex *pindexLast, const Consensus::Params &params, int algo) {
+    std::stack<const CBlockIndex *> blocks;
+    const CBlockIndex *currentIndex = pindexLast;
+
+    for (int i = 0; i <= params.GetAveragingIntervalLength(pindexLast->nHeight); i++) {
+        currentIndex = GetLastBlockIndexForAlgo(currentIndex, params, algo);
+        blocks.push(currentIndex);
+    }
+
+    return blocks;
+}
+
 
 unsigned int GetNextWorkRequired(const CBlockIndex *pindexLast, const CBlockHeader *pblock,
-                                const Consensus::Params &params, int algo) {
+                                 const Consensus::Params &params, int algo) {
     // this is only active on devnets
     if (pindexLast->nHeight < params.nMinimumDifficultyBlocks) {
         unsigned int nProofOfWorkLimit = UintToArith256(params.powLimit).GetCompact();
         return nProofOfWorkLimit;
     }
 
-    // Most recent algo first
-    if (pindexLast->nHeight + 1 >= params.nHardForkSeven) {
-        return DeriveNextWorkRequiredLWMA(pindexLast, params);
+    if (pindexLast->nHeight >= params.multiAlgoFork) {
+        return GetNextWorkRequiredV4(pindexLast, params, algo);
     } else {
-        return DeriveNextWorkRequiredDELTA(pindexLast, pblock, params);
+        // Next block is the fork block
+        if (pindexLast->nHeight + 1 >= params.nHardForkSeven) {
+            return DeriveNextWorkRequiredLWMA(pindexLast, params,
+                                              params.GetAveragingIntervalLength(pindexLast->nHeight), 0);
+        } else {
+            return DeriveNextWorkRequiredDELTA(pindexLast, pblock, params);
+        }
     }
 }
 
-unsigned int DeriveNextWorkRequiredLWMA(const CBlockIndex *pindexLast, const Consensus::Params &params) {
+
+unsigned int DeriveNextWorkRequiredLWMA(const CBlockIndex *pindexLast, const Consensus::Params &params,
+                                        const int nAveragingIntervalLength, int algo) {
     const int64_t T = params.GetCurrentPowTargetSpacing(pindexLast->nHeight + 1);
 
-    // For T=600, 300, 150 use approximately N=60, 90, 120
-    const int64_t N = 80; // TODO_ADOT_LOW maybe move to params
-
     // Define a k that will be used to get a proper average after weighting the solvetimes.
-    const int64_t k = N * (N + 1) * T / 2;
+    const int64_t k = nAveragingIntervalLength * (nAveragingIntervalLength + 1) * T / 2;
 
     const int64_t height = pindexLast->nHeight;
     const arith_uint256 powLimit = UintToArith256(params.powLimit);
 
-    // New coins just "give away" first N blocks. It's better to guess
+    // New coins just "give away" first nAveragingIntervalLength blocks. It's better to guess
     // this value instead of using powLimit, but err on high side to not get stuck.
-    if (height < N) { return powLimit.GetCompact(); }
+    if (height < nAveragingIntervalLength) { return powLimit.GetCompact(); }
 
     arith_uint256 avgTarget, nextTarget;
     int64_t thisTimestamp, previousTimestamp;
     int64_t sumWeightedSolvetimes = 0, j = 0;
 
-    const CBlockIndex *blockPreviousTimestamp = pindexLast->GetAncestor(height - N);
-    previousTimestamp = blockPreviousTimestamp->GetBlockTime();
+    std::stack<const CBlockIndex *> blocks= GetIntervalBlocks(pindexLast, params, algo);
 
-    // Loop through N most recent blocks.
-    for (int64_t i = height - N + 1; i <= height; i++) {
-        const CBlockIndex *block = pindexLast->GetAncestor(i);
+    if(blocks.size() != nAveragingIntervalLength + 1) {
+        //TODO ADOT add initial difficulty
+    }
+
+    const CBlockIndex *block;
+    previousTimestamp = blocks.top()->GetBlockTime();
+    blocks.pop();
+
+    // Loop through nAveragingIntervalLength most recent blocks
+    for (int64_t i = 0; i < nAveragingIntervalLength; i++) {
+
+        block = blocks.top();
+        blocks.pop();
 
         // Prevent solvetimes from being negative in a safe way. It must be done like this.
         // Do not attempt anything like  if (solvetime < 1) {solvetime=1;}
@@ -75,7 +165,7 @@ unsigned int DeriveNextWorkRequiredLWMA(const CBlockIndex *pindexLast, const Con
 
         arith_uint256 target;
         target.SetCompact(block->nBits);
-        avgTarget += target / N / k; // Dividing by k here prevents an overflow below.
+        avgTarget += target / nAveragingIntervalLength / k; // Dividing by k here prevents an overflow below.
     }
 
     // Desired equation in next line was nextTarget = avgTarget * sumWeightSolvetimes / k
