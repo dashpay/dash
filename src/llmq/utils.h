@@ -44,6 +44,8 @@ struct PreviousQuorumQuarters {
     std::vector<std::vector<CDeterministicMNCPtr>> quarterHMinusC;
     std::vector<std::vector<CDeterministicMNCPtr>> quarterHMinus2C;
     std::vector<std::vector<CDeterministicMNCPtr>> quarterHMinus3C;
+    PreviousQuorumQuarters(size_t s) :
+        quarterHMinusC(s), quarterHMinus2C(s), quarterHMinus3C(s) {}
 };
 
 class CLLMQUtils
@@ -54,7 +56,7 @@ public:
 
     static void PreComputeQuorumMembers(const CBlockIndex* pQuorumBaseBlockIndex);
     static std::vector<CDeterministicMNCPtr> ComputeQuorumMembers(Consensus::LLMQType llmqType, const CBlockIndex* pQuorumBaseBlockIndex);
-    static std::vector<std::vector<CDeterministicMNCPtr>> ComputeQuorumMembersByQuarterRotation(Consensus::LLMQType llmqType, const CBlockIndex* pQuorumBaseBlockIndex);
+    static std::vector<std::vector<CDeterministicMNCPtr>> ComputeQuorumMembersByQuarterRotation(Consensus::LLMQType llmqType, const CBlockIndex* pCycleQuorumBaseBlockIndex);
 
     static std::vector<std::vector<CDeterministicMNCPtr>> BuildNewQuorumQuarterMembers(const Consensus::LLMQParams& llmqParams, const CBlockIndex* pQuorumBaseBlockIndex, const PreviousQuorumQuarters& quarters);
 
