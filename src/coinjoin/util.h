@@ -29,7 +29,7 @@ public:
 class CKeyHolderStorage
 {
 private:
-    mutable CCriticalSection cs_storage;
+    mutable Mutex cs_storage;
     std::vector<std::unique_ptr<CKeyHolder> > storage GUARDED_BY(cs_storage);
 
 public:
@@ -93,7 +93,7 @@ class CTransactionBuilder
     /// Call KeepKey for all keys in destructor if fKeepKeys is true, call ReturnKey for all key if its false.
     bool fKeepKeys{false};
     /// Protect vecOutputs
-    mutable CCriticalSection cs_outputs;
+    mutable Mutex cs_outputs;
     /// Contains all outputs already added to the transaction
     std::vector<std::unique_ptr<CTransactionBuilderOutput>> vecOutputs GUARDED_BY(cs_outputs);
     /// Needed by CTransactionBuilderOutput::UpdateAmount to lock cs_outputs
