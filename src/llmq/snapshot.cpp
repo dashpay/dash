@@ -2,23 +2,23 @@
 // Distributed under the MIT software license, see the accompanying
 // file COPYING or http://www.opensource.org/licenses/mit-license.php.
 
+#include <llmq/snapshot.h>
+
 #include <evo/cbtx.h>
 #include <evo/deterministicmns.h>
 #include <evo/simplifiedmns.h>
+#include <evo/specialtx.h>
+
 #include <llmq/blockprocessor.h>
 #include <llmq/commitment.h>
 #include <llmq/quorums.h>
-#include <llmq/snapshot.h>
-
-#include <evo/specialtx.h>
-
-#include <serialize.h>
-#include <version.h>
 
 #include <base58.h>
 #include <chainparams.h>
+#include <serialize.h>
 #include <univalue.h>
 #include <validation.h>
+#include <version.h>
 
 namespace llmq {
 
@@ -357,7 +357,8 @@ uint256 GetLastBaseBlockHash(const std::vector<const CBlockIndex*>& baseBlockInd
 }
 
 CQuorumSnapshotManager::CQuorumSnapshotManager(CEvoDB& _evoDb) :
-    evoDb(_evoDb)
+    evoDb(_evoDb),
+    quorumSnapshotCache(32)
 {
 }
 
@@ -369,14 +370,12 @@ std::optional<CQuorumSnapshot> CQuorumSnapshotManager::GetSnapshotForBlock(const
 
     LOCK(snapshotCacheCs);
     // try using cache before reading from disk
-    auto it = quorumSnapshotCache.find(snapshotHash);
-    if (it != quorumSnapshotCache.end()) {
-        snapshot = it->second;
+    if (quorumSnapshotCache.get(snapshotHash, snapshot)) {
         return snapshot;
     }
     LOCK(evoDb.cs);
     if (evoDb.Read(std::make_pair(DB_QUORUM_SNAPSHOT, snapshotHash), snapshot)) {
-        quorumSnapshotCache.emplace(snapshotHash, snapshot);
+        quorumSnapshotCache.insert(snapshotHash, snapshot);
         return snapshot;
     }
 
@@ -390,7 +389,7 @@ void CQuorumSnapshotManager::StoreSnapshotForBlock(const Consensus::LLMQType llm
     // LOCK(cs_main);
     LOCK2(snapshotCacheCs, evoDb.cs);
     evoDb.GetRawDB().Write(std::make_pair(DB_QUORUM_SNAPSHOT, snapshotHash), snapshot);
-    quorumSnapshotCache.emplace(snapshotHash, snapshot);
+    quorumSnapshotCache.insert(snapshotHash, snapshot);
 }
 
 } // namespace llmq

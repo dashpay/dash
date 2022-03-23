@@ -7,8 +7,10 @@
 
 #include <evo/evodb.h>
 #include <evo/simplifiedmns.h>
+#include <llmq/params.h>
 #include <saltedhasher.h>
 #include <serialize.h>
+#include <unordered_lru_cache.h>
 
 #include <optional>
 
@@ -209,7 +211,7 @@ private:
 
     CEvoDB& evoDb;
 
-    std::unordered_map<uint256, CQuorumSnapshot, StaticSaltedHasher> quorumSnapshotCache GUARDED_BY(snapshotCacheCs);
+    unordered_lru_cache<uint256, CQuorumSnapshot, StaticSaltedHasher> quorumSnapshotCache GUARDED_BY(snapshotCacheCs);
 
 public:
     explicit CQuorumSnapshotManager(CEvoDB& _evoDb);
