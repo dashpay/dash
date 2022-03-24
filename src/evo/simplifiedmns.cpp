@@ -28,7 +28,9 @@ CSimplifiedMNListEntry::CSimplifiedMNListEntry(const CDeterministicMN& dmn) :
     service(dmn.pdmnState->addr),
     pubKeyOperator(dmn.pdmnState->pubKeyOperator),
     keyIDVoting(dmn.pdmnState->keyIDVoting),
-    isValid(!dmn.pdmnState->IsBanned())
+    isValid(!dmn.pdmnState->IsBanned()),
+    scriptPayout(dmn.pdmnState->scriptPayout),
+    scriptOperatorPayout(dmn.pdmnState->scriptOperatorPayout)
 {
 }
 
@@ -41,8 +43,18 @@ uint256 CSimplifiedMNListEntry::CalcHash() const
 
 std::string CSimplifiedMNListEntry::ToString() const
 {
-    return strprintf("CSimplifiedMNListEntry(proRegTxHash=%s, confirmedHash=%s, service=%s, pubKeyOperator=%s, votingAddress=%s, isValid=%d)",
-        proRegTxHash.ToString(), confirmedHash.ToString(), service.ToString(false), pubKeyOperator.Get().ToString(), EncodeDestination(keyIDVoting), isValid);
+    CTxDestination dest;
+    std::string payoutAddress = "unknown";
+    std::string operatorPayoutAddress = "none";
+    if (ExtractDestination(scriptPayout, dest)) {
+        payoutAddress = EncodeDestination(dest);
+    }
+    if (ExtractDestination(scriptOperatorPayout, dest)) {
+        operatorPayoutAddress = EncodeDestination(dest);
+    }
+
+    return strprintf("CSimplifiedMNListEntry(proRegTxHash=%s, confirmedHash=%s, service=%s, pubKeyOperator=%s, votingAddress=%s, isValid=%d, payoutAddress=%s, operatorPayoutAddress=%s)",
+        proRegTxHash.ToString(), confirmedHash.ToString(), service.ToString(false), pubKeyOperator.Get().ToString(), EncodeDestination(keyIDVoting), isValid, payoutAddress, operatorPayoutAddress);
 }
 
 void CSimplifiedMNListEntry::ToJson(UniValue& obj) const
@@ -55,6 +67,13 @@ void CSimplifiedMNListEntry::ToJson(UniValue& obj) const
     obj.pushKV("pubKeyOperator", pubKeyOperator.Get().ToString());
     obj.pushKV("votingAddress", EncodeDestination(keyIDVoting));
     obj.pushKV("isValid", isValid);
+    CTxDestination dest;
+    if (ExtractDestination(scriptPayout, dest)) {
+        obj.pushKV("payoutAddress", EncodeDestination(dest));
+    }
+    if (ExtractDestination(scriptOperatorPayout, dest)) {
+        obj.pushKV("operatorPayoutAddress", EncodeDestination(dest));
+    }
 }
 
 CSimplifiedMNList::CSimplifiedMNList(const std::vector<CSimplifiedMNListEntry>& smlEntries)

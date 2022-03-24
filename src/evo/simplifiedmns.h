@@ -29,6 +29,8 @@ public:
     CBLSLazyPublicKey pubKeyOperator;
     CKeyID keyIDVoting;
     bool isValid;
+    CScript scriptPayout;
+    CScript scriptOperatorPayout;
 
     CSimplifiedMNListEntry() = default;
     explicit CSimplifiedMNListEntry(const CDeterministicMN& dmn);
@@ -40,7 +42,9 @@ public:
                service == rhs.service &&
                pubKeyOperator == rhs.pubKeyOperator &&
                keyIDVoting == rhs.keyIDVoting &&
-               isValid == rhs.isValid;
+               isValid == rhs.isValid &&
+               scriptPayout == rhs.scriptPayout &&
+               scriptOperatorPayout == rhs.scriptOperatorPayout;
     }
 
     bool operator!=(const CSimplifiedMNListEntry& rhs) const
@@ -56,7 +60,9 @@ public:
                 obj.service,
                 obj.pubKeyOperator,
                 obj.keyIDVoting,
-                obj.isValid
+                obj.isValid,
+                obj.scriptPayout,
+                obj.scriptOperatorPayout
                 );
     }
 
