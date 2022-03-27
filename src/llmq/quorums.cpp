@@ -270,11 +270,25 @@ void CQuorumManager::EnsureQuorumConnections(const Consensus::LLMQParams& llmqPa
     auto connmanQuorumsToDelete = g_connman->GetMasternodeQuorums(llmqParams.type);
 
     // don't remove connections for the currently in-progress DKG round
-    //TODO Check this
-    int curDkgHeight = pindexNew->nHeight - (pindexNew->nHeight % llmqParams.dkgInterval);
-    auto curDkgBlock = pindexNew->GetAncestor(curDkgHeight)->GetBlockHash();
-
-    connmanQuorumsToDelete.erase(curDkgBlock);
+    if (CLLMQUtils::IsQuorumRotationEnabled(llmqParams.type, pindexNew)) {
+        int cycleIndexTipHeight = pindexNew->nHeight % llmqParams.dkgInterval;
+        int cycleQuorumBaseHeight = pindexNew->nHeight - cycleIndexTipHeight;
+        std::stringstream ss;
+        for (int quorumIndex = 0; quorumIndex < llmqParams.signingActiveQuorumCount; ++quorumIndex) {
+            if (quorumIndex <= cycleIndexTipHeight) {
+                int curDkgHeight = cycleQuorumBaseHeight + quorumIndex;
+                auto curDkgBlock = pindexNew->GetAncestor(curDkgHeight)->GetBlockHash();
+                ss << curDkgHeight << ":" << curDkgBlock.ToString() << " | ";
+                connmanQuorumsToDelete.erase(curDkgBlock);
+            }
+        }
+        LogPrint(BCLog::LLMQ, "CQuorumManager::%s -- llmqType[%d] h[%d] keeping mn quorum connections for rotated quorums: [%s]\n", __func__, static_cast<int>(llmqParams.type), pindexNew->nHeight, ss.str());
+    } else {
+        int curDkgHeight = pindexNew->nHeight - (pindexNew->nHeight % llmqParams.dkgInterval);
+        auto curDkgBlock = pindexNew->GetAncestor(curDkgHeight)->GetBlockHash();
+        connmanQuorumsToDelete.erase(curDkgBlock);
+        LogPrint(BCLog::LLMQ, "CQuorumManager::%s -- llmqType[%d] h[%d] keeping mn quorum connections for quorum: [%d:%s]\n", __func__, static_cast<int>(llmqParams.type), pindexNew->nHeight, curDkgHeight, curDkgBlock.ToString());
+    }
 
     for (const auto& quorum : lastQuorums) {
         if (CLLMQUtils::EnsureQuorumConnections(llmqParams, quorum->m_quorum_base_block_index, WITH_LOCK(activeMasternodeInfoCs, return activeMasternodeInfo.proTxHash))) {
@@ -282,7 +296,7 @@ void CQuorumManager::EnsureQuorumConnections(const Consensus::LLMQParams& llmqPa
         }
         if (connmanQuorumsToDelete.count(quorum->qc->quorumHash) > 0) {
             LogPrint(BCLog::LLMQ, "CQuorumManager::%s -- removing masternodes quorum connections for quorum %s:\n", __func__, quorum->qc->quorumHash.ToString());
-            //g_connman->RemoveMasternodeQuorumNodes(llmqParams.type, quorum->qc->quorumHash);
+            g_connman->RemoveMasternodeQuorumNodes(llmqParams.type, quorum->qc->quorumHash);
         }
     }
 }
