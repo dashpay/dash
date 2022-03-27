@@ -42,9 +42,7 @@ public:
                service == rhs.service &&
                pubKeyOperator == rhs.pubKeyOperator &&
                keyIDVoting == rhs.keyIDVoting &&
-               isValid == rhs.isValid &&
-               scriptPayout == rhs.scriptPayout &&
-               scriptOperatorPayout == rhs.scriptOperatorPayout;
+               isValid == rhs.isValid;
     }
 
     bool operator!=(const CSimplifiedMNListEntry& rhs) const
@@ -123,6 +121,6 @@ public:
     void ToJson(UniValue& obj) const;
 };
 
-bool BuildSimplifiedMNListDiff(const uint256& baseBlockHash, const uint256& blockHash, CSimplifiedMNListDiff& mnListDiffRet, std::string& errorRet);
+bool BuildSimplifiedMNListDiff(const uint256& baseBlockHash, const uint256& blockHash, CSimplifiedMNListDiff& mnListDiffRet, std::string& errorRet, bool extended);
 
 #endif // BITCOIN_EVO_SIMPLIFIEDMNS_H
