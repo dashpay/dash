@@ -57,7 +57,7 @@ std::string CSimplifiedMNListEntry::ToString() const
         proRegTxHash.ToString(), confirmedHash.ToString(), service.ToString(false), pubKeyOperator.Get().ToString(), EncodeDestination(keyIDVoting), isValid, payoutAddress, operatorPayoutAddress);
 }
 
-void CSimplifiedMNListEntry::ToJson(UniValue& obj) const
+void CSimplifiedMNListEntry::ToJson(UniValue& obj, bool extended) const
 {
     obj.clear();
     obj.setObject();
@@ -67,6 +67,9 @@ void CSimplifiedMNListEntry::ToJson(UniValue& obj) const
     obj.pushKV("pubKeyOperator", pubKeyOperator.Get().ToString());
     obj.pushKV("votingAddress", EncodeDestination(keyIDVoting));
     obj.pushKV("isValid", isValid);
+
+    if (!extended) return;
+
     CTxDestination dest;
     if (ExtractDestination(scriptPayout, dest)) {
         obj.pushKV("payoutAddress", EncodeDestination(dest));
@@ -152,7 +155,7 @@ bool CSimplifiedMNListDiff::BuildQuorumsDiff(const CBlockIndex* baseBlockIndex, 
     return true;
 }
 
-void CSimplifiedMNListDiff::ToJson(UniValue& obj) const
+void CSimplifiedMNListDiff::ToJson(UniValue& obj, bool extended) const
 {
     obj.setObject();
 
@@ -174,7 +177,7 @@ void CSimplifiedMNListDiff::ToJson(UniValue& obj) const
     UniValue mnListArr(UniValue::VARR);
     for (const auto& e : mnList) {
         UniValue eObj;
-        e.ToJson(eObj);
+        e.ToJson(eObj, extended);
         mnListArr.push_back(eObj);
     }
     obj.pushKV("mnList", mnListArr);
