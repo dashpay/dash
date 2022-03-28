@@ -39,7 +39,7 @@ jobs:
       id: docker_meta
       uses: docker/metadata-action@v3
       with:
-        images: strophy/dashd
+        images: dashpay/dashd
         tags: |
           type=semver,pattern={{version}},value=${{ github.event.inputs.tag }}
           type=raw,value=latest-dev
@@ -67,7 +67,7 @@ jobs:
       run: |
         export GPG_TTY=$(tty)
         dash/contrib/gitian-build.py -c -b -n -D -o l \
-        -u https://github.com/strophy/dash \
+        -u https://github.com/dashpay/dash \
         -j $(nproc) -m `awk '/^Mem/ {print $7}' <(free -m)` \
         dummy ${{ steps.branch-name.outputs.current_branch }}
 
