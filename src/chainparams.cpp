@@ -240,17 +240,8 @@ public:
         consensus.vDeployments[Consensus::DEPLOYMENT_DIP0020].nThresholdMin = 2420; // 60% of 4032
         consensus.vDeployments[Consensus::DEPLOYMENT_DIP0020].nFalloffCoeff = 5; // this corresponds to 10 periods
 
-        // Deployment of decreased proposal fee, script addresses for Governance Proposals
-        consensus.vDeployments[Consensus::DEPLOYMENT_GOV_FEE].bit = 7;
-        consensus.vDeployments[Consensus::DEPLOYMENT_GOV_FEE].nStartTime = 1638316800; // Dec 1st, 2021
-        consensus.vDeployments[Consensus::DEPLOYMENT_GOV_FEE].nTimeout = 1669852800; // Dec 1st, 2022
-        consensus.vDeployments[Consensus::DEPLOYMENT_GOV_FEE].nWindowSize = 4032;
-        consensus.vDeployments[Consensus::DEPLOYMENT_GOV_FEE].nThresholdStart = 3226; // 80% of 4032
-        consensus.vDeployments[Consensus::DEPLOYMENT_GOV_FEE].nThresholdMin = 2420; // 60% of 4032
-        consensus.vDeployments[Consensus::DEPLOYMENT_GOV_FEE].nFalloffCoeff = 5; // this corresponds to 10 periods
-
-        // Deployment of Quorum Rotation DIP (Values to be determined)
-        consensus.vDeployments[Consensus::DEPLOYMENT_DIP0024].bit = 8;
+        // Deployment of Quorum Rotation DIP and decreased proposal fee (Values to be determined)
+        consensus.vDeployments[Consensus::DEPLOYMENT_DIP0024].bit = 7;
         consensus.vDeployments[Consensus::DEPLOYMENT_DIP0024].nStartTime = 1638316800; // Dec 1st, 2021
         consensus.vDeployments[Consensus::DEPLOYMENT_DIP0024].nTimeout = 1669852800;   // Dec 1st, 2022
         consensus.vDeployments[Consensus::DEPLOYMENT_DIP0024].nWindowSize = 4032;
@@ -470,17 +461,8 @@ public:
         consensus.vDeployments[Consensus::DEPLOYMENT_DIP0020].nThresholdMin = 60; // 60% of 100
         consensus.vDeployments[Consensus::DEPLOYMENT_DIP0020].nFalloffCoeff = 5; // this corresponds to 10 periods
 
-        // Deployment of decreased proposal fee, script addresses for Governance Proposals
-        consensus.vDeployments[Consensus::DEPLOYMENT_GOV_FEE].bit = 7;
-        consensus.vDeployments[Consensus::DEPLOYMENT_GOV_FEE].nStartTime = 999999999999ULL; // TODO renable this before first RC
-        consensus.vDeployments[Consensus::DEPLOYMENT_GOV_FEE].nTimeout = 999999999999ULL;
-        consensus.vDeployments[Consensus::DEPLOYMENT_GOV_FEE].nWindowSize = 4032;
-        consensus.vDeployments[Consensus::DEPLOYMENT_GOV_FEE].nThresholdStart = 3226; // 80% of 4032
-        consensus.vDeployments[Consensus::DEPLOYMENT_GOV_FEE].nThresholdMin = 2420; // 60% of 4032
-        consensus.vDeployments[Consensus::DEPLOYMENT_GOV_FEE].nFalloffCoeff = 5; // this corresponds to 10 periods
-
-        // Deployment of Quorum Rotation DIP (Values to be determined)
-        consensus.vDeployments[Consensus::DEPLOYMENT_DIP0024].bit = 8;
+        // Deployment of Quorum Rotation DIP and decreased proposal fee (Values to be determined)
+        consensus.vDeployments[Consensus::DEPLOYMENT_DIP0024].bit = 7;
         consensus.vDeployments[Consensus::DEPLOYMENT_DIP0024].nStartTime = 1625097600; // July 1st, 2021
         consensus.vDeployments[Consensus::DEPLOYMENT_DIP0024].nTimeout = 1656633600;   // July 1st, 2022
         consensus.vDeployments[Consensus::DEPLOYMENT_DIP0024].nWindowSize = 4032;
@@ -672,23 +654,13 @@ public:
         consensus.vDeployments[Consensus::DEPLOYMENT_DIP0020].nThresholdMin = 60; // 60% of 100
         consensus.vDeployments[Consensus::DEPLOYMENT_DIP0020].nFalloffCoeff = 5; // this corresponds to 10 periods
 
-        // Deployment of decreased proposal fee, script addresses for Governance Proposals
-        consensus.vDeployments[Consensus::DEPLOYMENT_GOV_FEE].bit = 7;
-        consensus.vDeployments[Consensus::DEPLOYMENT_GOV_FEE].nStartTime = 1635724800; // Nov 1st, 2021
-        consensus.vDeployments[Consensus::DEPLOYMENT_GOV_FEE].nTimeout = 999999999999ULL;
-        consensus.vDeployments[Consensus::DEPLOYMENT_GOV_FEE].nWindowSize = 100;
-        consensus.vDeployments[Consensus::DEPLOYMENT_GOV_FEE].nThresholdStart = 80;
-        consensus.vDeployments[Consensus::DEPLOYMENT_GOV_FEE].nThresholdMin = 60;
-        consensus.vDeployments[Consensus::DEPLOYMENT_GOV_FEE].nFalloffCoeff = 5; // this corresponds to 10 periods
-
-        // Deployment of Quorum Rotation DIP (Values to be determined)
-        consensus.vDeployments[Consensus::DEPLOYMENT_DIP0024].bit = 8;
+        consensus.vDeployments[Consensus::DEPLOYMENT_DIP0024].bit = 7;
         consensus.vDeployments[Consensus::DEPLOYMENT_DIP0024].nStartTime = 1625097600; // July 1st, 2021
         consensus.vDeployments[Consensus::DEPLOYMENT_DIP0024].nTimeout = 1656633600;   // July 1st, 2022
-        consensus.vDeployments[Consensus::DEPLOYMENT_DIP0024].nWindowSize = 4032;
-        consensus.vDeployments[Consensus::DEPLOYMENT_DIP0024].nThresholdStart = 3226; // 80% of 4032
-        consensus.vDeployments[Consensus::DEPLOYMENT_DIP0024].nThresholdMin = 2420;   // 60% of 4032
-        consensus.vDeployments[Consensus::DEPLOYMENT_DIP0024].nFalloffCoeff = 5;      // this corresponds to 10 periods
+        consensus.vDeployments[Consensus::DEPLOYMENT_DIP0024].nWindowSize = 100;
+        consensus.vDeployments[Consensus::DEPLOYMENT_DIP0024].nThresholdStart = 80; // 80% of 4032
+        consensus.vDeployments[Consensus::DEPLOYMENT_DIP0024].nThresholdMin = 60;   // 60% of 4032
+        consensus.vDeployments[Consensus::DEPLOYMENT_DIP0024].nFalloffCoeff = 5;    // this corresponds to 10 periods
 
         // The best chain should have at least this much work.
         consensus.nMinimumChainWork = uint256S("0x000000000000000000000000000000000000000000000000000000000000000");
@@ -907,16 +879,8 @@ public:
         consensus.vDeployments[Consensus::DEPLOYMENT_DIP0020].nThresholdMin = 60;
         consensus.vDeployments[Consensus::DEPLOYMENT_DIP0020].nFalloffCoeff = 5;
 
-        consensus.vDeployments[Consensus::DEPLOYMENT_GOV_FEE].bit = 7;
-        consensus.vDeployments[Consensus::DEPLOYMENT_GOV_FEE].nStartTime = 0;
-        consensus.vDeployments[Consensus::DEPLOYMENT_GOV_FEE].nTimeout = 999999999999ULL;
-        consensus.vDeployments[Consensus::DEPLOYMENT_GOV_FEE].nWindowSize = 100;
-        consensus.vDeployments[Consensus::DEPLOYMENT_GOV_FEE].nThresholdStart = 80;
-        consensus.vDeployments[Consensus::DEPLOYMENT_GOV_FEE].nThresholdMin = 60;
-        consensus.vDeployments[Consensus::DEPLOYMENT_GOV_FEE].nFalloffCoeff = 5;
-
-        // Deployment of Quorum Rotation DIP (Values to be determined)
-        consensus.vDeployments[Consensus::DEPLOYMENT_DIP0024].bit = 8;
+        // Deployment of Quorum Rotation DIP and decreased proposal fee (Values to be determined)
+        consensus.vDeployments[Consensus::DEPLOYMENT_DIP0024].bit = 7;
         consensus.vDeployments[Consensus::DEPLOYMENT_DIP0024].nStartTime = 1625097600; // July 1st, 2021
         consensus.vDeployments[Consensus::DEPLOYMENT_DIP0024].nTimeout = 1656633600;   // July 1st, 2022
         consensus.vDeployments[Consensus::DEPLOYMENT_DIP0024].nWindowSize = 4032;
