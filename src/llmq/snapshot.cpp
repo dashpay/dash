@@ -60,9 +60,6 @@ void CQuorumRotationInfo::ToJson(UniValue& obj) const
     ss << mnListDiffTip;
     obj.pushKV("mnListDiffTip", HexStr(ss));
     ss.clear();
-    ss << mnListDiffAtH;
-    obj.pushKV("mnListDiffAtH", HexStr(ss));
-    ss.clear();
     ss << mnListDiffAtHMinusC;
     obj.pushKV("mnListDiffAtHMinusC", HexStr(ss));
     ss.clear();
@@ -78,95 +75,119 @@ bool BuildQuorumRotationInfo(const CGetQuorumRotationInfo& request, CQuorumRotat
 {
     AssertLockHeld(cs_main);
 
-    if (request.heightsNb > 4) {
-        errorRet = strprintf("invalid requested heightsNb");
-        return false;
-    }
-
-    if (request.heightsNb != request.knownHeights.size()) {
-        errorRet = strprintf("missmatch requested heightsNb and size(knownHeights)");
+    if (request.baseBlockHashesNb != request.baseBlockHashes.size()) {
+        errorRet = strprintf("missmatch requested baseBlockHashesNb and size(baseBlockHashes)");
         return false;
     }
 
     LOCK(deterministicMNManager->cs);
 
-    //TODO Handle request if client knows some heights
-    if (request.heightsNb == 0) {
-        const CBlockIndex* baseBlockIndex = chainActive.Genesis();
-        if (!baseBlockIndex) {
+    std::vector<const CBlockIndex*> baseBlockIndexes;
+    if (request.baseBlockHashesNb == 0) {
+        const CBlockIndex* blockIndex = chainActive.Genesis();
+        if (!blockIndex) {
             errorRet = strprintf("genesis block not found");
             return false;
         }
-
-        const CBlockIndex* tipBlockIndex = chainActive.Tip();
-        if (!tipBlockIndex) {
-            errorRet = strprintf("tip block not found");
-            return false;
+        baseBlockIndexes.push_back(blockIndex);
+    } else {
+        for (const auto& blockHash : request.baseBlockHashes) {
+            const CBlockIndex* blockIndex = LookupBlockIndex(blockHash);
+            if (!blockIndex) {
+                errorRet = strprintf("block %s not found", blockHash.ToString());
+                return false;
+            }
+            if (!chainActive.Contains(blockIndex)) {
+                errorRet = strprintf("block %s is not in the active chain", blockHash.ToString());
+                return false;
+            }
+            baseBlockIndexes.push_back(blockIndex);
         }
-
-        auto baseDmnList = deterministicMNManager->GetListForBlock(baseBlockIndex);
-        auto tipMnList = deterministicMNManager->GetListForBlock(tipBlockIndex);
-
-        response.mnListDiffTip = baseDmnList.BuildSimplifiedDiff(tipMnList);
-
-        auto quorums = llmq::quorumBlockProcessor->GetMinedAndActiveCommitmentsUntilBlock(tipBlockIndex);
-
-        auto instantSendQuorum = quorums.find(Params().GetConsensus().llmqTypeInstantSend);
-        if (instantSendQuorum == quorums.end()) {
-            errorRet = strprintf("No InstantSend quorum found");
-            return false;
-        }
-
-        if (instantSendQuorum->second.empty()) {
-            errorRet = strprintf("Empty list for InstantSend quorum");
-            return false;
-        }
-
-        // Since the returned quorums are in reversed order, the most recent one is at index 0
-        const CBlockIndex* hBlockIndex = LookupBlockIndex(instantSendQuorum->second.at(0)->GetBlockHash());
-        if (!hBlockIndex) {
-            errorRet = strprintf("Can not find block H");
-            return false;
-        }
-        auto HDmnList = deterministicMNManager->GetListForBlock(hBlockIndex);
-        response.mnListDiffAtH = baseDmnList.BuildSimplifiedDiff(HDmnList);
-        response.creationHeight = hBlockIndex->nHeight;
-
-        // H-C
-        const CBlockIndex* hcBlockIndex = LookupBlockIndex(instantSendQuorum->second.at(1)->GetBlockHash());
-        if (!hcBlockIndex) {
-            errorRet = strprintf("Can not find block H-C");
-            return false;
-        }
-        auto HCDmnList = deterministicMNManager->GetListForBlock(hcBlockIndex);
-        response.mnListDiffAtHMinusC = baseDmnList.BuildSimplifiedDiff(HCDmnList);
-        response.quorumSnaphotAtHMinusC = quorumSnapshotManager->GetSnapshotForBlock(Params().GetConsensus().llmqTypeInstantSend, hcBlockIndex);
-
-        // H-2C
-        const CBlockIndex* h2cBlockIndex = LookupBlockIndex(instantSendQuorum->second.at(2)->GetBlockHash());
-        if (!h2cBlockIndex) {
-            errorRet = strprintf("Can not find block H-2C");
-            return false;
-        }
-        auto H2CDmnList = deterministicMNManager->GetListForBlock(h2cBlockIndex);
-        response.mnListDiffAtHMinus2C = baseDmnList.BuildSimplifiedDiff(H2CDmnList);
-        response.quorumSnaphotAtHMinus2C = quorumSnapshotManager->GetSnapshotForBlock(Params().GetConsensus().llmqTypeInstantSend, h2cBlockIndex);
-
-        // H-3C
-        const CBlockIndex* h3cBlockIndex = LookupBlockIndex(instantSendQuorum->second.at(3)->GetBlockHash());
-        if (!h3cBlockIndex) {
-            errorRet = strprintf("Can not find block H-3C");
-            return false;
-        }
-        auto H3CDmnList = deterministicMNManager->GetListForBlock(h3cBlockIndex);
-        response.mnListDiffAtHMinus3C = baseDmnList.BuildSimplifiedDiff(H3CDmnList);
-        response.quorumSnaphotAtHMinus3C = quorumSnapshotManager->GetSnapshotForBlock(Params().GetConsensus().llmqTypeInstantSend, h3cBlockIndex);
+        std::sort(baseBlockIndexes.begin(), baseBlockIndexes.end(), [](const CBlockIndex* a, const CBlockIndex* b) {
+            return a->nHeight < b->nHeight;
+        });
     }
-    //TODO Handle request if client knows some heights
-    else {
+
+    const CBlockIndex* tipBlockIndex = chainActive.Tip();
+    if (!tipBlockIndex) {
+        errorRet = strprintf("tip block not found");
+        return false;
     }
+    //Build MN list Diff always with highest baseblock
+    if (!BuildSimplifiedMNListDiff(baseBlockIndexes.back()->GetBlockHash(), tipBlockIndex->GetBlockHash(), response.mnListDiffTip, errorRet)) {
+        return false;
+    }
+
+    const CBlockIndex* blockIndex = LookupBlockIndex(request.blockRequestHash);
+    if (!blockIndex) {
+        errorRet = strprintf("block not found");
+        return false;
+    }
+    auto quorums = llmq::quorumBlockProcessor->GetMinedAndActiveCommitmentsUntilBlock(blockIndex);
+    auto instantSendQuorum = quorums.find(Params().GetConsensus().llmqTypeInstantSend);
+    if (instantSendQuorum == quorums.end()) {
+        errorRet = strprintf("No InstantSend quorum found");
+        return false;
+    }
+    if (instantSendQuorum->second.empty()) {
+        errorRet = strprintf("Empty list for InstantSend quorum");
+        return false;
+    }
+
+    // Since the returned quorums are in reversed order, the most recent one is at index 0
+    const CBlockIndex* hBlockIndex = LookupBlockIndex(instantSendQuorum->second.at(0)->GetBlockHash());
+    if (!hBlockIndex) {
+        errorRet = strprintf("Can not find block H");
+        return false;
+    }
+    response.creationHeight = hBlockIndex->nHeight;
+
+    // H-C
+    const CBlockIndex* hcBlockIndex = LookupBlockIndex(instantSendQuorum->second.at(1)->GetBlockHash());
+    if (!hcBlockIndex) {
+        errorRet = strprintf("Can not find block H-C");
+        return false;
+    }
+
+    if (!BuildSimplifiedMNListDiff(GetLastBaseBlockHash(baseBlockIndexes, hcBlockIndex), hcBlockIndex->GetBlockHash(), response.mnListDiffAtHMinusC, errorRet)) {
+        return false;
+    }
+    response.quorumSnaphotAtHMinusC = quorumSnapshotManager->GetSnapshotForBlock(Params().GetConsensus().llmqTypeInstantSend, hcBlockIndex);
+
+    // H-2C
+    const CBlockIndex* h2cBlockIndex = LookupBlockIndex(instantSendQuorum->second.at(2)->GetBlockHash());
+    if (!h2cBlockIndex) {
+        errorRet = strprintf("Can not find block H-2C");
+        return false;
+    }
+    if (!BuildSimplifiedMNListDiff(GetLastBaseBlockHash(baseBlockIndexes, h2cBlockIndex), h2cBlockIndex->GetBlockHash(), response.mnListDiffAtHMinus2C, errorRet)) {
+        return false;
+    }
+    response.quorumSnaphotAtHMinus2C = quorumSnapshotManager->GetSnapshotForBlock(Params().GetConsensus().llmqTypeInstantSend, h2cBlockIndex);
+
+    // H-3C
+    const CBlockIndex* h3cBlockIndex = LookupBlockIndex(instantSendQuorum->second.at(3)->GetBlockHash());
+    if (!h3cBlockIndex) {
+        errorRet = strprintf("Can not find block H-3C");
+        return false;
+    }
+    if (!BuildSimplifiedMNListDiff(GetLastBaseBlockHash(baseBlockIndexes, h3cBlockIndex), h3cBlockIndex->GetBlockHash(), response.mnListDiffAtHMinus3C, errorRet)) {
+        return false;
+    }
+    response.quorumSnaphotAtHMinus3C = quorumSnapshotManager->GetSnapshotForBlock(Params().GetConsensus().llmqTypeInstantSend, h3cBlockIndex);
 
     return true;
+}
+
+uint256 GetLastBaseBlockHash(const std::vector<const CBlockIndex*>& baseBlockIndexes, const CBlockIndex* blockIndex)
+{
+    uint256 hash;
+    for (const auto baseBlock : baseBlockIndexes) {
+        if (baseBlock->nHeight >= blockIndex->nHeight)
+            break;
+        hash = baseBlock->GetBlockHash();
+    }
+    return hash;
 }
 
 CQuorumSnapshotManager::CQuorumSnapshotManager(CEvoDB& _evoDb) :
