@@ -859,10 +859,11 @@ static UniValue verifyislock(const JSONRPCRequest& request)
     CBlockIndex* pBlockIndex;
     {
         LOCK(cs_main);
-        if (signHeight == -1)
+        if (signHeight == -1) {
             pBlockIndex = ::ChainActive().Tip();
-        else
+        } else {
             pBlockIndex = ::ChainActive()[signHeight];
+        }
     }
     auto llmqType = llmq::CLLMQUtils::GetInstantSendLLMQType(pBlockIndex);
     // First check against the current active set, if it fails check against the last active set

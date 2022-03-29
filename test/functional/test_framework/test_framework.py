@@ -755,7 +755,7 @@ class DashTestFramework(BitcoinTestFramework):
                 self.sync_blocks()
         self.sync_blocks()
 
-    def activate_dip24(self, slow_mode=False, expected_activation_height=None):
+    def activate_dip0024(self, slow_mode=False, expected_activation_height=None):
         self.log.info("Wait for dip0024 activation")
 
         if expected_activation_height is not None:
@@ -764,8 +764,10 @@ class DashTestFramework(BitcoinTestFramework):
             while height - expected_activation_height > batch_size:
                 self.nodes[0].generate(batch_size)
                 height += batch_size
+                self.sync_blocks()
             assert height - expected_activation_height < batch_size
             self.nodes[0].generate(height - expected_activation_height - 1)
+            self.sync_blocks()
             assert self.nodes[0].getblockchaininfo()['bip9_softforks']['dip0024']['status'] != 'active'
 
         while self.nodes[0].getblockchaininfo()['bip9_softforks']['dip0024']['status'] != 'active':
@@ -1148,7 +1150,7 @@ class DashTestFramework(BitcoinTestFramework):
             return True
         wait_until(check_probes, timeout=timeout, sleep=1)
 
-    def wait_for_quorum_phase(self, quorum_hash, phase, expected_member_count, check_received_messages, check_received_messages_count, mninfos, llmq_type_name="llmq_test", timeout=30, sleep=0.1):
+    def wait_for_quorum_phase(self, quorum_hash, phase, expected_member_count, check_received_messages, check_received_messages_count, mninfos, llmq_type_name="llmq_test", timeout=30, sleep=1):
         def check_dkg_session():
             all_ok = True
             member_count = 0
@@ -1231,10 +1233,10 @@ class DashTestFramework(BitcoinTestFramework):
         sync_blocks(nodes)
 
     def mine_quorum(self, expected_connections=None, expected_members=None, expected_contributions=None, expected_complaints=0, expected_justifications=0, expected_commitments=None, mninfos_online=None, mninfos_valid=None):
+        spork21_active = self.nodes[0].spork('show')['SPORK_21_QUORUM_ALL_CONNECTED'] <= 1
         spork23_active = self.nodes[0].spork('show')['SPORK_23_QUORUM_POSE'] <= 1
 
         if expected_connections is None:
-            spork21_active = self.nodes[0].spork('show')['SPORK_21_QUORUM_ALL_CONNECTED'] <= 1
             expected_connections = (self.llmq_size - 1) if spork21_active else 2
         if expected_members is None:
             expected_members = self.llmq_size

@@ -29,7 +29,7 @@ enum class LLMQType : uint8_t {
     // for testing activation of new quorums only
     LLMQ_TEST_V17 = 102, // 3 members, 2 (66%) threshold, one per hour. Params might differ when -llmqtestparams is used
 
-    LLMQ_TEST_2 = 103, // 4 members, 2 (66%) threshold, one per hour. Params might differ when -llmqtestparams is used
+    LLMQ_TEST_DIP0024 = 103, // 4 members, 2 (66%) threshold, one per hour. Params might differ when -llmqtestparams is used
 };
 
 // Configures a LLMQ and its DKG
@@ -148,13 +148,13 @@ static constexpr std::array<LLMQParams, 9> available_llmqs = {
     },
 
     /**
-     * llmq_test_2
+     * llmq_test_dip0024
      * This quorum is only used for testing
      *
      */
     LLMQParams{
-        .type = LLMQType::LLMQ_TEST_2,
-        .name = "llmq_test_2",
+        .type = LLMQType::LLMQ_TEST_DIP0024,
+        .name = "llmq_test_dip0024",
         .size = 4,
         .minSize = 3,
         .threshold = 2,
