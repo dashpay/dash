@@ -82,6 +82,9 @@ bool BuildQuorumRotationInfo(const CGetQuorumRotationInfo& request, CQuorumRotat
 
     LOCK(deterministicMNManager->cs);
 
+    //Quorum rotation is enabled only for InstantSend atm.
+    Consensus::LLMQType llmqType = Params().GetConsensus().llmqTypeInstantSend;
+
     std::vector<const CBlockIndex*> baseBlockIndexes;
     if (request.baseBlockHashesNb == 0) {
         const CBlockIndex* blockIndex = chainActive.Genesis();
@@ -124,18 +127,18 @@ bool BuildQuorumRotationInfo(const CGetQuorumRotationInfo& request, CQuorumRotat
         return false;
     }
     auto quorums = llmq::quorumBlockProcessor->GetMinedAndActiveCommitmentsUntilBlock(blockIndex);
-    auto instantSendQuorum = quorums.find(Params().GetConsensus().llmqTypeInstantSend);
-    if (instantSendQuorum == quorums.end()) {
+    auto itQuorums = quorums.find(llmqType);
+    if (itQuorums == quorums.end()) {
         errorRet = strprintf("No InstantSend quorum found");
         return false;
     }
-    if (instantSendQuorum->second.empty()) {
+    if (itQuorums->second.empty()) {
         errorRet = strprintf("Empty list for InstantSend quorum");
         return false;
     }
 
     // Since the returned quorums are in reversed order, the most recent one is at index 0
-    const CBlockIndex* hBlockIndex = LookupBlockIndex(instantSendQuorum->second.at(0)->GetBlockHash());
+    const CBlockIndex* hBlockIndex = LookupBlockIndex(itQuorums->second.at(0)->GetBlockHash());
     if (!hBlockIndex) {
         errorRet = strprintf("Can not find block H");
         return false;
@@ -143,7 +146,7 @@ bool BuildQuorumRotationInfo(const CGetQuorumRotationInfo& request, CQuorumRotat
     response.creationHeight = hBlockIndex->nHeight;
 
     // H-C
-    const CBlockIndex* hcBlockIndex = LookupBlockIndex(instantSendQuorum->second.at(1)->GetBlockHash());
+    const CBlockIndex* hcBlockIndex = LookupBlockIndex(itQuorums->second.at(1)->GetBlockHash());
     if (!hcBlockIndex) {
         errorRet = strprintf("Can not find block H-C");
         return false;
@@ -152,10 +155,13 @@ bool BuildQuorumRotationInfo(const CGetQuorumRotationInfo& request, CQuorumRotat
     if (!BuildSimplifiedMNListDiff(GetLastBaseBlockHash(baseBlockIndexes, hcBlockIndex), hcBlockIndex->GetBlockHash(), response.mnListDiffAtHMinusC, errorRet)) {
         return false;
     }
-    response.quorumSnaphotAtHMinusC = quorumSnapshotManager->GetSnapshotForBlock(Params().GetConsensus().llmqTypeInstantSend, hcBlockIndex);
+    if (!quorumSnapshotManager->GetSnapshotForBlock(Params().GetConsensus().llmqTypeInstantSend, hcBlockIndex, response.quorumSnaphotAtHMinusC)) {
+        errorRet = strprintf("Can not find quorum snapshot at H-C");
+        return false;
+    }
 
     // H-2C
-    const CBlockIndex* h2cBlockIndex = LookupBlockIndex(instantSendQuorum->second.at(2)->GetBlockHash());
+    const CBlockIndex* h2cBlockIndex = LookupBlockIndex(itQuorums->second.at(2)->GetBlockHash());
     if (!h2cBlockIndex) {
         errorRet = strprintf("Can not find block H-2C");
         return false;
@@ -163,10 +169,13 @@ bool BuildQuorumRotationInfo(const CGetQuorumRotationInfo& request, CQuorumRotat
     if (!BuildSimplifiedMNListDiff(GetLastBaseBlockHash(baseBlockIndexes, h2cBlockIndex), h2cBlockIndex->GetBlockHash(), response.mnListDiffAtHMinus2C, errorRet)) {
         return false;
     }
-    response.quorumSnaphotAtHMinus2C = quorumSnapshotManager->GetSnapshotForBlock(Params().GetConsensus().llmqTypeInstantSend, h2cBlockIndex);
+    if (!quorumSnapshotManager->GetSnapshotForBlock(Params().GetConsensus().llmqTypeInstantSend, h2cBlockIndex, response.quorumSnaphotAtHMinus2C)) {
+        errorRet = strprintf("Can not find quorum snapshot at H-2C");
+        return false;
+    }
 
     // H-3C
-    const CBlockIndex* h3cBlockIndex = LookupBlockIndex(instantSendQuorum->second.at(3)->GetBlockHash());
+    const CBlockIndex* h3cBlockIndex = LookupBlockIndex(itQuorums->second.at(3)->GetBlockHash());
     if (!h3cBlockIndex) {
         errorRet = strprintf("Can not find block H-3C");
         return false;
@@ -174,7 +183,10 @@ bool BuildQuorumRotationInfo(const CGetQuorumRotationInfo& request, CQuorumRotat
     if (!BuildSimplifiedMNListDiff(GetLastBaseBlockHash(baseBlockIndexes, h3cBlockIndex), h3cBlockIndex->GetBlockHash(), response.mnListDiffAtHMinus3C, errorRet)) {
         return false;
     }
-    response.quorumSnaphotAtHMinus3C = quorumSnapshotManager->GetSnapshotForBlock(Params().GetConsensus().llmqTypeInstantSend, h3cBlockIndex);
+    if (!quorumSnapshotManager->GetSnapshotForBlock(Params().GetConsensus().llmqTypeInstantSend, h3cBlockIndex, response.quorumSnaphotAtHMinus3C)) {
+        errorRet = strprintf("Can not find quorum snapshot at H-3C");
+        return false;
+    }
 
     return true;
 }
@@ -195,11 +207,9 @@ CQuorumSnapshotManager::CQuorumSnapshotManager(CEvoDB& _evoDb) :
 {
 }
 
-CQuorumSnapshot CQuorumSnapshotManager::GetSnapshotForBlock(const Consensus::LLMQType llmqType, const CBlockIndex* pindex)
+bool CQuorumSnapshotManager::GetSnapshotForBlock(const Consensus::LLMQType llmqType, const CBlockIndex* pindex, CQuorumSnapshot& snapshot)
 {
     LOCK(cs);
-
-    CQuorumSnapshot snapshot;
 
     auto snapshotHash = ::SerializeHash(std::make_pair(llmqType, pindex->GetBlockHash()));
 
@@ -207,18 +217,18 @@ CQuorumSnapshot CQuorumSnapshotManager::GetSnapshotForBlock(const Consensus::LLM
     auto it = quorumSnapshotCache.find(snapshotHash);
     if (it != quorumSnapshotCache.end()) {
         snapshot = it->second;
-        return snapshot;
+        return true;
     }
 
     if (evoDb.Read(std::make_pair(DB_QUORUM_SNAPSHOT, snapshotHash), snapshot)) {
         quorumSnapshotCache.emplace(snapshotHash, snapshot);
-        return snapshot;
+        return true;
     }
 
-    return snapshot;
+    return false;
 }
 
-void CQuorumSnapshotManager::StoreSnapshotForBlock(const Consensus::LLMQType llmqType, const CBlockIndex* pindex, CQuorumSnapshot& snapshot)
+void CQuorumSnapshotManager::StoreSnapshotForBlock(const Consensus::LLMQType llmqType, const CBlockIndex* pindex, const CQuorumSnapshot& snapshot)
 {
     LOCK(cs);
 

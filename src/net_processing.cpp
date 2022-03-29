@@ -3960,6 +3960,13 @@ bool static ProcessMessage(CNode* pfrom, const std::string& strCommand, CDataStr
         return true;
     }
 
+    if (strCommand == NetMsgType::QUORUMROTATIONINFO) {
+        // we have never requested this
+        LOCK(cs_main);
+        Misbehaving(pfrom->GetId(), 100, strprintf("received not-requested quorumrotationinfo. peer=%d", pfrom->GetId()));
+        return true;
+    }
+
     if (strCommand == NetMsgType::NOTFOUND) {
         // Remove the NOTFOUND transactions from the peer
         LOCK(cs_main);

@@ -131,8 +131,8 @@ private:
 public:
     explicit CQuorumSnapshotManager(CEvoDB& _evoDb);
 
-    CQuorumSnapshot GetSnapshotForBlock(const Consensus::LLMQType llmqType, const CBlockIndex* pindex);
-    void StoreSnapshotForBlock(const Consensus::LLMQType llmqType, const CBlockIndex* pindex, CQuorumSnapshot& snapshot);
+    bool GetSnapshotForBlock(const Consensus::LLMQType llmqType, const CBlockIndex* pindex, CQuorumSnapshot& snapshot);
+    void StoreSnapshotForBlock(const Consensus::LLMQType llmqType, const CBlockIndex* pindex, const CQuorumSnapshot& snapshot);
 };
 
 extern std::unique_ptr<CQuorumSnapshotManager> quorumSnapshotManager;
