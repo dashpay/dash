@@ -4,6 +4,7 @@
 
 #include <llmq/utils.h>
 
+#include <llmq/blockprocessor.h>
 #include <llmq/commitment.h>
 #include <llmq/quorums.h>
 #include <llmq/snapshot.h>
@@ -28,12 +29,12 @@ namespace llmq
 CCriticalSection cs_llmq_vbc;
 VersionBitsCache llmq_versionbitscache;
 
-std::vector<CDeterministicMNCPtr> CLLMQUtils::GetAllQuorumMembers(const Consensus::LLMQParams& llmqParams, const CBlockIndex* pQuorumBaseBlockIndex)
+std::vector<CDeterministicMNCPtr> CLLMQUtils::GetAllQuorumMembers(Consensus::LLMQType llmqType, const CBlockIndex* pquorumBaseBlockIndex)
 {
     static CCriticalSection cs_members;
     static std::map<Consensus::LLMQType, unordered_lru_cache<uint256, std::vector<CDeterministicMNCPtr>, StaticSaltedHasher>> mapQuorumMembers;
 
-    if (!IsQuorumTypeEnabled(llmqParams.type, pQuorumBaseBlockIndex->pprev)) {
+    if (!IsQuorumTypeEnabled(llmqType, pquorumBaseBlockIndex->pprev)) {
         return {};
     }
     std::vector<CDeterministicMNCPtr> quorumMembers;
@@ -42,104 +43,320 @@ std::vector<CDeterministicMNCPtr> CLLMQUtils::GetAllQuorumMembers(const Consensu
         if (mapQuorumMembers.empty()) {
             InitQuorumsCache(mapQuorumMembers);
         }
-        if (mapQuorumMembers[llmqParams.type].get(pQuorumBaseBlockIndex->GetBlockHash(), quorumMembers)) {
+        if (mapQuorumMembers[llmqType].get(pquorumBaseBlockIndex->GetBlockHash(), quorumMembers)) {
             return quorumMembers;
         }
     }
 
-    auto allMns = deterministicMNManager->GetListForBlock(pQuorumBaseBlockIndex);
-    auto modifier = ::SerializeHash(std::make_pair(llmqParams.type, pQuorumBaseBlockIndex->GetBlockHash()));
-    quorumMembers = allMns.CalculateQuorum(llmqParams.size, modifier);
+    auto allMns = deterministicMNManager->GetListForBlock(pquorumBaseBlockIndex);
+    auto modifier = ::SerializeHash(std::make_pair(llmqType, pquorumBaseBlockIndex->GetBlockHash()));
+    quorumMembers = allMns.CalculateQuorum(GetLLMQParams(llmqType).size, modifier);
     LOCK(cs_members);
-    mapQuorumMembers[llmqParams.type].insert(pQuorumBaseBlockIndex->GetBlockHash(), quorumMembers);
+    mapQuorumMembers[llmqType].insert(pquorumBaseBlockIndex->GetBlockHash(), quorumMembers);
     return quorumMembers;
 }
 
-std::vector<CDeterministicMNCPtr> CLLMQUtils::GetAllQuorumMembersByQuarterRotation(Consensus::LLMQType llmqType, const CBlockIndex* pindexQuorum)
+std::vector<CDeterministicMNCPtr> CLLMQUtils::GetAllQuorumMembersByQuarterRotation(Consensus::LLMQType llmqType, const CBlockIndex* pquorumBaseBlockIndex)
 {
+    static CCriticalSection cs_members;
+    static std::map<Consensus::LLMQType, unordered_lru_cache<uint256, std::vector<CDeterministicMNCPtr>, StaticSaltedHasher>> mapQuorumMembers;
+
+    if (!IsQuorumTypeEnabled(llmqType, pquorumBaseBlockIndex->pprev)) {
+        return {};
+    }
     std::vector<CDeterministicMNCPtr> quorumMembers;
-
-    CQuorumSnapshot quorumSnapshot;
-
-    auto quarterMembersH_C = CLLMQUtils::GetPreviousQuorumQuarterMembers(llmqType, quorumSnapshot.mnListDiffH_C.blockHash, quorumSnapshot.activeQuorumMembersH_C);
-    auto quarterMembersH_2C = CLLMQUtils::GetPreviousQuorumQuarterMembers(llmqType, quorumSnapshot.mnListDiffH_2C.blockHash, quorumSnapshot.activeQuorumMembersH_2C);
-    auto quarterMembersH_3C = CLLMQUtils::GetPreviousQuorumQuarterMembers(llmqType, quorumSnapshot.mnListDiffH_3C.blockHash, quorumSnapshot.activeQuorumMembersH_3C);
-
-    auto allMns = deterministicMNManager->GetListForBlock(pindexQuorum);
-    auto modifier = ::SerializeHash(std::make_pair(llmqType, pindexQuorum->GetBlockHash()));
-
-    auto DmnsNonUsedInAnyQuarter = CDeterministicMNList();
-    auto DmnsUsedInPreviousQuarter = CDeterministicMNList();
-
-    for (const auto mn : quarterMembersH_C) {
-        DmnsUsedInPreviousQuarter.AddMN(mn);
-    }
-    for (const auto mn : quarterMembersH_2C) {
-        DmnsUsedInPreviousQuarter.AddMN(mn);
-    }
-    for (const auto mn : quarterMembersH_3C) {
-        DmnsUsedInPreviousQuarter.AddMN(mn);
+    {
+        LOCK(cs_members);
+        if (mapQuorumMembers.empty()) {
+            InitQuorumsCache(mapQuorumMembers);
+        }
+        if (mapQuorumMembers[llmqType].get(pquorumBaseBlockIndex->GetBlockHash(), quorumMembers)) {
+            return quorumMembers;
+        }
     }
 
-    allMns.ForEachMN(false, [&DmnsUsedInPreviousQuarter, &DmnsNonUsedInAnyQuarter](const CDeterministicMNCPtr& dmn) {
-        if (!DmnsUsedInPreviousQuarter.ContainsMN(dmn->proTxHash)) {
-            DmnsNonUsedInAnyQuarter.AddMN(dmn);
+    auto quorums = llmq::quorumBlockProcessor->GetMinedAndActiveCommitmentsUntilBlock(pquorumBaseBlockIndex);
+    auto quorumIt = quorums.find(llmqType);
+    if (quorumIt == quorums.end()) {
+        return {};
+    }
+    if (quorumIt->second.empty()) {
+        return {};
+    }
+
+    // Since the returned quorums are in reversed order, the most recent one is at index 0
+    const CBlockIndex* pBlockHMinusCIndex = LookupBlockIndex(quorumIt->second.at(0)->GetBlockHash());
+    const CBlockIndex* pBlockHMinus2CIndex = LookupBlockIndex(quorumIt->second.at(1)->GetBlockHash());
+    const CBlockIndex* pBlockHMinus3CIndex = LookupBlockIndex(quorumIt->second.at(2)->GetBlockHash());
+
+    if (!pBlockHMinusCIndex || !pBlockHMinus2CIndex || !pBlockHMinus3CIndex) {
+        return {};
+    }
+
+    CQuorumSnapshot quSnapshotHMinusC = quorumSnapshotManager->GetSnapshotForBlock(llmqType, pBlockHMinusCIndex);
+    CQuorumSnapshot quSnapshotHMinus2C = quorumSnapshotManager->GetSnapshotForBlock(llmqType, pBlockHMinus2CIndex);
+    CQuorumSnapshot quSnapshotHMinus3C = quorumSnapshotManager->GetSnapshotForBlock(llmqType, pBlockHMinus3CIndex);
+
+    auto quarterHMinusC = CLLMQUtils::GetQuorumQuarterMembersBySnapshot(llmqType, pBlockHMinusCIndex, quSnapshotHMinusC);
+    auto quarterHMinus2C = CLLMQUtils::GetQuorumQuarterMembersBySnapshot(llmqType, pBlockHMinus2CIndex, quSnapshotHMinus2C);
+    auto quarterHMinus3C = CLLMQUtils::GetQuorumQuarterMembersBySnapshot(llmqType, pBlockHMinus3CIndex, quSnapshotHMinus3C);
+
+    //TODO Add handling when build of new quorum quarter fails (newQuarterMembers is empty)
+    auto newQuarterMembers = CLLMQUtils::BuildNewQuorumQuarterMembers(llmqType, pquorumBaseBlockIndex, quarterHMinusC, quarterHMinus2C, quarterHMinus3C);
+
+    std::copy(quarterHMinus3C.begin(),
+              quarterHMinus3C.end(),
+              std::back_inserter(quorumMembers));
+    std::copy(quarterHMinus2C.begin(),
+              quarterHMinus2C.end(),
+              std::back_inserter(quorumMembers));
+    std::copy(quarterHMinusC.begin(),
+              quarterHMinusC.end(),
+              std::back_inserter(quorumMembers));
+    std::copy(newQuarterMembers.begin(),
+              newQuarterMembers.end(),
+              std::back_inserter(quorumMembers));
+
+    LOCK(cs_members);
+    mapQuorumMembers[llmqType].insert(pquorumBaseBlockIndex->GetBlockHash(), quorumMembers);
+
+    return quorumMembers;
+}
+
+std::vector<CDeterministicMNCPtr> CLLMQUtils::BuildNewQuorumQuarterMembers(Consensus::LLMQType llmqType, const CBlockIndex* pquorumBaseBlockIndex, const std::vector<CDeterministicMNCPtr>& quartersMembersMinusC, const std::vector<CDeterministicMNCPtr>& quartersMembersMinus2C, const std::vector<CDeterministicMNCPtr>& quartersMembersMinus3C)
+{
+    std::vector<CDeterministicMNCPtr> quarterQuorumMembers;
+
+    //TODO Add handling cases where previous quarters are empty
+    auto modifier = ::SerializeHash(std::make_pair(llmqType, pquorumBaseBlockIndex->GetBlockHash()));
+    auto Mns = deterministicMNManager->GetListForBlock(pquorumBaseBlockIndex);
+
+    auto MnsUsedAtH = CDeterministicMNList();
+    auto MnsNotUsedAtH = CDeterministicMNList();
+
+    for (const auto mn : quartersMembersMinusC) {
+        try {
+            MnsUsedAtH.AddMN(mn);
+        } catch (std::runtime_error& e) {
+        }
+    }
+    for (const auto mn : quartersMembersMinus2C) {
+        try {
+            MnsUsedAtH.AddMN(mn);
+        } catch (std::runtime_error& e) {
+        }
+    }
+    for (const auto mn : quartersMembersMinus3C) {
+        try {
+            MnsUsedAtH.AddMN(mn);
+        } catch (std::runtime_error& e) {
+        }
+    }
+
+    Mns.ForEachMN(false, [&MnsUsedAtH, &MnsNotUsedAtH](const CDeterministicMNCPtr& dmn) {
+        if (!MnsUsedAtH.ContainsMN(dmn->proTxHash)) {
+            try {
+                MnsUsedAtH.AddMN(mn);
+            } catch (std::runtime_error& e) {
+            }
         }
     });
 
-    auto sortedDmnsNonUsedInAnyQuarter = DmnsNonUsedInAnyQuarter.CalculateQuorum(DmnsNonUsedInAnyQuarter.GetAllMNsCount(), modifier);
-    auto sortedDmnsUsedInPreviousQuarter = DmnsUsedInPreviousQuarter.CalculateQuorum(DmnsUsedInPreviousQuarter.GetAllMNsCount(), modifier);
+    auto sortedMnsUsedAtHM = MnsUsedAtH.CalculateQuorum(MnsUsedAtH.GetAllMNsCount(), modifier);
+    auto sortedMnsNotUsedAtH = MnsNotUsedAtH.CalculateQuorum(MnsNotUsedAtH.GetAllMNsCount(), modifier);
+    auto sortedCombinedMnsList = std::vector<CDeterministicMNCPtr>();
+    std::copy(sortedMnsNotUsedAtH.begin(),
+              sortedMnsNotUsedAtH.end(),
+              std::back_inserter(sortedCombinedMnsList));
+    std::copy(sortedMnsUsedAtHM.begin(),
+              sortedMnsUsedAtHM.end(),
+              std::back_inserter(sortedCombinedMnsList));
 
-    auto sortedCombinedDmnsList = std::vector<CDeterministicMNCPtr>();
-    std::copy(sortedDmnsNonUsedInAnyQuarter.begin(),
-              sortedDmnsNonUsedInAnyQuarter.end(),
-              std::back_inserter(sortedCombinedDmnsList));
-    std::copy(sortedDmnsUsedInPreviousQuarter.begin(),
-              sortedDmnsUsedInPreviousQuarter.end(),
-              std::back_inserter(sortedCombinedDmnsList));
+    CQuorumSnapshot quorumSnapshot = {};
 
-    //TODO Take QuarterSize entries from the list by skipping over entries that correspond to previous members for tha same index
+    CLLMQUtils::BuildQuorumSnapshot(llmqType, Mns, MnsUsedAtH, sortedCombinedMnsList, quarterQuorumMembers, quorumSnapshot);
 
-    return quorumMembers;
+    quorumSnapshotManager->StoreSnapshotForBlock(llmqType, pquorumBaseBlockIndex, quorumSnapshot);
+
+    return quarterQuorumMembers;
 }
 
-std::vector<CDeterministicMNCPtr> CLLMQUtils::GetPreviousQuorumQuarterMembers(Consensus::LLMQType llmqType, const uint256& cycleBlockHash, const std::vector<bool>& activeCycleQM)
+std::vector<CDeterministicMNCPtr> CLLMQUtils::GetQuorumQuarterMembersBySnapshot(Consensus::LLMQType llmqType, const CBlockIndex* pquorumBaseBlockIndex, CQuorumSnapshot& snapshot)
 {
-    //TODO added cache for Quorum quarters
-    const CBlockIndex* pCyclelockindex = LookupBlockIndex(cycleBlockHash);
-    if (!pCyclelockindex) {
-        return {};
-    }
-
-    if (!IsQuorumTypeEnabled(llmqType, pCyclelockindex->pprev)) {
-        return {};
-    }
-
     std::vector<CDeterministicMNCPtr> quarterQuorumMembers;
 
-
-    auto modifier = ::SerializeHash(std::make_pair(llmqType, pCyclelockindex->GetBlockHash()));
-
-    auto CMns = deterministicMNManager->GetListForBlock(pCyclelockindex);
-
-    //TODO handle Skiplist Mode 1 and/or 2
-
-    auto DmnsNonUsedAtH = CDeterministicMNList();
-    auto DmnsUsedAtH = CDeterministicMNList();
+    auto modifier = ::SerializeHash(std::make_pair(llmqType, pquorumBaseBlockIndex->GetBlockHash()));
+    auto Mns = deterministicMNManager->GetListForBlock(pquorumBaseBlockIndex);
+    auto quarterSize = GetLLMQParams(llmqType).size / 4;
+    auto MnsUsedAtH = CDeterministicMNList();
+    auto MnsNotUsedAtH = CDeterministicMNList();
 
     size_t index = {};
-    CMns.ForEachMN(false, [&index, &activeCycleQM, &DmnsNonUsedAtH, &DmnsUsedAtH](const CDeterministicMNCPtr& dmn) {
-        if (activeCycleQM.at(index)) {
-            DmnsNonUsedAtH.AddMN(dmn);
-        } else {
-            DmnsUsedAtH.AddMN(dmn);
+    Mns.ForEachMN(false, [&index, &snapshot, &MnsUsedAtH](const CDeterministicMNCPtr& dmn) {
+        if (snapshot.activeQuorumMembers.at(index)) {
+            try {
+                MnsUsedAtH.AddMN(mn);
+            } catch (std::runtime_error& e) {
+            }
+        }
+        index++;
+    });
+    Mns.ForEachMN(false, [&MnsNotUsedAtH, &MnsUsedAtH](const CDeterministicMNCPtr& dmn) {
+        if (!MnsUsedAtH.ContainsMN(dmn->proTxHash)) {
+            try {
+                MnsUsedAtH.AddMN(mn);
+            } catch (std::runtime_error& e) {
+            }
+        }
+    });
+
+    auto sortedMnsUsedAtH = MnsUsedAtH.CalculateQuorum(Mns.GetAllMNsCount(), modifier);
+    auto sortedMnsNotUsedAtH = MnsNotUsedAtH.CalculateQuorum(Mns.GetAllMNsCount(), modifier);
+    auto sortedCombinedMnsList = std::vector<CDeterministicMNCPtr>();
+    std::copy(sortedMnsNotUsedAtH.begin(),
+              sortedMnsNotUsedAtH.end(),
+              std::back_inserter(sortedCombinedMnsList));
+    std::copy(sortedMnsUsedAtH.begin(),
+              sortedMnsUsedAtH.end(),
+              std::back_inserter(sortedCombinedMnsList));
+
+    //Mode 0: No skipping
+    if (snapshot.mnSkipListMode == 0) {
+        std::copy_n(sortedCombinedMnsList.begin(),
+                    quarterSize,
+                    std::back_inserter(quarterQuorumMembers));
+    }
+    //Mode 1: List holds entries to be skipped
+    else if (snapshot.mnSkipListMode == 1) {
+        std::set<uint256> mnProTxHashToRemove;
+        size_t first_entry_index = {};
+        for (const auto& s : snapshot.mnSkipList) {
+            if (first_entry_index == 0) {
+                first_entry_index = s;
+                mnProTxHashToRemove.insert(sortedCombinedMnsList.at(s)->proTxHash);
+            } else {
+                mnProTxHashToRemove.insert(sortedCombinedMnsList.at(first_entry_index + s)->proTxHash);
+            }
+        }
+        auto itm = std::stable_partition(sortedCombinedMnsList.begin(),
+                                         sortedCombinedMnsList.end(),
+                                         [&mnProTxHashToRemove](const CDeterministicMNCPtr& dmn) {
+                                             return mnProTxHashToRemove.find(dmn->proTxHash) == mnProTxHashToRemove.end();
+                                         });
+        sortedCombinedMnsList.erase(itm, sortedCombinedMnsList.end());
+        std::copy_n(sortedCombinedMnsList.begin(),
+                    quarterSize,
+                    std::back_inserter(quarterQuorumMembers));
+    }
+    //Mode 2: List holds entries to be kept
+    else if (snapshot.mnSkipListMode == 2) {
+        std::set<uint256> mnProTxHashToKeep;
+        size_t first_entry_index = {};
+        for (const auto& s : snapshot.mnSkipList) {
+            if (first_entry_index == 0) {
+                first_entry_index = s;
+                mnProTxHashToKeep.insert(sortedCombinedMnsList.at(s)->proTxHash);
+            } else {
+                mnProTxHashToKeep.insert(sortedCombinedMnsList.at(first_entry_index + s)->proTxHash);
+            }
+        }
+        auto itm = std::stable_partition(sortedCombinedMnsList.begin(),
+                                         sortedCombinedMnsList.end(),
+                                         [&mnProTxHashToKeep](const CDeterministicMNCPtr& dmn) {
+                                             return mnProTxHashToKeep.find(dmn->proTxHash) != mnProTxHashToKeep.end();
+                                         });
+        sortedCombinedMnsList.erase(itm, sortedCombinedMnsList.end());
+        std::copy_n(sortedCombinedMnsList.begin(),
+                    quarterSize,
+                    std::back_inserter(quarterQuorumMembers));
+    }
+    //Mode 3: Every node was skipped. Returning empty quarterQuorumMembers
+
+    return quarterQuorumMembers;
+}
+
+void CLLMQUtils::BuildQuorumSnapshot(Consensus::LLMQType llmqType, const CDeterministicMNList& mnAtH, const CDeterministicMNList& mnUsedAtH, const std::vector<CDeterministicMNCPtr>& sortedCombinedMns, std::vector<CDeterministicMNCPtr>& quarterMembers, CQuorumSnapshot& quorumSnapshot)
+{
+    quorumSnapshot.activeQuorumMembers.resize(mnAtH.GetAllMNsCount());
+    std::fill(quorumSnapshot.activeQuorumMembers.begin(),
+              quorumSnapshot.activeQuorumMembers.end(),
+              false);
+    size_t index = {};
+    mnAtH.ForEachMN(false, [&index, &quorumSnapshot, &mnUsedAtH](const CDeterministicMNCPtr& dmn) {
+        if (mnUsedAtH.ContainsMN(dmn->proTxHash)) {
+            quorumSnapshot.activeQuorumMembers.at(index) = true;
         }
         index++;
     });
 
-    quarterQuorumMembers = DmnsNonUsedAtH.CalculateQuorum(GetLLMQParams(llmqType).size / 4, modifier);
+    CLLMQUtils::BuildQuorumSnapshotSkipList(llmqType, mnUsedAtH, sortedCombinedMns, quarterMembers, quorumSnapshot);
+}
 
-    return quarterQuorumMembers;
+void CLLMQUtils::BuildQuorumSnapshotSkipList(Consensus::LLMQType llmqType, const CDeterministicMNList& mnUsedAtH, const std::vector<CDeterministicMNCPtr>& sortedCombinedMns, std::vector<CDeterministicMNCPtr>& quarterMembers, CQuorumSnapshot& quorumSnapshot)
+{
+    auto quarterSize = GetLLMQParams(llmqType).size / 4;
+
+    quarterMembers.clear();
+
+    size_t nMnsUsed = std::count_if(sortedCombinedMns.begin(),
+                                    sortedCombinedMns.end(),
+                                    [&mnUsedAtH](const CDeterministicMNCPtr& dmn) {
+                                        return mnUsedAtH.ContainsMN(dmn->proTxHash);
+                                    });
+
+    if (nMnsUsed == 0) {
+        //Mode 0: No skipping
+        quorumSnapshot.mnSkipListMode = 0;
+        quorumSnapshot.mnSkipList.clear();
+
+        std::copy_n(sortedCombinedMns.begin(),
+                    quarterSize,
+                    std::back_inserter(quarterMembers));
+    } else if (nMnsUsed < sortedCombinedMns.size() / 2) {
+        //Mode 1: Skipping entries
+        quorumSnapshot.mnSkipListMode = 1;
+
+        size_t first_entry_index = {};
+        size_t i = {};
+        while (quarterMembers.size() < quarterSize && i < sortedCombinedMns.size()) {
+            if (mnUsedAtH.ContainsMN(sortedCombinedMns.at(i)->proTxHash)) {
+                if (first_entry_index == 0) {
+                    first_entry_index = i;
+                    quorumSnapshot.mnSkipList.push_back(i);
+                } else {
+                    quorumSnapshot.mnSkipList.push_back(first_entry_index - i);
+                }
+            } else {
+                quarterMembers.push_back(sortedCombinedMns.at(i));
+            }
+            i++;
+        }
+    } else {
+        //Mode 2: Non-Skipping entries
+        quorumSnapshot.mnSkipListMode = 2;
+
+        size_t first_entry_index = {};
+        size_t i = {};
+        while (quarterMembers.size() < quarterSize && i < sortedCombinedMns.size()) {
+            if (!mnUsedAtH.ContainsMN(sortedCombinedMns.at(i)->proTxHash)) {
+                if (first_entry_index == 0) {
+                    first_entry_index = i;
+                    quorumSnapshot.mnSkipList.push_back(i);
+                } else {
+                    quorumSnapshot.mnSkipList.push_back(first_entry_index - i);
+                }
+            } else {
+                quarterMembers.push_back(sortedCombinedMns.at(i));
+            }
+            i++;
+        }
+    }
+
+    //Not enough quorums selected to form the new quarter...
+    if (quarterMembers.size() < quarterSize) {
+        quorumSnapshot.mnSkipListMode = 3;
+        quarterMembers.clear();
+    }
 }
 
 uint256 CLLMQUtils::BuildCommitmentHash(Consensus::LLMQType llmqType, const uint256& blockHash, const std::vector<bool>& validMembers, const CBLSPublicKey& pubKey, const uint256& vvecHash)
@@ -206,10 +423,10 @@ uint256 CLLMQUtils::DeterministicOutboundConnection(const uint256& proTxHash1, c
     return proTxHash2;
 }
 
-std::set<uint256> CLLMQUtils::GetQuorumConnections(const Consensus::LLMQParams& llmqParams, const CBlockIndex* pQuorumBaseBlockIndex, const uint256& forMember, bool onlyOutbound)
+std::set<uint256> CLLMQUtils::GetQuorumConnections(Consensus::LLMQType llmqType, const CBlockIndex* pquorumBaseBlockIndex, const uint256& forMember, bool onlyOutbound)
 {
-    if (IsAllMembersConnectedEnabled(llmqParams.type)) {
-        auto mns = GetAllQuorumMembers(llmqParams, pQuorumBaseBlockIndex);
+    if (IsAllMembersConnectedEnabled(llmqType)) {
+        auto mns = GetAllQuorumMembers(llmqType, pquorumBaseBlockIndex);
         std::set<uint256> result;
 
         for (const auto& dmn : mns) {
@@ -226,13 +443,13 @@ std::set<uint256> CLLMQUtils::GetQuorumConnections(const Consensus::LLMQParams& 
         }
         return result;
     } else {
-        return GetQuorumRelayMembers(llmqParams, pQuorumBaseBlockIndex, forMember, onlyOutbound);
+        return GetQuorumRelayMembers(llmqType, pquorumBaseBlockIndex, forMember, onlyOutbound);
     }
 }
 
-std::set<uint256> CLLMQUtils::GetQuorumRelayMembers(const Consensus::LLMQParams& llmqParams, const CBlockIndex *pQuorumBaseBlockIndex, const uint256 &forMember, bool onlyOutbound)
+std::set<uint256> CLLMQUtils::GetQuorumRelayMembers(Consensus::LLMQType llmqType, const CBlockIndex* pquorumBaseBlockIndex, const uint256& forMember, bool onlyOutbound)
 {
-    auto mns = GetAllQuorumMembers(llmqParams, pQuorumBaseBlockIndex);
+    auto mns = GetAllQuorumMembers(llmqType, pquorumBaseBlockIndex);
     std::set<uint256> result;
 
     auto calcOutbound = [&](size_t i, const uint256& proTxHash) {
@@ -286,13 +503,13 @@ std::set<size_t> CLLMQUtils::CalcDeterministicWatchConnections(Consensus::LLMQTy
     std::set<size_t> result;
     uint256 rnd = qwatchConnectionSeed;
     for (size_t i = 0; i < connectionCount; i++) {
-        rnd = ::SerializeHash(std::make_pair(rnd, std::make_pair(llmqType, pQuorumBaseBlockIndex->GetBlockHash())));
+        rnd = ::SerializeHash(std::make_pair(rnd, std::make_pair(llmqType, pquorumBaseBlockIndex->GetBlockHash())));
         result.emplace(rnd.GetUint64(0) % memberCount);
     }
     return result;
 }
 
-bool CLLMQUtils::EnsureQuorumConnections(const Consensus::LLMQParams& llmqParams, const CBlockIndex* pQuorumBaseBlockIndex, const uint256& myProTxHash)
+bool CLLMQUtils::EnsureQuorumConnections(Consensus::LLMQType llmqType, const CBlockIndex* pquorumBaseBlockIndex, const uint256& myProTxHash)
 {
     auto members = GetAllQuorumMembers(llmqParams, pQuorumBaseBlockIndex);
     bool isMember = std::find_if(members.begin(), members.end(), [&](const auto& dmn) { return dmn->proTxHash == myProTxHash; }) != members.end();
@@ -304,19 +521,19 @@ bool CLLMQUtils::EnsureQuorumConnections(const Consensus::LLMQParams& llmqParams
     std::set<uint256> connections;
     std::set<uint256> relayMembers;
     if (isMember) {
-        connections = CLLMQUtils::GetQuorumConnections(llmqParams, pQuorumBaseBlockIndex, myProTxHash, true);
-        relayMembers = CLLMQUtils::GetQuorumRelayMembers(llmqParams, pQuorumBaseBlockIndex, myProTxHash, true);
+        connections = CLLMQUtils::GetQuorumConnections(llmqType, pquorumBaseBlockIndex, myProTxHash, true);
+        relayMembers = CLLMQUtils::GetQuorumRelayMembers(llmqType, pquorumBaseBlockIndex, myProTxHash, true);
     } else {
-        auto cindexes = CLLMQUtils::CalcDeterministicWatchConnections(llmqParams.type, pQuorumBaseBlockIndex, members.size(), 1);
+        auto cindexes = CLLMQUtils::CalcDeterministicWatchConnections(llmqType, pquorumBaseBlockIndex, members.size(), 1);
         for (auto idx : cindexes) {
             connections.emplace(members[idx]->proTxHash);
         }
         relayMembers = connections;
     }
     if (!connections.empty()) {
-        if (!g_connman->HasMasternodeQuorumNodes(llmqParams.type, pQuorumBaseBlockIndex->GetBlockHash()) && LogAcceptCategory(BCLog::LLMQ)) {
+        if (!g_connman->HasMasternodeQuorumNodes(llmqType, pquorumBaseBlockIndex->GetBlockHash()) && LogAcceptCategory(BCLog::LLMQ)) {
             auto mnList = deterministicMNManager->GetListAtChainTip();
-            std::string debugMsg = strprintf("CLLMQUtils::%s -- adding masternodes quorum connections for quorum %s:\n", __func__, pQuorumBaseBlockIndex->GetBlockHash().ToString());
+            std::string debugMsg = strprintf("CLLMQUtils::%s -- adding masternodes quorum connections for quorum %s:\n", __func__, pquorumBaseBlockIndex->GetBlockHash().ToString());
             for (auto& c : connections) {
                 auto dmn = mnList.GetValidMN(c);
                 if (!dmn) {
