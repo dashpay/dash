@@ -4,8 +4,9 @@
 
 #include <llmq/utils.h>
 
-#include <llmq/quorums.h>
 #include <llmq/commitment.h>
+#include <llmq/quorums.h>
+#include <llmq/snapshot.h>
 
 #include <bls/bls.h>
 #include <chainparams.h>
