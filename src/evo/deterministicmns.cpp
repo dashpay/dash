@@ -1504,22 +1504,7 @@ bool CheckProUpRevTx(const CTransaction& tx, const CBlockIndex* pindexPrev, CVal
 }
 //end
 
-CDeterministicMNManager::CDeterministicMNManager(CEvoDB& _evoDb) :
-        evoDb(_evoDb),
-        scheduler(std::make_unique<CScheduler>())
-{
-    CScheduler::Function serviceLoop = std::bind(&CScheduler::serviceQueue, scheduler.get());
-    scheduler_thread = std::make_unique<std::thread>(std::bind(&TraceThread<CScheduler::Function>, "dmn-schdlr", serviceLoop));
-    scheduler->scheduleEvery([&](){ Cleanup(); }, 10000);
-}
-
-CDeterministicMNManager::~CDeterministicMNManager()
-{
-    scheduler->stop();
-    scheduler_thread->join();
-}
-
-void CDeterministicMNManager::Cleanup() {
+void CDeterministicMNManager::DoMaintenance() {
     LOCK(cs_cleanup);
     int loc_to_cleanup = to_cleanup.load();
     if (loc_to_cleanup <= did_cleanup) return;

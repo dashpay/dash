@@ -519,9 +519,6 @@ public:
     CCriticalSection cs;
 
 private:
-    std::unique_ptr<CScheduler> scheduler;
-    std::unique_ptr<std::thread> scheduler_thread;
-
     Mutex cs_cleanup;
     // We have performed CleanupCache() on this height.
     int did_cleanup GUARDED_BY(cs_cleanup) {0};
@@ -536,8 +533,8 @@ private:
     const CBlockIndex* tipIndex GUARDED_BY(cs) {nullptr};
 
 public:
-    explicit CDeterministicMNManager(CEvoDB& _evoDb);
-    ~CDeterministicMNManager();
+    explicit CDeterministicMNManager(CEvoDB& _evoDb) : evoDb(_evoDb) {}
+    ~CDeterministicMNManager() = default;
 
     bool ProcessBlock(const CBlock& block, const CBlockIndex* pindex, CValidationState& state,
                       const CCoinsViewCache& view, bool fJustCheck) EXCLUSIVE_LOCKS_REQUIRED(cs_main);
@@ -563,8 +560,9 @@ public:
     void UpgradeDiff(CDBBatch& batch, const CBlockIndex* pindexNext, const CDeterministicMNList& curMNList, CDeterministicMNList& newMNList);
     bool UpgradeDBIfNeeded();
 
+    void DoMaintenance();
+
 private:
-    void Cleanup();
     void CleanupCache(int nHeight) EXCLUSIVE_LOCKS_REQUIRED(cs);
 };
 
