@@ -39,7 +39,7 @@ public:
     template<typename Stream>
     inline void SerializeWithoutSig(Stream& s) const
     {
-        s << llmqType;
+        s << static_cast<uint8_t>(llmqType);
         s << quorumHash;
         s << proTxHash;
         s << *vvec;
