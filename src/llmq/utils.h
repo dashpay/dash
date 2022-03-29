@@ -91,7 +91,7 @@ public:
 
     static bool IsQuorumRotationEnabled(Consensus::LLMQType llmqType, const CBlockIndex* pindex);
     static Consensus::LLMQType GetInstantSendLLMQType(const CBlockIndex* pindex);
-    static bool ShouldISLockBeDeterministic(const CBlockIndex* pindex);
+    static bool IsDIP0024Active(const CBlockIndex* pindex);
 
     /// Returns the state of `-llmq-data-recovery`
     static bool QuorumDataRecoveryEnabled();

@@ -28,8 +28,10 @@ CDKGSessionManager::CDKGSessionManager(CBLSWorker& _blsWorker, bool unitTests, b
 {
     MigrateDKG();
 
-    for (const auto& params : Params().GetConsensus().llmqs) {
-        for (int i = 0; i < params.signingActiveQuorumCount; ++i) {
+    const Consensus::Params& consensus_params = Params().GetConsensus();
+    for (const auto& params : consensus_params.llmqs) {
+        auto session_count = (params.type == consensus_params.llmqTypeDIP0024InstantSend) ? params.signingActiveQuorumCount : 1;
+        for (int i = 0; i < session_count; ++i) {
             dkgSessionHandlers.emplace(std::piecewise_construct,
                                        std::forward_as_tuple(params.type, i),
                                        std::forward_as_tuple(params, blsWorker, *this, i));

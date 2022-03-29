@@ -109,7 +109,6 @@ bool CDKGSession::Init(const CBlockIndex* _pQuorumBaseBlockIndex, const std::vec
         LogPrintf("DKGComposition h[%d] i[%d] DKG:%s\n", pCycleQuorumBaseBlockIndex->nHeight, quorumIndex, ss.str());
     }
 
-
     if (mns.size() < size_t(params.minSize)) {
         logger.Batch("not enough members (%d < %d), aborting init", mns.size(), params.minSize);
         return false;
@@ -1225,7 +1224,6 @@ std::vector<CFinalCommitment> CDKGSession::FinalizeCommitments()
         } else {
             fqc.quorumIndex = 0;
         }
-
 
         uint256 commitmentHash = CLLMQUtils::BuildCommitmentHash(fqc.llmqType, fqc.quorumHash, fqc.validMembers, fqc.quorumPublicKey, fqc.quorumVvecHash);
 

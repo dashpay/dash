@@ -324,6 +324,7 @@ CQuorumPtr CQuorumManager::BuildQuorumFromCommitment(const Consensus::LLMQType l
         StartCachePopulatorThread(quorum);
     }
     mapQuorumsCache[llmqType].insert(quorumHash, quorum);
+
     return quorum;
 }
 

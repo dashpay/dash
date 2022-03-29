@@ -401,7 +401,7 @@ bool CQuorumBlockProcessor::GetCommitmentsFromBlock(const CBlock& block, const C
         }
     }
 
-    if (bool fDIP0003Active = pindex->nHeight >= consensus.DIP0003Height; !fDIP0003Active && !ret.empty()) {
+    if (pindex->nHeight < consensus.DIP0003Height && !ret.empty()) {
         return state.DoS(100, false, REJECT_INVALID, "bad-qc-premature");
     }
 
@@ -412,7 +412,7 @@ bool CQuorumBlockProcessor::IsMiningPhase(const Consensus::LLMQParams& llmqParam
 {
     AssertLockHeld(cs_main);
 
-    // Note: This function can called for new blocks
+    // Note: This function can be called for new blocks
     assert(nHeight <= ::ChainActive().Height() + 1);
     const auto pindex = ::ChainActive().Height() < nHeight ? ::ChainActive().Tip() : ::ChainActive().Tip()->GetAncestor(nHeight);
 
@@ -442,7 +442,7 @@ bool CQuorumBlockProcessor::IsCommitmentRequired(const Consensus::LLMQParams& ll
     if (!IsMiningPhase(llmqParams, nHeight))
         return false;
 
-    // Note: This function can called for new blocks
+    // Note: This function can be called for new blocks
     assert(nHeight <= ::ChainActive().Height() + 1);
     const auto pindex = ::ChainActive().Height() < nHeight ? ::ChainActive().Tip() : ::ChainActive().Tip()->GetAncestor(nHeight);
 
@@ -725,7 +725,7 @@ std::optional<std::vector<CFinalCommitment>> CQuorumBlockProcessor::GetMineableC
         return std::nullopt;
     }
 
-    // Note: This function can called for new blocks
+    // Note: This function can be called for new blocks
     assert(nHeight <= ::ChainActive().Height() + 1);
     const auto pindex = ::ChainActive().Height() < nHeight ? ::ChainActive().Tip() : ::ChainActive().Tip()->GetAncestor(nHeight);
 
@@ -763,10 +763,11 @@ std::optional<std::vector<CFinalCommitment>> CQuorumBlockProcessor::GetMineableC
 
     LogPrintf("GetMineableCommitments cf height[%d] content: %s\n", nHeight, ss.str());
 
-    if (ret.empty())
+    if (ret.empty()) {
         return std::nullopt;
-    else
+    } else {
         return std::make_optional(ret);
+    }
 }
 
 bool CQuorumBlockProcessor::GetMineableCommitmentsTx(const Consensus::LLMQParams& llmqParams, int nHeight, std::vector<CTransactionRef>& ret) const

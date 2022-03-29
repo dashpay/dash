@@ -134,6 +134,8 @@ using CQuorumCPtr = std::shared_ptr<const CQuorum>;
 
 class CFinalCommitment;
 using CFinalCommitmentPtr = std::unique_ptr<CFinalCommitment>;
+
+
 class CQuorum
 {
     friend class CQuorumManager;

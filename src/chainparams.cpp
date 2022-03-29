@@ -305,7 +305,7 @@ public:
         AddLLMQ(Consensus::LLMQType::LLMQ_100_67);
         consensus.llmqTypeChainLocks = Consensus::LLMQType::LLMQ_400_60;
         consensus.llmqTypeInstantSend = Consensus::LLMQType::LLMQ_50_60;
-        consensus.llmqTypeDIP24InstantSend = Consensus::LLMQType::LLMQ_60_75;
+        consensus.llmqTypeDIP0024InstantSend = Consensus::LLMQType::LLMQ_60_75;
         consensus.llmqTypePlatform = Consensus::LLMQType::LLMQ_100_67;
         consensus.llmqTypeMnhf = Consensus::LLMQType::LLMQ_400_85;
 
@@ -521,7 +521,7 @@ public:
         AddLLMQ(Consensus::LLMQType::LLMQ_100_67);
         consensus.llmqTypeChainLocks = Consensus::LLMQType::LLMQ_50_60;
         consensus.llmqTypeInstantSend = Consensus::LLMQType::LLMQ_50_60;
-        consensus.llmqTypeDIP24InstantSend = Consensus::LLMQType::LLMQ_60_75;
+        consensus.llmqTypeDIP0024InstantSend = Consensus::LLMQType::LLMQ_60_75;
         consensus.llmqTypePlatform = Consensus::LLMQType::LLMQ_100_67;
         consensus.llmqTypeMnhf = Consensus::LLMQType::LLMQ_50_60;
 
@@ -717,13 +717,13 @@ public:
         AddLLMQ(Consensus::LLMQType::LLMQ_DEVNET);
         consensus.llmqTypeChainLocks = Consensus::LLMQType::LLMQ_50_60;
         consensus.llmqTypeInstantSend = Consensus::LLMQType::LLMQ_50_60;
-        consensus.llmqTypeDIP24InstantSend = Consensus::LLMQType::LLMQ_60_75;
+        consensus.llmqTypeDIP0024InstantSend = Consensus::LLMQType::LLMQ_60_75;
         consensus.llmqTypePlatform = Consensus::LLMQType::LLMQ_100_67;
         consensus.llmqTypeMnhf = Consensus::LLMQType::LLMQ_50_60;
 
         UpdateDevnetLLMQChainLocksFromArgs(args);
         UpdateDevnetLLMQInstantSendFromArgs(args);
-        UpdateDevnetLLMQInstantSendDIP24FromArgs(args);
+        UpdateDevnetLLMQInstantSendDIP0024FromArgs(args);
         UpdateLLMQDevnetParametersFromArgs(args);
         UpdateDevnetPowTargetSpacingFromArgs(args);
 
@@ -787,11 +787,11 @@ public:
     }
 
     /**
-     * Allows modifying the LLMQ type for InstantSend (DIP24).
+     * Allows modifying the LLMQ type for InstantSend (DIP0024).
      */
-    void UpdateDevnetLLMQDIP24InstantSend(Consensus::LLMQType llmqType)
+    void UpdateDevnetLLMQDIP0024InstantSend(Consensus::LLMQType llmqType)
     {
-        consensus.llmqTypeDIP24InstantSend = llmqType;
+        consensus.llmqTypeDIP0024InstantSend = llmqType;
     }
 
     /**
@@ -816,7 +816,7 @@ public:
     }
     void UpdateLLMQDevnetParametersFromArgs(const ArgsManager& args);
     void UpdateDevnetLLMQInstantSendFromArgs(const ArgsManager& args);
-    void UpdateDevnetLLMQInstantSendDIP24FromArgs(const ArgsManager& args);
+    void UpdateDevnetLLMQInstantSendDIP0024FromArgs(const ArgsManager& args);
     void UpdateDevnetPowTargetSpacingFromArgs(const ArgsManager& args);
 };
 
@@ -979,14 +979,13 @@ public:
         // long living quorum params
         AddLLMQ(Consensus::LLMQType::LLMQ_TEST);
         AddLLMQ(Consensus::LLMQType::LLMQ_TEST_V17);
-        AddLLMQ(Consensus::LLMQType::LLMQ_TEST_2);
+        AddLLMQ(Consensus::LLMQType::LLMQ_TEST_DIP0024);
         consensus.llmqTypeChainLocks = Consensus::LLMQType::LLMQ_TEST;
         consensus.llmqTypeInstantSend = Consensus::LLMQType::LLMQ_TEST;
-        consensus.llmqTypeDIP24InstantSend = Consensus::LLMQType::LLMQ_TEST;
+        consensus.llmqTypeDIP0024InstantSend = Consensus::LLMQType::LLMQ_TEST_DIP0024;
         consensus.llmqTypePlatform = Consensus::LLMQType::LLMQ_TEST;
         consensus.llmqTypeMnhf = Consensus::LLMQType::LLMQ_TEST;
 
-        UpdateLLMQInstantSendDIP24FromArgs(args);
         UpdateLLMQTestParametersFromArgs(args);
     }
 
@@ -1021,16 +1020,6 @@ public:
         consensus.DIP0003EnforcementHeight = nEnforcementHeight;
     }
     void UpdateDIP3ParametersFromArgs(const ArgsManager& args);
-
-    /**
-    * Allows modifying the LLMQ type for InstantSend (DIP24).
-    */
-    void UpdateLLMQDIP24InstantSend(Consensus::LLMQType llmqType)
-    {
-        consensus.llmqTypeDIP24InstantSend = llmqType;
-    }
-
-    void UpdateLLMQInstantSendDIP24FromArgs(const ArgsManager& args);
 
     /**
      * Allows modifying the DIP8 activation height
@@ -1203,25 +1192,6 @@ void CRegTestParams::UpdateLLMQTestParametersFromArgs(const ArgsManager& args)
     UpdateLLMQTestParameters(size, threshold);
 }
 
-void CRegTestParams::UpdateLLMQInstantSendDIP24FromArgs(const ArgsManager& args)
-{
-    if (!args.IsArgSet("-llmqinstantsenddip24")) return;
-
-    std::string strLLMQType = gArgs.GetArg("-llmqinstantsenddip24", std::string(GetLLMQ(consensus.llmqTypeDIP24InstantSend).name));
-
-    Consensus::LLMQType llmqType = Consensus::LLMQType::LLMQ_NONE;
-    for (const auto& params : consensus.llmqs) {
-        if (params.name == strLLMQType) {
-            llmqType = params.type;
-        }
-    }
-    if (llmqType == Consensus::LLMQType::LLMQ_NONE) {
-        throw std::runtime_error("Invalid LLMQ type specified for -llmqinstantsenddip24.");
-    }
-    LogPrintf("Setting llmqinstantsenddip24 to size=%ld\n", static_cast<uint8_t>(llmqType));
-    UpdateLLMQDIP24InstantSend(llmqType);
-}
-
 void CDevNetParams::UpdateDevnetSubsidyAndDiffParametersFromArgs(const ArgsManager& args)
 {
     if (!args.IsArgSet("-minimumdifficultyblocks") && !args.IsArgSet("-highsubsidyblocks") && !args.IsArgSet("-highsubsidyfactor")) return;
@@ -1252,25 +1222,6 @@ void CDevNetParams::UpdateDevnetLLMQChainLocksFromArgs(const ArgsManager& args)
     UpdateDevnetLLMQChainLocks(llmqType);
 }
 
-void CDevNetParams::UpdateDevnetLLMQInstantSendFromArgs(const ArgsManager& args)
-{
-    if (!args.IsArgSet("-llmqinstantsend")) return;
-
-    std::string strLLMQType = gArgs.GetArg("-llmqinstantsend", std::string(GetLLMQ(consensus.llmqTypeInstantSend).name));
-
-    Consensus::LLMQType llmqType = Consensus::LLMQType::LLMQ_NONE;
-    for (const auto& params : consensus.llmqs) {
-        if (params.name == strLLMQType) {
-            llmqType = params.type;
-        }
-    }
-    if (llmqType == Consensus::LLMQType::LLMQ_NONE) {
-        throw std::runtime_error("Invalid LLMQ type specified for -llmqinstantsend.");
-    }
-    LogPrintf("Setting llmqinstantsend to size=%ld\n", static_cast<uint8_t>(llmqType));
-    UpdateDevnetLLMQInstantSend(llmqType);
-}
-
 void CDevNetParams::UpdateDevnetPowTargetSpacingFromArgs(const ArgsManager& args)
 {
     if (!args.IsArgSet("-powtargetspacing")) return;
@@ -1290,11 +1241,11 @@ void CDevNetParams::UpdateDevnetPowTargetSpacingFromArgs(const ArgsManager& args
     UpdateDevnetPowTargetSpacing(powTargetSpacing);
 }
 
-void CDevNetParams::UpdateDevnetLLMQInstantSendDIP24FromArgs(const ArgsManager& args)
+void CDevNetParams::UpdateDevnetLLMQInstantSendFromArgs(const ArgsManager& args)
 {
-    if (!args.IsArgSet("-llmqinstantsenddip24")) return;
+    if (!args.IsArgSet("-llmqinstantsend")) return;
 
-    std::string strLLMQType = gArgs.GetArg("-llmqinstantsenddip24", std::string(GetLLMQ(consensus.llmqTypeDIP24InstantSend).name));
+    std::string strLLMQType = gArgs.GetArg("-llmqinstantsend", std::string(GetLLMQ(consensus.llmqTypeInstantSend).name));
 
     Consensus::LLMQType llmqType = Consensus::LLMQType::LLMQ_NONE;
     for (const auto& params : consensus.llmqs) {
@@ -1303,10 +1254,29 @@ void CDevNetParams::UpdateDevnetLLMQInstantSendDIP24FromArgs(const ArgsManager& 
         }
     }
     if (llmqType == Consensus::LLMQType::LLMQ_NONE) {
-        throw std::runtime_error("Invalid LLMQ type specified for -llmqinstantsenddip24.");
+        throw std::runtime_error("Invalid LLMQ type specified for -llmqinstantsend.");
     }
-    LogPrintf("Setting llmqinstantsenddip24 to size=%ld\n", static_cast<uint8_t>(llmqType));
-    UpdateDevnetLLMQDIP24InstantSend(llmqType);
+    LogPrintf("Setting llmqinstantsend to size=%ld\n", static_cast<uint8_t>(llmqType));
+    UpdateDevnetLLMQInstantSend(llmqType);
+}
+
+void CDevNetParams::UpdateDevnetLLMQInstantSendDIP0024FromArgs(const ArgsManager& args)
+{
+    if (!args.IsArgSet("-llmqinstantsenddip0024")) return;
+
+    std::string strLLMQType = gArgs.GetArg("-llmqinstantsenddip0024", std::string(GetLLMQ(consensus.llmqTypeDIP0024InstantSend).name));
+
+    Consensus::LLMQType llmqType = Consensus::LLMQType::LLMQ_NONE;
+    for (const auto& params : consensus.llmqs) {
+        if (params.name == strLLMQType) {
+            llmqType = params.type;
+        }
+    }
+    if (llmqType == Consensus::LLMQType::LLMQ_NONE) {
+        throw std::runtime_error("Invalid LLMQ type specified for -llmqinstantsenddip0024.");
+    }
+    LogPrintf("Setting llmqinstantsenddip0024 to size=%ld\n", static_cast<uint8_t>(llmqType));
+    UpdateDevnetLLMQDIP0024InstantSend(llmqType);
 }
 
 void CDevNetParams::UpdateLLMQDevnetParametersFromArgs(const ArgsManager& args)
