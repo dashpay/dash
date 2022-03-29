@@ -27,6 +27,7 @@ std::unique_ptr<CQuorumSnapshotManager> quorumSnapshotManager;
 
 void CQuorumSnapshot::ToJson(UniValue& obj) const
 {
+    //TODO Check this function if correct
     obj.setObject();
     UniValue activeQ(UniValue::VARR);
     for (const auto& h : activeQuorumMembers) {
@@ -43,6 +44,7 @@ void CQuorumSnapshot::ToJson(UniValue& obj) const
 
 void CQuorumRotationInfo::ToJson(UniValue& obj) const
 {
+    //TODO Check this function if correct
     obj.setObject();
     obj.pushKV("creationHeight", creationHeight);
     CDataStream ss(SER_NETWORK, PROTOCOL_VERSION);

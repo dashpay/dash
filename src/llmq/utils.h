@@ -16,6 +16,7 @@
 
 class CBlockIndex;
 class CDeterministicMN;
+class CDeterministicMNList;
 class CQuorumSnapshot;
 using CDeterministicMNCPtr = std::shared_ptr<const CDeterministicMN>;
 class CBLSPublicKey;
@@ -40,10 +41,13 @@ class CLLMQUtils
 {
 public:
     // includes members which failed DKG
-    static std::vector<CDeterministicMNCPtr> GetAllQuorumMembers(Consensus::LLMQType llmqType, const CBlockIndex* pQuorumBaseBlockIndex);
-    static std::vector<CDeterministicMNCPtr> GetAllQuorumMembersByQuarterRotation(Consensus::LLMQType llmqType, const CBlockIndex* pindexQuorum);
+    static std::vector<CDeterministicMNCPtr> GetAllQuorumMembers(Consensus::LLMQType llmqType, const CBlockIndex* pquorumBaseBlockIndex);
+    static std::vector<CDeterministicMNCPtr> GetAllQuorumMembersByQuarterRotation(Consensus::LLMQType llmqType, const CBlockIndex* pquorumBaseBlockIndex);
+    static std::vector<CDeterministicMNCPtr> GetQuorumQuarterMembersBySnapshot(Consensus::LLMQType llmqType, const CBlockIndex* pquorumBaseBlockIndex, CQuorumSnapshot& snapshot);
+    static std::vector<CDeterministicMNCPtr> BuildNewQuorumQuarterMembers(Consensus::LLMQType llmqType, const CBlockIndex* pquorumBaseBlockIndex, const std::vector<CDeterministicMNCPtr>& quartersMembersMinusC, const std::vector<CDeterministicMNCPtr>& quartersMembersMinus2C, const std::vector<CDeterministicMNCPtr>& quartersMembersMinus3C);
 
-    static std::vector<CDeterministicMNCPtr> GetPreviousQuorumQuarterMembers(Consensus::LLMQType llmqType, const uint256& cycleBlockHash, const std::vector<bool>& activateCycleQM);
+    static void BuildQuorumSnapshot(Consensus::LLMQType llmqType, const CDeterministicMNList& mnAtH, const CDeterministicMNList& mnUsedAtH, const std::vector<CDeterministicMNCPtr>& sortedCombinedMns, std::vector<CDeterministicMNCPtr>& quarterMembers, CQuorumSnapshot& quorumSnapshot);
+    static void BuildQuorumSnapshotSkipList(Consensus::LLMQType llmqType, const CDeterministicMNList& mnUsedAtH, const std::vector<CDeterministicMNCPtr>& sortedCombinedMns, std::vector<CDeterministicMNCPtr>& quarterMembers, CQuorumSnapshot& quorumSnapshot);
 
     static uint256 BuildCommitmentHash(Consensus::LLMQType llmqType, const uint256& blockHash, const std::vector<bool>& validMembers, const CBLSPublicKey& pubKey, const uint256& vvecHash);
     static uint256 BuildSignHash(Consensus::LLMQType llmqType, const uint256& quorumHash, const uint256& id, const uint256& msgHash);
