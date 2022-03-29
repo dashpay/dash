@@ -72,12 +72,13 @@ public:
 class CGetQuorumRotationInfo
 {
 public:
-    int heightsNb;
-    std::vector<int> knownHeights;
+    uint32_t baseBlockHashesNb;
+    std::vector<uint256> baseBlockHashes;
+    uint256 blockRequestHash;
 
     SERIALIZE_METHODS(CGetQuorumRotationInfo, obj)
     {
-        READWRITE(obj.heightsNb, obj.knownHeights);
+        READWRITE(obj.baseBlockHashesNb, obj.baseBlockHashes, obj.blockRequestHash);
     }
 };
 
@@ -93,7 +94,6 @@ public:
     CQuorumSnapshot quorumSnaphotAtHMinus2C;
     CQuorumSnapshot quorumSnaphotAtHMinus3C;
     CSimplifiedMNListDiff mnListDiffTip;
-    CSimplifiedMNListDiff mnListDiffAtH;
     CSimplifiedMNListDiff mnListDiffAtHMinusC;
     CSimplifiedMNListDiff mnListDiffAtHMinus2C;
     CSimplifiedMNListDiff mnListDiffAtHMinus3C;
@@ -105,7 +105,6 @@ public:
                   obj.quorumSnaphotAtHMinus2C,
                   obj.quorumSnaphotAtHMinus3C,
                   obj.mnListDiffTip,
-                  obj.mnListDiffAtH,
                   obj.mnListDiffAtHMinusC,
                   obj.mnListDiffAtHMinus2C,
                   obj.mnListDiffAtHMinus3C);
@@ -118,6 +117,7 @@ public:
 };
 
 bool BuildQuorumRotationInfo(const CGetQuorumRotationInfo& request, CQuorumRotationInfo& quorumRotationInfoRet, std::string& errorRet);
+uint256 GetLastBaseBlockHash(const std::vector<const CBlockIndex*>& baseBlockIndexes, const CBlockIndex* blockIndex);
 
 class CQuorumSnapshotManager
 {
