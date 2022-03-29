@@ -2378,7 +2378,7 @@ bool static ValidateDSTX(CCoinJoinBroadcastTx dstx, uint256 hashTx, bool &bRetur
     CDeterministicMNCPtr dmn{nullptr};
     {
         LOCK(cs_main);
-        pindex = chainActive.Tip();
+        pindex = ::ChainActive().Tip();
     }
     // It could be that a MN is no longer in the list but its DSTX is not yet mined.
     // Try to find a MN up to 24 blocks deep to make sure such dstx-es are relayed and processed correctly.
@@ -3204,8 +3204,7 @@ bool static ProcessMessage(CNode* pfrom, const std::string& strCommand, CDataStr
            bool bDoReturn = false;
            uint256 hashTx = tx.GetHash();
            bool bRet = ValidateDSTX(dstx, hashTx, bDoReturn);
-           if (bDoReturn)
-           {
+           if (bDoReturn) {
                return bRet;
            }
         }
