@@ -4924,9 +4924,5 @@ public:
         mapOrphanTransactionsByPrev.clear();
         nMapOrphanTransactionsSize = 0;
     }
-<<<<<<< HEAD
 };
 static CNetProcessingCleanup instance_of_cnetprocessingcleanup;
-=======
-} instance_of_cnetprocessingcleanup;
->>>>>>> Add function to validate DSTX message
