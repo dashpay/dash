@@ -1508,7 +1508,6 @@ void CDeterministicMNManager::DoMaintenance() {
     LOCK(cs_cleanup);
     int loc_to_cleanup = to_cleanup.load();
     if (loc_to_cleanup <= did_cleanup) return;
-    const auto& params = Params().GetConsensus();
     LOCK(cs);
     CleanupCache(loc_to_cleanup);
     did_cleanup = loc_to_cleanup;
