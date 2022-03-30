@@ -3200,7 +3200,7 @@ bool static ProcessMessage(CNode* pfrom, const std::string& strCommand, CDataStr
         // Process custom logic, no matter if tx will be accepted to mempool later or not
         if (nInvType == MSG_DSTX) {
 
-           // Validate DSTX and return bRet if we need to return from here            
+           // Validate DSTX and return bRet if we need to return from here
            bool bDoReturn = false;
            uint256 hashTx = tx.GetHash();
            bool bRet = ValidateDSTX(dstx, hashTx, bDoReturn);
