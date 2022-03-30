@@ -68,10 +68,10 @@ CDKGMember::CDKGMember(const CDeterministicMNCPtr& _dmn, size_t _idx) :
 
 }
 
-bool CDKGSession::Init(const CBlockIndex* _pQuorumBaseBlockIndex, const std::vector<CDeterministicMNCPtr>& mns, const uint256& _myProTxHash, uint32_t _quorumIndex)
+bool CDKGSession::Init(const CBlockIndex* _pQuorumBaseBlockIndex, const std::vector<CDeterministicMNCPtr>& mns, const uint256& _myProTxHash)
 {
     m_quorum_base_block_index = _pQuorumBaseBlockIndex;
-    quorumIndex = _quorumIndex;
+    quorumIndex = 0;
 
     members.resize(mns.size());
     memberIds.resize(members.size());
@@ -983,7 +983,7 @@ void CDKGSession::SendCommitment(CDKGPendingMessages& pendingMessages)
     if (CLLMQUtils::IsQuorumRotationEnabled(params.type)) {
         nVersion = CFinalCommitment::QUORUM_INDEXED_VERSION;
     }
-    uint256 commitmentHash = CLLMQUtils::BuildCommitmentHash(qc.llmqType, qc.quorumHash, qc.validMembers, qc.quorumPublicKey, qc.quorumVvecHash, nVersion, qc.quorumIndex);
+    uint256 commitmentHash = CLLMQUtils::BuildCommitmentHash(qc.llmqType, qc.quorumHash, qc.validMembers, qc.quorumPublicKey, qc.quorumVvecHash);
 
     if (lieType == 2) {
         (*commitmentHash.begin())++;
@@ -1140,7 +1140,7 @@ void CDKGSession::ReceiveMessage(const CDKGPrematureCommitment& qc, bool& retBan
         if (CLLMQUtils::IsQuorumRotationEnabled(params.type)) {
             nVersion = CFinalCommitment::QUORUM_INDEXED_VERSION;
         }
-        if (!qc.quorumSig.VerifyInsecure(pubKeyShare, qc.GetSignHash(nVersion))) {
+        if (!qc.quorumSig.VerifyInsecure(pubKeyShare, qc.GetSignHash())) {
             logger.Batch("failed to verify quorumSig");
             return;
         }
@@ -1218,7 +1218,7 @@ std::vector<CFinalCommitment> CDKGSession::FinalizeCommitments()
         fqc.quorumPublicKey = first.quorumPublicKey;
         fqc.quorumVvecHash = first.quorumVvecHash;
 
-        uint256 commitmentHash = CLLMQUtils::BuildCommitmentHash(fqc.llmqType, fqc.quorumHash, fqc.validMembers, fqc.quorumPublicKey, fqc.quorumVvecHash, nVersion, quorumIndex);
+        uint256 commitmentHash = CLLMQUtils::BuildCommitmentHash(fqc.llmqType, fqc.quorumHash, fqc.validMembers, fqc.quorumPublicKey, fqc.quorumVvecHash);
 
         std::vector<CBLSSignature> aggSigs;
         std::vector<CBLSPublicKey> aggPks;

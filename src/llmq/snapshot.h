@@ -10,7 +10,19 @@
 #include <saltedhasher.h>
 #include <serialize.h>
 
+class CBlockIndex;
+class CDeterministicMN;
+class CDeterministicMNList;
+using CDeterministicMNCPtr = std::shared_ptr<const CDeterministicMN>;
+
 namespace llmq {
+
+enum SnapshotSkipMode : int {
+    MODE_NO_SKIPPING = 0,
+    MODE_SKIPPING_ENTRIES = 1,
+    MODE_NO_SKIPPING_ENTRIES = 2,
+    MODE_ALL_SKIPPED = 3
+};
 
 class CQuorumSnapshot
 {

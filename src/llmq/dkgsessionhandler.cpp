@@ -140,19 +140,8 @@ bool CDKGSessionHandler::InitNewQuorum(const CBlockIndex* pQuorumBaseBlockIndex)
         return false;
     }
 
-    std::vector<CDeterministicMNCPtr> mns = std::vector<CDeterministicMNCPtr>();
-    uint32_t quorumIndex = 0;
-    if (CLLMQUtils::IsQuorumRotationEnabled(params.type)) {
-        //Need to perform Quorum rotation for InstantSend LLMQ Type
-        auto iMns = CLLMQUtils::GetAllQuorumMembersByQuarterRotation(params.type, pQuorumBaseBlockIndex);
-        quorumIndex = iMns.first;
-        mns = std::move(iMns.second);
-    } else {
-        //In all other cases, no Quorum rotation needs to be performed
-        mns = CLLMQUtils::GetAllQuorumMembers(params.type, pQuorumBaseBlockIndex);
-    }
-
-    if (!curSession->Init(pQuorumBaseBlockIndex, mns, WITH_LOCK(activeMasternodeInfoCs, return activeMasternodeInfo.proTxHash), quorumIndex)) {
+    auto mns = CLLMQUtils::GetAllQuorumMembers(params.type, pQuorumBaseBlockIndex);
+    if (!curSession->Init(pQuorumBaseBlockIndex, mns, WITH_LOCK(activeMasternodeInfoCs, return activeMasternodeInfo.proTxHash))) {
         LogPrintf("CDKGSessionManager::%s -- quorum initialization failed for %s\n", __func__, curSession->params.name);
         return false;
     }

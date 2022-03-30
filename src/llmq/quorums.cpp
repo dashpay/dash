@@ -322,11 +322,11 @@ CQuorumPtr CQuorumManager::BuildQuorumFromCommitment(const Consensus::LLMQType l
         StartCachePopulatorThread(quorum);
     }
     if (CLLMQUtils::IsQuorumRotationEnabled(llmqType)) {
-        indexedQuorumsCache[llmqType].insert(std::make_pair(qc->quorumIndex, quorum));
-        mapQuorumsCache[llmqType].insert(quorumHash, quorum);
-    } else {
-        mapQuorumsCache[llmqType].insert(quorumHash, quorum);
+        uint32_t quorumIndex = GetNextQuorumIndex(llmqType);
+        qc->quorumIndex = quorumIndex;
+        indexedQuorumsCache[llmqType].insert(std::make_pair(quorumIndex, quorumHash));
     }
+    mapQuorumsCache[llmqType].insert(quorumHash, quorum);
 
     return quorum;
 }

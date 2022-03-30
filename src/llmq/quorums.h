@@ -135,9 +135,6 @@ using CQuorumCPtr = std::shared_ptr<const CQuorum>;
 
 class CFinalCommitment;
 using CFinalCommitmentPtr = std::unique_ptr<CFinalCommitment>;
-
-using CIndexedQuorum = std::pair<uint32_t, CQuorumCPtr>;
-
 class CQuorum
 {
     friend class CQuorumManager;
