@@ -102,6 +102,7 @@ static UniValue BuildQuorumInfo(const llmq::CQuorumCPtr& quorum, bool includeMem
     ret.pushKV("height", quorum->m_quorum_base_block_index->nHeight);
     ret.pushKV("type", std::string(quorum->params.name));
     ret.pushKV("quorumHash", quorum->qc->quorumHash.ToString());
+    ret.pushKV("quorumIndex", quorum->qc->quorumIndex);
     ret.pushKV("minedBlock", quorum->minedBlockHash.ToString());
 
     if (includeMembers) {
@@ -193,48 +194,7 @@ static UniValue quorum_dkgstatus(const JSONRPCRequest& request)
     int tipHeight = pindexTip->nHeight;
 
     auto proTxHash = WITH_LOCK(activeMasternodeInfoCs, return activeMasternodeInfo.proTxHash);
-    /*
-    UniValue minableCommitments(UniValue::VOBJ);
-    UniValue quorumConnections(UniValue::VOBJ);
-    for (const auto& type : llmq::CLLMQUtils::GetEnabledQuorumTypes(pindexTip)) {
-        const auto& llmq_params = llmq::GetLLMQParams(type);
 
-        if (fMasternodeMode) {
-
-            const CBlockIndex* pQuorumBaseBlockIndex = WITH_LOCK(cs_main, return ::ChainActive()[tipHeight - (tipHeight % llmq_params.dkgInterval) + 1]);
-            auto allConnections = llmq::CLLMQUtils::GetQuorumConnections(llmq_params, pQuorumBaseBlockIndex, proTxHash, false);
-            auto outboundConnections = llmq::CLLMQUtils::GetQuorumConnections(llmq_params, pQuorumBaseBlockIndex, proTxHash, true);
-            std::map<uint256, CAddress> foundConnections;
-            g_connman->ForEachNode([&](const CNode* pnode) {
-                auto verifiedProRegTxHash = pnode->GetVerifiedProRegTxHash();
-                if (!verifiedProRegTxHash.IsNull() && allConnections.count(verifiedProRegTxHash)) {
-                    foundConnections.emplace(verifiedProRegTxHash, pnode->addr);
-                }
-            });
-            UniValue arr(UniValue::VARR);
-            for (auto& ec : allConnections) {
-                UniValue obj(UniValue::VOBJ);
-                obj.pushKV("proTxHash", ec.ToString());
-                if (foundConnections.count(ec)) {
-                    obj.pushKV("connected", true);
-                    obj.pushKV("address", foundConnections[ec].ToString(false));
-                } else {
-                    obj.pushKV("connected", false);
-                }
-                obj.pushKV("outbound", outboundConnections.count(ec) != 0);
-                arr.push_back(obj);
-            }
-            quorumConnections.pushKV(std::string(llmq_params.name), arr);
-        }
-        LOCK(cs_main);
-        llmq::CFinalCommitment fqc;
-        if (llmq::quorumBlockProcessor->GetMineableCommitment(llmq_params, tipHeight, fqc)) {
-            UniValue obj(UniValue::VOBJ);
-            fqc.ToJson(obj);
-            minableCommitments.pushKV(std::string(llmq_params.name), obj);
-        }
-    }
-    */
     UniValue minableCommitments(UniValue::VARR);
     UniValue quorumArrConnections(UniValue::VARR);
     for (const auto& type : llmq::CLLMQUtils::GetEnabledQuorumTypes(pindexTip)) {
