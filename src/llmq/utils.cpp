@@ -253,7 +253,7 @@ std::vector<std::vector<CDeterministicMNCPtr>> CLLMQUtils::BuildNewQuorumQuarter
     LOCK(deterministicMNManager->cs);
     auto allMns = deterministicMNManager->GetListForBlock(pWorkBlockIndex);
 
-    if (allMns.GetAllMNsCount() < quarterSize)
+    if (allMns.GetValidMNsCount() < quarterSize)
         return quarterQuorumMembers;
 
     auto MnsUsedAtH = CDeterministicMNList();
