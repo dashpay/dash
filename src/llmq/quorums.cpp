@@ -270,6 +270,7 @@ void CQuorumManager::EnsureQuorumConnections(const Consensus::LLMQParams& llmqPa
     auto connmanQuorumsToDelete = g_connman->GetMasternodeQuorums(llmqParams.type);
 
     // don't remove connections for the currently in-progress DKG round
+    //TODO Check this
     int curDkgHeight = pindexNew->nHeight - (pindexNew->nHeight % llmqParams.dkgInterval);
     auto curDkgBlock = pindexNew->GetAncestor(curDkgHeight)->GetBlockHash();
     connmanQuorumsToDelete.erase(curDkgBlock);
@@ -311,7 +312,7 @@ CQuorumPtr CQuorumManager::BuildQuorumFromCommitment(const Consensus::LLMQType l
             quorum->WriteContributions(evoDb);
             hasValidVvec = true;
         } else {
-            LogPrint(BCLog::LLMQ, "CQuorumManager::%s -- quorum.ReadContributions and BuildQuorumContributions for block %s failed\n", __func__, quorum->qc->quorumHash.ToString());
+            LogPrint(BCLog::LLMQ, "CQuorumManager::%s -- llmqType[%d] quorumIndex[%d] quorum.ReadContributions and BuildQuorumContributions for quorumHash[%s] failed\n", __func__, static_cast<uint8_t>(llmqType), qc->quorumIndex, qc->quorumHash.ToString());
         }
     }
 
