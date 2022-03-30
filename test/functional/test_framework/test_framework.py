@@ -755,6 +755,22 @@ class DashTestFramework(BitcoinTestFramework):
                 self.sync_blocks()
         self.sync_blocks()
 
+    def set_dash_dip24_activation(self, activate_after_block):
+        self.dip24_activation_height = activate_after_block
+        for i in range(0, self.num_nodes):
+            self.extra_args[i].append("-dip24params=%d" % (activate_after_block))
+
+    def activate_dip24(self, slow_mode=False):
+        # NOTE: set slow_mode=True if you are activating dip8 after a huge reorg
+        # or nodes might fail to catch up otherwise due to a large
+        # (MAX_BLOCKS_IN_TRANSIT_PER_PEER = 16 blocks) reorg error.
+        self.log.info("Wait for dip0024 activation")
+        while self.nodes[0].getblockcount() < self.dip24_activation_height:
+            self.nodes[0].generate(10)
+            if slow_mode:
+                self.sync_blocks()
+        self.sync_blocks()
+
     def set_dash_llmq_test_params(self, llmq_size, llmq_threshold):
         self.llmq_size = llmq_size
         self.llmq_threshold = llmq_threshold
@@ -1259,7 +1275,7 @@ class DashTestFramework(BitcoinTestFramework):
 
         sync_blocks(nodes)
 
-        self.log.info("New quorum: height=%d, quorumHash=%s, minedBlock=%s" % (quorum_info["height"], new_quorum, quorum_info["minedBlock"]))
+        self.log.info("New quorum: height=%d, quorumHash=%s, quorumIndex=%d, minedBlock=%s" % (quorum_info["height"], new_quorum, quorum_info["quorumIndex"], quorum_info["minedBlock"]))
 
         return new_quorum
 

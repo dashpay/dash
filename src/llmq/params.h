@@ -212,7 +212,7 @@ static constexpr std::array<LLMQParams, 8> available_llmqs = {
         .dkgMiningWindowEnd = 18,
         .dkgBadVotesThreshold = 40,
 
-        .signingActiveQuorumCount = 64,
+        .signingActiveQuorumCount = 32,
         .keepOldConnections = 33,
         .recoveryMembers = 25,
     },

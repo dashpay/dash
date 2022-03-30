@@ -832,6 +832,7 @@ public:
         consensus.BIP66Height = 1251; // BIP66 activated on regtest (Used in functional tests)
         consensus.DIP0001Height = 2000;
         consensus.DIP0003Height = 432;
+        consensus.DIP0024Height = 400;
         consensus.DIP0003EnforcementHeight = 500;
         consensus.DIP0003EnforcementHash = uint256();
         consensus.DIP0008Height = 432;
@@ -906,6 +907,7 @@ public:
         UpdateVersionBitsParametersFromArgs(args);
         UpdateDIP3ParametersFromArgs(args);
         UpdateDIP8ParametersFromArgs(args);
+        UpdateDIP24ParametersFromArgs(args);
         UpdateBudgetParametersFromArgs(args);
 
         genesis = CreateGenesisBlock(1417713337, 1096447, 0x207fffff, 1, 50 * COIN);
@@ -1002,6 +1004,15 @@ public:
         consensus.DIP0003EnforcementHeight = nEnforcementHeight;
     }
     void UpdateDIP3ParametersFromArgs(const ArgsManager& args);
+
+    /**
+     * Allows modifying the DIP24 activation height
+     */
+    void UpdateDIP24Parameters(int nActivationHeight)
+    {
+        consensus.DIP0024Height = nActivationHeight;
+    }
+    void UpdateDIP24ParametersFromArgs(const ArgsManager& args);
 
     /**
      * Allows modifying the DIP8 activation height
@@ -1109,6 +1120,24 @@ void CRegTestParams::UpdateDIP3ParametersFromArgs(const ArgsManager& args)
     }
     LogPrintf("Setting DIP3 parameters to activation=%ld, enforcement=%ld\n", nDIP3ActivationHeight, nDIP3EnforcementHeight);
     UpdateDIP3Parameters(nDIP3ActivationHeight, nDIP3EnforcementHeight);
+}
+
+void CRegTestParams::UpdateDIP24ParametersFromArgs(const ArgsManager& args)
+{
+    if (!args.IsArgSet("-dip24params")) return;
+
+    std::string strParams = args.GetArg("-dip24params", "");
+    std::vector<std::string> vParams;
+    boost::split(vParams, strParams, boost::is_any_of(":"));
+    if (vParams.size() != 1) {
+        throw std::runtime_error("DIP24 parameters malformed, expecting <activation>");
+    }
+    int nDIP24ActivationHeight;
+    if (!ParseInt32(vParams[0], &nDIP24ActivationHeight)) {
+        throw std::runtime_error(strprintf("Invalid activation height (%s)", vParams[0]));
+    }
+    LogPrintf("Setting DIP24 parameters to activation=%ld\n", nDIP24ActivationHeight);
+    UpdateDIP24Parameters(nDIP24ActivationHeight);
 }
 
 void CRegTestParams::UpdateDIP8ParametersFromArgs(const ArgsManager& args)

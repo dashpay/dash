@@ -1029,7 +1029,8 @@ CQuorumCPtr CSigningManager::SelectQuorumForSigning(Consensus::LLMQType llmqType
         if (itQuorum == quorums.end()) {
             return nullptr;
         }
-        return itQuorum->second;
+
+        return quorumManager->GetQuorum(llmqType, itQuorum->second);
     } else {
         auto quorums = quorumManager->ScanQuorums(llmqType, pindexStart, poolSize);
         if (quorums.empty()) {
