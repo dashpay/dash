@@ -814,6 +814,7 @@ public:
         params->threshold = threshold;
         params->dkgBadVotesThreshold = threshold;
     }
+
     void UpdateLLMQDevnetParametersFromArgs(const ArgsManager& args);
     void UpdateDevnetLLMQInstantSendFromArgs(const ArgsManager& args);
     void UpdateDevnetLLMQInstantSendDIP0024FromArgs(const ArgsManager& args);
@@ -1260,7 +1261,8 @@ void CDevNetParams::UpdateDevnetLLMQInstantSendDIP0024FromArgs(const ArgsManager
     UpdateDevnetLLMQDIP0024InstantSend(llmqType);
 }
 
-void CDevNetParams::UpdateDevnetPowTargetSpacingFromArgs(const ArgsManager& args) {
+void CDevNetParams::UpdateDevnetPowTargetSpacingFromArgs(const ArgsManager& args)
+{
     if (!args.IsArgSet("-powtargetspacing")) return;
 
     std::string strPowTargetSpacing = gArgs.GetArg("-powtargetspacing", "");
