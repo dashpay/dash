@@ -56,11 +56,11 @@ jobs:
     - name: Prepare Gitian
       run: dash/contrib/gitian-build.py --setup "dummy" "${{ steps.branch-name.outputs.current_branch }}"
 
-    - uses: pat-s/always-upload-cache@v2
+    - uses: actions/cache@v3
       id: ccache
       with:
         path: /opt/actions-runner/_work/dash/dash/gitian-builder/cache/dash-linux-0.17
-        key: ${{ runner.os }}-ccache-${{ hashFiles('**/ccache.tar') }}
+        key: ${{ runner.os }}-ccache-${{ github.sha }}
         restore-keys: ${{ runner.os }}-ccache-
 
     - name: Run Gitian build
@@ -100,7 +100,3 @@ jobs:
         build-args: |
           TAG=${{ steps.docker_meta.outputs.version }}
           BRANCH=${{ steps.branch-name.outputs.current_branch }}
-
-    - name: Setup tmate session
-      uses: mxschmitt/action-tmate@v3
-      if: ${{ failure() }}
