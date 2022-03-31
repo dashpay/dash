@@ -848,11 +848,12 @@ UniValue dumphdinfo(const JSONRPCRequest& request)
         "Returns an object containing sensitive private info about this HD wallet.\n",
         {},
         RPCResult{
-    "{\n"
-    "  \"hdseed\" : \"seed\",                    (string) The HD seed (bip32, in hex)\n"
-    "  \"mnemonic\" : \"words\",                 (string) The mnemonic for this HD wallet (bip39, english words) \n"
-    "  \"mnemonicpassphrase\" : \"passphrase\",  (string) The mnemonic passphrase for this HD wallet (bip39)\n"
-    "}\n"
+                RPCResult::Type::OBJ, "", "",
+                {
+                        {RPCResult::Type::STR_HEX, "hdseed", "The HD seed (bip32, in hex)"},
+                        {RPCResult::Type::STR, "mnemonic", "The mnemonic for this HD wallet (bip39, english words)"},
+                        {RPCResult::Type::STR, "mnemonicpassphrase", "The mnemonic passphrase for this HD wallet (bip39)"},
+                }
         },
         RPCExamples{
             HelpExampleCli("dumphdinfo", "")
@@ -900,13 +901,10 @@ UniValue dumpwallet(const JSONRPCRequest& request)
         RPCResult{
                 RPCResult::Type::OBJ, "", "",
                 {
+                        {RPCResult::Type::NUM, "keys", "The number of keys contained in the wallet dump"},
                         {RPCResult::Type::STR, "filename", "The filename with full absolute path"},
+                        {RPCResult::Type::STR, "warning", "A warning about not sharing the wallet dump with anyone"},
                 }
-    "{                           (json object)\n"
-    "  \"keys\" : {            (numeric) The number of keys contained in the wallet dump\n"
-    "  \"filename\" : {        (string) The filename with full absolute path\n"
-    "  \"warning\" : {         (string) A warning about not sharing the wallet dump with anyone\n"
-    "}\n"
         },
         RPCExamples{
             HelpExampleCli("dumpwallet", "\"test\"")
@@ -1479,8 +1477,21 @@ UniValue importmulti(const JSONRPCRequest& mainRequest)
                 "\"options\""},
         },
         RPCResult{
-    "\nResponse is an array with the same size as the input that has the execution result :\n"
-    "  [{\"success\": true}, {\"success\": true, \"warnings\": [\"Ignoring irrelevant private key\"]}, {\"success\": false, \"error\": {\"code\": -1, \"message\": \"Internal Server Error\"}}, ...]\n"
+                RPCResult::Type::ARR, "", "Response is an array with the same size as the input that has the execution result",
+                {
+                        {RPCResult::Type::OBJ, "", "",
+                         {
+                                 {RPCResult::Type::BOOL, "success", ""},
+                                 {RPCResult::Type::ARR, "warnings", /* optional */ true, "",
+                                  {
+                                          {RPCResult::Type::STR, "", ""},
+                                  }},
+                                 {RPCResult::Type::OBJ, "error", /* optional */ true, "",
+                                  {
+                                          {RPCResult::Type::ELISION, "", "JSONRPC error"},
+                                  }},
+                         }},
+                }
         },
         RPCExamples{
             HelpExampleCli("importmulti", "'[{ \"scriptPubKey\": { \"address\": \"<my address>\" }, \"timestamp\":1455191478 }, "
