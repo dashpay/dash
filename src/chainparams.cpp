@@ -1222,25 +1222,6 @@ void CDevNetParams::UpdateDevnetLLMQChainLocksFromArgs(const ArgsManager& args)
     UpdateDevnetLLMQChainLocks(llmqType);
 }
 
-void CDevNetParams::UpdateDevnetPowTargetSpacingFromArgs(const ArgsManager& args)
-{
-    if (!args.IsArgSet("-powtargetspacing")) return;
-
-    std::string strPowTargetSpacing = gArgs.GetArg("-powtargetspacing", "");
-
-    int64_t powTargetSpacing;
-    if (!ParseInt64(strPowTargetSpacing, &powTargetSpacing)) {
-        throw std::runtime_error(strprintf("Invalid parsing of powTargetSpacing (%s)", strPowTargetSpacing));
-    }
-
-    if (powTargetSpacing < 1) {
-        throw std::runtime_error(strprintf("Invalid value of powTargetSpacing (%s)", strPowTargetSpacing));
-    }
-
-    LogPrintf("Setting powTargetSpacing to %ld\n", powTargetSpacing);
-    UpdateDevnetPowTargetSpacing(powTargetSpacing);
-}
-
 void CDevNetParams::UpdateDevnetLLMQInstantSendFromArgs(const ArgsManager& args)
 {
     if (!args.IsArgSet("-llmqinstantsend")) return;
@@ -1277,6 +1258,25 @@ void CDevNetParams::UpdateDevnetLLMQInstantSendDIP0024FromArgs(const ArgsManager
     }
     LogPrintf("Setting llmqinstantsenddip0024 to size=%ld\n", static_cast<uint8_t>(llmqType));
     UpdateDevnetLLMQDIP0024InstantSend(llmqType);
+}
+
+void CDevNetParams::UpdateDevnetPowTargetSpacingFromArgs(const ArgsManager& args)
+{
+    if (!args.IsArgSet("-powtargetspacing")) return;
+
+    std::string strPowTargetSpacing = gArgs.GetArg("-powtargetspacing", "");
+
+    int64_t powTargetSpacing;
+    if (!ParseInt64(strPowTargetSpacing, &powTargetSpacing)) {
+        throw std::runtime_error(strprintf("Invalid parsing of powTargetSpacing (%s)", strPowTargetSpacing));
+    }
+
+    if (powTargetSpacing < 1) {
+        throw std::runtime_error(strprintf("Invalid value of powTargetSpacing (%s)", strPowTargetSpacing));
+    }
+
+    LogPrintf("Setting powTargetSpacing to %ld\n", powTargetSpacing);
+    UpdateDevnetPowTargetSpacing(powTargetSpacing);
 }
 
 void CDevNetParams::UpdateLLMQDevnetParametersFromArgs(const ArgsManager& args)
