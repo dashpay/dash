@@ -16,7 +16,6 @@ jobs:
       uses: actions/checkout@v2
       with:
         path: dash
-    
     - name: Checkout Gitian builder
       uses: actions/checkout@v2
       with:
