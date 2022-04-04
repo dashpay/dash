@@ -8,7 +8,6 @@
 #include <consensus/params.h>
 #include <llmq/snapshot.h>
 
-#include "snapshot.h"
 #include <dbwrapper.h>
 #include <random.h>
 #include <set>
@@ -44,7 +43,7 @@ struct PreviousQuorumQuarters {
     std::vector<std::vector<CDeterministicMNCPtr>> quarterHMinusC;
     std::vector<std::vector<CDeterministicMNCPtr>> quarterHMinus2C;
     std::vector<std::vector<CDeterministicMNCPtr>> quarterHMinus3C;
-    PreviousQuorumQuarters(size_t s) :
+    explicit PreviousQuorumQuarters(size_t s) :
         quarterHMinusC(s), quarterHMinus2C(s), quarterHMinus3C(s) {}
 };
 

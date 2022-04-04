@@ -965,16 +965,6 @@ std::unordered_set<uint256, StaticSaltedHasher> CInstantSendManager::ProcessPend
             }
         }
 
-        CBlockIndex* pBlockIndex;
-        {
-            LOCK(cs_main);
-            if (nSignHeight == -1) {
-                nSignHeight = ::ChainActive().Height();
-            }
-            int startBlockHeight = nSignHeight - signOffset;
-            pBlockIndex = ::ChainActive()[startBlockHeight];
-        }
-
         auto quorum = llmq::CSigningManager::SelectQuorumForSigning(llmqType, id, nSignHeight, signOffset);
         if (!quorum) {
             // should not happen, but if one fails to select, all others will also fail to select
@@ -1022,13 +1012,6 @@ std::unordered_set<uint256, StaticSaltedHasher> CInstantSendManager::ProcessPend
         }
 
         ProcessInstantSendLock(nodeId, hash, islock);
-
-        CBlockIndex* pBlockIndex;
-        {
-            LOCK(cs_main);
-            int startBlockHeight = ::ChainActive().Height() - signOffset;
-            pBlockIndex = ::ChainActive()[startBlockHeight];
-        }
 
         // See comment further on top. We pass a reconstructed recovered sig to the signing manager to avoid
         // double-verification of the sig.

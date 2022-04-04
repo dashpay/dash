@@ -64,12 +64,12 @@ public:
                 obj.quorumHash
                 );
 
-        int16_t quorumIndex = 0;
-        SER_WRITE(obj, quorumIndex = obj.quorumIndex);
+        int16_t _quorumIndex = 0;
+        SER_WRITE(obj, _quorumIndex = obj.quorumIndex);
         if (obj.nVersion == CFinalCommitment::INDEXED_QUORUM_VERSION) {
-            READWRITE(quorumIndex);
+            READWRITE(_quorumIndex);
         }
-        SER_READ(obj, obj.quorumIndex = quorumIndex);
+        SER_READ(obj, obj.quorumIndex = _quorumIndex);
 
         READWRITE(
                 DYNBITSET(obj.signers),
