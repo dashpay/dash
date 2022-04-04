@@ -172,7 +172,7 @@ bool CheckLLMQCommitment(const CTransaction& tx, const CBlockIndex* pindexPrev, 
     for (size_t i = 0; i < llmq_params.size; i++) {
         ss << "v[" << i << "]=" << qcTx.commitment.validMembers[i];
     }
-    LogPrintf("%s llmqType[%d] validMembers[%s] signers[]\n", __func__, static_cast<int>(qcTx.commitment.llmqType), ss.str());
+    LogPrintf("%s llmqType[%d] validMembers[%s] signers[]\n", __func__, int(qcTx.commitment.llmqType), ss.str());
 
     if (qcTx.nVersion == 0 || qcTx.nVersion > CFinalCommitmentTxPayload::CURRENT_VERSION) {
         LogPrintfFinalCommitment("h[%d] invalid qcTx.nVersion[%d]\n", pindexPrev->nHeight, qcTx.nVersion);
