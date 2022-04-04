@@ -87,10 +87,7 @@ EXPECTED_CIRCULAR_DEPENDENCIES=(
     "evo/specialtxman -> validation -> evo/specialtxman"
     "bloom -> llmq/commitment -> llmq/utils -> net -> bloom"
 
-    "evo/cbtx -> evo/deterministicmns -> llmq/utils -> llmq/snapshot -> evo/cbtx"
-    "evo/deterministicmns -> llmq/utils -> llmq/snapshot -> evo/deterministicmns"
     "evo/simplifiedmns -> llmq/commitment -> llmq/utils -> llmq/snapshot -> evo/simplifiedmns"
-    "llmq/blockprocessor -> llmq/commitment -> llmq/utils -> llmq/blockprocessor"
     "llmq/blockprocessor -> net_processing -> llmq/snapshot -> llmq/blockprocessor"
     "llmq/commitment -> llmq/utils -> llmq/snapshot -> llmq/commitment"
     "llmq/dkgsession -> llmq/dkgsessionmgr -> llmq/quorums -> llmq/dkgsession"

@@ -10,6 +10,7 @@
 #include <llmq/params.h>
 #include <saltedhasher.h>
 #include <serialize.h>
+#include <univalue.h>
 #include <unordered_lru_cache.h>
 
 #include <optional>
@@ -19,7 +20,7 @@ class CDeterministicMN;
 class CDeterministicMNList;
 
 namespace llmq {
-
+//TODO use enum class (probably)
 enum SnapshotSkipMode : int {
     MODE_NO_SKIPPING = 0,
     MODE_SKIPPING_ENTRIES = 1,

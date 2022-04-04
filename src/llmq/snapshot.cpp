@@ -4,21 +4,18 @@
 
 #include <llmq/snapshot.h>
 
-#include <evo/cbtx.h>
-#include <evo/deterministicmns.h>
 #include <evo/simplifiedmns.h>
 #include <evo/specialtx.h>
 
 #include <llmq/blockprocessor.h>
 #include <llmq/commitment.h>
-#include <llmq/quorums.h>
+#include <llmq/utils.h>
 
 #include <base58.h>
 #include <chainparams.h>
 #include <serialize.h>
 #include <univalue.h>
 #include <validation.h>
-#include <version.h>
 
 namespace llmq {
 
@@ -121,8 +118,6 @@ bool BuildQuorumRotationInfo(const CGetQuorumRotationInfo& request, CQuorumRotat
 {
     AssertLockHeld(cs_main);
 
-    LOCK(deterministicMNManager->cs);
-
     std::vector<const CBlockIndex*> baseBlockIndexes;
     if (request.baseBlockHashes.size() == 0) {
         const CBlockIndex* blockIndex = ::ChainActive().Genesis();
@@ -224,6 +219,11 @@ bool BuildQuorumRotationInfo(const CGetQuorumRotationInfo& request, CQuorumRotat
     }
 
     const CBlockIndex* pBlockHMinus4CIndex = pBlockHMinusCIndex->GetAncestor(hBlockIndex->nHeight - 4 * cycleLength);
+    if (!pBlockHMinus4CIndex) {
+        errorRet = strprintf("Can not find block H-4C");
+        return false;
+    }
+
     const CBlockIndex* pWorkBlockHMinus4CIndex = pBlockHMinus4CIndex->GetAncestor(pBlockHMinus4CIndex->nHeight - workDiff);
     //Checked later if extraShare is on
 
@@ -266,10 +266,6 @@ bool BuildQuorumRotationInfo(const CGetQuorumRotationInfo& request, CQuorumRotat
     if (request.extraShare) {
         response.extraShare = true;
 
-        if (!pBlockHMinus4CIndex) {
-            errorRet = strprintf("Can not find block H-4C");
-            return false;
-        }
         if (!pWorkBlockHMinus4CIndex) {
             errorRet = strprintf("Can not find work block H-4C");
             return false;

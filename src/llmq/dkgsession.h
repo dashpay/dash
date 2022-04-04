@@ -40,7 +40,7 @@ public:
     template<typename Stream>
     inline void SerializeWithoutSig(Stream& s) const
     {
-        s << static_cast<uint8_t>(llmqType);
+        s << uint8_t(llmqType);
         s << quorumHash;
         s << proTxHash;
         s << *vvec;
@@ -237,7 +237,7 @@ private:
     CDKGSessionManager& dkgManager;
 
     const CBlockIndex* m_quorum_base_block_index{nullptr};
-    int quorumIndex;
+    int quorumIndex{0};
 
 private:
     std::vector<std::unique_ptr<CDKGMember>> members;
@@ -275,7 +275,7 @@ private:
 
 public:
     CDKGSession(const Consensus::LLMQParams& _params, CBLSWorker& _blsWorker, CDKGSessionManager& _dkgManager) :
-        params(_params), blsWorker(_blsWorker), cache(_blsWorker), dkgManager(_dkgManager), quorumIndex(0) {}
+        params(_params), blsWorker(_blsWorker), cache(_blsWorker), dkgManager(_dkgManager) {}
 
     bool Init(const CBlockIndex* pQuorumBaseBlockIndex, const std::vector<CDeterministicMNCPtr>& mns, const uint256& _myProTxHash, int _quorumIndex);
 

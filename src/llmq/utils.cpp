@@ -4,9 +4,9 @@
 
 #include <llmq/utils.h>
 
-#include <llmq/blockprocessor.h>
-#include <llmq/commitment.h>
 #include <llmq/quorums.h>
+//#include <llmq/blockprocessor.h>
+#include <llmq/commitment.h>
 #include <llmq/snapshot.h>
 
 #include <bls/bls.h>
@@ -21,6 +21,8 @@
 #include <util/ranges.h>
 #include <validation.h>
 #include <versionbits.h>
+
+#include <optional>
 
 namespace llmq
 {
@@ -92,8 +94,8 @@ std::vector<CDeterministicMNCPtr> CLLMQUtils::GetAllQuorumMembers(Consensus::LLM
                 mapQuorumMembers[llmqType].insert(pQuorumBaseBlockIndex->GetBlockHash(), quorumMembers);
 
                 /*
-            * We also need to store which quorum block hash corresponds to which quorumIndex
-            */
+                * We also need to store which quorum block hash corresponds to which quorumIndex
+                */
                 quorumManager->SetQuorumIndexQuorumHash(llmqType, pQuorumBaseBlockIndex->GetBlockHash(), quorumIndex);
                 return quorumMembers;
             }
@@ -155,7 +157,7 @@ std::vector<std::vector<CDeterministicMNCPtr>> CLLMQUtils::ComputeQuorumMembersB
     }
     */
 
-    auto nQuorums = static_cast<size_t>(llmqParams.signingActiveQuorumCount);
+    auto nQuorums = size_t(llmqParams.signingActiveQuorumCount);
     std::vector<std::vector<CDeterministicMNCPtr>> quorumMembers(nQuorums);
 
     auto newQuarterMembers = CLLMQUtils::BuildNewQuorumQuarterMembers(llmqParams, pCycleQuorumBaseBlockIndex, previousQuarters);
@@ -213,7 +215,7 @@ std::vector<std::vector<CDeterministicMNCPtr>> CLLMQUtils::ComputeQuorumMembersB
 
 PreviousQuorumQuarters CLLMQUtils::GetPreviousQuorumQuarterMembers(const Consensus::LLMQParams& llmqParams, const CBlockIndex* pBlockHMinusCIndex, const CBlockIndex* pBlockHMinus2CIndex, const CBlockIndex* pBlockHMinus3CIndex, int nHeight)
 {
-    auto nQuorums = static_cast<size_t>(llmqParams.signingActiveQuorumCount);
+    auto nQuorums = size_t(llmqParams.signingActiveQuorumCount);
     PreviousQuorumQuarters quarters(nQuorums);
 
     std::optional<llmq::CQuorumSnapshot> quSnapshotHMinusC = quorumSnapshotManager->GetSnapshotForBlock(llmqParams.type, pBlockHMinusCIndex);
@@ -242,10 +244,10 @@ PreviousQuorumQuarters CLLMQUtils::GetPreviousQuorumQuarterMembers(const Consens
 
 std::vector<std::vector<CDeterministicMNCPtr>> CLLMQUtils::BuildNewQuorumQuarterMembers(const Consensus::LLMQParams& llmqParams, const CBlockIndex* pQuorumBaseBlockIndex, const PreviousQuorumQuarters& previousQuarters)
 {
-    auto nQuorums = static_cast<size_t>(llmqParams.signingActiveQuorumCount);
+    auto nQuorums = size_t(llmqParams.signingActiveQuorumCount);
     std::vector<std::vector<CDeterministicMNCPtr>> quarterQuorumMembers(nQuorums);
 
-    auto quorumSize = static_cast<size_t>(llmqParams.size);
+    auto quorumSize = size_t(llmqParams.size);
     auto quarterSize = quorumSize / 4;
     const CBlockIndex* pWorkBlockIndex = pQuorumBaseBlockIndex->GetAncestor(pQuorumBaseBlockIndex->nHeight - 8);
     auto modifier = ::SerializeHash(std::make_pair(llmqParams.type, pWorkBlockIndex->GetBlockHash()));
@@ -253,8 +255,7 @@ std::vector<std::vector<CDeterministicMNCPtr>> CLLMQUtils::BuildNewQuorumQuarter
     LOCK(deterministicMNManager->cs);
     auto allMns = deterministicMNManager->GetListForBlock(pWorkBlockIndex);
 
-    if (allMns.GetValidMNsCount() < quarterSize)
-        return quarterQuorumMembers;
+    if (allMns.GetValidMNsCount() < quarterSize) return quarterQuorumMembers;
 
     auto MnsUsedAtH = CDeterministicMNList();
     auto MnsNotUsedAtH = CDeterministicMNList();

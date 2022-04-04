@@ -11,13 +11,14 @@
 #include <masternode/node.h>
 #include <evo/deterministicmns.h>
 
-#include <llmq/quorums.h>
-#include <llmq/commitment.h>
 #include <llmq/blockprocessor.h>
+#include <llmq/commitment.h>
 #include <llmq/debug.h>
 #include <llmq/dkgsession.h>
+#include <llmq/quorums.h>
 #include <llmq/signing.h>
 #include <llmq/signing_shares.h>
+#include <llmq/snapshot.h>
 
 namespace llmq {
 extern const std::string CLSIG_REQUESTID_PREFIX;

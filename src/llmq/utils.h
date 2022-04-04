@@ -6,9 +6,7 @@
 #define BITCOIN_LLMQ_UTILS_H
 
 #include <consensus/params.h>
-#include <llmq/snapshot.h>
 
-#include "snapshot.h"
 #include <dbwrapper.h>
 #include <random.h>
 #include <set>
@@ -19,12 +17,13 @@
 class CBlockIndex;
 class CDeterministicMN;
 class CDeterministicMNList;
-class CQuorumSnapshot;
 using CDeterministicMNCPtr = std::shared_ptr<const CDeterministicMN>;
 class CBLSPublicKey;
 
 namespace llmq
 {
+
+class CQuorumSnapshot;
 
 // Use a separate cache instance instead of versionbitscache to avoid locking cs_main
 // and dealing with all kinds of deadlocks.
@@ -44,7 +43,7 @@ struct PreviousQuorumQuarters {
     std::vector<std::vector<CDeterministicMNCPtr>> quarterHMinusC;
     std::vector<std::vector<CDeterministicMNCPtr>> quarterHMinus2C;
     std::vector<std::vector<CDeterministicMNCPtr>> quarterHMinus3C;
-    PreviousQuorumQuarters(size_t s) :
+    explicit PreviousQuorumQuarters(size_t s) :
         quarterHMinusC(s), quarterHMinus2C(s), quarterHMinus3C(s) {}
 };
 
