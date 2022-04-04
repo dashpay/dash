@@ -253,6 +253,7 @@ bool CQuorumBlockProcessor::ProcessCommitment(int nHeight, const uint256& blockH
     }
 
     if (llmq::CLLMQUtils::IsQuorumRotationEnabled(llmq_params.type, pQuorumBaseBlockIndex)) {
+        //TODO remove LogPrintf
         LogPrintf("[ProcessCommitment] height[%d] pQuorumBaseBlockIndex[%d] quorumIndex[%d] qversion[%d] Built\n",
                   nHeight, pQuorumBaseBlockIndex->nHeight, qc.quorumIndex, qc.nVersion);
     }
@@ -397,6 +398,7 @@ bool CQuorumBlockProcessor::GetCommitmentsFromBlock(const CBlock& block, const C
                     return state.DoS(100, false, REJECT_INVALID, "bad-qc-dup");
                 }
             }
+            // TODO else disable exact duplicates? Is this checked elsewhere
             ret.emplace(qc.commitment.llmqType, std::move(qc.commitment));
         }
     }
@@ -416,10 +418,12 @@ bool CQuorumBlockProcessor::IsMiningPhase(const Consensus::LLMQParams& llmqParam
     assert(nHeight <= ::ChainActive().Height() + 1);
     const auto pindex = ::ChainActive().Height() < nHeight ? ::ChainActive().Tip() : ::ChainActive().Tip()->GetAncestor(nHeight);
 
+    // TODO we should maybe pass in whether or not rotation is active? not sure
     if (CLLMQUtils::IsQuorumRotationEnabled(llmqParams.type, pindex)) {
         int quorumCycleStartHeight = nHeight - (nHeight % llmqParams.dkgInterval);
         int quorumCycleMiningStartHeight = quorumCycleStartHeight + llmqParams.signingActiveQuorumCount + (5 * llmqParams.dkgPhaseBlocks) + 1;
         int quorumCycleMiningEndHeight = quorumCycleMiningStartHeight + (llmqParams.dkgMiningWindowEnd - llmqParams.dkgMiningWindowStart);
+        //TODO remove LogPrintf
         LogPrintf("[IsMiningPhase] nHeight[%d] quorumCycleStartHeight[%d] -- mining[%d-%d]\n", nHeight, quorumCycleStartHeight, quorumCycleMiningStartHeight, quorumCycleMiningEndHeight);
 
         if (nHeight >= quorumCycleMiningStartHeight && nHeight <= quorumCycleMiningEndHeight) {
@@ -454,6 +458,7 @@ bool CQuorumBlockProcessor::IsCommitmentRequired(const Consensus::LLMQParams& ll
         }
     }
     if (CLLMQUtils::IsQuorumRotationEnabled(llmqParams.type, pindex)) {
+        // TODO remove LogPrintf
         LogPrintf("[IsCommitmentRequired] nHeight[%d] true\n", nHeight);
     }
     return true;
@@ -758,6 +763,7 @@ std::optional<std::vector<CFinalCommitment>> CQuorumBlockProcessor::GetMineableC
         }
     }
 
+    // TODO remove LogPrintf
     LogPrintf("GetMineableCommitments cf height[%d] content: %s\n", nHeight, ss.str());
 
     if (ret.empty()) {
