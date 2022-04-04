@@ -195,7 +195,7 @@ private:
     mutable std::map<Consensus::LLMQType, unordered_lru_cache<uint256, CQuorumPtr, StaticSaltedHasher>> mapQuorumsCache GUARDED_BY(quorumsCacheCs);
     mutable std::map<Consensus::LLMQType, unordered_lru_cache<uint256, std::vector<CQuorumCPtr>, StaticSaltedHasher>> scanQuorumsCache GUARDED_BY(quorumsCacheCs);
 
-    mutable CCriticalSection indexedQuorumsCacheCs;
+    mutable Mutex indexedQuorumsCacheCs;
     mutable std::map<Consensus::LLMQType, unordered_lru_cache<uint256, int, StaticSaltedHasher>> indexedQuorumsCache GUARDED_BY(indexedQuorumsCacheCs);
 
     mutable ctpl::thread_pool workerPool;
