@@ -11,14 +11,12 @@
 
 #include <llmq/blockprocessor.h>
 #include <llmq/commitment.h>
-#include <llmq/quorums.h>
 
 #include <base58.h>
 #include <chainparams.h>
 #include <serialize.h>
 #include <univalue.h>
 #include <validation.h>
-#include <version.h>
 
 namespace llmq {
 
