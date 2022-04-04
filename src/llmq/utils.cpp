@@ -92,8 +92,8 @@ std::vector<CDeterministicMNCPtr> CLLMQUtils::GetAllQuorumMembers(Consensus::LLM
                 mapQuorumMembers[llmqType].insert(pQuorumBaseBlockIndex->GetBlockHash(), quorumMembers);
 
                 /*
-            * We also need to store which quorum block hash corresponds to which quorumIndex
-            */
+                * We also need to store which quorum block hash corresponds to which quorumIndex
+                */
                 quorumManager->SetQuorumIndexQuorumHash(llmqType, pQuorumBaseBlockIndex->GetBlockHash(), quorumIndex);
                 return quorumMembers;
             }
@@ -253,8 +253,7 @@ std::vector<std::vector<CDeterministicMNCPtr>> CLLMQUtils::BuildNewQuorumQuarter
     LOCK(deterministicMNManager->cs);
     auto allMns = deterministicMNManager->GetListForBlock(pWorkBlockIndex);
 
-    if (allMns.GetValidMNsCount() < quarterSize)
-        return quarterQuorumMembers;
+    if (allMns.GetValidMNsCount() < quarterSize) return quarterQuorumMembers;
 
     auto MnsUsedAtH = CDeterministicMNList();
     auto MnsNotUsedAtH = CDeterministicMNList();
