@@ -165,15 +165,15 @@ bool CQuorumBlockProcessor::ProcessBlock(const CBlock& block, const CBlockIndex*
         if (llmq::CLLMQUtils::IsQuorumRotationEnabled(params.type, pindex)) {
             LogPrintf("[ProcessBlock] h[%d] isCommitmentRequired[%d] numCommitmentsInNewBlock[%d]\n", pindex->nHeight, isCommitmentRequired, numCommitmentsInNewBlock);
         }
-            }
+    }
 
-            for (const auto& p : qcs) {
-                const auto& qc = p.second;
-                if (!ProcessCommitment(pindex->nHeight, blockHash, qc, state, fJustCheck, fBLSChecks)) {
-                    LogPrintf("[ProcessBlock] failed h[%d] llmqType[%d] version[%d] quorumIndex[%d] quorumHash[%s]\n", pindex->nHeight, static_cast<int>(qc.llmqType), qc.nVersion, qc.quorumIndex, qc.quorumHash.ToString());
-                    return false;
-                }
-            }
+    for (const auto& p : qcs) {
+        const auto& qc = p.second;
+        if (!ProcessCommitment(pindex->nHeight, blockHash, qc, state, fJustCheck, fBLSChecks)) {
+            LogPrintf("[ProcessBlock] failed h[%d] llmqType[%d] version[%d] quorumIndex[%d] quorumHash[%s]\n", pindex->nHeight, static_cast<int>(qc.llmqType), qc.nVersion, qc.quorumIndex, qc.quorumHash.ToString());
+            return false;
+        }
+    }
 
     evoDb.Write(DB_BEST_BLOCK_UPGRADE, blockHash);
 
@@ -439,8 +439,7 @@ bool CQuorumBlockProcessor::IsCommitmentRequired(const Consensus::LLMQParams& ll
 {
     AssertLockHeld(cs_main);
 
-    if (!IsMiningPhase(llmqParams, nHeight))
-        return false;
+    if (!IsMiningPhase(llmqParams, nHeight)) return false;
 
     // Note: This function can be called for new blocks
     assert(nHeight <= ::ChainActive().Height() + 1);
@@ -448,10 +447,8 @@ bool CQuorumBlockProcessor::IsCommitmentRequired(const Consensus::LLMQParams& ll
 
     for (int quorumIndex = 0; quorumIndex < llmqParams.signingActiveQuorumCount; ++quorumIndex) {
         uint256 quorumHash = GetQuorumBlockHash(llmqParams, nHeight, quorumIndex);
-        if (quorumHash.IsNull())
-            return false;
-        if (HasMinedCommitment(llmqParams.type, quorumHash))
-            return false;
+        if (quorumHash.IsNull()) return false;
+        if (HasMinedCommitment(llmqParams.type, quorumHash)) return false;
         if (!CLLMQUtils::IsQuorumRotationEnabled(llmqParams.type, pindex)) {
             break;
         }
