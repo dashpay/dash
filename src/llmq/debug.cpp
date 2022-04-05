@@ -32,7 +32,6 @@ UniValue CDKGDebugSessionStatus::ToJson(int quorumIndex, int detailLevel) const
     }
 
     ret.pushKV("llmqType", static_cast<uint8_t>(llmqType));
-    //ret.pushKV("quorumIndex", quorumIndex);
     ret.pushKV("quorumHash", quorumHash.ToString());
     ret.pushKV("quorumHeight", (int)quorumHeight);
     ret.pushKV("phase", (int)phase);
@@ -116,7 +115,7 @@ UniValue CDKGDebugStatus::ToJson(int detailLevel) const
     ret.pushKV("time", nTime);
     ret.pushKV("timeStr", FormatISO8601DateTime(nTime));
 
-    //TODO Support array of sessions
+    // TODO Support array of sessions
     UniValue sessionsArrJson(UniValue::VARR);
     for (const auto& p : sessions) {
         if (!Params().GetConsensus().llmqs.count(p.first.first)) {

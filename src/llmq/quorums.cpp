@@ -473,7 +473,7 @@ std::vector<CQuorumCPtr> CQuorumManager::ScanQuorums(Consensus::LLMQType llmqTyp
 
 void CQuorumManager::SetQuorumIndexQuorumHash(Consensus::LLMQType llmqType, const uint256& quorumHash, int quorumIndex)
 {
-    LOCK(quorumsCacheCs);
+    LOCK(indexedQuorumsCacheCs);
 
     auto& mapCache = indexedQuorumsCache[llmqType];
     if (!mapCache.exists(quorumHash)) {
@@ -486,7 +486,7 @@ void CQuorumManager::SetQuorumIndexQuorumHash(Consensus::LLMQType llmqType, cons
 
 int CQuorumManager::GetQuorumIndexByQuorumHash(Consensus::LLMQType llmqType, const uint256& quorumHash)
 {
-    LOCK(quorumsCacheCs);
+    LOCK(indexedQuorumsCacheCs);
 
     auto& mapCache = indexedQuorumsCache[llmqType];
 

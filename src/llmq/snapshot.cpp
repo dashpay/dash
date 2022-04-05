@@ -221,19 +221,18 @@ CQuorumSnapshotManager::CQuorumSnapshotManager(CEvoDB& _evoDb) :
 
 std::optional<CQuorumSnapshot> CQuorumSnapshotManager::GetSnapshotForBlock(const Consensus::LLMQType llmqType, const CBlockIndex* pindex)
 {
-    LOCK(cs);
-
     CQuorumSnapshot snapshot = {};
 
     auto snapshotHash = ::SerializeHash(std::make_pair(llmqType, pindex->GetBlockHash()));
 
+    LOCK(snapshotCacheCs);
     // try using cache before reading from disk
     auto it = quorumSnapshotCache.find(snapshotHash);
     if (it != quorumSnapshotCache.end()) {
         snapshot = it->second;
         return snapshot;
     }
-
+    LOCK(evoDb.cs);
     if (evoDb.Read(std::make_pair(DB_QUORUM_SNAPSHOT, snapshotHash), snapshot)) {
         quorumSnapshotCache.emplace(snapshotHash, snapshot);
         return snapshot;
@@ -244,12 +243,10 @@ std::optional<CQuorumSnapshot> CQuorumSnapshotManager::GetSnapshotForBlock(const
 
 void CQuorumSnapshotManager::StoreSnapshotForBlock(const Consensus::LLMQType llmqType, const CBlockIndex* pindex, const CQuorumSnapshot& snapshot)
 {
-    AssertLockHeld(cs_main);
-    LOCK(cs);
-
     auto snapshotHash = ::SerializeHash(std::make_pair(llmqType, pindex->GetBlockHash()));
 
-    evoDb.Write(std::make_pair(DB_QUORUM_SNAPSHOT, snapshotHash), snapshot);
+    LOCK2(snapshotCacheCs, evoDb.cs);
+    evoDb.GetRawDB().Write(std::make_pair(DB_QUORUM_SNAPSHOT, snapshotHash), snapshot);
     quorumSnapshotCache.emplace(snapshotHash, snapshot);
 }
 

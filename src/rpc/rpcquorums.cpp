@@ -213,10 +213,6 @@ static UniValue quorum_dkgstatus(const JSONRPCRequest& request)
                     obj.pushKV("quorumHash", pQuorumBaseBlockIndex->GetBlockHash().ToString());
                     obj.pushKV("pindexTip", pindexTip->nHeight);
 
-                    auto mns = llmq::CLLMQUtils::GetAllQuorumMembers(llmq_params.type, pQuorumBaseBlockIndex);
-                    obj.pushKV("mns", static_cast<int>(mns.size()));
-                    //UniValue qConnections(UniValue::VOBJ);
-
                     auto allConnections = llmq::CLLMQUtils::GetQuorumConnections(llmq_params, pQuorumBaseBlockIndex,
                                                                                  proTxHash, false);
                     auto outboundConnections = llmq::CLLMQUtils::GetQuorumConnections(llmq_params,
@@ -249,9 +245,9 @@ static UniValue quorum_dkgstatus(const JSONRPCRequest& request)
         }
 
         LOCK(cs_main);
-        std::vector<llmq::CFinalCommitment> vfqc;
-        if (llmq::quorumBlockProcessor->GetMineableCommitments(llmq_params, tipHeight, vfqc)) {
-            for (const auto& fqc : vfqc) {
+        std::optional<std::vector<llmq::CFinalCommitment>> vfqc = llmq::quorumBlockProcessor->GetMineableCommitments(llmq_params, tipHeight);
+        if (vfqc.has_value()) {
+            for (const auto& fqc : vfqc.value()) {
                 UniValue obj(UniValue::VOBJ);
                 fqc.ToJson(obj);
                 minableCommitments.push_back(obj);
