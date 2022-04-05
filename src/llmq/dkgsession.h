@@ -147,7 +147,6 @@ public:
     Consensus::LLMQType llmqType{Consensus::LLMQType::LLMQ_NONE};
     uint256 quorumHash;
     uint256 proTxHash;
-    uint32_t quorumIndex; // used to identify quorums of the same type. Example: if 64 quorums of the same type are active at the same time, quorumIndex has a value [0,63]
     std::vector<bool> validMembers;
 
     CBLSPublicKey quorumPublicKey;
@@ -173,7 +172,6 @@ public:
                 obj.llmqType,
                 obj.quorumHash,
                 obj.proTxHash,
-                obj.quorumIndex,
                 DYNBITSET(obj.validMembers),
                 obj.quorumPublicKey,
                 obj.quorumVvecHash,
@@ -239,7 +237,6 @@ private:
     CDKGSessionManager& dkgManager;
 
     const CBlockIndex* m_quorum_base_block_index{nullptr};
-    uint32_t quorumIndex{};
 
 private:
     std::vector<std::unique_ptr<CDKGMember>> members;

@@ -39,10 +39,11 @@ enum class QvvecSyncMode {
     OnlyIfTypeMember = 1,
 };
 
+//QuorumMembers per quorumIndex at heights H-Cycle, H-2Cycles, H-3Cycles
 struct PreviousQuorumQuarters {
-    std::vector<CDeterministicMNCPtr> quarterHMinusC;
-    std::vector<CDeterministicMNCPtr> quarterHMinus2C;
-    std::vector<CDeterministicMNCPtr> quarterHMinus3C;
+    std::vector<std::vector<CDeterministicMNCPtr>> quarterHMinusC;
+    std::vector<std::vector<CDeterministicMNCPtr>> quarterHMinus2C;
+    std::vector<std::vector<CDeterministicMNCPtr>> quarterHMinus3C;
 };
 
 class CLLMQUtils
@@ -52,16 +53,16 @@ public:
     static std::vector<CDeterministicMNCPtr> GetAllQuorumMembers(Consensus::LLMQType llmqType, const CBlockIndex* pQuorumBaseBlockIndex);
 
     static std::vector<CDeterministicMNCPtr> ComputeQuorumMembers(Consensus::LLMQType llmqType, const CBlockIndex* pQuorumBaseBlockIndex);
-    static std::vector<CDeterministicMNCPtr> ComputeQuorumMembersByQuarterRotation(Consensus::LLMQType llmqType, const CBlockIndex* pQuorumBaseBlockIndex);
+    static std::vector<std::vector<CDeterministicMNCPtr>> ComputeQuorumMembersByQuarterRotation(Consensus::LLMQType llmqType, const CBlockIndex* pQuorumBaseBlockIndex);
 
-    static std::vector<CDeterministicMNCPtr> BuildNewQuorumQuarterMembers(const Consensus::LLMQParams& llmqParams, const CBlockIndex* pQuorumBaseBlockIndex, const PreviousQuorumQuarters& quarters);
+    static std::vector<std::vector<CDeterministicMNCPtr>> BuildNewQuorumQuarterMembers(const Consensus::LLMQParams& llmqParams, const CBlockIndex* pQuorumBaseBlockIndex, const PreviousQuorumQuarters& quarters);
 
     static PreviousQuorumQuarters GetPreviousQuorumQuarterMembers(const Consensus::LLMQParams& llmqParams, const CBlockIndex* pBlockHMinusCIndex, const CBlockIndex* pBlockHMinus2CIndex, const CBlockIndex* pBlockHMinus3CIndex);
-    static std::vector<CDeterministicMNCPtr> GetQuorumQuarterMembersBySnapshot(const Consensus::LLMQParams& llmqParams, const CBlockIndex* pQuorumBaseBlockIndex, const llmq::CQuorumSnapshot& snapshot);
+    static std::vector<std::vector<CDeterministicMNCPtr>> GetQuorumQuarterMembersBySnapshot(const Consensus::LLMQParams& llmqParams, const CBlockIndex* pQuorumBaseBlockIndex, const llmq::CQuorumSnapshot& snapshot);
     static std::pair<CDeterministicMNList, CDeterministicMNList> GetMNUsageBySnapshot(Consensus::LLMQType llmqType, const CBlockIndex* pQuorumBaseBlockIndex, const llmq::CQuorumSnapshot& snapshot);
 
-    static void BuildQuorumSnapshot(const Consensus::LLMQParams& llmqParams, const CDeterministicMNList& mnAtH, const CDeterministicMNList& mnUsedAtH, const std::vector<CDeterministicMNCPtr>& sortedCombinedMns, std::vector<CDeterministicMNCPtr>& quarterMembers, CQuorumSnapshot& quorumSnapshot);
-    static void BuildQuorumSnapshotSkipList(const Consensus::LLMQParams& llmqParams, const CDeterministicMNList& mnUsedAtH, const std::vector<CDeterministicMNCPtr>& sortedCombinedMns, std::vector<CDeterministicMNCPtr>& quarterMembers, CQuorumSnapshot& quorumSnapshot);
+    static void BuildQuorumSnapshot(const Consensus::LLMQParams& llmqParams, const CDeterministicMNList& mnAtH, const CDeterministicMNList& mnUsedAtH, std::vector<CDeterministicMNCPtr>& sortedCombinedMns, std::vector<std::vector<CDeterministicMNCPtr>>& quarterMembers, CQuorumSnapshot& quorumSnapshot);
+    static void BuildQuorumSnapshotSkipList(const Consensus::LLMQParams& llmqParams, const CDeterministicMNList& mnUsedAtH, std::vector<CDeterministicMNCPtr>& sortedCombinedMns, std::vector<std::vector<CDeterministicMNCPtr>>& quarterMembers, CQuorumSnapshot& quorumSnapshot);
 
     static uint256 BuildCommitmentHash(Consensus::LLMQType llmqType, const uint256& blockHash, const std::vector<bool>& validMembers, const CBLSPublicKey& pubKey, const uint256& vvecHash);
     static uint256 BuildSignHash(Consensus::LLMQType llmqType, const uint256& quorumHash, const uint256& id, const uint256& msgHash);

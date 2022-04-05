@@ -24,7 +24,7 @@ private:
     std::unique_ptr<CDBWrapper> db{nullptr};
     CBLSWorker& blsWorker;
 
-    std::map<Consensus::LLMQType, CDKGSessionHandler> dkgSessionHandlers;
+    std::map<std::pair<Consensus::LLMQType, int>, CDKGSessionHandler> dkgSessionHandlers;
 
     mutable CCriticalSection contributionsCacheCs;
     struct ContributionsCacheKey {
