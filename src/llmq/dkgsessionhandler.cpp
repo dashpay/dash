@@ -141,7 +141,8 @@ bool CDKGSessionHandler::InitNewQuorum(const CBlockIndex* pQuorumBaseBlockIndex)
     }
 
     std::vector<CDeterministicMNCPtr> mns = std::vector<CDeterministicMNCPtr>();
-    if (params.type == Params().GetConsensus().llmqTypeInstantSend && chainActive.Tip()->nHeight >= Params().GetConsensus().DIPQuorumRotationHeight) {
+    bool fQuorumRotationActive = (VersionBitsTipState(Params().GetConsensus(), Consensus::DEPLOYMENT_DIP0024) == ThresholdState::ACTIVE);
+    if (params.type == Params().GetConsensus().llmqTypeInstantSend && fQuorumRotationActive) {
         //Need to perform Quorum rotation for InstantSend LLMQ Type
         mns = CLLMQUtils::GetAllQuorumMembersByQuarterRotation(params.type, pQuorumBaseBlockIndex);
     } else {

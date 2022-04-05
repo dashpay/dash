@@ -322,8 +322,8 @@ CQuorumPtr CQuorumManager::BuildQuorumFromCommitment(const Consensus::LLMQType l
         // sessions if the shares would be calculated on-demand
         StartCachePopulatorThread(quorum);
     }
-
-    if (llmqType == Params().GetConsensus().llmqTypeInstantSend && chainActive.Tip()->nHeight >= Params().GetConsensus().DIPQuorumRotationHeight) {
+    bool fQuorumRotationActive = (VersionBitsTipState(Params().GetConsensus(), Consensus::DEPLOYMENT_DIP0024) == ThresholdState::ACTIVE);
+    if (llmqType == Params().GetConsensus().llmqTypeInstantSend && fQuorumRotationActive) {
         indexedQuorumsCache[llmqType].insert(std::make_pair(quorumHash, quorum));
     } else {
         mapQuorumsCache[llmqType].insert(quorumHash, quorum);
