@@ -8,10 +8,11 @@
 #include <chainparams.h>
 #include <core_io.h>
 #include <httpserver.h>
-#include <init.h>
 #include <interfaces/chain.h>
+#include <node/context.h>
 #include <policy/feerate.h>
 #include <policy/fees.h>
+#include <rpc/blockchain.h>
 #include <rpc/mining.h>
 #include <rpc/rawtransaction_util.h>
 #include <rpc/server.h>
@@ -2725,7 +2726,7 @@ static UniValue loadwallet(const JSONRPCRequest& request)
     }
 
     std::string error, warning;
-    std::shared_ptr<CWallet> const wallet = LoadWallet(*g_rpc_interfaces->chain, location, error, warning);
+    std::shared_ptr<CWallet> const wallet = LoadWallet(*g_rpc_chain, location, error, warning);
     if (!wallet) throw JSONRPCError(RPC_WALLET_ERROR, error);
 
     UniValue obj(UniValue::VOBJ);
@@ -2793,11 +2794,11 @@ static UniValue createwallet(const JSONRPCRequest& request)
     }
 
     // Wallet::Verify will check if we're trying to create a wallet with a duplication name.
-    if (!CWallet::Verify(*g_rpc_interfaces->chain, location, error, warning)) {
+    if (!CWallet::Verify(*g_rpc_chain, location, error, warning)) {
         throw JSONRPCError(RPC_WALLET_ERROR, "Wallet file verification failed: " + error);
     }
 
-    const auto wallet = CWallet::CreateWalletFromFile(*g_rpc_interfaces->chain, location, flags);
+    const auto wallet = CWallet::CreateWalletFromFile(*g_rpc_chain, location, flags);
     if (!wallet) {
         throw JSONRPCError(RPC_WALLET_ERROR, "Wallet creation failed.");
     }
@@ -4089,3 +4090,5 @@ void RegisterWalletRPCCommands(interfaces::Chain& chain, std::vector<std::unique
     for (unsigned int vcidx = 0; vcidx < ARRAYLEN(commands); vcidx++)
         handlers.emplace_back(chain.handleRpc(commands[vcidx]));
 }
+
+interfaces::Chain* g_rpc_chain = nullptr;
