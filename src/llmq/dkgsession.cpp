@@ -71,7 +71,6 @@ CDKGMember::CDKGMember(const CDeterministicMNCPtr& _dmn, size_t _idx) :
 bool CDKGSession::Init(const CBlockIndex* _pQuorumBaseBlockIndex, const std::vector<CDeterministicMNCPtr>& mns, const uint256& _myProTxHash)
 {
     m_quorum_base_block_index = _pQuorumBaseBlockIndex;
-    quorumIndex = 0;
 
     members.resize(mns.size());
     memberIds.resize(members.size());
@@ -909,12 +908,10 @@ void CDKGSession::SendCommitment(CDKGPendingMessages& pendingMessages)
 
     logger.Batch("sending commitment");
 
-    //if(params)
     CDKGPrematureCommitment qc(params);
     qc.llmqType = params.type;
     qc.quorumHash = m_quorum_base_block_index->GetBlockHash();
     qc.proTxHash = myProTxHash;
-    qc.quorumIndex = quorumIndex;
 
     for (size_t i = 0; i < members.size(); i++) {
         const auto& m = members[i];
@@ -979,10 +976,6 @@ void CDKGSession::SendCommitment(CDKGPendingMessages& pendingMessages)
         (*qc.quorumVvecHash.begin())++;
     }
 
-    uint16_t nVersion = CFinalCommitment::CURRENT_VERSION;
-    if (CLLMQUtils::IsQuorumRotationEnabled(params.type)) {
-        nVersion = CFinalCommitment::QUORUM_INDEXED_VERSION;
-    }
     uint256 commitmentHash = CLLMQUtils::BuildCommitmentHash(qc.llmqType, qc.quorumHash, qc.validMembers, qc.quorumPublicKey, qc.quorumVvecHash);
 
     if (lieType == 2) {
@@ -1136,10 +1129,6 @@ void CDKGSession::ReceiveMessage(const CDKGPrematureCommitment& qc, bool& retBan
             return;
         }
 
-        uint16_t nVersion = CFinalCommitment::CURRENT_VERSION;
-        if (CLLMQUtils::IsQuorumRotationEnabled(params.type)) {
-            nVersion = CFinalCommitment::QUORUM_INDEXED_VERSION;
-        }
         if (!qc.quorumSig.VerifyInsecure(pubKeyShare, qc.GetSignHash())) {
             logger.Batch("failed to verify quorumSig");
             return;
@@ -1195,11 +1184,6 @@ std::vector<CFinalCommitment> CDKGSession::FinalizeCommitments()
         }
     }
 
-    uint16_t nVersion = CFinalCommitment::CURRENT_VERSION;
-    if (CLLMQUtils::IsQuorumRotationEnabled(params.type)) {
-        nVersion = CFinalCommitment::QUORUM_INDEXED_VERSION;
-    }
-
     std::vector<CFinalCommitment> finalCommitments;
     for (const auto& p : commitmentsMap) {
         auto& cvec = p.second;
@@ -1213,7 +1197,7 @@ std::vector<CFinalCommitment> CDKGSession::FinalizeCommitments()
 
         auto& first = cvec[0];
 
-        CFinalCommitment fqc(params, first.quorumHash, nVersion, quorumIndex);
+        CFinalCommitment fqc(params, first.quorumHash);
         fqc.validMembers = first.validMembers;
         fqc.quorumPublicKey = first.quorumPublicKey;
         fqc.quorumVvecHash = first.quorumVvecHash;

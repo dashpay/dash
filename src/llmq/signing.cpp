@@ -1012,6 +1012,8 @@ CQuorumCPtr CSigningManager::SelectQuorumForSigning(Consensus::LLMQType llmqType
         pindexStart = ::ChainActive()[startBlockHeight];
     }
     if (CLLMQUtils::IsQuorumRotationEnabled(llmqType)) {
+        //TODO Rewrite this part
+        /*
         auto indexedQuorums = quorumManager->ScanIndexedQuorums(llmqType);
         if (indexedQuorums.empty()) {
             return nullptr;
@@ -1024,13 +1026,15 @@ CQuorumCPtr CSigningManager::SelectQuorumForSigning(Consensus::LLMQType llmqType
         }
         auto itQuorum = std::find_if(indexedQuorums.begin(),
                                      indexedQuorums.end(),
-                                     [selectedIndex](const CIndexedQuorum& obj) {
+                                     [selectedIndex](const CIndexedQuorum& obj){
                                          return obj.first == selectedIndex;
                                      });
         if (itQuorum == indexedQuorums.end()) {
             return nullptr;
         }
         return quorumManager->GetQuorum(llmqType, itQuorum->second);
+        */
+        return nullptr;
     } else {
         auto quorums = quorumManager->ScanQuorums(llmqType, pindexStart, poolSize);
         if (quorums.empty()) {

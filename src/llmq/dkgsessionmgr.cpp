@@ -2,8 +2,9 @@
 // Distributed under the MIT/X11 software license, see the accompanying
 // file COPYING or http://www.opensource.org/licenses/mit-license.php.
 
-#include <llmq/dkgsessionmgr.h>
 #include <llmq/debug.h>
+#include <llmq/dkgsessionmgr.h>
+#include <llmq/quorums.h>
 #include <llmq/utils.h>
 
 #include <evo/deterministicmns.h>
@@ -11,6 +12,8 @@
 #include <chainparams.h>
 #include <net_processing.h>
 #include <spork.h>
+
+#include <boost/range/irange.hpp>
 
 namespace llmq
 {
@@ -28,9 +31,11 @@ CDKGSessionManager::CDKGSessionManager(CBLSWorker& _blsWorker, bool unitTests, b
     MigrateDKG();
 
     for (const auto& params : Params().GetConsensus().llmqs) {
-        dkgSessionHandlers.emplace(std::piecewise_construct,
-                std::forward_as_tuple(params.type),
-                std::forward_as_tuple(params, blsWorker, *this));
+        for (int i : boost::irange(0, params.signingActiveQuorumCount : 1)) {
+            dkgSessionHandlers.emplace(std::piecewise_construct,
+                                       std::forward_as_tuple(params.type, i),
+                                       std::forward_as_tuple(params, blsWorker, *this, i));
+        }
     }
 }
 
@@ -177,15 +182,28 @@ void CDKGSessionManager::ProcessMessage(CNode* pfrom, const std::string& strComm
         return;
     }
 
-    // peek into the message and see which LLMQType it is. First byte of all messages is always the LLMQType
-    Consensus::LLMQType llmqType = (Consensus::LLMQType)*vRecv.begin();
-    if (!dkgSessionHandlers.count(llmqType)) {
+    Consensus::LLMQType llmqType;
+    uint256 quorumHash;
+    vRecv >> llmqType;
+    vRecv >> quorumHash;
+    vRecv.Rewind(sizeof(uint256));
+    vRecv.Rewind(sizeof(uint8_t));
+
+    int quorumIndex;
+    auto q = quorumManager->GetQuorumIndexByQuorumHash(llmqType, quorumHash);
+    if (q.has_value()) {
+        quorumIndex = q.value();
+    } else {
+        quorumIndex = 0;
+    }
+
+    if (!dkgSessionHandlers.count(std::make_pair(llmqType, quorumIndex))) {
         LOCK(cs_main);
         Misbehaving(pfrom->GetId(), 100);
         return;
     }
 
-    dkgSessionHandlers.at(llmqType).ProcessMessage(pfrom, strCommand, vRecv);
+    dkgSessionHandlers.at(std::make_pair(llmqType, quorumIndex)).ProcessMessage(pfrom, strCommand, vRecv);
 }
 
 bool CDKGSessionManager::AlreadyHave(const CInv& inv) const

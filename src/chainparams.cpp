@@ -832,7 +832,7 @@ public:
         consensus.BIP66Height = 1251; // BIP66 activated on regtest (Used in functional tests)
         consensus.DIP0001Height = 2000;
         consensus.DIP0003Height = 432;
-        consensus.DIP0024Height = 400;
+        consensus.DIP0024Height = 4000;
         consensus.DIP0003EnforcementHeight = 500;
         consensus.DIP0003EnforcementHash = uint256();
         consensus.DIP0008Height = 432;

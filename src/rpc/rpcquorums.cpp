@@ -100,7 +100,6 @@ static UniValue BuildQuorumInfo(const llmq::CQuorumCPtr& quorum, bool includeMem
     ret.pushKV("height", quorum->m_quorum_base_block_index->nHeight);
     ret.pushKV("type", std::string(quorum->params.name));
     ret.pushKV("quorumHash", quorum->qc->quorumHash.ToString());
-    ret.pushKV("quorumIndex", static_cast<int>(quorum->qc->quorumIndex));
     ret.pushKV("minedBlock", quorum->minedBlockHash.ToString());
 
     if (includeMembers) {

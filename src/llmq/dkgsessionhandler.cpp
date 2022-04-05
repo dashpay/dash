@@ -83,7 +83,12 @@ void CDKGSessionHandler::UpdatedBlockTip(const CBlockIndex* pindexNew)
 {
     LOCK(cs);
 
-    int quorumStageInt = pindexNew->nHeight % params.dkgInterval;
+    //Indexed quorums (greater than 0) are enabled with Quorum Rotation
+    if (quorumIndex > 1 && !CLLMQUtils::IsQuorumRotationEnabled(params.type))
+        return;
+
+    int quorumStageInt = (pindexNew->nHeight - quorumIndex) % params.dkgInterval;
+
     const CBlockIndex* pQuorumBaseBlockIndex = pindexNew->GetAncestor(pindexNew->nHeight - quorumStageInt);
 
     currentHeight = pindexNew->nHeight;
@@ -96,8 +101,8 @@ void CDKGSessionHandler::UpdatedBlockTip(const CBlockIndex* pindexNew)
         phase = static_cast<QuorumPhase>(phaseInt);
     }
 
-    LogPrint(BCLog::LLMQ_DKG, "CDKGSessionHandler::%s -- %s - currentHeight=%d, pQuorumBaseBlockIndex->nHeight=%d, oldPhase=%d, newPhase=%d\n", __func__,
-            params.name, currentHeight, pQuorumBaseBlockIndex->nHeight, int(oldPhase), int(phase));
+    LogPrint(BCLog::LLMQ_DKG, "CDKGSessionHandler::%s -- %s - quorumIndex=%d, currentHeight=%d, pQuorumBaseBlockIndex->nHeight=%d, oldPhase=%d, newPhase=%d\n", __func__,
+             params.name, quorumIndex, currentHeight, pQuorumBaseBlockIndex->nHeight, int(oldPhase), int(phase));
 }
 
 void CDKGSessionHandler::ProcessMessage(CNode* pfrom, const std::string& strCommand, CDataStream& vRecv)
