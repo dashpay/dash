@@ -130,7 +130,7 @@ uint256 GetLastBaseBlockHash(const std::vector<const CBlockIndex*>& baseBlockInd
 class CQuorumSnapshotManager
 {
 private:
-    CCriticalSection cs;
+    mutable CCriticalSection cs;
 
     CEvoDB& evoDb;
 

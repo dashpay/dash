@@ -147,8 +147,10 @@ bool CDKGSessionHandler::InitNewQuorum(const CBlockIndex* pQuorumBaseBlockIndex)
 
     auto mns = CLLMQUtils::GetAllQuorumMembers(params.type, pQuorumBaseBlockIndex);
     if (!curSession->Init(pQuorumBaseBlockIndex, mns, WITH_LOCK(activeMasternodeInfoCs, return activeMasternodeInfo.proTxHash), quorumIndex)) {
-        LogPrintf("CDKGSessionManager::%s -- quorum initialization failed for %s\n", __func__, curSession->params.name);
+        LogPrintf("CDKGSessionManager::%s -- height[%d] quorum initialization failed for %s mns[%d]\n", __func__, pQuorumBaseBlockIndex->nHeight, curSession->params.name, mns.size());
         return false;
+    } else {
+        LogPrintf("CDKGSessionManager::%s -- height[%d] quorum initialization OK for %s\n", __func__, pQuorumBaseBlockIndex->nHeight, curSession->params.name);
     }
 
     return true;

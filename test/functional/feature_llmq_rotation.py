@@ -14,7 +14,7 @@ import time
 
 from test_framework.test_framework import DashTestFramework
 from test_framework.util import connect_nodes, isolate_node, reconnect_isolated_node, sync_blocks, assert_equal, \
-    assert_greater_than_or_equal
+    assert_greater_than_or_equal, wait_until
 
 
 def intersection(lst1, lst2):
@@ -26,7 +26,7 @@ class LLMQQuorumRotationTest(DashTestFramework):
     def set_test_params(self):
         self.set_dash_test_params(21, 20, fast_dip3_enforcement=True)
         self.set_dash_llmq_test_params(4, 4)
-        self.set_dash_dip24_activation(220)
+        self.set_dash_dip24_activation(260)
 
     def run_test(self):
 
@@ -44,16 +44,49 @@ class LLMQQuorumRotationTest(DashTestFramework):
         self.wait_for_sporks_same()
 
         self.activate_dip24()
+        self.log.info("Activated DIP24 at height:" + str(self.nodes[0].getblockcount()))
+
+        cycle_length = 24
 
         #At this point, we need to move forward 3 cycles (3 x 24 blocks) so the first 3 quarters can be created (without DKG sessions)
-        self.log.info("Start at H height:" + str(self.nodes[0].getblockcount()))
-        self.move_to_next_cycle()
+        #self.log.info("Start at H height:" + str(self.nodes[0].getblockcount()))
+        self.move_to_next_cycle(cycle_length)
+        self.log.info("Cycle H height:" + str(self.nodes[0].getblockcount()))
+        self.move_to_next_cycle(cycle_length)
         self.log.info("Cycle H+C height:" + str(self.nodes[0].getblockcount()))
-        self.move_to_next_cycle()
+        self.move_to_next_cycle(cycle_length)
         self.log.info("Cycle H+2C height:" + str(self.nodes[0].getblockcount()))
-        self.move_to_next_cycle()
-        self.log.info("Cycle H+3C height:" + str(self.nodes[0].getblockcount()))
+
+        self.mine_quorum()
+        #self.move_to_next_cycle(cycle_length)
+        #quorum_members_0 = self.extract_quorum_members()
+        #self.log.info("Quorum #0 members: " + str(quorum_members_0))
+        #self.log.info("QUORUMS:" + str(self.nodes[0].quorum("list", 1)))
+        '''
+        for i in range(26):
+            time.sleep(2)
+            self.bump_mocktime(1, nodes=nodes)
+            self.nodes[0].generate(1)
+            sync_blocks(nodes)
+            self.log.info("--height:" + str(self.nodes[0].getblockcount()))
+        '''
+        #self.move_to_next_cycle(cycle_length)
+        #self.move_to_next_cycle()
+        #self.log.info("Normally first Quorum at height:" + str(self.nodes[0].getblockcount()))
+        #self.mine_quorum()
+        #quorum_members_0 = self.extract_quorum_members()
+        #self.log.info("Quorum #0 members: " + str(quorum_members_0))
+        #self.move_to_next_cycle(cycle_length)
+        #self.log.info("Cycle H+3C height:" + str(self.nodes[0].getblockcount()))
+        #self.move_to_next_cycle(cycle_length)
+        #self.log.info("Cycle H+4C height:" + str(self.nodes[0].getblockcount()))
+
+        #self.log.info("QUORUMS:" + str(self.nodes[0].quorum("list", 1)))
+        #self.move_to_next_cycle()
+        #self.log.info("End at height:" + str(self.nodes[0].getblockcount()))
+
         #check for timeout
+        '''
         self.mine_quorum()
         quorum_members_0 = self.extract_quorum_members()
         self.log.info("Quorum #0 members: " + str(quorum_members_0))
@@ -80,21 +113,21 @@ class LLMQQuorumRotationTest(DashTestFramework):
         quorum_common_members_2_3 = intersection(quorum_members_2, quorum_members_3)
 
         #We test with greater_than_or_equal instead of only equal because with few MNs available, sometimes MNs are re-selected
-        assert_equal (len(quorum_common_members_0_1), 3)
+        assert_greater_than_or_equal (len(quorum_common_members_0_1), 3)
         assert_greater_than_or_equal (len(quorum_common_members_0_2), 2)
         assert_greater_than_or_equal (len(quorum_common_members_0_3), 1)
 
-        assert_equal (len(quorum_common_members_1_2), 3)
+        assert_greater_than_or_equal (len(quorum_common_members_1_2), 3)
         assert_greater_than_or_equal (len(quorum_common_members_1_3), 2)
 
         assert_equal (len(quorum_common_members_2_3), 3)
-
-    def move_to_next_cycle(self):
+        '''
+    def move_to_next_cycle(self, cycle_length):
         mninfos_online = self.mninfo.copy()
         nodes = [self.nodes[0]] + [mn.node for mn in mninfos_online]
 
         # move forward to next DKG
-        skip_count = 24 - (self.nodes[0].getblockcount() % 24)
+        skip_count = cycle_length - (self.nodes[0].getblockcount() % cycle_length)
         if skip_count != 0:
             self.bump_mocktime(1, nodes=nodes)
             self.nodes[0].generate(skip_count)
