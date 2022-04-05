@@ -292,11 +292,13 @@ CQuorumPtr CQuorumManager::BuildQuorumFromCommitment(const Consensus::LLMQType l
 
     const uint256& quorumHash{pQuorumBaseBlockIndex->GetBlockHash()};
     uint256 minedBlockHash;
+    //TODO investigate if quorumHash here should include quorumIndex as well
     CFinalCommitmentPtr qc = quorumBlockProcessor->GetMinedCommitment(llmqType, quorumHash, minedBlockHash);
     if (qc == nullptr) {
         return nullptr;
     }
-    assert(qc->quorumHash == pQuorumBaseBlockIndex->GetBlockHash());
+    //This won't work with latest changes
+    //assert(qc->quorumHash == pQuorumBaseBlockIndex->GetBlockHash());
 
     const auto& llmqParams = llmq::GetLLMQParams(llmqType);
     auto quorum = std::make_shared<CQuorum>(llmqParams, blsWorker);
@@ -324,7 +326,8 @@ CQuorumPtr CQuorumManager::BuildQuorumFromCommitment(const Consensus::LLMQType l
     }
     bool fQuorumRotationActive = (VersionBitsTipState(Params().GetConsensus(), Consensus::DEPLOYMENT_DIP0024) == ThresholdState::ACTIVE);
     if (llmqType == Params().GetConsensus().llmqTypeInstantSend && fQuorumRotationActive) {
-        indexedQuorumsCache[llmqType].insert(std::make_pair(quorumHash, quorum));
+        uint32_t quorumIndex = GetNextQuorumIndex(llmqType);
+        indexedQuorumsCache[llmqType].insert(std::make_pair(quorumIndex, quorum));
     } else {
         mapQuorumsCache[llmqType].insert(quorumHash, quorum);
     }
@@ -477,22 +480,30 @@ std::vector<CQuorumCPtr> CQuorumManager::ScanQuorums(Consensus::LLMQType llmqTyp
     return ret;
 }
 
-std::vector<CQuorumCPtr> CQuorumManager::ScanIndexedQuorums(Consensus::LLMQType llmqType, const CBlockIndex* pindexStart, size_t nCountRequested) const
+std::vector<std::pair<uint32_t, CQuorumPtr>> CQuorumManager::ScanIndexedQuorums(Consensus::LLMQType llmqType, const CBlockIndex* pindexStart, size_t nCountRequested) const
 {
-    std::vector<CQuorumCPtr> vecResultQuorums;
+    std::vector<std::pair<uint32_t, CQuorumPtr>> vecResultQuorums;
 
     LOCK(quorumsCacheCs);
 
     auto& cache = indexedQuorumsCache[llmqType];
 
-    std::vector<std::pair<uint256, CQuorumPtr>> vec;
-    cache.get(vec);
-
-    std::for_each(vec.cbegin(), vec.cend(), [&vecResultQuorums](std::pair<uint256, CQuorumPtr> pair) {
-        vecResultQuorums.push_back(pair.second);
-    });
+    cache.get(vecResultQuorums);
 
     return vecResultQuorums;
+}
+
+uint32_t CQuorumManager::GetNextQuorumIndex(Consensus::LLMQType llmqType) const
+{
+    LOCK(quorumsCacheCs);
+
+    auto& cache = indexedQuorumsCache[llmqType];
+    std::pair<uint32_t, CQuorumPtr> data;
+    if (cache.back(data)) {
+        return (data.first + 1) % static_cast<uint32_t>(GetLLMQParams(llmqType).signingActiveQuorumCount);
+    } else {
+        return {};
+    }
 }
 
 CQuorumCPtr CQuorumManager::GetQuorum(Consensus::LLMQType llmqType, const uint256& quorumHash) const

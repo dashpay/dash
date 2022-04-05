@@ -71,6 +71,7 @@ CDKGMember::CDKGMember(const CDeterministicMNCPtr& _dmn, size_t _idx) :
 bool CDKGSession::Init(const CBlockIndex* _pQuorumBaseBlockIndex, const std::vector<CDeterministicMNCPtr>& mns, const uint256& _myProTxHash)
 {
     m_quorum_base_block_index = _pQuorumBaseBlockIndex;
+    quorumIndex = _quorumIndex;
 
     members.resize(mns.size());
     memberIds.resize(members.size());
@@ -1197,12 +1198,12 @@ std::vector<CFinalCommitment> CDKGSession::FinalizeCommitments()
 
         auto& first = cvec[0];
 
-        CFinalCommitment fqc(params, first.quorumHash);
+        CFinalCommitment fqc(params, first.quorumHash, quorumIndex);
         fqc.validMembers = first.validMembers;
         fqc.quorumPublicKey = first.quorumPublicKey;
         fqc.quorumVvecHash = first.quorumVvecHash;
 
-        uint256 commitmentHash = CLLMQUtils::BuildCommitmentHash(fqc.llmqType, fqc.quorumHash, fqc.validMembers, fqc.quorumPublicKey, fqc.quorumVvecHash);
+        uint256 commitmentHash = CLLMQUtils::BuildCommitmentHash(fqc.llmqType, fqc.quorumHash, fqc.validMembers, fqc.quorumPublicKey, fqc.quorumVvecHash, quorumIndex);
 
         std::vector<CBLSSignature> aggSigs;
         std::vector<CBLSPublicKey> aggPks;

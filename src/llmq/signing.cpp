@@ -1018,11 +1018,19 @@ CQuorumCPtr CSigningManager::SelectQuorumForSigning(Consensus::LLMQType llmqType
             return nullptr;
         }
         int n = std::log2(GetLLMQParams(llmqType).signingActiveQuorumCount);
-        size_t selectedIndex = static_cast<size_t>(selectionHash.GetUint64(3) >> n);
+        uint32_t selectedIndex = static_cast<uint32_t>(selectionHash.GetUint64(3) >> n);
         if (selectedIndex > quorums.size()) {
             return nullptr;
         }
-        return quorums[selectedIndex];
+        auto itQuorum = std::find_if(quorums.begin(),
+                                     quorums.end(),
+                                     [selectedIndex](const std::pair<uint32_t, CQuorumPtr>& obj) {
+                                         return obj.first == selectedIndex;
+                                     });
+        if (itQuorum == quorums.end()) {
+            return nullptr;
+        }
+        return itQuorum->second;
     } else {
         auto quorums = quorumManager->ScanQuorums(llmqType, pindexStart, poolSize);
         if (quorums.empty()) {

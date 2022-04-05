@@ -56,7 +56,7 @@ std::vector<CDeterministicMNCPtr> CLLMQUtils::GetAllQuorumMembers(Consensus::LLM
     return quorumMembers;
 }
 
-std::vector<CDeterministicMNCPtr> CLLMQUtils::GetAllQuorumMembersByQuarterRotation(Consensus::LLMQType llmqType, const CBlockIndex* pquorumBaseBlockIndex)
+std::vector<CDeterministicMNCPtr> CLLMQUtils::GetAllQuorumMembersByQuarterRotation(Consensus::LLMQType llmqType, const CBlockIndex* pquorumBaseBlockIndex, uint32_t& quorumIndex)
 {
     static CCriticalSection cs_members;
     static std::map<Consensus::LLMQType, unordered_lru_cache<uint256, std::vector<CDeterministicMNCPtr>, StaticSaltedHasher>> mapQuorumMembers;
@@ -132,7 +132,7 @@ std::vector<CDeterministicMNCPtr> CLLMQUtils::GetAllQuorumMembersByQuarterRotati
 
     LOCK(cs_members);
     mapQuorumMembers[llmqType].insert(pquorumBaseBlockIndex->GetBlockHash(), quorumMembers);
-
+    quorumIndex = quorumManager->GetNextQuorumIndex(llmqType);
     return quorumMembers;
 }
 
@@ -371,11 +371,12 @@ void CLLMQUtils::BuildQuorumSnapshotSkipList(Consensus::LLMQType llmqType, const
     }
 }
 
-uint256 CLLMQUtils::BuildCommitmentHash(Consensus::LLMQType llmqType, const uint256& blockHash, const std::vector<bool>& validMembers, const CBLSPublicKey& pubKey, const uint256& vvecHash)
+uint256 CLLMQUtils::BuildCommitmentHash(Consensus::LLMQType llmqType, const uint256& blockHash, const std::vector<bool>& validMembers, const CBLSPublicKey& pubKey, const uint256& vvecHash, const uint32_t quorumIndex)
 {
     CHashWriter hw(SER_NETWORK, 0);
     hw << llmqType;
     hw << blockHash;
+    hw << quorumIndex;
     hw << DYNBITSET(validMembers);
     hw << pubKey;
     hw << vvecHash;
