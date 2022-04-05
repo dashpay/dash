@@ -1067,9 +1067,13 @@ class DashTestFramework(BitcoinTestFramework):
             return all(node.spork('show') == sporks for node in self.nodes[1:])
         wait_until(check_sporks_same, timeout=timeout, sleep=0.5)
 
-    def wait_for_quorum_connections(self, expected_connections, nodes, timeout = 60, wait_proc=None):
-        def check_quorum_connections():
+    def wait_for_quorum_connections(self, quorum_hash, expected_connections, nodes, timeout = 60, wait_proc=None):
+        def check_quorum_connections_old():
             all_ok = True
+            m = 0
+            for node in nodes:
+                s = node.quorum("dkgstatus")
+                m = m + 1
             for node in nodes:
                 s = node.quorum("dkgstatus")
                 if 'llmq_test' not in s["session"]:
@@ -1088,6 +1092,39 @@ class DashTestFramework(BitcoinTestFramework):
                 if cnt < expected_connections:
                     all_ok = False
                     break
+            if not all_ok and wait_proc is not None:
+                wait_proc()
+            return False
+        def check_quorum_connections():
+            all_ok = True
+            m = 0
+            for node in nodes:
+                s = node.quorum("dkgstatus")
+                #self.log.info("m(" + str(m) + ") >> " +str(s))
+                m = m + 1
+            for node in nodes:
+                s = node.quorum("dkgstatus")
+                mn_ok = True
+                for qs in s:
+                    if "llmqType" not in qs:
+                        continue
+                    if qs["llmqType"] != "llmq_test":
+                        continue
+                    if "quorumConnections" not in qs:
+                        continue
+                    qconnections = qs["quorumConnections"]
+                    if qconnections["quorumHash"] != quorum_hash:
+                        mn_ok = False
+                        continue
+                    cnt = 0
+                    for c in qconnections["quorumConnections"]:
+                        if c["connected"]:
+                            cnt += 1
+                    if cnt < expected_connections:
+                        mn_ok = False
+                        break
+                    break
+                all_ok = mn_ok
             if not all_ok and wait_proc is not None:
                 wait_proc()
             return all_ok
@@ -1133,25 +1170,44 @@ class DashTestFramework(BitcoinTestFramework):
         def check_dkg_session():
             all_ok = True
             member_count = 0
+            m = 0
+            for mn in mninfos:
+                s = mn.node.quorum("dkgstatus")
+                #self.log.info("m(" + str(m) + ") >> " +str(s))
+                m += 1
             for mn in mninfos:
                 s = mn.node.quorum("dkgstatus")["session"]
-                if "llmq_test" not in s:
-                    continue
-                member_count += 1
-                s = s["llmq_test"]
-                if s["quorumHash"] != quorum_hash:
-                    all_ok = False
-                    break
-                if "phase" not in s:
-                    all_ok = False
-                    break
-                if s["phase"] != phase:
-                    all_ok = False
-                    break
-                if check_received_messages is not None:
-                    if s[check_received_messages] < check_received_messages_count:
-                        all_ok = False
+                mn_ok = True
+                for qs in s:
+                    if qs["llmqType"] != "llmq_test":
+                        continue
+                    qstatus = qs["status"]
+                    #if "llmq_test" not in s:
+                    #    continue
+                    #member_count += 1
+                    #s = s["llmq_test"]
+                    #self.log.info("qstatus" +str(qstatus))
+                    if qstatus["quorumHash"] != quorum_hash:
+                        mn_ok = False
+                        #break
+                        continue
+                    member_count += 1
+                    if "phase" not in qstatus:
+                        mn_ok = False
                         break
+                    if qstatus["phase"] != phase:
+                        mn_ok = False
+                        break
+                    #self.log.info("m("+str(m)+") OK qstatus:"+str(qstatus))
+                    #mn_ok = True
+                    if check_received_messages is not None:
+                        if qstatus[check_received_messages] < check_received_messages_count:
+                            mn_ok = False
+                            break
+                    break
+                #self.log.info("m("+str(m)+") OK mn_ok:"+str(mn_ok))
+                all_ok = mn_ok
+            #self.log.info("all_ok:"+str(all_ok)+" member_count:"+str(member_count))
             if all_ok and member_count != expected_member_count:
                 return False
             return all_ok
@@ -1160,24 +1216,33 @@ class DashTestFramework(BitcoinTestFramework):
     def wait_for_quorum_commitment(self, quorum_hash, nodes, timeout = 15):
         def check_dkg_comitments():
             all_ok = True
+            m = 0
+            for node in nodes:
+                s = node.quorum("dkgstatus")
+                self.log.info("m(" + str(m) + ") >> " +str(s))
+                m = m + 1
             for node in nodes:
                 s = node.quorum("dkgstatus")
                 if "minableCommitments" not in s:
                     all_ok = False
                     break
-                s = s["minableCommitments"]
-                if "llmq_test" not in s:
-                    all_ok = False
+                commits = s["minableCommitments"]
+                c_ok = False
+                for c in commits:
+                    if c["llmqType"] != 100:
+                        continue
+                    if c["quorumHash"] != quorum_hash:
+                        continue
+                    c_ok = True
                     break
-                s = s["llmq_test"]
-                if s["quorumHash"] != quorum_hash:
-                    all_ok = False
-                    break
+                all_ok = c_ok
+            #self.log.info("commits:" +str(all_ok))
             return all_ok
-        wait_until(check_dkg_comitments, timeout=timeout, sleep=0.1)
+        wait_until(check_dkg_comitments, timeout=timeout, sleep=1)
 
     def wait_for_quorum_list(self, quorum_hash, nodes, timeout=15, sleep=2):
         def wait_func():
+            self.log.info("quorums: " + str(self.nodes[0].quorum("list")))
             if quorum_hash in self.nodes[0].quorum("list")["llmq_test"]:
                 return True
             self.bump_mocktime(sleep, nodes=nodes)
@@ -1216,11 +1281,18 @@ class DashTestFramework(BitcoinTestFramework):
             self.nodes[0].generate(skip_count)
         sync_blocks(nodes)
 
+        self.bump_mocktime(1, nodes=nodes)
+        self.nodes[0].generate(1)
+        sync_blocks(nodes)
+
         q = self.nodes[0].getbestblockhash()
+        self.log.info("Exepcted quorum at:" + str(self.nodes[0].getblockcount()))
+        self.log.info("Exepcted quorum hash:" + str(q))
 
         self.log.info("Waiting for phase 1 (init)")
         self.wait_for_quorum_phase(q, 1, expected_members, None, 0, mninfos_online)
-        self.wait_for_quorum_connections(expected_connections, nodes, wait_proc=lambda: self.bump_mocktime(1, nodes=nodes))
+        self.log.info("Waiting for phase 1 (init) 2")
+        self.wait_for_quorum_connections(q, expected_connections, nodes, wait_proc=lambda: self.bump_mocktime(1, nodes=nodes))
         if spork23_active:
             self.wait_for_masternode_probes(mninfos_valid, wait_proc=lambda: self.bump_mocktime(1, nodes=nodes))
         self.bump_mocktime(1, nodes=nodes)
@@ -1275,7 +1347,7 @@ class DashTestFramework(BitcoinTestFramework):
 
         sync_blocks(nodes)
 
-        self.log.info("New quorum: height=%d, quorumHash=%s, quorumIndex=%d, minedBlock=%s" % (quorum_info["height"], new_quorum, quorum_info["quorumIndex"], quorum_info["minedBlock"]))
+        self.log.info("New quorum: height=%d, quorumHash=%s, quorumIndex=%d, minedBlock=%s" % (quorum_info["height"], new_quorum, 0, quorum_info["minedBlock"]))
 
         return new_quorum
 

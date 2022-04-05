@@ -244,6 +244,7 @@ std::optional<CQuorumSnapshot> CQuorumSnapshotManager::GetSnapshotForBlock(const
 
 void CQuorumSnapshotManager::StoreSnapshotForBlock(const Consensus::LLMQType llmqType, const CBlockIndex* pindex, const CQuorumSnapshot& snapshot)
 {
+    AssertLockHeld(cs_main);
     LOCK(cs);
 
     auto snapshotHash = ::SerializeHash(std::make_pair(llmqType, pindex->GetBlockHash()));

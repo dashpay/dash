@@ -19,6 +19,8 @@
 #include <llmq/signing.h>
 #include <llmq/signing_shares.h>
 
+#include <boost/range/irange.hpp>
+
 namespace llmq {
 extern const std::string CLSIG_REQUESTID_PREFIX;
 }
@@ -191,13 +193,15 @@ static UniValue quorum_dkgstatus(const JSONRPCRequest& request)
     int tipHeight = pindexTip->nHeight;
 
     auto proTxHash = WITH_LOCK(activeMasternodeInfoCs, return activeMasternodeInfo.proTxHash);
+    /*
     UniValue minableCommitments(UniValue::VOBJ);
     UniValue quorumConnections(UniValue::VOBJ);
     for (const auto& type : llmq::CLLMQUtils::GetEnabledQuorumTypes(pindexTip)) {
         const auto& llmq_params = llmq::GetLLMQParams(type);
 
         if (fMasternodeMode) {
-            const CBlockIndex* pQuorumBaseBlockIndex = WITH_LOCK(cs_main, return ::ChainActive()[tipHeight - (tipHeight % llmq_params.dkgInterval)]);
+
+            const CBlockIndex* pQuorumBaseBlockIndex = WITH_LOCK(cs_main, return ::ChainActive()[tipHeight - (tipHeight % llmq_params.dkgInterval) + 1]);
             auto allConnections = llmq::CLLMQUtils::GetQuorumConnections(llmq_params, pQuorumBaseBlockIndex, proTxHash, false);
             auto outboundConnections = llmq::CLLMQUtils::GetQuorumConnections(llmq_params, pQuorumBaseBlockIndex, proTxHash, true);
             std::map<uint256, CAddress> foundConnections;
@@ -222,7 +226,6 @@ static UniValue quorum_dkgstatus(const JSONRPCRequest& request)
             }
             quorumConnections.pushKV(std::string(llmq_params.name), arr);
         }
-
         LOCK(cs_main);
         llmq::CFinalCommitment fqc;
         if (llmq::quorumBlockProcessor->GetMineableCommitment(llmq_params, tipHeight, fqc)) {
@@ -231,10 +234,72 @@ static UniValue quorum_dkgstatus(const JSONRPCRequest& request)
             minableCommitments.pushKV(std::string(llmq_params.name), obj);
         }
     }
+    */
+    UniValue minableCommitments(UniValue::VARR);
+    UniValue quorumArrConnections(UniValue::VARR);
+    for (const auto& type : llmq::CLLMQUtils::GetEnabledQuorumTypes(pindexTip)) {
+        const auto& llmq_params = llmq::GetLLMQParams(type);
 
+        for (int quorumIndex : boost::irange(0, llmq::CLLMQUtils::IsQuorumRotationEnabled(type) ? llmq_params.signingActiveQuorumCount : 1)) {
+            UniValue obj(UniValue::VOBJ);
+            obj.pushKV("llmqType", std::string(llmq_params.name));
+            obj.pushKV("quorumIndex", quorumIndex);
+
+            if (fMasternodeMode) {
+                int quorumHeight = tipHeight - (tipHeight % llmq_params.dkgInterval) + quorumIndex;
+                if (quorumHeight <= tipHeight) {
+                    const CBlockIndex* pQuorumBaseBlockIndex = WITH_LOCK(cs_main, return ::ChainActive()[quorumHeight]);
+                    obj.pushKV("pQuorumBaseBlockIndex", pQuorumBaseBlockIndex->nHeight);
+                    obj.pushKV("quorumHash", pQuorumBaseBlockIndex->GetBlockHash().ToString());
+                    obj.pushKV("pindexTip", pindexTip->nHeight);
+
+                    auto mns = llmq::CLLMQUtils::GetAllQuorumMembers(llmq_params.type, pQuorumBaseBlockIndex);
+                    obj.pushKV("mns", static_cast<int>(mns.size()));
+                    //UniValue qConnections(UniValue::VOBJ);
+
+                    auto allConnections = llmq::CLLMQUtils::GetQuorumConnections(llmq_params, pQuorumBaseBlockIndex,
+                                                                                 proTxHash, false);
+                    auto outboundConnections = llmq::CLLMQUtils::GetQuorumConnections(llmq_params,
+                                                                                      pQuorumBaseBlockIndex, proTxHash,
+                                                                                      true);
+                    std::map<uint256, CAddress> foundConnections;
+                    g_connman->ForEachNode([&](const CNode* pnode) {
+                        auto verifiedProRegTxHash = pnode->GetVerifiedProRegTxHash();
+                        if (!verifiedProRegTxHash.IsNull() && allConnections.count(verifiedProRegTxHash)) {
+                            foundConnections.emplace(verifiedProRegTxHash, pnode->addr);
+                        }
+                    });
+                    UniValue arr(UniValue::VARR);
+                    for (auto& ec : allConnections) {
+                        UniValue ecj(UniValue::VOBJ);
+                        ecj.pushKV("proTxHash", ec.ToString());
+                        if (foundConnections.count(ec)) {
+                            ecj.pushKV("connected", true);
+                            ecj.pushKV("address", foundConnections[ec].ToString(false));
+                        } else {
+                            ecj.pushKV("connected", false);
+                        }
+                        ecj.pushKV("outbound", outboundConnections.count(ec) != 0);
+                        arr.push_back(ecj);
+                    }
+                    obj.pushKV("quorumConnections", arr);
+                }
+            }
+            quorumArrConnections.push_back(obj);
+        }
+
+        LOCK(cs_main);
+        std::vector<llmq::CFinalCommitment> vfqc;
+        if (llmq::quorumBlockProcessor->GetMineableCommitments(llmq_params, tipHeight, vfqc)) {
+            for (const auto& fqc : vfqc) {
+                UniValue obj(UniValue::VOBJ);
+                fqc.ToJson(obj);
+                minableCommitments.push_back(obj);
+            }
+        }
+    }
+    ret.pushKV("quorumConnections", quorumArrConnections);
     ret.pushKV("minableCommitments", minableCommitments);
-    ret.pushKV("quorumConnections", quorumConnections);
-
     return ret;
 }
 

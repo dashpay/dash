@@ -1011,9 +1011,10 @@ CQuorumCPtr CSigningManager::SelectQuorumForSigning(Consensus::LLMQType llmqType
         }
         pindexStart = ::ChainActive()[startBlockHeight];
     }
-    if (CLLMQUtils::IsQuorumRotationEnabled(llmqType)) {
+    /*
+    if (CLLMQUtils::IsQuorumRotationEnabled(llmqType)){
         //TODO Rewrite this part
-        /*
+
         auto indexedQuorums = quorumManager->ScanIndexedQuorums(llmqType);
         if (indexedQuorums.empty()) {
             return nullptr;
@@ -1033,12 +1034,12 @@ CQuorumCPtr CSigningManager::SelectQuorumForSigning(Consensus::LLMQType llmqType
             return nullptr;
         }
         return quorumManager->GetQuorum(llmqType, itQuorum->second);
-        */
+    }
+    else {
+     */
+    auto quorums = quorumManager->ScanQuorums(llmqType, pindexStart, poolSize);
+    if (quorums.empty()) {
         return nullptr;
-    } else {
-        auto quorums = quorumManager->ScanQuorums(llmqType, pindexStart, poolSize);
-        if (quorums.empty()) {
-            return nullptr;
         }
 
         std::vector<std::pair<uint256, size_t>> scores;
@@ -1052,7 +1053,7 @@ CQuorumCPtr CSigningManager::SelectQuorumForSigning(Consensus::LLMQType llmqType
         }
         std::sort(scores.begin(), scores.end());
         return quorums[scores.front().second];
-    }
+        //}
 }
 
 bool CSigningManager::VerifyRecoveredSig(Consensus::LLMQType llmqType, int signedAtHeight, const uint256& id, const uint256& msgHash, const CBLSSignature& sig, const int signOffset)

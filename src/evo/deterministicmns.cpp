@@ -833,7 +833,7 @@ bool CDeterministicMNManager::BuildNewListFromBlock(const CBlock& block, const C
             }
             if (!qc.commitment.IsNull()) {
                 const auto& llmq_params = llmq::GetLLMQParams(qc.commitment.llmqType);
-                uint32_t quorumHeight = qc.nHeight - (qc.nHeight % llmq_params.dkgInterval);
+                uint32_t quorumHeight = qc.nHeight - (qc.nHeight % llmq_params.dkgInterval - qc.commitment.quorumIndex);
                 auto pQuorumBaseBlockIndex = pindexPrev->GetAncestor(quorumHeight);
                 if (!pQuorumBaseBlockIndex || pQuorumBaseBlockIndex->GetBlockHash() != qc.commitment.quorumHash) {
                     // we should actually never get into this case as validation should have caught it...but let's be sure
