@@ -22,7 +22,6 @@ void SetupChainParamsBaseOptions()
     gArgs.AddArg("-devnet=<name>", "Use devnet chain with provided name", ArgsManager::ALLOW_ANY, OptionsCategory::CHAINPARAMS);
     gArgs.AddArg("-dip3params=<activation>:<enforcement>", "Override DIP3 activation and enforcement heights (regtest-only)", ArgsManager::ALLOW_ANY | ArgsManager::DEBUG_ONLY, OptionsCategory::CHAINPARAMS);
     gArgs.AddArg("-dip8params=<activation>", "Override DIP8 activation height (regtest-only)", ArgsManager::ALLOW_ANY | ArgsManager::DEBUG_ONLY, OptionsCategory::CHAINPARAMS);
-    gArgs.AddArg("-dip24params=<activation>", "Override DIP24 activation height (regtest-only)", true, OptionsCategory::CHAINPARAMS);
     gArgs.AddArg("-highsubsidyblocks=<n>", "The number of blocks with a higher than normal subsidy to mine at the start of a chain (default: 0, devnet-only)", ArgsManager::ALLOW_ANY, OptionsCategory::CHAINPARAMS);
     gArgs.AddArg("-highsubsidyfactor=<n>", "The factor to multiply the normal block subsidy by while in the highsubsidyblocks window of a chain (default: 1, devnet-only)", ArgsManager::ALLOW_ANY, OptionsCategory::CHAINPARAMS);
     gArgs.AddArg("-llmqchainlocks=<quorum name>", "Override the default LLMQ type used for ChainLocks. Allows using ChainLocks with smaller LLMQs. (default: llmq_50_60, devnet-only)", ArgsManager::ALLOW_ANY, OptionsCategory::CHAINPARAMS);

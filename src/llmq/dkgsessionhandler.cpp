@@ -81,11 +81,11 @@ void CDKGPendingMessages::Clear()
 
 void CDKGSessionHandler::UpdatedBlockTip(const CBlockIndex* pindexNew)
 {
-    LOCK(cs);
-
+    AssertLockNotHeld(cs_main);
     //Indexed quorums (greater than 0) are enabled with Quorum Rotation
     if (quorumIndex > 0 && !CLLMQUtils::IsQuorumRotationEnabled(params.type))
         return;
+    LOCK(cs);
 
     int quorumStageInt = (pindexNew->nHeight - quorumIndex) % params.dkgInterval;
 

@@ -54,7 +54,7 @@ public:
     void AddMineableCommitment(const CFinalCommitment& fqc);
     bool HasMineableCommitment(const uint256& hash) const;
     bool GetMineableCommitmentByHash(const uint256& commitmentHash, CFinalCommitment& ret) const;
-    bool GetMineableCommitments(const Consensus::LLMQParams& llmqParams, int nHeight, std::vector<CFinalCommitment>& ret) const EXCLUSIVE_LOCKS_REQUIRED(cs_main);
+    std::optional<std::vector<CFinalCommitment>> GetMineableCommitments(const Consensus::LLMQParams& llmqParams, int nHeight) const EXCLUSIVE_LOCKS_REQUIRED(cs_main);
     bool GetMineableCommitmentsTx(const Consensus::LLMQParams& llmqParams, int nHeight, std::vector<CTransactionRef>& ret) const EXCLUSIVE_LOCKS_REQUIRED(cs_main);
     bool HasMinedCommitment(Consensus::LLMQType llmqType, const uint256& quorumHash) const;
     CFinalCommitmentPtr GetMinedCommitment(Consensus::LLMQType llmqType, const uint256& quorumHash, uint256& retMinedBlockHash) const;
@@ -63,7 +63,6 @@ public:
     std::map<Consensus::LLMQType, std::vector<const CBlockIndex*>> GetMinedAndActiveCommitmentsUntilBlock(const CBlockIndex* pindex) const;
 
 private:
-    static bool GetCommitmentsFromBlock(const CBlock& block, const CBlockIndex* pindex, std::map<Consensus::LLMQType, CFinalCommitment>& ret, CValidationState& state) EXCLUSIVE_LOCKS_REQUIRED(cs_main);
     static bool GetCommitmentsFromBlock(const CBlock& block, const CBlockIndex* pindex, std::multimap<Consensus::LLMQType, CFinalCommitment>& ret, CValidationState& state) EXCLUSIVE_LOCKS_REQUIRED(cs_main);
     bool ProcessCommitment(int nHeight, const uint256& blockHash, const CFinalCommitment& qc, CValidationState& state, bool fJustCheck, bool fBLSChecks) EXCLUSIVE_LOCKS_REQUIRED(cs_main);
     static bool IsMiningPhase(const Consensus::LLMQParams& llmqParams, int nHeight, int quorumIndex);

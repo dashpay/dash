@@ -6,7 +6,6 @@
 #define BITCOIN_LLMQ_QUORUMS_H
 
 #include <chain.h>
-#include <circular_fifo_cache.h>
 #include <consensus/params.h>
 #include <saltedhasher.h>
 #include <threadinterrupt.h>
@@ -194,7 +193,8 @@ private:
     mutable std::map<Consensus::LLMQType, unordered_lru_cache<uint256, CQuorumPtr, StaticSaltedHasher>> mapQuorumsCache GUARDED_BY(quorumsCacheCs);
     mutable std::map<Consensus::LLMQType, unordered_lru_cache<uint256, std::vector<CQuorumCPtr>, StaticSaltedHasher>> scanQuorumsCache GUARDED_BY(quorumsCacheCs);
 
-    mutable std::map<Consensus::LLMQType, unordered_lru_cache<uint256, int, StaticSaltedHasher>> indexedQuorumsCache GUARDED_BY(quorumsCacheCs);
+    mutable CCriticalSection indexedQuorumsCacheCs;
+    mutable std::map<Consensus::LLMQType, unordered_lru_cache<uint256, int, StaticSaltedHasher>> indexedQuorumsCache GUARDED_BY(indexedQuorumsCacheCs);
 
     mutable ctpl::thread_pool workerPool;
     mutable CThreadInterrupt quorumThreadInterrupt;
@@ -225,7 +225,6 @@ public:
 
     void SetQuorumIndexQuorumHash(Consensus::LLMQType llmqType, const uint256& quorumHash, int quorumIndex);
     int GetQuorumIndexByQuorumHash(Consensus::LLMQType llmqType, const uint256& quorumHash);
-
 private:
     // all private methods here are cs_main-free
     void EnsureQuorumConnections(const Consensus::LLMQParams& llmqParams, const CBlockIndex *pindexNew) const;

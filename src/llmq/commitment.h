@@ -110,11 +110,11 @@ class CFinalCommitmentTxPayload
 public:
     static constexpr auto SPECIALTX_TYPE = TRANSACTION_QUORUM_COMMITMENT;
     static constexpr uint16_t CURRENT_VERSION = 1;
-    //Not sure if this new version is also need for CFinalCommitmentTxPayload
+    // Not sure if this new version is also needed for CFinalCommitmentTxPayload
     static constexpr uint16_t QUORUM_INDEXED_VERSION = 2;
 public:
     uint16_t nVersion{CURRENT_VERSION};
-    uint32_t nHeight{(uint32_t)-1};
+    uint32_t nHeight{std::numeric_limits<uint32_t>::max()};
     CFinalCommitment commitment;
 
 public:

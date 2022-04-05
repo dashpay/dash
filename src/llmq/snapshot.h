@@ -10,6 +10,8 @@
 #include <saltedhasher.h>
 #include <serialize.h>
 
+#include <optional>
+
 class CBlockIndex;
 class CDeterministicMN;
 class CDeterministicMNList;
@@ -28,11 +30,11 @@ class CQuorumSnapshot
 {
 public:
     std::vector<bool> activeQuorumMembers;
-    int mnSkipListMode;
+    int mnSkipListMode = 0;
     std::vector<int> mnSkipList;
 
     CQuorumSnapshot() = default;
-    explicit CQuorumSnapshot(std::vector<bool> _activeQuorumMembers, int _mnSkipListMode, std::vector<int> _mnSkipList) :
+    CQuorumSnapshot(std::vector<bool> _activeQuorumMembers, int _mnSkipListMode, std::vector<int> _mnSkipList) :
         activeQuorumMembers(std::move(_activeQuorumMembers)),
         mnSkipListMode(_mnSkipListMode),
         mnSkipList(std::move(_mnSkipList))
@@ -97,7 +99,7 @@ public:
 class CQuorumRotationInfo
 {
 public:
-    int creationHeight;
+    int creationHeight = 0;
     CQuorumSnapshot quorumSnaphotAtHMinusC;
     CQuorumSnapshot quorumSnaphotAtHMinus2C;
     CQuorumSnapshot quorumSnaphotAtHMinus3C;
@@ -119,7 +121,7 @@ public:
     }
 
     CQuorumRotationInfo() = default;
-    explicit CQuorumRotationInfo(const CQuorumRotationInfo& dmn) {}
+    CQuorumRotationInfo(const CQuorumRotationInfo& dmn) {}
 
     void ToJson(UniValue& obj) const;
 };
@@ -130,17 +132,17 @@ uint256 GetLastBaseBlockHash(const std::vector<const CBlockIndex*>& baseBlockInd
 class CQuorumSnapshotManager
 {
 private:
-    mutable CCriticalSection cs;
+    mutable CCriticalSection snapshotCacheCs;
 
     CEvoDB& evoDb;
 
-    std::unordered_map<uint256, CQuorumSnapshot, StaticSaltedHasher> quorumSnapshotCache;
+    std::unordered_map<uint256, CQuorumSnapshot, StaticSaltedHasher> quorumSnapshotCache GUARDED_BY(snapshotCacheCs);
 
 public:
     explicit CQuorumSnapshotManager(CEvoDB& _evoDb);
 
-    std::optional<CQuorumSnapshot> GetSnapshotForBlock(const Consensus::LLMQType llmqType, const CBlockIndex* pindex);
-    void StoreSnapshotForBlock(const Consensus::LLMQType llmqType, const CBlockIndex* pindex, const CQuorumSnapshot& snapshot);
+    std::optional<CQuorumSnapshot> GetSnapshotForBlock(Consensus::LLMQType llmqType, const CBlockIndex* pindex);
+    void StoreSnapshotForBlock(Consensus::LLMQType llmqType, const CBlockIndex* pindex, const CQuorumSnapshot& snapshot);
 };
 
 extern std::unique_ptr<CQuorumSnapshotManager> quorumSnapshotManager;

@@ -34,10 +34,9 @@ VersionBitsCache llmq_versionbitscache;
 std::vector<CDeterministicMNCPtr> CLLMQUtils::GetAllQuorumMembers(Consensus::LLMQType llmqType, const CBlockIndex* pQuorumBaseBlockIndex)
 {
     static CCriticalSection cs_members;
-    static std::map<Consensus::LLMQType, unordered_lru_cache<uint256, std::vector<CDeterministicMNCPtr>, StaticSaltedHasher>> mapQuorumMembers;
-
-    static std::map<Consensus::LLMQType, unordered_lru_cache<std::pair<uint256, int>, std::vector<CDeterministicMNCPtr>, StaticSaltedHasher>> mapIndexedQuorumMembers;
-
+    static std::map<Consensus::LLMQType, unordered_lru_cache<uint256, std::vector<CDeterministicMNCPtr>, StaticSaltedHasher>> mapQuorumMembers GUARDED_BY(cs_members);
+    static CCriticalSection cs_indexed_members;
+    static std::map<Consensus::LLMQType, unordered_lru_cache<std::pair<uint256, int>, std::vector<CDeterministicMNCPtr>, StaticSaltedHasher>> mapIndexedQuorumMembers GUARDED_BY(cs_indexed_members);
     if (!IsQuorumTypeEnabled(llmqType, pQuorumBaseBlockIndex->pprev)) {
         return {};
     }
@@ -53,11 +52,12 @@ std::vector<CDeterministicMNCPtr> CLLMQUtils::GetAllQuorumMembers(Consensus::LLM
     }
 
     if (CLLMQUtils::IsQuorumRotationEnabled(llmqType)) {
-        LOCK(cs_members);
-        if (mapIndexedQuorumMembers.empty()) {
-            InitQuorumsCache(mapIndexedQuorumMembers);
+        {
+            LOCK(cs_indexed_members);
+            if (mapIndexedQuorumMembers.empty()) {
+                InitQuorumsCache(mapIndexedQuorumMembers);
+            }
         }
-
         /*
          * Quorums created with rotation are now created in a different way. All signingActiveQuorumCount are created during the period of dkgInterval.
          * But they are not created exactly in the same block, they are spreaded overtime: one quorum in each block until all signingActiveQuorumCount are created.
@@ -75,22 +75,28 @@ std::vector<CDeterministicMNCPtr> CLLMQUtils::GetAllQuorumMembers(Consensus::LLM
          * Since mapQuorumMembers stores Quorum members per block hash, and we don't know yet the block hashes of blocks for all quorumIndexes (since these blocks are not created yet)
          * We store them in a second cache mapIndexedQuorumMembers which stores them by {CycleQuorumBaseBlockHash, quorumIndex}
          */
-        if (mapIndexedQuorumMembers[llmqType].get(std::pair(pCycleQuorumBaseBlockIndex->GetBlockHash(), quorumIndex), quorumMembers)) {
-            mapQuorumMembers[llmqType].insert(pQuorumBaseBlockIndex->GetBlockHash(), quorumMembers);
+        {
+            LOCK(cs_indexed_members);
+            if (mapIndexedQuorumMembers[llmqType].get(std::pair(pCycleQuorumBaseBlockIndex->GetBlockHash(), quorumIndex), quorumMembers)) {
+                LOCK(cs_members);
+                mapQuorumMembers[llmqType].insert(pQuorumBaseBlockIndex->GetBlockHash(), quorumMembers);
 
-            /*
+                /*
             * We also need to store which quorum block hash corresponds to which quorumIndex
             */
-            quorumManager->SetQuorumIndexQuorumHash(llmqType, pQuorumBaseBlockIndex->GetBlockHash(), quorumIndex);
-            return quorumMembers;
+                quorumManager->SetQuorumIndexQuorumHash(llmqType, pQuorumBaseBlockIndex->GetBlockHash(), quorumIndex);
+                return quorumMembers;
+            }
         }
 
         auto q = ComputeQuorumMembersByQuarterRotation(llmqType, pCycleQuorumBaseBlockIndex);
+        LOCK(cs_indexed_members);
         for (int i : boost::irange(0, static_cast<int>(q.size()))) {
             mapIndexedQuorumMembers[llmqType].insert(std::make_pair(pCycleQuorumBaseBlockIndex->GetBlockHash(), i), q[i]);
         }
 
         quorumMembers = q[0];
+        LOCK(cs_members);
         mapQuorumMembers[llmqType].insert(pQuorumBaseBlockIndex->GetBlockHash(), quorumMembers);
         quorumManager->SetQuorumIndexQuorumHash(llmqType, pQuorumBaseBlockIndex->GetBlockHash(), 0);
 
@@ -507,13 +513,9 @@ bool CLLMQUtils::IsQuorumPoseEnabled(Consensus::LLMQType llmqType)
 
 bool CLLMQUtils::IsQuorumRotationEnabled(Consensus::LLMQType llmqType)
 {
-    //TODO Check how to enable Consensus::DEPLOYMENT_DIP0024 in functional tests
-    //bool fQuorumRotationActive = (VersionBitsTipState(Params().GetConsensus(), Consensus::DEPLOYMENT_DIP0024) == ThresholdState::ACTIVE);
-    bool fQuorumRotationActive = ChainActive().Tip()->nHeight >= Params().GetConsensus().DIP0024Height;
-    if (llmqType == Params().GetConsensus().llmqTypeInstantSend && fQuorumRotationActive) {
-        return true;
-    }
-    return false;
+    LOCK(cs_main);
+    bool fQuorumRotationActive = (VersionBitsTipState(Params().GetConsensus(), Consensus::DEPLOYMENT_DIP0024) == ThresholdState::ACTIVE);
+    return llmqType == Params().GetConsensus().llmqTypeInstantSend && fQuorumRotationActive;
 }
 
 uint256 CLLMQUtils::DeterministicOutboundConnection(const uint256& proTxHash1, const uint256& proTxHash2)

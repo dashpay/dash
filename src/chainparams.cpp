@@ -832,7 +832,6 @@ public:
         consensus.BIP66Height = 1251; // BIP66 activated on regtest (Used in functional tests)
         consensus.DIP0001Height = 2000;
         consensus.DIP0003Height = 432;
-        consensus.DIP0024Height = 4000;
         consensus.DIP0003EnforcementHeight = 500;
         consensus.DIP0003EnforcementHash = uint256();
         consensus.DIP0008Height = 432;
@@ -882,12 +881,12 @@ public:
 
         // Deployment of Quorum Rotation DIP and decreased proposal fee (Values to be determined)
         consensus.vDeployments[Consensus::DEPLOYMENT_DIP0024].bit = 7;
-        consensus.vDeployments[Consensus::DEPLOYMENT_DIP0024].nStartTime = 1625097600; // July 1st, 2021
-        consensus.vDeployments[Consensus::DEPLOYMENT_DIP0024].nTimeout = 1656633600;   // July 1st, 2022
-        consensus.vDeployments[Consensus::DEPLOYMENT_DIP0024].nWindowSize = 4032;
-        consensus.vDeployments[Consensus::DEPLOYMENT_DIP0024].nThresholdStart = 3226; // 80% of 4032
-        consensus.vDeployments[Consensus::DEPLOYMENT_DIP0024].nThresholdMin = 2420;   // 60% of 4032
-        consensus.vDeployments[Consensus::DEPLOYMENT_DIP0024].nFalloffCoeff = 5;      // this corresponds to 10 periods
+        consensus.vDeployments[Consensus::DEPLOYMENT_DIP0024].nStartTime = 0;
+        consensus.vDeployments[Consensus::DEPLOYMENT_DIP0024].nTimeout = 999999999999ULL;
+        consensus.vDeployments[Consensus::DEPLOYMENT_DIP0024].nWindowSize = 100;
+        consensus.vDeployments[Consensus::DEPLOYMENT_DIP0024].nThresholdStart = 50; // 80% of 4032
+        consensus.vDeployments[Consensus::DEPLOYMENT_DIP0024].nThresholdMin = 50;   // 60% of 4032
+        consensus.vDeployments[Consensus::DEPLOYMENT_DIP0024].nFalloffCoeff = 5;    // this corresponds to 10 periods
 
         // The best chain should have at least this much work.
         consensus.nMinimumChainWork = uint256S("0x00");
@@ -907,7 +906,6 @@ public:
         UpdateVersionBitsParametersFromArgs(args);
         UpdateDIP3ParametersFromArgs(args);
         UpdateDIP8ParametersFromArgs(args);
-        UpdateDIP24ParametersFromArgs(args);
         UpdateBudgetParametersFromArgs(args);
 
         genesis = CreateGenesisBlock(1417713337, 1096447, 0x207fffff, 1, 50 * COIN);
@@ -1004,15 +1002,6 @@ public:
         consensus.DIP0003EnforcementHeight = nEnforcementHeight;
     }
     void UpdateDIP3ParametersFromArgs(const ArgsManager& args);
-
-    /**
-     * Allows modifying the DIP24 activation height
-     */
-    void UpdateDIP24Parameters(int nActivationHeight)
-    {
-        consensus.DIP0024Height = nActivationHeight;
-    }
-    void UpdateDIP24ParametersFromArgs(const ArgsManager& args);
 
     /**
      * Allows modifying the DIP8 activation height
@@ -1120,24 +1109,6 @@ void CRegTestParams::UpdateDIP3ParametersFromArgs(const ArgsManager& args)
     }
     LogPrintf("Setting DIP3 parameters to activation=%ld, enforcement=%ld\n", nDIP3ActivationHeight, nDIP3EnforcementHeight);
     UpdateDIP3Parameters(nDIP3ActivationHeight, nDIP3EnforcementHeight);
-}
-
-void CRegTestParams::UpdateDIP24ParametersFromArgs(const ArgsManager& args)
-{
-    if (!args.IsArgSet("-dip24params")) return;
-
-    std::string strParams = args.GetArg("-dip24params", "");
-    std::vector<std::string> vParams;
-    boost::split(vParams, strParams, boost::is_any_of(":"));
-    if (vParams.size() != 1) {
-        throw std::runtime_error("DIP24 parameters malformed, expecting <activation>");
-    }
-    int nDIP24ActivationHeight;
-    if (!ParseInt32(vParams[0], &nDIP24ActivationHeight)) {
-        throw std::runtime_error(strprintf("Invalid activation height (%s)", vParams[0]));
-    }
-    LogPrintf("Setting DIP24 parameters to activation=%ld\n", nDIP24ActivationHeight);
-    UpdateDIP24Parameters(nDIP24ActivationHeight);
 }
 
 void CRegTestParams::UpdateDIP8ParametersFromArgs(const ArgsManager& args)
