@@ -10,6 +10,7 @@
 #include <llmq/params.h>
 #include <saltedhasher.h>
 #include <serialize.h>
+#include <univalue.h>
 #include <unordered_lru_cache.h>
 
 #include <optional>

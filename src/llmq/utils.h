@@ -6,7 +6,6 @@
 #define BITCOIN_LLMQ_UTILS_H
 
 #include <consensus/params.h>
-#include <llmq/snapshot.h>
 
 #include <dbwrapper.h>
 #include <random.h>
@@ -18,12 +17,13 @@
 class CBlockIndex;
 class CDeterministicMN;
 class CDeterministicMNList;
-class CQuorumSnapshot;
 using CDeterministicMNCPtr = std::shared_ptr<const CDeterministicMN>;
 class CBLSPublicKey;
 
 namespace llmq
 {
+
+class CQuorumSnapshot;
 
 // Use a separate cache instance instead of versionbitscache to avoid locking cs_main
 // and dealing with all kinds of deadlocks.

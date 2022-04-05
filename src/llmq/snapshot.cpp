@@ -4,13 +4,12 @@
 
 #include <llmq/snapshot.h>
 
-#include <evo/cbtx.h>
-#include <evo/deterministicmns.h>
 #include <evo/simplifiedmns.h>
 #include <evo/specialtx.h>
 
 #include <llmq/blockprocessor.h>
 #include <llmq/commitment.h>
+#include <llmq/utils.h>
 
 #include <base58.h>
 #include <chainparams.h>
@@ -118,8 +117,6 @@ void CQuorumRotationInfo::ToJson(UniValue& obj) const
 bool BuildQuorumRotationInfo(const CGetQuorumRotationInfo& request, CQuorumRotationInfo& response, std::string& errorRet)
 {
     AssertLockHeld(cs_main);
-
-    LOCK(deterministicMNManager->cs);
 
     std::vector<const CBlockIndex*> baseBlockIndexes;
     if (request.baseBlockHashes.size() == 0) {
