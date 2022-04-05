@@ -15,9 +15,10 @@
 namespace llmq
 {
 
-CFinalCommitment::CFinalCommitment(const Consensus::LLMQParams& params, const uint256& _quorumHash) :
+CFinalCommitment::CFinalCommitment(const Consensus::LLMQParams& params, const uint256& _quorumHash, const uint32_t _quorumIndex) :
         llmqType(params.type),
         quorumHash(_quorumHash),
+        quorumIndex(_quorumIndex),
         signers(params.size),
         validMembers(params.size)
 {

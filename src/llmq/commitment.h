@@ -27,6 +27,7 @@ public:
     uint16_t nVersion{CURRENT_VERSION};
     Consensus::LLMQType llmqType{Consensus::LLMQType::LLMQ_NONE};
     uint256 quorumHash;
+    uint32_t quorumIndex; // used to identify quorums of the same type. Example: if 64 quorums of the same type are active at the same time, quorumIndex has a value [0,63]
     std::vector<bool> signers;
     std::vector<bool> validMembers;
 
@@ -38,7 +39,7 @@ public:
 
 public:
     CFinalCommitment() = default;
-    CFinalCommitment(const Consensus::LLMQParams& params, const uint256& _quorumHash);
+    CFinalCommitment(const Consensus::LLMQParams& params, const uint256& _quorumHash, const uint32_t _quorumIndex = 0);
 
     int CountSigners() const
     {
