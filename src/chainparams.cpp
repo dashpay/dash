@@ -783,7 +783,7 @@ public:
     /**
      * Allows modifying PowTargetSpacing
      */
-    void UpdateDevnetPowTargetSpacing(const int64_t& nPowTargetSpacing)
+    void UpdateDevnetPowTargetSpacing(int64_t nPowTargetSpacing)
     {
         consensus.nPowTargetSpacing = nPowTargetSpacing;
     }
