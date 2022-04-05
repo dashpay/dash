@@ -500,8 +500,7 @@ int CQuorumManager::GetQuorumIndexByQuorumHash(Consensus::LLMQType llmqType, con
     if (mapCache.get(quorumHash, value)) {
         return value;
     }
-    //TODO remove LogPrintf
-    LogPrintf("GetQuorumIndexByQuorumHash h[%s] NOT FOUND->0\n", quorumHash.ToString());
+    LogPrint(BCLog::LLMQ, "GetQuorumIndexByQuorumHash h[%s] NOT FOUND->0\n", quorumHash.ToString());
     return 0;
 }
 
