@@ -31,7 +31,7 @@ VersionBitsCache llmq_versionbitscache;
 void CLLMQUtils::PreComputeQuorumMembers(const CBlockIndex* pQuorumBaseBlockIndex)
 {
     for (const Consensus::LLMQParams& params : CLLMQUtils::GetEnabledQuorumParams(pQuorumBaseBlockIndex->pprev)) {
-        if (llmq::CLLMQUtils::IsQuorumRotationEnabled(params.type) && (pQuorumBaseBlockIndex->nHeight % params.dkgInterval == 0)) {
+        if (llmq::CLLMQUtils::IsQuorumRotationEnabled(params.type, pQuorumBaseBlockIndex) && (pQuorumBaseBlockIndex->nHeight % params.dkgInterval == 0)) {
             auto mns = CLLMQUtils::GetAllQuorumMembers(params.type, pQuorumBaseBlockIndex);
         }
     }
@@ -246,9 +246,11 @@ std::vector<std::vector<CDeterministicMNCPtr>> CLLMQUtils::BuildNewQuorumQuarter
 
     auto quorumSize = static_cast<size_t>(llmqParams.size);
     auto quarterSize = quorumSize / 4;
-    auto modifier = ::SerializeHash(std::make_pair(llmqParams.type, pQuorumBaseBlockIndex->GetBlockHash()));
+    const CBlockIndex* pWorkBlockIndex = pQuorumBaseBlockIndex->GetAncestor(pQuorumBaseBlockIndex->nHeight - 8);
+    auto modifier = ::SerializeHash(std::make_pair(llmqParams.type, pWorkBlockIndex->GetBlockHash()));
+
     LOCK(deterministicMNManager->cs);
-    auto allMns = deterministicMNManager->GetListForBlock(pQuorumBaseBlockIndex);
+    auto allMns = deterministicMNManager->GetListForBlock(pWorkBlockIndex);
 
     quarterQuorumMembers.resize(nQuorums);
 
@@ -381,9 +383,11 @@ std::vector<std::vector<CDeterministicMNCPtr>> CLLMQUtils::GetQuorumQuarterMembe
 
     quarterQuorumMembers.resize(numQuorums);
 
-    auto modifier = ::SerializeHash(std::make_pair(llmqParams.type, pQuorumBaseBlockIndex->GetBlockHash()));
+    const CBlockIndex* pWorkBlockIndex = pQuorumBaseBlockIndex->GetAncestor(pQuorumBaseBlockIndex->nHeight - 8);
+
+    auto modifier = ::SerializeHash(std::make_pair(llmqParams.type, pWorkBlockIndex->GetBlockHash()));
     LOCK(deterministicMNManager->cs);
-    auto Mns = deterministicMNManager->GetListForBlock(pQuorumBaseBlockIndex);
+    auto Mns = deterministicMNManager->GetListForBlock(pWorkBlockIndex);
 
     auto [MnsUsedAtH, MnsNotUsedAtH] = CLLMQUtils::GetMNUsageBySnapshot(llmqParams.type, pQuorumBaseBlockIndex, snapshot, nHeight);
 
@@ -446,8 +450,11 @@ std::pair<CDeterministicMNList, CDeterministicMNList> CLLMQUtils::GetMNUsageBySn
     CDeterministicMNList usedMNs;
     CDeterministicMNList nonUsedMNs;
     LOCK(deterministicMNManager->cs);
-    auto Mns = deterministicMNManager->GetListForBlock(pQuorumBaseBlockIndex);
-    auto sortedAllMns = Mns.CalculateQuorum(Mns.GetAllMNsCount(), pQuorumBaseBlockIndex->GetBlockHash());
+
+    const CBlockIndex* pWorkBlockIndex = pQuorumBaseBlockIndex->GetAncestor(pQuorumBaseBlockIndex->nHeight - 8);
+
+    auto Mns = deterministicMNManager->GetListForBlock(pWorkBlockIndex);
+    auto sortedAllMns = Mns.CalculateQuorum(Mns.GetAllMNsCount(), pWorkBlockIndex->GetBlockHash());
 
     size_t i{0};
     for (const auto& dmn : sortedAllMns) {

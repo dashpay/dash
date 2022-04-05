@@ -211,16 +211,14 @@ bool CQuorumBlockProcessor::ProcessCommitment(int nHeight, const uint256& blockH
     }
 
     if (quorumHash.IsNull()) {
-        //return state.DoS(100, false, REJECT_INVALID, "bad-qc-block");
         LogPrint(BCLog::LLMQ, "CQuorumBlockProcessor::%s height=%d, type=%d, quorumIndex=%d, quorumHash=%s, signers=%s, validMembers=%d, quorumPublicKey=%s quorumHash is null.\n", __func__,
                  nHeight, static_cast<uint8_t>(qc.llmqType), qc.quorumIndex, quorumHash.ToString(), qc.CountSigners(), qc.CountValidMembers(), qc.quorumPublicKey.ToString());
-        return false;
+        return state.DoS(100, false, REJECT_INVALID, "bad-qc-block");
     }
     if (quorumHash != qc.quorumHash) {
-        //return state.DoS(100, false, REJECT_INVALID, "bad-qc-block");
         LogPrint(BCLog::LLMQ, "CQuorumBlockProcessor::%s height=%d, type=%d, quorumIndex=%d, quorumHash=%s, qc.quorumHash=%s signers=%s, validMembers=%d, quorumPublicKey=%s non equal quorumHash.\n", __func__,
                  nHeight, static_cast<uint8_t>(qc.llmqType), qc.quorumIndex, quorumHash.ToString(), qc.quorumHash.ToString(), qc.CountSigners(), qc.CountValidMembers(), qc.quorumPublicKey.ToString());
-        return false;
+        return state.DoS(100, false, REJECT_INVALID, "bad-qc-block");
     }
 
     if (qc.IsNull()) {
@@ -230,6 +228,16 @@ bool CQuorumBlockProcessor::ProcessCommitment(int nHeight, const uint256& blockH
             return state.DoS(100, false, REJECT_INVALID, "bad-qc-invalid-null");
         }
         return true;
+    }
+
+    if (HasMinedCommitment(llmq_params.type, quorumHash)) {
+        // should not happen as it's already handled in ProcessBlock
+        return state.DoS(100, false, REJECT_INVALID, "bad-qc-dup");
+    }
+
+    if (!IsMiningPhase(llmq_params, nHeight)) {
+        // should not happen as it's already handled in ProcessBlock
+        return state.DoS(100, false, REJECT_INVALID, "bad-qc-height");
     }
 
     auto pQuorumBaseBlockIndex = LookupBlockIndex(qc.quorumHash);
