@@ -56,54 +56,29 @@ public:
     bool VerifySizes(const Consensus::LLMQParams& params) const;
 
 public:
-    template <typename Stream, typename Operation>
-    inline void SerializationOpBase(Stream& s, Operation ser_action)
+    SERIALIZE_METHODS(CFinalCommitment, obj)
     {
-        READWRITE(nVersion);
-    }
+        READWRITE(
+                obj.nVersion,
+                obj.llmqType,
+                obj.quorumHash
+                );
 
-    template <typename Stream>
-    void Serialize(Stream& s) const
-    {
-        const_cast<CFinalCommitment*>(this)->SerializationOpBase(s, CSerActionSerialize());
+        int quorumIndex = 0;
+        SER_WRITE(obj, quorumIndex = obj.quorumIndex);
+        if (obj.nVersion == CFinalCommitment::INDEXED_QUORUM_VERSION) {
+            READWRITE(quorumIndex);
+        }
+        SER_READ(obj, obj.quorumIndex = quorumIndex);
 
-        ::Serialize(s, llmqType);
-        ::Serialize(s, quorumHash);
-
-        if (nVersion == CFinalCommitment::INDEXED_QUORUM_VERSION)
-            ::Serialize(s, quorumIndex);
-
-        DynamicBitSetFormatter dyn;
-        dyn.Ser(s, signers);
-        dyn.Ser(s, validMembers);
-
-        ::Serialize(s, quorumPublicKey);
-        ::Serialize(s, quorumVvecHash);
-        ::Serialize(s, quorumSig);
-        ::Serialize(s, membersSig);
-    }
-
-    template <typename Stream>
-    void Unserialize(Stream& s)
-    {
-        SerializationOpBase(s, CSerActionUnserialize());
-
-        ::Unserialize(s, llmqType);
-        ::Unserialize(s, quorumHash);
-
-        if (nVersion == CFinalCommitment::INDEXED_QUORUM_VERSION)
-            ::Unserialize(s, quorumIndex);
-        else
-            quorumIndex = 0;
-
-        DynamicBitSetFormatter dyn;
-        dyn.Unser(s, signers);
-        dyn.Unser(s, validMembers);
-
-        ::Unserialize(s, quorumPublicKey);
-        ::Unserialize(s, quorumVvecHash);
-        ::Unserialize(s, quorumSig);
-        ::Unserialize(s, membersSig);
+        READWRITE(
+                DYNBITSET(obj.signers),
+                DYNBITSET(obj.validMembers),
+                obj.quorumPublicKey,
+                obj.quorumVvecHash,
+                obj.quorumSig,
+                obj.membersSig
+                );
     }
 
 public:
@@ -154,33 +129,9 @@ public:
     CFinalCommitment commitment;
 
 public:
-    /*SERIALIZE_METHODS(CFinalCommitmentTxPayload, obj)
+    SERIALIZE_METHODS(CFinalCommitmentTxPayload, obj)
     {
         READWRITE(obj.nVersion, obj.nHeight, obj.commitment);
-    }*/
-
-    template <typename Stream, typename Operation>
-    inline void SerializationOpBase(Stream& s, Operation ser_action)
-    {
-        READWRITE(nVersion);
-    }
-
-    template <typename Stream>
-    void Serialize(Stream& s) const
-    {
-        const_cast<CFinalCommitmentTxPayload*>(this)->SerializationOpBase(s, CSerActionSerialize());
-
-        ::Serialize(s, nHeight);
-        ::Serialize(s, commitment);
-    }
-
-    template <typename Stream>
-    void Unserialize(Stream& s)
-    {
-        SerializationOpBase(s, CSerActionUnserialize());
-
-        ::Unserialize(s, nHeight);
-        ::Unserialize(s, commitment);
     }
 
     void ToJson(UniValue& obj) const
