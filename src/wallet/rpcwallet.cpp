@@ -474,10 +474,10 @@ static UniValue listaddressbalances(const JSONRPCRequest& request)
             {"minamount", RPCArg::Type::NUM, /* default */ "0", "Minimum balance in " + CURRENCY_UNIT + " an address should have to be shown in the list"},
         },
         RPCResult{
-    "{\n"
-    "  \"address\" : amount,       (string) The dash address and the amount in " + CURRENCY_UNIT + "\n"
-    "  ,...\n"
-    "}\n"
+                RPCResult::Type::ARR, "", "",
+                {
+                        {RPCResult::Type::STR_AMOUNT, "amount", "The dash address and the amount in " + CURRENCY_UNIT},
+                }
         },
         RPCExamples{
             HelpExampleCli("listaddressbalances", "")
@@ -1376,57 +1376,38 @@ static UniValue listtransactions(const JSONRPCRequest& request)
                        {RPCResult::Type::STR, "category", "The transaction category.\n"
                           "\"send\"                  Transactions sent.\n"
                           "\"receive\"               Non-coinbase transactions received.\n"
-                          "\"generate\"              Coinbase transactions received with more than 100 confirmations.\n"
-                          "\"immature\"              Coinbase transactions received with 100 or fewer confirmations.\n"
-                          "\"orphan\"                Orphaned coinbase transactions received."},
+                          "\"move\"                  A local (off blockchain)\n"
+                                                          "transaction between accounts, and not associated with an address,\n"
+                                                          "transaction id or block..\n"},
                        {RPCResult::Type::STR_AMOUNT, "amount", "The amount in " + CURRENCY_UNIT + ". This is negative for the 'send' category, and is positive\n"
                             "for all other categories"},
                            {RPCResult::Type::STR, "label", "A comment for the address/transaction, if any"},
                            {RPCResult::Type::NUM, "vout", "the vout value"},
                            {RPCResult::Type::STR_AMOUNT, "fee", "The amount of the fee in " + CURRENCY_UNIT + ". This is negative and only available for the\n"
                                "'send' category of transactions."},
-                       },
-                       TransactionDescriptionString()),
+                       {RPCResult::Type::NUM, "confirmations", "The number of blockchain confirmations for the transaction. Available for 'send' and\n"
+                                                               "'receive' category of transactions. Negative confirmations indicate the\n"
+                                                               "transaction conflicts with the block chain"},
+                       {RPCResult::Type::BOOL, "instantlock", "Current transaction lock state. Available for 'send' and 'receive' category of transactions"},
+                       {RPCResult::Type::BOOL, "instantlock-internal", "Current internal transaction lock state. Available for 'send' and 'receive' category of transactions"},
+                       {RPCResult::Type::BOOL, "chainlock", "The state of the corresponding block chainlock"},
+                       {RPCResult::Type::BOOL, "trusted", "Whether we consider the outputs of this unconfirmed transaction safe to spend."},
+                       {RPCResult::Type::STR_HEX, "blockhash", "The block hash containing the transaction. Available for 'send' and 'receive'\n"
+                                                               "category of transactions."},
+                       {RPCResult::Type::NUM, "blockindex", "The index of the transaction in the block that includes it. Available for 'send' and 'receive'\n"
+                                                            "category of transactions."},
+                       {RPCResult::Type::NUM_TIME, "blocktime", "The block time in seconds since epoch (1 Jan 1970 GMT)."},
+                       {RPCResult::Type::STR_HEX, "txid", "The transaction id. Available for 'send' and 'receive' category of transactions."},
+                       {RPCResult::Type::NUM_TIME, "time", "The transaction time in seconds since epoch (midnight Jan 1 1970 GMT)."},
+                       {RPCResult::Type::NUM_TIME, "timereceived", "The time received in seconds since epoch (midnight Jan 1 1970 GMT). Available \n"
+                                                           "for 'send' and 'receive' category of transactions."},
+                       {RPCResult::Type::STR, "comment", "If a comment is associated with the transaction."},
+                       }),
                    {
                            {RPCResult::Type::BOOL, "abandoned", "'true' if the transaction has been abandoned (inputs are respendable). Only available for the \n"
                                                                 "'send' category of transactions."},
                    })},
             }
-    "[\n"
-    "  {\n"
-    "    \"address\" : \"address\",    (string) The dash address of the transaction. Not present for \n"
-    "                                                move transactions (category = move).\n"
-    "    \"category\" : \"send|receive|move\", (string) The transaction category. 'move' is a local (off blockchain)\n"
-    "                                                transaction between accounts, and not associated with an address,\n"
-    "                                                transaction id or block. 'send' and 'receive' transactions are \n"
-    "                                                associated with an address, transaction id and block details\n"
-    "    \"amount\" : x.xxx,          (numeric) The amount in " + CURRENCY_UNIT + ". This is negative for the 'send' category, and for the\n"
-    "                                         'move' category for moves outbound. It is positive for the 'receive' category,\n"
-    "                                         and for the 'move' category for inbound funds.\n"
-    "    \"label\" : \"label\",       (string) A comment for the address/transaction, if any\n"
-    "    \"vout\" : n,                (numeric) the vout value\n"
-    "    \"fee\" : x.xxx,             (numeric) The amount of the fee in " + CURRENCY_UNIT + ". This is negative and only available for the \n"
-    "                                         'send' category of transactions.\n"
-    "    \"confirmations\" : n,       (numeric) The number of blockchain confirmations for the transaction. Available for 'send' and \n"
-    "                                         'receive' category of transactions. Negative confirmations indicate the\n"
-    "                                         transaction conflicts with the block chain\n"
-    "    \"instantlock\" : true|false, (boolean) Current transaction lock state. Available for 'send' and 'receive' category of transactions\n"
-    "    \"instantlock_internal\" : true|false, (boolean) Current internal transaction lock state. Available for 'send' and 'receive' category of transactions\n"
-    "    \"chainlock\" : true|false, (boolean) The state of the corresponding block chainlock\n"
-    "    \"trusted\" : xxx,           (boolean) Whether we consider the outputs of this unconfirmed transaction safe to spend.\n"
-    "    \"blockhash\" : \"hashvalue\", (string) The block hash containing the transaction. Available for 'send' and 'receive'\n"
-    "                                          category of transactions.\n"
-    "    \"blockindex\" : n,          (numeric) The index of the transaction in the block that includes it. Available for 'send' and 'receive'\n"
-    "                                          category of transactions.\n"
-    "    \"blocktime\" : xxx,         (numeric) The block time in seconds since epoch (1 Jan 1970 GMT).\n"
-    "    \"txid\" : \"transactionid\",  (string) The transaction id. Available for 'send' and 'receive' category of transactions.\n"
-    "    \"time\" : xxx,              (numeric) The transaction time in seconds since epoch (midnight Jan 1 1970 GMT).\n"
-    "    \"timereceived\" : xxx,      (numeric) The time received in seconds since epoch (midnight Jan 1 1970 GMT). Available \n"
-    "                                          for 'send' and 'receive' category of transactions.\n"
-    "    \"comment\" : \"...\",         (string) If a comment is associated with the transaction.\n"
-    "                                         'send' category of transactions.\n"
-    "  }\n"
-    "]\n"
         },
         RPCExamples{
     "\nList the most recent 10 transactions in the systems\n"
@@ -1513,59 +1494,61 @@ static UniValue listsinceblock(const JSONRPCRequest& request)
     "                                                           (not guaranteed to work on pruned nodes)"},
         },
         RPCResult{
-                {RPCResult::Type::OBJ, "", "", Cat(Cat<std::vector<RPCResult>>(
-                                                           {
-                                                                   {RPCResult::Type::BOOL, "involvesWatchonly", "Only returns true if imported addresses were involved in transaction."},
-                                                                   {RPCResult::Type::STR, "address", "The bitcoin address of the transaction."},
-                                                                   {RPCResult::Type::STR, "category", "The transaction category.\n"
-                                                                                                      "\"send\"                  Transactions sent.\n"
-                                                                                                      "\"receive\"               Non-coinbase transactions received.\n"
-                                                                                                      "\"generate\"              Coinbase transactions received with more than 100 confirmations.\n"
-                                                                                                      "\"immature\"              Coinbase transactions received with 100 or fewer confirmations.\n"
-                                                                                                      "\"orphan\"                Orphaned coinbase transactions received."},
-                                                                   {RPCResult::Type::STR_AMOUNT, "amount", "The amount in " + CURRENCY_UNIT + ". This is negative for the 'send' category, and is positive\n"
-                                                                                                                                              "for all other categories"},
-                                                                   {RPCResult::Type::NUM, "vout", "the vout value"},
-                                                                   {RPCResult::Type::STR_AMOUNT, "fee", "The amount of the fee in " + CURRENCY_UNIT + ". This is negative and only available for the\n"
-                                                                                                                                                      "'send' category of transactions."},
-                                                           },
-                                                           TransactionDescriptionString()),
-                                                   {
-                                                           {RPCResult::Type::BOOL, "abandoned", "'true' if the transaction has been abandoned (inputs are respendable). Only available for the \n"
-                                                                                                "'send' category of transactions."},
-                                                           {RPCResult::Type::STR, "label", "A comment for the address/transaction, if any"},
-                                                           {RPCResult::Type::STR, "to", "If a comment to is associated with the transaction."},
-                                                   })},
-    "{\n"
-    "  \"transactions\" : [\n"
-    "    \"address\" : \"address\",    (string) The dash address of the transaction. Not present for move transactions (category = move).\n"
-    "    \"category\" : \"send|receive\",  (string) The transaction category. 'send' has negative amounts, 'receive' has positive amounts.\n"
-    "    \"amount\" : x.xxx,          (numeric) The amount in " + CURRENCY_UNIT + ". This is negative for the 'send' category, and for the 'move' category for moves \n"
-    "                                          outbound. It is positive for the 'receive' category, and for the 'move' category for inbound funds.\n"
-    "    \"vout\" : n,               (numeric) the vout value\n"
-    "    \"fee\" : x.xxx,             (numeric) The amount of the fee in " + CURRENCY_UNIT + ". This is negative and only available for the 'send' category of transactions.\n"
-    "    \"confirmations\" : n,      (numeric) The number of blockchain confirmations for the transaction. Available for 'send' and 'receive' category of transactions.\n"
-    "                                          When it's < 0, it means the transaction conflicted that many blocks ago.\n"
-    "    \"instantlock\" : true|false, (boolean) Current transaction lock state. Available for 'send' and 'receive' category of transactions\n"
-    "    \"instantlock_internal\" : true|false, (boolean) Current internal transaction lock state. Available for 'send' and 'receive' category of transactions\n"
-    "    \"chainlock\" : true|false, (boolean) The state of the corresponding block chainlock\n"
-    "    \"blockhash\" : \"hashvalue\", (string) The block hash containing the transaction. Available for 'send' and 'receive' category of transactions.\n"
-    "    \"blockindex\" : n,          (numeric) The index of the transaction in the block that includes it. Available for 'send' and 'receive' category of transactions.\n"
-    "    \"blocktime\" : xxx,         (numeric) The block time in seconds since epoch (1 Jan 1970 GMT).\n"
-    "    \"txid\" : \"transactionid\",  (string) The transaction id. Available for 'send' and 'receive' category of transactions.\n"
-    "    \"time\" : xxx,              (numeric) The transaction time in seconds since epoch (Jan 1 1970 GMT).\n"
-    "    \"timereceived\" : xxx,      (numeric) The time received in seconds since epoch (Jan 1 1970 GMT). Available for 'send' and 'receive' category of transactions.\n"
-    "    \"abandoned\" : xxx,         (boolean) 'true' if the transaction has been abandoned (inputs are respendable). Only available for the 'send' category of transactions.\n"
-    "    \"comment\" : \"...\",         (string) If a comment is associated with the transaction.\n"
-    "    \"label\" : \"label\"         (string) A comment for the address/transaction, if any\n"
-    "    \"to\" : \"...\",              (string) If a comment to is associated with the transaction.\n"
-    "  ],\n"
-    "  \"removed\" : [\n"
-    "    <structure is the same as \"transactions\" above, only present if include_removed=true>\n"
-    "    Note: transactions that were re-added in the active chain will appear as-is in this array, and may thus have a positive confirmation count.\n"
-    "  ],\n"
-    "  \"lastblock\" : \"lastblockhash\"  (string) The hash of the block (target_confirmations-1) from the best block on the main chain. This is typically used to feed back into listsinceblock the next time you call it. So you would generally use a target_confirmations of say 6, so you will be continually re-notified of transactions until they've reached 6 confirmations plus any new ones\n"
-    "}\n"
+            RPCResult::Type::ARR, "transactions", "",
+            {
+                {RPCResult::Type::OBJ, "", "",
+                {
+                    {RPCResult::Type::STR, "address", "The dash address of the transaction. Not present for move transactions (category = move)."},
+                    {RPCResult::Type::STR, "category", "The transaction category. 'send' has negative amounts, 'receive' has positive amounts."},
+                    {RPCResult::Type::NUM, "amount", "The amount in " + CURRENCY_UNIT + ". This is negative for the 'send' category, and for the 'move' category for moves \n"
+                                                                                        "outbound. It is positive for the 'receive' category, and for the 'move' category for inbound funds."},
+                    {RPCResult::Type::NUM, "vout", "the vout value"},
+                    {RPCResult::Type::NUM, "fee", "The amount of the fee in " + CURRENCY_UNIT + ". This is negative and only available for the 'send' category of transactions."},
+                    {RPCResult::Type::NUM, "confirmations", "The number of blockchain confirmations for the transaction. Available for 'send' and 'receive' category of transactions.\n"
+                                                            "When it's < 0, it means the transaction conflicted that many blocks ago."},
+                    {RPCResult::Type::BOOL, "instantlock", "Current transaction lock state. Available for 'send' and 'receive' category of transactions."},
+                    {RPCResult::Type::BOOL, "instantlock_internal", "Current internal transaction lock state. Available for 'send' and 'receive' category of transactions."},
+                    {RPCResult::Type::BOOL, "chainlock", "The state of the corresponding block chainlock."},
+                    {RPCResult::Type::STR_HEX, "blockhash", "The block hash containing the transaction. Available for 'send' and 'receive' category of transactions."},
+                    {RPCResult::Type::NUM, "blockindex", "The index of the transaction in the block that includes it. Available for 'send' and 'receive' category of transactions."},
+                    {RPCResult::Type::NUM_TIME, "blocktime", "The block time in seconds since epoch (1 Jan 1970 GMT)."},
+                    {RPCResult::Type::STR_HEX, "txid", "The transaction id. Available for 'send' and 'receive' category of transactions."},
+                    {RPCResult::Type::NUM_TIME, "time", "The transaction time in seconds since epoch (Jan 1 1970 GMT).."},
+                    {RPCResult::Type::NUM_TIME, "timereceived", "The time received in seconds since epoch (Jan 1 1970 GMT). Available for 'send' and 'receive' category of transactions."},
+                    {RPCResult::Type::BOOL, "abandoned", "'true' if the transaction has been abandoned (inputs are respendable). Only available for the 'send' category of transactions."},
+                    {RPCResult::Type::STR, "comment", "If a comment is associated with the transaction."},
+                    {RPCResult::Type::STR, "label", "A comment for the address/transaction, if any."},
+                    {RPCResult::Type::STR, "to", "If a comment to is associated with the transaction."},
+                }},
+            },
+            RPCResult::Type::ARR, "removed", "<structure is the same as \"transactions\" above, only present if include_removed=true>\n Note: transactions that were re-added in the active chain will appear as-is in this array, and may thus have a positive confirmation count.",
+            {
+                {RPCResult::Type::OBJ, "", "",
+                {
+                    {RPCResult::Type::STR, "address", "The dash address of the transaction. Not present for move transactions (category = move)."},
+                    {RPCResult::Type::STR, "category", "The transaction category. 'send' has negative amounts, 'receive' has positive amounts."},
+                    {RPCResult::Type::NUM, "amount", "The amount in " + CURRENCY_UNIT + ". This is negative for the 'send' category, and for the 'move' category for moves \n"
+                                                                                        "outbound. It is positive for the 'receive' category, and for the 'move' category for inbound funds."},
+                    {RPCResult::Type::NUM, "vout", "the vout value"},
+                    {RPCResult::Type::NUM, "fee", "The amount of the fee in " + CURRENCY_UNIT + ". This is negative and only available for the 'send' category of transactions."},
+                    {RPCResult::Type::NUM, "confirmations", "The number of blockchain confirmations for the transaction. Available for 'send' and 'receive' category of transactions.\n"
+                                                            "When it's < 0, it means the transaction conflicted that many blocks ago."},
+                    {RPCResult::Type::BOOL, "instantlock", "Current transaction lock state. Available for 'send' and 'receive' category of transactions."},
+                    {RPCResult::Type::BOOL, "instantlock_internal", "Current internal transaction lock state. Available for 'send' and 'receive' category of transactions."},
+                    {RPCResult::Type::BOOL, "chainlock", "The state of the corresponding block chainlock."},
+                    {RPCResult::Type::STR_HEX, "blockhash", "The block hash containing the transaction. Available for 'send' and 'receive' category of transactions."},
+                    {RPCResult::Type::NUM, "blockindex", "The index of the transaction in the block that includes it. Available for 'send' and 'receive' category of transactions."},
+                    {RPCResult::Type::NUM_TIME, "blocktime", "The block time in seconds since epoch (1 Jan 1970 GMT)."},
+                    {RPCResult::Type::STR_HEX, "txid", "The transaction id. Available for 'send' and 'receive' category of transactions."},
+                    {RPCResult::Type::NUM_TIME, "time", "The transaction time in seconds since epoch (Jan 1 1970 GMT).."},
+                    {RPCResult::Type::NUM_TIME, "timereceived", "The time received in seconds since epoch (Jan 1 1970 GMT). Available for 'send' and 'receive' category of transactions."},
+                    {RPCResult::Type::BOOL, "abandoned", "'true' if the transaction has been abandoned (inputs are respendable). Only available for the 'send' category of transactions."},
+                    {RPCResult::Type::STR, "comment", "If a comment is associated with the transaction."},
+                    {RPCResult::Type::STR, "label", "A comment for the address/transaction, if any."},
+                    {RPCResult::Type::STR, "to", "If a comment to is associated with the transaction."},
+                }},
+            },
+            {RPCResult::Type::STR_HEX, "lastblockhash", "The hash of the block (target_confirmations-1) from the best block on the main chain. This is typically used to feed back into listsinceblock the next time you call it. So you would generally use a target_confirmations of say 6, so you will be continually re-notified of transactions until they've reached 6 confirmations plus any new ones."},
         },
         RPCExamples{
             HelpExampleCli("listsinceblock", "")
@@ -1669,71 +1652,38 @@ static UniValue gettransaction(const JSONRPCRequest& request)
             {"include_watchonly", RPCArg::Type::BOOL, /* default */ "false", "Whether to include watch-only addresses in balance calculation and details[]"},
         },
         RPCResult{
-                RPCResult::Type::OBJ, "", "", Cat(Cat<std::vector<RPCResult>>(
-                                                          {
-                                                                  {RPCResult::Type::STR_AMOUNT, "amount", "The amount in " + CURRENCY_UNIT},
-                                                                  {RPCResult::Type::STR_AMOUNT, "fee", "The amount of the fee in " + CURRENCY_UNIT + ". This is negative and only available for the\n"
-                                                                                                                                                     "'send' category of transactions."},
-                                                          },
-                                                          TransactionDescriptionString()),
-                                                  {
-                                                          {RPCResult::Type::ARR, "details", "",
-                                                                  {
-                                                                          {RPCResult::Type::OBJ, "", "",
-                                                                                  {
-                                                                                          {RPCResult::Type::BOOL, "involvesWatchonly", "Only returns true if imported addresses were involved in transaction."},
-                                                                                          {RPCResult::Type::STR, "address", "The bitcoin address involved in the transaction."},
-                                                                                          {RPCResult::Type::STR, "category", "The transaction category.\n"
-                                                                                                                             "\"send\"                  Transactions sent.\n"
-                                                                                                                             "\"receive\"               Non-coinbase transactions received.\n"
-                                                                                                                             "\"generate\"              Coinbase transactions received with more than 100 confirmations.\n"
-                                                                                                                             "\"immature\"              Coinbase transactions received with 100 or fewer confirmations.\n"
-                                                                                                                             "\"orphan\"                Orphaned coinbase transactions received."},
-                                                                                          {RPCResult::Type::STR_AMOUNT, "amount", "The amount in " + CURRENCY_UNIT},
-                                                                                          {RPCResult::Type::STR, "label", "A comment for the address/transaction, if any"},
-                                                                                          {RPCResult::Type::NUM, "vout", "the vout value"},
-                                                                                          {RPCResult::Type::STR_AMOUNT, "fee", "The amount of the fee in " + CURRENCY_UNIT + ". This is negative and only available for the \n"
-                                                                                                                                                                             "'send' category of transactions."},
-                                                                                          {RPCResult::Type::BOOL, "abandoned", "'true' if the transaction has been abandoned (inputs are respendable). Only available for the \n"
-                                                                                                                               "'send' category of transactions."},
-                                                                                  }},
-                                                                  }},
-                                                          {RPCResult::Type::STR_HEX, "hex", "Raw data for transaction"},
-                                                          {RPCResult::Type::OBJ, "decoded", "Optional, the decoded transaction (only present when `verbose` is passed)",
-                                                                  {
-                                                                          {RPCResult::Type::ELISION, "", "Equivalent to the RPC decoderawtransaction method, or the RPC getrawtransaction method when `verbose` is passed."},
-                                                                  }},
-                                                  })
-    "{\n"
-    "  \"amount\" : x.xxx,        (numeric) The transaction amount in " + CURRENCY_UNIT + "\n"
-    "  \"fee\" : x.xxx,            (numeric) The amount of the fee in " + CURRENCY_UNIT + ". This is negative and only available for the \n"
-    "                              'send' category of transactions.\n"
-    "  \"instantlock\" : true|false, (boolean) Current transaction lock state\n"
-    "  \"instantlock_internal\" : true|false, (boolean) Current internal transaction lock state\n"
-    "  \"chainlock\" : true|false, (boolean) The state of the corresponding block chainlock\n"
-    "  \"confirmations\" : n,     (numeric) The number of blockchain confirmations\n"
-    "  \"blockhash\" : \"hash\",    (string) The block hash\n"
-    "  \"blockindex\" : xx,       (numeric) The index of the transaction in the block that includes it\n"
-    "  \"blocktime\" : ttt,       (numeric) The time in seconds since epoch (1 Jan 1970 GMT)\n"
-    "  \"txid\" : \"transactionid\",   (string) The transaction id.\n"
-    "  \"time\" : ttt,            (numeric) The transaction time in seconds since epoch (1 Jan 1970 GMT)\n"
-    "  \"timereceived\" : ttt,    (numeric) The time received in seconds since epoch (1 Jan 1970 GMT)\n"
-    "  \"details\" : [\n"
-    "    {\n"
-    "      \"address\" : \"address\",          (string) The dash address involved in the transaction\n"
-    "      \"category\" : \"send|receive\",    (string) The category, either 'send' or 'receive'\n"
-    "      \"amount\" : x.xxx,               (numeric) The amount in " + CURRENCY_UNIT + "\n"
-    "      \"label\" : \"label\",              (string) A comment for the address/transaction, if any\n"
-    "      \"vout\" : n,                     (numeric) the vout value\n"
-    "      \"fee\" : x.xxx,                     (numeric) The amount of the fee in " + CURRENCY_UNIT + ". This is negative and only available for the \n"
-    "                                           'send' category of transactions.\n"
-    "      \"abandoned\" : xxx                  (boolean) 'true' if the transaction has been abandoned (inputs are respendable). Only available for the \n"
-    "                                           'send' category of transactions.\n"
-    "    }\n"
-    "    ,...\n"
-    "  ],\n"
-    "  \"hex\" : \"data\"                      (string) Raw data for transaction\n"
-    "}\n"
+            RPCResult::Type::OBJ, "", "",
+                {
+                    {RPCResult::Type::STR_AMOUNT, "amount", "The amount in " + CURRENCY_UNIT},
+                    {RPCResult::Type::STR_AMOUNT, "fee", "The amount of the fee in " + CURRENCY_UNIT + ". This is negative and only available for the\n"
+                                                                                                       "'send' category of transactions."},
+                    {RPCResult::Type::BOOL, "instantlock", "Current transaction lock state."},
+                    {RPCResult::Type::BOOL, "instantlock_internal", "Current internal transaction lock state."},
+                    {RPCResult::Type::BOOL, "chainlock", "The state of the corresponding block chainlock."},
+                    {RPCResult::Type::NUM, "confirmations", "The number of blockchain confirmations."},
+                    {RPCResult::Type::STR_HEX, "blockhash", "The block hash."},
+                    {RPCResult::Type::NUM, "blockindex", "The index of the transaction in the block that includes it."},
+                    {RPCResult::Type::NUM_TIME, "blocktime", "The time in seconds since epoch (1 Jan 1970 GMT)."},
+                    {RPCResult::Type::STR_HEX, "txid", "The transaction id."},
+                    {RPCResult::Type::NUM_TIME, "time", "The transaction time in seconds since epoch (1 Jan 1970 GMT)."},
+                    {RPCResult::Type::NUM_TIME, "timereceived", "The time received in seconds since epoch (1 Jan 1970 GMT)."},
+                    {RPCResult::Type::ARR, "details", "",
+                        {
+                            {RPCResult::Type::OBJ, "", "",
+                                {
+                                    {RPCResult::Type::STR, "address", "The dash address involved in the transaction."},
+                                    {RPCResult::Type::STR, "category", "The category, either 'send' or 'receive'.\n"},
+                                    {RPCResult::Type::STR_AMOUNT, "amount", "The amount in " + CURRENCY_UNIT},
+                                    {RPCResult::Type::STR, "label", "A comment for the address/transaction, if any"},
+                                    {RPCResult::Type::NUM, "vout", "the vout value"},
+                                    {RPCResult::Type::STR_AMOUNT, "fee", "The amount of the fee in " + CURRENCY_UNIT + ". This is negative and only available for the \n"
+                                                                                                                       "'send' category of transactions."},
+                                    {RPCResult::Type::BOOL, "abandoned", "'true' if the transaction has been abandoned (inputs are respendable). Only available for the \n"
+                                                                         "'send' category of transactions."},
+                            }},
+                    }},
+                  {RPCResult::Type::STR_HEX, "hex", "Raw data for transaction"},
+                },
         },
         RPCExamples{
             HelpExampleCli("gettransaction", "\"1075db55d416d3ca199f55b6084e2115b9345e16c5cf302fc80e9d5fbf5d48d\"")
@@ -2437,56 +2387,37 @@ static UniValue getwalletinfo(const JSONRPCRequest& request)
                                 {
                                         {RPCResult::Type::STR, "walletname", "the wallet name"},
                                         {RPCResult::Type::NUM, "walletversion", "the wallet version"},
-                                        {RPCResult::Type::STR_AMOUNT, "balance", "DEPRECATED. Identical to getbalances().mine.trusted"},
-                                        {RPCResult::Type::STR_AMOUNT, "unconfirmed_balance", "DEPRECATED. Identical to getbalances().mine.untrusted_pending"},
-                                        {RPCResult::Type::STR_AMOUNT, "immature_balance", "DEPRECATED. Identical to getbalances().mine.immature"},
+                                        {RPCResult::Type::NUM, "balance", "the total confirmed balance of the wallet in " + CURRENCY_UNIT},
+                                        {RPCResult::Type::NUM, "coinjoin_balance", "the CoinJoin balance in " + CURRENCY_UNIT},
+                                        {RPCResult::Type::NUM, "unconfirmed_balance", "the total unconfirmed balance of the wallet in " + CURRENCY_UNIT},
+                                        {RPCResult::Type::NUM, "immature_balance", "the total immature balance of the wallet in " + CURRENCY_UNIT},
                                         {RPCResult::Type::NUM, "txcount", "the total number of transactions in the wallet"},
-                                        {RPCResult::Type::NUM_TIME, "keypoololdest", "the " + UNIX_EPOCH_TIME + " of the oldest pre-generated key in the key pool"},
+                                        {RPCResult::Type::NUM_TIME, "timefirstkey", "the timestamp (seconds since Unix epoch) of the oldest known key in the wallet"},
+                                        {RPCResult::Type::NUM_TIME, "keypoololdest", "the timestamp (seconds since Unix epoch) of the oldest pre-generated key in the key pool"},
                                         {RPCResult::Type::NUM, "keypoolsize", "how many new keys are pre-generated (only counts external keys)"},
                                         {RPCResult::Type::NUM, "keypoolsize_hd_internal", "how many new keys are pre-generated for internal use (used for change outputs, only appears if the wallet is using this feature, otherwise external keys are used)"},
-                                        {RPCResult::Type::NUM_TIME, "unlocked_until", "the " + UNIX_EPOCH_TIME + " until which the wallet is unlocked for transfers, or 0 if the wallet is locked"},
+                                        {RPCResult::Type::NUM, "keys_left", "how many new keys are left since last automatic backup"},
+                                        {RPCResult::Type::NUM_TIME, "unlocked_until", "the timestamp in seconds since epoch (midnight Jan 1 1970 GMT) that the wallet is unlocked for transfers, or 0 if the wallet is locked"},
                                         {RPCResult::Type::STR_AMOUNT, "paytxfee", "the transaction fee configuration, set in " + CURRENCY_UNIT + "/kB"},
-                                        {RPCResult::Type::STR_HEX, "hdseedid", /* optional */ true, "the Hash160 of the HD seed (only present when HD is enabled)"},
-                                        {RPCResult::Type::BOOL, "private_keys_enabled", "false if privatekeys are disabled for this wallet (enforced watch-only wallet)"},
-                                        {RPCResult::Type::BOOL, "avoid_reuse", "whether this wallet tracks clean/dirty coins in terms of reuse"},
+                                        {RPCResult::Type::STR_HEX, "hdchainid", "the ID of the HD chain"},
+                                        {RPCResult::Type::STR, "hdaccountcount", "how many accounts of the HD chain are in this wallet"},
+                                        {RPCResult::Type::ARR, "", "",
+                                            {RPCResult::Type::OBJ, "", "",
+                                                {
+                                                    {RPCResult::Type::NUM, "hdaccountindex", "the index of the account"},
+                                                    {RPCResult::Type::NUM, "hdexternalkeyindex", "current external childkey index"},
+                                                    {RPCResult::Type::NUM, "hdinternalkeyindex", "current internal childkey index"},
+                                                }
+                                            },
+                                        },
                                         {RPCResult::Type::OBJ, "scanning", "current scanning details, or false if no scan is in progress",
-                                         {
+                                            {
                                                  {RPCResult::Type::NUM, "duration", "elapsed seconds since scan start"},
                                                  {RPCResult::Type::NUM, "progress", "scanning progress percentage [0.0, 1.0]"},
-                                         }},
+                                            }
+                                        },
+                                        {RPCResult::Type::BOOL, "private_keys_enabled", "false if privatekeys are disabled for this wallet (enforced watch-only wallet)"},
                                 }},
-            "{\n"
-            "  \"walletname\" : xxxxx,               (string) the wallet name\n"
-            "  \"walletversion\" : xxxxx,            (numeric) the wallet version\n"
-            "  \"balance\" : xxxxxxx,                (numeric) the total confirmed balance of the wallet in " + CURRENCY_UNIT + "\n"
-            "  \"coinjoin_balance\" : xxxxxx,        (numeric) the CoinJoin balance in " + CURRENCY_UNIT + "\n"
-            "  \"unconfirmed_balance\" : xxx,        (numeric) the total unconfirmed balance of the wallet in " + CURRENCY_UNIT + "\n"
-            "  \"immature_balance\" : xxxxxx,        (numeric) the total immature balance of the wallet in " + CURRENCY_UNIT + "\n"
-            "  \"txcount\" : xxxxxxx,                (numeric) the total number of transactions in the wallet\n"
-            "  \"timefirstkey\" : xxxxxx,            (numeric) the timestamp (seconds since Unix epoch) of the oldest known key in the wallet\n"
-            "  \"keypoololdest\" : xxxxxx,           (numeric) the timestamp (seconds since Unix epoch) of the oldest pre-generated key in the key pool\n"
-            "  \"keypoolsize\" : xxxx,               (numeric) how many new keys are pre-generated (only counts external keys)\n"
-            "  \"keypoolsize_hd_internal\" : xxxx,   (numeric) how many new keys are pre-generated for internal use (used for change outputs, only appears if the wallet is using this feature, otherwise external keys are used)\n"
-            "  \"keys_left\" : xxxx,                 (numeric) how many new keys are left since last automatic backup\n"
-            "  \"unlocked_until\" : ttt,             (numeric) the timestamp in seconds since epoch (midnight Jan 1 1970 GMT) that the wallet is unlocked for transfers, or 0 if the wallet is locked\n"
-            "  \"paytxfee\" : x.xxxx,                (numeric) the transaction fee configuration, set in " + CURRENCY_UNIT + "/kB\n"
-            "  \"hdchainid\" : \"<hash>\",             (string) the ID of the HD chain\n"
-            "  \"hdaccountcount\" : xxx,             (numeric) how many accounts of the HD chain are in this wallet\n"
-            "    [\n"
-            "      {\n"
-            "      \"hdaccountindex\" : xxx,         (numeric) the index of the account\n"
-            "      \"hdexternalkeyindex\" : xxxx,    (numeric) current external childkey index\n"
-            "      \"hdinternalkeyindex\" : xxxx,    (numeric) current internal childkey index\n"
-            "      }\n"
-            "      ,...\n"
-            "    ]\n"
-            "  \"scanning\" :                        (json object) current scanning details, or false if no scan is in progress\n"
-            "    {\n"
-            "      \"duration\" : xxxx              (numeric) elapsed seconds since scan start\n"
-            "      \"progress\" : x.xxxx,           (numeric) scanning progress percentage [0.0, 1.0]\n"
-            "    }\n"
-            "  \"private_keys_enabled\" : true|false (boolean) false if privatekeys are disabled for this wallet (enforced watch-only wallet)\n"
-            "}\n"
                 },
                 RPCExamples{
                     HelpExampleCli("getwalletinfo", "")
@@ -2895,51 +2826,27 @@ static UniValue listunspent(const JSONRPCRequest& request)
                 "query_options"},
         },
         RPCResult{
-                RPCResult{
-                        RPCResult::Type::ARR, "", "",
-                        {
-                                {RPCResult::Type::OBJ, "", "",
-                                 {
-                                         {RPCResult::Type::STR_HEX, "txid", "the transaction id"},
-                                         {RPCResult::Type::NUM, "vout", "the vout value"},
-                                         {RPCResult::Type::STR, "address", "the bitcoin address"},
-                                         {RPCResult::Type::STR, "label", "The associated label, or \"\" for the default label"},
-                                         {RPCResult::Type::STR, "scriptPubKey", "the script key"},
-                                         {RPCResult::Type::STR_AMOUNT, "amount", "the transaction output amount in " + CURRENCY_UNIT},
-                                         {RPCResult::Type::NUM, "confirmations", "The number of confirmations"},
-                                         {RPCResult::Type::STR_HEX, "redeemScript", "The redeemScript if scriptPubKey is P2SH"},
-                                         {RPCResult::Type::STR, "witnessScript", "witnessScript if the scriptPubKey is P2WSH or P2SH-P2WSH"},
-                                         {RPCResult::Type::BOOL, "spendable", "Whether we have the private keys to spend this output"},
-                                         {RPCResult::Type::BOOL, "solvable", "Whether we know how to spend this output, ignoring the lack of keys"},
-                                         {RPCResult::Type::BOOL, "reused", "(only present if avoid_reuse is set) Whether this output is reused/dirty (sent to an address that was previously spent from)"},
-                                         {RPCResult::Type::STR, "desc", "(only when solvable) A descriptor for spending this output"},
-                                         {RPCResult::Type::BOOL, "safe", "Whether this output is considered safe to spend. Unconfirmed transactions"
-                                                                         "                              from outside keys and unconfirmed replacement transactions are considered unsafe\n"
-                                                                         "and are not eligible for spending by fundrawtransaction and sendtoaddress."},
-                                 }},
-                        }
-                },
-    "[                   (array of json object)\n"
-    "  {\n"
-    "    \"txid\" : \"txid\",          (string) the transaction id \n"
-    "    \"vout\" : n,               (numeric) the vout value\n"
-    "    \"address\" : \"address\",    (string) the dash address\n"
-    "    \"label\" : \"label\",        (string) The associated label, or \"\" for the default label\n"
-    "    \"scriptPubKey\" : \"key\",   (string) the script key\n"
-    "    \"amount\" : x.xxx,         (numeric) the transaction output amount in " + CURRENCY_UNIT + "\n"
-    "    \"confirmations\" : n,      (numeric) The number of confirmations\n"
-    "    \"redeemScript\" : n        (string) The redeemScript if scriptPubKey is P2SH\n"
-    "    \"spendable\" : xxx,        (boolean) Whether we have the private keys to spend this output\n"
-    "    \"solvable\" : xxx,         (boolean) Whether we know how to spend this output, ignoring the lack of keys\n"
-    "    \"desc\" : xxx,             (string, only when solvable) A descriptor for spending this output\n"
-    "    \"safe\" : xxx              (boolean) Whether this output is considered safe to spend. Unconfirmed transactions\n"
-    "                              from outside keys and unconfirmed replacement transactions are considered unsafe\n"
-    "                              and are not eligible for spending by fundrawtransaction and sendtoaddress.\n"
-    "    \"coinjoin_rounds\" : n     (numeric) The number of CoinJoin rounds\n"
-    "  }\n"
-    "  ,...\n"
-    "]\n"
-        },
+            RPCResult::Type::ARR, "", "",
+            {
+                {RPCResult::Type::OBJ, "", "",
+                {
+                    {RPCResult::Type::STR_HEX, "txid", "the transaction id"},
+                    {RPCResult::Type::NUM, "vout", "the vout value"},
+                    {RPCResult::Type::STR, "address", "the dash address"},
+                    {RPCResult::Type::STR, "label", "The associated label, or \"\" for the default label"},
+                    {RPCResult::Type::STR, "scriptPubKey", "the script key"},
+                    {RPCResult::Type::STR_AMOUNT, "amount", "the transaction output amount in " + CURRENCY_UNIT},
+                    {RPCResult::Type::NUM, "confirmations", "The number of confirmations"},
+                    {RPCResult::Type::STR_HEX, "redeemScript", "The redeemScript if scriptPubKey is P2SH"},
+                    {RPCResult::Type::BOOL, "spendable", "Whether we have the private keys to spend this output"},
+                    {RPCResult::Type::BOOL, "solvable", "Whether we know how to spend this output, ignoring the lack of keys"},
+                    {RPCResult::Type::STR, "desc", "(only when solvable) A descriptor for spending this output"},
+                    {RPCResult::Type::BOOL, "safe", "Whether this output is considered safe to spend. Unconfirmed transactions"
+                                                    "                             from outside keys and unconfirmed replacement transactions are considered unsafe\n"
+                                                    "and are not eligible for spending by fundrawtransaction and sendtoaddress."},
+                    {RPCResult::Type::NUM, "coinjoin_rounds", "The number of CoinJoin rounds"},
+                }},
+            }},
         RPCExamples{
             HelpExampleCli("listunspent", "")
     + HelpExampleCli("listunspent", "6 9999999 \"[\\\"XwnLY9Tf7Zsef8gMGL2fhWA9ZmMjt4KPwg\\\",\\\"XuQQkwA4FYkq2XERzMY2CiAZhJTEDAbtcg\\\"]\"")
@@ -3522,82 +3429,39 @@ UniValue getaddressinfo(const JSONRPCRequest& request)
         RPCResult{
                 RPCResult::Type::OBJ, "", "",
                 {
-                        {RPCResult::Type::STR, "address", "The bitcoin address validated."},
+                        {RPCResult::Type::STR, "address", "The dash address validated."},
                         {RPCResult::Type::STR_HEX, "scriptPubKey", "The hex-encoded scriptPubKey generated by the address."},
                         {RPCResult::Type::BOOL, "ismine", "If the address is yours."},
                         {RPCResult::Type::BOOL, "iswatchonly", "If the address is watchonly."},
-                        {RPCResult::Type::BOOL, "solvable", "If we know how to spend coins sent to this address, ignoring the possible lack of private keys."},
+                        {RPCResult::Type::BOOL, "solvable", "Whether we know how to spend coins sent to this address, ignoring the possible lack of private keys."},
                         {RPCResult::Type::STR, "desc", /* optional */ true, "A descriptor for spending coins sent to this address (only when solvable)."},
                         {RPCResult::Type::BOOL, "isscript", "If the key is a script."},
                         {RPCResult::Type::BOOL, "ischange", "If the address was used for change output."},
-                        {RPCResult::Type::BOOL, "iswitness", "If the address is a witness address."},
-                        {RPCResult::Type::NUM, "witness_version", /* optional */ true, "The version number of the witness program."},
-                        {RPCResult::Type::STR_HEX, "witness_program", /* optional */ true, "The hex value of the witness program."},
-                        {RPCResult::Type::STR, "script", /* optional */ true, "The output script type. Only if isscript is true and the redeemscript is known. Possible\n"
-                                                                              "                                                         types: nonstandard, pubkey, pubkeyhash, scripthash, multisig, nulldata, witness_v0_keyhash,\n"
-                                                                              "witness_v0_scripthash, witness_unknown."},
+                        {RPCResult::Type::STR, "script", /* optional */ true, "The output script type. Only if \"isscript\" is true and the redeemscript is known. Possible types: nonstandard, pubkey, pubkeyhash, scripthash, multisig, nulldata"},
                         {RPCResult::Type::STR_HEX, "hex", /* optional */ true, "The redeemscript for the p2sh address."},
-                        {RPCResult::Type::ARR, "pubkeys", /* optional */ true, "Array of pubkeys associated with the known redeemscript (only if script is multisig).",
+                        {RPCResult::Type::ARR, "pubkeys", /* optional */ true, "Array of pubkeys associated with the known redeemscript (only if \"script\" is \"multisig\").",
                          {
                                  {RPCResult::Type::STR, "pubkey", ""},
                          }},
-                        {RPCResult::Type::NUM, "sigsrequired", /* optional */ true, "The number of signatures required to spend multisig output (only if script is multisig)."},
-                        {RPCResult::Type::STR_HEX, "pubkey", /* optional */ true, "The hex value of the raw public key for single-key addresses (possibly embedded in P2SH or P2WSH)."},
-                        {RPCResult::Type::OBJ, "embedded", /* optional */ true, "Information about the address embedded in P2SH or P2WSH, if relevant and known.",
-                         {
-                                 {RPCResult::Type::ELISION, "", "Includes all\n"
-                                                                "                                                         getaddressinfo output fields for the embedded address, excluding metadata (timestamp, hdkeypath,\n"
-                                                                "hdseedid) and relation to the wallet (ismine, iswatchonly)."},
-                         }},
+                        {RPCResult::Type::NUM, "sigsrequired", /* optional */ true, "The number of signatures required to spend multisig output (only if \"script\" is \"multisig\")."},
+                        {RPCResult::Type::STR_HEX, "pubkey", /* optional */ true, "The hex value of the raw public key, for single-key addresses."},
                         {RPCResult::Type::BOOL, "iscompressed", /* optional */ true, "If the pubkey is compressed."},
-                        {RPCResult::Type::STR, "label", "DEPRECATED. The label associated with the address. Defaults to \"\". Replaced by the labels array below."},
-                        {RPCResult::Type::NUM_TIME, "timestamp", /* optional */ true, "The creation time of the key, if available, expressed in " + UNIX_EPOCH_TIME + "."},
+                        {RPCResult::Type::STR, "label", "The label associated with the address, \"\" is the default label."},
+                        {RPCResult::Type::NUM_TIME, "timestamp", /* optional */ true, "The creation time of the key if available in seconds since epoch (Jan 1 1970 GMT)"},
+                        {RPCResult::Type::STR_HEX, "hdchainid", /* optional */ true, "The ID of the HD chain."},
                         {RPCResult::Type::STR, "hdkeypath", /* optional */ true, "The HD keypath, if the key is HD and available."},
                         {RPCResult::Type::STR_HEX, "hdseedid", /* optional */ true, "The Hash160 of the HD seed."},
                         {RPCResult::Type::STR_HEX, "hdmasterfingerprint", /* optional */ true, "The fingerprint of the master key."},
-                        {RPCResult::Type::ARR, "labels", "Array of labels associated with the address. Currently limited to one label but returned\n"
-                                                         "as an array to keep the API stable if multiple labels are enabled in the future.",
+                        {RPCResult::Type::ARR, "labels", "Array of labels associated with the address.",
                          {
                                  {RPCResult::Type::STR, "label name", "The label name. Defaults to \"\"."},
-                                 {RPCResult::Type::OBJ, "", "label data, DEPRECATED, will be removed in 0.21. To re-enable, launch bitcoind with `-deprecatedrpc=labelspurpose`",
+                                 {RPCResult::Type::OBJ, "", "json object of label data",
                                   {
-                                          {RPCResult::Type::STR, "name", "The label name. Defaults to \"\"."},
-                                          {RPCResult::Type::STR, "purpose", "The purpose of the associated address (send or receive)."},
+                                          {RPCResult::Type::STR, "name", "The label."},
+                                          {RPCResult::Type::STR, "purpose", "Purpose of address (\"send\" for sending address, \"receive\" for receiving address)"},
                                   }},
                          }},
                 }
-    "{\n"
-    "  \"address\" : \"address\",        (string) The dash address validated\n"
-    "  \"scriptPubKey\" : \"hex\",       (string) The hex-encoded scriptPubKey generated by the address\n"
-    "  \"ismine\" : true|false,        (boolean) If the address is yours or not\n"
-    "  \"iswatchonly\" : true|false,   (boolean) If the address is watchonly\n"
-    "  \"solvable\" : true|false,      (boolean) Whether we know how to spend coins sent to this address, ignoring the possible lack of private keys\n"
-    "  \"desc\" : \"desc\",            (string, optional) A descriptor for spending coins sent to this address (only when solvable)\n"
-    "  \"isscript\" : true|false,      (boolean) If the key is a script\n"
-    " \"ischange\" : true|false,       (boolean) If the address was used for change output\n"
-    "  \"script\" : \"type\"             (string, optional) The output script type. Only if \"isscript\" is true and the redeemscript is known. Possible types: nonstandard, pubkey, pubkeyhash, scripthash, multisig, nulldata\n"
-    "  \"hex\" : \"hex\",                (string, optional) The redeemscript for the p2sh address\n"
-    "  \"pubkeys\"                     (string, optional) Array of pubkeys associated with the known redeemscript (only if \"script\" is \"multisig\")\n"
-    "    [\n"
-    "      \"pubkey\"\n"
-    "      ,...\n"
-    "    ]\n"
-    "  \"sigsrequired\" : xxxxx        (numeric, optional) Number of signatures required to spend multisig output (only if \"script\" is \"multisig\")\n"
-    "  \"pubkey\" : \"publickeyhex\",    (string, optional) The hex value of the raw public key, for single-key addresses\n"
-    "  \"iscompressed\" : true|false,  (boolean, optional) If the pubkey is compressed\n"
-    "  \"label\" :  \"label\"         (string) The label associated with the address, \"\" is the default label\n"
-    "  \"timestamp\" : timestamp,      (number, optional) The creation time of the key if available in seconds since epoch (Jan 1 1970 GMT)\n"
-    "  \"hdchainid\" : \"<hash>\"        (string, optional) The ID of the HD chain\n"
-    "  \"hdkeypath\" : \"keypath\"       (string, optional) The HD keypath if the key is HD and available\n"
-    "  \"hdmasterfingerprint\" : \"<hash160>\" (string, optional) The fingperint of the master key.\n"
-    "  \"labels\"                      (json object) Array of labels associated with the address.\n"
-    "    [\n"
-    "      { (json object of label data)\n"
-    "        \"name\" : \"labelname\" (string) The label\n"
-    "        \"purpose\" : \"string\" (string) Purpose of address (\"send\" for sending address, \"receive\" for receiving address)\n"
-    "      },...\n"
-    "    ]\n"
-    "}\n"
         },
         RPCExamples{
             HelpExampleCli("getaddressinfo", "\"XwnLY9Tf7Zsef8gMGL2fhWA9ZmMjt4KPwg\"")
