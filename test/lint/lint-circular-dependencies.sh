@@ -87,12 +87,11 @@ EXPECTED_CIRCULAR_DEPENDENCIES=(
     "evo/specialtxman -> validation -> evo/specialtxman"
     "bloom -> llmq/commitment -> llmq/utils -> net -> bloom"
 
-    "evo/simplifiedmns -> llmq/commitment -> llmq/utils -> llmq/snapshot -> evo/simplifiedmns"
+    "evo/simplifiedmns -> llmq/blockprocessor -> net_processing -> llmq/snapshot -> evo/simplifiedmns"
     "llmq/blockprocessor -> net_processing -> llmq/snapshot -> llmq/blockprocessor"
-    "llmq/commitment -> llmq/utils -> llmq/snapshot -> llmq/commitment"
     "llmq/dkgsession -> llmq/dkgsessionmgr -> llmq/quorums -> llmq/dkgsession"
     "llmq/dkgsessionmgr -> llmq/quorums -> llmq/dkgsessionmgr"
-    "llmq/quorums -> llmq/utils -> llmq/snapshot -> llmq/quorums"
+    "llmq/snapshot -> llmq/utils -> llmq/snapshot"
 )
 
 EXIT_CODE=0

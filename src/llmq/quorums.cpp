@@ -165,7 +165,6 @@ CQuorumManager::CQuorumManager(CEvoDB& _evoDb, CBLSWorker& _blsWorker, CDKGSessi
 {
     CLLMQUtils::InitQuorumsCache(mapQuorumsCache);
     CLLMQUtils::InitQuorumsCache(scanQuorumsCache);
-    CLLMQUtils::InitQuorumsCache(indexedQuorumsCache);
 
     quorumThreadInterrupt.reset();
 }
@@ -474,34 +473,6 @@ std::vector<CQuorumCPtr> CQuorumManager::ScanQuorums(Consensus::LLMQType llmqTyp
     size_t nResultEndIndex = std::min(nCountResult, nCountRequested);
     const std::vector<CQuorumCPtr>& ret = {vecResultQuorums.begin(), vecResultQuorums.begin() + nResultEndIndex};
     return ret;
-}
-
-void CQuorumManager::SetQuorumIndexQuorumHash(Consensus::LLMQType llmqType, const uint256& quorumHash, int quorumIndex)
-{
-    LOCK(indexedQuorumsCacheCs);
-
-    auto& mapCache = indexedQuorumsCache[llmqType];
-    if (!mapCache.exists(quorumHash)) {
-        mapCache.insert(quorumHash, quorumIndex);
-    } else {
-        mapCache.erase(quorumHash);
-        mapCache.insert(quorumHash, quorumIndex);
-    }
-}
-
-int CQuorumManager::GetQuorumIndexByQuorumHash(Consensus::LLMQType llmqType, const uint256& quorumHash)
-{
-    LOCK(indexedQuorumsCacheCs);
-
-    auto& mapCache = indexedQuorumsCache[llmqType];
-
-    int value;
-
-    if (mapCache.get(quorumHash, value)) {
-        return value;
-    }
-    LogPrint(BCLog::LLMQ, "GetQuorumIndexByQuorumHash h[%s] NOT FOUND->0\n", quorumHash.ToString());
-    return 0;
 }
 
 CQuorumCPtr CQuorumManager::GetQuorum(Consensus::LLMQType llmqType, const uint256& quorumHash) const

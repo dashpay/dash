@@ -92,11 +92,6 @@ std::vector<CDeterministicMNCPtr> CLLMQUtils::GetAllQuorumMembers(Consensus::LLM
             if (mapIndexedQuorumMembers[llmqType].get(std::pair(pCycleQuorumBaseBlockIndex->GetBlockHash(), quorumIndex), quorumMembers)) {
                 LOCK(cs_members);
                 mapQuorumMembers[llmqType].insert(pQuorumBaseBlockIndex->GetBlockHash(), quorumMembers);
-
-                /*
-                * We also need to store which quorum block hash corresponds to which quorumIndex
-                */
-                quorumManager->SetQuorumIndexQuorumHash(llmqType, pQuorumBaseBlockIndex->GetBlockHash(), quorumIndex);
                 return quorumMembers;
             }
         }
@@ -108,17 +103,12 @@ std::vector<CDeterministicMNCPtr> CLLMQUtils::GetAllQuorumMembers(Consensus::LLM
         }
 
         quorumMembers = q[quorumIndex];
-        LOCK(cs_members);
-        mapQuorumMembers[llmqType].insert(pQuorumBaseBlockIndex->GetBlockHash(), quorumMembers);
-        quorumManager->SetQuorumIndexQuorumHash(llmqType, pQuorumBaseBlockIndex->GetBlockHash(), quorumIndex);
-
-        return quorumMembers;
     } else {
         quorumMembers = ComputeQuorumMembers(llmqType, pQuorumBaseBlockIndex);
-        LOCK(cs_members);
-        mapQuorumMembers[llmqType].insert(pQuorumBaseBlockIndex->GetBlockHash(), quorumMembers);
     }
 
+    LOCK(cs_members);
+    mapQuorumMembers[llmqType].insert(pQuorumBaseBlockIndex->GetBlockHash(), quorumMembers);
     return quorumMembers;
 }
 

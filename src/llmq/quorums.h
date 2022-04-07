@@ -195,9 +195,6 @@ private:
     mutable std::map<Consensus::LLMQType, unordered_lru_cache<uint256, CQuorumPtr, StaticSaltedHasher>> mapQuorumsCache GUARDED_BY(quorumsCacheCs);
     mutable std::map<Consensus::LLMQType, unordered_lru_cache<uint256, std::vector<CQuorumCPtr>, StaticSaltedHasher>> scanQuorumsCache GUARDED_BY(quorumsCacheCs);
 
-    mutable Mutex indexedQuorumsCacheCs;
-    mutable std::map<Consensus::LLMQType, unordered_lru_cache<uint256, int, StaticSaltedHasher>> indexedQuorumsCache GUARDED_BY(indexedQuorumsCacheCs);
-
     mutable ctpl::thread_pool workerPool;
     mutable CThreadInterrupt quorumThreadInterrupt;
 
@@ -225,8 +222,6 @@ public:
     // this one is cs_main-free
     std::vector<CQuorumCPtr> ScanQuorums(Consensus::LLMQType llmqType, const CBlockIndex* pindexStart, size_t nCountRequested) const;
 
-    void SetQuorumIndexQuorumHash(Consensus::LLMQType llmqType, const uint256& quorumHash, int quorumIndex);
-    int GetQuorumIndexByQuorumHash(Consensus::LLMQType llmqType, const uint256& quorumHash);
 private:
     // all private methods here are cs_main-free
     void EnsureQuorumConnections(const Consensus::LLMQParams& llmqParams, const CBlockIndex *pindexNew) const;

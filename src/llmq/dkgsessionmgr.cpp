@@ -160,6 +160,9 @@ void CDKGSessionManager::UpdatedBlockTip(const CBlockIndex* pindexNew, bool fIni
 
 void CDKGSessionManager::ProcessMessage(CNode* pfrom, const std::string& strCommand, CDataStream& vRecv)
 {
+    static Mutex cs_indexedQuorumsCache;
+    static std::map<Consensus::LLMQType, unordered_lru_cache<uint256, int, StaticSaltedHasher>> indexedQuorumsCache GUARDED_BY(cs_indexedQuorumsCache);
+
     if (!IsQuorumDKGEnabled())
         return;
 
@@ -189,15 +192,64 @@ void CDKGSessionManager::ProcessMessage(CNode* pfrom, const std::string& strComm
     vRecv.Rewind(sizeof(uint256));
     vRecv.Rewind(sizeof(uint8_t));
 
-    int quorumIndex = quorumManager->GetQuorumIndexByQuorumHash(llmqType, quorumHash);
-
-    if (!dkgSessionHandlers.count(std::make_pair(llmqType, quorumIndex))) {
+    if (!Params().HasLLMQ(llmqType)) {
         LOCK(cs_main);
-        LogPrintf("CDKGSessionManager dkgSessionHandlers NOT FOUND qi[%d]\n", quorumIndex);
+        LogPrintf("CDKGSessionManager -- invalid llmqType [%d]\n", uint8_t(llmqType));
         Misbehaving(pfrom->GetId(), 100);
         return;
     }
 
+    int quorumIndex{-1};
+
+    // First check cache
+    {
+        LOCK(cs_indexedQuorumsCache);
+        if (indexedQuorumsCache.empty()) {
+            CLLMQUtils::InitQuorumsCache(indexedQuorumsCache);
+        }
+        indexedQuorumsCache[llmqType].get(quorumHash, quorumIndex);
+    }
+
+    // No luck, try to compute
+    if (quorumIndex == -1) {
+        CBlockIndex* pQuorumBaseBlockIndex = WITH_LOCK(cs_main, return LookupBlockIndex(quorumHash));
+        if (pQuorumBaseBlockIndex == nullptr) {
+            LOCK(cs_main);
+            LogPrintf("CDKGSessionManager -- unknown quorumHash %s\n", quorumHash.ToString());
+            // NOTE: do not insta-ban for this, we might be lagging behind
+            Misbehaving(pfrom->GetId(), 10);
+            return;
+        }
+
+        if (!CLLMQUtils::IsQuorumTypeEnabled(llmqType, pQuorumBaseBlockIndex->pprev)) {
+            LOCK(cs_main);
+            LogPrintf("CDKGSessionManager -- llmqType [%d] quorums aren't active\n", uint8_t(llmqType));
+            Misbehaving(pfrom->GetId(), 100);
+            return;
+        }
+
+        const Consensus::LLMQParams& llmqParams = GetLLMQParams(llmqType);
+        quorumIndex = pQuorumBaseBlockIndex->nHeight % llmqParams.dkgInterval;
+        int quorumIndexMax = CLLMQUtils::IsQuorumRotationEnabled(llmqType, pQuorumBaseBlockIndex) ?
+                llmqParams.signingActiveQuorumCount - 1 : 0;
+
+        if (quorumIndex > quorumIndexMax) {
+            LOCK(cs_main);
+            LogPrintf("CDKGSessionManager -- invalid quorumHash %s\n", quorumHash.ToString());
+            Misbehaving(pfrom->GetId(), 100);
+            return;
+        }
+
+        if (!dkgSessionHandlers.count(std::make_pair(llmqType, quorumIndex))) {
+            LOCK(cs_main);
+            LogPrintf("CDKGSessionManager -- no session handlers for quorumIndex [%d]\n", quorumIndex);
+            Misbehaving(pfrom->GetId(), 100);
+            return;
+        }
+    }
+
+    assert(quorumIndex != -1);
+    WITH_LOCK(cs_indexedQuorumsCache, indexedQuorumsCache[llmqType].insert(quorumHash, quorumIndex));
     dkgSessionHandlers.at(std::make_pair(llmqType, quorumIndex)).ProcessMessage(pfrom, strCommand, vRecv);
 }
 
