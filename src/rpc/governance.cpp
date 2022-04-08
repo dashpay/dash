@@ -1171,7 +1171,7 @@ static UniValue getgovernanceinfo(const JSONRPCRequest& request)
             + HelpExampleRpc("getgovernanceinfo", "")
                 },
             }.Check(request);
-    }
+
 
     int nLastSuperblock = 0, nNextSuperblock = 0;
     const auto* pindex = WITH_LOCK(cs_main, return ::ChainActive().Tip());
@@ -1205,7 +1205,6 @@ static UniValue getsuperblockbudget(const JSONRPCRequest& request)
             + HelpExampleRpc("getsuperblockbudget", "1000")
                 },
             }.Check(request);
-    }
 
     int nBlockHeight = request.params[0].get_int();
     if (nBlockHeight < 0) {

@@ -139,7 +139,6 @@ static UniValue getcoinjoininfo(const JSONRPCRequest& request)
             + HelpExampleRpc("getcoinjoininfo", "")
                 },
             }.Check(request);
-    }
 
     UniValue obj(UniValue::VOBJ);
 
