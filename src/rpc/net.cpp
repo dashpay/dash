@@ -472,8 +472,8 @@ static UniValue getnetworkinfo(const JSONRPCRequest& request)
                     RPCResult::Type::OBJ, "", "",
                     {
                         {RPCResult::Type::NUM, "version", "the server version"},
-                        "  \"buildversion\" : \"x.x.x.x-xxx\",         (string) the server build version including RC info or commit as relevant\n"
-                            {RPCResult::Type::STR, "subversion", "the server subversion string"},
+                        {RPCResult::Type::STR, "buildversion", "the server build version including RC info or commit as relevant"},
+                        {RPCResult::Type::STR, "subversion", "the server subversion string"},
                         {RPCResult::Type::NUM, "protocolversion", "the protocol version"},
                         {RPCResult::Type::STR_HEX, "localservices", "the services we offer to the network"},
                         {RPCResult::Type::ARR, "localservicesnames", "the services we offer to the network, in human-readable form",
@@ -484,7 +484,7 @@ static UniValue getnetworkinfo(const JSONRPCRequest& request)
                         {RPCResult::Type::NUM, "timeoffset", "the time offset"},
                         {RPCResult::Type::NUM, "connections", "the number of connections"},
                         {RPCResult::Type::BOOL, "networkactive", "whether p2p networking is enabled"},
-                        "  \"socketevents\" : \"xxx/\",              (string) the socket events mode, either kqueue, epoll, poll or select\n"
+                        {RPCResult::Type::STR, "socketevents", "the socket events mode, either kqueue, epoll, poll or select"},
                         {RPCResult::Type::ARR, "networks", "information per network",
                         {
                             {RPCResult::Type::OBJ, "", "",
@@ -759,7 +759,7 @@ static UniValue getnodeaddresses(const JSONRPCRequest& request)
             + HelpExampleRpc("getnodeaddresses", "8")
                 },
             }.Check(request);
-    if (!g_rpc_node->connman) {
+    if (!g_connman) {
         throw JSONRPCError(RPC_CLIENT_P2P_DISABLED, "Error: Peer-to-peer functionality missing or disabled");
     }
 

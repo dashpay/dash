@@ -261,7 +261,7 @@ struct RPCResult {
         CHECK_NONFATAL(!m_result.empty());
     }
 
-    RPCResult(std::string result)
+    explicit RPCResult(std::string result)
             : m_type{Type::NONE},
               m_key_name{},
               m_inner{},
