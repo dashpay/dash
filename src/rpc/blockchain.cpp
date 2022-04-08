@@ -548,7 +548,7 @@ static UniValue getrawmempool(const JSONRPCRequest& request)
     RPCResult{"for verbose = true",
     RPCResult::Type::OBJ, "", "",
     {
-    {RPCResult::Type::OBJ_DYN, "transactionid", "", MempoolEntryDescription()},
+    {RPCResult::Type::OBJ_DYN, "transactionid", EntryDescriptionString()},
     }},
         },
         RPCExamples{
@@ -578,7 +578,7 @@ static UniValue getmempoolancestors(const JSONRPCRequest& request)
     {{RPCResult::Type::STR_HEX, "", "The transaction id of an in-mempool ancestor transaction"}}
             },
             RPCResult{"for verbose = true",
-    RPCResult::Type::OBJ_DYN, "transactionid", "", MempoolEntryDescription()
+    RPCResult::Type::OBJ_DYN, "transactionid", EntryDescriptionString()
             },
         },
         RPCExamples{
@@ -641,7 +641,7 @@ static UniValue getmempooldescendants(const JSONRPCRequest& request)
             RPCResult{"for verbose = true",
     RPCResult::Type::OBJ, "", "",
     {
-    {RPCResult::Type::OBJ_DYN, "transactionid", "", MempoolEntryDescription()},
+    {RPCResult::Type::OBJ_DYN, "transactionid", EntryDescriptionString()},
             }},
         },
         RPCExamples{
@@ -696,7 +696,7 @@ static UniValue getmempoolentry(const JSONRPCRequest& request)
             {"txid", RPCArg::Type::STR_HEX, RPCArg::Optional::NO, "The transaction id (must be in mempool)"},
         },
         RPCResult{
-    RPCResult::Type::OBJ_DYN, "", "", MempoolEntryDescription()
+    RPCResult::Type::OBJ_DYN, "", EntryDescriptionString()
         },
         RPCExamples{
             HelpExampleCli("getmempoolentry", "\"mytxid\"")
@@ -1710,6 +1710,7 @@ static UniValue getmempoolinfo(const JSONRPCRequest& request)
     RPCHelpMan{"getmempoolinfo",
         "\nReturns details on the active state of the TX memory pool.\n",
         {},
+        RPCResult{
     "{\n"
     "  \"loaded\" : true|false         (boolean) True if the mempool is fully loaded\n"
     "  \"size\" : xxxxx,               (numeric) Current tx count\n"
@@ -1856,7 +1857,7 @@ static UniValue getchaintxstats(const JSONRPCRequest& request)
                 RPCResult{
                     RPCResult::Type::OBJ, "", "",
                     {
-                        {RPCResult::Type::NUM_TIME, "time", "The timestamp for the final block in the window in UNIX format.},
+                        {RPCResult::Type::NUM_TIME, "time", "The timestamp for the final block in the window in UNIX format."},
                         {RPCResult::Type::NUM, "txcount", "The total number of transactions in the chain up to that point"},
                         {RPCResult::Type::STR_HEX, "window_final_block_hash", "The hash of the final block in the window"},
                         {RPCResult::Type::NUM, "window_final_block_height", "The height of the final block in the window."},
