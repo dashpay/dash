@@ -26,9 +26,6 @@ static const int MIN_MASTERNODE_PROTO_VERSION = 70219;
 //! if possible, avoid requesting addresses nodes older than this
 static const int CADDR_TIME_VERSION = 31402;
 
-//! minimum peer version accepted by mixing pool
-static const int MIN_COINJOIN_PEER_PROTO_VERSION = 70215;
-
 //! protocol version is included in MNAUTH starting with this version
 static const int MNAUTH_NODE_VER_VERSION = 70218;
 
