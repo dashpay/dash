@@ -74,6 +74,7 @@ public:
 private:
     void MigrateDKG();
     void CleanupCache() const;
+    void CleanupOldContributions(const CBlockIndex* pindex) const;
 };
 
 bool IsQuorumDKGEnabled();

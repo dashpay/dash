@@ -156,6 +156,8 @@ void CDKGSessionManager::UpdatedBlockTip(const CBlockIndex* pindexNew, bool fIni
     for (auto& qt : dkgSessionHandlers) {
         qt.second.UpdatedBlockTip(pindexNew);
     }
+
+    CleanupOldContributions(pindexNew);
 }
 
 void CDKGSessionManager::ProcessMessage(CNode* pfrom, const std::string& strCommand, CDataStream& vRecv)
@@ -443,6 +445,51 @@ void CDKGSessionManager::CleanupCache() const
             it = contributionsCache.erase(it);
         } else {
             ++it;
+        }
+    }
+}
+
+void CDKGSessionManager::CleanupOldContributions(const CBlockIndex* pindex) const
+{
+    if (db->IsEmpty()) {
+        return;
+    }
+
+    LOCK(cs_main);
+
+    const auto prefixes = {DB_VVEC, DB_SKCONTRIB, DB_ENC_CONTRIB};
+
+    for (const auto& params : Params().GetConsensus().llmqs) {
+        const size_t MAX_STORE_DEPTH = 2 * params.signingActiveQuorumCount * params.dkgInterval;
+        LogPrint(BCLog::LLMQ, "CDKGSessionManager::%s -- looking for old entries for llmq type %d\n", __func__, (uint8_t)params.type);
+
+        CDBBatch batch(*db);
+        size_t cnt_old{0}, cnt_all{0};
+        for (const auto& prefix : prefixes) {
+            std::unique_ptr<CDBIterator> pcursor(db->NewIterator());
+            auto start = std::make_tuple(prefix, params.type, uint256(), uint256());
+            decltype(start) k;
+
+            pcursor->Seek(start);
+            while (pcursor->Valid()) {
+                if (!pcursor->GetKey(k) || std::get<0>(k) != prefix || std::get<1>(k) != params.type) {
+                    break;
+                }
+                cnt_all++;
+                const CBlockIndex* pindexQuorum = LookupBlockIndex(std::get<2>(k));
+                if (pindexQuorum == nullptr || pindex->nHeight - pindexQuorum->nHeight > MAX_STORE_DEPTH) {
+                    // not found or too old
+                    batch.Erase(k);
+                    cnt_old++;
+                }
+                pcursor->Next();
+            }
+            pcursor.reset();
+        }
+        LogPrint(BCLog::LLMQ, "CDKGSessionManager::%s -- found %lld entries for llmq type %d\n", __func__, cnt_all, (uint8_t)params.type);
+        if (cnt_old > 0) {
+            db->WriteBatch(batch);
+            LogPrint(BCLog::LLMQ, "CDKGSessionManager::%s -- removed %lld old entries for llmq type %d\n", __func__, cnt_old, (uint8_t)params.type);
         }
     }
 }
