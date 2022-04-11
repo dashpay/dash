@@ -156,8 +156,6 @@ void CDKGSessionManager::UpdatedBlockTip(const CBlockIndex* pindexNew, bool fIni
     for (auto& qt : dkgSessionHandlers) {
         qt.second.UpdatedBlockTip(pindexNew);
     }
-
-    CleanupOldContributions(pindexNew);
 }
 
 void CDKGSessionManager::ProcessMessage(CNode* pfrom, const std::string& strCommand, CDataStream& vRecv)
@@ -449,7 +447,7 @@ void CDKGSessionManager::CleanupCache() const
     }
 }
 
-void CDKGSessionManager::CleanupOldContributions(const CBlockIndex* pindex) const
+void CDKGSessionManager::CleanupOldContributions() const
 {
     if (db->IsEmpty()) {
         return;
@@ -458,9 +456,6 @@ void CDKGSessionManager::CleanupOldContributions(const CBlockIndex* pindex) cons
     const auto prefixes = {DB_VVEC, DB_SKCONTRIB, DB_ENC_CONTRIB};
 
     for (const auto& params : Params().GetConsensus().llmqs) {
-        // Do this once in a while
-        if (pindex->nHeight % params.dkgInterval != 0) continue;
-
         // For how many blocks recent DKG info should be kept
         const size_t MAX_STORE_DEPTH = 2 * params.signingActiveQuorumCount * params.dkgInterval;
 
@@ -481,7 +476,7 @@ void CDKGSessionManager::CleanupOldContributions(const CBlockIndex* pindex) cons
                 }
                 cnt_all++;
                 const CBlockIndex* pindexQuorum = LookupBlockIndex(std::get<2>(k));
-                if (pindexQuorum == nullptr || pindex->nHeight - pindexQuorum->nHeight > MAX_STORE_DEPTH) {
+                if (pindexQuorum == nullptr || ::ChainActive().Tip()->nHeight - pindexQuorum->nHeight > MAX_STORE_DEPTH) {
                     // not found or too old
                     batch.Erase(k);
                     cnt_old++;

@@ -71,10 +71,11 @@ public:
     /// Read encrypted (unverified) DKG contributions for the member with the given proTxHash from the llmqDb
     bool GetEncryptedContributions(Consensus::LLMQType llmqType, const CBlockIndex* pQuorumBaseBlockIndex, const std::vector<bool>& validMembers, const uint256& proTxHash, std::vector<CBLSIESEncryptedObject<CBLSSecretKey>>& vecRet) const;
 
+    void CleanupOldContributions() const;
+
 private:
     void MigrateDKG();
     void CleanupCache() const;
-    void CleanupOldContributions(const CBlockIndex* pindex) const;
 };
 
 bool IsQuorumDKGEnabled();
