@@ -87,11 +87,14 @@ public:
 
     static bool IsQuorumActive(Consensus::LLMQType llmqType, const uint256& quorumHash);
     static bool IsQuorumTypeEnabled(Consensus::LLMQType llmqType, const CBlockIndex* pindex);
+    static bool IsQuorumTypeEnabledInternal(Consensus::LLMQType llmqType, const CBlockIndex* pindex, std::optional<bool> opt_dip24_active, std::optional<bool> opt_have_dip24_quorums);
+
     static std::vector<Consensus::LLMQType> GetEnabledQuorumTypes(const CBlockIndex* pindex);
     static std::vector<std::reference_wrapper<const Consensus::LLMQParams>> GetEnabledQuorumParams(const CBlockIndex* pindex);
 
     static bool IsQuorumRotationEnabled(Consensus::LLMQType llmqType, const CBlockIndex* pindex);
     static Consensus::LLMQType GetInstantSendLLMQType(const CBlockIndex* pindex);
+    static Consensus::LLMQType GetInstantSendLLMQType(bool deterministic);
     static bool IsDIP0024Active(const CBlockIndex* pindex);
 
     /// Returns the state of `-llmq-data-recovery`

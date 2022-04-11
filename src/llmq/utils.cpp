@@ -60,11 +60,8 @@ std::vector<CDeterministicMNCPtr> CLLMQUtils::GetAllQuorumMembers(Consensus::LLM
     }
 
     if (CLLMQUtils::IsQuorumRotationEnabled(llmqType, pQuorumBaseBlockIndex)) {
-        {
-            LOCK(cs_indexed_members);
-            if (mapIndexedQuorumMembers.empty()) {
-                InitQuorumsCache(mapIndexedQuorumMembers);
-            }
+        if (LOCK(cs_indexed_members); mapIndexedQuorumMembers.empty()) {
+            InitQuorumsCache(mapIndexedQuorumMembers);
         }
         /*
          * Quorums created with rotation are now created in a different way. All signingActiveQuorumCount are created during the period of dkgInterval.
@@ -87,14 +84,11 @@ std::vector<CDeterministicMNCPtr> CLLMQUtils::GetAllQuorumMembers(Consensus::LLM
          * Since mapQuorumMembers stores Quorum members per block hash, and we don't know yet the block hashes of blocks for all quorumIndexes (since these blocks are not created yet)
          * We store them in a second cache mapIndexedQuorumMembers which stores them by {CycleQuorumBaseBlockHash, quorumIndex}
          */
-        {
-            LOCK(cs_indexed_members);
-            if (mapIndexedQuorumMembers[llmqType].get(std::pair(pCycleQuorumBaseBlockIndex->GetBlockHash(), quorumIndex), quorumMembers)) {
+            if (LOCK(cs_indexed_members); mapIndexedQuorumMembers[llmqType].get(std::pair(pCycleQuorumBaseBlockIndex->GetBlockHash(), quorumIndex), quorumMembers)) {
                 LOCK(cs_members);
                 mapQuorumMembers[llmqType].insert(pQuorumBaseBlockIndex->GetBlockHash(), quorumMembers);
                 return quorumMembers;
             }
-        }
 
         auto q = ComputeQuorumMembersByQuarterRotation(llmqType, pCycleQuorumBaseBlockIndex);
         LOCK(cs_indexed_members);
@@ -514,8 +508,17 @@ bool CLLMQUtils::IsQuorumRotationEnabled(Consensus::LLMQType llmqType, const CBl
 
 Consensus::LLMQType CLLMQUtils::GetInstantSendLLMQType(const CBlockIndex* pindex)
 {
-    return IsDIP0024Active(pindex) ? Params().GetConsensus().llmqTypeDIP0024InstantSend : Params().GetConsensus().llmqTypeInstantSend;
+    if (IsDIP0024Active(pindex) && !quorumManager->ScanQuorums(Params().GetConsensus().llmqTypeDIP0024InstantSend, pindex, 1).empty()) {
+        return Params().GetConsensus().llmqTypeDIP0024InstantSend;
+    }
+    return Params().GetConsensus().llmqTypeInstantSend;
 }
+
+Consensus::LLMQType CLLMQUtils::GetInstantSendLLMQType(bool deterministic)
+{
+    return deterministic ? Params().GetConsensus().llmqTypeDIP0024InstantSend : Params().GetConsensus().llmqTypeInstantSend;
+}
+
 
 bool CLLMQUtils::IsDIP0024Active(const CBlockIndex* pindex)
 {
@@ -727,11 +730,28 @@ bool CLLMQUtils::IsQuorumActive(Consensus::LLMQType llmqType, const uint256& quo
 
 bool CLLMQUtils::IsQuorumTypeEnabled(Consensus::LLMQType llmqType, const CBlockIndex* pindex)
 {
+    return IsQuorumTypeEnabledInternal(llmqType, pindex, std::nullopt, std::nullopt);
+}
+
+bool CLLMQUtils::IsQuorumTypeEnabledInternal(Consensus::LLMQType llmqType, const CBlockIndex* pindex, std::optional<bool> opt_dip24_active, std::optional<bool> opt_have_dip24_quorums)
+{
     const Consensus::Params& consensusParams = Params().GetConsensus();
 
     switch (llmqType)
     {
-        case Consensus::LLMQType::LLMQ_50_60:
+        case Consensus::LLMQType::LLMQ_TEST:
+        case Consensus::LLMQType::LLMQ_50_60: {
+            bool dip_24_active = opt_dip24_active.has_value() ? *opt_dip24_active : CLLMQUtils::IsDIP0024Active(pindex);
+            if (dip_24_active) {
+                bool have_dip24_quorums = opt_have_dip24_quorums.has_value() ? *opt_have_dip24_quorums
+                                                                             : !quorumManager->ScanQuorums(
+                                consensusParams.llmqTypeDIP0024InstantSend, pindex, 1).empty();
+                if (have_dip24_quorums) {
+                    return false;
+                }
+            }
+            break;
+        }
         case Consensus::LLMQType::LLMQ_400_60:
         case Consensus::LLMQType::LLMQ_400_85:
             break;
@@ -742,12 +762,13 @@ bool CLLMQUtils::IsQuorumTypeEnabled(Consensus::LLMQType llmqType, const CBlockI
             }
             break;
         case Consensus::LLMQType::LLMQ_60_75:
-        case Consensus::LLMQType::LLMQ_TEST_DIP0024:
-            if (!CLLMQUtils::IsDIP0024Active(pindex)) {
+        case Consensus::LLMQType::LLMQ_TEST_DIP0024: {
+            bool dip_24_active = opt_dip24_active.has_value() ? *opt_dip24_active : CLLMQUtils::IsDIP0024Active(pindex);
+            if (!dip_24_active) {
                 return false;
             }
             break;
-        case Consensus::LLMQType::LLMQ_TEST:
+        }
         case Consensus::LLMQType::LLMQ_DEVNET:
             break;
         default:
