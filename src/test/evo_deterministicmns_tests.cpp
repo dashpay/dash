@@ -22,8 +22,6 @@
 #include <evo/providertx.h>
 #include <evo/deterministicmns.h>
 
-#include <llmq/utils.h>
-
 #include <boost/test/unit_test.hpp>
 
 using SimpleUTXOMap = std::map<COutPoint, std::pair<int, CAmount>>;
@@ -657,11 +655,5 @@ BOOST_FIXTURE_TEST_CASE(dip3_verify_db, TestChainDIP3Setup)
 }
 
 
-//BOOST_FIXTURE_TEST_CASE(dip3_verify_db2, TestChainDIP3Setup)
-//{
-//    const CBlockIndex* pindex = WITH_LOCK(cs_main, return ::ChainActive().Tip());
-//    assert(pindex);
-//    BOOST_CHECK(llmq::CLLMQUtils::IsQuorumTypeEnabledInternal(Consensus::LLMQType::LLMQ_50_60, pindex, true, true));
-//}
 
 BOOST_AUTO_TEST_SUITE_END()

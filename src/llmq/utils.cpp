@@ -519,7 +519,6 @@ Consensus::LLMQType CLLMQUtils::GetInstantSendLLMQType(bool deterministic)
     return deterministic ? Params().GetConsensus().llmqTypeDIP0024InstantSend : Params().GetConsensus().llmqTypeInstantSend;
 }
 
-
 bool CLLMQUtils::IsDIP0024Active(const CBlockIndex* pindex)
 {
     assert(pindex);
@@ -739,7 +738,6 @@ bool CLLMQUtils::IsQuorumTypeEnabledInternal(Consensus::LLMQType llmqType, const
 
     switch (llmqType)
     {
-        case Consensus::LLMQType::LLMQ_TEST:
         case Consensus::LLMQType::LLMQ_50_60: {
             bool dip_24_active = opt_dip24_active.has_value() ? *opt_dip24_active : CLLMQUtils::IsDIP0024Active(pindex);
             if (dip_24_active) {
@@ -752,6 +750,7 @@ bool CLLMQUtils::IsQuorumTypeEnabledInternal(Consensus::LLMQType llmqType, const
             }
             break;
         }
+        case Consensus::LLMQType::LLMQ_TEST:
         case Consensus::LLMQType::LLMQ_400_60:
         case Consensus::LLMQType::LLMQ_400_85:
             break;
