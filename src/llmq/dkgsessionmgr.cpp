@@ -455,13 +455,16 @@ void CDKGSessionManager::CleanupOldContributions(const CBlockIndex* pindex) cons
         return;
     }
 
-    LOCK(cs_main);
-
     const auto prefixes = {DB_VVEC, DB_SKCONTRIB, DB_ENC_CONTRIB};
 
     for (const auto& params : Params().GetConsensus().llmqs) {
+        // Do this once in a while
+        if (pindex->nHeight % params.dkgInterval != 0) continue;
+
+        // For how many blocks recent DKG info should be kept
         const size_t MAX_STORE_DEPTH = 2 * params.signingActiveQuorumCount * params.dkgInterval;
-        LogPrint(BCLog::LLMQ, "CDKGSessionManager::%s -- looking for old entries for llmq type %d\n", __func__, (uint8_t)params.type);
+
+        LogPrint(BCLog::LLMQ, "CDKGSessionManager::%s -- looking for old entries for llmq type %d\n", __func__, uint8_t(params.type));
 
         CDBBatch batch(*db);
         size_t cnt_old{0}, cnt_all{0};
@@ -471,6 +474,7 @@ void CDKGSessionManager::CleanupOldContributions(const CBlockIndex* pindex) cons
             decltype(start) k;
 
             pcursor->Seek(start);
+            LOCK(cs_main);
             while (pcursor->Valid()) {
                 if (!pcursor->GetKey(k) || std::get<0>(k) != prefix || std::get<1>(k) != params.type) {
                     break;
@@ -486,10 +490,10 @@ void CDKGSessionManager::CleanupOldContributions(const CBlockIndex* pindex) cons
             }
             pcursor.reset();
         }
-        LogPrint(BCLog::LLMQ, "CDKGSessionManager::%s -- found %lld entries for llmq type %d\n", __func__, cnt_all, (uint8_t)params.type);
+        LogPrint(BCLog::LLMQ, "CDKGSessionManager::%s -- found %lld entries for llmq type %d\n", __func__, cnt_all, uint8_t(params.type));
         if (cnt_old > 0) {
             db->WriteBatch(batch);
-            LogPrint(BCLog::LLMQ, "CDKGSessionManager::%s -- removed %lld old entries for llmq type %d\n", __func__, cnt_old, (uint8_t)params.type);
+            LogPrint(BCLog::LLMQ, "CDKGSessionManager::%s -- removed %lld old entries for llmq type %d\n", __func__, cnt_old, uint8_t(params.type));
         }
     }
 }
