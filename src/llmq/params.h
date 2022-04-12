@@ -30,6 +30,8 @@ enum class LLMQType : uint8_t {
     LLMQ_TEST_V17 = 102, // 3 members, 2 (66%) threshold, one per hour. Params might differ when -llmqtestparams is used
 
     LLMQ_TEST_DIP0024 = 103, // 4 members, 2 (66%) threshold, one per hour. Params might differ when -llmqtestparams is used
+
+    LLMQ_TEST_INSTANTSEND = 104, // 3 members, 2 (66%) threshold, one per hour. Params might differ when -llmqtestinstantsendparams is used
 };
 
 // Configures a LLMQ and its DKG
@@ -97,7 +99,7 @@ struct LLMQParams {
 };
 
 
-static constexpr std::array<LLMQParams, 9> available_llmqs = {
+static constexpr std::array<LLMQParams, 10> available_llmqs = {
 
     /**
      * llmq_test
@@ -107,6 +109,30 @@ static constexpr std::array<LLMQParams, 9> available_llmqs = {
     LLMQParams{
         .type = LLMQType::LLMQ_TEST,
         .name = "llmq_test",
+        .size = 3,
+        .minSize = 2,
+        .threshold = 2,
+
+        .dkgInterval = 24, // one DKG per hour
+        .dkgPhaseBlocks = 2,
+        .dkgMiningWindowStart = 10, // dkgPhaseBlocks * 5 = after finalization
+        .dkgMiningWindowEnd = 18,
+        .dkgBadVotesThreshold = 2,
+
+        .signingActiveQuorumCount = 2, // just a few ones to allow easier testing
+
+        .keepOldConnections = 3,
+        .recoveryMembers = 3,
+    },
+
+    /**
+     * llmq_test_instantsend (same as llmq_test but used for InstantSend exclusively)
+     * This quorum is only used for testing
+     *
+     */
+    LLMQParams{
+        .type = LLMQType::LLMQ_TEST_INSTANTSEND,
+        .name = "llmq_test_instantsend",
         .size = 3,
         .minSize = 2,
         .threshold = 2,

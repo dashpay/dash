@@ -978,15 +978,17 @@ public:
 
         // long living quorum params
         AddLLMQ(Consensus::LLMQType::LLMQ_TEST);
+        AddLLMQ(Consensus::LLMQType::LLMQ_TEST_INSTANTSEND);
         AddLLMQ(Consensus::LLMQType::LLMQ_TEST_V17);
         AddLLMQ(Consensus::LLMQType::LLMQ_TEST_DIP0024);
         consensus.llmqTypeChainLocks = Consensus::LLMQType::LLMQ_TEST;
-        consensus.llmqTypeInstantSend = Consensus::LLMQType::LLMQ_TEST;
+        consensus.llmqTypeInstantSend = Consensus::LLMQType::LLMQ_TEST_INSTANTSEND;
         consensus.llmqTypeDIP0024InstantSend = Consensus::LLMQType::LLMQ_TEST_DIP0024;
         consensus.llmqTypePlatform = Consensus::LLMQType::LLMQ_TEST;
         consensus.llmqTypeMnhf = Consensus::LLMQType::LLMQ_TEST;
 
-        UpdateLLMQTestParametersFromArgs(args);
+        UpdateLLMQTestParametersFromArgs(args, Consensus::LLMQType::LLMQ_TEST);
+        UpdateLLMQTestParametersFromArgs(args, Consensus::LLMQType::LLMQ_TEST_INSTANTSEND);
     }
 
     /**
@@ -1044,16 +1046,16 @@ public:
     /**
      * Allows modifying parameters of the test LLMQ
      */
-    void UpdateLLMQTestParameters(int size, int threshold)
+    void UpdateLLMQTestParameters(int size, int threshold, const Consensus::LLMQType llmqType)
     {
-        auto params = ranges::find_if(consensus.llmqs, [](const auto& llmq){ return llmq.type == Consensus::LLMQType::LLMQ_TEST;});
+        auto params = ranges::find_if(consensus.llmqs, [llmqType](const auto& llmq){ return llmq.type == llmqType;});
         assert(params != consensus.llmqs.end());
         params->size = size;
         params->minSize = threshold;
         params->threshold = threshold;
         params->dkgBadVotesThreshold = threshold;
     }
-    void UpdateLLMQTestParametersFromArgs(const ArgsManager& args);
+    void UpdateLLMQTestParametersFromArgs(const ArgsManager& args, const Consensus::LLMQType llmqType);
 };
 
 void CRegTestParams::UpdateVersionBitsParametersFromArgs(const ArgsManager& args)
@@ -1171,25 +1173,33 @@ void CRegTestParams::UpdateBudgetParametersFromArgs(const ArgsManager& args)
     UpdateBudgetParameters(nMasternodePaymentsStartBlock, nBudgetPaymentsStartBlock, nSuperblockStartBlock);
 }
 
-void CRegTestParams::UpdateLLMQTestParametersFromArgs(const ArgsManager& args)
+void CRegTestParams::UpdateLLMQTestParametersFromArgs(const ArgsManager& args, const Consensus::LLMQType llmqType)
 {
-    if (!args.IsArgSet("-llmqtestparams")) return;
+    assert(llmqType == Consensus::LLMQType::LLMQ_TEST || llmqType == Consensus::LLMQType::LLMQ_TEST_INSTANTSEND);
 
-    std::string strParams = args.GetArg("-llmqtestparams", "");
+    std::string cmd_param{"-llmqtestparams"}, llmq_name{"LLMQ_TEST"};
+    if (llmqType == Consensus::LLMQType::LLMQ_TEST_INSTANTSEND) {
+        cmd_param = "-llmqtestinstantsendparams";
+        llmq_name = "LLMQ_TEST_INSTANTSEND";
+    }
+
+    if (!args.IsArgSet(cmd_param)) return;
+
+    std::string strParams = args.GetArg(cmd_param, "");
     std::vector<std::string> vParams;
     boost::split(vParams, strParams, boost::is_any_of(":"));
     if (vParams.size() != 2) {
-        throw std::runtime_error("LLMQ_TEST parameters malformed, expecting <size>:<threshold>");
+        throw std::runtime_error(strprintf("%s parameters malformed, expecting <size>:<threshold>", llmq_name));
     }
     int size, threshold;
     if (!ParseInt32(vParams[0], &size)) {
-        throw std::runtime_error(strprintf("Invalid LLMQ_TEST size (%s)", vParams[0]));
+        throw std::runtime_error(strprintf("Invalid %s size (%s)", llmq_name, vParams[0]));
     }
     if (!ParseInt32(vParams[1], &threshold)) {
-        throw std::runtime_error(strprintf("Invalid LLMQ_TEST threshold (%s)", vParams[1]));
+        throw std::runtime_error(strprintf("Invalid %s threshold (%s)", llmq_name, vParams[1]));
     }
-    LogPrintf("Setting LLMQ_TEST parameters to size=%ld, threshold=%ld\n", size, threshold);
-    UpdateLLMQTestParameters(size, threshold);
+    LogPrintf("Setting %s parameters to size=%ld, threshold=%ld\n", llmq_name, size, threshold);
+    UpdateLLMQTestParameters(size, threshold, llmqType);
 }
 
 void CDevNetParams::UpdateDevnetSubsidyAndDiffParametersFromArgs(const ArgsManager& args)

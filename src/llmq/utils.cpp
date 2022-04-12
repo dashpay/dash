@@ -738,6 +738,7 @@ bool CLLMQUtils::IsQuorumTypeEnabledInternal(Consensus::LLMQType llmqType, const
 
     switch (llmqType)
     {
+        case Consensus::LLMQType::LLMQ_TEST_INSTANTSEND:
         case Consensus::LLMQType::LLMQ_50_60: {
             bool dip_24_active = opt_dip24_active.has_value() ? *opt_dip24_active : CLLMQUtils::IsDIP0024Active(pindex);
             if (dip_24_active) {

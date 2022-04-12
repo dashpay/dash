@@ -51,9 +51,9 @@ class LLMQISMigrationTest(DashTestFramework):
         self.wait_for_instantlock(txid1, node)
 
         request_id = self.get_request_id(self.nodes[0].getrawtransaction(txid1))
-        wait_until(lambda: node.quorum("hasrecsig", 100, request_id, txid1))
+        wait_until(lambda: node.quorum("hasrecsig", 104, request_id, txid1))
 
-        rec_sig = node.quorum("getrecsig", 100, request_id, txid1)['sig']
+        rec_sig = node.quorum("getrecsig", 104, request_id, txid1)['sig']
         assert node.verifyislock(request_id, txid1, rec_sig)
 
         self.activate_dip0024()
@@ -62,6 +62,7 @@ class LLMQISMigrationTest(DashTestFramework):
         q_list = self.nodes[0].quorum("list")
         self.log.info(q_list)
         assert len(q_list['llmq_test']) == 2
+        assert len(q_list['llmq_test_instantsend']) == 2
         assert len(q_list['llmq_test_v17']) == 0
         assert len(q_list['llmq_test_dip0024']) == 0
 
@@ -75,9 +76,9 @@ class LLMQISMigrationTest(DashTestFramework):
         self.wait_for_instantlock(txid3, node)
 
         request_id = self.get_request_id(self.nodes[0].getrawtransaction(txid3))
-        wait_until(lambda: node.quorum("hasrecsig", 100, request_id, txid3))
+        wait_until(lambda: node.quorum("hasrecsig", 104, request_id, txid3))
 
-        rec_sig = node.quorum("getrecsig", 100, request_id, txid3)['sig']
+        rec_sig = node.quorum("getrecsig", 104, request_id, txid3)['sig']
         assert node.verifyislock(request_id, txid3, rec_sig)
 
 
@@ -92,7 +93,12 @@ class LLMQISMigrationTest(DashTestFramework):
 
         (quorum_info_0_0, quorum_info_0_1) = self.mine_cycle_quorum("llmq_test_dip0024", 103)
 
-        self.log.info(node.quorum('list'))
+        q_list = self.nodes[0].quorum("list")
+        self.log.info(q_list)
+        assert len(q_list['llmq_test']) == 2
+        assert 'llmq_test_instantsend' not in q_list
+        assert len(q_list['llmq_test_v17']) == 1
+        assert len(q_list['llmq_test_dip0024']) == 2
 
         # Check that the earliest islock is still present
         self.wait_for_instantlock(txid1, node)
@@ -109,7 +115,7 @@ class LLMQISMigrationTest(DashTestFramework):
         # Check that original islock quorum type doesn't sign
         time.sleep(10)
         for n in self.nodes:
-            assert not n.quorum("hasrecsig", 100, request_id2, txid2)
+            assert not n.quorum("hasrecsig", 104, request_id2, txid2)
 
 
     def move_to_next_cycle(self):
