@@ -114,7 +114,7 @@ public:
     std::optional<CQuorumSnapshot> quorumSnapshotAtHMinus4C;
     std::optional<CSimplifiedMNListDiff> mnListDiffAtHMinus4C;
 
-    std::vector<uint256> blockHashList;
+    std::vector<uint256> lastQuorumHashPerIndex;
     std::vector<CQuorumSnapshot> quorumSnapshotList;
     std::vector<CSimplifiedMNListDiff> mnListDiffList;
 
@@ -145,8 +145,8 @@ public:
             ::Serialize(s, mnListDiffAtHMinus4C.value());
         }
 
-        WriteCompactSize(s, blockHashList.size());
-        for (const auto& obj : blockHashList) {
+        WriteCompactSize(s, lastQuorumHashPerIndex.size());
+        for (const auto& obj : lastQuorumHashPerIndex) {
             ::Serialize(s, obj);
         }
 
@@ -178,7 +178,7 @@ public:
         for (size_t i = 0; i < cnt; i++) {
             uint256 hash;
             ::Unserialize(s, hash);
-            blockHashList.push_back(std::move(hash));
+            lastQuorumHashPerIndex.push_back(std::move(hash));
         }
 
         cnt = ReadCompactSize(s);

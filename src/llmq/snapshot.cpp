@@ -90,10 +90,10 @@ void CQuorumRotationInfo::ToJson(UniValue& obj) const
     }
 
     UniValue hlists(UniValue::VARR);
-    for (const auto& h : blockHashList) {
+    for (const auto& h : lastQuorumHashPerIndex) {
         hlists.push_back(h.ToString());
     }
-    obj.pushKV("blockHashList", hlists);
+    obj.pushKV("lastQuorumHashPerIndex", hlists);
 
     UniValue snapshotlist(UniValue::VARR);
     for (const auto& snap : quorumSnapshotList) {
@@ -296,7 +296,7 @@ bool BuildQuorumRotationInfo(const CGetQuorumRotationInfo& request, CQuorumRotat
     std::vector<std::pair<int, const CBlockIndex*>> qdata = quorumBlockProcessor->GetLastMinedCommitmentsPerQuorumIndexUntilBlock(llmqType, blockIndex, 0);
 
     for (const auto& obj : qdata) {
-        response.blockHashList.push_back(obj.second->GetBlockHash());
+        response.lastQuorumHashPerIndex.push_back(obj.second->GetBlockHash());
 
         int quorumCycleStartHeight = obj.second->nHeight - (obj.second->nHeight % llmqParams.dkgInterval);
         snapshotHeightsNeeded.insert(quorumCycleStartHeight - cycleLength);
