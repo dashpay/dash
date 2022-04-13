@@ -230,13 +230,13 @@ static UniValue getbestchainlock(const JSONRPCRequest& request)
         "\nReturns information about the best chainlock. Throws an error if there is no known chainlock yet.",
         {},
         RPCResult{
-            "{\n"
-            "  \"blockhash\" : \"hash\",      (string) The block hash hex-encoded\n"
-            "  \"height\" : n,              (numeric) The block height or index\n"
-            "  \"signature\" : \"hash\",    (string) The chainlock's BLS signature.\n"
-            "  \"known_block\" : true|false (boolean) True if the block is known by our node\n"
-            "}\n"
-        },
+            RPCResult::Type::OBJ, "", "",
+            {
+                {RPCResult::Type::STR_HEX, "hash", "The block hash hex-encoded"},
+                {RPCResult::Type::NUM, "height", "The block height or index"},
+                {RPCResult::Type::STR_HEX, "signature", "The chainlock's BLS signature"},
+                {RPCResult::Type::BOOL, "known_block", "True if the block is known by our node"},
+            }},
         RPCExamples{
             HelpExampleCli("getbestchainlock", "")
             + HelpExampleRpc("getbestchainlock", "")
@@ -425,35 +425,33 @@ static UniValue getdifficulty(const JSONRPCRequest& request)
     return GetDifficulty(::ChainActive().Tip());
 }
 
-static std::string EntryDescriptionString()
-{
-    return "    \"vsize\" : n,                (numeric) virtual transaction size. This can be different from actual serialized size for high-sigop transactions.\n"
-           "    \"size\" : n,                 (numeric) (DEPRECATED) same as vsize. Only returned if dashd is started with -deprecatedrpc=size\n"
-           "                                  size will be completely removed in v0.20.\n"
-           "    \"fee\" : n,                  (numeric) transaction fee in " + CURRENCY_UNIT + " (DEPRECATED)\n"
-           "    \"modifiedfee\" : n,          (numeric) transaction fee with fee deltas used for mining priority (DEPRECATED)\n"
-           "    \"time\" : n,                 (numeric) local time transaction entered pool in seconds since 1 Jan 1970 GMT\n"
-           "    \"height\" : n,               (numeric) block height when transaction entered pool\n"
-           "    \"descendantcount\" : n,      (numeric) number of in-mempool descendant transactions (including this one)\n"
-           "    \"descendantsize\" : n,       (numeric) size of in-mempool descendants (including this one)\n"
-           "    \"descendantfees\" : n,       (numeric) modified fees (see above) of in-mempool descendants (including this one) (DEPRECATED)\n"
-           "    \"ancestorcount\" : n,        (numeric) number of in-mempool ancestor transactions (including this one)\n"
-           "    \"ancestorsize\" : n,         (numeric) size of in-mempool ancestors (including this one)\n"
-           "    \"ancestorfees\" : n,         (numeric) modified fees (see above) of in-mempool ancestors (including this one) (DEPRECATED)\n"
-           "    \"fees\" : {\n"
-           "        \"base\" : n,         (numeric) transaction fee in " + CURRENCY_UNIT + "\n"
-           "        \"modified\" : n,     (numeric) transaction fee with fee deltas used for mining priority in " + CURRENCY_UNIT + "\n"
-           "        \"ancestor\" : n,     (numeric) modified fees (see above) of in-mempool ancestors (including this one) in " + CURRENCY_UNIT + "\n"
-           "        \"descendant\" : n,   (numeric) modified fees (see above) of in-mempool descendants (including this one) in " + CURRENCY_UNIT + "\n"
-           "    }\n"
-           "    \"depends\" : [               (json array) unconfirmed transactions used as inputs for this transaction\n"
-           "        \"transactionid\",        (string) parent transaction id\n"
-           "       ... ],\n"
-           "    \"spentby\" : [           (json array) unconfirmed transactions spending outputs from this transaction\n"
-           "        \"transactionid\",    (string) child transaction id\n"
-           "       ... ]\n"
-           "    \"instantlock\" : true|false  (boolean) True if this transaction was locked via InstantSend\n";
-}
+static std::vector<RPCResult> MempoolEntryDescription() { return {
+    RPCResult{RPCResult::Type::NUM, "vsize", "virtual transaction size. This can be different from actual serialized size for high-sigop transactions."},
+    RPCResult{RPCResult::Type::NUM, "size", "(DEPRECATED) same as vsize. Only returned if dashd is started with -deprecatedrpc=size. "
+            "size will be completely removed in v0.20."},
+    RPCResult{RPCResult::Type::STR_AMOUNT, "fee", "transaction fee in " + CURRENCY_UNIT + " (DEPRECATED)"},
+    RPCResult{RPCResult::Type::STR_AMOUNT, "modifiedfee", "transaction fee with fee deltas used for mining priority (DEPRECATED)"},
+    RPCResult{RPCResult::Type::NUM_TIME, "time", "local time transaction entered pool in seconds since 1 Jan 1970 GMT"},
+    RPCResult{RPCResult::Type::NUM, "height", "block height when transaction entered pool"},
+    RPCResult{RPCResult::Type::NUM, "descendantcount", "number of in-mempool descendant transactions (including this one)"},
+    RPCResult{RPCResult::Type::NUM, "descendantsize", "size of in-mempool descendants (including this one)"},
+    RPCResult{RPCResult::Type::STR_AMOUNT, "descendantfees", "modified fees (see above) of in-mempool descendants (including this one) (DEPRECATED)"},
+    RPCResult{RPCResult::Type::NUM, "ancestorcount", "number of in-mempool ancestor transactions (including this one)"},
+    RPCResult{RPCResult::Type::NUM, "ancestorsize", "size of in-mempool ancestors (including this one)"},
+    RPCResult{RPCResult::Type::STR_AMOUNT, "ancestorfees", "modified fees (see above) of in-mempool ancestors (including this one) (DEPRECATED)"},
+    RPCResult{RPCResult::Type::OBJ, "fees", "",
+    {
+        RPCResult{RPCResult::Type::STR_AMOUNT, "base", "transaction fee in " + CURRENCY_UNIT},
+        RPCResult{RPCResult::Type::STR_AMOUNT, "modified", "transaction fee with fee deltas used for mining priority in " + CURRENCY_UNIT},
+        RPCResult{RPCResult::Type::STR_AMOUNT, "ancestor", "transaction fees of in-mempool ancestors (including this one) in " + CURRENCY_UNIT},
+        RPCResult{RPCResult::Type::STR_AMOUNT, "descendant", "transaction fees of in-mempool descendants (including this one) in " + CURRENCY_UNIT},
+    }},
+    RPCResult{RPCResult::Type::ARR, "depends", "unconfirmed transactions used as inputs for this transaction",
+        {RPCResult{RPCResult::Type::STR_HEX, "transactionid", "parent transaction id"}}},
+    RPCResult{RPCResult::Type::ARR, "spentby", "unconfirmed transactions spending outputs from this transaction",
+        {RPCResult{RPCResult::Type::STR_HEX, "transactionid", "child transaction id"}}},
+    RPCResult{RPCResult::Type::BOOL, "time", "True if this transaction was locked via InstantSend"}
+};}
 
 static void entryToJSON(const CTxMemPool& pool, UniValue& info, const CTxMemPoolEntry& e) EXCLUSIVE_LOCKS_REQUIRED(pool.cs)
 {
@@ -540,16 +538,17 @@ static UniValue getrawmempool(const JSONRPCRequest& request)
         {
             {"verbose", RPCArg::Type::BOOL, /* default */ "false", "True for a json object, false for array of transaction ids"},
         },
-        {RPCResult{"for verbose = false",
-    RPCResult::Type::ARR, "", "",
-    {
-                            {RPCResult::Type::STR_HEX, "", "The transaction id"},
-    }},
-    RPCResult{"for verbose = true",
-    RPCResult::Type::OBJ, "", "",
-    {
-    {RPCResult::Type::OBJ_DYN, "transactionid", EntryDescriptionString()},
-    }},
+        {
+            RPCResult{"for verbose = false",
+                RPCResult::Type::ARR, "", "",
+                {
+                    {RPCResult::Type::STR_HEX, "", "The transaction id"},
+                }},
+            RPCResult{"for verbose = true",
+                RPCResult::Type::OBJ, "", "",
+                {
+                    {RPCResult::Type::OBJ_DYN, "transactionid", "", MempoolEntryDescription()},
+                }},
         },
         RPCExamples{
             HelpExampleCli("getrawmempool", "true")
@@ -574,11 +573,10 @@ static UniValue getmempoolancestors(const JSONRPCRequest& request)
         },
         {
             RPCResult{"for verbose = false",
-    RPCResult::Type::ARR, "", "",
-    {{RPCResult::Type::STR_HEX, "", "The transaction id of an in-mempool ancestor transaction"}}
-            },
+                RPCResult::Type::ARR, "", "",
+                {{RPCResult::Type::STR_HEX, "", "The transaction id of an in-mempool ancestor transaction"}}},
             RPCResult{"for verbose = true",
-    RPCResult::Type::OBJ_DYN, "transactionid", EntryDescriptionString()
+                RPCResult::Type::OBJ_DYN, "transactionid", "", MempoolEntryDescription()
             },
         },
         RPCExamples{
@@ -635,14 +633,13 @@ static UniValue getmempooldescendants(const JSONRPCRequest& request)
         },
         {
             RPCResult{"for verbose = false",
-    RPCResult::Type::ARR, "", "",
-    {{RPCResult::Type::STR_HEX, "", "The transaction id of an in-mempool descendant transaction"}}
-            },
+                RPCResult::Type::ARR, "", "",
+                {{RPCResult::Type::STR_HEX, "", "The transaction id of an in-mempool descendant transaction"}}},
             RPCResult{"for verbose = true",
-    RPCResult::Type::OBJ, "", "",
-    {
-    {RPCResult::Type::OBJ_DYN, "transactionid", EntryDescriptionString()},
-            }},
+                RPCResult::Type::OBJ, "", "",
+                {
+                    {RPCResult::Type::OBJ_DYN, "transactionid", "", MempoolEntryDescription()},
+                }},
         },
         RPCExamples{
             HelpExampleCli("getmempooldescendants", "\"mytxid\"")
@@ -696,8 +693,7 @@ static UniValue getmempoolentry(const JSONRPCRequest& request)
             {"txid", RPCArg::Type::STR_HEX, RPCArg::Optional::NO, "The transaction id (must be in mempool)"},
         },
         RPCResult{
-    RPCResult::Type::OBJ_DYN, "", EntryDescriptionString()
-        },
+            RPCResult::Type::OBJ_DYN, "", "", MempoolEntryDescription()},
         RPCExamples{
             HelpExampleCli("getmempoolentry", "\"mytxid\"")
     + HelpExampleRpc("getmempoolentry", "\"mytxid\"")
@@ -728,10 +724,8 @@ static UniValue getblockhashes(const JSONRPCRequest& request)
             {"low", RPCArg::Type::NUM, RPCArg::Optional::NO, "The older block timestamp"},
         },
         RPCResult{
-            "[\n"
-            "  \"hash\"         (string) The block hash\n"
-            "]\n"
-        },
+            RPCResult::Type::ARR, "", "",
+            {{RPCResult::Type::STR_HEX, "", "The block hash"}}},
         RPCExamples{
             HelpExampleCli("getblockhashes", "1231614698 1231024505")
             + HelpExampleRpc("getblockhashes", "1231614698, 1231024505")
@@ -790,27 +784,26 @@ static UniValue getblockheader(const JSONRPCRequest& request)
         },
         {
             RPCResult{"for verbose = true",
-    "{\n"
-    "  \"hash\" : \"hash\",     (string) the block hash (same as provided)\n"
-    "  \"confirmations\" : n,   (numeric) The number of confirmations, or -1 if the block is not on the main chain\n"
-    "  \"height\" : n,          (numeric) The block height or index\n"
-    "  \"version\" : n,         (numeric) The block version\n"
-    "  \"versionHex\" : \"00000000\", (string) The block version formatted in hexadecimal\n"
-    "  \"merkleroot\" : \"xxxx\", (string) The merkle root\n"
-    "  \"time\" : ttt,          (numeric) The block time in seconds since epoch (Jan 1 1970 GMT)\n"
-    "  \"mediantime\" : ttt,    (numeric) The median block time in seconds since epoch (Jan 1 1970 GMT)\n"
-    "  \"nonce\" : n,           (numeric) The nonce\n"
-    "  \"bits\" : \"1d00ffff\", (string) The bits\n"
-    "  \"difficulty\" : x.xxx,  (numeric) The difficulty\n"
-    "  \"chainwork\" : \"0000...1f3\"     (string) Expected number of hashes required to produce the current chain (in hex)\n"
-    "  \"nTx\" : n,             (numeric) The number of transactions in the block.\n"
-    "  \"previousblockhash\" : \"hash\",  (string) The hash of the previous block\n"
-    "  \"nextblockhash\" : \"hash\",      (string) The hash of the next block\n"
-    "}\n"
-            },
+                RPCResult::Type::OBJ, "", "",
+                {
+                    {RPCResult::Type::STR_HEX, "hash", "the block hash (same as provided)"},
+                    {RPCResult::Type::NUM, "confirmations", "The number of confirmations, or -1 if the block is not on the main chain"},
+                    {RPCResult::Type::NUM, "height", "The block height or index"},
+                    {RPCResult::Type::NUM, "version", "The block version"},
+                    {RPCResult::Type::STR_HEX, "versionHex", "The block version formatted in hexadecimal"},
+                    {RPCResult::Type::STR_HEX, "merkleroot", "The merkle root"},
+                    {RPCResult::Type::NUM_TIME, "time", "The block time expressed in seconds since epoch (Jan 1 1970 GMT)"},
+                    {RPCResult::Type::NUM_TIME, "mediantime", "The median block time expressed in seconds since epoch (Jan 1 1970 GMT)"},
+                    {RPCResult::Type::NUM, "nonce", "The nonce"},
+                    {RPCResult::Type::STR_HEX, "bits", "The bits"},
+                    {RPCResult::Type::NUM, "difficulty", "The difficulty"},
+                    {RPCResult::Type::STR_HEX, "chainwork", "Expected number of hashes required to produce the current chain"},
+                    {RPCResult::Type::NUM, "nTx", "The number of transactions in the block"},
+                    {RPCResult::Type::STR_HEX, "previousblockhash", "The hash of the previous block"},
+                    {RPCResult::Type::STR_HEX, "nextblockhash", "The hash of the next block"},
+                }},
             RPCResult{"for verbose=false",
-    "\"data\"             (string) A string that is serialized, hex-encoded data for block 'hash'.\n"
-            },
+                RPCResult::Type::STR_HEX, "", "A string that is serialized, hex-encoded data for block 'hash'"},
         },
         RPCExamples{
             HelpExampleCli("getblockheader", "\"00000000c937983704a73af28acdec37b049d214adbda81d7e2a3dd146f6ed09\"")
@@ -859,33 +852,32 @@ static UniValue getblockheaders(const JSONRPCRequest& request)
             {"count", RPCArg::Type::NUM, /* default */ strprintf("%s", MAX_HEADERS_RESULTS), ""},
             {"verbose", RPCArg::Type::BOOL, /* default */ "true", "true for a json object, false for the hex-encoded data"},
         },
-        RPCResults{
-            {"for verbose = true",
-    "[ {\n"
-    "  \"hash\" : \"hash\",               (string)  The block hash\n"
-    "  \"confirmations\" : n,           (numeric) The number of confirmations, or -1 if the block is not on the main chain\n"
-    "  \"height\" : n,                  (numeric) The block height or index\n"
-    "  \"version\" : n,                 (numeric) The block version\n"
-    "  \"merkleroot\" : \"xxxx\",         (string)  The merkle root\n"
-    "  \"time\" : ttt,                  (numeric) The block time in seconds since epoch (Jan 1 1970 GMT)\n"
-    "  \"mediantime\" : ttt,            (numeric) The median block time in seconds since epoch (Jan 1 1970 GMT)\n"
-    "  \"nonce\" : n,                   (numeric) The nonce\n"
-    "  \"bits\" : \"1d00ffff\",           (string)  The bits\n"
-    "  \"difficulty\" : x.xxx,          (numeric) The difficulty\n"
-    "  \"chainwork\" : \"0000...1f3\"     (string)  Expected number of hashes required to produce the current chain (in hex)\n"
-    "  \"previousblockhash\" : \"hash\",  (string)  The hash of the previous block\n"
-    "  \"nextblockhash\" : \"hash\",      (string)  The hash of the next block\n"
-    "}, {\n"
-    "       ...\n"
-    "   },\n"
-    "...\n"
-    "]\n"
-            },{"for verbose=false",
-    "[\n"
-    "  \"data\",                        (string)  A string that is serialized, hex-encoded data for block header.\n"
-    "  ...\n"
-    "]\n"
-        }},
+        {
+            RPCResult{"for verbose = true",
+                RPCResult::Type::ARR, "", "",
+                    {{RPCResult::Type::OBJ, "", "",
+                    {
+                        {RPCResult::Type::STR_HEX, "hash", "the block hash (same as provided)"},
+                        {RPCResult::Type::NUM, "confirmations", "The number of confirmations, or -1 if the block is not on the main chain"},
+                        {RPCResult::Type::NUM, "height", "The block height or index"},
+                        {RPCResult::Type::NUM, "version", "The block version"},
+                        {RPCResult::Type::STR_HEX, "versionHex", "The block version formatted in hexadecimal"},
+                        {RPCResult::Type::STR_HEX, "merkleroot", "The merkle root"},
+                        {RPCResult::Type::NUM_TIME, "time", "The block time expressed in seconds since epoch (Jan 1 1970 GMT)"},
+                        {RPCResult::Type::NUM_TIME, "mediantime", "The median block time expressed in seconds since epoch (Jan 1 1970 GMT)"},
+                        {RPCResult::Type::NUM, "nonce", "The nonce"},
+                        {RPCResult::Type::STR_HEX, "bits", "The bits"},
+                        {RPCResult::Type::NUM, "difficulty", "The difficulty"},
+                        {RPCResult::Type::STR_HEX, "chainwork", "Expected number of hashes required to produce the current chain"},
+                        {RPCResult::Type::NUM, "nTx", "The number of transactions in the block"},
+                        {RPCResult::Type::STR_HEX, "previousblockhash", "The hash of the previous block"},
+                        {RPCResult::Type::STR_HEX, "nextblockhash", "The hash of the next block"},
+                    }},
+                }},
+            RPCResult{"for verbose=false",
+                RPCResult::Type::ARR, "", "",
+                    {{RPCResult::Type::STR_HEX, "", "A string that is serialized, hex-encoded data for block 'hash'"}}},
+        },
         RPCExamples{
             HelpExampleCli("getblockheaders", "\"00000000c937983704a73af28acdec37b049d214adbda81d7e2a3dd146f6ed09\" 2000")
     + HelpExampleRpc("getblockheaders", "\"00000000c937983704a73af28acdec37b049d214adbda81d7e2a3dd146f6ed09\" 2000")
@@ -969,11 +961,8 @@ static UniValue getmerkleblocks(const JSONRPCRequest& request)
             {"count", RPCArg::Type::NUM, /* default */ strprintf("%s", MAX_HEADERS_RESULTS), ""},
         },
         RPCResult{
-    "[\n"
-    "  \"data\",                        (string)  A string that is serialized, hex-encoded data for a merkleblock.\n"
-    "  ...\n"
-    "]\n"
-        },
+                RPCResult::Type::ARR, "", "",
+                    {{RPCResult::Type::STR_HEX, "", "A string that is serialized, hex-encoded data for a merkleblock"}}},
         RPCExamples{
             HelpExampleCli("getmerkleblocks", "\"2303028005802040100040000008008400048141010000f8400420800080025004000004130000000000000001\" \"00000000007e1432d2af52e8463278bf556b55cf5049262f25634557e2e91202\" 2000")
     + HelpExampleRpc("getmerkleblocks", "\"2303028005802040100040000008008400048141010000f8400420800080025004000004130000000000000001\" \"00000000007e1432d2af52e8463278bf556b55cf5049262f25634557e2e91202\" 2000")
@@ -1048,51 +1037,50 @@ static UniValue getblock(const JSONRPCRequest& request)
                 },
                 {
                     RPCResult{"for verbosity = 0",
-                RPCResult::Type::STR_HEX, "", "A string that is serialized, hex-encoded data for block 'hash'"},
-                RPCResult{"for verbosity = 1",
-            "{\n"
-            "  \"hash\" : \"hash\",     (string) the block hash (same as provided)\n"
-            "  \"confirmations\" : n,   (numeric) The number of confirmations, or -1 if the block is not on the main chain\n"
-            "  \"size\" : n,            (numeric) The block size\n"
-            "  \"height\" : n,          (numeric) The block height or index\n"
-            "  \"version\" : n,         (numeric) The block version\n"
-            "  \"versionHex\" : \"00000000\", (string) The block version formatted in hexadecimal\n"
-            "  \"merkleroot\" : \"xxxx\", (string) The merkle root\n"
-            "  \"tx\" : [               (array of string) The transaction ids\n"
-            "     \"transactionid\"     (string) The transaction id\n"
-            "     ,...\n"
-            "  ],\n"
-            "  \"cbTx\" : {             (json object) The coinbase special transaction \n"
-            "     \"version\"           (numeric) The coinbase special transaction version\n"
-            "     \"height\"            (numeric) The block height\n"
-            "     \"merkleRootMNList\" : \"xxxx\", (string) The merkle root of the masternode list\n"
-            "     \"merkleRootQuorums\" : \"xxxx\", (string) The merkle root of the quorum list\n"
-            "  },\n"
-            "  \"time\" : ttt,          (numeric) The block time in seconds since epoch (Jan 1 1970 GMT)\n"
-            "  \"mediantime\" : ttt,    (numeric) The median block time in seconds since epoch (Jan 1 1970 GMT)\n"
-            "  \"nonce\" : n,           (numeric) The nonce\n"
-            "  \"bits\" : \"1d00ffff\", (string) The bits\n"
-            "  \"difficulty\" : x.xxx,  (numeric) The difficulty\n"
-            "  \"chainwork\" : \"xxxx\",  (string) Expected number of hashes required to produce the chain up to this block (in hex)\n"
-            "  \"nTx\" : n,             (numeric) The number of transactions in the block.\n"
-            "  \"previousblockhash\" : \"hash\",  (string) The hash of the previous block\n"
-            "  \"nextblockhash\" : \"hash\"       (string) The hash of the next block\n"
-            "}\n"
-                    },
+                        RPCResult::Type::STR_HEX, "", "A string that is serialized, hex-encoded data for block 'hash'"},
+                    RPCResult{"for verbosity = 1",
+                        RPCResult::Type::OBJ, "", "",
+                            {
+                                {RPCResult::Type::STR_HEX, "hash", "the block hash (same as provided)"},
+                                {RPCResult::Type::NUM, "confirmations", "The number of confirmations, or -1 if the block is not on the main chain"},
+                                {RPCResult::Type::NUM, "size", "The block size"},
+                                {RPCResult::Type::NUM, "height", "The block height or index"},
+                                {RPCResult::Type::NUM, "version", "The block version"},
+                                {RPCResult::Type::STR_HEX, "versionHex", "The block version formatted in hexadecimal"},
+                                {RPCResult::Type::STR_HEX, "merkleroot", "The merkle root"},
+                                {RPCResult::Type::ARR, "tx", "The transaction ids",
+                                    {{RPCResult::Type::STR_HEX, "", "The transaction id"}}},
+                                {RPCResult::Type::OBJ, "cbTx", "The coinbase special transaction",
+                                    {
+                                        {RPCResult::Type::NUM, "version", "The coinbase special transaction version"},
+                                        {RPCResult::Type::STR_HEX, "height", "The block height"},
+                                        {RPCResult::Type::STR_HEX, "merkleRootMNList", "The merkle root of the masternode list"},
+                                        {RPCResult::Type::STR_HEX, "merkleRootQuorums", "The merkle root of the quorum list"},
+                                    }},
+                                {RPCResult::Type::NUM_TIME, "time",       "The block time expressed in seconds since epoch (Jan 1 1970 GMT)"},
+                                {RPCResult::Type::NUM_TIME, "mediantime", "The median block time expressed in seconds since epoch (Jan 1 1970 GMT)"},
+                                {RPCResult::Type::NUM, "nonce", "The nonce"},
+                                {RPCResult::Type::STR_HEX, "bits", "The bits"},
+                                {RPCResult::Type::NUM, "difficulty", "The difficulty"},
+                                {RPCResult::Type::STR_HEX, "chainwork", "Expected number of hashes required to produce the chain up to this block (in hex)"},
+                                {RPCResult::Type::NUM, "nTx", "The number of transactions in the block"},
+                                {RPCResult::Type::STR_HEX, "previousblockhash", "The hash of the previous block"},
+                                {RPCResult::Type::STR_HEX, "nextblockhash", "The hash of the next block"},
+                            }},
                     RPCResult{"for verbosity = 2",
-                RPCResult::Type::OBJ, "", "",
-                {
-                    {RPCResult::Type::ELISION, "", "Same output as verbosity = 1"},
-                    {RPCResult::Type::ARR, "tx", "",
-                    {
-                        {RPCResult::Type::OBJ, "", "",
+                        RPCResult::Type::OBJ, "", "",
                         {
-                            {RPCResult::Type::ELISION, "", "The transactions in the format of the getrawtransaction RPC. Different from verbosity = 1 \"tx\" result"},
+                            {RPCResult::Type::ELISION, "", "Same output as verbosity = 1"},
+                            {RPCResult::Type::ARR, "tx", "",
+                            {
+                                {RPCResult::Type::OBJ, "", "",
+                                {
+                                    {RPCResult::Type::ELISION, "", "The transactions in the format of the getrawtransaction RPC. Different from verbosity = 1 \"tx\" result"},
+                                }},
+                            }},
+                            {RPCResult::Type::ELISION, "", "Same output as verbosity = 1"},
                         }},
-                    }},
-                    {RPCResult::Type::ELISION, "", "Same output as verbosity = 1"},
-                }},
-        },
+                },
                 RPCExamples{
                     HelpExampleCli("getblock", "\"00000000000fd08c2fb661d2fcb0d49abb3a91e5f27082ce64feed3b4dede2e2\"")
             + HelpExampleRpc("getblock", "\"00000000000fd08c2fb661d2fcb0d49abb3a91e5f27082ce64feed3b4dede2e2\"")
@@ -1263,23 +1251,22 @@ static UniValue gettxout(const JSONRPCRequest& request)
             {"include_mempool", RPCArg::Type::BOOL, /* default */ "true", "Whether to include the mempool. Note that an unspent output that is spent in the mempool won't appear."},
         },
         RPCResult{
-    "{\n"
-    "  \"bestblock\" :  \"hash\",    (string) The hash of the block at the tip of the chain\n"
-    "  \"confirmations\" : n,       (numeric) The number of confirmations\n"
-    "  \"value\" : x.xxx,           (numeric) The transaction value in " + CURRENCY_UNIT + "\n"
-    "  \"scriptPubKey\" : {         (json object)\n"
-    "     \"asm\" : \"code\",       (string) \n"
-    "     \"hex\" : \"hex\",        (string) \n"
-    "     \"reqSigs\" : n,          (numeric) Number of required signatures\n"
-    "     \"type\" : \"pubkeyhash\", (string) The type, eg pubkeyhash\n"
-    "     \"addresses\" : [          (array of string) array of dash addresses\n"
-    "        \"address\"     (string) dash address\n"
-    "        ,...\n"
-    "     ]\n"
-    "  },\n"
-    "  \"coinbase\" : true|false   (boolean) Coinbase or not\n"
-    "}\n"
-        },
+            RPCResult::Type::OBJ, "", "",
+            {
+                {RPCResult::Type::STR_HEX, "bestblock", "The hash of the block at the tip of the chain"},
+                {RPCResult::Type::NUM, "confirmations", "The number of confirmations"},
+                {RPCResult::Type::STR_AMOUNT, "value", "The transaction value in " + CURRENCY_UNIT},
+                {RPCResult::Type::OBJ, "scriptPubKey", "",
+                    {
+                        {RPCResult::Type::STR_HEX, "asm", ""},
+                        {RPCResult::Type::STR_HEX, "hex", ""},
+                        {RPCResult::Type::NUM, "reqSigs", "Number of required signatures"},
+                        {RPCResult::Type::STR_HEX, "type", "The type, eg pubkeyhash"},
+                        {RPCResult::Type::ARR, "addresses", "array of dash addresses",
+                            {{RPCResult::Type::STR, "address", "dash address"}}},
+                    }},
+                {RPCResult::Type::BOOL, "coinbase", "Coinbase or not"},
+            }},
         RPCExamples{
     "\nGet unspent transactions\n"
     + HelpExampleCli("listunspent", "") +
@@ -1439,50 +1426,56 @@ UniValue getblockchaininfo(const JSONRPCRequest& request)
         "Returns an object containing various state info regarding blockchain processing.\n",
         {},
         RPCResult{
-    "{\n"
-    "  \"chain\" : \"xxxx\",              (string) current network name (main, test, regtest) and\n"
-    "                                          devnet or devnet-<name> for \"-devnet\" and \"-devnet=<name>\" respectively\n"
-    "  \"blocks\" : xxxxxx,             (numeric) the height of the most-work fully-validated chain. The genesis block has height 0\n"
-    "  \"headers\" : xxxxxx,            (numeric) the current number of headers we have validated\n"
-    "  \"bestblockhash\" : \"...\",       (string) the hash of the currently best block\n"
-    "  \"difficulty\" : xxxxxx,         (numeric) the current difficulty\n"
-    "  \"mediantime\" : xxxxxx,         (numeric) median time for the current best block\n"
-    "  \"verificationprogress\" : xxxx, (numeric) estimate of verification progress [0..1]\n"
-    "  \"initialblockdownload\" : xxxx, (boolean) (debug information) estimate of whether this node is in Initial Block Download mode.\n"
-    "  \"chainwork\" : \"xxxx\"           (string) total amount of work in active chain, in hexadecimal\n"
-    "  \"size_on_disk\" : xxxxxx,       (numeric) the estimated size of the block and undo files on disk\n"
-    "  \"pruned\" : xx,                 (boolean) if the blocks are subject to pruning\n"
-    "  \"pruneheight\" : xxxxxx,        (numeric) lowest-height complete block stored (only present if pruning is enabled)\n"
-    "  \"automatic_pruning\" : xx,      (boolean) whether automatic pruning is enabled (only present if pruning is enabled)\n"
-    "  \"prune_target_size\" : xxxxxx,  (numeric) the target size used by pruning (only present if automatic pruning is enabled)\n"
-    "  \"softforks\" : [                (json array) status of softforks in progress\n"
-    "     {\n"
-    "        \"id\" : \"xxxx\",           (string) name of softfork\n"
-    "        \"version\" : xx,          (numeric) block version\n"
-    "        \"reject\" : {             (json object) progress toward rejecting pre-softfork blocks\n"
-    "           \"status\" : xx,        (boolean) true if threshold reached\n"
-    "        },\n"
-    "     }, ...\n"
-    "  ],\n"
-    "  \"bip9_softforks\": {           (json object) status of BIP9 softforks in progress\n"
-    "     \"xxxx\" : {                 (string) name of the softfork\n"
-    "        \"status\" : \"xxxx\",       (string) one of \"defined\", \"started\", \"locked_in\", \"active\", \"failed\"\n"
-    "        \"bit\" : xx,              (numeric) the bit (0-28) in the block version field used to signal this softfork (only for \"started\" status)\n"
-    "        \"start_time\" : xx,        (numeric) the minimum median time past of a block at which the bit gains its meaning\n"
-    "        \"timeout\" : xx,          (numeric) the median time past of a block at which the deployment is considered failed if not yet locked in\n"
-    "        \"since\" : xx,            (numeric) height of the first block to which the status applies\n"
-    "        \"statistics\" : {         (json object) numeric statistics about BIP9 signalling for a softfork (only for \"started\" status)\n"
-    "           \"period\" : xx,        (numeric) the length in blocks of the BIP9 signalling period \n"
-    "           \"threshold\" : xx,     (numeric) the number of blocks with the version bit set required to activate the feature \n"
-    "           \"elapsed\" : xx,       (numeric) the number of blocks elapsed since the beginning of the current period \n"
-    "           \"count\" : xx,         (numeric) the number of blocks with the version bit set in the current period \n"
-    "           \"possible\" : xx       (boolean) returns false if there are not enough blocks left in this period to pass activation threshold \n"
-    "        }\n"
-    "     }\n"
-    "  }\n"
-    "  \"warnings\" : \"...\",           (string) any network and blockchain warnings.\n"
-    "}\n"
-        },
+            RPCResult::Type::OBJ, "", "",
+            {
+                {RPCResult::Type::STR, "chain", "current network name (main, test, regtest) and "
+                                                "devnet or devnet-<name> for \"-devnet\" and \"-devnet=<name>\" respectively\n"},
+                {RPCResult::Type::NUM, "blocks", "the height of the most-work fully-validated chain. The genesis block has height 0"},
+                {RPCResult::Type::NUM, "headers", "the current number of headers we have validated"},
+                {RPCResult::Type::STR, "bestblockhash", "the hash of the currently best block"},
+                {RPCResult::Type::NUM, "difficulty", "the current difficulty"},
+                {RPCResult::Type::NUM, "mediantime", "median time for the current best block"},
+                {RPCResult::Type::NUM, "verificationprogress", "estimate of verification progress [0..1]"},
+                {RPCResult::Type::BOOL, "initialblockdownload", "(debug information) estimate of whether this node is in Initial Block Download mode"},
+                {RPCResult::Type::STR_HEX, "chainwork", "total amount of work in active chain, in hexadecimal"},
+                {RPCResult::Type::NUM, "size_on_disk", "the estimated size of the block and undo files on disk"},
+                {RPCResult::Type::BOOL, "pruned", "if the blocks are subject to pruning"},
+                {RPCResult::Type::NUM, "pruneheight", "lowest-height complete block stored (only present if pruning is enabled)"},
+                {RPCResult::Type::BOOL, "automatic_pruning", "whether automatic pruning is enabled (only present if pruning is enabled)"},
+                {RPCResult::Type::NUM, "prune_target_size", "the target size used by pruning (only present if automatic pruning is enabled)"},
+                {RPCResult::Type::ARR, "softforks", "status of softforks in progress",
+                {
+                    {RPCResult::Type::OBJ, "", "",
+                    {
+                        {RPCResult::Type::STR, "xxxx", "name of the softfork"},
+                        {RPCResult::Type::STR, "version", "block version"},
+                        {RPCResult::Type::OBJ, "reject", "progress toward rejecting pre-softfork blocks",
+                        {
+                            {RPCResult::Type::BOOL, "status", "true if threshold reached"},
+                        }},
+                    }},
+                }},
+                {RPCResult::Type::OBJ_DYN, "bip9_softforks", "status of BIP9 softforks in progress",
+                {
+                    {RPCResult::Type::OBJ, "xxxx", "name of the softfork",
+                    {
+                        {RPCResult::Type::STR, "status", "one of \"defined\", \"started\", \"locked_in\", \"active\", \"failed\""},
+                        {RPCResult::Type::NUM, "bit", "the bit (0-28) in the block version field used to signal this softfork (only for \"started\" status)"},
+                        {RPCResult::Type::NUM_TIME, "start_time", "the minimum median time past of a block at which the bit gains its meaning"},
+                        {RPCResult::Type::NUM_TIME, "timeout", "the median time past of a block at which the deployment is considered failed if not yet locked in"},
+                        {RPCResult::Type::NUM, "since", "height of the first block to which the status applies"},
+                        {RPCResult::Type::OBJ, "statistics", "numeric statistics about BIP9 signalling for a softfork",
+                        {
+                            {RPCResult::Type::NUM, "period", "the length in blocks of the BIP9 signalling period"},
+                            {RPCResult::Type::NUM, "threshold", "the number of blocks with the version bit set required to activate the feature"},
+                            {RPCResult::Type::NUM, "elapsed", "the number of blocks elapsed since the beginning of the current period"},
+                            {RPCResult::Type::NUM, "count", "the number of blocks with the version bit set in the current period"},
+                            {RPCResult::Type::BOOL, "possible", "returns false if there are not enough blocks left in this period to pass activation threshold"},
+                        }},
+                    }},
+                }},
+                {RPCResult::Type::STR, "warnings", "any network and blockchain warnings"},
+            }},
         RPCExamples{
             HelpExampleCli("getblockchaininfo", "")
     + HelpExampleRpc("getblockchaininfo", "")
@@ -1565,33 +1558,23 @@ static UniValue getchaintips(const JSONRPCRequest& request)
             {"branchlen", RPCArg::Type::NUM, /* default */ "", "only show tips that have equal or greater length of branch"},
         },
         RPCResult{
-    "[\n"
-    "  {\n"
-    "    \"height\" : xxxx,             (numeric) height of the chain tip\n"
-    "    \"hash\" : \"xxxx\",             (string) block hash of the tip\n"
-    "    \"difficulty\" : x.xxx,       (numeric) The difficulty\n"
-    "    \"chainwork\" : \"0000...1f3\"  (string) Expected number of hashes required to produce the current chain (in hex)\n"
-    "    \"branchlen\" : 0              (numeric) zero for main chain\n"
-    "    \"forkpoint\" : \"xxxx\",        (string) same as \"hash\" for the main chain\n"
-    "    \"status\" : \"active\"          (string) \"active\" for the main chain\n"
-    "  },\n"
-    "  {\n"
-    "    \"height\" : xxxx,\n"
-    "    \"hash\" : \"xxxx\",\n"
-    "    \"difficulty\" : x.xxx,\n"
-    "    \"chainwork\" : \"0000...1f3\"\n"
-    "    \"branchlen\" : 1              (numeric) length of branch connecting the tip to the main chain\n"
-    "    \"forkpoint\" : \"xxxx\",        (string) block hash of the last common block between this tip and the main chain\n"
-    "    \"status\" : \"xxxx\"            (string) status of the chain (active, valid-fork, valid-headers, headers-only, invalid)\n"
-    "  }\n"
-    "]\n"
+            RPCResult::Type::ARR, "", "",
+            {{RPCResult::Type::OBJ, "", "",
+                {
+                    {RPCResult::Type::NUM, "height", "height of the chain tip"},
+                    {RPCResult::Type::STR_HEX, "hash", "block hash of the tip"},
+                    {RPCResult::Type::NUM, "difficulty", "The difficulty"},
+                    {RPCResult::Type::STR_HEX, "chainwork", "Expected number of hashes required to produce the current chain (in hex)"},
+                    {RPCResult::Type::NUM, "branchlen", "zero for main chain, otherwise length of branch connecting the tip to the main chain"},
+                    {RPCResult::Type::STR_HEX, "forkpoint", "same as \"hash\" for the main chain"},
+                    {RPCResult::Type::STR, "status", "status of the chain, \"active\" for the main chain\n"
     "Possible values for status:\n"
     "1.  \"invalid\"               This branch contains at least one invalid block\n"
     "2.  \"headers-only\"          Not all blocks for this branch are available, but the headers are valid\n"
     "3.  \"valid-headers\"         All blocks are available for this branch, but they were never fully validated\n"
     "4.  \"valid-fork\"            This branch is not part of the active chain, but is fully validated\n"
-    "5.  \"active\"                This is the tip of the active main chain, which is certainly valid\n"
-        },
+    "5.  \"active\"                This is the tip of the active main chain, which is certainly valid"},
+                }}}},
         RPCExamples{
             HelpExampleCli("getchaintips", "")
     + HelpExampleRpc("getchaintips", "")
@@ -1711,17 +1694,17 @@ static UniValue getmempoolinfo(const JSONRPCRequest& request)
         "\nReturns details on the active state of the TX memory pool.\n",
         {},
         RPCResult{
-    "{\n"
-    "  \"loaded\" : true|false         (boolean) True if the mempool is fully loaded\n"
-    "  \"size\" : xxxxx,               (numeric) Current tx count\n"
-    "  \"bytes\" : xxxxx,              (numeric) Sum of all tx sizes\n"
-    "  \"usage\" : xxxxx,              (numeric) Total memory usage for the mempool\n"
-    "  \"maxmempool\" : xxxxx,         (numeric) Maximum memory usage for the mempool\n"
-    "  \"mempoolminfee\" : xxxxx       (numeric) Minimum fee rate in " + CURRENCY_UNIT + "/kB for tx to be accepted. Is the maximum of minrelaytxfee and minimum mempool fee\n"
-    "  \"minrelaytxfee\" : xxxxx       (numeric) Current minimum relay fee for transactions\n"
-    "  \"instantsendlocks\" : xxxxx,   (numeric) Number of unconfirmed instant send locks\n"
-    "}\n"
-        },
+            RPCResult::Type::OBJ, "", "",
+            {
+                {RPCResult::Type::BOOL, "loaded", "True if the mempool is fully loaded"},
+                {RPCResult::Type::NUM, "size", "Current tx count"},
+                {RPCResult::Type::NUM, "bytes", "Sum of all virtual transaction sizes as defined in BIP 141. Differs from actual serialized size because witness data is discounted"},
+                {RPCResult::Type::NUM, "usage", "Total memory usage for the mempool"},
+                {RPCResult::Type::NUM, "maxmempool", "Maximum memory usage for the mempool"},
+                {RPCResult::Type::STR_AMOUNT, "mempoolminfee", "Minimum fee rate in " + CURRENCY_UNIT + "/kB for tx to be accepted. Is the maximum of minrelaytxfee and minimum mempool fee"},
+                {RPCResult::Type::STR_AMOUNT, "minrelaytxfee", "Current minimum relay fee for transactions"},
+                {RPCResult::Type::NUM, "instantsendlocks", "Number of unconfirmed InstantSend locks"},
+            }},
         RPCExamples{
             HelpExampleCli("getmempoolinfo", "")
     + HelpExampleRpc("getmempoolinfo", "")
@@ -2240,20 +2223,17 @@ static UniValue getspecialtxes(const JSONRPCRequest& request)
             {"skip", RPCArg::Type::NUM, /* default */ "0", "The number of transactions to skip"},
             {"verbosity", RPCArg::Type::NUM, /* default */ "0", "0 for hashes, 1 for hex-encoded data, and 2 for json object"},
         },
-        RPCResults{
-            {"for verbosity = 0",
-    "[\n"
-    "  \"txid\" : \"xxxx\",    (string) The transaction id\n"
-    "]\n"
-            }, {"for verbosity = 1",
-    "[\n"
-    "  \"data\",               (string) A string that is serialized, hex-encoded data for the transaction\n"
-    "]\n"
-            }, {"for verbosity = 2",
-    "[                       (array of Objects) The transactions in the format of the getrawtransaction RPC.\n"
-    "  ...,\n"
-    "]\n"
-        }},
+        {
+            RPCResult{"for verbosity = 0",
+                RPCResult::Type::ARR, "", "",
+                    {{RPCResult::Type::STR_HEX, "", "The transaction id"}}},
+            RPCResult{"for verbosity = 1",
+                RPCResult::Type::ARR, "", "",
+                    {{RPCResult::Type::STR_HEX, "data", "A string that is serialized, hex-encoded data for the transaction"}}},
+            RPCResult{"for verbosity = 2",
+                RPCResult::Type::ARR, "", "",
+                    {{RPCResult::Type::ELISION, "", "The transactions in the format of the getrawtransaction RPC"}}},
+        },
         RPCExamples{
             HelpExampleCli("getspecialtxes", "\"00000000000fd08c2fb661d2fcb0d49abb3a91e5f27082ce64feed3b4dede2e2\"")
     + HelpExampleRpc("getspecialtxes", "\"00000000000fd08c2fb661d2fcb0d49abb3a91e5f27082ce64feed3b4dede2e2\"")
@@ -2602,11 +2582,11 @@ static UniValue getblockfilter(const JSONRPCRequest& request)
             {"filtertype", RPCArg::Type::STR, /* default */ "basic", "The type name of the filter"},
         },
         RPCResult{
-    RPCResult::Type::OBJ, "", "",
-                    {
-    {RPCResult::Type::STR_HEX, "filter", "the hex-encoded filter data"},
-    {RPCResult::Type::STR_HEX, "header", "the hex-encoded filter header"},
-        }},
+            RPCResult::Type::OBJ, "", "",
+            {
+                {RPCResult::Type::STR_HEX, "filter", "the hex-encoded filter data"},
+                {RPCResult::Type::STR_HEX, "header", "the hex-encoded filter header"},
+            }},
         RPCExamples{
             HelpExampleCli("getblockfilter", "\"00000000c937983704a73af28acdec37b049d214adbda81d7e2a3dd146f6ed09\" \"basic\"")
         },

@@ -78,64 +78,65 @@ static UniValue getpeerinfo(const JSONRPCRequest& request)
         "\nReturns data about each connected network node as a json array of objects.\n",
         {},
         RPCResult{
-    "[\n"
-    "  {\n"
-    "    \"id\" : n,                   (numeric) Peer index\n"
-    "    \"addr\" : \"host:port\",      (string) The IP address and port of the peer\n"
-    "    \"addrbind\" : \"ip:port\",    (string) Bind address of the connection to the peer\n"
-    "    \"addrlocal\" : \"ip:port\",   (string) Local address as reported by the peer\n"
-    "    \"mapped_as\" : \"mapped_as\", (string) The AS in the BGP route to the peer used for diversifying peer selection\n"
-    "    \"services\" : \"xxxxxxxxxxxxxxxx\",   (string) The services offered\n"
-    "    \"verified_proregtx_hash\" : h, (hex) Only present when the peer is a masternode and successfully\n"
-    "                               authenticated via MNAUTH. In this case, this field contains the\n"
-    "                               protx hash of the masternode\n"
-    "    \"verified_pubkey_hash\" :   h, (hex) Only present when the peer is a masternode and successfully\n"
-    "                               authenticated via MNAUTH. In this case, this field contains the\n"
-    "                               hash of the masternode's operator public key\n"
-    "    \"servicesnames\" : [              (json array) the services offered, in human-readable form\n"
-    "        \"SERVICE_NAME\",         (string) the service name if it is recognised\n"
-    "         ...\n"
-    "     ],\n"
-    "    \"relaytxes\" : true|false,    (boolean) Whether peer has asked us to relay transactions to it\n"
-    "    \"lastsend\" : ttt,           (numeric) The time in seconds since epoch (Jan 1 1970 GMT) of the last send\n"
-    "    \"lastrecv\" : ttt,           (numeric) The time in seconds since epoch (Jan 1 1970 GMT) of the last receive\n"
-    "    \"bytessent\" : n,            (numeric) The total bytes sent\n"
-    "    \"bytesrecv\" : n,            (numeric) The total bytes received\n"
-    "    \"conntime\" : ttt,           (numeric) The connection time in seconds since epoch (Jan 1 1970 GMT)\n"
-    "    \"timeoffset\" : ttt,         (numeric) The time offset in seconds\n"
-    "    \"pingtime\" : n,             (numeric) ping time (if available)\n"
-    "    \"minping\" : n,              (numeric) minimum observed ping time (if any at all)\n"
-    "    \"pingwait\" : n,             (numeric) ping wait (if non-zero)\n"
-    "    \"version\" : v,              (numeric) The peer version, such as 70001\n"
-    "    \"subver\" : \"/Dash Core:x.x.x/\",  (string) The string version\n"
-    "    \"inbound\" : true|false,     (boolean) Inbound (true) or Outbound (false)\n"
-    "    \"addnode\" : true|false,     (boolean) Whether connection was due to addnode/-connect or if it was an automatic/inbound connection\n"
-    "    \"masternode\" : true|false,  (boolean) Whether connection was due to masternode connection attempt\n"
-    "    \"startingheight\" : n,       (numeric) The starting height (block) of the peer\n"
-    "    \"banscore\" : n,             (numeric) The ban score\n"
-    "    \"synced_headers\" : n,       (numeric) The last header we have in common with this peer\n"
-    "    \"synced_blocks\" : n,        (numeric) The last block we have in common with this peer\n"
-    "    \"inflight\" : [\n"
-    "       n,                        (numeric) The heights of blocks we're currently asking from this peer\n"
-    "       ...\n"
-    "    ],\n"
-    "    \"whitelisted\" : true|false, (boolean) Whether the peer is whitelisted\n"
-    "    \"bytessent_per_msg\" : {\n"
-    "       \"msg\" : n,               (numeric) The total bytes sent aggregated by message type\n"
-    "                               When a message type is not listed in this json object, the bytes sent are 0.\n"
-    "                               Only known message types can appear as keys in the object.\n"
-    "       ...\n"
-    "    },\n"
-    "    \"bytesrecv_per_msg\" : {\n"
-    "       \"msg\" : n,               (numeric) The total bytes received aggregated by message type\n"
-    "                               When a message type is not listed in this json object, the bytes received are 0.\n"
-    "                               Only known message types can appear as keys in the object and all bytes received of unknown message types are listed under '"+NET_MESSAGE_COMMAND_OTHER+"'.\n"
-    "       ...\n"
-    "    }\n"
-    "  }\n"
-    "  ,...\n"
-    "]\n"
-        },
+            RPCResult::Type::ARR, "", "",
+            {
+                {RPCResult::Type::OBJ, "", "",
+                {
+                    {
+                    {RPCResult::Type::NUM, "id", "Peer index"},
+                    {RPCResult::Type::STR, "addr", "(host:port) The IP address and port of the peer"},
+                    {RPCResult::Type::STR, "addrbind", "(ip:port) Bind address of the connection to the peer"},
+                    {RPCResult::Type::STR, "addrlocal", "(ip:port) Local address as reported by the peer"},
+                    {RPCResult::Type::STR, "mapped_as", "The AS in the BGP route to the peer used for diversifying peer selection"},
+                    {RPCResult::Type::STR_HEX, "services", "The services offered"},
+                    {RPCResult::Type::STR_HEX, "verified_proregtx_hash", true /*optional*/, "Only present when the peer is a masternode and successfully "
+                                                                        "authenticated via MNAUTH. In this case, this field contains the "
+                                                                        "protx hash of the masternode"},
+                    {RPCResult::Type::STR_HEX, "verified_pubkey_hash", true /*optional*/, "Only present when the peer is a masternode and successfully "
+                                                                        "authenticated via MNAUTH. In this case, this field contains the "
+                                                                        "hash of the masternode's operator public key"},
+                    {RPCResult::Type::ARR, "servicesnames", "the services offered, in human-readable form",
+                    {
+                        {RPCResult::Type::STR, "SERVICE_NAME", "the service name if it is recognised"}
+                    }},
+                    {RPCResult::Type::BOOL, "relaytxes", "Whether peer has asked us to relay transactions to it"},
+                    {RPCResult::Type::NUM_TIME, "lastsend", "The time in seconds since epoch (Jan 1 1970 GMT) of the last send"},
+                    {RPCResult::Type::NUM_TIME, "lastrecv", "The time in seconds since epoch (Jan 1 1970 GMT) of the last receive"},
+                    {RPCResult::Type::NUM, "bytessent", "The total bytes sent"},
+                    {RPCResult::Type::NUM, "bytesrecv", "The total bytes received"},
+                    {RPCResult::Type::NUM_TIME, "conntime", "The time in seconds since epoch (Jan 1 1970 GMT) of the connection"},
+                    {RPCResult::Type::NUM, "timeoffset", "The time offset in seconds"},
+                    {RPCResult::Type::NUM, "pingtime", "ping time (if available)"},
+                    {RPCResult::Type::NUM, "minping", "minimum observed ping time (if any at all)"},
+                    {RPCResult::Type::NUM, "pingwait", "ping wait (if non-zero)"},
+                    {RPCResult::Type::NUM, "version", "The peer version, such as 70001"},
+                    {RPCResult::Type::STR, "subver", "The string version"},
+                    {RPCResult::Type::BOOL, "inbound", "Inbound (true) or Outbound (false)"},
+                    {RPCResult::Type::BOOL, "addnode", "Whether connection was due to addnode/-connect or if it was an automatic/inbound connection"},
+                    {RPCResult::Type::BOOL, "masternode", "Whether connection was due to masternode connection attempt"},
+                    {RPCResult::Type::NUM, "startingheight", "The starting height (block) of the peer"},
+                    {RPCResult::Type::NUM, "banscore", "The ban score"},
+                    {RPCResult::Type::NUM, "synced_headers", "The last header we have in common with this peer"},
+                    {RPCResult::Type::NUM, "synced_blocks", "The last block we have in common with this peer"},
+                    {RPCResult::Type::ARR, "inflight", "",
+                    {
+                        {RPCResult::Type::NUM, "n", "The heights of blocks we're currently asking from this peer"},
+                    }},
+                    {RPCResult::Type::BOOL, "whitelisted", "Whether the peer is whitelisted"},
+                    {RPCResult::Type::OBJ_DYN, "bytessent_per_msg", "",
+                    {
+                        {RPCResult::Type::NUM, "msg", "The total bytes sent aggregated by message type\n"
+                                                      "When a message type is not listed in this json object, the bytes sent are 0.\n"
+                                                      "Only known message types can appear as keys in the object."}
+                    }},
+                    {RPCResult::Type::OBJ, "bytesrecv_per_msg", "",
+                    {
+                        {RPCResult::Type::NUM, "msg", "The total bytes received aggregated by message type\n"
+                                                      "When a message type is not listed in this json object, the bytes received are 0.\n"
+                                                      "Only known message types can appear as keys in the object and all bytes received of unknown message types are listed under '"+NET_MESSAGE_COMMAND_OTHER+"'."}
+                    }},
+                }},
+            }}},
         RPCExamples{
             HelpExampleCli("getpeerinfo", "")
     + HelpExampleRpc("getpeerinfo", "")

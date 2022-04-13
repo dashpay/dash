@@ -58,8 +58,7 @@ static void masternode_list_help(const JSONRPCRequest& request)
 
 static UniValue masternode_list(const JSONRPCRequest& request)
 {
-    if (request.fHelp)
-        masternode_list_help(request);
+    masternode_list_help(request);
     JSONRPCRequest newRequest = request;
     newRequest.params.setArray();
     // forward params but skip "list"
@@ -83,8 +82,7 @@ static void masternode_connect_help(const JSONRPCRequest& request)
 
 static UniValue masternode_connect(const JSONRPCRequest& request)
 {
-    if (request.fHelp || request.params.size() < 2)
-        masternode_connect_help(request);
+    masternode_connect_help(request);
 
     std::string strAddress = request.params[1].get_str();
 
@@ -112,8 +110,7 @@ static void masternode_count_help(const JSONRPCRequest& request)
 
 static UniValue masternode_count(const JSONRPCRequest& request)
 {
-    if (request.fHelp || request.params.size() > 1)
-        masternode_count_help(request);
+    masternode_count_help(request);
 
     auto mnList = deterministicMNManager->GetListAtChainTip();
     int total = mnList.GetAllMNsCount();
@@ -163,9 +160,7 @@ static void masternode_winner_help(const JSONRPCRequest& request)
 
 static UniValue masternode_winner(const JSONRPCRequest& request)
 {
-    if (request.fHelp || !IsDeprecatedRPCEnabled("masternode_winner"))
-        masternode_winner_help(request);
-
+    masternode_winner_help(request);
     return GetNextMasternodeForPayment(10);
 }
 
@@ -185,9 +180,7 @@ static void masternode_current_help(const JSONRPCRequest& request)
 
 static UniValue masternode_current(const JSONRPCRequest& request)
 {
-    if (request.fHelp || !IsDeprecatedRPCEnabled("masternode_current"))
-        masternode_current_help(request);
-
+    masternode_current_help(request);
     return GetNextMasternodeForPayment(1);
 }
 
@@ -204,8 +197,7 @@ static void masternode_outputs_help(const JSONRPCRequest& request)
 
 static UniValue masternode_outputs(const JSONRPCRequest& request)
 {
-    if (request.fHelp)
-        masternode_outputs_help(request);
+    masternode_outputs_help(request);
 
     std::shared_ptr<CWallet> const wallet = GetWalletForJSONRPCRequest(request);
     if (!wallet) return NullUniValue;
@@ -242,8 +234,7 @@ static void masternode_status_help(const JSONRPCRequest& request)
 
 static UniValue masternode_status(const JSONRPCRequest& request)
 {
-    if (request.fHelp)
-        masternode_status_help(request);
+    masternode_status_help(request);
 
     if (!fMasternodeMode)
         throw JSONRPCError(RPC_INTERNAL_ERROR, "This is not a masternode");
@@ -324,8 +315,7 @@ static void masternode_winners_help(const JSONRPCRequest& request)
 
 static UniValue masternode_winners(const JSONRPCRequest& request)
 {
-    if (request.fHelp || request.params.size() > 3)
-        masternode_winners_help(request);
+    masternode_winners_help(request);
 
     const CBlockIndex* pindexTip{nullptr};
     {
@@ -376,26 +366,26 @@ static void masternode_payments_help(const JSONRPCRequest& request)
             {"count", RPCArg::Type::NUM, /* default */ "1", "The number of blocks to return. Will return <count> previous blocks if <count> is negative. Both 1 and -1 correspond to the chain tip."},
         },
         RPCResult {
-    "  [                                  (json array) Blocks\n"
-    "    {\n"
-    "       \"height\" : n,                 (numeric) The height of the block\n"
-    "       \"blockhash\" : \"hash\",         (string) The hash of the block\n"
-    "       \"amount\" : n                   (numeric) Amount received in this block by all masternodes\n"
-    "       \"masternodes\" : [              (json array) Masternodes that received payments in this block\n"
-    "          {\n"
-    "             \"proTxHash\" : \"xxxx\",    (string) The hash of the corresponding ProRegTx\n"
-    "             \"amount\" : n             (numeric) Amount received by this masternode\n"
-    "             \"payees\" : [             (json array) Payees who received a share of this payment\n"
-    "                {\n"
-    "                  \"address\" : \"xxx\", (string) Payee address\n"
-    "                  \"script\" : \"xxx\",  (string) Payee scriptPubKey\n"
-    "                  \"amount\" : n        (numeric) Amount received by this payee\n"
-    "                },...\n"
-    "             ]\n"
-    "          },...\n"
-    "       ]\n"
-    "    },...\n"
-    "  ]"
+            RPCResult::Type::ARR, "", "Blocks",
+            {
+                {RPCResult::Type::OBJ, "", "",
+                {
+                    {RPCResult::Type::NUM, "height", "The height of the block"},
+                    {RPCResult::Type::STR_HEX, "blockhash", "The hash of the block"},
+                    {RPCResult::Type::NUM, "amount", "Amount received in this block by all masternodes"},
+                    {RPCResult::Type::ARR, "masternodes", "Masternodes that received payments in this block",
+                    {
+                        {RPCResult::Type::STR_HEX, "proTxHash", "The hash of the corresponding ProRegTx"},
+                        {RPCResult::Type::NUM, "amount", "Amount received by this masternode"},
+                        {RPCResult::Type::ARR, "payees", "Payees who received a share of this payment",
+                        {
+                            {RPCResult::Type::STR, "address", "Payee address"},
+                            {RPCResult::Type::STR_HEX, "script", "Payee scriptPubKey"},
+                            {RPCResult::Type::NUM, "amount", "Amount received by this payee"},
+                        }},
+                    }},
+                }},
+            },
         },
         RPCExamples{""}
     }.Check(request);
@@ -403,9 +393,7 @@ static void masternode_payments_help(const JSONRPCRequest& request)
 
 static UniValue masternode_payments(const JSONRPCRequest& request)
 {
-    if (request.fHelp || request.params.size() > 3) {
-        masternode_payments_help(request);
-    }
+    masternode_payments_help(request);
 
     CBlockIndex* pindex{nullptr};
 
@@ -541,9 +529,7 @@ static UniValue masternode(const JSONRPCRequest& request)
         strCommand = request.params[0].get_str();
     }
 
-    if (request.fHelp && strCommand.empty()) {
-        masternode_help();
-    }
+    masternode_help();
 
     if (strCommand == "list") {
         return masternode_list(request);

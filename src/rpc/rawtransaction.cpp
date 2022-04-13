@@ -135,55 +135,61 @@ static UniValue getrawtransaction(const JSONRPCRequest& request)
                 {
                     RPCResult{"if verbose is not set or set to false",
                          RPCResult::Type::STR, "data", "The serialized, hex-encoded data for 'txid'"
-                     },
-                     RPCResult{"if verbose is set to true",
-            "{\n"
-            "  \"in_active_chain\" : b, (boolean) Whether specified block is in the active chain or not (only present with explicit \"blockhash\" argument)\n"
-            "  \"txid\" : \"id\",        (string) The transaction id (same as provided)\n"
-            "  \"size\" : n,             (numeric) The transaction size\n"
-            "  \"version\" : n,          (numeric) The version\n"
-            "  \"locktime\" : ttt,       (numeric) The lock time\n"
-            "  \"vin\" : [               (array of json objects)\n"
-            "     {\n"
-            "       \"txid\" : \"id\",    (string) The transaction id\n"
-            "       \"vout\" : n,         (numeric) \n"
-            "       \"scriptSig\" : {     (json object) The script\n"
-            "         \"asm\" : \"asm\",  (string) asm\n"
-            "         \"hex\" : \"hex\"   (string) hex\n"
-            "       },\n"
-            "       \"sequence\" : n      (numeric) The script sequence number\n"
-            "     }\n"
-            "     ,...\n"
-            "  ],\n"
-            "  \"vout\" : [              (array of json objects)\n"
-            "     {\n"
-            "       \"value\" : x.xxx,            (numeric) The value in " + CURRENCY_UNIT + "\n"
-            "       \"n\" : n,                    (numeric) index\n"
-            "       \"scriptPubKey\" : {          (json object)\n"
-            "         \"asm\" : \"asm\",          (string) the asm\n"
-            "         \"hex\" : \"hex\",          (string) the hex\n"
-            "         \"reqSigs\" : n,            (numeric) The required sigs\n"
-            "         \"type\" : \"pubkeyhash\",  (string) The type, eg 'pubkeyhash'\n"
-            "         \"addresses\" : [           (json array of string)\n"
-            "           \"address\"        (string) dash address\n"
-            "           ,...\n"
-            "         ]\n"
-            "       }\n"
-            "     }\n"
-            "     ,...\n"
-            "  ],\n"
-            "  \"extraPayloadSize\" : n    (numeric) Size of DIP2 extra payload. Only present if it's a special TX\n"
-            "  \"extraPayload\" : \"hex\"    (string) Hex-encoded DIP2 extra payload data. Only present if it's a special TX\n"
-            "  \"hex\" : \"data\",         (string) The serialized, hex-encoded data for 'txid'\n"
-            "  \"blockhash\" : \"hash\",   (string) the block hash\n"
-            "  \"height\" : n,             (numeric) The block height\n"
-            "  \"confirmations\" : n,      (numeric) The confirmations\n"
-            "  \"blocktime\" : ttt         (numeric) The block time in seconds since epoch (Jan 1 1970 GMT)\n"
-            "  \"time\" : ttt,             (numeric) Same as \"blocktime\"\n"
-            "  \"instantlock\" : true|false, (boolean) Current transaction lock state\n"
-            "  \"instantlock_internal\" : true|false, (boolean) Current internal transaction lock state\n"
-            "  \"chainlock\" : true|false, (boolean) The state of the corresponding block chainlock\n"
-            "}\n"
+                    },
+                    RPCResult{"if verbose is set to true",
+                        RPCResult::Type::OBJ, "", "",
+                        {
+                            {RPCResult::Type::BOOL, "in_active_chain", "Whether specified block is in the active chain or not (only present with explicit \"blockhash\" argument)"},
+                            {RPCResult::Type::STR_HEX, "txid", "The transaction id (same as provided)"},
+                            {RPCResult::Type::NUM, "size", "The serialized transaction size"},
+                            {RPCResult::Type::NUM, "version", "The version"},
+                            {RPCResult::Type::NUM, "version", "The type"},
+                            {RPCResult::Type::NUM_TIME, "locktime", "The lock time"},
+                            {RPCResult::Type::ARR, "vin", "",
+                            {
+                                {RPCResult::Type::OBJ, "", "",
+                                {
+                                    {RPCResult::Type::STR_HEX, "txid", "The transaction id"},
+                                    {RPCResult::Type::STR, "vout", ""},
+                                    {RPCResult::Type::OBJ, "scriptSig", "The script",
+                                    {
+                                        {RPCResult::Type::STR, "asm", "asm"},
+                                        {RPCResult::Type::STR_HEX, "hex", "hex"},
+                                    }},
+                                    {RPCResult::Type::NUM, "sequence", "The script sequence number"},
+                                }},
+                            }},
+                            {RPCResult::Type::ARR, "vout", "",
+                            {
+                                {RPCResult::Type::OBJ, "", "",
+                                {
+                                    {RPCResult::Type::NUM, "value", "The value in " + CURRENCY_UNIT},
+                                    {RPCResult::Type::NUM, "n", "index"},
+                                    {RPCResult::Type::OBJ, "scriptPubKey", "",
+                                    {
+                                        {RPCResult::Type::STR, "asm", "the asm"},
+                                        {RPCResult::Type::STR, "hex", "the hex"},
+                                        {RPCResult::Type::NUM, "reqSigs", "The required sigs"},
+                                        {RPCResult::Type::STR, "type", "The type, eg 'pubkeyhash'"},
+                                        {RPCResult::Type::ARR, "addresses", "",
+                                        {
+                                            {RPCResult::Type::STR, "address", "dash address"},
+                                        }},
+                                    }},
+                                }},
+                            }},
+                            {RPCResult::Type::NUM, "extraPayloadSize", true /*optional*/, "Size of DIP2 extra payload. Only present if it's a special TX"},
+                            {RPCResult::Type::STR_HEX, "extraPayload", true /*optional*/, "Hex-encoded DIP2 extra payload data. Only present if it's a special TX"},
+                            {RPCResult::Type::STR_HEX, "hex", "The serialized, hex-encoded data for 'txid'"},
+                            {RPCResult::Type::STR_HEX, "blockhash", "the block hash"},
+                            {RPCResult::Type::NUM, "height", "The block height"},
+                            {RPCResult::Type::NUM, "confirmations", "The confirmations"},
+                            {RPCResult::Type::NUM_TIME, "blocktime", "The block time expressed in seconds since epoch (Jan 1 1970 GMT)"},
+                            {RPCResult::Type::NUM, "time", "Same as \"blocktime\""},
+                            {RPCResult::Type::BOOL, "instantlock", "Current transaction lock state"},
+                            {RPCResult::Type::BOOL, "instantlock_internal", "Current internal transaction lock state"},
+                            {RPCResult::Type::BOOL, "chainlock", "he state of the corresponding block chainlock"},
+                        }
                     },
                 },
                 RPCExamples{
@@ -472,44 +478,49 @@ static UniValue decoderawtransaction(const JSONRPCRequest& request)
                     {"hexstring", RPCArg::Type::STR_HEX, RPCArg::Optional::NO, "The transaction hex string"},
                 },
                 RPCResult{
-            "{\n"
-            "  \"txid\" : \"id\",        (string) The transaction id\n"
-            "  \"size\" : n,             (numeric) The transaction size\n"
-            "  \"version\" : n,          (numeric) The version\n"
-            "  \"type\" : n,             (numeric) The type\n"
-            "  \"locktime\" : ttt,       (numeric) The lock time\n"
-            "  \"vin\" : [               (array of json objects)\n"
-            "     {\n"
-            "       \"txid\" : \"id\",    (string) The transaction id\n"
-            "       \"vout\" : n,         (numeric) The output number\n"
-            "       \"scriptSig\" : {     (json object) The script\n"
-            "         \"asm\" : \"asm\",  (string) asm\n"
-            "         \"hex\" : \"hex\"   (string) hex\n"
-            "       },\n"
-            "       \"sequence\" : n     (numeric) The script sequence number\n"
-            "     }\n"
-            "     ,...\n"
-            "  ],\n"
-            "  \"vout\" : [             (array of json objects)\n"
-            "     {\n"
-            "       \"value\" : x.xxx,            (numeric) The value in " + CURRENCY_UNIT + "\n"
-            "       \"n\" : n,                    (numeric) index\n"
-            "       \"scriptPubKey\" : {          (json object)\n"
-            "         \"asm\" : \"asm\",          (string) the asm\n"
-            "         \"hex\" : \"hex\",          (string) the hex\n"
-            "         \"reqSigs\" : n,            (numeric) The required sigs\n"
-            "         \"type\" : \"pubkeyhash\",  (string) The type, eg 'pubkeyhash'\n"
-            "         \"addresses\" : [           (json array of string)\n"
-            "           \"XwnLY9Tf7Zsef8gMGL2fhWA9ZmMjt4KPwG\"   (string) Dash address\n"
-            "           ,...\n"
-            "         ]\n"
-            "       }\n"
-            "     }\n"
-            "     ,...\n"
-            "  ],\n"
-            "  \"extraPayloadSize\" : n           (numeric) Size of DIP2 extra payload. Only present if it's a special TX\n"
-            "  \"extraPayload\" : \"hex\"           (string) Hex-encoded DIP2 extra payload data. Only present if it's a special TX\n"
-            "}\n"
+                    RPCResult::Type::OBJ, "", "",
+                    {
+                        {RPCResult::Type::STR_HEX, "txid", "The transaction id"},
+                        {RPCResult::Type::NUM, "size", "The transaction size"},
+                        {RPCResult::Type::NUM, "version", "The version"},
+                        {RPCResult::Type::NUM, "version", "The type"},
+                        {RPCResult::Type::NUM_TIME, "locktime", "The lock time"},
+                        {RPCResult::Type::ARR, "vin", "",
+                        {
+                            {RPCResult::Type::OBJ, "", "",
+                            {
+                                {RPCResult::Type::STR_HEX, "txid", "The transaction id"},
+                                {RPCResult::Type::NUM, "vout", "The output number"},
+                                {RPCResult::Type::OBJ, "scriptSig", "The script",
+                                {
+                                    {RPCResult::Type::STR, "asm", "asm"},
+                                    {RPCResult::Type::STR_HEX, "hex", "hex"},
+                                }},
+                                {RPCResult::Type::NUM, "sequence", "The script sequence number"},
+                            }},
+                        }},
+                        {RPCResult::Type::ARR, "vout", "",
+                        {
+                            {RPCResult::Type::OBJ, "", "",
+                            {
+                                {RPCResult::Type::NUM, "value", "The value in " + CURRENCY_UNIT},
+                                {RPCResult::Type::NUM, "n", "index"},
+                                {RPCResult::Type::OBJ, "scriptPubKey", "",
+                                {
+                                    {RPCResult::Type::STR, "asm", "the asm"},
+                                    {RPCResult::Type::STR_HEX, "hex", "the hex"},
+                                    {RPCResult::Type::NUM, "reqSigs", "The required sigs"},
+                                    {RPCResult::Type::STR, "type", "The type, eg 'pubkeyhash'"},
+                                    {RPCResult::Type::ARR, "addresses", "",
+                                    {
+                                        {RPCResult::Type::STR, "address", "dash address"},
+                                    }},
+                                }},
+                            }},
+                        }},
+                        {RPCResult::Type::NUM, "extraPayloadSize", true /*optional*/, "Size of DIP2 extra payload. Only present if it's a special TX"},
+                        {RPCResult::Type::STR_HEX, "extraPayload", true /*optional*/, "Hex-encoded DIP2 extra payload data. Only present if it's a special TX"},
+                    }
                 },
                 RPCExamples{
                     HelpExampleCli("decoderawtransaction", "\"hexstring\"")
@@ -548,16 +559,17 @@ static UniValue decodescript(const JSONRPCRequest& request)
                     {"hexstring", RPCArg::Type::STR_HEX, RPCArg::Optional::NO, "the hex-encoded script"},
                 },
                 RPCResult{
-            "{\n"
-            "  \"asm\" : \"asm\",          (string) Script public key\n"
-            "  \"type\" : \"type\",        (string) The output type (e.g. "+GetAllOutputTypes()+")\n"
-            "  \"reqSigs\" : n,         (numeric) The required signatures\n"
-            "  \"addresses\" : [        (json array of string)\n"
-            "     \"address\"          (string) dash address\n"
-            "     ,...\n"
-            "  ],\n"
-            "  \"p2sh\":\"str\"          (string) address of P2SH script wrapping this redeem script (not returned if the script is already a P2SH).\n"
-            "}\n"
+                    RPCResult::Type::OBJ, "", "",
+                    {
+                        {RPCResult::Type::STR, "asm", "Script public key"},
+                        {RPCResult::Type::STR, "type", "The output type (e.g. "+GetAllOutputTypes()+")"},
+                        {RPCResult::Type::NUM, "reqSigs", "The required signatures"},
+                        {RPCResult::Type::ARR, "addresses", "",
+                        {
+                            {RPCResult::Type::STR, "address", "dash address"},
+                        }},
+                        {RPCResult::Type::STR, "p2sh", "address of P2SH script wrapping this redeem script (not returned if the script is already a P2SH)"},
+                    }
                 },
                 RPCExamples{
                     HelpExampleCli("decodescript", "\"hexstring\"")
@@ -943,72 +955,81 @@ UniValue decodepsbt(const JSONRPCRequest& request)
             {"psbt", RPCArg::Type::STR, RPCArg::Optional::NO, "The PSBT base64 string"},
         },
         RPCResult{
-    "{\n"
-    "  \"tx\" : {                   (json object) The decoded network-serialized unsigned transaction.\n"
-    "    ...                                      The layout is the same as the output of decoderawtransaction.\n"
-    "  },\n"
-    "  \"unknown\" : {                (json object) The unknown global fields\n"
-    "    \"key\" : \"value\"            (key-value pair) An unknown key-value pair\n"
-    "     ...\n"
-    "  },\n"
-    "  \"inputs\" : [                 (array of json objects)\n"
-    "    {\n"
-    "      \"non_witness_utxo\" : {   (json object, optional) Decoded network transaction for non-witness UTXOs\n"
-    "        ...\n"
-    "      },\n"
-    "      \"partial_signatures\" : {             (json object, optional)\n"
-    "        \"pubkey\" : \"signature\",           (string) The public key and signature that corresponds to it.\n"
-    "        ,...\n"
-    "      }\n"
-    "      \"sighash\" : \"type\",                  (string, optional) The sighash type to be used\n"
-    "      \"redeem_script\" : {       (json object, optional)\n"
-    "          \"asm\" : \"asm\",            (string) The asm\n"
-    "          \"hex\" : \"hex\",            (string) The hex\n"
-    "          \"type\" : \"pubkeyhash\",    (string) The type, eg 'pubkeyhash'\n"
-    "        }\n"
-    "      \"bip32_derivs\" : {          (json object, optional)\n"
-    "        \"pubkey\" : {                     (json object, optional) The public key with the derivation path as the value.\n"
-    "          \"master_fingerprint\" : \"fingerprint\"     (string) The fingerprint of the master key\n"
-    "          \"path\" : \"path\",                         (string) The path\n"
-    "        }\n"
-    "        ,...\n"
-    "      }\n"
-    "      \"final_scriptsig\" : {       (json object, optional)\n"
-    "          \"asm\" : \"asm\",            (string) The asm\n"
-    "          \"hex\" : \"hex\",            (string) The hex\n"
-    "        }\n"
-    "      \"unknown\" : {                (json object) The unknown global fields\n"
-    "        \"key\" : \"value\"            (key-value pair) An unknown key-value pair\n"
-    "         ...\n"
-    "      },\n"
-    "    }\n"
-    "    ,...\n"
-    "  ]\n"
-    "  \"outputs\" : [                 (array of json objects)\n"
-    "    {\n"
-    "      \"redeem_script\" : {       (json object, optional)\n"
-    "          \"asm\" : \"asm\",            (string) The asm\n"
-    "          \"hex\" : \"hex\",            (string) The hex\n"
-    "          \"type\" : \"pubkeyhash\",    (string) The type, eg 'pubkeyhash'\n"
-    "        }\n"
-    "      \"bip32_derivs\" : [          (array of json objects, optional)\n"
-    "        {\n"
-    "          \"pubkey\" : \"pubkey\",                     (string) The public key this path corresponds to\n"
-    "          \"master_fingerprint\" : \"fingerprint\"     (string) The fingerprint of the master key\n"
-    "          \"path\" : \"path\",                         (string) The path\n"
-    "          }\n"
-    "        }\n"
-    "        ,...\n"
-    "      ],\n"
-    "      \"unknown\" : {                (json object) The unknown global fields\n"
-    "        \"key\" : \"value\"            (key-value pair) An unknown key-value pair\n"
-    "         ...\n"
-    "      },\n"
-    "    }\n"
-    "    ,...\n"
-    "  ]\n"
-    "  \"fee\" : fee                      (numeric, optional) The transaction fee paid if all UTXOs slots in the PSBT have been filled.\n"
-    "}\n"
+            RPCResult::Type::OBJ, "", "",
+            {
+                {RPCResult::Type::OBJ, "tx", "The decoded network-serialized unsigned transaction.",
+                {
+                    {RPCResult::Type::ELISION, "", "The layout is the same as the output of decoderawtransaction."},
+                }},
+                {RPCResult::Type::OBJ_DYN, "unknown", "The unknown global fields",
+                {
+                     {RPCResult::Type::STR_HEX, "key", "(key-value pair) An unknown key-value pair"},
+                }},
+                {RPCResult::Type::ARR, "inputs", "",
+                {
+                    {RPCResult::Type::OBJ, "", "",
+                    {
+                        {RPCResult::Type::OBJ, "non_witness_utxo", /* optional */ true, "Decoded network transaction for non-witness UTXOs",
+                        {
+                            {RPCResult::Type::ELISION, "",""},
+                        }},
+                        {RPCResult::Type::OBJ_DYN, "partial_signatures", /* optional */ true, "",
+                        {
+                            {RPCResult::Type::STR, "pubkey", "The public key and signature that corresponds to it."},
+                        }},
+                        {RPCResult::Type::STR, "sighash", /* optional */ true, "The sighash type to be used"},
+                        {RPCResult::Type::OBJ, "redeem_script", /* optional */ true, "",
+                        {
+                            {RPCResult::Type::STR, "asm", "The asm"},
+                            {RPCResult::Type::STR_HEX, "hex", "The hex"},
+                            {RPCResult::Type::STR, "type", "The type, eg 'pubkeyhash'"},
+                        }},
+                        {RPCResult::Type::ARR, "bip32_derivs", /* optional */ true, "",
+                        {
+                            {RPCResult::Type::OBJ, "pubkey", /* optional */ true, "The public key with the derivation path as the value.",
+                            {
+                                {RPCResult::Type::STR, "master_fingerprint", "The fingerprint of the master key"},
+                                {RPCResult::Type::STR, "path", "The path"},
+                            }},
+                        }},
+                        {RPCResult::Type::OBJ, "final_scriptsig", /* optional */ true, "",
+                        {
+                            {RPCResult::Type::STR, "asm", "The asm"},
+                            {RPCResult::Type::STR, "hex", "The hex"},
+                        }},
+                        {RPCResult::Type::OBJ_DYN, "unknown", "The unknown global fields",
+                        {
+                            {RPCResult::Type::STR_HEX, "key", "(key-value pair) An unknown key-value pair"},
+                        }},
+                    }},
+                }},
+                {RPCResult::Type::ARR, "outputs", "",
+                {
+                    {RPCResult::Type::OBJ, "", "",
+                    {
+                        {RPCResult::Type::OBJ, "redeem_script", /* optional */ true, "",
+                        {
+                            {RPCResult::Type::STR, "asm", "The asm"},
+                            {RPCResult::Type::STR_HEX, "hex", "The hex"},
+                            {RPCResult::Type::STR, "type", "The type, eg 'pubkeyhash'"},
+                        }},
+                        {RPCResult::Type::ARR, "bip32_derivs", /* optional */ true, "",
+                        {
+                            {RPCResult::Type::OBJ, "", "",
+                            {
+                                {RPCResult::Type::STR, "pubkey", "The public key this path corresponds to"},
+                                {RPCResult::Type::STR, "master_fingerprint", "The fingerprint of the master key"},
+                                {RPCResult::Type::STR, "path", "The path"},
+                            }},
+                        }},
+                        {RPCResult::Type::OBJ_DYN, "unknown", "The unknown global fields",
+                        {
+                            {RPCResult::Type::STR_HEX, "key", "(key-value pair) An unknown key-value pair"},
+                        }},
+                    }},
+                }},
+                {RPCResult::Type::STR_AMOUNT, "fee", /* optional */ true, "The transaction fee paid if all UTXOs slots in the PSBT have been filled."},
+            }
         },
         RPCExamples{
             HelpExampleCli("decodepsbt", "\"psbt\"")

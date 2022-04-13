@@ -39,8 +39,7 @@ static void gobject_count_help(const JSONRPCRequest& request)
 
 static UniValue gobject_count(const JSONRPCRequest& request)
 {
-    if (request.fHelp || request.params.size() > 2)
-        gobject_count_help(request);
+    gobject_count_help(request);
 
     std::string strMode{"json"};
 
@@ -68,8 +67,7 @@ static void gobject_deserialize_help(const JSONRPCRequest& request)
 
 static UniValue gobject_deserialize(const JSONRPCRequest& request)
 {
-    if (request.fHelp || request.params.size() != 2)
-        gobject_deserialize_help(request);
+    gobject_deserialize_help(request);
 
     std::string strHex = request.params[1].get_str();
 
@@ -96,8 +94,7 @@ static void gobject_check_help(const JSONRPCRequest& request)
 
 static UniValue gobject_check(const JSONRPCRequest& request)
 {
-    if (request.fHelp || request.params.size() != 2)
-        gobject_check_help(request);
+    gobject_check_help(request);
 
     // ASSEMBLE NEW GOVERNANCE OBJECT FROM USER PARAMETERS
 
@@ -155,8 +152,7 @@ static UniValue gobject_prepare(const JSONRPCRequest& request)
     if (!wallet) return NullUniValue;
     CWallet* const pwallet = wallet.get();
 
-    if (request.fHelp || (request.params.size() != 5 && request.params.size() != 6 && request.params.size() != 8))
-        gobject_prepare_help(request);
+    gobject_prepare_help(request);
 
     EnsureWalletIsUnlocked(pwallet);
 
@@ -268,9 +264,7 @@ static void gobject_list_prepared_help(const JSONRPCRequest& request)
 
 static UniValue gobject_list_prepared(const JSONRPCRequest& request)
 {
-    if (request.fHelp || (request.params.size() > 2)) {
-        gobject_list_prepared_help(request);
-    }
+    gobject_list_prepared_help(request);
 
     std::shared_ptr<CWallet> const wallet = GetWalletForJSONRPCRequest(request);
     if (!wallet) return NullUniValue;
@@ -321,8 +315,7 @@ static void gobject_submit_help(const JSONRPCRequest& request)
 
 static UniValue gobject_submit(const JSONRPCRequest& request)
 {
-    if (request.fHelp || ((request.params.size() < 5) || (request.params.size() > 6)))
-        gobject_submit_help(request);
+    gobject_submit_help(request);
 
     if(!masternodeSync.IsBlockchainSynced()) {
         throw JSONRPCError(RPC_CLIENT_IN_INITIAL_DOWNLOAD, "Must wait for client to sync with masternode network. Try again in a minute or so.");
@@ -436,8 +429,7 @@ static void gobject_vote_conf_help(const JSONRPCRequest& request)
 
 static UniValue gobject_vote_conf(const JSONRPCRequest& request)
 {
-    if (request.fHelp || request.params.size() != 4)
-        gobject_vote_conf_help(request);
+    gobject_vote_conf_help(request);
 
     uint256 hash;
 
@@ -610,8 +602,7 @@ static void gobject_vote_many_help(const JSONRPCRequest& request)
 
 static UniValue gobject_vote_many(const JSONRPCRequest& request)
 {
-    if (request.fHelp || request.params.size() != 4)
-        gobject_vote_many_help(request);
+    gobject_vote_many_help(request);
 
     std::shared_ptr<CWallet> const wallet = GetWalletForJSONRPCRequest(request);
     if (!wallet) return NullUniValue;
@@ -666,8 +657,7 @@ static void gobject_vote_alias_help(const JSONRPCRequest& request)
 
 static UniValue gobject_vote_alias(const JSONRPCRequest& request)
 {
-    if (request.fHelp || request.params.size() != 5)
-        gobject_vote_alias_help(request);
+    gobject_vote_alias_help(request);
 
     std::shared_ptr<CWallet> const wallet = GetWalletForJSONRPCRequest(request);
     if (!wallet) return NullUniValue;
@@ -782,8 +772,7 @@ static void gobject_list_help(const JSONRPCRequest& request)
 
 static UniValue gobject_list(const JSONRPCRequest& request)
 {
-    if (request.fHelp || request.params.size() > 3)
-        gobject_list_help(request);
+    gobject_list_help(request);
 
     std::string strCachedSignal = "valid";
     if (!request.params[1].isNull()) {
@@ -817,8 +806,7 @@ static void gobject_diff_help(const JSONRPCRequest& request)
 
 static UniValue gobject_diff(const JSONRPCRequest& request)
 {
-    if (request.fHelp || request.params.size() > 3)
-        gobject_diff_help(request);
+    gobject_diff_help(request);
 
     std::string strCachedSignal = "valid";
     if (!request.params[1].isNull()) {
@@ -851,8 +839,7 @@ static void gobject_get_help(const JSONRPCRequest& request)
 
 static UniValue gobject_get(const JSONRPCRequest& request)
 {
-    if (request.fHelp || request.params.size() != 2)
-        gobject_get_help(request);
+    gobject_get_help(request);
 
     // COLLECT VARIABLES FROM OUR USER
     uint256 hash = ParseHashV(request.params[1], "GovObj hash");
@@ -944,8 +931,7 @@ static void gobject_getcurrentvotes_help(const JSONRPCRequest& request)
 
 static UniValue gobject_getcurrentvotes(const JSONRPCRequest& request)
 {
-    if (request.fHelp || (request.params.size() != 2 && request.params.size() != 4))
-        gobject_getcurrentvotes_help(request);
+    gobject_getcurrentvotes_help(request);
 
     // COLLECT PARAMETERS FROM USER
 
@@ -1072,22 +1058,20 @@ static UniValue gobject(const JSONRPCRequest& request)
 
 static UniValue voteraw(const JSONRPCRequest& request)
 {
-    if (request.fHelp || request.params.size() != 7)
-        throw std::runtime_error(
-            RPCHelpMan{"voteraw",
-                "Compile and relay a governance vote with provided external signature instead of signing vote internally\n",
-                {
-                    {"mn-collateral-tx-hash", RPCArg::Type::STR_HEX, RPCArg::Optional::NO, ""},
-                    {"mn-collateral-tx-index", RPCArg::Type::NUM, RPCArg::Optional::NO, ""},
-                    {"governance-hash", RPCArg::Type::STR_HEX, RPCArg::Optional::NO, ""},
-                    {"vote-signal", RPCArg::Type::STR, RPCArg::Optional::NO, ""},
-                    {"vote-outcome", RPCArg::Type::STR, RPCArg::Optional::NO, "yes|no|abstain"},
-                    {"time", RPCArg::Type::NUM, RPCArg::Optional::NO, ""},
-                    {"vote-sig", RPCArg::Type::STR_HEX, RPCArg::Optional::NO, ""},
-                },
-                RPCResults{},
-                RPCExamples{""}
-            }.ToString());
+    RPCHelpMan{"voteraw",
+        "Compile and relay a governance vote with provided external signature instead of signing vote internally\n",
+        {
+            {"mn-collateral-tx-hash", RPCArg::Type::STR_HEX, RPCArg::Optional::NO, ""},
+            {"mn-collateral-tx-index", RPCArg::Type::NUM, RPCArg::Optional::NO, ""},
+            {"governance-hash", RPCArg::Type::STR_HEX, RPCArg::Optional::NO, ""},
+            {"vote-signal", RPCArg::Type::STR, RPCArg::Optional::NO, ""},
+            {"vote-outcome", RPCArg::Type::STR, RPCArg::Optional::NO, "yes|no|abstain"},
+            {"time", RPCArg::Type::NUM, RPCArg::Optional::NO, ""},
+            {"vote-sig", RPCArg::Type::STR_HEX, RPCArg::Optional::NO, ""},
+        },
+        RPCResults{},
+        RPCExamples{""}
+    }.Check(request);
 
     uint256 hashMnCollateralTx = ParseHashV(request.params[0], "mn collateral tx hash");
     int nMnCollateralTxIndex = request.params[1].get_int();
@@ -1154,23 +1138,23 @@ static UniValue voteraw(const JSONRPCRequest& request)
 
 static UniValue getgovernanceinfo(const JSONRPCRequest& request)
 {
-            RPCHelpMan{"getgovernanceinfo",
-                "Returns an object containing governance parameters.\n",
-                {},
-                RPCResult{
-            "{\n"
-            "  \"governanceminquorum\" : xxxxx,           (numeric) the absolute minimum number of votes needed to trigger a governance action\n"
-            "  \"proposalfee\" : xxx.xx,                  (numeric) the collateral transaction fee which must be paid to create a proposal in " + CURRENCY_UNIT + "\n"
-            "  \"superblockcycle\" : xxxxx,               (numeric) the number of blocks between superblocks\n"
-            "  \"lastsuperblock\" : xxxxx,                (numeric) the block number of the last superblock\n"
-            "  \"nextsuperblock\" : xxxxx,                (numeric) the block number of the next superblock\n"
-            "}\n"
-                },
-                RPCExamples{
-                    HelpExampleCli("getgovernanceinfo", "")
-            + HelpExampleRpc("getgovernanceinfo", "")
-                },
-            }.Check(request);
+    RPCHelpMan{"getgovernanceinfo",
+        "Returns an object containing governance parameters.\n",
+        {},
+        RPCResult{
+            RPCResult::Type::OBJ, "", "",
+            {
+                {RPCResult::Type::NUM, "governanceminquorum", "the absolute minimum number of votes needed to trigger a governance action"},
+                {RPCResult::Type::NUM, "proposalfee", "the collateral transaction fee which must be paid to create a proposal in " + CURRENCY_UNIT + ""},
+                {RPCResult::Type::NUM, "superblockcycle", "the number of blocks between superblocks"},
+                {RPCResult::Type::NUM, "lastsuperblock", "the block number of the last superblock"},
+                {RPCResult::Type::NUM, "nextsuperblock", "the block number of the next superblock"},
+            }},
+        RPCExamples{
+            HelpExampleCli("getgovernanceinfo", "")
+    + HelpExampleRpc("getgovernanceinfo", "")
+        },
+    }.Check(request);
 
 
     int nLastSuperblock = 0, nNextSuperblock = 0;
@@ -1192,19 +1176,19 @@ static UniValue getgovernanceinfo(const JSONRPCRequest& request)
 
 static UniValue getsuperblockbudget(const JSONRPCRequest& request)
 {
-            RPCHelpMan{"getsuperblockbudget",
-                "\nReturns the absolute maximum sum of superblock payments allowed.\n",
-                {
-                    {"index", RPCArg::Type::NUM, RPCArg::Optional::NO, "The block index"},
-                },
-                RPCResult{
-            "n                (numeric) The absolute maximum sum of superblock payments allowed, in " + CURRENCY_UNIT + "\n"
-                },
-                RPCExamples{
-                    HelpExampleCli("getsuperblockbudget", "1000")
-            + HelpExampleRpc("getsuperblockbudget", "1000")
-                },
-            }.Check(request);
+    RPCHelpMan{"getsuperblockbudget",
+        "\nReturns the absolute maximum sum of superblock payments allowed.\n",
+        {
+            {"index", RPCArg::Type::NUM, RPCArg::Optional::NO, "The block index"},
+        },
+        RPCResult{
+            RPCResult::Type::NUM, "n", "The absolute maximum sum of superblock payments allowed, in " + CURRENCY_UNIT
+        },
+        RPCExamples{
+            HelpExampleCli("getsuperblockbudget", "1000")
+    + HelpExampleRpc("getsuperblockbudget", "1000")
+        },
+    }.Check(request);
 
     int nBlockHeight = request.params[0].get_int();
     if (nBlockHeight < 0) {

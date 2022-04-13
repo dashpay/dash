@@ -415,19 +415,18 @@ static UniValue listaddressgroupings(const JSONRPCRequest& request)
         "in past transactions\n",
         {},
         RPCResult{
-    RPCResult::Type::ARR, "", "",
+            RPCResult::Type::ARR, "", "",
+            {
+                {RPCResult::Type::ARR, "", "",
+                {
+                    {RPCResult::Type::ARR, "", "",
                     {
-    {RPCResult::Type::ARR, "", "",
-    {
-    {RPCResult::Type::ARR, "", "",
-                            {
-                                {RPCResult::Type::STR, "address", "The dash address"},
-    {RPCResult::Type::STR_AMOUNT, "amount", "The amount in " + CURRENCY_UNIT},
-    {RPCResult::Type::STR, "label", /* optional */ true, "The label"},
-    }},
-    }},
-    }
-        },
+                        {RPCResult::Type::STR, "address", "The dash address"},
+                        {RPCResult::Type::STR_AMOUNT, "amount", "The amount in " + CURRENCY_UNIT},
+                        {RPCResult::Type::STR, "label", /* optional */ true, "The label"},
+                    }},
+                }},
+            }},
         RPCExamples{
             HelpExampleCli("listaddressgroupings", "")
     + HelpExampleRpc("listaddressgroupings", "")
@@ -474,10 +473,10 @@ static UniValue listaddressbalances(const JSONRPCRequest& request)
             {"minamount", RPCArg::Type::NUM, /* default */ "0", "Minimum balance in " + CURRENCY_UNIT + " an address should have to be shown in the list"},
         },
         RPCResult{
-                RPCResult::Type::ARR, "", "",
-                {
-                        {RPCResult::Type::STR_AMOUNT, "amount", "The dash address and the amount in " + CURRENCY_UNIT},
-                }
+            RPCResult::Type::ARR, "", "",
+            {
+                {RPCResult::Type::STR_AMOUNT, "amount", "The dash address and the amount in " + CURRENCY_UNIT},
+            }
         },
         RPCExamples{
             HelpExampleCli("listaddressbalances", "")
@@ -2253,7 +2252,7 @@ static UniValue listlockunspent(const JSONRPCRequest& request)
                     {RPCResult::Type::STR_HEX, "txid", "The transaction id locked"},
                     {RPCResult::Type::NUM, "vout", "The vout value"},
                 }},
-                    }
+            }
         },
         RPCExamples{
     "\nList the unspent transactions\n"
@@ -2395,45 +2394,48 @@ static UniValue getwalletinfo(const JSONRPCRequest& request)
                 RPCResult{
                         RPCResult::Type::OBJ, "", "",
                         {
-                                        {RPCResult::Type::STR, "walletname", "the wallet name"},
-                                        {RPCResult::Type::NUM, "walletversion", "the wallet version"},
-                                        {RPCResult::Type::NUM, "balance", "the total confirmed balance of the wallet in " + CURRENCY_UNIT},
-                                        {RPCResult::Type::NUM, "coinjoin_balance", "the CoinJoin balance in " + CURRENCY_UNIT},
-                                        {RPCResult::Type::NUM, "unconfirmed_balance", "the total unconfirmed balance of the wallet in " + CURRENCY_UNIT},
-                                        {RPCResult::Type::NUM, "immature_balance", "the total immature balance of the wallet in " + CURRENCY_UNIT},
-                                        {RPCResult::Type::NUM, "txcount", "the total number of transactions in the wallet"},
-                                        {RPCResult::Type::NUM_TIME, "timefirstkey", "the timestamp (seconds since Unix epoch) of the oldest known key in the wallet"},
-                                        {RPCResult::Type::NUM_TIME, "keypoololdest", "the timestamp (seconds since Unix epoch) of the oldest pre-generated key in the key pool"},
-                                        {RPCResult::Type::NUM, "keypoolsize", "how many new keys are pre-generated (only counts external keys)"},
-                                        {RPCResult::Type::NUM, "keypoolsize_hd_internal", "how many new keys are pre-generated for internal use (used for change outputs, only appears if the wallet is using this feature, otherwise external keys are used)"},
-                                        {RPCResult::Type::NUM, "keys_left", "how many new keys are left since last automatic backup"},
-                                        {RPCResult::Type::NUM_TIME, "unlocked_until", "the timestamp in seconds since epoch (midnight Jan 1 1970 GMT) that the wallet is unlocked for transfers, or 0 if the wallet is locked"},
-                                        {RPCResult::Type::STR_AMOUNT, "paytxfee", "the transaction fee configuration, set in " + CURRENCY_UNIT + "/kB"},
-                                        {RPCResult::Type::STR_HEX, "hdchainid", "the ID of the HD chain"},
-                                        {RPCResult::Type::STR, "hdaccountcount", "how many accounts of the HD chain are in this wallet"},
-                                        {RPCResult::Type::ARR, "", "",
-                                            {RPCResult::Type::OBJ, "", "",
-                                                {
-                                                    {RPCResult::Type::NUM, "hdaccountindex", "the index of the account"},
-                                                    {RPCResult::Type::NUM, "hdexternalkeyindex", "current external childkey index"},
-                                                    {RPCResult::Type::NUM, "hdinternalkeyindex", "current internal childkey index"},
-                                                }
-                                            },
-                                        },
-                                        {RPCResult::Type::OBJ, "scanning", "current scanning details, or false if no scan is in progress",
-                                            {
-                                                 {RPCResult::Type::NUM, "duration", "elapsed seconds since scan start"},
-                                                 {RPCResult::Type::NUM, "progress", "scanning progress percentage [0.0, 1.0]"},
-                                            }
-                                        },
-                                        {RPCResult::Type::BOOL, "private_keys_enabled", "false if privatekeys are disabled for this wallet (enforced watch-only wallet)"},
-                        }
+                            {RPCResult::Type::STR, "walletname", "the wallet name"},
+                            {RPCResult::Type::NUM, "walletversion", "the wallet version"},
+                            {RPCResult::Type::NUM, "balance", "the total confirmed balance of the wallet in " + CURRENCY_UNIT},
+                            {RPCResult::Type::NUM, "coinjoin_balance", "the CoinJoin balance in " + CURRENCY_UNIT},
+                            {RPCResult::Type::NUM, "unconfirmed_balance", "the total unconfirmed balance of the wallet in " + CURRENCY_UNIT},
+                            {RPCResult::Type::NUM, "immature_balance", "the total immature balance of the wallet in " + CURRENCY_UNIT},
+                            {RPCResult::Type::NUM, "txcount", "the total number of transactions in the wallet"},
+                            {RPCResult::Type::NUM_TIME, "timefirstkey", "the timestamp (seconds since Unix epoch) of the oldest known key in the wallet"},
+                            {RPCResult::Type::NUM_TIME, "keypoololdest", "the timestamp (seconds since Unix epoch) of the oldest pre-generated key in the key pool"},
+                            {RPCResult::Type::NUM, "keypoolsize", "how many new keys are pre-generated (only counts external keys)"},
+                            {RPCResult::Type::NUM, "keypoolsize_hd_internal", "how many new keys are pre-generated for internal use (used for change outputs, only appears if the wallet is using this feature, otherwise external keys are used)"},
+                            {RPCResult::Type::NUM, "keys_left", "how many new keys are left since last automatic backup"},
+                            {RPCResult::Type::NUM_TIME, "unlocked_until", "the timestamp in seconds since epoch (midnight Jan 1 1970 GMT) that the wallet is unlocked for transfers, or 0 if the wallet is locked"},
+                            {RPCResult::Type::STR_AMOUNT, "paytxfee", "the transaction fee configuration, set in " + CURRENCY_UNIT + "/kB"},
+                            {RPCResult::Type::STR_HEX, "hdchainid", "the ID of the HD chain"},
+                            {RPCResult::Type::STR, "hdaccountcount", "how many accounts of the HD chain are in this wallet"},
+                            {RPCResult::Type::ARR, "", "",
+                                {
+                                {RPCResult::Type::OBJ, "", "",
+                                    {
+                                        {RPCResult::Type::NUM, "hdaccountindex", "the index of the account"},
+                                        {RPCResult::Type::NUM, "hdexternalkeyindex", "current external childkey index"},
+                                        {RPCResult::Type::NUM, "hdinternalkeyindex", "current internal childkey index"},
+                                }},
+                            }},
+                            {RPCResult::Type::OBJ, "scanning", "current scanning details, or false if no scan is in progress",
+                                {
+                                     {RPCResult::Type::NUM, "duration", "elapsed seconds since scan start"},
+                                     {RPCResult::Type::NUM, "progress", "scanning progress percentage [0.0, 1.0]"},
+                                }},
+                            {RPCResult::Type::BOOL, "private_keys_enabled", "false if privatekeys are disabled for this wallet (enforced watch-only wallet)"},
+                        },
                 },
                 RPCExamples{
                     HelpExampleCli("getwalletinfo", "")
             + HelpExampleRpc("getwalletinfo", "")
                 },
     }.Check(request);
+
+    std::shared_ptr<CWallet> const wallet = GetWalletForJSONRPCRequest(request);
+    if (!wallet) return NullUniValue;
+    CWallet* const pwallet = wallet.get();
 
     // Make sure the results are valid at least up to the most recent block
     // the user could have gotten from another RPC command prior to now
@@ -2508,7 +2510,7 @@ static UniValue listwalletdir(const JSONRPCRequest& request)
                         {RPCResult::Type::STR, "name", "The wallet name"},
                     }},
                 }},
-                    }
+            }
         },
         RPCExamples{
             HelpExampleCli("listwalletdir", "")
@@ -2538,7 +2540,7 @@ static UniValue listwallets(const JSONRPCRequest& request)
             RPCResult::Type::ARR, "", "",
             {
                 {RPCResult::Type::STR, "walletname", "the wallet name"},
-                    }
+            }
         },
         RPCExamples{
             HelpExampleCli("listwallets", "")
@@ -2566,7 +2568,9 @@ static UniValue upgradetohd(const JSONRPCRequest& request)
             {"mnemonicpassphrase", RPCArg::Type::STR, /* default */ "", "Optional mnemonic passphrase as defined in BIP39"},
             {"walletpassphrase", RPCArg::Type::STR, /* default */ "", "If your wallet is encrypted you must have your wallet passphrase here. If your wallet is not encrypted specifying wallet passphrase will trigger wallet encryption."},
         },
-        RPCResults{},
+        RPCResult{
+            RPCResult::Type::BOOL, "", "true if successful"
+        },
         RPCExamples{
             HelpExampleCli("upgradetohd", "")
     + HelpExampleCli("upgradetohd", "\"mnemonicword1 ... mnemonicwordN\"")
@@ -2667,11 +2671,11 @@ static UniValue loadwallet(const JSONRPCRequest& request)
             {"filename", RPCArg::Type::STR, RPCArg::Optional::NO, "The wallet directory or .dat file."},
         },
         RPCResult{
-    RPCResult::Type::OBJ, "", "",
-                    {
-    {RPCResult::Type::STR, "name", "The wallet name if loaded successfully."},
-    {RPCResult::Type::STR, "warning", "Warning message if wallet was not loaded cleanly."},
-    }
+            RPCResult::Type::OBJ, "", "",
+            {
+                {RPCResult::Type::STR, "name", "The wallet name if loaded successfully."},
+                {RPCResult::Type::STR, "warning", "Warning message if wallet was not loaded cleanly."},
+            }
         },
         RPCExamples{
             HelpExampleCli("loadwallet", "\"test.dat\"")
@@ -3437,41 +3441,41 @@ UniValue getaddressinfo(const JSONRPCRequest& request)
             {"address", RPCArg::Type::STR, RPCArg::Optional::NO, "The dash address to get the information of."},
         },
         RPCResult{
-                RPCResult::Type::OBJ, "", "",
+            RPCResult::Type::OBJ, "", "",
+            {
+                {RPCResult::Type::STR, "address", "The dash address validated."},
+                {RPCResult::Type::STR_HEX, "scriptPubKey", "The hex-encoded scriptPubKey generated by the address."},
+                {RPCResult::Type::BOOL, "ismine", "If the address is yours."},
+                {RPCResult::Type::BOOL, "iswatchonly", "If the address is watchonly."},
+                {RPCResult::Type::BOOL, "solvable", "Whether we know how to spend coins sent to this address, ignoring the possible lack of private keys."},
+                {RPCResult::Type::STR, "desc", /* optional */ true, "A descriptor for spending coins sent to this address (only when solvable)."},
+                {RPCResult::Type::BOOL, "isscript", "If the key is a script."},
+                {RPCResult::Type::BOOL, "ischange", "If the address was used for change output."},
+                {RPCResult::Type::STR, "script", /* optional */ true, "The output script type. Only if \"isscript\" is true and the redeemscript is known. Possible types: nonstandard, pubkey, pubkeyhash, scripthash, multisig, nulldata"},
+                {RPCResult::Type::STR_HEX, "hex", /* optional */ true, "The redeemscript for the p2sh address."},
+                {RPCResult::Type::ARR, "pubkeys", /* optional */ true, "Array of pubkeys associated with the known redeemscript (only if \"script\" is \"multisig\").",
                 {
-                        {RPCResult::Type::STR, "address", "The dash address validated."},
-                        {RPCResult::Type::STR_HEX, "scriptPubKey", "The hex-encoded scriptPubKey generated by the address."},
-                        {RPCResult::Type::BOOL, "ismine", "If the address is yours."},
-                        {RPCResult::Type::BOOL, "iswatchonly", "If the address is watchonly."},
-                        {RPCResult::Type::BOOL, "solvable", "Whether we know how to spend coins sent to this address, ignoring the possible lack of private keys."},
-                        {RPCResult::Type::STR, "desc", /* optional */ true, "A descriptor for spending coins sent to this address (only when solvable)."},
-                        {RPCResult::Type::BOOL, "isscript", "If the key is a script."},
-                        {RPCResult::Type::BOOL, "ischange", "If the address was used for change output."},
-                        {RPCResult::Type::STR, "script", /* optional */ true, "The output script type. Only if \"isscript\" is true and the redeemscript is known. Possible types: nonstandard, pubkey, pubkeyhash, scripthash, multisig, nulldata"},
-                        {RPCResult::Type::STR_HEX, "hex", /* optional */ true, "The redeemscript for the p2sh address."},
-                        {RPCResult::Type::ARR, "pubkeys", /* optional */ true, "Array of pubkeys associated with the known redeemscript (only if \"script\" is \"multisig\").",
-                         {
-                                 {RPCResult::Type::STR, "pubkey", ""},
-                         }},
-                        {RPCResult::Type::NUM, "sigsrequired", /* optional */ true, "The number of signatures required to spend multisig output (only if \"script\" is \"multisig\")."},
-                        {RPCResult::Type::STR_HEX, "pubkey", /* optional */ true, "The hex value of the raw public key, for single-key addresses."},
-                        {RPCResult::Type::BOOL, "iscompressed", /* optional */ true, "If the pubkey is compressed."},
-                        {RPCResult::Type::STR, "label", "The label associated with the address, \"\" is the default label."},
-                        {RPCResult::Type::NUM_TIME, "timestamp", /* optional */ true, "The creation time of the key if available in seconds since epoch (Jan 1 1970 GMT)"},
-                        {RPCResult::Type::STR_HEX, "hdchainid", /* optional */ true, "The ID of the HD chain."},
-                        {RPCResult::Type::STR, "hdkeypath", /* optional */ true, "The HD keypath, if the key is HD and available."},
-                        {RPCResult::Type::STR_HEX, "hdseedid", /* optional */ true, "The Hash160 of the HD seed."},
-                        {RPCResult::Type::STR_HEX, "hdmasterfingerprint", /* optional */ true, "The fingerprint of the master key."},
-                        {RPCResult::Type::ARR, "labels", "Array of labels associated with the address.",
-                         {
-                                 {RPCResult::Type::STR, "label name", "The label name. Defaults to \"\"."},
-                                 {RPCResult::Type::OBJ, "", "json object of label data",
-                                  {
-                                          {RPCResult::Type::STR, "name", "The label."},
-                                          {RPCResult::Type::STR, "purpose", "Purpose of address (\"send\" for sending address, \"receive\" for receiving address)"},
-                                  }},
-                         }},
-                }
+                    {RPCResult::Type::STR, "pubkey", ""},
+                }},
+                {RPCResult::Type::NUM, "sigsrequired", /* optional */ true, "The number of signatures required to spend multisig output (only if \"script\" is \"multisig\")."},
+                {RPCResult::Type::STR_HEX, "pubkey", /* optional */ true, "The hex value of the raw public key, for single-key addresses."},
+                {RPCResult::Type::BOOL, "iscompressed", /* optional */ true, "If the pubkey is compressed."},
+                {RPCResult::Type::STR, "label", "The label associated with the address, \"\" is the default label."},
+                {RPCResult::Type::NUM_TIME, "timestamp", /* optional */ true, "The creation time of the key if available in seconds since epoch (Jan 1 1970 GMT)"},
+                {RPCResult::Type::STR_HEX, "hdchainid", /* optional */ true, "The ID of the HD chain."},
+                {RPCResult::Type::STR, "hdkeypath", /* optional */ true, "The HD keypath, if the key is HD and available."},
+                {RPCResult::Type::STR_HEX, "hdseedid", /* optional */ true, "The Hash160 of the HD seed."},
+                {RPCResult::Type::STR_HEX, "hdmasterfingerprint", /* optional */ true, "The fingerprint of the master key."},
+                {RPCResult::Type::ARR, "labels", "Array of labels associated with the address.",
+                {
+                    {RPCResult::Type::STR, "label name", "The label name. Defaults to \"\"."},
+                    {RPCResult::Type::OBJ, "", "json object of label data",
+                    {
+                        {RPCResult::Type::STR, "name", "The label."},
+                        {RPCResult::Type::STR, "purpose", "Purpose of address (\"send\" for sending address, \"receive\" for receiving address)"},
+                    }},
+                }},
+            }
         },
         RPCExamples{
             HelpExampleCli("getaddressinfo", "\"XwnLY9Tf7Zsef8gMGL2fhWA9ZmMjt4KPwg\"")
@@ -3619,7 +3623,7 @@ static UniValue listlabels(const JSONRPCRequest& request)
             RPCResult::Type::ARR, "", "",
             {
                 {RPCResult::Type::STR, "label", "Label name"},
-                    }
+            }
         },
         RPCExamples{
     "\nList all labels\n"

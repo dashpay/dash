@@ -50,8 +50,8 @@ static UniValue debug(const JSONRPCRequest& request)
         {
             {"category", RPCArg::Type::STR, RPCArg::Optional::NO, "The name of the debug category to turn on."},
         },
-        RPCResult {
-    "  result               (string) \"Debug mode: \" followed by the specified category.\n"
+        RPCResult{
+            RPCResult::Type::STR, "result", "\"Debug mode: \" followed by the specified category",
         },
         RPCExamples {
             HelpExampleCli("debug", "dash")
@@ -80,7 +80,7 @@ static UniValue mnsync(const JSONRPCRequest& request)
         {
             {"mode", RPCArg::Type::STR, RPCArg::Optional::NO, "[status|next|reset]"},
         },
-        RPCResults{},
+        RPCResults{},/*TODO*/
         RPCExamples{""}
     }.Check(request);
 
@@ -136,28 +136,27 @@ static UniValue spork(const JSONRPCRequest& request)
 
     if (request.fHelp || request.params.size() != 2) {
         // default help, for basic mode
-        throw std::runtime_error(
             RPCHelpMan{"spork",
                 "\nShows information about current state of sporks\n",
                 {
                     {"command", RPCArg::Type::STR, RPCArg::Optional::NO, "'show' to show all current spork values, 'active' to show which sporks are active"},
                 },
-                RPCResults {
-                    {"For 'show'",
-            "{\n"
-            "  \"SPORK_NAME\" : spork_value,    (number) The value of the specific spork with the name SPORK_NAME\n"
-            "  ...\n"
-            "}\n"
-                    }, {"For 'active'",
-            "{\n"
-            "  \"SPORK_NAME\" : true|false,     (boolean) 'true' for time-based sporks if spork is active and 'false' otherwise\n"
-            "  ...\n"
-            "}\n"
-                }},
+                {
+                    RPCResult{"For 'show'",
+                        RPCResult::Type::OBJ_DYN, "", "keys are the sporks, and values indicates its value",
+                        {
+                            {RPCResult::Type::NUM, "SPORK_NAME", "The value of the specific spork with the name SPORK_NAME"},
+                        }},
+                    RPCResult{"For 'active'",
+                        RPCResult::Type::OBJ_DYN, "", "keys are the sporks, and values indicates its status",
+                        {
+                            {RPCResult::Type::BOOL, "SPORK_NAME", "'true' for time-based sporks if spork is active and 'false' otherwise"},
+                        }},
+                },
                 RPCExamples {
                     HelpExampleCli("spork", "show")
                     + HelpExampleRpc("spork", "\"show\"")
-            }}.ToString());
+            }}.Check(request);
     } else {
         // advanced mode, update spork values
         SporkId nSporkID = CSporkManager::GetSporkIDByName(request.params[0].get_str());
@@ -174,7 +173,6 @@ static UniValue spork(const JSONRPCRequest& request)
         if(sporkManager.UpdateSpork(nSporkID, nValue, *g_rpc_node->connman)){
             return "success";
         } else {
-            throw std::runtime_error(
                 RPCHelpMan{"spork",
                     "\nUpdate the value of the specific spork. Requires \"-sporkkey\" to be set to sign the message.\n",
                     {
@@ -182,24 +180,24 @@ static UniValue spork(const JSONRPCRequest& request)
                         {"value", RPCArg::Type::NUM, RPCArg::Optional::NO, "The new desired value of the spork"},
                     },
                     RPCResult{
-                "  result               (string) \"success\" if spork value was updated or this help otherwise\n"
+                        RPCResult::Type::STR, "result", "\"success\" if spork value was updated or this help otherwise"
                     },
                     RPCExamples{
                         HelpExampleCli("spork", "SPORK_2_INSTANTSEND_ENABLED 4070908800")
                 + HelpExampleRpc("spork", "\"SPORK_2_INSTANTSEND_ENABLED\", 4070908800")
                     },
-                }.ToString());
+                }.Check(request);
         }
     }
-
+    return NullUniValue;
 }
 
 static UniValue validateaddress(const JSONRPCRequest& request)
 {
             RPCHelpMan{"validateaddress",
-                "\nReturn information about the given bitcoin address.\n",
+                "\nReturn information about the given dash address.\n",
                 {
-                    {"address", RPCArg::Type::STR, RPCArg::Optional::NO, "The bitcoin address to validate"},
+                    {"address", RPCArg::Type::STR, RPCArg::Optional::NO, "The dash address to validate"},
                 },
                 RPCResult{
                     RPCResult::Type::OBJ, "", "",
@@ -540,7 +538,9 @@ static UniValue mnauth(const JSONRPCRequest& request)
             {"proTxHash", RPCArg::Type::STR, RPCArg::Optional::NO, "The authenticated proTxHash as hex string."},
             {"publicKey", RPCArg::Type::STR, RPCArg::Optional::NO, "The authenticated public key as hex string."},
         },
-        RPCResults{},
+        RPCResult{
+            RPCResult::Type::BOOL, "result", "true, if the node was updated"
+        },
         RPCExamples{""},
     }.Check(request);
 
@@ -649,18 +649,19 @@ static UniValue getaddressmempool(const JSONRPCRequest& request)
             },
         },
         RPCResult{
-    "[\n"
-    "  {\n"
-    "    \"address\"  (string) The base58check encoded address\n"
-    "    \"txid\"  (string) The related txid\n"
-    "    \"index\"  (number) The related input or output index\n"
-    "    \"satoshis\"  (number) The difference of duffs\n"
-    "    \"timestamp\"  (number) The time the transaction entered the mempool (seconds)\n"
-    "    \"prevtxid\"  (string) The previous txid (if spending)\n"
-    "    \"prevout\"  (string) The previous transaction output index (if spending)\n"
-    "  }\n"
-    "]\n"
-        },
+            RPCResult::Type::ARR, "", "",
+            {
+                {RPCResult::Type::OBJ, "", "",
+                {
+                    {RPCResult::Type::STR, "address", "The base58check encoded address"},
+                    {RPCResult::Type::STR_HEX, "txid", "The related txid"},
+                    {RPCResult::Type::NUM, "index", "The related input or output index"},
+                    {RPCResult::Type::NUM, "satoshis", "The difference of duffs"},
+                    {RPCResult::Type::NUM_TIME, "timestamp", "The time the transaction entered the mempool (seconds)"},
+                    {RPCResult::Type::STR_HEX, "prevtxid", "The previous txid (if spending)"},
+                    {RPCResult::Type::NUM, "prevout", "The previous transaction output index (if spending)"},
+                }},
+            }},
         RPCExamples{
             HelpExampleCli("getaddressmempool", "'{\"addresses\": [\"XwnLY9Tf7Zsef8gMGL2fhWA9ZmMjt4KPwg\"]}'")
     + HelpExampleRpc("getaddressmempool", "{\"addresses\": [\"XwnLY9Tf7Zsef8gMGL2fhWA9ZmMjt4KPwg\"]}")
@@ -719,17 +720,18 @@ static UniValue getaddressutxos(const JSONRPCRequest& request)
             },
         },
         RPCResult{
-    "[\n"
-    "  {\n"
-    "    \"address\"  (string) The address base58check encoded\n"
-    "    \"txid\"  (string) The output txid\n"
-    "    \"outputIndex\"  (number) The output index\n"
-    "    \"script\"  (string) The script hex-encoded\n"
-    "    \"satoshis\"  (number) The number of duffs of the output\n"
-    "    \"height\"  (number) The block height\n"
-    "  }\n"
-    "]\n"
-        },
+            RPCResult::Type::ARR, "", "",
+            {
+                {RPCResult::Type::OBJ, "", "",
+                {
+                    {RPCResult::Type::STR, "address", "The address base58check encoded"},
+                    {RPCResult::Type::STR_HEX, "txid", "The output txid"},
+                    {RPCResult::Type::NUM, "index", "The output index"},
+                    {RPCResult::Type::STR_HEX, "script", "The script hex-encoded"},
+                    {RPCResult::Type::NUM, "satoshis", "The number of duffs of the output"},
+                    {RPCResult::Type::NUM, "height", "The block height"},
+                }},
+            }},
         RPCExamples{
             HelpExampleCli("getaddressutxos", "'{\"addresses\": [\"XwnLY9Tf7Zsef8gMGL2fhWA9ZmMjt4KPwg\"]}'")
     + HelpExampleRpc("getaddressutxos", "{\"addresses\": [\"XwnLY9Tf7Zsef8gMGL2fhWA9ZmMjt4KPwg\"]}")
@@ -785,17 +787,18 @@ static UniValue getaddressdeltas(const JSONRPCRequest& request)
             },
         },
         RPCResult{
-    "[\n"
-    "  {\n"
-    "    \"satoshis\"  (number) The difference of duffs\n"
-    "    \"txid\"  (string) The related txid\n"
-    "    \"index\"  (number) The related input or output index\n"
-    "    \"blockindex\"  (number) The related block index\n"
-    "    \"height\"  (number) The block height\n"
-    "    \"address\"  (string) The base58check encoded address\n"
-    "  }\n"
-    "]\n"
-        },
+            RPCResult::Type::ARR, "", "",
+            {
+                {RPCResult::Type::OBJ, "", "",
+                {
+                    {RPCResult::Type::NUM, "satoshis", "The difference of duffs"},
+                    {RPCResult::Type::STR_HEX, "txid", "The related txid"},
+                    {RPCResult::Type::NUM, "index", "The related input or output index"},
+                    {RPCResult::Type::NUM, "blockindex", "The related block index"},
+                    {RPCResult::Type::NUM, "height", "The block height"},
+                    {RPCResult::Type::STR, "address", "The base58check encoded address"},
+                }},
+            }},
         RPCExamples{
             HelpExampleCli("getaddressdeltas", "'{\"addresses\": [\"XwnLY9Tf7Zsef8gMGL2fhWA9ZmMjt4KPwg\"]}'")
     + HelpExampleRpc("getaddressdeltas", "{\"addresses\": [\"XwnLY9Tf7Zsef8gMGL2fhWA9ZmMjt4KPwg\"]}")
@@ -870,13 +873,13 @@ static UniValue getaddressbalance(const JSONRPCRequest& request)
             },
         },
         RPCResult{
-    "{\n"
-    "  \"balance\" : xxxxx,              (numeric) The current total balance in duffs\n"
-    "  \"balance_immature\" : xxxxx,     (numeric) The current immature balance in duffs\n"
-    "  \"balance_spendable\" : xxxxx,    (numeric) The current spendable balance in duffs\n"
-    "  \"received\" : xxxxx              (numeric) The total number of duffs received (including change)\n"
-    "}\n"
-        },
+            RPCResult::Type::OBJ, "", "",
+                {
+                    {RPCResult::Type::NUM, "balance", "The current total balance in duffs"},
+                    {RPCResult::Type::NUM, "balance_immature", "The current immature balance in duffs"},
+                    {RPCResult::Type::NUM, "balance_spendable", "The current spendable balance in duffs"},
+                    {RPCResult::Type::NUM, "received", "The total number of duffs received (including change)"},
+                }},
         RPCExamples{
             HelpExampleCli("getaddressbalance", "'{\"addresses\": [\"XwnLY9Tf7Zsef8gMGL2fhWA9ZmMjt4KPwg\"]}'")
     + HelpExampleRpc("getaddressbalance", "{\"addresses\": [\"XwnLY9Tf7Zsef8gMGL2fhWA9ZmMjt4KPwg\"]}")
@@ -938,10 +941,8 @@ static UniValue getaddresstxids(const JSONRPCRequest& request)
             },
         },
         RPCResult{
-    "[\n"
-    "  \"transactionid\"  (string) The transaction id\n"
-    "  ,...\n"
-    "]\n"
+            RPCResult::Type::ARR, "", "",
+            {{RPCResult::Type::STR_HEX, "transactionid", "The transaction id"}}
         },
         RPCExamples{
             HelpExampleCli("getaddresstxids", "'{\"addresses\": [\"XwnLY9Tf7Zsef8gMGL2fhWA9ZmMjt4KPwg\"]}'")
@@ -1019,12 +1020,11 @@ static UniValue getspentinfo(const JSONRPCRequest& request)
             },
         },
         RPCResult{
-    "{\n"
-    "  \"txid\"  (string) The transaction id\n"
-    "  \"index\"  (number) The spending input index\n"
-    "  ,...\n"
-    "}\n"
-        },
+            RPCResult::Type::OBJ, "", "",
+            {
+                {RPCResult::Type::STR_HEX, "txid", "The transaction id"},
+                {RPCResult::Type::NUM, "index", "The spending input index"},
+            }},
         RPCExamples{
             HelpExampleCli("getspentinfo", "'{\"txid\": \"0437cd7f8525ceed2324359c2d0ba26006d92d856a9c20fa0241106ee5a597c9\", \"index\": 0}'")
     + HelpExampleRpc("getspentinfo", "{\"txid\": \"0437cd7f8525ceed2324359c2d0ba26006d92d856a9c20fa0241106ee5a597c9\", \"index\": 0}")
@@ -1263,16 +1263,18 @@ static UniValue logging(const JSONRPCRequest& request)
 
 static UniValue echo(const JSONRPCRequest& request)
 {
-    RPCHelpMan{"echo|echojson ...",
-        "\nSimply echo back the input arguments. This command is for testing.\n"
-        "\nIt will return an internal bug report when exactly 100 arguments are passed.\n"
-        "\nThe difference between echo and echojson is that echojson has argument conversion enabled in the client-side table in "
-        "dash-cli and the GUI. There is no server-side difference.",
-        {},
-        RPCResult{RPCResult::Type::NONE, "", "Returns whatever was passed in"},
-        RPCExamples{""},
-    }.Check(request);
-
+    if (request.fHelp)
+        throw std::runtime_error(
+            RPCHelpMan{"echo|echojson ...",
+                "\nSimply echo back the input arguments. This command is for testing.\n"
+                "\nIt will return an internal bug report when exactly 100 arguments are passed.\n"
+                "\nThe difference between echo and echojson is that echojson has argument conversion enabled in the client-side table in "
+                "dash-cli and the GUI. There is no server-side difference.",
+                {},
+                RPCResult{RPCResult::Type::NONE, "", "Returns whatever was passed in"},
+                RPCExamples{""},
+            }.ToString()
+        );
     CHECK_NONFATAL(request.params.size() != 100);
 
     return request.params;
