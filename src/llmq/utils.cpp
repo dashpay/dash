@@ -732,7 +732,7 @@ bool CLLMQUtils::IsQuorumTypeEnabled(Consensus::LLMQType llmqType, const CBlockI
     return IsQuorumTypeEnabledInternal(llmqType, pindex, std::nullopt, std::nullopt);
 }
 
-bool CLLMQUtils::IsQuorumTypeEnabledInternal(Consensus::LLMQType llmqType, const CBlockIndex* pindex, std::optional<bool> opt_dip24_active, std::optional<bool> opt_have_dip24_quorums)
+bool CLLMQUtils::IsQuorumTypeEnabledInternal(Consensus::LLMQType llmqType, const CBlockIndex* pindex, std::optional<bool> optDIP0024IsActive, std::optional<bool> optHaveDIP0024Quorums)
 {
     const Consensus::Params& consensusParams = Params().GetConsensus();
 
@@ -740,12 +740,12 @@ bool CLLMQUtils::IsQuorumTypeEnabledInternal(Consensus::LLMQType llmqType, const
     {
         case Consensus::LLMQType::LLMQ_TEST_INSTANTSEND:
         case Consensus::LLMQType::LLMQ_50_60: {
-            bool dip_24_active = opt_dip24_active.has_value() ? *opt_dip24_active : CLLMQUtils::IsDIP0024Active(pindex);
-            if (dip_24_active) {
-                bool have_dip24_quorums = opt_have_dip24_quorums.has_value() ? *opt_have_dip24_quorums
+            bool fDIP0024IsActive = optDIP0024IsActive.has_value() ? *optDIP0024IsActive : CLLMQUtils::IsDIP0024Active(pindex);
+            if (fDIP0024IsActive) {
+                bool fHaveDIP0024Quorums = optHaveDIP0024Quorums.has_value() ? *optHaveDIP0024Quorums
                                                                              : !quorumManager->ScanQuorums(
                                 consensusParams.llmqTypeDIP0024InstantSend, pindex, 1).empty();
-                if (have_dip24_quorums) {
+                if (fHaveDIP0024Quorums) {
                     return false;
                 }
             }
@@ -763,8 +763,8 @@ bool CLLMQUtils::IsQuorumTypeEnabledInternal(Consensus::LLMQType llmqType, const
             break;
         case Consensus::LLMQType::LLMQ_60_75:
         case Consensus::LLMQType::LLMQ_TEST_DIP0024: {
-            bool dip_24_active = opt_dip24_active.has_value() ? *opt_dip24_active : CLLMQUtils::IsDIP0024Active(pindex);
-            if (!dip_24_active) {
+            bool fDIP0024IsActive = optDIP0024IsActive.has_value() ? *optDIP0024IsActive : CLLMQUtils::IsDIP0024Active(pindex);
+            if (!fDIP0024IsActive) {
                 return false;
             }
             break;

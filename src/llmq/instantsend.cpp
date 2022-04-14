@@ -789,11 +789,11 @@ void CInstantSendManager::ProcessMessageInstantSendLock(const CNode* pfrom, cons
 
     auto hash = ::SerializeHash(*islock);
 
-    bool dip24_active = false;
+    bool fDIP0024IsActive = false;
     {
         LOCK(cs_main);
         EraseObjectRequest(pfrom->GetId(), CInv(islock->IsDeterministic() ? MSG_ISDLOCK : MSG_ISLOCK, hash));
-        dip24_active = CLLMQUtils::IsDIP0024Active(::ChainActive().Tip());
+        fDIP0024IsActive = CLLMQUtils::IsDIP0024Active(::ChainActive().Tip());
     }
 
     if (!PreVerifyInstantSendLock(*islock)) {
@@ -803,7 +803,7 @@ void CInstantSendManager::ProcessMessageInstantSendLock(const CNode* pfrom, cons
     }
 
     // Deterministic ISLocks are only produced by rotation quorums, if we don't see DIP24 as active, then we won't be able to validate it anyway
-    if (islock->IsDeterministic() && dip24_active) {
+    if (islock->IsDeterministic() && fDIP0024IsActive) {
         const auto blockIndex = WITH_LOCK(cs_main, return LookupBlockIndex(islock->cycleHash));
         if (blockIndex == nullptr) {
             // Maybe we don't have the block yet or maybe some peer spams invalid values for cycleHash
