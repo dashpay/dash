@@ -242,8 +242,8 @@ public:
 
         // Deployment of Quorum Rotation DIP and decreased proposal fee (Values to be determined)
         consensus.vDeployments[Consensus::DEPLOYMENT_DIP0024].bit = 7;
-        consensus.vDeployments[Consensus::DEPLOYMENT_DIP0024].nStartTime = 1638316800; // Dec 1st, 2021
-        consensus.vDeployments[Consensus::DEPLOYMENT_DIP0024].nTimeout = 1669852800;   // Dec 1st, 2022
+        consensus.vDeployments[Consensus::DEPLOYMENT_DIP0024].nStartTime = 999999999999ULL; // TODO ENABLE BEFORE FINAL RELEASE
+        consensus.vDeployments[Consensus::DEPLOYMENT_DIP0024].nTimeout = 999999999999ULL;   // TODO ENABLE BEFORE FINAL RELEASE
         consensus.vDeployments[Consensus::DEPLOYMENT_DIP0024].nWindowSize = 4032;
         consensus.vDeployments[Consensus::DEPLOYMENT_DIP0024].nThresholdStart = 3226; // 80% of 4032
         consensus.vDeployments[Consensus::DEPLOYMENT_DIP0024].nThresholdMin = 2420;   // 60% of 4032
@@ -465,7 +465,7 @@ public:
 
         // Deployment of Quorum Rotation DIP and decreased proposal fee
         consensus.vDeployments[Consensus::DEPLOYMENT_DIP0024].bit = 7;
-        consensus.vDeployments[Consensus::DEPLOYMENT_DIP0024].nStartTime = 1625097600; // July 1st, 2021
+        consensus.vDeployments[Consensus::DEPLOYMENT_DIP0024].nStartTime = 1649980800; // Friday, April 15, 2022 0:00:00
         consensus.vDeployments[Consensus::DEPLOYMENT_DIP0024].nTimeout = 999999999999ULL;
         consensus.vDeployments[Consensus::DEPLOYMENT_DIP0024].nWindowSize = 4032;
         consensus.vDeployments[Consensus::DEPLOYMENT_DIP0024].nThresholdStart = 3226; // 80% of 4032
