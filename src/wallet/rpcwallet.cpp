@@ -2393,7 +2393,7 @@ static UniValue getwalletinfo(const JSONRPCRequest& request)
                 "Returns an object containing various wallet state info.\n",
                 {},
                 RPCResult{
-                        {RPCResult::Type::OBJ, "", "",
+                        RPCResult::Type::OBJ, "", "",
                         {
                                         {RPCResult::Type::STR, "walletname", "the wallet name"},
                                         {RPCResult::Type::NUM, "walletversion", "the wallet version"},
@@ -2427,7 +2427,7 @@ static UniValue getwalletinfo(const JSONRPCRequest& request)
                                             }
                                         },
                                         {RPCResult::Type::BOOL, "private_keys_enabled", "false if privatekeys are disabled for this wallet (enforced watch-only wallet)"},
-                        }}
+                        }
                 },
                 RPCExamples{
                     HelpExampleCli("getwalletinfo", "")
