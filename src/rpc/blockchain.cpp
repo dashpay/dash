@@ -132,6 +132,10 @@ UniValue blockToJSON(const CBlock& block, const CBlockIndex* blockindex, bool tx
     result.push_back(Pair("height", blockindex->nHeight));
     result.push_back(Pair("version", block.nVersion));
     result.push_back(Pair("versionHex", strprintf("%08x", block.nVersion)));
+    int algo = block.GetAlgo();
+    result.pushKV("pow_algo_id", algo);
+    result.pushKV("pow_algo", GetAlgoName(algo));
+    result.pushKV("pow_hash", GetPoWAlgoHash(block).GetHex());
     result.push_back(Pair("merkleroot", block.hashMerkleRoot.GetHex()));
     UniValue txs(UniValue::VARR);
     for(const auto& tx : block.vtx)
