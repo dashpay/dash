@@ -44,5 +44,6 @@ unsigned int DeriveNextWorkRequiredDELTA(const INDEX_TYPE pindexLast, const BLOC
 
 /** Check whether a block hash satisfies the proof-of-work requirement specified by nBits */
 bool CheckProofOfWork(uint256 hash, unsigned int nBits, const Consensus::Params &params);
+uint256 GetPoWAlgoHash(const CBlockHeader& block);
 
 #endif // BITCOIN_POW_H

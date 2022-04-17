@@ -169,7 +169,7 @@ public:
         return block;
     }
 
-    std::string ToString() const;
+    std::string ToString(const Consensus::Params& params) const;
 };
 
 
