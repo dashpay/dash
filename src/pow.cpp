@@ -16,6 +16,16 @@
 #include <algorithm>
 #include <stack>
 
+inline unsigned int PowLimit(const Consensus::Params& params)
+{
+    return UintToArith256(params.powLimit).GetCompact();
+}
+
+unsigned int InitialDifficulty(const Consensus::Params& params)
+{
+    return PowLimit(params);
+}
+
 const CBlockIndex *GetLastBlockIndexForAlgo(const CBlockIndex *pindex, const Consensus::Params &params, int algo) {
     for (; pindex; pindex = pindex->pprev) {
         if (pindex->GetAlgo() != algo)
@@ -23,7 +33,7 @@ const CBlockIndex *GetLastBlockIndexForAlgo(const CBlockIndex *pindex, const Con
         // ignore special min-difficulty testnet blocks
         if (params.fPowAllowMinDifficultyBlocks &&
             pindex->pprev &&
-            pindex->nTime > pindex->pprev->nTime + params.nTargetSpacing * 2) {
+            pindex->nTime > pindex->pprev->nTime + params.GetCurrentPowTargetSpacing(pindex->nHeight) * 2) {
             continue;
         }
         return pindex;
@@ -31,53 +41,6 @@ const CBlockIndex *GetLastBlockIndexForAlgo(const CBlockIndex *pindex, const Con
     return nullptr;
 }
 
-
-unsigned int GetNextWorkRequiredV4(const CBlockIndex *pindexLast, const Consensus::Params &params, int algo) {
-
-
-    const CBlockIndex *pindexPrevAlgo = GetLastBlockIndexForAlgo(pindexLast, params, algo);
-    if (pindexPrevAlgo == nullptr) {
-        return InitialDifficulty(params, algo);
-    }
-
-    // Limit adjustment step
-    // Use medians to prevent time-warp attacks
-    int64_t nActualTimespan = pindexLast->GetMedianTimePast() - pindexFirst->GetMedianTimePast();
-    nActualTimespan = params.nAveragingTargetTimespanV4 + (nActualTimespan - params.nAveragingTargetTimespanV4) / 4;
-
-    if (nActualTimespan < params.nMinActualTimespanV4)
-        nActualTimespan = params.nMinActualTimespanV4;
-    if (nActualTimespan > params.nMaxActualTimespanV4)
-        nActualTimespan = params.nMaxActualTimespanV4;
-
-    //Global retarget
-    arith_uint256 bnNew;
-    bnNew.SetCompact(pindexPrevAlgo->nBits);
-
-    bnNew *= nActualTimespan;
-    bnNew /= params.nAveragingTargetTimespanV4;
-
-    //Per-algo retarget
-    int nAdjustments = pindexPrevAlgo->nHeight + NUM_ALGOS - 1 - pindexLast->nHeight;
-    if (nAdjustments > 0) {
-        for (int i = 0; i < nAdjustments; i++) {
-            bnNew *= 100;
-            bnNew /= (100 + params.nLocalTargetAdjustment);
-        }
-    } else if (nAdjustments < 0)//make it easier
-    {
-        for (int i = 0; i < -nAdjustments; i++) {
-            bnNew *= (100 + params.nLocalTargetAdjustment);
-            bnNew /= 100;
-        }
-    }
-
-    if (bnNew > UintToArith256(params.powLimit)) {
-        bnNew = UintToArith256(params.powLimit);
-    }
-
-    return bnNew.GetCompact();
-}
 
 std::stack<const CBlockIndex *> GetIntervalBlocks(const CBlockIndex *pindexLast, const Consensus::Params &params, int algo) {
     std::stack<const CBlockIndex *> blocks;
@@ -101,7 +64,8 @@ unsigned int GetNextWorkRequired(const CBlockIndex *pindexLast, const CBlockHead
     }
 
     if (pindexLast->nHeight >= params.multiAlgoFork) {
-        return GetNextWorkRequiredV4(pindexLast, params, algo);
+        return DeriveNextWorkRequiredLWMA(pindexLast, params,
+                                          params.GetAveragingIntervalLength(pindexLast->nHeight), algo);
     } else {
         // Next block is the fork block
         if (pindexLast->nHeight + 1 >= params.nHardForkSeven) {
@@ -135,7 +99,7 @@ unsigned int DeriveNextWorkRequiredLWMA(const CBlockIndex *pindexLast, const Con
     std::stack<const CBlockIndex *> blocks= GetIntervalBlocks(pindexLast, params, algo);
 
     if(blocks.size() != nAveragingIntervalLength + 1) {
-        //TODO ADOT add initial difficulty
+        return InitialDifficulty(params);
     }
 
     const CBlockIndex *block;

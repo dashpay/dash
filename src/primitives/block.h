@@ -12,6 +12,8 @@
 #include "uint256.h"
 #include "utilstrencodings.h"
 
+namespace Consensus { struct Params; }
+
 const uint32_t nTimeOfAlgorithmChange = 1612029600;
 
 enum {
@@ -27,8 +29,8 @@ enum {
     BLOCK_VERSION_DEFAULT        = 2,
 
     // algo
-    BLOCK_VERSION_ALGO           = (15 << 8),
-    BLOCK_VERSION_ARDON2D        = (0 << 8),
+    BLOCK_VERSION_ALGO           = (3 << 8),
+    BLOCK_VERSION_ARGON2D        = (0 << 8),
     BLOCK_VERSION_RANDOMX        = (2 << 8),
 };
 
@@ -41,7 +43,7 @@ inline int GetVersionForAlgo(int algo)
     switch(algo)
     {
         case ALGO_ARGON2D:
-            return BLOCK_VERSION_ARDON2D;
+            return BLOCK_VERSION_ARGON2D;
         case ALGO_RANDOMX:
             return BLOCK_VERSION_RANDOMX;
         default:
@@ -109,13 +111,9 @@ public:
 
     int GetAlgo() const;
 
-    uint256 GetHash() const
-    {
-        if (nTime > nTimeOfAlgorithmChange)
-            return hash_Argon2d(BEGIN(nVersion), END(nNonce), 2);
-        else
-            return hash_Argon2d(BEGIN(nVersion), END(nNonce), 1);
-    }
+    uint256 GetHash() const;
+
+    uint256 GetPoWAlgoHash(const Consensus::Params& params) const;
 
     int64_t GetBlockTime() const
     {

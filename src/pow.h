@@ -12,6 +12,7 @@
 #include <sync.h>
 #include <util.h>
 #include <stdint.h>
+#include <stack>
 
 class arith_uint256;
 class CBlockHeader;
