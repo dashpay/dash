@@ -242,11 +242,7 @@ void CChainLocksHandler::TrySignChainTip()
         return;
     }
 
-    const CBlockIndex* pindex;
-    {
-        LOCK(cs_main);
-        pindex = ::ChainActive().Tip();
-    }
+    const CBlockIndex* pindex = WITH_LOCK(cs_main, return ::ChainActive().Tip());
 
     if (!pindex->pprev) {
         return;
