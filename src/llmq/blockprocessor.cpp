@@ -393,7 +393,7 @@ bool CQuorumBlockProcessor::GetCommitmentsFromBlock(const CBlock& block, const C
 
             // only allow one commitment per type and per block (This was changed with rotation)
             if (!CLLMQUtils::IsQuorumRotationEnabled(qc.commitment.llmqType, pindex)) {
-                if (ret.count(qc.commitment.llmqType)) {
+                if (ret.count(qc.commitment.llmqType) != 0) {
                     return state.DoS(100, false, REJECT_INVALID, "bad-qc-dup");
                 }
             }
