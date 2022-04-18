@@ -244,7 +244,7 @@ void CChainLocksHandler::TrySignChainTip()
 
     const CBlockIndex* pindex = WITH_LOCK(cs_main, return ::ChainActive().Tip());
 
-    if (!pindex->pprev) {
+    if (pindex->pprev == nullptr) {
         return;
     }
 
@@ -281,7 +281,7 @@ void CChainLocksHandler::TrySignChainTip()
     // way down, we consider all TXs to be safe.
     if (IsInstantSendEnabled() && RejectConflictingBlocks()) {
         auto pindexWalk = pindex;
-        while (pindexWalk) {
+        while (pindexWalk != nullptr) {
             if (pindex->nHeight - pindexWalk->nHeight > 5) {
                 // no need to check further down, 6 confs is safe to assume that TXs below this height won't be
                 // islocked anymore if they aren't already
@@ -484,7 +484,7 @@ void CChainLocksHandler::EnforceBestChainLock()
         clsig = std::make_shared<CChainLockSig>(bestChainLockWithKnownBlock);
         pindex = currentBestChainLockBlockIndex = this->bestChainLockBlockIndex;
 
-        if (!currentBestChainLockBlockIndex) {
+        if (currentBestChainLockBlockIndex == nullptr) {
             // we don't have the header/block, so we can't do anything right now
             return;
         }
@@ -562,7 +562,7 @@ bool CChainLocksHandler::InternalHasChainLock(int nHeight, const uint256& blockH
         return false;
     }
 
-    if (!bestChainLockBlockIndex) {
+    if (bestChainLockBlockIndex == nullptr) {
         return false;
     }
 
@@ -575,7 +575,7 @@ bool CChainLocksHandler::InternalHasChainLock(int nHeight, const uint256& blockH
     }
 
     auto pAncestor = bestChainLockBlockIndex->GetAncestor(nHeight);
-    return pAncestor && pAncestor->GetBlockHash() == blockHash;
+    return (pAncestor != nullptr) && pAncestor->GetBlockHash() == blockHash;
 }
 
 bool CChainLocksHandler::HasConflictingChainLock(int nHeight, const uint256& blockHash) const
@@ -592,7 +592,7 @@ bool CChainLocksHandler::InternalHasConflictingChainLock(int nHeight, const uint
         return false;
     }
 
-    if (!bestChainLockBlockIndex) {
+    if (bestChainLockBlockIndex == nullptr) {
         return false;
     }
 
