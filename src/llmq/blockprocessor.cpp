@@ -71,7 +71,7 @@ void CQuorumBlockProcessor::ProcessMessage(CNode* pfrom, const std::string& msg_
         {
             LOCK(cs_main);
             pQuorumBaseBlockIndex = LookupBlockIndex(qc.quorumHash);
-            if (!pQuorumBaseBlockIndex) {
+            if (pQuorumBaseBlockIndex == nullptr) {
                 LogPrint(BCLog::LLMQ, "CQuorumBlockProcessor::%s -- unknown block %s in commitment, peer=%d\n", __func__,
                          qc.quorumHash.ToString(), pfrom->GetId());
                 // can't really punish the node here, as we might simply be the one that is on the wrong chain or not
@@ -148,7 +148,7 @@ bool CQuorumBlockProcessor::ProcessBlock(const CBlock& block, const CBlockIndex*
     // Note: must only check quorums that were enabled at the _previous_ block height to match mining logic
     for (const Consensus::LLMQParams& params : CLLMQUtils::GetEnabledQuorumParams(pindex->pprev)) {
         // skip these checks when replaying blocks after the crash
-        if (!::ChainActive().Tip()) {
+        if (::ChainActive().Tip() == nullptr) {
             break;
         }
 
@@ -206,7 +206,7 @@ bool CQuorumBlockProcessor::ProcessCommitment(int nHeight, const uint256& blockH
              nHeight, uint8_t(qc.llmqType), qc.quorumIndex, quorumHash.ToString(), qc.CountSigners(), qc.CountValidMembers(), qc.quorumPublicKey.ToString(), fJustCheck);
 
     // skip `bad-qc-block` checks below when replaying blocks after the crash
-    if (!::ChainActive().Tip()) {
+    if (::ChainActive().Tip() == nullptr) {
         quorumHash = qc.quorumHash;
     }
 
@@ -337,8 +337,8 @@ bool CQuorumBlockProcessor::UpgradeDB()
 
     if (::ChainActive().Height() >= Params().GetConsensus().DIP0003EnforcementHeight) {
         auto pindex = ::ChainActive()[Params().GetConsensus().DIP0003EnforcementHeight];
-        while (pindex) {
-            if (fPruneMode && !(pindex->nStatus & BLOCK_HAVE_DATA)) {
+        while (pindex != nullptr) {
+            if (fPruneMode && ((pindex->nStatus & BLOCK_HAVE_DATA) == 0)) {
                 // Too late, we already pruned blocks we needed to reprocess commitments
                 return false;
             }
