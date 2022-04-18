@@ -280,7 +280,7 @@ void CChainLocksHandler::TrySignChainTip()
     // performed for the tip (which we try to sign) and the previous 5 blocks. If a ChainLocked block is found on the
     // way down, we consider all TXs to be safe.
     if (IsInstantSendEnabled() && RejectConflictingBlocks()) {
-        auto pindexWalk = pindex;
+        const auto* pindexWalk = pindex;
         while (pindexWalk != nullptr) {
             if (pindex->nHeight - pindexWalk->nHeight > 5) {
                 // no need to check further down, 6 confs is safe to assume that TXs below this height won't be
@@ -300,7 +300,7 @@ void CChainLocksHandler::TrySignChainTip()
                 continue;
             }
 
-            for (auto& txid : *txids) {
+            for (const auto& txid : *txids) {
                 int64_t txAge = 0;
                 {
                     LOCK(cs);
@@ -410,7 +410,7 @@ CChainLocksHandler::BlockTxs::mapped_type CChainLocksHandler::GetBlockTxs(const 
         uint32_t blockTime;
         {
             LOCK(cs_main);
-            auto pindex = LookupBlockIndex(blockHash);
+            auto* pindex = LookupBlockIndex(blockHash);
             CBlock block;
             if (!ReadBlockFromDisk(block, pindex, Params().GetConsensus())) {
                 return nullptr;
@@ -429,7 +429,7 @@ CChainLocksHandler::BlockTxs::mapped_type CChainLocksHandler::GetBlockTxs(const 
 
         LOCK(cs);
         blockTxs.emplace(blockHash, ret);
-        for (auto& txid : *ret) {
+        for (const auto& txid : *ret) {
             txFirstSeenTime.emplace(txid, blockTime);
         }
     }
@@ -574,7 +574,7 @@ bool CChainLocksHandler::InternalHasChainLock(int nHeight, const uint256& blockH
         return blockHash == bestChainLockBlockIndex->GetBlockHash();
     }
 
-    auto pAncestor = bestChainLockBlockIndex->GetAncestor(nHeight);
+    const auto* pAncestor = bestChainLockBlockIndex->GetAncestor(nHeight);
     return (pAncestor != nullptr) && pAncestor->GetBlockHash() == blockHash;
 }
 
@@ -604,7 +604,7 @@ bool CChainLocksHandler::InternalHasConflictingChainLock(int nHeight, const uint
         return blockHash != bestChainLockBlockIndex->GetBlockHash();
     }
 
-    auto pAncestor = bestChainLockBlockIndex->GetAncestor(nHeight);
+    const auto* pAncestor = bestChainLockBlockIndex->GetAncestor(nHeight);
     assert(pAncestor);
     return pAncestor->GetBlockHash() != blockHash;
 }
@@ -635,9 +635,9 @@ void CChainLocksHandler::Cleanup()
     }
 
     for (auto it = blockTxs.begin(); it != blockTxs.end(); ) {
-        auto pindex = LookupBlockIndex(it->first);
+        auto* pindex = LookupBlockIndex(it->first);
         if (InternalHasChainLock(pindex->nHeight, pindex->GetBlockHash())) {
-            for (auto& txid : *it->second) {
+            for (const auto& txid : *it->second) {
                 txFirstSeenTime.erase(txid);
             }
             it = blockTxs.erase(it);
@@ -654,7 +654,7 @@ void CChainLocksHandler::Cleanup()
             // tx has vanished, probably due to conflicts
             it = txFirstSeenTime.erase(it);
         } else if (!hashBlock.IsNull()) {
-            auto pindex = LookupBlockIndex(hashBlock);
+            auto* pindex = LookupBlockIndex(hashBlock);
             if (::ChainActive().Tip()->GetAncestor(pindex->nHeight) == pindex && ::ChainActive().Height() - pindex->nHeight >= 6) {
                 // tx got confirmed >= 6 times, so we can stop keeping track of it
                 it = txFirstSeenTime.erase(it);
