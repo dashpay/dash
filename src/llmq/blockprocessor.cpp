@@ -763,9 +763,8 @@ std::optional<std::vector<CFinalCommitment>> CQuorumBlockProcessor::GetMineableC
 
     if (ret.empty()) {
         return std::nullopt;
-    } else {
-        return std::make_optional(ret);
     }
+    return std::make_optional(ret);
 }
 
 bool CQuorumBlockProcessor::GetMineableCommitmentsTx(const Consensus::LLMQParams& llmqParams, int nHeight, std::vector<CTransactionRef>& ret) const
