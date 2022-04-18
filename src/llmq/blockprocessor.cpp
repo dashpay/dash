@@ -603,7 +603,7 @@ std::vector<std::pair<int, const CBlockIndex*>> CQuorumBlockProcessor::GetLastMi
     for (int quorumIndex = 0; quorumIndex < llmqParams.signingActiveQuorumCount; ++quorumIndex) {
         std::optional<const CBlockIndex*> q = GetLastMinedCommitmentsByQuorumIndexUntilBlock(llmqType, pindex, quorumIndex, cycle);
         if (q.has_value()) {
-            ret.push_back(std::make_pair(quorumIndex, q.value()));
+            ret.emplace_back(quorumIndex, q.value());
         }
     }
 
