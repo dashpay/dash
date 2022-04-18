@@ -583,8 +583,9 @@ std::optional<const CBlockIndex*> CQuorumBlockProcessor::GetLastMinedCommitments
         auto pQuorumBaseBlockIndex = pindex->GetAncestor(quorumHeight);
         assert(pQuorumBaseBlockIndex);
 
-        if (currentCycle == cycle)
+        if (currentCycle == cycle) {
             return std::make_optional(pQuorumBaseBlockIndex);
+        }
 
         currentCycle++;
 
@@ -618,8 +619,9 @@ std::vector<const CBlockIndex*> CQuorumBlockProcessor::GetMinedCommitmentsIndexe
     while (ret.size() < maxCount) {
         std::vector<std::pair<int, const CBlockIndex*>> cycleRet = GetLastMinedCommitmentsPerQuorumIndexUntilBlock(llmqType, pindex, cycle);
 
-        if (cycleRet.empty())
+        if (cycleRet.empty()) {
             return ret;
+        }
 
         std::vector<const CBlockIndex*> cycleRetTransformed;
         std::transform(cycleRet.begin(),
@@ -770,8 +772,9 @@ bool CQuorumBlockProcessor::GetMineableCommitmentsTx(const Consensus::LLMQParams
 {
     AssertLockHeld(cs_main);
     std::optional<std::vector<CFinalCommitment>> qcs = GetMineableCommitments(llmqParams, nHeight);
-    if (!qcs.has_value())
+    if (!qcs.has_value()) {
         return false;
+    }
 
     for (const auto& f : qcs.value()) {
         CFinalCommitmentTxPayload qc;
