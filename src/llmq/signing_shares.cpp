@@ -74,12 +74,6 @@ void CSigSharesInv::Init(size_t size)
     inv.resize(size, false);
 }
 
-bool CSigSharesInv::IsSet(uint16_t quorumMember) const
-{
-    assert(quorumMember < inv.size());
-    return inv[quorumMember];
-}
-
 void CSigSharesInv::Set(uint16_t quorumMember, bool v)
 {
     assert(quorumMember < inv.size());
