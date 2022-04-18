@@ -240,7 +240,7 @@ bool CQuorumBlockProcessor::ProcessCommitment(int nHeight, const uint256& blockH
         return state.DoS(100, false, REJECT_INVALID, "bad-qc-height");
     }
 
-    auto pQuorumBaseBlockIndex = LookupBlockIndex(qc.quorumHash);
+    const auto* pQuorumBaseBlockIndex = LookupBlockIndex(qc.quorumHash);
 
     if (!qc.Verify(pQuorumBaseBlockIndex, fBLSChecks)) {
         LogPrint(BCLog::LLMQ, "CQuorumBlockProcessor::%s height=%d, type=%d, quorumIndex=%d, quorumHash=%s, signers=%s, validMembers=%d, quorumPublicKey=%s qc verify failed.\n", __func__,
@@ -336,7 +336,7 @@ bool CQuorumBlockProcessor::UpgradeDB()
     LogPrintf("CQuorumBlockProcessor::%s -- Upgrading DB...\n", __func__);
 
     if (::ChainActive().Height() >= Params().GetConsensus().DIP0003EnforcementHeight) {
-        auto pindex = ::ChainActive()[Params().GetConsensus().DIP0003EnforcementHeight];
+        const auto* pindex = ::ChainActive()[Params().GetConsensus().DIP0003EnforcementHeight];
         while (pindex != nullptr) {
             if (fPruneMode && ((pindex->nStatus & BLOCK_HAVE_DATA) == 0)) {
                 // Too late, we already pruned blocks we needed to reprocess commitments
@@ -355,7 +355,7 @@ bool CQuorumBlockProcessor::UpgradeDB()
                 if (qc.IsNull()) {
                     continue;
                 }
-                auto pQuorumBaseBlockIndex = LookupBlockIndex(qc.quorumHash);
+                const auto* pQuorumBaseBlockIndex = LookupBlockIndex(qc.quorumHash);
                 evoDb.GetRawDB().Write(std::make_pair(DB_MINED_COMMITMENT, std::make_pair(qc.llmqType, qc.quorumHash)), std::make_pair(qc, pindex->GetBlockHash()));
                 if (llmq::CLLMQUtils::IsQuorumRotationEnabled(qc.llmqType, pQuorumBaseBlockIndex)) {
                     evoDb.GetRawDB().Write(BuildInversedHeightKeyIndexed(qc.llmqType, pindex->nHeight, int(qc.quorumIndex)), pQuorumBaseBlockIndex->nHeight);
@@ -415,7 +415,7 @@ bool CQuorumBlockProcessor::IsMiningPhase(const Consensus::LLMQParams& llmqParam
 
     // Note: This function can be called for new blocks
     assert(nHeight <= ::ChainActive().Height() + 1);
-    const auto pindex = ::ChainActive().Height() < nHeight ? ::ChainActive().Tip() : ::ChainActive().Tip()->GetAncestor(nHeight);
+    const auto *const pindex = ::ChainActive().Height() < nHeight ? ::ChainActive().Tip() : ::ChainActive().Tip()->GetAncestor(nHeight);
 
     if (CLLMQUtils::IsQuorumRotationEnabled(llmqParams.type, pindex)) {
         int quorumCycleStartHeight = nHeight - (nHeight % llmqParams.dkgInterval);
@@ -444,7 +444,7 @@ bool CQuorumBlockProcessor::IsCommitmentRequired(const Consensus::LLMQParams& ll
 
     // Note: This function can be called for new blocks
     assert(nHeight <= ::ChainActive().Height() + 1);
-    const auto pindex = ::ChainActive().Height() < nHeight ? ::ChainActive().Tip() : ::ChainActive().Tip()->GetAncestor(nHeight);
+    const auto *const pindex = ::ChainActive().Height() < nHeight ? ::ChainActive().Tip() : ::ChainActive().Tip()->GetAncestor(nHeight);
 
     for (int quorumIndex = 0; quorumIndex < llmqParams.signingActiveQuorumCount; ++quorumIndex) {
         uint256 quorumHash = GetQuorumBlockHash(llmqParams, nHeight, quorumIndex);
@@ -538,7 +538,7 @@ std::vector<const CBlockIndex*> CQuorumBlockProcessor::GetMinedCommitmentsUntilB
             break;
         }
 
-        auto pQuorumBaseBlockIndex = pindex->GetAncestor(quorumHeight);
+        const auto* pQuorumBaseBlockIndex = pindex->GetAncestor(quorumHeight);
         assert(pQuorumBaseBlockIndex);
         ret.emplace_back(pQuorumBaseBlockIndex);
 
@@ -580,7 +580,7 @@ std::optional<const CBlockIndex*> CQuorumBlockProcessor::GetLastMinedCommitments
             return std::nullopt;
         }
 
-        auto pQuorumBaseBlockIndex = pindex->GetAncestor(quorumHeight);
+        const auto* pQuorumBaseBlockIndex = pindex->GetAncestor(quorumHeight);
         assert(pQuorumBaseBlockIndex);
 
         if (currentCycle == cycle) {
@@ -725,7 +725,7 @@ std::optional<std::vector<CFinalCommitment>> CQuorumBlockProcessor::GetMineableC
 
     // Note: This function can be called for new blocks
     assert(nHeight <= ::ChainActive().Height() + 1);
-    const auto pindex = ::ChainActive().Height() < nHeight ? ::ChainActive().Tip() : ::ChainActive().Tip()->GetAncestor(nHeight);
+    const auto *const pindex = ::ChainActive().Height() < nHeight ? ::ChainActive().Tip() : ::ChainActive().Tip()->GetAncestor(nHeight);
 
     std::stringstream ss;
     for (int quorumIndex = 0; quorumIndex < llmqParams.signingActiveQuorumCount; ++quorumIndex) {
