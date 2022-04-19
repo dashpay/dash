@@ -192,7 +192,6 @@ public:
 class CInstantSendManager : public CRecoveredSigsListener
 {
 private:
-    mutable CCriticalSection cs;
     CInstantSendDb db;
     CConnman& connman;
 
@@ -201,25 +200,30 @@ private:
     std::thread workThread;
     CThreadInterrupt workInterrupt;
 
+    mutable Mutex cs_inputReqests;
+
     /**
      * Request ids of inputs that we signed. Used to determine if a recovered signature belongs to an
      * in-progress input lock.
      */
-    std::unordered_set<uint256, StaticSaltedHasher> inputRequestIds GUARDED_BY(cs);
+    std::unordered_set<uint256, StaticSaltedHasher> inputRequestIds GUARDED_BY(cs_inputReqests);
+
+    mutable Mutex cs_creating;
 
     /**
      * These are the islocks that are currently in the middle of being created. Entries are created when we observed
      * recovered signatures for all inputs of a TX. At the same time, we initiate signing of our sigshare for the islock.
      * When the recovered sig for the islock later arrives, we can finish the islock and propagate it.
      */
-    std::unordered_map<uint256, CInstantSendLock, StaticSaltedHasher> creatingInstantSendLocks GUARDED_BY(cs);
+    std::unordered_map<uint256, CInstantSendLock, StaticSaltedHasher> creatingInstantSendLocks GUARDED_BY(cs_creating);
     // maps from txid to the in-progress islock
-    std::unordered_map<uint256, CInstantSendLock*, StaticSaltedHasher> txToCreatingInstantSendLocks GUARDED_BY(cs);
+    std::unordered_map<uint256, CInstantSendLock*, StaticSaltedHasher> txToCreatingInstantSendLocks GUARDED_BY(cs_creating);
 
+    mutable Mutex cs_pendingLocks;
     // Incoming and not verified yet
-    std::unordered_map<uint256, std::pair<NodeId, CInstantSendLockPtr>, StaticSaltedHasher> pendingInstantSendLocks GUARDED_BY(cs);
+    std::unordered_map<uint256, std::pair<NodeId, CInstantSendLockPtr>, StaticSaltedHasher> pendingInstantSendLocks GUARDED_BY(cs_pendingLocks);
     // Tried to verify but there is no tx yet
-    std::unordered_map<uint256, std::pair<NodeId, CInstantSendLockPtr>, StaticSaltedHasher> pendingNoTxInstantSendLocks GUARDED_BY(cs);
+    std::unordered_map<uint256, std::pair<NodeId, CInstantSendLockPtr>, StaticSaltedHasher> pendingNoTxInstantSendLocks GUARDED_BY(cs_pendingLocks);
 
     // TXs which are neither IS locked nor ChainLocked. We use this to determine for which TXs we need to retry IS locking
     // of child TXs
@@ -228,10 +232,13 @@ private:
         CTransactionRef tx;
         std::unordered_set<uint256, StaticSaltedHasher> children;
     };
-    std::unordered_map<uint256, NonLockedTxInfo, StaticSaltedHasher> nonLockedTxs GUARDED_BY(cs);
-    std::unordered_map<COutPoint, uint256, SaltedOutpointHasher> nonLockedTxsByOutpoints GUARDED_BY(cs);
 
-    std::unordered_set<uint256, StaticSaltedHasher> pendingRetryTxs GUARDED_BY(cs);
+    mutable Mutex cs_nonLocked;
+    std::unordered_map<uint256, NonLockedTxInfo, StaticSaltedHasher> nonLockedTxs GUARDED_BY(cs_nonLocked);
+    std::unordered_map<COutPoint, uint256, SaltedOutpointHasher> nonLockedTxsByOutpoints GUARDED_BY(cs_nonLocked);
+
+    mutable Mutex cs_pendingRetry;
+    std::unordered_set<uint256, StaticSaltedHasher> pendingRetryTxs GUARDED_BY(cs_pendingRetry);
 
 public:
     explicit CInstantSendManager(CConnman& _connman, bool unitTests, bool fWipe) : db(unitTests, fWipe), connman(_connman) { workInterrupt.reset(); }
@@ -242,61 +249,66 @@ public:
     void InterruptWorkerThread() { workInterrupt(); };
 
 private:
-    void ProcessTx(const CTransaction& tx, bool fRetroactive, const Consensus::Params& params) LOCKS_EXCLUDED(cs);
+    void ProcessTx(const CTransaction& tx, bool fRetroactive, const Consensus::Params& params);
     bool CheckCanLock(const CTransaction& tx, bool printDebug, const Consensus::Params& params) const;
-    bool CheckCanLock(const COutPoint& outpoint, bool printDebug, const uint256& txHash, const Consensus::Params& params) const LOCKS_EXCLUDED(cs);
+    bool CheckCanLock(const COutPoint& outpoint, bool printDebug, const uint256& txHash, const Consensus::Params& params) const;
     bool IsConflicted(const CTransaction& tx) const { return GetConflictingLock(tx) != nullptr; };
 
     void HandleNewInputLockRecoveredSig(const CRecoveredSig& recoveredSig, const uint256& txid);
-    void HandleNewInstantSendLockRecoveredSig(const CRecoveredSig& recoveredSig);
+    void HandleNewInstantSendLockRecoveredSig(const CRecoveredSig& recoveredSig) LOCKS_EXCLUDED(cs_creating, cs_pendingLocks);
 
-    bool TrySignInputLocks(const CTransaction& tx, bool allowResigning, Consensus::LLMQType llmqType, const Consensus::Params& params);
-    void TrySignInstantSendLock(const CTransaction& tx);
+    bool TrySignInputLocks(const CTransaction& tx, bool allowResigning, Consensus::LLMQType llmqType, const Consensus::Params& params) LOCKS_EXCLUDED(cs_inputReqests);
+    void TrySignInstantSendLock(const CTransaction& tx) LOCKS_EXCLUDED(cs_creating);
 
-    void ProcessMessageInstantSendLock(const CNode* pfrom, const CInstantSendLockPtr& islock) LOCKS_EXCLUDED(cs);
+    void ProcessMessageInstantSendLock(const CNode* pfrom, const CInstantSendLockPtr& islock);
     static bool PreVerifyInstantSendLock(const CInstantSendLock& islock);
     bool ProcessPendingInstantSendLocks();
-    bool ProcessPendingInstantSendLocks(bool deterministic);
+    bool ProcessPendingInstantSendLocks(bool deterministic) LOCKS_EXCLUDED(cs_pendingLocks);
 
-    std::unordered_set<uint256, StaticSaltedHasher> ProcessPendingInstantSendLocks(const Consensus::LLMQType llmqType, int signOffset, const std::unordered_map<uint256, std::pair<NodeId, CInstantSendLockPtr>, StaticSaltedHasher>& pend, bool ban);
-    void ProcessInstantSendLock(NodeId from, const uint256& hash, const CInstantSendLockPtr& islock);
+    std::unordered_set<uint256, StaticSaltedHasher> ProcessPendingInstantSendLocks(const Consensus::LLMQType llmqType,
+                                                                                   int signOffset,
+                                                                                   const std::unordered_map<uint256,
+                                                                                   std::pair<NodeId, CInstantSendLockPtr>,
+                                                                                   StaticSaltedHasher>& pend,
+                                                                                   bool ban) LOCKS_EXCLUDED(cs_pendingLocks);
+    void ProcessInstantSendLock(NodeId from, const uint256& hash, const CInstantSendLockPtr& islock) LOCKS_EXCLUDED(cs_creating, cs_pendingLocks);
 
-    void AddNonLockedTx(const CTransactionRef& tx, const CBlockIndex* pindexMined);
-    void RemoveNonLockedTx(const uint256& txid, bool retryChildren) EXCLUSIVE_LOCKS_REQUIRED(cs);
-    void RemoveConflictedTx(const CTransaction& tx) EXCLUSIVE_LOCKS_REQUIRED(cs);
-    void TruncateRecoveredSigsForInputs(const CInstantSendLock& islock) EXCLUSIVE_LOCKS_REQUIRED(cs);
+    void AddNonLockedTx(const CTransactionRef& tx, const CBlockIndex* pindexMined) LOCKS_EXCLUDED(cs_pendingLocks, cs_nonLocked);
+    void RemoveNonLockedTx(const uint256& txid, bool retryChildren) LOCKS_EXCLUDED(cs_nonLocked, cs_pendingRetry);
+    void RemoveConflictedTx(const CTransaction& tx) LOCKS_EXCLUDED(cs_inputReqests);
+    void TruncateRecoveredSigsForInputs(const CInstantSendLock& islock) LOCKS_EXCLUDED(cs_inputReqests);
 
     void RemoveMempoolConflictsForLock(const uint256& hash, const CInstantSendLock& islock);
-    void ResolveBlockConflicts(const uint256& islockHash, const CInstantSendLock& islock);
+    void ResolveBlockConflicts(const uint256& islockHash, const CInstantSendLock& islock) LOCKS_EXCLUDED(cs_pendingLocks, cs_nonLocked);
     static void AskNodesForLockedTx(const uint256& txid, const CConnman& connman);
-    void ProcessPendingRetryLockTxs();
+    void ProcessPendingRetryLockTxs() LOCKS_EXCLUDED(cs_creating, cs_nonLocked, cs_pendingRetry);
 
     void WorkThreadMain();
 
-    void HandleFullyConfirmedBlock(const CBlockIndex* pindex);
+    void HandleFullyConfirmedBlock(const CBlockIndex* pindex) LOCKS_EXCLUDED(cs_nonLocked);
 
 public:
     bool IsLocked(const uint256& txHash) const;
-    bool IsWaitingForTx(const uint256& txHash) const;
+    bool IsWaitingForTx(const uint256& txHash) const LOCKS_EXCLUDED(cs_pendingLocks);
     CInstantSendLockPtr GetConflictingLock(const CTransaction& tx) const;
 
-    void HandleNewRecoveredSig(const CRecoveredSig& recoveredSig) override;
+    void HandleNewRecoveredSig(const CRecoveredSig& recoveredSig) override LOCKS_EXCLUDED(cs_inputReqests, cs_creating);
 
     void ProcessMessage(CNode* pfrom, const std::string& msg_type, CDataStream& vRecv);
 
-    void TransactionAddedToMempool(const CTransactionRef& tx);
+    void TransactionAddedToMempool(const CTransactionRef& tx) LOCKS_EXCLUDED(cs_pendingLocks);
     void TransactionRemovedFromMempool(const CTransactionRef& tx);
     void BlockConnected(const std::shared_ptr<const CBlock>& pblock, const CBlockIndex* pindex, const std::vector<CTransactionRef>& vtxConflicted);
     void BlockDisconnected(const std::shared_ptr<const CBlock>& pblock, const CBlockIndex* pindexDisconnected);
 
-    bool AlreadyHave(const CInv& inv) const;
-    bool GetInstantSendLockByHash(const uint256& hash, CInstantSendLock& ret) const;
+    bool AlreadyHave(const CInv& inv) const LOCKS_EXCLUDED(cs_pendingLocks);
+    bool GetInstantSendLockByHash(const uint256& hash, CInstantSendLock& ret) const LOCKS_EXCLUDED(cs_pendingLocks);
     CInstantSendLockPtr GetInstantSendLockByTxid(const uint256& txid) const;
 
     void NotifyChainLock(const CBlockIndex* pindexChainLock);
     void UpdatedBlockTip(const CBlockIndex* pindexNew);
 
-    void RemoveConflictingLock(const uint256& islockHash, const CInstantSendLock& islock) LOCKS_EXCLUDED(cs);
+    void RemoveConflictingLock(const uint256& islockHash, const CInstantSendLock& islock);
 
     size_t GetInstantSendLockCount() const;
 };
