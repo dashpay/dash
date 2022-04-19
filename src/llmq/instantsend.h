@@ -58,7 +58,7 @@ using CInstantSendLockPtr = std::shared_ptr<CInstantSendLock>;
 class CInstantSendDb
 {
 private:
-    mutable CCriticalSection cs_db;
+    mutable Mutex cs_db;
 
     static constexpr int CURRENT_VERSION{1};
 
@@ -95,69 +95,88 @@ private:
      */
     std::vector<uint256> GetInstantSendLocksByParent(const uint256& parent) const EXCLUSIVE_LOCKS_REQUIRED(cs_db);
 
+    /**
+     * See GetInstantSendLockByHash
+     */
+    CInstantSendLockPtr GetInstantSendLockByHashInternal(const uint256& hash, bool use_cache = true) const EXCLUSIVE_LOCKS_REQUIRED(cs_db);
+
+    /**
+     * See GetInstantSendLockHashByTxid
+     */
+    uint256 GetInstantSendLockHashByTxidInternal(const uint256& txid) const EXCLUSIVE_LOCKS_REQUIRED(cs_db);
+
+
 public:
     explicit CInstantSendDb(bool unitTests, bool fWipe) :
             db(std::make_unique<CDBWrapper>(unitTests ? "" : (GetDataDir() / "llmq/isdb"), 32 << 20, unitTests, fWipe))
     {}
 
-    void Upgrade();
+    void Upgrade() LOCKS_EXCLUDED(cs_db);
 
     /**
      * This method is called when an InstantSend Lock is processed and adds the lock to the database
      * @param hash The hash of the InstantSend Lock
      * @param islock The InstantSend Lock object itself
      */
-    void WriteNewInstantSendLock(const uint256& hash, const CInstantSendLock& islock);
+    void WriteNewInstantSendLock(const uint256& hash, const CInstantSendLock& islock) LOCKS_EXCLUDED(cs_db);
     /**
      * This method updates a DB entry for an InstantSend Lock from being not included in a block to being included in a block
      * @param hash The hash of the InstantSend Lock
      * @param nHeight The height that the transaction was included at
      */
-    void WriteInstantSendLockMined(const uint256& hash, int nHeight);
+    void WriteInstantSendLockMined(const uint256& hash, int nHeight) LOCKS_EXCLUDED(cs_db);
     /**
      * Archives and deletes all IS Locks which were mined into a block before nUntilHeight
      * @param nUntilHeight Removes all IS Locks confirmed up until nUntilHeight
      * @return returns an unordered_map of the hash of the IS Locks and a pointer object to the IS Locks for all IS Locks which were removed
      */
-    std::unordered_map<uint256, CInstantSendLockPtr, StaticSaltedHasher> RemoveConfirmedInstantSendLocks(int nUntilHeight);
+    std::unordered_map<uint256, CInstantSendLockPtr, StaticSaltedHasher> RemoveConfirmedInstantSendLocks(int nUntilHeight) LOCKS_EXCLUDED(cs_db);
     /**
      * Removes IS Locks from the archive if the tx was confirmed 100 blocks before nUntilHeight
      * @param nUntilHeight the height from which to base the remove of archive IS Locks
      */
-    void RemoveArchivedInstantSendLocks(int nUntilHeight);
-    void WriteBlockInstantSendLocks(const std::shared_ptr<const CBlock>& pblock, const CBlockIndex* pindexConnected);
-    void RemoveBlockInstantSendLocks(const std::shared_ptr<const CBlock>& pblock, const CBlockIndex* pindexDisconnected);
-    bool KnownInstantSendLock(const uint256& islockHash) const;
+    void RemoveArchivedInstantSendLocks(int nUntilHeight) LOCKS_EXCLUDED(cs_db);
+    void WriteBlockInstantSendLocks(const std::shared_ptr<const CBlock>& pblock, const CBlockIndex* pindexConnected) LOCKS_EXCLUDED(cs_db);
+    void RemoveBlockInstantSendLocks(const std::shared_ptr<const CBlock>& pblock, const CBlockIndex* pindexDisconnected) LOCKS_EXCLUDED(cs_db);
+    bool KnownInstantSendLock(const uint256& islockHash) const LOCKS_EXCLUDED(cs_db);
     /**
      * Gets the number of IS Locks which have not been confirmed by a block
      * @return size_t value of the number of IS Locks not confirmed by a block
      */
-    size_t GetInstantSendLockCount() const;
+    size_t GetInstantSendLockCount() const LOCKS_EXCLUDED(cs_db);
     /**
      * Gets a pointer to the IS Lock based on the hash
      * @param hash The hash of the IS Lock
      * @param use_cache Should we try using the cache first or not
      * @return A Pointer object to the IS Lock, returns nullptr if it doesn't exist
      */
-    CInstantSendLockPtr GetInstantSendLockByHash(const uint256& hash, bool use_cache = true) const;
+    CInstantSendLockPtr GetInstantSendLockByHash(const uint256& hash, bool use_cache = true) const LOCKS_EXCLUDED(cs_db)
+    {
+        LOCK(cs_db);
+        return GetInstantSendLockByHashInternal(hash, use_cache);
+    };
     /**
      * Gets an IS Lock hash based on the txid the IS Lock is for
      * @param txid The txid which is being searched for
      * @return Returns the hash the IS Lock of the specified txid, returns uint256() if it doesn't exist
      */
-    uint256 GetInstantSendLockHashByTxid(const uint256& txid) const;
+    uint256 GetInstantSendLockHashByTxid(const uint256& txid) const LOCKS_EXCLUDED(cs_db)
+    {
+        LOCK(cs_db);
+        return GetInstantSendLockHashByTxidInternal(txid);
+    };
     /**
      * Gets an IS Lock pointer from the txid given
      * @param txid The txid for which the IS Lock Pointer is being returned
      * @return Returns the IS Lock Pointer associated with the txid, returns nullptr if it doesn't exist
      */
-    CInstantSendLockPtr GetInstantSendLockByTxid(const uint256& txid) const;
+    CInstantSendLockPtr GetInstantSendLockByTxid(const uint256& txid) const LOCKS_EXCLUDED(cs_db);
     /**
      * Gets an IS Lock pointer from an input given
      * @param outpoint Since all inputs are really just outpoints that are being spent
      * @return IS Lock Pointer associated with that input.
      */
-    CInstantSendLockPtr GetInstantSendLockByInput(const COutPoint& outpoint) const;
+    CInstantSendLockPtr GetInstantSendLockByInput(const COutPoint& outpoint) const LOCKS_EXCLUDED(cs_db);
     /**
      * Called when a ChainLock invalidated a IS Lock, removes any chained/children IS Locks and the invalidated IS Lock
      * @param islockHash IS Lock hash which has been invalidated
@@ -165,9 +184,9 @@ public:
      * @param nHeight height of the block which received a chainlock and invalidated the IS Lock
      * @return A vector of IS Lock hashes of all IS Locks removed
      */
-    std::vector<uint256> RemoveChainedInstantSendLocks(const uint256& islockHash, const uint256& txid, int nHeight);
+    std::vector<uint256> RemoveChainedInstantSendLocks(const uint256& islockHash, const uint256& txid, int nHeight) LOCKS_EXCLUDED(cs_db);
 
-    void RemoveAndArchiveInstantSendLock(const CInstantSendLockPtr& islock, int nHeight);
+    void RemoveAndArchiveInstantSendLock(const CInstantSendLockPtr& islock, int nHeight) LOCKS_EXCLUDED(cs_db);
 };
 
 class CInstantSendManager : public CRecoveredSigsListener
@@ -273,7 +292,6 @@ public:
     bool AlreadyHave(const CInv& inv) const;
     bool GetInstantSendLockByHash(const uint256& hash, CInstantSendLock& ret) const;
     CInstantSendLockPtr GetInstantSendLockByTxid(const uint256& txid) const;
-    bool GetInstantSendLockHashByTxid(const uint256& txid, uint256& ret) const;
 
     void NotifyChainLock(const CBlockIndex* pindexChainLock);
     void UpdatedBlockTip(const CBlockIndex* pindexNew);
