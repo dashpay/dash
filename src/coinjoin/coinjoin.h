@@ -344,14 +344,14 @@ protected:
     // The current mixing sessions in progress on the network
     std::vector<CCoinJoinQueue> vecCoinJoinQueue GUARDED_BY(cs_vecqueue);
 
-    void SetNull();
-    void CheckQueue();
+    void SetNull() LOCKS_EXCLUDED(cs_vecqueue);
+    void CheckQueue() LOCKS_EXCLUDED(cs_vecqueue);
 
 public:
     CCoinJoinBaseManager() = default;
 
-    int GetQueueSize() const { LOCK(cs_vecqueue); return vecCoinJoinQueue.size(); }
-    bool GetQueueItemAndTry(CCoinJoinQueue& dsqRet);
+    int GetQueueSize() const LOCKS_EXCLUDED(cs_vecqueue) { LOCK(cs_vecqueue); return vecCoinJoinQueue.size(); }
+    bool GetQueueItemAndTry(CCoinJoinQueue& dsqRet) LOCKS_EXCLUDED(cs_vecqueue);
 };
 
 // helper class

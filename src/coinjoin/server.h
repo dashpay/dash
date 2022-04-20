@@ -45,7 +45,7 @@ private:
 
     /// Is this nDenom and txCollateral acceptable?
     bool IsAcceptableDSA(const CCoinJoinAccept& dsa, PoolMessage& nMessageIDRet) const;
-    bool CreateNewSession(const CCoinJoinAccept& dsa, PoolMessage& nMessageIDRet, CConnman& connman);
+    bool CreateNewSession(const CCoinJoinAccept& dsa, PoolMessage& nMessageIDRet, CConnman& connman) LOCKS_EXCLUDED(cs_vecqueue);
     bool AddUserToExistingSession(const CCoinJoinAccept& dsa, PoolMessage& nMessageIDRet);
     /// Do we have enough users to take entries?
     bool IsSessionReady() const;
@@ -64,10 +64,10 @@ private:
     void RelayStatus(PoolStatusUpdate nStatusUpdate, CConnman& connman, PoolMessage nMessageID = MSG_NOERR) EXCLUSIVE_LOCKS_REQUIRED(cs_coinjoin);
     void RelayCompletedTransaction(PoolMessage nMessageID, CConnman& connman) LOCKS_EXCLUDED(cs_coinjoin);
 
-    void ProcessDSACCEPT(CNode* pfrom, const std::string& msg_type, CDataStream& vRecv, CConnman& connman, bool enable_bip61);
-    void ProcessDSQUEUE(CNode* pfrom, const std::string& msg_type, CDataStream& vRecv, CConnman& connman, bool enable_bip61);
-    void ProcessDSVIN(CNode* pfrom, const std::string& msg_type, CDataStream& vRecv, CConnman& connman, bool enable_bip61);
-    void ProcessDSSIGNFINALTX(CNode* pfrom, const std::string& msg_type, CDataStream& vRecv, CConnman& connman, bool enable_bip61);
+    void ProcessDSACCEPT(CNode* pfrom, const std::string& msg_type, CDataStream& vRecv, CConnman& connman, bool enable_bip61) LOCKS_EXCLUDED(cs_vecqueue);
+    void ProcessDSQUEUE(CNode* pfrom, const std::string& msg_type, CDataStream& vRecv, CConnman& connman, bool enable_bip61) LOCKS_EXCLUDED(cs_vecqueue);
+    void ProcessDSVIN(CNode* pfrom, const std::string& msg_type, CDataStream& vRecv, CConnman& connman, bool enable_bip61) LOCKS_EXCLUDED(cs_coinjoin);
+    void ProcessDSSIGNFINALTX(CNode* pfrom, const std::string& msg_type, CDataStream& vRecv, CConnman& connman, bool enable_bip61) LOCKS_EXCLUDED(cs_coinjoin);
 
     void SetNull();
 
