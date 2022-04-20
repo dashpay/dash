@@ -760,7 +760,7 @@ static UniValue getnodeaddresses(const JSONRPCRequest& request)
             + HelpExampleRpc("getnodeaddresses", "8")
                 },
             }.Check(request);
-    if (!g_connman) {
+    if (!g_rpc_node->connman) {
         throw JSONRPCError(RPC_CLIENT_P2P_DISABLED, "Error: Peer-to-peer functionality missing or disabled");
     }
 

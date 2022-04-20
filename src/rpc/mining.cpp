@@ -219,7 +219,11 @@ static UniValue generatetodescriptor(const JSONRPCRequest& request)
             {"maxtries", RPCArg::Type::NUM, /* default */ "1000000", "How many iterations to try."},
         },
         RPCResult{
-            "[ blockhashes ]     (array) hashes of blocks generated\n"},
+            RPCResult::Type::ARR, "", "",
+                {
+                        {RPCResult::Type::STR_HEX, "blockhashes", "hashes of blocks generated"},
+                }
+        },
         RPCExamples{
             "\nGenerate 11 blocks to mydesc\n" + HelpExampleCli("generatetodescriptor", "11 \"mydesc\"")},
     }
