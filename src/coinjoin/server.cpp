@@ -4,20 +4,21 @@
 
 #include <coinjoin/server.h>
 
-#include <masternode/node.h>
-#include <evo/deterministicmns.h>
 #include <consensus/validation.h>
 #include <core_io.h>
+#include <evo/deterministicmns.h>
 #include <masternode/meta.h>
+#include <masternode/node.h>
 #include <masternode/sync.h>
 #include <net_processing.h>
 #include <netmessagemaker.h>
 #include <script/interpreter.h>
 #include <shutdown.h>
 #include <txmempool.h>
+#include <util/irange.h>
+#include <util/moneystr.h>
 #include <util/ranges.h>
 #include <util/system.h>
-#include <util/moneystr.h>
 #include <validation.h>
 #include <version.h>
 
@@ -272,7 +273,7 @@ void CCoinJoinServer::CreateFinalTransaction(CConnman& connman)
     CMutableTransaction txNew;
 
     // make our new transaction
-    for (int i = 0; i < GetEntriesCountLocked(); i++) {
+    for (const auto i : irange::range(GetEntriesCountLocked())) {
         for (const auto& txout : vecEntries[i].vecTxOut) {
             txNew.vout.push_back(txout);
         }
@@ -632,7 +633,7 @@ bool CCoinJoinServer::AddScriptSig(const CTxIn& txinNew)
             LogPrint(BCLog::COINJOIN, "CCoinJoinServer::AddScriptSig -- adding to finalMutableTransaction, scriptSig=%s\n", ScriptToAsmStr(txinNew.scriptSig).substr(0, 24));
         }
     }
-    for (int i = 0; i < GetEntriesCountLocked(); i++) {
+    for (const auto i : irange::range(GetEntriesCountLocked())) {
         if (vecEntries[i].AddScriptSig(txinNew)) {
             LogPrint(BCLog::COINJOIN, "CCoinJoinServer::AddScriptSig -- adding to entries, scriptSig=%s\n", ScriptToAsmStr(txinNew.scriptSig).substr(0, 24));
             return true;
