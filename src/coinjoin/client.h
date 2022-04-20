@@ -115,7 +115,7 @@ private:
 
     void RelayIn(const CCoinJoinEntry& entry, CConnman& connman) const;
 
-    void SetNull();
+    void SetNull() EXCLUSIVE_LOCKS_REQUIRED(cs_coinjoin);
 
 public:
     explicit CCoinJoinClientSession(CWallet& pwallet) :
@@ -127,7 +127,7 @@ public:
 
     void UnlockCoins();
 
-    void ResetPool();
+    void ResetPool() LOCKS_EXCLUDED(cs_coinjoin);
 
     bilingual_str GetStatus(bool fWaitForBlock) const;
 

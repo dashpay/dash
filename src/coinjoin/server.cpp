@@ -219,6 +219,7 @@ void CCoinJoinServer::ProcessDSSIGNFINALTX(CNode* pfrom, const std::string& msg_
 
 void CCoinJoinServer::SetNull()
 {
+    AssertLockHeld(cs_coinjoin);
     // MN side
     vecSessionCollaterals.clear();
 
@@ -308,7 +309,7 @@ void CCoinJoinServer::CommitFinalTransaction(CConnman& connman)
         mempool.PrioritiseTransaction(hashTx, 0.1 * COIN);
         if (!lockMain || !AcceptToMemoryPool(mempool, validationState, finalTransaction, nullptr /* pfMissingInputs */, false /* bypass_limits */, DEFAULT_MAX_RAW_TX_FEE /* nAbsurdFee */)) {
             LogPrint(BCLog::COINJOIN, "CCoinJoinServer::CommitFinalTransaction -- AcceptToMemoryPool() error: Transaction not valid\n");
-            SetNull();
+            WITH_LOCK(cs_coinjoin, SetNull());
             // not much we can do in this case, just notify clients
             RelayCompletedTransaction(ERR_INVALID_TX, connman);
             return;
@@ -337,7 +338,7 @@ void CCoinJoinServer::CommitFinalTransaction(CConnman& connman)
 
     // Reset
     LogPrint(BCLog::COINJOIN, "CCoinJoinServer::CommitFinalTransaction -- COMPLETED -- RESETTING\n");
-    SetNull();
+    WITH_LOCK(cs_coinjoin, SetNull());
 }
 
 //
@@ -470,7 +471,7 @@ void CCoinJoinServer::CheckTimeout(CConnman& connman)
     LogPrint(BCLog::COINJOIN, "CCoinJoinServer::CheckTimeout -- %s timed out -- resetting\n",
         (nState == POOL_STATE_SIGNING) ? "Signing" : "Session");
     ChargeFees(connman);
-    SetNull();
+    WITH_LOCK(cs_coinjoin, SetNull());
 }
 
 /*

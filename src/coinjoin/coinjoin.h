@@ -319,7 +319,7 @@ protected:
 
     CMutableTransaction finalMutableTransaction GUARDED_BY(cs_coinjoin); // the finalized transaction ready for signing
 
-    void SetNull() LOCKS_EXCLUDED(cs_coinjoin);
+    void SetNull() EXCLUSIVE_LOCKS_REQUIRED(cs_coinjoin);
 
     bool IsValidInOuts(const std::vector<CTxIn>& vin, const std::vector<CTxOut>& vout, PoolMessage& nMessageIDRet, bool* fConsumeCollateralRet) const EXCLUSIVE_LOCKS_REQUIRED(cs_main);
 

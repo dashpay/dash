@@ -217,7 +217,7 @@ void CCoinJoinClientSession::ResetPool()
     txMyCollateral = CMutableTransaction();
     UnlockCoins();
     keyHolderStorage.ReturnAll();
-    SetNull();
+    WITH_LOCK(cs_coinjoin, SetNull());
 }
 
 void CCoinJoinClientManager::ResetPool()
@@ -234,6 +234,7 @@ void CCoinJoinClientManager::ResetPool()
 
 void CCoinJoinClientSession::SetNull()
 {
+    AssertLockHeld(cs_coinjoin);
     // Client side
     mixingMasternode = nullptr;
     pendingDsaRequest = CPendingDsaRequest();
@@ -360,7 +361,7 @@ bool CCoinJoinClientSession::CheckTimeout()
         if (GetTime() - nTimeLastSuccessfulStep >= 10) {
             // reset after being in POOL_STATE_ERROR for 10 or more seconds
             LogPrint(BCLog::COINJOIN, "CCoinJoinClientSession::%s -- resetting session %d\n", __func__, nSessionID);
-            SetNull();
+            WITH_LOCK(cs_coinjoin, SetNull());
         }
         return false;
     }
@@ -422,14 +423,14 @@ bool CCoinJoinClientSession::SendDenominate(const std::vector<std::pair<CTxDSIn,
         LogPrint(BCLog::COINJOIN, "CCoinJoinClientSession::SendDenominate -- No Masternode has been selected yet.\n");
         UnlockCoins();
         keyHolderStorage.ReturnAll();
-        SetNull();
+        WITH_LOCK(cs_coinjoin, SetNull());
         return false;
     }
 
     if (!CheckDiskSpace(GetDataDir())) {
         UnlockCoins();
         keyHolderStorage.ReturnAll();
-        SetNull();
+        WITH_LOCK(cs_coinjoin, SetNull());
         LogPrint(BCLog::COINJOIN, "CCoinJoinClientSession::SendDenominate -- Not enough disk space.\n");
         return false;
     }
@@ -642,7 +643,7 @@ void CCoinJoinClientSession::CompletedTransaction(PoolMessage nMessageID)
         keyHolderStorage.ReturnAll();
     }
     UnlockCoins();
-    SetNull();
+    WITH_LOCK(cs_coinjoin, SetNull());
     strLastMessage = CCoinJoin::GetMessageByID(nMessageID);
 }
 
@@ -1161,7 +1162,7 @@ bool CCoinJoinClientSession::ProcessPendingDsaRequest(CConnman& connman)
         pendingDsaRequest = CPendingDsaRequest();
     } else if (pendingDsaRequest.IsExpired()) {
         LogPrint(BCLog::COINJOIN, "CCoinJoinClientSession::%s -- failed to connect to %s\n", __func__, pendingDsaRequest.GetAddr().ToString());
-        SetNull();
+        WITH_LOCK(cs_coinjoin, SetNull());
     }
 
     return fDone;
