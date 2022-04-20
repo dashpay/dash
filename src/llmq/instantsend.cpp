@@ -887,24 +887,23 @@ bool CInstantSendManager::ProcessPendingInstantSendLocks(bool deterministic)
         std::vector<uint256> removed;
         removed.reserve(maxCount);
 
-        for (auto& [uint256_key, nodeid_islptr_pair] : pendingInstantSendLocks) {
-            const auto& [nodeId, islock_ptr] = nodeid_islptr_pair;
+        for (const auto& [islockHash, nodeid_islptr_pair] : pendingInstantSendLocks) {
+            const auto& [_, islock_ptr] = nodeid_islptr_pair;
             // Check if we've reached max count
             if (pend.size() >= maxCount) {
                 fMoreWork = true;
                 break;
             }
-            // Check if we care about this islock on this run, if so, move it to pend, otherwise just continue
-            if (islock_ptr->IsDeterministic() == deterministic) {
-                pend.emplace(uint256_key, std::move(nodeid_islptr_pair));
-                removed.emplace_back(uint256_key);
-            } else {
+            // Check if we care about this islock on this run
+            if (islock_ptr->IsDeterministic() != deterministic) {
                 continue;
             }
+            pend.emplace(islockHash, std::move(nodeid_islptr_pair));
+            removed.emplace_back(islockHash);
         }
 
-        for (auto& rem : removed) {
-            pendingInstantSendLocks.erase(rem);
+        for (const auto& islockHash : removed) {
+            pendingInstantSendLocks.erase(islockHash);
         }
     }
 
