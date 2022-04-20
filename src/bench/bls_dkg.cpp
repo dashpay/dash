@@ -28,8 +28,8 @@ private:
     void ReceiveVvecs()
     {
         receivedVvecs.clear();
-        for (const size_t i : irange::range(members.size())) {
-            receivedVvecs.emplace_back(members[i].vvec);
+        for (const auto& member : members) {
+            receivedVvecs.emplace_back(member.vvec);
         }
         quorumVvec = blsWorker.BuildQuorumVerificationVector(receivedVvecs);
     }
@@ -37,8 +37,8 @@ private:
     void ReceiveShares(size_t whoAmI)
     {
         receivedSkShares.clear();
-        for (const size_t i : irange::range(members.size())) {
-            receivedSkShares.emplace_back(members[i].skShares[whoAmI]);
+        for (const auto& member : members) {
+            receivedSkShares.emplace_back(member.skShares[whoAmI]);
         }
     }
 
@@ -68,8 +68,8 @@ public:
         }
 
         blsWorker.Start();
-        for (const int i : irange::range(quorumSize)) {
-            blsWorker.GenerateContributions(quorumSize / 2 + 1, ids, members[i].vvec, members[i].skShares);
+        for (auto& member : members) {
+            blsWorker.GenerateContributions(quorumSize / 2 + 1, ids, member.vvec, member.skShares);
         }
     }
     ~DKG()
@@ -120,8 +120,8 @@ static void BLSDKG_GenerateContributions(benchmark::Bench& bench, uint32_t epoch
         ids.emplace_back(id);
     }
     bench.minEpochIterations(epoch_iters).run([&blsWorker, &quorumSize, &ids, &members] {
-        for (const int i : irange::range(quorumSize)) {
-            blsWorker.GenerateContributions(quorumSize / 2 + 1, ids, members[i].vvec, members[i].skShares);
+        for (auto& member : members) {
+            blsWorker.GenerateContributions(quorumSize / 2 + 1, ids, member.vvec, member.skShares);
         }
     });
     blsWorker.Stop();

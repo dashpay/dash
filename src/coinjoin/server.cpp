@@ -15,7 +15,6 @@
 #include <script/interpreter.h>
 #include <shutdown.h>
 #include <txmempool.h>
-#include <util/irange.h>
 #include <util/moneystr.h>
 #include <util/ranges.h>
 #include <util/system.h>
@@ -273,11 +272,11 @@ void CCoinJoinServer::CreateFinalTransaction(CConnman& connman)
     CMutableTransaction txNew;
 
     // make our new transaction
-    for (const auto i : irange::range(GetEntriesCountLocked())) {
-        for (const auto& txout : vecEntries[i].vecTxOut) {
+    for (const auto& entry : vecEntries) {
+        for (const auto& txout : entry.vecTxOut) {
             txNew.vout.push_back(txout);
         }
-        for (const auto& txdsin : vecEntries[i].vecTxDSIn) {
+        for (const auto& txdsin : entry.vecTxDSIn) {
             txNew.vin.push_back(txdsin);
         }
     }
@@ -633,8 +632,8 @@ bool CCoinJoinServer::AddScriptSig(const CTxIn& txinNew)
             LogPrint(BCLog::COINJOIN, "CCoinJoinServer::AddScriptSig -- adding to finalMutableTransaction, scriptSig=%s\n", ScriptToAsmStr(txinNew.scriptSig).substr(0, 24));
         }
     }
-    for (const auto i : irange::range(GetEntriesCountLocked())) {
-        if (vecEntries[i].AddScriptSig(txinNew)) {
+    for (auto& entry : vecEntries) {
+        if (entry.AddScriptSig(txinNew)) {
             LogPrint(BCLog::COINJOIN, "CCoinJoinServer::AddScriptSig -- adding to entries, scriptSig=%s\n", ScriptToAsmStr(txinNew.scriptSig).substr(0, 24));
             return true;
         }
