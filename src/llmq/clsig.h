@@ -27,7 +27,8 @@ public:
         READWRITE(obj.nHeight, obj.blockHash, obj.sig);
     }
 
-    bool IsNull() const {
+    bool IsNull() const
+    {
         return nHeight == -1 && blockHash == uint256();
     }
     std::string ToString() const;
