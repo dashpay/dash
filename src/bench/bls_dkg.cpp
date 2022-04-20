@@ -94,7 +94,7 @@ public:
             ReceiveShares(memberIdx);
 
             std::set<size_t> invalidIndexes;
-            for (const int _ : irange::range(invalidCount)) {
+            for ([[maybe_unused]] const auto _ : irange::range(invalidCount)) {
                 int shareIdx = GetRandInt(receivedSkShares.size());
                 receivedSkShares[shareIdx].MakeNewKey();
                 invalidIndexes.emplace(shareIdx);

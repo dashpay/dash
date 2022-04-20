@@ -494,7 +494,7 @@ void CDKGSession::SendComplaint(CDKGPendingMessages& pendingMessages)
 
     int badCount = 0;
     int complaintCount = 0;
-    for (const auto i : irange::range(members.size()); i++) {
+    for (const auto i : irange::range(members.size())) {
         const auto& m = members[i];
         if (m->bad || m->badConnection) {
             qc.badMembers[i] = true;
