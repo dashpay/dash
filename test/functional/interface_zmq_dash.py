@@ -52,6 +52,21 @@ class ZMQPublisher(Enum):
     raw_recovered_sig = "rawrecoveredsig"
 
 
+class ZMQSubscriber:
+    def __init__(self, socket, topic):
+        self.socket = socket
+        self.topic = topic
+
+        import zmq
+        self.socket.setsockopt(zmq.SUBSCRIBE, self.topic)
+
+    def receive(self, flags=0):
+        topic, body, seq = self.socket.recv_multipart(flags)
+        # Topic should match the subscriber topic.
+        assert_equal(topic, self.topic)
+        return io.BytesIO(body)
+
+
 class TestP2PConn(P2PInterface):
     def __init__(self):
         super().__init__()
@@ -97,16 +112,15 @@ class DashZMQTest (DashTestFramework):
         self.skip_if_no_wallet()
 
     def run_test(self):
+        self.subscribers = {}
         # Check that dashd has been built with ZMQ enabled.
         config = configparser.ConfigParser()
         config.read_file(open(self.options.configfile))
         import zmq
 
         try:
-            # Setup the ZMQ subscriber socket
+            # Setup the ZMQ subscriber context
             self.zmq_context = zmq.Context()
-            self.socket = self.zmq_context.socket(zmq.SUB)
-            self.socket.connect(self.address)
             # Initialize the network
             self.activate_dip8()
             self.nodes[0].spork("SPORK_17_QUORUM_DKG_ENABLED", 0)
@@ -131,21 +145,19 @@ class DashZMQTest (DashTestFramework):
             self.zmq_context.destroy(linger=None)
 
     def subscribe(self, publishers):
+        import zmq
+        # Setup the ZMQ subscriber socket
+        socket = self.zmq_context.socket(zmq.SUB)
+        socket.set(zmq.RCVTIMEO, 60000)
+        socket.connect(self.address)
         # Subscribe to a list of ZMQPublishers
         for pub in publishers:
-            self.socket.subscribe(pub.value)
+            self.subscribers[pub] = ZMQSubscriber(socket, pub.value.encode())
 
     def unsubscribe(self, publishers):
         # Unsubscribe from a list of ZMQPublishers
         for pub in publishers:
-            self.socket.unsubscribe(pub.value)
-
-    def receive(self, publisher, flags=0):
-        # Receive a ZMQ message and validate it's sent from the correct ZMQPublisher
-        topic, body, seq = self.socket.recv_multipart(flags)
-        # Topic should match the publisher value
-        assert_equal(topic.decode(), publisher.value)
-        return io.BytesIO(body)
+            del self.subscribers[pub]
 
     def test_recovered_signature_publishers(self):
 
@@ -153,11 +165,11 @@ class DashZMQTest (DashTestFramework):
             # Make sure the recovered sig exists by RPC
             rpc_recovered_sig = self.get_recovered_sig(request_id, msg_hash)
             # Validate hashrecoveredsig
-            zmq_recovered_sig_hash = self.receive(ZMQPublisher.hash_recovered_sig).read(32).hex()
+            zmq_recovered_sig_hash = self.subscribers[ZMQPublisher.hash_recovered_sig].receive().read(32).hex()
             assert_equal(zmq_recovered_sig_hash, msg_hash)
             # Validate rawrecoveredsig
             zmq_recovered_sig_raw = CRecoveredSig()
-            zmq_recovered_sig_raw.deserialize(self.receive(ZMQPublisher.raw_recovered_sig))
+            zmq_recovered_sig_raw.deserialize(self.subscribers[ZMQPublisher.raw_recovered_sig].receive())
             assert_equal(zmq_recovered_sig_raw.llmqType, rpc_recovered_sig['llmqType'])
             assert_equal(uint256_to_string(zmq_recovered_sig_raw.quorumHash), rpc_recovered_sig['quorumHash'])
             assert_equal(uint256_to_string(zmq_recovered_sig_raw.id), rpc_recovered_sig['id'])
@@ -207,15 +219,15 @@ class DashZMQTest (DashTestFramework):
         rpc_chain_lock_hash = rpc_chain_locked_block["hash"]
         assert_equal(generated_hash, rpc_chain_lock_hash)
         # Validate hashchainlock
-        zmq_chain_lock_hash = self.receive(ZMQPublisher.hash_chain_lock).read(32).hex()
+        zmq_chain_lock_hash = self.subscribers[ZMQPublisher.hash_chain_lock].receive().read(32).hex()
         assert_equal(zmq_chain_lock_hash, rpc_best_chain_lock_hash)
         # Validate rawchainlock
         zmq_chain_locked_block = CBlock()
-        zmq_chain_locked_block.deserialize(self.receive(ZMQPublisher.raw_chain_lock))
+        zmq_chain_locked_block.deserialize(self.subscribers[ZMQPublisher.raw_chain_lock].receive())
         assert zmq_chain_locked_block.is_valid()
         assert_equal(zmq_chain_locked_block.hash, rpc_chain_lock_hash)
         # Validate rawchainlocksig
-        zmq_chain_lock_sig_stream = self.receive(ZMQPublisher.raw_chain_lock_sig)
+        zmq_chain_lock_sig_stream = self.subscribers[ZMQPublisher.raw_chain_lock_sig].receive()
         zmq_chain_locked_block = CBlock()
         zmq_chain_locked_block.deserialize(zmq_chain_lock_sig_stream)
         assert zmq_chain_locked_block.is_valid()
@@ -251,15 +263,15 @@ class DashZMQTest (DashTestFramework):
         rpc_raw_tx_1_hash = self.nodes[0].sendrawtransaction(rpc_raw_tx_1['hex'])
         self.wait_for_instantlock(rpc_raw_tx_1_hash, self.nodes[0])
         # Validate hashtxlock
-        zmq_tx_lock_hash = self.receive(ZMQPublisher.hash_tx_lock).read(32).hex()
+        zmq_tx_lock_hash = self.subscribers[ZMQPublisher.hash_tx_lock].receive().read(32).hex()
         assert_equal(zmq_tx_lock_hash, rpc_raw_tx_1['txid'])
         # Validate rawtxlock
         zmq_tx_lock_raw = CTransaction()
-        zmq_tx_lock_raw.deserialize(self.receive(ZMQPublisher.raw_tx_lock))
+        zmq_tx_lock_raw.deserialize(self.subscribers[ZMQPublisher.raw_tx_lock].receive())
         assert zmq_tx_lock_raw.is_valid()
         assert_equal(zmq_tx_lock_raw.hash, rpc_raw_tx_1['txid'])
         # Validate rawtxlocksig
-        zmq_tx_lock_sig_stream = self.receive(ZMQPublisher.raw_tx_lock_sig)
+        zmq_tx_lock_sig_stream = self.subscribers[ZMQPublisher.raw_tx_lock_sig].receive()
         zmq_tx_lock_tx = CTransaction()
         zmq_tx_lock_tx.deserialize(zmq_tx_lock_sig_stream)
         assert zmq_tx_lock_tx.is_valid()
@@ -271,17 +283,17 @@ class DashZMQTest (DashTestFramework):
         # which already got the InstantSend lock.
         assert_raises_rpc_error(-26, "tx-txlock-conflict", self.nodes[0].sendrawtransaction, rpc_raw_tx_2['hex'])
         # Validate hashinstantsenddoublespend
-        zmq_double_spend_hash2 = self.receive(ZMQPublisher.hash_instantsend_doublespend).read(32).hex()
-        zmq_double_spend_hash1 = self.receive(ZMQPublisher.hash_instantsend_doublespend).read(32).hex()
+        zmq_double_spend_hash2 = self.subscribers[ZMQPublisher.hash_instantsend_doublespend].receive().read(32).hex()
+        zmq_double_spend_hash1 = self.subscribers[ZMQPublisher.hash_instantsend_doublespend].receive().read(32).hex()
         assert_equal(zmq_double_spend_hash2, rpc_raw_tx_2['txid'])
         assert_equal(zmq_double_spend_hash1, rpc_raw_tx_1['txid'])
         # Validate rawinstantsenddoublespend
         zmq_double_spend_tx_2 = CTransaction()
-        zmq_double_spend_tx_2.deserialize(self.receive(ZMQPublisher.raw_instantsend_doublespend))
+        zmq_double_spend_tx_2.deserialize(self.subscribers[ZMQPublisher.raw_instantsend_doublespend].receive())
         assert zmq_double_spend_tx_2.is_valid()
         assert_equal(zmq_double_spend_tx_2.hash, rpc_raw_tx_2['txid'])
         zmq_double_spend_tx_1 = CTransaction()
-        zmq_double_spend_tx_1.deserialize(self.receive(ZMQPublisher.raw_instantsend_doublespend))
+        zmq_double_spend_tx_1.deserialize(self.subscribers[ZMQPublisher.raw_instantsend_doublespend].receive())
         assert zmq_double_spend_tx_1.is_valid()
         assert_equal(zmq_double_spend_tx_1.hash, rpc_raw_tx_1['txid'])
         # No islock notifications when tx is not received yet
@@ -292,7 +304,7 @@ class DashZMQTest (DashTestFramework):
         # Validate NO hashtxlock
         time.sleep(1)
         try:
-            self.receive(ZMQPublisher.hash_tx_lock, zmq.NOBLOCK)
+            self.subscribers[ZMQPublisher.hash_tx_lock].receive(zmq.NOBLOCK)
             assert False
         except zmq.ZMQError:
             # this is expected
@@ -301,7 +313,7 @@ class DashZMQTest (DashTestFramework):
         self.test_node.send_tx(FromHex(msg_tx(), rpc_raw_tx_3['hex']))
         self.wait_for_instantlock(rpc_raw_tx_3['txid'], self.nodes[0])
         # Validate hashtxlock
-        zmq_tx_lock_hash = self.receive(ZMQPublisher.hash_tx_lock).read(32).hex()
+        zmq_tx_lock_hash = self.subscribers[ZMQPublisher.hash_tx_lock].receive().read(32).hex()
         assert_equal(zmq_tx_lock_hash, rpc_raw_tx_3['txid'])
         # Drop test node connection
         self.nodes[0].disconnect_p2ps()
@@ -337,10 +349,11 @@ class DashZMQTest (DashTestFramework):
         self.sync_blocks()
         rpc_proposal_hash = self.nodes[0].gobject("submit", "0", proposal_rev, proposal_time, proposal_hex, collateral)
         # Validate hashgovernanceobject
-        zmq_governance_object_hash = self.receive(ZMQPublisher.hash_governance_object).read(32).hex()
+        zmq_governance_object_hash = self.subscribers[ZMQPublisher.hash_governance_object].receive().read(32).hex()
         assert_equal(zmq_governance_object_hash, rpc_proposal_hash)
+        # Validate rawgovernanceobject
         zmq_governance_object_raw = CGovernanceObject()
-        zmq_governance_object_raw.deserialize(self.receive(ZMQPublisher.raw_governance_object))
+        zmq_governance_object_raw.deserialize(self.subscribers[ZMQPublisher.raw_governance_object].receive())
         assert_equal(zmq_governance_object_raw.nHashParent, 0)
         assert_equal(zmq_governance_object_raw.nRevision, proposal_rev)
         assert_equal(zmq_governance_object_raw.nTime, proposal_time)
@@ -365,11 +378,11 @@ class DashZMQTest (DashTestFramework):
         self.nodes[0].gobject("vote-many", rpc_proposal_hash, map_vote_signals[1], map_vote_outcomes[1])
         rpc_proposal_votes = self.nodes[0].gobject('getcurrentvotes', rpc_proposal_hash)
         # Validate hashgovernancevote
-        zmq_governance_vote_hash = self.receive(ZMQPublisher.hash_governance_vote).read(32).hex()
+        zmq_governance_vote_hash = self.subscribers[ZMQPublisher.hash_governance_vote].receive().read(32).hex()
         assert zmq_governance_vote_hash in rpc_proposal_votes
         # Validate rawgovernancevote
         zmq_governance_vote_raw = CGovernanceVote()
-        zmq_governance_vote_raw.deserialize(self.receive(ZMQPublisher.raw_governance_vote))
+        zmq_governance_vote_raw.deserialize(self.subscribers[ZMQPublisher.raw_governance_vote].receive())
         assert_equal(uint256_to_string(zmq_governance_vote_raw.nParentHash), rpc_proposal_hash)
         rpc_vote_parts = rpc_proposal_votes[zmq_governance_vote_hash].split(':')
         rpc_outpoint_parts = rpc_vote_parts[0].split('-')
