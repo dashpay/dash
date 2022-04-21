@@ -587,10 +587,20 @@ std::set<uint256> CLLMQUtils::GetQuorumRelayMembers(const Consensus::LLMQParams&
     std::set<uint256> result;
 
     auto calcOutbound = [&](size_t i, const uint256& proTxHash) {
+        // Handle edge cases
+        std::set<uint256> r;
+        if (mns.size() == 1) {
+            return r;
+        }
+        if (mns.size() == 2) {
+            if (mns[0]->proTxHash == proTxHash) {
+                r.emplace(mns[1]->proTxHash);
+            }
+            return r;
+        }
         // Relay to nodes at indexes (i+2^k)%n, where
         //   k: 0..max(1, floor(log2(n-1))-1)
         //   n: size of the quorum/ring
-        std::set<uint256> r;
         int gap = 1;
         int gap_max = (int)mns.size() - 1;
         int k = 0;
