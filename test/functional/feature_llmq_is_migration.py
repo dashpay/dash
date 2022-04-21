@@ -91,7 +91,7 @@ class LLMQISMigrationTest(DashTestFramework):
         self.move_to_next_cycle()
         self.log.info("Cycle H+2C height:" + str(self.nodes[0].getblockcount()))
 
-        (quorum_info_0_0, quorum_info_0_1) = self.mine_cycle_quorum("llmq_test_dip0024", 103)
+        (quorum_info_0_0, quorum_info_0_1) = self.mine_cycle_quorum()
 
         q_list = self.nodes[0].quorum("list")
         self.log.info(q_list)
