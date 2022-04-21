@@ -28,6 +28,7 @@ from test_framework.messages import (
     msg_clsig,
     msg_inv,
     msg_isdlock,
+    msg_islock,
     msg_tx,
     ser_string,
     uint256_from_str,
@@ -73,18 +74,18 @@ class TestP2PConn(P2PInterface):
         self.islocks = {}
         self.txes = {}
 
-    def send_islock(self, islock):
+    def send_islock(self, islock, deterministic):
         hash = uint256_from_str(hash256(islock.serialize()))
         self.islocks[hash] = islock
 
-        inv = msg_inv([CInv(30, hash)])
+        inv = msg_inv([CInv(31 if deterministic else 30, hash)])
         self.send_message(inv)
 
-    def send_tx(self, tx):
+    def send_tx(self, tx, deterministic):
         hash = uint256_from_str(hash256(tx.serialize()))
         self.txes[hash] = tx
 
-        inv = msg_inv([CInv(30, hash)])
+        inv = msg_inv([CInv(31 if deterministic else 30, hash)])
         self.send_message(inv)
 
     def on_getdata(self, message):
@@ -104,7 +105,10 @@ class DashZMQTest (DashTestFramework):
         node0_extra_args.append("-whitelist=127.0.0.1")
         node0_extra_args.append("-watchquorums")  # have to watch quorums to receive recsigs and trigger zmq
 
-        self.set_dash_test_params(4, 3, fast_dip3_enforcement=True, extra_args=[node0_extra_args, [], [], []])
+        extra_args = [[]] * 5
+        extra_args[0] = node0_extra_args
+        self.set_dash_test_params(5, 4, fast_dip3_enforcement=True, extra_args=extra_args)
+        self.set_dash_llmq_test_params(4, 4)
 
     def skip_test_if_missing_module(self):
         self.skip_if_no_py3_zmq()
@@ -136,9 +140,22 @@ class DashZMQTest (DashTestFramework):
             # Test all dash related ZMQ publisher
             self.test_recovered_signature_publishers()
             self.test_chainlock_publishers()
-            self.test_instantsend_publishers()
             self.test_governance_publishers()
             self.test_getzmqnotifications()
+            self.test_instantsend_publishers(False)
+            self.activate_dip0024()
+            self.wait_for_chainlocked_block_all_nodes(self.nodes[0].getbestblockhash())
+            self.log.info("Activated DIP0024 at height:" + str(self.nodes[0].getblockcount()))
+            self.test_instantsend_publishers(False)
+            # At this point, we need to move forward 3 cycles (3 x 24 blocks) so the first 3 quarters can be created (without DKG sessions)
+            self.move_to_next_cycle()
+            self.test_instantsend_publishers(False)
+            self.move_to_next_cycle()
+            self.test_instantsend_publishers(False)
+            self.move_to_next_cycle()
+            self.test_instantsend_publishers(False)
+            self.mine_cycle_quorum()
+            self.test_instantsend_publishers(True)
         finally:
             # Destroy the ZMQ context.
             self.log.debug("Destroying ZMQ context")
@@ -240,7 +257,7 @@ class DashZMQTest (DashTestFramework):
         # Unsubscribe from ChainLock messages
         self.unsubscribe(chain_lock_publishers)
 
-    def test_instantsend_publishers(self):
+    def test_instantsend_publishers(self, deterministic):
         import zmq
         instantsend_publishers = [
             ZMQPublisher.hash_tx_lock,
@@ -276,7 +293,7 @@ class DashZMQTest (DashTestFramework):
         zmq_tx_lock_tx.deserialize(zmq_tx_lock_sig_stream)
         assert zmq_tx_lock_tx.is_valid()
         assert_equal(zmq_tx_lock_tx.hash, rpc_raw_tx_1['txid'])
-        zmq_tx_lock = msg_isdlock()
+        zmq_tx_lock = msg_isdlock() if deterministic else msg_islock()
         zmq_tx_lock.deserialize(zmq_tx_lock_sig_stream)
         assert_equal(uint256_to_string(zmq_tx_lock.txid), rpc_raw_tx_1['txid'])
         # Try to send the second transaction. This must throw an RPC error because it conflicts with rpc_raw_tx_1
@@ -299,8 +316,8 @@ class DashZMQTest (DashTestFramework):
         # No islock notifications when tx is not received yet
         self.nodes[0].generate(1)
         rpc_raw_tx_3 = self.create_raw_tx(self.nodes[0], self.nodes[0], 1, 1, 100)
-        islock = self.create_islock(rpc_raw_tx_3['hex'])
-        self.test_node.send_islock(islock)
+        islock = self.create_islock(rpc_raw_tx_3['hex'], deterministic)
+        self.test_node.send_islock(islock, deterministic)
         # Validate NO hashtxlock
         time.sleep(1)
         try:
@@ -310,7 +327,7 @@ class DashZMQTest (DashTestFramework):
             # this is expected
             pass
         # Now send the tx itself
-        self.test_node.send_tx(FromHex(msg_tx(), rpc_raw_tx_3['hex']))
+        self.test_node.send_tx(FromHex(msg_tx(), rpc_raw_tx_3['hex']), deterministic)
         self.wait_for_instantlock(rpc_raw_tx_3['txid'], self.nodes[0])
         # Validate hashtxlock
         zmq_tx_lock_hash = self.subscribers[ZMQPublisher.hash_tx_lock].receive().read(32).hex()
