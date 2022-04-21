@@ -1467,6 +1467,21 @@ class DashTestFramework(BitcoinTestFramework):
 
         return (quorum_info_0, quorum_info_1)
 
+    def move_to_next_cycle(self):
+        cycle_length = 24
+        mninfos_online = self.mninfo.copy()
+        nodes = [self.nodes[0]] + [mn.node for mn in mninfos_online]
+        cur_block = self.nodes[0].getblockcount()
+
+        # move forward to next DKG
+        skip_count = cycle_length - (cur_block % cycle_length)
+        if skip_count != 0:
+            self.bump_mocktime(1, nodes=nodes)
+            self.nodes[0].generate(skip_count)
+        sync_blocks(nodes)
+        time.sleep(1)
+        self.log.info('Moved from block %d to %d' % (cur_block, self.nodes[0].getblockcount()))
+
     def get_recovered_sig(self, rec_sig_id, rec_sig_msg_hash, llmq_type=100, node=None):
         # Note: recsigs aren't relayed to regular nodes by default,
         # make sure to pick a mn as a node to query for recsigs.
