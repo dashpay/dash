@@ -1038,13 +1038,14 @@ class DashTestFramework(BitcoinTestFramework):
         request_id = hash256(request_id_buf)[::-1].hex()
         message_hash = tx.hash
 
+        llmq_type = 103 if deterministic else 104
         quorum_member = None
         for mn in self.mninfo:
-            res = mn.node.quorum('sign', 104, request_id, message_hash)
+            res = mn.node.quorum('sign', llmq_type, request_id, message_hash)
             if (res and quorum_member is None):
                 quorum_member = mn
 
-        rec_sig = self.get_recovered_sig(request_id, message_hash, node=quorum_member.node, llmq_type=104)
+        rec_sig = self.get_recovered_sig(request_id, message_hash, node=quorum_member.node, llmq_type=llmq_type)
 
         if deterministic:
             block_count = quorum_member.node.getblockcount()
