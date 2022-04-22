@@ -10,16 +10,18 @@
 #include <saltedhasher.h>
 #include <threadinterrupt.h>
 #include <unordered_lru_cache.h>
+#include <util/time.h>
 
 #include <bls/bls.h>
 #include <bls/bls_worker.h>
-
-#include <evo/evodb.h>
 
 class CNode;
 
 class CConnman;
 class CBlockIndex;
+class CDataStream;
+
+class CEvoDB;
 
 class CDeterministicMN;
 using CDeterministicMNCPtr = std::shared_ptr<const CDeterministicMN>;
@@ -29,10 +31,6 @@ namespace llmq
 {
 
 class CDKGSessionManager;
-
-// If true, we will connect to all new quorums and watch their communication
-static constexpr bool DEFAULT_WATCH_QUORUMS{false};
-
 
 /**
  * An object of this class represents a QGETDATA request or a QDATA response header

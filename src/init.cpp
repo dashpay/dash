@@ -80,6 +80,7 @@
 #include <walletinitinterface.h>
 
 #include <evo/deterministicmns.h>
+#include <evo/evodb.h>
 #include <llmq/blockprocessor.h>
 #include <llmq/init.h>
 #include <llmq/quorums.h>

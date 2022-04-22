@@ -11,13 +11,18 @@
 #include <bls/bls_worker.h>
 
 #include <llmq/commitment.h>
-#include <llmq/utils.h>
+#include <chain.h>
+#include <serialize.h>
+#include <sync.h>
 
 #include <optional>
 
 class UniValue;
 class CInv;
 class CConnman;
+
+class CDeterministicMN;
+using CDeterministicMNCPtr = std::shared_ptr<const CDeterministicMN>;
 
 namespace llmq
 {
@@ -181,10 +186,7 @@ public:
                 );
     }
 
-    [[nodiscard]] uint256 GetSignHash() const
-    {
-        return CLLMQUtils::BuildCommitmentHash(llmqType, quorumHash, validMembers, quorumPublicKey, quorumVvecHash);
-    }
+    [[nodiscard]] uint256 GetSignHash() const;
 };
 
 class CDKGMember

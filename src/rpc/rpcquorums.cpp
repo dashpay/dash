@@ -21,6 +21,8 @@
 #include <llmq/signing.h>
 #include <llmq/signing_shares.h>
 #include <llmq/snapshot.h>
+#include <llmq/utils.h>
+#include <llmq/complex_utils.h>
 
 namespace llmq {
 extern const std::string CLSIG_REQUESTID_PREFIX;
@@ -65,7 +67,7 @@ static UniValue quorum_list(const JSONRPCRequest& request)
 
     CBlockIndex* pindexTip = WITH_LOCK(cs_main, return ::ChainActive().Tip());
 
-    for (auto& type : llmq::CLLMQUtils::GetEnabledQuorumTypes(pindexTip)) {
+    for (auto& type : llmq::CLLMQComplexUtils::GetEnabledQuorumTypes(pindexTip)) {
         const auto& llmq_params = llmq::GetLLMQParams(type);
         UniValue v(UniValue::VARR);
 
@@ -194,7 +196,7 @@ static UniValue quorum_dkgstatus(const JSONRPCRequest& request)
 
     UniValue minableCommitments(UniValue::VARR);
     UniValue quorumArrConnections(UniValue::VARR);
-    for (const auto& type : llmq::CLLMQUtils::GetEnabledQuorumTypes(pindexTip)) {
+    for (const auto& type : llmq::CLLMQComplexUtils::GetEnabledQuorumTypes(pindexTip)) {
         const auto& llmq_params = llmq::GetLLMQParams(type);
 
         for (int quorumIndex = 0; quorumIndex < llmq_params.signingActiveQuorumCount; ++quorumIndex) {
@@ -210,9 +212,9 @@ static UniValue quorum_dkgstatus(const JSONRPCRequest& request)
                     obj.pushKV("quorumHash", pQuorumBaseBlockIndex->GetBlockHash().ToString());
                     obj.pushKV("pindexTip", pindexTip->nHeight);
 
-                    auto allConnections = llmq::CLLMQUtils::GetQuorumConnections(llmq_params, pQuorumBaseBlockIndex,
+                    auto allConnections = llmq::CLLMQComplexUtils::GetQuorumConnections(llmq_params, pQuorumBaseBlockIndex,
                                                                                  proTxHash, false);
-                    auto outboundConnections = llmq::CLLMQUtils::GetQuorumConnections(llmq_params,
+                    auto outboundConnections = llmq::CLLMQComplexUtils::GetQuorumConnections(llmq_params,
                                                                                       pQuorumBaseBlockIndex, proTxHash,
                                                                                       true);
                     std::map<uint256, CAddress> foundConnections;
@@ -297,7 +299,7 @@ static UniValue quorum_memberof(const JSONRPCRequest& request)
 
     UniValue result(UniValue::VARR);
 
-    for (const auto& type : llmq::CLLMQUtils::GetEnabledQuorumTypes(pindexTip)) {
+    for (const auto& type : llmq::CLLMQComplexUtils::GetEnabledQuorumTypes(pindexTip)) {
         const auto& llmq_params = llmq::GetLLMQParams(type);
         size_t count = llmq_params.signingActiveQuorumCount;
         if (scanQuorumsCount != -1) {

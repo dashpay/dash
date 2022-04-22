@@ -27,7 +27,7 @@
 #include <evo/simplifiedmns.h>
 #include <llmq/blockprocessor.h>
 #include <llmq/chainlocks.h>
-#include <llmq/utils.h>
+#include <llmq/complex_utils.h>
 #include <masternode/payments.h>
 
 #include <algorithm>
@@ -138,7 +138,7 @@ std::unique_ptr<CBlockTemplate> BlockAssembler::CreateNewBlock(const CScript& sc
                        : pblock->GetBlockTime();
 
     if (fDIP0003Active_context) {
-        for (const Consensus::LLMQParams& params : llmq::CLLMQUtils::GetEnabledQuorumParams(pindexPrev)) {
+        for (const Consensus::LLMQParams& params : llmq::CLLMQComplexUtils::GetEnabledQuorumParams(pindexPrev)) {
             std::vector<CTransactionRef> vqcTx;
             if (llmq::quorumBlockProcessor->GetMineableCommitmentsTx(params,
                                                                      nHeight,

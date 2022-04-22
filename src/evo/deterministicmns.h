@@ -10,7 +10,6 @@
 #include <arith_uint256.h>
 #include <crypto/common.h>
 #include <consensus/params.h>
-#include <evo/evodb.h>
 #include <evo/providertx.h>
 #include <saltedhasher.h>
 #include <scheduler.h>
@@ -28,6 +27,9 @@ class CValidationState;
 class CSimplifiedMNListDiff;
 
 extern CCriticalSection cs_main;
+
+class CEvoDB;
+class CDBBatch;
 
 namespace llmq
 {

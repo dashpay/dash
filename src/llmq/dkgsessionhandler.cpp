@@ -9,6 +9,7 @@
 #include <llmq/blockprocessor.h>
 #include <llmq/debug.h>
 #include <llmq/utils.h>
+#include <llmq/complex_utils.h>
 
 #include <evo/deterministicmns.h>
 
@@ -147,7 +148,7 @@ bool CDKGSessionHandler::InitNewQuorum(const CBlockIndex* pQuorumBaseBlockIndex)
         return false;
     }
 
-    auto mns = CLLMQUtils::GetAllQuorumMembers(params.type, pQuorumBaseBlockIndex);
+    auto mns = CLLMQComplexUtils::GetAllQuorumMembers(params.type, pQuorumBaseBlockIndex);
     if (!curSession->Init(pQuorumBaseBlockIndex, mns, WITH_LOCK(activeMasternodeInfoCs, return activeMasternodeInfo.proTxHash), quorumIndex)) {
         LogPrintf("CDKGSessionManager::%s -- height[%d] quorum initialization failed for %s mns[%d]\n", __func__, pQuorumBaseBlockIndex->nHeight, curSession->params.name, mns.size());
         return false;
@@ -491,9 +492,9 @@ void CDKGSessionHandler::HandleDKGRound()
         return changed;
     });
 
-    CLLMQUtils::EnsureQuorumConnections(params, pQuorumBaseBlockIndex, connman, curSession->myProTxHash);
+    CLLMQComplexUtils::EnsureQuorumConnections(params, pQuorumBaseBlockIndex, connman, curSession->myProTxHash);
     if (curSession->AreWeMember()) {
-        CLLMQUtils::AddQuorumProbeConnections(params, pQuorumBaseBlockIndex, connman, curSession->myProTxHash);
+        CLLMQComplexUtils::AddQuorumProbeConnections(params, pQuorumBaseBlockIndex, connman, curSession->myProTxHash);
     }
 
     WaitForNextPhase(QuorumPhase::Initialized, QuorumPhase::Contribute, curQuorumHash);

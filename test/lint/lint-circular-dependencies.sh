@@ -33,7 +33,6 @@ EXPECTED_CIRCULAR_DEPENDENCIES=(
     "evo/cbtx -> evo/simplifiedmns -> evo/cbtx"
     "evo/deterministicmns -> evo/simplifiedmns -> evo/deterministicmns"
     "evo/deterministicmns -> llmq/commitment -> evo/deterministicmns"
-    "evo/deterministicmns -> llmq/utils -> evo/deterministicmns"
     "evo/mnauth -> net_processing -> evo/mnauth"
     "governance/classes -> governance/governance -> governance/classes"
     "governance/governance -> governance/object -> governance/governance"
@@ -41,7 +40,6 @@ EXPECTED_CIRCULAR_DEPENDENCIES=(
     "governance/governance -> net_processing -> governance/governance"
     "governance/object -> governance/validators -> governance/object"
     "hdchain -> wallet/walletdb -> hdchain"
-    "llmq/quorums -> llmq/utils -> llmq/quorums"
     "llmq/blockprocessor -> net_processing -> llmq/blockprocessor"
     "llmq/chainlocks -> llmq/instantsend -> llmq/chainlocks"
     "llmq/chainlocks -> net_processing -> llmq/chainlocks"
@@ -76,22 +74,38 @@ EXPECTED_CIRCULAR_DEPENDENCIES=(
 
     "coinjoin/client -> net_processing -> coinjoin/client"
     "llmq/quorums -> net_processing -> llmq/quorums"
-    "llmq/commitment -> llmq/utils -> llmq/commitment"
     "llmq/dkgsession -> llmq/dkgsessionmgr -> llmq/dkgsession"
     "evo/deterministicmns -> validationinterface -> txmempool -> evo/deterministicmns"
     "llmq/chainlocks -> validation -> llmq/chainlocks"
     "coinjoin/coinjoin -> llmq/chainlocks -> net -> coinjoin/coinjoin"
-    "evo/deterministicmns -> llmq/utils -> net -> evo/deterministicmns"
     "policy/fees -> txmempool -> validation -> policy/fees"
     "policy/policy -> policy/settings -> policy/policy"
     "evo/specialtxman -> validation -> evo/specialtxman"
-    "bloom -> llmq/commitment -> llmq/utils -> net -> bloom"
 
-    "evo/simplifiedmns -> llmq/blockprocessor -> net_processing -> llmq/snapshot -> evo/simplifiedmns"
-    "llmq/blockprocessor -> net_processing -> llmq/snapshot -> llmq/blockprocessor"
-    "llmq/dkgsession -> llmq/dkgsessionmgr -> llmq/quorums -> llmq/dkgsession"
-    "llmq/dkgsessionmgr -> llmq/quorums -> llmq/dkgsessionmgr"
-    "llmq/snapshot -> llmq/utils -> llmq/snapshot"
+    "llmq/commitment -> llmq/complex_utils -> llmq/commitment"
+    "llmq/complex_utils -> llmq/quorums -> llmq/complex_utils"
+    "evo/deterministicmns -> llmq/complex_utils -> llmq/quorums -> evo/deterministicmns"
+    "evo/deterministicmns -> llmq/complex_utils -> net -> evo/deterministicmns"
+    "llmq/blockprocessor -> llmq/complex_utils -> llmq/quorums -> llmq/blockprocessor"
+    "llmq/blockprocessor -> llmq/complex_utils -> llmq/snapshot -> llmq/blockprocessor"
+    "llmq/commitment -> llmq/complex_utils -> llmq/quorums -> llmq/commitment"
+    "llmq/commitment -> llmq/complex_utils -> llmq/snapshot -> llmq/commitment"
+    "llmq/complex_utils -> llmq/quorums -> llmq/dkgsession -> llmq/complex_utils"
+    "llmq/complex_utils -> llmq/quorums -> llmq/dkgsessionmgr -> llmq/complex_utils"
+    "bloom -> llmq/commitment -> llmq/complex_utils -> net -> bloom"
+    "evo/deterministicmns -> llmq/complex_utils -> llmq/quorums -> llmq/dkgsession -> evo/deterministicmns"
+    "evo/deterministicmns -> llmq/complex_utils -> llmq/quorums -> llmq/dkgsessionmgr -> evo/deterministicmns"
+    "evo/deterministicmns -> llmq/complex_utils -> llmq/quorums -> masternode/node -> evo/deterministicmns"
+    "evo/simplifiedmns -> llmq/blockprocessor -> llmq/complex_utils -> llmq/snapshot -> evo/simplifiedmns"
+    "llmq/commitment -> llmq/complex_utils -> llmq/quorums -> llmq/dkgsession -> llmq/commitment"
+    "llmq/commitment -> llmq/complex_utils -> llmq/quorums -> net_processing -> llmq/commitment"
+    "llmq/complex_utils -> llmq/quorums -> llmq/dkgsession -> llmq/debug -> llmq/complex_utils"
+    "llmq/complex_utils -> llmq/quorums -> llmq/dkgsessionmgr -> llmq/dkgsessionhandler -> llmq/complex_utils"
+    "evo/deterministicmns -> llmq/complex_utils -> llmq/quorums -> llmq/dkgsession -> llmq/debug -> evo/deterministicmns"
+    "evo/deterministicmns -> llmq/complex_utils -> llmq/quorums -> llmq/dkgsessionmgr -> llmq/dkgsessionhandler -> evo/deterministicmns"
+    "llmq/blockprocessor -> llmq/complex_utils -> llmq/quorums -> llmq/dkgsessionmgr -> llmq/dkgsessionhandler -> llmq/blockprocessor"
+    "llmq/commitment -> llmq/complex_utils -> llmq/quorums -> llmq/dkgsessionmgr -> llmq/dkgsessionhandler -> llmq/commitment"
+    "bloom -> llmq/commitment -> llmq/complex_utils -> llmq/quorums -> net_processing -> merkleblock -> bloom"
 )
 
 EXIT_CODE=0
@@ -109,7 +123,7 @@ for CIRC in $(cd src && ../contrib/devtools/circular-dependencies.py {*,*/*,*/*/
         fi
     done
     if [[ ${IS_EXPECTED_CIRC} == 0 ]]; then
-        echo "A new circular dependency in the form of \"${CIRC}\" appears to have been introduced."
+        echo "\"${CIRC}\""
         echo
         EXIT_CODE=1
     fi

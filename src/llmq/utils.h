@@ -5,16 +5,12 @@
 #ifndef BITCOIN_LLMQ_UTILS_H
 #define BITCOIN_LLMQ_UTILS_H
 
-#include <consensus/params.h>
-#include <util/irange.h>
-
-#include <dbwrapper.h>
 #include <random.h>
-#include <set>
-#include <sync.h>
-#include <optional>
-#include <vector>
 #include <versionbits.h>
+#include <sync.h>
+
+#include <vector>
+#include <memory>
 
 class CConnman;
 class CBlockIndex;
@@ -25,6 +21,10 @@ class CBLSPublicKey;
 
 namespace llmq
 {
+
+// If true, we will connect to all new quorums and watch their communication
+static constexpr bool DEFAULT_WATCH_QUORUMS{false};
+
 
 class CQuorumSnapshot;
 
@@ -41,55 +41,18 @@ enum class QvvecSyncMode {
     OnlyIfTypeMember = 1,
 };
 
-//QuorumMembers per quorumIndex at heights H-Cycle, H-2Cycles, H-3Cycles
-struct PreviousQuorumQuarters {
-    std::vector<std::vector<CDeterministicMNCPtr>> quarterHMinusC;
-    std::vector<std::vector<CDeterministicMNCPtr>> quarterHMinus2C;
-    std::vector<std::vector<CDeterministicMNCPtr>> quarterHMinus3C;
-    explicit PreviousQuorumQuarters(size_t s) :
-        quarterHMinusC(s), quarterHMinus2C(s), quarterHMinus3C(s) {}
-};
-
 class CLLMQUtils
 {
 public:
-    // includes members which failed DKG
-    static std::vector<CDeterministicMNCPtr> GetAllQuorumMembers(Consensus::LLMQType llmqType, const CBlockIndex* pQuorumBaseBlockIndex);
-
-    static void PreComputeQuorumMembers(const CBlockIndex* pQuorumBaseBlockIndex);
-    static std::vector<CDeterministicMNCPtr> ComputeQuorumMembers(Consensus::LLMQType llmqType, const CBlockIndex* pQuorumBaseBlockIndex);
-    static std::vector<std::vector<CDeterministicMNCPtr>> ComputeQuorumMembersByQuarterRotation(Consensus::LLMQType llmqType, const CBlockIndex* pCycleQuorumBaseBlockIndex);
-
-    static std::vector<std::vector<CDeterministicMNCPtr>> BuildNewQuorumQuarterMembers(const Consensus::LLMQParams& llmqParams, const CBlockIndex* pQuorumBaseBlockIndex, const PreviousQuorumQuarters& quarters);
-
-    static PreviousQuorumQuarters GetPreviousQuorumQuarterMembers(const Consensus::LLMQParams& llmqParams, const CBlockIndex* pBlockHMinusCIndex, const CBlockIndex* pBlockHMinus2CIndex, const CBlockIndex* pBlockHMinus3CIndex, int nHeight);
-    static std::vector<std::vector<CDeterministicMNCPtr>> GetQuorumQuarterMembersBySnapshot(const Consensus::LLMQParams& llmqParams, const CBlockIndex* pQuorumBaseBlockIndex, const llmq::CQuorumSnapshot& snapshot, int nHeights);
-    static std::pair<CDeterministicMNList, CDeterministicMNList> GetMNUsageBySnapshot(Consensus::LLMQType llmqType, const CBlockIndex* pQuorumBaseBlockIndex, const llmq::CQuorumSnapshot& snapshot, int nHeight);
-
-    static void BuildQuorumSnapshot(const Consensus::LLMQParams& llmqParams, const CDeterministicMNList& mnAtH, const CDeterministicMNList& mnUsedAtH, std::vector<CDeterministicMNCPtr>& sortedCombinedMns, CQuorumSnapshot& quorumSnapshot, int nHeight, std::vector<int>& skipList, const CBlockIndex* pQuorumBaseBlockIndex);
-
     static uint256 BuildCommitmentHash(Consensus::LLMQType llmqType, const uint256& blockHash, const std::vector<bool>& validMembers, const CBLSPublicKey& pubKey, const uint256& vvecHash);
     static uint256 BuildSignHash(Consensus::LLMQType llmqType, const uint256& quorumHash, const uint256& id, const uint256& msgHash);
 
     static bool IsAllMembersConnectedEnabled(Consensus::LLMQType llmqType);
     static bool IsQuorumPoseEnabled(Consensus::LLMQType llmqType);
     static uint256 DeterministicOutboundConnection(const uint256& proTxHash1, const uint256& proTxHash2);
-    static std::set<uint256> GetQuorumConnections(const Consensus::LLMQParams& llmqParams, const CBlockIndex* pQuorumBaseBlockIndex, const uint256& forMember, bool onlyOutbound);
-    static std::set<uint256> GetQuorumRelayMembers(const Consensus::LLMQParams& llmqParams, const CBlockIndex* pQuorumBaseBlockIndex, const uint256& forMember, bool onlyOutbound);
-    static std::set<size_t> CalcDeterministicWatchConnections(Consensus::LLMQType llmqType, const CBlockIndex* pQuorumBaseBlockIndex, size_t memberCount, size_t connectionCount);
 
-    static bool EnsureQuorumConnections(const Consensus::LLMQParams& llmqParams, const CBlockIndex* pQuorumBaseBlockIndex, CConnman& connman, const uint256& myProTxHash);
-    static void AddQuorumProbeConnections(const Consensus::LLMQParams& llmqParams, const CBlockIndex* pQuorumBaseBlockIndex, CConnman& connman, const uint256& myProTxHash);
-
-    static bool IsQuorumActive(Consensus::LLMQType llmqType, const uint256& quorumHash);
-    static bool IsQuorumTypeEnabled(Consensus::LLMQType llmqType, const CBlockIndex* pindex);
-    static bool IsQuorumTypeEnabledInternal(Consensus::LLMQType llmqType, const CBlockIndex* pindex, std::optional<bool> optDIP0024IsActive, std::optional<bool> optHaveDIP0024Quorums);
-
-    static std::vector<Consensus::LLMQType> GetEnabledQuorumTypes(const CBlockIndex* pindex);
-    static std::vector<std::reference_wrapper<const Consensus::LLMQParams>> GetEnabledQuorumParams(const CBlockIndex* pindex);
 
     static bool IsQuorumRotationEnabled(Consensus::LLMQType llmqType, const CBlockIndex* pindex);
-    static Consensus::LLMQType GetInstantSendLLMQType(const CBlockIndex* pindex);
     static Consensus::LLMQType GetInstantSendLLMQType(bool deterministic);
     static bool IsDIP0024Active(const CBlockIndex* pindex);
 
@@ -131,16 +94,6 @@ public:
             }
         }
     }
-    static std::string ToHexStr(const std::vector<bool>& vBits)
-    {
-        std::vector<uint8_t> vBytes((vBits.size() + 7) / 8);
-        for (const auto i : irange::range(vBits.size())) {
-            vBytes[i / 8] |= vBits[i] << (i % 8);
-        }
-        return HexStr(vBytes);
-    }
-    template <typename CacheType>
-    static void InitQuorumsCache(CacheType& cache);
 };
 
 const Consensus::LLMQParams& GetLLMQParams(Consensus::LLMQType llmqType);

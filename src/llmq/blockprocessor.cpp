@@ -4,6 +4,8 @@
 
 #include <llmq/blockprocessor.h>
 #include <llmq/commitment.h>
+#include <llmq/utils.h>
+#include <llmq/complex_utils.h>
 
 #include <evo/evodb.h>
 #include <evo/specialtx.h>
@@ -37,7 +39,7 @@ static const std::string DB_BEST_BLOCK_UPGRADE = "q_bbu2";
 CQuorumBlockProcessor::CQuorumBlockProcessor(CEvoDB &_evoDb, CConnman& _connman) :
     evoDb(_evoDb), connman(_connman)
 {
-    CLLMQUtils::InitQuorumsCache(mapHasMinedCommitmentCache);
+    CLLMQComplexUtils::InitQuorumsCache(mapHasMinedCommitmentCache);
 }
 
 void CQuorumBlockProcessor::ProcessMessage(CNode* pfrom, const std::string& msg_type, CDataStream& vRecv)
@@ -130,7 +132,7 @@ bool CQuorumBlockProcessor::ProcessBlock(const CBlock& block, const CBlockIndex*
         return true;
     }
 
-    llmq::CLLMQUtils::PreComputeQuorumMembers(pindex);
+    llmq::CLLMQComplexUtils::PreComputeQuorumMembers(pindex);
 
     std::multimap<Consensus::LLMQType, CFinalCommitment> qcs;
     if (!GetCommitmentsFromBlock(block, pindex, qcs, state)) {
@@ -143,7 +145,7 @@ bool CQuorumBlockProcessor::ProcessBlock(const CBlock& block, const CBlockIndex*
     // until the first non-null commitment has been mined. After the non-null commitment, no other commitments are
     // allowed, including null commitments.
     // Note: must only check quorums that were enabled at the _previous_ block height to match mining logic
-    for (const Consensus::LLMQParams& params : CLLMQUtils::GetEnabledQuorumParams(pindex->pprev)) {
+    for (const Consensus::LLMQParams& params : CLLMQComplexUtils::GetEnabledQuorumParams(pindex->pprev)) {
         // skip these checks when replaying blocks after the crash
         if (::ChainActive().Tip() == nullptr) {
             break;

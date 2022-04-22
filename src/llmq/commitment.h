@@ -5,12 +5,17 @@
 #ifndef BITCOIN_LLMQ_COMMITMENT_H
 #define BITCOIN_LLMQ_COMMITMENT_H
 
-#include <llmq/utils.h>
 #include <bls/bls.h>
+#include <llmq/params.h>
+#include <primitives/transaction.h>
+#include <util/hexstr.h>
 
 #include <univalue.h>
 
 class CValidationState;
+
+class CBlockIndex;
+class CTransaction;
 
 namespace llmq
 {
@@ -105,9 +110,9 @@ public:
         obj.pushKV("quorumHash", quorumHash.ToString());
         obj.pushKV("quorumIndex", quorumIndex);
         obj.pushKV("signersCount", CountSigners());
-        obj.pushKV("signers", CLLMQUtils::ToHexStr(signers));
+        obj.pushKV("signers", BitsToHexStr(signers));
         obj.pushKV("validMembersCount", CountValidMembers());
-        obj.pushKV("validMembers", CLLMQUtils::ToHexStr(validMembers));
+        obj.pushKV("validMembers", BitsToHexStr(validMembers));
         obj.pushKV("quorumPublicKey", quorumPublicKey.ToString());
         obj.pushKV("quorumVvecHash", quorumVvecHash.ToString());
         obj.pushKV("quorumSig", quorumSig.ToString());
@@ -127,6 +132,8 @@ public:
     CFinalCommitment commitment;
 
 public:
+//    void ToJson(UniValue& obj) const;
+
     SERIALIZE_METHODS(CFinalCommitmentTxPayload, obj)
     {
         READWRITE(obj.nVersion, obj.nHeight, obj.commitment);

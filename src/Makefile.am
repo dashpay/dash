@@ -212,6 +212,7 @@ BITCOIN_CORE_H = \
   llmq/snapshot.h \
   llmq/signing.h \
   llmq/signing_shares.h \
+  llmq/complex_utils.h \
   llmq/utils.h \
   llmq/params.h \
   logging.h \
@@ -292,6 +293,7 @@ BITCOIN_CORE_H = \
   util/check.h \
   util/error.h \
   util/fees.h \
+  util/hexstr.h \
   util/irange.h \
   util/spanparsing.h \
   util/system.h \
@@ -402,6 +404,7 @@ libdash_server_a_SOURCES = \
   llmq/snapshot.cpp \
   llmq/signing.cpp \
   llmq/signing_shares.cpp \
+  llmq/complex_utils.cpp \
   llmq/utils.cpp \
   mapport.cpp \
   masternode/node.cpp \
@@ -700,6 +703,7 @@ libdash_util_a_SOURCES = \
   util/error.cpp \
   util/fees.cpp \
   util/getuniquepath.cpp \
+  util/hexstr.cpp \
   util/system.cpp \
   util/asmap.cpp \
   util/moneystr.cpp \

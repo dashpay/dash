@@ -12,6 +12,7 @@
 
 class UniValue;
 class CBlockIndex;
+class CDBWrapper;
 
 namespace llmq
 {

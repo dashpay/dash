@@ -8,9 +8,11 @@
 #include <llmq/dkgsession.h>
 #include <llmq/dkgsessionmgr.h>
 #include <llmq/utils.h>
+#include <llmq/complex_utils.h>
 
 #include <evo/specialtx.h>
 #include <evo/deterministicmns.h>
+#include <evo/evodb.h>
 
 #include <chainparams.h>
 #include <masternode/node.h>
@@ -21,6 +23,7 @@
 #include <univalue.h>
 #include <util/irange.h>
 #include <validation.h>
+#include <streams.h>
 
 #include <cxxtimer.hpp>
 
@@ -167,8 +170,8 @@ CQuorumManager::CQuorumManager(CEvoDB& _evoDb, CConnman& _connman, CBLSWorker& _
     blsWorker(_blsWorker),
     dkgManager(_dkgManager)
 {
-    CLLMQUtils::InitQuorumsCache(mapQuorumsCache);
-    CLLMQUtils::InitQuorumsCache(scanQuorumsCache);
+    CLLMQComplexUtils::InitQuorumsCache(mapQuorumsCache);
+    CLLMQComplexUtils::InitQuorumsCache(scanQuorumsCache);
 
     quorumThreadInterrupt.reset();
 }
@@ -294,7 +297,7 @@ void CQuorumManager::EnsureQuorumConnections(const Consensus::LLMQParams& llmqPa
     }
 
     for (const auto& quorum : lastQuorums) {
-        if (CLLMQUtils::EnsureQuorumConnections(llmqParams, quorum->m_quorum_base_block_index, connman, WITH_LOCK(activeMasternodeInfoCs, return activeMasternodeInfo.proTxHash))) {
+        if (CLLMQComplexUtils::EnsureQuorumConnections(llmqParams, quorum->m_quorum_base_block_index, connman, WITH_LOCK(activeMasternodeInfoCs, return activeMasternodeInfo.proTxHash))) {
             continue;
         }
         if (connmanQuorumsToDelete.count(quorum->qc->quorumHash) > 0) {
@@ -319,7 +322,7 @@ CQuorumPtr CQuorumManager::BuildQuorumFromCommitment(const Consensus::LLMQType l
     assert(qc->quorumHash == pQuorumBaseBlockIndex->GetBlockHash());
 
     auto quorum = std::make_shared<CQuorum>(llmq::GetLLMQParams(llmqType), blsWorker);
-    auto members = CLLMQUtils::GetAllQuorumMembers(qc->llmqType, pQuorumBaseBlockIndex);
+    auto members = CLLMQComplexUtils::GetAllQuorumMembers(qc->llmqType, pQuorumBaseBlockIndex);
 
     quorum->Init(std::move(qc), pQuorumBaseBlockIndex, minedBlockHash, members);
 
@@ -432,7 +435,7 @@ std::vector<CQuorumCPtr> CQuorumManager::ScanQuorums(Consensus::LLMQType llmqTyp
 
 std::vector<CQuorumCPtr> CQuorumManager::ScanQuorums(Consensus::LLMQType llmqType, const CBlockIndex* pindexStart, size_t nCountRequested) const
 {
-    if (pindexStart == nullptr || nCountRequested == 0 || !CLLMQUtils::IsQuorumTypeEnabled(llmqType, pindexStart)) {
+    if (pindexStart == nullptr || nCountRequested == 0 || !CLLMQComplexUtils::IsQuorumTypeEnabled(llmqType, pindexStart)) {
         return {};
     }
 

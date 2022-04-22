@@ -8,6 +8,7 @@
 #include <llmq/commitment.h>
 #include <llmq/signing.h>
 #include <llmq/utils.h>
+#include <llmq/complex_utils.h>
 
 #include <bls/bls_batchverifier.h>
 #include <chainparams.h>
@@ -460,7 +461,7 @@ void CSigSharesManager::ProcessMessageSigShare(NodeId fromId, const CSigShare& s
     if (!quorum) {
         return;
     }
-    if (!CLLMQUtils::IsQuorumActive(sigShare.getLlmqType(), quorum->qc->quorumHash)) {
+    if (!CLLMQComplexUtils::IsQuorumActive(sigShare.getLlmqType(), quorum->qc->quorumHash)) {
         // quorum is too old
         return;
     }
@@ -509,7 +510,7 @@ bool CSigSharesManager::PreVerifyBatchedSigShares(const CSigSharesNodeState::Ses
 {
     retBan = false;
 
-    if (!CLLMQUtils::IsQuorumActive(session.llmqType, session.quorum->qc->quorumHash)) {
+    if (!CLLMQComplexUtils::IsQuorumActive(session.llmqType, session.quorum->qc->quorumHash)) {
         // quorum is too old
         return false;
     }
@@ -1257,7 +1258,7 @@ void CSigSharesManager::Cleanup()
 
     // Find quorums which became inactive
     for (auto it = quorums.begin(); it != quorums.end(); ) {
-        if (CLLMQUtils::IsQuorumActive(it->first.first, it->first.second)) {
+        if (CLLMQComplexUtils::IsQuorumActive(it->first.first, it->first.second)) {
             it->second = quorumManager->GetQuorum(it->first.first, it->first.second);
             ++it;
         } else {

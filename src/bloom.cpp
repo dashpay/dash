@@ -13,6 +13,7 @@
 #include <script/standard.h>
 #include <random.h>
 #include <streams.h>
+#include <logging.h>
 
 #include <math.h>
 #include <stdlib.h>

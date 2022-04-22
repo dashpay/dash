@@ -6,6 +6,7 @@
 #include <evo/deterministicmns.h>
 #include <llmq/blockprocessor.h>
 #include <llmq/commitment.h>
+#include <llmq/utils.h>
 #include <evo/simplifiedmns.h>
 #include <evo/specialtx.h>
 #include <consensus/validation.h>
@@ -13,6 +14,8 @@
 #include <chain.h>
 #include <chainparams.h>
 #include <consensus/merkle.h>
+#include <util/time.h>
+#include <logging.h>
 
 bool CheckCbTx(const CTransaction& tx, const CBlockIndex* pindexPrev, CValidationState& state)
 {

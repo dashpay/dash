@@ -7,6 +7,8 @@
 #include <llmq/commitment.h>
 #include <llmq/debug.h>
 #include <llmq/dkgsessionmgr.h>
+#include <llmq/utils.h>
+#include <llmq/complex_utils.h>
 
 #include <evo/deterministicmns.h>
 #include <evo/specialtx.h>
@@ -117,7 +119,7 @@ bool CDKGSession::Init(const CBlockIndex* _pQuorumBaseBlockIndex, const std::vec
 
     if (!myProTxHash.IsNull()) {
         quorumDKGDebugManager->InitLocalSessionStatus(params, quorumIndex, m_quorum_base_block_index->GetBlockHash(), m_quorum_base_block_index->nHeight);
-        relayMembers = CLLMQUtils::GetQuorumRelayMembers(params, m_quorum_base_block_index, myProTxHash, true);
+        relayMembers = CLLMQComplexUtils::GetQuorumRelayMembers(params, m_quorum_base_block_index, myProTxHash, true);
         std::stringstream ss;
         for (const auto& r : relayMembers) {
             ss << r.ToString().substr(0, 4) << " | ";
@@ -1339,5 +1341,11 @@ void CDKGSession::RelayInvToParticipants(const CInv& inv) const
                  ss2.str());
     logger.Flush();
 }
+
+uint256 CDKGPrematureCommitment::GetSignHash() const
+{
+    return CLLMQUtils::BuildCommitmentHash(llmqType, quorumHash, validMembers, quorumPublicKey, quorumVvecHash);
+}
+
 
 } // namespace llmq

@@ -5,13 +5,13 @@
 #ifndef BITCOIN_LLMQ_SNAPSHOT_H
 #define BITCOIN_LLMQ_SNAPSHOT_H
 
-#include <evo/evodb.h>
 #include <evo/simplifiedmns.h>
 #include <llmq/params.h>
 #include <saltedhasher.h>
 #include <serialize.h>
 #include <univalue.h>
 #include <unordered_lru_cache.h>
+#include <sync.h>
 #include <util/irange.h>
 
 #include <optional>
@@ -19,6 +19,7 @@
 class CBlockIndex;
 class CDeterministicMN;
 class CDeterministicMNList;
+class CEvoDB;
 
 namespace llmq {
 //TODO use enum class (probably)

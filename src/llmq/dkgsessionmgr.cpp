@@ -4,10 +4,12 @@
 
 #include <llmq/debug.h>
 #include <llmq/dkgsessionmgr.h>
-#include <llmq/quorums.h>
 #include <llmq/utils.h>
+#include <llmq/complex_utils.h>
 
 #include <evo/deterministicmns.h>
+#include <unordered_lru_cache.h>
+#include <dbwrapper.h>
 
 #include <chainparams.h>
 #include <net_processing.h>
@@ -207,7 +209,7 @@ void CDKGSessionManager::ProcessMessage(CNode* pfrom, const std::string& msg_typ
     {
         LOCK(cs_indexedQuorumsCache);
         if (indexedQuorumsCache.empty()) {
-            CLLMQUtils::InitQuorumsCache(indexedQuorumsCache);
+            CLLMQComplexUtils::InitQuorumsCache(indexedQuorumsCache);
         }
         indexedQuorumsCache[llmqType].get(quorumHash, quorumIndex);
     }
@@ -223,7 +225,7 @@ void CDKGSessionManager::ProcessMessage(CNode* pfrom, const std::string& msg_typ
             return;
         }
 
-        if (!CLLMQUtils::IsQuorumTypeEnabled(llmqType, pQuorumBaseBlockIndex->pprev)) {
+        if (!CLLMQComplexUtils::IsQuorumTypeEnabled(llmqType, pQuorumBaseBlockIndex->pprev)) {
             LOCK(cs_main);
             LogPrintf("CDKGSessionManager -- llmqType [%d] quorums aren't active\n", uint8_t(llmqType));
             Misbehaving(pfrom->GetId(), 100);
@@ -374,7 +376,7 @@ void CDKGSessionManager::WriteEncryptedContributions(Consensus::LLMQType llmqTyp
 bool CDKGSessionManager::GetVerifiedContributions(Consensus::LLMQType llmqType, const CBlockIndex* pQuorumBaseBlockIndex, const std::vector<bool>& validMembers, std::vector<uint16_t>& memberIndexesRet, std::vector<BLSVerificationVectorPtr>& vvecsRet, BLSSecretKeyVector& skContributionsRet) const
 {
     LOCK(contributionsCacheCs);
-    auto members = CLLMQUtils::GetAllQuorumMembers(llmqType, pQuorumBaseBlockIndex);
+    auto members = CLLMQComplexUtils::GetAllQuorumMembers(llmqType, pQuorumBaseBlockIndex);
 
     memberIndexesRet.clear();
     vvecsRet.clear();
@@ -408,7 +410,7 @@ bool CDKGSessionManager::GetVerifiedContributions(Consensus::LLMQType llmqType, 
 
 bool CDKGSessionManager::GetEncryptedContributions(Consensus::LLMQType llmqType, const CBlockIndex* pQuorumBaseBlockIndex, const std::vector<bool>& validMembers, const uint256& nProTxHash, std::vector<CBLSIESEncryptedObject<CBLSSecretKey>>& vecRet) const
 {
-    auto members = CLLMQUtils::GetAllQuorumMembers(llmqType, pQuorumBaseBlockIndex);
+    auto members = CLLMQComplexUtils::GetAllQuorumMembers(llmqType, pQuorumBaseBlockIndex);
 
     vecRet.clear();
     vecRet.reserve(members.size());

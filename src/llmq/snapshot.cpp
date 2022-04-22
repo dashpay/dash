@@ -6,6 +6,7 @@
 
 #include <evo/simplifiedmns.h>
 #include <evo/specialtx.h>
+#include <evo/evodb.h>
 
 #include <llmq/blockprocessor.h>
 #include <llmq/commitment.h>

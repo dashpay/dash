@@ -4,6 +4,8 @@
 
 #include <llmq/commitment.h>
 
+#include <llmq/utils.h>
+#include <llmq/complex_utils.h>
 #include <evo/deterministicmns.h>
 #include <evo/specialtx.h>
 
@@ -79,7 +81,7 @@ bool CFinalCommitment::Verify(const CBlockIndex* pQuorumBaseBlockIndex, bool che
         LogPrintfFinalCommitment("q[%s] invalid vvecSig\n");
         return false;
     }
-    auto members = CLLMQUtils::GetAllQuorumMembers(llmqType, pQuorumBaseBlockIndex);
+    auto members = CLLMQComplexUtils::GetAllQuorumMembers(llmqType, pQuorumBaseBlockIndex);
     std::stringstream ss;
     for (const auto i : irange::range(llmq_params.size)) {
         ss << "v[" << i << "]=" << validMembers[i];
@@ -160,6 +162,23 @@ bool CFinalCommitment::VerifySizes(const Consensus::LLMQParams& params) const
     return true;
 }
 
+//void CFinalCommitment::ToJson(UniValue& obj) const
+//{
+//    obj.setObject();
+//    obj.pushKV("version", (int)nVersion);
+//    obj.pushKV("llmqType", (int)llmqType);
+//    obj.pushKV("quorumHash", quorumHash.ToString());
+//    obj.pushKV("quorumIndex", quorumIndex);
+//    obj.pushKV("signersCount", CountSigners());
+//    obj.pushKV("signers", CLLMQUtils::ToHexStr(signers));
+//    obj.pushKV("validMembersCount", CountValidMembers());
+//    obj.pushKV("validMembers", CLLMQUtils::ToHexStr(validMembers));
+//    obj.pushKV("quorumPublicKey", quorumPublicKey.ToString());
+//    obj.pushKV("quorumVvecHash", quorumVvecHash.ToString());
+//    obj.pushKV("quorumSig", quorumSig.ToString());
+//    obj.pushKV("membersSig", membersSig.ToString());
+//}
+//
 bool CheckLLMQCommitment(const CTransaction& tx, const CBlockIndex* pindexPrev, CValidationState& state)
 {
     CFinalCommitmentTxPayload qcTx;
@@ -216,5 +235,16 @@ bool CheckLLMQCommitment(const CTransaction& tx, const CBlockIndex* pindexPrev, 
 
     return true;
 }
+
+//void CFinalCommitmentTxPayload::ToJson(UniValue& obj) const
+//{
+//    obj.setObject();
+//    obj.pushKV("version", int(nVersion));
+//    obj.pushKV("height", int(nHeight));
+//
+//    UniValue qcObj;
+//    commitment.ToJson(qcObj);
+//    obj.pushKV("commitment", qcObj);
+//}
 
 } // namespace llmq
