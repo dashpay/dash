@@ -332,15 +332,12 @@ void PaymentServer::handleURIOrFile(const QString& s)
             if (GUIUtil::parseBitcoinURI(s, &recipient))
             {
                 if (!IsValidDestinationString(recipient.address.toStdString())) {
-#ifndef ENABLE_BIP70
                     if (uri.hasQueryItem("r")) {  // payment request
                         Q_EMIT message(tr("URI handling"),
-                            tr("Cannot process payment request because BIP70 support was not compiled in."),
+                            tr("Cannot process payment request as BIP70 is no longer supported.")+
+                            tr("Due to discontinued support, you should request the merchant to provide you with a BIP21 compatible URI or use a wallet that does continue to support BIP70."),
                             CClientUIInterface::ICON_WARNING);
                     }
-#endif
-                    Q_EMIT message(tr("URI handling"), tr("Invalid payment address %1").arg(recipient.address),
-                        CClientUIInterface::MSG_ERROR);
                 }
                 else
                     Q_EMIT receivedPaymentRequest(recipient);
@@ -356,24 +353,10 @@ void PaymentServer::handleURIOrFile(const QString& s)
 
     if (QFile::exists(s)) // payment request file
     {
-#ifdef ENABLE_BIP70
-        PaymentRequestPlus request;
-        SendCoinsRecipient recipient;
-        if (!readPaymentRequestFromFile(s, request))
-        {
-            Q_EMIT message(tr("Payment request file handling"),
-                tr("Payment request file cannot be read! This can be caused by an invalid payment request file."),
-                CClientUIInterface::ICON_WARNING);
-        }
-        else if (processPaymentRequest(request, recipient))
-            Q_EMIT receivedPaymentRequest(recipient);
-
-        return;
-#else
         Q_EMIT message(tr("Payment request file handling"),
-            tr("Cannot process payment request because BIP70 support was not compiled in."),
+            tr("Cannot process payment request as BIP70 is no longer supported.")+
+            tr("Due to discontinued support, you should request the merchant to provide you with a BIP21 compatible URI or use a wallet that does continue to support BIP70."),
             CClientUIInterface::ICON_WARNING);
-#endif
     }
 }
 
