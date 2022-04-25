@@ -632,35 +632,31 @@ static UniValue quorum_getdata(const JSONRPCRequest& request)
     });
 }
 
-static void quorum_rotationinfo_help()
+static void quorum_rotationinfo_help(const JSONRPCRequest& request)
 {
-    throw std::runtime_error(
-        RPCHelpMan{
-            "quorum rotationinfo",
-            "Get quorum rotation information\n",
-            {
-                {"blockRequestHash", RPCArg::Type::STR_HEX, RPCArg::Optional::NO, "The blockHash of the request"},
-                {"extraShare", RPCArg::Type::BOOL, /* default */ "false", "Extra share"},
-                {"baseBlockHash...", RPCArg::Type::STR_HEX, /* default*/ "", "baseBlockHashes"},
-            },
-            RPCResults{},
-            RPCExamples{""},
-        }
-        .ToString());
+    RPCHelpMan{
+        "quorum rotationinfo",
+        "Get quorum rotation information\n",
+        {
+            {"blockRequestHash", RPCArg::Type::STR_HEX, RPCArg::Optional::NO, "The blockHash of the request."},
+            {"extraShare", RPCArg::Type::BOOL, /* default */ "false", "Extra share"},
+            {"baseBlockHash...", RPCArg::Type::STR_HEX, /* default*/ "", "baseBlockHashes"},
+        },
+        RPCResults{},
+        RPCExamples{""},
+    }.Check(request);
 }
 
 static UniValue quorum_rotationinfo(const JSONRPCRequest& request)
 {
-    if (request.fHelp || (request.params.size() < 2)) {
-        quorum_rotationinfo_help();
-    }
+    quorum_rotationinfo_help(request);
 
     llmq::CGetQuorumRotationInfo cmd;
     llmq::CQuorumRotationInfo quorumRotationInfoRet;
     std::string strError;
 
-    cmd.blockRequestHash = ParseHashV(request.params[1], "blockRequestHash");
-    cmd.extraShare = request.params[2].isNull() ? false : ParseBoolV(request.params[2], "extraShare");
+    cmd.blockRequestHash = ParseHashV(request.params[0], "blockRequestHash");
+    cmd.extraShare = request.params[1].isNull() ? false : ParseBoolV(request.params[2], "extraShare");
 
     size_t idx = 3;
     while (!request.params[idx].isNull()) {
