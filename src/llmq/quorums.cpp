@@ -90,6 +90,7 @@ bool CQuorum::IsMember(const uint256& proTxHash) const
 bool CQuorum::IsValidMember(const uint256& proTxHash) const
 {
     for (const auto i : irange::range(members.size())) {
+        // cppcheck-suppress useStlAlgorithm
         if (members[i]->proTxHash == proTxHash) {
             return qc->validMembers[i];
         }
@@ -121,8 +122,9 @@ CBLSSecretKey CQuorum::GetSkShare() const
 int CQuorum::GetMemberIndex(const uint256& proTxHash) const
 {
     for (const auto i : irange::range(members.size())) {
+        // cppcheck-suppress useStlAlgorithm
         if (members[i]->proTxHash == proTxHash) {
-            return (int)i;
+            return int(i);
         }
     }
     return -1;
@@ -520,6 +522,7 @@ size_t CQuorumManager::GetQuorumRecoveryStartOffset(const CQuorumCPtr pQuorum, c
     {
         LOCK(activeMasternodeInfoCs);
         for (const auto i : irange::range(vecProTxHashes.size())) {
+            // cppcheck-suppress useStlAlgorithm
             if (activeMasternodeInfo.proTxHash == vecProTxHashes[i]) {
                 nIndex = i;
                 break;

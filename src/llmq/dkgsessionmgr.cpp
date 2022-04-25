@@ -415,6 +415,7 @@ bool CDKGSessionManager::GetEncryptedContributions(Consensus::LLMQType llmqType,
 
     size_t nRequestedMemberIdx{std::numeric_limits<size_t>::max()};
     for (const auto i : irange::range(members.size())) {
+        // cppcheck-suppress useStlAlgorithm
         if (members[i]->proTxHash == nProTxHash) {
             nRequestedMemberIdx = i;
             break;

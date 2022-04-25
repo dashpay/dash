@@ -1071,6 +1071,7 @@ bool CDKGSession::PreVerifyMessage(const CDKGPrematureCommitment& qc, bool& retB
     }
 
     for (const auto i : irange::range(members.size(), size_t(params.size))) {
+        // cppcheck-suppress useStlAlgorithm
         if (qc.validMembers[i]) {
             retBan = true;
             logger.Batch("invalid validMembers bitset. bit %d should not be set", i);

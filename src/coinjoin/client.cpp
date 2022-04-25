@@ -581,6 +581,7 @@ bool CCoinJoinClientSession::SignFinalTransaction(const CTransaction& finalTrans
             CScript prevPubKey = CScript();
 
             for (const auto i : irange::range(finalMutableTransaction.vin.size())) {
+                // cppcheck-suppress useStlAlgorithm
                 if (finalMutableTransaction.vin[i] == txdsin) {
                     nMyInputIndex = i;
                     prevPubKey = txdsin.prevPubKey;
