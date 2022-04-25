@@ -86,6 +86,7 @@ EXPECTED_CIRCULAR_DEPENDENCIES=(
     "llmq/complex_utils -> llmq/quorums -> llmq/complex_utils"
     "evo/deterministicmns -> llmq/complex_utils -> llmq/quorums -> evo/deterministicmns"
     "evo/deterministicmns -> llmq/complex_utils -> net -> evo/deterministicmns"
+    "evo/deterministicmns -> llmq/complex_utils -> evo/deterministicmns"
     "llmq/blockprocessor -> llmq/complex_utils -> llmq/quorums -> llmq/blockprocessor"
     "llmq/blockprocessor -> llmq/complex_utils -> llmq/snapshot -> llmq/blockprocessor"
     "llmq/commitment -> llmq/complex_utils -> llmq/quorums -> llmq/commitment"
