@@ -191,6 +191,10 @@
         <translation>Uusi salasana uudelleen</translation>
     </message>
     <message>
+        <source>Show passphrase</source>
+        <translation>Näytä salasana</translation>
+    </message>
+    <message>
         <source>Encrypt wallet</source>
         <translation>Salaa lompakko</translation>
     </message>
@@ -233,6 +237,30 @@
     <message>
         <source>Wallet encrypted</source>
         <translation>Lompakko salattu</translation>
+    </message>
+    <message>
+        <source>Enter the new passphrase for the wallet.&lt;br/&gt;Please use a passphrase of &lt;b&gt;ten or more random characters&lt;/b&gt;, or &lt;b&gt;eight or more words&lt;/b&gt;.</source>
+        <translation>Anna lompakolle uusi salasana.&lt;br/&gt;Käytä salasanaa jossa on ainakin  &lt;b&gt;10 satunnaista mekkiä&lt;/b&gt; tai, &lt;b&gt;kahdeksan sanaa&lt;/b&gt;.</translation>
+    </message>
+    <message>
+        <source>Enter the old passphrase and new passphrase for the wallet.</source>
+        <translation>Anna lompakon vanha ja uusi salasana.</translation>
+    </message>
+    <message>
+        <source>Remember that encrypting your wallet cannot fully protect your funds from being stolen by malware infecting your computer.</source>
+        <translation>Muista että salaus ei voi täysin suojata varojasi jos tietokoneesi saastuu haittaohjelmalla.</translation>
+    </message>
+    <message>
+        <source>Wallet to be encrypted</source>
+        <translation>Salattava lompakko</translation>
+    </message>
+    <message>
+        <source>Your wallet is about to be encrypted. </source>
+        <translation>Lompakkosi salataan pian.</translation>
+    </message>
+    <message>
+        <source>Your wallet is now encrypted. </source>
+        <translation>Lompakkosi on nyt salattu.</translation>
     </message>
     <message>
         <source>IMPORTANT: Any previous backups you have made of your wallet file should be replaced with the newly generated, encrypted wallet file. Previous backups of the unencrypted wallet file contain the same HD seed and still have full access to all your funds just like the new, encrypted wallet.</source>
@@ -578,6 +606,18 @@
         <translation>&amp;Tiedosto</translation>
     </message>
     <message>
+        <source>Show information about %1</source>
+        <translation>Näytä tietoja %1</translation>
+    </message>
+    <message>
+        <source>Create Wallet...</source>
+        <translation>Luo Lompakko...</translation>
+    </message>
+    <message>
+        <source>Create a new wallet</source>
+        <translation>Luo uusi lompakko</translation>
+    </message>
+    <message>
         <source>%1 &amp;information</source>
         <translation>%1 T&amp;ietoja</translation>
     </message>
@@ -767,7 +807,11 @@
         <source>Proxy is &lt;b&gt;enabled&lt;/b&gt;: %1</source>
         <translation>Proxy on &lt;b&gt;käytössä&lt;/b&gt;: %1</translation>
     </message>
-    </context>
+    <message>
+        <source>Original message:</source>
+        <translation>Alkuperäinen viesti:</translation>
+    </message>
+</context>
 <context>
     <name>CoinControlDialog</name>
     <message>
@@ -965,10 +1009,58 @@
 </context>
 <context>
     <name>CreateWalletActivity</name>
-    </context>
+    <message>
+        <source>Creating Wallet &lt;b&gt;%1&lt;/b&gt;...</source>
+        <translation>Luodaan Lompakko &lt;b&gt;%1&lt;/b&gt;...</translation>
+    </message>
+    <message>
+        <source>Create wallet failed</source>
+        <translation>Lompakon luonti epäonnistui</translation>
+    </message>
+    <message>
+        <source>Create wallet warning</source>
+        <translation>Luo lompakko varoitus</translation>
+    </message>
+</context>
 <context>
     <name>CreateWalletDialog</name>
-    </context>
+    <message>
+        <source>Create Wallet</source>
+        <translation>Luo Lompakko</translation>
+    </message>
+    <message>
+        <source>Wallet Name</source>
+        <translation>Lompakon Nimi</translation>
+    </message>
+    <message>
+        <source>Encrypt the wallet. The wallet will be encrypted with a passphrase of your choice.</source>
+        <translation>Salaa lompakko. Lompakko salataan haluamallasi salasanallasi.</translation>
+    </message>
+    <message>
+        <source>Encrypt Wallet</source>
+        <translation>Salaa Lompakko</translation>
+    </message>
+    <message>
+        <source>Disable private keys for this wallet. Wallets with private keys disabled will have no private keys and cannot have an HD seed or imported private keys. This is ideal for watch-only wallets.</source>
+        <translation>Poista tämän lompakon yksityisavaimet käytöstä. Lompakoissa joissa yksityisavaimet on poistettu käytöstä, ei ole yksityisiä avaimia, eikä niissä voi olla HD-siementä tai tuotuja yksityisavaimia Tämä sopii hyvin katso-vain lompakoille.</translation>
+    </message>
+    <message>
+        <source>Disable Private Keys</source>
+        <translation>Poista Käytöstä Yksityisavaimet </translation>
+    </message>
+    <message>
+        <source>Make a blank wallet. Blank wallets do not initially have private keys or scripts. Private keys and addresses can be imported, or an HD seed can be set, at a later time.</source>
+        <translation>Tee tyhjä lompakko. Tyhjissä lompakoissa ei aluksi ole yksityisavaimia tai komentosarjoja. Yksityisavaimet ja osoitteet voidaan tuoda tai HD siemen voidaan asettaa myöhemmin.</translation>
+    </message>
+    <message>
+        <source>Make Blank Wallet</source>
+        <translation>Luo Tyhjä Lompakko</translation>
+    </message>
+    <message>
+        <source>Create</source>
+        <translation>Luo</translation>
+    </message>
+</context>
 <context>
     <name>EditAddressDialog</name>
     <message>
@@ -1363,7 +1455,23 @@
 </context>
 <context>
     <name>OpenWalletActivity</name>
-    </context>
+    <message>
+        <source>Open wallet failed</source>
+        <translation>Lompakon avaus epäonnistui</translation>
+    </message>
+    <message>
+        <source>Open wallet warning</source>
+        <translation>Lompakon avaus varoitus</translation>
+    </message>
+    <message>
+        <source>default wallet</source>
+        <translation>oletus lompakko</translation>
+    </message>
+    <message>
+        <source>Opening Wallet &lt;b&gt;%1&lt;/b&gt;...</source>
+        <translation>Avataan Lompakko &lt;b&gt;%1&lt;/b&gt;...</translation>
+    </message>
+</context>
 <context>
     <name>OptionsDialog</name>
     <message>
@@ -1481,6 +1589,14 @@
     <message>
         <source>Automatically open the Dash Core client port on the router. This only works when your router supports UPnP and it is enabled.</source>
         <translation>Avaa automaattisesti Dash Core asiakasohjelmalle portti reitittimeen. Tämä toimii vain jos reitittimesi tukee UPnP:tä ja se on käytössä.</translation>
+    </message>
+    <message>
+        <source>Automatically open the Bitcoin client port on the router. This only works when your router supports NAT-PMP and it is enabled. The external port could be random.</source>
+        <translation>Avaa automaattisesti Bitcoin asiakasohjelmalle portti reitittimeen. Tämä toimii vain jos reitittimesi tukee NAT-PMP:tä ja se on käytössä. Ulkoinen portti voi olla satunnainen.</translation>
+    </message>
+    <message>
+        <source>Map port using NA&amp;T-PMP</source>
+        <translation>Kartoita portti käyttäen NA&amp;T-PMP</translation>
     </message>
     <message>
         <source>Accept connections from outside.</source>
@@ -2129,6 +2245,46 @@ https://www.transifex.com/projects/p/dash/</translation>
     <message>
         <source>Show splash screen on startup (default: %u)</source>
         <translation>Näytä aloitusruutu käynnistettäessä (oletus: %u)</translation>
+    </message>
+    <message>
+        <source>Error: Specified data directory "%1" does not exist.</source>
+        <translation>Virhe: Annettua datahakemistoa "%1" ei ole olemassa.</translation>
+    </message>
+    <message>
+        <source>Error: Cannot parse configuration file: %1.</source>
+        <translation>Virhe: Ei voida jäsentää asetustiedostoa: %1.</translation>
+    </message>
+    <message>
+        <source>Error: %1</source>
+        <translation>Virhe: %1</translation>
+    </message>
+    <message>
+        <source>Error: Failed to load application fonts.</source>
+        <translation>Virhe: Fonttien lataus ei onnistunut.</translation>
+    </message>
+    <message>
+        <source>Error: Specified font-family invalid. Valid values: %1.</source>
+        <translation>Virhe: Määritetty fonttiperhe virheellinen. Sallittu arvoalue: %1.</translation>
+    </message>
+    <message>
+        <source>Error: Specified font-weight-normal invalid. Valid range %1 to %2.</source>
+        <translation>Virhe: Määritetty fontin normaali painoarvo virheellinen. Sallittu arvoalue %1 - %2.</translation>
+    </message>
+    <message>
+        <source>Error: Specified font-weight-bold invalid. Valid range %1 to %2.</source>
+        <translation>Virhe: Määritetty fontin paksu painoarvo virheellinen. Sallittu arvoalue %1 - %2.</translation>
+    </message>
+    <message>
+        <source>Error: Specified font-scale invalid. Valid range %1 to %2.</source>
+        <translation>Virhe: Määritetty fontin skaala virheellinen. Sallittu arvoalue %1 - %2.</translation>
+    </message>
+    <message>
+        <source>Error: Invalid -custom-css-dir path.</source>
+        <translation>Virhe: Virheellinen -custom-css-dir polku.</translation>
+    </message>
+    <message>
+        <source>Error: %1 CSS file(s) missing in -custom-css-dir path.</source>
+        <translation>Virhe: %1 CSS tiedosto(t) puuttuu custom-css-dir polusta.</translation>
     </message>
     <message>
         <source>%1 didn't yet exit safely...</source>
@@ -4026,6 +4182,10 @@ https://www.transifex.com/projects/p/dash/</translation>
         <translation>Sulje lompakko</translation>
     </message>
     <message>
+        <source>Are you sure you wish to close the wallet &lt;i&gt;%1&lt;/i&gt;?</source>
+        <translation>Haluatko varmasti sulkea lompakon &lt;i&gt;%1&lt;/i&gt;?</translation>
+    </message>
+    <message>
         <source>Closing the wallet for too long can result in having to resync the entire chain if pruning is enabled.</source>
         <translation>Lompakon sulkeminen liian pitkäksi ajaksi voi johtaa siihen, että koko ketju on synkronoitava uudelleen, jos karsiminen on käytössä. </translation>
     </message>
@@ -4096,6 +4256,14 @@ https://www.transifex.com/projects/p/dash/</translation>
     <message>
         <source>Error: Listening for incoming connections failed (listen returned error %s)</source>
         <translation>Virhe: Sisääntulevien yhteyksien kuuntelu epäonnistui (kuuntelu palautti virheen %s)</translation>
+    </message>
+    <message>
+        <source>Fee estimation failed. Fallbackfee is disabled. Wait a few blocks or enable -fallbackfee.</source>
+        <translation>Siirtomaksun arvio epäonnistui. Varasiirtomaksu ei ole käytössä. Odota muutama lohko tai ota käyttöön -fallbackfee</translation>
+    </message>
+    <message>
+        <source>This error could occur if this wallet was not shutdown cleanly and was last loaded using a build with a newer version of Berkeley DB. If so, please use the software that last loaded this wallet</source>
+        <translation>Tämä virhe saattaa ilmetä, jos tätä lompakkoa ei sammutettu kunnolla ja se ladattiin viimeksi Berkeley DB:n uudemmalla versiolla. Jos näin on, käytä ohjelmistoa joka latasi tämän lompakon viimeksi</translation>
     </message>
     <message>
         <source>This is a pre-release test build - use at your own risk - do not use for mining or merchant applications</source>
@@ -4721,8 +4889,16 @@ Vähennä uakommenttien määrää tai kokoa.</translation>
         <translation>%s ei ole pätevä varmistus hakemisto!</translation>
     </message>
     <message>
+        <source>%s is only allowed with a single wallet file</source>
+        <translation>%s on sallittu vain yhden lompakkotiedoston kanssa</translation>
+    </message>
+    <message>
         <source>%s is set very high!</source>
         <translation>%s on asetettu todella korkeaksi!</translation>
+    </message>
+    <message>
+        <source>%s request incomplete:</source>
+        <translation>%s pyyntö kesken:</translation>
     </message>
     <message>
         <source>-devnet can only be specified once</source>
@@ -4735,6 +4911,10 @@ Vähennä uakommenttien määrää tai kokoa.</translation>
     <message>
         <source>-rpcport must be specified when -devnet and -server are specified</source>
         <translation>-rpcport täytyy määritellä kun -devnet ja -server on määritelty</translation>
+    </message>
+    <message>
+        <source>A fatal internal error occurred, see debug.log for details</source>
+        <translation>Vakava sisäinen virhe, katso debug.log lisätietoja</translation>
     </message>
     <message>
         <source>Cannot resolve -%s address: '%s'</source>
@@ -4751,6 +4931,10 @@ Vähennä uakommenttien määrää tai kokoa.</translation>
     <message>
         <source>Copyright (C)</source>
         <translation>Tekijänoikeus (C)</translation>
+    </message>
+    <message>
+        <source>Disk space is too low!</source>
+        <translation>Levytila on alhainen!</translation>
     </message>
     <message>
         <source>Error loading %s</source>
@@ -4781,8 +4965,36 @@ Vähennä uakommenttien määrää tai kokoa.</translation>
         <translation>Virhe: socket lisäys kqueuefd:ään epäonnistui (kevent palautti virheen %s)</translation>
     </message>
     <message>
+        <source>Failed to clear fulfilled requests cache at %s</source>
+        <translation>Täytettyjen pyyntöjen välimuistin tyhjennys epäonnistui %s</translation>
+    </message>
+    <message>
+        <source>Failed to clear governance cache at %s</source>
+        <translation>Hallinnon välimuistin tyhjennys epäonnistui %s</translation>
+    </message>
+    <message>
+        <source>Failed to clear masternode cache at %s</source>
+        <translation>Masternode välimuistin tyhjennys epäonnistui %s</translation>
+    </message>
+    <message>
         <source>Failed to find mixing queue to join</source>
         <translation>Ei löytynyt sekoitusjonoa johon liittyä</translation>
+    </message>
+    <message>
+        <source>Failed to load fulfilled requests cache from %s</source>
+        <translation>Täytettyjen pyyntöjen välimuistin lataaminen epäonnistui %s</translation>
+    </message>
+    <message>
+        <source>Failed to load governance cache from %s</source>
+        <translation>Hallinnon välimuistin lataaminen epäonnistui %s</translation>
+    </message>
+    <message>
+        <source>Failed to load masternode cache from %s</source>
+        <translation>Masternode välimuistin lataaminen epäonnistui %s</translation>
+    </message>
+    <message>
+        <source>Failed to load sporks cache from %s</source>
+        <translation>Spork välimuistin lataaminen epäonnistui %s</translation>
     </message>
     <message>
         <source>Failed to start a new mixing queue</source>
@@ -4851,6 +5063,14 @@ Vähennä uakommenttien määrää tai kokoa.</translation>
     <message>
         <source>Last queue was created too recently.</source>
         <translation>Viimeisin jono on luotu liian äskettäin.</translation>
+    </message>
+    <message>
+        <source>%s corrupt. Try using the wallet tool dash-wallet to salvage or restoring a backup.</source>
+        <translation> %s vioittunut. Yritä käyttää lompakkotyökalua dash-wallet pelastaaksesi tai palauttaaksesi varmuuskopion.</translation>
+    </message>
+    <message>
+        <source>Can't generate a change-address key. No keys in the internal keypool and can't generate any keys.</source>
+        <translation>Vaihtoraha-osoitetta ei voi luoda. Ei avaimia sisäisessä avainvarannossa, eikä avaimia voi luoda.</translation>
     </message>
     <message>
         <source>Last successful action was too recent.</source>
