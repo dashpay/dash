@@ -421,7 +421,7 @@ std::vector<std::vector<CDeterministicMNCPtr>> CLLMQUtils::GetQuorumQuarterMembe
         case SnapshotSkipMode::MODE_NO_SKIPPING_ENTRIES: // List holds entries to be kept
         case SnapshotSkipMode::MODE_ALL_SKIPPED: // Every node was skipped. Returning empty quarterQuorumMembers
         default:
-            return {};
+            return quarterQuorumMembers;
     }
 }
 
