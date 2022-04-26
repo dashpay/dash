@@ -13,7 +13,7 @@ import struct
 import time
 
 from test_framework.test_framework import DashTestFramework
-from test_framework.mininode import P2PInterface
+from test_framework.mininode import P2PInterface, MSG_TX, MSG_TYPE_MASK
 from test_framework.util import assert_equal, assert_raises_rpc_error
 from test_framework.messages import (
     CBlock,
@@ -90,9 +90,9 @@ class TestP2PConn(P2PInterface):
 
     def on_getdata(self, message):
         for inv in message.inv:
-            if inv.hash in self.islocks:
+            if ((inv.type & MSG_TYPE_MASK) == 30 or (inv.type & MSG_TYPE_MASK) == 31) and inv.hash in self.islocks:
                 self.send_message(self.islocks[inv.hash])
-            if inv.hash in self.txes:
+            if (inv.type & MSG_TYPE_MASK) == MSG_TX and inv.hash in self.txes:
                 self.send_message(self.txes[inv.hash])
 
 
