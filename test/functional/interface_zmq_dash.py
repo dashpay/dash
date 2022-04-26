@@ -81,11 +81,11 @@ class TestP2PConn(P2PInterface):
         inv = msg_inv([CInv(31 if deterministic else 30, hash)])
         self.send_message(inv)
 
-    def send_tx(self, tx, deterministic):
+    def send_tx(self, tx):
         hash = uint256_from_str(hash256(tx.serialize()))
         self.txes[hash] = tx
 
-        inv = msg_inv([CInv(31 if deterministic else 30, hash)])
+        inv = msg_inv([CInv(MSG_TX, hash)])
         self.send_message(inv)
 
     def on_getdata(self, message):
@@ -327,7 +327,7 @@ class DashZMQTest (DashTestFramework):
             # this is expected
             pass
         # Now send the tx itself
-        self.test_node.send_tx(FromHex(msg_tx(), rpc_raw_tx_3['hex']), deterministic)
+        self.test_node.send_tx(FromHex(msg_tx(), rpc_raw_tx_3['hex']))
         self.wait_for_instantlock(rpc_raw_tx_3['txid'], self.nodes[0])
         # Validate hashtxlock
         zmq_tx_lock_hash = self.subscribers[ZMQPublisher.hash_tx_lock].receive().read(32).hex()
