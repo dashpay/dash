@@ -365,13 +365,13 @@ std::vector<std::vector<CDeterministicMNCPtr>> CLLMQUtils::GetQuorumQuarterMembe
         std::move(sortedMnsUsedAtH.begin(), sortedMnsUsedAtH.end(), std::back_inserter(sortedCombinedMns));
     }
 
-    if (sortedCombinedMns.empty()) return {};
-
     auto numQuorums = size_t(llmqParams.signingActiveQuorumCount);
     auto quorumSize = size_t(llmqParams.size);
     auto quarterSize = quorumSize / 4;
 
     std::vector<std::vector<CDeterministicMNCPtr>> quarterQuorumMembers(numQuorums);
+
+    if (sortedCombinedMns.empty()) return quarterQuorumMembers;
 
     switch (snapshot.mnSkipListMode) {
         case SnapshotSkipMode::MODE_NO_SKIPPING:
