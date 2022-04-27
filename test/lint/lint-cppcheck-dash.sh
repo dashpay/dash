@@ -114,7 +114,7 @@ SCRIPT_DIR=$( cd -- "$( dirname -- "${BASH_SOURCE[0]}" )" &> /dev/null && pwd )
 CPPCHECK_DIR=$SCRIPT_DIR/.cppcheck/
 if [ ! -d $CPPCHECK_DIR ]
 then
-    echo "Consider creating cache director $CPPCHECK_DIR to speed up subsequent runs"
+    mkdir $CPPCHECK_DIR
 fi
 WARNINGS=$(echo "${FILES}" | \
     xargs cppcheck --enable=all --inline-suppr --cppcheck-build-dir=$CPPCHECK_DIR -j "$(getconf _NPROCESSORS_ONLN)" --language=c++ --std=c++17 --template=gcc -D__cplusplus -DENABLE_WALLET -DCLIENT_VERSION_BUILD -DCLIENT_VERSION_IS_RELEASE -DCLIENT_VERSION_MAJOR -DCLIENT_VERSION_MINOR -DCLIENT_VERSION_REVISION -DCOPYRIGHT_YEAR -DDEBUG -DHAVE_WORKING_BOOST_SLEEP_FOR -DCHAR_BIT=8 -I src/ -q 2>&1 | sort -u | \
