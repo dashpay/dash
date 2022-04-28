@@ -69,6 +69,7 @@ void CBLSWorker::Stop()
     workerPool.stop(true);
 }
 
+#ifndef BUILD_BITCOIN_INTERNAL
 bool CBLSWorker::GenerateContributions(int quorumThreshold, Span<CBLSId> ids, BLSVerificationVectorPtr& vvecRet, std::vector<CBLSSecretKey>& skSharesRet)
 {
     auto svec = std::vector<CBLSSecretKey>((size_t)quorumThreshold);
@@ -109,6 +110,7 @@ bool CBLSWorker::GenerateContributions(int quorumThreshold, Span<CBLSId> ids, BL
     }
     return std::ranges::all_of(futures, [](auto& f) { return f.get(); });
 }
+#endif
 
 // aggregates a single vector of BLS objects in parallel
 // the input vector is split into batches and each batch is aggregated in parallel

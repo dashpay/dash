@@ -57,7 +57,9 @@ public:
     void Start(int16_t worker_count);
     void Stop();
 
+#ifndef BUILD_BITCOIN_INTERNAL
     bool GenerateContributions(int threshold, Span<CBLSId> ids, BLSVerificationVectorPtr& vvecRet, std::vector<CBLSSecretKey>& skSharesRet);
+#endif
 
     // The following functions are all used to aggregate verification (public key) vectors
     // Inputs are in the following form:
