@@ -227,7 +227,7 @@ def str_to_b64str(string):
 def satoshi_round(amount):
     return Decimal(amount).quantize(Decimal('0.00000001'), rounding=ROUND_DOWN)
 
-def wait_until(predicate, *, attempts=float('inf'), timeout=float('inf'), sleep=0.05, timeout_factor=1.0, lock=None, do_assert=True, allow_exception=False):
+def wait_until(predicate, *, attempts=float('inf'), timeout=float('inf'), sleep=0.5, timeout_factor=1.0, lock=None, do_assert=True, allow_exception=False):
     if attempts == float('inf') and timeout == float('inf'):
         timeout = 60
     timeout = timeout * timeout_factor
