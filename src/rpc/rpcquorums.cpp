@@ -656,9 +656,9 @@ static UniValue quorum_rotationinfo(const JSONRPCRequest& request)
     std::string strError;
 
     cmd.blockRequestHash = ParseHashV(request.params[0], "blockRequestHash");
-    cmd.extraShare = request.params[1].isNull() ? false : ParseBoolV(request.params[2], "extraShare");
+    cmd.extraShare = request.params[1].isNull() ? false : ParseBoolV(request.params[1], "extraShare");
 
-    size_t idx = 3;
+    size_t idx = 2;
     while (!request.params[idx].isNull()) {
         cmd.baseBlockHashes.emplace_back(ParseHashV(request.params[idx], "baseBlockHash"));
         ++idx;
@@ -725,8 +725,8 @@ static UniValue _quorum(const JSONRPCRequest& request)
         return quorum_dkgsimerror(new_request);
     } else if (command == "quorumgetdata") {
         return quorum_getdata(new_request);
-    } else if (command == "rotationinfo") {
-        return quorum_rotationinfo(request);
+    } else if (command == "quorumrotationinfo") {
+        return quorum_rotationinfo(new_request);
     } else {
         quorum_help();
     }
