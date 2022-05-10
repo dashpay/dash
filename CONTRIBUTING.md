@@ -68,9 +68,11 @@ like this: `feat(rpc)!: remove deprecated rpc`.
 
 For more details on allowed types and more information about Conventional
 Commits, please see the [Conventional Commits
-specification](https://www.conventionalcommits.org/en/v1.0.0/). For all
-available scopes, please see the [.github/semantic.yml](.github/semantic.yml)
-file. Commonly used ones include:
+specification](https://www.conventionalcommits.org/en/v1.0.0/). In addition to
+typical types, the `backport` type should be used for bitcoin backport PRs. For
+all available types and scopes, please see the
+[.github/semantic.yml](.github/semantic.yml) file. Commonly used scopes ones
+include:
 
   - *consensus* for changes to consensus critical code
   - *qt* for changes to dash-qt
