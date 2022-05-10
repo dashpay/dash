@@ -820,26 +820,41 @@ class DashTestFramework(BitcoinTestFramework):
                 self.sync_blocks()
         self.sync_blocks()
 
-    def activate_dip0024(self, slow_mode=False, expected_activation_height=None):
+    def activate_dip0024(self, expected_activation_height=None):
         self.log.info("Wait for dip0024 activation")
 
+        # disable spork17 while mining blocks to activate dip0024 to prevent accidental quorum formation
+        spork17_value = self.nodes[0].spork('show')['SPORK_17_QUORUM_DKG_ENABLED']
+        self.bump_mocktime(1)
+        self.nodes[0].sporkupdate("SPORK_17_QUORUM_DKG_ENABLED", 4070908800)
+        self.wait_for_sporks_same()
+
+        # mine blocks in batches
+        batch_size = 10
         if expected_activation_height is not None:
             height = self.nodes[0].getblockcount()
-            batch_size = 100
             while height - expected_activation_height > batch_size:
+                self.bump_mocktime(batch_size)
                 self.nodes[0].generate(batch_size)
                 height += batch_size
                 self.sync_blocks()
             assert height - expected_activation_height < batch_size
-            self.nodes[0].generate(height - expected_activation_height - 1)
+            blocks_left = height - expected_activation_height - 1
+            self.bump_mocktime(blocks_left)
+            self.nodes[0].generate(blocks_left)
             self.sync_blocks()
             assert self.nodes[0].getblockchaininfo()['bip9_softforks']['dip0024']['status'] != 'active'
 
         while self.nodes[0].getblockchaininfo()['bip9_softforks']['dip0024']['status'] != 'active':
-            self.nodes[0].generate(10)
-            if slow_mode:
-                self.sync_blocks()
+            self.bump_mocktime(batch_size)
+            self.nodes[0].generate(batch_size)
+            self.sync_blocks()
         self.sync_blocks()
+
+        # revert spork17 changes
+        self.bump_mocktime(1)
+        self.nodes[0].sporkupdate("SPORK_17_QUORUM_DKG_ENABLED", spork17_value)
+        self.wait_for_sporks_same()
 
     def set_dash_llmq_test_params(self, llmq_size, llmq_threshold):
         self.llmq_size = llmq_size
