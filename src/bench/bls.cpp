@@ -130,7 +130,8 @@ static void BLS_Verify_LargeBlock(size_t txCount, benchmark::Bench& bench, uint3
     // Benchmark.
     bench.minEpochIterations(epoch_iters).run([&] {
         for (size_t i = 0; i < pubKeys.size(); i++) {
-            assert(sigs[i].VerifyInsecure(pubKeys[i], msgHashes[i]));
+            bool ok = sigs[i].VerifyInsecure(pubKeys[i], msgHashes[i]);
+            assert(ok);
         }
     });
 }
@@ -157,7 +158,8 @@ static void BLS_Verify_LargeBlockSelfAggregated(size_t txCount, benchmark::Bench
     // Benchmark.
     bench.minEpochIterations(epoch_iters).run([&] {
         CBLSSignature aggSig = CBLSSignature::AggregateInsecure(sigs);
-        assert(aggSig.VerifyInsecureAggregated(pubKeys, msgHashes));
+        bool ok = aggSig.VerifyInsecureAggregated(pubKeys, msgHashes);
+        assert(ok);
     });
 }
 
@@ -184,7 +186,8 @@ static void BLS_Verify_LargeAggregatedBlock(size_t txCount, benchmark::Bench& be
 
     // Benchmark.
     bench.minEpochIterations(epoch_iters).run([&] {
-        assert(aggSig.VerifyInsecureAggregated(pubKeys, msgHashes));
+        bool ok = aggSig.VerifyInsecureAggregated(pubKeys, msgHashes);
+        assert(ok);
     });
 }
 
