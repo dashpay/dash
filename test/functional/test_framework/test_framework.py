@@ -1612,6 +1612,7 @@ class DashTestFramework(BitcoinTestFramework):
                 if self.mocktime % 2:
                     self.bump_mocktime(self.quorum_data_request_expiration_timeout + 1)
                     self.nodes[0].generate(1)
+                    self.sync_blocks()
                 else:
                     self.bump_mocktime(self.quorum_data_thread_request_timeout_seconds + 1)
 
