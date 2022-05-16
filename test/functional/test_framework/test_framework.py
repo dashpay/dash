@@ -815,6 +815,7 @@ class DashTestFramework(BitcoinTestFramework):
         # (MAX_BLOCKS_IN_TRANSIT_PER_PEER = 16 blocks) reorg error.
         self.log.info("Wait for dip0008 activation")
         while self.nodes[0].getblockcount() < self.dip8_activation_height:
+            self.bump_mocktime(10)
             self.nodes[0].generate(10)
             if slow_mode:
                 self.sync_blocks()
