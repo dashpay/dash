@@ -1149,8 +1149,11 @@ class CFinalCommitment:
         r += self.membersSig
         return r
 
-    def __str__(self):
-        return "quorumIndex:{0}, quorumHash:{1}, nVersion:{2}\n".format(self.llmqType, self.quorumHash, self.nVersion)
+    def __repr__(self):
+        return "CFinalCommitment(nVersion={} llmqType={} quorumHash={:x} quorumIndex={} signers={}" \
+               " validMembers={} quorumPublicKey={} quorumVvecHash={:x}) quorumSig={} membersSig={})" \
+            .format(self.nVersion, self.llmqType, self.quorumHash, self.quorumIndex, repr(self.signers), \
+                    repr(self.validMembers), self.quorumPublicKey.hex(), self.quorumVvecHash, self.quorumSig.hex(), self.membersSig.hex())
 
 class CGovernanceObject:
     __slots__ = ("nHashParent", "nRevision", "nTime", "nCollateralHash", "vchData", "nObjectType",
