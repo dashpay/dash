@@ -59,7 +59,6 @@ class LLMQQuorumRotationTest(DashTestFramework):
     def run_test(self):
         llmq_type=103
         llmq_type_name="llmq_test_dip0024"
-        null_hash = format(0, "064x")
 
         self.test_node = self.nodes[0].add_p2p_connection(TestP2PConn())
 
