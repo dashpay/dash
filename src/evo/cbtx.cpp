@@ -215,8 +215,7 @@ bool CalcCbTxMerkleRootQuorums(const CBlock& block, const CBlockIndex* pindexPre
             auto& v = qcHashes[llmq_params.type];
             if (llmq::CLLMQUtils::IsQuorumRotationEnabled(qc.commitment.llmqType, pindexPrev)) {
                 auto& qi = qcIndexedHashes[qc.commitment.llmqType];
-                qi.erase(qc.commitment.quorumIndex);
-                qi.insert(std::make_pair(qc.commitment.quorumIndex, qcHash));
+                qi[qc.commitment.quorumIndex] = qcHash;
                 continue;
             }
             if (v.size() == size_t(llmq_params.signingActiveQuorumCount)) {
