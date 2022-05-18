@@ -1152,7 +1152,7 @@ class CFinalCommitment:
     def __repr__(self):
         return "CFinalCommitment(nVersion={} llmqType={} quorumHash={:x} quorumIndex={} signers={}" \
                " validMembers={} quorumPublicKey={} quorumVvecHash={:x}) quorumSig={} membersSig={})" \
-            .format(self.nVersion, self.llmqType, self.quorumHash, self.quorumIndex, repr(self.signers), \
+            .format(self.nVersion, self.llmqType, self.quorumHash, self.quorumIndex, repr(self.signers),
                     repr(self.validMembers), self.quorumPublicKey.hex(), self.quorumVvecHash, self.quorumSig.hex(), self.membersSig.hex())
 
 class CGovernanceObject:
