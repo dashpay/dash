@@ -46,7 +46,6 @@ std::optional<ChainstateLoadingError> LoadChainstate(bool fReset,
                                                      CTxMemPool* mempool,
                                                      const fs::path& data_dir,
                                                      bool fPruneMode,
-                                                     const Consensus::Params& consensus_params,
                                                      bool fReindexChainState,
                                                      int64_t nBlockTreeDBCache,
                                                      int64_t nCoinDBCache,
@@ -82,7 +81,7 @@ std::optional<ChainstateLoadingError> LoadChainstate(bool fReset,
     DashChainstateSetup(chainman, mn_metaman, sporkman, chainlocks, mn_sync, chain_helper,
                         dmnman, *evodb, llmq_ctx, mempool, data_dir, dash_dbs_in_memory,
                         /*llmq_dbs_wipe=*/fReset || fReindexChainState, bls_threads, worker_count,
-                        max_recsigs_age, consensus_params);
+                        max_recsigs_age);
 
     if (fReset) {
         pblocktree->WriteReindexing(true);
@@ -103,12 +102,12 @@ std::optional<ChainstateLoadingError> LoadChainstate(bool fReset,
     }
 
     if (!chainman.BlockIndex().empty() &&
-            !chainman.m_blockman.LookupBlockIndex(consensus_params.hashGenesisBlock)) {
+            !chainman.m_blockman.LookupBlockIndex(chainman.GetConsensus().hashGenesisBlock)) {
         return ChainstateLoadingError::ERROR_BAD_GENESIS_BLOCK;
     }
 
-    if (!consensus_params.hashDevnetGenesisBlock.IsNull() && !chainman.BlockIndex().empty() &&
-            !chainman.m_blockman.LookupBlockIndex(consensus_params.hashDevnetGenesisBlock)) {
+    if (!chainman.GetConsensus().hashDevnetGenesisBlock.IsNull() && !chainman.BlockIndex().empty() &&
+            !chainman.m_blockman.LookupBlockIndex(chainman.GetConsensus().hashDevnetGenesisBlock)) {
         return ChainstateLoadingError::ERROR_BAD_DEVNET_GENESIS_BLOCK;
     }
 
@@ -198,8 +197,7 @@ void DashChainstateSetup(ChainstateManager& chainman,
                          bool llmq_dbs_wipe,
                          int8_t bls_threads,
                          int16_t worker_count,
-                         int64_t max_recsigs_age,
-                         const Consensus::Params& consensus_params)
+                         int64_t max_recsigs_age)
 {
     // Same logic as pblocktree
     dmnman.reset();
@@ -214,7 +212,7 @@ void DashChainstateSetup(ChainstateManager& chainman,
     }
     chain_helper.reset();
     chain_helper = std::make_unique<CChainstateHelper>(evodb, *dmnman, mn_sync, *(llmq_ctx->isman), *(llmq_ctx->quorum_block_processor),
-                                                       *(llmq_ctx->qsnapman), chainman, consensus_params, chainlocks,
+                                                       *(llmq_ctx->qsnapman), chainman, chainman.GetConsensus(), chainlocks,
                                                        *(llmq_ctx->qman));
 }
 
@@ -236,10 +234,8 @@ std::optional<ChainstateLoadVerifyError> VerifyLoadedChainstate(ChainstateManage
                                                                 CEvoDB& evodb,
                                                                 bool fReset,
                                                                 bool fReindexChainState,
-                                                                const Consensus::Params& consensus_params,
                                                                 int check_blocks,
                                                                 int check_level,
-                                                                std::function<int64_t()> get_unix_time_seconds,
                                                                 std::function<void(bool)> notify_bls_state)
 {
     auto is_coinsview_empty = [&](CChainState* chainstate) EXCLUSIVE_LOCKS_REQUIRED(::cs_main) {
@@ -251,17 +247,17 @@ std::optional<ChainstateLoadVerifyError> VerifyLoadedChainstate(ChainstateManage
     for (CChainState* chainstate : chainman.GetAll()) {
         if (!is_coinsview_empty(chainstate)) {
             const CBlockIndex* tip = chainstate->m_chain.Tip();
-            if (tip && tip->nTime > get_unix_time_seconds() + MAX_FUTURE_BLOCK_TIME) {
+            if (tip && tip->nTime > GetTime() + MAX_FUTURE_BLOCK_TIME) {
                 return ChainstateLoadVerifyError::ERROR_BLOCK_FROM_FUTURE;
             }
-            const bool v19active{DeploymentActiveAfter(tip, consensus_params, Consensus::DEPLOYMENT_V19)};
+            const bool v19active{DeploymentActiveAfter(tip, chainman, Consensus::DEPLOYMENT_V19)};
             if (v19active) {
                 bls::bls_legacy_scheme.store(false);
                 if (notify_bls_state) notify_bls_state(bls::bls_legacy_scheme.load());
             }
 
             if (!CVerifyDB().VerifyDB(
-                    *chainstate, consensus_params, chainstate->CoinsDB(),
+                    *chainstate, chainman.GetConsensus(), chainstate->CoinsDB(),
                     evodb,
                     check_level,
                     check_blocks)) {

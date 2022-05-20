@@ -126,10 +126,9 @@ std::ostream& operator<<(std::ostream& os, const uint256& num)
 std::unique_ptr<PeerManager> MakePeerManager(CConnman& connman,
                                              NodeContext& node,
                                              BanMan* banman,
-                                             const CChainParams& chainparams,
                                              bool ignore_incoming_txs)
 {
-    return PeerManager::make(chainparams, connman, *node.addrman, banman, *node.dstxman, *node.chainman, *node.mempool, *node.mn_metaman,
+    return PeerManager::make(connman, *node.addrman, banman, *node.dstxman, *node.chainman, *node.mempool, *node.mn_metaman,
                              *node.mn_sync, *node.sporkman, *node.chainlocks, *node.clhandler, /*nodeman=*/nullptr, node.dmnman, node.cj_walletman,
                              node.llmq_ctx, ignore_incoming_txs);
 }
@@ -137,14 +136,12 @@ std::unique_ptr<PeerManager> MakePeerManager(CConnman& connman,
 void DashChainstateSetup(ChainstateManager& chainman,
                          NodeContext& node,
                          bool llmq_dbs_in_memory,
-                         bool llmq_dbs_wipe,
-                         const Consensus::Params& consensus_params)
+                         bool llmq_dbs_wipe)
 {
     DashChainstateSetup(chainman, *Assert(node.mn_metaman.get()),
                         *Assert(node.sporkman.get()), *Assert(node.chainlocks), *Assert(node.mn_sync), node.chain_helper, node.dmnman, *node.evodb,
                         node.llmq_ctx, Assert(node.mempool.get()), node.args->GetDataDirNet(), llmq_dbs_in_memory, llmq_dbs_wipe,
-                        llmq::DEFAULT_BLSCHECK_THREADS, llmq::DEFAULT_WORKER_COUNT, llmq::DEFAULT_MAX_RECOVERED_SIGS_AGE,
-                        consensus_params);
+                        llmq::DEFAULT_BLSCHECK_THREADS, llmq::DEFAULT_WORKER_COUNT, llmq::DEFAULT_MAX_RECOVERED_SIGS_AGE);
 }
 
 void DashChainstateSetupClose(NodeContext& node)
@@ -308,7 +305,6 @@ ChainTestingSetup::~ChainTestingSetup()
 
 void ChainTestingSetup::LoadVerifyActivateChainstate()
 {
-    const CChainParams& chainparams = Params();
     auto& chainman{*Assert(m_node.chainman)};
     auto maybe_load_error = LoadChainstate(fReindex.load(),
                                            chainman,
@@ -323,7 +319,6 @@ void ChainTestingSetup::LoadVerifyActivateChainstate()
                                            Assert(m_node.mempool.get()),
                                            Assert(m_node.args)->GetDataDirNet(),
                                            fPruneMode,
-                                           chainparams.GetConsensus(),
                                            m_args.GetBoolArg("-reindex-chainstate", false),
                                            m_cache_sizes.block_tree_db,
                                            m_cache_sizes.coins_db,
@@ -343,10 +338,8 @@ void ChainTestingSetup::LoadVerifyActivateChainstate()
         *Assert(m_node.evodb.get()),
         fReindex.load(),
         m_args.GetBoolArg("-reindex-chainstate", false),
-        chainparams.GetConsensus(),
         m_args.GetIntArg("-checkblocks", DEFAULT_CHECKBLOCKS),
         m_args.GetIntArg("-checklevel", DEFAULT_CHECKLEVEL),
-        /*get_unix_time_seconds=*/static_cast<int64_t(*)()>(GetTime),
         [](bool bls_state) {
             LogPrintf("%s: bls_legacy_scheme=%d\n", __func__, bls_state);
         });
@@ -367,7 +360,6 @@ TestingSetup::TestingSetup(
 {
     m_coins_db_in_memory = coins_db_in_memory;
     m_block_tree_db_in_memory = block_tree_db_in_memory;
-    const CChainParams& chainparams = Params();
     // Ideally we'd move all the RPC tests to the functional testing framework
     // instead of unit tests, but for now we need these here.
     RegisterAllCoreRPCCommands(tableRPC);
@@ -391,7 +383,7 @@ TestingSetup::TestingSetup(
 #endif // ENABLE_WALLET
 
     m_node.banman = std::make_unique<BanMan>(m_args.GetDataDirBase() / "banlist", nullptr, DEFAULT_MISBEHAVING_BANTIME);
-    m_node.peerman = MakePeerManager(*m_node.connman, m_node, m_node.banman.get(), chainparams,
+    m_node.peerman = MakePeerManager(*m_node.connman, m_node, m_node.banman.get(),
                                      /*ignore_incoming_txs=*/false);
     {
         CConnman::Options options;
@@ -519,9 +511,8 @@ CBlock TestChainSetup::CreateBlock(
     const CScript& scriptPubKey,
     CChainState& chainstate)
 {
-    const CChainParams& chainparams = Params();
     CTxMemPool empty_pool;
-    CBlock block = BlockAssembler(chainstate, m_node, &empty_pool, chainparams).CreateNewBlock(scriptPubKey)->block;
+    CBlock block = BlockAssembler(chainstate, m_node, &empty_pool).CreateNewBlock(scriptPubKey)->block;
 
     std::vector<CTransactionRef> llmqCommitments;
     for (const auto& tx : block.vtx) {
@@ -571,7 +562,7 @@ CBlock TestChainSetup::CreateBlock(
         block.hashMerkleRoot = BlockMerkleRoot(block);
     }
 
-    while (!CheckProofOfWork(block.GetHash(), block.nBits, chainparams.GetConsensus())) ++block.nNonce;
+    while (!CheckProofOfWork(block.GetHash(), block.nBits, m_node.chainman->GetConsensus())) ++block.nNonce;
 
     CBlock result = block;
     return result;

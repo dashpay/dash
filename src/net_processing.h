@@ -108,7 +108,7 @@ public:
      * @param nodeman Non-null iff masternode mode is on; null otherwise. Used both
      *                as the masternode-mode indicator and for direct access.
      */
-    static std::unique_ptr<PeerManager> make(const CChainParams& chainparams, CConnman& connman, AddrMan& addrman,
+    static std::unique_ptr<PeerManager> make(CConnman& connman, AddrMan& addrman,
                                              BanMan* banman, CDSTXManager& dstxman, ChainstateManager& chainman,
                                              CTxMemPool& pool, CMasternodeMetaMan& mn_metaman, CMasternodeSync& mn_sync,
                                              CSporkManager& sporkman,

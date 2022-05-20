@@ -25,7 +25,6 @@
 #include <type_traits>
 #include <vector>
 
-class CChainParams;
 class CFeeRate;
 namespace Consensus {
 struct Params;
@@ -84,13 +83,11 @@ static constexpr CAmount CENT{1000000};
 std::unique_ptr<PeerManager> MakePeerManager(CConnman& connman,
                                              node::NodeContext& node,
                                              BanMan* banman,
-                                             const CChainParams& chainparams,
                                              bool ignore_incoming_txs);
 void DashChainstateSetup(ChainstateManager& chainman,
                          node::NodeContext& node,
                          bool llmq_dbs_in_memory,
-                         bool llmq_dbs_wipe,
-                         const Consensus::Params& consensus_params);
+                         bool llmq_dbs_wipe);
 void DashChainstateSetupClose(node::NodeContext& node);
 
 /** Basic testing setup.
