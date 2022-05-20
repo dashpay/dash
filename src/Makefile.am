@@ -281,6 +281,7 @@ BITCOIN_CORE_H = \
   instantsend/net_instantsend.h \
   instantsend/signing.h \
   kernel/blockmanager_opts.h \
+  kernel/chainstatemanager_opts.h \
   kernel/coinstats.h \
   key.h \
   key_io.h \
@@ -1325,7 +1326,6 @@ libdashkernel_la_SOURCES = \
   txdb.cpp \
   txmempool.cpp \
   uint256.cpp \
-  util/asmap.cpp \
   util/bytevectorhash.cpp \
   util/check.cpp \
   util/getuniquepath.cpp \

@@ -33,6 +33,7 @@
 #include <script/script.h>
 #include <script/sign.h>
 #include <shutdown.h>
+#include <timedata.h>
 #include <txmempool.h>
 #include <univalue.h>
 #include <util/check.h>
@@ -376,7 +377,7 @@ static RPCHelpMan generateblock()
 
         BlockValidationState state;
         if (!TestBlockValidity(state, *CHECK_NONFATAL(node.chainlocks), *CHECK_NONFATAL(node.evodb), chainman.GetParams(), active_chainstate,
-                               block, chainman.m_blockman.LookupBlockIndex(block.hashPrevBlock), false, false)) {
+                               block, chainman.m_blockman.LookupBlockIndex(block.hashPrevBlock), GetAdjustedTime, false, false)) {
             throw JSONRPCError(RPC_VERIFY_ERROR, strprintf("TestBlockValidity failed: %s", state.GetRejectReason()));
         }
     }
@@ -697,7 +698,7 @@ static RPCHelpMan getblocktemplate()
                 return "inconclusive-not-best-prevblk";
             BlockValidationState state;
             TestBlockValidity(state, *CHECK_NONFATAL(node.chainlocks), *CHECK_NONFATAL(node.evodb), chainman.GetParams(), active_chainstate,
-                              block, pindexPrev, false, true);
+                              block, pindexPrev, GetAdjustedTime, false, true);
             return BIP22ValidationResult(state);
         }
 
