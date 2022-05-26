@@ -5,11 +5,14 @@
 #ifndef BITCOIN_INDEX_COINSTATSINDEX_H
 #define BITCOIN_INDEX_COINSTATSINDEX_H
 
-#include <chain.h>
 #include <crypto/muhash.h>
-#include <flatfile.h>
 #include <index/base.h>
-#include <kernel/coinstats.h>
+
+class CBlockIndex;
+class CDBBatch;
+namespace kernel {
+struct CCoinsStats;
+}
 
 static constexpr bool DEFAULT_COINSTATSINDEX{false};
 
@@ -58,7 +61,7 @@ public:
     explicit CoinStatsIndex(std::unique_ptr<interfaces::Chain> chain, size_t n_cache_size, bool f_memory = false, bool f_wipe = false);
 
     // Look up stats for a specific block using CBlockIndex
-    std::optional<kernel::CCoinsStats> LookUpStats(const CBlockIndex* block_index) const;
+    std::optional<kernel::CCoinsStats> LookUpStats(const CBlockIndex& block_index) const;
 };
 
 /// The global UTXO set hash object.
