@@ -90,7 +90,6 @@ void CQuorumRotationInfo::ToJson(UniValue& obj) const
         mnListDiffAtHMinus4C.value().ToJson(objdiff4c);
         obj.pushKV("mnListDiffAtHMinus4C", objdiff4c);
     }
-    
     UniValue hqclists(UniValue::VARR);
     for (const auto& qc : lastCommitmentPerIndex) {
         UniValue objqc;
