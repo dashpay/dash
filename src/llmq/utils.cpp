@@ -434,8 +434,18 @@ std::pair<CDeterministicMNList, CDeterministicMNList> CLLMQUtils::GetMNUsageBySn
     const CBlockIndex* pWorkBlockIndex = pQuorumBaseBlockIndex->GetAncestor(pQuorumBaseBlockIndex->nHeight - 8);
     auto modifier = ::SerializeHash(std::make_pair(llmqType, pWorkBlockIndex->GetBlockHash()));
 
-    auto Mns = deterministicMNManager->GetListForBlock(pWorkBlockIndex);
-    auto sortedAllMns = Mns.CalculateQuorum(Mns.GetAllMNsCount(), modifier);
+    auto allMns = deterministicMNManager->GetListForBlock(pWorkBlockIndex);
+    auto validMns = CDeterministicMNList();
+    allMns.ForEachMNShared(true, [&validMns](const CDeterministicMNCPtr& dmn) {
+        if (!validMns.HasMN(dmn->proTxHash)) {
+            try {
+                validMns.AddMN(dmn);
+            } catch (std::runtime_error& e) {
+            }
+        }
+    });
+
+    auto sortedAllMns = validMns.CalculateQuorum(validMns.GetAllMNsCount(), modifier);
 
     size_t i{0};
     for (const auto& dmn : sortedAllMns) {
