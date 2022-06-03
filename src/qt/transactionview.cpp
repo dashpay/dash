@@ -452,8 +452,9 @@ void TransactionView::abandonTx()
 
 void TransactionView::resendTx()
 {
-    if(!transactionView || !transactionView->selectionModel())
+    if(!transactionView || !transactionView->selectionModel()) {
         return;
+    }
     QModelIndexList selection = transactionView->selectionModel()->selectedRows(0);
 
     // get the hash from the TxHashRole (QVariant / QString)
