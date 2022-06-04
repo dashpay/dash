@@ -16,9 +16,9 @@
 #include <consensus/validation.h>
 #include <deploymentstatus.h>
 #include <crypto/sha256.h>
-#include <crypto/x11/dispatch.h>
 #include <index/txindex.h>
 #include <init.h>
+#include <init/common.h>
 #include <interfaces/chain.h>
 #include <net.h>
 #include <net_processing.h>
@@ -191,10 +191,7 @@ BasicTestingSetup::BasicTestingSetup(const std::string& chainName, const std::ve
     InitLogging(*m_node.args);
     AppInitParameterInteraction(*m_node.args);
     LogInstance().StartLogging();
-    SapphireAutoDetect();
-    SHA256AutoDetect();
-    ECC_Start();
-    BLSInit();
+    m_node.kernel = std::make_unique<kernel::Context>();
     SetupEnvironment();
     SetupNetworking();
     InitSignatureCache();
@@ -258,8 +255,6 @@ BasicTestingSetup::~BasicTestingSetup()
     m_node.addrman.reset();
     m_node.netgroupman.reset();
     m_node.args = nullptr;
-
-    ECC_Stop();
 }
 
 ChainTestingSetup::ChainTestingSetup(const std::string& chainName, const std::vector<const char*>& extra_args)
