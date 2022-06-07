@@ -231,22 +231,14 @@ std::vector<std::vector<CDeterministicMNCPtr>> CLLMQUtils::BuildNewQuorumQuarter
 
     if (allMns.GetValidMNsCount() < quarterSize) return quarterQuorumMembers;
 
-    auto validMns = CDeterministicMNList();
-    allMns.ForEachMNShared(true, [&validMns](const CDeterministicMNCPtr& dmn) {
-        if (!validMns.HasMN(dmn->proTxHash)) {
-            try {
-                validMns.AddMN(dmn);
-            } catch (std::runtime_error& e) {
-            }
-        }
-    });
-
     auto MnsUsedAtH = CDeterministicMNList();
     auto MnsNotUsedAtH = CDeterministicMNList();
     std::vector<CDeterministicMNList> MnsUsedAtHIndexed(nQuorums);
 
     for (auto i = 0; i < nQuorums; ++i) {
         for (const auto& mn : previousQuarters.quarterHMinusC[i]) {
+            if (allMns.IsMNPoSeBanned(mn->proTxHash))
+                continue;
             try {
                 MnsUsedAtH.AddMN(mn);
             } catch (std::runtime_error& e) {
@@ -257,6 +249,8 @@ std::vector<std::vector<CDeterministicMNCPtr>> CLLMQUtils::BuildNewQuorumQuarter
             }
         }
         for (const auto& mn : previousQuarters.quarterHMinus2C[i]) {
+            if (allMns.IsMNPoSeBanned(mn->proTxHash))
+                continue;
             try {
                 MnsUsedAtH.AddMN(mn);
             } catch (std::runtime_error& e) {
@@ -267,6 +261,8 @@ std::vector<std::vector<CDeterministicMNCPtr>> CLLMQUtils::BuildNewQuorumQuarter
             }
         }
         for (const auto& mn : previousQuarters.quarterHMinus3C[i]) {
+            if (allMns.IsMNPoSeBanned(mn->proTxHash))
+                continue;
             try {
                 MnsUsedAtH.AddMN(mn);
             } catch (std::runtime_error& e) {
@@ -278,11 +274,13 @@ std::vector<std::vector<CDeterministicMNCPtr>> CLLMQUtils::BuildNewQuorumQuarter
         }
     }
 
-    validMns.ForEachMNShared(true, [&MnsUsedAtH, &MnsNotUsedAtH](const CDeterministicMNCPtr& dmn) {
+    allMns.ForEachMNShared(false, [&MnsUsedAtH, &MnsNotUsedAtH](const CDeterministicMNCPtr& dmn) {
         if (!MnsUsedAtH.HasMN(dmn->proTxHash)) {
-            try {
-                MnsNotUsedAtH.AddMN(dmn);
-            } catch (std::runtime_error& e) {
+            if (!dmn->pdmnState->IsBanned()) {
+                try {
+                    MnsNotUsedAtH.AddMN(dmn);
+                } catch (std::runtime_error &e) {
+                }
             }
         }
     });
@@ -326,21 +324,21 @@ std::vector<std::vector<CDeterministicMNCPtr>> CLLMQUtils::BuildNewQuorumQuarter
 
     CQuorumSnapshot quorumSnapshot = {};
 
-    CLLMQUtils::BuildQuorumSnapshot(llmqParams, validMns, MnsUsedAtH, sortedCombinedMnsList, quorumSnapshot, pQuorumBaseBlockIndex->nHeight, skipList, pQuorumBaseBlockIndex);
+    CLLMQUtils::BuildQuorumSnapshot(llmqParams, allMns, MnsUsedAtH, sortedCombinedMnsList, quorumSnapshot, pQuorumBaseBlockIndex->nHeight, skipList, pQuorumBaseBlockIndex);
 
     quorumSnapshotManager->StoreSnapshotForBlock(llmqParams.type, pQuorumBaseBlockIndex, quorumSnapshot);
 
     return quarterQuorumMembers;
 }
 
-void CLLMQUtils::BuildQuorumSnapshot(const Consensus::LLMQParams& llmqParams, const CDeterministicMNList& mnAtH, const CDeterministicMNList& mnUsedAtH, std::vector<CDeterministicMNCPtr>& sortedCombinedMns, CQuorumSnapshot& quorumSnapshot, int nHeight, std::vector<int>& skipList, const CBlockIndex* pQuorumBaseBlockIndex)
+void CLLMQUtils::BuildQuorumSnapshot(const Consensus::LLMQParams& llmqParams, const CDeterministicMNList& allMns, const CDeterministicMNList& mnUsedAtH, std::vector<CDeterministicMNCPtr>& sortedCombinedMns, CQuorumSnapshot& quorumSnapshot, int nHeight, std::vector<int>& skipList, const CBlockIndex* pQuorumBaseBlockIndex)
 {
-    quorumSnapshot.activeQuorumMembers.resize(mnAtH.GetAllMNsCount());
+    quorumSnapshot.activeQuorumMembers.resize(allMns.GetAllMNsCount());
     const CBlockIndex* pWorkBlockIndex = pQuorumBaseBlockIndex->GetAncestor(pQuorumBaseBlockIndex->nHeight - 8);
     auto modifier = ::SerializeHash(std::make_pair(llmqParams.type, pWorkBlockIndex->GetBlockHash()));
-    auto sortedAllMns = mnAtH.CalculateQuorum(mnAtH.GetAllMNsCount(), modifier);
+    auto sortedAllMns = allMns.CalculateQuorum(allMns.GetAllMNsCount(), modifier);
 
-    LogPrint(BCLog::LLMQ, "BuildQuorumSnapshot h[%d] numMns[%d]\n", pQuorumBaseBlockIndex->nHeight, mnAtH.GetAllMNsCount());
+    LogPrint(BCLog::LLMQ, "BuildQuorumSnapshot h[%d] numMns[%d]\n", pQuorumBaseBlockIndex->nHeight, allMns.GetAllMNsCount());
 
     std::fill(quorumSnapshot.activeQuorumMembers.begin(),
               quorumSnapshot.activeQuorumMembers.end(),
@@ -455,29 +453,21 @@ std::pair<CDeterministicMNList, CDeterministicMNList> CLLMQUtils::GetMNUsageBySn
     auto modifier = ::SerializeHash(std::make_pair(llmqType, pWorkBlockIndex->GetBlockHash()));
 
     auto allMns = deterministicMNManager->GetListForBlock(pWorkBlockIndex);
-    auto validMns = CDeterministicMNList();
-    allMns.ForEachMNShared(true, [&validMns](const CDeterministicMNCPtr& dmn) {
-        if (!validMns.HasMN(dmn->proTxHash)) {
-            try {
-                validMns.AddMN(dmn);
-            } catch (std::runtime_error& e) {
-            }
-        }
-    });
-
-    auto sortedAllMns = validMns.CalculateQuorum(validMns.GetAllMNsCount(), modifier);
+    auto sortedAllMns = allMns.CalculateQuorum(allMns.GetAllMNsCount(), modifier);
 
     size_t i{0};
     for (const auto& dmn : sortedAllMns) {
         if (snapshot.activeQuorumMembers[i]) {
             try {
                 usedMNs.AddMN(dmn);
-            } catch (std::runtime_error& e) {
+            } catch (std::runtime_error &e) {
             }
         } else {
-            try {
-                nonUsedMNs.AddMN(dmn);
-            } catch (std::runtime_error& e) {
+            if (!dmn->pdmnState->IsBanned()) {
+                try {
+                    nonUsedMNs.AddMN(dmn);
+                } catch (std::runtime_error &e) {
+                }
             }
         }
         i++;
