@@ -138,50 +138,54 @@ std::vector<std::vector<CDeterministicMNCPtr>> CLLMQUtils::ComputeQuorumMembersB
     //TODO Check if it is triggered from outside (P2P, block validation). Throwing an exception is probably a wiser choice
     //assert (!newQuarterMembers.empty());
 
-    for (auto i = 0; i < nQuorums; ++i) {
-        std::stringstream ss;
+    if (LogAcceptCategory(BCLog::LLMQ)) {
+        for (auto i = 0; i < nQuorums; ++i) {
+            std::stringstream ss;
 
-        ss << " 3Cmns[";
-        for (auto& m : previousQuarters.quarterHMinus3C[i]) {
-            ss << m->proTxHash.ToString().substr(0, 4) << "|";
-        }
-        ss << " ] 2Cmns[";
-        for (auto& m : previousQuarters.quarterHMinus2C[i]) {
-            ss << m->proTxHash.ToString().substr(0, 4) << "|";
-        }
-        ss << " ] Cmns[";
-        for (auto& m : previousQuarters.quarterHMinusC[i]) {
-            ss << m->proTxHash.ToString().substr(0, 4) << "|";
-        }
-        ss << " ] new[";
-        for (auto& m : newQuarterMembers[i]) {
-            ss << m->proTxHash.ToString().substr(0, 4) << "|";
-        }
-        ss << " ]";
-        LogPrint(BCLog::LLMQ, "QuarterComposition h[%d] i[%d]:%s\n", pCycleQuorumBaseBlockIndex->nHeight, i, ss.str());
-    }
-
-    for (auto i = 0; i < nQuorums; ++i) {
-        for (auto& m : previousQuarters.quarterHMinus3C[i]) {
-            quorumMembers[i].push_back(std::move(m));
-        }
-        for (auto& m : previousQuarters.quarterHMinus2C[i]) {
-            quorumMembers[i].push_back(std::move(m));
-        }
-        for (auto& m : previousQuarters.quarterHMinusC[i]) {
-            quorumMembers[i].push_back(std::move(m));
-        }
-        for (auto& m : newQuarterMembers[i]) {
-            quorumMembers[i].push_back(std::move(m));
+            ss << " 3Cmns[";
+            for (auto &m: previousQuarters.quarterHMinus3C[i]) {
+                ss << m->proTxHash.ToString().substr(0, 4) << "|";
+            }
+            ss << " ] 2Cmns[";
+            for (auto &m: previousQuarters.quarterHMinus2C[i]) {
+                ss << m->proTxHash.ToString().substr(0, 4) << "|";
+            }
+            ss << " ] Cmns[";
+            for (auto &m: previousQuarters.quarterHMinusC[i]) {
+                ss << m->proTxHash.ToString().substr(0, 4) << "|";
+            }
+            ss << " ] new[";
+            for (auto &m: newQuarterMembers[i]) {
+                ss << m->proTxHash.ToString().substr(0, 4) << "|";
+            }
+            ss << " ]";
+            LogPrint(BCLog::LLMQ, "QuarterComposition h[%d] i[%d]:%s\n", pCycleQuorumBaseBlockIndex->nHeight, i,
+                     ss.str());
         }
 
-        std::stringstream ss;
-        ss << " [";
-        for (auto& m : quorumMembers[i]) {
-            ss << m->proTxHash.ToString().substr(0, 4) << "|";
+        for (auto i = 0; i < nQuorums; ++i) {
+            for (auto &m: previousQuarters.quarterHMinus3C[i]) {
+                quorumMembers[i].push_back(std::move(m));
+            }
+            for (auto &m: previousQuarters.quarterHMinus2C[i]) {
+                quorumMembers[i].push_back(std::move(m));
+            }
+            for (auto &m: previousQuarters.quarterHMinusC[i]) {
+                quorumMembers[i].push_back(std::move(m));
+            }
+            for (auto &m: newQuarterMembers[i]) {
+                quorumMembers[i].push_back(std::move(m));
+            }
+
+            std::stringstream ss;
+            ss << " [";
+            for (auto &m: quorumMembers[i]) {
+                ss << m->proTxHash.ToString().substr(0, 4) << "|";
+            }
+            ss << "]";
+            LogPrint(BCLog::LLMQ, "QuorumComposition h[%d] i[%d]:%s\n", pCycleQuorumBaseBlockIndex->nHeight, i,
+                     ss.str());
         }
-        ss << "]";
-        LogPrint(BCLog::LLMQ, "QuorumComposition h[%d] i[%d]:%s\n", pCycleQuorumBaseBlockIndex->nHeight, i, ss.str());
     }
 
     return quorumMembers;
@@ -292,13 +296,16 @@ std::vector<std::vector<CDeterministicMNCPtr>> CLLMQUtils::BuildNewQuorumQuarter
         sortedCombinedMnsList.push_back(std::move(m));
     }
 
-    std::stringstream ss;
-    ss << " [";
-    for (auto& m : sortedCombinedMnsList) {
-        ss << m->proTxHash.ToString().substr(0, 4) << "|";
+    if (LogAcceptCategory(BCLog::LLMQ)) {
+        std::stringstream ss;
+        ss << " [";
+        for (auto &m: sortedCombinedMnsList) {
+            ss << m->proTxHash.ToString().substr(0, 4) << "|";
+        }
+        ss << "]";
+        LogPrint(BCLog::LLMQ, "BuildNewQuorumQuarterMembers h[%d] sortedCombinedMnsList[%s]\n",
+                 pQuorumBaseBlockIndex->nHeight, ss.str());
     }
-    ss << "]";
-    LogPrint(BCLog::LLMQ, "BuildNewQuorumQuarterMembers h[%d] sortedCombinedMnsList[%s]\n", pQuorumBaseBlockIndex->nHeight, ss.str());
 
     std::vector<int> skipList;
     int firstSkippedIndex = 0;
@@ -375,13 +382,16 @@ std::vector<std::vector<CDeterministicMNCPtr>> CLLMQUtils::GetQuorumQuarterMembe
         std::move(sortedMnsUsedAtH.begin(), sortedMnsUsedAtH.end(), std::back_inserter(sortedCombinedMns));
     }
 
-    std::stringstream ss;
-    ss << " [";
-    for (auto& m : sortedCombinedMns) {
-        ss << m->proTxHash.ToString().substr(0, 4) << "|";
+    if (LogAcceptCategory(BCLog::LLMQ)) {
+        std::stringstream ss;
+        ss << " [";
+        for (auto &m: sortedCombinedMns) {
+            ss << m->proTxHash.ToString().substr(0, 4) << "|";
+        }
+        ss << "]";
+        LogPrint(BCLog::LLMQ, "GetQuorumQuarterMembersBySnapshot h[%d] from[%d] sortedCombinedMns[%s]\n",
+                 pQuorumBaseBlockIndex->nHeight, nHeight, ss.str());
     }
-    ss << "]";
-    LogPrint(BCLog::LLMQ, "GetQuorumQuarterMembersBySnapshot h[%d] from[%d] sortedCombinedMns[%s]\n", pQuorumBaseBlockIndex->nHeight, nHeight, ss.str());
 
     auto numQuorums = size_t(llmqParams.signingActiveQuorumCount);
     auto quorumSize = size_t(llmqParams.size);
