@@ -193,7 +193,7 @@ static constexpr std::array<LLMQParams, 10> available_llmqs = {
 
         .signingActiveQuorumCount = 2, // just a few ones to allow easier testing
 
-        .keepOldConnections = 5,
+        .keepOldConnections = 4,
         .recoveryMembers = 3,
     },
 
