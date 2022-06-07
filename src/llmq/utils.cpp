@@ -241,8 +241,9 @@ std::vector<std::vector<CDeterministicMNCPtr>> CLLMQUtils::BuildNewQuorumQuarter
 
     for (auto i = 0; i < nQuorums; ++i) {
         for (const auto& mn : previousQuarters.quarterHMinusC[i]) {
-            if (allMns.IsMNPoSeBanned(mn->proTxHash))
+            if (allMns.IsMNPoSeBanned(mn->proTxHash)) {
                 continue;
+            }
             try {
                 MnsUsedAtH.AddMN(mn);
             } catch (std::runtime_error& e) {
@@ -253,8 +254,9 @@ std::vector<std::vector<CDeterministicMNCPtr>> CLLMQUtils::BuildNewQuorumQuarter
             }
         }
         for (const auto& mn : previousQuarters.quarterHMinus2C[i]) {
-            if (allMns.IsMNPoSeBanned(mn->proTxHash))
+            if (allMns.IsMNPoSeBanned(mn->proTxHash)) {
                 continue;
+            }
             try {
                 MnsUsedAtH.AddMN(mn);
             } catch (std::runtime_error& e) {
@@ -265,8 +267,9 @@ std::vector<std::vector<CDeterministicMNCPtr>> CLLMQUtils::BuildNewQuorumQuarter
             }
         }
         for (const auto& mn : previousQuarters.quarterHMinus3C[i]) {
-            if (allMns.IsMNPoSeBanned(mn->proTxHash))
+            if (allMns.IsMNPoSeBanned(mn->proTxHash)) {
                 continue;
+            }
             try {
                 MnsUsedAtH.AddMN(mn);
             } catch (std::runtime_error& e) {
