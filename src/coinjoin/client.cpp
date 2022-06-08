@@ -50,16 +50,6 @@ void CCoinJoinClientQueueManager::ProcessMessage(CNode* pfrom, const std::string
 
 void CCoinJoinClientQueueManager::ProcessDSQueue(CNode* pfrom, const std::string& strCommand, CDataStream& vRecv, CConnman& connman, bool enable_bip61)
 {
-    if (pfrom->nVersion < MIN_PEER_PROTO_VERSION) {
-        LogPrint(BCLog::COINJOIN, "DSQUEUE -- peer=%d using obsolete version %i\n", pfrom->GetId(), pfrom->nVersion);
-        if (enable_bip61) {
-            connman.PushMessage(pfrom, CNetMsgMaker(pfrom->GetSendVersion()).Make(NetMsgType::REJECT, strCommand,
-                                                                                  REJECT_OBSOLETE, strprintf(
-                            "Version must be %d or greater", MIN_PEER_PROTO_VERSION)));
-        }
-        return;
-    }
-
     CCoinJoinQueue dsq;
     vRecv >> dsq;
 
@@ -153,21 +143,7 @@ void CCoinJoinClientSession::ProcessMessage(CNode* pfrom, const std::string& msg
     if (!CCoinJoinClientOptions::IsEnabled()) return;
     if (!masternodeSync.IsBlockchainSynced()) return;
 
-    auto checkProtoVersion = [&pfrom, &msg_type, &connman, &enable_bip61](const auto& long_name){
-        if (pfrom->nVersion < MIN_PEER_PROTO_VERSION) {
-            LogPrint(BCLog::COINJOIN, "%s -- peer=%d using obsolete version %i\n", long_name, pfrom->GetId(), pfrom->nVersion);
-            if (enable_bip61) {
-                connman.PushMessage(pfrom, CNetMsgMaker(pfrom->GetSendVersion()).Make(NetMsgType::REJECT, msg_type,
-                                                                                      REJECT_OBSOLETE, strprintf(
-                                "Version must be %d or greater", MIN_PEER_PROTO_VERSION)));
-            }
-            return false;
-        }
-        return true;
-    };
-
     if (msg_type == NetMsgType::DSSTATUSUPDATE) {
-        if (!checkProtoVersion("DSSTATUSUPDATE")) return;
 
         if (!mixingMasternode) return;
         if (mixingMasternode->pdmnState->addr != pfrom->addr) {
@@ -180,7 +156,6 @@ void CCoinJoinClientSession::ProcessMessage(CNode* pfrom, const std::string& msg
         ProcessPoolStateUpdate(psssup);
 
     } else if (msg_type == NetMsgType::DSFINALTX) {
-        if (!checkProtoVersion("DSFINALTX")) return;
 
         if (!mixingMasternode) return;
         if (mixingMasternode->pdmnState->addr != pfrom->addr) {
@@ -202,7 +177,6 @@ void CCoinJoinClientSession::ProcessMessage(CNode* pfrom, const std::string& msg
         SignFinalTransaction(txNew, pfrom, connman);
 
     } else if (msg_type == NetMsgType::DSCOMPLETE) {
-        if (!checkProtoVersion("DSCOMPLETE")) return;
 
         if (!mixingMasternode) return;
         if (mixingMasternode->pdmnState->addr != pfrom->addr) {
