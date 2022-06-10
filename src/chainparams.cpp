@@ -1063,7 +1063,17 @@ public:
         params->threshold = threshold;
         params->dkgBadVotesThreshold = threshold;
     }
+
+    /**
+     * Allows modifying PowTargetSpacing
+     */
+    void UpdateTestPowTargetSpacing(int64_t nPowTargetSpacing)
+    {
+        consensus.nPowTargetSpacing = nPowTargetSpacing;
+    }
+
     void UpdateLLMQTestParametersFromArgs(const ArgsManager& args, const Consensus::LLMQType llmqType);
+    void UpdateTestPowTargetSpacingFromArgs(const ArgsManager& args);
 };
 
 void CRegTestParams::UpdateVersionBitsParametersFromArgs(const ArgsManager& args)
@@ -1208,6 +1218,25 @@ void CRegTestParams::UpdateLLMQTestParametersFromArgs(const ArgsManager& args, c
     }
     LogPrintf("Setting %s parameters to size=%ld, threshold=%ld\n", llmq_name, size, threshold);
     UpdateLLMQTestParameters(size, threshold, llmqType);
+}
+
+void CRegTestParams::UpdateTestPowTargetSpacingFromArgs(const ArgsManager& args)
+{
+    if (!args.IsArgSet("-powtargetspacing")) return;
+
+    std::string strPowTargetSpacing = gArgs.GetArg("-powtargetspacing", "");
+
+    int64_t powTargetSpacing;
+    if (!ParseInt64(strPowTargetSpacing, &powTargetSpacing)) {
+        throw std::runtime_error(strprintf("Invalid parsing of powTargetSpacing (%s)", strPowTargetSpacing));
+    }
+
+    if (powTargetSpacing < 1) {
+        throw std::runtime_error(strprintf("Invalid value of powTargetSpacing (%s)", strPowTargetSpacing));
+    }
+
+    LogPrintf("Setting powTargetSpacing to %ld\n", powTargetSpacing);
+    UpdateTestPowTargetSpacing(powTargetSpacing);
 }
 
 void CDevNetParams::UpdateDevnetSubsidyAndDiffParametersFromArgs(const ArgsManager& args)
