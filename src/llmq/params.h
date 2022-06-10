@@ -24,14 +24,17 @@ enum class LLMQType : uint8_t {
     LLMQ_TEST = 100, // 3 members, 2 (66%) threshold, one per hour. Params might differ when -llmqtestparams is used
 
     // for devnets only
-    LLMQ_DEVNET = 101, // 10 members, 6 (60%) threshold, one per hour. Params might differ when -llmqdevnetparams is used
+    LLMQ_DEVNET = 101, // 12 members, 6 (50%) threshold, one per hour. Params might differ when -llmqdevnetparams is used
 
     // for testing activation of new quorums only
     LLMQ_TEST_V17 = 102, // 3 members, 2 (66%) threshold, one per hour. Params might differ when -llmqtestparams is used
 
+    // for testing only
     LLMQ_TEST_DIP0024 = 103, // 4 members, 2 (66%) threshold, one per hour. Params might differ when -llmqtestparams is used
-
     LLMQ_TEST_INSTANTSEND = 104, // 3 members, 2 (66%) threshold, one per hour. Params might differ when -llmqtestinstantsendparams is used
+
+    // for devnets only. rotated version (v2) for devnets
+    LLMQ_DEVNET_V2 = 105 // 12 members, 6 (50%) threshold, one per hour. Params might differ when -llmqdevnetparams is used
 };
 
 // Configures a LLMQ and its DKG
@@ -103,7 +106,7 @@ struct LLMQParams {
 };
 
 
-static constexpr std::array<LLMQParams, 10> available_llmqs = {
+static constexpr std::array<LLMQParams, 11> available_llmqs = {
 
     /**
      * llmq_test
@@ -227,6 +230,30 @@ static constexpr std::array<LLMQParams, 10> available_llmqs = {
         .signingActiveQuorumCount = 4, // just a few ones to allow easier testing
 
         .keepOldConnections = 5,
+        .recoveryMembers = 6,
+    },
+
+    /**
+     * llmq_devnet_2
+     * This quorum is only used for testing on devnets
+     *
+     */
+    LLMQParams{
+        .type = LLMQType::LLMQ_DEVNET_V2,
+        .name = "llmq_devnet_v2",
+        .size = 12,
+        .minSize = 7,
+        .threshold = 6,
+
+        .dkgInterval = 24, // one DKG per hour
+        .dkgPhaseBlocks = 2,
+        .dkgMiningWindowStart = 10, // dkgPhaseBlocks * 5 = after finalization
+        .dkgMiningWindowEnd = 18,
+        .dkgBadVotesThreshold = 7,
+
+        .signingActiveQuorumCount = 4, // just a few ones to allow easier testing
+
+        .keepOldConnections = 8,
         .recoveryMembers = 6,
     },
 
