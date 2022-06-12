@@ -98,7 +98,7 @@ bool CProposalValidator::ValidateName()
         return false;
     }
 
-    if (strName.size() == 0) {
+    if (strName.empty()) {
         strErrorMessages += "name cannot be empty;";
         return false;
     }
