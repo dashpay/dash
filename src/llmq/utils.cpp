@@ -5,8 +5,6 @@
 #include <llmq/utils.h>
 
 #include <llmq/quorums.h>
-//#include <llmq/blockprocessor.h>
-#include <llmq/commitment.h>
 #include <llmq/snapshot.h>
 
 #include <bls/bls.h>
