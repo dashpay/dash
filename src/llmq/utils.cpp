@@ -740,7 +740,7 @@ bool CLLMQUtils::EnsureQuorumConnections(const Consensus::LLMQParams& llmqParams
         if (!connman.HasMasternodeQuorumNodes(llmqParams.type, pQuorumBaseBlockIndex->GetBlockHash()) && LogAcceptCategory(BCLog::LLMQ)) {
             auto mnList = deterministicMNManager->GetListAtChainTip();
             std::string debugMsg = strprintf("CLLMQUtils::%s -- adding masternodes quorum connections for quorum %s:\n", __func__, pQuorumBaseBlockIndex->GetBlockHash().ToString());
-            for (auto& c : connections) {
+            for (const auto& c : connections) {
                 auto dmn = mnList.GetValidMN(c);
                 if (!dmn) {
                     debugMsg += strprintf("  %s (not in valid MN set anymore)\n", c.ToString());
@@ -785,7 +785,7 @@ void CLLMQUtils::AddQuorumProbeConnections(const Consensus::LLMQParams& llmqPara
         if (LogAcceptCategory(BCLog::LLMQ)) {
             auto mnList = deterministicMNManager->GetListAtChainTip();
             std::string debugMsg = strprintf("CLLMQUtils::%s -- adding masternodes probes for quorum %s:\n", __func__, pQuorumBaseBlockIndex->GetBlockHash().ToString());
-            for (auto& c : probeConnections) {
+            for (const auto& c : probeConnections) {
                 auto dmn = mnList.GetValidMN(c);
                 if (!dmn) {
                     debugMsg += strprintf("  %s (not in valid MN set anymore)\n", c.ToString());
@@ -947,7 +947,7 @@ std::map<Consensus::LLMQType, QvvecSyncMode> CLLMQUtils::GetEnabledQuorumVvecSyn
 template <typename CacheType>
 void CLLMQUtils::InitQuorumsCache(CacheType& cache)
 {
-    for (auto& llmq : Params().GetConsensus().llmqs) {
+    for (const auto& llmq : Params().GetConsensus().llmqs) {
         cache.emplace(std::piecewise_construct, std::forward_as_tuple(llmq.type),
                       std::forward_as_tuple(llmq.signingActiveQuorumCount + 1));
     }
