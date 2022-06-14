@@ -854,7 +854,7 @@ bool CLLMQUtils::IsQuorumTypeEnabledInternal(Consensus::LLMQType llmqType, const
             }
             break;
         case Consensus::LLMQType::LLMQ_60_75:
-        case Consensus::LLMQType::LLMQ_DEVNET_V2:
+        case Consensus::LLMQType::LLMQ_DEVNET_DIP0024:
         case Consensus::LLMQType::LLMQ_TEST_DIP0024: {
             bool fDIP0024IsActive = optDIP0024IsActive.has_value() ? *optDIP0024IsActive : CLLMQUtils::IsDIP0024Active(pindex);
             if (!fDIP0024IsActive) {

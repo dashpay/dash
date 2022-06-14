@@ -34,7 +34,7 @@ enum class LLMQType : uint8_t {
     LLMQ_TEST_INSTANTSEND = 104, // 3 members, 2 (66%) threshold, one per hour. Params might differ when -llmqtestinstantsendparams is used
 
     // for devnets only. rotated version (v2) for devnets
-    LLMQ_DEVNET_V2 = 105 // 12 members, 6 (50%) threshold, one per hour. Params might differ when -llmqdevnetparams is used
+    LLMQ_DEVNET_DIP0024 = 105 // 8 members, 4 (50%) threshold, one per hour. Params might differ when -llmqdevnetparams is used
 };
 
 // Configures a LLMQ and its DKG
@@ -234,27 +234,27 @@ static constexpr std::array<LLMQParams, 11> available_llmqs = {
     },
 
     /**
-     * llmq_devnet_2
+     * llmq_devnet_dip0024
      * This quorum is only used for testing on devnets
      *
      */
     LLMQParams{
-        .type = LLMQType::LLMQ_DEVNET_V2,
-        .name = "llmq_devnet_v2",
-        .size = 12,
-        .minSize = 7,
-        .threshold = 6,
+        .type = LLMQType::LLMQ_DEVNET_DIP0024,
+        .name = "llmq_devnet_dip0024",
+        .size = 8,
+        .minSize = 6,
+        .threshold = 4,
 
-        .dkgInterval = 24, // one DKG per hour
+        .dkgInterval = 48, // one DKG per hour
         .dkgPhaseBlocks = 2,
         .dkgMiningWindowStart = 10, // dkgPhaseBlocks * 5 = after finalization
         .dkgMiningWindowEnd = 18,
         .dkgBadVotesThreshold = 7,
 
-        .signingActiveQuorumCount = 4, // just a few ones to allow easier testing
+        .signingActiveQuorumCount = 2, // just a few ones to allow easier testing
 
-        .keepOldConnections = 8,
-        .recoveryMembers = 6,
+        .keepOldConnections = 4,
+        .recoveryMembers = 4,
     },
 
     /**
