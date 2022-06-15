@@ -174,6 +174,34 @@ const static std::string allNetMessageTypes[] = {
     NetMsgType::HEADERS2};
 const static std::vector<std::string> allNetMessageTypesVec(allNetMessageTypes, allNetMessageTypes+ARRAYLEN(allNetMessageTypes));
 
+const static std::string netMessageTypesViolateBlocksOnly[] = {
+    NetMsgType::DSACCEPT,
+    NetMsgType::DSCOMPLETE,
+    NetMsgType::DSFINALTX,
+    NetMsgType::DSQUEUE,
+    NetMsgType::DSSIGNFINALTX,
+    NetMsgType::DSSTATUSUPDATE,
+    NetMsgType::DSTX,
+    NetMsgType::DSVIN,
+    NetMsgType::LEGACYTXLOCKREQUEST,
+    NetMsgType::QBSIGSHARES,
+    NetMsgType::QCOMPLAINT,
+    NetMsgType::QCONTRIB,
+    NetMsgType::QDATA,
+    NetMsgType::QGETDATA,
+    NetMsgType::QGETSIGSHARES,
+    NetMsgType::QJUSTIFICATION,
+    NetMsgType::QPCOMMITMENT,
+    NetMsgType::QSENDRECSIGS,
+    NetMsgType::QSIGREC,
+    NetMsgType::QSIGSESANN,
+    NetMsgType::QSIGSHARE,
+    NetMsgType::QSIGSHARESINV,
+    NetMsgType::QWATCH,
+    NetMsgType::TX,
+};
+const static std::set<std::string> netMessageTypesViolateBlocksOnlySet(netMessageTypesViolateBlocksOnly, netMessageTypesViolateBlocksOnly+ARRAYLEN(netMessageTypesViolateBlocksOnly));
+
 CMessageHeader::CMessageHeader(const MessageStartChars& pchMessageStartIn)
 {
     memcpy(pchMessageStart, pchMessageStartIn, MESSAGE_START_SIZE);
@@ -335,6 +363,11 @@ std::string CInv::ToString() const
 const std::vector<std::string> &getAllNetMessageTypes()
 {
     return allNetMessageTypesVec;
+}
+
+bool NetMessageViolatesBlocksOnly(const std::string& msg_type)
+{
+    return netMessageTypesViolateBlocksOnlySet.find(msg_type) != netMessageTypesViolateBlocksOnlySet.end();
 }
 
 /**
