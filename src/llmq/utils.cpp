@@ -553,7 +553,7 @@ bool CLLMQUtils::IsQuorumRotationEnabled(Consensus::LLMQType llmqType, const CBl
 {
     assert(pindex);
 
-    if (llmqType != Params().GetConsensus().llmqTypeDIP0024InstantSend) {
+    if (!GetLLMQParams(llmqType).useRotation) {
         return false;
     }
 
