@@ -1248,7 +1248,7 @@ void CDevNetParams::UpdateDevnetLLMQInstantSendFromArgs(const ArgsManager& args)
 
     Consensus::LLMQType llmqType = Consensus::LLMQType::LLMQ_NONE;
     for (const auto& params : consensus.llmqs) {
-        if (params.name == strLLMQType) {
+        if (params.name == strLLMQType && !params.useRotation) {
             llmqType = params.type;
         }
     }
@@ -1267,7 +1267,7 @@ void CDevNetParams::UpdateDevnetLLMQInstantSendDIP0024FromArgs(const ArgsManager
 
     Consensus::LLMQType llmqType = Consensus::LLMQType::LLMQ_NONE;
     for (const auto& params : consensus.llmqs) {
-        if (params.name == strLLMQType) {
+        if (params.name == strLLMQType && params.useRotation) {
             llmqType = params.type;
         }
     }
