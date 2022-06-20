@@ -666,13 +666,13 @@ std::set<uint256> CLLMQUtils::GetQuorumRelayMembers(const Consensus::LLMQParams&
         int k = 0;
         while ((gap_max >>= 1) || k <= 1) {
             size_t idx = (i + gap) % mns.size();
+            gap <<= 1;
+            k++;
             const auto& otherDmn = mns[idx];
             if (otherDmn->proTxHash == proTxHash) {
                 continue;
             }
             r.emplace(otherDmn->proTxHash);
-            gap <<= 1;
-            k++;
         }
         return r;
     };
