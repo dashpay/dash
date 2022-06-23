@@ -174,6 +174,12 @@ const static std::string allNetMessageTypes[] = {
     NetMsgType::HEADERS2};
 const static std::vector<std::string> allNetMessageTypesVec(allNetMessageTypes, allNetMessageTypes+ARRAYLEN(allNetMessageTypes));
 
+/** Message types that are not allowed by blocks-relay-only policy.
+ *  We do not want most of CoinJoin, DKG or LLMQ signing messages to be relayed
+ *  to/from nodes via connections that were established in this mode.
+ *  Make sure to keep this list up to date whenever a new message type is added.
+ *  NOTE: Unlike the list above, this list is sorted alphabetically.
+ */
 const static std::string netMessageTypesViolateBlocksOnly[] = {
     NetMsgType::DSACCEPT,
     NetMsgType::DSCOMPLETE,

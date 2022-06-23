@@ -2806,9 +2806,10 @@ bool ProcessMessage(CNode* pfrom, const std::string& msg_type, CDataStream& vRec
             connman->PushMessage(pfrom, msgMaker.Make(NetMsgType::SENDCMPCT, fAnnounceUsingCMPCTBLOCK, nCMPCTBLOCKVersion));
         }
 
-        // Tell our peer that he should send us CoinJoin queue messages
         if (!fBlocksOnly) {
+            // Tell our peer that he should send us CoinJoin queue messages
             connman->PushMessage(pfrom, msgMaker.Make(NetMsgType::SENDDSQUEUE, true));
+            // Tell our peer that he should send us intra-quorum messages
             if (llmq::CLLMQUtils::IsWatchQuorumsEnabled() && !pfrom->m_masternode_connection) {
                 connman->PushMessage(pfrom, msgMaker.Make(NetMsgType::QWATCH));
             }
