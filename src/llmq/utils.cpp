@@ -666,6 +666,12 @@ std::set<uint256> CLLMQUtils::GetQuorumRelayMembers(const Consensus::LLMQParams&
         int k = 0;
         while ((gap_max >>= 1) || k <= 1) {
             size_t idx = (i + gap) % mns.size();
+            // It doesn't matter if this node is going to be added to the resulting set or not,
+            // we should always bump the gap and the k (step count) regardless.
+            // Refusing to bump the gap results in an incomplete set in the best case scenario
+            // (idx won't ever change again once we hit `==`). Not bumping k guarantees an endless
+            // loop when the first or the second node we check is the one that should be skipped
+            // (k <= 1 forever).
             gap <<= 1;
             k++;
             const auto& otherDmn = mns[idx];
