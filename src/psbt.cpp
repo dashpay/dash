@@ -108,6 +108,24 @@ void PSBTInput::FillSignatureData(SignatureData& sigdata) const
     for (const auto& key_pair : hd_keypaths) {
         sigdata.misc_pubkeys.emplace(key_pair.first.GetID(), key_pair);
     }
+    if (!m_tap_key_sig.empty()) {
+        sigdata.taproot_key_path_sig = m_tap_key_sig;
+    }
+    for (const auto& [pubkey_leaf, sig] : m_tap_script_sigs) {
+        sigdata.taproot_script_sigs.emplace(pubkey_leaf, sig);
+    }
+    if (!m_tap_internal_key.IsNull()) {
+        sigdata.tr_spenddata.internal_key = m_tap_internal_key;
+    }
+    if (!m_tap_merkle_root.IsNull()) {
+        sigdata.tr_spenddata.merkle_root = m_tap_merkle_root;
+    }
+    for (const auto& [leaf_script, control_block] : m_tap_scripts) {
+        sigdata.tr_spenddata.scripts.emplace(leaf_script, control_block);
+    }
+    for (const auto& [pubkey, leaf_origin] : m_tap_bip32_paths) {
+        sigdata.taproot_misc_pubkeys.emplace(pubkey, leaf_origin);
+    }
 }
 
 void PSBTInput::FromSignatureData(const SignatureData& sigdata)
@@ -130,6 +148,24 @@ void PSBTInput::FromSignatureData(const SignatureData& sigdata)
     for (const auto& entry : sigdata.misc_pubkeys) {
         hd_keypaths.emplace(entry.second);
     }
+    if (!sigdata.taproot_key_path_sig.empty()) {
+        m_tap_key_sig = sigdata.taproot_key_path_sig;
+    }
+    for (const auto& [pubkey_leaf, sig] : sigdata.taproot_script_sigs) {
+        m_tap_script_sigs.emplace(pubkey_leaf, sig);
+    }
+    if (!sigdata.tr_spenddata.internal_key.IsNull()) {
+        m_tap_internal_key = sigdata.tr_spenddata.internal_key;
+    }
+    if (!sigdata.tr_spenddata.merkle_root.IsNull()) {
+        m_tap_merkle_root = sigdata.tr_spenddata.merkle_root;
+    }
+    for (const auto& [leaf_script, control_block] : sigdata.tr_spenddata.scripts) {
+        m_tap_scripts.emplace(leaf_script, control_block);
+    }
+    for (const auto& [pubkey, leaf_origin] : sigdata.taproot_misc_pubkeys) {
+        m_tap_bip32_paths.emplace(pubkey, leaf_origin);
+    }
 }
 
 void PSBTInput::Merge(const PSBTInput& input)
@@ -143,9 +179,15 @@ void PSBTInput::Merge(const PSBTInput& input)
     hash256_preimages.insert(input.hash256_preimages.begin(), input.hash256_preimages.end());
     hd_keypaths.insert(input.hd_keypaths.begin(), input.hd_keypaths.end());
     unknown.insert(input.unknown.begin(), input.unknown.end());
+    m_tap_script_sigs.insert(input.m_tap_script_sigs.begin(), input.m_tap_script_sigs.end());
+    m_tap_scripts.insert(input.m_tap_scripts.begin(), input.m_tap_scripts.end());
+    m_tap_bip32_paths.insert(input.m_tap_bip32_paths.begin(), input.m_tap_bip32_paths.end());
 
     if (redeem_script.empty() && !input.redeem_script.empty()) redeem_script = input.redeem_script;
     if (final_script_sig.empty() && !input.final_script_sig.empty()) final_script_sig = input.final_script_sig;
+    if (m_tap_key_sig.empty() && !input.m_tap_key_sig.empty()) m_tap_key_sig = input.m_tap_key_sig;
+    if (m_tap_internal_key.IsNull() && !input.m_tap_internal_key.IsNull()) m_tap_internal_key = input.m_tap_internal_key;
+    if (m_tap_merkle_root.IsNull() && !input.m_tap_merkle_root.IsNull()) m_tap_merkle_root = input.m_tap_merkle_root;
 }
 
 void PSBTOutput::FillSignatureData(SignatureData& sigdata) const
@@ -156,6 +198,15 @@ void PSBTOutput::FillSignatureData(SignatureData& sigdata) const
     for (const auto& key_pair : hd_keypaths) {
         sigdata.misc_pubkeys.emplace(key_pair.first.GetID(), key_pair);
     }
+    if (m_tap_tree.has_value() && m_tap_internal_key.IsFullyValid()) {
+        TaprootSpendData spenddata = m_tap_tree->GetSpendData();
+
+        sigdata.tr_spenddata.internal_key = m_tap_internal_key;
+        sigdata.tr_spenddata.Merge(spenddata);
+    }
+    for (const auto& [pubkey, leaf_origin] : m_tap_bip32_paths) {
+        sigdata.taproot_misc_pubkeys.emplace(pubkey, leaf_origin);
+    }
 }
 
 void PSBTOutput::FromSignatureData(const SignatureData& sigdata)
@@ -165,6 +216,15 @@ void PSBTOutput::FromSignatureData(const SignatureData& sigdata)
     }
     for (const auto& entry : sigdata.misc_pubkeys) {
         hd_keypaths.emplace(entry.second);
+    }
+    if (!sigdata.tr_spenddata.internal_key.IsNull()) {
+        m_tap_internal_key = sigdata.tr_spenddata.internal_key;
+    }
+    if (sigdata.tr_builder.has_value()) {
+        m_tap_tree = sigdata.tr_builder;
+    }
+    for (const auto& [pubkey, leaf_origin] : sigdata.taproot_misc_pubkeys) {
+        m_tap_bip32_paths.emplace(pubkey, leaf_origin);
     }
 }
 
@@ -177,8 +237,11 @@ void PSBTOutput::Merge(const PSBTOutput& output)
 {
     hd_keypaths.insert(output.hd_keypaths.begin(), output.hd_keypaths.end());
     unknown.insert(output.unknown.begin(), output.unknown.end());
+    m_tap_bip32_paths.insert(output.m_tap_bip32_paths.begin(), output.m_tap_bip32_paths.end());
 
     if (redeem_script.empty() && !output.redeem_script.empty()) redeem_script = output.redeem_script;
+    if (m_tap_internal_key.IsNull() && !output.m_tap_internal_key.IsNull()) m_tap_internal_key = output.m_tap_internal_key;
+    if (m_tap_tree.has_value() && !output.m_tap_tree.has_value()) m_tap_tree = output.m_tap_tree;
 }
 
 bool PSBTInputSignedAndVerified(const PartiallySignedTransaction& psbt, unsigned int input_index, const PrecomputedTransactionData* txdata)

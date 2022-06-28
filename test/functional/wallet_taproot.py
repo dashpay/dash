@@ -7,6 +7,7 @@
 import random
 
 from decimal import Decimal
+from test_framework.key import H_POINT
 from test_framework.test_framework import BitcoinTestFramework
 from test_framework.util import assert_equal, softfork_active
 from test_framework.descriptors import descsum_create
@@ -156,9 +157,6 @@ KEYS = [
 
 CHANGE_XPRV = "tprv8ZgxMBicQKsPcyDrWwiecVnTtFmfRwbfFqEfR4ZGWvq5aTTwLBWmAm5zrbMcYtb9gQNFfhRfqhhrBG37U3nhmXxEgeEPBJGHAPrHCrAd1WX"
 CHANGE_XPUB = "tpubD6NzVbkrYhZ4WSFeQbPF1uSaTHHbbGnZq8qShabZwCdUQwihxaLMMFhs2kidGF2qrRKiQVqw8VoyuTHj1bZqmMXMeciaU1gBjWA1sim2zUB"
-
-# Point with no known discrete log.
-H_POINT = "50929b74c1a04954b78b4b6035e97a5e078a5a0f28ec96d547bfee9ace803ac0"
 
 
 def key(hex_key):
@@ -333,8 +331,22 @@ class WalletTaprootTest(BitcoinTestFramework):
             ret_amnt = random.randrange(100000, test_balance)
             # Increase fee_rate to compensate for the wallet's inability to estimate fees for script path spends.
             psbt = self.psbt_online.walletcreatefundedpsbt([], [{self.boring.getnewaddress(): Decimal(ret_amnt) / 100000000}], None, {"subtractFeeFromOutputs":[0], "fee_rate": 200})['psbt']
-            res = self.psbt_offline.walletprocesspsbt(psbt)
-            assert(res['complete'])
+            res = self.psbt_offline.walletprocesspsbt(psbt=psbt, finalize=False)
+
+            decoded = self.psbt_offline.decodepsbt(res["psbt"])
+            if pattern.startswith("tr("):
+                for i, psbtin in enumerate(decoded["inputs"]):
+                    # Coins from the earlier descriptors can be selected too; only taproot inputs carry taproot fields
+                    prevout = psbtin["non_witness_utxo"]["vout"][decoded["tx"]["vin"][i]["vout"]]
+                    if prevout["scriptPubKey"]["type"] != "taproot":
+                        continue
+                    assert "taproot_internal_key" in psbtin
+                    assert "taproot_bip32_derivs" in psbtin
+                    assert "taproot_key_path_sig" in psbtin or "taproot_script_path_sigs" in psbtin
+                    if "taproot_script_path_sigs" in psbtin:
+                        assert "taproot_merkle_root" in psbtin
+                        assert "taproot_scripts" in psbtin
+
             rawtx = self.nodes[0].finalizepsbt(res['psbt'])['hex']
             txid = self.nodes[0].sendrawtransaction(rawtx)
             self.generatetoaddress(self.nodes[0], 1, self.boring.getnewaddress(), sync_fun=self.no_op)
@@ -485,8 +497,7 @@ class WalletTaprootTest(BitcoinTestFramework):
         assert(self.rpc_online.gettransaction(txid)["confirmations"] > 0)
 
         psbt = self.psbt_online.walletcreatefundedpsbt([], [{self.boring.getnewaddress(): self.psbt_online.getbalance()}], None, {"subtractFeeFromOutputs": [0]})['psbt']
-        res = self.psbt_offline.walletprocesspsbt(psbt)
-        assert(res['complete'])
+        res = self.psbt_offline.walletprocesspsbt(psbt=psbt, finalize=False)
         rawtx = self.nodes[0].finalizepsbt(res['psbt'])['hex']
         txid = self.nodes[0].sendrawtransaction(rawtx)
         self.generatetoaddress(self.nodes[0], 1, self.boring.getnewaddress(), sync_fun=self.no_op)
