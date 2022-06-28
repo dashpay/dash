@@ -196,7 +196,7 @@ static constexpr std::array<LLMQParams, 11> available_llmqs = {
         .minSize = 3,
         .threshold = 2,
 
-        .dkgInterval = 24, // one DKG per hour
+        .dkgInterval = 24, // DKG cycle
         .dkgPhaseBlocks = 2,
         .dkgMiningWindowStart = 13, // signingActiveQuorumCount + dkgPhaseBlocks * 5 = after finalization + 1
         .dkgMiningWindowEnd = 20,
@@ -246,7 +246,7 @@ static constexpr std::array<LLMQParams, 11> available_llmqs = {
         .minSize = 6,
         .threshold = 4,
 
-        .dkgInterval = 48, // one DKG per hour
+        .dkgInterval = 48, // DKG cycle
         .dkgPhaseBlocks = 2,
         .dkgMiningWindowStart = 13, // signingActiveQuorumCount + dkgPhaseBlocks * 5 = after finalization + 1
         .dkgMiningWindowEnd = 20,
@@ -297,7 +297,7 @@ static constexpr std::array<LLMQParams, 11> available_llmqs = {
         .minSize = 50,
         .threshold = 45,
 
-        .dkgInterval = 24 * 12, // one DKG every 12 hours
+        .dkgInterval = 24 * 12, // DKG cycle every 12 hours
         .dkgPhaseBlocks = 2,
         .dkgMiningWindowStart = 43, // signingActiveQuorumCount + dkgPhaseBlocks * 5 = after finalization + 1
         .dkgMiningWindowEnd = 50,
