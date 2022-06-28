@@ -198,7 +198,7 @@ static constexpr std::array<LLMQParams, 11> available_llmqs = {
 
         .dkgInterval = 24, // one DKG per hour
         .dkgPhaseBlocks = 2,
-        .dkgMiningWindowStart = 12, // signingActiveQuorumCount + dkgPhaseBlocks * 5 = after finalization
+        .dkgMiningWindowStart = 13, // signingActiveQuorumCount + dkgPhaseBlocks * 5 = after finalization + 1
         .dkgMiningWindowEnd = 20,
         .dkgBadVotesThreshold = 2,
 
@@ -241,14 +241,15 @@ static constexpr std::array<LLMQParams, 11> available_llmqs = {
     LLMQParams{
         .type = LLMQType::LLMQ_DEVNET_DIP0024,
         .name = "llmq_devnet_dip0024",
+        .useRotation = true,
         .size = 8,
         .minSize = 6,
         .threshold = 4,
 
         .dkgInterval = 48, // one DKG per hour
         .dkgPhaseBlocks = 2,
-        .dkgMiningWindowStart = 10, // dkgPhaseBlocks * 5 = after finalization
-        .dkgMiningWindowEnd = 18,
+        .dkgMiningWindowStart = 13, // signingActiveQuorumCount + dkgPhaseBlocks * 5 = after finalization + 1
+        .dkgMiningWindowEnd = 20,
         .dkgBadVotesThreshold = 7,
 
         .signingActiveQuorumCount = 2, // just a few ones to allow easier testing
@@ -298,7 +299,7 @@ static constexpr std::array<LLMQParams, 11> available_llmqs = {
 
         .dkgInterval = 24 * 12, // one DKG every 12 hours
         .dkgPhaseBlocks = 2,
-        .dkgMiningWindowStart = 42, // signingActiveQuorumCount + dkgPhaseBlocks * 5 = after finalization
+        .dkgMiningWindowStart = 43, // signingActiveQuorumCount + dkgPhaseBlocks * 5 = after finalization + 1
         .dkgMiningWindowEnd = 50,
         .dkgBadVotesThreshold = 48,
 
