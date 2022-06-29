@@ -20,14 +20,17 @@
 #include <init.h>
 #include <init/common.h>
 #include <interfaces/chain.h>
+#include <mempool_args.h>
 #include <net.h>
 #include <net_processing.h>
 #include <noui.h>
 #include <node/blockstorage.h>
 #include <node/chainstate.h>
+#include <node/context.h>
 #include <node/miner.h>
 #include <node/sync_manager.h>
 #include <policy/fees.h>
+#include <policy/fees_args.h>
 #include <policy/settings.h>
 #include <pow.h>
 #include <rpc/blockchain.h>
@@ -42,6 +45,7 @@
 #include <test/util/txmempool.h>
 #include <timedata.h>
 #include <txdb.h>
+#include <txmempool.h>
 #include <util/strencodings.h>
 #include <util/string.h>
 #include <util/thread.h>
@@ -91,6 +95,9 @@ using node::NodeContext;
 using node::VerifyLoadedChainstate;
 using node::fPruneMode;
 using node::fReindex;
+using node::LoadChainstate;
+using node::NodeContext;
+using node::VerifyLoadedChainstate;
 
 const std::function<std::string(const char*)> G_TRANSLATION_FUN = nullptr;
 UrlDecodeFn* const URL_DECODE = nullptr;
@@ -268,8 +275,8 @@ ChainTestingSetup::ChainTestingSetup(const std::string& chainName, const std::ve
     m_node.scheduler->m_service_thread = std::thread(util::TraceThread, "scheduler", [&] { m_node.scheduler->serviceQueue(); });
     GetMainSignals().RegisterBackgroundSignalScheduler(*m_node.scheduler);
 
-    m_node.fee_estimator = std::make_unique<CBlockPolicyEstimator>();
-    m_node.mempool = std::make_unique<CTxMemPool>(m_node.fee_estimator.get(), m_node.args->GetIntArg("-checkmempool", 1));
+    m_node.fee_estimator = std::make_unique<CBlockPolicyEstimator>(FeeestPath(*m_node.args));
+    m_node.mempool = std::make_unique<CTxMemPool>(MemPoolOptionsForTest(m_node));
 
     m_cache_sizes = CalculateCacheSizes(m_args);
 
@@ -511,8 +518,7 @@ CBlock TestChainSetup::CreateBlock(
     const CScript& scriptPubKey,
     CChainState& chainstate)
 {
-    CTxMemPool empty_pool;
-    CBlock block = BlockAssembler(chainstate, m_node, &empty_pool).CreateNewBlock(scriptPubKey)->block;
+    CBlock block = BlockAssembler(chainstate, m_node, nullptr).CreateNewBlock(scriptPubKey)->block;
 
     std::vector<CTransactionRef> llmqCommitments;
     for (const auto& tx : block.vtx) {
@@ -700,7 +706,7 @@ void TestChainSetup::MockMempoolMinFee(const CFeeRate& target_feerate)
                                                  /*time=*/0, /*entry_height=*/1,
                                                  /*spends_coinbase=*/true, /*sigops_count=*/1, lp));
     m_node.mempool->TrimToSize(0);
-    assert(m_node.mempool->GetMinFee(0) == target_feerate);
+    assert(m_node.mempool->GetMinFee() == target_feerate);
 }
 /**
  * @returns a real block (0000000000013b8ab2cd513b0261a14096412195a72a0c4827d229dcc7e0f7af)

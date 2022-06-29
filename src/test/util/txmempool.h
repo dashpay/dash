@@ -8,8 +8,11 @@
 #include <txmempool.h>
 #include <util/time.h>
 
-// TODO: belongs to bitcoin/bitcoin#25290; uncomment when done
-// CTxMemPool::Options MemPoolOptionsForTest(const node::NodeContext& node);
+namespace node {
+struct NodeContext;
+}
+
+CTxMemPool::Options MemPoolOptionsForTest(const node::NodeContext& node);
 
 struct TestMemPoolEntryHelper {
     // Default values

@@ -103,6 +103,7 @@ struct BasicTestingSetup {
     ArgsManager m_args;
 };
 
+
 /** Testing setup that performs all steps up until right before
  * ChainstateManager gets initialized. Meant for testing ChainstateManager
  * initialization behaviour.
