@@ -162,6 +162,7 @@ BASE_SCRIPTS = [
     'p2p_dns_seeds.py',
     'wallet_abandonconflict.py --descriptors',
     'feature_csv_activation.py',
+    'rpc_packages.py',
     'feature_reindex.py',
     'feature_abortnode.py',
     # vv Tests less than 30s vv
@@ -282,7 +283,6 @@ BASE_SCRIPTS = [
     'mempool_packages.py',
     'mempool_package_onemore.py',
     'rpc_createmultisig.py',
-    'rpc_packages.py',
     'mempool_package_limits.py',
     'feature_versionbits_warning.py',
     'rpc_preciousblock.py',
