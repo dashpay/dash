@@ -25,7 +25,7 @@ elseif(APPLE)
             COMMAND jq .SPSoftwareDataType
             COMMAND jq .[]
             COMMAND jq .kernel_version
-            COMMAND tr -d "Dawrin\" "
+            COMMAND tr -d "Darwin\" "
             OUTPUT_VARIABLE DARWIN_KERNEL_VERSION)
     if( ${ARCHITECTURE} STREQUAL "arm64" )
         set(DEPENDS_PREFIX depends/aarch64-apple-darwin${DARWIN_KERNEL_VERSION})
