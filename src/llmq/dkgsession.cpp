@@ -473,10 +473,10 @@ void CDKGSession::VerifyConnectionAndMinProtoVersions() const
             logger.Batch("%s does not have min proto version %d (has %d)", m->dmn->proTxHash.ToString(), MIN_MASTERNODE_PROTO_VERSION, it->second);
         }
 
-        auto lastOutbound = mmetaman.GetMetaInfo(m->dmn->proTxHash)->GetLastOutboundSuccess();
-        if (GetAdjustedTime() - lastOutbound > 60 * 60) {
+        auto lastMNConnection = mmetaman.GetMetaInfo(m->dmn->proTxHash)->GetLastInboundOutboundSuccess();
+        if (GetAdjustedTime() - lastMNConnection > 60 * 60) {
             m->badConnection = true;
-            logger.Batch("%s no outbound connection since %d seconds", m->dmn->proTxHash.ToString(), GetAdjustedTime() - lastOutbound);
+            logger.Batch("%s no inbound/outbound connection since %d seconds", m->dmn->proTxHash.ToString(), GetAdjustedTime() - lastMNConnection);
         }
     }
 }

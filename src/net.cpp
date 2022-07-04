@@ -2472,11 +2472,11 @@ void CConnman::ThreadOpenMasternodeConnections()
                     bool connectedAndOutbound = connectedProRegTxHashes.count(dmn->proTxHash) && !connectedProRegTxHashes[dmn->proTxHash];
                     if (connectedAndOutbound) {
                         // we already have an outbound connection to this MN so there is no theed to probe it again
+                        mmetaman.GetMetaInfo(dmn->proTxHash)->SetLastInboundOutboundSuccess(nANow);
                         mmetaman.GetMetaInfo(dmn->proTxHash)->SetLastOutboundSuccess(nANow);
                         it = masternodePendingProbes.erase(it);
                         continue;
                     }
-
                     ++it;
 
                     int64_t lastAttempt = mmetaman.GetMetaInfo(dmn->proTxHash)->GetLastOutboundAttempt();
@@ -2517,6 +2517,7 @@ void CConnman::ThreadOpenMasternodeConnections()
             LogPrint(BCLog::NET_NETCONN, "CConnman::%s -- connection failed for masternode  %s, service=%s\n", __func__, connectToDmn->proTxHash.ToString(), connectToDmn->pdmnState->addr.ToString(false));
             // reset last outbound success
             mmetaman.GetMetaInfo(connectToDmn->proTxHash)->SetLastOutboundSuccess(0);
+            mmetaman.GetMetaInfo(connectToDmn->proTxHash)->SetLastInboundOutboundSuccess(0);
         }
     }
 }

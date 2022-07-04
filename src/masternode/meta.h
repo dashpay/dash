@@ -37,6 +37,7 @@ private:
 
     std::atomic<int64_t> lastOutboundAttempt{0};
     std::atomic<int64_t> lastOutboundSuccess{0};
+    std::atomic<int64_t> lastInbountOutboundSuccess{0};
 
 public:
     CMasternodeMetaInfo() = default;
@@ -47,7 +48,8 @@ public:
         nMixingTxCount(ref.nMixingTxCount.load()),
         mapGovernanceObjectsVotedOn(ref.mapGovernanceObjectsVotedOn),
         lastOutboundAttempt(ref.lastOutboundAttempt.load()),
-        lastOutboundSuccess(ref.lastOutboundSuccess.load())
+        lastOutboundSuccess(ref.lastOutboundSuccess.load()),
+        lastInbountOutboundSuccess(ref.lastInbountOutboundSuccess.load())
     {
     }
 
@@ -60,7 +62,8 @@ public:
                 obj.nMixingTxCount,
                 obj.mapGovernanceObjectsVotedOn,
                 obj.lastOutboundAttempt,
-                obj.lastOutboundSuccess
+                obj.lastOutboundSuccess,
+                obj.lastInbountOutboundSuccess
                 );
     }
 
@@ -82,6 +85,8 @@ public:
     int64_t GetLastOutboundAttempt() const { return lastOutboundAttempt; }
     void SetLastOutboundSuccess(int64_t t) { lastOutboundSuccess = t; }
     int64_t GetLastOutboundSuccess() const { return lastOutboundSuccess; }
+    void SetLastInboundOutboundSuccess(int64_t t) { lastInbountOutboundSuccess = t; }
+    int64_t GetLastInboundOutboundSuccess() const { return lastInbountOutboundSuccess; }
 };
 using CMasternodeMetaInfoPtr = std::shared_ptr<CMasternodeMetaInfo>;
 

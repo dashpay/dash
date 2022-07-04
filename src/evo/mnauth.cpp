@@ -131,6 +131,8 @@ void CMNAuth::ProcessMessage(CNode* pnode, const std::string& msg_type, CDataStr
         }
     }
 
+    mmetaman.GetMetaInfo(mnauth.proRegTxHash)->SetLastInboundOutboundSuccess(GetAdjustedTime());
+
     connman.ForEachNode([&](CNode* pnode2) {
         if (pnode->fDisconnect) {
             // we've already disconnected the new peer
