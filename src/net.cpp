@@ -2469,14 +2469,18 @@ void CConnman::ThreadOpenMasternodeConnections()
                         it = masternodePendingProbes.erase(it);
                         continue;
                     }
-                    bool connectedAndOutbound = connectedProRegTxHashes.count(dmn->proTxHash) && !connectedProRegTxHashes[dmn->proTxHash];
-                    if (connectedAndOutbound) {
-                        // we already have an outbound connection to this MN so there is no theed to probe it again
+                    if (connectedProRegTxHashes.count(dmn->proTxHash)) {
                         mmetaman.GetMetaInfo(dmn->proTxHash)->SetLastInboundOutboundSuccess(nANow);
-                        mmetaman.GetMetaInfo(dmn->proTxHash)->SetLastOutboundSuccess(nANow);
-                        it = masternodePendingProbes.erase(it);
-                        continue;
+
+                        bool connectedAndOutbound = !connectedProRegTxHashes[dmn->proTxHash];
+                        if (connectedAndOutbound) {
+                            // we already have an outbound connection to this MN so there is no theed to probe it again
+                            mmetaman.GetMetaInfo(dmn->proTxHash)->SetLastOutboundSuccess(nANow);
+                            it = masternodePendingProbes.erase(it);
+                            continue;
+                        }
                     }
+
                     ++it;
 
                     int64_t lastAttempt = mmetaman.GetMetaInfo(dmn->proTxHash)->GetLastOutboundAttempt();
