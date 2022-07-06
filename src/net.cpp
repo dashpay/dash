@@ -2394,11 +2394,11 @@ void CConnman::ThreadOpenMasternodeConnections()
     bool didConnect = false;
     while (!interruptNet)
     {
-        int sleepTime = 1000;
+        auto sleepTime = std::chrono::milliseconds(1000);
         if (didConnect) {
-            sleepTime = 100;
+            sleepTime = std::chrono::milliseconds(100);
         }
-        if (!interruptNet.sleep_for(std::chrono::milliseconds(sleepTime)))
+        if (!interruptNet.sleep_for(sleepTime))
             return;
 
         didConnect = false;
