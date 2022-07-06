@@ -2407,7 +2407,7 @@ void CConnman::ThreadOpenMasternodeConnections()
             continue;
 
         std::set<CService> connectedNodes;
-        std::map<uint256, bool> connectedProRegTxHashes;
+        std::map<uint256 /*proTxHash*/, bool /*fInbound*/> connectedProRegTxHashes;
         ForEachNode([&](const CNode* pnode) {
             auto verifiedProRegTxHash = pnode->GetVerifiedProRegTxHash();
             connectedNodes.emplace(pnode->addr);
@@ -2426,30 +2426,19 @@ void CConnman::ThreadOpenMasternodeConnections()
 
         // NOTE: Process only one pending masternode at a time
 
-        CDeterministicMNCPtr connectToDmn;
         MasternodeProbeConn isProbe = MasternodeProbeConn::IsNotConnection;
-        { // don't hold lock while calling OpenMasternodeConnection as cs_main is locked deep inside
-            LOCK2(cs_vNodes, cs_vPendingMasternodes);
 
-            if (!vPendingMasternodes.empty()) {
-                auto dmn = mnList.GetValidMN(vPendingMasternodes.front());
-                vPendingMasternodes.erase(vPendingMasternodes.begin());
-                if (dmn && !connectedNodes.count(dmn->pdmnState->addr) && !IsMasternodeOrDisconnectRequested(dmn->pdmnState->addr)) {
-                    connectToDmn = dmn;
-                    LogPrint(BCLog::NET_NETCONN, "CConnman::%s -- opening pending masternode connection to %s, service=%s\n", __func__, dmn->proTxHash.ToString(), dmn->pdmnState->addr.ToString(false));
-                }
-            }
-
-            if (!connectToDmn) {
-                std::vector<CDeterministicMNCPtr> pending;
-                for (const auto& group : masternodeQuorumNodes) {
-                    for (const auto& proRegTxHash : group.second) {
-                        auto dmn = mnList.GetMN(proRegTxHash);
-                        if (!dmn) {
-                            continue;
-                        }
-                        const auto& addr2 = dmn->pdmnState->addr;
-                        if (connectedNodes.count(addr2) && !connectedProRegTxHashes.count(proRegTxHash)) {
+        const auto getPendingQuorumNodes = [&]() {
+            LockAssertion lock(cs_vPendingMasternodes);
+            std::vector<CDeterministicMNCPtr> ret;
+            for (const auto& group : masternodeQuorumNodes) {
+                for (const auto& proRegTxHash : group.second) {
+                    auto dmn = mnList.GetMN(proRegTxHash);
+                    if (!dmn) {
+                        continue;
+                    }
+                    const auto& addr2 = dmn->pdmnState->addr;
+                    if (connectedNodes.count(addr2) && !connectedProRegTxHashes.count(proRegTxHash)) {
                             // we probably connected to it before it became a masternode
                             // or maybe we are still waiting for mnauth
                             (void)ForNode(addr2, [&](CNode* pnode) {
@@ -2466,59 +2455,83 @@ void CConnman::ThreadOpenMasternodeConnections()
                             continue;
                         }
                         if (!connectedNodes.count(addr2) && !IsMasternodeOrDisconnectRequested(addr2) && !connectedProRegTxHashes.count(proRegTxHash)) {
-                            int64_t lastAttempt = mmetaman.GetMetaInfo(dmn->proTxHash)->GetLastOutboundAttempt();
-                            // back off trying connecting to an address if we already tried recently
-                            if (nANow - lastAttempt < chainParams.LLMQConnectionRetryTimeout()) {
-                                continue;
-                            }
-                            pending.emplace_back(dmn);
+                        int64_t lastAttempt = mmetaman.GetMetaInfo(dmn->proTxHash)->GetLastOutboundAttempt();
+                        // back off trying connecting to an address if we already tried recently
+                        if (nANow - lastAttempt < chainParams.LLMQConnectionRetryTimeout()) {
+                            continue;
                         }
+                        ret.emplace_back(dmn);
                     }
                 }
+            }
+            return ret;
+        };
 
-                if (!pending.empty()) {
-                    connectToDmn = pending[GetRandInt(pending.size())];
-                    LogPrint(BCLog::NET_NETCONN, "CConnman::%s -- opening quorum connection to %s, service=%s\n", __func__, connectToDmn->proTxHash.ToString(), connectToDmn->pdmnState->addr.ToString(false));
+        const auto getPendingProbes = [&]() {
+            LockAssertion lock(cs_vPendingMasternodes);
+            std::vector<CDeterministicMNCPtr> pending;
+            for (auto it = masternodePendingProbes.begin(); it != masternodePendingProbes.end(); ) {
+                auto dmn = mnList.GetMN(*it);
+                if (!dmn) {
+                    it = masternodePendingProbes.erase(it);
+                    continue;
+                }
+                bool connectedAndOutbound = connectedProRegTxHashes.count(dmn->proTxHash) && !connectedProRegTxHashes[dmn->proTxHash];
+                if (connectedAndOutbound) {
+                    // we already have an outbound connection to this MN so there is no theed to probe it again
+                    mmetaman.GetMetaInfo(dmn->proTxHash)->SetLastOutboundSuccess(nANow);
+                    it = masternodePendingProbes.erase(it);
+                    continue;
+                }
+
+                ++it;
+
+                int64_t lastAttempt = mmetaman.GetMetaInfo(dmn->proTxHash)->GetLastOutboundAttempt();
+                // back off trying connecting to an address if we already tried recently
+                if (nANow - lastAttempt < chainParams.LLMQConnectionRetryTimeout()) {
+                    continue;
+                }
+                pending.emplace_back(dmn);
+            }
+            return pending;
+        };
+
+        auto getConnectToDmn = [&]() -> CDeterministicMNCPtr {
+            // don't hold lock while calling OpenMasternodeConnection as cs_main is locked deep inside
+            LOCK2(cs_vNodes, cs_vPendingMasternodes);
+
+            if (!vPendingMasternodes.empty()) {
+                auto dmn = mnList.GetValidMN(vPendingMasternodes.front());
+                vPendingMasternodes.erase(vPendingMasternodes.begin());
+                if (dmn && !connectedNodes.count(dmn->pdmnState->addr) && !IsMasternodeOrDisconnectRequested(dmn->pdmnState->addr)) {
+                    LogPrint(BCLog::NET_NETCONN, "CConnman::%s -- opening pending masternode connection to %s, service=%s\n", __func__, dmn->proTxHash.ToString(), dmn->pdmnState->addr.ToString(false));
+                    return dmn;
                 }
             }
 
-            if (!connectToDmn) {
-                std::vector<CDeterministicMNCPtr> pending;
-                for (auto it = masternodePendingProbes.begin(); it != masternodePendingProbes.end(); ) {
-                    auto dmn = mnList.GetMN(*it);
-                    if (!dmn) {
-                        it = masternodePendingProbes.erase(it);
-                        continue;
-                    }
-                    bool connectedAndOutbound = connectedProRegTxHashes.count(dmn->proTxHash) && !connectedProRegTxHashes[dmn->proTxHash];
-                    if (connectedAndOutbound) {
-                        // we already have an outbound connection to this MN so there is no theed to probe it again
-                        mmetaman.GetMetaInfo(dmn->proTxHash)->SetLastOutboundSuccess(nANow);
-                        it = masternodePendingProbes.erase(it);
-                        continue;
-                    }
-
-                    ++it;
-
-                    int64_t lastAttempt = mmetaman.GetMetaInfo(dmn->proTxHash)->GetLastOutboundAttempt();
-                    // back off trying connecting to an address if we already tried recently
-                    if (nANow - lastAttempt < chainParams.LLMQConnectionRetryTimeout()) {
-                        continue;
-                    }
-                    pending.emplace_back(dmn);
-                }
-
-                if (!pending.empty()) {
-                    connectToDmn = pending[GetRandInt(pending.size())];
-                    masternodePendingProbes.erase(connectToDmn->proTxHash);
-                    isProbe = MasternodeProbeConn::IsConnection;
-
-                    LogPrint(BCLog::NET_NETCONN, "CConnman::%s -- probing masternode %s, service=%s\n", __func__, connectToDmn->proTxHash.ToString(), connectToDmn->pdmnState->addr.ToString(false));
-                }
+            if (const auto pending = getPendingQuorumNodes(); !pending.empty()) {
+                // not-null
+                auto dmn = pending[GetRand(pending.size())];
+                LogPrint(BCLog::NET_NETCONN, "CConnman::%s -- opening quorum connection to %s, service=%s\n",
+                         __func__, dmn->proTxHash.ToString(), dmn->pdmnState->addr.ToString(false));
+                return dmn;
             }
-        }
 
-        if (!connectToDmn) {
+            if (const auto pending = getPendingProbes(); !pending.empty()) {
+                // not-null
+                auto dmn = pending[GetRand(pending.size())];
+                masternodePendingProbes.erase(dmn->proTxHash);
+                isProbe = MasternodeProbeConn::IsConnection;
+
+                LogPrint(BCLog::NET_NETCONN, "CConnman::%s -- probing masternode %s, service=%s\n", __func__, dmn->proTxHash.ToString(), dmn->pdmnState->addr.ToString(false));
+                return dmn;
+            }
+            return nullptr;
+        };
+
+        CDeterministicMNCPtr connectToDmn = getConnectToDmn();
+
+        if (connectToDmn == nullptr) {
             continue;
         }
 
