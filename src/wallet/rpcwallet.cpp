@@ -545,7 +545,7 @@ static CAmount GetReceived(const CWallet& wallet, const UniValue& params, bool b
     if (by_label) {
         // Get the set of addresses assigned to label
         std::string label = LabelFromValue(params[0]);
-        address_set = wallet.GetLabelAddresses(label);
+        address_set = wallet.ListAddrBookAddresses(CWallet::AddrBookFilter{label});
     } else {
         // Get the address
         CTxDestination dest = DecodeDestination(params[0].get_str());
