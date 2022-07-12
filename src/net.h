@@ -433,7 +433,7 @@ public:
     bool IsMasternodeQuorumRelayMember(const uint256& protxHash);
     void AddPendingProbeConnections(const std::set<uint256>& proTxHashes);
 
-    size_t GetNodeCount(NumConnections num);
+    size_t GetNodeCount(NumConnections num, bool fOnlyVerifiedMN = false);
     size_t GetMaxOutboundNodeCount();
     void GetNodeStats(std::vector<CNodeStats>& vstats);
     bool DisconnectNode(const std::string& node);

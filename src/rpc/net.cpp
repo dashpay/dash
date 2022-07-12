@@ -541,6 +541,11 @@ static UniValue getnetworkinfo(const JSONRPCRequest& request)
     if (node.connman) {
         obj.pushKV("networkactive", node.connman->GetNetworkActive());
         obj.pushKV("connections",   (int)node.connman->GetNodeCount(CConnman::CONNECTIONS_ALL));
+        obj.pushKV("inboundconnections",   (int)node.connman->GetNodeCount(CConnman::CONNECTIONS_IN));
+        obj.pushKV("outboundconnections",   (int)node.connman->GetNodeCount(CConnman::CONNECTIONS_OUT));
+        obj.pushKV("mnconnections",   (int)node.connman->GetNodeCount(CConnman::CONNECTIONS_ALL, true));
+        obj.pushKV("inboundmnconnections",   (int)node.connman->GetNodeCount(CConnman::CONNECTIONS_IN, true));
+        obj.pushKV("outboundmnconnections",   (int)node.connman->GetNodeCount(CConnman::CONNECTIONS_OUT, true));
         std::string strSocketEvents;
         switch (node.connman->GetSocketEventsMode()) {
             case CConnman::SOCKETEVENTS_SELECT:
