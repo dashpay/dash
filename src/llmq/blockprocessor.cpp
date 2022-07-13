@@ -440,12 +440,13 @@ size_t CQuorumBlockProcessor::GetNumCommitmentsRequired(const Consensus::LLMQPar
 
     bool rotation_enabled = CLLMQUtils::IsQuorumRotationEnabled(llmqParams.type, pindex);
     size_t quorums_num = rotation_enabled ? llmqParams.signingActiveQuorumCount : 1;
+
+    if (rotation_enabled) return quorums_num;
+
     size_t ret{0};
 
-    for (const auto quorumIndex : irange::range(quorums_num)) {
-        uint256 quorumHash = GetQuorumBlockHash(llmqParams, nHeight, quorumIndex);
-        if (!quorumHash.IsNull() && !HasMinedCommitment(llmqParams.type, quorumHash)) ++ret;
-    }
+    uint256 quorumHash = GetQuorumBlockHash(llmqParams, nHeight, 0);
+    if (!quorumHash.IsNull() && !HasMinedCommitment(llmqParams.type, quorumHash)) ++ret;
 
     return ret;
 }
