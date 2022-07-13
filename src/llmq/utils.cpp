@@ -723,12 +723,16 @@ std::set<size_t> CLLMQUtils::CalcDeterministicWatchConnections(Consensus::LLMQTy
 bool CLLMQUtils::EnsureQuorumConnections(const Consensus::LLMQParams& llmqParams, const CBlockIndex* pQuorumBaseBlockIndex,
                                          CConnman& connman, const uint256& myProTxHash)
 {
-    auto members = GetAllQuorumMembers(llmqParams.type, pQuorumBaseBlockIndex);
-    bool isMember = ranges::find_if(members, [&](const auto& dmn) { return dmn->proTxHash == myProTxHash; }) != members.end();
-
-    if (!isMember && !CLLMQUtils::IsWatchQuorumsEnabled()) {
+    if (!fMasternodeMode && !CLLMQUtils::IsWatchQuorumsEnabled()) {
         return false;
     }
+
+    auto members = GetAllQuorumMembers(llmqParams.type, pQuorumBaseBlockIndex);
+    if (members.empty()) {
+        return false;
+    }
+
+    bool isMember = ranges::find_if(members, [&](const auto& dmn) { return dmn->proTxHash == myProTxHash; }) != members.end();
 
     std::set<uint256> connections;
     std::set<uint256> relayMembers;
