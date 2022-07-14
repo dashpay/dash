@@ -734,6 +734,26 @@ bool CLLMQUtils::EnsureQuorumConnections(const Consensus::LLMQParams& llmqParams
 
     bool isMember = ranges::find_if(members, [&](const auto& dmn) { return dmn->proTxHash == myProTxHash; }) != members.end();
 
+    bool isISType = llmqParams.type == Params().GetConsensus().llmqTypeInstantSend ||
+                    llmqParams.type == Params().GetConsensus().llmqTypeDIP0024InstantSend;
+
+    bool isOldMember{false};
+    if (isISType && !myProTxHash.IsNull()) {
+        auto quorums = llmq::quorumManager->ScanQuorums(llmqParams.type, llmqParams.keepOldConnections);
+        for (auto& quorum : quorums) {
+            if (quorum->IsMember(myProTxHash)) {
+                isOldMember = true;
+                break;
+            }
+        }
+    }
+
+    if (!isMember && !isOldMember && !CLLMQUtils::IsWatchQuorumsEnabled()) {
+        return false;
+    }
+    LogPrint(BCLog::NET_NETCONN, "CLLMQUtils::%s -- isMember=%d isOldMember=%d for quorum %s:\n",
+            __func__, isMember, isOldMember, pQuorumBaseBlockIndex->GetBlockHash().ToString());
+
     std::set<uint256> connections;
     std::set<uint256> relayMembers;
     if (isMember) {
