@@ -470,8 +470,9 @@ def connect_nodes(from_connection, node_num):
 
 def isolate_node(node, timeout=5):
     node.setnetworkactive(False)
-    st = time.time()
-    while time.time() < st + timeout:
+    timeout *= Options.timeout_scale
+    stop_time = time.time() + timeout
+    while time.time() < stop_time:
         if node.getconnectioncount() == 0:
             return
         time.sleep(0.5)

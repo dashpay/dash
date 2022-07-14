@@ -1570,8 +1570,8 @@ class DashTestFramework(BitcoinTestFramework):
         # Note: recsigs aren't relayed to regular nodes by default,
         # make sure to pick a mn as a node to query for recsigs.
         node = self.mninfo[0].node if node is None else node
-        time_start = time.time()
-        while time.time() - time_start < 10:
+        stop_time = time.time() + 10 * self.options.timeout_scale
+        while time.time() < stop_time:
             try:
                 return node.quorum('getrecsig', llmq_type, rec_sig_id, rec_sig_msg_hash)
             except JSONRPCException:
