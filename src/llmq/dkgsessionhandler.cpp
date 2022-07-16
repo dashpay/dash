@@ -259,10 +259,7 @@ void CDKGSessionHandler::SleepBeforePhase(QuorumPhase curPhase,
     int64_t endTime = GetTimeMillis() + sleepTime;
     int heightTmp{-1};
     int heightStart{-1};
-    {
-        LOCK(cs);
-        heightTmp = heightStart = currentHeight;
-    }
+    heightTmp = heightStart = WITH_LOCK(cs, return currentHeight);
 
     LogPrint(BCLog::LLMQ_DKG, "CDKGSessionManager::%s -- %s qi[%d] - starting sleep for %d ms, curPhase=%d\n", __func__, params.name, quorumIndex, sleepTime, int(curPhase));
 
