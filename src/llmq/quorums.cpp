@@ -318,10 +318,40 @@ void CQuorumManager::CheckQuorumConnections(const Consensus::LLMQParams& llmqPar
         LogPrint(BCLog::LLMQ, "CQuorumManager::%s -- llmqType[%d] h[%d] keeping mn quorum connections for quorum: [%d:%s]\n", __func__, int(llmqParams.type), pindexNew->nHeight, curDkgHeight, curDkgBlock.ToString());
     }
 
+    const auto myProTxHash = WITH_LOCK(activeMasternodeInfoCs, return activeMasternodeInfo.proTxHash);
+    bool isISType = llmqParams.type == Params().GetConsensus().llmqTypeInstantSend ||
+                    llmqParams.type == Params().GetConsensus().llmqTypeDIP0024InstantSend;
+
+    bool watchOtherISQuorums{false};
+    if (isISType && !myProTxHash.IsNull()) {
+        for (const auto& old_quorum : lastQuorums) {
+            if (old_quorum->IsMember(myProTxHash)) {
+                watchOtherISQuorums = true;
+                break;
+            }
+        }
+    }
+
     for (const auto& quorum : lastQuorums) {
-        if (CLLMQUtils::EnsureQuorumConnections(llmqParams, quorum->m_quorum_base_block_index, connman, WITH_LOCK(activeMasternodeInfoCs, return activeMasternodeInfo.proTxHash))) {
+        if (CLLMQUtils::EnsureQuorumConnections(llmqParams, quorum->m_quorum_base_block_index, connman, myProTxHash)) {
             if (connmanQuorumsToDelete.erase(quorum->qc->quorumHash) > 0) {
                 LogPrint(BCLog::LLMQ, "CQuorumManager::%s -- llmqType[%d] h[%d] keeping mn quorum connections for quorum: [%d:%s]\n", __func__, int(llmqParams.type), pindexNew->nHeight, quorum->m_quorum_base_block_index->nHeight, quorum->m_quorum_base_block_index->GetBlockHash().ToString());
+            }
+        } else if (watchOtherISQuorums && !quorum->IsMember(myProTxHash)) {
+            std::set<uint256> connections;
+            const auto& cindexes = CLLMQUtils::CalcDeterministicWatchConnections(llmqParams.type, quorum->m_quorum_base_block_index, quorum->members.size(), 1);
+            for (auto idx : cindexes) {
+                connections.emplace(quorum->members[idx]->proTxHash);
+            }
+            if (!connections.empty()) {
+                if (!connman.HasMasternodeQuorumNodes(llmqParams.type, quorum->m_quorum_base_block_index->GetBlockHash())) {
+                    LogPrint(BCLog::LLMQ, "CQuorumManager::%s -- llmqType[%d] h[%d] adding mn inter-quorum connections for quorum: [%d:%s]\n", __func__, int(llmqParams.type), pindexNew->nHeight, quorum->m_quorum_base_block_index->nHeight, quorum->m_quorum_base_block_index->GetBlockHash().ToString());
+                    connman.SetMasternodeQuorumNodes(llmqParams.type, quorum->m_quorum_base_block_index->GetBlockHash(), connections);
+                    connman.SetMasternodeQuorumRelayMembers(llmqParams.type, quorum->m_quorum_base_block_index->GetBlockHash(), connections);
+                }
+                if (connmanQuorumsToDelete.erase(quorum->qc->quorumHash) > 0) {
+                    LogPrint(BCLog::LLMQ, "CQuorumManager::%s -- llmqType[%d] h[%d] keeping mn inter-quorum connections for quorum: [%d:%s]\n", __func__, int(llmqParams.type), pindexNew->nHeight, quorum->m_quorum_base_block_index->nHeight, quorum->m_quorum_base_block_index->GetBlockHash().ToString());
+                }
             }
         }
     }
