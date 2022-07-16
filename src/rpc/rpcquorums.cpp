@@ -182,8 +182,10 @@ static UniValue quorum_dkgstatus(const JSONRPCRequest& request)
         }
     }
 
+    NodeContext& node = EnsureNodeContext(request.context);
+
     llmq::CDKGDebugStatus status;
-    llmq::quorumDKGDebugManager->GetLocalDebugStatus(status);
+    node.quorumDKGDebugManager->GetLocalDebugStatus(status);
 
     auto ret = status.ToJson(detailLevel);
 
@@ -218,7 +220,6 @@ static UniValue quorum_dkgstatus(const JSONRPCRequest& request)
                                                                                       pQuorumBaseBlockIndex, proTxHash,
                                                                                       true);
                     std::map<uint256, CAddress> foundConnections;
-                    NodeContext& node = EnsureNodeContext(request.context);
                     node.connman->ForEachNode([&](const CNode* pnode) {
                         auto verifiedProRegTxHash = pnode->GetVerifiedProRegTxHash();
                         if (!verifiedProRegTxHash.IsNull() && allConnections.count(verifiedProRegTxHash)) {
@@ -771,7 +772,7 @@ static UniValue verifychainlock(const JSONRPCRequest& request)
 
     const auto llmqType = Params().GetConsensus().llmqTypeChainLocks;
     const uint256 nRequestId = ::SerializeHash(std::make_pair(llmq::CLSIG_REQUESTID_PREFIX, nBlockHeight));
-    return llmq::CSigningManager::VerifyRecoveredSig(llmqType, nBlockHeight, nRequestId, nBlockHash, chainLockSig);
+    return llmq::quorumSigningManager->VerifyRecoveredSig(llmqType, nBlockHeight, nRequestId, nBlockHash, chainLockSig);
 }
 
 static void verifyislock_help(const JSONRPCRequest& request)

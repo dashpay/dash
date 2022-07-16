@@ -14,7 +14,6 @@
 
 namespace llmq
 {
-CDKGDebugManager* quorumDKGDebugManager;
 
 UniValue CDKGDebugSessionStatus::ToJson(int quorumIndex, int detailLevel) const
 {

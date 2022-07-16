@@ -10,5 +10,7 @@
 #include <net_processing.h>
 #include <scheduler.h>
 
+#include <llmq/debug.h>
+
 NodeContext::NodeContext() {}
 NodeContext::~NodeContext() {}

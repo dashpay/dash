@@ -27,6 +27,8 @@ class CTxMemPool;
 namespace llmq
 {
 
+class CSigningManager;
+
 class CChainLocksHandler : public CRecoveredSigsListener
 {
     static constexpr int64_t CLEANUP_INTERVAL = 1000 * 30;
@@ -37,6 +39,7 @@ class CChainLocksHandler : public CRecoveredSigsListener
 
 private:
     CConnman& connman;
+    CSigningManager& signingManager;
     CTxMemPool& mempool;
     std::unique_ptr<CScheduler> scheduler;
     std::unique_ptr<std::thread> scheduler_thread;
@@ -70,7 +73,7 @@ private:
     int64_t lastCleanupTime GUARDED_BY(cs) {0};
 
 public:
-    explicit CChainLocksHandler(CTxMemPool& _mempool, CConnman& _connman);
+    explicit CChainLocksHandler(CTxMemPool& _mempool, CConnman& _connman, CSigningManager& sigMan);
     ~CChainLocksHandler();
 
     void Start();

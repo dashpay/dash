@@ -23,9 +23,9 @@ namespace llmq
 {
 CChainLocksHandler* chainLocksHandler;
 
-CChainLocksHandler::CChainLocksHandler(CTxMemPool& _mempool, CConnman& _connman) :
+CChainLocksHandler::CChainLocksHandler(CTxMemPool& _mempool, CConnman& _connman, CSigningManager& sigMan) :
     scheduler(std::make_unique<CScheduler>()),
-    mempool(_mempool), connman(_connman)
+    mempool(_mempool), connman(_connman), signingManager(sigMan)
 {
     CScheduler::Function serviceLoop = std::bind(&CScheduler::serviceQueue, scheduler.get());
     scheduler_thread = std::make_unique<std::thread>(std::bind(&TraceThread<CScheduler::Function>, "cl-schdlr", serviceLoop));
@@ -39,7 +39,7 @@ CChainLocksHandler::~CChainLocksHandler()
 
 void CChainLocksHandler::Start()
 {
-    quorumSigningManager->RegisterRecoveredSigsListener(this);
+    signingManager.RegisterRecoveredSigsListener(this);
     scheduler->scheduleEvery([&]() {
         CheckActiveState();
         EnforceBestChainLock();
@@ -51,7 +51,7 @@ void CChainLocksHandler::Start()
 void CChainLocksHandler::Stop()
 {
     scheduler->stop();
-    quorumSigningManager->UnregisterRecoveredSigsListener(this);
+    signingManager.UnregisterRecoveredSigsListener(this);
 }
 
 bool CChainLocksHandler::AlreadyHave(const CInv& inv) const
@@ -117,7 +117,7 @@ void CChainLocksHandler::ProcessNewChainLock(const NodeId from, const llmq::CCha
     }
 
     const uint256 requestId = ::SerializeHash(std::make_pair(CLSIG_REQUESTID_PREFIX, clsig.getHeight()));
-    if (!llmq::CSigningManager::VerifyRecoveredSig(Params().GetConsensus().llmqTypeChainLocks, clsig.getHeight(), requestId, clsig.getBlockHash(), clsig.getSig())) {
+    if (!signingManager.VerifyRecoveredSig(Params().GetConsensus().llmqTypeChainLocks, clsig.getHeight(), requestId, clsig.getBlockHash(), clsig.getSig())) {
         LogPrint(BCLog::CHAINLOCKS, "CChainLocksHandler::%s -- invalid CLSIG (%s), peer=%d\n", __func__, clsig.ToString(), from);
         if (from != -1) {
             LOCK(cs_main);
@@ -335,7 +335,7 @@ void CChainLocksHandler::TrySignChainTip()
         lastSignedMsgHash = msgHash;
     }
 
-    quorumSigningManager->AsyncSignIfMember(Params().GetConsensus().llmqTypeChainLocks, requestId, msgHash);
+    signingManager.AsyncSignIfMember(Params().GetConsensus().llmqTypeChainLocks, requestId, msgHash);
 }
 
 void CChainLocksHandler::TransactionAddedToMempool(const CTransactionRef& tx, int64_t nAcceptTime)

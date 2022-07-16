@@ -528,8 +528,8 @@ void CRecoveredSigsDb::CleanupOldVotes(int64_t maxAge)
 
 //////////////////
 
-CSigningManager::CSigningManager(CConnman& _connman, bool fMemory, bool fWipe) :
-    db(fMemory, fWipe), connman(_connman)
+CSigningManager::CSigningManager(CConnman& _connman, CQuorumManager& quorumMan, CSigSharesManager& sigSharesMan, bool fMemory, bool fWipe) :
+    db(fMemory, fWipe), connman(_connman), quorumManager(quorumMan), sigSharesManager(sigSharesMan)
 {
 }
 
@@ -614,7 +614,7 @@ bool CSigningManager::PreVerifyRecoveredSig(const CRecoveredSig& recoveredSig, b
         return false;
     }
 
-    CQuorumCPtr quorum = quorumManager->GetQuorum(llmqType, recoveredSig.getQuorumHash());
+    CQuorumCPtr quorum = quorumManager.GetQuorum(llmqType, recoveredSig.getQuorumHash());
 
     if (!quorum) {
         LogPrint(BCLog::LLMQ, "CSigningManager::%s -- quorum %s not found\n", __func__,
@@ -672,7 +672,7 @@ void CSigningManager::CollectPendingRecoveredSigsToVerify(
             auto llmqType = recSig->getLlmqType();
             auto quorumKey = std::make_pair(recSig->getLlmqType(), recSig->getQuorumHash());
             if (!retQuorums.count(quorumKey)) {
-                CQuorumCPtr quorum = quorumManager->GetQuorum(llmqType, recSig->getQuorumHash());
+                CQuorumCPtr quorum = quorumManager.GetQuorum(llmqType, recSig->getQuorumHash());
                 if (!quorum) {
                     LogPrint(BCLog::LLMQ, "CSigningManager::%s -- quorum %s not found, node=%d\n", __func__,
                               recSig->getQuorumHash().ToString(), nodeId);
@@ -887,7 +887,7 @@ bool CSigningManager::AsyncSignIfMember(Consensus::LLMQType llmqType, const uint
         // TODO fix this by re-signing when the next block arrives, but only when that block results in a change of the quorum list and no recovered signature has been created in the mean time
         quorum = SelectQuorumForSigning(llmqType, id);
     } else {
-        quorum = quorumManager->GetQuorum(llmqType, quorumHash);
+        quorum = quorumManager.GetQuorum(llmqType, quorumHash);
     }
 
     if (!quorum) {
@@ -931,9 +931,9 @@ bool CSigningManager::AsyncSignIfMember(Consensus::LLMQType llmqType, const uint
 
     if (allowReSign) {
         // make us re-announce all known shares (other nodes might have run into a timeout)
-        quorumSigSharesManager->ForceReAnnouncement(quorum, llmqType, id, msgHash);
+        sigSharesManager.ForceReAnnouncement(quorum, llmqType, id, msgHash);
     }
-    quorumSigSharesManager->AsyncSign(quorum, id, msgHash);
+    sigSharesManager.AsyncSign(quorum, id, msgHash);
 
     return true;
 }
@@ -1000,7 +1000,7 @@ CQuorumCPtr CSigningManager::SelectQuorumForSigning(Consensus::LLMQType llmqType
     }
 
     if (CLLMQUtils::IsQuorumRotationEnabled(llmqType, pindexStart)) {
-        auto quorums = quorumManager->ScanQuorums(llmqType, pindexStart, poolSize);
+        auto quorums = quorumManager.ScanQuorums(llmqType, pindexStart, poolSize);
         if (quorums.empty()) {
             return nullptr;
         }
@@ -1024,7 +1024,7 @@ CQuorumCPtr CSigningManager::SelectQuorumForSigning(Consensus::LLMQType llmqType
         }
         return *itQuorum;
     } else {
-        auto quorums = quorumManager->ScanQuorums(llmqType, pindexStart, poolSize);
+        auto quorums = quorumManager.ScanQuorums(llmqType, pindexStart, poolSize);
         if (quorums.empty()) {
             return nullptr;
         }

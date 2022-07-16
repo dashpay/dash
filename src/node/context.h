@@ -23,6 +23,10 @@ class ChainClient;
 class WalletClient;
 } // namespace interfaces
 
+namespace llmq {
+class CDKGDebugManager;
+}
+
 //! NodeContext struct containing references to chain state and connection
 //! state.
 //!
@@ -48,6 +52,10 @@ struct NodeContext {
     interfaces::WalletClient* wallet_client{nullptr};
     std::unique_ptr<CScheduler> scheduler;
     std::function<void()> rpc_interruption_point = [] {};
+
+    // Dash
+    std::unique_ptr<llmq::CDKGDebugManager> quorumDKGDebugManager;
+    // End Dash
 
     //! Declare default constructor and destructor that are not inline, so code
     //! instantiating the NodeContext struct doesn't need to #include class

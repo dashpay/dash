@@ -26,8 +26,8 @@ bool MNHFTx::Verify(const CBlockIndex* pQuorumIndex) const
     int signOffset{llmq::GetLLMQParams(llmqType).dkgInterval};
 
     const uint256 requestId = ::SerializeHash(std::make_pair(CBLSIG_REQUESTID_PREFIX, pQuorumIndex->nHeight));
-    return llmq::CSigningManager::VerifyRecoveredSig(llmqType, pQuorumIndex->nHeight, requestId, pQuorumIndex->GetBlockHash(), sig, 0) ||
-           llmq::CSigningManager::VerifyRecoveredSig(llmqType, pQuorumIndex->nHeight, requestId, pQuorumIndex->GetBlockHash(), sig, signOffset);
+    return llmq::quorumSigningManager->VerifyRecoveredSig(llmqType, pQuorumIndex->nHeight, requestId, pQuorumIndex->GetBlockHash(), sig, 0) ||
+           llmq::quorumSigningManager->VerifyRecoveredSig(llmqType, pQuorumIndex->nHeight, requestId, pQuorumIndex->GetBlockHash(), sig, signOffset);
 }
 
 bool CheckMNHFTx(const CTransaction& tx, const CBlockIndex* pindexPrev, CValidationState& state) EXCLUSIVE_LOCKS_REQUIRED(cs_main)

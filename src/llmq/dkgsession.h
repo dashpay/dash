@@ -210,6 +210,8 @@ public:
     bool someoneComplain{false};
 };
 
+class CDKGDebugManager;
+
 /**
  * The DKG session is a single instance of the DKG process. It is owned and called by CDKGSessionHandler, which passes
  * received DKG messages to the session. The session is not persistent and will loose it's state (the whole object is
@@ -236,6 +238,7 @@ private:
     CBLSWorker& blsWorker;
     CBLSWorkerCache cache;
     CDKGSessionManager& dkgManager;
+    CDKGDebugManager& dkgDebugManager;
 
     const CBlockIndex* m_quorum_base_block_index{nullptr};
     int quorumIndex{0};
@@ -276,8 +279,8 @@ private:
     std::set<uint256> validCommitments GUARDED_BY(invCs);
 
 public:
-    CDKGSession(const Consensus::LLMQParams& _params, CBLSWorker& _blsWorker, CDKGSessionManager& _dkgManager, CConnman& _connman) :
-        params(_params), blsWorker(_blsWorker), cache(_blsWorker), dkgManager(_dkgManager), connman(_connman) {}
+    CDKGSession(const Consensus::LLMQParams& _params, CBLSWorker& _blsWorker, CDKGSessionManager& _dkgManager, CDKGDebugManager& dkgDebugMan, CConnman& _connman) :
+        params(_params), blsWorker(_blsWorker), cache(_blsWorker), dkgManager(_dkgManager), dkgDebugManager(dkgDebugMan), connman(_connman) {}
 
     bool Init(const CBlockIndex* pQuorumBaseBlockIndex, const std::vector<CDeterministicMNCPtr>& mns, const uint256& _myProTxHash, int _quorumIndex);
 

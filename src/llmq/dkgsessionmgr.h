@@ -24,6 +24,7 @@ private:
     std::unique_ptr<CDBWrapper> db{nullptr};
     CBLSWorker& blsWorker;
     CConnman& connman;
+    CDKGDebugManager& dkgDebugManager;
 
     //TODO name struct instead of std::pair
     std::map<std::pair<Consensus::LLMQType, int>, CDKGSessionHandler> dkgSessionHandlers;
@@ -48,7 +49,7 @@ private:
     mutable std::map<ContributionsCacheKey, ContributionsCacheEntry> contributionsCache GUARDED_BY(contributionsCacheCs);
 
 public:
-    CDKGSessionManager(CConnman& _connman, CBLSWorker& _blsWorker, bool unitTests, bool fWipe);
+    CDKGSessionManager(CConnman& _connman, CBLSWorker& _blsWorker, CDKGDebugManager& dkgDebugMan, bool unitTests, bool fWipe);
     ~CDKGSessionManager() = default;
 
     void StartThreads();

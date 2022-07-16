@@ -200,16 +200,6 @@ void CSigSharesManager::StopWorkerThread()
     }
 }
 
-void CSigSharesManager::RegisterAsRecoveredSigsListener()
-{
-    quorumSigningManager->RegisterRecoveredSigsListener(this);
-}
-
-void CSigSharesManager::UnregisterAsRecoveredSigsListener()
-{
-    quorumSigningManager->UnregisterRecoveredSigsListener(this);
-}
-
 void CSigSharesManager::InterruptWorkerThread()
 {
     workInterrupt();
@@ -308,7 +298,7 @@ bool CSigSharesManager::ProcessMessageSigSesAnn(const CNode* pfrom, const CSigSe
 
     LogPrint(BCLog::LLMQ_SIGS, "CSigSharesManager::%s -- ann={%s}, node=%d\n", __func__, ann.ToString(), pfrom->GetId());
 
-    auto quorum = quorumManager->GetQuorum(llmqType, ann.getQuorumHash());
+    auto quorum = quorumManager.GetQuorum(llmqType, ann.getQuorumHash());
     if (!quorum) {
         // TODO should we ban here?
         LogPrint(BCLog::LLMQ_SIGS, "CSigSharesManager::%s -- quorum %s not found, node=%d\n", __func__,
@@ -456,7 +446,7 @@ bool CSigSharesManager::ProcessMessageBatchedSigShares(const CNode* pfrom, const
 
 void CSigSharesManager::ProcessMessageSigShare(NodeId fromId, const CSigShare& sigShare)
 {
-    auto quorum = quorumManager->GetQuorum(sigShare.getLlmqType(), sigShare.getQuorumHash());
+    auto quorum = quorumManager.GetQuorum(sigShare.getLlmqType(), sigShare.getQuorumHash());
     if (!quorum) {
         return;
     }
@@ -597,7 +587,7 @@ void CSigSharesManager::CollectPendingSigSharesToVerify(
                 continue;
             }
 
-            CQuorumCPtr quorum = quorumManager->GetQuorum(llmqType, sigShare.getQuorumHash());
+            CQuorumCPtr quorum = quorumManager.GetQuorum(llmqType, sigShare.getQuorumHash());
             assert(quorum != nullptr);
             retQuorums.try_emplace(k, quorum);
         }
@@ -1258,7 +1248,7 @@ void CSigSharesManager::Cleanup()
     // Find quorums which became inactive
     for (auto it = quorums.begin(); it != quorums.end(); ) {
         if (CLLMQUtils::IsQuorumActive(it->first.first, it->first.second)) {
-            it->second = quorumManager->GetQuorum(it->first.first, it->first.second);
+            it->second = quorumManager.GetQuorum(it->first.first, it->first.second);
             ++it;
         } else {
             it = quorums.erase(it);

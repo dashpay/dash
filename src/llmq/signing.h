@@ -152,6 +152,9 @@ public:
     virtual void HandleNewRecoveredSig(const CRecoveredSig& recoveredSig) = 0;
 };
 
+class CQuorumManager;
+class CSigSharesManager;
+
 class CSigningManager
 {
     friend class CSigSharesManager;
@@ -165,6 +168,8 @@ private:
     mutable CCriticalSection cs;
 
     CConnman& connman;
+    CQuorumManager& quorumManager;
+    CSigSharesManager& sigSharesManager;
     CRecoveredSigsDb db;
 
     // Incoming and not verified yet
@@ -178,7 +183,7 @@ private:
     std::vector<CRecoveredSigsListener*> recoveredSigsListeners GUARDED_BY(cs);
 
 public:
-    CSigningManager(CConnman& _connman, bool fMemory, bool fWipe);
+    CSigningManager(CConnman& _connman, CQuorumManager& quorumMan, CSigSharesManager& sigSharesMan, bool fMemory, bool fWipe);
 
     bool AlreadyHave(const CInv& inv) const;
     bool GetRecoveredSigForGetData(const uint256& hash, CRecoveredSig& ret) const;
@@ -197,7 +202,7 @@ public:
 
 private:
     void ProcessMessageRecoveredSig(CNode* pfrom, const std::shared_ptr<const CRecoveredSig>& recoveredSig);
-    static bool PreVerifyRecoveredSig(const CRecoveredSig& recoveredSig, bool& retBan);
+    bool PreVerifyRecoveredSig(const CRecoveredSig& recoveredSig, bool& retBan);
 
     void CollectPendingRecoveredSigsToVerify(size_t maxUniqueSessions,
             std::unordered_map<NodeId, std::list<std::shared_ptr<const CRecoveredSig>>>& retSigShares,
@@ -222,10 +227,10 @@ public:
     bool GetVoteForId(Consensus::LLMQType llmqType, const uint256& id, uint256& msgHashRet) const;
 
     static std::vector<CQuorumCPtr> GetActiveQuorumSet(Consensus::LLMQType llmqType, int signHeight);
-    static CQuorumCPtr SelectQuorumForSigning(Consensus::LLMQType llmqType, const uint256& selectionHash, int signHeight = -1 /*chain tip*/, int signOffset = SIGN_HEIGHT_OFFSET);
+    CQuorumCPtr SelectQuorumForSigning(Consensus::LLMQType llmqType, const uint256& selectionHash, int signHeight = -1 /*chain tip*/, int signOffset = SIGN_HEIGHT_OFFSET);
 
     // Verifies a recovered sig that was signed while the chain tip was at signedAtTip
-    static bool VerifyRecoveredSig(Consensus::LLMQType llmqType, int signedAtHeight, const uint256& id, const uint256& msgHash, const CBLSSignature& sig, int signOffset = SIGN_HEIGHT_OFFSET);
+    bool VerifyRecoveredSig(Consensus::LLMQType llmqType, int signedAtHeight, const uint256& id, const uint256& msgHash, const CBLSSignature& sig, int signOffset = SIGN_HEIGHT_OFFSET);
 };
 
 extern CSigningManager* quorumSigningManager;

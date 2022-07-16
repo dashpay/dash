@@ -20,6 +20,8 @@
 
 namespace llmq
 {
+class CChainLocksHandler;
+class CSigningManager;
 
 struct CInstantSendLock
 {
@@ -194,6 +196,8 @@ class CInstantSendManager : public CRecoveredSigsListener
 {
 private:
     CInstantSendDb db;
+    CChainLocksHandler& chainLocksHandler;
+    CSigningManager& signingManager;
     CConnman& connman;
     CTxMemPool& mempool;
 
@@ -243,7 +247,7 @@ private:
     std::unordered_set<uint256, StaticSaltedHasher> pendingRetryTxs GUARDED_BY(cs_pendingRetry);
 
 public:
-    explicit CInstantSendManager(CTxMemPool& _mempool, CConnman& _connman, bool unitTests, bool fWipe) : db(unitTests, fWipe), mempool(_mempool), connman(_connman) { workInterrupt.reset(); }
+    explicit CInstantSendManager(CTxMemPool& _mempool, CConnman& _connman, CChainLocksHandler& clHandler, CSigningManager& signingMan, bool unitTests, bool fWipe) : db(unitTests, fWipe), mempool(_mempool), connman(_connman), chainLocksHandler(clHandler), signingManager(signingMan) { workInterrupt.reset(); }
     ~CInstantSendManager() = default;
 
     void Start();
