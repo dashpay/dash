@@ -190,7 +190,7 @@ TestingSetup::TestingSetup(const std::string& chainName, const std::vector<const
     }
 
     deterministicMNManager.reset(new CDeterministicMNManager(*evoDb, *m_node.connman));
-    llmq::InitLLMQSystem(m_node, *evoDb, *m_node.mempool, *m_node.connman, true);
+    llmq::InitLLMQSystem(m_node, *evoDb, true);
 }
 
 TestingSetup::~TestingSetup()

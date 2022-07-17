@@ -25,18 +25,18 @@ namespace llmq
 
 CBLSWorker* blsWorker;
 
-void InitLLMQSystem(NodeContext& node, CEvoDB& evoDb, CTxMemPool& mempool, CConnman& connman, bool unitTests, bool fWipe)
+void InitLLMQSystem(NodeContext& node, CEvoDB& evoDb, bool unitTests, bool fWipe)
 {
     blsWorker = new CBLSWorker();
 
     node.quorumDKGDebugManager = std::make_unique<CDKGDebugManager>();
-    quorumBlockProcessor = new CQuorumBlockProcessor(evoDb, connman);
-    quorumDKGSessionManager = new CDKGSessionManager(connman, *blsWorker, *node.quorumDKGDebugManager, unitTests, fWipe);
-    quorumManager = new CQuorumManager(evoDb, connman, *blsWorker, *quorumDKGSessionManager);
-    quorumSigSharesManager = new CSigSharesManager(connman, *quorumManager);
-    quorumSigningManager = new CSigningManager(connman, *quorumManager, *quorumSigSharesManager, unitTests, fWipe);
-    chainLocksHandler = new CChainLocksHandler(mempool, connman, *quorumSigningManager);
-    quorumInstantSendManager = new CInstantSendManager(mempool, connman, *chainLocksHandler, *quorumSigningManager, unitTests, fWipe);
+    quorumBlockProcessor = new CQuorumBlockProcessor(evoDb, *node.connman);
+    quorumDKGSessionManager = new CDKGSessionManager(*node.connman, *blsWorker, *node.quorumDKGDebugManager, unitTests, fWipe);
+    quorumManager = new CQuorumManager(evoDb, *node.connman, *blsWorker, *quorumDKGSessionManager);
+    quorumSigSharesManager = new CSigSharesManager(*node.connman, *quorumManager);
+    quorumSigningManager = new CSigningManager(*node.connman, *quorumManager, *quorumSigSharesManager, unitTests, fWipe);
+    chainLocksHandler = new CChainLocksHandler(*node.mempool, *node.connman, *quorumSigningManager);
+    quorumInstantSendManager = new CInstantSendManager(*node.mempool, *node.connman, *chainLocksHandler, *quorumSigningManager, unitTests, fWipe);
 
     // NOTE: we use this only to wipe the old db, do NOT use it for anything else
     // TODO: remove it in some future version
