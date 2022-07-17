@@ -27,8 +27,7 @@ CChainLocksHandler::CChainLocksHandler(CTxMemPool& _mempool, CConnman& _connman)
     scheduler(std::make_unique<CScheduler>()),
     mempool(_mempool), connman(_connman)
 {
-    CScheduler::Function serviceLoop = [sch = scheduler.get()] { sch->serviceQueue(); };
-    scheduler_thread = std::make_unique<std::thread>([serviceLoop] { return TraceThread<CScheduler::Function>("cl-schdlr", serviceLoop); });
+    scheduler_thread = std::make_unique<std::thread>([&] { TraceThread("cl-schdlr", [&] { scheduler->serviceQueue(); }); });
 }
 
 CChainLocksHandler::~CChainLocksHandler()
