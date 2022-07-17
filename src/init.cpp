@@ -88,7 +88,6 @@
 #include <llmq/signing.h>
 #include <llmq/snapshot.h>
 #include <llmq/utils.h>
-#include <llmq/instantsend.h>
 
 #include <statsd_client.h>
 
@@ -1912,7 +1911,7 @@ bool AppInitMain(const util::Ref& context, NodeContext& node, interfaces::BlockA
     }
 #endif
 
-    pdsNotificationInterface = new CDSNotificationInterface(*node.connman, *llmq::quorumInstantSendManager);
+    pdsNotificationInterface = new CDSNotificationInterface(*node.connman);
     RegisterValidationInterface(pdsNotificationInterface);
 
     uint64_t nMaxOutboundLimit = 0; //unlimited unless -maxuploadtarget is set
