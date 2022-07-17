@@ -322,15 +322,10 @@ void CQuorumManager::CheckQuorumConnections(const Consensus::LLMQParams& llmqPar
     bool isISType = llmqParams.type == Params().GetConsensus().llmqTypeInstantSend ||
                     llmqParams.type == Params().GetConsensus().llmqTypeDIP0024InstantSend;
 
-    bool watchOtherISQuorums{false};
-    if (isISType && !myProTxHash.IsNull()) {
-        for (const auto& old_quorum : lastQuorums) {
-            if (old_quorum->IsMember(myProTxHash)) {
-                watchOtherISQuorums = true;
-                break;
-            }
-        }
-    }
+    bool watchOtherISQuorums = isISType && !myProTxHash.IsNull() &&
+                    ranges::any_of(lastQuorums, [&myProTxHash](const auto& old_quorum){
+                        return old_quorum->IsMember(myProTxHash);
+                    });
 
     for (const auto& quorum : lastQuorums) {
         if (CLLMQUtils::EnsureQuorumConnections(llmqParams, quorum->m_quorum_base_block_index, connman, myProTxHash)) {
