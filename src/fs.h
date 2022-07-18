@@ -9,6 +9,7 @@
 
 #include <cstdio>
 #include <filesystem> // IWYU pragma: export
+#include <functional>
 #include <iomanip>
 #include <ios>
 #include <ostream>
@@ -204,6 +205,7 @@ bool create_directories(const std::filesystem::path& p, std::error_code& ec) = d
 
 /** Bridge operations to C stdio */
 namespace fsbridge {
+    using FopenFn = std::function<FILE*(const fs::path&, const char*)>;
     FILE *fopen(const fs::path& p, const char *mode);
 
     /**

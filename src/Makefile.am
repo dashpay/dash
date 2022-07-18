@@ -285,6 +285,7 @@ BITCOIN_CORE_H = \
   kernel/context.h \
   kernel/mempool_limits.h \
   kernel/mempool_options.h \
+  kernel/mempool_persist.h \
   key.h \
   key_io.h \
   limitedmap.h \
@@ -339,6 +340,7 @@ BITCOIN_CORE_H = \
   node/context.h \
   node/eviction.h \
   node/interface_ui.h \
+  node/mempool_persist_args.h \
   node/miner.h \
   node/minisketchwrapper.h \
   node/psbt.h \
@@ -563,6 +565,7 @@ libbitcoin_node_a_SOURCES = \
   kernel/checks.cpp \
   kernel/coinstats.cpp \
   kernel/context.cpp \
+  kernel/mempool_persist.cpp \
   llmq/blockprocessor.cpp \
   llmq/commitment.cpp \
   llmq/context.cpp \
@@ -602,6 +605,7 @@ libbitcoin_node_a_SOURCES = \
   node/eviction.cpp \
   node/interface_ui.cpp \
   node/interfaces.cpp \
+  node/mempool_persist_args.cpp \
   node/miner.cpp \
   node/minisketchwrapper.cpp \
   node/psbt.cpp \
@@ -1280,6 +1284,7 @@ libdashkernel_la_SOURCES = \
   kernel/checks.cpp \
   kernel/coinstats.cpp \
   kernel/context.cpp \
+  kernel/mempool_persist.cpp \
   key.cpp \
   key_io.cpp \
   llmq/blockprocessor.cpp \

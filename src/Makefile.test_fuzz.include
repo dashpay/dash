@@ -12,6 +12,7 @@ TEST_FUZZ_H = \
     test/fuzz/FuzzedDataProvider.h \
     test/fuzz/util.h \
     test/util/mining.h \
+    test/fuzz/mempool_utils.h \
     test/fuzz/util/net.h
 
 libtest_fuzz_a_CPPFLAGS = $(AM_CPPFLAGS) $(BITCOIN_INCLUDES) $(BOOST_CPPFLAGS)

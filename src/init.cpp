@@ -11,6 +11,7 @@
 #include <init.h>
 
 #include <kernel/checks.h>
+#include <kernel/mempool_persist.h>
 
 #include <addrman.h>
 #include <banman.h>
@@ -51,6 +52,7 @@
 #include <node/chainstate.h>
 #include <node/context.h>
 #include <node/interface_ui.h>
+#include <node/mempool_persist_args.h>
 #include <node/miner.h>
 #include <node/sync_manager.h>
 #include <node/txreconciliation.h>
@@ -151,15 +153,19 @@
 #endif
 
 using kernel::CoinStatsHashType;
+using kernel::DumpMempool;
 
 using node::CacheSizes;
 using node::CalculateCacheSizes;
 using node::ChainstateLoadingError;
 using node::ChainstateLoadVerifyError;
 using node::DashChainstateSetupClose;
+using node::DEFAULT_PERSIST_MEMPOOL;
 using node::DEFAULT_PRINTPRIORITY;
 using node::DEFAULT_STOPAFTERBLOCKIMPORT;
 using node::LoadChainstate;
+using node::MempoolPath;
+using node::ShouldPersistMempool;
 using node::NodeContext;
 using node::ThreadImport;
 using node::VerifyLoadedChainstate;
@@ -339,8 +345,8 @@ void PrepareShutdown(NodeContext& node)
     node.netgroupman.reset();
     ::g_stats_client.reset();
 
-    if (node.mempool && node.mempool->IsLoaded() && node.args->GetBoolArg("-persistmempool", DEFAULT_PERSIST_MEMPOOL)) {
-        DumpMempool(*node.mempool);
+    if (node.mempool && node.mempool->GetLoadTried() && ShouldPersistMempool(*node.args)) {
+        DumpMempool(*node.mempool, MempoolPath(*node.args));
     }
 
     // Drop transactions we were still watching, and record fee estimations.
@@ -2491,7 +2497,7 @@ bool AppInitMain(NodeContext& node, interfaces::BlockAndHeaderTipInfo* tip_info)
     chainman.m_load_block = std::thread(&util::TraceThread, "loadblk", [=, &args, &chainman, &node] {
         // ThreadImport can switch fReindex from true to false, fetch its original state here to use later
         bool skip_evodb_repair_on_reindex = fReindex || fReindexChainState;
-        ThreadImport(chainman, vImportFiles, args);
+        ThreadImport(chainman, vImportFiles, args, ShouldPersistMempool(args) ? MempoolPath(args) : fs::path{});
 
         {
             const CBlockIndex* tip = WITH_LOCK(::cs_main, return chainman.ActiveTip());

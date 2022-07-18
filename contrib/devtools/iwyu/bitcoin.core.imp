@@ -1,3 +1,4 @@
 # Nothing for now.
 [
+  { include: [ "<bits/chrono.h>", private, "<chrono>", public ] },
 ]

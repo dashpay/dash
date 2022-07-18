@@ -5,13 +5,14 @@
 
 #include <rpc/blockchain.h>
 
-#include <instantsend/instantsend.h>
-#include <llmq/context.h>
-#include <util/helpers.h>
+#include <kernel/mempool_persist.h>
 
 #include <chainparams.h>
 #include <core_io.h>
 #include <fs.h>
+#include <instantsend/instantsend.h>
+#include <llmq/context.h>
+#include <node/mempool_persist_args.h>
 #include <policy/settings.h>
 #include <primitives/transaction.h>
 #include <rpc/server.h>
@@ -19,13 +20,17 @@
 #include <rpc/util.h>
 #include <txmempool.h>
 #include <univalue.h>
+#include <util/helpers.h>
 #include <util/moneystr.h>
-#include <validation.h>
-#include <util/system.h>
 #include <util/strencodings.h>
+#include <util/system.h>
 #include <util/time.h>
+#include <validation.h>
+
+using kernel::DumpMempool;
 
 using node::DEFAULT_MAX_RAW_TX_FEE_RATE;
+using node::MempoolPath;
 using node::NodeContext;
 
 RPCHelpMan sendrawtransaction()
@@ -686,7 +691,7 @@ UniValue MempoolInfoToJSON(const CTxMemPool& pool, const llmq::CInstantSendManag
     // Make sure this call is atomic in the pool.
     LOCK(pool.cs);
     UniValue ret(UniValue::VOBJ);
-    ret.pushKV("loaded", pool.IsLoaded());
+    ret.pushKV("loaded", pool.GetLoadTried());
     ret.pushKV("size", (int64_t)pool.size());
     ret.pushKV("bytes", (int64_t)pool.GetTotalTxSize());
     ret.pushKV("usage", (int64_t)pool.DynamicMemoryUsage());
@@ -751,16 +756,18 @@ static RPCHelpMan savemempool()
     const ArgsManager& args{EnsureAnyArgsman(request.context)};
     const CTxMemPool& mempool = EnsureAnyMemPool(request.context);
 
-    if (!mempool.IsLoaded()) {
+    if (!mempool.GetLoadTried()) {
         throw JSONRPCError(RPC_MISC_ERROR, "The mempool was not loaded yet");
     }
 
-    if (!DumpMempool(mempool)) {
+    const fs::path& dump_path = MempoolPath(args);
+
+    if (!DumpMempool(mempool, dump_path)) {
         throw JSONRPCError(RPC_MISC_ERROR, "Unable to dump mempool to disk");
     }
 
     UniValue ret(UniValue::VOBJ);
-    ret.pushKV("filename", fs::path((args.GetDataDirNet() / "mempool.dat")).utf8string());
+    ret.pushKV("filename", dump_path.utf8string());
 
     return ret;
 },
