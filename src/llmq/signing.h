@@ -183,7 +183,7 @@ private:
     std::vector<CRecoveredSigsListener*> recoveredSigsListeners GUARDED_BY(cs);
 
 public:
-    CSigningManager(CConnman& _connman, CQuorumManager& quorumMan, CSigSharesManager& sigSharesMan, bool fMemory, bool fWipe);
+    CSigningManager(CConnman& _connman, CQuorumManager& _quorumManager, CSigSharesManager& _sigSharesManager, bool fMemory, bool fWipe);
 
     bool AlreadyHave(const CInv& inv) const;
     bool GetRecoveredSigForGetData(const uint256& hash, CRecoveredSig& ret) const;
