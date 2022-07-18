@@ -4109,7 +4109,7 @@ bool ProcessMessage(NodeContext& node, CNode* pfrom, const std::string& msg_type
     {
         //probably one the extensions
 #ifdef ENABLE_WALLET
-        coinJoinClientQueueManager.ProcessMessage(pfrom, msg_type, vRecv, *connman, enable_bip61);
+        node.coinJoinClientQueueManager->ProcessMessage(pfrom, msg_type, vRecv, *connman, enable_bip61);
         for (auto& pair : coinJoinClientManagers) {
             pair.second->ProcessMessage(pfrom, msg_type, vRecv, *connman, enable_bip61);
         }

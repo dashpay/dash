@@ -33,6 +33,7 @@ class CSigningManager;
 class CChainLocksHandler;
 class CInstantSendManager;
 }
+class CCoinJoinClientQueueManager;
 
 //! NodeContext struct containing references to chain state and connection
 //! state.
@@ -69,6 +70,8 @@ struct NodeContext {
     std::unique_ptr<llmq::CSigningManager> quorumSigningManager;
     std::unique_ptr<llmq::CChainLocksHandler> chainLocksHandler;
     std::unique_ptr<llmq::CInstantSendManager> quorumInstantSendManager;
+
+    std::unique_ptr<CCoinJoinClientQueueManager> coinJoinClientQueueManager;
     // End Dash
 
     //! Declare default constructor and destructor that are not inline, so code

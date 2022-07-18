@@ -342,6 +342,7 @@ class CCoinJoinBaseManager
 {
 protected:
     mutable Mutex cs_vecqueue;
+    NodeContext& m_node;
 
     // The current mixing sessions in progress on the network
     std::vector<CCoinJoinQueue> vecCoinJoinQueue GUARDED_BY(cs_vecqueue);
@@ -350,7 +351,8 @@ protected:
     void CheckQueue() LOCKS_EXCLUDED(cs_vecqueue);
 
 public:
-    CCoinJoinBaseManager() = default;
+    CCoinJoinBaseManager(NodeContext& node):
+        m_node(node) {}
 
     int GetQueueSize() const LOCKS_EXCLUDED(cs_vecqueue) { LOCK(cs_vecqueue); return vecCoinJoinQueue.size(); }
     bool GetQueueItemAndTry(CCoinJoinQueue& dsqRet) LOCKS_EXCLUDED(cs_vecqueue);
