@@ -23,7 +23,7 @@
 
 #include <univalue.h>
 
-CCoinJoinServer coinJoinServer;
+CCoinJoinServer coinJoinServer; // TODO deblogalize this!
 constexpr static CAmount DEFAULT_MAX_RAW_TX_FEE{COIN / 10};
 
 void CCoinJoinServer::ProcessMessage(CNode* pfrom, const std::string& msg_type, CDataStream& vRecv, CConnman& connman, bool enable_bip61)

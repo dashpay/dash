@@ -29,7 +29,7 @@
 #include <univalue.h>
 
 std::map<const std::string, std::shared_ptr<CCoinJoinClientManager>> coinJoinClientManagers;
-CCoinJoinClientQueueManager coinJoinClientQueueManager;
+CCoinJoinClientQueueManager coinJoinClientQueueManager; // TODO deblogalize me
 
 
 void CCoinJoinClientQueueManager::ProcessMessage(CNode* pfrom, const std::string& msg_type, CDataStream& vRecv, CConnman& connman, bool enable_bip61)
