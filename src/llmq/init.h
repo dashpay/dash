@@ -19,9 +19,9 @@ void InitLLMQSystem(NodeContext& node, CEvoDB& evoDb, CTxMemPool& mempool, CConn
 void DestroyLLMQSystem();
 
 // Manage scheduled tasks, threads, listeners etc.
-void StartLLMQSystem();
-void StopLLMQSystem();
-void InterruptLLMQSystem();
+void StartLLMQSystem(NodeContext& node);
+void StopLLMQSystem(NodeContext& node);
+void InterruptLLMQSystem(NodeContext& node);
 } // namespace llmq
 
 #endif // BITCOIN_LLMQ_INIT_H

@@ -18,6 +18,7 @@
 #include <thread>
 #include <unordered_map>
 #include <utility>
+#include "node/context.h"
 
 class CEvoDB;
 class CScheduler;
@@ -394,12 +395,12 @@ private:
     FastRandomContext rnd GUARDED_BY(cs);
 
     CConnman& connman;
-    CQuorumManager& quorumManager;
+    NodeContext& nodeContext;
     int64_t lastCleanupTime{0};
     std::atomic<uint32_t> recoveredSigsCounter{0};
 
 public:
-    explicit CSigSharesManager(CConnman& _connman, CQuorumManager& quorumMan) : connman(_connman), quorumManager(quorumMan)
+    explicit CSigSharesManager(CConnman& _connman, NodeContext& node) : connman(_connman), nodeContext(node)
     {
         workInterrupt.reset();
     };
@@ -462,8 +463,6 @@ private:
     void SignPendingSigShares();
     void WorkThreadMain();
 };
-
-extern CSigSharesManager* quorumSigSharesManager;
 
 } // namespace llmq
 

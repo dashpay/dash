@@ -15,6 +15,10 @@ class CBlockIndex;
 class CValidationState;
 extern CCriticalSection cs_main;
 
+namespace llmq {
+    class CSigningManager;
+}
+
 // mnhf signal special transaction
 class MNHFTx
 {
@@ -26,7 +30,7 @@ public:
     CBLSSignature sig;
 
     MNHFTx() = default;
-    bool Verify(const CBlockIndex* pQuorumIndex) const;
+    bool Verify(const llmq::CSigningManager& quorumSigningManager, const CBlockIndex* pQuorumIndex) const;
 
     SERIALIZE_METHODS(MNHFTx, obj)
     {
@@ -70,6 +74,6 @@ public:
     }
 };
 
-bool CheckMNHFTx(const CTransaction& tx, const CBlockIndex* pindexPrev, CValidationState& state) EXCLUSIVE_LOCKS_REQUIRED(cs_main);
+bool CheckMNHFTx(const llmq::CSigningManager& quorumSigningManager, const CTransaction& tx, const CBlockIndex* pindexPrev, CValidationState& state) EXCLUSIVE_LOCKS_REQUIRED(cs_main);
 
 #endif // BITCOIN_EVO_MNHFTX_H

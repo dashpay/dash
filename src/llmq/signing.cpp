@@ -982,7 +982,7 @@ bool CSigningManager::GetVoteForId(Consensus::LLMQType llmqType, const uint256& 
     return db.GetVoteForId(llmqType, id, msgHashRet);
 }
 
-CQuorumCPtr CSigningManager::SelectQuorumForSigning(Consensus::LLMQType llmqType, const uint256& selectionHash, int signHeight, int signOffset)
+CQuorumCPtr CSigningManager::SelectQuorumForSigning(Consensus::LLMQType llmqType, const uint256& selectionHash, int signHeight, int signOffset) const
 {
     size_t poolSize = GetLLMQParams(llmqType).signingActiveQuorumCount;
 
@@ -1043,7 +1043,7 @@ CQuorumCPtr CSigningManager::SelectQuorumForSigning(Consensus::LLMQType llmqType
     }
 }
 
-bool CSigningManager::VerifyRecoveredSig(Consensus::LLMQType llmqType, int signedAtHeight, const uint256& id, const uint256& msgHash, const CBLSSignature& sig, const int signOffset)
+bool CSigningManager::VerifyRecoveredSig(Consensus::LLMQType llmqType, int signedAtHeight, const uint256& id, const uint256& msgHash, const CBLSSignature& sig, const int signOffset) const
 {
     auto quorum = SelectQuorumForSigning(llmqType, id, signedAtHeight, signOffset);
     if (!quorum) {

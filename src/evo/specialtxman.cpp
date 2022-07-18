@@ -15,8 +15,9 @@
 #include <llmq/commitment.h>
 #include <primitives/block.h>
 #include <validation.h>
+#include <node/context.h>
 
-bool CheckSpecialTx(const CTransaction& tx, const CBlockIndex* pindexPrev, CValidationState& state, const CCoinsViewCache& view, bool check_sigs)
+bool CheckSpecialTx(const llmq::CSigningManager& quorumSigningManager, const CTransaction& tx, const CBlockIndex* pindexPrev, CValidationState& state, const CCoinsViewCache& view, bool check_sigs)
 {
     AssertLockHeld(cs_main);
 
@@ -42,7 +43,7 @@ bool CheckSpecialTx(const CTransaction& tx, const CBlockIndex* pindexPrev, CVali
         case TRANSACTION_QUORUM_COMMITMENT:
             return llmq::CheckLLMQCommitment(tx, pindexPrev, state);
         case TRANSACTION_MNHF_SIGNAL:
-            return VersionBitsTipState(Params().GetConsensus(), Consensus::DEPLOYMENT_DIP0024) == ThresholdState::ACTIVE && CheckMNHFTx(tx, pindexPrev, state);
+            return VersionBitsTipState(Params().GetConsensus(), Consensus::DEPLOYMENT_DIP0024) == ThresholdState::ACTIVE && CheckMNHFTx(quorumSigningManager, tx, pindexPrev, state);
         }
     } catch (const std::exception& e) {
         LogPrintf("%s -- failed: %s\n", __func__, e.what());
@@ -98,7 +99,7 @@ bool UndoSpecialTx(const CTransaction& tx, const CBlockIndex* pindex)
     return false;
 }
 
-bool ProcessSpecialTxsInBlock(const CBlock& block, const CBlockIndex* pindex, CValidationState& state, const CCoinsViewCache& view, bool fJustCheck, bool fCheckCbTxMerleRoots)
+bool ProcessSpecialTxsInBlock(NodeContext& nodeContext, const CBlock& block, const CBlockIndex* pindex, CValidationState& state, const CCoinsViewCache& view, bool fJustCheck, bool fCheckCbTxMerleRoots)
 {
     AssertLockHeld(cs_main);
 
@@ -111,7 +112,7 @@ bool ProcessSpecialTxsInBlock(const CBlock& block, const CBlockIndex* pindex, CV
         int64_t nTime1 = GetTimeMicros();
 
         for (const auto& ptr_tx : block.vtx) {
-            if (!CheckSpecialTx(*ptr_tx, pindex->pprev, state, view, fCheckCbTxMerleRoots)) {
+            if (!CheckSpecialTx(*nodeContext.quorumSigningManager, *ptr_tx, pindex->pprev, state, view, fCheckCbTxMerleRoots)) {
                 // pass the state returned by the function above
                 return false;
             }
@@ -125,7 +126,7 @@ bool ProcessSpecialTxsInBlock(const CBlock& block, const CBlockIndex* pindex, CV
         nTimeLoop += nTime2 - nTime1;
         LogPrint(BCLog::BENCHMARK, "        - Loop: %.2fms [%.2fs]\n", 0.001 * (nTime2 - nTime1), nTimeLoop * 0.000001);
 
-        if (!llmq::quorumBlockProcessor->ProcessBlock(block, pindex, state, fJustCheck, fCheckCbTxMerleRoots)) {
+        if (!nodeContext.quorumBlockProcessor->ProcessBlock(block, pindex, state, fJustCheck, fCheckCbTxMerleRoots)) {
             // pass the state returned by the function above
             return false;
         }
@@ -143,7 +144,7 @@ bool ProcessSpecialTxsInBlock(const CBlock& block, const CBlockIndex* pindex, CV
         nTimeDMN += nTime4 - nTime3;
         LogPrint(BCLog::BENCHMARK, "        - deterministicMNManager: %.2fms [%.2fs]\n", 0.001 * (nTime4 - nTime3), nTimeDMN * 0.000001);
 
-        if (fCheckCbTxMerleRoots && !CheckCbTxMerkleRoots(block, pindex, state, view)) {
+        if (fCheckCbTxMerleRoots && !CheckCbTxMerkleRoots(*nodeContext.quorumBlockProcessor, block, pindex, state, view)) {
             // pass the state returned by the function above
             return false;
         }
@@ -159,7 +160,7 @@ bool ProcessSpecialTxsInBlock(const CBlock& block, const CBlockIndex* pindex, CV
     return true;
 }
 
-bool UndoSpecialTxsInBlock(const CBlock& block, const CBlockIndex* pindex)
+bool UndoSpecialTxsInBlock(llmq::CQuorumBlockProcessor& quorumBlockProcessor, const CBlock& block, const CBlockIndex* pindex)
 {
     AssertLockHeld(cs_main);
 
@@ -175,7 +176,7 @@ bool UndoSpecialTxsInBlock(const CBlock& block, const CBlockIndex* pindex)
             return false;
         }
 
-        if (!llmq::quorumBlockProcessor->UndoBlock(block, pindex)) {
+        if (!quorumBlockProcessor.UndoBlock(block, pindex)) {
             return false;
         }
     } catch (const std::exception& e) {

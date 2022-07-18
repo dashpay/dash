@@ -15,6 +15,7 @@
 #include <saltedhasher.h>
 #include <streams.h>
 #include <sync.h>
+#include <node/context.h>
 
 #include <atomic>
 #include <unordered_set>
@@ -39,7 +40,7 @@ class CChainLocksHandler : public CRecoveredSigsListener
 
 private:
     CConnman& connman;
-    CSigningManager& signingManager;
+    NodeContext& nodeContext;
     CTxMemPool& mempool;
     std::unique_ptr<CScheduler> scheduler;
     std::unique_ptr<std::thread> scheduler_thread;
@@ -73,7 +74,7 @@ private:
     int64_t lastCleanupTime GUARDED_BY(cs) {0};
 
 public:
-    explicit CChainLocksHandler(CTxMemPool& _mempool, CConnman& _connman, CSigningManager& sigMan);
+    explicit CChainLocksHandler(CTxMemPool& _mempool, CConnman& _connman, NodeContext& _nodeContext);
     ~CChainLocksHandler();
 
     void Start();
@@ -109,8 +110,6 @@ private:
 
     void Cleanup();
 };
-
-extern CChainLocksHandler* chainLocksHandler;
 
 bool AreChainLocksEnabled();
 

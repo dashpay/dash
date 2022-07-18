@@ -3442,6 +3442,7 @@ bool ProcessMessage(CNode* pfrom, const std::string& msg_type, CDataStream& vRec
                                    state.GetRejectReason().substr(0, MAX_REJECT_MESSAGE_LENGTH), inv.hash));
             }
             MaybePunishNode(pfrom->GetId(), state, /*via_compact_block*/ false);
+
             llmq::quorumInstantSendManager->TransactionRemovedFromMempool(ptx);
         }
         return true;

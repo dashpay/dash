@@ -18,14 +18,15 @@
 #include <ui_interface.h>
 #include <util/validation.h>
 #include <validation.h>
+#include <node/context.h>
 
 namespace llmq
 {
 CChainLocksHandler* chainLocksHandler;
 
-CChainLocksHandler::CChainLocksHandler(CTxMemPool& _mempool, CConnman& _connman, CSigningManager& sigMan) :
+CChainLocksHandler::CChainLocksHandler(CTxMemPool& _mempool, CConnman& _connman, NodeContext& _nodeContext) :
     scheduler(std::make_unique<CScheduler>()),
-    mempool(_mempool), connman(_connman), signingManager(sigMan)
+    mempool(_mempool), connman(_connman), nodeContext(_nodeContext)
 {
     CScheduler::Function serviceLoop = std::bind(&CScheduler::serviceQueue, scheduler.get());
     scheduler_thread = std::make_unique<std::thread>(std::bind(&TraceThread<CScheduler::Function>, "cl-schdlr", serviceLoop));
@@ -39,7 +40,7 @@ CChainLocksHandler::~CChainLocksHandler()
 
 void CChainLocksHandler::Start()
 {
-    signingManager.RegisterRecoveredSigsListener(this);
+    nodeContext.quorumSigningManager->RegisterRecoveredSigsListener(this);
     scheduler->scheduleEvery([&]() {
         CheckActiveState();
         EnforceBestChainLock();
@@ -51,7 +52,7 @@ void CChainLocksHandler::Start()
 void CChainLocksHandler::Stop()
 {
     scheduler->stop();
-    signingManager.UnregisterRecoveredSigsListener(this);
+    nodeContext.quorumSigningManager->UnregisterRecoveredSigsListener(this);
 }
 
 bool CChainLocksHandler::AlreadyHave(const CInv& inv) const
@@ -117,7 +118,7 @@ void CChainLocksHandler::ProcessNewChainLock(const NodeId from, const llmq::CCha
     }
 
     const uint256 requestId = ::SerializeHash(std::make_pair(CLSIG_REQUESTID_PREFIX, clsig.getHeight()));
-    if (!signingManager.VerifyRecoveredSig(Params().GetConsensus().llmqTypeChainLocks, clsig.getHeight(), requestId, clsig.getBlockHash(), clsig.getSig())) {
+    if (!nodeContext.quorumSigningManager->VerifyRecoveredSig(Params().GetConsensus().llmqTypeChainLocks, clsig.getHeight(), requestId, clsig.getBlockHash(), clsig.getSig())) {
         LogPrint(BCLog::CHAINLOCKS, "CChainLocksHandler::%s -- invalid CLSIG (%s), peer=%d\n", __func__, clsig.ToString(), from);
         if (from != -1) {
             LOCK(cs_main);
@@ -310,7 +311,7 @@ void CChainLocksHandler::TrySignChainTip()
                     }
                 }
 
-                if (txAge < WAIT_FOR_ISLOCK_TIMEOUT && !quorumInstantSendManager->IsLocked(txid)) {
+                if (txAge < WAIT_FOR_ISLOCK_TIMEOUT && !nodeContext.quorumInstantSendManager->IsLocked(txid)) {
                     LogPrint(BCLog::CHAINLOCKS, "CChainLocksHandler::%s -- not signing block %s due to TX %s not being islocked and not old enough. age=%d\n", __func__,
                               pindexWalk->GetBlockHash().ToString(), txid.ToString(), txAge);
                     return;
@@ -335,7 +336,7 @@ void CChainLocksHandler::TrySignChainTip()
         lastSignedMsgHash = msgHash;
     }
 
-    signingManager.AsyncSignIfMember(Params().GetConsensus().llmqTypeChainLocks, requestId, msgHash);
+    nodeContext.quorumSigningManager->AsyncSignIfMember(Params().GetConsensus().llmqTypeChainLocks, requestId, msgHash);
 }
 
 void CChainLocksHandler::TransactionAddedToMempool(const CTransactionRef& tx, int64_t nAcceptTime)
@@ -448,7 +449,7 @@ bool CChainLocksHandler::IsTxSafeForMining(const uint256& txid) const
     if (!IsInstantSendEnabled()) {
         return true;
     }
-    if (quorumInstantSendManager->IsLocked(txid)) {
+    if (nodeContext.quorumInstantSendManager->IsLocked(txid)) {
         return true;
     }
 

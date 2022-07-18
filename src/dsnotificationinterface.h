@@ -6,14 +6,12 @@
 #define BITCOIN_DSNOTIFICATIONINTERFACE_H
 
 #include <validationinterface.h>
-namespace llmq {
-    class CInstantSendManager;
-}
+#include <node/context.h>
 
 class CDSNotificationInterface : public CValidationInterface
 {
 public:
-    explicit CDSNotificationInterface(CConnman& connmanIn, llmq::CInstantSendManager& isMan): connman(connmanIn), instantSendManager(isMan) {}
+    explicit CDSNotificationInterface(CConnman& connmanIn, NodeContext& nodeContext): connman(connmanIn), node(nodeContext) {}
     virtual ~CDSNotificationInterface() = default;
 
     // a small helper to initialize current block height in sub-modules on startup
@@ -34,7 +32,7 @@ protected:
 
 private:
     CConnman& connman;
-    llmq::CInstantSendManager& instantSendManager;
+    NodeContext& node;
 };
 
 #endif // BITCOIN_DSNOTIFICATIONINTERFACE_H

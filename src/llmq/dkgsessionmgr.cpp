@@ -15,6 +15,8 @@
 #include <util/irange.h>
 #include <validation.h>
 
+#include <utility>
+
 namespace llmq
 {
 
@@ -24,9 +26,9 @@ static const std::string DB_VVEC = "qdkg_V";
 static const std::string DB_SKCONTRIB = "qdkg_S";
 static const std::string DB_ENC_CONTRIB = "qdkg_E";
 
-CDKGSessionManager::CDKGSessionManager(CConnman& _connman, CBLSWorker& _blsWorker, CDKGDebugManager& dkgDebugMan, bool unitTests, bool fWipe) :
+CDKGSessionManager::CDKGSessionManager(CConnman& _connman, std::shared_ptr<CBLSWorker> _blsWorker, CDKGDebugManager& dkgDebugMan, bool unitTests, bool fWipe) :
         db(std::make_unique<CDBWrapper>(unitTests ? "" : (GetDataDir() / "llmq/dkgdb"), 1 << 20, unitTests, fWipe)),
-        blsWorker(_blsWorker), connman(_connman), dkgDebugManager(dkgDebugMan)
+        blsWorker(std::move(_blsWorker)), connman(_connman), dkgDebugManager(dkgDebugMan)
 {
     MigrateDKG();
 

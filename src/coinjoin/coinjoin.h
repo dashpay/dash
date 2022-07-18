@@ -23,6 +23,10 @@ class CConnman;
 class CBLSPublicKey;
 class CBlockIndex;
 
+namespace llmq {
+    class CInstantSendManager;
+}
+
 // timeouts
 static constexpr int COINJOIN_AUTO_TIMEOUT_MIN = 5;
 static constexpr int COINJOIN_AUTO_TIMEOUT_MAX = 15;
@@ -298,7 +302,7 @@ public:
     bool CheckSignature(const CBLSPublicKey& blsPubKey) const;
 
     void SetConfirmedHeight(int nConfirmedHeightIn) { nConfirmedHeight = nConfirmedHeightIn; }
-    bool IsExpired(const CBlockIndex* pindex) const;
+    bool IsExpired(const CBlockIndex* pindex, bool has_chainlock) const;
     bool IsValidStructure() const;
 };
 
@@ -319,7 +323,7 @@ protected:
 
     void SetNull() EXCLUSIVE_LOCKS_REQUIRED(cs_coinjoin);
 
-    bool IsValidInOuts(const std::vector<CTxIn>& vin, const std::vector<CTxOut>& vout, PoolMessage& nMessageIDRet, bool* fConsumeCollateralRet) const;
+    bool IsValidInOuts(const llmq::CInstantSendManager& instantSendManager, const std::vector<CTxIn>& vin, const std::vector<CTxOut>& vout, PoolMessage& nMessageIDRet, bool* fConsumeCollateralRet) const;
 
 public:
     int nSessionDenom{0}; // Users must submit a denom matching this
@@ -374,7 +378,7 @@ private:
     static Mutex cs_mapdstx;
     static std::map<uint256, CCoinJoinBroadcastTx> mapDSTX GUARDED_BY(cs_mapdstx);
 
-    static void CheckDSTXes(const CBlockIndex* pindex) LOCKS_EXCLUDED(cs_mapdstx);
+    static void CheckDSTXes(const CBlockIndex* pindex, bool has_chainlock) LOCKS_EXCLUDED(cs_mapdstx);
 
 public:
     static constexpr std::array<CAmount, 5> GetStandardDenominations() { return vecStandardDenominations; }
@@ -448,7 +452,7 @@ public:
     static constexpr CAmount GetMaxPoolAmount() { return COINJOIN_ENTRY_MAX_SIZE * vecStandardDenominations.front(); }
 
     /// If the collateral is valid given by a client
-    static bool IsCollateralValid(const CTransaction& txCollateral);
+    static bool IsCollateralValid(const llmq::CInstantSendManager& instantSendManager, const CTransaction& txCollateral);
     static constexpr CAmount GetCollateralAmount() { return GetSmallestDenomination() / 10; }
     static constexpr CAmount GetMaxCollateralAmount() { return GetCollateralAmount() * 4; }
 

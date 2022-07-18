@@ -200,7 +200,7 @@ void Interrupt(NodeContext& node)
     InterruptRPC();
     InterruptREST();
     InterruptTorControl();
-    llmq::InterruptLLMQSystem();
+    llmq::InterruptLLMQSystem(node);
     InterruptMapPort();
     if (node.connman)
         node.connman->Interrupt();
@@ -230,7 +230,7 @@ void PrepareShutdown(NodeContext& node)
     StopREST();
     StopRPC();
     StopHTTPServer();
-    llmq::StopLLMQSystem();
+    llmq::StopLLMQSystem(node);
 
     // fRPCInWarmup should be `false` if we completed the loading sequence
     // before a shutdown request was received
@@ -1912,7 +1912,7 @@ bool AppInitMain(const util::Ref& context, NodeContext& node, interfaces::BlockA
     }
 #endif
 
-    pdsNotificationInterface = new CDSNotificationInterface(*node.connman, *llmq::quorumInstantSendManager);
+    pdsNotificationInterface = new CDSNotificationInterface(*node.connman, node);
     RegisterValidationInterface(pdsNotificationInterface);
 
     uint64_t nMaxOutboundLimit = 0; //unlimited unless -maxuploadtarget is set
@@ -2135,7 +2135,7 @@ bool AppInitMain(const util::Ref& context, NodeContext& node, interfaces::BlockA
                     break; // out of the chainstate activation do-while
                 }
 
-                if (!deterministicMNManager->UpgradeDBIfNeeded() || !llmq::quorumBlockProcessor->UpgradeDB()) {
+                if (!deterministicMNManager->UpgradeDBIfNeeded() || !node.quorumBlockProcessor->UpgradeDB()) {
                     strLoadError = _("Error upgrading evo database");
                     break;
                 }
@@ -2387,7 +2387,7 @@ bool AppInitMain(const util::Ref& context, NodeContext& node, interfaces::BlockA
 
     if (fMasternodeMode) {
         node.scheduler->scheduleEvery(std::bind(&CCoinJoinServer::DoMaintenance, std::ref(coinJoinServer), std::ref(*node.connman)), 1 * 1000);
-        node.scheduler->scheduleEvery(std::bind(&llmq::CDKGSessionManager::CleanupOldContributions, std::ref(*llmq::quorumDKGSessionManager)), 60 * 60 * 1000);
+        node.scheduler->scheduleEvery(std::bind(&llmq::CDKGSessionManager::CleanupOldContributions, std::ref(*node.quorumDKGSessionManager)), 60 * 60 * 1000);
 #ifdef ENABLE_WALLET
     } else if(CCoinJoinClientOptions::IsEnabled()) {
         node.scheduler->scheduleEvery(std::bind(&DoCoinJoinMaintenance, std::ref(*node.connman)), 1 * 1000);
@@ -2399,7 +2399,7 @@ bool AppInitMain(const util::Ref& context, NodeContext& node, interfaces::BlockA
         node.scheduler->scheduleEvery(std::bind(&PeriodicStats, std::ref(*node.args)), nStatsPeriod * 1000);
     }
 
-    llmq::StartLLMQSystem();
+    llmq::StartLLMQSystem(node);
 
     // ********************************************************* Step 11: import blocks
 

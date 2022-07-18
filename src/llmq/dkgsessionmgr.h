@@ -22,7 +22,7 @@ class CDKGSessionManager
 
 private:
     std::unique_ptr<CDBWrapper> db{nullptr};
-    CBLSWorker& blsWorker;
+    std::shared_ptr<CBLSWorker> blsWorker;
     CConnman& connman;
     CDKGDebugManager& dkgDebugManager;
 
@@ -49,7 +49,7 @@ private:
     mutable std::map<ContributionsCacheKey, ContributionsCacheEntry> contributionsCache GUARDED_BY(contributionsCacheCs);
 
 public:
-    CDKGSessionManager(CConnman& _connman, CBLSWorker& _blsWorker, CDKGDebugManager& dkgDebugMan, bool unitTests, bool fWipe);
+    CDKGSessionManager(CConnman& _connman, std::shared_ptr<CBLSWorker> _blsWorker, CDKGDebugManager& dkgDebugMan, bool unitTests, bool fWipe);
     ~CDKGSessionManager() = default;
 
     void StartThreads();
@@ -81,8 +81,6 @@ private:
 };
 
 bool IsQuorumDKGEnabled();
-
-extern CDKGSessionManager* quorumDKGSessionManager;
 
 } // namespace llmq
 

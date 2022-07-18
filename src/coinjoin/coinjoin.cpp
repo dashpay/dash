@@ -117,12 +117,12 @@ bool CCoinJoinBroadcastTx::CheckSignature(const CBLSPublicKey& blsPubKey) const
     return true;
 }
 
-bool CCoinJoinBroadcastTx::IsExpired(const CBlockIndex* pindex) const
+bool CCoinJoinBroadcastTx::IsExpired(const CBlockIndex* pindex, bool has_chainlock) const
 {
     // expire confirmed DSTXes after ~1h since confirmation or chainlocked confirmation
     if (nConfirmedHeight == -1 || pindex->nHeight < nConfirmedHeight) return false; // not mined yet
     if (pindex->nHeight - nConfirmedHeight > 24) return true; // mined more than an hour ago
-    return llmq::chainLocksHandler->HasChainLock(pindex->nHeight, *pindex->phashBlock);
+    return has_chainlock;
 }
 
 bool CCoinJoinBroadcastTx::IsValidStructure() const
@@ -212,7 +212,7 @@ std::string CCoinJoinBaseSession::GetStateString() const
     }
 }
 
-bool CCoinJoinBaseSession::IsValidInOuts(const std::vector<CTxIn>& vin, const std::vector<CTxOut>& vout, PoolMessage& nMessageIDRet, bool* fConsumeCollateralRet) const
+bool CCoinJoinBaseSession::IsValidInOuts(const llmq::CInstantSendManager& instantSendManager, const std::vector<CTxIn>& vin, const std::vector<CTxOut>& vout, PoolMessage& nMessageIDRet, bool* fConsumeCollateralRet) const
 {
     std::set<CScript> setScripPubKeys;
     nMessageIDRet = MSG_NOERR;
@@ -274,7 +274,7 @@ bool CCoinJoinBaseSession::IsValidInOuts(const std::vector<CTxIn>& vin, const st
 
         Coin coin;
         if (!viewMemPool.GetCoin(txin.prevout, coin) || coin.IsSpent() ||
-            (coin.nHeight == MEMPOOL_HEIGHT && !llmq::quorumInstantSendManager->IsLocked(txin.prevout.hash))) {
+            (coin.nHeight == MEMPOOL_HEIGHT && !instantSendManager.IsLocked(txin.prevout.hash))) {
             LogPrint(BCLog::COINJOIN, "CCoinJoinBaseSession::%s -- ERROR: missing, spent or non-locked mempool input! txin=%s\n", __func__, txin.ToString());
             nMessageIDRet = ERR_MISSING_TX;
             return false;
@@ -303,7 +303,7 @@ Mutex CCoinJoin::cs_mapdstx;
 std::map<uint256, CCoinJoinBroadcastTx> CCoinJoin::mapDSTX GUARDED_BY(CCoinJoin::cs_mapdstx);
 
 // check to make sure the collateral provided by the client is valid
-bool CCoinJoin::IsCollateralValid(const CTransaction& txCollateral)
+bool CCoinJoin::IsCollateralValid(const llmq::CInstantSendManager& instantSendManager, const CTransaction& txCollateral)
 {
     if (txCollateral.vout.empty()) return false;
     if (txCollateral.nLockTime != 0) return false;
@@ -324,7 +324,7 @@ bool CCoinJoin::IsCollateralValid(const CTransaction& txCollateral)
         Coin coin;
         auto mempoolTx = mempool.get(txin.prevout.hash);
         if (mempoolTx != nullptr) {
-            if (mempool.isSpent(txin.prevout) || !llmq::quorumInstantSendManager->IsLocked(txin.prevout.hash)) {
+            if (mempool.isSpent(txin.prevout) || !instantSendManager.IsLocked(txin.prevout.hash)) {
                 LogPrint(BCLog::COINJOIN, "CCoinJoin::IsCollateralValid -- spent or non-locked mempool input! txin=%s\n", txin.ToString());
                 return false;
             }
@@ -440,13 +440,13 @@ CCoinJoinBroadcastTx CCoinJoin::GetDSTX(const uint256& hash)
     return (it == mapDSTX.end()) ? CCoinJoinBroadcastTx() : it->second;
 }
 
-void CCoinJoin::CheckDSTXes(const CBlockIndex* pindex)
+void CCoinJoin::CheckDSTXes(const CBlockIndex* pindex, bool has_chainlock)
 {
     AssertLockNotHeld(cs_mapdstx);
     LOCK(cs_mapdstx);
     auto it = mapDSTX.begin();
     while (it != mapDSTX.end()) {
-        if (it->second.IsExpired(pindex)) {
+        if (it->second.IsExpired(pindex, has_chainlock)) {
             mapDSTX.erase(it++);
         } else {
             ++it;
@@ -458,14 +458,14 @@ void CCoinJoin::CheckDSTXes(const CBlockIndex* pindex)
 void CCoinJoin::UpdatedBlockTip(const CBlockIndex* pindex)
 {
     if (pindex && masternodeSync.IsBlockchainSynced()) {
-        CheckDSTXes(pindex);
+        CheckDSTXes(pindex, /*has_chainlock=*/false);
     }
 }
 
 void CCoinJoin::NotifyChainLock(const CBlockIndex* pindex)
 {
     if (pindex && masternodeSync.IsBlockchainSynced()) {
-        CheckDSTXes(pindex);
+        CheckDSTXes(pindex, /*has_chainlock=*/true);
     }
 }
 

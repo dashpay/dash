@@ -28,7 +28,7 @@ void CDSNotificationInterface::InitializeCurrentBlockTip()
 
 void CDSNotificationInterface::AcceptedBlockHeader(const CBlockIndex *pindexNew)
 {
-    llmq::chainLocksHandler->AcceptedBlockHeader(pindexNew);
+    node.chainLocksHandler->AcceptedBlockHeader(pindexNew);
     masternodeSync.AcceptedBlockHeader(pindexNew);
 }
 
@@ -65,25 +65,25 @@ void CDSNotificationInterface::UpdatedBlockTip(const CBlockIndex *pindexNew, con
     }
 #endif // ENABLE_WALLET
 
-    instantSendManager.UpdatedBlockTip(pindexNew);
-    llmq::chainLocksHandler->UpdatedBlockTip();
+    node.quorumInstantSendManager->UpdatedBlockTip(pindexNew);
+    node.chainLocksHandler->UpdatedBlockTip();
 
-    llmq::quorumManager->UpdatedBlockTip(pindexNew, fInitialDownload);
-    llmq::quorumDKGSessionManager->UpdatedBlockTip(pindexNew, fInitialDownload);
+    node.quorumManager->UpdatedBlockTip(pindexNew, fInitialDownload);
+    node.quorumDKGSessionManager->UpdatedBlockTip(pindexNew, fInitialDownload);
 
     if (!fDisableGovernance) governance.UpdatedBlockTip(pindexNew, connman);
 }
 
 void CDSNotificationInterface::TransactionAddedToMempool(const CTransactionRef& ptx, int64_t nAcceptTime)
 {
-    instantSendManager.TransactionAddedToMempool(ptx);
-    llmq::chainLocksHandler->TransactionAddedToMempool(ptx, nAcceptTime);
+    node.quorumInstantSendManager->TransactionAddedToMempool(ptx);
+    node.chainLocksHandler->TransactionAddedToMempool(ptx, nAcceptTime);
     CCoinJoin::TransactionAddedToMempool(ptx);
 }
 
 void CDSNotificationInterface::TransactionRemovedFromMempool(const CTransactionRef& ptx, MemPoolRemovalReason reason)
 {
-    instantSendManager.TransactionRemovedFromMempool(ptx);
+    node.quorumInstantSendManager->TransactionRemovedFromMempool(ptx);
 }
 
 void CDSNotificationInterface::BlockConnected(const std::shared_ptr<const CBlock>& pblock, const CBlockIndex* pindex, const std::vector<CTransactionRef>& vtxConflicted)
@@ -96,15 +96,15 @@ void CDSNotificationInterface::BlockConnected(const std::shared_ptr<const CBlock
     // to abandon a transaction and then have it inadvertently cleared by
     // the notification that the conflicted transaction was evicted.
 
-    instantSendManager.BlockConnected(pblock, pindex, vtxConflicted);
-    llmq::chainLocksHandler->BlockConnected(pblock, pindex, vtxConflicted);
+    node.quorumInstantSendManager->BlockConnected(pblock, pindex, vtxConflicted);
+    node.chainLocksHandler->BlockConnected(pblock, pindex, vtxConflicted);
     CCoinJoin::BlockConnected(pblock, pindex, vtxConflicted);
 }
 
 void CDSNotificationInterface::BlockDisconnected(const std::shared_ptr<const CBlock>& pblock, const CBlockIndex* pindexDisconnected)
 {
-    instantSendManager.BlockDisconnected(pblock, pindexDisconnected);
-    llmq::chainLocksHandler->BlockDisconnected(pblock, pindexDisconnected);
+    node.quorumInstantSendManager->BlockDisconnected(pblock, pindexDisconnected);
+    node.chainLocksHandler->BlockDisconnected(pblock, pindexDisconnected);
     CCoinJoin::BlockDisconnected(pblock, pindexDisconnected);
 }
 
@@ -116,6 +116,6 @@ void CDSNotificationInterface::NotifyMasternodeListChanged(bool undo, const CDet
 
 void CDSNotificationInterface::NotifyChainLock(const CBlockIndex* pindex, const std::shared_ptr<const llmq::CChainLockSig>& clsig)
 {
-    instantSendManager.NotifyChainLock(pindex);
+    node.quorumInstantSendManager->NotifyChainLock(pindex);
     CCoinJoin::NotifyChainLock(pindex);
 }

@@ -14,6 +14,7 @@
 #include <univalue.h>
 #include <unordered_lru_cache.h>
 #include <util/irange.h>
+#include <node/context.h>
 
 #include <optional>
 
@@ -204,7 +205,7 @@ public:
     void ToJson(UniValue& obj) const;
 };
 
-bool BuildQuorumRotationInfo(const CGetQuorumRotationInfo& request, CQuorumRotationInfo& quorumRotationInfoRet, std::string& errorRet);
+bool BuildQuorumRotationInfo(NodeContext& nodeContext, const CGetQuorumRotationInfo& request, CQuorumRotationInfo& quorumRotationInfoRet, std::string& errorRet);
 uint256 GetLastBaseBlockHash(const std::vector<const CBlockIndex*>& baseBlockIndexes, const CBlockIndex* blockIndex);
 
 class CQuorumSnapshotManager

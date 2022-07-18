@@ -48,7 +48,7 @@ bool CheckCbTx(const CTransaction& tx, const CBlockIndex* pindexPrev, CValidatio
 }
 
 // This can only be done after the block has been fully processed, as otherwise we won't have the finished MN list
-bool CheckCbTxMerkleRoots(const CBlock& block, const CBlockIndex* pindex, CValidationState& state, const CCoinsViewCache& view)
+bool CheckCbTxMerkleRoots(const llmq::CQuorumBlockProcessor& quorumBlockProcessor, const CBlock& block, const CBlockIndex* pindex, CValidationState& state, const CCoinsViewCache& view)
 {
     if (block.vtx[0]->nType != TRANSACTION_COINBASE) {
         return true;
@@ -83,7 +83,7 @@ bool CheckCbTxMerkleRoots(const CBlock& block, const CBlockIndex* pindex, CValid
         LogPrint(BCLog::BENCHMARK, "          - CalcCbTxMerkleRootMNList: %.2fms [%.2fs]\n", 0.001 * (nTime3 - nTime2), nTimeMerkleMNL * 0.000001);
 
         if (cbTx.nVersion >= 2) {
-            if (!CalcCbTxMerkleRootQuorums(block, pindex->pprev, calculatedMerkleRoot, state)) {
+            if (!CalcCbTxMerkleRootQuorums(quorumBlockProcessor, block, pindex->pprev, calculatedMerkleRoot, state)) {
                 // pass the state returned by the function above
                 return false;
             }
@@ -158,7 +158,7 @@ bool CalcCbTxMerkleRootMNList(const CBlock& block, const CBlockIndex* pindexPrev
     }
 }
 
-bool CalcCbTxMerkleRootQuorums(const CBlock& block, const CBlockIndex* pindexPrev, uint256& merkleRootRet, CValidationState& state)
+bool CalcCbTxMerkleRootQuorums(const llmq::CQuorumBlockProcessor& quorumBlockProcessor, const CBlock& block, const CBlockIndex* pindexPrev, uint256& merkleRootRet, CValidationState& state)
 {
     static int64_t nTimeMinedAndActive = 0;
     static int64_t nTimeMined = 0;
@@ -168,7 +168,7 @@ bool CalcCbTxMerkleRootQuorums(const CBlock& block, const CBlockIndex* pindexPre
     int64_t nTime1 = GetTimeMicros();
 
     // The returned quorums are in reversed order, so the most recent one is at index 0
-    auto quorums = llmq::quorumBlockProcessor->GetMinedAndActiveCommitmentsUntilBlock(pindexPrev);
+    auto quorums = quorumBlockProcessor.GetMinedAndActiveCommitmentsUntilBlock(pindexPrev);
     std::map<Consensus::LLMQType, std::vector<uint256>> qcHashes;
     std::map<Consensus::LLMQType, std::map<int16_t, uint256>> qcIndexedHashes;
     size_t hashCount = 0;
@@ -181,7 +181,7 @@ bool CalcCbTxMerkleRootQuorums(const CBlock& block, const CBlockIndex* pindexPre
         v.reserve(p.second.size());
         for (const auto& p2 : p.second) {
             uint256 minedBlockHash;
-            llmq::CFinalCommitmentPtr qc = llmq::quorumBlockProcessor->GetMinedCommitment(p.first, p2->GetBlockHash(), minedBlockHash);
+            llmq::CFinalCommitmentPtr qc = quorumBlockProcessor.GetMinedCommitment(p.first, p2->GetBlockHash(), minedBlockHash);
             if (qc == nullptr) return state.Invalid(ValidationInvalidReason::CONSENSUS, false, REJECT_INVALID, "commitment-not-found");
             if (llmq::CLLMQUtils::IsQuorumRotationEnabled(qc->llmqType, pindexPrev)) {
                 auto& qi = qcIndexedHashes[p.first];

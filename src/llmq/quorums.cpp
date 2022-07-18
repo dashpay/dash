@@ -23,6 +23,7 @@
 #include <validation.h>
 
 #include <cxxtimer.hpp>
+#include <utility>
 
 namespace llmq
 {
@@ -161,10 +162,11 @@ bool CQuorum::ReadContributions(CEvoDB& evoDb)
     return true;
 }
 
-CQuorumManager::CQuorumManager(CEvoDB& _evoDb, CConnman& _connman, CBLSWorker& _blsWorker, CDKGSessionManager& _dkgManager) :
+CQuorumManager::CQuorumManager(CEvoDB& _evoDb, CConnman& _connman, std::shared_ptr<CBLSWorker> _blsWorker, const CQuorumBlockProcessor& _quorumBlockProcessor, const CDKGSessionManager& _dkgManager) :
     connman(_connman),
     evoDb(_evoDb),
-    blsWorker(_blsWorker),
+    blsWorker(std::move(_blsWorker)),
+    quorumBlockProcessor(_quorumBlockProcessor),
     dkgManager(_dkgManager)
 {
     CLLMQUtils::InitQuorumsCache(mapQuorumsCache);
@@ -313,14 +315,14 @@ CQuorumPtr CQuorumManager::BuildQuorumFromCommitment(const Consensus::LLMQType l
 
     const uint256& quorumHash{pQuorumBaseBlockIndex->GetBlockHash()};
     uint256 minedBlockHash;
-    CFinalCommitmentPtr qc = quorumBlockProcessor->GetMinedCommitment(llmqType, quorumHash, minedBlockHash);
+    CFinalCommitmentPtr qc = quorumBlockProcessor.GetMinedCommitment(llmqType, quorumHash, minedBlockHash);
     if (qc == nullptr) {
         LogPrint(BCLog::LLMQ, "CQuorumManager::%s -- No mined commitment for llmqType[%d] nHeight[%d] quorumHash[%s]\n", __func__, uint8_t(llmqType), pQuorumBaseBlockIndex->nHeight, pQuorumBaseBlockIndex->GetBlockHash().ToString());
         return nullptr;
     }
     assert(qc->quorumHash == pQuorumBaseBlockIndex->GetBlockHash());
 
-    auto quorum = std::make_shared<CQuorum>(llmq::GetLLMQParams(llmqType), blsWorker);
+    auto quorum = std::make_shared<CQuorum>(llmq::GetLLMQParams(llmqType), *blsWorker.get());
     auto members = CLLMQUtils::GetAllQuorumMembers(qc->llmqType, pQuorumBaseBlockIndex);
 
     quorum->Init(std::move(qc), pQuorumBaseBlockIndex, minedBlockHash, members);
@@ -359,14 +361,14 @@ bool CQuorumManager::BuildQuorumContributions(const CFinalCommitmentPtr& fqc, co
 
     cxxtimer::Timer t2(true);
     LOCK(quorum->cs);
-    quorum->quorumVvec = blsWorker.BuildQuorumVerificationVector(vvecs);
+    quorum->quorumVvec = blsWorker->BuildQuorumVerificationVector(vvecs);
     if (!quorum->HasVerificationVector()) {
         LogPrint(BCLog::LLMQ, "CQuorumManager::%s -- failed to build quorumVvec\n", __func__);
         // without the quorum vvec, there can't be a skShare, so we fail here. Failure is not fatal here, as it still
         // allows to use the quorum as a non-member (verification through the quorum pub key)
         return false;
     }
-    quorum->skShare = blsWorker.AggregateSecretKeys(skContributions);
+    quorum->skShare = blsWorker->AggregateSecretKeys(skContributions);
     if (!quorum->skShare.IsValid()) {
         quorum->skShare.Reset();
         LogPrint(BCLog::LLMQ, "CQuorumManager::%s -- failed to build skShare\n", __func__);
@@ -380,9 +382,9 @@ bool CQuorumManager::BuildQuorumContributions(const CFinalCommitmentPtr& fqc, co
     return true;
 }
 
-bool CQuorumManager::HasQuorum(Consensus::LLMQType llmqType, const uint256& quorumHash)
+bool CQuorumManager::HasQuorum(Consensus::LLMQType llmqType, const uint256& quorumHash) const
 {
-    return quorumBlockProcessor->HasMinedCommitment(llmqType, quorumHash);
+    return quorumBlockProcessor.HasMinedCommitment(llmqType, quorumHash);
 }
 
 bool CQuorumManager::RequestQuorumData(CNode* pFrom, Consensus::LLMQType llmqType, const CBlockIndex* pQuorumBaseBlockIndex, uint16_t nDataMask, const uint256& proTxHash) const
@@ -446,7 +448,7 @@ std::vector<CQuorumCPtr> CQuorumManager::ScanQuorums(Consensus::LLMQType llmqTyp
     //  for inspiration
 
     // Get the block indexes of the mined commitments to build the required quorums from
-    auto pQuorumBaseBlockIndexes = quorumBlockProcessor->GetMinedCommitmentsIndexedUntilBlock(llmqType, static_cast<const CBlockIndex*>(pIndexScanCommitments), nScanCommitments);
+    auto pQuorumBaseBlockIndexes = quorumBlockProcessor.GetMinedCommitmentsIndexedUntilBlock(llmqType, static_cast<const CBlockIndex*>(pIndexScanCommitments), nScanCommitments);
     if (pQuorumBaseBlockIndexes.size() < nScanCommitments) {
         if (!pQuorumBaseBlockIndexes.empty()) {
             nScanCommitments -= pQuorumBaseBlockIndexes.size();
@@ -454,7 +456,7 @@ std::vector<CQuorumCPtr> CQuorumManager::ScanQuorums(Consensus::LLMQType llmqTyp
                 pIndexScanCommitments = pQuorumBaseBlockIndexes.back()->pprev;
             }
         }
-        auto pQuorumBaseBlockIndexesLegacy = quorumBlockProcessor->GetMinedCommitmentsUntilBlock(llmqType, static_cast<const CBlockIndex*>(pIndexScanCommitments), nScanCommitments);
+        auto pQuorumBaseBlockIndexesLegacy = quorumBlockProcessor.GetMinedCommitmentsUntilBlock(llmqType, static_cast<const CBlockIndex*>(pIndexScanCommitments), nScanCommitments);
         pQuorumBaseBlockIndexes.insert(pQuorumBaseBlockIndexes.end(), pQuorumBaseBlockIndexesLegacy.begin(), pQuorumBaseBlockIndexesLegacy.end());
     }
     vecResultQuorums.reserve(vecResultQuorums.size() + pQuorumBaseBlockIndexes.size());
@@ -614,7 +616,7 @@ void CQuorumManager::ProcessMessage(CNode* pFrom, const std::string& msg_type, C
             }
 
             std::vector<CBLSIESEncryptedObject<CBLSSecretKey>> vecEncrypted;
-            if (!quorumDKGSessionManager->GetEncryptedContributions(request.GetLLMQType(), pQuorumBaseBlockIndex, pQuorum->qc->validMembers, request.GetProTxHash(), vecEncrypted)) {
+            if (!dkgManager.GetEncryptedContributions(request.GetLLMQType(), pQuorumBaseBlockIndex, pQuorum->qc->validMembers, request.GetProTxHash(), vecEncrypted)) {
                 sendQDATA(CQuorumDataRequest::Errors::ENCRYPTED_CONTRIBUTIONS_MISSING);
                 return;
             }
@@ -708,7 +710,7 @@ void CQuorumManager::ProcessMessage(CNode* pFrom, const std::string& msg_type, C
                 }
             }
 
-            CBLSSecretKey secretKeyShare = blsWorker.AggregateSecretKeys(vecSecretKeys);
+            CBLSSecretKey secretKeyShare = blsWorker->AggregateSecretKeys(vecSecretKeys);
             if (!pQuorum->SetSecretKeyShare(secretKeyShare)) {
                 errorHandler("Invalid secret key share received");
                 return;

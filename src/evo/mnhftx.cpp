@@ -16,7 +16,7 @@
 
 extern const std::string CBLSIG_REQUESTID_PREFIX = "clsig";
 
-bool MNHFTx::Verify(const CBlockIndex* pQuorumIndex) const
+bool MNHFTx::Verify(const llmq::CSigningManager& quorumSigningManager, const CBlockIndex* pQuorumIndex) const
 {
     if (nVersion == 0 || nVersion > CURRENT_VERSION) {
         return false;
@@ -26,11 +26,11 @@ bool MNHFTx::Verify(const CBlockIndex* pQuorumIndex) const
     int signOffset{llmq::GetLLMQParams(llmqType).dkgInterval};
 
     const uint256 requestId = ::SerializeHash(std::make_pair(CBLSIG_REQUESTID_PREFIX, pQuorumIndex->nHeight));
-    return llmq::quorumSigningManager->VerifyRecoveredSig(llmqType, pQuorumIndex->nHeight, requestId, pQuorumIndex->GetBlockHash(), sig, 0) ||
-           llmq::quorumSigningManager->VerifyRecoveredSig(llmqType, pQuorumIndex->nHeight, requestId, pQuorumIndex->GetBlockHash(), sig, signOffset);
+    return quorumSigningManager.VerifyRecoveredSig(llmqType, pQuorumIndex->nHeight, requestId, pQuorumIndex->GetBlockHash(), sig, 0) ||
+            quorumSigningManager.VerifyRecoveredSig(llmqType, pQuorumIndex->nHeight, requestId, pQuorumIndex->GetBlockHash(), sig, signOffset);
 }
 
-bool CheckMNHFTx(const CTransaction& tx, const CBlockIndex* pindexPrev, CValidationState& state) EXCLUSIVE_LOCKS_REQUIRED(cs_main)
+bool CheckMNHFTx(const llmq::CSigningManager& quorumSigningManager, const CTransaction& tx, const CBlockIndex* pindexPrev, CValidationState& state) EXCLUSIVE_LOCKS_REQUIRED(cs_main)
 {
     MNHFTxPayload mnhfTx;
     if (!GetTxPayload(tx, mnhfTx)) {
@@ -55,7 +55,7 @@ bool CheckMNHFTx(const CTransaction& tx, const CBlockIndex* pindexPrev, CValidat
         return state.Invalid(ValidationInvalidReason::CONSENSUS, false, REJECT_INVALID, "bad-mnhf-type");
     }
 
-    if (!mnhfTx.signal.Verify(pindexQuorum)) {
+    if (!mnhfTx.signal.Verify(quorumSigningManager, pindexQuorum)) {
         return state.Invalid(ValidationInvalidReason::CONSENSUS, false, REJECT_INVALID, "bad-mnhf-invalid");
     }
 

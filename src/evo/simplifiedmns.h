@@ -18,6 +18,7 @@ class CDeterministicMN;
 namespace llmq
 {
     class CFinalCommitment;
+    class CQuorumBlockProcessor;
 } // namespace llmq
 
 class CSimplifiedMNListEntry
@@ -116,11 +117,11 @@ public:
     CSimplifiedMNListDiff();
     ~CSimplifiedMNListDiff();
 
-    bool BuildQuorumsDiff(const CBlockIndex* baseBlockIndex, const CBlockIndex* blockIndex);
+    bool BuildQuorumsDiff(const llmq::CQuorumBlockProcessor& quorumBlockProcessor, const CBlockIndex* baseBlockIndex, const CBlockIndex* blockIndex);
 
     void ToJson(UniValue& obj, bool extended = false) const;
 };
 
-bool BuildSimplifiedMNListDiff(const uint256& baseBlockHash, const uint256& blockHash, CSimplifiedMNListDiff& mnListDiffRet, std::string& errorRet, bool extended = false);
+bool BuildSimplifiedMNListDiff(const llmq::CQuorumBlockProcessor& quorumBlockProcessor, const uint256& baseBlockHash, const uint256& blockHash, CSimplifiedMNListDiff& mnListDiffRet, std::string& errorRet, bool extended = false);
 
 #endif // BITCOIN_EVO_SIMPLIFIEDMNS_H

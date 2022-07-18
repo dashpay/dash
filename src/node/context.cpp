@@ -11,6 +11,8 @@
 #include <scheduler.h>
 
 #include <llmq/debug.h>
+#include <llmq/blockprocessor.h>
+#include <llmq/commitment.h>
 
 NodeContext::NodeContext() {}
 NodeContext::~NodeContext() {}

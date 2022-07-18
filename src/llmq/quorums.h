@@ -179,6 +179,8 @@ private:
     bool ReadContributions(CEvoDB& evoDb);
 };
 
+class CQuorumBlockProcessor;
+
 /**
  * The quorum manager maintains quorums which were mined on chain. When a quorum is requested from the manager,
  * it will lookup the commitment (through CQuorumBlockProcessor) and build a CQuorum object from it.
@@ -190,8 +192,9 @@ class CQuorumManager
 private:
     CEvoDB& evoDb;
     CConnman& connman;
-    CBLSWorker& blsWorker;
-    CDKGSessionManager& dkgManager;
+    std::shared_ptr<CBLSWorker> blsWorker;
+    const CDKGSessionManager& dkgManager;
+    const CQuorumBlockProcessor& quorumBlockProcessor;
 
     mutable CCriticalSection quorumsCacheCs;
     mutable std::map<Consensus::LLMQType, unordered_lru_cache<uint256, CQuorumPtr, StaticSaltedHasher>> mapQuorumsCache GUARDED_BY(quorumsCacheCs);
@@ -201,7 +204,7 @@ private:
     mutable CThreadInterrupt quorumThreadInterrupt;
 
 public:
-    CQuorumManager(CEvoDB& _evoDb, CConnman& _connman, CBLSWorker& _blsWorker, CDKGSessionManager& _dkgManager);
+    CQuorumManager(CEvoDB& _evoDb, CConnman& _connman, std::shared_ptr<CBLSWorker> _blsWorker, const CQuorumBlockProcessor& quorumBlockProcessor, const CDKGSessionManager& _dkgManager);
     ~CQuorumManager() { Stop(); };
 
     void Start();
@@ -213,7 +216,7 @@ public:
 
     void ProcessMessage(CNode* pfrom, const std::string& msg_type, CDataStream& vRecv);
 
-    static bool HasQuorum(Consensus::LLMQType llmqType, const uint256& quorumHash);
+    bool HasQuorum(Consensus::LLMQType llmqType, const uint256& quorumHash) const;
 
     bool RequestQuorumData(CNode* pFrom, Consensus::LLMQType llmqType, const CBlockIndex* pQuorumBaseBlockIndex, uint16_t nDataMask, const uint256& proTxHash = uint256()) const;
 
@@ -240,8 +243,6 @@ private:
     void StartCachePopulatorThread(const CQuorumCPtr pQuorum) const;
     void StartQuorumDataRecoveryThread(const CQuorumCPtr pQuorum, const CBlockIndex* pIndex, uint16_t nDataMask) const;
 };
-
-extern CQuorumManager* quorumManager;
 
 } // namespace llmq
 

@@ -197,8 +197,8 @@ TestingSetup::~TestingSetup()
 {
     m_node.scheduler->stop();
     deterministicMNManager.reset();
-    llmq::InterruptLLMQSystem();
-    llmq::StopLLMQSystem();
+    llmq::InterruptLLMQSystem(m_node);
+    llmq::StopLLMQSystem(m_node);
     threadGroup.interrupt_all();
     threadGroup.join_all();
     StopScriptCheckWorkerThreads();
@@ -296,7 +296,7 @@ CBlock TestChainSetup::CreateBlock(const std::vector<CMutableTransaction>& txns,
         if (!CalcCbTxMerkleRootMNList(block, ::ChainActive().Tip(), cbTx.merkleRootMNList, state, ::ChainstateActive().CoinsTip())) {
             BOOST_ASSERT(false);
         }
-        if (!CalcCbTxMerkleRootQuorums(block, ::ChainActive().Tip(), cbTx.merkleRootQuorums, state)) {
+        if (!CalcCbTxMerkleRootQuorums(*m_node.quorumBlockProcessor, block, ::ChainActive().Tip(), cbTx.merkleRootQuorums, state)) {
             BOOST_ASSERT(false);
         }
         CMutableTransaction tmpTx{*block.vtx[0]};
