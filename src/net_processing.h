@@ -10,6 +10,7 @@
 #include <net.h>
 #include <sync.h>
 #include <validationinterface.h>
+#include "node/context.h"
 
 class CTxMemPool;
 class ChainstateManager;
@@ -27,6 +28,7 @@ static const bool DEFAULT_PEERBLOCKFILTERS = false;
 
 class PeerLogicValidation final : public CValidationInterface, public NetEventsInterface {
 private:
+    NodeContext& m_node;
     CConnman* const connman;
     BanMan* const m_banman;
     ChainstateManager& m_chainman;
@@ -34,7 +36,7 @@ private:
 
     bool MaybeDiscourageAndDisconnect(CNode* pnode, bool enable_bip61) EXCLUSIVE_LOCKS_REQUIRED(cs_main);
 public:
-    PeerLogicValidation(CConnman* connmanIn, BanMan* banman, CScheduler &scheduler, ChainstateManager& chainman, CTxMemPool& pool, bool enable_bip61);
+    PeerLogicValidation(NodeContext& node, CConnman* connmanIn, BanMan* banman, CScheduler &scheduler, ChainstateManager& chainman, CTxMemPool& pool, bool enable_bip61);
 
     /**
      * Overridden from CValidationInterface.

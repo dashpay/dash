@@ -1784,7 +1784,7 @@ bool AppInitMain(const util::Ref& context, NodeContext& node, interfaces::BlockA
     node.chainman = &g_chainman;
     ChainstateManager& chainman = *Assert(node.chainman);
 
-    node.peer_logic.reset(new PeerLogicValidation(node.connman.get(), node.banman.get(), *node.scheduler, chainman, *node.mempool, args.GetBoolArg("-enablebip61", DEFAULT_ENABLE_BIP61)));
+    node.peer_logic.reset(new PeerLogicValidation(node, node.connman.get(), node.banman.get(), *node.scheduler, chainman, *node.mempool, args.GetBoolArg("-enablebip61", DEFAULT_ENABLE_BIP61)));
     RegisterValidationInterface(node.peer_logic.get());
 
     // sanitize comments per BIP-0014, format user agent and check total size

@@ -69,12 +69,12 @@ CTxIn MineBlock(const NodeContext& node, const CScript& coinbase_scriptPubKey)
     return CTxIn{block->vtx[0]->GetHash(), 0};
 }
 
-std::shared_ptr<CBlock> PrepareBlock(const NodeContext& node, const CScript& coinbase_scriptPubKey)
+std::shared_ptr<CBlock> PrepareBlock(NodeContext& node, const CScript& coinbase_scriptPubKey)
 {
     assert(node.mempool);
     auto block = std::make_shared<CBlock>(
         BlockAssembler{*node.mempool, Params()}
-            .CreateNewBlock(coinbase_scriptPubKey)
+            .CreateNewBlock(node, coinbase_scriptPubKey)
             ->block);
 
     block->nTime = ::ChainActive().Tip()->GetMedianTimePast() + 1;
