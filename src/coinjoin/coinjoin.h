@@ -15,6 +15,7 @@
 #include <univalue.h>
 #include <util/ranges.h>
 #include <util/translation.h>
+#include <node/context.h>
 
 #include <utility>
 

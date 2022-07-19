@@ -72,7 +72,8 @@ private:
     void SetNull() EXCLUSIVE_LOCKS_REQUIRED(cs_coinjoin);
 
 public:
-    CCoinJoinServer() :
+    CCoinJoinServer(NodeContext& node) :
+        CCoinJoinBaseManager(node),
         vecSessionCollaterals(),
         fUnitTest(false) {}
 
