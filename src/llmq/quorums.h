@@ -36,14 +36,16 @@ static constexpr bool DEFAULT_WATCH_QUORUMS{false};
 /**
  * Object used as a key to store CQuorumDataRequest
  */
-struct CQuorumDataRequestKey{
+struct CQuorumDataRequestKey
+{
     uint256 proRegTx;
     //TODO: Investigate purpose of this flag and rename accordingly
     bool flag;
     uint256 quorumHash;
     Consensus::LLMQType llmqType;
 
-    bool operator ==(const CQuorumDataRequestKey& obj) const {
+    bool operator ==(const CQuorumDataRequestKey& obj) const
+    {
         return (proRegTx == obj.proRegTx && flag == obj.flag && quorumHash == obj.quorumHash && llmqType == obj.llmqType);
     }
 };
