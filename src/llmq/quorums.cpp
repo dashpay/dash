@@ -616,6 +616,7 @@ void CQuorumManager::ProcessMessage(CNode* pFrom, const std::string& msg_type, C
         };
 
         {
+            LOCK2(cs_main, cs_data_requests);
             CQuorumDataRequestKey key;
             key.proRegTx = pFrom->GetVerifiedProRegTxHash();
             key.flag = false;
