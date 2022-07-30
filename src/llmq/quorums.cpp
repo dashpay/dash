@@ -357,7 +357,7 @@ void CQuorumManager::CheckQuorumConnections(const Consensus::LLMQParams& llmqPar
 
 CQuorumPtr CQuorumManager::BuildQuorumFromCommitment(const Consensus::LLMQType llmqType, const CBlockIndex* pQuorumBaseBlockIndex) const
 {
-    AssertLockHeld(quorumsCacheCs);
+    AssertLockHeld(cs_map_quorums);
     assert(pQuorumBaseBlockIndex);
 
     const uint256& quorumHash{pQuorumBaseBlockIndex->GetBlockHash()};
@@ -496,7 +496,7 @@ std::vector<CQuorumCPtr> CQuorumManager::ScanQuorums(Consensus::LLMQType llmqTyp
     std::vector<CQuorumCPtr> vecResultQuorums;
 
     {
-        LOCK(quorumsCacheCs);
+        LOCK(cs_scan_quorums);
         auto& cache = scanQuorumsCache[llmqType];
         bool fCacheExists = cache.get(pindexStart->GetBlockHash(), vecResultQuorums);
         if (fCacheExists) {
@@ -544,7 +544,7 @@ std::vector<CQuorumCPtr> CQuorumManager::ScanQuorums(Consensus::LLMQType llmqTyp
 
     size_t nCountResult{vecResultQuorums.size()};
     if (nCountResult > 0) {
-        LOCK(quorumsCacheCs);
+        LOCK(cs_scan_quorums);
         // Don't cache more than cache.max_size() elements
         auto& cache = scanQuorumsCache[llmqType];
         size_t nCacheEndIndex = std::min(nCountResult, cache.max_size());
@@ -578,7 +578,7 @@ CQuorumCPtr CQuorumManager::GetQuorum(Consensus::LLMQType llmqType, const CBlock
         return nullptr;
     }
 
-    LOCK(quorumsCacheCs);
+    LOCK(cs_map_quorums);
     CQuorumPtr pQuorum;
     if (mapQuorumsCache[llmqType].get(quorumHash, pQuorum)) {
         return pQuorum;
@@ -745,7 +745,7 @@ void CQuorumManager::ProcessMessage(CNode* pFrom, const std::string& msg_type, C
 
         CQuorumPtr pQuorum;
         {
-            LOCK(quorumsCacheCs);
+            LOCK(cs_map_quorums);
             if (!mapQuorumsCache[request.GetLLMQType()].get(request.GetQuorumHash(), pQuorum)) {
                 errorHandler("Quorum not found", 0); // Don't bump score because we asked for it
                 return;
