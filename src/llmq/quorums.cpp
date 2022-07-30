@@ -495,8 +495,31 @@ std::vector<CQuorumCPtr> CQuorumManager::ScanQuorums(Consensus::LLMQType llmqTyp
     size_t nScanCommitments{nCountRequested};
     std::vector<CQuorumCPtr> vecResultQuorums;
 
-    // TODO implement caching, see [pre-rotation caching](https://github.com/dashpay/dash/blob/e84bf45cefbcf9ee89ca3d706fd8abffdbcc8a84/src/llmq/quorums.cpp#L424-L448)
-    //  for inspiration
+    {
+        LOCK(quorumsCacheCs);
+        auto& cache = scanQuorumsCache[llmqType];
+        bool fCacheExists = cache.get(pindexStart->GetBlockHash(), vecResultQuorums);
+        if (fCacheExists) {
+            // We have exactly what requested so just return it
+            if (vecResultQuorums.size() == nCountRequested) {
+                return vecResultQuorums;
+            }
+            // If we have more cached than requested return only a subvector
+            if (vecResultQuorums.size() > nCountRequested) {
+                const std::vector<CQuorumCPtr>& ret = {vecResultQuorums.begin(), vecResultQuorums.begin() + nCountRequested};
+                return ret;
+            }
+            // If we have cached quorums but not enough, subtract what we have from the count and the set correct index where to start
+            // scanning for the rests
+            if(!vecResultQuorums.empty()) {
+                nScanCommitments -= vecResultQuorums.size();
+                pIndexScanCommitments = vecResultQuorums.back()->m_quorum_base_block_index->pprev;
+            }
+        } else {
+            // If there is nothing in cache request at least cache.max_size() because this gets cached then later
+            nScanCommitments = std::max(nCountRequested, cache.max_size());
+        }
+    }
 
     // Get the block indexes of the mined commitments to build the required quorums from
     auto pQuorumBaseBlockIndexes = quorumBlockProcessor->GetMinedCommitmentsIndexedUntilBlock(llmqType, static_cast<const CBlockIndex*>(pIndexScanCommitments), nScanCommitments);
