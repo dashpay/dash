@@ -522,16 +522,11 @@ std::vector<CQuorumCPtr> CQuorumManager::ScanQuorums(Consensus::LLMQType llmqTyp
     }
 
     // Get the block indexes of the mined commitments to build the required quorums from
-    auto pQuorumBaseBlockIndexes = quorumBlockProcessor->GetMinedCommitmentsIndexedUntilBlock(llmqType, static_cast<const CBlockIndex*>(pIndexScanCommitments), nScanCommitments);
-    if (pQuorumBaseBlockIndexes.size() < nScanCommitments) {
-        if (!pQuorumBaseBlockIndexes.empty()) {
-            nScanCommitments -= pQuorumBaseBlockIndexes.size();
-            if (pQuorumBaseBlockIndexes.back()->pprev) {
-                pIndexScanCommitments = pQuorumBaseBlockIndexes.back()->pprev;
-            }
-        }
-        auto pQuorumBaseBlockIndexesLegacy = quorumBlockProcessor->GetMinedCommitmentsUntilBlock(llmqType, static_cast<const CBlockIndex*>(pIndexScanCommitments), nScanCommitments);
-        pQuorumBaseBlockIndexes.insert(pQuorumBaseBlockIndexes.end(), pQuorumBaseBlockIndexesLegacy.begin(), pQuorumBaseBlockIndexesLegacy.end());
+    std::vector<const CBlockIndex*> pQuorumBaseBlockIndexes;
+    if (GetLLMQParams(llmqType).useRotation) {
+        pQuorumBaseBlockIndexes = quorumBlockProcessor->GetMinedCommitmentsIndexedUntilBlock(llmqType, pIndexScanCommitments, nScanCommitments);
+    } else {
+        pQuorumBaseBlockIndexes = quorumBlockProcessor->GetMinedCommitmentsUntilBlock(llmqType, pIndexScanCommitments, nScanCommitments);
     }
     vecResultQuorums.reserve(vecResultQuorums.size() + pQuorumBaseBlockIndexes.size());
 
