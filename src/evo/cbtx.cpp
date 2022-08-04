@@ -164,8 +164,7 @@ using QcIndexedHashMap = std::map<Consensus::LLMQType, std::map<int16_t, uint256
 
 /**
  * Handles the calculation or caching of qcHashes and qcIndexedHashes
- * @param in_out_hashCount Keeps track of the number of hashes that are present in the returned qcHashes,
- * @param pindexPrev The const CBlockIndex* (ie a block) of a block. both the Quorum list and quorum rotation actiavtion status will be retrieved based on this block
+ * @param pindexPrev The const CBlockIndex* (ie a block) of a block. Both the Quorum list and quorum rotation actiavtion status will be retrieved based on this block.
  * @return nullopt if quorumCommitment was unable to be found, otherwise returns the qcHashes and qcIndexedHashes that were calculated or cached
  */
 auto CachedGetQcHashesQcIndexedHashes(const CBlockIndex* pindexPrev) ->
@@ -218,29 +217,21 @@ auto CalcHashCountFromQCHashes(const QcHashMap& qcHashes)
 
 bool CalcCbTxMerkleRootQuorums(const CBlock& block, const CBlockIndex* pindexPrev, uint256& merkleRootRet, CValidationState& state)
 {
-    static int64_t nTimeMinedAndActive = 0;
     static int64_t nTimeMined = 0;
     static int64_t nTimeLoop = 0;
     static int64_t nTimeMerkle = 0;
 
     int64_t nTime1 = GetTimeMicros();
 
-//    std::map<Consensus::LLMQType, std::vector<uint256>> qcHashes;
-//    std::map<Consensus::LLMQType, std::map<int16_t, uint256>> qcIndexedHashes;
-
-    int64_t nTime2 = GetTimeMicros(); nTimeMinedAndActive += nTime2 - nTime1;
-    LogPrint(BCLog::BENCHMARK, "            - GetMinedAndActiveCommitmentsUntilBlock: %.2fms [%.2fs]\n", 0.001 * (nTime2 - nTime1), nTimeMinedAndActive * 0.000001);
-
-
     auto retVal = CachedGetQcHashesQcIndexedHashes(pindexPrev);
-    if (retVal == nullopt) {
+    if (retVal == std::nullopt) {
         return state.Invalid(ValidationInvalidReason::CONSENSUS, false, REJECT_INVALID, "commitment-not-found");
     }
     // The returned quorums are in reversed order, so the most recent one is at index 0
     auto [qcHashes, qcIndexedHashes] = retVal.value();
 
-    int64_t nTime3 = GetTimeMicros(); nTimeMined += nTime3 - nTime2;
-    LogPrint(BCLog::BENCHMARK, "            - GetMinedCommitment: %.2fms [%.2fs]\n", 0.001 * (nTime3 - nTime2), nTimeMined * 0.000001);
+    int64_t nTime2 = GetTimeMicros(); nTimeMined += nTime2 - nTime1;
+    LogPrint(BCLog::BENCHMARK, "            - CachedGetQcHashesQcIndexedHashes: %.2fms [%.2fs]\n", 0.001 * (nTime2 - nTime1), nTimeMined * 0.000001);
 
     // now add the commitments from the current block, which are not returned by GetMinedAndActiveCommitmentsUntilBlock
     // due to the use of pindexPrev (we don't have the tip index here)
@@ -294,14 +285,14 @@ bool CalcCbTxMerkleRootQuorums(const CBlock& block, const CBlockIndex* pindexPre
     }
     std::sort(qcHashesVec.begin(), qcHashesVec.end());
 
-    int64_t nTime4 = GetTimeMicros(); nTimeLoop += nTime4 - nTime3;
-    LogPrint(BCLog::BENCHMARK, "            - Loop: %.2fms [%.2fs]\n", 0.001 * (nTime4 - nTime3), nTimeLoop * 0.000001);
+    int64_t nTime3 = GetTimeMicros(); nTimeLoop += nTime3 - nTime2;
+    LogPrint(BCLog::BENCHMARK, "            - Loop: %.2fms [%.2fs]\n", 0.001 * (nTime3 - nTime2), nTimeLoop * 0.000001);
 
     bool mutated = false;
     merkleRootRet = ComputeMerkleRoot(qcHashesVec, &mutated);
 
-    int64_t nTime5 = GetTimeMicros(); nTimeMerkle += nTime5 - nTime4;
-    LogPrint(BCLog::BENCHMARK, "            - ComputeMerkleRoot: %.2fms [%.2fs]\n", 0.001 * (nTime5 - nTime4), nTimeMerkle * 0.000001);
+    int64_t nTime4 = GetTimeMicros(); nTimeMerkle += nTime4 - nTime3;
+    LogPrint(BCLog::BENCHMARK, "            - ComputeMerkleRoot: %.2fms [%.2fs]\n", 0.001 * (nTime4 - nTime3), nTimeMerkle * 0.000001);
 
     if (mutated) {
         return state.Invalid(ValidationInvalidReason::CONSENSUS, false, REJECT_INVALID, "mutated-calc-cbtx-quorummerkleroot");
