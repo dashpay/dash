@@ -12,6 +12,7 @@
 #include <sync.h>
 #include <util/strencodings.h>
 #include <util/system.h>
+#include <util/ranges.h>
 
 #include <boost/algorithm/string/classification.hpp>
 #include <boost/algorithm/string/split.hpp>
@@ -523,8 +524,7 @@ static bool ExecuteCommand(const CRPCCommand& command, const JSONRPCRequest& req
                     continue;
                 }
 
-                if (std::equal(vecAllowedParam.begin(), vecAllowedParam.end(),
-                               request.params.getValues().begin(),
+                if (ranges::equal(vecAllowedParam, request.params.getValues(),
                                [](const UniValue& left, const UniValue& right) {
                                    return left.type() == right.type() && left.getValStr() == right.getValStr();
                                })) {
