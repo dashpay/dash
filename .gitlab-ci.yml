@@ -26,11 +26,15 @@ builder-image:
   before_script:
     - echo $CI_JOB_TOKEN | docker login -u gitlab-ci-token --password-stdin $CI_REGISTRY
   script:
+    - echo "Checking disk space"
+    - df -h
     - cd contrib/containers/ci
     - docker pull $CI_REGISTRY_IMAGE:builder-$CI_COMMIT_REF_SLUG || true
     - docker pull $CI_REGISTRY_IMAGE:builder-develop || true
     - docker build --cache-from $CI_REGISTRY_IMAGE:builder-$CI_COMMIT_REF_SLUG --cache-from $CI_REGISTRY_IMAGE:builder-develop -t $CI_REGISTRY_IMAGE:builder-$CI_COMMIT_REF_SLUG -f Dockerfile .
     - docker push $CI_REGISTRY_IMAGE:builder-$CI_COMMIT_REF_SLUG
+    - echo "Checking disk space"
+    - df -h
 
 .build-depends-template:
   stage: build-depends
@@ -58,7 +62,11 @@ builder-image:
         fi
       fi
   script:
+    - echo "Checking disk space"
+    - df -h
     - make $MAKEJOBS -C depends HOST=$HOST $DEP_OPTS
+    - echo "Checking disk space"
+    - df -h
   cache:
     # Let all branches share the same cache, which is ok because the depends subsystem is able to handle this properly (it works with hashes of all scripts)
     key:
@@ -109,7 +117,11 @@ builder-image:
   stage: build
   extends: .base-template
   script:
+    - echo "Checking disk space"
+    - df -h
     - ./ci/dash/build_src.sh
+    - echo "Checking disk space"
+    - df -h
     - ./ci/dash/test_unittests.sh # Run unit tests in build stage to avoid creating too many parallel jobs
   cache:
     # Let all branches share the same cache, which is ok because ccache is able to handle it
