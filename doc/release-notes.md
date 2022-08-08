@@ -60,7 +60,7 @@ establishing quorums, see [DIP-0024](https://github.com/dashpay/dips/blob/master
 
 Quorum rotation is activated via a BIP9 style hard fork that will begin
 signalling on ***TODO*** using bit 7. New quorums will start forming in
-1152-1440 blocks range  since the activation. Any nodes that do not upgrade by
+1152-1440 block range after the activation. Any nodes that do not upgrade by
 that time will diverge from the rest of the network.
 
 Deterministic InstantSend
@@ -79,11 +79,11 @@ Governance
 Several improvements have been made to Dash’s DAO governance system.
 The governance proposal fee has been reduced from 5 Dash to 1 Dash following
 a vote by masternode owners to do so. For improved security and flexibility,
-proposal payouts to pay-to-script-hash (P2SH) addresses will now be supported.
+proposal payouts to pay-to-script-hash (P2SH) addresses are now supported.
 
 These changes wil be activated with the DIP0024 hard fork.
 
-Governance proposal can now be viewed in GUI Governance tab (must be enabled
+Governance proposals can now be viewed in GUI Governance tab (must be enabled
 in Preferences first).
 
 Initial Enhanced Hard Fork support
@@ -99,7 +99,7 @@ system are provided in [DIP-0023](https://github.com/dashpay/dips/blob/master/di
 Network improvements
 --------------------
 ***TODO***: write some text here
-- [`DIP-0023`](https://github.com/dashpay/dips/blob/master/dip-0023.md): Compressed headers.
+- [`DIP-0025`](https://github.com/dashpay/dips/blob/master/dip-0025.md): Compressed headers.
 - [`BIP 155`](https://github.com/bitcoin/bips/blob/master/bip-0155.mediawiki): The 'addrv2' and 'sendaddrv2' messages which enable relay of Tor V3 addresses (and other networks).
 - [`BIP 158`](https://github.com/bitcoin/bips/blob/master/bip-0158.mediawiki): Compact Block Filters for Light Clients.
 
@@ -112,19 +112,19 @@ Wallet changes
 ***TODO***: write some text here
 - Added support for empty, encrypted-on-creation and watch-only walets.
 - No more `salvagewallet` option in cmd-line and Repair tab in GUI.
-check `salvage` command in `dash-wallet` tool.
+Check the `salvage` command in the `dash-wallet` tool.
 
 Indexes
 -------
 The transaction index is moved into `indexes/` folder. The migration of the old
-data is done on the first run and do not require reindexing. Note that the data
+data is done on the first run and does not require reindexing. Note that the data
 in the old path is removed which means that this change is not backwards
 compatible and you'll have to reindex the whole blockchain if you decide to
 downgrade to a pre-v18.0.0 version.
 
 Remote Procedure Call (RPC) Changes
 -----------------------------------
-Mosl changes here were introduced through Bitcoin backports mostly related to
+Most changes here were introduced through Bitcoin backports mostly related to
 the deprecation of wallet accounts in DashCore v0.17 and introduction of PSBT
 format.
 
