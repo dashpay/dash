@@ -28,6 +28,8 @@ builder-image:
   script:
     - echo "Checking disk space"
     - df -h
+    - fdisk -l
+    - free -m
     - cd contrib/containers/ci
     - docker pull $CI_REGISTRY_IMAGE:builder-$CI_COMMIT_REF_SLUG || true
     - docker pull $CI_REGISTRY_IMAGE:builder-develop || true
@@ -35,6 +37,8 @@ builder-image:
     - docker push $CI_REGISTRY_IMAGE:builder-$CI_COMMIT_REF_SLUG
     - echo "Checking disk space"
     - df -h
+    - fdisk -l
+    - free -m
 
 .build-depends-template:
   stage: build-depends
@@ -64,9 +68,13 @@ builder-image:
   script:
     - echo "Checking disk space"
     - df -h
+    - fdisk -l
+    - free -m
     - make $MAKEJOBS -C depends HOST=$HOST $DEP_OPTS
     - echo "Checking disk space"
     - df -h
+    - fdisk -l
+    - free -m
   cache:
     # Let all branches share the same cache, which is ok because the depends subsystem is able to handle this properly (it works with hashes of all scripts)
     key:
@@ -119,9 +127,13 @@ builder-image:
   script:
     - echo "Checking disk space"
     - df -h
+    - fdisk -l
+    - free -m
     - ./ci/dash/build_src.sh
     - echo "Checking disk space"
     - df -h
+    - fdisk -l
+    - free -m
     - ./ci/dash/test_unittests.sh # Run unit tests in build stage to avoid creating too many parallel jobs
   cache:
     # Let all branches share the same cache, which is ok because ccache is able to handle it
