@@ -144,7 +144,7 @@ void CDKGSession::Contribute(CDKGPendingMessages& pendingMessages)
 
     cxxtimer::Timer t1(true);
     logger.Batch("generating contributions");
-    if (!blsWorker.GenerateContributions(params.threshold, memberIds, vvecContribution, skContributions)) {
+    if (!blsWorker.GenerateContributions(params.threshold, memberIds, vvecContribution, m_sk_contributions)) {
         // this should never happen actually
         logger.Batch("GenerateContributions failed");
         return;
@@ -179,7 +179,7 @@ void CDKGSession::SendContributions(CDKGPendingMessages& pendingMessages)
 
     for (const auto i : irange::range(members.size())) {
         const auto& m = members[i];
-        CBLSSecretKey skContrib = skContributions[i];
+        CBLSSecretKey skContrib = m_sk_contributions[i];
 
         if (i != myIdx && ShouldSimulateError("contribution-lie")) {
             logger.Batch("lying for %s", m->dmn->proTxHash.ToString());
@@ -363,7 +363,7 @@ void CDKGSession::VerifyPendingContributions()
 
     std::vector<size_t> memberIndexes;
     std::vector<BLSVerificationVectorPtr> vvecs;
-    BLSSecretKeyVector skContributions2;
+    BLSSecretKeyVector skContributions;
 
     for (const auto& idx : pend) {
         const auto& m = members[idx];
@@ -372,13 +372,13 @@ void CDKGSession::VerifyPendingContributions()
         }
         memberIndexes.emplace_back(idx);
         vvecs.emplace_back(receivedVvecs[idx]);
-        skContributions2.emplace_back(receivedSkContributions[idx]);
+        skContributions.emplace_back(receivedSkContributions[idx]);
         // Write here to definitely store one contribution for each member no matter if
         // our share is valid or not, could be that others are still correct
         dkgManager.WriteEncryptedContributions(params.type, m_quorum_base_block_index, m->dmn->proTxHash, *vecEncryptedContributions[idx]);
     }
 
-    auto result = blsWorker.VerifyContributionShares(myId, vvecs, skContributions2);
+    auto result = blsWorker.VerifyContributionShares(myId, vvecs, skContributions);
     if (result.size() != memberIndexes.size()) {
         logger.Batch("VerifyContributionShares returned result of size %d but size %d was expected, something is wrong", result.size(), memberIndexes.size());
         return;
@@ -689,7 +689,7 @@ void CDKGSession::SendJustification(CDKGPendingMessages& pendingMessages, const 
         }
         logger.Batch("justifying for %s", m->dmn->proTxHash.ToString());
 
-        CBLSSecretKey skContribution = skContributions[i];
+        CBLSSecretKey skContribution = m_sk_contributions[i];
 
         if (i != myIdx && ShouldSimulateError("justify-lie")) {
             logger.Batch("lying for %s", m->dmn->proTxHash.ToString());
@@ -951,8 +951,8 @@ void CDKGSession::SendCommitment(CDKGPendingMessages& pendingMessages)
     cxxtimer::Timer t1(true);
     std::vector<uint16_t> memberIndexes;
     std::vector<BLSVerificationVectorPtr> vvecs;
-    BLSSecretKeyVector skContributions2;
-    if (!dkgManager.GetVerifiedContributions(params.type, m_quorum_base_block_index, qc.validMembers, memberIndexes, vvecs, skContributions2)) {
+    BLSSecretKeyVector skContributions;
+    if (!dkgManager.GetVerifiedContributions(params.type, m_quorum_base_block_index, qc.validMembers, memberIndexes, vvecs, skContributions)) {
         logger.Batch("failed to get valid contributions");
         return;
     }
@@ -965,7 +965,7 @@ void CDKGSession::SendCommitment(CDKGPendingMessages& pendingMessages)
     t1.stop();
 
     cxxtimer::Timer t2(true);
-    CBLSSecretKey skShare = cache.AggregateSecretKeys(::SerializeHash(memberIndexes), skContributions2);
+    CBLSSecretKey skShare = cache.AggregateSecretKeys(::SerializeHash(memberIndexes), skContributions);
     if (!skShare.IsValid()) {
         logger.Batch("failed to build own secret share");
         return;
@@ -1114,9 +1114,9 @@ void CDKGSession::ReceiveMessage(const CDKGPrematureCommitment& qc, bool& retBan
 
     std::vector<uint16_t> memberIndexes;
     std::vector<BLSVerificationVectorPtr> vvecs;
-    BLSSecretKeyVector skContributions2;
+    BLSSecretKeyVector skContributions;
     BLSVerificationVectorPtr quorumVvec;
-    if (dkgManager.GetVerifiedContributions(params.type, m_quorum_base_block_index, qc.validMembers, memberIndexes, vvecs, skContributions2)) {
+    if (dkgManager.GetVerifiedContributions(params.type, m_quorum_base_block_index, qc.validMembers, memberIndexes, vvecs, skContributions)) {
         quorumVvec = cache.BuildQuorumVerificationVector(::SerializeHash(memberIndexes), vvecs);
     }
 
