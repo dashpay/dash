@@ -272,7 +272,6 @@ bool CalcCbTxMerkleRootQuorums(const CBlock& block, const CBlockIndex* pindexPre
 
     for (const auto& [llmqType, map_indexed_hashes] : qcIndexedHashes) {
         auto& vec_hashes = qcHashes[llmqType];
-        assert(vec_hashes.size() == 0);
         for (const auto& [_, hash] : map_indexed_hashes) {
             vec_hashes.emplace_back(hash);
         }
