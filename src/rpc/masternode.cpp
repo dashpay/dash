@@ -179,7 +179,11 @@ static void masternode_outputs_help(const JSONRPCRequest& request)
     RPCHelpMan{"masternode outputs",
         "Print masternode compatible outputs\n",
         {},
-        RPCResults{},
+        RPCResult {
+            RPCResult::Type::ARR, "", "A list of outpoints that can be/are used as masternode collaterals",
+            {
+                {RPCResult::Type::STR, "", "A (potential) masternode collateral"},
+            }},
         RPCExamples{""}
     }.Check(request);
 }
