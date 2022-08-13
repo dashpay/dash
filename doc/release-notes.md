@@ -285,7 +285,11 @@ Thanks to everyone who directly contributed to this release:
 - Vijay (vijaydasmp)
 - Vlad K (dzutto)
 
-As well as everyone that submitted issues and reviewed pull requests.
+As well as everyone that submitted issues, reviewed pull requests, helped debug the release candidates, and write DIPs that were implemented in this release. Notable mentions include:
+
+- Samuel Westrich (quantumexplorer)
+- Virgile Bartolo
+- xkcd
 
 Older releases
 ==============
