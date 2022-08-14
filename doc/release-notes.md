@@ -59,7 +59,7 @@ InstantSend quorums will now use a new quorum type and a new algorithm for
 establishing quorums, see [DIP-0024](https://github.com/dashpay/dips/blob/master/dip-0024.md).
 
 Quorum rotation is activated via a BIP9 style hard fork that will begin
-signalling on ***TODO*** using bit 7. New quorums will start forming in
+signalling on August 15, 2023 using bit 7. New quorums will start forming in
 1152-1440 block range after the activation. Any nodes that do not upgrade by
 that time will diverge from the rest of the network.
 
