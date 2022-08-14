@@ -98,7 +98,8 @@ system are provided in [DIP-0023](https://github.com/dashpay/dips/blob/master/di
 
 Network improvements
 --------------------
-***TODO***: write some text here
+We implemented and backported implementations of several improvement proposals.
+You can read more about implemented changes in the following documents:
 - [`DIP-0025`](https://github.com/dashpay/dips/blob/master/dip-0025.md): Compressed headers.
 - [`BIP 155`](https://github.com/bitcoin/bips/blob/master/bip-0155.mediawiki): The 'addrv2' and 'sendaddrv2' messages which enable relay of Tor V3 addresses (and other networks).
 - [`BIP 158`](https://github.com/bitcoin/bips/blob/master/bip-0158.mediawiki): Compact Block Filters for Light Clients.
