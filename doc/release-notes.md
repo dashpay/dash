@@ -110,10 +110,12 @@ Please make sure to move your coins to a wallet with a regular passphrase.
 
 Wallet changes
 --------------
-***TODO***: write some text here
-- Added support for empty, encrypted-on-creation and watch-only walets.
-- No more `salvagewallet` option in cmd-line and Repair tab in GUI.
-Check the `salvage` command in the `dash-wallet` tool.
+We continued backporting wallet functionality updates. Most notable changes
+are:
+- Added support for empty, encrypted-on-creation and watch-only wallets.
+- Wallets can be created, opened and closed via a GUI menu now.
+- No more `salvagewallet` option in cmd-line and Repair tab in GUI. Check the
+`salvage` command in the `dash-wallet` tool.
 
 Indexes
 -------
