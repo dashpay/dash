@@ -164,7 +164,7 @@ The removed RPCs are:
 - `sendfrom`
 - `signrawtransaction`
 
-Changes in existing RPCs introduced through bitcon backports:
+Changes in existing RPCs introduced through bitcoin backports:
 - The `testnet` field in `dash-cli -getinfo` has been renamed to `chain` and
 now returns the current network name as defined in BIP70 (main, test, regtest).
 - Added `window_final_block_height` in `getchaintxstats`
