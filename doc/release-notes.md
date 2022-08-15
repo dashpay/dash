@@ -81,7 +81,7 @@ The governance proposal fee has been reduced from 5 Dash to 1 Dash following
 a vote by masternode owners to do so. For improved security and flexibility,
 proposal payouts to pay-to-script-hash (P2SH) addresses are now supported.
 
-These changes wil be activated with the DIP0024 hard fork.
+These changes will be activated with the DIP0024 hard fork.
 
 Governance proposals can now be viewed in GUI Governance tab (must be enabled
 in Preferences first).
