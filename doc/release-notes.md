@@ -195,7 +195,7 @@ Please check `help <command>` for more detailed information on specific RPCs.
 
 Command-line options
 --------------------
-Mosl changes here were introduced through Bitcoin backports.
+Most changes here were introduced through Bitcoin backports.
 
 New cmd-line options:
 - `asmap`
