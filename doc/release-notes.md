@@ -110,8 +110,9 @@ Please make sure to move your coins to a wallet with a regular passphrase.
 
 Wallet changes
 --------------
-We continued backporting wallet functionality updates. Most notable changes
-are:
+We continued backporting wallet functionality updates. Most notably, the GUI now
+includes multi-wallet support, which enables working simultaneously with more than
+one wallet file. Other notable changes include:
 - Added support for empty, encrypted-on-creation and watch-only wallets.
 - Wallets can be created, opened and closed via a GUI menu now.
 - No more `salvagewallet` option in cmd-line and Repair tab in GUI. Check the
