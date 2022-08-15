@@ -330,8 +330,8 @@ static RPCHelpMan sendtoaddress()
             {"use_is", RPCArg::Type::BOOL, RPCArg::Default{false}, "Deprecated and ignored"},
             {"use_cj", RPCArg::Type::BOOL, RPCArg::Default{false}, "Use CoinJoin funds only"},
             {"conf_target", RPCArg::Type::NUM, RPCArg::DefaultHint{"wallet -txconfirmtarget"}, "Confirmation target in blocks"},
-            {"estimate_mode", RPCArg::Type::STR, RPCArg::Default{"unset"}, std::string() + "The fee estimate mode, must be one of (case insensitive):\n"
-            "       \"" + FeeModes("\"\n\"") + "\""},
+            {"estimate_mode", RPCArg::Type::STR, RPCArg::Default{"unset"}, "The fee estimate mode, must be one of (case insensitive):\n"
+            "\"" + FeeModes("\"\n\"") + "\""},
             {"avoid_reuse", RPCArg::Type::BOOL, RPCArg::Default{true}, "(only available if avoid_reuse wallet flag is set) Avoid spending from dirty addresses; addresses are considered\n"
     "                             dirty if they have previously been used in a transaction."},
             {"fee_rate", RPCArg::Type::AMOUNT, RPCArg::DefaultHint{"not set, fall back to wallet fee estimation"}, "Specify a fee rate in " + CURRENCY_ATOM + "/B."},
@@ -795,8 +795,8 @@ static RPCHelpMan sendmany()
                     {"use_is", RPCArg::Type::BOOL, RPCArg::Default{false}, "Deprecated and ignored"},
                     {"use_cj", RPCArg::Type::BOOL, RPCArg::Default{false}, "Use CoinJoin funds only"},
                     {"conf_target", RPCArg::Type::NUM, RPCArg::DefaultHint{"wallet -txconfirmtarget"}, "Confirmation target in blocks"},
-                    {"estimate_mode", RPCArg::Type::STR, RPCArg::Default{"unset"}, std::string() + "The fee estimate mode, must be one of (case insensitive):\n"
-            "       \"" + FeeModes("\"\n\"") + "\""},
+                    {"estimate_mode", RPCArg::Type::STR, RPCArg::Default{"unset"}, "The fee estimate mode, must be one of (case insensitive):\n"
+                    "\"" + FeeModes("\"\n\"") + "\""},
                     {"fee_rate", RPCArg::Type::AMOUNT, RPCArg::DefaultHint{"not set, fall back to wallet fee estimation"}, "Specify a fee rate in " + CURRENCY_ATOM + "/B."},
                     {"verbose", RPCArg::Type::BOOL, RPCArg::Default{false}, "If true, return extra infomration about the transaction."},
                 },
@@ -4112,8 +4112,8 @@ static RPCHelpMan send()
                     {"change_address", RPCArg::Type::STR_HEX, RPCArg::DefaultHint{"pool address"}, "The Dash address to receive the change"},
                     {"change_position", RPCArg::Type::NUM, RPCArg::DefaultHint{"random"}, "The index of the change output"},
                     {"conf_target", RPCArg::Type::NUM, RPCArg::DefaultHint{"wallet -txconfirmtarget"}, "Confirmation target in blocks"},
-                    {"estimate_mode", RPCArg::Type::STR, RPCArg::Default{"unset"}, std::string() + "The fee estimate mode, must be one of (case insensitive):\n"
-            "       \"" + FeeModes("\"\n\"") + "\""},
+                    {"estimate_mode", RPCArg::Type::STR, RPCArg::Default{"unset"}, "The fee estimate mode, must be one of (case insensitive):\n"
+                    "\"" + FeeModes("\"\n\"") + "\""},
                     {"fee_rate", RPCArg::Type::AMOUNT, RPCArg::DefaultHint{"not set, fall back to wallet fee estimation"}, "Specify a fee rate in " + CURRENCY_ATOM + "/B."},
                     {"include_watching", RPCArg::Type::BOOL, RPCArg::DefaultHint{"true for watch-only wallets, otherwise false"}, "Also select inputs which are watch only.\n"
                                           "Only solvable inputs can be used. Watch-only destinations are solvable if the public key and/or output script was imported,\n"
