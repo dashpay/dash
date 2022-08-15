@@ -56,7 +56,7 @@ Notable changes
 Quorum rotation
 --------------
 InstantSend quorums will now use a new quorum type and a new algorithm for
-establishing quorums, see [DIP-0024](https://github.com/dashpay/dips/blob/master/dip-0024.md).
+establishing quorums. The upcoming DIP-0024 will provide comprehensive details.
 
 Quorum rotation is activated via a BIP9 style hard fork that will begin
 signalling on August 15, 2022 using bit 7. New quorums will start forming in
@@ -100,7 +100,7 @@ Network improvements
 --------------------
 We implemented and backported implementations of several improvement proposals.
 You can read more about implemented changes in the following documents:
-- [`DIP-0025`](https://github.com/dashpay/dips/blob/master/dip-0025.md): Compressed headers.
+- [`DIP-0025`](https://gist.github.com/thephez/6c4c2a7747298e8b3e528c0c4e98a68c): Compressed headers.
 - [`BIP 155`](https://github.com/bitcoin/bips/blob/master/bip-0155.mediawiki): The 'addrv2' and 'sendaddrv2' messages which enable relay of Tor V3 addresses (and other networks).
 - [`BIP 158`](https://github.com/bitcoin/bips/blob/master/bip-0158.mediawiki): Compact Block Filters for Light Clients.
 
