@@ -100,6 +100,7 @@ tristate_option(WITH_USDT
   "if sys/sdt.h is found."
   AUTO
 )
+tristate_option(WITH_QRENCODE "Enable QR code support." "if libqrencode is found." AUTO)
 
 if(CXX20 OR MSVC)
   set(CMAKE_CXX_STANDARD 20)
@@ -346,6 +347,9 @@ message("  SQLite, descriptor wallets .......... ${WITH_SQLITE}")
 message("  Berkeley DB, legacy wallets ......... ${WITH_BDB}")
 message("Optional packages:")
 message("  GUI ................................. ${WITH_GUI}")
+if(NOT WITH_GUI STREQUAL "no")
+  message("  QR code (GUI) ....................... ${WITH_QRENCODE}")
+endif()
 message("  NAT-PMP ............................. ${WITH_NATPMP}")
 message("  UPnP ................................ ${WITH_MINIUPNPC}")
 message("  ZeroMQ .............................. ${WITH_ZMQ}")

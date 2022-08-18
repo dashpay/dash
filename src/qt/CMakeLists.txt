@@ -77,6 +77,9 @@ endif()
 if(TARGET MiniUPnPc::MiniUPnPc)
   target_link_libraries(bitcoinqt PRIVATE MiniUPnPc::MiniUPnPc)
 endif()
+if(TARGET PkgConfig::libqrencode)
+  target_link_libraries(bitcoinqt PRIVATE PkgConfig::libqrencode)
+endif()
 
 if(ENABLE_WALLET)
   target_sources(bitcoinqt

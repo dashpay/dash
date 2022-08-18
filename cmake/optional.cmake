@@ -147,3 +147,18 @@ if(WITH_USDT)
     set(WITH_USDT OFF)
   endif()
 endif()
+
+if(WITH_GUI AND WITH_QRENCODE)
+  pkg_check_modules(libqrencode libqrencode IMPORTED_TARGET)
+  if(libqrencode_FOUND)
+    set_target_properties(PkgConfig::libqrencode PROPERTIES
+      INTERFACE_COMPILE_DEFINITIONS USE_QRCODE
+    )
+    set(WITH_QRENCODE ON)
+  else()
+    if(WITH_QRENCODE STREQUAL ON)
+      message(FATAL_ERROR "libqrencode requested, but not found.")
+    endif()
+    set(WITH_QRENCODE OFF)
+  endif()
+endif()
