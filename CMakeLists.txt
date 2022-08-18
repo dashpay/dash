@@ -53,6 +53,7 @@ list(APPEND CMAKE_MODULE_PATH ${CMAKE_SOURCE_DIR}/cmake/module)
 # When adding a new option, end the <help_text> with a full stop for consistency.
 option(CXX20 "Enable compilation in c++20 mode." OFF)
 option(HARDENING "Attempt to harden the resulting executables." ON)
+option(REDUCE_EXPORTS "Attempt to reduce exported symbols in the resulting executables." OFF)
 
 if(CXX20 OR MSVC)
   set(CMAKE_CXX_STANDARD 20)
@@ -157,6 +158,14 @@ if(HARDENING)
 endif()
 separate_arguments(hardened_cxx_flags)
 add_compile_options(${hardened_cxx_flags})
+
+if(REDUCE_EXPORTS)
+  set(CMAKE_CXX_VISIBILITY_PRESET hidden)
+  set(CMAKE_VISIBILITY_INLINES_HIDDEN 1)
+  if(NOT CMAKE_CXX_COMPILER_ID STREQUAL "Clang")
+    link_libraries(-Wl,--exclude-libs,ALL)
+  endif()
+endif()
 
 if(WIN32)
   add_definitions(-D_WIN32_WINNT=0x0601 -D_WIN32_IE=0x0501 -DWIN32_LEAN_AND_MEAN)
