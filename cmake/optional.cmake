@@ -126,3 +126,24 @@ if(WITH_ZMQ)
     set(WITH_ZMQ OFF)
   endif()
 endif()
+
+include(CheckCXXSourceCompiles)
+if(WITH_USDT)
+  check_cxx_source_compiles("
+  #include <sys/sdt.h>
+
+  int main()
+  {
+    DTRACE_PROBE(\"context\", \"event\");
+  }
+  " HAVE_USDT_H)
+  if(HAVE_USDT_H)
+    set(ENABLE_TRACING TRUE)
+    set(WITH_USDT ON)
+  else()
+    if(WITH_USDT STREQUAL ON)
+      message(FATAL_ERROR "sys/sdt.h requested, but not found.")
+    endif()
+    set(WITH_USDT OFF)
+  endif()
+endif()

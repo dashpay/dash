@@ -180,4 +180,7 @@
 /* Define if Berkeley DB (BDB) support should be compiled in. */
 #cmakedefine USE_BDB
 
+/* Define to 1 to enable tracepoints for Userspace, Statically Defined Tracing. */
+#cmakedefine ENABLE_TRACING 1
+
 #endif // BITCOIN_CONFIG_H
