@@ -45,4 +45,52 @@
    significant byte first (like Motorola and SPARC, unlike Intel). */
 #cmakedefine WORDS_BIGENDIAN 1
 
+
+// System headers.
+
+/* Define to 1 if you have the <byteswap.h> header file. */
+#cmakedefine HAVE_BYTESWAP_H 1
+
+/* Define to 1 if you have the <endian.h> header file. */
+#cmakedefine HAVE_ENDIAN_H 1
+
+/* Define to 1 if you have the <stdio.h> header file. */
+#cmakedefine HAVE_STDIO_H 1
+
+/* Define to 1 if you have the <stdlib.h> header file. */
+#cmakedefine HAVE_STDLIB_H 1
+
+/* Define to 1 if you have the <strings.h> header file. */
+#cmakedefine HAVE_STRINGS_H 1
+
+/* Define to 1 if you have the <sys/endian.h> header file. */
+#cmakedefine HAVE_SYS_ENDIAN_H 1
+
+/* Define to 1 if you have the <sys/prctl.h> header file. */
+#cmakedefine HAVE_SYS_PRCTL_H 1
+
+/* Define to 1 if you have the <sys/resources.h> header file. */
+#cmakedefine HAVE_SYS_RESOURCES_H 1
+
+/* Define to 1 if you have the <sys/select.h> header file. */
+#cmakedefine HAVE_SYS_SELECT_H 1
+
+/* Define to 1 if you have the <sys/stat.h> header file. */
+#cmakedefine HAVE_SYS_STAT_H 1
+
+/* Define to 1 if you have the <sys/sysctl.h> header file. */
+#cmakedefine HAVE_SYS_SYSCTL_H 1
+
+/* Define to 1 if you have the <sys/types.h> header file. */
+#cmakedefine HAVE_SYS_TYPES_H 1
+
+/* Define to 1 if you have the <sys/vmmeter.h> header file. */
+#cmakedefine HAVE_SYS_VMMETER_H 1
+
+/* Define to 1 if you have the <unistd.h> header file. */
+#cmakedefine HAVE_UNISTD_H 1
+
+/* Define to 1 if you have the <vm/vm_param.h> header file. */
+#cmakedefine HAVE_VM_VM_PARAM_H 1
+
 #endif // BITCOIN_CONFIG_H
