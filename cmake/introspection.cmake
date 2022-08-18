@@ -101,3 +101,8 @@ else()
   }
   " HAVE_SYSTEM)
 endif()
+
+check_cxx_source_compiles("
+int foo(void) __attribute__((visibility(\"default\")));
+int main(){}
+" HAVE_DEFAULT_VISIBILITY_ATTRIBUTE)

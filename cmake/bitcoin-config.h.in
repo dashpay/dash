@@ -159,4 +159,10 @@
 /* Define to 1 if std::system or ::wsystem is available. */
 #cmakedefine HAVE_SYSTEM 1
 
+
+// Compiler features.
+
+/* Define if the visibility attribute is supported. */
+#define HAVE_DEFAULT_VISIBILITY_ATTRIBUTE
+
 #endif // BITCOIN_CONFIG_H
