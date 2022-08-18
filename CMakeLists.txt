@@ -245,6 +245,8 @@ if(CMAKE_SYSTEM_NAME STREQUAL "Darwin")
   endif()
 endif()
 
+include(cmake/introspection.cmake)
+
 include(CheckStdFilesystem)
 check_std_filesystem()
 
