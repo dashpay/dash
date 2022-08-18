@@ -162,3 +162,22 @@ if(WITH_GUI AND WITH_QRENCODE)
     set(WITH_QRENCODE OFF)
   endif()
 endif()
+
+if(WITH_SECCOMP)
+  check_cxx_source_compiles("
+  #include <linux/seccomp.h>
+  #if !defined(__x86_64__)
+  #  error Syscall sandbox is an experimental feature currently available only under Linux x86-64.
+  #endif
+  int main(){}
+  " HAVE_SECCOMP_H)
+  if(HAVE_SECCOMP_H)
+    set(USE_SYSCALL_SANDBOX TRUE)
+    set(WITH_SECCOMP ON)
+  else()
+    if(WITH_SECCOMP STREQUAL ON)
+      message(FATAL_ERROR "linux/seccomp.h requested, but not found.")
+    endif()
+    set(WITH_SECCOMP OFF)
+  endif()
+endif()

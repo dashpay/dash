@@ -101,6 +101,11 @@ tristate_option(WITH_USDT
   AUTO
 )
 tristate_option(WITH_QRENCODE "Enable QR code support." "if libqrencode is found." AUTO)
+tristate_option(WITH_SECCOMP
+  "Enable experimental syscall sandbox feature (-sandbox)."
+  "if seccomp-bpf is found under Linux x86_64."
+  AUTO
+)
 
 if(CXX20 OR MSVC)
   set(CMAKE_CXX_STANDARD 20)
@@ -354,6 +359,7 @@ message("  NAT-PMP ............................. ${WITH_NATPMP}")
 message("  UPnP ................................ ${WITH_MINIUPNPC}")
 message("  ZeroMQ .............................. ${WITH_ZMQ}")
 message("  USDT tracing ........................ ${WITH_USDT}")
+message("  experimental syscall sandbox ........ ${WITH_SECCOMP}")
 message("")
 get_directory_property(definitions COMPILE_DEFINITIONS)
 message("Preprocessor defined macros ........... ${definitions}")
