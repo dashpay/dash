@@ -47,6 +47,19 @@ project("Bitcoin Core"
   LANGUAGES CXX C ASM
 )
 
+set(PACKAGE_NAME ${PROJECT_NAME})
+set(PACKAGE_VERSION ${PROJECT_VERSION})
+set(CLIENT_VERSION_MAJOR ${PROJECT_VERSION_MAJOR})
+set(CLIENT_VERSION_MINOR ${PROJECT_VERSION_MINOR})
+set(CLIENT_VERSION_BUILD ${PROJECT_VERSION_PATCH})
+set(CLIENT_VERSION_IS_RELEASE "false")
+set(PACKAGE_BUGREPORT "https://github.com/bitcoin/bitcoin/issues")
+set(PACKAGE_URL "https://bitcoincore.org/")
+set(COPYRIGHT_YEAR "2022")
+set(COPYRIGHT_HOLDERS "The %s developers")
+set(COPYRIGHT_HOLDERS_SUBSTITUTION ${PROJECT_NAME})
+set(COPYRIGHT_HOLDERS_FINAL "The Bitcoin Core developers")
+
 list(APPEND CMAKE_MODULE_PATH ${CMAKE_SOURCE_DIR}/cmake/module)
 
 # Configurable options.
@@ -231,6 +244,8 @@ if(CMAKE_SYSTEM_NAME STREQUAL "Darwin")
     link_libraries(${darwin_linker_flags})
   endif()
 endif()
+
+add_subdirectory(src)
 
 message("\n")
 message("Configure summary")
