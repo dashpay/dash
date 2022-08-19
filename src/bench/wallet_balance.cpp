@@ -7,7 +7,7 @@
 #include <node/context.h>
 #include <test/util/mining.h>
 #include <test/util/setup_common.h>
-#include <test/util/wallet.h>
+#include <wallet/test/util.h>
 #include <validationinterface.h>
 #include <wallet/receive.h>
 #include <wallet/wallet.h>
@@ -22,7 +22,7 @@ using wallet::WALLET_FLAG_DESCRIPTORS;
 static void WalletBalance(benchmark::Bench& bench, const bool set_dirty, const bool add_mine, const uint32_t epoch_iters)
 {
     const auto test_setup = MakeNoLogFileContext<const TestingSetup>();
-    const auto& ADDRESS_WATCHONLY = ADDRESS_B58T_UNSPENDABLE;
+    const auto& ADDRESS_WATCHONLY = wallet::ADDRESS_B58T_UNSPENDABLE;
 
     CWallet wallet{test_setup->m_node.chain.get(), test_setup->m_node.coinjoin_loader.get(), "", gArgs, CreateMockWalletDatabase()};
     {

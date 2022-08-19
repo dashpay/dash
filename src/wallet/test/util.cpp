@@ -9,15 +9,17 @@
 #include <key_io.h>
 #include <test/util/setup_common.h>
 #include <uint256.h>
+#include <util/check.h>
 #include <validation.h>
 #include <wallet/wallet.h>
 #include <wallet/walletdb.h>
 
-#include <boost/test/unit_test.hpp>
-
 #include <memory>
 
 namespace wallet {
+const std::string ADDRESS_B58T_UNSPENDABLE = "yXXXXXXXXXXXXXXXXXXXXXXXXXXXVd2rXU";
+const std::string ADDRESS_BCRT1_UNSPENDABLE = "bcrt1qqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqq3xueyj";
+
 std::unique_ptr<CWallet> CreateSyncedWallet(interfaces::Chain& chain, interfaces::CoinJoin::Loader& coinjoin_loader, ChainstateManager& chainman, ArgsManager& args, const CKey& key)
 {
     struct ChainInfo {
@@ -51,10 +53,20 @@ std::unique_ptr<CWallet> CreateSyncedWallet(interfaces::Chain& chain, interfaces
     WalletRescanReserver reserver(*wallet);
     reserver.reserve();
     CWallet::ScanResult result = wallet->ScanForWalletTransactions(chain_info.genesis_hash, /*start_height=*/0, /*max_height=*/{}, reserver, /*fUpdate=*/false, /*save_progress=*/false);
-    BOOST_CHECK_EQUAL(result.status, CWallet::ScanResult::SUCCESS);
-    BOOST_CHECK_EQUAL(result.last_scanned_block, chain_info.tip_hash);
-    BOOST_CHECK_EQUAL(*result.last_scanned_height, chain_info.height);
-    BOOST_CHECK(result.last_failed_block.IsNull());
+    assert(result.status == CWallet::ScanResult::SUCCESS);
+    assert(result.last_scanned_block == chain_info.tip_hash);
+    assert(*result.last_scanned_height == chain_info.height);
+    assert(result.last_failed_block.IsNull());
     return wallet;
+}
+
+std::string getnewaddress(CWallet& w)
+{
+    return EncodeDestination(getNewDestination(w));
+}
+
+CTxDestination getNewDestination(CWallet& w)
+{
+    return *Assert(w.GetNewDestination(""));
 }
 } // namespace wallet
