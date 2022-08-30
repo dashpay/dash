@@ -222,6 +222,7 @@ BASE_SCRIPTS = [
     'wallet_signrawtransactionwithwallet.py --legacy-wallet',
     'wallet_signrawtransactionwithwallet.py --descriptors',
     'rpc_signrawtransactionwithkey.py',
+    'p2p_headers_sync_with_minchainwork.py',
     'rpc_rawtransaction.py --legacy-wallet',
     'wallet_transactiontime_rescan.py --descriptors',
     'wallet_transactiontime_rescan.py --legacy-wallet',

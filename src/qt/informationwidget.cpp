@@ -106,9 +106,9 @@ void InformationWidget::setNetworkActive(bool networkActive)
     updateNetworkState();
 }
 
-void InformationWidget::setNumBlocks(int count, const QDateTime& blockDate, const QString& blockHash, double nVerificationProgress, bool headers)
+void InformationWidget::setNumBlocks(int count, const QDateTime& blockDate, const QString& blockHash, double nVerificationProgress, SyncType synctype, SynchronizationState sync_state)
 {
-    if (!headers) {
+    if (synctype == SyncType::BLOCK_SYNC) {
         ui->numberOfBlocks->setText(QString::number(count));
         ui->lastBlockTime->setText(blockDate.toString());
         ui->lastBlockHash->setText(blockHash);

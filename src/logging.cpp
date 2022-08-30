@@ -180,6 +180,7 @@ const CLogCategoryDesc LogCategories[] =
     {BCLog::BLOCKSTORE, "blockstorage"},
     {BCLog::TXRECONCILIATION, "txreconciliation"},
     {BCLog::SCAN, "scan"},
+    {BCLog::HEADERSSYNC, "headerssync"},
     {BCLog::ALL, "1"},
     {BCLog::ALL, "all"},
 
@@ -297,6 +298,8 @@ std::string LogCategoryToStr(BCLog::LogFlags category)
         return "txreconciliation";
     case BCLog::LogFlags::SCAN:
         return "scan";
+    case BCLog::LogFlags::HEADERSSYNC:
+        return "headerssync";
     /* Start Dash */
     case BCLog::LogFlags::CHAINLOCKS:
         return "chainlocks";
