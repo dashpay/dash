@@ -3407,7 +3407,7 @@ static bool NotifyHeaderTip(Chainstate& chainstate) LOCKS_EXCLUDED(cs_main) {
     }
     // Send block tip changed notifications without cs_main
     if (fNotify) {
-        uiInterface.NotifyHeaderTip(GetSynchronizationState(fInitialBlockDownload), pindexHeader->nHeight, pindexHeader->nTime);
+        uiInterface.NotifyHeaderTip(GetSynchronizationState(fInitialBlockDownload), pindexHeader->nHeight, pindexHeader->nTime, false);
         GetMainSignals().NotifyHeaderTip(pindexHeader, fInitialBlockDownload);
     }
     return fNotify;
@@ -4116,6 +4116,12 @@ bool CheckBlock(const CBlock& block, BlockValidationState& state, const Consensu
     return true;
 }
 
+bool HasValidProofOfWork(const std::vector<CBlockHeader>& headers, const Consensus::Params& consensusParams)
+{
+    return std::all_of(headers.cbegin(), headers.cend(),
+            [&](const auto& header) { return CheckProofOfWork(header.GetHash(), header.nBits, consensusParams);});
+}
+
 bool IsBlockMutated(const CBlock& block)
 {
     BlockValidationState state;
@@ -4140,6 +4146,16 @@ bool IsBlockMutated(const CBlock& block)
     }
 
     return false;
+}
+
+arith_uint256 CalculateHeadersWork(const std::vector<CBlockHeader>& headers)
+{
+    arith_uint256 total_work{0};
+    for (const CBlockHeader& header : headers) {
+        CBlockIndex dummy(header);
+        total_work += GetBlockProof(dummy);
+    }
+    return total_work;
 }
 
 /** Context-dependent validity checks.
@@ -4280,7 +4296,7 @@ static bool ContextualCheckBlock(const CBlock& block, BlockValidationState& stat
     return true;
 }
 
-bool ChainstateManager::AcceptBlockHeader(const CBlockHeader& block, BlockValidationState& state, CBlockIndex** ppindex, const uint256& hash)
+bool ChainstateManager::AcceptBlockHeader(const CBlockHeader& block, BlockValidationState& state, CBlockIndex** ppindex, bool min_pow_checked, const uint256& hash)
 {
     AssertLockHeld(cs_main);
 
@@ -4383,6 +4399,10 @@ bool ChainstateManager::AcceptBlockHeader(const CBlockHeader& block, BlockValida
             return state.Invalid(BlockValidationResult::BLOCK_CHAINLOCK, "bad-chainlock");
         }
     }
+    if (!min_pow_checked) {
+        LogPrint(BCLog::VALIDATION, "%s: not adding new block header %s, missing anti-dos proof-of-work validation\n", __func__, hash.ToString());
+        return state.Invalid(BlockValidationResult::BLOCK_HEADER_LOW_WORK, "too-little-chainwork");
+    }
     CBlockIndex* pindex{m_blockman.AddToBlockIndex(block, hash, m_best_header)};
 
     if (ppindex)
@@ -4411,14 +4431,14 @@ bool ChainstateManager::AcceptBlockHeader(const CBlockHeader& block, BlockValida
 }
 
 // Exposed wrapper for AcceptBlockHeader
-bool ChainstateManager::ProcessNewBlockHeaders(const std::vector<CBlockHeader>& headers, BlockValidationState& state, const CBlockIndex** ppindex)
+bool ChainstateManager::ProcessNewBlockHeaders(const std::vector<CBlockHeader>& headers, bool min_pow_checked, BlockValidationState& state, const CBlockIndex** ppindex)
 {
     AssertLockNotHeld(cs_main);
     {
         LOCK(cs_main);
         for (const CBlockHeader& header : headers) {
             CBlockIndex *pindex = nullptr; // Use a temp pindex instead of ppindex to avoid a const_cast
-            bool accepted{AcceptBlockHeader(header, state, &pindex, header.GetHash())};
+            bool accepted{AcceptBlockHeader(header, state, &pindex, min_pow_checked, header.GetHash())};
             CheckBlockIndex();
 
             if (!accepted) {
@@ -4440,8 +4460,33 @@ bool ChainstateManager::ProcessNewBlockHeaders(const std::vector<CBlockHeader>& 
     return true;
 }
 
+void ChainstateManager::ReportHeadersPresync(const arith_uint256& work, int64_t height, int64_t timestamp)
+{
+    AssertLockNotHeld(cs_main);
+    const auto& chainstate = ActiveChainstate();
+    {
+        LOCK(cs_main);
+        // Don't report headers presync progress if we already have a post-minchainwork header chain.
+        // This means we lose reporting for potentially legimate, but unlikely, deep reorgs, but
+        // prevent attackers that spam low-work headers from filling our logs.
+        if (m_best_header->nChainWork >= UintToArith256(GetConsensus().nMinimumChainWork)) return;
+        // Rate limit headers presync updates to 4 per second, as these are not subject to DoS
+        // protection.
+        auto now = std::chrono::steady_clock::now();
+        if (now < m_last_presync_update + std::chrono::milliseconds{250}) return;
+        m_last_presync_update = now;
+    }
+    bool initial_download = chainstate.IsInitialBlockDownload();
+    uiInterface.NotifyHeaderTip(GetSynchronizationState(initial_download), height, timestamp, /*presync=*/true);
+    if (initial_download) {
+        const int64_t blocks_left{(GetTime() - timestamp) / GetConsensus().nPowTargetSpacing};
+        const double progress{100.0 * height / (height + blocks_left)};
+        LogPrintf("Pre-synchronizing blockheaders, height: %d (~%.2f%%)\n", height, progress);
+    }
+}
+
 /** Store block on disk. If dbp is non-nullptr, the file is known to already reside on disk */
-bool ChainstateManager::AcceptBlock(const std::shared_ptr<const CBlock>& pblock, BlockValidationState& state, CBlockIndex** ppindex, bool fRequested, const FlatFilePos* dbp, bool* fNewBlock, const uint256* known_hash)
+bool ChainstateManager::AcceptBlock(const std::shared_ptr<const CBlock>& pblock, BlockValidationState& state, CBlockIndex** ppindex, bool fRequested, const FlatFilePos* dbp, bool* fNewBlock, bool min_pow_checked, const uint256* known_hash)
 {
     auto start = Now<SteadyMicroseconds>();
 
@@ -4459,7 +4504,7 @@ bool ChainstateManager::AcceptBlock(const std::shared_ptr<const CBlock>& pblock,
     ASSERT_IF_DEBUG(!known_hash || *known_hash == block.GetHash());
 
     const uint256 hash{known_hash ? *known_hash : block.GetHash()};
-    bool accepted_header{AcceptBlockHeader(block, state, &pindex, hash)};
+    bool accepted_header{AcceptBlockHeader(block, state, &pindex, min_pow_checked, hash)};
     CheckBlockIndex();
 
     if (!accepted_header)
@@ -4548,7 +4593,7 @@ bool ChainstateManager::AcceptBlock(const std::shared_ptr<const CBlock>& pblock,
     return true;
 }
 
-bool ChainstateManager::ProcessNewBlock(const std::shared_ptr<const CBlock>& block, bool force_processing, bool* new_block)
+bool ChainstateManager::ProcessNewBlock(const std::shared_ptr<const CBlock>& block, bool force_processing, bool min_pow_checked, bool* new_block)
 {
     AssertLockNotHeld(cs_main);
 
@@ -4569,7 +4614,7 @@ bool ChainstateManager::ProcessNewBlock(const std::shared_ptr<const CBlock>& blo
         bool ret = CheckBlock(*block, state, GetConsensus());
         if (ret) {
             // Store to disk
-            ret = AcceptBlock(block, state, &pindex, force_processing, nullptr, new_block);
+            ret = AcceptBlock(block, state, &pindex, force_processing, nullptr, new_block, min_pow_checked);
         }
         if (!ret) {
             GetMainSignals().BlockChecked(*block, state);
@@ -5049,7 +5094,7 @@ bool Chainstate::LoadGenesisBlock()
                     params.DevNetGenesisBlock());
             bool fCheckBlock = CheckBlock(*shared_pblock, state, params.GetConsensus());
             assert(fCheckBlock);
-            if (!m_chainman.AcceptBlock(shared_pblock, state, nullptr, true, nullptr, nullptr))
+            if (!m_chainman.AcceptBlock(shared_pblock, state, nullptr, true, nullptr, nullptr, true))
                 return false;
         }
     } catch (const std::runtime_error &e) {
@@ -5141,7 +5186,7 @@ void ChainstateManager::LoadExternalBlockFile(
                         nRewind = blkdat.GetPos();
 
                         BlockValidationState state;
-                        if (AcceptBlock(pblock, state, nullptr, true, dbp, nullptr, &hash)) {
+                        if (AcceptBlock(pblock, state, nullptr, true, dbp, nullptr, true, &hash)) {
                             nLoaded++;
                         }
                         if (state.IsError()) {
@@ -5209,7 +5254,7 @@ void ChainstateManager::LoadExternalBlockFile(
                                     head.ToString());
                             LOCK(cs_main);
                             BlockValidationState dummy;
-                            if (AcceptBlock(pblockrecursive, dummy, nullptr, true, &it->second, nullptr, &blockhash)) {
+                            if (AcceptBlock(pblockrecursive, dummy, nullptr, true, &it->second, nullptr, true, &blockhash)) {
                                 nLoaded++;
                                 queue.push_back(blockhash);
                             }
