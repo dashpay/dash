@@ -44,7 +44,13 @@ BOOST_AUTO_TEST_CASE(get_next_work)
 
     CBlockHeader blockHeader;
     blockHeader.nTime = 1408732505; // Block #123457
-    BOOST_CHECK_EQUAL(GetNextWorkRequired(blockIndexLast, &blockHeader, chainParams->GetConsensus()), 0x1b1441deU); // Block #123457 has 0x1b1441de
+    // Here (and below): expected_nbits is calculated in
+    // CalculateNextWorkRequired(); redoing the calculation here would be just
+    // reimplementing the same code that is written in pow.cpp. Rather than
+    // copy that code, we just hardcode the expected result.
+    unsigned int expected_nbits = 0x1b1441deU; // Block #123457 has 0x1b1441deU
+    BOOST_CHECK_EQUAL(GetNextWorkRequired(blockIndexLast, &blockHeader, chainParams->GetConsensus()), expected_nbits);
+    BOOST_CHECK(PermittedDifficultyTransition(chainParams->GetConsensus(), blockIndexLast->nHeight+1, blockIndexLast->nBits, expected_nbits));
 
     // test special rules for slow blocks on devnet/testnet
     const auto chainParamsDev = CreateChainParams(*m_node.args, CBaseChainParams::DEVNET);
@@ -52,17 +58,26 @@ BOOST_AUTO_TEST_CASE(get_next_work)
     // make sure normal rules apply
     blockHeader.nTime = 1408732505; // Block #123457
     BOOST_CHECK_EQUAL(GetNextWorkRequired(blockIndexLast, &blockHeader, chainParamsDev->GetConsensus()), 0x1b1441deU); // Block #123457 has 0x1b1441de
+    BOOST_CHECK(PermittedDifficultyTransition(chainParams->GetConsensus(), blockIndexLast->nHeight+1, blockIndexLast->nBits, expected_nbits));
 
     // 10x higher target
     blockHeader.nTime = 1408733090; // Block #123457 (10m+1sec)
     BOOST_CHECK_EQUAL(GetNextWorkRequired(blockIndexLast, &blockHeader, chainParamsDev->GetConsensus()), 0x1c00c8f8U); // Block #123457 has 0x1c00c8f8
+    BOOST_CHECK(PermittedDifficultyTransition(chainParams->GetConsensus(), blockIndexLast->nHeight+1, blockIndexLast->nBits, expected_nbits));
     blockHeader.nTime = 1408733689; // Block #123457 (20m)
     BOOST_CHECK_EQUAL(GetNextWorkRequired(blockIndexLast, &blockHeader, chainParamsDev->GetConsensus()), 0x1c00c8f8U); // Block #123457 has 0x1c00c8f8
+    BOOST_CHECK(PermittedDifficultyTransition(chainParams->GetConsensus(), blockIndexLast->nHeight+1, blockIndexLast->nBits, expected_nbits));
     // lowest diff possible
     blockHeader.nTime = 1408739690; // Block #123457 (2h+1sec)
     BOOST_CHECK_EQUAL(GetNextWorkRequired(blockIndexLast, &blockHeader, chainParamsDev->GetConsensus()), 0x207fffffU); // Block #123457 has 0x207fffff
+    BOOST_CHECK(PermittedDifficultyTransition(chainParams->GetConsensus(), blockIndexLast->nHeight+1, blockIndexLast->nBits, expected_nbits));
     blockHeader.nTime = 1408743289; // Block #123457 (3h)
     BOOST_CHECK_EQUAL(GetNextWorkRequired(blockIndexLast, &blockHeader, chainParamsDev->GetConsensus()), 0x207fffffU); // Block #123457 has 0x207fffff
+    BOOST_CHECK(PermittedDifficultyTransition(chainParams->GetConsensus(), blockIndexLast->nHeight+1, blockIndexLast->nBits, expected_nbits));
+
+        // Test that increasing nbits further would not be a PermittedDifficultyTransition.
+    unsigned int invalid_nbits = expected_nbits+1;
+    BOOST_CHECK(PermittedDifficultyTransition(chainParams->GetConsensus(), blockIndexLast->nHeight+1, blockIndexLast->nBits, invalid_nbits));
 }
 
 /* Test the constraint on the upper bound for next work */

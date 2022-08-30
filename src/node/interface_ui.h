@@ -111,7 +111,7 @@ public:
     ADD_SIGNALS_DECL_WRAPPER(NotifyChainLock, void, const std::string& bestChainLockHash, int bestChainLockHeight);
 
     /** Best header has changed */
-    ADD_SIGNALS_DECL_WRAPPER(NotifyHeaderTip, void, SynchronizationState, int64_t height, int64_t timestamp);
+    ADD_SIGNALS_DECL_WRAPPER(NotifyHeaderTip, void, SynchronizationState, int64_t height, int64_t timestamp, bool presync);
 
     /** Masternode list has changed */
     ADD_SIGNALS_DECL_WRAPPER(NotifyMasternodeListChanged, void, const CDeterministicMNList&, const CBlockIndex*);

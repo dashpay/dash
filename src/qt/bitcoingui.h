@@ -275,6 +275,7 @@ private:
     void stopGovernanceSyncAnimation();
 
     void updateHeadersSyncProgressLabel();
+    void updateHeadersPresyncProgressLabel(int64_t height, const QDateTime& blockDate);
 
     void updateProgressBarVisibility();
 
