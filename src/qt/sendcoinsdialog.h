@@ -5,6 +5,7 @@
 #ifndef BITCOIN_QT_SENDCOINSDIALOG_H
 #define BITCOIN_QT_SENDCOINSDIALOG_H
 
+#include <qt/clientmodel.h>
 #include <qt/walletmodel.h>
 
 #include <QDialog>
@@ -14,7 +15,6 @@
 
 static const int MAX_SEND_POPUP_ENTRIES = 10;
 
-class ClientModel;
 class SendCoinsEntry;
 class SendCoinsRecipient;
 enum class SynchronizationState;
@@ -112,7 +112,7 @@ private Q_SLOTS:
     void coinControlClipboardBytes();
     void coinControlClipboardChange();
     void updateFeeSectionControls();
-    void updateNumberOfBlocks(int count, const QDateTime& blockDate, const QString& blockHash, double nVerificationProgress, bool header, SynchronizationState sync_state);
+    void updateNumberOfBlocks(int count, const QDateTime& blockDate, const QString& blockHash, double nVerificationProgress, SyncType synctype, SynchronizationState sync_state);
     void updateSmartFeeLabel();
     void keepChangeAddressChanged(bool);
 

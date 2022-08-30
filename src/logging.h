@@ -69,6 +69,7 @@ namespace BCLog {
         BLOCKSTORE  = (1 << 26),
         TXRECONCILIATION = (1 << 27),
         SCAN        = (1 << 28),
+        HEADERSSYNC = (1 << 29),
 
         //Start Dash
         CHAINLOCKS  = ((uint64_t)1 << 32),

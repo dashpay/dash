@@ -40,6 +40,12 @@ enum class BlockSource {
     NETWORK,
 };
 
+enum class SyncType {
+    HEADER_PRESYNC,
+    HEADER_SYNC,
+    BLOCK_SYNC
+};
+
 enum NumConnections {
     CONNECTIONS_NONE = 0,
     CONNECTIONS_IN   = (1U << 0),
@@ -127,7 +133,7 @@ private:
     QuorumFeed* m_feed_quorum{nullptr};
     std::unique_ptr<ClientFeeds> m_feeds{nullptr};
 
-    void TipChanged(SynchronizationState sync_state, interfaces::BlockTip tip, double verification_progress, bool header) EXCLUSIVE_LOCKS_REQUIRED(!m_cached_tip_mutex);
+    void TipChanged(SynchronizationState sync_state, interfaces::BlockTip tip, double verification_progress, SyncType synctype) EXCLUSIVE_LOCKS_REQUIRED(!m_cached_tip_mutex);
     void subscribeToCoreSignals();
     void unsubscribeFromCoreSignals();
 
@@ -136,7 +142,7 @@ Q_SIGNALS:
     void governanceChanged();
     void masternodeListChanged() const;
     void chainLockChanged();
-    void numBlocksChanged(int count, const QDateTime& blockDate, const QString& blockHash, double nVerificationProgress, bool header, SynchronizationState sync_state);
+    void numBlocksChanged(int count, const QDateTime& blockDate, const QString& blockHash, double nVerificationProgress, SyncType header, SynchronizationState sync_state);
     void additionalDataSyncProgressChanged(double nSyncProgress);
     void mempoolSizeChanged(long count, size_t mempoolSizeInBytes, size_t mempoolMaxSizeInBytes);
     void instantSendChanged();

@@ -27,6 +27,7 @@
 #include <node/connection_types.h>
 #include <rpc/client.h>
 #include <rpc/server.h>
+#include <validation.h>
 #include <util/strencodings.h>
 #include <util/string.h>
 #include <util/system.h>
@@ -782,7 +783,7 @@ void RPCConsole::setClientModel(ClientModel *model, int bestblock_height, int64_
 
         // Provide initial values
         ui->informationWidget->setNumBlocks(/*count=*/bestblock_height, QDateTime::fromSecsSinceEpoch(bestblock_date), QString::fromStdString(bestblock_hash.ToString()),
-                                            verification_progress, /*headers=*/false);
+                                            verification_progress, SyncType::BLOCK_SYNC, SynchronizationState::INIT_DOWNLOAD);
 
         //Setup autocomplete and attach it
         QStringList wordList;
