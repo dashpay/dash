@@ -204,7 +204,7 @@ public:
 
     size_t GetValidMNsCount() const
     {
-        return ranges::count_if(mnMap, [](const auto& p){ return IsMNValid(*p.second); });
+        return ranges::count_if(mnMap, [&](const auto& p){ return IsMNValid(*p.second); });
     }
 
     /**
