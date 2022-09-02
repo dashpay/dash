@@ -371,6 +371,7 @@ public:
 };
 
 void SetSimulatedDKGErrorRate(DKGError::type type, double rate);
+double GetSimulatedErrorRate(DKGError::type type);
 
 } // namespace llmq
 

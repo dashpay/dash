@@ -32,7 +32,7 @@ void SetSimulatedDKGErrorRate(DKGError::type type, double rate)
     simDkgErrorMap[int(type)] = rate;
 }
 
-static double GetSimulatedErrorRate(DKGError::type type)
+double GetSimulatedErrorRate(DKGError::type type)
 {
     if (int(type) >= DKGError::type::_COUNT) return 0;
     return simDkgErrorMap[int(type)];
