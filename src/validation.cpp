@@ -2498,7 +2498,7 @@ bool CChainState::FlushStateToDisk(
         // The cache is over the limit, we have to write now.
         bool fCacheCritical = mode == FlushStateMode::IF_NEEDED && cache_state >= CoinsCacheSizeState::CRITICAL;
         // The evodb cache is too large
-        bool fEvoDbCacheCritical = mode == FlushStateMode::IF_NEEDED && evoDb != nullptr && evoDb->GetMemoryUsage() >= (16 << 20);
+        bool fEvoDbCacheCritical = mode == FlushStateMode::IF_NEEDED && evoDb != nullptr && evoDb->GetMemoryUsage() >= (64 << 20);
         // It's been a while since we wrote the block index to disk. Do this frequently, so we don't need to redownload after a crash.
         bool fPeriodicWrite = mode == FlushStateMode::PERIODIC && nNow > nLastWrite + DATABASE_WRITE_INTERVAL;
         // It's been very long since we flushed the cache. Do this infrequently, to optimize cache usage.
