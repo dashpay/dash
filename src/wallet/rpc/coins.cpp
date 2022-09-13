@@ -529,7 +529,7 @@ RPCHelpMan listunspent()
                                 "0=ALL_COINS, 1=ONLY_FULLY_MIXED, 2=ONLY_READY_TO_MIX, 3=ONLY_NONDENOMINATED,\n"
                                 "4=ONLY_MASTERNODE_COLLATERAL, 5=ONLY_COINJOIN_COLLATERAL" },
                         },
-                        "query_options"},
+                        RPCArgOptions{.oneline_description="query_options"}},
                 },
                 RPCResult{
                     RPCResult::Type::ARR, "", "",

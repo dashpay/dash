@@ -552,15 +552,13 @@ static RPCHelpMan getblocktemplate()
                     {"capabilities", RPCArg::Type::ARR, /* treat as named arg */ RPCArg::Optional::OMITTED_NAMED_ARG, "A list of strings",
                         {
                             {"str", RPCArg::Type::STR, RPCArg::Optional::OMITTED, "client side supported feature, 'longpoll', 'coinbasevalue', 'proposal', 'serverlist', 'workid'"},
-                        },
-                        },
+                        }},
                     {"rules", RPCArg::Type::ARR, RPCArg::Optional::NO, "A list of strings",
                         {
                             {"str", RPCArg::Type::STR, RPCArg::Optional::OMITTED, "client side supported softfork deployment"},
-                        },
-                        },
+                        }},
                 },
-                "\"template_request\""},
+                RPCArgOptions{.oneline_description="\"template_request\""}},
         },
         {
             RPCResult{"If the proposal was accepted with mode=='proposal'", RPCResult::Type::NONE, "", ""},
