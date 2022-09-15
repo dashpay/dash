@@ -1197,6 +1197,11 @@ RPCHelpMan sendall()
                 }
             }
 
+            // If this transaction is too large, e.g. because the wallet has many UTXOs, it will be rejected by the node's mempool.
+            if (tx_size > MAX_STANDARD_TX_SIZE) {
+                throw JSONRPCError(RPC_WALLET_ERROR, "Transaction too large.");
+            }
+
             CAmount output_amounts_claimed{0};
             for (CTxOut out : rawTx.vout) {
                 output_amounts_claimed += out.nValue;
