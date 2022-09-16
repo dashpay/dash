@@ -9,7 +9,7 @@
 #include <netbase.h>
 #include <node/blockstorage.h>
 #include <streams.h>
-#include <validation.h>
+#include <util/system.h>
 #include <zmq/zmqutil.h>
 
 #include <governance/common.h>
