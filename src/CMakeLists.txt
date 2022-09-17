@@ -253,3 +253,21 @@ if(BUILD_TX)
       univalue
   )
 endif()
+
+
+if(BUILD_UTIL)
+  add_executable(bitcoin-util "")
+  target_sources(bitcoin-util
+    PRIVATE
+  )
+  target_include_directories(bitcoin-util
+    PUBLIC
+      $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}>
+  )
+  target_link_libraries(bitcoin-util
+    PRIVATE
+      bitcoin_common
+      bitcoin_consensus
+      bitcoin_util
+  )
+endif()
