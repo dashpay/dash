@@ -206,3 +206,31 @@ if(BUILD_DAEMON)
       bitcoin_node
   )
 endif()
+
+
+if(BUILD_CLI)
+  add_library(rpc_client STATIC EXCLUDE_FROM_ALL "")
+  target_sources(rpc_client PRIVATE rpc/client.cpp)
+  target_include_directories(rpc_client
+    PUBLIC
+      $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}>
+  )
+  target_link_libraries(rpc_client PUBLIC univalue)
+endif()
+
+
+# Bitcoin Core RPC client
+if(BUILD_CLI)
+  add_executable(bitcoin-cli "")
+  target_sources(bitcoin-cli
+    PRIVATE
+      bitcoin-cli.cpp
+      compat/stdin.cpp
+  )
+  target_link_libraries(bitcoin-cli
+    PRIVATE
+      bitcoin_util
+      rpc_client
+      PkgConfig::libevent
+  )
+endif()
