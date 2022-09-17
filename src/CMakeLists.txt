@@ -234,3 +234,22 @@ if(BUILD_CLI)
       PkgConfig::libevent
   )
 endif()
+
+
+if(BUILD_TX)
+  add_executable(bitcoin-tx "")
+  target_sources(bitcoin-tx
+    PRIVATE
+      bitcoin-tx.cpp
+  )
+  target_include_directories(bitcoin-tx
+    PUBLIC
+      $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}>
+  )
+  target_link_libraries(bitcoin-tx
+    PRIVATE
+      bitcoin_common
+      bitcoin_util
+      univalue
+  )
+endif()
