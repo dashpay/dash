@@ -2455,15 +2455,15 @@ void CConnman::ThreadOpenMasternodeConnections()
                             continue;
                         }
                         if (!connectedNodes.count(addr2) && !IsMasternodeOrDisconnectRequested(addr2) && !connectedProRegTxHashes.count(proRegTxHash)) {
-                        int64_t lastAttempt = mmetaman.GetMetaInfo(dmn->proTxHash)->GetLastOutboundAttempt();
-                        // back off trying connecting to an address if we already tried recently
-                        if (nANow - lastAttempt < chainParams.LLMQConnectionRetryTimeout()) {
-                            continue;
+                            int64_t lastAttempt = mmetaman.GetMetaInfo(dmn->proTxHash)->GetLastOutboundAttempt();
+                            // back off trying connecting to an address if we already tried recently
+                            if (nANow - lastAttempt < chainParams.LLMQConnectionRetryTimeout()) {
+                                continue;
+                            }
+                            ret.emplace_back(dmn);
                         }
-                        ret.emplace_back(dmn);
                     }
                 }
-            }
             return ret;
         };
 
