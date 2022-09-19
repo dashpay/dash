@@ -2496,7 +2496,6 @@ void CConnman::ThreadOpenMasternodeConnections()
             return pending;
         };
 
-        constexpr const auto &_func_ = __func__;
         auto getConnectToDmn = [&]() -> CDeterministicMNCPtr {
             // don't hold lock while calling OpenMasternodeConnection as cs_main is locked deep inside
             LOCK2(cs_vNodes, cs_vPendingMasternodes);
