@@ -725,6 +725,7 @@ std::optional<std::vector<CFinalCommitment>> CQuorumBlockProcessor::GetMineableC
     const auto *const pindex = ::ChainActive().Height() < nHeight ? ::ChainActive().Tip() : ::ChainActive().Tip()->GetAncestor(nHeight);
 
     bool rotation_enabled = utils::IsQuorumRotationEnabled(llmqParams.type, pindex);
+    bool basic_bls_enabled = utils::IsBasicBLSSchemeActive(pindex);
     size_t quorums_num = rotation_enabled ? llmqParams.signingActiveQuorumCount : 1;
 
     std::stringstream ss;
@@ -747,7 +748,7 @@ std::optional<std::vector<CFinalCommitment>> CQuorumBlockProcessor::GetMineableC
             cf = CFinalCommitment(llmqParams, quorumHash);
             cf.quorumIndex = static_cast<int16_t>(quorumIndex);
             if (rotation_enabled) {
-                cf.nVersion = CFinalCommitment::INDEXED_QUORUM_VERSION;
+                cf.nVersion = basic_bls_enabled ? CFinalCommitment::BASIC_BLS_INDEXED_QUORUM_VERSION : CFinalCommitment::LEGACY_BLS_INDEXED_QUORUM_VERSION;
             }
             ss << "{ created nversion[" << cf.nVersion << "] quorumIndex[" << cf.quorumIndex << "] }";
         } else {

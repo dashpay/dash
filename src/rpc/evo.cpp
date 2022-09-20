@@ -15,6 +15,7 @@
 #include <index/txindex.h>
 #include <llmq/blockprocessor.h>
 #include <llmq/context.h>
+#include <llmq/utils.h>
 #include <masternode/meta.h>
 #include <messagesigner.h>
 #include <netbase.h>
@@ -462,7 +463,7 @@ static UniValue protx_register(const JSONRPCRequest& request)
     tx.nType = TRANSACTION_PROVIDER_REGISTER;
 
     CProRegTx ptx;
-    ptx.nVersion = CProRegTx::CURRENT_VERSION;
+    ptx.nVersion = llmq::utils::IsBasicBLSSchemeActive(::ChainActive().Tip()) ? CProRegTx::BASIC_BLS_VERSION : CProRegTx::LEGACY_BLS_VERSION;
 
     if (isFundRegister) {
         CTxDestination collateralDest = DecodeDestination(request.params[paramIdx].get_str());
@@ -660,7 +661,7 @@ static UniValue protx_update_service(const JSONRPCRequest& request)
     EnsureWalletIsUnlocked(wallet.get());
 
     CProUpServTx ptx;
-    ptx.nVersion = CProUpServTx::CURRENT_VERSION;
+    ptx.nVersion = llmq::utils::IsBasicBLSSchemeActive(::ChainActive().Tip()) ? CProUpServTx::BASIC_BLS_VERSION : CProUpServTx::LEGACY_BLS_VERSION;
     ptx.proTxHash = ParseHashV(request.params[0], "proTxHash");
 
     if (!Lookup(request.params[1].get_str().c_str(), ptx.addr, Params().GetDefaultPort(), false)) {
@@ -755,7 +756,7 @@ static UniValue protx_update_registrar(const JSONRPCRequest& request)
     EnsureWalletIsUnlocked(wallet.get());
 
     CProUpRegTx ptx;
-    ptx.nVersion = CProUpRegTx::CURRENT_VERSION;
+    ptx.nVersion = llmq::utils::IsBasicBLSSchemeActive(::ChainActive().Tip()) ? CProUpRegTx::BASIC_BLS_VERSION : CProUpRegTx::LEGACY_BLS_VERSION;
     ptx.proTxHash = ParseHashV(request.params[0], "proTxHash");
 
     auto dmn = deterministicMNManager->GetListAtChainTip().GetMN(ptx.proTxHash);
@@ -847,7 +848,7 @@ static UniValue protx_revoke(const JSONRPCRequest& request)
     EnsureWalletIsUnlocked(wallet.get());
 
     CProUpRevTx ptx;
-    ptx.nVersion = CProUpRevTx::CURRENT_VERSION;
+    ptx.nVersion = llmq::utils::IsBasicBLSSchemeActive(::ChainActive().Tip()) ? CProUpRevTx::BASIC_BLS_VERSION : CProUpRevTx::LEGACY_BLS_VERSION;
     ptx.proTxHash = ParseHashV(request.params[0], "proTxHash");
 
     CBLSSecretKey keyOperator = ParseBLSSecretKey(request.params[1].get_str(), "operatorKey");

@@ -25,11 +25,15 @@ namespace llmq
 class CFinalCommitment
 {
 public:
-    static constexpr uint16_t CURRENT_VERSION = 1;
-    static constexpr uint16_t INDEXED_QUORUM_VERSION = 2;
+    static constexpr auto SPECIALTX_TYPE = TRANSACTION_PROVIDER_REGISTER;
+
+    static constexpr uint16_t LEGACY_BLS_NON_INDEXED_QUORUM_VERSION = 1;
+    static constexpr uint16_t LEGACY_BLS_INDEXED_QUORUM_VERSION = 2;
+    static constexpr uint16_t BASIC_BLS_NON_INDEXED_QUORUM_VERSION = 3;
+    static constexpr uint16_t BASIC_BLS_INDEXED_QUORUM_VERSION = 4;
 
 public:
-    uint16_t nVersion{CURRENT_VERSION};
+    uint16_t nVersion{LEGACY_BLS_NON_INDEXED_QUORUM_VERSION};
     Consensus::LLMQType llmqType{Consensus::LLMQType::LLMQ_NONE};
     uint256 quorumHash;
     int16_t quorumIndex{0};
@@ -60,29 +64,53 @@ public:
     bool VerifySizes(const Consensus::LLMQParams& params) const;
 
 public:
-    SERIALIZE_METHODS(CFinalCommitment, obj)
+    template <typename Stream, typename Operation>
+    inline void SerializationOpBase(Stream& s, Operation ser_action)
     {
-        READWRITE(
-                obj.nVersion,
-                obj.llmqType,
-                obj.quorumHash
-                );
+        READWRITE(nVersion,
+                  llmqType,
+                  quorumHash
+        );
+    }
 
-        int16_t _quorumIndex = 0;
-        SER_WRITE(obj, _quorumIndex = obj.quorumIndex);
-        if (obj.nVersion == CFinalCommitment::INDEXED_QUORUM_VERSION) {
-            READWRITE(_quorumIndex);
+    template <typename Stream, typename Operation>
+    inline void SerializationOpTail(Stream& s, Operation ser_action)
+    {
+        READWRITE(quorumVvecHash,
+                  quorumSig,
+                  membersSig);
+    }
+
+    template <typename Stream>
+    inline void Serialize(Stream& s) const
+    {
+        const_cast<CFinalCommitment*>(this)->SerializationOpBase(s, CSerActionSerialize());
+        if (nVersion == LEGACY_BLS_INDEXED_QUORUM_VERSION || nVersion == BASIC_BLS_INDEXED_QUORUM_VERSION)
+        {
+            ser_writedata16(s, quorumIndex);
         }
-        SER_READ(obj, obj.quorumIndex = _quorumIndex);
+        DynamicBitSetFormatter dyn_ser;
+        dyn_ser.Ser(s, signers);
+        dyn_ser.Ser(s, validMembers);
+        bool fLegacyScheme = (nVersion == LEGACY_BLS_NON_INDEXED_QUORUM_VERSION || nVersion == LEGACY_BLS_INDEXED_QUORUM_VERSION);
+        quorumPublicKey.Serialize(s, fLegacyScheme);
+        const_cast<CFinalCommitment*>(this)->SerializationOpTail(s, CSerActionSerialize());
+    }
 
-        READWRITE(
-                DYNBITSET(obj.signers),
-                DYNBITSET(obj.validMembers),
-                obj.quorumPublicKey,
-                obj.quorumVvecHash,
-                obj.quorumSig,
-                obj.membersSig
-                );
+    template <typename Stream>
+    inline void Unserialize(Stream& s)
+    {
+        SerializationOpBase(s, CSerActionUnserialize());
+        if (nVersion == LEGACY_BLS_INDEXED_QUORUM_VERSION || nVersion == BASIC_BLS_INDEXED_QUORUM_VERSION)
+        {
+            quorumIndex = ser_readdata16(s);
+        }
+        DynamicBitSetFormatter dyn_ser;
+        dyn_ser.Unser(s, signers);
+        dyn_ser.Unser(s, validMembers);
+        bool fLegacyScheme = (nVersion == LEGACY_BLS_NON_INDEXED_QUORUM_VERSION || nVersion == LEGACY_BLS_INDEXED_QUORUM_VERSION);
+        quorumPublicKey.Unserialize(s, fLegacyScheme, false);
+        SerializationOpTail(s, CSerActionUnserialize());
     }
 
 public:
@@ -112,7 +140,7 @@ public:
         obj.pushKV("signers", BitsVectorToHexStr(signers));
         obj.pushKV("validMembersCount", CountValidMembers());
         obj.pushKV("validMembers", BitsVectorToHexStr(validMembers));
-        obj.pushKV("quorumPublicKey", quorumPublicKey.ToString());
+        obj.pushKV("quorumPublicKey", quorumPublicKey.ToString(nVersion == LEGACY_BLS_NON_INDEXED_QUORUM_VERSION || nVersion == LEGACY_BLS_INDEXED_QUORUM_VERSION));
         obj.pushKV("quorumVvecHash", quorumVvecHash.ToString());
         obj.pushKV("quorumSig", quorumSig.ToString());
         obj.pushKV("membersSig", membersSig.ToString());

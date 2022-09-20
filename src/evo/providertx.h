@@ -32,9 +32,10 @@ class CProRegTx
 {
 public:
     static constexpr auto SPECIALTX_TYPE = TRANSACTION_PROVIDER_REGISTER;
-    static constexpr uint16_t CURRENT_VERSION = 1;
+    static constexpr uint16_t LEGACY_BLS_VERSION = 1;
+    static constexpr uint16_t BASIC_BLS_VERSION = 2;
 
-    uint16_t nVersion{CURRENT_VERSION};                    // message version
+    uint16_t nVersion{LEGACY_BLS_VERSION};                    // message version
     uint16_t nType{0};                                     // only 0 supported for now
     uint16_t nMode{0};                                     // only 0 supported for now
     COutPoint collateralOutpoint{uint256(), (uint32_t)-1}; // if hash is null, we refer to a ProRegTx output
@@ -47,24 +48,45 @@ public:
     uint256 inputsHash; // replay protection
     std::vector<unsigned char> vchSig;
 
-    SERIALIZE_METHODS(CProRegTx, obj)
+    template <typename Stream, typename Operation>
+    inline void SerializationOpBase(Stream& s, Operation ser_action)
     {
-        READWRITE(
-                obj.nVersion,
-                obj.nType,
-                obj.nMode,
-                obj.collateralOutpoint,
-                obj.addr,
-                obj.keyIDOwner,
-                obj.pubKeyOperator,
-                obj.keyIDVoting,
-                obj.nOperatorReward,
-                obj.scriptPayout,
-                obj.inputsHash
-                );
+        READWRITE(nVersion,
+                  nType,
+                  nMode,
+                  collateralOutpoint,
+                  addr,
+                  keyIDOwner
+                  );
+    }
+
+    template <typename Stream, typename Operation>
+    inline void SerializationOpTail(Stream& s, Operation ser_action)
+    {
+        READWRITE(keyIDVoting,
+                  nOperatorReward,
+                  scriptPayout,
+                  inputsHash);
         if (!(s.GetType() & SER_GETHASH)) {
-            READWRITE(obj.vchSig);
+            READWRITE(vchSig);
         }
+    }
+
+    template <typename Stream>
+    inline void Serialize(Stream& s) const
+    {
+        const_cast<CProRegTx*>(this)->SerializationOpBase(s, CSerActionSerialize());
+        bool fLegacyScheme = (nVersion == LEGACY_BLS_VERSION);
+        pubKeyOperator.Serialize(s, fLegacyScheme);
+        const_cast<CProRegTx*>(this)->SerializationOpTail(s, CSerActionSerialize());
+    }
+    template <typename Stream>
+    inline void Unserialize(Stream& s)
+    {
+        SerializationOpBase(s, CSerActionUnserialize());
+        bool fLegacyScheme = (nVersion == LEGACY_BLS_VERSION);
+        pubKeyOperator.Unserialize(s, fLegacyScheme, true);
+        SerializationOpTail(s, CSerActionUnserialize());
     }
 
     // When signing with the collateral key, we don't sign the hash but a generated message instead
@@ -88,7 +110,7 @@ public:
         if (ExtractDestination(scriptPayout, dest)) {
             obj.pushKV("payoutAddress", EncodeDestination(dest));
         }
-        obj.pushKV("pubKeyOperator", pubKeyOperator.ToString());
+        obj.pushKV("pubKeyOperator", pubKeyOperator.ToString(nVersion == LEGACY_BLS_VERSION));
         obj.pushKV("operatorReward", (double)nOperatorReward / 100);
 
         obj.pushKV("inputsHash", inputsHash.ToString());
@@ -101,20 +123,43 @@ class CProUpServTx
 {
 public:
     static constexpr auto SPECIALTX_TYPE = TRANSACTION_PROVIDER_UPDATE_SERVICE;
-    static constexpr uint16_t CURRENT_VERSION = 1;
+    static constexpr uint16_t LEGACY_BLS_VERSION = 1;
+    static constexpr uint16_t BASIC_BLS_VERSION = 2;
 
-    uint16_t nVersion{CURRENT_VERSION}; // message version
+    uint16_t nVersion{LEGACY_BLS_VERSION}; // message version
     uint256 proTxHash;
     CService addr;
     CScript scriptOperatorPayout;
     uint256 inputsHash; // replay protection
     CBLSSignature sig;
 
-    SERIALIZE_METHODS(CProUpServTx, obj)
+    template <typename Stream, typename Operation>
+    inline void SerializationOpBase(Stream& s, Operation ser_action)
     {
-        READWRITE(obj.nVersion, obj.proTxHash, obj.addr, obj.scriptOperatorPayout, obj.inputsHash);
+        READWRITE(nVersion,
+                  proTxHash,
+                  addr,
+                  scriptOperatorPayout,
+                  inputsHash
+        );
+    }
+
+    template <typename Stream>
+    inline void Serialize(Stream& s) const
+    {
+        const_cast<CProUpServTx*>(this)->SerializationOpBase(s, CSerActionSerialize());
         if (!(s.GetType() & SER_GETHASH)) {
-            READWRITE(obj.sig);
+            bool fLegacyScheme = (nVersion == LEGACY_BLS_VERSION);
+            sig.Serialize(s, fLegacyScheme);
+        }
+    }
+    template <typename Stream>
+    inline void Unserialize(Stream& s)
+    {
+        SerializationOpBase(s, CSerActionUnserialize());
+        if (!(s.GetType() & SER_GETHASH)) {
+            bool fLegacyScheme = (nVersion == LEGACY_BLS_VERSION);
+            sig.Unserialize(s, fLegacyScheme, true);
         }
     }
 
@@ -141,9 +186,10 @@ class CProUpRegTx
 {
 public:
     static constexpr auto SPECIALTX_TYPE = TRANSACTION_PROVIDER_UPDATE_REGISTRAR;
-    static constexpr uint16_t CURRENT_VERSION = 1;
+    static constexpr uint16_t LEGACY_BLS_VERSION = 1;
+    static constexpr uint16_t BASIC_BLS_VERSION = 2;
 
-    uint16_t nVersion{CURRENT_VERSION}; // message version
+    uint16_t nVersion{LEGACY_BLS_VERSION}; // message version
     uint256 proTxHash;
     uint16_t nMode{0}; // only 0 supported for now
     CBLSPublicKey pubKeyOperator;
@@ -152,20 +198,42 @@ public:
     uint256 inputsHash; // replay protection
     std::vector<unsigned char> vchSig;
 
-    SERIALIZE_METHODS(CProUpRegTx, obj)
+    template <typename Stream, typename Operation>
+    inline void SerializationOpBase(Stream& s, Operation ser_action)
     {
-        READWRITE(
-                obj.nVersion,
-                obj.proTxHash,
-                obj.nMode,
-                obj.pubKeyOperator,
-                obj.keyIDVoting,
-                obj.scriptPayout,
-                obj.inputsHash
-                );
+        READWRITE(nVersion,
+                  proTxHash,
+                  nMode
+        );
+    }
+
+    template <typename Stream, typename Operation>
+    inline void SerializationOpTail(Stream& s, Operation ser_action)
+    {
+        READWRITE(keyIDVoting,
+                  scriptPayout,
+                  inputsHash);
         if (!(s.GetType() & SER_GETHASH)) {
-            READWRITE(obj.vchSig);
+            READWRITE(vchSig);
         }
+    }
+
+    template <typename Stream>
+    inline void Serialize(Stream& s) const
+    {
+        const_cast<CProUpRegTx*>(this)->SerializationOpBase(s, CSerActionSerialize());
+        bool fLegacyScheme = (nVersion == LEGACY_BLS_VERSION);
+        pubKeyOperator.Serialize(s, fLegacyScheme);
+        const_cast<CProUpRegTx*>(this)->SerializationOpTail(s, CSerActionSerialize());
+    }
+
+    template <typename Stream>
+    inline void Unserialize(Stream& s/*, bool checkMalleable = true*/)
+    {
+        SerializationOpBase(s, CSerActionUnserialize());
+        bool fLegacyScheme = (nVersion == LEGACY_BLS_VERSION);
+        pubKeyOperator.Unserialize(s, fLegacyScheme, false);
+        SerializationOpTail(s, CSerActionUnserialize());
     }
 
     std::string ToString() const;
@@ -181,7 +249,7 @@ public:
         if (ExtractDestination(scriptPayout, dest)) {
             obj.pushKV("payoutAddress", EncodeDestination(dest));
         }
-        obj.pushKV("pubKeyOperator", pubKeyOperator.ToString());
+        obj.pushKV("pubKeyOperator", pubKeyOperator.ToString(nVersion == LEGACY_BLS_VERSION));
         obj.pushKV("inputsHash", inputsHash.ToString());
     }
 
@@ -192,7 +260,8 @@ class CProUpRevTx
 {
 public:
     static constexpr auto SPECIALTX_TYPE = TRANSACTION_PROVIDER_UPDATE_REVOKE;
-    static constexpr uint16_t CURRENT_VERSION = 1;
+    static constexpr uint16_t LEGACY_BLS_VERSION = 1;
+    static constexpr uint16_t BASIC_BLS_VERSION = 2;
 
     // these are just informational and do not have any effect on the revocation
     enum {
@@ -203,17 +272,38 @@ public:
         REASON_LAST = REASON_CHANGE_OF_KEYS
     };
 
-    uint16_t nVersion{CURRENT_VERSION}; // message version
+    uint16_t nVersion{LEGACY_BLS_VERSION}; // message version
     uint256 proTxHash;
     uint16_t nReason{REASON_NOT_SPECIFIED};
     uint256 inputsHash; // replay protection
     CBLSSignature sig;
 
-    SERIALIZE_METHODS(CProUpRevTx, obj)
+    template <typename Stream, typename Operation>
+    inline void SerializationOpBase(Stream& s, Operation ser_action)
     {
-        READWRITE(obj.nVersion, obj.proTxHash, obj.nReason, obj.inputsHash);
+        READWRITE(nVersion,
+                  proTxHash,
+                  nReason,
+                  inputsHash
+        );
+    }
+
+    template <typename Stream>
+    inline void Serialize(Stream& s) const
+    {
+        const_cast<CProUpRevTx*>(this)->SerializationOpBase(s, CSerActionSerialize());
         if (!(s.GetType() & SER_GETHASH)) {
-            READWRITE(obj.sig);
+            bool fLegacyScheme = (nVersion == LEGACY_BLS_VERSION);
+            sig.Serialize(s, fLegacyScheme);
+        }
+    }
+    template <typename Stream>
+    inline void Unserialize(Stream& s)
+    {
+        SerializationOpBase(s, CSerActionUnserialize());
+        if (!(s.GetType() & SER_GETHASH)) {
+            bool fLegacyScheme = (nVersion == LEGACY_BLS_VERSION);
+            sig.Unserialize(s, fLegacyScheme, true);
         }
     }
 

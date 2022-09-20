@@ -11,7 +11,7 @@
 
 maybe_error CProRegTx::IsTriviallyValid() const
 {
-    if (nVersion == 0 || nVersion > CProRegTx::CURRENT_VERSION) {
+    if (nVersion == 0 || nVersion > CProRegTx::BASIC_BLS_VERSION) {
         return {ValidationInvalidReason::CONSENSUS, "bad-protx-version"};
     }
     if (nType != 0) {
@@ -79,12 +79,12 @@ std::string CProRegTx::ToString() const
     }
 
     return strprintf("CProRegTx(nVersion=%d, collateralOutpoint=%s, addr=%s, nOperatorReward=%f, ownerAddress=%s, pubKeyOperator=%s, votingAddress=%s, scriptPayout=%s)",
-        nVersion, collateralOutpoint.ToStringShort(), addr.ToString(), (double)nOperatorReward / 100, EncodeDestination(keyIDOwner), pubKeyOperator.ToString(), EncodeDestination(keyIDVoting), payee);
+        nVersion, collateralOutpoint.ToStringShort(), addr.ToString(), (double)nOperatorReward / 100, EncodeDestination(keyIDOwner), pubKeyOperator.ToString(nVersion == LEGACY_BLS_VERSION), EncodeDestination(keyIDVoting), payee);
 }
 
 maybe_error CProUpServTx::IsTriviallyValid() const
 {
-    if (nVersion == 0 || nVersion > CProUpServTx::CURRENT_VERSION) {
+    if (nVersion == 0 || nVersion > CProUpServTx::BASIC_BLS_VERSION) {
         return {ValidationInvalidReason::CONSENSUS, "bad-protx-version"};
     }
 
@@ -105,7 +105,7 @@ std::string CProUpServTx::ToString() const
 
 maybe_error CProUpRegTx::IsTriviallyValid() const
 {
-    if (nVersion == 0 || nVersion > CProUpRegTx::CURRENT_VERSION) {
+    if (nVersion == 0 || nVersion > CProUpRegTx::BASIC_BLS_VERSION) {
         return {ValidationInvalidReason::CONSENSUS, "bad-protx-version"};
     }
     if (nMode != 0) {
@@ -130,12 +130,12 @@ std::string CProUpRegTx::ToString() const
     }
 
     return strprintf("CProUpRegTx(nVersion=%d, proTxHash=%s, pubKeyOperator=%s, votingAddress=%s, payoutAddress=%s)",
-        nVersion, proTxHash.ToString(), pubKeyOperator.ToString(), EncodeDestination(keyIDVoting), payee);
+        nVersion, proTxHash.ToString(), pubKeyOperator.ToString(nVersion == LEGACY_BLS_VERSION), EncodeDestination(keyIDVoting), payee);
 }
 
 maybe_error CProUpRevTx::IsTriviallyValid() const
 {
-    if (nVersion == 0 || nVersion > CProUpRevTx::CURRENT_VERSION) {
+    if (nVersion == 0 || nVersion > CProUpRevTx::BASIC_BLS_VERSION) {
         return {ValidationInvalidReason::CONSENSUS, "bad-protx-version"};
     }
 

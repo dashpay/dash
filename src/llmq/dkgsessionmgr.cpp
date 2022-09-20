@@ -156,7 +156,8 @@ void CDKGSessionManager::UpdatedBlockTip(const CBlockIndex* pindexNew, bool fIni
         return;
     if (!IsQuorumDKGEnabled(spork_manager))
         return;
-
+    if (utils::IsBasicBLSSchemeActive(pindexNew))
+        bls::bls_legacy_scheme.store(false);
     for (auto& qt : dkgSessionHandlers) {
         qt.second.UpdatedBlockTip(pindexNew);
     }
