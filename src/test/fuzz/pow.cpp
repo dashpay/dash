@@ -115,7 +115,7 @@ FUZZ_TARGET(pow_transition, .init = initialize_pow)
         auto current_block{std::make_unique<CBlockIndex>(header)};
         current_block->pprev = blocks.empty() ? nullptr : blocks.back().get();
         current_block->nHeight = height;
-        blocks.emplace_back(std::move(current_block)).get();
+        blocks.emplace_back(std::move(current_block));
     }
     auto last_block{blocks.back().get()};
     CBlockHeader next_header;
