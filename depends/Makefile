@@ -158,6 +158,7 @@ $(host_arch)_$(host_os)_native_toolchain?=$($(host_os)_native_toolchain)
 include funcs.mk
 
 final_build_id_long+=$(shell $(build_SHA256SUM) config.site.in)
+final_build_id_long+=$(shell $(build_SHA256SUM) toolchain.cmake.in)
 final_build_id+=$(shell echo -n "$(final_build_id_long)" | $(build_SHA256SUM) | cut -c-$(HASH_LENGTH))
 $(host_prefix)/.stamp_$(final_build_id): $(native_packages) $(packages)
 	$(AT)rm -rf $(@D)
@@ -216,6 +217,29 @@ $(host_prefix)/share/config.site : config.site.in $(host_prefix)/.stamp_$(final_
             $< > $@
 	$(AT)touch $@
 
+$(host_prefix)/share/toolchain.cmake : toolchain.cmake.in $(host_prefix)/.stamp_$(final_build_id)
+	@mkdir -p $(@D)
+	sed -e 's|@CMAKE_SYSTEM_NAME@|$($(host_os)_cmake_system)|' \
+        -e 's|@CMAKE_SYSTEM_PROCESSOR@|$(host_arch)|' \
+        -e 's|@CMAKE_C_COMPILER@|$(host_CC)|' \
+        -e 's|@CMAKE_CXX_COMPILER@|$(host_CXX)|' \
+        -e 's|@CMAKE_INSTALL_NAME_TOOL@|$(host_INSTALL_NAME_TOOL)|' \
+        -e 's|@CMAKE_FIND_ROOT_PATH@|$(host_prefix)|' \
+        -e 's|@CMAKE_BUILD_TYPE@|$(release_type)|' \
+        -e 's|@CMAKE_C_FLAGS_INIT@|$(strip $(host_CPPFLAGS) $(host_$(release_type)_CPPFLAGS) $(host_CFLAGS) $(host_$(release_type)_CFLAGS))|' \
+        -e 's|@CMAKE_CXX_FLAGS_INIT@|$(strip $(host_CPPFLAGS) $(host_$(release_type)_CPPFLAGS) $(host_CXXFLAGS) $(host_$(release_type)_CXXFLAGS))|' \
+        -e 's|@allow_host_packages@|$(ALLOW_HOST_PACKAGES)|' \
+        -e 's|@no_qt@|$(NO_QT)|' \
+        -e 's|@no_qr@|$(NO_QR)|' \
+        -e 's|@no_zmq@|$(NO_ZMQ)|' \
+        -e 's|@no_wallet@|$(NO_WALLET)|' \
+        -e 's|@no_bdb@|$(NO_BDB)|' \
+        -e 's|@no_sqlite@|$(NO_SQLITE)|' \
+        -e 's|@no_upnp@|$(NO_UPNP)|' \
+        -e 's|@no_natpmp@|$(NO_NATPMP)|' \
+        -e 's|@no_usdt@|$(NO_USDT)|' \
+        $< > $@
+	touch $@
 
 define check_or_remove_cached
   mkdir -p $(BASE_CACHE)/$(host)/$(package) && cd $(BASE_CACHE)/$(host)/$(package); \
@@ -237,6 +261,7 @@ check-sources:
 	@$(foreach package,$(all_packages),$(call check_or_remove_sources,$(package));)
 
 $(host_prefix)/share/config.site: check-packages
+$(host_prefix)/share/toolchain.cmake: check-packages
 
 check-packages: check-sources
 
@@ -246,7 +271,7 @@ clean-all: clean
 clean:
 	@rm -rf $(WORK_PATH) $(BASE_CACHE) $(BUILD)
 
-install: check-packages $(host_prefix)/share/config.site
+install: check-packages $(host_prefix)/share/config.site $(host_prefix)/share/toolchain.cmake
 
 
 download-one: check-sources $(all_sources)
