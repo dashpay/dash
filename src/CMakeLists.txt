@@ -192,3 +192,17 @@ target_link_libraries(bitcoin_node
     Boost::headers
     $<$<NOT:$<PLATFORM_ID:Windows>>:PkgConfig::libevent_pthreads>
 )
+
+
+# Bitcoin Core bitcoind
+if(BUILD_DAEMON)
+  add_executable(bitcoind "")
+  target_sources(bitcoind
+    PRIVATE
+      bitcoind.cpp
+  )
+  target_link_libraries(bitcoind
+    PRIVATE
+      bitcoin_node
+  )
+endif()
