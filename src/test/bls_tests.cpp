@@ -234,12 +234,12 @@ struct Message
     bool valid;
 };
 
-static void AddMessage(std::vector<Message>& vec, uint32_t sourceId, uint32_t msgId, uint32_t msgHash, bool valid)
+static void AddMessage(std::vector<Message>& vec, uint32_t sourceId, uint32_t msgId, uint8_t msgHash, bool valid)
 {
     Message m;
     m.sourceId = sourceId;
     m.msgId = msgId;
-    *((uint32_t*)m.msgHash.begin()) = msgHash;
+    m.msgHash = uint256(msgHash);
     m.sk.MakeNewKey();
     m.pk = m.sk.GetPublicKey();
     m.sig = m.sk.Sign(m.msgHash);
