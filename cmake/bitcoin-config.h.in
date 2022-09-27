@@ -165,4 +165,10 @@
 /* Define if the visibility attribute is supported. */
 #define HAVE_DEFAULT_VISIBILITY_ATTRIBUTE
 
+
+// Features.
+
+/* Define this symbol if the consensus lib has been built. */
+#cmakedefine HAVE_CONSENSUS_LIB
+
 #endif // BITCOIN_CONFIG_H
