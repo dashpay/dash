@@ -227,6 +227,9 @@ target_link_libraries(bitcoin_node
 if(TARGET NATPMP::NATPMP)
   target_link_libraries(bitcoin_node PRIVATE NATPMP::NATPMP)
 endif()
+if(TARGET MiniUPnPc::MiniUPnPc)
+  target_link_libraries(bitcoin_node PRIVATE MiniUPnPc::MiniUPnPc)
+endif()
 
 
 # Bitcoin Core bitcoind
