@@ -133,6 +133,26 @@ target_link_libraries(bitcoin_common
 
 if(ENABLE_WALLET)
   add_subdirectory(wallet)
+
+  if(BUILD_WALLET_TOOL)
+    add_executable(bitcoin-wallet "")
+    target_sources(bitcoin-wallet
+      PRIVATE
+        wallet/wallettool.cpp
+    )
+    target_include_directories(bitcoin-wallet
+      PUBLIC
+        $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}>
+    )
+    target_link_libraries(bitcoin-wallet
+      PRIVATE
+        bitcoin_wallet
+        bitcoin_common
+        bitcoin_consensus
+        bitcoin_util
+        Boost::headers
+    )
+  endif()
 endif()
 
 
