@@ -171,4 +171,13 @@
 /* Define this symbol if the consensus lib has been built. */
 #cmakedefine HAVE_CONSENSUS_LIB
 
+/* Define to 1 to enable wallet functions. */
+#cmakedefine ENABLE_WALLET 1
+
+/* Define if SQLite support should be compiled in. */
+#cmakedefine USE_SQLITE
+
+/* Define if Berkeley DB (BDB) support should be compiled in. */
+#cmakedefine USE_BDB
+
 #endif // BITCOIN_CONFIG_H
