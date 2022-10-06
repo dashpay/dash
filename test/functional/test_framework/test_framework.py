@@ -1266,7 +1266,7 @@ class DashTestFramework(BitcoinTestFramework):
                             return False
                     member_count += 1
                     break
-            return member_count == expected_member_count
+            return member_count >= expected_member_count
 
         wait_until(check_dkg_session, timeout=timeout, sleep=sleep)
 
