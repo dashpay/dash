@@ -133,10 +133,10 @@ private:
 
     static constexpr std::byte to_byte(const Flag flag)
     {
-        return std::byte{flag};
+        return std::byte{static_cast<std::byte>(flag)};
     }
 
-    static constexpr std::byte VERSION_BIT_MASK = std::byte{Flag::VERSION_BIT_0} | std::byte{Flag::VERSION_BIT_1} | std::byte{Flag::VERSION_BIT_2};
+    static constexpr std::byte VERSION_BIT_MASK = std::byte{static_cast<std::byte>(Flag::VERSION_BIT_0)} | std::byte{static_cast<std::byte>(Flag::VERSION_BIT_1)} | std::byte{static_cast<std::byte>(Flag::VERSION_BIT_2)};
 };
 
 struct CompressibleBlockHeader : CBlockHeader {
