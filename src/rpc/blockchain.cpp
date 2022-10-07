@@ -1624,7 +1624,7 @@ static UniValue getchaintips(const JSONRPCRequest& request)
     "3.  \"valid-headers\"         All blocks are available for this branch, but they were never fully validated\n"
     "4.  \"valid-fork\"            This branch is not part of the active chain, but is fully validated\n"
     "5.  \"active\"                This is the tip of the active main chain, which is certainly valid\n"
-    "6.  \"conflicting\"           This block or one of its ancestors is conflicting with ChainLocks."}
+    "6.  \"conflicting\"           This block or one of its ancestors is conflicting with ChainLocks."},
                 }}}},
         RPCExamples{
             HelpExampleCli("getchaintips", "")
