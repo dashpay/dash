@@ -456,7 +456,9 @@ static UniValue protx_register_wrapper(const JSONRPCRequest& request,
 
     size_t paramIdx = 0;
 
-    CAmount collateralAmount = 1000 * COIN;
+    //TODO: Parse request and adapt accordingly
+    bool high_performance_masternode{false};
+    CAmount collateralAmount = high_performance_masternode ? 4000 * COIN : 1000 * COIN;
 
     CMutableTransaction tx;
     tx.nVersion = 3;
@@ -467,6 +469,7 @@ static UniValue protx_register_wrapper(const JSONRPCRequest& request,
         ptx.nVersion = CProRegTx::LEGACY_BLS_VERSION;
     else
         ptx.nVersion = CProRegTx::GetVersion(llmq::utils::IsV19Active(::ChainActive().Tip()));
+    ptx.nType = high_performance_masternode ? CProRegTx::TYPE_HIGH_PERFORMANCE_MASTERNODE : CProRegTx::TYPE_REGULAR_MASTERNODE;
 
     if (isFundRegister) {
         CTxDestination collateralDest = DecodeDestination(request.params[paramIdx].get_str());

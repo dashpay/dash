@@ -26,6 +26,8 @@ public:
     static constexpr auto SPECIALTX_TYPE = TRANSACTION_PROVIDER_REGISTER;
     static constexpr uint16_t LEGACY_BLS_VERSION = 1;
     static constexpr uint16_t BASIC_BLS_VERSION = 2;
+    static constexpr uint16_t TYPE_REGULAR_MASTERNODE = 0;
+    static constexpr uint16_t TYPE_HIGH_PERFORMANCE_MASTERNODE = 1;
 
     [[nodiscard]] static constexpr auto GetVersion(const bool is_basic_scheme_active) -> uint16_t
     {
@@ -33,7 +35,7 @@ public:
     }
 
     uint16_t nVersion{LEGACY_BLS_VERSION};                 // message version
-    uint16_t nType{0};                                     // only 0 supported for now
+    uint16_t nType{TYPE_REGULAR_MASTERNODE};
     uint16_t nMode{0};                                     // only 0 supported for now
     COutPoint collateralOutpoint{uint256(), (uint32_t)-1}; // if hash is null, we refer to a ProRegTx output
     CService addr;

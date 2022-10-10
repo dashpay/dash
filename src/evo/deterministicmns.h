@@ -41,8 +41,9 @@ private:
 
 public:
     CDeterministicMN() = delete; // no default constructor, must specify internalId
-    explicit CDeterministicMN(uint64_t _internalId) : internalId(_internalId)
+    explicit CDeterministicMN(uint64_t _internalId, bool highPerformanceMasternode = false) : internalId(_internalId)
     {
+        highPerformanceMasternode ? type = MasternodeType::HighPerformance : MasternodeType::Regular;
         // only non-initial values
         assert(_internalId != std::numeric_limits<uint64_t>::max());
     }
@@ -59,9 +60,16 @@ public:
         s >> *this;
     }
 
+    enum MasternodeType
+    {
+        Regular,
+        HighPerformance
+    };
+
     uint256 proTxHash;
     COutPoint collateralOutpoint;
     uint16_t nOperatorReward{0};
+    MasternodeType type;
     std::shared_ptr<const CDeterministicMNState> pdmnState;
 
     template <typename Stream, typename Operation>
@@ -302,8 +310,8 @@ public:
      * @param modifier
      * @return
      */
-    [[nodiscard]] std::vector<CDeterministicMNCPtr> CalculateQuorum(size_t maxSize, const uint256& modifier) const;
-    [[nodiscard]] std::vector<std::pair<arith_uint256, CDeterministicMNCPtr>> CalculateScores(const uint256& modifier) const;
+    [[nodiscard]] std::vector<CDeterministicMNCPtr> CalculateQuorum(size_t maxSize, const uint256& modifier, const bool onlyHighPerformanceMasternodes = false) const;
+    [[nodiscard]] std::vector<std::pair<arith_uint256, CDeterministicMNCPtr>> CalculateScores(const uint256& modifier, const bool onlyHighPerformanceMasternodes) const;
 
     /**
      * Calculates the maximum penalty which is allowed at the height of this MN list. It is dynamic and might change
