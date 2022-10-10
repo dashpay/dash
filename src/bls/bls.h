@@ -149,7 +149,7 @@ public:
     }
 
     //TODO: Add version with argument (bool specificLegacyScheme)
-    bool SetHexStr(const std::string& str)
+    bool SetHexStr(const std::string& str, const bool specificLegacyScheme)
     {
         if (!IsHex(str)) {
             Reset();
@@ -160,8 +160,13 @@ public:
             Reset();
             return false;
         }
-        SetByteVector(b);
+        SetByteVector(b, specificLegacyScheme);
         return IsValid();
+    }
+
+    bool SetHexStr(const std::string& str)
+    {
+        return SetHexStr(str, bls::bls_legacy_scheme.load());
     }
 
     inline void Serialize(CSizeComputer& s) const
@@ -306,6 +311,25 @@ public:
 
 };
 
+class CBLSBLSPublicKeyVersionWrapper {
+private:
+    bool legacy;
+    CBLSPublicKey& obj;
+public:
+    CBLSBLSPublicKeyVersionWrapper(CBLSPublicKey& obj, bool legacy)
+            : obj(obj)
+            , legacy(legacy)
+    {}
+    template <typename Stream>
+    inline void Serialize(Stream& s) const {
+        obj.Serialize(s, legacy);
+    }
+    template <typename Stream>
+    inline void Unserialize(Stream& s, bool checkMalleable = true) {
+        obj.Unserialize(s, legacy, checkMalleable);
+    }
+};
+
 class CBLSSignature : public CBLSWrapper<bls::G2Element, BLS_CURVE_SIG_SIZE, CBLSSignature>
 {
     friend class CBLSSecretKey;
@@ -331,6 +355,27 @@ public:
     [[nodiscard]] bool VerifySecureAggregated(const std::vector<CBLSPublicKey>& pks, const uint256& hash) const;
 
     bool Recover(const std::vector<CBLSSignature>& sigs, const std::vector<CBLSId>& ids);
+};
+
+class CBLSSignatureVersionWrapper {
+private:
+    bool legacy;
+    bool checkMalleable;
+    CBLSSignature& obj;
+public:
+    CBLSSignatureVersionWrapper(CBLSSignature& obj, bool legacy, bool checkMalleable = true)
+            : obj(obj)
+            , legacy(legacy)
+            , checkMalleable(checkMalleable)
+    {}
+    template <typename Stream>
+    inline void Serialize(Stream& s) const {
+        obj.Serialize(s, legacy);
+    }
+    template <typename Stream>
+    inline void Unserialize(Stream& s, bool checkMalleable = true) {
+        obj.Unserialize(s, legacy, checkMalleable);
+    }
 };
 
 #ifndef BUILD_BITCOIN_INTERNAL

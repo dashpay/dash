@@ -48,45 +48,24 @@ public:
     uint256 inputsHash; // replay protection
     std::vector<unsigned char> vchSig;
 
-    template <typename Stream, typename Operation>
-    inline void SerializationOpBase(Stream& s, Operation ser_action)
+    SERIALIZE_METHODS(CProRegTx, obj)
     {
-        READWRITE(nVersion,
-                  nType,
-                  nMode,
-                  collateralOutpoint,
-                  addr,
-                  keyIDOwner
-                  );
-    }
-
-    template <typename Stream, typename Operation>
-    inline void SerializationOpTail(Stream& s, Operation ser_action)
-    {
-        READWRITE(keyIDVoting,
-                  nOperatorReward,
-                  scriptPayout,
-                  inputsHash);
+        READWRITE(
+                obj.nVersion,
+                obj.nType,
+                obj.nMode,
+                obj.collateralOutpoint,
+                obj.addr,
+                obj.keyIDOwner,
+                CBLSBLSPublicKeyVersionWrapper(const_cast<CBLSPublicKey&>(obj.pubKeyOperator), (obj.nVersion == LEGACY_BLS_VERSION)),
+                obj.keyIDVoting,
+                obj.nOperatorReward,
+                obj.scriptPayout,
+                obj.inputsHash
+        );
         if (!(s.GetType() & SER_GETHASH)) {
-            READWRITE(vchSig);
+            READWRITE(obj.vchSig);
         }
-    }
-
-    template <typename Stream>
-    inline void Serialize(Stream& s) const
-    {
-        const_cast<CProRegTx*>(this)->SerializationOpBase(s, CSerActionSerialize());
-        bool fLegacyScheme = (nVersion == LEGACY_BLS_VERSION);
-        pubKeyOperator.Serialize(s, fLegacyScheme);
-        const_cast<CProRegTx*>(this)->SerializationOpTail(s, CSerActionSerialize());
-    }
-    template <typename Stream>
-    inline void Unserialize(Stream& s)
-    {
-        SerializationOpBase(s, CSerActionUnserialize());
-        bool fLegacyScheme = (nVersion == LEGACY_BLS_VERSION);
-        pubKeyOperator.Unserialize(s, fLegacyScheme, true);
-        SerializationOpTail(s, CSerActionUnserialize());
     }
 
     // When signing with the collateral key, we don't sign the hash but a generated message instead
@@ -133,33 +112,19 @@ public:
     uint256 inputsHash; // replay protection
     CBLSSignature sig;
 
-    template <typename Stream, typename Operation>
-    inline void SerializationOpBase(Stream& s, Operation ser_action)
+    SERIALIZE_METHODS(CProUpServTx, obj)
     {
-        READWRITE(nVersion,
-                  proTxHash,
-                  addr,
-                  scriptOperatorPayout,
-                  inputsHash
+        READWRITE(
+                obj.nVersion,
+                obj.proTxHash,
+                obj.addr,
+                obj.scriptOperatorPayout,
+                obj.inputsHash
         );
-    }
-
-    template <typename Stream>
-    inline void Serialize(Stream& s) const
-    {
-        const_cast<CProUpServTx*>(this)->SerializationOpBase(s, CSerActionSerialize());
         if (!(s.GetType() & SER_GETHASH)) {
-            bool fLegacyScheme = (nVersion == LEGACY_BLS_VERSION);
-            sig.Serialize(s, fLegacyScheme);
-        }
-    }
-    template <typename Stream>
-    inline void Unserialize(Stream& s)
-    {
-        SerializationOpBase(s, CSerActionUnserialize());
-        if (!(s.GetType() & SER_GETHASH)) {
-            bool fLegacyScheme = (nVersion == LEGACY_BLS_VERSION);
-            sig.Unserialize(s, fLegacyScheme, true);
+            READWRITE(
+                    CBLSSignatureVersionWrapper(const_cast<CBLSSignature&>(obj.sig), (obj.nVersion == LEGACY_BLS_VERSION), true)
+            );
         }
     }
 
@@ -198,42 +163,22 @@ public:
     uint256 inputsHash; // replay protection
     std::vector<unsigned char> vchSig;
 
-    template <typename Stream, typename Operation>
-    inline void SerializationOpBase(Stream& s, Operation ser_action)
+    SERIALIZE_METHODS(CProUpRegTx, obj)
     {
-        READWRITE(nVersion,
-                  proTxHash,
-                  nMode
+        READWRITE(
+                obj.nVersion,
+                obj.proTxHash,
+                obj.nMode,
+                CBLSBLSPublicKeyVersionWrapper(const_cast<CBLSPublicKey&>(obj.pubKeyOperator), (obj.nVersion == LEGACY_BLS_VERSION)),
+                obj.keyIDVoting,
+                obj.scriptPayout,
+                obj.inputsHash
         );
-    }
-
-    template <typename Stream, typename Operation>
-    inline void SerializationOpTail(Stream& s, Operation ser_action)
-    {
-        READWRITE(keyIDVoting,
-                  scriptPayout,
-                  inputsHash);
         if (!(s.GetType() & SER_GETHASH)) {
-            READWRITE(vchSig);
+            READWRITE(
+                    obj.vchSig
+            );
         }
-    }
-
-    template <typename Stream>
-    inline void Serialize(Stream& s) const
-    {
-        const_cast<CProUpRegTx*>(this)->SerializationOpBase(s, CSerActionSerialize());
-        bool fLegacyScheme = (nVersion == LEGACY_BLS_VERSION);
-        pubKeyOperator.Serialize(s, fLegacyScheme);
-        const_cast<CProUpRegTx*>(this)->SerializationOpTail(s, CSerActionSerialize());
-    }
-
-    template <typename Stream>
-    inline void Unserialize(Stream& s/*, bool checkMalleable = true*/)
-    {
-        SerializationOpBase(s, CSerActionUnserialize());
-        bool fLegacyScheme = (nVersion == LEGACY_BLS_VERSION);
-        pubKeyOperator.Unserialize(s, fLegacyScheme, false);
-        SerializationOpTail(s, CSerActionUnserialize());
     }
 
     std::string ToString() const;
@@ -278,32 +223,18 @@ public:
     uint256 inputsHash; // replay protection
     CBLSSignature sig;
 
-    template <typename Stream, typename Operation>
-    inline void SerializationOpBase(Stream& s, Operation ser_action)
+    SERIALIZE_METHODS(CProUpRevTx, obj)
     {
-        READWRITE(nVersion,
-                  proTxHash,
-                  nReason,
-                  inputsHash
+        READWRITE(
+                obj.nVersion,
+                obj.proTxHash,
+                obj.nReason,
+                obj.inputsHash
         );
-    }
-
-    template <typename Stream>
-    inline void Serialize(Stream& s) const
-    {
-        const_cast<CProUpRevTx*>(this)->SerializationOpBase(s, CSerActionSerialize());
         if (!(s.GetType() & SER_GETHASH)) {
-            bool fLegacyScheme = (nVersion == LEGACY_BLS_VERSION);
-            sig.Serialize(s, fLegacyScheme);
-        }
-    }
-    template <typename Stream>
-    inline void Unserialize(Stream& s)
-    {
-        SerializationOpBase(s, CSerActionUnserialize());
-        if (!(s.GetType() & SER_GETHASH)) {
-            bool fLegacyScheme = (nVersion == LEGACY_BLS_VERSION);
-            sig.Unserialize(s, fLegacyScheme, true);
+            READWRITE(
+                    CBLSSignatureVersionWrapper(const_cast<CBLSSignature&>(obj.sig), (obj.nVersion == LEGACY_BLS_VERSION), true)
+            );
         }
     }
 

@@ -64,53 +64,27 @@ public:
     bool VerifySizes(const Consensus::LLMQParams& params) const;
 
 public:
-    template <typename Stream, typename Operation>
-    inline void SerializationOpBase(Stream& s, Operation ser_action)
+
+    SERIALIZE_METHODS(CFinalCommitment, obj)
     {
-        READWRITE(nVersion,
-                  llmqType,
-                  quorumHash
+        READWRITE(
+                obj.nVersion,
+                obj.llmqType,
+                obj.quorumHash
         );
-    }
-
-    template <typename Stream, typename Operation>
-    inline void SerializationOpTail(Stream& s, Operation ser_action)
-    {
-        READWRITE(quorumVvecHash,
-                  quorumSig,
-                  membersSig);
-    }
-
-    template <typename Stream>
-    inline void Serialize(Stream& s) const
-    {
-        const_cast<CFinalCommitment*>(this)->SerializationOpBase(s, CSerActionSerialize());
-        if (nVersion == LEGACY_BLS_INDEXED_QUORUM_VERSION || nVersion == BASIC_BLS_INDEXED_QUORUM_VERSION)
-        {
-            ser_writedata16(s, quorumIndex);
+        if (obj.nVersion == LEGACY_BLS_INDEXED_QUORUM_VERSION || obj.nVersion == BASIC_BLS_INDEXED_QUORUM_VERSION) {
+            READWRITE(
+                    obj.quorumIndex
+            );
         }
-        DynamicBitSetFormatter dyn_ser;
-        dyn_ser.Ser(s, signers);
-        dyn_ser.Ser(s, validMembers);
-        bool fLegacyScheme = (nVersion == LEGACY_BLS_NON_INDEXED_QUORUM_VERSION || nVersion == LEGACY_BLS_INDEXED_QUORUM_VERSION);
-        quorumPublicKey.Serialize(s, fLegacyScheme);
-        const_cast<CFinalCommitment*>(this)->SerializationOpTail(s, CSerActionSerialize());
-    }
-
-    template <typename Stream>
-    inline void Unserialize(Stream& s)
-    {
-        SerializationOpBase(s, CSerActionUnserialize());
-        if (nVersion == LEGACY_BLS_INDEXED_QUORUM_VERSION || nVersion == BASIC_BLS_INDEXED_QUORUM_VERSION)
-        {
-            quorumIndex = ser_readdata16(s);
-        }
-        DynamicBitSetFormatter dyn_ser;
-        dyn_ser.Unser(s, signers);
-        dyn_ser.Unser(s, validMembers);
-        bool fLegacyScheme = (nVersion == LEGACY_BLS_NON_INDEXED_QUORUM_VERSION || nVersion == LEGACY_BLS_INDEXED_QUORUM_VERSION);
-        quorumPublicKey.Unserialize(s, fLegacyScheme, false);
-        SerializationOpTail(s, CSerActionUnserialize());
+        READWRITE(
+                DYNBITSET(obj.signers),
+                DYNBITSET(obj.validMembers),
+                CBLSBLSPublicKeyVersionWrapper(const_cast<CBLSPublicKey&>(obj.quorumPublicKey), (obj.nVersion == LEGACY_BLS_NON_INDEXED_QUORUM_VERSION || obj.nVersion == LEGACY_BLS_INDEXED_QUORUM_VERSION)),
+                obj.quorumVvecHash,
+                obj.quorumSig,
+                obj.membersSig
+        );
     }
 
 public:

@@ -555,7 +555,8 @@ static UniValue mnauth(const JSONRPCRequest& request)
         throw JSONRPCError(RPC_INVALID_PARAMETER, "proTxHash invalid");
     }
     CBLSPublicKey publicKey;
-    publicKey.SetHexStr(request.params[2].get_str());
+    //TODO: Cover basic BLS scheme as well
+    publicKey.SetHexStr(request.params[2].get_str(), true);
     if (!publicKey.IsValid()) {
         throw JSONRPCError(RPC_INVALID_PARAMETER, "publicKey invalid");
     }
