@@ -147,3 +147,36 @@ if(ENABLE_WALLET)
     target_link_libraries(test_bitcoin PRIVATE BerkeleyDB::BerkeleyDB)
   endif()
 endif()
+
+function(add_boost_test source_file_name)
+  set(source_file_path "${CMAKE_CURRENT_SOURCE_DIR}/${source_file_name}")
+  if(NOT EXISTS ${source_file_path})
+    return()
+  endif()
+
+  file(READ "${source_file_path}" source_file_content)
+  string(REGEX
+    MATCH "(BOOST_FIXTURE_TEST_SUITE|BOOST_AUTO_TEST_SUITE)\\(([A-Za-z0-9_]+)"
+    test_suite_macro "${source_file_content}"
+  )
+  string(REGEX
+    REPLACE "(BOOST_FIXTURE_TEST_SUITE|BOOST_AUTO_TEST_SUITE)\\(" ""
+    test_suite_name "${test_suite_macro}"
+  )
+  if(test_suite_name)
+    add_test(NAME "${test_suite_name}:${source_file_name}"
+      COMMAND test_bitcoin --run_test=${test_suite_name} --catch_system_error=no
+    )
+  endif()
+endfunction()
+
+function(add_all_test_targets)
+  get_target_property(test_sources test_bitcoin SOURCES)
+  foreach(test_source ${test_sources})
+    add_boost_test(${test_source})
+  endforeach()
+endfunction()
+
+include(CTest)
+enable_testing()
+add_all_test_targets()
