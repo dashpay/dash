@@ -84,3 +84,48 @@ target_link_libraries(bitcoin_consensus
     bitcoin_crypto
     secp256k1
 )
+
+
+# Home for common functionality shared by different executables and libraries.
+# Similar to `bitcoin_util` library, but higher-level.
+add_library(bitcoin_common STATIC EXCLUDE_FROM_ALL "")
+target_sources(bitcoin_common
+  PRIVATE
+    base58.cpp
+    bech32.cpp
+    chainparams.cpp
+    coins.cpp
+    compressor.cpp
+    core_read.cpp
+    core_write.cpp
+    key.cpp
+    key_io.cpp
+    merkleblock.cpp
+    netaddress.cpp
+    netbase.cpp
+    net_permissions.cpp
+    policy/feerate.cpp
+    policy/policy.cpp
+    protocol.cpp
+    psbt.cpp
+    rpc/rawtransaction_util.cpp
+    rpc/util.cpp
+    scheduler.cpp
+    script/descriptor.cpp
+    script/sign.cpp
+    script/signingprovider.cpp
+    script/standard.cpp
+    warnings.cpp
+)
+target_include_directories(bitcoin_common
+  PUBLIC
+    $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}>
+)
+target_link_libraries(bitcoin_common
+  PRIVATE
+    bitcoin_consensus
+    bitcoin_util
+    univalue
+    secp256k1
+    Boost::headers
+)
