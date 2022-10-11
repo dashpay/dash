@@ -110,6 +110,7 @@ tristate_option(WITH_EXTERNAL_SIGNER "Enable external signer support." "if Boost
 
 option(BUILD_TESTS "Build test_bitcoin executable." ON)
 option(BUILD_BENCH "Build bench_bitcoin executable." ON)
+option(INSTALL_MAN "Install man pages." ON)
 
 if(CXX20 OR MSVC)
   set(CMAKE_CXX_STANDARD 20)

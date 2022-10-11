@@ -134,6 +134,7 @@ target_link_libraries(bitcoin_common
 )
 
 
+set(installable_targets "")
 if(ENABLE_WALLET)
   add_subdirectory(wallet)
 
@@ -156,6 +157,7 @@ if(ENABLE_WALLET)
         Boost::headers
     )
     copy_target_for_tests(bitcoin-wallet)
+    list(APPEND installable_targets bitcoin-wallet)
   endif()
 endif()
 
@@ -252,6 +254,7 @@ if(BUILD_DAEMON)
       $<$<BOOL:${ENABLE_WALLET}>:bitcoin_wallet>
   )
   copy_target_for_tests(bitcoind)
+  list(APPEND installable_targets bitcoind)
 endif()
 
 
@@ -281,6 +284,7 @@ if(BUILD_CLI)
       PkgConfig::libevent
   )
   copy_target_for_tests(bitcoin-cli)
+  list(APPEND installable_targets bitcoin-cli)
 endif()
 
 
@@ -301,6 +305,7 @@ if(BUILD_TX)
       univalue
   )
   copy_target_for_tests(bitcoin-tx)
+  list(APPEND installable_targets bitcoin-tx)
 endif()
 
 
@@ -320,15 +325,24 @@ if(BUILD_UTIL)
       bitcoin_util
   )
   copy_target_for_tests(bitcoin-util)
+  list(APPEND installable_targets bitcoin-util)
 endif()
 
 
 if(BUILD_BITCOINCONSENSUS_LIB)
   add_subdirectory(script)
+  get_directory_property(dir_script_targets
+    DIRECTORY script BUILDSYSTEM_TARGETS
+  )
+  list(APPEND installable_targets ${dir_script_targets})
 endif()
 
 if(BUILD_BITCOINKERNEL_LIB)
   add_subdirectory(kernel)
+  get_directory_property(dir_kernel_targets
+    DIRECTORY kernel BUILDSYSTEM_TARGETS
+  )
+  list(APPEND installable_targets ${dir_kernel_targets})
 endif()
 
 if(BUILD_UTIL_CHAINSTATE)
@@ -355,17 +369,36 @@ if(BUILD_UTIL_CHAINSTATE)
       Boost::headers
       $<$<PLATFORM_ID:Windows>:ws2_32>
   )
+  list(APPEND installable_targets bitcoin-chainstate)
 endif()
 
 
 if(NOT WITH_GUI STREQUAL "no")
   add_subdirectory(qt)
+  list(APPEND installable_targets bitcoin-qt)
 endif()
 
 add_subdirectory(test/util)
 if(BUILD_TESTS)
   add_subdirectory(test)
+  list(APPEND installable_targets test_bitcoin)
 endif()
 if(BUILD_BENCH)
   add_subdirectory(bench)
+  list(APPEND installable_targets bench_bitcoin)
+endif()
+
+
+include(GNUInstallDirs)
+install(TARGETS ${installable_targets}
+  RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR}
+  LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR}
+  ARCHIVE DESTINATION ${CMAKE_INSTALL_LIBDIR}
+  PUBLIC_HEADER DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}
+)
+if(INSTALL_MAN)
+  install(DIRECTORY ../doc/man/
+    DESTINATION ${CMAKE_INSTALL_MANDIR}/man1
+    FILES_MATCHING PATTERN *.1
+  )
 endif()
