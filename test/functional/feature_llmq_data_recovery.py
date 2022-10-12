@@ -35,7 +35,7 @@ class QuorumDataRecoveryTest(DashTestFramework):
             args.append('-llmq-qvvec-sync=%s:%d' % (llmq_type_strings[llmq_sync[0]], llmq_sync[1]))
         if reindex:
             args.append('-reindex')
-            bb_hash =  mn.node.getbestblockhash()
+            bb_hash = mn.node.getbestblockhash()
             self.restart_node(mn.nodeIdx, args)
             wait_until(lambda: mn.node.getbestblockhash() == bb_hash)
         else:
