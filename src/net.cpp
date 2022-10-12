@@ -2469,7 +2469,7 @@ void CConnman::ThreadOpenMasternodeConnections()
 
         const auto getPendingProbes = [&]() {
             LockAssertion lock(cs_vPendingMasternodes);
-            std::vector<CDeterministicMNCPtr> pending;
+            std::vector<CDeterministicMNCPtr> ret;
             for (auto it = masternodePendingProbes.begin(); it != masternodePendingProbes.end(); ) {
                 auto dmn = mnList.GetMN(*it);
                 if (!dmn) {
@@ -2491,9 +2491,9 @@ void CConnman::ThreadOpenMasternodeConnections()
                 if (nANow - lastAttempt < chainParams.LLMQConnectionRetryTimeout()) {
                     continue;
                 }
-                pending.emplace_back(dmn);
+                ret.emplace_back(dmn);
             }
-            return pending;
+            return ret;
         };
 
         auto getConnectToDmn = [&]() -> CDeterministicMNCPtr {
