@@ -2105,7 +2105,7 @@ bool CChainState::ConnectBlock(const CBlock& block, CValidationState& state, CBl
     // make sure old budget is the real one
     if (pindex->nHeight == chainparams.GetConsensus().nSuperblockStartBlock &&
         chainparams.GetConsensus().nSuperblockStartHash != uint256() &&
-        block.GetHash() != chainparams.GetConsensus().nSuperblockStartHash) {
+        block_hash != chainparams.GetConsensus().nSuperblockStartHash) {
             return state.Invalid(ValidationInvalidReason::CONSENSUS, error("ConnectBlock(): invalid superblock start"), REJECT_INVALID, "bad-sb-start");
     }
     /// END DASH
