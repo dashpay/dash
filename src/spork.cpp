@@ -28,7 +28,7 @@ std::optional<int64_t> CSporkManager::SporkValueIfActive(SporkId nSporkID) const
 {
     AssertLockHeld(cs);
 
-    if (!mapSporksActive.count(nSporkID)) return false;
+    if (!mapSporksActive.count(nSporkID)) return std::nullopt;
 
     {
         LOCK(cs_mapSporksCachedValues);
