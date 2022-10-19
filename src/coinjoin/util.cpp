@@ -186,7 +186,7 @@ bool CTransactionBuilder::CouldAddOutput(CAmount nAmountOutput) const
 bool CTransactionBuilder::CouldAddOutputs(const std::vector<CAmount>& vecOutputAmounts) const
 {
     CAmount nAmountAdditional{0};
-    assert(vecOutputAmounts.size() < INT_MAX);
+    assert(vecOutputAmounts.size() < std::numeric_limits<int>::max());
     int nBytesAdditional = nBytesOutput * int(vecOutputAmounts.size());
     for (const auto nAmountOutput : vecOutputAmounts) {
         if (nAmountOutput < 0) {
@@ -246,7 +246,7 @@ int CTransactionBuilder::GetSizeOfCompactSizeDiff(size_t nAdd) const
 {
     size_t nSize = WITH_LOCK(cs_outputs, return vecOutputs.size());
     unsigned int ret = ::GetSizeOfCompactSizeDiff(nSize, nSize + nAdd);
-    assert(ret <= INT_MAX);
+    assert(ret <= std::numeric_limits<int>::max());
     return int(ret);
 }
 
