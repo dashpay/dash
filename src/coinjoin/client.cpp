@@ -945,7 +945,7 @@ bool CCoinJoinClientManager::DoAutomaticDenominating(CConnman& connman, bool fDr
     bool fResult = true;
     AssertLockNotHeld(cs_deqsessions);
     LOCK(cs_deqsessions);
-    if ((int)deqSessions.size() < CCoinJoinClientOptions::GetSessions()) {
+    if (int(deqSessions.size()) < CCoinJoinClientOptions::GetSessions()) {
         deqSessions.emplace_back(mixingWallet);
     }
     for (auto& session : deqSessions) {
