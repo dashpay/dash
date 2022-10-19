@@ -1002,7 +1002,6 @@ static UniValue protx_list(const JSONRPCRequest& request)
     try {
         wallet = GetWalletForJSONRPCRequest(request);
     } catch (...) {
-        wallet = nullptr;
     }
 #endif
 
@@ -1107,7 +1106,6 @@ static UniValue protx_info(const JSONRPCRequest& request)
     try {
         wallet = GetWalletForJSONRPCRequest(request);
     } catch (...) {
-        wallet = nullptr;
     }
 #endif
 
