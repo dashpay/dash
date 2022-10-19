@@ -1497,7 +1497,7 @@ bool CCoinJoinClientSession::CreateCollateralTransaction(CMutableTransaction& tx
         return false;
     }
 
-    const auto& output = vCoins.at(GetRandInt(vCoins.size()));
+    const auto& output = vCoins.at(GetRand(vCoins.size()));
     const CTxOut txout = output.tx->tx->vout[output.i];
 
     txCollateral.vin.clear();
