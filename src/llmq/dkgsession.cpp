@@ -90,7 +90,7 @@ bool CDKGSession::Init(const CBlockIndex* _pQuorumBaseBlockIndex, const std::vec
         const CBlockIndex* pCycleQuorumBaseBlockIndex = m_quorum_base_block_index->GetAncestor(cycleQuorumBaseHeight);
         if (LogAcceptCategory(BCLog::LLMQ)) {
             std::stringstream ss;
-            for (const auto &mn: members) {
+            for (const auto& mn: members) {
                 ss << mn->dmn->proTxHash.ToString().substr(0, 4) << " | ";
             }
             logger.Batch("DKGComposition h[%d] i[%d] DKG:%s\n", pCycleQuorumBaseBlockIndex->nHeight, quorumIndex,
@@ -108,7 +108,7 @@ bool CDKGSession::Init(const CBlockIndex* _pQuorumBaseBlockIndex, const std::vec
         relayMembers = utils::GetQuorumRelayMembers(params, m_quorum_base_block_index, myProTxHash, true);
         if (LogAcceptCategory(BCLog::LLMQ)) {
             std::stringstream ss;
-            for (const auto &r: relayMembers) {
+            for (const auto& r: relayMembers) {
                 ss << r.ToString().substr(0, 4) << " | ";
             }
             logger.Batch("forMember[%s] relayMembers[%s]", myProTxHash.ToString().substr(0, 4), ss.str());
