@@ -67,9 +67,9 @@ static void strings_2_strptintf(benchmark::Bench& bench)
     });
 }
 
-BENCHMARK(int_atoi);
-BENCHMARK(strings_1_numberToString);
-BENCHMARK(strings_1_tostring);
-BENCHMARK(strings_2_multi_numberToString);
-BENCHMARK(strings_2_multi_tostring);
-BENCHMARK(strings_2_strptintf);
+BENCHMARK(int_atoi, benchmark::PriorityLevel::HIGH);
+BENCHMARK(strings_1_numberToString, benchmark::PriorityLevel::HIGH);
+BENCHMARK(strings_1_tostring, benchmark::PriorityLevel::HIGH);
+BENCHMARK(strings_2_multi_numberToString, benchmark::PriorityLevel::HIGH);
+BENCHMARK(strings_2_multi_tostring, benchmark::PriorityLevel::HIGH);
+BENCHMARK(strings_2_strptintf, benchmark::PriorityLevel::HIGH);

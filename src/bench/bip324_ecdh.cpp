@@ -48,4 +48,4 @@ static void BIP324_ECDH(benchmark::Bench& bench)
     ECC_Stop();
 }
 
-BENCHMARK(BIP324_ECDH);
+BENCHMARK(BIP324_ECDH, benchmark::PriorityLevel::HIGH);

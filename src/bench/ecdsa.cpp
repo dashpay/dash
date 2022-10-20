@@ -84,6 +84,6 @@ static void ECDSAVerify_LargeBlock(benchmark::Bench& bench)
     ECC_Stop();
 }
 
-BENCHMARK(ECDSASign)
-BENCHMARK(ECDSAVerify)
-BENCHMARK(ECDSAVerify_LargeBlock)
+BENCHMARK(ECDSASign, benchmark::PriorityLevel::HIGH)
+BENCHMARK(ECDSAVerify, benchmark::PriorityLevel::HIGH)
+BENCHMARK(ECDSAVerify_LargeBlock, benchmark::PriorityLevel::HIGH)

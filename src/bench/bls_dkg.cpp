@@ -136,7 +136,7 @@ static void BLSDKG_GenerateContributions(benchmark::Bench& bench, uint32_t epoch
     {                                                \
         BLSDKG_GenerateContributions(bench, epoch_iters, quorumSize); \
     } \
-    BENCHMARK(BLSDKG_GenerateContributions_##name##_##quorumSize)
+    BENCHMARK(BLSDKG_GenerateContributions_##name##_##quorumSize, benchmark::PriorityLevel::HIGH)
 
 static void BLSDKG_InitDKG(benchmark::Bench& bench, uint32_t epoch_iters, int quorumSize)
 {
@@ -154,7 +154,7 @@ static void BLSDKG_InitDKG(benchmark::Bench& bench, uint32_t epoch_iters, int qu
     {                                                \
         BLSDKG_InitDKG(bench, epoch_iters, quorumSize); \
     } \
-    BENCHMARK(BLSDKG_InitDKG_##name##_##quorumSize)
+    BENCHMARK(BLSDKG_InitDKG_##name##_##quorumSize, benchmark::PriorityLevel::HIGH)
 
 #define BENCH_BuildQuorumVerificationVectors(name, quorumSize, epoch_iters) \
     static void BLSDKG_BuildQuorumVerificationVectors_##name##_##quorumSize(benchmark::Bench& bench) \
@@ -169,7 +169,7 @@ static void BLSDKG_InitDKG(benchmark::Bench& bench, uint32_t epoch_iters, int qu
         ptr->Bench_BuildQuorumVerificationVectors(bench, epoch_iters); \
         ptr.reset(); \
     } \
-    BENCHMARK(BLSDKG_BuildQuorumVerificationVectors_##name##_##quorumSize)
+    BENCHMARK(BLSDKG_BuildQuorumVerificationVectors_##name##_##quorumSize, benchmark::PriorityLevel::HIGH)
 
 #define BENCH_VerifyContributionShares(name, quorumSize, invalidCount, aggregated, epoch_iters) \
     static void BLSDKG_VerifyContributionShares_##name##_##quorumSize(benchmark::Bench& bench) \
@@ -184,7 +184,7 @@ static void BLSDKG_InitDKG(benchmark::Bench& bench, uint32_t epoch_iters, int qu
         ptr->Bench_VerifyContributionShares(bench, invalidCount, aggregated, epoch_iters); \
         ptr.reset(); \
     } \
-    BENCHMARK(BLSDKG_VerifyContributionShares_##name##_##quorumSize)
+    BENCHMARK(BLSDKG_VerifyContributionShares_##name##_##quorumSize, benchmark::PriorityLevel::HIGH)
 
 BENCH_GenerateContributions(simple, 50, 50);
 BENCH_GenerateContributions(simple, 100, 5);
