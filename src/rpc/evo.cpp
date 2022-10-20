@@ -435,12 +435,12 @@ static void protx_register_submit_help(const JSONRPCRequest& request)
         },
     }.Check(request);
 }
-static UniValue protx_register_wrapper(const JSONRPCRequest& request, const bool specific_legacy_bls_scheme)
+static UniValue protx_register_wrapper(const JSONRPCRequest& request,
+                                       const bool specific_legacy_bls_scheme,
+                                       const bool isExternalRegister,
+                                       const bool isFundRegister,
+                                       const bool isPrepareRegister)
 {
-    bool isExternalRegister = request.strMethod == "protxregister";
-    bool isFundRegister = request.strMethod == "protxregister_fund";
-    bool isPrepareRegister = request.strMethod == "protxregister_prepare";
-
     if (isFundRegister && (request.fHelp || (request.params.size() < 7 || request.params.size() > 9))) {
         protx_register_fund_help(request);
     } else if (isExternalRegister && (request.fHelp || (request.params.size() < 8 || request.params.size() > 10))) {
@@ -605,12 +605,18 @@ static UniValue protx_register_wrapper(const JSONRPCRequest& request, const bool
 
 static UniValue protx_register(const JSONRPCRequest& request)
 {
-    return protx_register_wrapper(request, false);
+    bool isExternalRegister = request.strMethod == "protxregister";
+    bool isFundRegister = request.strMethod == "protxregister_fund";
+    bool isPrepareRegister = request.strMethod == "protxregister_prepare";
+    return protx_register_wrapper(request, false, isExternalRegister, isFundRegister, isPrepareRegister);
 }
 
 static UniValue protx_register_legacy(const JSONRPCRequest& request)
 {
-    return protx_register_wrapper(request, true);
+    bool isExternalRegister = request.strMethod == "protxregister_legacy";
+    bool isFundRegister = request.strMethod == "protxregister_fund_legacy";
+    bool isPrepareRegister = request.strMethod == "protxregister_prepare_legacy";
+    return protx_register_wrapper(request, true, isExternalRegister, isFundRegister, isPrepareRegister);
 }
 
 // handles register, register_prepare and register_fund in one method
