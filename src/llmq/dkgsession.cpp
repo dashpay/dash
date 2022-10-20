@@ -85,17 +85,14 @@ bool CDKGSession::Init(const CBlockIndex* _pQuorumBaseBlockIndex, const std::vec
 
     CDKGLogger logger(*this, __func__);
 
-    if (utils::IsQuorumRotationEnabled(params.type, m_quorum_base_block_index)) {
+    if (LogAcceptCategory(BCLog::LLMQ) && utils::IsQuorumRotationEnabled(params.type, m_quorum_base_block_index)) {
         int cycleQuorumBaseHeight = m_quorum_base_block_index->nHeight - quorumIndex;
         const CBlockIndex* pCycleQuorumBaseBlockIndex = m_quorum_base_block_index->GetAncestor(cycleQuorumBaseHeight);
-        if (LogAcceptCategory(BCLog::LLMQ)) {
-            std::stringstream ss;
-            for (const auto& mn: members) {
-                ss << mn->dmn->proTxHash.ToString().substr(0, 4) << " | ";
-            }
-            logger.Batch("DKGComposition h[%d] i[%d] DKG:%s\n", pCycleQuorumBaseBlockIndex->nHeight, quorumIndex,
-                         ss.str());
+        std::stringstream ss;
+        for (const auto& mn: members) {
+            ss << mn->dmn->proTxHash.ToString().substr(0, 4) << " | ";
         }
+        logger.Batch("DKGComposition h[%d] i[%d] DKG:%s\n", pCycleQuorumBaseBlockIndex->nHeight, quorumIndex, ss.str());
     }
 
     if (mns.size() < size_t(params.minSize)) {
