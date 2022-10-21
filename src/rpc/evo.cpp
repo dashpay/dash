@@ -468,7 +468,7 @@ static UniValue protx_register_wrapper(const JSONRPCRequest& request,
     if (specific_legacy_bls_scheme)
         ptx.nVersion = CProRegTx::LEGACY_BLS_VERSION;
     else
-        ptx.nVersion = llmq::utils::IsBasicBLSSchemeActive(::ChainActive().Tip()) ? CProRegTx::BASIC_BLS_VERSION : CProRegTx::LEGACY_BLS_VERSION;
+        ptx.nVersion = CProRegTx::getVersion(llmq::utils::IsBasicBLSSchemeActive(::ChainActive().Tip()));
 
     if (isFundRegister) {
         CTxDestination collateralDest = DecodeDestination(request.params[paramIdx].get_str());
@@ -685,7 +685,7 @@ static UniValue protx_update_service_wrapper(const JSONRPCRequest& request, cons
     if (specific_legacy_bls_scheme)
         ptx.nVersion = CProUpServTx::LEGACY_BLS_VERSION;
     else
-        ptx.nVersion = llmq::utils::IsBasicBLSSchemeActive(::ChainActive().Tip()) ? CProUpServTx::BASIC_BLS_VERSION : CProUpServTx::LEGACY_BLS_VERSION;
+        ptx.nVersion = CProUpServTx::getVersion(llmq::utils::IsBasicBLSSchemeActive(::ChainActive().Tip()));
     ptx.proTxHash = ParseHashV(request.params[0], "proTxHash");
 
     if (!Lookup(request.params[1].get_str().c_str(), ptx.addr, Params().GetDefaultPort(), false)) {
@@ -792,7 +792,7 @@ static UniValue protx_update_registrar_wrapper(const JSONRPCRequest& request, co
     if (specific_legacy_bls_scheme)
         ptx.nVersion = CProUpRegTx::LEGACY_BLS_VERSION;
     else
-        ptx.nVersion = llmq::utils::IsBasicBLSSchemeActive(::ChainActive().Tip()) ? CProUpRegTx::BASIC_BLS_VERSION : CProUpRegTx::LEGACY_BLS_VERSION;
+        ptx.nVersion = CProUpRegTx::getVersion(llmq::utils::IsBasicBLSSchemeActive(::ChainActive().Tip()));
     ptx.proTxHash = ParseHashV(request.params[0], "proTxHash");
 
     auto dmn = deterministicMNManager->GetListAtChainTip().GetMN(ptx.proTxHash);
@@ -897,7 +897,7 @@ static UniValue protx_revoke_wrapper(const JSONRPCRequest& request, const bool s
     if (specific_legacy_bls_scheme)
         ptx.nVersion = CProUpRevTx::LEGACY_BLS_VERSION;
     else
-        ptx.nVersion = llmq::utils::IsBasicBLSSchemeActive(::ChainActive().Tip()) ? CProUpRevTx::BASIC_BLS_VERSION : CProUpRevTx::LEGACY_BLS_VERSION;
+        ptx.nVersion = CProUpRevTx::getVersion(llmq::utils::IsBasicBLSSchemeActive(::ChainActive().Tip()));
     ptx.proTxHash = ParseHashV(request.params[0], "proTxHash");
 
     CBLSSecretKey keyOperator = ParseBLSSecretKey(request.params[1].get_str(), "operatorKey", specific_legacy_bls_scheme);
@@ -1354,12 +1354,11 @@ static void bls_fromsecret_help(const JSONRPCRequest& request)
 static UniValue bls_fromsecret(const JSONRPCRequest& request)
 {
     bls_fromsecret_help(request);
-
+    bool bls_legacy_scheme = !llmq::utils::IsBasicBLSSchemeActive(::ChainActive().Tip());
     CBLSSecretKey sk;
-    if (!sk.SetHexStr(request.params[0].get_str())) {
+    if (!sk.SetHexStr(request.params[0].get_str(),bls_legacy_scheme)) {
         throw JSONRPCError(RPC_INVALID_PARAMETER, strprintf("Secret key must be a valid hex string of length %d", sk.SerSize*2));
     }
-    bool bls_legacy_scheme = !llmq::utils::IsBasicBLSSchemeActive(::ChainActive().Tip());
     UniValue ret(UniValue::VOBJ);
     ret.pushKV("secret", sk.ToString(bls_legacy_scheme));
     ret.pushKV("public", sk.GetPublicKey().ToString(bls_legacy_scheme));

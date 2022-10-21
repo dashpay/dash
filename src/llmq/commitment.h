@@ -82,8 +82,8 @@ public:
                 DYNBITSET(obj.validMembers),
                 CBLSBLSPublicKeyVersionWrapper(const_cast<CBLSPublicKey&>(obj.quorumPublicKey), (obj.nVersion == LEGACY_BLS_NON_INDEXED_QUORUM_VERSION || obj.nVersion == LEGACY_BLS_INDEXED_QUORUM_VERSION)),
                 obj.quorumVvecHash,
-                obj.quorumSig,
-                obj.membersSig
+                CBLSSignatureVersionWrapper(const_cast<CBLSSignature&>(obj.quorumSig), (obj.nVersion == LEGACY_BLS_NON_INDEXED_QUORUM_VERSION || obj.nVersion == LEGACY_BLS_INDEXED_QUORUM_VERSION)),
+                CBLSSignatureVersionWrapper(const_cast<CBLSSignature&>(obj.membersSig), (obj.nVersion == LEGACY_BLS_NON_INDEXED_QUORUM_VERSION || obj.nVersion == LEGACY_BLS_INDEXED_QUORUM_VERSION))
         );
     }
 
@@ -116,8 +116,8 @@ public:
         obj.pushKV("validMembers", BitsVectorToHexStr(validMembers));
         obj.pushKV("quorumPublicKey", quorumPublicKey.ToString(nVersion == LEGACY_BLS_NON_INDEXED_QUORUM_VERSION || nVersion == LEGACY_BLS_INDEXED_QUORUM_VERSION));
         obj.pushKV("quorumVvecHash", quorumVvecHash.ToString());
-        obj.pushKV("quorumSig", quorumSig.ToString());
-        obj.pushKV("membersSig", membersSig.ToString());
+        obj.pushKV("quorumSig", quorumSig.ToString(nVersion == LEGACY_BLS_NON_INDEXED_QUORUM_VERSION || nVersion == LEGACY_BLS_INDEXED_QUORUM_VERSION));
+        obj.pushKV("membersSig", membersSig.ToString(nVersion == LEGACY_BLS_NON_INDEXED_QUORUM_VERSION || nVersion == LEGACY_BLS_INDEXED_QUORUM_VERSION));
     }
 
 private:

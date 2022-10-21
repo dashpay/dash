@@ -35,6 +35,11 @@ public:
     static constexpr uint16_t LEGACY_BLS_VERSION = 1;
     static constexpr uint16_t BASIC_BLS_VERSION = 2;
 
+    static uint16_t getVersion(const bool is_basic_scheme_active)
+    {
+        return is_basic_scheme_active ? BASIC_BLS_VERSION : LEGACY_BLS_VERSION;
+    }
+
     uint16_t nVersion{LEGACY_BLS_VERSION};                    // message version
     uint16_t nType{0};                                     // only 0 supported for now
     uint16_t nMode{0};                                     // only 0 supported for now
@@ -105,6 +110,11 @@ public:
     static constexpr uint16_t LEGACY_BLS_VERSION = 1;
     static constexpr uint16_t BASIC_BLS_VERSION = 2;
 
+    static uint16_t getVersion(const bool is_basic_scheme_active)
+    {
+        return is_basic_scheme_active ? BASIC_BLS_VERSION : LEGACY_BLS_VERSION;
+    }
+
     uint16_t nVersion{LEGACY_BLS_VERSION}; // message version
     uint256 proTxHash;
     CService addr;
@@ -153,6 +163,11 @@ public:
     static constexpr auto SPECIALTX_TYPE = TRANSACTION_PROVIDER_UPDATE_REGISTRAR;
     static constexpr uint16_t LEGACY_BLS_VERSION = 1;
     static constexpr uint16_t BASIC_BLS_VERSION = 2;
+
+    static uint16_t getVersion(const bool is_basic_scheme_active)
+    {
+        return is_basic_scheme_active ? BASIC_BLS_VERSION : LEGACY_BLS_VERSION;
+    }
 
     uint16_t nVersion{LEGACY_BLS_VERSION}; // message version
     uint256 proTxHash;
@@ -207,6 +222,11 @@ public:
     static constexpr auto SPECIALTX_TYPE = TRANSACTION_PROVIDER_UPDATE_REVOKE;
     static constexpr uint16_t LEGACY_BLS_VERSION = 1;
     static constexpr uint16_t BASIC_BLS_VERSION = 2;
+
+    static uint16_t getVersion(const bool is_basic_scheme_active)
+    {
+        return is_basic_scheme_active ? BASIC_BLS_VERSION : LEGACY_BLS_VERSION;
+    }
 
     // these are just informational and do not have any effect on the revocation
     enum {

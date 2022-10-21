@@ -121,7 +121,7 @@ static CMutableTransaction CreateProRegTx(const CTxMemPool& mempool, SimpleUTXOM
     operatorKeyRet.MakeNewKey();
 
     CProRegTx proTx;
-    proTx.nVersion = bls::bls_legacy_scheme ? CProRegTx::LEGACY_BLS_VERSION : CProRegTx::BASIC_BLS_VERSION;
+    proTx.nVersion = CProRegTx::getVersion(!bls::bls_legacy_scheme);
     proTx.collateralOutpoint.n = 0;
     proTx.addr = LookupNumeric("1.1.1.1", port);
     proTx.keyIDOwner = ownerKeyRet.GetPubKey().GetID();
