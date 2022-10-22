@@ -39,6 +39,7 @@
 
 #include <evo/specialtx.h>
 #include <evo/cbtx.h>
+#include <evo/evodb.h>
 
 #include <llmq/chainlocks.h>
 #include <llmq/instantsend.h>
@@ -1413,7 +1414,7 @@ static UniValue verifychain(const JSONRPCRequest& request)
         nCheckDepth = request.params[1].get_int();
 
     return CVerifyDB().VerifyDB(
-        Params(), &::ChainstateActive().CoinsTip(), nCheckLevel, nCheckDepth);
+        Params(), &::ChainstateActive().CoinsTip(), *g_evoDb, nCheckLevel, nCheckDepth);
 }
 
 /** Implementation of IsSuperMajority with better feedback */

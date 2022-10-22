@@ -205,7 +205,7 @@ private:
 class CQuorumManager
 {
 private:
-    CEvoDB& evoDb;
+    std::shared_ptr<CEvoDB> m_evoDb;
     CConnman& connman;
     CBLSWorker& blsWorker;
     CDKGSessionManager& dkgManager;
@@ -220,7 +220,7 @@ private:
     mutable CThreadInterrupt quorumThreadInterrupt;
 
 public:
-    CQuorumManager(CEvoDB& _evoDb, CConnman& _connman, CBLSWorker& _blsWorker, CQuorumBlockProcessor& _quorumBlockProcessor,
+    CQuorumManager(std::shared_ptr<CEvoDB> _evoDb, CConnman& _connman, CBLSWorker& _blsWorker, CQuorumBlockProcessor& _quorumBlockProcessor,
                    CDKGSessionManager& _dkgManager);
     ~CQuorumManager() { Stop(); };
 

@@ -527,7 +527,7 @@ private:
     // Main thread has indicated we should perform cleanup up to this height
     std::atomic<int> to_cleanup {0};
 
-    CEvoDB& evoDb;
+    std::shared_ptr<CEvoDB> m_evoDb;
     CConnman& connman;
 
     std::unordered_map<uint256, CDeterministicMNList, StaticSaltedHasher> mnListsCache GUARDED_BY(cs);
@@ -535,7 +535,8 @@ private:
     const CBlockIndex* tipIndex GUARDED_BY(cs) {nullptr};
 
 public:
-    explicit CDeterministicMNManager(CEvoDB& _evoDb, CConnman& _connman) : evoDb(_evoDb), connman(_connman) {}
+    explicit CDeterministicMNManager(std::shared_ptr<CEvoDB> evoDb, CConnman& _connman) :
+        m_evoDb(std::move(evoDb)), connman(_connman) {}
     ~CDeterministicMNManager() = default;
 
     bool ProcessBlock(const CBlock& block, const CBlockIndex* pindex, CValidationState& state,

@@ -57,6 +57,8 @@
 #include <evo/evodb.h>
 #include <evo/specialtx.h>
 
+#include <memory>
+
 const std::function<std::string(const char*)> G_TRANSLATION_FUN = nullptr;
 
 FastRandomContext g_insecure_rand_ctx;
@@ -129,10 +131,10 @@ BasicTestingSetup::BasicTestingSetup(const std::string& chainName, const std::ve
     m_node.chain = interfaces::MakeChain(m_node);
     g_wallet_init_interface.Construct(m_node);
     fCheckBlockIndex = true;
-    g_evoDb.reset(new CEvoDB(1 << 20, true, true));
+    g_evoDb = std::make_shared<CEvoDB>(1 << 20, true, true);
     connman = std::make_unique<CConnman>(0x1337, 0x1337);
-    deterministicMNManager.reset(new CDeterministicMNManager(*g_evoDb, *connman));
-    llmq::quorumSnapshotManager.reset(new llmq::CQuorumSnapshotManager(*g_evoDb));
+    deterministicMNManager.reset(new CDeterministicMNManager(g_evoDb, *connman));
+    llmq::quorumSnapshotManager.reset(new llmq::CQuorumSnapshotManager(g_evoDb));
     static bool noui_connected = false;
     if (!noui_connected) {
         noui_connect();
@@ -178,8 +180,8 @@ ChainTestingSetup::ChainTestingSetup(const std::string& chainName, const std::ve
     ::coinJoinClientQueueManager = std::make_unique<CCoinJoinClientQueueManager>(*m_node.connman);
 #endif // ENABLE_WALLET
 
-    deterministicMNManager.reset(new CDeterministicMNManager(*g_evoDb, *m_node.connman));
-    m_node.llmq_ctx = std::make_unique<LLMQContext>(*g_evoDb, *m_node.mempool, *m_node.connman, *sporkManager, true, false);
+    deterministicMNManager.reset(new CDeterministicMNManager(g_evoDb, *m_node.connman));
+    m_node.llmq_ctx = std::make_unique<LLMQContext>(g_evoDb, *m_node.mempool, *m_node.connman, *sporkManager, true, false);
 
     // Start script-checking threads. Set g_parallel_script_checks to true so they are used.
     constexpr int script_check_threads = 2;
@@ -303,7 +305,7 @@ CBlock TestChainSetup::CreateAndProcessBlock(const std::vector<CMutableTransacti
 CBlock TestChainSetup::CreateBlock(const std::vector<CMutableTransaction>& txns, const CScript& scriptPubKey)
 {
     const CChainParams& chainparams = Params();
-    std::unique_ptr<CBlockTemplate> pblocktemplate = BlockAssembler(*sporkManager, *governance, *m_node.llmq_ctx->quorum_block_processor, *m_node.llmq_ctx->clhandler, *m_node.llmq_ctx->isman, *m_node.mempool, chainparams).CreateNewBlock(scriptPubKey);
+    std::unique_ptr<CBlockTemplate> pblocktemplate = BlockAssembler(*sporkManager, *governance, *m_node.llmq_ctx->quorum_block_processor, *m_node.llmq_ctx->clhandler, *m_node.llmq_ctx->isman, g_evoDb, *m_node.mempool, chainparams).CreateNewBlock(scriptPubKey);
     CBlock& block = pblocktemplate->block;
 
     std::vector<CTransactionRef> llmqCommitments;

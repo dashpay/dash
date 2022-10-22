@@ -32,7 +32,7 @@ using CFinalCommitmentPtr = std::unique_ptr<CFinalCommitment>;
 class CQuorumBlockProcessor
 {
 private:
-    CEvoDB& evoDb;
+    std::shared_ptr<CEvoDB> m_evoDb;
     CConnman& connman;
 
     // TODO cleanup
@@ -43,7 +43,7 @@ private:
     mutable std::map<Consensus::LLMQType, unordered_lru_cache<uint256, bool, StaticSaltedHasher>> mapHasMinedCommitmentCache GUARDED_BY(minableCommitmentsCs);
 
 public:
-    explicit CQuorumBlockProcessor(CEvoDB& _evoDb, CConnman& _connman);
+    explicit CQuorumBlockProcessor(std::shared_ptr<CEvoDB> _evoDb, CConnman& _connman);
 
     bool UpgradeDB();
 
