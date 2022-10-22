@@ -354,7 +354,7 @@ void PrepareShutdown(NodeContext& node)
         }
         llmq::quorumSnapshotManager.reset();
         deterministicMNManager.reset();
-        evoDb.reset();
+        g_evoDb.reset();
     }
     for (const auto& client : node.chain_clients) {
         client->stop();
@@ -2029,14 +2029,14 @@ bool AppInitMain(const CoreContext& context, NodeContext& node, interfaces::Bloc
                 pblocktree.reset(new CBlockTreeDB(nBlockTreeDBCache, false, fReset));
 
                 // Same logic as above with pblocktree
-                evoDb.reset();
-                evoDb.reset(new CEvoDB(nEvoDbCache, false, fReset || fReindexChainState));
+                g_evoDb.reset();
+                g_evoDb.reset(new CEvoDB(nEvoDbCache, false, fReset || fReindexChainState));
                 deterministicMNManager.reset();
-                deterministicMNManager.reset(new CDeterministicMNManager(*evoDb, *node.connman));
+                deterministicMNManager.reset(new CDeterministicMNManager(*g_evoDb, *node.connman));
                 llmq::quorumSnapshotManager.reset();
-                llmq::quorumSnapshotManager.reset(new llmq::CQuorumSnapshotManager(*evoDb));
+                llmq::quorumSnapshotManager.reset(new llmq::CQuorumSnapshotManager(*g_evoDb));
                 node.llmq_ctx.reset();
-                node.llmq_ctx.reset(new LLMQContext(*evoDb, *node.mempool, *node.connman, *::sporkManager, false, fReset || fReindexChainState));
+                node.llmq_ctx.reset(new LLMQContext(*g_evoDb, *node.mempool, *node.connman, *::sporkManager, false, fReset || fReindexChainState));
 
                 if (fReset) {
                     pblocktree->WriteReindexing(true);
@@ -2146,7 +2146,7 @@ bool AppInitMain(const CoreContext& context, NodeContext& node, interfaces::Bloc
                     // TODO: CEvoDB instance should probably be a part of CChainState
                     // (for multiple chainstates to actually work in parallel)
                     // and not a global
-                    if (&::ChainstateActive() == chainstate && !evoDb->CommitRootTransaction()) {
+                    if (&::ChainstateActive() == chainstate && !g_evoDb->CommitRootTransaction()) {
                         strLoadError = _("Failed to commit EvoDB");
                         failed_chainstate_init = true;
                         break;
@@ -2205,7 +2205,7 @@ bool AppInitMain(const CoreContext& context, NodeContext& node, interfaces::Bloc
                         // TODO: CEvoDB instance should probably be a part of CChainState
                         // (for multiple chainstates to actually work in parallel)
                         // and not a global
-                        if (&::ChainstateActive() == chainstate && !evoDb->IsEmpty()) {
+                        if (&::ChainstateActive() == chainstate && !g_evoDb->IsEmpty()) {
                             // EvoDB processed some blocks earlier but we have no blocks anymore, something is wrong
                             strLoadError = _("Error initializing block database");
                             failed_verification = true;

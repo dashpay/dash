@@ -1631,7 +1631,7 @@ DisconnectResult CChainState::DisconnectBlock(const CBlock& block, const CBlockI
     assert(m_quorum_block_processor);
 
     bool fDIP0003Active = pindex->nHeight >= Params().GetConsensus().DIP0003Height;
-    if (fDIP0003Active && !evoDb->VerifyBestBlock(pindex->GetBlockHash())) {
+    if (fDIP0003Active && !g_evoDb->VerifyBestBlock(pindex->GetBlockHash())) {
         // Nodes that upgraded after DIP3 activation will have to reindex to ensure evodb consistency
         AbortNode("Found EvoDB inconsistency, you must reindex to continue");
         return DISCONNECT_FAILED;
@@ -1792,7 +1792,7 @@ DisconnectResult CChainState::DisconnectBlock(const CBlock& block, const CBlockI
 
     // move best block pointer to prevout block
     view.SetBestBlock(pindex->pprev->GetBlockHash());
-    evoDb->WriteBestBlock(pindex->pprev->GetBlockHash());
+    g_evoDb->WriteBestBlock(pindex->pprev->GetBlockHash());
 
     boost::posix_time::ptime finish = boost::posix_time::microsec_clock::local_time();
     boost::posix_time::time_duration diff = finish - start;
@@ -2026,7 +2026,7 @@ bool CChainState::ConnectBlock(const CBlock& block, CValidationState& state, CBl
 
     if (pindex->pprev) {
         bool fDIP0003Active = pindex->nHeight >= chainparams.GetConsensus().DIP0003Height;
-        if (fDIP0003Active && !evoDb->VerifyBestBlock(pindex->pprev->GetBlockHash())) {
+        if (fDIP0003Active && !g_evoDb->VerifyBestBlock(pindex->pprev->GetBlockHash())) {
             // Nodes that upgraded after DIP3 activation will have to reindex to ensure evodb consistency
             return AbortNode(state, "Found EvoDB inconsistency, you must reindex to continue");
         }
@@ -2414,7 +2414,7 @@ bool CChainState::ConnectBlock(const CBlock& block, CValidationState& state, CBl
     int64_t nTime6 = GetTimeMicros(); nTimeIndex += nTime6 - nTime5;
     LogPrint(BCLog::BENCHMARK, "    - Index writing: %.2fms [%.2fs (%.2fms/blk)]\n", MILLI * (nTime6 - nTime5), nTimeIndex * MICRO, nTimeIndex * MILLI / nBlocksTotal);
 
-    evoDb->WriteBestBlock(pindex->GetBlockHash());
+    g_evoDb->WriteBestBlock(pindex->GetBlockHash());
 
     int64_t nTime7 = GetTimeMicros(); nTimeCallbacks += nTime7 - nTime6;
     LogPrint(BCLog::BENCHMARK, "    - Callbacks: %.2fms [%.2fs (%.2fms/blk)]\n", MILLI * (nTime7 - nTime6), nTimeCallbacks * MICRO, nTimeCallbacks * MILLI / nBlocksTotal);
@@ -2517,7 +2517,7 @@ bool CChainState::FlushStateToDisk(
         // The cache is over the limit, we have to write now.
         bool fCacheCritical = mode == FlushStateMode::IF_NEEDED && cache_state >= CoinsCacheSizeState::CRITICAL;
         // The evodb cache is too large
-        bool fEvoDbCacheCritical = mode == FlushStateMode::IF_NEEDED && evoDb != nullptr && evoDb->GetMemoryUsage() >= (64 << 20);
+        bool fEvoDbCacheCritical = mode == FlushStateMode::IF_NEEDED && g_evoDb != nullptr && g_evoDb->GetMemoryUsage() >= (64 << 20);
         // It's been a while since we wrote the block index to disk. Do this frequently, so we don't need to redownload after a crash.
         bool fPeriodicWrite = mode == FlushStateMode::PERIODIC && nNow > nLastWrite + DATABASE_WRITE_INTERVAL;
         // It's been very long since we flushed the cache. Do this infrequently, to optimize cache usage.
@@ -2582,7 +2582,7 @@ bool CChainState::FlushStateToDisk(
             // Flush the chainstate (which may refer to block index entries).
             if (!CoinsTip().Flush())
                 return AbortNode(state, "Failed to write to coin database");
-            if (!evoDb->CommitRootTransaction()) {
+            if (!g_evoDb->CommitRootTransaction()) {
                 return AbortNode(state, "Failed to commit EvoDB");
             }
             nLastFlush = nNow;
@@ -2680,7 +2680,7 @@ void static UpdateTip(const CBlockIndex *pindexNew, const CChainParams& chainPar
       log(pindexNew->nChainWork.getdouble())/log(2.0), (unsigned long)pindexNew->nChainTx,
       FormatISO8601DateTime(pindexNew->GetBlockTime()),
       GuessVerificationProgress(chainParams.TxData(), pindexNew), ::ChainstateActive().CoinsTip().DynamicMemoryUsage() * (1.0 / (1<<20)), ::ChainstateActive().CoinsTip().GetCacheSize(),
-      evoDb->GetMemoryUsage() * (1.0 / (1<<20)),
+              g_evoDb->GetMemoryUsage() * (1.0 / (1<<20)),
       !warningMessages.empty() ? strprintf(" warning='%s'", warningMessages) : "");
 
 }
@@ -2709,7 +2709,7 @@ bool CChainState::DisconnectTip(CValidationState& state, const CChainParams& cha
     // Apply the block atomically to the chain state.
     int64_t nStart = GetTimeMicros();
     {
-        auto dbTx = evoDb->BeginTransaction();
+        auto dbTx = g_evoDb->BeginTransaction();
 
         CCoinsViewCache view(&CoinsTip());
         assert(view.GetBestBlock() == pindexDelete->GetBlockHash());
@@ -2841,7 +2841,7 @@ bool CChainState::ConnectTip(CValidationState& state, const CChainParams& chainp
     int64_t nTime3;
     LogPrint(BCLog::BENCHMARK, "  - Load block from disk: %.2fms [%.2fs]\n", (nTime2 - nTime1) * MILLI, nTimeReadFromDisk * MICRO);
     {
-        auto dbTx = evoDb->BeginTransaction();
+        auto dbTx = g_evoDb->BeginTransaction();
 
         CCoinsViewCache view(&CoinsTip());
         bool rv = ConnectBlock(blockConnecting, state, pindexNew, view, chainparams);
@@ -4243,7 +4243,7 @@ bool TestBlockValidity(CValidationState& state, llmq::CChainLocksHandler& clhand
     indexDummy.phashBlock = &block_hash;
 
     // begin tx and let it rollback
-    auto dbTx = evoDb->BeginTransaction();
+    auto dbTx = g_evoDb->BeginTransaction();
 
     // NOTE: CheckBlockHeader is called by CheckBlock
     if (!ContextualCheckBlockHeader(block, state, chainparams, pindexPrev, GetAdjustedTime()))
@@ -4652,7 +4652,7 @@ bool CVerifyDB::VerifyDB(const CChainParams& chainparams, CCoinsView *coinsview,
         return true;
 
     // begin tx and let it rollback
-    auto dbTx = evoDb->BeginTransaction();
+    auto dbTx = g_evoDb->BeginTransaction();
 
     // Verify blocks in the best chain
     if (nCheckDepth <= 0 || nCheckDepth > ::ChainActive().Height())
@@ -4811,7 +4811,7 @@ bool CChainState::ReplayBlocks(const CChainParams& params)
         assert(pindexFork != nullptr);
     }
 
-    auto dbTx = evoDb->BeginTransaction();
+    auto dbTx = g_evoDb->BeginTransaction();
 
     // Rollback along the old branch.
     while (pindexOld != pindexFork) {
@@ -4846,7 +4846,7 @@ bool CChainState::ReplayBlocks(const CChainParams& params)
     }
 
     cache.SetBestBlock(pindexNew->GetBlockHash());
-    evoDb->WriteBestBlock(pindexNew->GetBlockHash());
+    g_evoDb->WriteBestBlock(pindexNew->GetBlockHash());
     bool flushed = cache.Flush();
     assert(flushed);
     dbTx->Commit();

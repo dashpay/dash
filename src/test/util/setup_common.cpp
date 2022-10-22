@@ -129,10 +129,10 @@ BasicTestingSetup::BasicTestingSetup(const std::string& chainName, const std::ve
     m_node.chain = interfaces::MakeChain(m_node);
     g_wallet_init_interface.Construct(m_node);
     fCheckBlockIndex = true;
-    evoDb.reset(new CEvoDB(1 << 20, true, true));
+    g_evoDb.reset(new CEvoDB(1 << 20, true, true));
     connman = std::make_unique<CConnman>(0x1337, 0x1337);
-    deterministicMNManager.reset(new CDeterministicMNManager(*evoDb, *connman));
-    llmq::quorumSnapshotManager.reset(new llmq::CQuorumSnapshotManager(*evoDb));
+    deterministicMNManager.reset(new CDeterministicMNManager(*g_evoDb, *connman));
+    llmq::quorumSnapshotManager.reset(new llmq::CQuorumSnapshotManager(*g_evoDb));
     static bool noui_connected = false;
     if (!noui_connected) {
         noui_connect();
@@ -145,7 +145,7 @@ BasicTestingSetup::~BasicTestingSetup()
     connman.reset();
     llmq::quorumSnapshotManager.reset();
     deterministicMNManager.reset();
-    evoDb.reset();
+    g_evoDb.reset();
 
     LogInstance().DisconnectTestLogger();
     fs::remove_all(m_path_root);
@@ -178,8 +178,8 @@ ChainTestingSetup::ChainTestingSetup(const std::string& chainName, const std::ve
     ::coinJoinClientQueueManager = std::make_unique<CCoinJoinClientQueueManager>(*m_node.connman);
 #endif // ENABLE_WALLET
 
-    deterministicMNManager.reset(new CDeterministicMNManager(*evoDb, *m_node.connman));
-    m_node.llmq_ctx = std::make_unique<LLMQContext>(*evoDb, *m_node.mempool, *m_node.connman, *sporkManager, true, false);
+    deterministicMNManager.reset(new CDeterministicMNManager(*g_evoDb, *m_node.connman));
+    m_node.llmq_ctx = std::make_unique<LLMQContext>(*g_evoDb, *m_node.mempool, *m_node.connman, *sporkManager, true, false);
 
     // Start script-checking threads. Set g_parallel_script_checks to true so they are used.
     constexpr int script_check_threads = 2;
