@@ -93,4 +93,70 @@
 /* Define to 1 if you have the <vm/vm_param.h> header file. */
 #cmakedefine HAVE_VM_VM_PARAM_H 1
 
+
+// System symbols.
+
+/* Define to 1 if you have the declaration of `bswap_16', and to 0 if you don't. */
+#cmakedefine01 HAVE_DECL_BSWAP_16
+
+/* Define to 1 if you have the declaration of `bswap_32', and to 0 if you don't. */
+#cmakedefine01 HAVE_DECL_BSWAP_32
+
+/* Define to 1 if you have the declaration of `bswap_64', and to 0 if you don't. */
+#cmakedefine01 HAVE_DECL_BSWAP_64
+
+/* Define to 1 if you have the declaration of `be16toh', and to 0 if you don't. */
+#cmakedefine01 HAVE_DECL_BE16TOH
+
+/* Define to 1 if you have the declaration of `be32toh', and to 0 if you don't. */
+#cmakedefine01 HAVE_DECL_BE32TOH
+
+/* Define to 1 if you have the declaration of `be64toh', and to 0 if you don't. */
+#cmakedefine01 HAVE_DECL_BE64TOH
+
+/* Define to 1 if you have the declaration of `htobe16', and to 0 if you don't. */
+#cmakedefine01 HAVE_DECL_HTOBE16
+
+/* Define to 1 if you have the declaration of `htobe32', and to 0 if you don't. */
+#cmakedefine01 HAVE_DECL_HTOBE32
+
+/* Define to 1 if you have the declaration of `htobe64', and to 0 if you don't. */
+#cmakedefine01 HAVE_DECL_HTOBE64
+
+/* Define to 1 if you have the declaration of `htole16', and to 0 if you don't. */
+#cmakedefine01 HAVE_DECL_HTOLE16
+
+/* Define to 1 if you have the declaration of `htole32', and to 0 if you don't. */
+#cmakedefine01 HAVE_DECL_HTOLE32
+
+/* Define to 1 if you have the declaration of `htole64', and to 0 if you don't. */
+#cmakedefine01 HAVE_DECL_HTOLE64
+
+/* Define to 1 if you have the declaration of `le16toh', and to 0 if you don't. */
+#cmakedefine01 HAVE_DECL_LE16TOH
+
+/* Define to 1 if you have the declaration of `le32toh', and to 0 if you don't. */
+#cmakedefine01 HAVE_DECL_LE32TOH
+
+/* Define to 1 if you have the declaration of `le64toh', and to 0 if you don't. */
+#cmakedefine01 HAVE_DECL_LE64TOH
+
+/* Define to 1 if fdatasync is available. */
+#cmakedefine HAVE_FDATASYNC 1
+
+/* Define to 1 if you have the declaration of `fork', and to 0 if you don't. */
+#cmakedefine01 HAVE_DECL_FORK
+
+/* Define to 1 if you have the declaration of `pipe2', and to 0 if you don't. */
+#cmakedefine01 HAVE_DECL_PIPE2
+
+/* Define to 1 if you have the declaration of `setsid', and to 0 if you don't. */
+#cmakedefine01 HAVE_DECL_SETSID
+
+/* Define if gmtime_r is available. */
+#cmakedefine HAVE_GMTIME_R
+
+/* Define to 1 if std::system or ::wsystem is available. */
+#cmakedefine HAVE_SYSTEM 1
+
 #endif // BITCOIN_CONFIG_H
