@@ -54,6 +54,7 @@ add_definitions(-DHAVE_CONFIG_H)
 
 add_subdirectory(crypto)
 add_subdirectory(univalue)
+add_subdirectory(util)
 
 
 # Stable, backwards-compatible consensus functionality

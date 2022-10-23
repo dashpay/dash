@@ -252,6 +252,33 @@ include(cmake/introspection.cmake)
 include(CheckStdFilesystem)
 check_std_filesystem()
 
+set(THREADS_PREFER_PTHREAD_FLAG ON)
+find_package(Threads REQUIRED)
+
+# Find Boost headers only.
+if(CMAKE_SYSTEM_NAME STREQUAL "Darwin")
+  execute_process(
+    COMMAND brew --prefix boost
+    OUTPUT_VARIABLE BOOST_ROOT
+    ERROR_QUIET
+    OUTPUT_STRIP_TRAILING_WHITESPACE
+  )
+endif()
+set(Boost_NO_BOOST_CMAKE ON)
+find_package(Boost 1.64.0 REQUIRED)
+mark_as_advanced(Boost_INCLUDE_DIR)
+if(CMAKE_VERSION VERSION_LESS 3.15)
+  add_library(Boost::headers ALIAS Boost::boost)
+endif()
+
+find_package(PkgConfig)
+pkg_check_modules(libevent REQUIRED libevent>=2.1.8 IMPORTED_TARGET)
+target_link_libraries(PkgConfig::libevent
+  INTERFACE
+    $<$<PLATFORM_ID:Windows>:iphlpapi>
+    $<$<PLATFORM_ID:Windows>:ws2_32>
+)
+
 include(cmake/optional.cmake)
 
 add_subdirectory(src)
