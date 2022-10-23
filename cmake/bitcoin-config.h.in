@@ -186,4 +186,7 @@
 /* Define to build with syscall sandbox support. */
 #cmakedefine USE_SYSCALL_SANDBOX
 
+/* Define if external signer support is enabled. */
+#cmakedefine ENABLE_EXTERNAL_SIGNER
+
 #endif // BITCOIN_CONFIG_H

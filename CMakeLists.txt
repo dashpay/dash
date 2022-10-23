@@ -106,6 +106,7 @@ tristate_option(WITH_SECCOMP
   "if seccomp-bpf is found under Linux x86_64."
   AUTO
 )
+tristate_option(WITH_EXTERNAL_SIGNER "Enable external signer support." "if Boost.Process is found." AUTO)
 
 if(CXX20 OR MSVC)
   set(CMAKE_CXX_STANDARD 20)
@@ -355,6 +356,7 @@ message("  GUI ................................. ${WITH_GUI}")
 if(NOT WITH_GUI STREQUAL "no")
   message("  QR code (GUI) ....................... ${WITH_QRENCODE}")
 endif()
+message("  external signer ..................... ${WITH_EXTERNAL_SIGNER}")
 message("  NAT-PMP ............................. ${WITH_NATPMP}")
 message("  UPnP ................................ ${WITH_MINIUPNPC}")
 message("  ZeroMQ .............................. ${WITH_ZMQ}")

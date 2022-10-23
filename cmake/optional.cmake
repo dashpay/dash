@@ -181,3 +181,37 @@ if(WITH_SECCOMP)
     set(WITH_SECCOMP OFF)
   endif()
 endif()
+
+if(WITH_EXTERNAL_SIGNER)
+  if(WIN32)
+    if(WITH_EXTERNAL_SIGNER STREQUAL ON)
+      message(FATAL_ERROR "External signer is not supported on Windows.")
+    endif()
+    set(WITH_EXTERNAL_SIGNER OFF)
+  endif()
+
+  set(CMAKE_REQUIRED_INCLUDES ${Boost_INCLUDE_DIRS})
+  set(CMAKE_REQUIRED_LIBRARIES Threads::Threads)
+
+  # Boost 1.78 and 1.79 require the following workaround.
+  # See: https://github.com/boostorg/process/issues/235
+  set(CMAKE_REQUIRED_FLAGS "-Wno-error=narrowing")
+
+  check_cxx_source_compiles("
+  #include <boost/process.hpp>
+  int main(){}
+  " HAVE_BOOST_PROCESS_H)
+
+  if(HAVE_BOOST_PROCESS_H)
+    set(ENABLE_EXTERNAL_SIGNER TRUE)
+    set(WITH_EXTERNAL_SIGNER ON)
+  else()
+    if(WITH_EXTERNAL_SIGNER STREQUAL ON)
+      message(FATAL_ERROR "External signer support requested, but is not supported by this Boost.Process version.")
+    endif()
+    set(WITH_EXTERNAL_SIGNER OFF)
+  endif()
+  set(CMAKE_REQUIRED_FLAGS)
+  set(CMAKE_REQUIRED_LIBRARIES)
+  set(CMAKE_REQUIRED_INCLUDES)
+endif()
