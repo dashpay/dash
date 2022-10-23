@@ -361,3 +361,8 @@ endif()
 if(NOT WITH_GUI STREQUAL "no")
   add_subdirectory(qt)
 endif()
+
+add_subdirectory(test/util)
+if(BUILD_TESTS)
+  add_subdirectory(test)
+endif()
