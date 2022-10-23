@@ -54,6 +54,7 @@ list(APPEND CMAKE_MODULE_PATH ${CMAKE_SOURCE_DIR}/cmake/module)
 option(CXX20 "Enable compilation in c++20 mode." OFF)
 option(HARDENING "Attempt to harden the resulting executables." ON)
 option(REDUCE_EXPORTS "Attempt to reduce exported symbols in the resulting executables." OFF)
+option(WERROR "Treat compiler warnings as errors." OFF)
 
 if(CXX20 OR MSVC)
   set(CMAKE_CXX_STANDARD 20)
@@ -167,6 +168,29 @@ if(REDUCE_EXPORTS)
   endif()
 endif()
 
+if(WERROR)
+  if(MSVC)
+    add_compile_options(/WX)
+  else()
+    set(error_cxx_flags "")
+    try_append_cxxflag(error_cxx_flags "-Werror")
+    if(NOT CXX_SUPPORTS_WERROR)
+      message(FATAL_ERROR "WERROR set but -Werror is not usable.")
+    endif()
+
+    # -Wreturn-type is broken in GCC for MinGW-w64.
+    # https://sourceforge.net/p/mingw-w64/bugs/306/
+    try_append_cxxflag(error_cxx_flags "-Werror=return-type"
+      CHECK_PASSED_FLAG ""
+      CHECK_FAILED_FLAG "-Wno-error=return-type"
+      SOURCE "#include <cassert>\nint f(){ assert(false); }"
+    )
+
+    separate_arguments(error_cxx_flags)
+    add_compile_options(${error_cxx_flags})
+  endif()
+endif()
+
 if(WIN32)
   add_definitions(-D_WIN32_WINNT=0x0601 -D_WIN32_IE=0x0501 -DWIN32_LEAN_AND_MEAN)
   if(MSVC)
@@ -246,4 +270,5 @@ else()
   message(" - LDFLAGS for executables ............ ${CMAKE_EXE_LINKER_FLAGS_RELEASE}")
   message(" - LDFLAGS for shared libraries ....... ${CMAKE_SHARED_LINKER_FLAGS_RELEASE}")
 endif()
+message("Treat compiler warnings as errors ..... ${WERROR}")
 message("\n")
