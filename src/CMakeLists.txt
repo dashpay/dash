@@ -129,3 +129,66 @@ target_link_libraries(bitcoin_common
     secp256k1
     Boost::headers
 )
+
+
+# P2P and RPC server functionality used by `bitcoind` and `bitcoin-qt` executables.
+add_library(bitcoin_node STATIC EXCLUDE_FROM_ALL "")
+target_sources(bitcoin_node
+  PRIVATE
+    addrdb.cpp
+    addrman.cpp
+    banman.cpp
+    blockencodings.cpp
+    blockfilter.cpp
+    chain.cpp
+    consensus/tx_verify.cpp
+    dbwrapper.cpp
+    flatfile.cpp
+    httprpc.cpp
+    httpserver.cpp
+    index/base.cpp
+    index/blockfilterindex.cpp
+    index/txindex.cpp
+    init.cpp
+    mapport.cpp
+    net.cpp
+    net_processing.cpp
+    node/coin.cpp
+    node/context.cpp
+    node/transaction.cpp
+    noui.cpp
+    policy/fees.cpp
+    policy/settings.cpp
+    pow.cpp
+    rest.cpp
+    rpc/blockchain.cpp
+    rpc/mining.cpp
+    rpc/net.cpp
+    rpc/rawtransaction.cpp
+    rpc/server.cpp
+    script/sigcache.cpp
+    shutdown.cpp
+    timedata.cpp
+    torcontrol.cpp
+    txdb.cpp
+    txmempool.cpp
+    validation.cpp
+    validationinterface.cpp
+    versionbits.cpp
+
+    dummywallet.cpp
+)
+target_include_directories(bitcoin_node
+  PUBLIC
+    $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}>
+)
+target_link_libraries(bitcoin_node
+  PRIVATE
+    bitcoin_common
+    bitcoin_consensus
+    minisketch
+    leveldb
+    univalue
+    Boost::headers
+    $<$<NOT:$<PLATFORM_ID:Windows>>:PkgConfig::libevent_pthreads>
+)
