@@ -34,7 +34,7 @@ endif()
 
 if(ENABLE_WALLET)
   if(WITH_SQLITE)
-    pkg_check_modules(sqlite sqlite3>=3.7.17 IMPORTED_TARGET)
+    cross_pkg_check_modules(sqlite sqlite3>=3.7.17 IMPORTED_TARGET)
     if(sqlite_FOUND)
       set(WITH_SQLITE ON)
       set(USE_SQLITE ON)
@@ -106,7 +106,7 @@ if(WITH_ZMQ)
   if(MSVC)
     find_package(ZeroMQ CONFIG)
   else()
-    pkg_check_modules(libzmq libzmq>=4 IMPORTED_TARGET GLOBAL)
+    cross_pkg_check_modules(libzmq libzmq>=4 IMPORTED_TARGET GLOBAL)
     if(libzmq_FOUND)
       set_property(TARGET PkgConfig::libzmq APPEND PROPERTY
         INTERFACE_COMPILE_DEFINITIONS $<$<PLATFORM_ID:Windows>:ZMQ_STATIC>
@@ -149,7 +149,7 @@ if(WITH_USDT)
 endif()
 
 if(WITH_GUI AND WITH_QRENCODE)
-  pkg_check_modules(libqrencode libqrencode IMPORTED_TARGET)
+  cross_pkg_check_modules(libqrencode libqrencode IMPORTED_TARGET)
   if(libqrencode_FOUND)
     set_target_properties(PkgConfig::libqrencode PROPERTIES
       INTERFACE_COMPILE_DEFINITIONS USE_QRCODE

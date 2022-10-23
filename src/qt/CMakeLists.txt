@@ -120,6 +120,74 @@ if(ENABLE_WALLET)
   )
 endif()
 
+if(CMAKE_CROSSCOMPILING)
+  target_compile_definitions(bitcoinqt PRIVATE QT_STATICPLUGIN)
+  set_property(
+    TARGET Qt5::Core
+    APPEND
+    PROPERTY INTERFACE_LINK_LIBRARIES
+      ${QT_CROSS_LIBS_PATH}/libqtpcre2.a
+      ${QT_CROSS_LIBS_PATH}/libqtlibpng.a
+      ${QT_CROSS_LIBS_PATH}/libqtharfbuzz.a
+      $<$<PLATFORM_ID:Linux>:dl>
+  )
+  if(CMAKE_SYSTEM_NAME STREQUAL "Linux" AND TARGET Qt5::QXcbIntegrationPlugin)
+    target_compile_definitions(bitcoinqt PRIVATE QT_QPA_PLATFORM_XCB)
+    set_property(
+      TARGET Qt5::Core
+      APPEND
+      PROPERTY INTERFACE_LINK_LIBRARIES
+        -L${QT_CROSS_LIBS_PATH}
+        freetype
+        fontconfig
+        xcb
+        xcb-icccm
+        xcb-image
+        xcb-keysyms
+        xcb-randr
+        xcb-render
+        xcb-render-util
+        xcb-shape
+        xcb-shm
+        xcb-sync
+        xcb-xfixes
+        xcb-xinerama
+        xcb-xkb
+        xkbcommon
+        xkbcommon-x11
+    )
+  elseif(WIN32 AND TARGET Qt5::QWindowsIntegrationPlugin AND TARGET Qt5::QWindowsVistaStylePlugin)
+    target_compile_definitions(bitcoinqt PRIVATE QT_QPA_PLATFORM_WINDOWS)
+    target_link_libraries(Qt5::Core
+      INTERFACE
+        dwmapi
+        imm32
+        netapi32
+        shlwapi
+        userenv
+        uxtheme
+        version
+        winmm
+        wtsapi32
+    )
+  elseif(CMAKE_SYSTEM_NAME STREQUAL "Darwin" AND TARGET Qt5::QCocoaIntegrationPlugin AND TARGET Qt5::QMacStylePlugin)
+    target_compile_definitions(bitcoinqt PRIVATE QT_QPA_PLATFORM_COCOA)
+    target_link_libraries(Qt5::Core
+      INTERFACE
+        "-framework AppKit"
+        "-framework Carbon"
+        "-framework CoreVideo"
+        "-framework IOKit"
+        "-framework IOSurface"
+        "-framework Metal"
+        "-framework QuartzCore"
+        "-framework Security"
+    )
+  elseif(CMAKE_SYSTEM_NAME STREQUAL Android AND TARGET Qt5::QAndroidPlatformIntegrationPlugin)
+    target_compile_definitions(bitcoinqt PRIVATE QT_QPA_PLATFORM_ANDROID)
+  endif()
+endif()
+
 add_executable(bitcoin-qt "")
 target_sources(bitcoin-qt
   PRIVATE

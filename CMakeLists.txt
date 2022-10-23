@@ -310,9 +310,9 @@ if(BUILD_DAEMON OR BUILD_CLI OR BUILD_TX OR BUILD_BITCOINKERNEL_LIB OR BUILD_WAL
   endif()
 endif()
 
-find_package(PkgConfig)
+include(CrossPkgConfig)
 if(BUILD_DAEMON OR BUILD_CLI OR NOT WITH_GUI STREQUAL "no")
-  pkg_check_modules(libevent REQUIRED libevent>=2.1.8 IMPORTED_TARGET)
+  cross_pkg_check_modules(libevent REQUIRED libevent>=2.1.8 IMPORTED_TARGET)
   target_link_libraries(PkgConfig::libevent
     INTERFACE
       $<$<PLATFORM_ID:Windows>:iphlpapi>
@@ -321,7 +321,7 @@ if(BUILD_DAEMON OR BUILD_CLI OR NOT WITH_GUI STREQUAL "no")
 endif()
 
 if(NOT WIN32 AND (BUILD_DAEMON OR NOT WITH_GUI STREQUAL "no"))
-  pkg_check_modules(libevent_pthreads REQUIRED libevent_pthreads>=2.1.8 IMPORTED_TARGET)
+  cross_pkg_check_modules(libevent_pthreads REQUIRED libevent_pthreads>=2.1.8 IMPORTED_TARGET)
 endif()
 
 include(cmake/optional_qt.cmake)
@@ -415,6 +415,12 @@ message("  ZeroMQ .............................. ${WITH_ZMQ}")
 message("  USDT tracing ........................ ${WITH_USDT}")
 message("  experimental syscall sandbox ........ ${WITH_SECCOMP}")
 message("")
+if(CMAKE_CROSSCOMPILING)
+  set(cross_status "TRUE, for ${CMAKE_SYSTEM_NAME}, ${CMAKE_SYSTEM_PROCESSOR}")
+else()
+  set(cross_status "FALSE")
+endif()
+message("Cross compiling ....................... ${cross_status}")
 get_directory_property(definitions COMPILE_DEFINITIONS)
 message("Preprocessor defined macros ........... ${definitions}")
 message("C compiler ............................ ${CMAKE_C_COMPILER}")
