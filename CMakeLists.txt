@@ -52,6 +52,7 @@ list(APPEND CMAKE_MODULE_PATH ${CMAKE_SOURCE_DIR}/cmake/module)
 # Configurable options.
 # When adding a new option, end the <help_text> with a full stop for consistency.
 option(CXX20 "Enable compilation in c++20 mode." OFF)
+option(HARDENING "Attempt to harden the resulting executables." ON)
 
 if(CXX20 OR MSVC)
   set(CMAKE_CXX_STANDARD 20)
@@ -112,6 +113,50 @@ if(NOT CMAKE_BUILD_TYPE AND NOT CMAKE_CONFIGURATION_TYPES)
   message(STATUS "Setting build type to \"${default_build_type}\" as none was specified")
   set(CMAKE_BUILD_TYPE "${default_build_type}" CACHE STRING "Choose the type of build." FORCE)
 endif()
+
+set(hardened_cxx_flags "")
+if(CMAKE_CXX_COMPILER_ID STREQUAL "GNU")
+  # All versions of gcc that we commonly use for building are subject to bug
+  # https://gcc.gnu.org/bugzilla/show_bug.cgi?id=90348. To work around that, set
+  # -fstack-reuse=none for all gcc builds.
+  try_append_cxxflag(hardened_cxx_flags "-fstack-reuse=none")
+endif()
+if(HARDENING)
+  if(MSVC)
+    add_link_options(/DYNAMICBASE /HIGHENTROPYVA /NXCOMPAT)
+  else()
+    try_append_cxxflag(hardened_cxx_flags "-Wstack-protector")
+    try_append_cxxflag(hardened_cxx_flags "-fstack-protector-all")
+    try_append_cxxflag(hardened_cxx_flags "-fcf-protection=full")
+    if(MINGW)
+      link_libraries(ssp)
+    else()
+      # stack-clash-protection doesn't currently work, and likely should just be skipped for Windows.
+      # See https://gcc.gnu.org/bugzilla/show_bug.cgi?id=90458 for more details.
+      try_append_cxxflag(hardened_cxx_flags "-fstack-clash-protection")
+    endif()
+
+    set(hardened_linker_flags "")
+    try_append_linker_flag(hardened_linker_flags "-Wl,--enable-reloc-section")
+    try_append_linker_flag(hardened_linker_flags "-Wl,--dynamicbase")
+    try_append_linker_flag(hardened_linker_flags "-Wl,--nxcompat")
+    try_append_linker_flag(hardened_linker_flags "-Wl,--high-entropy-va")
+    try_append_linker_flag(hardened_linker_flags "-Wl,-z,relro")
+    try_append_linker_flag(hardened_linker_flags "-Wl,-z,now")
+    try_append_linker_flag(hardened_linker_flags "-Wl,-z,separate-code")
+    if(CMAKE_SYSTEM_NAME STREQUAL "Darwin")
+      try_append_linker_flag(hardened_linker_flags "-Wl,-bind_at_load")
+    endif()
+    if(CMAKE_VERSION VERSION_GREATER_EQUAL 3.13)
+      separate_arguments(hardened_linker_flags)
+      add_link_options(${hardened_linker_flags})
+    else()
+      link_libraries(${hardened_linker_flags})
+    endif()
+  endif()
+endif()
+separate_arguments(hardened_cxx_flags)
+add_compile_options(${hardened_cxx_flags})
 
 if(WIN32)
   add_definitions(-D_WIN32_WINNT=0x0601 -D_WIN32_IE=0x0501 -DWIN32_LEAN_AND_MEAN)
