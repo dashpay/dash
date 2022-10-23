@@ -280,3 +280,29 @@ endif()
 if(BUILD_BITCOINKERNEL_LIB)
   add_subdirectory(kernel)
 endif()
+
+if(BUILD_UTIL_CHAINSTATE)
+  add_executable(bitcoin-chainstate "")
+  target_sources(bitcoin-chainstate
+    PRIVATE
+      bitcoin-chainstate.cpp
+  )
+  target_include_directories(bitcoin-chainstate
+    PUBLIC
+      $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}>
+  )
+  if(TARGET bitcoinkernel AND NOT WIN32)
+    target_link_libraries(bitcoin-chainstate PRIVATE bitcoinkernel)
+  elseif(TARGET bitcoinkernel_static)
+    target_link_libraries(bitcoin-chainstate PRIVATE bitcoinkernel_static)
+  endif()
+  target_link_libraries(bitcoin-chainstate
+    PRIVATE
+      bitcoin_crypto
+      leveldb
+      univalue
+      secp256k1
+      Boost::headers
+      $<$<PLATFORM_ID:Windows>:ws2_32>
+  )
+endif()
