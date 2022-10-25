@@ -195,7 +195,7 @@ public:
         s.read(reinterpret_cast<char*>(vecBytes.data()), SerSize);
         SetByteVector(vecBytes, specificLegacyScheme);
 
-        if (checkMalleable && !CheckMalleable(vecBytes)) {
+        if (checkMalleable && !CheckMalleable(vecBytes, specificLegacyScheme)) {
             throw std::ios_base::failure("malleable BLS object");
         }
     }
@@ -314,18 +314,20 @@ public:
 class CBLSBLSPublicKeyVersionWrapper {
 private:
     bool legacy;
+    bool checkMalleable;
     CBLSPublicKey& obj;
 public:
-    CBLSBLSPublicKeyVersionWrapper(CBLSPublicKey& obj, bool legacy)
+    CBLSBLSPublicKeyVersionWrapper(CBLSPublicKey& obj, bool legacy, bool checkMalleable = true)
             : obj(obj)
             , legacy(legacy)
+            , checkMalleable(checkMalleable)
     {}
     template <typename Stream>
     inline void Serialize(Stream& s) const {
         obj.Serialize(s, legacy);
     }
     template <typename Stream>
-    inline void Unserialize(Stream& s, bool checkMalleable = true) {
+    inline void Unserialize(Stream& s) {
         obj.Unserialize(s, legacy, checkMalleable);
     }
 };
