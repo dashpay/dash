@@ -4676,12 +4676,12 @@ void CWallet::SetupDescriptorScriptPubKeyMans(const CExtKey& master_key, const S
     }
 }
 
-static bool IsBIP44Descriptor(const Descriptor& desc, const SigningProvider& provider)
+static bool IsDefaultPurposeDescriptor(const Descriptor& desc, const SigningProvider& provider, OutputType type)
 {
     std::vector<CScript> scripts;
     FlatSigningProvider out;
     if (!desc.Expand(/*pos=*/0, provider, scripts, out) || out.origins.empty()) return false;
-    const uint32_t purpose{BIP32_PURPOSE_STANDARD | 0x80000000U};
+    const uint32_t purpose{(type == OutputType::TAPROOT ? BIP32_PURPOSE_TAPROOT : BIP32_PURPOSE_STANDARD) | 0x80000000U};
     const uint32_t coin_type{static_cast<uint32_t>(Params().ExtCoinType()) | 0x80000000U};
     for (const auto& [_, origin] : out.origins) {
         const std::vector<uint32_t>& path = origin.second.path;
@@ -4717,6 +4717,7 @@ void CWallet::SetupDescriptorScriptPubKeyMans(const SecureString& mnemonic_arg, 
         UniValue signer_res = signer.GetDescriptors(account);
 
         if (!signer_res.isObject()) throw std::runtime_error(std::string(__func__) + ": Unexpected result");
+        const bool taproot_active = HaveChain() && chain().isV24Active();
         for (bool internal : {false, true}) {
             const UniValue& descriptor_vals = signer_res.find_value(internal ? "internal" : "receive");
             if (!descriptor_vals.isArray()) throw std::runtime_error(std::string(__func__) + ": Unexpected result");
@@ -4728,18 +4729,19 @@ void CWallet::SetupDescriptorScriptPubKeyMans(const SecureString& mnemonic_arg, 
                 if (desc == nullptr) {
                     throw std::runtime_error(std::string(__func__) + ": Invalid descriptor \"" + desc_str + "\" (" + desc_error + ")");
                 }
-                if (!desc->GetOutputType()) {
+                const std::optional<OutputType> out_type = desc->GetOutputType();
+                if (!out_type || (*out_type == OutputType::TAPROOT && !taproot_active)) {
                     continue;
                 }
-                // Only activate BIP44 descriptors, similar to how the non-external-signer branch
+                // Only activate BIP44 and BIP86 descriptors, similar to how the non-external-signer branch
                 // only activates certain types (External and Internal, but not CoinJoin)
-                const bool activate = IsBIP44Descriptor(*desc, keys);
+                const bool activate = IsDefaultPurposeDescriptor(*desc, keys, *out_type);
                 auto spk_manager = std::unique_ptr<ExternalSignerScriptPubKeyMan>(new ExternalSignerScriptPubKeyMan(*this, m_keypool_size));
                 spk_manager->SetupDescriptor(std::move(desc));
                 uint256 id = spk_manager->GetID();
                 AddScriptPubKeyMan(id, std::move(spk_manager));
                 if (activate) {
-                    AddActiveScriptPubKeyMan(id, OutputType::LEGACY, internal);
+                    AddActiveScriptPubKeyMan(id, *out_type, internal);
                 }
             }
         }
