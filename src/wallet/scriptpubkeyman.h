@@ -641,6 +641,8 @@ public:
 
     WalletDescriptor GetWalletDescriptor() const EXCLUSIVE_LOCKS_REQUIRED(cs_desc_man);
     std::vector<CScript> GetScriptPubKeys() const;
+    std::vector<CScript> GetScriptPubKeys(int32_t minimum_index) const;
+    int32_t GetEndRange() const;
 
     bool GetDescriptorString(std::string& out, const bool priv) const;
     bool GetMnemonicString(SecureString& mnemonic_out, SecureString& mnemonic_passphrase_out) const;

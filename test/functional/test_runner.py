@@ -168,6 +168,7 @@ BASE_SCRIPTS = [
     'rpc_quorum.py',
     'wallet_keypool_topup.py --legacy-wallet',
     'wallet_keypool_topup.py --descriptors',
+    'wallet_fast_rescan.py --descriptors',
     'feature_fee_estimation.py',
     'interface_zmq_dash.py --legacy-wallet',
     'interface_zmq.py',
