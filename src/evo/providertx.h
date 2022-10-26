@@ -56,7 +56,9 @@ public:
     SERIALIZE_METHODS(CProRegTx, obj)
     {
         READWRITE(
-                obj.nVersion,
+                obj.nVersion
+        );
+        READWRITE(
                 obj.nType,
                 obj.nMode,
                 obj.collateralOutpoint,
@@ -125,7 +127,9 @@ public:
     SERIALIZE_METHODS(CProUpServTx, obj)
     {
         READWRITE(
-                obj.nVersion,
+                obj.nVersion
+        );
+        READWRITE(
                 obj.proTxHash,
                 obj.addr,
                 obj.scriptOperatorPayout,
@@ -181,7 +185,9 @@ public:
     SERIALIZE_METHODS(CProUpRegTx, obj)
     {
         READWRITE(
-                obj.nVersion,
+                obj.nVersion
+        );
+        READWRITE(
                 obj.proTxHash,
                 obj.nMode,
                 CBLSBLSPublicKeyVersionWrapper(const_cast<CBLSPublicKey&>(obj.pubKeyOperator), (obj.nVersion == LEGACY_BLS_VERSION)),
@@ -246,7 +252,9 @@ public:
     SERIALIZE_METHODS(CProUpRevTx, obj)
     {
         READWRITE(
-                obj.nVersion,
+                obj.nVersion
+        );
+        READWRITE(
                 obj.proTxHash,
                 obj.nReason,
                 obj.inputsHash
