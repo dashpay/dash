@@ -44,6 +44,7 @@ class ListSinceBlockTest(BitcoinTestFramework):
         self.test_double_send()
         self.double_spends_filtered()
         self.test_targetconfirmations()
+        self.test_op_return()
 
     def test_no_blockhash(self):
         self.log.info("Test no blockhash")
@@ -401,6 +402,21 @@ class ListSinceBlockTest(BitcoinTestFramework):
                 double_found = True
         assert_equal(original_found, False)
         assert_equal(double_found, False)
+
+
+    def test_op_return(self):
+        """Test if OP_RETURN outputs will be displayed correctly."""
+        block_hash = self.nodes[2].getbestblockhash()
+
+        raw_tx = self.nodes[2].createrawtransaction([], [{'data': 'aa'}])
+        funded_tx = self.nodes[2].fundrawtransaction(raw_tx)
+        signed_tx = self.nodes[2].signrawtransactionwithwallet(funded_tx['hex'])
+        tx_id = self.nodes[2].sendrawtransaction(signed_tx['hex'])
+
+        op_ret_tx = [tx for tx in self.nodes[2].listsinceblock(blockhash=block_hash)["transactions"] if tx['txid'] == tx_id][0]
+
+        assert 'address' not in op_ret_tx
+
 
 if __name__ == '__main__':
     ListSinceBlockTest().main()
