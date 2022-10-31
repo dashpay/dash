@@ -32,6 +32,14 @@ public:
     static constexpr uint16_t BASIC_BLS_NON_INDEXED_QUORUM_VERSION = 3;
     static constexpr uint16_t BASIC_BLS_INDEXED_QUORUM_VERSION = 4;
 
+    static uint16_t getVersion(const bool is_rotation_enabled, const bool is_basic_scheme_active)
+    {
+        if (is_rotation_enabled)
+            return is_basic_scheme_active ? BASIC_BLS_INDEXED_QUORUM_VERSION : LEGACY_BLS_INDEXED_QUORUM_VERSION;
+        else
+            return is_basic_scheme_active ? BASIC_BLS_NON_INDEXED_QUORUM_VERSION : LEGACY_BLS_NON_INDEXED_QUORUM_VERSION;
+    }
+
 public:
     uint16_t nVersion{LEGACY_BLS_NON_INDEXED_QUORUM_VERSION};
     Consensus::LLMQType llmqType{Consensus::LLMQType::LLMQ_NONE};
