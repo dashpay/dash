@@ -311,13 +311,13 @@ public:
 
 };
 
-class CBLSBLSPublicKeyVersionWrapper {
+class CBLSPublicKeyVersionWrapper {
 private:
     bool legacy;
     bool checkMalleable;
     CBLSPublicKey& obj;
 public:
-    CBLSBLSPublicKeyVersionWrapper(CBLSPublicKey& obj, bool legacy, bool checkMalleable = true)
+    CBLSPublicKeyVersionWrapper(CBLSPublicKey& obj, bool legacy, bool checkMalleable = true)
             : obj(obj)
             , legacy(legacy)
             , checkMalleable(checkMalleable)

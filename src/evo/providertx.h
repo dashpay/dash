@@ -64,7 +64,7 @@ public:
                 obj.collateralOutpoint,
                 obj.addr,
                 obj.keyIDOwner,
-                CBLSBLSPublicKeyVersionWrapper(const_cast<CBLSPublicKey&>(obj.pubKeyOperator), (obj.nVersion == LEGACY_BLS_VERSION)),
+                CBLSPublicKeyVersionWrapper(const_cast<CBLSPublicKey&>(obj.pubKeyOperator), (obj.nVersion == LEGACY_BLS_VERSION)),
                 obj.keyIDVoting,
                 obj.nOperatorReward,
                 obj.scriptPayout,
@@ -190,7 +190,7 @@ public:
         READWRITE(
                 obj.proTxHash,
                 obj.nMode,
-                CBLSBLSPublicKeyVersionWrapper(const_cast<CBLSPublicKey&>(obj.pubKeyOperator), (obj.nVersion == LEGACY_BLS_VERSION)),
+                CBLSPublicKeyVersionWrapper(const_cast<CBLSPublicKey&>(obj.pubKeyOperator), (obj.nVersion == LEGACY_BLS_VERSION)),
                 obj.keyIDVoting,
                 obj.scriptPayout,
                 obj.inputsHash
