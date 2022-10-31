@@ -40,7 +40,7 @@ public:
         return is_basic_scheme_active ? BASIC_BLS_VERSION : LEGACY_BLS_VERSION;
     }
 
-    uint16_t nVersion{LEGACY_BLS_VERSION};                    // message version
+    uint16_t nVersion{LEGACY_BLS_VERSION};                 // message version
     uint16_t nType{0};                                     // only 0 supported for now
     uint16_t nMode{0};                                     // only 0 supported for now
     COutPoint collateralOutpoint{uint256(), (uint32_t)-1}; // if hash is null, we refer to a ProRegTx output

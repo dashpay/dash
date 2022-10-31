@@ -132,7 +132,7 @@ BOOST_AUTO_TEST_CASE(trivialvalidation_invalid)
                 /*
                  * Removed this check since now, CProUpRegTx::nVersion is first unserialised then the rest.
                  * So a proupregtx with null version will still set tx.nType to TRANSACTION_PROVIDER_UPDATE_REGISTRAR.
-                 * 
+                 *
                 else {
                     BOOST_CHECK(tx.nType != TRANSACTION_PROVIDER_UPDATE_REGISTRAR);
                 }
