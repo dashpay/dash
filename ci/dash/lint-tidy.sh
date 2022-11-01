@@ -83,6 +83,7 @@ echo "=========================="
 
 cd "${BASE_ROOT_DIR}/build-ci/dashcore-${BUILD_TARGET}"
 iwyu_tool.py \
+  "src/common/url.cpp" \
   "src/compat" \
   "src/dbwrapper.cpp" \
   "src/init" \
@@ -110,7 +111,6 @@ iwyu_tool.py \
   "src/util/strencodings.cpp" \
   "src/util/syserror.cpp" \
   "src/util/threadinterrupt.cpp" \
-  "src/util/url.cpp" \
   "src/zmq" \
   -p . "${MAKEJOBS}" \
   -- -Xiwyu --cxx17ns -Xiwyu --mapping_file="${BASE_ROOT_DIR}/contrib/devtools/iwyu/bitcoin.core.imp" \
