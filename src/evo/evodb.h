@@ -110,6 +110,4 @@ private:
     void RollbackCurTransaction() LOCKS_EXCLUDED(cs);
 };
 
-extern std::shared_ptr<CEvoDB> g_evoDb;
-
 #endif // BITCOIN_EVO_EVODB_H
