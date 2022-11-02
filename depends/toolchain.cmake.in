@@ -28,6 +28,9 @@ if(NOT "@allow_host_packages@" STREQUAL "1")
   set(PKG_CONFIG_LIBDIR "${PKG_CONFIG_PATH}")
 endif()
 
+set(STRIP "@STRIP@")
+set(OBJCOPY "@OBJCOPY@")
+
 if(NOT WITH_GUI AND "@no_qt@" STREQUAL "1")
   set(WITH_GUI "no" CACHE STRING "")
 endif()

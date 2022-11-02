@@ -337,6 +337,8 @@ endif()
 
 add_subdirectory(src)
 
+configure_file(contrib/devtools/split-debug.sh.in split-debug.sh @ONLY)
+
 set(abs_top_srcdir ${CMAKE_SOURCE_DIR})
 set(abs_top_builddir ${CMAKE_BINARY_DIR})
 set(EXEEXT ${CMAKE_EXECUTABLE_SUFFIX})

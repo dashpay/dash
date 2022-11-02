@@ -229,6 +229,8 @@ $(host_prefix)/share/toolchain.cmake : toolchain.cmake.in $(host_prefix)/.stamp_
         -e 's|@CMAKE_C_FLAGS_INIT@|$(strip $(host_CPPFLAGS) $(host_$(release_type)_CPPFLAGS) $(host_CFLAGS) $(host_$(release_type)_CFLAGS))|' \
         -e 's|@CMAKE_CXX_FLAGS_INIT@|$(strip $(host_CPPFLAGS) $(host_$(release_type)_CPPFLAGS) $(host_CXXFLAGS) $(host_$(release_type)_CXXFLAGS))|' \
         -e 's|@allow_host_packages@|$(ALLOW_HOST_PACKAGES)|' \
+        -e 's|@STRIP@|$(host_STRIP)|' \
+        -e 's|@OBJCOPY@|$(host_OBJCOPY)|' \
         -e 's|@no_qt@|$(NO_QT)|' \
         -e 's|@no_qr@|$(NO_QR)|' \
         -e 's|@no_zmq@|$(NO_ZMQ)|' \
