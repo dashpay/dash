@@ -433,15 +433,15 @@ public:
         s.seek(BLSObject::SerSize);
     }
 
-    template<typename Stream>
-    inline void Serialize(Stream& s) const
+    template <typename Stream>
+    inline void Serialize(Stream& s, const bool specificLegacyScheme) const
     {
         std::unique_lock<std::mutex> l(mutex);
         if (!objInitialized && !bufValid) {
             throw std::ios_base::failure("obj and buf not initialized");
         }
         if (!bufValid) {
-            vecBytes = obj.ToByteVector();
+            vecBytes = obj.ToByteVector(specificLegacyScheme);
             bufValid = true;
             hash.SetNull();
         }
@@ -449,13 +449,26 @@ public:
     }
 
     template<typename Stream>
-    inline void Unserialize(Stream& s)
+    inline void Serialize(Stream& s) const
     {
+        Serialize(s, bls::bls_legacy_scheme.load());
+    }
+
+    template <typename Stream>
+    inline void Unserialize(Stream& s, const bool specificLegacyScheme) const
+    {
+        //TODO: Check if specific scheme should be used in CBLSLazyWrapper
         std::unique_lock<std::mutex> l(mutex);
         s.read(reinterpret_cast<char*>(vecBytes.data()), BLSObject::SerSize);
         bufValid = true;
         objInitialized = false;
         hash.SetNull();
+    }
+
+    template <typename Stream>
+    inline void Unserialize(Stream& s)
+    {
+        Unserialize(s, bls::bls_legacy_scheme.load());
     }
 
     void Set(const BLSObject& _obj)
@@ -520,6 +533,25 @@ public:
 };
 using CBLSLazySignature = CBLSLazyWrapper<CBLSSignature>;
 using CBLSLazyPublicKey = CBLSLazyWrapper<CBLSPublicKey>;
+
+class CBLSLazyPublicKeyVersionWrapper {
+private:
+    bool legacy;
+    CBLSLazyPublicKey& obj;
+public:
+    CBLSLazyPublicKeyVersionWrapper(CBLSLazyPublicKey& obj, bool legacy)
+            : obj(obj)
+            , legacy(legacy)
+    {}
+    template <typename Stream>
+    inline void Serialize(Stream& s) const {
+        obj.Serialize(s, legacy);
+    }
+    template <typename Stream>
+    inline void Unserialize(Stream& s) {
+        obj.Unserialize(s, legacy);
+    }
+};
 #endif
 
 using BLSIdVector = std::vector<CBLSId>;
