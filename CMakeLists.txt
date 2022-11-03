@@ -417,6 +417,15 @@ if(TARGET bench_bitcoin)
   add_dependencies(check bench_bitcoin)
 endif()
 
+include(GetAllExecutables)
+get_all_executables(executables)
+
+add_custom_target(check-symbols
+  COMMAND echo "Running symbol and dynamic library checks..."
+  COMMAND ${CMAKE_SOURCE_DIR}/contrib/devtools/symbol-check.py ${executables}
+  VERBATIM
+)
+
 message("\n")
 message("Configure summary")
 message("=================")
