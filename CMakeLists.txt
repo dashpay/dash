@@ -426,6 +426,16 @@ add_custom_target(check-symbols
   VERBATIM
 )
 
+if(HARDENING)
+  add_custom_target(check-security
+    COMMAND echo "Checking binary security..."
+    COMMAND ${CMAKE_SOURCE_DIR}/contrib/devtools/security-check.py ${executables}
+    VERBATIM
+  )
+else()
+  add_custom_target(check-security)
+endif()
+
 message("\n")
 message("Configure summary")
 message("=================")
