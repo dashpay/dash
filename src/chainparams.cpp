@@ -249,11 +249,11 @@ public:
         consensus.vDeployments[Consensus::DEPLOYMENT_DIP0024].nThresholdMin = 2420;   // 60% of 4032
         consensus.vDeployments[Consensus::DEPLOYMENT_DIP0024].nFalloffCoeff = 5;      // this corresponds to 10 periods
 
-        // Deployment of Deployment of Basic BLS, AssetLock, EHF
+        // Deployment of Deployment of Basic BLS, AssetLocks, EHF
         consensus.vDeployments[Consensus::DEPLOYMENT_V19].bit = 8;
         consensus.vDeployments[Consensus::DEPLOYMENT_V19].nStartTime = 19999999999;     // TODO: To be determined later
         consensus.vDeployments[Consensus::DEPLOYMENT_V19].nTimeout = 999999999999ULL;
-        consensus.vDeployments[Consensus::DEPLOYMENT_V19].nWindowSize = 100;
+        consensus.vDeployments[Consensus::DEPLOYMENT_V19].nWindowSize = 4032;
         consensus.vDeployments[Consensus::DEPLOYMENT_V19].nThresholdStart = 3226;       // 80% of 4032
         consensus.vDeployments[Consensus::DEPLOYMENT_V19].nThresholdMin = 2420;         // 60% of 4032
         consensus.vDeployments[Consensus::DEPLOYMENT_V19].nFalloffCoeff = 5;            // this corresponds to 10 periods
@@ -483,7 +483,7 @@ public:
         consensus.vDeployments[Consensus::DEPLOYMENT_DIP0024].nThresholdMin = 60;   // 60% of 100
         consensus.vDeployments[Consensus::DEPLOYMENT_DIP0024].nFalloffCoeff = 5;      // this corresponds to 10 periods
 
-        // Deployment of Deployment of Basic BLS, AssetLock, EHF
+        // Deployment of Deployment of Basic BLS, AssetLocks, EHF
         consensus.vDeployments[Consensus::DEPLOYMENT_V19].bit = 8;
         consensus.vDeployments[Consensus::DEPLOYMENT_V19].nStartTime = 19999999999;     // TODO: To be determined later
         consensus.vDeployments[Consensus::DEPLOYMENT_V19].nTimeout = 999999999999ULL;
@@ -688,7 +688,7 @@ public:
         consensus.vDeployments[Consensus::DEPLOYMENT_DIP0024].nThresholdMin = 60;   // 60% of 100
         consensus.vDeployments[Consensus::DEPLOYMENT_DIP0024].nFalloffCoeff = 5;    // this corresponds to 10 periods
 
-        // Deployment of Deployment of Basic BLS, AssetLock, EHF
+        // Deployment of Deployment of Basic BLS, AssetLocks, EHF
         consensus.vDeployments[Consensus::DEPLOYMENT_V19].bit = 8;
         consensus.vDeployments[Consensus::DEPLOYMENT_V19].nStartTime = 1661990400; // Sep 1st, 2022
         consensus.vDeployments[Consensus::DEPLOYMENT_V19].nTimeout = 999999999999ULL;
@@ -938,7 +938,7 @@ public:
         consensus.vDeployments[Consensus::DEPLOYMENT_DIP0024].nThresholdMin = 180;   // 60% of 300
         consensus.vDeployments[Consensus::DEPLOYMENT_DIP0024].nFalloffCoeff = 5;     // this corresponds to 10 periods
 
-        // Deployment of Deployment of Basic BLS, AssetLock, EHF
+        // Deployment of Deployment of Basic BLS, AssetLocks, EHF
         consensus.vDeployments[Consensus::DEPLOYMENT_V19].bit = 8;
         consensus.vDeployments[Consensus::DEPLOYMENT_V19].nStartTime = 0;
         consensus.vDeployments[Consensus::DEPLOYMENT_V19].nTimeout = 999999999999ULL;
