@@ -917,6 +917,31 @@ class DashTestFramework(BitcoinTestFramework):
         self.nodes[0].sporkupdate("SPORK_17_QUORUM_DKG_ENABLED", spork17_value)
         self.wait_for_sporks_same()
 
+    def activate_v19(self, expected_activation_height=None):
+        self.log.info("Wait for v19 activation")
+
+        # mine blocks in batches
+        batch_size = 30
+        if expected_activation_height is not None:
+            height = self.nodes[0].getblockcount()
+            while height - expected_activation_height > batch_size:
+                self.bump_mocktime(batch_size)
+                self.nodes[0].generate(batch_size)
+                height += batch_size
+                self.sync_blocks()
+            assert height - expected_activation_height < batch_size
+            blocks_left = height - expected_activation_height - 1
+            self.bump_mocktime(blocks_left)
+            self.nodes[0].generate(blocks_left)
+            self.sync_blocks()
+            assert self.nodes[0].getblockchaininfo()['bip9_softforks']['v19']['status'] != 'active'
+
+        while self.nodes[0].getblockchaininfo()['bip9_softforks']['v19']['status'] != 'active':
+            self.bump_mocktime(batch_size)
+            self.nodes[0].generate(batch_size)
+            self.sync_blocks()
+        self.sync_blocks()
+
     def set_dash_llmq_test_params(self, llmq_size, llmq_threshold):
         self.llmq_size = llmq_size
         self.llmq_threshold = llmq_threshold
