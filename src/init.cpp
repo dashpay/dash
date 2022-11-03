@@ -2018,6 +2018,7 @@ bool AppInitMain(const CoreContext& context, NodeContext& node, interfaces::Bloc
             try {
                 LOCK(cs_main);
                 auto evoDb = std::make_shared<CEvoDB>(nEvoDbCache, false, fReset || fReindexChainState);
+                node.evodb = evoDb;
                 chainman.InitializeChainstate(llmq::chainLocksHandler, llmq::quorumInstantSendManager, llmq::quorumBlockProcessor, evoDb);
                 chainman.m_total_coinstip_cache = nCoinCacheUsage;
                 chainman.m_total_coinsdb_cache = nCoinDBCache;
