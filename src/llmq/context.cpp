@@ -18,7 +18,7 @@
 #include <llmq/signing_shares.h>
 #include <llmq/utils.h>
 
-LLMQContext::LLMQContext(std::shared_ptr<CEvoDB> evoDb, CTxMemPool& mempool, CConnman& connman, CSporkManager& sporkManager, bool unitTests, bool fWipe) {
+LLMQContext::LLMQContext(CEvoDB& evoDb, CTxMemPool& mempool, CConnman& connman, CSporkManager& sporkManager, bool unitTests, bool fWipe) {
     Create(evoDb, mempool, connman, sporkManager, unitTests, fWipe);
 
     /* Context aliases to globals used by the LLMQ system */
@@ -37,7 +37,7 @@ LLMQContext::~LLMQContext() {
     Destroy();
 }
 
-void LLMQContext::Create(std::shared_ptr<CEvoDB> evoDb, CTxMemPool& mempool, CConnman& connman, CSporkManager& sporkManager, bool unitTests, bool fWipe) {
+void LLMQContext::Create(CEvoDB& evoDb, CTxMemPool& mempool, CConnman& connman, CSporkManager& sporkManager, bool unitTests, bool fWipe) {
     bls_worker = std::make_shared<CBLSWorker>();
 
     dkg_debugman = std::make_unique<llmq::CDKGDebugManager>();

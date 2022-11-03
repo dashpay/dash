@@ -26,10 +26,10 @@ class CInstantSendManager;
 }
 
 struct LLMQContext {
-    LLMQContext(std::shared_ptr<CEvoDB> evoDb, CTxMemPool& mempool, CConnman& connman, CSporkManager& sporkManager, bool unitTests, bool fWipe);
+    LLMQContext(CEvoDB& evoDb, CTxMemPool& mempool, CConnman& connman, CSporkManager& sporkManager, bool unitTests, bool fWipe);
     ~LLMQContext();
 
-    void Create(std::shared_ptr<CEvoDB> evoDb, CTxMemPool& mempool, CConnman& connman, CSporkManager& sporkManager, bool unitTests, bool fWipe);
+    void Create(CEvoDB& evoDb, CTxMemPool& mempool, CConnman& connman, CSporkManager& sporkManager, bool unitTests, bool fWipe);
     void Destroy();
     void Interrupt();
     void Start();

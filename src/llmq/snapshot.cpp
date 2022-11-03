@@ -372,7 +372,7 @@ std::optional<CQuorumSnapshot> CQuorumSnapshotManager::GetSnapshotForBlock(const
     if (quorumSnapshotCache.get(snapshotHash, snapshot)) {
         return snapshot;
     }
-    if (m_evoDb->Read(std::make_pair(DB_QUORUM_SNAPSHOT, snapshotHash), snapshot)) {
+    if (m_evoDb.Read(std::make_pair(DB_QUORUM_SNAPSHOT, snapshotHash), snapshot)) {
         quorumSnapshotCache.insert(snapshotHash, snapshot);
         return snapshot;
     }
@@ -385,9 +385,9 @@ void CQuorumSnapshotManager::StoreSnapshotForBlock(const Consensus::LLMQType llm
     auto snapshotHash = ::SerializeHash(std::make_pair(llmqType, pindex->GetBlockHash()));
 
     // LOCK(cs_main);
-    AssertLockNotHeld(m_evoDb->cs);
-    LOCK2(snapshotCacheCs, m_evoDb->cs);
-    m_evoDb->GetRawDB().Write(std::make_pair(DB_QUORUM_SNAPSHOT, snapshotHash), snapshot);
+    AssertLockNotHeld(m_evoDb.cs);
+    LOCK2(snapshotCacheCs, m_evoDb.cs);
+    m_evoDb.GetRawDB().Write(std::make_pair(DB_QUORUM_SNAPSHOT, snapshotHash), snapshot);
     quorumSnapshotCache.insert(snapshotHash, snapshot);
 }
 

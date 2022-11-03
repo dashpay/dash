@@ -58,7 +58,7 @@ BlockAssembler::Options::Options() {
 
 BlockAssembler::BlockAssembler(const CSporkManager& sporkManager, CGovernanceManager& governanceManager,
                                const llmq::CQuorumBlockProcessor& quorumBlockProcessor, llmq::CChainLocksHandler& clhandler,
-                               llmq::CInstantSendManager& isman, std::shared_ptr<CEvoDB> evoDb, const CTxMemPool& mempool, const CChainParams& params, const Options& options)
+                               llmq::CInstantSendManager& isman, CEvoDB& evoDb, const CTxMemPool& mempool, const CChainParams& params, const Options& options)
     : spork_manager(sporkManager),
       governance_manager(governanceManager),
       quorum_block_processor(quorumBlockProcessor),
@@ -66,7 +66,7 @@ BlockAssembler::BlockAssembler(const CSporkManager& sporkManager, CGovernanceMan
       m_mempool(mempool),
       m_clhandler(clhandler),
       m_isman(isman),
-      m_evoDb(std::move(evoDb))
+      m_evoDb(evoDb)
 {
     blockMinFeeRate = options.blockMinFeeRate;
     // Limit size to between 1K and MaxBlockSize()-1K for sanity:
@@ -92,8 +92,8 @@ static BlockAssembler::Options DefaultOptions()
 
 BlockAssembler::BlockAssembler(const CSporkManager& sporkManager, CGovernanceManager& governanceManager,
                                const llmq::CQuorumBlockProcessor& quorumBlockProcessor, llmq::CChainLocksHandler& clhandler,
-                               llmq::CInstantSendManager& isman, std::shared_ptr<CEvoDB> evoDb, const CTxMemPool& mempool, const CChainParams& params)
-    : BlockAssembler(sporkManager, governanceManager, quorumBlockProcessor, clhandler, isman, std::move(evoDb), mempool, params, DefaultOptions()) {}
+                               llmq::CInstantSendManager& isman, CEvoDB& evoDb, const CTxMemPool& mempool, const CChainParams& params)
+    : BlockAssembler(sporkManager, governanceManager, quorumBlockProcessor, clhandler, isman, evoDb, mempool, params, DefaultOptions()) {}
 
 void BlockAssembler::resetBlock()
 {
@@ -234,7 +234,7 @@ std::unique_ptr<CBlockTemplate> BlockAssembler::CreateNewBlock(const CScript& sc
     pblocktemplate->vTxSigOps[0] = GetLegacySigOpCount(*pblock->vtx[0]);
 
     CValidationState state;
-    if (!TestBlockValidity(state, m_clhandler, *m_evoDb, chainparams, *pblock, pindexPrev, false, false)) {
+    if (!TestBlockValidity(state, m_clhandler, m_evoDb, chainparams, *pblock, pindexPrev, false, false)) {
         throw std::runtime_error(strprintf("%s: TestBlockValidity failed: %s", __func__, FormatStateMessage(state)));
     }
     int64_t nTime2 = GetTimeMicros();

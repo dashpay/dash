@@ -2017,9 +2017,8 @@ bool AppInitMain(const CoreContext& context, NodeContext& node, interfaces::Bloc
 
             try {
                 LOCK(cs_main);
-                auto evoDb = std::make_shared<CEvoDB>(nEvoDbCache, false, fReset || fReindexChainState);
-                node.evodb = evoDb;
-                chainman.InitializeChainstate(llmq::chainLocksHandler, llmq::quorumInstantSendManager, llmq::quorumBlockProcessor, evoDb);
+                node.evodb = std::make_shared<CEvoDB>(nEvoDbCache, false, fReset || fReindexChainState);;
+                chainman.InitializeChainstate(llmq::chainLocksHandler, llmq::quorumInstantSendManager, llmq::quorumBlockProcessor, node.evodb);
                 chainman.m_total_coinstip_cache = nCoinCacheUsage;
                 chainman.m_total_coinsdb_cache = nCoinDBCache;
 
@@ -2032,11 +2031,11 @@ bool AppInitMain(const CoreContext& context, NodeContext& node, interfaces::Bloc
 
                 // Same logic as above with pblocktree
                 deterministicMNManager.reset();
-                deterministicMNManager.reset(new CDeterministicMNManager(evoDb, *node.connman));
+                deterministicMNManager.reset(new CDeterministicMNManager(*node.evodb, *node.connman));
                 llmq::quorumSnapshotManager.reset();
-                llmq::quorumSnapshotManager.reset(new llmq::CQuorumSnapshotManager(evoDb));
+                llmq::quorumSnapshotManager.reset(new llmq::CQuorumSnapshotManager(*node.evodb));
                 node.llmq_ctx.reset();
-                node.llmq_ctx.reset(new LLMQContext(evoDb, *node.mempool, *node.connman, *::sporkManager, false, fReset || fReindexChainState));
+                node.llmq_ctx.reset(new LLMQContext(*node.evodb, *node.mempool, *node.connman, *::sporkManager, false, fReset || fReindexChainState));
 
                 if (fReset) {
                     pblocktree->WriteReindexing(true);
@@ -2146,7 +2145,7 @@ bool AppInitMain(const CoreContext& context, NodeContext& node, interfaces::Bloc
                     // TODO: CEvoDB instance should probably be a part of CChainState
                     // (for multiple chainstates to actually work in parallel)
                     // and not a global
-                    if (&::ChainstateActive() == chainstate && !evoDb->CommitRootTransaction()) {
+                    if (&::ChainstateActive() == chainstate && !node.evodb->CommitRootTransaction()) {
                         strLoadError = _("Failed to commit EvoDB");
                         failed_chainstate_init = true;
                         break;
@@ -2195,7 +2194,7 @@ bool AppInitMain(const CoreContext& context, NodeContext& node, interfaces::Bloc
                         if (&::ChainstateActive() == chainstate &&
                             !CVerifyDB().VerifyDB(
                                 chainparams, &chainstate->CoinsDB(),
-                                *evoDb,
+                                *node.evodb,
                                 args.GetArg("-checklevel", DEFAULT_CHECKLEVEL),
                                 args.GetArg("-checkblocks", DEFAULT_CHECKBLOCKS))) {
                             strLoadError = _("Corrupted block database detected");
@@ -2206,7 +2205,7 @@ bool AppInitMain(const CoreContext& context, NodeContext& node, interfaces::Bloc
                         // TODO: CEvoDB instance should probably be a part of CChainState
                         // (for multiple chainstates to actually work in parallel)
                         // and not a global
-                        if (&::ChainstateActive() == chainstate && !evoDb->IsEmpty()) {
+                        if (&::ChainstateActive() == chainstate && !node.evodb->IsEmpty()) {
                             // EvoDB processed some blocks earlier but we have no blocks anymore, something is wrong
                             strLoadError = _("Error initializing block database");
                             failed_verification = true;
