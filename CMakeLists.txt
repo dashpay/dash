@@ -436,6 +436,19 @@ else()
   add_custom_target(check-security)
 endif()
 
+if(APPLE)
+  set(exe_format MACHO)
+elseif(WIN32)
+  set(exe_format PE)
+elseif(UNIX)
+  set(exe_format ELF)
+endif()
+add_custom_target(test-security-check
+  COMMAND env CC=${CMAKE_C_COMPILER} CFLAGS=${CMAKE_C_FLAGS} LDFLAGS=${CMAKE_EXE_LINKER_FLAGS} ${CMAKE_SOURCE_DIR}/contrib/devtools/test-security-check.py TestSecurityChecks.test_${exe_format}
+  COMMAND env CC=${CMAKE_C_COMPILER} CFLAGS=${CMAKE_C_FLAGS} LDFLAGS=${CMAKE_EXE_LINKER_FLAGS} ${CMAKE_SOURCE_DIR}/contrib/devtools/test-symbol-check.py TestSymbolChecks.test_${exe_format}
+  VERBATIM
+)
+
 message("\n")
 message("Configure summary")
 message("=================")
