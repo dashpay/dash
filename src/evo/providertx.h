@@ -58,6 +58,10 @@ public:
         READWRITE(
                 obj.nVersion
         );
+        if (obj.nVersion == 0 || obj.nVersion > BASIC_BLS_VERSION) {
+            // unknown version, bail out early
+            throw(std::runtime_error("unknown-proregtx-version"));
+        }
         READWRITE(
                 obj.nType,
                 obj.nMode,
@@ -129,6 +133,10 @@ public:
         READWRITE(
                 obj.nVersion
         );
+        if (obj.nVersion == 0 || obj.nVersion > BASIC_BLS_VERSION) {
+            // unknown version, bail out early
+            throw(std::runtime_error("unknown-proupservtx-version"));
+        }
         READWRITE(
                 obj.proTxHash,
                 obj.addr,
@@ -187,6 +195,10 @@ public:
         READWRITE(
                 obj.nVersion
         );
+        if (obj.nVersion == 0 || obj.nVersion > BASIC_BLS_VERSION) {
+            // unknown version, bail out early
+            throw(std::runtime_error("unknown-proupregtx-version"));
+        }
         READWRITE(
                 obj.proTxHash,
                 obj.nMode,
@@ -254,6 +266,10 @@ public:
         READWRITE(
                 obj.nVersion
         );
+        if (obj.nVersion == 0 || obj.nVersion > BASIC_BLS_VERSION) {
+            // unknown version, bail out early
+            throw(std::runtime_error("unknown-prouprevtx-version"));
+        }
         READWRITE(
                 obj.proTxHash,
                 obj.nReason,

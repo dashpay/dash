@@ -113,7 +113,7 @@ BOOST_AUTO_TEST_CASE(trivialvalidation_invalid)
                 if (GetTxPayload(tx, ptx, false)) {
                     BOOST_CHECK(ptx.IsTriviallyValid().did_err);
                 } else {
-                    BOOST_CHECK(tx.nType != TRANSACTION_PROVIDER_REGISTER);
+                    BOOST_CHECK(tx.nType != TRANSACTION_PROVIDER_REGISTER || ptx.nVersion == 0);
                 }
             }
             else if (txType == "proupservtx") {
@@ -121,7 +121,7 @@ BOOST_AUTO_TEST_CASE(trivialvalidation_invalid)
                 if (GetTxPayload(tx, ptx, false)) {
                     BOOST_CHECK(ptx.IsTriviallyValid().did_err);
                 } else {
-                    BOOST_CHECK(tx.nType != TRANSACTION_PROVIDER_UPDATE_SERVICE);
+                    BOOST_CHECK(tx.nType != TRANSACTION_PROVIDER_UPDATE_SERVICE || ptx.nVersion == 0);
                 }
             }
             else if (txType == "proupregtx") {
@@ -129,21 +129,16 @@ BOOST_AUTO_TEST_CASE(trivialvalidation_invalid)
                 if (GetTxPayload(tx, ptx, false)) {
                     BOOST_CHECK(ptx.IsTriviallyValid().did_err);
                 }
-                /*
-                 * Removed this check since now, CProUpRegTx::nVersion is first unserialised then the rest.
-                 * So a proupregtx with null version will still set tx.nType to TRANSACTION_PROVIDER_UPDATE_REGISTRAR.
-                 *
                 else {
-                    BOOST_CHECK(tx.nType != TRANSACTION_PROVIDER_UPDATE_REGISTRAR);
+                    BOOST_CHECK(tx.nType != TRANSACTION_PROVIDER_UPDATE_REGISTRAR || ptx.nVersion == 0);
                 }
-                */
             }
             else if (txType == "prouprevtx") {
                 CProUpRevTx ptx;
                 if (GetTxPayload(tx, ptx, false)) {
                     BOOST_CHECK(ptx.IsTriviallyValid().did_err);
                 } else {
-                    BOOST_CHECK(tx.nType != TRANSACTION_PROVIDER_UPDATE_REVOKE);
+                    BOOST_CHECK(tx.nType != TRANSACTION_PROVIDER_UPDATE_REVOKE || ptx.nVersion == 0);
                 }
             }
             else {

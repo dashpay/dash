@@ -354,7 +354,7 @@ CSimplifiedMNListDiff CDeterministicMNList::BuildSimplifiedDiff(const CDetermini
     CSimplifiedMNListDiff diffRet;
     diffRet.baseBlockHash = blockHash;
     diffRet.blockHash = to.blockHash;
-    diffRet.nVersion = llmq::utils::IsBasicBLSSchemeActive(::ChainActive().Tip()) ? CSimplifiedMNListDiff::LEGACY_BLS_VERSION : CSimplifiedMNListDiff::BASIC_BLS_VERSION;
+    diffRet.nVersion = llmq::utils::IsBasicBLSSchemeActive(::ChainActive().Tip()) ? CSimplifiedMNListDiff::BASIC_BLS_VERSION : CSimplifiedMNListDiff::LEGACY_BLS_VERSION;
 
     to.ForEachMN(false, [&](auto& toPtr) {
         auto fromPtr = GetMN(toPtr.proTxHash);
