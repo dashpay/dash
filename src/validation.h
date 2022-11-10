@@ -15,6 +15,7 @@
 #include <attributes.h>
 #include <chain.h>
 #include <chainparams.h>
+#include <kernel/chain.h>
 #include <kernel/chainstatemanager_opts.h>
 #include <consensus/amount.h>
 #include <deploymentstatus.h>
@@ -534,6 +535,12 @@ public:
                          CEvoDB& evoDb,
                          const std::unique_ptr<CChainstateHelper>& chain_helper,
                          std::optional<uint256> from_snapshot_blockhash = std::nullopt);
+
+    //! Return the current role of the chainstate. See `ChainstateManager`
+    //! documentation for a description of the different types of chainstates.
+    //!
+    //! @sa ChainstateRole
+    ChainstateRole GetRole() const EXCLUSIVE_LOCKS_REQUIRED(::cs_main);
 
     /**
      * Initialize the CoinsViews UTXO set database management data structures. The in-memory

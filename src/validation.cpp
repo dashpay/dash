@@ -5858,3 +5858,13 @@ Chainstate& ChainstateManager::ActivateExistingSnapshot(CTxMemPool* mempool, uin
     m_active_chainstate = m_snapshot_chainstate.get();
     return *m_snapshot_chainstate;
 }
+
+ChainstateRole Chainstate::GetRole() const
+{
+    if (m_chainman.GetAll().size() <= 1) {
+        return ChainstateRole::NORMAL;
+    }
+    return (this != &m_chainman.ActiveChainstate()) ?
+               ChainstateRole::BACKGROUND :
+               ChainstateRole::ASSUMEDVALID;
+}
