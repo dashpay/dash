@@ -85,26 +85,26 @@ static UniValue quorum_list(const JSONRPCRequest& request)
 static void quorum_list_extended_help(const JSONRPCRequest& request)
 {
     RPCHelpMan{"quorum listextended",
-               "Extended list of on-chain quorums\n",
-               {
-                       {"count", RPCArg::Type::NUM, /* default */ "", "Number of quorums to list. Will list active quorums if \"count\" is not specified."},
-               },
-               RPCResult{
-                       RPCResult::Type::OBJ, "", "",
-                       {
-                               {RPCResult::Type::ARR, "quorumName", "List of quorum details per some quorum type",
-                                {
-                                        {RPCResult::Type::STR_HEX, "quorumHash", "Quorum hash. Note: most recent quorums come first."},
-                                        {RPCResult::Type::NUM, "creationHeight", "Block height where the DKG started."},
-                                        {RPCResult::Type::NUM, "quorumIndex", "Quorum index (applicable only to rotated quorums)."},
-                                        {RPCResult::Type::STR_HEX, "minedBlockHash", "Blockhash where the commitment was mined."}
-                                }}
-                       }},
-               RPCExamples{
-                       HelpExampleCli("quorum", "listextended")
-                       + HelpExampleCli("quorum", "listextended 10")
-                       + HelpExampleRpc("quorum", "listextended, 10")
-               },
+        "Extended list of on-chain quorums\n",
+        {
+            {"count", RPCArg::Type::NUM, /* default */ "", "Number of quorums to list. Will list active quorums if \"count\" is not specified."},
+        },
+        RPCResult{
+            RPCResult::Type::OBJ, "", "",
+            {
+                {RPCResult::Type::ARR, "quorumName", "List of quorum details per some quorum type",
+                {
+                    {RPCResult::Type::STR_HEX, "quorumHash", "Quorum hash. Note: most recent quorums come first."},
+                    {RPCResult::Type::NUM, "creationHeight", "Block height where the DKG started."},
+                    {RPCResult::Type::NUM, "quorumIndex", "Quorum index (applicable only to rotated quorums)."},
+                    {RPCResult::Type::STR_HEX, "minedBlockHash", "Blockhash where the commitment was mined."}
+                }}
+            }},
+            RPCExamples{
+                HelpExampleCli("quorum", "listextended")
+                + HelpExampleCli("quorum", "listextended 10")
+                + HelpExampleRpc("quorum", "listextended, 10")
+            },
     }.Check(request);
 }
 
