@@ -147,8 +147,7 @@ public:
         }
         return cachedHash;
     }
-
-    //TODO: Add version with argument (bool specificLegacyScheme)
+    
     bool SetHexStr(const std::string& str, const bool specificLegacyScheme)
     {
         if (!IsHex(str)) {
