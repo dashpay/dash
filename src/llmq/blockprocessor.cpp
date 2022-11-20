@@ -131,7 +131,7 @@ bool CQuorumBlockProcessor::ProcessBlock(const CBlock& block, const CBlockIndex*
         return true;
     }
 
-    if (utils::IsBasicBLSSchemeActive(pindex))
+    if (utils::IsV19Active(pindex))
         bls::bls_legacy_scheme.store(false);
 
     llmq::utils::PreComputeQuorumMembers(pindex);
@@ -287,7 +287,7 @@ bool CQuorumBlockProcessor::UndoBlock(const CBlock& block, const CBlockIndex* pi
 {
     AssertLockHeld(cs_main);
 
-    if (!utils::IsBasicBLSSchemeActive(pindex->pprev))
+    if (!utils::IsV19Active(pindex->pprev))
         bls::bls_legacy_scheme.store(true);
 
     llmq::utils::PreComputeQuorumMembers(pindex, true);
@@ -731,7 +731,7 @@ std::optional<std::vector<CFinalCommitment>> CQuorumBlockProcessor::GetMineableC
     const auto *const pindex = ::ChainActive().Height() < nHeight ? ::ChainActive().Tip() : ::ChainActive().Tip()->GetAncestor(nHeight);
 
     bool rotation_enabled = utils::IsQuorumRotationEnabled(llmqParams.type, pindex);
-    bool basic_bls_enabled = utils::IsBasicBLSSchemeActive(pindex);
+    bool basic_bls_enabled = utils::IsV19Active(pindex);
     size_t quorums_num = rotation_enabled ? llmqParams.signingActiveQuorumCount : 1;
 
     std::stringstream ss;

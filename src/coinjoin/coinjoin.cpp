@@ -51,7 +51,7 @@ bool CCoinJoinQueue::Sign()
     if (!fMasternodeMode) return false;
 
 
-    bool legacy_bls_scheme = !llmq::utils::IsBasicBLSSchemeActive(::ChainActive().Tip());
+    bool legacy_bls_scheme = !llmq::utils::IsV19Active(::ChainActive().Tip());
     uint256 hash = GetSignatureHash();
     CBLSSignature sig = WITH_LOCK(activeMasternodeInfoCs, return activeMasternodeInfo.blsKeyOperator->Sign(hash));
     if (!sig.IsValid()) {
@@ -98,7 +98,7 @@ bool CCoinJoinBroadcastTx::Sign()
 {
     if (!fMasternodeMode) return false;
 
-    bool legacy_bls_scheme = !llmq::utils::IsBasicBLSSchemeActive(::ChainActive().Tip());
+    bool legacy_bls_scheme = !llmq::utils::IsV19Active(::ChainActive().Tip());
     uint256 hash = GetSignatureHash();
     CBLSSignature sig = WITH_LOCK(activeMasternodeInfoCs, return activeMasternodeInfo.blsKeyOperator->Sign(hash));
     if (!sig.IsValid()) {
