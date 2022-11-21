@@ -94,10 +94,12 @@ static void quorum_list_extended_help(const JSONRPCRequest& request)
             {
                 {RPCResult::Type::ARR, "quorumName", "List of quorum details per some quorum type",
                 {
-                    {RPCResult::Type::STR_HEX, "quorumHash", "Quorum hash. Note: most recent quorums come first."},
-                    {RPCResult::Type::NUM, "creationHeight", "Block height where the DKG started."},
-                    {RPCResult::Type::NUM, "quorumIndex", "Quorum index (applicable only to rotated quorums)."},
-                    {RPCResult::Type::STR_HEX, "minedBlockHash", "Blockhash where the commitment was mined."}
+                        {RPCResult::Type::OBJ, "xxxx", "Quorum hash. Note: most recent quorums come first.",
+                         {
+                                 {RPCResult::Type::NUM, "creationHeight", "Block height where the DKG started."},
+                                 {RPCResult::Type::NUM, "quorumIndex", "Quorum index (applicable only to rotated quorums)."},
+                                 {RPCResult::Type::STR_HEX, "minedBlockHash", "Blockhash where the commitment was mined."}
+                         }},
                 }}
             }},
             RPCExamples{
@@ -129,20 +131,20 @@ static UniValue quorum_list_extended(const JSONRPCRequest& request)
         const auto& llmq_params = llmq::GetLLMQParams(type);
         UniValue v(UniValue::VARR);
 
-
-        UniValue obj(UniValue::VOBJ);
         auto quorums = llmq_ctx.qman->ScanQuorums(type, pindexTip, count > -1 ? count : llmq_params.signingActiveQuorumCount);
         for (const auto& q : quorums) {
-            obj.pushKV("quorumHash", q->qc->quorumHash.ToString());
-            if (llmq_params.useRotation) {
-                obj.pushKV("quorumIndex", q->qc->quorumIndex);
+            UniValue obj(UniValue::VOBJ);
+            {
+                UniValue j(UniValue::VOBJ);
+                if (llmq_params.useRotation) {
+                    j.pushKV("quorumIndex", q->qc->quorumIndex);
+                }
+                j.pushKV("creationHeight", q->m_quorum_base_block_index->nHeight);
+                j.pushKV("minedBlockHash", q->minedBlockHash.ToString());
+                obj.pushKV(q->qc->quorumHash.ToString(),j);
             }
-            obj.pushKV("creationHeight", q->m_quorum_base_block_index->nHeight);
-            obj.pushKV("minedBlockHash", q->minedBlockHash.ToString());
-
             v.push_back(obj);
         }
-
         ret.pushKV(std::string(llmq_params.name), v);
     }
 

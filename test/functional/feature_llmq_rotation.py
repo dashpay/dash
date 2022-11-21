@@ -219,16 +219,18 @@ class LLMQQuorumRotationTest(DashTestFramework):
 
     def test_quorum_listextended(self, quorum_info, llmq_type_name):
         extended_quorum_list = self.nodes[0].quorum("listextended")[llmq_type_name]
-        for q in extended_quorum_list:
-            if q["quorumHash"] == quorum_info["quorumHash"]:
-                if q["minedBlockHash"] != quorum_info["minedBlock"]:
-                    return False
-                if q["creationHeight"] != quorum_info["height"]:
-                    return False
-                if q["quorumIndex"] != quorum_info["quorumIndex"]:
-                    return False
-                self.log.info("qqq:"+str(q))
-                return True
+        quorum_dict = {}
+        for dictionary in extended_quorum_list:
+            quorum_dict.update(dictionary)
+        if quorum_info["quorumHash"] in quorum_dict:
+            q = quorum_dict[quorum_info["quorumHash"]]
+            if q["minedBlockHash"] != quorum_info["minedBlock"]:
+                return False
+            if q["creationHeight"] != quorum_info["height"]:
+                return False
+            if q["quorumIndex"] != quorum_info["quorumIndex"]:
+                return False
+            return True
         return False
 
 if __name__ == '__main__':
