@@ -92,7 +92,7 @@ static void quorum_list_extended_help(const JSONRPCRequest& request)
         RPCResult{
             RPCResult::Type::OBJ, "", "",
             {
-                {RPCResult::Type::ARR, "quorumName", "List of quorum details per some quorum type",
+                {RPCResult::Type::OBJ_DYN, "quorumName", "List of quorum details per some quorum type",
                 {
                         {RPCResult::Type::OBJ, "xxxx", "Quorum hash. Note: most recent quorums come first.",
                          {
