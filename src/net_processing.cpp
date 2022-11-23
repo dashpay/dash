@@ -2768,8 +2768,9 @@ bool ProcessMessage(CNode* pfrom, const std::string& msg_type, CDataStream& vRec
                       pfrom->m_block_relay_only_peer ? "block-relay" : "full-relay");
         }
 
+        const CBlockIndex* tip = ::ChainActive().Tip();
         if (!pfrom->m_masternode_probe_connection) {
-            CMNAuth::PushMNAUTH(*pfrom, *connman);
+            CMNAuth::PushMNAUTH(*pfrom, *connman, tip);
         }
 
         // Tell our peer we prefer to receive headers rather than inv's

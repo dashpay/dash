@@ -7,6 +7,7 @@
 
 #include <bls/bls.h>
 #include <serialize.h>
+#include "chain.h"
 
 class CConnman;
 class CDataStream;
@@ -44,7 +45,7 @@ public:
         READWRITE(obj.proRegTxHash, obj.sig);
     }
 
-    static void PushMNAUTH(CNode& peer, CConnman& connman);
+    static void PushMNAUTH(CNode& peer, CConnman& connman, const CBlockIndex* tip);
     static void ProcessMessage(CNode& peer, std::string_view msg_type, CDataStream& vRecv, CConnman& connman);
     static void NotifyMasternodeListChanged(bool undo, const CDeterministicMNList& oldMNList, const CDeterministicMNListDiff& diff, CConnman& connman);
 };
