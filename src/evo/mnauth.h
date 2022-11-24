@@ -7,7 +7,7 @@
 
 #include <bls/bls.h>
 #include <serialize.h>
-#include "chain.h"
+#include <chain.h>
 
 class CConnman;
 class CDataStream;
