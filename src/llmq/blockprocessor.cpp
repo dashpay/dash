@@ -131,7 +131,7 @@ bool CQuorumBlockProcessor::ProcessBlock(const CBlock& block, const CBlockIndex*
         return true;
     }
 
-    if (utils::IsV19Active(pindex))
+    if (utils::IsV19Active(pindex->pprev))
         bls::bls_legacy_scheme.store(false);
 
     llmq::utils::PreComputeQuorumMembers(pindex);
