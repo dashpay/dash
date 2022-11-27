@@ -1336,6 +1336,7 @@ static void bls_fromsecret_help(const JSONRPCRequest& request)
         "\nParses a BLS secret key and returns the secret/public key pair.\n",
         {
             {"secret", RPCArg::Type::STR, RPCArg::Optional::NO, "The BLS secret key"},
+            {"legacy", RPCArg::Type::BOOL, /* default */ "true until the v19 fork is activated, otherwise false", "Use legacy BLS scheme"},
         },
         RPCResult{
             RPCResult::Type::OBJ, "", "",
@@ -1355,6 +1356,10 @@ static UniValue bls_fromsecret(const JSONRPCRequest& request)
 
     CBLSSecretKey sk = ParseBLSSecretKey(request.params[0].get_str(), "secretKey");
     bool bls_legacy_scheme = !llmq::utils::IsV19Active(::ChainActive().Tip());
+    if (!request.params[1].isNull()) {
+        RPCTypeCheckArgument(request.params[1], UniValue::VBOOL);
+        bls_legacy_scheme = request.params[1].get_bool();
+    }
     UniValue ret(UniValue::VOBJ);
     ret.pushKV("secret", sk.ToString());
     ret.pushKV("public", sk.GetPublicKey().ToString(bls_legacy_scheme));
