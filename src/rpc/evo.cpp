@@ -168,12 +168,10 @@ static CBLSPublicKey ParseBLSPubKey(const std::string& hexKey, const std::string
     return pubKey;
 }
 
-static CBLSSecretKey ParseBLSSecretKey(const std::string& hexKey, const std::string& paramName, bool specific_legacy_bls_scheme = false)
+static CBLSSecretKey ParseBLSSecretKey(const std::string& hexKey, const std::string& paramName)
 {
     CBLSSecretKey secKey;
-    bool is_bls_legacy_scheme = !llmq::utils::IsV19Active(::ChainActive().Tip());
-    bool use_bls_scheme = specific_legacy_bls_scheme || is_bls_legacy_scheme;
-    if (!secKey.SetHexStr(hexKey, use_bls_scheme)) {
+    if (!secKey.SetHexStr(hexKey)) {
         throw JSONRPCError(RPC_INVALID_PARAMETER, strprintf("%s must be a valid BLS secret key", paramName));
     }
     return secKey;
@@ -692,7 +690,7 @@ static UniValue protx_update_service_wrapper(const JSONRPCRequest& request, cons
         throw std::runtime_error(strprintf("invalid network address %s", request.params[1].get_str()));
     }
 
-    CBLSSecretKey keyOperator = ParseBLSSecretKey(request.params[2].get_str(), "operatorKey", specific_legacy_bls_scheme);
+    CBLSSecretKey keyOperator = ParseBLSSecretKey(request.params[2].get_str(), "operatorKey");
 
     auto dmn = deterministicMNManager->GetListAtChainTip().GetMN(ptx.proTxHash);
     if (!dmn) {
@@ -900,7 +898,7 @@ static UniValue protx_revoke_wrapper(const JSONRPCRequest& request, const bool s
         ptx.nVersion = CProUpRevTx::getVersion(llmq::utils::IsV19Active(::ChainActive().Tip()));
     ptx.proTxHash = ParseHashV(request.params[0], "proTxHash");
 
-    CBLSSecretKey keyOperator = ParseBLSSecretKey(request.params[1].get_str(), "operatorKey", specific_legacy_bls_scheme);
+    CBLSSecretKey keyOperator = ParseBLSSecretKey(request.params[1].get_str(), "operatorKey");
 
     if (!request.params[2].isNull()) {
         int32_t nReason = ParseInt32V(request.params[2], "reason");
@@ -1327,7 +1325,7 @@ static UniValue bls_generate(const JSONRPCRequest& request)
     sk.MakeNewKey();
     bool bls_legacy_scheme = !llmq::utils::IsV19Active(::ChainActive().Tip());
     UniValue ret(UniValue::VOBJ);
-    ret.pushKV("secret", sk.ToString(bls_legacy_scheme));
+    ret.pushKV("secret", sk.ToString());
     ret.pushKV("public", sk.GetPublicKey().ToString(bls_legacy_scheme));
     return ret;
 }
@@ -1354,13 +1352,11 @@ static void bls_fromsecret_help(const JSONRPCRequest& request)
 static UniValue bls_fromsecret(const JSONRPCRequest& request)
 {
     bls_fromsecret_help(request);
+
+    CBLSSecretKey sk = ParseBLSSecretKey(request.params[0].get_str(), "secretKey");
     bool bls_legacy_scheme = !llmq::utils::IsV19Active(::ChainActive().Tip());
-    CBLSSecretKey sk;
-    if (!sk.SetHexStr(request.params[0].get_str(),bls_legacy_scheme)) {
-        throw JSONRPCError(RPC_INVALID_PARAMETER, strprintf("Secret key must be a valid hex string of length %d", sk.SerSize*2));
-    }
     UniValue ret(UniValue::VOBJ);
-    ret.pushKV("secret", sk.ToString(bls_legacy_scheme));
+    ret.pushKV("secret", sk.ToString());
     ret.pushKV("public", sk.GetPublicKey().ToString(bls_legacy_scheme));
     return ret;
 }
