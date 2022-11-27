@@ -680,10 +680,11 @@ static UniValue protx_update_service_wrapper(const JSONRPCRequest& request, cons
     EnsureWalletIsUnlocked(wallet.get());
 
     CProUpServTx ptx;
-    if (specific_legacy_bls_scheme)
+    if (specific_legacy_bls_scheme) {
         ptx.nVersion = CProUpServTx::LEGACY_BLS_VERSION;
-    else
+    } else {
         ptx.nVersion = CProUpServTx::getVersion(llmq::utils::IsV19Active(::ChainActive().Tip()));
+    }
     ptx.proTxHash = ParseHashV(request.params[0], "proTxHash");
 
     if (!Lookup(request.params[1].get_str().c_str(), ptx.addr, Params().GetDefaultPort(), false)) {
@@ -787,10 +788,11 @@ static UniValue protx_update_registrar_wrapper(const JSONRPCRequest& request, co
     EnsureWalletIsUnlocked(wallet.get());
 
     CProUpRegTx ptx;
-    if (specific_legacy_bls_scheme)
+    if (specific_legacy_bls_scheme) {
         ptx.nVersion = CProUpRegTx::LEGACY_BLS_VERSION;
-    else
+    } else {
         ptx.nVersion = CProUpRegTx::getVersion(llmq::utils::IsV19Active(::ChainActive().Tip()));
+    }
     ptx.proTxHash = ParseHashV(request.params[0], "proTxHash");
 
     auto dmn = deterministicMNManager->GetListAtChainTip().GetMN(ptx.proTxHash);
@@ -892,10 +894,11 @@ static UniValue protx_revoke_wrapper(const JSONRPCRequest& request, const bool s
     EnsureWalletIsUnlocked(wallet.get());
 
     CProUpRevTx ptx;
-    if (specific_legacy_bls_scheme)
+    if (specific_legacy_bls_scheme) {
         ptx.nVersion = CProUpRevTx::LEGACY_BLS_VERSION;
-    else
+    } else {
         ptx.nVersion = CProUpRevTx::getVersion(llmq::utils::IsV19Active(::ChainActive().Tip()));
+    }
     ptx.proTxHash = ParseHashV(request.params[0], "proTxHash");
 
     CBLSSecretKey keyOperator = ParseBLSSecretKey(request.params[1].get_str(), "operatorKey");
