@@ -466,7 +466,7 @@ static UniValue protx_register_wrapper(const JSONRPCRequest& request,
     if (specific_legacy_bls_scheme)
         ptx.nVersion = CProRegTx::LEGACY_BLS_VERSION;
     else
-        ptx.nVersion = CProRegTx::getVersion(llmq::utils::IsV19Active(::ChainActive().Tip()));
+        ptx.nVersion = CProRegTx::GetVersion(llmq::utils::IsV19Active(::ChainActive().Tip()));
 
     if (isFundRegister) {
         CTxDestination collateralDest = DecodeDestination(request.params[paramIdx].get_str());
@@ -683,7 +683,7 @@ static UniValue protx_update_service_wrapper(const JSONRPCRequest& request, cons
     if (specific_legacy_bls_scheme) {
         ptx.nVersion = CProUpServTx::LEGACY_BLS_VERSION;
     } else {
-        ptx.nVersion = CProUpServTx::getVersion(llmq::utils::IsV19Active(::ChainActive().Tip()));
+        ptx.nVersion = CProUpServTx::GetVersion(llmq::utils::IsV19Active(::ChainActive().Tip()));
     }
     ptx.proTxHash = ParseHashV(request.params[0], "proTxHash");
 
@@ -791,7 +791,7 @@ static UniValue protx_update_registrar_wrapper(const JSONRPCRequest& request, co
     if (specific_legacy_bls_scheme) {
         ptx.nVersion = CProUpRegTx::LEGACY_BLS_VERSION;
     } else {
-        ptx.nVersion = CProUpRegTx::getVersion(llmq::utils::IsV19Active(::ChainActive().Tip()));
+        ptx.nVersion = CProUpRegTx::GetVersion(llmq::utils::IsV19Active(::ChainActive().Tip()));
     }
     ptx.proTxHash = ParseHashV(request.params[0], "proTxHash");
 
@@ -897,7 +897,7 @@ static UniValue protx_revoke_wrapper(const JSONRPCRequest& request, const bool s
     if (specific_legacy_bls_scheme) {
         ptx.nVersion = CProUpRevTx::LEGACY_BLS_VERSION;
     } else {
-        ptx.nVersion = CProUpRevTx::getVersion(llmq::utils::IsV19Active(::ChainActive().Tip()));
+        ptx.nVersion = CProUpRevTx::GetVersion(llmq::utils::IsV19Active(::ChainActive().Tip()));
     }
     ptx.proTxHash = ParseHashV(request.params[0], "proTxHash");
 

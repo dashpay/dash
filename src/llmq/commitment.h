@@ -62,7 +62,7 @@ public:
     bool VerifyNull() const;
     bool VerifySizes(const Consensus::LLMQParams& params) const;
 
-    [[no_discard]] static constexpr uint16_t GetVersion(const bool is_rotation_enabled, const bool is_basic_scheme_active)
+    [[nodiscard]] static constexpr uint16_t GetVersion(const bool is_rotation_enabled, const bool is_basic_scheme_active)
     {
         if (is_rotation_enabled)
             return is_basic_scheme_active ? BASIC_BLS_INDEXED_QUORUM_VERSION : LEGACY_BLS_INDEXED_QUORUM_VERSION;

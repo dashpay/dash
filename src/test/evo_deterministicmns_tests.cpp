@@ -99,7 +99,7 @@ static CMutableTransaction CreateProRegTx(const CTxMemPool& mempool, SimpleUTXOM
     operatorKeyRet.MakeNewKey();
 
     CProRegTx proTx;
-    proTx.nVersion = CProRegTx::getVersion(!bls::bls_legacy_scheme);
+    proTx.nVersion = CProRegTx::GetVersion(!bls::bls_legacy_scheme);
     proTx.collateralOutpoint.n = 0;
     proTx.addr = LookupNumeric("1.1.1.1", port);
     proTx.keyIDOwner = ownerKeyRet.GetPubKey().GetID();
@@ -121,7 +121,7 @@ static CMutableTransaction CreateProRegTx(const CTxMemPool& mempool, SimpleUTXOM
 static CMutableTransaction CreateProUpServTx(const CTxMemPool& mempool, SimpleUTXOMap& utxos, const uint256& proTxHash, const CBLSSecretKey& operatorKey, int port, const CScript& scriptOperatorPayout, const CKey& coinbaseKey)
 {
     CProUpServTx proTx;
-    proTx.nVersion = CProUpRevTx::getVersion(!bls::bls_legacy_scheme);
+    proTx.nVersion = CProUpRevTx::GetVersion(!bls::bls_legacy_scheme);
     proTx.proTxHash = proTxHash;
     proTx.addr = LookupNumeric("1.1.1.1", port);
     proTx.scriptOperatorPayout = scriptOperatorPayout;
@@ -141,7 +141,7 @@ static CMutableTransaction CreateProUpServTx(const CTxMemPool& mempool, SimpleUT
 static CMutableTransaction CreateProUpRegTx(const CTxMemPool& mempool, SimpleUTXOMap& utxos, const uint256& proTxHash, const CKey& mnKey, const CBLSPublicKey& pubKeyOperator, const CKeyID& keyIDVoting, const CScript& scriptPayout, const CKey& coinbaseKey)
 {
     CProUpRegTx proTx;
-    proTx.nVersion = CProUpRegTx::getVersion(!bls::bls_legacy_scheme);
+    proTx.nVersion = CProUpRegTx::GetVersion(!bls::bls_legacy_scheme);
     proTx.proTxHash = proTxHash;
     proTx.pubKeyOperator = pubKeyOperator;
     proTx.keyIDVoting = keyIDVoting;
@@ -162,7 +162,7 @@ static CMutableTransaction CreateProUpRegTx(const CTxMemPool& mempool, SimpleUTX
 static CMutableTransaction CreateProUpRevTx(const CTxMemPool& mempool, SimpleUTXOMap& utxos, const uint256& proTxHash, const CBLSSecretKey& operatorKey, const CKey& coinbaseKey)
 {
     CProUpRevTx proTx;
-    proTx.nVersion = CProUpRevTx::getVersion(!bls::bls_legacy_scheme);
+    proTx.nVersion = CProUpRevTx::GetVersion(!bls::bls_legacy_scheme);
     proTx.proTxHash = proTxHash;
 
     CMutableTransaction tx;
@@ -478,7 +478,7 @@ void FuncTestMempoolReorg(TestChainDIP3Setup& setup)
     BOOST_CHECK_EQUAL(block->GetHash(), ::ChainActive().Tip()->GetBlockHash());
 
     CProRegTx payload;
-    payload.nVersion = CProRegTx::getVersion(!bls::bls_legacy_scheme);
+    payload.nVersion = CProRegTx::GetVersion(!bls::bls_legacy_scheme);
     payload.addr = LookupNumeric("1.1.1.1", 1);
     payload.keyIDOwner = ownerKey.GetPubKey().GetID();
     payload.pubKeyOperator = operatorKey.GetPublicKey();
@@ -609,7 +609,7 @@ void FuncVerifyDB(TestChainDIP3Setup& setup)
     BOOST_CHECK_EQUAL(block->GetHash(), ::ChainActive().Tip()->GetBlockHash());
 
     CProRegTx payload;
-    payload.nVersion = CProRegTx::getVersion(!bls::bls_legacy_scheme);
+    payload.nVersion = CProRegTx::GetVersion(!bls::bls_legacy_scheme);
     payload.addr = LookupNumeric("1.1.1.1", 1);
     payload.keyIDOwner = ownerKey.GetPubKey().GetID();
     payload.pubKeyOperator = operatorKey.GetPublicKey();

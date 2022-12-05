@@ -753,7 +753,7 @@ std::optional<std::vector<CFinalCommitment>> CQuorumBlockProcessor::GetMineableC
             // null commitment required
             cf = CFinalCommitment(llmqParams, quorumHash);
             cf.quorumIndex = static_cast<int16_t>(quorumIndex);
-            cf.nVersion = CFinalCommitment::getVersion(rotation_enabled, basic_bls_enabled);
+            cf.nVersion = CFinalCommitment::GetVersion(rotation_enabled, basic_bls_enabled);
             ss << "{ created nversion[" << cf.nVersion << "] quorumIndex[" << cf.quorumIndex << "] }";
         } else {
             cf = minableCommitments.at(it->second);
