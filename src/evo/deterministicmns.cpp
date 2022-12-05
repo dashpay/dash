@@ -359,11 +359,6 @@ CSimplifiedMNListDiff CDeterministicMNList::BuildSimplifiedDiff(const CDetermini
     to.ForEachMN(false, [&](auto& toPtr) {
         auto fromPtr = GetMN(toPtr.proTxHash);
         if (fromPtr == nullptr) {
-            /*
-            //TODO: check if emplace_back returns ref in older compilers
-            auto& elem = diffRet.mnList.emplace_back(toPtr);
-            elem.nVersion = diffRet.nVersion;
-            */
             CSimplifiedMNListEntry sme(toPtr);
             sme.nVersion = diffRet.nVersion;
             diffRet.mnList.emplace_back(toPtr);
@@ -371,6 +366,7 @@ CSimplifiedMNListDiff CDeterministicMNList::BuildSimplifiedDiff(const CDetermini
             CSimplifiedMNListEntry sme1(toPtr);
             CSimplifiedMNListEntry sme2(*fromPtr);
             sme1.nVersion = diffRet.nVersion;
+            sme2.nVersion = diffRet.nVersion;
             if (sme1 != sme2) {
                 diffRet.mnList.emplace_back(toPtr);
             } else if (extended && (sme1.scriptPayout != sme2.scriptPayout || sme1.scriptOperatorPayout != sme2.scriptOperatorPayout)) {

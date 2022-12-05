@@ -1201,7 +1201,7 @@ bool CSigSharesManager::SendMessages()
         if (lt != sigSharesToSend.end()) {
             std::vector<CSigShare> msgs;
             for (auto& sigShare : lt->second) {
-                if(sigShare.IsValid()) {
+                if( sigShare.IsValid()) {
                     LogPrint(BCLog::LLMQ_SIGS, "CSigSharesManager::SendMessages -- QSIGSHARE signHash=%s, node=%d\n",
                              sigShare.GetSignHash().ToString(), pnode->GetId());
                     msgs.emplace_back(std::move(sigShare));
