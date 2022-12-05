@@ -70,6 +70,11 @@ public:
         return key.first;
     }
 
+    bool IsValid() const
+    {
+        return sigShare.IsValid();
+    }
+
     SERIALIZE_METHODS(CSigShare, obj)
     {
         READWRITE(obj.llmqType, obj.quorumHash, obj.quorumMember, obj.id, obj.msgHash, obj.sigShare);
@@ -138,6 +143,14 @@ public:
     std::vector<std::pair<uint16_t, CBLSLazySignature>> sigShares;
 
 public:
+    bool IsValid() const
+    {
+        return  std::all_of(sigShares.begin(),
+                            sigShares.end(),
+                            [](std::pair<uint16_t, CBLSLazySignature> sig){ return sig.second.IsValid(); });
+
+    }
+
     SERIALIZE_METHODS(CBatchedSigShares, obj)
     {
         READWRITE(VARINT(obj.sessionId), obj.sigShares);

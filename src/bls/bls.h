@@ -427,6 +427,11 @@ public:
         return *this;
     }
 
+    inline bool IsValid() const
+    {
+        return objInitialized || bufValid;
+    }
+
     inline void Serialize(CSizeComputer& s) const
     {
         s.seek(BLSObject::SerSize);
