@@ -67,7 +67,7 @@ void CSimplifiedMNListEntry::ToJson(UniValue& obj, bool extended) const
     obj.pushKV("pubKeyOperator", pubKeyOperator.Get().ToString());
     obj.pushKV("votingAddress", EncodeDestination(keyIDVoting));
     obj.pushKV("isValid", isValid);
-    obj.pushKV("nVersion",nVersion);
+    obj.pushKV("nVersion", nVersion);
 
     if (!extended) return;
 

@@ -147,7 +147,7 @@ public:
     {
         return  std::all_of(sigShares.begin(),
                             sigShares.end(),
-                            [](std::pair<uint16_t, CBLSLazySignature> sig){ return sig.second.IsValid(); });
+                            [](const auto& sig){ return sig.second.IsValid(); });
 
     }
 

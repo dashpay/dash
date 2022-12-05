@@ -35,7 +35,7 @@ public:
     static constexpr uint16_t LEGACY_BLS_VERSION = 1;
     static constexpr uint16_t BASIC_BLS_VERSION = 2;
 
-    static uint16_t getVersion(const bool is_basic_scheme_active)
+    [[nodiscard]] static constexpr auto GetVersion(const bool is_basic_scheme_active) -> uint16_t
     {
         return is_basic_scheme_active ? BASIC_BLS_VERSION : LEGACY_BLS_VERSION;
     }
@@ -116,7 +116,7 @@ public:
     static constexpr uint16_t LEGACY_BLS_VERSION = 1;
     static constexpr uint16_t BASIC_BLS_VERSION = 2;
 
-    static uint16_t getVersion(const bool is_basic_scheme_active)
+    [[nodiscard]] static constexpr auto GetVersion(const bool is_basic_scheme_active) -> uint16_t
     {
         return is_basic_scheme_active ? BASIC_BLS_VERSION : LEGACY_BLS_VERSION;
     }
@@ -176,7 +176,7 @@ public:
     static constexpr uint16_t LEGACY_BLS_VERSION = 1;
     static constexpr uint16_t BASIC_BLS_VERSION = 2;
 
-    static uint16_t getVersion(const bool is_basic_scheme_active)
+    [[nodiscard]] static constexpr auto GetVersion(const bool is_basic_scheme_active) -> uint16_t
     {
         return is_basic_scheme_active ? BASIC_BLS_VERSION : LEGACY_BLS_VERSION;
     }
@@ -241,7 +241,7 @@ public:
     static constexpr uint16_t LEGACY_BLS_VERSION = 1;
     static constexpr uint16_t BASIC_BLS_VERSION = 2;
 
-    static uint16_t getVersion(const bool is_basic_scheme_active)
+    [[nodiscard]] static constexpr auto GetVersion(const bool is_basic_scheme_active) -> uint16_t
     {
         return is_basic_scheme_active ? BASIC_BLS_VERSION : LEGACY_BLS_VERSION;
     }

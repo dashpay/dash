@@ -100,7 +100,6 @@ public:
         *(static_cast<C*>(this)) = C();
     }
 
-    //TODO: Overwrite function with default value of specificLegacyScheme
     void SetByteVector(const std::vector<uint8_t>& vecBytes, const bool specificLegacyScheme)
     {
         if (vecBytes.size() != SerSize) {
@@ -126,7 +125,6 @@ public:
         SetByteVector(vecBytes, bls::bls_legacy_scheme.load());
     }
 
-    //TODO: Overwrite function with default value of specificLegacyScheme
     std::vector<uint8_t> ToByteVector(const bool specificLegacyScheme) const
     {
         if (!fValid) {
@@ -173,7 +171,6 @@ public:
         s.seek(SerSize);
     }
 
-    //TODO: Overwrite function with default value of specificLegacyScheme
     template <typename Stream>
     inline void Serialize(Stream& s, const bool specificLegacyScheme) const
     {
@@ -186,7 +183,6 @@ public:
         Serialize(s, bls::bls_legacy_scheme.load());
     }
 
-    //TODO: Overwrite function with default value of specificLegacyScheme
     template <typename Stream>
     inline void Unserialize(Stream& s, const bool specificLegacyScheme, bool checkMalleable = true)
     {
@@ -205,7 +201,6 @@ public:
         Unserialize(s, bls::bls_legacy_scheme.load(), checkMalleable);
     }
 
-    //TODO: Overwrite function with default value of specificLegacyScheme
     inline bool CheckMalleable(const std::vector<uint8_t>& vecBytes, const bool specificLegacyScheme) const
     {
         if (memcmp(vecBytes.data(), ToByteVector(specificLegacyScheme).data(), SerSize)) {
@@ -310,6 +305,23 @@ public:
 
 };
 
+class ConstCBLSPublicKeyVersionWrapper {
+private:
+    bool legacy;
+    bool checkMalleable;
+    const CBLSPublicKey& obj;
+public:
+    ConstCBLSPublicKeyVersionWrapper(const CBLSPublicKey& obj, bool legacy, bool checkMalleable = true)
+            : obj(obj)
+            , legacy(legacy)
+            , checkMalleable(checkMalleable)
+    {}
+    template <typename Stream>
+    inline void Serialize(Stream& s) const {
+        obj.Serialize(s, legacy);
+    }
+};
+
 class CBLSPublicKeyVersionWrapper {
 private:
     bool legacy;
@@ -356,6 +368,23 @@ public:
     [[nodiscard]] bool VerifySecureAggregated(const std::vector<CBLSPublicKey>& pks, const uint256& hash) const;
 
     bool Recover(const std::vector<CBLSSignature>& sigs, const std::vector<CBLSId>& ids);
+};
+
+class ConstCBLSSignatureVersionWrapper {
+private:
+    bool legacy;
+    bool checkMalleable;
+    const CBLSSignature& obj;
+public:
+    ConstCBLSSignatureVersionWrapper(const CBLSSignature& obj, bool legacy, bool checkMalleable = true)
+            : obj(obj)
+            , legacy(legacy)
+            , checkMalleable(checkMalleable)
+    {}
+    template <typename Stream>
+    inline void Serialize(Stream& s) const {
+        obj.Serialize(s, legacy);
+    }
 };
 
 class CBLSSignatureVersionWrapper {

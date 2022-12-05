@@ -5,6 +5,7 @@
 #include <evo/mnauth.h>
 
 #include <bls/bls.h>
+#include <chain.h>
 #include <chainparams.h>
 #include <evo/deterministicmns.h>
 #include <llmq/utils.h>
@@ -41,7 +42,7 @@ void CMNAuth::PushMNAUTH(CNode& peer, CConnman& connman, const CBlockIndex* tip)
         nOurNodeVersion = gArgs.GetArg("-pushversion", PROTOCOL_VERSION);
     }
     bool isV19active = llmq::utils::IsV19Active(tip);
-    CBLSPublicKeyVersionWrapper pubKey(*activeMasternodeInfo.blsPubKeyOperator, !isV19active);
+    const CBLSPublicKeyVersionWrapper pubKey(*activeMasternodeInfo.blsPubKeyOperator, !isV19active);
     if (peer.nVersion < MNAUTH_NODE_VER_VERSION || nOurNodeVersion < MNAUTH_NODE_VER_VERSION) {
         signHash = ::SerializeHash(std::make_tuple(pubKey, receivedMNAuthChallenge, peer.fInbound));
     } else {
@@ -113,8 +114,8 @@ void CMNAuth::ProcessMessage(CNode& peer, std::string_view msg_type, CDataStream
     bool isV19active = llmq::utils::IsV19Active(tip);
     //Need to copy the public key on a CBLSPublicKey since CBLSPublicKeyVersionWrapper requires a non-const ref.
     //dmn->pdmnState->pubKeyOperator is CBLSLazyPublicKey returning a const-ref
-    CBLSPublicKey p{dmn->pdmnState->pubKeyOperator.Get()};
-    CBLSPublicKeyVersionWrapper pubKey(p, !isV19active);
+//    CBLSPublicKey p{dmn->pdmnState->pubKeyOperator.Get()};
+    ConstCBLSPublicKeyVersionWrapper pubKey(dmn->pdmnState->pubKeyOperator.Get(), !isV19active);
     // See comment in PushMNAUTH (fInbound is negated here as we're on the other side of the connection)
     if (peer.nVersion < MNAUTH_NODE_VER_VERSION || nOurNodeVersion < MNAUTH_NODE_VER_VERSION) {
         signHash = ::SerializeHash(std::make_tuple(pubKey, peer.GetSentMNAuthChallenge(), !peer.fInbound));

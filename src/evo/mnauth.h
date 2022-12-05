@@ -7,7 +7,6 @@
 
 #include <bls/bls.h>
 #include <serialize.h>
-#include <chain.h>
 
 class CConnman;
 class CDataStream;
@@ -16,6 +15,7 @@ class CDeterministicMNList;
 class CDeterministicMNListDiff;
 class CNode;
 class UniValue;
+class CBlockIndex;
 
 /**
  * This class handles the p2p message MNAUTH. MNAUTH is sent directly after VERACK and authenticates the sender as a
