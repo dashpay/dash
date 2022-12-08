@@ -417,6 +417,7 @@ private:
 
     mutable std::vector<uint8_t> vecBytes;
     mutable bool bufValid{false};
+    mutable bool bufLegacyScheme{true};
 
     mutable BLSObject obj;
     mutable bool objInitialized{false};
@@ -425,7 +426,8 @@ private:
 
 public:
     CBLSLazyWrapper() :
-        vecBytes(BLSObject::SerSize, 0)
+            vecBytes(BLSObject::SerSize, 0),
+            bufLegacyScheme(bls::bls_legacy_scheme.load())
     {
         // the all-zero buf is considered a valid buf, but the resulting object will return false for IsValid
         bufValid = true;
@@ -441,6 +443,7 @@ public:
     {
         std::unique_lock<std::mutex> l(r.mutex);
         bufValid = r.bufValid;
+        bufLegacyScheme = r.bufLegacyScheme;
         if (r.bufValid) {
             vecBytes = r.vecBytes;
         } else {
@@ -456,26 +459,22 @@ public:
         return *this;
     }
 
-    inline bool IsValid() const
-    {
-        return objInitialized || bufValid;
-    }
-
     inline void Serialize(CSizeComputer& s) const
     {
         s.seek(BLSObject::SerSize);
     }
 
-    template <typename Stream>
+    template<typename Stream>
     inline void Serialize(Stream& s, const bool specificLegacyScheme) const
     {
         std::unique_lock<std::mutex> l(mutex);
         if (!objInitialized && !bufValid) {
             throw std::ios_base::failure("obj and buf not initialized");
         }
-        if (!bufValid) {
+        if (!bufValid || (bufValid && bufLegacyScheme != specificLegacyScheme)) {
             vecBytes = obj.ToByteVector(specificLegacyScheme);
             bufValid = true;
+            bufLegacyScheme = specificLegacyScheme;
             hash.SetNull();
         }
         s.write(reinterpret_cast<const char*>(vecBytes.data()), vecBytes.size());
@@ -487,19 +486,19 @@ public:
         Serialize(s, bls::bls_legacy_scheme.load());
     }
 
-    template <typename Stream>
+    template<typename Stream>
     inline void Unserialize(Stream& s, const bool specificLegacyScheme) const
     {
-        //TODO: Check if specific scheme should be used in CBLSLazyWrapper
         std::unique_lock<std::mutex> l(mutex);
         s.read(reinterpret_cast<char*>(vecBytes.data()), BLSObject::SerSize);
         bufValid = true;
+        bufLegacyScheme = specificLegacyScheme;
         objInitialized = false;
         hash.SetNull();
     }
 
-    template <typename Stream>
-    inline void Unserialize(Stream& s)
+    template<typename Stream>
+    inline void Unserialize(Stream& s) const
     {
         Unserialize(s, bls::bls_legacy_scheme.load());
     }
@@ -520,21 +519,22 @@ public:
             return invalidObj;
         }
         if (!objInitialized) {
-            obj.SetByteVector(vecBytes);
-            if (!obj.CheckMalleable(vecBytes)) {
+            obj.SetByteVector(vecBytes, bufLegacyScheme);
+            if (!obj.CheckMalleable(vecBytes, bufLegacyScheme)) {
                 bufValid = false;
                 objInitialized = false;
                 obj = invalidObj;
             } else {
                 objInitialized = true;
             }
+            objInitialized = true;
         }
         return obj;
     }
 
     bool operator==(const CBLSLazyWrapper& r) const
     {
-        if (bufValid && r.bufValid) {
+        if (bufValid && r.bufValid && bufLegacyScheme == r.bufLegacyScheme) {
             return vecBytes == r.vecBytes;
         }
         if (objInitialized && r.objInitialized) {
@@ -548,12 +548,13 @@ public:
         return !(*this == r);
     }
 
-    uint256 GetHash() const
+    uint256 GetHash(const bool specificLegacyScheme = bls::bls_legacy_scheme.load()) const
     {
         std::unique_lock<std::mutex> l(mutex);
-        if (!bufValid) {
-            vecBytes = obj.ToByteVector();
+        if (!bufValid || bufLegacyScheme != specificLegacyScheme) {
+            vecBytes = obj.ToByteVector(specificLegacyScheme);
             bufValid = true;
+            bufLegacyScheme = specificLegacyScheme;
             hash.SetNull();
         }
         if (hash.IsNull()) {

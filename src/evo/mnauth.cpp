@@ -112,9 +112,6 @@ void CMNAuth::ProcessMessage(CNode& peer, std::string_view msg_type, CDataStream
     }
     const CBlockIndex* tip = ::ChainActive().Tip();
     bool isV19active = llmq::utils::IsV19Active(tip);
-    //Need to copy the public key on a CBLSPublicKey since CBLSPublicKeyVersionWrapper requires a non-const ref.
-    //dmn->pdmnState->pubKeyOperator is CBLSLazyPublicKey returning a const-ref
-//    CBLSPublicKey p{dmn->pdmnState->pubKeyOperator.Get()};
     ConstCBLSPublicKeyVersionWrapper pubKey(dmn->pdmnState->pubKeyOperator.Get(), !isV19active);
     // See comment in PushMNAUTH (fInbound is negated here as we're on the other side of the connection)
     if (peer.nVersion < MNAUTH_NODE_VER_VERSION || nOurNodeVersion < MNAUTH_NODE_VER_VERSION) {

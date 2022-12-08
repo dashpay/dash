@@ -1155,22 +1155,16 @@ bool CSigSharesManager::SendMessages()
             std::vector<CBatchedSigShares> msgs;
             for (const auto& [signHash, inv] : jt->second) {
                 assert(!inv.sigShares.empty());
-                if (inv.IsValid()) {
-                    LogPrint(BCLog::LLMQ_SIGS, "CSigSharesManager::SendMessages -- QBSIGSHARES signHash=%s, inv={%s}, node=%d\n",
-                             signHash.ToString(), inv.ToInvString(), pnode->GetId());
-                    if (totalSigsCount + inv.sigShares.size() > MAX_MSGS_TOTAL_BATCHED_SIGS) {
-                        connman.PushMessage(pnode, msgMaker.Make(NetMsgType::QBSIGSHARES, msgs));
-                        msgs.clear();
-                        totalSigsCount = 0;
-                        didSend = true;
-                    }
-                    totalSigsCount += inv.sigShares.size();
-                    msgs.emplace_back(inv);
+                LogPrint(BCLog::LLMQ_SIGS, "CSigSharesManager::SendMessages -- QBSIGSHARES signHash=%s, inv={%s}, node=%d\n",
+                         signHash.ToString(), inv.ToInvString(), pnode->GetId());
+                if (totalSigsCount + inv.sigShares.size() > MAX_MSGS_TOTAL_BATCHED_SIGS) {
+                    connman.PushMessage(pnode, msgMaker.Make(NetMsgType::QBSIGSHARES, msgs));
+                    msgs.clear();
+                    totalSigsCount = 0;
+                    didSend = true;
                 }
-                else {
-                    LogPrint(BCLog::LLMQ_SIGS, "CSigSharesManager::SendMessages -- SKIPPING QBSIGSHARES signHash=%s, inv={%s}, node=%d\n",
-                             signHash.ToString(), inv.ToInvString(), pnode->GetId());
-                }
+                totalSigsCount += inv.sigShares.size();
+                msgs.emplace_back(inv);
             }
             if (!msgs.empty()) {
                 connman.PushMessage(pnode, msgMaker.Make(NetMsgType::QBSIGSHARES, std::move(msgs)));
@@ -1201,19 +1195,13 @@ bool CSigSharesManager::SendMessages()
         if (lt != sigSharesToSend.end()) {
             std::vector<CSigShare> msgs;
             for (auto& sigShare : lt->second) {
-                if( sigShare.IsValid()) {
-                    LogPrint(BCLog::LLMQ_SIGS, "CSigSharesManager::SendMessages -- QSIGSHARE signHash=%s, node=%d\n",
-                             sigShare.GetSignHash().ToString(), pnode->GetId());
-                    msgs.emplace_back(std::move(sigShare));
-                    if (msgs.size() == MAX_MSGS_SIG_SHARES) {
-                        connman.PushMessage(pnode, msgMaker.Make(NetMsgType::QSIGSHARE, msgs));
-                        msgs.clear();
-                        didSend = true;
-                    }
-                }
-                else {
-                    LogPrint(BCLog::LLMQ_SIGS, "CSigSharesManager::SendMessages -- SKIPPING QSIGSHARE signHash=%s, node=%d\n",
-                             sigShare.GetSignHash().ToString(), pnode->GetId());
+                LogPrint(BCLog::LLMQ_SIGS, "CSigSharesManager::SendMessages -- QSIGSHARE signHash=%s, node=%d\n",
+                         sigShare.GetSignHash().ToString(), pnode->GetId());
+                msgs.emplace_back(std::move(sigShare));
+                if (msgs.size() == MAX_MSGS_SIG_SHARES) {
+                    connman.PushMessage(pnode, msgMaker.Make(NetMsgType::QSIGSHARE, msgs));
+                    msgs.clear();
+                    didSend = true;
                 }
             }
             if (!msgs.empty()) {
