@@ -527,7 +527,6 @@ public:
             } else {
                 objInitialized = true;
             }
-            objInitialized = true;
         }
         return obj;
     }
