@@ -355,6 +355,7 @@ void PrepareShutdown(NodeContext& node)
         }
         llmq::quorumSnapshotManager.reset();
         deterministicMNManager.reset();
+        node.evodb.reset();
     }
     for (const auto& client : node.chain_clients) {
         client->stop();
