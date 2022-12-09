@@ -1135,13 +1135,13 @@ CChainState::CChainState(BlockManager& blockman,
                          std::unique_ptr<llmq::CChainLocksHandler>& clhandler,
                          std::unique_ptr<llmq::CInstantSendManager>& isman,
                          std::unique_ptr<llmq::CQuorumBlockProcessor>& quorum_block_processor,
-                         std::shared_ptr<CEvoDB> evoDb,
+                         std::unique_ptr<CEvoDB>& evoDb,
                          uint256 from_snapshot_blockhash)
     : m_blockman(blockman),
       m_clhandler(clhandler),
       m_isman(isman),
       m_quorum_block_processor(quorum_block_processor),
-      m_evoDb(std::move(evoDb)),
+      m_evoDb(evoDb),
       m_from_snapshot_blockhash(from_snapshot_blockhash) {}
 
 void CChainState::InitCoinsDB(
@@ -5555,7 +5555,7 @@ std::vector<CChainState*> ChainstateManager::GetAll()
 CChainState& ChainstateManager::InitializeChainstate(std::unique_ptr<llmq::CChainLocksHandler>& clhandler,
                                                      std::unique_ptr<llmq::CInstantSendManager>& isman,
                                                      std::unique_ptr<llmq::CQuorumBlockProcessor>& quorum_block_processor,
-                                                     const std::shared_ptr<CEvoDB>& evoDb,
+                                                     std::unique_ptr<CEvoDB>& evoDb,
                                                      const uint256& snapshot_blockhash)
 {
     bool is_snapshot = !snapshot_blockhash.IsNull();

@@ -131,7 +131,7 @@ BasicTestingSetup::BasicTestingSetup(const std::string& chainName, const std::ve
     m_node.chain = interfaces::MakeChain(m_node);
     g_wallet_init_interface.Construct(m_node);
     fCheckBlockIndex = true;
-    m_node.evodb = std::make_shared<CEvoDB>(1 << 20, true, true);
+    m_node.evodb = std::make_unique<CEvoDB>(1 << 20, true, true);
     connman = std::make_unique<CConnman>(0x1337, 0x1337);
     deterministicMNManager.reset(new CDeterministicMNManager(*m_node.evodb, *connman));
     llmq::quorumSnapshotManager.reset(new llmq::CQuorumSnapshotManager(*m_node.evodb));
