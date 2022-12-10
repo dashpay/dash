@@ -946,7 +946,7 @@ bool CCoinJoinClientManager::DoAutomaticDenominating(CConnman& connman, bool fDr
     AssertLockNotHeld(cs_deqsessions);
     LOCK(cs_deqsessions);
     if (int(deqSessions.size()) < CCoinJoinClientOptions::GetSessions()) {
-        deqSessions.emplace_back(mixingWallet);
+        deqSessions.emplace_back(mixingWallet, masternodeSync);
     }
     for (auto& session : deqSessions) {
         if (!CheckAutomaticBackup()) return false;

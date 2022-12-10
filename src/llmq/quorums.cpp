@@ -187,12 +187,13 @@ bool CQuorum::ReadContributions(CEvoDB& evoDb)
 }
 
 CQuorumManager::CQuorumManager(CEvoDB& _evoDb, CConnman& _connman, CBLSWorker& _blsWorker, CQuorumBlockProcessor& _quorumBlockProcessor,
-                               CDKGSessionManager& _dkgManager) :
+                               CDKGSessionManager& _dkgManager, const std::unique_ptr<CMasternodeSync>& mn_sync) :
     connman(_connman),
     m_evoDb(_evoDb),
     blsWorker(_blsWorker),
     quorumBlockProcessor(_quorumBlockProcessor),
-    dkgManager(_dkgManager)
+    dkgManager(_dkgManager),
+    masternodeSync(mn_sync)
 {
     utils::InitQuorumsCache(mapQuorumsCache);
     utils::InitQuorumsCache(scanQuorumsCache);

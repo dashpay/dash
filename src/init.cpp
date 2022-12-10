@@ -2325,9 +2325,9 @@ bool AppInitMain(const CoreContext& context, NodeContext& node, interfaces::Bloc
 
     // ********************************************************* Step 10a: Setup CoinJoin
 
-    ::coinJoinServer = std::make_unique<CCoinJoinServer>(*node.connman);
+    ::coinJoinServer = std::make_unique<CCoinJoinServer>(*node.connman, ::masternodeSync);
 #ifdef ENABLE_WALLET
-    ::coinJoinClientQueueManager = std::make_unique<CCoinJoinClientQueueManager>(*node.connman);
+    ::coinJoinClientQueueManager = std::make_unique<CCoinJoinClientQueueManager>(*node.connman, ::masternodeSync);
 #endif // ENABLE_WALLET
 
     g_wallet_init_interface.InitCoinJoinSettings();
@@ -2387,7 +2387,7 @@ bool AppInitMain(const CoreContext& context, NodeContext& node, interfaces::Bloc
 
     node.scheduler->scheduleEvery(std::bind(&CNetFulfilledRequestManager::DoMaintenance, std::ref(netfulfilledman)), 60 * 1000);
     node.scheduler->scheduleEvery(std::bind(&CMasternodeSync::DoMaintenance, std::ref(*::masternodeSync)), 1 * 1000);
-    node.scheduler->scheduleEvery(std::bind(&CMasternodeUtils::DoMaintenance, std::ref(*node.connman)), 60 * 1000);
+    node.scheduler->scheduleEvery(std::bind(&CMasternodeUtils::DoMaintenance, std::ref(*node.connman), std::ref(*::masternodeSync)), 60 * 1000);
     node.scheduler->scheduleEvery(std::bind(&CDeterministicMNManager::DoMaintenance, std::ref(*deterministicMNManager)), 10 * 1000);
 
     if (!fDisableGovernance) {
