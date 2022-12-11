@@ -28,6 +28,7 @@
 #include <sync.h>
 
 #include <atomic>
+#include "logging.h"
 
 namespace bls {
     extern std::atomic<bool> bls_legacy_scheme;
@@ -113,8 +114,13 @@ public:
             try {
                 impl = ImplType::FromBytes(bls::Bytes(vecBytes), specificLegacyScheme);
                 fValid = true;
-            } catch (...) {
+            } catch (std::invalid_argument& e) {
                 Reset();
+                LogPrintf("SetByteVector BLS flag[%d] exception: %s\n", specificLegacyScheme, e.what());
+            }
+            catch (...) {
+                Reset();
+                LogPrintf("SetByteVector BLS flag[%d] unknown exception\n", specificLegacyScheme);
             }
         }
         cachedHash.SetNull();
@@ -370,23 +376,6 @@ public:
     bool Recover(const std::vector<CBLSSignature>& sigs, const std::vector<CBLSId>& ids);
 };
 
-class ConstCBLSSignatureVersionWrapper {
-private:
-    bool legacy;
-    bool checkMalleable;
-    const CBLSSignature& obj;
-public:
-    ConstCBLSSignatureVersionWrapper(const CBLSSignature& obj, bool legacy, bool checkMalleable = true)
-            : obj(obj)
-            , legacy(legacy)
-            , checkMalleable(checkMalleable)
-    {}
-    template <typename Stream>
-    inline void Serialize(Stream& s) const {
-        obj.Serialize(s, legacy);
-    }
-};
-
 class CBLSSignatureVersionWrapper {
 private:
     bool legacy;
@@ -520,6 +509,15 @@ public:
         }
         if (!objInitialized) {
             obj.SetByteVector(vecBytes, bufLegacyScheme);
+            if (!obj.IsValid()) {
+                // If setting of BLS object using one scheme failed, then we need to attempt again with the opposite scheme.
+                // This is due to the fact that LazyBLSWrapper receives a serialised buffer but attempts to create actual BLS object when needed.
+                // That could happen when the fork has been activated and the enforced scheme has switched.
+                obj.SetByteVector(vecBytes, !bufLegacyScheme);
+                if (obj.IsValid()) {
+                    bufLegacyScheme = !bufLegacyScheme;
+                }
+            }
             if (!obj.CheckMalleable(vecBytes, bufLegacyScheme)) {
                 bufValid = false;
                 objInitialized = false;
