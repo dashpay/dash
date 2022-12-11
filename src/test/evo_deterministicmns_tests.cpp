@@ -655,7 +655,7 @@ void FuncVerifyDB(TestChainDIP3Setup& setup)
 
     // Verify db consistency
     LOCK(cs_main);
-    BOOST_ASSERT(CVerifyDB().VerifyDB(Params(), &::ChainstateActive().CoinsTip(), *m_node.evodb, 4, 2));
+    BOOST_ASSERT(CVerifyDB().VerifyDB(Params(), &::ChainstateActive().CoinsTip(), *(setup.m_node.evodb), 4, 2));
 }
 
 BOOST_AUTO_TEST_SUITE(evo_dip3_activation_tests)
