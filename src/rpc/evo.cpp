@@ -91,14 +91,16 @@ static RPCArg GetRpcArg(const std::string& strParamName)
                 "Can be set to an empty string, which will require a ProUpServTx afterwards.",
                 {
                     {"address", RPCArg::Type::STR, RPCArg::Optional::NO, ""},
-                }}
+                },
+                RPCArgOptions{.skip_type_check = true}}
         },
         {"coreP2PAddrs_update",
             {"coreP2PAddrs", RPCArg::Type::ARR, RPCArg::Optional::NO,
                 "Array of addresses in the form \"ADDR:PORT\". Must be unique on the network.",
                 {
                     {"address", RPCArg::Type::STR, RPCArg::Optional::NO, ""},
-                }}
+                },
+                RPCArgOptions{.skip_type_check = true}}
         },
         {"operatorKey",
             {"operatorKey", RPCArg::Type::STR, RPCArg::Optional::NO,
@@ -187,7 +189,8 @@ static RPCArg GetRpcArg(const std::string& strParamName)
                 "Must be unique on the network. Can be set to an empty string, which will require a ProUpServTx afterwards.",
                 {
                     {"address", RPCArg::Type::STR, RPCArg::Optional::NO, ""},
-                }}
+                },
+                RPCArgOptions{.skip_type_check = true}}
         },
         {"platformP2PAddrs_update",
             {"platformP2PAddrs", RPCArg::Type::ARR, RPCArg::Optional::NO,
@@ -195,7 +198,8 @@ static RPCArg GetRpcArg(const std::string& strParamName)
                 "Must be unique on the network.",
                 {
                     {"address", RPCArg::Type::STR, RPCArg::Optional::NO, ""},
-                }}
+                },
+                RPCArgOptions{.skip_type_check = true}}
         },
         {"platformHTTPSAddrs",
             {"platformHTTPSAddrs", RPCArg::Type::ARR, RPCArg::Optional::NO,
@@ -203,7 +207,8 @@ static RPCArg GetRpcArg(const std::string& strParamName)
                 "Must be unique on the network. Can be set to an empty string, which will require a ProUpServTx afterwards.",
                 {
                     {"address", RPCArg::Type::STR, RPCArg::Optional::NO, ""},
-                }}
+                },
+                RPCArgOptions{.skip_type_check = true}}
         },
         {"platformHTTPSAddrs_update",
             {"platformHTTPSAddrs", RPCArg::Type::ARR, RPCArg::Optional::NO,
@@ -211,7 +216,8 @@ static RPCArg GetRpcArg(const std::string& strParamName)
                 "Must be unique on the network.",
                 {
                     {"address", RPCArg::Type::STR, RPCArg::Optional::NO, ""},
-                }}
+                },
+                RPCArgOptions{.skip_type_check = true}}
         },
     };
 
@@ -1605,17 +1611,12 @@ static const CBlockIndex* ParseBlockIndex(const UniValue& v, const ChainstateMan
 {
     AssertLockHeld(::cs_main);
 
-    try {
-        const auto hash{ParseBlock(v, chainman, strName)};
-        const CBlockIndex* pindex = chainman.m_blockman.LookupBlockIndex(hash);
-        if (!pindex) {
-            throw std::runtime_error(strprintf("Block %s with hash %s not found", strName, v.getValStr()));
-        }
-        return pindex;
-    } catch (...) {
-        // Same phrasing as ParseBlock() as it can parse heights
-        throw std::runtime_error(strprintf("%s must be a block hash or chain height and not %s", strName, v.getValStr()));
+    const auto hash{ParseBlock(v, chainman, strName)};
+    const CBlockIndex* pindex = chainman.m_blockman.LookupBlockIndex(hash);
+    if (!pindex) {
+        throw std::runtime_error(strprintf("Block %s with hash %s not found", strName, v.getValStr()));
     }
+    return pindex;
 }
 
 static RPCHelpMan protx_diff()
@@ -1623,8 +1624,10 @@ static RPCHelpMan protx_diff()
     return RPCHelpMan{"protx diff",
         "\nCalculates a diff between two deterministic masternode lists. The result also contains proof data.\n",
         {
-            {"baseBlock", RPCArg::Type::STR, RPCArg::Optional::NO, "The starting block hash or height."},
-            {"block", RPCArg::Type::STR, RPCArg::Optional::NO, "The ending block hash or height."},
+            {"baseBlock", RPCArg::Type::STR, RPCArg::Optional::NO, "The starting block hash or height.",
+             RPCArgOptions{.skip_type_check = true}},
+            {"block", RPCArg::Type::STR, RPCArg::Optional::NO, "The ending block hash or height.",
+             RPCArgOptions{.skip_type_check = true}},
             {"extended", RPCArg::Type::BOOL, RPCArg::Optional::OMITTED, "Show additional fields."},
         },
         CSimplifiedMNListDiff::GetJsonHelp(/*key=*/"", /*optional=*/false),
@@ -1664,8 +1667,10 @@ static RPCHelpMan protx_listdiff()
     return RPCHelpMan{"protx listdiff",
                "\nCalculate a full MN list diff between two masternode lists.\n",
                {
-                       {"baseBlock", RPCArg::Type::STR, RPCArg::Optional::NO, "The starting block hash or height."},
-                       {"block", RPCArg::Type::STR, RPCArg::Optional::NO, "The ending block hash or height."},
+                       {"baseBlock", RPCArg::Type::STR, RPCArg::Optional::NO, "The starting block hash or height.",
+                        RPCArgOptions{.skip_type_check = true}},
+                       {"block", RPCArg::Type::STR, RPCArg::Optional::NO, "The ending block hash or height.",
+                        RPCArgOptions{.skip_type_check = true}},
                },
                 RPCResult {
                     RPCResult::Type::OBJ, "", "",
@@ -1840,8 +1845,10 @@ static RPCHelpMan evodb_verify()
         "This is a read-only operation that does not modify the database.\n"
         "If no heights are specified, defaults to the full range from DIP0003 activation to chain tip.\n",
         {
-            {"startBlock", RPCArg::Type::STR, RPCArg::Optional::OMITTED, "The starting block hash or height (defaults to DIP0003 activation height)."},
-            {"stopBlock", RPCArg::Type::STR, RPCArg::Optional::OMITTED, "The ending block hash or height (defaults to current chain tip)."},
+            {"startBlock", RPCArg::Type::STR, RPCArg::Optional::OMITTED, "The starting block hash or height (defaults to DIP0003 activation height).",
+             RPCArgOptions{.skip_type_check = true}},
+            {"stopBlock", RPCArg::Type::STR, RPCArg::Optional::OMITTED, "The ending block hash or height (defaults to current chain tip).",
+             RPCArgOptions{.skip_type_check = true}},
         },
         RPCResult{
             RPCResult::Type::OBJ, "", "",
@@ -1878,8 +1885,10 @@ static RPCHelpMan evodb_repair()
         "If verification fails, recalculates diffs from blockchain data and replaces corrupted records.\n"
         "If no heights are specified, defaults to the full range from DIP0003 activation to chain tip.\n",
         {
-            {"startBlock", RPCArg::Type::STR, RPCArg::Optional::OMITTED, "The starting block hash or height (defaults to DIP0003 activation height)."},
-            {"stopBlock", RPCArg::Type::STR, RPCArg::Optional::OMITTED, "The ending block hash or height (defaults to current chain tip)."},
+            {"startBlock", RPCArg::Type::STR, RPCArg::Optional::OMITTED, "The starting block hash or height (defaults to DIP0003 activation height).",
+             RPCArgOptions{.skip_type_check = true}},
+            {"stopBlock", RPCArg::Type::STR, RPCArg::Optional::OMITTED, "The ending block hash or height (defaults to current chain tip).",
+             RPCArgOptions{.skip_type_check = true}},
         },
         RPCResult{
             RPCResult::Type::OBJ, "", "",
