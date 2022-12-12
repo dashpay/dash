@@ -285,7 +285,7 @@ class AssetLocksTest(DashTestFramework):
         self.check_mempool_result(tx=asset_lock_tx, result_expected={'allowed': True, 'fees': {'base': Decimal(str(tiny_amount / COIN))}})
         self.validate_credit_pool_balance(0)
         txid_in_block = self.send_tx(asset_lock_tx)
-        rpc_tx = node.getrawtransaction(txid_in_block, 1)
+        rpc_tx = node.getrawtransaction(txid_in_block, True)
         assert_equal(len(rpc_tx["assetLockTx"]["creditOutputs"]), 2)
         assert_equal(rpc_tx["assetLockTx"]["creditOutputs"][0]["valueSat"] + rpc_tx["assetLockTx"]["creditOutputs"][1]["valueSat"], locked_1)
         assert_equal(rpc_tx["assetLockTx"]["creditOutputs"][0]["scriptPubKey"]["hex"], key_to_p2pkh_script(pubkey).hex())
@@ -393,8 +393,8 @@ class AssetLocksTest(DashTestFramework):
         is_id = node_wallet.sendtoaddress(node_wallet.getnewaddress(), 1)
         self.wait_for_instantlock(is_id)
 
-        rawtx = node.getrawtransaction(txid, 1)
-        rawtx_is = node.getrawtransaction(is_id, 1)
+        rawtx = node.getrawtransaction(txid, True)
+        rawtx_is = node.getrawtransaction(is_id, True)
         assert_equal(rawtx["instantlock"], False)
         assert_equal(rawtx_is["instantlock"], True)
         assert_equal(rawtx["chainlock"], False)
@@ -404,7 +404,7 @@ class AssetLocksTest(DashTestFramework):
         self.log.info("Reset IS spork")
         self.set_sporks()
 
-        assert "assetUnlockTx" in node.getrawtransaction(txid, 1)
+        assert "assetUnlockTx" in node.getrawtransaction(txid, True)
 
         self.mempool_size += 2
         self.check_mempool_size()
@@ -412,12 +412,12 @@ class AssetLocksTest(DashTestFramework):
         self.generate(node, 1)
         assert_equal(rawtx["instantlock"], False)
         assert_equal(rawtx["chainlock"], False)
-        rawtx = node.getrawtransaction(txid, 1)
+        rawtx = node.getrawtransaction(txid, True)
         assert_equal(rawtx["confirmations"], 1)
         self.validate_credit_pool_balance(locked - COIN)
         self.mempool_size -= 2
         self.check_mempool_size()
-        block_asset_unlock = node.getrawtransaction(asset_unlock_tx.rehash(), 1)['blockhash']
+        block_asset_unlock = node.getrawtransaction(asset_unlock_tx.rehash(), True)['blockhash']
         self.log.info("Checking rpc `getblock` and `getblockstats` succeeds as they use own fee calculation mechanism")
         assert_equal(node.getblockstats(node.getblockcount())['maxfee'], tiny_amount)
         node.getblock(block_asset_unlock, 2)

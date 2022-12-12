@@ -208,7 +208,7 @@ class LLMQChainLocksTest(DashTestFramework):
         self.log.info("Assert that after block generation these TXs are NOT included (as they are \"unsafe\")")
         node0_tip = self.generate(self.nodes[0], 1, sync_fun=self.no_op)[-1]
         for txid in txs:
-            tx = self.nodes[0].getrawtransaction(txid, 1)
+            tx = self.nodes[0].getrawtransaction(txid, True)
             assert "confirmations" not in tx
 
         def test_cb(self):
@@ -226,7 +226,7 @@ class LLMQChainLocksTest(DashTestFramework):
         self.nodes[0].sporkupdate("SPORK_2_INSTANTSEND_ENABLED", 0)
         self.log.info("Assert that TXs got included now")
         for txid in txs:
-            tx = self.nodes[0].getrawtransaction(txid, 1)
+            tx = self.nodes[0].getrawtransaction(txid, True)
             assert "confirmations" in tx and tx["confirmations"] > 0
         # Enable network on first node again, which will cause the blocks to propagate and IS locks to happen retroactively
         # for the mined TXs, which will then allow the network to create a CLSIG
@@ -256,7 +256,7 @@ class LLMQChainLocksTest(DashTestFramework):
 
     def create_chained_txs(self, node, amount):
         txid = node.sendtoaddress(node.getnewaddress(), amount)
-        tx = node.getrawtransaction(txid, 1)
+        tx = node.getrawtransaction(txid, True)
         inputs = []
         valueIn = 0
         for txout in tx["vout"]:

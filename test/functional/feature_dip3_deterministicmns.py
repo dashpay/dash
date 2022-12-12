@@ -182,7 +182,7 @@ class DIP3Test(BitcoinTestFramework):
             self.generate(self.nodes[0], 1)
             if expected_payee == multisig:
                 block = self.nodes[0].getblock(self.nodes[0].getbestblockhash())
-                cbtx = self.nodes[0].getrawtransaction(block['tx'][0], 1)
+                cbtx = self.nodes[0].getrawtransaction(block['tx'][0], True)
                 for out in cbtx['vout']:
                     if 'address' in out['scriptPubKey']:
                         if expected_payee in out['scriptPubKey']['address'] and out['valueSat'] == expected_amount:

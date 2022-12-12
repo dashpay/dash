@@ -69,7 +69,7 @@ class TxIndexTest(BitcoinTestFramework):
         self.generate(self.nodes[0], 1)
 
         # Check verbose raw transaction results
-        verbose = self.nodes[3].getrawtransaction(txid, 1)
+        verbose = self.nodes[3].getrawtransaction(txid, True)
         assert_equal(verbose["vout"][0]["valueSat"], 50000000000 - tx_fee_sat)
         assert_equal(verbose["vout"][0]["value"] * 100000000, 50000000000 - tx_fee_sat)
 

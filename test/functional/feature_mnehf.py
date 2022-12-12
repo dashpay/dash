@@ -98,7 +98,7 @@ class MnehfTest(DashTestFramework):
 
     def ensure_tx_is_not_mined(self, tx_id):
         try:
-            assert_equal(self.nodes[0].getrawtransaction(tx_id, 1)['height'], -1)
+            assert_equal(self.nodes[0].getrawtransaction(tx_id, True)['height'], -1)
             raise AssertionError("Transaction should not be mined")
         except KeyError:
             # KeyError is expected

@@ -1183,7 +1183,7 @@ class MasternodeInfo:
 
     def bury_tx(self, test: BitcoinTestFramework, genIdx: int, txid: str, depth: int):
         chain_tip = test.generate(test.nodes[genIdx], depth)[0]
-        assert_equal(test.nodes[genIdx].getrawtransaction(txid, 1, chain_tip)['confirmations'], depth)
+        assert_equal(test.nodes[genIdx].getrawtransaction(txid, True, chain_tip)['confirmations'], depth)
 
     def generate_addresses(self, node: TestNode, force_all: bool = False):
         if not self.collateral_address or force_all:
@@ -1205,7 +1205,7 @@ class MasternodeInfo:
         return EVONODE_COLLATERAL if self.evo else MASTERNODE_COLLATERAL
 
     def get_collateral_vout(self, node: TestNode, txid: str, should_throw: bool = True) -> int:
-        for txout in node.getrawtransaction(txid, 1)['vout']:
+        for txout in node.getrawtransaction(txid, True)['vout']:
             if txout['value'] == self.get_collateral_value():
                 return txout['n']
         if should_throw:
@@ -1268,12 +1268,12 @@ class MasternodeInfo:
         # Common arguments shared between regular masternodes and EvoNodes
         args = [
             collateral_txid or self.collateral_txid,
-            collateral_vout or self.collateral_vout,
+            collateral_vout if collateral_vout is not None else self.collateral_vout,
             [f'127.0.0.1:{self.nodePort}'] if addrs_core_p2p is None else addrs_core_p2p,
             ownerAddr or self.ownerAddr,
             pubKeyOperator or self.pubKeyOperator,
             votingAddr or self.votingAddr,
-            operator_reward or self.operator_reward,
+            str(operator_reward if operator_reward is not None else self.operator_reward),
             rewards_address or self.rewards_address,
         ]
         address_funds = fundsAddr or self.fundsAddr
@@ -1327,7 +1327,7 @@ class MasternodeInfo:
             ownerAddr or self.ownerAddr,
             pubKeyOperator or self.pubKeyOperator,
             votingAddr or self.votingAddr,
-            operator_reward or self.operator_reward,
+            str(operator_reward if operator_reward is not None else self.operator_reward),
             rewards_address or self.rewards_address,
         ]
         address_funds = fundsAddr or self.fundsAddr

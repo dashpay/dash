@@ -97,13 +97,13 @@ class SpentIndexTest(BitcoinTestFramework):
         self.log.info("Testing getrawtransaction method...")
 
         # Check that verbose raw transaction includes spent info
-        txVerbose = self.nodes[3].getrawtransaction(unspent[0]["txid"], 1)
+        txVerbose = self.nodes[3].getrawtransaction(unspent[0]["txid"], True)
         assert_equal(txVerbose["vout"][unspent[0]["vout"]]["spentTxId"], txid)
         assert_equal(txVerbose["vout"][unspent[0]["vout"]]["spentIndex"], 0)
         assert_equal(txVerbose["vout"][unspent[0]["vout"]]["spentHeight"], 106)
 
         # Check that verbose raw transaction includes input values
-        txVerbose2 = self.nodes[3].getrawtransaction(txid, 1)
+        txVerbose2 = self.nodes[3].getrawtransaction(txid, True)
         assert_equal(txVerbose2["vin"][0]["value"], Decimal(unspent[0]["amount"]))
         assert_equal(txVerbose2["vin"][0]["valueSat"] - tx_fee_sat, amount)
 
@@ -121,7 +121,7 @@ class SpentIndexTest(BitcoinTestFramework):
 
         # Check the mempool index
         self.sync_all()
-        txVerbose3 = self.nodes[1].getrawtransaction(txid2, 1)
+        txVerbose3 = self.nodes[1].getrawtransaction(txid2, True)
         assert_equal(txVerbose3["vin"][0]["address"], address2)
         assert_equal(txVerbose3["vin"][0]["value"], Decimal(unspent[0]["amount"]) - tx_fee)
         assert_equal(txVerbose3["vin"][0]["valueSat"], amount)
@@ -129,7 +129,7 @@ class SpentIndexTest(BitcoinTestFramework):
         # Check the database index
         self.generate(self.nodes[0], 1)
 
-        txVerbose4 = self.nodes[3].getrawtransaction(txid2, 1)
+        txVerbose4 = self.nodes[3].getrawtransaction(txid2, True)
         assert_equal(txVerbose4["vin"][0]["address"], address2)
         assert_equal(txVerbose4["vin"][0]["value"], Decimal(unspent[0]["amount"]) - tx_fee)
         assert_equal(txVerbose4["vin"][0]["valueSat"], amount)

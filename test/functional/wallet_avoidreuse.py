@@ -331,7 +331,7 @@ class AvoidReuseTest(BitcoinTestFramework):
         # Sending a transaction that is smaller than each one of the
         # available outputs
         txid = self.nodes[1].sendtoaddress(address=ret_addr, amount=0.5)
-        inputs = self.nodes[1].getrawtransaction(txid, 1)["vin"]
+        inputs = self.nodes[1].getrawtransaction(txid, True)["vin"]
 
         # The transaction should use 100 inputs exactly
         assert_equal(len(inputs), 100)
@@ -359,7 +359,7 @@ class AvoidReuseTest(BitcoinTestFramework):
         # Sending a transaction that needs to use the full groups
         # of 100 inputs but also the incomplete group of 2 inputs.
         txid = self.nodes[1].sendtoaddress(address=ret_addr, amount=200.5)
-        inputs = self.nodes[1].getrawtransaction(txid, 1)["vin"]
+        inputs = self.nodes[1].getrawtransaction(txid, True)["vin"]
 
         # The transaction should use 202 inputs exactly
         assert_equal(len(inputs), 202)

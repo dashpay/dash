@@ -135,12 +135,12 @@ class DIP3V19Test(DashTestFramework):
         fund_txid = self.nodes[0].sendtoaddress(funds_address, 1)
         self.bump_mocktime(10 * 60 + 1) # to make tx safe to include in block
         tip = self.generate(self.nodes[0], 1)[0]
-        assert_equal(self.nodes[0].getrawtransaction(fund_txid, 1, tip)['confirmations'], 1)
+        assert_equal(self.nodes[0].getrawtransaction(fund_txid, True, tip)['confirmations'], 1)
 
         protx_result = revoke_mn.revoke(self.nodes[0], submit=True, reason=1, fundsAddr=funds_address)
         self.bump_mocktime(10 * 60 + 1) # to make tx safe to include in block
         tip = self.generate(self.nodes[0], 1, sync_fun=self.no_op)[0]
-        assert_equal(self.nodes[0].getrawtransaction(protx_result, 1, tip)['confirmations'], 1)
+        assert_equal(self.nodes[0].getrawtransaction(protx_result, True, tip)['confirmations'], 1)
         # Revoking a MN results in disconnects. Wait for disconnects to actually happen
         # and then reconnect the corresponding node back to let sync_blocks finish correctly.
         self.wait_until(lambda: self.nodes[node_idx].getconnectioncount() == 0)
@@ -156,12 +156,12 @@ class DIP3V19Test(DashTestFramework):
         fund_txid = self.nodes[0].sendtoaddress(mn.fundsAddr, 1)
         self.bump_mocktime(10 * 60 + 1) # to make tx safe to include in block
         tip = self.generate(self.nodes[0], 1)[0]
-        assert_equal(self.nodes[0].getrawtransaction(fund_txid, 1, tip)['confirmations'], 1)
+        assert_equal(self.nodes[0].getrawtransaction(fund_txid, True, tip)['confirmations'], 1)
 
         protx_result = mn.update_service(self.nodes[0], submit=True, addrs_core_p2p=[f'127.0.0.2:{mn.nodePort}'])
         self.bump_mocktime(10 * 60 + 1) # to make tx safe to include in block
         tip = self.generate(self.nodes[0], 1)[0]
-        assert_equal(self.nodes[0].getrawtransaction(protx_result, 1, tip)['confirmations'], 1)
+        assert_equal(self.nodes[0].getrawtransaction(protx_result, True, tip)['confirmations'], 1)
 
         for node in self.nodes:
             protx_info = node.protx('info', mn.proTxHash)

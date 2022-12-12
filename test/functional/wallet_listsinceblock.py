@@ -369,7 +369,7 @@ class ListSinceBlockTest(BitcoinTestFramework):
 
         double_signedtx = spending_node.signrawtransactionwithwallet(double_rawtx)
         dbl_tx_id = double_spending_node.sendrawtransaction(double_signedtx["hex"])
-        double_tx = double_spending_node.getrawtransaction(dbl_tx_id, 1)
+        double_tx = double_spending_node.getrawtransaction(dbl_tx_id, True)
         lastblockhash = self.generate(double_spending_node, 1, sync_fun=self.no_op)[0]
 
         self.reconnect_isolated_node(3, 2)

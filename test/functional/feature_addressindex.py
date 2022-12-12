@@ -70,8 +70,8 @@ class AddressIndexTest(BitcoinTestFramework):
         assert_equal(self.nodes[2].getbalance(), 0)
 
         # Check that balances are correct
-        balance0 = self.nodes[1].getaddressbalance("93bVhahvUKmQu8gu9g3QnPPa2cxFK98pMB")
-        balance_mining = self.nodes[1].getaddressbalance(mining_address)
+        balance0 = self.nodes[1].getaddressbalance({"addresses": ["93bVhahvUKmQu8gu9g3QnPPa2cxFK98pMB"]})
+        balance_mining = self.nodes[1].getaddressbalance({"addresses": [mining_address]})
         assert_equal(balance0["balance"], 0)
         assert_equal(balance_mining["balance"], 105 * 500 * COIN)
         assert_equal(balance_mining["balance_immature"], 100 * 500 * COIN)
@@ -98,13 +98,13 @@ class AddressIndexTest(BitcoinTestFramework):
         txidb2 = self.nodes[0].sendtoaddress("93bVhahvUKmQu8gu9g3QnPPa2cxFK98pMB", 20)
         self.generate(self.nodes[0], 1)
 
-        txids = self.nodes[1].getaddresstxids("yMNJePdcKvXtWWQnFYHNeJ5u8TF2v1dfK4")
+        txids = self.nodes[1].getaddresstxids({"addresses": ["yMNJePdcKvXtWWQnFYHNeJ5u8TF2v1dfK4"]})
         assert_equal(len(txids), 3)
         assert_equal(txids[0], txid0)
         assert_equal(txids[1], txid1)
         assert_equal(txids[2], txid2)
 
-        txidsb = self.nodes[1].getaddresstxids("93bVhahvUKmQu8gu9g3QnPPa2cxFK98pMB")
+        txidsb = self.nodes[1].getaddresstxids({"addresses": ["93bVhahvUKmQu8gu9g3QnPPa2cxFK98pMB"]})
         assert_equal(len(txidsb), 3)
         assert_equal(txidsb[0], txidb0)
         assert_equal(txidsb[1], txidb1)
@@ -132,7 +132,7 @@ class AddressIndexTest(BitcoinTestFramework):
         assert_equal(multitxids[5], txidb2)
 
         # Check that balances are correct
-        balance0 = self.nodes[1].getaddressbalance("93bVhahvUKmQu8gu9g3QnPPa2cxFK98pMB")
+        balance0 = self.nodes[1].getaddressbalance({"addresses": ["93bVhahvUKmQu8gu9g3QnPPa2cxFK98pMB"]})
         assert_equal(balance0["balance"], 45 * 100000000)
 
         # Check that outputs with the same address will only return one txid
@@ -150,13 +150,13 @@ class AddressIndexTest(BitcoinTestFramework):
 
         self.generate(self.nodes[0], 1)
 
-        txidsmany = self.nodes[1].getaddresstxids("93bVhahvUKmQu8gu9g3QnPPa2cxFK98pMB")
+        txidsmany = self.nodes[1].getaddresstxids({"addresses": ["93bVhahvUKmQu8gu9g3QnPPa2cxFK98pMB"]})
         assert_equal(len(txidsmany), 4)
         assert_equal(txidsmany[3], sent_txid)
 
         # Check that balances are correct
         self.log.info("Testing balances...")
-        balance0 = self.nodes[1].getaddressbalance("93bVhahvUKmQu8gu9g3QnPPa2cxFK98pMB")
+        balance0 = self.nodes[1].getaddressbalance({"addresses": ["93bVhahvUKmQu8gu9g3QnPPa2cxFK98pMB"]})
         assert_equal(balance0["balance"], (45 + 21) * 100000000)
 
         # Check that balances are correct after spending
@@ -177,7 +177,7 @@ class AddressIndexTest(BitcoinTestFramework):
         signed_tx = self.nodes[0].signrawtransactionwithwallet(tx.serialize().hex())
         spending_txid = self.nodes[0].sendrawtransaction(signed_tx["hex"], 0)
         self.generate(self.nodes[0], 1)
-        balance1 = self.nodes[1].getaddressbalance(address2)
+        balance1 = self.nodes[1].getaddressbalance({"addresses": [address2]})
         assert_equal(balance1["balance"], amount)
 
         tx = CTransaction()
@@ -191,7 +191,7 @@ class AddressIndexTest(BitcoinTestFramework):
         sent_txid = self.nodes[0].sendrawtransaction(signed_tx["hex"], 0)
         self.generate(self.nodes[0], 1)
 
-        balance2 = self.nodes[1].getaddressbalance(address2)
+        balance2 = self.nodes[1].getaddressbalance({"addresses": [address2]})
         assert_equal(balance2["balance"], change_amount)
 
         # Check that deltas are returned correctly
@@ -229,7 +229,7 @@ class AddressIndexTest(BitcoinTestFramework):
         self.bump_mocktime(2)
         self.sync_all()
 
-        balance4 = self.nodes[1].getaddressbalance(address2)
+        balance4 = self.nodes[1].getaddressbalance({"addresses": [address2]})
         assert_equal(balance4, balance1)
 
         utxos2 = self.nodes[1].getaddressutxos({"addresses": [address2]})

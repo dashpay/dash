@@ -1408,7 +1408,8 @@ static RPCHelpMan protx_list()
                 "                 This will also include ProTx which failed PoSe verification.\n"
 #endif
             },
-            {"detailed", RPCArg::Type::BOOL, RPCArg::Default{false}, "If not specified, only the hashes of the ProTx will be returned."},
+            {"detailed", RPCArg::Type::BOOL, RPCArg::Default{false}, "If not specified, only the hashes of the ProTx will be returned.",
+             RPCArgOptions{.skip_type_check = true}},
             {"height", RPCArg::Type::NUM, RPCArg::DefaultHint{"current chain-tip"}, ""},
         },
         RPCResult{
