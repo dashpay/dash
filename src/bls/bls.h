@@ -10,7 +10,7 @@
 #include <uint256.h>
 #include <util/strencodings.h>
 #include <util/ranges.h>
-#include <logging.h>
+//#include <logging.h>
 
 // bls-dash uses relic, which may define DEBUG and ERROR, which leads to many warnings in some build setups
 #undef ERROR
@@ -116,11 +116,11 @@ public:
                 fValid = true;
             } catch (const std::invalid_argument& e) {
                 Reset();
-                LogPrintf("SetByteVector BLS flag[%d] exception: %s\n", specificLegacyScheme, e.what());
+                //LogPrintf("SetByteVector BLS flag[%d] exception: %s\n", specificLegacyScheme, e.what());
             }
             catch (...) {
                 Reset();
-                LogPrintf("SetByteVector BLS flag[%d] unknown exception\n", specificLegacyScheme);
+                //LogPrintf("SetByteVector BLS flag[%d] unknown exception\n", specificLegacyScheme);
             }
         }
         cachedHash.SetNull();
