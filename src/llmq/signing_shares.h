@@ -69,7 +69,7 @@ public:
         assert(!key.first.IsNull());
         return key.first;
     }
-    
+
     SERIALIZE_METHODS(CSigShare, obj)
     {
         READWRITE(obj.llmqType, obj.quorumHash, obj.quorumMember, obj.id, obj.msgHash, obj.sigShare);

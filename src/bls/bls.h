@@ -10,6 +10,7 @@
 #include <uint256.h>
 #include <util/strencodings.h>
 #include <util/ranges.h>
+#include <logging.h>
 
 // bls-dash uses relic, which may define DEBUG and ERROR, which leads to many warnings in some build setups
 #undef ERROR
@@ -28,7 +29,6 @@
 #include <sync.h>
 
 #include <atomic>
-#include "logging.h"
 
 namespace bls {
     extern std::atomic<bool> bls_legacy_scheme;
@@ -114,7 +114,7 @@ public:
             try {
                 impl = ImplType::FromBytes(bls::Bytes(vecBytes), specificLegacyScheme);
                 fValid = true;
-            } catch (std::invalid_argument& e) {
+            } catch (const std::invalid_argument& e) {
                 Reset();
                 LogPrintf("SetByteVector BLS flag[%d] exception: %s\n", specificLegacyScheme, e.what());
             }
@@ -460,7 +460,7 @@ public:
         if (!objInitialized && !bufValid) {
             throw std::ios_base::failure("obj and buf not initialized");
         }
-        if (!bufValid || (bufValid && bufLegacyScheme != specificLegacyScheme)) {
+        if (!bufValid || (bufLegacyScheme != specificLegacyScheme)) {
             vecBytes = obj.ToByteVector(specificLegacyScheme);
             bufValid = true;
             bufLegacyScheme = specificLegacyScheme;
