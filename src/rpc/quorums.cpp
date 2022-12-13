@@ -127,7 +127,7 @@ static UniValue quorum_list_extended(const JSONRPCRequest& request)
     UniValue ret(UniValue::VOBJ);
 
     LLMQContext& llmq_ctx = EnsureLLMQContext(request.context);
-    CBlockIndex* pblockindex = nHeight != -1 ? ::ChainActive()[nHeight] : WITH_LOCK(cs_main, return ::ChainActive().Tip());
+    CBlockIndex* pblockindex = nHeight != -1 ? WITH_LOCK(cs_main, return ::ChainActive()[nHeight]) : WITH_LOCK(cs_main, return ::ChainActive().Tip());
 
     for (const auto& type : llmq::utils::GetEnabledQuorumTypes(pblockindex)) {
         const auto& llmq_params = llmq::GetLLMQParams(type);
