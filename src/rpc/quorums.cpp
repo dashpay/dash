@@ -94,14 +94,15 @@ static void quorum_list_extended_help(const JSONRPCRequest& request)
             {
                 {RPCResult::Type::ARR, "quorumName", "List of quorum details per quorum type",
                 {
-                        {RPCResult::Type::OBJ, "","",
-                        {
+                    {RPCResult::Type::OBJ, "", "",
+                    {
                         {RPCResult::Type::OBJ, "xxxx", "Quorum hash. Note: most recent quorums come first.",
                         {
-                                 {RPCResult::Type::NUM, "creationHeight", "Block height where the DKG started."},
-                                 {RPCResult::Type::NUM, "quorumIndex", "Quorum index (applicable only to rotated quorums)."},
-                                 {RPCResult::Type::STR_HEX, "minedBlockHash", "Blockhash where the commitment was mined."}
-                         }}}},
+                            {RPCResult::Type::NUM, "creationHeight", "Block height where the DKG started."},
+                            {RPCResult::Type::NUM, "quorumIndex", "Quorum index (applicable only to rotated quorums)."},
+                            {RPCResult::Type::STR_HEX, "minedBlockHash", "Blockhash where the commitment was mined."}
+                        }}
+                    }}
                 }}
             }},
             RPCExamples{
