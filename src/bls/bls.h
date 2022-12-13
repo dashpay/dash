@@ -10,7 +10,6 @@
 #include <uint256.h>
 #include <util/strencodings.h>
 #include <util/ranges.h>
-//#include <logging.h>
 
 // bls-dash uses relic, which may define DEBUG and ERROR, which leads to many warnings in some build setups
 #undef ERROR
@@ -26,7 +25,6 @@
 #include <array>
 #include <mutex>
 #include <unistd.h>
-#include <sync.h>
 
 #include <atomic>
 
@@ -114,13 +112,8 @@ public:
             try {
                 impl = ImplType::FromBytes(bls::Bytes(vecBytes), specificLegacyScheme);
                 fValid = true;
-            } catch (const std::invalid_argument& e) {
+            } catch (...) {
                 Reset();
-                //LogPrintf("SetByteVector BLS flag[%d] exception: %s\n", specificLegacyScheme, e.what());
-            }
-            catch (...) {
-                Reset();
-                //LogPrintf("SetByteVector BLS flag[%d] unknown exception\n", specificLegacyScheme);
             }
         }
         cachedHash.SetNull();
