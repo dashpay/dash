@@ -265,8 +265,8 @@ class CCoinJoinBroadcastTx
 {
 private:
     // memory only
-    // when corresponding tx is 0-confirmed or conflicted, nConfirmedHeight is -1
-    int nConfirmedHeight{-1};
+    // when corresponding tx is 0-confirmed or conflicted, nConfirmedHeight is std::nullopt
+    std::optional<int> nConfirmedHeight{std::nullopt};
 
 public:
     CTransactionRef tx;
