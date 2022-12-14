@@ -697,7 +697,24 @@ UniValue importelectrumwallet(const JSONRPCRequest& request)
             boost::split(vstr, line, boost::is_any_of(","));
             if (vstr.size() < 2)
                 continue;
-            CKey key = DecodeSecret(vstr[1]);
+
+            // Electrum backups were modified to include a prefix before the private key
+            // The new format of the private_key field is: "prefix:private key"
+            // Where prefix is, for example, "p2pkh" or "p2sh"
+            std::vector<std::string> vstr2;
+            boost::split(vstr2, vstr[1], boost::is_any_of(":"));
+            CKey key;
+            if (vstr2.size() < 1 || vstr2.size() > 2) {
+                continue;
+            }
+            else if (vstr2.size() == 1) {
+                // Legacy format with only private key in the private_key field
+                key = DecodeSecret(vstr[1]);
+            }
+            else {
+                // New format with "prefix:private key" in the private_key field
+                key = DecodeSecret(vstr2[1]);
+            }
             if (!key.IsValid()) {
                 continue;
             }
