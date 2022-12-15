@@ -686,6 +686,9 @@ UniValue importelectrumwallet(const JSONRPCRequest& request)
 
     pwallet->ShowProgress(_("Importing...").translated, 0); // show progress dialog in GUI
 
+    // Electrum backups were modified to include a prefix before the private key
+    // The new format of the private_key field is: "prefix:private key"
+    // Where prefix is, for example, "p2pkh" or "p2sh"
     if(strFileExt == "csv") {
         while (file.good()) {
             pwallet->ShowProgress("", std::max(1, std::min(99, (int)(((double)file.tellg() / (double)nFilesize) * 100))));
@@ -697,10 +700,6 @@ UniValue importelectrumwallet(const JSONRPCRequest& request)
             boost::split(vstr, line, boost::is_any_of(","));
             if (vstr.size() < 2)
                 continue;
-
-            // Electrum backups were modified to include a prefix before the private key
-            // The new format of the private_key field is: "prefix:private key"
-            // Where prefix is, for example, "p2pkh" or "p2sh"
             std::vector<std::string> vstr2;
             boost::split(vstr2, vstr[1], boost::is_any_of(":"));
             CKey key;
