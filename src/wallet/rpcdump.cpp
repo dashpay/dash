@@ -747,7 +747,20 @@ UniValue importelectrumwallet(const JSONRPCRequest& request)
             pwallet->ShowProgress("", std::max(1, std::min(99, int(i*100/data.size()))));
             if(!data[vKeys[i]].isStr())
                 continue;
-            CKey key = DecodeSecret(data[vKeys[i]].get_str());
+            std::vector<std::string> vstr2;
+            boost::split(vstr2, data[vKeys[i]].get_str(), boost::is_any_of(":"));
+            CKey key;
+            if (vstr2.size() < 1 || vstr2.size() > 2) {
+                continue;
+            }
+            else if (vstr2.size() == 1) {
+                // Legacy format with only private key in the private_key field
+                key = DecodeSecret(data[vKeys[i]].get_str());
+            }
+            else {
+                // New format with "prefix:private key" in the private_key field
+                key = DecodeSecret(vstr2[1]);
+            }
             if (!key.IsValid()) {
                 continue;
             }
