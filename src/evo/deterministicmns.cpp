@@ -246,7 +246,7 @@ std::vector<std::pair<arith_uint256, CDeterministicMNCPtr>> CDeterministicMNList
             return;
         }
         if (onlyHighPerformanceMasternodes) {
-            if (dmn->type != CDeterministicMN::MasternodeType::HighPerformance)
+            if (dmn->nType != CDeterministicMN::TYPE_HIGH_PERFORMANCE_MASTERNODE)
                 return;
         }
         // calculate sha256(sha256(proTxHash, confirmedHash), modifier) per MN

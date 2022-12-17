@@ -215,23 +215,23 @@ static constexpr std::array<LLMQParams, 12> available_llmqs = {
      *
      */
     LLMQParams{
-            .type = LLMQType::LLMQ_TEST_PLATFORM,
-            .name = "llmq_test_platform",
-            .useRotation = false,
-            .size = 4,
-            .minSize = 3,
-            .threshold = 2,
+        .type = LLMQType::LLMQ_TEST_PLATFORM,
+        .name = "llmq_test_platform",
+        .useRotation = false,
+        .size = 4,
+        .minSize = 3,
+        .threshold = 2,
 
-            .dkgInterval = 24, // DKG cycle
-            .dkgPhaseBlocks = 2,
-            .dkgMiningWindowStart = 12, // signingActiveQuorumCount + dkgPhaseBlocks * 5 = after finalization
-            .dkgMiningWindowEnd = 20,
-            .dkgBadVotesThreshold = 2,
+        .dkgInterval = 24, // DKG cycle
+        .dkgPhaseBlocks = 2,
+        .dkgMiningWindowStart = 10, // signingActiveQuorumCount + dkgPhaseBlocks * 5 = after finalization
+        .dkgMiningWindowEnd = 18,
+        .dkgBadVotesThreshold = 2,
 
-            .signingActiveQuorumCount = 2, // just a few ones to allow easier testing
+        .signingActiveQuorumCount = 2, // just a few ones to allow easier testing
 
-            .keepOldConnections = 4,
-            .recoveryMembers = 3,
+        .keepOldConnections = 4,
+        .recoveryMembers = 3,
     },
 
     /**

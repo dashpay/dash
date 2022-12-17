@@ -621,6 +621,172 @@ static UniValue protx_register_legacy(const JSONRPCRequest& request)
 }
 
 // handles register, register_prepare and register_fund in one method
+static UniValue protx_register_highperf(const JSONRPCRequest& request)
+{
+    bool isExternalRegister = request.strMethod == "protxregister_highperf";
+    bool isFundRegister = request.strMethod == "protxregister_fund_highperf";
+    bool isPrepareRegister = request.strMethod == "protxregister_prepare_highperf";
+
+    if (isFundRegister && (request.fHelp || (request.params.size() < 7 || request.params.size() > 9))) {
+        protx_register_fund_help(request);
+    } else if (isExternalRegister && (request.fHelp || (request.params.size() < 8 || request.params.size() > 10))) {
+        protx_register_help(request);
+    } else if (isPrepareRegister && (request.fHelp || (request.params.size() != 8 && request.params.size() != 9))) {
+        protx_register_prepare_help(request);
+    }
+
+    std::shared_ptr<CWallet> const wallet = GetWalletForJSONRPCRequest(request);
+    if (!wallet) return NullUniValue;
+
+    if (isExternalRegister || isFundRegister) {
+        EnsureWalletIsUnlocked(wallet.get());
+    }
+
+    size_t paramIdx = 0;
+
+    CAmount collateralAmount = 4000 * COIN;
+
+    CMutableTransaction tx;
+    tx.nVersion = 3;
+    tx.nType = TRANSACTION_PROVIDER_REGISTER;
+
+    CProRegTx ptx;
+    ptx.nType = CProRegTx::TYPE_HIGH_PERFORMANCE_MASTERNODE;
+    ptx.nVersion = CProRegTx::CURRENT_VERSION;
+
+    if (isFundRegister) {
+        CTxDestination collateralDest = DecodeDestination(request.params[paramIdx].get_str());
+        if (!IsValidDestination(collateralDest)) {
+            throw JSONRPCError(RPC_INVALID_ADDRESS_OR_KEY, strprintf("invalid collaterall address: %s", request.params[paramIdx].get_str()));
+        }
+        CScript collateralScript = GetScriptForDestination(collateralDest);
+
+        CTxOut collateralTxOut(collateralAmount, collateralScript);
+        tx.vout.emplace_back(collateralTxOut);
+
+        paramIdx++;
+    } else {
+        uint256 collateralHash = ParseHashV(request.params[paramIdx], "collateralHash");
+        int32_t collateralIndex = ParseInt32V(request.params[paramIdx + 1], "collateralIndex");
+        if (collateralHash.IsNull() || collateralIndex < 0) {
+            throw JSONRPCError(RPC_INVALID_ADDRESS_OR_KEY, strprintf("invalid hash or index: %s-%d", collateralHash.ToString(), collateralIndex));
+        }
+
+        ptx.collateralOutpoint = COutPoint(collateralHash, (uint32_t)collateralIndex);
+        paramIdx += 2;
+
+        // TODO unlock on failure
+        LOCK(wallet->cs_wallet);
+        wallet->LockCoin(ptx.collateralOutpoint);
+    }
+
+    if (request.params[paramIdx].get_str() != "") {
+        if (!Lookup(request.params[paramIdx].get_str().c_str(), ptx.addr, Params().GetDefaultPort(), false)) {
+            throw std::runtime_error(strprintf("invalid network address %s", request.params[paramIdx].get_str()));
+        }
+    }
+
+    ptx.keyIDOwner = ParsePubKeyIDFromAddress(request.params[paramIdx + 1].get_str(), "owner address");
+    CBLSPublicKey pubKeyOperator = ParseBLSPubKey(request.params[paramIdx + 2].get_str(), "operator BLS address");
+    CKeyID keyIDVoting = ptx.keyIDOwner;
+
+    if (request.params[paramIdx + 3].get_str() != "") {
+        keyIDVoting = ParsePubKeyIDFromAddress(request.params[paramIdx + 3].get_str(), "voting address");
+    }
+
+    int64_t operatorReward;
+    if (!ParseFixedPoint(request.params[paramIdx + 4].getValStr(), 2, &operatorReward)) {
+        throw JSONRPCError(RPC_INVALID_PARAMETER, "operatorReward must be a number");
+    }
+    if (operatorReward < 0 || operatorReward > 10000) {
+        throw JSONRPCError(RPC_INVALID_PARAMETER, "operatorReward must be between 0.00 and 100.00");
+    }
+    ptx.nOperatorReward = operatorReward;
+
+    CTxDestination payoutDest = DecodeDestination(request.params[paramIdx + 5].get_str());
+    if (!IsValidDestination(payoutDest)) {
+        throw JSONRPCError(RPC_INVALID_ADDRESS_OR_KEY, strprintf("invalid payout address: %s", request.params[paramIdx + 5].get_str()));
+    }
+
+    ptx.pubKeyOperator = pubKeyOperator;
+    ptx.keyIDVoting = keyIDVoting;
+    ptx.scriptPayout = GetScriptForDestination(payoutDest);
+
+    if (!isFundRegister) {
+        // make sure fee calculation works
+        ptx.vchSig.resize(65);
+    }
+
+    CTxDestination fundDest = payoutDest;
+    if (!request.params[paramIdx + 6].isNull()) {
+        fundDest = DecodeDestination(request.params[paramIdx + 6].get_str());
+        if (!IsValidDestination(fundDest))
+            throw JSONRPCError(RPC_INVALID_ADDRESS_OR_KEY, std::string("Invalid Dash address: ") + request.params[paramIdx + 6].get_str());
+    }
+
+    FundSpecialTx(wallet.get(), tx, ptx, fundDest);
+    UpdateSpecialTxInputsHash(tx, ptx);
+
+    bool fSubmit{true};
+    if ((isExternalRegister || isFundRegister) && !request.params[paramIdx + 7].isNull()) {
+        fSubmit = ParseBoolV(request.params[paramIdx + 7], "submit");
+    }
+
+    if (isFundRegister) {
+        uint32_t collateralIndex = (uint32_t) -1;
+        for (uint32_t i = 0; i < tx.vout.size(); i++) {
+            if (tx.vout[i].nValue == collateralAmount) {
+                collateralIndex = i;
+                break;
+            }
+        }
+        CHECK_NONFATAL(collateralIndex != (uint32_t) -1);
+        ptx.collateralOutpoint.n = collateralIndex;
+
+        SetTxPayload(tx, ptx);
+        return SignAndSendSpecialTx(request, tx, fSubmit);
+    } else {
+        // referencing external collateral
+
+        Coin coin;
+        if (!GetUTXOCoin(ptx.collateralOutpoint, coin)) {
+            throw JSONRPCError(RPC_INVALID_ADDRESS_OR_KEY, strprintf("collateral not found: %s", ptx.collateralOutpoint.ToStringShort()));
+        }
+        CTxDestination txDest;
+        ExtractDestination(coin.out.scriptPubKey, txDest);
+        const CKeyID *keyID = std::get_if<CKeyID>(&txDest);
+        if (!keyID) {
+            throw JSONRPCError(RPC_INVALID_ADDRESS_OR_KEY, strprintf("collateral type not supported: %s", ptx.collateralOutpoint.ToStringShort()));
+        }
+
+        if (isPrepareRegister) {
+            // external signing with collateral key
+            ptx.vchSig.clear();
+            SetTxPayload(tx, ptx);
+
+            UniValue ret(UniValue::VOBJ);
+            ret.pushKV("tx", EncodeHexTx(CTransaction(tx)));
+            ret.pushKV("collateralAddress", EncodeDestination(txDest));
+            ret.pushKV("signMessage", ptx.MakeSignString());
+            return ret;
+        } else {
+            // lets prove we own the collateral
+            LegacyScriptPubKeyMan* spk_man = wallet->GetLegacyScriptPubKeyMan();
+            if (!spk_man) {
+                throw JSONRPCError(RPC_WALLET_ERROR, "This type of wallet does not support this command");
+            }
+
+            CKey key;
+            if (!spk_man->GetKey(*keyID, key)) {
+                throw JSONRPCError(RPC_INVALID_ADDRESS_OR_KEY, strprintf("collateral key not in wallet: %s", EncodeDestination(txDest)));
+            }
+            SignSpecialTxPayloadByString(tx, ptx, key);
+            SetTxPayload(tx, ptx);
+            return SignAndSendSpecialTx(request, tx, fSubmit);
+        }
+    }
+}
+
 static UniValue protx_register_submit(const JSONRPCRequest& request)
 {
     protx_register_submit_help(request);
@@ -1270,6 +1436,8 @@ static UniValue protx(const JSONRPCRequest& request)
         return protx_register(new_request);
     } else if (command == "protxregister_legacy" || command == "protxregister_fund_legacy" || command == "protxregister_prepare_legacy") {
         return protx_register_legacy(new_request);
+    } else if (command == "protxregister_highperf" || command == "protxregister_fund_highperf" || command == "protxregister_prepare_highperf") {
+        return protx_register_highperf(new_request);
     } else if (command == "protxregister_submit") {
         return protx_register_submit(new_request);
     } else if (command == "protxupdate_service") {

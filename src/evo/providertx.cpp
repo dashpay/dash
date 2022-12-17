@@ -14,7 +14,7 @@ maybe_error CProRegTx::IsTriviallyValid(bool is_bls_legacy_scheme) const
     if (nVersion == 0 || nVersion > GetVersion(is_bls_legacy_scheme)) {
         return {ValidationInvalidReason::CONSENSUS, "bad-protx-version"};
     }
-    if (nType != 0) {
+    if (nType != TYPE_REGULAR_MASTERNODE && nType != TYPE_HIGH_PERFORMANCE_MASTERNODE) {
         return {ValidationInvalidReason::CONSENSUS, "bad-protx-type"};
     }
     if (nMode != 0) {

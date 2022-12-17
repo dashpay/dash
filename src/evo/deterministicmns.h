@@ -40,10 +40,13 @@ private:
     uint64_t internalId{std::numeric_limits<uint64_t>::max()};
 
 public:
+    static constexpr uint16_t TYPE_REGULAR_MASTERNODE = 0;
+    static constexpr uint16_t TYPE_HIGH_PERFORMANCE_MASTERNODE = 1;
+
     CDeterministicMN() = delete; // no default constructor, must specify internalId
     explicit CDeterministicMN(uint64_t _internalId, bool highPerformanceMasternode = false) : internalId(_internalId)
     {
-        highPerformanceMasternode ? type = MasternodeType::HighPerformance : MasternodeType::Regular;
+        highPerformanceMasternode ? nType = TYPE_HIGH_PERFORMANCE_MASTERNODE : TYPE_REGULAR_MASTERNODE;
         // only non-initial values
         assert(_internalId != std::numeric_limits<uint64_t>::max());
     }
@@ -60,16 +63,10 @@ public:
         s >> *this;
     }
 
-    enum MasternodeType
-    {
-        Regular,
-        HighPerformance
-    };
-
     uint256 proTxHash;
     COutPoint collateralOutpoint;
     uint16_t nOperatorReward{0};
-    MasternodeType type;
+    uint16_t nType{TYPE_REGULAR_MASTERNODE};;
     std::shared_ptr<const CDeterministicMNState> pdmnState;
 
     template <typename Stream, typename Operation>
@@ -82,6 +79,7 @@ public:
         READWRITE(collateralOutpoint);
         READWRITE(nOperatorReward);
         READWRITE(pdmnState);
+        READWRITE(nType);
     }
 
     template<typename Stream>
@@ -214,6 +212,11 @@ public:
     [[nodiscard]] size_t GetValidMNsCount() const
     {
         return ranges::count_if(mnMap, [](const auto& p){ return IsMNValid(*p.second); });
+    }
+
+    [[nodiscard]] size_t GetAllHPMNsCount() const
+    {
+        return ranges::count_if(mnMap, [](const auto& p){ return p.second->nType == CDeterministicMN::TYPE_HIGH_PERFORMANCE_MASTERNODE;});
     }
 
     /**

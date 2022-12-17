@@ -49,7 +49,7 @@ from .util import (
     set_timeout_scale,
     satoshi_round,
     wait_until,
-    get_chain_folder,
+    get_chain_folder, assert_greater_than_or_equal,
 )
 
 
@@ -826,10 +826,10 @@ class BitcoinTestFramework(metaclass=BitcoinTestMetaClass):
 
 
 MASTERNODE_COLLATERAL = 1000
-
+HIGHPERFORMANCE_MASTERNODE_COLLATERAL = 4000
 
 class MasternodeInfo:
-    def __init__(self, proTxHash, ownerAddr, votingAddr, pubKeyOperator, keyOperator, collateral_address, collateral_txid, collateral_vout):
+    def __init__(self, proTxHash, ownerAddr, votingAddr, pubKeyOperator, keyOperator, collateral_address, collateral_txid, collateral_vout, hpmn=False):
         self.proTxHash = proTxHash
         self.ownerAddr = ownerAddr
         self.votingAddr = votingAddr
@@ -838,6 +838,7 @@ class MasternodeInfo:
         self.collateral_address = collateral_address
         self.collateral_txid = collateral_txid
         self.collateral_vout = collateral_vout
+        self.hpmn = hpmn
 
 
 class DashTestFramework(BitcoinTestFramework):
@@ -852,8 +853,9 @@ class DashTestFramework(BitcoinTestFramework):
         """Tests must override this method to define test logic"""
         raise NotImplementedError
 
-    def set_dash_test_params(self, num_nodes, masterodes_count, extra_args=None, fast_dip3_enforcement=False):
+    def set_dash_test_params(self, num_nodes, masterodes_count, extra_args=None, fast_dip3_enforcement=False, hpmn_count=0):
         self.mn_count = masterodes_count
+        self.hpmn_count = hpmn_count
         self.num_nodes = num_nodes
         self.mninfo = []
         self.setup_clean_chain = True
@@ -861,6 +863,7 @@ class DashTestFramework(BitcoinTestFramework):
         if extra_args is None:
             extra_args = [[]] * num_nodes
         assert_equal(len(extra_args), num_nodes)
+        assert_greater_than_or_equal(masterodes_count, hpmn_count)
         self.extra_args = [copy.deepcopy(a) for a in extra_args]
         self.extra_args[0] += ["-sporkkey=cP4EKFyJsHT39LDqgdcB43Y3YXjNyjb5Fuas1GQSeAtjnZWmZEQK"]
         self.fast_dip3_enforcement = fast_dip3_enforcement
@@ -957,25 +960,28 @@ class DashTestFramework(BitcoinTestFramework):
         self.log.info("Preparing %d masternodes" % self.mn_count)
         rewardsAddr = self.nodes[0].getnewaddress()
 
-        for idx in range(0, self.mn_count):
-            self.prepare_masternode(idx, rewardsAddr)
+        for idx in range(0, self.hpmn_count):
+            self.prepare_masternode(idx, rewardsAddr, True)
+        for idx in range(self.hpmn_count, self.mn_count):
+            self.prepare_masternode(idx, rewardsAddr, False)
         self.sync_all()
 
-    def prepare_masternode(self, idx, rewardsAddr=None):
+    def prepare_masternode(self, idx, rewardsAddr=None, hpmn=False):
 
         register_fund = (idx % 2) == 0
 
         bls = self.nodes[0].bls('generate')
         address = self.nodes[0].getnewaddress()
 
+        collateral_amount = HIGHPERFORMANCE_MASTERNODE_COLLATERAL if hpmn else MASTERNODE_COLLATERAL
         txid = None
-        txid = self.nodes[0].sendtoaddress(address, MASTERNODE_COLLATERAL)
+        txid = self.nodes[0].sendtoaddress(address, collateral_amount)
         collateral_vout = 0
         if not register_fund:
             txraw = self.nodes[0].getrawtransaction(txid, True)
             for vout_idx in range(0, len(txraw["vout"])):
                 vout = txraw["vout"][vout_idx]
-                if vout["value"] == MASTERNODE_COLLATERAL:
+                if vout["value"] == collateral_amount:
                     collateral_vout = vout_idx
             self.nodes[0].lockunspent(False, [{'txid': txid, 'vout': collateral_vout}])
 
@@ -997,10 +1003,12 @@ class DashTestFramework(BitcoinTestFramework):
 
         if register_fund:
             # self.nodes[0].lockunspent(True, [{'txid': txid, 'vout': collateral_vout}])
-            protx_result = self.nodes[0].protx('register_fund', address, ipAndPort, ownerAddr, bls['public'], votingAddr, operatorReward, rewardsAddr, address, submit)
+            register_fund_rpc = "register_fund_highperf" if hpmn else "register_fund"
+            protx_result = self.nodes[0].protx(register_fund_rpc, address, ipAndPort, ownerAddr, bls['public'], votingAddr, operatorReward, rewardsAddr, address, submit)
         else:
             self.nodes[0].generate(1)
-            protx_result = self.nodes[0].protx('register', txid, collateral_vout, ipAndPort, ownerAddr, bls['public'], votingAddr, operatorReward, rewardsAddr, address, submit)
+            register_rpc = "register_highperf" if hpmn else "register"
+            protx_result = self.nodes[0].protx(register_rpc, txid, collateral_vout, ipAndPort, ownerAddr, bls['public'], votingAddr, operatorReward, rewardsAddr, address, submit)
 
         if submit:
             proTxHash = protx_result
@@ -1013,10 +1021,11 @@ class DashTestFramework(BitcoinTestFramework):
             operatorPayoutAddress = self.nodes[0].getnewaddress()
             self.nodes[0].protx('update_service', proTxHash, ipAndPort, bls['secret'], operatorPayoutAddress, address)
 
-        self.mninfo.append(MasternodeInfo(proTxHash, ownerAddr, votingAddr, bls['public'], bls['secret'], address, txid, collateral_vout))
+        self.mninfo.append(MasternodeInfo(proTxHash, ownerAddr, votingAddr, bls['public'], bls['secret'], address, txid, collateral_vout, hpmn))
         # self.sync_all()
 
-        self.log.info("Prepared masternode %d: collateral_txid=%s, collateral_vout=%d, protxHash=%s" % (idx, txid, collateral_vout, proTxHash))
+        mn_type_str = "High performance masternode" if hpmn else "masternode"
+        self.log.info("Prepared %s %d: collateral_txid=%s, collateral_vout=%d, protxHash=%s" % (mn_type_str, idx, txid, collateral_vout, proTxHash))
 
     def remove_masternode(self, idx):
         mn = self.mninfo[idx]
@@ -1089,7 +1098,8 @@ class DashTestFramework(BitcoinTestFramework):
         self.add_nodes(1, extra_args=[self.extra_args[0]])
         self.start_node(0)
         self.import_deterministic_coinbase_privkeys()
-        required_balance = MASTERNODE_COLLATERAL * self.mn_count + 1
+        required_balance = HIGHPERFORMANCE_MASTERNODE_COLLATERAL * self.hpmn_count
+        required_balance += MASTERNODE_COLLATERAL * (self.mn_count - self.hpmn_count) + 1
         self.log.info("Generating %d coins" % required_balance)
         while self.nodes[0].getbalance() < required_balance:
             self.bump_mocktime(1)
