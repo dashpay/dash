@@ -119,7 +119,7 @@ public:
     SERIALIZE_METHODS(CSimplifiedMNListDiff, obj)
     {
         READWRITE(obj.baseBlockHash, obj.blockHash, obj.cbTxMerkleTree, obj.cbTx);
-        if (s.GetType() & SER_NETWORK && s.GetVersion() >= BLS_SCHEME_PROTO_VERSION) {
+        if ((s.GetType() & SER_NETWORK) && s.GetVersion() >= BLS_SCHEME_PROTO_VERSION) {
             READWRITE(obj.nVersion);
         }
         READWRITE(obj.deletedMNs, obj.mnList);
