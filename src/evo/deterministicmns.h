@@ -43,18 +43,15 @@ public:
     static constexpr uint16_t TYPE_REGULAR_MASTERNODE = 0;
     static constexpr uint16_t TYPE_HIGH_PERFORMANCE_MASTERNODE = 1;
 
+    static constexpr uint16_t CURRENT_MN_FORMAT = 0;
+    static constexpr uint16_t MN_TYPE_FORMAT = 1;
+
     CDeterministicMN() = delete; // no default constructor, must specify internalId
     explicit CDeterministicMN(uint64_t _internalId, bool highPerformanceMasternode = false) : internalId(_internalId)
     {
-        highPerformanceMasternode ? nType = TYPE_HIGH_PERFORMANCE_MASTERNODE : TYPE_REGULAR_MASTERNODE;
+        highPerformanceMasternode ? nType = TYPE_HIGH_PERFORMANCE_MASTERNODE : nType = TYPE_REGULAR_MASTERNODE;
         // only non-initial values
         assert(_internalId != std::numeric_limits<uint64_t>::max());
-    }
-    // TODO: can be removed in a future version
-    CDeterministicMN(CDeterministicMN mn, uint64_t _internalId) : CDeterministicMN(std::move(mn)) {
-        // only non-initial values
-        assert(_internalId != std::numeric_limits<uint64_t>::max());
-        internalId = _internalId;
     }
 
     template <typename Stream>
@@ -66,32 +63,36 @@ public:
     uint256 proTxHash;
     COutPoint collateralOutpoint;
     uint16_t nOperatorReward{0};
-    uint16_t nType{TYPE_REGULAR_MASTERNODE};;
+    uint16_t nType{TYPE_REGULAR_MASTERNODE};
     std::shared_ptr<const CDeterministicMNState> pdmnState;
 
     template <typename Stream, typename Operation>
-    inline void SerializationOp(Stream& s, Operation ser_action, bool oldFormat)
+    inline void SerializationOp(Stream& s, Operation ser_action, const uint8_t format_version)
     {
         READWRITE(proTxHash);
-        if (!oldFormat) {
-            READWRITE(VARINT(internalId));
-        }
+        READWRITE(VARINT(internalId));
         READWRITE(collateralOutpoint);
         READWRITE(nOperatorReward);
         READWRITE(pdmnState);
-        READWRITE(nType);
+        //TODO: Include check for protocol version, so it won't break clients
+        if (format_version >= MN_TYPE_FORMAT) {
+            READWRITE(nType);
+        }
+        else {
+            nType = TYPE_REGULAR_MASTERNODE;
+        }
     }
 
     template<typename Stream>
     void Serialize(Stream& s) const
     {
-        const_cast<CDeterministicMN*>(this)->SerializationOp(s, CSerActionSerialize(), false);
+        const_cast<CDeterministicMN*>(this)->SerializationOp(s, CSerActionSerialize(), MN_TYPE_FORMAT);
     }
 
     template<typename Stream>
-    void Unserialize(Stream& s, bool oldFormat = false)
+    void Unserialize(Stream& s, const uint8_t format_version = MN_TYPE_FORMAT)
     {
-        SerializationOp(s, CSerActionUnserialize(), oldFormat);
+        SerializationOp(s, CSerActionUnserialize(), format_version);
     }
 
     [[nodiscard]] uint64_t GetInternalId() const;
@@ -460,14 +461,20 @@ public:
     }
 
     template<typename Stream>
-    void Unserialize(Stream& s)
+    void Unserialize(Stream& s, const uint8_t format_version = CDeterministicMN::MN_TYPE_FORMAT)
     {
         updatedMNs.clear();
         removedMns.clear();
 
         size_t tmp;
         uint64_t tmp2;
-        s >> addedMNs;
+        tmp = ReadCompactSize(s);
+        for (size_t i = 0; i < tmp; i++) {
+            CDeterministicMN mn(0);
+            mn.Unserialize(s, format_version);
+            auto dmn = std::make_shared<CDeterministicMN>(mn);
+            addedMNs.push_back(dmn);
+        }
         tmp = ReadCompactSize(s);
         for (size_t i = 0; i < tmp; i++) {
             CDeterministicMNStateDiff diff;
@@ -538,6 +545,8 @@ public:
 
     bool IsDIP3Enforced(int nHeight = -1);
 
+    void MigrateDiff(CDBBatch& batch, const CBlockIndex* pindexNext, const CDeterministicMNList& curMNList, CDeterministicMNList& newMNList);
+    bool MigrateDBIfNeeded();
 
     void DoMaintenance();
 
