@@ -23,6 +23,8 @@
 #include <llmq/signing_shares.h>
 #include <llmq/snapshot.h>
 
+#include <iomanip>
+
 namespace llmq {
 extern const std::string CLSIG_REQUESTID_PREFIX;
 }
@@ -100,7 +102,9 @@ static void quorum_list_extended_help(const JSONRPCRequest& request)
                         {
                             {RPCResult::Type::NUM, "creationHeight", "Block height where the DKG started."},
                             {RPCResult::Type::NUM, "quorumIndex", "Quorum index (applicable only to rotated quorums)."},
-                            {RPCResult::Type::STR_HEX, "minedBlockHash", "Blockhash where the commitment was mined."}
+                            {RPCResult::Type::STR_HEX, "minedBlockHash", "Blockhash where the commitment was mined."},
+                            {RPCResult::Type::NUM, "numValidMembers", "The total of valid members."},
+                            {RPCResult::Type::STR_AMOUNT, "healthRation", "The ratio oh health members. Range [0.0 - 1.0]."}
                         }}
                     }}
                 }}
@@ -136,6 +140,21 @@ static UniValue quorum_list_extended(const JSONRPCRequest& request)
 
         auto quorums = llmq_ctx.qman->ScanQuorums(type, pblockindex, llmq_params.signingActiveQuorumCount);
         for (const auto& q : quorums) {
+            size_t num_members = q->members.size();
+            size_t num_valid_members = 0;
+            for (size_t i = 0; i < num_members; i++) {
+                if (q->qc->validMembers[i]) {
+                    num_valid_members++;
+                }
+            }
+            double health_ratio{0.0};
+            if (num_members > 0) {
+                health_ratio = (double)(num_valid_members) / (double)(num_members);
+            }
+            std::stringstream ss;
+            ss << std::fixed;
+            ss << std::setprecision(2);
+            ss << health_ratio;
             UniValue obj(UniValue::VOBJ);
             {
                 UniValue j(UniValue::VOBJ);
@@ -144,6 +163,8 @@ static UniValue quorum_list_extended(const JSONRPCRequest& request)
                 }
                 j.pushKV("creationHeight", q->m_quorum_base_block_index->nHeight);
                 j.pushKV("minedBlockHash", q->minedBlockHash.ToString());
+                j.pushKV("numValidMembers", (int32_t)num_valid_members);
+                j.pushKV("healthRation", ss.str());
                 obj.pushKV(q->qc->quorumHash.ToString(),j);
             }
             v.push_back(obj);
