@@ -448,7 +448,7 @@ void FuncDIP3Protx(TestChainSetup& setup)
     const_cast<Consensus::Params&>(Params().GetConsensus()).DIP0003EnforcementHeight = DIP0003EnforcementHeightBackup;
 }
 
-void FuncTestMempoolReorg(TestChainDIP3Setup& setup)
+void FuncTestMempoolReorg(TestChainSetup& setup)
 {
     int nHeight = ::ChainActive().Height();
     auto utxos = BuildSimpleUtxoMap(setup.m_coinbase_txns);
@@ -525,7 +525,7 @@ void FuncTestMempoolReorg(TestChainDIP3Setup& setup)
     BOOST_CHECK_EQUAL(testPool.size(), 0U);
 }
 
-void FuncTestMempoolDualProregtx(TestChainDIP3Setup& setup)
+void FuncTestMempoolDualProregtx(TestChainSetup& setup)
 {
     auto utxos = BuildSimpleUtxoMap(setup.m_coinbase_txns);
 
@@ -579,7 +579,7 @@ void FuncTestMempoolDualProregtx(TestChainDIP3Setup& setup)
     BOOST_CHECK(testPool.existsProviderTxConflict(CTransaction(tx_reg2)));
 }
 
-void FuncVerifyDB(TestChainDIP3Setup& setup)
+void FuncVerifyDB(TestChainSetup& setup)
 {
     int nHeight = ::ChainActive().Height();
     auto utxos = BuildSimpleUtxoMap(setup.m_coinbase_txns);
@@ -660,70 +660,52 @@ void FuncVerifyDB(TestChainDIP3Setup& setup)
 
 BOOST_AUTO_TEST_SUITE(evo_dip3_activation_tests)
 
+// DIP3 can only be activated with legacy scheme (v19 is activated later)
 BOOST_AUTO_TEST_CASE(dip3_activation_legacy)
 {
-    bls::bls_legacy_scheme.store(true);
     TestChainDIP3BeforeActivationSetup setup;
     FuncDIP3Activation(setup);
-}
-
-BOOST_AUTO_TEST_CASE(dip3_activation_basic)
-{
-    bls::bls_legacy_scheme.store(false);
-    TestChainDIP3BeforeActivationSetup setup;
-    FuncDIP3Activation(setup);
-    bls::bls_legacy_scheme.store(true);
 }
 
 BOOST_AUTO_TEST_CASE(dip3_protx_legacy)
 {
-    bls::bls_legacy_scheme.store(true);
     TestChainDIP3Setup setup;
     FuncDIP3Protx(setup);
 }
 
 BOOST_AUTO_TEST_CASE(dip3_protx_basic)
 {
-    bls::bls_legacy_scheme.store(false);
-    TestChainDIP3Setup setup;
+    TestChainDIP3V19Setup setup;
     FuncDIP3Protx(setup);
-    bls::bls_legacy_scheme.store(true);
 }
 
 BOOST_AUTO_TEST_CASE(test_mempool_reorg_legacy)
 {
-    bls::bls_legacy_scheme.store(true);
     TestChainDIP3Setup setup;
     FuncTestMempoolReorg(setup);
 }
 
 BOOST_AUTO_TEST_CASE(test_mempool_reorg_basic)
 {
-    bls::bls_legacy_scheme.store(false);
-    TestChainDIP3Setup setup;
+    TestChainDIP3V19Setup setup;
     FuncTestMempoolReorg(setup);
-    bls::bls_legacy_scheme.store(true);
 }
 
 BOOST_AUTO_TEST_CASE(test_mempool_dual_proregtx_legacy)
 {
-    bls::bls_legacy_scheme.store(true);
     TestChainDIP3Setup setup;
     FuncTestMempoolDualProregtx(setup);
 }
 
 BOOST_AUTO_TEST_CASE(test_mempool_dual_proregtx_basic)
 {
-    bls::bls_legacy_scheme.store(false);
-    TestChainDIP3Setup setup;
+    TestChainDIP3V19Setup setup;
     FuncTestMempoolDualProregtx(setup);
-    bls::bls_legacy_scheme.store(true);
 }
 
 //This one can be started only with legacy scheme, since inside undo block will switch it back to legacy resulting into an inconsistency
 BOOST_AUTO_TEST_CASE(verify_db_legacy)
 {
-    bls::bls_legacy_scheme.store(true);
     TestChainDIP3Setup setup;
     FuncVerifyDB(setup);
 }

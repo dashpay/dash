@@ -1141,7 +1141,7 @@ bool CheckProRegTx(const CTransaction& tx, const CBlockIndex* pindexPrev, CValid
         return state.Invalid(ValidationInvalidReason::CONSENSUS, false, REJECT_INVALID, "bad-protx-payload");
     }
 
-    if (auto maybe_err = ptx.IsTriviallyValid(); maybe_err.did_err) {
+    if (auto maybe_err = ptx.IsTriviallyValid(llmq::utils::IsV19Active(pindexPrev)); maybe_err.did_err) {
         return state.Invalid(maybe_err.reason, false, REJECT_INVALID, std::string(maybe_err.error_str));
     }
 
@@ -1246,7 +1246,7 @@ bool CheckProUpServTx(const CTransaction& tx, const CBlockIndex* pindexPrev, CVa
         return state.Invalid(ValidationInvalidReason::CONSENSUS, false, REJECT_INVALID, "bad-protx-payload");
     }
 
-    if (auto maybe_err = ptx.IsTriviallyValid(); maybe_err.did_err) {
+    if (auto maybe_err = ptx.IsTriviallyValid(llmq::utils::IsV19Active(pindexPrev)); maybe_err.did_err) {
         return state.Invalid(maybe_err.reason, false, REJECT_INVALID, std::string(maybe_err.error_str));
     }
 
@@ -1301,7 +1301,7 @@ bool CheckProUpRegTx(const CTransaction& tx, const CBlockIndex* pindexPrev, CVal
         return state.Invalid(ValidationInvalidReason::CONSENSUS, false, REJECT_INVALID, "bad-protx-payload");
     }
 
-    if (auto maybe_err = ptx.IsTriviallyValid(); maybe_err.did_err) {
+    if (auto maybe_err = ptx.IsTriviallyValid(llmq::utils::IsV19Active(pindexPrev)); maybe_err.did_err) {
         return state.Invalid(maybe_err.reason, false, REJECT_INVALID, std::string(maybe_err.error_str));
     }
 
@@ -1374,7 +1374,7 @@ bool CheckProUpRevTx(const CTransaction& tx, const CBlockIndex* pindexPrev, CVal
         return state.Invalid(ValidationInvalidReason::CONSENSUS, false, REJECT_INVALID, "bad-protx-payload");
     }
 
-    if (auto maybe_err = ptx.IsTriviallyValid(); maybe_err.did_err) {
+    if (auto maybe_err = ptx.IsTriviallyValid(llmq::utils::IsV19Active(pindexPrev)); maybe_err.did_err) {
         return state.Invalid(maybe_err.reason, false, REJECT_INVALID, std::string(maybe_err.error_str));
     }
 

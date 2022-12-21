@@ -106,7 +106,7 @@ public:
         obj.pushKV("inputsHash", inputsHash.ToString());
     }
 
-    maybe_error IsTriviallyValid() const;
+    maybe_error IsTriviallyValid(bool is_bls_legacy_scheme) const;
 };
 
 class CProUpServTx
@@ -166,7 +166,7 @@ public:
         obj.pushKV("inputsHash", inputsHash.ToString());
     }
 
-    maybe_error IsTriviallyValid() const;
+    maybe_error IsTriviallyValid(bool is_bls_legacy_scheme) const;
 };
 
 class CProUpRegTx
@@ -231,7 +231,7 @@ public:
         obj.pushKV("inputsHash", inputsHash.ToString());
     }
 
-    maybe_error IsTriviallyValid() const;
+    maybe_error IsTriviallyValid(bool is_bls_legacy_scheme) const;
 };
 
 class CProUpRevTx
@@ -294,7 +294,7 @@ public:
         obj.pushKV("inputsHash", inputsHash.ToString());
     }
 
-    maybe_error IsTriviallyValid() const;
+    maybe_error IsTriviallyValid(bool is_bls_legacy_scheme) const;
 };
 
 template <typename ProTx>

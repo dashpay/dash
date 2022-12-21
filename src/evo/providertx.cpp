@@ -9,9 +9,9 @@
 #include <hash.h>
 #include <script/standard.h>
 
-maybe_error CProRegTx::IsTriviallyValid() const
+maybe_error CProRegTx::IsTriviallyValid(bool is_bls_legacy_scheme) const
 {
-    if (nVersion == 0 || nVersion > CProRegTx::BASIC_BLS_VERSION) {
+    if (nVersion == 0 || nVersion > GetVersion(is_bls_legacy_scheme)) {
         return {ValidationInvalidReason::CONSENSUS, "bad-protx-version"};
     }
     if (nType != 0) {
@@ -82,9 +82,9 @@ std::string CProRegTx::ToString() const
         nVersion, collateralOutpoint.ToStringShort(), addr.ToString(), (double)nOperatorReward / 100, EncodeDestination(keyIDOwner), pubKeyOperator.ToString(nVersion == LEGACY_BLS_VERSION), EncodeDestination(keyIDVoting), payee);
 }
 
-maybe_error CProUpServTx::IsTriviallyValid() const
+maybe_error CProUpServTx::IsTriviallyValid(bool is_bls_legacy_scheme) const
 {
-    if (nVersion == 0 || nVersion > CProUpServTx::BASIC_BLS_VERSION) {
+    if (nVersion == 0 || nVersion > GetVersion(is_bls_legacy_scheme)) {
         return {ValidationInvalidReason::CONSENSUS, "bad-protx-version"};
     }
 
@@ -103,9 +103,9 @@ std::string CProUpServTx::ToString() const
         nVersion, proTxHash.ToString(), addr.ToString(), payee);
 }
 
-maybe_error CProUpRegTx::IsTriviallyValid() const
+maybe_error CProUpRegTx::IsTriviallyValid(bool is_bls_legacy_scheme) const
 {
-    if (nVersion == 0 || nVersion > CProUpRegTx::BASIC_BLS_VERSION) {
+    if (nVersion == 0 || nVersion > GetVersion(is_bls_legacy_scheme)) {
         return {ValidationInvalidReason::CONSENSUS, "bad-protx-version"};
     }
     if (nMode != 0) {
@@ -133,9 +133,9 @@ std::string CProUpRegTx::ToString() const
         nVersion, proTxHash.ToString(), pubKeyOperator.ToString(nVersion == LEGACY_BLS_VERSION), EncodeDestination(keyIDVoting), payee);
 }
 
-maybe_error CProUpRevTx::IsTriviallyValid() const
+maybe_error CProUpRevTx::IsTriviallyValid(bool is_bls_legacy_scheme) const
 {
-    if (nVersion == 0 || nVersion > CProUpRevTx::BASIC_BLS_VERSION) {
+    if (nVersion == 0 || nVersion > GetVersion(is_bls_legacy_scheme)) {
         return {ValidationInvalidReason::CONSENSUS, "bad-protx-version"};
     }
 
