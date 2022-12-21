@@ -141,20 +141,10 @@ static UniValue quorum_list_extended(const JSONRPCRequest& request)
         auto quorums = llmq_ctx.qman->ScanQuorums(type, pblockindex, llmq_params.signingActiveQuorumCount);
         for (const auto& q : quorums) {
             size_t num_members = q->members.size();
-            size_t num_valid_members = 0;
-            for (size_t i = 0; i < num_members; i++) {
-                if (q->qc->validMembers[i]) {
-                    num_valid_members++;
-                }
-            }
-            double health_ratio{0.0};
-            if (num_members > 0) {
-                health_ratio = (double)(num_valid_members) / (double)(num_members);
-            }
+            size_t num_valid_members = std::count_if(q->qc->validMembers.begin(), q->qc->validMembers.begin() + num_members, [](auto val){return val;});
+            double health_ratio = num_members > 0 ? double(num_valid_members) / double(num_members) : 0.0;
             std::stringstream ss;
-            ss << std::fixed;
-            ss << std::setprecision(2);
-            ss << health_ratio;
+            ss << std::fixed << std::setprecision(2) << health_ratio;
             UniValue obj(UniValue::VOBJ);
             {
                 UniValue j(UniValue::VOBJ);
