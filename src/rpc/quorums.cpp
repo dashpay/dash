@@ -104,7 +104,7 @@ static void quorum_list_extended_help(const JSONRPCRequest& request)
                             {RPCResult::Type::NUM, "quorumIndex", "Quorum index (applicable only to rotated quorums)."},
                             {RPCResult::Type::STR_HEX, "minedBlockHash", "Blockhash where the commitment was mined."},
                             {RPCResult::Type::NUM, "numValidMembers", "The total of valid members."},
-                            {RPCResult::Type::STR_AMOUNT, "healthRation", "The ratio oh health members. Range [0.0 - 1.0]."}
+                            {RPCResult::Type::STR_AMOUNT, "healthRatio", "The ratio of healthy members to quorum size. Range [0.0 - 1.0]."}
                         }}
                     }}
                 }}
@@ -164,7 +164,7 @@ static UniValue quorum_list_extended(const JSONRPCRequest& request)
                 j.pushKV("creationHeight", q->m_quorum_base_block_index->nHeight);
                 j.pushKV("minedBlockHash", q->minedBlockHash.ToString());
                 j.pushKV("numValidMembers", (int32_t)num_valid_members);
-                j.pushKV("healthRation", ss.str());
+                j.pushKV("healthRatio", ss.str());
                 obj.pushKV(q->qc->quorumHash.ToString(),j);
             }
             v.push_back(obj);

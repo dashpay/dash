@@ -8,4 +8,4 @@ This RPC returns the following data per quorum grouped per llmqTypes:
     - `quorumIndex`: Returned only for rotated llmqTypes
     - `minedBlockHash`: Hash of the block containing the mined final commitment
     - `numValidMembers`: The total of valid members.
-    - `healthRation`: The ratio oh health members. Range [0.0 - 1.0].
+    - `healthRatio`: The ratio of healthy members to quorum size. Range [0.0 - 1.0].
