@@ -321,9 +321,11 @@ static std::string SignAndSendSpecialTx(const JSONRPCRequest& request, const CMu
     return sendrawtransaction(sendRequest).get_str();
 }
 
-static void protx_register_fund_help(const JSONRPCRequest& request)
+static void protx_register_fund_help(const JSONRPCRequest& request, const bool hpmn = false)
 {
-    RPCHelpMan{"protx register_fund",
+    std::string rpc_example = hpmn ? "\"register_fund_highperf" : "\"register_fund";
+    rpc_example.append(" \\\"XrVhS9LogauRJGJu2sHuryjhpuex4RNPSb\\\" \\\"1.2.3.4:1234\\\" \\\"Xt9AMWaYSz7tR7Uo7gzXA3m4QmeWgrR3rr\\\" \\\"93746e8731c57f87f79b3620a7982924e2931717d49540a85864bd543de11c43fb868fd63e501a1db37e19ed59ae6db4\\\" \\\"Xt9AMWaYSz7tR7Uo7gzXA3m4QmeWgrR3rr\\\" 0 \\\"XrVhS9LogauRJGJu2sHuryjhpuex4RNPSb\\\"\"");
+    RPCHelpMan{hpmn ? "protx register_fund_highperf" : "protx register_fund",
         "\nCreates, funds and sends a ProTx to the network. The resulting transaction will move 1000 Dash\n"
         "to the address specified by collateralAddress and will then function as the collateral of your\n"
         "masternode.\n"
@@ -348,14 +350,16 @@ static void protx_register_fund_help(const JSONRPCRequest& request)
                 RPCResult::Type::STR_HEX, "hex", "The serialized signed ProTx in hex format"},
         },
         RPCExamples{
-            HelpExampleCli("protx", "register_fund \"XrVhS9LogauRJGJu2sHuryjhpuex4RNPSb\" \"1.2.3.4:1234\" \"Xt9AMWaYSz7tR7Uo7gzXA3m4QmeWgrR3rr\" \"93746e8731c57f87f79b3620a7982924e2931717d49540a85864bd543de11c43fb868fd63e501a1db37e19ed59ae6db4\" \"Xt9AMWaYSz7tR7Uo7gzXA3m4QmeWgrR3rr\" 0 \"XrVhS9LogauRJGJu2sHuryjhpuex4RNPSb\"")
+            HelpExampleCli("protx", rpc_example)
         },
     }.Check(request);
 }
 
-static void protx_register_help(const JSONRPCRequest& request)
+static void protx_register_help(const JSONRPCRequest& request, const bool hpmn = false)
 {
-    RPCHelpMan{"protx register",
+    std::string rpc_example = hpmn ? "\"register_highperf" : "\"register";
+    rpc_example.append(" \"0123456701234567012345670123456701234567012345670123456701234567\" 0 \"1.2.3.4:1234\" \"Xt9AMWaYSz7tR7Uo7gzXA3m4QmeWgrR3rr\" \"93746e8731c57f87f79b3620a7982924e2931717d49540a85864bd543de11c43fb868fd63e501a1db37e19ed59ae6db4\" \"Xt9AMWaYSz7tR7Uo7gzXA3m4QmeWgrR3rr\" 0 \"XrVhS9LogauRJGJu2sHuryjhpuex4RNPSb\"");
+    RPCHelpMan{hpmn ? "protx register_highperf" : "protx register",
         "\nSame as \"protx register_fund\", but with an externally referenced collateral.\n"
         "The collateral is specified through \"collateralHash\" and \"collateralIndex\" and must be an unspent\n"
         "transaction output spendable by this wallet. It must also not be used by any other masternode.\n"
@@ -379,13 +383,15 @@ static void protx_register_help(const JSONRPCRequest& request)
                 RPCResult::Type::STR_HEX, "hex", "The serialized signed ProTx in hex format"},
         },
         RPCExamples{
-            HelpExampleCli("protx", "register \"0123456701234567012345670123456701234567012345670123456701234567\" 0 \"1.2.3.4:1234\" \"Xt9AMWaYSz7tR7Uo7gzXA3m4QmeWgrR3rr\" \"93746e8731c57f87f79b3620a7982924e2931717d49540a85864bd543de11c43fb868fd63e501a1db37e19ed59ae6db4\" \"Xt9AMWaYSz7tR7Uo7gzXA3m4QmeWgrR3rr\" 0 \"XrVhS9LogauRJGJu2sHuryjhpuex4RNPSb\"")
+            HelpExampleCli("protx", rpc_example)
         },
     }.Check(request);
 }
 
-static void protx_register_prepare_help(const JSONRPCRequest& request)
+static void protx_register_prepare_help(const JSONRPCRequest& request, const bool hpmn = false)
 {
+    std::string rpc_example = hpmn ? "\"register_prepare_highperf" : "\"register_prepare";
+    rpc_example.append(" \"0123456701234567012345670123456701234567012345670123456701234567\" 0 \"1.2.3.4:1234\" \"Xt9AMWaYSz7tR7Uo7gzXA3m4QmeWgrR3rr\" \"93746e8731c57f87f79b3620a7982924e2931717d49540a85864bd543de11c43fb868fd63e501a1db37e19ed59ae6db4\" \"Xt9AMWaYSz7tR7Uo7gzXA3m4QmeWgrR3rr\" 0 \"XrVhS9LogauRJGJu2sHuryjhpuex4RNPSb\"");
     RPCHelpMan{"protx register_prepare",
         "\nCreates an unsigned ProTx and a message that must be signed externally\n"
         "with the private key that corresponds to collateralAddress to prove collateral ownership.\n"
@@ -409,7 +415,7 @@ static void protx_register_prepare_help(const JSONRPCRequest& request)
                 {RPCResult::Type::STR_HEX, "signMessage", "The string message that needs to be signed with the collateral key"},
             }},
         RPCExamples{
-            HelpExampleCli("protx", "register_prepare \"0123456701234567012345670123456701234567012345670123456701234567\" 0 \"1.2.3.4:1234\" \"Xt9AMWaYSz7tR7Uo7gzXA3m4QmeWgrR3rr\" \"93746e8731c57f87f79b3620a7982924e2931717d49540a85864bd543de11c43fb868fd63e501a1db37e19ed59ae6db4\" \"Xt9AMWaYSz7tR7Uo7gzXA3m4QmeWgrR3rr\" 0 \"XrVhS9LogauRJGJu2sHuryjhpuex4RNPSb\"")
+            HelpExampleCli("protx", rpc_example)
         },
     }.Check(request);
 }
@@ -433,18 +439,20 @@ static void protx_register_submit_help(const JSONRPCRequest& request)
         },
     }.Check(request);
 }
+
 static UniValue protx_register_wrapper(const JSONRPCRequest& request,
                                        const bool specific_legacy_bls_scheme,
+                                       const bool isHPMN,
                                        const bool isExternalRegister,
                                        const bool isFundRegister,
                                        const bool isPrepareRegister)
 {
     if (isFundRegister && (request.fHelp || (request.params.size() < 7 || request.params.size() > 9))) {
-        protx_register_fund_help(request);
+        protx_register_fund_help(request, isHPMN);
     } else if (isExternalRegister && (request.fHelp || (request.params.size() < 8 || request.params.size() > 10))) {
-        protx_register_help(request);
+        protx_register_help(request, isHPMN);
     } else if (isPrepareRegister && (request.fHelp || (request.params.size() != 8 && request.params.size() != 9))) {
-        protx_register_prepare_help(request);
+        protx_register_prepare_help(request, isHPMN);
     }
 
     std::shared_ptr<CWallet> const wallet = GetWalletForJSONRPCRequest(request);
@@ -456,9 +464,7 @@ static UniValue protx_register_wrapper(const JSONRPCRequest& request,
 
     size_t paramIdx = 0;
 
-    //TODO: Parse request and adapt accordingly
-    bool high_performance_masternode{false};
-    CAmount collateralAmount = high_performance_masternode ? 4000 * COIN : 1000 * COIN;
+    CAmount collateralAmount = isHPMN ? 4000 * COIN : 1000 * COIN;
 
     CMutableTransaction tx;
     tx.nVersion = 3;
@@ -469,7 +475,7 @@ static UniValue protx_register_wrapper(const JSONRPCRequest& request,
         ptx.nVersion = CProRegTx::LEGACY_BLS_VERSION;
     else
         ptx.nVersion = CProRegTx::GetVersion(llmq::utils::IsV19Active(::ChainActive().Tip()));
-    ptx.nType = high_performance_masternode ? CProRegTx::TYPE_HIGH_PERFORMANCE_MASTERNODE : CProRegTx::TYPE_REGULAR_MASTERNODE;
+    ptx.nType = isHPMN ? CProRegTx::TYPE_HIGH_PERFORMANCE_MASTERNODE : CProRegTx::TYPE_REGULAR_MASTERNODE;
 
     if (isFundRegister) {
         CTxDestination collateralDest = DecodeDestination(request.params[paramIdx].get_str());
@@ -609,7 +615,7 @@ static UniValue protx_register(const JSONRPCRequest& request)
     bool isExternalRegister = request.strMethod == "protxregister";
     bool isFundRegister = request.strMethod == "protxregister_fund";
     bool isPrepareRegister = request.strMethod == "protxregister_prepare";
-    return protx_register_wrapper(request, false, isExternalRegister, isFundRegister, isPrepareRegister);
+    return protx_register_wrapper(request, false, false, isExternalRegister, isFundRegister, isPrepareRegister);
 }
 
 static UniValue protx_register_legacy(const JSONRPCRequest& request)
@@ -617,7 +623,7 @@ static UniValue protx_register_legacy(const JSONRPCRequest& request)
     bool isExternalRegister = request.strMethod == "protxregister_legacy";
     bool isFundRegister = request.strMethod == "protxregister_fund_legacy";
     bool isPrepareRegister = request.strMethod == "protxregister_prepare_legacy";
-    return protx_register_wrapper(request, true, isExternalRegister, isFundRegister, isPrepareRegister);
+    return protx_register_wrapper(request, true, false, isExternalRegister, isFundRegister, isPrepareRegister);
 }
 
 // handles register, register_prepare and register_fund in one method
@@ -626,165 +632,7 @@ static UniValue protx_register_highperf(const JSONRPCRequest& request)
     bool isExternalRegister = request.strMethod == "protxregister_highperf";
     bool isFundRegister = request.strMethod == "protxregister_fund_highperf";
     bool isPrepareRegister = request.strMethod == "protxregister_prepare_highperf";
-
-    if (isFundRegister && (request.fHelp || (request.params.size() < 7 || request.params.size() > 9))) {
-        protx_register_fund_help(request);
-    } else if (isExternalRegister && (request.fHelp || (request.params.size() < 8 || request.params.size() > 10))) {
-        protx_register_help(request);
-    } else if (isPrepareRegister && (request.fHelp || (request.params.size() != 8 && request.params.size() != 9))) {
-        protx_register_prepare_help(request);
-    }
-
-    std::shared_ptr<CWallet> const wallet = GetWalletForJSONRPCRequest(request);
-    if (!wallet) return NullUniValue;
-
-    if (isExternalRegister || isFundRegister) {
-        EnsureWalletIsUnlocked(wallet.get());
-    }
-
-    size_t paramIdx = 0;
-
-    CAmount collateralAmount = 4000 * COIN;
-
-    CMutableTransaction tx;
-    tx.nVersion = 3;
-    tx.nType = TRANSACTION_PROVIDER_REGISTER;
-
-    CProRegTx ptx;
-    ptx.nType = CProRegTx::TYPE_HIGH_PERFORMANCE_MASTERNODE;
-    ptx.nVersion = CProRegTx::CURRENT_VERSION;
-
-    if (isFundRegister) {
-        CTxDestination collateralDest = DecodeDestination(request.params[paramIdx].get_str());
-        if (!IsValidDestination(collateralDest)) {
-            throw JSONRPCError(RPC_INVALID_ADDRESS_OR_KEY, strprintf("invalid collaterall address: %s", request.params[paramIdx].get_str()));
-        }
-        CScript collateralScript = GetScriptForDestination(collateralDest);
-
-        CTxOut collateralTxOut(collateralAmount, collateralScript);
-        tx.vout.emplace_back(collateralTxOut);
-
-        paramIdx++;
-    } else {
-        uint256 collateralHash = ParseHashV(request.params[paramIdx], "collateralHash");
-        int32_t collateralIndex = ParseInt32V(request.params[paramIdx + 1], "collateralIndex");
-        if (collateralHash.IsNull() || collateralIndex < 0) {
-            throw JSONRPCError(RPC_INVALID_ADDRESS_OR_KEY, strprintf("invalid hash or index: %s-%d", collateralHash.ToString(), collateralIndex));
-        }
-
-        ptx.collateralOutpoint = COutPoint(collateralHash, (uint32_t)collateralIndex);
-        paramIdx += 2;
-
-        // TODO unlock on failure
-        LOCK(wallet->cs_wallet);
-        wallet->LockCoin(ptx.collateralOutpoint);
-    }
-
-    if (request.params[paramIdx].get_str() != "") {
-        if (!Lookup(request.params[paramIdx].get_str().c_str(), ptx.addr, Params().GetDefaultPort(), false)) {
-            throw std::runtime_error(strprintf("invalid network address %s", request.params[paramIdx].get_str()));
-        }
-    }
-
-    ptx.keyIDOwner = ParsePubKeyIDFromAddress(request.params[paramIdx + 1].get_str(), "owner address");
-    CBLSPublicKey pubKeyOperator = ParseBLSPubKey(request.params[paramIdx + 2].get_str(), "operator BLS address");
-    CKeyID keyIDVoting = ptx.keyIDOwner;
-
-    if (request.params[paramIdx + 3].get_str() != "") {
-        keyIDVoting = ParsePubKeyIDFromAddress(request.params[paramIdx + 3].get_str(), "voting address");
-    }
-
-    int64_t operatorReward;
-    if (!ParseFixedPoint(request.params[paramIdx + 4].getValStr(), 2, &operatorReward)) {
-        throw JSONRPCError(RPC_INVALID_PARAMETER, "operatorReward must be a number");
-    }
-    if (operatorReward < 0 || operatorReward > 10000) {
-        throw JSONRPCError(RPC_INVALID_PARAMETER, "operatorReward must be between 0.00 and 100.00");
-    }
-    ptx.nOperatorReward = operatorReward;
-
-    CTxDestination payoutDest = DecodeDestination(request.params[paramIdx + 5].get_str());
-    if (!IsValidDestination(payoutDest)) {
-        throw JSONRPCError(RPC_INVALID_ADDRESS_OR_KEY, strprintf("invalid payout address: %s", request.params[paramIdx + 5].get_str()));
-    }
-
-    ptx.pubKeyOperator = pubKeyOperator;
-    ptx.keyIDVoting = keyIDVoting;
-    ptx.scriptPayout = GetScriptForDestination(payoutDest);
-
-    if (!isFundRegister) {
-        // make sure fee calculation works
-        ptx.vchSig.resize(65);
-    }
-
-    CTxDestination fundDest = payoutDest;
-    if (!request.params[paramIdx + 6].isNull()) {
-        fundDest = DecodeDestination(request.params[paramIdx + 6].get_str());
-        if (!IsValidDestination(fundDest))
-            throw JSONRPCError(RPC_INVALID_ADDRESS_OR_KEY, std::string("Invalid Dash address: ") + request.params[paramIdx + 6].get_str());
-    }
-
-    FundSpecialTx(wallet.get(), tx, ptx, fundDest);
-    UpdateSpecialTxInputsHash(tx, ptx);
-
-    bool fSubmit{true};
-    if ((isExternalRegister || isFundRegister) && !request.params[paramIdx + 7].isNull()) {
-        fSubmit = ParseBoolV(request.params[paramIdx + 7], "submit");
-    }
-
-    if (isFundRegister) {
-        uint32_t collateralIndex = (uint32_t) -1;
-        for (uint32_t i = 0; i < tx.vout.size(); i++) {
-            if (tx.vout[i].nValue == collateralAmount) {
-                collateralIndex = i;
-                break;
-            }
-        }
-        CHECK_NONFATAL(collateralIndex != (uint32_t) -1);
-        ptx.collateralOutpoint.n = collateralIndex;
-
-        SetTxPayload(tx, ptx);
-        return SignAndSendSpecialTx(request, tx, fSubmit);
-    } else {
-        // referencing external collateral
-
-        Coin coin;
-        if (!GetUTXOCoin(ptx.collateralOutpoint, coin)) {
-            throw JSONRPCError(RPC_INVALID_ADDRESS_OR_KEY, strprintf("collateral not found: %s", ptx.collateralOutpoint.ToStringShort()));
-        }
-        CTxDestination txDest;
-        ExtractDestination(coin.out.scriptPubKey, txDest);
-        const CKeyID *keyID = std::get_if<CKeyID>(&txDest);
-        if (!keyID) {
-            throw JSONRPCError(RPC_INVALID_ADDRESS_OR_KEY, strprintf("collateral type not supported: %s", ptx.collateralOutpoint.ToStringShort()));
-        }
-
-        if (isPrepareRegister) {
-            // external signing with collateral key
-            ptx.vchSig.clear();
-            SetTxPayload(tx, ptx);
-
-            UniValue ret(UniValue::VOBJ);
-            ret.pushKV("tx", EncodeHexTx(CTransaction(tx)));
-            ret.pushKV("collateralAddress", EncodeDestination(txDest));
-            ret.pushKV("signMessage", ptx.MakeSignString());
-            return ret;
-        } else {
-            // lets prove we own the collateral
-            LegacyScriptPubKeyMan* spk_man = wallet->GetLegacyScriptPubKeyMan();
-            if (!spk_man) {
-                throw JSONRPCError(RPC_WALLET_ERROR, "This type of wallet does not support this command");
-            }
-
-            CKey key;
-            if (!spk_man->GetKey(*keyID, key)) {
-                throw JSONRPCError(RPC_INVALID_ADDRESS_OR_KEY, strprintf("collateral key not in wallet: %s", EncodeDestination(txDest)));
-            }
-            SignSpecialTxPayloadByString(tx, ptx, key);
-            SetTxPayload(tx, ptx);
-            return SignAndSendSpecialTx(request, tx, fSubmit);
-        }
-    }
+    return protx_register_wrapper(request, true, false, isExternalRegister, isFundRegister, isPrepareRegister);
 }
 
 static UniValue protx_register_submit(const JSONRPCRequest& request)
