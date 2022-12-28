@@ -622,11 +622,18 @@ int CGovernanceObject::CountMatchingVotes(vote_signal_enum_t eVoteSignalIn, vote
     LOCK(cs);
 
     int nCount = 0;
+    const CBlockIndex* pindex = WITH_LOCK(cs_main, return ::ChainActive()[governance->nCachedBlockHeight]);
+    LOCK(deterministicMNManager->cs);
+    CDeterministicMNList mnList = deterministicMNManager->GetListForBlock(pindex);
     for (const auto& votepair : mapCurrentMNVotes) {
         const vote_rec_t& recVote = votepair.second;
         auto it2 = recVote.mapInstances.find(eVoteSignalIn);
         if (it2 != recVote.mapInstances.end() && it2->second.eOutcome == eVoteOutcomeIn) {
-            ++nCount;
+            auto mn = mnList.GetMNByCollateral(votepair.first);
+            if (mn->nType == CDeterministicMN::TYPE_HIGH_PERFORMANCE_MASTERNODE)
+                nCount += 4;
+            else
+                ++nCount;
         }
     }
     return nCount;
