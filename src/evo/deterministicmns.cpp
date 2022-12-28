@@ -50,7 +50,6 @@ void CDeterministicMN::ToJson(UniValue& obj) const
     pdmnState->ToJson(stateObj);
 
     obj.pushKV("type", nType == CDeterministicMN::TYPE_HIGH_PERFORMANCE_MASTERNODE ? "HighPerformance" : "Regular");
-    obj.pushKV("type", nType);
     obj.pushKV("proTxHash", proTxHash.ToString());
     obj.pushKV("collateralHash", collateralOutpoint.hash.ToString());
     obj.pushKV("collateralIndex", (int)collateralOutpoint.n);
