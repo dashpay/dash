@@ -451,7 +451,9 @@ public:
     {
         std::unique_lock<std::mutex> l(mutex);
         if (!objInitialized && !bufValid) {
-            throw std::ios_base::failure("obj and buf not initialized");
+            // the all-zero buf is considered a valid buf
+            vecBytes.resize(BLSObject::SerSize, 0);
+            bufValid = true;
         }
         if (!bufValid || (bufLegacyScheme != specificLegacyScheme)) {
             vecBytes = obj.ToByteVector(specificLegacyScheme);
