@@ -452,7 +452,8 @@ public:
         std::unique_lock<std::mutex> l(mutex);
         if (!objInitialized && !bufValid) {
             // the all-zero buf is considered a valid buf
-            vecBytes.resize(BLSObject::SerSize, 0);
+            std::fill(vecBytes.begin(), vecBytes.end(), 0);
+            bufLegacyScheme = specificLegacyScheme;
             bufValid = true;
         }
         if (!bufValid || (bufLegacyScheme != specificLegacyScheme)) {
