@@ -495,10 +495,10 @@ public:
         consensus.vDeployments[Consensus::DEPLOYMENT_V19].nFalloffCoeff = 5;            // this corresponds to 10 periods
 
         // The best chain should have at least this much work.
-        consensus.nMinimumChainWork = uint256S("0x00000000000000000000000000000000000000000000000002d68be93ade9d82"); // 794950
+        consensus.nMinimumChainWork = uint256S("0x00000000000000000000000000000000000000000000000002d68c04d48c0c9c"); // 808000
 
         // By default assume that the signatures in ancestors of this block are valid.
-        consensus.defaultAssumeValid = uint256S("0x000001860e4c7248a9c5cc3bc7106041750560dc5cd9b3a2641b49494bcff5f2"); // 794950
+        consensus.defaultAssumeValid = uint256S("0x00000104cb60a2b5e00a8a4259582756e5bf0dca201c0993c63f0e54971ea91a"); // 808000
 
         pchMessageStart[0] = 0xce;
         pchMessageStart[1] = 0xe2;
@@ -574,14 +574,16 @@ public:
                 {395750, uint256S("0x000008b78b6aef3fd05ab78db8b76c02163e885305545144420cb08704dce538")},
                 {470000, uint256S("0x0000009303aeadf8cf3812f5c869691dbd4cb118ad20e9bf553be434bafe6a52")},
                 {794950, uint256S("0x000001860e4c7248a9c5cc3bc7106041750560dc5cd9b3a2641b49494bcff5f2")},
+                {808000, uint256S("0x00000104cb60a2b5e00a8a4259582756e5bf0dca201c0993c63f0e54971ea91a")},
             }
         };
 
+        // getchaintxstats 17280 00000104cb60a2b5e00a8a4259582756e5bf0dca201c0993c63f0e54971ea91a
         chainTxData = ChainTxData{
-            1659215338, // * UNIX timestamp of last known number of transactions (Block 771537)
-            5579961,    // * total number of transactions between genesis and that timestamp
-                        //   (the tx=... number in the ChainStateFlushed debug.log lines)
-            0.018       // * estimated number of transactions per second after that timestamp
+                1672374042, // * UNIX timestamp of last known number of transactions (Block 771537)
+                5722721,    // * total number of transactions between genesis and that timestamp
+                            //   (the tx=... number in the ChainStateFlushed debug.log lines)
+                0.003149555626489206       // * estimated number of transactions per second after that timestamp
         };
     }
 };
