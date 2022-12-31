@@ -87,7 +87,7 @@ Remote Procedure Call (RPC) Changes
   `analyzepsbt` will also provide the estimated fee rate and estimated
   virtual size of the completed transaction if it has enough
   information to do so.
-- `quorum listextended` is the cousin of `quorum list` with more enriched reply. By using `height` parameter RPC will list active quorums at specified height (or at tip if `height` is not specified.)
+- `quorum listextended` is the cousin of `quorum list` with a more enriched reply. By using the `height` parameter, the RPC will list active quorums at a specified height (or at the tip if `height` is not specified).
   This RPC returns the following data per quorum grouped per llmqTypes:
     - For each `quorumHash`:
         - `creationHeight`: Block height where its DKG started
