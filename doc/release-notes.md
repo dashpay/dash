@@ -95,6 +95,11 @@ Remote Procedure Call (RPC) Changes
         - `minedBlockHash`: Hash of the block containing the mined final commitment
         - `numValidMembers`: The total of valid members.
         - `healthRatio`: The ratio of healthy members to quorum size. Range [0.0 - 1.0].
+- `getbalances` returns an object with all balances (`mine`,
+  `untrusted_pending` and `immature`). Please refer to the RPC help of
+  `getbalances` for details. The new RPC is intended to replace
+  `getunconfirmedbalance` and the balance fields in `getwalletinfo`, as well as
+  `getbalance`. The old calls may be removed in a future version.
 
 ### The removed RPCs are:
 None
