@@ -588,12 +588,11 @@ static UniValue masternodelist(const JSONRPCRequest& request)
         return (int)pindex->nTime;
     };
 
-    bool showAllBannedMns = strMode != "recent";
-    int tipHeight = WITH_LOCK(cs_main, return ::ChainActive().Tip()->nHeight;);
-    constexpr int monthBlockLength = 24 * 24 * 30;
+    bool showRecentMnsOnly = strMode == "recent";
+    int tipHeight = WITH_LOCK(cs_main, return ::ChainActive().Tip()->nHeight);
     mnList.ForEachMN(false, [&](auto& dmn) {
-        if (!showAllBannedMns && mnList.IsMNPoSeBanned(dmn)) {
-            if (tipHeight - dmn.pdmnState->GetBannedHeight() > monthBlockLength) {
+        if (showRecentMnsOnly && mnList.IsMNPoSeBanned(dmn)) {
+            if (tipHeight - dmn.pdmnState->GetBannedHeight() > Params().GetConsensus().nSuperblockCycle) {
                 return;
             }
         }
