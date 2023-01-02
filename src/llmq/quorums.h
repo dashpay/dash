@@ -210,7 +210,7 @@ private:
     CBLSWorker& blsWorker;
     CDKGSessionManager& dkgManager;
     CQuorumBlockProcessor& quorumBlockProcessor;
-    const std::unique_ptr<CMasternodeSync>& masternodeSync;
+    const std::unique_ptr<CMasternodeSync>& m_mn_sync;
 
     mutable CCriticalSection cs_map_quorums;
     mutable std::map<Consensus::LLMQType, unordered_lru_cache<uint256, CQuorumPtr, StaticSaltedHasher>> mapQuorumsCache GUARDED_BY(cs_map_quorums);

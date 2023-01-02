@@ -193,7 +193,7 @@ CQuorumManager::CQuorumManager(CEvoDB& _evoDb, CConnman& _connman, CBLSWorker& _
     blsWorker(_blsWorker),
     quorumBlockProcessor(_quorumBlockProcessor),
     dkgManager(_dkgManager),
-    masternodeSync(mn_sync)
+    m_mn_sync(mn_sync)
 {
     utils::InitQuorumsCache(mapQuorumsCache);
     utils::InitQuorumsCache(scanQuorumsCache);
@@ -269,7 +269,7 @@ void CQuorumManager::TriggerQuorumDataRecoveryThreads(const CBlockIndex* pIndex)
 
 void CQuorumManager::UpdatedBlockTip(const CBlockIndex* pindexNew, bool fInitialDownload) const
 {
-    if (!masternodeSync->IsBlockchainSynced()) {
+    if (!m_mn_sync->IsBlockchainSynced()) {
         return;
     }
 
@@ -845,7 +845,7 @@ void CQuorumManager::StartQuorumDataRecoveryThread(const CQuorumCPtr pQuorum, co
         };
         printLog("Start");
 
-        while (!masternodeSync->IsBlockchainSynced() && !quorumThreadInterrupt) {
+        while (!m_mn_sync->IsBlockchainSynced() && !quorumThreadInterrupt) {
             quorumThreadInterrupt.sleep_for(std::chrono::seconds(nRequestTimeout));
         }
 

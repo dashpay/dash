@@ -71,7 +71,7 @@ public:
 class CCoinJoinClientSession : public CCoinJoinBaseSession
 {
 private:
-    const std::unique_ptr<CMasternodeSync>& masternodeSync;
+    const std::unique_ptr<CMasternodeSync>& m_mn_sync;
 
     std::vector<COutPoint> vecOutPointLocked;
 
@@ -122,7 +122,7 @@ private:
 
 public:
     explicit CCoinJoinClientSession(CWallet& pwallet, const std::unique_ptr<CMasternodeSync>& mn_sync) :
-        mixingWallet(pwallet), masternodeSync(mn_sync)
+        mixingWallet(pwallet), m_mn_sync(mn_sync)
     {
     }
 
@@ -155,11 +155,11 @@ class CCoinJoinClientQueueManager : public CCoinJoinBaseManager
 {
 private:
     CConnman& connman;
-    const std::unique_ptr<CMasternodeSync>& masternodeSync;
+    const std::unique_ptr<CMasternodeSync>& m_mn_sync;
 
 public:
     explicit CCoinJoinClientQueueManager(CConnman& _connman, const std::unique_ptr<CMasternodeSync>& mn_sync) :
-        connman(_connman), masternodeSync(mn_sync) {};
+        connman(_connman), m_mn_sync(mn_sync) {};
 
     void ProcessMessage(const CNode& peer, std::string_view msg_type, CDataStream& vRecv) LOCKS_EXCLUDED(cs_vecqueue);
     void ProcessDSQueue(const CNode& peer, CDataStream& vRecv);
@@ -174,7 +174,7 @@ private:
     // Keep track of the used Masternodes
     std::vector<COutPoint> vecMasternodesUsed;
 
-    const std::unique_ptr<CMasternodeSync>& masternodeSync;
+    const std::unique_ptr<CMasternodeSync>& m_mn_sync;
 
     mutable Mutex cs_deqsessions;
     // TODO: or map<denom, CCoinJoinClientSession> ??
@@ -205,7 +205,7 @@ public:
     CCoinJoinClientManager& operator=(CCoinJoinClientManager const&) = delete;
 
     explicit CCoinJoinClientManager(CWallet& wallet, const std::unique_ptr<CMasternodeSync>& mn_sync) :
-        mixingWallet(wallet), masternodeSync(mn_sync) {}
+        mixingWallet(wallet), m_mn_sync(mn_sync) {}
 
     void ProcessMessage(CNode& peer, std::string_view msg_type, CDataStream& vRecv, CConnman& connman) LOCKS_EXCLUDED(cs_deqsessions);
 

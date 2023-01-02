@@ -209,7 +209,7 @@ private:
     CSigningManager& sigman;
     CSigSharesManager& shareman;
     CChainLocksHandler& clhandler;
-    const std::unique_ptr<CMasternodeSync>& masternodeSync;
+    const std::unique_ptr<CMasternodeSync>& m_mn_sync;
 
     std::atomic<bool> fUpgradedDB{false};
 
@@ -261,7 +261,7 @@ public:
                                  CQuorumManager& _qman, CSigningManager& _sigman, CSigSharesManager& _shareman,
                                  CChainLocksHandler& _clhandler, const std::unique_ptr<CMasternodeSync>& mn_sync, bool unitTests, bool fWipe) :
         db(unitTests, fWipe), mempool(_mempool), connman(_connman), spork_manager(sporkManager), qman(_qman), sigman(_sigman), shareman(_shareman),
-        clhandler(_clhandler), masternodeSync(mn_sync)
+        clhandler(_clhandler), m_mn_sync(mn_sync)
     {
         workInterrupt.reset();
     }

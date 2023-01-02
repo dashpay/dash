@@ -20,7 +20,7 @@ class CCoinJoinServer : public CCoinJoinBaseSession, public CCoinJoinBaseManager
 {
 private:
     CConnman& connman;
-    const std::unique_ptr<CMasternodeSync>& masternodeSync;
+    const std::unique_ptr<CMasternodeSync>& m_mn_sync;
 
     // Mixing uses collateral transactions to trust parties entering the pool
     // to behave honestly. If they don't it takes their money.
@@ -79,7 +79,7 @@ public:
         vecSessionCollaterals(),
         fUnitTest(false),
         connman(_connman),
-        masternodeSync(mn_sync) {};
+        m_mn_sync(mn_sync) {};
 
     void ProcessMessage(CNode& pfrom, std::string_view msg_type, CDataStream& vRecv);
 
