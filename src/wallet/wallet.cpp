@@ -112,7 +112,7 @@ bool AddWallet(const std::shared_ptr<CWallet>& wallet)
     assert(wallet);
     std::vector<std::shared_ptr<CWallet>>::const_iterator i = std::find(vpwallets.begin(), vpwallets.end(), wallet);
     if (i != vpwallets.end()) return false;
-    coinJoinClientManagers.emplace(std::make_pair(wallet->GetName(), std::make_shared<CCoinJoinClientManager>(*wallet, masternodeSync)));
+    coinJoinClientManagers.emplace(std::make_pair(wallet->GetName(), std::make_shared<CCoinJoinClientManager>(*wallet, ::masternodeSync)));
     vpwallets.push_back(wallet);
     g_wallet_init_interface.InitCoinJoinSettings();
     return true;
