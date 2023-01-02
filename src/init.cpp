@@ -239,11 +239,6 @@ void PrepareShutdown(NodeContext& node)
     StopHTTPServer();
     if (node.llmq_ctx) node.llmq_ctx->Stop();
 
-    ::coinJoinServer.reset();
-#ifdef ENABLE_WALLET
-    ::coinJoinClientQueueManager.reset();
-#endif // ENABLE_WALLET
-
     // fRPCInWarmup should be `false` if we completed the loading sequence
     // before a shutdown request was received
     std::string statusmessage;
@@ -286,12 +281,6 @@ void PrepareShutdown(NodeContext& node)
         }
     }
 
-    // After related databases and caches have been flushed, destroy pointers
-    // and reset all to nullptr.
-    ::masternodeSync.reset();
-    ::governance.reset();
-    ::sporkManager.reset();
-
     // After the threads that potentially access these pointers have been stopped,
     // destruct and reset all to nullptr.
     node.peer_logic.reset();
@@ -327,6 +316,16 @@ void PrepareShutdown(NodeContext& node)
     // After there are no more peers/RPC left to give us new data which may generate
     // CValidationInterface callbacks, flush them...
     GetMainSignals().FlushBackgroundCallbacks();
+
+    // After all scheduled tasks have been flushed, destroy pointers
+    // and reset all to nullptr.
+    ::coinJoinServer.reset();
+#ifdef ENABLE_WALLET
+    ::coinJoinClientQueueManager.reset();
+#endif // ENABLE_WALLET
+    ::governance.reset();
+    ::sporkManager.reset();
+    ::masternodeSync.reset();
 
     // Stop and delete all indexes only after flushing background callbacks.
     if (g_txindex) {
