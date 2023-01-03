@@ -17,6 +17,8 @@
 #include <util/translation.h>
 #include <version.h>
 
+#include <evo/deterministicmns.h>
+
 #include <utility>
 
 class CCoinJoin;
@@ -214,7 +216,20 @@ public:
 
     SERIALIZE_METHODS(CCoinJoinQueue, obj)
     {
-        READWRITE(obj.nDenom, obj.masternodeOutpoint, obj.nTime, obj.fReady);
+        READWRITE(obj.nDenom);
+
+        if (s.GetVersion() < COINJOIN_PROTX_HASH_PROTO_VERSION) {
+            READWRITE(obj.masternodeOutpoint);
+        } else {
+            uint256 protxHash{};
+            auto mnList = deterministicMNManager->GetListAtChainTip();
+            if (auto dmn = mnList.GetValidMNByCollateral(obj.masternodeOutpoint)) protxHash = dmn->proTxHash;
+            READWRITE(protxHash);
+            if (auto dmn = mnList.GetMN(protxHash)) {
+                obj.masternodeOutpoint = dmn->collateralOutpoint;
+            }
+        }
+        READWRITE(obj.nTime, obj.fReady);
         if (!(s.GetType() & SER_GETHASH)) {
             READWRITE(obj.vchSig);
         }
@@ -278,7 +293,20 @@ public:
 
     SERIALIZE_METHODS(CCoinJoinBroadcastTx, obj)
     {
-        READWRITE(obj.tx, obj.masternodeOutpoint);
+        READWRITE(obj.tx);
+
+        if (s.GetVersion() < COINJOIN_PROTX_HASH_PROTO_VERSION) {
+            READWRITE(obj.masternodeOutpoint);
+        } else {
+            uint256 protxHash{};
+            auto mnList = deterministicMNManager->GetListAtChainTip();
+            if (auto dmn = mnList.GetValidMNByCollateral(obj.masternodeOutpoint)) protxHash = dmn->proTxHash;
+            READWRITE(protxHash);
+            if (auto dmn = mnList.GetMN(protxHash)) {
+                obj.masternodeOutpoint = dmn->collateralOutpoint;
+            }
+        }
+
         if (!(s.GetType() & SER_GETHASH)) {
             READWRITE(obj.vchSig);
         }
