@@ -9,7 +9,7 @@ Other changes
 `qcommit`
 --------
 
-Once v19 hard fork is activated, `quorumPublicKey` will be serialised using basic BLS scheme.
+Once the v19 hard fork is activated, `quorumPublicKey` will be serialised using the basic BLS scheme.
 To support sync of old chain,`version` field indicates which scheme to use for serialisation of `quorumPublicKey`.
 
 | Version | Version Description                                    | Includes `quorumIndex` field |
