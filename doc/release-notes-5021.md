@@ -67,4 +67,4 @@ BLS enforced scheme
 Once the v19 hard fork is activated, all remaining messages containing BLS public keys or signatures will serialise them using the new basic BLS scheme.
 
 List of affected messages:
-`dsq`, `dstx`, `mnauth`, `govobj`, `govobjvote`, `qrinfo`, `qsigshare`, `qsigrec`, `isdlock`, `clsig`, all DKG messages (`qfcommit`, `qcontrib`, `qcomplaint`, `qjustify`, `qpcommit`);
+`dsq`, `dstx`, `mnauth`, `govobj`, `govobjvote`, `qrinfo`, `qsigshare`, `qsigrec`, `isdlock`, `clsig`, and all DKG messages (`qfcommit`, `qcontrib`, `qcomplaint`, `qjustify`, `qpcommit`).
