@@ -700,6 +700,10 @@ bool CDeterministicMNManager::BuildNewListFromBlock(const CBlock& block, const C
                 return _state.Invalid(ValidationInvalidReason::CONSENSUS, false, REJECT_INVALID, "bad-protx-payload");
             }
 
+            if (proTx.nType == CProRegTx::TYPE_HIGH_PERFORMANCE_MASTERNODE && !llmq::utils::IsV19Active(pindexPrev)) {
+                return _state.Invalid(ValidationInvalidReason::CONSENSUS, false, REJECT_INVALID, "bad-protx-payload");
+            }
+
             auto dmn = std::make_shared<CDeterministicMN>(newList.GetTotalRegisteredCount(), proTx.nType == CProRegTx::TYPE_HIGH_PERFORMANCE_MASTERNODE);
             dmn->proTxHash = tx.GetHash();
 

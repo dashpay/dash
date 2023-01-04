@@ -462,6 +462,11 @@ static UniValue protx_register_wrapper(const JSONRPCRequest& request,
         EnsureWalletIsUnlocked(wallet.get());
     }
 
+    bool isV19active = !llmq::utils::IsV19Active(WITH_LOCK(cs_main, return ::ChainActive().Tip();));
+    if (isHPMN && !isV19active) {
+        throw JSONRPCError(RPC_INVALID_REQUEST, "HPMN aren't allowed yet");
+    }
+
     size_t paramIdx = 0;
 
     CAmount collateralAmount = isHPMN ? 4000 * COIN : 1000 * COIN;

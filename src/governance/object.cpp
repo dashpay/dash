@@ -623,6 +623,7 @@ int CGovernanceObject::CountMatchingVotes(vote_signal_enum_t eVoteSignalIn, vote
 
     int nCount = 0;
     const CBlockIndex* pindex = WITH_LOCK(cs_main, return ::ChainActive()[governance->nCachedBlockHeight]);
+    bool isV19Active = llmq::utils::IsV19Active(pindex);
     LOCK(deterministicMNManager->cs);
     CDeterministicMNList mnList = deterministicMNManager->GetListForBlock(pindex);
     for (const auto& votepair : mapCurrentMNVotes) {
@@ -630,7 +631,7 @@ int CGovernanceObject::CountMatchingVotes(vote_signal_enum_t eVoteSignalIn, vote
         auto it2 = recVote.mapInstances.find(eVoteSignalIn);
         if (it2 != recVote.mapInstances.end() && it2->second.eOutcome == eVoteOutcomeIn) {
             auto mn = mnList.GetMNByCollateral(votepair.first);
-            if (mn->nType == CDeterministicMN::TYPE_HIGH_PERFORMANCE_MASTERNODE)
+            if (mn->nType == CDeterministicMN::TYPE_HIGH_PERFORMANCE_MASTERNODE && isV19Active)
                 nCount += 4;
             else
                 ++nCount;
