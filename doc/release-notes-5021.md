@@ -28,7 +28,7 @@ Starting with protocol version 70225, the following field is added to the `MNLIS
 |---------------------| ---- | ---- |-----------------------------------|
 | version             | uint16_t | 2 | Version of the `MNLISTDIFF` reply |
 
-The `version` field indicates which BLS scheme is used to serialise all SML entrie's `pubKeyOperator` field of `mnList`.
+The `version` field indicates which BLS scheme is used to serialise the `pubKeyOperator` field for all SML entries of `mnList`.
 
 | Version | Version Description                                       |
 |---------|-----------------------------------------------------------|
