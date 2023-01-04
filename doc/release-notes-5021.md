@@ -10,7 +10,7 @@ Other changes
 --------
 
 Once the v19 hard fork is activated, `quorumPublicKey` will be serialised using the basic BLS scheme.
-To support sync of old chain,`version` field indicates which scheme to use for serialisation of `quorumPublicKey`.
+To support syncing of older blocks containing the transactions using the legacy BLS scheme, the `version` field indicates which scheme to use for serialisation of `quorumPublicKey`.
 
 | Version | Version Description                                    | Includes `quorumIndex` field |
 |---------|--------------------------------------------------------|------------------------------|
