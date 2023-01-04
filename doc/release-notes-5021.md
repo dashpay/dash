@@ -1,7 +1,7 @@
 Added RPCs
 --------
 
-- Once v19 hard fork is activated `protx register`, `protx register_fund`, `protx register_prepare` RPCs will decode BLS operator public key using new basic BLS scheme. In order to support BLS public keys encoded in legacy BLS scheme `protx register_legacy`, `protx register_fund_legacy`, `protx register_prepare_legacy` were added.
+- Once the v19 hard fork is activated, `protx register`, `protx register_fund`, and `protx register_prepare` RPCs will decode BLS operator public keys using the new basic BLS scheme. In order to support BLS public keys encoded in the legacy BLS scheme, `protx register_legacy`, `protx register_fund_legacy`, and `protx register_prepare_legacy` were added.
 
 Other changes
 --------
