@@ -84,6 +84,7 @@ public:
         obj.clear();
         obj.setObject();
         obj.pushKV("version", nVersion);
+        obj.pushKV("type", nType);
         obj.pushKV("collateralHash", collateralOutpoint.hash.ToString());
         obj.pushKV("collateralIndex", (int)collateralOutpoint.n);
         obj.pushKV("service", addr.ToString(false));
