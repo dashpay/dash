@@ -17,8 +17,6 @@
 #include <util/translation.h>
 #include <version.h>
 
-#include <evo/deterministicmns.h>
-
 #include <utility>
 
 class CCoinJoin;
@@ -198,6 +196,7 @@ class CCoinJoinQueue
 public:
     int nDenom{0};
     COutPoint masternodeOutpoint;
+    uint256 m_protxHash;
     int64_t nTime{0};
     bool fReady{false}; //ready for submit
     std::vector<unsigned char> vchSig;
@@ -206,9 +205,10 @@ public:
 
     CCoinJoinQueue() = default;
 
-    CCoinJoinQueue(int nDenom, const COutPoint& outpoint, int64_t nTime, bool fReady) :
+    CCoinJoinQueue(int nDenom, const COutPoint& outpoint, const uint256& proTxHash, int64_t nTime, bool fReady) :
         nDenom(nDenom),
         masternodeOutpoint(outpoint),
+        m_protxHash(proTxHash),
         nTime(nTime),
         fReady(fReady)
     {
@@ -221,11 +221,7 @@ public:
         if (s.GetVersion() < COINJOIN_PROTX_HASH_PROTO_VERSION || (s.GetType() & SER_GETHASH)) {
             READWRITE(obj.masternodeOutpoint);
         } else {
-            uint256 protxHash;
-            auto mnList = deterministicMNManager->GetListAtChainTip();
-            SER_WRITE(obj, if (auto dmn = mnList.GetValidMNByCollateral(obj.masternodeOutpoint)) protxHash = dmn->proTxHash);
-            READWRITE(protxHash);
-            SER_READ(obj, if (auto dmn = mnList.GetValidMN(protxHash)) obj.masternodeOutpoint = dmn->collateralOutpoint);
+            READWRITE(obj.m_protxHash);
         }
         READWRITE(obj.nTime, obj.fReady);
         if (!(s.GetType() & SER_GETHASH)) {
@@ -274,6 +270,7 @@ private:
 public:
     CTransactionRef tx;
     COutPoint masternodeOutpoint;
+    uint256 m_protxHash;
     std::vector<unsigned char> vchSig;
     int64_t sigTime{0};
 
@@ -282,9 +279,10 @@ public:
     {
     }
 
-    CCoinJoinBroadcastTx(CTransactionRef _tx, const COutPoint& _outpoint, int64_t _sigTime) :
+    CCoinJoinBroadcastTx(CTransactionRef _tx, const COutPoint& _outpoint, const uint256& proTxHash, int64_t _sigTime) :
         tx(std::move(_tx)),
         masternodeOutpoint(_outpoint),
+        m_protxHash(proTxHash),
         sigTime(_sigTime)
     {
     }
@@ -296,11 +294,7 @@ public:
         if (s.GetVersion() < COINJOIN_PROTX_HASH_PROTO_VERSION || (s.GetType() & SER_GETHASH)) {
             READWRITE(obj.masternodeOutpoint);
         } else {
-            uint256 protxHash;
-            auto mnList = deterministicMNManager->GetListAtChainTip();
-            SER_WRITE(obj, if (auto dmn = mnList.GetValidMNByCollateral(obj.masternodeOutpoint)) protxHash = dmn->proTxHash);
-            READWRITE(protxHash);
-            SER_READ(obj, if (auto dmn = mnList.GetValidMN(protxHash)) obj.masternodeOutpoint = dmn->collateralOutpoint);
+            READWRITE(obj.m_protxHash);
         }
 
         if (!(s.GetType() & SER_GETHASH)) {
