@@ -218,16 +218,14 @@ public:
     {
         READWRITE(obj.nDenom);
 
-        if (s.GetVersion() < COINJOIN_PROTX_HASH_PROTO_VERSION) {
+        if (s.GetVersion() < COINJOIN_PROTX_HASH_PROTO_VERSION || (s.GetType() & SER_GETHASH)) {
             READWRITE(obj.masternodeOutpoint);
         } else {
-            uint256 protxHash{};
+            uint256 protxHash;
             auto mnList = deterministicMNManager->GetListAtChainTip();
-            if (auto dmn = mnList.GetValidMNByCollateral(obj.masternodeOutpoint)) protxHash = dmn->proTxHash;
+            SER_WRITE(obj, if (auto dmn = mnList.GetValidMNByCollateral(obj.masternodeOutpoint)) protxHash = dmn->proTxHash);
             READWRITE(protxHash);
-            if (auto dmn = mnList.GetMN(protxHash)) {
-                obj.masternodeOutpoint = dmn->collateralOutpoint;
-            }
+            SER_READ(obj, if (auto dmn = mnList.GetValidMN(protxHash)) obj.masternodeOutpoint = dmn->collateralOutpoint);
         }
         READWRITE(obj.nTime, obj.fReady);
         if (!(s.GetType() & SER_GETHASH)) {
@@ -295,16 +293,14 @@ public:
     {
         READWRITE(obj.tx);
 
-        if (s.GetVersion() < COINJOIN_PROTX_HASH_PROTO_VERSION) {
+        if (s.GetVersion() < COINJOIN_PROTX_HASH_PROTO_VERSION || (s.GetType() & SER_GETHASH)) {
             READWRITE(obj.masternodeOutpoint);
         } else {
-            uint256 protxHash{};
+            uint256 protxHash;
             auto mnList = deterministicMNManager->GetListAtChainTip();
-            if (auto dmn = mnList.GetValidMNByCollateral(obj.masternodeOutpoint)) protxHash = dmn->proTxHash;
+            SER_WRITE(obj, if (auto dmn = mnList.GetValidMNByCollateral(obj.masternodeOutpoint)) protxHash = dmn->proTxHash);
             READWRITE(protxHash);
-            if (auto dmn = mnList.GetMN(protxHash)) {
-                obj.masternodeOutpoint = dmn->collateralOutpoint;
-            }
+            SER_READ(obj, if (auto dmn = mnList.GetValidMN(protxHash)) obj.masternodeOutpoint = dmn->collateralOutpoint);
         }
 
         if (!(s.GetType() & SER_GETHASH)) {

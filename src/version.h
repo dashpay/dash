@@ -47,7 +47,7 @@ static const int COINJOIN_SU_PROTO_VERSION = 70224;
 //! BLS scheme was introduced in this version
 static const int BLS_SCHEME_PROTO_VERSION = 70225;
 
-//! CCoinJoinStatusUpdate bug fix was introduced in this version
+//! DSQ and DSTX started using protx hash in this version
 static const int COINJOIN_PROTX_HASH_PROTO_VERSION = 70226;
 
 // Make sure that none of the values above collide with `ADDRV2_FORMAT`.
