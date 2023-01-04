@@ -25,7 +25,7 @@ To support syncing of older blocks containing the transactions using the legacy 
 Starting with protocol version 70225, the following field is added to the `MNLISTDIFF` message between `cbTx` and `deletedQuorumsCount`.
 
 | Field               | Type | Size | Description                       |
-|---------------------| --- | --- |-----------------------------------|
+|---------------------| ---- | ---- |-----------------------------------|
 | version             | uint16_t | 2 | Version of the `MNLISTDIFF` reply |
 
 The `version` field indicates which BLS scheme is used to serialise all SML entrie's `pubKeyOperator` field of `mnList`.
