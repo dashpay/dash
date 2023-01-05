@@ -581,7 +581,9 @@ void CGovernanceManager::SyncSingleObjVotes(CNode& peer, const uint256& nProp, c
 
     LogPrint(BCLog::GOBJECT, "CGovernanceManager::%s -- syncing single object to peer=%d, nProp = %s\n", __func__, peer.GetId(), nProp.ToString());
 
-    LOCK(cs);
+    // TODO: drop cs_main here when v19 activation is buried
+    // and CGovernanceVote::CheckSignature no longer needs to use ::ChainActive()
+    LOCK2(cs_main, cs);
 
     // single valid object and its valid votes
     auto it = mapObjects.find(nProp);
