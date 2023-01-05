@@ -775,6 +775,9 @@ bool CGovernanceManager::MasternodeRateCheck(const CGovernanceObject& govobj, bo
 
 bool CGovernanceManager::ProcessVote(CNode* pfrom, const CGovernanceVote& vote, CGovernanceException& exception, CConnman& connman)
 {
+    // TODO: drop cs_main here when v19 activation is buried
+    // and CGovernanceVote::CheckSignature no longer needs to use ::ChainActive()
+    LOCK(cs_main);
     ENTER_CRITICAL_SECTION(cs)
     uint256 nHashVote = vote.GetHash();
     uint256 nHashGovobj = vote.GetParentHash();
