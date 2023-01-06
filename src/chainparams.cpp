@@ -249,8 +249,17 @@ public:
         consensus.vDeployments[Consensus::DEPLOYMENT_DIP0024].nThresholdMin = 2420;   // 60% of 4032
         consensus.vDeployments[Consensus::DEPLOYMENT_DIP0024].nFalloffCoeff = 5;      // this corresponds to 10 periods
 
+        // Deployment of hotfix version 18.3
+        consensus.vDeployments[Consensus::DEPLOYMENT_V18_3].bit = 8;
+        consensus.vDeployments[Consensus::DEPLOYMENT_V18_3].nStartTime = 1672963200;     // Friday, January 6, 2023 12:00:00 AM
+        consensus.vDeployments[Consensus::DEPLOYMENT_V18_3].nTimeout = 1672963200;       // Saturday, January 6, 2024 12:00:00 AM
+        consensus.vDeployments[Consensus::DEPLOYMENT_V18_3].nWindowSize = 4032;
+        consensus.vDeployments[Consensus::DEPLOYMENT_V18_3].nThresholdStart = 3226;       // 80% of 4032
+        consensus.vDeployments[Consensus::DEPLOYMENT_V18_3].nThresholdMin = 2420;         // 60% of 4032
+        consensus.vDeployments[Consensus::DEPLOYMENT_V18_3].nFalloffCoeff = 5;            // this corresponds to 10 periods
+
         // Deployment of Deployment of Basic BLS, AssetLocks, EHF
-        consensus.vDeployments[Consensus::DEPLOYMENT_V19].bit = 8;
+        consensus.vDeployments[Consensus::DEPLOYMENT_V19].bit = 9;
         consensus.vDeployments[Consensus::DEPLOYMENT_V19].nStartTime = 19999999999;     // TODO: To be determined later
         consensus.vDeployments[Consensus::DEPLOYMENT_V19].nTimeout = 999999999999ULL;
         consensus.vDeployments[Consensus::DEPLOYMENT_V19].nWindowSize = 4032;
@@ -485,8 +494,17 @@ public:
         consensus.vDeployments[Consensus::DEPLOYMENT_DIP0024].nThresholdMin = 60;   // 60% of 100
         consensus.vDeployments[Consensus::DEPLOYMENT_DIP0024].nFalloffCoeff = 5;      // this corresponds to 10 periods
 
+        // Deployment of hotfix version 18.3
+        consensus.vDeployments[Consensus::DEPLOYMENT_V18_3].bit = 8;
+        consensus.vDeployments[Consensus::DEPLOYMENT_V18_3].nStartTime = 1672963200;     // Friday, January 6, 2023 12:00:00 AM
+        consensus.vDeployments[Consensus::DEPLOYMENT_V18_3].nTimeout = 999999999999ULL;
+        consensus.vDeployments[Consensus::DEPLOYMENT_V18_3].nWindowSize = 100;
+        consensus.vDeployments[Consensus::DEPLOYMENT_V18_3].nThresholdStart = 80;         // 80% of 100
+        consensus.vDeployments[Consensus::DEPLOYMENT_V18_3].nThresholdMin = 60;           // 60% of 100
+        consensus.vDeployments[Consensus::DEPLOYMENT_V18_3].nFalloffCoeff = 5;            // this corresponds to 10 periods
+
         // Deployment of Deployment of Basic BLS, AssetLocks, EHF
-        consensus.vDeployments[Consensus::DEPLOYMENT_V19].bit = 8;
+        consensus.vDeployments[Consensus::DEPLOYMENT_V19].bit = 9;
         consensus.vDeployments[Consensus::DEPLOYMENT_V19].nStartTime = 19999999999;     // TODO: To be determined later
         consensus.vDeployments[Consensus::DEPLOYMENT_V19].nTimeout = 999999999999ULL;
         consensus.vDeployments[Consensus::DEPLOYMENT_V19].nWindowSize = 100;
@@ -693,8 +711,17 @@ public:
         consensus.vDeployments[Consensus::DEPLOYMENT_DIP0024].nThresholdMin = 60;   // 60% of 100
         consensus.vDeployments[Consensus::DEPLOYMENT_DIP0024].nFalloffCoeff = 5;    // this corresponds to 10 periods
 
+        // Deployment of hotfix version 18.3
+        consensus.vDeployments[Consensus::DEPLOYMENT_V18_3].bit = 8;
+        consensus.vDeployments[Consensus::DEPLOYMENT_V18_3].nStartTime = 1661990400; //  January 1, 2023
+        consensus.vDeployments[Consensus::DEPLOYMENT_V18_3].nTimeout = 999999999999ULL;
+        consensus.vDeployments[Consensus::DEPLOYMENT_V18_3].nWindowSize = 100;
+        consensus.vDeployments[Consensus::DEPLOYMENT_V18_3].nThresholdStart = 80; // 80% of 100
+        consensus.vDeployments[Consensus::DEPLOYMENT_V18_3].nThresholdMin = 60;   // 60% of 100
+        consensus.vDeployments[Consensus::DEPLOYMENT_V18_3].nFalloffCoeff = 5;     // this corresponds to 10 periods
+
         // Deployment of Deployment of Basic BLS, AssetLocks, EHF
-        consensus.vDeployments[Consensus::DEPLOYMENT_V19].bit = 8;
+        consensus.vDeployments[Consensus::DEPLOYMENT_V19].bit = 9;
         consensus.vDeployments[Consensus::DEPLOYMENT_V19].nStartTime = 1661990400; // Sep 1st, 2022
         consensus.vDeployments[Consensus::DEPLOYMENT_V19].nTimeout = 999999999999ULL;
         consensus.vDeployments[Consensus::DEPLOYMENT_V19].nWindowSize = 100;
@@ -943,8 +970,17 @@ public:
         consensus.vDeployments[Consensus::DEPLOYMENT_DIP0024].nThresholdMin = 180;   // 60% of 300
         consensus.vDeployments[Consensus::DEPLOYMENT_DIP0024].nFalloffCoeff = 5;     // this corresponds to 10 periods
 
+        // Deployment of hotfix version 18.3
+        consensus.vDeployments[Consensus::DEPLOYMENT_V18_3].bit = 8;
+        consensus.vDeployments[Consensus::DEPLOYMENT_V18_3].nStartTime = 0;
+        consensus.vDeployments[Consensus::DEPLOYMENT_V18_3].nTimeout = 999999999999ULL;
+        consensus.vDeployments[Consensus::DEPLOYMENT_V18_3].nWindowSize = 300;
+        consensus.vDeployments[Consensus::DEPLOYMENT_V18_3].nThresholdStart = 240; // 80% of 300
+        consensus.vDeployments[Consensus::DEPLOYMENT_V18_3].nThresholdMin = 180;   // 60% of 300
+        consensus.vDeployments[Consensus::DEPLOYMENT_V18_3].nFalloffCoeff = 5;     // this corresponds to 10 periods
+
         // Deployment of Deployment of Basic BLS, AssetLocks, EHF
-        consensus.vDeployments[Consensus::DEPLOYMENT_V19].bit = 8;
+        consensus.vDeployments[Consensus::DEPLOYMENT_V19].bit = 9;
         consensus.vDeployments[Consensus::DEPLOYMENT_V19].nStartTime = 0;
         consensus.vDeployments[Consensus::DEPLOYMENT_V19].nTimeout = 999999999999ULL;
         consensus.vDeployments[Consensus::DEPLOYMENT_V19].nWindowSize = 300;

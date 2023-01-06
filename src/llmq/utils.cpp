@@ -258,7 +258,7 @@ std::vector<std::vector<CDeterministicMNCPtr>> BuildNewQuorumQuarterMembers(cons
 
     for (auto i = 0; i < nQuorums; ++i) {
         for (const auto& mn : previousQuarters.quarterHMinusC[i]) {
-            if (!allMns.HasMN(mn->proTxHash)) {
+            if (IsV18_3Active(pQuorumBaseBlockIndex) && !allMns.HasMN(mn->proTxHash)) {
                 continue;
             }
             if (allMns.IsMNPoSeBanned(mn->proTxHash)) {
@@ -274,7 +274,7 @@ std::vector<std::vector<CDeterministicMNCPtr>> BuildNewQuorumQuarterMembers(cons
             }
         }
         for (const auto& mn : previousQuarters.quarterHMinus2C[i]) {
-            if (!allMns.HasMN(mn->proTxHash)) {
+            if (IsV18_3Active(pQuorumBaseBlockIndex) && !allMns.HasMN(mn->proTxHash)) {
                 continue;
             }
             if (allMns.IsMNPoSeBanned(mn->proTxHash)) {
@@ -290,7 +290,7 @@ std::vector<std::vector<CDeterministicMNCPtr>> BuildNewQuorumQuarterMembers(cons
             }
         }
         for (const auto& mn : previousQuarters.quarterHMinus3C[i]) {
-            if (!allMns.HasMN(mn->proTxHash)) {
+            if (IsV18_3Active(pQuorumBaseBlockIndex) && !allMns.HasMN(mn->proTxHash)) {
                 continue;
             }
             if (allMns.IsMNPoSeBanned(mn->proTxHash)) {
@@ -633,6 +633,14 @@ bool IsV19Active(const CBlockIndex* pindex)
 
     LOCK(cs_llmq_vbc);
     return VersionBitsState(pindex, Params().GetConsensus(), Consensus::DEPLOYMENT_V19, llmq_versionbitscache) == ThresholdState::ACTIVE;
+}
+
+bool IsV18_3Active(const CBlockIndex* pindex)
+{
+    assert(pindex);
+
+    LOCK(cs_llmq_vbc);
+    return VersionBitsState(pindex, Params().GetConsensus(), Consensus::DEPLOYMENT_V18_3, llmq_versionbitscache) == ThresholdState::ACTIVE;
 }
 
 const CBlockIndex* V19ActivationIndex(const CBlockIndex* pindex)

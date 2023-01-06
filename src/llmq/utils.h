@@ -93,6 +93,7 @@ bool IsQuorumRotationEnabled(Consensus::LLMQType llmqType, const CBlockIndex* pi
 Consensus::LLMQType GetInstantSendLLMQType(const CQuorumManager& qman, const CBlockIndex* pindex);
 Consensus::LLMQType GetInstantSendLLMQType(bool deterministic);
 bool IsDIP0024Active(const CBlockIndex* pindex);
+bool IsV18_3Active(const CBlockIndex* pindex);
 bool IsV19Active(const CBlockIndex* pindex);
 const CBlockIndex* V19ActivationIndex(const CBlockIndex* pindex);
 static bool IsInstantSendLLMQTypeShared();
