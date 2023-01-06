@@ -1243,7 +1243,9 @@ void CGovernanceManager::RemoveInvalidVotes()
         return;
     }
 
-    LOCK(cs);
+    // TODO: drop cs_main here when v19 activation is buried
+    // and CGovernanceVote::CheckSignature no longer needs to use ::ChainActive()
+    LOCK2(cs_main, cs);
 
     auto curMNList = deterministicMNManager->GetListAtChainTip();
     auto diff = lastMNListForVotingKeys->BuildDiff(curMNList);
