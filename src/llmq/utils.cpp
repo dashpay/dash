@@ -258,7 +258,7 @@ std::vector<std::vector<CDeterministicMNCPtr>> BuildNewQuorumQuarterMembers(cons
 
     for (auto i = 0; i < nQuorums; ++i) {
         for (const auto& mn : previousQuarters.quarterHMinusC[i]) {
-            if (!allMns.HasMN(mn->proTxHash)) {
+            if (IsV19Active(pQuorumBaseBlockIndex) && !allMns.HasMN(mn->proTxHash)) {
                 continue;
             }
             if (allMns.IsMNPoSeBanned(mn->proTxHash)) {
@@ -274,7 +274,7 @@ std::vector<std::vector<CDeterministicMNCPtr>> BuildNewQuorumQuarterMembers(cons
             }
         }
         for (const auto& mn : previousQuarters.quarterHMinus2C[i]) {
-            if (!allMns.HasMN(mn->proTxHash)) {
+            if (IsV19Active(pQuorumBaseBlockIndex) && !allMns.HasMN(mn->proTxHash)) {
                 continue;
             }
             if (allMns.IsMNPoSeBanned(mn->proTxHash)) {
@@ -290,7 +290,7 @@ std::vector<std::vector<CDeterministicMNCPtr>> BuildNewQuorumQuarterMembers(cons
             }
         }
         for (const auto& mn : previousQuarters.quarterHMinus3C[i]) {
-            if (!allMns.HasMN(mn->proTxHash)) {
+            if (IsV19Active(pQuorumBaseBlockIndex) && !allMns.HasMN(mn->proTxHash)) {
                 continue;
             }
             if (allMns.IsMNPoSeBanned(mn->proTxHash)) {
