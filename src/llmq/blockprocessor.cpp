@@ -98,6 +98,12 @@ void CQuorumBlockProcessor::ProcessMessage(const CNode& peer, std::string_view m
             // Misbehaving(peer.GetId(), 100);
             return;
         }
+        if (HasMinedCommitment(type, qc.quorumHash)) {
+            LogPrint(BCLog::LLMQ, "CQuorumBlockProcessor::%s -- commitment for quorum hash[%s], type[%d], quorumIndex[%d] is already mined, peer=%d\n",
+                     __func__, qc.quorumHash.ToString(), uint8_t(type), qc.quorumIndex, qc.nVersion, peer.GetId());
+            // NOTE: do not punish here
+            return;
+        }
     }
 
     {
