@@ -91,6 +91,13 @@ void CQuorumBlockProcessor::ProcessMessage(const CNode& peer, std::string_view m
             Misbehaving(peer.GetId(), 100);
             return;
         }
+        if (pQuorumBaseBlockIndex->nHeight < (::ChainActive().Height() - GetLLMQParams(type).dkgInterval)) {
+            LogPrint(BCLog::LLMQ, "CQuorumBlockProcessor::%s -- block %s is too old, peer=%d\n", __func__,
+                     qc.quorumHash.ToString(), peer.GetId());
+            // TODO: enable punishment in some future version when all/most nodes are running with this fix
+            // Misbehaving(peer.GetId(), 100);
+            return;
+        }
     }
 
     {
