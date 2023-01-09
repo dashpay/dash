@@ -2,21 +2,21 @@
 // Distributed under the MIT software license, see the accompanying
 // file COPYING or http://www.opensource.org/licenses/mit-license.php.
 
-#include <httpserver.h>
-#include <netaddress.h>
-#include <test/fuzz/FuzzedDataProvider.h>
-#include <test/fuzz/fuzz.h>
-#include <test/fuzz/util.h>
-#include <util/strencodings.h>
+#include <httpserver.h> 
+#include <netaddress.h> 
+#include <test/fuzz/FuzzedDataProvider.h> 
+#include <test/fuzz/fuzz.h> 
+#include <test/fuzz/util.h> 
+#include <util/strencodings.h> 
 
-#include <event2/buffer.h>
-#include <event2/http.h>
-#include <event2/http_struct.h>
+#include <event2/buffer.h> 
+#include <event2/http.h> 
+#include <event2/http_struct.h> 
 
-#include <cassert>
-#include <cstdint>
-#include <string>
-#include <vector>
+#include <cassert> 
+#include <cstdint> 
+#include <string> 
+#include <vector> 
 
 extern "C" int evhttp_parse_firstline_(struct evhttp_request*, struct evbuffer*);
 extern "C" int evhttp_parse_headers_(struct evhttp_request*, struct evbuffer*);

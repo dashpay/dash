@@ -2,19 +2,19 @@
 // Distributed under the MIT software license, see the accompanying
 // file COPYING or http://www.opensource.org/licenses/mit-license.php.
 
-#include <node/context.h>
-#include <wallet/wallet.h>
-#include <wallet/coinselection.h>
-#include <wallet/coincontrol.h>
-#include <amount.h>
-#include <primitives/transaction.h>
-#include <random.h>
-#include <test/util/setup_common.h>
-#include <validation.h>
-#include <wallet/test/wallet_test_fixture.h>
+#include <node/context.h> 
+#include <wallet/wallet.h> 
+#include <wallet/coinselection.h> 
+#include <wallet/coincontrol.h> 
+#include <amount.h> 
+#include <primitives/transaction.h> 
+#include <random.h> 
+#include <test/util/setup_common.h> 
+#include <validation.h> 
+#include <wallet/test/wallet_test_fixture.h> 
 
-#include <boost/test/unit_test.hpp>
-#include <random>
+#include <boost/test/unit_test.hpp> 
+#include <random> 
 
 BOOST_FIXTURE_TEST_SUITE(coinselector_tests, WalletTestingSetup)
 

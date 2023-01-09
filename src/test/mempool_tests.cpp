@@ -2,15 +2,15 @@
 // Distributed under the MIT software license, see the accompanying
 // file COPYING or http://www.opensource.org/licenses/mit-license.php.
 
-#include <txmempool.h>
-#include <policy/policy.h>
-#include <util/system.h>
-#include <util/time.h>
+#include <txmempool.h> 
+#include <policy/policy.h> 
+#include <util/system.h> 
+#include <util/time.h> 
 
-#include <test/util/setup_common.h>
+#include <test/util/setup_common.h> 
 
-#include <boost/test/unit_test.hpp>
-#include <vector>
+#include <boost/test/unit_test.hpp> 
+#include <vector> 
 
 BOOST_FIXTURE_TEST_SUITE(mempool_tests, TestingSetup)
 

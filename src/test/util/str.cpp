@@ -2,10 +2,10 @@
 // Distributed under the MIT software license, see the accompanying
 // file COPYING or http://www.opensource.org/licenses/mit-license.php.
 
-#include <test/util/str.h>
+#include <test/util/str.h> 
 
-#include <cstdint>
-#include <string>
+#include <cstdint> 
+#include <string> 
 
 bool CaseInsensitiveEqual(const std::string& s1, const std::string& s2)
 {

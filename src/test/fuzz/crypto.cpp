@@ -2,20 +2,20 @@
 // Distributed under the MIT software license, see the accompanying
 // file COPYING or http://www.opensource.org/licenses/mit-license.php.
 
-#include <crypto/hmac_sha256.h>
-#include <crypto/hmac_sha512.h>
-#include <crypto/ripemd160.h>
-#include <crypto/sha1.h>
-#include <crypto/sha256.h>
-#include <crypto/sha3.h>
-#include <crypto/sha512.h>
-#include <hash.h>
-#include <test/fuzz/FuzzedDataProvider.h>
-#include <test/fuzz/fuzz.h>
-#include <test/fuzz/util.h>
+#include <crypto/hmac_sha256.h> 
+#include <crypto/hmac_sha512.h> 
+#include <crypto/ripemd160.h> 
+#include <crypto/sha1.h> 
+#include <crypto/sha256.h> 
+#include <crypto/sha3.h> 
+#include <crypto/sha512.h> 
+#include <hash.h> 
+#include <test/fuzz/FuzzedDataProvider.h> 
+#include <test/fuzz/fuzz.h> 
+#include <test/fuzz/util.h> 
 
-#include <cstdint>
-#include <vector>
+#include <cstdint> 
+#include <vector> 
 
 FUZZ_TARGET(crypto)
 {

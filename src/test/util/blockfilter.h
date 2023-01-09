@@ -5,7 +5,7 @@
 #ifndef BITCOIN_TEST_UTIL_BLOCKFILTER_H
 #define BITCOIN_TEST_UTIL_BLOCKFILTER_H
 
-#include <blockfilter.h>
+#include <blockfilter.h> 
 
 class CBlockIndex;
 

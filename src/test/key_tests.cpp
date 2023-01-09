@@ -2,19 +2,19 @@
 // Distributed under the MIT software license, see the accompanying
 // file COPYING or http://www.opensource.org/licenses/mit-license.php.
 
-#include <key.h>
+#include <key.h> 
 
-#include <key_io.h>
-#include <uint256.h>
-#include <util/system.h>
-#include <util/strencodings.h>
-#include <util/string.h>
-#include <test/util/setup_common.h>
+#include <key_io.h> 
+#include <uint256.h> 
+#include <util/system.h> 
+#include <util/strencodings.h> 
+#include <util/string.h> 
+#include <test/util/setup_common.h> 
 
-#include <string>
-#include <vector>
+#include <string> 
+#include <vector> 
 
-#include <boost/test/unit_test.hpp>
+#include <boost/test/unit_test.hpp> 
 
 static const std::string strSecret1 = "7qh6LYnLN2w2ntz2wwUhRUEgkQ2j8XB16FGw77ZRDZmC29bn7cD";
 static const std::string strSecret2 = "7rve4MxeWFQHGbSYH6J2yaaZd3MBUqoDEwN6ZAZ6ZHmhTT4r3hW";

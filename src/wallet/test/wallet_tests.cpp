@@ -2,29 +2,29 @@
 // Distributed under the MIT software license, see the accompanying
 // file COPYING or http://www.opensource.org/licenses/mit-license.php.
 
-#include <wallet/wallet.h>
+#include <wallet/wallet.h> 
 
-#include <iostream>
-#include <future>
-#include <memory>
-#include <stdint.h>
-#include <vector>
+#include <iostream> 
+#include <future> 
+#include <memory> 
+#include <stdint.h> 
+#include <vector> 
 
-#include <interfaces/chain.h>
-#include <key_io.h>
-#include <node/context.h>
-#include <policy/policy.h>
-#include <rpc/server.h>
-#include <rpc/rawtransaction_util.h>
-#include <test/util/logging.h>
-#include <test/util/setup_common.h>
-#include <util/translation.h>
-#include <validation.h>
-#include <wallet/coincontrol.h>
-#include <wallet/test/wallet_test_fixture.h>
+#include <interfaces/chain.h> 
+#include <key_io.h> 
+#include <node/context.h> 
+#include <policy/policy.h> 
+#include <rpc/server.h> 
+#include <rpc/rawtransaction_util.h> 
+#include <test/util/logging.h> 
+#include <test/util/setup_common.h> 
+#include <util/translation.h> 
+#include <validation.h> 
+#include <wallet/coincontrol.h> 
+#include <wallet/test/wallet_test_fixture.h> 
 
-#include <boost/test/unit_test.hpp>
-#include <univalue.h>
+#include <boost/test/unit_test.hpp> 
+#include <univalue.h> 
 
 extern UniValue importmulti(const JSONRPCRequest& request);
 extern UniValue dumpwallet(const JSONRPCRequest& request);

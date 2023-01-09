@@ -3,16 +3,16 @@
 // file COPYING or http://www.opensource.org/licenses/mit-license.php.
 
 #if defined(HAVE_CONFIG_H)
-#include <config/bitcoin-config.h>
+#include <config/bitcoin-config.h> 
 #endif
 
-#include <test/fuzz/FuzzedDataProvider.h>
-#include <test/fuzz/fuzz.h>
-#include <test/fuzz/util.h>
+#include <test/fuzz/FuzzedDataProvider.h> 
+#include <test/fuzz/fuzz.h> 
+#include <test/fuzz/util.h> 
 
-#include <cstdint>
-#include <string>
-#include <vector>
+#include <cstdint> 
+#include <string> 
+#include <vector> 
 
 namespace {
 template <typename T>

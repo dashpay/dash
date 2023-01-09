@@ -2,31 +2,31 @@
 // Distributed under the MIT software license, see the accompanying
 // file COPYING or http://www.opensource.org/licenses/mit-license.php.
 
-#include <test/data/script_tests.json.h>
+#include <test/data/script_tests.json.h> 
 
-#include <core_io.h>
-#include <key.h>
-#include <script/script.h>
-#include <script/script_error.h>
-#include <script/sign.h>
-#include <script/signingprovider.h>
-#include <util/strencodings.h>
-#include <rpc/util.h>
-#include <test/util/setup_common.h>
-#include <test/util/transaction_utils.h>
-#include <streams.h>
+#include <core_io.h> 
+#include <key.h> 
+#include <script/script.h> 
+#include <script/script_error.h> 
+#include <script/sign.h> 
+#include <script/signingprovider.h> 
+#include <util/strencodings.h> 
+#include <rpc/util.h> 
+#include <test/util/setup_common.h> 
+#include <test/util/transaction_utils.h> 
+#include <streams.h> 
 
 #if defined(HAVE_CONSENSUS_LIB)
-#include <script/bitcoinconsensus.h>
+#include <script/bitcoinconsensus.h> 
 #endif
 
-#include <stdint.h>
-#include <string>
-#include <vector>
+#include <stdint.h> 
+#include <string> 
+#include <vector> 
 
-#include <boost/test/unit_test.hpp>
+#include <boost/test/unit_test.hpp> 
 
-#include <univalue.h>
+#include <univalue.h> 
 
 // Uncomment if you want to output updated JSON tests.
 // #define UPDATE_JSON_TESTS

@@ -2,13 +2,13 @@
 // Distributed under the MIT software license, see the accompanying
 // file COPYING or http://www.opensource.org/licenses/mit-license.php.
 
-#include <test/util/logging.h>
+#include <test/util/logging.h> 
 
-#include <logging.h>
-#include <noui.h>
-#include <tinyformat.h>
+#include <logging.h> 
+#include <noui.h> 
+#include <tinyformat.h> 
 
-#include <stdexcept>
+#include <stdexcept> 
 
 DebugLogHelper::DebugLogHelper(std::string message, MatchFn match)
     : m_message{std::move(message)}, m_match(std::move(match))

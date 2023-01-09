@@ -2,63 +2,63 @@
 // Distributed under the MIT software license, see the accompanying
 // file COPYING or http://www.opensource.org/licenses/mit-license.php.
 
-#include <test/util/setup_common.h>
+#include <test/util/setup_common.h> 
 
-#include <banman.h>
-#include <chainparams.h>
-#include <consensus/consensus.h>
-#include <consensus/params.h>
-#include <consensus/validation.h>
-#include <crypto/sha256.h>
-#include <governance/governance.h>
-#include <index/txindex.h>
-#include <init.h>
-#include <interfaces/chain.h>
-#include <masternode/sync.h>
-#include <llmq/blockprocessor.h>
-#include <llmq/chainlocks.h>
-#include <llmq/context.h>
-#include <llmq/dkgsessionmgr.h>
-#include <llmq/instantsend.h>
-#include <llmq/quorums.h>
-#include <llmq/signing_shares.h>
-#include <llmq/signing.h>
-#include <llmq/snapshot.h>
-#include <miner.h>
-#include <net.h>
-#include <net_processing.h>
-#include <noui.h>
-#include <pow.h>
-#include <rpc/blockchain.h>
-#include <rpc/register.h>
-#include <rpc/server.h>
-#include <script/sigcache.h>
-#include <streams.h>
-#include <spork.h>
-#include <txdb.h>
-#include <util/strencodings.h>
-#include <util/string.h>
-#include <util/time.h>
-#include <util/translation.h>
-#include <util/vector.h>
-#include <validation.h>
-#include <validationinterface.h>
-#include <walletinitinterface.h>
+#include <banman.h> 
+#include <chainparams.h> 
+#include <consensus/consensus.h> 
+#include <consensus/params.h> 
+#include <consensus/validation.h> 
+#include <crypto/sha256.h> 
+#include <governance/governance.h> 
+#include <index/txindex.h> 
+#include <init.h> 
+#include <interfaces/chain.h> 
+#include <masternode/sync.h> 
+#include <llmq/blockprocessor.h> 
+#include <llmq/chainlocks.h> 
+#include <llmq/context.h> 
+#include <llmq/dkgsessionmgr.h> 
+#include <llmq/instantsend.h> 
+#include <llmq/quorums.h> 
+#include <llmq/signing_shares.h> 
+#include <llmq/signing.h> 
+#include <llmq/snapshot.h> 
+#include <miner.h> 
+#include <net.h> 
+#include <net_processing.h> 
+#include <noui.h> 
+#include <pow.h> 
+#include <rpc/blockchain.h> 
+#include <rpc/register.h> 
+#include <rpc/server.h> 
+#include <script/sigcache.h> 
+#include <streams.h> 
+#include <spork.h> 
+#include <txdb.h> 
+#include <util/strencodings.h> 
+#include <util/string.h> 
+#include <util/time.h> 
+#include <util/translation.h> 
+#include <util/vector.h> 
+#include <validation.h> 
+#include <validationinterface.h> 
+#include <walletinitinterface.h> 
 
-#include <util/validation.h>
+#include <util/validation.h> 
 
-#include <bls/bls.h>
+#include <bls/bls.h> 
 #ifdef ENABLE_WALLET
-#include <coinjoin/client.h>
+#include <coinjoin/client.h> 
 #endif // ENABLE_WALLET
-#include <coinjoin/coinjoin.h>
-#include <coinjoin/server.h>
-#include <evo/cbtx.h>
-#include <evo/deterministicmns.h>
-#include <evo/evodb.h>
-#include <evo/specialtx.h>
+#include <coinjoin/coinjoin.h> 
+#include <coinjoin/server.h> 
+#include <evo/cbtx.h> 
+#include <evo/deterministicmns.h> 
+#include <evo/evodb.h> 
+#include <evo/specialtx.h> 
 
-#include <memory>
+#include <memory> 
 
 const std::function<std::string(const char*)> G_TRANSLATION_FUN = nullptr;
 

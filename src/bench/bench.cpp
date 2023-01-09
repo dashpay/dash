@@ -2,16 +2,16 @@
 // Distributed under the MIT software license, see the accompanying
 // file COPYING or http://www.opensource.org/licenses/mit-license.php.
 
-#include <bench/bench.h>
+#include <bench/bench.h> 
 
-#include <chainparams.h>
-#include <test/util/setup_common.h>
-#include <validation.h>
+#include <chainparams.h> 
+#include <test/util/setup_common.h> 
+#include <validation.h> 
 
-#include <algorithm>
-#include <assert.h>
-#include <iostream>
-#include <regex>
+#include <algorithm> 
+#include <assert.h> 
+#include <iostream> 
+#include <regex> 
 
 const std::function<void(const std::string&)> G_TEST_LOG_FUN{};
 

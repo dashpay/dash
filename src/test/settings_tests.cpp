@@ -2,17 +2,17 @@
 // Distributed under the MIT software license, see the accompanying
 // file COPYING or http://www.opensource.org/licenses/mit-license.php.
 
-#include <util/settings.h>
+#include <util/settings.h> 
 
-#include <test/util.h>
-#include <test/util/setup_common.h>
+#include <test/util.h> 
+#include <test/util/setup_common.h> 
 
-#include <boost/test/unit_test.hpp>
-#include <univalue.h>
-#include <util/strencodings.h>
-#include <util/string.h>
-#include <util/system.h>
-#include <vector>
+#include <boost/test/unit_test.hpp> 
+#include <univalue.h> 
+#include <util/strencodings.h> 
+#include <util/string.h> 
+#include <util/system.h> 
+#include <vector> 
 
 inline bool operator==(const util::SettingsValue& a, const util::SettingsValue& b)
 {

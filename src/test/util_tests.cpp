@@ -2,38 +2,38 @@
 // Distributed under the MIT software license, see the accompanying
 // file COPYING or http://www.opensource.org/licenses/mit-license.php.
 
-#include <util/system.h>
+#include <util/system.h> 
 
-#include <clientversion.h>
-#include <hash.h> // For Hash()
-#include <key.h> // For CKey
-#include <sync.h>
-#include <test/util/logging.h>
-#include <test/util.h>
-#include <uint256.h>
-#include <util/getuniquepath.h>
-#include <util/strencodings.h>
-#include <util/string.h>
-#include <util/message.h> // For MessageSign(), MessageVerify(), MESSAGE_MAGIC
-#include <util/moneystr.h>
-#include <util/time.h>
-#include <test/util/setup_common.h>
-#include <util/vector.h>
-#include <util/spanparsing.h>
+#include <clientversion.h> 
+#include <hash.h>  // For Hash()
+#include <key.h>  // For CKey
+#include <sync.h> 
+#include <test/util/logging.h> 
+#include <test/util.h> 
+#include <uint256.h> 
+#include <util/getuniquepath.h> 
+#include <util/strencodings.h> 
+#include <util/string.h> 
+#include <util/message.h>  // For MessageSign(), MessageVerify(), MESSAGE_MAGIC
+#include <util/moneystr.h> 
+#include <util/time.h> 
+#include <test/util/setup_common.h> 
+#include <util/vector.h> 
+#include <util/spanparsing.h> 
 
-#include <array>
-#include <stdint.h>
-#include <thread>
-#include <univalue.h>
-#include <utility>
-#include <vector>
+#include <array> 
+#include <stdint.h> 
+#include <thread> 
+#include <univalue.h> 
+#include <utility> 
+#include <vector> 
 #ifndef WIN32
-#include <signal.h>
-#include <sys/types.h>
-#include <sys/wait.h>
+#include <signal.h> 
+#include <sys/types.h> 
+#include <sys/wait.h> 
 #endif
 
-#include <boost/test/unit_test.hpp>
+#include <boost/test/unit_test.hpp> 
 
 using namespace std::string_literals;
 

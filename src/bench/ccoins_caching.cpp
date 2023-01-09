@@ -2,12 +2,12 @@
 // Distributed under the MIT software license, see the accompanying
 // file COPYING or http://www.opensource.org/licenses/mit-license.php.
 
-#include <bench/bench.h>
-#include <coins.h>
-#include <policy/policy.h>
-#include <script/signingprovider.h>
+#include <bench/bench.h> 
+#include <coins.h> 
+#include <policy/policy.h> 
+#include <script/signingprovider.h> 
 
-#include <vector>
+#include <vector> 
 
 // FIXME: Dedup with SetupDummyInputs in test/transaction_tests.cpp.
 //

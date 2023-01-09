@@ -2,15 +2,15 @@
 // Distributed under the MIT software license, see the accompanying
 // file COPYING or http://www.opensource.org/licenses/mit-license.php.
 
-#include <policy/policy.h>
-#include <script/interpreter.h>
+#include <policy/policy.h> 
+#include <script/interpreter.h> 
 
-#include <test/lcg.h>
-#include <test/util/setup_common.h>
+#include <test/lcg.h> 
+#include <test/util/setup_common.h> 
 
-#include <boost/test/unit_test.hpp>
+#include <boost/test/unit_test.hpp> 
 
-#include <array>
+#include <array> 
 
 typedef std::vector<uint8_t> valtype;
 typedef std::vector<valtype> stacktype;

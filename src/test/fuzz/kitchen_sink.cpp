@@ -2,15 +2,15 @@
 // Distributed under the MIT software license, see the accompanying
 // file COPYING or http://www.opensource.org/licenses/mit-license.php.
 
-#include <rpc/util.h>
-#include <test/fuzz/FuzzedDataProvider.h>
-#include <test/fuzz/fuzz.h>
-#include <test/fuzz/util.h>
-#include <util/error.h>
-#include <util/translation.h>
+#include <rpc/util.h> 
+#include <test/fuzz/FuzzedDataProvider.h> 
+#include <test/fuzz/fuzz.h> 
+#include <test/fuzz/util.h> 
+#include <util/error.h> 
+#include <util/translation.h> 
 
-#include <cstdint>
-#include <vector>
+#include <cstdint> 
+#include <vector> 
 
 // The fuzzing kitchen sink: Fuzzing harness for functions that need to be
 // fuzzed but a.) don't belong in any existing fuzzing harness file, and

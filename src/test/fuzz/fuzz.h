@@ -5,10 +5,10 @@
 #ifndef BITCOIN_TEST_FUZZ_FUZZ_H
 #define BITCOIN_TEST_FUZZ_FUZZ_H
 
-#include <cstdint>
-#include <functional>
-#include <string_view>
-#include <vector>
+#include <cstdint> 
+#include <functional> 
+#include <string_view> 
+#include <vector> 
 
 using TypeTestOneInput = std::function<void(const std::vector<uint8_t>&)>;
 using TypeInitialize = std::function<void()>;

@@ -2,18 +2,18 @@
 // Distributed under the MIT software license, see the accompanying
 // file COPYING or http://www.opensource.org/licenses/mit-license.php.
 
-#include <test/fuzz/fuzz.h>
+#include <test/fuzz/fuzz.h> 
 
-#include <psbt.h>
-#include <pubkey.h>
-#include <script/script.h>
-#include <streams.h>
-#include <version.h>
+#include <psbt.h> 
+#include <pubkey.h> 
+#include <script/script.h> 
+#include <streams.h> 
+#include <version.h> 
 
-#include <cstdint>
-#include <string>
-#include <optional>
-#include <vector>
+#include <cstdint> 
+#include <string> 
+#include <optional> 
+#include <vector> 
 
 void initialize_psbt()
 {

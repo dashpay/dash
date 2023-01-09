@@ -2,13 +2,13 @@
 // Distributed under the MIT software license, see the accompanying
 // file COPYING or http://www.opensource.org/licenses/mit-license.php.
 
-#include <bench/bench.h>
-#include <interfaces/chain.h>
-#include <node/context.h>
-#include <wallet/coinselection.h>
-#include <wallet/wallet.h>
+#include <bench/bench.h> 
+#include <interfaces/chain.h> 
+#include <node/context.h> 
+#include <wallet/coinselection.h> 
+#include <wallet/wallet.h> 
 
-#include <set>
+#include <set> 
 
 static void addCoin(const CAmount& nValue, const CWallet& wallet, std::vector<std::unique_ptr<CWalletTx>>& wtxs)
 {

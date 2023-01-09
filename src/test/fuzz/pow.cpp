@@ -2,18 +2,18 @@
 // Distributed under the MIT software license, see the accompanying
 // file COPYING or http://www.opensource.org/licenses/mit-license.php.
 
-#include <chain.h>
-#include <chainparams.h>
-#include <pow.h>
-#include <primitives/block.h>
-#include <test/fuzz/FuzzedDataProvider.h>
-#include <test/fuzz/fuzz.h>
-#include <test/fuzz/util.h>
+#include <chain.h> 
+#include <chainparams.h> 
+#include <pow.h> 
+#include <primitives/block.h> 
+#include <test/fuzz/FuzzedDataProvider.h> 
+#include <test/fuzz/fuzz.h> 
+#include <test/fuzz/util.h> 
 
-#include <cstdint>
-#include <optional>
-#include <string>
-#include <vector>
+#include <cstdint> 
+#include <optional> 
+#include <string> 
+#include <vector> 
 
 void initialize_pow()
 {

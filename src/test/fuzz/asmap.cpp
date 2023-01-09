@@ -2,12 +2,12 @@
 // Distributed under the MIT software license, see the accompanying
 // file COPYING or http://www.opensource.org/licenses/mit-license.php.
 
-#include <netaddress.h>
-#include <test/fuzz/fuzz.h>
-#include <util/asmap.h>
+#include <netaddress.h> 
+#include <test/fuzz/fuzz.h> 
+#include <util/asmap.h> 
 
-#include <cstdint>
-#include <vector>
+#include <cstdint> 
+#include <vector> 
 
 //! asmap code that consumes nothing
 static const std::vector<bool> IPV6_PREFIX_ASMAP = {};

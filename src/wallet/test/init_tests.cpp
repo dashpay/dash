@@ -2,12 +2,12 @@
 // Distributed under the MIT software license, see the accompanying
 // file COPYING or http://www.opensource.org/licenses/mit-license.php.
 
-#include <boost/test/unit_test.hpp>
+#include <boost/test/unit_test.hpp> 
 
-#include <noui.h>
-#include <test/util/logging.h>
-#include <util/system.h>
-#include <wallet/test/init_test_fixture.h>
+#include <noui.h> 
+#include <test/util/logging.h> 
+#include <util/system.h> 
+#include <wallet/test/init_test_fixture.h> 
 
 BOOST_FIXTURE_TEST_SUITE(init_tests, InitWalletDirTestingSetup)
 

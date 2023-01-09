@@ -2,22 +2,22 @@
 // Distributed under the MIT software license, see the accompanying
 // file COPYING or http://www.opensource.org/licenses/mit-license.php.
 
-#include <bloom.h>
-#include <bls/bls.h>
-#include <clientversion.h>
-#include <key.h>
-#include <key_io.h>
-#include <merkleblock.h>
-#include <primitives/block.h>
-#include <serialize.h>
-#include <streams.h>
-#include <uint256.h>
-#include <util/strencodings.h>
-#include <test/util/setup_common.h>
+#include <bloom.h> 
+#include <bls/bls.h> 
+#include <clientversion.h> 
+#include <key.h> 
+#include <key_io.h> 
+#include <merkleblock.h> 
+#include <primitives/block.h> 
+#include <serialize.h> 
+#include <streams.h> 
+#include <uint256.h> 
+#include <util/strencodings.h> 
+#include <test/util/setup_common.h> 
 
-#include <vector>
+#include <vector> 
 
-#include <boost/test/unit_test.hpp>
+#include <boost/test/unit_test.hpp> 
 
 BOOST_FIXTURE_TEST_SUITE(bloom_tests, BasicTestingSetup)
 

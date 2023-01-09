@@ -2,17 +2,17 @@
 // Distributed under the MIT software license, see the accompanying
 // file COPYING or http://www.opensource.org/licenses/mit-license.php.
 
-#include <bench/bench.h>
-#include <consensus/consensus.h>
-#include <consensus/validation.h>
-#include <script/standard.h>
-#include <test/util.h>
-#include <test/util/setup_common.h>
-#include <txmempool.h>
-#include <validation.h>
+#include <bench/bench.h> 
+#include <consensus/consensus.h> 
+#include <consensus/validation.h> 
+#include <script/standard.h> 
+#include <test/util.h> 
+#include <test/util/setup_common.h> 
+#include <txmempool.h> 
+#include <validation.h> 
 
 
-#include <vector>
+#include <vector> 
 
 static void AssembleBlock(benchmark::Bench& bench)
 {

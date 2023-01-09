@@ -5,36 +5,36 @@
 #ifndef BITCOIN_TEST_FUZZ_UTIL_H
 #define BITCOIN_TEST_FUZZ_UTIL_H
 
-#include <amount.h>
-#include <arith_uint256.h>
-#include <attributes.h>
-#include <chainparamsbase.h>
-#include <coins.h>
-#include <consensus/consensus.h>
-#include <merkleblock.h>
-#include <net.h>
-#include <netaddress.h>
-#include <netbase.h>
-#include <primitives/transaction.h>
-#include <script/script.h>
-#include <script/standard.h>
-#include <serialize.h>
-#include <streams.h>
-#include <test/fuzz/FuzzedDataProvider.h>
-#include <test/fuzz/fuzz.h>
-#include <test/util/setup_common.h>
-#include <txmempool.h>
-#include <uint256.h>
-#include <util/time.h>
-#include <version.h>
+#include <amount.h> 
+#include <arith_uint256.h> 
+#include <attributes.h> 
+#include <chainparamsbase.h> 
+#include <coins.h> 
+#include <consensus/consensus.h> 
+#include <merkleblock.h> 
+#include <net.h> 
+#include <netaddress.h> 
+#include <netbase.h> 
+#include <primitives/transaction.h> 
+#include <script/script.h> 
+#include <script/standard.h> 
+#include <serialize.h> 
+#include <streams.h> 
+#include <test/fuzz/FuzzedDataProvider.h> 
+#include <test/fuzz/fuzz.h> 
+#include <test/util/setup_common.h> 
+#include <txmempool.h> 
+#include <uint256.h> 
+#include <util/time.h> 
+#include <version.h> 
 
-#include <algorithm>
-#include <array>
-#include <cstdint>
-#include <cstdio>
-#include <optional>
-#include <string>
-#include <vector>
+#include <algorithm> 
+#include <array> 
+#include <cstdint> 
+#include <cstdio> 
+#include <optional> 
+#include <string> 
+#include <vector> 
 
 [[ nodiscard ]] inline std::vector<uint8_t> ConsumeRandomLengthByteVector(FuzzedDataProvider& fuzzed_data_provider, const size_t max_length = 4096) noexcept
 {

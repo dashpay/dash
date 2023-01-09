@@ -2,13 +2,13 @@
 // Distributed under the MIT software license, see the accompanying
 // file COPYING or http://www.opensource.org/licenses/mit-license.php.
 
-#include <bench/bench.h>
+#include <bench/bench.h> 
 
-#include <bech32.h>
-#include <util/strencodings.h>
+#include <bech32.h> 
+#include <util/strencodings.h> 
 
-#include <vector>
-#include <string>
+#include <vector> 
+#include <string> 
 
 
 static void Bech32Encode(benchmark::Bench& bench)

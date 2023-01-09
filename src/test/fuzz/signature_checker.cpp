@@ -2,15 +2,15 @@
 // Distributed under the MIT software license, see the accompanying
 // file COPYING or http://www.opensource.org/licenses/mit-license.php.
 
-#include <pubkey.h>
-#include <script/interpreter.h>
-#include <test/fuzz/FuzzedDataProvider.h>
-#include <test/fuzz/fuzz.h>
+#include <pubkey.h> 
+#include <script/interpreter.h> 
+#include <test/fuzz/FuzzedDataProvider.h> 
+#include <test/fuzz/fuzz.h> 
 
-#include <cstdint>
-#include <limits>
-#include <string>
-#include <vector>
+#include <cstdint> 
+#include <limits> 
+#include <string> 
+#include <vector> 
 
 void initialize_signature_checker()
 {

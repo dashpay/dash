@@ -2,13 +2,13 @@
 // Distributed under the MIT software license, see the accompanying
 // file COPYING or http://www.opensource.org/licenses/mit-license.php.
 
-#include <dbwrapper.h>
-#include <uint256.h>
-#include <test/util/setup_common.h>
+#include <dbwrapper.h> 
+#include <uint256.h> 
+#include <test/util/setup_common.h> 
 
-#include <memory>
+#include <memory> 
 
-#include <boost/test/unit_test.hpp>
+#include <boost/test/unit_test.hpp> 
 
 // Test if a string consists entirely of null characters
 static bool is_null_key(const std::vector<unsigned char>& key) {

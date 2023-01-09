@@ -5,8 +5,8 @@
 #ifndef BITCOIN_BENCH_DATA_H
 #define BITCOIN_BENCH_DATA_H
 
-#include <cstdint>
-#include <vector>
+#include <cstdint> 
+#include <vector> 
 
 namespace benchmark {
 namespace data {

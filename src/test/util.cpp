@@ -2,26 +2,26 @@
 // Distributed under the MIT software license, see the accompanying
 // file COPYING or http://www.opensource.org/licenses/mit-license.php.
 
-#include <test/util.h>
+#include <test/util.h> 
 
-#include <chainparams.h>
-#include <consensus/merkle.h>
-#include <governance/governance.h>
-#include <key_io.h>
-#include <llmq/blockprocessor.h>
-#include <llmq/chainlocks.h>
-#include <llmq/context.h>
-#include <llmq/instantsend.h>
-#include <evo/evodb.h>
-#include <miner.h>
-#include <node/context.h>
-#include <pow.h>
-#include <script/standard.h>
-#include <spork.h>
-#include <validation.h>
-#include <util/check.h>
+#include <chainparams.h> 
+#include <consensus/merkle.h> 
+#include <governance/governance.h> 
+#include <key_io.h> 
+#include <llmq/blockprocessor.h> 
+#include <llmq/chainlocks.h> 
+#include <llmq/context.h> 
+#include <llmq/instantsend.h> 
+#include <evo/evodb.h> 
+#include <miner.h> 
+#include <node/context.h> 
+#include <pow.h> 
+#include <script/standard.h> 
+#include <spork.h> 
+#include <validation.h> 
+#include <util/check.h> 
 #ifdef ENABLE_WALLET
-#include <wallet/wallet.h>
+#include <wallet/wallet.h> 
 #endif
 
 const std::string ADDRESS_B58T_UNSPENDABLE = "yXXXXXXXXXXXXXXXXXXXXXXXXXXXVd2rXU";

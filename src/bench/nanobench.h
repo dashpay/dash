@@ -39,11 +39,11 @@
 // public facing api - as minimal as possible
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
-#include <chrono>  // high_resolution_clock
-#include <cstring> // memcpy
-#include <iosfwd>  // for std::ostream* custom output target in Config
-#include <string>  // all names
-#include <vector>  // holds all results
+#include <chrono>   // high_resolution_clock
+#include <cstring>  // memcpy
+#include <iosfwd>   // for std::ostream* custom output target in Config
+#include <string>   // all names
+#include <vector>   // holds all results
 
 #define ANKERL_NANOBENCH(x) ANKERL_NANOBENCH_PRIVATE_##x()
 

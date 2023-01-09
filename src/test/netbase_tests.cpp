@@ -3,20 +3,20 @@
 // Distributed under the MIT software license, see the accompanying
 // file COPYING or http://www.opensource.org/licenses/mit-license.php.
 
-#include <netaddress.h>
-#include <netbase.h>
-#include <net_permissions.h>
-#include <protocol.h>
-#include <serialize.h>
-#include <streams.h>
-#include <test/util/setup_common.h>
-#include <util/strencodings.h>
-#include <util/translation.h>
-#include <version.h>
+#include <netaddress.h> 
+#include <netbase.h> 
+#include <net_permissions.h> 
+#include <protocol.h> 
+#include <serialize.h> 
+#include <streams.h> 
+#include <test/util/setup_common.h> 
+#include <util/strencodings.h> 
+#include <util/translation.h> 
+#include <version.h> 
 
-#include <string>
+#include <string> 
 
-#include <boost/test/unit_test.hpp>
+#include <boost/test/unit_test.hpp> 
 
 BOOST_FIXTURE_TEST_SUITE(netbase_tests, BasicTestingSetup)
 

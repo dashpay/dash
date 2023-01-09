@@ -2,20 +2,20 @@
 // Distributed under the MIT software license, see the accompanying
 // file COPYING or http://www.opensource.org/licenses/mit-license.php.
 
-#include <clientversion.h>
-#include <coins.h>
-#include <script/standard.h>
-#include <streams.h>
-#include <test/util/setup_common.h>
-#include <txdb.h>
-#include <uint256.h>
-#include <undo.h>
-#include <util/strencodings.h>
+#include <clientversion.h> 
+#include <coins.h> 
+#include <script/standard.h> 
+#include <streams.h> 
+#include <test/util/setup_common.h> 
+#include <txdb.h> 
+#include <uint256.h> 
+#include <undo.h> 
+#include <util/strencodings.h> 
 
-#include <map>
-#include <vector>
+#include <map> 
+#include <vector> 
 
-#include <boost/test/unit_test.hpp>
+#include <boost/test/unit_test.hpp> 
 
 int ApplyTxInUndo(Coin&& undo, CCoinsViewCache& view, const COutPoint& out);
 void UpdateCoins(const CTransaction& tx, CCoinsViewCache& inputs, CTxUndo &txundo, int nHeight);

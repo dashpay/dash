@@ -2,27 +2,27 @@
 // Distributed under the MIT software license, see the accompanying
 // file COPYING or http://www.opensource.org/licenses/mit-license.php.
 
-#include <test/util/setup_common.h>
+#include <test/util/setup_common.h> 
 
-#include <base58.h>
-#include <chainparams.h>
-#include <consensus/validation.h>
-#include <messagesigner.h>
-#include <netbase.h>
-#include <policy/policy.h>
-#include <script/interpreter.h>
-#include <script/sign.h>
-#include <script/signingprovider.h>
-#include <script/standard.h>
-#include <spork.h>
-#include <txmempool.h>
-#include <validation.h>
+#include <base58.h> 
+#include <chainparams.h> 
+#include <consensus/validation.h> 
+#include <messagesigner.h> 
+#include <netbase.h> 
+#include <policy/policy.h> 
+#include <script/interpreter.h> 
+#include <script/sign.h> 
+#include <script/signingprovider.h> 
+#include <script/standard.h> 
+#include <spork.h> 
+#include <txmempool.h> 
+#include <validation.h> 
 
-#include <evo/specialtx.h>
-#include <evo/providertx.h>
-#include <evo/deterministicmns.h>
+#include <evo/specialtx.h> 
+#include <evo/providertx.h> 
+#include <evo/deterministicmns.h> 
 
-#include <boost/test/unit_test.hpp>
+#include <boost/test/unit_test.hpp> 
 
 using SimpleUTXOMap = std::map<COutPoint, std::pair<int, CAmount>>;
 

@@ -3,13 +3,13 @@
 // file COPYING or http://www.opensource.org/licenses/mit-license.php.
 
 
-#include <bench/bench.h>
-#include <crypto/chacha_poly_aead.h>
-#include <crypto/poly1305.h> // for the POLY1305_TAGLEN constant
-#include <hash.h>
+#include <bench/bench.h> 
+#include <crypto/chacha_poly_aead.h> 
+#include <crypto/poly1305.h>  // for the POLY1305_TAGLEN constant
+#include <hash.h> 
 
-#include <limits>
-#include <assert.h>
+#include <limits> 
+#include <assert.h> 
 
 /* Number of bytes to process per iteration */
 static constexpr uint64_t BUFFER_SIZE_TINY = 64;

@@ -2,23 +2,23 @@
 // Distributed under the MIT software license, see the accompanying
 // file COPYING or http://www.opensource.org/licenses/mit-license.php.
 
-#include <chainparams.h>
-#include <coins.h>
-#include <consensus/tx_check.h>
-#include <consensus/tx_verify.h>
-#include <consensus/validation.h>
-#include <core_io.h>
-#include <core_memusage.h>
-#include <policy/policy.h>
-#include <policy/settings.h>
-#include <primitives/transaction.h>
-#include <streams.h>
-#include <test/fuzz/fuzz.h>
-#include <univalue.h>
-#include <validation.h>
-#include <version.h>
+#include <chainparams.h> 
+#include <coins.h> 
+#include <consensus/tx_check.h> 
+#include <consensus/tx_verify.h> 
+#include <consensus/validation.h> 
+#include <core_io.h> 
+#include <core_memusage.h> 
+#include <policy/policy.h> 
+#include <policy/settings.h> 
+#include <primitives/transaction.h> 
+#include <streams.h> 
+#include <test/fuzz/fuzz.h> 
+#include <univalue.h> 
+#include <validation.h> 
+#include <version.h> 
 
-#include <cassert>
+#include <cassert> 
 
 void initialize_transaction()
 {

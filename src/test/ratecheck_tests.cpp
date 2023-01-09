@@ -1,10 +1,10 @@
 // Copyright (c) 2014-2022 The Dash Core developers
 
-#include <governance/governance.h>
+#include <governance/governance.h> 
 
-#include <test/util/setup_common.h>
+#include <test/util/setup_common.h> 
 
-#include <boost/test/unit_test.hpp>
+#include <boost/test/unit_test.hpp> 
 
 BOOST_FIXTURE_TEST_SUITE(ratecheck_tests, BasicTestingSetup)
 

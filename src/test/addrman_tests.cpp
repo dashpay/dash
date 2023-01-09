@@ -2,17 +2,17 @@
 // Distributed under the MIT software license, see the accompanying
 // file COPYING or http://www.opensource.org/licenses/mit-license.php.
 
-#include <addrman.h>
-#include <hash.h>
-#include <netbase.h>
-#include <random.h>
-#include <util/string.h>
-#include <test/data/asmap.raw.h>
-#include <test/util/setup_common.h>
+#include <addrman.h> 
+#include <hash.h> 
+#include <netbase.h> 
+#include <random.h> 
+#include <util/string.h> 
+#include <test/data/asmap.raw.h> 
+#include <test/util/setup_common.h> 
 
-#include <string>
+#include <string> 
 
-#include <boost/test/unit_test.hpp>
+#include <boost/test/unit_test.hpp> 
 
 class CAddrManTest : public CAddrMan
 {

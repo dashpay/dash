@@ -2,16 +2,16 @@
 // Distributed under the MIT software license, see the accompanying
 // file COPYING or http://www.opensource.org/licenses/mit-license.php.
 
-#include <test/data/base58_encode_decode.json.h>
+#include <test/data/base58_encode_decode.json.h> 
 
-#include <base58.h>
-#include <test/util/setup_common.h>
-#include <util/strencodings.h>
-#include <util/vector.h>
+#include <base58.h> 
+#include <test/util/setup_common.h> 
+#include <util/strencodings.h> 
+#include <util/vector.h> 
 
-#include <univalue.h>
+#include <univalue.h> 
 
-#include <boost/test/unit_test.hpp>
+#include <boost/test/unit_test.hpp> 
 
 
 extern UniValue read_json(const std::string& jsondata);

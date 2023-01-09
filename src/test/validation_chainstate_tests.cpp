@@ -2,21 +2,21 @@
 // Distributed under the MIT software license, see the accompanying
 // file COPYING or http://www.opensource.org/licenses/mit-license.php.
 //
-#include <index/txindex.h>
-#include <llmq/blockprocessor.h>
-#include <llmq/chainlocks.h>
-#include <llmq/instantsend.h>
-#include <evo/evodb.h>
-#include <random.h>
-#include <uint256.h>
-#include <consensus/validation.h>
-#include <sync.h>
-#include <test/util/setup_common.h>
-#include <validation.h>
+#include <index/txindex.h> 
+#include <llmq/blockprocessor.h> 
+#include <llmq/chainlocks.h> 
+#include <llmq/instantsend.h> 
+#include <evo/evodb.h> 
+#include <random.h> 
+#include <uint256.h> 
+#include <consensus/validation.h> 
+#include <sync.h> 
+#include <test/util/setup_common.h> 
+#include <validation.h> 
 
-#include <vector>
+#include <vector> 
 
-#include <boost/test/unit_test.hpp>
+#include <boost/test/unit_test.hpp> 
 
 BOOST_FIXTURE_TEST_SUITE(validation_chainstate_tests, TestingSetup)
 

@@ -3,8 +3,8 @@
 // file COPYING or http://www.opensource.org/licenses/mit-license.php.
 
 
-#include <bench/bench.h>
-#include <crypto/chacha20.h>
+#include <bench/bench.h> 
+#include <crypto/chacha20.h> 
 
 /* Number of bytes to process per iteration */
 static const uint64_t BUFFER_SIZE_TINY  = 64;

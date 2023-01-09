@@ -2,15 +2,15 @@
 // Distributed under the MIT software license, see the accompanying
 // file COPYING or http://www.opensource.org/licenses/mit-license.php.
 
-#include <consensus/validation.h>
-#include <validation.h>
-#include <txmempool.h>
-#include <script/standard.h>
-#include <script/sign.h>
-#include <script/signingprovider.h>
-#include <test/util/setup_common.h>
+#include <consensus/validation.h> 
+#include <validation.h> 
+#include <txmempool.h> 
+#include <script/standard.h> 
+#include <script/sign.h> 
+#include <script/signingprovider.h> 
+#include <test/util/setup_common.h> 
 
-#include <boost/test/unit_test.hpp>
+#include <boost/test/unit_test.hpp> 
 
 bool CheckInputs(const CTransaction& tx, CValidationState &state, const CCoinsViewCache &inputs, bool fScriptChecks, unsigned int flags, bool cacheSigStore, bool cacheFullScriptStore, PrecomputedTransactionData& txdata, std::vector<CScriptCheck> *pvChecks);
 

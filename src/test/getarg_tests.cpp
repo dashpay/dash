@@ -2,16 +2,16 @@
 // Distributed under the MIT software license, see the accompanying
 // file COPYING or http://www.opensource.org/licenses/mit-license.php.
 
-#include <util/strencodings.h>
-#include <util/system.h>
-#include <test/util/setup_common.h>
+#include <util/strencodings.h> 
+#include <util/system.h> 
+#include <test/util/setup_common.h> 
 
-#include <string>
-#include <utility>
-#include <vector>
+#include <string> 
+#include <utility> 
+#include <vector> 
 
-#include <boost/algorithm/string.hpp>
-#include <boost/test/unit_test.hpp>
+#include <boost/algorithm/string.hpp> 
+#include <boost/test/unit_test.hpp> 
 
 namespace getarg_tests{
     class LocalTestingSetup : BasicTestingSetup {

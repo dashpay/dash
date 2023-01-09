@@ -3,11 +3,11 @@
 // file COPYING or http://www.opensource.org/licenses/mit-license.php.
 
 
-#include <test/util/setup_common.h>
+#include <test/util/setup_common.h> 
 
-#include <memory>
+#include <memory> 
 
-#include <boost/test/unit_test.hpp>
+#include <boost/test/unit_test.hpp> 
 
 BOOST_FIXTURE_TEST_SUITE(allocator_tests, BasicTestingSetup)
 

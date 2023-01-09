@@ -1,18 +1,18 @@
 // Copyright (c) 2014-2022 The Dash Core developers
 
-#include <governance/validators.h>
-#include <util/strencodings.h>
+#include <governance/validators.h> 
+#include <util/strencodings.h> 
 
-#include <test/data/proposals_valid.json.h>
-#include <test/data/proposals_invalid.json.h>
+#include <test/data/proposals_valid.json.h> 
+#include <test/data/proposals_invalid.json.h> 
 
-#include <test/util/setup_common.h>
+#include <test/util/setup_common.h> 
 
-#include <string>
+#include <string> 
 
-#include <boost/test/unit_test.hpp>
+#include <boost/test/unit_test.hpp> 
 
-#include <univalue.h>
+#include <univalue.h> 
 
 extern UniValue read_json(const std::string& jsondata);
 

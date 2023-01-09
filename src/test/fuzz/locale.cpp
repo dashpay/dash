@@ -2,18 +2,18 @@
 // Distributed under the MIT software license, see the accompanying
 // file COPYING or http://www.opensource.org/licenses/mit-license.php.
 
-#include <test/fuzz/FuzzedDataProvider.h>
-#include <test/fuzz/fuzz.h>
-#include <tinyformat.h>
-#include <util/strencodings.h>
-#include <util/string.h>
+#include <test/fuzz/FuzzedDataProvider.h> 
+#include <test/fuzz/fuzz.h> 
+#include <tinyformat.h> 
+#include <util/strencodings.h> 
+#include <util/string.h> 
 
-#include <cassert>
-#include <clocale>
-#include <cstdint>
-#include <locale>
-#include <string>
-#include <vector>
+#include <cassert> 
+#include <clocale> 
+#include <cstdint> 
+#include <locale> 
+#include <string> 
+#include <vector> 
 
 namespace {
 const std::string locale_identifiers[] = {

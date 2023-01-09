@@ -2,16 +2,16 @@
 // Distributed under the MIT software license, see the accompanying
 // file COPYING or http://www.opensource.org/licenses/mit-license.php.
 
-#include <chainparams.h>
-#include <flatfile.h>
-#include <test/fuzz/FuzzedDataProvider.h>
-#include <test/fuzz/fuzz.h>
-#include <test/fuzz/util.h>
-#include <test/util/setup_common.h>
-#include <validation.h>
+#include <chainparams.h> 
+#include <flatfile.h> 
+#include <test/fuzz/FuzzedDataProvider.h> 
+#include <test/fuzz/fuzz.h> 
+#include <test/fuzz/util.h> 
+#include <test/util/setup_common.h> 
+#include <validation.h> 
 
-#include <cstdint>
-#include <vector>
+#include <cstdint> 
+#include <vector> 
 
 void initialize_load_external_block_file()
 {

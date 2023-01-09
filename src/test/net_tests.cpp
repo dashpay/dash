@@ -2,29 +2,29 @@
 // Distributed under the MIT software license, see the accompanying
 // file COPYING or http://www.opensource.org/licenses/mit-license.php.
 
-#include <test/util/setup_common.h>
+#include <test/util/setup_common.h> 
 
-#include <addrdb.h>
-#include <addrman.h>
-#include <clientversion.h>
-#include <netaddress.h>
-#include <serialize.h>
-#include <span.h>
-#include <streams.h>
-#include <net.h>
-#include <netbase.h>
-#include <chainparams.h>
-#include <util/system.h>
-#include <util/string.h>
-#include <util/strencodings.h>
-#include <version.h>
+#include <addrdb.h> 
+#include <addrman.h> 
+#include <clientversion.h> 
+#include <netaddress.h> 
+#include <serialize.h> 
+#include <span.h> 
+#include <streams.h> 
+#include <net.h> 
+#include <netbase.h> 
+#include <chainparams.h> 
+#include <util/system.h> 
+#include <util/string.h> 
+#include <util/strencodings.h> 
+#include <version.h> 
 
-#include <cstdint>
-#include <ios>
-#include <memory>
-#include <string>
+#include <cstdint> 
+#include <ios> 
+#include <memory> 
+#include <string> 
 
-#include <boost/test/unit_test.hpp>
+#include <boost/test/unit_test.hpp> 
 
 class CAddrManSerializationMock : public CAddrMan
 {

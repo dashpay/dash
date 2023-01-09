@@ -2,15 +2,15 @@
 // Distributed under the MIT software license, see the accompanying
 // file COPYING or http://www.opensource.org/licenses/mit-license.php.
 
-#include <bench/bench.h>
-#include <util/system.h>
-#include <checkqueue.h>
-#include <key.h>
-#include <prevector.h>
-#include <pubkey.h>
-#include <random.h>
+#include <bench/bench.h> 
+#include <util/system.h> 
+#include <checkqueue.h> 
+#include <key.h> 
+#include <prevector.h> 
+#include <pubkey.h> 
+#include <random.h> 
 
-#include <vector>
+#include <vector> 
 
 static const size_t BATCHES = 101;
 static const size_t BATCH_SIZE = 30;

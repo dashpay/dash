@@ -2,16 +2,16 @@
 // Distributed under the MIT software license, see the accompanying
 // file COPYING or http://www.opensource.org/licenses/mit-license.php.
 
-#include <crypto/chacha_poly_aead.h>
-#include <crypto/poly1305.h>
-#include <test/fuzz/FuzzedDataProvider.h>
-#include <test/fuzz/fuzz.h>
-#include <test/fuzz/util.h>
+#include <crypto/chacha_poly_aead.h> 
+#include <crypto/poly1305.h> 
+#include <test/fuzz/FuzzedDataProvider.h> 
+#include <test/fuzz/fuzz.h> 
+#include <test/fuzz/util.h> 
 
-#include <cassert>
-#include <cstdint>
-#include <limits>
-#include <vector>
+#include <cassert> 
+#include <cstdint> 
+#include <limits> 
+#include <vector> 
 
 FUZZ_TARGET(crypto_chacha20_poly1305_aead)
 {

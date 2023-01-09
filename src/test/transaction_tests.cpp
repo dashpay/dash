@@ -2,33 +2,33 @@
 // Distributed under the MIT software license, see the accompanying
 // file COPYING or http://www.opensource.org/licenses/mit-license.php.
 
-#include <test/data/tx_invalid.json.h>
-#include <test/data/tx_valid.json.h>
-#include <test/util/setup_common.h>
+#include <test/data/tx_invalid.json.h> 
+#include <test/data/tx_valid.json.h> 
+#include <test/util/setup_common.h> 
 
-#include <clientversion.h>
-#include <checkqueue.h>
-#include <consensus/tx_check.h>
-#include <consensus/validation.h>
-#include <core_io.h>
-#include <key.h>
-#include <validation.h>
-#include <policy/policy.h>
-#include <policy/settings.h>
-#include <script/script.h>
-#include <script/signingprovider.h>
-#include <script/script_error.h>
-#include <streams.h>
-#include <util/strencodings.h>
+#include <clientversion.h> 
+#include <checkqueue.h> 
+#include <consensus/tx_check.h> 
+#include <consensus/validation.h> 
+#include <core_io.h> 
+#include <key.h> 
+#include <validation.h> 
+#include <policy/policy.h> 
+#include <policy/settings.h> 
+#include <script/script.h> 
+#include <script/signingprovider.h> 
+#include <script/script_error.h> 
+#include <streams.h> 
+#include <util/strencodings.h> 
 
-#include <map>
-#include <string>
+#include <map> 
+#include <string> 
 
-#include <boost/algorithm/string/classification.hpp>
-#include <boost/algorithm/string/split.hpp>
-#include <boost/test/unit_test.hpp>
+#include <boost/algorithm/string/classification.hpp> 
+#include <boost/algorithm/string/split.hpp> 
+#include <boost/test/unit_test.hpp> 
 
-#include <univalue.h>
+#include <univalue.h> 
 
 // In script_tests.cpp
 extern UniValue read_json(const std::string& jsondata);

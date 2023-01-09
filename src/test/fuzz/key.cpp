@@ -2,25 +2,25 @@
 // Distributed under the MIT software license, see the accompanying
 // file COPYING or http://www.opensource.org/licenses/mit-license.php.
 
-#include <chainparams.h>
-#include <chainparamsbase.h>
-#include <key.h>
-#include <key_io.h>
-#include <policy/policy.h>
-#include <pubkey.h>
-#include <rpc/util.h>
-#include <script/script.h>
-#include <script/sign.h>
-#include <script/standard.h>
-#include <streams.h>
-#include <test/fuzz/fuzz.h>
-#include <util/strencodings.h>
+#include <chainparams.h> 
+#include <chainparamsbase.h> 
+#include <key.h> 
+#include <key_io.h> 
+#include <policy/policy.h> 
+#include <pubkey.h> 
+#include <rpc/util.h> 
+#include <script/script.h> 
+#include <script/sign.h> 
+#include <script/standard.h> 
+#include <streams.h> 
+#include <test/fuzz/fuzz.h> 
+#include <util/strencodings.h> 
 
-#include <cassert>
-#include <cstdint>
-#include <numeric>
-#include <string>
-#include <vector>
+#include <cassert> 
+#include <cstdint> 
+#include <numeric> 
+#include <string> 
+#include <vector> 
 
 void initialize_key()
 {

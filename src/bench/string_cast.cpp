@@ -2,13 +2,13 @@
 // Distributed under the MIT software license, see the accompanying
 // file COPYING or http://www.opensource.org/licenses/mit-license.php.
 
-#include <bench/bench.h>
-#include <tinyformat.h>
-#include <util/string.h>
-#include <util/strencodings.h>
+#include <bench/bench.h> 
+#include <tinyformat.h> 
+#include <util/string.h> 
+#include <util/strencodings.h> 
 
-#include <boost/lexical_cast.hpp>
-#include <string>
+#include <boost/lexical_cast.hpp> 
+#include <string> 
 
 template <typename T>
 std::string NumberToString(T Number){

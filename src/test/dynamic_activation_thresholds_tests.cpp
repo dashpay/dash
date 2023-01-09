@@ -2,22 +2,22 @@
 // Distributed under the MIT software license, see the accompanying
 // file COPYING or http://www.opensource.org/licenses/mit-license.php.
 
-#include <test/util/setup_common.h>
+#include <test/util/setup_common.h> 
 
-#include <chainparams.h>
-#include <consensus/validation.h>
-#include <governance/governance.h>
-#include <llmq/blockprocessor.h>
-#include <llmq/chainlocks.h>
-#include <llmq/context.h>
-#include <llmq/instantsend.h>
-#include <evo/evodb.h>
-#include <miner.h>
-#include <script/interpreter.h>
-#include <spork.h>
-#include <validation.h>
+#include <chainparams.h> 
+#include <consensus/validation.h> 
+#include <governance/governance.h> 
+#include <llmq/blockprocessor.h> 
+#include <llmq/chainlocks.h> 
+#include <llmq/context.h> 
+#include <llmq/instantsend.h> 
+#include <evo/evodb.h> 
+#include <miner.h> 
+#include <script/interpreter.h> 
+#include <spork.h> 
+#include <validation.h> 
 
-#include <boost/test/unit_test.hpp>
+#include <boost/test/unit_test.hpp> 
 
 const auto deployment_id = Consensus::DEPLOYMENT_DIP0020;
 constexpr int window{100}, th_start{80}, th_end{60};

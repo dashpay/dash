@@ -5,8 +5,8 @@
 #ifndef BITCOIN_TEST_UTIL_H
 #define BITCOIN_TEST_UTIL_H
 
-#include <memory>
-#include <string>
+#include <memory> 
+#include <string> 
 
 class CBlock;
 class CScript;

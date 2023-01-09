@@ -13,18 +13,18 @@
 #ifndef LLVM_FUZZER_FUZZED_DATA_PROVIDER_H_
 #define LLVM_FUZZER_FUZZED_DATA_PROVIDER_H_
 
-#include <algorithm>
-#include <array>
-#include <climits>
-#include <cstddef>
-#include <cstdint>
-#include <cstring>
-#include <initializer_list>
-#include <limits>
-#include <string>
-#include <type_traits>
-#include <utility>
-#include <vector>
+#include <algorithm> 
+#include <array> 
+#include <climits> 
+#include <cstddef> 
+#include <cstdint> 
+#include <cstring> 
+#include <initializer_list> 
+#include <limits> 
+#include <string> 
+#include <type_traits> 
+#include <utility> 
+#include <vector> 
 
 // In addition to the comments below, the API is also briefly documented at
 // https://github.com/google/fuzzing/blob/master/docs/split-inputs.md#fuzzed-data-provider

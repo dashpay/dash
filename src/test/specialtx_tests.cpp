@@ -2,20 +2,20 @@
 // Distributed under the MIT software license, see the accompanying
 // file COPYING or http://www.opensource.org/licenses/mit-license.php.
 
-#include <bls/bls.h>
-#include <consensus/validation.h>
-#include <evo/mnhftx.h>
-#include <evo/specialtx.h>
-#include <primitives/transaction.h>
-#include <uint256.h>
-#include <util/string.h>
-#include <util/strencodings.h>
+#include <bls/bls.h> 
+#include <consensus/validation.h> 
+#include <evo/mnhftx.h> 
+#include <evo/specialtx.h> 
+#include <primitives/transaction.h> 
+#include <uint256.h> 
+#include <util/string.h> 
+#include <util/strencodings.h> 
 
-#include <boost/test/unit_test.hpp>
-#include <test/util/setup_common.h>
+#include <boost/test/unit_test.hpp> 
+#include <test/util/setup_common.h> 
 
-#include <cstdint>
-#include <vector>
+#include <cstdint> 
+#include <vector> 
 
 
 bool VerifyMNHFTx(const CTransaction& tx, CValidationState& state)

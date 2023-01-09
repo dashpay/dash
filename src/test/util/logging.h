@@ -5,11 +5,11 @@
 #ifndef BITCOIN_TEST_UTIL_LOGGING_H
 #define BITCOIN_TEST_UTIL_LOGGING_H
 
-#include <util/macros.h>
+#include <util/macros.h> 
 
-#include <functional>
-#include <list>
-#include <string>
+#include <functional> 
+#include <list> 
+#include <string> 
 
 class DebugLogHelper
 {

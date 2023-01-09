@@ -2,18 +2,18 @@
 // Distributed under the MIT software license, see the accompanying
 // file COPYING or http://www.opensource.org/licenses/mit-license.php.
 
-#include <consensus/consensus.h>
-#include <net.h>
-#include <net_processing.h>
-#include <protocol.h>
-#include <test/fuzz/FuzzedDataProvider.h>
-#include <test/fuzz/fuzz.h>
-#include <test/fuzz/util.h>
-#include <test/util.h>
-#include <test/util/net.h>
-#include <test/util/setup_common.h>
-#include <validation.h>
-#include <validationinterface.h>
+#include <consensus/consensus.h> 
+#include <net.h> 
+#include <net_processing.h> 
+#include <protocol.h> 
+#include <test/fuzz/FuzzedDataProvider.h> 
+#include <test/fuzz/fuzz.h> 
+#include <test/fuzz/util.h> 
+#include <test/util.h> 
+#include <test/util/net.h> 
+#include <test/util/setup_common.h> 
+#include <validation.h> 
+#include <validationinterface.h> 
 
 const TestingSetup* g_setup;
 

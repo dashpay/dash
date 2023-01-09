@@ -2,21 +2,21 @@
 // Distributed under the MIT software license, see the accompanying
 // file COPYING or http://www.opensource.org/licenses/mit-license.php.
 
-#include <consensus/tx_check.h>
-#include <consensus/validation.h>
-#include <test/data/sighash.json.h>
-#include <hash.h>
-#include <script/interpreter.h>
-#include <script/script.h>
-#include <serialize.h>
-#include <streams.h>
-#include <test/util/setup_common.h>
-#include <util/strencodings.h>
-#include <version.h>
+#include <consensus/tx_check.h> 
+#include <consensus/validation.h> 
+#include <test/data/sighash.json.h> 
+#include <hash.h> 
+#include <script/interpreter.h> 
+#include <script/script.h> 
+#include <serialize.h> 
+#include <streams.h> 
+#include <test/util/setup_common.h> 
+#include <util/strencodings.h> 
+#include <version.h> 
 
-#include <boost/test/unit_test.hpp>
+#include <boost/test/unit_test.hpp> 
 
-#include <univalue.h>
+#include <univalue.h> 
 
 extern UniValue read_json(const std::string& jsondata);
 

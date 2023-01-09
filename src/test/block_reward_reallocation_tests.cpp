@@ -2,36 +2,36 @@
 // Distributed under the MIT software license, see the accompanying
 // file COPYING or http://www.opensource.org/licenses/mit-license.php.
 
-#include <test/util/setup_common.h>
+#include <test/util/setup_common.h> 
 
-#include <chainparams.h>
-#include <bls/bls.h>
-#include <consensus/validation.h>
-#include <messagesigner.h>
-#include <miner.h>
-#include <netbase.h>
-#include <script/interpreter.h>
-#include <script/sign.h>
-#include <script/signingprovider.h>
-#include <script/standard.h>
-#include <spork.h>
-#include <validation.h>
+#include <chainparams.h> 
+#include <bls/bls.h> 
+#include <consensus/validation.h> 
+#include <messagesigner.h> 
+#include <miner.h> 
+#include <netbase.h> 
+#include <script/interpreter.h> 
+#include <script/sign.h> 
+#include <script/signingprovider.h> 
+#include <script/standard.h> 
+#include <spork.h> 
+#include <validation.h> 
 
-#include <evo/specialtx.h>
-#include <evo/providertx.h>
-#include <evo/deterministicmns.h>
-#include <governance/governance.h>
-#include <llmq/blockprocessor.h>
-#include <llmq/chainlocks.h>
-#include <llmq/context.h>
-#include <llmq/instantsend.h>
-#include <util/enumerate.h>
-#include <util/irange.h>
+#include <evo/specialtx.h> 
+#include <evo/providertx.h> 
+#include <evo/deterministicmns.h> 
+#include <governance/governance.h> 
+#include <llmq/blockprocessor.h> 
+#include <llmq/chainlocks.h> 
+#include <llmq/context.h> 
+#include <llmq/instantsend.h> 
+#include <util/enumerate.h> 
+#include <util/irange.h> 
 
-#include <boost/test/unit_test.hpp>
+#include <boost/test/unit_test.hpp> 
 
-#include <map>
-#include <vector>
+#include <map> 
+#include <vector> 
 
 using SimpleUTXOMap = std::map<COutPoint, std::pair<int, CAmount>>;
 

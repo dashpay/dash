@@ -2,15 +2,15 @@
 // Distributed under the MIT software license, see the accompanying
 // file COPYING or http://www.opensource.org/licenses/mit-license.php.
 
-#include <serialize.h>
-#include <streams.h>
-#include <hash.h>
-#include <test/util/setup_common.h>
-#include <util/strencodings.h>
+#include <serialize.h> 
+#include <streams.h> 
+#include <hash.h> 
+#include <test/util/setup_common.h> 
+#include <util/strencodings.h> 
 
-#include <stdint.h>
+#include <stdint.h> 
 
-#include <boost/test/unit_test.hpp>
+#include <boost/test/unit_test.hpp> 
 
 BOOST_FIXTURE_TEST_SUITE(serialize_tests, BasicTestingSetup)
 

@@ -2,19 +2,19 @@
 // Distributed under the MIT software license, see the accompanying
 // file COPYING or http://www.opensource.org/licenses/mit-license.php.
 
-#include <test/util/setup_common.h>
+#include <test/util/setup_common.h> 
 
-#include <amount.h>
-#include <coinjoin/util.h>
-#include <coinjoin/coinjoin.h>
-#include <coinjoin/options.h>
-#include <node/context.h>
-#include <util/translation.h>
-#include <validation.h>
-#include <wallet/wallet.h>
-#include <coinjoin/client.h>
+#include <amount.h> 
+#include <coinjoin/util.h> 
+#include <coinjoin/coinjoin.h> 
+#include <coinjoin/options.h> 
+#include <node/context.h> 
+#include <util/translation.h> 
+#include <validation.h> 
+#include <wallet/wallet.h> 
+#include <coinjoin/client.h> 
 
-#include <boost/test/unit_test.hpp>
+#include <boost/test/unit_test.hpp> 
 
 BOOST_FIXTURE_TEST_SUITE(coinjoin_tests, BasicTestingSetup)
 

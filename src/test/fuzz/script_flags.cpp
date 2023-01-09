@@ -2,12 +2,12 @@
 // Distributed under the MIT software license, see the accompanying
 // file COPYING or http://www.opensource.org/licenses/mit-license.php.
 
-#include <pubkey.h>
-#include <script/interpreter.h>
-#include <streams.h>
-#include <version.h>
+#include <pubkey.h> 
+#include <script/interpreter.h> 
+#include <streams.h> 
+#include <version.h> 
 
-#include <test/fuzz/fuzz.h>
+#include <test/fuzz/fuzz.h> 
 
 /** Flags that are not forbidden by an assert */
 static bool IsValidFlagCombination(unsigned flags);

@@ -2,11 +2,11 @@
 // Distributed under the MIT software license, see the accompanying
 // file COPYING or http://www.opensource.org/licenses/mit-license.php.
 
-#include <bech32.h>
-#include <test/util/setup_common.h>
-#include <test/util/str.h>
+#include <bech32.h> 
+#include <test/util/setup_common.h> 
+#include <test/util/str.h> 
 
-#include <boost/test/unit_test.hpp>
+#include <boost/test/unit_test.hpp> 
 
 BOOST_FIXTURE_TEST_SUITE(bech32_tests, BasicTestingSetup)
 

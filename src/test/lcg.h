@@ -5,7 +5,7 @@
 #ifndef BITCOIN_TEST_LCG_H
 #define BITCOIN_TEST_LCG_H
 
-#include <cstdint>
+#include <cstdint> 
 
 // Simple 32-bit linear congruential generator with 64-bit internal state,
 // often called as "MMIX by Donald Knuth". Knuth attributes the multiplier

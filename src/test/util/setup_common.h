@@ -6,21 +6,21 @@
 #ifndef BITCOIN_TEST_UTIL_SETUP_COMMON_H
 #define BITCOIN_TEST_UTIL_SETUP_COMMON_H
 
-#include <chainparamsbase.h>
-#include <fs.h>
-#include <key.h>
-#include <node/context.h>
-#include <pubkey.h>
-#include <random.h>
-#include <scheduler.h>
-#include <txdb.h>
-#include <txmempool.h>
-#include <util/check.h>
-#include <util/string.h>
+#include <chainparamsbase.h> 
+#include <fs.h> 
+#include <key.h> 
+#include <node/context.h> 
+#include <pubkey.h> 
+#include <random.h> 
+#include <scheduler.h> 
+#include <txdb.h> 
+#include <txmempool.h> 
+#include <util/check.h> 
+#include <util/string.h> 
 
-#include <type_traits>
+#include <type_traits> 
 
-#include <boost/thread.hpp>
+#include <boost/thread.hpp> 
 
 /** This is connected to the logger. Can be used to redirect logs to any other log */
 extern const std::function<void(const std::string&)> G_TEST_LOG_FUN;

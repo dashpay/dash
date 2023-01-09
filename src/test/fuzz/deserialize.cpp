@@ -2,34 +2,34 @@
 // Distributed under the MIT software license, see the accompanying
 // file COPYING or http://www.opensource.org/licenses/mit-license.php.
 
-#include <addrdb.h>
-#include <addrman.h>
-#include <blockencodings.h>
-#include <blockfilter.h>
-#include <chain.h>
-#include <coins.h>
-#include <compressor.h>
-#include <consensus/merkle.h>
-#include <key.h>
-#include <merkleblock.h>
-#include <net.h>
-#include <netbase.h>
-#include <primitives/block.h>
-#include <protocol.h>
-#include <psbt.h>
-#include <script/sign.h>
-#include <streams.h>
-#include <undo.h>
-#include <version.h>
+#include <addrdb.h> 
+#include <addrman.h> 
+#include <blockencodings.h> 
+#include <blockfilter.h> 
+#include <chain.h> 
+#include <coins.h> 
+#include <compressor.h> 
+#include <consensus/merkle.h> 
+#include <key.h> 
+#include <merkleblock.h> 
+#include <net.h> 
+#include <netbase.h> 
+#include <primitives/block.h> 
+#include <protocol.h> 
+#include <psbt.h> 
+#include <script/sign.h> 
+#include <streams.h> 
+#include <undo.h> 
+#include <version.h> 
 
-#include <exception>
-#include <stdexcept>
-#include <stdint.h>
-#include <unistd.h>
+#include <exception> 
+#include <stdexcept> 
+#include <stdint.h> 
+#include <unistd.h> 
 
-#include <vector>
+#include <vector> 
 
-#include <test/fuzz/fuzz.h>
+#include <test/fuzz/fuzz.h> 
 
 void initialize_deserialize()
 {

@@ -2,17 +2,17 @@
 // Distributed under the MIT software license, see the accompanying
 // file COPYING or http://www.opensource.org/licenses/mit-license.php.
 
-#include <test/data/bip39_vectors.json.h>
+#include <test/data/bip39_vectors.json.h> 
 
-#include <key.h>
-#include <key_io.h>
-#include <util/strencodings.h>
-#include <test/util/setup_common.h>
-#include <bip39.h>
+#include <key.h> 
+#include <key_io.h> 
+#include <util/strencodings.h> 
+#include <test/util/setup_common.h> 
+#include <bip39.h> 
 
-#include <boost/test/unit_test.hpp>
+#include <boost/test/unit_test.hpp> 
 
-#include <univalue.h>
+#include <univalue.h> 
 
 // In script_tests.cpp
 extern UniValue read_json(const std::string& jsondata);

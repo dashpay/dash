@@ -2,13 +2,13 @@
 // Distributed under the MIT software license, see the accompanying
 // file COPYING or http://www.opensource.org/licenses/mit-license.php.
 
-#include <logging.h>
-#include <logging/timer.h>
-#include <test/util/setup_common.h>
+#include <logging.h> 
+#include <logging/timer.h> 
+#include <test/util/setup_common.h> 
 
-#include <chrono>
+#include <chrono> 
 
-#include <boost/test/unit_test.hpp>
+#include <boost/test/unit_test.hpp> 
 
 BOOST_FIXTURE_TEST_SUITE(logging_tests, BasicTestingSetup)
 

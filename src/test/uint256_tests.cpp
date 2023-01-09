@@ -2,16 +2,16 @@
 // Distributed under the MIT software license, see the accompanying
 // file COPYING or http://www.opensource.org/licenses/mit-license.php.
 
-#include <arith_uint256.h>
-#include <streams.h>
-#include <uint256.h>
-#include <version.h>
-#include <test/util/setup_common.h>
+#include <arith_uint256.h> 
+#include <streams.h> 
+#include <uint256.h> 
+#include <version.h> 
+#include <test/util/setup_common.h> 
 
-#include <boost/test/unit_test.hpp>
-#include <sstream>
-#include <iomanip>
-#include <string>
+#include <boost/test/unit_test.hpp> 
+#include <sstream> 
+#include <iomanip> 
+#include <string> 
 
 BOOST_FIXTURE_TEST_SUITE(uint256_tests, BasicTestingSetup)
 

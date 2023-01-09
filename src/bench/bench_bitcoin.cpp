@@ -2,14 +2,14 @@
 // Distributed under the MIT software license, see the accompanying
 // file COPYING or http://www.opensource.org/licenses/mit-license.php.
 
-#include <bench/bench.h>
+#include <bench/bench.h> 
 
-#include <crypto/sha256.h>
-#include <stacktraces.h>
-#include <util/strencodings.h>
-#include <util/system.h>
+#include <crypto/sha256.h> 
+#include <stacktraces.h> 
+#include <util/strencodings.h> 
+#include <util/system.h> 
 
-#include <bls/bls.h>
+#include <bls/bls.h> 
 
 static const char* DEFAULT_BENCH_FILTER = ".*";
 
