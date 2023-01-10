@@ -360,21 +360,19 @@ CSimplifiedMNListDiff CDeterministicMNList::BuildSimplifiedDiff(const CDetermini
         auto fromPtr = GetMN(toPtr.proTxHash);
         if (fromPtr == nullptr) {
             CSimplifiedMNListEntry sme(toPtr);
-            diffRet.mnList.emplace_back(toPtr);
+            sme.nVersion = diffRet.nVersion;
+            diffRet.mnList.push_back(std::move(sme));
         } else {
             CSimplifiedMNListEntry sme1(toPtr);
             CSimplifiedMNListEntry sme2(*fromPtr);
-            if (sme1 != sme2) {
-                diffRet.mnList.emplace_back(toPtr);
-            } else if (extended && (sme1.scriptPayout != sme2.scriptPayout || sme1.scriptOperatorPayout != sme2.scriptOperatorPayout)) {
-                diffRet.mnList.emplace_back(toPtr);
+            sme1.nVersion = diffRet.nVersion;
+            sme2.nVersion = diffRet.nVersion;
+            if ((sme1 != sme2) ||
+                (extended && (sme1.scriptPayout != sme2.scriptPayout || sme1.scriptOperatorPayout != sme2.scriptOperatorPayout))) {
+                    diffRet.mnList.push_back(std::move(sme1));
             }
         }
     });
-
-    for(auto& mn : diffRet.mnList) {
-        mn.nVersion =  diffRet.nVersion;
-    }
 
     ForEachMN(false, [&](auto& fromPtr) {
         auto toPtr = to.GetMN(fromPtr.proTxHash);
