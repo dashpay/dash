@@ -471,6 +471,8 @@ public:
         tmp = ReadCompactSize(s);
         for (size_t i = 0; i < tmp; i++) {
             CDeterministicMN mn(0);
+            // Unserialise CDeterministicMN using CURRENT_MN_FORMAT and set it's type to the default value TYPE_REGULAR_MASTERNODE
+            // It will be later written with format MN_TYPE_FORMAT which includes the type field.
             mn.Unserialize(s, format_version);
             auto dmn = std::make_shared<CDeterministicMN>(mn);
             addedMNs.push_back(dmn);
@@ -478,6 +480,9 @@ public:
         tmp = ReadCompactSize(s);
         for (size_t i = 0; i < tmp; i++) {
             CDeterministicMNStateDiff diff;
+            // CDeterministicMNState holds a new field (nConsecutivePayments) but no migration is needed here since:
+            // CDeterministicMNStateDiff is always serialised using a bitmask.
+            // Because the new field (nConsecutivePayments) has a new bit guide value then we are good to continue
             tmp2 = ReadVarInt<Stream, VarIntMode::DEFAULT, uint64_t>(s);
             s >> diff;
             updatedMNs.emplace(tmp2, std::move(diff));
