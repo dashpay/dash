@@ -35,6 +35,7 @@ private:
 public:
     int nRegisteredHeight{-1};
     int nLastPaidHeight{0};
+    int nConsecutivePayments{0};
     int nPoSePenalty{0};
     int nPoSeRevivedHeight{-1};
     uint16_t nRevocationReason{CProUpRevTx::REASON_NOT_SPECIFIED};
@@ -73,6 +74,7 @@ public:
         READWRITE(
                 obj.nRegisteredHeight,
                 obj.nLastPaidHeight,
+                obj.nConsecutivePayments,
                 obj.nPoSePenalty,
                 obj.nPoSeRevivedHeight,
                 obj.nPoSeBanHeight,
@@ -147,11 +149,12 @@ public:
         Field_addr                              = 0x0800,
         Field_scriptPayout                      = 0x1000,
         Field_scriptOperatorPayout              = 0x2000,
+        Field_nConsecutivePayments              = 0x4000,
     };
 
-#define DMN_STATE_DIFF_ALL_FIELDS \
+#define DMN_STATE_DIFF_ALL_FIELDS_BUT_CONSECUTIVE_PAYMENTS \
     DMN_STATE_DIFF_LINE(nRegisteredHeight) \
-    DMN_STATE_DIFF_LINE(nLastPaidHeight) \
+    DMN_STATE_DIFF_LINE(nLastPaidHeight)     \
     DMN_STATE_DIFF_LINE(nPoSePenalty) \
     DMN_STATE_DIFF_LINE(nPoSeRevivedHeight) \
     DMN_STATE_DIFF_LINE(nPoSeBanHeight) \
@@ -164,6 +167,10 @@ public:
     DMN_STATE_DIFF_LINE(addr) \
     DMN_STATE_DIFF_LINE(scriptPayout) \
     DMN_STATE_DIFF_LINE(scriptOperatorPayout)
+
+#define DMN_STATE_DIFF_ALL_FIELDS \
+    DMN_STATE_DIFF_ALL_FIELDS_BUT_CONSECUTIVE_PAYMENTS \
+    DMN_STATE_DIFF_LINE(nConsecutivePayments) \
 
 public:
     uint32_t fields{0};

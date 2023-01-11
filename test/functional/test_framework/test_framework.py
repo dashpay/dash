@@ -960,9 +960,7 @@ class DashTestFramework(BitcoinTestFramework):
         self.log.info("Preparing %d masternodes" % self.mn_count)
         rewardsAddr = self.nodes[0].getnewaddress()
 
-        for idx in range(0, self.hpmn_count):
-            self.prepare_masternode(idx, rewardsAddr, True)
-        for idx in range(self.hpmn_count, self.mn_count):
+        for idx in range(0, self.mn_count):
             self.prepare_masternode(idx, rewardsAddr, False)
         self.sync_all()
 

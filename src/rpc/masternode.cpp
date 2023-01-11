@@ -668,6 +668,7 @@ static UniValue masternodelist(const JSONRPCRequest& request)
             objMN.pushKV("status", dmnToStatus(dmn));
             objMN.pushKV("type", dmn.nType == CDeterministicMN::TYPE_HIGH_PERFORMANCE_MASTERNODE ? "HighPerformance" : "Regular");
             objMN.pushKV("pospenaltyscore", dmn.pdmnState->nPoSePenalty);
+            objMN.pushKV("nConsecutivePayments", dmn.pdmnState->nConsecutivePayments);
             objMN.pushKV("lastpaidtime", dmnToLastPaidTime(dmn));
             objMN.pushKV("lastpaidblock", dmn.pdmnState->nLastPaidHeight);
             objMN.pushKV("owneraddress", EncodeDestination(PKHash(dmn.pdmnState->keyIDOwner)));

@@ -637,7 +637,7 @@ static UniValue protx_register_highperf(const JSONRPCRequest& request)
     bool isExternalRegister = request.strMethod == "protxregister_highperf";
     bool isFundRegister = request.strMethod == "protxregister_fund_highperf";
     bool isPrepareRegister = request.strMethod == "protxregister_prepare_highperf";
-    return protx_register_wrapper(request, true, false, isExternalRegister, isFundRegister, isPrepareRegister);
+    return protx_register_wrapper(request, false, true, isExternalRegister, isFundRegister, isPrepareRegister);
 }
 
 static UniValue protx_register_submit(const JSONRPCRequest& request)

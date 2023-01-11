@@ -182,7 +182,27 @@ CDeterministicMNCPtr CDeterministicMNList::GetMNPayee() const
         return nullptr;
     }
 
-    CDeterministicMNCPtr best;
+    // Starting from v19 and until v20 (Platform release), HPMN will be rewarded 4 blocks in a row
+    // No need to check if v19 is active, since HPMN ProRegTx are allowed only after v19 activation
+    // TODO: Skip this code once v20 is active
+    CDeterministicMNCPtr best = nullptr;
+    ForEachMNShared(true, [&](const CDeterministicMNCPtr& dmn) {
+        if (dmn->pdmnState->nLastPaidHeight == nHeight) {
+            // We found the last MN Payee.
+            // If the last payee is a HPMN, we need to check its consecutive payments and pay him again if nConsecutivePayments < 3
+            if (dmn->nType == CDeterministicMN::TYPE_HIGH_PERFORMANCE_MASTERNODE && dmn->pdmnState->nConsecutivePayments < 3) {
+                best = dmn;
+            }
+        }
+        return;
+    });
+
+    if (best)
+        return best;
+
+    // Note: If the last payee was a regular MN or if the payee is a HPMN that was removed from the mnList then that's fine.
+    // We can proceed with classic MN payee selection
+
     ForEachMNShared(true, [&](const CDeterministicMNCPtr& dmn) {
         if (!best || CompareByLastPaid(dmn.get(), best.get())) {
             best = dmn;
@@ -881,6 +901,16 @@ bool CDeterministicMNManager::BuildNewListFromBlock(const CBlock& block, const C
     if (payee && newList.HasMN(payee->proTxHash)) {
         auto newState = std::make_shared<CDeterministicMNState>(*newList.GetMN(payee->proTxHash)->pdmnState);
         newState->nLastPaidHeight = nHeight;
+        // Starting from v19 and until v20, HPMN will be paid 4 blocks in a row
+        // No need to check if v19 is active, since HPMN ProRegTx are allowed only after v19 activation
+        // TODO: Skip this code once v20 is active
+        // Note: If the payee wasn't found in the current block that's fine
+        if (payee->nType == CDeterministicMN::TYPE_HIGH_PERFORMANCE_MASTERNODE) {
+            if (newState->nConsecutivePayments == 3)
+                newState->nConsecutivePayments = 0;
+            else
+                newState->nConsecutivePayments++;
+        }
         newList.UpdateMN(payee->proTxHash, newState);
     }
 
