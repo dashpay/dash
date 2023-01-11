@@ -3281,6 +3281,24 @@ bool CWallet::AttachChain(const std::shared_ptr<CWallet>& walletInstance, interf
 
     if (tip_height && *tip_height != rescan_height)
     {
+        // No need to read and scan block if block was created before
+        // our wallet birthday (as adjusted for block time variability)
+        std::optional<int64_t> time_first_key;
+        for (auto spk_man : walletInstance->GetAllScriptPubKeyMans()) {
+            int64_t time = spk_man->GetTimeFirstKey();
+            if (!time_first_key || time < *time_first_key) time_first_key = time;
+        }
+        if (time_first_key) {
+            FoundBlock found = FoundBlock().height(rescan_height);
+            chain.findFirstBlockWithTimeAndHeight(*time_first_key - TIMESTAMP_WINDOW, rescan_height, found);
+            if (!found.found) {
+                // We were unable to find a block that had a time more recent than our earliest timestamp
+                // or a height higher than the wallet was synced to, indicating that the wallet is newer than the
+                // current chain tip. Skip rescanning in this case.
+                rescan_height = *tip_height;
+            }
+        }
+
         // Technically we could execute the code below in any case, but performing the
         // `while` loop below can make startup very slow, so only check blocks on disk
         // if necessary.
@@ -3314,21 +3332,9 @@ bool CWallet::AttachChain(const std::shared_ptr<CWallet>& walletInstance, interf
 
         chain.initMessage(_("Rescanning…").translated);
         walletInstance->WalletLogPrintf("Rescanning last %i blocks (from block %i)...\n", *tip_height - rescan_height, rescan_height);
-
-        // No need to read and scan block if block was created before
-        // our wallet birthday (as adjusted for block time variability)
         // unless a full rescan was requested
         if (gArgs.GetIntArg("-rescan", 0) != 2) {
-            std::optional<int64_t> time_first_key;
-            for (auto spk_man : walletInstance->GetAllScriptPubKeyMans()) {
-                int64_t time = spk_man->GetTimeFirstKey();
-                if (!time_first_key || time < *time_first_key) time_first_key = time;
-            }
-            if (time_first_key) {
-                chain.findFirstBlockWithTimeAndHeight(*time_first_key - TIMESTAMP_WINDOW, rescan_height, FoundBlock().height(rescan_height));
-            }
         }
-
         {
             WalletRescanReserver reserver(*walletInstance);
             if (!reserver.reserve() || (ScanResult::SUCCESS != walletInstance->ScanForWalletTransactions(chain.getBlockHash(rescan_height), rescan_height, /*max_height=*/{}, reserver, /*fUpdate=*/true, /*save_progress=*/true).status)) {
