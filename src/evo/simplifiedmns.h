@@ -80,7 +80,7 @@ public:
 
     CSimplifiedMNList() = default;
     explicit CSimplifiedMNList(const std::vector<CSimplifiedMNListEntry>& smlEntries);
-    explicit CSimplifiedMNList(const CDeterministicMNList& dmnList, const CBlockIndex* pindexPrev);
+    explicit CSimplifiedMNList(const CDeterministicMNList& dmnList, bool isV19Active);
 
     uint256 CalcMerkleRoot(bool* pmutated = nullptr) const;
     bool operator==(const CSimplifiedMNList& rhs) const;
