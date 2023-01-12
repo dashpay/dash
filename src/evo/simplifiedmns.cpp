@@ -9,6 +9,7 @@
 #include <evo/deterministicmns.h>
 #include <llmq/blockprocessor.h>
 #include <llmq/commitment.h>
+#include <llmq/utils.h>
 #include <evo/specialtx.h>
 
 #include <pubkey.h>
@@ -92,13 +93,17 @@ CSimplifiedMNList::CSimplifiedMNList(const std::vector<CSimplifiedMNListEntry>& 
     });
 }
 
-CSimplifiedMNList::CSimplifiedMNList(const CDeterministicMNList& dmnList)
+CSimplifiedMNList::CSimplifiedMNList(const CDeterministicMNList& dmnList, const CBlockIndex* pindexPrev)
 {
     mnList.resize(dmnList.GetAllMNsCount());
 
+    bool v19active = llmq::utils::IsV19Active(pindexPrev);
+
     size_t i = 0;
-    dmnList.ForEachMN(false, [this, &i](auto& dmn) {
-        mnList[i++] = std::make_unique<CSimplifiedMNListEntry>(dmn);
+    dmnList.ForEachMN(false, [this, &i, v19active](auto& dmn) {
+        auto sme = std::make_unique<CSimplifiedMNListEntry>(dmn);
+        sme->nVersion = v19active ? CSimplifiedMNListEntry::BASIC_BLS_VERSION : CSimplifiedMNListEntry::LEGACY_BLS_VERSION;
+        mnList[i++] = std::move(sme);
     });
 
     std::sort(mnList.begin(), mnList.end(), [&](const std::unique_ptr<CSimplifiedMNListEntry>& a, const std::unique_ptr<CSimplifiedMNListEntry>& b) {
