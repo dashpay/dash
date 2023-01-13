@@ -622,19 +622,20 @@ int CGovernanceObject::CountMatchingVotes(vote_signal_enum_t eVoteSignalIn, vote
     LOCK(cs);
 
     int nCount = 0;
-    const CBlockIndex* pindex = WITH_LOCK(cs_main, return ::ChainActive()[governance->nCachedBlockHeight]);
-    bool isV19Active = llmq::utils::IsV19Active(pindex);
-    LOCK(deterministicMNManager->cs);
-    CDeterministicMNList mnList = deterministicMNManager->GetListForBlock(pindex);
     for (const auto& votepair : mapCurrentMNVotes) {
         const vote_rec_t& recVote = votepair.second;
         auto it2 = recVote.mapInstances.find(eVoteSignalIn);
         if (it2 != recVote.mapInstances.end() && it2->second.eOutcome == eVoteOutcomeIn) {
-            auto mn = mnList.GetMNByCollateral(votepair.first);
-            if (mn->nType == CDeterministicMN::TYPE_HIGH_PERFORMANCE_MASTERNODE && isV19Active)
-                nCount += 4;
-            else
-                ++nCount;
+            Coin coin;
+            int voteWeight = 1;
+            if (!GetUTXOCoin(votepair.first, coin)) {
+                // 4x times weight vote for HPMN owners.
+                // No need to check if v19 is active since no HPMN are allowed to register before v19
+                if (coin.out.nValue == 4000) {
+                    voteWeight = 4;
+                }
+            }
+            nCount += voteWeight;
         }
     }
     return nCount;
