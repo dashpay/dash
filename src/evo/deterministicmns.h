@@ -74,8 +74,12 @@ public:
         READWRITE(collateralOutpoint);
         READWRITE(nOperatorReward);
         READWRITE(pdmnState);
-        //TODO: Include check for protocol version, so it won't break clients
-        if (format_version >= MN_TYPE_FORMAT) {
+        // We need to serialise nType if:
+        // format_version is set to MN_TYPE_FORMAT (For Serialisation it is always the case) Needed for the MNLISTDIFF Migration in evoDB
+        // We can't know if we are serialising for the Disk or for the Network here (s.GetType() is not accessible)
+        // Therefore if s.GetVersion() == CLIENT_VERSION -> Then we know we are serialising for the Disk
+        // Otherwise, we can safely check with protocol versioning logic so we won't break old clients
+        if (format_version >= MN_TYPE_FORMAT && (s.GetVersion() == CLIENT_VERSION || s.GetVersion() >= DMN_TYPE_PROTO_VERSION)) {
             READWRITE(nType);
         }
         else {
