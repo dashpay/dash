@@ -47,6 +47,10 @@ static RPCArg GetRpcArg(const std::string& strParamName)
             {"collateralAddress", RPCArg::Type::STR, RPCArg::Optional::NO,
                 "The dash address to send the collateral to."}
         },
+        {"collateralAmount",
+         {"collateralAmount", RPCArg::Type::NUM, RPCArg::Optional::NO,
+          "The collateral amount. Possible values 1000 (MN) or 4000 (HPMN)."}
+        },
         {"collateralHash",
             {"collateralHash", RPCArg::Type::STR, RPCArg::Optional::NO,
                 "The collateral transaction hash."}
@@ -321,19 +325,19 @@ static std::string SignAndSendSpecialTx(const JSONRPCRequest& request, const CMu
     return sendrawtransaction(sendRequest).get_str();
 }
 
-static void protx_register_fund_help(const JSONRPCRequest& request, const bool hpmn = false)
+static void protx_register_fund_help(const JSONRPCRequest& request)
 {
-    std::string rpc_example = hpmn ? "\"register_fund_highperf" : "\"register_fund";
-    rpc_example.append(" \\\"XrVhS9LogauRJGJu2sHuryjhpuex4RNPSb\\\" \\\"1.2.3.4:1234\\\" \\\"Xt9AMWaYSz7tR7Uo7gzXA3m4QmeWgrR3rr\\\" \\\"93746e8731c57f87f79b3620a7982924e2931717d49540a85864bd543de11c43fb868fd63e501a1db37e19ed59ae6db4\\\" \\\"Xt9AMWaYSz7tR7Uo7gzXA3m4QmeWgrR3rr\\\" 0 \\\"XrVhS9LogauRJGJu2sHuryjhpuex4RNPSb\\\"\"");
-    RPCHelpMan{hpmn ? "protx register_fund_highperf" : "protx register_fund",
-        "\nCreates, funds and sends a ProTx to the network. The resulting transaction will move 1000 Dash\n"
+    RPCHelpMan{"protx register_fund",
+        "\nCreates, funds and sends a ProTx to the network. The resulting transaction will move requested collateralAmount Dash\n"
         "to the address specified by collateralAddress and will then function as the collateral of your\n"
         "masternode.\n"
+        "If the collaretalAmount is set to 4000 it will lead to a HPMN fund registration. Otherwise, 1000 will be required for a regular MN."
         "A few of the limitations you see in the arguments are temporary and might be lifted after DIP3\n"
         "is fully deployed.\n"
         + HELP_REQUIRING_PASSPHRASE,
         {
             GetRpcArg("collateralAddress"),
+            GetRpcArg("collateralAmount"),
             GetRpcArg("ipAndPort"),
             GetRpcArg("ownerAddress"),
             GetRpcArg("operatorPubKey_register"),
@@ -350,18 +354,17 @@ static void protx_register_fund_help(const JSONRPCRequest& request, const bool h
                 RPCResult::Type::STR_HEX, "hex", "The serialized signed ProTx in hex format"},
         },
         RPCExamples{
-            HelpExampleCli("protx", rpc_example)
+                HelpExampleCli("protx", "register_fund \"XrVhS9LogauRJGJu2sHuryjhpuex4RNPSb\" 1000 \"1.2.3.4:1234\" \"Xt9AMWaYSz7tR7Uo7gzXA3m4QmeWgrR3rr\" \"93746e8731c57f87f79b3620a7982924e2931717d49540a85864bd543de11c43fb868fd63e501a1db37e19ed59ae6db4\" \"Xt9AMWaYSz7tR7Uo7gzXA3m4QmeWgrR3rr\" 0 \"XrVhS9LogauRJGJu2sHuryjhpuex4RNPSb\"")
         },
     }.Check(request);
 }
 
-static void protx_register_help(const JSONRPCRequest& request, const bool hpmn = false)
+static void protx_register_help(const JSONRPCRequest& request)
 {
-    std::string rpc_example = hpmn ? "\"register_highperf" : "\"register";
-    rpc_example.append(" \"0123456701234567012345670123456701234567012345670123456701234567\" 0 \"1.2.3.4:1234\" \"Xt9AMWaYSz7tR7Uo7gzXA3m4QmeWgrR3rr\" \"93746e8731c57f87f79b3620a7982924e2931717d49540a85864bd543de11c43fb868fd63e501a1db37e19ed59ae6db4\" \"Xt9AMWaYSz7tR7Uo7gzXA3m4QmeWgrR3rr\" 0 \"XrVhS9LogauRJGJu2sHuryjhpuex4RNPSb\"");
-    RPCHelpMan{hpmn ? "protx register_highperf" : "protx register",
+    RPCHelpMan{"protx register",
         "\nSame as \"protx register_fund\", but with an externally referenced collateral.\n"
         "The collateral is specified through \"collateralHash\" and \"collateralIndex\" and must be an unspent\n"
+        "If the unspent collateral are 4000 DASH this will lead to a HPMN registration. Otherwise, 1000 for a usual masternode registration"
         "transaction output spendable by this wallet. It must also not be used by any other masternode.\n"
         + HELP_REQUIRING_PASSPHRASE,
         {
@@ -383,18 +386,17 @@ static void protx_register_help(const JSONRPCRequest& request, const bool hpmn =
                 RPCResult::Type::STR_HEX, "hex", "The serialized signed ProTx in hex format"},
         },
         RPCExamples{
-            HelpExampleCli("protx", rpc_example)
+                HelpExampleCli("protx", "register \"0123456701234567012345670123456701234567012345670123456701234567\" 0 \"1.2.3.4:1234\" \"Xt9AMWaYSz7tR7Uo7gzXA3m4QmeWgrR3rr\" \"93746e8731c57f87f79b3620a7982924e2931717d49540a85864bd543de11c43fb868fd63e501a1db37e19ed59ae6db4\" \"Xt9AMWaYSz7tR7Uo7gzXA3m4QmeWgrR3rr\" 0 \"XrVhS9LogauRJGJu2sHuryjhpuex4RNPSb\"")
         },
     }.Check(request);
 }
 
-static void protx_register_prepare_help(const JSONRPCRequest& request, const bool hpmn = false)
+static void protx_register_prepare_help(const JSONRPCRequest& request)
 {
-    std::string rpc_example = hpmn ? "\"register_prepare_highperf" : "\"register_prepare";
-    rpc_example.append(" \"0123456701234567012345670123456701234567012345670123456701234567\" 0 \"1.2.3.4:1234\" \"Xt9AMWaYSz7tR7Uo7gzXA3m4QmeWgrR3rr\" \"93746e8731c57f87f79b3620a7982924e2931717d49540a85864bd543de11c43fb868fd63e501a1db37e19ed59ae6db4\" \"Xt9AMWaYSz7tR7Uo7gzXA3m4QmeWgrR3rr\" 0 \"XrVhS9LogauRJGJu2sHuryjhpuex4RNPSb\"");
     RPCHelpMan{"protx register_prepare",
         "\nCreates an unsigned ProTx and a message that must be signed externally\n"
         "with the private key that corresponds to collateralAddress to prove collateral ownership.\n"
+        "If the unspent collateral are 4000 DASH this will lead to a HPMN registration. Otherwise, 1000 for a usual masternode registration"
         "The prepared transaction will also contain inputs and outputs to cover fees.\n",
         {
             GetRpcArg("collateralHash"),
@@ -415,7 +417,7 @@ static void protx_register_prepare_help(const JSONRPCRequest& request, const boo
                 {RPCResult::Type::STR_HEX, "signMessage", "The string message that needs to be signed with the collateral key"},
             }},
         RPCExamples{
-            HelpExampleCli("protx", rpc_example)
+                HelpExampleCli("protx", "register_prepare \"0123456701234567012345670123456701234567012345670123456701234567\" 0 \"1.2.3.4:1234\" \"Xt9AMWaYSz7tR7Uo7gzXA3m4QmeWgrR3rr\" \"93746e8731c57f87f79b3620a7982924e2931717d49540a85864bd543de11c43fb868fd63e501a1db37e19ed59ae6db4\" \"Xt9AMWaYSz7tR7Uo7gzXA3m4QmeWgrR3rr\" 0 \"XrVhS9LogauRJGJu2sHuryjhpuex4RNPSb\"")
         },
     }.Check(request);
 }
@@ -442,17 +444,16 @@ static void protx_register_submit_help(const JSONRPCRequest& request)
 
 static UniValue protx_register_wrapper(const JSONRPCRequest& request,
                                        const bool specific_legacy_bls_scheme,
-                                       const bool isHPMN,
                                        const bool isExternalRegister,
                                        const bool isFundRegister,
                                        const bool isPrepareRegister)
 {
-    if (isFundRegister && (request.fHelp || (request.params.size() < 7 || request.params.size() > 9))) {
-        protx_register_fund_help(request, isHPMN);
+    if (isFundRegister && (request.fHelp || (request.params.size() < 8 || request.params.size() > 10))) {
+        protx_register_fund_help(request);
     } else if (isExternalRegister && (request.fHelp || (request.params.size() < 8 || request.params.size() > 10))) {
-        protx_register_help(request, isHPMN);
+        protx_register_help(request);
     } else if (isPrepareRegister && (request.fHelp || (request.params.size() != 8 && request.params.size() != 9))) {
-        protx_register_prepare_help(request, isHPMN);
+        protx_register_prepare_help(request);
     }
 
     std::shared_ptr<CWallet> const wallet = GetWalletForJSONRPCRequest(request);
@@ -462,14 +463,9 @@ static UniValue protx_register_wrapper(const JSONRPCRequest& request,
         EnsureWalletIsUnlocked(wallet.get());
     }
 
-    bool isV19active = !llmq::utils::IsV19Active(WITH_LOCK(cs_main, return ::ChainActive().Tip();));
-    if (isHPMN && !isV19active) {
-        throw JSONRPCError(RPC_INVALID_REQUEST, "HPMN aren't allowed yet");
-    }
+    bool isV19active = llmq::utils::IsV19Active(WITH_LOCK(cs_main, return ::ChainActive().Tip();));
 
     size_t paramIdx = 0;
-
-    CAmount collateralAmount = isHPMN ? 4000 * COIN : 1000 * COIN;
 
     CMutableTransaction tx;
     tx.nVersion = 3;
@@ -479,17 +475,29 @@ static UniValue protx_register_wrapper(const JSONRPCRequest& request,
     if (specific_legacy_bls_scheme)
         ptx.nVersion = CProRegTx::LEGACY_BLS_VERSION;
     else
-        ptx.nVersion = CProRegTx::GetVersion(llmq::utils::IsV19Active(::ChainActive().Tip()));
-    ptx.nType = isHPMN ? CProRegTx::TYPE_HIGH_PERFORMANCE_MASTERNODE : CProRegTx::TYPE_REGULAR_MASTERNODE;
+        ptx.nVersion = CProRegTx::GetVersion(isV19active);
+    ptx.nType = CProRegTx::TYPE_REGULAR_MASTERNODE; //Will be eventually updated later
 
+    CAmount fundRequestedAmount = 0; //Will be updated later
     if (isFundRegister) {
         CTxDestination collateralDest = DecodeDestination(request.params[paramIdx].get_str());
         if (!IsValidDestination(collateralDest)) {
             throw JSONRPCError(RPC_INVALID_ADDRESS_OR_KEY, strprintf("invalid collaterall address: %s", request.params[paramIdx].get_str()));
         }
+        paramIdx++;
+        int32_t fundRequestedCollateralAmount = ParseInt32V(request.params[paramIdx], "collateralAmount");
+        if (fundRequestedCollateralAmount != 1000 && fundRequestedCollateralAmount != 4000) {
+            throw JSONRPCError(RPC_INVALID_REQUEST, "invalid collateralAmount: must be either 1000 or 4000.");
+        }
+        if (fundRequestedCollateralAmount == 4000) {
+            if (!isV19active) {
+                throw JSONRPCError(RPC_INVALID_REQUEST, "HPMN aren't allowed yet");
+            }
+            ptx.nType = CProRegTx::TYPE_HIGH_PERFORMANCE_MASTERNODE;
+        }
         CScript collateralScript = GetScriptForDestination(collateralDest);
-
-        CTxOut collateralTxOut(collateralAmount, collateralScript);
+        fundRequestedAmount = fundRequestedCollateralAmount * COIN;
+        CTxOut collateralTxOut(fundRequestedAmount, collateralScript);
         tx.vout.emplace_back(collateralTxOut);
 
         paramIdx++;
@@ -563,13 +571,15 @@ static UniValue protx_register_wrapper(const JSONRPCRequest& request,
     if (isFundRegister) {
         uint32_t collateralIndex = (uint32_t) -1;
         for (uint32_t i = 0; i < tx.vout.size(); i++) {
-            if (tx.vout[i].nValue == collateralAmount) {
+            if (tx.vout[i].nValue == fundRequestedAmount) {
                 collateralIndex = i;
                 break;
             }
         }
         CHECK_NONFATAL(collateralIndex != (uint32_t) -1);
         ptx.collateralOutpoint.n = collateralIndex;
+
+        LogPrintf("takis fund ptx[%d] fundRequestedAmount[%d]\n", ptx.nType, fundRequestedAmount);
 
         SetTxPayload(tx, ptx);
         return SignAndSendSpecialTx(request, tx, fSubmit);
@@ -580,12 +590,21 @@ static UniValue protx_register_wrapper(const JSONRPCRequest& request,
         if (!GetUTXOCoin(ptx.collateralOutpoint, coin)) {
             throw JSONRPCError(RPC_INVALID_ADDRESS_OR_KEY, strprintf("collateral not found: %s", ptx.collateralOutpoint.ToStringShort()));
         }
+        CAmount HPMNCollateralAmount = 4000 * COIN;
+        if (coin.out.nValue == HPMNCollateralAmount) {
+            if (!isV19active) {
+                throw JSONRPCError(RPC_INVALID_REQUEST, "HPMN aren't allowed yet");
+            }
+            ptx.nType = CProRegTx::TYPE_HIGH_PERFORMANCE_MASTERNODE;
+        }
         CTxDestination txDest;
         ExtractDestination(coin.out.scriptPubKey, txDest);
         const PKHash *pkhash = std::get_if<PKHash>(&txDest);
         if (!pkhash) {
             throw JSONRPCError(RPC_INVALID_ADDRESS_OR_KEY, strprintf("collateral type not supported: %s", ptx.collateralOutpoint.ToStringShort()));
         }
+
+        LogPrintf("takis non-fund ptx[%d] coint_value[%d]\n", ptx.nType, coin.out.nValue);
 
         if (isPrepareRegister) {
             // external signing with collateral key
@@ -620,7 +639,7 @@ static UniValue protx_register(const JSONRPCRequest& request)
     bool isExternalRegister = request.strMethod == "protxregister";
     bool isFundRegister = request.strMethod == "protxregister_fund";
     bool isPrepareRegister = request.strMethod == "protxregister_prepare";
-    return protx_register_wrapper(request, false, false, isExternalRegister, isFundRegister, isPrepareRegister);
+    return protx_register_wrapper(request, false, isExternalRegister, isFundRegister, isPrepareRegister);
 }
 
 static UniValue protx_register_legacy(const JSONRPCRequest& request)
@@ -628,16 +647,7 @@ static UniValue protx_register_legacy(const JSONRPCRequest& request)
     bool isExternalRegister = request.strMethod == "protxregister_legacy";
     bool isFundRegister = request.strMethod == "protxregister_fund_legacy";
     bool isPrepareRegister = request.strMethod == "protxregister_prepare_legacy";
-    return protx_register_wrapper(request, true, false, isExternalRegister, isFundRegister, isPrepareRegister);
-}
-
-// handles register, register_prepare and register_fund in one method
-static UniValue protx_register_highperf(const JSONRPCRequest& request)
-{
-    bool isExternalRegister = request.strMethod == "protxregister_highperf";
-    bool isFundRegister = request.strMethod == "protxregister_fund_highperf";
-    bool isPrepareRegister = request.strMethod == "protxregister_prepare_highperf";
-    return protx_register_wrapper(request, false, true, isExternalRegister, isFundRegister, isPrepareRegister);
+    return protx_register_wrapper(request, true, isExternalRegister, isFundRegister, isPrepareRegister);
 }
 
 static UniValue protx_register_submit(const JSONRPCRequest& request)
@@ -1289,8 +1299,6 @@ static UniValue protx(const JSONRPCRequest& request)
         return protx_register(new_request);
     } else if (command == "protxregister_legacy" || command == "protxregister_fund_legacy" || command == "protxregister_prepare_legacy") {
         return protx_register_legacy(new_request);
-    } else if (command == "protxregister_highperf" || command == "protxregister_fund_highperf" || command == "protxregister_prepare_highperf") {
-        return protx_register_highperf(new_request);
     } else if (command == "protxregister_submit") {
         return protx_register_submit(new_request);
     } else if (command == "protxupdate_service") {
