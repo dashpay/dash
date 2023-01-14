@@ -631,7 +631,8 @@ int CGovernanceObject::CountMatchingVotes(vote_signal_enum_t eVoteSignalIn, vote
             if (!GetUTXOCoin(votepair.first, coin)) {
                 // 4x times weight vote for HPMN owners.
                 // No need to check if v19 is active since no HPMN are allowed to register before v19
-                if (coin.out.nValue == 4000) {
+                CAmount HPMNCollateralAmount = 4000 * COIN;
+                if (coin.out.nValue == HPMNCollateralAmount) {
                     voteWeight = 4;
                 }
             }
