@@ -1248,7 +1248,7 @@ static UniValue protx_diff(const JSONRPCRequest& request)
         "  register                 - Create and send ProTx to network\n"
         "  register_fund            - Fund, create and send ProTx to network\n"
         "  register_prepare         - Create an unsigned ProTx\n"
-        "  register_legacy          - Create a ProTx by parsing BLS using legacy scheme and send it to network\n"
+        "  register_legacy          - Create a ProTx by parsing BLS using the legacy scheme and send it to network\n"
         "  register_fund_legacy     - Fund, create a ProTx by parsing BLS using legacy scheme and send it to network\n"
         "  register_prepare_legacy  - Create an unsigned ProTx by parsing BLS using legacy scheme\n"
         "  register_submit          - Sign and submit a ProTx\n"
