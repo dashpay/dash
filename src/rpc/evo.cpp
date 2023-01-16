@@ -1253,14 +1253,14 @@ static UniValue protx_diff(const JSONRPCRequest& request)
         "  register_prepare_legacy  - Create an unsigned ProTx by parsing BLS using the legacy scheme\n"
         "  register_submit          - Sign and submit a ProTx\n"
 #endif
-        "  list              - List ProTxs\n"
-        "  info              - Return information about a ProTx\n"
+        "  list                     - List ProTxs\n"
+        "  info                     - Return information about a ProTx\n"
 #ifdef ENABLE_WALLET
-        "  update_service    - Create and send ProUpServTx to network\n"
-        "  update_registrar  - Create and send ProUpRegTx to network\n"
-        "  revoke            - Create and send ProUpRevTx to network\n"
+        "  update_service           - Create and send ProUpServTx to network\n"
+        "  update_registrar         - Create and send ProUpRegTx to network\n"
+        "  revoke                   - Create and send ProUpRevTx to network\n"
 #endif
-        "  diff              - Calculate a diff and a proof between two masternode lists\n",
+        "  diff                     - Calculate a diff and a proof between two masternode lists\n",
         {
             {"command", RPCArg::Type::STR, RPCArg::Optional::NO, "The command to execute"},
         },
