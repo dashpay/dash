@@ -1313,6 +1313,7 @@ static void bls_generate_help(const JSONRPCRequest& request)
             {
                 {RPCResult::Type::STR_HEX, "secret", "BLS secret key"},
                 {RPCResult::Type::STR_HEX, "public", "BLS public key"},
+                {RPCResult::Type::STR_HEX, "scheme", "BLS scheme (valid schemes: legacy, basic)"}
             }},
         RPCExamples{
             HelpExampleCli("bls generate", "")
@@ -1330,6 +1331,8 @@ static UniValue bls_generate(const JSONRPCRequest& request)
     UniValue ret(UniValue::VOBJ);
     ret.pushKV("secret", sk.ToString());
     ret.pushKV("public", sk.GetPublicKey().ToString(bls_legacy_scheme));
+    std::string bls_scheme_str = bls_legacy_scheme ? "legacy" : "basic";
+    ret.pushKV("scheme", bls_scheme_str);
     return ret;
 }
 
