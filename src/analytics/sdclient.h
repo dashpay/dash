@@ -8,6 +8,8 @@
 
 #include <analytics/sender.h>
 
+#include <random.h>
+
 #include <cstdint>
 #include <cstdio>
 #include <iomanip>
@@ -61,8 +63,6 @@ public:
              const unsigned int sum,
              float frequency = 1.0f,
              const std::vector<std::string>& tags = {}) const noexcept;
-    //! Seed the RNG that controls sampling
-    void seed(unsigned int seed = std::random_device()()) noexcept;
     //! Flush any queued stats to the daemon
     void flush() noexcept { m_sender->flush(); }
     //! Returns true if UDP socket has been successfully established
@@ -81,8 +81,6 @@ private:
     std::string m_prefix;
     //! The UDP sender to be used for actual sending
     const std::unique_ptr<UDPSender> m_sender;
-    //! The random number generator for handling sampling
-    mutable std::mt19937 m_randomEngine;
     //! The buffer string format our stats before sending them
     mutable std::string m_buffer;
     //! Fixed floating point precision of gauges
@@ -114,11 +112,11 @@ inline void StatsdClient::gauge(const std::string& key,
 }
 
 template <typename T>
-inline void StatsdClient::send(const std::string& key,
-                               const T value,
-                               const char* type,
-                               float frequency,
-                               const std::vector<std::string>& tags) const noexcept {
+void StatsdClient::send(const std::string& key,
+                        const T value,
+                        const char* type,
+                        float frequency,
+                        const std::vector<std::string>& tags) const noexcept {
     // Bail if we can't send anything anyway
     if (!m_sender->initialized()) {
         return;
@@ -126,12 +124,13 @@ inline void StatsdClient::send(const std::string& key,
 
     // A valid frequency is: 0 <= f <= 1
     // At 0 you never emit the stat, at 1 you always emit the stat and with anything else you roll the dice
+    FastRandomContext m_randomEngine;
     frequency = std::max(std::min(frequency, 1.f), 0.f);
     constexpr float epsilon{0.0001f};
     const bool isFrequencyOne = std::fabs(frequency - 1.0f) < epsilon;
     const bool isFrequencyZero = std::fabs(frequency) < epsilon;
     if (isFrequencyZero ||
-       (!isFrequencyOne && (frequency < std::uniform_real_distribution<float>(0.f, 1.f)(m_randomEngine)))) {
+       (!isFrequencyOne && (frequency < float(m_randomEngine(std::numeric_limits<uint32_t>::max())) / float(std::numeric_limits<uint32_t>::max())))) {
         return;
     }
 

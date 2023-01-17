@@ -16,8 +16,6 @@ StatsdClient::StatsdClient(const std::string& host,
       m_sender{std::make_unique<UDPSender>(host, port, batchsize, sendInterval)},
       m_gaugePrecision(gaugePrecision)
 {
-    // Initialize the random generator to be used for sampling
-    seed();
     // Avoid re-allocations by reserving a generous buffer
     m_buffer.reserve(256);
 }
