@@ -155,11 +155,11 @@ class MiniWallet:
                 if not fixed_length:
                     break
         elif self._mode == MiniWalletMode.RAW_OP_TRUE:
-            for i in range(len(tx.vin)):
-                tx.vin[i].scriptSig = CScript([OP_NOP] * 24)  # pad to identical size
+            for i in tx.vin:
+                i.scriptSig = CScript([OP_NOP] * 24)  # pad to identical size
         elif self._mode == MiniWalletMode.ADDRESS_OP_TRUE:
-            for i in range(len(tx.vin)):
-                tx.vin[i].scriptSig = CScript([CScript([OP_TRUE])])
+            for i in tx.vin:
+                i.scriptSig = CScript([CScript([OP_TRUE])])
         else:
             assert False
 
@@ -278,10 +278,13 @@ class MiniWallet:
         inputs_value_total = sum([int(COIN * utxo['value']) for utxo in utxos_to_spend])
         outputs_value_total = inputs_value_total - fee_per_output * num_outputs
         amount_per_output = amount_per_output or (outputs_value_total // num_outputs)
+        assert amount_per_output > 0
+        outputs_value_total = amount_per_output * num_outputs
+        fee = Decimal(inputs_value_total - outputs_value_total) / COIN
 
         # create tx
         tx = CTransaction()
-        tx.vin = [CTxIn(COutPoint(int(utxo_to_spend['txid'], 16), utxo_to_spend['vout']), nSequence=seq) for utxo_to_spend,seq in zip(utxos_to_spend, sequence)]
+        tx.vin = [CTxIn(COutPoint(int(utxo_to_spend['txid'], 16), utxo_to_spend['vout']), nSequence=seq) for utxo_to_spend, seq in zip(utxos_to_spend, sequence)]
         tx.vout = [CTxOut(amount_per_output, bytearray(self._scriptPubKey)) for _ in range(num_outputs)]
         tx.nLockTime = locktime
 
@@ -300,6 +303,7 @@ class MiniWallet:
                 coinbase=False,
                 confirmations=0,
             ) for i in range(len(tx.vout))],
+            "fee": fee,
             "txid": txid,
             "hex": tx.serialize().hex(),
             "tx": tx,
@@ -318,52 +322,45 @@ class MiniWallet:
         else:
             assert False
         send_value = utxo_to_spend["value"] - (fee or (fee_rate * vsize / 1000))
-        assert send_value > 0
 
         # create tx
         tx = self.create_self_transfer_multi(utxos_to_spend=[utxo_to_spend], locktime=locktime, sequence=sequence, amount_per_output=int(COIN * send_value), target_weight=target_weight)
         if not target_weight:
             assert_equal(tx["tx"].get_vsize(), vsize)
+        tx["new_utxo"] = tx.pop("new_utxos")[0]
 
-        return {"txid": tx["txid"], "hex": tx["hex"], "tx": tx["tx"], "new_utxo": tx["new_utxos"][0]}
+        return tx
 
     def sendrawtransaction(self, *, from_node, tx_hex, maxfeerate=0, **kwargs):
         txid = from_node.sendrawtransaction(hexstring=tx_hex, maxfeerate=maxfeerate, **kwargs)
         self.scan_tx(from_node.decoderawtransaction(tx_hex))
         return txid
 
-    def create_self_transfer_chain(self, *, chain_length):
+    def create_self_transfer_chain(self, *, chain_length, utxo_to_spend=None):
         """
         Create a "chain" of chain_length transactions. The nth transaction in
         the chain is a child of the n-1th transaction and parent of the n+1th transaction.
-
-        Returns a dic  {"chain_hex": chain_hex, "chain_txns" : chain_txns}
-
-        "chain_hex" is a list representing the chain's transactions in hexadecimal.
-        "chain_txns" is a list representing the chain's transactions in the CTransaction object.
         """
-        chaintip_utxo = self.get_utxo()
-        chain_hex = []
-        chain_txns = []
+        chaintip_utxo = utxo_to_spend or self.get_utxo()
+        chain = []
 
         for _ in range(chain_length):
             tx = self.create_self_transfer(utxo_to_spend=chaintip_utxo)
             chaintip_utxo = tx["new_utxo"]
-            chain_hex.append(tx["hex"])
-            chain_txns.append(tx["tx"])
+            chain.append(tx)
 
-        return {"chain_hex": chain_hex, "chain_txns" : chain_txns}
+        return chain
 
-    def send_self_transfer_chain(self, *, from_node, chain_length, utxo_to_spend=None):
+    def send_self_transfer_chain(self, *, from_node, **kwargs):
         """Create and send a "chain" of chain_length transactions. The nth transaction in
         the chain is a child of the n-1th transaction and parent of the n+1th transaction.
 
-        Returns the chaintip (nth) utxo
+        Returns a list of objects for each tx (see create_self_transfer_multi).
         """
-        chaintip_utxo = utxo_to_spend or self.get_utxo()
-        for _ in range(chain_length):
-            chaintip_utxo = self.send_self_transfer(utxo_to_spend=chaintip_utxo, from_node=from_node)["new_utxo"]
-        return chaintip_utxo
+        chain = self.create_self_transfer_chain(**kwargs)
+        for t in chain:
+            self.sendrawtransaction(from_node=from_node, tx_hex=t["hex"])
+        return chain
 
 
 def getnewdestination(address_type='legacy'):
