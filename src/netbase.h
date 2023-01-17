@@ -49,9 +49,10 @@ struct ProxyCredentials
 };
 
 /**
- * Wrapper for getaddrinfo(3). Do not use directly: call Lookup/LookupHost/LookupNumeric/LookupSubNet.
+ * Wrappers for getaddrinfo(3). Do not use directly: call Lookup/LookupHost/LookupNumeric/LookupSubNet.
  */
-std::vector<CNetAddr> WrappedGetAddrInfo(const std::string& name, bool allow_lookup);
+std::vector<CNetAddr> WrappedGetAddrInfoTCP(const std::string& name, bool allow_lookup);
+std::vector<CNetAddr> WrappedGetAddrInfoUDP(const std::string& name, bool allow_lookup);
 
 enum Network ParseNetwork(const std::string& net);
 std::string GetNetworkName(enum Network net);
@@ -168,6 +169,13 @@ bool LookupSubNet(const std::string& strSubnet, CSubNet& subnet, DNSLookupFn dns
  * @return pointer to the created Sock object or unique_ptr that owns nothing in case of failure
  */
 std::unique_ptr<Sock> CreateSockTCP(const CService& address_family);
+
+/**
+ * Create a UDP socket in the given address family.
+ * @param[in] address_family The socket is created in the same address family as this address.
+ * @return pointer to the created Sock object or unique_ptr that owns nothing in case of failure
+ */
+std::unique_ptr<Sock> CreateSockUDP(const CService& address_family);
 
 /**
  * Socket factory. Defaults to `CreateSockTCP()`, but can be overridden by unit tests.

@@ -41,12 +41,11 @@ bool fNameLookup = DEFAULT_NAME_LOOKUP;
 int g_socks5_recv_timeout = 20 * 1000;
 static std::atomic<bool> interruptSocks5Recv(false);
 
-std::vector<CNetAddr> WrappedGetAddrInfo(const std::string& name, bool allow_lookup)
+std::vector<CNetAddr> WrappedGetAddrInfo(const std::string& name, bool allow_lookup, int socktype, int protocol)
 {
     addrinfo ai_hint{};
-    // We want a TCP port, which is a streaming socket type
-    ai_hint.ai_socktype = SOCK_STREAM;
-    ai_hint.ai_protocol = IPPROTO_TCP;
+    ai_hint.ai_socktype = socktype;
+    ai_hint.ai_protocol = protocol;
     // We don't care which address family (IPv4 or IPv6) is returned
     ai_hint.ai_family = AF_UNSPEC;
     // If we allow lookups of hostnames, use the AI_ADDRCONFIG flag to only
@@ -83,7 +82,19 @@ std::vector<CNetAddr> WrappedGetAddrInfo(const std::string& name, bool allow_loo
     return resolved_addresses;
 }
 
-DNSLookupFn g_dns_lookup{WrappedGetAddrInfo};
+std::vector<CNetAddr> WrappedGetAddrInfoTCP(const std::string& name, bool allow_lookup)
+{
+    // We want a TCP port, which is a streaming socket type
+    return WrappedGetAddrInfo(name, allow_lookup, SOCK_STREAM, IPPROTO_TCP);
+}
+
+std::vector<CNetAddr> WrappedGetAddrInfoUDP(const std::string& name, bool allow_lookup)
+{
+    // We want a UDP port, which is a datagram socket type
+    return WrappedGetAddrInfo(name, allow_lookup, SOCK_DGRAM, IPPROTO_UDP);
+}
+
+DNSLookupFn g_dns_lookup{WrappedGetAddrInfoTCP};
 
 enum Network ParseNetwork(const std::string& net_in) {
     std::string net = ToLower(net_in);
@@ -481,7 +492,7 @@ bool Socks5(const std::string& strDest, uint16_t port, const ProxyCredentials* a
     return true;
 }
 
-std::unique_ptr<Sock> CreateSockTCP(const CService& address_family)
+std::unique_ptr<Sock> ICreateSock(const CService& address_family, bool is_tcp)
 {
     // Create a sockaddr from the specified service.
     struct sockaddr_storage sockaddr;
@@ -491,8 +502,14 @@ std::unique_ptr<Sock> CreateSockTCP(const CService& address_family)
         return nullptr;
     }
 
-    // Create a TCP socket in the address family of the specified service.
-    SOCKET hSocket = socket(((struct sockaddr*)&sockaddr)->sa_family, SOCK_STREAM, IPPROTO_TCP);
+    SOCKET hSocket = INVALID_SOCKET;
+    if (is_tcp) {
+        // Create a TCP socket in the address family of the specified service.
+        hSocket = socket(((struct sockaddr*)&sockaddr)->sa_family, SOCK_STREAM, IPPROTO_TCP);
+    } else {
+        // Create a UDP socket in the address family of the specified service.
+        hSocket = socket(((struct sockaddr*)&sockaddr)->sa_family, SOCK_DGRAM, IPPROTO_UDP);
+    }
     if (hSocket == INVALID_SOCKET) {
         return nullptr;
     }
@@ -512,8 +529,10 @@ std::unique_ptr<Sock> CreateSockTCP(const CService& address_family)
     setsockopt(hSocket, SOL_SOCKET, SO_NOSIGPIPE, (void*)&set, sizeof(int));
 #endif
 
-    // Set the no-delay option (disable Nagle's algorithm) on the TCP socket.
-    SetSocketNoDelay(hSocket);
+    if (is_tcp) {
+        // Set the no-delay option (disable Nagle's algorithm) on the TCP socket.
+        SetSocketNoDelay(hSocket);
+    }
 
     // Set the non-blocking option on the socket.
     if (!SetSocketNonBlocking(hSocket, true)) {
@@ -522,6 +541,16 @@ std::unique_ptr<Sock> CreateSockTCP(const CService& address_family)
         return nullptr;
     }
     return std::make_unique<Sock>(hSocket);
+}
+
+std::unique_ptr<Sock> CreateSockTCP(const CService& address_family)
+{
+    return ICreateSock(address_family, /* is_tcp */ true);
+}
+
+std::unique_ptr<Sock> CreateSockUDP(const CService& address_family)
+{
+    return ICreateSock(address_family, /* is_tcp */ false);
 }
 
 std::function<std::unique_ptr<Sock>(const CService&)> CreateSock = CreateSockTCP;
