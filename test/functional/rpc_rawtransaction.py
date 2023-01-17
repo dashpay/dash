@@ -15,7 +15,6 @@ Test the following RPCs:
 from collections import OrderedDict
 from decimal import Decimal
 
-from test_framework.blocktools import COINBASE_MATURITY
 from test_framework.messages import (
     CTransaction,
     tx_from_hex,
@@ -57,7 +56,6 @@ class RawTransactionsTest(BitcoinTestFramework):
         self.add_wallet_options(parser, descriptors=False)
 
     def set_test_params(self):
-        self.setup_clean_chain = True
         self.num_nodes = 3
         self.extra_args = [
             ["-txindex"],
@@ -75,9 +73,6 @@ class RawTransactionsTest(BitcoinTestFramework):
 
     def run_test(self):
         self.wallet = MiniWallet(self.nodes[0])
-        self.log.info("Prepare some coins for multiple *rawtransaction commands")
-        self.generate(self.wallet, 10)
-        self.generate(self.nodes[0], COINBASE_MATURITY + 1)
 
         self.getrawtransaction_tests()
         self.createrawtransaction_tests()

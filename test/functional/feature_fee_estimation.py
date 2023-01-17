@@ -230,7 +230,6 @@ class EstimateFeeTest(BitcoinTestFramework):
         # Split two coinbases into many small utxos
         self.start_node(0)
         self.wallet = MiniWallet(self.nodes[0])
-        self.wallet.rescan_utxos()
         self.initial_split(self.nodes[0])
         self.log.info("Finished splitting")
 
