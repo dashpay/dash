@@ -2300,7 +2300,7 @@ void CWallet::ResendWalletTransactions()
     if (GetTime() < nNextResend || !fBroadcastTransactions) return;
     bool fFirst = (nNextResend == 0);
     // resend 1-3 hours from now, ~2 hours on average.
-    nNextResend = GetTime() + (1 * 60 * 60) + GetRand(3 * 60 * 60);
+    nNextResend = GetTime() + (1 * 60 * 60) + GetRand(2 * 60 * 60);
     if (fFirst) return;
 
     // Only do it if there's been a new block since last time
