@@ -1738,4 +1738,14 @@ BOOST_AUTO_TEST_CASE(bip341_dash_special_tx_sighash)
     }
 }
 
+BOOST_AUTO_TEST_CASE(compute_tapleaf)
+{
+    const uint8_t script[6] = {'f','o','o','b','a','r'};
+    uint256 tlc0 = uint256S("edbc10c272a1215dcdcc11d605b9027b5ad6ed97cd45521203f136767b5b9c06");
+    uint256 tlc2 = uint256S("8b5c4f90ae6bf76e259dbef5d8a59df06359c391b59263741b25eca76451b27a");
+
+    BOOST_CHECK_EQUAL(ComputeTapleafHash(0xc0, CScript(script, script + 6)), tlc0);
+    BOOST_CHECK_EQUAL(ComputeTapleafHash(0xc2, CScript(script, script + 6)), tlc2);
+}
+
 BOOST_AUTO_TEST_SUITE_END()
