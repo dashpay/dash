@@ -7,6 +7,7 @@
 
 import configparser
 import copy
+from _decimal import Decimal
 from enum import Enum
 import logging
 import argparse
@@ -49,7 +50,7 @@ from .util import (
     set_timeout_scale,
     satoshi_round,
     wait_until,
-    get_chain_folder, assert_greater_than_or_equal,
+    get_chain_folder, rpc_port,
 )
 
 
@@ -469,6 +470,75 @@ class BitcoinTestFramework(metaclass=BitcoinTestMetaClass):
                 use_valgrind=self.options.valgrind,
             ))
 
+    def add_dynamically_node(self, extra_args=None, *, rpchost=None, binary=None):
+        if self.bind_to_localhost_only:
+            extra_confs = [["bind=127.0.0.1"]]
+        else:
+            extra_confs = [[]]
+        if extra_args is None:
+            extra_args = [[]]
+        if binary is None:
+            binary = [self.options.bitcoind]
+        assert_equal(len(extra_confs), 1)
+        assert_equal(len(binary), 1)
+        old_num_nodes = len(self.nodes)
+
+        p0 = old_num_nodes
+        p1 = get_datadir_path(self.options.tmpdir, old_num_nodes)
+        p2 = self.extra_args_from_options
+        p3 = self.chain
+        p4 = rpchost
+        p5 = self.rpc_timeout
+        p6 = self.options.timeout_factor
+        p7 = binary[0]
+        p8 = self.options.bitcoincli
+        p9 = self.mocktime
+        p10 = self.options.coveragedir
+        p11 = self.options.tmpdir
+        p12 = extra_confs[0]
+        p13 = extra_args
+        p14 = self.options.usecli
+        p15 = self.options.perf
+        p16 = self.options.valgrind
+
+        t_node = TestNode(p0, p1, p2, chain=p3, rpchost=p4, timewait=p5, timeout_factor=p6, bitcoind=p7, bitcoin_cli=p8, mocktime=p9, coverage_dir=p10, cwd=p11, extra_conf=p12, extra_args=p13, use_cli=p14, start_perf=p15, use_valgrind=p16)
+        self.nodes.append(t_node)
+        return t_node
+
+    def dynamically_initialize_datadir(self, chain, node_p2p_port, node_rpc_port):
+        data_dir = get_datadir_path(self.options.tmpdir, len(self.nodes))
+        if not os.path.isdir(data_dir):
+            os.makedirs(data_dir)
+        # Translate chain name to config name
+        if chain == 'testnet3':
+            chain_name_conf_arg = 'testnet'
+            chain_name_conf_section = 'test'
+            chain_name_conf_arg_value = '1'
+        elif chain == 'devnet':
+            chain_name_conf_arg = 'devnet'
+            chain_name_conf_section = 'devnet'
+            chain_name_conf_arg_value = 'devnet1'
+        else:
+            chain_name_conf_arg = chain
+            chain_name_conf_section = chain
+            chain_name_conf_arg_value = '1'
+        with open(os.path.join(data_dir, "dash.conf"), 'w', encoding='utf8') as f:
+            f.write("{}={}\n".format(chain_name_conf_arg, chain_name_conf_arg_value))
+            f.write("[{}]\n".format(chain_name_conf_section))
+            f.write("port=" + str(node_p2p_port) + "\n")
+            f.write("rpcport=" + str(node_rpc_port) + "\n")
+            f.write("server=1\n")
+            f.write("debug=1\n")
+            f.write("keypool=1\n")
+            f.write("discover=0\n")
+            f.write("listenonion=0\n")
+            f.write("printtoconsole=0\n")
+            f.write("upnp=0\n")
+            f.write("natpmp=0\n")
+            f.write("shrinkdebugfile=0\n")
+            os.makedirs(os.path.join(data_dir, 'stderr'), exist_ok=True)
+            os.makedirs(os.path.join(data_dir, 'stdout'), exist_ok=True)
+
     def start_node(self, i, *args, **kwargs):
         """Start a dashd"""
 
@@ -863,7 +933,6 @@ class DashTestFramework(BitcoinTestFramework):
         if extra_args is None:
             extra_args = [[]] * num_nodes
         assert_equal(len(extra_args), num_nodes)
-        assert_greater_than_or_equal(masterodes_count, hpmn_count)
         self.extra_args = [copy.deepcopy(a) for a in extra_args]
         self.extra_args[0] += ["-sporkkey=cP4EKFyJsHT39LDqgdcB43Y3YXjNyjb5Fuas1GQSeAtjnZWmZEQK"]
         self.fast_dip3_enforcement = fast_dip3_enforcement
@@ -956,6 +1025,71 @@ class DashTestFramework(BitcoinTestFramework):
         for i in range(0, idx):
             self.connect_nodes(i, idx)
 
+    def dynamically_add_masternode(self, hpmn=False):
+        mn_idx = len(self.nodes)
+
+        node_p2p_port = p2p_port(mn_idx)
+        node_rpc_port = rpc_port(mn_idx)
+
+        created_mn_info = self.dynamically_prepare_masternode(mn_idx, node_p2p_port, hpmn)
+
+        self.dynamically_initialize_datadir(self.nodes[0].chain,node_p2p_port, node_rpc_port)
+        node_info = self.add_dynamically_node(self.extra_args[1])
+
+        args = ['-masternodeblsprivkey=%s' % created_mn_info.keyOperator] + node_info.extra_args
+        self.start_node(mn_idx, args)
+
+        for mn_info in self.mninfo:
+            if mn_info.proTxHash == created_mn_info.proTxHash:
+                mn_info.nodeIx = mn_idx
+                mn_info.node = self.nodes[mn_idx]
+
+        self.connect_nodes(mn_idx, 0)
+
+        self.wait_for_sporks_same()
+        self.sync_blocks(self.nodes)
+        force_finish_mnsync(self.nodes[mn_idx])
+
+        self.log.info("Successfully started and synced proTx:"+str(created_mn_info.proTxHash))
+        return created_mn_info.proTxHash
+
+    def dynamically_prepare_masternode(self, idx, node_p2p_port, hpmn=False):
+        bls = self.nodes[0].bls('generate')
+        collateral_address = self.nodes[0].getnewaddress()
+        funds_address = self.nodes[0].getnewaddress()
+        owner_address = self.nodes[0].getnewaddress()
+        voting_address = self.nodes[0].getnewaddress()
+        reward_address = self.nodes[0].getnewaddress()
+
+        collateral_amount = 4000 if hpmn else 1000
+        collateral_txid = self.nodes[0].sendtoaddress(collateral_address, collateral_amount)
+        # send to same address to reserve some funds for fees
+        self.nodes[0].sendtoaddress(funds_address, 1)
+        collateral_vout = 0
+        self.nodes[0].generate(1)
+        self.sync_all(self.nodes)
+
+        rawtx = self.nodes[0].getrawtransaction(collateral_txid, 1)
+        for txout in rawtx['vout']:
+            if txout['value'] == Decimal(collateral_amount):
+                collateral_vout = txout['n']
+                break
+        assert collateral_vout is not None
+
+        ipAndPort = '127.0.0.1:%d' % node_p2p_port
+        operatorReward = idx
+
+        self.nodes[0].generate(1)
+        protx_result = self.nodes[0].protx('register', collateral_txid, collateral_vout, ipAndPort, owner_address, bls['public'], voting_address, operatorReward, reward_address, funds_address, True)
+        self.nodes[0].generate(1)
+        self.sync_all(self.nodes)
+        mn_info = MasternodeInfo(protx_result, owner_address, voting_address, bls['public'], bls['secret'], collateral_address, collateral_txid, collateral_vout, hpmn)
+        self.mninfo.append(mn_info)
+
+        mn_type_str = "HPMN" if hpmn else "MN"
+        self.log.info("Prepared %s %d: collateral_txid=%s, collateral_vout=%d, protxHash=%s" % (mn_type_str, idx, collateral_txid, collateral_vout, protx_result))
+        return mn_info
+
     def prepare_masternodes(self):
         self.log.info("Preparing %d masternodes" % self.mn_count)
         rewardsAddr = self.nodes[0].getnewaddress()
@@ -1001,18 +1135,16 @@ class DashTestFramework(BitcoinTestFramework):
 
         if register_fund:
             # self.nodes[0].lockunspent(True, [{'txid': txid, 'vout': collateral_vout}])
-            register_fund_rpc = "register_fund_highperf" if hpmn else "register_fund"
-            protx_result = self.nodes[0].protx(register_fund_rpc, address, ipAndPort, ownerAddr, bls['public'], votingAddr, operatorReward, rewardsAddr, address, submit)
+            requested_fund_amout = 4000 if hpmn else 1000
+            protx_result = self.nodes[0].protx('register_fund', address, requested_fund_amout, ipAndPort, ownerAddr, bls['public'], votingAddr, operatorReward, rewardsAddr, address, submit)
         else:
             self.nodes[0].generate(1)
-            register_rpc = "register_highperf" if hpmn else "register"
-            protx_result = self.nodes[0].protx(register_rpc, txid, collateral_vout, ipAndPort, ownerAddr, bls['public'], votingAddr, operatorReward, rewardsAddr, address, submit)
+            protx_result = self.nodes[0].protx('register', txid, collateral_vout, ipAndPort, ownerAddr, bls['public'], votingAddr, operatorReward, rewardsAddr, address, submit)
 
         if submit:
             proTxHash = protx_result
         else:
             proTxHash = self.nodes[0].sendrawtransaction(protx_result)
-
 
         if operatorReward > 0:
             self.nodes[0].generate(1)
@@ -1022,7 +1154,7 @@ class DashTestFramework(BitcoinTestFramework):
         self.mninfo.append(MasternodeInfo(proTxHash, ownerAddr, votingAddr, bls['public'], bls['secret'], address, txid, collateral_vout, hpmn))
         # self.sync_all()
 
-        mn_type_str = "High performance masternode" if hpmn else "masternode"
+        mn_type_str = "HPMN" if hpmn else "MN"
         self.log.info("Prepared %s %d: collateral_txid=%s, collateral_vout=%d, protxHash=%s" % (mn_type_str, idx, txid, collateral_vout, proTxHash))
 
     def remove_masternode(self, idx):
@@ -1090,6 +1222,13 @@ class DashTestFramework(BitcoinTestFramework):
         self.start_node(mninfo.nodeIdx, extra_args=args)
         mninfo.node = self.nodes[mninfo.nodeIdx]
         force_finish_mnsync(mninfo.node)
+
+    def dynamically_start_masternode(self, mnidx, extra_args=None):
+        args = []
+        if extra_args is not None:
+            args += extra_args
+        self.start_node(mnidx, extra_args=args)
+        force_finish_mnsync(self.nodes[mnidx])
 
     def setup_network(self):
         self.log.info("Creating and starting controller node")
@@ -1256,6 +1395,7 @@ class DashTestFramework(BitcoinTestFramework):
 
     def wait_for_sporks_same(self, timeout=30):
         def check_sporks_same():
+            self.bump_mocktime(1)
             sporks = self.nodes[0].spork('show')
             return all(node.spork('show') == sporks for node in self.nodes[1:])
         wait_until(check_sporks_same, timeout=timeout, sleep=0.5)
