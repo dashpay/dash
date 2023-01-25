@@ -10,7 +10,9 @@ Checks LLMQs Quorum Rotation
 
 '''
 from _decimal import Decimal
+import random
 
+from test_framework.script import hash160
 from test_framework.test_framework import DashTestFramework
 from test_framework.util import (
     assert_equal, p2p_port
@@ -62,22 +64,25 @@ class LLMQHPMNTest(DashTestFramework):
         (quorum_info_i_0, quorum_info_i_1) = self.mine_cycle_quorum(llmq_type_name='llmq_test_dip0024', llmq_type=103)
 
         hpmn_protxhash_list = list()
-        for i in range(6):
-            protx = self.dynamically_add_masternode(hpmn=True)
-            hpmn_protxhash_list.append(protx)
+        for i in range(5):
+            hpmn_info = self.dynamically_add_masternode(hpmn=True)
+            hpmn_protxhash_list.append(hpmn_info.proTxHash)
             self.nodes[0].generate(8)
             self.sync_blocks(self.nodes)
+            self.test_hpmn_update_service(hpmn_info)
 
-        self.log.info("Test llmq_platform are formed only with HPMN")
+        self.log.info("Test llmq_platform are formed only with HPMNs")
         for i in range(3):
             quorum_i_hash = self.mine_quorum(llmq_type_name='llmq_test_platform', llmq_type=106)
             self.test_quorum_members_are_high_performance(quorum_i_hash, llmq_type=106)
 
-        self.log.info("Test that HPMN are present in MN list")
+        self.log.info("Test that HPMNs are present in MN list")
         self.test_hpmn_protx_are_in_mnlist(hpmn_protxhash_list)
 
         self.log.info("Test that HPMNs are paid 4x blocks in a row")
         self.test_hpmmn_payements(window_analysis=256)
+
+        self.log.info(self.nodes[0].masternodelist())
 
         return
 
@@ -170,12 +175,30 @@ class LLMQHPMNTest(DashTestFramework):
 
         protx_success = False
         try:
-            self.nodes[0].protx('register', collateral_txid, collateral_vout, ipAndPort, owner_address, bls['public'], voting_address, operatorReward, reward_address, funds_address, True)
+            self.nodes[0].protx('register_hpmn', collateral_txid, collateral_vout, ipAndPort, owner_address, bls['public'], voting_address, operatorReward, reward_address, funds_address, True)
             protx_success = True
         except:
             self.log.info("protx_hpmn rejected")
         assert_equal(protx_success, False)
 
+    def test_hpmn_update_service(self, hpmn_info):
+        funds_address = self.nodes[0].getnewaddress()
+        operator_reward_address = self.nodes[0].getnewaddress()
+
+        # For the sake of the test, generate random nodeid, p2p and http platform values
+        rnd = random.randint(1000, 65000)
+        platform_node_id = hash160(b'%d' % rnd).hex()
+        platform_p2p_port = '%d' % (rnd + 1)
+        platform_http_port = '%d' % (rnd + 2)
+
+        self.nodes[0].sendtoaddress(funds_address, 1)
+        self.nodes[0].generate(1)
+        self.sync_all(self.nodes)
+
+        self.nodes[0].protx('update_service_hpmn', hpmn_info.proTxHash, hpmn_info.addr, hpmn_info.keyOperator, platform_node_id, platform_p2p_port, platform_http_port, operator_reward_address, funds_address)
+        self.nodes[0].generate(1)
+        self.sync_all(self.nodes)
+        self.log.info("Updated HPMN %s: platformNodeID=%s, platformP2PPort=%s, platformHTTPPort=%s" % (hpmn_info.proTxHash, platform_node_id, platform_p2p_port, platform_http_port))
 
 if __name__ == '__main__':
     LLMQHPMNTest().main()

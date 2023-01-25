@@ -53,13 +53,20 @@ public:
     CScript scriptPayout;
     CScript scriptOperatorPayout;
 
+    uint160 platformNodeID{};
+    uint16_t platformP2PPort{0};
+    uint16_t platformHTTPPort{0};
+
 public:
     CDeterministicMNState() = default;
     explicit CDeterministicMNState(const CProRegTx& proTx) :
             keyIDOwner(proTx.keyIDOwner),
             keyIDVoting(proTx.keyIDVoting),
             addr(proTx.addr),
-            scriptPayout(proTx.scriptPayout)
+            scriptPayout(proTx.scriptPayout),
+            platformNodeID(proTx.platformNodeID),
+            platformP2PPort(proTx.platformP2PPort),
+            platformHTTPPort(proTx.platformHTTPPort)
     {
         pubKeyOperator.Set(proTx.pubKeyOperator);
     }
@@ -86,7 +93,10 @@ public:
                 obj.keyIDVoting,
                 obj.addr,
                 obj.scriptPayout,
-                obj.scriptOperatorPayout
+                obj.scriptOperatorPayout,
+                obj.platformNodeID,
+                obj.platformP2PPort,
+                obj.platformHTTPPort
                 );
     }
 
@@ -96,6 +106,7 @@ public:
         addr = CService();
         scriptOperatorPayout = CScript();
         nRevocationReason = CProUpRevTx::REASON_NOT_SPECIFIED;
+        platformNodeID = uint160();
     }
     void BanIfNotBanned(int height)
     {
@@ -150,9 +161,12 @@ public:
         Field_scriptPayout                      = 0x1000,
         Field_scriptOperatorPayout              = 0x2000,
         Field_nConsecutivePayments              = 0x4000,
+        Field_platformNodeID                    = 0x8000,
+        Field_platformP2PPort                   = 0x10000,
+        Field_platformHTTPPort                  = 0x20000,
     };
 
-#define DMN_STATE_DIFF_ALL_FIELDS_BUT_CONSECUTIVE_PAYMENTS \
+#define DMN_STATE_DIFF_ALL_FIELDS \
     DMN_STATE_DIFF_LINE(nRegisteredHeight) \
     DMN_STATE_DIFF_LINE(nLastPaidHeight)     \
     DMN_STATE_DIFF_LINE(nPoSePenalty) \
@@ -166,11 +180,10 @@ public:
     DMN_STATE_DIFF_LINE(keyIDVoting) \
     DMN_STATE_DIFF_LINE(addr) \
     DMN_STATE_DIFF_LINE(scriptPayout) \
-    DMN_STATE_DIFF_LINE(scriptOperatorPayout)
-
-#define DMN_STATE_DIFF_ALL_FIELDS \
-    DMN_STATE_DIFF_ALL_FIELDS_BUT_CONSECUTIVE_PAYMENTS \
-    DMN_STATE_DIFF_LINE(nConsecutivePayments) \
+    DMN_STATE_DIFF_LINE(scriptOperatorPayout) \
+    DMN_STATE_DIFF_LINE(platformNodeID) \
+    DMN_STATE_DIFF_LINE(platformP2PPort) \
+    DMN_STATE_DIFF_LINE(platformHTTPPort)
 
 public:
     uint32_t fields{0};

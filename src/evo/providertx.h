@@ -39,6 +39,9 @@ public:
     uint16_t nMode{0};                                     // only 0 supported for now
     COutPoint collateralOutpoint{uint256(), (uint32_t)-1}; // if hash is null, we refer to a ProRegTx output
     CService addr;
+    uint160 platformNodeID{};
+    uint16_t platformP2PPort{0};
+    uint16_t platformHTTPPort{0};
     CKeyID keyIDOwner;
     CBLSPublicKey pubKeyOperator;
     CKeyID keyIDVoting;
@@ -50,14 +53,14 @@ public:
     SERIALIZE_METHODS(CProRegTx, obj)
     {
         READWRITE(
-                obj.nVersion
+                obj.nVersion,
+                obj.nType
         );
         if (obj.nVersion == 0 || obj.nVersion > BASIC_BLS_VERSION) {
             // unknown version, bail out early
             return;
         }
         READWRITE(
-                obj.nType,
                 obj.nMode,
                 obj.collateralOutpoint,
                 obj.addr,
@@ -68,6 +71,13 @@ public:
                 obj.scriptPayout,
                 obj.inputsHash
         );
+        if (obj.nVersion == BASIC_BLS_VERSION && obj.nType == TYPE_HIGH_PERFORMANCE_MASTERNODE) {
+            READWRITE(
+                    obj.platformNodeID,
+                    obj.platformP2PPort,
+                    obj.platformHTTPPort
+            );
+        }
         if (!(s.GetType() & SER_GETHASH)) {
             READWRITE(obj.vchSig);
         }
@@ -97,7 +107,11 @@ public:
         }
         obj.pushKV("pubKeyOperator", pubKeyOperator.ToString(nVersion == LEGACY_BLS_VERSION));
         obj.pushKV("operatorReward", (double)nOperatorReward / 100);
-
+        if (nType == TYPE_HIGH_PERFORMANCE_MASTERNODE) {
+            obj.pushKV("platformNodeID", platformNodeID.ToString());
+            obj.pushKV("platformP2PPort", platformP2PPort);
+            obj.pushKV("platformHTTPPort", platformHTTPPort);
+        }
         obj.pushKV("inputsHash", inputsHash.ToString());
     }
 
@@ -110,6 +124,8 @@ public:
     static constexpr auto SPECIALTX_TYPE = TRANSACTION_PROVIDER_UPDATE_SERVICE;
     static constexpr uint16_t LEGACY_BLS_VERSION = 1;
     static constexpr uint16_t BASIC_BLS_VERSION = 2;
+    static constexpr uint16_t TYPE_REGULAR_MASTERNODE = 0;
+    static constexpr uint16_t TYPE_HIGH_PERFORMANCE_MASTERNODE = 1;
 
     [[nodiscard]] static constexpr auto GetVersion(const bool is_basic_scheme_active) -> uint16_t
     {
@@ -117,8 +133,12 @@ public:
     }
 
     uint16_t nVersion{LEGACY_BLS_VERSION}; // message version
+    uint16_t nType{TYPE_REGULAR_MASTERNODE};
     uint256 proTxHash;
     CService addr;
+    uint160 platformNodeID{};
+    uint16_t platformP2PPort{0};
+    uint16_t platformHTTPPort{0};
     CScript scriptOperatorPayout;
     uint256 inputsHash; // replay protection
     CBLSSignature sig;
@@ -132,12 +152,24 @@ public:
             // unknown version, bail out early
             return;
         }
+        if (obj.nVersion == BASIC_BLS_VERSION) {
+            READWRITE(
+                    obj.nType
+            );
+        }
         READWRITE(
                 obj.proTxHash,
                 obj.addr,
                 obj.scriptOperatorPayout,
                 obj.inputsHash
         );
+        if (obj.nVersion == BASIC_BLS_VERSION && obj.nType == TYPE_HIGH_PERFORMANCE_MASTERNODE) {
+            READWRITE(
+                    obj.platformNodeID,
+                    obj.platformP2PPort,
+                    obj.platformHTTPPort
+            );
+        }
         if (!(s.GetType() & SER_GETHASH)) {
             READWRITE(
                     CBLSSignatureVersionWrapper(const_cast<CBLSSignature&>(obj.sig), (obj.nVersion == LEGACY_BLS_VERSION), true)
@@ -152,11 +184,17 @@ public:
         obj.clear();
         obj.setObject();
         obj.pushKV("version", nVersion);
+        obj.pushKV("type", nType);
         obj.pushKV("proTxHash", proTxHash.ToString());
         obj.pushKV("service", addr.ToString(false));
         CTxDestination dest;
         if (ExtractDestination(scriptOperatorPayout, dest)) {
             obj.pushKV("operatorPayoutAddress", EncodeDestination(dest));
+        }
+        if (nType == TYPE_HIGH_PERFORMANCE_MASTERNODE) {
+            obj.pushKV("platformNodeID", platformNodeID.ToString());
+            obj.pushKV("platformP2PPort", platformP2PPort);
+            obj.pushKV("platformHTTPPort", platformHTTPPort);
         }
         obj.pushKV("inputsHash", inputsHash.ToString());
     }

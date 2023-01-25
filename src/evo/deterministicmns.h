@@ -484,9 +484,9 @@ public:
         tmp = ReadCompactSize(s);
         for (size_t i = 0; i < tmp; i++) {
             CDeterministicMNStateDiff diff;
-            // CDeterministicMNState holds a new field (nConsecutivePayments) but no migration is needed here since:
+            // CDeterministicMNState hold new fields {nConsecutivePayments, platformNodeID, platformP2PPort, platformHTTPPort} but no migration is needed here since:
             // CDeterministicMNStateDiff is always serialised using a bitmask.
-            // Because the new field (nConsecutivePayments) has a new bit guide value then we are good to continue
+            // Because the new field have a new bit guide value then we are good to continue
             tmp2 = ReadVarInt<Stream, VarIntMode::DEFAULT, uint64_t>(s);
             s >> diff;
             updatedMNs.emplace(tmp2, std::move(diff));

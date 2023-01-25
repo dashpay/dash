@@ -30,7 +30,9 @@ CSimplifiedMNListEntry::CSimplifiedMNListEntry(const CDeterministicMN& dmn) :
     keyIDVoting(dmn.pdmnState->keyIDVoting),
     isValid(!dmn.pdmnState->IsBanned()),
     scriptPayout(dmn.pdmnState->scriptPayout),
-    scriptOperatorPayout(dmn.pdmnState->scriptOperatorPayout)
+    scriptOperatorPayout(dmn.pdmnState->scriptOperatorPayout),
+    nType(dmn.nType),
+    platformHTTPPort(dmn.pdmnState->platformHTTPPort)
 {
 }
 
@@ -53,8 +55,8 @@ std::string CSimplifiedMNListEntry::ToString() const
         operatorPayoutAddress = EncodeDestination(dest);
     }
 
-    return strprintf("CSimplifiedMNListEntry(proRegTxHash=%s, confirmedHash=%s, service=%s, pubKeyOperator=%s, votingAddress=%s, isValid=%d, payoutAddress=%s, operatorPayoutAddress=%s)",
-        proRegTxHash.ToString(), confirmedHash.ToString(), service.ToString(false), pubKeyOperator.Get().ToString(), EncodeDestination(PKHash(keyIDVoting)), isValid, payoutAddress, operatorPayoutAddress);
+    return strprintf("CSimplifiedMNListEntry(nType=%d, proRegTxHash=%s, confirmedHash=%s, service=%s, pubKeyOperator=%s, votingAddress=%s, isValid=%d, payoutAddress=%s, operatorPayoutAddress=%s, platformHTTPPort=%d)",
+        nType, proRegTxHash.ToString(), confirmedHash.ToString(), service.ToString(false), pubKeyOperator.Get().ToString(), EncodeDestination(PKHash(keyIDVoting)), isValid, payoutAddress, operatorPayoutAddress, platformHTTPPort);
 }
 
 void CSimplifiedMNListEntry::ToJson(UniValue& obj, bool extended) const
@@ -68,6 +70,10 @@ void CSimplifiedMNListEntry::ToJson(UniValue& obj, bool extended) const
     obj.pushKV("votingAddress", EncodeDestination(PKHash(keyIDVoting)));
     obj.pushKV("isValid", isValid);
     obj.pushKV("nVersion", nVersion);
+    obj.pushKV("nType", nType);
+    if (nType == CDeterministicMN::TYPE_HIGH_PERFORMANCE_MASTERNODE) {
+        obj.pushKV("platformHTTPPort", platformHTTPPort);
+    }
 
     if (!extended) return;
 
@@ -80,6 +86,7 @@ void CSimplifiedMNListEntry::ToJson(UniValue& obj, bool extended) const
     }
 }
 
+//TODO: Invistigate if we can delete this constructor
 CSimplifiedMNList::CSimplifiedMNList(const std::vector<CSimplifiedMNListEntry>& smlEntries)
 {
     mnList.resize(smlEntries.size());

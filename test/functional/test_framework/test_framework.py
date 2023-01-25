@@ -899,7 +899,7 @@ MASTERNODE_COLLATERAL = 1000
 HIGHPERFORMANCE_MASTERNODE_COLLATERAL = 4000
 
 class MasternodeInfo:
-    def __init__(self, proTxHash, ownerAddr, votingAddr, pubKeyOperator, keyOperator, collateral_address, collateral_txid, collateral_vout, hpmn=False):
+    def __init__(self, proTxHash, ownerAddr, votingAddr, pubKeyOperator, keyOperator, collateral_address, collateral_txid, collateral_vout, addr, hpmn=False):
         self.proTxHash = proTxHash
         self.ownerAddr = ownerAddr
         self.votingAddr = votingAddr
@@ -908,6 +908,7 @@ class MasternodeInfo:
         self.collateral_address = collateral_address
         self.collateral_txid = collateral_txid
         self.collateral_vout = collateral_vout
+        self.addr = addr
         self.hpmn = hpmn
 
 
@@ -1051,7 +1052,7 @@ class DashTestFramework(BitcoinTestFramework):
         force_finish_mnsync(self.nodes[mn_idx])
 
         self.log.info("Successfully started and synced proTx:"+str(created_mn_info.proTxHash))
-        return created_mn_info.proTxHash
+        return created_mn_info
 
     def dynamically_prepare_masternode(self, idx, node_p2p_port, hpmn=False):
         bls = self.nodes[0].bls('generate')
@@ -1060,6 +1061,9 @@ class DashTestFramework(BitcoinTestFramework):
         owner_address = self.nodes[0].getnewaddress()
         voting_address = self.nodes[0].getnewaddress()
         reward_address = self.nodes[0].getnewaddress()
+
+        platform_p2p_port = '%d' % (node_p2p_port + 101) if hpmn else ''
+        platform_http_port = '%d' % (node_p2p_port + 102) if hpmn else ''
 
         collateral_amount = 4000 if hpmn else 1000
         collateral_txid = self.nodes[0].sendtoaddress(collateral_address, collateral_amount)
@@ -1080,10 +1084,11 @@ class DashTestFramework(BitcoinTestFramework):
         operatorReward = idx
 
         self.nodes[0].generate(1)
-        protx_result = self.nodes[0].protx('register', collateral_txid, collateral_vout, ipAndPort, owner_address, bls['public'], voting_address, operatorReward, reward_address, funds_address, True)
+        register_rpc = 'register_hpmn' if hpmn else 'register'
+        protx_result = self.nodes[0].protx(register_rpc, collateral_txid, collateral_vout, ipAndPort, owner_address, bls['public'], voting_address, operatorReward, reward_address, '', platform_p2p_port, platform_http_port, funds_address, True)
         self.nodes[0].generate(1)
         self.sync_all(self.nodes)
-        mn_info = MasternodeInfo(protx_result, owner_address, voting_address, bls['public'], bls['secret'], collateral_address, collateral_txid, collateral_vout, hpmn)
+        mn_info = MasternodeInfo(protx_result, owner_address, voting_address, bls['public'], bls['secret'], collateral_address, collateral_txid, collateral_vout, ipAndPort, hpmn)
         self.mninfo.append(mn_info)
 
         mn_type_str = "HPMN" if hpmn else "MN"
@@ -1135,8 +1140,7 @@ class DashTestFramework(BitcoinTestFramework):
 
         if register_fund:
             # self.nodes[0].lockunspent(True, [{'txid': txid, 'vout': collateral_vout}])
-            requested_fund_amout = 4000 if hpmn else 1000
-            protx_result = self.nodes[0].protx('register_fund', address, requested_fund_amout, ipAndPort, ownerAddr, bls['public'], votingAddr, operatorReward, rewardsAddr, address, submit)
+            protx_result = self.nodes[0].protx('register_fund', address, ipAndPort, ownerAddr, bls['public'], votingAddr, operatorReward, rewardsAddr, address, submit)
         else:
             self.nodes[0].generate(1)
             protx_result = self.nodes[0].protx('register', txid, collateral_vout, ipAndPort, ownerAddr, bls['public'], votingAddr, operatorReward, rewardsAddr, address, submit)
@@ -1151,7 +1155,7 @@ class DashTestFramework(BitcoinTestFramework):
             operatorPayoutAddress = self.nodes[0].getnewaddress()
             self.nodes[0].protx('update_service', proTxHash, ipAndPort, bls['secret'], operatorPayoutAddress, address)
 
-        self.mninfo.append(MasternodeInfo(proTxHash, ownerAddr, votingAddr, bls['public'], bls['secret'], address, txid, collateral_vout, hpmn))
+        self.mninfo.append(MasternodeInfo(proTxHash, ownerAddr, votingAddr, bls['public'], bls['secret'], address, txid, collateral_vout, ipAndPort, hpmn))
         # self.sync_all()
 
         mn_type_str = "HPMN" if hpmn else "MN"

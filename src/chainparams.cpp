@@ -271,6 +271,9 @@ public:
         pchMessageStart[2] = 0x6b;
         pchMessageStart[3] = 0xbd;
         nDefaultPort = 9999;
+        //TODO: Determine default values
+        nDefaultPlatformP2PPort = 22000;
+        nDefaultPlatformHTTPPort = 22001;
         nPruneAfterHeight = 100000;
         m_assumed_blockchain_size = 45;
         m_assumed_chain_state_size = 1;
@@ -502,6 +505,9 @@ public:
         pchMessageStart[2] = 0xca;
         pchMessageStart[3] = 0xff;
         nDefaultPort = 19999;
+        //TODO: Determine default values
+        nDefaultPlatformP2PPort = 23000;
+        nDefaultPlatformHTTPPort = 23001;
         nPruneAfterHeight = 1000;
         m_assumed_blockchain_size = 4;
         m_assumed_chain_state_size = 1;
@@ -710,6 +716,9 @@ public:
         pchMessageStart[2] = 0xff;
         pchMessageStart[3] = 0xce;
         nDefaultPort = 19799;
+        //TODO: Determine default values
+        nDefaultPlatformP2PPort = 24000;
+        nDefaultPlatformHTTPPort = 24001;
         nPruneAfterHeight = 1000;
         m_assumed_blockchain_size = 0;
         m_assumed_chain_state_size = 0;
@@ -960,6 +969,9 @@ public:
         pchMessageStart[2] = 0xb7;
         pchMessageStart[3] = 0xdc;
         nDefaultPort = 19899;
+        //TODO: Determine default values
+        nDefaultPlatformP2PPort = 25000;
+        nDefaultPlatformHTTPPort = 25001;
         nPruneAfterHeight = 1000;
         m_assumed_blockchain_size = 0;
         m_assumed_chain_state_size = 0;

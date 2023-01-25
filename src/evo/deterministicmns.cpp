@@ -376,10 +376,11 @@ CDeterministicMNListDiff CDeterministicMNList::BuildDiff(const CDeterministicMNL
 
 CSimplifiedMNListDiff CDeterministicMNList::BuildSimplifiedDiff(const CDeterministicMNList& to, bool extended) const
 {
+    bool v19active = llmq::utils::IsV19Active(::ChainActive().Tip());
     CSimplifiedMNListDiff diffRet;
     diffRet.baseBlockHash = blockHash;
     diffRet.blockHash = to.blockHash;
-    diffRet.nVersion = llmq::utils::IsV19Active(::ChainActive().Tip()) ? CSimplifiedMNListDiff::BASIC_BLS_VERSION : CSimplifiedMNListDiff::LEGACY_BLS_VERSION;
+    diffRet.nVersion = v19active ? CSimplifiedMNListDiff::BASIC_BLS_VERSION : CSimplifiedMNListDiff::LEGACY_BLS_VERSION;
 
     to.ForEachMN(false, [&](const auto& toPtr) {
         auto fromPtr = GetMN(toPtr.proTxHash);
@@ -783,6 +784,10 @@ bool CDeterministicMNManager::BuildNewListFromBlock(const CBlock& block, const C
                 return _state.Invalid(ValidationInvalidReason::CONSENSUS, false, REJECT_INVALID, "bad-protx-payload");
             }
 
+            if (proTx.nType == CProUpServTx::TYPE_HIGH_PERFORMANCE_MASTERNODE && !llmq::utils::IsV19Active(pindexPrev)) {
+                return _state.Invalid(ValidationInvalidReason::CONSENSUS, false, REJECT_INVALID, "bad-protx-payload");
+            }
+
             if (newList.HasUniqueProperty(proTx.addr) && newList.GetUniquePropertyMN(proTx.addr)->proTxHash != proTx.proTxHash) {
                 return _state.Invalid(ValidationInvalidReason::CONSENSUS, false, REJECT_DUPLICATE, "bad-protx-dup-addr");
             }
@@ -791,10 +796,21 @@ bool CDeterministicMNManager::BuildNewListFromBlock(const CBlock& block, const C
             if (!dmn) {
                 return _state.Invalid(ValidationInvalidReason::CONSENSUS, false, REJECT_INVALID, "bad-protx-hash");
             }
+            if (proTx.nType == CProUpServTx::TYPE_HIGH_PERFORMANCE_MASTERNODE && dmn->nType != CDeterministicMN::TYPE_HIGH_PERFORMANCE_MASTERNODE) {
+                return _state.Invalid(ValidationInvalidReason::CONSENSUS, false, REJECT_INVALID, "bad-protx-type");
+            }
+            if (proTx.nType == CProUpServTx::TYPE_REGULAR_MASTERNODE && dmn->nType != CDeterministicMN::TYPE_REGULAR_MASTERNODE) {
+                return _state.Invalid(ValidationInvalidReason::CONSENSUS, false, REJECT_INVALID, "bad-protx-type");
+            }
+
             auto newState = std::make_shared<CDeterministicMNState>(*dmn->pdmnState);
             newState->addr = proTx.addr;
             newState->scriptOperatorPayout = proTx.scriptOperatorPayout;
-
+            if (proTx.nType == CProUpServTx::TYPE_HIGH_PERFORMANCE_MASTERNODE) {
+                newState->platformNodeID = proTx.platformNodeID;
+                newState->platformP2PPort = proTx.platformP2PPort;
+                newState->platformHTTPPort = proTx.platformHTTPPort;
+            }
             if (newState->IsBanned()) {
                 // only revive when all keys are set
                 if (newState->pubKeyOperator.Get().IsValid() && !newState->keyIDVoting.IsNull() && !newState->keyIDOwner.IsNull()) {
@@ -1249,6 +1265,41 @@ static bool CheckService(const ProTx& proTx, CValidationState& state)
 }
 
 template <typename ProTx>
+static bool CheckPlatformFields(const ProTx& proTx, CValidationState& state, bool allowNullValues)
+{
+    // platformNodeID can be null since it can not be known at this time (v19 HPMNs registration)
+    if (!allowNullValues && proTx.platformNodeID.IsNull()) {
+        return state.Invalid(ValidationInvalidReason::TX_BAD_SPECIAL, false, REJECT_INVALID, "bad-protx-platform-nodeid");
+    }
+
+    static int mainnetPlatformP2PPort = CreateChainParams(CBaseChainParams::MAIN)->GetDefaultPlatformP2PPort();
+    if (Params().NetworkIDString() == CBaseChainParams::MAIN) {
+        if (proTx.platformP2PPort != mainnetPlatformP2PPort) {
+            return state.Invalid(ValidationInvalidReason::TX_BAD_SPECIAL, false, REJECT_INVALID, "bad-protx-platform-p2p-port");
+        }
+    } else if (proTx.platformP2PPort == mainnetPlatformP2PPort || proTx.platformP2PPort < 1 || proTx.platformP2PPort > std::numeric_limits<uint16_t>::max()) {
+        return state.Invalid(ValidationInvalidReason::TX_BAD_SPECIAL, false, REJECT_INVALID, "bad-protx-platform-p2p-port");
+    }
+
+    static int mainnetPlatformHTTPPort = CreateChainParams(CBaseChainParams::MAIN)->GetDefaultPlatformHTTPPort();
+    if (Params().NetworkIDString() == CBaseChainParams::MAIN) {
+        if (proTx.platformHTTPPort != mainnetPlatformHTTPPort) {
+            return state.Invalid(ValidationInvalidReason::TX_BAD_SPECIAL, false, REJECT_INVALID, "bad-protx-platform-http-port");
+        }
+    } else if (proTx.platformHTTPPort == mainnetPlatformHTTPPort || proTx.platformHTTPPort < 1 || proTx.platformHTTPPort > std::numeric_limits<uint16_t>::max()) {
+        return state.Invalid(ValidationInvalidReason::TX_BAD_SPECIAL, false, REJECT_INVALID, "bad-protx-platform-http-port");
+    }
+
+    if (proTx.platformP2PPort == proTx.platformHTTPPort ||
+        proTx.platformP2PPort == proTx.addr.GetPort() ||
+        proTx.platformHTTPPort == proTx.addr.GetPort()) {
+        return state.Invalid(ValidationInvalidReason::TX_BAD_SPECIAL, false, REJECT_INVALID, "bad-protx-platform-dup-ports");
+    }
+
+    return true;
+}
+
+template <typename ProTx>
 static bool CheckHashSig(const ProTx& proTx, const PKHash& pkhash, CValidationState& state)
 {
     std::string strError;
@@ -1297,6 +1348,12 @@ bool CheckProRegTx(const CTransaction& tx, const CBlockIndex* pindexPrev, CValid
     if (ptx.addr != CService() && !CheckService(ptx, state)) {
         // pass the state returned by the function above
         return false;
+    }
+
+    if (ptx.nType == CProRegTx::TYPE_HIGH_PERFORMANCE_MASTERNODE) {
+        if (!CheckPlatformFields(ptx, state, true)) {
+            return false;
+        }
     }
 
     CTxDestination collateralTxDest;
@@ -1402,6 +1459,12 @@ bool CheckProUpServTx(const CTransaction& tx, const CBlockIndex* pindexPrev, CVa
     if (!CheckService(ptx, state)) {
         // pass the state returned by the function above
         return false;
+    }
+
+    if (ptx.nType == CProUpServTx::TYPE_HIGH_PERFORMANCE_MASTERNODE) {
+        if (!CheckPlatformFields(ptx, state, true)) {
+            return false;
+        }
     }
 
     if (pindexPrev) {

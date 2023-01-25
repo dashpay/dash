@@ -78,8 +78,8 @@ std::string CProRegTx::ToString() const
         payee = EncodeDestination(dest);
     }
 
-    return strprintf("CProRegTx(nVersion=%d, collateralOutpoint=%s, addr=%s, nOperatorReward=%f, ownerAddress=%s, pubKeyOperator=%s, votingAddress=%s, scriptPayout=%s)",
-        nVersion, collateralOutpoint.ToStringShort(), addr.ToString(), (double)nOperatorReward / 100, EncodeDestination(PKHash(keyIDOwner)), pubKeyOperator.ToString(nVersion == LEGACY_BLS_VERSION), EncodeDestination(PKHash(keyIDVoting)), payee);
+    return strprintf("CProRegTx(nVersion=%d, nType=%d, collateralOutpoint=%s, addr=%s, nOperatorReward=%f, ownerAddress=%s, pubKeyOperator=%s, votingAddress=%s, scriptPayout=%s, platformNodeID=%s, platformP2PPort=%d, platformHTTPPort=%d)",
+        nVersion, nType, collateralOutpoint.ToStringShort(), addr.ToString(), (double)nOperatorReward / 100, EncodeDestination(PKHash(keyIDOwner)), pubKeyOperator.ToString(nVersion == LEGACY_BLS_VERSION), EncodeDestination(PKHash(keyIDVoting)), payee, platformNodeID.ToString(), platformP2PPort, platformHTTPPort);
 }
 
 maybe_error CProUpServTx::IsTriviallyValid(bool is_bls_legacy_scheme) const
@@ -99,8 +99,8 @@ std::string CProUpServTx::ToString() const
         payee = EncodeDestination(dest);
     }
 
-    return strprintf("CProUpServTx(nVersion=%d, proTxHash=%s, addr=%s, operatorPayoutAddress=%s)",
-        nVersion, proTxHash.ToString(), addr.ToString(), payee);
+    return strprintf("CProUpServTx(nVersion=%d, nType=%d, proTxHash=%s, addr=%s, operatorPayoutAddress=%s, platformNodeID=%s, platformP2PPort=%d, platformHTTPPort=%d)",
+        nVersion, nType, proTxHash.ToString(), addr.ToString(), payee, platformNodeID.ToString(), platformP2PPort, platformHTTPPort);
 }
 
 maybe_error CProUpRegTx::IsTriviallyValid(bool is_bls_legacy_scheme) const
