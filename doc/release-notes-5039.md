@@ -1,7 +1,7 @@
 Added RPCs
 --------
 
-The following RPCs were added `protx register_hpmn`, `protx register_fund_hpmn`, `protx register_prepare_hpmn` and `protx update_service_hpmn`. 
+The following RPCs were added `protx register_hpmn`, `protx register_fund_hpmn`, `protx register_prepare_hpmn` and `protx update_service_hpmn`.
 Those RPCs are the corresponding versions for HPMNs and they have the following mandatory arguments: `platformNodeID`, `platformP2PPort` and `platformNodeID`.
 - `platformNodeID`: Platform P2P node ID, derived from P2P public key.
 - `platformP2PPort`: TCP port of Dash Platform peer-to-peer communication between nodes (network byte order).
