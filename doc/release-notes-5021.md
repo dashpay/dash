@@ -16,7 +16,7 @@ To support syncing of older blocks containing the transactions using the legacy 
 |---------|--------------------------------------------------------|------------------------------|
 | 1       | Non-rotated qfcommit serialised using legacy BLS scheme | No                           |
 | 2       | Rotated qfcommit serialised using legacy BLS scheme     | Yes                          |
-| 3       | Non-rotated qcommit serialised using basic BLS scheme  | No                           |
+| 3       | Non-rotated qfcommit serialised using basic BLS scheme  | No                           |
 | 4       | Rotated qcommit serialised using basic BLS scheme      | Yes                          |
 
 `MNLISTDIFF` P2P message
