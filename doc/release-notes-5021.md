@@ -35,7 +35,7 @@ The `version` field indicates which BLS scheme is used to serialise the `pubKeyO
 | 1       | Serialisation of `pubKeyOperator` using legacy BLS scheme |
 | 2       | Serialisation of `pubKeyOperator` using basic BLS scheme  |
 
-`ProTx` txs family 
+`ProTx` txs family
 --------
 
 `proregtx` and `proupregtx` will support a new `version` value:
@@ -52,7 +52,7 @@ The `version` field indicates which BLS scheme is used to serialise the `pubKeyO
 | 1       | Serialisation of `sig` using legacy BLS scheme |
 | 2       | Serialisation of `sig` using basic BLS scheme  |
 
-`MNHFTx` 
+`MNHFTx`
 --------
 
 `MNHFTx` will support a new `version` value:
@@ -65,6 +65,7 @@ The `version` field indicates which BLS scheme is used to serialise the `pubKeyO
 BLS enforced scheme
 --------
 Once the v19 hard fork is activated, all remaining messages containing BLS public keys or signatures will serialise them using the new basic BLS scheme.
+The motivation behind this change is the need to be aligned with IETF standards.
 
 List of affected messages:
 `dsq`, `dstx`, `mnauth`, `govobj`, `govobjvote`, `qrinfo`, `qsigshare`, `qsigrec`, `isdlock`, `clsig`, and all DKG messages (`qfcommit`, `qcontrib`, `qcomplaint`, `qjustify`, `qpcommit`).
