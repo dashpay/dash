@@ -25,13 +25,59 @@ namespace llmq
     class CFinalCommitment;
 } // namespace llmq
 
+//TODO: To remove this in the future
+class CDeterministicMNState_Oldformat
+{
+private:
+    int nPoSeBanHeight{-1};
+
+    friend class CDeterministicMNStateDiff;
+    friend class CDeterministicMNState;
+public:
+    int nRegisteredHeight{-1};
+    int nLastPaidHeight{0};
+    int nPoSePenalty{0};
+    int nPoSeRevivedHeight{-1};
+    uint16_t nRevocationReason{CProUpRevTx::REASON_NOT_SPECIFIED};
+    uint256 confirmedHash;
+    uint256 confirmedHashWithProRegTxHash;
+    CKeyID keyIDOwner;
+    CBLSLazyPublicKey pubKeyOperator;
+    CKeyID keyIDVoting;
+    CService addr;
+    CScript scriptPayout;
+    CScript scriptOperatorPayout;
+
+public:
+    CDeterministicMNState_Oldformat() = default;
+
+    SERIALIZE_METHODS(CDeterministicMNState_Oldformat, obj)
+    {
+        READWRITE(
+                obj.nRegisteredHeight,
+                obj.nLastPaidHeight,
+                obj.nPoSePenalty,
+                obj.nPoSeRevivedHeight,
+                obj.nPoSeBanHeight,
+                obj.nRevocationReason,
+                obj.confirmedHash,
+                obj.confirmedHashWithProRegTxHash,
+                obj.keyIDOwner,
+                obj.pubKeyOperator,
+                obj.keyIDVoting,
+                obj.addr,
+                obj.scriptPayout,
+                obj.scriptOperatorPayout
+        );
+    }
+};
+
 class CDeterministicMNState
 {
 private:
     int nPoSeBanHeight{-1};
 
     friend class CDeterministicMNStateDiff;
-
 public:
     int nRegisteredHeight{-1};
     int nLastPaidHeight{0};
@@ -70,6 +116,25 @@ public:
     {
         pubKeyOperator.Set(proTx.pubKeyOperator);
     }
+    explicit CDeterministicMNState(const CDeterministicMNState_Oldformat& s) :
+            nPoSeBanHeight(s.nPoSeBanHeight),
+            nRegisteredHeight(s.nRegisteredHeight),
+            nLastPaidHeight(s.nLastPaidHeight),
+            nConsecutivePayments(0),
+            nPoSePenalty(s.nPoSePenalty),
+            nPoSeRevivedHeight(s.nPoSeRevivedHeight),
+            nRevocationReason(s.nRevocationReason),
+            confirmedHash(s.confirmedHash),
+            confirmedHashWithProRegTxHash(s.confirmedHashWithProRegTxHash),
+            keyIDOwner(s.keyIDOwner),
+            pubKeyOperator(s.pubKeyOperator),
+            keyIDVoting(s.keyIDVoting),
+            addr(s.addr),
+            scriptPayout(s.scriptPayout),
+            scriptOperatorPayout(s.scriptOperatorPayout),
+            platformNodeID(),
+            platformP2PPort(0),
+            platformHTTPPort(0){}
     template <typename Stream>
     CDeterministicMNState(deserialize_type, Stream& s)
     {
@@ -219,6 +284,5 @@ public:
 #undef DMN_STATE_DIFF_LINE
     }
 };
-
 
 #endif //BITCOIN_EVO_DMNSTATE_H
