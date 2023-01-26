@@ -6,7 +6,7 @@ Added RPCs
 Other changes
 --------
 
-`qcommit`
+`qfcommit`
 --------
 
 Once the v19 hard fork is activated, `quorumPublicKey` will be serialised using the basic BLS scheme.
