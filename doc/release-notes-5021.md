@@ -14,7 +14,7 @@ To support syncing of older blocks containing the transactions using the legacy 
 
 | Version | Version Description                                    | Includes `quorumIndex` field |
 |---------|--------------------------------------------------------|------------------------------|
-| 1       | Non-rotated qcommit serialised using legacy BLS scheme | No                           |
+| 1       | Non-rotated qfcommit serialised using legacy BLS scheme | No                           |
 | 2       | Rotated qcommit serialised using legacy BLS scheme     | Yes                          |
 | 3       | Non-rotated qcommit serialised using basic BLS scheme  | No                           |
 | 4       | Rotated qcommit serialised using basic BLS scheme      | Yes                          |
