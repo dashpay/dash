@@ -625,25 +625,40 @@ bool CSigSharesManager::ProcessPendingSigShares(const CConnman& connman)
                     continue;
                 }
 
-                // we didn't check this earlier because we use a lazy BLS signature and tried to avoid doing the expensive
-                // deserialization in the message thread
-                if (!sigShare.sigShare.Get().IsValid()) {
-                    BanNode(nodeId);
-                    // don't process any additional shares from this node
-                    break;
+                try {
+                    // we didn't check this earlier because we use a lazy BLS signature and tried to avoid doing the expensive
+                    // deserialization in the message thread
+                    if (!sigShare.sigShare.Get().IsValid()) {
+                        BanNode(nodeId);
+                        // don't process any additional shares from this node
+                        break;
+                    }
+                }
+                catch(std::invalid_argument e) {
+                    throw std::runtime_error("ProcessPendingSigShares-#1-1");
                 }
 
                 auto quorum = quorums.at(std::make_pair(sigShare.getLlmqType(), sigShare.getQuorumHash()));
                 auto pubKeyShare = quorum->GetPubKeyShare(sigShare.getQuorumMember());
 
-                if (!pubKeyShare.IsValid()) {
-                    // this should really not happen (we already ensured we have the quorum vvec,
-                    // so we should also be able to create all pubkey shares)
-                    LogPrintf("CSigSharesManager::%s -- pubKeyShare is invalid, which should not be possible here\n", __func__);
-                    assert(false);
+                try {
+                    if (!pubKeyShare.IsValid()) {
+                        // this should really not happen (we already ensured we have the quorum vvec,
+                        // so we should also be able to create all pubkey shares)
+                        LogPrintf("CSigSharesManager::%s -- pubKeyShare is invalid, which should not be possible here\n", __func__);
+                        assert(false);
+                    }
                 }
-
-                batchVerifier.PushMessage(nodeId, sigShare.GetKey(), sigShare.GetSignHash(), sigShare.sigShare.Get(), pubKeyShare);
+                catch(std::invalid_argument e) {
+                    throw std::runtime_error("ProcessPendingSigShares-#1-2");
+                }
+                
+                try {
+                    batchVerifier.PushMessage(nodeId, sigShare.GetKey(), sigShare.GetSignHash(), sigShare.sigShare.Get(), pubKeyShare);
+                }
+                catch(std::invalid_argument e) {
+                    throw std::runtime_error("ProcessPendingSigShares-#1-3");
+                }
                 verifyCount++;
             }
         }
