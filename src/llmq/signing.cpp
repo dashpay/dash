@@ -708,12 +708,17 @@ bool CSigningManager::ProcessPendingRecoveredSigs()
     std::unordered_map<NodeId, std::list<std::shared_ptr<const CRecoveredSig>>> recSigsByNode;
     std::unordered_map<std::pair<Consensus::LLMQType, uint256>, CQuorumCPtr, StaticSaltedHasher> quorums;
 
-    ProcessPendingReconstructedRecoveredSigs();
-
     const size_t nMaxBatchSize{32};
-    CollectPendingRecoveredSigsToVerify(nMaxBatchSize, recSigsByNode, quorums);
-    if (recSigsByNode.empty()) {
-        return false;
+    try {
+        ProcessPendingReconstructedRecoveredSigs();
+
+        CollectPendingRecoveredSigsToVerify(nMaxBatchSize, recSigsByNode, quorums);
+        if (recSigsByNode.empty()) {
+            return false;
+        }
+    }
+    catch(std::invalid_argument e) {
+        throw std::runtime_error("ProcessPendingSigShares-#1");
     }
 
     // It's ok to perform insecure batched verification here as we verify against the quorum public keys, which are not
@@ -721,48 +726,60 @@ bool CSigningManager::ProcessPendingRecoveredSigs()
     CBLSBatchVerifier<NodeId, uint256> batchVerifier(false, false);
 
     size_t verifyCount = 0;
-    for (const auto& p : recSigsByNode) {
-        NodeId nodeId = p.first;
-        const auto& v = p.second;
 
-        for (const auto& recSig : v) {
-            // we didn't verify the lazy signature until now
-            if (!recSig->sig.Get().IsValid()) {
-                batchVerifier.badSources.emplace(nodeId);
-                break;
+    try {
+        for (const auto& p : recSigsByNode) {
+            NodeId nodeId = p.first;
+            const auto& v = p.second;
+
+            for (const auto& recSig : v) {
+                // we didn't verify the lazy signature until now
+                if (!recSig->sig.Get().IsValid()) {
+                    batchVerifier.badSources.emplace(nodeId);
+                    break;
+                }
+
+                const auto& quorum = quorums.at(std::make_pair(recSig->getLlmqType(), recSig->getQuorumHash()));
+                batchVerifier.PushMessage(nodeId, recSig->GetHash(), recSig->buildSignHash(), recSig->sig.Get(), quorum->qc->quorumPublicKey);
+                verifyCount++;
             }
-
-            const auto& quorum = quorums.at(std::make_pair(recSig->getLlmqType(), recSig->getQuorumHash()));
-            batchVerifier.PushMessage(nodeId, recSig->GetHash(), recSig->buildSignHash(), recSig->sig.Get(), quorum->qc->quorumPublicKey);
-            verifyCount++;
         }
+
+        cxxtimer::Timer verifyTimer(true);
+        batchVerifier.Verify();
+        verifyTimer.stop();
+
+        LogPrint(BCLog::LLMQ, "CSigningManager::%s -- verified recovered sig(s). count=%d, vt=%d, nodes=%d\n", __func__, verifyCount, verifyTimer.count(), recSigsByNode.size());
+
+    }
+    catch(std::invalid_argument e) {
+        throw std::runtime_error("ProcessPendingSigShares-#2");
     }
 
-    cxxtimer::Timer verifyTimer(true);
-    batchVerifier.Verify();
-    verifyTimer.stop();
+    try {
+        std::unordered_set<uint256, StaticSaltedHasher> processed;
+        for (const auto& p : recSigsByNode) {
+            NodeId nodeId = p.first;
+            const auto& v = p.second;
 
-    LogPrint(BCLog::LLMQ, "CSigningManager::%s -- verified recovered sig(s). count=%d, vt=%d, nodes=%d\n", __func__, verifyCount, verifyTimer.count(), recSigsByNode.size());
-
-    std::unordered_set<uint256, StaticSaltedHasher> processed;
-    for (const auto& p : recSigsByNode) {
-        NodeId nodeId = p.first;
-        const auto& v = p.second;
-
-        if (batchVerifier.badSources.count(nodeId)) {
-            LogPrint(BCLog::LLMQ, "CSigningManager::%s -- invalid recSig from other node, banning peer=%d\n", __func__, nodeId);
-            LOCK(cs_main);
-            Misbehaving(nodeId, 100);
-            continue;
-        }
-
-        for (const auto& recSig : v) {
-            if (!processed.emplace(recSig->GetHash()).second) {
+            if (batchVerifier.badSources.count(nodeId)) {
+                LogPrint(BCLog::LLMQ, "CSigningManager::%s -- invalid recSig from other node, banning peer=%d\n", __func__, nodeId);
+                LOCK(cs_main);
+                Misbehaving(nodeId, 100);
                 continue;
             }
 
-            ProcessRecoveredSig(recSig);
+            for (const auto& recSig : v) {
+                if (!processed.emplace(recSig->GetHash()).second) {
+                    continue;
+                }
+
+                ProcessRecoveredSig(recSig);
+            }
         }
+    }
+    catch(std::invalid_argument e) {
+        throw std::runtime_error("ProcessPendingSigShares-#3");
     }
 
     return recSigsByNode.size() >= nMaxBatchSize;

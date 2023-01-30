@@ -616,54 +616,64 @@ bool CSigSharesManager::ProcessPendingSigShares(const CConnman& connman)
     // which are not craftable by individual entities, making the rogue public key attack impossible
     CBLSBatchVerifier<NodeId, SigShareKey> batchVerifier(false, true);
 
-    cxxtimer::Timer prepareTimer(true);
-    size_t verifyCount = 0;
-    for (const auto& [nodeId, v] : sigSharesByNodes) {
-        for (const auto& sigShare : v) {
-            if (sigman.HasRecoveredSigForId(sigShare.getLlmqType(), sigShare.getId())) {
+    try {
+        cxxtimer::Timer prepareTimer(true);
+        size_t verifyCount = 0;
+        for (const auto& [nodeId, v] : sigSharesByNodes) {
+            for (const auto& sigShare : v) {
+                if (sigman.HasRecoveredSigForId(sigShare.getLlmqType(), sigShare.getId())) {
+                    continue;
+                }
+
+                // we didn't check this earlier because we use a lazy BLS signature and tried to avoid doing the expensive
+                // deserialization in the message thread
+                if (!sigShare.sigShare.Get().IsValid()) {
+                    BanNode(nodeId);
+                    // don't process any additional shares from this node
+                    break;
+                }
+
+                auto quorum = quorums.at(std::make_pair(sigShare.getLlmqType(), sigShare.getQuorumHash()));
+                auto pubKeyShare = quorum->GetPubKeyShare(sigShare.getQuorumMember());
+
+                if (!pubKeyShare.IsValid()) {
+                    // this should really not happen (we already ensured we have the quorum vvec,
+                    // so we should also be able to create all pubkey shares)
+                    LogPrintf("CSigSharesManager::%s -- pubKeyShare is invalid, which should not be possible here\n", __func__);
+                    assert(false);
+                }
+
+                batchVerifier.PushMessage(nodeId, sigShare.GetKey(), sigShare.GetSignHash(), sigShare.sigShare.Get(), pubKeyShare);
+                verifyCount++;
+            }
+        }
+        prepareTimer.stop();
+
+        cxxtimer::Timer verifyTimer(true);
+        batchVerifier.Verify();
+        verifyTimer.stop();
+
+        LogPrint(BCLog::LLMQ_SIGS, "CSigSharesManager::%s -- verified sig shares. count=%d, pt=%d, vt=%d, nodes=%d\n", __func__, verifyCount, prepareTimer.count(), verifyTimer.count(), sigSharesByNodes.size());
+    }
+    catch(std::invalid_argument e) {
+        throw std::runtime_error("ProcessPendingSigShares-#1");
+    }
+
+    try {
+        for (const auto& [nodeId, v] : sigSharesByNodes) {
+            if (batchVerifier.badSources.count(nodeId) != 0) {
+                LogPrint(BCLog::LLMQ_SIGS, "CSigSharesManager::%s -- invalid sig shares from other node, banning peer=%d\n",
+                         __func__, nodeId);
+                // this will also cause re-requesting of the shares that were sent by this node
+                BanNode(nodeId);
                 continue;
             }
 
-            // we didn't check this earlier because we use a lazy BLS signature and tried to avoid doing the expensive
-            // deserialization in the message thread
-            if (!sigShare.sigShare.Get().IsValid()) {
-                BanNode(nodeId);
-                // don't process any additional shares from this node
-                break;
-            }
-
-            auto quorum = quorums.at(std::make_pair(sigShare.getLlmqType(), sigShare.getQuorumHash()));
-            auto pubKeyShare = quorum->GetPubKeyShare(sigShare.getQuorumMember());
-
-            if (!pubKeyShare.IsValid()) {
-                // this should really not happen (we already ensured we have the quorum vvec,
-                // so we should also be able to create all pubkey shares)
-                LogPrintf("CSigSharesManager::%s -- pubKeyShare is invalid, which should not be possible here\n", __func__);
-                assert(false);
-            }
-
-            batchVerifier.PushMessage(nodeId, sigShare.GetKey(), sigShare.GetSignHash(), sigShare.sigShare.Get(), pubKeyShare);
-            verifyCount++;
+            ProcessPendingSigShares(v, quorums, connman);
         }
     }
-    prepareTimer.stop();
-
-    cxxtimer::Timer verifyTimer(true);
-    batchVerifier.Verify();
-    verifyTimer.stop();
-
-    LogPrint(BCLog::LLMQ_SIGS, "CSigSharesManager::%s -- verified sig shares. count=%d, pt=%d, vt=%d, nodes=%d\n", __func__, verifyCount, prepareTimer.count(), verifyTimer.count(), sigSharesByNodes.size());
-
-    for (const auto& [nodeId, v] : sigSharesByNodes) {
-        if (batchVerifier.badSources.count(nodeId) != 0) {
-            LogPrint(BCLog::LLMQ_SIGS, "CSigSharesManager::%s -- invalid sig shares from other node, banning peer=%d\n",
-                     __func__, nodeId);
-            // this will also cause re-requesting of the shares that were sent by this node
-            BanNode(nodeId);
-            continue;
-        }
-
-        ProcessPendingSigShares(v, quorums, connman);
+    catch(std::invalid_argument e) {
+        throw std::runtime_error("ProcessPendingSigShares-#2");
     }
 
     return sigSharesByNodes.size() >= nMaxBatchSize;
@@ -1463,22 +1473,27 @@ void CSigSharesManager::SignPendingSigShares()
         v = std::move(pendingSigns);
     }
 
-    for (const auto& [pQuorum, id, msgHash] : v) {
-        auto opt_sigShare = CreateSigShare(pQuorum, id, msgHash);
+    try {
+        for (const auto& [pQuorum, id, msgHash] : v) {
+            auto opt_sigShare = CreateSigShare(pQuorum, id, msgHash);
 
-        if (opt_sigShare.has_value() && opt_sigShare->sigShare.Get().IsValid()) {
-            auto sigShare = *opt_sigShare;
-            ProcessSigShare(sigShare, connman, pQuorum);
+            if (opt_sigShare.has_value() && opt_sigShare->sigShare.Get().IsValid()) {
+                auto sigShare = *opt_sigShare;
+                ProcessSigShare(sigShare, connman, pQuorum);
 
-            if (utils::IsAllMembersConnectedEnabled(pQuorum->params.type)) {
-                LOCK(cs);
-                auto& session = signedSessions[sigShare.GetSignHash()];
-                session.sigShare = sigShare;
-                session.quorum = pQuorum;
-                session.nextAttemptTime = 0;
-                session.attempt = 0;
+                if (utils::IsAllMembersConnectedEnabled(pQuorum->params.type)) {
+                    LOCK(cs);
+                    auto& session = signedSessions[sigShare.GetSignHash()];
+                    session.sigShare = sigShare;
+                    session.quorum = pQuorum;
+                    session.nextAttemptTime = 0;
+                    session.attempt = 0;
+                }
             }
         }
+    }
+    catch(std::invalid_argument e) {
+        throw std::runtime_error("SignPendingSigShares");
     }
 }
 
