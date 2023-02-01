@@ -470,7 +470,7 @@ void CDeterministicMNList::AddMN(const CDeterministicMNCPtr& dmn, bool fBumpTota
                 dmn->proTxHash.ToString(), dmn->pdmnState->pubKeyOperator.Get().ToString())));
     }
 
-    if (dmn->nType == CDeterministicMN::TYPE_HIGH_PERFORMANCE_MASTERNODE && !dmn->pdmnState->platformNodeID.IsNull()) {
+    if (dmn->nType == CDeterministicMN::TYPE_HIGH_PERFORMANCE_MASTERNODE) {
         if (!AddUniqueProperty(*dmn, dmn->pdmnState->platformNodeID)) {
             mnUniquePropertyMap = mnUniquePropertyMapSaved;
             throw(std::runtime_error(strprintf("%s: Can't add a masternode %s with a duplicate platformNodeID=%s", __func__,
@@ -511,7 +511,7 @@ void CDeterministicMNList::UpdateMN(const CDeterministicMN& oldDmn, const std::s
         throw(std::runtime_error(strprintf("%s: Can't update a masternode %s with a duplicate pubKeyOperator=%s", __func__,
                 oldDmn.proTxHash.ToString(), pdmnState->pubKeyOperator.Get().ToString())));
     }
-    if (dmn->nType == CDeterministicMN::TYPE_HIGH_PERFORMANCE_MASTERNODE && !dmn->pdmnState->platformNodeID.IsNull()) {
+    if (dmn->nType == CDeterministicMN::TYPE_HIGH_PERFORMANCE_MASTERNODE) {
         if (!UpdateUniqueProperty(*dmn, oldState->platformNodeID, dmn->pdmnState->platformNodeID)) {
             mnUniquePropertyMap = mnUniquePropertyMapSaved;
             throw(std::runtime_error(strprintf("%s: Can't update a masternode %s with a duplicate platformNodeID=%s", __func__,
@@ -571,7 +571,7 @@ void CDeterministicMNList::RemoveMN(const uint256& proTxHash)
                 proTxHash.ToString(), dmn->pdmnState->pubKeyOperator.Get().ToString())));
     }
 
-    if (dmn->nType == CDeterministicMN::TYPE_HIGH_PERFORMANCE_MASTERNODE && !dmn->pdmnState->platformNodeID.IsNull()) {
+    if (dmn->nType == CDeterministicMN::TYPE_HIGH_PERFORMANCE_MASTERNODE) {
         if (!DeleteUniqueProperty(*dmn, dmn->pdmnState->platformNodeID)) {
             mnUniquePropertyMap = mnUniquePropertyMapSaved;
             throw(std::runtime_error(strprintf("%s: Can't delete a masternode %s with a duplicate platformNodeID=%s", __func__,
@@ -1288,10 +1288,9 @@ static bool CheckService(const ProTx& proTx, CValidationState& state)
 }
 
 template <typename ProTx>
-static bool CheckPlatformFields(const ProTx& proTx, CValidationState& state, bool allowNullValues)
+static bool CheckPlatformFields(const ProTx& proTx, CValidationState& state)
 {
-    // platformNodeID can be null since it can not be known at this time (v19 HPMNs registration)
-    if (!allowNullValues && proTx.platformNodeID.IsNull()) {
+    if (proTx.platformNodeID.IsNull()) {
         return state.Invalid(ValidationInvalidReason::TX_BAD_SPECIAL, false, REJECT_INVALID, "bad-protx-platform-nodeid");
     }
 
@@ -1374,7 +1373,7 @@ bool CheckProRegTx(const CTransaction& tx, const CBlockIndex* pindexPrev, CValid
     }
 
     if (ptx.nType == CProRegTx::TYPE_HIGH_PERFORMANCE_MASTERNODE) {
-        if (!CheckPlatformFields(ptx, state, true)) {
+        if (!CheckPlatformFields(ptx, state)) {
             return false;
         }
     }
@@ -1485,7 +1484,7 @@ bool CheckProUpServTx(const CTransaction& tx, const CBlockIndex* pindexPrev, CVa
     }
 
     if (ptx.nType == CProUpServTx::TYPE_HIGH_PERFORMANCE_MASTERNODE) {
-        if (!CheckPlatformFields(ptx, state, true)) {
+        if (!CheckPlatformFields(ptx, state)) {
             return false;
         }
     }

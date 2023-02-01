@@ -33,6 +33,7 @@ from .messages import (
     ser_compact_size,
     ser_string,
 )
+from .script import hash160
 from .test_node import TestNode
 from .mininode import NetworkThread
 from .util import (
@@ -1062,6 +1063,7 @@ class DashTestFramework(BitcoinTestFramework):
         voting_address = self.nodes[0].getnewaddress()
         reward_address = self.nodes[0].getnewaddress()
 
+        platform_node_id = hash160(b'%d' % node_p2p_port).hex()
         platform_p2p_port = '%d' % (node_p2p_port + 101) if hpmn else ''
         platform_http_port = '%d' % (node_p2p_port + 102) if hpmn else ''
 
@@ -1085,7 +1087,7 @@ class DashTestFramework(BitcoinTestFramework):
 
         self.nodes[0].generate(1)
         register_rpc = 'register_hpmn' if hpmn else 'register'
-        protx_result = self.nodes[0].protx(register_rpc, collateral_txid, collateral_vout, ipAndPort, owner_address, bls['public'], voting_address, operatorReward, reward_address, '', platform_p2p_port, platform_http_port, funds_address, True)
+        protx_result = self.nodes[0].protx(register_rpc, collateral_txid, collateral_vout, ipAndPort, owner_address, bls['public'], voting_address, operatorReward, reward_address, platform_node_id, platform_p2p_port, platform_http_port, funds_address, True)
         self.nodes[0].generate(1)
         self.sync_all(self.nodes)
         mn_info = MasternodeInfo(protx_result, owner_address, voting_address, bls['public'], bls['secret'], collateral_address, collateral_txid, collateral_vout, ipAndPort, hpmn)

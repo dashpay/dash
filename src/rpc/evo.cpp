@@ -813,15 +813,10 @@ static UniValue protx_register_hpmn_wrapper(const JSONRPCRequest& request,
         throw JSONRPCError(RPC_INVALID_ADDRESS_OR_KEY, strprintf("invalid payout address: %s", request.params[paramIdx + 5].get_str()));
     }
 
-    // platformNodeID can be null in ProRegTx since it can not be known at this time (v19 HPMNs registration)
-    if (request.params[paramIdx + 6].get_str().empty()) {
-        ptx.platformNodeID.SetNull();
+    if (!IsHex(request.params[paramIdx + 6].get_str())) {
+        throw JSONRPCError(RPC_INVALID_PARAMETER, "platformNodeID must be hexadecimal string");
     }
-    else {
-        if (!IsHex(request.params[paramIdx + 6].get_str()))
-            throw JSONRPCError(RPC_INVALID_PARAMETER, "platformNodeID must be hexadecimal string");
-        ptx.platformNodeID.SetHex(request.params[paramIdx + 6].get_str());
-    }
+    ptx.platformNodeID.SetHex(request.params[paramIdx + 6].get_str());
 
     int32_t requestedPlatformP2PPort = ParseInt32V(request.params[paramIdx + 7].get_str(), "platformP2PPort");
     if (!ValidatePort(requestedPlatformP2PPort)) {
@@ -1116,15 +1111,10 @@ static UniValue protx_update_service_hpmn(const JSONRPCRequest& request)
 
     CBLSSecretKey keyOperator = ParseBLSSecretKey(request.params[2].get_str(), "operatorKey");
 
-    // platformNodeID can be null since it can not be known at this time (v19 HPMNs registration)
-    if (request.params[3].get_str().empty()) {
-        ptx.platformNodeID.SetNull();
+    if (!IsHex(request.params[3].get_str())) {
+        throw JSONRPCError(RPC_INVALID_PARAMETER, "platformNodeID must be hexadecimal string");
     }
-    else {
-        if (!IsHex(request.params[3].get_str()))
-            throw JSONRPCError(RPC_INVALID_PARAMETER, "platformNodeID must be hexadecimal string");
-        ptx.platformNodeID.SetHex(request.params[3].get_str());
-    }
+    ptx.platformNodeID.SetHex(request.params[3].get_str());
 
     int32_t requestedPlatformP2PPort = ParseInt32V(request.params[4].get_str(), "platformP2PPort");
     if (!ValidatePort(requestedPlatformP2PPort)) {

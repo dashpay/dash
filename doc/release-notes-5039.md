@@ -7,5 +7,5 @@ These HPMN RPCs correspond to the standard masternode RPCs but have the followin
 - `platformP2PPort`: TCP port of Dash Platform peer-to-peer communication between nodes (network byte order).
 - `platformHTTPPort`: TCP port of Platform HTTP/API interface (network byte order).
 Notes:
-- Since the Platform Node ID cannot be known at this time, `platformNodeID` can be null.
+- `platformNodeID` must be unique across the network.
 - `platformP2PPort`, `platformHTTPPort` and the Core port must be distinct.
