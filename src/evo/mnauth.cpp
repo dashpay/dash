@@ -13,6 +13,7 @@
 #include <masternode/node.h>
 #include <masternode/sync.h>
 #include <net.h>
+#include <netbase.h>
 #include <net_processing.h>
 #include <netmessagemaker.h>
 #include <util/time.h>
@@ -22,6 +23,21 @@ void CMNAuth::PushMNAUTH(CNode& peer, CConnman& connman, const CBlockIndex* tip)
 {
     LOCK(activeMasternodeInfoCs);
     if (!fMasternodeMode || activeMasternodeInfo.proTxHash.IsNull()) {
+        return;
+    }
+
+    // NOTE: this relies on the fact that:
+    // - regtest masternodes are all 127.0.0.1,
+    // - non-regtest masternodes must have routable IPs
+    CNetAddr addrLocalHost;
+    bool ok = LookupHost("127.0.0.1", addrLocalHost, false);
+    assert(ok);
+    CNetAddr addrLocal = activeMasternodeInfo.service.IsRoutable()
+            ? static_cast<CNetAddr>(peer.GetAddrLocal())
+            : addrLocalHost;
+    if (addrLocal != static_cast<CNetAddr>(activeMasternodeInfo.service)) {
+        LogPrint(BCLog::NET_NETCONN, "CMNAuth::%s -- Our IP reported by the peer and IP we were registered with in DML are different (%s != %s), not sending MNAUTH, peer=%d\n",
+                __func__, addrLocal.ToStringIP(), activeMasternodeInfo.service.ToStringIP(), peer.GetId());
         return;
     }
 
