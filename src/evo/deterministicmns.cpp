@@ -470,6 +470,14 @@ void CDeterministicMNList::AddMN(const CDeterministicMNCPtr& dmn, bool fBumpTota
                 dmn->proTxHash.ToString(), dmn->pdmnState->pubKeyOperator.Get().ToString())));
     }
 
+    if (dmn->nType == CDeterministicMN::TYPE_HIGH_PERFORMANCE_MASTERNODE && !dmn->pdmnState->platformNodeID.IsNull()) {
+        if (!AddUniqueProperty(*dmn, dmn->pdmnState->platformNodeID)) {
+            mnUniquePropertyMap = mnUniquePropertyMapSaved;
+            throw(std::runtime_error(strprintf("%s: Can't add a masternode %s with a duplicate platformNodeID=%s", __func__,
+                                               dmn->proTxHash.ToString(), dmn->pdmnState->platformNodeID.ToString())));
+        }
+    }
+
     mnMap = mnMap.set(dmn->proTxHash, dmn);
     mnInternalIdMap = mnInternalIdMap.set(dmn->GetInternalId(), dmn->proTxHash);
     if (fBumpTotalCount) {
@@ -502,6 +510,13 @@ void CDeterministicMNList::UpdateMN(const CDeterministicMN& oldDmn, const std::s
         mnUniquePropertyMap = mnUniquePropertyMapSaved;
         throw(std::runtime_error(strprintf("%s: Can't update a masternode %s with a duplicate pubKeyOperator=%s", __func__,
                 oldDmn.proTxHash.ToString(), pdmnState->pubKeyOperator.Get().ToString())));
+    }
+    if (dmn->nType == CDeterministicMN::TYPE_HIGH_PERFORMANCE_MASTERNODE && !dmn->pdmnState->platformNodeID.IsNull()) {
+        if (!UpdateUniqueProperty(*dmn, oldState->platformNodeID, dmn->pdmnState->platformNodeID)) {
+            mnUniquePropertyMap = mnUniquePropertyMapSaved;
+            throw(std::runtime_error(strprintf("%s: Can't update a masternode %s with a duplicate platformNodeID=%s", __func__,
+                                               dmn->proTxHash.ToString(), dmn->pdmnState->platformNodeID.ToString())));
+        }
     }
 
     mnMap = mnMap.set(oldDmn.proTxHash, dmn);
@@ -554,6 +569,14 @@ void CDeterministicMNList::RemoveMN(const uint256& proTxHash)
         mnUniquePropertyMap = mnUniquePropertyMapSaved;
         throw(std::runtime_error(strprintf("%s: Can't delete a masternode %s with a pubKeyOperator=%s", __func__,
                 proTxHash.ToString(), dmn->pdmnState->pubKeyOperator.Get().ToString())));
+    }
+
+    if (dmn->nType == CDeterministicMN::TYPE_HIGH_PERFORMANCE_MASTERNODE && !dmn->pdmnState->platformNodeID.IsNull()) {
+        if (!DeleteUniqueProperty(*dmn, dmn->pdmnState->platformNodeID)) {
+            mnUniquePropertyMap = mnUniquePropertyMapSaved;
+            throw(std::runtime_error(strprintf("%s: Can't delete a masternode %s with a duplicate platformNodeID=%s", __func__,
+                                               dmn->proTxHash.ToString(), dmn->pdmnState->platformNodeID.ToString())));
+        }
     }
 
     mnMap = mnMap.erase(proTxHash);
