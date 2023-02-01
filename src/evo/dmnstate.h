@@ -233,7 +233,7 @@ public:
 
 #define DMN_STATE_DIFF_ALL_FIELDS \
     DMN_STATE_DIFF_LINE(nRegisteredHeight) \
-    DMN_STATE_DIFF_LINE(nLastPaidHeight)     \
+    DMN_STATE_DIFF_LINE(nLastPaidHeight) \
     DMN_STATE_DIFF_LINE(nPoSePenalty) \
     DMN_STATE_DIFF_LINE(nPoSeRevivedHeight) \
     DMN_STATE_DIFF_LINE(nPoSeBanHeight) \

@@ -367,7 +367,7 @@ static void protx_register_fund_help(const JSONRPCRequest& request)
                 RPCResult::Type::STR_HEX, "hex", "The serialized signed ProTx in hex format"},
         },
         RPCExamples{
-                HelpExampleCli("protx", "register_fund \"XrVhS9LogauRJGJu2sHuryjhpuex4RNPSb\" \"1.2.3.4:1234\" \"Xt9AMWaYSz7tR7Uo7gzXA3m4QmeWgrR3rr\" \"93746e8731c57f87f79b3620a7982924e2931717d49540a85864bd543de11c43fb868fd63e501a1db37e19ed59ae6db4\" \"Xt9AMWaYSz7tR7Uo7gzXA3m4QmeWgrR3rr\" 0 \"XrVhS9LogauRJGJu2sHuryjhpuex4RNPSb\"")
+           HelpExampleCli("protx", "register_fund \"XrVhS9LogauRJGJu2sHuryjhpuex4RNPSb\" \"1.2.3.4:1234\" \"Xt9AMWaYSz7tR7Uo7gzXA3m4QmeWgrR3rr\" \"93746e8731c57f87f79b3620a7982924e2931717d49540a85864bd543de11c43fb868fd63e501a1db37e19ed59ae6db4\" \"Xt9AMWaYSz7tR7Uo7gzXA3m4QmeWgrR3rr\" 0 \"XrVhS9LogauRJGJu2sHuryjhpuex4RNPSb\"")
         },
     }.Check(request);
 }
@@ -459,7 +459,7 @@ static UniValue protx_register_wrapper(const JSONRPCRequest& request,
                                        const bool isFundRegister,
                                        const bool isPrepareRegister)
 {
-    if (isFundRegister && (request.fHelp || (request.params.size() < 8 || request.params.size() > 10))) {
+    if (isFundRegister && (request.fHelp || (request.params.size() < 7 || request.params.size() > 9))) {
         protx_register_fund_help(request);
     } else if (isExternalRegister && (request.fHelp || (request.params.size() < 8 || request.params.size() > 10))) {
         protx_register_help(request);
@@ -1087,7 +1087,7 @@ static void protx_update_service_hpmn_help(const JSONRPCRequest& request)
                        RPCResult::Type::STR_HEX, "txid", "The transaction id"
                },
                RPCExamples{
-                       HelpExampleCli("protx", "update_service \"0123456701234567012345670123456701234567012345670123456701234567\" \"1.2.3.4:1234\" 5a2e15982e62f1e0b7cf9783c64cf7e3af3f90a52d6c40f6f95d624c0b1621cd")
+                       HelpExampleCli("protx", "update_service_hpmn \"0123456701234567012345670123456701234567012345670123456701234567\" \"1.2.3.4:1234\" \"5a2e15982e62f1e0b7cf9783c64cf7e3af3f90a52d6c40f6f95d624c0b1621cd\" \"f2dbd9b0a1f541a7c44d34a58674d0262f5feca5\" 22821 22822")
                },
     }.Check(request);
 }
