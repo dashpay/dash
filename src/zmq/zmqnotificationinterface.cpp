@@ -12,7 +12,7 @@
 
 #include <zmq.h>
 
-CZMQNotificationInterface::CZMQNotificationInterface() : pcontext(nullptr)
+CZMQNotificationInterface::CZMQNotificationInterface()
 {
 }
 
