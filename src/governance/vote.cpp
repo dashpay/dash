@@ -110,11 +110,20 @@ CGovernanceVote::CGovernanceVote(const COutPoint& outpointMasternodeIn, const ui
 
 std::string CGovernanceVote::ToString() const
 {
+    Coin coin;
+    int voteWeight = 1;
+    CAmount HPMNCollateralAmount = 4000 * COIN;
+    if (!GetUTXOCoin(masternodeOutpoint, coin)) {
+        if (coin.out.nValue == HPMNCollateralAmount) {
+            voteWeight = 4;
+        }
+    }
     std::ostringstream ostr;
     ostr << masternodeOutpoint.ToStringShort() << ":"
          << nTime << ":"
          << CGovernanceVoting::ConvertOutcomeToString(GetOutcome()) << ":"
-         << CGovernanceVoting::ConvertSignalToString(GetSignal());
+         << CGovernanceVoting::ConvertSignalToString(GetSignal()) << ":"
+         << voteWeight;
     return ostr.str();
 }
 
