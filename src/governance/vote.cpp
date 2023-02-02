@@ -112,11 +112,9 @@ std::string CGovernanceVote::ToString() const
 {
     Coin coin;
     int voteWeight = 1;
-    CAmount HPMNCollateralAmount = 4000 * COIN;
-    if (!GetUTXOCoin(masternodeOutpoint, coin)) {
-        if (coin.out.nValue == HPMNCollateralAmount) {
-            voteWeight = 4;
-        }
+    static CAmount HPMNCollateralAmount = 4000 * COIN;
+    if (GetUTXOCoin(masternodeOutpoint, coin) && coin.out.nValue == HPMNCollateralAmount) {
+        voteWeight = 4;
     }
     std::ostringstream ostr;
     ostr << masternodeOutpoint.ToStringShort() << ":"

@@ -621,6 +621,7 @@ int CGovernanceObject::CountMatchingVotes(vote_signal_enum_t eVoteSignalIn, vote
 {
     LOCK(cs);
 
+    static CAmount HPMNCollateralAmount = 4000 * COIN;
     int nCount = 0;
     for (const auto& votepair : mapCurrentMNVotes) {
         const vote_rec_t& recVote = votepair.second;
@@ -628,13 +629,10 @@ int CGovernanceObject::CountMatchingVotes(vote_signal_enum_t eVoteSignalIn, vote
         if (it2 != recVote.mapInstances.end() && it2->second.eOutcome == eVoteOutcomeIn) {
             Coin coin;
             int voteWeight = 1;
-            if (!GetUTXOCoin(votepair.first, coin)) {
-                // 4x times weight vote for HPMN owners.
-                // No need to check if v19 is active since no HPMN are allowed to register before v19
-                CAmount HPMNCollateralAmount = 4000 * COIN;
-                if (coin.out.nValue == HPMNCollateralAmount) {
-                    voteWeight = 4;
-                }
+            // 4x times weight vote for HPMN owners.
+            // No need to check if v19 is active since no HPMN are allowed to register before v19s
+            if (GetUTXOCoin(votepair.first, coin) && coin.out.nValue == HPMNCollateralAmount) {
+                voteWeight = 4;
             }
             nCount += voteWeight;
         }
