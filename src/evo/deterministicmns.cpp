@@ -759,7 +759,9 @@ bool CDeterministicMNManager::BuildNewListFromBlock(const CBlock& block, const C
             }
 
             Coin coin;
-            CAmount expectedCollateral = proTx.nType == CProRegTx::TYPE_HIGH_PERFORMANCE_MASTERNODE ? 4000 * COIN : 1000 * COIN;
+            CAmount expectedCollateral = proTx.nType == CProRegTx::TYPE_HIGH_PERFORMANCE_MASTERNODE
+                    ? CDeterministicMN::HIGH_PERFORMANCE_MASTERNODE_COLLATERAL
+                    : CDeterministicMN::REGULAR_MASTERNODE_COLLATERAL;
             if (!proTx.collateralOutpoint.hash.IsNull() && (!view.GetCoin(dmn->collateralOutpoint, coin) || coin.IsSpent() || coin.out.nValue != expectedCollateral)) {
                 // should actually never get to this point as CheckProRegTx should have handled this case.
                 // We do this additional check nevertheless to be 100% sure
@@ -1093,7 +1095,9 @@ bool CDeterministicMNManager::IsProTxWithCollateral(const CTransactionRef& tx, u
         return false;
     }
 
-    CAmount expectedCollateral = proTx.nType == CProRegTx::TYPE_HIGH_PERFORMANCE_MASTERNODE ? 4000 * COIN : 1000 * COIN;
+    CAmount expectedCollateral = proTx.nType == CProRegTx::TYPE_HIGH_PERFORMANCE_MASTERNODE
+            ? CDeterministicMN::HIGH_PERFORMANCE_MASTERNODE_COLLATERAL
+            : CDeterministicMN::REGULAR_MASTERNODE_COLLATERAL;
 
     if (tx->vout[n].nValue != expectedCollateral) {
         return false;
@@ -1382,7 +1386,9 @@ bool CheckProRegTx(const CTransaction& tx, const CBlockIndex* pindexPrev, CValid
     const PKHash *keyForPayloadSig = nullptr;
     COutPoint collateralOutpoint;
 
-    CAmount expectedCollateral = ptx.nType == CProRegTx::TYPE_HIGH_PERFORMANCE_MASTERNODE ? 4000 * COIN : 1000 * COIN;
+    CAmount expectedCollateral = ptx.nType == CProRegTx::TYPE_HIGH_PERFORMANCE_MASTERNODE
+            ? CDeterministicMN::HIGH_PERFORMANCE_MASTERNODE_COLLATERAL
+            : CDeterministicMN::REGULAR_MASTERNODE_COLLATERAL;
 
     if (!ptx.collateralOutpoint.hash.IsNull()) {
         Coin coin;

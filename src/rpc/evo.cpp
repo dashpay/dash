@@ -489,7 +489,6 @@ static UniValue protx_register_wrapper(const JSONRPCRequest& request,
         ptx.nVersion = CProRegTx::GetVersion(isV19active);
     ptx.nType = CProRegTx::TYPE_REGULAR_MASTERNODE;
 
-    CAmount collateralAmount = 1000 * COIN;
     if (isFundRegister) {
         CTxDestination collateralDest = DecodeDestination(request.params[paramIdx].get_str());
         if (!IsValidDestination(collateralDest)) {
@@ -497,7 +496,7 @@ static UniValue protx_register_wrapper(const JSONRPCRequest& request,
         }
         CScript collateralScript = GetScriptForDestination(collateralDest);
 
-        CTxOut collateralTxOut(collateralAmount, collateralScript);
+        CTxOut collateralTxOut(CDeterministicMN::REGULAR_MASTERNODE_COLLATERAL, collateralScript);
         tx.vout.emplace_back(collateralTxOut);
 
         paramIdx++;
@@ -571,7 +570,7 @@ static UniValue protx_register_wrapper(const JSONRPCRequest& request,
     if (isFundRegister) {
         uint32_t collateralIndex = (uint32_t) -1;
         for (uint32_t i = 0; i < tx.vout.size(); i++) {
-            if (tx.vout[i].nValue == collateralAmount) {
+            if (tx.vout[i].nValue == CDeterministicMN::REGULAR_MASTERNODE_COLLATERAL) {
                 collateralIndex = i;
                 break;
             }
@@ -760,14 +759,13 @@ static UniValue protx_register_hpmn_wrapper(const JSONRPCRequest& request,
     ptx.nVersion = CProRegTx::GetVersion(isV19active);
     ptx.nType = CProRegTx::TYPE_HIGH_PERFORMANCE_MASTERNODE;
 
-    CAmount requestedCollateralAmount = 4000 * COIN;
     if (isFundRegister) {
         CTxDestination collateralDest = DecodeDestination(request.params[paramIdx].get_str());
         if (!IsValidDestination(collateralDest)) {
             throw JSONRPCError(RPC_INVALID_ADDRESS_OR_KEY, strprintf("invalid collaterall address: %s", request.params[paramIdx].get_str()));
         }
         CScript collateralScript = GetScriptForDestination(collateralDest);
-        CTxOut collateralTxOut(requestedCollateralAmount, collateralScript);
+        CTxOut collateralTxOut(CDeterministicMN::HIGH_PERFORMANCE_MASTERNODE_COLLATERAL, collateralScript);
         tx.vout.emplace_back(collateralTxOut);
 
         paramIdx++;
@@ -858,7 +856,7 @@ static UniValue protx_register_hpmn_wrapper(const JSONRPCRequest& request,
     if (isFundRegister) {
         uint32_t collateralIndex = (uint32_t) -1;
         for (uint32_t i = 0; i < tx.vout.size(); i++) {
-            if (tx.vout[i].nValue == requestedCollateralAmount) {
+            if (tx.vout[i].nValue == CDeterministicMN::HIGH_PERFORMANCE_MASTERNODE_COLLATERAL) {
                 collateralIndex = i;
                 break;
             }
