@@ -43,6 +43,7 @@ public:
     static constexpr uint16_t TYPE_REGULAR_MASTERNODE = 0;
     static constexpr uint16_t TYPE_HIGH_PERFORMANCE_MASTERNODE = 1;
 
+    static constexpr CAmount REGULAR_MASTERNODE_WEIGHT{1};
     static constexpr CAmount REGULAR_MASTERNODE_COLLATERAL{1000 * COIN};
     static constexpr CAmount HIGH_PERFORMANCE_MASTERNODE_WEIGHT{4};
     static constexpr CAmount HIGH_PERFORMANCE_MASTERNODE_COLLATERAL{REGULAR_MASTERNODE_COLLATERAL * CDeterministicMN::HIGH_PERFORMANCE_MASTERNODE_WEIGHT};

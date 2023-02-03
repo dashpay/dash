@@ -619,22 +619,21 @@ bool CGovernanceObject::IsCollateralValid(std::string& strError, bool& fMissingC
 
 int CGovernanceObject::CountMatchingVotes(vote_signal_enum_t eVoteSignalIn, vote_outcome_enum_t eVoteOutcomeIn) const
 {
+    auto mnList = deterministicMNManager->GetListAtChainTip();
+
     LOCK(cs);
 
-    static CAmount HPMNCollateralAmount = 4000 * COIN;
     int nCount = 0;
     for (const auto& votepair : mapCurrentMNVotes) {
         const vote_rec_t& recVote = votepair.second;
         auto it2 = recVote.mapInstances.find(eVoteSignalIn);
         if (it2 != recVote.mapInstances.end() && it2->second.eOutcome == eVoteOutcomeIn) {
-            Coin coin;
-            int voteWeight = 1;
             // 4x times weight vote for HPMN owners.
             // No need to check if v19 is active since no HPMN are allowed to register before v19s
-            if (GetUTXOCoin(votepair.first, coin) && coin.out.nValue == HPMNCollateralAmount) {
-                voteWeight = 4;
-            }
-            nCount += voteWeight;
+            auto dmn = mnList.GetMNByCollateral(votepair.first);
+            nCount += (dmn != nullptr && dmn->nType == CDeterministicMN::TYPE_HIGH_PERFORMANCE_MASTERNODE)
+                    ? CDeterministicMN::HIGH_PERFORMANCE_MASTERNODE_WEIGHT
+                    : CDeterministicMN::REGULAR_MASTERNODE_WEIGHT;
         }
     }
     return nCount;
