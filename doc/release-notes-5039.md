@@ -14,5 +14,5 @@ Notes:
 Updated RPCs
 --------
 
-The RPC's `gobject getcurrentvotes` reply is enriched by adding the vote weight at the end of each line. Possible values are 1 or 4. Example: 
+The RPC's `gobject getcurrentvotes` reply is enriched by adding the vote weight at the end of each line. Possible values are 1 or 4. Example:
 `"7cb20c883c6093b8489f795b3ec0aad0d9c2c2821610ae9ed938baaf42fec66d": "277e6345359071410ab691c21a3a16f8f46c9229c2f8ec8f028c9a95c0f1c0e7-1:1670019339:yes:funding:4"`
