@@ -201,6 +201,7 @@ public:
         h.Write(_confirmedHash.begin(), _confirmedHash.size());
         h.Finalize(confirmedHashWithProRegTxHash.begin());
     }
+    
 
 public:
     std::string ToString() const;
