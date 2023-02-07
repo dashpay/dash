@@ -18,7 +18,7 @@ do
   nc -v -x 127.0.0.1:9050 -z $address $port
 done < "onion_seeds.txt"
 
-python3 makeseeds.py -a asmap-filled.dat protx_list.json onion_seeds.txt > nodes_main.txt
+python3 makeseeds.py -a asmap-filled.dat -p protx_list.json -o onion_seeds.txt > nodes_main.txt
 python3 generate-seeds.py . > ../../src/chainparamsseeds.h
 ```
 
