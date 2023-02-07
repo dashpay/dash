@@ -120,7 +120,6 @@ public:
             nPoSeBanHeight(s.nPoSeBanHeight),
             nRegisteredHeight(s.nRegisteredHeight),
             nLastPaidHeight(s.nLastPaidHeight),
-            nConsecutivePayments(0),
             nPoSePenalty(s.nPoSePenalty),
             nPoSeRevivedHeight(s.nPoSeRevivedHeight),
             nRevocationReason(s.nRevocationReason),
@@ -131,10 +130,7 @@ public:
             keyIDVoting(s.keyIDVoting),
             addr(s.addr),
             scriptPayout(s.scriptPayout),
-            scriptOperatorPayout(s.scriptOperatorPayout),
-            platformNodeID(),
-            platformP2PPort(0),
-            platformHTTPPort(0){}
+            scriptOperatorPayout(s.scriptOperatorPayout){}
     template <typename Stream>
     CDeterministicMNState(deserialize_type, Stream& s)
     {
