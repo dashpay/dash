@@ -316,7 +316,7 @@ public:
     [[nodiscard]] CDeterministicMNCPtr GetValidMNByCollateral(const COutPoint& collateralOutpoint) const;
     [[nodiscard]] CDeterministicMNCPtr GetMNByService(const CService& service) const;
     [[nodiscard]] CDeterministicMNCPtr GetMNByInternalId(uint64_t internalId) const;
-    [[nodiscard]] CDeterministicMNCPtr GetMNPayee() const;
+    [[nodiscard]] CDeterministicMNCPtr GetMNPayee(const CBlockIndex* pIndex) const;
 
     /**
      * Calculates the projected MN payees for the next *count* blocks. The result is not guaranteed to be correct

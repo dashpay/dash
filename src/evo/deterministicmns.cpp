@@ -176,32 +176,34 @@ static bool CompareByLastPaid(const CDeterministicMN* _a, const CDeterministicMN
     return CompareByLastPaid(*_a, *_b);
 }
 
-CDeterministicMNCPtr CDeterministicMNList::GetMNPayee() const
+CDeterministicMNCPtr CDeterministicMNList::GetMNPayee(const CBlockIndex* pIndex) const
 {
     if (mnMap.size() == 0) {
         return nullptr;
     }
 
+    bool isv19Active = llmq::utils::IsV19Active(pIndex);
     // Starting from v19 and until v20 (Platform release), HPMN will be rewarded 4 blocks in a row
-    // No need to check if v19 is active, since HPMN ProRegTx are allowed only after v19 activation
     // TODO: Skip this code once v20 is active
     CDeterministicMNCPtr best = nullptr;
-    ForEachMNShared(true, [&](const CDeterministicMNCPtr& dmn) {
-        if (dmn->pdmnState->nLastPaidHeight == nHeight) {
-            // We found the last MN Payee.
-            // If the last payee is a HPMN, we need to check its consecutive payments and pay him again if nConsecutivePayments < 3
-            if (dmn->nType == CDeterministicMN::TYPE_HIGH_PERFORMANCE_MASTERNODE && dmn->pdmnState->nConsecutivePayments < 3) {
-                best = dmn;
+    if (isv19Active) {
+        ForEachMNShared(true, [&](const CDeterministicMNCPtr& dmn) {
+            if (dmn->pdmnState->nLastPaidHeight == nHeight) {
+                // We found the last MN Payee.
+                // If the last payee is a HPMN, we need to check its consecutive payments and pay him again if nConsecutivePayments < 3
+                if (dmn->nType == CDeterministicMN::TYPE_HIGH_PERFORMANCE_MASTERNODE && dmn->pdmnState->nConsecutivePayments < 3) {
+                    best = dmn;
+                }
             }
-        }
-        return;
-    });
+            return;
+        });
 
-    if (best)
-        return best;
+        if (best)
+            return best;
 
-    // Note: If the last payee was a regular MN or if the payee is a HPMN that was removed from the mnList then that's fine.
-    // We can proceed with classic MN payee selection
+        // Note: If the last payee was a regular MN or if the payee is a HPMN that was removed from the mnList then that's fine.
+        // We can proceed with classic MN payee selection
+    }
 
     ForEachMNShared(true, [&](const CDeterministicMNCPtr& dmn) {
         if (!best || CompareByLastPaid(dmn.get(), best.get())) {
@@ -707,7 +709,7 @@ bool CDeterministicMNManager::BuildNewListFromBlock(const CBlock& block, const C
     newList.SetBlockHash(uint256()); // we can't know the final block hash, so better not return a (invalid) block hash
     newList.SetHeight(nHeight);
 
-    auto payee = oldList.GetMNPayee();
+    auto payee = oldList.GetMNPayee(pindexPrev);
 
     // we iterate the oldList here and update the newList
     // this is only valid as long these have not diverged at this point, which is the case as long as we don't add

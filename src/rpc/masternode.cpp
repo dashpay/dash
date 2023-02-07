@@ -336,7 +336,8 @@ static UniValue masternode_winners(const JSONRPCRequest& request)
     int nStartHeight = std::max(nChainTipHeight - nCount, 1);
 
     for (int h = nStartHeight; h <= nChainTipHeight; h++) {
-        auto payee = deterministicMNManager->GetListForBlock(pindexTip->GetAncestor(h - 1)).GetMNPayee();
+        const CBlockIndex* pIndex = pindexTip->GetAncestor(h - 1);
+        auto payee = deterministicMNManager->GetListForBlock(pIndex).GetMNPayee(pIndex);
         std::string strPayments = GetRequiredPaymentsString(h, payee);
         if (strFilter != "" && strPayments.find(strFilter) == std::string::npos) continue;
         obj.pushKV(strprintf("%d", h), strPayments);
@@ -461,8 +462,7 @@ static UniValue masternode_payments(const JSONRPCRequest& request)
             payeesArr.push_back(obj);
         }
 
-        // NOTE: we use _previous_ block to find a payee for the current one
-        const auto dmnPayee = deterministicMNManager->GetListForBlock(pindex->pprev).GetMNPayee();
+        const auto dmnPayee = deterministicMNManager->GetListForBlock(pindex->pprev).GetMNPayee(pindex->pprev);
         protxObj.pushKV("proTxHash", dmnPayee == nullptr ? "" : dmnPayee->proTxHash.ToString());
         protxObj.pushKV("amount", payedPerMasternode);
         protxObj.pushKV("payees", payeesArr);

@@ -322,7 +322,7 @@ void FuncDIP3Protx(TestChainSetup& setup)
 
     // check MN reward payments
     for (size_t i = 0; i < 20; i++) {
-        auto dmnExpectedPayee = deterministicMNManager->GetListAtChainTip().GetMNPayee();
+        auto dmnExpectedPayee = deterministicMNManager->GetListAtChainTip().GetMNPayee(::ChainActive().Tip());
 
         CBlock block = setup.CreateAndProcessBlock({}, setup.coinbaseKey);
         deterministicMNManager->UpdatedBlockTip(::ChainActive().Tip());
@@ -380,7 +380,7 @@ void FuncDIP3Protx(TestChainSetup& setup)
 
     // test that the revoked MN does not get paid anymore
     for (size_t i = 0; i < 20; i++) {
-        auto dmnExpectedPayee = deterministicMNManager->GetListAtChainTip().GetMNPayee();
+        auto dmnExpectedPayee = deterministicMNManager->GetListAtChainTip().GetMNPayee(::ChainActive().Tip());
         BOOST_ASSERT(dmnExpectedPayee->proTxHash != dmnHashes[0]);
 
         CBlock block = setup.CreateAndProcessBlock({}, setup.coinbaseKey);
@@ -428,7 +428,7 @@ void FuncDIP3Protx(TestChainSetup& setup)
     // test that the revived MN gets payments again
     bool foundRevived = false;
     for (size_t i = 0; i < 20; i++) {
-        auto dmnExpectedPayee = deterministicMNManager->GetListAtChainTip().GetMNPayee();
+        auto dmnExpectedPayee = deterministicMNManager->GetListAtChainTip().GetMNPayee(::ChainActive().Tip());
         if (dmnExpectedPayee->proTxHash == dmnHashes[0]) {
             foundRevived = true;
         }
