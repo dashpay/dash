@@ -606,15 +606,15 @@ static UniValue protx_register(const JSONRPCRequest& request)
     bool isExternalRegister = request.strMethod == "protxregister";
     bool isFundRegister = request.strMethod == "protxregister_fund";
     bool isPrepareRegister = request.strMethod == "protxregister_prepare";
-    return protx_register_wrapper(request, false, isExternalRegister, isFundRegister, isPrepareRegister);
+    return protx_register_wrapper(request, true, isExternalRegister, isFundRegister, isPrepareRegister);
 }
 
-static UniValue protx_register_legacy(const JSONRPCRequest& request)
+static UniValue protx_register_basicbls(const JSONRPCRequest& request)
 {
-    bool isExternalRegister = request.strMethod == "protxregister_legacy";
-    bool isFundRegister = request.strMethod == "protxregister_fund_legacy";
-    bool isPrepareRegister = request.strMethod == "protxregister_prepare_legacy";
-    return protx_register_wrapper(request, true, isExternalRegister, isFundRegister, isPrepareRegister);
+    bool isExternalRegister = request.strMethod == "protxregister_basicbls";
+    bool isFundRegister = request.strMethod == "protxregister_fund_basicbls";
+    bool isPrepareRegister = request.strMethod == "protxregister_prepare_basicbls";
+    return protx_register_wrapper(request, false, isExternalRegister, isFundRegister, isPrepareRegister);
 }
 
 // handles register, register_prepare and register_fund in one method
@@ -747,12 +747,12 @@ static UniValue protx_update_service_wrapper(const JSONRPCRequest& request, cons
 }
 static UniValue protx_update_service(const JSONRPCRequest& request)
 {
-    return protx_update_service_wrapper(request, false);
+    return protx_update_service_wrapper(request, true);
 }
 
-static UniValue protx_update_service_legacy(const JSONRPCRequest& request)
+static UniValue protx_update_service_basicbls(const JSONRPCRequest& request)
 {
-    return protx_update_service_wrapper(request, true);
+    return protx_update_service_wrapper(request, false);
 }
 
 static void protx_update_registrar_help(const JSONRPCRequest& request)
@@ -853,12 +853,12 @@ static UniValue protx_update_registrar_wrapper(const JSONRPCRequest& request, co
 
 static UniValue protx_update_registrar(const JSONRPCRequest& request)
 {
-    return protx_update_registrar_wrapper(request, false);
+    return protx_update_registrar_wrapper(request, true);
 }
 
-static UniValue protx_update_registrar_legacy(const JSONRPCRequest& request)
+static UniValue protx_update_registrar_basicbls(const JSONRPCRequest& request)
 {
-    return protx_update_registrar_wrapper(request, true);
+    return protx_update_registrar_wrapper(request, false);
 }
 
 static void protx_revoke_help(const JSONRPCRequest& request)
@@ -1245,22 +1245,22 @@ static UniValue protx_diff(const JSONRPCRequest& request)
         "To get help on individual commands, use \"help protx command\".\n"
         "\nAvailable commands:\n"
 #ifdef ENABLE_WALLET
-        "  register                 - Create and send ProTx to network\n"
-        "  register_fund            - Fund, create and send ProTx to network\n"
-        "  register_prepare         - Create an unsigned ProTx\n"
-        "  register_legacy          - Create a ProTx by parsing BLS using the legacy scheme and send it to network\n"
-        "  register_fund_legacy     - Fund and create a ProTx by parsing BLS using the legacy scheme, then send it to network\n"
-        "  register_prepare_legacy  - Create an unsigned ProTx by parsing BLS using the legacy scheme\n"
-        "  register_submit          - Sign and submit a ProTx\n"
+        "  register                   - Create and send ProTx to network\n"
+        "  register_fund              - Fund, create and send ProTx to network\n"
+        "  register_prepare           - Create an unsigned ProTx\n"
+        "  register_basicbls          - Create a ProTx by parsing BLS using the basic scheme and send it to network\n"
+        "  register_fund_basicbls     - Fund and create a ProTx by parsing BLS using the basic scheme, then send it to network\n"
+        "  register_prepare_basicbls  - Create an unsigned ProTx by parsing BLS using the basic scheme\n"
+        "  register_submit            - Sign and submit a ProTx\n"
 #endif
-        "  list                     - List ProTxs\n"
-        "  info                     - Return information about a ProTx\n"
+        "  list                       - List ProTxs\n"
+        "  info                       - Return information about a ProTx\n"
 #ifdef ENABLE_WALLET
-        "  update_service           - Create and send ProUpServTx to network\n"
-        "  update_registrar         - Create and send ProUpRegTx to network\n"
-        "  revoke                   - Create and send ProUpRevTx to network\n"
+        "  update_service             - Create and send ProUpServTx to network\n"
+        "  update_registrar           - Create and send ProUpRegTx to network\n"
+        "  revoke                     - Create and send ProUpRevTx to network\n"
 #endif
-        "  diff                     - Calculate a diff and a proof between two masternode lists\n",
+        "  diff                       - Calculate a diff and a proof between two masternode lists\n",
         {
             {"command", RPCArg::Type::STR, RPCArg::Optional::NO, "The command to execute"},
         },
@@ -1277,18 +1277,18 @@ static UniValue protx(const JSONRPCRequest& request)
 #ifdef ENABLE_WALLET
     if (command == "protxregister" || command == "protxregister_fund" || command == "protxregister_prepare") {
         return protx_register(new_request);
-    } else if (command == "protxregister_legacy" || command == "protxregister_fund_legacy" || command == "protxregister_prepare_legacy") {
-        return protx_register_legacy(new_request);
+    } else if (command == "protxregister_basicbls" || command == "protxregister_fund_basicbls" || command == "protxregister_prepare_basicbls") {
+        return protx_register_basicbls(new_request);
     } else if (command == "protxregister_submit") {
         return protx_register_submit(new_request);
     } else if (command == "protxupdate_service") {
         return protx_update_service(new_request);
-    } else if (command == "protxupdate_service_legacy") {
-        return protx_update_service_legacy(new_request);
+    } else if (command == "protxupdate_service_basicbls") {
+        return protx_update_service_basicbls(new_request);
     } else if (command == "protxupdate_registrar") {
         return protx_update_registrar(new_request);
-    } else if (command == "protxupdate_registrar_legacy") {
-        return protx_update_registrar_legacy(new_request);
+    } else if (command == "protxupdate_registrar_basicbls") {
+        return protx_update_registrar_basicbls(new_request);
     } else if (command == "protxrevoke") {
         return protx_revoke(new_request);
     } else if (command == "protxrevoke_legacy") {
