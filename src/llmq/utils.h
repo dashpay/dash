@@ -86,7 +86,7 @@ bool IsDIP0024Active(const CBlockIndex* pindex);
 bool IsV19Active(const CBlockIndex* pindex);
 const CBlockIndex* V19ActivationIndex(const CBlockIndex* pindex);
 static bool IsInstantSendLLMQTypeShared();
-static bool IsPlatformLLMQType(Consensus::LLMQType llmqType);
+static bool IsLLMQTypeHPMNOnly(Consensus::LLMQType llmqType);
 
 /// Returns the state of `-llmq-data-recovery`
 bool QuorumDataRecoveryEnabled();
