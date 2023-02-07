@@ -1305,8 +1305,6 @@ static bool CheckPlatformFields(const ProTx& proTx, CValidationState& state)
         if (proTx.platformP2PPort != mainnetPlatformP2PPort) {
             return state.Invalid(ValidationInvalidReason::TX_BAD_SPECIAL, false, REJECT_INVALID, "bad-protx-platform-p2p-port");
         }
-    } else if (proTx.platformP2PPort == mainnetPlatformP2PPort || proTx.platformP2PPort < 1 || proTx.platformP2PPort > std::numeric_limits<uint16_t>::max()) {
-        return state.Invalid(ValidationInvalidReason::TX_BAD_SPECIAL, false, REJECT_INVALID, "bad-protx-platform-p2p-port");
     }
 
     static int mainnetPlatformHTTPPort = CreateChainParams(CBaseChainParams::MAIN)->GetDefaultPlatformHTTPPort();
@@ -1314,8 +1312,6 @@ static bool CheckPlatformFields(const ProTx& proTx, CValidationState& state)
         if (proTx.platformHTTPPort != mainnetPlatformHTTPPort) {
             return state.Invalid(ValidationInvalidReason::TX_BAD_SPECIAL, false, REJECT_INVALID, "bad-protx-platform-http-port");
         }
-    } else if (proTx.platformHTTPPort == mainnetPlatformHTTPPort || proTx.platformHTTPPort < 1 || proTx.platformHTTPPort > std::numeric_limits<uint16_t>::max()) {
-        return state.Invalid(ValidationInvalidReason::TX_BAD_SPECIAL, false, REJECT_INVALID, "bad-protx-platform-http-port");
     }
 
     if (proTx.platformP2PPort == proTx.platformHTTPPort ||
