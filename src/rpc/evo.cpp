@@ -1008,7 +1008,7 @@ static UniValue protx_update_service(const JSONRPCRequest& request)
     if (!dmn) {
         throw std::runtime_error(strprintf("masternode with proTxHash %s not found", ptx.proTxHash.ToString()));
     }
-    if (dmn->nType == CDeterministicMN::TYPE_HIGH_PERFORMANCE_MASTERNODE) {
+    if (dmn->nType == CDeterministicMN::MasternodeType::HighPerformance) {
         throw std::runtime_error(strprintf("masternode with proTxHash %s is a HPMN", ptx.proTxHash.ToString()));
     }
 
@@ -1131,7 +1131,7 @@ static UniValue protx_update_service_hpmn(const JSONRPCRequest& request)
     if (!dmn) {
         throw std::runtime_error(strprintf("masternode with proTxHash %s not found", ptx.proTxHash.ToString()));
     }
-    if (dmn->nType != CDeterministicMN::TYPE_HIGH_PERFORMANCE_MASTERNODE) {
+    if (dmn->nType != CDeterministicMN::MasternodeType::HighPerformance) {
         throw std::runtime_error(strprintf("masternode with proTxHash %s is not a HPMN", ptx.proTxHash.ToString()));
     }
 

@@ -40,8 +40,10 @@ private:
     uint64_t internalId{std::numeric_limits<uint64_t>::max()};
 
 public:
-    static constexpr uint16_t TYPE_REGULAR_MASTERNODE = 0;
-    static constexpr uint16_t TYPE_HIGH_PERFORMANCE_MASTERNODE = 1;
+    enum MasternodeType : std::uint16_t {
+        Regular = 0,
+        HighPerformance = 1
+    };
 
     static constexpr CAmount REGULAR_MASTERNODE_WEIGHT{1};
     static constexpr CAmount REGULAR_MASTERNODE_COLLATERAL{1000 * COIN};
@@ -54,7 +56,7 @@ public:
     CDeterministicMN() = delete; // no default constructor, must specify internalId
     explicit CDeterministicMN(uint64_t _internalId, bool highPerformanceMasternode = false) : internalId(_internalId)
     {
-        highPerformanceMasternode ? nType = TYPE_HIGH_PERFORMANCE_MASTERNODE : nType = TYPE_REGULAR_MASTERNODE;
+        highPerformanceMasternode ? nType = MasternodeType::HighPerformance : nType = MasternodeType::Regular;
         // only non-initial values
         assert(_internalId != std::numeric_limits<uint64_t>::max());
     }
@@ -68,7 +70,7 @@ public:
     uint256 proTxHash;
     COutPoint collateralOutpoint;
     uint16_t nOperatorReward{0};
-    uint16_t nType{TYPE_REGULAR_MASTERNODE};
+    uint16_t nType{MasternodeType::Regular};
     std::shared_ptr<const CDeterministicMNState> pdmnState;
 
     template <typename Stream, typename Operation>
@@ -97,7 +99,7 @@ public:
             READWRITE(nType);
         }
         else {
-            nType = TYPE_REGULAR_MASTERNODE;
+            nType = MasternodeType::Regular;
         }
     }
 
@@ -235,7 +237,7 @@ public:
 
     [[nodiscard]] size_t GetAllHPMNsCount() const
     {
-        return ranges::count_if(mnMap, [](const auto& p){ return p.second->nType == CDeterministicMN::TYPE_HIGH_PERFORMANCE_MASTERNODE;});
+        return ranges::count_if(mnMap, [](const auto& p){ return p.second->nType == CDeterministicMN::MasternodeType::HighPerformance;});
     }
 
     /**

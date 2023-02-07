@@ -33,7 +33,7 @@ public:
     CBLSLazyPublicKey pubKeyOperator;
     CKeyID keyIDVoting;
     bool isValid{false};
-    uint16_t nType{CDeterministicMN::TYPE_REGULAR_MASTERNODE};
+    uint16_t nType{CDeterministicMN::MasternodeType::Regular};
     uint16_t platformHTTPPort{0};
     CScript scriptPayout; // mem-only
     CScript scriptOperatorPayout; // mem-only
@@ -72,7 +72,7 @@ public:
                 );
         if (obj.nVersion == BASIC_BLS_VERSION) {
             READWRITE(obj.nType);
-            if (obj.nType == CDeterministicMN::TYPE_HIGH_PERFORMANCE_MASTERNODE) {
+            if (obj.nType == CDeterministicMN::MasternodeType::HighPerformance) {
                 READWRITE(obj.platformHTTPPort);
             }
         }

@@ -49,7 +49,7 @@ void CDeterministicMN::ToJson(UniValue& obj) const
     UniValue stateObj;
     pdmnState->ToJson(stateObj);
 
-    obj.pushKV("type", nType == CDeterministicMN::TYPE_HIGH_PERFORMANCE_MASTERNODE ? "HighPerformance" : "Regular");
+    obj.pushKV("type", nType == MasternodeType::HighPerformance ? "HighPerformance" : "Regular");
     obj.pushKV("proTxHash", proTxHash.ToString());
     obj.pushKV("collateralHash", collateralOutpoint.hash.ToString());
     obj.pushKV("collateralIndex", (int)collateralOutpoint.n);
@@ -191,7 +191,7 @@ CDeterministicMNCPtr CDeterministicMNList::GetMNPayee(const CBlockIndex* pIndex)
             if (dmn->pdmnState->nLastPaidHeight == nHeight) {
                 // We found the last MN Payee.
                 // If the last payee is a HPMN, we need to check its consecutive payments and pay him again if nConsecutivePayments < 3
-                if (dmn->nType == CDeterministicMN::TYPE_HIGH_PERFORMANCE_MASTERNODE && dmn->pdmnState->nConsecutivePayments < 3) {
+                if (dmn->nType == CDeterministicMN::MasternodeType::HighPerformance && dmn->pdmnState->nConsecutivePayments < 3) {
                     best = dmn;
                 }
             }
@@ -269,7 +269,7 @@ std::vector<std::pair<arith_uint256, CDeterministicMNCPtr>> CDeterministicMNList
             return;
         }
         if (onlyHighPerformanceMasternodes) {
-            if (dmn->nType != CDeterministicMN::TYPE_HIGH_PERFORMANCE_MASTERNODE)
+            if (dmn->nType != CDeterministicMN::MasternodeType::HighPerformance)
                 return;
         }
         // calculate sha256(sha256(proTxHash, confirmedHash), modifier) per MN
@@ -472,7 +472,7 @@ void CDeterministicMNList::AddMN(const CDeterministicMNCPtr& dmn, bool fBumpTota
                 dmn->proTxHash.ToString(), dmn->pdmnState->pubKeyOperator.Get().ToString())));
     }
 
-    if (dmn->nType == CDeterministicMN::TYPE_HIGH_PERFORMANCE_MASTERNODE) {
+    if (dmn->nType == CDeterministicMN::MasternodeType::HighPerformance) {
         if (!AddUniqueProperty(*dmn, dmn->pdmnState->platformNodeID)) {
             mnUniquePropertyMap = mnUniquePropertyMapSaved;
             throw(std::runtime_error(strprintf("%s: Can't add a masternode %s with a duplicate platformNodeID=%s", __func__,
@@ -513,7 +513,7 @@ void CDeterministicMNList::UpdateMN(const CDeterministicMN& oldDmn, const std::s
         throw(std::runtime_error(strprintf("%s: Can't update a masternode %s with a duplicate pubKeyOperator=%s", __func__,
                 oldDmn.proTxHash.ToString(), pdmnState->pubKeyOperator.Get().ToString())));
     }
-    if (dmn->nType == CDeterministicMN::TYPE_HIGH_PERFORMANCE_MASTERNODE) {
+    if (dmn->nType == CDeterministicMN::MasternodeType::HighPerformance) {
         if (!UpdateUniqueProperty(*dmn, oldState->platformNodeID, dmn->pdmnState->platformNodeID)) {
             mnUniquePropertyMap = mnUniquePropertyMapSaved;
             throw(std::runtime_error(strprintf("%s: Can't update a masternode %s with a duplicate platformNodeID=%s", __func__,
@@ -573,7 +573,7 @@ void CDeterministicMNList::RemoveMN(const uint256& proTxHash)
                 proTxHash.ToString(), dmn->pdmnState->pubKeyOperator.Get().ToString())));
     }
 
-    if (dmn->nType == CDeterministicMN::TYPE_HIGH_PERFORMANCE_MASTERNODE) {
+    if (dmn->nType == CDeterministicMN::MasternodeType::HighPerformance) {
         if (!DeleteUniqueProperty(*dmn, dmn->pdmnState->platformNodeID)) {
             mnUniquePropertyMap = mnUniquePropertyMapSaved;
             throw(std::runtime_error(strprintf("%s: Can't delete a masternode %s with a duplicate platformNodeID=%s", __func__,
@@ -823,10 +823,10 @@ bool CDeterministicMNManager::BuildNewListFromBlock(const CBlock& block, const C
             if (!dmn) {
                 return _state.Invalid(ValidationInvalidReason::CONSENSUS, false, REJECT_INVALID, "bad-protx-hash");
             }
-            if (proTx.nType == CProUpServTx::TYPE_HIGH_PERFORMANCE_MASTERNODE && dmn->nType != CDeterministicMN::TYPE_HIGH_PERFORMANCE_MASTERNODE) {
+            if (proTx.nType == CProUpServTx::TYPE_HIGH_PERFORMANCE_MASTERNODE && dmn->nType != CDeterministicMN::MasternodeType::HighPerformance) {
                 return _state.Invalid(ValidationInvalidReason::CONSENSUS, false, REJECT_INVALID, "bad-protx-type");
             }
-            if (proTx.nType == CProUpServTx::TYPE_REGULAR_MASTERNODE && dmn->nType != CDeterministicMN::TYPE_REGULAR_MASTERNODE) {
+            if (proTx.nType == CProUpServTx::TYPE_REGULAR_MASTERNODE && dmn->nType != CDeterministicMN::MasternodeType::Regular) {
                 return _state.Invalid(ValidationInvalidReason::CONSENSUS, false, REJECT_INVALID, "bad-protx-type");
             }
 
@@ -948,7 +948,7 @@ bool CDeterministicMNManager::BuildNewListFromBlock(const CBlock& block, const C
         // No need to check if v19 is active, since HPMN ProRegTx are allowed only after v19 activation
         // TODO: Skip this code once v20 is active
         // Note: If the payee wasn't found in the current block that's fine
-        if (payee->nType == CDeterministicMN::TYPE_HIGH_PERFORMANCE_MASTERNODE) {
+        if (payee->nType == CDeterministicMN::MasternodeType::HighPerformance) {
             if (newState->nConsecutivePayments == 3)
                 newState->nConsecutivePayments = 0;
             else

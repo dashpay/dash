@@ -71,7 +71,7 @@ void CSimplifiedMNListEntry::ToJson(UniValue& obj, bool extended) const
     obj.pushKV("isValid", isValid);
     obj.pushKV("nVersion", nVersion);
     obj.pushKV("nType", nType);
-    if (nType == CDeterministicMN::TYPE_HIGH_PERFORMANCE_MASTERNODE) {
+    if (nType == CDeterministicMN::MasternodeType::HighPerformance) {
         obj.pushKV("platformHTTPPort", platformHTTPPort);
     }
 
