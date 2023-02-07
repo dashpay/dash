@@ -1231,7 +1231,7 @@ bool CDeterministicMNManager::MigrateDBIfNeeded()
     curMNList.SetHeight(Params().GetConsensus().DIP0003Height - 1);
     curMNList.SetBlockHash(::ChainActive()[Params().GetConsensus().DIP0003Height - 1]->GetBlockHash());
 
-    for (int nHeight = Params().GetConsensus().DIP0003Height; nHeight <= ::ChainActive().Height(); nHeight++) {
+    for (const auto nHeight : irange::range(Params().GetConsensus().DIP0003Height, ::ChainActive().Height() + 1)) {
         auto pindex = ::ChainActive()[nHeight];
 
         CDeterministicMNList newMNList;
