@@ -452,7 +452,6 @@ static void protx_register_submit_help(const JSONRPCRequest& request)
         },
     }.Check(request);
 }
-
 static UniValue protx_register_wrapper(const JSONRPCRequest& request,
                                        const bool specific_legacy_bls_scheme,
                                        const bool isExternalRegister,
@@ -483,10 +482,12 @@ static UniValue protx_register_wrapper(const JSONRPCRequest& request,
     tx.nType = TRANSACTION_PROVIDER_REGISTER;
 
     CProRegTx ptx;
-    if (specific_legacy_bls_scheme)
+    if (specific_legacy_bls_scheme) {
         ptx.nVersion = CProRegTx::LEGACY_BLS_VERSION;
-    else
+    }
+    else {
         ptx.nVersion = CProRegTx::GetVersion(isV19active);
+    }
     ptx.nType = CProRegTx::TYPE_REGULAR_MASTERNODE;
 
     if (isFundRegister) {
