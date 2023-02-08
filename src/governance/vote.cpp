@@ -113,8 +113,8 @@ std::string CGovernanceVote::ToString() const
     auto mnList = deterministicMNManager->GetListAtChainTip();
     auto dmn = mnList.GetMNByCollateral(masternodeOutpoint);
     int voteWeight = (dmn != nullptr && dmn->nType == CDeterministicMN::MasternodeType::HighPerformance)
-            ? CDeterministicMN::HIGH_PERFORMANCE_MASTERNODE_WEIGHT
-            : CDeterministicMN::REGULAR_MASTERNODE_WEIGHT;
+                         ? CDeterministicMN::HIGH_PERFORMANCE_MASTERNODE_WEIGHT
+                         : CDeterministicMN::REGULAR_MASTERNODE_WEIGHT;
     std::ostringstream ostr;
     ostr << masternodeOutpoint.ToStringShort() << ":"
          << nTime << ":"

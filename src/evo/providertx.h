@@ -53,9 +53,8 @@ public:
     SERIALIZE_METHODS(CProRegTx, obj)
     {
         READWRITE(
-                obj.nVersion,
-                obj.nType
-        );
+            obj.nVersion,
+            obj.nType);
         if (obj.nVersion == 0 || obj.nVersion > BASIC_BLS_VERSION) {
             // unknown version, bail out early
             return;
@@ -73,10 +72,9 @@ public:
         );
         if (obj.nVersion == BASIC_BLS_VERSION && obj.nType == TYPE_HIGH_PERFORMANCE_MASTERNODE) {
             READWRITE(
-                    obj.platformNodeID,
-                    obj.platformP2PPort,
-                    obj.platformHTTPPort
-            );
+                obj.platformNodeID,
+                obj.platformP2PPort,
+                obj.platformHTTPPort);
         }
         if (!(s.GetType() & SER_GETHASH)) {
             READWRITE(obj.vchSig);
@@ -154,8 +152,7 @@ public:
         }
         if (obj.nVersion == BASIC_BLS_VERSION) {
             READWRITE(
-                    obj.nType
-            );
+                obj.nType);
         }
         READWRITE(
                 obj.proTxHash,
@@ -165,10 +162,9 @@ public:
         );
         if (obj.nVersion == BASIC_BLS_VERSION && obj.nType == TYPE_HIGH_PERFORMANCE_MASTERNODE) {
             READWRITE(
-                    obj.platformNodeID,
-                    obj.platformP2PPort,
-                    obj.platformHTTPPort
-            );
+                obj.platformNodeID,
+                obj.platformP2PPort,
+                obj.platformHTTPPort);
         }
         if (!(s.GetType() & SER_GETHASH)) {
             READWRITE(

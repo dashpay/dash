@@ -56,7 +56,7 @@ std::string CSimplifiedMNListEntry::ToString() const
     }
 
     return strprintf("CSimplifiedMNListEntry(nType=%d, proRegTxHash=%s, confirmedHash=%s, service=%s, pubKeyOperator=%s, votingAddress=%s, isValid=%d, payoutAddress=%s, operatorPayoutAddress=%s, platformHTTPPort=%d)",
-        nType, proRegTxHash.ToString(), confirmedHash.ToString(), service.ToString(false), pubKeyOperator.Get().ToString(), EncodeDestination(PKHash(keyIDVoting)), isValid, payoutAddress, operatorPayoutAddress, platformHTTPPort);
+                     nType, proRegTxHash.ToString(), confirmedHash.ToString(), service.ToString(false), pubKeyOperator.Get().ToString(), EncodeDestination(PKHash(keyIDVoting)), isValid, payoutAddress, operatorPayoutAddress, platformHTTPPort);
 }
 
 void CSimplifiedMNListEntry::ToJson(UniValue& obj, bool extended) const
@@ -86,7 +86,7 @@ void CSimplifiedMNListEntry::ToJson(UniValue& obj, bool extended) const
     }
 }
 
-//TODO: Invistigate if we can delete this constructor
+// TODO: Invistigate if we can delete this constructor
 CSimplifiedMNList::CSimplifiedMNList(const std::vector<CSimplifiedMNListEntry>& smlEntries)
 {
     mnList.resize(smlEntries.size());

@@ -54,7 +54,8 @@ public:
     static constexpr uint16_t MN_TYPE_FORMAT = 1;
 
     CDeterministicMN() = delete; // no default constructor, must specify internalId
-    explicit CDeterministicMN(uint64_t _internalId, bool highPerformanceMasternode = false) : internalId(_internalId)
+    explicit CDeterministicMN(uint64_t _internalId, bool highPerformanceMasternode = false) :
+        internalId(_internalId)
     {
         highPerformanceMasternode ? nType = MasternodeType::HighPerformance : nType = MasternodeType::Regular;
         // only non-initial values
@@ -86,8 +87,7 @@ public:
             CDeterministicMNState_Oldformat old_state;
             READWRITE(old_state);
             pdmnState = std::make_shared<const CDeterministicMNState>(old_state);
-        }
-        else {
+        } else {
             READWRITE(pdmnState);
         }
         // We need to read/write nType if:
@@ -97,8 +97,7 @@ public:
         // Otherwise, we can safely check with protocol versioning logic so we won't break old clients
         if (format_version >= MN_TYPE_FORMAT && (s.GetVersion() == CLIENT_VERSION || s.GetVersion() >= DMN_TYPE_PROTO_VERSION)) {
             READWRITE(nType);
-        }
-        else {
+        } else {
             nType = MasternodeType::Regular;
         }
     }
@@ -109,7 +108,7 @@ public:
         const_cast<CDeterministicMN*>(this)->SerializationOp(s, CSerActionSerialize(), MN_TYPE_FORMAT);
     }
 
-    template<typename Stream>
+    template <typename Stream>
     void Unserialize(Stream& s, const uint8_t format_version = MN_TYPE_FORMAT)
     {
         SerializationOp(s, CSerActionUnserialize(), format_version);
@@ -237,7 +236,7 @@ public:
 
     [[nodiscard]] size_t GetAllHPMNsCount() const
     {
-        return ranges::count_if(mnMap, [](const auto& p){ return p.second->nType == CDeterministicMN::MasternodeType::HighPerformance;});
+        return ranges::count_if(mnMap, [](const auto& p) { return p.second->nType == CDeterministicMN::MasternodeType::HighPerformance; });
     }
 
     /**
@@ -480,7 +479,7 @@ public:
         }
     }
 
-    template<typename Stream>
+    template <typename Stream>
     void Unserialize(Stream& s, const uint8_t format_version = CDeterministicMN::MN_TYPE_FORMAT)
     {
         updatedMNs.clear();

@@ -30,9 +30,9 @@ enum class LLMQType : uint8_t {
     LLMQ_TEST_V17 = 102, // 3 members, 2 (66%) threshold, one per hour. Params might differ when -llmqtestparams is used
 
     // for testing only
-    LLMQ_TEST_DIP0024 = 103, // 4 members, 2 (66%) threshold, one per hour. Params might differ when -llmqtestparams is used
+    LLMQ_TEST_DIP0024 = 103,     // 4 members, 2 (66%) threshold, one per hour. Params might differ when -llmqtestparams is used
     LLMQ_TEST_INSTANTSEND = 104, // 3 members, 2 (66%) threshold, one per hour. Params might differ when -llmqtestinstantsendparams is used
-    LLMQ_TEST_PLATFORM = 106, // 4 members, 2 (66%) threshold, one per hour.
+    LLMQ_TEST_PLATFORM = 106,    // 4 members, 2 (66%) threshold, one per hour.
 
     // for devnets only. rotated version (v2) for devnets
     LLMQ_DEVNET_DIP0024 = 105 // 8 members, 4 (50%) threshold, one per hour. Params might differ when -llmqdevnetparams is used

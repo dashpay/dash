@@ -44,112 +44,90 @@ static RPCArg GetRpcArg(const std::string& strParamName)
 {
     static const std::map<std::string, RPCArg> mapParamHelp = {
         {"collateralAddress",
-            {"collateralAddress", RPCArg::Type::STR, RPCArg::Optional::NO,
-                "The dash address to send the collateral to."}
-        },
+         {"collateralAddress", RPCArg::Type::STR, RPCArg::Optional::NO,
+          "The dash address to send the collateral to."}},
         {"collateralHash",
-            {"collateralHash", RPCArg::Type::STR, RPCArg::Optional::NO,
-                "The collateral transaction hash."}
-        },
+         {"collateralHash", RPCArg::Type::STR, RPCArg::Optional::NO,
+          "The collateral transaction hash."}},
         {"collateralIndex",
-            {"collateralIndex", RPCArg::Type::NUM, RPCArg::Optional::NO,
-                "The collateral transaction output index."}
-        },
+         {"collateralIndex", RPCArg::Type::NUM, RPCArg::Optional::NO,
+          "The collateral transaction output index."}},
         {"feeSourceAddress",
-            {"feeSourceAddress", RPCArg::Type::STR, /* default */ "",
-                "If specified wallet will only use coins from this address to fund ProTx.\n"
-                "If not specified, payoutAddress is the one that is going to be used.\n"
-                "The private key belonging to this address must be known in your wallet."}
-        },
+         {"feeSourceAddress", RPCArg::Type::STR, /* default */ "",
+          "If specified wallet will only use coins from this address to fund ProTx.\n"
+          "If not specified, payoutAddress is the one that is going to be used.\n"
+          "The private key belonging to this address must be known in your wallet."}},
         {"fundAddress",
-            {"fundAddress", RPCArg::Type::STR, /* default */ "",
-                "If specified wallet will only use coins from this address to fund ProTx.\n"
-                "If not specified, payoutAddress is the one that is going to be used.\n"
-                "The private key belonging to this address must be known in your wallet."}
-        },
+         {"fundAddress", RPCArg::Type::STR, /* default */ "",
+          "If specified wallet will only use coins from this address to fund ProTx.\n"
+          "If not specified, payoutAddress is the one that is going to be used.\n"
+          "The private key belonging to this address must be known in your wallet."}},
         {"ipAndPort",
-            {"ipAndPort", RPCArg::Type::STR, RPCArg::Optional::NO,
-                "IP and port in the form \"IP:PORT\".\n"
-                "Must be unique on the network. Can be set to 0, which will require a ProUpServTx afterwards."}
-        },
+         {"ipAndPort", RPCArg::Type::STR, RPCArg::Optional::NO,
+          "IP and port in the form \"IP:PORT\".\n"
+          "Must be unique on the network. Can be set to 0, which will require a ProUpServTx afterwards."}},
         {"operatorKey",
-            {"operatorKey", RPCArg::Type::STR, RPCArg::Optional::NO,
-                "The operator BLS private key associated with the\n"
-                "registered operator public key."}
-        },
+         {"operatorKey", RPCArg::Type::STR, RPCArg::Optional::NO,
+          "The operator BLS private key associated with the\n"
+          "registered operator public key."}},
         {"operatorPayoutAddress",
-            {"operatorPayoutAddress", RPCArg::Type::STR, /* default */ "",
-                "The address used for operator reward payments.\n"
-                "Only allowed when the ProRegTx had a non-zero operatorReward value.\n"
-                "If set to an empty string, the currently active payout address is reused."}
-        },
+         {"operatorPayoutAddress", RPCArg::Type::STR, /* default */ "",
+          "The address used for operator reward payments.\n"
+          "Only allowed when the ProRegTx had a non-zero operatorReward value.\n"
+          "If set to an empty string, the currently active payout address is reused."}},
         {"operatorPubKey_register",
-            {"operatorPubKey_register", RPCArg::Type::STR, RPCArg::Optional::NO,
-                "The operator BLS public key. The BLS private key does not have to be known.\n"
-                "It has to match the BLS private key which is later used when operating the masternode."}
-        },
+         {"operatorPubKey_register", RPCArg::Type::STR, RPCArg::Optional::NO,
+          "The operator BLS public key. The BLS private key does not have to be known.\n"
+          "It has to match the BLS private key which is later used when operating the masternode."}},
         {"operatorPubKey_update",
-            {"operatorPubKey_update", RPCArg::Type::STR, RPCArg::Optional::NO,
-                "The operator BLS public key. The BLS private key does not have to be known.\n"
-                "It has to match the BLS private key which is later used when operating the masternode.\n"
-                "If set to an empty string, the currently active operator BLS public key is reused."}
-        },
+         {"operatorPubKey_update", RPCArg::Type::STR, RPCArg::Optional::NO,
+          "The operator BLS public key. The BLS private key does not have to be known.\n"
+          "It has to match the BLS private key which is later used when operating the masternode.\n"
+          "If set to an empty string, the currently active operator BLS public key is reused."}},
         {"operatorReward",
-            {"operatorReward", RPCArg::Type::STR, RPCArg::Optional::NO,
-                "The fraction in %% to share with the operator. The value must be\n"
-                "between 0.00 and 100.00."}
-        },
+         {"operatorReward", RPCArg::Type::STR, RPCArg::Optional::NO,
+          "The fraction in %% to share with the operator. The value must be\n"
+          "between 0.00 and 100.00."}},
         {"ownerAddress",
-            {"ownerAddress", RPCArg::Type::STR, RPCArg::Optional::NO,
-                "The dash address to use for payee updates and proposal voting.\n"
-                "The corresponding private key does not have to be known by your wallet.\n"
-                "The address must be unused and must differ from the collateralAddress."}
-        },
+         {"ownerAddress", RPCArg::Type::STR, RPCArg::Optional::NO,
+          "The dash address to use for payee updates and proposal voting.\n"
+          "The corresponding private key does not have to be known by your wallet.\n"
+          "The address must be unused and must differ from the collateralAddress."}},
         {"payoutAddress_register",
-            {"payoutAddress_register", RPCArg::Type::STR, RPCArg::Optional::NO,
-                "The dash address to use for masternode reward payments."}
-        },
+         {"payoutAddress_register", RPCArg::Type::STR, RPCArg::Optional::NO,
+          "The dash address to use for masternode reward payments."}},
         {"payoutAddress_update",
-            {"payoutAddress_update", RPCArg::Type::STR, RPCArg::Optional::NO,
-                "The dash address to use for masternode reward payments.\n"
-                "If set to an empty string, the currently active payout address is reused."}
-        },
+         {"payoutAddress_update", RPCArg::Type::STR, RPCArg::Optional::NO,
+          "The dash address to use for masternode reward payments.\n"
+          "If set to an empty string, the currently active payout address is reused."}},
         {"proTxHash",
-            {"proTxHash", RPCArg::Type::STR, RPCArg::Optional::NO,
-                "The hash of the initial ProRegTx."}
-        },
+         {"proTxHash", RPCArg::Type::STR, RPCArg::Optional::NO,
+          "The hash of the initial ProRegTx."}},
         {"reason",
-            {"reason", RPCArg::Type::NUM, /* default */ "",
-                "The reason for masternode service revocation."}
-        },
+         {"reason", RPCArg::Type::NUM, /* default */ "",
+          "The reason for masternode service revocation."}},
         {"submit",
-            {"submit", RPCArg::Type::BOOL, /* default */ "true",
-                "If true, the resulting transaction is sent to the network."}
-        },
+         {"submit", RPCArg::Type::BOOL, /* default */ "true",
+          "If true, the resulting transaction is sent to the network."}},
         {"votingAddress_register",
-            {"votingAddress_register", RPCArg::Type::STR, RPCArg::Optional::NO,
-                "The voting key address. The private key does not have to be known by your wallet.\n"
-                "It has to match the private key which is later used when voting on proposals.\n"
-                "If set to an empty string, ownerAddress will be used."}
-        },
+         {"votingAddress_register", RPCArg::Type::STR, RPCArg::Optional::NO,
+          "The voting key address. The private key does not have to be known by your wallet.\n"
+          "It has to match the private key which is later used when voting on proposals.\n"
+          "If set to an empty string, ownerAddress will be used."}},
         {"votingAddress_update",
-            {"votingAddress_update", RPCArg::Type::STR, RPCArg::Optional::NO,
-                "The voting key address. The private key does not have to be known by your wallet.\n"
-                "It has to match the private key which is later used when voting on proposals.\n"
-                "If set to an empty string, the currently active voting key address is reused."}
-        },
+         {"votingAddress_update", RPCArg::Type::STR, RPCArg::Optional::NO,
+          "The voting key address. The private key does not have to be known by your wallet.\n"
+          "It has to match the private key which is later used when voting on proposals.\n"
+          "If set to an empty string, the currently active voting key address is reused."}},
         {"platformNodeID",
          {"platformNodeID", RPCArg::Type::STR, RPCArg::Optional::NO,
-          "Platform P2P node ID, derived from P2P public key."}
-        },
+          "Platform P2P node ID, derived from P2P public key."}},
         {"platformP2PPort",
          {"platformP2PPort", RPCArg::Type::NUM, RPCArg::Optional::NO,
-          "TCP port of Dash Platform peer-to-peer communication between nodes (network byte order)."}
-        },
+          "TCP port of Dash Platform peer-to-peer communication between nodes (network byte order)."}},
         {"platformHTTPPort",
          {"platformHTTPPort", RPCArg::Type::NUM, RPCArg::Optional::NO,
-          "TCP port of Platform HTTP/API interface (network byte order). "}
-        },
+          "TCP port of Platform HTTP/API interface (network byte order). "}},
     };
 
     auto it = mapParamHelp.find(strParamName);
@@ -455,104 +433,105 @@ static void protx_register_submit_help(const JSONRPCRequest& request)
 
 static void protx_register_fund_hpmn_help(const JSONRPCRequest& request)
 {
-    RPCHelpMan{"protx register_fund_hpmn",
-               "\nCreates, funds and sends a ProTx to the network. The resulting transaction will move 4000 Dash\n"
-               "to the address specified by collateralAddress and will then function as the collateral of your\n"
-               "HPMN.\n"
-               "A few of the limitations you see in the arguments are temporary and might be lifted after DIP3\n"
-               "is fully deployed.\n"
-               + HELP_REQUIRING_PASSPHRASE,
-               {
-                       GetRpcArg("collateralAddress"),
-                       GetRpcArg("ipAndPort"),
-                       GetRpcArg("ownerAddress"),
-                       GetRpcArg("operatorPubKey_register"),
-                       GetRpcArg("votingAddress_register"),
-                       GetRpcArg("operatorReward"),
-                       GetRpcArg("payoutAddress_register"),
-                       GetRpcArg("platformNodeID"),
-                       GetRpcArg("platformP2PPort"),
-                       GetRpcArg("platformHTTPPort"),
-                       GetRpcArg("fundAddress"),
-                       GetRpcArg("submit"),
-               },
-               {
-                       RPCResult{"if \"submit\" is not set or set to true",
-                                 RPCResult::Type::STR_HEX, "txid", "The transaction id"},
-                       RPCResult{"if \"submit\" is set to false",
-                                 RPCResult::Type::STR_HEX, "hex", "The serialized signed ProTx in hex format"},
-               },
-               RPCExamples{
-                       HelpExampleCli("protx", "register_fund_hpmn \"XrVhS9LogauRJGJu2sHuryjhpuex4RNPSb\" 1000 \"1.2.3.4:1234\" \"Xt9AMWaYSz7tR7Uo7gzXA3m4QmeWgrR3rr\" \"93746e8731c57f87f79b3620a7982924e2931717d49540a85864bd543de11c43fb868fd63e501a1db37e19ed59ae6db4\" \"Xt9AMWaYSz7tR7Uo7gzXA3m4QmeWgrR3rr\" 0 \"XrVhS9LogauRJGJu2sHuryjhpuex4RNPSb\" \"f2dbd9b0a1f541a7c44d34a58674d0262f5feca5\" 22821 22822")
-               },
-    }.Check(request);
+    RPCHelpMan{
+        "protx register_fund_hpmn",
+        "\nCreates, funds and sends a ProTx to the network. The resulting transaction will move 4000 Dash\n"
+        "to the address specified by collateralAddress and will then function as the collateral of your\n"
+        "HPMN.\n"
+        "A few of the limitations you see in the arguments are temporary and might be lifted after DIP3\n"
+        "is fully deployed.\n" +
+            HELP_REQUIRING_PASSPHRASE,
+        {
+            GetRpcArg("collateralAddress"),
+            GetRpcArg("ipAndPort"),
+            GetRpcArg("ownerAddress"),
+            GetRpcArg("operatorPubKey_register"),
+            GetRpcArg("votingAddress_register"),
+            GetRpcArg("operatorReward"),
+            GetRpcArg("payoutAddress_register"),
+            GetRpcArg("platformNodeID"),
+            GetRpcArg("platformP2PPort"),
+            GetRpcArg("platformHTTPPort"),
+            GetRpcArg("fundAddress"),
+            GetRpcArg("submit"),
+        },
+        {
+            RPCResult{"if \"submit\" is not set or set to true",
+                      RPCResult::Type::STR_HEX, "txid", "The transaction id"},
+            RPCResult{"if \"submit\" is set to false",
+                      RPCResult::Type::STR_HEX, "hex", "The serialized signed ProTx in hex format"},
+        },
+        RPCExamples{
+            HelpExampleCli("protx", "register_fund_hpmn \"XrVhS9LogauRJGJu2sHuryjhpuex4RNPSb\" 1000 \"1.2.3.4:1234\" \"Xt9AMWaYSz7tR7Uo7gzXA3m4QmeWgrR3rr\" \"93746e8731c57f87f79b3620a7982924e2931717d49540a85864bd543de11c43fb868fd63e501a1db37e19ed59ae6db4\" \"Xt9AMWaYSz7tR7Uo7gzXA3m4QmeWgrR3rr\" 0 \"XrVhS9LogauRJGJu2sHuryjhpuex4RNPSb\" \"f2dbd9b0a1f541a7c44d34a58674d0262f5feca5\" 22821 22822")},
+    }
+        .Check(request);
 }
 
 static void protx_register_hpmn_help(const JSONRPCRequest& request)
 {
-    RPCHelpMan{"protx register_hpmn",
-               "\nSame as \"protx register_fund_hpmn\", but with an externally referenced collateral.\n"
-               "The collateral is specified through \"collateralHash\" and \"collateralIndex\" and must be an unspent\n"
-               "transaction output spendable by this wallet. It must also not be used by any other masternode.\n"
-               + HELP_REQUIRING_PASSPHRASE,
-               {
-                       GetRpcArg("collateralHash"),
-                       GetRpcArg("collateralIndex"),
-                       GetRpcArg("ipAndPort"),
-                       GetRpcArg("ownerAddress"),
-                       GetRpcArg("operatorPubKey_register"),
-                       GetRpcArg("votingAddress_register"),
-                       GetRpcArg("operatorReward"),
-                       GetRpcArg("payoutAddress_register"),
-                       GetRpcArg("platformNodeID"),
-                       GetRpcArg("platformP2PPort"),
-                       GetRpcArg("platformHTTPPort"),
-                       GetRpcArg("feeSourceAddress"),
-                       GetRpcArg("submit"),
-               },
-               {
-                       RPCResult{"if \"submit\" is not set or set to true",
-                                 RPCResult::Type::STR_HEX, "txid", "The transaction id"},
-                       RPCResult{"if \"submit\" is set to false",
-                                 RPCResult::Type::STR_HEX, "hex", "The serialized signed ProTx in hex format"},
-               },
-               RPCExamples{
-                       HelpExampleCli("protx", "register_hpmn \"0123456701234567012345670123456701234567012345670123456701234567\" 0 \"1.2.3.4:1234\" \"Xt9AMWaYSz7tR7Uo7gzXA3m4QmeWgrR3rr\" \"93746e8731c57f87f79b3620a7982924e2931717d49540a85864bd543de11c43fb868fd63e501a1db37e19ed59ae6db4\" \"Xt9AMWaYSz7tR7Uo7gzXA3m4QmeWgrR3rr\" 0 \"XrVhS9LogauRJGJu2sHuryjhpuex4RNPSb\" \"f2dbd9b0a1f541a7c44d34a58674d0262f5feca5\" 22821 22822")
-               },
-    }.Check(request);
+    RPCHelpMan{
+        "protx register_hpmn",
+        "\nSame as \"protx register_fund_hpmn\", but with an externally referenced collateral.\n"
+        "The collateral is specified through \"collateralHash\" and \"collateralIndex\" and must be an unspent\n"
+        "transaction output spendable by this wallet. It must also not be used by any other masternode.\n" +
+            HELP_REQUIRING_PASSPHRASE,
+        {
+            GetRpcArg("collateralHash"),
+            GetRpcArg("collateralIndex"),
+            GetRpcArg("ipAndPort"),
+            GetRpcArg("ownerAddress"),
+            GetRpcArg("operatorPubKey_register"),
+            GetRpcArg("votingAddress_register"),
+            GetRpcArg("operatorReward"),
+            GetRpcArg("payoutAddress_register"),
+            GetRpcArg("platformNodeID"),
+            GetRpcArg("platformP2PPort"),
+            GetRpcArg("platformHTTPPort"),
+            GetRpcArg("feeSourceAddress"),
+            GetRpcArg("submit"),
+        },
+        {
+            RPCResult{"if \"submit\" is not set or set to true",
+                      RPCResult::Type::STR_HEX, "txid", "The transaction id"},
+            RPCResult{"if \"submit\" is set to false",
+                      RPCResult::Type::STR_HEX, "hex", "The serialized signed ProTx in hex format"},
+        },
+        RPCExamples{
+            HelpExampleCli("protx", "register_hpmn \"0123456701234567012345670123456701234567012345670123456701234567\" 0 \"1.2.3.4:1234\" \"Xt9AMWaYSz7tR7Uo7gzXA3m4QmeWgrR3rr\" \"93746e8731c57f87f79b3620a7982924e2931717d49540a85864bd543de11c43fb868fd63e501a1db37e19ed59ae6db4\" \"Xt9AMWaYSz7tR7Uo7gzXA3m4QmeWgrR3rr\" 0 \"XrVhS9LogauRJGJu2sHuryjhpuex4RNPSb\" \"f2dbd9b0a1f541a7c44d34a58674d0262f5feca5\" 22821 22822")},
+    }
+        .Check(request);
 }
 
 static void protx_register_prepare_hpmn_help(const JSONRPCRequest& request)
 {
-    RPCHelpMan{"protx register_prepare_hpmn",
-               "\nCreates an unsigned ProTx and a message that must be signed externally\n"
-               "with the private key that corresponds to collateralAddress to prove collateral ownership.\n"
-               "The prepared transaction will also contain inputs and outputs to cover fees.\n",
-               {
-                       GetRpcArg("collateralHash"),
-                       GetRpcArg("collateralIndex"),
-                       GetRpcArg("ipAndPort"),
-                       GetRpcArg("ownerAddress"),
-                       GetRpcArg("operatorPubKey_register"),
-                       GetRpcArg("votingAddress_register"),
-                       GetRpcArg("operatorReward"),
-                       GetRpcArg("payoutAddress_register"),
-                       GetRpcArg("platformNodeID"),
-                       GetRpcArg("platformP2PPort"),
-                       GetRpcArg("platformHTTPPort"),
-                       GetRpcArg("feeSourceAddress"),
-               },
-               RPCResult{
-                       RPCResult::Type::OBJ, "", "",
-                       {
-                               {RPCResult::Type::STR_HEX, "tx", "The serialized unsigned ProTx in hex format"},
-                               {RPCResult::Type::STR_HEX, "collateralAddress", "The collateral address"},
-                               {RPCResult::Type::STR_HEX, "signMessage", "The string message that needs to be signed with the collateral key"},
-                       }},
-               RPCExamples{
-                       HelpExampleCli("protx", "register_prepare_hpmn \"0123456701234567012345670123456701234567012345670123456701234567\" 0 \"1.2.3.4:1234\" \"Xt9AMWaYSz7tR7Uo7gzXA3m4QmeWgrR3rr\" \"93746e8731c57f87f79b3620a7982924e2931717d49540a85864bd543de11c43fb868fd63e501a1db37e19ed59ae6db4\" \"Xt9AMWaYSz7tR7Uo7gzXA3m4QmeWgrR3rr\" 0 \"XrVhS9LogauRJGJu2sHuryjhpuex4RNPSb\" \"f2dbd9b0a1f541a7c44d34a58674d0262f5feca5\" 22821 22822")
-               },
-    }.Check(request);
+    RPCHelpMan{
+        "protx register_prepare_hpmn",
+        "\nCreates an unsigned ProTx and a message that must be signed externally\n"
+        "with the private key that corresponds to collateralAddress to prove collateral ownership.\n"
+        "The prepared transaction will also contain inputs and outputs to cover fees.\n",
+        {
+            GetRpcArg("collateralHash"),
+            GetRpcArg("collateralIndex"),
+            GetRpcArg("ipAndPort"),
+            GetRpcArg("ownerAddress"),
+            GetRpcArg("operatorPubKey_register"),
+            GetRpcArg("votingAddress_register"),
+            GetRpcArg("operatorReward"),
+            GetRpcArg("payoutAddress_register"),
+            GetRpcArg("platformNodeID"),
+            GetRpcArg("platformP2PPort"),
+            GetRpcArg("platformHTTPPort"),
+            GetRpcArg("feeSourceAddress"),
+        },
+        RPCResult{
+            RPCResult::Type::OBJ, "", "", {
+                                              {RPCResult::Type::STR_HEX, "tx", "The serialized unsigned ProTx in hex format"},
+                                              {RPCResult::Type::STR_HEX, "collateralAddress", "The collateral address"},
+                                              {RPCResult::Type::STR_HEX, "signMessage", "The string message that needs to be signed with the collateral key"},
+                                          }},
+        RPCExamples{HelpExampleCli("protx", "register_prepare_hpmn \"0123456701234567012345670123456701234567012345670123456701234567\" 0 \"1.2.3.4:1234\" \"Xt9AMWaYSz7tR7Uo7gzXA3m4QmeWgrR3rr\" \"93746e8731c57f87f79b3620a7982924e2931717d49540a85864bd543de11c43fb868fd63e501a1db37e19ed59ae6db4\" \"Xt9AMWaYSz7tR7Uo7gzXA3m4QmeWgrR3rr\" 0 \"XrVhS9LogauRJGJu2sHuryjhpuex4RNPSb\" \"f2dbd9b0a1f541a7c44d34a58674d0262f5feca5\" 22821 22822")},
+    }
+        .Check(request);
 }
 
 static UniValue protx_register_common_wrapper(const JSONRPCRequest& request,
@@ -564,20 +543,19 @@ static UniValue protx_register_common_wrapper(const JSONRPCRequest& request,
 {
     if (isHPMNrequested) {
         if (isFundRegister && (request.fHelp || (request.params.size() < 10 || request.params.size() > 12))) {
-            protx_register_fund_hpmn_help(request);
+        protx_register_fund_hpmn_help(request);
         } else if (isExternalRegister && (request.fHelp || (request.params.size() < 11 || request.params.size() > 13))) {
-            protx_register_hpmn_help(request);
+        protx_register_hpmn_help(request);
         } else if (isPrepareRegister && (request.fHelp || (request.params.size() != 11 && request.params.size() != 12))) {
-            protx_register_prepare_hpmn_help(request);
+        protx_register_prepare_hpmn_help(request);
         }
-    }
-    else {
+    } else {
         if (isFundRegister && (request.fHelp || (request.params.size() < 7 || request.params.size() > 9))) {
-            protx_register_fund_help(request);
+        protx_register_fund_help(request);
         } else if (isExternalRegister && (request.fHelp || (request.params.size() < 8 || request.params.size() > 10))) {
-            protx_register_help(request);
+        protx_register_help(request);
         } else if (isPrepareRegister && (request.fHelp || (request.params.size() != 8 && request.params.size() != 9))) {
-            protx_register_prepare_help(request);
+        protx_register_prepare_help(request);
         }
     }
 
@@ -602,8 +580,7 @@ static UniValue protx_register_common_wrapper(const JSONRPCRequest& request,
     CProRegTx ptx;
     if (specific_legacy_bls_scheme && !isHPMNrequested) {
         ptx.nVersion = CProRegTx::LEGACY_BLS_VERSION;
-    }
-    else {
+    } else {
         ptx.nVersion = CProRegTx::GetVersion(isV19active);
     }
     ptx.nType = isHPMNrequested ? CProRegTx::TYPE_HIGH_PERFORMANCE_MASTERNODE : CProRegTx::TYPE_REGULAR_MASTERNODE;
@@ -843,36 +820,35 @@ static void protx_update_service_help(const JSONRPCRequest& request)
 
 static void protx_update_service_hpmn_help(const JSONRPCRequest& request)
 {
-    RPCHelpMan{"protx update_service_hpmn",
-               "\nCreates and sends a ProUpServTx to the network. This will update the IP address and the Platform fields\n"
-               "of a HPMN.\n"
-               "If this is done for a HPMN that got PoSe-banned, the ProUpServTx will also revive this HPMN.\n"
-               + HELP_REQUIRING_PASSPHRASE,
-               {
-                       GetRpcArg("proTxHash"),
-                       GetRpcArg("ipAndPort"),
-                       GetRpcArg("operatorKey"),
-                       GetRpcArg("platformNodeID"),
-                       GetRpcArg("platformP2PPort"),
-                       GetRpcArg("platformHTTPPort"),
-                       GetRpcArg("operatorPayoutAddress"),
-                       GetRpcArg("feeSourceAddress"),
-               },
-               RPCResult{
-                       RPCResult::Type::STR_HEX, "txid", "The transaction id"
-               },
-               RPCExamples{
-                       HelpExampleCli("protx", "update_service_hpmn \"0123456701234567012345670123456701234567012345670123456701234567\" \"1.2.3.4:1234\" \"5a2e15982e62f1e0b7cf9783c64cf7e3af3f90a52d6c40f6f95d624c0b1621cd\" \"f2dbd9b0a1f541a7c44d34a58674d0262f5feca5\" 22821 22822")
-               },
-    }.Check(request);
+    RPCHelpMan{
+        "protx update_service_hpmn",
+        "\nCreates and sends a ProUpServTx to the network. This will update the IP address and the Platform fields\n"
+        "of a HPMN.\n"
+        "If this is done for a HPMN that got PoSe-banned, the ProUpServTx will also revive this HPMN.\n" +
+            HELP_REQUIRING_PASSPHRASE,
+        {
+            GetRpcArg("proTxHash"),
+            GetRpcArg("ipAndPort"),
+            GetRpcArg("operatorKey"),
+            GetRpcArg("platformNodeID"),
+            GetRpcArg("platformP2PPort"),
+            GetRpcArg("platformHTTPPort"),
+            GetRpcArg("operatorPayoutAddress"),
+            GetRpcArg("feeSourceAddress"),
+        },
+        RPCResult{
+            RPCResult::Type::STR_HEX, "txid", "The transaction id"},
+        RPCExamples{
+            HelpExampleCli("protx", "update_service_hpmn \"0123456701234567012345670123456701234567012345670123456701234567\" \"1.2.3.4:1234\" \"5a2e15982e62f1e0b7cf9783c64cf7e3af3f90a52d6c40f6f95d624c0b1621cd\" \"f2dbd9b0a1f541a7c44d34a58674d0262f5feca5\" 22821 22822")},
+    }
+        .Check(request);
 }
 
 static UniValue protx_update_service_common_wrapper(const JSONRPCRequest& request, const bool isHPMNrequested)
 {
     if (isHPMNrequested) {
         protx_update_service_hpmn_help(request);
-    }
-    else {
+    } else {
         protx_update_service_help(request);
     }
 
@@ -925,8 +901,7 @@ static UniValue protx_update_service_common_wrapper(const JSONRPCRequest& reques
     }
     if (isHPMNrequested && dmn->nType != CDeterministicMN::MasternodeType::HighPerformance) {
         throw std::runtime_error(strprintf("masternode with proTxHash %s is not a HPMN", ptx.proTxHash.ToString()));
-    }
-    else if (!isHPMNrequested && dmn->nType == CDeterministicMN::MasternodeType::HighPerformance) {
+    } else if (!isHPMNrequested && dmn->nType == CDeterministicMN::MasternodeType::HighPerformance) {
         throw std::runtime_error(strprintf("masternode with proTxHash %s is a HPMN", ptx.proTxHash.ToString()));
     }
 
@@ -1463,7 +1438,8 @@ static UniValue protx_diff(const JSONRPCRequest& request)
 
 [[ noreturn ]] static void protx_help()
 {
-    RPCHelpMan{"protx",
+    RPCHelpMan{
+        "protx",
         "Set of commands to execute ProTx related actions.\n"
         "To get help on individual commands, use \"help protx command\".\n"
         "\nAvailable commands:\n"
@@ -1493,7 +1469,8 @@ static UniValue protx_diff(const JSONRPCRequest& request)
         },
         RPCResults{},
         RPCExamples{""},
-    }.Throw();
+    }
+        .Throw();
 }
 
 static UniValue protx(const JSONRPCRequest& request)
@@ -1524,7 +1501,7 @@ static UniValue protx(const JSONRPCRequest& request)
         return protx_revoke_legacy(new_request);
     } else
 #endif
-    if (command == "protxlist") {
+        if (command == "protxlist") {
         return protx_list(new_request);
     } else if (command == "protxinfo") {
         return protx_info(new_request);

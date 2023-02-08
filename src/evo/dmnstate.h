@@ -25,7 +25,7 @@ namespace llmq
     class CFinalCommitment;
 } // namespace llmq
 
-//TODO: To remove this in the future
+// TODO: To remove this in the future
 class CDeterministicMNState_Oldformat
 {
 private:
@@ -33,6 +33,7 @@ private:
 
     friend class CDeterministicMNStateDiff;
     friend class CDeterministicMNState;
+
 public:
     int nRegisteredHeight{-1};
     int nLastPaidHeight{0};
@@ -54,21 +55,20 @@ public:
     SERIALIZE_METHODS(CDeterministicMNState_Oldformat, obj)
     {
         READWRITE(
-                obj.nRegisteredHeight,
-                obj.nLastPaidHeight,
-                obj.nPoSePenalty,
-                obj.nPoSeRevivedHeight,
-                obj.nPoSeBanHeight,
-                obj.nRevocationReason,
-                obj.confirmedHash,
-                obj.confirmedHashWithProRegTxHash,
-                obj.keyIDOwner,
-                obj.pubKeyOperator,
-                obj.keyIDVoting,
-                obj.addr,
-                obj.scriptPayout,
-                obj.scriptOperatorPayout
-        );
+            obj.nRegisteredHeight,
+            obj.nLastPaidHeight,
+            obj.nPoSePenalty,
+            obj.nPoSeRevivedHeight,
+            obj.nPoSeBanHeight,
+            obj.nRevocationReason,
+            obj.confirmedHash,
+            obj.confirmedHashWithProRegTxHash,
+            obj.keyIDOwner,
+            obj.pubKeyOperator,
+            obj.keyIDVoting,
+            obj.addr,
+            obj.scriptPayout,
+            obj.scriptOperatorPayout);
     }
 };
 
@@ -78,6 +78,7 @@ private:
     int nPoSeBanHeight{-1};
 
     friend class CDeterministicMNStateDiff;
+
 public:
     int nRegisteredHeight{-1};
     int nLastPaidHeight{0};
@@ -106,31 +107,31 @@ public:
 public:
     CDeterministicMNState() = default;
     explicit CDeterministicMNState(const CProRegTx& proTx) :
-            keyIDOwner(proTx.keyIDOwner),
-            keyIDVoting(proTx.keyIDVoting),
-            addr(proTx.addr),
-            scriptPayout(proTx.scriptPayout),
-            platformNodeID(proTx.platformNodeID),
-            platformP2PPort(proTx.platformP2PPort),
-            platformHTTPPort(proTx.platformHTTPPort)
+        keyIDOwner(proTx.keyIDOwner),
+        keyIDVoting(proTx.keyIDVoting),
+        addr(proTx.addr),
+        scriptPayout(proTx.scriptPayout),
+        platformNodeID(proTx.platformNodeID),
+        platformP2PPort(proTx.platformP2PPort),
+        platformHTTPPort(proTx.platformHTTPPort)
     {
         pubKeyOperator.Set(proTx.pubKeyOperator);
     }
     explicit CDeterministicMNState(const CDeterministicMNState_Oldformat& s) :
-            nPoSeBanHeight(s.nPoSeBanHeight),
-            nRegisteredHeight(s.nRegisteredHeight),
-            nLastPaidHeight(s.nLastPaidHeight),
-            nPoSePenalty(s.nPoSePenalty),
-            nPoSeRevivedHeight(s.nPoSeRevivedHeight),
-            nRevocationReason(s.nRevocationReason),
-            confirmedHash(s.confirmedHash),
-            confirmedHashWithProRegTxHash(s.confirmedHashWithProRegTxHash),
-            keyIDOwner(s.keyIDOwner),
-            pubKeyOperator(s.pubKeyOperator),
-            keyIDVoting(s.keyIDVoting),
-            addr(s.addr),
-            scriptPayout(s.scriptPayout),
-            scriptOperatorPayout(s.scriptOperatorPayout){}
+        nPoSeBanHeight(s.nPoSeBanHeight),
+        nRegisteredHeight(s.nRegisteredHeight),
+        nLastPaidHeight(s.nLastPaidHeight),
+        nPoSePenalty(s.nPoSePenalty),
+        nPoSeRevivedHeight(s.nPoSeRevivedHeight),
+        nRevocationReason(s.nRevocationReason),
+        confirmedHash(s.confirmedHash),
+        confirmedHashWithProRegTxHash(s.confirmedHashWithProRegTxHash),
+        keyIDOwner(s.keyIDOwner),
+        pubKeyOperator(s.pubKeyOperator),
+        keyIDVoting(s.keyIDVoting),
+        addr(s.addr),
+        scriptPayout(s.scriptPayout),
+        scriptOperatorPayout(s.scriptOperatorPayout) {}
     template <typename Stream>
     CDeterministicMNState(deserialize_type, Stream& s)
     {
@@ -140,25 +141,24 @@ public:
     SERIALIZE_METHODS(CDeterministicMNState, obj)
     {
         READWRITE(
-                obj.nRegisteredHeight,
-                obj.nLastPaidHeight,
-                obj.nConsecutivePayments,
-                obj.nPoSePenalty,
-                obj.nPoSeRevivedHeight,
-                obj.nPoSeBanHeight,
-                obj.nRevocationReason,
-                obj.confirmedHash,
-                obj.confirmedHashWithProRegTxHash,
-                obj.keyIDOwner,
-                obj.pubKeyOperator,
-                obj.keyIDVoting,
-                obj.addr,
-                obj.scriptPayout,
-                obj.scriptOperatorPayout,
-                obj.platformNodeID,
-                obj.platformP2PPort,
-                obj.platformHTTPPort
-                );
+            obj.nRegisteredHeight,
+            obj.nLastPaidHeight,
+            obj.nConsecutivePayments,
+            obj.nPoSePenalty,
+            obj.nPoSeRevivedHeight,
+            obj.nPoSeBanHeight,
+            obj.nRevocationReason,
+            obj.confirmedHash,
+            obj.confirmedHashWithProRegTxHash,
+            obj.keyIDOwner,
+            obj.pubKeyOperator,
+            obj.keyIDVoting,
+            obj.addr,
+            obj.scriptPayout,
+            obj.scriptOperatorPayout,
+            obj.platformNodeID,
+            obj.platformP2PPort,
+            obj.platformHTTPPort);
     }
 
     void ResetOperatorFields()
@@ -197,7 +197,7 @@ public:
         h.Write(_confirmedHash.begin(), _confirmedHash.size());
         h.Finalize(confirmedHashWithProRegTxHash.begin());
     }
-    
+
 
 public:
     std::string ToString() const;
@@ -208,43 +208,43 @@ class CDeterministicMNStateDiff
 {
 public:
     enum Field : uint32_t {
-        Field_nRegisteredHeight                 = 0x0001,
-        Field_nLastPaidHeight                   = 0x0002,
-        Field_nPoSePenalty                      = 0x0004,
-        Field_nPoSeRevivedHeight                = 0x0008,
-        Field_nPoSeBanHeight                    = 0x0010,
-        Field_nRevocationReason                 = 0x0020,
-        Field_confirmedHash                     = 0x0040,
-        Field_confirmedHashWithProRegTxHash     = 0x0080,
-        Field_keyIDOwner                        = 0x0100,
-        Field_pubKeyOperator                    = 0x0200,
-        Field_keyIDVoting                       = 0x0400,
-        Field_addr                              = 0x0800,
-        Field_scriptPayout                      = 0x1000,
-        Field_scriptOperatorPayout              = 0x2000,
-        Field_nConsecutivePayments              = 0x4000,
-        Field_platformNodeID                    = 0x8000,
-        Field_platformP2PPort                   = 0x10000,
-        Field_platformHTTPPort                  = 0x20000,
+        Field_nRegisteredHeight = 0x0001,
+        Field_nLastPaidHeight = 0x0002,
+        Field_nPoSePenalty = 0x0004,
+        Field_nPoSeRevivedHeight = 0x0008,
+        Field_nPoSeBanHeight = 0x0010,
+        Field_nRevocationReason = 0x0020,
+        Field_confirmedHash = 0x0040,
+        Field_confirmedHashWithProRegTxHash = 0x0080,
+        Field_keyIDOwner = 0x0100,
+        Field_pubKeyOperator = 0x0200,
+        Field_keyIDVoting = 0x0400,
+        Field_addr = 0x0800,
+        Field_scriptPayout = 0x1000,
+        Field_scriptOperatorPayout = 0x2000,
+        Field_nConsecutivePayments = 0x4000,
+        Field_platformNodeID = 0x8000,
+        Field_platformP2PPort = 0x10000,
+        Field_platformHTTPPort = 0x20000,
     };
 
-#define DMN_STATE_DIFF_ALL_FIELDS \
-    DMN_STATE_DIFF_LINE(nRegisteredHeight) \
-    DMN_STATE_DIFF_LINE(nLastPaidHeight) \
-    DMN_STATE_DIFF_LINE(nPoSePenalty) \
-    DMN_STATE_DIFF_LINE(nPoSeRevivedHeight) \
-    DMN_STATE_DIFF_LINE(nPoSeBanHeight) \
-    DMN_STATE_DIFF_LINE(nRevocationReason) \
-    DMN_STATE_DIFF_LINE(confirmedHash) \
+#define DMN_STATE_DIFF_ALL_FIELDS                      \
+    DMN_STATE_DIFF_LINE(nRegisteredHeight)             \
+    DMN_STATE_DIFF_LINE(nLastPaidHeight)               \
+    DMN_STATE_DIFF_LINE(nPoSePenalty)                  \
+    DMN_STATE_DIFF_LINE(nPoSeRevivedHeight)            \
+    DMN_STATE_DIFF_LINE(nPoSeBanHeight)                \
+    DMN_STATE_DIFF_LINE(nRevocationReason)             \
+    DMN_STATE_DIFF_LINE(confirmedHash)                 \
     DMN_STATE_DIFF_LINE(confirmedHashWithProRegTxHash) \
-    DMN_STATE_DIFF_LINE(keyIDOwner) \
-    DMN_STATE_DIFF_LINE(pubKeyOperator) \
-    DMN_STATE_DIFF_LINE(keyIDVoting) \
-    DMN_STATE_DIFF_LINE(addr) \
-    DMN_STATE_DIFF_LINE(scriptPayout) \
-    DMN_STATE_DIFF_LINE(scriptOperatorPayout) \
-    DMN_STATE_DIFF_LINE(platformNodeID) \
-    DMN_STATE_DIFF_LINE(platformP2PPort) \
+    DMN_STATE_DIFF_LINE(keyIDOwner)                    \
+    DMN_STATE_DIFF_LINE(pubKeyOperator)                \
+    DMN_STATE_DIFF_LINE(keyIDVoting)                   \
+    DMN_STATE_DIFF_LINE(addr)                          \
+    DMN_STATE_DIFF_LINE(scriptPayout)                  \
+    DMN_STATE_DIFF_LINE(scriptOperatorPayout)          \
+    DMN_STATE_DIFF_LINE(platformNodeID)                \
+    DMN_STATE_DIFF_LINE(platformP2PPort)               \
     DMN_STATE_DIFF_LINE(platformHTTPPort)
 
 public:
