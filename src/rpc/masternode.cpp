@@ -673,7 +673,7 @@ static UniValue masternodelist(const JSONRPCRequest& request)
                 objMN.pushKV("platformHTTPPort", dmn.pdmnState->platformHTTPPort);
             }
             objMN.pushKV("pospenaltyscore", dmn.pdmnState->nPoSePenalty);
-            objMN.pushKV("nConsecutivePayments", dmn.pdmnState->nConsecutivePayments);
+            objMN.pushKV("consecutivePayments", dmn.pdmnState->nConsecutivePayments);
             objMN.pushKV("lastpaidtime", dmnToLastPaidTime(dmn));
             objMN.pushKV("lastpaidblock", dmn.pdmnState->nLastPaidHeight);
             objMN.pushKV("owneraddress", EncodeDestination(PKHash(dmn.pdmnState->keyIDOwner)));
