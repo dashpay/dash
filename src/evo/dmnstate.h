@@ -243,6 +243,7 @@ public:
     DMN_STATE_DIFF_LINE(addr)                          \
     DMN_STATE_DIFF_LINE(scriptPayout)                  \
     DMN_STATE_DIFF_LINE(scriptOperatorPayout)          \
+    DMN_STATE_DIFF_LINE(nConsecutivePayments)          \
     DMN_STATE_DIFF_LINE(platformNodeID)                \
     DMN_STATE_DIFF_LINE(platformP2PPort)               \
     DMN_STATE_DIFF_LINE(platformHTTPPort)
