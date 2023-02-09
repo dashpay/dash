@@ -190,8 +190,8 @@ CDeterministicMNCPtr CDeterministicMNList::GetMNPayee(const CBlockIndex* pIndex)
         ForEachMNShared(true, [&](const CDeterministicMNCPtr& dmn) {
             if (dmn->pdmnState->nLastPaidHeight == nHeight) {
                 // We found the last MN Payee.
-                // If the last payee is a HPMN, we need to check its consecutive payments and pay him again if nConsecutivePayments < 3
-                if (dmn->nType == CDeterministicMN::MasternodeType::HighPerformance && dmn->pdmnState->nConsecutivePayments < 3) {
+                // If the last payee is a HPMN, we need to check its consecutive payments and pay him again if needed
+                if (dmn->nType == CDeterministicMN::MasternodeType::HighPerformance && dmn->pdmnState->nConsecutivePayments < CDeterministicMN::HIGH_PERFORMANCE_MASTERNODE_WEIGHT) {
                     best = dmn;
                 }
             }
@@ -942,20 +942,42 @@ bool CDeterministicMNManager::BuildNewListFromBlock(const CBlock& block, const C
     // The payee for the current block was determined by the previous block's list, but it might have disappeared in the
     // current block. We still pay that MN one last time, however.
     if (payee && newList.HasMN(payee->proTxHash)) {
-        auto newState = std::make_shared<CDeterministicMNState>(*newList.GetMN(payee->proTxHash)->pdmnState);
+        auto dmn = newList.GetMN(payee->proTxHash);
+        auto newState = std::make_shared<CDeterministicMNState>(*dmn->pdmnState);
         newState->nLastPaidHeight = nHeight;
         // Starting from v19 and until v20, HPMN will be paid 4 blocks in a row
         // No need to check if v19 is active, since HPMN ProRegTx are allowed only after v19 activation
         // TODO: Skip this code once v20 is active
         // Note: If the payee wasn't found in the current block that's fine
-        if (payee->nType == CDeterministicMN::MasternodeType::HighPerformance) {
-            if (newState->nConsecutivePayments == 3)
-                newState->nConsecutivePayments = 0;
-            else
-                newState->nConsecutivePayments++;
+        if (dmn->nType == CDeterministicMN::MasternodeType::HighPerformance) {
+            ++newState->nConsecutivePayments;
+            if (debugLogs) {
+                LogPrintf("CDeterministicMNManager::%s -- MN %s is a HPMN, bumping nConsecutivePayments to %d\n",
+                          __func__, dmn->proTxHash.ToString(), newState->nConsecutivePayments);
+            }
         }
         newList.UpdateMN(payee->proTxHash, newState);
+        dmn = newList.GetMN(payee->proTxHash);
+        if (debugLogs) {
+            LogPrintf("CDeterministicMNManager::%s -- MN %s, nConsecutivePayments=%d\n",
+                      __func__, dmn->proTxHash.ToString(), dmn->pdmnState->nConsecutivePayments);
+        }
     }
+
+    // reset nConsecutivePayments on non-paid HPMNs
+    auto newList2 = newList;
+    newList2.ForEachMN(false, [&](auto& dmn) {
+        if (payee != nullptr && dmn.proTxHash == payee->proTxHash) return;
+        if (dmn.nType != CDeterministicMN::MasternodeType::HighPerformance) return;
+        if (dmn.pdmnState->nConsecutivePayments == 0) return;
+        if (debugLogs) {
+            LogPrintf("CDeterministicMNManager::%s -- MN %s, reset nConsecutivePayments %d->0\n",
+                      __func__, dmn.proTxHash.ToString(), dmn.pdmnState->nConsecutivePayments);
+        }
+        auto newState = std::make_shared<CDeterministicMNState>(*dmn.pdmnState);
+        newState->nConsecutivePayments = 0;
+        newList.UpdateMN(dmn.proTxHash, newState);
+    });
 
     mnListRet = std::move(newList);
 

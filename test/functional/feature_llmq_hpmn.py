@@ -87,30 +87,43 @@ class LLMQHPMNTest(DashTestFramework):
         return
 
     def test_hpmmn_payements(self, window_analysis):
-        mn_payees = list()
-
+        current_hpmn = None
+        consecutive_paymments = 0
         for i in range(0, window_analysis):
-            payee_info = self.get_mn_payee_for_block(self.nodes[0].getbestblockhash())
-            mn_payees.append(payee_info)
+            payee = self.get_mn_payee_for_block(self.nodes[0].getbestblockhash())
+            if payee is not None and payee.hpmn:
+                if current_hpmn is not None and payee.proTxHash == current_hpmn.proTxHash:
+                    # same HPMN
+                    assert consecutive_paymments > 0
+                    consecutive_paymments += 1
+                    consecutive_paymments_rpc = self.nodes[0].protx('info', current_hpmn.proTxHash)['state']['consecutivePayments']
+                    assert_equal(consecutive_paymments, consecutive_paymments_rpc)
+                else:
+                    # new HPMN
+                    if current_hpmn is not None:
+                        # make sure the old one was paid 4 times in a row
+                        assert_equal(consecutive_paymments, 4)
+                        consecutive_paymments_rpc = self.nodes[0].protx('info', current_hpmn.proTxHash)['state']['consecutivePayments']
+                        # old HPMN should have its nConsecutivePayments reset to 0
+                        assert_equal(consecutive_paymments_rpc, 0)
+                    current_hpmn = payee
+                    consecutive_paymments = 1
+                    consecutive_paymments_rpc = self.nodes[0].protx('info', current_hpmn.proTxHash)['state']['consecutivePayments']
+                    assert_equal(consecutive_paymments, consecutive_paymments_rpc)
+            else:
+                # not a HPMN
+                if current_hpmn is not None:
+                    # make sure the old one was paid 4 times in a row
+                    assert_equal(consecutive_paymments, 4)
+                    consecutive_paymments_rpc = self.nodes[0].protx('info', current_hpmn.proTxHash)['state']['consecutivePayments']
+                    # old HPMN should have its nConsecutivePayments reset to 0
+                    assert_equal(consecutive_paymments_rpc, 0)
+                current_hpmn = None
+                consecutive_paymments = 0
 
             self.nodes[0].generate(1)
-            self.sync_blocks()
-
-        verified_hpmn = None
-        for i in range(len(mn_payees)):
-            # Start checking from the first payee different from the first element of the window analysis
-            if i > 0 and mn_payees[i] != mn_payees[0]:
-                # Check only HPMN
-                if mn_payees[i].hpmn:
-                    # Skip already checked payee
-                    if mn_payees[i].proTxHash == verified_hpmn:
-                        continue
-                    # Verify that current HPMN is paid for 4 blocks in a row
-                    for j in range(1, 4):
-                        # Avoid overflow check
-                        if (i + j) < len(mn_payees):
-                            assert_equal(mn_payees[i].proTxHash, mn_payees[i+j].proTxHash)
-                    verified_hpmn = mn_payees[i].proTxHash
+            if i % 8 == 0:
+                self.sync_blocks()
 
     def get_mn_payee_for_block(self, block_hash):
         mn_payee_info = self.nodes[0].masternode("payments", block_hash)[0]
