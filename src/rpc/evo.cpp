@@ -12,6 +12,7 @@
 #include <evo/simplifiedmns.h>
 #include <evo/specialtx.h>
 #include <evo/specialtxman.h>
+#include <evo/dmn_types.h>
 #include <index/txindex.h>
 #include <llmq/blockprocessor.h>
 #include <llmq/context.h>
@@ -583,7 +584,8 @@ static UniValue protx_register_common_wrapper(const JSONRPCRequest& request,
     } else {
         ptx.nVersion = CProRegTx::GetVersion(isV19active);
     }
-    ptx.nType = isHPMNrequested ? CProRegTx::TYPE_HIGH_PERFORMANCE_MASTERNODE : CProRegTx::TYPE_REGULAR_MASTERNODE;
+    auto mn_type = isHPMNrequested ? MnType::HighPerformance : MnType::Regular;
+    ptx.nType = mn_type.index;
 
     if (isFundRegister) {
         CTxDestination collateralDest = DecodeDestination(request.params[paramIdx].get_str());
@@ -592,7 +594,7 @@ static UniValue protx_register_common_wrapper(const JSONRPCRequest& request,
         }
         CScript collateralScript = GetScriptForDestination(collateralDest);
 
-        CAmount fundCollateral = isHPMNrequested ? CDeterministicMN::HIGH_PERFORMANCE_MASTERNODE_COLLATERAL : CDeterministicMN::REGULAR_MASTERNODE_COLLATERAL;
+        CAmount fundCollateral = mn_type.collat_amount;
         CTxOut collateralTxOut(fundCollateral, collateralScript);
         tx.vout.emplace_back(collateralTxOut);
 
@@ -686,7 +688,7 @@ static UniValue protx_register_common_wrapper(const JSONRPCRequest& request,
     }
 
     if (isFundRegister) {
-        CAmount fundCollateral = isHPMNrequested ? CDeterministicMN::HIGH_PERFORMANCE_MASTERNODE_COLLATERAL : CDeterministicMN::REGULAR_MASTERNODE_COLLATERAL;
+        CAmount fundCollateral = mn_type.collat_amount;
         uint32_t collateralIndex = (uint32_t) -1;
         for (uint32_t i = 0; i < tx.vout.size(); i++) {
             if (tx.vout[i].nValue == fundCollateral) {
@@ -864,7 +866,7 @@ static UniValue protx_update_service_common_wrapper(const JSONRPCRequest& reques
 
     CProUpServTx ptx;
     ptx.nVersion = CProUpServTx::GetVersion(llmq::utils::IsV19Active(::ChainActive().Tip()));
-    ptx.nType = isHPMNrequested ? CProUpServTx::TYPE_HIGH_PERFORMANCE_MASTERNODE : CProUpServTx::TYPE_REGULAR_MASTERNODE;
+    ptx.nType = isHPMNrequested ? MnType::HighPerformance.index : MnType::Regular.index;
     ptx.proTxHash = ParseHashV(request.params[0], "proTxHash");
 
     if (!Lookup(request.params[1].get_str().c_str(), ptx.addr, Params().GetDefaultPort(), false)) {
@@ -899,9 +901,9 @@ static UniValue protx_update_service_common_wrapper(const JSONRPCRequest& reques
     if (!dmn) {
         throw std::runtime_error(strprintf("masternode with proTxHash %s not found", ptx.proTxHash.ToString()));
     }
-    if (isHPMNrequested && dmn->nType != CDeterministicMN::MasternodeType::HighPerformance) {
+    if (isHPMNrequested && dmn->nType != MnType::HighPerformance.index) {
         throw std::runtime_error(strprintf("masternode with proTxHash %s is not a HPMN", ptx.proTxHash.ToString()));
-    } else if (!isHPMNrequested && dmn->nType == CDeterministicMN::MasternodeType::HighPerformance) {
+    } else if (!isHPMNrequested && dmn->nType == MnType::HighPerformance.index) {
         throw std::runtime_error(strprintf("masternode with proTxHash %s is a HPMN", ptx.proTxHash.ToString()));
     }
 

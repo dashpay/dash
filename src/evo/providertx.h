@@ -15,6 +15,7 @@
 #include <pubkey.h>
 #include <tinyformat.h>
 #include <univalue.h>
+#include <evo/dmn_types.h>
 
 class CBlockIndex;
 class CCoinsViewCache;
@@ -26,8 +27,8 @@ public:
     static constexpr auto SPECIALTX_TYPE = TRANSACTION_PROVIDER_REGISTER;
     static constexpr uint16_t LEGACY_BLS_VERSION = 1;
     static constexpr uint16_t BASIC_BLS_VERSION = 2;
-    static constexpr uint16_t TYPE_REGULAR_MASTERNODE = 0;
-    static constexpr uint16_t TYPE_HIGH_PERFORMANCE_MASTERNODE = 1;
+//    static constexpr uint16_t TYPE_REGULAR_MASTERNODE = 0;
+//    static constexpr uint16_t TYPE_HIGH_PERFORMANCE_MASTERNODE = 1;
 
     [[nodiscard]] static constexpr auto GetVersion(const bool is_basic_scheme_active) -> uint16_t
     {
@@ -35,7 +36,7 @@ public:
     }
 
     uint16_t nVersion{LEGACY_BLS_VERSION};                 // message version
-    uint16_t nType{TYPE_REGULAR_MASTERNODE};
+    uint16_t nType{MnType::Regular.index};
     uint16_t nMode{0};                                     // only 0 supported for now
     COutPoint collateralOutpoint{uint256(), (uint32_t)-1}; // if hash is null, we refer to a ProRegTx output
     CService addr;
@@ -70,7 +71,7 @@ public:
                 obj.scriptPayout,
                 obj.inputsHash
         );
-        if (obj.nVersion == BASIC_BLS_VERSION && obj.nType == TYPE_HIGH_PERFORMANCE_MASTERNODE) {
+        if (obj.nVersion == BASIC_BLS_VERSION && obj.nType == MnType::HighPerformance.index) {
             READWRITE(
                 obj.platformNodeID,
                 obj.platformP2PPort,
@@ -105,7 +106,7 @@ public:
         }
         obj.pushKV("pubKeyOperator", pubKeyOperator.ToString(nVersion == LEGACY_BLS_VERSION));
         obj.pushKV("operatorReward", (double)nOperatorReward / 100);
-        if (nType == TYPE_HIGH_PERFORMANCE_MASTERNODE) {
+        if (nType == MnType::HighPerformance.index) {
             obj.pushKV("platformNodeID", platformNodeID.ToString());
             obj.pushKV("platformP2PPort", platformP2PPort);
             obj.pushKV("platformHTTPPort", platformHTTPPort);
@@ -122,8 +123,8 @@ public:
     static constexpr auto SPECIALTX_TYPE = TRANSACTION_PROVIDER_UPDATE_SERVICE;
     static constexpr uint16_t LEGACY_BLS_VERSION = 1;
     static constexpr uint16_t BASIC_BLS_VERSION = 2;
-    static constexpr uint16_t TYPE_REGULAR_MASTERNODE = 0;
-    static constexpr uint16_t TYPE_HIGH_PERFORMANCE_MASTERNODE = 1;
+//    static constexpr uint16_t TYPE_REGULAR_MASTERNODE = 0;
+//    static constexpr uint16_t TYPE_HIGH_PERFORMANCE_MASTERNODE = 1;
 
     [[nodiscard]] static constexpr auto GetVersion(const bool is_basic_scheme_active) -> uint16_t
     {
@@ -131,7 +132,7 @@ public:
     }
 
     uint16_t nVersion{LEGACY_BLS_VERSION}; // message version
-    uint16_t nType{TYPE_REGULAR_MASTERNODE};
+    uint16_t nType{MnType::Regular.index};
     uint256 proTxHash;
     CService addr;
     uint160 platformNodeID{};
@@ -160,7 +161,7 @@ public:
                 obj.scriptOperatorPayout,
                 obj.inputsHash
         );
-        if (obj.nVersion == BASIC_BLS_VERSION && obj.nType == TYPE_HIGH_PERFORMANCE_MASTERNODE) {
+        if (obj.nVersion == BASIC_BLS_VERSION && obj.nType == MnType::HighPerformance.index) {
             READWRITE(
                 obj.platformNodeID,
                 obj.platformP2PPort,
@@ -187,7 +188,7 @@ public:
         if (ExtractDestination(scriptOperatorPayout, dest)) {
             obj.pushKV("operatorPayoutAddress", EncodeDestination(dest));
         }
-        if (nType == TYPE_HIGH_PERFORMANCE_MASTERNODE) {
+        if (nType == MnType::HighPerformance.index) {
             obj.pushKV("platformNodeID", platformNodeID.ToString());
             obj.pushKV("platformP2PPort", platformP2PPort);
             obj.pushKV("platformHTTPPort", platformHTTPPort);

@@ -12,6 +12,7 @@
 #include <consensus/params.h>
 #include <evo/evodb.h>
 #include <evo/providertx.h>
+#include <evo/dmn_types.h>
 #include <saltedhasher.h>
 #include <scheduler.h>
 #include <sync.h>
@@ -40,15 +41,15 @@ private:
     uint64_t internalId{std::numeric_limits<uint64_t>::max()};
 
 public:
-    enum MasternodeType : std::uint16_t {
-        Regular = 0,
-        HighPerformance = 1
-    };
+//    enum MasternodeType : std::uint16_t {
+//        Regular = 0,
+//        HighPerformance = 1
+//    };
 
-    static constexpr CAmount REGULAR_MASTERNODE_WEIGHT{1};
-    static constexpr CAmount REGULAR_MASTERNODE_COLLATERAL{1000 * COIN};
-    static constexpr CAmount HIGH_PERFORMANCE_MASTERNODE_WEIGHT{4};
-    static constexpr CAmount HIGH_PERFORMANCE_MASTERNODE_COLLATERAL{REGULAR_MASTERNODE_COLLATERAL * CDeterministicMN::HIGH_PERFORMANCE_MASTERNODE_WEIGHT};
+//    static constexpr CAmount REGULAR_MASTERNODE_WEIGHT{1};
+//    static constexpr CAmount REGULAR_MASTERNODE_COLLATERAL{1000 * COIN};
+//    static constexpr CAmount HIGH_PERFORMANCE_MASTERNODE_WEIGHT{4};
+//    static constexpr CAmount HIGH_PERFORMANCE_MASTERNODE_COLLATERAL{REGULAR_MASTERNODE_COLLATERAL * CDeterministicMN::HIGH_PERFORMANCE_MASTERNODE_WEIGHT};
 
     static constexpr uint16_t CURRENT_MN_FORMAT = 0;
     static constexpr uint16_t MN_TYPE_FORMAT = 1;
@@ -57,7 +58,7 @@ public:
     explicit CDeterministicMN(uint64_t _internalId, bool highPerformanceMasternode = false) :
         internalId(_internalId)
     {
-        highPerformanceMasternode ? nType = MasternodeType::HighPerformance : nType = MasternodeType::Regular;
+        highPerformanceMasternode ? nType = MnType::HighPerformance.index : nType = MnType::Regular.index;
         // only non-initial values
         assert(_internalId != std::numeric_limits<uint64_t>::max());
     }
@@ -71,7 +72,7 @@ public:
     uint256 proTxHash;
     COutPoint collateralOutpoint;
     uint16_t nOperatorReward{0};
-    uint16_t nType{MasternodeType::Regular};
+    uint16_t nType{MnType::Regular.index};
     std::shared_ptr<const CDeterministicMNState> pdmnState;
 
     template <typename Stream, typename Operation>
@@ -98,7 +99,7 @@ public:
         if (format_version >= MN_TYPE_FORMAT && (s.GetVersion() == CLIENT_VERSION || s.GetVersion() >= DMN_TYPE_PROTO_VERSION)) {
             READWRITE(nType);
         } else {
-            nType = MasternodeType::Regular;
+            nType = MnType::Regular.index;
         }
     }
 
@@ -236,7 +237,7 @@ public:
 
     [[nodiscard]] size_t GetAllHPMNsCount() const
     {
-        return ranges::count_if(mnMap, [](const auto& p) { return p.second->nType == CDeterministicMN::MasternodeType::HighPerformance; });
+        return ranges::count_if(mnMap, [](const auto& p) { return p.second->nType == MnType::HighPerformance.index; });
     }
 
     /**

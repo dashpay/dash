@@ -3,6 +3,7 @@
 // file COPYING or http://www.opensource.org/licenses/mit-license.php.
 
 #include <evo/providertx.h>
+#include <evo/dmn_types.h>
 
 #include <chainparams.h>
 #include <consensus/validation.h>
@@ -14,7 +15,7 @@ maybe_error CProRegTx::IsTriviallyValid(bool is_bls_legacy_scheme) const
     if (nVersion == 0 || nVersion > GetVersion(is_bls_legacy_scheme)) {
         return {ValidationInvalidReason::CONSENSUS, "bad-protx-version"};
     }
-    if (nType != TYPE_REGULAR_MASTERNODE && nType != TYPE_HIGH_PERFORMANCE_MASTERNODE) {
+    if (nType != MnType::Regular.index && nType != MnType::HighPerformance.index) {
         return {ValidationInvalidReason::CONSENSUS, "bad-protx-type"};
     }
     if (nMode != 0) {

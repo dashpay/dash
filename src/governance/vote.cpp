@@ -3,6 +3,7 @@
 // file COPYING or http://www.opensource.org/licenses/mit-license.php.
 
 #include <governance/vote.h>
+#include <evo/dmn_types.h>
 
 #include <bls/bls.h>
 #include <chainparams.h>
@@ -112,9 +113,7 @@ std::string CGovernanceVote::ToString() const
 {
     auto mnList = deterministicMNManager->GetListAtChainTip();
     auto dmn = mnList.GetMNByCollateral(masternodeOutpoint);
-    int voteWeight = (dmn != nullptr && dmn->nType == CDeterministicMN::MasternodeType::HighPerformance)
-                         ? CDeterministicMN::HIGH_PERFORMANCE_MASTERNODE_WEIGHT
-                         : CDeterministicMN::REGULAR_MASTERNODE_WEIGHT;
+    int voteWeight = GetMnType(dmn->nType).voting_weight;
     std::ostringstream ostr;
     ostr << masternodeOutpoint.ToStringShort() << ":"
          << nTime << ":"

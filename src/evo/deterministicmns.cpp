@@ -6,6 +6,7 @@
 #include <evo/dmnstate.h>
 #include <evo/specialtx.h>
 #include <evo/simplifiedmns.h>
+#include <evo/dmn_types.h>
 #include <llmq/commitment.h>
 #include <llmq/utils.h>
 #include <evo/providertx.h>
@@ -49,7 +50,7 @@ void CDeterministicMN::ToJson(UniValue& obj) const
     UniValue stateObj;
     pdmnState->ToJson(stateObj);
 
-    obj.pushKV("type", nType == MasternodeType::HighPerformance ? "HighPerformance" : "Regular");
+    obj.pushKV("type", nType == MnType::HighPerformance.index ? "HighPerformance" : "Regular");
     obj.pushKV("proTxHash", proTxHash.ToString());
     obj.pushKV("collateralHash", collateralOutpoint.hash.ToString());
     obj.pushKV("collateralIndex", (int)collateralOutpoint.n);
@@ -191,7 +192,7 @@ CDeterministicMNCPtr CDeterministicMNList::GetMNPayee(const CBlockIndex* pIndex)
             if (dmn->pdmnState->nLastPaidHeight == nHeight) {
                 // We found the last MN Payee.
                 // If the last payee is a HPMN, we need to check its consecutive payments and pay him again if needed
-                if (dmn->nType == CDeterministicMN::MasternodeType::HighPerformance && dmn->pdmnState->nConsecutivePayments < CDeterministicMN::HIGH_PERFORMANCE_MASTERNODE_WEIGHT) {
+                if (dmn->nType == MnType::HighPerformance.index && dmn->pdmnState->nConsecutivePayments < MnType::HighPerformance.voting_weight) {
                     best = dmn;
                 }
             }
@@ -269,7 +270,7 @@ std::vector<std::pair<arith_uint256, CDeterministicMNCPtr>> CDeterministicMNList
             return;
         }
         if (onlyHighPerformanceMasternodes) {
-            if (dmn->nType != CDeterministicMN::MasternodeType::HighPerformance)
+            if (dmn->nType != MnType::HighPerformance.index)
                 return;
         }
         // calculate sha256(sha256(proTxHash, confirmedHash), modifier) per MN
@@ -472,7 +473,7 @@ void CDeterministicMNList::AddMN(const CDeterministicMNCPtr& dmn, bool fBumpTota
                 dmn->proTxHash.ToString(), dmn->pdmnState->pubKeyOperator.Get().ToString())));
     }
 
-    if (dmn->nType == CDeterministicMN::MasternodeType::HighPerformance) {
+    if (dmn->nType == MnType::HighPerformance.index) {
         if (!AddUniqueProperty(*dmn, dmn->pdmnState->platformNodeID)) {
             mnUniquePropertyMap = mnUniquePropertyMapSaved;
             throw(std::runtime_error(strprintf("%s: Can't add a masternode %s with a duplicate platformNodeID=%s", __func__,
@@ -513,7 +514,7 @@ void CDeterministicMNList::UpdateMN(const CDeterministicMN& oldDmn, const std::s
         throw(std::runtime_error(strprintf("%s: Can't update a masternode %s with a duplicate pubKeyOperator=%s", __func__,
                 oldDmn.proTxHash.ToString(), pdmnState->pubKeyOperator.Get().ToString())));
     }
-    if (dmn->nType == CDeterministicMN::MasternodeType::HighPerformance) {
+    if (dmn->nType == MnType::HighPerformance.index) {
         if (!UpdateUniqueProperty(*dmn, oldState->platformNodeID, dmn->pdmnState->platformNodeID)) {
             mnUniquePropertyMap = mnUniquePropertyMapSaved;
             throw(std::runtime_error(strprintf("%s: Can't update a masternode %s with a duplicate platformNodeID=%s", __func__,
@@ -573,7 +574,7 @@ void CDeterministicMNList::RemoveMN(const uint256& proTxHash)
                 proTxHash.ToString(), dmn->pdmnState->pubKeyOperator.Get().ToString())));
     }
 
-    if (dmn->nType == CDeterministicMN::MasternodeType::HighPerformance) {
+    if (dmn->nType == MnType::HighPerformance.index) {
         if (!DeleteUniqueProperty(*dmn, dmn->pdmnState->platformNodeID)) {
             mnUniquePropertyMap = mnUniquePropertyMapSaved;
             throw(std::runtime_error(strprintf("%s: Can't delete a masternode %s with a duplicate platformNodeID=%s", __func__,
@@ -746,11 +747,11 @@ bool CDeterministicMNManager::BuildNewListFromBlock(const CBlock& block, const C
                 return _state.Invalid(ValidationInvalidReason::CONSENSUS, false, REJECT_INVALID, "bad-protx-payload");
             }
 
-            if (proTx.nType == CProRegTx::TYPE_HIGH_PERFORMANCE_MASTERNODE && !llmq::utils::IsV19Active(pindexPrev)) {
+            if (proTx.nType == MnType::HighPerformance.index && !llmq::utils::IsV19Active(pindexPrev)) {
                 return _state.Invalid(ValidationInvalidReason::CONSENSUS, false, REJECT_INVALID, "bad-protx-payload");
             }
 
-            auto dmn = std::make_shared<CDeterministicMN>(newList.GetTotalRegisteredCount(), proTx.nType == CProRegTx::TYPE_HIGH_PERFORMANCE_MASTERNODE);
+            auto dmn = std::make_shared<CDeterministicMN>(newList.GetTotalRegisteredCount(), proTx.nType == MnType::HighPerformance.index);
             dmn->proTxHash = tx.GetHash();
 
             // collateralOutpoint is either pointing to an external collateral or to the ProRegTx itself
@@ -761,9 +762,7 @@ bool CDeterministicMNManager::BuildNewListFromBlock(const CBlock& block, const C
             }
 
             Coin coin;
-            CAmount expectedCollateral = proTx.nType == CProRegTx::TYPE_HIGH_PERFORMANCE_MASTERNODE
-                                             ? CDeterministicMN::HIGH_PERFORMANCE_MASTERNODE_COLLATERAL
-                                             : CDeterministicMN::REGULAR_MASTERNODE_COLLATERAL;
+            CAmount expectedCollateral = GetMnType(proTx.nType).collat_amount;
             if (!proTx.collateralOutpoint.hash.IsNull() && (!view.GetCoin(dmn->collateralOutpoint, coin) || coin.IsSpent() || coin.out.nValue != expectedCollateral)) {
                 // should actually never get to this point as CheckProRegTx should have handled this case.
                 // We do this additional check nevertheless to be 100% sure
@@ -811,7 +810,7 @@ bool CDeterministicMNManager::BuildNewListFromBlock(const CBlock& block, const C
                 return _state.Invalid(ValidationInvalidReason::CONSENSUS, false, REJECT_INVALID, "bad-protx-payload");
             }
 
-            if (proTx.nType == CProUpServTx::TYPE_HIGH_PERFORMANCE_MASTERNODE && !llmq::utils::IsV19Active(pindexPrev)) {
+            if (proTx.nType == MnType::HighPerformance.index && !llmq::utils::IsV19Active(pindexPrev)) {
                 return _state.Invalid(ValidationInvalidReason::CONSENSUS, false, REJECT_INVALID, "bad-protx-payload");
             }
 
@@ -823,17 +822,17 @@ bool CDeterministicMNManager::BuildNewListFromBlock(const CBlock& block, const C
             if (!dmn) {
                 return _state.Invalid(ValidationInvalidReason::CONSENSUS, false, REJECT_INVALID, "bad-protx-hash");
             }
-            if (proTx.nType == CProUpServTx::TYPE_HIGH_PERFORMANCE_MASTERNODE && dmn->nType != CDeterministicMN::MasternodeType::HighPerformance) {
+            if (proTx.nType == MnType::HighPerformance.index && dmn->nType != MnType::HighPerformance.index) {
                 return _state.Invalid(ValidationInvalidReason::CONSENSUS, false, REJECT_INVALID, "bad-protx-type");
             }
-            if (proTx.nType == CProUpServTx::TYPE_REGULAR_MASTERNODE && dmn->nType != CDeterministicMN::MasternodeType::Regular) {
+            if (proTx.nType == MnType::Regular.index && dmn->nType != MnType::Regular.index) {
                 return _state.Invalid(ValidationInvalidReason::CONSENSUS, false, REJECT_INVALID, "bad-protx-type");
             }
 
             auto newState = std::make_shared<CDeterministicMNState>(*dmn->pdmnState);
             newState->addr = proTx.addr;
             newState->scriptOperatorPayout = proTx.scriptOperatorPayout;
-            if (proTx.nType == CProUpServTx::TYPE_HIGH_PERFORMANCE_MASTERNODE) {
+            if (proTx.nType == MnType::HighPerformance.index) {
                 newState->platformNodeID = proTx.platformNodeID;
                 newState->platformP2PPort = proTx.platformP2PPort;
                 newState->platformHTTPPort = proTx.platformHTTPPort;
@@ -949,7 +948,7 @@ bool CDeterministicMNManager::BuildNewListFromBlock(const CBlock& block, const C
         // No need to check if v19 is active, since HPMN ProRegTx are allowed only after v19 activation
         // TODO: Skip this code once v20 is active
         // Note: If the payee wasn't found in the current block that's fine
-        if (dmn->nType == CDeterministicMN::MasternodeType::HighPerformance) {
+        if (dmn->nType == MnType::HighPerformance.index) {
             ++newState->nConsecutivePayments;
             if (debugLogs) {
                 LogPrintf("CDeterministicMNManager::%s -- MN %s is a HPMN, bumping nConsecutivePayments to %d\n",
@@ -968,7 +967,7 @@ bool CDeterministicMNManager::BuildNewListFromBlock(const CBlock& block, const C
     auto newList2 = newList;
     newList2.ForEachMN(false, [&](auto& dmn) {
         if (payee != nullptr && dmn.proTxHash == payee->proTxHash) return;
-        if (dmn.nType != CDeterministicMN::MasternodeType::HighPerformance) return;
+        if (dmn.nType != MnType::HighPerformance.index) return;
         if (dmn.pdmnState->nConsecutivePayments == 0) return;
         if (debugLogs) {
             LogPrintf("CDeterministicMNManager::%s -- MN %s, reset nConsecutivePayments %d->0\n",
@@ -1119,9 +1118,7 @@ bool CDeterministicMNManager::IsProTxWithCollateral(const CTransactionRef& tx, u
         return false;
     }
 
-    CAmount expectedCollateral = proTx.nType == CProRegTx::TYPE_HIGH_PERFORMANCE_MASTERNODE
-                                     ? CDeterministicMN::HIGH_PERFORMANCE_MASTERNODE_COLLATERAL
-                                     : CDeterministicMN::REGULAR_MASTERNODE_COLLATERAL;
+    CAmount expectedCollateral = GetMnType(proTx.nType).collat_amount;
 
     if (tx->vout[n].nValue != expectedCollateral) {
         return false;
@@ -1396,7 +1393,7 @@ bool CheckProRegTx(const CTransaction& tx, const CBlockIndex* pindexPrev, CValid
         return false;
     }
 
-    if (ptx.nType == CProRegTx::TYPE_HIGH_PERFORMANCE_MASTERNODE) {
+    if (ptx.nType == MnType::HighPerformance.index) {
         if (!CheckPlatformFields(ptx, state)) {
             return false;
         }
@@ -1406,9 +1403,7 @@ bool CheckProRegTx(const CTransaction& tx, const CBlockIndex* pindexPrev, CValid
     const PKHash *keyForPayloadSig = nullptr;
     COutPoint collateralOutpoint;
 
-    CAmount expectedCollateral = ptx.nType == CProRegTx::TYPE_HIGH_PERFORMANCE_MASTERNODE
-                                     ? CDeterministicMN::HIGH_PERFORMANCE_MASTERNODE_COLLATERAL
-                                     : CDeterministicMN::REGULAR_MASTERNODE_COLLATERAL;
+    CAmount expectedCollateral = GetMnType(ptx.nType).collat_amount;
 
     if (!ptx.collateralOutpoint.hash.IsNull()) {
         Coin coin;
@@ -1509,7 +1504,7 @@ bool CheckProUpServTx(const CTransaction& tx, const CBlockIndex* pindexPrev, CVa
         return false;
     }
 
-    if (ptx.nType == CProUpServTx::TYPE_HIGH_PERFORMANCE_MASTERNODE) {
+    if (ptx.nType == MnType::HighPerformance.index) {
         if (!CheckPlatformFields(ptx, state)) {
             return false;
         }

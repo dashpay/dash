@@ -631,9 +631,7 @@ int CGovernanceObject::CountMatchingVotes(vote_signal_enum_t eVoteSignalIn, vote
             // 4x times weight vote for HPMN owners.
             // No need to check if v19 is active since no HPMN are allowed to register before v19s
             auto dmn = mnList.GetMNByCollateral(votepair.first);
-            if (dmn) nCount += (dmn->nType == CDeterministicMN::MasternodeType::HighPerformance)
-                                   ? CDeterministicMN::HIGH_PERFORMANCE_MASTERNODE_WEIGHT
-                                   : CDeterministicMN::REGULAR_MASTERNODE_WEIGHT;
+            if (dmn) nCount += GetMnType(dmn->nType).voting_weight;
         }
     }
     return nCount;
