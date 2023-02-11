@@ -238,7 +238,7 @@ UniValue getnewaddress(const JSONRPCRequest& request)
     return EncodeDestination(dest);
 }
 
-static UniValue getrawchangeaddress(const JSONRPCRequest& request)
+UniValue getrawchangeaddress(const JSONRPCRequest& request)
 {
     RPCHelpMan{"getrawchangeaddress",
         "\nReturns a new Dash address, for receiving change.\n"
@@ -972,7 +972,7 @@ static UniValue sendmany(const JSONRPCRequest& request)
     return tx->GetHash().GetHex();
 }
 
-static UniValue addmultisigaddress(const JSONRPCRequest& request)
+UniValue addmultisigaddress(const JSONRPCRequest& request)
 {
     RPCHelpMan{"addmultisigaddress",
         "\nAdd a nrequired-to-sign multisignature address to the wallet. Requires a new wallet backup.\n"
