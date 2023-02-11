@@ -3662,6 +3662,10 @@ UniValue getaddressinfo(const JSONRPCRequest& request)
                 {
                     {RPCResult::Type::STR, "pubkey", ""},
                 }},
+                {RPCResult::Type::ARR, "addresses", /* optional */ true, "Array of addresses associated with the known redeemscript (only if \"script\" is \"multisig\").",
+                {
+                    {RPCResult::Type::STR, "address", ""},
+                }},
                 {RPCResult::Type::NUM, "sigsrequired", /* optional */ true, "The number of signatures required to spend multisig output (only if \"script\" is \"multisig\")."},
                 {RPCResult::Type::STR_HEX, "pubkey", /* optional */ true, "The hex value of the raw public key, for single-key addresses."},
                 {RPCResult::Type::BOOL, "iscompressed", /* optional */ true, "If the pubkey is compressed."},
