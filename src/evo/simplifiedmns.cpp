@@ -32,7 +32,8 @@ CSimplifiedMNListEntry::CSimplifiedMNListEntry(const CDeterministicMN& dmn) :
     scriptPayout(dmn.pdmnState->scriptPayout),
     scriptOperatorPayout(dmn.pdmnState->scriptOperatorPayout),
     nType(dmn.nType),
-    platformHTTPPort(dmn.pdmnState->platformHTTPPort)
+    platformHTTPPort(dmn.pdmnState->platformHTTPPort),
+    platformNodeID(dmn.pdmnState->platformNodeID)
 {
 }
 
@@ -55,8 +56,8 @@ std::string CSimplifiedMNListEntry::ToString() const
         operatorPayoutAddress = EncodeDestination(dest);
     }
 
-    return strprintf("CSimplifiedMNListEntry(nType=%d, proRegTxHash=%s, confirmedHash=%s, service=%s, pubKeyOperator=%s, votingAddress=%s, isValid=%d, payoutAddress=%s, operatorPayoutAddress=%s, platformHTTPPort=%d)",
-                     nType, proRegTxHash.ToString(), confirmedHash.ToString(), service.ToString(false), pubKeyOperator.Get().ToString(), EncodeDestination(PKHash(keyIDVoting)), isValid, payoutAddress, operatorPayoutAddress, platformHTTPPort);
+    return strprintf("CSimplifiedMNListEntry(nType=%d, proRegTxHash=%s, confirmedHash=%s, service=%s, pubKeyOperator=%s, votingAddress=%s, isValid=%d, payoutAddress=%s, operatorPayoutAddress=%s, platformHTTPPort=%d, platformNodeID=%s)",
+                     nType, proRegTxHash.ToString(), confirmedHash.ToString(), service.ToString(false), pubKeyOperator.Get().ToString(), EncodeDestination(PKHash(keyIDVoting)), isValid, payoutAddress, operatorPayoutAddress, platformHTTPPort, platformNodeID.ToString());
 }
 
 void CSimplifiedMNListEntry::ToJson(UniValue& obj, bool extended) const
@@ -73,6 +74,7 @@ void CSimplifiedMNListEntry::ToJson(UniValue& obj, bool extended) const
     obj.pushKV("nType", nType);
     if (nType == CDeterministicMN::MasternodeType::HighPerformance) {
         obj.pushKV("platformHTTPPort", platformHTTPPort);
+        obj.pushKV("platformNodeID", platformNodeID.ToString());
     }
 
     if (!extended) return;

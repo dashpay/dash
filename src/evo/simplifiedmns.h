@@ -35,6 +35,7 @@ public:
     bool isValid{false};
     uint16_t nType{CDeterministicMN::MasternodeType::Regular};
     uint16_t platformHTTPPort{0};
+    uint160 platformNodeID{};
     CScript scriptPayout; // mem-only
     CScript scriptOperatorPayout; // mem-only
     uint16_t nVersion{LEGACY_BLS_VERSION}; // mem-only
@@ -52,7 +53,8 @@ public:
                isValid == rhs.isValid &&
                nVersion == rhs.nVersion &&
                nType == rhs.nType &&
-               platformHTTPPort == rhs.platformHTTPPort;
+               platformHTTPPort == rhs.platformHTTPPort &&
+               platformNodeID == rhs.platformNodeID;
     }
 
     bool operator!=(const CSimplifiedMNListEntry& rhs) const
@@ -74,6 +76,7 @@ public:
             READWRITE(obj.nType);
             if (obj.nType == CDeterministicMN::MasternodeType::HighPerformance) {
                 READWRITE(obj.platformHTTPPort);
+                READWRITE(obj.platformNodeID);
             }
         }
     }
