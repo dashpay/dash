@@ -708,8 +708,8 @@ static UniValue protx_register_common_wrapper(const JSONRPCRequest& request,
         }
         CTxDestination txDest;
         ExtractDestination(coin.out.scriptPubKey, txDest);
-        const CKeyID *keyID = std::get_if<CKeyID>(&txDest);
-        if (!keyID) {
+        const PKHash *pkhash = std::get_if<PKHash>(&txDest);
+        if (!pkhash) {
             throw JSONRPCError(RPC_INVALID_ADDRESS_OR_KEY, strprintf("collateral type not supported: %s", ptx.collateralOutpoint.ToStringShort()));
         }
 
@@ -731,7 +731,7 @@ static UniValue protx_register_common_wrapper(const JSONRPCRequest& request,
             }
 
             CKey key;
-            if (!spk_man->GetKey(*keyID, key)) {
+            if (!spk_man->GetKey(CKeyID(*pkhash), key)) {
                 throw JSONRPCError(RPC_INVALID_ADDRESS_OR_KEY, strprintf("collateral key not in wallet: %s", EncodeDestination(txDest)));
             }
             SignSpecialTxPayloadByString(tx, ptx, key);
