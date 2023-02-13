@@ -10,12 +10,12 @@
 #include <primitives/transaction.h>
 
 #include <consensus/validation.h>
+#include <evo/dmn_types.h>
 #include <key_io.h>
 #include <netaddress.h>
 #include <pubkey.h>
 #include <tinyformat.h>
 #include <univalue.h>
-#include <evo/dmn_types.h>
 
 class CBlockIndex;
 class CCoinsViewCache;

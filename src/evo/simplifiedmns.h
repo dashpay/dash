@@ -7,10 +7,10 @@
 
 #include <bls/bls.h>
 #include <evo/deterministicmns.h>
+#include <evo/dmn_types.h>
 #include <merkleblock.h>
 #include <netaddress.h>
 #include <pubkey.h>
-#include <evo/dmn_types.h>
 
 class UniValue;
 class CBlockIndex;

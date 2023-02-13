@@ -17,24 +17,25 @@ public:
 };
 
 namespace MnType {
-    constexpr auto Regular = CDeterministicMNType{
-        .index = 0,
-        .voting_weight = 1,
-        .collat_amount = 1000 * COIN,
-    };
-    constexpr auto HighPerformance = CDeterministicMNType{
-        .index = 1,
-        .voting_weight = 4,
-        .collat_amount = 4000 * COIN,
-    };
-}
+constexpr auto Regular = CDeterministicMNType{
+    .index = 0,
+    .voting_weight = 1,
+    .collat_amount = 1000 * COIN,
+};
+constexpr auto HighPerformance = CDeterministicMNType{
+    .index = 1,
+    .voting_weight = 4,
+    .collat_amount = 4000 * COIN,
+};
+} // namespace MnType
 
-constexpr const auto& GetMnType(int index) {
+constexpr const auto& GetMnType(int index)
+{
     switch (index) {
-        case 0: return MnType::Regular;
-        case 1: return MnType::HighPerformance;
-        default: assert(false);
+    case 0: return MnType::Regular;
+    case 1: return MnType::HighPerformance;
+    default: assert(false);
     }
 }
 
-#endif //BITCOIN_EVO_DMN_TYPES_H
+#endif // BITCOIN_EVO_DMN_TYPES_H

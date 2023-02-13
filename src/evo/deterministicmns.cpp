@@ -3,13 +3,13 @@
 // file COPYING or http://www.opensource.org/licenses/mit-license.php.
 
 #include <evo/deterministicmns.h>
-#include <evo/dmnstate.h>
-#include <evo/specialtx.h>
-#include <evo/simplifiedmns.h>
 #include <evo/dmn_types.h>
+#include <evo/dmnstate.h>
+#include <evo/providertx.h>
+#include <evo/simplifiedmns.h>
+#include <evo/specialtx.h>
 #include <llmq/commitment.h>
 #include <llmq/utils.h>
-#include <evo/providertx.h>
 
 #include <base58.h>
 #include <chainparams.h>

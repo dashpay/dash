@@ -2,8 +2,8 @@
 // Distributed under the MIT software license, see the accompanying
 // file COPYING or http://www.opensource.org/licenses/mit-license.php.
 
-#include <evo/providertx.h>
 #include <evo/dmn_types.h>
+#include <evo/providertx.h>
 
 #include <chainparams.h>
 #include <consensus/validation.h>

@@ -8,11 +8,11 @@
 #include <consensus/validation.h>
 #include <core_io.h>
 #include <evo/deterministicmns.h>
+#include <evo/dmn_types.h>
 #include <evo/providertx.h>
 #include <evo/simplifiedmns.h>
 #include <evo/specialtx.h>
 #include <evo/specialtxman.h>
-#include <evo/dmn_types.h>
 #include <index/txindex.h>
 #include <llmq/blockprocessor.h>
 #include <llmq/context.h>
@@ -24,8 +24,8 @@
 #include <rpc/server.h>
 #include <rpc/util.h>
 #include <util/moneystr.h>
-#include <util/validation.h>
 #include <util/translation.h>
+#include <util/validation.h>
 #include <validation.h>
 
 #ifdef ENABLE_WALLET

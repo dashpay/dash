@@ -8,11 +8,11 @@
 #include <evo/dmnstate.h>
 
 #include <arith_uint256.h>
-#include <crypto/common.h>
 #include <consensus/params.h>
+#include <crypto/common.h>
+#include <evo/dmn_types.h>
 #include <evo/evodb.h>
 #include <evo/providertx.h>
-#include <evo/dmn_types.h>
 #include <saltedhasher.h>
 #include <scheduler.h>
 #include <sync.h>
