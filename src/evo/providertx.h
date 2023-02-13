@@ -27,8 +27,6 @@ public:
     static constexpr auto SPECIALTX_TYPE = TRANSACTION_PROVIDER_REGISTER;
     static constexpr uint16_t LEGACY_BLS_VERSION = 1;
     static constexpr uint16_t BASIC_BLS_VERSION = 2;
-//    static constexpr uint16_t TYPE_REGULAR_MASTERNODE = 0;
-//    static constexpr uint16_t TYPE_HIGH_PERFORMANCE_MASTERNODE = 1;
 
     [[nodiscard]] static constexpr auto GetVersion(const bool is_basic_scheme_active) -> uint16_t
     {
@@ -123,8 +121,6 @@ public:
     static constexpr auto SPECIALTX_TYPE = TRANSACTION_PROVIDER_UPDATE_SERVICE;
     static constexpr uint16_t LEGACY_BLS_VERSION = 1;
     static constexpr uint16_t BASIC_BLS_VERSION = 2;
-//    static constexpr uint16_t TYPE_REGULAR_MASTERNODE = 0;
-//    static constexpr uint16_t TYPE_HIGH_PERFORMANCE_MASTERNODE = 1;
 
     [[nodiscard]] static constexpr auto GetVersion(const bool is_basic_scheme_active) -> uint16_t
     {

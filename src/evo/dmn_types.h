@@ -14,31 +14,18 @@ public:
     uint8_t index;
     int32_t voting_weight;
     CAmount collat_amount;
-
-//public:
-//    constexpr CDeterministicMNType(int32_t vot, CAmount col) {
-//        voting_weight = vot;
-//        collat_amount = col;
-//    }
-//
-//    int32_t getVotingWeight() {
-//        return voting_weight;
-//    }
-//    CAmount getCollateralAmount() {
-//        return collat_amount;
-//    }
 };
 
 namespace MnType {
     constexpr auto Regular = CDeterministicMNType{
         .index = 0,
         .voting_weight = 1,
-        .collat_amount = 1000,
+        .collat_amount = 1000 * COIN,
     };
     constexpr auto HighPerformance = CDeterministicMNType{
         .index = 1,
         .voting_weight = 4,
-        .collat_amount = 4000,
+        .collat_amount = 4000 * COIN,
     };
 }
 
@@ -49,11 +36,5 @@ constexpr const auto& GetMnType(int index) {
         default: assert(false);
     }
 }
-
-// Ensure that these are in the order of index
-//std::array<CDeterministicMNType, 2> MnTypes {
-//    MnType::Regular,
-//    MnType::HighPerformance
-//};
 
 #endif //BITCOIN_EVO_DMN_TYPES_H

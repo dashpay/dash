@@ -41,16 +41,6 @@ private:
     uint64_t internalId{std::numeric_limits<uint64_t>::max()};
 
 public:
-//    enum MasternodeType : std::uint16_t {
-//        Regular = 0,
-//        HighPerformance = 1
-//    };
-
-//    static constexpr CAmount REGULAR_MASTERNODE_WEIGHT{1};
-//    static constexpr CAmount REGULAR_MASTERNODE_COLLATERAL{1000 * COIN};
-//    static constexpr CAmount HIGH_PERFORMANCE_MASTERNODE_WEIGHT{4};
-//    static constexpr CAmount HIGH_PERFORMANCE_MASTERNODE_COLLATERAL{REGULAR_MASTERNODE_COLLATERAL * CDeterministicMN::HIGH_PERFORMANCE_MASTERNODE_WEIGHT};
-
     static constexpr uint16_t CURRENT_MN_FORMAT = 0;
     static constexpr uint16_t MN_TYPE_FORMAT = 1;
 
