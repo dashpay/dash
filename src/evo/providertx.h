@@ -52,13 +52,14 @@ public:
     SERIALIZE_METHODS(CProRegTx, obj)
     {
         READWRITE(
-            obj.nVersion,
-            obj.nType);
+                obj.nVersion
+        );
         if (obj.nVersion == 0 || obj.nVersion > BASIC_BLS_VERSION) {
             // unknown version, bail out early
             return;
         }
         READWRITE(
+                obj.nType,
                 obj.nMode,
                 obj.collateralOutpoint,
                 obj.addr,

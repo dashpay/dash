@@ -198,7 +198,6 @@ public:
         h.Finalize(confirmedHashWithProRegTxHash.begin());
     }
 
-
 public:
     std::string ToString() const;
     void ToJson(UniValue& obj) const;
@@ -282,5 +281,6 @@ public:
 #undef DMN_STATE_DIFF_LINE
     }
 };
+
 
 #endif //BITCOIN_EVO_DMNSTATE_H

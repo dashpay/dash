@@ -4,9 +4,9 @@
 # file COPYING or http://www.opensource.org/licenses/mit-license.php.
 
 '''
-feature_llmq_rotation.py
+feature_llmq_hpmn.py
 
-Checks LLMQs Quorum Rotation
+Checks HPMNs
 
 '''
 from _decimal import Decimal
@@ -17,11 +17,6 @@ from test_framework.test_framework import DashTestFramework
 from test_framework.util import (
     assert_equal, p2p_port
 )
-
-
-def intersection(lst1, lst2):
-    lst3 = [value for value in lst1 if value in lst2]
-    return lst3
 
 
 def extract_quorum_members(quorum_info):

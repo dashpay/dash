@@ -196,18 +196,16 @@ CDeterministicMNCPtr CDeterministicMNList::GetMNPayee(const CBlockIndex* pIndex)
                     best = dmn;
                 }
             }
-            return;
         });
 
-        if (best)
-            return best;
+        if (best != nullptr) return best;
 
         // Note: If the last payee was a regular MN or if the payee is a HPMN that was removed from the mnList then that's fine.
         // We can proceed with classic MN payee selection
     }
 
     ForEachMNShared(true, [&](const CDeterministicMNCPtr& dmn) {
-        if (!best || CompareByLastPaid(dmn.get(), best.get())) {
+        if (best == nullptr || CompareByLastPaid(dmn.get(), best.get())) {
             best = dmn;
         }
     });
@@ -956,8 +954,8 @@ bool CDeterministicMNManager::BuildNewListFromBlock(const CBlock& block, const C
             }
         }
         newList.UpdateMN(payee->proTxHash, newState);
-        dmn = newList.GetMN(payee->proTxHash);
         if (debugLogs) {
+            dmn = newList.GetMN(payee->proTxHash);
             LogPrintf("CDeterministicMNManager::%s -- MN %s, nConsecutivePayments=%d\n",
                       __func__, dmn->proTxHash.ToString(), dmn->pdmnState->nConsecutivePayments);
         }
@@ -1331,6 +1329,14 @@ static bool CheckPlatformFields(const ProTx& proTx, CValidationState& state)
         if (proTx.platformHTTPPort != mainnetPlatformHTTPPort) {
             return state.Invalid(ValidationInvalidReason::TX_BAD_SPECIAL, false, REJECT_INVALID, "bad-protx-platform-http-port");
         }
+    }
+
+    static int mainnetDefaultP2PPort = CreateChainParams(CBaseChainParams::MAIN)->GetDefaultPort();
+    if (proTx.platformP2PPort == mainnetDefaultP2PPort) {
+        return state.Invalid(ValidationInvalidReason::TX_BAD_SPECIAL, false, REJECT_INVALID, "bad-protx-platform-p2p-port");
+    }
+    if (proTx.platformHTTPPort == mainnetDefaultP2PPort) {
+        return state.Invalid(ValidationInvalidReason::TX_BAD_SPECIAL, false, REJECT_INVALID, "bad-protx-platform-http-port");
     }
 
     if (proTx.platformP2PPort == proTx.platformHTTPPort ||
