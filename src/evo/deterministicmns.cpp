@@ -50,7 +50,7 @@ void CDeterministicMN::ToJson(UniValue& obj) const
     UniValue stateObj;
     pdmnState->ToJson(stateObj);
 
-    obj.pushKV("type", nType == MnType::HighPerformance.index ? "HighPerformance" : "Regular");
+    obj.pushKV("type", std::string(GetMnType(nType).description));
     obj.pushKV("proTxHash", proTxHash.ToString());
     obj.pushKV("collateralHash", collateralOutpoint.hash.ToString());
     obj.pushKV("collateralIndex", (int)collateralOutpoint.n);
@@ -1116,7 +1116,7 @@ bool CDeterministicMNManager::IsProTxWithCollateral(const CTransactionRef& tx, u
         return false;
     }
 
-    CAmount expectedCollateral = GetMnType(proTx.nType).collat_amount;
+    const CAmount expectedCollateral = GetMnType(proTx.nType).collat_amount;
 
     if (tx->vout[n].nValue != expectedCollateral) {
         return false;

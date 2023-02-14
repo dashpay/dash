@@ -46,9 +46,9 @@ public:
 
     CDeterministicMN() = delete; // no default constructor, must specify internalId
     explicit CDeterministicMN(uint64_t _internalId, bool highPerformanceMasternode = false) :
-        internalId(_internalId)
+        internalId(_internalId),
+        nType(highPerformanceMasternode ? MnType::HighPerformance.index : MnType::Regular.index)
     {
-        highPerformanceMasternode ? nType = MnType::HighPerformance.index : nType = MnType::Regular.index;
         // only non-initial values
         assert(_internalId != std::numeric_limits<uint64_t>::max());
     }

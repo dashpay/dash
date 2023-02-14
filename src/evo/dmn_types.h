@@ -7,6 +7,7 @@
 
 #include <amount.h>
 #include <cassert>
+#include <string_view>
 
 class CDeterministicMNType
 {
@@ -14,6 +15,7 @@ public:
     uint8_t index;
     int32_t voting_weight;
     CAmount collat_amount;
+    std::string_view description;
 };
 
 namespace MnType {
@@ -21,11 +23,13 @@ constexpr auto Regular = CDeterministicMNType{
     .index = 0,
     .voting_weight = 1,
     .collat_amount = 1000 * COIN,
+    .description = "Regular",
 };
 constexpr auto HighPerformance = CDeterministicMNType{
     .index = 1,
     .voting_weight = 4,
     .collat_amount = 4000 * COIN,
+    .description = "HighPerformance",
 };
 } // namespace MnType
 
