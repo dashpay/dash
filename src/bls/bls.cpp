@@ -166,7 +166,7 @@ CBLSPublicKey CBLSPublicKey::AggregateInsecure(const std::vector<CBLSPublicKey>&
     } catch (...) {
         ret.fValid = false;
     }
-    
+
     ret.cachedHash.SetNull();
     return ret;
 }
