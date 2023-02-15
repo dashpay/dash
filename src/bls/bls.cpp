@@ -126,13 +126,11 @@ CBLSSignature CBLSSecretKey::Sign(const uint256& hash) const
     CBLSSignature sigRet;
     try {
         sigRet.impl = Scheme(bls::bls_legacy_scheme.load())->Sign(impl, bls::Bytes(hash.begin(), hash.size()));
+        sigRet.fValid = true;
     } catch (...) {
         sigRet.fValid = false;
-        sigRet.cachedHash.SetNull();
-        return sigRet;
     }
 
-    sigRet.fValid = true;
     sigRet.cachedHash.SetNull();
 
     return sigRet;
@@ -164,13 +162,11 @@ CBLSPublicKey CBLSPublicKey::AggregateInsecure(const std::vector<CBLSPublicKey>&
     CBLSPublicKey ret;
     try {
         ret.impl = Scheme(bls::bls_legacy_scheme.load())->Aggregate(vecPublicKeys);
+        ret.fValid = true;
     } catch (...) {
         ret.fValid = false;
-        ret.cachedHash.SetNull();
-        return ret;
     }
-
-    ret.fValid = true;
+    
     ret.cachedHash.SetNull();
     return ret;
 }
@@ -244,13 +240,11 @@ CBLSSignature CBLSSignature::AggregateInsecure(const std::vector<CBLSSignature>&
     CBLSSignature ret;
     try {
         ret.impl = Scheme(bls::bls_legacy_scheme.load())->Aggregate(v);
+        ret.fValid = true;
     } catch (...) {
         ret.fValid = false;
-        ret.cachedHash.SetNull();
-        return ret;
     }
 
-    ret.fValid = true;
     ret.cachedHash.SetNull();
     return ret;
 }
@@ -278,12 +272,11 @@ CBLSSignature CBLSSignature::AggregateSecure(const std::vector<CBLSSignature>& s
     CBLSSignature ret;
     try {
         ret.impl = Scheme(bls::bls_legacy_scheme.load())->AggregateSecure(vecPublicKeys, vecSignatures, bls::Bytes(hash.begin(), hash.size()));
+        ret.fValid = true;
     } catch (...) {
         ret.fValid = false;
-        ret.cachedHash.SetNull();
-        return ret;
     }
-    ret.fValid = true;
+
     ret.cachedHash.SetNull();
     return ret;
 }
