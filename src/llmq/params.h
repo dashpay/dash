@@ -218,8 +218,8 @@ static constexpr std::array<LLMQParams, 12> available_llmqs = {
         .type = LLMQType::LLMQ_TEST_PLATFORM,
         .name = "llmq_test_platform",
         .useRotation = false,
-        .size = 4,
-        .minSize = 3,
+        .size = 3,
+        .minSize = 2,
         .threshold = 2,
 
         .dkgInterval = 24, // DKG cycle
