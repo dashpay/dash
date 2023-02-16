@@ -1391,7 +1391,8 @@ void FuncTestMempoolProTxKeyChangedConflictChain(TestChainSetup& setup)
     bool parent_sorts_first{false};
     for (CAmount fee = 1000; fee < 2000 && !parent_sorts_first; ++fee) {
         tx_child.vout[0].nValue = tx_parent.vout[0].nValue - fee;
-        BOOST_REQUIRE(SignSignature(keystore, CTransaction(tx_parent), tx_child, 0, SIGHASH_ALL));
+        SignatureData empty;
+        BOOST_REQUIRE(SignSignature(keystore, CTransaction(tx_parent), tx_child, 0, SIGHASH_ALL, empty));
         parent_sorts_first = tx_parent.GetHash() < tx_child.GetHash();
     }
     BOOST_REQUIRE(parent_sorts_first);

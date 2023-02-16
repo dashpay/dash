@@ -10,6 +10,7 @@
 #include <policy/policy.h>
 #include <primitives/transaction.h>
 #include <script/keyorigin.h>
+#include <script/miniscript.h>
 #include <script/signingprovider.h>
 #include <script/standard.h>
 #include <uint256.h>
@@ -190,6 +191,92 @@ static CScript PushAll(const std::vector<valtype>& values)
     return result;
 }
 
+template<typename M, typename K, typename V>
+miniscript::Availability MsLookupHelper(const M& map, const K& key, V& value)
+{
+    auto it = map.find(key);
+    if (it != map.end()) {
+        value = it->second;
+        return miniscript::Availability::YES;
+    }
+    return miniscript::Availability::NO;
+}
+
+/**
+ * Context for solving a Miniscript.
+ * If enough material (access to keys, hash preimages, ..) is given, produces a valid satisfaction.
+ */
+struct Satisfier {
+    typedef CPubKey Key;
+
+    const SigningProvider& m_provider;
+    SignatureData& m_sig_data;
+    const BaseSignatureCreator& m_creator;
+    const CScript& m_witness_script;
+
+    explicit Satisfier(const SigningProvider& provider LIFETIMEBOUND, SignatureData& sig_data LIFETIMEBOUND,
+                       const BaseSignatureCreator& creator LIFETIMEBOUND,
+                       const CScript& witscript LIFETIMEBOUND) : m_provider(provider),
+                                                                 m_sig_data(sig_data),
+                                                                 m_creator(creator),
+                                                                 m_witness_script(witscript) {}
+
+    static bool KeyCompare(const Key& a, const Key& b) {
+        return a < b;
+    }
+
+    //! Conversion from a raw public key.
+    template <typename I>
+    std::optional<Key> FromPKBytes(I first, I last) const
+    {
+        Key pubkey{first, last};
+        if (pubkey.IsValid()) return pubkey;
+        return {};
+    }
+
+    //! Conversion from a raw public key hash.
+    template<typename I>
+    std::optional<Key> FromPKHBytes(I first, I last) const {
+        assert(last - first == 20);
+        Key pubkey;
+        CKeyID key_id;
+        std::copy(first, last, key_id.begin());
+        if (GetPubKey(m_provider, m_sig_data, key_id, pubkey)) return pubkey;
+        m_sig_data.missing_pubkeys.push_back(key_id);
+        return {};
+    }
+
+    //! Conversion to raw public key.
+    std::vector<unsigned char> ToPKBytes(const CPubKey& key) const { return {key.begin(), key.end()}; }
+
+    //! Satisfy a signature check.
+    miniscript::Availability Sign(const CPubKey& key, std::vector<unsigned char>& sig) const {
+        if (CreateSig(m_creator, m_sig_data, m_provider, sig, key, m_witness_script, SigVersion::BASE)) {
+            return miniscript::Availability::YES;
+        }
+        return miniscript::Availability::NO;
+    }
+
+    //! Time lock satisfactions.
+    bool CheckAfter(uint32_t value) const { return m_creator.Checker().CheckLockTime(CScriptNum(value)); }
+    bool CheckOlder(uint32_t value) const { return m_creator.Checker().CheckSequence(CScriptNum(value)); }
+
+
+    //! Hash preimage satisfactions.
+    miniscript::Availability SatSHA256(const std::vector<unsigned char>& hash, std::vector<unsigned char>& preimage) const {
+        return MsLookupHelper(m_sig_data.sha256_preimages, hash, preimage);
+    }
+    miniscript::Availability SatRIPEMD160(const std::vector<unsigned char>& hash, std::vector<unsigned char>& preimage) const {
+        return MsLookupHelper(m_sig_data.ripemd160_preimages, hash, preimage);
+    }
+    miniscript::Availability SatHASH256(const std::vector<unsigned char>& hash, std::vector<unsigned char>& preimage) const {
+        return MsLookupHelper(m_sig_data.hash256_preimages, hash, preimage);
+    }
+    miniscript::Availability SatHASH160(const std::vector<unsigned char>& hash, std::vector<unsigned char>& preimage) const {
+        return MsLookupHelper(m_sig_data.hash160_preimages, hash, preimage);
+    }
+};
+
 bool ProduceSignature(const SigningProvider& provider, const BaseSignatureCreator& creator, const CScript& fromPubKey, SignatureData& sigdata)
 {
     if (sigdata.complete) return true;
@@ -324,26 +411,25 @@ void SignatureData::MergeSignatureData(SignatureData sigdata)
     signatures.insert(std::make_move_iterator(sigdata.signatures.begin()), std::make_move_iterator(sigdata.signatures.end()));
 }
 
-bool SignSignature(const SigningProvider &provider, const CScript& fromPubKey, CMutableTransaction& txTo, unsigned int nIn, const CAmount& amount, int nHashType)
+bool SignSignature(const SigningProvider &provider, const CScript& fromPubKey, CMutableTransaction& txTo, unsigned int nIn, const CAmount& amount, int nHashType, SignatureData& sig_data)
 {
     assert(nIn < txTo.vin.size());
 
     MutableTransactionSignatureCreator creator(txTo, nIn, amount, nHashType);
 
-    SignatureData sigdata;
-    bool ret = ProduceSignature(provider, creator, fromPubKey, sigdata);
-    UpdateInput(txTo.vin.at(nIn), sigdata);
+    bool ret = ProduceSignature(provider, creator, fromPubKey, sig_data);
+    UpdateInput(txTo.vin.at(nIn), sig_data);
     return ret;
 }
 
-bool SignSignature(const SigningProvider &provider, const CTransaction& txFrom, CMutableTransaction& txTo, unsigned int nIn, int nHashType)
+bool SignSignature(const SigningProvider &provider, const CTransaction& txFrom, CMutableTransaction& txTo, unsigned int nIn, int nHashType, SignatureData& sig_data)
 {
     assert(nIn < txTo.vin.size());
     const CTxIn& txin = txTo.vin[nIn];
     assert(txin.prevout.n < txFrom.vout.size());
     const CTxOut& txout = txFrom.vout[txin.prevout.n];
 
-    return SignSignature(provider, txout.scriptPubKey, txTo, nIn, txout.nValue, nHashType);
+    return SignSignature(provider, txout.scriptPubKey, txTo, nIn, txout.nValue, nHashType, sig_data);
 }
 
 namespace {

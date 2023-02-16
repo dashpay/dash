@@ -223,6 +223,11 @@ enum class Fragment {
     // WRAP_U(X) is represented as OR_I(X,0)
 };
 
+enum class Availability {
+    NO,
+    YES,
+    MAYBE,
+};
 
 namespace internal {
 
@@ -234,6 +239,62 @@ size_t ComputeScriptLen(Fragment fragment, Type sub0typ, size_t subsize, uint32_
 
 //! A helper sanitizer/checker for the output of CalcType.
 Type SanitizeType(Type x);
+
+//! An object representing a sequence of witness stack elements.
+struct InputStack {
+    /** Whether this stack is valid for its intended purpose (satisfaction or dissatisfaction of a Node).
+     *  The MAYBE value is used for size estimation, when keys/preimages may actually be unavailable,
+     *  but may be available at signing time. This makes the InputStack structure and signing logic,
+     *  filled with dummy signatures/preimages usable for witness size estimation.
+     */
+    Availability available = Availability::YES;
+    //! Whether this stack contains a digital signature.
+    bool has_sig = false;
+    //! Whether this stack is malleable (can be turned into an equally valid other stack by a third party).
+    bool malleable = false;
+    //! Whether this stack is non-canonical (using a construction known to be unnecessary for satisfaction).
+    //! Note that this flag does not affect the satisfaction algorithm; it is only used for sanity checking.
+    bool non_canon = false;
+    //! Serialized witness size.
+    size_t size = 0;
+    //! Data elements.
+    std::vector<std::vector<unsigned char>> stack;
+    //! Construct an empty stack (valid).
+    InputStack() {}
+    //! Construct a valid single-element stack (with an element up to 75 bytes).
+    InputStack(std::vector<unsigned char> in) : size(in.size() + 1), stack(Vector(std::move(in))) {}
+    //! Change availability
+    InputStack& SetAvailable(Availability avail);
+    //! Mark this input stack as having a signature.
+    InputStack& SetWithSig();
+    //! Mark this input stack as non-canonical (known to not be necessary in non-malleable satisfactions).
+    InputStack& SetNonCanon();
+    //! Mark this input stack as malleable.
+    InputStack& SetMalleable(bool x = true);
+    //! Concatenate two input stacks.
+    friend InputStack operator+(InputStack a, InputStack b);
+    //! Choose between two potential input stacks.
+    friend InputStack operator|(InputStack a, InputStack b);
+};
+
+/** A stack consisting of a single zero-length element (interpreted as 0 by the script interpreter in numeric context). */
+static const auto ZERO = InputStack(std::vector<unsigned char>());
+/** A stack consisting of a single malleable 32-byte 0x0000...0000 element (for dissatisfying hash challenges). */
+static const auto ZERO32 = InputStack(std::vector<unsigned char>(32, 0)).SetMalleable();
+/** A stack consisting of a single 0x01 element (interpreted as 1 by the script interpreted in numeric context). */
+static const auto ONE = InputStack(Vector((unsigned char)1));
+/** The empty stack. */
+static const auto EMPTY = InputStack();
+/** A stack representing the lack of any (dis)satisfactions. */
+static const auto INVALID = InputStack().SetAvailable(Availability::NO);
+
+//! A pair of a satisfaction and a dissatisfaction InputStack.
+struct InputResult {
+    InputStack nsat, sat;
+
+    template<typename A, typename B>
+    InputResult(A&& in_nsat, B&& in_sat) : nsat(std::forward<A>(in_nsat)), sat(std::forward<B>(in_sat)) {}
+};
 
 //! Class whose objects represent the maximum of a list of integers.
 template<typename I>
@@ -841,6 +902,18 @@ public:
 
     //! Check whether this node is safe as a script on its own.
     bool IsSane() const { return IsValidTopLevel() && IsSaneSubexpression() && NeedsSignature(); }
+
+    //! Produce a witness for this script, if possible and given the information available in the context.
+    //! The non-malleable satisfaction is guaranteed to be valid if it exists, and ValidSatisfaction()
+    //! is true. If IsSane() holds, this satisfaction is guaranteed to succeed in case the node's
+    //! conditions are satisfied (private keys and hash preimages available, locktimes satsified).
+    template<typename Ctx>
+    Availability Satisfy(const Ctx& ctx, std::vector<std::vector<unsigned char>>& stack, bool nonmalleable = true) const {
+        auto ret = ProduceInput(ctx);
+        if (nonmalleable && (ret.sat.malleable || !ret.sat.has_sig)) return Availability::NO;
+        stack = std::move(ret.sat.stack);
+        return ret.sat.available;
+    }
 
     //! Equality testing.
     bool operator==(const Node<Key>& arg) const { return Compare(*this, arg) == 0; }
