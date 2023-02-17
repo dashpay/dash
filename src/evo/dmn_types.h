@@ -14,6 +14,7 @@
 enum class MnType : uint16_t {
     Regular = 0,
     HighPerformance = 1,
+    COUNT,
     Invalid = std::numeric_limits<uint16_t>::max(),
 };
 
@@ -26,17 +27,6 @@ struct mntype_struct
     const int32_t voting_weight;
     const CAmount collat_amount;
     const std::string_view description;
-
-    bool operator==(const mntype_struct& r) const
-    {
-        return  voting_weight == r.voting_weight &&
-                collat_amount == r.collat_amount &&
-                description == r.description;
-    }
-    bool operator!=(const mntype_struct& r) const
-    {
-        return !(*this == r);
-    }
 };
 
 constexpr auto Regular = mntype_struct{
@@ -74,7 +64,7 @@ constexpr auto Invalid = mntype_struct{
 
 [[nodiscard]] constexpr const bool IsValidMnType(MnType type)
 {
-    return GetMnType(type) != dmn_types::Invalid;
+    return type < MnType::COUNT;
 }
 
 #endif // BITCOIN_EVO_DMN_TYPES_H
