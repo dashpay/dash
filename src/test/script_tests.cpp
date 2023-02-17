@@ -13,6 +13,7 @@
 #include <script/signingprovider.h>
 #include <streams.h>
 #include <test/util/json.h>
+#include <test/util/random.h>
 #include <test/util/setup_common.h>
 #include <test/util/transaction_utils.h>
 #include <util/strencodings.h>

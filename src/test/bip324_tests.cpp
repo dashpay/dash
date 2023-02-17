@@ -7,6 +7,7 @@
 #include <key.h>
 #include <pubkey.h>
 #include <span.h>
+#include <test/util/random.h>
 #include <test/util/setup_common.h>
 #include <util/strencodings.h>
 
