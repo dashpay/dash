@@ -142,7 +142,7 @@ void CBLSPublicKey::AggregateInsecure(const CBLSPublicKey& o)
     try {
         impl = Scheme(bls::bls_legacy_scheme.load())->Aggregate({impl, o.impl});
     } catch (...) {
-
+        fValid = false;
     }
     cachedHash.SetNull();
 }
@@ -220,7 +220,7 @@ void CBLSSignature::AggregateInsecure(const CBLSSignature& o)
     try {
         impl = Scheme(bls::bls_legacy_scheme.load())->Aggregate({impl, o.impl});
     } catch (...) {
-
+        fValid = false;
     }
     cachedHash.SetNull();
 }
