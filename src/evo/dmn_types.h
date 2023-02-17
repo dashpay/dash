@@ -14,6 +14,7 @@
 enum class MnType : uint16_t {
     Regular = 0,
     HighPerformance = 1,
+    Invalid = std::numeric_limits<uint16_t>::max(),
 };
 
 template<> struct is_serializable_enum<MnType> : std::true_type {};
@@ -25,6 +26,17 @@ struct mntype_struct
     const int32_t voting_weight;
     const CAmount collat_amount;
     const std::string_view description;
+
+    bool operator==(const mntype_struct& r) const
+    {
+        return  voting_weight == r.voting_weight &&
+                collat_amount == r.collat_amount &&
+                description == r.description;
+    }
+    bool operator!=(const mntype_struct& r) const
+    {
+        return !(*this == r);
+    }
 };
 
 constexpr auto Regular = mntype_struct{
@@ -36,6 +48,11 @@ constexpr auto HighPerformance = mntype_struct{
     .voting_weight = 4,
     .collat_amount = 4000 * COIN,
     .description = "HighPerformance",
+};
+constexpr auto Invalid = mntype_struct{
+    .voting_weight = 0,
+    .collat_amount = MAX_MONEY,
+    .description = "Invalid",
 };
 
 [[nodiscard]] static constexpr bool IsCollateralAmount(CAmount amount)
@@ -51,8 +68,13 @@ constexpr auto HighPerformance = mntype_struct{
     switch (type) {
         case MnType::Regular: return dmn_types::Regular;
         case MnType::HighPerformance: return dmn_types::HighPerformance;
-        default: assert(false);
+        default: return dmn_types::Invalid;
     }
+}
+
+[[nodiscard]] constexpr const bool IsValidMnType(MnType type)
+{
+    return GetMnType(type) != dmn_types::Invalid;
 }
 
 #endif // BITCOIN_EVO_DMN_TYPES_H
