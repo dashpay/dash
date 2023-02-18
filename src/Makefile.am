@@ -129,6 +129,7 @@ BITCOIN_CORE_H = \
   addressindex.h \
   spentindex.h \
   addrman.h \
+  analytics/sample.h \
   attributes.h \
   banman.h \
   base58.h \
@@ -380,6 +381,7 @@ libbitcoin_server_a_CXXFLAGS = $(AM_CXXFLAGS) $(PIE_FLAGS)
 libbitcoin_server_a_SOURCES = \
   addrdb.cpp \
   addrman.cpp \
+  analytics/sample.cpp \
   banman.cpp \
   batchedlogger.cpp \
   blockencodings.cpp \
