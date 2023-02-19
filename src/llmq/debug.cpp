@@ -34,7 +34,7 @@ UniValue CDKGDebugSessionStatus::ToJson(int quorumIndex, int detailLevel) const
     ret.pushKV("llmqType", ToUnderlying(llmqType));
     ret.pushKV("quorumHash", quorumHash.ToString());
     ret.pushKV("quorumHeight", (int)quorumHeight);
-    ret.pushKV("phase", (int)phase);
+    ret.pushKV("phase", ToUnderlying(phase));
 
     ret.pushKV("sentContributions", sentContributions);
     ret.pushKV("sentComplaint", sentComplaint);
@@ -165,7 +165,7 @@ void CDKGDebugManager::InitLocalSessionStatus(const Consensus::LLMQParams& llmqP
     session.llmqType = llmqParams.type;
     session.quorumHash = quorumHash;
     session.quorumHeight = (uint32_t)quorumHeight;
-    session.phase = 0;
+    session.phase = QuorumPhase{0};
     session.statusBitset = 0;
     session.members.clear();
     session.members.resize((size_t)llmqParams.size);
