@@ -66,6 +66,6 @@ class StatsdClient {
 
 } // namespace statsd
 
-extern statsd::StatsdClient statsClient;
+statsd::StatsdClient& StatsAgent();
 
 #endif // BITCOIN_STATSD_CLIENT_H

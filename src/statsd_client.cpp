@@ -246,3 +246,7 @@ const char* StatsdClient::errmsg()
 }
 
 } // namespace statsd
+
+statsd::StatsdClient& StatsAgent() {
+    return ::statsClient;
+}

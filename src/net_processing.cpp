@@ -1323,8 +1323,8 @@ bool AddOrphanTx(const CTransactionRef& tx, NodeId peer) EXCLUSIVE_LOCKS_REQUIRE
 
     LogPrint(BCLog::MEMPOOL, "stored orphan tx %s (mapsz %u outsz %u)\n", hash.ToString(),
              mapOrphanTransactions.size(), mapOrphanTransactionsByPrev.size());
-    statsClient.inc("transactions.orphans.add", 1.0f);
-    statsClient.gauge("transactions.orphans", mapOrphanTransactions.size());
+    ::StatsAgent().inc("transactions.orphans.add", 1.0f);
+    ::StatsAgent().gauge("transactions.orphans", mapOrphanTransactions.size());
     return true;
 }
 
@@ -1357,8 +1357,8 @@ int static EraseOrphanTx(uint256 hash) EXCLUSIVE_LOCKS_REQUIRED(g_cs_orphans)
     assert(nMapOrphanTransactionsSize >= it->second.nTxSize);
     nMapOrphanTransactionsSize -= it->second.nTxSize;
     mapOrphanTransactions.erase(it);
-    statsClient.inc("transactions.orphans.remove", 1.0f);
-    statsClient.gauge("transactions.orphans", mapOrphanTransactions.size());
+    ::StatsAgent().inc("transactions.orphans.remove", 1.0f);
+    ::StatsAgent().gauge("transactions.orphans", mapOrphanTransactions.size());
     return 1;
 }
 
@@ -1430,10 +1430,10 @@ void PeerManagerImpl::Misbehaving(const NodeId pnode, const int howmuch, const s
     {
         LogPrint(BCLog::NET, "Misbehaving: peer=%d (%d -> %d) DISCOURAGE THRESHOLD EXCEEDED%s\n", pnode, peer->m_misbehavior_score - howmuch, peer->m_misbehavior_score, message_prefixed);
         peer->m_should_discourage = true;
-        statsClient.inc("misbehavior.banned", 1.0f);
+        ::StatsAgent().inc("misbehavior.banned", 1.0f);
     } else {
         LogPrint(BCLog::NET, "Misbehaving: peer=%d (%d -> %d)%s\n", pnode, peer->m_misbehavior_score - howmuch, peer->m_misbehavior_score, message_prefixed);
-        statsClient.count("misbehavior.amount", howmuch, 1.0);
+        ::StatsAgent().count("misbehavior.amount", howmuch, 1.0);
     }
 }
 
@@ -2789,7 +2789,7 @@ void PeerManagerImpl::ProcessMessage(
     const std::atomic<bool>& interruptMsgProc)
 {
     LogPrint(BCLog::NET, "received: %s (%u bytes) peer=%d\n", SanitizeString(msg_type), vRecv.size(), pfrom.GetId());
-    statsClient.inc("message.received." + SanitizeString(msg_type), 1.0f);
+    ::StatsAgent().inc("message.received." + SanitizeString(msg_type), 1.0f);
 
 
     PeerRef peer = GetPeerRef(pfrom.GetId());
@@ -3212,7 +3212,7 @@ void PeerManagerImpl::ProcessMessage(
 
             bool fAlreadyHave = AlreadyHave(inv);
             LogPrint(BCLog::NET, "got inv: %s  %s peer=%d\n", inv.ToString(), fAlreadyHave ? "have" : "new", pfrom.GetId());
-            statsClient.inc(strprintf("message.received.inv_%s", inv.GetCommand()), 1.0f);
+            ::StatsAgent().inc(strprintf("message.received.inv_%s", inv.GetCommand()), 1.0f);
 
             if (inv.type == MSG_BLOCK) {
                 UpdateBlockAvailability(pfrom.GetId(), inv.hash);
