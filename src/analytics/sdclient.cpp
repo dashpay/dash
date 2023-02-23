@@ -5,6 +5,9 @@
 
 #include <analytics/sdclient.h>
 
+#include <util/system.h>
+#include <statsd_client.h>
+
 namespace Statsd {
 StatsdClient::StatsdClient(const std::string& host,
                            const uint16_t port,
@@ -59,3 +62,44 @@ void StatsdClient::set(const std::string& key,
     send(key, sum, detail::METRIC_TYPE_SET, frequency, tags);
 }
 }  // namespace Statsd
+
+static std::unique_ptr<Statsd::StatsdClient> g_stats_agent{nullptr};
+
+bool InitStatsAgent(const ArgsManager& args) {
+    if (g_stats_agent) {
+        return false;
+    }
+
+    g_stats_agent = std::make_unique<Statsd::StatsdClient>(
+        args.GetArg("-statshost",     DEFAULT_STATSD_HOST),
+        args.GetArg("-statsport",     DEFAULT_STATSD_PORT),
+        args.GetArg("-statshostname", DEFAULT_STATSD_HOSTNAME),
+        args.GetArg("-statsns",       DEFAULT_STATSD_NAMESPACE),
+        /* batchsize */ 0,
+        std::min(
+            std::max(
+                args.GetArg("-statsperiod", DEFAULT_STATSD_PERIOD),
+                MIN_STATSD_PERIOD
+            ),
+            MAX_STATSD_PERIOD
+        )  * 1000, /* gaugePrecision */ 4
+    );
+
+    if (g_stats_agent) {
+        if (g_stats_agent->IsConnected()) {
+            return true;
+        }
+    }
+
+    g_stats_agent.reset();
+    return false;
+}
+
+void StopStatsAgent() {
+    if (!g_stats_agent) {
+        return;
+    }
+    g_stats_agent->flush();
+    g_stats_agent.reset();
+    return;
+}

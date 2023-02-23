@@ -2280,7 +2280,7 @@ bool AppInitMain(const CoreContext& context, NodeContext& node, interfaces::Bloc
     }
 
     if (args.GetBoolArg("-statsenabled", DEFAULT_STATSD_ENABLE)) {
-        int nStatsPeriod = std::min(std::max((int)args.GetArg("-statsperiod", DEFAULT_STATSD_PERIOD), MIN_STATSD_PERIOD), MAX_STATSD_PERIOD);
+        int nStatsPeriod = std::min(std::max(args.GetArg("-statsperiod", DEFAULT_STATSD_PERIOD), MIN_STATSD_PERIOD), MAX_STATSD_PERIOD);
         node.scheduler->scheduleEvery(std::bind(&PeriodicStats, std::cref(node.args), node.mempool.get()), std::chrono::seconds{nStatsPeriod});
     }
 

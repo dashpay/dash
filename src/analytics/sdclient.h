@@ -19,6 +19,8 @@
 #include <string>
 #include <vector>
 
+class ArgsManager;
+
 namespace Statsd {
 class StatsdClient {
 public:
@@ -173,5 +175,8 @@ void StatsdClient::send(const std::string& key,
     m_sender->send(m_buffer);
 }
 }  // namespace Statsd
+
+bool InitStatsAgent(const ArgsManager& args);
+void StopStatsAgent();
 
 #endif // BITCOIN_ANALYTICS_SDCLIENT_H

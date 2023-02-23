@@ -15,9 +15,9 @@ static const std::string DEFAULT_STATSD_HOSTNAME = "";
 static const std::string DEFAULT_STATSD_NAMESPACE = "";
 
 // schedule periodic measurements, in seconds: default - 1 minute, min - 5 sec, max - 1h.
-static const int DEFAULT_STATSD_PERIOD = 60;
-static const int MIN_STATSD_PERIOD = 5;
-static const int MAX_STATSD_PERIOD = 60 * 60;
+static const int64_t DEFAULT_STATSD_PERIOD = 60;
+static const int64_t MIN_STATSD_PERIOD = 5;
+static const int64_t MAX_STATSD_PERIOD = 60 * 60;
 
 namespace statsd {
 
