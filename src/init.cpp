@@ -2292,7 +2292,7 @@ bool AppInitMain(const CoreContext& context, NodeContext& node, interfaces::Bloc
     }
 
     if (enable_stats) {
-        node.scheduler->scheduleEvery(std::bind(&SampleStats, &args, node.mempool.get()), std::chrono::milliseconds{::StatsAgent().sendInterval()});
+        node.scheduler->scheduleEvery(std::bind(&SampleStats, std::cref(::StatsAgent()), &args, node.mempool.get()), std::chrono::milliseconds{::StatsAgent().sendInterval()});
     }
 
     node.llmq_ctx->Start();

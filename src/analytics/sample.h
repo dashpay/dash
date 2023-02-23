@@ -7,7 +7,10 @@
 
 class ArgsManager;
 class CTxMemPool;
+namespace Statsd {
+class StatsdClient;
+} /* namespace Statsd */
 
-void SampleStats(const ArgsManager* args, const CTxMemPool* mempool);
+void SampleStats(const Statsd::StatsdClient& client, const ArgsManager* args, const CTxMemPool* mempool);
 
 #endif // BITCOIN_ANALYTICS_SAMPLE_H

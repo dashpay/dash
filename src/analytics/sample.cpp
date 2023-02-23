@@ -15,7 +15,7 @@
 
 #include <algorithm>
 
-void SampleStats(const ArgsManager* args, const CTxMemPool* mempool)
+void SampleStats(const Statsd::StatsdClient& client, const ArgsManager* args, const CTxMemPool* mempool)
 {
     if (args == nullptr)
         return;
@@ -24,11 +24,11 @@ void SampleStats(const ArgsManager* args, const CTxMemPool* mempool)
     CCoinsStats stats{CoinStatsHashType::NONE};
     ::ChainstateActive().ForceFlushStateToDisk();
     if (WITH_LOCK(cs_main, return GetUTXOStats(&::ChainstateActive().CoinsDB(), std::ref(g_chainman.m_blockman), stats, RpcInterruptionPoint, ::ChainActive().Tip()))) {
-        ::StatsAgent().gauge("utxoset.tx", stats.nTransactions, 1.0f);
-        ::StatsAgent().gauge("utxoset.txOutputs", stats.nTransactionOutputs, 1.0f);
-        ::StatsAgent().gauge("utxoset.dbSizeBytes", stats.nDiskSize, 1.0f);
-        ::StatsAgent().gauge("utxoset.blockHeight", stats.nHeight, 1.0f);
-        ::StatsAgent().gauge("utxoset.totalAmount", (double)stats.nTotalAmount / (double)COIN, 1.0f);
+        client.gauge("utxoset.tx", stats.nTransactions, 1.0f);
+        client.gauge("utxoset.txOutputs", stats.nTransactionOutputs, 1.0f);
+        client.gauge("utxoset.dbSizeBytes", stats.nDiskSize, 1.0f);
+        client.gauge("utxoset.blockHeight", stats.nHeight, 1.0f);
+        client.gauge("utxoset.totalAmount", (double)stats.nTotalAmount / (double)COIN, 1.0f);
     } else {
         // something went wrong
         LogPrintf("%s: GetUTXOStats failed\n", __func__);
@@ -49,22 +49,22 @@ void SampleStats(const ArgsManager* args, const CTxMemPool* mempool)
     int64_t timeDiff = maxTime - minTime;
     double nNetworkHashPS = workDiff.getdouble() / timeDiff;
 
-    ::StatsAgent().gauge("network.hashesPerSecond", nNetworkHashPS);
-    ::StatsAgent().gauge("network.terahashesPerSecond", nNetworkHashPS / 1e12);
-    ::StatsAgent().gauge("network.petahashesPerSecond", nNetworkHashPS / 1e15);
-    ::StatsAgent().gauge("network.exahashesPerSecond", nNetworkHashPS / 1e18);
+    client.gauge("network.hashesPerSecond", nNetworkHashPS);
+    client.gauge("network.terahashesPerSecond", nNetworkHashPS / 1e12);
+    client.gauge("network.petahashesPerSecond", nNetworkHashPS / 1e15);
+    client.gauge("network.exahashesPerSecond", nNetworkHashPS / 1e18);
     // No need for cs_main, we never use null tip here
-    ::StatsAgent().gauge("network.difficulty", (double)GetDifficulty(tip));
+    client.gauge("network.difficulty", (double)GetDifficulty(tip));
 
-    ::StatsAgent().gauge("transactions.txCacheSize", WITH_LOCK(cs_main, return ::ChainstateActive().CoinsTip().GetCacheSize()), 1.0f);
-    ::StatsAgent().gauge("transactions.totalTransactions", tip->nChainTx, 1.0f);
+    client.gauge("transactions.txCacheSize", WITH_LOCK(cs_main, return ::ChainstateActive().CoinsTip().GetCacheSize()), 1.0f);
+    client.gauge("transactions.totalTransactions", tip->nChainTx, 1.0f);
 
     if (mempool != nullptr)
     {
         LOCK(mempool->cs);
-        ::StatsAgent().gauge("transactions.mempool.totalTransactions", mempool->size(), 1.0f);
-        ::StatsAgent().gauge("transactions.mempool.totalTxBytes", (int64_t) mempool->GetTotalTxSize(), 1.0f);
-        ::StatsAgent().gauge("transactions.mempool.memoryUsageBytes", (int64_t) mempool->DynamicMemoryUsage(), 1.0f);
-        ::StatsAgent().gauge("transactions.mempool.minFeePerKb", mempool->GetMinFee(args->GetArg("-maxmempool", DEFAULT_MAX_MEMPOOL_SIZE) * 1000000).GetFeePerK(), 1.0f);
+        client.gauge("transactions.mempool.totalTransactions", mempool->size(), 1.0f);
+        client.gauge("transactions.mempool.totalTxBytes", (int64_t) mempool->GetTotalTxSize(), 1.0f);
+        client.gauge("transactions.mempool.memoryUsageBytes", (int64_t) mempool->DynamicMemoryUsage(), 1.0f);
+        client.gauge("transactions.mempool.minFeePerKb", mempool->GetMinFee(args->GetArg("-maxmempool", DEFAULT_MAX_MEMPOOL_SIZE) * 1000000).GetFeePerK(), 1.0f);
     }
 }
