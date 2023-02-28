@@ -954,6 +954,11 @@ bool IsQuorumTypeEnabledInternal(Consensus::LLMQType llmqType, const CQuorumMana
             }
             break;
         }
+        case Consensus::LLMQType::LLMQ_25_67:
+            if (!IsV19Active(pindex)) {
+                return false;
+            }
+            break;
         default:
             throw std::runtime_error(strprintf("%s: Unknown LLMQ type %d", __func__, ToUnderlying(llmqType)));
     }
