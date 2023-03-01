@@ -1055,6 +1055,7 @@ public:
 
         UpdateLLMQTestParametersFromArgs(args, Consensus::LLMQType::LLMQ_TEST);
         UpdateLLMQTestParametersFromArgs(args, Consensus::LLMQType::LLMQ_TEST_INSTANTSEND);
+        DisableLLMQTestInstantSendDIP0024FromArgs(args);
     }
 
     /**
@@ -1122,6 +1123,14 @@ public:
         params->dkgBadVotesThreshold = threshold;
     }
     void UpdateLLMQTestParametersFromArgs(const ArgsManager& args, const Consensus::LLMQType llmqType);
+
+    void DisableLLMQ(const Consensus::LLMQType llmqType)
+    {
+        auto params = ranges::find_if(consensus.llmqs, [llmqType](const auto& llmq){ return llmq.type == llmqType;});
+        assert(params != consensus.llmqs.end());
+        params->skipped = true;
+    }
+    void DisableLLMQTestInstantSendDIP0024FromArgs(const ArgsManager& args);
 };
 
 void CRegTestParams::UpdateVersionBitsParametersFromArgs(const ArgsManager& args)
@@ -1261,6 +1270,14 @@ void CRegTestParams::UpdateLLMQTestParametersFromArgs(const ArgsManager& args, c
     }
     LogPrintf("Setting %s parameters to size=%ld, threshold=%ld\n", llmq_name, size, threshold);
     UpdateLLMQTestParameters(size, threshold, llmqType);
+}
+
+void CRegTestParams::DisableLLMQTestInstantSendDIP0024FromArgs(const ArgsManager &args)
+{
+    if (!args.IsArgSet("-disablellmqinstantsenddip0024")) return;
+
+    LogPrintf("Disabling llmq_test_dip0024.\n");
+    DisableLLMQ(Consensus::LLMQType::LLMQ_TEST_DIP0024);
 }
 
 void CDevNetParams::UpdateDevnetSubsidyAndDiffParametersFromArgs(const ArgsManager& args)
