@@ -24,6 +24,8 @@
 
 #include <optional>
 
+static constexpr int TESTNET_LLMQ_25_67_ACTIVATION_HEIGHT = 847000;
+
 namespace llmq
 {
 
@@ -955,7 +957,7 @@ bool IsQuorumTypeEnabledInternal(Consensus::LLMQType llmqType, const CQuorumMana
             break;
         }
         case Consensus::LLMQType::LLMQ_25_67:
-            if (!IsV19Active(pindex)) {
+            if (pindex->nHeight < TESTNET_LLMQ_25_67_ACTIVATION_HEIGHT) {
                 return false;
             }
             break;

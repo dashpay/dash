@@ -460,7 +460,7 @@ static constexpr std::array<LLMQParams, 14> available_llmqs = {
         .dkgPhaseBlocks = 2,
         .dkgMiningWindowStart = 10, // dkgPhaseBlocks * 5 = after finalization
         .dkgMiningWindowEnd = 18,
-        .dkgBadVotesThreshold = 80,
+        .dkgBadVotesThreshold = 22,
 
         .signingActiveQuorumCount = 24, // a full day worth of LLMQs
 
