@@ -24,12 +24,13 @@ namespace llmq
 {
 std::unique_ptr<CChainLocksHandler> chainLocksHandler;
 
-CChainLocksHandler::CChainLocksHandler(CTxMemPool& _mempool, CConnman& _connman, CSporkManager& sporkManager, CSigningManager& _sigman, CSigSharesManager& _shareman, const std::unique_ptr<CMasternodeSync>& mn_sync) :
+CChainLocksHandler::CChainLocksHandler(CTxMemPool& _mempool, CConnman& _connman, CSporkManager& sporkManager, CSigningManager& _sigman, CSigSharesManager& _shareman, CQuorumManager& _qman, const std::unique_ptr<CMasternodeSync>& mn_sync) :
     connman(_connman),
     mempool(_mempool),
     spork_manager(sporkManager),
     sigman(_sigman),
     shareman(_shareman),
+    qman(_qman),
     m_mn_sync(mn_sync),
     scheduler(std::make_unique<CScheduler>()),
     scheduler_thread(std::make_unique<std::thread>([&] { TraceThread("cl-schdlr", [&] { scheduler->serviceQueue(); }); }))
@@ -555,6 +556,13 @@ bool CChainLocksHandler::HasChainLock(int nHeight, const uint256& blockHash) con
 {
     LOCK(cs);
     return InternalHasChainLock(nHeight, blockHash);
+}
+
+bool CChainLocksHandler::VerifyChainLock(int nHeight, const uint256& blockHash, const CBLSSignature& sig) const
+{
+    const auto llmqType = Params().GetConsensus().llmqTypeChainLocks;
+    const uint256 nRequestId = ::SerializeHash(std::make_pair(llmq::CLSIG_REQUESTID_PREFIX, nHeight));
+    return llmq::CSigningManager::VerifyRecoveredSig(llmqType, qman, nHeight, nRequestId, blockHash, sig);
 }
 
 bool CChainLocksHandler::InternalHasChainLock(int nHeight, const uint256& blockHash) const

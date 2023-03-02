@@ -5,6 +5,7 @@
 #include <evo/cbtx.h>
 #include <evo/deterministicmns.h>
 #include <llmq/blockprocessor.h>
+#include <llmq/chainlocks.h>
 #include <llmq/commitment.h>
 #include <llmq/utils.h>
 #include <evo/simplifiedmns.h>
@@ -14,6 +15,7 @@
 #include <chain.h>
 #include <chainparams.h>
 #include <consensus/merkle.h>
+#include <validation.h>
 
 bool CheckCbTx(const CTransaction& tx, const CBlockIndex* pindexPrev, TxValidationState& state)
 {
@@ -30,8 +32,16 @@ bool CheckCbTx(const CTransaction& tx, const CBlockIndex* pindexPrev, TxValidati
         return state.Invalid(TxValidationResult::TX_CONSENSUS, "bad-cbtx-payload");
     }
 
-    if (cbTx.nVersion == 0 || cbTx.nVersion > CCbTx::CURRENT_VERSION) {
-        return state.Invalid(TxValidationResult::TX_CONSENSUS, "bad-cbtx-version");
+    if (cbTx.nVersion == 0 || cbTx.nVersion > CCbTx::CB_CL_SIG_VERSION) {
+        return state.Invalid(ValidationInvalidReason::CONSENSUS, false, REJECT_INVALID, "bad-cbtx-version");
+    }
+
+    if (pindexPrev && !llmq::utils::IsV20Active(pindexPrev) && cbTx.nVersion == CCbTx::CB_CL_SIG_VERSION) {
+        return state.Invalid(ValidationInvalidReason::CONSENSUS, false, REJECT_INVALID, "bad-cbtx-version");
+    }
+
+    if (pindexPrev && llmq::utils::IsV20Active(pindexPrev) && cbTx.nVersion != CCbTx::CB_CL_SIG_VERSION) {
+        return state.Invalid(ValidationInvalidReason::CONSENSUS, false, REJECT_INVALID, "bad-cbtx-version");
     }
 
     if (pindexPrev && pindexPrev->nHeight + 1 != cbTx.nHeight) {
@@ -314,8 +324,48 @@ bool CalcCbTxMerkleRootQuorums(const CBlock& block, const CBlockIndex* pindexPre
     return true;
 }
 
+bool CheckCbTxBestChainlock(const CBlock& block, const CBlockIndex* pindexPrev, const llmq::CChainLocksHandler& chainlock_handler, CValidationState& state)
+{
+    if (block.vtx[0]->nType != TRANSACTION_COINBASE) {
+        return true;
+    }
+
+    CCbTx cbTx;
+    if (!GetTxPayload(*block.vtx[0], cbTx)) {
+        return state.Invalid(ValidationInvalidReason::CONSENSUS, false, REJECT_INVALID, "bad-cbtx-payload");
+    }
+
+    if (cbTx.nVersion >= CCbTx::CB_CL_SIG_VERSION) {
+        if (cbTx.bestCLSignature.IsValid()) {
+            int bestChainLockedHeight = pindexPrev->nHeight - static_cast<int>(cbTx.bestCLHeightDiff) - 1;
+            uint256 bestChainLockedHash = ::ChainActive()[bestChainLockedHeight]->GetBlockHash();
+            if (!chainlock_handler.VerifyChainLock(bestChainLockedHeight, bestChainLockedHash, cbTx.bestCLSignature )){
+                return state.Invalid(ValidationInvalidReason::CONSENSUS, false, REJECT_INVALID, "bad-cbtx-clsig");
+            }
+        }
+
+    }
+
+    return true;
+}
+
+bool EmplaceBestChainlock(const llmq::CChainLocksHandler& chainlock_handler, const int nHeight, uint32_t& bestCLHeightDiff, CBLSSignature& bestCLSignature)
+{
+    if (chainlock_handler.GetBestChainLock().IsNull()) {
+        bestCLHeightDiff = 0;
+        bestCLSignature.Reset();
+        return false;
+    }
+
+    bestCLHeightDiff = (static_cast<uint32_t>(nHeight) - chainlock_handler.GetBestChainLock().getHeight() - 1);
+    bestCLSignature = chainlock_handler.GetBestChainLock().getSig();
+
+    return true;
+}
+
+
 std::string CCbTx::ToString() const
 {
-    return strprintf("CCbTx(nVersion=%d, nHeight=%d, merkleRootMNList=%s, merkleRootQuorums=%s)",
-        nVersion, nHeight, merkleRootMNList.ToString(), merkleRootQuorums.ToString());
+    return strprintf("CCbTx(nVersion=%d, nHeight=%d, merkleRootMNList=%s, merkleRootQuorums=%s, bestCLHeightDiff=%d, bestCLSig=%s)",
+        nVersion, nHeight, merkleRootMNList.ToString(), merkleRootQuorums.ToString(), bestCLHeightDiff, bestCLSignature.ToString());
 }
