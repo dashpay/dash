@@ -98,7 +98,7 @@ bool UndoSpecialTx(const CTransaction& tx, const CBlockIndex* pindex)
     return false;
 }
 
-bool ProcessSpecialTxsInBlock(const CBlock& block, const CBlockIndex* pindex, llmq::CQuorumBlockProcessor& quorum_block_processor, llmq::CChainLocksHandler& chainlock_handler,
+bool ProcessSpecialTxsInBlock(const CBlock& block, const CBlockIndex* pindex, llmq::CQuorumBlockProcessor& quorum_block_processor, const llmq::CChainLocksHandler& chainlock_handler,
                               BlockValidationState& state, const CCoinsViewCache& view, bool fJustCheck, bool fCheckCbTxMerleRoots)
 {
     AssertLockHeld(cs_main);
