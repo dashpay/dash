@@ -34,6 +34,9 @@ class LLMQChainLocksTest(DashTestFramework):
         self.nodes[0].sporkupdate("SPORK_17_QUORUM_DKG_ENABLED", 0)
         self.wait_for_sporks_same()
 
+        self.activate_by_name('v20', expected_activation_height=904)
+        self.log.info("Activated v20 at height:" + str(self.nodes[0].getblockcount()))
+
         self.log.info("Mining 4 quorums")
         for i in range(4):
             self.mine_quorum()
