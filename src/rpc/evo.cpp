@@ -345,7 +345,7 @@ static void protx_register_fund_help(const JSONRPCRequest& request, bool legacy)
     std::string rpc_full_name = std::string("protx ").append(rpc_name);
     std::string pubkey_operator = legacy ? "\"0532646990082f4fd639f90387b1551f2c7c39d37392cb9055a06a7e85c1d23692db8f87f827886310bccc1e29db9aee\"" : "\"8532646990082f4fd639f90387b1551f2c7c39d37392cb9055a06a7e85c1d23692db8f87f827886310bccc1e29db9aee\"";
     std::string rpc_example = rpc_name.append(" \"XrVhS9LogauRJGJu2sHuryjhpuex4RNPSb\" \"1.2.3.4:1234\" \"Xt9AMWaYSz7tR7Uo7gzXA3m4QmeWgrR3rr\" ").append(pubkey_operator).append(" \"Xt9AMWaYSz7tR7Uo7gzXA3m4QmeWgrR3rr\" 0 \"XrVhS9LogauRJGJu2sHuryjhpuex4RNPSb\"");
-    RPCHelpMan{rpc_name,
+    RPCHelpMan{rpc_full_name,
         "\nCreates, funds and sends a ProTx to the network. The resulting transaction will move 1000 Dash\n"
         "to the address specified by collateralAddress and will then function as the collateral of your\n"
         "masternode.\n"
