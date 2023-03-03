@@ -339,9 +339,13 @@ static std::string SignAndSendSpecialTx(const JSONRPCRequest& request, const CMu
     return sendrawtransaction(sendRequest).get_str();
 }
 
-static void protx_register_fund_help(const JSONRPCRequest& request)
+static void protx_register_fund_help(const JSONRPCRequest& request, bool legacy)
 {
-    RPCHelpMan{"protx register_fund",
+    std::string rpc_name = legacy ? "register_fund" : "register_fund_legacy";
+    std::string rpc_full_name = std::string("protx ").append(rpc_name);
+    std::string pubkey_operator = legacy ? "\"0532646990082f4fd639f90387b1551f2c7c39d37392cb9055a06a7e85c1d23692db8f87f827886310bccc1e29db9aee\"" : "\"8532646990082f4fd639f90387b1551f2c7c39d37392cb9055a06a7e85c1d23692db8f87f827886310bccc1e29db9aee\"";
+    std::string rpc_example = rpc_name.append(" \"XrVhS9LogauRJGJu2sHuryjhpuex4RNPSb\" \"1.2.3.4:1234\" \"Xt9AMWaYSz7tR7Uo7gzXA3m4QmeWgrR3rr\" ").append(pubkey_operator).append(" \"Xt9AMWaYSz7tR7Uo7gzXA3m4QmeWgrR3rr\" 0 \"XrVhS9LogauRJGJu2sHuryjhpuex4RNPSb\"");
+    RPCHelpMan{rpc_name,
         "\nCreates, funds and sends a ProTx to the network. The resulting transaction will move 1000 Dash\n"
         "to the address specified by collateralAddress and will then function as the collateral of your\n"
         "masternode.\n"
@@ -366,14 +370,18 @@ static void protx_register_fund_help(const JSONRPCRequest& request)
                 RPCResult::Type::STR_HEX, "hex", "The serialized signed ProTx in hex format"},
         },
         RPCExamples{
-            HelpExampleCli("protx", "register_fund \"XrVhS9LogauRJGJu2sHuryjhpuex4RNPSb\" \"1.2.3.4:1234\" \"Xt9AMWaYSz7tR7Uo7gzXA3m4QmeWgrR3rr\" \"93746e8731c57f87f79b3620a7982924e2931717d49540a85864bd543de11c43fb868fd63e501a1db37e19ed59ae6db4\" \"Xt9AMWaYSz7tR7Uo7gzXA3m4QmeWgrR3rr\" 0 \"XrVhS9LogauRJGJu2sHuryjhpuex4RNPSb\"")
+            HelpExampleCli("protx",  rpc_example)
         },
     }.Check(request);
 }
 
-static void protx_register_help(const JSONRPCRequest& request)
+static void protx_register_help(const JSONRPCRequest& request, bool legacy)
 {
-    RPCHelpMan{"protx register",
+    std::string rpc_name = legacy ? "register" : "register_legacy";
+    std::string rpc_full_name = std::string("protx ").append(rpc_name);
+    std::string pubkey_operator = legacy ? "\"0532646990082f4fd639f90387b1551f2c7c39d37392cb9055a06a7e85c1d23692db8f87f827886310bccc1e29db9aee\"" : "\"8532646990082f4fd639f90387b1551f2c7c39d37392cb9055a06a7e85c1d23692db8f87f827886310bccc1e29db9aee\"";
+    std::string rpc_example = rpc_name.append(" \"0123456701234567012345670123456701234567012345670123456701234567\" 0 \"1.2.3.4:1234\" \"Xt9AMWaYSz7tR7Uo7gzXA3m4QmeWgrR3rr\" ").append(pubkey_operator).append(" \"Xt9AMWaYSz7tR7Uo7gzXA3m4QmeWgrR3rr\" 0 \"XrVhS9LogauRJGJu2sHuryjhpuex4RNPSb\"");
+    RPCHelpMan{rpc_full_name,
         "\nSame as \"protx register_fund\", but with an externally referenced collateral.\n"
         "The collateral is specified through \"collateralHash\" and \"collateralIndex\" and must be an unspent\n"
         "transaction output spendable by this wallet. It must also not be used by any other masternode.\n"
@@ -397,14 +405,18 @@ static void protx_register_help(const JSONRPCRequest& request)
                 RPCResult::Type::STR_HEX, "hex", "The serialized signed ProTx in hex format"},
         },
         RPCExamples{
-            HelpExampleCli("protx", "register \"0123456701234567012345670123456701234567012345670123456701234567\" 0 \"1.2.3.4:1234\" \"Xt9AMWaYSz7tR7Uo7gzXA3m4QmeWgrR3rr\" \"93746e8731c57f87f79b3620a7982924e2931717d49540a85864bd543de11c43fb868fd63e501a1db37e19ed59ae6db4\" \"Xt9AMWaYSz7tR7Uo7gzXA3m4QmeWgrR3rr\" 0 \"XrVhS9LogauRJGJu2sHuryjhpuex4RNPSb\"")
+            HelpExampleCli("protx", rpc_example)
         },
     }.Check(request);
 }
 
-static void protx_register_prepare_help(const JSONRPCRequest& request)
+static void protx_register_prepare_help(const JSONRPCRequest& request, bool legacy)
 {
-    RPCHelpMan{"protx register_prepare",
+    std::string rpc_name = legacy ? "register_prepare" : "register_prepare_legacy";
+    std::string rpc_full_name = std::string("protx ").append(rpc_name);
+    std::string pubkey_operator = legacy ? "\"0532646990082f4fd639f90387b1551f2c7c39d37392cb9055a06a7e85c1d23692db8f87f827886310bccc1e29db9aee\"" : "\"8532646990082f4fd639f90387b1551f2c7c39d37392cb9055a06a7e85c1d23692db8f87f827886310bccc1e29db9aee\"";
+    std::string rpc_example = rpc_name.append(" \"0123456701234567012345670123456701234567012345670123456701234567\" 0 \"1.2.3.4:1234\" \"Xt9AMWaYSz7tR7Uo7gzXA3m4QmeWgrR3rr\" ").append(pubkey_operator).append(" \"Xt9AMWaYSz7tR7Uo7gzXA3m4QmeWgrR3rr\" 0 \"XrVhS9LogauRJGJu2sHuryjhpuex4RNPSb\"");
+    RPCHelpMan{rpc_full_name,
         "\nCreates an unsigned ProTx and a message that must be signed externally\n"
         "with the private key that corresponds to collateralAddress to prove collateral ownership.\n"
         "The prepared transaction will also contain inputs and outputs to cover fees.\n",
@@ -427,7 +439,7 @@ static void protx_register_prepare_help(const JSONRPCRequest& request)
                 {RPCResult::Type::STR_HEX, "signMessage", "The string message that needs to be signed with the collateral key"},
             }},
         RPCExamples{
-            HelpExampleCli("protx", "register_prepare \"0123456701234567012345670123456701234567012345670123456701234567\" 0 \"1.2.3.4:1234\" \"Xt9AMWaYSz7tR7Uo7gzXA3m4QmeWgrR3rr\" \"93746e8731c57f87f79b3620a7982924e2931717d49540a85864bd543de11c43fb868fd63e501a1db37e19ed59ae6db4\" \"Xt9AMWaYSz7tR7Uo7gzXA3m4QmeWgrR3rr\" 0 \"XrVhS9LogauRJGJu2sHuryjhpuex4RNPSb\"")
+            HelpExampleCli("protx", rpc_example)
         },
     }.Check(request);
 }
@@ -570,11 +582,11 @@ static UniValue protx_register_common_wrapper(const JSONRPCRequest& request,
         }
     } else {
         if (isFundRegister && (request.fHelp || (request.params.size() < 7 || request.params.size() > 9))) {
-            protx_register_fund_help(request);
+            protx_register_fund_help(request, specific_legacy_bls_scheme);
         } else if (isExternalRegister && (request.fHelp || (request.params.size() < 8 || request.params.size() > 10))) {
-            protx_register_help(request);
+            protx_register_help(request, specific_legacy_bls_scheme);
         } else if (isPrepareRegister && (request.fHelp || (request.params.size() != 8 && request.params.size() != 9))) {
-            protx_register_prepare_help(request);
+            protx_register_prepare_help(request, specific_legacy_bls_scheme);
         }
     }
 
