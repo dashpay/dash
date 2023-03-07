@@ -435,6 +435,48 @@ CDeterministicMNList CDeterministicMNList::ApplyDiff(const CBlockIndex* pindex, 
     return result;
 }
 
+// RepopulateUniquePropertyMap clears internal mnUniquePropertyMap, and repopulate it with currently MNs unique properties.
+// This is needed when the v19 fork activates, we need to store again pubKeyOperator in the mnUniquePropertyMap.
+// pubKeyOperator don't differ between the two forks (legacy and basic(v19)) but their serialisation do: hence their hash.
+// And because mnUniquePropertyMap store only hashes, then we need to re-calculate hashes and repopulate.
+void CDeterministicMNList::RepopulateUniquePropertyMap() {
+    decltype(mnUniquePropertyMap) mnUniquePropertyMapEmpty;
+    mnUniquePropertyMap = mnUniquePropertyMapEmpty;
+
+    for (const auto &p: mnMap) {
+        auto dmn = p.second;
+        if (!AddUniqueProperty(*dmn, dmn->collateralOutpoint)) {
+            throw (std::runtime_error(
+                    strprintf("%s: Can't add a masternode %s with a duplicate collateralOutpoint=%s", __func__,
+                              dmn->proTxHash.ToString(), dmn->collateralOutpoint.ToStringShort())));
+        }
+        if (dmn->pdmnState->addr != CService() && !AddUniqueProperty(*dmn, dmn->pdmnState->addr)) {
+            throw (std::runtime_error(strprintf("%s: Can't add a masternode %s with a duplicate address=%s", __func__,
+                                                dmn->proTxHash.ToString(),
+                                                dmn->pdmnState->addr.ToStringIPPort(false))));
+        }
+        if (!AddUniqueProperty(*dmn, dmn->pdmnState->keyIDOwner)) {
+            throw (std::runtime_error(
+                    strprintf("%s: Can't add a masternode %s with a duplicate keyIDOwner=%s", __func__,
+                              dmn->proTxHash.ToString(), EncodeDestination(PKHash(dmn->pdmnState->keyIDOwner)))));
+        }
+        if (dmn->pdmnState->pubKeyOperator.Get().IsValid() &&
+            !AddUniqueProperty(*dmn, dmn->pdmnState->pubKeyOperator)) {
+            throw (std::runtime_error(
+                    strprintf("%s: Can't add a masternode %s with a duplicate pubKeyOperator=%s", __func__,
+                              dmn->proTxHash.ToString(), dmn->pdmnState->pubKeyOperator.Get().ToString())));
+        }
+
+        if (dmn->nType == MnType::HighPerformance) {
+            if (!AddUniqueProperty(*dmn, dmn->pdmnState->platformNodeID)) {
+                throw (std::runtime_error(
+                        strprintf("%s: Can't add a masternode %s with a duplicate platformNodeID=%s", __func__,
+                                  dmn->proTxHash.ToString(), dmn->pdmnState->platformNodeID.ToString())));
+            }
+        }
+    }
+}
+
 void CDeterministicMNList::AddMN(const CDeterministicMNCPtr& dmn, bool fBumpTotalCount)
 {
     assert(dmn != nullptr);
@@ -1069,6 +1111,13 @@ CDeterministicMNList CDeterministicMNManager::GetListForBlock(const CBlockIndex*
             snapshot.SetBlockHash(diffIndex->GetBlockHash());
             snapshot.SetHeight(diffIndex->nHeight);
         }
+    }
+
+    // If the fork is active for pindex block, then we need to repopulate property map (Check documentation of CDeterministicMNList::RepopulateUniquePropertyMap())
+    // This is needed only when base list is pre-v19 fork and pindex is post-v19 fork.
+    // TODO: Make improvement and don't call that when also base list is post-v19.
+    if (llmq::utils::IsV19Active(pindex)) {
+        snapshot.RepopulateUniquePropertyMap();
     }
 
     if (tipIndex) {
