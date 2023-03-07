@@ -659,11 +659,19 @@ bool CDeterministicMNManager::ProcessBlock(const CBlock& block, const CBlockInde
 
         newList.SetBlockHash(block.GetHash());
 
+        // If the fork is active for pindex block, then we need to repopulate property map
+        // (Check documentation of CDeterministicMNList::RepopulateUniquePropertyMap()).
+        // This is needed only when base list is pre-v19 fork and pindex is post-v19 fork.
+        bool v19_just_activated = pindex == llmq::utils::V19ActivationIndex(pindex);
+        if (v19_just_activated) {
+            newList.RepopulateUniquePropertyMap();
+        }
+
         oldList = GetListForBlock(pindex->pprev);
         diff = oldList.BuildDiff(newList);
 
         m_evoDb.Write(std::make_pair(DB_LIST_DIFF, newList.GetBlockHash()), diff);
-        if ((nHeight % DISK_SNAPSHOT_PERIOD) == 0 || oldList.GetHeight() == -1) {
+        if ((nHeight % DISK_SNAPSHOT_PERIOD) == 0 || oldList.GetHeight() == -1 || v19_just_activated) {
             m_evoDb.Write(std::make_pair(DB_LIST_SNAPSHOT, newList.GetBlockHash()), newList);
             mnListsCache.emplace(newList.GetBlockHash(), newList);
             LogPrintf("CDeterministicMNManager::%s -- Wrote snapshot. nHeight=%d, mapCurMNs.allMNsCount=%d\n",
@@ -1111,13 +1119,6 @@ CDeterministicMNList CDeterministicMNManager::GetListForBlock(const CBlockIndex*
             snapshot.SetBlockHash(diffIndex->GetBlockHash());
             snapshot.SetHeight(diffIndex->nHeight);
         }
-    }
-
-    // If the fork is active for pindex block, then we need to repopulate property map (Check documentation of CDeterministicMNList::RepopulateUniquePropertyMap())
-    // This is needed only when base list is pre-v19 fork and pindex is post-v19 fork.
-    // TODO: Make improvement and don't call that when also base list is post-v19.
-    if (llmq::utils::IsV19Active(pindex)) {
-        snapshot.RepopulateUniquePropertyMap();
     }
 
     if (tipIndex) {
