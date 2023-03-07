@@ -437,7 +437,7 @@ CDeterministicMNList CDeterministicMNList::ApplyDiff(const CBlockIndex* pindex, 
 
 // RepopulateUniquePropertyMap clears internal mnUniquePropertyMap, and repopulate it with currently MNs unique properties.
 // This is needed when the v19 fork activates, we need to store again pubKeyOperator in the mnUniquePropertyMap.
-// pubKeyOperator don't differ between the two forks (legacy and basic(v19)) but their serialisation do: hence their hash.
+// pubKeyOperator don't differ between the two schemes (legacy and basic(v19)) but their serialisation do: hence their hash.
 // And because mnUniquePropertyMap store only hashes, then we need to re-calculate hashes and repopulate.
 void CDeterministicMNList::RepopulateUniquePropertyMap() {
     decltype(mnUniquePropertyMap) mnUniquePropertyMapEmpty;
