@@ -18,6 +18,8 @@ from test_framework.test_framework import DashTestFramework
 from test_framework.util import (
     assert_equal, wait_until
 )
+
+
 class TestP2PConn(P2PInterface):
     def __init__(self):
         super().__init__()
@@ -31,12 +33,13 @@ class TestP2PConn(P2PInterface):
             return self.last_mnlistdiff is not None
         return wait_until(received_mnlistdiff, timeout=timeout)
 
-    def getmnlistdiff(self, baseBlockHash, blockHash):
-        msg = msg_getmnlistd(baseBlockHash, blockHash)
+    def getmnlistdiff(self, base_block_hash, block_hash):
+        msg = msg_getmnlistd(base_block_hash, block_hash)
         self.last_mnlistdiff = None
         self.send_message(msg)
         self.wait_for_mnlistdiff()
         return self.last_mnlistdiff
+
 
 class DIP3V19Test(DashTestFramework):
     def set_test_params(self):
@@ -59,13 +62,12 @@ class DIP3V19Test(DashTestFramework):
         self.nodes[0].sporkupdate("SPORK_17_QUORUM_DKG_ENABLED", 0)
         self.wait_for_sporks_same()
 
-        expectedUpdated = [mn.proTxHash for mn in self.mninfo]
-        b_0 = self.nodes[0].getbestblockhash()
-        self.test_getmnlistdiff(null_hash, b_0, {}, [], expectedUpdated)
+        expected_updated = [mn.proTxHash for mn in self.mninfo]
+        b_0 = self.nodes[0].getbestblock_hash()
+        self.test_getmnlistdiff(null_hash, b_0, {}, [], expected_updated)
 
         self.activate_v19(expected_activation_height=900)
         self.log.info("Activated v19 at height:" + str(self.nodes[0].getblockcount()))
-
 
         self.move_to_next_cycle()
         self.log.info("Cycle H height:" + str(self.nodes[0].getblockcount()))
@@ -74,16 +76,17 @@ class DIP3V19Test(DashTestFramework):
         self.move_to_next_cycle()
         self.log.info("Cycle H+2C height:" + str(self.nodes[0].getblockcount()))
 
-        (quorum_info_i_0, quorum_info_i_1) = self.mine_cycle_quorum(llmq_type_name='llmq_test_dip0024', llmq_type=103)
+        self.mine_cycle_quorum(llmq_type_name='llmq_test_dip0024', llmq_type=103)
 
         revoke_protx = self.mninfo[-1].proTxHash
         revoke_keyoperator = self.mninfo[-1].keyOperator
-        self.log.info("Trying to revoke proTx:%s" % (revoke_protx))
+        self.log.info(f"Trying to revoke proTx:{revoke_protx}")
         self.test_revoke_protx(revoke_protx, revoke_keyoperator)
 
         self.mine_quorum(llmq_type_name='llmq_test', llmq_type=100)
 
         return
+
     def test_revoke_protx(self, revoke_protx, revoke_keyoperator):
         funds_address = self.nodes[0].getnewaddress()
         self.nodes[0].sendtoaddress(funds_address, 1)
@@ -93,44 +96,45 @@ class DIP3V19Test(DashTestFramework):
         self.nodes[0].protx('revoke', revoke_protx, revoke_keyoperator, 1, funds_address)
         self.nodes[0].generate(1)
         self.sync_all(self.nodes)
-        self.log.info("Succesfully revoked=%s" % (revoke_protx))
+        self.log.info(f"Succesfully revoked={revoke_protx}")
         for mn in self.mninfo:
             if mn.proTxHash == revoke_protx:
                 self.mninfo.remove(mn)
                 return
-    def test_getmnlistdiff(self, baseBlockHash, blockHash, baseMNList, expectedDeleted, expectedUpdated):
-        d = self.test_getmnlistdiff_base(baseBlockHash, blockHash)
+
+    def test_getmnlistdiff(self, base_block_hash, block_hash, base_mn_list, expected_deleted, expected_updated):
+        d = self.test_getmnlistdiff_base(base_block_hash, block_hash)
 
         # Assert that the deletedMNs and mnList fields are what we expected
-        assert_equal(set(d.deletedMNs), set([int(e, 16) for e in expectedDeleted]))
-        assert_equal(set([e.proRegTxHash for e in d.mnList]), set(int(e, 16) for e in expectedUpdated))
+        assert_equal(set(d.deletedMNs), set([int(e, 16) for e in expected_deleted]))
+        assert_equal(set([e.proRegTxHash for e in d.mnList]), set(int(e, 16) for e in expected_updated))
 
         # Build a new list based on the old list and the info from the diff
-        newMNList = baseMNList.copy()
+        new_mn_list = base_mn_list.copy()
         for e in d.deletedMNs:
-            newMNList.pop(format(e, '064x'))
+            new_mn_list.pop(format(e, '064x'))
         for e in d.mnList:
-            newMNList[format(e.proRegTxHash, '064x')] = e
+            new_mn_list[format(e.proRegTxHash, '064x')] = e
 
         cbtx = CCbTx()
         cbtx.deserialize(BytesIO(d.cbTx.vExtraPayload))
 
         # Verify that the merkle root matches what we locally calculate
         hashes = []
-        for mn in sorted(newMNList.values(), key=lambda mn: ser_uint256(mn.proRegTxHash)):
+        for mn in sorted(new_mn_list.values(), key=lambda mn: ser_uint256(mn.proRegTxHash)):
             hashes.append(hash256(mn.serialize()))
-        merkleRoot = CBlock.get_merkle_root(hashes)
-        assert_equal(merkleRoot, cbtx.merkleRootMNList)
+        merkle_root = CBlock.get_merkle_root(hashes)
+        assert_equal(merkle_root, cbtx.merkleRootMNList)
 
-        return newMNList
+        return new_mn_list
 
-    def test_getmnlistdiff_base(self, baseBlockHash, blockHash):
-        hexstr = self.nodes[0].getblockheader(blockHash, False)
+    def test_getmnlistdiff_base(self, base_block_hash, block_hash):
+        hexstr = self.nodes[0].getblockheader(block_hash, False)
         header = FromHex(CBlockHeader(), hexstr)
 
-        d = self.test_node.getmnlistdiff(int(baseBlockHash, 16), int(blockHash, 16))
-        assert_equal(d.baseBlockHash, int(baseBlockHash, 16))
-        assert_equal(d.blockHash, int(blockHash, 16))
+        d = self.test_node.getmnlistdiff(int(base_block_hash, 16), int(block_hash, 16))
+        assert_equal(d.base_block_hash, int(base_block_hash, 16))
+        assert_equal(d.block_hash, int(block_hash, 16))
 
         # Check that the merkle proof is valid
         proof = CMerkleBlock(header, d.merkleProof)
@@ -138,9 +142,9 @@ class DIP3V19Test(DashTestFramework):
         assert_equal(self.nodes[0].verifytxoutproof(proof), [d.cbTx.hash])
 
         # Check if P2P messages match with RPCs
-        d2 = self.nodes[0].protx("diff", baseBlockHash, blockHash)
-        assert_equal(d2["baseBlockHash"], baseBlockHash)
-        assert_equal(d2["blockHash"], blockHash)
+        d2 = self.nodes[0].protx("diff", base_block_hash, block_hash)
+        assert_equal(d2["base_block_hash"], base_block_hash)
+        assert_equal(d2["block_hash"], block_hash)
         assert_equal(d2["cbTxMerkleTree"], d.merkleProof.serialize().hex())
         assert_equal(d2["cbTx"], d.cbTx.serialize().hex())
         assert_equal(set([int(e, 16) for e in d2["deletedMNs"]]), set(d.deletedMNs))
@@ -149,6 +153,7 @@ class DIP3V19Test(DashTestFramework):
         assert_equal(set([QuorumId(e["llmqType"], int(e["quorumHash"], 16)) for e in d2["newQuorums"]]), set([QuorumId(e.llmqType, e.quorumHash) for e in d.newQuorums]))
 
         return d
+
 
 if __name__ == '__main__':
     DIP3V19Test().main()
