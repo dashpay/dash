@@ -63,8 +63,10 @@ public:
             obj.nRevocationReason,
             obj.confirmedHash,
             obj.confirmedHashWithProRegTxHash,
-            obj.keyIDOwner,
-            obj.pubKeyOperator,
+            obj.keyIDOwner);
+        // NOTE: maybe not needed but to be 100% sure we can read it if we are migrating after v19 hf
+        READWRITE(CBLSLazyPublicKeyVersionWrapper(const_cast<CBLSLazyPublicKey&>(obj.pubKeyOperator), true));
+        READWRITE(
             obj.keyIDVoting,
             obj.addr,
             obj.scriptPayout,
@@ -104,6 +106,8 @@ public:
     uint16_t platformP2PPort{0};
     uint16_t platformHTTPPort{0};
 
+    int nVersion{CProRegTx::LEGACY_BLS_VERSION};
+
 public:
     CDeterministicMNState() = default;
     explicit CDeterministicMNState(const CProRegTx& proTx) :
@@ -113,7 +117,8 @@ public:
         scriptPayout(proTx.scriptPayout),
         platformNodeID(proTx.platformNodeID),
         platformP2PPort(proTx.platformP2PPort),
-        platformHTTPPort(proTx.platformHTTPPort)
+        platformHTTPPort(proTx.platformHTTPPort),
+        nVersion(proTx.nVersion)
     {
         pubKeyOperator.Set(proTx.pubKeyOperator);
     }
@@ -151,14 +156,17 @@ public:
             obj.confirmedHash,
             obj.confirmedHashWithProRegTxHash,
             obj.keyIDOwner,
-            obj.pubKeyOperator,
+            obj.keyIDOwner);
+        READWRITE(CBLSLazyPublicKeyVersionWrapper(const_cast<CBLSLazyPublicKey&>(obj.pubKeyOperator), obj.nVersion == CProRegTx::LEGACY_BLS_VERSION));
+        READWRITE(
             obj.keyIDVoting,
             obj.addr,
             obj.scriptPayout,
             obj.scriptOperatorPayout,
             obj.platformNodeID,
             obj.platformP2PPort,
-            obj.platformHTTPPort);
+            obj.platformHTTPPort,
+            obj.nVersion);
     }
 
     void ResetOperatorFields()
@@ -225,6 +233,7 @@ public:
         Field_platformNodeID = 0x8000,
         Field_platformP2PPort = 0x10000,
         Field_platformHTTPPort = 0x20000,
+        Field_nVersion = 0x40000,
     };
 
 #define DMN_STATE_DIFF_ALL_FIELDS                      \
@@ -245,7 +254,8 @@ public:
     DMN_STATE_DIFF_LINE(nConsecutivePayments)          \
     DMN_STATE_DIFF_LINE(platformNodeID)                \
     DMN_STATE_DIFF_LINE(platformP2PPort)               \
-    DMN_STATE_DIFF_LINE(platformHTTPPort)
+    DMN_STATE_DIFF_LINE(platformHTTPPort)              \
+    DMN_STATE_DIFF_LINE(nVersion)
 
 public:
     uint32_t fields{0};
@@ -266,8 +276,7 @@ public:
         READWRITE(VARINT(obj.fields));
 #define DMN_STATE_DIFF_LINE(f) \
         if (strcmp(#f, "pubKeyOperator") == 0 && (obj.fields & Field_pubKeyOperator)) {\
-            /* TODO: implement migration to Basic BLS after the fork */ \
-            READWRITE(CBLSLazyPublicKeyVersionWrapper(const_cast<CBLSLazyPublicKey&>(obj.state.pubKeyOperator), true)); \
+            READWRITE(CBLSLazyPublicKeyVersionWrapper(const_cast<CBLSLazyPublicKey&>(obj.state.pubKeyOperator), obj.state.nVersion == CProRegTx::LEGACY_BLS_VERSION)); \
         } else if (obj.fields & Field_##f) READWRITE(obj.state.f);
 
         DMN_STATE_DIFF_ALL_FIELDS
