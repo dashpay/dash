@@ -999,7 +999,7 @@ static void protx_update_registrar_help(const JSONRPCRequest& request, bool lega
     std::string rpc_full_name = std::string("protx ").append(rpc_name);
     std::string pubkey_operator = legacy ? "\"0532646990082f4fd639f90387b1551f2c7c39d37392cb9055a06a7e85c1d23692db8f87f827886310bccc1e29db9aee\"" : "\"8532646990082f4fd639f90387b1551f2c7c39d37392cb9055a06a7e85c1d23692db8f87f827886310bccc1e29db9aee\"";
     std::string rpc_example = rpc_name.append(" \"0123456701234567012345670123456701234567012345670123456701234567\" ").append(pubkey_operator).append(" \"Xt9AMWaYSz7tR7Uo7gzXA3m4QmeWgrR3rr\"");
-    RPCHelpMan{rpc_name,
+    RPCHelpMan{rpc_full_name,
         "\nCreates and sends a ProUpRegTx to the network. This will update the operator key, voting key and payout\n"
         "address of the masternode specified by \"proTxHash\".\n"
         "The owner key of the masternode must be known to your wallet.\n"
