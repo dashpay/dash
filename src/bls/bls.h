@@ -196,8 +196,7 @@ public:
             if (!CheckMalleable(vecBytes, !specificLegacyScheme)) {
                 // Both attempts failed
                 throw std::ios_base::failure("malleable BLS object");
-            }
-            else {
+            } else {
                 // Indeed the received vecBytes was in opposite scheme. But we can't keep it (mixing with the new scheme will lead to undefined behavior)
                 // Therefore, resetting current object (basically marking it as invalid).
                 Reset();
