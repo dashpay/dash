@@ -63,7 +63,7 @@ class DIP3V19Test(DashTestFramework):
         self.wait_for_sporks_same()
 
         expected_updated = [mn.proTxHash for mn in self.mninfo]
-        b_0 = self.nodes[0].getbestblock_hash()
+        b_0 = self.nodes[0].getbestblockhash()
         self.test_getmnlistdiff(null_hash, b_0, {}, [], expected_updated)
 
         self.activate_v19(expected_activation_height=900)
