@@ -87,7 +87,7 @@ static RPCArg GetRpcArg(const std::string& strParamName)
         {"operatorPubKey_register",
             {"operatorPubKey_register", RPCArg::Type::STR, RPCArg::Optional::NO,
                 "The operator BLS public key. The BLS private key does not have to be known.\n"
-                "It has to match the BLS private key which is later used when operating the masternode.\n"}
+                "It has to match the BLS private key which is later used when operating the masternode."}
         },
         {"operatorPubKey_register_legacy",
                 {"operatorPubKey_register", RPCArg::Type::STR, RPCArg::Optional::NO,
