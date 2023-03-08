@@ -133,8 +133,8 @@ class DIP3V19Test(DashTestFramework):
         header = FromHex(CBlockHeader(), hexstr)
 
         d = self.test_node.getmnlistdiff(int(base_block_hash, 16), int(block_hash, 16))
-        assert_equal(d.base_block_hash, int(base_block_hash, 16))
-        assert_equal(d.block_hash, int(block_hash, 16))
+        assert_equal(d.baseBlockHash, int(base_block_hash, 16))
+        assert_equal(d.blockHash, int(block_hash, 16))
 
         # Check that the merkle proof is valid
         proof = CMerkleBlock(header, d.merkleProof)
@@ -143,8 +143,8 @@ class DIP3V19Test(DashTestFramework):
 
         # Check if P2P messages match with RPCs
         d2 = self.nodes[0].protx("diff", base_block_hash, block_hash)
-        assert_equal(d2["base_block_hash"], base_block_hash)
-        assert_equal(d2["block_hash"], block_hash)
+        assert_equal(d2["baseBlockHash"], base_block_hash)
+        assert_equal(d2["blockHash"], block_hash)
         assert_equal(d2["cbTxMerkleTree"], d.merkleProof.serialize().hex())
         assert_equal(d2["cbTx"], d.cbTx.serialize().hex())
         assert_equal(set([int(e, 16) for e in d2["deletedMNs"]]), set(d.deletedMNs))
