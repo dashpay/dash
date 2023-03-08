@@ -87,13 +87,24 @@ static RPCArg GetRpcArg(const std::string& strParamName)
         {"operatorPubKey_register",
             {"operatorPubKey_register", RPCArg::Type::STR, RPCArg::Optional::NO,
                 "The operator BLS public key. The BLS private key does not have to be known.\n"
-                "It has to match the BLS private key which is later used when operating the masternode."}
+                "It has to match the BLS private key which is later used when operating the masternode.\n"}
+        },
+        {"operatorPubKey_register_legacy",
+                {"operatorPubKey_register", RPCArg::Type::STR, RPCArg::Optional::NO,
+                        "The operator BLS public key in legacy scheme. The BLS private key does not have to be known.\n"
+                        "It has to match the BLS private key which is later used when operating the masternode.\n"}
         },
         {"operatorPubKey_update",
             {"operatorPubKey_update", RPCArg::Type::STR, RPCArg::Optional::NO,
                 "The operator BLS public key. The BLS private key does not have to be known.\n"
                 "It has to match the BLS private key which is later used when operating the masternode.\n"
                 "If set to an empty string, the currently active operator BLS public key is reused."}
+        },
+        {"operatorPubKey_update_legacy",
+                {"operatorPubKey_update", RPCArg::Type::STR, RPCArg::Optional::NO,
+                        "The operator BLS public key in legacy scheme. The BLS private key does not have to be known.\n"
+                        "It has to match the BLS private key which is later used when operating the masternode.\n"
+                        "If set to an empty string, the currently active operator BLS public key is reused."}
         },
         {"operatorReward",
             {"operatorReward", RPCArg::Type::STR, RPCArg::Optional::NO,
@@ -356,7 +367,7 @@ static void protx_register_fund_help(const JSONRPCRequest& request, bool legacy)
             GetRpcArg("collateralAddress"),
             GetRpcArg("ipAndPort"),
             GetRpcArg("ownerAddress"),
-            GetRpcArg("operatorPubKey_register"),
+            legacy ? GetRpcArg("operatorPubKey_register_legacy") : GetRpcArg("operatorPubKey_register"),
             GetRpcArg("votingAddress_register"),
             GetRpcArg("operatorReward"),
             GetRpcArg("payoutAddress_register"),
@@ -391,7 +402,7 @@ static void protx_register_help(const JSONRPCRequest& request, bool legacy)
             GetRpcArg("collateralIndex"),
             GetRpcArg("ipAndPort"),
             GetRpcArg("ownerAddress"),
-            GetRpcArg("operatorPubKey_register"),
+            legacy ? GetRpcArg("operatorPubKey_register_legacy") : GetRpcArg("operatorPubKey_register"),
             GetRpcArg("votingAddress_register"),
             GetRpcArg("operatorReward"),
             GetRpcArg("payoutAddress_register"),
@@ -425,7 +436,7 @@ static void protx_register_prepare_help(const JSONRPCRequest& request, bool lega
             GetRpcArg("collateralIndex"),
             GetRpcArg("ipAndPort"),
             GetRpcArg("ownerAddress"),
-            GetRpcArg("operatorPubKey_register"),
+            legacy ? GetRpcArg("operatorPubKey_register_legacy") : GetRpcArg("operatorPubKey_register"),
             GetRpcArg("votingAddress_register"),
             GetRpcArg("operatorReward"),
             GetRpcArg("payoutAddress_register"),
@@ -982,16 +993,20 @@ static UniValue protx_update_service_common_wrapper(const JSONRPCRequest& reques
     return SignAndSendSpecialTx(request, tx);
 }
 
-static void protx_update_registrar_help(const JSONRPCRequest& request)
+static void protx_update_registrar_help(const JSONRPCRequest& request, bool legacy)
 {
-    RPCHelpMan{"protx update_registrar",
+    std::string rpc_name = legacy ? "update_registrar_legacy" : "update_registrar";
+    std::string rpc_full_name = std::string("protx ").append(rpc_name);
+    std::string pubkey_operator = legacy ? "\"0532646990082f4fd639f90387b1551f2c7c39d37392cb9055a06a7e85c1d23692db8f87f827886310bccc1e29db9aee\"" : "\"8532646990082f4fd639f90387b1551f2c7c39d37392cb9055a06a7e85c1d23692db8f87f827886310bccc1e29db9aee\"";
+    std::string rpc_example = rpc_name.append(" \"0123456701234567012345670123456701234567012345670123456701234567\" ").append(pubkey_operator).append(" \"Xt9AMWaYSz7tR7Uo7gzXA3m4QmeWgrR3rr\"");
+    RPCHelpMan{rpc_name,
         "\nCreates and sends a ProUpRegTx to the network. This will update the operator key, voting key and payout\n"
         "address of the masternode specified by \"proTxHash\".\n"
         "The owner key of the masternode must be known to your wallet.\n"
         + HELP_REQUIRING_PASSPHRASE,
         {
             GetRpcArg("proTxHash"),
-            GetRpcArg("operatorPubKey_update"),
+            legacy ? GetRpcArg("operatorPubKey_update_legacy") : GetRpcArg("operatorPubKey_update"),
             GetRpcArg("votingAddress_update"),
             GetRpcArg("payoutAddress_update"),
             GetRpcArg("feeSourceAddress"),
@@ -1000,14 +1015,14 @@ static void protx_update_registrar_help(const JSONRPCRequest& request)
             RPCResult::Type::STR_HEX, "txid", "The transaction id"
         },
         RPCExamples{
-            HelpExampleCli("protx", "update_registrar \"0123456701234567012345670123456701234567012345670123456701234567\" \"982eb34b7c7f614f29e5c665bc3605f1beeef85e3395ca12d3be49d2868ecfea5566f11cedfad30c51b2403f2ad95b67\" \"XwnLY9Tf7Zsef8gMGL2fhWA9ZmMjt4KPwG\"")
+            HelpExampleCli("protx", rpc_example)
         },
     }.Check(request);
 }
 
 static UniValue protx_update_registrar_wrapper(const JSONRPCRequest& request, const bool specific_legacy_bls_scheme)
 {
-    protx_update_registrar_help(request);
+    protx_update_registrar_help(request, specific_legacy_bls_scheme);
 
     std::shared_ptr<CWallet> const wallet = GetWalletForJSONRPCRequest(request);
     if (!wallet) return NullUniValue;
