@@ -19,6 +19,7 @@
 #include <script/sign.h>
 #include <script/signingprovider.h>
 #include <univalue.h>
+#include <util/exception.h>
 #include <util/fs.h>
 #include <util/moneystr.h>
 #include <util/strencodings.h>

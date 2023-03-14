@@ -24,7 +24,6 @@
 #include <util/settings.h>
 #include <util/time.h>
 
-#include <exception>
 #include <map>
 #include <optional>
 #include <set>
@@ -49,8 +48,6 @@ extern const char * const BITCOIN_SETTINGS_FILENAME;
 
 void SetupEnvironment();
 [[nodiscard]] bool SetupNetworking();
-
-void PrintExceptionContinue(const std::exception_ptr pex, std::string_view thread_name);
 
 // Return true if -datadir option points to a valid directory or is not specified.
 bool CheckDataDirOption(const ArgsManager& args);

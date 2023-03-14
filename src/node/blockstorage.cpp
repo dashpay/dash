@@ -10,6 +10,7 @@
 #include <flatfile.h>
 #include <hash.h>
 #include <kernel/chainparams.h>
+#include <logging.h>
 #include <pow.h>
 #include <shutdown.h>
 #include <streams.h>

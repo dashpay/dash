@@ -14,7 +14,6 @@
 
 #include <chainparamsbase.h>
 #include <ctpl_stl.h>
-#include <stacktraces.h>
 #include <sync.h>
 #include <util/check.h>
 #include <util/fs.h>
@@ -778,13 +777,6 @@ std::string HelpMessageOpt(const std::string &option, const std::string &message
            std::string("\n") + std::string(msgIndent,' ') +
            FormatParagraph(message, screenWidth - msgIndent, msgIndent) +
            std::string("\n\n");
-}
-
-void PrintExceptionContinue(const std::exception_ptr pex, std::string_view thread_name)
-{
-    std::string message = strprintf("\"%s\" raised an exception\n%s", thread_name, GetPrettyExceptionStr(pex));
-    LogPrintf("\n\n************************\n%s\n", message);
-    tfm::format(std::cerr, "\n\n************************\n%s\n", message);
 }
 
 fs::path GetDefaultDataDir()
