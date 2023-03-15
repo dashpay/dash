@@ -15,6 +15,7 @@ namespace kernel {
  */
 struct BlockManagerOpts {
     const CChainParams& chainparams;
+    uint64_t prune_target{0};
 };
 
 } // namespace kernel

@@ -1129,7 +1129,7 @@ public:
     {
         return m_context->active_ctx != nullptr;
     }
-    bool isLoadingBlocks() override { return node::fReindex || node::fImporting; }
+    bool isLoadingBlocks() override { return chainman().m_blockman.LoadingBlocks(); }
     bool isV24Active() override
     {
         LOCK(::cs_main);

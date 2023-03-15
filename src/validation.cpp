@@ -7003,9 +7003,9 @@ static ChainstateManager::Options&& Flatten(ChainstateManager::Options&& opts)
     return std::move(opts);
 }
 
-ChainstateManager::ChainstateManager(Options options)
+ChainstateManager::ChainstateManager(Options options, node::BlockManager::Options blockman_options)
     : m_options{Flatten(std::move(options))},
-      m_blockman{{m_options.chainparams}} {}
+      m_blockman{std::move(blockman_options)} {}
 
 ChainstateManager::~ChainstateManager()
 {
