@@ -695,7 +695,7 @@ bool CDeterministicMNManager::ProcessBlock(const CBlock& block, const CBlockInde
             newList.RepopulateUniquePropertyMap();
         }
 
-        oldList = GetListForBlock(pindex->pprev);
+        oldList = GetListForBlockInternal(pindex->pprev);
         diff = oldList.BuildDiff(newList);
 
         m_evoDb.Write(std::make_pair(DB_LIST_DIFF, newList.GetBlockHash()), diff);
@@ -746,8 +746,8 @@ bool CDeterministicMNManager::UndoBlock(const CBlock& block, const CBlockIndex* 
 
         if (diff.HasChanges()) {
             // need to call this before erasing
-            curList = GetListForBlock(pindex);
-            prevList = GetListForBlock(pindex->pprev);
+            curList = GetListForBlockInternal(pindex);
+            prevList = GetListForBlockInternal(pindex->pprev);
         }
 
         mnListsCache.erase(blockHash);
@@ -781,7 +781,7 @@ bool CDeterministicMNManager::BuildNewListFromBlock(const CBlock& block, const C
 
     int nHeight = pindexPrev->nHeight + 1;
 
-    CDeterministicMNList oldList = GetListForBlock(pindexPrev);
+    CDeterministicMNList oldList = GetListForBlockInternal(pindexPrev);
     CDeterministicMNList newList = oldList;
     newList.SetBlockHash(uint256()); // we can't know the final block hash, so better not return a (invalid) block hash
     newList.SetHeight(nHeight);
@@ -1100,10 +1100,9 @@ void CDeterministicMNManager::DecreasePoSePenalties(CDeterministicMNList& mnList
     }
 }
 
-CDeterministicMNList CDeterministicMNManager::GetListForBlock(const CBlockIndex* pindex)
+CDeterministicMNList CDeterministicMNManager::GetListForBlockInternal(const CBlockIndex* pindex)
 {
-    LOCK(cs);
-
+    AssertLockHeld(cs);
     CDeterministicMNList snapshot;
     std::list<const CBlockIndex*> listDiffIndexes;
 
@@ -1159,7 +1158,7 @@ CDeterministicMNList CDeterministicMNManager::GetListForBlock(const CBlockIndex*
         } else {
             // keep snapshots for yet alive quorums
             if (ranges::any_of(Params().GetConsensus().llmqs, [&snapshot, this](const auto& params){
-                LOCK(cs);
+                AssertLockHeld(cs);
                 return (snapshot.GetHeight() % params.dkgInterval == 0) &&
                 (snapshot.GetHeight() + params.dkgInterval * (params.keepOldConnections + 1) >= tipIndex->nHeight);
             })) {
@@ -1177,7 +1176,7 @@ CDeterministicMNList CDeterministicMNManager::GetListAtChainTip()
     if (!tipIndex) {
         return {};
     }
-    return GetListForBlock(tipIndex);
+    return GetListForBlockInternal(tipIndex);
 }
 
 bool CDeterministicMNManager::IsProTxWithCollateral(const CTransactionRef& tx, uint32_t n)
