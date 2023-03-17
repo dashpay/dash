@@ -29,7 +29,7 @@ static constexpr int TESTNET_LLMQ_25_67_ACTIVATION_HEIGHT = 847000;
 namespace llmq
 {
 
-CCriticalSection cs_llmq_vbc;
+Mutex cs_llmq_vbc;
 VersionBitsCache llmq_versionbitscache;
 
 namespace utils
@@ -618,7 +618,6 @@ bool IsQuorumRotationEnabled(const Consensus::LLMQParams& llmqParams, const CBlo
         return false;
     }
 
-    LOCK(cs_llmq_vbc);
     int cycleQuorumBaseHeight = pindex->nHeight - (pindex->nHeight % llmqParams.dkgInterval);
     if (cycleQuorumBaseHeight < 1) {
         return false;
