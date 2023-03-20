@@ -4869,6 +4869,11 @@ bool CWallet::AutoBackupWallet(const fs::path& wallet_path, bilingual_str& error
         return false;
     }
 
+    if (IsWalletFlagSet(WALLET_FLAG_BLANK_WALLET)) {
+        WalletLogPrintf("Wallet is blank, won't create new backup for it!\n");
+        return false;
+    }
+
     if (nWalletBackups <= 0) {
         WalletLogPrintf("Automatic wallet backups are disabled!\n");
         return false;
