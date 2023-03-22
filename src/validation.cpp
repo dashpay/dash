@@ -1907,8 +1907,7 @@ bool CheckInputScripts(const CTransaction& tx, TxValidationState& state,
         // Verify signature
         CScriptCheck check(coin.out, tx, i, flags, cacheSigStore, &txdata);
         if (pvChecks) {
-            pvChecks->push_back(CScriptCheck());
-            check.swap(pvChecks->back());
+            pvChecks->emplace_back(std::move(check));
         } else if (!check()) {
             const bool hasNonMandatoryFlags = (flags & STANDARD_NOT_MANDATORY_VERIFY_FLAGS) != 0;
 
@@ -2422,7 +2421,7 @@ bool CChainState::ConnectBlock(const CBlock& block, BlockValidationState& state,
                     tx.GetHash().ToString(), state.ToString());
                 return false;
             }
-            control.Add(vChecks);
+            control.Add(std::move(vChecks));
         }
 
         CTxUndo undoDummy;
