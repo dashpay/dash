@@ -336,6 +336,12 @@ std::shared_ptr<CWallet> CreateWallet(interfaces::Chain& chain, const std::strin
             }
             // end TODO
 
+            // backup the wallet we just encrypted
+            if (!wallet->AutoBackupWallet("", error, warnings) && !error.original.empty()) {
+                status = DatabaseStatus::FAILED_ENCRYPT;
+                return nullptr;
+            }
+
             // Relock the wallet
             wallet->Lock();
         }
