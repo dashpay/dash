@@ -116,6 +116,7 @@ CNode* ConnmanTestMsg::ConnectNodePublic(PeerManager& peerman, const char* pszDe
 std::vector<NodeEvictionCandidate> GetRandomNodeEvictionCandidates(int n_candidates, FastRandomContext& random_context)
 {
     std::vector<NodeEvictionCandidate> candidates;
+    candidates.reserve(n_candidates);
     for (int id = 0; id < n_candidates; ++id) {
         candidates.push_back({
             /*id=*/id,
