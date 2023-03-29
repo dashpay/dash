@@ -239,10 +239,7 @@ std::vector<CDeterministicMNCPtr> CDeterministicMNList::GetProjectedMNPayees(int
     });
 
     ForEachMNShared(true, [&](const CDeterministicMNCPtr& dmn) {
-        result.emplace_back(dmn);
-        if (dmn->nType == MnType::HighPerformance) {
-            result.emplace_back(dmn);
-            result.emplace_back(dmn);
+        for ([[maybe_unused]] auto _ : irange::range(GetMnType(dmn->nType).voting_weight)) {
             result.emplace_back(dmn);
         }
     });
