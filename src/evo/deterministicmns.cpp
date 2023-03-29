@@ -218,12 +218,13 @@ std::vector<CDeterministicMNCPtr> CDeterministicMNList::GetProjectedMNPayees(int
     if (nCount < 0 ) {
         return {};
     }
-    nCount = std::min(nCount, int(GetValidMNsCount()));
+    nCount = std::min(nCount, int(GetValidWeightedMNsCount()));
 
     std::vector<CDeterministicMNCPtr> result;
     result.reserve(nCount);
 
     auto remaining_hpmn_payments = 0;
+    CDeterministicMNCPtr hpmn_to_be_skipped = nullptr;
     ForEachMNShared(true, [&](const CDeterministicMNCPtr& dmn) {
         if (dmn->pdmnState->nLastPaidHeight == nHeight) {
             // We found the last MN Payee.
@@ -232,6 +233,7 @@ std::vector<CDeterministicMNCPtr> CDeterministicMNList::GetProjectedMNPayees(int
                 remaining_hpmn_payments = dmn_types::HighPerformance.voting_weight - dmn->pdmnState->nConsecutivePayments;
                 for ([[maybe_unused]] auto _ : irange::range(remaining_hpmn_payments)) {
                     result.emplace_back(dmn);
+                    hpmn_to_be_skipped = dmn;
                 }
             }
         }
@@ -239,6 +241,7 @@ std::vector<CDeterministicMNCPtr> CDeterministicMNList::GetProjectedMNPayees(int
     });
 
     ForEachMNShared(true, [&](const CDeterministicMNCPtr& dmn) {
+        if (dmn == hpmn_to_be_skipped) return;
         for ([[maybe_unused]] auto _ : irange::range(GetMnType(dmn->nType).voting_weight)) {
             result.emplace_back(dmn);
         }
@@ -247,7 +250,7 @@ std::vector<CDeterministicMNCPtr> CDeterministicMNList::GetProjectedMNPayees(int
         return CompareByLastPaid(a.get(), b.get());
     });
 
-    result.resize(nCount);
+    result.resize(nCount - (GetMnType(MnType::HighPerformance).voting_weight - remaining_hpmn_payments));
 
     return result;
 }
