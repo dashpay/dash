@@ -250,7 +250,7 @@ std::vector<CDeterministicMNCPtr> CDeterministicMNList::GetProjectedMNPayees(int
         return CompareByLastPaid(a.get(), b.get());
     });
 
-    result.resize(nCount - (GetMnType(MnType::HighPerformance).voting_weight - remaining_hpmn_payments));
+    result.resize(nCount);
 
     return result;
 }
