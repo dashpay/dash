@@ -629,8 +629,23 @@ void CQuorumManager::ProcessMessage(CNode& pfrom, const std::string& msg_type, C
         CQuorumDataRequest request;
         vRecv >> request;
 
-        auto sendQDATA = [&](CQuorumDataRequest::Errors nError = CQuorumDataRequest::Errors::UNDEFINED,
+        auto sendQDATA = [&](CQuorumDataRequest::Errors nError,
+                             bool request_limit_exceeded,
                              const CDataStream& body = CDataStream(SER_NETWORK, PROTOCOL_VERSION)) {
+            switch (nError) {
+                case (CQuorumDataRequest::Errors::NONE):
+                case (CQuorumDataRequest::Errors::QUORUM_TYPE_INVALID):
+                case (CQuorumDataRequest::Errors::QUORUM_BLOCK_NOT_FOUND):
+                case (CQuorumDataRequest::Errors::QUORUM_NOT_FOUND):
+                case (CQuorumDataRequest::Errors::MASTERNODE_IS_NO_MEMBER):
+                case (CQuorumDataRequest::Errors::UNDEFINED):
+                    if (request_limit_exceeded) errorHandler("Request limit exceeded", 25);
+                    break;
+                case (CQuorumDataRequest::Errors::QUORUM_VERIFICATION_VECTOR_MISSING):
+                case (CQuorumDataRequest::Errors::ENCRYPTED_CONTRIBUTIONS_MISSING):
+                    // Do not punish limit exceed if we don't have the requested data
+                    break;
+            }
             request.SetError(nError);
             CDataStream ssResponse(SER_NETWORK, pfrom.GetSendVersion(), request, body);
             connman.PushMessage(&pfrom, CNetMsgMaker(pfrom.GetSendVersion()).Make(NetMsgType::QDATA, ssResponse));
@@ -655,22 +670,19 @@ void CQuorumManager::ProcessMessage(CNode& pfrom, const std::string& msg_type, C
         }
 
         if (!GetLLMQParams(request.GetLLMQType()).has_value()) {
-            if (request_limit_exceeded) errorHandler("Request limit exceeded", 25);
-            sendQDATA(CQuorumDataRequest::Errors::QUORUM_TYPE_INVALID);
+            sendQDATA(CQuorumDataRequest::Errors::QUORUM_TYPE_INVALID, request_limit_exceeded);
             return;
         }
 
         const CBlockIndex* pQuorumBaseBlockIndex = WITH_LOCK(cs_main, return LookupBlockIndex(request.GetQuorumHash()));
         if (pQuorumBaseBlockIndex == nullptr) {
-            if (request_limit_exceeded) errorHandler("Request limit exceeded", 25);
-            sendQDATA(CQuorumDataRequest::Errors::QUORUM_BLOCK_NOT_FOUND);
+            sendQDATA(CQuorumDataRequest::Errors::QUORUM_BLOCK_NOT_FOUND, request_limit_exceeded);
             return;
         }
 
         const CQuorumCPtr pQuorum = GetQuorum(request.GetLLMQType(), pQuorumBaseBlockIndex);
         if (pQuorum == nullptr) {
-            if (request_limit_exceeded) errorHandler("Request limit exceeded", 25);
-            sendQDATA(CQuorumDataRequest::Errors::QUORUM_NOT_FOUND);
+            sendQDATA(CQuorumDataRequest::Errors::QUORUM_NOT_FOUND, request_limit_exceeded);
             return;
         }
 
@@ -679,8 +691,7 @@ void CQuorumManager::ProcessMessage(CNode& pfrom, const std::string& msg_type, C
         // Check if request wants QUORUM_VERIFICATION_VECTOR data
         if (request.GetDataMask() & CQuorumDataRequest::QUORUM_VERIFICATION_VECTOR) {
             if (!pQuorum->HasVerificationVector()) {
-                // Do not punish limit exceed if we don't have the requested data
-                sendQDATA(CQuorumDataRequest::Errors::QUORUM_VERIFICATION_VECTOR_MISSING);
+                sendQDATA(CQuorumDataRequest::Errors::QUORUM_VERIFICATION_VECTOR_MISSING, request_limit_exceeded);
                 return;
             }
 
@@ -692,23 +703,20 @@ void CQuorumManager::ProcessMessage(CNode& pfrom, const std::string& msg_type, C
 
             int memberIdx = pQuorum->GetMemberIndex(request.GetProTxHash());
             if (memberIdx == -1) {
-                if (request_limit_exceeded) errorHandler("Request limit exceeded", 25);
-                sendQDATA(CQuorumDataRequest::Errors::MASTERNODE_IS_NO_MEMBER);
+                sendQDATA(CQuorumDataRequest::Errors::MASTERNODE_IS_NO_MEMBER, request_limit_exceeded);
                 return;
             }
 
             std::vector<CBLSIESEncryptedObject<CBLSSecretKey>> vecEncrypted;
             if (!dkgManager.GetEncryptedContributions(request.GetLLMQType(), pQuorumBaseBlockIndex, pQuorum->qc->validMembers, request.GetProTxHash(), vecEncrypted)) {
-                // Do not punish limit exceed if we don't have the requested data
-                sendQDATA(CQuorumDataRequest::Errors::ENCRYPTED_CONTRIBUTIONS_MISSING);
+                sendQDATA(CQuorumDataRequest::Errors::ENCRYPTED_CONTRIBUTIONS_MISSING, request_limit_exceeded);
                 return;
             }
 
             ssResponseData << vecEncrypted;
         }
 
-        if (request_limit_exceeded) errorHandler("Request limit exceeded", 25);
-        sendQDATA(CQuorumDataRequest::Errors::NONE, ssResponseData);
+        sendQDATA(CQuorumDataRequest::Errors::NONE, request_limit_exceeded, ssResponseData);
         return;
     }
 
