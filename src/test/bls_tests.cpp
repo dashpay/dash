@@ -403,9 +403,7 @@ void FuncThresholdSignature(const bool legacy_scheme)
         BOOST_CHECK_EQUAL(rec_share_sig.Recover(v_share_sigs, v_share_ids), m_shares >= 2);
         BOOST_CHECK_EQUAL(rec_share_sig.IsValid(), m_shares >= 2);
         BOOST_CHECK_EQUAL(rec_share_sig == thr_sig, m_shares >= m_threshold);
-        BOOST_CHECK_EQUAL(rec_share_sig != thr_sig, m_shares < m_threshold);
         BOOST_CHECK_EQUAL(rec_share_sig.VerifyInsecure(thr_pk, hash), m_shares >= m_threshold);
-        BOOST_CHECK_EQUAL(!rec_share_sig.VerifyInsecure(thr_pk, hash), m_shares < m_threshold);
     }
 }
 
