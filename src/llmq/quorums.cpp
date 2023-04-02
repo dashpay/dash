@@ -731,6 +731,7 @@ void CQuorumManager::ProcessMessage(CNode& pfrom, const std::string& msg_type, C
         CQuorumDataRequest request;
         vRecv >> request;
 
+        decltype(mapQuorumDataRequests)::iterator it_request;
         {
             LOCK2(cs_main, cs_data_requests);
             CQuorumDataRequestKey key;
@@ -738,20 +739,19 @@ void CQuorumManager::ProcessMessage(CNode& pfrom, const std::string& msg_type, C
             key.flag = true;
             key.quorumHash = request.GetQuorumHash();
             key.llmqType = request.GetLLMQType();
-            auto it = mapQuorumDataRequests.find(key);
-            if (it == mapQuorumDataRequests.end()) {
+            it_request = mapQuorumDataRequests.find(key);
+            if (it_request == mapQuorumDataRequests.end()) {
                 errorHandler("Not requested");
                 return;
             }
-            if (it->second.IsProcessed()) {
+            if (it_request->second.IsProcessed()) {
                 errorHandler("Already received");
                 return;
             }
-            if (request != it->second) {
+            if (request != it_request->second) {
                 errorHandler("Not like requested");
                 return;
             }
-            it->second.SetProcessed();
         }
 
         if (request.GetError() != CQuorumDataRequest::Errors::NONE) {
@@ -816,6 +816,8 @@ void CQuorumManager::ProcessMessage(CNode& pfrom, const std::string& msg_type, C
             }
         }
         pQuorum->WriteContributions(m_evoDb);
+        it_request->second.SetProcessed();
+        
         return;
     }
 }
