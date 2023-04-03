@@ -4,7 +4,8 @@
 
 #include <qt/walletframe.h>
 
-#include <fs.h>
+#include <util/fs.h>
+#include <util/fs_helpers.h>
 #include <node/interface_ui.h>
 #include <psbt.h>
 #include <util/system.h>

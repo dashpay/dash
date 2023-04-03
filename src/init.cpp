@@ -19,7 +19,8 @@
 #include <context.h>
 #include <consensus/amount.h>
 #include <deploymentstatus.h>
-#include <fs.h>
+#include <util/fs.h>
+#include <util/fs_helpers.h>
 #include <hash.h>
 #include <httpserver.h>
 #include <httprpc.h>

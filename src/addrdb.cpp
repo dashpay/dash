@@ -8,7 +8,8 @@
 #include <addrman.h>
 #include <chainparams.h>
 #include <clientversion.h>
-#include <fs.h>
+#include <util/fs.h>
+#include <util/fs_helpers.h>
 #include <hash.h>
 #include <logging/timer.h>
 #include <netbase.h>

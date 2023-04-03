@@ -41,6 +41,7 @@
 #include <uint256.h>
 #include <undo.h>
 #include <util/check.h>
+#include <util/fs_helpers.h>
 #include <util/hasher.h>
 #include <util/strencodings.h>
 #include <util/trace.h>

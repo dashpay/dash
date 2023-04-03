@@ -18,9 +18,9 @@
 #include <compat/assumptions.h>
 #include <compat/compat.h>
 #include <consensus/amount.h>
-#include <fs.h>
 #include <logging.h>
 #include <sync.h>
+#include <util/fs.h>
 #include <util/settings.h>
 #include <util/time.h>
 
@@ -58,55 +58,10 @@ bool error(const char* fmt, const Args&... args)
 
 void PrintExceptionContinue(const std::exception_ptr pex, const char* pszExceptionOrigin);
 
-/**
- * Ensure file contents are fully committed to disk, using a platform-specific
- * feature analogous to fsync().
- */
-bool FileCommit(FILE *file);
-
-/**
- * Sync directory contents. This is required on some environments to ensure that
- * newly created files are committed to disk.
- */
-void DirectoryCommit(const fs::path &dirname);
-
-bool TruncateFile(FILE *file, unsigned int length);
-int RaiseFileDescriptorLimit(int nMinFD);
-void AllocateFileRange(FILE *file, unsigned int offset, unsigned int length);
-
-/**
- * Rename src to dest.
- * @return true if the rename was successful.
- */
-[[nodiscard]] bool RenameOver(fs::path src, fs::path dest);
-
-bool LockDirectory(const fs::path& directory, const fs::path& lockfile_name, bool probe_only=false);
-void UnlockDirectory(const fs::path& directory, const fs::path& lockfile_name);
-bool DirIsWritable(const fs::path& directory);
-bool CheckDiskSpace(const fs::path& dir, uint64_t additional_bytes = 0);
-
-/** Get the size of a file by scanning it.
- *
- * @param[in] path The file path
- * @param[in] max Stop seeking beyond this limit
- * @return The file size or max
- */
-std::streampos GetFileSize(const char* path, std::streamsize max = std::numeric_limits<std::streamsize>::max());
-
-/** Release all directory locks. This is used for unit testing only, at runtime
- * the global destructor will take care of the locks.
- */
-/** Dash: We also use this to release locks earlier when restarting the client */
-void ReleaseDirectoryLocks();
-
-bool TryCreateDirectories(const fs::path& p);
 fs::path GetDefaultDataDir();
 // Return true if -datadir option points to a valid directory or is not specified.
 bool CheckDataDirOption();
 fs::path GetConfigFile(const fs::path& configuration_file_path);
-#ifdef WIN32
-fs::path GetSpecialFolderPath(int nFolder, bool fCreate = true);
-#endif
 #ifndef WIN32
 std::string ShellEscape(const std::string& arg);
 #endif

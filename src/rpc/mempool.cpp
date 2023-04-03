@@ -11,7 +11,7 @@
 
 #include <chainparams.h>
 #include <core_io.h>
-#include <fs.h>
+#include <util/fs.h>
 #include <policy/settings.h>
 #include <primitives/transaction.h>
 #include <rpc/server.h>

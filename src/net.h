@@ -12,7 +12,7 @@
 #include <compat/compat.h>
 #include <consensus/amount.h>
 #include <consensus/params.h>
-#include <fs.h>
+#include <util/fs.h>
 #include <crypto/siphash.h>
 #include <hash.h>
 #include <i2p.h>

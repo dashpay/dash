@@ -8,7 +8,7 @@
 #define BITCOIN_WALLET_WALLET_H
 
 #include <consensus/amount.h>
-#include <fs.h>
+#include <util/fs.h>
 #include <governance/common.h>
 #include <interfaces/chain.h>
 #include <interfaces/coinjoin.h>

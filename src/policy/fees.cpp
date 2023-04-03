@@ -7,7 +7,7 @@
 
 #include <clientversion.h>
 #include <consensus/amount.h>
-#include <fs.h>
+#include <util/fs.h>
 #include <logging.h>
 #include <policy/feerate.h>
 #include <primitives/transaction.h>

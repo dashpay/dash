@@ -13,7 +13,8 @@
 #include <consensus/consensus.h>
 #include <crypto/common.h>
 #include <external_signer.h>
-#include <fs.h>
+#include <util/fs.h>
+#include <util/fs_helpers.h>
 #include <interfaces/chain.h>
 #include <interfaces/wallet.h>
 #include <key.h>

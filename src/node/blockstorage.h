@@ -8,7 +8,7 @@
 #include <attributes.h>
 #include <chain.h>
 #include <chainparams.h>
-#include <fs.h>
+#include <util/fs.h>
 #include <kernel/blockmanager_opts.h>
 #include <protocol.h>
 #include <sync.h>

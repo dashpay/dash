@@ -5,7 +5,7 @@
 #include <util/asmap.h>
 
 #include <clientversion.h>
-#include <fs.h>
+#include <util/fs.h>
 #include <logging.h>
 #include <serialize.h>
 #include <streams.h>

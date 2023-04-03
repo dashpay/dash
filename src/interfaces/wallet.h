@@ -6,7 +6,7 @@
 #define BITCOIN_INTERFACES_WALLET_H
 
 #include <consensus/amount.h>          // For CAmount
-#include <fs.h>
+#include <util/fs.h>
 #include <governance/common.h>
 #include <interfaces/chain.h>          // For ChainClient
 #include <pubkey.h>                    // For CKeyID and CScriptID (definitions needed in CTxDestination instantiation)

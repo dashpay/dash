@@ -19,6 +19,7 @@
 #include <netmessagemaker.h>
 #include <shutdown.h>
 #include <util/check.h>
+#include <util/fs_helpers.h>
 #include <util/moneystr.h>
 #include <util/system.h>
 #include <util/translation.h>
@@ -1782,4 +1783,3 @@ void CCoinJoinClientManager::GetJsonInfo(UniValue& obj) const
     }
     obj.pushKV("sessions", arrSessions);
 }
-

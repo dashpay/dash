@@ -7,7 +7,7 @@
 #include <wallet/walletdb.h>
 
 #include <key_io.h>
-#include <fs.h>
+#include <util/fs.h>
 #include <governance/common.h>
 #include <protocol.h>
 #include <serialize.h>

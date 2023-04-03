@@ -7,7 +7,7 @@
 
 #include <coinjoin/client.h>
 #include <coinjoin/options.h>
-#include <fs.h>
+#include <util/fs.h>
 #include <net.h>
 #include <interfaces/chain.h>
 #include <scheduler.h>

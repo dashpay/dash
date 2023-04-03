@@ -7,7 +7,7 @@
 #include <chainparams.h>
 #include <clientversion.h>
 #include <core_io.h>
-#include <fs.h>
+#include <util/fs.h>
 #include <interfaces/chain.h>
 #include <key_io.h>
 #include <merkleblock.h>
