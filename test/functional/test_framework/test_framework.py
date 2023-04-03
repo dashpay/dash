@@ -1172,7 +1172,7 @@ class DashTestFramework(BitcoinTestFramework):
         operator_reward_address = self.nodes[0].getnewaddress()
 
         # For the sake of the test, generate random nodeid, p2p and http platform values
-        r = rnd if rnd is not None else random.randint(1000, 65000)
+        r = rnd if rnd is not None else random.randint(21000, 65000)
         platform_node_id = hash160(b'%d' % r).hex()
         platform_p2p_port = '%d' % (r + 1)
         platform_http_port = '%d' % (r + 2)
