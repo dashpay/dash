@@ -1138,14 +1138,15 @@ class DashTestFramework(BitcoinTestFramework):
         platform_http_port = '%d' % (node_p2p_port + 102) if hpmn else ''
 
         collateral_amount = 4000 if hpmn else 1000
-        collateral_txid = self.nodes[0].sendtoaddress(collateral_address, collateral_amount)
-        # send to same address to reserve some funds for fees
-        self.nodes[0].sendtoaddress(funds_address, 1)
-        collateral_vout = 0
-        self.nodes[0].generate(1)
+        outputs = {collateral_address: collateral_amount, funds_address: 1}
+        collateral_txid = self.nodes[0].sendmany("", outputs)
+        self.wait_for_instantlock(collateral_txid, self.nodes[0])
+        tip = self.nodes[0].generate(1)[0]
         self.sync_all(self.nodes)
 
-        rawtx = self.nodes[0].getrawtransaction(collateral_txid, 1)
+        rawtx = self.nodes[0].getrawtransaction(collateral_txid, 1, tip)
+        assert_equal(rawtx['confirmations'], 1)
+        collateral_vout = 0
         for txout in rawtx['vout']:
             if txout['value'] == Decimal(collateral_amount):
                 collateral_vout = txout['n']
@@ -1155,11 +1156,13 @@ class DashTestFramework(BitcoinTestFramework):
         ipAndPort = '127.0.0.1:%d' % node_p2p_port
         operatorReward = idx
 
-        self.nodes[0].generate(1)
         register_rpc = 'register_hpmn' if hpmn else 'register'
         protx_result = self.nodes[0].protx(register_rpc, collateral_txid, collateral_vout, ipAndPort, owner_address, bls['public'], voting_address, operatorReward, reward_address, platform_node_id, platform_p2p_port, platform_http_port, funds_address, True)
-        self.nodes[0].generate(1)
+        self.wait_for_instantlock(protx_result, self.nodes[0])
+        tip = self.nodes[0].generate(1)[0]
         self.sync_all(self.nodes)
+
+        assert_equal(self.nodes[0].getrawtransaction(protx_result, 1, tip)['confirmations'], 1)
         mn_info = MasternodeInfo(protx_result, owner_address, voting_address, bls['public'], bls['secret'], collateral_address, collateral_txid, collateral_vout, ipAndPort, hpmn)
         self.mninfo.append(mn_info)
 
@@ -1177,14 +1180,18 @@ class DashTestFramework(BitcoinTestFramework):
         platform_p2p_port = '%d' % (r + 1)
         platform_http_port = '%d' % (r + 2)
 
-        self.nodes[0].sendtoaddress(funds_address, 1)
-        self.nodes[0].generate(1)
+        fund_txid = self.nodes[0].sendtoaddress(funds_address, 1)
+        self.wait_for_instantlock(fund_txid, self.nodes[0])
+        tip = self.nodes[0].generate(1)[0]
+        assert_equal(self.nodes[0].getrawtransaction(fund_txid, 1, tip)['confirmations'], 1)
         self.sync_all(self.nodes)
 
         protx_success = False
         try:
-            self.nodes[0].protx('update_service_hpmn', hpmn_info.proTxHash, hpmn_info.addr, hpmn_info.keyOperator, platform_node_id, platform_p2p_port, platform_http_port, operator_reward_address, funds_address)
-            self.nodes[0].generate(1)
+            protx_result = self.nodes[0].protx('update_service_hpmn', hpmn_info.proTxHash, hpmn_info.addr, hpmn_info.keyOperator, platform_node_id, platform_p2p_port, platform_http_port, operator_reward_address, funds_address)
+            self.wait_for_instantlock(protx_result, self.nodes[0])
+            tip = self.nodes[0].generate(1)[0]
+            assert_equal(self.nodes[0].getrawtransaction(protx_result, 1, tip)['confirmations'], 1)
             self.sync_all(self.nodes)
             self.log.info("Updated HPMN %s: platformNodeID=%s, platformP2PPort=%s, platformHTTPPort=%s" % (hpmn_info.proTxHash, platform_node_id, platform_p2p_port, platform_http_port))
             protx_success = True
