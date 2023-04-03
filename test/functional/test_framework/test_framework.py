@@ -1098,8 +1098,11 @@ class DashTestFramework(BitcoinTestFramework):
             protx_success = True
         except:
             self.log.info("protx_hpmn rejected")
+
+        assert_equal(protx_success, not should_be_rejected)
+
         if should_be_rejected:
-            assert_equal(protx_success, False)
+            # nothing to do
             return
 
         self.dynamically_initialize_datadir(self.nodes[0].chain,node_p2p_port, node_rpc_port)
@@ -1187,8 +1190,8 @@ class DashTestFramework(BitcoinTestFramework):
             protx_success = True
         except:
             self.log.info("protx_hpmn rejected")
-        if should_be_rejected:
-            assert_equal(protx_success, False)
+
+        assert_equal(protx_success, not should_be_rejected)
 
     def prepare_masternodes(self):
         self.log.info("Preparing %d masternodes" % self.mn_count)
