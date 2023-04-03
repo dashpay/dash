@@ -1345,7 +1345,7 @@ class DashTestFramework(BitcoinTestFramework):
         self.start_node(0)
         self.import_deterministic_coinbase_privkeys()
         required_balance = HIGHPERFORMANCE_MASTERNODE_COLLATERAL * self.hpmn_count
-        required_balance += MASTERNODE_COLLATERAL * (self.mn_count - self.hpmn_count) + 1
+        required_balance += MASTERNODE_COLLATERAL * (self.mn_count - self.hpmn_count) + 100
         self.log.info("Generating %d coins" % required_balance)
         while self.nodes[0].getbalance() < required_balance:
             self.bump_mocktime(1)
