@@ -469,16 +469,21 @@ bool CQuorumManager::RequestQuorumData(CNode* pfrom, Consensus::LLMQType llmqTyp
 
     LOCK(cs_data_requests);
     const CQuorumDataRequestKey key(pfrom->GetVerifiedProRegTxHash(), true, pQuorumBaseBlockIndex->GetBlockHash(), llmqType);
-    auto it = mapQuorumDataRequests.emplace(key, CQuorumDataRequest(llmqType, pQuorumBaseBlockIndex->GetBlockHash(), nDataMask, proTxHash));
-    if (!it.second && !it.first->second.IsExpired(/*add_bias=*/true)) {
-        LogPrint(BCLog::LLMQ, "CQuorumManager::%s -- Already requested\n", __func__);
-        return false;
+    const CQuorumDataRequest request(llmqType, pQuorumBaseBlockIndex->GetBlockHash(), nDataMask, proTxHash);
+    auto [old_pair, exists] = mapQuorumDataRequests.emplace(key, request);
+    if (!exists) {
+        if (old_pair->second.IsExpired(/*add_bias=*/true)) {
+            old_pair->second = request;
+        } else {
+            LogPrint(BCLog::LLMQ, "CQuorumManager::%s -- Already requested\n", __func__);
+            return false;
+        }
     }
     LogPrint(BCLog::LLMQ, "CQuorumManager::%s -- sending QGETDATA quorumHash[%s] llmqType[%d] proRegTx[%s]\n", __func__, key.quorumHash.ToString(),
              ToUnderlying(key.llmqType), key.proRegTx.ToString());
 
     CNetMsgMaker msgMaker(pfrom->GetSendVersion());
-    connman.PushMessage(pfrom, msgMaker.Make(NetMsgType::QGETDATA, it.first->second));
+    connman.PushMessage(pfrom, msgMaker.Make(NetMsgType::QGETDATA, request));
 
     return true;
 }
