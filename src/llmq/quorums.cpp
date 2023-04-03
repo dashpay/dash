@@ -817,7 +817,7 @@ void CQuorumManager::ProcessMessage(CNode& pfrom, const std::string& msg_type, C
         }
         pQuorum->WriteContributions(m_evoDb);
         it_request->second.SetProcessed();
-        
+
         return;
     }
 }
