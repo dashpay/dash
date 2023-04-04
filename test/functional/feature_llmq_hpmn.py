@@ -112,48 +112,48 @@ class LLMQHPMNTest(DashTestFramework):
         self.test_hpmn_protx_are_in_mnlist(hpmn_protxhash_list)
 
         self.log.info("Test that HPMNs are paid 4x blocks in a row")
-        self.test_hpmmn_payements(window_analysis=256)
+        self.test_hpmn_payments(window_analysis=256)
 
         self.log.info(self.nodes[0].masternodelist())
 
         return
 
-    def test_hpmmn_payements(self, window_analysis):
+    def test_hpmn_payments(self, window_analysis):
         current_hpmn = None
-        consecutive_paymments = 0
+        consecutive_payments = 0
         for i in range(0, window_analysis):
             payee = self.get_mn_payee_for_block(self.nodes[0].getbestblockhash())
             if payee is not None and payee.hpmn:
                 if current_hpmn is not None and payee.proTxHash == current_hpmn.proTxHash:
                     # same HPMN
-                    assert consecutive_paymments > 0
-                    consecutive_paymments += 1
-                    consecutive_paymments_rpc = self.nodes[0].protx('info', current_hpmn.proTxHash)['state']['consecutivePayments']
-                    assert_equal(consecutive_paymments, consecutive_paymments_rpc)
+                    assert consecutive_payments > 0
+                    consecutive_payments += 1
+                    consecutive_payments_rpc = self.nodes[0].protx('info', current_hpmn.proTxHash)['state']['consecutivePayments']
+                    assert_equal(consecutive_payments, consecutive_payments_rpc)
                 else:
                     # new HPMN
                     if current_hpmn is not None:
                         # make sure the old one was paid 4 times in a row
-                        assert_equal(consecutive_paymments, 4)
-                        consecutive_paymments_rpc = self.nodes[0].protx('info', current_hpmn.proTxHash)['state']['consecutivePayments']
+                        assert_equal(consecutive_payments, 4)
+                        consecutive_payments_rpc = self.nodes[0].protx('info', current_hpmn.proTxHash)['state']['consecutivePayments']
                         # old HPMN should have its nConsecutivePayments reset to 0
-                        assert_equal(consecutive_paymments_rpc, 0)
-                    consecutive_paymments_rpc = self.nodes[0].protx('info', payee.proTxHash)['state']['consecutivePayments']
+                        assert_equal(consecutive_payments_rpc, 0)
+                    consecutive_payments_rpc = self.nodes[0].protx('info', payee.proTxHash)['state']['consecutivePayments']
                     # if hpmn is the one we start "for" loop with,
                     # we have no idea how many times it was paid before - rely on rpc results here
-                    consecutive_paymments = consecutive_paymments_rpc if i == 0 and current_hpmn is None else 1
+                    consecutive_payments = consecutive_payments_rpc if i == 0 and current_hpmn is None else 1
                     current_hpmn = payee
-                    assert_equal(consecutive_paymments, consecutive_paymments_rpc)
+                    assert_equal(consecutive_payments, consecutive_payments_rpc)
             else:
                 # not a HPMN
                 if current_hpmn is not None:
                     # make sure the old one was paid 4 times in a row
-                    assert_equal(consecutive_paymments, 4)
-                    consecutive_paymments_rpc = self.nodes[0].protx('info', current_hpmn.proTxHash)['state']['consecutivePayments']
+                    assert_equal(consecutive_payments, 4)
+                    consecutive_payments_rpc = self.nodes[0].protx('info', current_hpmn.proTxHash)['state']['consecutivePayments']
                     # old HPMN should have its nConsecutivePayments reset to 0
-                    assert_equal(consecutive_paymments_rpc, 0)
+                    assert_equal(consecutive_payments_rpc, 0)
                 current_hpmn = None
-                consecutive_paymments = 0
+                consecutive_payments = 0
 
             self.nodes[0].generate(1)
             if i % 8 == 0:
