@@ -15,8 +15,6 @@
 
 #include <univalue.h>
 
-#include <limits>
-
 #include <QMessageBox>
 #include <QTableWidgetItem>
 #include <QtGui/QClipboard>
@@ -204,8 +202,7 @@ void MasternodeList::updateDIP3List()
 
     nTimeUpdatedDIP3 = GetTime();
 
-    // using max() here to avoid calling GetValidWeightedMNsCount twice
-    auto projectedPayees = mnList.GetProjectedMNPayees(std::numeric_limits<int>::max());
+    auto projectedPayees = mnList.GetProjectedMNPayees();
     std::map<uint256, int> nextPayments;
     for (size_t i = 0; i < projectedPayees.size(); i++) {
         const auto& dmn = projectedPayees[i];
