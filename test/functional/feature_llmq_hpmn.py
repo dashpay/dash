@@ -138,9 +138,11 @@ class LLMQHPMNTest(DashTestFramework):
                         consecutive_paymments_rpc = self.nodes[0].protx('info', current_hpmn.proTxHash)['state']['consecutivePayments']
                         # old HPMN should have its nConsecutivePayments reset to 0
                         assert_equal(consecutive_paymments_rpc, 0)
+                    consecutive_paymments_rpc = self.nodes[0].protx('info', payee.proTxHash)['state']['consecutivePayments']
+                    # if hpmn is the one we start "for" loop with,
+                    # we have no idea how many times it was paid before - rely on rpc results here
+                    consecutive_paymments = consecutive_paymments_rpc if i == 0 and current_hpmn is None else 1
                     current_hpmn = payee
-                    consecutive_paymments = 1
-                    consecutive_paymments_rpc = self.nodes[0].protx('info', current_hpmn.proTxHash)['state']['consecutivePayments']
                     assert_equal(consecutive_paymments, consecutive_paymments_rpc)
             else:
                 # not a HPMN
