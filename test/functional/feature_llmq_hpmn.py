@@ -199,14 +199,15 @@ class LLMQHPMNTest(DashTestFramework):
         reward_address = self.nodes[0].getnewaddress()
 
         collateral_amount = 4000
-        collateral_txid = self.nodes[0].sendtoaddress(collateral_address, collateral_amount)
-        # send to same address to reserve some funds for fees
-        self.nodes[0].sendtoaddress(funds_address, 1)
-        collateral_vout = 0
-        self.nodes[0].generate(1)
+        outputs = {collateral_address: collateral_amount, funds_address: 1}
+        collateral_txid = self.nodes[0].sendmany("", outputs)
+        self.wait_for_instantlock(collateral_txid, self.nodes[0])
+        tip = self.nodes[0].generate(1)[0]
         self.sync_all(self.nodes)
 
-        rawtx = self.nodes[0].getrawtransaction(collateral_txid, 1)
+        rawtx = self.nodes[0].getrawtransaction(collateral_txid, 1, tip)
+        assert_equal(rawtx['confirmations'], 1)
+        collateral_vout = 0
         for txout in rawtx['vout']:
             if txout['value'] == Decimal(collateral_amount):
                 collateral_vout = txout['n']
@@ -216,15 +217,12 @@ class LLMQHPMNTest(DashTestFramework):
         ipAndPort = '127.0.0.1:%d' % p2p_port(len(self.nodes))
         operatorReward = len(self.nodes)
 
-        self.nodes[0].generate(1)
-
-        protx_success = False
         try:
             self.nodes[0].protx('register_hpmn', collateral_txid, collateral_vout, ipAndPort, owner_address, bls['public'], voting_address, operatorReward, reward_address, funds_address, True)
-            protx_success = True
+            # this should never succeed
+            assert False
         except:
             self.log.info("protx_hpmn rejected")
-        assert_equal(protx_success, False)
 
     def test_masternode_count(self, expected_mns_count, expected_hpmns_count):
         mn_count = self.nodes[0].masternode('count')
