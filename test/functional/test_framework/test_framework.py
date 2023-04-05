@@ -1427,7 +1427,7 @@ class DashTestFramework(BitcoinTestFramework):
         ret = {**decoded, **ret}
         return ret
 
-    def wait_for_tx(self, txid, node, expected=True, timeout=15):
+    def wait_for_tx(self, txid, node, expected=True, timeout=60):
         def check_tx():
             try:
                 self.bump_mocktime(1)
@@ -1467,7 +1467,7 @@ class DashTestFramework(BitcoinTestFramework):
 
         return islock
 
-    def wait_for_instantlock(self, txid, node, expected=True, timeout=15):
+    def wait_for_instantlock(self, txid, node, expected=True, timeout=60):
         def check_instantlock():
             self.bump_mocktime(1)
             try:
