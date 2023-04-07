@@ -74,6 +74,9 @@ public:
                 obj.isValid
                 );
         if (obj.nVersion == BASIC_BLS_VERSION) {
+            if ((s.GetType() & SER_NETWORK) && s.GetVersion() < DMN_TYPE_PROTO_VERSION) {
+                return;
+            }
             READWRITE(obj.nType);
             if (obj.nType == MnType::HighPerformance) {
                 READWRITE(obj.platformHTTPPort);
