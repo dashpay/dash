@@ -43,47 +43,47 @@ See the `Config` object for various options.
 
 Validate releases with default settings:
 ```sh
-./contrib/verifybinaries/verify.py pub 22.0.0
-./contrib/verifybinaries/verify.py pub 22.1.0-rc.1
+./contrib/verify-binaries/verify.py pub 22.0.0
+./contrib/verify-binaries/verify.py pub 22.1.0-rc.1
 ```
 
 Get JSON output and don't prompt for user input (no auto key import):
 
 ```sh
-./contrib/verifybinaries/verify.py --json pub 22.0.0-x86
+./contrib/verify-binaries/verify.py --json pub 22.0.0-x86
 ```
 
 Rely only on local GPG state and manually specified keys, while requiring a
 threshold of at least 2 trusted signatures:
 ```sh
-./contrib/verifybinaries/verify.py \
+./contrib/verify-binaries/verify.py \
     --trusted-keys D7E6BFBF42F2156438576D82B5675DB01F917CFA,15191D05B5CF956FE37C95962176C4A5D01EA524 \
     --min-good-sigs 2 pub 22.0.0-x86
 ```
 
-If you only want to download the binaries of certain platform, add the corresponding suffix, e.g.:
+If you only want to download the binaries for a certain platform, add the corresponding suffix, e.g.:
 
 ```sh
-./contrib/verifybinaries/verify.py pub 22.0.0-darwin
-./contrib/verifybinaries/verify.py pub 22.1.0-rc.1-win64
+./contrib/verify-binaries/verify.py pub 22.0.0-darwin
+./contrib/verify-binaries/verify.py pub 22.1.0-rc.1-win64
 ```
 
 If you do not want to keep the downloaded binaries, specify the cleanup option.
 
 ```sh
-./contrib/verifybinaries/verify.py pub --cleanup 22.0.0
+./contrib/verify-binaries/verify.py pub --cleanup 22.0.0
 ```
 
 Use the bin subcommand to verify all files listed in a local checksum file
 
 ```sh
-./contrib/verifybinaries/verify.py bin SHA256SUMS
+./contrib/verify-binaries/verify.py bin SHA256SUMS
 ```
 
 Verify only a subset of the files listed in a local checksum file
 
 ```sh
-./contrib/verifybinaries/verify.py bin ~/Downloads/SHA256SUMS \
+./contrib/verify-binaries/verify.py bin ~/Downloads/SHA256SUMS \
     ~/Downloads/dashcore-24.0.2-x86_64-linux-gnu.tar.gz \
     ~/Downloads/dashcore-24.0.2-aarch64-linux-gnu.tar.gz
 ```
