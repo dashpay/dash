@@ -591,7 +591,7 @@ class TestHandler:
                               log_stdout,
                               log_stderr,
                               portseed,
-                              1))
+                              1))  # attempt
         if not self.jobs:
             raise IndexError('pop from empty list')
 
@@ -625,7 +625,7 @@ class TestHandler:
                         dot_count = 0
                         shutil.rmtree(testdir, ignore_errors=True)
                         self.jobs.remove(job)
-                        print("{} failed at attempt {}/{}, Duration: {} s".format(name, attempt, self.attempts, int(time.time() - start_time)))
+                        print(f"{name} failed at attempt {attempt}/{self.attempts}, Duration: {int(time.time() - start_time)} s")
                         # start over
                         portseed_arg = ["--portseed={}".format(portseed)]
                         log_stdout = tempfile.SpooledTemporaryFile(max_size=2**16)
@@ -642,7 +642,7 @@ class TestHandler:
                                           log_stdout,
                                           log_stderr,
                                           portseed,
-                                          attempt + 1))
+                                          attempt + 1))  # attempt
                         # no results for now, move to the next job
                         continue
                     else:
