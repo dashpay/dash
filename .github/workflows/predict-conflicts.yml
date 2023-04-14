@@ -26,3 +26,6 @@ jobs:
           ghToken: "${{ secrets.GITHUB_TOKEN }}"
       - name: validate potential conflicts
         run: wget https://raw.githubusercontent.com/dashpay/dash/develop/.github/workflows/handle_potential_conflicts.py && pip3 install hjson && python3 handle_potential_conflicts.py "$conflicts"
+
+
+This PR should conflict with the other one
