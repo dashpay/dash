@@ -27,9 +27,9 @@ jobs:
         id: conflicts-check
 
       - name: validate potential conflicts
-        run: wget https://raw.githubusercontent.com/dashpay/dash/develop/.github/workflows/handle_potential_conflicts.py && pip3 install hjson && python3 handle_potential_conflicts.py "$conflicts"
+        run: echo $test && echo $conflicts && wget https://raw.githubusercontent.com/dashpay/dash/develop/.github/workflows/handle_potential_conflicts.py && pip3 install hjson && python3 handle_potential_conflicts.py "$conflicts"
         env:
-          conflicts: ${{ steps.conflicts-check.output }}
+          conflicts: ${{ steps.conflicts-check.outputs.conflicts }}
 
       - name: comment on PR if there are conflicting PRs
         if: steps.conflicts-check.outputs.conflictingPrs != ''
