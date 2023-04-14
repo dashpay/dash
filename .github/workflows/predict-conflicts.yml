@@ -24,5 +24,25 @@ jobs:
         uses: PastaPastaPasta/potential-conflicts-checker-action@0.1.9
         with:
           ghToken: "${{ secrets.GITHUB_TOKEN }}"
+        id: conflicts-check
+
       - name: validate potential conflicts
-        run: wget https://raw.githubusercontent.com/dashpay/dash/develop/.github/workflows/handle_potential_conflicts.py && pip3 install hjson && python3 handle_potential_conflicts.py "$conflicts"
+        run: echo $test && echo $conflicts && wget https://raw.githubusercontent.com/dashpay/dash/develop/.github/workflows/handle_potential_conflicts.py && pip3 install hjson && python3 handle_potential_conflicts.py "$conflicts"
+#        env:
+#          conflicts: ${{ steps.conflicts-check.outputs.conflicts }}
+
+      - name: comment on PR if there are conflicting PRs
+        if: steps.conflicts-check.outputs.conflictingPrs != ''
+        uses: actions/github-script@v5
+        with:
+          script: |
+            const prNumber = context.payload.pull_request.number;
+            const conflictingPrs = `$conflicts`;
+            const comment = `Conflicting PRs: ${conflictingPrs}`;
+            await github.rest.issues.createComment({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: prNumber,
+              body: comment,
+            });
+          github-token: ${{ secrets.GITHUB_TOKEN }}
