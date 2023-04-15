@@ -662,7 +662,7 @@ const CBlockIndex* V19ActivationIndex(const CBlockIndex* pindex)
     auto opt_height = [&pindex]() -> std::optional<int> {
        LOCK(cs_llmq_vbc);
        if (VersionBitsState(pindex, Params().GetConsensus(), Consensus::DEPLOYMENT_V19, llmq_versionbitscache) != ThresholdState::ACTIVE) {
-           return {};
+           return std::nullopt;
        }
        return {VersionBitsStateSinceHeight(pindex, Params().GetConsensus(), Consensus::DEPLOYMENT_V19, llmq_versionbitscache)};
     }();
