@@ -1030,16 +1030,16 @@ bool CWallet::AddToWalletIfInvolvingMe(const CTransactionRef& ptx, CWalletTx::Co
              * the mostly recently created transactions from newer versions of the wallet.
              */
 
+            std::optional<int64_t> block_time;
+            if (!confirm.hashBlock.IsNull()) {
+                int64_t block_time_tmp;
+                bool found_block = chain().findBlock(confirm.hashBlock, FoundBlock().maxTime(block_time_tmp));
+                assert(found_block);
+                block_time = block_time_tmp;
+            }
             // loop though all outputs
             for (const CTxOut& txout: tx.vout) {
                 for (const auto& spk_man_pair : m_spk_managers) {
-                    std::optional<int64_t> block_time;
-                    if (!confirm.hashBlock.IsNull()) {
-                        int64_t block_time_tmp;
-                        bool found_block = chain().findBlock(confirm.hashBlock, FoundBlock().maxTime(block_time_tmp));
-                        assert(found_block);
-                        block_time = block_time_tmp;
-                    }
                     spk_man_pair.second->MarkUnusedAddresses(batch, txout.scriptPubKey, block_time);
                 }
             }
