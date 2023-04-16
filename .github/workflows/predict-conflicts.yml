@@ -21,7 +21,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: check for potential conflicts
-        uses: PastaPastaPasta/potential-conflicts-checker-action@0.1.9
+        uses: PastaPastaPasta/potential-conflicts-checker-action@v0.1.10
         with:
           ghToken: "${{ secrets.GITHUB_TOKEN }}"
       - name: Checkout
