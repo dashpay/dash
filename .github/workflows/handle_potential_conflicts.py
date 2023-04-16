@@ -28,6 +28,10 @@ def get_label(pr_num):
     return requests.get(f'https://api.github.com/repos/dashpay/dash/pulls/{pr_num}').json()['head']['label']
 
 def main():
+    if len(sys.argv) != 2:
+        print(f'Usage: {sys.argv[0]} <conflicts>', file=sys.stderr)
+        sys.exit(1)
+
     input = sys.argv[1]
     print(input)
     j_input = hjson.loads(input)
