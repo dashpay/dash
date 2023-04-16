@@ -44,7 +44,7 @@ static constexpr int64_t GOVERNANCE_DELETION_DELAY = 10 * 60;
 static constexpr int64_t GOVERNANCE_ORPHAN_EXPIRATION_TIME = 10 * 60;
 
 // FOR SEEN MAP ARRAYS - GOVERNANCE OBJECTS AND VOTES
-enum class SeenObjectState {
+enum class SeenObjectStatus {
     Valid = 0,
     ErrorInvalid,
     Executed,

@@ -120,7 +120,7 @@ bool CGovernanceTriggerManager::AddNewTrigger(uint256 nHash)
         return false;
     }
 
-    pSuperblock->SetStatus(SeenObjectState::Valid);
+    pSuperblock->SetStatus(SeenObjectStatus::Valid);
 
     mapTrigger.insert(std::make_pair(nHash, pSuperblock));
 
@@ -152,18 +152,18 @@ void CGovernanceTriggerManager::CleanAndRemove()
             pObj = governance->FindGovernanceObject(it->first);
             if (!pObj || pObj->GetObjectType() != GovernanceObject::TRIGGER) {
                 LogPrint(BCLog::GOBJECT, "CGovernanceTriggerManager::CleanAndRemove -- Unknown or non-trigger superblock\n");
-                pSuperblock->SetStatus(SeenObjectState::ErrorInvalid);
+                pSuperblock->SetStatus(SeenObjectStatus::ErrorInvalid);
             }
 
             LogPrint(BCLog::GOBJECT, "CGovernanceTriggerManager::CleanAndRemove -- superblock status = %d\n", ToUnderlying(pSuperblock->GetStatus()));
             switch (pSuperblock->GetStatus()) {
-            case SeenObjectState::ErrorInvalid:
-            case SeenObjectState::Unknown:
+            case SeenObjectStatus::ErrorInvalid:
+            case SeenObjectStatus::Unknown:
                 LogPrint(BCLog::GOBJECT, "CGovernanceTriggerManager::CleanAndRemove -- Unknown or invalid trigger found\n");
                 remove = true;
                 break;
-            case SeenObjectState::Valid:
-            case SeenObjectState::Executed: {
+            case SeenObjectStatus::Valid:
+            case SeenObjectStatus::Executed: {
                 LogPrint(BCLog::GOBJECT, "CGovernanceTriggerManager::CleanAndRemove -- Valid trigger found\n");
                 if (pSuperblock->IsExpired(*governance)) {
                     // update corresponding object
@@ -392,7 +392,7 @@ CSuperblock::
     CSuperblock() :
     nGovObjHash(),
     nBlockHeight(0),
-    nStatus(SeenObjectState::Unknown),
+    nStatus(SeenObjectStatus::Unknown),
     vecPayments()
 {
 }
@@ -401,7 +401,7 @@ CSuperblock::
     CSuperblock(uint256& nHash) :
     nGovObjHash(nHash),
     nBlockHeight(0),
-    nStatus(SeenObjectState::Unknown),
+    nStatus(SeenObjectStatus::Unknown),
     vecPayments()
 {
     CGovernanceObject* pGovObj = GetGovernanceObject(*governance);
@@ -682,10 +682,10 @@ bool CSuperblock::IsExpired(const CGovernanceManager& governanceManager) const
     // Other valid triggers are kept for ~1 day only (for mainnet, but no longer than a superblock cycle for other networks).
     // Everything else is pruned after ~1h (for mainnet, but no longer than a superblock cycle for other networks).
     switch (nStatus) {
-    case SeenObjectState::Executed:
+    case SeenObjectStatus::Executed:
         nExpirationBlocks = Params().GetConsensus().nSuperblockCycle;
         break;
-    case SeenObjectState::Valid:
+    case SeenObjectStatus::Valid:
         nExpirationBlocks = std::min(576, Params().GetConsensus().nSuperblockCycle);
         break;
     default:
