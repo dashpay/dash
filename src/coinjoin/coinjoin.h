@@ -322,7 +322,7 @@ public:
     bool Sign();
     [[nodiscard]] bool CheckSignature(const CBLSPublicKey& blsPubKey) const;
 
-    void SetConfirmedHeight(std::optional<int> nConfirmedHeightIn) { nConfirmedHeight = nConfirmedHeightIn; }
+    void SetConfirmedHeight(std::optional<int> nConfirmedHeightIn) { assert(nConfirmedHeightIn == std::nullopt || *nConfirmedHeightIn > 0); nConfirmedHeight = nConfirmedHeightIn; }
     bool IsExpired(const CBlockIndex* pindex, const llmq::CChainLocksHandler& clhandler) const;
     [[nodiscard]] bool IsValidStructure() const;
 };
