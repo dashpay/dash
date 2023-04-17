@@ -38,7 +38,7 @@ bool CheckCbTx(const CTransaction& tx, const CBlockIndex* pindexPrev, TxValidati
 
     if (pindexPrev) {
         bool isV20 = llmq::utils::IsV20Active(pindexPrev);
-        bool isCbV20 = cbTx.nVersion != CCbTx::CB_CL_SIG_VERSION;
+        bool isCbV20 = cbTx.nVersion == CCbTx::CB_CL_SIG_VERSION;
         if (isV20 != isCbV20) return state.Invalid(ValidationInvalidReason::CONSENSUS, false, REJECT_INVALID, "bad-cbtx-version");
     }
 
