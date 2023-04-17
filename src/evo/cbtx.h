@@ -25,10 +25,10 @@ class CCbTx
 {
 public:
     static constexpr auto SPECIALTX_TYPE = TRANSACTION_COINBASE;
-    static constexpr uint16_t CURRENT_VERSION = 2;
+    static constexpr uint16_t CB_V19_VERSION = 2;
     static constexpr uint16_t CB_CL_SIG_VERSION = 3;
 
-    uint16_t nVersion{CURRENT_VERSION};
+    uint16_t nVersion{CB_V19_VERSION};
     int32_t nHeight{0};
     uint256 merkleRootMNList;
     uint256 merkleRootQuorums;
