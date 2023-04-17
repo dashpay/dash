@@ -506,7 +506,7 @@ void CCoinJoin::BlockDisconnected(const std::shared_ptr<const CBlock>& pblock, c
     AssertLockNotHeld(cs_mapdstx);
     LOCK(cs_mapdstx);
     for (const auto& tx : pblock->vtx) {
-        UpdateDSTXConfirmedHeight(tx, -1);
+        UpdateDSTXConfirmedHeight(tx, std::nullopt);
     }
 }
 
