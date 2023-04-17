@@ -33,13 +33,13 @@ bool CheckCbTx(const CTransaction& tx, const CBlockIndex* pindexPrev, TxValidati
     }
 
     if (cbTx.nVersion == 0 || cbTx.nVersion > CCbTx::CB_CL_SIG_VERSION) {
-        return state.Invalid(ValidationInvalidReason::CONSENSUS, false, REJECT_INVALID, "bad-cbtx-version");
+        return state.Invalid(TxValidationResult::TX_CONSENSUS, "bad-cbtx-version");
     }
 
     if (pindexPrev) {
         bool isV20 = llmq::utils::IsV20Active(pindexPrev);
         bool isCbV20 = cbTx.nVersion == CCbTx::CB_CL_SIG_VERSION;
-        if (isV20 != isCbV20) return state.Invalid(ValidationInvalidReason::CONSENSUS, false, REJECT_INVALID, "bad-cbtx-version");
+        if (isV20 != isCbV20) return state.Invalid(TxValidationResult::TX_CONSENSUS, "bad-cbtx-version");
     }
 
     if (pindexPrev && pindexPrev->nHeight + 1 != cbTx.nHeight) {
@@ -322,7 +322,7 @@ bool CalcCbTxMerkleRootQuorums(const CBlock& block, const CBlockIndex* pindexPre
     return true;
 }
 
-bool CheckCbTxBestChainlock(const CBlock& block, const CBlockIndex* pindexPrev, const llmq::CChainLocksHandler& chainlock_handler, CValidationState& state)
+bool CheckCbTxBestChainlock(const CBlock& block, const CBlockIndex* pindexPrev, const llmq::CChainLocksHandler& chainlock_handler, BlockValidationState& state)
 {
     if (block.vtx[0]->nType != TRANSACTION_COINBASE) {
         return true;
@@ -330,7 +330,7 @@ bool CheckCbTxBestChainlock(const CBlock& block, const CBlockIndex* pindexPrev, 
 
     CCbTx cbTx;
     if (!GetTxPayload(*block.vtx[0], cbTx)) {
-        return state.Invalid(ValidationInvalidReason::CONSENSUS, false, REJECT_INVALID, "bad-cbtx-payload");
+        return state.Invalid(BlockValidationResult::BLOCK_CONSENSUS, "bad-cbtx-payload");
     }
 
     if (cbTx.nVersion >= CCbTx::CB_CL_SIG_VERSION) {
@@ -338,7 +338,7 @@ bool CheckCbTxBestChainlock(const CBlock& block, const CBlockIndex* pindexPrev, 
             int bestChainLockedHeight = pindexPrev->nHeight - static_cast<int>(cbTx.bestCLHeightDiff) - 1;
             uint256 bestChainLockedHash = ::ChainActive()[bestChainLockedHeight]->GetBlockHash();
             if (!chainlock_handler.VerifyChainLock(bestChainLockedHeight, bestChainLockedHash, cbTx.bestCLSignature )){
-                return state.Invalid(ValidationInvalidReason::CONSENSUS, false, REJECT_INVALID, "bad-cbtx-clsig");
+                return state.Invalid(BlockValidationResult::BLOCK_CONSENSUS, "bad-cbtx-clsig");
             }
         }
 
