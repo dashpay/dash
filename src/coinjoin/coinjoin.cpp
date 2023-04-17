@@ -481,7 +481,7 @@ void CCoinJoin::UpdateDSTXConfirmedHeight(const CTransactionRef& tx, std::option
     }
 
     it->second.SetConfirmedHeight(nHeight);
-    LogPrint(BCLog::COINJOIN, "CCoinJoin::%s -- txid=%s, nHeight=%d\n", __func__, tx->GetHash().ToString(), nHeight ? nHeight.value() : -1);
+    LogPrint(BCLog::COINJOIN, "CCoinJoin::%s -- txid=%s, nHeight=%d\n", __func__, tx->GetHash().ToString(), nHeight.value_or(-1));
 }
 
 void CCoinJoin::TransactionAddedToMempool(const CTransactionRef& tx)
