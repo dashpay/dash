@@ -36,12 +36,10 @@ bool CheckCbTx(const CTransaction& tx, const CBlockIndex* pindexPrev, TxValidati
         return state.Invalid(ValidationInvalidReason::CONSENSUS, false, REJECT_INVALID, "bad-cbtx-version");
     }
 
-    if (pindexPrev && !llmq::utils::IsV20Active(pindexPrev) && cbTx.nVersion == CCbTx::CB_CL_SIG_VERSION) {
-        return state.Invalid(ValidationInvalidReason::CONSENSUS, false, REJECT_INVALID, "bad-cbtx-version");
-    }
-
-    if (pindexPrev && llmq::utils::IsV20Active(pindexPrev) && cbTx.nVersion != CCbTx::CB_CL_SIG_VERSION) {
-        return state.Invalid(ValidationInvalidReason::CONSENSUS, false, REJECT_INVALID, "bad-cbtx-version");
+    if (pindexPrev) {
+        bool isV20 = llmq::utils::IsV20Active(pindexPrev);
+        bool isCbV20 = cbTx.nVersion != CCbTx::CB_CL_SIG_VERSION;
+        if (isV20 != isCbV20) return state.Invalid(ValidationInvalidReason::CONSENSUS, false, REJECT_INVALID, "bad-cbtx-version");
     }
 
     if (pindexPrev && pindexPrev->nHeight + 1 != cbTx.nHeight) {
