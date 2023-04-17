@@ -4014,7 +4014,7 @@ static bool ContextualCheckBlock(const CBlock& block, CValidationState& state, c
     {
         CScript expect = CScript() << nHeight;
         if (block.vtx[0]->vin[0].scriptSig.size() < expect.size() ||
-            !std::equal(expect.begin(), expect.end(), block.vtx[0]->vin[0].scriptSig.begin())) {
+            !ranges::equal(expect, block.vtx[0]->vin[0].scriptSig)) {
             return state.Invalid(ValidationInvalidReason::CONSENSUS, false, REJECT_INVALID, "bad-cb-height", "block height mismatch in coinbase");
         }
     }
