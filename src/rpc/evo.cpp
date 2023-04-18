@@ -1488,7 +1488,7 @@ static const CBlockIndex* ParseBlockIndex(const UniValue& v, std::string strName
         uint256 hash = ParseHashV(v, strName);
         const CBlockIndex* pblockindex = g_chainman.m_blockman.LookupBlockIndex(hash);
         if (!pblockindex)
-            throw std::runtime_error(strprintf("Block with hash not found %s", strName, v.getValStr()));
+            throw std::runtime_error(strprintf("Block %s with hash %s not found", strName, v.getValStr()));
         return pblockindex;
     } catch (...) {
         int h = ParseInt32V(v, strName);
