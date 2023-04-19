@@ -198,9 +198,9 @@ std::unique_ptr<CBlockTemplate> BlockAssembler::CreateNewBlock(CChainState& chai
         CCbTx cbTx;
 
         if (llmq::utils::IsV20Active(pindexPrev)) {
-            cbTx.nVersion = CCbTx::CB_CL_SIG_VERSION;
+            cbTx.nVersion = CCbTx::CB_V20_VERSION;
         } else if (fDIP0008Active_context) {
-            cbTx.nVersion = 2;
+            cbTx.nVersion = CCbTx::CB_V19_VERSION;
         } else {
             cbTx.nVersion = 1;
         }

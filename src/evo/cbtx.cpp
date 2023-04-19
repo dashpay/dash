@@ -32,13 +32,13 @@ bool CheckCbTx(const CTransaction& tx, const CBlockIndex* pindexPrev, TxValidati
         return state.Invalid(TxValidationResult::TX_CONSENSUS, "bad-cbtx-payload");
     }
 
-    if (cbTx.nVersion == 0 || cbTx.nVersion > CCbTx::CB_CL_SIG_VERSION) {
+    if (cbTx.nVersion == 0 || cbTx.nVersion > CCbTx::CB_V20_VERSION) {
         return state.Invalid(TxValidationResult::TX_CONSENSUS, "bad-cbtx-version");
     }
 
     if (pindexPrev) {
         bool isV20 = llmq::utils::IsV20Active(pindexPrev);
-        bool isCbV20 = cbTx.nVersion == CCbTx::CB_CL_SIG_VERSION;
+        bool isCbV20 = cbTx.nVersion == CCbTx::CB_V20_VERSION;
         if (isV20 != isCbV20) return state.Invalid(TxValidationResult::TX_CONSENSUS, "bad-cbtx-version");
     }
 
@@ -333,12 +333,18 @@ bool CheckCbTxBestChainlock(const CBlock& block, const CBlockIndex* pindexPrev, 
         return state.Invalid(BlockValidationResult::BLOCK_CONSENSUS, "bad-cbtx-payload");
     }
 
-    if (cbTx.nVersion >= CCbTx::CB_CL_SIG_VERSION) {
+    if (cbTx.nVersion >= CCbTx::CB_V20_VERSION) {
         if (cbTx.bestCLSignature.IsValid()) {
             int bestChainLockedHeight = pindexPrev->nHeight - static_cast<int>(cbTx.bestCLHeightDiff) - 1;
             uint256 bestChainLockedHash = ::ChainActive()[bestChainLockedHeight]->GetBlockHash();
             if (!chainlock_handler.VerifyChainLock(bestChainLockedHeight, bestChainLockedHash, cbTx.bestCLSignature )){
                 return state.Invalid(BlockValidationResult::BLOCK_CONSENSUS, "bad-cbtx-clsig");
+            }
+        }
+        else {
+            if (cbTx.bestCLHeightDiff != 0) {
+                // Null bestCLSignature (IsNull() doesn't exist: we assume that a non valid BLS sig is null) is allowed only when bestCLHeightDiff is 0
+                return state.Invalid(BlockValidationResult::BLOCK_CONSENSUS, "bad-cbtx-cldiff");
             }
         }
 

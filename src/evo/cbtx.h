@@ -26,7 +26,7 @@ class CCbTx
 public:
     static constexpr auto SPECIALTX_TYPE = TRANSACTION_COINBASE;
     static constexpr uint16_t CB_V19_VERSION = 2;
-    static constexpr uint16_t CB_CL_SIG_VERSION = 3;
+    static constexpr uint16_t CB_V20_VERSION = 3;
 
     uint16_t nVersion{CB_V19_VERSION};
     int32_t nHeight{0};
@@ -39,9 +39,9 @@ public:
     {
         READWRITE(obj.nVersion, obj.nHeight, obj.merkleRootMNList);
 
-        if (obj.nVersion >= 2) {
+        if (obj.nVersion >= CB_V19_VERSION) {
             READWRITE(obj.merkleRootQuorums);
-            if (obj.nVersion >= CB_CL_SIG_VERSION) {
+            if (obj.nVersion >= CB_V20_VERSION) {
                 READWRITE(COMPACTSIZE(obj.bestCLHeightDiff));
                 READWRITE(obj.bestCLSignature);
             }
@@ -57,9 +57,9 @@ public:
         obj.pushKV("version", (int)nVersion);
         obj.pushKV("height", nHeight);
         obj.pushKV("merkleRootMNList", merkleRootMNList.ToString());
-        if (nVersion >= 2) {
+        if (nVersion >= CB_V19_VERSION) {
             obj.pushKV("merkleRootQuorums", merkleRootQuorums.ToString());
-            if (nVersion >= CB_CL_SIG_VERSION) {
+            if (nVersion >= CB_V20_VERSION) {
                 obj.pushKV("bestCLHeightDiff", static_cast<int>(bestCLHeightDiff));
                 obj.pushKV("bestCLSignature", bestCLSignature.ToString());
             }
