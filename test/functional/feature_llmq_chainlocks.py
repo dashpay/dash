@@ -39,6 +39,8 @@ class LLMQChainLocksTest(DashTestFramework):
         self.activate_by_name('v20', expected_activation_height=904)
         self.log.info("Activated v20 at height:" + str(self.nodes[0].getblockcount()))
 
+        self.test_coinbase_best_cl(self.nodes[0], expected_cl_in_cb=True, expected_null_cl=True)
+
         self.log.info("Mining 4 quorums")
         for i in range(4):
             self.mine_quorum()
@@ -184,16 +186,16 @@ class LLMQChainLocksTest(DashTestFramework):
 
         return [txid, rawtxid]
 
-    def test_coinbase_best_cl(self, node, expected_cl_in_cb=True):
+    def test_coinbase_best_cl(self, node, expected_cl_in_cb=True, expected_null_cl=False):
         block_hash = node.getbestblockhash()
         block = node.getblock(block_hash, 2)
         cbtx = block["cbTx"]
         assert_equal(int(cbtx["version"]) > 2, expected_cl_in_cb)
-        self.log.info("cbtx: "+str(cbtx))
         if expected_cl_in_cb:
             cb_height = int(cbtx["height"])
             best_cl_height_diff = int(cbtx["bestCLHeightDiff"])
             best_cl_signature = cbtx["bestCLSignature"]
+            assert_equal(expected_null_cl, int(best_cl_signature, 16) == 0)
             if int(best_cl_signature, 16) == 0:
                 # Null bestCLSignature is allowed.
                 # bestCLHeightDiff must be 0 if bestCLSignature is null
