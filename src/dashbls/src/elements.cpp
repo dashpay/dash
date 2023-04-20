@@ -98,6 +98,14 @@ G1Element G1Element::FromNative(const g1_t element)
     return ele;
 }
 
+G1Element G1Element::Copy() {
+    G1Element ele;
+    g1_copy(ele.p, this->p);
+
+    return ele;
+}
+
+
 G1Element G1Element::FromMessage(const std::vector<uint8_t>& message,
                                  const uint8_t* dst,
                                  int dst_len)
@@ -357,6 +365,14 @@ void G2Element::CheckValid() const {
 void G2Element::ToNative(g2_t output) const {
     g2_copy(output, (g2_st*)q);
 }
+
+G2Element G2Element::Copy() {
+    G2Element ele;
+    g2_copy(ele.q, this->q);
+
+    return ele;
+}
+
 
 G2Element G2Element::Negate() const
 {
