@@ -1501,6 +1501,7 @@ public:
     size_t GetNodeCount(ConnectionDirection) const;
     size_t GetMaxOutboundNodeCount();
     size_t GetMaxOutboundOnionNodeCount();
+    uint32_t GetMappedAS(const CNetAddr& addr) const;
     void GetNodeStats(std::vector<CNodeStats>& vstats) const;
     bool DisconnectNode(const std::string& node);
     bool DisconnectNode(const CSubNet& subnet);
