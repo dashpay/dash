@@ -190,6 +190,29 @@ std::vector<uint8_t> G1Element::Serialize(const bool fLegacy) const {
     return std::vector<uint8_t>(buffer + 1, buffer + 1 + G1Element::SIZE);
 }
 
+std::array<uint8_t, G1Element::SIZE> G1Element::SerializeToArray(const bool fLegacy) const {
+    uint8_t buffer[G1Element::SIZE + 1];
+    g1_write_bin(buffer, G1Element::SIZE + 1, p, 1);
+
+    if (buffer[0] == 0x00) {  // infinity
+        std::array<uint8_t, G1Element::SIZE> result{};
+        result[0] = 0xc0;
+        return result;
+    }
+
+    if (buffer[0] == 0x03) {  // sign bit set
+        buffer[1] |= fLegacy ? 0x80 : 0x20;
+    }
+
+    if (!fLegacy) {
+        buffer[1] |= 0x80;  // indicate compression
+    }
+
+    std::array<uint8_t, G1Element::SIZE> result{};
+    std::copy_n(buffer + 1, G1Element::SIZE, result.begin());
+    return result;
+}
+
 bool operator==(const G1Element & a, const G1Element &b)
 {
     return g1_cmp(a.p, b.p) == RLC_EQ;
@@ -421,6 +444,44 @@ std::vector<uint8_t> G2Element::Serialize(const bool fLegacy) const {
     return result;
 }
 
+std::array<uint8_t, G2Element::SIZE> G2Element::SerializeToArray(const bool fLegacy) const {
+    uint8_t buffer[G2Element::SIZE + 1];
+    g2_write_bin(buffer, G2Element::SIZE + 1, (g2_st*)q, 1);
+
+    std::array<uint8_t, G2Element::SIZE> result{};
+
+    if (buffer[0] == 0x00) {  // infinity
+        result.fill(0);
+        result[0] = 0xc0;
+        return result;
+    }
+
+    if (fLegacy) {
+        if (buffer[0] == 0x03) {  // sign bit set
+            buffer[1] |= 0x80;
+        }
+    } else {
+        // remove leading 3 bits
+        buffer[1] &= 0x1f;
+        buffer[49] &= 0x1f;
+        if (buffer[0] == 0x03) {
+            buffer[49] |= 0xa0;  // swapped later to 0
+        } else {
+            buffer[49] |= 0x80;
+        }
+    }
+
+    if (fLegacy) {
+        std::memcpy(result.data(), buffer + 1, G2Element::SIZE);
+    } else {
+        // Swap buffer, relic uses the opposite ordering for Fq2 elements
+        std::memcpy(result.data(), buffer + 1 + G2Element::SIZE / 2, G2Element::SIZE / 2);
+        std::memcpy(result.data() + G2Element::SIZE / 2, buffer + 1, G2Element::SIZE / 2);
+    }
+
+    return result;
+}
+
 bool operator==(G2Element const& a, G2Element const& b)
 {
     return g2_cmp((g2_st*)a.q, (g2_st*)b.q) == RLC_EQ;
@@ -546,6 +607,13 @@ void GTElement::Serialize(uint8_t* buffer) const
 std::vector<uint8_t> GTElement::Serialize() const
 {
     std::vector<uint8_t> data(GTElement::SIZE);
+    Serialize(data.data());
+    return data;
+}
+
+std::array<uint8_t, GTElement::SIZE> GTElement::SerializeToArray() const
+{
+    std::array<uint8_t, GTElement::SIZE> data{};
     Serialize(data.data());
     return data;
 }
