@@ -172,9 +172,11 @@ bool CGovernanceVote::Sign(const CKey& key, const CKeyID& keyID)
     if (Params().NetworkIDString() == CBaseChainParams::TESTNET) {
         uint256 signatureHash = GetSignatureHash();
 
-        if (!CHashSigner::SignHash(signatureHash, key, vchSig)) {
+        if (auto opt_sig = CHashSigner::SignHash(signatureHash, key); !opt_sig) {
             LogPrintf("CGovernanceVote::Sign -- SignHash() failed\n");
             return false;
+        } else {
+            vchSig = {opt_sig->begin(), opt_sig->end()};
         }
 
         if (!CHashSigner::VerifyHash(signatureHash, keyID, vchSig, strError)) {
@@ -185,9 +187,11 @@ bool CGovernanceVote::Sign(const CKey& key, const CKeyID& keyID)
         std::string strMessage = masternodeOutpoint.ToStringShort() + "|" + nParentHash.ToString() + "|" +
                                  ::ToString(nVoteSignal) + "|" + ::ToString(nVoteOutcome) + "|" + ::ToString(nTime);
 
-        if (!CMessageSigner::SignMessage(strMessage, vchSig, key)) {
+        if (auto opt_sig = CMessageSigner::SignMessage(strMessage, key); !opt_sig) {
             LogPrintf("CGovernanceVote::Sign -- SignMessage() failed\n");
             return false;
+        } else {
+            vchSig = {opt_sig->begin(), opt_sig->end()};
         }
 
         if (!CMessageSigner::VerifyMessage(keyID, vchSig, strMessage, strError)) {
@@ -203,9 +207,12 @@ bool CGovernanceVote::CheckSignature(const CKeyID& keyID) const
 {
     std::string strError;
 
+    // TODO remove when Verify* methods are spanified
+    auto span_vchSig = Span<uint8_t>(const_cast<uint8_t*>(vchSig.data()), vchSig.size());
+
     // Harden Spork6 so that it is active on testnet and no other networks
     if (Params().NetworkIDString() == CBaseChainParams::TESTNET) {
-        if (!CHashSigner::VerifyHash(GetSignatureHash(), keyID, vchSig, strError)) {
+        if (!CHashSigner::VerifyHash(GetSignatureHash(), keyID, span_vchSig, strError)) {
             LogPrint(BCLog::GOBJECT, "CGovernanceVote::IsValid -- VerifyHash() failed, error: %s\n", strError);
             return false;
         }
@@ -215,7 +222,7 @@ bool CGovernanceVote::CheckSignature(const CKeyID& keyID) const
                                  ::ToString(nVoteOutcome) + "|" +
                                  ::ToString(nTime);
 
-        if (!CMessageSigner::VerifyMessage(keyID, vchSig, strMessage, strError)) {
+        if (!CMessageSigner::VerifyMessage(keyID, span_vchSig, strMessage, strError)) {
             LogPrint(BCLog::GOBJECT, "CGovernanceVote::IsValid -- VerifyMessage() failed, error: %s\n", strError);
             return false;
         }
@@ -224,13 +231,15 @@ bool CGovernanceVote::CheckSignature(const CKeyID& keyID) const
     return true;
 }
 
+
 bool CGovernanceVote::Sign(const CBLSSecretKey& key)
 {
     CBLSSignature sig = key.Sign(GetSignatureHash());
     if (!sig.IsValid()) {
         return false;
     }
-    vchSig = sig.ToByteVector();
+    auto bytes = sig.ToByteVector();
+    vchSig = {bytes.begin(), bytes.end()};
     return true;
 }
 
@@ -239,7 +248,8 @@ bool CGovernanceVote::CheckSignature(const CBLSPublicKey& pubKey) const
     CBLSSignature sig;
     const auto pindex = llmq::utils::V19ActivationIndex(::ChainActive().Tip());
     bool is_bls_legacy_scheme = pindex == nullptr || nTime < pindex->pprev->nTime;
-    sig.SetByteVector(vchSig, is_bls_legacy_scheme);
+    auto span = Span<uint8_t>(const_cast<uint8_t*>(vchSig.data()), vchSig.size());
+    sig.SetByteVector(span, is_bls_legacy_scheme);
     if (!sig.VerifyInsecure(pubKey, GetSignatureHash(), is_bls_legacy_scheme)) {
         LogPrintf("CGovernanceVote::CheckSignature -- VerifyInsecure() failed\n");
         return false;

@@ -57,7 +57,7 @@ public:
     static constexpr size_t SerSize = _SerSize;
 
     explicit CBLSWrapper() = default;
-    explicit CBLSWrapper(const std::vector<unsigned char>& vecBytes) : CBLSWrapper<ImplType, _SerSize, C>()
+    explicit CBLSWrapper(Span<uint8_t> vecBytes) : CBLSWrapper<ImplType, _SerSize, C>()
     {
         SetByteVector(vecBytes);
     }
@@ -99,18 +99,18 @@ public:
         *(static_cast<C*>(this)) = C();
     }
 
-    void SetByteVector(const std::vector<uint8_t>& vecBytes, const bool specificLegacyScheme)
+    void SetByteVector(Span<uint8_t> vecBytes, const bool specificLegacyScheme)
     {
         if (vecBytes.size() != SerSize) {
             Reset();
             return;
         }
 
-        if (ranges::all_of(vecBytes, [](uint8_t c) { return c == 0; })) {
+        if (std::all_of(vecBytes.begin(), vecBytes.end(), [](uint8_t c) { return c == 0; })) {
             Reset();
         } else {
             try {
-                impl = ImplType::FromBytes(bls::Bytes(vecBytes), specificLegacyScheme);
+                impl = ImplType::FromBytes(bls::Bytes(vecBytes.data(), SerSize), specificLegacyScheme);
                 fValid = true;
             } catch (...) {
                 Reset();
@@ -119,20 +119,20 @@ public:
         cachedHash.SetNull();
     }
 
-    void SetByteVector(const std::vector<uint8_t>& vecBytes)
+    void SetByteVector(Span<uint8_t> vecBytes)
     {
         SetByteVector(vecBytes, bls::bls_legacy_scheme.load());
     }
 
-    std::vector<uint8_t> ToByteVector(const bool specificLegacyScheme) const
+    std::array<uint8_t, SerSize> ToByteVector(const bool specificLegacyScheme) const
     {
         if (!fValid) {
-            return std::vector<uint8_t>(SerSize, 0);
+            return {};
         }
-        return impl.Serialize(specificLegacyScheme);
+        return impl.SerializeToArray(specificLegacyScheme);
     }
 
-    std::vector<uint8_t> ToByteVector() const
+    std::array<uint8_t, SerSize> ToByteVector() const
     {
         return ToByteVector(bls::bls_legacy_scheme.load());
     }
@@ -185,7 +185,7 @@ public:
     template <typename Stream>
     inline void Unserialize(Stream& s, const bool specificLegacyScheme, bool checkMalleable = true)
     {
-        std::vector<uint8_t> vecBytes(SerSize, 0);
+        std::array<uint8_t, SerSize> vecBytes{};
         s.read(reinterpret_cast<char*>(vecBytes.data()), SerSize);
         SetByteVector(vecBytes, specificLegacyScheme);
 
@@ -228,7 +228,7 @@ public:
 
     inline std::string ToString(const bool specificLegacyScheme) const
     {
-        std::vector<uint8_t> buf = ToByteVector(specificLegacyScheme);
+        auto buf = ToByteVector(specificLegacyScheme);
         return HexStr(buf);
     }
 
@@ -254,6 +254,12 @@ struct CBLSIdImplicit : public uint256
     [[nodiscard]] std::vector<uint8_t> Serialize(const bool fLegacy) const
     {
         return {begin(), end()};
+    }
+    [[nodiscard]] std::array<uint8_t, 256 / 8> SerializeToArray(const bool fLegacy) const
+    {
+        std::array<uint8_t, 256 / 8> ret{};
+        std::copy(begin(), end(), ret.begin());
+        return ret;
     }
 };
 
@@ -405,7 +411,7 @@ class CBLSLazyWrapper
 private:
     mutable std::mutex mutex;
 
-    mutable std::vector<uint8_t> vecBytes;
+    mutable std::array<uint8_t, BLSObject::SerSize> vecBytes;
     mutable bool bufValid{false};
     mutable bool bufLegacyScheme{true};
 
@@ -416,7 +422,7 @@ private:
 
 public:
     CBLSLazyWrapper() :
-            vecBytes(BLSObject::SerSize, 0),
+            vecBytes{},
             bufLegacyScheme(bls::bls_legacy_scheme.load())
     {}
 

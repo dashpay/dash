@@ -110,19 +110,22 @@ BOOST_AUTO_TEST_CASE(key_test1)
 
         // compact signatures (with key recovery)
 
-        std::vector<unsigned char> csign1, csign2, csign1C, csign2C;
+        auto opt_sign1 = key1.SignCompact (hashMsg);
+        auto opt_sign2 = key2.SignCompact (hashMsg);
+        auto opt_sign1c = key1C.SignCompact(hashMsg);
+        auto opt_sign2c = key2C.SignCompact(hashMsg);
 
-        BOOST_CHECK(key1.SignCompact (hashMsg, csign1));
-        BOOST_CHECK(key2.SignCompact (hashMsg, csign2));
-        BOOST_CHECK(key1C.SignCompact(hashMsg, csign1C));
-        BOOST_CHECK(key2C.SignCompact(hashMsg, csign2C));
+        BOOST_CHECK(opt_sign1);
+        BOOST_CHECK(opt_sign2);
+        BOOST_CHECK(opt_sign1c);
+        BOOST_CHECK(opt_sign2c);
 
         CPubKey rkey1, rkey2, rkey1C, rkey2C;
 
-        BOOST_CHECK(rkey1.RecoverCompact (hashMsg, csign1));
-        BOOST_CHECK(rkey2.RecoverCompact (hashMsg, csign2));
-        BOOST_CHECK(rkey1C.RecoverCompact(hashMsg, csign1C));
-        BOOST_CHECK(rkey2C.RecoverCompact(hashMsg, csign2C));
+        BOOST_CHECK(rkey1.RecoverCompact (hashMsg, *opt_sign1));
+        BOOST_CHECK(rkey2.RecoverCompact (hashMsg, *opt_sign2));
+        BOOST_CHECK(rkey1C.RecoverCompact(hashMsg, *opt_sign1c));
+        BOOST_CHECK(rkey2C.RecoverCompact(hashMsg, *opt_sign2c));
 
         BOOST_CHECK(rkey1  == pubkey1);
         BOOST_CHECK(rkey2  == pubkey2);
@@ -143,12 +146,21 @@ BOOST_AUTO_TEST_CASE(key_test1)
     BOOST_CHECK(key2C.Sign(hashMsg, detsigc));
     BOOST_CHECK(detsig == detsigc);
     BOOST_CHECK(detsig == ParseHex("3044022052d8a32079c11e79db95af63bb9600c5b04f21a9ca33dc129c2bfa8ac9dc1cd5022061d8ae5e0f6c1a16bde3719c64c2fd70e404b6428ab9a69566962e8771b5944d"));
-    BOOST_CHECK(key1.SignCompact(hashMsg, detsig));
-    BOOST_CHECK(key1C.SignCompact(hashMsg, detsigc));
+    auto opt_detsig = key1.SignCompact(hashMsg);
+    auto opt_detsigc = key1C.SignCompact(hashMsg);
+
+    BOOST_CHECK(opt_detsig);
+    BOOST_CHECK(opt_detsigc);
+    detsig = std::vector<uint8_t>{opt_detsig->begin(), opt_detsig->end()};
+    detsigc = std::vector<uint8_t>{opt_detsigc->begin(), opt_detsigc->end()};
     BOOST_CHECK(detsig == ParseHex("1c5dbbddda71772d95ce91cd2d14b592cfbc1dd0aabd6a394b6c2d377bbe59d31d14ddda21494a4e221f0824f0b8b924c43fa43c0ad57dccdaa11f81a6bd4582f6"));
     BOOST_CHECK(detsigc == ParseHex("205dbbddda71772d95ce91cd2d14b592cfbc1dd0aabd6a394b6c2d377bbe59d31d14ddda21494a4e221f0824f0b8b924c43fa43c0ad57dccdaa11f81a6bd4582f6"));
-    BOOST_CHECK(key2.SignCompact(hashMsg, detsig));
-    BOOST_CHECK(key2C.SignCompact(hashMsg, detsigc));
+    opt_detsig = key2.SignCompact(hashMsg);
+    opt_detsigc = key2C.SignCompact(hashMsg);
+    BOOST_CHECK(opt_detsig.has_value());
+    BOOST_CHECK(opt_detsigc.has_value());
+    detsig = std::vector<uint8_t>{opt_detsig->begin(), opt_detsig->end()};
+    detsigc = std::vector<uint8_t>{opt_detsigc->begin(), opt_detsigc->end()};
     BOOST_CHECK(detsig == ParseHex("1c52d8a32079c11e79db95af63bb9600c5b04f21a9ca33dc129c2bfa8ac9dc1cd561d8ae5e0f6c1a16bde3719c64c2fd70e404b6428ab9a69566962e8771b5944d"));
     BOOST_CHECK(detsigc == ParseHex("2052d8a32079c11e79db95af63bb9600c5b04f21a9ca33dc129c2bfa8ac9dc1cd561d8ae5e0f6c1a16bde3719c64c2fd70e404b6428ab9a69566962e8771b5944d"));
 }

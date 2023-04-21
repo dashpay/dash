@@ -184,7 +184,7 @@ bool CPubKey::Verify(const uint256 &hash, const std::vector<unsigned char>& vchS
     return secp256k1_ecdsa_verify(secp256k1_context_verify, &sig, hash.begin(), &pubkey);
 }
 
-bool CPubKey::RecoverCompact(const uint256 &hash, const std::vector<unsigned char>& vchSig) {
+bool CPubKey::RecoverCompact(const uint256 &hash, Span<unsigned char> vchSig) {
     if (vchSig.size() != COMPACT_SIGNATURE_SIZE)
         return false;
     int recid = (vchSig[0] - 27) & 3;

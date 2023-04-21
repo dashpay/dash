@@ -1694,7 +1694,8 @@ bool AppInitMain(const CoreContext& context, NodeContext& node, interfaces::Bloc
     fMasternodeMode = false;
     std::string strMasterNodeBLSPrivKey = args.GetArg("-masternodeblsprivkey", "");
     if (!strMasterNodeBLSPrivKey.empty()) {
-        CBLSSecretKey keyOperator(ParseHex(strMasterNodeBLSPrivKey));
+        auto hex_vector = ParseHex(strMasterNodeBLSPrivKey);
+        CBLSSecretKey keyOperator(hex_vector);
         if (!keyOperator.IsValid()) {
             return InitError(_("Invalid masternodeblsprivkey. Please see documentation."));
         }

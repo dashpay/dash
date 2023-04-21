@@ -990,11 +990,11 @@ void CDKGSession::SendCommitment(CDKGPendingMessages& pendingMessages)
     qc.quorumSig = skShare.Sign(commitmentHash);
 
     if (lieType == 3) {
-        std::vector<uint8_t> buf = qc.sig.ToByteVector();
+        auto buf = qc.sig.ToByteVector();
         buf[5]++;
         qc.sig.SetByteVector(buf);
     } else if (lieType == 4) {
-        std::vector<uint8_t> buf = qc.quorumSig.ToByteVector();
+        auto buf = qc.quorumSig.ToByteVector();
         buf[5]++;
         qc.quorumSig.SetByteVector(buf);
     }

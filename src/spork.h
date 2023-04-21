@@ -97,7 +97,7 @@ extern std::unique_ptr<CSporkManager> sporkManager;
 class CSporkMessage
 {
 private:
-    std::vector<unsigned char> vchSig;
+    std::array<unsigned char, CPubKey::COMPACT_SIGNATURE_SIZE> vchSig;
 
 public:
     SporkId nSporkID{0};

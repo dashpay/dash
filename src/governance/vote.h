@@ -7,7 +7,6 @@
 
 #include <primitives/transaction.h>
 
-class CGovernanceVote;
 class CBLSPublicKey;
 class CBLSSecretKey;
 class CConnman;
@@ -67,6 +66,7 @@ private:
     uint256 nParentHash;
     int nVoteOutcome; // see VOTE_OUTCOMES above
     int64_t nTime;
+    // TODO split out BLS and ECCDSA key classes and convert to std::array
     std::vector<unsigned char> vchSig;
 
     /** Memory only. */
@@ -95,8 +95,7 @@ public:
         UpdateHash();
     }
 
-    void SetSignature(const std::vector<unsigned char>& vchSigIn) { vchSig = vchSigIn; }
-
+    void SetSignature(Span<unsigned char> vchSigIn) { vchSig = {vchSigIn.begin(), vchSigIn.end()}; }
     bool Sign(const CKey& key, const CKeyID& keyID);
     bool CheckSignature(const CKeyID& keyID) const;
     bool Sign(const CBLSSecretKey& key);

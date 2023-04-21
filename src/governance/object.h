@@ -127,7 +127,7 @@ private:
 
     /// Masternode info for signed objects
     COutPoint masternodeOutpoint;
-    std::vector<unsigned char> vchSig;
+    std::array<unsigned char, 96> vchSig;
 
     /// is valid by blockchain
     bool fCachedLocalValidity;

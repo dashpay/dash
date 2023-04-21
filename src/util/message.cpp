@@ -58,15 +58,12 @@ bool MessageSign(
     const std::string& message,
     std::string& signature)
 {
-    std::vector<unsigned char> signature_bytes;
-
-    if (!privkey.SignCompact(MessageHash(message), signature_bytes)) {
+    if (auto opt_sig_bytes = privkey.SignCompact(MessageHash(message)); !opt_sig_bytes.has_value()) {
         return false;
+    } else {
+        signature = EncodeBase64(*opt_sig_bytes);
+        return true;
     }
-
-    signature = EncodeBase64(signature_bytes);
-
-    return true;
 }
 
 uint256 MessageHash(const std::string& message)
