@@ -103,7 +103,7 @@ public:
     G2Element Negate() const;
     GTElement Pair(const G1Element &a) const;
     std::vector<uint8_t> Serialize(bool fLegacy = false) const;
-    std::array<uint8_t, G2Element::SIZE> SerializeToArray(bool fLegacy = false);
+    std::array<uint8_t, G2Element::SIZE> SerializeToArray(bool fLegacy = false) const;
     G2Element Copy();
 
     friend bool operator==(G2Element const &a, G2Element const &b);
