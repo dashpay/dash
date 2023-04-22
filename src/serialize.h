@@ -24,6 +24,7 @@
 #include <unordered_set>
 #include <utility>
 #include <vector>
+#include <tinyformat.h>
 
 #include <prevector.h>
 #include <span.h>
@@ -829,8 +830,8 @@ struct ArrayFormatter
     {
         Formatter formatter;
         size_t size = ReadCompactSize(s);
-        if (size != N) {
-            throw std::runtime_error("Mismatch in array size when unserializing.");
+        if (size < N) {
+            throw std::runtime_error(strprintf("ERROR Mismatch in array size when unserializing. %d, %d", size, N));
         }
         for (size_t i = 0; i < N; ++i) {
             formatter.Unser(s, arr[i]);
@@ -1197,8 +1198,8 @@ void Unserialize_impl(Stream& is, std::array<T, N>& arr, const unsigned char&)
 {
     // Limit size per read so bogus size value won't cause out of memory
     unsigned int nSize = ReadCompactSize(is);
-    if (nSize != N) {
-        throw std::runtime_error("Mismatch in array size when unserializing.");
+    if (nSize > N) {
+        throw std::runtime_error(strprintf("ERROR2 Mismatch in array size when unserializing. %d, %d", nSize, N));
     }
     unsigned int i = 0;
     while (i < nSize)
