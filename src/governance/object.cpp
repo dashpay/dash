@@ -469,7 +469,7 @@ bool CGovernanceObject::IsValidLocally(std::string& strError, bool& fMissingConf
 
     switch (nObjectType) {
     case GovernanceObject::PROPOSAL: {
-        bool fAllowScript = (VersionBitsState(::ChainActive().Tip(), Params().GetConsensus(), Consensus::DEPLOYMENT_DIP0024, versionbitscache) == ThresholdState::ACTIVE);
+        bool fAllowScript = (::ChainActive().Height() >= Params().GetConsensus().DIP0024Height);
         CProposalValidator validator(GetDataAsHexString(), fAllowScript);
         // Note: It's ok to have expired proposals
         // they are going to be cleared by CGovernanceManager::UpdateCachesAndClean()
@@ -566,7 +566,7 @@ bool CGovernanceObject::IsCollateralValid(std::string& strError, bool& fMissingC
     findScript << OP_RETURN << ToByteVector(nExpectedHash);
 
     AssertLockHeld(cs_main);
-    bool fork_active = VersionBitsState(g_chainman.m_blockman.LookupBlockIndex(nBlockHash), Params().GetConsensus(), Consensus::DEPLOYMENT_DIP0024, versionbitscache) == ThresholdState::ACTIVE;
+    bool fork_active = g_chainman.m_blockman.LookupBlockIndex(nBlockHash)->nHeight >= Params().GetConsensus().DIP0024Height;
     CAmount nMinFee = GetMinCollateralFee(fork_active);
 
     LogPrint(BCLog::GOBJECT, "CGovernanceObject::IsCollateralValid -- txCollateral->vout.size() = %s, findScript = %s, nMinFee = %lld\n",
@@ -695,7 +695,7 @@ void CGovernanceObject::Relay(CConnman& connman) const
         // But we don't want to relay it to pre-GOVSCRIPT_PROTO_VERSION peers if payment_address is p2sh
         // because they won't accept it anyway and will simply ban us eventually.
         LOCK(cs_main);
-        bool fAllowScript = (VersionBitsState(::ChainActive().Tip(), Params().GetConsensus(), Consensus::DEPLOYMENT_DIP0024, versionbitscache) == ThresholdState::ACTIVE);
+        bool fAllowScript = (::ChainActive().Height() >= Params().GetConsensus().DIP0024Height);
         if (fAllowScript) {
             CProposalValidator validator(GetDataAsHexString(), false /* no script */);
             if (!validator.Validate(false /* ignore expiration */)) {

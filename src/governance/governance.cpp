@@ -396,7 +396,7 @@ void CGovernanceManager::UpdateCachesAndClean()
         } else {
             // NOTE: triggers are handled via triggerman
             if (pObj->GetObjectType() == GovernanceObject::PROPOSAL) {
-                bool fAllowScript = (VersionBitsState(::ChainActive().Tip(), Params().GetConsensus(), Consensus::DEPLOYMENT_DIP0024, versionbitscache) == ThresholdState::ACTIVE);
+                bool fAllowScript = (::ChainActive().Height() >= Params().GetConsensus().DIP0024Height);
                 CProposalValidator validator(pObj->GetDataAsHexString(), fAllowScript);
                 if (!validator.Validate()) {
                     LogPrint(BCLog::GOBJECT, "CGovernanceManager::UpdateCachesAndClean -- set for deletion expired obj %s\n", strHash);
@@ -636,7 +636,7 @@ void CGovernanceManager::SyncObjects(CNode& peer, CConnman& connman) const
 
     LogPrint(BCLog::GOBJECT, "CGovernanceManager::%s -- syncing all objects to peer=%d\n", __func__, peer.GetId());
 
-    bool fAllowScript = WITH_LOCK(cs_main, return VersionBitsState(::ChainActive().Tip(), Params().GetConsensus(), Consensus::DEPLOYMENT_DIP0024, versionbitscache) == ThresholdState::ACTIVE);
+    bool fAllowScript = WITH_LOCK(cs_main, return ::ChainActive().Height() >= Params().GetConsensus().DIP0024Height);
 
     LOCK(cs);
 
