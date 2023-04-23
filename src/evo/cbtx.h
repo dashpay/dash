@@ -74,6 +74,8 @@ bool CalcCbTxMerkleRootMNList(const CBlock& block, const CBlockIndex* pindexPrev
 bool CalcCbTxMerkleRootQuorums(const CBlock& block, const CBlockIndex* pindexPrev, const llmq::CQuorumBlockProcessor& quorum_block_processor, uint256& merkleRootRet, BlockValidationState& state);
 bool CheckCbTxBestChainlock(const CBlock& block, const CBlockIndex* pindexPrev, const llmq::CChainLocksHandler& chainlock_handler, BlockValidationState& state);
 
-bool EmplaceBestChainlock(const llmq::CChainLocksHandler& chainlock_handler, const int nHeight, uint32_t& bestCLHeightDiff, CBLSSignature& bestCLSignature);
+bool EmplaceBestChainlock(const llmq::CChainLocksHandler& chainlock_handler, const int nHeight, std::optional<std::pair<CBLSSignature, uint32_t>> prevBlockCoinbaseChainlock, uint32_t& bestCLHeightDiff, CBLSSignature& bestCLSignature);
 
+std::optional<CCbTx> GetCoinbaseTx(const CBlockIndex* pindex);
+std::optional<std::pair<CBLSSignature, uint32_t>> GetNonNullCoinbaseChainlock(const CBlockIndex* pindex);
 #endif // BITCOIN_EVO_CBTX_H
