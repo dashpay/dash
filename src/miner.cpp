@@ -216,11 +216,12 @@ std::unique_ptr<CBlockTemplate> BlockAssembler::CreateNewBlock(CChainState& chai
                 throw std::runtime_error(strprintf("%s: CalcCbTxMerkleRootQuorums failed: %s", __func__, FormatStateMessage(state)));
             }
             if (llmq::utils::IsV20Active(pindexPrev)) {
-                if (!EmplaceBestChainlock(m_clhandler, nHeight, cbTx.bestCLHeightDiff, cbTx.bestCLSignature)) {
-                    LogPrintf("CreateNewBlock() height[%d] CBTx failed to find best CL.\n", nHeight);
+                auto prevBlockCoinbaseChainlock = GetNonNullCoinbaseChainlock(pindexPrev);
+                if (!EmplaceBestChainlock(m_clhandler, nHeight, prevBlockCoinbaseChainlock, cbTx.bestCLHeightDiff, cbTx.bestCLSignature)) {
+                    LogPrintf("CreateNewBlock() h[%d] CbTx failed to find best CL. Inserting null CL\n", nHeight);
                 }
                 else {
-                    LogPrintf("CreateNewBlock() height[%d] CBTx bestCLHeightDiff[%d] CLSig[%s]\n", nHeight, cbTx.bestCLHeightDiff, cbTx.bestCLSignature.ToString());
+                    LogPrintf("CreateNewBlock() h[%d] CbTx bestCLHeightDiff[%d] CLSig[%s]\n", nHeight, cbTx.bestCLHeightDiff, cbTx.bestCLSignature.ToString());
                 }
             }
         }
