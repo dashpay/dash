@@ -9,6 +9,7 @@
 
 #include <bls/bls.h>
 #include <chainparams.h>
+#include <evo/cbtx.h>
 #include <evo/deterministicmns.h>
 #include <evo/evodb.h>
 #include <masternode/meta.h>
@@ -133,10 +134,24 @@ std::vector<CDeterministicMNCPtr> GetAllQuorumMembers(Consensus::LLMQType llmqTy
     return quorumMembers;
 }
 
+uint256 GetHashModifier(Consensus::LLMQType llmqType, const CBlockIndex* pQuorumBaseBlockIndex)
+{
+
+    if (IsV20Active(pQuorumBaseBlockIndex)) {
+        auto cl = GetNonNullCoinbaseChainlock(pQuorumBaseBlockIndex);
+        if (cl.has_value()) {
+            CBLSSignature& clsig = cl.value().first;
+            return ::SerializeHash(std::make_tuple(llmqType, pQuorumBaseBlockIndex->nHeight, clsig));
+        }
+    }
+
+    return ::SerializeHash(std::make_pair(llmqType, pQuorumBaseBlockIndex->GetBlockHash()));
+}
+
 std::vector<CDeterministicMNCPtr> ComputeQuorumMembers(Consensus::LLMQType llmqType, const CBlockIndex* pQuorumBaseBlockIndex)
 {
     auto allMns = deterministicMNManager->GetListForBlock(pQuorumBaseBlockIndex);
-    auto modifier = ::SerializeHash(std::make_pair(llmqType, pQuorumBaseBlockIndex->GetBlockHash()));
+    auto modifier = GetHashModifier(llmqType, pQuorumBaseBlockIndex);
     bool HPMNOnly = (Params().GetConsensus().llmqTypePlatform == llmqType) && IsV19Active(pQuorumBaseBlockIndex);
     const auto& llmq_params_opt = GetLLMQParams(llmqType);
     assert(llmq_params_opt.has_value());
