@@ -334,6 +334,12 @@ bool CheckCbTxBestChainlock(const CBlock& block, const CBlockIndex* pindex, cons
     }
 
     if (cbTx.nVersion >= CCbTx::CB_V20_VERSION) {
+        auto best_clsig = chainlock_handler.GetBestChainLock();
+        if (best_clsig.getHeight() == pindex->nHeight - 1 && cbTx.bestCLHeightDiff == 0 && cbTx.bestCLSignature == best_clsig.getSig()) {
+            // matches our best clsig which still hold values for the previous block
+            return true;
+        }
+
         auto prevBlockCoinbaseChainlock = GetNonNullCoinbaseChainlock(pindex);
         // If std::optional prevBlockCoinbaseChainlock is empty, then up to the previous block, coinbase Chainlock is null.
         if (prevBlockCoinbaseChainlock.has_value()) {
@@ -352,6 +358,10 @@ bool CheckCbTxBestChainlock(const CBlock& block, const CBlockIndex* pindex, cons
         // IsNull() doesn't exist for CBLSSignature: we assume that a valid BLS sig is non-null
         if (cbTx.bestCLSignature.IsValid()) {
             int curBlockCoinbaseCLHeight = pindex->nHeight - static_cast<int>(cbTx.bestCLHeightDiff) - 1;
+            if (best_clsig.getHeight() == curBlockCoinbaseCLHeight && best_clsig.getSig() == cbTx.bestCLSignature) {
+                // matches our best (but outdated) clsig, no need to verify it again
+                return true;
+            }
             uint256 curBlockCoinbaseCLBlockHash = ::ChainActive()[curBlockCoinbaseCLHeight]->GetBlockHash();
             if (!chainlock_handler.VerifyChainLock(curBlockCoinbaseCLHeight, curBlockCoinbaseCLBlockHash, cbTx.bestCLSignature)) {
                 return state.Invalid(BlockValidationResult::BLOCK_CONSENSUS, "bad-cbtx-clsig");
@@ -370,6 +380,13 @@ bool CheckCbTxBestChainlock(const CBlock& block, const CBlockIndex* pindex, cons
 bool CalcCbTxBestChainlock(const llmq::CChainLocksHandler& chainlock_handler, const CBlockIndex* pindexPrev, uint32_t& bestCLHeightDiff, CBLSSignature& bestCLSignature)
 {
     auto best_clsig = chainlock_handler.GetBestChainLock();
+    if (best_clsig.getHeight() == pindexPrev->nHeight) {
+        // Our best CL is the newest one possible
+        bestCLHeightDiff = 0;
+        bestCLSignature = best_clsig.getSig();
+        return true;
+    }
+
     auto prevBlockCoinbaseChainlock = GetNonNullCoinbaseChainlock(pindexPrev);
     if (prevBlockCoinbaseChainlock.has_value()) {
         // Previous block Coinbase contains a non-null CL: We must insert the same sig or a better (newest) one
