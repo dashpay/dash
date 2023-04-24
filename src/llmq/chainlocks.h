@@ -104,7 +104,7 @@ public:
 
     bool HasChainLock(int nHeight, const uint256& blockHash) const LOCKS_EXCLUDED(cs);
     bool HasConflictingChainLock(int nHeight, const uint256& blockHash) const LOCKS_EXCLUDED(cs);
-    bool VerifyChainLock(int nHeight, const uint256& blockHash, const CBLSSignature& sig) const;
+    bool VerifyChainLock(const CChainLockSig& clsig) const;
 
     bool IsTxSafeForMining(const CInstantSendManager& isman, const uint256& txid) const LOCKS_EXCLUDED(cs);
 
