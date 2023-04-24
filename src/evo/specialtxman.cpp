@@ -159,7 +159,7 @@ bool ProcessSpecialTxsInBlock(const CBlock& block, const CBlockIndex* pindex, ll
         nTimeMerkle += nTime5 - nTime4;
         LogPrint(BCLog::BENCHMARK, "        - CheckCbTxMerkleRoots: %.2fms [%.2fs]\n", 0.001 * (nTime5 - nTime4), nTimeMerkle * 0.000001);
 
-        if (!CheckCbTxBestChainlock(block, pindex, chainlock_handler, state)) {
+        if (fCheckCbTxMerleRoots && !CheckCbTxBestChainlock(block, pindex, chainlock_handler, state)) {
             // pass the state returned by the function above
             return false;
         }
