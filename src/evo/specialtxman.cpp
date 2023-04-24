@@ -108,6 +108,7 @@ bool ProcessSpecialTxsInBlock(const CBlock& block, const CBlockIndex* pindex, ll
         static int64_t nTimeQuorum = 0;
         static int64_t nTimeDMN = 0;
         static int64_t nTimeMerkle = 0;
+        static int64_t nTimeCbTxCL = 0;
 
         int64_t nTime1 = GetTimeMicros();
 
@@ -154,14 +155,18 @@ bool ProcessSpecialTxsInBlock(const CBlock& block, const CBlockIndex* pindex, ll
             return false;
         }
 
+        int64_t nTime5 = GetTimeMicros();
+        nTimeMerkle += nTime5 - nTime4;
+        LogPrint(BCLog::BENCHMARK, "        - CheckCbTxMerkleRoots: %.2fms [%.2fs]\n", 0.001 * (nTime5 - nTime4), nTimeMerkle * 0.000001);
+
         if (!CheckCbTxBestChainlock(block, pindex, chainlock_handler, state)) {
             // pass the state returned by the function above
             return false;
         }
 
-        int64_t nTime5 = GetTimeMicros();
-        nTimeMerkle += nTime5 - nTime4;
-        LogPrint(BCLog::BENCHMARK, "        - CheckCbTxMerkleRoots: %.2fms [%.2fs]\n", 0.001 * (nTime5 - nTime4), nTimeMerkle * 0.000001);
+        int64_t nTime6 = GetTimeMicros();
+        nTimeCbTxCL += nTime6 - nTime5;
+        LogPrint(BCLog::BENCHMARK, "        - CheckCbTxBestChainlock: %.2fms [%.2fs]\n", 0.001 * (nTime6 - nTime5), nTimeCbTxCL * 0.000001);
     } catch (const std::exception& e) {
         LogPrintf("%s -- failed: %s\n", __func__, e.what());
         return state.Invalid(BlockValidationResult::BLOCK_CONSENSUS, "failed-procspectxsinblock");
