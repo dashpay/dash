@@ -38,8 +38,7 @@ bool CheckCbTx(const CTransaction& tx, const CBlockIndex* pindexPrev, TxValidati
 
     if (pindexPrev) {
         bool isV20 = llmq::utils::IsV20Active(pindexPrev);
-        bool isCbV20 = cbTx.nVersion == CCbTx::CB_V20_VERSION;
-        if (isV20 != isCbV20) return state.Invalid(TxValidationResult::TX_CONSENSUS, "bad-cbtx-version");
+        if (isV20 && cbTx.nVersion != CCbTx::CB_V20_VERSION) return state.Invalid(TxValidationResult::TX_CONSENSUS, "bad-cbtx-version");
     }
 
     if (pindexPrev && pindexPrev->nHeight + 1 != cbTx.nHeight) {
@@ -333,7 +332,7 @@ bool CheckCbTxBestChainlock(const CBlock& block, const CBlockIndex* pindex, cons
         return state.Invalid(BlockValidationResult::BLOCK_CONSENSUS, "bad-cbtx-payload");
     }
 
-    if (cbTx.nVersion >= CCbTx::CB_V20_VERSION) {
+    if (cbTx.nVersion == CCbTx::CB_V20_VERSION) {
         auto best_clsig = chainlock_handler.GetBestChainLock();
         if (best_clsig.getHeight() == pindex->nHeight - 1 && cbTx.bestCLHeightDiff == 0 && cbTx.bestCLSignature == best_clsig.getSig()) {
             // matches our best clsig which still hold values for the previous block
@@ -346,12 +345,12 @@ bool CheckCbTxBestChainlock(const CBlock& block, const CBlockIndex* pindex, cons
             // Previous block Coinbase has a non-null Chainlock: current block's Chainlock must be non-null and at least as new as the previous one
             if (!cbTx.bestCLSignature.IsValid()) {
                 // IsNull() doesn't exist for CBLSSignature: we assume that a non valid BLS sig is null
-                return state.Invalid(BlockValidationResult::BLOCK_CONSENSUS, "bad-cbtx-clsig");
+                return state.Invalid(BlockValidationResult::BLOCK_CONSENSUS, "bad-cbtx-null-clsig");
             }
             int prevBlockCoinbaseCLHeight = pindex->nHeight - static_cast<int>(prevBlockCoinbaseChainlock.value().second) - 1;
             int curBlockCoinbaseCLHeight = pindex->nHeight - static_cast<int>(cbTx.bestCLHeightDiff) - 1;
             if (curBlockCoinbaseCLHeight < prevBlockCoinbaseCLHeight) {
-                return state.Invalid(BlockValidationResult::BLOCK_CONSENSUS, "bad-cbtx-clsig");
+                return state.Invalid(BlockValidationResult::BLOCK_CONSENSUS, "bad-cbtx-older-clsig");
             }
         }
 
@@ -362,9 +361,9 @@ bool CheckCbTxBestChainlock(const CBlock& block, const CBlockIndex* pindex, cons
                 // matches our best (but outdated) clsig, no need to verify it again
                 return true;
             }
-            uint256 curBlockCoinbaseCLBlockHash = ::ChainActive()[curBlockCoinbaseCLHeight]->GetBlockHash();
+            uint256 curBlockCoinbaseCLBlockHash = pindex->GetAncestor(curBlockCoinbaseCLHeight)->GetBlockHash();
             if (!chainlock_handler.VerifyChainLock(llmq::CChainLockSig(curBlockCoinbaseCLHeight, curBlockCoinbaseCLBlockHash, cbTx.bestCLSignature))) {
-                return state.Invalid(BlockValidationResult::BLOCK_CONSENSUS, "bad-cbtx-clsig");
+                return state.Invalid(BlockValidationResult::BLOCK_CONSENSUS, "bad-cbtx-invalid-clsig");
             }
         }
         else if (cbTx.bestCLHeightDiff != 0) {
