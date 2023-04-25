@@ -363,7 +363,7 @@ bool CheckCbTxBestChainlock(const CBlock& block, const CBlockIndex* pindex, cons
                 return true;
             }
             uint256 curBlockCoinbaseCLBlockHash = ::ChainActive()[curBlockCoinbaseCLHeight]->GetBlockHash();
-            if (!chainlock_handler.VerifyChainLock(curBlockCoinbaseCLHeight, curBlockCoinbaseCLBlockHash, cbTx.bestCLSignature)) {
+            if (!chainlock_handler.VerifyChainLock(llmq::CChainLockSig(curBlockCoinbaseCLHeight, curBlockCoinbaseCLBlockHash, cbTx.bestCLSignature))) {
                 return state.Invalid(BlockValidationResult::BLOCK_CONSENSUS, "bad-cbtx-clsig");
             }
         }
