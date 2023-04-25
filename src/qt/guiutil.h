@@ -80,6 +80,8 @@ namespace GUIUtil
     enum class ThemedStyle {
         /* Invalid field background style */
         TS_INVALID,
+        /* Warning text style */
+        TS_WARNING,
         /* Failed operation text style */
         TS_ERROR,
         /* Failed operation text style */
