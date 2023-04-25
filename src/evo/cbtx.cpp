@@ -322,7 +322,7 @@ bool CalcCbTxMerkleRootQuorums(const CBlock& block, const CBlockIndex* pindexPre
     return true;
 }
 
-bool CheckCbTxBestChainlock(const CBlock& block, const CBlockIndex* pindexPrev, const llmq::CChainLocksHandler& chainlock_handler, BlockValidationState& state)
+bool CheckCbTxBestChainlock(const CBlock& block, const CBlockIndex* pindex, const llmq::CChainLocksHandler& chainlock_handler, BlockValidationState& state)
 {
     if (block.vtx[0]->nType != TRANSACTION_COINBASE) {
         return true;
@@ -334,7 +334,7 @@ bool CheckCbTxBestChainlock(const CBlock& block, const CBlockIndex* pindexPrev, 
     }
 
     if (cbTx.nVersion >= CCbTx::CB_V20_VERSION) {
-        auto prevBlockCoinbaseChainlock = GetNonNullCoinbaseChainlock(pindexPrev);
+        auto prevBlockCoinbaseChainlock = GetNonNullCoinbaseChainlock(pindex);
         // If std::optional prevBlockCoinbaseChainlock is empty, then up to the previous block, coinbase Chainlock is null.
         if (prevBlockCoinbaseChainlock.has_value()) {
             // Previous block Coinbase has a non-null Chainlock: current block's Chainlock must be non-null and at least as new as the previous one
@@ -342,8 +342,8 @@ bool CheckCbTxBestChainlock(const CBlock& block, const CBlockIndex* pindexPrev, 
                 // IsNull() doesn't exist for CBLSSignature: we assume that a non valid BLS sig is null
                 return state.Invalid(BlockValidationResult::BLOCK_CONSENSUS, "bad-cbtx-clsig");
             }
-            int prevBlockCoinbaseCLHeight = pindexPrev->nHeight - static_cast<int>(prevBlockCoinbaseChainlock.value().second) - 1;
-            int curBlockCoinbaseCLHeight = pindexPrev->nHeight - static_cast<int>(cbTx.bestCLHeightDiff) - 1;
+            int prevBlockCoinbaseCLHeight = pindex->nHeight - static_cast<int>(prevBlockCoinbaseChainlock.value().second) - 1;
+            int curBlockCoinbaseCLHeight = pindex->nHeight - static_cast<int>(cbTx.bestCLHeightDiff) - 1;
             if (curBlockCoinbaseCLHeight < prevBlockCoinbaseCLHeight) {
                 return state.Invalid(BlockValidationResult::BLOCK_CONSENSUS, "bad-cbtx-clsig");
             }
@@ -351,9 +351,9 @@ bool CheckCbTxBestChainlock(const CBlock& block, const CBlockIndex* pindexPrev, 
 
         // IsNull() doesn't exist for CBLSSignature: we assume that a valid BLS sig is non-null
         if (cbTx.bestCLSignature.IsValid()) {
-            int curBlockCoinbaseCLHeight = pindexPrev->nHeight - static_cast<int>(cbTx.bestCLHeightDiff) - 1;
+            int curBlockCoinbaseCLHeight = pindex->nHeight - static_cast<int>(cbTx.bestCLHeightDiff) - 1;
             uint256 curBlockCoinbaseCLBlockHash = ::ChainActive()[curBlockCoinbaseCLHeight]->GetBlockHash();
-            if (!chainlock_handler.VerifyChainLock(curBlockCoinbaseCLHeight, curBlockCoinbaseCLBlockHash, cbTx.bestCLSignature )){
+            if (!chainlock_handler.VerifyChainLock(curBlockCoinbaseCLHeight, curBlockCoinbaseCLBlockHash, cbTx.bestCLSignature)) {
                 return state.Invalid(BlockValidationResult::BLOCK_CONSENSUS, "bad-cbtx-clsig");
             }
         }
@@ -367,11 +367,13 @@ bool CheckCbTxBestChainlock(const CBlock& block, const CBlockIndex* pindexPrev, 
     return true;
 }
 
-bool EmplaceBestChainlock(const llmq::CChainLocksHandler& chainlock_handler, const int nHeight, std::optional<std::pair<CBLSSignature, uint32_t>> prevBlockCoinbaseChainlock, uint32_t& bestCLHeightDiff, CBLSSignature& bestCLSignature)
+bool CalcCbTxBestChainlock(const llmq::CChainLocksHandler& chainlock_handler, const CBlockIndex* pindexPrev, uint32_t& bestCLHeightDiff, CBLSSignature& bestCLSignature)
 {
+    auto best_clsig = chainlock_handler.GetBestChainLock();
+    auto prevBlockCoinbaseChainlock = GetNonNullCoinbaseChainlock(pindexPrev);
     if (prevBlockCoinbaseChainlock.has_value()) {
         // Previous block Coinbase contains a non-null CL: We must insert the same sig or a better (newest) one
-        if (chainlock_handler.GetBestChainLock().IsNull()) {
+        if (best_clsig.IsNull()) {
             // We don't know any CL, therefore inserting the CL of the previous block
             bestCLHeightDiff = prevBlockCoinbaseChainlock->second + 1;
             bestCLSignature = prevBlockCoinbaseChainlock->first;
@@ -379,8 +381,8 @@ bool EmplaceBestChainlock(const llmq::CChainLocksHandler& chainlock_handler, con
         }
 
         // We check if our best CL is newer than the one from previous block Coinbase
-        auto curCLHeight = chainlock_handler.GetBestChainLock().getHeight();
-        auto prevCLHeight = (static_cast<uint32_t>(nHeight - 1) - prevBlockCoinbaseChainlock->second - 1);
+        auto curCLHeight = best_clsig.getHeight();
+        auto prevCLHeight = static_cast<uint32_t>(pindexPrev->nHeight) - prevBlockCoinbaseChainlock->second - 1;
         if (curCLHeight < prevCLHeight) {
             // Our best CL isn't newer: inserting CL from previous block
             bestCLHeightDiff = prevBlockCoinbaseChainlock->second + 1;
@@ -388,15 +390,15 @@ bool EmplaceBestChainlock(const llmq::CChainLocksHandler& chainlock_handler, con
         }
         else {
             // Our best CL is newer
-            bestCLHeightDiff = (static_cast<uint32_t>(nHeight) - chainlock_handler.GetBestChainLock().getHeight() - 1);
-            bestCLSignature = chainlock_handler.GetBestChainLock().getSig();
+            bestCLHeightDiff = static_cast<uint32_t>(pindexPrev->nHeight) - best_clsig.getHeight();
+            bestCLSignature = best_clsig.getSig();
         }
 
         return true;
     }
     else {
         // Previous block Coinbase has no CL. We can either insert null or any valid CL
-        if (chainlock_handler.GetBestChainLock().IsNull()) {
+        if (best_clsig.IsNull()) {
             // We don't know any CL, therefore inserting a null CL
             bestCLHeightDiff = 0;
             bestCLSignature.Reset();
@@ -404,7 +406,7 @@ bool EmplaceBestChainlock(const llmq::CChainLocksHandler& chainlock_handler, con
         }
 
         // Inserting our best CL
-        bestCLHeightDiff = (static_cast<uint32_t>(nHeight) - chainlock_handler.GetBestChainLock().getHeight() - 1);
+        bestCLHeightDiff = static_cast<uint32_t>(pindexPrev->nHeight) - best_clsig.getHeight();
         bestCLSignature = chainlock_handler.GetBestChainLock().getSig();
 
         return true;
