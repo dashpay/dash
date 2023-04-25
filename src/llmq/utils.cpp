@@ -138,10 +138,9 @@ uint256 GetHashModifier(Consensus::LLMQType llmqType, const CBlockIndex* pQuorum
 {
 
     if (IsV20Active(pQuorumBaseBlockIndex)) {
-        auto cl = GetNonNullCoinbaseChainlock(pQuorumBaseBlockIndex);
-        if (cl.has_value()) {
-            CBLSSignature& clsig = cl.value().first;
-            return ::SerializeHash(std::make_tuple(llmqType, pQuorumBaseBlockIndex->nHeight, clsig));
+        auto cbcl = coinbaseChainlockManager->GetCbTxChainlockData(pQuorumBaseBlockIndex);
+        if (cbcl.has_value()) {
+            return ::SerializeHash(std::make_tuple(llmqType, pQuorumBaseBlockIndex->nHeight, cbcl.value().bestCLSignature));
         }
     }
 

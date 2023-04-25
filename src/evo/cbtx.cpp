@@ -17,6 +17,8 @@
 #include <consensus/merkle.h>
 #include <validation.h>
 
+std::unique_ptr<CCbTxChainlockManager> coinbaseChainlockManager;
+
 bool CheckCbTx(const CTransaction& tx, const CBlockIndex* pindexPrev, TxValidationState& state)
 {
     if (tx.nType != TRANSACTION_COINBASE) {
@@ -339,7 +341,7 @@ bool CheckCbTxBestChainlock(const CBlock& block, const CBlockIndex* pindex, cons
             return true;
         }
 
-        auto prevBlockCoinbaseChainlock = GetNonNullCoinbaseChainlock(pindex);
+        auto prevBlockCoinbaseChainlock = coinbaseChainlockManager->GetCbTxChainlockData(pindex);
         // If std::optional prevBlockCoinbaseChainlock is empty, then up to the previous block, coinbase Chainlock is null.
         if (prevBlockCoinbaseChainlock.has_value()) {
             // Previous block Coinbase has a non-null Chainlock: current block's Chainlock must be non-null and at least as new as the previous one
@@ -347,7 +349,7 @@ bool CheckCbTxBestChainlock(const CBlock& block, const CBlockIndex* pindex, cons
                 // IsNull() doesn't exist for CBLSSignature: we assume that a non valid BLS sig is null
                 return state.Invalid(BlockValidationResult::BLOCK_CONSENSUS, "bad-cbtx-null-clsig");
             }
-            int prevBlockCoinbaseCLHeight = pindex->nHeight - static_cast<int>(prevBlockCoinbaseChainlock.value().second) - 1;
+            int prevBlockCoinbaseCLHeight = pindex->nHeight - static_cast<int>(prevBlockCoinbaseChainlock.value().bestCLHeightDiff) - 1;
             int curBlockCoinbaseCLHeight = pindex->nHeight - static_cast<int>(cbTx.bestCLHeightDiff) - 1;
             if (curBlockCoinbaseCLHeight < prevBlockCoinbaseCLHeight) {
                 return state.Invalid(BlockValidationResult::BLOCK_CONSENSUS, "bad-cbtx-older-clsig");
@@ -386,23 +388,23 @@ bool CalcCbTxBestChainlock(const llmq::CChainLocksHandler& chainlock_handler, co
         return true;
     }
 
-    auto prevBlockCoinbaseChainlock = GetNonNullCoinbaseChainlock(pindexPrev);
+    auto prevBlockCoinbaseChainlock = coinbaseChainlockManager->GetCbTxChainlockData(pindexPrev);
     if (prevBlockCoinbaseChainlock.has_value()) {
         // Previous block Coinbase contains a non-null CL: We must insert the same sig or a better (newest) one
         if (best_clsig.IsNull()) {
             // We don't know any CL, therefore inserting the CL of the previous block
-            bestCLHeightDiff = prevBlockCoinbaseChainlock->second + 1;
-            bestCLSignature = prevBlockCoinbaseChainlock->first;
+            bestCLHeightDiff = prevBlockCoinbaseChainlock->bestCLHeightDiff + 1;
+            bestCLSignature = prevBlockCoinbaseChainlock->bestCLSignature;
             return true;
         }
 
         // We check if our best CL is newer than the one from previous block Coinbase
         auto curCLHeight = best_clsig.getHeight();
-        auto prevCLHeight = static_cast<uint32_t>(pindexPrev->nHeight) - prevBlockCoinbaseChainlock->second - 1;
+        auto prevCLHeight = static_cast<uint32_t>(pindexPrev->nHeight) - prevBlockCoinbaseChainlock->bestCLHeightDiff - 1;
         if (curCLHeight < prevCLHeight) {
             // Our best CL isn't newer: inserting CL from previous block
-            bestCLHeightDiff = prevBlockCoinbaseChainlock->second + 1;
-            bestCLSignature = prevBlockCoinbaseChainlock->first;
+            bestCLHeightDiff = prevBlockCoinbaseChainlock->bestCLHeightDiff + 1;
+            bestCLSignature = prevBlockCoinbaseChainlock->bestCLSignature;
         }
         else {
             // Our best CL is newer
@@ -436,7 +438,34 @@ std::string CCbTx::ToString() const
         nVersion, nHeight, merkleRootMNList.ToString(), merkleRootQuorums.ToString(), bestCLHeightDiff, bestCLSignature.ToString());
 }
 
-std::optional<CCbTx> GetCoinbaseTx(const CBlockIndex* pindex)
+std::optional<CCbTxChainlockData> CCbTxChainlockManager::GetCbTxChainlockData(const CBlockIndex* pindex)
+{
+    CCbTxChainlockData res = {};
+
+    LOCK(cbtxCLCacheCs);
+    // try using cache before reading from disk
+    if (cbtxCLCache.get(pindex->GetBlockHash(), res)) {
+        return res;
+    }
+
+    auto cc = GetNonNullCoinbaseChainlock(pindex);
+    if (cc.has_value()) {
+        cbtxCLCache.insert(pindex->GetBlockHash(), cc.value());
+        return cc;
+    }
+
+    return std::nullopt;
+}
+
+void CCbTxChainlockManager::StoreCbTxChainlockDataForBlock(const CBlockIndex* pindex, const CCbTxChainlockData& data)
+{
+    if (data.bestCLSignature.IsValid()) {
+        LOCK(cbtxCLCacheCs);
+        cbtxCLCache.insert(pindex->GetBlockHash(), data);
+    }
+}
+
+std::optional<CCbTx> CCbTxChainlockManager::GetCoinbaseTx(const CBlockIndex* pindex)
 {
     if (pindex == nullptr) {
         return std::nullopt;
@@ -467,7 +496,7 @@ std::optional<CCbTx> GetCoinbaseTx(const CBlockIndex* pindex)
     return cbTxPayload;
 }
 
-std::optional<std::pair<CBLSSignature, uint32_t>> GetNonNullCoinbaseChainlock(const CBlockIndex* pindex)
+std::optional<CCbTxChainlockData> CCbTxChainlockManager::GetNonNullCoinbaseChainlock(const CBlockIndex* pindex)
 {
     auto opt_cbtx = GetCoinbaseTx(pindex);
 
@@ -485,5 +514,8 @@ std::optional<std::pair<CBLSSignature, uint32_t>> GetNonNullCoinbaseChainlock(co
         return std::nullopt;
     }
 
-    return std::make_pair(cbtx.bestCLSignature, cbtx.bestCLHeightDiff);
+    CCbTxChainlockData res;
+    res.bestCLHeightDiff = cbtx.bestCLHeightDiff;
+    res.bestCLSignature = cbtx.bestCLSignature;
+    return res;
 }

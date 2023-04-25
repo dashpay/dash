@@ -7,7 +7,10 @@
 
 #include <bls/bls.h>
 #include <primitives/transaction.h>
+#include <saltedhasher.h>
+#include <sync.h>
 #include <univalue.h>
+#include <unordered_lru_cache.h>
 
 class BlockValidationState;
 class CBlock;
@@ -76,6 +79,29 @@ bool CalcCbTxMerkleRootQuorums(const CBlock& block, const CBlockIndex* pindexPre
 bool CheckCbTxBestChainlock(const CBlock& block, const CBlockIndex* pindexPrev, const llmq::CChainLocksHandler& chainlock_handler, BlockValidationState& state);
 bool CalcCbTxBestChainlock(const llmq::CChainLocksHandler& chainlock_handler, const CBlockIndex* pindexPrev, uint32_t& bestCLHeightDiff, CBLSSignature& bestCLSignature);
 
-std::optional<CCbTx> GetCoinbaseTx(const CBlockIndex* pindex);
-std::optional<std::pair<CBLSSignature, uint32_t>> GetNonNullCoinbaseChainlock(const CBlockIndex* pindex);
+struct CCbTxChainlockData {
+    uint32_t bestCLHeightDiff;
+    CBLSSignature bestCLSignature;
+};
+
+class CCbTxChainlockManager
+{
+private:
+    mutable CCriticalSection cbtxCLCacheCs;
+
+    unordered_lru_cache<uint256, CCbTxChainlockData, StaticSaltedHasher> cbtxCLCache GUARDED_BY(cbtxCLCacheCs);
+
+public:
+    explicit CCbTxChainlockManager() : cbtxCLCache(32) {}
+
+    std::optional<CCbTxChainlockData> GetCbTxChainlockData(const CBlockIndex* pindex);
+    void StoreCbTxChainlockDataForBlock(const CBlockIndex* pindex, const CCbTxChainlockData& data);
+
+private:
+    std::optional<CCbTx> GetCoinbaseTx(const CBlockIndex* pindex);
+    std::optional<CCbTxChainlockData> GetNonNullCoinbaseChainlock(const CBlockIndex* pindex);
+};
+
+extern std::unique_ptr<CCbTxChainlockManager> coinbaseChainlockManager;
+
 #endif // BITCOIN_EVO_CBTX_H

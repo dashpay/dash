@@ -73,8 +73,8 @@ class LLMQQuorumRotationTest(DashTestFramework):
         self.nodes[0].sporkupdate("SPORK_17_QUORUM_DKG_ENABLED", 0)
         self.wait_for_sporks_same()
 
-        self.activate_dip0024(expected_activation_height=900)
-        self.log.info("Activated DIP0024 at height:" + str(self.nodes[0].getblockcount()))
+        self.activate_by_name('v20', expected_activation_height=962)
+        self.log.info("Activated v20 at height:" + str(self.nodes[0].getblockcount()))
 
         #At this point, we need to move forward 3 cycles (3 x 24 blocks) so the first 3 quarters can be created (without DKG sessions)
         #self.log.info("Start at H height:" + str(self.nodes[0].getblockcount()))

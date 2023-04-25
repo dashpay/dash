@@ -21,6 +21,7 @@
 #include <node/coinstats.h>
 #include <compat/sanity.h>
 #include <consensus/validation.h>
+#include <evo/cbtx.h>
 #include <fs.h>
 #include <hash.h>
 #include <httpserver.h>
@@ -338,6 +339,7 @@ void PrepareShutdown(NodeContext& node)
             node.llmq_ctx.reset();
         }
         llmq::quorumSnapshotManager.reset();
+        coinbaseChainlockManager.reset();
         deterministicMNManager.reset();
         node.evodb.reset();
     }
@@ -2027,6 +2029,8 @@ bool AppInitMain(const CoreContext& context, NodeContext& node, interfaces::Bloc
                 deterministicMNManager.reset(new CDeterministicMNManager(*node.evodb, *node.connman));
                 llmq::quorumSnapshotManager.reset();
                 llmq::quorumSnapshotManager.reset(new llmq::CQuorumSnapshotManager(*node.evodb));
+                coinbaseChainlockManager.reset();
+                coinbaseChainlockManager.reset(new CCbTxChainlockManager());
                 node.llmq_ctx.reset();
                 node.llmq_ctx.reset(new LLMQContext(*node.evodb, *node.mempool, *node.connman, *::sporkManager, false, fReset || fReindexChainState));
 
