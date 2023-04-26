@@ -31,15 +31,16 @@ class LLMQChainLocksTest(DashTestFramework):
 
         self.activate_dip8()
 
-        self.nodes[0].sporkupdate("SPORK_17_QUORUM_DKG_ENABLED", 0)
-        self.wait_for_sporks_same()
-
         self.test_coinbase_best_cl(self.nodes[0], expected_cl_in_cb=False)
 
-        self.activate_by_name('v20', expected_activation_height=904)
+        self.activate_v20(expected_activation_height=904)
         self.log.info("Activated v20 at height:" + str(self.nodes[0].getblockcount()))
 
+        # no quorums, no CLs - null CL in CbTx
         self.test_coinbase_best_cl(self.nodes[0], expected_cl_in_cb=True, expected_null_cl=True)
+
+        self.nodes[0].sporkupdate("SPORK_17_QUORUM_DKG_ENABLED", 0)
+        self.wait_for_sporks_same()
 
         self.log.info("Mining 4 quorums")
         for i in range(4):
@@ -196,7 +197,7 @@ class LLMQChainLocksTest(DashTestFramework):
             best_cl_height_diff = int(cbtx["bestCLHeightDiff"])
             best_cl_signature = cbtx["bestCLSignature"]
             assert_equal(expected_null_cl, int(best_cl_signature, 16) == 0)
-            if int(best_cl_signature, 16) == 0:
+            if expected_null_cl:
                 # Null bestCLSignature is allowed.
                 # bestCLHeightDiff must be 0 if bestCLSignature is null
                 assert_equal(best_cl_height_diff, 0)
@@ -205,7 +206,9 @@ class LLMQChainLocksTest(DashTestFramework):
             best_cl_height = cb_height - best_cl_height_diff - 1
             target_block_hash = node.getblockhash(best_cl_height)
             # Verify CL signature
-            assert(node.verifychainlock(target_block_hash, best_cl_signature, best_cl_height))
+            assert node.verifychainlock(target_block_hash, best_cl_signature, best_cl_height)
+        else:
+            assert "bestCLHeightDiff" not in cbtx and "bestCLSignature" not in cbtx
 
 
 if __name__ == '__main__':
