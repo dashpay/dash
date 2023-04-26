@@ -954,7 +954,8 @@ bool IsQuorumTypeEnabledInternal(Consensus::LLMQType llmqType, const CQuorumMana
             break;
         case Consensus::LLMQType::LLMQ_100_67:
         case Consensus::LLMQType::LLMQ_TEST_V17:
-            if (pindex->nHeight < consensusParams.DIP0020Height) return false;
+            if (pindex == nullptr || pindex->nHeight < consensusParams.DIP0020Height) return false;
+            break;
         case Consensus::LLMQType::LLMQ_60_75:
         case Consensus::LLMQType::LLMQ_DEVNET_DIP0024:
         case Consensus::LLMQType::LLMQ_TEST_DIP0024: {
