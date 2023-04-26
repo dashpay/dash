@@ -2050,7 +2050,7 @@ static unsigned int GetBlockScriptFlags(const CBlockIndex* pindex, const Consens
         flags |= SCRIPT_VERIFY_NULLDUMMY;
     }
 
-    if (pindex->pprev->nHeight >= consensusparams.DIP0020Height) {
+    if (pindex->nHeight >= consensusparams.DIP0020Height) {
         flags |= SCRIPT_ENABLE_DIP0020_OPCODES;
     }
 

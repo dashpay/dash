@@ -952,8 +952,12 @@ bool IsQuorumTypeEnabledInternal(Consensus::LLMQType llmqType, const CQuorumMana
         case Consensus::LLMQType::LLMQ_400_85:
         case Consensus::LLMQType::LLMQ_DEVNET_PLATFORM:
             break;
-        case Consensus::LLMQType::LLMQ_100_67:
         case Consensus::LLMQType::LLMQ_TEST_V17:
+            if (LOCK(cs_llmq_vbc); VersionBitsState(pindex, consensusParams, Consensus::DEPLOYMENT_TESTDUMMY, llmq_versionbitscache) != ThresholdState::ACTIVE) {
+                return false;
+            }
+            break;
+        case Consensus::LLMQType::LLMQ_100_67:
             if (pindex == nullptr || pindex->nHeight < consensusParams.DIP0020Height) return false;
             break;
         case Consensus::LLMQType::LLMQ_60_75:
