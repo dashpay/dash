@@ -607,7 +607,7 @@ QSlider::add-page:horizontal {
 QStatusBar
 ******************************************************/
 
-QStatusBar {
+QStatusBar::item {
     background-color: #323233;
     color: #c7c7c7;
 }
