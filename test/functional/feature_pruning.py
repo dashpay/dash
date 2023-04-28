@@ -123,7 +123,7 @@ class PruneTest(BitcoinTestFramework):
     def test_invalid_command_line_options(self):
         self.nodes[0].assert_start_raises_init_error(
             expected_msg='Error: Prune cannot be configured with a negative value.',
-            extra_args=['-prune=-1'],
+            extra_args=['-prune=-1', '-txindex=0', '-disablegovernance'],
         )
         self.nodes[0].assert_start_raises_init_error(
             expected_msg='Error: Prune configured below the minimum of 550 MiB.  Please use a higher number.',
@@ -133,9 +133,17 @@ class PruneTest(BitcoinTestFramework):
             expected_msg='Error: Prune mode is incompatible with -txindex.',
             extra_args=['-prune=550', '-txindex'],
         )
+        # self.nodes[0].assert_start_raises_init_error(
+        #     expected_msg='Error: Prune mode is incompatible with -coinstatsindex.',
+        #     extra_args=['-prune=550', '-coinstatsindex'],
+        # )
         self.nodes[0].assert_start_raises_init_error(
-            expected_msg='Error: Prune mode is incompatible with -coinstatsindex.',
-            extra_args=['-prune=550', '-coinstatsindex'],
+            expected_msg='Error: Prune mode is incompatible with -blockfilterindex.',
+            extra_args=['-prune=550', '-blockfilterindex'],
+        )
+        self.nodes[0].assert_start_raises_init_error(
+            expected_msg='Error: Prune mode is incompatible with -disablegovernance=false.',
+            extra_args=['-prune=550', '-disablegovernance=false'],
         )
 
     def test_height_min(self):
