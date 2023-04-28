@@ -932,53 +932,45 @@ bool IsQuorumTypeEnabledInternal(Consensus::LLMQType llmqType, const CQuorumMana
         case Consensus::LLMQType::LLMQ_TEST_INSTANTSEND:
         case Consensus::LLMQType::LLMQ_DEVNET:
         case Consensus::LLMQType::LLMQ_50_60: {
-            if (IsInstantSendLLMQTypeShared()) {
-                break;
-            }
+            if (IsInstantSendLLMQTypeShared()) return true;
+
             bool fDIP0024IsActive = optDIP0024IsActive.has_value() ? *optDIP0024IsActive : IsDIP0024Active(pindex);
-            if (fDIP0024IsActive) {
-                bool fHaveDIP0024Quorums = optHaveDIP0024Quorums.has_value() ? *optHaveDIP0024Quorums
-                                                                             : !qman.ScanQuorums(
-                                consensusParams.llmqTypeDIP0024InstantSend, pindex, 1).empty();
-                if (fHaveDIP0024Quorums) {
-                    return false;
-                }
-            }
-            break;
+            if (!fDIP0024IsActive) return true;
+
+            bool fHaveDIP0024Quorums = optHaveDIP0024Quorums.has_value() ? *optHaveDIP0024Quorums
+                                                                         : !qman.ScanQuorums(
+                            consensusParams.llmqTypeDIP0024InstantSend, pindex, 1).empty();
+            return !fHaveDIP0024Quorums;
         }
         case Consensus::LLMQType::LLMQ_TEST:
         case Consensus::LLMQType::LLMQ_TEST_PLATFORM:
         case Consensus::LLMQType::LLMQ_400_60:
         case Consensus::LLMQType::LLMQ_400_85:
         case Consensus::LLMQType::LLMQ_DEVNET_PLATFORM:
-            break;
-        case Consensus::LLMQType::LLMQ_TEST_V17:
-            if (LOCK(cs_llmq_vbc); VersionBitsState(pindex, consensusParams, Consensus::DEPLOYMENT_TESTDUMMY, llmq_versionbitscache) != ThresholdState::ACTIVE) {
-                return false;
-            }
-            break;
+            return true;
+
+        case Consensus::LLMQType::LLMQ_TEST_V17: {
+            LOCK(cs_llmq_vbc);
+            return VersionBitsState(pindex, consensusParams, Consensus::DEPLOYMENT_TESTDUMMY, llmq_versionbitscache) == ThresholdState::ACTIVE;
+        }
         case Consensus::LLMQType::LLMQ_100_67:
-            if (pindex == nullptr || pindex->nHeight < consensusParams.DIP0020Height) return false;
-            break;
+            return pindex != nullptr && pindex->nHeight >= consensusParams.DIP0020Height;
+
         case Consensus::LLMQType::LLMQ_60_75:
         case Consensus::LLMQType::LLMQ_DEVNET_DIP0024:
         case Consensus::LLMQType::LLMQ_TEST_DIP0024: {
             bool fDIP0024IsActive = optDIP0024IsActive.has_value() ? *optDIP0024IsActive : IsDIP0024Active(pindex);
-            if (!fDIP0024IsActive) {
-                return false;
-            }
-            break;
+            return fDIP0024IsActive;
         }
         case Consensus::LLMQType::LLMQ_25_67:
-            if (pindex->nHeight < TESTNET_LLMQ_25_67_ACTIVATION_HEIGHT) {
-                return false;
-            }
-            break;
+            return pindex->nHeight >= TESTNET_LLMQ_25_67_ACTIVATION_HEIGHT;
+
         default:
             throw std::runtime_error(strprintf("%s: Unknown LLMQ type %d", __func__, ToUnderlying(llmqType)));
     }
 
-    return true;
+    // Something wrong with conditions above, they are not consistent
+    assert(false);
 }
 
 std::vector<Consensus::LLMQType> GetEnabledQuorumTypes(const CBlockIndex* pindex)
