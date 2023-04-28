@@ -82,6 +82,7 @@ include:
   - *rest* for changes to the REST APIs
   - *rpc* for changes to the RPC APIs
   - *scripts* for changes to the scripts and tools
+  - *tests* for changes to the tests and tools
   - *utils* for changes to the utils and libraries
   - *wallet* for changes to the wallet code
   - *zmq* for changes to the ZMQ APIs

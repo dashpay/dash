@@ -43,6 +43,7 @@ jobs:
             rest
             rpc
             scripts
+            tests
             utils
             wallet
             zmq
