@@ -482,13 +482,14 @@ class PruneTest(BitcoinTestFramework):
             self.log.info("Test wallet re-scan")
             self.wallet_test()
 
+        self.log.info("Test invalid pruning command line options")
+        self.test_invalid_command_line_options()
+
+        # NOTE: this is a Dash-specific part, it should be the very last one before "Done"
         self.log.info("Stopping pruned nodes manually")
         for i in range(2, 6):
             self.log.info("Stopping pruned node%d" % i)
             self.stop_node(i, expected_stderr=EXPECTED_STDERR_NO_GOV_PRUNE)
-
-        self.log.info("Test invalid pruning command line options")
-        self.test_invalid_command_line_options()
 
         self.log.info("Done")
 
