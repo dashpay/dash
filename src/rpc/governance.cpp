@@ -109,9 +109,7 @@ static UniValue gobject_check(const JSONRPCRequest& request)
     CGovernanceObject govobj(hashParent, nRevision, nTime, uint256(), strDataHex);
 
     if (govobj.GetObjectType() == GovernanceObject::PROPOSAL) {
-        LOCK(cs_main);
-        bool fAllowScript = (::ChainActive().Height() >= Params().GetConsensus().DIP0024Height);
-        CProposalValidator validator(strDataHex, fAllowScript);
+        CProposalValidator validator(strDataHex);
         if (!validator.Validate())  {
             throw JSONRPCError(RPC_INVALID_PARAMETER, "Invalid proposal data, error messages:" + validator.GetErrorMessages());
         }
@@ -184,9 +182,7 @@ static UniValue gobject_prepare(const JSONRPCRequest& request)
                 govobj.GetDataAsPlainString(), govobj.GetHash().ToString());
 
     if (govobj.GetObjectType() == GovernanceObject::PROPOSAL) {
-        LOCK(cs_main);
-        bool fAllowScript = (::ChainActive().Height() >= Params().GetConsensus().DIP0024Height);
-        CProposalValidator validator(strDataHex, fAllowScript);
+        CProposalValidator validator(strDataHex);
         if (!validator.Validate()) {
             throw JSONRPCError(RPC_INVALID_PARAMETER, "Invalid proposal data, error messages:" + validator.GetErrorMessages());
         }
@@ -349,9 +345,7 @@ static UniValue gobject_submit(const JSONRPCRequest& request)
                 govobj.GetDataAsPlainString(), govobj.GetHash().ToString(), txidFee.ToString());
 
     if (govobj.GetObjectType() == GovernanceObject::PROPOSAL) {
-        LOCK(cs_main);
-        bool fAllowScript = (::ChainActive().Height() >= Params().GetConsensus().DIP0024Height);
-        CProposalValidator validator(strDataHex, fAllowScript);
+        CProposalValidator validator(strDataHex);
         if (!validator.Validate()) {
             throw JSONRPCError(RPC_INVALID_PARAMETER, "Invalid proposal data, error messages:" + validator.GetErrorMessages());
         }
