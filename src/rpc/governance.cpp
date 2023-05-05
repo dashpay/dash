@@ -219,9 +219,7 @@ static UniValue gobject_prepare(const JSONRPCRequest& request)
 
     CTransactionRef tx;
 
-    bool fork_active = WITH_LOCK(cs_main, return ::ChainActive().Height() >= Params().GetConsensus().DIP0024Height);
-
-    if (!wallet->GetBudgetSystemCollateralTX(tx, govobj.GetHash(), govobj.GetMinCollateralFee(fork_active), outpoint)) {
+    if (!wallet->GetBudgetSystemCollateralTX(tx, govobj.GetHash(), govobj.GetMinCollateralFee(), outpoint)) {
         std::string err = "Error making collateral transaction for governance object. Please check your wallet balance and make sure your wallet is unlocked.";
         if (!request.params[5].isNull() && !request.params[6].isNull()) {
             err += "Please verify your specified output is valid and is enough for the combined proposal fee and transaction fee.";
@@ -1159,8 +1157,7 @@ static UniValue getgovernanceinfo(const JSONRPCRequest& request)
 
     UniValue obj(UniValue::VOBJ);
     obj.pushKV("governanceminquorum", Params().GetConsensus().nGovernanceMinQuorum);
-    bool fork_active = pindex->nHeight >= Params().GetConsensus().DIP0024Height;
-    obj.pushKV("proposalfee", ValueFromAmount(fork_active ? GOVERNANCE_PROPOSAL_FEE_TX : GOVERNANCE_PROPOSAL_FEE_TX_OLD));
+    obj.pushKV("proposalfee", ValueFromAmount(GOVERNANCE_PROPOSAL_FEE_TX));
     obj.pushKV("superblockcycle", Params().GetConsensus().nSuperblockCycle);
     obj.pushKV("superblockmaturitywindow", Params().GetConsensus().nSuperblockMaturityWindow);
     obj.pushKV("lastsuperblock", nLastSuperblock);

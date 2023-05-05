@@ -35,7 +35,6 @@ enum class GovernanceObject {
 
 
 static constexpr CAmount GOVERNANCE_PROPOSAL_FEE_TX = (1 * COIN);
-static constexpr CAmount GOVERNANCE_PROPOSAL_FEE_TX_OLD = (5 * COIN);
 
 static constexpr int64_t GOVERNANCE_FEE_CONFIRMATIONS = 6;
 static constexpr int64_t GOVERNANCE_MIN_RELAY_FEE_CONFIRMATIONS = 1;
@@ -265,7 +264,7 @@ public:
         }
     }
 
-    CAmount GetMinCollateralFee(bool fork_active) const;
+    CAmount GetMinCollateralFee() const;
 
     UniValue GetJSONObject() const;
 

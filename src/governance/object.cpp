@@ -513,13 +513,12 @@ bool CGovernanceObject::IsValidLocally(std::string& strError, bool& fMissingConf
     }
 }
 
-CAmount CGovernanceObject::GetMinCollateralFee(bool fork_active) const
+CAmount CGovernanceObject::GetMinCollateralFee() const
 {
     // Only 1 type has a fee for the moment but switch statement allows for future object types
     switch (nObjectType) {
         case GovernanceObject::PROPOSAL: {
-            if (fork_active) return GOVERNANCE_PROPOSAL_FEE_TX;
-            else return GOVERNANCE_PROPOSAL_FEE_TX_OLD;
+            return GOVERNANCE_PROPOSAL_FEE_TX;
         }
         case GovernanceObject::TRIGGER: {
             return 0;
@@ -564,9 +563,7 @@ bool CGovernanceObject::IsCollateralValid(std::string& strError, bool& fMissingC
     CScript findScript;
     findScript << OP_RETURN << ToByteVector(nExpectedHash);
 
-    AssertLockHeld(cs_main);
-    bool fork_active = g_chainman.m_blockman.LookupBlockIndex(nBlockHash)->nHeight >= Params().GetConsensus().DIP0024Height;
-    CAmount nMinFee = GetMinCollateralFee(fork_active);
+    CAmount nMinFee = GetMinCollateralFee();
 
     LogPrint(BCLog::GOBJECT, "CGovernanceObject::IsCollateralValid -- txCollateral->vout.size() = %s, findScript = %s, nMinFee = %lld\n",
                 txCollateral->vout.size(), ScriptToAsmStr(findScript, false), nMinFee);
