@@ -58,8 +58,6 @@ class LLMQISMigrationTest(DashTestFramework):
 
         self.activate_dip0024()
         self.log.info("Activated DIP0024 at height:" + str(self.nodes[0].getblockcount()))
-        # need to mine one extra block, otherwise quorum doesn't appear in list yet
-        node.generate(1)
 
         q_list = self.nodes[0].quorum("list")
         self.log.info(q_list)

@@ -1320,7 +1320,7 @@ void CInstantSendManager::NotifyChainLock(const CBlockIndex* pindexChainLock)
 void CInstantSendManager::UpdatedBlockTip(const CBlockIndex* pindexNew)
 {
     if (!fUpgradedDB) {
-        if (pindexNew->nHeight >= Params().GetConsensus().DIP0020Height) {
+        if (pindexNew->nHeight + 1 >= Params().GetConsensus().DIP0020Height) {
             db.Upgrade(mempool);
             fUpgradedDB = true;
         }

@@ -643,7 +643,7 @@ bool IsDIP0024Active(const CBlockIndex* pindex)
 {
     assert(pindex);
 
-    return pindex->nHeight >= Params().GetConsensus().DIP0024Height;
+    return pindex->nHeight + 1 >= Params().GetConsensus().DIP0024Height;
 }
 
 bool IsV19Active(const CBlockIndex* pindex)
@@ -954,7 +954,7 @@ bool IsQuorumTypeEnabledInternal(Consensus::LLMQType llmqType, const CQuorumMana
             return VersionBitsState(pindex, consensusParams, Consensus::DEPLOYMENT_TESTDUMMY, llmq_versionbitscache) == ThresholdState::ACTIVE;
         }
         case Consensus::LLMQType::LLMQ_100_67:
-            return pindex != nullptr && pindex->nHeight >= consensusParams.DIP0020Height;
+            return pindex != nullptr && pindex->nHeight + 1 >= consensusParams.DIP0020Height;
 
         case Consensus::LLMQType::LLMQ_60_75:
         case Consensus::LLMQType::LLMQ_DEVNET_DIP0024:

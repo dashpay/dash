@@ -75,7 +75,6 @@ class LLMQ_IS_CL_Conflicts(DashTestFramework):
         self.test_chainlock_overrides_islock_overrides_nonchainlock(False)
         self.activate_dip0024()
         self.log.info("Activated DIP0024 at height:" + str(self.nodes[0].getblockcount()))
-        self.nodes[0].generate(1)
         self.test_chainlock_overrides_islock_overrides_nonchainlock(False)
         # At this point, we need to move forward 3 cycles (3 x 24 blocks) so the first 3 quarters can be created (without DKG sessions)
         self.move_to_next_cycle()
