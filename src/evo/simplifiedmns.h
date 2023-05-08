@@ -131,7 +131,7 @@ public:
     std::vector<uint256> deletedMNs;
     std::vector<CSimplifiedMNListEntry> mnList;
     uint16_t nVersion{LEGACY_BLS_VERSION};
-    int v19activationHeight;
+    int v19activationHeight{-1};
 
     std::vector<std::pair<uint8_t, uint256>> deletedQuorums; // p<LLMQType, quorumHash>
     std::vector<llmq::CFinalCommitment> newQuorums;

@@ -286,7 +286,7 @@ class LLMQHPMNTest(DashTestFramework):
         blockchain_info = self.nodes[0].getblockchaininfo()
         if blockchain_info["softforks"]["v19"]["active"]:
             assert_equal(blockchain_info["softforks"]["v19"]["height"], d.v19activationHeight)
-        
+
         return d
 
 if __name__ == '__main__':
