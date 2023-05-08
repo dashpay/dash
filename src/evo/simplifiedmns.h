@@ -131,6 +131,7 @@ public:
     std::vector<uint256> deletedMNs;
     std::vector<CSimplifiedMNListEntry> mnList;
     uint16_t nVersion{LEGACY_BLS_VERSION};
+    int v19activationHeight;
 
     std::vector<std::pair<uint8_t, uint256>> deletedQuorums; // p<LLMQType, quorumHash>
     std::vector<llmq::CFinalCommitment> newQuorums;
@@ -143,6 +144,9 @@ public:
         }
         READWRITE(obj.deletedMNs, obj.mnList);
         READWRITE(obj.deletedQuorums, obj.newQuorums);
+        if ((s.GetType() & SER_NETWORK) && s.GetVersion() >= V19_ACTIVATION_HEIGHT_MNLISTDIFF_PROTO_VERSION) {
+            READWRITE(obj.v19activationHeight);
+        }
     }
 
     CSimplifiedMNListDiff();

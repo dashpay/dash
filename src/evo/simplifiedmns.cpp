@@ -9,6 +9,7 @@
 #include <evo/deterministicmns.h>
 #include <llmq/blockprocessor.h>
 #include <llmq/commitment.h>
+#include <llmq/utils.h>
 #include <evo/specialtx.h>
 
 #include <pubkey.h>
@@ -233,6 +234,7 @@ void CSimplifiedMNListDiff::ToJson(UniValue& obj, bool extended) const
             obj.pushKV("merkleRootQuorums", cbTxPayload.merkleRootQuorums.ToString());
         }
     }
+    obj.pushKV("v19activationHeight", v19activationHeight);
 }
 
 bool BuildSimplifiedMNListDiff(const uint256& baseBlockHash, const uint256& blockHash, CSimplifiedMNListDiff& mnListDiffRet,
@@ -295,6 +297,10 @@ bool BuildSimplifiedMNListDiff(const uint256& baseBlockHash, const uint256& bloc
     }
     vMatch[0] = true; // only coinbase matches
     mnListDiffRet.cbTxMerkleTree = CPartialMerkleTree(vHashes, vMatch);
+
+    const CBlockIndex* tipBlockIndex = ::ChainActive().Tip();
+    const CBlockIndex* v19ActivationBlockIndex = llmq::utils::V19ActivationIndex(tipBlockIndex);
+    mnListDiffRet.v19activationHeight = v19ActivationBlockIndex != nullptr ? v19ActivationBlockIndex->nHeight : -1;
 
     return true;
 }

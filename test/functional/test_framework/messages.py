@@ -32,7 +32,7 @@ from test_framework.util import hex_str_to_bytes, assert_equal
 import dash_hash
 
 MIN_VERSION_SUPPORTED = 60001
-MY_VERSION = 70227  # DMN_TYPE_PROTO_VERSION
+MY_VERSION = 70228  # V19_ACTIVATION_HEIGHT_MNLISTDIFF_PROTO_VERSION
 MY_SUBVERSION = b"/python-mininode-tester:0.0.3%s/"
 MY_RELAY = 1 # from version 70001 onwards, fRelay should be appended to version messages (BIP37)
 
@@ -1972,7 +1972,7 @@ class msg_getmnlistd:
 QuorumId = namedtuple('QuorumId', ['llmqType', 'quorumHash'])
 
 class msg_mnlistdiff:
-    __slots__ = ("baseBlockHash", "blockHash", "merkleProof", "cbTx", "version", "deletedMNs", "mnList", "deletedQuorums", "newQuorums",)
+    __slots__ = ("baseBlockHash", "blockHash", "merkleProof", "cbTx", "version", "deletedMNs", "mnList", "deletedQuorums", "newQuorums", "v19activationHeight")
     command = b"mnlistdiff"
 
     def __init__(self):
@@ -1985,6 +1985,7 @@ class msg_mnlistdiff:
         self.mnList = []
         self.deletedQuorums = []
         self.newQuorums = []
+        self.v19activationHeight = 0
 
     def deserialize(self, f):
         self.baseBlockHash = deser_uint256(f)
@@ -2011,6 +2012,7 @@ class msg_mnlistdiff:
             qc = CFinalCommitment()
             qc.deserialize(f)
             self.newQuorums.append(qc)
+        self.v19activationHeight = struct.unpack("<i", f.read(4))[0]
 
     def __repr__(self):
         return "msg_mnlistdiff(baseBlockHash=%064x, blockHash=%064x)" % (self.baseBlockHash, self.blockHash)

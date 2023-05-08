@@ -283,6 +283,10 @@ class LLMQHPMNTest(DashTestFramework):
         assert_equal(set([QuorumId(e["llmqType"], int(e["quorumHash"], 16)) for e in d2["deletedQuorums"]]), set(d.deletedQuorums))
         assert_equal(set([QuorumId(e["llmqType"], int(e["quorumHash"], 16)) for e in d2["newQuorums"]]), set([QuorumId(e.llmqType, e.quorumHash) for e in d.newQuorums]))
 
+        blockchain_info = self.nodes[0].getblockchaininfo()
+        if blockchain_info["softforks"]["v19"]["active"]:
+            assert_equal(blockchain_info["softforks"]["v19"]["height"], d.v19activationHeight)
+        
         return d
 
 if __name__ == '__main__':
