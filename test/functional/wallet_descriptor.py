@@ -59,7 +59,6 @@ class WalletDescriptorTest(BitcoinTestFramework):
         addr_info = self.nodes[0].getaddressinfo(addr)
         assert addr_info['desc'].startswith('pkh(')
         assert_equal(addr_info['hdkeypath'], 'm/44h/1h/0h/1/0')
-
         # Make a wallet to receive coins at
         self.nodes[0].createwallet(wallet_name="desc2", descriptors=True)
         recv_wrpc = self.nodes[0].get_wallet_rpc("desc2")
