@@ -249,7 +249,7 @@ bool shared_mn::CheckFingerprint(const UniValue& json, QString& warning)
 }
 
 MnShareSession::MnShareSession()
-    : m_network{QString::fromStdString(Params().NetworkIDString())},
+    : m_network{QString::fromStdString(Params().GetChainTypeString())},
       m_session_id{QString::fromStdString(GetRandHash().ToString())}
 {
 }
@@ -387,7 +387,7 @@ bool MnShareSession::fromJson(const UniValue& json, QString& error)
             return false;
         }
         const UniValue& network{json.find_value("network")};
-        const std::string our_network{Params().NetworkIDString()};
+        const std::string our_network{Params().GetChainTypeString()};
         if (!network.isStr() || network.get_str() != our_network) {
             error = QCoreApplication::translate("MnShareSession", "The session file is for the \"%1\" network but this "
                                                                   "node runs \"%2\". It cannot be used here.")

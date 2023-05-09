@@ -16,7 +16,7 @@
 void initialize_bip324()
 {
     ECC_Start();
-    SelectParams(CBaseChainParams::MAIN);
+    SelectParams(ChainType::MAIN);
 }
 
 FUZZ_TARGET(bip324_cipher_roundtrip, .init = initialize_bip324)

@@ -2509,7 +2509,7 @@ BOOST_AUTO_TEST_CASE(deterministic_mn_list_diff_serialization_is_canonical)
 
 struct TestChainDIP3BeforeActivationSetup : public TestChainSetup {
     TestChainDIP3BeforeActivationSetup() :
-        TestChainSetup(DIP3_ACTIVATION_HEIGHT - 2, CBaseChainParams::REGTEST, {"-dip3params=109:500"},
+        TestChainSetup(DIP3_ACTIVATION_HEIGHT - 2, ChainType::REGTEST, {"-dip3params=109:500"},
                        /*coins_db_in_memory=*/true, /*block_tree_db_in_memory=*/true)
     {
     }
@@ -2525,7 +2525,7 @@ struct TestChainDIP3Setup : public TestChainDIP3BeforeActivationSetup {
 
 struct TestMNChainSetup : public TestChainSetup {
     TestMNChainSetup(int num_blocks, const std::vector<const char*>& extra_args) :
-        TestChainSetup(num_blocks, CBaseChainParams::REGTEST, extra_args,
+        TestChainSetup(num_blocks, ChainType::REGTEST, extra_args,
                        /*coins_db_in_memory=*/true, /*block_tree_db_in_memory=*/true),
         chainman(*Assert(m_node.chainman)),
         dmnman(*Assert(m_node.dmnman)),

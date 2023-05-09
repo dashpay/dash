@@ -15,6 +15,7 @@
 #include <streams.h>
 #include <test/fuzz/fuzz.h>
 #include <univalue.h>
+#include <util/chaintype.h>
 #include <validation.h>
 #include <version.h>
 
@@ -22,7 +23,7 @@
 
 void initialize_transaction()
 {
-    SelectParams(CBaseChainParams::REGTEST);
+    SelectParams(ChainType::REGTEST);
 }
 
 FUZZ_TARGET(transaction, .init = initialize_transaction)

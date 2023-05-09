@@ -2518,7 +2518,7 @@ bool CWallet::SignSpecialTxPayload(const uint256& hash, const CKeyID& keyid, std
 bool CWallet::SignGovernanceVote(const CKeyID& keyID, CGovernanceVote& vote) const
 {
     // Special implementation for testnet (Harden Spork6 that has not been deployed to other networks)
-    if (Params().NetworkIDString() == CBaseChainParams::TESTNET) {
+    if (Params().GetChainType() == ChainType::TESTNET) {
         std::vector<unsigned char> signature;
         if (!SignSpecialTxPayload(vote.GetSignatureHash(), keyID, signature)) {
             LogPrintf("SignGovernanceVote -- SignHash() failed\n");

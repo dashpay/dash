@@ -18,7 +18,7 @@
 
 struct TestChain100NoDIP0001Setup : public TestChain100Setup {
     TestChain100NoDIP0001Setup()
-        : TestChain100Setup{CBaseChainParams::REGTEST, {"-testactivationheight=dip0001@2000"}} {}
+        : TestChain100Setup{ChainType::REGTEST, {"-testactivationheight=dip0001@2000"}} {}
 };
 
 BOOST_AUTO_TEST_SUITE(txpackage_tests)

@@ -17,6 +17,7 @@
 #include <qt/test/uritests.h>
 #include <qt/test/trafficgraphdatatests.h>
 #include <test/util/setup_common.h>
+#include <util/chaintype.h>
 
 #ifdef ENABLE_WALLET
 #include <qt/test/addressbooktests.h>
@@ -68,7 +69,7 @@ int main(int argc, char* argv[])
     //
     // All tests must use their own testing setup (if needed).
     fs::create_directories([] {
-        BasicTestingSetup dummy{CBaseChainParams::REGTEST};
+        BasicTestingSetup dummy{ChainType::REGTEST};
         return gArgs.GetDataDirNet() / "blocks";
     }());
 

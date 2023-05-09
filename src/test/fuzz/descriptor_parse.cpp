@@ -10,6 +10,7 @@
 #include <script/standard.h>
 #include <test/fuzz/fuzz.h>
 #include <test/fuzz/util/descriptor.h>
+#include <util/chaintype.h>
 
 //! The converter of mocked descriptors, needs to be initialized when the target is.
 MockedDescriptorConverter MOCKED_DESC_CONVERTER;
@@ -44,7 +45,7 @@ static void TestDescriptor(const Descriptor& desc, FlatSigningProvider& sig_prov
 void initialize_descriptor_parse()
 {
     ECC_Start();
-    SelectParams(CBaseChainParams::MAIN);
+    SelectParams(ChainType::MAIN);
 }
 
 void initialize_mocked_descriptor_parse()

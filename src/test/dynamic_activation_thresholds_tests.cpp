@@ -30,7 +30,7 @@ static constexpr int threshold(int attempt)
 struct TestChainDATSetup : public TestChainSetup
 {
     TestChainDATSetup() :
-        TestChainSetup(window - 2, CBaseChainParams::REGTEST, {"-vbparams=testdummy:0:999999999999:0:20:16:12:5:0"}) {}
+        TestChainSetup(window - 2, ChainType::REGTEST, {"-vbparams=testdummy:0:999999999999:0:20:16:12:5:0"}) {}
 
     void signal(int num_blocks, bool expected_lockin)
     {

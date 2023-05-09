@@ -1599,7 +1599,7 @@ RPCHelpMan getblockchaininfo()
     if (args.IsArgSet("-devnet")) {
         obj.pushKV("chain", args.GetDevNetName());
     } else {
-        obj.pushKV("chain", chainman.GetParams().NetworkIDString());
+        obj.pushKV("chain", chainman.GetParams().GetChainTypeString());
     }
     obj.pushKV("blocks", height);
     obj.pushKV("headers", chainman.m_best_header ? chainman.m_best_header->nHeight : -1);

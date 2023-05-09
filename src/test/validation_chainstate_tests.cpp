@@ -190,7 +190,7 @@ BOOST_FIXTURE_TEST_CASE(chainstate_update_tip, TestChain100Setup)
 struct V19AboveSnapshotSetup : public TestChain100Setup {
     static constexpr int V19_HEIGHT{150};
     V19AboveSnapshotSetup() :
-        TestChain100Setup{CBaseChainParams::REGTEST, {"-testactivationheight=v19@150"}}
+        TestChain100Setup{ChainType::REGTEST, {"-testactivationheight=v19@150"}}
     {
     }
 };

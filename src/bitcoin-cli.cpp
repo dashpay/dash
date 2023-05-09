@@ -21,6 +21,7 @@
 #include <stacktraces.h>
 #include <tinyformat.h>
 #include <univalue.h>
+#include <util/chaintype.h>
 #include <util/exception.h>
 #include <util/strencodings.h>
 #include <util/system.h>
@@ -73,10 +74,10 @@ static void SetupCliArgs(ArgsManager& argsman)
 {
     SetupHelpOptions(argsman);
 
-    const auto defaultBaseParams = CreateBaseChainParams(CBaseChainParams::MAIN);
-    const auto testnetBaseParams = CreateBaseChainParams(CBaseChainParams::TESTNET);
-    const auto devnetBaseParams = CreateBaseChainParams(CBaseChainParams::DEVNET);
-    const auto regtestBaseParams = CreateBaseChainParams(CBaseChainParams::REGTEST);
+    const auto defaultBaseParams = CreateBaseChainParams(ChainType::MAIN);
+    const auto testnetBaseParams = CreateBaseChainParams(ChainType::TESTNET);
+    const auto devnetBaseParams = CreateBaseChainParams(ChainType::DEVNET);
+    const auto regtestBaseParams = CreateBaseChainParams(ChainType::REGTEST);
 
     argsman.AddArg("-version", "Print version and exit", ArgsManager::ALLOW_ANY, OptionsCategory::OPTIONS);
     argsman.AddArg("-conf=<file>", strprintf("Specify configuration file. Relative paths will be prefixed by datadir location. (default: %s)", BITCOIN_CONF_FILENAME), ArgsManager::ALLOW_ANY, OptionsCategory::OPTIONS);
@@ -181,7 +182,7 @@ static int AppInitRPC(int argc, char* argv[])
     }
     // Check for chain settings (BaseParams() calls are only valid after this clause)
     try {
-        SelectBaseParams(gArgs.GetChainName());
+        SelectBaseParams(gArgs.GetChainType());
     } catch (const std::exception& e) {
         tfm::format(std::cerr, "Error: %s\n", e.what());
         return EXIT_FAILURE;
@@ -438,10 +439,16 @@ private:
     std::vector<Peer> m_peers;
     std::string ChainToString() const
     {
-        if (gArgs.GetChainName() == CBaseChainParams::TESTNET) return " testnet";
-        if (gArgs.GetChainName() == CBaseChainParams::DEVNET) return " devnet";
-        if (gArgs.GetChainName() == CBaseChainParams::REGTEST) return " regtest";
-        return "";
+        switch (gArgs.GetChainType()) {
+        case ChainType::TESTNET:
+            return " testnet";
+        case ChainType::DEVNET:
+            return " devnet";
+        case ChainType::REGTEST:
+            return " regtest";
+        default:
+            return "";
+        }
     }
     std::string PingTimeToString(double seconds) const
     {

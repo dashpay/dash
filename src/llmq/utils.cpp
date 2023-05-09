@@ -370,7 +370,7 @@ std::vector<QuorumMembers> BuildNewQuorumQuarterMembers(const Consensus::LLMQPar
     // also works when the cycle base block is not mined yet
     bool skipRemovedMNs = cycleBaseHeight + 1 >=
                               util_params.m_chainman.GetConsensus().DeploymentHeight(Consensus::DEPLOYMENT_V19) ||
-                          (util_params.m_chainman.GetParams().NetworkIDString() == CBaseChainParams::TESTNET);
+                          (util_params.m_chainman.GetParams().GetChainType() == ChainType::TESTNET);
 
     for (const size_t idx : util::irange(nQuorums)) {
         for (auto* prev_cycle : previousQuarters.GetCycles()) {

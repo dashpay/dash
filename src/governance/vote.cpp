@@ -173,7 +173,7 @@ bool CGovernanceVote::CheckSignature(const CKeyID& keyID) const
     bool valid{false};
 
     // Harden Spork6 so that it is active on testnet and no other networks
-    if (Params().NetworkIDString() == CBaseChainParams::TESTNET) {
+    if (Params().GetChainType() == ChainType::TESTNET) {
         valid = CHashSigner::VerifyHash(sigHash, keyID, vchSig, strError);
         if (!valid) {
             LogPrint(BCLog::GOBJECT, "CGovernanceVote::IsValid -- VerifyHash() failed, error: %s\n", strError);

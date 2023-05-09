@@ -88,7 +88,7 @@ NetInfoStatus ValidateMainnetPrimaryPort(NetInfoPurpose purpose, const NetInfoEn
 }
 } // anonymous namespace
 
-bool IsNodeOnMainnet() { return Params().NetworkIDString() == CBaseChainParams::MAIN; }
+bool IsNodeOnMainnet() { return Params().GetChainType() == ChainType::MAIN; }
 
 bool IsServiceDeprecatedRPCEnabled()
 {
@@ -98,7 +98,7 @@ bool IsServiceDeprecatedRPCEnabled()
 
 const CChainParams& MainParams()
 {
-    std::call_once(g_main_params_flag, [&]() { g_main_params = CreateChainParams(::gArgs, CBaseChainParams::MAIN); });
+    std::call_once(g_main_params_flag, [&]() { g_main_params = CreateChainParams(::gArgs, ChainType::MAIN); });
     return *Assert(g_main_params);
 }
 

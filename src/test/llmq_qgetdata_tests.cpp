@@ -45,7 +45,7 @@ struct QGetDataSetup : public TestingSetup {
     std::unique_ptr<NetQuorum> m_net_quorum;
 
     QGetDataSetup() :
-        TestingSetup{CBaseChainParams::REGTEST},
+        TestingSetup{ChainType::REGTEST},
         m_role{*m_node.llmq_ctx->qman}
     {
         BOOST_REQUIRE(m_node.connman);

@@ -7,6 +7,7 @@
 #endif
 
 #include <chainparams.h>
+#include <chainparamsbase.h>
 #include <clientversion.h>
 #include <coins.h>
 #include <common/args.h>
@@ -94,7 +95,7 @@ static int AppInitRawTx(int argc, char* argv[])
 
     // Check for chain settings (Params() calls are only valid after this clause)
     try {
-        SelectParams(gArgs.GetChainName());
+        SelectParams(gArgs.GetChainType());
     } catch (const std::exception& e) {
         tfm::format(std::cerr, "Error: %s\n", e.what());
         return EXIT_FAILURE;

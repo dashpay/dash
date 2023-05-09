@@ -58,6 +58,7 @@
 #include <timedata.h>
 #include <txdb.h>
 #include <txmempool.h>
+#include <util/chaintype.h>
 #include <util/check.h>
 #include <util/strencodings.h>
 #include <util/string.h>
@@ -140,7 +141,7 @@ struct NetworkSetup
 };
 static NetworkSetup g_networksetup_instance;
 
-BasicTestingSetup::BasicTestingSetup(const std::string& chainName, const std::vector<const char*>& extra_args, bool dash_dbs_in_memory)
+BasicTestingSetup::BasicTestingSetup(const ChainType chainType, const std::vector<const char*>& extra_args, bool dash_dbs_in_memory)
     : m_path_root{fs::temp_directory_path() / "test_common_" PACKAGE_NAME / g_insecure_rand_ctx_temp_path.rand256().ToString()},
       m_args{},
       m_dash_dbs_in_memory{dash_dbs_in_memory}
@@ -175,7 +176,7 @@ BasicTestingSetup::BasicTestingSetup(const std::string& chainName, const std::ve
             throw std::runtime_error{error};
         }
     }
-    SelectParams(chainName);
+    SelectParams(chainType);
     SeedInsecureRand();
     if (G_TEST_LOG_FUN) LogInstance().PushBackCallback(G_TEST_LOG_FUN);
     InitLogging(*m_node.args);
@@ -256,8 +257,8 @@ BasicTestingSetup::~BasicTestingSetup()
     m_node.args = nullptr;
 }
 
-ChainTestingSetup::ChainTestingSetup(const std::string& chainName, const std::vector<const char*>& extra_args, bool dash_dbs_in_memory)
-    : BasicTestingSetup(chainName, extra_args, dash_dbs_in_memory)
+ChainTestingSetup::ChainTestingSetup(const ChainType chainType, const std::vector<const char*>& extra_args, bool dash_dbs_in_memory)
+    : BasicTestingSetup(chainType, extra_args, dash_dbs_in_memory)
 {
     const CChainParams& chainparams = Params();
 
@@ -402,12 +403,12 @@ void ChainTestingSetup::LoadVerifyActivateChainstate()
 }
 
 TestingSetup::TestingSetup(
-    const std::string& chainName,
+    const ChainType chainType,
     const std::vector<const char*>& extra_args,
     const bool coins_db_in_memory,
     const bool block_tree_db_in_memory,
     const bool dash_dbs_in_memory)
-    : ChainTestingSetup(chainName, extra_args, dash_dbs_in_memory)
+    : ChainTestingSetup(chainType, extra_args, dash_dbs_in_memory)
 {
     m_coins_db_in_memory = coins_db_in_memory;
     m_block_tree_db_in_memory = block_tree_db_in_memory;
@@ -480,23 +481,23 @@ TestingSetup::~TestingSetup()
 }
 
 TestChain100Setup::TestChain100Setup(
-        const std::string& chain_name,
+        const ChainType chain_type,
         const std::vector<const char*>& extra_args,
         const bool coins_db_in_memory,
         const bool block_tree_db_in_memory,
         const bool dash_dbs_in_memory)
-    : TestChainSetup{100, chain_name, extra_args, coins_db_in_memory, block_tree_db_in_memory, dash_dbs_in_memory}
+    : TestChainSetup{100, chain_type, extra_args, coins_db_in_memory, block_tree_db_in_memory, dash_dbs_in_memory}
 {
 }
 
 TestChainSetup::TestChainSetup(
         int num_blocks,
-        const std::string& chain_name,
+        const ChainType chain_type,
         const std::vector<const char*>& extra_args,
         const bool coins_db_in_memory,
         const bool block_tree_db_in_memory,
         const bool dash_dbs_in_memory)
-    : TestingSetup{chain_name, extra_args, coins_db_in_memory, block_tree_db_in_memory, dash_dbs_in_memory}
+    : TestingSetup{chain_type, extra_args, coins_db_in_memory, block_tree_db_in_memory, dash_dbs_in_memory}
 {
     SetMockTime(1598887952);
     constexpr std::array<unsigned char, 32> vchKey = {
@@ -542,7 +543,7 @@ constexpr int V19_ACTIVATION_HEIGHT{109};
 
 TestChainV19BeforeActivationSetup::TestChainV19BeforeActivationSetup() :
     TestChainSetup{V19_ACTIVATION_HEIGHT - 6,
-                   CBaseChainParams::REGTEST,
+                   ChainType::REGTEST,
                    {"-dip3params=100:500", "-testactivationheight=v19@109", "-testactivationheight=v20@109",
                     "-testactivationheight=mn_rr@109"},
                    /*coins_db_in_memory=*/true,

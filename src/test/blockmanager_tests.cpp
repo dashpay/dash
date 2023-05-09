@@ -6,6 +6,7 @@
 #include <node/blockstorage.h>
 #include <node/context.h>
 #include <streams.h>
+#include <util/chaintype.h>
 #include <validation.h>
 
 #include <boost/test/unit_test.hpp>
@@ -21,7 +22,7 @@ BOOST_FIXTURE_TEST_SUITE(blockmanager_tests, BasicTestingSetup)
 
 BOOST_AUTO_TEST_CASE(blockmanager_find_block_pos)
 {
-    const auto params {CreateChainParams(ArgsManager{}, CBaseChainParams::MAIN)};
+    const auto params {CreateChainParams(ArgsManager{}, ChainType::MAIN)};
     node::BlockManager::Options blockman_opts{
         .chainparams = *params,
     };

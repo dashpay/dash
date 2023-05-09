@@ -28,7 +28,7 @@
 
 struct TestChain100V19Activation : public TestChain100Setup {
     TestChain100V19Activation()
-        : TestChain100Setup{CBaseChainParams::REGTEST, {"-testactivationheight=v19@100"}} {}
+        : TestChain100Setup{ChainType::REGTEST, {"-testactivationheight=v19@100"}} {}
 };
 
 BOOST_FIXTURE_TEST_SUITE(evo_trivialvalidation, TestChain100V19Activation)

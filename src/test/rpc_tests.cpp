@@ -42,7 +42,7 @@ class RPCTestingSetup : public TestingSetup
 {
 public:
     RPCTestingSetup()
-        : TestingSetup(CBaseChainParams::MAIN, {"-deprecatedrpc=legacy_mn"}) {}
+        : TestingSetup(ChainType::MAIN, {"-deprecatedrpc=legacy_mn"}) {}
 
     UniValue TransformParams(const UniValue& params, std::vector<std::pair<std::string, bool>> arg_names);
     UniValue CallRPC(std::string args);

@@ -75,7 +75,7 @@ void AppTests::appTests()
     GUIUtil::setApplicationFont();
     QVERIFY(m_app.createOptionsModel(/*resetSettings=*/true));
     QScopedPointer<const NetworkStyle> style(
-        NetworkStyle::instantiate(Params().NetworkIDString()));
+        NetworkStyle::instantiate(Params().GetChainType()));
     m_app.createWindow(style.data());
     connect(&m_app, &BitcoinApplication::windowShown, this, &AppTests::guiTests);
     expectCallback("guiTests");

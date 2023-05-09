@@ -108,7 +108,7 @@ MnShareSession InvitationSession()
 
 void MnShareSessionTests::validateSharesMirror()
 {
-    BasicTestingSetup setup{CBaseChainParams::REGTEST};
+    BasicTestingSetup setup{ChainType::REGTEST};
     std::vector<CKey> keys;
     MnShareSession session{ValidSession(keys)};
     QVERIFY(session.validateShares().isEmpty());
@@ -176,7 +176,7 @@ void MnShareSessionTests::validateSharesMirror()
 
 void MnShareSessionTests::envelopeRoundTrip()
 {
-    BasicTestingSetup setup{CBaseChainParams::REGTEST};
+    BasicTestingSetup setup{ChainType::REGTEST};
     std::vector<CKey> keys;
     MnShareSession session{ValidSession(keys)};
     session.shares()[0].label = "alice";
@@ -206,7 +206,7 @@ void MnShareSessionTests::envelopeRoundTrip()
 
     // Unknown stages are rejected
     json = session.toJson();
-    json.pushKV("network", QString::fromStdString(Params().NetworkIDString()).toStdString());
+    json.pushKV("network", QString::fromStdString(Params().GetChainTypeString()).toStdString());
     json.pushKV("stage", "warp");
     MnShareSession wrong_stage;
     QVERIFY(!wrong_stage.fromJson(json, error));
@@ -214,7 +214,7 @@ void MnShareSessionTests::envelopeRoundTrip()
 
 void MnShareSessionTests::envelopeFingerprint()
 {
-    BasicTestingSetup setup{CBaseChainParams::REGTEST};
+    BasicTestingSetup setup{ChainType::REGTEST};
     std::vector<CKey> keys;
     MnShareSession session{ValidSession(keys)};
     session.shares()[0].label = "alice";
@@ -291,7 +291,7 @@ void MnShareSessionTests::envelopeFingerprint()
 
 void MnShareSessionTests::draftRepliesMergeInAnyOrder()
 {
-    BasicTestingSetup setup{CBaseChainParams::REGTEST};
+    BasicTestingSetup setup{ChainType::REGTEST};
     const MnShareSession invitation{InvitationSession()};
     const MnShareSession bob{DraftReply(invitation, 1, FakeTxid('1'))};
     const MnShareSession carol{DraftReply(invitation, 2, FakeTxid('2'))};
@@ -363,7 +363,7 @@ void MnShareSessionTests::draftRepliesMergeInAnyOrder()
 
 void MnShareSessionTests::lockedTermsAdoption()
 {
-    BasicTestingSetup setup{CBaseChainParams::REGTEST};
+    BasicTestingSetup setup{ChainType::REGTEST};
     MnShareSession invitation{InvitationSession()};
     // The operator key is part of the invitation everybody answers, so the
     // replies carry it too
@@ -457,7 +457,7 @@ void MnShareSessionTests::lockedTermsAdoption()
 
 void MnShareSessionTests::penaltyPreviewMath()
 {
-    BasicTestingSetup setup{CBaseChainParams::REGTEST};
+    BasicTestingSetup setup{ChainType::REGTEST};
     const std::vector<CAmount> amounts{400 * COIN, 350 * COIN, 250 * COIN};
     const CAmount penalty{5 * COIN};
     const CAmount fee{100000};
@@ -517,7 +517,7 @@ void MnShareSessionTests::earlyPeriodWording()
 
 void MnShareSessionTests::signatureVerification()
 {
-    BasicTestingSetup setup{CBaseChainParams::REGTEST};
+    BasicTestingSetup setup{ChainType::REGTEST};
     std::vector<CKey> owner_keys;
     MnShareSession session{ValidSession(owner_keys)};
     // The operator key is a first-class term; shared_register_prepare would put
@@ -602,7 +602,7 @@ void MnShareSessionTests::signatureVerification()
 
 void MnShareSessionTests::frozenEnvelopeMatchesFunding()
 {
-    BasicTestingSetup setup{CBaseChainParams::REGTEST};
+    BasicTestingSetup setup{ChainType::REGTEST};
     std::vector<CKey> owner_keys;
     MnShareSession session{ValidSession(owner_keys)};
     session.terms().coreP2PAddrs = QStringLiteral("127.0.0.1:19999");
@@ -671,7 +671,7 @@ void MnShareSessionTests::frozenEnvelopeMatchesFunding()
 
 void MnShareSessionTests::parallelFundingSignatureMerge()
 {
-    BasicTestingSetup setup{CBaseChainParams::REGTEST};
+    BasicTestingSetup setup{ChainType::REGTEST};
     std::vector<CKey> owner_keys;
     MnShareSession combined{ValidSession(owner_keys)};
     const CBLSSecretKey operator_secret{SetFreshOperatorKey(combined)};
@@ -767,7 +767,7 @@ void MnShareSessionTests::parallelFundingSignatureMerge()
 
 void MnShareSessionTests::oversizedEnvelopesAreRefused()
 {
-    BasicTestingSetup setup{CBaseChainParams::REGTEST};
+    BasicTestingSetup setup{ChainType::REGTEST};
     std::vector<CKey> owner_keys;
     const MnShareSession session{ValidSession(owner_keys)};
     QString error;

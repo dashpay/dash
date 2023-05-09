@@ -133,7 +133,7 @@ void AnswerMessageBox(const QString& answer, QString& title)
 
 void SharedMnWizardTests::coordinatorPageOrder()
 {
-    TestingSetup test{CBaseChainParams::REGTEST};
+    TestingSetup test{ChainType::REGTEST};
     m_node.setContext(&test.m_node);
     SharedMnCreateDialog dialog(m_node, /*wallet_model=*/nullptr, /*parent=*/nullptr);
 
@@ -166,7 +166,7 @@ void SharedMnWizardTests::coordinatorPageOrder()
 
 void SharedMnWizardTests::participantPagesAndRoleInference()
 {
-    TestingSetup test{CBaseChainParams::REGTEST};
+    TestingSetup test{ChainType::REGTEST};
     m_node.setContext(&test.m_node);
     SharedMnCreateDialog dialog(m_node, /*wallet_model=*/nullptr, /*parent=*/nullptr);
 
@@ -293,7 +293,7 @@ void SharedMnWizardTests::participantCannotChooseATakenShare()
 
 void SharedMnWizardTests::coordinatorResumesSavedSession()
 {
-    TestingSetup test{CBaseChainParams::REGTEST};
+    TestingSetup test{ChainType::REGTEST};
     m_node.setContext(&test.m_node);
     WalletContext& context{*m_node.walletLoader().context()};
 
@@ -402,7 +402,7 @@ void SharedMnWizardTests::coordinatorResumesSavedSession()
 
 void SharedMnWizardTests::coordinatorResumesFullySignedSession()
 {
-    TestingSetup test{CBaseChainParams::REGTEST};
+    TestingSetup test{ChainType::REGTEST};
     m_node.setContext(&test.m_node);
     WalletContext& context{*m_node.walletLoader().context()};
 
@@ -775,7 +775,7 @@ void SharedMnWizardTests::signedSessionReservation()
 
 void SharedMnWizardTests::unauthorisedSignedInputsAreDetected()
 {
-    BasicTestingSetup setup{CBaseChainParams::REGTEST};
+    BasicTestingSetup setup{ChainType::REGTEST};
     const auto hex = [](const CMutableTransaction& tx) {
         return QString::fromStdString(EncodeHexTx(CTransaction(tx)));
     };
@@ -829,7 +829,7 @@ void SharedMnWizardTests::unauthorisedSignedInputsAreDetected()
 
 void SharedMnWizardTests::refusesToSignCoinsOutsideOwnContribution()
 {
-    TestingSetup test{CBaseChainParams::REGTEST};
+    TestingSetup test{ChainType::REGTEST};
     m_node.setContext(&test.m_node);
     WalletContext& context{*m_node.walletLoader().context()};
 
@@ -921,7 +921,7 @@ void SharedMnWizardTests::refusesToSignCoinsOutsideOwnContribution()
 
 void SharedMnWizardTests::refusesToSignShortChangedOwnContribution()
 {
-    TestingSetup test{CBaseChainParams::REGTEST};
+    TestingSetup test{ChainType::REGTEST};
     m_node.setContext(&test.m_node);
     WalletContext& context{*m_node.walletLoader().context()};
 
@@ -1465,7 +1465,7 @@ void SharedMnWizardTests::newerRevisionKeepsOwnShare()
 
 void SharedMnWizardTests::savingWaitsForTheOperatorKeyBackup()
 {
-    TestingSetup test{CBaseChainParams::REGTEST};
+    TestingSetup test{ChainType::REGTEST};
     m_node.setContext(&test.m_node);
     WalletContext& context{*m_node.walletLoader().context()};
 
@@ -1520,7 +1520,7 @@ void SharedMnWizardTests::savingWaitsForTheOperatorKeyBackup()
 
 void SharedMnWizardTests::coordinatorCanRetryOwnApproval()
 {
-    TestingSetup test{CBaseChainParams::REGTEST};
+    TestingSetup test{ChainType::REGTEST};
     m_node.setContext(&test.m_node);
     WalletContext& context{*m_node.walletLoader().context()};
 
@@ -1581,7 +1581,7 @@ void SharedMnWizardTests::coordinatorCanRetryOwnApproval()
 
 void SharedMnWizardTests::participantsPageGating()
 {
-    TestingSetup test{CBaseChainParams::REGTEST};
+    TestingSetup test{ChainType::REGTEST};
     m_node.setContext(&test.m_node);
     SharedMnCreateDialog dialog(m_node, /*wallet_model=*/nullptr, /*parent=*/nullptr);
     dialog.m_role = SharedMnCreateDialog::Role::Coordinator;
@@ -1787,7 +1787,7 @@ void SharedMnWizardTests::reusedRefundAddressIsRefusedBeforeReserving()
 
 void SharedMnWizardTests::statusBoardAbsorbsRepliesInAnyOrder()
 {
-    TestingSetup test{CBaseChainParams::REGTEST};
+    TestingSetup test{ChainType::REGTEST};
     m_node.setContext(&test.m_node);
     SharedMnCreateDialog dialog(m_node, /*wallet_model=*/nullptr, /*parent=*/nullptr);
 
@@ -1850,7 +1850,7 @@ void SharedMnWizardTests::statusBoardAbsorbsRepliesInAnyOrder()
 
 void SharedMnWizardTests::pastedMessageRouting()
 {
-    TestingSetup test{CBaseChainParams::REGTEST};
+    TestingSetup test{ChainType::REGTEST};
     m_node.setContext(&test.m_node);
     SharedMnCreateDialog dialog(m_node, /*wallet_model=*/nullptr, /*parent=*/nullptr);
 
@@ -1911,7 +1911,7 @@ void SharedMnWizardTests::pastedMessageRouting()
 
 void SharedMnWizardTests::copyPutsFingerprintedEnvelopeOnClipboard()
 {
-    TestingSetup test{CBaseChainParams::REGTEST};
+    TestingSetup test{ChainType::REGTEST};
     m_node.setContext(&test.m_node);
     SharedMnCreateDialog dialog(m_node, /*wallet_model=*/nullptr, /*parent=*/nullptr);
     dialog.m_session = DraftReply(InvitationSession(), 0, FakeTxid('1'));
@@ -1941,7 +1941,7 @@ void SharedMnWizardTests::copyPutsFingerprintedEnvelopeOnClipboard()
 
 void SharedMnWizardTests::unlockingDiscardsApprovals()
 {
-    TestingSetup test{CBaseChainParams::REGTEST};
+    TestingSetup test{ChainType::REGTEST};
     m_node.setContext(&test.m_node);
     SharedMnCreateDialog dialog(m_node, /*wallet_model=*/nullptr, /*parent=*/nullptr);
 

@@ -23,7 +23,7 @@
 class EnvTestingSetup : public BasicTestingSetup
 {
 public:
-    explicit EnvTestingSetup(const std::string& chainType = CBaseChainParams::MAIN,
+    explicit EnvTestingSetup(const ChainType chainType = ChainType::MAIN,
                              const std::vector<const char*>& extra_args = {})
         : BasicTestingSetup{chainType, extra_args},
           m_prev_log_level{LogInstance().LogLevel()},

@@ -211,7 +211,7 @@ struct SnapshotTestSetup : TestChain100Setup {
     // tests, but we can't otherwise test this functionality since it relies on
     // destructive filesystem operations.
     SnapshotTestSetup() : TestChain100Setup{
-                              CBaseChainParams::REGTEST,
+                              ChainType::REGTEST,
                               {},
                               /*coins_db_in_memory=*/false,
                               /*block_tree_db_in_memory=*/false,

@@ -7,6 +7,7 @@
 #include <consensus/params.h>
 #include <test/util/random.h>
 #include <test/util/setup_common.h>
+#include <util/chaintype.h>
 #include <versionbits.h>
 
 #include <boost/test/unit_test.hpp>
@@ -438,7 +439,7 @@ BOOST_AUTO_TEST_CASE(versionbits_computeblockversion)
 
     // check that any deployment on any chain can conceivably reach both
     // ACTIVE and FAILED states in roughly the way we expect
-    for (const auto& chain_name : {CBaseChainParams::MAIN, CBaseChainParams::TESTNET, /*CBaseChainParams::DEVNET,=*/CBaseChainParams::DEVNET, CBaseChainParams::REGTEST}) {
+    for (const auto& chain_name : {ChainType::MAIN, ChainType::TESTNET, /*ChainType::DEVNET,=*/ChainType::DEVNET, ChainType::REGTEST}) {
         const auto chainParams = CreateChainParams(*m_node.args, chain_name);
 
         uint32_t chain_all_vbits{0};
@@ -461,7 +462,7 @@ BOOST_AUTO_TEST_CASE(versionbits_computeblockversion)
         // deployment that's not always/never active
         ArgsManager args;
         args.ForceSetArg("-vbparams", "testdummy:1199145601:1230767999"); // January 1, 2008 - December 31, 2008
-        const auto chainParams = CreateChainParams(args, CBaseChainParams::REGTEST);
+        const auto chainParams = CreateChainParams(args, ChainType::REGTEST);
         check_computeblockversion(vbcache, chainParams->GetConsensus(), Consensus::DEPLOYMENT_TESTDUMMY);
     }
 
@@ -471,7 +472,7 @@ BOOST_AUTO_TEST_CASE(versionbits_computeblockversion)
         // live deployment
         ArgsManager args;
         args.ForceSetArg("-vbparams", "testdummy:1199145601:1230767999:403200"); // January 1, 2008 - December 31, 2008, min act height 403200
-        const auto chainParams = CreateChainParams(args, CBaseChainParams::REGTEST);
+        const auto chainParams = CreateChainParams(args, ChainType::REGTEST);
         check_computeblockversion(vbcache, chainParams->GetConsensus(), Consensus::DEPLOYMENT_TESTDUMMY);
     }
 }
@@ -480,9 +481,9 @@ BOOST_AUTO_TEST_CASE(evo_shares_follows_v24)
 {
     // evo_shares lifts restrictions that v24 introduces. Its consensus parameters ship in v24 and must
     // stay identical in the release that signals for it, so they mirror v24's on every network.
-    for (const auto& chain_name : {CBaseChainParams::MAIN, CBaseChainParams::TESTNET, CBaseChainParams::DEVNET,
-                                   CBaseChainParams::REGTEST}) {
-        BOOST_TEST_MESSAGE(chain_name);
+    for (const auto& chain_name : {ChainType::MAIN, ChainType::TESTNET, ChainType::DEVNET,
+                                   ChainType::REGTEST}) {
+        BOOST_TEST_MESSAGE(ChainTypeToString(chain_name));
         const auto chainParams = CreateChainParams(*m_node.args, chain_name);
         const auto& v24{chainParams->GetConsensus().vDeployments[Consensus::DEPLOYMENT_V24]};
         const auto& evo_shares{chainParams->GetConsensus().vDeployments[Consensus::DEPLOYMENT_EVO_SHARES]};

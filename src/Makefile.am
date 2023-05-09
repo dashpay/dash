@@ -446,6 +446,7 @@ BITCOIN_CORE_H = \
   util/bip32.h \
   util/bitset.h \
   util/bytevectorhash.h \
+  util/chaintype.h \
   util/check.h \
   util/edge.h \
   util/epochguard.h \
@@ -1071,6 +1072,7 @@ libbitcoin_util_a_SOURCES = \
   util/asmap.cpp \
   util/bip32.cpp \
   util/bytevectorhash.cpp \
+  util/chaintype.cpp \
   util/check.cpp \
   util/edge.cpp \
   util/error.cpp \
@@ -1387,6 +1389,7 @@ libdashkernel_la_SOURCES = \
   txmempool.cpp \
   uint256.cpp \
   util/bytevectorhash.cpp \
+  util/chaintype.cpp \
   util/check.cpp \
   util/exception.cpp \
   util/fs.cpp \

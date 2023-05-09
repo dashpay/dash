@@ -863,7 +863,7 @@ BOOST_FIXTURE_TEST_CASE(min_blocks_to_keep_covers_credit_pool_rebuild, BasicTest
 {
     // A pool is rebuilt from a snapshot up to one period old, reading the block one window before
     // each block since it. Regtest deliberately keeps Bitcoin Core's 288 and is not checked.
-    for (const auto& chain : {CBaseChainParams::MAIN, CBaseChainParams::TESTNET, CBaseChainParams::DEVNET}) {
+    for (const auto& chain : {ChainType::MAIN, ChainType::TESTNET, ChainType::DEVNET}) {
         const auto params = CreateChainParams(*m_node.args, chain);
         BOOST_CHECK_GE(params->MinBlocksToKeep(),
                        CCreditPoolManager::DISK_SNAPSHOT_PERIOD + params->CreditPoolPeriodBlocks());

@@ -163,7 +163,7 @@ BOOST_FIXTURE_TEST_SUITE(bip324_tests, BasicTestingSetup)
 BOOST_AUTO_TEST_CASE(packet_test_vectors) {
     // BIP324 key derivation uses network magic in the HKDF process. We use mainnet params here
     // as that is what the test vectors are written for.
-    SelectParams(CBaseChainParams::MAIN);
+    SelectParams(ChainType::MAIN);
 
     // The test vectors are converted using the following Python code in the BIP bip-0324/ directory:
     //

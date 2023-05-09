@@ -707,7 +707,7 @@ QString MakeRegistrarEnvelope(const uint256& pro_tx_hash, const COutPoint& fee_i
     UniValue json(UniValue::VOBJ);
     json.pushKV("type", "dash-shared-mn-sigs");
     json.pushKV("version", 1);
-    json.pushKV("network", Params().NetworkIDString());
+    json.pushKV("network", Params().GetChainTypeString());
     json.pushKV("kind", "registrar");
     json.pushKV("proTxHash", pro_tx_hash.ToString());
     json.pushKV("tx", EncodeHexTx(CTransaction(tx)));
@@ -748,7 +748,7 @@ QString MakeDissolveEnvelopeFor(const uint256& pro_tx_hash, const CMutableTransa
     UniValue json(UniValue::VOBJ);
     json.pushKV("type", "dash-shared-mn-sigs");
     json.pushKV("version", 1);
-    json.pushKV("network", Params().NetworkIDString());
+    json.pushKV("network", Params().GetChainTypeString());
     json.pushKV("kind", "dissolve");
     json.pushKV("proTxHash", pro_tx_hash.ToString());
     json.pushKV("tx", EncodeHexTx(CTransaction(tx)));

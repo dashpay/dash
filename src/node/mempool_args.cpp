@@ -90,7 +90,7 @@ std::optional<bilingual_str> ApplyArgsManOptions(const ArgsManager& argsman, con
 
     mempool_opts.require_standard = !argsman.GetBoolArg("-acceptnonstdtxn", DEFAULT_ACCEPT_NON_STD_TXN);
     if (!chainparams.IsTestChain() && !mempool_opts.require_standard) {
-        return strprintf(Untranslated("acceptnonstdtxn is not currently supported for %s chain"), chainparams.NetworkIDString());
+        return strprintf(Untranslated("acceptnonstdtxn is not currently supported for %s chain"), chainparams.GetChainTypeString());
     }
 
     ApplyArgsManOptions(argsman, mempool_opts.limits);

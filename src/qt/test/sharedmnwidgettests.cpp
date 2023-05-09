@@ -80,7 +80,7 @@ QString TransactionHex(uint16_t type)
 
 void SharedMnWidgetTests::importDetection()
 {
-    BasicTestingSetup setup{CBaseChainParams::REGTEST};
+    BasicTestingSetup setup{ChainType::REGTEST};
 
     // A session envelope is recognised from its own type field
     const MnShareSession session{TwoShareSession()};
@@ -92,7 +92,7 @@ void SharedMnWidgetTests::importDetection()
     UniValue sigs(UniValue::VOBJ);
     sigs.pushKV("type", "dash-shared-mn-sigs");
     sigs.pushKV("version", 1);
-    sigs.pushKV("network", Params().NetworkIDString());
+    sigs.pushKV("network", Params().GetChainTypeString());
     sigs.pushKV("kind", "dissolve");
     sigs.pushKV("proTxHash", std::string(64, 'a'));
     shared_mn::AppendFingerprint(sigs);
@@ -192,7 +192,7 @@ void SharedMnWidgetTests::termSheetWarnsWhenWePayMoreThanOurShare()
 
 void SharedMnWidgetTests::termSheetEscapesUntrustedText()
 {
-    BasicTestingSetup setup{CBaseChainParams::REGTEST};
+    BasicTestingSetup setup{ChainType::REGTEST};
     const MnShareSession session{TwoShareSession()};
     const QString html{SharedMnTermSheetHtml(session, /*you_share_index=*/1, BitcoinUnits::Unit::DASH)};
 

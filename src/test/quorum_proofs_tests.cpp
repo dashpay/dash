@@ -99,7 +99,7 @@ static const char* TESTNET_PROOF =
     "3ad9678edcd1ff85bb3f2581b8d54d57685615"
 ;
 struct QuorumProofsRegtestSetup : BasicTestingSetup {
-    QuorumProofsRegtestSetup() : BasicTestingSetup(CBaseChainParams::REGTEST) {}
+    QuorumProofsRegtestSetup() : BasicTestingSetup(ChainType::REGTEST) {}
 };
 
 // Use a single active quorum to deterministically exercise retirement at a
@@ -116,7 +116,7 @@ struct QuorumProofGenerationSetup : TestingSetup {
     std::vector<CBLSSecretKey> keys;
 
     QuorumProofGenerationSetup() :
-        TestingSetup(CBaseChainParams::TESTNET),
+        TestingSetup(ChainType::TESTNET),
         saved_consensus(Params().GetConsensus()),
         saved_tip(WITH_LOCK(cs_main, return m_node.chainman->ActiveChain().Tip()))
     {

@@ -527,7 +527,7 @@ void ClearProofStateCacheForTesting() { StateCache().Clear(); }
 ProofState QuorumProofBuilder::StateAt(const CBlockIndex* index)
 {
     Require(index != nullptr && index->nHeight > 0, "invalid checkpoint block");
-    const auto network = Params().NetworkIDString();
+    const auto network = Params().GetChainTypeString();
     Require(network == "main" || network == "test", "proofs support mainnet/testnet");
     // A block hash fixes the coinbase, and the network is fixed for the process.
     // Every request reads the checkpoint's state and the target's more than once.

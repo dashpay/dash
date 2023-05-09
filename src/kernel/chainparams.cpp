@@ -10,7 +10,6 @@
 #include <util/std23.h>
 
 #include <arith_uint256.h>
-#include <chainparamsbase.h>
 #include <chainparamsseeds.h>
 #include <consensus/amount.h>
 #include <consensus/merkle.h>
@@ -21,6 +20,7 @@
 #include <primitives/transaction.h>
 #include <script/script.h>
 #include <uint256.h>
+#include <util/chaintype.h>
 #include <util/strencodings.h>
 #include <util/system.h>
 #include <versionbits.h>
@@ -170,7 +170,7 @@ std::optional<Consensus::LLMQParams> CChainParams::GetLLMQ(Consensus::LLMQType l
 class CMainParams : public CChainParams {
 public:
     CMainParams() {
-        strNetworkID = CBaseChainParams::MAIN;
+        m_chain_type = ChainType::MAIN;
         consensus.nSubsidyHalvingInterval = 210240; // Note: actual number of blocks per calendar year with DGW v3 is ~200700 (for example 449750 - 249050)
         consensus.nMasternodePaymentsStartBlock = 100000; // not true, but it's ok as long as it's less then nMasternodePaymentsIncreaseBlock
         consensus.nMasternodePaymentsIncreaseBlock = 158000; // actual historical value
@@ -381,7 +381,7 @@ public:
 class CTestNetParams : public CChainParams {
 public:
     CTestNetParams() {
-        strNetworkID = CBaseChainParams::TESTNET;
+        m_chain_type = ChainType::TESTNET;
         consensus.nSubsidyHalvingInterval = 210240;
         consensus.nMasternodePaymentsStartBlock = 4010; // not true, but it's ok as long as it's less then nMasternodePaymentsIncreaseBlock
         consensus.nMasternodePaymentsIncreaseBlock = 4030;
@@ -566,7 +566,7 @@ public:
 class CDevNetParams : public CChainParams {
 public:
     explicit CDevNetParams(const DevNetOptions& opts) {
-        strNetworkID = CBaseChainParams::DEVNET;
+        m_chain_type = ChainType::DEVNET;
         consensus.nSubsidyHalvingInterval = 210240;
         consensus.nMasternodePaymentsStartBlock = 4010; // not true, but it's ok as long as it's less then nMasternodePaymentsIncreaseBlock
         consensus.nMasternodePaymentsIncreaseBlock = 4030;
@@ -859,7 +859,7 @@ private:
 class CRegTestParams : public CChainParams {
 public:
     explicit CRegTestParams(const RegTestOptions& opts) {
-        strNetworkID =  CBaseChainParams::REGTEST;
+        m_chain_type = ChainType::REGTEST;
         consensus.nSubsidyHalvingInterval = 150;
         consensus.nMasternodePaymentsStartBlock = 240;
         consensus.nMasternodePaymentsIncreaseBlock = 350;

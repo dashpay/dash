@@ -28,6 +28,7 @@
 #include <test/fuzz/util.h>
 #include <uint256.h>
 #include <univalue.h>
+#include <util/chaintype.h>
 #include <util/check.h>
 #include <util/moneystr.h>
 #include <util/overflow.h>
@@ -45,7 +46,7 @@
 
 void initialize_integer()
 {
-    SelectParams(CBaseChainParams::REGTEST);
+    SelectParams(ChainType::REGTEST);
 }
 
 FUZZ_TARGET(integer, .init = initialize_integer)
