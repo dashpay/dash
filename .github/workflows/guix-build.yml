@@ -40,7 +40,7 @@ jobs:
           docker exec guix-daemon bash -c "\
           git config --global --add safe.directory /dash && \
           cd /dash && \
-          contrib/guix/guix-build"
+          HOSTS="x86_64-linux-gnu" contrib/guix/guix-build"
 
       - name: Ensure build passes
         run: |
