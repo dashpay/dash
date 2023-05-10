@@ -3,8 +3,8 @@ on: [push, pull_request]
 jobs:
   guix_build:
     runs-on: ubuntu-latest
-    container:
-      image: alpine-guix
+#    container:
+#      image: alpine-guix
     steps:
       - name: Checkout repository
         uses: actions/checkout@v2
