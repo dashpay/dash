@@ -34,6 +34,7 @@ jobs:
 
       - name: Run Guix build
         run: |
+          ls /dash/depends/SDKs &&
           docker run --rm -v ${{ github.workspace }}:/dash -w /dash alpine-guix:latest bash -c "git config --global --add safe.directory /dash && contrib/guix/guix-build"
 
       - name: Ensure build passes
