@@ -22,6 +22,6 @@ jobs:
         run: |
           ls /
           ls
-          cd dash/contrib/guix
+          cd contrib/guix
           ./guix-build
         shell: bash
