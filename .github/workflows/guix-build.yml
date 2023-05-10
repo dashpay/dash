@@ -28,12 +28,13 @@ jobs:
           context: .
           file: ./contrib/guix/Dockerfile
           load: true
+          tags: alpine-guix:latest
           cache-from: type=local,src=/tmp/.buildx-cache
           cache-to: type=local,dest=/tmp/.buildx-cache
 
       - name: Run Guix build
         run: |
-          docker run --rm -v $(pwd):/dash -w /dash dashpay/dash contrib/guix/guix-build
+          docker run --rm -v $(pwd):/dash -w /dash alpine-guix:latest contrib/guix/guix-build
 
       - name: Ensure build passes
         run: |
