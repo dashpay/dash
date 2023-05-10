@@ -34,7 +34,7 @@ jobs:
 
       - name: Run Guix build
         run: |
-          docker run --rm -v ${{ github.workspace }}:/dash -w /dash alpine-guix:latest contrib/guix/guix-build
+          docker run --rm -v ${{ github.workspace }}:/dash -v ${{ github.workspace }}/.git:/dash/.git -w /dash alpine-guix:latest contrib/guix/guix-build
 
       - name: Ensure build passes
         run: |
