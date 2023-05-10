@@ -50,7 +50,7 @@ RUN for i in $(seq -w 1 ${builder_count}); do    \
               "guixbuilder${i}" ;                \
     done
 
-CMD ["/root/.config/guix/current/bin/guix-daemon","--build-users-group=guixbuild"]
+ENTRYPOINT ["/root/.config/guix/current/bin/guix-daemon","--build-users-group=guixbuild"]
 
 RUN git clone https://github.com/dashpay/dash.git /dash
 
