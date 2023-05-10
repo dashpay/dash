@@ -1,0 +1,15 @@
+on: [push, pull_request]
+
+jobs:
+  guix_build:
+    runs-on: ubuntu-latest
+    container:
+      image: <your_docker_image_name_here>
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v2
+        with:
+          repository: dashpay/dash
+
+      - name: Run Guix build
+        run: contrib/guix/guix-build
