@@ -16,7 +16,7 @@
 namespace {
 struct IndexMigrationSetup : public TestChainSetup {
     IndexMigrationSetup() :
-        TestChainSetup{100, CBaseChainParams::REGTEST, {"-timestampindex=1"}}
+        TestChainSetup{100, ChainType::REGTEST, {"-timestampindex=1"}}
     {
     }
 

@@ -751,7 +751,7 @@ BOOST_FIXTURE_TEST_CASE(BasicOutputTypesTest, ListCoinsTestingSetup)
 //! default regtest parameters place far beyond the pinned fixture chains. The
 //! same chain as the evo tests: activation at 109, tip at 108.
 struct AssetLockTestingSetup : public TestChainSetup {
-    AssetLockTestingSetup() : TestChainSetup{107, CBaseChainParams::REGTEST, {"-dip3params=109:500"}}
+    AssetLockTestingSetup() : TestChainSetup{107, ChainType::REGTEST, {"-dip3params=109:500"}}
     {
         CreateAndProcessBlock({}, GetScriptForRawPubKey(coinbaseKey.GetPubKey()));
         wallet = CreateSyncedWallet(*m_node.chain, *Assert(m_node.chainman), coinbaseKey);

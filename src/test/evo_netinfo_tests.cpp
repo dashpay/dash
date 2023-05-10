@@ -302,7 +302,7 @@ BOOST_AUTO_TEST_CASE(provider_network_fields_main)
 }
 
 struct TestNetSetup : public BasicTestingSetup {
-    TestNetSetup() : BasicTestingSetup{CBaseChainParams::TESTNET} {}
+    TestNetSetup() : BasicTestingSetup{ChainType::TESTNET} {}
 };
 
 BOOST_FIXTURE_TEST_CASE(extnetinfo_ports_mainnet_only, TestNetSetup)
@@ -351,7 +351,7 @@ BOOST_FIXTURE_TEST_CASE(extnetinfo_ports_mainnet_only, TestNetSetup)
 
     // A serialized ProTx carries its entries as-is, so consensus on mainnet must apply the rules to the
     // same objects even though they never passed through AddEntry() there
-    SelectParams(CBaseChainParams::MAIN);
+    SelectParams(ChainType::MAIN);
     for (size_t idx{0}; idx < vals.size(); ++idx) {
         const auto& [type, _, valid_on_mainnet] = vals[idx];
         const auto net_info{std::make_shared<ExtNetInfo>(deserialize, serialized[idx])};
@@ -360,7 +360,7 @@ BOOST_FIXTURE_TEST_CASE(extnetinfo_ports_mainnet_only, TestNetSetup)
         BOOST_CHECK_EQUAL(check_fields(net_info, type, state), valid_on_mainnet);
         BOOST_CHECK_EQUAL(state.GetRejectReason(), valid_on_mainnet ? "" : "bad-protx-netinfo-port");
     }
-    SelectParams(CBaseChainParams::TESTNET);
+    SelectParams(ChainType::TESTNET);
 }
 
 BOOST_FIXTURE_TEST_CASE(ipv4_primaries_follow_activation, TestNetSetup)
@@ -426,11 +426,11 @@ BOOST_FIXTURE_TEST_CASE(ipv4_primaries_follow_activation, TestNetSetup)
 
     // The rule depends on the activation, not the network. Validate(), which also checks stored masternode states
     // without a height, doesn't apply it.
-    SelectParams(CBaseChainParams::MAIN);
+    SelectParams(ChainType::MAIN);
     for (size_t idx{0}; idx < vals.size(); ++idx) {
         check(std::make_shared<ExtNetInfo>(deserialize, serialized[idx]), vals[idx]);
     }
-    SelectParams(CBaseChainParams::TESTNET);
+    SelectParams(ChainType::TESTNET);
 }
 
 static const std::vector<TestEntry> addr_vals_reg{

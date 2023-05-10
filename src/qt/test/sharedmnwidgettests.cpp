@@ -158,7 +158,7 @@ void SharedMnWidgetTests::statusBoardCells()
 
 void SharedMnWidgetTests::termSheetWarnsWhenWePayMoreThanOurShare()
 {
-    BasicTestingSetup setup{CBaseChainParams::REGTEST};
+    BasicTestingSetup setup{ChainType::REGTEST};
     const MnShareSession session{TwoShareSession()};
     const CAmount share{session.shares()[1].amount};
     const auto sheet = [&](int you, std::optional<SharedMnOwnFunding> funding) {

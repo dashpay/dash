@@ -206,7 +206,7 @@ void SharedMnWizardTests::participantPagesAndRoleInference()
 
 void SharedMnWizardTests::participantCannotChooseATakenShare()
 {
-    TestingSetup test{CBaseChainParams::REGTEST};
+    TestingSetup test{ChainType::REGTEST};
     m_node.setContext(&test.m_node);
     WalletContext& context{*m_node.walletLoader().context()};
 
@@ -457,7 +457,7 @@ void SharedMnWizardTests::coordinatorResumesFullySignedSession()
 
 void SharedMnWizardTests::signedSessionReservation()
 {
-    TestingSetup test{CBaseChainParams::REGTEST};
+    TestingSetup test{ChainType::REGTEST};
     m_node.setContext(&test.m_node);
     WalletContext& context{*m_node.walletLoader().context()};
 
@@ -1082,7 +1082,7 @@ void SharedMnWizardTests::refusesToSignShortChangedOwnContribution()
 
 void SharedMnWizardTests::newerRevisionKeepsOwnShare()
 {
-    TestingSetup test{CBaseChainParams::REGTEST};
+    TestingSetup test{ChainType::REGTEST};
     m_node.setContext(&test.m_node);
     WalletContext& context{*m_node.walletLoader().context()};
 
@@ -1652,7 +1652,7 @@ void SharedMnWizardTests::serviceAddressInUseIsRefused()
 {
     // DIP3 is active at the tip, so the tip's masternode list is what the
     // network checks a registration's service address against
-    TestChainSetup test{107, CBaseChainParams::REGTEST, {"-dip3params=109:500"}};
+    TestChainSetup test{107, ChainType::REGTEST, {"-dip3params=109:500"}};
     test.mineBlocks(2);
     m_node.setContext(&test.m_node);
     const CBlockIndex* const tip{WITH_LOCK(::cs_main, return test.m_node.chainman->ActiveChain().Tip())};
@@ -1714,7 +1714,7 @@ void SharedMnWizardTests::serviceAddressInUseIsRefused()
 
 void SharedMnWizardTests::reusedRefundAddressIsRefusedBeforeReserving()
 {
-    TestingSetup test{CBaseChainParams::REGTEST};
+    TestingSetup test{ChainType::REGTEST};
     m_node.setContext(&test.m_node);
     WalletContext& context{*m_node.walletLoader().context()};
 

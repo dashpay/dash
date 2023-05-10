@@ -206,7 +206,7 @@ void sanity_check_chainparams(const ArgsManager& args, ChainType chain_type)
         targ_max /= consensus.nPowTargetTimespan*4;
         // for devnets pow-no-retargeting may work as non-expected but it's a breaking change to fix it
         // TODO: remove this special case for devnet
-        if (chainName != ChainType::DEVNET) {
+        if (chain_type != ChainType::DEVNET) {
             BOOST_CHECK(UintToArith256(consensus.powLimit) < targ_max);
         }
     }

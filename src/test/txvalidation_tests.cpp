@@ -24,7 +24,7 @@ struct TestChain100NoDIP0001Setup : public TestChain100Setup {
 
 struct TestChain100DIP3Setup : public TestChain100Setup {
     TestChain100DIP3Setup()
-        : TestChain100Setup{CBaseChainParams::REGTEST, {"-dip3params=101:500"}} {}
+        : TestChain100Setup{ChainType::REGTEST, {"-dip3params=101:500"}} {}
 };
 
 

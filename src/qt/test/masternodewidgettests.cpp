@@ -369,7 +369,7 @@ void MasternodeWidgetTests::providerNetInfoValidation_data()
 
 void MasternodeWidgetTests::providerNetInfoValidation()
 {
-    BasicTestingSetup test{CBaseChainParams::MAIN};
+    BasicTestingSetup test{ChainType::MAIN};
     m_node.setContext(&test.m_node);
     QFETCH(int, mn_type);
     QFETCH(int, version);

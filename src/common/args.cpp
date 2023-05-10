@@ -696,7 +696,7 @@ void ArgsManager::ForceRemoveArg(const std::string& strArg)
     }
 
     for (const auto& network : { ChainType::MAIN, ChainType::TESTNET, ChainType::REGTEST, ChainType::DEVNET }) {
-        if (auto* section = util::FindKey(m_settings.ro_config, network)) {
+        if (auto* section = util::FindKey(m_settings.ro_config, ChainTypeToString(network))) {
             if (util::FindKey(*section, strArg)) {
                 section->erase(strArg);
             }

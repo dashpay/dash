@@ -340,14 +340,14 @@ protected:
     void ForceRemoveArg(const std::string& strArg);
 
     /**
-     * Returns the appropriate chain name from the program arguments.
+     * Returns the appropriate chain type from the program arguments.
      * @return ChainType::MAIN by default; raises runtime error if an invalid
      * combination, or unknown chain is given.
      */
     ChainType GetChainType() const;
 
     /**
-     * Returns the appropriate chain name string from the program arguments.
+     * Returns the appropriate chain type string from the program arguments.
      * @return ChainType::MAIN string by default; raises runtime error if an
      * invalid combination is given.
      */
@@ -445,7 +445,7 @@ private:
 
     /**
      * Return -regtest/-signet/-testnet/-chain= setting as a ChainType enum if a
-     * recognized chain name was set, or as a string if an unrecognized chain
+     * recognized chain type was set, or as a string if an unrecognized chain
      * name was set. Raise an exception if an invalid combination of flags was
      * provided.
      */

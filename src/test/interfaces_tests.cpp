@@ -94,7 +94,7 @@ BOOST_AUTO_TEST_CASE(providerTxCapabilities)
 
 struct IPv4OptionalChainSetup : public TestChain100Setup {
     IPv4OptionalChainSetup()
-        : TestChain100Setup{CBaseChainParams::REGTEST, {"-testactivationheight=ipv4_optional@1"}} {}
+        : TestChain100Setup{ChainType::REGTEST, {"-testactivationheight=ipv4_optional@1"}} {}
 };
 
 BOOST_FIXTURE_TEST_CASE(providerTxCapabilitiesIPv4Optional, IPv4OptionalChainSetup)
