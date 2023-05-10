@@ -4943,7 +4943,7 @@ void CChainState::LoadExternalBlockFile(
             try {
                 // locate a header
                 unsigned char buf[CMessageHeader::MESSAGE_START_SIZE];
-                blkdat.FindByte(m_params.MessageStart()[0]);
+                blkdat.FindByte(std::byte(m_params.MessageStart()[0]));
                 nRewind = blkdat.GetPos() + 1;
                 blkdat >> buf;
                 if (memcmp(buf, m_params.MessageStart(), CMessageHeader::MESSAGE_START_SIZE)) {

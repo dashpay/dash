@@ -45,6 +45,7 @@ bench_bench_dash_SOURCES = \
   bench/pool.cpp \
   bench/rpc_blockchain.cpp \
   bench/rpc_mempool.cpp \
+  bench/streams_findbyte.cpp \
   bench/strencodings.cpp \
   bench/util_time.cpp \
   bench/base58.cpp \
