@@ -9,7 +9,6 @@
 
 #include <bls/bls.h>
 #include <chainparams.h>
-#include <evo/cbtx.h>
 #include <evo/deterministicmns.h>
 #include <evo/evodb.h>
 #include <masternode/meta.h>
@@ -26,6 +25,11 @@
 #include <optional>
 
 static constexpr int TESTNET_LLMQ_25_67_ACTIVATION_HEIGHT = 847000;
+
+/**
+ * Forward declarations
+ */
+std::optional<std::pair<CBLSSignature, uint32_t>> GetNonNullCoinbaseChainlock(const CBlockIndex* pindex);
 
 namespace llmq
 {
