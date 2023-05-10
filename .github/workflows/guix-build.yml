@@ -20,6 +20,8 @@ jobs:
 
       - name: Run Guix Build
         run: |
+          ls /
+          ls
           cd dash/contrib/guix
           ./guix-build
         shell: bash
