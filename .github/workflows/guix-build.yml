@@ -4,7 +4,7 @@ jobs:
   guix_build:
     runs-on: ubuntu-latest
     container:
-      image: <your_docker_image_name_here>
+      image: alpine-guix
     steps:
       - name: Checkout repository
         uses: actions/checkout@v2
