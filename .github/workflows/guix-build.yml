@@ -1,15 +1,37 @@
-on: [push, pull_request]
+name: Guix Build
+
+on:
+  push:
+  pull_request:
 
 jobs:
-  guix_build:
+  build:
     runs-on: ubuntu-latest
-#    container:
-#      image: alpine-guix
     steps:
-      - name: Checkout repository
+      - name: Checkout code
         uses: actions/checkout@v2
-        with:
-          repository: dashpay/dash
 
-      - name: Run Guix build
-        run: contrib/guix/guix-build
+      - name: Install Dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y git make bash curl bzip2 ca-certificates shadow
+          sudo locale-gen en_US.UTF-8
+          sudo update-ca-certificates
+        shell: bash
+
+      - name: Install Guix
+        run: |
+          sudo mkdir -p /usr/local/guix
+          sudo chown -R $(whoami) /usr/local/guix
+          curl -L https://git.io/JYOYR | tar xzf - --strip-components=1 -C /usr/local/guix
+          echo 'export GUIX_LOCPATH=$HOME/.guix-profile/lib/locale' >> ~/.bashrc
+          echo 'export PATH="$HOME/.guix-profile/bin:$PATH"' >> ~/.bashrc
+          . $HOME/.bashrc
+          guix pull
+        shell: bash
+
+      - name: Run Guix Build
+        run: |
+          cd dash/contrib/guix
+          ./guix-build
+        shell: bash
