@@ -25,8 +25,9 @@
 
 // Forward declaration to break dependency over node/transaction.h
 namespace node {
+class BlockManager;
 CTransactionRef GetTransaction(const CBlockIndex* const block_index, const CTxMemPool* const mempool,
-                               const uint256& hash, const Consensus::Params& consensusParams, uint256& hashBlock);
+                               const uint256& hash, uint256& hashBlock, const BlockManager& blockman);
 } // namespace node
 
 using node::GetTransaction;
@@ -128,7 +129,7 @@ void InstantSendSigner::HandleNewInputLockRecoveredSig(const llmq::CRecoveredSig
     }
 
     uint256 _hashBlock{};
-    const auto tx = GetTransaction(nullptr, &m_mempool, txid, Params().GetConsensus(), _hashBlock);
+    const auto tx = GetTransaction(nullptr, &m_mempool, txid, _hashBlock, m_chainman.m_blockman);
     if (!tx) {
         return;
     }
@@ -280,7 +281,7 @@ bool InstantSendSigner::CheckCanLock(const COutPoint& outpoint, bool printDebug,
     }
 
     uint256 hashBlock{};
-    const auto tx = GetTransaction(nullptr, &m_mempool, outpoint.hash, params, hashBlock);
+    const auto tx = GetTransaction(nullptr, &m_mempool, outpoint.hash, hashBlock, m_chainman.m_blockman);
     // this relies on enabled txindex and won't work if we ever try to remove the requirement for txindex for masternodes
     if (!tx || hashBlock.IsNull()) {
         if (printDebug) {

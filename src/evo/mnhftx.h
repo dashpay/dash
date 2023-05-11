@@ -99,6 +99,7 @@ private:
     // TODO: store in database active EHF signals not for each block;
     // but quite opposite: keep only hash of block where signal is added.
     // TODO: implement migration to a new format
+    const node::BlockManager& m_blockman;
     const Consensus::Params& m_consensus_params;
 
     static constexpr size_t MNHFCacheSize = 1000;
@@ -110,7 +111,7 @@ public:
     CMNHFManager() = delete;
     CMNHFManager(const CMNHFManager&) = delete;
     CMNHFManager& operator=(const CMNHFManager&) = delete;
-    explicit CMNHFManager(CEvoDB& evoDb, const Consensus::Params& consensus_params);
+    explicit CMNHFManager(CEvoDB& evoDb, const node::BlockManager& blockman, const Consensus::Params& consensus_params);
     ~CMNHFManager() override;
 
     /**

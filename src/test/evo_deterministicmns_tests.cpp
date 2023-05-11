@@ -4675,7 +4675,7 @@ BOOST_AUTO_TEST_CASE(evodb_repair_missing_snapshot_is_repair_error)
                                     const CCoinsViewCache&, bool, BlockValidationState&,
                                     CDeterministicMNList&) { return false; };
 
-    auto result = dmnman.RecalculateAndRepairDiffs(dip3_index, second_index, build_list_func, /*repair=*/true);
+    auto result = dmnman.RecalculateAndRepairDiffs(chainman.m_blockman, dip3_index, second_index, build_list_func, /*repair=*/true);
     BOOST_CHECK(result.verification_errors.empty());
     BOOST_CHECK(result.repair_errors.empty());
     BOOST_CHECK_EQUAL(result.snapshots_verified, 2);
@@ -4691,19 +4691,19 @@ BOOST_AUTO_TEST_CASE(evodb_repair_missing_snapshot_is_repair_error)
     const std::string missing_msg{strprintf("Snapshot missing at height %d", snapshot_period)};
 
     // Snapshot missing as the end of a pair
-    result = dmnman.RecalculateAndRepairDiffs(dip3_index, second_index, build_list_func, /*repair=*/true);
+    result = dmnman.RecalculateAndRepairDiffs(chainman.m_blockman, dip3_index, second_index, build_list_func, /*repair=*/true);
     BOOST_CHECK(result.verification_errors.empty());
     BOOST_REQUIRE_EQUAL(result.repair_errors.size(), 1U);
     BOOST_CHECK(result.repair_errors[0].find(missing_msg) != std::string::npos);
 
     // Snapshot missing as the start of a pair
-    result = dmnman.RecalculateAndRepairDiffs(first_index, second_index, build_list_func, /*repair=*/true);
+    result = dmnman.RecalculateAndRepairDiffs(chainman.m_blockman, first_index, second_index, build_list_func, /*repair=*/true);
     BOOST_CHECK(result.verification_errors.empty());
     BOOST_REQUIRE_EQUAL(result.repair_errors.size(), 1U);
     BOOST_CHECK(result.repair_errors[0].find(missing_msg) != std::string::npos);
 
     // Verify-only mode has no repair errors to report
-    result = dmnman.RecalculateAndRepairDiffs(dip3_index, second_index, build_list_func, /*repair=*/false);
+    result = dmnman.RecalculateAndRepairDiffs(chainman.m_blockman, dip3_index, second_index, build_list_func, /*repair=*/false);
     BOOST_CHECK(result.repair_errors.empty());
     BOOST_REQUIRE_EQUAL(result.verification_errors.size(), 1U);
     BOOST_CHECK(result.verification_errors[0].find(missing_msg) != std::string::npos);

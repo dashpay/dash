@@ -79,8 +79,6 @@
 #include <typeinfo>
 #include <vector>
 
-using node::ReadBlockFromDisk;
-
 /** Maximum number of in-flight object requests from a peer. It is not a hard limit, but the
  *  threshold at which point the OVERLOADED_PEER_OBJECT_DELAY kicks in. */
 static constexpr int32_t MAX_PEER_OBJECT_REQUEST_IN_FLIGHT = 100;
@@ -2889,7 +2887,7 @@ void PeerManagerImpl::ProcessGetBlockData(CNode& pfrom, Peer& peer, const CInv& 
     } else {
         // Send block from disk
         std::shared_ptr<CBlock> pblockRead = std::make_shared<CBlock>();
-        const auto hash = ReadBlockFromDisk(*pblockRead, block_pos, m_chainparams.GetConsensus());
+        const auto hash = m_chainman.m_blockman.ReadBlockFromDisk(*pblockRead, block_pos);
         if (!hash || *hash != inv.hash) {
             if (WITH_LOCK(cs_main, return m_chainman.m_blockman.IsBlockPruned(pindex))) {
                 LogPrint(BCLog::NET, "Block was pruned before it could be read, disconnect peer=%d\n", pfrom.GetId());
@@ -4831,7 +4829,7 @@ void PeerManagerImpl::ProcessMessage(
 
         if (!block_pos.IsNull()) {
             CBlock block;
-            const auto hash = ReadBlockFromDisk(block, block_pos, m_chainparams.GetConsensus());
+            const auto hash = m_chainman.m_blockman.ReadBlockFromDisk(block, block_pos);
             // If height is above MAX_BLOCKTXN_DEPTH then this block cannot get
             // pruned after we release cs_main above, so this read should never fail.
             assert(hash && *hash == req.blockhash);
@@ -6617,7 +6615,7 @@ bool PeerManagerImpl::SendMessages(CNode* pto)
                         m_connman.PushMessage(pto, std::move(cached_cmpctblock_msg.value()));
                     } else {
                         CBlock block;
-                        bool ret = ReadBlockFromDisk(block, pBestIndex, consensusParams);
+                        const bool ret{m_chainman.m_blockman.ReadBlockFromDisk(block, *pBestIndex)};
                         assert(ret);
                         CBlockHeaderAndShortTxIDs cmpctblock{block};
                         m_connman.PushMessage(pto, msgMaker.Make(NetMsgType::CMPCTBLOCK, cmpctblock));

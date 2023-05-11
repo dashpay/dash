@@ -11,8 +11,6 @@
 #include <util/fs_helpers.h>
 #include <validation.h>
 
-using node::OpenBlockFile;
-
 constexpr uint8_t DB_TXINDEX{'t'};
 
 std::unique_ptr<TxIndex> g_txindex;
@@ -81,7 +79,7 @@ bool TxIndex::FindTx(const uint256& tx_hash, uint256& block_hash, CTransactionRe
         return false;
     }
 
-    AutoFile file{OpenBlockFile(postx, true)};
+    AutoFile file{m_chainstate->m_blockman.OpenBlockFile(postx, true)};
     if (file.IsNull()) {
         LogError("%s: OpenBlockFile failed\n", __func__);
         return false;

@@ -10,6 +10,9 @@ class CBlockIndex;
 class CDeterministicMNManager;
 class CSimplifiedMNList;
 class ChainstateManager;
+namespace node {
+class BlockManager;
+} // namespace node
 namespace chainlock {
 class CoinbaseChainLockReader;
 struct ChainLockSig;
@@ -66,7 +69,7 @@ struct MasternodeLeaves {
     std::vector<uint256> leaves;
 };
 /** Memoized by block hash once the list hashes to the block's masternode root. */
-MasternodeLeaves MasternodeLeavesAt(CDeterministicMNManager& dmnman, const CBlockIndex* index);
+MasternodeLeaves MasternodeLeavesAt(CDeterministicMNManager& dmnman, const node::BlockManager& blockman, const CBlockIndex* index);
 /** Checkpoint and target states are memoized by block hash; a state read once
  *  stays available even if the block's data is later removed. */
 void ClearProofStateCacheForTesting();
@@ -93,7 +96,7 @@ public:
     {
     }
     std::vector<CFinalCommitment> ActiveCommitments(const CBlockIndex* index) const;
-    static ProofState StateAt(const CBlockIndex* index);
+    static ProofState StateAt(const node::BlockManager& blockman, const CBlockIndex* index);
     /** No value when the target requires a retired checkpoint quorum; other failures throw. */
     std::optional<QuorumProofChain> Build(const CBlockIndex* checkpoint, const chainlock::ChainLockSig& target) const;
 };

@@ -109,7 +109,7 @@ BOOST_FIXTURE_TEST_CASE(chainstate_update_tip, TestChain100Setup)
     std::shared_ptr<CBlock> pblockone = std::make_shared<CBlock>();
     {
         LOCK(::cs_main);
-        BOOST_REQUIRE(node::ReadBlockFromDisk(*pblockone, chainman.ActiveChain()[1], chainman.GetConsensus()));
+        BOOST_REQUIRE(chainman.m_blockman.ReadBlockFromDisk(*pblockone, *chainman.ActiveChain()[1]));
     }
 
     BOOST_REQUIRE(CreateAndActivateUTXOSnapshot(

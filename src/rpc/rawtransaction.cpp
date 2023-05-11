@@ -69,8 +69,6 @@ using node::AnalyzePSBT;
 using node::GetTransaction;
 using node::NodeContext;
 using node::PSBTAnalysis;
-using node::ReadBlockFromDisk;
-using node::UndoReadFromDisk;
 
 void TxToJSON(const CTransaction& tx, const uint256 hashBlock, const  CTxMemPool& mempool, const Chainstate& active_chainstate, const chainlock::Chainlocks& chainlocks, const llmq::CInstantSendManager& isman, const SpentIndex* spent_index, UniValue& entry, const CTxUndo* txundo = nullptr, TxVerbosity verbosity = TxVerbosity::SHOW_DETAILS)
 {
@@ -446,7 +444,7 @@ static RPCHelpMan getrawtransaction()
     }
 
     uint256 hash_block;
-    const CTransactionRef tx = GetTransaction(blockindex, node.mempool.get(), hash, chainman.GetConsensus(), hash_block);
+    const CTransactionRef tx = GetTransaction(blockindex, node.mempool.get(), hash, hash_block, chainman.m_blockman);
     if (!tx) {
         std::string errmsg;
         if (blockindex) {
@@ -493,7 +491,7 @@ static RPCHelpMan getrawtransaction()
     const bool is_block_pruned{WITH_LOCK(cs_main, return chainman.m_blockman.IsBlockPruned(blockindex))};
 
     if (tx->IsCoinBase() || is_block_pruned ||
-        !(UndoReadFromDisk(blockUndo, blockindex) && ReadBlockFromDisk(block, blockindex, Params().GetConsensus()))) {
+        !(chainman.m_blockman.UndoReadFromDisk(blockUndo, *blockindex) && chainman.m_blockman.ReadBlockFromDisk(block, *blockindex))) {
         TxToJSON(*tx, hash_block, mempool, chainman.ActiveChainstate(), *node.chainlocks, isman, node.spent_index.get(), result);
         return result;
     }
@@ -595,7 +593,7 @@ static RPCHelpMan getrawtransactionmulti() {
             const uint256 txid = ParseHashV(txid_str, "transaction id");
 
             uint256 hash_block;
-            const CTransactionRef tx = GetTransaction(blockindex, &mempool, txid, Params().GetConsensus(), hash_block);
+            const CTransactionRef tx = GetTransaction(blockindex, &mempool, txid, hash_block, chainman.m_blockman);
             if (!tx) {
                 result.pushKV(txid_str, "None");
             } else if (verbosity > 0) {
@@ -750,7 +748,7 @@ static RPCHelpMan gettxchainlocks()
         int height{-1};
         bool chainLock{false};
 
-        const auto tx_ref = GetTransaction(nullptr, node.mempool.get(), txid, Params().GetConsensus(), hash_block);
+        const auto tx_ref = GetTransaction(nullptr, node.mempool.get(), txid, hash_block, chainman.m_blockman);
 
         if (tx_ref == nullptr) {
             result.pushKV("height", -1);
@@ -856,7 +854,7 @@ static RPCHelpMan getassetunlockstatuses()
                 return pTipBlockIndex->GetAncestor(best_clsig.getHeight());
             }
             // If no CL info is available, try to use CbTx CL information
-            if (const auto cbtx_best_cl = GetNonNullCoinbaseChainlock(pTipBlockIndex)) {
+            if (const auto cbtx_best_cl = GetNonNullCoinbaseChainlock(chainman.m_blockman, pTipBlockIndex)) {
                 return pTipBlockIndex->GetAncestor(pTipBlockIndex->nHeight - cbtx_best_cl->second - 1);
             }
             // no CL info, no CbTx CL

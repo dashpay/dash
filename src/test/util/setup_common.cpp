@@ -106,6 +106,7 @@
 using kernel::ValidationCacheSizes;
 using node::ApplyArgsManOptions;
 using node::BlockAssembler;
+using node::BlockManager;
 using node::CalculateCacheSizes;
 using node::LoadChainstate;
 using node::NodeContext;
@@ -280,7 +281,11 @@ ChainTestingSetup::ChainTestingSetup(const ChainType chainType, const std::vecto
         .superblock_status = [&sbman = *m_node.sbman](const CDeterministicMNList& mn_list, int height) { return sbman.GetStatus(mn_list, height); },
         .mn_sync = m_node.mn_sync.get(),
     };
-    m_node.chainman = std::make_unique<ChainstateManager>(chainman_opts, node::BlockManager::Options{.chainparams = chainparams});
+    const BlockManager::Options blockman_opts{
+        .chainparams = chainparams,
+        .blocks_dir = m_args.GetBlocksDirPath(),
+    };
+    m_node.chainman = std::make_unique<ChainstateManager>(chainman_opts, blockman_opts);
     m_node.chainman->m_blockman.m_block_tree_db = std::make_unique<CBlockTreeDB>(DBParams{
         .path = m_args.GetDataDirNet() / "blocks" / "index",
         .cache_bytes = static_cast<size_t>(m_cache_sizes.block_tree_db),

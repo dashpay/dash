@@ -20,9 +20,6 @@ using kernel::CCoinsStats;
 using kernel::GetBogoSize;
 using kernel::TxOutSer;
 
-using node::ReadBlockFromDisk;
-using node::UndoReadFromDisk;
-
 static constexpr uint8_t DB_BLOCK_HASH{'s'};
 static constexpr uint8_t DB_BLOCK_HEIGHT{'t'};
 static constexpr uint8_t DB_MUHASH{'M'};
@@ -127,7 +124,7 @@ bool CoinStatsIndex::CustomAppend(const interfaces::BlockInfo& block)
 
     // Ignore genesis block
     if (block.height > 0) {
-        if (!UndoReadFromDisk(block_undo, pindex)) {
+        if (!m_chainstate->m_blockman.UndoReadFromDisk(block_undo, *pindex)) {
             return false;
         }
 
@@ -280,12 +277,11 @@ bool CoinStatsIndex::CustomRewind(const interfaces::BlockKey& current_tip, const
         LOCK(cs_main);
         const CBlockIndex* iter_tip{m_chainstate->m_blockman.LookupBlockIndex(current_tip.hash)};
         const CBlockIndex* new_tip_index{m_chainstate->m_blockman.LookupBlockIndex(new_tip.hash)};
-        const auto& consensus_params{Params().GetConsensus()};
 
         do {
             CBlock block;
 
-            if (!ReadBlockFromDisk(block, iter_tip, consensus_params)) {
+            if (!m_chainstate->m_blockman.ReadBlockFromDisk(block, *iter_tip)) {
                 LogError("%s: Failed to read block %s from disk\n",
                              __func__, iter_tip->GetBlockHash().ToString());
                 return false;
@@ -411,7 +407,7 @@ bool CoinStatsIndex::ReverseBlock(const CBlock& block, const CBlockIndex* pindex
 
     // Ignore genesis block
     if (pindex->nHeight > 0) {
-        if (!UndoReadFromDisk(block_undo, pindex)) {
+        if (!m_chainstate->m_blockman.UndoReadFromDisk(block_undo, *pindex)) {
             return false;
         }
 

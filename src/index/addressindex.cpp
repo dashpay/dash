@@ -179,7 +179,7 @@ bool AddressIndex::CustomAppend(const interfaces::BlockInfo& block)
 
     // Read undo data for this block to get information about spent outputs
     CBlockUndo blockundo;
-    if (!node::UndoReadFromDisk(blockundo, pindex)) {
+    if (!m_chainstate->m_blockman.UndoReadFromDisk(blockundo, *pindex)) {
         LogError("%s: Failed to read undo data for block %s at height %d\n", __func__,
                  block.hash.ToString(), block.height);
         return false;
@@ -284,14 +284,14 @@ bool AddressIndex::CustomRewind(const interfaces::BlockKey& current_tip, const i
     // We need to undo all operations from current_tip back to (but not including) new_tip
     return RewindBlockByBlock(current_tip_index, new_tip_index, [&](const CBlockIndex* pindex, CDBBatch& batch) {
         CBlock block;
-        if (!node::ReadBlockFromDisk(block, pindex, Params().GetConsensus())) {
+        if (!m_chainstate->m_blockman.ReadBlockFromDisk(block, *pindex)) {
             LogError("%s: Failed to read block %s from disk during rewind\n", "CustomRewind",
                      pindex->GetBlockHash().ToString());
             return false;
         }
 
         CBlockUndo blockundo;
-        if (pindex->nHeight > 0 && !node::UndoReadFromDisk(blockundo, pindex)) {
+        if (pindex->nHeight > 0 && !m_chainstate->m_blockman.UndoReadFromDisk(blockundo, *pindex)) {
             LogError("%s: Failed to read undo data for block %s during rewind\n", "CustomRewind",
                      pindex->GetBlockHash().ToString());
             return false;

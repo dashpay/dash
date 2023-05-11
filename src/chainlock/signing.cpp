@@ -18,7 +18,6 @@
 
 #include <thread>
 
-using node::ReadBlockFromDisk;
 
 namespace chainlock {
 ChainLockSigner::ChainLockSigner(const ChainstateManager& chainman, const chainlock::Chainlocks& chainlocks,
@@ -238,7 +237,7 @@ ChainLockSigner::BlockTxs::mapped_type ChainLockSigner::GetBlockTxs(const uint25
                 return nullptr;
             }
             CBlock block;
-            if (!ReadBlockFromDisk(block, pindex, Params().GetConsensus())) {
+            if (!m_chainman.m_blockman.ReadBlockFromDisk(block, *pindex)) {
                 return nullptr;
             }
 

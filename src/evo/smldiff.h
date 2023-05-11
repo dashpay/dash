@@ -22,6 +22,9 @@ class CDeterministicMNList;
 class CDeterministicMNManager;
 class UniValue;
 class ChainstateManager;
+namespace node {
+class BlockManager;
+} // namespace node
 struct RPCResult;
 
 namespace llmq {
@@ -83,7 +86,7 @@ public:
 
     bool BuildQuorumsDiff(const CBlockIndex* baseBlockIndex, const CBlockIndex* blockIndex,
                           const llmq::CQuorumBlockProcessor& quorum_block_processor);
-    bool BuildQuorumChainlockInfo(const llmq::CQuorumManager& qman, const CBlockIndex* blockIndex);
+    bool BuildQuorumChainlockInfo(const llmq::CQuorumManager& qman, const node::BlockManager& blockman, const CBlockIndex* blockIndex);
 
     [[nodiscard]] static RPCResult GetJsonHelp(const std::string& key, bool optional);
     [[nodiscard]] UniValue ToJson(bool extended = false) const;

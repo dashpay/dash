@@ -37,7 +37,7 @@ CSpecialTxProcessor::CSpecialTxProcessor(CEvoDB& evodb, CDeterministicMNManager&
                                          const Consensus::Params& consensus_params,
                                          const chainlock::Chainlocks& chainlocks, const llmq::CQuorumManager& qman) :
     m_cpoolman{std::make_unique<CCreditPoolManager>(evodb, chainman)},
-    m_mnhfman{std::make_unique<CMNHFManager>(evodb, consensus_params)},
+    m_mnhfman{std::make_unique<CMNHFManager>(evodb, blockman, consensus_params)},
     m_dmnman{dmnman},
     m_qblockman{qblockman},
     m_qsnapman{qsnapman},
@@ -158,7 +158,7 @@ static bool ApplyProUpServTx(CDeterministicMNState& state_mn, const CProUpServTx
 }
 
 bool CheckCbTxBestChainlock(const CCbTx& cbTx, const CBlockIndex* pindex, const Consensus::Params& consensus_params,
-                            const CChain& chain, const llmq::CQuorumManager& qman,
+                            const node::BlockManager& blockman, const CChain& chain, const llmq::CQuorumManager& qman,
                             const chainlock::Chainlocks& chainlocks, BlockValidationState& state)
 {
     if (cbTx.nVersion < CCbTx::Version::CLSIG_AND_BALANCE) {
@@ -192,7 +192,7 @@ bool CheckCbTxBestChainlock(const CCbTx& cbTx, const CBlockIndex* pindex, const 
         prev_verified_here = cached->verified_here;
     }
     if (!prevBlockCoinbaseChainlock.has_value()) {
-        prevBlockCoinbaseChainlock = GetNonNullCoinbaseChainlock(pindex->pprev);
+        prevBlockCoinbaseChainlock = GetNonNullCoinbaseChainlock(blockman, pindex->pprev);
     }
     // If std::optional prevBlockCoinbaseChainlock is empty, then up to the previous block, coinbase Chainlock is null.
     if (prevBlockCoinbaseChainlock.has_value()) {
@@ -1069,7 +1069,7 @@ bool CSpecialTxProcessor::ProcessSpecialTxsInBlock(Chainstate& chainstate, const
             LogPrint(BCLog::BENCHMARK, "      - CalcCbTxMerkleRootQuorums: %.2fms [%.2fs]\n",
                      Ticks<MillisecondsDouble>(nTime6_2 - nTime6_1), Ticks<SecondsDouble>(nTimeMerkleQuorums));
 
-            if (!CheckCbTxBestChainlock(*opt_cbTx, pindex, m_consensus_params, chain, m_qman, m_chainlocks, state)) {
+            if (!CheckCbTxBestChainlock(*opt_cbTx, pindex, m_consensus_params, m_blockman, chain, m_qman, m_chainlocks, state)) {
                 // pass the state returned by the function above
                 return false;
             }

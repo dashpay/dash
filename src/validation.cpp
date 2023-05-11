@@ -99,10 +99,7 @@ using node::BlockMap;
 using node::CBlockIndexHeightOnlyComparator;
 using node::CBlockIndexWorkComparator;
 using node::fReindex;
-using node::ReadBlockFromDisk;
 using node::SnapshotMetadata;
-using node::UndoReadFromDisk;
-using node::UnlinkPrunedFiles;
 
 /** Time to wait between writing blocks/block index to disk. */
 static constexpr std::chrono::hours DATABASE_WRITE_INTERVAL{1};
@@ -132,7 +129,7 @@ uint256 g_best_block;
 // Forward declaration to break dependency over node/transaction.h
 namespace node
 {
-CTransactionRef GetTransaction(const CBlockIndex* const block_index, const CTxMemPool* const mempool, const uint256& hash, const Consensus::Params& consensusParams, uint256& hashBlock);
+CTransactionRef GetTransaction(const CBlockIndex* const block_index, const CTxMemPool* const mempool, const uint256& hash, uint256& hashBlock, const BlockManager& blockman);
 } // namespace node
 using node::GetTransaction;
 
@@ -909,7 +906,7 @@ bool MemPoolAccept::PreChecks(ATMPArgs& args, Workspace& ws)
         auto& [_, conflict_txid] = conflictLockOpt.value();
 
         uint256 hashBlock;
-        if (auto txConflict = GetTransaction(nullptr, &m_pool, conflict_txid, chainparams.GetConsensus(), hashBlock); txConflict) {
+        if (auto txConflict = GetTransaction(nullptr, &m_pool, conflict_txid, hashBlock, m_active_chainstate.m_blockman); txConflict) {
             GetMainSignals().NotifyInstantSendDoubleSpendAttempt(ptx, txConflict);
         }
         LogPrintf("ERROR: AcceptToMemoryPool : Transaction %s conflicts with locked TX %s\n", hash.ToString(), conflict_txid.ToString());
@@ -2340,7 +2337,7 @@ DisconnectResult Chainstate::DisconnectBlock(const CBlock& block, const CBlockIn
     bool fClean = true;
 
     CBlockUndo blockUndo;
-    if (!UndoReadFromDisk(blockUndo, pindex)) {
+    if (!m_blockman.UndoReadFromDisk(blockUndo, *pindex)) {
         LogError("DisconnectBlock(): failure reading undo data\n");
         return DISCONNECT_FAILED;
     }
@@ -3297,7 +3294,7 @@ bool Chainstate::FlushStateToDisk(
             if (fFlushForPrune) {
                 LOG_TIME_MILLIS_WITH_CATEGORY("unlink pruned files", BCLog::BENCHMARK);
 
-                UnlinkPrunedFiles(setFilesToPrune);
+                m_blockman.UnlinkPrunedFiles(setFilesToPrune);
             }
             m_last_write = nNow;
         }
@@ -3486,7 +3483,7 @@ bool Chainstate::DisconnectTip(BlockValidationState& state, DisconnectedBlockTra
     // Read block from disk.
     std::shared_ptr<CBlock> pblock = std::make_shared<CBlock>();
     CBlock& block = *pblock;
-    if (!ReadBlockFromDisk(block, pindexDelete, m_chainman.GetConsensus())) {
+    if (!m_blockman.ReadBlockFromDisk(block, *pindexDelete)) {
         LogError("DisconnectTip(): Failed to read block\n");
         return false;
     }
@@ -3635,7 +3632,7 @@ bool Chainstate::ConnectTip(BlockValidationState& state, CBlockIndex* pindexNew,
     std::shared_ptr<const CBlock> pthisBlock;
     if (!pblock) {
         std::shared_ptr<CBlock> pblockNew = std::make_shared<CBlock>();
-        if (!ReadBlockFromDisk(*pblockNew, pindexNew, m_chainman.GetConsensus())) {
+        if (!m_blockman.ReadBlockFromDisk(*pblockNew, *pindexNew)) {
             return AbortNode(state, "Failed to read block");
         }
         pthisBlock = pblockNew;
@@ -5312,7 +5309,7 @@ VerifyDBResult CVerifyDB::VerifyDB(
         }
         CBlock block;
         // check level 0: read from disk
-        if (!ReadBlockFromDisk(block, pindex, consensus_params)) {
+        if (!chainstate.m_blockman.ReadBlockFromDisk(block, *pindex)) {
             LogError("Verification error: ReadBlockFromDisk failed at %d, hash=%s\n", pindex->nHeight, pindex->GetBlockHash().ToString());
             return VerifyDBResult::CORRUPTED_BLOCK_DB;
         }
@@ -5326,7 +5323,7 @@ VerifyDBResult CVerifyDB::VerifyDB(
         if (nCheckLevel >= 2 && pindex) {
             CBlockUndo undo;
             if (!pindex->GetUndoPos().IsNull()) {
-                if (!UndoReadFromDisk(undo, pindex)) {
+                if (!chainstate.m_blockman.UndoReadFromDisk(undo, *pindex)) {
                     LogError("Verification error: found bad undo data at %d, hash=%s\n", pindex->nHeight, pindex->GetBlockHash().ToString());
                     return VerifyDBResult::CORRUPTED_BLOCK_DB;
                 }
@@ -5381,7 +5378,7 @@ VerifyDBResult CVerifyDB::VerifyDB(
             uiInterface.ShowProgress(_("Verifying blocks…").translated, percentageDone, false);
             pindex = chainstate.m_chain.Next(pindex);
             CBlock block;
-            if (!ReadBlockFromDisk(block, pindex, consensus_params)) {
+            if (!chainstate.m_blockman.ReadBlockFromDisk(block, *pindex)) {
                 LogError("Verification error: ReadBlockFromDisk failed at %d, hash=%s\n", pindex->nHeight, pindex->GetBlockHash().ToString());
                 return VerifyDBResult::CORRUPTED_BLOCK_DB;
             }
@@ -5411,7 +5408,7 @@ bool Chainstate::RollforwardBlock(const CBlockIndex* pindex, CCoinsViewCache& in
 
     // TODO: merge with ConnectBlock
     CBlock block;
-    if (!ReadBlockFromDisk(block, pindex,m_chainman.GetConsensus())) {
+    if (!m_blockman.ReadBlockFromDisk(block, *pindex)) {
         LogError("RollforwardBlock(): ReadBlockFromDisk failed at %d, hash=%s\n", pindex->nHeight, pindex->GetBlockHash().ToString());
         return false;
     }
@@ -5496,7 +5493,7 @@ bool Chainstate::ReplayBlocks()
     while (pindexOld != pindexFork) {
         if (pindexOld->nHeight > 0) { // Never disconnect the genesis block.
             CBlock block;
-            if (!ReadBlockFromDisk(block, pindexOld, m_chainman.GetConsensus())) {
+            if (!m_blockman.ReadBlockFromDisk(block, *pindexOld)) {
                 LogError("ReplayBlocks(): ReadBlockFromDisk() failed at %d, hash=%s\n", pindexOld->nHeight, pindexOld->GetBlockHash().ToString());
                 return false;
             }
@@ -5801,7 +5798,7 @@ void ChainstateManager::LoadExternalBlockFile(
                     while (range.first != range.second) {
                         std::multimap<uint256, FlatFilePos>::iterator it = range.first;
                         std::shared_ptr<CBlock> pblockrecursive = std::make_shared<CBlock>();
-                        if (auto opt_hash{ReadBlockFromDisk(*pblockrecursive, it->second, params.GetConsensus())}) {
+                        if (auto opt_hash{m_blockman.ReadBlockFromDisk(*pblockrecursive, it->second)}) {
                             const uint256& blockhash = *opt_hash;
                             LogPrint(BCLog::REINDEX, "%s: Processing out of order child %s of %s\n", __func__, blockhash.ToString(),
                                     head.ToString());

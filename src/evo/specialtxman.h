@@ -181,7 +181,7 @@ std::optional<ProTx> GetValidatedPayload(const CTransaction& tx, gsl::not_null<c
 
 /** Validates the bestCLSignature / bestCLHeightDiff fields embedded in a CbTx payload. */
 bool CheckCbTxBestChainlock(const CCbTx& cbTx, const CBlockIndex* pindex, const Consensus::Params& consensus_params,
-                            const CChain& chain, const llmq::CQuorumManager& qman,
+                            const node::BlockManager& blockman, const CChain& chain, const llmq::CQuorumManager& qman,
                             const chainlock::Chainlocks& chainlocks, BlockValidationState& state);
 
 bool CheckProRegTx(const CTransaction& tx, gsl::not_null<const CBlockIndex*> pindexPrev, CDeterministicMNManager& dmnman,

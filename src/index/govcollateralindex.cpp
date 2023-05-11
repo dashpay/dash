@@ -108,7 +108,7 @@ bool GovCollateralIndex::CustomRewind(const interfaces::BlockKey& current_tip, c
     for (const CBlockIndex* pindex{WITH_LOCK(::cs_main, return m_chainstate->m_blockman.LookupBlockIndex(current_tip.hash))};
          pindex != new_tip_index; pindex = pindex->pprev) {
         CBlock block;
-        if (!node::ReadBlockFromDisk(block, pindex, Params().GetConsensus())) {
+        if (!m_chainstate->m_blockman.ReadBlockFromDisk(block, *pindex)) {
             LogError("%s: Failed to read block %s from disk\n", __func__, pindex->GetBlockHash().ToString());
             return false;
         }

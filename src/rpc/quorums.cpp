@@ -1313,7 +1313,7 @@ static RPCHelpMan verifyislock()
     {
         LOCK(cs_main);
         uint256 hash_block;
-        CTransactionRef tx = GetTransaction(/* block_index */ nullptr,  /* mempool */ nullptr, txid, Params().GetConsensus(), hash_block);
+        CTransactionRef tx = GetTransaction(/* block_index */ nullptr,  /* mempool */ nullptr, txid, hash_block, chainman.m_blockman);
         if (tx && !hash_block.IsNull()) {
             pindexMined = chainman.m_blockman.LookupBlockIndex(hash_block);
         }
@@ -1449,7 +1449,7 @@ static RPCHelpMan getchainlockbyheight()
             CBlockIndex* tip = WITH_LOCK(cs_main, return chainman.ActiveChain().Tip());
             CHECK_NONFATAL(tip != nullptr);
             try {
-                chainlock::CoinbaseChainLockReader reader(tip);
+                chainlock::CoinbaseChainLockReader reader(tip, chainman.m_blockman);
                 const auto entry = reader.Find(height, height);
                 if (!entry) throw JSONRPCError(RPC_INVALID_ADDRESS_OR_KEY, "Chainlock not found for height");
                 {
@@ -1516,7 +1516,7 @@ static RPCHelpMan getquorumproofchain()
                     throw JSONRPCError(RPC_INVALID_PARAMETER, "Checkpoint is not on the active chain");
             }
             try {
-                chainlock::CoinbaseChainLockReader reader(tip);
+                chainlock::CoinbaseChainLockReader reader(tip, chainman.m_blockman);
                 const int64_t start = std::max<int64_t>(minimum, int64_t(checkpoint->nHeight) + 1);
                 if (start > tip->nHeight) throw std::runtime_error("No archived certificate within search budget");
                 const int maximum = int(std::min<int64_t>(tip->nHeight, start + int64_t(llmq::MAX_PROOF_HEADERS)));
@@ -1563,7 +1563,7 @@ static RPCHelpMan getquorumproofchain()
                 if (!proof) throw std::runtime_error("No bridge to snapshot within search budget");
                 // Build() already verified the proof and matched the result against the
                 // chain; the target is exactly the state at the target block.
-                const auto state = llmq::QuorumProofBuilder::StateAt(target);
+                const auto state = llmq::QuorumProofBuilder::StateAt(chainman.m_blockman, target);
                 std::vector<llmq::ProofProjection> records;
                 if (!quorumText.empty()) {
                     const auto hash = uint256S(quorumText);
@@ -1585,7 +1585,7 @@ static RPCHelpMan getquorumproofchain()
                     if (!found) throw std::runtime_error("Requested quorum is not in the target root");
                 }
                 if (nodeCount > 0) {
-                    const auto [sml, leaves] = llmq::MasternodeLeavesAt(*CHECK_NONFATAL(node.dmnman), target);
+                    const auto [sml, leaves] = llmq::MasternodeLeavesAt(*CHECK_NONFATAL(node.dmnman), chainman.m_blockman, target);
                     int included = 0;
                     for (size_t i = 0; i < sml->mnList.size() && included < nodeCount; ++i) {
                         const auto& entry = *sml->mnList[i];

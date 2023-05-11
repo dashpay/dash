@@ -168,20 +168,21 @@
 #endif
 
 using kernel::CoinStatsHashType;
+using kernel::DEFAULT_STOPAFTERBLOCKIMPORT;
 using kernel::DumpMempool;
 using kernel::ValidationCacheSizes;
 
 using node::ApplyArgsManOptions;
+using node::BlockManager;
 using node::CacheSizes;
 using node::CalculateCacheSizes;
 using node::DEFAULT_PERSIST_MEMPOOL;
 using node::DEFAULT_PRINTPRIORITY;
-using node::DEFAULT_STOPAFTERBLOCKIMPORT;
 using node::g_indexes_ready_to_sync;
 using node::LoadChainstate;
 using node::MempoolPath;
-using node::ShouldPersistMempool;
 using node::NodeContext;
+using node::ShouldPersistMempool;
 using node::ThreadImport;
 using node::VerifyLoadedChainstate;
 using node::fReindex;
@@ -1427,8 +1428,9 @@ bool AppInitParameterInteraction(const ArgsManager& args)
         if (const auto error{ApplyArgsManOptions(args, chainman_opts_dummy)}) {
             return InitError(*error);
         }
-        node::BlockManager::Options blockman_opts_dummy{
+        BlockManager::Options blockman_opts_dummy{
             .chainparams = chainparams,
+            .blocks_dir = args.GetBlocksDirPath(),
         };
         if (const auto error{ApplyArgsManOptions(args, blockman_opts_dummy)}) {
             return InitError(*error);
@@ -1941,7 +1943,11 @@ bool AppInitMain(NodeContext& node, interfaces::BlockAndHeaderTipInfo* tip_info)
     }
 
 #if ENABLE_ZMQ
-    g_zmq_notification_interface = CZMQNotificationInterface::Create();
+    g_zmq_notification_interface = CZMQNotificationInterface::Create(
+        [&chainman = node.chainman](CBlock& block, const CBlockIndex& index) {
+            assert(chainman);
+            return chainman->m_blockman.ReadBlockFromDisk(block, index);
+        });
 
     if (g_zmq_notification_interface) {
         RegisterValidationInterface(g_zmq_notification_interface.get());
@@ -1969,8 +1975,9 @@ bool AppInitMain(NodeContext& node, interfaces::BlockAndHeaderTipInfo* tip_info)
     DBOptions dash_db_options;
     node::ReadDatabaseArgs(args, dash_db_options);
 
-    node::BlockManager::Options blockman_opts{
+    BlockManager::Options blockman_opts{
         .chainparams = chainparams,
+        .blocks_dir = args.GetBlocksDirPath(),
     };
     Assert(!ApplyArgsManOptions(args, blockman_opts)); // no error can happen, already checked in AppInitParameterInteraction
 
@@ -2476,7 +2483,7 @@ bool AppInitMain(NodeContext& node, interfaces::BlockAndHeaderTipInfo* tip_info)
     chainman.m_load_block = std::thread(&util::TraceThread, "loadblk", [=, &args, &chainman, &node] {
         // ThreadImport can switch fReindex from true to false, fetch its original state here to use later
         bool skip_evodb_repair_on_reindex = fReindex || fReindexChainState;
-        ThreadImport(chainman, vImportFiles, args, ShouldPersistMempool(args) ? MempoolPath(args) : fs::path{});
+        ThreadImport(chainman, vImportFiles, ShouldPersistMempool(args) ? MempoolPath(args) : fs::path{});
 
         {
             const CBlockIndex* tip = WITH_LOCK(::cs_main, return chainman.ActiveTip());
@@ -2541,7 +2548,7 @@ bool AppInitMain(NodeContext& node, interfaces::BlockAndHeaderTipInfo* tip_info)
                     return node.special_tx->RebuildListFromBlock(block, pindexPrev, is_v24_active, prevList,
                                                                                view, debugLogs, state, mnListRet);
                 };
-                auto result = node.dmnman->RecalculateAndRepairDiffs(start_index, stop_index, build_list_func, true);
+                auto result = node.dmnman->RecalculateAndRepairDiffs(chainman.m_blockman, start_index, stop_index, build_list_func, true);
 
                 if (!result.verification_errors.empty()) {
                     LogPrintf("WARNING: Verification errors:\n%s\n", Join(result.verification_errors, "\n"));

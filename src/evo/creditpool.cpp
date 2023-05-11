@@ -26,7 +26,6 @@
 #include <stack>
 #include <stdexcept>
 
-using node::ReadBlockFromDisk;
 
 static const std::string DB_CREDITPOOL_SNAPSHOT = "cpm_S";
 
@@ -62,6 +61,7 @@ struct CreditPoolDataPerBlock {
 
 // it throws exception if anything went wrong
 static std::optional<CreditPoolDataPerBlock> GetCreditDataFromBlock(const gsl::not_null<const CBlockIndex*> block_index,
+                                                                    const node::BlockManager& blockman,
                                                                     const Consensus::Params& consensusParams)
 {
     // There's no CbTx before DIP0003 activation
@@ -79,7 +79,7 @@ static std::optional<CreditPoolDataPerBlock> GetCreditDataFromBlock(const gsl::n
     }
 
     CBlock block;
-    if (!ReadBlockFromDisk(block, block_index, consensusParams)) {
+    if (!blockman.ReadBlockFromDisk(block, *block_index)) {
         throw std::runtime_error("failed-getcbforblock-read");
     }
 
@@ -172,7 +172,7 @@ void CCreditPoolManager::AddToCache(const uint256& block_hash, int height, const
 
 CCreditPool CCreditPoolManager::ConstructCreditPool(const gsl::not_null<const CBlockIndex*> block_index, CCreditPool prev)
 {
-    std::optional<CreditPoolDataPerBlock> opt_block_data = GetCreditDataFromBlock(block_index, m_chainman.GetConsensus());
+    std::optional<CreditPoolDataPerBlock> opt_block_data = GetCreditDataFromBlock(block_index, m_chainman.m_blockman, m_chainman.GetConsensus());
     if (!opt_block_data) {
         // If reading of previous block is not successfully, but
         // prev contains credit pool related data, something strange happened
@@ -204,7 +204,7 @@ CCreditPool CCreditPoolManager::ConstructCreditPool(const gsl::not_null<const CB
     CAmount distantBalance{0};
     if (distant_block_index) {
         if (std::optional<CreditPoolDataPerBlock> distant_block{
-                GetCreditDataFromBlock(distant_block_index, m_chainman.GetConsensus())};
+                GetCreditDataFromBlock(distant_block_index, m_chainman.m_blockman, m_chainman.GetConsensus())};
             distant_block) {
             distantUnlocked = distant_block->unlocked;
             distantBalance = distant_block->credit_pool;
@@ -247,9 +247,9 @@ CCreditPool CCreditPoolManager::ConstructCreditPool(const gsl::not_null<const CB
 }
 
 CAmount CCreditPoolManager::GetBalanceAt(const gsl::not_null<const CBlockIndex*> block_index,
-                                         const Consensus::Params& consensusParams)
+                                         const node::BlockManager& blockman, const Consensus::Params& consensusParams)
 {
-    const std::optional<CreditPoolDataPerBlock> block_data{GetCreditDataFromBlock(block_index, consensusParams)};
+    const std::optional<CreditPoolDataPerBlock> block_data{GetCreditDataFromBlock(block_index, blockman, consensusParams)};
     return block_data ? block_data->credit_pool : CAmount{0};
 }
 

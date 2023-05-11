@@ -37,6 +37,7 @@
 
 #include <boost/test/unit_test.hpp>
 
+using node::BlockManager;
 using node::SnapshotMetadata;
 
 namespace {
@@ -444,10 +445,14 @@ struct SnapshotTestSetup : TestChain100Setup {
                 .superblock_status = [&sbman = *m_node.sbman](const CDeterministicMNList& mn_list, int height) { return sbman.GetStatus(mn_list, height); },
                 .mn_sync = m_node.mn_sync.get(),
             };
+            const BlockManager::Options blockman_opts{
+                .chainparams = chainman_opts.chainparams,
+                .blocks_dir = m_args.GetBlocksDirPath(),
+            };
             // For robustness, ensure the old manager is destroyed before creating a
             // new one.
             m_node.chainman.reset();
-            m_node.chainman = std::make_unique<ChainstateManager>(chainman_opts, node::BlockManager::Options{.chainparams = ::Params()});
+            m_node.chainman = std::make_unique<ChainstateManager>(chainman_opts, blockman_opts);
         }
         return *Assert(m_node.chainman);
     }
@@ -796,7 +801,7 @@ BOOST_FIXTURE_TEST_CASE(chainstatemanager_mined_commitment_is_chain_aware, Snaps
         BOOST_CHECK_EQUAL(qblockman.GetNumCommitmentsRequired(llmq_params, background_chainstate->m_chain, target_height), 1);
 
         CBlock block;
-        BOOST_REQUIRE(node::ReadBlockFromDisk(block, snapshot_mined_block, Params().GetConsensus()));
+        BOOST_REQUIRE(m_node.chainman->m_blockman.ReadBlockFromDisk(block, *snapshot_mined_block));
         BlockValidationState state;
         BOOST_CHECK(qblockman.ProcessBlock(*background_chainstate, block, snapshot_mined_block, state,
                                            /*fJustCheck=*/true, /*fBLSChecks=*/false));

@@ -27,6 +27,9 @@ class BlockValidationState;
 class CBlock;
 class CBlockIndex;
 class ChainstateManager;
+namespace node {
+class BlockManager;
+} // namespace node
 class CEvoDB;
 class TxValidationState;
 namespace Consensus {
@@ -159,7 +162,8 @@ public:
     /** The credit pool balance after `block_index` as its CbTx records it, 0 when the block has
      *  no credit pool; the read the v24 rule makes for its window start. Throws if the block
      *  cannot be read. */
-    static CAmount GetBalanceAt(gsl::not_null<const CBlockIndex*> block_index, const Consensus::Params& consensusParams);
+    static CAmount GetBalanceAt(gsl::not_null<const CBlockIndex*> block_index, const node::BlockManager& blockman,
+                                const Consensus::Params& consensusParams);
 
     CCreditPoolManager() = delete;
     CCreditPoolManager(const CCreditPoolManager&) = delete;

@@ -114,7 +114,7 @@ void BlockAssembler::resetBlock()
 }
 
 // Helper to calculate best chainlock
-static bool CalcCbTxBestChainlock(const chainlock::Chainlocks& chainlocks, const CBlockIndex* pindexPrev,
+static bool CalcCbTxBestChainlock(const chainlock::Chainlocks& chainlocks, const node::BlockManager& blockman, const CBlockIndex* pindexPrev,
                                   uint32_t& bestCLHeightDiff, CBLSSignature& bestCLSignature)
 {
     auto best_clsig = chainlocks.GetBestChainLock();
@@ -129,7 +129,7 @@ static bool CalcCbTxBestChainlock(const chainlock::Chainlocks& chainlocks, const
         return true;
     }
 
-    auto prevBlockCoinbaseChainlock = GetNonNullCoinbaseChainlock(pindexPrev);
+    auto prevBlockCoinbaseChainlock = GetNonNullCoinbaseChainlock(blockman, pindexPrev);
     if (prevBlockCoinbaseChainlock.has_value()) {
         // Previous block Coinbase contains a non-null CL: We must insert the same sig or a better (newest) one
         if (best_clsig.IsNull()) {
@@ -355,7 +355,7 @@ std::unique_ptr<CBlockTemplate> BlockAssembler::CreateNewBlock(const CScript& sc
             }
             if (fV20Active_context) {
                 CBLSSignature best_cl_sig;
-                const bool has_best_cl{CalcCbTxBestChainlock(m_chainlocks, pindexPrev, cbTx.bestCLHeightDiff, best_cl_sig)};
+                const bool has_best_cl{CalcCbTxBestChainlock(m_chainlocks, m_chainstate.m_blockman, pindexPrev, cbTx.bestCLHeightDiff, best_cl_sig)};
                 cbTx.bestCLSignature.Set(best_cl_sig, bls::bls_legacy_scheme.load());
                 if (has_best_cl) {
                     LogPrintf("CreateNewBlock() h[%d] CbTx bestCLHeightDiff[%d] CLSig[%s]\n", nHeight, cbTx.bestCLHeightDiff, cbTx.bestCLSignature.ToString());

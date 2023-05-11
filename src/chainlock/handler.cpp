@@ -28,8 +28,9 @@
 
 // Forward declaration to break dependency over node/transaction.h
 namespace node {
+class BlockManager;
 CTransactionRef GetTransaction(const CBlockIndex* const block_index, const CTxMemPool* const mempool,
-                               const uint256& hash, const Consensus::Params& consensusParams, uint256& hashBlock);
+                               const uint256& hash, uint256& hashBlock, const BlockManager& blockman);
 } // namespace node
 
 using node::GetTransaction;
@@ -359,7 +360,7 @@ void ChainlockHandler::Cleanup()
     LOCK2(mempool.cs, cs); // need mempool.cs due to GetTransaction calls
     for (auto it = txFirstSeenTime.begin(); it != txFirstSeenTime.end();) {
         uint256 hashBlock;
-        if (auto tx = GetTransaction(nullptr, &mempool, it->first, Params().GetConsensus(), hashBlock); !tx) {
+        if (auto tx = GetTransaction(nullptr, &mempool, it->first, hashBlock, m_chainman.m_blockman); !tx) {
             // tx has vanished, probably due to conflicts
             it = txFirstSeenTime.erase(it);
         } else if (!hashBlock.IsNull()) {

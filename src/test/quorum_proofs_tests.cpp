@@ -326,7 +326,7 @@ BOOST_FIXTURE_TEST_CASE(generation_retries_retired_checkpoint_signer, QuorumProo
     CreateHistory();
     auto& chain = *WITH_LOCK(cs_main, return &m_node.chainman->ActiveChain());
     const auto* checkpoint = chain[checkpoint_height];
-    chainlock::CoinbaseChainLockReader reader(chain.Tip());
+    chainlock::CoinbaseChainLockReader reader(chain.Tip(), m_node.chainman->m_blockman);
     llmq::QuorumProofBuilder builder(*m_node.llmq_ctx->quorum_block_processor, *m_node.llmq_ctx->qman, chain.Tip(),
                                      *m_node.chainman, reader);
     const auto first = reader.Find(checkpoint_height + 1, chain.Height());
@@ -336,7 +336,7 @@ BOOST_FIXTURE_TEST_CASE(generation_retries_retired_checkpoint_signer, QuorumProo
 
     const auto result = Generate(checkpoint_height + 1);
     const auto proof = llmq::QuorumProofChain::Decode(ParseHex(result["proof_hex"].get_str()));
-    BOOST_CHECK_EQUAL(proof.Verify(llmq::QuorumProofBuilder::StateAt(checkpoint)).height,
+    BOOST_CHECK_EQUAL(proof.Verify(llmq::QuorumProofBuilder::StateAt(m_node.chainman->m_blockman, checkpoint)).height,
                       checkpoint_height + llmq::SIGN_HEIGHT_OFFSET);
     BOOST_CHECK(proof.links.empty());
 
@@ -417,7 +417,7 @@ BOOST_FIXTURE_TEST_CASE(consensus_valid_envelopes_are_provable, QuorumProofGener
     BOOST_CHECK_GT(contested_selections, 0);
     auto& chain = *WITH_LOCK(cs_main, return &m_node.chainman->ActiveChain());
     const auto* checkpoint = chain[checkpoint_height];
-    chainlock::CoinbaseChainLockReader reader(chain.Tip());
+    chainlock::CoinbaseChainLockReader reader(chain.Tip(), m_node.chainman->m_blockman);
     llmq::QuorumProofBuilder builder(*m_node.llmq_ctx->quorum_block_processor, *m_node.llmq_ctx->qman, chain.Tip(),
                                      *m_node.chainman, reader);
     const auto entry = reader.Find(handoff_height + llmq::SIGN_HEIGHT_OFFSET, chain.Height());
@@ -436,12 +436,12 @@ BOOST_FIXTURE_TEST_CASE(consensus_valid_envelopes_are_provable, QuorumProofGener
     BOOST_CHECK(!mining.vin.empty());
     BOOST_CHECK(!mining.vout.empty());
 
-    const auto state = proof->Verify(llmq::QuorumProofBuilder::StateAt(checkpoint));
+    const auto state = proof->Verify(llmq::QuorumProofBuilder::StateAt(m_node.chainman->m_blockman, checkpoint));
     BOOST_CHECK_EQUAL(state.height, uint32_t(entry->height));
 
     // The RPC reuses the target block's own state instead of re-verifying the
     // proof; Build() only returns a proof whose verified state is exactly that.
-    BOOST_CHECK(state == llmq::QuorumProofBuilder::StateAt(chain[state.height]));
+    BOOST_CHECK(state == llmq::QuorumProofBuilder::StateAt(m_node.chainman->m_blockman, chain[state.height]));
 
     // The memoized active set is the committed set: its leaves are sorted and
     // hash to the block's own quorum root.
@@ -450,7 +450,7 @@ BOOST_FIXTURE_TEST_CASE(consensus_valid_envelopes_are_provable, QuorumProofGener
     for (const auto& commitment : active)
         active_leaves.push_back(::SerializeHash(commitment));
     BOOST_CHECK(std::is_sorted(active_leaves.begin(), active_leaves.end()));
-    BOOST_CHECK(ComputeMerkleRoot(active_leaves) == llmq::QuorumProofBuilder::StateAt(checkpoint).quorumRoot);
+    BOOST_CHECK(ComputeMerkleRoot(active_leaves) == llmq::QuorumProofBuilder::StateAt(m_node.chainman->m_blockman, checkpoint).quorumRoot);
 
     // Encoding with the caller's verified state is byte-identical to verifying again,
     // and a state that is not the proof's own target is refused.

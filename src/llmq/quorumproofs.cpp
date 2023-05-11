@@ -510,7 +510,7 @@ std::vector<CFinalCommitment> QuorumProofBuilder::ActiveCommitments(const CBlock
         hashes.push_back(hash);
     }
     bool mutated{false};
-    Require(ComputeMerkleRoot(hashes, &mutated) == StateAt(index).quorumRoot && !mutated,
+    Require(ComputeMerkleRoot(hashes, &mutated) == StateAt(m_chainman.m_blockman, index).quorumRoot && !mutated,
             "active quorum root mismatch");
     sets.Insert(index->GetBlockHash(), sorted);
     return sorted;
@@ -524,7 +524,7 @@ static ProofCache<ProofState, 256>& StateCache()
 
 void ClearProofStateCacheForTesting() { StateCache().Clear(); }
 
-ProofState QuorumProofBuilder::StateAt(const CBlockIndex* index)
+ProofState QuorumProofBuilder::StateAt(const node::BlockManager& blockman, const CBlockIndex* index)
 {
     Require(index != nullptr && index->nHeight > 0, "invalid checkpoint block");
     const auto network = Params().GetChainTypeString();
@@ -534,7 +534,7 @@ ProofState QuorumProofBuilder::StateAt(const CBlockIndex* index)
     ProofState cached;
     if (StateCache().Get(index->GetBlockHash(), cached)) return cached;
     CBlock block;
-    Require(node::ReadBlockFromDisk(block, index, Params().GetConsensus()) && !block.vtx.empty(), "historical block unavailable");
+    Require(blockman.ReadBlockFromDisk(block, *index) && !block.vtx.empty(), "historical block unavailable");
     ProofCertificate cert{uint32_t(index->nHeight), block.GetBlockHeader(), {}};
     auto cb = Coinbase(ProofTransaction::Build(block, 0), cert);
     const ProofState state{uint8_t(network == "main" ? 0 : 1), uint32_t(index->nHeight), index->GetBlockHash(),
@@ -543,7 +543,7 @@ ProofState QuorumProofBuilder::StateAt(const CBlockIndex* index)
     return state;
 }
 
-MasternodeLeaves MasternodeLeavesAt(CDeterministicMNManager& dmnman, const CBlockIndex* index)
+MasternodeLeaves MasternodeLeavesAt(CDeterministicMNManager& dmnman, const node::BlockManager& blockman, const CBlockIndex* index)
 {
     Require(index != nullptr, "missing block index");
     // Every EvoNode record at one target opens the same list, and hashing its
@@ -557,7 +557,7 @@ MasternodeLeaves MasternodeLeavesAt(CDeterministicMNManager& dmnman, const CBloc
     result.leaves.reserve(result.sml->mnList.size());
     for (const auto& entry : result.sml->mnList)
         result.leaves.push_back(entry->CalcHash());
-    const auto root = QuorumProofBuilder::StateAt(index).masternodeRoot;
+    const auto root = QuorumProofBuilder::StateAt(blockman, index).masternodeRoot;
     bool mutated{false};
     Require(ComputeMerkleRoot(result.leaves, &mutated) == root && !mutated, "masternode root mismatch");
     cache.Insert(index->GetBlockHash(), result);
@@ -630,14 +630,14 @@ static const CBlockIndex* MinedCommitmentBlock(const CQuorumBlockProcessor& proc
  *  A miss reads the block and scans its commitments by type and quorum hash
  *  before fully deserializing any payload (a mining block holds dozens of
  *  commitments, each carrying BLS points that are costly to decode). */
-static ProofTransaction MiningTransaction(const CBlockIndex* mined, Consensus::LLMQType kind, const uint256& quorum)
+static ProofTransaction MiningTransaction(const node::BlockManager& blocks, const CBlockIndex* mined, Consensus::LLMQType kind, const uint256& quorum)
 {
     const auto key = (CHashWriter(SER_GETHASH, 0) << mined->GetBlockHash() << kind << quorum).GetHash();
     static ProofCache<ProofTransaction, 2048> cache;
     ProofTransaction cached;
     if (cache.Get(key, cached)) return cached;
     CBlock block;
-    Require(node::ReadBlockFromDisk(block, mined, Params().GetConsensus()), "mining block unavailable");
+    Require(blocks.ReadBlockFromDisk(block, *mined), "mining block unavailable");
     for (size_t i = 1; i < block.vtx.size(); ++i) {
         const auto& tx = *block.vtx[i];
         if (tx.nType != TRANSACTION_QUORUM_COMMITMENT) continue;
@@ -673,7 +673,7 @@ std::optional<QuorumProofChain> QuorumProofBuilder::Build(const CBlockIndex* che
                                 entry.Signed().getSig()};
     };
     QuorumProofChain proof;
-    proof.anchor = StateAt(checkpoint);
+    proof.anchor = StateAt(blocks, checkpoint);
     auto seeds = ActiveCommitments(checkpoint);
     std::set<uint256> seedHashes;
     std::vector<uint256> seedLeaves;
@@ -693,7 +693,7 @@ std::optional<QuorumProofChain> QuorumProofBuilder::Build(const CBlockIndex* che
         const auto* mined = MinedCommitmentBlock(m_quorum_block_processor, m_tip, blocks, kind, needed->quorumHash);
         Require(mined != nullptr, "mining block unavailable");
         if (mined->nHeight <= checkpoint->nHeight) return std::nullopt;
-        const auto mining = MiningTransaction(mined, kind, needed->quorumHash);
+        const auto mining = MiningTransaction(blocks, mined, kind, needed->quorumHash);
         std::optional<ProofLink> best;
         std::optional<CFinalCommitment> predecessor;
         double bestScore = std::numeric_limits<double>::infinity();
@@ -738,9 +738,9 @@ std::optional<QuorumProofChain> QuorumProofBuilder::Build(const CBlockIndex* che
         }
     }
     CBlock finalBlock;
-    Require(node::ReadBlockFromDisk(finalBlock, targetIndex, Params().GetConsensus()), "final block unavailable");
+    Require(blocks.ReadBlockFromDisk(finalBlock, *targetIndex), "final block unavailable");
     proof.coinbase = ProofTransaction::Build(finalBlock, 0);
-    Require(proof.Verify(proof.anchor) == StateAt(targetIndex), "constructed proof does not match chain");
+    Require(proof.Verify(proof.anchor) == StateAt(blocks, targetIndex), "constructed proof does not match chain");
     proof.Encode();
     return proof;
 }
