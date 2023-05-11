@@ -54,3 +54,9 @@ jobs:
             echo "Guix build failed!"
             exit 1
           fi
+      - name: Compute SHA1 checksum
+        run: |
+          sha1sum ./distsrc-*/src/dash*
+      - name: Compute SHA256 checksum
+        run: |
+          sha256sum ./distsrc-*/src/dash*
