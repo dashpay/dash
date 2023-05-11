@@ -46,7 +46,7 @@ jobs:
           chmod 777 /dash/depends && \
           git config --global --add safe.directory /dash && \
           cd /dash && \
-          HOSTS="x86_64-linux-gnu arm-linux-gnueabihf aarch64-linux-gnu riscv64-linux-gnu x86_64-w64-mingw32 x86_64-apple-darwin18" contrib/guix/guix-build"
+          contrib/guix/guix-build"
 
       - name: Ensure build passes
         run: |
