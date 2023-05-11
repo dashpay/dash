@@ -443,19 +443,8 @@ std::optional<CCbTx> GetCoinbaseTx(const CBlockIndex* pindex)
     }
 
     CBlock block;
-    {
-        FlatFilePos blockPos;
-        {
-            blockPos = pindex->GetBlockPos();
-        }
-
-        if (!ReadBlockFromDisk(block, blockPos, Params().GetConsensus())) {
-            return std::nullopt;
-        }
-
-        if (block.GetHash() != pindex->GetBlockHash()) {
-            return std::nullopt;
-        }
+    if (!ReadBlockFromDisk(block, pindex, Params().GetConsensus())) {
+        return std::nullopt;
     }
 
     CTransactionRef cbTx = block.vtx[0];
