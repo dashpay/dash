@@ -65,38 +65,27 @@ void PreComputeQuorumMembers(const CBlockIndex* pQuorumBaseBlockIndex, bool rese
 
 uint256 GetHashModifier(Consensus::LLMQType llmqType, const CBlockIndex* pQuorumBaseBlockIndex)
 {
-    auto opt_params = GetLLMQParams(llmqType);
-    assert(opt_params.has_value());
-    Consensus::LLMQParams llmq_params = opt_params.value();
-    if (IsV20Active(pQuorumBaseBlockIndex)) {
-        // v20 is active: calculate modifier using the new way
-        if (llmq_params.useRotation) {
-            // For rotated quorums we don't go back 8 blocks behind as it is already done in functions {BuildNewQuorumQuarterMembers, GetQuorumQuarterMembersBySnapshot, BuildQuorumSnapshot and GetMNUsageBySnapshot}
-            auto cbcl = GetNonNullCoinbaseChainlock(pQuorumBaseBlockIndex);
-            if (cbcl.has_value()) {
-                // We have a non-null CL signature: calculate modifier using this CL signature
-                auto& [bestCLSignature, bestCLHeightDiff] = cbcl.value();
-                return ::SerializeHash(std::make_tuple(llmqType, pQuorumBaseBlockIndex->nHeight, bestCLSignature));
-            }
-            // No non-null CL signature found in coinbase: calculate modifier using the usual way
-            return ::SerializeHash(std::make_pair(llmqType, pQuorumBaseBlockIndex->GetBlockHash()));
-        } else {
-            // For non-rotated quorums, we perform tasks for 8 blocks behind requested one
-            const CBlockIndex* pWorkBlockIndex = pQuorumBaseBlockIndex->GetAncestor(pQuorumBaseBlockIndex->nHeight - 8);
-            auto cbcl = GetNonNullCoinbaseChainlock(pWorkBlockIndex);
-            if (cbcl.has_value()) {
-                // We have a non-null CL signature: calculate modifier using this CL signature
-                auto& [bestCLSignature, bestCLHeightDiff] = cbcl.value();
-                return ::SerializeHash(std::make_tuple(llmqType, pWorkBlockIndex->nHeight, bestCLSignature));
-            }
-            // No non-null CL signature found in coinbase: calculate modifier using the usual way
-            return ::SerializeHash(std::make_pair(llmqType, pWorkBlockIndex->GetBlockHash()));
+    auto llmq_params_opt = GetLLMQParams(llmqType);
+    assert(llmq_params_opt.has_value());
+
+    const CBlockIndex* pWorkBlockIndex = llmq_params_opt->useRotation ?
+                pQuorumBaseBlockIndex->GetAncestor(pQuorumBaseBlockIndex->nHeight - 8) :
+                pQuorumBaseBlockIndex;
+
+    if (IsV20Active(pWorkBlockIndex)) {
+        // v20 is active: calculate modifier using the new way.
+        auto cbcl = GetNonNullCoinbaseChainlock(pWorkBlockIndex);
+        if (cbcl.has_value()) {
+            // We have a non-null CL signature: calculate modifier using this CL signature
+            auto& [bestCLSignature, bestCLHeightDiff] = cbcl.value();
+            return ::SerializeHash(std::make_tuple(llmqType, pWorkBlockIndex->nHeight, bestCLSignature));
         }
+        // No non-null CL signature found in coinbase: calculate modifier using block hash only
+        return ::SerializeHash(std::make_pair(llmqType, pWorkBlockIndex->GetBlockHash()));
     }
-    else {
-        // v20 isn't active yet: calculate modifier using the usual way
-        return ::SerializeHash(std::make_pair(llmqType, pQuorumBaseBlockIndex->GetBlockHash()));
-    }
+
+    // v20 isn't active yet: calculate modifier using the usual way
+    return ::SerializeHash(std::make_pair(llmqType, pWorkBlockIndex->GetBlockHash()));
 }
 
 std::vector<CDeterministicMNCPtr> GetAllQuorumMembers(Consensus::LLMQType llmqType, const CBlockIndex* pQuorumBaseBlockIndex, bool reset_cache)
@@ -305,7 +294,7 @@ std::vector<std::vector<CDeterministicMNCPtr>> BuildNewQuorumQuarterMembers(cons
     size_t quorumSize = static_cast<size_t>(llmqParams.size);
     auto quarterSize{quorumSize / 4};
     const CBlockIndex* pWorkBlockIndex = pQuorumBaseBlockIndex->GetAncestor(pQuorumBaseBlockIndex->nHeight - 8);
-    const auto modifier = GetHashModifier(llmqParams.type, pWorkBlockIndex);
+    const auto modifier = GetHashModifier(llmqParams.type, pQuorumBaseBlockIndex);
 
     auto allMns = deterministicMNManager->GetListForBlock(pWorkBlockIndex);
 
@@ -455,8 +444,7 @@ void BuildQuorumSnapshot(const Consensus::LLMQParams& llmqParams, const CDetermi
                                      CQuorumSnapshot& quorumSnapshot, int nHeight, std::vector<int>& skipList, const CBlockIndex* pQuorumBaseBlockIndex)
 {
     quorumSnapshot.activeQuorumMembers.resize(allMns.GetAllMNsCount());
-    const CBlockIndex* pWorkBlockIndex = pQuorumBaseBlockIndex->GetAncestor(pQuorumBaseBlockIndex->nHeight - 8);
-    const auto modifier = GetHashModifier(llmqParams.type, pWorkBlockIndex);
+    const auto modifier = GetHashModifier(llmqParams.type, pQuorumBaseBlockIndex);
     auto sortedAllMns = allMns.CalculateQuorum(allMns.GetAllMNsCount(), modifier);
 
     LogPrint(BCLog::LLMQ, "BuildQuorumSnapshot h[%d] numMns[%d]\n", pQuorumBaseBlockIndex->nHeight, allMns.GetAllMNsCount());
@@ -488,8 +476,7 @@ std::vector<std::vector<CDeterministicMNCPtr>> GetQuorumQuarterMembersBySnapshot
 {
     std::vector<CDeterministicMNCPtr> sortedCombinedMns;
     {
-        const CBlockIndex* pWorkBlockIndex = pQuorumBaseBlockIndex->GetAncestor(pQuorumBaseBlockIndex->nHeight - 8);
-        const auto modifier = GetHashModifier(llmqParams.type, pWorkBlockIndex);
+        const auto modifier = GetHashModifier(llmqParams.type, pQuorumBaseBlockIndex);
         const auto [MnsUsedAtH, MnsNotUsedAtH] = GetMNUsageBySnapshot(llmqParams.type, pQuorumBaseBlockIndex, snapshot, nHeight);
         // the list begins with all the unused MNs
         auto sortedMnsNotUsedAtH = MnsNotUsedAtH.CalculateQuorum(MnsNotUsedAtH.GetAllMNsCount(), modifier);
@@ -581,7 +568,7 @@ std::pair<CDeterministicMNList, CDeterministicMNList> GetMNUsageBySnapshot(Conse
     CDeterministicMNList nonUsedMNs;
 
     const CBlockIndex* pWorkBlockIndex = pQuorumBaseBlockIndex->GetAncestor(pQuorumBaseBlockIndex->nHeight - 8);
-    const auto modifier = GetHashModifier(llmqType, pWorkBlockIndex);
+    const auto modifier = GetHashModifier(llmqType, pQuorumBaseBlockIndex);
 
     auto allMns = deterministicMNManager->GetListForBlock(pWorkBlockIndex);
     auto sortedAllMns = allMns.CalculateQuorum(allMns.GetAllMNsCount(), modifier);
