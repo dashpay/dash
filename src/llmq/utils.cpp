@@ -65,12 +65,7 @@ void PreComputeQuorumMembers(const CBlockIndex* pQuorumBaseBlockIndex, bool rese
 
 uint256 GetHashModifier(Consensus::LLMQType llmqType, const CBlockIndex* pQuorumBaseBlockIndex)
 {
-    auto llmq_params_opt = GetLLMQParams(llmqType);
-    assert(llmq_params_opt.has_value());
-
-    const CBlockIndex* pWorkBlockIndex = llmq_params_opt->useRotation ?
-                pQuorumBaseBlockIndex->GetAncestor(pQuorumBaseBlockIndex->nHeight - 8) :
-                pQuorumBaseBlockIndex;
+    const CBlockIndex* pWorkBlockIndex = pQuorumBaseBlockIndex->GetAncestor(pQuorumBaseBlockIndex->nHeight - 8);
 
     if (IsV20Active(pWorkBlockIndex)) {
         // v20 is active: calculate modifier using the new way.
@@ -85,7 +80,12 @@ uint256 GetHashModifier(Consensus::LLMQType llmqType, const CBlockIndex* pQuorum
     }
 
     // v20 isn't active yet: calculate modifier using the usual way
-    return ::SerializeHash(std::make_pair(llmqType, pWorkBlockIndex->GetBlockHash()));
+    auto llmq_params_opt = GetLLMQParams(llmqType);
+    assert(llmq_params_opt.has_value());
+    if (llmq_params_opt->useRotation) {
+        return ::SerializeHash(std::make_pair(llmqType, pWorkBlockIndex->GetBlockHash()));
+    }
+    return ::SerializeHash(std::make_pair(llmqType, pQuorumBaseBlockIndex->GetBlockHash()));
 }
 
 std::vector<CDeterministicMNCPtr> GetAllQuorumMembers(Consensus::LLMQType llmqType, const CBlockIndex* pQuorumBaseBlockIndex, bool reset_cache)
@@ -165,11 +165,16 @@ std::vector<CDeterministicMNCPtr> GetAllQuorumMembers(Consensus::LLMQType llmqTy
 
 std::vector<CDeterministicMNCPtr> ComputeQuorumMembers(Consensus::LLMQType llmqType, const CBlockIndex* pQuorumBaseBlockIndex)
 {
-    auto allMns = deterministicMNManager->GetListForBlock(pQuorumBaseBlockIndex);
-    const auto modifier = GetHashModifier(llmqType, pQuorumBaseBlockIndex);
     bool HPMNOnly = (Params().GetConsensus().llmqTypePlatform == llmqType) && IsV19Active(pQuorumBaseBlockIndex);
     const auto& llmq_params_opt = GetLLMQParams(llmqType);
     assert(llmq_params_opt.has_value());
+    assert(!llmq_params_opt->useRotation);
+
+    const CBlockIndex* pWorkBlockIndex = IsV20Active(pQuorumBaseBlockIndex) ?
+            pQuorumBaseBlockIndex->GetAncestor(pQuorumBaseBlockIndex->nHeight - 8) :
+            pQuorumBaseBlockIndex;
+    const auto modifier = GetHashModifier(llmqType, pQuorumBaseBlockIndex);
+    auto allMns = deterministicMNManager->GetListForBlock(pWorkBlockIndex);
     return allMns.CalculateQuorum(llmq_params_opt->size, modifier, HPMNOnly);
 }
 
