@@ -28,6 +28,15 @@ std::string getnewaddress(CWallet& w)
     return EncodeDestination(*Assert(w.GetNewDestination("")));
 }
 
+std::unique_ptr<WalletDatabase> CreateMockableWalletDatabase(std::map<SerializeData, SerializeData> records)
+{
+    return std::make_unique<MockableDatabase>(records);
+}
+
+MockableDatabase& GetMockableDatabase(CWallet& wallet)
+{
+    return dynamic_cast<MockableDatabase&>(wallet.GetDatabase());
+}
 // void importaddress(CWallet& wallet, const std::string& address)
 // {
 //     auto spk_man = wallet.GetLegacyScriptPubKeyMan();
