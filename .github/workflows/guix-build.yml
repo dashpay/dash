@@ -1,16 +1,13 @@
 name: Guix Build
 
 on:
-  push:
   pull_request:
+    types: [ labeled ]
 
 jobs:
   build:
     runs-on: self-hosted
-#    strategy:
-#      fail-fast: false
-#      matrix:
-#        host: [ x86_64-linux-gnu, arm-linux-gnueabihf, aarch64-linux-gnu, riscv64-linux-gnu, x86_64-w64-mingw32, x86_64-apple-darwin18 ]
+    if: contains(github.event.pull_request.labels.*.name, 'guix-build')
     steps:
       - name: Checkout
         uses: actions/checkout@v2
@@ -41,14 +38,6 @@ jobs:
           cache-from: type=local,src=/tmp/.buildx-cache
           cache-to: type=local,dest=/tmp/.buildx-cache
 
-#      - name: Cache Guix store
-#        uses: actions/cache@v2
-#        with:
-#          path: /tmp/guix-store
-#          key: guix-${{ hashFiles('**/guix.scm') }}
-#          restore-keys: |
-#            guix-
-
       - name: Run Guix build
         run: |
           export ADDITIONAL_GUIX_COMMON_FLAGS='--max-jobs=32' && \
@@ -72,9 +61,7 @@ jobs:
         run: |
           sha1sum guix-build-$(git rev-parse --short=12 HEAD)/distsrc-*/src/dashd{,.exe}
           sha1sum guix-build-$(git rev-parse --short=12 HEAD)/distsrc-*/src/qt/dash-qt{,.exe}
-#          sha1sum guix-build-$(git rev-parse --short=12 HEAD)/distsrc-*/src/dashd{,.exe}
       - name: Compute SHA256 checksum
         run: |
           sha256sum guix-build-$(git rev-parse --short=12 HEAD)/distsrc-*/src/dashd{,.exe}
           sha256sum guix-build-$(git rev-parse --short=12 HEAD)/distsrc-*/src/qt/dash-qt{,.exe}
-#          sha256sum guix-build-$(git rev-parse --short=12 HEAD)/distsrc-*/src/dashd{,.exe}
