@@ -166,8 +166,10 @@ std::vector<CDeterministicMNCPtr> ComputeQuorumMembers(Consensus::LLMQType llmqT
     bool HPMNOnly = (Params().GetConsensus().llmqTypePlatform == llmqType) && IsV19Active(pQuorumBaseBlockIndex);
     const auto& llmq_params_opt = GetLLMQParams(llmqType);
     assert(llmq_params_opt.has_value());
-    ASSERT_IF_DEBUG(!llmq_params_opt->useRotation);
-    if (llmq_params_opt->useRotation) return {};
+    if (llmq_params_opt->useRotation) {
+        ASSERT_IF_DEBUG(false);
+        return {};
+    }
 
     const CBlockIndex* pWorkBlockIndex = IsV20Active(pQuorumBaseBlockIndex) ?
             pQuorumBaseBlockIndex->GetAncestor(pQuorumBaseBlockIndex->nHeight - 8) :
