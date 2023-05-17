@@ -6,9 +6,11 @@
 
 #include <evo/cbtx.h>
 #include <core_io.h>
+#include <evo/cbtx.h>
 #include <evo/deterministicmns.h>
 #include <llmq/blockprocessor.h>
 #include <llmq/commitment.h>
+#include <llmq/quorums.h>
 #include <llmq/utils.h>
 #include <evo/specialtx.h>
 
@@ -178,6 +180,66 @@ bool CSimplifiedMNListDiff::BuildQuorumsDiff(const CBlockIndex* baseBlockIndex, 
             newQuorums.emplace_back(*qc);
         }
     }
+
+    return true;
+}
+
+bool CSimplifiedMNListDiff::BuildQuorumChainlockInfo(const CBlockIndex* blockIndex)
+{
+    // Group quorums (indexes corresponding to entries of newQuorums) per CBlockIndex containing the expected CL signature in CbTx.
+    // We want to avoid to load CbTx now, as more than one quorum will target the same block: hence we want to load CbTxs once per block (heavy operation).
+    std::multimap<const CBlockIndex*, uint16_t>  workBaseBlockIndexMap;
+
+    uint16_t idx = 0;
+    for (const auto& e : newQuorums) {
+        auto opt_params = llmq::GetLLMQParams(e.llmqType);
+        assert(opt_params.has_value());
+        Consensus::LLMQParams llmq_params = opt_params.value();
+        auto q = llmq::quorumManager->GetQuorum(e.llmqType, e.quorumHash);
+        const CBlockIndex* pWorkBaseBlockIndex = nullptr;
+        if (llmq_params.useRotation) {
+            // In case of rotation, all rotated quorums rely on the CL sig expected in the cycleBlock (the block of the first DKG) - 8
+            pWorkBaseBlockIndex = blockIndex->GetAncestor(q->m_quorum_base_block_index->nHeight - q->qc->quorumIndex - 8);
+        }
+        else {
+            // In case of non-rotation, quorums rely on the CL sig expected in the block of the DKG - 8
+            pWorkBaseBlockIndex = blockIndex->GetAncestor(q->m_quorum_base_block_index->nHeight - 8);
+        }
+
+        workBaseBlockIndexMap.insert(std::make_pair(pWorkBaseBlockIndex, idx));
+        idx++;
+    }
+
+    auto it = workBaseBlockIndexMap.begin();
+    while (it != workBaseBlockIndexMap.end()) {
+        // Iterate the std::multimap once per key (CBlockIndex containing the expected CL signature in CbTx)
+        const CBlockIndex* pWorkBaseBlockIndex = it->first;
+        auto cbcl = GetNonNullCoinbaseChainlock(pWorkBaseBlockIndex);
+        CBLSSignature sig;
+        if (cbcl.has_value()) {
+            sig = cbcl.value().first;
+        }
+        // Get the range of indexes (values) for the current key and merge them into a single std::set
+        auto range = workBaseBlockIndexMap.equal_range(pWorkBaseBlockIndex);
+        std::set<uint16_t> idx_set;
+        for (auto i = range.first; i != range.second; ++i) {
+            idx_set.insert(i->second);
+        }
+
+        // Different CBlockIndex can contain the same CL sig in CbTx (both non-null or null during the first blocks after v20 activation)
+        // Hence, we need to merge the std::set if another std::set already exists for the same sig.
+        auto it_sig = quorumsCLSigs.find(sig);
+        if (it_sig != quorumsCLSigs.end()) {
+            it_sig->second.insert(idx_set.begin(), idx_set.end());
+        }
+        else {
+            quorumsCLSigs.insert(std::make_pair(sig, idx_set));
+        }
+
+        // Advance the iterator to the next key
+        it = range.second;
+    }
+
     return true;
 }
 
@@ -233,6 +295,18 @@ void CSimplifiedMNListDiff::ToJson(UniValue& obj, bool extended) const
             obj.pushKV("merkleRootQuorums", cbTxPayload.merkleRootQuorums.ToString());
         }
     }
+
+    UniValue quorumsCLSigsArr(UniValue::VARR);
+    for (const auto& [signature, quorumsIndexes] : quorumsCLSigs) {
+        UniValue obj(UniValue::VOBJ);
+        UniValue idxArr(UniValue::VARR);
+        for (const auto& idx : quorumsIndexes) {
+            idxArr.push_back(idx);
+        }
+        obj.pushKV(signature.ToString(),idxArr);
+        quorumsCLSigsArr.push_back(obj);
+    }
+    obj.pushKV("quorumsCLSigs", quorumsCLSigsArr);
 }
 
 CSimplifiedMNListDiff BuildSimplifiedDiff(const CDeterministicMNList& from, const CDeterministicMNList& to, bool extended)
@@ -308,6 +382,13 @@ bool BuildSimplifiedMNListDiff(const uint256& baseBlockHash, const uint256& bloc
     if (!mnListDiffRet.BuildQuorumsDiff(baseBlockIndex, blockIndex, quorum_block_processor)) {
         errorRet = strprintf("failed to build quorums diff");
         return false;
+    }
+
+    if (llmq::utils::IsV20Active(blockIndex)) {
+        if (!mnListDiffRet.BuildQuorumChainlockInfo(blockIndex)) {
+            errorRet = strprintf("failed to build quorums chainlocks info");
+            return false;
+        }
     }
 
     // TODO store coinbase TX in CBlockIndex

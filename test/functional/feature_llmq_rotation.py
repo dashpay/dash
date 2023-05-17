@@ -94,7 +94,7 @@ class LLMQQuorumRotationTest(DashTestFramework):
 
         expectedDeleted = []
         expectedNew = [h_100_0, h_106_0, h_104_0, h_100_1, h_106_1, h_104_1]
-        quorumList = self.test_getmnlistdiff_quorums(b_h_0, b_h_1, {}, expectedDeleted, expectedNew)
+        quorumList = self.test_getmnlistdiff_quorums(b_h_0, b_h_1, {}, expectedDeleted, expectedNew, testQuorumsCLSigs=False)
 
         self.activate_v20(expected_activation_height=1440)
         self.log.info("Activated v20 at height:" + str(self.nodes[0].getblockcount()))
@@ -207,8 +207,8 @@ class LLMQQuorumRotationTest(DashTestFramework):
         wait_until(lambda: self.nodes[0].getbestblockhash() == new_quorum_blockhash, sleep=1)
         assert_equal(self.nodes[0].quorum("list", llmq_type), new_quorum_list)
 
-    def test_getmnlistdiff_quorums(self, baseBlockHash, blockHash, baseQuorumList, expectedDeleted, expectedNew):
-        d = self.test_getmnlistdiff_base(baseBlockHash, blockHash)
+    def test_getmnlistdiff_quorums(self, baseBlockHash, blockHash, baseQuorumList, expectedDeleted, expectedNew, testQuorumsCLSigs = True):
+        d = self.test_getmnlistdiff_base(baseBlockHash, blockHash, testQuorumsCLSigs)
 
         assert_equal(set(d.deletedQuorums), set(expectedDeleted))
         assert_equal(set([QuorumId(e.llmqType, e.quorumHash) for e in d.newQuorums]), set(expectedNew))
@@ -235,7 +235,7 @@ class LLMQQuorumRotationTest(DashTestFramework):
         return newQuorumList
 
 
-    def test_getmnlistdiff_base(self, baseBlockHash, blockHash):
+    def test_getmnlistdiff_base(self, baseBlockHash, blockHash, testQuorumsCLSigs):
         hexstr = self.nodes[0].getblockheader(blockHash, False)
         header = FromHex(CBlockHeader(), hexstr)
 
@@ -258,7 +258,18 @@ class LLMQQuorumRotationTest(DashTestFramework):
         assert_equal(set([int(e["proRegTxHash"], 16) for e in d2["mnList"]]), set([e.proRegTxHash for e in d.mnList]))
         assert_equal(set([QuorumId(e["llmqType"], int(e["quorumHash"], 16)) for e in d2["deletedQuorums"]]), set(d.deletedQuorums))
         assert_equal(set([QuorumId(e["llmqType"], int(e["quorumHash"], 16)) for e in d2["newQuorums"]]), set([QuorumId(e.llmqType, e.quorumHash) for e in d.newQuorums]))
-
+        # Check if P2P quorumsCLSigs matches with the corresponding in RPC
+        rpc_quorums_clsigs_dict = {k: v for d in d2["quorumsCLSigs"] for k, v in d.items()}
+        # p2p_quorums_clsigs_dict is constructed from the P2P message so it can be easily compared to rpc_quorums_clsigs_dict
+        p2p_quorums_clsigs_dict = dict()
+        for key, value in d.quorumsCLSigs.items():
+            idx_list = list(value)
+            p2p_quorums_clsigs_dict[key.hex()] = idx_list
+        assert_equal(rpc_quorums_clsigs_dict, p2p_quorums_clsigs_dict)
+        # The following test must be checked only after v20 activation
+        if testQuorumsCLSigs:
+            # Total number of corresponding quorum indexes in quorumsCLSigs must be equal to the total of quorums in newQuorums
+            assert_equal(len(d2["newQuorums"]), sum(len(value) for value in rpc_quorums_clsigs_dict.values()))
         return d
 
     def test_quorum_listextended(self, quorum_info, llmq_type_name):
