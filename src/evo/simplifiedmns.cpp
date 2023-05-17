@@ -298,13 +298,13 @@ void CSimplifiedMNListDiff::ToJson(UniValue& obj, bool extended) const
 
     UniValue quorumsCLSigsArr(UniValue::VARR);
     for (const auto& [signature, quorumsIndexes] : quorumsCLSigs) {
-        UniValue obj(UniValue::VOBJ);
+        UniValue j(UniValue::VOBJ);
         UniValue idxArr(UniValue::VARR);
         for (const auto& idx : quorumsIndexes) {
             idxArr.push_back(idx);
         }
-        obj.pushKV(signature.ToString(),idxArr);
-        quorumsCLSigsArr.push_back(obj);
+        j.pushKV(signature.ToString(),idxArr);
+        quorumsCLSigsArr.push_back(j);
     }
     obj.pushKV("quorumsCLSigs", quorumsCLSigsArr);
 }
