@@ -94,46 +94,17 @@ python3 "${CLANG_TIDY_CACHE_PY}" --show-stats 2>&1 || true
 cleanup_ctcache "${CTCACHE_DIR}" "${CTCACHE_MAXSIZE_MB}"
 echo "=========================="
 
+# Filter out files by regex here, because regex may not be
+# accepted in src/.bear-tidy-config
+# Filter out:
+# * qt qrc and moc generated files
+# * walletutil (temporarily)
+# * secp256k1
+jq 'map(select(.file | test("src/qt/qrc_.*\\.cpp$|/moc_.*\\.cpp$|src/secp256k1/src/") | not))' ../compile_commands.json > tmp.json
+mv tmp.json ../compile_commands.json
+
 cd "${BASE_ROOT_DIR}/build-ci/dashcore-${BUILD_TARGET}"
 iwyu_tool.py \
-  "src/common/init.cpp" \
-  "src/common/url.cpp" \
-  "src/compat" \
-  "src/dbwrapper.cpp" \
-  "src/init" \
-  "src/kernel" \
-  "src/node/chainstate.cpp" \
-  "src/node/chainstatemanager_args.cpp" \
-  "src/node/mempool_args.cpp" \
-  "src/node/utxo_snapshot.cpp" \
-  "src/node/validation_cache_args.cpp" \
-  "src/node/minisketchwrapper.cpp" \
-  "src/policy/feerate.cpp" \
-  "src/policy/packages.cpp" \
-  "src/policy/settings.cpp" \
-  "src/primitives/transaction.cpp" \
-  "src/random.cpp" \
-  "src/rpc/fees.cpp" \
-  "src/rpc/signmessage.cpp" \
-  "src/test/fuzz/string.cpp" \
-  "src/test/fuzz/txorphan.cpp" \
-  "src/test/fuzz/util/" \
-  "src/util/bip32.cpp" \
-  "src/util/bytevectorhash.cpp" \
-  "src/util/check.cpp" \
-  "src/util/error.cpp" \
-  "src/util/exception.cpp" \
-  "src/util/getuniquepath.cpp" \
-  "src/util/hasher.cpp" \
-  "src/util/message.cpp" \
-  "src/util/moneystr.cpp" \
-  "src/util/serfloat.cpp" \
-  "src/util/spanparsing.cpp" \
-  "src/util/string.cpp" \
-  "src/util/strencodings.cpp" \
-  "src/util/syserror.cpp" \
-  "src/util/threadinterrupt.cpp" \
-  "src/zmq" \
   -p . "${MAKEJOBS}" \
   -- -Xiwyu --cxx17ns -Xiwyu --mapping_file="${BASE_ROOT_DIR}/contrib/devtools/iwyu/bitcoin.core.imp" \
   -Xiwyu --max_line_length=160 \
