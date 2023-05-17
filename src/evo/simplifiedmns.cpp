@@ -6,7 +6,6 @@
 
 #include <evo/cbtx.h>
 #include <core_io.h>
-#include <evo/cbtx.h>
 #include <evo/deterministicmns.h>
 #include <llmq/blockprocessor.h>
 #include <llmq/commitment.h>
