@@ -42,6 +42,7 @@ RUN set -ex; \
     curl \
     g++ \
     git \
+    jq \
     libbz2-dev \
     liblzma-dev \
     libreadline-dev \
