@@ -531,9 +531,25 @@ class BitcoinTestFramework(metaclass=BitcoinTestMetaClass):
         return t_node
 
     def dynamically_initialize_datadir(self, node_p2p_port, node_rpc_port):
-        data_dir = get_datadir_path(self.options.tmpdir, len(self.nodes))
-        if not os.path.isdir(data_dir):
-            os.makedirs(data_dir)
+        source_data_dir = get_datadir_path(self.options.tmpdir, 0)  # use node0 as a source
+        new_data_dir = get_datadir_path(self.options.tmpdir, len(self.nodes))
+
+        # In general, it's a pretty bad idea to copy datadir folder on the fly...
+        # But we flush all state changes to disk via gettxoutsetinfo call and
+        # we don't care about wallets, so it works
+        self.nodes[0].gettxoutsetinfo()
+        shutil.copytree(source_data_dir, new_data_dir)
+
+        def new_chain_path(*paths):
+            chain = get_chain_folder(new_data_dir, self.chain)
+            return os.path.join(new_data_dir, chain, *paths)
+
+        shutil.rmtree(new_chain_path('wallets'))
+        shutil.rmtree(new_chain_path('llmq'))
+        for entry in os.listdir(new_chain_path()):
+            if entry not in ['chainstate', 'blocks', 'indexes', 'evodb']:
+                os.remove(new_chain_path(entry))
+
         # Translate chain name to config name
         if self.chain == 'testnet3':
             chain_name_conf_arg = 'testnet'
@@ -547,7 +563,8 @@ class BitcoinTestFramework(metaclass=BitcoinTestMetaClass):
             chain_name_conf_arg = self.chain
             chain_name_conf_section = self.chain
             chain_name_conf_arg_value = '1'
-        with open(os.path.join(data_dir, "dash.conf"), 'w', encoding='utf8') as f:
+
+        with open(os.path.join(new_data_dir, "dash.conf"), 'w', encoding='utf8') as f:
             f.write("{}={}\n".format(chain_name_conf_arg, chain_name_conf_arg_value))
             f.write("[{}]\n".format(chain_name_conf_section))
             f.write("port=" + str(node_p2p_port) + "\n")
@@ -561,8 +578,8 @@ class BitcoinTestFramework(metaclass=BitcoinTestMetaClass):
             f.write("upnp=0\n")
             f.write("natpmp=0\n")
             f.write("shrinkdebugfile=0\n")
-            os.makedirs(os.path.join(data_dir, 'stderr'), exist_ok=True)
-            os.makedirs(os.path.join(data_dir, 'stdout'), exist_ok=True)
+            os.makedirs(os.path.join(new_data_dir, 'stderr'), exist_ok=True)
+            os.makedirs(os.path.join(new_data_dir, 'stdout'), exist_ok=True)
 
     def start_node(self, i, *args, **kwargs):
         """Start a dashd"""
