@@ -530,22 +530,22 @@ class BitcoinTestFramework(metaclass=BitcoinTestMetaClass):
         self.nodes.append(t_node)
         return t_node
 
-    def dynamically_initialize_datadir(self, chain, node_p2p_port, node_rpc_port):
+    def dynamically_initialize_datadir(self, node_p2p_port, node_rpc_port):
         data_dir = get_datadir_path(self.options.tmpdir, len(self.nodes))
         if not os.path.isdir(data_dir):
             os.makedirs(data_dir)
         # Translate chain name to config name
-        if chain == 'testnet3':
+        if self.chain == 'testnet3':
             chain_name_conf_arg = 'testnet'
             chain_name_conf_section = 'test'
             chain_name_conf_arg_value = '1'
-        elif chain == 'devnet':
+        elif self.chain == 'devnet':
             chain_name_conf_arg = 'devnet'
             chain_name_conf_section = 'devnet'
             chain_name_conf_arg_value = 'devnet1'
         else:
-            chain_name_conf_arg = chain
-            chain_name_conf_section = chain
+            chain_name_conf_arg = self.chain
+            chain_name_conf_section = self.chain
             chain_name_conf_arg_value = '1'
         with open(os.path.join(data_dir, "dash.conf"), 'w', encoding='utf8') as f:
             f.write("{}={}\n".format(chain_name_conf_arg, chain_name_conf_arg_value))
@@ -1117,7 +1117,7 @@ class DashTestFramework(BitcoinTestFramework):
             # nothing to do
             return
 
-        self.dynamically_initialize_datadir(self.nodes[0].chain,node_p2p_port, node_rpc_port)
+        self.dynamically_initialize_datadir(node_p2p_port, node_rpc_port)
         node_info = self.add_dynamically_node(self.extra_args[1])
 
         args = ['-masternodeblsprivkey=%s' % created_mn_info.keyOperator] + node_info.extra_args
