@@ -123,15 +123,6 @@ public:
 
 class CSimplifiedMNListDiff
 {
-private:
-    struct BLSSignatureCompare {
-        // CBLSSignature doesn't support operator< needed for std::map quorumsCLSigs
-        // Hence we compare instead the hash (uint256) of each CBLSSignature
-        // Hash of each CBLSSignature should already be calculated and cached: no perf penalty
-        bool operator() (const CBLSSignature& a, const CBLSSignature& b) const {
-            return a.GetHash() < b.GetHash();
-        }
-    };
 public:
     static constexpr uint16_t CURRENT_VERSION = 1;
 
@@ -148,7 +139,7 @@ public:
 
     // Map of Chainlock Signature used for shuffling per set of quorums
     // The set of quorums is the set of indexes corresponding to entries in newQuorums
-    std::map<CBLSSignature, std::set<uint16_t>, BLSSignatureCompare> quorumsCLSigs;
+    std::map<CBLSSignature, std::set<uint16_t>> quorumsCLSigs;
 
     SERIALIZE_METHODS(CSimplifiedMNListDiff, obj)
     {
