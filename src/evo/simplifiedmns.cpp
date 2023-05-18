@@ -209,21 +209,22 @@ bool CSimplifiedMNListDiff::BuildQuorumChainlockInfo(const CBlockIndex* blockInd
         idx++;
     }
 
-    auto it = workBaseBlockIndexMap.begin();
-    while (it != workBaseBlockIndexMap.end()) {
-        // Iterate the std::multimap once per key (CBlockIndex containing the expected CL signature in CbTx)
+    for(auto it = workBaseBlockIndexMap.begin(); it != workBaseBlockIndexMap.end(); ) {
+        // Process each key (CBlockIndex containing the expected CL signature in CbTx) of the std::multimap once
         const CBlockIndex* pWorkBaseBlockIndex = it->first;
-        auto cbcl = GetNonNullCoinbaseChainlock(pWorkBaseBlockIndex);
+        const auto cbcl = GetNonNullCoinbaseChainlock(pWorkBaseBlockIndex);
         CBLSSignature sig;
         if (cbcl.has_value()) {
             sig = cbcl.value().first;
         }
         // Get the range of indexes (values) for the current key and merge them into a single std::set
-        auto range = workBaseBlockIndexMap.equal_range(pWorkBaseBlockIndex);
+        const auto range = workBaseBlockIndexMap.equal_range(it->first);
         std::set<uint16_t> idx_set;
-        for (auto i = range.first; i != range.second; ++i) {
-            idx_set.insert(i->second);
+        for (auto jt = range.first; jt != range.second; ++jt) {
+            idx_set.insert(jt->second);
         }
+        // Advance the iterator to the next key
+        it = range.second;
 
         // Different CBlockIndex can contain the same CL sig in CbTx (both non-null or null during the first blocks after v20 activation)
         // Hence, we need to merge the std::set if another std::set already exists for the same sig.
@@ -234,9 +235,6 @@ bool CSimplifiedMNListDiff::BuildQuorumChainlockInfo(const CBlockIndex* blockInd
         else {
             quorumsCLSigs.insert(std::make_pair(sig, idx_set));
         }
-
-        // Advance the iterator to the next key
-        it = range.second;
     }
 
     return true;
