@@ -93,7 +93,7 @@ BASE_SCRIPTS = [
     'feature_maxuploadtarget.py',
     'feature_block.py', # NOTE: needs dash_hash to pass
     'rpc_fundrawtransaction.py',
-    'rpc_fundrawtransaction_hd.py',
+    'rpc_fundrawtransaction.py --usehd',
     'wallet_multiwallet.py --usecli',
     'p2p_quorum_data.py',
     # vv Tests less than 2m vv
