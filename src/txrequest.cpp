@@ -66,7 +66,7 @@ struct Announcement {
     const bool m_preferred : 1;
 
     /** What state this announcement is in.
-     *  This is a uint8_t instead of a State to silence a GCC warning in versions prior to 8.4 and 9.3.
+     *  This is a uint8_t instead of a State to silence a GCC warning in versions prior to 9.3.
      *  See https://gcc.gnu.org/bugzilla/show_bug.cgi?id=61414 */
     uint8_t m_state : 3 {static_cast<uint8_t>(State::CANDIDATE_DELAYED)};
 
