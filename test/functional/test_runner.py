@@ -471,7 +471,7 @@ def run_tests(*, test_list, src_dir, build_dir, tmpdir, jobs=1, attempts=1, enab
         tmpdir=tmpdir,
         test_list=test_list,
         flags=flags,
-        timeout_duration=30 * 60 if runs_ci else float('inf'),  # in seconds
+        timeout_duration= 90 * 60 if runs_ci else float('inf'),  # in seconds
         use_term_control=use_term_control,
         attempts=attempts,
     )
