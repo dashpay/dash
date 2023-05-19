@@ -49,7 +49,6 @@ from .util import (
     make_change,
     p2p_port,
     set_node_times,
-    set_timeout_scale,
     satoshi_round,
     softfork_active,
     wait_until,
@@ -136,6 +135,10 @@ class BitcoinTestFramework(metaclass=BitcoinTestMetaClass):
         self.requires_wallet = False
         self.set_test_params()
         assert self.wallet_names is None or len(self.wallet_names) <= self.num_nodes
+        if self.options.timeout_scale != 1:
+            print("DEPRECATED: --timeoutscale option is no longer available, please use --timeout-factor instead")
+            if self.options.timeout_factor == 1:
+                self.options.timeout_factor = self.options.timeout_scale
         if self.options.timeout_factor == 0 :
             self.options.timeout_factor = 99999
         self.rpc_timeout = int(self.rpc_timeout * self.options.timeout_factor) # optionally, increase timeout by a factor
@@ -200,7 +203,7 @@ class BitcoinTestFramework(metaclass=BitcoinTestMetaClass):
         parser.add_argument("--dashd-arg", dest="dashd_extra_args", default=[], action="append",
                             help="Pass extra args to all dashd instances")
         parser.add_argument("--timeoutscale", dest="timeout_scale", default=1, type=int,
-                            help="Scale the test timeouts by multiplying them with the here provided value (default: %(default)s)")
+                            help=argparse.SUPPRESS)
         parser.add_argument("--perf", dest="perf", default=False, action="store_true",
                             help="profile running nodes with perf for the duration of the test")
         parser.add_argument("--valgrind", dest="valgrind", default=False, action="store_true",
@@ -226,11 +229,6 @@ class BitcoinTestFramework(metaclass=BitcoinTestMetaClass):
 
     def setup(self):
         """Call this method to start up the test framework object with options set."""
-
-        if self.options.timeout_scale < 1:
-            raise RuntimeError("--timeoutscale can't be less than 1")
-
-        set_timeout_scale(self.options.timeout_scale)
 
         PortSeed.n = self.options.port_seed
 
@@ -712,7 +710,6 @@ class BitcoinTestFramework(metaclass=BitcoinTestMetaClass):
         """
         rpc_connections = nodes or self.nodes
         timeout = int(timeout * self.options.timeout_factor)
-        timeout *= self.options.timeout_scale
         stop_time = time.time() + timeout
         while time.time() <= stop_time:
             best_hash = [x.getbestblockhash() for x in rpc_connections]
@@ -733,7 +730,6 @@ class BitcoinTestFramework(metaclass=BitcoinTestMetaClass):
         """
         rpc_connections = nodes or self.nodes
         timeout = int(timeout * self.options.timeout_factor)
-        timeout *= self.options.timeout_scale
         stop_time = time.time() + timeout
         if self.mocktime != 0 and wait_func is None:
             wait_func = lambda: self.bump_mocktime(3, nodes=nodes)
