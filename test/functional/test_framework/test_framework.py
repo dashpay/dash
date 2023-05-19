@@ -1051,6 +1051,13 @@ class DashTestFramework(BitcoinTestFramework):
 
     def activate_by_name(self, name, expected_activation_height=None):
         self.log.info("Wait for " + name + " activation")
+
+        # disable spork17 while mining blocks to activate "name" to prevent accidental quorum formation
+        spork17_value = self.nodes[0].spork('show')['SPORK_17_QUORUM_DKG_ENABLED']
+        self.bump_mocktime(1)
+        self.nodes[0].sporkupdate("SPORK_17_QUORUM_DKG_ENABLED", 4070908800)
+        self.wait_for_sporks_same()
+
         # mine blocks in batches
         batch_size = 10
         if expected_activation_height is not None:
@@ -1080,19 +1087,13 @@ class DashTestFramework(BitcoinTestFramework):
 
         assert softfork_active(self.nodes[0], name)
 
-    def activate_dip0024(self, expected_activation_height=None):
-        # disable spork17 while mining blocks to activate dip0024 to prevent accidental quorum formation
-        spork17_value = self.nodes[0].spork('show')['SPORK_17_QUORUM_DKG_ENABLED']
-        self.bump_mocktime(1)
-        self.nodes[0].sporkupdate("SPORK_17_QUORUM_DKG_ENABLED", 4070908800)
-        self.wait_for_sporks_same()
-
-        self.activate_by_name('dip0024', expected_activation_height)
-
         # revert spork17 changes
         self.bump_mocktime(1)
         self.nodes[0].sporkupdate("SPORK_17_QUORUM_DKG_ENABLED", spork17_value)
         self.wait_for_sporks_same()
+
+    def activate_dip0024(self, expected_activation_height=None):
+        self.activate_by_name('dip0024', expected_activation_height)
 
     def activate_v19(self, expected_activation_height=None):
         self.activate_by_name('v19', expected_activation_height)
