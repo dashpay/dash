@@ -538,15 +538,12 @@ class BitcoinTestFramework(metaclass=BitcoinTestMetaClass):
         self.nodes[0].gettxoutsetinfo()
         shutil.copytree(source_data_dir, new_data_dir)
 
-        def new_chain_path(*paths):
-            chain = get_chain_folder(new_data_dir, self.chain)
-            return os.path.join(new_data_dir, chain, *paths)
+        shutil.rmtree(os.path.join(new_data_dir, self.chain, 'wallets'))
+        shutil.rmtree(os.path.join(new_data_dir, self.chain, 'llmq'))
 
-        shutil.rmtree(new_chain_path('wallets'))
-        shutil.rmtree(new_chain_path('llmq'))
-        for entry in os.listdir(new_chain_path()):
+        for entry in os.listdir(os.path.join(new_data_dir, self.chain)):
             if entry not in ['chainstate', 'blocks', 'indexes', 'evodb']:
-                os.remove(new_chain_path(entry))
+                os.remove(os.path.join(new_data_dir, self.chain, entry))
 
         # Translate chain name to config name
         if self.chain == 'testnet3':
