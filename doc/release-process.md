@@ -204,7 +204,7 @@ cat "$VERSION"/*/all.SHA256SUMS.asc > SHA256SUMS.asc
 #### Prerequisites
 Make sure you have the latest Xcode installed on your macOS device. You can download it from the Apple Developer website.
 You should have a valid Apple Developer ID under the team you are using which is necessary for the notarization process.
-
+To avoid including your password as cleartext in a notarization script, you can provide a reference to a keychain item. You can add a new keychain item named AC_PASSWORD from the command line using the notarytool utility:
 ```
 xcrun notarytool store-credentials "AC_PASSWORD" --apple-id "AC_USERNAME" --team-id <WWDRTeamID> --password <secret_2FA_password>
 ```
@@ -217,7 +217,7 @@ Then, run the following command to notarize the .dmg file:
 ```
 xcrun notarytool submit dashcore-{version}-osx.dmg --keychain-profile "AC_PASSWORD" --wait
 ```
-Replace "{version}" with the version you are notarizing and "AC_PASSWORD" with your keychain profile. This command uploads the .dmg file to Apple's notary service.
+Replace "{version}" with the version you are notarizing. This command uploads the .dmg file to Apple's notary service.
 
 The --wait option makes the command wait to return until the notarization process is complete.
 
@@ -226,9 +226,6 @@ If the notarization process is successful, the notary service generates a log fi
 #### Notarization Validation
 
 After successfully notarizing the .dmg file, extract "Dash-Qt.app" from the .dmg.
-
-Validate the Notarization
-
 To verify that the notarization process was successful, run the following command:
 
 ```
