@@ -2198,8 +2198,11 @@ bool AppInitMain(const CoreContext& context, NodeContext& node, interfaces::Bloc
                             break;
                         }
 
-                        if (llmq::utils::IsV19Active(tip))
+                        bool v19active = llmq::utils::IsV19Active(tip);
+                        if (llmq::utils::IsV19Active(tip)) {
                             bls::bls_legacy_scheme.store(false);
+                            LogPrintf("%s: bls_legacy_scheme=%d\n", __func__, bls::bls_legacy_scheme.load());
+                        }
 
                         if (!CVerifyDB().VerifyDB(
                                 *chainstate, chainparams, chainstate->CoinsDB(),
@@ -2210,6 +2213,14 @@ bool AppInitMain(const CoreContext& context, NodeContext& node, interfaces::Bloc
                             failed_verification = true;
                             break;
                         }
+
+                        // VerifyDB() disconnects blocks which might result in us switching back to legacy.
+                        // Make sure we use the right scheme.
+                        if (v19active && bls::bls_legacy_scheme.load()) {
+                            bls::bls_legacy_scheme.store(false);
+                            LogPrintf("%s: bls_legacy_scheme=%d\n", __func__, bls::bls_legacy_scheme.load());
+                        }
+
                     } else {
                         // TODO: CEvoDB instance should probably be a part of CChainState
                         // (for multiple chainstates to actually work in parallel)
