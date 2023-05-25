@@ -2174,6 +2174,10 @@ bool AppInitMain(const CoreContext& context, NodeContext& node, interfaces::Bloc
                     strLoadError = _("Error upgrading evo database");
                     break;
                 }
+                if (!deterministicMNManager->MigrateDBIfNeeded2()) {
+                    strLoadError = _("Error upgrading evo database");
+                    break;
+                }
 
                 if (!llmq::quorumBlockProcessor->UpgradeDB()) {
                     strLoadError = _("Error upgrading evo database");
