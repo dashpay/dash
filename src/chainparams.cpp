@@ -778,9 +778,9 @@ public:
         consensus.vDeployments[Consensus::DEPLOYMENT_V19].bit = 8;
         consensus.vDeployments[Consensus::DEPLOYMENT_V19].nStartTime = 0;
         consensus.vDeployments[Consensus::DEPLOYMENT_V19].nTimeout = 999999999999ULL;
-        consensus.vDeployments[Consensus::DEPLOYMENT_V19].nWindowSize = 300;
-        consensus.vDeployments[Consensus::DEPLOYMENT_V19].nThresholdStart = 240; // 80% of 300
-        consensus.vDeployments[Consensus::DEPLOYMENT_V19].nThresholdMin = 180;   // 60% of 300
+        consensus.vDeployments[Consensus::DEPLOYMENT_V19].nWindowSize = 576;
+        consensus.vDeployments[Consensus::DEPLOYMENT_V19].nThresholdStart = 460;       // 80% of 4032
+        consensus.vDeployments[Consensus::DEPLOYMENT_V19].nThresholdMin = 345;
         consensus.vDeployments[Consensus::DEPLOYMENT_V19].nFalloffCoeff = 5;     // this corresponds to 10 periods
 
         consensus.vDeployments[Consensus::DEPLOYMENT_V20].bit = 9;

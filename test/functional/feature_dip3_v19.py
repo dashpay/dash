@@ -69,14 +69,8 @@ class DIP3V19Test(DashTestFramework):
         mn_list_before = self.nodes[0].masternodelist()
         pubkeyoperator_list_before = set([mn_list_before[e]["pubkeyoperator"] for e in mn_list_before])
 
-        self.activate_v19(expected_activation_height=900)
-        self.log.info("Activated v19 at height:" + str(self.nodes[0].getblockcount()))
-
-        mn_list_after = self.nodes[0].masternodelist()
-        pubkeyoperator_list_after = set([mn_list_after[e]["pubkeyoperator"] for e in mn_list_after])
-
-        self.log.info("pubkeyoperator should still be shown using legacy scheme")
-        assert_equal(pubkeyoperator_list_before, pubkeyoperator_list_after)
+        self.activate_dip0024(expected_activation_height=900)
+        self.log.info("Activated dip24 at height:" + str(self.nodes[0].getblockcount()))
 
         self.move_to_next_cycle()
         self.log.info("Cycle H height:" + str(self.nodes[0].getblockcount()))
@@ -86,6 +80,54 @@ class DIP3V19Test(DashTestFramework):
         self.log.info("Cycle H+2C height:" + str(self.nodes[0].getblockcount()))
 
         self.mine_cycle_quorum(llmq_type_name='llmq_test_dip0024', llmq_type=103)
+
+        self.log.info("Checking something at"+str(self.nodes[0].getblockcount()))
+        mn_info_6 = self.dynamically_add_masternode(hpmn=False, rnd=10, should_be_rejected=False)
+        self.log.info("Registred at"+str(self.nodes[0].getblockcount()))
+
+        self.bump_mocktime(700)
+        self.nodes[0].generate(700)
+        self.sync_blocks()
+
+        #self.log.info("Checking something at"+str(self.nodes[0].getblockcount()))
+        #mn_info_6 = self.dynamically_add_masternode(hpmn=False, rnd=10, should_be_rejected=False)
+
+
+        self.bump_mocktime(14)
+        self.nodes[0].generate(14)
+        self.sync_blocks()
+
+        self.log.info("Checking something at"+str(self.nodes[0].getblockcount()))
+        self.dynamically_hpmn_update_registrar(mn_info_6, rnd=10, should_be_rejected=False)
+        self.bump_mocktime(4)
+        self.nodes[0].generate(4)
+        self.sync_blocks()
+
+        self.log.info("TEST something at"+str(self.nodes[0].getblockcount()))
+        tip = self.nodes[0].getblockcount()
+        for i in range(20):
+            delta = i*15
+            dummy = self.nodes[0].protx("diff", 1100+delta, tip - delta)
+            base_block_hash = self.nodes[0].getblockhash(1100+delta)
+            block_hash = self.nodes[0].getblockhash(tip - delta)
+            d = self.test_getmnlistdiff_base(base_block_hash, block_hash)
+
+        self.activate_v19(expected_activation_height=1728)
+        self.log.info("Activated v19 at height:" + str(self.nodes[0].getblockcount()))
+
+        self.nodes[0].generate(4)
+        self.sync_blocks(self.nodes)
+
+        self.log.info("::" + str(self.nodes[0].getblockchaininfo()))
+
+        return
+
+        tip = self.nodes[0].getblockcount()
+        protx_diff = self.nodes[0].protx("diff", 984, tip)
+
+        self.log.info(str(protx_diff))
+
+        return
 
         hpmn_info_0 = self.dynamically_add_masternode(hpmn=True, rnd=7)
         assert hpmn_info_0 is not None
@@ -198,6 +240,35 @@ class DIP3V19Test(DashTestFramework):
 
         return d
 
+    def spend_mn_collateral(self, mn, with_dummy_input_output=False):
+        return self.spend_input(mn.collateral_txid, mn.collateral_vout, 1000, with_dummy_input_output)
+
+    def spend_input(self, txid, vout, amount, with_dummy_input_output=False):
+        # with_dummy_input_output is useful if you want to test reorgs with double spends of the TX without touching the actual txid/vout
+        address = self.nodes[0].getnewaddress()
+
+        txins = [
+            {'txid': txid, 'vout': vout}
+        ]
+        targets = {address: amount}
+
+        dummy_txin = None
+        if with_dummy_input_output:
+            dummyaddress = self.nodes[0].getnewaddress()
+            unspent = self.nodes[0].listunspent(110)
+            for u in unspent:
+                if u['amount'] > Decimal(1):
+                    dummy_txin = {'txid': u['txid'], 'vout': u['vout']}
+                    txins.append(dummy_txin)
+                    targets[dummyaddress] = float(u['amount'] - Decimal(0.0001))
+                    break
+
+        rawtx = self.nodes[0].createrawtransaction(txins, targets)
+        rawtx = self.nodes[0].fundrawtransaction(rawtx)['hex']
+        rawtx = self.nodes[0].signrawtransactionwithwallet(rawtx)['hex']
+        self.nodes[0].sendrawtransaction(rawtx)
+        self.wait_for_instantlock(rawtx, self.nodes[0])
+        return dummy_txin
 
 if __name__ == '__main__':
     DIP3V19Test().main()

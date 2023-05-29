@@ -1227,6 +1227,33 @@ class DashTestFramework(BitcoinTestFramework):
 
         assert_equal(protx_success, not should_be_rejected)
 
+    def dynamically_hpmn_update_registrar(self, hpmn_info, rnd=None, should_be_rejected=False):
+        bls = self.nodes[0].bls('generate')
+        funds_address = self.nodes[0].getnewaddress()
+
+        fund_txid = self.nodes[0].sendtoaddress(funds_address, 1)
+        self.wait_for_instantlock(fund_txid, self.nodes[0])
+        tip = self.nodes[0].generate(1)[0]
+        assert_equal(self.nodes[0].getrawtransaction(fund_txid, 1, tip)['confirmations'], 1)
+        self.sync_all(self.nodes)
+
+        protx_success = False
+        try:
+            update_registrar_rpc = 'update_registrar_hpmn' if hpmn_info.hpmn else 'update_registrar'
+            protx_result = self.nodes[0].protx(update_registrar_rpc, hpmn_info.proTxHash, bls['public'], "", "", funds_address)
+            self.wait_for_instantlock(protx_result, self.nodes[0])
+            tip = self.nodes[0].generate(1)[0]
+            assert_equal(self.nodes[0].getrawtransaction(protx_result, 1, tip)['confirmations'], 1)
+            self.sync_all(self.nodes)
+            mn_type_str = "HPMN" if hpmn_info.hpmn else "MN"
+            self.log.info("Updated %s %s: pubKeyOperator=%s" % (mn_type_str, hpmn_info.proTxHash, bls['public']))
+            protx_success = True
+        except Exception as e:
+            self.log.info("protx_hpmn rejected")
+            self.log.info(f"Exception: {e}")
+
+        assert_equal(protx_success, not should_be_rejected)
+
     def prepare_masternodes(self):
         self.log.info("Preparing %d masternodes" % self.mn_count)
         rewardsAddr = self.nodes[0].getnewaddress()
