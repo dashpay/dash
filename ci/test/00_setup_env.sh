@@ -6,6 +6,8 @@
 
 export LC_ALL=C.UTF-8
 
+set -ex
+
 # The root dir.
 # The ci system copies this folder.
 BASE_ROOT_DIR=$( cd "$( dirname "${BASH_SOURCE[0]}" )"/../../ >/dev/null 2>&1 && pwd )
@@ -49,7 +51,6 @@ export RUN_STDLIB_PATH_CHECK=${RUN_STDLIB_PATH_CHECK:-false}
 export TEST_RUNNER_TIMEOUT_FACTOR=${TEST_RUNNER_TIMEOUT_FACTOR:-4}
 export RUN_FUZZ_TESTS=${RUN_FUZZ_TESTS:-false}
 
-export CONTAINER_NAME=${CONTAINER_NAME:-ci_unnamed}
 # Randomize test order.
 # See https://www.boost.org/doc/libs/1_71_0/libs/test/doc/html/boost_test/utf_reference/rt_param_reference/random.html
 export BOOST_TEST_RANDOM=${BOOST_TEST_RANDOM:-1}
