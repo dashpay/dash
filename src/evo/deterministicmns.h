@@ -398,12 +398,12 @@ public:
     template <typename T>
     [[nodiscard]] bool HasUniqueProperty(const T& v) const
     {
-        return mnUniquePropertyMap.count(::SerializeHash(v)) != 0;
+        return mnUniquePropertyMap.count(GetUniquePropertyHash(v)) != 0;
     }
     template <typename T>
     [[nodiscard]] CDeterministicMNCPtr GetUniquePropertyMN(const T& v) const
     {
-        auto p = mnUniquePropertyMap.find(::SerializeHash(v));
+        auto p = mnUniquePropertyMap.find(GetUniquePropertyHash(v));
         if (!p) {
             return nullptr;
         }
@@ -412,6 +412,14 @@ public:
 
 private:
     template <typename T>
+    [[nodiscard]] uint256 GetUniquePropertyHash(const T& v) const
+    {
+        if constexpr (std::is_same<T, CBLSPublicKey>()) {
+            assert(false);
+        }
+        return ::SerializeHash(v);
+    }
+    template <typename T>
     [[nodiscard]] bool AddUniqueProperty(const CDeterministicMN& dmn, const T& v)
     {
         static const T nullValue;
@@ -419,7 +427,7 @@ private:
             return false;
         }
 
-        auto hash = ::SerializeHash(v);
+        auto hash = GetUniquePropertyHash(v);
         auto oldEntry = mnUniquePropertyMap.find(hash);
         if (oldEntry != nullptr && oldEntry->first != dmn.proTxHash) {
             return false;
@@ -439,7 +447,7 @@ private:
             return false;
         }
 
-        auto oldHash = ::SerializeHash(oldValue);
+        auto oldHash = GetUniquePropertyHash(oldValue);
         auto p = mnUniquePropertyMap.find(oldHash);
         if (p == nullptr || p->first != dmn.proTxHash) {
             return false;
