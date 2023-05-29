@@ -1709,7 +1709,10 @@ bool AppInitMain(const CoreContext& context, NodeContext& node, interfaces::Bloc
             activeMasternodeInfo.blsKeyOperator = std::make_unique<CBLSSecretKey>(keyOperator);
             activeMasternodeInfo.blsPubKeyOperator = std::make_unique<CBLSPublicKey>(keyOperator.GetPublicKey());
         }
-        LogPrintf("MASTERNODE:\n  blsPubKeyOperator: %s\n", activeMasternodeInfo.blsPubKeyOperator->ToString());
+        // We don't know the actual scheme at this point, print both
+        LogPrintf("MASTERNODE:\n  blsPubKeyOperator legacy: %s\n  blsPubKeyOperator basic: %s\n",
+                activeMasternodeInfo.blsPubKeyOperator->ToString(true),
+                activeMasternodeInfo.blsPubKeyOperator->ToString(false));
     } else {
         LOCK(activeMasternodeInfoCs);
         activeMasternodeInfo.blsKeyOperator = std::make_unique<CBLSSecretKey>();
