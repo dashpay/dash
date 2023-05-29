@@ -167,6 +167,7 @@ public:
     explicit CDeterministicMNState(const CProRegTx& proTx) :
         nVersion(proTx.nVersion),
         keyIDOwner(proTx.keyIDOwner),
+        pubKeyOperator(proTx.pubKeyOperator),
         keyIDVoting(proTx.keyIDVoting),
         addr(proTx.addr),
         scriptPayout(proTx.scriptPayout),
@@ -174,7 +175,6 @@ public:
         platformP2PPort(proTx.platformP2PPort),
         platformHTTPPort(proTx.platformHTTPPort)
     {
-        pubKeyOperator.Set(proTx.pubKeyOperator);
     }
     explicit CDeterministicMNState(const CDeterministicMNState_Oldformat& s) :
         nPoSeBanHeight(s.nPoSeBanHeight),
@@ -246,7 +246,7 @@ public:
 
     void ResetOperatorFields()
     {
-        pubKeyOperator.Set(CBLSPublicKey());
+        pubKeyOperator.Set(CBLSPublicKey(), bls::bls_legacy_scheme.load());
         addr = CService();
         scriptOperatorPayout = CScript();
         nRevocationReason = CProUpRevTx::REASON_NOT_SPECIFIED;
