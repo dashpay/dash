@@ -858,12 +858,12 @@ bool CDeterministicMNManager::BuildNewListFromBlock(const CBlock& block, const C
                 return state.Invalid(BlockValidationResult::BLOCK_CONSENSUS, "bad-protx-hash");
             }
             auto newState = std::make_shared<CDeterministicMNState>(*dmn->pdmnState);
-            if (newState->pubKeyOperator.Get() != proTx.pubKeyOperator) {
+            if (newState->pubKeyOperator != proTx.pubKeyOperator) {
                 // reset all operator related fields and put MN into PoSe-banned state in case the operator key changes
                 newState->ResetOperatorFields();
                 newState->BanIfNotBanned(nHeight);
             }
-            newState->pubKeyOperator.Set(proTx.pubKeyOperator);
+            newState->pubKeyOperator = proTx.pubKeyOperator;
             newState->keyIDVoting = proTx.keyIDVoting;
             newState->scriptPayout = proTx.scriptPayout;
 

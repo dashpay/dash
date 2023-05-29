@@ -23,7 +23,7 @@ bool CProRegTx::IsTriviallyValid(bool is_bls_legacy_scheme, TxValidationState& s
         return state.Invalid(TxValidationResult::TX_CONSENSUS, "bad-protx-mode");
     }
 
-    if (keyIDOwner.IsNull() || !pubKeyOperator.IsValid() || keyIDVoting.IsNull()) {
+    if (keyIDOwner.IsNull() || !pubKeyOperator.Get().IsValid() || keyIDVoting.IsNull()) {
         return state.Invalid(TxValidationResult::TX_BAD_SPECIAL, "bad-protx-key-null");
     }
     if (!scriptPayout.IsPayToPublicKeyHash() && !scriptPayout.IsPayToScriptHash()) {
@@ -114,7 +114,7 @@ bool CProUpRegTx::IsTriviallyValid(bool is_bls_legacy_scheme, TxValidationState&
         return state.Invalid(TxValidationResult::TX_CONSENSUS, "bad-protx-mode");
     }
 
-    if (!pubKeyOperator.IsValid() || keyIDVoting.IsNull()) {
+    if (!pubKeyOperator.Get().IsValid() || keyIDVoting.IsNull()) {
         return state.Invalid(TxValidationResult::TX_BAD_SPECIAL, "bad-protx-key-null");
     }
     if (!scriptPayout.IsPayToPublicKeyHash() && !scriptPayout.IsPayToScriptHash()) {
