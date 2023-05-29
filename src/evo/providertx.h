@@ -104,7 +104,7 @@ public:
         if (ExtractDestination(scriptPayout, dest)) {
             obj.pushKV("payoutAddress", EncodeDestination(dest));
         }
-        obj.pushKV("pubKeyOperator", pubKeyOperator.ToString(nVersion == LEGACY_BLS_VERSION));
+        obj.pushKV("pubKeyOperator", pubKeyOperator.ToString());
         obj.pushKV("operatorReward", (double)nOperatorReward / 100);
         if (nType == MnType::HighPerformance) {
             obj.pushKV("platformNodeID", platformNodeID.ToString());
@@ -255,7 +255,7 @@ public:
         if (ExtractDestination(scriptPayout, dest)) {
             obj.pushKV("payoutAddress", EncodeDestination(dest));
         }
-        obj.pushKV("pubKeyOperator", pubKeyOperator.ToString(nVersion == LEGACY_BLS_VERSION));
+        obj.pushKV("pubKeyOperator", pubKeyOperator.ToString());
         obj.pushKV("inputsHash", inputsHash.ToString());
     }
 

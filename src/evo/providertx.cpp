@@ -81,7 +81,7 @@ std::string CProRegTx::ToString() const
     }
 
     return strprintf("CProRegTx(nVersion=%d, nType=%d, collateralOutpoint=%s, addr=%s, nOperatorReward=%f, ownerAddress=%s, pubKeyOperator=%s, votingAddress=%s, scriptPayout=%s, platformNodeID=%s, platformP2PPort=%d, platformHTTPPort=%d)",
-                     nVersion, ToUnderlying(nType), collateralOutpoint.ToStringShort(), addr.ToString(), (double)nOperatorReward / 100, EncodeDestination(PKHash(keyIDOwner)), pubKeyOperator.ToString(nVersion == LEGACY_BLS_VERSION), EncodeDestination(PKHash(keyIDVoting)), payee, platformNodeID.ToString(), platformP2PPort, platformHTTPPort);
+                     nVersion, ToUnderlying(nType), collateralOutpoint.ToStringShort(), addr.ToString(), (double)nOperatorReward / 100, EncodeDestination(PKHash(keyIDOwner)), pubKeyOperator.ToString(), EncodeDestination(PKHash(keyIDVoting)), payee, platformNodeID.ToString(), platformP2PPort, platformHTTPPort);
 }
 
 bool CProUpServTx::IsTriviallyValid(bool is_bls_legacy_scheme, TxValidationState& state) const
@@ -132,7 +132,7 @@ std::string CProUpRegTx::ToString() const
     }
 
     return strprintf("CProUpRegTx(nVersion=%d, proTxHash=%s, pubKeyOperator=%s, votingAddress=%s, payoutAddress=%s)",
-        nVersion, proTxHash.ToString(), pubKeyOperator.ToString(nVersion == LEGACY_BLS_VERSION), EncodeDestination(PKHash(keyIDVoting)), payee);
+        nVersion, proTxHash.ToString(), pubKeyOperator.ToString(), EncodeDestination(PKHash(keyIDVoting)), payee);
 }
 
 bool CProUpRevTx::IsTriviallyValid(bool is_bls_legacy_scheme, TxValidationState& state) const

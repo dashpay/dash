@@ -561,6 +561,11 @@ public:
         }
         return hash;
     }
+
+    std::string ToString() const
+    {
+        return Get().ToString(bufLegacyScheme);
+    }
 };
 using CBLSLazySignature = CBLSLazyWrapper<CBLSSignature>;
 using CBLSLazyPublicKey = CBLSLazyWrapper<CBLSPublicKey>;
