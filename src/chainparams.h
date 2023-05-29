@@ -6,7 +6,7 @@
 #ifndef BITCOIN_CHAINPARAMS_H
 #define BITCOIN_CHAINPARAMS_H
 
-#include <kernel/chainparams.h>
+#include <kernel/chainparams.h> // IWYU pragma: export
 
 #include <consensus/params.h>
 #include <llmq/params.h>
