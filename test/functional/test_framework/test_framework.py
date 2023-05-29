@@ -1244,6 +1244,8 @@ class DashTestFramework(BitcoinTestFramework):
             self.wait_for_instantlock(protx_result, self.nodes[0])
             tip = self.nodes[0].generate(1)[0]
             assert_equal(self.nodes[0].getrawtransaction(protx_result, 1, tip)['confirmations'], 1)
+            # changing MN results in disconnects, reconnect it back to let sync_blocks finish correctly
+            self.connect_nodes(hpmn_info.nodeIdx, 0)
             self.sync_all(self.nodes)
             mn_type_str = "HPMN" if hpmn_info.hpmn else "MN"
             self.log.info("Updated %s %s: pubKeyOperator=%s" % (mn_type_str, hpmn_info.proTxHash, bls['public']))
