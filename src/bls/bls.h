@@ -476,7 +476,7 @@ public:
     template<typename Stream>
     inline void Serialize(Stream& s) const
     {
-        Serialize(s, bls::bls_legacy_scheme.load());
+        Serialize(s, bufLegacyScheme);
     }
 
     template<typename Stream>
@@ -493,13 +493,14 @@ public:
     template<typename Stream>
     inline void Unserialize(Stream& s) const
     {
-        Unserialize(s, bls::bls_legacy_scheme.load());
+        Unserialize(s, bufLegacyScheme);
     }
 
-    void Set(const BLSObject& _obj)
+    void Set(const BLSObject& _obj, const bool specificLegacyScheme)
     {
         std::unique_lock<std::mutex> l(mutex);
         bufValid = false;
+        bufLegacyScheme = specificLegacyScheme;
         objInitialized = true;
         obj = _obj;
         hash.SetNull();
@@ -549,13 +550,12 @@ public:
         return !(*this == r);
     }
 
-    uint256 GetHash(const bool specificLegacyScheme = bls::bls_legacy_scheme.load()) const
+    uint256 GetHash() const
     {
         std::unique_lock<std::mutex> l(mutex);
-        if (!bufValid || bufLegacyScheme != specificLegacyScheme) {
-            vecBytes = obj.ToByteVector(specificLegacyScheme);
+        if (!bufValid) {
+            vecBytes = obj.ToByteVector(bufLegacyScheme);
             bufValid = true;
-            bufLegacyScheme = specificLegacyScheme;
             hash.SetNull();
         }
         if (hash.IsNull()) {
