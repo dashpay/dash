@@ -85,10 +85,9 @@ class DIP3V19Test(DashTestFramework):
         mn_info_6 = self.dynamically_add_masternode(hpmn=False, rnd=10, should_be_rejected=False)
         self.log.info("Registred at"+str(self.nodes[0].getblockcount()))
 
-        for _ in range(70):
-            self.bump_mocktime(10)
-            self.nodes[0].generate(10)
-            self.sync_blocks()
+        self.bump_mocktime(700)
+        self.nodes[0].generate(700)
+        self.sync_blocks()
 
         #self.log.info("Checking something at"+str(self.nodes[0].getblockcount()))
         #mn_info_6 = self.dynamically_add_masternode(hpmn=False, rnd=10, should_be_rejected=False)
@@ -102,8 +101,6 @@ class DIP3V19Test(DashTestFramework):
         self.dynamically_hpmn_update_registrar(mn_info_6, rnd=10, should_be_rejected=False)
         self.bump_mocktime(4)
         self.nodes[0].generate(4)
-        # changing MN results in disconnects, reconnect it back to let sync_blocks finish correctly
-        self.connect_nodes(mn_info_6.nodeIdx, 0)
         self.sync_blocks()
 
         self.log.info("TEST something at"+str(self.nodes[0].getblockcount()))
@@ -119,8 +116,6 @@ class DIP3V19Test(DashTestFramework):
         self.log.info("Activated v19 at height:" + str(self.nodes[0].getblockcount()))
 
         self.nodes[0].generate(4)
-        # changing MN results in disconnects, reconnect it back to let sync_blocks finish correctly
-        self.connect_nodes(mn_info_6.nodeIdx, 0)
         self.sync_blocks(self.nodes)
 
         self.log.info("::" + str(self.nodes[0].getblockchaininfo()))

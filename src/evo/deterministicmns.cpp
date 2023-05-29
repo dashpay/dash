@@ -1026,14 +1026,15 @@ CDeterministicMNList CDeterministicMNManager::GetListForBlockInternal(const CBlo
 
     while (true) {
         // try using cache before reading from disk
+        /*
         auto itLists = mnListsCache.find(pindex->GetBlockHash());
         if (itLists != mnListsCache.end()) {
-            // snapshot = itLists->second;
-            // break;
+            snapshot = itLists->second;
+            break;
         }
-
+        */
         if (m_evoDb.Read(std::make_pair(DB_LIST_SNAPSHOT, pindex->GetBlockHash()), snapshot)) {
-            mnListsCache.emplace(pindex->GetBlockHash(), snapshot);
+            //mnListsCache.emplace(pindex->GetBlockHash(), snapshot);
             break;
         }
 
@@ -1049,7 +1050,7 @@ CDeterministicMNList CDeterministicMNManager::GetListForBlockInternal(const CBlo
         if (!m_evoDb.Read(std::make_pair(DB_LIST_DIFF, pindex->GetBlockHash()), diff)) {
             // no snapshot and no diff on disk means that it's the initial snapshot
             snapshot = CDeterministicMNList(pindex->GetBlockHash(), -1, 0);
-            mnListsCache.emplace(pindex->GetBlockHash(), snapshot);
+            //mnListsCache.emplace(pindex->GetBlockHash(), snapshot);
             break;
         }
 
