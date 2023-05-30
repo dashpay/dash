@@ -13,7 +13,7 @@ class ArgsManager;
 struct bilingual_str;
 
 namespace node {
-std::optional<bilingual_str> ApplyArgsManOptions(const ArgsManager& args, ChainstateManager::Options& opts);
+[[nodiscard]] std::optional<bilingual_str> ApplyArgsManOptions(const ArgsManager& args, ChainstateManager::Options& opts);
 } // namespace node
 
 #endif // BITCOIN_NODE_CHAINSTATEMANAGER_ARGS_H

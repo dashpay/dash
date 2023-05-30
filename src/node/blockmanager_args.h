@@ -14,7 +14,7 @@ class ArgsManager;
 struct bilingual_str;
 
 namespace node {
-std::optional<bilingual_str> ApplyArgsManOptions(const ArgsManager& args, BlockManager::Options& opts);
+[[nodiscard]] std::optional<bilingual_str> ApplyArgsManOptions(const ArgsManager& args, BlockManager::Options& opts);
 } // namespace node
 
 #endif // BITCOIN_NODE_BLOCKMANAGER_ARGS_H
